@@ -255,6 +255,9 @@ static const MemoryRegionOps npcm7xx_fiu_flash_ops = {
         .max_access_size = 8,
         .unaligned = true,
     },
+    .impl = {
+        .unaligned = true,
+    },
 };
 
 /* Control register read handler. */

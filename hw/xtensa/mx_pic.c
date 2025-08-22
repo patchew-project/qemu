@@ -270,6 +270,9 @@ static const MemoryRegionOps xtensa_mx_pic_ops = {
     .valid = {
         .unaligned = true,
     },
+    .impl = {
+        .unaligned = true,
+    },
 };
 
 MemoryRegion *xtensa_mx_pic_register_cpu(XtensaMxPic *mx,
