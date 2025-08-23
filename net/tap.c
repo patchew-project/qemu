@@ -774,32 +774,6 @@ failed:
     return -1;
 }
 
-static int get_fds(char *str, char *fds[], int max)
-{
-    char *ptr = str, *this;
-    size_t len = strlen(str);
-    int i = 0;
-
-    while (i < max && ptr < str + len) {
-        this = strchr(ptr, ':');
-
-        if (this == NULL) {
-            fds[i] = g_strdup(ptr);
-        } else {
-            fds[i] = g_strndup(ptr, this - ptr);
-        }
-
-        i++;
-        if (this == NULL) {
-            break;
-        } else {
-            ptr = this + 1;
-        }
-    }
-
-    return i;
-}
-
 int net_init_tap(const Netdev *netdev, const char *name,
                  NetClientState *peer, Error **errp)
 {
@@ -859,74 +833,56 @@ int net_init_tap(const Netdev *netdev, const char *name,
             return -1;
         }
     } else if (tap->fds) {
-        char **fds;
-        char **vhost_fds;
-        int nfds = 0, nvhosts = 0;
+        g_auto(GStrv) fds = NULL;
+        g_auto(GStrv) vhost_fds = NULL;
+        int nfds;
 
         if (tap->helper || tap->vhostfd) {
             error_setg(errp, "helper= and vhostfd= are invalid with fds=");
             return -1;
         }
 
-        fds = g_new0(char *, MAX_TAP_QUEUES);
-        vhost_fds = g_new0(char *, MAX_TAP_QUEUES);
+        fds = g_strsplit(tap->fds, ":", MAX_TAP_QUEUES);
+        nfds = g_strv_length(fds);
 
-        nfds = get_fds(tap->fds, fds, MAX_TAP_QUEUES);
         if (tap->vhostfds) {
-            nvhosts = get_fds(tap->vhostfds, vhost_fds, MAX_TAP_QUEUES);
-            if (nfds != nvhosts) {
+            vhost_fds = g_strsplit(tap->vhostfds, ":", MAX_TAP_QUEUES);
+            if (nfds != g_strv_length(vhost_fds)) {
                 error_setg(errp, "The number of fds passed does not match "
                            "the number of vhostfds passed");
-                ret = -1;
-                goto free_fail;
+                return -1;
             }
         }
 
         for (i = 0; i < nfds; i++) {
             fd = monitor_fd_param(monitor_cur(), fds[i], errp);
             if (fd == -1) {
-                ret = -1;
-                goto free_fail;
+                return -1;
             }
 
             if (!set_fd_nonblocking(fd, fds[i], errp)) {
-                ret = -1;
-                goto free_fail;
+                return -1;
             }
 
             if (i == 0) {
                 vnet_hdr = tap_probe_vnet_hdr(fd, errp);
                 if (vnet_hdr < 0) {
-                    ret = -1;
-                    goto free_fail;
+                    return -1;
                 }
             } else if (vnet_hdr != tap_probe_vnet_hdr(fd, NULL)) {
                 error_setg(errp,
                            "vnet_hdr not consistent across given tap fds");
-                ret = -1;
-                goto free_fail;
+                return -1;
             }
 
             ret = net_init_tap_one(tap, peer, "tap", name, NULL,
                                    NULL, NULL,
-                                   tap->vhostfds ? vhost_fds[i] : NULL,
+                                   vhost_fds ? vhost_fds[i] : NULL,
                                    vnet_hdr, fd, errp);
             if (ret < 0) {
-                ret = -1;
-                goto free_fail;
+                return -1;
             }
         }
-
-free_fail:
-        for (i = 0; i < nvhosts; i++) {
-            g_free(vhost_fds[i]);
-        }
-        for (i = 0; i < nfds; i++) {
-            g_free(fds[i]);
-        }
-        g_free(fds);
-        g_free(vhost_fds);
-        return ret;
     } else if (tap->helper) {
         if (tap->vhostfds) {
             error_setg(errp, "vhostfds= is invalid with helper=");
