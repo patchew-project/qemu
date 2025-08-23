@@ -680,11 +680,11 @@ static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
 
 #define MAX_TAP_QUEUES 1024
 
-static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
-                             const char *model, const char *name,
-                             const char *ifname, const char *script,
-                             const char *downscript, const char *vhostfdname,
-                             int vnet_hdr, int fd, Error **errp)
+static int net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
+                            const char *model, const char *name,
+                            const char *ifname, const char *script,
+                            const char *downscript, const char *vhostfdname,
+                            int vnet_hdr, int fd, Error **errp)
 {
     Error *err = NULL;
     TAPState *s = net_tap_fd_init(peer, model, name, fd, vnet_hdr);
@@ -765,10 +765,11 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
         goto failed;
     }
 
-    return;
+    return 0;
 
 failed:
     qemu_del_net_client(&s->nc);
+    return -1;
 }
 
 static int get_fds(char *str, char *fds[], int max)
@@ -805,7 +806,6 @@ int net_init_tap(const Netdev *netdev, const char *name,
     /* for the no-fd, no-helper case */
     const char *script;
     const char *downscript;
-    Error *err = NULL;
     const char *vhostfdname;
     char ifname[128];
     int ret = 0;
@@ -852,12 +852,10 @@ int net_init_tap(const Netdev *netdev, const char *name,
             return -1;
         }
 
-        net_init_tap_one(tap, peer, "tap", name, NULL,
-                         script, downscript,
-                         vhostfdname, vnet_hdr, fd, &err);
-        if (err) {
-            error_propagate(errp, err);
-            close(fd);
+        ret = net_init_tap_one(tap, peer, "tap", name, NULL,
+                               script, downscript,
+                               vhostfdname, vnet_hdr, fd, errp);
+        if (ret < 0) {
             return -1;
         }
     } else if (tap->fds) {
@@ -915,12 +913,11 @@ int net_init_tap(const Netdev *netdev, const char *name,
                 goto free_fail;
             }
 
-            net_init_tap_one(tap, peer, "tap", name, ifname,
-                             script, downscript,
-                             tap->vhostfds ? vhost_fds[i] : NULL,
-                             vnet_hdr, fd, &err);
-            if (err) {
-                error_propagate(errp, err);
+            ret = net_init_tap_one(tap, peer, "tap", name, ifname,
+                                   script, downscript,
+                                   tap->vhostfds ? vhost_fds[i] : NULL,
+                                   vnet_hdr, fd, errp);
+            if (ret < 0) {
                 ret = -1;
                 goto free_fail;
             }
@@ -961,11 +958,10 @@ free_fail:
             return -1;
         }
 
-        net_init_tap_one(tap, peer, "bridge", name, ifname,
-                         script, downscript, vhostfdname,
-                         vnet_hdr, fd, &err);
-        if (err) {
-            error_propagate(errp, err);
+        ret = net_init_tap_one(tap, peer, "bridge", name, ifname,
+                               script, downscript, vhostfdname,
+                               vnet_hdr, fd, errp);
+        if (ret < 0) {
             close(fd);
             return -1;
         }
@@ -1006,12 +1002,11 @@ free_fail:
                 }
             }
 
-            net_init_tap_one(tap, peer, "tap", name, ifname,
-                             i >= 1 ? "no" : script,
-                             i >= 1 ? "no" : downscript,
-                             vhostfdname, vnet_hdr, fd, &err);
-            if (err) {
-                error_propagate(errp, err);
+            ret = net_init_tap_one(tap, peer, "tap", name, ifname,
+                                   i >= 1 ? "no" : script,
+                                   i >= 1 ? "no" : downscript,
+                                   vhostfdname, vnet_hdr, fd, errp);
+            if (ret < 0) {
                 close(fd);
                 return -1;
             }
