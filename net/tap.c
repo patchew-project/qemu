@@ -630,16 +630,24 @@ static bool set_fd_nonblocking(int fd, const char *note, Error **errp)
 int net_init_bridge(const Netdev *netdev, const char *name,
                     NetClientState *peer, Error **errp)
 {
-    const NetdevBridgeOptions *bridge;
+    const NetdevTapOptions *tap = NULL;
+    const NetdevBridgeOptions *bridge = NULL;
     const char *helper, *br;
     int fd, vnet_hdr, ret;
 
-    assert(netdev->type == NET_CLIENT_DRIVER_BRIDGE);
-    bridge = &netdev->u.bridge;
-    helper = bridge->helper;
-    br     = bridge->br ?: DEFAULT_BRIDGE_INTERFACE;
+    if (netdev->type == NET_CLIENT_DRIVER_BRIDGE) {
+        bridge = &netdev->u.bridge;
+        helper = bridge->helper;
+        br = bridge->br;
+    } else {
+        assert(netdev->type == NET_CLIENT_DRIVER_TAP);
 
-    fd = net_bridge_run_helper(helper, br, errp);
+        tap = &netdev->u.tap;
+        helper = tap->helper;
+        br = tap->br;
+    }
+
+    fd = net_bridge_run_helper(helper, br ?: DEFAULT_BRIDGE_INTERFACE, errp);
     if (fd == -1) {
         return -1;
     }
@@ -656,7 +664,8 @@ int net_init_bridge(const Netdev *netdev, const char *name,
 
     ret = net_init_tap_one(netdev, peer, "bridge", name,
                            NULL, NULL, NULL,
-                           NULL, vnet_hdr, fd, errp);
+                           tap ? tap->vhostfd : NULL,
+                           vnet_hdr, fd, errp);
     if (ret < 0) {
         close(fd);
         return -1;
@@ -910,29 +919,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
             return -1;
         }
 
-        fd = net_bridge_run_helper(tap->helper,
-                                   tap->br ?: DEFAULT_BRIDGE_INTERFACE,
-                                   errp);
-        if (fd == -1) {
-            return -1;
-        }
-
-        if (!set_fd_nonblocking(fd, name, errp)) {
-            return -1;
-        }
-        vnet_hdr = tap_probe_vnet_hdr(fd, errp);
-        if (vnet_hdr < 0) {
-            close(fd);
-            return -1;
-        }
-
-        ret = net_init_tap_one(netdev, peer, "bridge", name, NULL,
-                               NULL, NULL, tap->vhostfd,
-                               vnet_hdr, fd, errp);
-        if (ret < 0) {
-            close(fd);
-            return -1;
-        }
+        return net_init_bridge(netdev, name, peer, errp);
     } else {
         const char *script = tap->script;
         const char *downscript = tap->downscript;
