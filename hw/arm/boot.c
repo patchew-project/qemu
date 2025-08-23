@@ -531,13 +531,13 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
         char *filename;
         filename = qemu_find_file(QEMU_FILE_TYPE_DTB, binfo->dtb_filename);
         if (!filename) {
-            fprintf(stderr, "Couldn't open dtb file %s\n", binfo->dtb_filename);
+            error_report("Couldn't open dtb file %s", binfo->dtb_filename);
             goto fail;
         }
 
         fdt = load_device_tree(filename, &size);
         if (!fdt) {
-            fprintf(stderr, "Couldn't open dtb file %s\n", filename);
+            error_report("Couldn't open dtb file %s", filename);
             g_free(filename);
             goto fail;
         }
@@ -545,7 +545,7 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
     } else {
         fdt = binfo->get_dtb(binfo, &size);
         if (!fdt) {
-            fprintf(stderr, "Board was unable to create a dtb blob\n");
+            error_report("Board was unable to create a dtb blob");
             goto fail;
         }
     }
@@ -564,7 +564,7 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
     scells = qemu_fdt_getprop_cell(fdt, "/", "#size-cells",
                                    NULL, &error_fatal);
     if (acells == 0 || scells == 0) {
-        fprintf(stderr, "dtb file invalid (#address-cells or #size-cells 0)\n");
+        error_report("dtb file invalid (#address-cells or #size-cells 0)");
         goto fail;
     }
 
@@ -572,8 +572,8 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
         /* This is user error so deserves a friendlier error message
          * than the failure of setprop_sized_cells would provide
          */
-        fprintf(stderr, "qemu: dtb file not compatible with "
-                "RAM size > 4GB\n");
+        error_report("qemu: dtb file not compatible with "
+                "RAM size > 4GB");
         goto fail;
     }
 
@@ -611,7 +611,7 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
             rc = fdt_add_memory_node(fdt, acells, mem_base,
                                      scells, mem_len, i);
             if (rc < 0) {
-                fprintf(stderr, "couldn't add /memory@%"PRIx64" node\n",
+                error_report("couldn't add /memory@%"PRIx64" node",
                         mem_base);
                 goto fail;
             }
@@ -622,7 +622,7 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
         rc = fdt_add_memory_node(fdt, acells, binfo->loader_start,
                                  scells, binfo->ram_size, -1);
         if (rc < 0) {
-            fprintf(stderr, "couldn't add /memory@%"PRIx64" node\n",
+            error_report("couldn't add /memory@%"PRIx64" node",
                     binfo->loader_start);
             goto fail;
         }
@@ -637,7 +637,7 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
         rc = qemu_fdt_setprop_string(fdt, "/chosen", "bootargs",
                                      ms->kernel_cmdline);
         if (rc < 0) {
-            fprintf(stderr, "couldn't set /chosen/bootargs\n");
+            error_report("couldn't set /chosen/bootargs");
             goto fail;
         }
     }
@@ -646,7 +646,7 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
         rc = qemu_fdt_setprop_sized_cells(fdt, "/chosen", "linux,initrd-start",
                                           acells, binfo->initrd_start);
         if (rc < 0) {
-            fprintf(stderr, "couldn't set /chosen/linux,initrd-start\n");
+            error_report("couldn't set /chosen/linux,initrd-start");
             goto fail;
         }
 
@@ -655,7 +655,7 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
                                           binfo->initrd_start +
                                           binfo->initrd_size);
         if (rc < 0) {
-            fprintf(stderr, "couldn't set /chosen/linux,initrd-end\n");
+            error_report("couldn't set /chosen/linux,initrd-end");
             goto fail;
         }
     }
