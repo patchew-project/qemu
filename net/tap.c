@@ -88,11 +88,12 @@ static void launch_script(const char *setup_script, const char *ifname,
 static void tap_send(void *opaque);
 static void tap_writable(void *opaque);
 
-static int net_init_tap_one(const Netdev *netdev, NetClientState *peer,
-                            const char *model, const char *name,
-                            const char *ifname, const char *script,
-                            const char *downscript, const char *vhostfdname,
-                            int vnet_hdr, int fd, Error **errp);
+static int net_tap_fd_init_common(const Netdev *netdev, NetClientState *peer,
+                                  const char *model, const char *name,
+                                  const char *ifname, const char *script,
+                                  const char *downscript,
+                                  const char *vhostfdname,
+                                  int vnet_hdr, int fd, Error **errp);
 static int net_tap_setup_vhost(TAPState *s, const NetdevTapOptions *tap,
                                const char *vhostfdname, Error **errp);
 
@@ -393,42 +394,6 @@ static NetClientInfo net_tap_info = {
     .get_vhost_net = tap_get_vhost_net,
 };
 
-static TAPState *net_tap_fd_init(NetClientState *peer,
-                                 const char *model,
-                                 const char *name,
-                                 int fd,
-                                 int vnet_hdr)
-{
-    NetClientState *nc;
-    TAPState *s;
-
-    nc = qemu_new_net_client(&net_tap_info, peer, model, name);
-
-    s = DO_UPCAST(TAPState, nc, nc);
-
-    s->fd = fd;
-    s->host_vnet_hdr_len = vnet_hdr ? sizeof(struct virtio_net_hdr) : 0;
-    s->using_vnet_hdr = false;
-    s->has_ufo = tap_probe_has_ufo(s->fd);
-    s->has_uso = tap_probe_has_uso(s->fd);
-    s->enabled = true;
-    tap_set_offload(&s->nc, 0, 0, 0, 0, 0, 0, 0);
-    /*
-     * Make sure host header length is set correctly in tap:
-     * it might have been modified by another instance of qemu.
-     */
-    if (vnet_hdr) {
-        tap_fd_set_vnet_hdr_len(s->fd, s->host_vnet_hdr_len);
-    }
-    tap_read_poll(s, true);
-    s->vhost_net = NULL;
-
-    s->exit.notify = tap_exit_notify;
-    qemu_add_exit_notifier(&s->exit);
-
-    return s;
-}
-
 static void close_all_fds_after_fork(int excluded_fd)
 {
     const int skip_fd[] = {STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO,
@@ -651,9 +616,9 @@ static int net_tap_fd_init_external(const Netdev *netdev, NetClientState *peer,
         }
     }
 
-    return net_init_tap_one(netdev, peer, model, name,
-                            NULL, NULL, NULL,
-                            vhostfdname, vnet_hdr, fd, errp);
+    return net_tap_fd_init_common(netdev, peer, model, name,
+                                  NULL, NULL, NULL,
+                                  vhostfdname, vnet_hdr, fd, errp);
 }
 
 int net_init_bridge(const Netdev *netdev, const char *name,
@@ -723,9 +688,9 @@ static int net_tap_open_one(const Netdev *netdev,
         }
     }
 
-    ret = net_init_tap_one(netdev, peer, "tap", name, ifname,
-                           script, downscript,
-                           tap->vhostfd, vnet_hdr, fd, errp);
+    ret = net_tap_fd_init_common(netdev, peer, "tap", name, ifname,
+                                 script, downscript,
+                                 tap->vhostfd, vnet_hdr, fd, errp);
     if (ret < 0) {
         close(fd);
         return -1;
@@ -736,15 +701,41 @@ static int net_tap_open_one(const Netdev *netdev,
 
 #define MAX_TAP_QUEUES 1024
 
-static int net_init_tap_one(const Netdev *netdev, NetClientState *peer,
-                            const char *model, const char *name,
-                            const char *ifname, const char *script,
-                            const char *downscript, const char *vhostfdname,
-                            int vnet_hdr, int fd, Error **errp)
+static int net_tap_fd_init_common(const Netdev *netdev, NetClientState *peer,
+                                  const char *model, const char *name,
+                                  const char *ifname, const char *script,
+                                  const char *downscript,
+                                  const char *vhostfdname,
+                                  int vnet_hdr, int fd, Error **errp)
 {
     const NetdevTapOptions *tap;
-    TAPState *s = net_tap_fd_init(peer, model, name, fd, vnet_hdr);
     int ret;
+    NetClientState *nc;
+    TAPState *s;
+
+    nc = qemu_new_net_client(&net_tap_info, peer, model, name);
+
+    s = DO_UPCAST(TAPState, nc, nc);
+
+    s->fd = fd;
+    s->host_vnet_hdr_len = vnet_hdr ? sizeof(struct virtio_net_hdr) : 0;
+    s->using_vnet_hdr = false;
+    s->has_ufo = tap_probe_has_ufo(s->fd);
+    s->has_uso = tap_probe_has_uso(s->fd);
+    s->enabled = true;
+    tap_set_offload(&s->nc, 0, 0, 0, 0, 0, 0, 0);
+    /*
+     * Make sure host header length is set correctly in tap:
+     * it might have been modified by another instance of qemu.
+     */
+    if (vnet_hdr) {
+        tap_fd_set_vnet_hdr_len(s->fd, s->host_vnet_hdr_len);
+    }
+    tap_read_poll(s, true);
+    s->vhost_net = NULL;
+
+    s->exit.notify = tap_exit_notify;
+    qemu_add_exit_notifier(&s->exit);
 
     if (netdev->type == NET_CLIENT_DRIVER_BRIDGE) {
         const NetdevBridgeOptions *bridge = &netdev->u.bridge;
