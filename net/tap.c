@@ -93,6 +93,8 @@ static int net_init_tap_one(const Netdev *netdev, NetClientState *peer,
                             const char *ifname, const char *script,
                             const char *downscript, const char *vhostfdname,
                             int vnet_hdr, int fd, Error **errp);
+static int net_tap_setup_vhost(TAPState *s, const NetdevTapOptions *tap,
+                               const char *vhostfdname, Error **errp);
 
 static void tap_update_fd_handler(TAPState *s)
 {
@@ -742,7 +744,7 @@ static int net_init_tap_one(const Netdev *netdev, NetClientState *peer,
 {
     const NetdevTapOptions *tap;
     TAPState *s = net_tap_fd_init(peer, model, name, fd, vnet_hdr);
-    int vhostfd;
+    int ret;
 
     if (netdev->type == NET_CLIENT_DRIVER_BRIDGE) {
         const NetdevBridgeOptions *bridge = &netdev->u.bridge;
@@ -773,9 +775,25 @@ static int net_init_tap_one(const Netdev *netdev, NetClientState *peer,
         }
     }
 
+    ret = net_tap_setup_vhost(s, tap, vhostfdname, errp);
+    if (ret < 0) {
+        goto failed;
+    }
+
+    return 0;
+
+failed:
+    qemu_del_net_client(&s->nc);
+    return -1;
+}
+
+static int net_tap_setup_vhost(TAPState *s, const NetdevTapOptions *tap,
+                               const char *vhostfdname, Error **errp)
+{
     if (tap->has_vhost ? tap->vhost :
         vhostfdname || (tap->has_vhostforce && tap->vhostforce)) {
         VhostNetOptions options;
+        int vhostfd;
 
         options.backend_type = VHOST_BACKEND_TYPE_KERNEL;
         options.net_backend = &s->nc;
@@ -788,20 +806,20 @@ static int net_init_tap_one(const Netdev *netdev, NetClientState *peer,
         if (vhostfdname) {
             vhostfd = monitor_fd_param(monitor_cur(), vhostfdname, errp);
             if (vhostfd == -1) {
-                goto failed;
+                return -1;
             }
             if (!set_fd_nonblocking(vhostfd, vhostfdname, errp)) {
-                goto failed;
+                return -1;
             }
         } else {
             vhostfd = open("/dev/vhost-net", O_RDWR);
             if (vhostfd < 0) {
                 error_setg_errno(errp, errno,
                                  "tap: open vhost char device failed");
-                goto failed;
+                return -1;
             }
             if (!set_fd_nonblocking(vhostfd, "opened /dev/vhost-net", errp)) {
-                goto failed;
+                return -1;
             }
         }
         options.opaque = (void *)(uintptr_t)vhostfd;
@@ -816,15 +834,11 @@ static int net_init_tap_one(const Netdev *netdev, NetClientState *peer,
         if (!s->vhost_net) {
             error_setg(errp,
                        "vhost-net requested but could not be initialized");
-            goto failed;
+            return -1;
         }
     }
 
     return 0;
-
-failed:
-    qemu_del_net_client(&s->nc);
-    return -1;
 }
 
 static int net_tap_from_monitor_fd(const Netdev *netdev, NetClientState *peer,
