@@ -831,12 +831,17 @@ int net_init_tap(const Netdev *netdev, const char *name,
         return -1;
     }
 
+    if ((tap->fd || tap->fds || tap->helper) &&
+        (tap->ifname || tap->script || tap->downscript ||
+         tap->has_vnet_hdr || tap->has_queues)) {
+        error_setg(errp, "ifname=, script=, downscript=, vnet_hdr=, "
+                   "queues=, are invalid with fd=/fds=/helper=");
+        return -1;
+    }
+
     if (tap->fd) {
-        if (tap->ifname || tap->script || tap->downscript ||
-            tap->has_vnet_hdr || tap->helper || tap->has_queues ||
-            tap->fds || tap->vhostfds) {
-            error_setg(errp, "ifname=, script=, downscript=, vnet_hdr=, "
-                       "helper=, queues=, fds=, and vhostfds= "
+        if (tap->helper || tap->fds || tap->vhostfds) {
+            error_setg(errp, "helper=, fds=, and vhostfds= "
                        "are invalid with fd=");
             return -1;
         }
@@ -868,12 +873,8 @@ int net_init_tap(const Netdev *netdev, const char *name,
         char **vhost_fds;
         int nfds = 0, nvhosts = 0;
 
-        if (tap->ifname || tap->script || tap->downscript ||
-            tap->has_vnet_hdr || tap->helper || tap->has_queues ||
-            tap->vhostfd) {
-            error_setg(errp, "ifname=, script=, downscript=, vnet_hdr=, "
-                       "helper=, queues=, and vhostfd= "
-                       "are invalid with fds=");
+        if (tap->helper || tap->vhostfd) {
+            error_setg(errp, "helper= and vhostfd= are invalid with fds=");
             return -1;
         }
 
@@ -937,10 +938,8 @@ free_fail:
         g_free(vhost_fds);
         return ret;
     } else if (tap->helper) {
-        if (tap->ifname || tap->script || tap->downscript ||
-            tap->has_vnet_hdr || tap->has_queues || tap->vhostfds) {
-            error_setg(errp, "ifname=, script=, downscript=, vnet_hdr=, "
-                       "queues=, and vhostfds= are invalid with helper=");
+        if (tap->vhostfds) {
+            error_setg(errp, "vhostfds= is invalid with helper=");
             return -1;
         }
 
