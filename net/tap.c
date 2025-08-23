@@ -889,12 +889,48 @@ static int net_tap_open(const Netdev *netdev,
     return 0;
 }
 
+static int net_init_tap_fds(const Netdev *netdev, const char *name,
+                            NetClientState *peer, Error **errp)
+{
+    const NetdevTapOptions *tap = &netdev->u.tap;
+    g_auto(GStrv) fds = NULL;
+    g_auto(GStrv) vhost_fds = NULL;
+    int nfds;
+    int vnet_hdr = 0, i = 0;
+    int ret;
+
+    assert(netdev->type == NET_CLIENT_DRIVER_TAP);
+
+    fds = g_strsplit(tap->fds, ":", MAX_TAP_QUEUES);
+    nfds = g_strv_length(fds);
+
+    if (tap->vhostfds) {
+        vhost_fds = g_strsplit(tap->vhostfds, ":", MAX_TAP_QUEUES);
+        if (nfds != g_strv_length(vhost_fds)) {
+            error_setg(errp, "The number of fds passed does not match "
+                       "the number of vhostfds passed");
+            return -1;
+        }
+    }
+
+    vnet_hdr = -1;
+    for (i = 0; i < nfds; i++) {
+        ret = net_tap_from_monitor_fd(netdev, peer, name,
+                                       vhost_fds ? vhost_fds[i] : NULL,
+                                       &vnet_hdr, fds[i], errp);
+        if (ret < 0) {
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+
 int net_init_tap(const Netdev *netdev, const char *name,
                  NetClientState *peer, Error **errp)
 {
     const NetdevTapOptions *tap = &netdev->u.tap;
-    int vnet_hdr = 0, i = 0;
-    int ret = 0;
 
     assert(netdev->type == NET_CLIENT_DRIVER_TAP);
 
@@ -928,38 +964,12 @@ int net_init_tap(const Netdev *netdev, const char *name,
         return net_tap_from_monitor_fd(netdev, peer, name, tap->vhostfd,
                                        NULL, tap->fd, errp);
     } else if (tap->fds) {
-        g_auto(GStrv) fds = NULL;
-        g_auto(GStrv) vhost_fds = NULL;
-        int nfds;
-
         if (tap->helper || tap->vhostfd) {
             error_setg(errp, "helper= and vhostfd= are invalid with fds=");
             return -1;
         }
 
-        fds = g_strsplit(tap->fds, ":", MAX_TAP_QUEUES);
-        nfds = g_strv_length(fds);
-
-        if (tap->vhostfds) {
-            vhost_fds = g_strsplit(tap->vhostfds, ":", MAX_TAP_QUEUES);
-            if (nfds != g_strv_length(vhost_fds)) {
-                error_setg(errp, "The number of fds passed does not match "
-                           "the number of vhostfds passed");
-                return -1;
-            }
-        }
-
-        vnet_hdr = -1;
-        for (i = 0; i < nfds; i++) {
-            ret = net_tap_from_monitor_fd(netdev, peer, name,
-                                           vhost_fds ? vhost_fds[i] : NULL,
-                                           &vnet_hdr, fds[i], errp);
-            if (ret < 0) {
-                return -1;
-            }
-        }
-
-        return 0;
+        return net_init_tap_fds(netdev, name, peer, errp);
     } else if (tap->helper) {
         if (tap->vhostfds) {
             error_setg(errp, "vhostfds= is invalid with helper=");
