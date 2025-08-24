@@ -69,9 +69,9 @@ void helper_raise_exception(CPUMBState *env, uint32_t index)
     cpu_loop_exit(cs);
 }
 
-static bool check_divz(CPUMBState *env, uint32_t b, uintptr_t ra)
+static bool check_divz(CPUMBState *env, uint32_t divisor, uintptr_t pc)
 {
-    if (unlikely(b == 0)) {
+    if (unlikely(divisor == 0)) {
         env->msr |= MSR_DZ;
 
         if ((env->msr & MSR_EE) &&
@@ -80,27 +80,27 @@ static bool check_divz(CPUMBState *env, uint32_t b, uintptr_t ra)
 
             env->esr = ESR_EC_DIVZERO;
             cs->exception_index = EXCP_HW_EXCP;
-            cpu_loop_exit_restore(cs, ra);
+            cpu_loop_exit_restore(cs, pc);
         }
         return false;
     }
     return true;
 }
 
-uint32_t helper_divs(CPUMBState *env, uint32_t a, uint32_t b)
+uint32_t helper_divs(CPUMBState *env, uint32_t ra, uint32_t rb)
 {
-    if (!check_divz(env, b, GETPC())) {
+    if (!check_divz(env, ra, GETPC())) {
         return 0;
     }
-    return (int32_t)a / (int32_t)b;
+    return (int32_t)rb / (int32_t)ra;
 }
 
-uint32_t helper_divu(CPUMBState *env, uint32_t a, uint32_t b)
+uint32_t helper_divu(CPUMBState *env, uint32_t ra, uint32_t rb)
 {
-    if (!check_divz(env, b, GETPC())) {
+    if (!check_divz(env, ra, GETPC())) {
         return 0;
     }
-    return a / b;
+    return rb / ra;
 }
 
 /* raise FPU exception.  */
