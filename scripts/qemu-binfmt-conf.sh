@@ -183,7 +183,7 @@ qemu_normalize() {
 usage() {
     cat <<EOF
 Usage: qemu-binfmt-conf.sh [--qemu-path PATH][--debian][--systemd CPU]
-                           [--help][--credential yes|no][--exportdir PATH]
+                           [--help][--exportdir PATH]
                            [--persistent yes|no][--qemu-suffix SUFFIX]
                            [--preserve-argv0 yes|no]
 
@@ -200,8 +200,6 @@ Usage: qemu-binfmt-conf.sh [--qemu-path PATH][--debian][--systemd CPU]
                         file for all known cpus
        --exportdir:     define where to write configuration files
                         (default: $SYSTEMDDIR or $DEBIANDIR)
-       --credential:    if yes, credential and security tokens are
-                        calculated according to the binary to interpret
        --persistent:    if yes, the interpreter is loaded when binfmt is
                         configured and remains in memory. All future uses
                         are cloned from the open file.
@@ -275,9 +273,6 @@ qemu_check_systemd() {
 
 qemu_generate_register() {
     flags=""
-    if [ "$CREDENTIAL" = "yes" ] ; then
-        flags="OC"
-    fi
     if [ "$PERSISTENT" = "yes" ] ; then
         flags="${flags}F"
     fi
@@ -304,7 +299,7 @@ package qemu-$cpu
 interpreter $qemu
 magic $magic
 mask $mask
-credentials $CREDENTIAL
+credentials no
 preserve $PRESERVE_ARG0
 fix_binary $PERSISTENT
 EOF
@@ -359,13 +354,12 @@ SYSTEMDDIR="/etc/binfmt.d"
 DEBIANDIR="/usr/share/binfmts"
 
 QEMU_PATH=/usr/local/bin
-CREDENTIAL=no
 PERSISTENT=no
 PRESERVE_ARG0=no
 QEMU_SUFFIX=""
 IGNORE_FAMILY=no
 
-_longopts="debian,systemd:,qemu-path:,qemu-suffix:,exportdir:,help,credential:,\
+_longopts="debian,systemd:,qemu-path:,qemu-suffix:,exportdir:,help,\
 persistent:,preserve-argv0:,ignore-family:"
 options=$(getopt -o ds:Q:S:e:hc:p:g:F:i: -l ${_longopts} -- "$@")
 eval set -- "$options"
@@ -414,10 +408,6 @@ while true ; do
     -h|--help)
         usage
         exit 1
-        ;;
-    -c|--credential)
-        shift
-        CREDENTIAL="$1"
         ;;
     -p|--persistent)
         shift
