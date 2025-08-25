@@ -364,6 +364,7 @@ struct S390PCIBusDevice {
     bool forwarding_assist;
     bool aif;
     bool rtr_avail;
+    QemuMutex err_handler_lock;
     QTAILQ_ENTRY(S390PCIBusDevice) link;
 };
 

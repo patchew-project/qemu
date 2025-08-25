@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 
 #include <sys/ioctl.h>
 #include <linux/vfio.h>
@@ -101,6 +102,60 @@ void s390_pci_end_dma_count(S390pciState *s, S390PCIDMACount *cnt)
     if (cnt->users == 0) {
         QTAILQ_REMOVE(&s->zpci_dma_limit, cnt, link);
     }
+}
+
+static int s390_pci_get_feature_err(VFIOPCIDevice *vfio_pci,
+                                    struct vfio_device_feature_zpci_err *err)
+{
+    int ret;
+    uint64_t buf[DIV_ROUND_UP(sizeof(struct vfio_device_feature) +
+                              sizeof(struct vfio_device_feature_zpci_err),
+                              sizeof(uint64_t))] = {};
+    struct vfio_device_feature *feature = (struct vfio_device_feature *)buf;
+
+    feature->argsz = sizeof(buf);
+    feature->flags = VFIO_DEVICE_FEATURE_GET | VFIO_DEVICE_FEATURE_ZPCI_ERROR;
+    ret = vfio_pci->vbasedev.io_ops->device_feature(&vfio_pci->vbasedev,
+                                                     feature);
+
+    if (ret) {
+        error_report("Failed feature get VFIO_DEVICE_FEATURE_ZPCI_ERROR"
+                    " (rc=%d)", ret);
+        return ret;
+    }
+
+    memcpy(err, (struct vfio_device_feature_zpci_err *) feature->data,
+           sizeof(struct vfio_device_feature_zpci_err));
+    return 0;
+}
+
+static void s390_pci_err_handler(VFIOPCIDevice *vfio_pci)
+{
+    S390PCIBusDevice *pbdev;
+    struct vfio_device_feature_zpci_err err;
+    int ret;
+
+    pbdev = s390_pci_find_dev_by_target(s390_get_phb(),
+                                        DEVICE(&vfio_pci->pdev)->id);
+
+    QEMU_LOCK_GUARD(&pbdev->err_handler_lock);
+
+    ret = s390_pci_get_feature_err(vfio_pci, &err);
+    if (ret) {
+        return;
+    }
+
+    pbdev->state = ZPCI_FS_ERROR;
+    s390_pci_generate_error_event(err.pec, pbdev->fh, pbdev->fid, 0, 0);
+
+    while (err.pending_errors) {
+        ret = s390_pci_get_feature_err(vfio_pci, &err);
+        if (ret) {
+            return;
+        }
+        s390_pci_generate_error_event(err.pec, pbdev->fh, pbdev->fid, 0, 0);
+    }
+    return;
 }
 
 static void s390_pci_read_base(S390PCIBusDevice *pbdev,
@@ -368,4 +423,25 @@ void s390_pci_get_clp_info(S390PCIBusDevice *pbdev)
     s390_pci_read_group(pbdev, info);
     s390_pci_read_util(pbdev, info);
     s390_pci_read_pfip(pbdev, info);
+}
+
+void s390_pci_setup_err_handler(S390PCIBusDevice *pbdev)
+{
+    int ret;
+    VFIOPCIDevice *vfio_pci =  container_of(pbdev->pdev, VFIOPCIDevice, pdev);
+    uint64_t buf[DIV_ROUND_UP(sizeof(struct vfio_device_feature),
+                              sizeof(uint64_t))] = {};
+    struct vfio_device_feature *feature = (struct vfio_device_feature *)buf;
+
+    feature->argsz = sizeof(buf);
+    feature->flags = VFIO_DEVICE_FEATURE_PROBE | VFIO_DEVICE_FEATURE_ZPCI_ERROR;
+
+    ret = vfio_pci->vbasedev.io_ops->device_feature(&vfio_pci->vbasedev,
+                                                     feature);
+
+    if (ret) {
+        info_report("Automated error recovery not available for passthrough device");
+        return;
+    }
+    vfio_pci->arch_err_handler = s390_pci_err_handler;
 }
