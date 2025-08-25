@@ -3026,6 +3026,11 @@ static void vfio_err_notifier_handler(void *opaque)
         return;
     }
 
+    if (vdev->arch_err_handler) {
+        vdev->arch_err_handler(vdev);
+        return;
+    }
+
     /*
      * TBD. Retrieve the error details and decide what action
      * needs to be taken. One of the actions could be to pass
