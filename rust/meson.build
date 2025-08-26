@@ -32,7 +32,7 @@ subdir('qom')
 subdir('system')
 subdir('chardev')
 subdir('hw/core')
-subdir('qemu-api')
+subdir('tests')
 
 subdir('hw')
 

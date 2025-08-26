@@ -185,24 +185,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "qemu_api"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bql",
- "chardev",
- "common",
- "foreign",
- "hwcore",
- "libc",
- "migration",
- "qemu_macros",
- "qom",
- "system",
- "util",
-]
-
-[[package]]
 name = "qemu_macros"
 version = "0.1.0"
 dependencies = [
@@ -249,6 +231,24 @@ dependencies = [
  "common",
  "qemu_macros",
  "qom",
+ "util",
+]
+
+[[package]]
+name = "tests"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bql",
+ "chardev",
+ "common",
+ "foreign",
+ "hwcore",
+ "libc",
+ "migration",
+ "qemu_macros",
+ "qom",
+ "system",
  "util",
 ]
 
