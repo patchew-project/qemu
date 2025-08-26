@@ -52,6 +52,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "chardev"
+version = "0.1.0"
+dependencies = [
+ "bql",
+ "common",
+ "migration",
+ "qemu_api_macros",
+ "qom",
+ "util",
+]
+
+[[package]]
 name = "common"
 version = "0.1.0"
 
@@ -115,6 +127,7 @@ dependencies = [
  "bilge-impl",
  "bits",
  "bql",
+ "chardev",
  "common",
  "migration",
  "qemu_api",
@@ -161,6 +174,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bql",
+ "chardev",
  "common",
  "foreign",
  "libc",

@@ -9,6 +9,7 @@ use std::{
 };
 
 use bql::BqlRefCell;
+use chardev::{CharBackend, Chardev, Event};
 use common::{static_assert, uninit_field_mut, Zeroable};
 use migration::{
     impl_vmstate_forward, vmstate_fields, vmstate_of, vmstate_struct, vmstate_subsections,
@@ -16,7 +17,6 @@ use migration::{
 };
 use qemu_api::{
     bindings::{qdev_prop_bool, qdev_prop_chr},
-    chardev::{CharBackend, Chardev, Event},
     irq::{IRQState, InterruptSource},
     memory::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder},
     prelude::*,

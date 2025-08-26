@@ -7,7 +7,6 @@ c_enums = [
   'GpioPolarity',
   'MachineInitPhase',
   'MemoryDeviceInfoKind',
-  'QEMUChrEvent',
   'ResetType',
   'device_endian',
 ]
@@ -23,9 +22,10 @@ foreach enum : c_bitfields
 endforeach
 
 blocked_type = [
+  'Chardev',
+  'Error',
   'ObjectClass',
   'VMStateDescription',
-  'Error',
 ]
 foreach type: blocked_type
   _qemu_api_bindgen_args += ['--blocklist-type', type]
@@ -53,7 +53,6 @@ _qemu_api_rs = static_library(
     [
       'src/lib.rs',
       'src/bindings.rs',
-      'src/chardev.rs',
       'src/irq.rs',
       'src/memory.rs',
       'src/prelude.rs',
@@ -65,7 +64,7 @@ _qemu_api_rs = static_library(
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
   rust_args: _qemu_api_cfg,
-  dependencies: [anyhow_rs, common_rs, foreign_rs, libc_rs, qemu_api_macros, qemuutil_rs, util_rs, migration_rs, bql_rs, qom_rs,
+  dependencies: [anyhow_rs, common_rs, chardev_rs, foreign_rs, libc_rs, qemu_api_macros, qemuutil_rs, util_rs, migration_rs, bql_rs, qom_rs,
                  qom, hwcore, chardev, migration],
 )
 
