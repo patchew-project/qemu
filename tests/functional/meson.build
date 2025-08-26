@@ -233,6 +233,7 @@ tests_ppc_system_quick = [
 ]
 
 tests_ppc_system_thorough = [
+  'ppc_ppe42',
   'ppc_40p',
   'ppc_amiga',
   'ppc_bamboo',
