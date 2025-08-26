@@ -27,6 +27,11 @@ config IOH3420
     default y if PCI_DEVICES
     depends on PCI_EXPRESS && MSI_NONBROKEN
 
+config PLX_VSWITCH
+    bool
+    default y if PCI_DEVICES
+    depends on PCI_EXPRESS && MSI_NONBROKEN
+
 config I82801B11
     bool
     default y if PCI_DEVICES
