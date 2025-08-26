@@ -1,8 +1,8 @@
 [wrap-file]
-directory = syn-2.0.66
-source_url = https://crates.io/api/v1/crates/syn/2.0.66/download
-source_filename = syn-2.0.66.0.tar.gz
-source_hash = c42f3f41a2de00b01c0aaad383c5a45241efc8b2d1eda5661812fda5f3cdcff5
+directory = syn-2.0.106
+source_url = https://crates.io/api/v1/crates/syn/2.0.106/download
+source_filename = syn-2.0.106.0.tar.gz
+source_hash = ede7c438028d4436d71104916910f5bb611972c5cfd7f89b8300a8186e6fada6
 #method = cargo
 patch_directory = syn-2-rs
 
