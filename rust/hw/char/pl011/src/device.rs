@@ -8,6 +8,7 @@ use std::{
     ptr::NonNull,
 };
 
+use bql::BqlRefCell;
 use common::{static_assert, uninit_field_mut, Zeroable};
 use migration::{
     impl_vmstate_forward, vmstate_fields, vmstate_of, vmstate_struct, vmstate_subsections,

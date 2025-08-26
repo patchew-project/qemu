@@ -4,11 +4,11 @@
 
 use std::{ffi::CStr, ptr::addr_of};
 
+use bql::BqlCell;
 use common::Zeroable;
 use migration::VMStateDescription;
 use qemu_api::{
     bindings::qdev_prop_bool,
-    cell::{self, BqlCell},
     declare_properties, define_property,
     prelude::*,
     qdev::{DeviceImpl, DeviceState, Property, ResettablePhasesImpl},
@@ -113,7 +113,7 @@ impl DummyChildClass {
 fn init_qom() {
     static ONCE: BqlCell<bool> = BqlCell::new(false);
 
-    cell::bql_start_test();
+    bql::start_test();
     if !ONCE.get() {
         unsafe {
             module_call_init(module_init_type::MODULE_INIT_QOM);
