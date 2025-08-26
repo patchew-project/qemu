@@ -334,6 +334,7 @@ tests_x86_64_system_thorough = [
   'linux_initrd',
   'multiprocess',
   'netdev_ethtool',
+  'vfio_user_client',
   'virtio_balloon',
   'virtio_gpu',
   'x86_64_hotplug_blk',
