@@ -20,8 +20,9 @@ use std::{
 
 use bql::{BqlRefCell, BqlRefMut};
 use common::{callbacks::FnCall, Opaque};
+use qom::{Object, ObjectType};
 
-use crate::{bindings, prelude::*};
+use crate::bindings;
 
 /// A safe wrapper around [`bindings::Chardev`].
 #[repr(transparent)]
@@ -257,4 +258,4 @@ unsafe impl ObjectType for Chardev {
     const TYPE_NAME: &'static CStr =
         unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_CHARDEV) };
 }
-qom_isa!(Chardev: Object);
+qom::qom_isa!(Chardev: Object);

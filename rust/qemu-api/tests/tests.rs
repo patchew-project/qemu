@@ -10,10 +10,12 @@ use migration::VMStateDescription;
 use qemu_api::{
     bindings::qdev_prop_bool,
     declare_properties, define_property,
-    prelude::*,
-    qdev::{DeviceImpl, DeviceState, Property, ResettablePhasesImpl},
-    qom::{ObjectImpl, ParentField},
+    qdev::{DeviceClassExt, DeviceImpl, DeviceState, Property, ResettablePhasesImpl},
     sysbus::SysBusDevice,
+};
+use qom::{
+    Object, ObjectCast, ObjectClassMethods, ObjectDeref, ObjectImpl, ObjectMethods, ObjectType,
+    ParentField,
 };
 use util::bindings::{module_call_init, module_init_type};
 
@@ -33,7 +35,7 @@ pub struct DummyState {
     migrate_clock: bool,
 }
 
-qom_isa!(DummyState: Object, DeviceState);
+qom::qom_isa!(DummyState: Object, DeviceState);
 
 pub struct DummyClass {
     parent_class: <DeviceState as ObjectType>::Class,
@@ -84,7 +86,7 @@ pub struct DummyChildState {
     parent: ParentField<DummyState>,
 }
 
-qom_isa!(DummyChildState: Object, DeviceState, DummyState);
+qom::qom_isa!(DummyChildState: Object, DeviceState, DummyState);
 
 pub struct DummyChildClass {
     parent_class: <DummyState as ObjectType>::Class,

@@ -12,14 +12,16 @@ use std::{
 pub use bindings::{ClockEvent, DeviceClass, Property, ResetType};
 use common::{callbacks::FnCall, Opaque};
 use migration::vmstate::VMStateDescription;
+use qom::{
+    InterfaceType, IsA, Object, ObjectCast, ObjectClass, ObjectDeref, ObjectImpl, ObjectType,
+    Owned, ParentInit,
+};
 pub use util::{Error, Result};
 
 use crate::{
     bindings::{self, qdev_init_gpio_in, qdev_init_gpio_out, ResettableClass},
     chardev::Chardev,
     irq::InterruptSource,
-    prelude::*,
-    qom::{ObjectClass, ObjectImpl, Owned, ParentInit},
 };
 
 /// A safe wrapper around [`bindings::Clock`].
@@ -164,10 +166,14 @@ impl ResettableClass {
     }
 }
 
-impl DeviceClass {
+pub trait DeviceClassExt {
+    fn class_init<T: DeviceImpl>(&mut self);
+}
+
+impl DeviceClassExt for DeviceClass {
     /// Fill in the virtual methods of `DeviceClass` based on the definitions in
     /// the `DeviceImpl` trait.
-    pub fn class_init<T: DeviceImpl>(&mut self) {
+    fn class_init<T: DeviceImpl>(&mut self) {
         if <T as DeviceImpl>::REALIZE.is_some() {
             self.realize = Some(rust_realize_fn::<T>);
         }
@@ -244,7 +250,8 @@ unsafe impl ObjectType for DeviceState {
     const TYPE_NAME: &'static CStr =
         unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_DEVICE) };
 }
-qom_isa!(DeviceState: Object);
+
+qom::qom_isa!(DeviceState: Object);
 
 /// Initialization methods take a [`ParentInit`] and can be called as
 /// associated functions.
@@ -406,7 +413,8 @@ unsafe impl ObjectType for Clock {
     const TYPE_NAME: &'static CStr =
         unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_CLOCK) };
 }
-qom_isa!(Clock: Object);
+
+qom::qom_isa!(Clock: Object);
 
 #[doc(alias = "VMSTATE_CLOCK")]
 #[macro_export]
@@ -420,7 +428,7 @@ macro_rules! vmstate_clock {
                 ::common::assert_field_type!(
                     $struct_name,
                     $field_name,
-                    $crate::qom::Owned<$crate::qdev::Clock> $(, num = $num)?
+                    ::qom::Owned<$crate::qdev::Clock> $(, num = $num)?
                 );
                 ::std::mem::offset_of!($struct_name, $field_name)
             },

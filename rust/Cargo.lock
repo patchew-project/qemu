@@ -79,6 +79,7 @@ dependencies = [
  "migration",
  "qemu_api",
  "qemu_api_macros",
+ "qom",
  "util",
 ]
 
@@ -118,6 +119,7 @@ dependencies = [
  "migration",
  "qemu_api",
  "qemu_api_macros",
+ "qom",
  "util",
 ]
 
@@ -164,6 +166,7 @@ dependencies = [
  "libc",
  "migration",
  "qemu_api_macros",
+ "qom",
  "util",
 ]
 
@@ -174,6 +177,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "qom"
+version = "0.1.0"
+dependencies = [
+ "bql",
+ "common",
+ "migration",
+ "qemu_api_macros",
+ "util",
 ]
 
 [[package]]

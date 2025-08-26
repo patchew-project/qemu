@@ -21,9 +21,12 @@ use qemu_api::{
     memory::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder},
     prelude::*,
     qdev::{Clock, ClockEvent, DeviceImpl, DeviceState, Property, ResetType, ResettablePhasesImpl},
-    qom::{ObjectImpl, Owned, ParentField, ParentInit},
     sysbus::{SysBusDevice, SysBusDeviceImpl},
     vmstate_clock,
+};
+use qom::{
+    qom_isa, IsA, Object, ObjectClassMethods, ObjectDeref, ObjectImpl, ObjectMethods, ObjectType,
+    Owned, ParentField, ParentInit,
 };
 use util::{log::Log, log_mask_ln};
 
