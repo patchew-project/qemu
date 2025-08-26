@@ -184,6 +184,29 @@ int spdm_socket_connect(uint16_t port, Error **errp)
     return client_socket;
 }
 
+uint32_t spdm_socket_receive(const int socket, uint32_t transport_type,
+                             void *rsp, uint32_t rsp_len)
+{
+    uint32_t command;
+    bool result;
+
+    result = receive_platform_data(socket, transport_type, &command,
+                                   (uint8_t *)rsp, &rsp_len);
+
+    if (!result || command == 0) {
+        return 0;
+    }
+
+    return rsp_len;
+}
+
+bool spdm_socket_send(const int socket, uint32_t socket_cmd,
+                      uint32_t transport_type, void *req, uint32_t req_len)
+{
+    return send_platform_data(socket, transport_type,
+                              socket_cmd, req, req_len);
+}
+
 uint32_t spdm_socket_rsp(const int socket, uint32_t transport_type,
                          void *req, uint32_t req_len,
                          void *rsp, uint32_t rsp_len)
@@ -200,11 +223,9 @@ uint32_t spdm_socket_rsp(const int socket, uint32_t transport_type,
 
     result = receive_platform_data(socket, transport_type, &command,
                                    (uint8_t *)rsp, &rsp_len);
-    if (!result) {
+    if (!result || command == 0) {
         return 0;
     }
-
-    assert(command != 0);
 
     return rsp_len;
 }
