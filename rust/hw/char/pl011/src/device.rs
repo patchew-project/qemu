@@ -8,6 +8,7 @@ use std::{
     ptr::NonNull,
 };
 
+use common::{static_assert, uninit_field_mut, Zeroable};
 use qemu_api::{
     bindings::{qdev_prop_bool, qdev_prop_chr},
     chardev::{CharBackend, Chardev, Event},
@@ -19,12 +20,9 @@ use qemu_api::{
     prelude::*,
     qdev::{Clock, ClockEvent, DeviceImpl, DeviceState, Property, ResetType, ResettablePhasesImpl},
     qom::{ObjectImpl, Owned, ParentField, ParentInit},
-    static_assert,
     sysbus::{SysBusDevice, SysBusDeviceImpl},
-    uninit_field_mut,
     vmstate::VMStateDescription,
     vmstate_clock, vmstate_fields, vmstate_of, vmstate_struct, vmstate_subsections, vmstate_unused,
-    zeroable::Zeroable,
 };
 
 use crate::registers::{self, Interrupt, RegisterOffset};

@@ -45,6 +45,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "common"
+version = "0.1.0"
+
+[[package]]
 name = "either"
 version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -63,6 +67,7 @@ dependencies = [
 name = "hpet"
 version = "0.1.0"
 dependencies = [
+ "common",
  "qemu_api",
  "qemu_api_macros",
 ]
@@ -89,6 +94,7 @@ dependencies = [
  "bilge",
  "bilge-impl",
  "bits",
+ "common",
  "qemu_api",
  "qemu_api_macros",
 ]
@@ -130,6 +136,7 @@ name = "qemu_api"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "common",
  "foreign",
  "libc",
  "qemu_api_macros",

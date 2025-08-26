@@ -18,10 +18,11 @@ use std::{
     slice,
 };
 
+use common::{callbacks::FnCall, Opaque};
+
 use crate::{
     bindings,
-    callbacks::FnCall,
-    cell::{BqlRefMut, Opaque},
+    cell::{BqlRefCell, BqlRefMut},
     prelude::*,
 };
 

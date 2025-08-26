@@ -58,7 +58,7 @@ fn test_derive_object() {
             }
         },
         quote! {
-            ::qemu_api::assert_field_type!(
+            ::common::assert_field_type!(
                 Foo,
                 _unused,
                 ::qemu_api::qom::ParentField<<Foo as ::qemu_api::qom::ObjectImpl>::ParentType>

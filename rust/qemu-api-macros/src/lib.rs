@@ -88,7 +88,7 @@ fn derive_object_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
     let parent = &get_fields(&input, "#[derive(Object)]")?[0].ident;
 
     Ok(quote! {
-        ::qemu_api::assert_field_type!(#name, #parent,
+        ::common::assert_field_type!(#name, #parent,
             ::qemu_api::qom::ParentField<<#name as ::qemu_api::qom::ObjectImpl>::ParentType>);
 
         ::qemu_api::module_init! {
@@ -118,20 +118,20 @@ fn derive_opaque_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
     // TODO: how to add "::qemu_api"?  For now, this is only used in the
     // qemu_api crate so it's not a problem.
     Ok(quote! {
-        unsafe impl crate::cell::Wrapper for #name {
-            type Wrapped = <#typ as crate::cell::Wrapper>::Wrapped;
+        unsafe impl ::common::opaque::Wrapper for #name {
+            type Wrapped = <#typ as ::common::opaque::Wrapper>::Wrapped;
         }
         impl #name {
-            pub unsafe fn from_raw<'a>(ptr: *mut <Self as crate::cell::Wrapper>::Wrapped) -> &'a Self {
+            pub unsafe fn from_raw<'a>(ptr: *mut <Self as ::common::opaque::Wrapper>::Wrapped) -> &'a Self {
                 let ptr = ::std::ptr::NonNull::new(ptr).unwrap().cast::<Self>();
                 unsafe { ptr.as_ref() }
             }
 
-            pub const fn as_mut_ptr(&self) -> *mut <Self as crate::cell::Wrapper>::Wrapped {
+            pub const fn as_mut_ptr(&self) -> *mut <Self as ::common::opaque::Wrapper>::Wrapped {
                 self.0.as_mut_ptr()
             }
 
-            pub const fn as_ptr(&self) -> *const <Self as crate::cell::Wrapper>::Wrapped {
+            pub const fn as_ptr(&self) -> *const <Self as ::common::opaque::Wrapper>::Wrapped {
                 self.0.as_ptr()
             }
 
@@ -139,7 +139,7 @@ fn derive_opaque_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
                 self.0.as_void_ptr()
             }
 
-            pub const fn raw_get(slot: *mut Self) -> *mut <Self as crate::cell::Wrapper>::Wrapped {
+            pub const fn raw_get(slot: *mut Self) -> *mut <Self as ::common::opaque::Wrapper>::Wrapped {
                 slot.cast()
             }
         }

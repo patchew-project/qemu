@@ -52,10 +52,7 @@ _qemu_api_rs = static_library(
   structured_sources(
     [
       'src/lib.rs',
-      'src/assertions.rs',
       'src/bindings.rs',
-      'src/bitops.rs',
-      'src/callbacks.rs',
       'src/cell.rs',
       'src/chardev.rs',
       'src/errno.rs',
@@ -69,16 +66,14 @@ _qemu_api_rs = static_library(
       'src/qom.rs',
       'src/sysbus.rs',
       'src/timer.rs',
-      'src/uninit.rs',
       'src/vmstate.rs',
-      'src/zeroable.rs',
     ],
     {'.' : _qemu_api_bindings_inc_rs},
   ),
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
   rust_args: _qemu_api_cfg,
-  dependencies: [anyhow_rs, foreign_rs, libc_rs, qemu_api_macros, qemuutil_rs,
+  dependencies: [anyhow_rs, common_rs, foreign_rs, libc_rs, qemu_api_macros, qemuutil_rs,
                  qom, hwcore, chardev, migration],
 )
 
@@ -104,7 +99,7 @@ test('rust-qemu-api-integration',
         override_options: ['rust_std=2021', 'build.rust_std=2021'],
         rust_args: ['--test'],
         install: false,
-        dependencies: [qemu_api]),
+        dependencies: [common_rs, qemu_api]),
     args: [
         '--test', '--test-threads', '1',
         '--format', 'pretty',
