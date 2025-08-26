@@ -54,7 +54,7 @@ impl Write for BqlRefMut<'_, bindings::CharBackend> {
 
         let len = buf.len().try_into().unwrap();
         let r = unsafe { bindings::qemu_chr_fe_write(addr_of_mut!(*chr), buf.as_ptr(), len) };
-        errno::into_io_result(r).map(|cnt| cnt as usize)
+        ::util::errno::into_io_result(r).map(|cnt| cnt as usize)
     }
 
     fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
@@ -62,7 +62,7 @@ impl Write for BqlRefMut<'_, bindings::CharBackend> {
 
         let len = buf.len().try_into().unwrap();
         let r = unsafe { bindings::qemu_chr_fe_write_all(addr_of_mut!(*chr), buf.as_ptr(), len) };
-        errno::into_io_result(r).and_then(|cnt| {
+        ::util::errno::into_io_result(r).and_then(|cnt| {
             if cnt as usize == buf.len() {
                 Ok(())
             } else {
@@ -215,7 +215,7 @@ impl CharBackend {
             )
         };
 
-        errno::into_io_result(r).map(|_| ())
+        ::util::errno::into_io_result(r).map(|_| ())
     }
 
     /// Write data to a character backend from the front end.  This function
@@ -229,7 +229,7 @@ impl CharBackend {
         let len = buf.len().try_into().unwrap();
         // SAFETY: qemu_chr_fe_write is thread-safe
         let r = unsafe { bindings::qemu_chr_fe_write(self.inner.as_ptr(), buf.as_ptr(), len) };
-        errno::into_io_result(r).map(|cnt| cnt as usize)
+        ::util::errno::into_io_result(r).map(|cnt| cnt as usize)
     }
 
     /// Write data to a character backend from the front end.  This function
@@ -243,7 +243,7 @@ impl CharBackend {
         let len = buf.len().try_into().unwrap();
         // SAFETY: qemu_chr_fe_write_all is thread-safe
         let r = unsafe { bindings::qemu_chr_fe_write_all(self.inner.as_ptr(), buf.as_ptr(), len) };
-        errno::into_io_result(r).and_then(|cnt| {
+        ::util::errno::into_io_result(r).and_then(|cnt| {
             if cnt as usize == buf.len() {
                 Ok(())
             } else {

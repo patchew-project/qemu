@@ -11,12 +11,12 @@ use std::{
 
 pub use bindings::{ClockEvent, DeviceClass, Property, ResetType};
 use common::{callbacks::FnCall, Opaque};
+pub use util::{Error, Result};
 
 use crate::{
     bindings::{self, qdev_init_gpio_in, qdev_init_gpio_out, ResettableClass},
     cell::bql_locked,
     chardev::Chardev,
-    error::{Error, Result},
     irq::InterruptSource,
     prelude::*,
     qom::{ObjectClass, ObjectImpl, Owned, ParentInit},
@@ -135,7 +135,7 @@ pub trait DeviceImpl: ObjectImpl + ResettablePhasesImpl + IsA<DeviceState> {
 /// readable/writeable from one thread at any time.
 unsafe extern "C" fn rust_realize_fn<T: DeviceImpl>(
     dev: *mut bindings::DeviceState,
-    errp: *mut *mut bindings::Error,
+    errp: *mut *mut util::bindings::Error,
 ) {
     let state = NonNull::new(dev).unwrap().cast::<T>();
     let result = T::REALIZE.unwrap()(unsafe { state.as_ref() });

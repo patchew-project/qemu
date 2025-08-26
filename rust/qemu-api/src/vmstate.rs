@@ -390,7 +390,7 @@ impl_vmstate_scalar!(vmstate_info_uint8, u8, VMS_VARRAY_UINT8);
 impl_vmstate_scalar!(vmstate_info_uint16, u16, VMS_VARRAY_UINT16);
 impl_vmstate_scalar!(vmstate_info_uint32, u32, VMS_VARRAY_UINT32);
 impl_vmstate_scalar!(vmstate_info_uint64, u64);
-impl_vmstate_scalar!(vmstate_info_timer, crate::timer::Timer);
+impl_vmstate_scalar!(vmstate_info_timer, util::timer::Timer);
 
 // Pointer types using the underlying type's VMState plus VMS_POINTER
 // Note that references are not supported, though references to cells

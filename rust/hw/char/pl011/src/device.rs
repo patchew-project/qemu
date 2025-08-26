@@ -14,8 +14,6 @@ use qemu_api::{
     chardev::{CharBackend, Chardev, Event},
     impl_vmstate_forward,
     irq::{IRQState, InterruptSource},
-    log::Log,
-    log_mask_ln,
     memory::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder},
     prelude::*,
     qdev::{Clock, ClockEvent, DeviceImpl, DeviceState, Property, ResetType, ResettablePhasesImpl},
@@ -24,6 +22,7 @@ use qemu_api::{
     vmstate::VMStateDescription,
     vmstate_clock, vmstate_fields, vmstate_of, vmstate_struct, vmstate_subsections, vmstate_unused,
 };
+use util::{log::Log, log_mask_ln};
 
 use crate::registers::{self, Interrupt, RegisterOffset};
 
@@ -180,7 +179,7 @@ impl DeviceImpl for PL011State {
     fn vmsd() -> Option<&'static VMStateDescription> {
         Some(&VMSTATE_PL011)
     }
-    const REALIZE: Option<fn(&Self) -> qemu_api::Result<()>> = Some(Self::realize);
+    const REALIZE: Option<fn(&Self) -> util::Result<()>> = Some(Self::realize);
 }
 
 impl ResettablePhasesImpl for PL011State {
@@ -627,7 +626,7 @@ impl PL011State {
         }
     }
 
-    fn realize(&self) -> qemu_api::Result<()> {
+    fn realize(&self) -> util::Result<()> {
         self.char_backend
             .enable_handlers(self, Self::can_receive, Self::receive, Self::event);
         Ok(())

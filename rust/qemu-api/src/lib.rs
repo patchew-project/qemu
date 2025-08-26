@@ -15,16 +15,9 @@ pub mod prelude;
 
 pub mod cell;
 pub mod chardev;
-pub mod errno;
-pub mod error;
 pub mod irq;
-pub mod log;
 pub mod memory;
-pub mod module;
 pub mod qdev;
 pub mod qom;
 pub mod sysbus;
-pub mod timer;
 pub mod vmstate;
-
-pub use error::{Error, Result};

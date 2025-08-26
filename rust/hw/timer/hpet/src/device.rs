@@ -26,10 +26,10 @@ use qemu_api::{
     qom::{ObjectImpl, ObjectType, ParentField, ParentInit},
     qom_isa,
     sysbus::{SysBusDevice, SysBusDeviceImpl},
-    timer::{Timer, CLOCK_VIRTUAL, NANOSECONDS_PER_SECOND},
     vmstate::VMStateDescription,
     vmstate_fields, vmstate_of, vmstate_struct, vmstate_subsections, vmstate_validate,
 };
+use util::timer::{Timer, CLOCK_VIRTUAL, NANOSECONDS_PER_SECOND};
 
 use crate::fw_cfg::HPETFwConfig;
 
@@ -723,7 +723,7 @@ impl HPETState {
         }
     }
 
-    fn realize(&self) -> qemu_api::Result<()> {
+    fn realize(&self) -> util::Result<()> {
         if self.num_timers < HPET_MIN_TIMERS || self.num_timers > HPET_MAX_TIMERS {
             Err(format!(
                 "hpet.num_timers must be between {HPET_MIN_TIMERS} and {HPET_MAX_TIMERS}"
@@ -1039,7 +1039,7 @@ impl DeviceImpl for HPETState {
         Some(&VMSTATE_HPET)
     }
 
-    const REALIZE: Option<fn(&Self) -> qemu_api::Result<()>> = Some(Self::realize);
+    const REALIZE: Option<fn(&Self) -> util::Result<()>> = Some(Self::realize);
 }
 
 impl ResettablePhasesImpl for HPETState {
