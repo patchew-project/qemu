@@ -166,6 +166,7 @@ struct PCIDevice {
 
     /* SPDM */
     uint16_t spdm_port;
+    char *spdm_trans;
 
     /* DOE */
     DOECap doe_spdm;
