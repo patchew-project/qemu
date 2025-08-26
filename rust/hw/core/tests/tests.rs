@@ -25,7 +25,7 @@ pub static VMSTATE: VMStateDescription = VMStateDescription {
 };
 
 #[repr(C)]
-#[derive(qemu_api_macros::Object)]
+#[derive(qemu_macros::Object)]
 pub struct DummyState {
     parent: ParentField<DeviceState>,
     migrate_clock: bool,
@@ -77,7 +77,7 @@ impl DeviceImpl for DummyState {
 }
 
 #[repr(C)]
-#[derive(qemu_api_macros::Object)]
+#[derive(qemu_macros::Object)]
 pub struct DummyChildState {
     parent: ParentField<DummyState>,
 }

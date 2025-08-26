@@ -4,7 +4,7 @@ use qom::{qom_isa, Object, ObjectClassMethods, ObjectImpl, ObjectType, ParentFie
 use util::bindings::{module_call_init, module_init_type};
 
 #[repr(C)]
-#[derive(qemu_api_macros::Object)]
+#[derive(qemu_macros::Object)]
 pub struct DummyObject {
     parent: ParentField<Object>,
 }

@@ -45,7 +45,7 @@ _util_rs = static_library(
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
   rust_args: _util_cfg,
-  dependencies: [anyhow_rs, libc_rs, foreign_rs, qemuutil_rs, common_rs, qemu_api_macros],
+  dependencies: [anyhow_rs, libc_rs, foreign_rs, qemuutil_rs, common_rs, qemu_macros],
 )
 
 util_rs = declare_dependency(link_with: [_util_rs], dependencies: [qemuutil_rs, qom])
