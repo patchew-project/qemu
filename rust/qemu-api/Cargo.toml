@@ -21,6 +21,7 @@ util = { path = "../util" }
 bql = { path = "../bql" }
 qemu_api_macros = { path = "../qemu-api-macros" }
 qom = { path = "../qom" }
+system = { path = "../system" }
 anyhow = "~1.0"
 libc = "0.2.162"
 foreign = "~0.3.1"

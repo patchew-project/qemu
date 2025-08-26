@@ -18,7 +18,6 @@ use migration::{
 use qemu_api::{
     bindings::{qdev_prop_bool, qdev_prop_chr},
     irq::{IRQState, InterruptSource},
-    memory::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder},
     prelude::*,
     qdev::{Clock, ClockEvent, DeviceImpl, DeviceState, Property, ResetType, ResettablePhasesImpl},
     sysbus::{SysBusDevice, SysBusDeviceImpl},
@@ -28,6 +27,7 @@ use qom::{
     qom_isa, IsA, Object, ObjectClassMethods, ObjectDeref, ObjectImpl, ObjectMethods, ObjectType,
     Owned, ParentField, ParentInit,
 };
+use system::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder};
 use util::{log::Log, log_mask_ln};
 
 use crate::registers::{self, Interrupt, RegisterOffset};

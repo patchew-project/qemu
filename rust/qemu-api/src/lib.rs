@@ -14,6 +14,5 @@ pub mod bindings;
 pub mod prelude;
 
 pub mod irq;
-pub mod memory;
 pub mod qdev;
 pub mod sysbus;
