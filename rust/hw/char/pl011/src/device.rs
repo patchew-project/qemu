@@ -9,18 +9,20 @@ use std::{
 };
 
 use common::{static_assert, uninit_field_mut, Zeroable};
+use migration::{
+    impl_vmstate_forward, vmstate_fields, vmstate_of, vmstate_struct, vmstate_subsections,
+    vmstate_unused, VMStateDescription,
+};
 use qemu_api::{
     bindings::{qdev_prop_bool, qdev_prop_chr},
     chardev::{CharBackend, Chardev, Event},
-    impl_vmstate_forward,
     irq::{IRQState, InterruptSource},
     memory::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder},
     prelude::*,
     qdev::{Clock, ClockEvent, DeviceImpl, DeviceState, Property, ResetType, ResettablePhasesImpl},
     qom::{ObjectImpl, Owned, ParentField, ParentInit},
     sysbus::{SysBusDevice, SysBusDeviceImpl},
-    vmstate::VMStateDescription,
-    vmstate_clock, vmstate_fields, vmstate_of, vmstate_struct, vmstate_subsections, vmstate_unused,
+    vmstate_clock,
 };
 use util::{log::Log, log_mask_ln};
 
