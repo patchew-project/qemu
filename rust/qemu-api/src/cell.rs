@@ -152,7 +152,7 @@ use std::{
     ptr::NonNull,
 };
 
-use crate::bindings;
+use crate::{bindings, impl_vmstate_transparent};
 
 /// An internal function that is used by doctests.
 pub fn bql_start_test() {
@@ -866,3 +866,6 @@ impl<T: fmt::Display> fmt::Display for BqlRefMut<'_, T> {
         (**self).fmt(f)
     }
 }
+
+impl_vmstate_transparent!(BqlCell<T> where T: VMState);
+impl_vmstate_transparent!(BqlRefCell<T> where T: VMState);
