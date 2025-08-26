@@ -6,20 +6,16 @@ use std::{ffi::CStr, ptr::addr_of};
 
 use bql::BqlCell;
 use common::Zeroable;
-use migration::VMStateDescription;
-use qemu_api::{
-    bindings::qdev_prop_bool,
-    declare_properties, define_property,
-    qdev::{DeviceClassExt, DeviceImpl, DeviceState, Property, ResettablePhasesImpl},
-    sysbus::SysBusDevice,
+use hwcore::{
+    bindings::qdev_prop_bool, declare_properties, define_property, DeviceClassExt, DeviceImpl,
+    DeviceState, Property, ResettablePhasesImpl, SysBusDevice,
 };
+use migration::vmstate::VMStateDescription;
 use qom::{
-    Object, ObjectCast, ObjectClassMethods, ObjectDeref, ObjectImpl, ObjectMethods, ObjectType,
-    ParentField,
+    qom_isa, Object, ObjectCast, ObjectClassMethods, ObjectDeref, ObjectImpl, ObjectMethods,
+    ObjectType, ParentField,
 };
 use util::bindings::{module_call_init, module_init_type};
-
-mod vmstate_tests;
 
 // Test that macros can compile.
 pub static VMSTATE: VMStateDescription = VMStateDescription {
@@ -35,7 +31,7 @@ pub struct DummyState {
     migrate_clock: bool,
 }
 
-qom::qom_isa!(DummyState: Object, DeviceState);
+qom_isa!(DummyState: Object, DeviceState);
 
 pub struct DummyClass {
     parent_class: <DeviceState as ObjectType>::Class,
@@ -86,7 +82,7 @@ pub struct DummyChildState {
     parent: ParentField<DummyState>,
 }
 
-qom::qom_isa!(DummyChildState: Object, DeviceState, DummyState);
+qom_isa!(DummyChildState: Object, DeviceState, DummyState);
 
 pub struct DummyChildClass {
     parent_class: <DummyState as ObjectType>::Class,

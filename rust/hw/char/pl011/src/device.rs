@@ -11,17 +11,15 @@ use std::{
 use bql::BqlRefCell;
 use chardev::{CharBackend, Chardev, Event};
 use common::{static_assert, uninit_field_mut, Zeroable};
+use hwcore::{
+    bindings::{qdev_prop_bool, qdev_prop_chr},
+    declare_properties, define_property, vmstate_clock, Clock, ClockEvent, DeviceImpl,
+    DeviceMethods, DeviceState, IRQState, InterruptSource, Property, ResetType,
+    ResettablePhasesImpl, SysBusDevice, SysBusDeviceImpl, SysBusDeviceMethods,
+};
 use migration::{
     impl_vmstate_forward, vmstate_fields, vmstate_of, vmstate_struct, vmstate_subsections,
     vmstate_unused, VMStateDescription,
-};
-use qemu_api::{
-    bindings::{qdev_prop_bool, qdev_prop_chr},
-    irq::{IRQState, InterruptSource},
-    prelude::*,
-    qdev::{Clock, ClockEvent, DeviceImpl, DeviceState, Property, ResetType, ResettablePhasesImpl},
-    sysbus::{SysBusDevice, SysBusDeviceImpl},
-    vmstate_clock,
 };
 use qom::{
     qom_isa, IsA, Object, ObjectClassMethods, ObjectDeref, ObjectImpl, ObjectMethods, ObjectType,
@@ -786,16 +784,16 @@ pub static VMSTATE_PL011: VMStateDescription = VMStateDescription {
     ..Zeroable::ZERO
 };
 
-qemu_api::declare_properties! {
+declare_properties! {
     PL011_PROPERTIES,
-    qemu_api::define_property!(
+    define_property!(
         c"chardev",
         PL011State,
         char_backend,
         unsafe { &qdev_prop_chr },
         CharBackend
     ),
-    qemu_api::define_property!(
+    define_property!(
         c"migrate-clk",
         PL011State,
         migrate_clock,
