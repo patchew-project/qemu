@@ -167,7 +167,8 @@ static int xen_block_parse_request(XenBlockRequest *request)
         return 0;
     default:
         error_report("error: unknown operation (%d)", request->req.operation);
-        goto err;
+        request->status = BLKIF_RSP_EOPNOTSUPP;
+        return -1;
     };
 
     if (request->req.operation != BLKIF_OP_READ &&
