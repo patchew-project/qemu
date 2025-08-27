@@ -2928,6 +2928,12 @@ F: hw/vmapple/*
 F: include/hw/vmapple/*
 F: docs/system/arm/vmapple.rst
 
+Battery
+M: Leonid Bloch <lb.workbox@gmail.com>
+S: Maintained
+F: hw/acpi/battery.*
+F: docs/specs/battery.rst
+
 Subsystems
 ----------
 Overall Audio backends

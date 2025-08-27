@@ -83,3 +83,7 @@ config ACPI_ERST
 config ACPI_CXL
     bool
     depends on ACPI
+
+config BATTERY
+    bool
+    depends on ACPI

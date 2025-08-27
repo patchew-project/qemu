@@ -142,3 +142,76 @@
 ##
 { 'event': 'ACPI_DEVICE_OST',
      'data': { 'info': 'ACPIOSTInfo' } }
+
+##
+# @BatteryInfo:
+#
+# Battery state information
+#
+# @present: whether the battery is present
+#
+# @charging: whether the battery is charging
+#
+# @discharging: whether the battery is discharging
+#
+# @charge-percent: battery charge percentage (0-100)
+#
+# @rate: charge/discharge rate in mW (optional)
+#
+# @remaining-capacity: remaining capacity in mWh (optional)
+#
+# @design-capacity: design capacity in mWh (optional)
+#
+# Since: 10.2
+##
+{ 'struct': 'BatteryInfo',
+  'data': { 'present': 'bool',
+            'charging': 'bool',
+            'discharging': 'bool',
+            'charge-percent': 'int',
+            '*rate': 'int',
+            '*remaining-capacity': 'int',
+            '*design-capacity': 'int' } }
+
+##
+# @battery-set-state:
+#
+# Set the state of the emulated battery device
+#
+# @state: new battery state
+#
+
+#
+# Since: 10.2
+#
+# .. qmp-example::
+#
+#     -> { "execute": "battery-set-state",
+#          "arguments": { "state": { "present": true,
+#                                    "charging": true,
+#                                    "discharging": false,
+#                                    "charge-percent": 85 } } }
+#     <- { "return": {} }
+##
+{ 'command': 'battery-set-state',
+  'data': { 'state': 'BatteryInfo' } }
+
+##
+# @query-battery:
+#
+# Query the current state of the emulated battery device
+#
+# Returns: current battery state
+#
+# Since: 10.2
+#
+# .. qmp-example::
+#
+#     -> { "execute": "query-battery" }
+#     <- { "return": { "present": true,
+#                      "charging": true,
+#                      "discharging": false,
+#                      "charge-percent": 85 } }
+##
+{ 'command': 'query-battery',
+  'returns': 'BatteryInfo' }
