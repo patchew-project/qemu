@@ -42,6 +42,44 @@
 #define  MIGRATION_THREAD_DST_LISTEN        "mig/dst/listen"
 #define  MIGRATION_THREAD_DST_PREEMPT       "mig/dst/preempt"
 
+/**
+ * WITH_BQL_HELD(): Run a task, making sure BQL is held
+ *
+ * @bql_held: Whether BQL is already held
+ * @task:     The task to run within BQL held
+ */
+#define  WITH_BQL_HELD(bql_held, task)          \
+    do {                                        \
+        if (!bql_held) {                        \
+            bql_lock();                         \
+        } else {                                \
+            assert(bql_locked());               \
+        }                                       \
+        task;                                   \
+        if (!bql_held) {                        \
+            bql_unlock();                       \
+        }                                       \
+    } while (0)
+
+/**
+ * WITHOUT_BQL_HELD(): Run a task, making sure BQL is released
+ *
+ * @bql_held: Whether BQL is already held
+ * @task:     The task to run making sure BQL released
+ */
+#define  WITHOUT_BQL_HELD(bql_held, task)       \
+    do {                                        \
+        if (bql_held) {                         \
+            bql_unlock();                       \
+        } else {                                \
+            assert(!bql_locked());              \
+        }                                       \
+        task;                                   \
+        if (bql_held) {                         \
+            bql_lock();                         \
+        }                                       \
+    } while (0)
+
 struct PostcopyBlocktimeContext;
 typedef struct ThreadPool ThreadPool;
 
@@ -119,6 +157,10 @@ struct MigrationIncomingState {
     bool           have_listen_thread;
     QemuThread     listen_thread;
 
+    /* Migration main recv thread */
+    bool           have_recv_thread;
+    QemuThread     recv_thread;
+
     /* For the kernel to send us notifications */
     int       userfault_fd;
     /* To notify the fault_thread to wake, e.g., when need to quit */
@@ -177,15 +219,7 @@ struct MigrationIncomingState {
 
     MigrationStatus state;
 
-    /*
-     * The incoming migration coroutine, non-NULL during qemu_loadvm_state().
-     * Used to wake the migration incoming coroutine from rdma code. How much is
-     * it safe - it's a question.
-     */
-    Coroutine *loadvm_co;
-
-    /* The coroutine we should enter (back) after failover */
-    Coroutine *colo_incoming_co;
+    /* Notify secondary VM to move on */
     QemuEvent colo_incoming_event;
 
     /* Optional load threads pool and its thread exit request flag */
