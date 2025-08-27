@@ -4,6 +4,7 @@ _libhpet_rs = static_library(
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
   dependencies: [
+    common_rs,
     qemu_api,
     qemu_api_macros,
   ],

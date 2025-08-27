@@ -7,6 +7,7 @@ _libpl011_rs = static_library(
     bilge_rs,
     bilge_impl_rs,
     bits_rs,
+    common_rs,
     qemu_api,
     qemu_api_macros,
   ],

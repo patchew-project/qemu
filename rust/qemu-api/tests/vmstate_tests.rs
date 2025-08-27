@@ -9,16 +9,16 @@ use std::{
     slice,
 };
 
+use common::{Opaque, Zeroable};
 use qemu_api::{
     bindings::{
         vmstate_info_bool, vmstate_info_int32, vmstate_info_int64, vmstate_info_int8,
         vmstate_info_uint64, vmstate_info_uint8, vmstate_info_unused_buffer, VMStateFlags,
     },
-    cell::{BqlCell, Opaque},
+    cell::BqlCell,
     impl_vmstate_forward,
     vmstate::{VMStateDescription, VMStateField},
     vmstate_fields, vmstate_of, vmstate_struct, vmstate_unused, vmstate_validate,
-    zeroable::Zeroable,
 };
 
 const FOO_ARRAY_MAX: usize = 3;

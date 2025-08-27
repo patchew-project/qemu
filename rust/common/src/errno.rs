@@ -176,7 +176,7 @@ use traits::{GetErrno, MergeErrno};
 /// are interpreted as negated `errno` and turned into an `Err`.
 ///
 /// ```
-/// # use qemu_api::errno::into_io_result;
+/// # use common::errno::into_io_result;
 /// # use std::io::ErrorKind;
 /// let ok = into_io_result(1i32).unwrap();
 /// assert_eq!(ok, 1u32);
@@ -192,7 +192,7 @@ use traits::{GetErrno, MergeErrno};
 /// likely overflows and will panic:
 ///
 /// ```should_panic
-/// # use qemu_api::errno::into_io_result;
+/// # use common::errno::into_io_result;
 /// # #[allow(dead_code)]
 /// let err = into_io_result(-0x1234_5678i32); // panic
 /// ```
@@ -204,7 +204,7 @@ pub fn into_io_result<T: GetErrno>(value: T) -> io::Result<T::Out> {
 /// values to report errors.
 ///
 /// ```
-/// # use qemu_api::errno::into_neg_errno;
+/// # use common::errno::into_neg_errno;
 /// # use std::io::{self, ErrorKind};
 /// let ok: io::Result<()> = Ok(());
 /// assert_eq!(into_neg_errno(ok), 0);
@@ -223,7 +223,7 @@ pub fn into_io_result<T: GetErrno>(value: T) -> io::Result<T::Out> {
 /// positive:
 ///
 /// ```should_panic
-/// # use qemu_api::errno::into_neg_errno;
+/// # use common::errno::into_neg_errno;
 /// # use std::io;
 /// let err: io::Result<u32> = Ok(0x8899_AABB);
 /// into_neg_errno(err) // panic
@@ -240,8 +240,9 @@ pub fn into_neg_errno<T: MergeErrno, E: Into<Errno>>(value: Result<T, E>) -> T::
 mod tests {
     use std::io::ErrorKind;
 
+    use common::assert_match;
+
     use super::*;
-    use crate::assert_match;
 
     #[test]
     pub fn test_from_u8() {

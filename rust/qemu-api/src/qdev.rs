@@ -10,11 +10,11 @@ use std::{
 };
 
 pub use bindings::{ClockEvent, DeviceClass, Property, ResetType};
+use common::{callbacks::FnCall, Opaque};
 
 use crate::{
     bindings::{self, qdev_init_gpio_in, qdev_init_gpio_out, ResettableClass},
-    callbacks::FnCall,
-    cell::{bql_locked, Opaque},
+    cell::bql_locked,
     chardev::Chardev,
     error::{Error, Result},
     irq::InterruptSource,
@@ -198,7 +198,7 @@ macro_rules! define_property {
             bitnr: $bitnr,
             set_default: true,
             defval: $crate::bindings::Property__bindgen_ty_1 { u: $defval as u64 },
-            ..$crate::zeroable::Zeroable::ZERO
+            ..::common::zeroable::Zeroable::ZERO
         }
     };
     ($name:expr, $state:ty, $field:ident, $prop:expr, $type:ty, default = $defval:expr$(,)*) => {
@@ -209,7 +209,7 @@ macro_rules! define_property {
             offset: ::std::mem::offset_of!($state, $field) as isize,
             set_default: true,
             defval: $crate::bindings::Property__bindgen_ty_1 { u: $defval as u64 },
-            ..$crate::zeroable::Zeroable::ZERO
+            ..::common::zeroable::Zeroable::ZERO
         }
     };
     ($name:expr, $state:ty, $field:ident, $prop:expr, $type:ty$(,)*) => {
@@ -219,7 +219,7 @@ macro_rules! define_property {
             info: $prop,
             offset: ::std::mem::offset_of!($state, $field) as isize,
             set_default: false,
-            ..$crate::zeroable::Zeroable::ZERO
+            ..::common::zeroable::Zeroable::ZERO
         }
     };
 }

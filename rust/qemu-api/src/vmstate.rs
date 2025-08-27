@@ -27,10 +27,10 @@
 use core::{marker::PhantomData, mem, ptr::NonNull};
 use std::ffi::{c_int, c_void};
 
+use common::{callbacks::FnCall, Zeroable};
+
 pub use crate::bindings::{VMStateDescription, VMStateField};
-use crate::{
-    bindings::VMStateFlags, callbacks::FnCall, prelude::*, qom::Owned, zeroable::Zeroable,
-};
+use crate::{bindings::VMStateFlags, prelude::*, qom::Owned};
 
 /// This macro is used to call a function with a generic argument bound
 /// to the type of a field.  The function must take a
@@ -343,7 +343,7 @@ impl_vmstate_transparent!(std::cell::UnsafeCell<T> where T: VMState);
 impl_vmstate_transparent!(std::pin::Pin<T> where T: VMState);
 impl_vmstate_transparent!(crate::cell::BqlCell<T> where T: VMState);
 impl_vmstate_transparent!(crate::cell::BqlRefCell<T> where T: VMState);
-impl_vmstate_transparent!(crate::cell::Opaque<T> where T: VMState);
+impl_vmstate_transparent!(::common::Opaque<T> where T: VMState);
 
 #[macro_export]
 macro_rules! impl_vmstate_bitsized {
@@ -431,7 +431,7 @@ macro_rules! vmstate_unused {
             size: $size,
             info: unsafe { ::core::ptr::addr_of!($crate::bindings::vmstate_info_unused_buffer) },
             flags: $crate::bindings::VMStateFlags::VMS_BUFFER,
-            ..$crate::zeroable::Zeroable::ZERO
+            ..::common::zeroable::Zeroable::ZERO
         }
     }};
 }
@@ -454,7 +454,7 @@ pub type VMSFieldExistCb = unsafe extern "C" fn(
 #[macro_export]
 macro_rules! vmstate_exist_fn {
     ($struct_name:ty, $test_fn:expr) => {{
-        const fn test_cb_builder__<T, F: for<'a> $crate::callbacks::FnCall<(&'a T, u8), bool>>(
+        const fn test_cb_builder__<T, F: for<'a> ::common::callbacks::FnCall<(&'a T, u8), bool>>(
             _phantom: ::core::marker::PhantomData<F>,
         ) -> $crate::vmstate::VMSFieldExistCb {
             let _: () = F::ASSERT_IS_SOME;
@@ -485,14 +485,14 @@ macro_rules! vmstate_struct {
                 .as_ptr() as *const ::std::os::raw::c_char,
             $(num_offset: ::std::mem::offset_of!($struct_name, $num),)?
             offset: {
-                $crate::assert_field_type!($struct_name, $field_name, $type $(, num = $num)?);
+                ::common::assert_field_type!($struct_name, $field_name, $type $(, num = $num)?);
                 ::std::mem::offset_of!($struct_name, $field_name)
             },
             size: ::core::mem::size_of::<$type>(),
             flags: $crate::bindings::VMStateFlags::VMS_STRUCT,
             vmsd: $vmsd,
             $(field_exists: $crate::vmstate_exist_fn!($struct_name, $test_fn),)?
-            ..$crate::zeroable::Zeroable::ZERO
+            ..::common::zeroable::Zeroable::ZERO
          } $(.with_varray_flag_unchecked(
                   $crate::call_func_with_field!(
                       $crate::vmstate::vmstate_varray_flag,
@@ -513,7 +513,7 @@ macro_rules! vmstate_clock {
                 .as_bytes()
                 .as_ptr() as *const ::std::os::raw::c_char,
             offset: {
-                $crate::assert_field_type!(
+                ::common::assert_field_type!(
                     $struct_name,
                     $field_name,
                     $crate::qom::Owned<$crate::qdev::Clock> $(, num = $num)?
@@ -526,7 +526,7 @@ macro_rules! vmstate_clock {
                     | $crate::bindings::VMStateFlags::VMS_POINTER.0,
             ),
             vmsd: unsafe { ::core::ptr::addr_of!($crate::bindings::vmstate_clock) },
-            ..$crate::zeroable::Zeroable::ZERO
+            ..::common::zeroable::Zeroable::ZERO
          } $(.with_varray_flag_unchecked(
                   $crate::call_func_with_field!(
                       $crate::vmstate::vmstate_varray_flag,
@@ -548,7 +548,7 @@ macro_rules! vmstate_fields {
             $($field),*,
             $crate::bindings::VMStateField {
                 flags: $crate::bindings::VMStateFlags::VMS_END,
-                ..$crate::zeroable::Zeroable::ZERO
+                ..::common::zeroable::Zeroable::ZERO
             }
         ];
         _FIELDS.as_ptr()
@@ -567,7 +567,7 @@ macro_rules! vmstate_validate {
                     | $crate::bindings::VMStateFlags::VMS_ARRAY.0,
             ),
             num: 0, // 0 elements: no data, only run test_fn callback
-            ..$crate::zeroable::Zeroable::ZERO
+            ..::common::zeroable::Zeroable::ZERO
         }
     };
 }

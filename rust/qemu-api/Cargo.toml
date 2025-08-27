@@ -14,9 +14,10 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+common = { path = "../common" }
 qemu_api_macros = { path = "../qemu-api-macros" }
 anyhow = "~1.0"
-libc = "0.2.162"
+libc.workspace = true
 foreign = "~0.3.1"
 
 [features]

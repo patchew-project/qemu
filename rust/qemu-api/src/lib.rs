@@ -13,12 +13,8 @@ pub mod bindings;
 #[rustfmt::skip]
 pub mod prelude;
 
-pub mod assertions;
-pub mod bitops;
-pub mod callbacks;
 pub mod cell;
 pub mod chardev;
-pub mod errno;
 pub mod error;
 pub mod irq;
 pub mod log;
@@ -28,8 +24,6 @@ pub mod qdev;
 pub mod qom;
 pub mod sysbus;
 pub mod timer;
-pub mod uninit;
 pub mod vmstate;
-pub mod zeroable;
 
 pub use error::{Error, Result};

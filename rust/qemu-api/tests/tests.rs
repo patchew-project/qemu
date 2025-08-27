@@ -4,6 +4,7 @@
 
 use std::{ffi::CStr, ptr::addr_of};
 
+use common::Zeroable;
 use qemu_api::{
     bindings::{module_call_init, module_init_type, qdev_prop_bool},
     cell::{self, BqlCell},
@@ -13,7 +14,6 @@ use qemu_api::{
     qom::{ObjectImpl, ParentField},
     sysbus::SysBusDevice,
     vmstate::VMStateDescription,
-    zeroable::Zeroable,
 };
 
 mod vmstate_tests;
