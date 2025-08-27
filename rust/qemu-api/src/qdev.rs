@@ -10,6 +10,7 @@ use std::{
 };
 
 pub use bindings::{ClockEvent, DeviceClass, Property, ResetType};
+use chardev::Chardev;
 use common::{callbacks::FnCall, Opaque};
 use migration::vmstate::VMStateDescription;
 use qom::{prelude::*, ObjectClass, ObjectImpl, Owned, ParentInit};
@@ -17,7 +18,6 @@ pub use util::{Error, Result};
 
 use crate::{
     bindings::{self, qdev_init_gpio_in, qdev_init_gpio_out, ResettableClass},
-    chardev::Chardev,
     irq::InterruptSource,
 };
 
