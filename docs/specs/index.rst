@@ -24,6 +24,7 @@ guest hardware that is specific to QEMU.
    acpi_erst
    acad
    battery
+   button
    sev-guest-firmware
    fw_cfg
    fsi

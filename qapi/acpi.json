@@ -264,3 +264,52 @@
 ##
 { 'command': 'query-ac-adapter',
   'returns': 'AcAdapterInfo' }
+
+##
+# @lid-button-set-state:
+#
+# Set the state of the emulated laptop lid button device
+#
+# @open: whether the lid is open
+#
+
+#
+# Since: 10.2
+#
+# .. qmp-example::
+#
+#     -> { "execute": "lid-button-set-state",
+#          "arguments": { "open": true } }
+#     <- { "return": {} }
+##
+{ 'command': 'lid-button-set-state',
+  'data': { 'open': 'bool' } }
+
+##
+# @LidButtonInfo:
+#
+# Lid button state information
+#
+# @open: whether the lid is open
+#
+# Since: 10.2
+##
+{ 'struct': 'LidButtonInfo',
+  'data': { 'open': 'bool' } }
+
+##
+# @query-lid-button:
+#
+# Query the current state of the emulated laptop lid button device
+#
+# Returns: lid button state
+#
+# Since: 10.2
+#
+# .. qmp-example::
+#
+#     -> { "execute": "query-lid-button" }
+#     <- { "return": { "open": true } }
+##
+{ 'command': 'query-lid-button',
+  'returns': 'LidButtonInfo' }
