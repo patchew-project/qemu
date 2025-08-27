@@ -1357,7 +1357,8 @@ static int qemu_rdma_wait_comp_channel(RDMAContext *rdma,
      * so don't yield unless we know we're running inside of a coroutine.
      */
     if (rdma->migration_started_on_destination &&
-        migration_incoming_get_current()->state == MIGRATION_STATUS_ACTIVE) {
+        migration_incoming_get_current()->state == MIGRATION_STATUS_ACTIVE &&
+        qemu_in_coroutine()) {
         yield_until_fd_readable(comp_channel->fd);
     } else {
         /* This is the source side, we're in a separate thread
