@@ -729,19 +729,32 @@ uint32_t acpi_gpe_ioport_readb(ACPIREGS *ar, uint32_t addr)
 void acpi_send_gpe_event(ACPIREGS *ar, qemu_irq irq,
                          AcpiEventStatusBits status)
 {
-    ar->gpe.sts[0] |= status;
+    int i;
+    AcpiEventStatusBits st = status;
+
+    for (i = 0; i < ar->gpe.len / 2; i++) {
+        ar->gpe.sts[i] |= st;
+        st >>= TYPE_WIDTH(ar->gpe.sts[0]);
+    }
+
     acpi_update_sci(ar, irq);
 }
 
 void acpi_update_sci(ACPIREGS *regs, qemu_irq irq)
 {
     int sci_level, pm1a_sts;
+    bool gpe_sci = false;
+    int i;
 
     pm1a_sts = acpi_pm1_evt_get_sts(regs);
 
+    for (i = 0; i < regs->gpe.len / 2; i++) {
+        gpe_sci = gpe_sci || !!(regs->gpe.sts[i] & regs->gpe.en[i]);
+    }
+
     sci_level = ((pm1a_sts &
                   regs->pm1.evt.en & ACPI_BITMASK_PM1_COMMON_ENABLED) != 0) ||
-                ((regs->gpe.sts[0] & regs->gpe.en[0]) != 0);
+                gpe_sci;
 
     qemu_set_irq(irq, sci_level);
 
