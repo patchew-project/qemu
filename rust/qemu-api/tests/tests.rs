@@ -10,11 +10,10 @@ use migration::VMStateDescription;
 use qemu_api::{
     bindings::qdev_prop_bool,
     declare_properties, define_property,
-    prelude::*,
-    qdev::{DeviceImpl, DeviceState, Property, ResettablePhasesImpl},
-    qom::{ObjectImpl, ParentField},
+    qdev::{DeviceClassExt, DeviceImpl, DeviceState, Property, ResettablePhasesImpl},
     sysbus::SysBusDevice,
 };
+use qom::{prelude::*, ObjectImpl, ParentField};
 use util::bindings::{module_call_init, module_init_type};
 
 mod vmstate_tests;
