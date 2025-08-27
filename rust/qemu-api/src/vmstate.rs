@@ -29,8 +29,7 @@ use std::ffi::{c_int, c_void};
 
 use common::{callbacks::FnCall, Zeroable};
 
-use crate::bindings::VMStateFlags;
-pub use crate::bindings::{VMStateDescription, VMStateField};
+pub use crate::bindings::{VMStateDescription, VMStateField, VMStateFlags};
 
 /// This macro is used to call a function with a generic argument bound
 /// to the type of a field.  The function must take a
@@ -325,15 +324,16 @@ macro_rules! impl_vmstate_forward {
 
 // Transparent wrappers: just use the internal type
 
+#[macro_export]
 macro_rules! impl_vmstate_transparent {
     ($type:ty where $base:tt: VMState $($where:tt)*) => {
-        unsafe impl<$base> VMState for $type where $base: VMState $($where)* {
-            const SCALAR_TYPE: VMStateFieldType = <$base as VMState>::SCALAR_TYPE;
-            const BASE: VMStateField = VMStateField {
+        unsafe impl<$base> $crate::vmstate::VMState for $type where $base: $crate::vmstate::VMState $($where)* {
+            const SCALAR_TYPE: $crate::vmstate::VMStateFieldType = <$base as $crate::vmstate::VMState>::SCALAR_TYPE;
+            const BASE: $crate::vmstate::VMStateField = $crate::vmstate::VMStateField {
                 size: mem::size_of::<$type>(),
-                ..<$base as VMState>::BASE
+                ..<$base as $crate::vmstate::VMState>::BASE
             };
-            const VARRAY_FLAG: VMStateFlags = <$base as VMState>::VARRAY_FLAG;
+            const VARRAY_FLAG: $crate::vmstate::VMStateFlags = <$base as $crate::vmstate::VMState>::VARRAY_FLAG;
         }
     };
 }
@@ -341,8 +341,6 @@ macro_rules! impl_vmstate_transparent {
 impl_vmstate_transparent!(std::cell::Cell<T> where T: VMState);
 impl_vmstate_transparent!(std::cell::UnsafeCell<T> where T: VMState);
 impl_vmstate_transparent!(std::pin::Pin<T> where T: VMState);
-impl_vmstate_transparent!(crate::cell::BqlCell<T> where T: VMState);
-impl_vmstate_transparent!(crate::cell::BqlRefCell<T> where T: VMState);
 impl_vmstate_transparent!(::common::Opaque<T> where T: VMState);
 
 #[macro_export]
