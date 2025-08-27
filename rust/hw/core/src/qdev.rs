@@ -9,13 +9,13 @@ use std::{
     ptr::NonNull,
 };
 
-pub use bindings::{ClockEvent, DeviceClass, Property, ResetType};
 use chardev::Chardev;
 use common::{callbacks::FnCall, Opaque};
 use migration::vmstate::VMStateDescription;
 use qom::{prelude::*, ObjectClass, ObjectImpl, Owned, ParentInit};
 pub use util::{Error, Result};
 
+pub use crate::bindings::{ClockEvent, DeviceClass, Property, ResetType};
 use crate::{
     bindings::{self, qdev_init_gpio_in, qdev_init_gpio_out, ResettableClass},
     irq::InterruptSource,
@@ -425,11 +425,11 @@ macro_rules! vmstate_clock {
                 ::common::assert_field_type!(
                     $struct_name,
                     $field_name,
-                    ::qom::Owned<$crate::qdev::Clock> $(, num = $num)?
+                    ::qom::Owned<$crate::Clock> $(, num = $num)?
                 );
                 ::std::mem::offset_of!($struct_name, $field_name)
             },
-            size: ::core::mem::size_of::<*const $crate::qdev::Clock>(),
+            size: ::core::mem::size_of::<*const $crate::Clock>(),
             flags: ::migration::VMStateFlags(
                 ::migration::VMStateFlags::VMS_STRUCT.0
                     | ::migration::VMStateFlags::VMS_POINTER.0,

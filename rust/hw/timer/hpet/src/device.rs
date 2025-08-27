@@ -12,16 +12,14 @@ use std::{
 
 use bql::{BqlCell, BqlRefCell};
 use common::{bitops::IntegerExt, uninit_field_mut, Zeroable};
+use hwcore::{
+    bindings::{qdev_prop_bit, qdev_prop_bool, qdev_prop_uint32, qdev_prop_usize},
+    declare_properties, define_property, DeviceImpl, DeviceMethods, DeviceState, InterruptSource,
+    Property, ResetType, ResettablePhasesImpl, SysBusDevice, SysBusDeviceImpl, SysBusDeviceMethods,
+};
 use migration::{
     vmstate_fields, vmstate_of, vmstate_struct, vmstate_subsections, vmstate_validate,
     VMStateDescription, VMStateFieldHelper,
-};
-use qemu_api::{
-    bindings::{qdev_prop_bit, qdev_prop_bool, qdev_prop_uint32, qdev_prop_usize},
-    irq::InterruptSource,
-    prelude::*,
-    qdev::{DeviceImpl, DeviceState, Property, ResetType, ResettablePhasesImpl},
-    sysbus::{SysBusDevice, SysBusDeviceImpl},
 };
 use qom::{prelude::*, ObjectImpl, ParentField, ParentInit};
 use system::{
@@ -900,9 +898,9 @@ impl ObjectImpl for HPETState {
 }
 
 // TODO: Make these properties user-configurable!
-qemu_api::declare_properties! {
+declare_properties! {
     HPET_PROPERTIES,
-    qemu_api::define_property!(
+    define_property!(
         c"timers",
         HPETState,
         num_timers,
@@ -910,7 +908,7 @@ qemu_api::declare_properties! {
         u8,
         default = HPET_MIN_TIMERS
     ),
-    qemu_api::define_property!(
+    define_property!(
         c"msi",
         HPETState,
         flags,
@@ -919,7 +917,7 @@ qemu_api::declare_properties! {
         bit = HPET_FLAG_MSI_SUPPORT_SHIFT as u8,
         default = false,
     ),
-    qemu_api::define_property!(
+    define_property!(
         c"hpet-intcap",
         HPETState,
         int_route_cap,
@@ -927,7 +925,7 @@ qemu_api::declare_properties! {
         u32,
         default = 0
     ),
-    qemu_api::define_property!(
+    define_property!(
         c"hpet-offset-saved",
         HPETState,
         hpet_offset_saved,

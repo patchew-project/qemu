@@ -12,7 +12,3 @@ pub mod bindings;
 // for prelude-like modules
 #[rustfmt::skip]
 pub mod prelude;
-
-pub mod irq;
-pub mod qdev;
-pub mod sysbus;
