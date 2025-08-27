@@ -40,6 +40,7 @@ config PC
     imply NVDIMM
     imply FDC_ISA
     imply BATTERY
+    imply AC_ADAPTER
     select I8259
     select I8254
     select PCKBD

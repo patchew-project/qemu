@@ -22,6 +22,7 @@ guest hardware that is specific to QEMU.
    acpi_pci_hotplug
    acpi_nvdimm
    acpi_erst
+   acad
    battery
    sev-guest-firmware
    fw_cfg
