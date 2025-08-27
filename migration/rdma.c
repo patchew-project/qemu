@@ -2789,56 +2789,14 @@ static gboolean
 qio_channel_rdma_source_prepare(GSource *source,
                                 gint *timeout)
 {
-    QIOChannelRDMASource *rsource = (QIOChannelRDMASource *)source;
-    RDMAContext *rdma;
-    GIOCondition cond = 0;
     *timeout = -1;
-
-    RCU_READ_LOCK_GUARD();
-    if (rsource->condition == G_IO_IN) {
-        rdma = qatomic_rcu_read(&rsource->rioc->rdmain);
-    } else {
-        rdma = qatomic_rcu_read(&rsource->rioc->rdmaout);
-    }
-
-    if (!rdma) {
-        error_report("RDMAContext is NULL when prepare Gsource");
-        return FALSE;
-    }
-
-    if (rdma->wr_data[0].control_len) {
-        cond |= G_IO_IN;
-    }
-    cond |= G_IO_OUT;
-
-    return cond & rsource->condition;
+    return TRUE;
 }
 
 static gboolean
 qio_channel_rdma_source_check(GSource *source)
 {
-    QIOChannelRDMASource *rsource = (QIOChannelRDMASource *)source;
-    RDMAContext *rdma;
-    GIOCondition cond = 0;
-
-    RCU_READ_LOCK_GUARD();
-    if (rsource->condition == G_IO_IN) {
-        rdma = qatomic_rcu_read(&rsource->rioc->rdmain);
-    } else {
-        rdma = qatomic_rcu_read(&rsource->rioc->rdmaout);
-    }
-
-    if (!rdma) {
-        error_report("RDMAContext is NULL when check Gsource");
-        return FALSE;
-    }
-
-    if (rdma->wr_data[0].control_len) {
-        cond |= G_IO_IN;
-    }
-    cond |= G_IO_OUT;
-
-    return cond & rsource->condition;
+    return TRUE;
 }
 
 static gboolean
@@ -2848,29 +2806,8 @@ qio_channel_rdma_source_dispatch(GSource *source,
 {
     QIOChannelFunc func = (QIOChannelFunc)callback;
     QIOChannelRDMASource *rsource = (QIOChannelRDMASource *)source;
-    RDMAContext *rdma;
-    GIOCondition cond = 0;
 
-    RCU_READ_LOCK_GUARD();
-    if (rsource->condition == G_IO_IN) {
-        rdma = qatomic_rcu_read(&rsource->rioc->rdmain);
-    } else {
-        rdma = qatomic_rcu_read(&rsource->rioc->rdmaout);
-    }
-
-    if (!rdma) {
-        error_report("RDMAContext is NULL when dispatch Gsource");
-        return FALSE;
-    }
-
-    if (rdma->wr_data[0].control_len) {
-        cond |= G_IO_IN;
-    }
-    cond |= G_IO_OUT;
-
-    return (*func)(QIO_CHANNEL(rsource->rioc),
-                   (cond & rsource->condition),
-                   user_data);
+    return (*func)(QIO_CHANNEL(rsource->rioc), rsource->condition, user_data);
 }
 
 static void
