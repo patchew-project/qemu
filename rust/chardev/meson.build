@@ -39,10 +39,10 @@ _chardev_rs = static_library(
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
   rust_args: _chardev_cfg,
-  dependencies: [qemuutil_rs, common_rs, bql_rs, migration_rs, qemu_macros, qom_rs, util_rs, chardev],
+  dependencies: [qemuutil_rs, common_rs, bql_rs, migration_rs, qom_rs, util_rs, chardev],
 )
 
-chardev_rs = declare_dependency(link_with: [_chardev_rs], dependencies: [qemu_macros, chardev])
+chardev_rs = declare_dependency(link_with: [_chardev_rs], dependencies: [chardev])
 
 # Doctests are essentially integration tests, so they need the same dependencies.
 # Note that running them requires the object files for C code, so place them

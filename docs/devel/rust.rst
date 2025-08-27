@@ -290,7 +290,7 @@ a raw pointer, for use in calls to C functions.  It can be used for
 example as follows::
 
     #[repr(transparent)]
-    #[derive(Debug, qemu_api_macros::Wrapper)]
+    #[derive(Debug, common::Wrapper)]
     pub struct Object(Opaque<bindings::Object>);
 
 where the special ``derive`` macro provides useful methods such as
