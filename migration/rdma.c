@@ -3068,7 +3068,6 @@ static void rdma_cm_poll_handler(void *opaque)
 {
     RDMAContext *rdma = opaque;
     struct rdma_cm_event *cm_event;
-    MigrationIncomingState *mis = migration_incoming_get_current();
 
     if (rdma_get_cm_event(rdma->channel, &cm_event) < 0) {
         error_report("get_cm_event failed %d", errno);
@@ -3087,10 +3086,6 @@ static void rdma_cm_poll_handler(void *opaque)
             }
         }
         rdma_ack_cm_event(cm_event);
-        if (mis->loadvm_co) {
-            qemu_coroutine_enter(mis->loadvm_co);
-        }
-        return;
     }
     rdma_ack_cm_event(cm_event);
 }

@@ -136,11 +136,8 @@ int migration_channel_read_peek(QIOChannel *ioc,
         }
 
         /* 1ms sleep. */
-        if (qemu_in_coroutine()) {
-            qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 1000000);
-        } else {
-            g_usleep(1000);
-        }
+        assert(!qemu_in_coroutine());
+        g_usleep(1000);
     }
 
     return 0;

@@ -44,12 +44,10 @@ void colo_do_failover(void);
 void colo_checkpoint_delay_set(void);
 
 /*
- * Starts COLO incoming process. Called from process_incoming_migration_co()
+ * Starts COLO incoming process. Called from migration_incoming_thread()
  * after loading the state.
- *
- * Called with BQL locked, may temporary release BQL.
  */
-void coroutine_fn colo_incoming_co(void);
+void colo_incoming_wait(void);
 
 void colo_shutdown(void);
 #endif

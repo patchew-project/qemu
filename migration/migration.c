@@ -494,6 +494,11 @@ void migration_incoming_state_destroy(void)
         mis->postcopy_qemufile_dst = NULL;
     }
 
+    if (mis->have_recv_thread) {
+        qemu_thread_join(&mis->recv_thread);
+        mis->have_recv_thread = false;
+    }
+
     cpr_set_incoming_mode(MIG_MODE_NONE);
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
 }
@@ -864,30 +869,46 @@ static void process_incoming_migration_bh(void *opaque)
     migration_incoming_state_destroy();
 }
 
-static void coroutine_fn
-process_incoming_migration_co(void *opaque)
+static void migration_incoming_state_destroy_bh(void *opaque)
+{
+    struct MigrationIncomingState *mis = opaque;
+
+    if (mis->exit_on_error) {
+        /*
+         * NOTE: this exit() should better happen in the main thread, as
+         * the exit notifier may require BQL which can deadlock.  See
+         * commit e7bc0204e57836 for example.
+         */
+        exit(EXIT_FAILURE);
+    }
+
+    migration_incoming_state_destroy();
+}
+
+static void *migration_incoming_thread(void *opaque)
 {
     MigrationState *s = migrate_get_current();
-    MigrationIncomingState *mis = migration_incoming_get_current();
+    MigrationIncomingState *mis = opaque;
     PostcopyState ps;
     int ret;
     Error *local_err = NULL;
 
+    rcu_register_thread();
+
     assert(mis->from_src_file);
+    assert(!bql_locked());
 
     mis->largest_page_size = qemu_ram_pagesize_largest();
     postcopy_state_set(POSTCOPY_INCOMING_NONE);
     migrate_set_state(&mis->state, MIGRATION_STATUS_SETUP,
                       MIGRATION_STATUS_ACTIVE);
 
-    mis->loadvm_co = qemu_coroutine_self();
-    ret = qemu_loadvm_state(mis->from_src_file);
-    mis->loadvm_co = NULL;
+    ret = qemu_loadvm_state(mis->from_src_file, false);
 
     trace_vmstate_downtime_checkpoint("dst-precopy-loadvm-completed");
 
     ps = postcopy_state_get();
-    trace_process_incoming_migration_co_end(ret, ps);
+    trace_process_incoming_migration_end(ret, ps);
     if (ps != POSTCOPY_INCOMING_NONE) {
         if (ps == POSTCOPY_INCOMING_ADVISE) {
             /*
@@ -901,7 +922,7 @@ process_incoming_migration_co(void *opaque)
              * Postcopy was started, cleanup should happen at the end of the
              * postcopy thread.
              */
-            trace_process_incoming_migration_co_postcopy_end_main();
+            trace_process_incoming_migration_postcopy_end_main();
             goto out;
         }
         /* Else if something went wrong then just fall out of the normal exit */
@@ -913,8 +934,8 @@ process_incoming_migration_co(void *opaque)
     }
 
     if (migration_incoming_colo_enabled()) {
-        /* yield until COLO exit */
-        colo_incoming_co();
+        /* wait until COLO exits */
+        colo_incoming_wait();
     }
 
     migration_bh_schedule(process_incoming_migration_bh, mis);
@@ -926,19 +947,24 @@ fail:
     migrate_set_error(s, local_err);
     error_free(local_err);
 
-    migration_incoming_state_destroy();
-
     if (mis->exit_on_error) {
         WITH_QEMU_LOCK_GUARD(&s->error_mutex) {
             error_report_err(s->error);
             s->error = NULL;
         }
-
-        exit(EXIT_FAILURE);
     }
+
+    /*
+     * There's some step of the destroy process that will need to happen in
+     * the main thread (e.g. joining this thread itself).  Leave to a BH.
+     */
+    migration_bh_schedule(migration_incoming_state_destroy_bh, (void *)mis);
+
 out:
     /* Pairs with the refcount taken in qmp_migrate_incoming() */
     migrate_incoming_unref_outgoing_state();
+    rcu_unregister_thread();
+    return NULL;
 }
 
 /**
@@ -956,8 +982,12 @@ static void migration_incoming_setup(QEMUFile *f)
 
 void migration_incoming_process(void)
 {
-    Coroutine *co = qemu_coroutine_create(process_incoming_migration_co, NULL);
-    qemu_coroutine_enter(co);
+    MigrationIncomingState *mis = migration_incoming_get_current();
+
+    mis->have_recv_thread = true;
+    qemu_thread_create(&mis->recv_thread, "mig/dst/main",
+                       migration_incoming_thread, mis,
+                       QEMU_THREAD_JOINABLE);
 }
 
 /* Returns true if recovered from a paused migration, otherwise false */

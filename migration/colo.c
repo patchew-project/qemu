@@ -147,11 +147,6 @@ static void secondary_vm_do_failover(void)
     }
     /* Notify COLO incoming thread that failover work is finished */
     qemu_event_set(&mis->colo_incoming_event);
-
-    /* For Secondary VM, jump to incoming co */
-    if (mis->colo_incoming_co) {
-        qemu_coroutine_enter(mis->colo_incoming_co);
-    }
 }
 
 static void primary_vm_do_failover(void)
@@ -686,7 +681,7 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
 
     bql_lock();
     cpu_synchronize_all_states();
-    ret = qemu_loadvm_state_main(mis->from_src_file, mis);
+    ret = qemu_loadvm_state_main(mis->from_src_file, mis, true);
     bql_unlock();
 
     if (ret < 0) {
@@ -854,10 +849,8 @@ static void *colo_process_incoming_thread(void *opaque)
         goto out;
     }
     /*
-     * Note: the communication between Primary side and Secondary side
-     * should be sequential, we set the fd to unblocked in migration incoming
-     * coroutine, and here we are in the COLO incoming thread, so it is ok to
-     * set the fd back to blocked.
+     * Here we are in the COLO incoming thread, so it is ok to set the fd
+     * to blocked.
      */
     qemu_file_set_blocking(mis->from_src_file, true);
 
@@ -930,26 +923,20 @@ out:
     return NULL;
 }
 
-void coroutine_fn colo_incoming_co(void)
+/* Wait for failover */
+void colo_incoming_wait(void)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
     QemuThread th;
 
-    assert(bql_locked());
     assert(migration_incoming_colo_enabled());
 
     qemu_thread_create(&th, MIGRATION_THREAD_DST_COLO,
                        colo_process_incoming_thread,
                        mis, QEMU_THREAD_JOINABLE);
 
-    mis->colo_incoming_co = qemu_coroutine_self();
-    qemu_coroutine_yield();
-    mis->colo_incoming_co = NULL;
-
-    bql_unlock();
     /* Wait checkpoint incoming thread exit before free resource */
     qemu_thread_join(&th);
-    bql_lock();
 
     /* We hold the global BQL, so it is safe here */
     colo_release_ram_cache();
