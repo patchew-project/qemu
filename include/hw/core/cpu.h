@@ -1134,4 +1134,16 @@ enum CacheType {
     UNIFIED_CACHE
 };
 
+struct CPUCoreCaches {
+    enum CacheType type;
+    uint32_t sets;
+    uint32_t size;
+    uint32_t level;
+    uint16_t linesize;
+    uint8_t attributes; /* write policy: 0x0 write back, 0x1 write through */
+    uint8_t associativity;
+};
+
+typedef struct CPUCoreCaches CPUCoreCaches;
+
 #endif
