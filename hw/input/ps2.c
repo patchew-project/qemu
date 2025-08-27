@@ -287,26 +287,54 @@ static void ps2_cqueue_reset(PS2State *s)
 }
 
 /* keycode is the untranslated scancode in the current scancode set. */
-static void ps2_put_keycode(void *opaque, int keycode)
+static void ps2_put_keycodes_atomic(void *opaque, int cnt, int keycode[])
 {
     PS2KbdState *s = opaque;
     PS2State *ps = PS2_DEVICE(s);
+    int i = 0;
+    int idx = 0;
+    int atomic_key[PS2_QUEUE_SIZE] = {0};
 
-    trace_ps2_put_keycode(opaque, keycode);
+    if (cnt > PS2_QUEUE_SIZE) {
+        return;
+    }
+
+    for (i = 0; i < cnt; i++) {
+        trace_ps2_put_keycode(opaque, keycode[i]);
+    }
+
     qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
 
-    if (s->translate) {
-        if (keycode == 0xf0) {
-            s->need_high_bit = true;
-        } else if (s->need_high_bit) {
-            ps2_queue(ps, translate_table[keycode] | 0x80);
-            s->need_high_bit = false;
+    for (i = 0; i < cnt; i++) {
+        if (s->translate) {
+            if (keycode[i] == 0xf0) {
+                s->need_high_bit = true;
+            } else if (s->need_high_bit) {
+                s->need_high_bit = false;
+                atomic_key[idx++] = translate_table[keycode[i]] | 0x80;
+            } else {
+                atomic_key[idx++] = translate_table[keycode[i]];
+            }
         } else {
-            ps2_queue(ps, translate_table[keycode]);
+            atomic_key[idx++] = keycode[i];
         }
-    } else {
-        ps2_queue(ps, keycode);
     }
+
+    if (idx == 0) {
+        return;
+    }
+
+    if (PS2_QUEUE_SIZE - ps->queue.count < idx) {
+        qemu_log_mask(LOG_UNIMP,
+                 "ps2: drop key due to insufficient queue space (%d < %d)\n",
+                  PS2_QUEUE_SIZE - ps->queue.count, idx);
+        return;
+    }
+
+    for (i = 0; i < idx; i++) {
+        ps2_queue_noirq(ps, atomic_key[i]);
+    }
+    ps2_raise_irq(ps);
 }
 
 static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
@@ -317,6 +345,8 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
     int qcode;
     uint16_t keycode = 0;
     int mod;
+    int atomic_key[PS2_QUEUE_SIZE] = {0};
+    int idx = 0;
 
     /* do not process events while disabled to prevent stream corruption */
     if (!s->scan_enabled) {
@@ -340,66 +370,76 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
         if (qcode == Q_KEY_CODE_PAUSE) {
             if (s->modifiers & (MOD_CTRL_L | MOD_CTRL_R)) {
                 if (key->down) {
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0x46);
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0xc6);
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0x46;
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0xc6;
+                    ps2_put_keycodes_atomic(s, idx, atomic_key);
                 }
             } else {
                 if (key->down) {
-                    ps2_put_keycode(s, 0xe1);
-                    ps2_put_keycode(s, 0x1d);
-                    ps2_put_keycode(s, 0x45);
-                    ps2_put_keycode(s, 0xe1);
-                    ps2_put_keycode(s, 0x9d);
-                    ps2_put_keycode(s, 0xc5);
+                    atomic_key[idx++] = 0xe1;
+                    atomic_key[idx++] = 0x1d;
+                    atomic_key[idx++] = 0x45;
+                    atomic_key[idx++] = 0xe1;
+                    atomic_key[idx++] = 0x9d;
+                    atomic_key[idx++] = 0xc5;
+                    ps2_put_keycodes_atomic(s, idx, atomic_key);
                 }
             }
         } else if (qcode == Q_KEY_CODE_PRINT) {
             if (s->modifiers & MOD_ALT_L) {
                 if (key->down) {
-                    ps2_put_keycode(s, 0xb8);
-                    ps2_put_keycode(s, 0x38);
-                    ps2_put_keycode(s, 0x54);
+                    atomic_key[idx++] = 0xb8;
+                    atomic_key[idx++] = 0x38;
+                    atomic_key[idx++] = 0x54;
+                    ps2_put_keycodes_atomic(s, idx, atomic_key);
                 } else {
-                    ps2_put_keycode(s, 0xd4);
-                    ps2_put_keycode(s, 0xb8);
-                    ps2_put_keycode(s, 0x38);
+                    atomic_key[idx++] = 0xd4;
+                    atomic_key[idx++] = 0xb8;
+                    atomic_key[idx++] = 0x38;
+                    ps2_put_keycodes_atomic(s, idx, atomic_key);
                 }
             } else if (s->modifiers & MOD_ALT_R) {
                 if (key->down) {
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0xb8);
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0x38);
-                    ps2_put_keycode(s, 0x54);
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0xb8;
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0x38;
+                    atomic_key[idx++] = 0x54;
+                    ps2_put_keycodes_atomic(s, idx, atomic_key);
                 } else {
-                    ps2_put_keycode(s, 0xd4);
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0xb8);
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0x38);
+                    atomic_key[idx++] = 0xd4;
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0xb8;
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0x38;
+                    ps2_put_keycodes_atomic(s, idx, atomic_key);
                 }
             } else if (s->modifiers & (MOD_SHIFT_L | MOD_CTRL_L |
                                        MOD_SHIFT_R | MOD_CTRL_R)) {
                 if (key->down) {
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0x37);
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0x37;
+                    ps2_put_keycodes_atomic(s, idx, atomic_key);
                 } else {
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0xb7);
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0xb7;
+                    ps2_put_keycodes_atomic(s, idx, atomic_key);
                 }
             } else {
                 if (key->down) {
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0x2a);
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0x37);
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0x2a;
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0x37;
+                    ps2_put_keycodes_atomic(s, idx, atomic_key);
                 } else {
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0xb7);
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0xaa);
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0xb7;
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0xaa;
+                    ps2_put_keycodes_atomic(s, idx, atomic_key);
                 }
             }
         } else if ((qcode == Q_KEY_CODE_LANG1 || qcode == Q_KEY_CODE_LANG2)
@@ -411,12 +451,14 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
             }
             if (keycode) {
                 if (keycode & 0xff00) {
-                    ps2_put_keycode(s, keycode >> 8);
+                    atomic_key[idx++] = keycode >> 8;
                 }
+
                 if (!key->down) {
                     keycode |= 0x80;
                 }
-                ps2_put_keycode(s, keycode & 0xff);
+                atomic_key[idx++] = keycode & 0xff;
+                ps2_put_keycodes_atomic(s, idx, atomic_key);
             } else {
                 qemu_log_mask(LOG_UNIMP,
                               "ps2: ignoring key with qcode %d\n", qcode);
@@ -426,78 +468,88 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
         if (qcode == Q_KEY_CODE_PAUSE) {
             if (s->modifiers & (MOD_CTRL_L | MOD_CTRL_R)) {
                 if (key->down) {
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0x7e);
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0xf0);
-                    ps2_put_keycode(s, 0x7e);
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0x7e;
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0xf0;
+                    atomic_key[idx++] = 0x7e;
+                    ps2_put_keycodes_atomic(s, idx, atomic_key);
                 }
             } else {
                 if (key->down) {
-                    ps2_put_keycode(s, 0xe1);
-                    ps2_put_keycode(s, 0x14);
-                    ps2_put_keycode(s, 0x77);
-                    ps2_put_keycode(s, 0xe1);
-                    ps2_put_keycode(s, 0xf0);
-                    ps2_put_keycode(s, 0x14);
-                    ps2_put_keycode(s, 0xf0);
-                    ps2_put_keycode(s, 0x77);
+                    atomic_key[idx++] = 0xe1;
+                    atomic_key[idx++] = 0x14;
+                    atomic_key[idx++] = 0x77;
+                    atomic_key[idx++] = 0xe1;
+                    atomic_key[idx++] = 0xf0;
+                    atomic_key[idx++] = 0x14;
+                    atomic_key[idx++] = 0xf0;
+                    atomic_key[idx++] = 0x77;
+                    ps2_put_keycodes_atomic(s, idx, atomic_key);
                 }
             }
         } else if (qcode == Q_KEY_CODE_PRINT) {
             if (s->modifiers & MOD_ALT_L) {
                 if (key->down) {
-                    ps2_put_keycode(s, 0xf0);
-                    ps2_put_keycode(s, 0x11);
-                    ps2_put_keycode(s, 0x11);
-                    ps2_put_keycode(s, 0x84);
+                    atomic_key[idx++] = 0xf0;
+                    atomic_key[idx++] = 0x11;
+                    atomic_key[idx++] = 0x11;
+                    atomic_key[idx++] = 0x84;
+                    ps2_put_keycodes_atomic(s, idx, atomic_key);
                 } else {
-                    ps2_put_keycode(s, 0xf0);
-                    ps2_put_keycode(s, 0x84);
-                    ps2_put_keycode(s, 0xf0);
-                    ps2_put_keycode(s, 0x11);
-                    ps2_put_keycode(s, 0x11);
+                    atomic_key[idx++] = 0xf0;
+                    atomic_key[idx++] = 0x84;
+                    atomic_key[idx++] = 0xf0;
+                    atomic_key[idx++] = 0x11;
+                    atomic_key[idx++] = 0x11;
+                    ps2_put_keycodes_atomic(s, idx, atomic_key);
                 }
             } else if (s->modifiers & MOD_ALT_R) {
                 if (key->down) {
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0xf0);
-                    ps2_put_keycode(s, 0x11);
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0x11);
-                    ps2_put_keycode(s, 0x84);
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0xf0;
+                    atomic_key[idx++] = 0x11;
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0x11;
+                    atomic_key[idx++] = 0x84;
+                    ps2_put_keycodes_atomic(s, idx, atomic_key);
                 } else {
-                    ps2_put_keycode(s, 0xf0);
-                    ps2_put_keycode(s, 0x84);
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0xf0);
-                    ps2_put_keycode(s, 0x11);
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0x11);
+                    atomic_key[idx++] = 0xf0;
+                    atomic_key[idx++] = 0x84;
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0xf0;
+                    atomic_key[idx++] = 0x11;
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0x11;
+                    ps2_put_keycodes_atomic(s, idx, atomic_key);
                 }
             } else if (s->modifiers & (MOD_SHIFT_L | MOD_CTRL_L |
                                        MOD_SHIFT_R | MOD_CTRL_R)) {
                 if (key->down) {
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0x7c);
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0x7c;
+                    ps2_put_keycodes_atomic(s, idx, atomic_key);
                 } else {
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0xf0);
-                    ps2_put_keycode(s, 0x7c);
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0xf0;
+                    atomic_key[idx++] = 0x7c;
+                    ps2_put_keycodes_atomic(s, idx, atomic_key);
                 }
             } else {
                 if (key->down) {
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0x12);
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0x7c);
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0x12;
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0x7c;
+                    ps2_put_keycodes_atomic(s, idx, atomic_key);
                 } else {
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0xf0);
-                    ps2_put_keycode(s, 0x7c);
-                    ps2_put_keycode(s, 0xe0);
-                    ps2_put_keycode(s, 0xf0);
-                    ps2_put_keycode(s, 0x12);
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0xf0;
+                    atomic_key[idx++] = 0x7c;
+                    atomic_key[idx++] = 0xe0;
+                    atomic_key[idx++] = 0xf0;
+                    atomic_key[idx++] = 0x12;
+                    ps2_put_keycodes_atomic(s, idx, atomic_key);
                 }
             }
         } else if ((qcode == Q_KEY_CODE_LANG1 || qcode == Q_KEY_CODE_LANG2) &&
@@ -509,12 +561,13 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
             }
             if (keycode) {
                 if (keycode & 0xff00) {
-                    ps2_put_keycode(s, keycode >> 8);
+                    atomic_key[idx++] = keycode >> 8;
                 }
                 if (!key->down) {
-                    ps2_put_keycode(s, 0xf0);
+                    atomic_key[idx++] = 0xf0;
                 }
-                ps2_put_keycode(s, keycode & 0xff);
+                atomic_key[idx++] = keycode & 0xff;
+                ps2_put_keycodes_atomic(s, idx, atomic_key);
             } else {
                 qemu_log_mask(LOG_UNIMP,
                               "ps2: ignoring key with qcode %d\n", qcode);
@@ -527,9 +580,10 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
         if (keycode) {
             /* FIXME: break code should be configured on a key by key basis */
             if (!key->down) {
-                ps2_put_keycode(s, 0xf0);
+                atomic_key[idx++] = 0xf0;
             }
-            ps2_put_keycode(s, keycode);
+            atomic_key[idx++] = keycode;
+            ps2_put_keycodes_atomic(s, idx, atomic_key);
         } else {
             qemu_log_mask(LOG_UNIMP,
                           "ps2: ignoring key with qcode %d\n", qcode);
