@@ -240,7 +240,7 @@ pub fn into_neg_errno<T: MergeErrno, E: Into<Errno>>(value: Result<T, E>) -> T::
 mod tests {
     use std::io::ErrorKind;
 
-    use common::assert_match;
+    use bindings::assert_match;
 
     use super::*;
 

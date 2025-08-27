@@ -5,6 +5,7 @@ _libhpet_rs = static_library(
   rust_abi: 'rust',
   dependencies: [
     common_rs,
+    util_rs,
     qemu_api,
     qemu_api_macros,
   ],
