@@ -4168,7 +4168,7 @@ static int parse_ramblocks(QEMUFile *f, ram_addr_t total_ram_bytes)
 static int ram_load_precopy(QEMUFile *f)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
-    int flags = 0, ret = 0, invalid_flags = 0, i = 0;
+    int flags = 0, ret = 0, invalid_flags = 0;
 
     if (migrate_mapped_ram()) {
         invalid_flags |= (RAM_SAVE_FLAG_HOOK | RAM_SAVE_FLAG_MULTIFD_FLUSH |
@@ -4180,17 +4180,6 @@ static int ram_load_precopy(QEMUFile *f)
         ram_addr_t addr;
         void *host = NULL, *host_bak = NULL;
         uint8_t ch;
-
-        /*
-         * Yield periodically to let main loop run, but an iteration of
-         * the main loop is expensive, so do it each some iterations
-         */
-        if ((i & 32767) == 0 && qemu_in_coroutine()) {
-            aio_co_schedule(qemu_get_current_aio_context(),
-                            qemu_coroutine_self());
-            qemu_coroutine_yield();
-        }
-        i++;
 
         addr = qemu_get_be64(f);
         ret = qemu_file_get_error(f);
