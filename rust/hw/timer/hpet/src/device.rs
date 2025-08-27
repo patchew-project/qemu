@@ -11,6 +11,10 @@ use std::{
 };
 
 use common::{bitops::IntegerExt, uninit_field_mut, Zeroable};
+use migration::{
+    vmstate_fields, vmstate_of, vmstate_struct, vmstate_subsections, vmstate_validate,
+    VMStateDescription, VMStateFieldHelper,
+};
 use qemu_api::{
     bindings::{
         address_space_memory, address_space_stl_le, qdev_prop_bit, qdev_prop_bool,
@@ -26,8 +30,6 @@ use qemu_api::{
     qom::{ObjectImpl, ObjectType, ParentField, ParentInit},
     qom_isa,
     sysbus::{SysBusDevice, SysBusDeviceImpl},
-    vmstate::VMStateDescription,
-    vmstate_fields, vmstate_of, vmstate_struct, vmstate_subsections, vmstate_validate,
 };
 use util::timer::{Timer, CLOCK_VIRTUAL, NANOSECONDS_PER_SECOND};
 
@@ -1021,7 +1023,7 @@ static VMSTATE_HPET: VMStateDescription = VMStateDescription {
         vmstate_of!(HPETState, counter),
         vmstate_of!(HPETState, num_timers_save),
         vmstate_validate!(HPETState, VALIDATE_TIMERS_NAME, HPETState::validate_num_timers),
-        vmstate_struct!(HPETState, timers[0 .. num_timers_save], &VMSTATE_HPET_TIMER, BqlRefCell<HPETTimer>, HPETState::validate_num_timers).with_version_id(0),
+        VMStateFieldHelper(vmstate_struct!(HPETState, timers[0 .. num_timers_save], &VMSTATE_HPET_TIMER, BqlRefCell<HPETTimer>, HPETState::validate_num_timers)).with_version_id(0).0,
     },
     subsections: vmstate_subsections! {
         VMSTATE_HPET_RTC_IRQ_LEVEL,

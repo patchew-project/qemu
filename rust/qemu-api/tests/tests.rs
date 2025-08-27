@@ -5,6 +5,7 @@
 use std::{ffi::CStr, ptr::addr_of};
 
 use common::Zeroable;
+use migration::VMStateDescription;
 use qemu_api::{
     bindings::qdev_prop_bool,
     cell::{self, BqlCell},
@@ -13,7 +14,6 @@ use qemu_api::{
     qdev::{DeviceImpl, DeviceState, Property, ResettablePhasesImpl},
     qom::{ObjectImpl, ParentField},
     sysbus::SysBusDevice,
-    vmstate::VMStateDescription,
 };
 use util::bindings::{module_call_init, module_init_type};
 

@@ -11,6 +11,7 @@ use std::{
 
 pub use bindings::{ClockEvent, DeviceClass, Property, ResetType};
 use common::{callbacks::FnCall, Opaque};
+use migration::vmstate::VMStateDescription;
 pub use util::{Error, Result};
 
 use crate::{
@@ -20,7 +21,6 @@ use crate::{
     irq::InterruptSource,
     prelude::*,
     qom::{ObjectClass, ObjectImpl, Owned, ParentInit},
-    vmstate::VMStateDescription,
 };
 
 /// A safe wrapper around [`bindings::Clock`].
@@ -413,7 +413,7 @@ qom_isa!(Clock: Object);
 #[macro_export]
 macro_rules! vmstate_clock {
     ($struct_name:ty, $field_name:ident $([0 .. $num:ident $(* $factor:expr)?])?) => {{
-        $crate::bindings::VMStateField {
+        ::migration::VMStateField {
             name: ::core::concat!(::core::stringify!($field_name), "\0")
                 .as_bytes()
                 .as_ptr() as *const ::std::os::raw::c_char,
@@ -426,9 +426,9 @@ macro_rules! vmstate_clock {
                 ::std::mem::offset_of!($struct_name, $field_name)
             },
             size: ::core::mem::size_of::<*const $crate::qdev::Clock>(),
-            flags: $crate::bindings::VMStateFlags(
-                $crate::bindings::VMStateFlags::VMS_STRUCT.0
-                    | $crate::bindings::VMStateFlags::VMS_POINTER.0,
+            flags: ::migration::VMStateFlags(
+                ::migration::VMStateFlags::VMS_STRUCT.0
+                    | ::migration::VMStateFlags::VMS_POINTER.0,
             ),
             vmsd: unsafe { ::core::ptr::addr_of!($crate::bindings::vmstate_clock) },
             ..::common::zeroable::Zeroable::ZERO

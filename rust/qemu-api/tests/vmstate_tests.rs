@@ -10,16 +10,16 @@ use std::{
 };
 
 use common::{Opaque, Zeroable};
-use qemu_api::{
+use migration::{
     bindings::{
         vmstate_info_bool, vmstate_info_int32, vmstate_info_int64, vmstate_info_int8,
         vmstate_info_uint64, vmstate_info_uint8, vmstate_info_unused_buffer, VMStateFlags,
     },
-    cell::BqlCell,
     impl_vmstate_forward,
-    vmstate::{VMStateDescription, VMStateField},
+    vmstate::{VMStateDescription, VMStateField, VMStateFieldHelper},
     vmstate_fields, vmstate_of, vmstate_struct, vmstate_unused, vmstate_validate,
 };
+use qemu_api::cell::BqlCell;
 
 const FOO_ARRAY_MAX: usize = 3;
 
@@ -48,7 +48,7 @@ static VMSTATE_FOOA: VMStateDescription = VMStateDescription {
     fields: vmstate_fields! {
         vmstate_of!(FooA, elem),
         vmstate_unused!(size_of::<i64>()),
-        vmstate_of!(FooA, arr[0 .. num]).with_version_id(0),
+        VMStateFieldHelper(vmstate_of!(FooA, arr[0 .. num])).with_version_id(0).0,
         vmstate_of!(FooA, arr_mul[0 .. num_mul * 16]),
     },
     ..Zeroable::ZERO
@@ -176,10 +176,10 @@ static VMSTATE_FOOB: VMStateDescription = VMStateDescription {
     version_id: 2,
     minimum_version_id: 1,
     fields: vmstate_fields! {
-        vmstate_of!(FooB, val).with_version_id(2),
+        VMStateFieldHelper(vmstate_of!(FooB, val)).with_version_id(2).0,
         vmstate_of!(FooB, wrap),
-        vmstate_struct!(FooB, arr_a[0 .. num_a], &VMSTATE_FOOA, FooA).with_version_id(1),
-        vmstate_struct!(FooB, arr_a_mul[0 .. num_a_mul * 32], &VMSTATE_FOOA, FooA).with_version_id(2),
+        VMStateFieldHelper(vmstate_struct!(FooB, arr_a[0 .. num_a], &VMSTATE_FOOA, FooA)).with_version_id(1).0,
+        VMStateFieldHelper(vmstate_struct!(FooB, arr_a_mul[0 .. num_a_mul * 32], &VMSTATE_FOOA, FooA)).with_version_id(2).0,
         vmstate_of!(FooB, arr_i64),
         vmstate_struct!(FooB, arr_a_wrap[0 .. num_a_wrap], &VMSTATE_FOOA, FooA, validate_foob),
     },
@@ -340,7 +340,7 @@ static VMSTATE_FOOC: VMStateDescription = VMStateDescription {
     version_id: 3,
     minimum_version_id: 1,
     fields: vmstate_fields! {
-        vmstate_of!(FooC, ptr).with_version_id(2),
+        VMStateFieldHelper(vmstate_of!(FooC, ptr)).with_version_id(2).0,
         // FIXME: Currently vmstate_struct doesn't support the pointer to structure.
         // VMSTATE_STRUCT_POINTER: vmstate_struct!(FooC, ptr_a, VMSTATE_FOOA, NonNull<FooA>)
         vmstate_unused!(size_of::<NonNull<FooA>>()),

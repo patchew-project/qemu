@@ -20,4 +20,3 @@ pub mod memory;
 pub mod qdev;
 pub mod qom;
 pub mod sysbus;
-pub mod vmstate;
