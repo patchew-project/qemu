@@ -7,6 +7,7 @@ _libhpet_rs = static_library(
     common_rs,
     util_rs,
     migration_rs,
+    bql_rs,
     qemu_api,
     qemu_api_macros,
   ],

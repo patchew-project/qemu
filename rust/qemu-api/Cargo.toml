@@ -17,14 +17,11 @@ rust-version.workspace = true
 common = { path = "../common" }
 migration = { path = "../migration" }
 util = { path = "../util" }
+bql = { path = "../bql" }
 qemu_api_macros = { path = "../qemu-api-macros" }
 anyhow = "~1.0"
 libc.workspace = true
 foreign = "~0.3.1"
-
-[features]
-default = ["debug_cell"]
-debug_cell = []
 
 [lints]
 workspace = true
