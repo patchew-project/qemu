@@ -763,16 +763,21 @@ int vfio_multifd_switchover_start(VFIODevice *vbasedev)
 {
     VFIOMigration *migration = vbasedev->migration;
     VFIOMultifd *multifd = migration->multifd;
+    bool bql_is_locked = bql_locked();
 
     assert(multifd);
 
     /* The lock order is load_bufs_mutex -> BQL so unlock BQL here first */
-    bql_unlock();
+    if (bql_is_locked) {
+        bql_unlock();
+    }
     WITH_QEMU_LOCK_GUARD(&multifd->load_bufs_mutex) {
         assert(!multifd->load_bufs_thread_running);
         multifd->load_bufs_thread_running = true;
     }
-    bql_lock();
+    if (bql_is_locked) {
+        bql_lock();
+    }
 
     qemu_loadvm_start_load_thread(vfio_load_bufs_thread, vbasedev);
 
