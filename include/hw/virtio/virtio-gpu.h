@@ -129,6 +129,8 @@ struct virtio_gpu_base_conf {
     uint32_t xres;
     uint32_t yres;
     uint64_t hostmem;
+    // If set, outputs[i].xres/yres takes precedent over xres/yres and enables
+    // the ith output.
     VirtIOGPUOutputList *outputs;
 };
 
