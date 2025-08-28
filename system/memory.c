@@ -1848,6 +1848,31 @@ void memory_region_unref(MemoryRegion *mr)
     }
 }
 
+static void memory_region_ref_subregion(MemoryRegion *mr,
+                                        MemoryRegion *subregion)
+{
+    subregion->container = mr;
+
+    if (mr->owner == subregion->owner) {
+        object_ref(OBJECT(subregion));
+    } else {
+        memory_region_ref(subregion);
+    }
+}
+
+static void memory_region_unref_subregion(MemoryRegion *subregion)
+{
+    MemoryRegion *mr = subregion->container;
+
+    subregion->container = NULL;
+
+    if (mr->owner == subregion->owner) {
+        object_unref(OBJECT(subregion));
+     } else {
+        memory_region_unref(subregion);
+     }
+}
+
 uint64_t memory_region_size(MemoryRegion *mr)
 {
     if (int128_eq(mr->size, int128_2_64())) {
@@ -2618,14 +2643,15 @@ void memory_region_del_eventfd(MemoryRegion *mr,
     memory_region_transaction_commit();
 }
 
-static void memory_region_update_container_subregions(MemoryRegion *subregion)
+static void memory_region_update_container_subregions(MemoryRegion *mr,
+                                                      MemoryRegion *subregion)
 {
-    MemoryRegion *mr = subregion->container;
     MemoryRegion *other;
 
     memory_region_transaction_begin();
 
-    memory_region_ref(subregion);
+    memory_region_ref_subregion(mr, subregion);
+
     QTAILQ_FOREACH(other, &mr->subregions, subregions_link) {
         if (subregion->priority >= other->priority) {
             QTAILQ_INSERT_BEFORE(other, subregion, subregions_link);
@@ -2645,12 +2671,11 @@ static void memory_region_add_subregion_common(MemoryRegion *mr,
     MemoryRegion *alias;
 
     assert(!subregion->container);
-    subregion->container = mr;
     for (alias = subregion->alias; alias; alias = alias->alias) {
         alias->mapped_via_alias++;
     }
     subregion->addr = offset;
-    memory_region_update_container_subregions(subregion);
+    memory_region_update_container_subregions(mr, subregion);
 }
 
 void memory_region_add_subregion(MemoryRegion *mr,
@@ -2677,13 +2702,13 @@ void memory_region_del_subregion(MemoryRegion *mr,
 
     memory_region_transaction_begin();
     assert(subregion->container == mr);
-    subregion->container = NULL;
     for (alias = subregion->alias; alias; alias = alias->alias) {
         alias->mapped_via_alias--;
         assert(alias->mapped_via_alias >= 0);
     }
     QTAILQ_REMOVE(&mr->subregions, subregion, subregions_link);
-    memory_region_unref(subregion);
+    memory_region_unref_subregion(subregion);
+
     memory_region_update_pending |= mr->enabled && subregion->enabled;
     memory_region_transaction_commit();
 }
