@@ -168,12 +168,13 @@ class Asset:
                 # indicate a broken test rather than a transient
                 # server or networking problem
                 if e.code == 404:
-                    raise AssetError(self, "Unable to download: "
-                                     "HTTP error %d" % e.code)
+                    raise AssetError(self, "Unable to download %s: "
+                                     "HTTP error %d" % (self.url, e.code))
                 continue
             except Exception as e:
                 tmp_cache_file.unlink()
-                raise AssetError(self, "Unable to download: " % e)
+                raise AssetError(self, "Unable to download %s: %s" % (
+                    self.url, e))
 
         if not os.path.exists(tmp_cache_file):
             raise AssetError(self, "Download retries exceeded", transient=True)
