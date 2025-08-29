@@ -516,6 +516,13 @@ Stream ``reconnect`` (since 9.2)
 The ``reconnect`` option only allows specifying second granularity timeouts,
 which is not enough for all types of use cases, use ``reconnect-ms`` instead.
 
+TAP ``vhostforce`` (since 10.2)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``vhostforce`` option just duplicates the main ``vhost`` option.
+Use ``vhost`` alone.
+
+
 VFIO device options
 '''''''''''''''''''
 
