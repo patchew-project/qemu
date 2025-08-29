@@ -331,7 +331,7 @@ ChatGPT, Anthropic's Claude, and Meta's Code Llama, and code/content
 generation agents which are built on top of such tools.
 
 This policy may evolve as AI tools mature and the legal situation is
-clarifed. In the meanwhile, requests for exceptions to this policy will be
+clarified. In the meanwhile, requests for exceptions to this policy will be
 evaluated by the QEMU project on a case by case basis. To be granted an
 exception, a contributor will need to demonstrate clarity of the license and
 copyright status for the tool's output in relation to its training model and
