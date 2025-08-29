@@ -71,6 +71,7 @@ struct LoongArchVirtMachineState {
 OBJECT_DECLARE_SIMPLE_TYPE(LoongArchVirtMachineState, LOONGARCH_VIRT_MACHINE)
 void virt_acpi_setup(LoongArchVirtMachineState *lvms);
 void virt_fdt_setup(LoongArchVirtMachineState *lvms);
+void reset_load_elf(void *opaque);
 
 static inline bool virt_is_veiointc_enabled(LoongArchVirtMachineState *lvms)
 {
