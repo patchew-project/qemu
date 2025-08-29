@@ -2221,6 +2221,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
             if (cs->kvm_state->xen_version >= XEN_VERSION(4, 17)) {
                 c->eax |= XEN_HVM_CPUID_UPCALL_VECTOR;
+                c->eax |= XEN_HVM_CPUID_EXT_DEST_ID;
             }
         }
 
