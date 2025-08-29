@@ -1145,6 +1145,15 @@ AddressSpace *cpu_get_address_space(CPUState *cpu, int asidx);
 G_NORETURN void cpu_abort(CPUState *cpu, const char *fmt, ...)
     G_GNUC_PRINTF(2, 3);
 
+/**
+ * qemu_wait_io_event:
+ * @cpu: CPU that left the execution loop
+ *
+ * Perform accelerator-independent work after the CPU has left
+ * the inner execution loop.
+ */
+void qemu_wait_io_event(CPUState *cpu);
+
 /* $(top_srcdir)/cpu.c */
 void cpu_class_init_props(DeviceClass *dc);
 void cpu_exec_class_post_init(CPUClass *cc);
