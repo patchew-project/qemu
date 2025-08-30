@@ -3934,10 +3934,15 @@ void virtio_device_set_child_bus_name(VirtIODevice *vdev, char *bus_name)
 void G_GNUC_PRINTF(2, 3) virtio_error(VirtIODevice *vdev, const char *fmt, ...)
 {
     va_list ap;
+    char *prefixed_fmt;
+
+    prefixed_fmt = g_strdup_printf("virtio: %s", fmt);
 
     va_start(ap, fmt);
-    error_vreport(fmt, ap);
+    error_vreport(prefixed_fmt, ap);
     va_end(ap);
+
+    g_free(prefixed_fmt);
 
     if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
         vdev->status = vdev->status | VIRTIO_CONFIG_S_NEEDS_RESET;
