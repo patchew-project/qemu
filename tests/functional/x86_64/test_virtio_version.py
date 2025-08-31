@@ -10,6 +10,8 @@ Check compatibility of virtio device types
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
+import os
+
 from qemu.machine import QEMUMachine
 from qemu_test import QemuSystemTest
 
@@ -68,7 +70,9 @@ class VirtioVersionCheck(QemuSystemTest):
         """
         Run QEMU with `-device DEVTYPE`, return device info from `query-pci`
         """
-        with QEMUMachine(self.qemu_bin) as vm:
+        with QEMUMachine(
+                self.qemu_bin,
+                base_temp_dir=os.environ.get('TMPDIR', '/var/tmp')) as vm:
             vm.set_machine(machine)
             if opts:
                 devtype += ',' + opts
