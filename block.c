@@ -853,8 +853,6 @@ char *create_tmp_file(Error **errp)
     const char *tmpdir;
     g_autofree char *filename = NULL;
 
-    tmpdir = g_get_tmp_dir();
-#ifndef _WIN32
     /*
      * See commit 69bef79 ("block: use /var/tmp instead of /tmp for -snapshot")
      *
@@ -862,7 +860,12 @@ char *create_tmp_file(Error **errp)
      * so the files can become very large. /tmp is often a tmpfs where as
      * /var/tmp is usually on a disk, so more appropriate for disk images.
      */
-    if (!g_strcmp0(tmpdir, "/tmp")) {
+
+#ifdef _WIN32
+    tmpdir = g_get_tmp_dir();
+#else
+    tmpdir = getenv("TMPDIR");
+    if (!tmpdir) {
         tmpdir = "/var/tmp";
     }
 #endif
