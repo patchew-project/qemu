@@ -21,6 +21,12 @@
  *            (https://mips.com/products/hardware/p8700/)
  */
 
+#define REQUIRE_XMIPSCBOP(ctx) do {              \
+    if (!ctx->cfg_ptr->ext_xmipscbop) {          \
+        return false;                            \
+    }                                            \
+} while (0)
+
 #define REQUIRE_XMIPSCMOV(ctx) do {              \
     if (!ctx->cfg_ptr->ext_xmipscmov) {          \
         return false;                            \
@@ -40,5 +46,13 @@ static bool trans_ccmov(DisasContext *ctx, arg_ccmov *a)
     tcg_gen_movcond_tl(TCG_COND_NE, cpu_gpr[a->rd],
                        source2, zero, source1, source3);
 
+    return true;
+}
+
+static bool trans_pref(DisasContext *ctx, arg_pref *a)
+{
+    REQUIRE_XMIPSCBOP(ctx);
+
+    /* Nop */
     return true;
 }
