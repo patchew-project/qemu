@@ -284,9 +284,7 @@ static void pc_init1(MachineState *machine, const char *pci_type)
         pc_i8259_create(isa_bus, gsi_state->i8259_irq);
     }
 
-    if (phb) {
-        ioapic_init_gsi(gsi_state, phb);
-    }
+    ioapic_init_gsi(gsi_state, phb);
 
     if (tcg_enabled()) {
         x86_register_ferr_irq(x86ms->gsi[13]);
