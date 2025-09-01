@@ -226,6 +226,7 @@ typedef QLIST_HEAD(, BusState) BusStateHead;
 struct DeviceState {
     /* private: */
     Object parent_obj;
+
     /* public: */
 
     /**
@@ -526,6 +527,7 @@ bool qdev_realize_and_unref(DeviceState *dev, BusState *bus, Error **errp);
  *  - unrealize any child buses by calling qbus_unrealize()
  *    (this will recursively unrealize any devices on those buses)
  *  - call the unrealize method of @dev
+ *  - remove @dev from memory
  *
  * The device can then be freed by causing its reference count to go
  * to zero.
