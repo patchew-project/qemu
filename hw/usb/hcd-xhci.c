@@ -3454,16 +3454,6 @@ static void usb_xhci_unrealize(DeviceState *dev)
         xhci->mfwrap_timer = NULL;
     }
 
-    memory_region_del_subregion(&xhci->mem, &xhci->mem_cap);
-    memory_region_del_subregion(&xhci->mem, &xhci->mem_oper);
-    memory_region_del_subregion(&xhci->mem, &xhci->mem_runtime);
-    memory_region_del_subregion(&xhci->mem, &xhci->mem_doorbell);
-
-    for (i = 0; i < xhci->numports; i++) {
-        XHCIPort *port = &xhci->ports[i];
-        memory_region_del_subregion(&xhci->mem, &port->mem);
-    }
-
     usb_bus_release(&xhci->bus);
 }
 
