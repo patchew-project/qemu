@@ -161,6 +161,7 @@ class App(QMPClient):
         self.retry_delay = retry_delay if retry_delay else 2
         self.retry: bool = False
         self.exiting: bool = False
+        self._created_loop = False
         super().__init__()
 
     def add_to_history(self, msg: str, level: Optional[str] = None) -> None:
@@ -391,8 +392,9 @@ class App(QMPClient):
         try:
             self.aloop = asyncio.get_running_loop()
         except RuntimeError:
-            # No running asyncio event loop. Create one if necessary.
-            self.aloop = asyncio.get_event_loop_policy().get_event_loop()
+            # No running asyncio event loop. Create one.
+            self.aloop = asyncio.new_event_loop()
+            self._created_loop = True
 
         self.aloop.set_debug(debug)
 
@@ -415,6 +417,10 @@ class App(QMPClient):
         except Exception as err:
             logging.error('%s\n%s\n', str(err), pretty_traceback())
             raise err
+
+    def __del__(self) -> None:
+        if self._created_loop and self.aloop:
+            self.aloop.close()
 
 
 class StatusBar(urwid.Text):
