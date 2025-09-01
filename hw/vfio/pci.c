@@ -2000,7 +2000,6 @@ static void vfio_bars_finalize(VFIOPCIDevice *vdev)
         vfio_region_finalize(&bar->region);
         if (bar->mr) {
             assert(bar->size);
-            object_unparent(OBJECT(bar->mr));
             g_free(bar->mr);
             bar->mr = NULL;
         }
@@ -2008,9 +2007,6 @@ static void vfio_bars_finalize(VFIOPCIDevice *vdev)
 
     if (vdev->vga) {
         vfio_vga_quirk_finalize(vdev);
-        for (i = 0; i < ARRAY_SIZE(vdev->vga->region); i++) {
-            object_unparent(OBJECT(&vdev->vga->region[i].mem));
-        }
         g_free(vdev->vga);
     }
 }
