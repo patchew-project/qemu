@@ -775,6 +775,10 @@ if host_os != 'darwin'
   endif
 endif
 
+if have_system
+  warn_flags += ['-Walloca']
+endif
+
 # Set up C++ compiler flags
 qemu_cxxflags = []
 if 'cpp' in all_languages
