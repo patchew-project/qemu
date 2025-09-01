@@ -38,6 +38,7 @@ from typing import (
 from .error import QMPError
 from .protocol import Runstate, SocketAddrT
 from .qmp_client import QMPClient
+from .util import get_or_create_event_loop
 
 
 #: QMPMessage is an entire QMP message of any kind.
@@ -86,18 +87,12 @@ class QEMUMonitorProtocol:
                 "server argument should be False when passing a socket")
 
         self._qmp = QMPClient(nickname)
-        self._created_loop = False
-
-        try:
-            self._aloop = asyncio.get_running_loop()
-        except RuntimeError:
-            # No running loop; since this is a sync shim likely to be used
-            # in sync programs without any event loop at all, create one.
-            self._aloop = asyncio.new_event_loop()
-            self._created_loop = True
-
         self._address = address
         self._timeout: Optional[float] = None
+
+        # This is a sync shim intended for use in fully synchronous
+        # programs. Create and set an event loop if necessary.
+        self._aloop = get_or_create_event_loop()
 
         if server:
             assert not isinstance(self._address, socket.socket)
@@ -330,12 +325,6 @@ class QEMUMonitorProtocol:
                 # dangling async resources may not make any sense to the
                 # user.
                 self.close()
-
-            # If we created our own loop (and we are not running inside
-            # of it), we must close it to avoid warnings and error
-            # messages upon program exit.
-            if self._created_loop:
-                self._aloop.close()
 
         if self._qmp.runstate != Runstate.IDLE:
             # If QMP is still not quiesced, it means that the garbage

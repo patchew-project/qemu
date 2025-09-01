@@ -51,7 +51,7 @@ from .legacy import QEMUMonitorProtocol, QMPBadPortError
 from .message import DeserializationError, Message, UnexpectedTypeError
 from .protocol import ConnectError, Runstate
 from .qmp_client import ExecInterruptedError, QMPClient
-from .util import pretty_traceback
+from .util import get_or_create_event_loop, pretty_traceback
 
 
 # The name of the signal that is used to update the history list
@@ -161,7 +161,6 @@ class App(QMPClient):
         self.retry_delay = retry_delay if retry_delay else 2
         self.retry: bool = False
         self.exiting: bool = False
-        self._created_loop = False
         super().__init__()
 
     def add_to_history(self, msg: str, level: Optional[str] = None) -> None:
@@ -388,14 +387,7 @@ class App(QMPClient):
         """
         screen = urwid.raw_display.Screen()
         screen.set_terminal_properties(256)
-
-        try:
-            self.aloop = asyncio.get_running_loop()
-        except RuntimeError:
-            # No running asyncio event loop. Create one.
-            self.aloop = asyncio.new_event_loop()
-            self._created_loop = True
-
+        self.aloop = get_or_create_event_loop()
         self.aloop.set_debug(debug)
 
         # Gracefully handle SIGTERM and SIGINT signals
@@ -417,10 +409,6 @@ class App(QMPClient):
         except Exception as err:
             logging.error('%s\n%s\n', str(err), pretty_traceback())
             raise err
-
-    def __del__(self) -> None:
-        if self._created_loop and self.aloop:
-            self.aloop.close()
 
 
 class StatusBar(urwid.Text):
