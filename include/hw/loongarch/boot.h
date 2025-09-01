@@ -114,5 +114,6 @@ struct memmap_entry {
 };
 
 void loongarch_load_kernel(MachineState *ms, struct loongarch_boot_info *info);
+void reset_load_elf(void *opaque);
 
 #endif /* HW_LOONGARCH_BOOT_H */
