@@ -49,6 +49,7 @@
 #include "crypto/secret.h"
 #include "scsi/utils.h"
 #include "trace.h"
+#include "qemu/timer.h"
 
 /* Conflict between scsi/utils.h and libiscsi! :( */
 #define SCSI_XFER_NONE ISCSI_XFER_NONE
@@ -74,6 +75,8 @@ typedef struct IscsiLun {
     QEMUTimer *nop_timer;
     QEMUTimer *event_timer;
     QemuMutex mutex;
+    int64_t next_reconnect_ms;   /* throttle repeated reconnects */
+    bool last_logged_in;         /* for state-change logging */
     struct scsi_inquiry_logical_block_provisioning lbp;
     struct scsi_inquiry_block_limits bl;
     struct scsi_inquiry_device_designator *dd;
@@ -103,6 +106,9 @@ typedef struct IscsiLun {
     bool dpofua;
     bool has_write_same;
     bool request_timed_out;
+    uint32_t io_hard_timeout_ms;
+    bool fail_fast;
+    QTAILQ_HEAD(, IscsiTask) inflight;
 } IscsiLun;
 
 typedef struct IscsiTask {
@@ -116,6 +122,12 @@ typedef struct IscsiTask {
     QEMUTimer retry_timer;
     int err_code;
     char *err_str;
+    QEMUTimer deadline_timer;
+    bool deadline_armed;
+    bool hard_timed_out;
+    int64_t first_submit_ms;
+    QTAILQ_ENTRY(IscsiTask) entry;
+    bool on_list;
 } IscsiTask;
 
 typedef struct IscsiAIOCB {
@@ -185,7 +197,9 @@ static void iscsi_co_generic_bh_cb(void *opaque)
     struct IscsiTask *iTask = opaque;
 
     iTask->complete = 1;
-    aio_co_wake(iTask->co);
+    if (iTask->co) {
+        aio_co_wake(iTask->co);
+    }
 }
 
 static void iscsi_retry_timer_expired(void *opaque)
@@ -232,13 +246,48 @@ static int iscsi_translate_sense(struct scsi_sense *sense)
                                sense->ascq & 0xFF);
 }
 
+static void iscsi_fail_inflight(IscsiLun *s, int err)
+{
+    IscsiTask *it, *next;
+    int n = 0;
+
+    QTAILQ_FOREACH_SAFE(it, &s->inflight, entry, next) {
+        if (it->deadline_armed) {
+            timer_del(&it->deadline_timer);
+            it->deadline_armed = false;
+        }
+        it->err_code = err ? err : -EIO;
+        it->hard_timed_out = true;
+        it->status = SCSI_STATUS_TIMEOUT;
+
+        if (it->task) {
+            iscsi_scsi_cancel_task(s->iscsi, it->task);
+        }
+
+        if (it->co) {
+            replay_bh_schedule_oneshot_event(s->aio_context,
+                                             iscsi_co_generic_bh_cb, it);
+        } else {
+            it->complete = 1;
+        }
+        QTAILQ_REMOVE(&s->inflight, it, entry);
+        it->on_list = false;
+        n++;
+    }
+}
+
 /* Called (via iscsi_service) with QemuMutex held.  */
 static void
 iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
-                        void *command_data, void *opaque)
+                    void *command_data, void *opaque)
 {
     struct IscsiTask *iTask = opaque;
     struct scsi_task *task = command_data;
+
+    if (iTask->deadline_armed) {
+        timer_del(&iTask->deadline_timer);
+        iTask->deadline_armed = false;
+    }
 
     iTask->status = status;
     iTask->do_retry = 0;
@@ -246,59 +295,97 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
     iTask->task = task;
 
     if (status != SCSI_STATUS_GOOD) {
-        iTask->err_code = -EIO;
-        if (iTask->retries++ < ISCSI_CMD_RETRIES) {
-            if (status == SCSI_STATUS_BUSY ||
-                status == SCSI_STATUS_TIMEOUT ||
-                status == SCSI_STATUS_TASK_SET_FULL) {
-                unsigned retry_time =
-                    exp_random(iscsi_retry_times[iTask->retries - 1]);
-                if (status == SCSI_STATUS_TIMEOUT) {
-                    /* make sure the request is rescheduled AFTER the
-                     * reconnect is initiated */
-                    retry_time = EVENT_INTERVAL * 2;
-                    iTask->iscsilun->request_timed_out = true;
-                }
-                error_report("iSCSI Busy/TaskSetFull/TimeOut"
-                             " (retry #%u in %u ms): %s",
-                             iTask->retries, retry_time,
-                             iscsi_get_error(iscsi));
-                aio_timer_init(iTask->iscsilun->aio_context,
-                               &iTask->retry_timer, QEMU_CLOCK_REALTIME,
-                               SCALE_MS, iscsi_retry_timer_expired, iTask);
-                timer_mod(&iTask->retry_timer,
-                          qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + retry_time);
-                iTask->do_retry = 1;
-                return;
-            } else if (status == SCSI_STATUS_CHECK_CONDITION) {
-                int error = iscsi_translate_sense(&task->sense);
-                if (error == EAGAIN) {
-                    error_report("iSCSI CheckCondition: %s",
+        if (iTask->hard_timed_out) {
+            iTask->err_code = -ETIMEDOUT;
+            iTask->err_str = g_strdup("iSCSI hard timeout");
+            iTask->do_retry = 0;
+        } else {
+            iTask->err_code = -EIO;
+            if (iTask->retries++ < ISCSI_CMD_RETRIES) {
+                if (status == SCSI_STATUS_BUSY ||
+                    status == SCSI_STATUS_TIMEOUT ||
+                    status == SCSI_STATUS_TASK_SET_FULL) {
+                    unsigned retry_time =
+                        exp_random(iscsi_retry_times[iTask->retries - 1]);
+                    if (status == SCSI_STATUS_TIMEOUT) {
+                        /*
+                         * make sure the request is rescheduled AFTER the
+                         * reconnect is initiated
+                         */
+                        retry_time = EVENT_INTERVAL * 2;
+                        iTask->iscsilun->request_timed_out = true;
+                    }
+                    error_report("iSCSI Busy/TaskSetFull/TimeOut"
+                                 " (retry #%u in %u ms): %s",
+                                 iTask->retries, retry_time,
                                  iscsi_get_error(iscsi));
+                    aio_timer_init(iTask->iscsilun->aio_context,
+                                   &iTask->retry_timer, QEMU_CLOCK_REALTIME,
+                                   SCALE_MS, iscsi_retry_timer_expired, iTask);
+                    timer_mod(&iTask->retry_timer,
+                              qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + retry_time);
                     iTask->do_retry = 1;
+                    return;
+                } else if (status == SCSI_STATUS_CHECK_CONDITION) {
+                    int error = iscsi_translate_sense(&task->sense);
+                    if (error == EAGAIN) {
+                        error_report("iSCSI CheckCondition: %s",
+                                     iscsi_get_error(iscsi));
+                        iTask->do_retry = 1;
+                    } else {
+                        iTask->err_code = -error;
+                        iTask->err_str = g_strdup(iscsi_get_error(iscsi));
+                    }
                 } else {
-                    iTask->err_code = -error;
+                    if (!iTask->err_str) {
+                        iTask->err_str = g_strdup(iscsi_get_error(iscsi));
+                    }
+                }
+            } else {
+                if (!iTask->err_str) {
                     iTask->err_str = g_strdup(iscsi_get_error(iscsi));
                 }
             }
         }
     }
-
     if (iTask->co) {
         replay_bh_schedule_oneshot_event(iTask->iscsilun->aio_context,
                                          iscsi_co_generic_bh_cb, iTask);
     } else {
         iTask->complete = 1;
+        if (iTask->task) {
+            scsi_free_scsi_task(iTask->task);
+            iTask->task = NULL;
+        }
+        g_free(iTask->err_str);
+        g_free(iTask);
     }
+
 }
 
 static void coroutine_fn
 iscsi_co_init_iscsitask(IscsiLun *iscsilun, struct IscsiTask *iTask)
 {
     *iTask = (struct IscsiTask) {
-        .co         = qemu_coroutine_self(),
-        .iscsilun   = iscsilun,
+        .co              = qemu_coroutine_self(),
+        .iscsilun        = iscsilun,
+        .deadline_armed  = false,
+        .hard_timed_out  = false,
+        .first_submit_ms = qemu_clock_get_ms(QEMU_CLOCK_REALTIME),
+        .on_list         = false,
     };
+}
+
+static IscsiTask * coroutine_fn iscsi_task_new(IscsiLun *iscsilun)
+{
+    IscsiTask *iTask = g_new0(IscsiTask, 1);
+    iTask->co              = qemu_coroutine_self();
+    iTask->iscsilun        = iscsilun;
+    iTask->deadline_armed  = false;
+    iTask->hard_timed_out  = false;
+    iTask->first_submit_ms = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    iTask->on_list         = false;
+    return iTask;
 }
 
 #ifdef __linux__
@@ -371,17 +458,85 @@ iscsi_set_events(IscsiLun *iscsilun)
     }
 }
 
+/* Try to (re)connect, but throttle to avoid storms. */
+static void iscsi_maybe_reconnect(IscsiLun *iscsilun)
+{
+    int64_t now = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    if (now < iscsilun->next_reconnect_ms) {
+        return;
+    }
+    iscsi_reconnect(iscsilun->iscsi);
+    iscsilun->next_reconnect_ms = now + 2000; /* 2s throttle */
+    /* After changing connection state, refresh event mask immediately. */
+    iscsi_set_events(iscsilun);
+}
+
+static void iscsi_deadline_timer_expired(void *opaque)
+{
+    struct IscsiTask *iTask = opaque;
+    IscsiLun *iscsilun = iTask->iscsilun;
+
+    if (!iTask->deadline_armed) {
+        return;
+    }
+    iTask->deadline_armed = false;
+    iTask->hard_timed_out = true;
+    iTask->status   = SCSI_STATUS_TIMEOUT;
+    iTask->err_code = -ETIMEDOUT;
+
+    if (iscsilun) {
+        qemu_mutex_lock(&iscsilun->mutex);
+        if (iTask->task) {
+            iscsi_scsi_cancel_task(iscsilun->iscsi, iTask->task);
+            if (iTask->co) {
+                replay_bh_schedule_oneshot_event(iscsilun->aio_context,
+                                                 iscsi_co_generic_bh_cb, iTask);
+            }
+            iscsi_set_events(iscsilun);
+        }
+        qemu_mutex_unlock(&iscsilun->mutex);
+    }
+}
+
+static inline void iscsi_arm_deadline(struct IscsiTask *iTask)
+{
+    IscsiLun *iscsilun = iTask->iscsilun;
+
+    if (!iscsilun->io_hard_timeout_ms || iTask->deadline_armed) {
+        return;
+    }
+    aio_timer_init(iscsilun->aio_context, &iTask->deadline_timer,
+                   QEMU_CLOCK_REALTIME, SCALE_MS,
+                   iscsi_deadline_timer_expired, iTask);
+    timer_mod(&iTask->deadline_timer,
+              iTask->first_submit_ms + iscsilun->io_hard_timeout_ms);
+    iTask->deadline_armed = true;
+}
+
 static void iscsi_timed_check_events(void *opaque)
 {
     IscsiLun *iscsilun = opaque;
 
     WITH_QEMU_LOCK_GUARD(&iscsilun->mutex) {
+        bool logged_in_before = iscsilun->last_logged_in;
+        bool logged_in_now;
         /* check for timed out requests */
         iscsi_service(iscsilun->iscsi, 0);
+        logged_in_now = iscsi_is_logged_in(iscsilun->iscsi);
+        if (logged_in_before != logged_in_now) {
+            iscsilun->last_logged_in = logged_in_now;
+            if (logged_in_before && !logged_in_now && iscsilun->fail_fast) {
+                iscsi_fail_inflight(iscsilun, -ENOTCONN);
+            }
+        }
 
         if (iscsilun->request_timed_out) {
             iscsilun->request_timed_out = false;
-            iscsi_reconnect(iscsilun->iscsi);
+            iscsi_maybe_reconnect(iscsilun);
+        }
+
+        if (!logged_in_now) {
+            iscsi_maybe_reconnect(iscsilun);
         }
 
         /*
@@ -605,7 +760,7 @@ iscsi_co_writev(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
                 QEMUIOVector *iov, int flags)
 {
     IscsiLun *iscsilun = bs->opaque;
-    struct IscsiTask iTask;
+    IscsiTask *iTask;
     uint64_t lba;
     uint32_t num_sectors;
     bool fua = flags & BDRV_REQ_FUA;
@@ -624,21 +779,27 @@ iscsi_co_writev(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
 
     lba = sector_qemu2lun(sector_num, iscsilun);
     num_sectors = sector_qemu2lun(nb_sectors, iscsilun);
-    iscsi_co_init_iscsitask(iscsilun, &iTask);
+    iTask = iscsi_task_new(iscsilun);
     qemu_mutex_lock(&iscsilun->mutex);
+    if (iscsilun->fail_fast && !iscsi_is_logged_in(iscsilun->iscsi)) {
+        qemu_mutex_unlock(&iscsilun->mutex);
+        g_free(iTask->err_str);
+        g_free(iTask);
+        return -ENOTCONN;
+    }
 retry:
     if (iscsilun->use_16_for_rw) {
 #if LIBISCSI_API_VERSION >= (20160603)
-        iTask.task = iscsi_write16_iov_task(iscsilun->iscsi, iscsilun->lun, lba,
+        iTask->task = iscsi_write16_iov_task(iscsilun->iscsi, iscsilun->lun, lba,
                                             NULL, num_sectors * iscsilun->block_size,
                                             iscsilun->block_size, 0, 0, fua, 0, 0,
-                                            iscsi_co_generic_cb, &iTask,
+                                            iscsi_co_generic_cb, iTask,
                                             (struct scsi_iovec *)iov->iov, iov->niov);
     } else {
-        iTask.task = iscsi_write10_iov_task(iscsilun->iscsi, iscsilun->lun, lba,
+        iTask->task = iscsi_write10_iov_task(iscsilun->iscsi, iscsilun->lun, lba,
                                             NULL, num_sectors * iscsilun->block_size,
                                             iscsilun->block_size, 0, 0, fua, 0, 0,
-                                            iscsi_co_generic_cb, &iTask,
+                                            iscsi_co_generic_cb, iTask,
                                             (struct scsi_iovec *)iov->iov, iov->niov);
     }
 #else
@@ -653,41 +814,62 @@ retry:
                                         iscsi_co_generic_cb, &iTask);
     }
 #endif
-    if (iTask.task == NULL) {
+    if (iTask->task == NULL) {
         qemu_mutex_unlock(&iscsilun->mutex);
+        g_free(iTask);
         return -ENOMEM;
     }
 #if LIBISCSI_API_VERSION < (20160603)
     scsi_task_set_iov_out(iTask.task, (struct scsi_iovec *) iov->iov,
                           iov->niov);
 #endif
-    iscsi_co_wait_for_task(&iTask, iscsilun);
+    iscsi_set_events(iscsilun);
+    if (!iTask->on_list) {
+        QTAILQ_INSERT_TAIL(&iscsilun->inflight, iTask, entry);
+        iTask->on_list = true;
+    }
+    iscsi_arm_deadline(iTask);
+    iscsi_co_wait_for_task(iTask, iscsilun);
 
-    if (iTask.task != NULL) {
-        scsi_free_scsi_task(iTask.task);
-        iTask.task = NULL;
+    if (!iTask->hard_timed_out && iTask->task != NULL) {
+        scsi_free_scsi_task(iTask->task);
+        iTask->task = NULL;
     }
 
-    if (iTask.do_retry) {
-        iTask.complete = 0;
+    if (iTask->do_retry) {
+        iTask->complete = 0;
         goto retry;
     }
 
-    if (iTask.status != SCSI_STATUS_GOOD) {
+    if (iTask->hard_timed_out) {
+        r = iTask->err_code ? iTask->err_code : -ETIMEDOUT;
+        iTask->co = NULL;
+        if (iTask->on_list) {
+            QTAILQ_REMOVE(&iscsilun->inflight, iTask, entry);
+            iTask->on_list = false;
+        }
+        qemu_mutex_unlock(&iscsilun->mutex);
+        return r;
+    }
+
+    if (iTask->status != SCSI_STATUS_GOOD) {
         iscsi_allocmap_set_invalid(iscsilun, sector_num * BDRV_SECTOR_SIZE,
                                    nb_sectors * BDRV_SECTOR_SIZE);
         error_report("iSCSI WRITE10/16 failed at lba %" PRIu64 ": %s", lba,
-                     iTask.err_str);
-        r = iTask.err_code;
-        goto out_unlock;
+                     iTask->err_str);
+        r = iTask->err_code;
+    } else {
+        iscsi_allocmap_set_allocated(iscsilun, sector_num * BDRV_SECTOR_SIZE,
+                                     nb_sectors * BDRV_SECTOR_SIZE);
     }
 
-    iscsi_allocmap_set_allocated(iscsilun, sector_num * BDRV_SECTOR_SIZE,
-                                 nb_sectors * BDRV_SECTOR_SIZE);
-
-out_unlock:
+    if (iTask->on_list) {
+        QTAILQ_REMOVE(&iscsilun->inflight, iTask, entry);
+        iTask->on_list = false;
+    }
     qemu_mutex_unlock(&iscsilun->mutex);
-    g_free(iTask.err_str);
+    g_free(iTask->err_str);
+    g_free(iTask);
     return r;
 }
 
@@ -733,6 +915,8 @@ retry:
         ret = -ENOMEM;
         goto out_unlock;
     }
+    iscsi_arm_deadline(&iTask);
+    iscsi_set_events(iscsilun);
     iscsi_co_wait_for_task(&iTask, iscsilun);
 
     if (iTask.do_retry) {
@@ -801,7 +985,7 @@ static int coroutine_fn iscsi_co_readv(BlockDriverState *bs,
                                        QEMUIOVector *iov)
 {
     IscsiLun *iscsilun = bs->opaque;
-    struct IscsiTask iTask;
+    IscsiTask *iTask;
     uint64_t lba;
     uint32_t num_sectors;
     int r = 0;
@@ -856,22 +1040,28 @@ static int coroutine_fn iscsi_co_readv(BlockDriverState *bs,
     lba = sector_qemu2lun(sector_num, iscsilun);
     num_sectors = sector_qemu2lun(nb_sectors, iscsilun);
 
-    iscsi_co_init_iscsitask(iscsilun, &iTask);
+    iTask = iscsi_task_new(iscsilun);
     qemu_mutex_lock(&iscsilun->mutex);
+    if (iscsilun->fail_fast && !iscsi_is_logged_in(iscsilun->iscsi)) {
+        qemu_mutex_unlock(&iscsilun->mutex);
+        g_free(iTask->err_str);
+        g_free(iTask);
+        return -ENOTCONN;
+    }
 retry:
     if (iscsilun->use_16_for_rw) {
 #if LIBISCSI_API_VERSION >= (20160603)
-        iTask.task = iscsi_read16_iov_task(iscsilun->iscsi, iscsilun->lun, lba,
+        iTask->task = iscsi_read16_iov_task(iscsilun->iscsi, iscsilun->lun, lba,
                                            num_sectors * iscsilun->block_size,
                                            iscsilun->block_size, 0, 0, 0, 0, 0,
-                                           iscsi_co_generic_cb, &iTask,
+                                           iscsi_co_generic_cb, iTask,
                                            (struct scsi_iovec *)iov->iov, iov->niov);
     } else {
-        iTask.task = iscsi_read10_iov_task(iscsilun->iscsi, iscsilun->lun, lba,
+        iTask->task = iscsi_read10_iov_task(iscsilun->iscsi, iscsilun->lun, lba,
                                            num_sectors * iscsilun->block_size,
                                            iscsilun->block_size,
                                            0, 0, 0, 0, 0,
-                                           iscsi_co_generic_cb, &iTask,
+                                           iscsi_co_generic_cb, iTask,
                                            (struct scsi_iovec *)iov->iov, iov->niov);
     }
 #else
@@ -887,70 +1077,119 @@ retry:
                                        iscsi_co_generic_cb, &iTask);
     }
 #endif
-    if (iTask.task == NULL) {
+    if (iTask->task == NULL) {
         qemu_mutex_unlock(&iscsilun->mutex);
+        g_free(iTask);
         return -ENOMEM;
     }
 #if LIBISCSI_API_VERSION < (20160603)
     scsi_task_set_iov_in(iTask.task, (struct scsi_iovec *) iov->iov, iov->niov);
 #endif
-
-    iscsi_co_wait_for_task(&iTask, iscsilun);
-    if (iTask.task != NULL) {
-        scsi_free_scsi_task(iTask.task);
-        iTask.task = NULL;
+    if (!iTask->on_list) {
+        QTAILQ_INSERT_TAIL(&iscsilun->inflight, iTask, entry);
+        iTask->on_list = true;
+    }
+    iscsi_arm_deadline(iTask);
+    iscsi_co_wait_for_task(iTask, iscsilun);
+    if (!iTask->hard_timed_out && iTask->task != NULL) {
+        scsi_free_scsi_task(iTask->task);
+        iTask->task = NULL;
     }
 
-    if (iTask.do_retry) {
-        iTask.complete = 0;
+    if (iTask->do_retry) {
+        iTask->complete = 0;
         goto retry;
     }
 
-    if (iTask.status != SCSI_STATUS_GOOD) {
-        error_report("iSCSI READ10/16 failed at lba %" PRIu64 ": %s",
-                     lba, iTask.err_str);
-        r = iTask.err_code;
+    if (iTask->hard_timed_out) {
+        r = iTask->err_code ? iTask->err_code : -ETIMEDOUT;
+        iTask->co = NULL;
+        if (iTask->on_list) {
+            QTAILQ_REMOVE(&iscsilun->inflight, iTask, entry);
+            iTask->on_list = false;
+        }
+        qemu_mutex_unlock(&iscsilun->mutex);
+        return r;
     }
 
+    if (iTask->status != SCSI_STATUS_GOOD) {
+        error_report("iSCSI READ10/16 failed at lba %" PRIu64 ": %s",
+                     lba, iTask->err_str);
+        r = iTask->err_code;
+    }
+
+    if (iTask->on_list) {
+        QTAILQ_REMOVE(&iscsilun->inflight, iTask, entry);
+        iTask->on_list = false;
+    }
     qemu_mutex_unlock(&iscsilun->mutex);
-    g_free(iTask.err_str);
+    g_free(iTask->err_str);
+    g_free(iTask);
     return r;
 }
 
 static int coroutine_fn iscsi_co_flush(BlockDriverState *bs)
 {
     IscsiLun *iscsilun = bs->opaque;
-    struct IscsiTask iTask;
+    IscsiTask *iTask;
     int r = 0;
 
-    iscsi_co_init_iscsitask(iscsilun, &iTask);
+    iTask = iscsi_task_new(iscsilun);
     qemu_mutex_lock(&iscsilun->mutex);
+    if (iscsilun->fail_fast && !iscsi_is_logged_in(iscsilun->iscsi)) {
+        qemu_mutex_unlock(&iscsilun->mutex);
+        g_free(iTask->err_str);
+        g_free(iTask);
+        return -ENOTCONN;
+    }
 retry:
     if (iscsi_synchronizecache10_task(iscsilun->iscsi, iscsilun->lun, 0, 0, 0,
-                                      0, iscsi_co_generic_cb, &iTask) == NULL) {
+                                      0, iscsi_co_generic_cb, iTask) == NULL) {
         qemu_mutex_unlock(&iscsilun->mutex);
+        g_free(iTask);
         return -ENOMEM;
     }
+    iscsi_set_events(iscsilun);
+    if (!iTask->on_list) {
+        QTAILQ_INSERT_TAIL(&iscsilun->inflight, iTask, entry);
+        iTask->on_list = true;
+    }
+    iscsi_arm_deadline(iTask);
+    iscsi_co_wait_for_task(iTask, iscsilun);
 
-    iscsi_co_wait_for_task(&iTask, iscsilun);
-
-    if (iTask.task != NULL) {
-        scsi_free_scsi_task(iTask.task);
-        iTask.task = NULL;
+    if (!iTask->hard_timed_out && iTask->task != NULL) {
+        scsi_free_scsi_task(iTask->task);
+        iTask->task = NULL;
     }
 
-    if (iTask.do_retry) {
-        iTask.complete = 0;
+    if (iTask->do_retry) {
+        iTask->complete = 0;
         goto retry;
     }
 
-    if (iTask.status != SCSI_STATUS_GOOD) {
-        error_report("iSCSI SYNCHRONIZECACHE10 failed: %s", iTask.err_str);
-        r = iTask.err_code;
+    if (iTask->hard_timed_out) {
+        r = iTask->err_code ? iTask->err_code : -ETIMEDOUT;
+        iTask->co = NULL; /* detach */
+        if (iTask->on_list) {
+            QTAILQ_REMOVE(&iscsilun->inflight, iTask, entry);
+            iTask->on_list = false;
+        }
+        qemu_mutex_unlock(&iscsilun->mutex);
+        return r;
     }
 
+    if (iTask->status != SCSI_STATUS_GOOD) {
+        error_report("iSCSI SYNCHRONIZECACHE10 failed: %s", iTask->err_str);
+        r = iTask->err_code;
+    }
+
+    if (iTask->on_list) {
+        QTAILQ_REMOVE(&iscsilun->inflight, iTask, entry);
+        iTask->on_list = false;
+    }
     qemu_mutex_unlock(&iscsilun->mutex);
-    g_free(iTask.err_str);
+    g_free(iTask->err_str);
+    g_free(iTask);
     return r;
 }
 
@@ -1086,6 +1325,12 @@ static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
 
     data.size = 0;
     qemu_mutex_lock(&iscsilun->mutex);
+    if (iscsilun->fail_fast && !iscsi_is_logged_in(iscsilun->iscsi)) {
+        qemu_mutex_unlock(&iscsilun->mutex);
+        acb->status = -ENOTCONN;
+        iscsi_schedule_bh(acb);
+        return &acb->common;
+    }
     if (acb->task->xfer_dir == SCSI_XFER_WRITE) {
         if (acb->ioh->iovec_count == 0) {
             data.data = acb->ioh->dxferp;
@@ -1176,6 +1421,7 @@ retry:
         goto out_unlock;
     }
 
+    iscsi_set_events(iscsilun);
     iscsi_co_wait_for_task(&iTask, iscsilun);
 
     if (iTask.task != NULL) {
@@ -1282,6 +1528,7 @@ retry:
         return -ENOMEM;
     }
 
+    iscsi_set_events(iscsilun);
     iscsi_co_wait_for_task(&iTask, iscsilun);
 
     if (iTask.status == SCSI_STATUS_CHECK_CONDITION &&
@@ -1415,14 +1662,24 @@ static void iscsi_nop_timed_event(void *opaque)
     IscsiLun *iscsilun = opaque;
 
     QEMU_LOCK_GUARD(&iscsilun->mutex);
+    /* If we are not logged in, use the nop timer as an additional reconnect driver. */
+    if (!iscsi_is_logged_in(iscsilun->iscsi)) {
+        iscsilun->request_timed_out = true;
+        iscsi_maybe_reconnect(iscsilun);
+        goto rearm;
+    }
     if (iscsi_get_nops_in_flight(iscsilun->iscsi) >= MAX_NOP_FAILURES) {
         error_report("iSCSI: NOP timeout. Reconnecting...");
         iscsilun->request_timed_out = true;
     } else if (iscsi_nop_out_async(iscsilun->iscsi, NULL, NULL, 0, NULL) != 0) {
-        error_report("iSCSI: failed to sent NOP-Out. Disabling NOP messages.");
-        return;
+        /* Do NOT disable NOPs; treat as connection problem and try to reconnect. */
+        error_report("iSCSI: failed to send NOP-Out. Triggering reconnect.");
+        iscsilun->request_timed_out = true;
+        iscsi_maybe_reconnect(iscsilun);
+        /* keep NOPs enabled; next tick will try again */
     }
 
+rearm:
     timer_mod(iscsilun->nop_timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + NOP_INTERVAL);
     iscsi_set_events(iscsilun);
 }
@@ -1559,6 +1816,8 @@ static void iscsi_attach_aio_context(BlockDriverState *bs,
     IscsiLun *iscsilun = bs->opaque;
 
     iscsilun->aio_context = new_context;
+    iscsilun->next_reconnect_ms = 0;
+    iscsilun->last_logged_in = iscsi_is_logged_in(iscsilun->iscsi);
     iscsi_set_events(iscsilun);
 
     /* Set up a timer for sending out iSCSI NOPs */
@@ -1894,6 +2153,9 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         warn_report("iSCSI: ignoring timeout value for libiscsi <1.15.0");
     }
 #endif
+    /* FORCE-ON policy: 5s hard timeout */
+    iscsilun->io_hard_timeout_ms = 5000; /* 5 seconds */
+    iscsilun->fail_fast = true;
 
     if (iscsi_full_connect_sync(iscsi, portal, lun) != 0) {
         error_setg(errp, "iSCSI: Failed to connect to LUN : %s",
@@ -1905,6 +2167,8 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     iscsilun->iscsi = iscsi;
     iscsilun->aio_context = bdrv_get_aio_context(bs);
     iscsilun->lun = lun;
+    iscsilun->next_reconnect_ms = 0;
+    iscsilun->last_logged_in = false; /* updated after connect */
     iscsilun->has_write_same = true;
 
     task = iscsi_do_inquiry(iscsilun->iscsi, iscsilun->lun, 0, 0,
@@ -2007,6 +2271,8 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
 
     qemu_mutex_init(&iscsilun->mutex);
     iscsi_attach_aio_context(bs, iscsilun->aio_context);
+    iscsilun->last_logged_in = iscsi_is_logged_in(iscsilun->iscsi);
+    QTAILQ_INIT(&iscsilun->inflight);
 
     /* Guess the internal cluster (page) size of the iscsi target by the means
      * of opt_unmap_gran. Transfer the unmap granularity only if it has a
@@ -2387,6 +2653,7 @@ retry:
         goto out_unlock;
     }
 
+    iscsi_set_events(dst_lun);
     iscsi_co_wait_for_task(&iscsi_task, dst_lun);
 
     if (iscsi_task.do_retry) {
