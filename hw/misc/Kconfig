@@ -127,12 +127,16 @@ config RISCV_CMGCR
 config RISCV_CPC
     bool
 
+config RISCV_CPS
+    bool
+
 config MIPS_BOSTON_AIA
     bool
     default y
     depends on RISCV64
     select RISCV_CMGCR
     select RISCV_CPC
+    select RISCV_CPS
 
 config MPS2_FPGAIO
     bool
