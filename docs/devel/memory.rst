@@ -158,30 +158,31 @@ ioeventfd) can be changed during the region lifecycle.  They take effect
 as soon as the region is made visible.  This can be immediately, later,
 or never.
 
-Destruction of a memory region happens automatically when the owner
-object dies.
+You should call object_unparent() if the memory region becomes
+unnecessary for its owner. If its owner is a device, object_unparent()
+will be called automatically after unrealization.
 
-You must not destroy a memory region as long as it may be in use by a
-device or CPU.  In order to do this, as a general rule do not create or
-destroy memory regions dynamically during a device's lifetime.
+You must not free a memory region as long as it may be in use by a
+device or CPU.  In order to do this, as a general rule do not allocate or
+free memory regions dynamically during a device's lifetime.
 The dynamically allocated data structure that contains the
 memory region should be freed in the instance_finalize callback.
 
 If you break this rule, the following situation can happen:
 
-- the memory region's owner had a reference taken via memory_region_ref
+- the memory region had a reference taken via memory_region_ref
   (for example by address_space_map)
 
-- the region is unparented, and has no owner anymore
+- the region is freed
 
-- when address_space_unmap is called, the reference to the memory region's
-  owner is leaked.
+- when the mapped memory is used, the use of the memory region
+  results in use-after-free.
 
 
-There is an exception to the above rule: it is okay to call
-object_unparent at any time for an alias or a container region.  It is
-therefore also okay to create or destroy alias and container regions
-dynamically during a device's lifetime.
+There is an exception to the above rule: it is okay to free at any time
+for an alias or a container region.  It is therefore also okay to
+allocate or free alias and container regions dynamically during a
+device's lifetime.
 
 This exceptional usage is valid because aliases and containers only help
 QEMU building the guest's memory map; they are never accessed directly.
@@ -191,9 +192,8 @@ this exception is rarely necessary, and therefore it is discouraged,
 but nevertheless it is used in a few places.
 
 For regions that "have no owner" (NULL is passed at creation time), the
-machine object is actually used as the owner.  You must never call
-object_unparent on regions that have no owner, unless they are aliases
-or containers.
+machine object is actually used as the owner.  You must never free
+regions that have no owner, unless they are aliases or containers.
 
 
 Overlapping regions and priority

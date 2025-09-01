@@ -451,15 +451,30 @@ static bool check_only_migratable(Object *obj, Error **errp)
     return true;
 }
 
-static int del_memory_region(Object *child, void *opaque)
+static int collect_memory_region(Object *child, void *opaque)
 {
     MemoryRegion *mr = (MemoryRegion *)object_dynamic_cast(child, TYPE_MEMORY_REGION);
 
-    if (mr && mr->container) {
-        memory_region_del_subregion(mr->container, mr);
+    if (mr) {
+        if (mr->container) {
+            memory_region_del_subregion(mr->container, mr);
+        }
+
+        g_array_append_val(opaque, child);
     }
 
     return 0;
+}
+
+static void del_memory_regions(DeviceState *dev)
+{
+    g_autoptr(GArray) array = g_array_new(FALSE, FALSE, sizeof(Object *));
+
+    object_child_foreach(OBJECT(dev), collect_memory_region, array);
+
+    for (gsize i = 0; i < array->len; i++) {
+        object_unparent(g_array_index(array, Object *, i));
+    }
 }
 
 static void device_set_realized(Object *obj, bool value, Error **errp)
@@ -593,7 +608,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         if (dc->unrealize) {
             dc->unrealize(dev);
         }
-        object_child_foreach(OBJECT(dev), del_memory_region, NULL);
+        del_memory_regions(dev);
         dev->pending_deleted_event = true;
         DEVICE_LISTENER_CALL(unrealize, Reverse, dev);
     }
@@ -618,7 +633,7 @@ post_realize_fail:
     }
 
 fail:
-    object_child_foreach(OBJECT(dev), del_memory_region, NULL);
+    del_memory_regions(dev);
 
     error_propagate(errp, local_err);
     if (unattached_parent) {

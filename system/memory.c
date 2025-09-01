@@ -1222,7 +1222,7 @@ static void memory_region_do_init(MemoryRegion *mr,
         mr->size = int128_2_64();
     }
     mr->name = g_strdup(name);
-    mr->owner = owner;
+    mr->owner = object_ref(owner);
     mr->dev = (DeviceState *) object_dynamic_cast(mr->owner, TYPE_DEVICE);
     mr->ram_block = NULL;
 
@@ -1816,6 +1816,7 @@ static void memory_region_finalize(Object *obj)
     memory_region_clear_coalescing(mr);
     g_free((char *)mr->name);
     g_free(mr->ioeventfds);
+    object_unref(mr->owner);
 }
 
 Object *memory_region_owner(MemoryRegion *mr)
@@ -1826,13 +1827,7 @@ Object *memory_region_owner(MemoryRegion *mr)
 
 void memory_region_ref(MemoryRegion *mr)
 {
-    /* MMIO callbacks most likely will access data that belongs
-     * to the owner, hence the need to ref/unref the owner whenever
-     * the memory region is in use.
-     *
-     * The memory region is a child of its owner.  As long as the
-     * owner doesn't call unparent itself on the memory region,
-     * ref-ing the owner will also keep the memory region alive.
+    /*
      * Memory regions without an owner are supposed to never go away;
      * we do not ref/unref them because it slows down DMA sensibly.
      */
