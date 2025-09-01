@@ -7,6 +7,7 @@ test_riscv64_timeouts = {
 tests_riscv64_system_quick = [
   'migration',
   'opensbi',
+  'riscv64_boston',
 ]
 
 tests_riscv64_system_thorough = [
