@@ -61,6 +61,10 @@ TCGv hex_vstore_addr[VSTORES_MAX];
 TCGv hex_vstore_size[VSTORES_MAX];
 TCGv hex_vstore_pending[VSTORES_MAX];
 
+#ifndef CONFIG_USER_ONLY
+TCGv hex_cause_code;
+#endif
+
 static const char * const hexagon_prednames[] = {
   "p0", "p1", "p2", "p3"
 };
@@ -1107,4 +1111,8 @@ void hexagon_translate_init(void)
             offsetof(CPUHexagonState, vstore_pending[i]),
             vstore_pending_names[i]);
     }
+#ifndef CONFIG_USER_ONLY
+    hex_cause_code = tcg_global_mem_new(tcg_env,
+        offsetof(CPUHexagonState, cause_code), "cause_code");
+#endif
 }
