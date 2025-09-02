@@ -46,8 +46,34 @@
 #define VSTORES_MAX 2
 
 #define CPU_RESOLVING_TYPE TYPE_HEXAGON_CPU
+#ifndef CONFIG_USER_ONLY
+#define CPU_INTERRUPT_SWI      CPU_INTERRUPT_TGT_INT_0
+#define CPU_INTERRUPT_K0_UNLOCK CPU_INTERRUPT_TGT_INT_1
+#define CPU_INTERRUPT_TLB_UNLOCK CPU_INTERRUPT_TGT_INT_2
 
-#define MMU_USER_IDX 0
+#define HEX_CPU_MODE_USER    1
+#define HEX_CPU_MODE_GUEST   2
+#define HEX_CPU_MODE_MONITOR 3
+
+#define HEX_EXE_MODE_OFF     1
+#define HEX_EXE_MODE_RUN     2
+#define HEX_EXE_MODE_WAIT    3
+#define HEX_EXE_MODE_DEBUG   4
+#endif
+
+#define MMU_USER_IDX         0
+#ifndef CONFIG_USER_ONLY
+#define MMU_GUEST_IDX        1
+#define MMU_KERNEL_IDX       2
+
+typedef enum {
+    HEX_LOCK_UNLOCKED       = 0,
+    HEX_LOCK_WAITING        = 1,
+    HEX_LOCK_OWNER          = 2,
+    HEX_LOCK_QUEUED        = 3
+} hex_lock_state_t;
+#endif
+
 
 #define HEXAGON_CPU_IRQ_0 0
 #define HEXAGON_CPU_IRQ_1 1
@@ -103,7 +129,13 @@ typedef struct CPUArchState {
     target_ulong t_sreg[NUM_SREGS];
 
     target_ulong greg[NUM_GREGS];
+
+    /* This alias of CPUState.cpu_index is used by imported sources: */
+    target_ulong threadId;
+    hex_lock_state_t tlb_lock_state;
+    hex_lock_state_t k0_lock_state;
 #endif
+    target_ulong next_PC;
     target_ulong new_value_usr;
 
     MemLog mem_log_stores[STORES_MAX];
