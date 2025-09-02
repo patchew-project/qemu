@@ -130,11 +130,14 @@ typedef struct CPUArchState {
     target_ulong t_sreg[NUM_SREGS];
 
     target_ulong greg[NUM_GREGS];
+    target_ulong wait_next_pc;
 
     /* This alias of CPUState.cpu_index is used by imported sources: */
     target_ulong threadId;
     hex_lock_state_t tlb_lock_state;
     hex_lock_state_t k0_lock_state;
+    target_ulong tlb_lock_count;
+    target_ulong k0_lock_count;
 #endif
     target_ulong next_PC;
     target_ulong new_value_usr;
