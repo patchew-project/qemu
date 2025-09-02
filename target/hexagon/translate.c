@@ -62,6 +62,8 @@ TCGv hex_vstore_size[VSTORES_MAX];
 TCGv hex_vstore_pending[VSTORES_MAX];
 
 #ifndef CONFIG_USER_ONLY
+TCGv hex_greg[NUM_GREGS];
+TCGv hex_t_sreg[NUM_SREGS];
 TCGv hex_cause_code;
 #endif
 
