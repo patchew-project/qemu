@@ -44,6 +44,15 @@
 
 #define MMU_USER_IDX 0
 
+#define HEXAGON_CPU_IRQ_0 0
+#define HEXAGON_CPU_IRQ_1 1
+#define HEXAGON_CPU_IRQ_2 2
+#define HEXAGON_CPU_IRQ_3 3
+#define HEXAGON_CPU_IRQ_4 4
+#define HEXAGON_CPU_IRQ_5 5
+#define HEXAGON_CPU_IRQ_6 6
+#define HEXAGON_CPU_IRQ_7 7
+
 typedef struct {
     target_ulong va;
     uint8_t width;
