@@ -14,6 +14,7 @@
 #include "qemu/cutils.h"
 #include "qemu/event_notifier.h"
 #include "qemu/main-loop.h"
+#include "qemu/sockets.h"
 
 #ifdef CONFIG_EVENTFD
 #include <sys/eventfd.h>
@@ -52,11 +53,11 @@ int event_notifier_init(EventNotifier *e, int active)
         if (!g_unix_open_pipe(fds, FD_CLOEXEC, NULL)) {
             return -errno;
         }
-        if (!g_unix_set_fd_nonblocking(fds[0], true, NULL)) {
+        if (!qemu_set_blocking(fds[0], false, NULL)) {
             ret = -errno;
             goto fail;
         }
-        if (!g_unix_set_fd_nonblocking(fds[1], true, NULL)) {
+        if (!qemu_set_blocking(fds[1], false, NULL)) {
             ret = -errno;
             goto fail;
         }
