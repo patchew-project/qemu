@@ -32,6 +32,7 @@
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "monitor/monitor.h"
 
 #define VIRTIO_GPU_VM_VERSION 1
 
@@ -799,6 +800,36 @@ static void virtio_gpu_set_scanout_blob(VirtIOGPU *g,
                               &fb, res, &ss.r, &cmd->error);
 }
 
+static void *map_gpa2hva(VirtIOGPU *g,
+                         struct virtio_gpu_ctrl_command *cmd,
+                         uint64_t gpa, hwaddr *len)
+{
+    MemoryRegion *mr = NULL;
+    Error *errp = NULL;
+    void *map;
+
+    if (cmd->cmd_hdr.type != VIRTIO_GPU_CMD_RESOURCE_CREATE_BLOB) {
+        return dma_memory_map(VIRTIO_DEVICE(g)->dma_as, gpa, len,
+                              DMA_DIRECTION_TO_DEVICE,
+                              MEMTXATTRS_UNSPECIFIED);
+    }
+
+    map = gpa2hva(&mr, gpa, 1, &errp);
+    if (errp) {
+        error_report_err(errp);
+        return NULL;
+    }
+
+    if (!memory_region_is_ram_device(mr)) {
+        memory_region_unref(mr);
+        map = dma_memory_map(VIRTIO_DEVICE(g)->dma_as, gpa, len,
+                             DMA_DIRECTION_TO_DEVICE,
+                             MEMTXATTRS_UNSPECIFIED);
+    }
+
+    return map;
+}
+
 int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
                                   uint32_t nr_entries, uint32_t offset,
                                   struct virtio_gpu_ctrl_command *cmd,
@@ -840,9 +871,7 @@ int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
 
         do {
             len = l;
-            map = dma_memory_map(VIRTIO_DEVICE(g)->dma_as, a, &len,
-                                 DMA_DIRECTION_TO_DEVICE,
-                                 MEMTXATTRS_UNSPECIFIED);
+            map = map_gpa2hva(g, cmd, a, &len);
             if (!map) {
                 qemu_log_mask(LOG_GUEST_ERROR, "%s: failed to map MMIO memory for"
                               " element %d\n", __func__, e);
