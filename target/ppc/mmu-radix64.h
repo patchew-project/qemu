@@ -15,7 +15,7 @@
 #define R_EADDR_QUADRANT3       0xC000000000000000
 
 bool ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
-                       hwaddr *raddr, int *psizep, int *protp, int mmu_idx,
+                       CPUTLBEntryFull *full, int mmu_idx,
                        bool guest_visible);
 
 #endif /* TARGET_PPC64 */

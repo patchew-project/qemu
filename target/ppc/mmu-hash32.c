@@ -292,7 +292,7 @@ static hwaddr ppc_hash32_htab_lookup(PowerPCCPU *cpu,
 }
 
 bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
-                      hwaddr *raddrp, int *psizep, int *protp, int mmu_idx,
+                      CPUTLBEntryFull *full, int mmu_idx,
                       bool guest_visible)
 {
     CPUState *cs = CPU(cpu);
@@ -301,24 +301,26 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     hwaddr pte_offset, raddr;
     ppc_hash_pte32_t pte;
     bool key;
-    int prot;
+    int prot = 0;
 
     /* There are no hash32 large pages. */
-    *psizep = TARGET_PAGE_BITS;
+    full->lg_page_size = TARGET_PAGE_BITS;
 
     /* 1. Handle real mode accesses */
     if (mmuidx_real(mmu_idx)) {
         /* Translation is off */
-        *raddrp = eaddr;
-        *protp = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        full->phys_addr = eaddr;
+        full->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         return true;
     }
 
     /* 2. Check Block Address Translation entries (BATs) */
     if (env->nb_BATs != 0) {
-        raddr = ppc_hash32_bat_lookup(cpu, eaddr, access_type, protp, mmu_idx);
+        raddr = ppc_hash32_bat_lookup(cpu, eaddr, access_type, &prot, mmu_idx);
+        full->prot = prot;
+
         if (raddr != -1) {
-            if (!check_prot_access_type(*protp, access_type)) {
+            if (!check_prot_access_type(full->prot, access_type)) {
                 if (guest_visible) {
                     if (access_type == MMU_INST_FETCH) {
                         cs->exception_index = POWERPC_EXCP_ISI;
@@ -336,7 +338,7 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
                 }
                 return false;
             }
-            *raddrp = raddr;
+            full->phys_addr = raddr;
             return true;
         }
     }
@@ -347,7 +349,9 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     /* 4. Handle direct store segments */
     if (sr & SR32_T) {
         return ppc_hash32_direct_store(cpu, sr, eaddr, access_type,
-                                       raddrp, protp, mmu_idx, guest_visible);
+                                       &(full->phys_addr), &prot, mmu_idx,
+                                       guest_visible);
+        full->prot = prot;
     }
 
     /* 5. Check for segment level no-execute violation */
@@ -425,11 +429,11 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
             prot &= ~PAGE_WRITE;
         }
     }
-    *protp = prot;
+    full->prot = prot;
 
     /* 9. Determine the real address from the PTE */
-    *raddrp = pte.pte1 & HPTE32_R_RPN;
-    *raddrp &= TARGET_PAGE_MASK;
-    *raddrp |= eaddr & ~TARGET_PAGE_MASK;
+    full->phys_addr = pte.pte1 & HPTE32_R_RPN;
+    full->phys_addr &= TARGET_PAGE_MASK;
+    full->phys_addr |= eaddr & ~TARGET_PAGE_MASK;
     return true;
 }

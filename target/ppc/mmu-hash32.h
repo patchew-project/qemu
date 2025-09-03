@@ -6,8 +6,7 @@
 #include "system/memory.h"
 
 bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
-                      hwaddr *raddrp, int *psizep, int *protp, int mmu_idx,
-                      bool guest_visible);
+                      CPUTLBEntryFull *full, int mmu_idx, bool guest_visible);
 
 /*
  * Segment register definitions
