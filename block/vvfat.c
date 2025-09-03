@@ -1082,6 +1082,11 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "Make the image writable",
         },
+        {
+            .name = "no-mbr",
+            .type = QEMU_OPT_BOOL,
+            .help = "Do not add a Master Boot Record on this disk",
+        },
         { /* end of list */ }
     },
 };
@@ -1092,6 +1097,7 @@ static void vvfat_parse_filename(const char *filename, QDict *options,
     int fat_type = 0;
     bool floppy = false;
     bool rw = false;
+    bool no_mbr = false;
     int i;
 
     if (!strstart(filename, "fat:", NULL)) {
@@ -1116,6 +1122,10 @@ static void vvfat_parse_filename(const char *filename, QDict *options,
         rw = true;
     }
 
+    if (strstr(filename, ":no-mbr:")) {
+        no_mbr = true;
+    }
+
     /* Get the directory name without options */
     i = strrchr(filename, ':') - filename;
     assert(i >= 3);
@@ -1131,6 +1141,7 @@ static void vvfat_parse_filename(const char *filename, QDict *options,
     qdict_put_int(options, "fat-type", fat_type);
     qdict_put_bool(options, "floppy", floppy);
     qdict_put_bool(options, "rw", rw);
+    qdict_put_bool(options, "no-mbr", no_mbr);
 }
 
 static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
@@ -1196,7 +1207,10 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
         if (!s->fat_type) {
             s->fat_type = 16;
         }
-        s->offset_to_bootsector = 0x3f;
+        /* Reserver space for MBR */
+        if (!qemu_opt_get_bool(opts, "no-mbr", false)) {
+            s->offset_to_bootsector = 0x3f;
+        }
         cyls = s->fat_type == 12 ? 64 : 1024;
         heads = 16;
         secs = 63;
