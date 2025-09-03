@@ -34,8 +34,8 @@
 #define TARGET_SO_PEERCRED     17
 #define TARGET_SO_RCVLOWAT     18
 #define TARGET_SO_SNDLOWAT     19
-#define TARGET_SO_RCVTIMEO     20
-#define TARGET_SO_SNDTIMEO     21
+#define TARGET_SO_RCVTIMEO_OLD 20
+#define TARGET_SO_SNDTIMEO_OLD 21
 
 /* Security levels - as per NRL IPv6 - don't actually do anything */
 #define TARGET_SO_SECURITY_AUTHENTICATION              22
@@ -58,4 +58,8 @@
 
 #define TARGET_SO_PROTOCOL             38
 #define TARGET_SO_DOMAIN               39
+
+/* New socket timeout options that are y2038 safe. */
+#define TARGET_SO_RCVTIMEO_NEW 66
+#define TARGET_SO_SNDTIMEO_NEW 67
 #endif

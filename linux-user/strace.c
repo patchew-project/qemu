@@ -2970,11 +2970,13 @@ print_optint:
         case TARGET_SO_RCVLOWAT:
             qemu_log("SO_RCVLOWAT,");
             goto print_optint;
-        case TARGET_SO_RCVTIMEO:
+        case TARGET_SO_RCVTIMEO_OLD:
+        case TARGET_SO_RCVTIMEO_NEW:
             qemu_log("SO_RCVTIMEO,");
             print_timeval(optval, 0);
             break;
-        case TARGET_SO_SNDTIMEO:
+        case TARGET_SO_SNDTIMEO_OLD:
+        case TARGET_SO_SNDTIMEO_NEW:
             qemu_log("SO_SNDTIMEO,");
             print_timeval(optval, 0);
             break;
