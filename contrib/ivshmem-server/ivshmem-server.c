@@ -146,7 +146,10 @@ ivshmem_server_handle_new_conn(IvshmemServer *server)
         return -1;
     }
 
-    qemu_socket_set_nonblock(newfd);
+    if (!qemu_set_blocking(newfd, false, NULL)) {
+        close(newfd);
+        return -1;
+    }
     IVSHMEM_SERVER_DEBUG(server, "accept()=%d\n", newfd);
 
     /* allocate new structure for this peer */
