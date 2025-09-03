@@ -310,7 +310,10 @@ typedef struct BDRVVVFATState {
 
     uint32_t offset_to_bootsector; /* 0 for floppy, 0x3f for disk */
 
+    unsigned int cylinders;
     unsigned int cluster_size;
+    unsigned int number_of_heads;
+    unsigned int sectors_per_track;
     unsigned int sectors_per_cluster;
     unsigned int sectors_per_fat;
     uint32_t last_cluster_of_root_directory;
@@ -364,7 +367,7 @@ static int sector2CHS(mbr_chs_t *chs, int spos, int cyls, int heads, int secs)
     return 0;
 }
 
-static void init_mbr(BDRVVVFATState *s, int cyls, int heads, int secs)
+static void init_mbr(BDRVVVFATState *s)
 {
     /* TODO: if the files mbr.img and bootsect.img exist, use them */
     mbr_t* real_mbr=(mbr_t*)s->first_sectors;
@@ -380,9 +383,9 @@ static void init_mbr(BDRVVVFATState *s, int cyls, int heads, int secs)
 
     /* LBA is used when partition is outside the CHS geometry */
     lba  = sector2CHS(&partition->start_CHS, s->offset_to_bootsector,
-                     cyls, heads, secs);
+                      s->cylinders, s->number_of_heads, s->sectors_per_track);
     lba |= sector2CHS(&partition->end_CHS,   s->bs->total_sectors - 1,
-                     cyls, heads, secs);
+                      s->cylinders, s->number_of_heads, s->sectors_per_track);
 
     /*LBA partitions are identified only by start/length_sector_long not by CHS*/
     partition->start_sector_long  = cpu_to_le32(s->offset_to_bootsector);
@@ -894,8 +897,7 @@ static inline off_t cluster2sector(BDRVVVFATState* s, uint32_t cluster_num)
     return s->offset_to_root_dir + s->sectors_per_cluster * cluster_num;
 }
 
-static int init_directories(BDRVVVFATState* s,
-                            const char *dirname, int heads, int secs,
+static int init_directories(BDRVVVFATState *s, const char *dirname,
                             Error **errp)
 {
     bootsector_t* bootsector;
@@ -1028,8 +1030,8 @@ static int init_directories(BDRVVVFATState* s,
     bootsector->media_type = (s->offset_to_bootsector > 0 ? 0xf8 : 0xf0);
     s->fat.pointer[0] = bootsector->media_type;
     bootsector->sectors_per_fat=cpu_to_le16(s->sectors_per_fat);
-    bootsector->sectors_per_track = cpu_to_le16(secs);
-    bootsector->number_of_heads = cpu_to_le16(heads);
+    bootsector->sectors_per_track = cpu_to_le16(s->sectors_per_track);
+    bootsector->number_of_heads = cpu_to_le16(s->number_of_heads);
     bootsector->hidden_sectors = cpu_to_le32(s->offset_to_bootsector);
     bootsector->total_sectors=cpu_to_le32(s->sector_count>0xffff?s->sector_count:0);
 
@@ -1150,7 +1152,6 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
                       Error **errp)
 {
     BDRVVVFATState *s = bs->opaque;
-    int cyls, heads, secs;
     bool floppy;
     const char *dirname, *label;
     QemuOpts *opts;
@@ -1218,23 +1219,23 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
     if (floppy) {
         /* 2.88MB floppy */
         if (s->fat_type == 12) {
-            secs = 36;
+            s->sectors_per_track = 36;
             s->sectors_per_cluster = 2;
         } else {
-            secs = 36;
+            s->sectors_per_track = 36;
             s->sectors_per_cluster = 1;
         }
-        cyls = 80;
-        heads = 2;
+        s->cylinder = 80;
+        s->number_of_heads = 2;
     } else {
         /* Reserver space for MBR */
         if (!qemu_opt_get_bool(opts, "no-mbr", false)) {
             s->offset_to_bootsector = 0x3f;
         }
         /* 32MB or 504MB disk*/
-        cyls = s->fat_type == 12 ? 64 : 1024;
-        heads = 16;
-        secs = 63;
+        s->cylinders = s->fat_type == 12 ? 64 : 1024;
+        s->number_of_heads = 16;
+        s->sectors_per_track = 63;
     }
 
 
@@ -1251,10 +1252,13 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
     s->downcase_short_names = 1;
 
     DLOG(fprintf(stderr, "vvfat %s chs %d,%d,%d\n",
-                 dirname, cyls, heads, secs));
+                 dirname, s->cylinders, s->number_of_heads,
+                 s->sectors_per_track));
 
-    s->sector_count = cyls * heads * secs - s->offset_to_bootsector;
-    bs->total_sectors = cyls * heads * secs;
+    s->sector_count = s->cylinders * s->number_of_heads *
+        s->sectors_per_track - s->offset_to_bootsector;
+    bs->total_sectors = s->cylinders * s->number_of_heads *
+        s->sectors_per_track;
 
     if (qemu_opt_get_bool(opts, "rw", false)) {
         if (!bdrv_is_read_only(bs)) {
@@ -1275,7 +1279,7 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
-    if (init_directories(s, dirname, heads, secs, errp)) {
+    if (init_directories(s, dirname, errp)) {
         ret = -EIO;
         goto fail;
     }
@@ -1296,7 +1300,7 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     if (s->offset_to_bootsector > 0) {
-        init_mbr(s, cyls, heads, secs);
+        init_mbr(s);
     }
 
     qemu_co_mutex_init(&s->lock);
