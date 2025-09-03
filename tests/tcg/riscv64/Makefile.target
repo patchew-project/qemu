@@ -23,3 +23,8 @@ run-test-fcvtmod: QEMU_OPTS += -cpu rv64,d=true,zfa=true
 TESTS += test-vstart-overflow
 test-vstart-overflow: CFLAGS += -march=rv64gcv
 run-test-vstart-overflow: QEMU_OPTS += -cpu rv64,v=on
+
+# Test for interrupted vector instructions
+TESTS += test-interrupted-v
+test-interrupted-v: CFLAGS += -march=rv64gcv
+run-test-interrupted-v: QEMU_OPTS += -cpu rv64,v=on
