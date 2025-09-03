@@ -293,6 +293,18 @@ static ssize_t tcp_chr_recv(Chardev *chr, char *buf, size_t len)
                                      0, &err);
     }
 
+    if (ret == QIO_CHANNEL_ERR_BLOCK) {
+        errno = EAGAIN;
+        return -1;
+    } else if (ret == -1) {
+        trace_chr_socket_recv_err(chr, chr->label, error_get_pretty(err));
+        error_free(err);
+        errno = EIO;
+        return -1;
+    }
+
+    assert(ret >= 0);
+
     if (msgfds_num) {
         /* close and clean read_msgfds */
         for (i = 0; i < s->read_msgfds_num; i++) {
@@ -307,30 +319,7 @@ static ssize_t tcp_chr_recv(Chardev *chr, char *buf, size_t len)
         s->read_msgfds_num = msgfds_num;
     }
 
-    for (i = 0; i < s->read_msgfds_num; i++) {
-        int fd = s->read_msgfds[i];
-        if (fd < 0) {
-            continue;
-        }
-
-        /* O_NONBLOCK is preserved across SCM_RIGHTS so reset it */
-        qemu_socket_set_block(fd);
-
-#ifndef MSG_CMSG_CLOEXEC
-        qemu_set_cloexec(fd);
-#endif
-    }
-
-    if (ret == QIO_CHANNEL_ERR_BLOCK) {
-        errno = EAGAIN;
-        ret = -1;
-    } else if (ret == -1) {
-        trace_chr_socket_recv_err(chr, chr->label, error_get_pretty(err));
-        error_free(err);
-        errno = EIO;
-    } else if (ret == 0) {
-        trace_chr_socket_recv_eof(chr, chr->label);
-    }
+    trace_chr_socket_recv_eof(chr, chr->label);
 
     return ret;
 }
