@@ -5,6 +5,11 @@ VPATH += $(SRC_PATH)/tests/tcg/riscv64
 TESTS += test-div
 TESTS += noexec
 
+# Test signal handling.
+TESTS += test-signal-handling
+test-signal-handling: CFLAGS += -march=rv64gcv
+run-test-signal-handling: QEMU_OPTS += -cpu rv64,v=on
+
 # Disable compressed instructions for test-noc
 TESTS += test-noc
 test-noc: LDFLAGS = -nostdlib -static
