@@ -212,7 +212,8 @@ qtests_npcm7xx = \
    'npcm7xx_watchdog_timer-test'] + \
    (slirp.found() ? ['npcm7xx_emc-test'] : [])
 qtests_npcm8xx = \
-  ['npcm_gmac-test']
+  ['npcm_gmac-test',
+   'npcm8xx_sgpio-test',]
 qtests_aspeed = \
   ['aspeed_gpio-test',
    'aspeed_hace-test',
