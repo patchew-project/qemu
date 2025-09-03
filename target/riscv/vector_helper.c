@@ -825,6 +825,8 @@ vext_ldst_whole(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
     uint32_t esz = 1 << log2_esz;
     int mmu_index = riscv_env_mmu_index(env, false);
 
+    VSTART_CHECK_EARLY_EXIT(env, evl);
+
     /* Calculate the page range of first page */
     addr = base + (env->vstart << log2_esz);
     page_split = -(addr | TARGET_PAGE_MASK);
