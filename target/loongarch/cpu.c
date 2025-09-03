@@ -759,6 +759,9 @@ static void loongarch_cpu_realizefn(DeviceState *dev, Error **errp)
 
     qemu_init_vcpu(cs);
     cpu_reset(cs);
+ #ifndef CONFIG_USER_ONLY
+    qemu_register_resettable(OBJECT(dev));
+ #endif
 
     lacc->parent_realize(dev, errp);
 }
@@ -769,6 +772,7 @@ static void loongarch_cpu_unrealizefn(DeviceState *dev)
 
 #ifndef CONFIG_USER_ONLY
     cpu_remove_sync(CPU(dev));
+    qemu_unregister_resettable(OBJECT(dev));
 #endif
 
     lacc->parent_unrealize(dev);
