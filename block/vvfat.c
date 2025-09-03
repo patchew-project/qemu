@@ -1190,32 +1190,7 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
         memcpy(s->volume_label, "QEMU VVFAT", 10);
     }
 
-    if (floppy) {
-        /* 1.44MB or 2.88MB floppy.  2.88MB can be FAT12 (default) or FAT16. */
-        if (!s->fat_type) {
-            s->fat_type = 12;
-            secs = 36;
-            s->sectors_per_cluster = 2;
-        } else {
-            secs = s->fat_type == 12 ? 18 : 36;
-            s->sectors_per_cluster = 1;
-        }
-        cyls = 80;
-        heads = 2;
-    } else {
-        /* 32MB or 504MB disk*/
-        if (!s->fat_type) {
-            s->fat_type = 16;
-        }
-        /* Reserver space for MBR */
-        if (!qemu_opt_get_bool(opts, "no-mbr", false)) {
-            s->offset_to_bootsector = 0x3f;
-        }
-        cyls = s->fat_type == 12 ? 64 : 1024;
-        heads = 16;
-        secs = 63;
-    }
-
+    /* Verify FAT type  */
     switch (s->fat_type) {
     case 32:
         warn_report("FAT32 has not been tested. You are welcome to do so!");
@@ -1223,10 +1198,41 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
     case 16:
     case 12:
         break;
+    case 0:
+        /* Set a default type */
+        if (floppy) {
+            s->fat_type = 12;
+        } else {
+            s->fat_type = 16;
+        }
+        break;
     default:
         error_setg(errp, "Valid FAT types are only 12, 16 and 32");
         ret = -EINVAL;
         goto fail;
+    }
+
+
+    if (floppy) {
+        /* 2.88MB floppy */
+        if (s->fat_type == 12) {
+            secs = 36;
+            s->sectors_per_cluster = 2;
+        } else {
+            secs = 36;
+            s->sectors_per_cluster = 1;
+        }
+        cyls = 80;
+        heads = 2;
+    } else {
+        /* Reserver space for MBR */
+        if (!qemu_opt_get_bool(opts, "no-mbr", false)) {
+            s->offset_to_bootsector = 0x3f;
+        }
+        /* 32MB or 504MB disk*/
+        cyls = s->fat_type == 12 ? 64 : 1024;
+        heads = 16;
+        secs = 63;
     }
 
 
