@@ -161,6 +161,7 @@ static void invalidate_tlb(CPULoongArchState *env, int index)
         return;
     }
     invalidate_tlb_entry(env, index);
+    tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 0);
 }
 
 static void fill_tlb_entry(CPULoongArchState *env, LoongArchTLB *tlb)
@@ -340,7 +341,6 @@ void helper_tlbwr(CPULoongArchState *env)
     old = env->tlb + index;
     if (FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, NE)) {
         invalidate_tlb(env, index);
-        old->tlb_misc = FIELD_DP64(old->tlb_misc, TLB_MISC, E, 0);
         return;
     }
 
