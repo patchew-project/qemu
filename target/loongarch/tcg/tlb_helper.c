@@ -560,7 +560,6 @@ void helper_invtlb_page_asid_or_g(CPULoongArchState *env,
                                   target_ulong info, target_ulong addr)
 {
     int index, asid = info & 0x3ff;
-    LoongArchTLB *tlb;
     tlb_match func;
     bool ret;
 
@@ -570,9 +569,7 @@ void helper_invtlb_page_asid_or_g(CPULoongArchState *env,
         return;
     }
 
-    tlb = &env->tlb[index];
-    tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 0);
-    tlb_flush(env_cpu(env));
+    invalidate_tlb(env, index);
 }
 
 bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
