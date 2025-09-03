@@ -689,6 +689,13 @@ ssize_t qemu_write_full(int fd, const void *buf, size_t count)
 void qemu_set_cloexec(int fd);
 bool qemu_set_blocking(int fd, bool block, Error **errp);
 
+/*
+ * qemu_fds_set_blockinging:
+ * Call qemu_socket_set_block() on several fds.
+ * When @nfds = 0, does nothing, @fds is not touched.
+ */
+bool qemu_fds_set_blockinging(int *fds, int nfds, bool block, Error **errp);
+
 /* Return a dynamically allocated directory path that is appropriate for storing
  * local state.
  *

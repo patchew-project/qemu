@@ -262,6 +262,18 @@ bool qemu_set_blocking(int fd, bool block, Error **errp)
     return true;
 }
 
+bool qemu_fds_set_blockinging(int *fds, int nfds, bool block, Error **errp)
+{
+    int i;
+    for (i = 0; i < nfds; i++) {
+        if (fds[i] >= 0 && !qemu_set_blocking(fds[i], block, errp)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 int socket_set_fast_reuse(int fd)
 {
     int val = 1, ret;
