@@ -34,6 +34,7 @@
 #include "block/thread-pool.h"
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
+#include "qemu/sockets.h"
 #include "qom/object.h"
 
 #ifndef _WIN32
@@ -114,7 +115,10 @@ static int qemu_signal_init(Error **errp)
         return -errno;
     }
 
-    g_unix_set_fd_nonblocking(sigfd, true, NULL);
+    if (!qemu_set_blocking(sigfd, false, errp)) {
+        close(sigfd);
+        return -EINVAL;
+    }
 
     qemu_set_fd_handler(sigfd, sigfd_handler, NULL, (void *)(intptr_t)sigfd);
 
