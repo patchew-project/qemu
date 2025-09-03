@@ -19,9 +19,16 @@
 #include <execinfo.h>
 #include <unistd.h>
 #include <assert.h>
+#include <sys/auxv.h>
+#include <elf.h>
 #include <sys/mman.h>
 #include <ucontext.h>
 #include <asm/sigcontext.h>
+#include "riscv_vector.h"
+
+#ifndef COMPAT_HWCAP_ISA_V
+#define COMPAT_HWCAP_ISA_V (1 << ('V' - 'A'))
+#endif
 
 /*
  * This horrible hack seems to be required when including
@@ -41,6 +48,10 @@ static uint64_t *signal_gvalues;
 static double *initial_fvalues;
 static double *final_fvalues;
 static double *signal_fvalues;
+static size_t vlenb;
+static uint8_t *initial_vvalues;
+static uint8_t *final_vvalues;
+static uint8_t *signal_vvalues;
 
 extern unsigned long unimp_addr[];
 
@@ -64,6 +75,8 @@ static void ILL_handler(int signo, siginfo_t *info, void *context)
 {
     ucontext_t *uc = context;
     struct sigcontext *sc = (struct sigcontext *)&uc->uc_mcontext;
+    struct __riscv_ctx_hdr *sc_ext = &sc->sc_extdesc.hdr;
+    bool found_v = false;
 
     got_signal = true;
 
@@ -82,12 +95,48 @@ static void ILL_handler(int signo, siginfo_t *info, void *context)
     }
     /* Test sc->sc_fpregs.d.fcsr ? */
 
+    assert(sc->sc_extdesc.reserved == 0);
+    while (sc_ext->magic != END_MAGIC) {
+        assert(sc_ext->size != 0);
+
+        if (sc_ext->magic == RISCV_V_MAGIC) {
+            struct __sc_riscv_v_state *sc_v_state =
+                        (struct __sc_riscv_v_state *)(sc_ext + 1);
+            struct __riscv_v_ext_state *v_state = &sc_v_state->v_state;
+
+            found_v = true;
+
+            assert(getauxval(AT_HWCAP) & COMPAT_HWCAP_ISA_V);
+
+            assert(v_state->vlenb == vlenb);
+            assert(v_state->vtype == 0xc0); /* vma, vta */
+            assert(v_state->vl == vlenb);
+            assert(v_state->vstart == 0);
+            assert(v_state->vcsr == 0);
+
+            uint64_t *vregs = v_state->datap;
+            for (int i = 0; i < 32; i++) {
+                for (int j = 0; j < vlenb; j += 8) {
+                    size_t idx = (i * vlenb + j) / 8;
+                    ((uint64_t *)signal_vvalues)[idx] = vregs[idx];
+                }
+            }
+        }
+
+        sc_ext = (void *)sc_ext + sc_ext->size;
+    }
+
+    assert(sc_ext->size == 0);
+    if (getauxval(AT_HWCAP) & COMPAT_HWCAP_ISA_V) {
+        assert(found_v);
+    }
+
     sc->sc_regs.pc += 4;
 }
 
 static void init_test(void)
 {
-    int i;
+    int i, j;
 
     callchain_root = find_callchain_root();
 
@@ -107,6 +156,19 @@ static void init_test(void)
     memset(final_fvalues, 0, 8 * 32);
     signal_fvalues = malloc(8 * 32);
     memset(signal_fvalues, 0, 8 * 32);
+
+    vlenb = __riscv_vlenb();
+    initial_vvalues = malloc(vlenb * 32);
+    memset(initial_vvalues, 0, vlenb * 32);
+    for (i = 0; i < 32 ; i++) {
+        for (j = 0; j < vlenb; j++) {
+            initial_vvalues[i * vlenb + j] = i * vlenb + j;
+        }
+    }
+    final_vvalues = malloc(vlenb * 32);
+    memset(final_vvalues, 0, vlenb * 32);
+    signal_vvalues = malloc(vlenb * 32);
+    memset(signal_vvalues, 0, vlenb * 32);
 }
 
 static void run_test(void)
@@ -179,6 +241,72 @@ static void run_test(void)
 "    fld    f29, 0xe8(t0)            \n"
 "    fld    f30, 0xf0(t0)            \n"
 "    fld    f31, 0xf8(t0)            \n"
+    /* Load initial values into vector registers */
+"    mv    t0, %[initial_vvalues]    \n"
+"    vsetvli x0,%[vlenb],e8,m1,ta,ma \n"
+"    vle8.v    v0, (t0)              \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v1, (t0)              \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v2, (t0)              \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v3, (t0)              \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v4, (t0)              \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v5, (t0)              \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v6, (t0)              \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v7, (t0)              \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v8, (t0)              \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v9, (t0)              \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v10, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v11, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v12, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v13, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v14, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v15, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v16, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v17, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v18, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v19, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v20, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v21, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v22, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v23, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v24, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v25, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v26, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v27, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v28, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v29, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v30, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vle8.v    v31, (t0)             \n"
     /* Trigger the SIGILL */
 ".global unimp_addr                  \n"
 "unimp_addr:                         \n"
@@ -251,19 +379,93 @@ static void run_test(void)
 "    fsd    f29, 0xe8(t0)            \n"
 "    fsd    f30, 0xf0(t0)            \n"
 "    fsd    f31, 0xf8(t0)            \n"
+    /* Save final values from vector registers */
+"    mv    t0, %[final_vvalues]      \n"
+"    vse8.v    v0, (t0)              \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v1, (t0)              \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v2, (t0)              \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v3, (t0)              \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v4, (t0)              \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v5, (t0)              \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v6, (t0)              \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v7, (t0)              \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v8, (t0)              \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v9, (t0)              \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v10, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v11, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v12, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v13, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v14, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v15, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v16, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v17, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v18, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v19, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v20, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v21, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v22, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v23, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v24, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v25, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v26, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v27, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v28, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v29, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v30, (t0)             \n"
+"    add    t0, t0, %[vlenb]         \n"
+"    vse8.v    v31, (t0)             \n"
     : "=m" (initial_gvalues),
       "=m" (final_gvalues),
-      "=m" (final_fvalues)
-    : "m" (initial_fvalues),
+      "=m" (final_fvalues),
+      "=m" (final_vvalues)
+    : [vlenb] "r" (vlenb),
+      "m" (initial_fvalues),
+      "m" (initial_vvalues),
       [initial_gvalues] "r" (initial_gvalues),
       [initial_fvalues] "r" (initial_fvalues),
+      [initial_vvalues] "r" (initial_vvalues),
       [final_gvalues] "r" (final_gvalues),
-      [final_fvalues] "r" (final_fvalues)
+      [final_fvalues] "r" (final_fvalues),
+      [final_vvalues] "r" (final_vvalues)
     : "t0",
       "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7",
       "f8", "f9", "f10", "f11", "f12", "f13", "f14", "f15",
       "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
-      "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31");
+      "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31",
+      "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+      "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
+      "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
+      "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
 
     assert(got_signal);
 
@@ -272,7 +474,7 @@ static void run_test(void)
      * and is not a simple equality.
      */
     assert(initial_gvalues[4] == (unsigned long)initial_gvalues);
-    assert(signal_gvalues[4] == (unsigned long)initial_fvalues);
+    assert(signal_gvalues[4] == (unsigned long)initial_vvalues + 31 * vlenb);
     assert(final_gvalues[4] == (unsigned long)final_gvalues);
     initial_gvalues[4] = final_gvalues[4] = signal_gvalues[4] = 0;
 
@@ -284,6 +486,8 @@ static void run_test(void)
     assert(!memcmp(initial_gvalues, signal_gvalues, 8 * 31));
     assert(!memcmp(initial_fvalues, final_fvalues, 8 * 32));
     assert(!memcmp(initial_fvalues, signal_fvalues, 8 * 32));
+    assert(!memcmp(initial_vvalues, signal_vvalues, vlenb * 32));
+    assert(!memcmp(initial_vvalues, final_vvalues, vlenb * 32));
 }
 
 int main(void)
