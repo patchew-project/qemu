@@ -119,6 +119,7 @@ void *tpm_emu_ctrl_thread(void *data)
         cmd = be32_to_cpu(cmd);
         g_assert_cmpint(cmd, ==, CMD_SET_DATAFD);
         g_assert_cmpint(nfd, ==, 1);
+        qemu_set_blocking(*pfd, true, &error_abort);
         s->tpm_ioc = QIO_CHANNEL(qio_channel_socket_new_fd(*pfd, &error_abort));
         g_free(pfd);
 

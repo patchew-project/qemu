@@ -620,6 +620,10 @@ static int coroutine_fn prh_read(PRHelperClient *client, void *buf, int sz,
             goto err;
         }
 
+        if (!qemu_fds_set_blockinging(fds, nfds, true, errp)) {
+            goto err;
+        }
+
         /* Stash one file descriptor per request.  */
         if (nfds) {
             bool too_many = false;

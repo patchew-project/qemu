@@ -1801,6 +1801,11 @@ static gboolean backend_read(QIOChannel *ioc, GIOCondition condition,
         goto err;
     }
 
+    if (fd && !qemu_set_blocking(fd[0], true, &local_err)) {
+        error_report_err(local_err);
+        goto err;
+    }
+
     if (hdr.size > VHOST_USER_PAYLOAD_SIZE) {
         error_report("Failed to read msg header."
                 " Size %d exceeds the maximum %zu.", hdr.size,

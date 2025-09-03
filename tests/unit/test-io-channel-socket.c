@@ -464,6 +464,7 @@ static void test_io_channel_unix_fd_pass(void)
                            &error_abort);
 
     g_assert(nfdrecv == G_N_ELEMENTS(fdsend));
+    qemu_fds_set_blockinging(fdrecv, nfdrecv, true, &error_abort);
     /* Each recvd FD should be different from sent FD */
     for (i = 0; i < nfdrecv; i++) {
         g_assert_cmpint(fdrecv[i], !=, testfd);

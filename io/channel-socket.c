@@ -494,10 +494,6 @@ static void qio_channel_socket_copy_fds(struct msghdr *msg,
         *fds = g_renew(int, *fds, *nfds + gotfds);
         memcpy(*fds + *nfds, CMSG_DATA(cmsg), fd_size);
 
-        /* O_NONBLOCK is preserved across SCM_RIGHTS so reset it */
-        /* TODO: don't crash on error, just handle it! */
-        qemu_fds_set_blockinging(*fds + *nfds, gotfds, true, &error_abort);
-
 #ifndef MSG_CMSG_CLOEXEC
         for (i = 0; i < gotfds; i++) {
             int fd = (*fds)[*nfds + i];
