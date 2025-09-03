@@ -361,12 +361,6 @@ static ssize_t coroutine_mixed_fn qemu_fill_buffer(QEMUFile *f)
         qemu_file_set_error_obj(f, len, local_error);
     }
 
-    /*
-     * NOTE: don't worry about error_abort, it will be removed
-     * in the next commit
-     */
-    qemu_fds_set_blockinging(fds, nfd, true, &error_abort);
-
     for (int i = 0; i < nfd; i++) {
         FdEntry *fde = g_new0(FdEntry, 1);
         fde->fd = fds[i];
