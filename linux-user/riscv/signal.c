@@ -41,7 +41,17 @@ struct target_fp_state {
     uint32_t fcsr;
 };
 
+struct target_v_ext_state {
+    target_ulong vstart;
+    target_ulong vl;
+    target_ulong vtype;
+    target_ulong vcsr;
+    target_ulong vlenb;
+    target_ulong datap;
+} __attribute__((aligned(16)));
+
 /* The Magic number for signal context frame header. */
+#define RISCV_V_MAGIC   0x53465457
 #define END_MAGIC       0x0
 
 /* The size of END signal context header. */
@@ -106,6 +116,90 @@ static abi_ulong get_sigframe(struct target_sigaction *ka,
     return sp;
 }
 
+static unsigned int get_v_state_size(CPURISCVState *env)
+{
+    RISCVCPU *cpu = env_archcpu(env);
+
+    return sizeof(struct target_ctx_hdr) +
+           sizeof(struct target_v_ext_state) +
+           cpu->cfg.vlenb * 32;
+}
+
+static struct target_ctx_hdr *save_v_state(CPURISCVState *env,
+                                           struct target_ctx_hdr *hdr)
+{
+    RISCVCPU *cpu = env_archcpu(env);
+    target_ulong vlenb = cpu->cfg.vlenb;
+    uint32_t riscv_v_sc_size = get_v_state_size(env);
+    struct target_v_ext_state *vs;
+    target_ulong datap;
+    int i;
+
+    __put_user(RISCV_V_MAGIC, &hdr->magic);
+    __put_user(riscv_v_sc_size, &hdr->size);
+
+    vs = (struct target_v_ext_state *)(hdr + 1);
+    datap = (unsigned long)(vs + 1);
+
+    __put_user(env->vstart, &vs->vstart);
+    __put_user(env->vl, &vs->vl);
+    __put_user(env->vtype, &vs->vtype);
+    target_ulong vcsr = riscv_csr_read(env, CSR_VCSR);
+    __put_user(vcsr, &vs->vcsr);
+    __put_user(vlenb, &vs->vlenb);
+    __put_user(datap, &vs->datap);
+
+    for (i = 0; i < 32; i++) {
+        int j;
+        for (j = 0; j < vlenb; j += 8) {
+            size_t idx = (i * vlenb + j);
+            __put_user(env->vreg[idx / 8],
+                       (uint64_t *)(unsigned long)(datap + idx));
+        }
+    }
+
+    return (void *)hdr + riscv_v_sc_size;
+}
+
+static void restore_v_state(CPURISCVState *env,
+                            struct target_ctx_hdr *hdr)
+{
+    RISCVCPU *cpu = env_archcpu(env);
+    target_ulong vlenb = cpu->cfg.vlenb;
+    struct target_v_ext_state *vs;
+    target_ulong datap;
+    int i;
+
+    uint32_t size;
+    __get_user(size, &hdr->size);
+    if (size != get_v_state_size(env)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "signal: restoring sigcontext vector "
+                                       "state with wrong size header (%u)\n",
+                                       size);
+        return;
+    }
+
+    vs = (struct target_v_ext_state *)(hdr + 1);
+
+    __get_user(env->vstart, &vs->vstart);
+    __get_user(env->vl, &vs->vl);
+    __get_user(env->vtype, &vs->vtype);
+    target_ulong vcsr;
+    __get_user(vcsr, &vs->vcsr);
+    riscv_csr_write(env, CSR_VCSR, vcsr);
+    __get_user(vlenb, &vs->vlenb);
+    __get_user(datap, &vs->datap);
+
+    for (i = 0; i < 32; i++) {
+        int j;
+        for (j = 0; j < vlenb; j += 8) {
+            size_t idx = (i * vlenb + j);
+            __get_user(env->vreg[idx / 8],
+                       (uint64_t *)(unsigned long)(datap + idx));
+        }
+    }
+}
+
 static void setup_sigcontext(struct target_sigcontext *sc, CPURISCVState *env)
 {
     struct target_ctx_hdr *hdr;
@@ -124,7 +218,11 @@ static void setup_sigcontext(struct target_sigcontext *sc, CPURISCVState *env)
     __put_user(fcsr, &sc->sc_fpregs.fcsr);
 
     __put_user(0, &sc->sc_extdesc.reserved);
+
     hdr = &sc->sc_extdesc.hdr;
+    if (riscv_has_ext(env, RVV)) {
+        hdr = save_v_state(env, hdr);
+    }
     __put_user(END_MAGIC, &hdr->magic);
     __put_user(END_HDR_SIZE, &hdr->size);
 }
@@ -151,8 +249,13 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
 {
     abi_ulong frame_addr;
     struct target_rt_sigframe *frame;
+    size_t frame_size = sizeof(*frame);
 
-    frame_addr = get_sigframe(ka, env, sizeof(*frame));
+    if (riscv_has_ext(env, RVV)) {
+        frame_size += get_v_state_size(env);
+    }
+
+    frame_addr = get_sigframe(ka, env, frame_size);
     trace_user_setup_rt_frame(env, frame_addr);
 
     if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0)) {
@@ -207,9 +310,30 @@ static void restore_sigcontext(CPURISCVState *env, struct target_sigcontext *sc)
 
     uint32_t magic;
     __get_user(magic, &hdr->magic);
-    if (magic != END_MAGIC) {
-        qemu_log_mask(LOG_UNIMP, "signal: unknown extended context header: "
-                                 "0x%08x, ignoring", magic);
+    while (magic != END_MAGIC) {
+        if (magic == RISCV_V_MAGIC) {
+            if (riscv_has_ext(env, RVV)) {
+                restore_v_state(env, hdr);
+            } else {
+                qemu_log_mask(LOG_GUEST_ERROR, "signal: sigcontext has V state "
+                                               "but CPU does not.");
+            }
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "signal: unknown extended state in "
+                                           "sigcontext magic=0x%08x", magic);
+        }
+
+        if (hdr->size == 0) {
+            qemu_log_mask(LOG_GUEST_ERROR, "signal: extended state in "
+                                           "sigcontext has size 0");
+        }
+        hdr = (void *)hdr + hdr->size;
+        __get_user(magic, &hdr->magic);
+    }
+
+    if (hdr->size != END_HDR_SIZE) {
+        qemu_log_mask(LOG_GUEST_ERROR, "signal: extended state end header has "
+                                       "size=%u (should be 0)", hdr->size);
     }
 }
 
