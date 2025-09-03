@@ -28,6 +28,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/units.h"
+#include "system/ramblock.h"
 #include "monitor/monitor.h"
 #include "vfio-helpers.h"
 
@@ -400,4 +401,52 @@ void vfio_region_mmaps_set_enabled(VFIORegion *region, bool enabled)
 
     trace_vfio_region_mmaps_set_enabled(memory_region_name(region->mem),
                                         enabled);
+}
+
+int vfio_device_create_dmabuf(VFIODevice *vdev,
+                              struct iovec *iov, unsigned int iov_cnt)
+{
+    g_autofree struct vfio_device_feature *feature;
+    struct vfio_device_feature_dma_buf *dma_buf;
+    VFIORegion *region;
+    ram_addr_t offset;
+    MemoryRegion *mr;
+    RAMBlock *rb;
+    size_t argsz;
+    int i;
+
+    argsz = sizeof(*feature) + sizeof (*dma_buf) +
+            sizeof(struct vfio_region_dma_range) * iov_cnt;
+    feature = g_malloc0(argsz);
+    dma_buf = (struct vfio_device_feature_dma_buf *)feature->data;
+
+    for (i = 0; i < iov_cnt; i++) {
+        rcu_read_lock();
+        rb = qemu_ram_block_from_host(iov[i].iov_base, false, &offset);
+        rcu_read_unlock();
+
+        if (!rb) {
+            return -1;
+        }
+
+        mr = rb->mr;
+        if (mr->ops != &vfio_region_ops) {
+            mr = mr->container;
+            if (mr->ops != &vfio_region_ops) {
+                return -1;
+            }
+        }
+
+        region = mr->opaque;
+        dma_buf->region_index = region->nr;
+        dma_buf->dma_ranges[i].offset = offset;
+        dma_buf->dma_ranges[i].length = iov[i].iov_len;
+    }
+
+    dma_buf->nr_ranges = iov_cnt;
+    dma_buf->open_flags = O_RDONLY | O_CLOEXEC;
+    feature->argsz = argsz;
+    feature->flags = VFIO_DEVICE_FEATURE_GET | VFIO_DEVICE_FEATURE_DMA_BUF;
+
+    return ioctl(vdev->fd, VFIO_DEVICE_FEATURE, feature);
 }
