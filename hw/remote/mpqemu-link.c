@@ -162,6 +162,9 @@ copy_fds:
         goto fail;
     }
     if (nfds) {
+        if (!qemu_fds_set_blockinging(fds, nfds, true, errp)) {
+            goto fail;
+        }
         memcpy(msg->fds, fds, nfds * sizeof(int));
     }
 

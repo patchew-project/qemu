@@ -119,9 +119,10 @@ struct QIOChannelClass {
                          Error **errp);
 
     /*
-     * The io_readv handler must guarantee that all
-     * incoming fds are set BLOCKING and CLOEXEC (if
-     * available).
+     * The io_readv handler must set all incoming fds
+     * CLOEXEC, and must NOT modify fds in any other
+     * way (for example, must not change its BLOCKING
+     * status)
      */
     ssize_t (*io_readv)(QIOChannel *ioc,
                         const struct iovec *iov,
@@ -242,8 +243,9 @@ void qio_channel_set_name(QIOChannel *ioc,
  * to call close() on each file descriptor and to
  * call g_free() on the array pointer in @fds.
  * qio_channel_readv_full() guarantees that all
- * incoming fds are set BLOCKING and CLOEXEC (if
- * available).
+ * incoming fds are set CLOEXEC (if available).
+ * qio_channel_readv_full() doesn't modify BLOCKING
+ * state of fds.
  *
  * It is an error to pass a non-NULL @fds parameter
  * unless qio_channel_has_feature() returns a true

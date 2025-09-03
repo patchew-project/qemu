@@ -161,6 +161,11 @@ vu_message_read(VuDev *vu_dev, int conn_fd, VhostUserMsg *vmsg)
                 g_free(fds);
                 goto fail;
             }
+            if (!qemu_fds_set_blockinging(fds, nfds, true, &local_err)) {
+                error_report_err(local_err);
+                g_free(fds);
+                goto fail;
+            }
             memcpy(vmsg->fds + vmsg->fd_num, fds, nfds * sizeof(vmsg->fds[0]));
             vmsg->fd_num += nfds;
             g_free(fds);

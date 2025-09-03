@@ -300,6 +300,10 @@ static int vfio_user_recv_one(VFIOUserProxy *proxy, Error **errp)
     trace_vfio_user_recv_hdr(proxy->sockname, hdr.id, hdr.command, hdr.size,
                              hdr.flags);
 
+    if (!qemu_fds_set_blockinging(fdp, numfds, true, errp)) {
+        goto err;
+    }
+
     /*
      * For replies, find the matching pending request.
      * For requests, reap incoming FDs.

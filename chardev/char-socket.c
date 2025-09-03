@@ -305,6 +305,14 @@ static ssize_t tcp_chr_recv(Chardev *chr, char *buf, size_t len)
 
     assert(ret >= 0);
 
+    if (!qemu_fds_set_blockinging(msgfds, msgfds_num, true, NULL)) {
+        for (i = 0; i < msgfds_num; i++) {
+            close(msgfds[i]);
+        }
+        errno = EINVAL;
+        return -1;
+    }
+
     if (msgfds_num) {
         /* close and clean read_msgfds */
         for (i = 0; i < s->read_msgfds_num; i++) {
