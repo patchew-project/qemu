@@ -472,8 +472,11 @@ static void qio_channel_socket_copy_fds(struct msghdr *msg,
     *fds = NULL;
 
     for (cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {
-        int fd_size, i;
+        int fd_size;
         int gotfds;
+#ifndef MSG_CMSG_CLOEXEC
+        int i;
+#endif
 
         if (cmsg->cmsg_len < CMSG_LEN(sizeof(int)) ||
             cmsg->cmsg_level != SOL_SOCKET ||
@@ -491,20 +494,19 @@ static void qio_channel_socket_copy_fds(struct msghdr *msg,
         *fds = g_renew(int, *fds, *nfds + gotfds);
         memcpy(*fds + *nfds, CMSG_DATA(cmsg), fd_size);
 
-        for (i = 0; i < gotfds; i++) {
-            int fd = (*fds)[*nfds + i];
-            if (fd < 0) {
-                continue;
-            }
-
-            /* O_NONBLOCK is preserved across SCM_RIGHTS so reset it */
-            /* TODO: don't crash on error, just handle it! */
-            qemu_set_blocking(fd, true, &error_abort);
+        /* O_NONBLOCK is preserved across SCM_RIGHTS so reset it */
+        /* TODO: don't crash on error, just handle it! */
+        qemu_fds_set_blockinging(*fds + *nfds, gotfds, true, &error_abort);
 
 #ifndef MSG_CMSG_CLOEXEC
-            qemu_set_cloexec(fd);
-#endif
+        for (i = 0; i < gotfds; i++) {
+            int fd = (*fds)[*nfds + i];
+            if (fd >= 0) {
+                qemu_set_cloexec(fd);
+            }
         }
+#endif
+
         *nfds += gotfds;
     }
 }
