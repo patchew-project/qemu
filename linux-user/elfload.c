@@ -5,6 +5,7 @@
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/shm.h>
+#include <linux/mman.h>
 
 #include "qemu.h"
 #include "user/tswap-target.h"
