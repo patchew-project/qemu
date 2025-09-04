@@ -28,8 +28,8 @@
 #define TARGET_SO_RCVBUFFORCE   0x100b
 #define TARGET_SO_RCVLOWAT  0x1010
 #define TARGET_SO_SNDLOWAT  0x1011
-#define TARGET_SO_RCVTIMEO  0x1012
-#define TARGET_SO_SNDTIMEO  0x1013
+#define TARGET_SO_RCVTIMEO_OLD  0x1012
+#define TARGET_SO_SNDTIMEO_OLD  0x1013
 #define TARGET_SO_ACCEPTCONN    0x1014
 #define TARGET_SO_PROTOCOL  0x1028
 #define TARGET_SO_DOMAIN    0x1029
@@ -74,6 +74,10 @@
 
 /* Instruct lower device to use last 4-bytes of skb data as FCS */
 #define TARGET_SO_NOFCS     43
+
+/* New socket timeout options that are y2038 safe. */
+#define TARGET_SO_RCVTIMEO_NEW 66
+#define TARGET_SO_SNDTIMEO_NEW 67
 
 /* TARGET_O_NONBLOCK clashes with the bits used for socket types.  Therefore we
  * have to define SOCK_NONBLOCK to a different value here.

@@ -1132,7 +1132,8 @@ static inline abi_long copy_to_user_timeval(abi_ulong target_tv_addr,
     return 0;
 }
 
-#if defined(TARGET_NR_clock_adjtime64) && defined(CONFIG_CLOCK_ADJTIME)
+#if defined(TARGET_NR_clock_adjtime64) && defined(CONFIG_CLOCK_ADJTIME) || \
+    defined(TARGET_NR_getsockopt) || defined(TARGET_NR_setsockopt)
 static inline abi_long copy_from_user_timeval64(struct timeval *tv,
                                                 abi_ulong target_tv_addr)
 {
@@ -2358,21 +2359,28 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
 #endif
     case TARGET_SOL_SOCKET:
         switch (optname) {
-        case TARGET_SO_RCVTIMEO:
-        case TARGET_SO_SNDTIMEO:
+        case TARGET_SO_RCVTIMEO_OLD:
+        case TARGET_SO_SNDTIMEO_OLD:
+        case TARGET_SO_RCVTIMEO_NEW:
+        case TARGET_SO_SNDTIMEO_NEW:
         {
                 struct timeval tv;
+                bool old_timeval = (optname == TARGET_SO_RCVTIMEO_OLD ||
+                                    optname == TARGET_SO_SNDTIMEO_OLD);
 
-                if (optlen != sizeof(struct target_timeval)) {
+                if (optlen != (old_timeval ? sizeof(struct target_timeval) : \
+                               sizeof(struct target__kernel_sock_timeval))) {
                     return -TARGET_EINVAL;
                 }
 
-                if (copy_from_user_timeval(&tv, optval_addr)) {
+                if ((old_timeval && copy_from_user_timeval(&tv, optval_addr)) ||
+                    (!old_timeval && copy_from_user_timeval64(&tv, optval_addr))) {
                     return -TARGET_EFAULT;
                 }
 
                 ret = get_errno(setsockopt(sockfd, SOL_SOCKET,
-                                optname == TARGET_SO_RCVTIMEO ?
+                                optname == TARGET_SO_RCVTIMEO_OLD || \
+                                optname == TARGET_SO_RCVTIMEO_NEW ?
                                     SO_RCVTIMEO : SO_SNDTIMEO,
                                 &tv, sizeof(tv)));
                 return ret;
@@ -2590,13 +2598,16 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
         /* These don't just return a single integer */
         case TARGET_SO_PEERNAME:
             goto unimplemented;
-        case TARGET_SO_RCVTIMEO: {
+        case TARGET_SO_RCVTIMEO_OLD:
+        case TARGET_SO_RCVTIMEO_NEW:
+        case TARGET_SO_SNDTIMEO_OLD:
+        case TARGET_SO_SNDTIMEO_NEW:
+        {
             struct timeval tv;
             socklen_t tvlen;
+            bool old_timeval = (optname == TARGET_SO_RCVTIMEO_OLD ||
+                                optname == TARGET_SO_SNDTIMEO_OLD);
 
-            optname = SO_RCVTIMEO;
-
-get_timeout:
             if (get_user_u32(len, optlen)) {
                 return -TARGET_EFAULT;
             }
@@ -2605,15 +2616,18 @@ get_timeout:
             }
 
             tvlen = sizeof(tv);
-            ret = get_errno(getsockopt(sockfd, level, optname,
+            ret = get_errno(getsockopt(sockfd, level,
+                                       optname == TARGET_SO_RCVTIMEO_OLD || \
+                                       optname == TARGET_SO_RCVTIMEO_NEW ?
+                                       SO_RCVTIMEO : SO_SNDTIMEO,
                                        &tv, &tvlen));
             if (ret < 0) {
                 return ret;
             }
-            if (len > sizeof(struct target_timeval)) {
-                len = sizeof(struct target_timeval);
-            }
-            if (copy_to_user_timeval(optval_addr, &tv)) {
+            len = MIN(len, (old_timeval ? sizeof(struct target_timeval) : \
+                            sizeof(struct target__kernel_sock_timeval)));
+            if ((old_timeval && copy_to_user_timeval(optval_addr, &tv)) ||
+                (!old_timeval && copy_to_user_timeval64(optval_addr, &tv))) {
                 return -TARGET_EFAULT;
             }
             if (put_user_u32(len, optlen)) {
@@ -2621,9 +2635,6 @@ get_timeout:
             }
             break;
         }
-        case TARGET_SO_SNDTIMEO:
-            optname = SO_SNDTIMEO;
-            goto get_timeout;
         case TARGET_SO_PEERCRED: {
             struct ucred cr;
             socklen_t crlen;

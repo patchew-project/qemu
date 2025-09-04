@@ -24,8 +24,8 @@
 #define TARGET_SO_BSDCOMPAT    0x0400
 #define TARGET_SO_RCVLOWAT     0x0800
 #define TARGET_SO_SNDLOWAT     0x1000
-#define TARGET_SO_RCVTIMEO     0x2000
-#define TARGET_SO_SNDTIMEO     0x4000
+#define TARGET_SO_RCVTIMEO_OLD 0x2000
+#define TARGET_SO_SNDTIMEO_OLD 0x4000
 #define TARGET_SO_ACCEPTCONN   0x8000
 
 #define TARGET_SO_SNDBUF       0x1001
@@ -103,6 +103,10 @@
 #define TARGET_SO_PEERGROUPS           0x003d
 
 #define TARGET_SO_ZEROCOPY             0x003e
+
+/* New socket timeout options that are y2038 safe. */
+#define TARGET_SO_RCVTIMEO_NEW         0x0044
+#define TARGET_SO_SNDTIMEO_NEW         0x0045
 
 /* Security levels - as per NRL IPv6 - don't actually do anything */
 #define TARGET_SO_SECURITY_AUTHENTICATION              0x5001

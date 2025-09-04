@@ -17,8 +17,8 @@
 #define TARGET_SO_RCVBUFFORCE  0x100b
 #define TARGET_SO_SNDLOWAT     0x1003
 #define TARGET_SO_RCVLOWAT     0x1004
-#define TARGET_SO_SNDTIMEO     0x1005
-#define TARGET_SO_RCVTIMEO     0x1006
+#define TARGET_SO_SNDTIMEO_OLD 0x1005
+#define TARGET_SO_RCVTIMEO_OLD 0x1006
 #define TARGET_SO_ERROR        0x1007
 #define TARGET_SO_TYPE         0x1008
 #define TARGET_SO_PROTOCOL     0x1028
@@ -66,6 +66,10 @@
 #define TARGET_SO_ATTACH_REUSEPORT_EBPF        0x402D
 
 #define TARGET_SO_CNX_ADVICE           0x402E
+
+/* New socket timeout options that are y2038 safe. */
+#define TARGET_SO_RCVTIMEO_NEW 0x4040
+#define TARGET_SO_SNDTIMEO_NEW 0x4041
 
 /* TARGET_O_NONBLOCK clashes with the bits used for socket types.  Therefore we
  * have to define SOCK_NONBLOCK to a different value here.

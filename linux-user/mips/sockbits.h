@@ -37,8 +37,8 @@
 #define TARGET_SO_RCVBUF       0x1002  /* Receive buffer. */
 #define TARGET_SO_SNDLOWAT     0x1003  /* send low-water mark */
 #define TARGET_SO_RCVLOWAT     0x1004  /* receive low-water mark */
-#define TARGET_SO_SNDTIMEO     0x1005  /* send timeout */
-#define TARGET_SO_RCVTIMEO     0x1006  /* receive timeout */
+#define TARGET_SO_SNDTIMEO_OLD 0x1005  /* send timeout */
+#define TARGET_SO_RCVTIMEO_OLD 0x1006  /* receive timeout */
 #define TARGET_SO_ACCEPTCONN   0x1009
 #define TARGET_SO_PROTOCOL     0x1028  /* protocol type */
 #define TARGET_SO_DOMAIN       0x1029  /* domain/socket family */
@@ -70,6 +70,10 @@
 #define TARGET_SO_SNDBUFFORCE          31
 #define TARGET_SO_RCVBUFFORCE          33
 #define TARGET_SO_PASSSEC              34
+
+/* New socket timeout options that are y2038 safe. */
+#define TARGET_SO_RCVTIMEO_NEW         66
+#define TARGET_SO_SNDTIMEO_NEW         67
 
 /** sock_type - Socket types
  *
