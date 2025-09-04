@@ -6,7 +6,7 @@ qemu_plugin_symbols = configure_file(
   input: files('../include/qemu/qemu-plugin.h'),
   output: 'qemu-plugin.symbols',
   capture: true,
-  command: [files('../scripts/qemu-plugin-symbols.py'), '@INPUT@'])
+  command: [python, files('../scripts/qemu-plugin-symbols.py'), '@INPUT@'])
 
 # Modules need more symbols than just those in plugins/qemu-plugins.symbols
 if not enable_modules

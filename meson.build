@@ -12,8 +12,6 @@ add_test_setup('slow', exclude_suites: ['thorough'],
 add_test_setup('thorough',
                env: ['G_TEST_SLOW=1', 'SPEED=thorough', 'RUST_BACKTRACE=1'])
 
-meson.add_postconf_script(find_program('scripts/symlink-install-tree.py'))
-
 ####################
 # Global variables #
 ####################
@@ -75,6 +73,8 @@ have_user = have_linux_user or have_bsd_user
 
 sh = find_program('sh')
 python = import('python').find_installation()
+
+meson.add_postconf_script([python, 'scripts/symlink-install-tree.py'])
 
 cc = meson.get_compiler('c')
 all_languages = ['c']
@@ -3474,7 +3474,7 @@ foreach target : target_dirs
       output: config_devices_mak,
       depfile: config_devices_mak + '.d',
       capture: true,
-      command: [minikconf,
+      command: [python, minikconf,
                 get_option('default_devices') ? '--defconfig' : '--allnoconfig',
                 config_devices_mak, '@DEPFILE@', '@INPUT@',
                 host_kconfig, target_kconfig])
@@ -3545,8 +3545,8 @@ config_host_h = configure_file(output: 'config-host.h', configuration: config_ho
 genh += config_host_h
 
 hxtool = find_program('scripts/hxtool')
-shaderinclude = find_program('scripts/shaderinclude.py')
-qapi_gen = find_program('scripts/qapi-gen.py')
+shaderinclude = [python, 'scripts/shaderinclude.py']
+qapi_gen = [python, 'scripts/qapi-gen.py']
 qapi_gen_depends = [ meson.current_source_dir() / 'scripts/qapi/__init__.py',
                      meson.current_source_dir() / 'scripts/qapi/commands.py',
                      meson.current_source_dir() / 'scripts/qapi/common.py',
