@@ -15,6 +15,7 @@ import argparse
 import subprocess
 import shutil
 import shlex
+import sys
 import os
 from time import sleep
 from tempfile import TemporaryDirectory
@@ -22,10 +23,10 @@ from tempfile import TemporaryDirectory
 def get_args():
     parser = argparse.ArgumentParser(description="A gdbstub test runner")
     parser.add_argument("--qemu", help="Qemu binary for test",
-                        required=True)
+                        required=False)
     parser.add_argument("--qargs", help="Qemu arguments for test")
     parser.add_argument("--binary", help="Binary to debug",
-                        required=True)
+                        required='--qemu' in sys.argv)
     parser.add_argument("--test", help="GDB test script")
     parser.add_argument('test_args', nargs='*',
                         help="Additional args for GDB test script. "
@@ -73,27 +74,30 @@ if __name__ == '__main__':
     socket_dir = TemporaryDirectory("qemu-gdbstub")
     socket_name = os.path.join(socket_dir.name, "gdbstub.socket")
 
-    # Launch QEMU with binary
-    if "system" in args.qemu:
-        if args.no_suspend:
-            suspend = ''
+    if args.qemu:
+        # Launch QEMU with binary.
+        if "system" in args.qemu:
+            if args.no_suspend:
+                suspend = ''
+            else:
+                suspend = ' -S'
+            cmd = f'{args.qemu} {args.qargs} {args.binary}' \
+                f'{suspend} -gdb unix:path={socket_name},server=on'
         else:
-            suspend = ' -S'
-        cmd = f'{args.qemu} {args.qargs} {args.binary}' \
-            f'{suspend} -gdb unix:path={socket_name},server=on'
-    else:
-        if args.no_suspend:
-            suspend = ',suspend=n'
-        else:
-            suspend = ''
-        cmd = f'{args.qemu} {args.qargs} -g {socket_name}{suspend}' \
-            f' {args.binary}'
+            if args.no_suspend:
+                suspend = ',suspend=n'
+            else:
+                suspend = ''
+            cmd = f'{args.qemu} {args.qargs} -g {socket_name}{suspend}' \
+                f' {args.binary}'
 
-    log(output, "QEMU CMD: %s" % (cmd))
-    inferior = subprocess.Popen(shlex.split(cmd))
+        log(output, "QEMU CMD: %s" % (cmd))
+        inferior = subprocess.Popen(shlex.split(cmd))
 
     # Now launch gdb with our test and collect the result
-    gdb_cmd = "%s %s" % (args.gdb, args.binary)
+    gdb_cmd = args.gdb
+    if args.binary:
+        gdb_cmd += " %s" % (args.binary)
     if args.gdb_args:
         gdb_cmd += " %s" % (args.gdb_args)
     # run quietly and ignore .gdbinit
@@ -103,11 +107,12 @@ if __name__ == '__main__':
     # disable prompts in case of crash
     gdb_cmd += " -ex 'set confirm off'"
     # connect to remote
-    gdb_cmd += " -ex 'target remote %s'" % (socket_name)
+    if args.qemu:
+        gdb_cmd += " -ex 'target remote %s'" % (socket_name)
     # finally the test script itself
     if args.test:
-        if args.test_args:
-            gdb_cmd += f" -ex \"py sys.argv={args.test_args}\""
+        argv = [args.test] + args.test_args
+        gdb_cmd += f" -ex \"py sys.argv={argv}\""
         gdb_cmd += " -x %s" % (args.test)
 
 
@@ -129,10 +134,11 @@ if __name__ == '__main__':
         log(output, "GDB crashed? (%d, %d) SKIPPING" % (result, result - 128))
         exit(0)
 
-    try:
-        inferior.wait(2)
-    except subprocess.TimeoutExpired:
-        log(output, "GDB never connected? Killed guest")
-        inferior.kill()
+    if args.qemu:
+        try:
+            inferior.wait(2)
+        except subprocess.TimeoutExpired:
+            log(output, "GDB never connected? Killed guest")
+            inferior.kill()
 
     exit(result)
