@@ -384,9 +384,11 @@ static void virt_cpu_irq_init(LoongArchVirtMachineState *lvms)
 static void virt_irq_init(LoongArchVirtMachineState *lvms)
 {
     DeviceState *pch_pic, *pch_msi;
-    DeviceState *ipi, *extioi, *avec;
+    DeviceState *ipi, *extioi, *avec, *cpudev;
     SysBusDevice *d;
     int i, start, num;
+    CPUState *cpu_state;
+    MachineState *ms;
 
     /*
      * Extended IRQ model.
@@ -471,6 +473,12 @@ static void virt_irq_init(LoongArchVirtMachineState *lvms)
         sysbus_realize_and_unref(SYS_BUS_DEVICE(avec), &error_fatal);
         memory_region_add_subregion(get_system_memory(), VIRT_AVEC_BASE,
                         sysbus_mmio_get_region(SYS_BUS_DEVICE(avec), 0));
+        ms = MACHINE(lvms);
+        for (int cpu = 0; cpu < ms->smp.cpus; cpu++) {
+            cpu_state = qemu_get_cpu(cpu);
+            cpudev = DEVICE(cpu_state);
+            qdev_connect_gpio_out(avec, cpu, qdev_get_gpio_in(cpudev, INT_AVEC));
+        }
     }
 
     /* Create EXTIOI device */
