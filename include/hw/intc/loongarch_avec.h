@@ -18,6 +18,9 @@ OBJECT_DECLARE_TYPE(LoongArchAVECState, LoongArchAVECClass, LOONGARCH_AVEC)
 typedef struct AVECCore {
     CPUState *cpu;
     qemu_irq parent_irq;
+    uint64_t pending;
+    uint64_t dest_cpu;
+    bool   level;
     uint64_t arch_id;
 } AVECCore;
 

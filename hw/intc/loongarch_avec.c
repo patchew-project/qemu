@@ -16,6 +16,13 @@
 #include "migration/vmstate.h"
 #include "trace.h"
 #include "hw/qdev-properties.h"
+#include "target/loongarch/cpu.h"
+#include "qemu/error-report.h"
+
+/* msg addr field */
+FIELD(MSG_ADDR, IRQ_NUM, 4, 8)
+FIELD(MSG_ADDR, CPU_NUM, 12, 8)
+FIELD(MSG_ADDR, FIX, 28, 12)
 
 static uint64_t loongarch_avec_mem_read(void *opaque,
                                         hwaddr addr, unsigned size)
@@ -23,12 +30,59 @@ static uint64_t loongarch_avec_mem_read(void *opaque,
     return 0;
 }
 
+static void do_set_vcpu_avec_irq(CPUState *cs, run_on_cpu_data data)
+{
+    AVECCore *core = data.host_ptr;
+    CPULoongArchState *env;
+
+    assert(cs->cpu_index == core->dest_cpu);
+    env = &LOONGARCH_CPU(cs)->env;
+    if (core->level) {
+        set_bit(core->pending, &env->CSR_MSGIS[core->pending / 64]);
+    }
+    g_free(core);
+}
+
+
+static void avec_update_csr(AVECCore *core, int cpu_num,
+                            int irq_num, int level)
+{
+    CPUState *cs = qemu_get_cpu(cpu_num);
+
+    core->pending = irq_num;
+    core->dest_cpu = cpu_num;
+    core->level = level;
+    async_run_on_cpu(cs, do_set_vcpu_avec_irq,
+                         RUN_ON_CPU_HOST_PTR(core));
+}
+
+static void avec_set_irq(LoongArchAVECState *s, int cpu_num,
+                         int irq_num, int level)
+{
+    AVECCore *core;
+
+    core = g_new(AVECCore, 1);
+
+    if (level) {
+        avec_update_csr(core, cpu_num, irq_num, level);
+    }
+    qemu_set_irq(s->cpu[cpu_num].parent_irq, level);
+}
+
 static void loongarch_avec_mem_write(void *opaque, hwaddr addr,
                                      uint64_t val, unsigned size)
 {
-    return;
-}
+    int irq_num, cpu_num = 0;
+    LoongArchAVECState *s = LOONGARCH_AVEC(opaque);
+    uint64_t msg_addr = addr + VIRT_AVEC_BASE;
+    CPUState *cs;
 
+    cpu_num = FIELD_EX64(msg_addr, MSG_ADDR, CPU_NUM);
+    cs = cpu_by_arch_id(cpu_num);
+    cpu_num = cs->cpu_index;
+    irq_num = FIELD_EX64(msg_addr, MSG_ADDR, IRQ_NUM);
+    avec_set_irq(s, cpu_num, irq_num, 1);
+}
 
 static const MemoryRegionOps loongarch_avec_ops = {
     .read = loongarch_avec_mem_read,
