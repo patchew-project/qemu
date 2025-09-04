@@ -39,15 +39,17 @@ def get_args():
     parser.add_argument("--stderr", help="A file to redirect stderr to")
     parser.add_argument("--no-suspend", action="store_true",
                         help="Ask the binary to not wait for GDB connection")
+    parser.add_argument("--quiet", action="store_true", default=False,
+                        help="Don't print any messages to stdout")
 
     return parser.parse_args()
 
 
-def log(output, msg):
+def log(output, msg, quiet):
     if output:
         output.write(msg + "\n")
         output.flush()
-    else:
+    elif not quiet:
         print(msg)
 
 
@@ -91,7 +93,7 @@ if __name__ == '__main__':
             cmd = f'{args.qemu} {args.qargs} -g {socket_name}{suspend}' \
                 f' {args.binary}'
 
-        log(output, "QEMU CMD: %s" % (cmd))
+        log(output, "QEMU CMD: %s" % (cmd), args.quiet)
         inferior = subprocess.Popen(shlex.split(cmd))
 
     # Now launch gdb with our test and collect the result.
@@ -117,7 +119,7 @@ if __name__ == '__main__':
 
 
     sleep(1)
-    log(output, "GDB CMD: %s" % (gdb_cmd))
+    log(output, "GDB CMD: %s" % (gdb_cmd), args.quiet)
 
     gdb_env = dict(os.environ)
     gdb_pythonpath = gdb_env.get("PYTHONPATH", "").split(os.pathsep)
