@@ -2832,7 +2832,15 @@ static bool trans_STBAR(DisasContext *dc, arg_STBAR *a)
 static bool trans_MEMBAR(DisasContext *dc, arg_MEMBAR *a)
 {
     if (avail_32(dc)) {
-        return false;
+        /*
+         * At least Solaris 8 executes v9 MEMBAR instructions such as
+         * 0x8143e008 during boot. According to the SPARC v8 architecture
+         * manual, bits 13 and 12-0 are unused (notionally zero) so in
+         * this case if we assume the unused bits are not decoded then
+         * the instruction becomes 0x8143c000, or the equivalent of STBAR.
+         */
+        tcg_gen_mb(TCG_MO_ST_ST | TCG_BAR_SC);
+        return advance_pc(dc);
     }
     if (a->mmask) {
         /* Note TCG_MO_* was modeled on sparc64, so mmask matches. */
