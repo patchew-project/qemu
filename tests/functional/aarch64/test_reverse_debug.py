@@ -1,25 +1,24 @@
-#!/usr/bin/env python3
-#
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-# Reverse debugging test
+# Reverse debugging test for aarch64
 #
 # Copyright (c) 2020 ISP RAS
+# Copyright (c) 2025 Linaro Limited
 #
 # Author:
 #  Pavel Dovgalyuk <Pavel.Dovgalyuk@ispras.ru>
+#  Gustavo Romero <gustavo.romero@linaro.org> (Run without Avocado)
 #
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-from qemu_test import Asset, skipIfMissingImports, skipFlakyTest
+# ReverseDebugging must be imported always first because of the check
+# in it for not running this test without the GDB runner.
 from reverse_debugging import ReverseDebugging
+from qemu_test import Asset, skipFlakyTest
 
 
-@skipIfMissingImports('avocado.utils')
 class ReverseDebugging_AArch64(ReverseDebugging):
-
-    REG_PC = 32
 
     ASSET_KERNEL = Asset(
         ('https://archives.fedoraproject.org/pub/archive/fedora/linux/'
@@ -35,4 +34,4 @@ class ReverseDebugging_AArch64(ReverseDebugging):
 
 
 if __name__ == '__main__':
-    ReverseDebugging.main()
+    ReverseDebugging_AArch64.main()

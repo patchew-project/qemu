@@ -32,7 +32,6 @@ tests_aarch64_system_thorough = [
   'raspi3',
   'raspi4',
   'replay',
-  'reverse_debug',
   'rme_virt',
   'rme_sbsaref',
   'sbsaref',
@@ -46,3 +45,9 @@ tests_aarch64_system_thorough = [
   'xen',
   'xlnx_versal',
 ]
+
+if is_variable('gdb_runner')
+tests_aarch64_system_thorough_with_runner = [
+    ['reverse_debug', gdb_runner, 'exitcode'],
+]
+endif

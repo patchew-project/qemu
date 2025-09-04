@@ -29,8 +29,13 @@ tests_x86_64_system_thorough = [
   'multiprocess',
   'netdev_ethtool',
   'replay',
-  'reverse_debug',
   'tuxrun',
   'virtio_balloon',
   'virtio_gpu',
 ]
+
+if is_variable('gdb_runner')
+    tests_x86_64_system_thorough_with_runner = [
+        ['reverse_debug', gdb_runner, 'exitcode'],
+    ]
+endif

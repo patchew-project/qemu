@@ -20,6 +20,11 @@ tests_ppc64_system_thorough = [
   'powernv',
   'pseries',
   'replay',
-  'reverse_debug',
   'tuxrun',
 ]
+
+if is_variable('gdb_runner')
+tests_ppc64_system_thorough_with_runner = [
+    ['reverse_debug', gdb_runner, 'exitcode'],
+]
+endif
