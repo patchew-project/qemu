@@ -204,9 +204,6 @@ static bool riscv_aplic_irq_rectified_val(RISCVAPLICState *aplic,
     }
 
     sm = sourcecfg & APLIC_SOURCECFG_SM_MASK;
-    if (sm == APLIC_SOURCECFG_SM_INACTIVE) {
-        return false;
-    }
 
     raw_input = (aplic->state[irq] & APLIC_ISTATE_INPUT) ? 1 : 0;
     irq_inverted = (sm == APLIC_SOURCECFG_SM_LEVEL_LOW ||
