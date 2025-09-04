@@ -9,6 +9,25 @@ if get_option('tcg_interpreter')
   subdir_done()
 endif
 
+# Define the GDB runner if GDB is available.
+gdb = get_option('gdb')
+if gdb != ''
+    gdb_runner_script =  meson.project_source_root() + '/tests/guest-debug/run-test.py'
+    gdb_runner = [gdb_runner_script, '--quiet', '--gdb', gdb, '--test']
+
+    message('GDB runner defined based on GDB found at: ', gdb)
+
+    # A test with a runner is a tuple (name, runner, protocol).
+    # The tests must be elements of an array named like:
+    #
+    # test_<arch>_<mode=[system|linuxuser|bsduser]>_<speed=[quick|thorough]>_with_runner = [
+    #      ['test0', gdb_runner, 'exitcode'],
+    #      ...
+    # ]
+else
+    message('GDB not found, skipping functional tests that rely on it.')
+endif
+
 subdir('aarch64')
 subdir('alpha')
 subdir('arm')
@@ -61,9 +80,11 @@ foreach speed : ['quick', 'thorough']
       suites = ['func-quick', 'func-' + target_base]
       target_tests = get_variable('tests_' + target_base + '_' + sysmode + '_quick', []) \
                      + get_variable('tests_generic_' + sysmode)
+      target_tests_r = get_variable('tests_' + target_base + '_' + sysmode + '_quick_with_runner', [])
     else
       suites = ['func-' + speed, 'func-' + target_base + '-' + speed, speed]
       target_tests = get_variable('tests_' + target_base + '_' + sysmode + '_' + speed, [])
+      target_tests_r = get_variable('tests_' + target_base + '_' + sysmode + '_' + speed + '_with_runner', [])
     endif
 
     test_deps = [roms, keymap_targets]
@@ -117,6 +138,50 @@ foreach speed : ['quick', 'thorough']
            env: test_env,
            args: [testpath],
            protocol: 'tap',
+           timeout: time_out,
+           priority: time_out,
+           suite: suites)
+    endforeach
+
+    # Prepare tests that require a specific runner.
+    foreach test : target_tests_r
+      testname = '@0@-@1@'.format(target_base, test[0])
+      testfile = target_base / 'test_' + test[0] + '.py'
+      testpath = meson.current_source_dir() / testfile
+      teststamp = testname + '.tstamp'
+      testrunner  = test[1]
+      testproto = test[2]
+
+      # python_site_packages, i.e., site packages from Python in pyvenv, is
+      # added to PYTHONPATH because some runners can run a program that has its
+      # own Python hooks that, by its turn, will search for modules based on
+      # PYTHONPATH independently of the Python used by the runner, like, for
+      # example, GDB using libpython.
+      test_r_precache_env = test_precache_env
+      test_r_precache_env.append('PYTHONPATH', python_site_packages)
+      # For similar reasons, PYTHONPATH must also include the path to the test
+      # scripts, otherwise unittest's introspection will failed.
+      test_r_precache_env.append('PYTHONPATH', meson.current_source_dir() / target_base)
+
+      precache = custom_target('func-precache-' + testname,
+                               output: teststamp,
+                               command: [testrunner, testpath],
+                               depend_files: files(testpath),
+                               build_by_default: false,
+                               env: test_r_precache_env)
+      precache_all += precache
+
+      # See comments above about PYTHONPATH in test_r_precache_env.
+      test_r_env = test_env
+      test_r_env.append('PYTHONPATH', python_site_packages)
+      test_r_env.append('PYTHONPATH', meson.current_source_dir() / target_base)
+
+      test('func-' + testname,
+           python,
+           depends: [test_deps, test_emulator, emulator_modules, plugin_modules],
+           env: test_r_env,
+           args: [testrunner, testpath],
+           protocol: testproto,
            timeout: time_out,
            priority: time_out,
            suite: suites)
