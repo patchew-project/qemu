@@ -2865,22 +2865,24 @@ static bool do_rd_special(DisasContext *dc, bool priv, int rd,
     return advance_pc(dc);
 }
 
-static TCGv do_rdy(DisasContext *dc, TCGv dst)
+static TCGv do_rdy_1(DisasContext *dc, TCGv dst)
 {
     return cpu_y;
 }
 
-static bool trans_RDY(DisasContext *dc, arg_RDY *a)
+static bool do_rdy(DisasContext *dc, int rd)
 {
-    /*
-     * TODO: Need a feature bit for sparcv8.  In the meantime, treat all
-     * 32-bit cpus like sparcv7, which ignores the rs1 field.
-     * This matches after all other ASR, so Leon3 Asr17 is handled first.
-     */
-    if (avail_64(dc) && a->rs1 != 0) {
-        return false;
-    }
-    return do_rd_special(dc, true, a->rd, do_rdy);
+    return do_rd_special(dc, true, rd, do_rdy_1);
+}
+
+static bool trans_RDY_v7(DisasContext *dc, arg_RDY_v7 *a)
+{
+    return avail_32(dc) && do_rdy(dc, a->rd);
+}
+
+static bool trans_RDY_v9(DisasContext *dc, arg_RDY_v9 *a)
+{
+    return avail_64(dc) && do_rdy(dc, a->rd);
 }
 
 static TCGv do_rd_leon3_config(DisasContext *dc, TCGv dst)
