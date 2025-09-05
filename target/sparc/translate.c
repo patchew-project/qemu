@@ -2823,10 +2823,20 @@ static bool trans_Tcc_i_v9(DisasContext *dc, arg_Tcc_i_v9 *a)
     return do_tcc(dc, a->cond, a->cc, a->rs1, true, a->i);
 }
 
-static bool trans_STBAR(DisasContext *dc, arg_STBAR *a)
+static bool do_stbar(DisasContext *dc)
 {
     tcg_gen_mb(TCG_MO_ST_ST | TCG_BAR_SC);
     return advance_pc(dc);
+}
+
+static bool trans_STBAR_v8(DisasContext *dc, arg_STBAR_v8 *a)
+{
+    return avail_32(dc) && do_stbar(dc);
+}
+
+static bool trans_STBAR_v9(DisasContext *dc, arg_STBAR_v9 *a)
+{
+    return avail_64(dc) && do_stbar(dc);
 }
 
 static bool trans_MEMBAR(DisasContext *dc, arg_MEMBAR *a)
