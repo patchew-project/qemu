@@ -2140,9 +2140,19 @@ static RISCVException write_misa(CPURISCVState *env, int csrno,
     /* Mask extensions that are not supported by this hart */
     val &= env->misa_ext_mask;
 
-    /* Suppress 'C' if next instruction is not aligned. */
-    if ((val & RVC) && (get_next_pc(env, ra) & 3) != 0) {
-        val &= ~RVC;
+    /*
+     * misa writes that increase IALIGN beyond alignment of the next
+     * instruction cause the write to misa to be suppressed. Clearing
+     * "C" extension increases IALIGN.
+     */
+    if (!(val & RVC) && (get_next_pc(env, ra) & 3) != 0) {
+        /*
+         * If the next instruction is unaligned mod 4 then "C" must be
+         * set or this instruction could not be executing, so we know
+         * this is is clearing "C" (and not just keeping it clear).
+         */
+        g_assert(env->misa_ext & RVC);
+        return RISCV_EXCP_NONE;
     }
 
     /* Disable RVG if any of its dependencies are disabled */
