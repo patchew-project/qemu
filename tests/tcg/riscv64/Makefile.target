@@ -1,6 +1,9 @@
 # -*- Mode: makefile -*-
 # RISC-V specific tweaks
 
+HAVE_RISCV_VECTOR_INTRINSICS := $(shell echo '#ifndef __riscv_v_intrinsic\n#error\n#endif' |  \
+                                  $(CC) -march=rv64gcv -E -x c - >/dev/null 2>&1 && echo y)
+
 VPATH += $(SRC_PATH)/tests/tcg/riscv64
 TESTS += test-div
 TESTS += noexec
@@ -18,3 +21,10 @@ TESTS += test-fcvtmod
 test-fcvtmod: CFLAGS += -march=rv64imafdc
 test-fcvtmod: LDFLAGS += -static
 run-test-fcvtmod: QEMU_OPTS += -cpu rv64,d=true,zfa=true
+
+ifeq ($(HAVE_RISCV_VECTOR_INTRINSICS),y)
+# Test for vstart >= vl
+TESTS += test-vstart-overflow
+test-vstart-overflow: CFLAGS += -march=rv64gcv
+run-test-vstart-overflow: QEMU_OPTS += -cpu rv64,v=on
+endif
