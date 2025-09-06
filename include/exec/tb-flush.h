@@ -23,6 +23,7 @@
  */
 void tb_flush(CPUState *cs);
 
+void tb_flush__exclusive(void);
 void tcg_flush_jmp_cache(CPUState *cs);
 
 #endif /* _TB_FLUSH_H_ */
