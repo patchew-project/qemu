@@ -725,6 +725,11 @@ static void object_finalize(void *data)
     Object *obj = data;
     TypeImpl *ti = obj->class->type;
 
+    if (obj->finalizing) {
+        return;
+    }
+
+    obj->finalizing = true;
     object_property_del_all(obj);
     object_deinit(obj, ti);
 

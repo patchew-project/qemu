@@ -158,6 +158,7 @@ struct Object
     ObjectFree *free;
     GHashTable *properties;
     uint32_t ref;
+    bool finalizing;
     Object *parent;
 };
 
