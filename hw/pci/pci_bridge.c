@@ -145,11 +145,10 @@ pcibus_t pci_bridge_get_limit(const PCIDevice *bridge, uint8_t type)
     return limit;
 }
 
-static void pci_bridge_init_alias(PCIBridge *bridge, MemoryRegion *alias,
-                                  uint8_t type, const char *name,
-                                  MemoryRegion *space,
-                                  MemoryRegion *parent_space,
-                                  bool enabled)
+static void pci_bridge_update_alias(PCIBridge *bridge, bool init,
+                                    MemoryRegion *alias, uint8_t type,
+                                    const char *name, MemoryRegion *space,
+                                    MemoryRegion *parent_space, bool enabled)
 {
     PCIDevice *bridge_dev = PCI_DEVICE(bridge);
     pcibus_t base = pci_bridge_get_base(bridge_dev, type);
@@ -158,25 +157,37 @@ static void pci_bridge_init_alias(PCIBridge *bridge, MemoryRegion *alias,
      * Apparently no way to do this with existing memory APIs. */
     pcibus_t size = enabled && limit >= base ? limit + 1 - base : 0;
 
-    memory_region_init_alias(alias, OBJECT(bridge), name, space, base, size);
+    if (init) {
+        memory_region_init_alias(alias, OBJECT(bridge), name, space, base, size);
+    } else {
+        memory_region_set_size(alias, size);
+        memory_region_set_alias_offset(alias, base);
+    }
+
     memory_region_add_subregion_overlap(parent_space, base, alias, 1);
 }
 
-static void pci_bridge_init_vga_aliases(PCIBridge *br, PCIBus *parent,
-                                        MemoryRegion *alias_vga)
+static void pci_bridge_update_vga_aliases(PCIBridge *br, bool init,
+                                          PCIBus *parent,
+                                          MemoryRegion *alias_vga)
 {
     PCIDevice *pd = PCI_DEVICE(br);
     uint16_t brctl = pci_get_word(pd->config + PCI_BRIDGE_CONTROL);
 
-    memory_region_init_alias(&alias_vga[QEMU_PCI_VGA_IO_LO], OBJECT(br),
-                             "pci_bridge_vga_io_lo", &br->address_space_io,
-                             QEMU_PCI_VGA_IO_LO_BASE, QEMU_PCI_VGA_IO_LO_SIZE);
-    memory_region_init_alias(&alias_vga[QEMU_PCI_VGA_IO_HI], OBJECT(br),
-                             "pci_bridge_vga_io_hi", &br->address_space_io,
-                             QEMU_PCI_VGA_IO_HI_BASE, QEMU_PCI_VGA_IO_HI_SIZE);
-    memory_region_init_alias(&alias_vga[QEMU_PCI_VGA_MEM], OBJECT(br),
-                             "pci_bridge_vga_mem", &br->address_space_mem,
-                             QEMU_PCI_VGA_MEM_BASE, QEMU_PCI_VGA_MEM_SIZE);
+    if (init) {
+        memory_region_init_alias(&alias_vga[QEMU_PCI_VGA_IO_LO], OBJECT(br),
+                                 "pci_bridge_vga_io_lo", &br->address_space_io,
+                                 QEMU_PCI_VGA_IO_LO_BASE,
+                                 QEMU_PCI_VGA_IO_LO_SIZE);
+        memory_region_init_alias(&alias_vga[QEMU_PCI_VGA_IO_HI], OBJECT(br),
+                                 "pci_bridge_vga_io_hi", &br->address_space_io,
+                                 QEMU_PCI_VGA_IO_HI_BASE,
+                                 QEMU_PCI_VGA_IO_HI_SIZE);
+        memory_region_init_alias(&alias_vga[QEMU_PCI_VGA_MEM], OBJECT(br),
+                                 "pci_bridge_vga_mem", &br->address_space_mem,
+                                 QEMU_PCI_VGA_MEM_BASE,
+                                 QEMU_PCI_VGA_MEM_SIZE);
+    }
 
     if (brctl & PCI_BRIDGE_CTL_VGA) {
         pci_register_vga(pd, &alias_vga[QEMU_PCI_VGA_MEM],
@@ -185,33 +196,33 @@ static void pci_bridge_init_vga_aliases(PCIBridge *br, PCIBus *parent,
     }
 }
 
-static void pci_bridge_region_init(PCIBridge *br)
+static void pci_bridge_region_update(PCIBridge *br, bool init)
 {
     PCIDevice *pd = PCI_DEVICE(br);
     PCIBus *parent = pci_get_bus(pd);
     PCIBridgeWindows *w = &br->windows;
     uint16_t cmd = pci_get_word(pd->config + PCI_COMMAND);
 
-    pci_bridge_init_alias(br, &w->alias_pref_mem,
-                          PCI_BASE_ADDRESS_MEM_PREFETCH,
-                          "pci_bridge_pref_mem",
-                          &br->address_space_mem,
-                          parent->address_space_mem,
-                          cmd & PCI_COMMAND_MEMORY);
-    pci_bridge_init_alias(br, &w->alias_mem,
-                          PCI_BASE_ADDRESS_SPACE_MEMORY,
-                          "pci_bridge_mem",
-                          &br->address_space_mem,
-                          parent->address_space_mem,
-                          cmd & PCI_COMMAND_MEMORY);
-    pci_bridge_init_alias(br, &w->alias_io,
-                          PCI_BASE_ADDRESS_SPACE_IO,
-                          "pci_bridge_io",
-                          &br->address_space_io,
-                          parent->address_space_io,
-                          cmd & PCI_COMMAND_IO);
+    pci_bridge_update_alias(br, init, &w->alias_pref_mem,
+                            PCI_BASE_ADDRESS_MEM_PREFETCH,
+                            "pci_bridge_pref_mem",
+                            &br->address_space_mem,
+                            parent->address_space_mem,
+                            cmd & PCI_COMMAND_MEMORY);
+    pci_bridge_update_alias(br, init, &w->alias_mem,
+                            PCI_BASE_ADDRESS_SPACE_MEMORY,
+                            "pci_bridge_mem",
+                            &br->address_space_mem,
+                            parent->address_space_mem,
+                            cmd & PCI_COMMAND_MEMORY);
+    pci_bridge_update_alias(br, init, &w->alias_io,
+                            PCI_BASE_ADDRESS_SPACE_IO,
+                            "pci_bridge_io",
+                            &br->address_space_io,
+                            parent->address_space_io,
+                            cmd & PCI_COMMAND_IO);
 
-    pci_bridge_init_vga_aliases(br, parent, w->alias_vga);
+    pci_bridge_update_vga_aliases(br, init, parent, w->alias_vga);
 }
 
 static void pci_bridge_region_del(PCIBridge *br, PCIBridgeWindows *w)
@@ -237,14 +248,11 @@ static void pci_bridge_region_cleanup(PCIBridge *br, PCIBridgeWindows *w)
 
 void pci_bridge_update_mappings(PCIBridge *br)
 {
-    PCIBridgeWindows *w = &br->windows;
-
     /* Make updates atomic to: handle the case of one VCPU updating the bridge
      * while another accesses an unaffected region. */
     memory_region_transaction_begin();
-    pci_bridge_region_del(br, w);
-    pci_bridge_region_cleanup(br, w);
-    pci_bridge_region_init(br);
+    pci_bridge_region_del(br, &br->windows);
+    pci_bridge_region_update(br, false);
     memory_region_transaction_commit();
 }
 
@@ -386,7 +394,7 @@ void pci_bridge_initfn(PCIDevice *dev, const char *typename)
     memory_region_init(&br->address_space_io, OBJECT(br), "pci_bridge_io",
                        4 * GiB);
     address_space_init(&br->as_io, &br->address_space_io, "pci_bridge_pci_io");
-    pci_bridge_region_init(br);
+    pci_bridge_region_update(br, true);
     QLIST_INIT(&sec_bus->child);
     QLIST_INSERT_HEAD(&parent->child, sec_bus, sibling);
 
