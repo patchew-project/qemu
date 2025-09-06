@@ -718,8 +718,18 @@ static void device_class_base_init(ObjectClass *class, const void *data)
     klass->props_count_ = 0;
 }
 
+static int collect_memory_region(Object *child, void *opaque)
+{
+    if (object_dynamic_cast(child, TYPE_MEMORY_REGION)) {
+        g_array_append_val(opaque, child);
+    }
+
+    return 0;
+}
+
 static void device_unparent(Object *obj)
 {
+    g_autoptr(GArray) array = g_array_new(FALSE, FALSE, sizeof(Object *));
     DeviceState *dev = DEVICE(obj);
     BusState *bus;
 
@@ -734,6 +744,12 @@ static void device_unparent(Object *obj)
         bus_remove_child(dev->parent_bus, dev);
         object_unref(OBJECT(dev->parent_bus));
         dev->parent_bus = NULL;
+    }
+
+    object_child_foreach(OBJECT(dev), collect_memory_region, array);
+
+    for (gsize i = 0; i < array->len; i++) {
+        object_unparent(g_array_index(array, Object *, i));
     }
 }
 

@@ -1212,11 +1212,19 @@ static char *memory_region_escape_name(const char *name)
     return escaped;
 }
 
+static void memory_region_free(void *obj)
+{
+    MemoryRegion *mr = obj;
+
+    object_unref(mr->owner);
+}
+
 static void memory_region_do_init(MemoryRegion *mr,
                                   Object *owner,
                                   const char *name,
                                   uint64_t size)
 {
+    OBJECT(mr)->free = memory_region_free;
     mr->size = int128_make64(size);
     if (size == UINT64_MAX) {
         mr->size = int128_2_64();
@@ -1291,6 +1299,18 @@ static void memory_region_get_size(Object *obj, Visitor *v, const char *name,
     uint64_t value = memory_region_size(mr);
 
     visit_type_uint64(v, name, &value, errp);
+}
+
+static void memory_region_unparent(Object *obj)
+{
+    MemoryRegion *mr = MEMORY_REGION(obj);
+
+    object_ref(mr->owner);
+}
+
+static void memory_region_class_init(ObjectClass *klass, const void *data)
+{
+    klass->unparent = memory_region_unparent;
 }
 
 static void memory_region_initfn(Object *obj)
@@ -1826,25 +1846,19 @@ Object *memory_region_owner(MemoryRegion *mr)
 
 void memory_region_ref(MemoryRegion *mr)
 {
-    /* MMIO callbacks most likely will access data that belongs
-     * to the owner, hence the need to ref/unref the owner whenever
-     * the memory region is in use.
-     *
-     * The memory region is a child of its owner.  As long as the
-     * owner doesn't call unparent itself on the memory region,
-     * ref-ing the owner will also keep the memory region alive.
+    /*
      * Memory regions without an owner are supposed to never go away;
      * we do not ref/unref them because it slows down DMA sensibly.
      */
     if (mr && mr->owner) {
-        object_ref(mr->owner);
+        object_ref(mr);
     }
 }
 
 void memory_region_unref(MemoryRegion *mr)
 {
     if (mr && mr->owner) {
-        object_unref(mr->owner);
+        object_unref(mr);
     }
 }
 
@@ -3792,6 +3806,7 @@ static const TypeInfo memory_region_info = {
     .parent             = TYPE_OBJECT,
     .name               = TYPE_MEMORY_REGION,
     .class_size         = sizeof(MemoryRegionClass),
+    .class_init         = memory_region_class_init,
     .instance_size      = sizeof(MemoryRegion),
     .instance_init      = memory_region_initfn,
     .instance_finalize  = memory_region_finalize,
