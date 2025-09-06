@@ -359,13 +359,19 @@ static void iommu_init(Object *obj)
     memory_region_init_iommu(&s->iommu, sizeof(s->iommu),
                              TYPE_SUN4M_IOMMU_MEMORY_REGION, OBJECT(dev),
                              "iommu-sun4m", UINT64_MAX);
-    address_space_init(&s->iommu_as, MEMORY_REGION(&s->iommu), "iommu-as");
 
     sysbus_init_irq(dev, &s->irq);
 
     memory_region_init_io(&s->iomem, obj, &iommu_mem_ops, s, "iommu",
                           IOMMU_NREGS * sizeof(uint32_t));
     sysbus_init_mmio(dev, &s->iomem);
+}
+
+static void iommu_realize(DeviceState *dev, Error **errp)
+{
+    IOMMUState *s = SUN4M_IOMMU(dev);
+
+    address_space_init(&s->iommu_as, MEMORY_REGION(&s->iommu), "iommu-as");
 }
 
 static const Property iommu_properties[] = {
@@ -377,6 +383,7 @@ static void iommu_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     device_class_set_legacy_reset(dc, iommu_reset);
+    dc->realize = iommu_realize;
     dc->vmsd = &vmstate_iommu;
     device_class_set_props(dc, iommu_properties);
 }
