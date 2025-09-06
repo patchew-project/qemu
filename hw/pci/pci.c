@@ -1522,7 +1522,7 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
     }
 }
 
-static void pci_update_vga(PCIDevice *pci_dev)
+void pci_update_vga(PCIDevice *pci_dev)
 {
     uint16_t cmd;
 

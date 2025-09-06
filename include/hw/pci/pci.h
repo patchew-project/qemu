@@ -256,6 +256,7 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
                       uint8_t attr, MemoryRegion *memory);
 void pci_register_vga(PCIDevice *pci_dev, MemoryRegion *mem,
                       MemoryRegion *io_lo, MemoryRegion *io_hi);
+void pci_update_vga(PCIDevice *pci_dev);
 void pci_unregister_vga(PCIDevice *pci_dev);
 pcibus_t pci_get_bar_addr(PCIDevice *pci_dev, int region_num);
 
