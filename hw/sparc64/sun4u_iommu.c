@@ -298,11 +298,17 @@ static void iommu_init(Object *obj)
     memory_region_init_iommu(&s->iommu, sizeof(s->iommu),
                              TYPE_SUN4U_IOMMU_MEMORY_REGION, OBJECT(s),
                              "iommu-sun4u", UINT64_MAX);
-    address_space_init(&s->iommu_as, MEMORY_REGION(&s->iommu), "iommu-as");
 
     memory_region_init_io(&s->iomem, obj, &iommu_mem_ops, s, "iommu",
                           IOMMU_NREGS * sizeof(uint64_t));
     sysbus_init_mmio(sbd, &s->iomem);
+}
+
+static void iommu_realize(DeviceState *dev, Error **errp)
+{
+    IOMMUState *s = SUN4U_IOMMU(dev);
+
+    address_space_init(&s->iommu_as, MEMORY_REGION(&s->iommu), "iommu-as");
 }
 
 static void iommu_class_init(ObjectClass *klass, const void *data)
@@ -310,6 +316,7 @@ static void iommu_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     device_class_set_legacy_reset(dc, iommu_reset);
+    dc->realize = iommu_realize;
 }
 
 static const TypeInfo iommu_info = {
