@@ -74,12 +74,12 @@ AUXBus *aux_bus_init(DeviceState *parent, const char *name)
     /* Memory related. */
     bus->aux_io = g_malloc(sizeof(*bus->aux_io));
     memory_region_init(bus->aux_io, OBJECT(bus), "aux-io", 1 * MiB);
-    address_space_init(&bus->aux_addr_space, bus->aux_io, "aux-io");
     return bus;
 }
 
 void aux_bus_realize(AUXBus *bus)
 {
+    address_space_init(&bus->aux_addr_space, bus->aux_io, "aux-io");
     qdev_realize(DEVICE(bus->bridge), BUS(bus), &error_fatal);
 }
 
