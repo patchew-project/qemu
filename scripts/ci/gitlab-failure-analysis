@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+#
+# A script to analyse failures in the gitlab pipelines. It requires an
+# API key from gitlab with the following permissions:
+#  - api
+#  - read_repository
+#  - read_user
+#
+
+import argparse
+import gitlab
+import os
+
+#
+# Arguments
+#
+parser = argparse.ArgumentParser(description="Analyse failed GitLab CI runs.")
+
+parser.add_argument("--gitlab",
+                    default="https://gitlab.com",
+                    help="GitLab instance URL (default: https://gitlab.com).")
+parser.add_argument("--id", default=11167699,
+                    type=int,
+                    help="GitLab project id (default: 11167699 for qemu-project/qemu)")
+parser.add_argument("--token",
+                    default=os.getenv("GITLAB_TOKEN"),
+                    help="Your personal access token with 'api' scope.")
+parser.add_argument("--branch",
+                    default="staging",
+                    help="The name of the branch (default: 'staging')")
+parser.add_argument("--count", type=int,
+                    default=3,
+                    help="The number of failed runs to fetch.")
+
+
+if __name__ == "__main__":
+    args = parser.parse_args()
+
+    gl = gitlab.Gitlab(url=args.gitlab, private_token=args.token)
+    project = gl.projects.get(args.id)
+
+    # Use an iterator to fetch the pipelines
+    pipe_iter = project.pipelines.list(iterator=True,
+                                       status="failed",
+                                       ref=args.branch)
+    pipe_failed = [next(pipe_iter) for _ in range(args.count)]
+
+    # Check each failed pipeline
+    for p in pipe_failed:
+
+        jobs = p.jobs.list(get_all = True)
+        failed_jobs = [j for j in jobs if j.status == "failed"]
+        skipped_jobs = [j for j in jobs if j.status == "skipped"]
+        manual_jobs = [j for j in jobs if j.status == "manual"]
+
+        test_report = p.test_report.get()
+
+        print(f"Failed pipeline {p.id}, total jobs {len(jobs)}, "
+              f"skipped {len(skipped_jobs)}, "
+              f"failed {len(failed_jobs)}, ",
+              f"{test_report.total_count} tests, "
+              f"{test_report.failed_count} failed tests")
+
+        for j in failed_jobs:
+            print(f"  Failed {j.id}, {j.name}, {j.web_url}")
