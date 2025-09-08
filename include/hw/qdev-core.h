@@ -21,16 +21,19 @@
  * Realization
  * -----------
  *
- * Devices are constructed in two stages:
+ * Devices are constructed in three stages:
  *
- * 1) object instantiation via object_initialize() and
- * 2) device realization via the #DeviceState.realized property
+ * 1) object instantiation via object_initialize()
+ * 2) initial property value setting
+ * 3) device realization via the #DeviceState.realized property
  *
- * The former may not fail (and must not abort or exit, since it is called
- * during device introspection already), and the latter may return error
+ * Instantiation may not fail, and realization may return error
  * information to the caller and must be re-entrant.
- * Trivial field initializations should go into #TypeInfo.instance_init.
- * Operations depending on @props static properties should go into @realize.
+ * Instantiation should add properties but must not have any side effect
+ * not contained in the instance, since it happens during device
+ * introspection already. Any operations without special requirements
+ * should go @realize so that they can be skipped during device
+ * introspection.
  * After successful realization, setting static properties will fail.
  *
  * As an interim step, the #DeviceState.realized property can also be
