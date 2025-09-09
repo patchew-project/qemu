@@ -31,6 +31,7 @@
 #include "hw/net/npcm7xx_emc.h"
 #include "hw/net/npcm_gmac.h"
 #include "hw/nvram/npcm7xx_otp.h"
+#include "hw/pci-host/npcm_pcierc.h"
 #include "hw/timer/npcm7xx_timer.h"
 #include "hw/ssi/npcm7xx_fiu.h"
 #include "hw/ssi/npcm_pspi.h"
@@ -108,7 +109,8 @@ struct NPCM7xxState {
     NPCMGMACState       gmac[2];
     NPCM7xxSDHCIState   mmc;
     NPCMPSPIState       pspi[2];
-};
+    NPCMPCIERCState     pcierc;
+} NPCM7xxState;
 
 #define TYPE_NPCM7XX    "npcm7xx"
 OBJECT_DECLARE_TYPE(NPCM7xxState, NPCM7xxClass, NPCM7XX)

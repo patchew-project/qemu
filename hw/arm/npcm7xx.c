@@ -47,6 +47,8 @@
 #define NPCM7XX_CLK_BA          (0xf0801000)
 #define NPCM7XX_MC_BA           (0xf0824000)
 #define NPCM7XX_RNG_BA          (0xf000b000)
+#define NPCM7XX_PCIERC_BA       (0xe1000000)
+#define NPCM7XX_PCIE_ROOT_BA    (0xe8000000)
 
 /* USB Host modules */
 #define NPCM7XX_EHCI_BA         (0xf0806000)
@@ -148,6 +150,7 @@ enum NPCM7xxInterrupt {
     NPCM7XX_GPIO5_IRQ,
     NPCM7XX_GPIO6_IRQ,
     NPCM7XX_GPIO7_IRQ,
+    NPCM7XX_PCIE_RC_IRQ         = 127,
 };
 
 /* Total number of GIC interrupts, including internal Cortex-A9 interrupts. */
@@ -475,6 +478,7 @@ static void npcm7xx_init(Object *obj)
     }
 
     object_initialize_child(obj, "mmc", &s->mmc, TYPE_NPCM7XX_SDHCI);
+    object_initialize_child(obj, "pcierc", &s->pcierc, TYPE_NPCM_PCIERC);
 }
 
 static void npcm7xx_realize(DeviceState *dev, Error **errp)
@@ -780,6 +784,12 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
         sysbus_mmio_map(sbd, 0, npcm7xx_pspi_addr[i]);
         sysbus_connect_irq(sbd, 0, npcm7xx_irq(s, irq));
     }
+
+    /* PCIe RC */
+    sysbus_realize(SYS_BUS_DEVICE(&s->pcierc), &error_abort);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->pcierc), 0, NPCM7XX_PCIERC_BA);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->pcierc), 0,
+                       npcm7xx_irq(s, NPCM7XX_PCIE_RC_IRQ));
 
     create_unimplemented_device("npcm7xx.shm",          0xc0001000,   4 * KiB);
     create_unimplemented_device("npcm7xx.vdmx",         0xe0800000,   4 * KiB);

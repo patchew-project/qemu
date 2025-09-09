@@ -487,6 +487,7 @@ config NPCM7XX
     select UNIMP
     select PCA954X
     select USB_OHCI_SYSBUS
+    select NPCM_PCIERC
 
 config NPCM8XX
     bool
