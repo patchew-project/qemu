@@ -767,7 +767,7 @@ struct MachineState {
         } \
     } while (0)
 
-#define DEFINE_MACHINE(namestr, machine_initfn) \
+#define DEFINE_MACHINE_IMPL(namestr, machine_initfn, issecure, isinsecure) \
     static void machine_initfn##_class_init(ObjectClass *oc, const void *data) \
     { \
         MachineClass *mc = MACHINE_CLASS(oc); \
@@ -777,12 +777,23 @@ struct MachineState {
         .name       = MACHINE_TYPE_NAME(namestr), \
         .parent     = TYPE_MACHINE, \
         .class_init = machine_initfn##_class_init, \
+        .secure     = issecure, \
+        .insecure   = isinsecure, \
     }; \
     static void machine_initfn##_register_types(void) \
     { \
         type_register_static(&machine_initfn##_typeinfo); \
     } \
     type_init(machine_initfn##_register_types)
+
+#define DEFINE_MACHINE(namestr, machine_initfn) \
+    DEFINE_MACHINE_IMPL(namestr, machine_initfn, false, false)
+
+#define DEFINE_SECURE_MACHINE(namestr, machine_initfn) \
+    DEFINE_MACHINE_IMPL(namestr, machine_initfn, true, false)
+
+#define DEFINE_INSECURE_MACHINE(namestr, machine_initfn) \
+    DEFINE_MACHINE_IMPL(namestr, machine_initfn, false, true)
 
 extern GlobalProperty hw_compat_10_1[];
 extern const size_t hw_compat_10_1_len;

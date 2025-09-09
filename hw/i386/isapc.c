@@ -186,4 +186,4 @@ static void isapc_machine_options(MachineClass *m)
 }
 
 DEFINE_PC_MACHINE(isapc, "isapc", pc_init_isa,
-                  isapc_machine_options);
+                  isapc_machine_options, false);

@@ -389,6 +389,7 @@ static const TypeInfo xen_pvh_info = {
     .instance_size = sizeof(XenPVHMachineState),
     .class_size = sizeof(XenPVHMachineClass),
     .class_init = xen_pvh_class_init,
+    .secure = true,
 };
 
 static void xen_pvh_register_types(void)
