@@ -1672,6 +1672,12 @@ void machine_run_board_init(MachineState *machine, const char *mem_path, Error *
 {
     ERRP_GUARD();
     MachineClass *machine_class = MACHINE_GET_CLASS(machine);
+    AccelClass *ac = ACCEL_GET_CLASS(machine->accelerator);
+
+    if (!machine_check_security(machine, OBJECT_CLASS(machine_class), errp) ||
+        !machine_check_security(machine, OBJECT_CLASS(ac), errp)) {
+        return;
+    }
 
     /* This checkpoint is required by replay to separate prior clock
        reading from the other reads, because timer polling functions query
