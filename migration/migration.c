@@ -74,6 +74,11 @@
 
 #define INMIGRATE_DEFAULT_EXIT_ON_ERROR true
 
+#define INET_SOCKET_DEFAULT_KEEP_ALIVE true
+#define INET_SOCKET_DEFAULT_KEEP_ALIVE_COUNT 5
+#define INET_SOCKET_DEFAULT_KEEP_ALIVE_IDLE 60
+#define INET_SOCKET_DEFAULT_KEEP_ALIVE_INTERVAL 30
+
 static NotifierWithReturnList migration_state_notifiers[] = {
     NOTIFIER_ELEM_INIT(migration_state_notifiers, MIG_MODE_NORMAL),
     NOTIFIER_ELEM_INIT(migration_state_notifiers, MIG_MODE_CPR_REBOOT),
@@ -718,6 +723,36 @@ bool migrate_uri_parse(const char *uri, MigrationChannel **channel,
     return true;
 }
 
+static void migration_address_apply_defaults(MigrationAddress *addr)
+{
+    if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET &&
+        addr->u.socket.type == SOCKET_ADDRESS_TYPE_INET) {
+        InetSocketAddress *inet = &addr->u.socket.u.inet;
+        if (!inet->has_keep_alive) {
+            inet->has_keep_alive = true;
+            inet->keep_alive = INET_SOCKET_DEFAULT_KEEP_ALIVE;
+        }
+#ifdef HAVE_TCP_KEEPCNT
+        if (!inet->has_keep_alive_count) {
+            inet->has_keep_alive_count = true;
+            inet->keep_alive_count = INET_SOCKET_DEFAULT_KEEP_ALIVE_COUNT;
+        }
+#endif
+#ifdef HAVE_TCP_KEEPIDLE
+        if (!inet->has_keep_alive_idle) {
+            inet->has_keep_alive_idle = true;
+            inet->keep_alive_idle = INET_SOCKET_DEFAULT_KEEP_ALIVE_IDLE;
+        }
+#endif
+#ifdef HAVE_TCP_KEEPINTVL
+        if (!inet->has_keep_alive_interval) {
+            inet->has_keep_alive_interval = true;
+            inet->keep_alive_interval = INET_SOCKET_DEFAULT_KEEP_ALIVE_INTERVAL;
+        }
+#endif
+    }
+}
+
 static bool
 migration_incoming_state_setup(MigrationIncomingState *mis, Error **errp)
 {
@@ -774,6 +809,8 @@ static void qemu_start_incoming_migration(const char *uri, bool has_channels,
         }
         addr = channel->addr;
     }
+
+    migration_address_apply_defaults(addr);
 
     /* transport mechanism not suitable for migration? */
     if (!migration_transport_compatible(addr, errp)) {
@@ -2231,6 +2268,8 @@ void qmp_migrate(const char *uri, bool has_channels,
         }
         addr = channel->addr;
     }
+
+    migration_address_apply_defaults(addr);
 
     /* transport mechanism not suitable for migration? */
     if (!migration_transport_compatible(addr, errp)) {

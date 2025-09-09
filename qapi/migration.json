@@ -1639,6 +1639,12 @@
 #
 # Migration endpoint configuration.
 #
+# If transport is socket of type inet, it has the following defaults:
+# keep-alive: true, keep-alive-count: 5, keep-alive-idle: 60 seconds,
+# keep-alive-interval: 30 seconds.  System defaults can be used by
+# explicitly setting these parameters to 0.  See `InetSocketAddress` for
+# more details.
+#
 # @transport: The migration stream transport mechanism
 #
 # Since: 8.2
