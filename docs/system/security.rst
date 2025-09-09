@@ -49,6 +49,47 @@ Bugs affecting the non-virtualization use case are not considered security
 bugs at this time.  Users with non-virtualization use cases must not rely on
 QEMU to provide guest isolation or any security guarantees.
 
+Security status reporting
+'''''''''''''''''''''''''
+
+QEMU is progressively working to annotate object types to explicitly state
+whether they are considered to provide a security boundary or not.
+
+When the `require-secure=yes` parameter is given to the `-machine` argument
+attempts to use any type which is not explicitly considered secure will
+result in an error.
+
+When the `prohibit-insecure=yes` parameter is given to the `-machine` argument
+attempts to use any type which is explicitly considered insecure will result
+in an error.
+
+This gives three effective levels of control over the security
+
+ * default: any type can be used
+ * `prohibit-insecure=yes`: only exclude explicitly insecure types, allow
+   those which have no security statement, or which are explicitly secure
+ * `require-secure=yes`: only allow explicitly secure types, exclude those
+   which have no security statement, or which are explicitly insecure
+
+Violations of the requested policy will result in QEMU preventing the launch
+of the VM, or preventing hot-add of the device in the monitor.
+
+When considering whether to treat a flaw as a security issue, the following
+criteria will be used
+
+ * Type marked 'secure': eligible for security process with embargo where
+   applicable
+ * Type marked 'insecure': ineligible for security process, will be triaged
+   on the public mailing list / bug trackers
+ * Type with no security statement: "Virtualization" vs "Non-Virtualization"
+   use case will be used as a guide to decide on handling process, evaluated
+   upon bug report
+
+Machine type security status can be queried using '-machine help' or the
+QMP 'query-machines' command.
+
+Device type security status can be queried using '-device help'.
+
 Architecture
 ------------
 
