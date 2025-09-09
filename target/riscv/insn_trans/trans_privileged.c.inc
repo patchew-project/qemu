@@ -160,3 +160,33 @@ static bool trans_sfence_vma(DisasContext *ctx, arg_sfence_vma *a)
 #endif
     return false;
 }
+
+#define REQUIRE_SMSDID(ctx) do {          \
+    if (!ctx->cfg_ptr->ext_smsdid) {      \
+        return false;                     \
+    }                                     \
+} while (0)
+
+static bool do_mfence_spa(DisasContext *ctx)
+{
+#ifndef CONFIG_USER_ONLY
+    REQUIRE_SMSDID(ctx);
+    if (ctx->priv != PRV_M) {
+        return false;
+    }
+    decode_save_opc(ctx, 0);
+    gen_helper_tlb_flush_all(tcg_env);
+    return true;
+#endif
+    return false;
+}
+
+static bool trans_mfence_spa(DisasContext *ctx, arg_mfence_spa *a)
+{
+    return do_mfence_spa(ctx);
+}
+
+static bool trans_minval_spa(DisasContext *ctx, arg_minval_spa *a)
+{
+    return do_mfence_spa(ctx);
+}
