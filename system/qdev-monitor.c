@@ -164,6 +164,12 @@ static void qdev_print_devinfo(DeviceClass *dc)
     if (!dc->user_creatable) {
         qemu_printf(", no-user");
     }
+    if (object_class_is_secure(OBJECT_CLASS(dc))) {
+        qemu_printf(", secure");
+    }
+    if (object_class_is_insecure(OBJECT_CLASS(dc))) {
+        qemu_printf(", insecure");
+    }
     qemu_printf("\n");
 }
 
