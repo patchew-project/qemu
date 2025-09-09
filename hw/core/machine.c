@@ -440,6 +440,34 @@ static void machine_set_dump_guest_core(Object *obj, bool value, Error **errp)
     ms->dump_guest_core = value;
 }
 
+static bool machine_get_require_secure(Object *obj, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    return ms->require_secure;
+}
+
+static void machine_set_require_secure(Object *obj, bool value, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    ms->require_secure = value;
+}
+
+static bool machine_get_prohibit_insecure(Object *obj, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    return ms->prohibit_insecure;
+}
+
+static void machine_set_prohibit_insecure(Object *obj, bool value, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    ms->prohibit_insecure = value;
+}
+
 static bool machine_get_mem_merge(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
@@ -1245,6 +1273,17 @@ static void machine_class_init(ObjectClass *oc, const void *data)
         NULL, NULL);
     object_class_property_set_description(oc, "memory",
         "Memory size configuration");
+
+    object_class_property_add_bool(oc, "require-secure",
+        machine_get_require_secure, machine_set_require_secure);
+    object_class_property_set_description(oc, "require-secure",
+        "Define whether explicitly secure impls are required");
+
+    object_class_property_add_bool(oc, "prohibit-insecure",
+        machine_get_prohibit_insecure, machine_set_prohibit_insecure);
+    object_class_property_set_description(oc, "prohibit-insecure",
+        "Define whether explicitly insecure impls are prohibited");
+
 }
 
 static void machine_class_base_init(ObjectClass *oc, const void *data)
@@ -1269,6 +1308,8 @@ static void machine_initfn(Object *obj)
     MachineClass *mc = MACHINE_GET_CLASS(obj);
 
     ms->dump_guest_core = true;
+    ms->require_secure = false;
+    ms->prohibit_insecure = false;
     ms->mem_merge = (QEMU_MADV_MERGEABLE != QEMU_MADV_INVALID);
     ms->enable_graphics = true;
     ms->kernel_cmdline = g_strdup("");
@@ -1360,6 +1401,25 @@ int machine_phandle_start(MachineState *machine)
 bool machine_dump_guest_core(MachineState *machine)
 {
     return machine->dump_guest_core;
+}
+
+bool machine_check_security(MachineState *machine,
+                            ObjectClass *cls,
+                            Error **errp)
+{
+    if (machine->require_secure &&
+        !object_class_is_secure(cls)) {
+        error_setg(errp, "Type '%s' is not declared as secure",
+                   object_class_get_name(cls));
+        return false;
+    }
+    if (machine->prohibit_insecure &&
+        object_class_is_insecure(cls)) {
+        error_setg(errp, "Type '%s' is declared as insecure",
+                   object_class_get_name(cls));
+        return false;
+    }
+    return true;
 }
 
 bool machine_mem_merge(MachineState *machine)

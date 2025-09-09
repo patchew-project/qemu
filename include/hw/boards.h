@@ -36,6 +36,9 @@ void machine_run_board_init(MachineState *machine, const char *mem_path, Error *
 bool machine_usb(MachineState *machine);
 int machine_phandle_start(MachineState *machine);
 bool machine_dump_guest_core(MachineState *machine);
+bool machine_check_security(MachineState *machine,
+                            ObjectClass *cls,
+                            Error **errp);
 bool machine_mem_merge(MachineState *machine);
 bool machine_require_guest_memfd(MachineState *machine);
 HotpluggableCPUList *machine_query_hotpluggable_cpus(MachineState *machine);
@@ -403,6 +406,8 @@ struct MachineState {
     int phandle_start;
     char *dt_compatible;
     bool dump_guest_core;
+    bool require_secure;
+    bool prohibit_insecure;
     bool mem_merge;
     bool usb;
     bool usb_disabled;
