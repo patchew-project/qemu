@@ -47,6 +47,8 @@ struct InterfaceImpl
 
 enum TypeImplFlags {
     TYPE_IMPL_FLAG_ABSTRACT = (1 << 0),
+    TYPE_IMPL_FLAG_SECURE = (1 << 1),
+    TYPE_IMPL_FLAG_INSECURE = (1 << 2),
 };
 
 struct TypeImpl
@@ -133,6 +135,13 @@ static TypeImpl *type_new(const TypeInfo *info)
 
     if (info->abstract) {
         ti->flags |= TYPE_IMPL_FLAG_ABSTRACT;
+    }
+    assert(!(info->secure && info->insecure));
+    if (info->secure) {
+        ti->flags |= TYPE_IMPL_FLAG_SECURE;
+    }
+    if (info->insecure) {
+        ti->flags |= TYPE_IMPL_FLAG_INSECURE;
     }
 
     for (i = 0; info->interfaces && info->interfaces[i].type; i++) {
@@ -1052,6 +1061,16 @@ ObjectClass *object_get_class(Object *obj)
 bool object_class_is_abstract(ObjectClass *klass)
 {
     return klass->type->flags & TYPE_IMPL_FLAG_ABSTRACT;
+}
+
+bool object_class_is_secure(ObjectClass *klass)
+{
+    return klass->type->flags & TYPE_IMPL_FLAG_SECURE;
+}
+
+bool object_class_is_insecure(ObjectClass *klass)
+{
+    return klass->type->flags & TYPE_IMPL_FLAG_INSECURE;
 }
 
 const char *object_class_get_name(ObjectClass *klass)
