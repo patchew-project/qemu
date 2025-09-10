@@ -29,6 +29,9 @@ bool message_with_timestamp;
 bool error_with_guestname;
 const char *error_guest_name;
 
+typedef void (*error_print_func)(void *opaque, const char *fmt, ...);
+typedef void (*error_print_vfunc)(void *opaque, const char *fmt, va_list ap);
+
 /*
  * Print to current monitor if we have one, else to stderr.
  */
@@ -151,34 +154,34 @@ void loc_set_file(const char *fname, int lno)
 /*
  * Print current location to current monitor if we have one, else to stderr.
  */
-static void print_loc(void)
+static void print_loc(bool cur, error_print_func print_func, void *print_opaque)
 {
     const char *sep = "";
     int i;
     const char *const *argp;
 
-    if (!monitor_cur_hmp() && g_get_prgname()) {
-        error_printf("%s:", g_get_prgname());
+    if (!cur && g_get_prgname()) {
+        print_func(print_opaque, "%s:", g_get_prgname());
         sep = " ";
     }
     switch (cur_loc->kind) {
     case LOC_CMDLINE:
         argp = cur_loc->ptr;
         for (i = 0; i < cur_loc->num; i++) {
-            error_printf("%s%s", sep, argp[i]);
+            print_func(print_opaque, "%s%s", sep, argp[i]);
             sep = " ";
         }
-        error_printf(": ");
+        print_func(print_opaque, ": ");
         break;
     case LOC_FILE:
-        error_printf("%s:", (const char *)cur_loc->ptr);
+        print_func(print_opaque, "%s:", (const char *)cur_loc->ptr);
         if (cur_loc->num) {
-            error_printf("%d:", cur_loc->num);
+            print_func(print_opaque, "%d:", cur_loc->num);
         }
-        error_printf(" ");
+        print_func(print_opaque, " ");
         break;
     default:
-        error_printf("%s", sep);
+        print_func(print_opaque, "%s", sep);
     }
 }
 
@@ -199,34 +202,55 @@ real_time_iso8601(void)
 G_GNUC_PRINTF(2, 0)
 static void vreport(report_type type, const char *fmt, va_list ap)
 {
+    /*
+     * Calling monitor_cur_hmp() will acquire/release mutexes,
+     * which triggers trace probes, which can trigger
+     * qemu_log calls, which would interleave with output
+     * from this. Hence cache the monitor handle upfront
+     * so any tracing appears before we start outputting.
+     */
+    Monitor *cur = monitor_cur_hmp();
+    error_print_func print_func;
+    error_print_vfunc print_vfunc;
+    void *print_opaque;
     gchar *timestr;
 
-    if (message_with_timestamp && !monitor_cur_hmp()) {
+    if (cur) {
+        print_func = (error_print_func)monitor_printf;
+        print_vfunc = (error_print_vfunc)monitor_vprintf;
+        print_opaque = cur;
+    } else {
+        print_func = (error_print_func)fprintf;
+        print_vfunc = (error_print_vfunc)vfprintf;
+        print_opaque = stderr;
+    }
+
+    if (message_with_timestamp && !cur) {
         timestr = real_time_iso8601();
-        error_printf("%s ", timestr);
+        print_func(print_opaque, "%s ", timestr);
         g_free(timestr);
     }
 
     /* Only prepend guest name if -msg guest-name and -name guest=... are set */
-    if (error_with_guestname && error_guest_name && !monitor_cur_hmp()) {
-        error_printf("%s ", error_guest_name);
+    if (error_with_guestname && error_guest_name && !cur) {
+        print_func(print_opaque, "%s ", error_guest_name);
     }
 
-    print_loc();
+    print_loc(!!cur, print_func, print_opaque);
 
     switch (type) {
     case REPORT_TYPE_ERROR:
         break;
     case REPORT_TYPE_WARNING:
-        error_printf("warning: ");
+        print_func(print_opaque, "warning: ");
         break;
     case REPORT_TYPE_INFO:
-        error_printf("info: ");
+        print_func(print_opaque, "info: ");
         break;
     }
 
-    error_vprintf(fmt, ap);
-    error_printf("\n");
+    print_vfunc(print_opaque, fmt, ap);
+    print_func(print_opaque, "\n");
 }
 
 /*

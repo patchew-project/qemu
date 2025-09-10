@@ -30,3 +30,8 @@ int monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
 {
     abort();
 }
+
+int monitor_printf(Monitor *mon, const char *fmt, ...)
+{
+    abort();
+}

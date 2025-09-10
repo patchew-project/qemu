@@ -76,6 +76,7 @@ Monitor *monitor_cur_hmp(void) { return cur_mon; }
 bool monitor_cur_is_qmp(void) { return false; }
 Monitor *monitor_set_cur(Coroutine *co, Monitor *mon) { abort(); }
 int monitor_vprintf(Monitor *mon, const char *fmt, va_list ap) { abort(); }
+int monitor_printf(Monitor *mon, const char *fmt, ...) { abort(); }
 
 #ifndef _WIN32
 static void test_socket_fd_pass_name_good(void)
