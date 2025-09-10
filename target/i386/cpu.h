@@ -52,8 +52,8 @@ enum {
     R_EBP = 5,
     R_ESI = 6,
     R_EDI = 7,
-    R_R8 = 8,
-    R_R9 = 9,
+    R_R8 =  8,
+    R_R9 =  9,
     R_R10 = 10,
     R_R11 = 11,
     R_R12 = 12,
@@ -72,14 +72,14 @@ enum {
 };
 
 typedef enum X86Seg {
-    R_ES = 0,
-    R_CS = 1,
-    R_SS = 2,
-    R_DS = 3,
-    R_FS = 4,
-    R_GS = 5,
+    R_ES =   0,
+    R_CS =   1,
+    R_SS =   2,
+    R_DS =   3,
+    R_FS =   4,
+    R_GS =   5,
     R_LDTR = 6,
-    R_TR = 7,
+    R_TR =   7,
 } X86Seg;
 
 /* segment descriptor fields */
@@ -246,18 +246,18 @@ typedef enum X86Seg {
 #define CR4_OSFXSR_SHIFT 9
 #define CR4_OSFXSR_MASK (1U << CR4_OSFXSR_SHIFT)
 #define CR4_OSXMMEXCPT_MASK  (1U << 10)
-#define CR4_UMIP_MASK   (1U << 11)
-#define CR4_LA57_MASK   (1U << 12)
-#define CR4_VMXE_MASK   (1U << 13)
-#define CR4_SMXE_MASK   (1U << 14)
+#define CR4_UMIP_MASK     (1U << 11)
+#define CR4_LA57_MASK     (1U << 12)
+#define CR4_VMXE_MASK     (1U << 13)
+#define CR4_SMXE_MASK     (1U << 14)
 #define CR4_FSGSBASE_MASK (1U << 16)
-#define CR4_PCIDE_MASK  (1U << 17)
-#define CR4_OSXSAVE_MASK (1U << 18)
-#define CR4_SMEP_MASK   (1U << 20)
-#define CR4_SMAP_MASK   (1U << 21)
-#define CR4_PKE_MASK   (1U << 22)
-#define CR4_PKS_MASK   (1U << 24)
-#define CR4_LAM_SUP_MASK (1U << 28)
+#define CR4_PCIDE_MASK    (1U << 17)
+#define CR4_OSXSAVE_MASK  (1U << 18) target/i386/cpu.h
+#define CR4_SMEP_MASK     (1U << 20)
+#define CR4_SMAP_MASK     (1U << 21)
+#define CR4_PKE_MASK      (1U << 22)
+#define CR4_PKS_MASK      (1U << 24)
+#define CR4_LAM_SUP_MASK  (1U << 28)
 
 #ifdef TARGET_X86_64
 #define CR4_FRED_MASK   (1ULL << 32)
@@ -280,15 +280,15 @@ typedef enum X86Seg {
 #define DR6_BT          (1 << 15)
 #define DR6_FIXED_1     0xffff0ff0
 
-#define DR7_GD          (1 << 13)
-#define DR7_TYPE_SHIFT  16
-#define DR7_LEN_SHIFT   18
-#define DR7_FIXED_1     0x00000400
+#define DR7_GD               (1 << 13)
+#define DR7_TYPE_SHIFT       16
+#define DR7_LEN_SHIFT        18
+#define DR7_FIXED_1          0x00000400
 #define DR7_GLOBAL_BP_MASK   0xaa
 #define DR7_LOCAL_BP_MASK    0x55
 #define DR7_MAX_BP           4
 #define DR7_TYPE_BP_INST     0x0
-#define DR7_TYPE_DATA_WR     0x1
+#define DR7_TYPE_D target/i386/cpu.hATA_WR     0x1
 #define DR7_TYPE_IO_RW       0x2
 #define DR7_TYPE_DATA_RW     0x3
 
@@ -399,12 +399,12 @@ typedef enum X86Seg {
 #define MSR_IA32_CORE_CAPABILITY        0xcf
 
 #define MSR_IA32_ARCH_CAPABILITIES      0x10a
-#define ARCH_CAP_TSX_CTRL_MSR		(1<<7)
-
+#define ARCH_CAP_TSX_CTRL_MSR           (1<<7)
+ target/i386/cpu.h
 #define MSR_IA32_PERF_CAPABILITIES      0x345
 #define PERF_CAP_LBR_FMT                0x3f
 
-#define MSR_IA32_TSX_CTRL		0x122
+#define MSR_IA32_TSX_CTRL               0x122
 #define MSR_IA32_TSCDEADLINE            0x6e0
 #define MSR_IA32_PKRS                   0x6e1
 #define MSR_RAPL_POWER_UNIT             0x00000606
@@ -554,24 +554,24 @@ typedef enum X86Seg {
 #define MSR_IA32_XSS                    0x00000da0
 #define MSR_IA32_UMWAIT_CONTROL         0xe1
 
-#define MSR_IA32_VMX_BASIC              0x00000480
-#define MSR_IA32_VMX_PINBASED_CTLS      0x00000481
-#define MSR_IA32_VMX_PROCBASED_CTLS     0x00000482
-#define MSR_IA32_VMX_EXIT_CTLS          0x00000483
-#define MSR_IA32_VMX_ENTRY_CTLS         0x00000484
-#define MSR_IA32_VMX_MISC               0x00000485
-#define MSR_IA32_VMX_CR0_FIXED0         0x00000486
-#define MSR_IA32_VMX_CR0_FIXED1         0x00000487
-#define MSR_IA32_VMX_CR4_FIXED0         0x00000488
-#define MSR_IA32_VMX_CR4_FIXED1         0x00000489
-#define MSR_IA32_VMX_VMCS_ENUM          0x0000048a
-#define MSR_IA32_VMX_PROCBASED_CTLS2    0x0000048b
-#define MSR_IA32_VMX_EPT_VPID_CAP       0x0000048c
+#define MSR_IA32_VMX_BASIC               0x00000480
+#define MSR_IA32_VMX_PINBASED_CTLS       0x00000481
+#define MSR_IA32_VMX_PROCBASED_CTLS      0x00000482
+#define MSR_IA32_VMX_EXIT_CTLS           0x00000483
+#define MSR_IA32_VMX_ENTRY_CTLS          0x00000484
+#define MSR_IA32_VMX_MISC                0x00000485
+#define MSR_IA32_VMX_CR0_FIXED0          0x00000486
+#define MSR_IA32_VMX_CR0_FIXED1          0x00000487
+#define MSR_IA32_VMX_CR4_FIXED0          0x00000488
+#define MSR_IA32_VMX_CR4_FIXED1          0x00000489
+#define MSR_IA32_VMX_VMCS_ENUM           0x0000048a
+#define MSR_IA32_VMX_PROCBASED_CTLS2     0x0000048b
+#define MSR_IA32_VMX_EPT_VPID_CAP        0x0000048c
 #define MSR_IA32_VMX_TRUE_PINBASED_CTLS  0x0000048d
 #define MSR_IA32_VMX_TRUE_PROCBASED_CTLS 0x0000048e
 #define MSR_IA32_VMX_TRUE_EXIT_CTLS      0x0000048f
 #define MSR_IA32_VMX_TRUE_ENTRY_CTLS     0x00000490
-#define MSR_IA32_VMX_VMFUNC             0x00000491
+#define MSR_IA32_VMX_VMFUNC              0x00000491
 
 #define MSR_APIC_START                  0x00000800
 #define MSR_APIC_END                    0x000008ff
@@ -666,8 +666,8 @@ typedef enum FeatureWord {
     FEAT_SGX_12_0_EAX,  /* CPUID[EAX=0x12,ECX=0].EAX (SGX) */
     FEAT_SGX_12_0_EBX,  /* CPUID[EAX=0x12,ECX=0].EBX (SGX MISCSELECT[31:0]) */
     FEAT_SGX_12_1_EAX,  /* CPUID[EAX=0x12,ECX=1].EAX (SGX ATTRIBUTES[31:0]) */
-    FEAT_XSAVE_XSS_LO,     /* CPUID[EAX=0xd,ECX=1].ECX */
-    FEAT_XSAVE_XSS_HI,     /* CPUID[EAX=0xd,ECX=1].EDX */
+    FEAT_XSAVE_XSS_LO,  /* CPUID[EAX=0xd,ECX=1].ECX */
+    FEAT_XSAVE_XSS_HI,  /* CPUID[EAX=0xd,ECX=1].EDX */
     FEAT_7_1_ECX,       /* CPUID[EAX=7,ECX=1].ECX */
     FEAT_7_1_EDX,       /* CPUID[EAX=7,ECX=1].EDX */
     FEAT_7_2_EDX,       /* CPUID[EAX=7,ECX=2].EDX */
@@ -688,59 +688,59 @@ typedef uint64_t FeatureWordArray[FEATURE_WORDS];
 uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 
 /* cpuid_features bits */
-#define CPUID_FP87 (1U << 0)
-#define CPUID_VME  (1U << 1)
-#define CPUID_DE   (1U << 2)
-#define CPUID_PSE  (1U << 3)
-#define CPUID_TSC  (1U << 4)
-#define CPUID_MSR  (1U << 5)
-#define CPUID_PAE  (1U << 6)
-#define CPUID_MCE  (1U << 7)
-#define CPUID_CX8  (1U << 8)
-#define CPUID_APIC (1U << 9)
-#define CPUID_SEP  (1U << 11) /* sysenter/sysexit */
-#define CPUID_MTRR (1U << 12)
-#define CPUID_PGE  (1U << 13)
-#define CPUID_MCA  (1U << 14)
-#define CPUID_CMOV (1U << 15)
-#define CPUID_PAT  (1U << 16)
+#define CPUID_FP87    (1U << 0)
+#define CPUID_VME     (1U << 1)
+#define CPUID_DE      (1U << 2)
+#define CPUID_PSE     (1U << 3)
+#define CPUID_TSC     (1U << 4)
+#define CPUID_MSR     (1U << 5)
+#define CPUID_PAE     (1U << 6)
+#define CPUID_MCE     (1U << 7)
+#define CPUID_CX8     (1U << 8)
+#define CPUID_APIC    (1U << 9)
+#define CPUID_SEP     (1U << 11) /* sysenter/sysexit */
+#define CPUID_MTRR    (1U << 12)
+#define CPUID_PGE     (1U << 13)
+#define CPUID_MCA     (1U << 14)
+#define CPUID_CMOV    (1U << 15)
+#define CPUID_PAT     (1U << 16)
 #define CPUID_PSE36   (1U << 17)
-#define CPUID_PN   (1U << 18)
+#define CPUID_PN      (1U << 18)
 #define CPUID_CLFLUSH (1U << 19)
-#define CPUID_DTS (1U << 21)
-#define CPUID_ACPI (1U << 22)
-#define CPUID_MMX  (1U << 23)
-#define CPUID_FXSR (1U << 24)
-#define CPUID_SSE  (1U << 25)
-#define CPUID_SSE2 (1U << 26)
-#define CPUID_SS (1U << 27)
-#define CPUID_HT (1U << 28)
-#define CPUID_TM (1U << 29)
-#define CPUID_IA64 (1U << 30)
-#define CPUID_PBE (1U << 31)
+#define CPUID_DTS     (1U << 21)
+#define CPUID_ACPI    (1U << 22)
+#define CPUID_MMX     (1U << 23)
+#define CPUID_FXSR    (1U << 24)
+#define CPUID_SSE     (1U << 25)
+#define CPUID_SSE2    (1U << 26)
+#define CPUID_SS      (1U << 27)
+#define CPUID_HT      (1U << 28)
+#define CPUID_TM      (1U << 29)
+#define CPUID_IA64    (1U << 30)
+#define CPUID_PBE     (1U << 31)
 
-#define CPUID_EXT_SSE3     (1U << 0)
+#define CPUID_EXT_SSE3      (1U << 0)
 #define CPUID_EXT_PCLMULQDQ (1U << 1)
-#define CPUID_EXT_DTES64   (1U << 2)
-#define CPUID_EXT_MONITOR  (1U << 3)
-#define CPUID_EXT_DSCPL    (1U << 4)
-#define CPUID_EXT_VMX      (1U << 5)
-#define CPUID_EXT_SMX      (1U << 6)
-#define CPUID_EXT_EST      (1U << 7)
-#define CPUID_EXT_TM2      (1U << 8)
-#define CPUID_EXT_SSSE3    (1U << 9)
-#define CPUID_EXT_CID      (1U << 10)
-#define CPUID_EXT_FMA      (1U << 12)
-#define CPUID_EXT_CX16     (1U << 13)
-#define CPUID_EXT_XTPR     (1U << 14)
-#define CPUID_EXT_PDCM     (1U << 15)
-#define CPUID_EXT_PCID     (1U << 17)
-#define CPUID_EXT_DCA      (1U << 18)
-#define CPUID_EXT_SSE41    (1U << 19)
-#define CPUID_EXT_SSE42    (1U << 20)
-#define CPUID_EXT_X2APIC   (1U << 21)
-#define CPUID_EXT_MOVBE    (1U << 22)
-#define CPUID_EXT_POPCNT   (1U << 23)
+#define CPUID_EXT_DTES64    (1U << 2)
+#define CPUID_EXT_MONITOR   (1U << 3)
+#define CPUID_EXT_DSCPL     (1U << 4)
+#define CPUID_EXT_VMX       (1U << 5)
+#define CPUID_EXT_SMX       (1U << 6)
+#define CPUID_EXT_EST       (1U << 7)
+#define CPUID_EXT_TM2       (1U << 8)
+#define CPUID_EXT_SSSE3     (1U << 9)
+#define CPUID_EXT_CID       (1U << 10)
+#define CPUID_EXT_FMA       (1U << 12)
+#define CPUID_EXT_CX16      (1U << 13)
+#define CPUID_EXT_XTPR      (1U << 14)
+#define CPUID_EXT_PDCM      (1U << 15)
+#define CPUID_EXT_PCID      (1U << 17)
+#define CPUID_EXT_DCA       (1U << 18)
+#define CPUID_EXT_SSE41     (1U << 19)
+#define CPUID_EXT_SSE42     (1U << 20)
+#define CPUID_EXT_X2APIC    (1U << 21)
+#define CPUID_EXT_MOVBE     (1U << 22)
+#define CPUID_EXT_POPCNT    (1U << 23)
 #define CPUID_EXT_TSC_DEADLINE_TIMER (1U << 24)
 #define CPUID_EXT_AES      (1U << 25)
 #define CPUID_EXT_XSAVE    (1U << 26)
@@ -750,34 +750,34 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 #define CPUID_EXT_RDRAND   (1U << 30)
 #define CPUID_EXT_HYPERVISOR  (1U << 31)
 
-#define CPUID_EXT2_FPU     (1U << 0)
-#define CPUID_EXT2_VME     (1U << 1)
-#define CPUID_EXT2_DE      (1U << 2)
-#define CPUID_EXT2_PSE     (1U << 3)
-#define CPUID_EXT2_TSC     (1U << 4)
-#define CPUID_EXT2_MSR     (1U << 5)
-#define CPUID_EXT2_PAE     (1U << 6)
-#define CPUID_EXT2_MCE     (1U << 7)
-#define CPUID_EXT2_CX8     (1U << 8)
-#define CPUID_EXT2_APIC    (1U << 9)
-#define CPUID_EXT2_SYSCALL (1U << 11)
-#define CPUID_EXT2_MTRR    (1U << 12)
-#define CPUID_EXT2_PGE     (1U << 13)
-#define CPUID_EXT2_MCA     (1U << 14)
-#define CPUID_EXT2_CMOV    (1U << 15)
-#define CPUID_EXT2_PAT     (1U << 16)
-#define CPUID_EXT2_PSE36   (1U << 17)
-#define CPUID_EXT2_MP      (1U << 19)
-#define CPUID_EXT2_NX      (1U << 20)
-#define CPUID_EXT2_MMXEXT  (1U << 22)
-#define CPUID_EXT2_MMX     (1U << 23)
-#define CPUID_EXT2_FXSR    (1U << 24)
-#define CPUID_EXT2_FFXSR   (1U << 25)
-#define CPUID_EXT2_PDPE1GB (1U << 26)
-#define CPUID_EXT2_RDTSCP  (1U << 27)
-#define CPUID_EXT2_LM      (1U << 29)
+#define CPUID_EXT2_FPU      (1U << 0)
+#define CPUID_EXT2_VME      (1U << 1)
+#define CPUID_EXT2_DE       (1U << 2)
+#define CPUID_EXT2_PSE      (1U << 3)
+#define CPUID_EXT2_TSC      (1U << 4)
+#define CPUID_EXT2_MSR      (1U << 5)
+#define CPUID_EXT2_PAE      (1U << 6)
+#define CPUID_EXT2_MCE      (1U << 7)
+#define CPUID_EXT2_CX8      (1U << 8)
+#define CPUID_EXT2_APIC     (1U << 9)
+#define CPUID_EXT2_SYSCALL  (1U << 11)
+#define CPUID_EXT2_MTRR     (1U << 12)
+#define CPUID_EXT2_PGE      (1U << 13)
+#define CPUID_EXT2_MCA      (1U << 14)
+#define CPUID_EXT2_CMOV     (1U << 15)
+#define CPUID_EXT2_PAT      (1U << 16)
+#define CPUID_EXT2_PSE36    (1U << 17)
+#define CPUID_EXT2_MP       (1U << 19)
+#define CPUID_EXT2_NX       (1U << 20)
+#define CPUID_EXT2_MMXEXT   (1U << 22)
+#define CPUID_EXT2_MMX      (1U << 23)
+#define CPUID_EXT2_FXSR     (1U << 24)
+#define CPUID_EXT2_FFXSR    (1U << 25)
+#define CPUID_EXT2_PDPE1GB  (1U << 26)
+#define CPUID_EXT2_RDTSCP   (1U << 27)
+#define CPUID_EXT2_LM       (1U << 29)
 #define CPUID_EXT2_3DNOWEXT (1U << 30)
-#define CPUID_EXT2_3DNOW   (1U << 31)
+#define CPUID_EXT2_3DNOW    (1U << 31)
 
 /* CPUID[8000_0001].EDX bits that are aliases of CPUID[1].EDX bits on AMD CPUs */
 #define CPUID_EXT2_AMD_ALIASES (CPUID_EXT2_FPU | CPUID_EXT2_VME | \
@@ -790,28 +790,28 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
                                 CPUID_EXT2_PAT | CPUID_EXT2_PSE36 | \
                                 CPUID_EXT2_MMX | CPUID_EXT2_FXSR)
 
-#define CPUID_EXT3_LAHF_LM (1U << 0)
-#define CPUID_EXT3_CMP_LEG (1U << 1)
-#define CPUID_EXT3_SVM     (1U << 2)
-#define CPUID_EXT3_EXTAPIC (1U << 3)
-#define CPUID_EXT3_CR8LEG  (1U << 4)
-#define CPUID_EXT3_ABM     (1U << 5)
-#define CPUID_EXT3_SSE4A   (1U << 6)
+#define CPUID_EXT3_LAHF_LM  (1U << 0)
+#define CPUID_EXT3_CMP_LEG  (1U << 1)
+#define CPUID_EXT3_SVM      (1U << 2)
+#define CPUID_EXT3_EXTAPIC  (1U << 3)
+#define CPUID_EXT3_CR8LEG   (1U << 4)
+#define CPUID_EXT3_ABM      (1U << 5)
+#define CPUID_EXT3_SSE4A    (1U << 6)
 #define CPUID_EXT3_MISALIGNSSE (1U << 7)
 #define CPUID_EXT3_3DNOWPREFETCH (1U << 8)
-#define CPUID_EXT3_OSVW    (1U << 9)
-#define CPUID_EXT3_IBS     (1U << 10)
-#define CPUID_EXT3_XOP     (1U << 11)
-#define CPUID_EXT3_SKINIT  (1U << 12)
-#define CPUID_EXT3_WDT     (1U << 13)
-#define CPUID_EXT3_LWP     (1U << 15)
-#define CPUID_EXT3_FMA4    (1U << 16)
-#define CPUID_EXT3_TCE     (1U << 17)
-#define CPUID_EXT3_NODEID  (1U << 19)
-#define CPUID_EXT3_TBM     (1U << 21)
-#define CPUID_EXT3_TOPOEXT (1U << 22)
+#define CPUID_EXT3_OSVW     (1U << 9)
+#define CPUID_EXT3_IBS      (1U << 10)
+#define CPUID_EXT3_XOP      (1U << 11)
+#define CPUID_EXT3_SKINIT   (1U << 12)
+#define CPUID_EXT3_WDT      (1U << 13)
+#define CPUID_EXT3_LWP      (1U << 15)
+#define CPUID_EXT3_FMA4     (1U << 16)
+#define CPUID_EXT3_TCE      (1U << 17)
+#define CPUID_EXT3_NODEID   (1U << 19)
+#define CPUID_EXT3_TBM      (1U << 21)
+#define CPUID_EXT3_TOPOEXT  (1U << 22)
 #define CPUID_EXT3_PERFCORE (1U << 23)
-#define CPUID_EXT3_PERFNB  (1U << 24)
+#define CPUID_EXT3_PERFNB   (1U << 24)
 
 #define CPUID_SVM_NPT             (1U << 0)
 #define CPUID_SVM_LBRV            (1U << 1)
@@ -1050,7 +1050,7 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 
 /* RAS Features */
 #define CPUID_8000_0007_EBX_OVERFLOW_RECOV    (1U << 0)
-#define CPUID_8000_0007_EBX_SUCCOR      (1U << 1)
+#define CPUID_8000_0007_EBX_SUCCOR            (1U << 1)
 
 /* (Old) KVM paravirtualized clocksource */
 #define CPUID_KVM_CLOCK            (1U << KVM_FEATURE_CLOCKSOURCE)
@@ -1072,7 +1072,7 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 #define CPUID_KVM_MSI_EXT_DEST_ID  (1U << KVM_FEATURE_MSI_EXT_DEST_ID)
 
 /* Hint to KVM that vCPUs expect never preempted for an unlimited time */
-#define CPUID_KVM_HINTS_REALTIME    (1U << KVM_HINTS_REALTIME)
+#define CPUID_KVM_HINTS_REALTIME   (1U << KVM_HINTS_REALTIME)
 
 /* CLZERO instruction */
 #define CPUID_8000_0008_EBX_CLZERO      (1U << 0)
@@ -1379,27 +1379,27 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 #define HYPERV_FEAT_TLBFLUSH_DIRECT     20
 
 #ifndef HYPERV_SPINLOCK_NEVER_NOTIFY
-#define HYPERV_SPINLOCK_NEVER_NOTIFY             0xFFFFFFFF
+#define HYPERV_SPINLOCK_NEVER_NOTIFY     0xFFFFFFFF
 #endif
 
-#define EXCP00_DIVZ	0
-#define EXCP01_DB	1
-#define EXCP02_NMI	2
-#define EXCP03_INT3	3
-#define EXCP04_INTO	4
-#define EXCP05_BOUND	5
-#define EXCP06_ILLOP	6
-#define EXCP07_PREX	7
-#define EXCP08_DBLE	8
-#define EXCP09_XERR	9
-#define EXCP0A_TSS	10
-#define EXCP0B_NOSEG	11
-#define EXCP0C_STACK	12
-#define EXCP0D_GPF	13
-#define EXCP0E_PAGE	14
-#define EXCP10_COPR	16
-#define EXCP11_ALGN	17
-#define EXCP12_MCHK	18
+#define EXCP00_DIVZ    0
+#define EXCP01_DB      1
+#define EXCP02_NMI     2
+#define EXCP03_INT3    3
+#define EXCP04_INTO    4
+#define EXCP05_BOUND   5
+#define EXCP06_ILLOP   6
+#define EXCP07_PREX    7
+#define EXCP08_DBLE    8
+#define EXCP09_XERR    9
+#define EXCP0A_TSS     10
+#define EXCP0B_NOSEG   11
+#define EXCP0C_STACK   12
+#define EXCP0D_GPF     13
+#define EXCP0E_PAGE    14
+#define EXCP10_COPR    16
+#define EXCP11_ALGN    17
+#define EXCP12_MCHK    18
 
 #define EXCP_VMEXIT     0x100 /* only for system emulation */
 #define EXCP_SYSCALL    0x101 /* only for user emulation */
@@ -1428,9 +1428,9 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
  */
 typedef enum {
     CC_OP_EFLAGS = 0,  /* all cc are explicitly computed, CC_SRC = flags */
-    CC_OP_ADCX = 1,    /* CC_DST = C, CC_SRC = rest.  */
-    CC_OP_ADOX = 2,    /* CC_SRC2 = O, CC_SRC = rest.  */
-    CC_OP_ADCOX = 3,   /* CC_DST = C, CC_SRC2 = O, CC_SRC = rest.  */
+    CC_OP_ADCX =   1,    /* CC_DST = C, CC_SRC = rest.  */
+    CC_OP_ADOX =   2,    /* CC_SRC2 = O, CC_SRC = rest.  */
+    CC_OP_ADCOX =  3,   /* CC_DST = C, CC_SRC2 = O, CC_SRC = rest.  */
 
     /* Low 2 bits = MemOp constant for the size */
 #define CC_OP_FIRST_BWLQ CC_OP_MULB
@@ -2590,7 +2590,7 @@ static inline AddressSpace *cpu_addressspace(CPUState *cs, MemTxAttrs attrs)
  * checks with cpuid bits?
  */
 void cpu_load_efer(CPUX86State *env, uint64_t val);
-uint8_t x86_ldub_phys(CPUState *cs, hwaddr addr);
+uint8_t  x86_ldub_phys(CPUState *cs, hwaddr addr);
 uint32_t x86_lduw_phys(CPUState *cs, hwaddr addr);
 uint32_t x86_ldl_phys(CPUState *cs, hwaddr addr);
 uint64_t x86_ldq_phys(CPUState *cs, hwaddr addr);

@@ -69,15 +69,15 @@ typedef struct CPUArchState CPUMBState;
 #define MSR_CC  (1<<31)
 
 /* Machine State Register (MSR) Fields */
-#define MSR_UM (1<<11) /* User Mode */
+#define MSR_UM         (1<<11) /* User Mode */
 #define MSR_UMS        (1<<12) /* User Mode Save */
-#define MSR_VM (1<<13) /* Virtual Mode */
+#define MSR_VM         (1<<13) /* Virtual Mode */
 #define MSR_VMS        (1<<14) /* Virtual Mode Save */
 
 #define MSR_KERNEL      MSR_EE|MSR_VM
-//#define MSR_USER     MSR_KERNEL|MSR_UM|MSR_IE
+//#define MSR_USER      MSR_KERNEL|MSR_UM|MSR_IE
 #define MSR_KERNEL_VMS  MSR_EE|MSR_VMS
-//#define MSR_USER_VMS MSR_KERNEL_VMS|MSR_UMS|MSR_IE
+//#define MSR_USER_VMS  MSR_KERNEL_VMS|MSR_UMS|MSR_IE
 
 /* Exception State Register (ESR) Fields */
 #define          ESR_DIZ       (1<<11) /* Zone Protection */
@@ -121,9 +121,9 @@ typedef struct CPUArchState CPUMBState;
 #define PVR0_USE_ICACHE_MASK            0x02000000
 #define PVR0_USE_DCACHE_MASK            0x01000000
 #define PVR0_USE_MMU_MASK               0x00800000
-#define PVR0_USE_BTC			0x00400000
+#define PVR0_USE_BTC                    0x00400000
 #define PVR0_ENDI_MASK                  0x00200000
-#define PVR0_FAULT			0x00100000
+#define PVR0_FAULT                      0x00100000
 #define PVR0_VERSION_MASK               0x0000FF00
 #define PVR0_USER1_MASK                 0x000000FF
 #define PVR0_SPROT_MASK                 0x00000001
@@ -270,10 +270,10 @@ struct CPUArchState {
 /* MSR_UM               (1 << 11) */
 /* MSR_VM               (1 << 13) */
 /* ESR_ESS_MASK         [11:5]    -- unwind into iflags for unaligned excp */
-#define D_FLAG		(1 << 12)  /* Bit in ESR.  */
-#define DRTI_FLAG	(1 << 16)
-#define DRTE_FLAG	(1 << 17)
-#define DRTB_FLAG	(1 << 18)
+#define D_FLAG          (1 << 12)  /* Bit in ESR.  */
+#define DRTI_FLAG       (1 << 16)
+#define DRTE_FLAG       (1 << 17)
+#define DRTB_FLAG       (1 << 18)
 
 /* TB dependent CPUMBState.  */
 #define IFLAGS_TB_MASK  (D_FLAG | BIMM_FLAG | IMM_FLAG | \

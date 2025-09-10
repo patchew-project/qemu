@@ -175,7 +175,7 @@ unsigned i;
 unsigned char finalcount[8];
 unsigned char c;
 
-#if 0	/* untested "improvement" by DHR */
+#if 0    /* untested "improvement" by DHR */
     /* Convert context->count to a sequence of bytes
      * in finalcount.  Second element first, but
      * big-endian order within element.
@@ -216,8 +216,7 @@ unsigned char c;
 
 #define BUFSIZE 4096
 
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     SHA1_CTX ctx;
     unsigned char hash[20], buf[BUFSIZE];

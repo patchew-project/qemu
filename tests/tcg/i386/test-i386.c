@@ -51,19 +51,19 @@
 #include <asm/vm86.h>
 #endif
 
-#define xglue(x, y) x ## y
-#define glue(x, y) xglue(x, y)
-#define stringify(s)	tostring(s)
-#define tostring(s)	#s
+#define xglue(x, y)    x ## y
+#define glue(x, y)     xglue(x, y)
+#define stringify(s)   tostring(s)
+#define tostring(s)    #s
 
-#define CC_C   	0x0001
-#define CC_P 	0x0004
-#define CC_A	0x0010
-#define CC_Z	0x0040
+#define CC_C    0x0001
+#define CC_P    0x0004
+#define CC_A    0x0010
+#define CC_Z    0x0040
 #define CC_S    0x0080
 #define CC_O    0x0800
 
-#define __init_call	__attribute__ ((unused,__section__ ("initcall")))
+#define __init_call    __attribute__ ((unused,__section__ ("initcall")))
 
 #define CC_MASK (CC_C | CC_P | CC_Z | CC_S | CC_O | CC_A)
 
@@ -125,7 +125,7 @@ static inline long i2l(long v)
 #define OP1
 #include "test-i386.h"
 
-#undef CC_MASK
+#undef  CC_MASK
 #define CC_MASK (CC_C | CC_P | CC_Z | CC_S | CC_O)
 
 #define OP shl
@@ -494,8 +494,8 @@ void test_loop(void)
     TEST_LOOP("loopnzl");
 }
 
-#undef CC_MASK
-#ifdef TEST_P4_FLAGS
+#undef  CC_MASK
+#ifdef  TEST_P4_FLAGS
 #define CC_MASK (CC_C | CC_P | CC_Z | CC_S | CC_O | CC_A)
 #else
 #define CC_MASK (CC_O | CC_C)
@@ -581,7 +581,7 @@ void test_imulq2(long op0, long op1)
 }
 
 
-#undef CC_MASK
+#undef  CC_MASK
 #define CC_MASK (0)
 
 #define OP div
@@ -717,23 +717,23 @@ void test_mul(void)
 
 void test_xcnt(void)
 {
-    TEST_BSX(tzcntw, "w", 0);
-    TEST_BSX(tzcntw, "w", 0x12340128);
-    TEST_BSX(lzcntw, "w", 0);
-    TEST_BSX(lzcntw, "w", 0x12340128);
+    TEST_BSX(tzcntw,  "w", 0);
+    TEST_BSX(tzcntw,  "w", 0x12340128);
+    TEST_BSX(lzcntw,  "w", 0);
+    TEST_BSX(lzcntw,  "w", 0x12340128);
     TEST_BSX(popcntw, "w", 0);
     TEST_BSX(popcntw, "w", 0x12340128);
-    TEST_BSX(tzcntl, "k", 0);
-    TEST_BSX(tzcntl, "k", 0x00340128);
-    TEST_BSX(lzcntl, "k", 0);
-    TEST_BSX(lzcntl, "k", 0x00340128);
+    TEST_BSX(tzcntl,  "k", 0);
+    TEST_BSX(tzcntl,  "k", 0x00340128);
+    TEST_BSX(lzcntl,  "k", 0);
+    TEST_BSX(lzcntl,  "k", 0x00340128);
     TEST_BSX(popcntl, "k", 0);
     TEST_BSX(popcntl, "k", 0x00340128);
 #if defined(__x86_64__)
-    TEST_BSX(tzcntq, "", 0);
-    TEST_BSX(tzcntq, "", 0x003401281234);
-    TEST_BSX(lzcntq, "", 0);
-    TEST_BSX(lzcntq, "", 0x003401281234);
+    TEST_BSX(tzcntq,  "", 0);
+    TEST_BSX(tzcntq,  "", 0x003401281234);
+    TEST_BSX(lzcntq,  "", 0);
+    TEST_BSX(lzcntq,  "", 0x003401281234);
     TEST_BSX(popcntq, "", 0);
     TEST_BSX(popcntq, "", 0x003401281234);
 #endif

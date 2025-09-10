@@ -2,28 +2,28 @@
 
 #ifdef TEST_CMOV
 
-#define TEST_COND(N) 				\
-int test_##N (long a)				\
-{						\
-  int res = 1;					\
-                                                \
-  asm ("cmov"#N" %1,$31,%0"			\
-       : "+r" (res) : "r" (a));			\
-  return !res;					\
+#define TEST_COND(N)                 \
+int test_##N (long a)                \
+{                                    \
+  int res = 1;                       \
+                                     \
+  asm ("cmov"#N" %1,$31,%0"          \
+       : "+r" (res) : "r" (a));      \
+  return !res;                       \
 }
 
 #else
 
-#define TEST_COND(N) 				\
-int test_##N (long a)				\
-{						\
-  int res = 1;					\
-                                                \
-  asm ("b"#N" %1,1f\n\t"			\
-       "addq $31,$31,%0\n\t"			\
-       "1: unop\n"				\
-       : "+r" (res) : "r" (a));			\
-  return res;					\
+#define TEST_COND(N)                 \
+int test_##N (long a)                \
+{                                    \
+  int res = 1;                       \
+                                     \
+  asm ("b"#N" %1,1f\n\t"             \
+       "addq $31,$31,%0\n\t"         \
+       "1: unop\n"                   \
+       : "+r" (res) : "r" (a));      \
+  return res;                        \
 }
 
 #endif
