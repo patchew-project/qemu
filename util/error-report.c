@@ -25,8 +25,6 @@ typedef enum {
     REPORT_TYPE_INFO,
 } report_type;
 
-bool error_with_guestname;
-const char *error_guest_name;
 
 typedef void (*error_print_func)(void *opaque, const char *fmt, ...);
 typedef void (*error_print_vfunc)(void *opaque, const char *fmt, va_list ap);
@@ -216,11 +214,6 @@ static void vreport(report_type type, const char *fmt, va_list ap)
         print_opaque = stderr;
 
         qmessage_context_print(stderr);
-    }
-
-    /* Only prepend guest name if -msg guest-name and -name guest=... are set */
-    if (error_with_guestname && error_guest_name && !cur) {
-        print_func(print_opaque, "%s ", error_guest_name);
     }
 
     print_loc(!!cur, print_func, print_opaque);

@@ -5,6 +5,7 @@
 
 enum QMessageFormatFlags {
     QMESSAGE_FORMAT_TIMESTAMP = (1 << 0),
+    QMESSAGE_FORMAT_WORKLOAD_NAME = (1 << 1),
 };
 
 /**
@@ -15,6 +16,15 @@ enum QMessageFormatFlags {
  * emit for messages
  */
 void qmessage_set_format(int flags);
+
+/**
+ * qmessage_set_workload_name:
+ * @name: the name of the workload
+ *
+ * Set the workload name, which for a system emulator
+ * will be the guest VM name.
+ */
+void qmessage_set_workload_name(const char *name);
 
 /**
  * qmessage_context_print:
