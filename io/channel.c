@@ -58,7 +58,7 @@ ssize_t qio_channel_readv_full(QIOChannel *ioc,
 {
     QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
 
-    if ((fds || nfds) &&
+    if ((fds || nfds || (flags & QIO_CHANNEL_READ_FLAG_PRESERVE_BLOCKING)) &&
         !qio_channel_has_feature(ioc, QIO_CHANNEL_FEATURE_FD_PASS)) {
         error_setg_errno(errp, EINVAL,
                          "Channel does not support file descriptor passing");

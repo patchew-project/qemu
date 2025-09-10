@@ -324,6 +324,7 @@ static ssize_t coroutine_mixed_fn qemu_fill_buffer(QEMUFile *f)
     size_t nfd = 0;
     int **pfds = f->can_pass_fd ? &fds : NULL;
     size_t *pnfd = f->can_pass_fd ? &nfd : NULL;
+    int flags = f->can_pass_fd ? QIO_CHANNEL_READ_FLAG_PRESERVE_BLOCKING : 0;
 
     assert(!qemu_file_is_writable(f));
 
@@ -340,7 +341,7 @@ static ssize_t coroutine_mixed_fn qemu_fill_buffer(QEMUFile *f)
 
     do {
         struct iovec iov = { f->buf + pending, IO_BUF_SIZE - pending };
-        len = qio_channel_readv_full(f->ioc, &iov, 1, pfds, pnfd, 0,
+        len = qio_channel_readv_full(f->ioc, &iov, 1, pfds, pnfd, flags,
                                      &local_error);
         if (len == QIO_CHANNEL_ERR_BLOCK) {
             if (qemu_in_coroutine()) {
