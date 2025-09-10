@@ -334,8 +334,12 @@ static bool process_cqe(AioContext *ctx,
     }
 
     cqe_handler->cqe = *cqe;
+
+    /*
+     * aio_poll() and fdmon_io_uring_gsource_dispatch() schedule cqe_handler_bh
+     * when the list is non-empty.
+     */
     QSIMPLEQ_INSERT_TAIL(&ctx->cqe_handler_ready_list, cqe_handler, next);
-    qemu_bh_schedule(ctx->cqe_handler_bh);
     return false;
 }
 
@@ -386,6 +390,11 @@ static void fdmon_io_uring_gsource_dispatch(AioContext *ctx,
                                             AioHandlerList *ready_list)
 {
     process_cq_ring(ctx, ready_list);
+
+    /* Ensure CqeHandlers enqueued by process_cq_ring() will run */
+    if (!QSIMPLEQ_EMPTY(&ctx->cqe_handler_ready_list)) {
+        qemu_bh_schedule(ctx->cqe_handler_bh);
+    }
 }
 
 static int fdmon_io_uring_wait(AioContext *ctx, AioHandlerList *ready_list,
