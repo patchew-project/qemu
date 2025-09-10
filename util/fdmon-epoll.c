@@ -19,8 +19,12 @@ void fdmon_epoll_disable(AioContext *ctx)
         ctx->epollfd = -1;
     }
 
-    /* Switch back */
-    ctx->fdmon_ops = &fdmon_poll_ops;
+    if (ctx->epollfd_tag) {
+        g_source_remove_unix_fd(&ctx->source, ctx->epollfd_tag);
+        ctx->epollfd_tag = NULL;
+    }
+
+    fdmon_poll_downgrade(ctx);
 }
 
 static inline int epoll_events_from_pfd(int pfd_events)
@@ -93,10 +97,47 @@ out:
     return ret;
 }
 
+static void fdmon_epoll_gsource_prepare(AioContext *ctx)
+{
+    /* Do nothing */
+}
+
+static bool fdmon_epoll_gsource_check(AioContext *ctx)
+{
+    return g_source_query_unix_fd(&ctx->source, ctx->epollfd_tag) & G_IO_IN;
+}
+
+static void fdmon_epoll_gsource_dispatch(AioContext *ctx,
+                                         AioHandlerList *ready_list)
+{
+    AioHandler *node;
+    int ret;
+    struct epoll_event events[128];
+
+    /* Collect events and process them */
+    ret = epoll_wait(ctx->epollfd, events, ARRAY_SIZE(events), 0);
+    if (ret <= 0) {
+        return;
+    }
+    for (int i = 0; i < ret; i++) {
+        int ev = events[i].events;
+        int revents = (ev & EPOLLIN ? G_IO_IN : 0) |
+                      (ev & EPOLLOUT ? G_IO_OUT : 0) |
+                      (ev & EPOLLHUP ? G_IO_HUP : 0) |
+                      (ev & EPOLLERR ? G_IO_ERR : 0);
+
+        node = events[i].data.ptr;
+        aio_add_ready_handler(ready_list, node, revents);
+    }
+}
+
 static const FDMonOps fdmon_epoll_ops = {
     .update = fdmon_epoll_update,
     .wait = fdmon_epoll_wait,
     .need_wait = aio_poll_disabled,
+    .gsource_prepare = fdmon_epoll_gsource_prepare,
+    .gsource_check = fdmon_epoll_gsource_check,
+    .gsource_dispatch = fdmon_epoll_gsource_dispatch,
 };
 
 static bool fdmon_epoll_try_enable(AioContext *ctx)
@@ -118,6 +159,8 @@ static bool fdmon_epoll_try_enable(AioContext *ctx)
     }
 
     ctx->fdmon_ops = &fdmon_epoll_ops;
+    ctx->epollfd_tag = g_source_add_unix_fd(&ctx->source, ctx->epollfd,
+                                            G_IO_IN);
     return true;
 }
 
@@ -139,12 +182,11 @@ bool fdmon_epoll_try_upgrade(AioContext *ctx, unsigned npfd)
     }
 
     ok = fdmon_epoll_try_enable(ctx);
-
-    qemu_lockcnt_inc_and_unlock(&ctx->list_lock);
-
     if (!ok) {
         fdmon_epoll_disable(ctx);
     }
+
+    qemu_lockcnt_inc_and_unlock(&ctx->list_lock);
     return ok;
 }
 
