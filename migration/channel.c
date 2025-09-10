@@ -145,3 +145,16 @@ int migration_channel_read_peek(QIOChannel *ioc,
 
     return 0;
 }
+
+/*
+ * This is only needed for a successful migration, no-op for non-TLS
+ * channels.  For unexpected interruptions, use qio_channel_shutdown().
+ */
+bool migration_channel_shutdown_gracefully(QIOChannel *c, Error **errp)
+{
+    if (object_dynamic_cast((Object *)c, TYPE_QIO_CHANNEL_TLS)) {
+        qio_channel_tls_bye(QIO_CHANNEL_TLS(c), errp);
+    }
+
+    return *errp == NULL;
+}

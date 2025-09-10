@@ -113,6 +113,27 @@ static bool close_return_path_on_source(MigrationState *s);
 static void migration_completion_end(MigrationState *s);
 static void migrate_hup_delete(MigrationState *s);
 
+/*
+ * See migration_channel_shutdown_gracefully().  The "graceful" versions
+ * are only needed if migration succeeded.
+ */
+bool qemu_file_shutdown_gracefully(QEMUFile *f, Error **errp)
+{
+    int ret;
+
+    if (!migration_channel_shutdown_gracefully(qemu_file_get_ioc(f), errp)) {
+        return false;
+    }
+
+    ret = qemu_file_shutdown(f);
+    if (ret) {
+        error_setg_errno(errp, -ret, "qemu_file_shutdown() failed");
+        return false;
+    }
+
+    return true;
+}
+
 static void migration_downtime_start(MigrationState *s)
 {
     trace_vmstate_downtime_checkpoint("src-downtime-start");
@@ -2473,11 +2494,12 @@ static void migration_release_dst_files(MigrationState *ms)
      */
     if (ms->postcopy_qemufile_src) {
         migration_ioc_unregister_yank_from_file(ms->postcopy_qemufile_src);
-        qemu_file_shutdown(ms->postcopy_qemufile_src);
+        qemu_file_shutdown_gracefully(ms->postcopy_qemufile_src, &error_warn);
         qemu_fclose(ms->postcopy_qemufile_src);
         ms->postcopy_qemufile_src = NULL;
     }
 
+    qemu_file_shutdown_gracefully(file, &error_warn);
     qemu_fclose(file);
 }
 
