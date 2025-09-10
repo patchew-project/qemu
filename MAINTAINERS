@@ -3173,9 +3173,11 @@ M: Markus Armbruster <armbru@redhat.com>
 S: Supported
 F: include/qapi/error.h
 F: include/qemu/error-report.h
+F: include/qemu/message.h
 F: qapi/error.json
 F: util/error.c
 F: util/error-report.c
+F: util/message.c
 F: scripts/coccinelle/err-bad-newline.cocci
 F: scripts/coccinelle/error-use-after-free.cocci
 F: scripts/coccinelle/error_propagate_null.cocci
