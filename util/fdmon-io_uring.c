@@ -49,6 +49,7 @@
 #include "qemu/defer-call.h"
 #include "qemu/rcu_queue.h"
 #include "aio-posix.h"
+#include "trace.h"
 
 enum {
     FDMON_IO_URING_ENTRIES  = 128, /* sq/cq ring size */
@@ -177,6 +178,9 @@ static void fdmon_io_uring_add_sqe(AioContext *ctx,
 
     prep_sqe(sqe, opaque);
     io_uring_sqe_set_data(sqe, cqe_handler);
+
+    trace_fdmon_io_uring_add_sqe(ctx, opaque, sqe->opcode, sqe->fd, sqe->off,
+                                 cqe_handler);
 }
 
 static void fdmon_special_cqe_handler(CqeHandler *cqe_handler)
@@ -304,6 +308,8 @@ static void cqe_handler_bh(void *opaque)
 
         QSIMPLEQ_REMOVE_HEAD(ready_list, next);
 
+        trace_fdmon_io_uring_cqe_handler(ctx, cqe_handler,
+                                         cqe_handler->cqe.res);
         cqe_handler->cb(cqe_handler);
     }
 
