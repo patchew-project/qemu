@@ -37,6 +37,7 @@
 #include "system/system.h"
 #include "hw/i386/apic_internal.h"
 #include "kvm/kvm_i386.h"
+#include "migration/misc.h"
 #include "migration/vmstate.h"
 #include "trace.h"
 
@@ -4423,6 +4424,42 @@ static void vtd_dev_unset_iommu_device(PCIBus *bus, void *opaque, int devfn)
     vtd_iommu_unlock(s);
 }
 
+/*
+ * Unmapping a large range in one go is not optimal during migration because
+ * a large dirty bitmap needs to be allocated while there may be only small
+ * mappings, iterate over DMAMap list to unmap each range with active mapping.
+ */
+static void vtd_address_space_unmap_in_migration(VTDAddressSpace *as,
+                                                 IOMMUNotifier *n)
+{
+    const DMAMap *map;
+    const DMAMap target = {
+        .iova = n->start,
+        .size = n->end,
+    };
+    IOVATree *tree = as->iova_tree;
+
+    /*
+     * DMAMap is created during IOMMU page table sync, it's either 4KB or huge
+     * page size and always a power of 2 in size. So the range of DMAMap could
+     * be used for UNMAP notification directly.
+     */
+    while ((map = iova_tree_find(tree, &target))) {
+        IOMMUTLBEvent event;
+
+        event.type = IOMMU_NOTIFIER_UNMAP;
+        event.entry.iova = map->iova;
+        event.entry.addr_mask = map->size;
+        event.entry.target_as = &address_space_memory;
+        event.entry.perm = IOMMU_NONE;
+        /* This field is meaningless for unmap */
+        event.entry.translated_addr = 0;
+        memory_region_notify_iommu_one(n, &event);
+
+        iova_tree_remove(tree, *map);
+    }
+}
+
 /* Unmap the whole range in the notifier's scope. */
 static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
 {
@@ -4431,6 +4468,11 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
     hwaddr end = n->end;
     IntelIOMMUState *s = as->iommu_state;
     DMAMap map;
+
+    if (migration_is_running()) {
+        vtd_address_space_unmap_in_migration(as, n);
+        return;
+    }
 
     /*
      * Note: all the codes in this function has a assumption that IOVA
