@@ -51,6 +51,8 @@
 #include "disas/capstone.h"
 #include "cpu-internal.h"
 
+#include "migration/migration.h"
+
 static void x86_cpu_realizefn(DeviceState *dev, Error **errp);
 static void x86_cpu_get_supported_cpuid(uint32_t func, uint32_t index,
                                         uint32_t *eax, uint32_t *ebx,
@@ -7839,6 +7841,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     uint32_t signature[3];
     X86CPUTopoInfo *topo_info = &env->topo_info;
     uint32_t threads_per_pkg;
+    MigrationState *ms = migrate_get_current();
 
     threads_per_pkg = x86_threads_per_pkg(topo_info);
 
@@ -7893,6 +7896,11 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
 
             /* Fixup overflow: max value for bits 23-16 is 255. */
             *ebx |= MIN(num, 255) << 16;
+        }
+        if (ms->pdcm_on_even_without_pmu) {
+            if (!cpu->enable_pmu) {
+                *ecx &= ~CPUID_EXT_PDCM;
+            }
         }
         break;
     case 2: { /* cache info: needed for Pentium Pro compatibility */
@@ -8892,6 +8900,7 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
     FeatureWord w;
     int i;
     GList *l;
+    MigrationState *ms = migrate_get_current();
 
     for (l = plus_features; l; l = l->next) {
         const char *prop = l->data;
@@ -8944,9 +8953,11 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         }
     }
 
-    /* PDCM is fixed1 bit for TDX */
-    if (!cpu->enable_pmu && !is_tdx_vm()) {
-        env->features[FEAT_1_ECX] &= ~CPUID_EXT_PDCM;
+    if (!ms->pdcm_on_even_without_pmu) {
+        /* PDCM is fixed1 bit for TDX */
+        if (!cpu->enable_pmu && !is_tdx_vm()) {
+            env->features[FEAT_1_ECX] &= ~CPUID_EXT_PDCM;
+        }
     }
 
     for (i = 0; i < ARRAY_SIZE(feature_dependencies); i++) {

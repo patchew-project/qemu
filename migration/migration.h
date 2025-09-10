@@ -522,6 +522,17 @@ struct MigrationState {
      * to a host with QEMU 10.1 with error : missing feature arch-capabilities
      */
     bool arch_cap_always_on;
+
+    /*
+     * This variable allows to keep the backward compatibility with QEMU (<10.1)
+     * on the pdcm feature detection. The pdcm feature should be disabled when
+     * PMU is not available. Prio to 10.1, there is a bug and pdcm can still be
+     * enabled even if PMU is off. This behavior has been fixed by the commit
+     * e68ec29 (since 10.1).
+     * This new behavior breaks migration of VMs that expect, with the QEMU
+     * (since 10.1), pdcm to be disabled.
+     */
+    bool pdcm_on_even_without_pmu;
 };
 
 void migrate_set_state(MigrationStatus *state, MigrationStatus old_state,
