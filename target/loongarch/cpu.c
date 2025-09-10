@@ -495,6 +495,31 @@ static void loongarch_set_lasx(Object *obj, bool value, Error **errp)
     cpu->env.cpucfg[2] = FIELD_DP32(val, CPUCFG2, LASX, value);
 }
 
+static bool loongarch_get_msgint(Object *obj, Error **errp)
+{
+    return LOONGARCH_CPU(obj)->msgint != ON_OFF_AUTO_OFF;
+}
+
+static void loongarch_set_msgint(Object *obj, bool value, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+    uint32_t val;
+
+    cpu->msgint = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
+
+    if (kvm_enabled()) {
+        /* kvm feature detection in function kvm_arch_init_vcpu */
+        return;
+    }
+
+    val = cpu->env.cpucfg[1];
+    if (cpu->msgint == ON_OFF_AUTO_ON) {
+        if (FIELD_EX32(val, CPUCFG1, MSG_INT) == 0) {
+            cpu->env.cpucfg[1]= FIELD_DP32(val, CPUCFG1, MSG_INT, value);
+        }
+    }
+}
+
 static void loongarch_cpu_post_init(Object *obj)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
@@ -503,10 +528,14 @@ static void loongarch_cpu_post_init(Object *obj)
     cpu->pmu = ON_OFF_AUTO_OFF;
     cpu->lsx = ON_OFF_AUTO_AUTO;
     cpu->lasx = ON_OFF_AUTO_AUTO;
+    cpu->msgint = ON_OFF_AUTO_AUTO;
+
     object_property_add_bool(obj, "lsx", loongarch_get_lsx,
                              loongarch_set_lsx);
     object_property_add_bool(obj, "lasx", loongarch_get_lasx,
                              loongarch_set_lasx);
+    object_property_add_bool(obj, "msgint", loongarch_get_msgint,
+                             loongarch_set_msgint);
     /* lbt is enabled only in kvm mode, not supported in tcg mode */
     if (kvm_enabled()) {
         kvm_loongarch_cpu_post_init(cpu);
