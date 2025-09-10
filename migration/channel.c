@@ -153,6 +153,13 @@ int migration_channel_read_peek(QIOChannel *ioc,
 bool migration_channel_shutdown_gracefully(QIOChannel *c, Error **errp)
 {
     if (object_dynamic_cast((Object *)c, TYPE_QIO_CHANNEL_TLS)) {
+        /*
+         * The destination expects the TLS session to always be properly
+         * terminated. This helps to detect a premature termination in the
+         * middle of the stream.  Note that older QEMUs always break the
+         * connection on the source and the destination always sees
+         * GNUTLS_E_PREMATURE_TERMINATION.
+         */
         qio_channel_tls_bye(QIO_CHANNEL_TLS(c), errp);
     }
 

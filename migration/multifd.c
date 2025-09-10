@@ -439,7 +439,7 @@ static void multifd_send_set_error(Error *err)
     }
 }
 
-static void multifd_send_terminate_threads(void)
+static void multifd_send_terminate_threads(bool succeeded)
 {
     int i;
 
@@ -460,6 +460,9 @@ static void multifd_send_terminate_threads(void)
 
         qemu_sem_post(&p->sem);
         if (p->c) {
+            if (succeeded) {
+                migration_channel_shutdown_gracefully(p->c, &error_warn);
+            }
             qio_channel_shutdown(p->c, QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
         }
     }
@@ -541,50 +544,21 @@ static void multifd_send_cleanup_state(void)
 
 void multifd_send_shutdown(void)
 {
+    MigrationState *s = migrate_get_current();
     int i;
 
     if (!migrate_multifd()) {
         return;
     }
 
-    for (i = 0; i < migrate_multifd_channels(); i++) {
-        MultiFDSendParams *p = &multifd_send_state->params[i];
-
-        /* thread_created implies the TLS handshake has succeeded */
-        if (p->tls_thread_created && p->thread_created) {
-            Error *local_err = NULL;
-            /*
-             * The destination expects the TLS session to always be
-             * properly terminated. This helps to detect a premature
-             * termination in the middle of the stream.  Note that
-             * older QEMUs always break the connection on the source
-             * and the destination always sees
-             * GNUTLS_E_PREMATURE_TERMINATION.
-             */
-            migration_tls_channel_end(p->c, &local_err);
-
-            /*
-             * The above can return an error in case the migration has
-             * already failed. If the migration succeeded, errors are
-             * not expected but there's no need to kill the source.
-             */
-            if (local_err && !migration_has_failed(migrate_get_current())) {
-                warn_report(
-                    "multifd_send_%d: Failed to terminate TLS connection: %s",
-                    p->id, error_get_pretty(local_err));
-                break;
-            }
-        }
-    }
-
-    multifd_send_terminate_threads();
+    multifd_send_terminate_threads(!migration_has_failed(s));
 
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
         Error *local_err = NULL;
 
         if (!multifd_send_cleanup_channel(p, &local_err)) {
-            migrate_set_error(migrate_get_current(), local_err);
+            migrate_set_error(s, local_err);
             error_free(local_err);
         }
     }
