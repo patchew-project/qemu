@@ -84,6 +84,20 @@ Monitor *monitor_cur(void)
     return mon;
 }
 
+Monitor *monitor_cur_hmp(void)
+{
+    Monitor *mon;
+
+    qemu_mutex_lock(&monitor_lock);
+    mon = g_hash_table_lookup(coroutine_mon, qemu_coroutine_self());
+    if (mon && monitor_is_qmp(mon)) {
+        mon = NULL;
+    }
+    qemu_mutex_unlock(&monitor_lock);
+
+    return mon;
+}
+
 /**
  * Sets a new current monitor and returns the old one.
  *

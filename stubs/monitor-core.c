@@ -7,6 +7,11 @@ Monitor *monitor_cur(void)
     return NULL;
 }
 
+Monitor *monitor_cur_hmp(void)
+{
+    return NULL;
+}
+
 bool monitor_cur_is_qmp(void)
 {
     return false;
