@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "monitor/monitor.h"
 #include "qemu/error-report.h"
+#include "qemu/message.h"
 
 /*
  * @report_type is the type of message: error, warning or
@@ -24,8 +25,6 @@ typedef enum {
     REPORT_TYPE_INFO,
 } report_type;
 
-/* Prepend timestamp to messages */
-bool message_with_timestamp;
 bool error_with_guestname;
 const char *error_guest_name;
 
@@ -185,13 +184,6 @@ static void print_loc(bool cur, error_print_func print_func, void *print_opaque)
     }
 }
 
-static char *
-real_time_iso8601(void)
-{
-    g_autoptr(GDateTime) dt = g_date_time_new_now_utc();
-    return g_date_time_format_iso8601(dt);
-}
-
 /*
  * Print a message to current monitor if we have one, else to stderr.
  * @report_type is the type of message: error, warning or informational.
@@ -213,7 +205,6 @@ static void vreport(report_type type, const char *fmt, va_list ap)
     error_print_func print_func;
     error_print_vfunc print_vfunc;
     void *print_opaque;
-    gchar *timestr;
 
     if (cur) {
         print_func = (error_print_func)monitor_printf;
@@ -223,12 +214,8 @@ static void vreport(report_type type, const char *fmt, va_list ap)
         print_func = (error_print_func)fprintf;
         print_vfunc = (error_print_vfunc)vfprintf;
         print_opaque = stderr;
-    }
 
-    if (message_with_timestamp && !cur) {
-        timestr = real_time_iso8601();
-        print_func(print_opaque, "%s ", timestr);
-        g_free(timestr);
+        qmessage_context_print(stderr);
     }
 
     /* Only prepend guest name if -msg guest-name and -name guest=... are set */
