@@ -316,7 +316,7 @@ void *qemu_thread_join(QemuThread *thread)
     return ret;
 }
 
-static void set_thread_description(HANDLE h, const char *name)
+void qemu_thread_set_name(const char *name)
 {
     g_autofree wchar_t *namew = NULL;
 
@@ -329,7 +329,7 @@ static void set_thread_description(HANDLE h, const char *name)
         return;
     }
 
-    SetThreadDescriptionFunc(h, namew);
+    SetThreadDescriptionFunc(GetCurrentThread(), namew);
 }
 
 void qemu_thread_create(QemuThread *thread, const char *name,
@@ -356,7 +356,7 @@ void qemu_thread_create(QemuThread *thread, const char *name,
         error_exit(GetLastError(), __func__);
     }
     if (name) {
-        set_thread_description(hThread, name);
+        qemu_thread_set_name(name);
     }
     CloseHandle(hThread);
 
