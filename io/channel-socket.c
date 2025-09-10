@@ -26,9 +26,19 @@
 #include "io/channel-watch.h"
 #include "trace.h"
 #include "qapi/clone-visitor.h"
+#include "sysemu/runstate.h"
 #ifdef CONFIG_LINUX
 #include <linux/errqueue.h>
 #include <sys/socket.h>
+
+/*
+ * This function is not available when io links against qemu-img etc.,
+ * in this case just pretend it always returns false.
+ */
+__attribute__((weak)) bool qemu_force_shutdown_requested(void)
+{
+    return false;
+}
 
 #if (defined(MSG_ZEROCOPY) && defined(SO_ZEROCOPY))
 #define QEMU_MSG_ZEROCOPY
@@ -541,6 +551,12 @@ static ssize_t qio_channel_socket_readv(QIOChannel *ioc,
     }
 
  retry:
+    if (qemu_force_shutdown_requested()) {
+        error_setg_errno(errp, ECANCELED,
+                        "Socket read aborted due to force shutdown");
+        return -1;
+    }
+
     ret = recvmsg(sioc->fd, &msg, sflags);
     if (ret < 0) {
         if (errno == EAGAIN) {
