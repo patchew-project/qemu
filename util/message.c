@@ -5,7 +5,7 @@
 #include "qemu/message.h"
 #include "monitor/monitor.h"
 
-static int message_format;
+static int message_format = QMESSAGE_FORMAT_PROGRAM_NAME;
 static char *message_workloadname;
 
 void qmessage_set_format(int flags)
@@ -29,5 +29,12 @@ void qmessage_context_print(FILE *fp)
     if ((message_format & QMESSAGE_FORMAT_WORKLOAD_NAME) &&
         message_workloadname) {
         fprintf(fp, "%s ", message_workloadname);
+    }
+
+    if (message_format & QMESSAGE_FORMAT_PROGRAM_NAME) {
+        const char *pgnamestr = g_get_prgname();
+        if (pgnamestr) {
+            fprintf(fp, "%s: ", pgnamestr);
+        }
     }
 }

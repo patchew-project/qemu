@@ -157,10 +157,6 @@ static void print_loc(bool cur, error_print_func print_func, void *print_opaque)
     int i;
     const char *const *argp;
 
-    if (!cur && g_get_prgname()) {
-        print_func(print_opaque, "%s:", g_get_prgname());
-        sep = " ";
-    }
     switch (cur_loc->kind) {
     case LOC_CMDLINE:
         argp = cur_loc->ptr;
