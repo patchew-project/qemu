@@ -39,6 +39,8 @@
 #include "qemu/log.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/ghes.h"
+#include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "target/arm/gtimer.h"
 #include "migration/blocker.h"
 
@@ -483,6 +485,10 @@ static void kvm_steal_time_set(Object *obj, bool value, Error **errp)
     ARM_CPU(obj)->kvm_steal_time = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
 }
 
+static const Property arm_cpu_kvm_compat_hidden_regs_property =
+    DEFINE_PROP_ARRAY("kvm-hidden-regs", ARMCPU,
+                      nr_kvm_hidden_regs, kvm_hidden_regs, qdev_prop_uint64, uint64_t);
+
 /* KVM VCPU properties should be prefixed with "kvm-". */
 void kvm_arm_add_vcpu_properties(ARMCPU *cpu)
 {
@@ -504,6 +510,8 @@ void kvm_arm_add_vcpu_properties(ARMCPU *cpu)
                              kvm_steal_time_set);
     object_property_set_description(obj, "kvm-steal-time",
                                     "Set off to disable KVM steal time.");
+
+    qdev_property_add_static(DEVICE(obj), &arm_cpu_kvm_compat_hidden_regs_property);
 }
 
 bool kvm_arm_pmu_supported(void)
@@ -765,6 +773,26 @@ static bool kvm_arm_reg_syncs_via_cpreg_list(uint64_t regidx)
 }
 
 /**
+ * kvm_vcpu_compat_hidden_reg:
+ * @cpu: ARMCPU
+ * @regidx: index of the register to check
+ *
+ * Depending on the CPU compat returns true if @regidx must be
+ * ignored during sync & migration
+ */
+static inline bool
+kvm_vcpu_compat_hidden_reg(ARMCPU *cpu, uint64_t regidx)
+{
+    for (int i = 0; i < cpu->nr_kvm_hidden_regs; i++) {
+        if (cpu->kvm_hidden_regs[i] == regidx) {
+            trace_kvm_vcpu_compat_hidden_reg(regidx);
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * kvm_arm_init_cpreg_list:
  * @cpu: ARMCPU
  *
@@ -798,7 +826,8 @@ static int kvm_arm_init_cpreg_list(ARMCPU *cpu)
     qsort(&rlp->reg, rlp->n, sizeof(rlp->reg[0]), compare_u64);
 
     for (i = 0, arraylen = 0; i < rlp->n; i++) {
-        if (!kvm_arm_reg_syncs_via_cpreg_list(rlp->reg[i])) {
+        if (!kvm_arm_reg_syncs_via_cpreg_list(rlp->reg[i]) ||
+            kvm_vcpu_compat_hidden_reg(cpu, rlp->reg[i])) {
             continue;
         }
         switch (rlp->reg[i] & KVM_REG_SIZE_MASK) {
@@ -814,6 +843,8 @@ static int kvm_arm_init_cpreg_list(ARMCPU *cpu)
         arraylen++;
     }
 
+    trace_kvm_arm_init_cpreg_list_arraylen(arraylen);
+
     cpu->cpreg_indexes = g_renew(uint64_t, cpu->cpreg_indexes, arraylen);
     cpu->cpreg_values = g_renew(uint64_t, cpu->cpreg_values, arraylen);
     cpu->cpreg_vmstate_indexes = g_renew(uint64_t, cpu->cpreg_vmstate_indexes,
@@ -825,7 +856,8 @@ static int kvm_arm_init_cpreg_list(ARMCPU *cpu)
 
     for (i = 0, arraylen = 0; i < rlp->n; i++) {
         uint64_t regidx = rlp->reg[i];
-        if (!kvm_arm_reg_syncs_via_cpreg_list(regidx)) {
+        if (!kvm_arm_reg_syncs_via_cpreg_list(regidx) ||
+            kvm_vcpu_compat_hidden_reg(cpu, regidx)) {
             continue;
         }
         cpu->cpreg_indexes[arraylen] = regidx;
