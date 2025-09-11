@@ -103,7 +103,10 @@ static int dump_cleanup(DumpState *s)
 
     guest_phys_blocks_free(&s->guest_phys_blocks);
     memory_mapping_list_free(&s->list);
-    close(s->fd);
+    if (s->fd != -1) {
+        close(s->fd);
+    }
+    s->fd = -1;
     g_free(s->guest_note);
     g_clear_pointer(&s->string_table_buf, g_array_unref);
     s->guest_note = NULL;
@@ -1708,8 +1711,8 @@ static DumpState dump_state_global = { .status = DUMP_STATUS_NONE };
 
 static void dump_state_prepare(DumpState *s)
 {
-    /* zero the struct, setting status to active */
-    *s = (DumpState) { .status = DUMP_STATUS_ACTIVE };
+    /* zero the struct, setting status to active and fd to -1 */
+    *s = (DumpState) { .fd = -1, .status = DUMP_STATUS_ACTIVE };
 }
 
 bool qemu_system_dump_in_progress(void)
