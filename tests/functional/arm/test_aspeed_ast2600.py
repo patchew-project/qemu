@@ -101,6 +101,14 @@ class AST2600Machine(AspeedTest):
         'https://github.com/AspeedTech-BMC/openbmc/releases/download/v09.07/ast2600-default-obmc.tar.gz',
         'cb6c08595bcbba1672ce716b068ba4e48eda1ed9abe78a07b30392ba2278feba')
 
+    def do_ast2600_pcie_test(self):
+        exec_command_and_wait_for_pattern(self,
+            'lspci -s 80:00.0',
+            '80:00.0 Host bridge: ASPEED Technology, Inc. Device 2600')
+        exec_command_and_wait_for_pattern(self,
+            'lspci -s 80:08.0',
+            '80:08.0 PCI bridge: ASPEED Technology, Inc. AST1150 PCI-to-PCI Bridge')
+
     def test_arm_ast2600_evb_sdk(self):
         self.set_machine('ast2600-evb')
 
@@ -135,6 +143,8 @@ class AST2600Machine(AspeedTest):
         year = time.strftime("%Y")
         exec_command_and_wait_for_pattern(self,
              '/sbin/hwclock -f /dev/rtc1', year)
+
+        self.do_ast2600_pcie_test()
 
 if __name__ == '__main__':
     AspeedTest.main()
