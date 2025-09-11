@@ -690,9 +690,13 @@ static bool net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
     TAPState *s = net_tap_fd_init(peer, model, name, fd, vnet_hdr);
     int vhostfd;
 
-    tap_set_sndbuf(s->fd, tap, &err);
-    if (err) {
-        error_propagate(errp, err);
+    /* 0 means no limit, so set INT_MAX. Same is the default */
+    int sndbuf =
+        (tap->has_sndbuf && tap->sndbuf) ? MIN(tap->sndbuf, INT_MAX) : INT_MAX;
+
+    /* Ignore error when sndbuf was not requested */
+    if (!tap_set_sndbuf(s->fd, sndbuf, tap->has_sndbuf ? errp : NULL)
+            && tap->has_sndbuf) {
         goto failed;
     }
 
