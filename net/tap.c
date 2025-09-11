@@ -82,7 +82,7 @@ typedef struct TAPState {
     Notifier exit;
 } TAPState;
 
-static void launch_script(const char *setup_script, const char *ifname,
+static bool launch_script(const char *setup_script, const char *ifname,
                           int fd, Error **errp);
 
 static void tap_send(void *opaque);
@@ -439,7 +439,7 @@ static void close_all_fds_after_fork(int excluded_fd)
     qemu_close_all_open_fd(skip_fd, nskip);
 }
 
-static void launch_script(const char *setup_script, const char *ifname,
+static bool launch_script(const char *setup_script, const char *ifname,
                           int fd, Error **errp)
 {
     int pid, status;
@@ -451,8 +451,9 @@ static void launch_script(const char *setup_script, const char *ifname,
     if (pid < 0) {
         error_setg_errno(errp, errno, "could not launch network script %s",
                          setup_script);
-        return;
+        return false;
     }
+
     if (pid == 0) {
         close_all_fds_after_fork(fd);
         parg = args;
@@ -461,17 +462,20 @@ static void launch_script(const char *setup_script, const char *ifname,
         *parg = NULL;
         execv(setup_script, args);
         _exit(1);
-    } else {
-        while (waitpid(pid, &status, 0) != pid) {
-            /* loop */
-        }
-
-        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-            return;
-        }
-        error_setg(errp, "network script %s failed with status %d",
-                   setup_script, status);
     }
+
+    while (waitpid(pid, &status, 0) != pid) {
+        /* loop */
+    }
+
+    if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+        return true;
+    }
+
+    error_setg(errp, "network script %s failed with status %d",
+               setup_script, status);
+
+    return false;
 }
 
 static int recv_fd(int c)
@@ -647,7 +651,6 @@ static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
                         const char *setup_script, char *ifname,
                         size_t ifname_sz, int mq_required, Error **errp)
 {
-    Error *err = NULL;
     int fd, vnet_hdr_required;
 
     if (tap->has_vnet_hdr) {
@@ -667,9 +670,7 @@ static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
     if (setup_script &&
         setup_script[0] != '\0' &&
         strcmp(setup_script, "no") != 0) {
-        launch_script(setup_script, ifname, fd, &err);
-        if (err) {
-            error_propagate(errp, err);
+        if (!launch_script(setup_script, ifname, fd, errp)) {
             close(fd);
             return -1;
         }
