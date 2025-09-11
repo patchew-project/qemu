@@ -483,6 +483,59 @@ static void kvm_steal_time_set(Object *obj, bool value, Error **errp)
     ARM_CPU(obj)->kvm_steal_time = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
 }
 
+static char *kvm_get_psci_version(Object *obj, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    const char *val;
+
+    switch (cpu->prop_psci_version) {
+    case QEMU_PSCI_VERSION_0_1:
+        val = "0.1";
+        break;
+    case QEMU_PSCI_VERSION_0_2:
+        val = "0.2";
+        break;
+    case QEMU_PSCI_VERSION_1_0:
+        val = "1.0";
+        break;
+    case QEMU_PSCI_VERSION_1_1:
+        val = "1.1";
+        break;
+    case QEMU_PSCI_VERSION_1_2:
+        val = "1.2";
+        break;
+    case QEMU_PSCI_VERSION_1_3:
+        val = "1.3";
+        break;
+    default:
+        val = "0.2";
+        break;
+    }
+    return g_strdup(val);
+}
+
+static void kvm_set_psci_version(Object *obj, const char *value, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    if (!strcmp(value, "0.1")) {
+        cpu->prop_psci_version = QEMU_PSCI_VERSION_0_1;
+    } else if (!strcmp(value, "0.2")) {
+        cpu->prop_psci_version = QEMU_PSCI_VERSION_0_2;
+    } else if (!strcmp(value, "1.0")) {
+        cpu->prop_psci_version = QEMU_PSCI_VERSION_1_0;
+    } else if (!strcmp(value, "1.1")) {
+        cpu->prop_psci_version = QEMU_PSCI_VERSION_1_1;
+    } else if (!strcmp(value, "1.2")) {
+        cpu->prop_psci_version = QEMU_PSCI_VERSION_1_2;
+    } else if (!strcmp(value, "1.3")) {
+        cpu->prop_psci_version = QEMU_PSCI_VERSION_1_3;
+    } else {
+        error_setg(errp, "Invalid PSCI-version value");
+        error_append_hint(errp, "Valid values are 0.1, 0.2, 1.0, 1.1, 1.2, 1.3\n");
+    }
+}
+
 /* KVM VCPU properties should be prefixed with "kvm-". */
 void kvm_arm_add_vcpu_properties(ARMCPU *cpu)
 {
@@ -504,6 +557,12 @@ void kvm_arm_add_vcpu_properties(ARMCPU *cpu)
                              kvm_steal_time_set);
     object_property_set_description(obj, "kvm-steal-time",
                                     "Set off to disable KVM steal time.");
+
+    object_property_add_str(obj, "kvm-psci-version", kvm_get_psci_version,
+                            kvm_set_psci_version);
+    object_property_set_description(obj, "kvm-psci-version",
+                                    "Set PSCI version. "
+                                    "Valid values are 0.1, 0.2, 1.0, 1.1, 1.2, 1.3");
 }
 
 bool kvm_arm_pmu_supported(void)
@@ -1883,7 +1942,8 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (cs->start_powered_off) {
         cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_POWER_OFF;
     }
-    if (kvm_check_extension(cs->kvm_state, KVM_CAP_ARM_PSCI_0_2)) {
+    if (cpu->prop_psci_version != QEMU_PSCI_VERSION_0_1 &&
+        kvm_check_extension(cs->kvm_state, KVM_CAP_ARM_PSCI_0_2)) {
         cpu->psci_version = QEMU_PSCI_VERSION_0_2;
         cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_PSCI_0_2;
     }
@@ -1922,6 +1982,14 @@ int kvm_arch_init_vcpu(CPUState *cs)
         }
     }
 
+    if (cpu->prop_psci_version) {
+        psciver = cpu->prop_psci_version;
+        ret = kvm_set_one_reg(cs, KVM_REG_ARM_PSCI_VERSION, &psciver);
+        if (ret) {
+            error_report("PSCI version %lx is not supported by KVM", psciver);
+            return ret;
+        }
+    }
     /*
      * KVM reports the exact PSCI version it is implementing via a
      * special sysreg. If it is present, use its contents to determine
