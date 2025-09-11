@@ -944,6 +944,18 @@ int qemu_plugin_write_register(struct qemu_plugin_register *handle,
                               GByteArray *buf);
 
 /**
+ * qemu_plugin_set_pc() - set the program counter for the current vCPU
+ *
+ * @vaddr: the new virtual (guest) address for the program counter
+ *
+ * This function sets the program counter for the current vCPU to @vaddr and
+ * resumes execution at that address. This function does not return.
+ */
+QEMU_PLUGIN_API
+G_NORETURN
+void qemu_plugin_set_pc(uint64_t vaddr);
+
+/**
  * qemu_plugin_read_memory_vaddr() - read from memory using a virtual address
  *
  * @addr: A virtual address to read from
