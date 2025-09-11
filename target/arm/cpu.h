@@ -1035,6 +1035,17 @@ struct ArchCPU {
     uint64_t *kvm_hidden_regs;
     uint32_t nr_kvm_hidden_regs;
 
+    /*
+     * KVM registers whose presence must be enforced
+     * Either they must be exposed to user space by KVM or
+     * they must be faked for migration sake
+     */
+    uint64_t *kvm_enforced_regs;
+    uint32_t nr_kvm_enforced_regs;
+
+    /* registers among those to be enforced that are faked */
+    uint64_t *kvm_fake_regs;
+
     /* Uniprocessor system with MP extensions */
     bool mp_is_up;
 

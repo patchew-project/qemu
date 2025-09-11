@@ -489,6 +489,11 @@ static const Property arm_cpu_kvm_compat_hidden_regs_property =
     DEFINE_PROP_ARRAY("kvm-hidden-regs", ARMCPU,
                       nr_kvm_hidden_regs, kvm_hidden_regs, qdev_prop_uint64, uint64_t);
 
+static const Property arm_cpu_kvm_compat_enforced_regs_property =
+    DEFINE_PROP_ARRAY("kvm-enforced-regs", ARMCPU,
+                      nr_kvm_enforced_regs, kvm_enforced_regs,
+                      qdev_prop_uint64, uint64_t);
+
 /* KVM VCPU properties should be prefixed with "kvm-". */
 void kvm_arm_add_vcpu_properties(ARMCPU *cpu)
 {
@@ -512,6 +517,7 @@ void kvm_arm_add_vcpu_properties(ARMCPU *cpu)
                                     "Set off to disable KVM steal time.");
 
     qdev_property_add_static(DEVICE(obj), &arm_cpu_kvm_compat_hidden_regs_property);
+    qdev_property_add_static(DEVICE(obj), &arm_cpu_kvm_compat_enforced_regs_property);
 }
 
 bool kvm_arm_pmu_supported(void)
@@ -773,6 +779,27 @@ static bool kvm_arm_reg_syncs_via_cpreg_list(uint64_t regidx)
 }
 
 /**
+ * kvm_vcpu_compat_fake_reg:
+ * @cpu: ARMCPU
+ * @regidx: index of the register to check
+ *
+ * Depending on the CPU compat returns true if @regidx is a
+ * fake register that does not need any sync, false otherwise
+ */
+static inline bool
+kvm_vcpu_compat_fake_reg(ARMCPU *cpu, uint64_t regidx)
+{
+    for (int i = 0; i < cpu->nr_kvm_enforced_regs; i++) {
+        if (cpu->kvm_fake_regs[i] &&
+            cpu->kvm_enforced_regs[i] == regidx) {
+            trace_kvm_vcpu_compat_fake_reg(regidx);
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * kvm_vcpu_compat_hidden_reg:
  * @cpu: ARMCPU
  * @regidx: index of the register to check
@@ -806,7 +833,8 @@ static int kvm_arm_init_cpreg_list(ARMCPU *cpu)
 {
     struct kvm_reg_list rl;
     struct kvm_reg_list *rlp;
-    int i, ret, arraylen;
+    int i, ret, arraylen, rln;
+    int nr_fake_regs = 0;
     CPUState *cs = CPU(cpu);
 
     rl.n = 0;
@@ -814,12 +842,34 @@ static int kvm_arm_init_cpreg_list(ARMCPU *cpu)
     if (ret != -E2BIG) {
         return ret;
     }
-    rlp = g_malloc(sizeof(struct kvm_reg_list) + rl.n * sizeof(uint64_t));
+    rln = rl.n + cpu->nr_kvm_enforced_regs;
+    rlp = g_malloc(sizeof(struct kvm_reg_list) + rln * sizeof(uint64_t));
     rlp->n = rl.n;
     ret = kvm_vcpu_ioctl(cs, KVM_GET_REG_LIST, rlp);
     if (ret) {
         goto out;
     }
+
+    trace_kvm_arm_init_cpreg_list(rlp->n, cpu->nr_kvm_enforced_regs);
+
+    cpu->kvm_fake_regs = g_new0(uint64_t, cpu->nr_kvm_enforced_regs);
+
+    for (int j = 0; j < cpu->nr_kvm_enforced_regs; j++) {
+        uint64_t v64;
+        int res;
+
+        res = kvm_get_one_reg(cs, cpu->kvm_enforced_regs[j], &v64);
+
+        if (res != -ENOENT) {
+            trace_kvm_arm_init_cpreg_exposed(cpu->kvm_enforced_regs[j], v64, res);
+            continue;
+        }
+        rlp->reg[j + rl.n] = cpu->kvm_enforced_regs[j];
+        cpu->kvm_fake_regs[j] = true;
+        nr_fake_regs++;
+    }
+    rlp->n = rl.n + nr_fake_regs;
+
     /* Sort the list we get back from the kernel, since cpreg_tuples
      * must be in strictly ascending order.
      */
@@ -912,6 +962,10 @@ bool write_kvmstate_to_list(ARMCPU *cpu)
         uint32_t v32;
         int ret;
 
+        if (kvm_vcpu_compat_fake_reg(cpu, regidx)) {
+            continue;
+        }
+
         switch (regidx & KVM_REG_SIZE_MASK) {
         case KVM_REG_SIZE_U32:
             ret = kvm_get_one_reg(cs, regidx, &v32);
@@ -944,6 +998,10 @@ bool write_list_to_kvmstate(ARMCPU *cpu, int level)
         int ret;
 
         if (kvm_arm_cpreg_level(regidx) > level) {
+            continue;
+        }
+
+        if (kvm_vcpu_compat_fake_reg(cpu, regidx)) {
             continue;
         }
 
@@ -1653,6 +1711,7 @@ static void kvm_arch_set_eager_split_size(Object *obj, Visitor *v,
 
     s->kvm_eager_split_size = value;
 }
+
 
 void kvm_arch_accel_class_init(ObjectClass *oc)
 {
