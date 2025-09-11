@@ -801,19 +801,11 @@ static int get_fds(char *str, char *fds[], int max)
 int net_init_tap(const Netdev *netdev, const char *name,
                  NetClientState *peer, Error **errp)
 {
-    const NetdevTapOptions *tap;
-    int fd, vnet_hdr = 0, i = 0, queues;
-    /* for the no-fd, no-helper case */
-    const char *script;
-    const char *downscript;
-    char ifname[128];
+    const NetdevTapOptions *tap = &netdev->u.tap;
+    int fd, vnet_hdr = 0, i = 0;
     int ret = 0;
 
     assert(netdev->type == NET_CLIENT_DRIVER_TAP);
-    tap = &netdev->u.tap;
-    queues = tap->has_queues ? tap->queues : 1;
-    script = tap->script;
-    downscript = tap->downscript;
 
     /* QEMU hubs do not support multiqueue tap, in this case peer is set.
      * For -netdev, peer is always NULL. */
@@ -861,7 +853,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
         }
 
         if (!net_init_tap_one(tap, peer, "tap", name, NULL,
-                              script, downscript,
+                              NULL, NULL,
                               tap->vhostfd, vnet_hdr, fd, errp)) {
             return -1;
         }
@@ -916,8 +908,8 @@ int net_init_tap(const Netdev *netdev, const char *name,
                 goto free_fail;
             }
 
-            if (!net_init_tap_one(tap, peer, "tap", name, ifname,
-                                  script, downscript,
+            if (!net_init_tap_one(tap, peer, "tap", name, NULL,
+                                  NULL, NULL,
                                   tap->vhostfds ? vhost_fds[i] : NULL,
                                   vnet_hdr, fd, errp)) {
                 ret = -1;
@@ -958,15 +950,20 @@ free_fail:
             return -1;
         }
 
-        if (!net_init_tap_one(tap, peer, "bridge", name, ifname,
-                              script, downscript, tap->vhostfd,
+        if (!net_init_tap_one(tap, peer, "bridge", name, NULL,
+                              NULL, NULL, tap->vhostfd,
                               vnet_hdr, fd, errp)) {
             close(fd);
             return -1;
         }
     } else {
+        const char *script = tap->script;
+        const char *downscript = tap->downscript;
+        int queues = tap->has_queues ? tap->queues : 1;
         g_autofree char *default_script = NULL;
         g_autofree char *default_downscript = NULL;
+        char ifname[128];
+
         if (tap->vhostfds) {
             error_setg(errp, "vhostfds= is invalid if fds= wasn't specified");
             return -1;
