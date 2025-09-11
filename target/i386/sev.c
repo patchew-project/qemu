@@ -3147,6 +3147,16 @@ static void sev_snp_guest_set_secure_tsc(Object *obj, bool value, Error **errp)
     sev_set_feature(SEV_COMMON(obj), SVM_SEV_FEAT_SECURE_TSC, value);
 }
 
+static bool sev_snp_guest_get_secure_avic(Object *obj, Error **errp)
+{
+    return is_sev_feature_set(SEV_COMMON(obj), SVM_SEV_FEAT_SECURE_AVIC);
+}
+
+static void sev_snp_guest_set_secure_avic(Object *obj, bool value, Error **errp)
+{
+    sev_set_feature(SEV_COMMON(obj), SVM_SEV_FEAT_SECURE_AVIC, value);
+}
+
 static void
 sev_snp_guest_get_tsc_frequency(Object *obj, Visitor *v, const char *name,
                                 void *opaque, Error **errp)
@@ -3210,6 +3220,9 @@ sev_snp_guest_class_init(ObjectClass *oc, const void *data)
     object_class_property_add(oc, "tsc-frequency", "uint32",
                               sev_snp_guest_get_tsc_frequency,
                               sev_snp_guest_set_tsc_frequency, NULL, NULL);
+    object_class_property_add_bool(oc, "secure-avic",
+                                  sev_snp_guest_get_secure_avic,
+                                  sev_snp_guest_set_secure_avic);
 }
 
 static void

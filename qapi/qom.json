@@ -1105,6 +1105,8 @@
 # @tsc-frequency: set secure TSC frequency. Only valid if Secure TSC
 #     is enabled (default: zero) (since 10.2)
 #
+# @secure-avic: enable Secure AVIC (default: false) (since 10.2)
+#
 # Since: 9.1
 ##
 { 'struct': 'SevSnpGuestProperties',
@@ -1118,7 +1120,8 @@
             '*host-data': 'str',
             '*vcek-disabled': 'bool',
             '*secure-tsc': 'bool',
-            '*tsc-frequency': 'uint32' } }
+            '*tsc-frequency': 'uint32',
+            '*secure-avic': 'bool' } }
 
 ##
 # @TdxGuestProperties:
