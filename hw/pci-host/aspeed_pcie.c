@@ -96,6 +96,8 @@ static const TypeInfo aspeed_pcie_root_port_info = {
  * PCIe Root Complex (RC)
  */
 
+#define ASPEED_PCIE_CFG_RC_MAX_MSI 64
+
 static void aspeed_pcie_rc_set_irq(void *opaque, int irq, int level)
 {
     AspeedPCIERcState *rc = (AspeedPCIERcState *) opaque;
@@ -124,6 +126,61 @@ static int aspeed_pcie_rc_map_irq(PCIDevice *pci_dev, int irq_num)
 {
     return irq_num % PCI_NUM_PINS;
 }
+
+static void aspeed_pcie_rc_msi_notify(AspeedPCIERcState *rc, uint64_t data)
+{
+    AspeedPCIECfgState *cfg =
+           container_of(rc, AspeedPCIECfgState, rc);
+    AspeedPCIECfgClass *apc = ASPEED_PCIE_CFG_GET_CLASS(cfg);
+    const AspeedPCIERcRegs *rc_regs;
+    uint32_t reg;
+
+    /* Written data is the HW IRQ number */
+    assert(data < ASPEED_PCIE_CFG_RC_MAX_MSI);
+
+    rc_regs = &apc->reg_map->rc;
+
+    reg = (data < 32) ? rc_regs->msi_sts0_reg : rc_regs->msi_sts1_reg;
+    cfg->regs[reg] |= BIT(data % 32);
+
+    trace_aspeed_pcie_rc_msi_set_irq(cfg->id, data, 1);
+    qemu_set_irq(rc->irq, 1);
+}
+
+static void aspeed_pcie_rc_msi_write(void *opaque, hwaddr addr, uint64_t data,
+                                     unsigned int size)
+{
+    AspeedPCIERcState *rc = ASPEED_PCIE_RC(opaque);
+    AspeedPCIECfgState *cfg =
+           container_of(rc, AspeedPCIECfgState, rc);
+
+    trace_aspeed_pcie_rc_msi_notify(cfg->id, addr + rc->msi_addr, data);
+    aspeed_pcie_rc_msi_notify(rc, data);
+}
+
+static const MemoryRegionOps aspeed_pcie_rc_msi_ops = {
+    .write = aspeed_pcie_rc_msi_write,
+    .read = NULL,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
+static AddressSpace *aspeed_pcie_rc_get_as(PCIBus *bus, void *opaque, int devfn)
+{
+    AspeedPCIERcState *rc = ASPEED_PCIE_RC(opaque);
+    return &rc->iommu_as;
+}
+
+static const PCIIOMMUOps aspeed_pcie_rc_iommu_ops = {
+    .get_address_space = aspeed_pcie_rc_get_as,
+};
 
 static void aspeed_pcie_rc_realize(DeviceState *dev, Error **errp)
 {
@@ -161,6 +218,42 @@ static void aspeed_pcie_rc_realize(DeviceState *dev, Error **errp)
                                      aspeed_pcie_rc_map_irq, rc, &rc->mmio,
                                      &rc->io, 0, 4, TYPE_PCIE_BUS);
     pci->bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
+
+   /*
+    * PCIe memory view setup
+    *
+    * Background:
+    * - On AST2700, all Root Complexes use the same MSI address. This MSI
+    *   address is not normal system RAM - it is a PCI system memory address.
+    *   If we map the MSI/MSI-X window into real system memory, a write from
+    *   one EP can be seen by all RCs and wrongly trigger interrupts on them.
+    *
+    * Design:
+    * - MSI/MSI-X here is just a placeholder address so RC and EP can talk.
+    *   We make a separate MMIO space (iommu_root) for the MSI window so the
+    *   writes stay local to each RC.
+    *
+    * DMA:
+    * - EPs still need access to real system memory for DMA. We add a DRAM
+    *   alias in the PCI space so DMA works as expected.
+    */
+    name = g_strdup_printf("pcie.%d.iommu_root", cfg->id);
+    memory_region_init(&rc->iommu_root, OBJECT(rc), name, UINT64_MAX);
+    address_space_init(&rc->iommu_as, &rc->iommu_root, name);
+    /* setup MSI */
+    memory_region_init_io(&rc->msi_window, OBJECT(rc),
+                          &aspeed_pcie_rc_msi_ops, rc,
+                          "msi_window", 4);
+    memory_region_add_subregion(&rc->iommu_root, rc->msi_addr,
+                                &rc->msi_window);
+    /* setup DRAM for DMA */
+    assert(rc->dram_mr != NULL);
+    name = g_strdup_printf("pcie.%d.dram_alias", cfg->id);
+    memory_region_init_alias(&rc->dram_alias, OBJECT(rc), name, rc->dram_mr,
+                             0, memory_region_size(rc->dram_mr));
+    memory_region_add_subregion(&rc->iommu_root, rc->dram_base,
+                                &rc->dram_alias);
+    pci_setup_iommu(pci->bus, &aspeed_pcie_rc_iommu_ops, rc);
 
     /* setup root device */
     if (rc->has_rd) {
@@ -203,6 +296,10 @@ static const Property aspeed_pcie_rc_props[] = {
     DEFINE_PROP_UINT32("bus-nr", AspeedPCIERcState, bus_nr, 0),
     DEFINE_PROP_BOOL("has-rd", AspeedPCIERcState, has_rd, 0),
     DEFINE_PROP_UINT32("rp-addr", AspeedPCIERcState, rp_addr, 0),
+    DEFINE_PROP_UINT32("msi-addr", AspeedPCIERcState, msi_addr, 0),
+    DEFINE_PROP_UINT64("dram-base", AspeedPCIERcState, dram_base, 0),
+    DEFINE_PROP_LINK("dram", AspeedPCIERcState, dram_mr, TYPE_MEMORY_REGION,
+                     MemoryRegion *),
 };
 
 static void aspeed_pcie_rc_class_init(ObjectClass *klass, const void *data)
@@ -263,6 +360,10 @@ REG32(H2X_RC_H_INT_STS,     0xC8)
     SHARED_FIELD(H2X_RC_INT_INTDONE, 4, 1)
     SHARED_FIELD(H2X_RC_INT_INTX, 0, 4)
 REG32(H2X_RC_H_RDATA,       0xCC)
+REG32(H2X_RC_H_MSI_EN0,     0xE0)
+REG32(H2X_RC_H_MSI_EN1,     0xE4)
+REG32(H2X_RC_H_MSI_STS0,    0xE8)
+REG32(H2X_RC_H_MSI_STS1,    0xEC)
 
 #define TLP_FMTTYPE_CFGRD0  0x04 /* Configuration Read  Type 0 */
 #define TLP_FMTTYPE_CFGWR0  0x44 /* Configuration Write Type 0 */
@@ -276,6 +377,8 @@ static const AspeedPCIERegMap aspeed_regmap = {
     .rc = {
         .int_en_reg     = R_H2X_RC_H_INT_EN,
         .int_sts_reg    = R_H2X_RC_H_INT_STS,
+        .msi_sts0_reg   = R_H2X_RC_H_MSI_STS0,
+        .msi_sts1_reg   = R_H2X_RC_H_MSI_STS1,
     },
 };
 
@@ -447,6 +550,29 @@ static void aspeed_pcie_cfg_write(void *opaque, hwaddr addr, uint64_t data,
         }
         s->regs[reg] &= ~data | H2X_RC_INT_INTX_MASK;
         break;
+    /*
+     * These status registers are used for notify sources ISR are executed.
+     * If one source ISR is executed, it will clear one bit.
+     * If it clear all bits, it means to initialize this register status
+     * rather than sources ISR are executed.
+     */
+    case R_H2X_RC_H_MSI_STS0:
+    case R_H2X_RC_H_MSI_STS1:
+        if (data == 0) {
+            return ;
+        }
+
+        s->regs[reg] &= ~data;
+        if (data == 0xffffffff) {
+            return;
+        }
+
+        if (!s->regs[R_H2X_RC_H_MSI_STS0] &&
+            !s->regs[R_H2X_RC_H_MSI_STS1]) {
+            trace_aspeed_pcie_rc_msi_clear_irq(s->id, 0);
+            qemu_set_irq(s->rc.irq, 0);
+        }
+        break;
     default:
         s->regs[reg] = data;
         break;
@@ -468,6 +594,8 @@ static void aspeed_pcie_cfg_instance_init(Object *obj)
     AspeedPCIECfgState *s = ASPEED_PCIE_CFG(obj);
 
     object_initialize_child(obj, "rc", &s->rc, TYPE_ASPEED_PCIE_RC);
+    object_property_add_alias(obj, "dram", OBJECT(&s->rc), "dram");
+    object_property_add_alias(obj, "dram-base", OBJECT(&s->rc), "dram-base");
 
     return;
 }
@@ -502,6 +630,9 @@ static void aspeed_pcie_cfg_realize(DeviceState *dev, Error **errp)
     object_property_set_int(OBJECT(&s->rc), "rp-addr",
                             apc->rc_rp_addr,
                             &error_abort);
+    object_property_set_int(OBJECT(&s->rc), "msi-addr",
+                            apc->rc_msi_addr,
+                            &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->rc), errp)) {
         return;
     }
@@ -533,6 +664,7 @@ static void aspeed_pcie_cfg_class_init(ObjectClass *klass, const void *data)
     apc->reg_ops = &aspeed_pcie_cfg_ops;
     apc->reg_map = &aspeed_regmap;
     apc->nr_regs = 0x100 >> 2;
+    apc->rc_msi_addr = 0x1e77005C;
     apc->rc_bus_nr = 0x80;
     apc->rc_has_rd = true;
     apc->rc_rp_addr = PCI_DEVFN(8, 0);
