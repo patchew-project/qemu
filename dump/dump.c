@@ -1780,26 +1780,13 @@ static void vmcoreinfo_update_phys_base(DumpState *s)
     g_strfreev(lines);
 }
 
-static void dump_init(DumpState *s, int fd, bool has_format,
-                      DumpGuestMemoryFormat format, bool paging, bool has_filter,
-                      int64_t begin, int64_t length, bool kdump_raw,
-                      Error **errp)
+static void dump_preinit(DumpState *s, Error **errp)
 {
     ERRP_GUARD();
     VMCoreInfoState *vmci = vmcoreinfo_find();
     CPUState *cpu;
     int nr_cpus;
     int ret;
-
-    s->has_format = has_format;
-    s->format = format;
-    s->written_size = 0;
-    s->kdump_raw = kdump_raw;
-
-    /* kdump-compressed is conflict with paging and filter */
-    if (has_format && format != DUMP_GUEST_MEMORY_FORMAT_ELF) {
-        assert(!paging && !has_filter);
-    }
 
     if (runstate_is_running()) {
         vm_stop(RUN_STATE_SAVE_VM);
@@ -1817,41 +1804,10 @@ static void dump_init(DumpState *s, int fd, bool has_format,
         nr_cpus++;
     }
 
-    s->fd = fd;
-    if (has_filter && !length) {
-        error_setg(errp, "parameter 'length' expects a non-zero size");
-        goto cleanup;
-    }
-    s->filter_area_begin = begin;
-    s->filter_area_length = length;
-
-    /* First index is 0, it's the special null name */
-    s->string_table_buf = g_array_new(FALSE, TRUE, 1);
-    /*
-     * Allocate the null name, due to the clearing option set to true
-     * it will be 0.
-     */
-    g_array_set_size(s->string_table_buf, 1);
-
     memory_mapping_list_init(&s->list);
-
     guest_phys_blocks_init(&s->guest_phys_blocks);
     guest_phys_blocks_append(&s->guest_phys_blocks);
-    s->total_size = dump_calculate_size(s);
-#ifdef DEBUG_DUMP_GUEST_MEMORY
-    fprintf(stderr, "DUMP: total memory to dump: %lu\n", s->total_size);
-#endif
 
-    /* it does not make sense to dump non-existent memory */
-    if (!s->total_size) {
-        error_setg(errp, "dump: no guest memory to dump");
-        goto cleanup;
-    }
-
-    /* get dump info: endian, class and architecture.
-     * If the target architecture is not supported, cpu_get_dump_info() will
-     * return -1.
-     */
     ret = cpu_get_dump_info(&s->dump_info, &s->guest_phys_blocks);
     if (ret < 0) {
         error_setg(errp,
@@ -1909,6 +1865,56 @@ static void dump_init(DumpState *s, int fd, bool has_format,
         }
     }
 
+    s->nr_cpus = nr_cpus;
+    return;
+cleanup:
+    dump_cleanup(s);
+}
+
+static void dump_init_complete(DumpState *s, int fd, bool has_format,
+                               DumpGuestMemoryFormat format, bool paging,
+                               bool has_filter, int64_t begin, int64_t length,
+                               bool kdump_raw, Error **errp)
+{
+    ERRP_GUARD();
+
+    s->has_format = has_format;
+    s->format = format;
+    s->written_size = 0;
+    s->kdump_raw = kdump_raw;
+
+    /* kdump-compressed is conflict with paging and filter */
+    if (has_format && format != DUMP_GUEST_MEMORY_FORMAT_ELF) {
+        assert(!paging && !has_filter);
+    }
+
+    s->fd = fd;
+    if (has_filter && !length) {
+        error_setg(errp, "parameter 'length' expects a non-zero size");
+        goto cleanup;
+    }
+    s->filter_area_begin = begin;
+    s->filter_area_length = length;
+
+    /* First index is 0, it's the special null name */
+    s->string_table_buf = g_array_new(FALSE, TRUE, 1);
+    /*
+     * Allocate the null name, due to the clearing option set to true
+     * it will be 0.
+     */
+    g_array_set_size(s->string_table_buf, 1);
+
+    s->total_size = dump_calculate_size(s);
+#ifdef DEBUG_DUMP_GUEST_MEMORY
+    fprintf(stderr, "DUMP: total memory to dump: %lu\n", s->total_size);
+#endif
+
+    /* it does not make sense to dump non-existent memory */
+    if (!s->total_size) {
+        error_setg(errp, "dump: no guest memory to dump");
+        goto cleanup;
+    }
+
     /* get memory mapping */
     if (paging) {
         qemu_get_guest_memory_mapping(&s->list, &s->guest_phys_blocks, errp);
@@ -1918,8 +1924,6 @@ static void dump_init(DumpState *s, int fd, bool has_format,
     } else {
         qemu_get_guest_simple_memory_mapping(&s->list, &s->guest_phys_blocks);
     }
-
-    s->nr_cpus = nr_cpus;
 
     get_max_mapnr(s);
 
@@ -2150,11 +2154,6 @@ void qmp_dump_guest_memory(bool paging, const char *protocol,
     }
 #endif
 
-    if (has_format && format == DUMP_GUEST_MEMORY_FORMAT_WIN_DMP
-        && !win_dump_available(errp)) {
-        return;
-    }
-
     if (strstart(protocol, "fd:", &p)) {
         fd = monitor_get_fd(monitor_cur(), p, errp);
         if (fd == -1) {
@@ -2193,9 +2192,19 @@ void qmp_dump_guest_memory(bool paging, const char *protocol,
 
     s = &dump_state_global;
     dump_state_prepare(s);
+    dump_preinit(s, errp);
+    if (*errp) {
+        qatomic_set(&s->status, DUMP_STATUS_FAILED);
+        return;
+    }
 
-    dump_init(s, fd, has_format, format, paging, has_begin,
-              begin, length, kdump_raw, errp);
+    if (has_format && format == DUMP_GUEST_MEMORY_FORMAT_WIN_DMP
+        && !win_dump_available(s, errp)) {
+        return;
+    }
+
+    dump_init_complete(s, fd, has_format, format, paging, has_begin,
+                       begin, length, kdump_raw, errp);
     if (*errp) {
         qatomic_set(&s->status, DUMP_STATUS_FAILED);
         return;
@@ -2218,6 +2227,13 @@ DumpGuestMemoryCapability *qmp_query_dump_guest_memory_capability(Error **errp)
                                   g_new0(DumpGuestMemoryCapability, 1);
     DumpGuestMemoryFormatList **tail = &cap->formats;
 
+    DumpState *s = g_new0(DumpState, 1);
+    dump_state_prepare(s);
+    dump_preinit(s, errp);
+    if (*errp) {
+        goto cleanup;
+    }
+
     /* elf is always available */
     QAPI_LIST_APPEND(tail, DUMP_GUEST_MEMORY_FORMAT_ELF);
 
@@ -2237,9 +2253,12 @@ DumpGuestMemoryCapability *qmp_query_dump_guest_memory_capability(Error **errp)
     QAPI_LIST_APPEND(tail, DUMP_GUEST_MEMORY_FORMAT_KDUMP_RAW_SNAPPY);
 #endif
 
-    if (win_dump_available(NULL)) {
+    if (win_dump_available(s, NULL)) {
         QAPI_LIST_APPEND(tail, DUMP_GUEST_MEMORY_FORMAT_WIN_DMP);
     }
 
+ cleanup:
+    dump_cleanup(s);
+    g_free(s);
     return cap;
 }

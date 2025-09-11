@@ -20,8 +20,25 @@
 
 #if defined(TARGET_X86_64)
 
-bool win_dump_available(Error **errp)
+static bool check_header(WinDumpHeader *h, bool *x64, Error **errp);
+
+bool win_dump_available(DumpState *s, Error **errp)
 {
+    WinDumpHeader *h = (void *)(s->guest_note + VMCOREINFO_ELF_NOTE_HDR_SIZE);
+    Error *local_err = NULL;
+    bool x64 = true;
+
+    if (s->guest_note_size != VMCOREINFO_WIN_DUMP_NOTE_SIZE32 &&
+            s->guest_note_size != VMCOREINFO_WIN_DUMP_NOTE_SIZE64) {
+        error_setg(errp, "win-dump: invalid vmcoreinfo note size");
+        return false;
+    }
+
+    if (!check_header(h, &x64, &local_err)) {
+        error_propagate(errp, local_err);
+        return false;
+    }
+
     return true;
 }
 
@@ -480,7 +497,7 @@ out_cr3:
 
 #else /* !TARGET_X86_64 */
 
-bool win_dump_available(Error **errp)
+bool win_dump_available(DumpState *s, Error **errp)
 {
     error_setg(errp, "Windows dump is only available for x86-64");
 
@@ -489,7 +506,7 @@ bool win_dump_available(Error **errp)
 
 void create_win_dump(DumpState *s, Error **errp)
 {
-    win_dump_available(errp);
+    win_dump_available(s, errp);
 }
 
 #endif
