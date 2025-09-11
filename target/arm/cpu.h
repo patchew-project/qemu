@@ -1031,6 +1031,10 @@ struct ArchCPU {
     /* KVM steal time */
     OnOffAuto kvm_steal_time;
 
+    /* KVM registers that must be ignored/hidden */
+    uint64_t *kvm_hidden_regs;
+    uint32_t nr_kvm_hidden_regs;
+
     /* Uniprocessor system with MP extensions */
     bool mp_is_up;
 
