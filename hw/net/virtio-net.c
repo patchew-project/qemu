@@ -382,12 +382,127 @@ static void virtio_net_drop_tx_queue_data(VirtIODevice *vdev, VirtQueue *vq)
     }
 }
 
+static void virtio_net_suspend_dataplane(VirtIONet *n)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    VirtIONetQueue *q;
+    NetClientState *nc;
+    int queue_pairs, cvq, i;
+
+    // suspend vhost
+    if (n->vhost_started) {
+        queue_pairs = n->multiqueue ? n->max_queue_pairs : 1;
+        cvq = virtio_vdev_has_feature(vdev, VIRTIO_NET_F_CTRL_VQ) ?
+              n->max_ncs - n->max_queue_pairs : 0;
+
+        vhost_net_stop(vdev, n->nic->ncs, queue_pairs, cvq);
+        n->vhost_started = 0;
+    }
+
+    // suspend qemu emulated queues
+    for (i = 0; i < n->max_queue_pairs; i++) {
+        q = &n->vqs[i];
+        nc = qemu_get_subqueue(n->nic, i);
+
+        // disable qeueu notifications
+        //virtio_queue_set_notification(q->rx_vq, 0);
+        virtio_queue_set_notification(q->tx_vq, 0);
+
+        // disable timer and BH
+        if (q->tx_timer) {
+            timer_del(q->tx_timer);
+        } else {
+            qemu_bh_cancel(q->tx_bh);
+        }
+        q->tx_waiting = 0;
+
+        // clean queues
+        qemu_purge_queued_packets(nc);
+
+        // clean async transitions
+        if (q->async_tx.elem) {
+            virtqueue_push(q->tx_vq, q->async_tx.elem, 0);
+            virtio_notify(vdev, q->tx_vq);
+            g_free(q->async_tx.elem);
+            q->async_tx.elem = NULL;
+        }
+    }
+}
+
+static int virtio_net_resume_dataplane(VirtIONet *n)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    NetClientState *nc = qemu_get_queue(n->nic);
+    VirtIONetQueue *q;
+    NetClientState *qnc;
+    int queue_pairs, cvq, i, r;
+
+    if (!(vdev->status & VIRTIO_CONFIG_S_SUSPEND))
+        return -1;
+
+    // resume vhost
+    if (get_vhost_net(nc->peer)) {
+        queue_pairs = n->multiqueue ? n->max_queue_pairs : 1;
+        cvq = virtio_vdev_has_feature(vdev, VIRTIO_NET_F_CTRL_VQ) ?
+              n->max_ncs - n->max_queue_pairs : 0;
+        r = vhost_net_start(vdev, n->nic->ncs, queue_pairs, cvq);
+        if (r < 0) {
+            error_report("unable to start vhost net: %d", r);
+            n->vhost_started = 1;
+
+            return -1;
+        }
+
+        n->vhost_started = 1;
+
+        for (i = 0;  i < queue_pairs; i++) {
+            qnc = qemu_get_subqueue(n->nic, i);
+
+            /* Purge both directions: TX and RX. */
+            qemu_net_queue_purge(qnc->peer->incoming_queue, qnc);
+            qemu_net_queue_purge(qnc->incoming_queue, qnc->peer);
+        }
+    }
+
+    // resume qemu emulated queues
+    if (!n->vhost_started) {
+        for (i = 0; i < n->max_queue_pairs; i++) {
+            q = &n->vqs[i];
+            nc = qemu_get_subqueue(n->nic, i);
+
+            if (q->tx_timer) {
+                timer_mod(q->tx_timer,
+                          qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + n->tx_timeout);
+            } else {
+                replay_bh_schedule_event(q->tx_bh);
+                virtio_queue_set_notification(q->tx_vq, 1);
+            }
+            // flush packets
+            qemu_flush_queued_packets(nc);
+        }
+    }
+
+    return 0;
+}
+
 static int virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
     VirtIONetQueue *q;
     int i;
     uint8_t queue_status;
+
+    if ((vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) &&
+        (status & VIRTIO_CONFIG_S_SUSPEND) &&
+        (virtio_vdev_has_feature(vdev, VIRTIO_F_SUSPEND))) {
+        virtio_net_suspend_dataplane(n);
+    }
+
+    if ((!(vdev->status & VIRTIO_CONFIG_S_DRIVER_OK)) &&
+        (vdev->status & VIRTIO_CONFIG_S_SUSPEND) &&
+        (status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+        virtio_net_resume_dataplane(n);
+        }
 
     virtio_net_vnet_endian_status(n, status);
     virtio_net_vhost_status(n, status);

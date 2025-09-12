@@ -2268,6 +2268,14 @@ int virtio_set_status(VirtIODevice *vdev, uint8_t val)
     }
     vdev->status = val;
 
+    /* The driver suspends the device */
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_SUSPEND) &&
+        (vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) &&
+        (val & VIRTIO_CONFIG_S_SUSPEND)  && !ret) {
+            virtio_set_started(vdev, false);
+            vdev->status &= !VIRTIO_CONFIG_S_DRIVER_OK;
+    }
+
     return ret;
 }
 

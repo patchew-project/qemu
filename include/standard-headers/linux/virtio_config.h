@@ -40,6 +40,8 @@
 #define VIRTIO_CONFIG_S_DRIVER_OK	4
 /* Driver has finished configuring features */
 #define VIRTIO_CONFIG_S_FEATURES_OK	8
+/* Driver has suspended the device. */
+#define VIRTIO_CONFIG_S_SUSPEND		16
 /* Device entered invalid state, driver must reset it */
 #define VIRTIO_CONFIG_S_NEEDS_RESET	0x40
 /* We've given up on this device. */
@@ -117,5 +119,9 @@
  * This feature indicates that the device support administration virtqueues.
  */
 #define VIRTIO_F_ADMIN_VQ		41
+/*
+ * This feature indicates that the driver can suspend the device
+ */
+#define VIRTIO_F_SUSPEND		43
 
 #endif /* _LINUX_VIRTIO_CONFIG_H */
