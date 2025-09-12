@@ -187,6 +187,8 @@ struct VirtIOSerial {
     virtio_serial_conf serial;
 
     uint64_t host_features;
+
+    uint16_t port0_cols, port0_rows;
 };
 
 /* Interface to the virtio-serial bus */
@@ -220,6 +222,9 @@ size_t virtio_serial_guest_ready(VirtIOSerialPort *port);
  * value here.
  */
 void virtio_serial_throttle_port(VirtIOSerialPort *port, bool throttle);
+
+void virtio_serial_send_console_resize(VirtIOSerialPort *port,
+                                       uint16_t cols, uint16_t rows);
 
 #define TYPE_VIRTIO_SERIAL "virtio-serial-device"
 OBJECT_DECLARE_SIMPLE_TYPE(VirtIOSerial, VIRTIO_SERIAL)
