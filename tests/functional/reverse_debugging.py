@@ -186,5 +186,7 @@ class ReverseDebugging(LinuxKernelTest):
         self.check_pc(g, steps[-1])
         logger.info('successfully reached %x' % steps[-1])
 
+        g.close()
+
         logger.info('exiting gdb and qemu')
         vm.shutdown()
