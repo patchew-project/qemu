@@ -231,3 +231,7 @@ class GDBRemote:
 
         if self._extended_mode:
             self.set_extended_mode()
+
+    def close(self):
+        self._socket.close()
+        self._socket = None
