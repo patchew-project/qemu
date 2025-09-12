@@ -1580,6 +1580,11 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
         return;
     }
 
+    /* only allow writing device status while suspended */
+    if ((vdev->status & VIRTIO_CONFIG_S_SUSPEND) && (addr != VIRTIO_PCI_COMMON_STATUS)) {
+        return;
+    }
+
     switch (addr) {
     case VIRTIO_PCI_COMMON_DFSELECT:
         proxy->dfselect = val;

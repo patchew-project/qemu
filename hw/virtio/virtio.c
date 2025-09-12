@@ -2242,8 +2242,10 @@ int virtio_set_status(VirtIODevice *vdev, uint8_t val)
 {
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     trace_virtio_set_status(vdev, val);
+    uint8_t old_status;
     int ret = 0;
 
+    old_status = vdev->status;
     if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
         if (!(vdev->status & VIRTIO_CONFIG_S_FEATURES_OK) &&
             val & VIRTIO_CONFIG_S_FEATURES_OK) {
@@ -2274,6 +2276,15 @@ int virtio_set_status(VirtIODevice *vdev, uint8_t val)
         (val & VIRTIO_CONFIG_S_SUSPEND)  && !ret) {
             virtio_set_started(vdev, false);
             vdev->status &= !VIRTIO_CONFIG_S_DRIVER_OK;
+    }
+
+    /* The device has been resumed */
+    if ((!(vdev->status & VIRTIO_CONFIG_S_SUSPEND)) &&
+        (old_status & VIRTIO_CONFIG_S_SUSPEND) &&
+        (vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) &&
+        (vdev->config_interrupt_pending)) {
+            virtio_notify_config(vdev);
+            vdev->config_interrupt_pending = false;
     }
 
     return ret;
@@ -2713,6 +2724,11 @@ void virtio_notify_config(VirtIODevice *vdev)
 {
     if (!(vdev->status & VIRTIO_CONFIG_S_DRIVER_OK))
         return;
+
+    if (vdev->status & VIRTIO_CONFIG_S_SUSPEND) {
+        vdev->config_interrupt_pending = true;
+        return;
+    }
 
     virtio_set_isr(vdev, 0x3);
     vdev->generation++;

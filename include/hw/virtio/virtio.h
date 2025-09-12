@@ -167,6 +167,7 @@ struct VirtIODevice
      */
     EventNotifier config_notifier;
     bool device_iotlb_enabled;
+    bool config_interrupt_pending;
 };
 
 struct VirtioDeviceClass {
