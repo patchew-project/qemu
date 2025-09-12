@@ -14,6 +14,7 @@ import logging
 
 from qemu_test import LinuxKernelTest, get_qemu_img
 from qemu_test.ports import Ports
+from qemu_test.gdb import GDBRemote
 
 
 class ReverseDebugging(LinuxKernelTest):
@@ -99,7 +100,6 @@ class ReverseDebugging(LinuxKernelTest):
         return vm.qmp('query-replay')['return']['icount']
 
     def reverse_debugging(self, shift=7, args=None):
-        from avocado.utils import gdb
         from avocado.utils import process
 
         logger = logging.getLogger('replay')
@@ -130,7 +130,7 @@ class ReverseDebugging(LinuxKernelTest):
             port = ports.find_free_port()
             vm = self.run_vm(False, shift, args, replay_path, image_path, port)
         logger.info('connecting to gdbstub')
-        g = gdb.GDBRemote('127.0.0.1', port, False, False)
+        g = GDBRemote('127.0.0.1', port, False, False)
         g.connect()
         r = g.cmd(b'qSupported')
         if b'qXfer:features:read+' in r:
