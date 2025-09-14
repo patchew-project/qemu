@@ -59,7 +59,7 @@
 #define FULOONG_BIOSNAME "pmon_2e.bin"
 
 /* PCI SLOT in Fuloong 2e */
-#define FULOONG2E_VIA_SLOT        5
+#define FULOONG2E_VIA_SLOT        17
 #define FULOONG2E_ATI_SLOT        6
 #define FULOONG2E_RTL8139_SLOT    7
 
