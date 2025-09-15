@@ -3166,9 +3166,11 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,          \
                       total_elems * ESZ);                 \
 }
 
+RVVCALL(OPFVV2, vfadd_vv_h_bf16, OP_UUU_H, H2, H2, H2, bfloat16_add)
 RVVCALL(OPFVV2, vfadd_vv_h, OP_UUU_H, H2, H2, H2, float16_add)
 RVVCALL(OPFVV2, vfadd_vv_w, OP_UUU_W, H4, H4, H4, float32_add)
 RVVCALL(OPFVV2, vfadd_vv_d, OP_UUU_D, H8, H8, H8, float64_add)
+GEN_VEXT_VV_ENV(vfadd_vv_h_bf16, 2)
 GEN_VEXT_VV_ENV(vfadd_vv_h, 2)
 GEN_VEXT_VV_ENV(vfadd_vv_w, 4)
 GEN_VEXT_VV_ENV(vfadd_vv_d, 8)
@@ -3211,25 +3213,36 @@ void HELPER(NAME)(void *vd, void *v0, uint64_t s1,        \
                       total_elems * ESZ);                 \
 }
 
+RVVCALL(OPFVF2, vfadd_vf_h_bf16, OP_UUU_H, H2, H2, bfloat16_add)
 RVVCALL(OPFVF2, vfadd_vf_h, OP_UUU_H, H2, H2, float16_add)
 RVVCALL(OPFVF2, vfadd_vf_w, OP_UUU_W, H4, H4, float32_add)
 RVVCALL(OPFVF2, vfadd_vf_d, OP_UUU_D, H8, H8, float64_add)
+GEN_VEXT_VF(vfadd_vf_h_bf16, 2)
 GEN_VEXT_VF(vfadd_vf_h, 2)
 GEN_VEXT_VF(vfadd_vf_w, 4)
 GEN_VEXT_VF(vfadd_vf_d, 8)
 
+RVVCALL(OPFVV2, vfsub_vv_h_bf16, OP_UUU_H, H2, H2, H2, bfloat16_sub)
 RVVCALL(OPFVV2, vfsub_vv_h, OP_UUU_H, H2, H2, H2, float16_sub)
 RVVCALL(OPFVV2, vfsub_vv_w, OP_UUU_W, H4, H4, H4, float32_sub)
 RVVCALL(OPFVV2, vfsub_vv_d, OP_UUU_D, H8, H8, H8, float64_sub)
+GEN_VEXT_VV_ENV(vfsub_vv_h_bf16, 2)
 GEN_VEXT_VV_ENV(vfsub_vv_h, 2)
 GEN_VEXT_VV_ENV(vfsub_vv_w, 4)
 GEN_VEXT_VV_ENV(vfsub_vv_d, 8)
+RVVCALL(OPFVF2, vfsub_vf_h_bf16, OP_UUU_H, H2, H2, bfloat16_sub)
 RVVCALL(OPFVF2, vfsub_vf_h, OP_UUU_H, H2, H2, float16_sub)
 RVVCALL(OPFVF2, vfsub_vf_w, OP_UUU_W, H4, H4, float32_sub)
 RVVCALL(OPFVF2, vfsub_vf_d, OP_UUU_D, H8, H8, float64_sub)
+GEN_VEXT_VF(vfsub_vf_h_bf16, 2)
 GEN_VEXT_VF(vfsub_vf_h, 2)
 GEN_VEXT_VF(vfsub_vf_w, 4)
 GEN_VEXT_VF(vfsub_vf_d, 8)
+
+static uint16_t bfloat16_rsub(uint16_t a, uint16_t b, float_status * s)
+{
+    return bfloat16_sub(b, a, s);
+}
 
 static uint16_t float16_rsub(uint16_t a, uint16_t b, float_status *s)
 {
@@ -3246,14 +3259,22 @@ static uint64_t float64_rsub(uint64_t a, uint64_t b, float_status *s)
     return float64_sub(b, a, s);
 }
 
+RVVCALL(OPFVF2, vfrsub_vf_h_bf16, OP_UUU_H, H2, H2, bfloat16_rsub)
 RVVCALL(OPFVF2, vfrsub_vf_h, OP_UUU_H, H2, H2, float16_rsub)
 RVVCALL(OPFVF2, vfrsub_vf_w, OP_UUU_W, H4, H4, float32_rsub)
 RVVCALL(OPFVF2, vfrsub_vf_d, OP_UUU_D, H8, H8, float64_rsub)
+GEN_VEXT_VF(vfrsub_vf_h_bf16, 2)
 GEN_VEXT_VF(vfrsub_vf_h, 2)
 GEN_VEXT_VF(vfrsub_vf_w, 4)
 GEN_VEXT_VF(vfrsub_vf_d, 8)
 
 /* Vector Widening Floating-Point Add/Subtract Instructions */
+static uint32_t vfwadd16_bf16(uint16_t a, uint16_t b, float_status *s)
+{
+    return float32_add(bfloat16_to_float32(a, s),
+                       bfloat16_to_float32(b, s), s);
+}
+
 static uint32_t vfwadd16(uint16_t a, uint16_t b, float_status *s)
 {
     return float32_add(float16_to_float32(a, true, s),
@@ -3267,14 +3288,24 @@ static uint64_t vfwadd32(uint32_t a, uint32_t b, float_status *s)
 
 }
 
+RVVCALL(OPFVV2, vfwadd_vv_h_bf16, WOP_UUU_H, H4, H2, H2, vfwadd16_bf16)
 RVVCALL(OPFVV2, vfwadd_vv_h, WOP_UUU_H, H4, H2, H2, vfwadd16)
 RVVCALL(OPFVV2, vfwadd_vv_w, WOP_UUU_W, H8, H4, H4, vfwadd32)
+GEN_VEXT_VV_ENV(vfwadd_vv_h_bf16, 4)
 GEN_VEXT_VV_ENV(vfwadd_vv_h, 4)
 GEN_VEXT_VV_ENV(vfwadd_vv_w, 8)
+RVVCALL(OPFVF2, vfwadd_vf_h_bf16, WOP_UUU_H, H4, H2, vfwadd16_bf16)
 RVVCALL(OPFVF2, vfwadd_vf_h, WOP_UUU_H, H4, H2, vfwadd16)
 RVVCALL(OPFVF2, vfwadd_vf_w, WOP_UUU_W, H8, H4, vfwadd32)
+GEN_VEXT_VF(vfwadd_vf_h_bf16, 4)
 GEN_VEXT_VF(vfwadd_vf_h, 4)
 GEN_VEXT_VF(vfwadd_vf_w, 8)
+
+static uint32_t vfwsub16_bf16(uint16_t a, uint16_t b, float_status *s)
+{
+    return float32_sub(bfloat16_to_float32(a, s),
+                       bfloat16_to_float32(b, s), s);
+}
 
 static uint32_t vfwsub16(uint16_t a, uint16_t b, float_status *s)
 {
@@ -3289,14 +3320,23 @@ static uint64_t vfwsub32(uint32_t a, uint32_t b, float_status *s)
 
 }
 
+RVVCALL(OPFVV2, vfwsub_vv_h_bf16, WOP_UUU_H, H4, H2, H2, vfwsub16_bf16)
 RVVCALL(OPFVV2, vfwsub_vv_h, WOP_UUU_H, H4, H2, H2, vfwsub16)
 RVVCALL(OPFVV2, vfwsub_vv_w, WOP_UUU_W, H8, H4, H4, vfwsub32)
+GEN_VEXT_VV_ENV(vfwsub_vv_h_bf16, 4)
 GEN_VEXT_VV_ENV(vfwsub_vv_h, 4)
 GEN_VEXT_VV_ENV(vfwsub_vv_w, 8)
+RVVCALL(OPFVF2, vfwsub_vf_h_bf16, WOP_UUU_H, H4, H2, vfwsub16_bf16)
 RVVCALL(OPFVF2, vfwsub_vf_h, WOP_UUU_H, H4, H2, vfwsub16)
 RVVCALL(OPFVF2, vfwsub_vf_w, WOP_UUU_W, H8, H4, vfwsub32)
+GEN_VEXT_VF(vfwsub_vf_h_bf16, 4)
 GEN_VEXT_VF(vfwsub_vf_h, 4)
 GEN_VEXT_VF(vfwsub_vf_w, 8)
+
+static uint32_t vfwaddw16_bf16(uint32_t a, uint16_t b, float_status *s)
+{
+    return float32_add(a, bfloat16_to_float32(b, s), s);
+}
 
 static uint32_t vfwaddw16(uint32_t a, uint16_t b, float_status *s)
 {
@@ -3308,14 +3348,23 @@ static uint64_t vfwaddw32(uint64_t a, uint32_t b, float_status *s)
     return float64_add(a, float32_to_float64(b, s), s);
 }
 
+RVVCALL(OPFVV2, vfwadd_wv_h_bf16, WOP_WUUU_H, H4, H2, H2, vfwaddw16_bf16)
 RVVCALL(OPFVV2, vfwadd_wv_h, WOP_WUUU_H, H4, H2, H2, vfwaddw16)
 RVVCALL(OPFVV2, vfwadd_wv_w, WOP_WUUU_W, H8, H4, H4, vfwaddw32)
+GEN_VEXT_VV_ENV(vfwadd_wv_h_bf16, 4)
 GEN_VEXT_VV_ENV(vfwadd_wv_h, 4)
 GEN_VEXT_VV_ENV(vfwadd_wv_w, 8)
+RVVCALL(OPFVF2, vfwadd_wf_h_bf16, WOP_WUUU_H, H4, H2, vfwaddw16_bf16)
 RVVCALL(OPFVF2, vfwadd_wf_h, WOP_WUUU_H, H4, H2, vfwaddw16)
 RVVCALL(OPFVF2, vfwadd_wf_w, WOP_WUUU_W, H8, H4, vfwaddw32)
+GEN_VEXT_VF(vfwadd_wf_h_bf16, 4)
 GEN_VEXT_VF(vfwadd_wf_h, 4)
 GEN_VEXT_VF(vfwadd_wf_w, 8)
+
+static uint32_t vfwsubw16_bf16(uint32_t a, uint16_t b, float_status *s)
+{
+    return float32_sub(a, bfloat16_to_float32(b, s), s);
+}
 
 static uint32_t vfwsubw16(uint32_t a, uint16_t b, float_status *s)
 {
@@ -3327,25 +3376,33 @@ static uint64_t vfwsubw32(uint64_t a, uint32_t b, float_status *s)
     return float64_sub(a, float32_to_float64(b, s), s);
 }
 
+RVVCALL(OPFVV2, vfwsub_wv_h_bf16, WOP_WUUU_H, H4, H2, H2, vfwsubw16_bf16)
 RVVCALL(OPFVV2, vfwsub_wv_h, WOP_WUUU_H, H4, H2, H2, vfwsubw16)
 RVVCALL(OPFVV2, vfwsub_wv_w, WOP_WUUU_W, H8, H4, H4, vfwsubw32)
+GEN_VEXT_VV_ENV(vfwsub_wv_h_bf16, 4)
 GEN_VEXT_VV_ENV(vfwsub_wv_h, 4)
 GEN_VEXT_VV_ENV(vfwsub_wv_w, 8)
+RVVCALL(OPFVF2, vfwsub_wf_h_bf16, WOP_WUUU_H, H4, H2, vfwsubw16_bf16)
 RVVCALL(OPFVF2, vfwsub_wf_h, WOP_WUUU_H, H4, H2, vfwsubw16)
 RVVCALL(OPFVF2, vfwsub_wf_w, WOP_WUUU_W, H8, H4, vfwsubw32)
+GEN_VEXT_VF(vfwsub_wf_h_bf16, 4)
 GEN_VEXT_VF(vfwsub_wf_h, 4)
 GEN_VEXT_VF(vfwsub_wf_w, 8)
 
 /* Vector Single-Width Floating-Point Multiply/Divide Instructions */
+RVVCALL(OPFVV2, vfmul_vv_h_bf16, OP_UUU_H, H2, H2, H2, bfloat16_mul)
 RVVCALL(OPFVV2, vfmul_vv_h, OP_UUU_H, H2, H2, H2, float16_mul)
 RVVCALL(OPFVV2, vfmul_vv_w, OP_UUU_W, H4, H4, H4, float32_mul)
 RVVCALL(OPFVV2, vfmul_vv_d, OP_UUU_D, H8, H8, H8, float64_mul)
+GEN_VEXT_VV_ENV(vfmul_vv_h_bf16, 2)
 GEN_VEXT_VV_ENV(vfmul_vv_h, 2)
 GEN_VEXT_VV_ENV(vfmul_vv_w, 4)
 GEN_VEXT_VV_ENV(vfmul_vv_d, 8)
+RVVCALL(OPFVF2, vfmul_vf_h_bf16, OP_UUU_H, H2, H2, bfloat16_mul)
 RVVCALL(OPFVF2, vfmul_vf_h, OP_UUU_H, H2, H2, float16_mul)
 RVVCALL(OPFVF2, vfmul_vf_w, OP_UUU_W, H4, H4, float32_mul)
 RVVCALL(OPFVF2, vfmul_vf_d, OP_UUU_D, H8, H8, float64_mul)
+GEN_VEXT_VF(vfmul_vf_h_bf16, 2)
 GEN_VEXT_VF(vfmul_vf_h, 2)
 GEN_VEXT_VF(vfmul_vf_w, 4)
 GEN_VEXT_VF(vfmul_vf_d, 8)
@@ -3386,6 +3443,12 @@ GEN_VEXT_VF(vfrdiv_vf_w, 4)
 GEN_VEXT_VF(vfrdiv_vf_d, 8)
 
 /* Vector Widening Floating-Point Multiply */
+static uint32_t vfwmul16_bf16(uint16_t a, uint16_t b, float_status *s)
+{
+    return float32_mul(bfloat16_to_float32(a, s),
+                       bfloat16_to_float32(b, s), s);
+}
+
 static uint32_t vfwmul16(uint16_t a, uint16_t b, float_status *s)
 {
     return float32_mul(float16_to_float32(a, true, s),
@@ -3398,12 +3461,17 @@ static uint64_t vfwmul32(uint32_t a, uint32_t b, float_status *s)
                        float32_to_float64(b, s), s);
 
 }
+
+RVVCALL(OPFVV2, vfwmul_vv_h_bf16, WOP_UUU_H, H4, H2, H2, vfwmul16_bf16)
 RVVCALL(OPFVV2, vfwmul_vv_h, WOP_UUU_H, H4, H2, H2, vfwmul16)
 RVVCALL(OPFVV2, vfwmul_vv_w, WOP_UUU_W, H8, H4, H4, vfwmul32)
+GEN_VEXT_VV_ENV(vfwmul_vv_h_bf16, 4)
 GEN_VEXT_VV_ENV(vfwmul_vv_h, 4)
 GEN_VEXT_VV_ENV(vfwmul_vv_w, 8)
+RVVCALL(OPFVF2, vfwmul_vf_h_bf16, WOP_UUU_H, H4, H2, vfwmul16_bf16)
 RVVCALL(OPFVF2, vfwmul_vf_h, WOP_UUU_H, H4, H2, vfwmul16)
 RVVCALL(OPFVF2, vfwmul_vf_w, WOP_UUU_W, H8, H4, vfwmul32)
+GEN_VEXT_VF(vfwmul_vf_h_bf16, 4)
 GEN_VEXT_VF(vfwmul_vf_h, 4)
 GEN_VEXT_VF(vfwmul_vf_w, 8)
 
@@ -3416,6 +3484,12 @@ static void do_##NAME(void *vd, void *vs1, void *vs2, int i,       \
     TX2 s2 = *((T2 *)vs2 + HS2(i));                                \
     TD d = *((TD *)vd + HD(i));                                    \
     *((TD *)vd + HD(i)) = OP(s2, s1, d, &env->fp_status);          \
+}
+
+static uint16_t fmacc16_bf16(uint16_t a, uint16_t b, uint16_t d,
+                             float_status *s)
+{
+    return bfloat16_muladd(a, b, d, 0, s);
 }
 
 static uint16_t fmacc16(uint16_t a, uint16_t b, uint16_t d, float_status *s)
@@ -3433,9 +3507,11 @@ static uint64_t fmacc64(uint64_t a, uint64_t b, uint64_t d, float_status *s)
     return float64_muladd(a, b, d, 0, s);
 }
 
+RVVCALL(OPFVV3, vfmacc_vv_h_bf16, OP_UUU_H, H2, H2, H2, fmacc16_bf16)
 RVVCALL(OPFVV3, vfmacc_vv_h, OP_UUU_H, H2, H2, H2, fmacc16)
 RVVCALL(OPFVV3, vfmacc_vv_w, OP_UUU_W, H4, H4, H4, fmacc32)
 RVVCALL(OPFVV3, vfmacc_vv_d, OP_UUU_D, H8, H8, H8, fmacc64)
+GEN_VEXT_VV_ENV(vfmacc_vv_h_bf16, 2)
 GEN_VEXT_VV_ENV(vfmacc_vv_h, 2)
 GEN_VEXT_VV_ENV(vfmacc_vv_w, 4)
 GEN_VEXT_VV_ENV(vfmacc_vv_d, 8)
@@ -3449,12 +3525,21 @@ static void do_##NAME(void *vd, uint64_t s1, void *vs2, int i,    \
     *((TD *)vd + HD(i)) = OP(s2, (TX1)(T1)s1, d, &env->fp_status);\
 }
 
+RVVCALL(OPFVF3, vfmacc_vf_h_bf16, OP_UUU_H, H2, H2, fmacc16_bf16)
 RVVCALL(OPFVF3, vfmacc_vf_h, OP_UUU_H, H2, H2, fmacc16)
 RVVCALL(OPFVF3, vfmacc_vf_w, OP_UUU_W, H4, H4, fmacc32)
 RVVCALL(OPFVF3, vfmacc_vf_d, OP_UUU_D, H8, H8, fmacc64)
+GEN_VEXT_VF(vfmacc_vf_h_bf16, 2)
 GEN_VEXT_VF(vfmacc_vf_h, 2)
 GEN_VEXT_VF(vfmacc_vf_w, 4)
 GEN_VEXT_VF(vfmacc_vf_d, 8)
+
+static uint16_t fnmacc16_bf16(uint16_t a, uint16_t b, uint16_t d,
+                              float_status *s)
+{
+    return bfloat16_muladd(a, b, d, float_muladd_negate_c |
+                                    float_muladd_negate_product, s);
+}
 
 static uint16_t fnmacc16(uint16_t a, uint16_t b, uint16_t d, float_status *s)
 {
@@ -3474,18 +3559,28 @@ static uint64_t fnmacc64(uint64_t a, uint64_t b, uint64_t d, float_status *s)
                                    float_muladd_negate_product, s);
 }
 
+RVVCALL(OPFVV3, vfnmacc_vv_h_bf16, OP_UUU_H, H2, H2, H2, fnmacc16_bf16)
 RVVCALL(OPFVV3, vfnmacc_vv_h, OP_UUU_H, H2, H2, H2, fnmacc16)
 RVVCALL(OPFVV3, vfnmacc_vv_w, OP_UUU_W, H4, H4, H4, fnmacc32)
 RVVCALL(OPFVV3, vfnmacc_vv_d, OP_UUU_D, H8, H8, H8, fnmacc64)
+GEN_VEXT_VV_ENV(vfnmacc_vv_h_bf16, 2)
 GEN_VEXT_VV_ENV(vfnmacc_vv_h, 2)
 GEN_VEXT_VV_ENV(vfnmacc_vv_w, 4)
 GEN_VEXT_VV_ENV(vfnmacc_vv_d, 8)
+RVVCALL(OPFVF3, vfnmacc_vf_h_bf16, OP_UUU_H, H2, H2, fnmacc16_bf16)
 RVVCALL(OPFVF3, vfnmacc_vf_h, OP_UUU_H, H2, H2, fnmacc16)
 RVVCALL(OPFVF3, vfnmacc_vf_w, OP_UUU_W, H4, H4, fnmacc32)
 RVVCALL(OPFVF3, vfnmacc_vf_d, OP_UUU_D, H8, H8, fnmacc64)
+GEN_VEXT_VF(vfnmacc_vf_h_bf16, 2)
 GEN_VEXT_VF(vfnmacc_vf_h, 2)
 GEN_VEXT_VF(vfnmacc_vf_w, 4)
 GEN_VEXT_VF(vfnmacc_vf_d, 8)
+
+static uint16_t fmsac16_bf16(uint16_t a, uint16_t b, uint16_t d,
+                             float_status *s)
+{
+    return bfloat16_muladd(a, b, d, float_muladd_negate_c, s);
+}
 
 static uint16_t fmsac16(uint16_t a, uint16_t b, uint16_t d, float_status *s)
 {
@@ -3502,18 +3597,28 @@ static uint64_t fmsac64(uint64_t a, uint64_t b, uint64_t d, float_status *s)
     return float64_muladd(a, b, d, float_muladd_negate_c, s);
 }
 
+RVVCALL(OPFVV3, vfmsac_vv_h_bf16, OP_UUU_H, H2, H2, H2, fmsac16_bf16)
 RVVCALL(OPFVV3, vfmsac_vv_h, OP_UUU_H, H2, H2, H2, fmsac16)
 RVVCALL(OPFVV3, vfmsac_vv_w, OP_UUU_W, H4, H4, H4, fmsac32)
 RVVCALL(OPFVV3, vfmsac_vv_d, OP_UUU_D, H8, H8, H8, fmsac64)
+GEN_VEXT_VV_ENV(vfmsac_vv_h_bf16, 2)
 GEN_VEXT_VV_ENV(vfmsac_vv_h, 2)
 GEN_VEXT_VV_ENV(vfmsac_vv_w, 4)
 GEN_VEXT_VV_ENV(vfmsac_vv_d, 8)
+RVVCALL(OPFVF3, vfmsac_vf_h_bf16, OP_UUU_H, H2, H2, fmsac16_bf16)
 RVVCALL(OPFVF3, vfmsac_vf_h, OP_UUU_H, H2, H2, fmsac16)
 RVVCALL(OPFVF3, vfmsac_vf_w, OP_UUU_W, H4, H4, fmsac32)
 RVVCALL(OPFVF3, vfmsac_vf_d, OP_UUU_D, H8, H8, fmsac64)
+GEN_VEXT_VF(vfmsac_vf_h_bf16, 2)
 GEN_VEXT_VF(vfmsac_vf_h, 2)
 GEN_VEXT_VF(vfmsac_vf_w, 4)
 GEN_VEXT_VF(vfmsac_vf_d, 8)
+
+static uint16_t fnmsac16_bf16(uint16_t a, uint16_t b, uint16_t d,
+                              float_status *s)
+{
+    return bfloat16_muladd(a, b, d, float_muladd_negate_product, s);
+}
 
 static uint16_t fnmsac16(uint16_t a, uint16_t b, uint16_t d, float_status *s)
 {
@@ -3530,18 +3635,28 @@ static uint64_t fnmsac64(uint64_t a, uint64_t b, uint64_t d, float_status *s)
     return float64_muladd(a, b, d, float_muladd_negate_product, s);
 }
 
+RVVCALL(OPFVV3, vfnmsac_vv_h_bf16, OP_UUU_H, H2, H2, H2, fnmsac16_bf16)
 RVVCALL(OPFVV3, vfnmsac_vv_h, OP_UUU_H, H2, H2, H2, fnmsac16)
 RVVCALL(OPFVV3, vfnmsac_vv_w, OP_UUU_W, H4, H4, H4, fnmsac32)
 RVVCALL(OPFVV3, vfnmsac_vv_d, OP_UUU_D, H8, H8, H8, fnmsac64)
+GEN_VEXT_VV_ENV(vfnmsac_vv_h_bf16, 2)
 GEN_VEXT_VV_ENV(vfnmsac_vv_h, 2)
 GEN_VEXT_VV_ENV(vfnmsac_vv_w, 4)
 GEN_VEXT_VV_ENV(vfnmsac_vv_d, 8)
+RVVCALL(OPFVF3, vfnmsac_vf_h_bf16, OP_UUU_H, H2, H2, fnmsac16_bf16)
 RVVCALL(OPFVF3, vfnmsac_vf_h, OP_UUU_H, H2, H2, fnmsac16)
 RVVCALL(OPFVF3, vfnmsac_vf_w, OP_UUU_W, H4, H4, fnmsac32)
 RVVCALL(OPFVF3, vfnmsac_vf_d, OP_UUU_D, H8, H8, fnmsac64)
+GEN_VEXT_VF(vfnmsac_vf_h_bf16, 2)
 GEN_VEXT_VF(vfnmsac_vf_h, 2)
 GEN_VEXT_VF(vfnmsac_vf_w, 4)
 GEN_VEXT_VF(vfnmsac_vf_d, 8)
+
+static uint16_t fmadd16_bf16(uint16_t a, uint16_t b, uint16_t d,
+                             float_status *s)
+{
+    return bfloat16_muladd(d, b, a, 0, s);
+}
 
 static uint16_t fmadd16(uint16_t a, uint16_t b, uint16_t d, float_status *s)
 {
@@ -3558,18 +3673,29 @@ static uint64_t fmadd64(uint64_t a, uint64_t b, uint64_t d, float_status *s)
     return float64_muladd(d, b, a, 0, s);
 }
 
+RVVCALL(OPFVV3, vfmadd_vv_h_bf16, OP_UUU_H, H2, H2, H2, fmadd16_bf16)
 RVVCALL(OPFVV3, vfmadd_vv_h, OP_UUU_H, H2, H2, H2, fmadd16)
 RVVCALL(OPFVV3, vfmadd_vv_w, OP_UUU_W, H4, H4, H4, fmadd32)
 RVVCALL(OPFVV3, vfmadd_vv_d, OP_UUU_D, H8, H8, H8, fmadd64)
+GEN_VEXT_VV_ENV(vfmadd_vv_h_bf16, 2)
 GEN_VEXT_VV_ENV(vfmadd_vv_h, 2)
 GEN_VEXT_VV_ENV(vfmadd_vv_w, 4)
 GEN_VEXT_VV_ENV(vfmadd_vv_d, 8)
+RVVCALL(OPFVF3, vfmadd_vf_h_bf16, OP_UUU_H, H2, H2, fmadd16_bf16)
 RVVCALL(OPFVF3, vfmadd_vf_h, OP_UUU_H, H2, H2, fmadd16)
 RVVCALL(OPFVF3, vfmadd_vf_w, OP_UUU_W, H4, H4, fmadd32)
 RVVCALL(OPFVF3, vfmadd_vf_d, OP_UUU_D, H8, H8, fmadd64)
+GEN_VEXT_VF(vfmadd_vf_h_bf16, 2)
 GEN_VEXT_VF(vfmadd_vf_h, 2)
 GEN_VEXT_VF(vfmadd_vf_w, 4)
 GEN_VEXT_VF(vfmadd_vf_d, 8)
+
+static uint16_t fnmadd16_bf16(uint16_t a, uint16_t b, uint16_t d,
+                              float_status *s)
+{
+    return bfloat16_muladd(d, b, a, float_muladd_negate_c |
+                                    float_muladd_negate_product, s);
+}
 
 static uint16_t fnmadd16(uint16_t a, uint16_t b, uint16_t d, float_status *s)
 {
@@ -3589,18 +3715,28 @@ static uint64_t fnmadd64(uint64_t a, uint64_t b, uint64_t d, float_status *s)
                                    float_muladd_negate_product, s);
 }
 
+RVVCALL(OPFVV3, vfnmadd_vv_h_bf16, OP_UUU_H, H2, H2, H2, fnmadd16_bf16)
 RVVCALL(OPFVV3, vfnmadd_vv_h, OP_UUU_H, H2, H2, H2, fnmadd16)
 RVVCALL(OPFVV3, vfnmadd_vv_w, OP_UUU_W, H4, H4, H4, fnmadd32)
 RVVCALL(OPFVV3, vfnmadd_vv_d, OP_UUU_D, H8, H8, H8, fnmadd64)
+GEN_VEXT_VV_ENV(vfnmadd_vv_h_bf16, 2)
 GEN_VEXT_VV_ENV(vfnmadd_vv_h, 2)
 GEN_VEXT_VV_ENV(vfnmadd_vv_w, 4)
 GEN_VEXT_VV_ENV(vfnmadd_vv_d, 8)
+RVVCALL(OPFVF3, vfnmadd_vf_h_bf16, OP_UUU_H, H2, H2, fnmadd16_bf16)
 RVVCALL(OPFVF3, vfnmadd_vf_h, OP_UUU_H, H2, H2, fnmadd16)
 RVVCALL(OPFVF3, vfnmadd_vf_w, OP_UUU_W, H4, H4, fnmadd32)
 RVVCALL(OPFVF3, vfnmadd_vf_d, OP_UUU_D, H8, H8, fnmadd64)
+GEN_VEXT_VF(vfnmadd_vf_h_bf16, 2)
 GEN_VEXT_VF(vfnmadd_vf_h, 2)
 GEN_VEXT_VF(vfnmadd_vf_w, 4)
 GEN_VEXT_VF(vfnmadd_vf_d, 8)
+
+static uint16_t fmsub16_bf16(uint16_t a, uint16_t b, uint16_t d,
+                             float_status *s)
+{
+    return bfloat16_muladd(d, b, a, float_muladd_negate_c, s);
+}
 
 static uint16_t fmsub16(uint16_t a, uint16_t b, uint16_t d, float_status *s)
 {
@@ -3617,18 +3753,28 @@ static uint64_t fmsub64(uint64_t a, uint64_t b, uint64_t d, float_status *s)
     return float64_muladd(d, b, a, float_muladd_negate_c, s);
 }
 
+RVVCALL(OPFVV3, vfmsub_vv_h_bf16, OP_UUU_H, H2, H2, H2, fmsub16_bf16)
 RVVCALL(OPFVV3, vfmsub_vv_h, OP_UUU_H, H2, H2, H2, fmsub16)
 RVVCALL(OPFVV3, vfmsub_vv_w, OP_UUU_W, H4, H4, H4, fmsub32)
 RVVCALL(OPFVV3, vfmsub_vv_d, OP_UUU_D, H8, H8, H8, fmsub64)
+GEN_VEXT_VV_ENV(vfmsub_vv_h_bf16, 2)
 GEN_VEXT_VV_ENV(vfmsub_vv_h, 2)
 GEN_VEXT_VV_ENV(vfmsub_vv_w, 4)
 GEN_VEXT_VV_ENV(vfmsub_vv_d, 8)
+RVVCALL(OPFVF3, vfmsub_vf_h_bf16, OP_UUU_H, H2, H2, fmsub16_bf16)
 RVVCALL(OPFVF3, vfmsub_vf_h, OP_UUU_H, H2, H2, fmsub16)
 RVVCALL(OPFVF3, vfmsub_vf_w, OP_UUU_W, H4, H4, fmsub32)
 RVVCALL(OPFVF3, vfmsub_vf_d, OP_UUU_D, H8, H8, fmsub64)
+GEN_VEXT_VF(vfmsub_vf_h_bf16, 2)
 GEN_VEXT_VF(vfmsub_vf_h, 2)
 GEN_VEXT_VF(vfmsub_vf_w, 4)
 GEN_VEXT_VF(vfmsub_vf_d, 8)
+
+static uint16_t fnmsub16_bf16(uint16_t a, uint16_t b, uint16_t d,
+                              float_status *s)
+{
+    return bfloat16_muladd(d, b, a, float_muladd_negate_product, s);
+}
 
 static uint16_t fnmsub16(uint16_t a, uint16_t b, uint16_t d, float_status *s)
 {
@@ -3645,15 +3791,19 @@ static uint64_t fnmsub64(uint64_t a, uint64_t b, uint64_t d, float_status *s)
     return float64_muladd(d, b, a, float_muladd_negate_product, s);
 }
 
+RVVCALL(OPFVV3, vfnmsub_vv_h_bf16, OP_UUU_H, H2, H2, H2, fnmsub16_bf16)
 RVVCALL(OPFVV3, vfnmsub_vv_h, OP_UUU_H, H2, H2, H2, fnmsub16)
 RVVCALL(OPFVV3, vfnmsub_vv_w, OP_UUU_W, H4, H4, H4, fnmsub32)
 RVVCALL(OPFVV3, vfnmsub_vv_d, OP_UUU_D, H8, H8, H8, fnmsub64)
+GEN_VEXT_VV_ENV(vfnmsub_vv_h_bf16, 2)
 GEN_VEXT_VV_ENV(vfnmsub_vv_h, 2)
 GEN_VEXT_VV_ENV(vfnmsub_vv_w, 4)
 GEN_VEXT_VV_ENV(vfnmsub_vv_d, 8)
+RVVCALL(OPFVF3, vfnmsub_vf_h_bf16, OP_UUU_H, H2, H2, fnmsub16_bf16)
 RVVCALL(OPFVF3, vfnmsub_vf_h, OP_UUU_H, H2, H2, fnmsub16)
 RVVCALL(OPFVF3, vfnmsub_vf_w, OP_UUU_W, H4, H4, fnmsub32)
 RVVCALL(OPFVF3, vfnmsub_vf_d, OP_UUU_D, H8, H8, fnmsub64)
+GEN_VEXT_VF(vfnmsub_vf_h_bf16, 2)
 GEN_VEXT_VF(vfnmsub_vf_h, 2)
 GEN_VEXT_VF(vfnmsub_vf_w, 4)
 GEN_VEXT_VF(vfnmsub_vf_d, 8)
@@ -3691,6 +3841,15 @@ GEN_VEXT_VV_ENV(vfwmaccbf16_vv, 4)
 RVVCALL(OPFVF3, vfwmaccbf16_vf, WOP_UUU_H, H4, H2, fwmaccbf16)
 GEN_VEXT_VF(vfwmaccbf16_vf, 4)
 
+static uint32_t fwnmacc16_bf16(uint16_t a, uint16_t b, uint32_t d,
+                               float_status *s)
+{
+    return float32_muladd(bfloat16_to_float32(a, s),
+                          bfloat16_to_float32(b, s), d,
+                          float_muladd_negate_c | float_muladd_negate_product,
+                          s);
+}
+
 static uint32_t fwnmacc16(uint16_t a, uint16_t b, uint32_t d, float_status *s)
 {
     return float32_muladd(float16_to_float32(a, true, s),
@@ -3706,14 +3865,26 @@ static uint64_t fwnmacc32(uint32_t a, uint32_t b, uint64_t d, float_status *s)
                              float_muladd_negate_product, s);
 }
 
+RVVCALL(OPFVV3, vfwnmacc_vv_h_bf16, WOP_UUU_H, H4, H2, H2, fwnmacc16_bf16)
 RVVCALL(OPFVV3, vfwnmacc_vv_h, WOP_UUU_H, H4, H2, H2, fwnmacc16)
 RVVCALL(OPFVV3, vfwnmacc_vv_w, WOP_UUU_W, H8, H4, H4, fwnmacc32)
+GEN_VEXT_VV_ENV(vfwnmacc_vv_h_bf16, 4)
 GEN_VEXT_VV_ENV(vfwnmacc_vv_h, 4)
 GEN_VEXT_VV_ENV(vfwnmacc_vv_w, 8)
+RVVCALL(OPFVF3, vfwnmacc_vf_h_bf16, WOP_UUU_H, H4, H2, fwnmacc16_bf16)
 RVVCALL(OPFVF3, vfwnmacc_vf_h, WOP_UUU_H, H4, H2, fwnmacc16)
 RVVCALL(OPFVF3, vfwnmacc_vf_w, WOP_UUU_W, H8, H4, fwnmacc32)
+GEN_VEXT_VF(vfwnmacc_vf_h_bf16, 4)
 GEN_VEXT_VF(vfwnmacc_vf_h, 4)
 GEN_VEXT_VF(vfwnmacc_vf_w, 8)
+
+static uint32_t fwmsac16_bf16(uint16_t a, uint16_t b, uint32_t d,
+                              float_status *s)
+{
+    return float32_muladd(bfloat16_to_float32(a, s),
+                          bfloat16_to_float32(b, s), d,
+                          float_muladd_negate_c, s);
+}
 
 static uint32_t fwmsac16(uint16_t a, uint16_t b, uint32_t d, float_status *s)
 {
@@ -3729,14 +3900,26 @@ static uint64_t fwmsac32(uint32_t a, uint32_t b, uint64_t d, float_status *s)
                           float_muladd_negate_c, s);
 }
 
+RVVCALL(OPFVV3, vfwmsac_vv_h_bf16, WOP_UUU_H, H4, H2, H2, fwmsac16_bf16)
 RVVCALL(OPFVV3, vfwmsac_vv_h, WOP_UUU_H, H4, H2, H2, fwmsac16)
 RVVCALL(OPFVV3, vfwmsac_vv_w, WOP_UUU_W, H8, H4, H4, fwmsac32)
+GEN_VEXT_VV_ENV(vfwmsac_vv_h_bf16, 4)
 GEN_VEXT_VV_ENV(vfwmsac_vv_h, 4)
 GEN_VEXT_VV_ENV(vfwmsac_vv_w, 8)
+RVVCALL(OPFVF3, vfwmsac_vf_h_bf16, WOP_UUU_H, H4, H2, fwmsac16_bf16)
 RVVCALL(OPFVF3, vfwmsac_vf_h, WOP_UUU_H, H4, H2, fwmsac16)
 RVVCALL(OPFVF3, vfwmsac_vf_w, WOP_UUU_W, H8, H4, fwmsac32)
+GEN_VEXT_VF(vfwmsac_vf_h_bf16, 4)
 GEN_VEXT_VF(vfwmsac_vf_h, 4)
 GEN_VEXT_VF(vfwmsac_vf_w, 8)
+
+static uint32_t fwnmsac16_bf16(uint16_t a, uint16_t b, uint32_t d,
+                               float_status *s)
+{
+    return float32_muladd(bfloat16_to_float32(a, s),
+                          bfloat16_to_float32(b, s), d,
+                          float_muladd_negate_product, s);
+}
 
 static uint32_t fwnmsac16(uint16_t a, uint16_t b, uint32_t d, float_status *s)
 {
@@ -3752,12 +3935,16 @@ static uint64_t fwnmsac32(uint32_t a, uint32_t b, uint64_t d, float_status *s)
                           float_muladd_negate_product, s);
 }
 
+RVVCALL(OPFVV3, vfwnmsac_vv_h_bf16, WOP_UUU_H, H4, H2, H2, fwnmsac16_bf16)
 RVVCALL(OPFVV3, vfwnmsac_vv_h, WOP_UUU_H, H4, H2, H2, fwnmsac16)
 RVVCALL(OPFVV3, vfwnmsac_vv_w, WOP_UUU_W, H8, H4, H4, fwnmsac32)
+GEN_VEXT_VV_ENV(vfwnmsac_vv_h_bf16, 4)
 GEN_VEXT_VV_ENV(vfwnmsac_vv_h, 4)
 GEN_VEXT_VV_ENV(vfwnmsac_vv_w, 8)
+RVVCALL(OPFVF3, vfwnmsac_vf_h_bf16, WOP_UUU_H, H4, H2, fwnmsac16_bf16)
 RVVCALL(OPFVF3, vfwnmsac_vf_h, WOP_UUU_H, H4, H2, fwnmsac16)
 RVVCALL(OPFVF3, vfwnmsac_vf_w, WOP_UUU_W, H8, H4, fwnmsac32)
+GEN_VEXT_VF(vfwnmsac_vf_h_bf16, 4)
 GEN_VEXT_VF(vfwnmsac_vf_h, 4)
 GEN_VEXT_VF(vfwnmsac_vf_w, 8)
 
@@ -3861,6 +4048,46 @@ static uint64_t frsqrt7(uint64_t f, int exp_size, int frac_size)
     val = deposit64(val, frac_size, exp_size, out_exp);
     val = deposit64(val, frac_size + exp_size, 1, sign);
     return val;
+}
+
+static bfloat16 frsqrt7_h_bf16(bfloat16 f, float_status *s)
+{
+    int exp_size = 8, frac_size = 7;
+    bool sign = bfloat16_is_neg(f);
+
+    /*
+     * frsqrt7(sNaN) = canonical NaN
+     * frsqrt7(-inf) = canonical NaN
+     * frsqrt7(-normal) = canonical NaN
+     * frsqrt7(-subnormal) = canonical NaN
+     */
+    if (bfloat16_is_signaling_nan(f, s) ||
+        (bfloat16_is_infinity(f) && sign) ||
+        (bfloat16_is_normal(f) && sign) ||
+        (bfloat16_is_zero_or_denormal(f) && !bfloat16_is_zero(f) && sign)) {
+        s->float_exception_flags |= float_flag_invalid;
+        return bfloat16_default_nan(s);
+    }
+
+    /* frsqrt7(qNaN) = canonical NaN */
+    if (bfloat16_is_quiet_nan(f, s)) {
+        return bfloat16_default_nan(s);
+    }
+
+    /* frsqrt7(+-0) = +-inf */
+    if (bfloat16_is_zero(f)) {
+        s->float_exception_flags |= float_flag_divbyzero;
+        return bfloat16_set_sign(bfloat16_infinity, sign);
+    }
+
+    /* frsqrt7(+inf) = +0 */
+    if (bfloat16_is_infinity(f) && !sign) {
+        return bfloat16_set_sign(bfloat16_zero, sign);
+    }
+
+    /* +normal, +subnormal */
+    uint64_t val = frsqrt7(f, exp_size, frac_size);
+    return make_float16(val);
 }
 
 static float16 frsqrt7_h(float16 f, float_status *s)
@@ -3983,9 +4210,11 @@ static float64 frsqrt7_d(float64 f, float_status *s)
     return make_float64(val);
 }
 
+RVVCALL(OPFVV1, vfrsqrt7_v_h_bf16, OP_UU_H, H2, H2, frsqrt7_h_bf16)
 RVVCALL(OPFVV1, vfrsqrt7_v_h, OP_UU_H, H2, H2, frsqrt7_h)
 RVVCALL(OPFVV1, vfrsqrt7_v_w, OP_UU_W, H4, H4, frsqrt7_s)
 RVVCALL(OPFVV1, vfrsqrt7_v_d, OP_UU_D, H8, H8, frsqrt7_d)
+GEN_VEXT_V_ENV(vfrsqrt7_v_h_bf16, 2)
 GEN_VEXT_V_ENV(vfrsqrt7_v_h, 2)
 GEN_VEXT_V_ENV(vfrsqrt7_v_w, 4)
 GEN_VEXT_V_ENV(vfrsqrt7_v_d, 8)
@@ -4076,6 +4305,38 @@ static uint64_t frec7(uint64_t f, int exp_size, int frac_size,
     val = deposit64(val, frac_size, exp_size, out_exp);
     val = deposit64(val, frac_size + exp_size, 1, sign);
     return val;
+}
+
+static bfloat16 frec7_h_bf16(bfloat16 f, float_status *s)
+{
+    int exp_size = 8, frac_size = 7;
+    bool sign = bfloat16_is_neg(f);
+
+    /* frec7(+-inf) = +-0 */
+    if (bfloat16_is_infinity(f)) {
+        return bfloat16_set_sign(bfloat16_zero, sign);
+    }
+
+    /* frec7(+-0) = +-inf */
+    if (bfloat16_is_zero(f)) {
+        s->float_exception_flags |= float_flag_divbyzero;
+        return bfloat16_set_sign(bfloat16_infinity, sign);
+    }
+
+    /* frec7(sNaN) = canonical NaN */
+    if (bfloat16_is_signaling_nan(f, s)) {
+        s->float_exception_flags |= float_flag_invalid;
+        return bfloat16_default_nan(s);
+    }
+
+    /* frec7(qNaN) = canonical NaN */
+    if (bfloat16_is_quiet_nan(f, s)) {
+        return bfloat16_default_nan(s);
+    }
+
+    /* +-normal, +-subnormal */
+    uint64_t val = frec7(f, exp_size, frac_size, s);
+    return make_float16(val);
 }
 
 static float16 frec7_h(float16 f, float_status *s)
@@ -4174,36 +4435,46 @@ static float64 frec7_d(float64 f, float_status *s)
     return make_float64(val);
 }
 
+RVVCALL(OPFVV1, vfrec7_v_h_bf16, OP_UU_H, H2, H2, frec7_h_bf16)
 RVVCALL(OPFVV1, vfrec7_v_h, OP_UU_H, H2, H2, frec7_h)
 RVVCALL(OPFVV1, vfrec7_v_w, OP_UU_W, H4, H4, frec7_s)
 RVVCALL(OPFVV1, vfrec7_v_d, OP_UU_D, H8, H8, frec7_d)
+GEN_VEXT_V_ENV(vfrec7_v_h_bf16, 2)
 GEN_VEXT_V_ENV(vfrec7_v_h, 2)
 GEN_VEXT_V_ENV(vfrec7_v_w, 4)
 GEN_VEXT_V_ENV(vfrec7_v_d, 8)
 
 /* Vector Floating-Point MIN/MAX Instructions */
+RVVCALL(OPFVV2, vfmin_vv_h_bf16, OP_UUU_H, H2, H2, H2, bfloat16_minimum_number)
 RVVCALL(OPFVV2, vfmin_vv_h, OP_UUU_H, H2, H2, H2, float16_minimum_number)
 RVVCALL(OPFVV2, vfmin_vv_w, OP_UUU_W, H4, H4, H4, float32_minimum_number)
 RVVCALL(OPFVV2, vfmin_vv_d, OP_UUU_D, H8, H8, H8, float64_minimum_number)
+GEN_VEXT_VV_ENV(vfmin_vv_h_bf16, 2)
 GEN_VEXT_VV_ENV(vfmin_vv_h, 2)
 GEN_VEXT_VV_ENV(vfmin_vv_w, 4)
 GEN_VEXT_VV_ENV(vfmin_vv_d, 8)
+RVVCALL(OPFVF2, vfmin_vf_h_bf16, OP_UUU_H, H2, H2, bfloat16_minimum_number)
 RVVCALL(OPFVF2, vfmin_vf_h, OP_UUU_H, H2, H2, float16_minimum_number)
 RVVCALL(OPFVF2, vfmin_vf_w, OP_UUU_W, H4, H4, float32_minimum_number)
 RVVCALL(OPFVF2, vfmin_vf_d, OP_UUU_D, H8, H8, float64_minimum_number)
+GEN_VEXT_VF(vfmin_vf_h_bf16, 2)
 GEN_VEXT_VF(vfmin_vf_h, 2)
 GEN_VEXT_VF(vfmin_vf_w, 4)
 GEN_VEXT_VF(vfmin_vf_d, 8)
 
+RVVCALL(OPFVV2, vfmax_vv_h_bf16, OP_UUU_H, H2, H2, H2, bfloat16_maximum_number)
 RVVCALL(OPFVV2, vfmax_vv_h, OP_UUU_H, H2, H2, H2, float16_maximum_number)
 RVVCALL(OPFVV2, vfmax_vv_w, OP_UUU_W, H4, H4, H4, float32_maximum_number)
 RVVCALL(OPFVV2, vfmax_vv_d, OP_UUU_D, H8, H8, H8, float64_maximum_number)
+GEN_VEXT_VV_ENV(vfmax_vv_h_bf16, 2)
 GEN_VEXT_VV_ENV(vfmax_vv_h, 2)
 GEN_VEXT_VV_ENV(vfmax_vv_w, 4)
 GEN_VEXT_VV_ENV(vfmax_vv_d, 8)
+RVVCALL(OPFVF2, vfmax_vf_h_bf16, OP_UUU_H, H2, H2, bfloat16_maximum_number)
 RVVCALL(OPFVF2, vfmax_vf_h, OP_UUU_H, H2, H2, float16_maximum_number)
 RVVCALL(OPFVF2, vfmax_vf_w, OP_UUU_W, H4, H4, float32_maximum_number)
 RVVCALL(OPFVF2, vfmax_vf_d, OP_UUU_D, H8, H8, float64_maximum_number)
+GEN_VEXT_VF(vfmax_vf_h_bf16, 2)
 GEN_VEXT_VF(vfmax_vf_h, 2)
 GEN_VEXT_VF(vfmax_vf_w, 4)
 GEN_VEXT_VF(vfmax_vf_d, 8)
@@ -4332,6 +4603,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,   \
     }                                                         \
 }
 
+GEN_VEXT_CMP_VV_ENV(vmfeq_vv_h_bf16, uint16_t, H2, bfloat16_eq_quiet)
 GEN_VEXT_CMP_VV_ENV(vmfeq_vv_h, uint16_t, H2, float16_eq_quiet)
 GEN_VEXT_CMP_VV_ENV(vmfeq_vv_w, uint32_t, H4, float32_eq_quiet)
 GEN_VEXT_CMP_VV_ENV(vmfeq_vv_d, uint64_t, H8, float64_eq_quiet)
@@ -4373,9 +4645,16 @@ void HELPER(NAME)(void *vd, void *v0, uint64_t s1, void *vs2,       \
     }                                                               \
 }
 
+GEN_VEXT_CMP_VF(vmfeq_vf_h_bf16, uint16_t, H2, bfloat16_eq_quiet)
 GEN_VEXT_CMP_VF(vmfeq_vf_h, uint16_t, H2, float16_eq_quiet)
 GEN_VEXT_CMP_VF(vmfeq_vf_w, uint32_t, H4, float32_eq_quiet)
 GEN_VEXT_CMP_VF(vmfeq_vf_d, uint64_t, H8, float64_eq_quiet)
+
+static bool vmfne16_bf16(uint16_t a, uint16_t b, float_status *s)
+{
+    FloatRelation compare = bfloat16_compare_quiet(a, b, s);
+    return compare != float_relation_equal;
+}
 
 static bool vmfne16(uint16_t a, uint16_t b, float_status *s)
 {
@@ -4395,26 +4674,38 @@ static bool vmfne64(uint64_t a, uint64_t b, float_status *s)
     return compare != float_relation_equal;
 }
 
+GEN_VEXT_CMP_VV_ENV(vmfne_vv_h_bf16, uint16_t, H2, vmfne16_bf16)
 GEN_VEXT_CMP_VV_ENV(vmfne_vv_h, uint16_t, H2, vmfne16)
 GEN_VEXT_CMP_VV_ENV(vmfne_vv_w, uint32_t, H4, vmfne32)
 GEN_VEXT_CMP_VV_ENV(vmfne_vv_d, uint64_t, H8, vmfne64)
+GEN_VEXT_CMP_VF(vmfne_vf_h_bf16, uint16_t, H2, vmfne16_bf16)
 GEN_VEXT_CMP_VF(vmfne_vf_h, uint16_t, H2, vmfne16)
 GEN_VEXT_CMP_VF(vmfne_vf_w, uint32_t, H4, vmfne32)
 GEN_VEXT_CMP_VF(vmfne_vf_d, uint64_t, H8, vmfne64)
 
+GEN_VEXT_CMP_VV_ENV(vmflt_vv_h_bf16, uint16_t, H2, bfloat16_lt)
 GEN_VEXT_CMP_VV_ENV(vmflt_vv_h, uint16_t, H2, float16_lt)
 GEN_VEXT_CMP_VV_ENV(vmflt_vv_w, uint32_t, H4, float32_lt)
 GEN_VEXT_CMP_VV_ENV(vmflt_vv_d, uint64_t, H8, float64_lt)
+GEN_VEXT_CMP_VF(vmflt_vf_h_bf16, uint16_t, H2, bfloat16_lt)
 GEN_VEXT_CMP_VF(vmflt_vf_h, uint16_t, H2, float16_lt)
 GEN_VEXT_CMP_VF(vmflt_vf_w, uint32_t, H4, float32_lt)
 GEN_VEXT_CMP_VF(vmflt_vf_d, uint64_t, H8, float64_lt)
 
+GEN_VEXT_CMP_VV_ENV(vmfle_vv_h_bf16, uint16_t, H2, bfloat16_le)
 GEN_VEXT_CMP_VV_ENV(vmfle_vv_h, uint16_t, H2, float16_le)
 GEN_VEXT_CMP_VV_ENV(vmfle_vv_w, uint32_t, H4, float32_le)
 GEN_VEXT_CMP_VV_ENV(vmfle_vv_d, uint64_t, H8, float64_le)
+GEN_VEXT_CMP_VF(vmfle_vf_h_bf16, uint16_t, H2, bfloat16_le)
 GEN_VEXT_CMP_VF(vmfle_vf_h, uint16_t, H2, float16_le)
 GEN_VEXT_CMP_VF(vmfle_vf_w, uint32_t, H4, float32_le)
 GEN_VEXT_CMP_VF(vmfle_vf_d, uint64_t, H8, float64_le)
+
+static bool vmfgt16_bf16(uint16_t a, uint16_t b, float_status *s)
+{
+    FloatRelation compare = bfloat16_compare(a, b, s);
+    return compare == float_relation_greater;
+}
 
 static bool vmfgt16(uint16_t a, uint16_t b, float_status *s)
 {
@@ -4434,9 +4725,17 @@ static bool vmfgt64(uint64_t a, uint64_t b, float_status *s)
     return compare == float_relation_greater;
 }
 
+GEN_VEXT_CMP_VF(vmfgt_vf_h_bf16, uint16_t, H2, vmfgt16_bf16)
 GEN_VEXT_CMP_VF(vmfgt_vf_h, uint16_t, H2, vmfgt16)
 GEN_VEXT_CMP_VF(vmfgt_vf_w, uint32_t, H4, vmfgt32)
 GEN_VEXT_CMP_VF(vmfgt_vf_d, uint64_t, H8, vmfgt64)
+
+static bool vmfge16_bf16(uint16_t a, uint16_t b, float_status *s)
+{
+    FloatRelation compare = bfloat16_compare(a, b, s);
+    return compare == float_relation_greater ||
+           compare == float_relation_equal;
+}
 
 static bool vmfge16(uint16_t a, uint16_t b, float_status *s)
 {
@@ -4459,11 +4758,31 @@ static bool vmfge64(uint64_t a, uint64_t b, float_status *s)
            compare == float_relation_equal;
 }
 
+GEN_VEXT_CMP_VF(vmfge_vf_h_bf16, uint16_t, H2, vmfge16_bf16)
 GEN_VEXT_CMP_VF(vmfge_vf_h, uint16_t, H2, vmfge16)
 GEN_VEXT_CMP_VF(vmfge_vf_w, uint32_t, H4, vmfge32)
 GEN_VEXT_CMP_VF(vmfge_vf_d, uint64_t, H8, vmfge64)
 
 /* Vector Floating-Point Classify Instruction */
+target_ulong fclass_h_bf16(uint64_t frs1)
+{
+    bfloat16 f = frs1;
+    bool sign = bfloat16_is_neg(f);
+
+    if (bfloat16_is_infinity(f)) {
+        return sign ? 1 << 0 : 1 << 7;
+    } else if (bfloat16_is_zero(f)) {
+        return sign ? 1 << 3 : 1 << 4;
+    } else if (bfloat16_is_zero_or_denormal(f)) {
+        return sign ? 1 << 2 : 1 << 5;
+    } else if (bfloat16_is_any_nan(f)) {
+        float_status s = { }; /* for snan_bit_is_one */
+        return bfloat16_is_quiet_nan(f, &s) ? 1 << 9 : 1 << 8;
+    } else {
+        return sign ? 1 << 1 : 1 << 6;
+    }
+}
+
 target_ulong fclass_h(uint64_t frs1)
 {
     float16 f = frs1;
@@ -4521,9 +4840,11 @@ target_ulong fclass_d(uint64_t frs1)
     }
 }
 
+RVVCALL(OPIVV1, vfclass_v_h_bf16, OP_UU_H, H2, H2, fclass_h_bf16)
 RVVCALL(OPIVV1, vfclass_v_h, OP_UU_H, H2, H2, fclass_h)
 RVVCALL(OPIVV1, vfclass_v_w, OP_UU_W, H4, H4, fclass_s)
 RVVCALL(OPIVV1, vfclass_v_d, OP_UU_D, H8, H8, fclass_d)
+GEN_VEXT_V(vfclass_v_h_bf16, 2)
 GEN_VEXT_V(vfclass_v_h, 2)
 GEN_VEXT_V(vfclass_v_w, 4)
 GEN_VEXT_V(vfclass_v_d, 8)
@@ -4614,17 +4935,21 @@ GEN_VEXT_V_ENV(vfwcvt_x_f_v_w, 8)
  * vfwcvt.f.xu.v vd, vs2, vm # Convert unsigned integer to double-width float.
  */
 RVVCALL(OPFVV1, vfwcvt_f_xu_v_b, WOP_UU_B, H2, H1, uint8_to_float16)
+RVVCALL(OPFVV1, vfwcvt_f_xu_v_b_bf16, WOP_UU_B, H2, H1, uint8_to_bfloat16)
 RVVCALL(OPFVV1, vfwcvt_f_xu_v_h, WOP_UU_H, H4, H2, uint16_to_float32)
 RVVCALL(OPFVV1, vfwcvt_f_xu_v_w, WOP_UU_W, H8, H4, uint32_to_float64)
 GEN_VEXT_V_ENV(vfwcvt_f_xu_v_b, 2)
+GEN_VEXT_V_ENV(vfwcvt_f_xu_v_b_bf16, 2)
 GEN_VEXT_V_ENV(vfwcvt_f_xu_v_h, 4)
 GEN_VEXT_V_ENV(vfwcvt_f_xu_v_w, 8)
 
 /* vfwcvt.f.x.v vd, vs2, vm # Convert integer to double-width float. */
 RVVCALL(OPFVV1, vfwcvt_f_x_v_b, WOP_UU_B, H2, H1, int8_to_float16)
+RVVCALL(OPFVV1, vfwcvt_f_x_v_b_bf16, WOP_UU_B, H2, H1, int8_to_bfloat16)
 RVVCALL(OPFVV1, vfwcvt_f_x_v_h, WOP_UU_H, H4, H2, int16_to_float32)
 RVVCALL(OPFVV1, vfwcvt_f_x_v_w, WOP_UU_W, H8, H4, int32_to_float64)
 GEN_VEXT_V_ENV(vfwcvt_f_x_v_b, 2)
+GEN_VEXT_V_ENV(vfwcvt_f_x_v_b_bf16, 2)
 GEN_VEXT_V_ENV(vfwcvt_f_x_v_h, 4)
 GEN_VEXT_V_ENV(vfwcvt_f_x_v_w, 8)
 
@@ -4651,17 +4976,21 @@ GEN_VEXT_V_ENV(vfwcvtbf16_f_f_v, 4)
 #define NOP_UU_W uint32_t, uint64_t, uint64_t
 /* vfncvt.xu.f.v vd, vs2, vm # Convert float to unsigned integer. */
 RVVCALL(OPFVV1, vfncvt_xu_f_w_b, NOP_UU_B, H1, H2, float16_to_uint8)
+RVVCALL(OPFVV1, vfncvt_xu_f_w_b_bf16, NOP_UU_B, H1, H2, bfloat16_to_uint8)
 RVVCALL(OPFVV1, vfncvt_xu_f_w_h, NOP_UU_H, H2, H4, float32_to_uint16)
 RVVCALL(OPFVV1, vfncvt_xu_f_w_w, NOP_UU_W, H4, H8, float64_to_uint32)
 GEN_VEXT_V_ENV(vfncvt_xu_f_w_b, 1)
+GEN_VEXT_V_ENV(vfncvt_xu_f_w_b_bf16, 1)
 GEN_VEXT_V_ENV(vfncvt_xu_f_w_h, 2)
 GEN_VEXT_V_ENV(vfncvt_xu_f_w_w, 4)
 
 /* vfncvt.x.f.v vd, vs2, vm # Convert double-width float to signed integer. */
 RVVCALL(OPFVV1, vfncvt_x_f_w_b, NOP_UU_B, H1, H2, float16_to_int8)
+RVVCALL(OPFVV1, vfncvt_x_f_w_b_bf16, NOP_UU_B, H1, H2, bfloat16_to_int8)
 RVVCALL(OPFVV1, vfncvt_x_f_w_h, NOP_UU_H, H2, H4, float32_to_int16)
 RVVCALL(OPFVV1, vfncvt_x_f_w_w, NOP_UU_W, H4, H8, float64_to_int32)
 GEN_VEXT_V_ENV(vfncvt_x_f_w_b, 1)
+GEN_VEXT_V_ENV(vfncvt_x_f_w_b_bf16, 1)
 GEN_VEXT_V_ENV(vfncvt_x_f_w_h, 2)
 GEN_VEXT_V_ENV(vfncvt_x_f_w_w, 4)
 
