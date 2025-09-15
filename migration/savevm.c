@@ -2069,6 +2069,11 @@ static int loadvm_postcopy_ram_handle_discard(MigrationIncomingState *mis,
     return 0;
 }
 
+static void postcopy_ram_listen_thread_bh(void *opaque)
+{
+    migration_incoming_finish();
+}
+
 /*
  * Triggered by a postcopy_listen command; this thread takes over reading
  * the input stream, leaving the main thread free to carry on loading the rest
@@ -2122,51 +2127,30 @@ static void *postcopy_ram_listen_thread(void *opaque)
                          "bitmaps may be lost, and present migrated dirty "
                          "bitmaps are correctly migrated and valid.",
                          __func__, load_res);
-            load_res = 0; /* prevent further exit() */
         } else {
             error_report("%s: loadvm failed: %d", __func__, load_res);
             migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
                                            MIGRATION_STATUS_FAILED);
+            goto out;
         }
     }
-    if (load_res >= 0) {
-        /*
-         * This looks good, but it's possible that the device loading in the
-         * main thread hasn't finished yet, and so we might not be in 'RUN'
-         * state yet; wait for the end of the main thread.
-         */
-        qemu_event_wait(&mis->main_thread_load_event);
-    }
-    postcopy_ram_incoming_cleanup(mis);
-
-    if (load_res < 0) {
-        /*
-         * If something went wrong then we have a bad state so exit;
-         * depending how far we got it might be possible at this point
-         * to leave the guest running and fire MCEs for pages that never
-         * arrived as a desperate recovery step.
-         */
-        rcu_unregister_thread();
-        exit(EXIT_FAILURE);
-    }
+    /*
+     * This looks good, but it's possible that the device loading in the
+     * main thread hasn't finished yet, and so we might not be in 'RUN'
+     * state yet; wait for the end of the main thread.
+     */
+    qemu_event_wait(&mis->main_thread_load_event);
 
     migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
                                    MIGRATION_STATUS_COMPLETED);
-    /*
-     * If everything has worked fine, then the main thread has waited
-     * for us to start, and we're the last use of the mis.
-     * (If something broke then qemu will have to exit anyway since it's
-     * got a bad migration state).
-     */
-    bql_lock();
-    migration_incoming_state_destroy();
-    bql_unlock();
 
+out:
     rcu_unregister_thread();
-    mis->have_listen_thread = false;
     postcopy_state_set(POSTCOPY_INCOMING_END);
 
     object_unref(OBJECT(migr));
+
+    migration_bh_schedule(postcopy_ram_listen_thread_bh, NULL);
 
     return NULL;
 }
@@ -2217,7 +2201,7 @@ static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis)
     mis->have_listen_thread = true;
     postcopy_thread_create(mis, &mis->listen_thread,
                            MIGRATION_THREAD_DST_LISTEN,
-                           postcopy_ram_listen_thread, QEMU_THREAD_DETACHED);
+                           postcopy_ram_listen_thread, QEMU_THREAD_JOINABLE);
     trace_loadvm_postcopy_handle_listen("return");
 
     return 0;

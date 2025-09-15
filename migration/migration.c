@@ -442,8 +442,18 @@ void migration_incoming_transport_cleanup(MigrationIncomingState *mis)
 void migration_incoming_state_destroy(void)
 {
     struct MigrationIncomingState *mis = migration_incoming_get_current();
+    PostcopyState ps = postcopy_state_get();
 
     multifd_recv_cleanup();
+
+    if (mis->have_listen_thread) {
+        qemu_thread_join(&mis->listen_thread);
+        mis->have_listen_thread = false;
+    }
+
+    if (ps != POSTCOPY_INCOMING_NONE) {
+        postcopy_ram_incoming_cleanup(mis);
+    }
 
     /*
      * RAM state cleanup needs to happen after multifd cleanup, because
@@ -809,6 +819,23 @@ static void qemu_start_incoming_migration(const char *uri, bool has_channels,
     cpr_state_close();
 }
 
+void migration_incoming_finish(void)
+{
+    MigrationState *s = migrate_get_current();
+    MigrationIncomingState *mis = migration_incoming_get_current();
+
+    migration_incoming_state_destroy();
+
+    if (migration_has_failed(mis->state) && mis->exit_on_error) {
+        WITH_QEMU_LOCK_GUARD(&s->error_mutex) {
+            error_report_err(s->error);
+            s->error = NULL;
+        }
+
+        exit(EXIT_FAILURE);
+    }
+}
+
 static void process_incoming_migration_bh(void *opaque)
 {
     MigrationIncomingState *mis = opaque;
@@ -861,7 +888,7 @@ static void process_incoming_migration_bh(void *opaque)
      */
     migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_COMPLETED);
-    migration_incoming_state_destroy();
+    migration_incoming_finish();
 }
 
 static void coroutine_fn
@@ -888,23 +915,13 @@ process_incoming_migration_co(void *opaque)
 
     ps = postcopy_state_get();
     trace_process_incoming_migration_co_end(ret, ps);
-    if (ps != POSTCOPY_INCOMING_NONE) {
-        if (ps == POSTCOPY_INCOMING_ADVISE) {
-            /*
-             * Where a migration had postcopy enabled (and thus went to advise)
-             * but managed to complete within the precopy period, we can use
-             * the normal exit.
-             */
-            postcopy_ram_incoming_cleanup(mis);
-        } else if (ret >= 0) {
-            /*
-             * Postcopy was started, cleanup should happen at the end of the
-             * postcopy thread.
-             */
-            trace_process_incoming_migration_co_postcopy_end_main();
-            goto out;
-        }
-        /* Else if something went wrong then just fall out of the normal exit */
+    if (ps >= POSTCOPY_INCOMING_LISTENING) {
+        /*
+         * Postcopy was started, cleanup should happen at the end of the
+         * postcopy thread.
+         */
+        trace_process_incoming_migration_co_postcopy_end_main();
+        goto out;
     }
 
     if (ret < 0) {
@@ -926,16 +943,7 @@ fail:
     migrate_set_error(s, local_err);
     error_free(local_err);
 
-    migration_incoming_state_destroy();
-
-    if (mis->exit_on_error) {
-        WITH_QEMU_LOCK_GUARD(&s->error_mutex) {
-            error_report_err(s->error);
-            s->error = NULL;
-        }
-
-        exit(EXIT_FAILURE);
-    }
+    migration_incoming_finish();
 out:
     /* Pairs with the refcount taken in qmp_migrate_incoming() */
     migrate_incoming_unref_outgoing_state();
