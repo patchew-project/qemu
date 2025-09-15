@@ -12,6 +12,7 @@
 #include "qemu/queue.h"
 #include "hw/block/flash.h"
 #include "hw/loongarch/boot.h"
+#include "hw/pci-host/gpex.h"
 
 #define LOONGARCH_MAX_CPUS      256
 
@@ -55,7 +56,6 @@ struct LoongArchVirtMachineState {
     DeviceState  *acpi_ged;
     int          fdt_size;
     DeviceState *platform_bus_dev;
-    PCIBus       *pci_bus;
     PFlashCFI01  *flash[2];
     MemoryRegion system_iocsr;
     MemoryRegion iocsr_mem;
@@ -66,6 +66,7 @@ struct LoongArchVirtMachineState {
     struct memmap_entry *memmap_table;
     unsigned int memmap_entries;
     hwaddr ram_end;
+    struct GPEXConfig gpex;
 };
 
 #define TYPE_LOONGARCH_VIRT_MACHINE  MACHINE_TYPE_NAME("virt")
