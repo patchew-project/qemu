@@ -17,6 +17,7 @@
 #include <glib.h>
 
 #include <qemu-plugin.h>
+#include "qemu/bitops.h"
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 
@@ -187,10 +188,10 @@ static void inc_count(IOCounts *count, bool is_write, unsigned int cpu_index)
 {
     if (is_write) {
         count->writes++;
-        count->cpu_write |= (1 << cpu_index);
+        count->cpu_write |= BIT_ULL(cpu_index);
     } else {
         count->reads++;
-        count->cpu_read |= (1 << cpu_index);
+        count->cpu_read |= BIT_ULL(cpu_index);
     }
 }
 
