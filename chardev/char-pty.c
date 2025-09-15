@@ -28,12 +28,15 @@
 #include "io/channel-file.h"
 #include "qemu/sockets.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/qemu-print.h"
 
 #include "chardev/char-io.h"
 #include "qom/object.h"
+
+#include <sys/ioctl.h>
 
 struct PtyChardev {
     Chardev parent;
@@ -43,6 +46,8 @@ struct PtyChardev {
     int connected;
     GSource *timer_src;
     char *path;
+
+    Notifier resize_notifier;
 };
 typedef struct PtyChardev PtyChardev;
 
@@ -83,6 +88,15 @@ static void pty_chr_rearm_timer(Chardev *chr, int ms)
     s->timer_src = qemu_chr_timeout_add_ms(chr, ms, pty_chr_timer, chr);
     g_source_set_name(s->timer_src, name);
     g_free(name);
+}
+
+static void pty_chr_resize(PtyChardev *s)
+{
+    struct winsize ws;
+
+    if (ioctl(QIO_CHANNEL_FILE(s->ioc)->fd, TIOCGWINSZ, &ws) != -1) {
+        qemu_chr_resize(CHARDEV(s), ws.ws_col, ws.ws_row);
+    }
 }
 
 static void pty_chr_update_read_handler(Chardev *chr)
@@ -331,6 +345,12 @@ static int qemu_openpty_raw(int *aslave, char *pty_name)
     return amaster;
 }
 
+static void term_resize_notify(Notifier *n, void *data)
+{
+    PtyChardev *s = container_of(n, PtyChardev, resize_notifier);
+    pty_chr_resize(s);
+}
+
 static void char_pty_open(Chardev *chr,
                           ChardevBackend *backend,
                           bool *be_opened,
@@ -376,6 +396,10 @@ static void char_pty_open(Chardev *chr,
             s->path = g_strdup(path);
         }
     }
+
+    pty_chr_resize(s);
+    s->resize_notifier.notify = term_resize_notify;
+    sigwinch_add_notifier(&s->resize_notifier);
 }
 
 static void char_pty_parse(QemuOpts *opts, ChardevBackend *backend,
