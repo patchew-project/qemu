@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-# Reverse debugging test
+# Reverse debugging test for aarch64
 #
 # Copyright (c) 2020 ISP RAS
 #
@@ -12,14 +12,13 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-from qemu_test import Asset, skipIfMissingImports, skipFlakyTest
-from reverse_debugging import ReverseDebugging
+from qemu_test import QemuSystemTest
+from qemu_test import Asset, skipFlakyTest
+
+from reverse_debugging import reverse_debug
 
 
-@skipIfMissingImports('avocado.utils')
-class ReverseDebugging_AArch64(ReverseDebugging):
-
-    REG_PC = 32
+class ReverseDebugging_AArch64(QemuSystemTest):
 
     ASSET_KERNEL = Asset(
         ('https://archives.fedoraproject.org/pub/archive/fedora/linux/'
@@ -30,9 +29,8 @@ class ReverseDebugging_AArch64(ReverseDebugging):
     def test_aarch64_virt(self):
         self.set_machine('virt')
         self.cpu = 'cortex-a53'
-        kernel_path = self.ASSET_KERNEL.fetch()
-        self.reverse_debugging(args=('-kernel', kernel_path))
+        reverse_debug(self, self.ASSET_KERNEL)
 
 
 if __name__ == '__main__':
-    ReverseDebugging.main()
+    QemuSystemTest.main()

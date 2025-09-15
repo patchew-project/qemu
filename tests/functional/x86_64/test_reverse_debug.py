@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-# Reverse debugging test
+# Reverse debugging test for x86_64
 #
 # Copyright (c) 2020 ISP RAS
 #
@@ -12,25 +12,19 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-from qemu_test import skipIfMissingImports, skipFlakyTest
-from reverse_debugging import ReverseDebugging
+from qemu_test import QemuSystemTest, skipFlakyTest
+
+from reverse_debugging import reverse_debug
 
 
-@skipIfMissingImports('avocado.utils')
-class ReverseDebugging_X86_64(ReverseDebugging):
-
-    REG_PC = 0x10
-    REG_CS = 0x12
-    def get_pc(self, g):
-        return self.get_reg_le(g, self.REG_PC) \
-            + self.get_reg_le(g, self.REG_CS) * 0x10
+class ReverseDebugging_X86_64(QemuSystemTest):
 
     @skipFlakyTest("https://gitlab.com/qemu-project/qemu/-/issues/2922")
     def test_x86_64_pc(self):
         self.set_machine('pc')
-        # start with BIOS only
-        self.reverse_debugging()
+        # Start with BIOS only
+        reverse_debug(self)
 
 
 if __name__ == '__main__':
-    ReverseDebugging.main()
+    QemuSystemTest.main()
