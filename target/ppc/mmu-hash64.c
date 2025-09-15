@@ -980,7 +980,7 @@ static int build_vrma_slbe(PowerPCCPU *cpu, ppc_slb_t *slb)
 }
 
 bool ppc_hash64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
-                      hwaddr *raddrp, int *psizep, int *protp, int mmu_idx,
+                      CPUTLBEntryFull *full, int mmu_idx,
                       bool guest_visible)
 {
     CPUState *cs = CPU(cpu);
@@ -1063,9 +1063,9 @@ bool ppc_hash64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
             raddr |= env->spr[SPR_RMOR];
         }
 
-        *raddrp = raddr;
-        *protp = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-        *psizep = TARGET_PAGE_BITS;
+        full->phys_addr = raddr;
+        full->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        full->lg_page_size = TARGET_PAGE_BITS;
         return true;
     }
 
@@ -1201,9 +1201,9 @@ bool ppc_hash64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
 
     /* 7. Determine the real address from the PTE */
 
-    *raddrp = deposit64(pte.pte1 & HPTE64_R_RPN, 0, apshift, eaddr);
-    *protp = prot;
-    *psizep = apshift;
+    full->phys_addr = deposit64(pte.pte1 & HPTE64_R_RPN, 0, apshift, eaddr);
+    full->prot = prot;
+    full->lg_page_size = apshift;
     return true;
 }
 

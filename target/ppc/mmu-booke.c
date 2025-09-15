@@ -23,6 +23,7 @@
 #include "cpu.h"
 #include "internal.h"
 #include "mmu-booke.h"
+#include "exec/tlb-flags.h"
 
 /* Generic TLB check function for embedded PowerPC implementations */
 static bool ppcemb_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
@@ -155,10 +156,10 @@ static bool mmubooke_check_pid(CPUPPCState *env, ppcemb_tlb_t *tlb,
 }
 
 static int mmubooke_check_tlb(CPUPPCState *env, ppcemb_tlb_t *tlb,
-                              hwaddr *raddr, int *prot, target_ulong address,
+                              CPUTLBEntryFull *full, target_ulong address,
                               MMUAccessType access_type, int i)
 {
-    if (!mmubooke_check_pid(env, tlb, raddr, address, i)) {
+    if (!mmubooke_check_pid(env, tlb, &(full->phys_addr), address, i)) {
         qemu_log_mask(CPU_LOG_MMU, "%s: TLB entry not found\n", __func__);
         return -1;
     }
@@ -172,21 +173,22 @@ static int mmubooke_check_tlb(CPUPPCState *env, ppcemb_tlb_t *tlb,
     }
 
     if (FIELD_EX64(env->msr, MSR, PR)) {
-        *prot = tlb->prot & 0xF;
+        full->prot = tlb->prot & 0xF;
     } else {
-        *prot = (tlb->prot >> 4) & 0xF;
+        full->prot = (tlb->prot >> 4) & 0xF;
     }
-    if (check_prot_access_type(*prot, access_type)) {
+    if (check_prot_access_type(full->prot, access_type)) {
         qemu_log_mask(CPU_LOG_MMU, "%s: good TLB!\n", __func__);
         return 0;
     }
 
-    qemu_log_mask(CPU_LOG_MMU, "%s: no prot match: %x\n", __func__, *prot);
+    qemu_log_mask(CPU_LOG_MMU, "%s: no prot match: %x\n", __func__, full->prot);
     return access_type == MMU_INST_FETCH ? -3 : -2;
 }
 
-static int mmubooke_get_physical_address(CPUPPCState *env, hwaddr *raddr,
-                                         int *prot, target_ulong address,
+static int mmubooke_get_physical_address(CPUPPCState *env,
+                                         CPUTLBEntryFull *full,
+                                         target_ulong address,
                                          MMUAccessType access_type)
 {
     ppcemb_tlb_t *tlb;
@@ -194,7 +196,7 @@ static int mmubooke_get_physical_address(CPUPPCState *env, hwaddr *raddr,
 
     for (i = 0; i < env->nb_tlb; i++) {
         tlb = &env->tlb.tlbe[i];
-        ret = mmubooke_check_tlb(env, tlb, raddr, prot, address,
+        ret = mmubooke_check_tlb(env, tlb, full, address,
                                  access_type, i);
         if (ret != -1) {
             break;
@@ -203,7 +205,8 @@ static int mmubooke_get_physical_address(CPUPPCState *env, hwaddr *raddr,
     qemu_log_mask(CPU_LOG_MMU,
                   "%s: access %s " TARGET_FMT_lx " => " HWADDR_FMT_plx
                   " %d %d\n", __func__, ret < 0 ? "refused" : "granted",
-                  address, ret < 0 ? -1 : *raddr, ret == -1 ? 0 : *prot, ret);
+                  address, ret < 0 ? -1 : full->phys_addr,
+                  ret == -1 ? 0 : full->prot, ret);
     return ret;
 }
 
@@ -307,8 +310,7 @@ static bool mmubooke206_get_as(CPUPPCState *env,
 
 /* Check if the tlb found by hashing really matches */
 static int mmubooke206_check_tlb(CPUPPCState *env, ppcmas_tlb_t *tlb,
-                                 hwaddr *raddr, int *prot,
-                                 target_ulong address,
+                                 CPUTLBEntryFull *full, target_ulong address,
                                  MMUAccessType access_type, int mmu_idx)
 {
     uint32_t epid;
@@ -316,24 +318,25 @@ static int mmubooke206_check_tlb(CPUPPCState *env, ppcmas_tlb_t *tlb,
     bool use_epid = mmubooke206_get_as(env, mmu_idx, &epid, &as, &pr);
 
     if (!use_epid) {
-        if (ppcmas_tlb_check(env, tlb, raddr, address,
+        if (ppcmas_tlb_check(env, tlb, &(full->phys_addr), address,
                              env->spr[SPR_BOOKE_PID]) >= 0) {
             goto found_tlb;
         }
 
         if (env->spr[SPR_BOOKE_PID1] &&
-            ppcmas_tlb_check(env, tlb, raddr, address,
+            ppcmas_tlb_check(env, tlb, &(full->phys_addr), address,
                              env->spr[SPR_BOOKE_PID1]) >= 0) {
             goto found_tlb;
         }
 
         if (env->spr[SPR_BOOKE_PID2] &&
-            ppcmas_tlb_check(env, tlb, raddr, address,
+            ppcmas_tlb_check(env, tlb, &(full->phys_addr), address,
                              env->spr[SPR_BOOKE_PID2]) >= 0) {
             goto found_tlb;
         }
     } else {
-        if (ppcmas_tlb_check(env, tlb, raddr, address, epid) >= 0) {
+        if (ppcmas_tlb_check(env, tlb, &(full->phys_addr),
+                             address, epid) >= 0) {
             goto found_tlb;
         }
     }
@@ -356,7 +359,9 @@ found_tlb:
         return -1;
     }
 
+    uint8_t *prot = &(full->prot);
     *prot = 0;
+
     if (pr) {
         if (tlb->mas7_3 & MAS3_UR) {
             *prot |= PAGE_READ;
@@ -387,8 +392,9 @@ found_tlb:
     return access_type == MMU_INST_FETCH ? -3 : -2;
 }
 
-static int mmubooke206_get_physical_address(CPUPPCState *env, hwaddr *raddr,
-                                            int *prot, target_ulong address,
+static int mmubooke206_get_physical_address(CPUPPCState *env,
+                                            CPUTLBEntryFull *full,
+                                            target_ulong address,
                                             MMUAccessType access_type,
                                             int mmu_idx)
 {
@@ -402,7 +408,7 @@ static int mmubooke206_get_physical_address(CPUPPCState *env, hwaddr *raddr,
             if (!tlb) {
                 continue;
             }
-            ret = mmubooke206_check_tlb(env, tlb, raddr, prot, address,
+            ret = mmubooke206_check_tlb(env, tlb, full, address,
                                         access_type, mmu_idx);
             if (ret != -1) {
                 goto found_tlb;
@@ -415,7 +421,8 @@ found_tlb:
     qemu_log_mask(CPU_LOG_MMU, "%s: access %s " TARGET_FMT_lx " => "
                   HWADDR_FMT_plx " %d %d\n", __func__,
                   ret < 0 ? "refused" : "granted", address,
-                  ret < 0 ? -1 : *raddr, ret == -1 ? 0 : *prot, ret);
+                  ret < 0 ? -1 : full->phys_addr,
+                  ret == -1 ? 0 : full->prot, ret);
     return ret;
 }
 
@@ -474,27 +481,25 @@ static void booke206_update_mas_tlb_miss(CPUPPCState *env, target_ulong address,
 }
 
 bool ppc_booke_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
-                     hwaddr *raddrp, int *psizep, int *protp, int mmu_idx,
+                     CPUTLBEntryFull *full, int mmu_idx,
                      bool guest_visible)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
-    hwaddr raddr;
-    int prot, ret;
+    int ret;
 
     if (env->mmu_model == POWERPC_MMU_BOOKE206) {
-        ret = mmubooke206_get_physical_address(env, &raddr, &prot, eaddr,
+        ret = mmubooke206_get_physical_address(env, full, eaddr,
                                                access_type, mmu_idx);
     } else {
-        ret = mmubooke_get_physical_address(env, &raddr, &prot, eaddr,
-                                            access_type);
+        ret = mmubooke_get_physical_address(env, full, eaddr, access_type);
     }
     if (ret == 0) {
-        *raddrp = raddr;
-        *protp = prot;
-        *psizep = TARGET_PAGE_BITS;
+        full->lg_page_size = TARGET_PAGE_BITS;
         return true;
     } else if (!guest_visible) {
+        full->prot = 0;
+        full->phys_addr = 0;
         return false;
     }
 
