@@ -535,11 +535,15 @@ static int tcp_chr_sync_read(Chardev *chr, const uint8_t *buf, int len)
         return 0;
     }
 
-    qio_channel_set_blocking(s->ioc, true, NULL);
+    if (!qio_channel_set_blocking(s->ioc, true, &error_reporter)) {
+        return -1;
+    }
     size = tcp_chr_recv(chr, (void *) buf, len);
     saved_errno = errno;
     if (s->state != TCP_CHARDEV_STATE_DISCONNECTED) {
-        qio_channel_set_blocking(s->ioc, false, NULL);
+        if (!qio_channel_set_blocking(s->ioc, false, &error_reporter)) {
+            return -1;
+        }
     }
     if (size == 0) {
         /* connection closed */
@@ -889,12 +893,14 @@ static int tcp_chr_new_client(Chardev *chr, QIOChannelSocket *sioc)
         return -1;
     }
 
+    if (!qio_channel_set_blocking(QIO_CHANNEL(sioc), false, &error_reporter)) {
+        return -1;
+    }
+
     s->ioc = QIO_CHANNEL(sioc);
     object_ref(OBJECT(sioc));
     s->sioc = sioc;
     object_ref(OBJECT(sioc));
-
-    qio_channel_set_blocking(s->ioc, false, NULL);
 
     if (s->do_nodelay) {
         qio_channel_set_delay(s->ioc, false);

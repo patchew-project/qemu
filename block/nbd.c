@@ -351,7 +351,10 @@ int coroutine_fn nbd_co_do_establish_connection(BlockDriverState *bs,
         return ret;
     }
 
-    qio_channel_set_blocking(s->ioc, false, NULL);
+    ret = qio_channel_set_blocking(s->ioc, false, errp);
+    if (ret < 0) {
+        return ret;
+    }
     qio_channel_set_follow_coroutine_ctx(s->ioc, true);
 
     /* successfully connected */
