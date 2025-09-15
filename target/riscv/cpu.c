@@ -37,6 +37,7 @@
 #include "kvm/kvm_riscv.h"
 #include "tcg/tcg-cpu.h"
 #include "tcg/tcg.h"
+#include "hw/boards.h"
 
 /* RISC-V CPU definitions */
 static const char riscv_single_letter_exts[] = "IEMAFDQCBPVH";
@@ -685,18 +686,32 @@ static void riscv_cpu_reset_hold(Object *obj, ResetType type)
 #ifndef CONFIG_USER_ONLY
     uint8_t iprio;
     int i, irq, rdzero;
+    static int boot_cpu_index;
 #endif
     CPUState *cs = CPU(obj);
     RISCVCPU *cpu = RISCV_CPU(cs);
     RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(obj);
     CPURISCVState *env = &cpu->env;
+    MachineState *ms = MACHINE(qdev_get_machine());
 
     if (mcc->parent_phases.hold) {
         mcc->parent_phases.hold(obj, type);
     }
 #ifndef CONFIG_USER_ONLY
     env->misa_mxl = mcc->def->misa_mxl_max;
-    env->priv = PRV_M;
+    if (kvm_enabled()) {
+        env->priv = PRV_S;
+    } else {
+        env->priv = PRV_M;
+    }
+    if (cs->cpu_index == 0) {
+        boot_cpu_index = g_random_int_range(0, ms->smp.cpus);
+    }
+    if (cs->cpu_index == boot_cpu_index) {
+        env->mp_state = KVM_MP_STATE_RUNNABLE;
+    } else {
+        env->mp_state = KVM_MP_STATE_STOPPED;
+    }
     env->mstatus &= ~(MSTATUS_MIE | MSTATUS_MPRV);
     if (env->misa_mxl > MXL_RV32) {
         /*

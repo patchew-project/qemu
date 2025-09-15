@@ -269,6 +269,8 @@ struct CPUArchState {
 #endif
 
     target_ulong priv;
+    /* Current multiprocessor state of this vCPU. */
+    uint32_t mp_state;
     /* CSRs for execution environment configuration */
     uint64_t menvcfg;
     target_ulong senvcfg;
