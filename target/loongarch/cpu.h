@@ -390,6 +390,8 @@ typedef struct CPUArchState {
     bool load_elf;
     uint64_t elf_address;
     uint32_t mp_state;
+    /* Number of physical address bits supported */
+    uint32_t phys_bits;
 
     struct loongarch_boot_info *boot_info;
 #endif
