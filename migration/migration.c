@@ -1542,7 +1542,7 @@ static void migration_cleanup(MigrationState *s)
         /* It is used on info migrate.  We can't free it */
         error_report_err(error_copy(s->error));
     }
-    type = migration_has_failed(s) ? MIG_EVENT_PRECOPY_FAILED :
+    type = migration_has_failed(s->state) ? MIG_EVENT_PRECOPY_FAILED :
                                      MIG_EVENT_PRECOPY_DONE;
     migration_call_notifiers(s, type, NULL);
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
@@ -1700,10 +1700,10 @@ int migration_call_notifiers(MigrationState *s, MigrationEventType type,
     return ret;
 }
 
-bool migration_has_failed(MigrationState *s)
+bool migration_has_failed(MigrationStatus state)
 {
-    return (s->state == MIGRATION_STATUS_CANCELLED ||
-            s->state == MIGRATION_STATUS_FAILED);
+    return (state == MIGRATION_STATUS_CANCELLED ||
+            state == MIGRATION_STATUS_FAILED);
 }
 
 bool migration_in_postcopy(void)

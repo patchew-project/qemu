@@ -568,7 +568,7 @@ void multifd_send_shutdown(void)
              * already failed. If the migration succeeded, errors are
              * not expected but there's no need to kill the source.
              */
-            if (local_err && !migration_has_failed(migrate_get_current())) {
+            if (local_err && !migration_has_failed(migrate_get_current()->state)) {
                 warn_report(
                     "multifd_send_%d: Failed to terminate TLS connection: %s",
                     p->id, error_get_pretty(local_err));

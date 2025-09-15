@@ -535,7 +535,7 @@ bool migration_is_blocked(Error **errp);
 bool migration_in_postcopy(void);
 bool migration_postcopy_is_alive(MigrationStatus state);
 MigrationState *migrate_get_current(void);
-bool migration_has_failed(MigrationState *);
+bool migration_has_failed(MigrationStatus state);
 bool migrate_mode_is_cpr(MigrationState *);
 
 uint64_t ram_get_total_transferred_pages(void);
