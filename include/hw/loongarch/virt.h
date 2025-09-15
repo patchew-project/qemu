@@ -67,6 +67,7 @@ struct LoongArchVirtMachineState {
     unsigned int memmap_entries;
     hwaddr ram_end;
     struct GPEXConfig gpex;
+    bool highmem_mmio;
 };
 
 #define TYPE_LOONGARCH_VIRT_MACHINE  MACHINE_TYPE_NAME("virt")
