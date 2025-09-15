@@ -697,7 +697,7 @@ virtio_balloon_free_page_hint_notify(NotifierWithReturn *n, void *data,
     case PRECOPY_NOTIFY_COMPLETE:
         break;
     default:
-        virtio_error(vdev, "%s: %d reason unknown", __func__, pnd->reason);
+        virtio_error(vdev, "%d reason unknown", pnd->reason);
     }
 
     return 0;
