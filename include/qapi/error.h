@@ -540,6 +540,12 @@ G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(ErrorPropagator, error_propagator_cleanup);
 extern Error *error_warn;
 
 /*
+ * Special error destination to report on error.
+ * See error_setg() and error_propagate() for details.
+ */
+extern Error *error_reporter;
+
+/*
  * Special error destination to abort on error.
  * See error_setg() and error_propagate() for details.
  */
