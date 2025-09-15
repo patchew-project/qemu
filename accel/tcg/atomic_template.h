@@ -69,66 +69,92 @@
 
 /* Define host-endian atomic operations.  Note that END is used within
    the ATOMIC_NAME macro, and redefined below.  */
-#if DATA_SIZE == 1
 # define END
-#elif HOST_BIG_ENDIAN
-# define END  _be
-#else
-# define END  _le
-#endif
 
 ABI_TYPE ATOMIC_NAME(cmpxchg)(CPUArchState *env, vaddr addr,
                               ABI_TYPE cmpv, ABI_TYPE newv,
                               MemOpIdx oi, uintptr_t retaddr)
 {
+    bool need_bswap = get_memop(oi) & MO_BSWAP;
     DATA_TYPE *haddr = atomic_mmu_lookup(env_cpu(env), addr, oi,
-                                         DATA_SIZE, retaddr);
-    DATA_TYPE ret;
-
+                                         DATA_SIZE, retaddr, &need_bswap);
+    DATA_TYPE ret, ret_e;
+    if (need_bswap) {
 #if DATA_SIZE == 16
-    ret = atomic16_cmpxchg(haddr, cmpv, newv);
+        ret = atomic16_cmpxchg(haddr, BSWAP(cmpv), BSWAP(newv));
 #else
-    ret = qatomic_cmpxchg__nocheck(haddr, cmpv, newv);
+        ret = qatomic_cmpxchg__nocheck(haddr, BSWAP(cmpv), BSWAP(newv));
 #endif
+        ret_e = BSWAP(ret);
+    } else {
+#if DATA_SIZE == 16
+        ret = atomic16_cmpxchg(haddr, cmpv, newv);
+#else
+        ret = qatomic_cmpxchg__nocheck(haddr, cmpv, newv);
+#endif
+        ret_e = ret;
+    }
     ATOMIC_MMU_CLEANUP;
     atomic_trace_rmw_post(env, addr,
-                          VALUE_LOW(ret),
-                          VALUE_HIGH(ret),
-                          VALUE_LOW(newv),
-                          VALUE_HIGH(newv),
-                          oi);
-    return ret;
+                        VALUE_LOW(ret),
+                        VALUE_HIGH(ret),
+                        VALUE_LOW(newv),
+                        VALUE_HIGH(newv),
+                        oi);
+    return ret_e;
 }
 
 ABI_TYPE ATOMIC_NAME(xchg)(CPUArchState *env, vaddr addr, ABI_TYPE val,
                            MemOpIdx oi, uintptr_t retaddr)
 {
-    DATA_TYPE *haddr = atomic_mmu_lookup(env_cpu(env), addr, oi,
-                                         DATA_SIZE, retaddr);
-    DATA_TYPE ret;
+    bool need_bswap = get_memop(oi) & MO_BSWAP;
 
-#if DATA_SIZE == 16
-    ret = atomic16_xchg(haddr, val);
-#else
-    ret = qatomic_xchg__nocheck(haddr, val);
-#endif
+    DATA_TYPE *haddr = atomic_mmu_lookup(env_cpu(env), addr, oi,
+                                         DATA_SIZE, retaddr, &need_bswap);
+    DATA_TYPE ret, ret_e;
+
+    if (need_bswap) {
+        #if DATA_SIZE == 16
+            ret = atomic16_xchg(haddr, BSWAP(val));
+        #else
+            ret = qatomic_xchg__nocheck(haddr, BSWAP(val));
+        #endif
+
+        ret_e = BSWAP(ret);
+    } else {
+        #if DATA_SIZE == 16
+            ret = atomic16_xchg(haddr, val);
+        #else
+            ret = qatomic_xchg__nocheck(haddr, val);
+        #endif
+        ret_e = ret;
+    }
     ATOMIC_MMU_CLEANUP;
     atomic_trace_rmw_post(env, addr,
-                          VALUE_LOW(ret),
-                          VALUE_HIGH(ret),
-                          VALUE_LOW(val),
-                          VALUE_HIGH(val),
-                          oi);
-    return ret;
+                        VALUE_LOW(ret),
+                        VALUE_HIGH(ret),
+                        VALUE_LOW(val),
+                        VALUE_HIGH(val),
+                        oi);
+    return ret_e;
 }
 
 #if DATA_SIZE == 16
 ABI_TYPE ATOMIC_NAME(fetch_and)(CPUArchState *env, vaddr addr, ABI_TYPE val,
                                 MemOpIdx oi, uintptr_t retaddr)
 {
+    bool need_bswap = get_memop(oi) & MO_BSWAP;
+
     DATA_TYPE *haddr = atomic_mmu_lookup(env_cpu(env), addr, oi,
-                                         DATA_SIZE, retaddr);
-    DATA_TYPE ret = atomic16_fetch_and(haddr, val);
+                                         DATA_SIZE, retaddr, &need_bswap);
+    DATA_TYPE ret, ret_e;
+    if (need_bswap) {
+        ret = atomic16_fetch_and(haddr, BSWAP(val));
+        ret_e = BSWAP(ret);
+    } else {
+        ret = atomic16_fetch_and(haddr, val);
+        ret_e = ret;
+    }
     ATOMIC_MMU_CLEANUP;
     atomic_trace_rmw_post(env, addr,
                           VALUE_LOW(ret),
@@ -136,15 +162,25 @@ ABI_TYPE ATOMIC_NAME(fetch_and)(CPUArchState *env, vaddr addr, ABI_TYPE val,
                           VALUE_LOW(val),
                           VALUE_HIGH(val),
                           oi);
-    return ret;
+    return ret_e;
 }
 
 ABI_TYPE ATOMIC_NAME(fetch_or)(CPUArchState *env, vaddr addr, ABI_TYPE val,
                                MemOpIdx oi, uintptr_t retaddr)
 {
+    bool need_bswap = get_memop(oi) & MO_BSWAP;
+
     DATA_TYPE *haddr = atomic_mmu_lookup(env_cpu(env), addr, oi,
-                                         DATA_SIZE, retaddr);
-    DATA_TYPE ret = atomic16_fetch_or(haddr, val);
+                                         DATA_SIZE, retaddr, &need_bswap);
+    DATA_TYPE ret, ret_e;
+    if (need_bswap) {
+        ret = atomic16_fetch_or(haddr, BSWAP(val));
+        ret_e = BSWAP(ret);
+    } else {
+        ret = atomic16_fetch_or(haddr, val);
+        ret_e = ret;
+    }
+
     ATOMIC_MMU_CLEANUP;
     atomic_trace_rmw_post(env, addr,
                           VALUE_LOW(ret),
@@ -152,16 +188,25 @@ ABI_TYPE ATOMIC_NAME(fetch_or)(CPUArchState *env, vaddr addr, ABI_TYPE val,
                           VALUE_LOW(val),
                           VALUE_HIGH(val),
                           oi);
-    return ret;
+    return ret_e;
 }
 #else
 #define GEN_ATOMIC_HELPER(X)                                        \
 ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, vaddr addr,              \
                         ABI_TYPE val, MemOpIdx oi, uintptr_t retaddr) \
 {                                                                   \
-    DATA_TYPE *haddr, ret;                                          \
-    haddr = atomic_mmu_lookup(env_cpu(env), addr, oi, DATA_SIZE, retaddr);   \
-    ret = qatomic_##X(haddr, val);                                  \
+    DATA_TYPE *haddr, ret, ret_e;                                   \
+    bool need_bswap = get_memop(oi) & MO_BSWAP;                     \
+    haddr = atomic_mmu_lookup(env_cpu(env), addr, oi, DATA_SIZE,    \
+                                             retaddr, &need_bswap); \
+    if (need_bswap) {                                               \
+        ret = qatomic_##X(haddr, BSWAP(val));                       \
+        ret_e = BSWAP(ret);                                         \
+    }                                                               \
+    else {                                                          \
+        ret = qatomic_##X(haddr, val);                              \
+        ret_e = ret;                                                \
+    }                                                               \
     ATOMIC_MMU_CLEANUP;                                             \
     atomic_trace_rmw_post(env, addr,                                \
                           VALUE_LOW(ret),                           \
@@ -169,7 +214,7 @@ ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, vaddr addr,              \
                           VALUE_LOW(val),                           \
                           VALUE_HIGH(val),                          \
                           oi);                                      \
-    return ret;                                                     \
+    return ret_e;                                                   \
 }
 
 GEN_ATOMIC_HELPER(fetch_add)
@@ -191,25 +236,38 @@ GEN_ATOMIC_HELPER(xor_fetch)
  * Trace this load + RMW loop as a single RMW op. This way, regardless
  * of CF_PARALLEL's value, we'll trace just a read and a write.
  */
+
 #define GEN_ATOMIC_HELPER_FN(X, FN, XDATA_TYPE, RET)                \
 ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, vaddr addr,              \
                         ABI_TYPE xval, MemOpIdx oi, uintptr_t retaddr) \
 {                                                                   \
-    XDATA_TYPE *haddr, cmp, old, new, val = xval;                   \
-    haddr = atomic_mmu_lookup(env_cpu(env), addr, oi, DATA_SIZE, retaddr);   \
+    XDATA_TYPE *haddr, ldo, ldn, old, new, val = xval;              \
+    bool need_bswap = get_memop(oi) & MO_BSWAP;                     \
+    haddr = atomic_mmu_lookup(env_cpu(env), addr, oi, DATA_SIZE,    \
+                              retaddr, &need_bswap);                \
     smp_mb();                                                       \
-    cmp = qatomic_read__nocheck(haddr);                             \
-    do {                                                            \
-        old = cmp; new = FN(old, val);                              \
-        cmp = qatomic_cmpxchg__nocheck(haddr, old, new);            \
-    } while (cmp != old);                                           \
+    ldn = qatomic_read__nocheck(haddr);                             \
+    if (need_bswap) {                                               \
+        do {                                                        \
+            ldo = ldn; old = BSWAP(ldo);                            \
+            new = FN(old, val);                                     \
+            ldn = qatomic_cmpxchg__nocheck(haddr, ldo, BSWAP(new)); \
+        } while (ldo != ldn);                                       \
+    }                                                               \
+    else{                                                           \
+        do {                                                        \
+            ldo = ldn; old = ldo;                                   \
+            new = FN(old, val);                                     \
+            ldn = qatomic_cmpxchg__nocheck(haddr, ldo, new);        \
+        } while (ldo != ldn);                                       \
+    }                                                               \
     ATOMIC_MMU_CLEANUP;                                             \
     atomic_trace_rmw_post(env, addr,                                \
-                          VALUE_LOW(old),                           \
-                          VALUE_HIGH(old),                          \
-                          VALUE_LOW(xval),                          \
-                          VALUE_HIGH(xval),                         \
-                          oi);                                      \
+                        VALUE_LOW(old),                             \
+                        VALUE_HIGH(old),                            \
+                        VALUE_LOW(xval),                            \
+                        VALUE_HIGH(xval),                           \
+                        oi);                                        \
     return RET;                                                     \
 }
 
@@ -227,172 +285,6 @@ GEN_ATOMIC_HELPER_FN(umax_fetch, MAX,  DATA_TYPE, new)
 #endif /* DATA SIZE == 16 */
 
 #undef END
-
-#if DATA_SIZE > 1
-
-/* Define reverse-host-endian atomic operations.  Note that END is used
-   within the ATOMIC_NAME macro.  */
-#if HOST_BIG_ENDIAN
-# define END  _le
-#else
-# define END  _be
-#endif
-
-ABI_TYPE ATOMIC_NAME(cmpxchg)(CPUArchState *env, vaddr addr,
-                              ABI_TYPE cmpv, ABI_TYPE newv,
-                              MemOpIdx oi, uintptr_t retaddr)
-{
-    DATA_TYPE *haddr = atomic_mmu_lookup(env_cpu(env), addr, oi,
-                                         DATA_SIZE, retaddr);
-    DATA_TYPE ret;
-
-#if DATA_SIZE == 16
-    ret = atomic16_cmpxchg(haddr, BSWAP(cmpv), BSWAP(newv));
-#else
-    ret = qatomic_cmpxchg__nocheck(haddr, BSWAP(cmpv), BSWAP(newv));
-#endif
-    ATOMIC_MMU_CLEANUP;
-    atomic_trace_rmw_post(env, addr,
-                          VALUE_LOW(ret),
-                          VALUE_HIGH(ret),
-                          VALUE_LOW(newv),
-                          VALUE_HIGH(newv),
-                          oi);
-    return BSWAP(ret);
-}
-
-ABI_TYPE ATOMIC_NAME(xchg)(CPUArchState *env, vaddr addr, ABI_TYPE val,
-                           MemOpIdx oi, uintptr_t retaddr)
-{
-    DATA_TYPE *haddr = atomic_mmu_lookup(env_cpu(env), addr, oi,
-                                         DATA_SIZE, retaddr);
-    ABI_TYPE ret;
-
-#if DATA_SIZE == 16
-    ret = atomic16_xchg(haddr, BSWAP(val));
-#else
-    ret = qatomic_xchg__nocheck(haddr, BSWAP(val));
-#endif
-    ATOMIC_MMU_CLEANUP;
-    atomic_trace_rmw_post(env, addr,
-                          VALUE_LOW(ret),
-                          VALUE_HIGH(ret),
-                          VALUE_LOW(val),
-                          VALUE_HIGH(val),
-                          oi);
-    return BSWAP(ret);
-}
-
-#if DATA_SIZE == 16
-ABI_TYPE ATOMIC_NAME(fetch_and)(CPUArchState *env, vaddr addr, ABI_TYPE val,
-                                MemOpIdx oi, uintptr_t retaddr)
-{
-    DATA_TYPE *haddr = atomic_mmu_lookup(env_cpu(env), addr, oi,
-                                         DATA_SIZE, retaddr);
-    DATA_TYPE ret = atomic16_fetch_and(haddr, BSWAP(val));
-    ATOMIC_MMU_CLEANUP;
-    atomic_trace_rmw_post(env, addr,
-                          VALUE_LOW(ret),
-                          VALUE_HIGH(ret),
-                          VALUE_LOW(val),
-                          VALUE_HIGH(val),
-                          oi);
-    return BSWAP(ret);
-}
-
-ABI_TYPE ATOMIC_NAME(fetch_or)(CPUArchState *env, vaddr addr, ABI_TYPE val,
-                               MemOpIdx oi, uintptr_t retaddr)
-{
-    DATA_TYPE *haddr = atomic_mmu_lookup(env_cpu(env), addr, oi,
-                                         DATA_SIZE, retaddr);
-    DATA_TYPE ret = atomic16_fetch_or(haddr, BSWAP(val));
-    ATOMIC_MMU_CLEANUP;
-    atomic_trace_rmw_post(env, addr,
-                          VALUE_LOW(ret),
-                          VALUE_HIGH(ret),
-                          VALUE_LOW(val),
-                          VALUE_HIGH(val),
-                          oi);
-    return BSWAP(ret);
-}
-#else
-#define GEN_ATOMIC_HELPER(X)                                        \
-ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, vaddr addr,              \
-                        ABI_TYPE val, MemOpIdx oi, uintptr_t retaddr) \
-{                                                                   \
-    DATA_TYPE *haddr, ret;                                          \
-    haddr = atomic_mmu_lookup(env_cpu(env), addr, oi, DATA_SIZE, retaddr);   \
-    ret = qatomic_##X(haddr, BSWAP(val));                           \
-    ATOMIC_MMU_CLEANUP;                                             \
-    atomic_trace_rmw_post(env, addr,                                \
-                          VALUE_LOW(ret),                           \
-                          VALUE_HIGH(ret),                          \
-                          VALUE_LOW(val),                           \
-                          VALUE_HIGH(val),                          \
-                          oi);                                      \
-    return BSWAP(ret);                                              \
-}
-
-GEN_ATOMIC_HELPER(fetch_and)
-GEN_ATOMIC_HELPER(fetch_or)
-GEN_ATOMIC_HELPER(fetch_xor)
-GEN_ATOMIC_HELPER(and_fetch)
-GEN_ATOMIC_HELPER(or_fetch)
-GEN_ATOMIC_HELPER(xor_fetch)
-
-#undef GEN_ATOMIC_HELPER
-
-/* These helpers are, as a whole, full barriers.  Within the helper,
- * the leading barrier is explicit and the trailing barrier is within
- * cmpxchg primitive.
- *
- * Trace this load + RMW loop as a single RMW op. This way, regardless
- * of CF_PARALLEL's value, we'll trace just a read and a write.
- */
-#define GEN_ATOMIC_HELPER_FN(X, FN, XDATA_TYPE, RET)                \
-ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, vaddr addr,              \
-                        ABI_TYPE xval, MemOpIdx oi, uintptr_t retaddr) \
-{                                                                   \
-    XDATA_TYPE *haddr, ldo, ldn, old, new, val = xval;              \
-    haddr = atomic_mmu_lookup(env_cpu(env), addr, oi, DATA_SIZE, retaddr);   \
-    smp_mb();                                                       \
-    ldn = qatomic_read__nocheck(haddr);                             \
-    do {                                                            \
-        ldo = ldn; old = BSWAP(ldo); new = FN(old, val);            \
-        ldn = qatomic_cmpxchg__nocheck(haddr, ldo, BSWAP(new));     \
-    } while (ldo != ldn);                                           \
-    ATOMIC_MMU_CLEANUP;                                             \
-    atomic_trace_rmw_post(env, addr,                                \
-                          VALUE_LOW(old),                           \
-                          VALUE_HIGH(old),                          \
-                          VALUE_LOW(xval),                          \
-                          VALUE_HIGH(xval),                         \
-                          oi);                                      \
-    return RET;                                                     \
-}
-
-GEN_ATOMIC_HELPER_FN(fetch_smin, MIN, SDATA_TYPE, old)
-GEN_ATOMIC_HELPER_FN(fetch_umin, MIN,  DATA_TYPE, old)
-GEN_ATOMIC_HELPER_FN(fetch_smax, MAX, SDATA_TYPE, old)
-GEN_ATOMIC_HELPER_FN(fetch_umax, MAX,  DATA_TYPE, old)
-
-GEN_ATOMIC_HELPER_FN(smin_fetch, MIN, SDATA_TYPE, new)
-GEN_ATOMIC_HELPER_FN(umin_fetch, MIN,  DATA_TYPE, new)
-GEN_ATOMIC_HELPER_FN(smax_fetch, MAX, SDATA_TYPE, new)
-GEN_ATOMIC_HELPER_FN(umax_fetch, MAX,  DATA_TYPE, new)
-
-/* Note that for addition, we need to use a separate cmpxchg loop instead
-   of bswaps for the reverse-host-endian helpers.  */
-#define ADD(X, Y)   (X + Y)
-GEN_ATOMIC_HELPER_FN(fetch_add, ADD, DATA_TYPE, old)
-GEN_ATOMIC_HELPER_FN(add_fetch, ADD, DATA_TYPE, new)
-#undef ADD
-
-#undef GEN_ATOMIC_HELPER_FN
-#endif /* DATA_SIZE == 16 */
-
-#undef END
-#endif /* DATA_SIZE > 1 */
 
 #undef BSWAP
 #undef ABI_TYPE

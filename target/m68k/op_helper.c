@@ -806,13 +806,13 @@ static void do_cas2l(CPUM68KState *env, uint32_t regs, uint32_t a1, uint32_t a2,
         if ((a1 & 7) == 0 && a2 == a1 + 4) {
             c = deposit64(c2, 32, 32, c1);
             u = deposit64(u2, 32, 32, u1);
-            l = cpu_atomic_cmpxchgq_be_mmu(env, a1, c, u, oi, ra);
+            l = cpu_atomic_cmpxchgq_mmu(env, a1, c, u, oi, ra);
             l1 = l >> 32;
             l2 = l;
         } else if ((a2 & 7) == 0 && a1 == a2 + 4) {
             c = deposit64(c1, 32, 32, c2);
             u = deposit64(u1, 32, 32, u2);
-            l = cpu_atomic_cmpxchgq_be_mmu(env, a2, c, u, oi, ra);
+            l = cpu_atomic_cmpxchgq_mmu(env, a2, c, u, oi, ra);
             l2 = l >> 32;
             l1 = l;
         } else

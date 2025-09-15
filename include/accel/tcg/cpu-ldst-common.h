@@ -36,22 +36,13 @@ void cpu_st16_mmu(CPUArchState *env, vaddr addr, Int128 val,
 uint32_t cpu_atomic_cmpxchgb_mmu(CPUArchState *env, vaddr addr,
                                  uint32_t cmpv, uint32_t newv,
                                  MemOpIdx oi, uintptr_t retaddr);
-uint32_t cpu_atomic_cmpxchgw_le_mmu(CPUArchState *env, vaddr addr,
+uint32_t cpu_atomic_cmpxchgw_mmu(CPUArchState *env, vaddr addr,
                                     uint32_t cmpv, uint32_t newv,
                                     MemOpIdx oi, uintptr_t retaddr);
-uint32_t cpu_atomic_cmpxchgl_le_mmu(CPUArchState *env, vaddr addr,
+uint32_t cpu_atomic_cmpxchgl_mmu(CPUArchState *env, vaddr addr,
                                     uint32_t cmpv, uint32_t newv,
                                     MemOpIdx oi, uintptr_t retaddr);
-uint64_t cpu_atomic_cmpxchgq_le_mmu(CPUArchState *env, vaddr addr,
-                                    uint64_t cmpv, uint64_t newv,
-                                    MemOpIdx oi, uintptr_t retaddr);
-uint32_t cpu_atomic_cmpxchgw_be_mmu(CPUArchState *env, vaddr addr,
-                                    uint32_t cmpv, uint32_t newv,
-                                    MemOpIdx oi, uintptr_t retaddr);
-uint32_t cpu_atomic_cmpxchgl_be_mmu(CPUArchState *env, vaddr addr,
-                                    uint32_t cmpv, uint32_t newv,
-                                    MemOpIdx oi, uintptr_t retaddr);
-uint64_t cpu_atomic_cmpxchgq_be_mmu(CPUArchState *env, vaddr addr,
+uint64_t cpu_atomic_cmpxchgq_mmu(CPUArchState *env, vaddr addr,
                                     uint64_t cmpv, uint64_t newv,
                                     MemOpIdx oi, uintptr_t retaddr);
 
@@ -63,19 +54,14 @@ TYPE cpu_atomic_ ## NAME ## SUFFIX ## _mmu      \
 #ifdef CONFIG_ATOMIC64
 #define GEN_ATOMIC_HELPER_ALL(NAME)          \
     GEN_ATOMIC_HELPER(NAME, uint32_t, b)     \
-    GEN_ATOMIC_HELPER(NAME, uint32_t, w_le)  \
-    GEN_ATOMIC_HELPER(NAME, uint32_t, w_be)  \
-    GEN_ATOMIC_HELPER(NAME, uint32_t, l_le)  \
-    GEN_ATOMIC_HELPER(NAME, uint32_t, l_be)  \
-    GEN_ATOMIC_HELPER(NAME, uint64_t, q_le)  \
-    GEN_ATOMIC_HELPER(NAME, uint64_t, q_be)
+    GEN_ATOMIC_HELPER(NAME, uint32_t, w)     \
+    GEN_ATOMIC_HELPER(NAME, uint32_t, l)     \
+    GEN_ATOMIC_HELPER(NAME, uint64_t, q)
 #else
 #define GEN_ATOMIC_HELPER_ALL(NAME)          \
     GEN_ATOMIC_HELPER(NAME, uint32_t, b)     \
-    GEN_ATOMIC_HELPER(NAME, uint32_t, w_le)  \
-    GEN_ATOMIC_HELPER(NAME, uint32_t, w_be)  \
-    GEN_ATOMIC_HELPER(NAME, uint32_t, l_le)  \
-    GEN_ATOMIC_HELPER(NAME, uint32_t, l_be)
+    GEN_ATOMIC_HELPER(NAME, uint32_t, w)     \
+    GEN_ATOMIC_HELPER(NAME, uint32_t, l)
 #endif
 
 GEN_ATOMIC_HELPER_ALL(fetch_add)
@@ -100,19 +86,14 @@ GEN_ATOMIC_HELPER_ALL(umax_fetch)
 
 GEN_ATOMIC_HELPER_ALL(xchg)
 
-Int128 cpu_atomic_cmpxchgo_le_mmu(CPUArchState *env, vaddr addr,
-                                  Int128 cmpv, Int128 newv,
-                                  MemOpIdx oi, uintptr_t retaddr);
-Int128 cpu_atomic_cmpxchgo_be_mmu(CPUArchState *env, vaddr addr,
-                                  Int128 cmpv, Int128 newv,
-                                  MemOpIdx oi, uintptr_t retaddr);
 
-GEN_ATOMIC_HELPER(xchg, Int128, o_le)
-GEN_ATOMIC_HELPER(xchg, Int128, o_be)
-GEN_ATOMIC_HELPER(fetch_and, Int128, o_le)
-GEN_ATOMIC_HELPER(fetch_and, Int128, o_be)
-GEN_ATOMIC_HELPER(fetch_or, Int128, o_le)
-GEN_ATOMIC_HELPER(fetch_or, Int128, o_be)
+Int128 cpu_atomic_cmpxchgo_mmu(CPUArchState *env, vaddr addr,
+                               Int128 cmpv, Int128 newv,
+                               MemOpIdx oi, uintptr_t retaddr);
+
+GEN_ATOMIC_HELPER(xchg, Int128, o)
+GEN_ATOMIC_HELPER(fetch_and, Int128, o)
+GEN_ATOMIC_HELPER(fetch_or, Int128, o)
 
 #undef GEN_ATOMIC_HELPER_ALL
 #undef GEN_ATOMIC_HELPER
