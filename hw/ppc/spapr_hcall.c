@@ -1415,6 +1415,16 @@ static target_ulong h_get_cpu_characteristics(PowerPCCPU *cpu,
     uint8_t count_cache_flush_assist = spapr_get_cap(spapr,
                                                      SPAPR_CAP_CCF_ASSIST);
 
+    #ifdef CONFIG_KVM
+    struct kvm_ppc_cpu_char c = kvmppc_get_cpu_chars();
+
+    if (kvm_enabled() && c.character) {
+        args[0] = c.character;
+        args[1] = c.behaviour;
+        return H_SUCCESS;
+    }
+    #endif
+
     switch (safe_cache) {
     case SPAPR_CAP_WORKAROUND:
         characteristics |= H_CPU_CHAR_L1D_FLUSH_ORI30;

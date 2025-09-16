@@ -87,6 +87,7 @@ void kvmppc_check_papr_resize_hpt(Error **errp);
 int kvmppc_resize_hpt_prepare(PowerPCCPU *cpu, target_ulong flags, int shift);
 int kvmppc_resize_hpt_commit(PowerPCCPU *cpu, target_ulong flags, int shift);
 bool kvmppc_pvr_workaround_required(PowerPCCPU *cpu);
+struct kvm_ppc_cpu_char kvmppc_get_cpu_chars(void);
 
 bool kvmppc_hpt_needs_host_contiguous_pages(void);
 void kvm_check_mmu(PowerPCCPU *cpu, Error **errp);

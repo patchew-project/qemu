@@ -93,6 +93,7 @@ static int cap_fwnmi;
 static int cap_rpt_invalidate;
 static int cap_ail_mode_3;
 static int cap_dawr1;
+static struct kvm_ppc_cpu_char cpu_chars = {0};
 
 #ifdef CONFIG_PSERIES
 static int cap_papr;
@@ -2515,7 +2516,6 @@ bool kvmppc_has_cap_xive(void)
 
 static void kvmppc_get_cpu_characteristics(KVMState *s)
 {
-    struct kvm_ppc_cpu_char c;
     int ret;
 
     /* Assume broken */
@@ -2525,18 +2525,29 @@ static void kvmppc_get_cpu_characteristics(KVMState *s)
 
     ret = kvm_vm_check_extension(s, KVM_CAP_PPC_GET_CPU_CHAR);
     if (!ret) {
-        return;
+        goto err;
     }
-    ret = kvm_vm_ioctl(s, KVM_PPC_GET_CPU_CHAR, &c);
+    ret = kvm_vm_ioctl(s, KVM_PPC_GET_CPU_CHAR, &cpu_chars);
     if (ret < 0) {
-        return;
+        goto err;
     }
 
-    cap_ppc_safe_cache = parse_cap_ppc_safe_cache(c);
-    cap_ppc_safe_bounds_check = parse_cap_ppc_safe_bounds_check(c);
-    cap_ppc_safe_indirect_branch = parse_cap_ppc_safe_indirect_branch(c);
+    cap_ppc_safe_cache = parse_cap_ppc_safe_cache(cpu_chars);
+    cap_ppc_safe_bounds_check = parse_cap_ppc_safe_bounds_check(cpu_chars);
+    cap_ppc_safe_indirect_branch =
+        parse_cap_ppc_safe_indirect_branch(cpu_chars);
     cap_ppc_count_cache_flush_assist =
-        parse_cap_ppc_count_cache_flush_assist(c);
+        parse_cap_ppc_count_cache_flush_assist(cpu_chars);
+
+    return;
+
+err:
+    memset(&cpu_chars, 0, sizeof(struct kvm_ppc_cpu_char));
+}
+
+struct kvm_ppc_cpu_char kvmppc_get_cpu_chars(void)
+{
+    return cpu_chars;
 }
 
 int kvmppc_get_cap_safe_cache(void)
