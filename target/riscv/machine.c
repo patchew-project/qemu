@@ -251,6 +251,28 @@ static const VMStateDescription vmstate_debug = {
     }
 };
 
+static int get_mp_state(QEMUFile *f, void *opaque, size_t size,
+                    const VMStateField *field)
+{
+    RISCVCPU *cpu = opaque;
+    cpu->mp_state.mp_state = qemu_get_be32(f);
+    return 0;
+}
+
+static int put_mp_state(QEMUFile *f, void *opaque, size_t size,
+                    const VMStateField *field, JSONWriter *vmdesc)
+{
+    RISCVCPU *cpu = opaque;
+    qemu_put_be32(f, cpu->mp_state.mp_state);
+    return 0;
+}
+
+static const VMStateInfo vmstate_mp_state = {
+    .name = "mp_state",
+    .get = get_mp_state,
+    .put = put_mp_state,
+};
+
 static int riscv_cpu_post_load(void *opaque, int version_id)
 {
     RISCVCPU *cpu = opaque;
@@ -457,6 +479,14 @@ const VMStateDescription vmstate_riscv_cpu = {
         VMSTATE_UINTTL(env.sscratch, RISCVCPU),
         VMSTATE_UINTTL(env.mscratch, RISCVCPU),
         VMSTATE_UINT64(env.stimecmp, RISCVCPU),
+        {
+            .name = "mp_state",
+            .version_id = 0,
+            .size = sizeof(bool),
+            .info = &vmstate_mp_state,
+            .flags = VMS_SINGLE,
+            .offset = 0,
+        },
 
         VMSTATE_END_OF_LIST()
     },

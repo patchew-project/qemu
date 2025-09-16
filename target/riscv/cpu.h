@@ -20,6 +20,7 @@
 #ifndef RISCV_CPU_H
 #define RISCV_CPU_H
 
+#include <linux/kvm.h>
 #include "hw/core/cpu.h"
 #include "hw/registerfields.h"
 #include "hw/qdev-properties.h"
@@ -545,6 +546,8 @@ struct ArchCPU {
     /* Configuration Settings */
     RISCVCPUConfig cfg;
     RISCVSATPModes satp_modes;
+
+    struct kvm_mp_state mp_state;
 
     QEMUTimer *pmu_timer;
     /* A bitmask of Available programmable counters */
