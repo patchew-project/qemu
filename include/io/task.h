@@ -219,6 +219,14 @@ QIOTask *qio_task_new(Object *source,
                       GDestroyNotify destroy);
 
 /**
+ * qio_task_free:
+ * @task: the task struct
+ *
+ * free the memory of the task.
+ */
+void qio_task_free(QIOTask *task);
+
+/**
  * qio_task_run_in_thread:
  * @task: the task struct
  * @worker: the function to invoke in a thread

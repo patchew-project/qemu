@@ -70,7 +70,7 @@ QIOTask *qio_task_new(Object *source,
     return task;
 }
 
-static void qio_task_free(QIOTask *task)
+void qio_task_free(QIOTask *task)
 {
     qemu_mutex_lock(&task->thread_lock);
     if (task->thread) {

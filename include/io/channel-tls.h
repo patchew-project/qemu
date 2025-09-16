@@ -50,6 +50,9 @@ struct QIOChannelTLS {
     QIOChannelShutdown shutdown;
     guint hs_ioc_tag;
     guint bye_ioc_tag;
+
+    QIOTask *hs_task;
+    GMainContext *hs_context;
 };
 
 /**

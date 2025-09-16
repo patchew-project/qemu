@@ -157,12 +157,25 @@ static gboolean qio_channel_tls_handshake_io(QIOChannel *ioc,
                                              GIOCondition condition,
                                              gpointer user_data);
 
+static gboolean qio_channel_tls_handshake_io_vnc(QIOChannel *ioc,
+                                                 GIOCondition condition,
+                                                 gpointer user_data);
+
+static bool qio_channel_tls_for_vnc(QIOChannelTLS *ioc)
+{
+    if (!QIO_CHANNEL(ioc)->name) {
+        return false;
+    }
+    return (!strcmp(QIO_CHANNEL(ioc)->name, "vnc-server-tls"));
+}
+
 static void qio_channel_tls_handshake_task(QIOChannelTLS *ioc,
                                            QIOTask *task,
                                            GMainContext *context)
 {
     Error *err = NULL;
     int status;
+    QIOChannelTLSData *data = NULL;
 
     status = qcrypto_tls_session_handshake(ioc->session, &err);
 
@@ -185,10 +198,15 @@ static void qio_channel_tls_handshake_task(QIOChannelTLS *ioc,
         qio_task_complete(task);
     } else {
         GIOCondition condition;
-        QIOChannelTLSData *data = g_new0(typeof(*data), 1);
 
-        data->task = task;
-        data->context = context;
+        if (qio_channel_tls_for_vnc(ioc)) {
+            ioc->hs_task = task;
+            ioc->hs_context = context;
+        } else {
+            data = g_new0(typeof(*data), 1);
+            data->task = task;
+            data->context = context;
+        }
 
         if (context) {
             g_main_context_ref(context);
@@ -201,13 +219,23 @@ static void qio_channel_tls_handshake_task(QIOChannelTLS *ioc,
         }
 
         trace_qio_channel_tls_handshake_pending(ioc, status);
-        ioc->hs_ioc_tag =
-            qio_channel_add_watch_full(ioc->master,
-                                       condition,
-                                       qio_channel_tls_handshake_io,
-                                       data,
-                                       NULL,
-                                       context);
+        if (data) {
+            ioc->hs_ioc_tag =
+                qio_channel_add_watch_full(ioc->master,
+                    condition,
+                    qio_channel_tls_handshake_io,
+                    data,
+                    NULL,
+                    context);
+        } else {
+            ioc->hs_ioc_tag =
+                qio_channel_add_watch_full(ioc->master,
+                    condition,
+                    qio_channel_tls_handshake_io_vnc,
+                    ioc,
+                    NULL,
+                    context);
+        }
     }
 }
 
@@ -224,6 +252,31 @@ static gboolean qio_channel_tls_handshake_io(QIOChannel *ioc,
 
     tioc->hs_ioc_tag = 0;
     g_free(data);
+    qio_channel_tls_handshake_task(tioc, task, context);
+
+    if (context) {
+        g_main_context_unref(context);
+    }
+
+    return FALSE;
+}
+
+static gboolean qio_channel_tls_handshake_io_vnc(QIOChannel *ioc,
+                                                 GIOCondition condition,
+                                                 gpointer user_data)
+{
+    QIOChannelTLS *tioc = QIO_CHANNEL_TLS(user_data);
+
+    if (!tioc || tioc->hs_task == NULL) {
+        return FALSE;
+    }
+
+    QIOTask *task = tioc->hs_task;
+    GMainContext *context = tioc->hs_context;
+
+    tioc->hs_ioc_tag = 0;
+    tioc->hs_task = NULL;
+    tioc->hs_context = NULL;
     qio_channel_tls_handshake_task(tioc, task, context);
 
     if (context) {
@@ -468,6 +521,16 @@ static int qio_channel_tls_close(QIOChannel *ioc,
     if (tioc->bye_ioc_tag) {
         trace_qio_channel_tls_bye_cancel(ioc);
         g_clear_handle_id(&tioc->bye_ioc_tag, g_source_remove);
+    }
+
+    if (tioc->hs_context) {
+        g_main_context_unref(tioc->hs_context);
+        tioc->hs_context = NULL;
+    }
+
+    if (tioc->hs_task) {
+        qio_task_free(tioc->hs_task);
+        tioc->hs_task = NULL;
     }
 
     return qio_channel_close(tioc->master, errp);
