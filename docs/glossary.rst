@@ -12,7 +12,7 @@ Accelerator
 
 A specific API used to accelerate execution of guest instructions. It can be
 hardware-based, through a virtualization API provided by the host OS (kvm, hvf,
-whpx, ...), or software-based (tcg). See this description of `supported
+whpx, mshv, ...), or software-based (tcg). See this description of `supported
 accelerators<Accelerators>`.
 
 Board
@@ -102,8 +102,8 @@ hypervisors.
 
 In the context of QEMU, an hypervisor is an API, provided by the Host OS,
 allowing to execute virtual machines. Linux implementation is KVM (and supports
-Xen as well). For MacOS, it's HVF. Windows defines WHPX. And NetBSD provides
-NVMM.
+Xen and MSHV as well). For MacOS, it's HVF. Windows defines WHPX. And NetBSD
+provides NVMM.
 
 .. _machine:
 
