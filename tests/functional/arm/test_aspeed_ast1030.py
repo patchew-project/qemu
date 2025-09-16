@@ -7,10 +7,11 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from qemu_test import LinuxKernelTest, Asset
+from aspeed import AspeedTest
 from qemu_test import exec_command_and_wait_for_pattern
 
 
-class AST1030Machine(LinuxKernelTest):
+class AST1030Machine(AspeedTest):
 
     ASSET_ZEPHYR_3_02 = Asset(
         ('https://github.com/AspeedTech-BMC'
@@ -68,6 +69,21 @@ class AST1030Machine(LinuxKernelTest):
                 'kernel uptime',
         ]: exec_command_and_wait_for_pattern(self, shell_cmd, "uart:~$")
 
+    def test_ast1030_otp_blockdev_device(self):
+        self.vm.set_machine("ast1030-evb")
+
+        kernel_name = "ast1030-evb-demo-3/zephyr.elf"
+        kernel_file = self.archive_extract(self.ASSET_ZEPHYR_3_02, member=kernel_name)
+        otp_img = self.generate_otpmem_image()
+
+        self.vm.set_console()
+        self.vm.add_args(
+            "-kernel", kernel_file,
+            "-blockdev", f"driver=file,filename={otp_img},node-name=otp",
+            "-global", "aspeed-otp.drive=otp",
+        )
+        self.vm.launch()
+        self.wait_for_console_pattern("Booting Zephyr OS")
 
 if __name__ == '__main__':
-    LinuxKernelTest.main()
+    AspeedTest.main()
