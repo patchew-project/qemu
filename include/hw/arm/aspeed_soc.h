@@ -52,6 +52,21 @@
 #define ASPEED_JTAG_NUM  2
 #define ASPEED_IOEXP_NUM 2
 
+typedef struct {
+    MemoryRegion *memory;
+    MemoryRegion container;
+    AddressSpace dram_as;
+
+    AspeedSMCState spi;
+    AspeedADCState adc;
+    AspeedSCUState scu;
+    AspeedGPIOState gpio;
+    AspeedI2CState i2c;
+    AspeedI3CState i3c;
+    SerialMM uart;
+    AspeedWDTState wdt[ASPEED_WDTS_NUM];
+} AspeedAST1700SoCState;
+
 struct AspeedSoCState {
     DeviceState parent;
 
@@ -102,10 +117,10 @@ struct AspeedSoCState {
     UnimplementedDeviceState espi;
     UnimplementedDeviceState udc;
     UnimplementedDeviceState sgpiom;
-    UnimplementedDeviceState ltpi;
     UnimplementedDeviceState jtag[ASPEED_JTAG_NUM];
     AspeedAPB2OPBState fsi[2];
     AspeedLTPIState ltpi_ctrl[ASPEED_IOEXP_NUM];
+    AspeedAST1700SoCState ioexp[ASPEED_IOEXP_NUM];
     uint8_t ioexp_num;
 };
 
@@ -206,7 +221,8 @@ enum {
     ASPEED_DEV_IOMEM,
     ASPEED_DEV_IOMEM0,
     ASPEED_DEV_IOMEM1,
-    ASPEED_DEV_LTPI,
+    ASPEED_DEV_LTPI_IO0,
+    ASPEED_DEV_LTPI_IO1,
     ASPEED_DEV_UART0,
     ASPEED_DEV_UART1,
     ASPEED_DEV_UART2,

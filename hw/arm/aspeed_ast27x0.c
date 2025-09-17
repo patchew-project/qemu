@@ -83,8 +83,9 @@ static const hwaddr aspeed_soc_ast2700_memmap[] = {
     [ASPEED_DEV_LTPI_CTRL1] =  0x14C34000,
     [ASPEED_DEV_LTPI_CTRL2] =  0x14C35000,
     [ASPEED_DEV_WDT]       =  0x14C37000,
+    [ASPEED_DEV_LTPI_IO0]  =  0x30000000,
+    [ASPEED_DEV_LTPI_IO1]  =  0x50000000,
     [ASPEED_DEV_SPI_BOOT]  =  0x100000000,
-    [ASPEED_DEV_LTPI]      =  0x300000000,
     [ASPEED_DEV_SDRAM]     =  0x400000000,
 };
 
@@ -523,7 +524,9 @@ static void aspeed_soc_ast2700_init(Object *obj)
     object_initialize_child(obj, "hace", &s->hace, typename);
     object_initialize_child(obj, "dpmcu", &s->dpmcu,
                             TYPE_UNIMPLEMENTED_DEVICE);
-    object_initialize_child(obj, "ltpi", &s->ltpi,
+    object_initialize_child(obj, "ltpi0", &s->ioexp[0],
+                            TYPE_UNIMPLEMENTED_DEVICE);
+    object_initialize_child(obj, "ltpi1", &s->ioexp[1],
                             TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "iomem", &s->iomem,
                             TYPE_UNIMPLEMENTED_DEVICE);
@@ -968,9 +971,13 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
                                   "aspeed.dpmcu",
                                   sc->memmap[ASPEED_DEV_DPMCU],
                                   AST2700_SOC_DPMCU_SIZE);
-    aspeed_mmio_map_unimplemented(s, SYS_BUS_DEVICE(&s->ltpi),
-                                  "aspeed.ltpi",
-                                  sc->memmap[ASPEED_DEV_LTPI],
+    aspeed_mmio_map_unimplemented(s, SYS_BUS_DEVICE(&s->ioexp[0]),
+                                  "aspeed.ltpi.0",
+                                  sc->memmap[ASPEED_DEV_LTPI_IO0],
+                                  AST2700_SOC_LTPI_SIZE);
+    aspeed_mmio_map_unimplemented(s, SYS_BUS_DEVICE(&s->ioexp[1]),
+                                  "aspeed.ltpi.1",
+                                  sc->memmap[ASPEED_DEV_LTPI_IO1],
                                   AST2700_SOC_LTPI_SIZE);
     aspeed_mmio_map_unimplemented(s, SYS_BUS_DEVICE(&s->iomem),
                                   "aspeed.io",
