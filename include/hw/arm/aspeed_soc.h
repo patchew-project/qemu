@@ -41,6 +41,7 @@
 #include "hw/fsi/aspeed_apb2opb.h"
 #include "hw/char/serial-mm.h"
 #include "hw/intc/arm_gicv3.h"
+#include "hw/misc/aspeed_ltpi.h"
 
 #define ASPEED_SPIS_NUM  3
 #define ASPEED_EHCIS_NUM 4
@@ -104,6 +105,7 @@ struct AspeedSoCState {
     UnimplementedDeviceState ltpi;
     UnimplementedDeviceState jtag[ASPEED_JTAG_NUM];
     AspeedAPB2OPBState fsi[2];
+    AspeedLTPIState ltpi_ctrl[ASPEED_IOEXP_NUM];
     uint8_t ioexp_num;
 };
 
@@ -287,6 +289,8 @@ enum {
     ASPEED_GIC_REDIST,
     ASPEED_DEV_IPC0,
     ASPEED_DEV_IPC1,
+    ASPEED_DEV_LTPI_CTRL1,
+    ASPEED_DEV_LTPI_CTRL2,
 };
 
 qemu_irq aspeed_soc_get_irq(AspeedSoCState *s, int dev);

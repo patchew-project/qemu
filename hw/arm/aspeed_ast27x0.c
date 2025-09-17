@@ -80,6 +80,8 @@ static const hwaddr aspeed_soc_ast2700_memmap[] = {
     [ASPEED_DEV_UART10]    =  0x14C33900,
     [ASPEED_DEV_UART11]    =  0x14C33A00,
     [ASPEED_DEV_UART12]    =  0x14C33B00,
+    [ASPEED_DEV_LTPI_CTRL1] =  0x14C34000,
+    [ASPEED_DEV_LTPI_CTRL2] =  0x14C35000,
     [ASPEED_DEV_WDT]       =  0x14C37000,
     [ASPEED_DEV_SPI_BOOT]  =  0x100000000,
     [ASPEED_DEV_LTPI]      =  0x300000000,
@@ -531,6 +533,12 @@ static void aspeed_soc_ast2700_init(Object *obj)
                             TYPE_UNIMPLEMENTED_DEVICE);
 }
 
+static void aspeed_ast2700_ast1700_init(AspeedSoCState *s, int i)
+{
+    object_initialize_child(OBJECT(s), "ltpi-ctrl[*]",
+                            &s->ltpi_ctrl[i], TYPE_ASPEED_LTPI);
+}
+
 /*
  * ASPEED ast2700 has 0x0 as cluster ID
  *
@@ -608,6 +616,20 @@ static bool aspeed_soc_ast2700_gic_realize(DeviceState *dev, Error **errp)
     }
 
     return true;
+}
+
+static void aspeed_soc_ast2700_ast1700_realize(Aspeed27x0SoCState *a,
+                                               AspeedSoCState *s,
+                                               AspeedSoCClass *sc,
+                                               int index, Error **errp)
+{
+    AspeedLTPIState *ltpi_ctrl = ASPEED_LTPI(&s->ltpi_ctrl[index]);
+    hwaddr ltpi_base = sc->memmap[ASPEED_DEV_LTPI_CTRL1 + index];
+
+    if (!sysbus_realize(SYS_BUS_DEVICE(ltpi_ctrl), errp)) {
+        return;
+    }
+    aspeed_mmio_map(s, SYS_BUS_DEVICE(ltpi_ctrl), 0, ltpi_base);
 }
 
 static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
@@ -935,6 +957,12 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
                     sc->memmap[ASPEED_DEV_HACE]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->hace), 0,
                        aspeed_soc_get_irq(s, ASPEED_DEV_HACE));
+
+    /* I/O Expander */
+    for (i = 0; i < s->ioexp_num; i++) {
+        aspeed_ast2700_ast1700_init(s, i);
+        aspeed_soc_ast2700_ast1700_realize(a, s, sc, i, errp);
+    }
 
     aspeed_mmio_map_unimplemented(s, SYS_BUS_DEVICE(&s->dpmcu),
                                   "aspeed.dpmcu",
