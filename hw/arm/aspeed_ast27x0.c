@@ -201,6 +201,8 @@ static const int aspeed_soc_ast2700a1_irqmap[] = {
     [ASPEED_DEV_ETH3]      = 196,
     [ASPEED_DEV_PECI]      = 197,
     [ASPEED_DEV_SDHCI]     = 197,
+    [ASPEED_DEV_IOEXP0_I2C] = 198,
+    [ASPEED_DEV_IOEXP1_I2C] = 200,
 };
 
 /* GICINT 128 */
@@ -260,6 +262,28 @@ static const int ast2700_gic133_gic197_intcmap[] = {
     [ASPEED_DEV_PECI]      = 4,
 };
 
+/* Primary AST1700 Interrupts */
+/* A1: GICINT 198 */
+static const int ast2700_gic198_intcmap[] = {
+    [ASPEED_DEV_IOEXP0_I2C]       = 0, /* 0 - 15 */
+};
+
+/* Primary AST1700 Interrupts */
+/* A1: GINTC 199 */
+static const int ast2700_gic199_intcmap[] = {
+};
+
+/* Secondary AST1700 Interrupts */
+/* A1: GINTC 200 */
+static const int ast2700_gic200_intcmap[] = {
+    [ASPEED_DEV_IOEXP1_I2C]       = 0, /* 0 - 15 */
+};
+
+/* Secondary AST1700 Interrupts */
+/* A1: GINTC 201 */
+static const int ast2700_gic201_intcmap[] = {
+};
+
 /* GICINT 128 ~ 136 */
 /* GICINT 192 ~ 201 */
 struct gic_intc_irq_info {
@@ -276,10 +300,10 @@ static const struct gic_intc_irq_info ast2700_gic_intcmap[] = {
     {195, 1, 3, ast2700_gic131_gic195_intcmap},
     {196, 1, 4, ast2700_gic132_gic196_intcmap},
     {197, 1, 5, ast2700_gic133_gic197_intcmap},
-    {198, 1, 6, NULL},
-    {199, 1, 7, NULL},
-    {200, 1, 8, NULL},
-    {201, 1, 9, NULL},
+    {198, 2, 0, ast2700_gic198_intcmap},
+    {199, 2, 1, ast2700_gic199_intcmap},
+    {200, 3, 0, ast2700_gic200_intcmap},
+    {201, 3, 1, ast2700_gic201_intcmap},
     {128, 0, 1, ast2700_gic128_gic192_intcmap},
     {129, 0, 2, NULL},
     {130, 0, 3, ast2700_gic130_gic194_intcmap},
@@ -557,8 +581,18 @@ static void aspeed_soc_ast2700_init(Object *obj)
 
 static void aspeed_ast2700_ast1700_init(AspeedSoCState *s, int i)
 {
+    char socname[8];
+    char typename[64];
+
+    if (sscanf(object_get_typename(OBJECT(s)), "%7s", socname) != 1) {
+        g_assert_not_reached();
+    }
+
     object_initialize_child(OBJECT(s), "uart[*]", &s->ioexp[i].uart,
                             TYPE_SERIAL_MM);
+    snprintf(typename, sizeof(typename), "aspeed.i2c-%s", socname);
+    object_initialize_child(OBJECT(s), "ioexp-i2c[*]", &s->ioexp[i].i2c,
+                            typename);
     object_initialize_child(OBJECT(s), "ltpi-ctrl[*]",
                             &s->ltpi_ctrl[i], TYPE_ASPEED_LTPI);
 }
@@ -652,8 +686,11 @@ static void aspeed_soc_ast2700_ast1700_realize(Aspeed27x0SoCState *a,
     int i;
     hwaddr uart_base = sc->memmap[ASPEED_DEV_LTPI_IO0 + index] +
                        aspeed_soc_ast1700_memmap[ASPEED_DEV_UART12];
+    AspeedI2CClass *i2c_ctl = ASPEED_I2C_GET_CLASS(&s->ioexp[index].i2c);
     AspeedLTPIState *ltpi_ctrl = ASPEED_LTPI(&s->ltpi_ctrl[index]);
     hwaddr ltpi_base = sc->memmap[ASPEED_DEV_LTPI_CTRL1 + index];
+    qemu_irq irq;
+
     smm = &s->ioexp[index].uart;
 
     /* Chardev property is set by the machine. */
@@ -683,6 +720,34 @@ static void aspeed_soc_ast2700_ast1700_realize(Aspeed27x0SoCState *a,
     }
 
     aspeed_mmio_map(s, SYS_BUS_DEVICE(smm), 0, uart_base);
+
+    /* I2C */
+    object_property_set_link(OBJECT(&s->ioexp[index].i2c), "dram",
+                             OBJECT(s->dram_mr), &error_abort);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->ioexp[index].i2c), errp)) {
+        return;
+    }
+    aspeed_mmio_map(s, SYS_BUS_DEVICE(&s->ioexp[index].i2c), 0,
+                    sc->memmap[ASPEED_DEV_LTPI_IO0 + index] +
+                    aspeed_soc_ast1700_memmap[ASPEED_DEV_I2C]);
+    for (i = 0; i < i2c_ctl->num_busses; i++) {
+        /*
+         * For I2C on AST1700:
+         * I2C bus interrupts are connected to the OR gate from bit 0 to bit
+         * 15, and the OR gate output pin is connected to the input pin of
+         * GICINT192 of IO expander Interrupt controller (INTC2/3). Then,
+         * the output pin is connected to the INTC (CPU Die) input pin, and
+         * its output pin is connected to the GIC.
+         *
+         * I2C bus 0 is connected to the OR gate at bit 0.
+         * I2C bus 15 is connected to the OR gate at bit 15.
+         */
+        irq = aspeed_soc_ast2700_get_irq_index(s,
+                                               ASPEED_DEV_IOEXP0_I2C + index,
+                                               i);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->ioexp[index].i2c.busses[i]),
+                           0, irq);
+    }
 }
 
 static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
