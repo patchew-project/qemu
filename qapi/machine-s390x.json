@@ -119,3 +119,25 @@
 { 'command': 'query-s390x-cpu-polarization', 'returns': 'CpuPolarizationInfo',
   'features': [ 'unstable' ]
 }
+
+##
+# @BootCertificate:
+#
+# Boot certificate for secure IPL.
+#
+# @path: path to an X.509 certificate file or a directory containing certificate files.
+#
+# Since: 10.2
+##
+{ 'struct': 'BootCertificate',
+  'data': {'path': 'str'} }
+
+##
+# @DummyBootCertificates:
+#
+# Not used by QMP; hack to let us use BootCertificateList internally.
+#
+# Since: 10.2
+##
+{ 'struct': 'DummyBootCertificates',
+  'data': {'unused-boot-certs': ['BootCertificate'] } }
