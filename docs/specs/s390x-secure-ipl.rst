@@ -71,3 +71,17 @@ Subcode 1 - perform signature verification
     Perform signature-verification on a signed component, using certificates
     from the certificate store and leveraging qcrypto libraries to perform
     this operation.
+
+
+IPL Information Report Block
+----------------------------
+
+The IPL Parameter Block (IPLPB), utilized for IPL operation, is extended with an
+IPL Information Report Block (IIRB), which contains the results from secure IPL
+operations such as:
+
+* component data
+* verification results
+* certificate data
+
+The guest kernel will inspect the IIRB and build the keyring.
