@@ -84,7 +84,9 @@ static const hwaddr aspeed_soc_ast2700_memmap[] = {
     [ASPEED_DEV_LTPI_CTRL2] =  0x14C35000,
     [ASPEED_DEV_WDT]       =  0x14C37000,
     [ASPEED_DEV_LTPI_IO0]  =  0x30000000,
+    [ASPEED_DEV_IOEXP0_INTCIO] = 0x30C18000,
     [ASPEED_DEV_LTPI_IO1]  =  0x50000000,
+    [ASPEED_DEV_IOEXP1_INTCIO] = 0x50C18000,
     [ASPEED_DEV_SPI_BOOT]  =  0x100000000,
     [ASPEED_DEV_SDRAM]     =  0x400000000,
 };
@@ -504,6 +506,10 @@ static void aspeed_soc_ast2700_init(Object *obj)
     object_initialize_child(obj, "intc", &a->intc[0], TYPE_ASPEED_2700_INTC);
     object_initialize_child(obj, "intcio", &a->intc[1],
                             TYPE_ASPEED_2700_INTCIO);
+    object_initialize_child(obj, "intcioexp0", &a->intc[2],
+                            TYPE_ASPEED_2700_INTCIOEXP1);
+    object_initialize_child(obj, "intcioexp1", &a->intc[3],
+                            TYPE_ASPEED_2700_INTCIOEXP2);
 
     snprintf(typename, sizeof(typename), "aspeed.adc-%s", socname);
     object_initialize_child(obj, "adc", &s->adc, typename);
@@ -642,6 +648,8 @@ static void aspeed_soc_ast2700_ast1700_realize(Aspeed27x0SoCState *a,
                                                int index, Error **errp)
 {
     SerialMM *smm;
+    AspeedINTCClass *icio = ASPEED_INTC_GET_CLASS(&a->intc[2 + index]);
+    int i;
     hwaddr uart_base = sc->memmap[ASPEED_DEV_LTPI_IO0 + index] +
                        aspeed_soc_ast1700_memmap[ASPEED_DEV_UART12];
     AspeedLTPIState *ltpi_ctrl = ASPEED_LTPI(&s->ltpi_ctrl[index]);
@@ -661,6 +669,19 @@ static void aspeed_soc_ast2700_ast1700_realize(Aspeed27x0SoCState *a,
         return;
     }
     aspeed_mmio_map(s, SYS_BUS_DEVICE(ltpi_ctrl), 0, ltpi_base);
+
+    /* INTC2/3 internal: orgate[i] -> input[i] */
+    for (i = 0; i < icio->num_inpins; i++) {
+        qdev_connect_gpio_out(DEVICE(&a->intc[2 + index].orgates[i]), 0,
+                              qdev_get_gpio_in(DEVICE(&a->intc[2 + index]), i));
+    }
+
+    /* INTC2/3 output[i] -> INTC0.orgate[0].input[i] */
+    for (i = 0; i < icio->num_outpins; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(&a->intc[2 + index]), i,
+                           qdev_get_gpio_in(DEVICE(&a->intc[0].orgates[0]), i));
+    }
+
     aspeed_mmio_map(s, SYS_BUS_DEVICE(smm), 0, uart_base);
 }
 
@@ -716,6 +737,22 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
 
     aspeed_mmio_map(s, SYS_BUS_DEVICE(&a->intc[1]), 0,
                     sc->memmap[ASPEED_DEV_INTCIO]);
+
+    /* INTCIOEXP0 */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&a->intc[2]), errp)) {
+        return;
+    }
+
+    aspeed_mmio_map(s, SYS_BUS_DEVICE(&a->intc[2]), 0,
+                    sc->memmap[ASPEED_DEV_IOEXP0_INTCIO]);
+
+    /* INTCIOEXP */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&a->intc[3]), errp)) {
+        return;
+    }
+
+    aspeed_mmio_map(s, SYS_BUS_DEVICE(&a->intc[3]), 0,
+                    sc->memmap[ASPEED_DEV_IOEXP1_INTCIO]);
 
     /* irq sources -> orgates -> INTC */
     for (i = 0; i < ic->num_inpins; i++) {
