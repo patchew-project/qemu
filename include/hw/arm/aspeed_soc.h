@@ -49,6 +49,7 @@
 #define ASPEED_MACS_NUM  4
 #define ASPEED_UARTS_NUM 13
 #define ASPEED_JTAG_NUM  2
+#define ASPEED_IOEXP_NUM 2
 
 struct AspeedSoCState {
     DeviceState parent;
@@ -103,6 +104,7 @@ struct AspeedSoCState {
     UnimplementedDeviceState ltpi;
     UnimplementedDeviceState jtag[ASPEED_JTAG_NUM];
     AspeedAPB2OPBState fsi[2];
+    uint8_t ioexp_num;
 };
 
 #define TYPE_ASPEED_SOC "aspeed-soc"

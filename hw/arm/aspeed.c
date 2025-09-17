@@ -32,6 +32,7 @@
 #include "qemu/units.h"
 #include "hw/qdev-clock.h"
 #include "system/system.h"
+#include "qapi/visitor.h"
 
 static struct arm_boot_info aspeed_board_binfo = {
     .board_id = -1, /* device-tree-only board */
@@ -49,6 +50,7 @@ struct AspeedMachineState {
     char *fmc_model;
     char *spi_model;
     uint32_t hw_strap1;
+    uint32_t ioexp_num;
 };
 
 /* On 32-bit hosts, lower RAM to 1G because of the 2047 MB limit */
@@ -444,6 +446,9 @@ static void aspeed_machine_init(MachineState *machine)
                              OBJECT(get_system_memory()), &error_abort);
     object_property_set_link(OBJECT(bmc->soc), "dram",
                              OBJECT(machine->ram), &error_abort);
+
+    bmc->soc->ioexp_num = bmc->ioexp_num;
+
     if (amc->sdhci_wp_inverted) {
         for (i = 0; i < bmc->soc->sdhci.num_slots; i++) {
             object_property_set_bool(OBJECT(&bmc->soc->sdhci.slots[i]),
@@ -1486,6 +1491,49 @@ static void aspeed_machine_ast2600_class_emmc_init(ObjectClass *oc)
                                           "Set or unset boot from EMMC");
 }
 
+#ifdef TARGET_AARCH64
+static void aspeed_get_ioexps_num(Object *obj,
+                                  Visitor *v,
+                                  const char *name,
+                                  void *opaque,
+                                  Error **errp)
+{
+    AspeedMachineState *bmc = ASPEED_MACHINE(obj);
+
+    visit_type_uint32(v, name, &bmc->ioexp_num, errp);
+}
+
+static void aspeed_set_ioexps_num(Object *obj,
+                                  Visitor *v,
+                                  const char *name,
+                                  void *opaque,
+                                  Error **errp)
+{
+    uint32_t val;
+    AspeedMachineState *bmc = ASPEED_MACHINE(obj);
+
+    if (!visit_type_uint32(v, name, &val, errp)) {
+        return;
+    }
+
+    if (val > ASPEED_IOEXP_NUM) {
+        error_setg(errp, "IOEXP number is exceeded: %d", val);
+        return;
+    }
+
+    bmc->ioexp_num = val;
+}
+
+
+static void aspeed_machine_ast1700_class_init(ObjectClass *oc)
+{
+    object_class_property_add(oc, "ioexps-num", "uint32",
+                              aspeed_get_ioexps_num,
+                              aspeed_set_ioexps_num,
+                              NULL, NULL);
+}
+#endif
+
 static void aspeed_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -2032,6 +2080,7 @@ static void aspeed_machine_ast2700a1_evb_class_init(ObjectClass *oc,
     mc->auto_create_sdcard = true;
     mc->default_ram_size = 1 * GiB;
     aspeed_machine_class_init_cpus_defaults(mc);
+    aspeed_machine_ast1700_class_init(oc);
 }
 #endif
 
