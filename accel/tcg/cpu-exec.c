@@ -973,8 +973,12 @@ cpu_exec_loop(CPUState *cpu, SyncClocks *sc)
                 last_tb = NULL;
             }
 #endif
-            /* See if we can patch the calling TB. */
-            if (last_tb) {
+            /*
+             * See if we can patch the calling TB.
+             * To make self-modifying code work, we prevent patching the single
+             * tb loop.
+             */
+            if (last_tb && last_tb != tb) {
                 tb_add_jump(last_tb, tb_exit, tb);
             }
 
