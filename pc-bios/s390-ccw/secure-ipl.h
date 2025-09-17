@@ -16,6 +16,42 @@
 VCStorageSizeBlock *zipl_secure_get_vcssb(void);
 int zipl_run_secure(ComponentEntry **entry_ptr, uint8_t *tmp_sec);
 
+#define S390_SECURE_IPL_SCLAB_FLAG_OPSW    0x8000
+#define S390_SECURE_IPL_SCLAB_FLAG_OLA     0x4000
+#define S390_SECURE_IPL_SCLAB_FLAG_NUC     0x2000
+#define S390_SECURE_IPL_SCLAB_FLAG_SC      0x1000
+
+struct SecureCodeLoadingAttributesBlock {
+    uint8_t  format;
+    uint8_t  reserved1;
+    uint16_t flags;
+    uint8_t  reserved2[4];
+    uint64_t load_psw;
+    uint64_t load_addr;
+    uint64_t reserved3[];
+} __attribute__ ((packed));
+typedef struct SecureCodeLoadingAttributesBlock SecureCodeLoadingAttributesBlock;
+
+struct SclabOriginLocator {
+    uint8_t reserved[2];
+    uint16_t len;
+    uint8_t magic[4];
+} __attribute__ ((packed));
+typedef struct SclabOriginLocator SclabOriginLocator;
+
+typedef struct SecureIplCompAddrRange {
+    bool is_signed;
+    uint64_t start_addr;
+    uint64_t end_addr;
+} SecureIplCompAddrRange;
+
+typedef struct SecureIplSclabInfo {
+    int count;
+    int global_count;
+    uint64_t load_psw;
+    uint16_t flags;
+} SecureIplSclabInfo;
+
 static inline void zipl_secure_handle(const char *message)
 {
     switch (boot_mode) {
@@ -25,6 +61,80 @@ static inline void zipl_secure_handle(const char *message)
     default:
         break;
     }
+}
+
+static inline bool is_sclab_flag_set(uint16_t sclab_flags, uint16_t flag)
+{
+    return (sclab_flags & flag) != 0;
+}
+
+static inline bool validate_unsigned_addr(uint64_t comp_load_addr)
+{
+    /* usigned load address must be greater than or equal to 0x2000 */
+    return comp_load_addr >= 0x2000;
+}
+
+static inline bool validate_sclab_magic(uint8_t *sclab_magic)
+{
+    /* identifies the presence of SCLAB */
+    return magic_match(sclab_magic, ZIPL_MAGIC);
+}
+
+static inline bool validate_sclab_length(uint16_t sclab_len)
+{
+    /* minimum SCLAB length is 32 bytes */
+    return sclab_len >= 32;
+}
+
+static inline bool validate_sclab_format(uint8_t sclab_format)
+{
+    /* SCLAB format must set to zero, indicating a format-0 SCLAB being used */
+    return sclab_format == 0;
+}
+
+static inline bool validate_sclab_ola_zero(uint64_t sclab_load_addr)
+{
+    /* Load address field in SCLAB must contain zeros */
+    return sclab_load_addr == 0;
+}
+
+static inline bool validate_sclab_ola_one(uint64_t sclab_load_addr,
+                                          uint64_t comp_load_addr)
+{
+   /* Load address field must match storage address of the component */
+   return sclab_load_addr == comp_load_addr;
+}
+
+static inline bool validate_sclab_opsw_zero(uint64_t sclab_load_psw)
+{
+    /* Load PSW field in SCLAB must contain zeros */
+    return sclab_load_psw == 0;
+}
+
+static inline bool validate_sclab_opsw_one(uint16_t sclab_flags)
+{
+   /* OLA must set to one */
+   return is_sclab_flag_set(sclab_flags, S390_SECURE_IPL_SCLAB_FLAG_OLA);
+}
+
+static inline bool validate_lpsw(uint64_t sclab_load_psw, uint64_t comp_load_psw)
+{
+    /* compare load PSW with the PSW specified in component */
+    return sclab_load_psw == comp_load_psw;
+}
+
+static inline void set_cei_with_log(IplDeviceComponentList *comps, int comp_index,
+                                    uint32_t flag, const char *message)
+{
+    comps->device_entries[comp_index].cei |= flag;
+    zipl_secure_handle(message);
+}
+
+static inline void set_iiei_with_log(IplDeviceComponentList *comps, uint16_t flag,
+                                     const char *message)
+{
+    comps->ipl_info_header.iiei |= flag;
+    zipl_secure_handle(message);
 }
 
 static inline uint64_t diag320(void *data, unsigned long subcode)
