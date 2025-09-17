@@ -89,6 +89,19 @@ static const hwaddr aspeed_soc_ast2700_memmap[] = {
     [ASPEED_DEV_SDRAM]     =  0x400000000,
 };
 
+static const hwaddr aspeed_soc_ast1700_memmap[] = {
+    [ASPEED_DEV_PWM]       =  0x000C0000,
+    [ASPEED_DEV_SRAM]      =  0x00BC0000,
+    [ASPEED_DEV_ADC]       =  0x00C00000,
+    [ASPEED_DEV_SCU]       =  0x00C02000,
+    [ASPEED_DEV_GPIO]      =  0x00C0B000,
+    [ASPEED_DEV_I2C]       =  0x00C0F000,
+    [ASPEED_DEV_I3C]       =  0x00C20000,
+    [ASPEED_DEV_UART12]    =  0x00C33B00,
+    [ASPEED_DEV_WDT]       =  0x00C37000,
+    [ASPEED_DEV_SPI_BOOT]  =  0x04000000,
+};
+
 #define AST2700_MAX_IRQ 256
 
 /* Shared Peripheral Interrupt values below are offset by -32 from datasheet */
@@ -538,6 +551,8 @@ static void aspeed_soc_ast2700_init(Object *obj)
 
 static void aspeed_ast2700_ast1700_init(AspeedSoCState *s, int i)
 {
+    object_initialize_child(OBJECT(s), "uart[*]", &s->ioexp[i].uart,
+                            TYPE_SERIAL_MM);
     object_initialize_child(OBJECT(s), "ltpi-ctrl[*]",
                             &s->ltpi_ctrl[i], TYPE_ASPEED_LTPI);
 }
@@ -626,13 +641,27 @@ static void aspeed_soc_ast2700_ast1700_realize(Aspeed27x0SoCState *a,
                                                AspeedSoCClass *sc,
                                                int index, Error **errp)
 {
+    SerialMM *smm;
+    hwaddr uart_base = sc->memmap[ASPEED_DEV_LTPI_IO0 + index] +
+                       aspeed_soc_ast1700_memmap[ASPEED_DEV_UART12];
     AspeedLTPIState *ltpi_ctrl = ASPEED_LTPI(&s->ltpi_ctrl[index]);
     hwaddr ltpi_base = sc->memmap[ASPEED_DEV_LTPI_CTRL1 + index];
+    smm = &s->ioexp[index].uart;
+
+    /* Chardev property is set by the machine. */
+    qdev_prop_set_uint8(DEVICE(smm), "regshift", 2);
+    qdev_prop_set_uint32(DEVICE(smm), "baudbase", 38400);
+    qdev_set_legacy_instance_id(DEVICE(smm), uart_base, 2);
+    qdev_prop_set_uint8(DEVICE(smm), "endianness", DEVICE_LITTLE_ENDIAN);
+    if (!sysbus_realize(SYS_BUS_DEVICE(smm), errp)) {
+        return;
+    }
 
     if (!sysbus_realize(SYS_BUS_DEVICE(ltpi_ctrl), errp)) {
         return;
     }
     aspeed_mmio_map(s, SYS_BUS_DEVICE(ltpi_ctrl), 0, ltpi_base);
+    aspeed_mmio_map(s, SYS_BUS_DEVICE(smm), 0, uart_base);
 }
 
 static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
