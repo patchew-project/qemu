@@ -181,7 +181,7 @@ void qemu_socket_set_block(int fd)
 {
     unsigned long opt = 0;
 
-    qemu_socket_unselect(fd, &error_warn);
+    qemu_socket_unselect_nofail(fd);
     ioctlsocket(fd, FIONBIO, &opt);
 }
 
@@ -313,6 +313,25 @@ bool qemu_socket_select(int sockfd, WSAEVENT hEventObject,
 bool qemu_socket_unselect(int sockfd, Error **errp)
 {
     return qemu_socket_select(sockfd, NULL, 0, errp);
+}
+
+void qemu_socket_select_nofail(int sockfd, WSAEVENT hEventObject,
+                               long lNetworkEvents)
+{
+    Error *err = NULL;
+
+    if (!qemu_socket_select(sockfd, hEventObject, lNetworkEvents, &err)) {
+        warn_report_err(err);
+    }
+}
+
+void qemu_socket_unselect_nofail(int sockfd)
+{
+    Error *err = NULL;
+
+    if (!qemu_socket_unselect(sockfd, &err)) {
+        warn_report_err(err);
+    }
 }
 
 int qemu_socketpair(int domain, int type, int protocol, int sv[2])
