@@ -35,3 +35,16 @@ Subcode 1 - query verification certificate storage information
 
     The output is returned in the verification-certificate-storage-size block (VCSSB).
     A VCSSB length of 4 indicates that no certificates are available in the CS.
+
+Subcode 2 - store verification certificates
+    Provides VCs that are in the certificate store.
+
+    The output is provided in a VCB, which includes a common header followed by zero
+    or more verification-certificate entries (VCEs).
+
+    The first-VC index and last-VC index fields of VCB specify the range of VCs
+    to be stored by subcode 2. Stored count and remained count fields specify the
+    number of VCs stored and could not be stored in the VCB due to insufficient
+    storage specified in the VCB input length field.
+
+    VCE contains various information of a VC from the CS.
