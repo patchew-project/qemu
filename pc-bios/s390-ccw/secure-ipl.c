@@ -287,6 +287,10 @@ static bool check_sclab_presence(uint8_t *sclab_magic,
         comps->device_entries[comp_index].cei |= S390_IPL_COMPONENT_CEI_INVALID_SCLAB;
 
         /* a missing SCLAB will not be reported in audit mode */
+        if (boot_mode == ZIPL_BOOT_MODE_SECURE) {
+            zipl_secure_handle("Magic is not matched. SCLAB does not exist");
+         }
+
         return false;
     }
 
