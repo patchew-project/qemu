@@ -202,6 +202,12 @@ static bool secure_ipl_supported(void)
         return false;
     }
 
+    if (!sclp_is_sclaf_on()) {
+        puts("Secure IPL Code Loading Attributes Facility is not supported by" \
+             " the hypervisor!");
+        return false;
+    }
+
     return true;
 }
 
@@ -212,6 +218,393 @@ static void init_lists(IplDeviceComponentList *comps, IplSignatureCertificateLis
 
     certs->ipl_info_header.ibt = IPL_IBT_CERTIFICATES;
     certs->ipl_info_header.len = sizeof(certs->ipl_info_header);
+}
+
+static bool is_comp_overlap(SecureIplCompAddrRange *comp_addr_range, int addr_range_index,
+                            uint64_t start_addr, uint64_t end_addr)
+{
+    /* neither a signed nor an unsigned component can overlap with a signed component */
+    for (int i = 0; i < addr_range_index; i++) {
+        if ((comp_addr_range[i].start_addr <= end_addr &&
+            start_addr <= comp_addr_range[i].end_addr) &&
+            comp_addr_range[i].is_signed) {
+            return true;
+       }
+    }
+
+    return false;
+}
+
+static void comp_addr_range_add(SecureIplCompAddrRange *comp_addr_range,
+                                int addr_range_index, bool is_signed,
+                                uint64_t start_addr, uint64_t end_addr)
+{
+    if (addr_range_index > MAX_CERTIFICATES - 1) {
+        return;
+    }
+
+    comp_addr_range[addr_range_index].is_signed = is_signed;
+    comp_addr_range[addr_range_index].start_addr = start_addr;
+    comp_addr_range[addr_range_index].end_addr = end_addr;
+}
+
+static void check_unsigned_addr(uint64_t load_addr, IplDeviceComponentList *comps,
+                                int comp_index)
+{
+    uint32_t flag;
+    const char *msg;
+    bool valid;
+
+    valid = validate_unsigned_addr(load_addr);
+    if (!valid) {
+        flag = S390_IPL_COMPONENT_CEI_INVALID_UNSIGNED_ADDR;
+        msg = "Load address is less than 0x2000";
+        set_cei_with_log(comps, comp_index, flag, msg);
+    }
+}
+
+static void addr_overlap_check(SecureIplCompAddrRange *comp_addr_range,
+                               int *addr_range_index,
+                               uint64_t start_addr, uint64_t end_addr, bool is_signed)
+{
+    bool overlap;
+
+    overlap = is_comp_overlap(comp_addr_range, *addr_range_index,
+                              start_addr, end_addr);
+    if (!overlap) {
+        comp_addr_range_add(comp_addr_range, *addr_range_index, is_signed,
+                            start_addr, end_addr);
+        *addr_range_index += 1;
+    } else {
+        zipl_secure_handle("Component addresses overlap");
+    }
+}
+
+static bool check_sclab_presence(uint8_t *sclab_magic,
+                                 IplDeviceComponentList *comps, int comp_index)
+{
+    if (!validate_sclab_magic(sclab_magic)) {
+        comps->device_entries[comp_index].cei |= S390_IPL_COMPONENT_CEI_INVALID_SCLAB;
+
+        /* a missing SCLAB will not be reported in audit mode */
+        return false;
+    }
+
+    return true;
+}
+
+static void check_sclab_length(uint16_t sclab_len,
+                               IplDeviceComponentList *comps, int comp_index)
+{
+    const char *msg;
+    uint32_t flag;
+    bool valid;
+
+    valid = validate_sclab_length(sclab_len);
+    if (!valid) {
+        flag = S390_IPL_COMPONENT_CEI_INVALID_SCLAB_LEN |
+               S390_IPL_COMPONENT_CEI_INVALID_SCLAB;
+        msg = "Invalid SCLAB length";
+        set_cei_with_log(comps, comp_index, flag, msg);
+    }
+}
+
+static void check_sclab_format(uint8_t sclab_format,
+                               IplDeviceComponentList *comps, int comp_index)
+{
+    const char *msg;
+    uint32_t flag;
+    bool valid;
+
+    valid = validate_sclab_format(sclab_format);
+    if (!valid) {
+        flag = S390_IPL_COMPONENT_CEI_INVALID_SCLAB_FORMAT;
+        msg = "Format-0 SCLAB is not being use";
+        set_cei_with_log(comps, comp_index, flag, msg);
+    }
+}
+
+static void check_sclab_opsw(SecureCodeLoadingAttributesBlock *sclab,
+                             SecureIplSclabInfo *sclab_info,
+                             IplDeviceComponentList *comps, int comp_index)
+{
+    const char *msg;
+    uint32_t flag;
+    bool is_opsw_set;
+    bool valid;
+
+    is_opsw_set = is_sclab_flag_set(sclab->flags, S390_SECURE_IPL_SCLAB_FLAG_OPSW);
+    if (!is_opsw_set) {
+        valid = validate_sclab_opsw_zero(sclab->load_psw);
+        if (!valid) {
+            flag = S390_IPL_COMPONENT_CEI_SCLAB_LOAD_PSW_NOT_ZERO;
+            msg = "Load PSW is not zero when Override PSW bit is zero";
+            set_cei_with_log(comps, comp_index, flag, msg);
+        }
+    } else {
+        /* OPSW = 1 indicating global SCLAB */
+        valid = validate_sclab_opsw_one(sclab->flags);
+        if (!valid) {
+            flag = S390_IPL_COMPONENT_CEI_SCLAB_OLA_NOT_ONE;
+            msg = "Override Load Address bit is not set to one in the global SCLAB";
+            set_cei_with_log(comps, comp_index, flag, msg);
+        }
+
+        sclab_info->global_count += 1;
+        if (sclab_info->global_count == 1) {
+            sclab_info->load_psw = sclab->load_psw;
+            sclab_info->flags = sclab->flags;
+        }
+    }
+}
+
+static void check_sclab_ola(SecureCodeLoadingAttributesBlock *sclab,
+                            uint64_t load_addr, IplDeviceComponentList *comps,
+                            int comp_index)
+{
+    const char *msg;
+    uint32_t flag;
+    bool is_ola_set;
+    bool valid;
+
+    is_ola_set = is_sclab_flag_set(sclab->flags, S390_SECURE_IPL_SCLAB_FLAG_OLA);
+    if (!is_ola_set) {
+        valid = validate_sclab_ola_zero(sclab->load_addr);
+        if (!(valid)) {
+            flag = S390_IPL_COMPONENT_CEI_SCLAB_LOAD_ADDR_NOT_ZERO;
+            msg = "Load Address is not zero when Override Load Address bit is zero";
+            set_cei_with_log(comps, comp_index, flag, msg);
+        }
+
+    } else {
+        valid = validate_sclab_ola_one(sclab->load_addr, load_addr);
+        if (!valid) {
+            flag = S390_IPL_COMPONENT_CEI_UNMATCHED_SCLAB_LOAD_ADDR;
+            msg = "Load Address does not match with component load address";
+            set_cei_with_log(comps, comp_index, flag, msg);
+        }
+    }
+}
+
+static void check_sclab_nuc(uint16_t sclab_flags, IplDeviceComponentList *comps,
+                            int comp_index)
+{
+    const char *msg;
+    uint32_t flag;
+    bool is_nuc_set;
+    bool is_global_sclab;
+
+    is_nuc_set = is_sclab_flag_set(sclab_flags, S390_SECURE_IPL_SCLAB_FLAG_NUC);
+    is_global_sclab = is_sclab_flag_set(sclab_flags, S390_SECURE_IPL_SCLAB_FLAG_OPSW);
+    if (is_nuc_set && !is_global_sclab) {
+        flag = S390_IPL_COMPONENT_CEI_NUC_NOT_IN_GLOBAL_SCLA;
+        msg = "No Unsigned Components bit is set, but not in the global SCLAB";
+        set_cei_with_log(comps, comp_index, flag, msg);
+    }
+}
+
+static void check_sclab_sc(uint16_t sclab_flags, IplDeviceComponentList *comps,
+                           int comp_index)
+{
+    const char *msg;
+    uint32_t flag;
+    bool is_sc_set;
+    bool is_global_sclab;
+
+    is_sc_set = is_sclab_flag_set(sclab_flags, S390_SECURE_IPL_SCLAB_FLAG_SC);
+    is_global_sclab = is_sclab_flag_set(sclab_flags, S390_SECURE_IPL_SCLAB_FLAG_OPSW);
+    if (is_sc_set && !is_global_sclab) {
+        flag = S390_IPL_COMPONENT_CEI_SC_NOT_IN_GLOBAL_SCLAB;
+        msg = "Single Component bit is set, but not in the global SCLAB";
+        set_cei_with_log(comps, comp_index, flag, msg);
+    }
+}
+
+static bool is_psw_valid(uint64_t psw, SecureIplCompAddrRange *comp_addr_range,
+                         int range_index)
+{
+    uint32_t addr = psw & 0x3FFFFFFF;
+
+    /* PSW points within a signed binary code component */
+    for (int i = 0; i < range_index; i++) {
+        if (comp_addr_range[i].is_signed &&
+            addr >= comp_addr_range[i].start_addr &&
+            addr <= comp_addr_range[i].end_addr) {
+            return true;
+       }
+    }
+
+    return false;
+}
+
+static void check_load_psw(SecureIplCompAddrRange *comp_addr_range,
+                           int addr_range_index, uint64_t sclab_load_psw,
+                           uint64_t load_psw, IplDeviceComponentList *comps,
+                           int comp_index)
+{
+    uint32_t flag;
+    const char *msg;
+    bool valid;
+
+    valid = is_psw_valid(sclab_load_psw, comp_addr_range, addr_range_index) &&
+            is_psw_valid(load_psw, comp_addr_range, addr_range_index);
+    if (!valid) {
+        flag = S390_IPL_COMPONENT_CEI_INVALID_LOAD_PSW;
+        msg = "Invalid PSW";
+        set_cei_with_log(comps, comp_index, flag, msg);
+    }
+
+    valid = validate_lpsw(sclab_load_psw, load_psw);
+    if (!valid) {
+        flag = S390_IPL_COMPONENT_CEI_UNMATCHED_SCLAB_LOAD_PSW;
+        msg = "Load PSW does not match with PSW in component";
+        set_cei_with_log(comps, comp_index, flag, msg);
+    }
+}
+
+static void check_nuc(uint16_t global_sclab_flags, int unsigned_count,
+                      IplDeviceComponentList *comps)
+{
+    uint16_t flag;
+    const char *msg;
+    bool is_nuc_set;
+
+    is_nuc_set = is_sclab_flag_set(global_sclab_flags, S390_SECURE_IPL_SCLAB_FLAG_NUC);
+    if (is_nuc_set && unsigned_count > 0) {
+        flag = S390_IPL_INFO_IIEI_FOUND_UNSIGNED_COMP;
+        msg = "Unsigned components are not allowed";
+        set_iiei_with_log(comps, flag, msg);
+    }
+}
+
+static void check_sc(uint16_t global_sclab_flags, int signed_count,
+                     IplDeviceComponentList *comps)
+{
+    uint16_t flag;
+    const char *msg;
+    bool is_sc_set;
+
+    is_sc_set = is_sclab_flag_set(global_sclab_flags, S390_SECURE_IPL_SCLAB_FLAG_SC);
+    if (is_sc_set && signed_count != 1) {
+        flag = S390_IPL_INFO_IIEI_MORE_SIGNED_COMP;
+        msg = "Only one signed component is allowed";
+        set_iiei_with_log(comps, flag, msg);
+    }
+}
+
+void check_global_sclab(SecureIplSclabInfo sclab_info,
+                        SecureIplCompAddrRange *comp_addr_range,
+                        int addr_range_index, uint64_t load_psw,
+                        int unsigned_count, int signed_count,
+                        IplDeviceComponentList *comps, int comp_index)
+{
+    uint16_t flag;
+    const char *msg;
+
+    if (sclab_info.count == 0) {
+        return;
+    }
+
+    if (sclab_info.global_count == 0) {
+        flag = S390_IPL_INFO_IIEI_NO_GLOBAL_SCLAB;
+        msg = "Global SCLAB does not exists";
+        set_iiei_with_log(comps, flag, msg);
+        return;
+    }
+
+    if (sclab_info.global_count > 1) {
+        flag = S390_IPL_INFO_IIEI_MORE_GLOBAL_SCLAB;
+        msg = "More than one global SCLAB";
+        set_iiei_with_log(comps, flag, msg);
+        return;
+    }
+
+    if (sclab_info.load_psw) {
+        /* Verify PSW from the final component entry with PSW from the global SCLAB */
+        check_load_psw(comp_addr_range, addr_range_index,
+                          sclab_info.load_psw, load_psw,
+                          comps, comp_index);
+    }
+
+    if (sclab_info.flags) {
+        /* Unsigned components are not allowed if NUC flag is set in the global SCLAB */
+        check_nuc(sclab_info.flags, unsigned_count, comps);
+
+        /* Only one signed component is allowed is SC flag is set in the global SCLAB */
+        check_sc(sclab_info.flags, signed_count, comps);
+    }
+}
+
+static void check_signed_comp(int signed_count, IplDeviceComponentList *comps)
+{
+    uint16_t flag;
+    const char *msg;
+
+    if (signed_count > 0) {
+        return;
+    }
+
+    flag =  S390_IPL_INFO_IIEI_NO_SIGNED_COMP;
+    msg = "Secure boot is on, but components are not signed";
+    set_iiei_with_log(comps, flag, msg);
+}
+
+static void check_sclab_count(int count, IplDeviceComponentList *comps)
+{
+    uint16_t flag;
+    const char *msg;
+
+    if (count > 0) {
+        return;
+    }
+
+    flag = S390_IPL_INFO_IIEI_NO_SCLAB;
+    msg = "No recognizable SCLAB";
+    set_iiei_with_log(comps, flag, msg);
+}
+
+static void check_unsigned_comp(uint64_t comp_addr, IplDeviceComponentList *comps,
+                                int comp_index, int cert_index, uint64_t comp_len)
+{
+    check_unsigned_addr(comp_addr, comps, comp_index);
+
+    comp_list_add(comps, comp_index, cert_index, comp_addr, comp_len, 0x00);
+}
+
+static void check_sclab(uint64_t comp_addr, IplDeviceComponentList *comps,
+                        uint64_t comp_len, int comp_index, SecureIplSclabInfo *sclab_info)
+{
+    SclabOriginLocator *sclab_locator;
+    SecureCodeLoadingAttributesBlock *sclab;
+    bool exist;
+    bool valid;
+
+    sclab_locator = (SclabOriginLocator *)(comp_addr + comp_len - 8);
+
+    /* return early if sclab does not exist */
+    exist = check_sclab_presence(sclab_locator->magic, comps, comp_index);
+    if (!exist) {
+        return;
+    }
+
+    check_sclab_length(sclab_locator->len, comps, comp_index);
+
+    /* return early if sclab is invalid */
+    valid = (comps->device_entries[comp_index].cei &
+             S390_IPL_COMPONENT_CEI_INVALID_SCLAB) == 0;
+    if (!valid) {
+        return;
+    }
+
+    sclab_info->count += 1;
+    sclab = (SecureCodeLoadingAttributesBlock *)(comp_addr + comp_len -
+                                                    sclab_locator->len);
+
+    check_sclab_format(sclab->format, comps, comp_index);
+    check_sclab_opsw(sclab, sclab_info, comps, comp_index);
+    check_sclab_ola(sclab, comp_addr, comps, comp_index);
+    check_sclab_nuc(sclab->flags, comps, comp_index);
+    check_sclab_sc(sclab->flags, comps, comp_index);
 }
 
 static uint32_t zipl_load_signature(ComponentEntry *entry, uint64_t sig_sec)
@@ -278,7 +671,11 @@ int zipl_run_secure(ComponentEntry **entry_ptr, uint8_t *tmp_sec)
      * cert_table value: index of cert entry in cert list that contains the certificate
      */
     int cert_table[MAX_CERTIFICATES] = { [0 ... MAX_CERTIFICATES - 1] = -1};
+    SecureIplCompAddrRange comp_addr_range[MAX_CERTIFICATES];
+    int addr_range_index = 0;
     int signed_count = 0;
+    int unsigned_count = 0;
+    SecureIplSclabInfo sclab_info = { 0 };
 
     if (!secure_ipl_supported()) {
         return -1;
@@ -308,10 +705,17 @@ int zipl_run_secure(ComponentEntry **entry_ptr, uint8_t *tmp_sec)
                 goto out;
             }
 
+            addr_overlap_check(comp_addr_range, &addr_range_index,
+                               comp_addr, comp_addr + comp_len, sig_len > 0);
+
             if (!sig_len) {
+                check_unsigned_comp(comp_addr, &comps, comp_index, cert_index, comp_len);
+                unsigned_count += 1;
+                comp_index++;
                 break;
             }
 
+            check_sclab(comp_addr, &comps, comp_len, comp_index, &sclab_info);
             verified = verify_signature(comp_len, comp_addr, sig_len, (uint64_t)sig,
                                         &cert_len, &cert_idx);
 
@@ -351,9 +755,11 @@ int zipl_run_secure(ComponentEntry **entry_ptr, uint8_t *tmp_sec)
         }
     }
 
-    if (signed_count == 0) {
-        zipl_secure_handle("Secure boot is on, but components are not signed");
-    }
+    check_signed_comp(signed_count, &comps);
+    check_sclab_count(sclab_info.count, &comps);
+    check_global_sclab(sclab_info, comp_addr_range, addr_range_index,
+                       entry->compdat.load_psw, unsigned_count, signed_count,
+                       &comps, comp_index);
 
     if (update_iirb(&comps, &certs)) {
         zipl_secure_handle("Failed to write IPL Information Report Block");
