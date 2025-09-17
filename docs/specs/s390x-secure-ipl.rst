@@ -48,3 +48,21 @@ Subcode 2 - store verification certificates
     storage specified in the VCB input length field.
 
     VCE contains various information of a VC from the CS.
+
+
+Secure IPL Data Structures, Facilities, and Functions
+=====================================================
+
+DIAGNOSE function code 'X'508' - KVM IPL extensions
+---------------------------------------------------
+
+DIAGNOSE 'X'508' is reserved for KVM guest use in order to facilitate
+communication of additional IPL operations that cannot be handled by userspace,
+such as signature verification for secure IPL.
+
+If the function code specifies 0x508, KVM IPL extension functions are performed.
+These functions are meant to provide extended functionality for s390 guest boot
+that requires assistance from QEMU.
+
+Subcode 0 - query installed subcodes
+    Returns a 64-bit mask indicating which subcodes are supported.
