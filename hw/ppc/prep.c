@@ -53,8 +53,11 @@
 
 #define CFG_ADDR 0xf0000510
 
-#define KERNEL_LOAD_ADDR 0x01000000
-#define INITRD_LOAD_ADDR 0x01800000
+#define KERNEL_LOAD_ADDR  0x01000000
+#define INITRD_LOAD_ADDR  0x01800000
+
+#define PCI_IO_BASE_ADDR  0x80000000
+#define PCI_MEM_BASE_ADDR 0xc0000000
 
 #define BIOS_ADDR         0xfff00000
 #define BIOS_SIZE         (1 * MiB)
@@ -293,6 +296,10 @@ static void ibm_40p_init(MachineState *machine)
     pcihost = SYS_BUS_DEVICE(dev);
     object_property_add_child(qdev_get_machine(), "raven", OBJECT(dev));
     sysbus_realize_and_unref(pcihost, &error_fatal);
+    sysbus_mmio_map(pcihost, 0, PCI_IO_BASE_ADDR);
+    sysbus_mmio_map_overlap(pcihost, 1, PCI_IO_BASE_ADDR, 1);
+    memory_region_set_enabled(sysbus_mmio_get_region(pcihost, 1), false);
+    sysbus_mmio_map(pcihost, 2, PCI_MEM_BASE_ADDR);
     pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci.0"));
     if (!pci_bus) {
         error_report("could not create PCI host controller");
