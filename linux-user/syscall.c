@@ -8216,15 +8216,99 @@ static int open_self_smaps(CPUArchState *cpu_env, int fd)
     return open_self_maps_1(cpu_env, fd, true);
 }
 
+#define NUM_PROC_SELF_STAT_FIELDS 52
+
+static void read_proc_self_stat(char buf[], int buf_size, const char *fields[])
+{
+    char *p;
+    int i;
+
+    for (i = 0; i < NUM_PROC_SELF_STAT_FIELDS; i++) {
+        fields[i] = NULL;
+    }
+
+    int fd = open("/proc/self/stat", O_RDONLY);
+    if (fd < 0) {
+        return;
+    }
+    i = read(fd, buf, buf_size);
+    close(fd);
+    if (i <= 0) {
+        return;
+    }
+    if (i == buf_size) {
+        buf[buf_size - 1] = '\0';
+    } else {
+        buf[i] = '\0';
+    }
+
+    fields[0] = strtok_r(buf, " \n", &p);
+
+    /*
+     * Get the next field (comm), but don't tokenize -- we'll need to find the
+     * right-most ')' that marks the end of the file name instead.
+     */
+    fields[1] = strtok_r(NULL, "", &p);
+
+    p = strrchr(fields[1], ')');
+    if (!p) {
+        return;
+    }
+    p[1] = '\0';
+
+    fields[2] = strtok_r(p + 2, " \n", &p);
+    for (i = 3; i < NUM_PROC_SELF_STAT_FIELDS; i++) {
+        fields[i] = strtok_r(NULL, " \n", &p);
+    }
+}
+
 static int open_self_stat(CPUArchState *cpu_env, int fd)
 {
     CPUState *cpu = env_cpu(cpu_env);
     TaskState *ts = get_task_state(cpu);
     g_autoptr(GString) buf = g_string_new(NULL);
-    int i;
+    char host_stat_buf[1024];
+    const char *fields[NUM_PROC_SELF_STAT_FIELDS];
+    const int use_host_stat_fields[] = {
+        /*
+         * `man 5 proc` uses 1-based index, so indices here are one less than
+         * on the man page.
+         */
+        0, /* pid */
+        2, /* state */
+        3, /* ppid */
+        4, /* pgrp */
+        5, /* session */
+        6, /* tty_nr */
+        7, /* tpgid */
+        17, /* priority */
+        18, /* nice */
+        21, /* starttime */
+        38, /* processor */
+        39, /* rt_priority */
+        40, /* policy */
+        NUM_PROC_SELF_STAT_FIELDS, /* sentinel */
+    };
 
-    for (i = 0; i < 44; i++) {
-        if (i == 0) {
+    int i;
+    const int *next_use_host_stat_field = use_host_stat_fields;
+
+    read_proc_self_stat(host_stat_buf, sizeof(host_stat_buf), fields);
+
+    for (i = 0; i < NUM_PROC_SELF_STAT_FIELDS; i++) {
+        bool may_use_host_stat = i == (*next_use_host_stat_field);
+        if (may_use_host_stat) {
+            ++next_use_host_stat_field;
+        }
+
+        if (may_use_host_stat && fields[i] != NULL && fields[i][0] != '\0') {
+            g_string_printf(buf, "%s ", fields[i]);
+
+            /*
+             * Some systems do not mount /proc so still check for 0 and 3 even
+             * though `may_use_host_stat` is true for them.
+             */
+        } else if (i == 0) {
             /* pid */
             g_string_printf(buf, FMT_pid " ", getpid());
         } else if (i == 1) {
@@ -8259,7 +8343,8 @@ static int open_self_stat(CPUArchState *cpu_env, int fd)
             g_string_printf(buf, TARGET_ABI_FMT_ld " ", ts->info->start_stack);
         } else {
             /* for the rest, there is MasterCard */
-            g_string_printf(buf, "0%c", i == 43 ? '\n' : ' ');
+            g_string_printf(buf, "0%c",
+                            i == NUM_PROC_SELF_STAT_FIELDS - 1 ? '\n' : ' ');
         }
 
         if (write(fd, buf->str, buf->len) != buf->len) {
@@ -8269,6 +8354,8 @@ static int open_self_stat(CPUArchState *cpu_env, int fd)
 
     return 0;
 }
+
+#undef NUM_PROC_SELF_STAT_FIELDS
 
 static int open_self_auxv(CPUArchState *cpu_env, int fd)
 {
