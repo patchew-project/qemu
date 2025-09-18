@@ -46,9 +46,6 @@ struct PREPPCIState {
     MemoryRegion pci_discontiguous_io;
     MemoryRegion pci_memory;
     MemoryRegion pci_intack;
-    MemoryRegion bm;
-    MemoryRegion bm_ram_alias;
-    MemoryRegion bm_pci_memory_alias;
     AddressSpace bm_as;
 };
 
@@ -178,7 +175,8 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
     SysBusDevice *dev = SYS_BUS_DEVICE(d);
     PCIHostState *h = PCI_HOST_BRIDGE(dev);
     PREPPCIState *s = RAVEN_PCI_HOST_BRIDGE(dev);
-    MemoryRegion *mr, *address_space_mem = get_system_memory();
+    Object *o = OBJECT(d);
+    MemoryRegion *mr, *bm, *address_space_mem = get_system_memory();
 
     qdev_init_gpio_in(d, raven_change_gpio, 1);
 
@@ -187,26 +185,37 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
                                    &s->irq, &s->pci_memory, &s->pci_io, 0, 1,
                                    TYPE_PCI_BUS);
 
-    memory_region_init_io(&h->conf_mem, OBJECT(h), &pci_host_conf_le_ops, s,
+    memory_region_init_io(&h->conf_mem, o, &pci_host_conf_le_ops, s,
                           "pci-conf-idx", 4);
     memory_region_add_subregion(&s->pci_io, 0xcf8, &h->conf_mem);
 
-    memory_region_init_io(&h->data_mem, OBJECT(h), &pci_host_data_le_ops, s,
+    memory_region_init_io(&h->data_mem, o, &pci_host_data_le_ops, s,
                           "pci-conf-data", 4);
     memory_region_add_subregion(&s->pci_io, 0xcfc, &h->data_mem);
 
     mr = g_new0(MemoryRegion, 1);
-    memory_region_init_io(mr, OBJECT(h), &raven_mmcfg_ops, h->bus,
+    memory_region_init_io(mr, o, &raven_mmcfg_ops, h->bus,
                           "pci-mmcfg", 8 * MiB);
     memory_region_add_subregion(&s->pci_io, 0x800000, mr);
 
-    memory_region_init_io(&s->pci_intack, OBJECT(s), &raven_intack_ops, s,
+    memory_region_init_io(&s->pci_intack, o, &raven_intack_ops, s,
                           "pci-intack", 1);
     memory_region_add_subregion(address_space_mem, 0xbffffff0, &s->pci_intack);
 
     pci_create_simple(h->bus, PCI_DEVFN(0, 0), TYPE_RAVEN_PCI_DEVICE);
 
-    address_space_init(&s->bm_as, &s->bm, "raven-bm");
+    /* Bus master address space */
+    bm = g_new0(MemoryRegion, 1);
+    memory_region_init(bm, o, "raven-bm", 4 * GiB);
+    mr = g_new0(MemoryRegion, 1);
+    memory_region_init_alias(mr, o, "bm-pci-memory", &s->pci_memory, 0,
+                             memory_region_size(&s->pci_memory));
+    memory_region_add_subregion(bm, 0, mr);
+    mr = g_new0(MemoryRegion, 1);
+    memory_region_init_alias(mr, o, "bm-system", get_system_memory(),
+                             0, 0x80000000);
+    memory_region_add_subregion(bm, 0x80000000, mr);
+    address_space_init(&s->bm_as, bm, "raven-bm-as");
     pci_setup_iommu(h->bus, &raven_iommu_ops, s);
 }
 
@@ -228,16 +237,6 @@ static void raven_pcihost_initfn(Object *obj)
                                         &s->pci_discontiguous_io, 1);
     memory_region_set_enabled(&s->pci_discontiguous_io, false);
     memory_region_add_subregion(address_space_mem, 0xc0000000, &s->pci_memory);
-
-    /* Bus master address space */
-    memory_region_init(&s->bm, obj, "bm-raven", 4 * GiB);
-    memory_region_init_alias(&s->bm_pci_memory_alias, obj, "bm-pci-memory",
-                             &s->pci_memory, 0,
-                             memory_region_size(&s->pci_memory));
-    memory_region_init_alias(&s->bm_ram_alias, obj, "bm-system",
-                             get_system_memory(), 0, 0x80000000);
-    memory_region_add_subregion(&s->bm, 0         , &s->bm_pci_memory_alias);
-    memory_region_add_subregion(&s->bm, 0x80000000, &s->bm_ram_alias);
 }
 
 static void raven_pcihost_class_init(ObjectClass *klass, const void *data)
