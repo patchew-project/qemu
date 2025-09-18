@@ -15,6 +15,7 @@
 #include <linux/vfio.h>
 #include <linux/iommufd.h>
 
+#include "hw/iommu.h"
 #include "hw/vfio/vfio-device.h"
 #include "qemu/error-report.h"
 #include "trace.h"
@@ -326,6 +327,7 @@ static bool iommufd_cdev_autodomains_get(VFIODevice *vbasedev,
     IOMMUFDBackend *iommufd = vbasedev->iommufd;
     uint32_t type, flags = 0;
     uint64_t hw_caps;
+    VendorCaps caps;
     VFIOIOASHwpt *hwpt;
     uint32_t hwpt_id;
     int ret;
@@ -371,7 +373,8 @@ static bool iommufd_cdev_autodomains_get(VFIODevice *vbasedev,
      * instead.
      */
     if (!iommufd_backend_get_device_info(vbasedev->iommufd, vbasedev->devid,
-                                         &type, NULL, 0, &hw_caps, errp)) {
+                                         &type, &caps, sizeof(caps), &hw_caps,
+                                         errp)) {
         return false;
     }
 
@@ -386,6 +389,11 @@ static bool iommufd_cdev_autodomains_get(VFIODevice *vbasedev,
      */
     if (vfio_device_get_viommu_flags_want_nesting(vbasedev)) {
         flags |= IOMMU_HWPT_ALLOC_NEST_PARENT;
+
+        if (host_iommu_extract_vendor_caps(type, &caps) &
+            IOMMU_HW_NESTING_PARENT_BYPASS_RO) {
+            container->bcontainer.bypass_ro = true;
+        }
     }
 
     if (cpr_is_incoming()) {
