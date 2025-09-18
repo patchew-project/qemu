@@ -39,6 +39,22 @@ typedef struct HostIOMMUDeviceCaps {
     uint64_t hw_caps;
     VendorCaps vendor_caps;
 } HostIOMMUDeviceCaps;
+
+/**
+ * host_iommu_extract_vendor_caps: Extract vendor capabilities
+ *
+ * This function converts @type specific hardware information data
+ * into a standard bitmap format.
+ *
+ * @type: IOMMU Hardware Info Types
+ *
+ * @VendorCaps: IOMMU @type specific hardware information data
+ *
+ * Returns: 64bit bitmap with each bit represents a capability of host
+ * IOMMU that we want to expose. See IOMMU_HW_* in include/hw/iommu.h
+ * for all possible capabilities currently exposed.
+ */
+uint64_t host_iommu_extract_vendor_caps(uint32_t type, VendorCaps *caps);
 #endif
 
 #define TYPE_HOST_IOMMU_DEVICE "host-iommu-device"

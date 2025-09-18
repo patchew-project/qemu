@@ -16,4 +16,9 @@ enum {
      VIOMMU_FLAG_WANT_NESTING_PARENT = BIT_ULL(0),
 };
 
+enum {
+    /* Nesting parent HWPT shouldn't have readonly mapping, due to errata */
+     IOMMU_HW_NESTING_PARENT_BYPASS_RO = BIT_ULL(0),
+};
+
 #endif /* HW_IOMMU_H */
