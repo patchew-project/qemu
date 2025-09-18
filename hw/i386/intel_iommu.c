@@ -41,8 +41,7 @@
 #include "trace.h"
 
 /* context entry operations */
-#define VTD_CE_GET_RID2PASID(ce) \
-    ((ce)->val[1] & VTD_SM_CONTEXT_ENTRY_RID2PASID_MASK)
+#define RID_PASID    0
 #define VTD_CE_GET_PASID_DIR_TABLE(ce) \
     ((ce)->val[0] & VTD_PASID_DIR_BASE_ADDR_MASK)
 
@@ -951,7 +950,7 @@ static int vtd_ce_get_pasid_entry(IntelIOMMUState *s, VTDContextEntry *ce,
     int ret = 0;
 
     if (pasid == PCI_NO_PASID) {
-        pasid = VTD_CE_GET_RID2PASID(ce);
+        pasid = RID_PASID;
     }
     pasid_dir_base = VTD_CE_GET_PASID_DIR_TABLE(ce);
     ret = vtd_get_pe_from_pasid_table(s, pasid_dir_base, pasid, pe);
@@ -970,7 +969,7 @@ static int vtd_ce_get_pasid_fpd(IntelIOMMUState *s,
     VTDPASIDEntry pe;
 
     if (pasid == PCI_NO_PASID) {
-        pasid = VTD_CE_GET_RID2PASID(ce);
+        pasid = RID_PASID;
     }
     pasid_dir_base = VTD_CE_GET_PASID_DIR_TABLE(ce);
 
@@ -1510,15 +1509,14 @@ static inline int vtd_context_entry_rsvd_bits_check(IntelIOMMUState *s,
     return 0;
 }
 
-static int vtd_ce_rid2pasid_check(IntelIOMMUState *s,
+static int vtd_ce_rid_pasid_check(IntelIOMMUState *s,
                                   VTDContextEntry *ce)
 {
     VTDPASIDEntry pe;
 
     /*
      * Make sure in Scalable Mode, a present context entry
-     * has valid rid2pasid setting, which includes valid
-     * rid2pasid field and corresponding pasid entry setting
+     * has valid pasid entry setting at RID_PASID(0).
      */
     return vtd_ce_get_pasid_entry(s, ce, &pe, PCI_NO_PASID);
 }
@@ -1581,12 +1579,11 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
         }
     } else {
         /*
-         * Check if the programming of context-entry.rid2pasid
-         * and corresponding pasid setting is valid, and thus
-         * avoids to check pasid entry fetching result in future
-         * helper function calling.
+         * Check if the programming of pasid setting at RID_PASID(0)
+         * is valid, and thus avoids to check pasid entry fetching
+         * result in future helper function calling.
          */
-        ret_fr = vtd_ce_rid2pasid_check(s, ce);
+        ret_fr = vtd_ce_rid_pasid_check(s, ce);
         if (ret_fr) {
             return ret_fr;
         }
@@ -2097,7 +2094,7 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
     bool reads = true;
     bool writes = true;
     uint8_t access_flags, pgtt;
-    bool rid2pasid = (pasid == PCI_NO_PASID) && s->root_scalable;
+    bool rid_pasid = (pasid == PCI_NO_PASID) && s->root_scalable;
     VTDIOTLBEntry *iotlb_entry;
     uint64_t xlat, size;
 
@@ -2111,8 +2108,8 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
 
     cc_entry = &vtd_as->context_cache_entry;
 
-    /* Try to fetch pte from IOTLB, we don't need RID2PASID logic */
-    if (!rid2pasid) {
+    /* Try to fetch pte from IOTLB, we don't need RID_PASID(0) logic */
+    if (!rid_pasid) {
         iotlb_entry = vtd_lookup_iotlb(s, source_id, pasid, addr);
         if (iotlb_entry) {
             trace_vtd_iotlb_page_hit(source_id, addr, iotlb_entry->pte,
@@ -2160,8 +2157,8 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
         cc_entry->context_cache_gen = s->context_cache_gen;
     }
 
-    if (rid2pasid) {
-        pasid = VTD_CE_GET_RID2PASID(&ce);
+    if (rid_pasid) {
+        pasid = RID_PASID;
     }
 
     /*
@@ -2189,8 +2186,8 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
         return true;
     }
 
-    /* Try to fetch pte from IOTLB for RID2PASID slow path */
-    if (rid2pasid) {
+    /* Try to fetch pte from IOTLB for RID_PASID(0) slow path */
+    if (rid_pasid) {
         iotlb_entry = vtd_lookup_iotlb(s, source_id, pasid, addr);
         if (iotlb_entry) {
             trace_vtd_iotlb_page_hit(source_id, addr, iotlb_entry->pte,
@@ -2464,20 +2461,14 @@ static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
         ret = vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
                                        vtd_as->devfn, &ce);
         if (!ret && domain_id == vtd_get_domain_id(s, &ce, vtd_as->pasid)) {
-            uint32_t rid2pasid = PCI_NO_PASID;
-
-            if (s->root_scalable) {
-                rid2pasid = VTD_CE_GET_RID2PASID(&ce);
-            }
-
             /*
              * In legacy mode, vtd_as->pasid == pasid is always true.
              * In scalable mode, for vtd address space backing a PCI
              * device without pasid, needs to compare pasid with
-             * rid2pasid of this device.
+             * RID_PASID(0) of this device.
              */
             if (!(vtd_as->pasid == pasid ||
-                  (vtd_as->pasid == PCI_NO_PASID && pasid == rid2pasid))) {
+                  (vtd_as->pasid == PCI_NO_PASID && pasid == RID_PASID))) {
                 continue;
             }
 
@@ -2976,9 +2967,7 @@ static void vtd_piotlb_pasid_invalidate(IntelIOMMUState *s,
         if (!vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
                                       vtd_as->devfn, &ce) &&
             domain_id == vtd_get_domain_id(s, &ce, vtd_as->pasid)) {
-            uint32_t rid2pasid = VTD_CE_GET_RID2PASID(&ce);
-
-            if ((vtd_as->pasid != PCI_NO_PASID || pasid != rid2pasid) &&
+            if ((vtd_as->pasid != PCI_NO_PASID || pasid != RID_PASID) &&
                 vtd_as->pasid != pasid) {
                 continue;
             }
