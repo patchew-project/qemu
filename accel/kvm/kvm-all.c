@@ -3054,6 +3054,8 @@ static void kvm_eat_signals(CPUState *cpu)
 int kvm_convert_memory(hwaddr start, hwaddr size, bool to_private)
 {
     MemoryRegionSection section;
+    hwaddr convert_start;
+    hwaddr convert_size;
     ram_addr_t offset;
     MemoryRegion *mr;
     RAMBlock *rb;
@@ -3071,6 +3073,11 @@ int kvm_convert_memory(hwaddr start, hwaddr size, bool to_private)
         return ret;
     }
 
+    /*
+     * Page conversions can span multiple memory regions, for example, if two
+     * memory backends are added to support two different NUMA nodes/policies.
+     */
+next_memory_region:
     section = memory_region_find(get_system_memory(), start, size);
     mr = section.mr;
     if (!mr) {
@@ -3121,8 +3128,12 @@ int kvm_convert_memory(hwaddr start, hwaddr size, bool to_private)
     addr = memory_region_get_ram_ptr(mr) + section.offset_within_region;
     rb = qemu_ram_block_from_host(addr, false, &offset);
 
+    convert_start = section.offset_within_region;
+    convert_size = (convert_start + size > mr->size) ?
+                   mr->size - convert_start : size;
+
     ret = ram_block_attributes_state_change(RAM_BLOCK_ATTRIBUTES(mr->rdm),
-                                            offset, size, to_private);
+                                            offset, convert_size, to_private);
     if (ret) {
         error_report("Failed to notify the listener the state change of "
                      "(0x%"HWADDR_PRIx" + 0x%"HWADDR_PRIx") to %s",
@@ -3138,9 +3149,15 @@ int kvm_convert_memory(hwaddr start, hwaddr size, bool to_private)
              */
             goto out_unref;
         }
-        ret = ram_block_discard_range(rb, offset, size);
+        ret = ram_block_discard_range(rb, offset, convert_size);
     } else {
-        ret = ram_block_discard_guest_memfd_range(rb, offset, size);
+        ret = ram_block_discard_guest_memfd_range(rb, offset, convert_size);
+    }
+
+    if (size - convert_size) {
+        start += convert_size;
+        size -= convert_size;
+        goto next_memory_region;
     }
 
 out_unref:
