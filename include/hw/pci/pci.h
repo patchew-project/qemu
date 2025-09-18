@@ -463,6 +463,23 @@ typedef struct PCIIOMMUOps {
      */
     void (*unset_iommu_device)(PCIBus *bus, void *opaque, int devfn);
     /**
+     * @get_viommu_flags: get vIOMMU flags
+     *
+     * Optional callback, if not implemented, then vIOMMU doesn't support
+     * exposing flags to other sub-system, e.g., VFIO. Each flag can be
+     * an expectation or request to other sub-system or just a pure vIOMMU
+     * capability. vIOMMU can choose which flags to expose.
+     *
+     * @opaque: the data passed to pci_setup_iommu().
+     *
+     * Returns: 64bit bitmap with each bit represents a flag that vIOMMU
+     * wants to expose. See VIOMMU_FLAG_* in include/hw/iommu.h for all
+     * possible flags currently used. These flags are theoretical which
+     * are only determined by vIOMMU device properties and independent on
+     * the actual host capabilities they may depend on.
+     */
+    uint64_t (*get_viommu_flags)(void *opaque);
+    /**
      * @get_iotlb_info: get properties required to initialize a device IOTLB.
      *
      * Callback required if devices are allowed to cache translations.
@@ -643,6 +660,16 @@ AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);
 bool pci_device_set_iommu_device(PCIDevice *dev, HostIOMMUDevice *hiod,
                                  Error **errp);
 void pci_device_unset_iommu_device(PCIDevice *dev);
+
+/**
+ * pci_device_get_viommu_flags: get vIOMMU flags.
+ *
+ * Returns a 64bit bitmap with each bit represents a vIOMMU exposed
+ * flags, 0 if vIOMMU doesn't support that.
+ *
+ * @dev: PCI device pointer.
+ */
+uint64_t pci_device_get_viommu_flags(PCIDevice *dev);
 
 /**
  * pci_iommu_get_iotlb_info: get properties required to initialize a
