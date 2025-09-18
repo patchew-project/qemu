@@ -19,6 +19,7 @@
 #include "migration/cpr.h"
 #include "monitor/monitor.h"
 #include "trace.h"
+#include "hw/iommu.h"
 #include "hw/vfio/vfio-device.h"
 #include <sys/ioctl.h>
 #include <linux/iommufd.h>
@@ -408,6 +409,18 @@ bool iommufd_backend_get_device_info(IOMMUFDBackend *be, uint32_t devid,
     *caps = info.out_capabilities;
 
     return true;
+}
+
+uint64_t host_iommu_extract_vendor_caps(uint32_t type, VendorCaps *caps)
+{
+    uint64_t vendor_caps = 0;
+
+    if (type == IOMMU_HW_INFO_TYPE_INTEL_VTD &&
+        caps->vtd.flags & IOMMU_HW_INFO_VTD_ERRATA_772415_SPR17) {
+        vendor_caps |= IOMMU_HW_NESTING_PARENT_BYPASS_RO;
+    }
+
+    return vendor_caps;
 }
 
 bool iommufd_backend_invalidate_cache(IOMMUFDBackend *be, uint32_t id,
