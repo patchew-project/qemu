@@ -1205,7 +1205,7 @@ if test "$rust" != disabled && test -z "$rust_target_triple"; then
   # arch and os generally matches between meson and rust
   rust_arch=$host_arch
   rust_os=$host_os
-  rust_machine=unknown
+  rust_machine=$(echo $rust_host_triple | cut -d- -f2)
   rust_osvariant=
 
   # tweak rust_os if needed; also, machine and variant depend on the OS
