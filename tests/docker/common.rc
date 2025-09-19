@@ -21,6 +21,12 @@ else
     DEF_TARGET_LIST=${DEF_TARGET_LIST:-"x86_64-softmmu,aarch64-softmmu"}
 fi
 
+if [ "$ENABLE_RUST" = "1" ]; then
+  enable_rust="--enable-rust"
+else
+  enable_rust=""
+fi
+
 requires_binary()
 {
     found=0
@@ -46,6 +52,7 @@ configure_qemu()
                  ${TARGET_LIST:+--target-list=${TARGET_LIST}} \
                  --prefix=$INSTALL_DIR \
                  $QEMU_CONFIGURE_OPTS $EXTRA_CONFIGURE_OPTS \
+                 $enable_rust \
                  $@"
     echo "Configure options:"
     echo $config_opts
