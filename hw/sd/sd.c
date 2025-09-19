@@ -1049,22 +1049,34 @@ static const VMStateDescription sd_vmstate = {
     },
 };
 
-static void sd_blk_read(SDState *sd, uint64_t addr, uint32_t len)
+static void sd_blk_read_direct(SDState *sd, void* buf, uint64_t addr,
+                               uint32_t len)
 {
     trace_sdcard_read_block(addr, len);
     addr += sd_part_offset(sd);
-    if (!sd->blk || blk_pread(sd->blk, addr, len, sd->data, 0) < 0) {
+    if (!sd->blk || blk_pread(sd->blk, addr, len, buf, 0) < 0) {
         fprintf(stderr, "sd_blk_read: read error on host side\n");
+    }
+}
+
+static void sd_blk_read(SDState *sd, uint64_t addr, uint32_t len)
+{
+    sd_blk_read_direct(sd, sd->data, addr, len);
+}
+
+static void sd_blk_write_direct(SDState *sd, const void *buf, uint64_t addr,
+                                uint32_t len)
+{
+    trace_sdcard_write_block(addr, len);
+    addr += sd_part_offset(sd);
+    if (!sd->blk || blk_pwrite(sd->blk, addr, len, buf, 0) < 0) {
+        fprintf(stderr, "sd_blk_write: write error on host side\n");
     }
 }
 
 static void sd_blk_write(SDState *sd, uint64_t addr, uint32_t len)
 {
-    trace_sdcard_write_block(addr, len);
-    addr += sd_part_offset(sd);
-    if (!sd->blk || blk_pwrite(sd->blk, addr, len, sd->data, 0) < 0) {
-        fprintf(stderr, "sd_blk_write: write error on host side\n");
-    }
+    sd_blk_write_direct(sd, sd->data, addr, len);
 }
 
 static void sd_erase(SDState *sd)
@@ -1348,7 +1360,7 @@ static sd_rsp_type_t sd_cmd_optional(SDState *sd, SDRequest req)
     return sd_illegal;
 }
 
-/* Configure fields for following sd_generic_write_byte() calls */
+/* Configure fields for following sd_generic_write_date() calls */
 static sd_rsp_type_t sd_cmd_to_receivingdata(SDState *sd, SDRequest req,
                                              uint64_t start, size_t size)
 {
@@ -1363,7 +1375,7 @@ static sd_rsp_type_t sd_cmd_to_receivingdata(SDState *sd, SDRequest req,
     return sd_r1;
 }
 
-/* Configure fields for following sd_generic_read_byte() calls */
+/* Configure fields for following sd_generic_read_data() calls */
 static sd_rsp_type_t sd_cmd_to_sendingdata(SDState *sd, SDRequest req,
                                            uint64_t start,
                                            const void *data, size_t size)
@@ -2352,23 +2364,35 @@ send_response:
 }
 
 /* Return true if buffer is consumed. Configured by sd_cmd_to_receivingdata() */
-static bool sd_generic_write_byte(SDState *sd, uint8_t value)
+static bool sd_generic_write_data(SDState *sd, const void* buf, size_t length)
 {
-    sd->data[sd->data_offset] = value;
+    size_t to_write = MIN(sd->data_size - sd->data_offset, length);
 
-    if (++sd->data_offset >= sd->data_size) {
+    memcpy(sd->data, buf, to_write);
+    sd->data_offset += to_write;
+
+    if (sd->data_offset >= sd->data_size) {
         sd->state = sd_transfer_state;
         return true;
     }
+
     return false;
 }
 
 /* Return true when buffer is consumed. Configured by sd_cmd_to_sendingdata() */
-static bool sd_generic_read_byte(SDState *sd, uint8_t *value)
+static bool sd_generic_read_data(SDState *sd, void *buf, size_t length)
 {
-    *value = sd->data[sd->data_offset];
+    size_t to_read = MIN(sd->data_size - sd->data_offset, length);
 
-    if (++sd->data_offset >= sd->data_size) {
+    memcpy(buf, sd->data, to_read);
+    sd->data_offset += to_read;
+
+    /* Fill remaining with zero, if requested to read more than requested. */
+    if (to_read < length) {
+        memset(buf + to_read, 0, length - to_read);
+    }
+
+    if (sd->data_offset >= sd->data_size) {
         sd->state = sd_transfer_state;
         return true;
     }
@@ -2376,7 +2400,7 @@ static bool sd_generic_read_byte(SDState *sd, uint8_t *value)
     return false;
 }
 
-static void sd_write_byte(SDState *sd, uint8_t value)
+static void sd_write_data(SDState *sd, const void *buf, size_t length)
 {
     int i;
 
@@ -2395,10 +2419,10 @@ static void sd_write_byte(SDState *sd, uint8_t value)
 
     trace_sdcard_write_data(sd->proto->name,
                             sd->last_cmd_name,
-                            sd->current_cmd, sd->data_offset, value);
+                            sd->current_cmd, sd->data_offset, 0);
     switch (sd->current_cmd) {
     case 24:  /* CMD24:  WRITE_SINGLE_BLOCK */
-        if (sd_generic_write_byte(sd, value)) {
+        if (sd_generic_write_data(sd, buf, length)) {
             /* TODO: Check CRC before committing */
             sd->state = sd_programming_state;
             sd_blk_write(sd, sd->data_start, sd->data_offset);
@@ -2410,32 +2434,76 @@ static void sd_write_byte(SDState *sd, uint8_t value)
         break;
 
     case 25:  /* CMD25:  WRITE_MULTIPLE_BLOCK */
-        if (sd->data_offset == 0) {
-            /* Start of the block - let's check the address is valid */
-            if (!address_in_range(sd, "WRITE_MULTIPLE_BLOCK",
-                                  sd->data_start, sd->blk_len)) {
-                break;
-            }
-            if (sd->size <= SDSC_MAX_CAPACITY) {
-                if (sd_wp_addr(sd, sd->data_start)) {
+        if (!address_in_range(sd, "WRITE_MULTIPLE_BLOCK",
+                              sd->data_start + sd->data_offset, length)) {
+            /* Limit writing data to our device size */
+            length = sd->size - sd->data_start - sd->data_offset;
+        }
+
+        if (sd->size <= SDSC_MAX_CAPACITY) {
+            uint64_t start = sd->data_start + sd->data_offset;
+
+            /*
+             * Check if any covered address violates WP. If so, limit our write
+             * up to the allowed address.
+             */
+            for (uint64_t addr = start; addr < start + length;
+                 addr = ROUND_UP(addr + 1, WPGROUP_SIZE)) {
+                if (sd_wp_addr(sd, addr)) {
                     sd->card_status |= WP_VIOLATION;
+
+                    length = addr - start - 1;
                     break;
                 }
             }
         }
-        sd->data[sd->data_offset++] = value;
-        if (sd->data_offset >= sd->blk_len) {
-            /* TODO: Check CRC before committing */
-            sd->state = sd_programming_state;
-            sd_blk_write(sd, sd->data_start, sd->data_offset);
-            sd->blk_written++;
-            sd->data_start += sd->blk_len;
-            sd->data_offset = 0;
-            sd->csd[14] |= 0x40;
 
-            /* Bzzzzzzztt .... Operation complete.  */
+        /* Partial write */
+        if (sd->data_offset > 0) {
+            size_t to_write = MIN(sd->blk_len - sd->data_offset, length);
+
+            memcpy(sd->data + sd->data_offset, buf, to_write);
+            sd->data_offset += to_write;
+            buf += to_write;
+            length -= to_write;
+
+            if (sd->data_offset >= sd->blk_len) {
+                sd->state = sd_programming_state;
+                sd_blk_write(sd, sd->data_start, sd->blk_len);
+                sd->blk_written++;
+                sd->data_start += sd->blk_len;
+                sd->data_offset = 0;
+                sd->csd[14] |= 0x40;
+
+                /* Bzzzzzzztt .... Operation complete.  */
+                if (sd->multi_blk_cnt != 0) {
+                    if (--sd->multi_blk_cnt == 0) {
+                        /* Stop! */
+                        sd->state = sd_transfer_state;
+                        break;
+                    }
+                }
+
+                sd->state = sd_receivingdata_state;
+            }
+        }
+
+        /* Try to write multiple of block sizes */
+        if (length >= sd->blk_len) {
+            size_t to_write = QEMU_ALIGN_DOWN(length, sd->blk_len);
+
+            sd->state = sd_programming_state;
+            sd_blk_write_direct(sd, buf, sd->data_start, to_write);
+            sd->blk_written += to_write / sd->blk_len;
+            sd->data_start += to_write;
+            sd->csd[14] |= 0x40;
+            buf += to_write;
+            length -= to_write;
+
             if (sd->multi_blk_cnt != 0) {
-                if (--sd->multi_blk_cnt == 0) {
+                sd->multi_blk_cnt -= to_write / sd->blk_len;
+
+                if (sd->multi_blk_cnt == 0) {
                     /* Stop! */
                     sd->state = sd_transfer_state;
                     break;
@@ -2444,10 +2512,16 @@ static void sd_write_byte(SDState *sd, uint8_t value)
 
             sd->state = sd_receivingdata_state;
         }
+
+        /* Partial write */
+        if (length > 0) {
+            memcpy(sd->data, buf, length);
+            sd->data_offset = length;
+        }
         break;
 
     case 26:  /* CMD26:  PROGRAM_CID */
-        if (sd_generic_write_byte(sd, value)) {
+        if (sd_generic_write_data(sd, buf, length)) {
             /* TODO: Check CRC before committing */
             sd->state = sd_programming_state;
             for (i = 0; i < sizeof(sd->cid); i ++)
@@ -2465,7 +2539,7 @@ static void sd_write_byte(SDState *sd, uint8_t value)
         break;
 
     case 27:  /* CMD27:  PROGRAM_CSD */
-        if (sd_generic_write_byte(sd, value)) {
+        if (sd_generic_write_data(sd, buf, length)) {
             /* TODO: Check CRC before committing */
             sd->state = sd_programming_state;
             for (i = 0; i < sizeof(sd->csd); i ++)
@@ -2488,7 +2562,7 @@ static void sd_write_byte(SDState *sd, uint8_t value)
         break;
 
     case 42:  /* CMD42:  LOCK_UNLOCK */
-        if (sd_generic_write_byte(sd, value)) {
+        if (sd_generic_write_data(sd, buf, length)) {
             /* TODO: Check CRC before committing */
             sd->state = sd_programming_state;
             sd_lock_command(sd);
@@ -2498,7 +2572,7 @@ static void sd_write_byte(SDState *sd, uint8_t value)
         break;
 
     case 56:  /* CMD56:  GEN_CMD */
-        sd_generic_write_byte(sd, value);
+        sd_generic_write_data(sd, buf, length);
         break;
 
     default:
@@ -2506,25 +2580,28 @@ static void sd_write_byte(SDState *sd, uint8_t value)
     }
 }
 
-static uint8_t sd_read_byte(SDState *sd)
+static void sd_read_data(SDState *sd, void *data, size_t length)
 {
     /* TODO: Append CRCs */
     const uint8_t dummy_byte = 0x00;
-    uint8_t ret;
     uint32_t io_len;
+    void *fill_end = data + length;
 
     if (!sd->blk || !blk_is_inserted(sd->blk)) {
-        return dummy_byte;
+        memset(data, dummy_byte, length);
+        return;
     }
 
     if (sd->state != sd_sendingdata_state) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: not in Sending-Data state\n", __func__);
-        return dummy_byte;
+        memset(data, dummy_byte, length);
+        return;
     }
 
     if (sd->card_status & (ADDRESS_ERROR | WP_VIOLATION)) {
-        return dummy_byte;
+        memset(data, dummy_byte, length);
+        return;
     }
 
     io_len = sd_blk_len(sd);
@@ -2544,40 +2621,102 @@ static uint8_t sd_read_byte(SDState *sd)
     case 30: /* CMD30:  SEND_WRITE_PROT */
     case 51: /* ACMD51: SEND_SCR */
     case 56: /* CMD56:  GEN_CMD */
-        sd_generic_read_byte(sd, &ret);
+        sd_generic_read_data(sd, data, length);
         break;
 
     case 18:  /* CMD18:  READ_MULTIPLE_BLOCK */
-        if (sd->data_offset == 0) {
-            if (!address_in_range(sd, "READ_MULTIPLE_BLOCK",
-                                  sd->data_start, io_len)) {
-                return dummy_byte;
-            }
-            sd_blk_read(sd, sd->data_start, io_len);
+        if (!address_in_range(sd, "READ_MULTIPLE_BLOCK",
+                              sd->data_start + sd->data_offset, length)) {
+            /* Limit reading data to our device size */
+            length = sd->size - sd->data_start - sd->data_offset;
         }
-        ret = sd->data[sd->data_offset ++];
 
-        if (sd->data_offset >= io_len) {
-            sd->data_start += io_len;
-            sd->data_offset = 0;
+        /* We have a partially read block. */
+        if (sd->data_offset > 0) {
+            size_t to_read = MIN(sd->data_size - sd->data_offset, length);
 
-            if (sd->multi_blk_cnt != 0) {
-                if (--sd->multi_blk_cnt == 0) {
-                    /* Stop! */
-                    sd->state = sd_transfer_state;
-                    break;
+            memcpy(data, sd->data + sd->data_offset, to_read);
+
+            sd->data_offset += to_read;
+            data += to_read;
+            length -= to_read;
+
+            /* Partial read is complete, clear state. */
+            if (sd->data_offset >= sd->data_size) {
+                sd->data_start += io_len;
+                sd->data_size = 0;
+                sd->data_offset = 0;
+
+                if (sd->multi_blk_cnt != 0) {
+                    if (--sd->multi_blk_cnt == 0) {
+                        sd->state = sd_transfer_state;
+                    }
                 }
             }
+        }
+
+        /*
+         * Try to read multiples of the block size directly bypassing the local
+         * bounce buffer.
+         */
+        if (sd->state == sd_sendingdata_state && length >= io_len) {
+            size_t to_read = QEMU_ALIGN_DOWN(length, io_len);
+
+            /* For limited reads, only read the requested block count. */
+            if (sd->multi_blk_cnt != 0) {
+                to_read = MIN(to_read, sd->multi_blk_cnt * io_len);
+            }
+
+            sd_blk_read_direct(sd, data, sd->data_start,
+                               to_read);
+
+            sd->data_start += to_read;
+            data += to_read;
+            length -= to_read;
+
+            if (sd->multi_blk_cnt != 0) {
+                sd->multi_blk_cnt -= to_read / io_len;
+
+                if (sd->multi_blk_cnt == 0) {
+                    sd->state = sd_transfer_state;
+                }
+            }
+        }
+
+        /* Read partial at the end */
+        if (sd->state == sd_sendingdata_state && length > 0) {
+            /* Fill the buffer */
+            sd_blk_read(sd, sd->data_start, io_len);
+
+            memcpy(data, sd->data, length);
+
+            sd->data_size = io_len;
+            sd->data_offset = length;
+            data += length;
+            length = 0;
+
+            /*
+             * No need to check multi_blk_cnt, as to_read will always be
+             * < io_len and we will never finish a block here.
+             */
+        }
+
+        /*
+         * We always need to fill the supplied buffer fully, recalulate
+         * remaining length based on the actual buffer end and not a possible
+         * early end due to a read past the device size.
+         */
+        length = fill_end - data;
+        if (length > 0) {
+            memset(data, 0, length);
         }
         break;
 
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: DAT read illegal for command %s\n",
                                        __func__, sd->last_cmd_name);
-        return dummy_byte;
+        memset(data, dummy_byte, length);
     }
-
-    return ret;
 }
 
 static bool sd_receive_ready(SDState *sd)
@@ -2859,8 +2998,8 @@ static void sdmmc_common_class_init(ObjectClass *klass, const void *data)
     sc->get_dat_lines = sd_get_dat_lines;
     sc->get_cmd_line = sd_get_cmd_line;
     sc->do_command = sd_do_command;
-    sc->write_byte = sd_write_byte;
-    sc->read_byte = sd_read_byte;
+    sc->write_data = sd_write_data;
+    sc->read_data = sd_read_data;
     sc->receive_ready = sd_receive_ready;
     sc->data_ready = sd_data_ready;
     sc->get_inserted = sd_get_inserted;

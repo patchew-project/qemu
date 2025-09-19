@@ -107,22 +107,23 @@ struct SDCardClass {
     size_t (*do_command)(SDState *sd, SDRequest *req,
                          uint8_t *resp, size_t respsz);
     /**
-     * Write a byte to a SD card.
+     * Write data to a SD card.
      * @sd: card
-     * @value: byte to write
+     * @value: data to write
      *
      * Write a byte on the data lines of a SD card.
      */
-    void (*write_byte)(SDState *sd, uint8_t value);
+    void (*write_data)(SDState *sd, const void* buf, size_t len);
     /**
-     * Read a byte from a SD card.
+     * Read data from a SD card.
      * @sd: card
      *
-     * Read a byte from the data lines of a SD card.
+     * Read data from the data lines of a SD card. The requestes length is
+     * always filled even if an error occours.
      *
      * Return: byte value read
      */
-    uint8_t (*read_byte)(SDState *sd);
+    void (*read_data)(SDState *sd, void* buf, size_t len);
     bool (*receive_ready)(SDState *sd);
     bool (*data_ready)(SDState *sd);
     void (*set_voltage)(SDState *sd, uint16_t millivolts);
