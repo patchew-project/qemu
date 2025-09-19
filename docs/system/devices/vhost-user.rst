@@ -73,16 +73,6 @@ all the required parameters including:
   - The ``num_vqs`` it needs and their ``vq_size``
   - The ``config_size`` if needed
 
-.. note::
-  To prevent user confusion you cannot currently instantiate
-  vhost-user-device without first patching out::
-
-    /* Reason: stop inexperienced users confusing themselves */
-    dc->user_creatable = false;
-
-  in ``vhost-user-device.c`` and ``vhost-user-device-pci.c`` file and
-  rebuilding.
-
 vhost-user daemon
 =================
 
