@@ -1696,7 +1696,8 @@ int migration_call_notifiers(MigrationState *s, MigrationEventType type,
     e.type = type;
     ret = notifier_with_return_list_notify(&migration_state_notifiers[mode],
                                            &e, errp);
-    assert(!ret || type == MIG_EVENT_PRECOPY_SETUP);
+    assert(!ret || type == MIG_EVENT_PRECOPY_SETUP ||
+           type == MIG_EVENT_PRE_INCOMING);
     return ret;
 }
 
@@ -1933,6 +1934,11 @@ void qmp_migrate_incoming(const char *uri, bool has_channels,
     }
     if (!runstate_check(RUN_STATE_INMIGRATE)) {
         error_setg(errp, "'-incoming' was not specified on the command line");
+        return;
+    }
+
+    if (migration_call_notifiers(migrate_get_current(), MIG_EVENT_PRE_INCOMING,
+                                 errp)) {
         return;
     }
 
