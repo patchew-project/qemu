@@ -368,7 +368,7 @@ build-user:
   variables:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --disable-tools --disable-system
-      --target-list-exclude=alpha-linux-user,sh4-linux-user
+      --target-list-exclude=alpha-linux-user,sh4-linux-user,mips-linux-user,mipsel-linux-user,mips64-linux-user
     MAKE_CHECK_ARGS: check-tcg
 
 build-user-static:
@@ -378,7 +378,7 @@ build-user-static:
   variables:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --disable-tools --disable-system --static
-      --target-list-exclude=alpha-linux-user,sh4-linux-user
+      --target-list-exclude=alpha-linux-user,sh4-linux-user,mips-linux-user,mipsel-linux-user,mips64-linux-user
     MAKE_CHECK_ARGS: check-tcg
 
 # targets stuck on older compilers
@@ -388,7 +388,7 @@ build-legacy:
     - job: amd64-debian-legacy-cross-container
   variables:
     IMAGE: debian-legacy-test-cross
-    TARGETS: alpha-linux-user alpha-softmmu sh4-linux-user
+    TARGETS: alpha-linux-user alpha-softmmu sh4-linux-user mips-linux-user mips-softmmu mipsel-linux-user mipsel-softmmu mips64-linux-user mips64-softmmu
     CONFIGURE_ARGS: --disable-tools
     MAKE_CHECK_ARGS: check-tcg
 

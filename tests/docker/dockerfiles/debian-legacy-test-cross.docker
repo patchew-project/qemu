@@ -5,6 +5,7 @@
 #
 #   libc6.1-dev-alpha-cross: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1054412
 #   sh4-linux-user: binaries don't run with bookworm compiler
+#   mips: https://www.debian.org/releases/trixie/release-notes/issues.html#mips-architectures-removed
 #
 # As we are targeting check-tcg here we only need minimal qemu
 # dependencies and the relevant cross compilers.
@@ -33,6 +34,10 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata \
         libc6.1-dev-alpha-cross \
         gcc-sh4-linux-gnu \
         libc6-dev-sh4-cross \
+        gcc-mips64el-linux-gnuabi64 \
+        libc6-dev-mips64el-cross \
+        gcc-mipsel-linux-gnu \
+        libc6-dev-mipsel-cross \
         python3-pip \
         python3-setuptools \
         python3-venv \
