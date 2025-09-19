@@ -1115,7 +1115,6 @@ static void sd_erase(SDState *sd)
     sd->erase_end = INVALID_ADDRESS;
     sd->csd[14] |= 0x40;
 
-    memset(sd->data, 0xff, erase_len);
     for (erase_addr = erase_start; erase_addr <= erase_end;
          erase_addr += erase_len) {
         if (sdsc) {
@@ -1127,7 +1126,8 @@ static void sd_erase(SDState *sd)
                 continue;
             }
         }
-        sd_blk_write(sd, erase_addr, erase_len);
+        blk_pwrite_zeroes(sd->blk, erase_addr + sd_part_offset(sd),
+                          erase_len, 0);
     }
 }
 
