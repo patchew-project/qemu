@@ -681,13 +681,17 @@ if get_option('cfi')
     error('-fsanitize-cfi-icall-generalize-pointers is not supported by the compiler')
   endif
   if get_option('cfi_debug')
-    if cc.compiles('int main () { return 0; }',
-                   name: '-fno-sanitize-trap=cfi-icall',
-                   args: ['-flto', '-fsanitize=cfi-icall',
-                          '-fno-sanitize-trap=cfi-icall'] )
-      cfi_flags += '-fno-sanitize-trap=cfi-icall'
+    if get_option('safe_stack')
+      error('cfi_debug is not compatible with safe_stack')
     else
-      error('-fno-sanitize-trap=cfi-icall is not supported by the compiler')
+      if cc.compiles('int main () { return 0; }',
+                    name: '-fno-sanitize-trap=cfi-icall',
+                    args: ['-flto', '-fsanitize=cfi-icall',
+                            '-fno-sanitize-trap=cfi-icall'] )
+        cfi_flags += '-fno-sanitize-trap=cfi-icall'
+      else
+        error('-fno-sanitize-trap=cfi-icall is not supported by the compiler')
+      endif
     endif
   endif
   add_global_arguments(cfi_flags, native: false, language: all_languages)
