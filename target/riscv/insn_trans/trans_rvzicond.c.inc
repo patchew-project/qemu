@@ -43,6 +43,7 @@ static void gen_czero_nez(TCGv dest, TCGv src1, TCGv src2)
 static bool trans_czero_eqz(DisasContext *ctx, arg_r *a)
 {
     REQUIRE_ZICOND(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
 
     return gen_logic(ctx, a, gen_czero_eqz);
 }
@@ -50,6 +51,7 @@ static bool trans_czero_eqz(DisasContext *ctx, arg_r *a)
 static bool trans_czero_nez(DisasContext *ctx, arg_r *a)
 {
     REQUIRE_ZICOND(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
 
     return gen_logic(ctx, a, gen_czero_nez);
 }

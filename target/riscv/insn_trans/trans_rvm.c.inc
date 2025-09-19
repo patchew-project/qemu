@@ -65,6 +65,8 @@ static void gen_mul_i128(TCGv rl, TCGv rh,
 static bool trans_mul(DisasContext *ctx, arg_mul *a)
 {
     REQUIRE_M_OR_ZMMUL(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_arith(ctx, a, EXT_NONE, tcg_gen_mul_tl, gen_mul_i128);
 }
 
@@ -103,6 +105,8 @@ static void gen_mulh_w(TCGv ret, TCGv s1, TCGv s2)
 static bool trans_mulh(DisasContext *ctx, arg_mulh *a)
 {
     REQUIRE_M_OR_ZMMUL(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_arith_per_ol(ctx, a, EXT_SIGN, gen_mulh, gen_mulh_w,
                             gen_mulh_i128);
 }
@@ -147,6 +151,8 @@ static void gen_mulhsu_w(TCGv ret, TCGv arg1, TCGv arg2)
 static bool trans_mulhsu(DisasContext *ctx, arg_mulhsu *a)
 {
     REQUIRE_M_OR_ZMMUL(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_arith_per_ol(ctx, a, EXT_NONE, gen_mulhsu, gen_mulhsu_w,
                             gen_mulhsu_i128);
 }
@@ -161,6 +167,8 @@ static void gen_mulhu(TCGv ret, TCGv s1, TCGv s2)
 static bool trans_mulhu(DisasContext *ctx, arg_mulhu *a)
 {
     REQUIRE_M_OR_ZMMUL(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     /* gen_mulh_w works for either sign as input. */
     return gen_arith_per_ol(ctx, a, EXT_ZERO, gen_mulhu, gen_mulh_w,
                             gen_mulhu_i128);
@@ -206,6 +214,8 @@ static void gen_div(TCGv ret, TCGv source1, TCGv source2)
 static bool trans_div(DisasContext *ctx, arg_div *a)
 {
     REQUIRE_EXT(ctx, RVM);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_arith(ctx, a, EXT_SIGN, gen_div, gen_div_i128);
 }
 
@@ -238,6 +248,8 @@ static void gen_divu(TCGv ret, TCGv source1, TCGv source2)
 static bool trans_divu(DisasContext *ctx, arg_divu *a)
 {
     REQUIRE_EXT(ctx, RVM);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_arith(ctx, a, EXT_ZERO, gen_divu, gen_divu_i128);
 }
 
@@ -283,6 +295,8 @@ static void gen_rem(TCGv ret, TCGv source1, TCGv source2)
 static bool trans_rem(DisasContext *ctx, arg_rem *a)
 {
     REQUIRE_EXT(ctx, RVM);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_arith(ctx, a, EXT_SIGN, gen_rem, gen_rem_i128);
 }
 
@@ -316,6 +330,8 @@ static void gen_remu(TCGv ret, TCGv source1, TCGv source2)
 static bool trans_remu(DisasContext *ctx, arg_remu *a)
 {
     REQUIRE_EXT(ctx, RVM);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_arith(ctx, a, EXT_ZERO, gen_remu, gen_remu_i128);
 }
 
@@ -323,6 +339,10 @@ static bool trans_mulw(DisasContext *ctx, arg_mulw *a)
 {
     REQUIRE_64_OR_128BIT(ctx);
     REQUIRE_M_OR_ZMMUL(ctx);
+    if (get_xl(ctx) == MXL_RV64) {
+        CHECK_X_REG_RD_RS1_RS2(ctx, a);
+    }
+
     ctx->ol = MXL_RV32;
     return gen_arith(ctx, a, EXT_NONE, tcg_gen_mul_tl, NULL);
 }
@@ -339,6 +359,10 @@ static bool trans_divuw(DisasContext *ctx, arg_divuw *a)
 {
     REQUIRE_64_OR_128BIT(ctx);
     REQUIRE_EXT(ctx, RVM);
+    if (get_xl(ctx) == MXL_RV64) {
+        CHECK_X_REG_RD_RS1_RS2(ctx, a);
+    }
+
     ctx->ol = MXL_RV32;
     return gen_arith(ctx, a, EXT_ZERO, gen_divu, NULL);
 }
@@ -347,6 +371,10 @@ static bool trans_remw(DisasContext *ctx, arg_remw *a)
 {
     REQUIRE_64_OR_128BIT(ctx);
     REQUIRE_EXT(ctx, RVM);
+    if (get_xl(ctx) == MXL_RV64) {
+        CHECK_X_REG_RD_RS1_RS2(ctx, a);
+    }
+
     ctx->ol = MXL_RV32;
     return gen_arith(ctx, a, EXT_SIGN, gen_rem, NULL);
 }
@@ -355,6 +383,10 @@ static bool trans_remuw(DisasContext *ctx, arg_remuw *a)
 {
     REQUIRE_64_OR_128BIT(ctx);
     REQUIRE_EXT(ctx, RVM);
+    if (get_xl(ctx) == MXL_RV64) {
+        CHECK_X_REG_RD_RS1_RS2(ctx, a);
+    }
+
     ctx->ol = MXL_RV32;
     return gen_arith(ctx, a, EXT_ZERO, gen_remu, NULL);
 }

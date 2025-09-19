@@ -270,6 +270,7 @@ static bool trans_cm_popretz(DisasContext *ctx, arg_cm_popret *a)
 static bool trans_cm_mva01s(DisasContext *ctx, arg_cm_mva01s *a)
 {
     REQUIRE_ZCMP(ctx);
+    CHECK_X_REG_RS1_RS2(ctx, a);
 
     TCGv src1 = get_gpr(ctx, a->rs1, EXT_NONE);
     TCGv src2 = get_gpr(ctx, a->rs2, EXT_NONE);
@@ -287,6 +288,8 @@ static bool trans_cm_mvsa01(DisasContext *ctx, arg_cm_mvsa01 *a)
     if (a->rs1 == a->rs2) {
         return false;
     }
+
+    CHECK_X_REG_RS1_RS2(ctx, a);
 
     TCGv a0 = get_gpr(ctx, xA0, EXT_NONE);
     TCGv a1 = get_gpr(ctx, xA1, EXT_NONE);

@@ -69,6 +69,8 @@ static void gen_clzw(TCGv ret, TCGv arg1)
 static bool trans_clz(DisasContext *ctx, arg_clz *a)
 {
     REQUIRE_ZBB(ctx);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     return gen_unary_per_ol(ctx, a, EXT_NONE, gen_clz, gen_clzw);
 }
 
@@ -85,66 +87,88 @@ static void gen_ctzw(TCGv ret, TCGv arg1)
 static bool trans_ctz(DisasContext *ctx, arg_ctz *a)
 {
     REQUIRE_ZBB(ctx);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     return gen_unary_per_ol(ctx, a, EXT_ZERO, gen_ctz, gen_ctzw);
 }
 
 static bool trans_cpop(DisasContext *ctx, arg_cpop *a)
 {
     REQUIRE_ZBB(ctx);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     return gen_unary(ctx, a, EXT_ZERO, tcg_gen_ctpop_tl);
 }
 
 static bool trans_andn(DisasContext *ctx, arg_andn *a)
 {
     REQUIRE_EITHER_EXT(ctx, zbb, zbkb);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_logic(ctx, a, tcg_gen_andc_tl);
 }
 
 static bool trans_orn(DisasContext *ctx, arg_orn *a)
 {
     REQUIRE_EITHER_EXT(ctx, zbb, zbkb);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_logic(ctx, a, tcg_gen_orc_tl);
 }
 
 static bool trans_xnor(DisasContext *ctx, arg_xnor *a)
 {
     REQUIRE_EITHER_EXT(ctx, zbb, zbkb);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_logic(ctx, a, tcg_gen_eqv_tl);
 }
 
 static bool trans_min(DisasContext *ctx, arg_min *a)
 {
     REQUIRE_ZBB(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_arith(ctx, a, EXT_SIGN, tcg_gen_smin_tl, NULL);
 }
 
 static bool trans_max(DisasContext *ctx, arg_max *a)
 {
     REQUIRE_ZBB(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_arith(ctx, a, EXT_SIGN, tcg_gen_smax_tl, NULL);
 }
 
 static bool trans_minu(DisasContext *ctx, arg_minu *a)
 {
     REQUIRE_ZBB(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_arith(ctx, a, EXT_SIGN, tcg_gen_umin_tl, NULL);
 }
 
 static bool trans_maxu(DisasContext *ctx, arg_maxu *a)
 {
     REQUIRE_ZBB(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_arith(ctx, a, EXT_SIGN, tcg_gen_umax_tl, NULL);
 }
 
 static bool trans_sext_b(DisasContext *ctx, arg_sext_b *a)
 {
     REQUIRE_ZBB(ctx);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     return gen_unary(ctx, a, EXT_NONE, tcg_gen_ext8s_tl);
 }
 
 static bool trans_sext_h(DisasContext *ctx, arg_sext_h *a)
 {
     REQUIRE_ZBB(ctx);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     return gen_unary(ctx, a, EXT_NONE, tcg_gen_ext16s_tl);
 }
 
@@ -165,12 +189,16 @@ static void gen_bset(TCGv ret, TCGv arg1, TCGv shamt)
 static bool trans_bset(DisasContext *ctx, arg_bset *a)
 {
     REQUIRE_ZBS(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_shift(ctx, a, EXT_NONE, gen_bset, NULL);
 }
 
 static bool trans_bseti(DisasContext *ctx, arg_bseti *a)
 {
     REQUIRE_ZBS(ctx);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     return gen_shift_imm_tl(ctx, a, EXT_NONE, gen_bset);
 }
 
@@ -185,12 +213,16 @@ static void gen_bclr(TCGv ret, TCGv arg1, TCGv shamt)
 static bool trans_bclr(DisasContext *ctx, arg_bclr *a)
 {
     REQUIRE_ZBS(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_shift(ctx, a, EXT_NONE, gen_bclr, NULL);
 }
 
 static bool trans_bclri(DisasContext *ctx, arg_bclri *a)
 {
     REQUIRE_ZBS(ctx);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     return gen_shift_imm_tl(ctx, a, EXT_NONE, gen_bclr);
 }
 
@@ -205,12 +237,16 @@ static void gen_binv(TCGv ret, TCGv arg1, TCGv shamt)
 static bool trans_binv(DisasContext *ctx, arg_binv *a)
 {
     REQUIRE_ZBS(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_shift(ctx, a, EXT_NONE, gen_binv, NULL);
 }
 
 static bool trans_binvi(DisasContext *ctx, arg_binvi *a)
 {
     REQUIRE_ZBS(ctx);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     return gen_shift_imm_tl(ctx, a, EXT_NONE, gen_binv);
 }
 
@@ -223,12 +259,16 @@ static void gen_bext(TCGv ret, TCGv arg1, TCGv shamt)
 static bool trans_bext(DisasContext *ctx, arg_bext *a)
 {
     REQUIRE_ZBS(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_shift(ctx, a, EXT_NONE, gen_bext, NULL);
 }
 
 static bool trans_bexti(DisasContext *ctx, arg_bexti *a)
 {
     REQUIRE_ZBS(ctx);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     return gen_shift_imm_tl(ctx, a, EXT_NONE, gen_bext);
 }
 
@@ -250,6 +290,8 @@ static void gen_rorw(TCGv ret, TCGv arg1, TCGv arg2)
 static bool trans_ror(DisasContext *ctx, arg_ror *a)
 {
     REQUIRE_EITHER_EXT(ctx, zbb, zbkb);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_shift_per_ol(ctx, a, EXT_NONE, tcg_gen_rotr_tl, gen_rorw, NULL);
 }
 
@@ -265,6 +307,8 @@ static void gen_roriw(TCGv ret, TCGv arg1, target_long shamt)
 static bool trans_rori(DisasContext *ctx, arg_rori *a)
 {
     REQUIRE_EITHER_EXT(ctx, zbb, zbkb);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     return gen_shift_imm_fn_per_ol(ctx, a, EXT_NONE,
                                    tcg_gen_rotri_tl, gen_roriw, NULL);
 }
@@ -287,6 +331,8 @@ static void gen_rolw(TCGv ret, TCGv arg1, TCGv arg2)
 static bool trans_rol(DisasContext *ctx, arg_rol *a)
 {
     REQUIRE_EITHER_EXT(ctx, zbb, zbkb);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_shift_per_ol(ctx, a, EXT_NONE, tcg_gen_rotl_tl, gen_rolw, NULL);
 }
 
@@ -299,6 +345,8 @@ static bool trans_rev8_32(DisasContext *ctx, arg_rev8_32 *a)
 {
     REQUIRE_32BIT(ctx);
     REQUIRE_EITHER_EXT(ctx, zbb, zbkb);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     return gen_unary(ctx, a, EXT_NONE, gen_rev8_32);
 }
 
@@ -306,6 +354,8 @@ static bool trans_rev8_64(DisasContext *ctx, arg_rev8_64 *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EITHER_EXT(ctx, zbb, zbkb);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     return gen_unary(ctx, a, EXT_NONE, tcg_gen_bswap_tl);
 }
 
@@ -330,6 +380,8 @@ static void gen_orc_b(TCGv ret, TCGv source1)
 static bool trans_orc_b(DisasContext *ctx, arg_orc_b *a)
 {
     REQUIRE_ZBB(ctx);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     return gen_unary(ctx, a, EXT_ZERO, gen_orc_b);
 }
 
@@ -350,6 +402,7 @@ GEN_SHADD(3)
 static bool trans_sh##SHAMT##add(DisasContext *ctx, arg_sh##SHAMT##add *a) \
 {                                                                          \
     REQUIRE_ZBA(ctx);                                                      \
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);                                        \
     return gen_arith(ctx, a, EXT_NONE, gen_sh##SHAMT##add, NULL);          \
 }
 
@@ -361,6 +414,8 @@ static bool trans_zext_h_32(DisasContext *ctx, arg_zext_h_32 *a)
 {
     REQUIRE_32BIT(ctx);
     REQUIRE_ZBB(ctx);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     return gen_unary(ctx, a, EXT_NONE, tcg_gen_ext16u_tl);
 }
 
@@ -368,6 +423,8 @@ static bool trans_zext_h_64(DisasContext *ctx, arg_zext_h_64 *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_ZBB(ctx);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     return gen_unary(ctx, a, EXT_NONE, tcg_gen_ext16u_tl);
 }
 
@@ -375,6 +432,8 @@ static bool trans_clzw(DisasContext *ctx, arg_clzw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_ZBB(ctx);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     return gen_unary(ctx, a, EXT_NONE, gen_clzw);
 }
 
@@ -382,6 +441,8 @@ static bool trans_ctzw(DisasContext *ctx, arg_ctzw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_ZBB(ctx);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     ctx->ol = MXL_RV32;
     return gen_unary(ctx, a, EXT_ZERO, gen_ctzw);
 }
@@ -390,6 +451,8 @@ static bool trans_cpopw(DisasContext *ctx, arg_cpopw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_ZBB(ctx);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     ctx->ol = MXL_RV32;
     return gen_unary(ctx, a, EXT_ZERO, tcg_gen_ctpop_tl);
 }
@@ -398,6 +461,8 @@ static bool trans_rorw(DisasContext *ctx, arg_rorw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EITHER_EXT(ctx, zbb, zbkb);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     ctx->ol = MXL_RV32;
     return gen_shift(ctx, a, EXT_NONE, gen_rorw, NULL);
 }
@@ -406,6 +471,8 @@ static bool trans_roriw(DisasContext *ctx, arg_roriw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EITHER_EXT(ctx, zbb, zbkb);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     ctx->ol = MXL_RV32;
     return gen_shift_imm_fn(ctx, a, EXT_NONE, gen_roriw, NULL);
 }
@@ -414,6 +481,8 @@ static bool trans_rolw(DisasContext *ctx, arg_rolw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EITHER_EXT(ctx, zbb, zbkb);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     ctx->ol = MXL_RV32;
     return gen_shift(ctx, a, EXT_NONE, gen_rolw, NULL);
 }
@@ -439,6 +508,7 @@ static bool trans_sh##SHAMT##add_uw(DisasContext *ctx,        \
 {                                                             \
     REQUIRE_64BIT(ctx);                                       \
     REQUIRE_ZBA(ctx);                                         \
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);                           \
     return gen_arith(ctx, a, EXT_NONE, gen_sh##SHAMT##add_uw, NULL); \
 }
 
@@ -457,6 +527,8 @@ static bool trans_add_uw(DisasContext *ctx, arg_add_uw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_ZBA(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_arith(ctx, a, EXT_NONE, gen_add_uw, NULL);
 }
 
@@ -469,12 +541,16 @@ static bool trans_slli_uw(DisasContext *ctx, arg_slli_uw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_ZBA(ctx);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     return gen_shift_imm_fn(ctx, a, EXT_NONE, gen_slli_uw, NULL);
 }
 
 static bool trans_clmul(DisasContext *ctx, arg_clmul *a)
 {
     REQUIRE_EITHER_EXT(ctx, zbc, zbkc);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_arith(ctx, a, EXT_NONE, gen_helper_clmul, NULL);
 }
 
@@ -487,12 +563,16 @@ static void gen_clmulh(TCGv dst, TCGv src1, TCGv src2)
 static bool trans_clmulh(DisasContext *ctx, arg_clmulr *a)
 {
     REQUIRE_EITHER_EXT(ctx, zbc, zbkc);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_arith(ctx, a, EXT_NONE, gen_clmulh, NULL);
 }
 
 static bool trans_clmulr(DisasContext *ctx, arg_clmulh *a)
 {
     REQUIRE_ZBC(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_arith(ctx, a, EXT_NONE, gen_helper_clmulr, NULL);
 }
 
@@ -522,18 +602,24 @@ static void gen_packw(TCGv ret, TCGv src1, TCGv src2)
 static bool trans_brev8(DisasContext *ctx, arg_brev8 *a)
 {
     REQUIRE_ZBKB(ctx);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     return gen_unary(ctx, a, EXT_NONE, gen_helper_brev8);
 }
 
 static bool trans_pack(DisasContext *ctx, arg_pack *a)
 {
     REQUIRE_ZBKB(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_arith(ctx, a, EXT_NONE, gen_pack, NULL);
 }
 
 static bool trans_packh(DisasContext *ctx, arg_packh *a)
 {
     REQUIRE_ZBKB(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_arith(ctx, a, EXT_NONE, gen_packh, NULL);
 }
 
@@ -541,6 +627,8 @@ static bool trans_packw(DisasContext *ctx, arg_packw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_ZBKB(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_arith(ctx, a, EXT_NONE, gen_packw, NULL);
 }
 
@@ -548,6 +636,8 @@ static bool trans_unzip(DisasContext *ctx, arg_unzip *a)
 {
     REQUIRE_32BIT(ctx);
     REQUIRE_ZBKB(ctx);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     return gen_unary(ctx, a, EXT_NONE, gen_helper_unzip);
 }
 
@@ -555,17 +645,23 @@ static bool trans_zip(DisasContext *ctx, arg_zip *a)
 {
     REQUIRE_32BIT(ctx);
     REQUIRE_ZBKB(ctx);
+    CHECK_X_REG_RD_RS1(ctx, a);
+
     return gen_unary(ctx, a, EXT_NONE, gen_helper_zip);
 }
 
 static bool trans_xperm4(DisasContext *ctx, arg_xperm4 *a)
 {
     REQUIRE_ZBKX(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_arith(ctx, a, EXT_NONE, gen_helper_xperm4, NULL);
 }
 
 static bool trans_xperm8(DisasContext *ctx, arg_xperm8 *a)
 {
     REQUIRE_ZBKX(ctx);
+    CHECK_X_REG_RD_RS1_RS2(ctx, a);
+
     return gen_arith(ctx, a, EXT_NONE, gen_helper_xperm8, NULL);
 }

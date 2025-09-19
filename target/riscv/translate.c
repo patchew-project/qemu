@@ -812,6 +812,34 @@ EX_SH(12)
     }                                            \
 } while (0)
 
+#define CHECK_X_REG_RD(ctx, arg) do { \
+    if (has_ext(ctx, RVE) &&          \
+        (arg->rd & 0x10)) {           \
+        return false;                 \
+    }                                 \
+  } while (0)
+
+#define CHECK_X_REG_RD_RS1(ctx, arg) do {        \
+    if (has_ext(ctx, RVE) &&                     \
+        ((arg->rd | arg->rs1) & 0x10)) {         \
+        return false;                            \
+    }                                            \
+  } while (0)
+
+#define CHECK_X_REG_RS1_RS2(ctx, arg) do { \
+    if (has_ext(ctx, RVE) &&               \
+        ((arg->rs1 | arg->rs2) & 0x10)) {  \
+        return false;                      \
+    }                                      \
+  } while (0)
+
+#define CHECK_X_REG_RD_RS1_RS2(ctx, arg) do {       \
+    if (has_ext(ctx, RVE) &&                        \
+        ((arg->rd | arg->rs1 | arg->rs2) & 0x10)) { \
+        return false;                               \
+    }                                               \
+  } while (0)
+
 static int ex_rvc_register(DisasContext *ctx, int reg)
 {
     return 8 + reg;
