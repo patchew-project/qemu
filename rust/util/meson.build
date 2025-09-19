@@ -49,7 +49,6 @@ util_rs = declare_dependency(link_with: [_util_rs], dependencies: [qemuutil, qom
 # in a separate suite that is run by the "build" CI jobs rather than "check".
 rust.doctest('rust-util-rs-doctests',
      _util_rs,
-     protocol: 'rust',
      dependencies: util_rs,
      suite: ['doc', 'rust']
 )
