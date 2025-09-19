@@ -688,6 +688,21 @@ default_value:
     return VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE;
 }
 
+static bool peer_wait_incoming(VirtIONet *n)
+{
+    NetClientState *nc = qemu_get_queue(n->nic);
+
+    if (!nc->peer) {
+        return false;
+    }
+
+    if (nc->peer->info->type != NET_CLIENT_DRIVER_TAP) {
+        return false;
+    }
+
+    return tap_wait_incoming(nc->peer);
+}
+
 static int peer_attach(VirtIONet *n, int index)
 {
     NetClientState *nc = qemu_get_subqueue(n->nic, index);
@@ -2999,7 +3014,17 @@ static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue)
     n->multiqueue = multiqueue;
     virtio_net_change_num_queues(n, max * 2 + 1);
 
-    virtio_net_set_queue_pairs(n);
+    /*
+     * virtio_net_set_multiqueue() called from set_features(0) on early
+     * reset, when peer may wait for incoming (and is not initialized
+     * yet).
+     * Don't worry about it: virtio_net_set_queue_pairs() will be called
+     * later form virtio_net_post_load_device(), and anyway will be
+     * noop for local incoming migration with live backend passing.
+     */
+    if (!peer_wait_incoming(n)) {
+        virtio_net_set_queue_pairs(n);
+    }
 }
 
 static int virtio_net_pre_load_queues(VirtIODevice *vdev, uint32_t n)
@@ -3027,6 +3052,17 @@ static uint64_t virtio_net_get_features(VirtIODevice *vdev, uint64_t features,
     features |= n->host_features;
 
     virtio_add_feature(&features, VIRTIO_NET_F_MAC);
+
+    if (peer_wait_incoming(n)) {
+        /*
+         * Excessive feature set is OK for early initialization when
+         * we wait for local incoming migration: actual guest-negotiated
+         * features will come with migration stream anyway. And we are sure
+         * that we support same host-features as source, because the backend
+         * is the same (the same TAP device, for example).
+         */
+        return features;
+    }
 
     if (!peer_has_vnet_hdr(n)) {
         virtio_clear_feature(&features, VIRTIO_NET_F_CSUM);
@@ -3104,6 +3140,32 @@ static uint64_t virtio_net_get_features(VirtIODevice *vdev, uint64_t features,
     }
 
     return features;
+}
+
+static int virtio_net_update_host_features(VirtIONet *n)
+{
+    Error *local_err = NULL;
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+
+    peer_test_vnet_hdr(n);
+
+    vdev->host_features = virtio_net_get_features(vdev, vdev->host_features,
+                                                  &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+static int virtio_net_pre_load_device(void *opaque)
+{
+    /*
+     * Probably backend initialization was postponed to
+     * pre-incoming point. So, update information now.
+     */
+    return virtio_net_update_host_features(opaque);
 }
 
 static int virtio_net_post_load_device(void *opaque, int version_id)
@@ -3498,6 +3560,7 @@ static const VMStateDescription vmstate_virtio_net_device = {
     .name = "virtio-net-device",
     .version_id = VIRTIO_NET_VM_VERSION,
     .minimum_version_id = VIRTIO_NET_VM_VERSION,
+    .pre_load = virtio_net_pre_load_device,
     .post_load = virtio_net_post_load_device,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT8_ARRAY(mac, VirtIONet, ETH_ALEN),
