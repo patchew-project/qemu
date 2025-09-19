@@ -28,8 +28,6 @@
 
 
 #define QEMU_VM_FILE_MAGIC 0x5145564d
-#define QEMU_ENV_SRC "QTEST_QEMU_BINARY_SRC"
-#define QEMU_ENV_DST "QTEST_QEMU_BINARY_DST"
 #define MULTIFD_TEST_CHANNELS 4
 
 unsigned start_address;
@@ -1003,6 +1001,11 @@ void *migrate_hook_start_precopy_tcp_multifd_common(QTestState *from,
 QTestMigrationState *get_src(void)
 {
     return &src_state;
+}
+
+QTestMigrationState *get_dst(void)
+{
+    return &dst_state;
 }
 
 MigrationTestEnv *migration_get_env(void)
