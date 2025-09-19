@@ -533,3 +533,12 @@ command documentation for details on the ``fdset`` usage.
 
 The ``zero-blocks`` capability was part of the block migration which
 doesn't exist anymore since it was removed in QEMU v9.1.
+
+Host features
+-------------
+
+``ust`` tracing backend
+-----------------------
+
+LTTng can use uprobe tracepoints, therefore it is recommended to use
+the ``dtrace`` backend instead.
