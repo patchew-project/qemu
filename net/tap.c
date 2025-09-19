@@ -697,7 +697,7 @@ int net_init_bridge(const Netdev *netdev, const char *name,
     }
 
     s = net_tap_new(peer, "bridge", name, NULL, NULL, &error_abort);
-    net_tap_set_fd(s, fd, vnet_hdr, &error_abort);
+    net_tap_setup(s, fd, vnet_hdr, &error_abort);
 
     qemu_set_info_str(&s->nc, "helper=%s,br=%s", helper, br);
 
