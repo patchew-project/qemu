@@ -748,6 +748,19 @@
   } }
 
 ##
+# @FdsTarget:
+#
+# @virtio-net: Enable live backend migration for virtio-net.
+#     The only supported backend is TAP device. When enabled, TAP fds
+#     and all related state is passed to target QEMU through migration
+#     channel (which should be unix socket).
+#
+# Since: 10.2
+##
+{ 'enum': 'FdsTarget',
+  'data': [ 'virtio-net' ] }
+
+##
 # @BitmapMigrationNodeAlias:
 #
 # Maps a block node name and the bitmaps it has to aliases for dirty
@@ -924,10 +937,14 @@
 #     only has effect if the @mapped-ram capability is enabled.
 #     (Since 9.1)
 #
+# @fds: List of targets to enable live-backend migration for. This
+#     requires migration channel to be a unix socket (to pass fds
+#     through). (Since 10.2)
+#
 # Features:
 #
-# @unstable: Members @x-checkpoint-delay and
-#     @x-vcpu-dirty-limit-period are experimental.
+# @unstable: Members @x-checkpoint-delay,
+#     @x-vcpu-dirty-limit-period and @fds are experimental.
 #
 # Since: 2.4
 ##
@@ -950,7 +967,8 @@
            'vcpu-dirty-limit',
            'mode',
            'zero-page-detection',
-           'direct-io'] }
+           'direct-io',
+           'fds' ] }
 
 ##
 # @MigrateSetParameters:
@@ -1105,10 +1123,14 @@
 #     only has effect if the @mapped-ram capability is enabled.
 #     (Since 9.1)
 #
+# @fds: List of targets to enable live-backend migration for. This
+#     requires migration channel to be a unix socket (to pass fds
+#     through). (Since 10.2)
+#
 # Features:
 #
-# @unstable: Members @x-checkpoint-delay and
-#     @x-vcpu-dirty-limit-period are experimental.
+# @unstable: Members @x-checkpoint-delay,
+#     @x-vcpu-dirty-limit-period and @fds are experimental.
 #
 # TODO: either fuse back into `MigrationParameters`, or make
 #     `MigrationParameters` members mandatory
@@ -1146,7 +1168,8 @@
             '*vcpu-dirty-limit': 'uint64',
             '*mode': 'MigMode',
             '*zero-page-detection': 'ZeroPageDetection',
-            '*direct-io': 'bool' } }
+            '*direct-io': 'bool',
+            '*fds': { 'type': [ 'FdsTarget' ], 'features': [ 'unstable' ] } } }
 
 ##
 # @migrate-set-parameters:
@@ -1315,10 +1338,14 @@
 #     only has effect if the @mapped-ram capability is enabled.
 #     (Since 9.1)
 #
+# @fds: List of targets to enable live-backend migration for. This
+#     requires migration channel to be a unix socket (to pass fds
+#     through). (Since 10.2)
+#
 # Features:
 #
-# @unstable: Members @x-checkpoint-delay and
-#     @x-vcpu-dirty-limit-period are experimental.
+# @unstable: Members @x-checkpoint-delay,
+#     @x-vcpu-dirty-limit-period and @fds are experimental.
 #
 # Since: 2.4
 ##
@@ -1353,7 +1380,8 @@
             '*vcpu-dirty-limit': 'uint64',
             '*mode': 'MigMode',
             '*zero-page-detection': 'ZeroPageDetection',
-            '*direct-io': 'bool' } }
+            '*direct-io': 'bool',
+            '*fds': { 'type': [ 'FdsTarget' ], 'features': [ 'unstable' ] } } }
 
 ##
 # @query-migrate-parameters:
