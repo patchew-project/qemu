@@ -57,9 +57,6 @@ dependencies = [
 [[package]]
 name = "bql"
 version = "0.1.0"
-dependencies = [
- "migration",
-]
 
 [[package]]
 name = "chardev"
@@ -141,6 +138,7 @@ checksum = "18d287de67fe55fd7e1581fe933d965a5a9477b38e949cfa9f8574ef01506398"
 name = "migration"
 version = "0.1.0"
 dependencies = [
+ "bql",
  "common",
  "util",
 ]
