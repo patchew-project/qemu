@@ -114,8 +114,6 @@ typedef struct tap_win32_overlapped {
     tun_buffer_t* output_queue_back;
 } tap_win32_overlapped_t;
 
-static tap_win32_overlapped_t tap_overlapped;
-
 static tun_buffer_t* get_buffer_from_free_list(tap_win32_overlapped_t* const overlapped)
 {
     tun_buffer_t* buffer = NULL;
@@ -605,6 +603,7 @@ static int tap_win32_open(tap_win32_overlapped_t **phandle,
     } version;
     DWORD version_len;
     DWORD idThread;
+    tap_win32_overlapped_t *tap_overlapped = NULL;
 
     if (preferred_name != NULL) {
         snprintf(name_buffer, sizeof(name_buffer), "%s", preferred_name);
@@ -645,12 +644,14 @@ static int tap_win32_open(tap_win32_overlapped_t **phandle,
         return -1;
     }
 
-    tap_win32_overlapped_init(&tap_overlapped, handle);
+    tap_overlapped = g_new0(tap_win32_overlapped_t, 1);
 
-    *phandle = &tap_overlapped;
+    tap_win32_overlapped_init(tap_overlapped, handle);
+
+    *phandle = tap_overlapped;
 
     CreateThread(NULL, 0, tap_win32_thread_entry,
-                 (LPVOID)&tap_overlapped, 0, &idThread);
+                 (LPVOID)tap_overlapped, 0, &idThread);
     return 0;
 }
 
@@ -670,6 +671,9 @@ static void tap_cleanup(NetClientState *nc)
     /* FIXME: need to kill thread and close file handle:
        tap_win32_close(s);
     */
+
+   g_free(s->handle);
+   s->handle = NULL;
 }
 
 static ssize_t tap_receive(NetClientState *nc, const uint8_t *buf, size_t size)
