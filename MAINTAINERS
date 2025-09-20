@@ -552,6 +552,8 @@ F: target/i386/whpx/
 F: accel/stubs/whpx-stub.c
 F: include/system/whpx.h
 F: include/system/whpx-accel-ops.h
+F: include/system/whpx-common.h
+F: include/system/whpx-internal.h
 
 X86 Instruction Emulator
 M: Cameron Esfahani <dirty@apple.com>
