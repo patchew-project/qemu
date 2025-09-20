@@ -222,7 +222,7 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
      * thread and grab the BQL if so before calling qemu
      * functions.
      */
-    bool need_lock = !qemu_thread_is_self(&me);
+    bool need_lock = !bql_locked();
     if (need_lock) {
         bql_lock();
     }
