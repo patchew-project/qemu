@@ -148,7 +148,7 @@ struct VirtMachineState {
     bool highmem_ecam;
     bool highmem_mmio;
     bool highmem_redists;
-    bool its;
+    OnOffAuto its;
     bool tcg_its;
     bool virt;
     bool ras;
@@ -215,5 +215,7 @@ static inline int virt_gicv3_redist_region_count(VirtMachineState *vms)
     return (MACHINE(vms)->smp.cpus > redist0_capacity &&
             vms->highmem_redists) ? 2 : 1;
 }
+
+bool virt_is_its_enabled(VirtMachineState *vms);
 
 #endif /* QEMU_ARM_VIRT_H */
