@@ -414,6 +414,9 @@ static void text_console_resize(QemuTextConsole *t)
     }
     g_free(t->cells);
     t->cells = cells;
+
+    /* XXX Shouldn't qemu_text_console_update_size() also be called here? */
+    qemu_chr_resize(t->chr, t->width, t->height);
 }
 
 static void vc_put_lf(VCChardev *vc)
