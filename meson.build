@@ -1279,6 +1279,7 @@ if not get_option('slirp').auto() or have_system
 endif
 
 enable_passt = get_option('passt') \
+  .require(gio.found(), error_message: 'passt requires gio') \
   .require(host_os == 'linux', error_message: 'passt is supported only on Linux') \
   .allowed()
 
