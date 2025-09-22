@@ -28,11 +28,6 @@
 #ifdef CONFIG_KVM
 #include <linux/kvm.h>
 #endif
-#ifdef CONFIG_TCG
-#include "accel/tcg/cpu-ldst.h"
-#include "accel/tcg/cpu-ops.h"
-#include "tcg/tcg.h"
-#endif
 #include "tcg/tcg_loongarch.h"
 
 const char * const regnames[32] = {
@@ -652,10 +647,6 @@ static void loongarch_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         }
     }
 }
-
-#ifdef CONFIG_TCG
-#include "tcg/tcg_cpu.c"
-#endif /* CONFIG_TCG */
 
 #ifndef CONFIG_USER_ONLY
 #include "hw/core/sysemu-cpu-ops.h"

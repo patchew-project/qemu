@@ -4,6 +4,17 @@
  *
  * Copyright (c) 2025 Loongson Technology Corporation Limited
  */
+#include "qemu/osdep.h"
+#include "qemu/accel.h"
+#include "qemu/error-report.h"
+#include "qemu/log.h"
+#include "accel/accel-cpu-target.h"
+#include "accel/tcg/cpu-ldst.h"
+#include "accel/tcg/cpu-ops.h"
+#include "exec/translation-block.h"
+#include "exec/target_page.h"
+#include "tcg_loongarch.h"
+#include "internals.h"
 
 #ifndef CONFIG_USER_ONLY
 static void loongarch_cpu_do_interrupt(CPUState *cs)
@@ -232,7 +243,7 @@ static int loongarch_cpu_mmu_index(CPUState *cs, bool ifetch)
     return MMU_DA_IDX;
 }
 
-static const TCGCPUOps loongarch_tcg_ops = {
+const TCGCPUOps loongarch_tcg_ops = {
     .guest_default_memory_order = 0,
     .mttcg_supported = true,
 
