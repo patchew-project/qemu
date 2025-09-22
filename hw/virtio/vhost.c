@@ -1847,15 +1847,10 @@ static void vhost_stop_config_intr(struct vhost_dev *dev)
 
 static void vhost_start_config_intr(struct vhost_dev *dev)
 {
-    int r;
-
     assert(dev->vhost_ops);
     int fd = event_notifier_get_fd(&dev->vdev->config_notifier);
     if (dev->vhost_ops->vhost_set_config_call) {
-        r = dev->vhost_ops->vhost_set_config_call(dev, fd);
-        if (!r) {
-            event_notifier_set(&dev->vdev->config_notifier);
-        }
+        dev->vhost_ops->vhost_set_config_call(dev, fd);
     }
 }
 
