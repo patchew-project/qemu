@@ -269,6 +269,33 @@ static void coroutine_fn mirror_read_complete(MirrorOp *op, int ret)
         return;
     }
 
+    /* Check if the read data is all zeros */
+    bool is_zero = true;
+    for (int i = 0; i < op->qiov.niov; i++) {
+        if (!buffer_is_zero(op->qiov.iov[i].iov_base,
+                           op->qiov.iov[i].iov_len)) {
+            is_zero = false;
+            break;
+        }
+    }
+
+    /* Write to target - optimized path for zero blocks */
+    if (is_zero) {
+        /*
+         * Use zero-writing interface which may:
+         * 1. Avoid actual data transfer
+         * 2. Enable storage-level optimizations
+         * 3. Potentially unmap blocks (if supported)
+         */
+        ret = blk_co_pwrite_zeroes(s->target, op->offset,
+                                 op->qiov.size,
+                                 BDRV_REQ_MAY_UNMAP);
+    } else {
+        /* Normal data write path */
+        ret = blk_co_pwritev(s->target, op->offset,
+                           op->qiov.size, &op->qiov, 0);
+    }
+
     ret = blk_co_pwritev(s->target, op->offset, op->qiov.size, &op->qiov, 0);
     mirror_write_complete(op, ret);
 }
