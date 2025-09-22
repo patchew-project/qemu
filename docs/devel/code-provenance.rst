@@ -334,6 +334,11 @@ training model and code, to the satisfaction of the project maintainers.
 Maintainers are not allow to grant an exception on their own patch
 submissions.
 
+Even after an exception is granted, the "Signed-off-by" label in the
+contribution is a statement that the author takes responsibility for the
+entire contents of the submission, including any parts that were generated
+or assisted by AI tools or other tools.
+
 Examples of tools impacted by this policy includes GitHub's CoPilot, OpenAI's
 ChatGPT, Anthropic's Claude, and Meta's Code Llama, and code/content
 generation agents which are built on top of such tools.
