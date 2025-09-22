@@ -327,9 +327,17 @@ The QEMU project requires contributors to refrain from using AI content
 generators without going through an exception request process.
 AI-generated code will only be included in the project after the
 exception request has been evaluated by the QEMU project.  To be
-granted an exception, a contributor will need to demonstrate clarity of
-the license and copyright status for the tool's output in relation to its
-training model and code, to the satisfaction of the project maintainers.
+granted an exception, a contributor will need to demonstrate one of the
+following, to the satisfaction of the project maintainers:
+
+* clarity of the license and copyright status for the tool's output in
+  relation to its training model and code;
+
+* limited or non-existing creative content of the contribution.
+
+It is highly encouraged to provide background information such as the
+prompts that were used, and to not mix AI- and human-written code in the
+same commit, as much as possible.
 
 Maintainers are not allow to grant an exception on their own patch
 submissions.
