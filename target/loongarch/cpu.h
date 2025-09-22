@@ -478,6 +478,9 @@ static inline void set_pc(CPULoongArchState *env, uint64_t value)
     }
 }
 
+bool loongarch_cpu_has_work(CPUState *cs);
+bool cpu_loongarch_hw_interrupts_pending(CPULoongArchState *env);
+
 /*
  * LoongArch CPUs hardware flags.
  */
