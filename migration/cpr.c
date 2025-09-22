@@ -185,6 +185,8 @@ int cpr_state_save(MigrationChannel *channel, Error **errp)
     if (mode == MIG_MODE_CPR_TRANSFER) {
         g_assert(channel);
         f = cpr_transfer_output(channel, errp);
+    } else if (mode == MIG_MODE_CPR_EXEC) {
+        f = cpr_exec_output(errp);
     } else {
         return 0;
     }
@@ -202,6 +204,10 @@ int cpr_state_save(MigrationChannel *channel, Error **errp)
         return ret;
     }
 
+    if (migrate_mode() == MIG_MODE_CPR_EXEC) {
+        cpr_exec_persist_state(f);
+    }
+
     /*
      * Close the socket only partially so we can later detect when the other
      * end closes by getting a HUP event.
@@ -213,6 +219,12 @@ int cpr_state_save(MigrationChannel *channel, Error **errp)
     return 0;
 }
 
+static bool unpreserve_fd(int fd)
+{
+    qemu_set_cloexec(fd);
+    return true;
+}
+
 int cpr_state_load(MigrationChannel *channel, Error **errp)
 {
     int ret;
@@ -220,7 +232,13 @@ int cpr_state_load(MigrationChannel *channel, Error **errp)
     QEMUFile *f;
     MigMode mode = 0;
 
-    if (channel) {
+    if (cpr_exec_has_state()) {
+        mode = MIG_MODE_CPR_EXEC;
+        f = cpr_exec_input(errp);
+        if (channel) {
+            warn_report("ignoring cpr channel for migration mode cpr-exec");
+        }
+    } else if (channel) {
         mode = MIG_MODE_CPR_TRANSFER;
         cpr_set_incoming_mode(mode);
         f = cpr_transfer_input(channel, errp);
@@ -232,6 +250,7 @@ int cpr_state_load(MigrationChannel *channel, Error **errp)
     }
 
     trace_cpr_state_load(MigMode_str(mode));
+    cpr_set_incoming_mode(mode);
 
     v = qemu_get_be32(f);
     if (v != QEMU_CPR_FILE_MAGIC) {
@@ -251,6 +270,11 @@ int cpr_state_load(MigrationChannel *channel, Error **errp)
         error_setg(errp, "vmstate_load_state error %d", ret);
         qemu_fclose(f);
         return ret;
+    }
+
+    if (migrate_mode() == MIG_MODE_CPR_EXEC) {
+        /* Set cloexec to prevent fd leaks from fork until the next cpr-exec */
+        cpr_walk_fd(unpreserve_fd);
     }
 
     /*
@@ -273,7 +297,7 @@ void cpr_state_close(void)
 bool cpr_incoming_needed(void *opaque)
 {
     MigMode mode = migrate_mode();
-    return mode == MIG_MODE_CPR_TRANSFER;
+    return mode == MIG_MODE_CPR_TRANSFER || mode == MIG_MODE_CPR_EXEC;
 }
 
 /*
