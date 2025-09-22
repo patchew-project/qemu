@@ -292,7 +292,8 @@ TL;DR:
 
   **Current QEMU project policy is to DECLINE any contributions which are
   believed to include or derive from AI generated content. This includes
-  ChatGPT, Claude, Copilot, Llama and similar tools.**
+  ChatGPT, Claude, Copilot, Llama and similar tools.  Exceptions may be
+  requested on a case-by-case basis.**
 
   **This policy does not apply to other uses of AI, such as researching APIs
   or algorithms, static analysis, or debugging, provided their output is not
@@ -322,18 +323,19 @@ How contributors could comply with DCO terms (b) or (c) for the output of AI
 content generators commonly available today is unclear.  The QEMU project is
 not willing or able to accept the legal risks of non-compliance.
 
-The QEMU project thus requires that contributors refrain from using AI content
-generators on patches intended to be submitted to the project, and will
-decline any contribution if use of AI is either known or suspected.
+The QEMU project requires contributors to refrain from using AI content
+generators without going through an exception request process.
+AI-generated code will only be included in the project after the
+exception request has been evaluated by the QEMU project.  To be
+granted an exception, a contributor will need to demonstrate clarity of
+the license and copyright status for the tool's output in relation to its
+training model and code, to the satisfaction of the project maintainers.
 
+Maintainers are not allow to grant an exception on their own patch
+submissions.
 
 Examples of tools impacted by this policy includes GitHub's CoPilot, OpenAI's
 ChatGPT, Anthropic's Claude, and Meta's Code Llama, and code/content
 generation agents which are built on top of such tools.
-
 This policy may evolve as AI tools mature and the legal situation is
-clarifed. In the meanwhile, requests for exceptions to this policy will be
-evaluated by the QEMU project on a case by case basis. To be granted an
-exception, a contributor will need to demonstrate clarity of the license and
-copyright status for the tool's output in relation to its training model and
-code, to the satisfaction of the project maintainers.
+clarified.
