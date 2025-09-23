@@ -6633,7 +6633,7 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
          */
         if (!tcg_cflags_has(cpu, CF_PARALLEL)) {
             tcg_cflags_set(cpu, CF_PARALLEL);
-            tb_flush(cpu);
+            tb_flush__exclusive();
         }
 
         /* we create a new CPU instance. */

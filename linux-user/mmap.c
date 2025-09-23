@@ -1010,7 +1010,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
         CPUState *cpu = thread_cpu;
         if (!tcg_cflags_has(cpu, CF_PARALLEL)) {
             tcg_cflags_set(cpu, CF_PARALLEL);
-            tb_flush(cpu);
+            tb_flush__exclusive();
         }
     }
 
@@ -1450,7 +1450,7 @@ abi_ulong target_shmat(CPUArchState *cpu_env, int shmid,
      */
     if (!tcg_cflags_has(cpu, CF_PARALLEL)) {
         tcg_cflags_set(cpu, CF_PARALLEL);
-        tb_flush(cpu);
+        tb_flush__exclusive();
     }
 
     if (qemu_loglevel_mask(CPU_LOG_PAGE)) {
