@@ -5073,3 +5073,7 @@ if not actually_reloc and (host_os == 'windows' or get_option('relocatable'))
   message('QEMU will have to be installed under ' + get_option('prefix') + '.')
   message('Use --disable-relocatable to remove this warning.')
 endif
+
+if 'ust' in get_option('trace_backends')
+  warning('ust trace backend is deprecated, use dtrace backend for uprobe support')
+endif
