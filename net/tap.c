@@ -36,6 +36,7 @@
 #include "net/net.h"
 #include "clients.h"
 #include "migration/misc.h"
+#include "migration/options.h"
 #include "monitor/monitor.h"
 #include "system/runstate.h"
 #include "system/system.h"
@@ -94,6 +95,7 @@ typedef struct TAPState {
     int vnet_hdr;
     bool mq_required;
     char *ifname;
+    bool attached_to_virtio_net;
 } TAPState;
 
 static QTAILQ_HEAD(, TAPState) postponed_taps =
@@ -404,6 +406,8 @@ static bool tap_check_peer_type(NetClientState *nc, ObjectClass *oc,
             return tap_postponed_init(s, errp);
         }
     }
+
+    s->attached_to_virtio_net = true;
 
     return true;
 }
@@ -810,7 +814,7 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
 
 static bool net_tap_setup(TAPState *s, int fd, int vnet_hdr, Error **errp)
 {
-    if (!net_tap_set_fd(s, fd, vnet_hdr, errp)) {
+    if (fd != -1 && !net_tap_set_fd(s, fd, vnet_hdr, errp)) {
         return false;
     }
 
@@ -902,6 +906,7 @@ static int tap_pre_incoming(NotifierWithReturn *notifier,
 {
     TAPState *s;
     bool ok = true;
+    bool mig_fds = migrate_virtio_net_tap();
 
     if (e->type != MIG_EVENT_PRE_INCOMING) {
         return 0;
@@ -910,6 +915,11 @@ static int tap_pre_incoming(NotifierWithReturn *notifier,
     while (!QTAILQ_EMPTY(&postponed_taps)) {
         s = QTAILQ_FIRST(&postponed_taps);
         if (ok) {
+            if (mig_fds && s->attached_to_virtio_net) {
+                /* We'll get fds from incoming migration */
+                QTAILQ_REMOVE(&postponed_taps, s, next);
+                continue;
+            }
             ok = tap_postponed_init(s, errp);
         } else {
             QTAILQ_REMOVE(&postponed_taps, s, next);
@@ -1246,6 +1256,48 @@ int tap_disable(NetClientState *nc)
         return ret;
     }
 }
+
+static int tap_pre_load(void *opaque)
+{
+    TAPState *s = opaque;
+
+    if (s->fd != -1) {
+        error_report(
+            "TAP is already initialized and cannot receive incoming fd");
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+static int tap_post_load(void *opaque, int version_id)
+{
+    TAPState *s = opaque;
+    Error *local_err = NULL;
+
+    if (!net_tap_setup(s, -1, -1, &local_err)) {
+        error_report_err(local_err);
+        qemu_del_net_client(&s->nc);
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+const VMStateDescription vmstate_tap = {
+    .name = "net-tap",
+    .pre_load = tap_pre_load,
+    .post_load = tap_post_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_FD(fd, TAPState),
+        VMSTATE_BOOL(using_vnet_hdr, TAPState),
+        VMSTATE_BOOL(has_ufo, TAPState),
+        VMSTATE_BOOL(has_uso, TAPState),
+        VMSTATE_BOOL(enabled, TAPState),
+        VMSTATE_UINT32(host_vnet_hdr_len, TAPState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 bool tap_wait_incoming(NetClientState *nc)
 {

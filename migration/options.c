@@ -1195,11 +1195,6 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
         return false;
     }
 
-    if (params->has_backend_transfer) {
-        error_setg(errp, "Not implemented");
-        return false;
-    }
-
     return true;
 }
 
