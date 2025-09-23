@@ -27,6 +27,7 @@
 #include "system/tcg.h"
 #include "system/replay.h"
 #include "exec/icount.h"
+#include "exec/tb-flush.h"
 #include "qemu/main-loop.h"
 #include "qemu/notify.h"
 #include "qemu/guest-random.h"
@@ -106,6 +107,12 @@ static void *mttcg_cpu_thread_fn(void *arg)
                 bql_unlock();
                 cpu_exec_step_atomic(cpu);
                 bql_lock();
+                break;
+            case EXCP_TB_FLUSH:
+                start_exclusive();
+                tb_flush__exclusive();
+                end_exclusive();
+                break;
             default:
                 /* Ignore everything else? */
                 break;

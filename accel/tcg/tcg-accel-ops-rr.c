@@ -32,6 +32,7 @@
 #include "qemu/notify.h"
 #include "qemu/guest-random.h"
 #include "exec/cpu-common.h"
+#include "exec/tb-flush.h"
 #include "tcg/startup.h"
 #include "tcg-accel-ops.h"
 #include "tcg-accel-ops-rr.h"
@@ -288,13 +289,17 @@ static void *rr_cpu_thread_fn(void *arg)
                 }
                 bql_lock();
 
-                if (r == EXCP_DEBUG) {
+                switch (r) {
+                case EXCP_DEBUG:
                     cpu_handle_guest_debug(cpu);
                     break;
-                } else if (r == EXCP_ATOMIC) {
+                case EXCP_ATOMIC:
                     bql_unlock();
                     cpu_exec_step_atomic(cpu);
                     bql_lock();
+                    break;
+                case EXCP_TB_FLUSH:
+                    tb_flush__exclusive();
                     break;
                 }
             } else if (cpu->stop) {
