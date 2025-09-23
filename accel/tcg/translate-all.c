@@ -288,11 +288,8 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
     assert_no_pages_locked();
     tb = tcg_tb_alloc(tcg_ctx);
     if (unlikely(!tb)) {
-        /* flush must be done */
-        tb_flush(cpu);
         mmap_unlock();
-        /* Make the execution loop process the flush as soon as possible.  */
-        cpu->exception_index = EXCP_INTERRUPT;
+        cpu->exception_index = EXCP_TB_FLUSH;
         cpu_loop_exit(cpu);
     }
 
