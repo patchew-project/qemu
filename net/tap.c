@@ -467,7 +467,6 @@ static bool net_tap_set_fd(TAPState *s, int fd, int vnet_hdr, Error **errp)
 {
     s->fd = fd;
     s->host_vnet_hdr_len = vnet_hdr ? sizeof(struct virtio_net_hdr) : 0;
-    s->using_vnet_hdr = false;
     s->has_ufo = tap_probe_has_ufo(s->fd);
     s->has_uso = tap_probe_has_uso(s->fd);
     s->enabled = true;
@@ -479,8 +478,6 @@ static bool net_tap_set_fd(TAPState *s, int fd, int vnet_hdr, Error **errp)
     if (vnet_hdr) {
         tap_fd_set_vnet_hdr_len(s->fd, s->host_vnet_hdr_len);
     }
-    tap_read_poll(s, true);
-    s->vhost_net = NULL;
 
     if (s->sndbuf) {
         Error **e = s->sndbuf_required ? errp : NULL;
@@ -780,6 +777,8 @@ static bool net_tap_setup(TAPState *s, int fd, int vnet_hdr, Error **errp)
     if (!net_tap_set_fd(s, fd, vnet_hdr, errp)) {
         return false;
     }
+
+    tap_read_poll(s, true);
 
     if (s->vhostfd != -1) {
         VhostNetOptions options;
