@@ -63,6 +63,7 @@ typedef enum MigrationEventType {
     MIG_EVENT_PRECOPY_SETUP,
     MIG_EVENT_PRECOPY_DONE,
     MIG_EVENT_PRECOPY_FAILED,
+    MIG_EVENT_PRE_INCOMING,
     MIG_EVENT_MAX
 } MigrationEventType;
 
