@@ -770,7 +770,7 @@ void tb_flush__exclusive(void)
 
     assert(tcg_enabled());
     assert(!runstate_is_running() ||
-           (current_cpu && cpu_in_serial_context(current_cpu)));
+           (current_cpu && cpu_in_exclusive_context(current_cpu)));
 
     CPU_FOREACH(cpu) {
         tcg_flush_jmp_cache(cpu);
