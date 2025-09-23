@@ -766,3 +766,8 @@ int tap_disable(NetClientState *nc)
 {
     abort();
 }
+
+bool tap_wait_incoming(NetClientState *nc)
+{
+    return false;
+}
