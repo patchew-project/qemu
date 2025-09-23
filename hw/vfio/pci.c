@@ -3554,7 +3554,7 @@ error:
     error_prepend(errp, VFIO_MSG_PREFIX, vbasedev->name);
 }
 
-static void vfio_instance_finalize(Object *obj)
+static void vfio_pci_finalize(Object *obj)
 {
     VFIOPCIDevice *vdev = VFIO_PCI_BASE(obj);
 
@@ -3921,7 +3921,7 @@ static const TypeInfo vfio_pci_dev_info = {
     .parent = TYPE_VFIO_PCI_BASE,
     .class_init = vfio_pci_dev_class_init,
     .instance_init = vfio_pci_init,
-    .instance_finalize = vfio_instance_finalize,
+    .instance_finalize = vfio_pci_finalize,
 };
 
 static const Property vfio_pci_dev_nohotplug_properties[] = {
