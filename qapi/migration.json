@@ -748,6 +748,18 @@
   } }
 
 ##
+# @BackendTransfer:
+#
+# @virtio-net-tap: Enable backend-transfer migration for virtio-net/tap. When
+#     enabled, TAP fds and all related state is passed to target QEMU through
+#     migration channel (which should be unix socket).
+#
+# Since: 10.2
+##
+{ 'enum': 'BackendTransfer',
+  'data': [ 'virtio-net-tap' ] }
+
+##
 # @BitmapMigrationNodeAlias:
 #
 # Maps a block node name and the bitmaps it has to aliases for dirty
@@ -924,10 +936,14 @@
 #     only has effect if the @mapped-ram capability is enabled.
 #     (Since 9.1)
 #
+# @backend-transfer: List of targets to enable backend-transfer
+#     migration for. This requires migration channel to be a unix
+#     socket (to pass fds through). (Since 10.2)
+#
 # Features:
 #
-# @unstable: Members @x-checkpoint-delay and
-#     @x-vcpu-dirty-limit-period are experimental.
+# @unstable: Members @x-checkpoint-delay,
+#     @x-vcpu-dirty-limit-period and @backend-transfer are experimental.
 #
 # Since: 2.4
 ##
@@ -950,7 +966,8 @@
            'vcpu-dirty-limit',
            'mode',
            'zero-page-detection',
-           'direct-io'] }
+           'direct-io',
+           'backend-transfer' ] }
 
 ##
 # @MigrateSetParameters:
@@ -1105,10 +1122,14 @@
 #     only has effect if the @mapped-ram capability is enabled.
 #     (Since 9.1)
 #
+# @backend-transfer: List of targets to enable backend-transfer
+#     migration for. This requires migration channel to be a unix
+#     socket (to pass fds through). (Since 10.2)
+#
 # Features:
 #
-# @unstable: Members @x-checkpoint-delay and
-#     @x-vcpu-dirty-limit-period are experimental.
+# @unstable: Members @x-checkpoint-delay,
+#     @x-vcpu-dirty-limit-period and @backend-transfer are experimental.
 #
 # TODO: either fuse back into `MigrationParameters`, or make
 #     `MigrationParameters` members mandatory
@@ -1146,7 +1167,9 @@
             '*vcpu-dirty-limit': 'uint64',
             '*mode': 'MigMode',
             '*zero-page-detection': 'ZeroPageDetection',
-            '*direct-io': 'bool' } }
+            '*direct-io': 'bool',
+            '*backend-transfer': { 'type': [ 'BackendTransfer' ],
+                                   'features': [ 'unstable' ] } } }
 
 ##
 # @migrate-set-parameters:
@@ -1315,10 +1338,14 @@
 #     only has effect if the @mapped-ram capability is enabled.
 #     (Since 9.1)
 #
+# @backend-transfer: List of targets to enable backend-transfer
+#     migration for. This requires migration channel to be a unix
+#     socket (to pass fds through). (Since 10.2)
+#
 # Features:
 #
-# @unstable: Members @x-checkpoint-delay and
-#     @x-vcpu-dirty-limit-period are experimental.
+# @unstable: Members @x-checkpoint-delay,
+#     @x-vcpu-dirty-limit-period and @backend-transfer are experimental.
 #
 # Since: 2.4
 ##
@@ -1353,7 +1380,9 @@
             '*vcpu-dirty-limit': 'uint64',
             '*mode': 'MigMode',
             '*zero-page-detection': 'ZeroPageDetection',
-            '*direct-io': 'bool' } }
+            '*direct-io': 'bool',
+            '*backend-transfer': { 'type': [ 'BackendTransfer' ],
+                                   'features': [ 'unstable' ] } } }
 
 ##
 # @query-migrate-parameters:
