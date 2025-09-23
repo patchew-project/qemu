@@ -9,7 +9,7 @@
 #ifndef HW_VFIO_CONTAINER_H
 #define HW_VFIO_CONTAINER_H
 
-#include "hw/vfio/vfio-container-base.h"
+#include "hw/vfio/vfio-container.h"
 #include "hw/vfio/vfio-cpr.h"
 
 typedef struct VFIOLegacyContainer VFIOLegacyContainer;
