@@ -69,4 +69,21 @@ int parse_qapi_name(const char *name, bool complete);
         _len;                                                       \
     })
 
+/*
+ * For any GenericList @list, return true if it contains specified
+ * element.
+ */
+#define QAPI_LIST_CONTAINS(list, el)                                \
+    ({                                                              \
+        bool _found = false;                                        \
+        typeof_strip_qual(list) _tail;                              \
+        for (_tail = list; _tail != NULL; _tail = _tail->next) {    \
+            if (_tail->value == el) {                               \
+                _found = true;                                      \
+                break;                                              \
+            }                                                       \
+        }                                                           \
+        _found;                                                     \
+    })
+
 #endif

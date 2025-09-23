@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
+#include "qapi/util.h"
 #include "exec/target_page.h"
 #include "qapi/clone-visitor.h"
 #include "qapi/error.h"
@@ -260,6 +261,14 @@ bool migrate_mapped_ram(void)
     MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_MAPPED_RAM];
+}
+
+bool migrate_virtio_net_tap(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return QAPI_LIST_CONTAINS(s->parameters.backend_transfer,
+                              BACKEND_TRANSFER_VIRTIO_NET_TAP);
 }
 
 bool migrate_ignore_shared(void)
@@ -960,6 +969,12 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->has_direct_io = true;
     params->direct_io = s->parameters.direct_io;
 
+    if (s->parameters.backend_transfer) {
+        params->has_backend_transfer = true;
+        params->backend_transfer = QAPI_CLONE(BackendTransferList,
+                                              s->parameters.backend_transfer);
+    }
+
     return params;
 }
 
@@ -993,6 +1008,7 @@ void migrate_params_init(MigrationParameters *params)
     params->has_mode = true;
     params->has_zero_page_detection = true;
     params->has_direct_io = true;
+    params->has_backend_transfer = true;
 }
 
 /*
@@ -1179,6 +1195,11 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
         return false;
     }
 
+    if (params->has_backend_transfer) {
+        error_setg(errp, "Not implemented");
+        return false;
+    }
+
     return true;
 }
 
@@ -1296,6 +1317,10 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
 
     if (params->has_direct_io) {
         dest->direct_io = params->direct_io;
+    }
+
+    if (params->has_backend_transfer) {
+        dest->backend_transfer = params->backend_transfer;
     }
 }
 
@@ -1428,6 +1453,13 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
 
     if (params->has_direct_io) {
         s->parameters.direct_io = params->direct_io;
+    }
+
+    if (params->has_backend_transfer) {
+        qapi_free_BackendTransferList(s->parameters.backend_transfer);
+
+        s->parameters.backend_transfer = QAPI_CLONE(BackendTransferList,
+                                                    params->backend_transfer);
     }
 }
 
