@@ -323,7 +323,7 @@ struct CPUArchState {
 
     uint64_t mtvec;
     uint64_t mepc;
-    target_ulong mcause;
+    uint64_t mcause;
     uint64_t mtval;  /* since: priv-1.10.0 */
 
     uint64_t mctrctl;

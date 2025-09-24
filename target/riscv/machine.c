@@ -442,7 +442,7 @@ const VMStateDescription vmstate_riscv_cpu = {
         VMSTATE_UINT64(env.scause, RISCVCPU),
         VMSTATE_UINT64(env.mtvec, RISCVCPU),
         VMSTATE_UINT64(env.mepc, RISCVCPU),
-        VMSTATE_UINTTL(env.mcause, RISCVCPU),
+        VMSTATE_UINT64(env.mcause, RISCVCPU),
         VMSTATE_UINT64(env.mtval, RISCVCPU),
         VMSTATE_UINTTL(env.miselect, RISCVCPU),
         VMSTATE_UINTTL(env.siselect, RISCVCPU),
