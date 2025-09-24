@@ -151,6 +151,7 @@ static void avr_cpu_realizefn(DeviceState *dev, Error **errp)
 
     memory_region_init_io(&cpu->cpu_reg2, OBJECT(cpu), &avr_cpu_reg2, env,
                           "avr-cpu-reg2", 8);
+    cpu->cpu_reg2.disable_reentrancy_guard = true;
     memory_region_add_subregion(get_system_memory(),
                                 OFFSET_DATA + 0x58, &cpu->cpu_reg2);
 }
