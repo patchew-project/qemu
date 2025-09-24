@@ -143,7 +143,7 @@ static bool xtensa_cpu_has_work(CPUState *cs)
 {
     CPUXtensaState *env = cpu_env(cs);
 
-    return !env->runstall && env->pending_irq_level;
+    return !cs->start_powered_off && env->pending_irq_level;
 }
 #endif /* !CONFIG_USER_ONLY */
 
@@ -204,7 +204,11 @@ static void xtensa_cpu_reset_hold(Object *obj, ResetType type)
 
 #ifndef CONFIG_USER_ONLY
     reset_mmu(env);
-    cs->halted = env->runstall;
+    if (cs->start_powered_off) {
+        cs->halted = 1;
+    } else {
+        cs->halted = 0;
+    }
 #endif
     /* For inf * 0 + NaN, return the input NaN */
     set_float_infzeronan_rule(float_infzeronan_dnan_never, &env->fp_status);

@@ -529,7 +529,6 @@ struct CPUArchState {
     xtensa_tlb_entry dtlb[10][MAX_TLB_WAY_SIZE];
     xtensa_mpu_entry mpu_fg[MAX_MPU_FOREGROUND_SEGMENTS];
     unsigned autorefill_idx;
-    bool runstall;
     AddressSpace *address_space_er;
     MemoryRegion *system_er;
     int pending_irq_level; /* level of last raised IRQ */

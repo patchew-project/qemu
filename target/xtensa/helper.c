@@ -311,11 +311,13 @@ void xtensa_runstall(CPUXtensaState *env, bool runstall)
 {
     CPUState *cpu = env_cpu(env);
 
-    env->runstall = runstall;
-    cpu->halted = runstall;
     if (runstall) {
+        cpu->start_powered_off = true;
+        cpu->halted = 1;
         cpu_interrupt(cpu, CPU_INTERRUPT_HALT);
     } else {
+        cpu->start_powered_off = false;
+        cpu->halted = 0;
         qemu_cpu_kick(cpu);
     }
 }
