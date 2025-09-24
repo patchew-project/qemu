@@ -4,6 +4,7 @@
 VPATH += $(SRC_PATH)/tests/tcg/riscv64
 TESTS += test-div
 TESTS += noexec
+TESTS += tb-link
 
 # Disable compressed instructions for test-noc
 TESTS += test-noc
