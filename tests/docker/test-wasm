@@ -1,0 +1,12 @@
+#!/bin/bash -e
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+. common.rc
+
+cd "$BUILD_DIR"
+
+export CPATH="$CPATH:/emsdk/upstream/emscripten/cache/sysroot/include/fakesdl:/emsdk/upstream/emscripten/cache/sysroot/include/compat:/emsdk/upstream/lib/clang/18/include:/emsdk/upstream/emscripten/cache/sysroot/include"
+
+emconfigure $QEMU_SRC/configure --disable-docs --static --disable-tools --enable-debug --enable-tcg-interpreter --disable-sdl --enable-rust
+emmake make $MAKEFLAGS

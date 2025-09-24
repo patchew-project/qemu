@@ -17,10 +17,11 @@ ENV EM_PKG_CONFIG_PATH="$PKG_CONFIG_PATH"
 ENV CFLAGS="-O3 -pthread -DWASM_BIGINT"
 ENV CXXFLAGS="$CFLAGS"
 ENV LDFLAGS="-sWASM_BIGINT -sASYNCIFY=1 -L$TARGET/lib"
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get dist-upgrade -y && apt-get install -y \
     autoconf \
     build-essential \
     libglib2.0-dev \
+    libfdt-dev \
     libtool \
     pkgconf \
     ninja-build \
@@ -45,6 +46,30 @@ ranlib = 'emranlib'
 pkgconfig = ['pkg-config', '--static']
 EOT
 EOF
+
+RUN apt-get update && apt-get install -y wget clang libclang-dev
+ENV RUSTUP_HOME=/usr/local/rustup CARGO_HOME=/usr/local/cargo
+ENV RUSTC=/usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/bin/rustc
+ENV RUSTDOC=/usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/bin/rustdoc
+ENV CARGO=/usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/bin/cargo
+RUN set -eux && \
+  rustArch='x86_64-unknown-linux-gnu' && \
+  rustupSha256='6aeece6993e902708983b209d04c0d1dbb14ebb405ddb87def578d41f920f56d' && \
+  url="https://static.rust-lang.org/rustup/archive/1.27.1/${rustArch}/rustup-init" && \
+  wget "$url" && \
+  echo "${rustupSha256} *rustup-init" | sha256sum -c - && \
+  chmod +x rustup-init && \
+  ./rustup-init -y --no-modify-path --profile default --default-toolchain nightly --default-host ${rustArch} && \
+  /usr/local/cargo/bin/rustup target add wasm32-unknown-emscripten && \
+  chmod -R a+w $RUSTUP_HOME $CARGO_HOME && \
+  /usr/local/cargo/bin/rustup --version && \
+  /usr/local/cargo/bin/rustup run nightly cargo --version && \
+  /usr/local/cargo/bin/rustup run nightly rustc --version && \
+  test "$CARGO" = "$(/usr/local/cargo/bin/rustup +nightly which cargo)" && \
+  test "$RUSTDOC" = "$(/usr/local/cargo/bin/rustup +nightly which rustdoc)" && \
+  test "$RUSTC" = "$(/usr/local/cargo/bin/rustup +nightly which rustc)"
+ENV PATH=$CARGO_HOME/bin:$PATH
+RUN /usr/local/cargo/bin/rustup run nightly cargo install bindgen-cli
 
 FROM build-base AS zlib-dev
 ARG ZLIB_VERSION

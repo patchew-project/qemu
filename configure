@@ -1228,6 +1228,10 @@ if test "$rust" != disabled && test -z "$rust_target_triple"; then
     rust_machine=apple
     ;;
 
+  emscripten)
+    rust_arch=wasm32
+    ;;
+
   linux)
     # detect android/glibc/musl
     if check_define __ANDROID__; then

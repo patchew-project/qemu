@@ -148,5 +148,5 @@
       fi || exit 1;
     - section_end configure
     - section_start build "Building QEMU"
-    - emmake make -j"$JOBS"
+    - CPATH="$CPATH:/emsdk/upstream/emscripten/cache/sysroot/include/fakesdl:/emsdk/upstream/emscripten/cache/sysroot/include/compat:/emsdk/upstream/lib/clang/18/include:/emsdk/upstream/emscripten/cache/sysroot/include" emmake make -j"$JOBS"
     - section_end build
