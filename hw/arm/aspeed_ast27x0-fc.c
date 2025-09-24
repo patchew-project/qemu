@@ -61,6 +61,7 @@ static void ast2700fc_ca35_init(MachineState *machine)
     Ast2700FCState *s = AST2700A1FC(machine);
     AspeedSoCState *soc;
     AspeedSoCClass *sc;
+    Error **errp = NULL;
 
     object_initialize_child(OBJECT(s), "ca35", &s->ca35, "ast2700-a1");
     soc = ASPEED_SOC(&s->ca35);
@@ -71,20 +72,20 @@ static void ast2700fc_ca35_init(MachineState *machine)
     memory_region_add_subregion(get_system_memory(), 0, &s->ca35_memory);
 
     if (!memory_region_init_ram(&s->ca35_dram, OBJECT(&s->ca35), "ca35-dram",
-                                AST2700FC_BMC_RAM_SIZE, &error_abort)) {
+                                AST2700FC_BMC_RAM_SIZE, errp)) {
         return;
     }
     if (!object_property_set_link(OBJECT(&s->ca35), "memory",
                                   OBJECT(&s->ca35_memory),
-                                  &error_abort)) {
+                                  errp)) {
         return;
     };
     if (!object_property_set_link(OBJECT(&s->ca35), "dram",
-                                  OBJECT(&s->ca35_dram), &error_abort)) {
+                                  OBJECT(&s->ca35_dram), errp)) {
         return;
     }
     if (!object_property_set_int(OBJECT(&s->ca35), "ram-size",
-                                 AST2700FC_BMC_RAM_SIZE, &error_abort)) {
+                                 AST2700FC_BMC_RAM_SIZE, errp)) {
         return;
     }
 
@@ -95,15 +96,15 @@ static void ast2700fc_ca35_init(MachineState *machine)
         }
     }
     if (!object_property_set_int(OBJECT(&s->ca35), "hw-strap1",
-                                 AST2700FC_HW_STRAP1, &error_abort)) {
+                                 AST2700FC_HW_STRAP1, errp)) {
         return;
     }
     if (!object_property_set_int(OBJECT(&s->ca35), "hw-strap2",
-                                 AST2700FC_HW_STRAP2, &error_abort)) {
+                                 AST2700FC_HW_STRAP2, errp)) {
         return;
     }
     aspeed_soc_uart_set_chr(soc, ASPEED_DEV_UART12, serial_hd(0));
-    if (!qdev_realize(DEVICE(&s->ca35), NULL, &error_abort)) {
+    if (!qdev_realize(DEVICE(&s->ca35), NULL, errp)) {
         return;
     }
 
@@ -125,6 +126,8 @@ static void ast2700fc_ssp_init(MachineState *machine)
 {
     AspeedSoCState *soc;
     Ast2700FCState *s = AST2700A1FC(machine);
+    Error **errp = NULL;
+
     s->ssp_sysclk = clock_new(OBJECT(s), "SSP_SYSCLK");
     clock_set_hz(s->ssp_sysclk, 200000000ULL);
 
@@ -134,13 +137,13 @@ static void ast2700fc_ssp_init(MachineState *machine)
 
     qdev_connect_clock_in(DEVICE(&s->ssp), "sysclk", s->ssp_sysclk);
     if (!object_property_set_link(OBJECT(&s->ssp), "memory",
-                                  OBJECT(&s->ssp_memory), &error_abort)) {
+                                  OBJECT(&s->ssp_memory), errp)) {
         return;
     }
 
     soc = ASPEED_SOC(&s->ssp);
     aspeed_soc_uart_set_chr(soc, ASPEED_DEV_UART4, serial_hd(1));
-    if (!qdev_realize(DEVICE(&s->ssp), NULL, &error_abort)) {
+    if (!qdev_realize(DEVICE(&s->ssp), NULL, errp)) {
         return;
     }
 }
@@ -149,6 +152,8 @@ static void ast2700fc_tsp_init(MachineState *machine)
 {
     AspeedSoCState *soc;
     Ast2700FCState *s = AST2700A1FC(machine);
+    Error **errp = NULL;
+
     s->tsp_sysclk = clock_new(OBJECT(s), "TSP_SYSCLK");
     clock_set_hz(s->tsp_sysclk, 200000000ULL);
 
@@ -158,13 +163,13 @@ static void ast2700fc_tsp_init(MachineState *machine)
 
     qdev_connect_clock_in(DEVICE(&s->tsp), "sysclk", s->tsp_sysclk);
     if (!object_property_set_link(OBJECT(&s->tsp), "memory",
-                                  OBJECT(&s->tsp_memory), &error_abort)) {
+                                  OBJECT(&s->tsp_memory), errp)) {
         return;
     }
 
     soc = ASPEED_SOC(&s->tsp);
     aspeed_soc_uart_set_chr(soc, ASPEED_DEV_UART7, serial_hd(2));
-    if (!qdev_realize(DEVICE(&s->tsp), NULL, &error_abort)) {
+    if (!qdev_realize(DEVICE(&s->tsp), NULL, errp)) {
         return;
     }
 }
