@@ -1982,17 +1982,18 @@ static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
 
 /***                            Integer logical                            ***/
 
-#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
 static void gen_pause(DisasContext *ctx)
 {
     TCGv_i32 t0 = tcg_constant_i32(1);
     tcg_gen_st_i32(t0, tcg_env,
                    -offsetof(PowerPCCPU, env) + offsetof(CPUState, halted));
 
-    /* Stop translation, this gives other CPUs a chance to run */
+    /*
+     * Stop translation, as the CPU is supposed to sleep from now,
+     * giving other CPUs a chance to run
+     */
     gen_exception_nip(ctx, EXCP_HLT, ctx->base.pc_next);
 }
-#endif /* defined(TARGET_PPC64) */
 
 /***                             Integer rotate                            ***/
 
@@ -3368,11 +3369,7 @@ static void gen_wait(DisasContext *ctx)
      * to occur.
      */
     if (wc == 0) {
-        TCGv_i32 t0 = tcg_constant_i32(1);
-        tcg_gen_st_i32(t0, tcg_env,
-                       -offsetof(PowerPCCPU, env) + offsetof(CPUState, halted));
-        /* Stop translation, as the CPU is supposed to sleep from now */
-        gen_exception_nip(ctx, EXCP_HLT, ctx->base.pc_next);
+        gen_pause(ctx);
     }
 
     /*
