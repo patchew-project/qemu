@@ -389,7 +389,7 @@ build-legacy:
   variables:
     IMAGE: debian-legacy-test-cross
     TARGETS: alpha-linux-user alpha-softmmu sh4-linux-user
-    CONFIGURE_ARGS: --disable-tools
+    CONFIGURE_ARGS: --disable-tools --enable-rust
     MAKE_CHECK_ARGS: check-tcg
 
 build-user-hexagon:
