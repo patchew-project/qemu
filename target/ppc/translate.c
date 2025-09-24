@@ -1985,7 +1985,7 @@ static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
 static void gen_pause(DisasContext *ctx)
 {
-    TCGv_i32 t0 = tcg_constant_i32(0);
+    TCGv_i32 t0 = tcg_constant_i32(1);
     tcg_gen_st_i32(t0, tcg_env,
                    -offsetof(PowerPCCPU, env) + offsetof(CPUState, halted));
 
