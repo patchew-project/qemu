@@ -57,6 +57,7 @@
 #include "qapi/string-output-visitor.h"
 #include "qapi/qobject-input-visitor.h"
 #include "standard-headers/linux/virtio_net.h"
+#include "qemu/log.h"
 
 /* Net bridge is currently not supported for W32. */
 #if !defined(_WIN32)
@@ -543,7 +544,8 @@ bool qemu_has_vnet_hdr_len(NetClientState *nc, int len)
 void qemu_set_offload(NetClientState *nc, int csum, int tso4, int tso6,
                           int ecn, int ufo, int uso4, int uso6)
 {
-    if (!nc || !nc->info->set_offload) {
+    if (!nc || !nc->info->set_offload ||
+        (nc->info->query_validity && nc->info->query_validity(nc) != 1)) {
         return;
     }
 
@@ -561,7 +563,8 @@ int qemu_get_vnet_hdr_len(NetClientState *nc)
 
 void qemu_set_vnet_hdr_len(NetClientState *nc, int len)
 {
-    if (!nc || !nc->info->set_vnet_hdr_len) {
+    if (!nc || !nc->info->set_vnet_hdr_len ||
+        (nc->info->query_validity && nc->info->query_validity(nc) != 1)) {
         return;
     }
 

@@ -69,6 +69,7 @@ typedef void (NetAnnounce)(NetClientState *);
 typedef bool (SetSteeringEBPF)(NetClientState *, int);
 typedef bool (NetCheckPeerType)(NetClientState *, ObjectClass *, Error **);
 typedef struct vhost_net *(GetVHostNet)(NetClientState *nc);
+typedef int (QueryValidity)(NetClientState *nc);
 
 typedef struct NetClientInfo {
     NetClientDriver type;
@@ -96,6 +97,7 @@ typedef struct NetClientInfo {
     SetSteeringEBPF *set_steering_ebpf;
     NetCheckPeerType *check_peer_type;
     GetVHostNet *get_vhost_net;
+    QueryValidity *query_validity;
 } NetClientInfo;
 
 struct NetClientState {

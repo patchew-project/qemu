@@ -346,3 +346,14 @@ int tap_fd_set_steering_ebpf(int fd, int prog_fd)
 
     return 0;
 }
+
+int tap_fd_query_validity(int fd)
+{
+    struct ifreq ifr;
+
+    if (ioctl(fd, TUNGETIFF, &ifr) != 0) {
+        error_report("The tap device fd: %d is NOT valid.", fd);
+        return -1;
+    }
+    return 1;
+}

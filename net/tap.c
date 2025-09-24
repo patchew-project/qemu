@@ -364,6 +364,14 @@ static VHostNetState *tap_get_vhost_net(NetClientState *nc)
     return s->vhost_net;
 }
 
+static int tap_query_validity(NetClientState *nc)
+{
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
+    assert(nc->info->type == NET_CLIENT_DRIVER_TAP);
+
+    return tap_fd_query_validity(s->fd);
+}
+
 /* fd support */
 
 static NetClientInfo net_tap_info = {
@@ -383,6 +391,7 @@ static NetClientInfo net_tap_info = {
     .set_vnet_be = tap_set_vnet_be,
     .set_steering_ebpf = tap_set_steering_ebpf,
     .get_vhost_net = tap_get_vhost_net,
+    .query_validity = tap_query_validity,
 };
 
 static TAPState *net_tap_fd_init(NetClientState *peer,
