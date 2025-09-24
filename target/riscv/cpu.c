@@ -23,6 +23,7 @@
 #include "qemu/log.h"
 #include "cpu.h"
 #include "cpu_vendorid.h"
+#include "csr.h"
 #include "internals.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
