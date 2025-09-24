@@ -206,7 +206,6 @@ void tap_fd_set_vnet_hdr_len(int fd, int len)
     if (ioctl(fd, TUNSETVNETHDRSZ, &len) == -1) {
         fprintf(stderr, "TUNSETVNETHDRSZ ioctl() failed: %s. Exiting.\n",
                 strerror(errno));
-        abort();
     }
 }
 
@@ -224,7 +223,6 @@ int tap_fd_set_vnet_le(int fd, int is_le)
     }
 
     error_report("TUNSETVNETLE ioctl() failed: %s.", strerror(errno));
-    abort();
 }
 
 int tap_fd_set_vnet_be(int fd, int is_be)
@@ -241,7 +239,6 @@ int tap_fd_set_vnet_be(int fd, int is_be)
     }
 
     error_report("TUNSETVNETBE ioctl() failed: %s.", strerror(errno));
-    abort();
 }
 
 void tap_fd_set_offload(int fd, int csum, int tso4,
