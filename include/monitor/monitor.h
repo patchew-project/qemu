@@ -16,6 +16,7 @@ extern QemuOptsList qemu_mon_opts;
 Monitor *monitor_cur(void);
 Monitor *monitor_set_cur(Coroutine *co, Monitor *mon);
 bool monitor_cur_is_qmp(void);
+bool monitor_cur_is_hmp(void);
 
 void monitor_init_globals(void);
 void monitor_init_globals_core(void);
