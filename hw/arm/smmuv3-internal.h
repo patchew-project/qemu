@@ -116,7 +116,7 @@ REG32(IDR5,                0x14)
 REG32(IIDR,                0x18)
 REG32(AIDR,                0x1c)
 REG32(CR0,                 0x20)
-    FIELD(CR0, SMMU_ENABLE,   0, 1)
+    FIELD(CR0, SMMUEN,   0, 1)
     FIELD(CR0, EVENTQEN,      2, 1)
     FIELD(CR0, CMDQEN,        3, 1)
 
@@ -182,7 +182,7 @@ REG32(EVENTQ_IRQ_CFG2,     0xbc)
 
 static inline int smmu_enabled(SMMUv3State *s)
 {
-    return FIELD_EX32(s->cr[0], CR0, SMMU_ENABLE);
+    return FIELD_EX32(s->cr[0], CR0, SMMUEN);
 }
 
 /* Command Queue Entry */
