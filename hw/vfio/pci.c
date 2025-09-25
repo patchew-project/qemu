@@ -3063,9 +3063,17 @@ void vfio_pci_put_device(VFIOPCIDevice *vdev)
 static void vfio_err_notifier_handler(void *opaque)
 {
     VFIOPCIDevice *vdev = opaque;
+    Error *err = NULL;
 
     if (!event_notifier_test_and_clear(&vdev->err_notifier)) {
         return;
+    }
+
+    if (vdev->err_handler) {
+        if (vdev->err_handler(vdev, &err)) {
+            return;
+        }
+        error_report_err(err);
     }
 
     /*
