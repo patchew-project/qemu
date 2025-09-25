@@ -504,6 +504,12 @@ void vfio_device_unprepare(VFIODevice *vbasedev)
     vbasedev->bcontainer = NULL;
 }
 
+int vfio_device_feature(VFIODevice *vbasedev,
+                        struct vfio_device_feature *feature)
+{
+    return vbasedev->io_ops->device_feature(vbasedev, feature);
+}
+
 /*
  * Traditional ioctl() based io
  */
