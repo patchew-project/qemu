@@ -517,6 +517,8 @@ typedef struct SMMUEventInfo {
     uint32_t sid;
     bool recorded;
     bool inval_ste_allowed;
+    AddressSpace *as;
+    MemTxAttrs txattrs;
     SMMUSecurityIndex sec_idx;
     union {
         struct {
