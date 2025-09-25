@@ -250,9 +250,9 @@ REG64(S_EVENTQ_IRQ_CFG0,    0x80b0)
 REG32(S_EVENTQ_IRQ_CFG1,    0x80b8)
 REG32(S_EVENTQ_IRQ_CFG2,    0x80bc)
 
-static inline int smmu_enabled(SMMUv3State *s)
+static inline int smmu_enabled(SMMUv3State *s, SMMUSecurityIndex sec_idx)
 {
-    return FIELD_EX32(s->cr[0], CR0, SMMUEN);
+    return FIELD_EX32(s->bank[sec_idx].cr[0], CR0, SMMUEN);
 }
 
 /* Command Queue Entry */
@@ -278,14 +278,16 @@ static inline uint32_t smmuv3_idreg(int regoffset)
     return smmuv3_ids[regoffset / 4];
 }
 
-static inline bool smmuv3_eventq_irq_enabled(SMMUv3State *s)
+static inline bool smmuv3_eventq_irq_enabled(SMMUv3State *s,
+                                             SMMUSecurityIndex sec_idx)
 {
-    return FIELD_EX32(s->irq_ctrl, IRQ_CTRL, EVENTQ_IRQEN);
+    return FIELD_EX32(s->bank[sec_idx].irq_ctrl, IRQ_CTRL, EVENTQ_IRQEN);
 }
 
-static inline bool smmuv3_gerror_irq_enabled(SMMUv3State *s)
+static inline bool smmuv3_gerror_irq_enabled(SMMUv3State *s,
+                                             SMMUSecurityIndex sec_idx)
 {
-    return FIELD_EX32(s->irq_ctrl, IRQ_CTRL, GERROR_IRQEN);
+    return FIELD_EX32(s->bank[sec_idx].irq_ctrl, IRQ_CTRL, GERROR_IRQEN);
 }
 
 /* Queue Handling */
@@ -328,19 +330,23 @@ static inline void queue_cons_incr(SMMUQueue *q)
     q->cons = deposit32(q->cons, 0, q->log2size + 1, q->cons + 1);
 }
 
-static inline bool smmuv3_cmdq_enabled(SMMUv3State *s)
+static inline bool smmuv3_cmdq_enabled(SMMUv3State *s,
+                                       SMMUSecurityIndex sec_idx)
 {
-    return FIELD_EX32(s->cr[0], CR0, CMDQEN);
+    return FIELD_EX32(s->bank[sec_idx].cr[0], CR0, CMDQEN);
 }
 
-static inline bool smmuv3_eventq_enabled(SMMUv3State *s)
+static inline bool smmuv3_eventq_enabled(SMMUv3State *s,
+                                         SMMUSecurityIndex sec_idx)
 {
-    return FIELD_EX32(s->cr[0], CR0, EVENTQEN);
+    return FIELD_EX32(s->bank[sec_idx].cr[0], CR0, EVENTQEN);
 }
 
-static inline void smmu_write_cmdq_err(SMMUv3State *s, uint32_t err_type)
+static inline void smmu_write_cmdq_err(SMMUv3State *s, uint32_t err_type,
+                                       SMMUSecurityIndex sec_idx)
 {
-    s->cmdq.cons = FIELD_DP32(s->cmdq.cons, CMDQ_CONS, ERR, err_type);
+    s->bank[sec_idx].cmdq.cons = FIELD_DP32(s->bank[sec_idx].cmdq.cons,
+                                         CMDQ_CONS, ERR, err_type);
 }
 
 /* Commands */
@@ -511,6 +517,7 @@ typedef struct SMMUEventInfo {
     uint32_t sid;
     bool recorded;
     bool inval_ste_allowed;
+    SMMUSecurityIndex sec_idx;
     union {
         struct {
             uint32_t ssid;
@@ -594,7 +601,7 @@ typedef struct SMMUEventInfo {
             (x)->word[6] = (uint32_t)(addr & 0xffffffff); \
     } while (0)
 
-void smmuv3_record_event(SMMUv3State *s, SMMUEventInfo *event);
+void smmuv3_record_event(SMMUv3State *s, SMMUEventInfo *info);
 
 /* Configuration Data */
 
