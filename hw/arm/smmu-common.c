@@ -30,6 +30,43 @@
 #include "hw/arm/smmu-common.h"
 #include "smmu-internal.h"
 
+/* Configuration Cache Management */
+static guint smmu_config_key_hash(gconstpointer key)
+{
+    const SMMUConfigKey *k = key;
+    return g_direct_hash(k->sdev) ^ (guint)k->sec_idx;
+}
+
+static gboolean smmu_config_key_equal(gconstpointer a, gconstpointer b)
+{
+    const SMMUConfigKey *ka = a;
+    const SMMUConfigKey *kb = b;
+    return ka->sdev == kb->sdev && ka->sec_idx == kb->sec_idx;
+}
+
+SMMUConfigKey smmu_get_config_key(SMMUDevice *sdev, SMMUSecurityIndex sec_idx)
+{
+    SMMUConfigKey key = {.sdev = sdev, .sec_idx = sec_idx};
+    return key;
+}
+
+ARMSecuritySpace smmu_get_security_space(SMMUSecurityIndex sec_idx)
+{
+    switch (sec_idx) {
+    case SMMU_SEC_IDX_S:
+        return ARMSS_Secure;
+    case SMMU_SEC_IDX_NS:
+    default:
+        return ARMSS_NonSecure;
+    }
+}
+
+MemTxAttrs smmu_get_txattrs(SMMUSecurityIndex sec_idx)
+{
+    return (MemTxAttrs) { .secure = sec_idx > SMMU_SEC_IDX_NS ? 1 : 0,
+                          .space = smmu_get_security_space(sec_idx) };
+}
+
 /* Global state for secure address space availability */
 bool arm_secure_as_available;
 
@@ -237,7 +274,8 @@ static gboolean smmu_hash_remove_by_vmid_ipa(gpointer key, gpointer value,
 static gboolean
 smmu_hash_remove_by_sid_range(gpointer key, gpointer value, gpointer user_data)
 {
-    SMMUDevice *sdev = (SMMUDevice *)key;
+    SMMUConfigKey *config_key = (SMMUConfigKey *)key;
+    SMMUDevice *sdev = config_key->sdev;
     uint32_t sid = smmu_get_sid(sdev);
     SMMUSIDRange *sid_range = (SMMUSIDRange *)user_data;
 
@@ -253,6 +291,25 @@ void smmu_configs_inv_sid_range(SMMUState *s, SMMUSIDRange sid_range)
     trace_smmu_configs_inv_sid_range(sid_range.start, sid_range.end);
     g_hash_table_foreach_remove(s->configs, smmu_hash_remove_by_sid_range,
                                 &sid_range);
+}
+
+/* Remove all cached configs for a specific device, regardless of security. */
+static gboolean smmu_hash_remove_by_sdev(gpointer key, gpointer value,
+                                         gpointer user_data)
+{
+    SMMUConfigKey *config_key = (SMMUConfigKey *)key;
+    SMMUDevice *target = (SMMUDevice *)user_data;
+
+    if (config_key->sdev != target) {
+        return false;
+    }
+    trace_smmu_config_cache_inv(smmu_get_sid(target));
+    return true;
+}
+
+void smmu_configs_inv_sdev(SMMUState *s, SMMUDevice *sdev)
+{
+    g_hash_table_foreach_remove(s->configs, smmu_hash_remove_by_sdev, sdev);
 }
 
 void smmu_iotlb_inv_iova(SMMUState *s, int asid, int vmid, dma_addr_t iova,
@@ -942,7 +999,9 @@ static void smmu_base_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
-    s->configs = g_hash_table_new_full(NULL, NULL, NULL, g_free);
+    s->configs = g_hash_table_new_full(smmu_config_key_hash,
+                                       smmu_config_key_equal,
+                                       g_free, g_free);
     s->iotlb = g_hash_table_new_full(smmu_iotlb_key_hash, smmu_iotlb_key_equal,
                                      g_free, g_free);
     s->smmu_pcibus_by_busptr = g_hash_table_new(NULL, NULL);
