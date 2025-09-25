@@ -34,8 +34,8 @@ typedef struct NPCM8xxSGPIOState {
     MemoryRegion mmio;
     qemu_irq irq;
 
-    uint8_t pin_in_level[NPCM8XX_SGPIO_MAX_PORTS];
-    uint8_t pin_out_level[NPCM8XX_SGPIO_MAX_PORTS];
+    uint64_t pin_in_level;
+    uint64_t pin_out_level;
     uint8_t regs[NPCM8XX_SGPIO_NR_REGS];
 } NPCM8xxSGPIOState;
 
