@@ -155,6 +155,12 @@ static bool s390_pci_err_handler(VFIOPCIDevice *vfio_pci, Error **errp)
     return true;
 }
 
+void s390_pci_reset(S390PCIBusDevice *pbdev)
+{
+    VFIOPCIDevice *vfio_pci = VFIO_PCI_BASE(pbdev->pdev);
+    ioctl(vfio_pci->vbasedev.fd, VFIO_DEVICE_RESET);
+}
+
 static void s390_pci_read_base(S390PCIBusDevice *pbdev,
                                struct vfio_device_info *info)
 {
