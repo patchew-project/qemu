@@ -953,6 +953,21 @@ static void smmuv3_flush_config(SMMUDevice *sdev)
     smmu_configs_inv_sdev(bc, sdev);
 }
 
+static void smmuv3_invalidate_all_caches(SMMUv3State *s)
+{
+    trace_smmuv3_invalidate_all_caches();
+    SMMUState *bs = &s->smmu_state;
+
+    /* Clear all cached configs including STE and CD */
+    if (bs->configs) {
+        g_hash_table_remove_all(bs->configs);
+    }
+
+    /* Invalidate all SMMU IOTLB entries */
+    smmu_inv_notifiers_all(&s->smmu_state);
+    smmu_iotlb_inv_all(bs);
+}
+
 /* Do translation with TLB lookup. */
 static SMMUTranslationStatus smmuv3_do_translate(SMMUv3State *s, hwaddr addr,
                                                  SMMUTransCfg *cfg,
@@ -1181,16 +1196,18 @@ epilogue:
  * @tg: translation granule (if communicated through range invalidation)
  * @num_pages: number of @granule sized pages (if tg != 0), otherwise 1
  * @stage: Which stage(1 or 2) is used
+ * @sec_idx: security index
  */
 static void smmuv3_notify_iova(IOMMUMemoryRegion *mr,
                                IOMMUNotifier *n,
                                int asid, int vmid,
                                dma_addr_t iova, uint8_t tg,
-                               uint64_t num_pages, int stage)
+                               uint64_t num_pages, int stage,
+                               SMMUSecurityIndex sec_idx)
 {
     SMMUDevice *sdev = container_of(mr, SMMUDevice, iommu);
     SMMUEventInfo eventinfo = {.inval_ste_allowed = true};
-    SMMUTransCfg *cfg = smmuv3_get_config(sdev, &eventinfo, SMMU_SEC_IDX_NS);
+    SMMUTransCfg *cfg = smmuv3_get_config(sdev, &eventinfo, sec_idx);
     IOMMUTLBEvent event;
     uint8_t granule;
 
@@ -1235,7 +1252,7 @@ static void smmuv3_notify_iova(IOMMUMemoryRegion *mr,
     }
 
     event.type = IOMMU_NOTIFIER_UNMAP;
-    event.entry.target_as = &address_space_memory;
+    event.entry.target_as = smmu_get_address_space(sec_idx);
     event.entry.iova = iova;
     event.entry.addr_mask = num_pages * (1 << granule) - 1;
     event.entry.perm = IOMMU_NONE;
@@ -1246,7 +1263,8 @@ static void smmuv3_notify_iova(IOMMUMemoryRegion *mr,
 /* invalidate an asid/vmid/iova range tuple in all mr's */
 static void smmuv3_inv_notifiers_iova(SMMUState *s, int asid, int vmid,
                                       dma_addr_t iova, uint8_t tg,
-                                      uint64_t num_pages, int stage)
+                                      uint64_t num_pages, int stage,
+                                      SMMUSecurityIndex sec_idx)
 {
     SMMUDevice *sdev;
 
@@ -1258,12 +1276,14 @@ static void smmuv3_inv_notifiers_iova(SMMUState *s, int asid, int vmid,
                                         iova, tg, num_pages, stage);
 
         IOMMU_NOTIFIER_FOREACH(n, mr) {
-            smmuv3_notify_iova(mr, n, asid, vmid, iova, tg, num_pages, stage);
+            smmuv3_notify_iova(mr, n, asid, vmid, iova, tg,
+                               num_pages, stage, sec_idx);
         }
     }
 }
 
-static void smmuv3_range_inval(SMMUState *s, Cmd *cmd, SMMUStage stage)
+static void smmuv3_range_inval(SMMUState *s, Cmd *cmd, SMMUStage stage,
+                               SMMUSecurityIndex sec_idx)
 {
     dma_addr_t end, addr = CMD_ADDR(cmd);
     uint8_t type = CMD_TYPE(cmd);
@@ -1289,11 +1309,11 @@ static void smmuv3_range_inval(SMMUState *s, Cmd *cmd, SMMUStage stage)
 
     if (!tg) {
         trace_smmuv3_range_inval(vmid, asid, addr, tg, 1, ttl, leaf, stage);
-        smmuv3_inv_notifiers_iova(s, asid, vmid, addr, tg, 1, stage);
+        smmuv3_inv_notifiers_iova(s, asid, vmid, addr, tg, 1, stage, sec_idx);
         if (stage == SMMU_STAGE_1) {
-            smmu_iotlb_inv_iova(s, asid, vmid, addr, tg, 1, ttl);
+            smmu_iotlb_inv_iova(s, asid, vmid, addr, tg, 1, ttl, sec_idx);
         } else {
-            smmu_iotlb_inv_ipa(s, vmid, addr, tg, 1, ttl);
+            smmu_iotlb_inv_ipa(s, vmid, addr, tg, 1, ttl, sec_idx);
         }
         return;
     }
@@ -1312,11 +1332,13 @@ static void smmuv3_range_inval(SMMUState *s, Cmd *cmd, SMMUStage stage)
         num_pages = (mask + 1) >> granule;
         trace_smmuv3_range_inval(vmid, asid, addr, tg, num_pages,
                                  ttl, leaf, stage);
-        smmuv3_inv_notifiers_iova(s, asid, vmid, addr, tg, num_pages, stage);
+        smmuv3_inv_notifiers_iova(s, asid, vmid, addr, tg,
+                                  num_pages, stage, sec_idx);
         if (stage == SMMU_STAGE_1) {
-            smmu_iotlb_inv_iova(s, asid, vmid, addr, tg, num_pages, ttl);
+            smmu_iotlb_inv_iova(s, asid, vmid, addr, tg,
+                                num_pages, ttl, sec_idx);
         } else {
-            smmu_iotlb_inv_ipa(s, vmid, addr, tg, num_pages, ttl);
+            smmu_iotlb_inv_ipa(s, vmid, addr, tg, num_pages, ttl, sec_idx);
         }
         addr += mask + 1;
     }
@@ -1514,7 +1536,7 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, SMMUSecurityIndex sec_idx)
                 cmd_error = SMMU_CERROR_ILL;
                 break;
             }
-            smmuv3_range_inval(bs, &cmd, SMMU_STAGE_1);
+            smmuv3_range_inval(bs, &cmd, SMMU_STAGE_1, sec_idx);
             break;
         case SMMU_CMD_TLBI_S12_VMALL:
         {
@@ -1539,7 +1561,7 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, SMMUSecurityIndex sec_idx)
              * As currently only either s1 or s2 are supported
              * we can reuse same function for s2.
              */
-            smmuv3_range_inval(bs, &cmd, SMMU_STAGE_2);
+            smmuv3_range_inval(bs, &cmd, SMMU_STAGE_2, sec_idx);
             break;
         case SMMU_CMD_TLBI_EL3_ALL:
         case SMMU_CMD_TLBI_EL3_VA:
@@ -1769,6 +1791,21 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
     case A_EVENTQ_IRQ_CFG2:
         s->bank[reg_sec_idx].eventq_irq_cfg2 = data;
         return MEMTX_OK;
+    case A_S_INIT_ALIAS:
+        if (data & R_S_INIT_INV_ALL_MASK) {
+            int cr0_smmuen = smmuv3_get_cr0_smmuen(s, SMMU_SEC_IDX_NS);
+            int s_cr0_smmuen = smmuv3_get_cr0_smmuen(s, SMMU_SEC_IDX_S);
+            if (cr0_smmuen || s_cr0_smmuen) {
+                /* CONSTRAINED UNPREDICTABLE behavior: Ignore this write */
+                qemu_log_mask(LOG_GUEST_ERROR, "S_INIT write ignored: "
+                              "CR0.SMMUEN=%d or S_CR0.SMMUEN=%d is set\n",
+                              cr0_smmuen, s_cr0_smmuen);
+                return MEMTX_OK;
+            }
+            smmuv3_invalidate_all_caches(s);
+        }
+        /* Synchronous emulation: invalidation completed instantly. */
+        return MEMTX_OK;
     default:
         qemu_log_mask(LOG_UNIMP,
                       "%s Unexpected 32-bit access to 0x%"PRIx64" (WI)\n",
@@ -1925,6 +1962,8 @@ static MemTxResult smmu_readl(SMMUv3State *s, hwaddr offset,
     case A_EVENTQ_CONS:
         *data = s->bank[reg_sec_idx].eventq.cons;
         return MEMTX_OK;
+    case A_S_INIT_ALIAS:
+        *data = 0;
         return MEMTX_OK;
     default:
         *data = 0;
