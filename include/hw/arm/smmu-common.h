@@ -41,6 +41,19 @@
                                              ((addr) & (ent)->entry.addr_mask))
 
 /*
+ * SMMU Security state index
+ *
+ * The values of this enumeration are identical to the SEC_SID signal
+ * encoding defined in the ARM SMMUv3 Architecture Specification. It is used
+ * to select the appropriate programming interface for a given transaction.
+ */
+typedef enum SMMUSecurityIndex {
+    SMMU_SEC_IDX_NS = 0,
+    SMMU_SEC_IDX_S = 1,
+    SMMU_SEC_IDX_NUM,
+} SMMUSecurityIndex;
+
+/*
  * Page table walk error types
  */
 typedef enum {
@@ -116,6 +129,7 @@ typedef struct SMMUTransCfg {
     SMMUTransTableInfo tt[2];
     /* Used by stage-2 only. */
     struct SMMUS2Cfg s2cfg;
+    SMMUSecurityIndex sec_idx; /* cached security index */
 } SMMUTransCfg;
 
 typedef struct SMMUDevice {

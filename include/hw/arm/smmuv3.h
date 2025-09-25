@@ -32,19 +32,11 @@ typedef struct SMMUQueue {
      uint8_t log2size;
 } SMMUQueue;
 
-struct SMMUv3State {
-    SMMUState     smmu_state;
-
-    uint32_t features;
-    uint8_t sid_size;
-    uint8_t sid_split;
-
+/* Structure for register bank */
+typedef struct SMMUv3RegBank {
     uint32_t idr[6];
-    uint32_t iidr;
-    uint32_t aidr;
     uint32_t cr[3];
     uint32_t cr0ack;
-    uint32_t statusr;
     uint32_t gbpa;
     uint32_t irq_ctrl;
     uint32_t gerror;
@@ -57,12 +49,28 @@ struct SMMUv3State {
     uint64_t eventq_irq_cfg0;
     uint32_t eventq_irq_cfg1;
     uint32_t eventq_irq_cfg2;
+    uint32_t features;
+    uint8_t sid_split;
 
     SMMUQueue eventq, cmdq;
+} SMMUv3RegBank;
+
+struct SMMUv3State {
+    SMMUState     smmu_state;
+
+    /* Shared (non-banked) registers and state */
+    uint8_t sid_size;
+    uint32_t iidr;
+    uint32_t aidr;
+    uint32_t statusr;
+
+    /* Banked registers for all access */
+    SMMUv3RegBank bank[SMMU_SEC_IDX_NUM];
 
     qemu_irq     irq[4];
     QemuMutex mutex;
     char *stage;
+    bool secure_impl;
 };
 
 typedef enum {
@@ -84,7 +92,9 @@ struct SMMUv3Class {
 #define TYPE_ARM_SMMUV3   "arm-smmuv3"
 OBJECT_DECLARE_TYPE(SMMUv3State, SMMUv3Class, ARM_SMMUV3)
 
-#define STAGE1_SUPPORTED(s)      FIELD_EX32(s->idr[0], IDR0, S1P)
-#define STAGE2_SUPPORTED(s)      FIELD_EX32(s->idr[0], IDR0, S2P)
+#define STAGE1_SUPPORTED(s)    \
+    FIELD_EX32(s->bank[SMMU_SEC_IDX_NS].idr[0], IDR0, S1P)
+#define STAGE2_SUPPORTED(s)    \
+    FIELD_EX32(s->bank[SMMU_SEC_IDX_NS].idr[0], IDR0, S2P)
 
 #endif
