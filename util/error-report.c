@@ -226,6 +226,8 @@ static void vreport(report_type type, const char *fmt, va_list ap)
 
     if (monitor_cur_is_hmp()) {
         cur = monitor_cur();
+    } else {
+        flockfile(stderr);
     }
 
     if (message_with_timestamp && !cur) {
@@ -254,6 +256,10 @@ static void vreport(report_type type, const char *fmt, va_list ap)
 
     error_vprintf_mon(cur, fmt, ap);
     error_printf_mon(cur, "\n");
+
+    if (!cur) {
+        funlockfile(stderr);
+    }
 }
 
 /*
