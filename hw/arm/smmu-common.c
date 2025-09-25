@@ -398,20 +398,25 @@ void smmu_iotlb_inv_vmid_s1(SMMUState *s, int vmid)
  * @base_addr[@index]
  */
 static int get_pte(dma_addr_t baseaddr, uint32_t index, uint64_t *pte,
-                   SMMUPTWEventInfo *info)
+                   SMMUPTWEventInfo *info, SMMUTransCfg *cfg, int walk_ns)
 {
     int ret;
     dma_addr_t addr = baseaddr + index * sizeof(*pte);
+    /* Only support Secure PA Space as RME isn't implemented yet */
+    MemTxAttrs attrs =
+        smmu_get_txattrs(walk_ns ? SMMU_SEC_IDX_NS : SMMU_SEC_IDX_S);
+    AddressSpace *as =
+        smmu_get_address_space(walk_ns ? SMMU_SEC_IDX_NS : SMMU_SEC_IDX_S);
 
     /* TODO: guarantee 64-bit single-copy atomicity */
-    ret = ldq_le_dma(&address_space_memory, addr, pte, MEMTXATTRS_UNSPECIFIED);
+    ret = ldq_le_dma(as, addr, pte, attrs);
 
     if (ret != MEMTX_OK) {
         info->type = SMMU_PTW_ERR_WALK_EABT;
         info->addr = addr;
         return -EINVAL;
     }
-    trace_smmu_get_pte(baseaddr, index, addr, *pte);
+    trace_smmu_get_pte(baseaddr, index, addr, *pte, walk_ns);
     return 0;
 }
 
@@ -542,6 +547,8 @@ static int smmu_ptw_64_s1(SMMUState *bs, SMMUTransCfg *cfg,
 
     baseaddr = extract64(tt->ttb, 0, cfg->oas);
     baseaddr &= ~indexmask;
+    int nscfg = tt->nscfg;
+    bool forced_ns = false;  /* Track if NSTable=1 forced NS mode */
 
     while (level < VMSA_LEVELS) {
         uint64_t subpage_size = 1ULL << level_shift(level, granule_sz);
@@ -551,7 +558,9 @@ static int smmu_ptw_64_s1(SMMUState *bs, SMMUTransCfg *cfg,
         dma_addr_t pte_addr = baseaddr + offset * sizeof(pte);
         uint8_t ap;
 
-        if (get_pte(baseaddr, offset, &pte, info)) {
+        /* Use NS if forced by previous NSTable=1 or current nscfg */
+        int current_ns = forced_ns || nscfg;
+        if (get_pte(baseaddr, offset, &pte, info, cfg, current_ns)) {
                 goto error;
         }
         trace_smmu_ptw_level(stage, level, iova, subpage_size,
@@ -575,6 +584,26 @@ static int smmu_ptw_64_s1(SMMUState *bs, SMMUTransCfg *cfg,
                 if (translate_table_addr_ipa(bs, &baseaddr, cfg, info)) {
                     goto error;
                 }
+            }
+
+            /*
+             * Hierarchical control of Secure/Non-secure accesses:
+             * If NSTable=1 from Secure space, force all subsequent lookups to
+             * Non-secure space and ignore future NSTable according to
+             * (IHI 0070G.b) 13.4.1 Stage 1 page permissions and
+             * (DDI 0487H.a)D8.4.2 Control of Secure or Non-secure memory access
+             */
+            if (!forced_ns) {
+                int new_nstable = PTE_NSTABLE(pte);
+                if (!current_ns && new_nstable) {
+                    /* First transition from Secure to Non-secure */
+                    forced_ns = true;
+                    nscfg = 1;
+                } else if (!forced_ns) {
+                    /* Still in original mode, update nscfg normally */
+                    nscfg = new_nstable;
+                }
+                /* If forced_ns is already true, ignore NSTable bit */
             }
             level++;
             continue;
@@ -618,6 +647,8 @@ static int smmu_ptw_64_s1(SMMUState *bs, SMMUTransCfg *cfg,
             goto error;
         }
 
+        tlbe->sec_idx = PTE_NS(pte) ? SMMU_SEC_IDX_NS : SMMU_SEC_IDX_S;
+        tlbe->entry.target_as = smmu_get_address_space(tlbe->sec_idx);
         tlbe->entry.translated_addr = gpa;
         tlbe->entry.iova = iova & ~mask;
         tlbe->entry.addr_mask = mask;
@@ -687,7 +718,8 @@ static int smmu_ptw_64_s2(SMMUTransCfg *cfg,
         dma_addr_t pte_addr = baseaddr + offset * sizeof(pte);
         uint8_t s2ap;
 
-        if (get_pte(baseaddr, offset, &pte, info)) {
+        /* Use NS as Secure Stage 2 is not implemented (SMMU_S_IDR1.SEL2 == 0)*/
+        if (get_pte(baseaddr, offset, &pte, info, cfg, 1)) {
                 goto error;
         }
         trace_smmu_ptw_level(stage, level, ipa, subpage_size,
@@ -740,6 +772,8 @@ static int smmu_ptw_64_s2(SMMUTransCfg *cfg,
             goto error_ipa;
         }
 
+        tlbe->sec_idx = SMMU_SEC_IDX_NS;
+        tlbe->entry.target_as = &address_space_memory;
         tlbe->entry.translated_addr = gpa;
         tlbe->entry.iova = ipa & ~mask;
         tlbe->entry.addr_mask = mask;
@@ -822,6 +856,17 @@ int smmu_ptw(SMMUState *bs, SMMUTransCfg *cfg, dma_addr_t iova,
     ret = smmu_ptw_64_s1(bs, cfg, iova, perm, tlbe, info);
     if (ret) {
         return ret;
+    }
+
+    if (!cfg->sel2 && tlbe->sec_idx > SMMU_SEC_IDX_NS) {
+        /*
+         * Nested translation with Secure IPA output is not supported if
+         * Secure Stage 2 is not implemented.
+         */
+        info->type = SMMU_PTW_ERR_TRANSLATION;
+        info->stage = SMMU_STAGE_1;
+        tlbe->entry.perm = IOMMU_NONE;
+        return -EINVAL;
     }
 
     ipa = CACHED_ENTRY_TO_ADDR(tlbe, iova);

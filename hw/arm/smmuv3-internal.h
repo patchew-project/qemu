@@ -704,6 +704,8 @@ static inline int oas2bits(int oas_field)
 #define CD_R(x)          extract32((x)->word[1], 13, 1)
 #define CD_A(x)          extract32((x)->word[1], 14, 1)
 #define CD_AARCH64(x)    extract32((x)->word[1], 9 , 1)
+#define CD_NSCFG0(x)     extract32((x)->word[2], 0, 1)
+#define CD_NSCFG1(x)     extract32((x)->word[4], 0, 1)
 
 /**
  * tg2granule - Decodes the CD translation granule size field according
