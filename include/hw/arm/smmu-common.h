@@ -53,6 +53,26 @@ typedef enum SMMUSecurityIndex {
     SMMU_SEC_IDX_NUM,
 } SMMUSecurityIndex;
 
+extern AddressSpace __attribute__((weak)) arm_secure_address_space;
+extern bool arm_secure_as_available;
+void smmu_enable_secure_address_space(void);
+
+static inline AddressSpace *smmu_get_address_space(SMMUSecurityIndex sec_sid)
+{
+    switch (sec_sid) {
+    case SMMU_SEC_IDX_S:
+    {
+        if (arm_secure_as_available) {
+            return &arm_secure_address_space;
+        }
+    }
+    QEMU_FALLTHROUGH;
+    case SMMU_SEC_IDX_NS:
+    default:
+        return &address_space_memory;
+    }
+}
+
 /*
  * Page table walk error types
  */

@@ -30,6 +30,14 @@
 #include "hw/arm/smmu-common.h"
 #include "smmu-internal.h"
 
+/* Global state for secure address space availability */
+bool arm_secure_as_available;
+
+void smmu_enable_secure_address_space(void)
+{
+    arm_secure_as_available = true;
+}
+
 /* IOTLB Management */
 
 static guint smmu_iotlb_key_hash(gconstpointer v)
