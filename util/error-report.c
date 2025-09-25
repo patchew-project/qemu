@@ -159,7 +159,7 @@ static void print_loc(void)
     int i;
     const char *const *argp;
 
-    if (!monitor_cur() && g_get_prgname()) {
+    if (!monitor_cur_is_hmp() && g_get_prgname()) {
         error_printf("%s:", g_get_prgname());
         sep = " ";
     }
@@ -203,14 +203,14 @@ static void vreport(report_type type, const char *fmt, va_list ap)
 {
     gchar *timestr;
 
-    if (message_with_timestamp && !monitor_cur()) {
+    if (message_with_timestamp && !monitor_cur_is_hmp()) {
         timestr = real_time_iso8601();
         error_printf("%s ", timestr);
         g_free(timestr);
     }
 
     /* Only prepend guest name if -msg guest-name and -name guest=... are set */
-    if (error_with_guestname && error_guest_name && !monitor_cur()) {
+    if (error_with_guestname && error_guest_name && !monitor_cur_is_hmp()) {
         error_printf("%s ", error_guest_name);
     }
 
