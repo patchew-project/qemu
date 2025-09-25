@@ -9762,7 +9762,8 @@ int x86_cpu_pending_interrupt(CPUState *cs, int interrupt_request)
     if (interrupt_request & CPU_INTERRUPT_POLL) {
         return CPU_INTERRUPT_POLL;
     }
-    if (interrupt_request & CPU_INTERRUPT_SIPI) {
+    if ((interrupt_request & CPU_INTERRUPT_SIPI) &&
+        !(env->hflags & HF_SMM_MASK)) {
         return CPU_INTERRUPT_SIPI;
     }
 
