@@ -55,6 +55,13 @@ impl LogGuard {
     ///     writeln!(log, "test");
     /// }
     /// ```
+    ///
+    /// Note that directly writing to the log output will prevent the
+    /// inclusion of configured log prefixes. It is thus recommended
+    /// that this be used sparingly, only in cases where it is required
+    /// to dump large data volumes. Use of [`log_mask_ln!()`](crate::log_mask_ln)
+    /// macro() is preferred for most output tasks.
+
     pub fn new() -> Option<Self> {
         let f = unsafe { bindings::qemu_log_trylock() }.cast();
         NonNull::new(f).map(Self)

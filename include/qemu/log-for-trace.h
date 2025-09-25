@@ -29,7 +29,40 @@ static inline bool qemu_loglevel_mask(int mask)
     return (qemu_loglevel & mask) != 0;
 }
 
-/* main logging function */
+/**
+ * qemu_log: report a log message
+ * @fmt: the format string for the message
+ * @...: the format string arguments
+ *
+ * This will emit a log message to the current output stream.
+ *
+ * The @fmt string should normally represent a complete line
+ * of text, ending with a newline character.
+ *
+ * If intending to call this function multiple times to
+ * incrementally construct a line of text, locking must
+ * be used to ensure that output from different threads
+ * is not interleaved.
+ *
+ * This is achieved by calling qemu_log_trylock() before
+ * starting the log line; calling qemu_log() multiple
+ * times with the last call having a newline at the end
+ * of @fmt; finishing with a call to qemu_log_unlock().
+ *
+ * The FILE object returned by qemu_log_trylock() does
+ * not need to be used for outputting text directly,
+ * it is merely used to associate the lock.
+ *
+ *    FILE *f = qemu_log_trylock()
+ *
+ *    qemu_log("Something");
+ *    qemu_log("Something");
+ *    qemu_log("Something");
+ *    qemu_log("The end\n");
+ *
+ *    qemu_log_unlock(f);
+ *
+ */
 void G_GNUC_PRINTF(1, 2) qemu_log(const char *fmt, ...);
 
 #endif

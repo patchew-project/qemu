@@ -41,7 +41,33 @@ bool qemu_log_separate(void);
 
 /* Lock/unlock output. */
 
+/**
+ * Acquires a lock on the current log output stream.
+ * The returned FILE object must be passed to
+ * qemu_log_unlock() to later release the lock.
+ *
+ * This should be used to protect a sequence of calls
+ * to qemu_log(), if they are being used to incrementally
+ * output a single line of text. For qemu_log() calls which
+ * output a complete line of text it is not required to
+ * take explicit locks.
+ *
+ * The returned FILE object may be used to directly
+ * output log messages, however, doing so will prevent
+ * the inclusion of configured log message prefixes.
+ * It is thus recommended that this be used sparingly,
+ * only in cases where it is required to dump large
+ * data volumes. Use of qemu_log() is preferred for
+ * most output tasks.
+ *
+ * Returns: the current FILE if available, NULL on error
+ */
 FILE *qemu_log_trylock(void) G_GNUC_WARN_UNUSED_RESULT;
+
+/**
+ * Releases the lock on the log output, previously
+ * acquired by qemu_log_trylock().
+ */
 void qemu_log_unlock(FILE *fd);
 
 /* Logging functions: */
