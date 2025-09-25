@@ -3530,8 +3530,10 @@ int vnc_display_password(const char *id, const char *password)
         return -EINVAL;
     }
     if (vd->auth == VNC_AUTH_NONE) {
-        error_printf_unless_qmp("If you want use passwords please enable "
-                                "password auth using '-vnc ${dpy},password'.\n");
+        if (!monitor_cur_is_qmp()) {
+            error_printf("If you want to use passwords, please enable "
+                         "password auth using '-vnc ${dpy},password'.\n");
+        }
         return -EINVAL;
     }
 
@@ -3570,9 +3572,11 @@ static void vnc_display_print_local_addr(VncDisplay *vd)
         qapi_free_SocketAddress(addr);
         return;
     }
-    error_printf_unless_qmp("VNC server running on %s:%s\n",
-                            addr->u.inet.host,
-                            addr->u.inet.port);
+    if (!monitor_cur_is_qmp()) {
+        error_printf("VNC server running on %s:%s\n",
+                     addr->u.inet.host,
+                     addr->u.inet.port);
+    }
     qapi_free_SocketAddress(addr);
 }
 
