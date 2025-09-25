@@ -25,6 +25,11 @@ config PCI_TESTDEV
     default y if TEST_DEVICES
     depends on PCI
 
+config SMMU_TESTDEV
+    bool
+    default y if TEST_DEVICES
+    depends on PCI && ARM_SMMUV3
+
 config EDU
     bool
     default y if TEST_DEVICES
