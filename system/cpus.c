@@ -666,7 +666,9 @@ void resume_all_vcpus(void)
 
     qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
     CPU_FOREACH(cpu) {
-        cpu_resume(cpu);
+        if (cpu->halted) {
+            cpu_resume(cpu);
+        }
     }
 }
 
