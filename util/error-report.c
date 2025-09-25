@@ -25,8 +25,6 @@ typedef enum {
     REPORT_TYPE_INFO,
 } report_type;
 
-bool error_with_guestname;
-const char *error_guest_name;
 
 /*
  * Print to current monitor if we have one, else to stderr.
@@ -220,11 +218,6 @@ static void vreport(report_type type, const char *fmt, va_list ap)
     } else {
         flockfile(stderr);
         qmessage_context_print(stderr);
-    }
-
-    /* Only prepend guest name if -msg guest-name and -name guest=... are set */
-    if (error_with_guestname && error_guest_name && !cur) {
-        error_printf_mon(NULL, "%s ", error_guest_name);
     }
 
     print_loc(cur);
