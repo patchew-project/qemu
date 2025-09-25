@@ -92,6 +92,8 @@
 #include "hw/cxl/cxl_host.h"
 #include "qemu/guest-random.h"
 
+AddressSpace arm_secure_address_space;
+
 static GlobalProperty arm_virt_compat[] = {
     { TYPE_VIRTIO_IOMMU_PCI, "aw-bits", "48" },
 };
@@ -2243,6 +2245,9 @@ static void machvirt_init(MachineState *machine)
         memory_region_init(secure_sysmem, OBJECT(machine), "secure-memory",
                            UINT64_MAX);
         memory_region_add_subregion_overlap(secure_sysmem, 0, sysmem, -1);
+        address_space_init(&arm_secure_address_space, secure_sysmem,
+                           "secure-memory-space");
+        smmu_enable_secure_address_space();
     }
 
     firmware_loaded = virt_firmware_init(vms, sysmem,
