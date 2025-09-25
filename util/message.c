@@ -37,4 +37,11 @@ void qmessage_context_print(FILE *fp)
             fprintf(fp, "%s: ", pgnamestr);
         }
     }
+
+    if (message_format & QMESSAGE_FORMAT_THREAD_INFO) {
+        int thid = qemu_get_thread_id();
+        const char *thname = qemu_thread_get_name();
+
+        fprintf(fp, "(%d:%s): ", thid, thname);
+    }
 }

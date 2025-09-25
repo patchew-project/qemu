@@ -47,6 +47,7 @@
 #include "qemu/cutils.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
+#include "qemu/message.h"
 #include "qemu/help_option.h"
 #include "qemu/job.h"
 #include "qemu/log.h"
@@ -64,6 +65,10 @@
 static const char *pid_file;
 static char *pid_file_realpath;
 static volatile bool exit_requested = false;
+
+#define QMESSAGE_FORMAT_DEFAULT \
+    (QMESSAGE_FORMAT_PROGRAM_NAME | \
+     QMESSAGE_FORMAT_THREAD_INFO)
 
 void qemu_system_killed(int signal, pid_t pid)
 {
@@ -399,6 +404,7 @@ int main(int argc, char *argv[])
 #endif
 
     error_init(argv[0]);
+    qmessage_set_format(QMESSAGE_FORMAT_DEFAULT);
     qemu_init_exec_dir(argv[0]);
     os_setup_signal_handling();
 

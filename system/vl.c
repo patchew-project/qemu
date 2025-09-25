@@ -145,6 +145,10 @@
 
 #define MAX_VIRTIO_CONSOLES 1
 
+#define QMESSAGE_FORMAT_DEFAULT \
+    (QMESSAGE_FORMAT_PROGRAM_NAME | \
+     QMESSAGE_FORMAT_THREAD_INFO)
+
 typedef struct BlockdevOptionsQueueEntry {
     BlockdevOptions *bdo;
     Location loc;
@@ -812,10 +816,9 @@ static void realtime_init(void)
     }
 }
 
-
 static void configure_msg(QemuOpts *opts)
 {
-    int flags = QMESSAGE_FORMAT_PROGRAM_NAME;
+    int flags = QMESSAGE_FORMAT_DEFAULT;
     if (qemu_opt_get_bool(opts, "timestamp", false)) {
         flags |= QMESSAGE_FORMAT_TIMESTAMP;
     }
@@ -2889,6 +2892,7 @@ void qemu_init(int argc, char **argv)
     module_call_init(MODULE_INIT_OPTS);
 
     error_init(argv[0]);
+    qmessage_set_format(QMESSAGE_FORMAT_DEFAULT);
     qemu_init_exec_dir(argv[0]);
 
     os_setup_limits();
