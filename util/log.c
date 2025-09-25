@@ -143,6 +143,12 @@ void qemu_log_unlock(FILE *logfile)
     }
 }
 
+/*
+ * 'true' if the previous log message lacked a trailing '\n',
+ * and thus the subsequent call must skip any prefix
+ */
+static __thread bool incomplete;
+
 void qemu_log(const char *fmt, ...)
 {
     FILE *f;
@@ -154,7 +160,7 @@ void qemu_log(const char *fmt, ...)
      * was emitted if we are delayed acquiring the
      * mutex
      */
-    if (message_with_timestamp) {
+    if (message_with_timestamp && !incomplete) {
         g_autoptr(GDateTime) dt = g_date_time_new_now_utc();
         timestr = g_date_time_format_iso8601(dt);
     }
@@ -170,6 +176,7 @@ void qemu_log(const char *fmt, ...)
         va_start(ap, fmt);
         vfprintf(f, fmt, ap);
         va_end(ap);
+        incomplete = fmt[strlen(fmt) - 1] != '\n';
         qemu_log_unlock(f);
     }
 }
