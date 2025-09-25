@@ -290,9 +290,11 @@ Use of AI-generated content
 
 TL;DR:
 
-  **Current QEMU project policy is to DECLINE any contributions which are
+  **The general QEMU project policy is to DECLINE any contributions which are
   believed to include or derive from AI generated content. This includes
-  ChatGPT, Claude, Copilot, Llama and similar tools.**
+  ChatGPT, Claude, Copilot, Llama and similar tools.** The following exceptions
+  are acceptable:
+  * **Limited creative content** (e.g., mechanical transformations)
 
   **This policy does not apply to other uses of AI, such as researching APIs
   or algorithms, static analysis, or debugging, provided their output is not
@@ -323,8 +325,9 @@ content generators commonly available today is unclear.  The QEMU project is
 not willing or able to accept the legal risks of non-compliance.
 
 The QEMU project thus requires that contributors refrain from using AI content
-generators on patches intended to be submitted to the project, and will
-decline any contribution if use of AI is either known or suspected.
+generators on patches intended to be submitted to the project, with exceptions
+outlined below.  If use of AI is known or suspected to go beyond the exceptions,
+QEMU will decline a contribution.
 
 Examples of tools impacted by this policy includes GitHub's CoPilot, OpenAI's
 ChatGPT, Anthropic's Claude, and Meta's Code Llama, and code/content
@@ -347,3 +350,19 @@ requirements for contribution.  In particular, the "Signed-off-by"
 label in a patch submission is a statement that the author takes
 responsibility for the entire contents of the patch, including any parts
 that were generated or assisted by AI tools or other tools.
+
+The following exceptions are currently in place:
+
+**Limited creative content**
+  Mechanical transformations where there is reasonably only one way to
+  implement the change.  Any tool, as well as a manual change, would
+  produce substantially the same modifications to the code.  Examples
+  include adjustments to data structures, mechanical API migrations,
+  or applying non-functional changes uniformly across a codebase.
+
+It is highly encouraged to provide background information such as the
+prompts that were used, and to not mix AI- and human-written code in the
+same commit, as much as possible.
+
+Maintainers should ask for a second opinion and avoid applying the
+exception to their own patch submissions.
