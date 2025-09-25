@@ -106,14 +106,15 @@ static void smmuv3_write_gerrorn(SMMUv3State *s, uint32_t new_gerrorn,
     trace_smmuv3_write_gerrorn(toggled & pending, s->bank[sec_idx].gerrorn);
 }
 
-static inline MemTxResult queue_read(SMMUQueue *q, Cmd *cmd)
+static inline MemTxResult queue_read(SMMUQueue *q, Cmd *cmd,
+                                     SMMUSecurityIndex sec_idx)
 {
     dma_addr_t addr = Q_CONS_ENTRY(q);
     MemTxResult ret;
     int i;
 
-    ret = dma_memory_read(&address_space_memory, addr, cmd, sizeof(Cmd),
-                          MEMTXATTRS_UNSPECIFIED);
+    ret = dma_memory_read(smmu_get_address_space(sec_idx), addr, cmd,
+                          sizeof(Cmd), smmu_get_txattrs(sec_idx));
     if (ret != MEMTX_OK) {
         return ret;
     }
@@ -123,7 +124,8 @@ static inline MemTxResult queue_read(SMMUQueue *q, Cmd *cmd)
     return ret;
 }
 
-static MemTxResult queue_write(SMMUQueue *q, Evt *evt_in)
+static MemTxResult queue_write(SMMUQueue *q, Evt *evt_in,
+                               SMMUSecurityIndex sec_idx)
 {
     dma_addr_t addr = Q_PROD_ENTRY(q);
     MemTxResult ret;
@@ -133,8 +135,8 @@ static MemTxResult queue_write(SMMUQueue *q, Evt *evt_in)
     for (i = 0; i < ARRAY_SIZE(evt.word); i++) {
         cpu_to_le32s(&evt.word[i]);
     }
-    ret = dma_memory_write(&address_space_memory, addr, &evt, sizeof(Evt),
-                           MEMTXATTRS_UNSPECIFIED);
+    ret = dma_memory_write(smmu_get_address_space(sec_idx), addr, &evt,
+                           sizeof(Evt), smmu_get_txattrs(sec_idx));
     if (ret != MEMTX_OK) {
         return ret;
     }
@@ -157,7 +159,7 @@ static MemTxResult smmuv3_write_eventq(SMMUv3State *s, Evt *evt,
         return MEMTX_ERROR;
     }
 
-    r = queue_write(q, evt);
+    r = queue_write(q, evt, sec_idx);
     if (r != MEMTX_OK) {
         return r;
     }
@@ -1025,6 +1027,8 @@ static SMMUTranslationStatus smmuv3_do_translate(SMMUv3State *s, hwaddr addr,
          */
         class = ptw_info.is_ipa_descriptor ? SMMU_CLASS_TT : class;
         event->sec_idx = cfg->sec_idx;
+        event->txattrs = cfg->txattrs;
+        event->sec_idx = cfg->sec_idx;
         switch (ptw_info.type) {
         case SMMU_PTW_ERR_WALK_EABT:
             event->type = SMMU_EVT_F_WALK_EABT;
@@ -1376,6 +1380,110 @@ static bool smmu_strtab_base_writable(SMMUv3State *s, SMMUSecurityIndex sec_idx)
     return smmuv3_is_smmu_enabled(s, sec_idx);
 }
 
+static inline int smmuv3_get_cr0_cmdqen(SMMUv3State *s,
+                                        SMMUSecurityIndex sec_idx)
+{
+    return FIELD_EX32(s->bank[sec_idx].cr[0], CR0, CMDQEN);
+}
+
+static inline int smmuv3_get_cr0ack_cmdqen(SMMUv3State *s,
+                                           SMMUSecurityIndex sec_idx)
+{
+    return FIELD_EX32(s->bank[sec_idx].cr0ack, CR0, CMDQEN);
+}
+
+static inline int smmuv3_get_cr0_eventqen(SMMUv3State *s,
+                                          SMMUSecurityIndex sec_idx)
+{
+    return FIELD_EX32(s->bank[sec_idx].cr[0], CR0, EVENTQEN);
+}
+
+static inline int smmuv3_get_cr0ack_eventqen(SMMUv3State *s,
+                                             SMMUSecurityIndex sec_idx)
+{
+    return FIELD_EX32(s->bank[sec_idx].cr0ack, CR0, EVENTQEN);
+}
+
+/* Check if MSI is supported */
+static inline bool smmu_msi_supported(SMMUv3State *s, SMMUSecurityIndex sec_idx)
+{
+    return FIELD_EX32(s->bank[sec_idx].idr[0], IDR0, MSI);
+}
+
+/* Check if secure GERROR_IRQ_CFGx registers are writable */
+static inline bool smmu_gerror_irq_cfg_writable(SMMUv3State *s,
+                                                SMMUSecurityIndex sec_idx)
+{
+    if (!smmu_msi_supported(s, SMMU_SEC_IDX_NS)) {
+        return false;
+    }
+
+    bool ctrl_en = FIELD_EX32(s->bank[sec_idx].irq_ctrl,
+                              IRQ_CTRL, GERROR_IRQEN);
+
+    return !ctrl_en;
+}
+
+/* Check if CMDQEN is disabled */
+static bool smmu_cmdqen_disabled(SMMUv3State *s, SMMUSecurityIndex sec_idx)
+{
+    int cr0_cmdqen = smmuv3_get_cr0_cmdqen(s, sec_idx);
+    int cr0ack_cmdqen = smmuv3_get_cr0ack_cmdqen(s, sec_idx);
+    return (cr0_cmdqen == 0 && cr0ack_cmdqen == 0);
+}
+
+/* Check if CMDQ_BASE register is writable */
+static bool smmu_cmdq_base_writable(SMMUv3State *s, SMMUSecurityIndex sec_idx)
+{
+    /* Check TABLES_PRESET - use NS bank as it's the global setting */
+    if (FIELD_EX32(s->bank[SMMU_SEC_IDX_NS].idr[1], IDR1, QUEUES_PRESET)) {
+        return false;
+    }
+
+    return smmu_cmdqen_disabled(s, sec_idx);
+}
+
+/* Check if EVENTQEN is disabled */
+static bool smmu_eventqen_disabled(SMMUv3State *s, SMMUSecurityIndex sec_idx)
+{
+    int cr0_eventqen = smmuv3_get_cr0_eventqen(s, sec_idx);
+    int cr0ack_eventqen = smmuv3_get_cr0ack_eventqen(s, sec_idx);
+    return (cr0_eventqen == 0 && cr0ack_eventqen == 0);
+}
+
+static bool smmu_idr1_queue_preset(SMMUv3State *s, SMMUSecurityIndex sec_idx)
+{
+    return FIELD_EX32(s->bank[sec_idx].idr[1], IDR1, QUEUES_PRESET);
+}
+
+/* Check if EVENTQ_BASE register is writable */
+static bool smmu_eventq_base_writable(SMMUv3State *s, SMMUSecurityIndex sec_idx)
+{
+    /* Check TABLES_PRESET - use NS bank as it's the global setting */
+    if (smmu_idr1_queue_preset(s, SMMU_SEC_IDX_NS)) {
+        return false;
+    }
+
+    return smmu_eventqen_disabled(s, sec_idx);
+}
+
+static bool smmu_irq_ctl_evtq_irqen_disabled(SMMUv3State *s,
+                                             SMMUSecurityIndex sec_idx)
+{
+    return FIELD_EX32(s->bank[sec_idx].irq_ctrl, IRQ_CTRL, EVENTQ_IRQEN);
+}
+
+/* Check if EVENTQ_IRQ_CFGx is writable */
+static bool smmu_eventq_irq_cfg_writable(SMMUv3State *s,
+                                         SMMUSecurityIndex sec_idx)
+{
+    if (smmu_msi_supported(s, sec_idx)) {
+        return false;
+    }
+
+    return smmu_irq_ctl_evtq_irqen_disabled(s, sec_idx);
+}
+
 static int smmuv3_cmdq_consume(SMMUv3State *s, SMMUSecurityIndex sec_idx)
 {
     SMMUState *bs = ARM_SMMU(s);
@@ -1405,7 +1513,7 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, SMMUSecurityIndex sec_idx)
             break;
         }
 
-        if (queue_read(q, &cmd) != MEMTX_OK) {
+        if (queue_read(q, &cmd, sec_idx) != MEMTX_OK) {
             cmd_error = SMMU_CERROR_ABT;
             break;
         }
@@ -1430,8 +1538,11 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, SMMUSecurityIndex sec_idx)
             SMMUDevice *sdev = smmu_find_sdev(bs, sid);
 
             if (CMD_SSEC(&cmd)) {
-                cmd_error = SMMU_CERROR_ILL;
-                break;
+                if (sec_idx != SMMU_SEC_IDX_S) {
+                    /* Secure Stream with Non-Secure command */
+                    cmd_error = SMMU_CERROR_ILL;
+                    break;
+                }
             }
 
             if (!sdev) {
@@ -1450,8 +1561,10 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, SMMUSecurityIndex sec_idx)
             SMMUSIDRange sid_range;
 
             if (CMD_SSEC(&cmd)) {
-                cmd_error = SMMU_CERROR_ILL;
-                break;
+                if (sec_idx != SMMU_SEC_IDX_S) {
+                    cmd_error = SMMU_CERROR_ILL;
+                    break;
+                }
             }
 
             mask = (1ULL << (range + 1)) - 1;
@@ -1469,8 +1582,10 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, SMMUSecurityIndex sec_idx)
             SMMUDevice *sdev = smmu_find_sdev(bs, sid);
 
             if (CMD_SSEC(&cmd)) {
-                cmd_error = SMMU_CERROR_ILL;
-                break;
+                if (sec_idx != SMMU_SEC_IDX_S) {
+                    cmd_error = SMMU_CERROR_ILL;
+                    break;
+                }
             }
 
             if (!sdev) {
@@ -1624,6 +1739,13 @@ static MemTxResult smmu_writell(SMMUv3State *s, hwaddr offset,
         s->bank[reg_sec_idx].strtab_base = data & SMMU_STRTAB_BASE_RESERVED;
         return MEMTX_OK;
     case A_CMDQ_BASE:
+        if (!smmu_cmdq_base_writable(s, reg_sec_idx)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "CMDQ_BASE write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
+
+        data &= SMMU_QUEUE_BASE_RESERVED;
         s->bank[reg_sec_idx].cmdq.base = data;
         s->bank[reg_sec_idx].cmdq.log2size = extract64(
             s->bank[reg_sec_idx].cmdq.base, 0, 5);
@@ -1632,6 +1754,13 @@ static MemTxResult smmu_writell(SMMUv3State *s, hwaddr offset,
         }
         return MEMTX_OK;
     case A_EVENTQ_BASE:
+        if (!smmu_eventq_base_writable(s, reg_sec_idx)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "EVENTQ_BASE write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
+
+        data &= SMMU_QUEUE_BASE_RESERVED;
         s->bank[reg_sec_idx].eventq.base = data;
         s->bank[reg_sec_idx].eventq.log2size = extract64(
             s->bank[reg_sec_idx].eventq.base, 0, 5);
@@ -1640,7 +1769,24 @@ static MemTxResult smmu_writell(SMMUv3State *s, hwaddr offset,
         }
         return MEMTX_OK;
     case A_EVENTQ_IRQ_CFG0:
+        if (!smmu_eventq_irq_cfg_writable(s, reg_sec_idx)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "EVENTQ_IRQ_CFG0 write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
+
+        data &= SMMU_EVENTQ_IRQ_CFG0_RESERVED;
         s->bank[reg_sec_idx].eventq_irq_cfg0 = data;
+        return MEMTX_OK;
+    case A_GERROR_IRQ_CFG0:
+        if (!smmu_gerror_irq_cfg_writable(s, reg_sec_idx)) {
+            /* SMMU_(*_)_IRQ_CTRL.GERROR_IRQEN == 1: IGNORED this write */
+            qemu_log_mask(LOG_GUEST_ERROR, "GERROR_IRQ_CFG0 write ignored: "
+                         "register is RO when IRQ enabled\n");
+            return MEMTX_OK;
+        }
+        s->bank[reg_sec_idx].gerror_irq_cfg0 =
+            data & SMMU_GERROR_IRQ_CFG0_RESERVED;
         return MEMTX_OK;
     default:
         qemu_log_mask(LOG_UNIMP,
@@ -1666,7 +1812,15 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
         s->bank[reg_sec_idx].cr[1] = data;
         return MEMTX_OK;
     case A_CR2:
-        s->bank[reg_sec_idx].cr[2] = data;
+        if (smmuv3_is_smmu_enabled(s, reg_sec_idx)) {
+            /* Allow write: SMMUEN is 0 in both CR0 and CR0ACK */
+            s->bank[reg_sec_idx].cr[2] = data;
+        } else {
+            /* CONSTRAINED UNPREDICTABLE behavior: Ignore this write */
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "CR2 write ignored: register is read-only when "
+                          "CR0.SMMUEN or CR0ACK.SMMUEN is set\n");
+        }
         return MEMTX_OK;
     case A_IRQ_CTRL:
         s->bank[reg_sec_idx].irq_ctrl = data;
@@ -1680,14 +1834,28 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
         smmuv3_cmdq_consume(s, reg_sec_idx);
         return MEMTX_OK;
     case A_GERROR_IRQ_CFG0: /* 64b */
-        s->bank[reg_sec_idx].gerror_irq_cfg0 =
-            deposit64(s->bank[reg_sec_idx].gerror_irq_cfg0, 0, 32, data);
-        return MEMTX_OK;
     case A_GERROR_IRQ_CFG0 + 4:
-        s->bank[reg_sec_idx].gerror_irq_cfg0 =
-            deposit64(s->bank[reg_sec_idx].gerror_irq_cfg0, 32, 32, data);
+        if (!smmu_gerror_irq_cfg_writable(s, reg_sec_idx)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "GERROR_IRQ_CFG0 write ignored: "
+                          "register is RO when IRQ enabled\n");
+            return MEMTX_OK;
+        }
+
+        data &= SMMU_GERROR_IRQ_CFG0_RESERVED;
+        if (reg_offset == A_GERROR_IRQ_CFG0) {
+            s->bank[reg_sec_idx].gerror_irq_cfg0 = deposit64(
+                s->bank[reg_sec_idx].gerror_irq_cfg0, 0, 32, data);
+        } else {
+            s->bank[reg_sec_idx].gerror_irq_cfg0 = deposit64(
+                s->bank[reg_sec_idx].gerror_irq_cfg0, 32, 32, data);
+        }
         return MEMTX_OK;
     case A_GERROR_IRQ_CFG1:
+        if (!smmu_gerror_irq_cfg_writable(s, reg_sec_idx)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "GERROR_IRQ_CFG1 write ignored: "
+                          "register is RO when IRQ enabled\n");
+            return MEMTX_OK;
+        }
         s->bank[reg_sec_idx].gerror_irq_cfg1 = data;
         return MEMTX_OK;
     case A_GERROR_IRQ_CFG2:
@@ -1735,60 +1903,106 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
         }
         return MEMTX_OK;
     case A_CMDQ_BASE: /* 64b */
-        s->bank[reg_sec_idx].cmdq.base =
-            deposit64(s->bank[reg_sec_idx].cmdq.base, 0, 32, data);
-        s->bank[reg_sec_idx].cmdq.log2size =
-            extract64(s->bank[reg_sec_idx].cmdq.base, 0, 5);
-        if (s->bank[reg_sec_idx].cmdq.log2size > SMMU_CMDQS) {
-            s->bank[reg_sec_idx].cmdq.log2size = SMMU_CMDQS;
-        }
-        return MEMTX_OK;
     case A_CMDQ_BASE + 4: /* 64b */
-        s->bank[reg_sec_idx].cmdq.base =
-            deposit64(s->bank[reg_sec_idx].cmdq.base, 32, 32, data);
-        return MEMTX_OK;
+        if (!smmu_cmdq_base_writable(s, reg_sec_idx)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "CMDQ_BASE write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
+
+        data &= SMMU_QUEUE_BASE_RESERVED;
+        if (reg_offset == A_CMDQ_BASE) {
+            s->bank[reg_sec_idx].cmdq.base = deposit64(
+                s->bank[reg_sec_idx].cmdq.base, 0, 32, data);
+
+            s->bank[reg_sec_idx].cmdq.log2size = extract64(
+                s->bank[reg_sec_idx].cmdq.base, 0, 5);
+            if (s->bank[reg_sec_idx].cmdq.log2size > SMMU_CMDQS) {
+                s->bank[reg_sec_idx].cmdq.log2size = SMMU_CMDQS;
+            }
+        } else {
+            s->bank[reg_sec_idx].cmdq.base = deposit64(
+                s->bank[reg_sec_idx].cmdq.base, 32, 32, data);
+        }
+
         return MEMTX_OK;
     case A_CMDQ_PROD:
         s->bank[reg_sec_idx].cmdq.prod = data;
         smmuv3_cmdq_consume(s, reg_sec_idx);
         return MEMTX_OK;
     case A_CMDQ_CONS:
+        if (!smmu_cmdqen_disabled(s, reg_sec_idx)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "CMDQ_CONS write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
         s->bank[reg_sec_idx].cmdq.cons = data;
         return MEMTX_OK;
     case A_EVENTQ_BASE: /* 64b */
-        s->bank[reg_sec_idx].eventq.base =
-            deposit64(s->bank[reg_sec_idx].eventq.base, 0, 32, data);
-        s->bank[reg_sec_idx].eventq.log2size =
-            extract64(s->bank[reg_sec_idx].eventq.base, 0, 5);
-        if (s->bank[reg_sec_idx].eventq.log2size > SMMU_EVENTQS) {
-            s->bank[reg_sec_idx].eventq.log2size = SMMU_EVENTQS;
-        }
-        s->bank[reg_sec_idx].eventq.cons = data;
-        return MEMTX_OK;
     case A_EVENTQ_BASE + 4:
-        s->bank[reg_sec_idx].eventq.base =
-            deposit64(s->bank[reg_sec_idx].eventq.base, 32, 32, data);
-        return MEMTX_OK;
+        if (!smmu_eventq_base_writable(s, reg_sec_idx)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "EVENTQ_BASE write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
+
+        data &= SMMU_QUEUE_BASE_RESERVED;
+        if (reg_offset == A_EVENTQ_BASE) {
+            s->bank[reg_sec_idx].eventq.base = deposit64(
+                s->bank[reg_sec_idx].eventq.base, 0, 32, data);
+
+            s->bank[reg_sec_idx].eventq.log2size = extract64(
+                s->bank[reg_sec_idx].eventq.base, 0, 5);
+            if (s->bank[reg_sec_idx].eventq.log2size > SMMU_EVENTQS) {
+                s->bank[reg_sec_idx].eventq.log2size = SMMU_EVENTQS;
+            }
+        } else {
+            s->bank[reg_sec_idx].eventq.base = deposit64(
+                s->bank[reg_sec_idx].eventq.base, 32, 32, data);
+        }
         return MEMTX_OK;
     case A_EVENTQ_PROD:
+        if (!smmu_eventqen_disabled(s, reg_sec_idx)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "EVENTQ_PROD write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
         s->bank[reg_sec_idx].eventq.prod = data;
         return MEMTX_OK;
     case A_EVENTQ_CONS:
         s->bank[reg_sec_idx].eventq.cons = data;
         return MEMTX_OK;
     case A_EVENTQ_IRQ_CFG0: /* 64b */
-        s->bank[reg_sec_idx].eventq_irq_cfg0 =
-            deposit64(s->bank[reg_sec_idx].eventq_irq_cfg0, 0, 32, data);
-        return MEMTX_OK;
     case A_EVENTQ_IRQ_CFG0 + 4:
-        s->bank[reg_sec_idx].eventq_irq_cfg0 =
-            deposit64(s->bank[reg_sec_idx].eventq_irq_cfg0, 32, 32, data);
-        return MEMTX_OK;
+        if (!smmu_eventq_irq_cfg_writable(s, reg_sec_idx)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "EVENTQ_IRQ_CFG0 write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
+
+        data &= SMMU_EVENTQ_IRQ_CFG0_RESERVED;
+        if (reg_offset == A_EVENTQ_IRQ_CFG0) {
+            s->bank[reg_sec_idx].eventq_irq_cfg0 = deposit64(
+                s->bank[reg_sec_idx].eventq_irq_cfg0, 0, 32, data);
+        } else {
+            s->bank[reg_sec_idx].eventq_irq_cfg0 = deposit64(
+                s->bank[reg_sec_idx].eventq_irq_cfg0, 32, 32, data);
+        }
         return MEMTX_OK;
     case A_EVENTQ_IRQ_CFG1:
+        if (!smmu_eventq_irq_cfg_writable(s, reg_sec_idx)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "EVENTQ_IRQ_CFG1 write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
         s->bank[reg_sec_idx].eventq_irq_cfg1 = data;
         return MEMTX_OK;
     case A_EVENTQ_IRQ_CFG2:
+        if (!smmu_eventq_irq_cfg_writable(s, reg_sec_idx)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "EVENTQ_IRQ_CFG2 write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
         s->bank[reg_sec_idx].eventq_irq_cfg2 = data;
         return MEMTX_OK;
     case A_S_INIT_ALIAS:
@@ -1848,6 +2062,11 @@ static MemTxResult smmu_readll(SMMUv3State *s, hwaddr offset,
     uint32_t reg_offset = offset & 0xfff;
     switch (reg_offset) {
     case A_GERROR_IRQ_CFG0:
+        /* SMMU_(*_)GERROR_IRQ_CFG0 BOTH check SMMU_IDR0.MSI */
+        if (!smmu_msi_supported(s, SMMU_SEC_IDX_NS)) {
+            *data = 0; /* RES0 */
+            return MEMTX_OK;
+        }
         *data = s->bank[reg_sec_idx].gerror_irq_cfg0;
         return MEMTX_OK;
     case A_STRTAB_BASE:
@@ -1859,6 +2078,13 @@ static MemTxResult smmu_readll(SMMUv3State *s, hwaddr offset,
     case A_EVENTQ_BASE:
         *data = s->bank[reg_sec_idx].eventq.base;
         return MEMTX_OK;
+    case A_EVENTQ_IRQ_CFG0:
+        /* MSI support is depends on the register's security domain */
+        if (!smmu_msi_supported(s, reg_sec_idx)) {
+            *data = 0;
+            return MEMTX_OK;
+        }
+
         *data = s->bank[reg_sec_idx].eventq_irq_cfg0;
         return MEMTX_OK;
     default:
@@ -1917,16 +2143,31 @@ static MemTxResult smmu_readl(SMMUv3State *s, hwaddr offset,
         *data = s->bank[reg_sec_idx].gerrorn;
         return MEMTX_OK;
     case A_GERROR_IRQ_CFG0: /* 64b */
-        *data = extract64(s->bank[reg_sec_idx].gerror_irq_cfg0, 0, 32);
-        return MEMTX_OK;
     case A_GERROR_IRQ_CFG0 + 4:
-        *data = extract64(s->bank[reg_sec_idx].gerror_irq_cfg0, 32, 32);
-        return MEMTX_OK;
+        /* SMMU_(*_)GERROR_IRQ_CFG0 BOTH check SMMU_IDR0.MSI */
+        if (!smmu_msi_supported(s, SMMU_SEC_IDX_NS)) {
+            *data = 0; /* RES0 */
+            return MEMTX_OK;
+        }
+
+        if (reg_offset == A_GERROR_IRQ_CFG0) {
+            *data = extract64(s->bank[reg_sec_idx].gerror_irq_cfg0, 0, 32);
+        } else {
+            *data = extract64(s->bank[reg_sec_idx].gerror_irq_cfg0, 32, 32);
+        }
         return MEMTX_OK;
     case A_GERROR_IRQ_CFG1:
+        if (!smmu_msi_supported(s, SMMU_SEC_IDX_NS)) {
+            *data = 0; /* RES0 */
+            return MEMTX_OK;
+        }
         *data = s->bank[reg_sec_idx].gerror_irq_cfg1;
         return MEMTX_OK;
     case A_GERROR_IRQ_CFG2:
+        if (!smmu_msi_supported(s, SMMU_SEC_IDX_NS)) {
+            *data = 0; /* RES0 */
+            return MEMTX_OK;
+        }
         *data = s->bank[reg_sec_idx].gerror_irq_cfg2;
         return MEMTX_OK;
     case A_STRTAB_BASE: /* 64b */
@@ -1961,6 +2202,33 @@ static MemTxResult smmu_readl(SMMUv3State *s, hwaddr offset,
         return MEMTX_OK;
     case A_EVENTQ_CONS:
         *data = s->bank[reg_sec_idx].eventq.cons;
+        return MEMTX_OK;
+    case A_EVENTQ_IRQ_CFG0:
+    case A_EVENTQ_IRQ_CFG0 + 4:
+        if (!smmu_msi_supported(s, reg_sec_idx)) {
+            *data = 0;
+            return MEMTX_OK;
+        }
+
+        if (reg_offset == A_EVENTQ_IRQ_CFG0) {
+            *data = extract64(s->bank[reg_sec_idx].eventq_irq_cfg0, 0, 32);
+        } else {
+            *data = extract64(s->bank[reg_sec_idx].eventq_irq_cfg0, 32, 32);
+        }
+        return MEMTX_OK;
+    case A_EVENTQ_IRQ_CFG1:
+        if (!smmu_msi_supported(s, reg_sec_idx)) {
+            *data = 0;
+            return MEMTX_OK;
+        }
+        *data = s->bank[reg_sec_idx].eventq_irq_cfg1;
+        return MEMTX_OK;
+    case A_EVENTQ_IRQ_CFG2:
+        if (!smmu_msi_supported(s, reg_sec_idx)) {
+            *data = 0;
+            return MEMTX_OK;
+        }
+        *data = s->bank[reg_sec_idx].eventq_irq_cfg2;
         return MEMTX_OK;
     case A_S_INIT_ALIAS:
         *data = 0;
