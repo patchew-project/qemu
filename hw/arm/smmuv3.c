@@ -352,14 +352,13 @@ static void smmuv3_init_regs(SMMUv3State *s)
 }
 
 static int smmu_get_ste(SMMUv3State *s, dma_addr_t addr, STE *buf,
-                        SMMUEventInfo *event)
+                        SMMUEventInfo *event, SMMUTransCfg *cfg)
 {
     int ret, i;
 
     trace_smmuv3_get_ste(addr);
     /* TODO: guarantee 64-bit single-copy atomicity */
-    ret = dma_memory_read(&address_space_memory, addr, buf, sizeof(*buf),
-                          MEMTXATTRS_UNSPECIFIED);
+    ret = dma_memory_read(cfg->as, addr, buf, sizeof(*buf), cfg->txattrs);
     if (ret != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "Cannot fetch pte at address=0x%"PRIx64"\n", addr);
@@ -404,8 +403,7 @@ static int smmu_get_cd(SMMUv3State *s, STE *ste, SMMUTransCfg *cfg,
     }
 
     /* TODO: guarantee 64-bit single-copy atomicity */
-    ret = dma_memory_read(&address_space_memory, addr, buf, sizeof(*buf),
-                          MEMTXATTRS_UNSPECIFIED);
+    ret = dma_memory_read(cfg->as, addr, buf, sizeof(*buf), cfg->txattrs);
     if (ret != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "Cannot fetch pte at address=0x%"PRIx64"\n", addr);
@@ -699,8 +697,8 @@ static int smmu_find_ste(SMMUv3State *s, uint32_t sid, STE *ste,
         l2_ste_offset = sid & ((1 << sid_split) - 1);
         l1ptr = (dma_addr_t)(strtab_base + l1_ste_offset * sizeof(l1std));
         /* TODO: guarantee 64-bit single-copy atomicity */
-        ret = dma_memory_read(&address_space_memory, l1ptr, &l1std,
-                              sizeof(l1std), MEMTXATTRS_UNSPECIFIED);
+        ret = dma_memory_read(cfg->as, l1ptr,
+                              &l1std, sizeof(l1std), cfg->txattrs);
         if (ret != MEMTX_OK) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "Could not read L1PTR at 0X%"PRIx64"\n", l1ptr);
@@ -742,7 +740,7 @@ static int smmu_find_ste(SMMUv3State *s, uint32_t sid, STE *ste,
         addr = strtab_base + sid * sizeof(*ste);
     }
 
-    if (smmu_get_ste(s, addr, ste, event)) {
+    if (smmu_get_ste(s, addr, ste, event, cfg)) {
         return -EINVAL;
     }
 
@@ -900,18 +898,21 @@ static int smmuv3_decode_config(IOMMUMemoryRegion *mr, SMMUTransCfg *cfg,
  *
  * @sdev: SMMUDevice handle
  * @event: output event info
+ * @sec_idx: security index
  *
  * The configuration cache contains data resulting from both STE and CD
  * decoding under the form of an SMMUTransCfg struct. The hash table is indexed
  * by the SMMUDevice handle.
  */
-static SMMUTransCfg *smmuv3_get_config(SMMUDevice *sdev, SMMUEventInfo *event)
+static SMMUTransCfg *smmuv3_get_config(SMMUDevice *sdev, SMMUEventInfo *event,
+                                       SMMUSecurityIndex sec_idx)
 {
     SMMUv3State *s = sdev->smmu;
     SMMUState *bc = &s->smmu_state;
     SMMUTransCfg *cfg;
+    SMMUConfigKey lookup_key = smmu_get_config_key(sdev, sec_idx);
 
-    cfg = g_hash_table_lookup(bc->configs, sdev);
+    cfg = g_hash_table_lookup(bc->configs, &lookup_key);
     if (cfg) {
         sdev->cfg_cache_hits++;
         trace_smmuv3_config_cache_hit(smmu_get_sid(sdev),
@@ -925,9 +926,14 @@ static SMMUTransCfg *smmuv3_get_config(SMMUDevice *sdev, SMMUEventInfo *event)
                             100 * sdev->cfg_cache_hits /
                             (sdev->cfg_cache_hits + sdev->cfg_cache_misses));
         cfg = g_new0(SMMUTransCfg, 1);
+        cfg->sec_idx = sec_idx;
+        cfg->txattrs = smmu_get_txattrs(sec_idx);
+        cfg->as = smmu_get_address_space(sec_idx);
 
         if (!smmuv3_decode_config(&sdev->iommu, cfg, event)) {
-            g_hash_table_insert(bc->configs, sdev, cfg);
+            SMMUConfigKey *persistent_key = g_new(SMMUConfigKey, 1);
+            *persistent_key = smmu_get_config_key(sdev, sec_idx);
+            g_hash_table_insert(bc->configs, persistent_key, cfg);
         } else {
             g_free(cfg);
             cfg = NULL;
@@ -941,8 +947,8 @@ static void smmuv3_flush_config(SMMUDevice *sdev)
     SMMUv3State *s = sdev->smmu;
     SMMUState *bc = &s->smmu_state;
 
-    trace_smmu_config_cache_inv(smmu_get_sid(sdev));
-    g_hash_table_remove(bc->configs, sdev);
+    /* Remove all security-indexed configs for this device */
+    smmu_configs_inv_sdev(bc, sdev);
 }
 
 /* Do translation with TLB lookup. */
@@ -1102,7 +1108,7 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
         goto epilogue;
     }
 
-    cfg = smmuv3_get_config(sdev, &event);
+    cfg = smmuv3_get_config(sdev, &event, sec_idx);
     if (!cfg) {
         status = SMMU_TRANS_ERROR;
         goto epilogue;
@@ -1182,7 +1188,7 @@ static void smmuv3_notify_iova(IOMMUMemoryRegion *mr,
 {
     SMMUDevice *sdev = container_of(mr, SMMUDevice, iommu);
     SMMUEventInfo eventinfo = {.inval_ste_allowed = true};
-    SMMUTransCfg *cfg = smmuv3_get_config(sdev, &eventinfo);
+    SMMUTransCfg *cfg = smmuv3_get_config(sdev, &eventinfo, SMMU_SEC_IDX_NS);
     IOMMUTLBEvent event;
     uint8_t granule;
 
@@ -1312,6 +1318,38 @@ static void smmuv3_range_inval(SMMUState *s, Cmd *cmd, SMMUStage stage)
         }
         addr += mask + 1;
     }
+}
+
+static inline int smmuv3_get_cr0_smmuen(SMMUv3State *s,
+                                        SMMUSecurityIndex sec_idx)
+{
+    return smmu_enabled(s, sec_idx);
+}
+
+static inline int smmuv3_get_cr0ack_smmuen(SMMUv3State *s,
+                                           SMMUSecurityIndex sec_idx)
+{
+    return FIELD_EX32(s->bank[sec_idx].cr0ack, CR0, SMMUEN);
+}
+
+static inline bool smmuv3_is_smmu_enabled(SMMUv3State *s,
+                                          SMMUSecurityIndex sec_idx)
+{
+    int cr0_smmuen = smmuv3_get_cr0_smmuen(s, sec_idx);
+    int cr0ack_smmuen = smmuv3_get_cr0ack_smmuen(s, sec_idx);
+    return (cr0_smmuen == 0 && cr0ack_smmuen == 0);
+}
+
+/* Check if STRTAB_BASE register is writable */
+static bool smmu_strtab_base_writable(SMMUv3State *s, SMMUSecurityIndex sec_idx)
+{
+    /* Check TABLES_PRESET - use NS bank as it's the global setting */
+    if (FIELD_EX32(s->bank[SMMU_SEC_IDX_NS].idr[1], IDR1, TABLES_PRESET)) {
+        return false;
+    }
+
+    /* Check SMMUEN conditions for the specific security domain */
+    return smmuv3_is_smmu_enabled(s, sec_idx);
 }
 
 static int smmuv3_cmdq_consume(SMMUv3State *s, SMMUSecurityIndex sec_idx)
@@ -1553,6 +1591,11 @@ static MemTxResult smmu_writell(SMMUv3State *s, hwaddr offset,
     uint32_t reg_offset = offset & 0xfff;
     switch (reg_offset) {
     case A_STRTAB_BASE:
+        if (!smmu_strtab_base_writable(s, reg_sec_idx)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "STRTAB_BASE write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
         /* Clear reserved bits according to spec */
         s->bank[reg_sec_idx].strtab_base = data & SMMU_STRTAB_BASE_RESERVED;
         return MEMTX_OK;
@@ -1637,14 +1680,29 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
         }
         return MEMTX_OK;
     case A_STRTAB_BASE: /* 64b */
-        s->bank[reg_sec_idx].strtab_base =
-            deposit64(s->bank[reg_sec_idx].strtab_base, 0, 32, data);
-        return MEMTX_OK;
     case A_STRTAB_BASE + 4:
-        s->bank[reg_sec_idx].strtab_base =
-            deposit64(s->bank[reg_sec_idx].strtab_base, 32, 32, data);
+        if (!smmu_strtab_base_writable(s, reg_sec_idx)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "STRTAB_BASE write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
+
+        data &= SMMU_STRTAB_BASE_RESERVED;
+        if (reg_offset == A_STRTAB_BASE) {
+            s->bank[reg_sec_idx].strtab_base = deposit64(
+                s->bank[reg_sec_idx].strtab_base, 0, 32, data);
+        } else {
+            s->bank[reg_sec_idx].strtab_base = deposit64(
+                s->bank[reg_sec_idx].strtab_base, 32, 32, data);
+        }
         return MEMTX_OK;
     case A_STRTAB_BASE_CFG:
+        if (!smmu_strtab_base_writable(s, reg_sec_idx)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "STRTAB_BASE_CFG write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
+
         s->bank[reg_sec_idx].strtab_base_cfg = data;
         if (FIELD_EX32(data, STRTAB_BASE_CFG, FMT) == 1) {
             s->bank[reg_sec_idx].sid_split =

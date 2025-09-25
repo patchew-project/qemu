@@ -22,6 +22,7 @@
 #include "hw/sysbus.h"
 #include "hw/pci/pci.h"
 #include "qom/object.h"
+#include "hw/arm/arm-security.h"
 
 #define SMMU_PCI_BUS_MAX                    256
 #define SMMU_PCI_DEVFN_MAX                  256
@@ -52,6 +53,9 @@ typedef enum SMMUSecurityIndex {
     SMMU_SEC_IDX_S = 1,
     SMMU_SEC_IDX_NUM,
 } SMMUSecurityIndex;
+
+MemTxAttrs smmu_get_txattrs(SMMUSecurityIndex sec_idx);
+ARMSecuritySpace smmu_get_security_space(SMMUSecurityIndex sec_idx);
 
 extern AddressSpace __attribute__((weak)) arm_secure_address_space;
 extern bool arm_secure_as_available;
@@ -150,6 +154,8 @@ typedef struct SMMUTransCfg {
     /* Used by stage-2 only. */
     struct SMMUS2Cfg s2cfg;
     SMMUSecurityIndex sec_idx; /* cached security index */
+    MemTxAttrs txattrs;        /* cached transaction attributes */
+    AddressSpace *as;          /* cached address space */
 } SMMUTransCfg;
 
 typedef struct SMMUDevice {
@@ -175,6 +181,11 @@ typedef struct SMMUIOTLBKey {
     uint8_t tg;
     uint8_t level;
 } SMMUIOTLBKey;
+
+typedef struct SMMUConfigKey {
+    SMMUDevice *sdev;
+    SMMUSecurityIndex sec_idx;
+} SMMUConfigKey;
 
 typedef struct SMMUSIDRange {
     uint32_t start;
@@ -251,6 +262,7 @@ SMMUTLBEntry *smmu_iotlb_lookup(SMMUState *bs, SMMUTransCfg *cfg,
 void smmu_iotlb_insert(SMMUState *bs, SMMUTransCfg *cfg, SMMUTLBEntry *entry);
 SMMUIOTLBKey smmu_get_iotlb_key(int asid, int vmid, uint64_t iova,
                                 uint8_t tg, uint8_t level);
+SMMUConfigKey smmu_get_config_key(SMMUDevice *sdev, SMMUSecurityIndex sec_idx);
 void smmu_iotlb_inv_all(SMMUState *s);
 void smmu_iotlb_inv_asid_vmid(SMMUState *s, int asid, int vmid);
 void smmu_iotlb_inv_vmid(SMMUState *s, int vmid);
@@ -260,6 +272,8 @@ void smmu_iotlb_inv_iova(SMMUState *s, int asid, int vmid, dma_addr_t iova,
 void smmu_iotlb_inv_ipa(SMMUState *s, int vmid, dma_addr_t ipa, uint8_t tg,
                         uint64_t num_pages, uint8_t ttl);
 void smmu_configs_inv_sid_range(SMMUState *s, SMMUSIDRange sid_range);
+/* Invalidate all cached configs for a given device across all security idx */
+void smmu_configs_inv_sdev(SMMUState *s, SMMUDevice *sdev);
 /* Unmap the range of all the notifiers registered to any IOMMU mr */
 void smmu_inv_notifiers_all(SMMUState *s);
 
