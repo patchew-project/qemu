@@ -45,6 +45,10 @@ struct InterfaceImpl
     const char *typename;
 };
 
+enum TypeImplFlags {
+    TYPE_IMPL_FLAG_ABSTRACT = (1 << 0),
+};
+
 struct TypeImpl
 {
     const char *name;
@@ -63,7 +67,7 @@ struct TypeImpl
     void (*instance_post_init)(Object *obj);
     void (*instance_finalize)(Object *obj);
 
-    bool abstract;
+    int flags;
 
     const char *parent;
     TypeImpl *parent_type;
@@ -127,7 +131,9 @@ static TypeImpl *type_new(const TypeInfo *info)
     ti->instance_post_init = info->instance_post_init;
     ti->instance_finalize = info->instance_finalize;
 
-    ti->abstract = info->abstract;
+    if (info->abstract) {
+        ti->flags |= TYPE_IMPL_FLAG_ABSTRACT;
+    }
 
     for (i = 0; info->interfaces && info->interfaces[i].type; i++) {
         ti->interfaces[i].typename = g_strdup(info->interfaces[i].type);
@@ -348,11 +354,11 @@ static void type_initialize(TypeImpl *ti)
      * This means interface types are all abstract.
      */
     if (ti->instance_size == 0) {
-        ti->abstract = true;
+        ti->flags |= TYPE_IMPL_FLAG_ABSTRACT;
     }
     if (type_is_ancestor(ti, type_interface)) {
         assert(ti->instance_size == 0);
-        assert(ti->abstract);
+        assert(ti->flags & TYPE_IMPL_FLAG_ABSTRACT);
         assert(!ti->instance_init);
         assert(!ti->instance_post_init);
         assert(!ti->instance_finalize);
@@ -558,7 +564,7 @@ static void object_initialize_with_type(Object *obj, size_t size, TypeImpl *type
     type_initialize(type);
 
     g_assert(type->instance_size >= sizeof(Object));
-    g_assert(type->abstract == false);
+    g_assert(!(type->flags & TYPE_IMPL_FLAG_ABSTRACT));
     g_assert(size >= type->instance_size);
 
     memset(obj, 0, type->instance_size);
@@ -1045,7 +1051,7 @@ ObjectClass *object_get_class(Object *obj)
 
 bool object_class_is_abstract(ObjectClass *klass)
 {
-    return klass->type->abstract;
+    return klass->type->flags & TYPE_IMPL_FLAG_ABSTRACT;
 }
 
 const char *object_class_get_name(ObjectClass *klass)
@@ -1110,7 +1116,8 @@ static void object_class_foreach_tramp(gpointer key, gpointer value,
     type_initialize(type);
     k = type->class;
 
-    if (!data->include_abstract && type->abstract) {
+    if (!data->include_abstract &&
+        (type->flags & TYPE_IMPL_FLAG_ABSTRACT)) {
         return;
     }
 
