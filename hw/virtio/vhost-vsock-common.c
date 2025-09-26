@@ -308,6 +308,7 @@ static const TypeInfo vhost_vsock_common_info = {
     .instance_size = sizeof(VHostVSockCommon),
     .class_init = vhost_vsock_common_class_init,
     .abstract = true,
+    .secure = true,
 };
 
 static void vhost_vsock_common_register_types(void)

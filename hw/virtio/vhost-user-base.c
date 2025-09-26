@@ -372,7 +372,8 @@ static const TypeInfo vub_types[] = {
         .instance_size = sizeof(VHostUserBase),
         .class_init = vub_class_init,
         .class_size = sizeof(VHostUserBaseClass),
-        .abstract = true
+        .abstract = true,
+        .secure = true,
     }
 };
 
