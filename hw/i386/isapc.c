@@ -185,5 +185,5 @@ static void isapc_machine_options(MachineClass *m)
     m->no_parallel = !module_object_class_by_name(TYPE_ISA_PARALLEL);
 }
 
-DEFINE_PC_MACHINE(isapc, "isapc", pc_init_isa,
-                  isapc_machine_options);
+DEFINE_INSECURE_PC_MACHINE(isapc, "isapc", pc_init_isa,
+                           isapc_machine_options);

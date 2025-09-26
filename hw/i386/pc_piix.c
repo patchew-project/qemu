@@ -755,8 +755,8 @@ static void xenfv_machine_4_2_options(MachineClass *m)
     m->default_machine_opts = "accel=xen,suppress-vmdesc=on";
 }
 
-DEFINE_PC_MACHINE(xenfv_4_2, "xenfv-4.2", pc_xen_hvm_init,
-                  xenfv_machine_4_2_options);
+DEFINE_SECURE_PC_MACHINE(xenfv_4_2, "xenfv-4.2", pc_xen_hvm_init,
+                         xenfv_machine_4_2_options);
 
 static void xenfv_machine_3_1_options(MachineClass *m)
 {
@@ -767,6 +767,6 @@ static void xenfv_machine_3_1_options(MachineClass *m)
     m->default_machine_opts = "accel=xen,suppress-vmdesc=on";
 }
 
-DEFINE_PC_MACHINE(xenfv, "xenfv-3.1", pc_xen_hvm_init,
-                  xenfv_machine_3_1_options);
+DEFINE_SECURE_PC_MACHINE(xenfv, "xenfv-3.1", pc_xen_hvm_init,
+                         xenfv_machine_3_1_options);
 #endif
