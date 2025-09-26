@@ -1099,6 +1099,38 @@ static void smmuv3_fixup_event(SMMUEventInfo *event, hwaddr iova)
     }
 }
 
+static SMMUSecurityIndex smmuv3_attrs_to_security_index(MemTxAttrs attrs)
+{
+    switch (attrs.space) {
+    case ARMSS_Secure:
+        return SMMU_SEC_IDX_S;
+    case ARMSS_NonSecure:
+    default:
+        return SMMU_SEC_IDX_NS;
+    }
+}
+
+/*
+ * ARM SMMU IOMMU index mapping (implements SEC_SID from ARM SMMU):
+ * iommu_idx = 0: Non-secure transactions
+ * iommu_idx = 1: Secure transactions
+ *
+ * The iommu_idx parameter effectively implements the SEC_SID
+ * (Security Stream ID) attribute from the ARM SMMU architecture
+ * specification, which allows the SMMU to differentiate between
+ * secure and non-secure transactions at the hardware level.
+ */
+static int smmuv3_attrs_to_index(IOMMUMemoryRegion *iommu, MemTxAttrs attrs)
+{
+    return smmuv3_attrs_to_security_index(attrs);
+}
+
+static int smmuv3_num_indexes(IOMMUMemoryRegion *iommu)
+{
+    /* Support 2 IOMMU indexes for now: NS/S */
+    return SMMU_SEC_IDX_NUM;
+}
+
 /* Entry point to SMMU, does everything. */
 static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
                                       IOMMUAccessFlags flag, int iommu_idx)
@@ -1111,7 +1143,7 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
                            .inval_ste_allowed = false};
     SMMUTranslationStatus status;
     SMMUTransCfg *cfg = NULL;
-    SMMUSecurityIndex sec_idx = SMMU_SEC_IDX_NS;
+    SMMUSecurityIndex sec_idx = iommu_idx;
     IOMMUTLBEntry entry = {
         .target_as = &address_space_memory,
         .iova = addr,
@@ -1155,6 +1187,7 @@ epilogue:
         entry.perm = cached_entry->entry.perm;
         entry.translated_addr = CACHED_ENTRY_TO_ADDR(cached_entry, addr);
         entry.addr_mask = cached_entry->entry.addr_mask;
+        entry.target_as = cached_entry->entry.target_as;
         trace_smmuv3_translate_success(mr->parent_obj.name, sid, addr,
                                        entry.translated_addr, entry.perm,
                                        cfg->stage);
@@ -2534,6 +2567,8 @@ static void smmuv3_iommu_memory_region_class_init(ObjectClass *klass,
 
     imrc->translate = smmuv3_translate;
     imrc->notify_flag_changed = smmuv3_notify_flag_changed;
+    imrc->attrs_to_index = smmuv3_attrs_to_index;
+    imrc->num_indexes = smmuv3_num_indexes;
 }
 
 static const TypeInfo smmuv3_type_info = {
