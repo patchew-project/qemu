@@ -187,6 +187,7 @@ static const TypeInfo rp_info = {
     .instance_post_init = rp_instance_post_init,
     .class_init    = rp_class_init,
     .abstract      = true,
+    .secure        = true,
     .class_size = sizeof(PCIERootPortClass),
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
