@@ -450,6 +450,7 @@ static const TypeInfo esp_pci_info = {
     .instance_init = esp_pci_init,
     .instance_size = sizeof(PCIESPState),
     .class_init = esp_pci_class_init,
+    .secure = false,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
@@ -574,6 +575,7 @@ static const TypeInfo dc390_info = {
     .parent = TYPE_AM53C974_DEVICE,
     .instance_size = sizeof(DC390State),
     .class_init = dc390_class_init,
+    .secure = false,
 };
 
 static void esp_pci_register_types(void)

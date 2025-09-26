@@ -1299,6 +1299,7 @@ static const TypeInfo pvscsi_info = {
     .instance_size = sizeof(PVSCSIState),
     .class_init    = pvscsi_class_init,
     .instance_init = pvscsi_instance_init,
+    .secure        = true,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
         { INTERFACE_PCIE_DEVICE },

@@ -1678,6 +1678,7 @@ static const TypeInfo esp_info_types[] = {
         .instance_init = sysbus_esp_init,
         .instance_size = sizeof(SysBusESPState),
         .class_init    = sysbus_esp_class_init,
+        .secure        = false,
     },
     {
         .name = TYPE_ESP,
@@ -1686,6 +1687,7 @@ static const TypeInfo esp_info_types[] = {
         .instance_finalize = esp_finalize,
         .instance_size = sizeof(ESPState),
         .class_init = esp_class_init,
+        .secure = false,
     },
 };
 

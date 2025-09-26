@@ -2556,6 +2556,7 @@ static const TypeInfo megasas_info = {
     .instance_size = sizeof(MegasasState),
     .class_size = sizeof(MegasasBaseClass),
     .abstract = true,
+    .secure = false,
 };
 
 static void megasas_register_types(void)
@@ -2572,6 +2573,7 @@ static void megasas_register_types(void)
         type_info.class_data = info;
         type_info.class_init = megasas_class_init;
         type_info.interfaces = info->interfaces;
+        type_info.secure = false;
 
         type_register_static(&type_info);
     }

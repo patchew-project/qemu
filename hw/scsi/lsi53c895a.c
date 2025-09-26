@@ -2396,6 +2396,7 @@ static const TypeInfo lsi_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(LSIState),
     .class_init    = lsi_class_init,
+    .secure        = false,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
@@ -2413,6 +2414,7 @@ static const TypeInfo lsi53c810_info = {
     .name          = TYPE_LSI53C810,
     .parent        = TYPE_LSI53C895A,
     .class_init    = lsi53c810_class_init,
+    .secure        = false,
 };
 
 static void lsi53c895a_register_types(void)
