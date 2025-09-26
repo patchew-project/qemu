@@ -140,6 +140,7 @@ static const TypeInfo virtio_ccw_md_info = {
     .instance_size = sizeof(VirtIOMDCcw),
     .class_size = sizeof(VirtIOMDCcwClass),
     .abstract = true,
+    .secure = true,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_MEMORY_DEVICE },
         { }
