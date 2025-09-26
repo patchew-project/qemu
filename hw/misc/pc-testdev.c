@@ -206,6 +206,7 @@ static const TypeInfo testdev_info = {
     .parent         = TYPE_ISA_DEVICE,
     .instance_size  = sizeof(PCTestdev),
     .class_init     = testdev_class_init,
+    .secure         = false,
 };
 
 static void testdev_register_types(void)

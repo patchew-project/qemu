@@ -316,6 +316,7 @@ static const TypeInfo hv_test_dev_info = {
     .parent         = TYPE_ISA_DEVICE,
     .instance_size  = sizeof(HypervTestDev),
     .class_init     = hv_test_dev_class_init,
+    .secure         = false,
 };
 
 static void hv_test_dev_register_types(void)
