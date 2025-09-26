@@ -351,6 +351,16 @@ static void smmuv3_init_regs(SMMUv3State *s)
     s->statusr = 0;
     s->bank[SMMU_SEC_IDX_NS].gbpa = SMMU_GBPA_RESET_VAL;
 
+    /* Initialize Secure bank (SMMU_SEC_IDX_S) */
+    memset(s->bank[SMMU_SEC_IDX_S].idr, 0, sizeof(s->bank[SMMU_SEC_IDX_S].idr));
+    s->bank[SMMU_SEC_IDX_S].idr[1] = FIELD_DP32(s->bank[SMMU_SEC_IDX_S].idr[1],
+                                                S_IDR1, SECURE_IMPL,
+                                                s->secure_impl);
+    s->bank[SMMU_SEC_IDX_S].idr[1] = FIELD_DP32(
+        s->bank[SMMU_SEC_IDX_S].idr[1], IDR1, SIDSIZE, SMMU_IDR1_SIDSIZE);
+    s->bank[SMMU_SEC_IDX_S].gbpa = SMMU_GBPA_RESET_VAL;
+    s->bank[SMMU_SEC_IDX_S].cmdq.entry_size = sizeof(struct Cmd);
+    s->bank[SMMU_SEC_IDX_S].eventq.entry_size = sizeof(struct Evt);
 }
 
 static int smmu_get_ste(SMMUv3State *s, dma_addr_t addr, STE *buf,
@@ -2505,6 +2515,12 @@ static const Property smmuv3_properties[] = {
      * Defaults to stage 1
      */
     DEFINE_PROP_STRING("stage", SMMUv3State, stage),
+    /*
+     * SECURE_IMPL field in S_IDR1 register.
+     * Indicates whether secure state is implemented.
+     * Defaults to false (0)
+     */
+    DEFINE_PROP_BOOL("secure-impl", SMMUv3State, secure_impl, false),
 };
 
 static void smmuv3_instance_init(Object *obj)
