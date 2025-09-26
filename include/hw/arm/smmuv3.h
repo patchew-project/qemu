@@ -71,6 +71,7 @@ struct SMMUv3State {
     QemuMutex mutex;
     char *stage;
     bool secure_impl;
+    bool migrate_secure_bank;
 };
 
 typedef enum {
