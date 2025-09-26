@@ -370,6 +370,7 @@ static const TypeInfo ppc4xx_host_bridge_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init    = ppc4xx_host_bridge_class_init,
+    .secure        = false,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
@@ -389,6 +390,7 @@ static const TypeInfo ppc4xx_pcihost_info = {
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(PPC4xxPCIState),
     .class_init    = ppc4xx_pcihost_class_init,
+    .secure        = false,
 };
 
 static void ppc4xx_pci_register_types(void)

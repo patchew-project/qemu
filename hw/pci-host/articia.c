@@ -267,12 +267,14 @@ static const TypeInfo articia_types[] = {
         .parent        = TYPE_PCI_HOST_BRIDGE,
         .instance_size = sizeof(ArticiaState),
         .class_init    = articia_class_init,
+        .secure        = false,
     },
     {
         .name          = TYPE_ARTICIA_PCI_HOST,
         .parent        = TYPE_PCI_DEVICE,
         .instance_size = sizeof(ArticiaHostState),
         .class_init    = articia_pci_host_class_init,
+        .secure        = false,
         .interfaces = (const InterfaceInfo[]) {
               { INTERFACE_CONVENTIONAL_PCI_DEVICE },
               { },
@@ -283,6 +285,7 @@ static const TypeInfo articia_types[] = {
         .parent        = TYPE_PCI_DEVICE,
         .instance_size = sizeof(PCIDevice),
         .class_init    = articia_pci_bridge_class_init,
+        .secure        = false,
         .interfaces = (const InterfaceInfo[]) {
               { INTERFACE_CONVENTIONAL_PCI_DEVICE },
               { },

@@ -477,6 +477,7 @@ static const TypeInfo sabre_pci_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(SabrePCIState),
     .class_init    = sabre_pci_class_init,
+    .secure        = false,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
@@ -516,6 +517,7 @@ static const TypeInfo sabre_info = {
     .instance_size = sizeof(SabreState),
     .instance_init = sabre_init,
     .class_init    = sabre_class_init,
+    .secure        = false,
 };
 
 static void sabre_register_types(void)

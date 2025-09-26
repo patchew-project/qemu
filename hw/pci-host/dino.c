@@ -506,6 +506,7 @@ static const TypeInfo dino_pcihost_info = {
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(DinoState),
     .class_init    = dino_pcihost_class_init,
+    .secure        = false,
 };
 
 static void dino_register_types(void)

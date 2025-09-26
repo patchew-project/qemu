@@ -532,6 +532,7 @@ static const TypeInfo ppc440_pcix_info = {
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(PPC440PCIXState),
     .class_init    = ppc440_pcix_class_init,
+    .secure        = false,
 };
 
 static void ppc440_pcix_register_types(void)

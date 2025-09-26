@@ -333,6 +333,7 @@ static const TypeInfo unin_main_pci_host_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init = unin_main_pci_host_class_init,
+    .secure = false,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
@@ -361,6 +362,7 @@ static const TypeInfo u3_agp_pci_host_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init = u3_agp_pci_host_class_init,
+    .secure = false,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },

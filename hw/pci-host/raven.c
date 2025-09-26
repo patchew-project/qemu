@@ -363,6 +363,7 @@ static const TypeInfo raven_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(RavenPCIState),
     .class_init = raven_class_init,
+    .secure = false,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
@@ -384,6 +385,7 @@ static const TypeInfo raven_pcihost_info = {
     .instance_size = sizeof(PREPPCIState),
     .instance_init = raven_pcihost_initfn,
     .class_init = raven_pcihost_class_init,
+    .secure = false,
 };
 
 static void raven_register_types(void)

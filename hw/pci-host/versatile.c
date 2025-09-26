@@ -492,6 +492,7 @@ static const TypeInfo versatile_pci_host_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init    = versatile_pci_host_class_init,
+    .secure        = false,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
@@ -519,6 +520,7 @@ static const TypeInfo pci_vpb_info = {
     .instance_size = sizeof(PCIVPBState),
     .instance_init = pci_vpb_init,
     .class_init    = pci_vpb_class_init,
+    .secure        = false,
 };
 
 static void pci_realview_init(Object *obj)
@@ -536,6 +538,7 @@ static const TypeInfo pci_realview_info = {
     .name          = "realview_pci",
     .parent        = TYPE_VERSATILE_PCI,
     .instance_init = pci_realview_init,
+    .secure        = false,
 };
 
 static void versatile_pci_register_types(void)

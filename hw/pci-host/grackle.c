@@ -116,6 +116,7 @@ static const TypeInfo grackle_pci_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init = grackle_pci_class_init,
+    .secure        = false,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
@@ -151,6 +152,7 @@ static const TypeInfo grackle_host_info = {
     .instance_size = sizeof(GrackleState),
     .instance_init = grackle_init,
     .class_init    = grackle_class_init,
+    .secure        = false,
 };
 
 static void grackle_register_types(void)

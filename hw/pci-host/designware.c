@@ -757,17 +757,20 @@ static const TypeInfo designware_pcie_types[] = {
         .parent         = TYPE_PCIE_BUS,
         .instance_size  = sizeof(DesignwarePCIERootBus),
         .class_init     = designware_pcie_root_bus_class_init,
+        .secure         = false,
     }, {
         .name           = TYPE_DESIGNWARE_PCIE_HOST,
         .parent         = TYPE_PCI_HOST_BRIDGE,
         .instance_size  = sizeof(DesignwarePCIEHost),
         .instance_init  = designware_pcie_host_init,
         .class_init     = designware_pcie_host_class_init,
+        .secure         = false,
     }, {
         .name           = TYPE_DESIGNWARE_PCIE_ROOT,
         .parent         = TYPE_PCI_BRIDGE,
         .instance_size  = sizeof(DesignwarePCIERoot),
         .class_init     = designware_pcie_root_class_init,
+        .secure         = false,
         .interfaces     = (const InterfaceInfo[]) {
             { INTERFACE_PCIE_DEVICE },
             { }

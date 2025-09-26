@@ -92,6 +92,7 @@ static const TypeInfo fsl_imx8m_pcie_phy_types[] = {
         .parent = TYPE_SYS_BUS_DEVICE,
         .instance_size = sizeof(FslImx8mPciePhyState),
         .class_init = fsl_imx8m_pcie_phy_class_init,
+        .secure = false,
     }
 };
 

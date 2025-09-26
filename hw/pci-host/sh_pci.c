@@ -180,11 +180,13 @@ static const TypeInfo sh_pcic_types[] = {
         .parent         = TYPE_PCI_HOST_BRIDGE,
         .instance_size  = sizeof(SHPCIState),
         .class_init     = sh_pcic_host_class_init,
+        .secure         = false,
     }, {
         .name           = "sh_pci_host",
         .parent         = TYPE_PCI_DEVICE,
         .instance_size  = sizeof(PCIDevice),
         .class_init     = sh_pcic_pci_class_init,
+        .secure         = false,
         .interfaces = (const InterfaceInfo[]) {
             { INTERFACE_CONVENTIONAL_PCI_DEVICE },
             { },

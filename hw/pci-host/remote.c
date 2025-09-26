@@ -64,6 +64,7 @@ static const TypeInfo remote_pcihost_info = {
     .parent = TYPE_PCIE_HOST_BRIDGE,
     .instance_size = sizeof(RemotePCIHost),
     .class_init = remote_pcihost_class_init,
+    .secure = true,
 };
 
 static void remote_pcihost_register(void)

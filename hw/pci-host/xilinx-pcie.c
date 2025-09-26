@@ -183,6 +183,7 @@ static const TypeInfo xilinx_pcie_host_info = {
     .instance_size = sizeof(XilinxPCIEHost),
     .instance_init = xilinx_pcie_host_init,
     .class_init = xilinx_pcie_host_class_init,
+    .secure = false,
 };
 
 static uint32_t xilinx_pcie_root_config_read(PCIDevice *d,

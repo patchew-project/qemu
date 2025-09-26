@@ -783,6 +783,7 @@ static const TypeInfo bonito_pci_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIBonitoState),
     .class_init    = bonito_pci_class_init,
+    .secure        = false,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
@@ -801,6 +802,7 @@ static const TypeInfo bonito_host_info = {
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(BonitoState),
     .class_init    = bonito_host_class_init,
+    .secure        = false,
 };
 
 static void bonito_register_types(void)

@@ -498,6 +498,7 @@ static const TypeInfo elroy_pcihost_info = {
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(ElroyState),
     .class_init    = elroy_pcihost_class_init,
+    .secure        = false,
 };
 
 static void elroy_register_types(void)
@@ -930,6 +931,7 @@ static const TypeInfo astro_chip_info = {
     .instance_init = astro_init,
     .instance_size = sizeof(AstroState),
     .class_init    = astro_class_init,
+    .secure        = false,
 };
 
 static void astro_iommu_memory_region_class_init(ObjectClass *klass,
@@ -944,6 +946,7 @@ static const TypeInfo astro_iommu_memory_region_info = {
     .parent = TYPE_IOMMU_MEMORY_REGION,
     .name = TYPE_ASTRO_IOMMU_MEMORY_REGION,
     .class_init = astro_iommu_memory_region_class_init,
+    .secure = false,
 };
 
 

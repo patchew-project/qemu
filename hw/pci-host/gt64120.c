@@ -1283,6 +1283,7 @@ static const TypeInfo gt64120_pci_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init    = gt64120_pci_class_init,
+    .secure        = false,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
@@ -1310,6 +1311,7 @@ static const TypeInfo gt64120_info = {
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(GT64120State),
     .class_init    = gt64120_class_init,
+    .secure        = false,
 };
 
 static void gt64120_pci_register_types(void)
