@@ -2383,9 +2383,18 @@ static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
     AccelState *accel;
     int ret;
     bool qtest_with_kvm;
+    Error *local_err = NULL;
 
     if (!acc) {
         error_setg(errp, QERR_MISSING_PARAMETER, "accel");
+        goto bad;
+    }
+
+    if (!compat_policy_check_security(&compat_policy,
+                                      object_class_get_name(OBJECT_CLASS(ac)),
+                                      object_class_is_secure(OBJECT_CLASS(ac)),
+                                      &local_err)) {
+        error_report_err(local_err);
         goto bad;
     }
 
