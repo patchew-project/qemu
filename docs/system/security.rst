@@ -49,6 +49,49 @@ Bugs affecting the non-virtualization use case are not considered security
 bugs at this time.  Users with non-virtualization use cases must not rely on
 QEMU to provide guest isolation or any security guarantees.
 
+Security status reporting
+'''''''''''''''''''''''''
+
+QEMU is progressively working to annotate object types to explicitly state
+whether they are considered to provide a security boundary or not.
+
+It is possible to control or identify the usage of types that do not offer
+an explicit security boundary using the ``insecure-types`` parameter to the
+``-compat`` argument, which accepts three values:
+
+ * accept: usage of any type will be permitted. This is the current
+   and historical default behaviour
+ * warn: usage of types not explicitly declared secure will result
+   in a warning message, but still be permitted.
+ * reject: usage of types not explicitly declared secure will result
+   in an error message, and will not be permitted.
+
+The compatibility policy will be honoured both at initial startup of
+QEMU and during any runtime alterations made with monitor commands.
+
+The status of any type class can be queried at runtime using the
+``qom-list-types`` command, whose returned information will flag any
+types declared as secure. The ``query-machines`` command will also
+reflect this same information for machine types.
+
+Machine type, accelerator and device security status can be queried
+using ``-machine help``, ``-accel help`` and ``-device help`` command
+line options respectively.
+
+The setting of the ``.secure`` field at the time a type class is
+declared in the code will determine whether bugs are eligible to
+be considered as security bugs:
+
+ * Explicitly declared ``.secure = true``: security bug process
+   applies, eligible for CVE assignment
+ * Explicitly declared ``.secure = false``: security bug process
+   does not apply, ineligible for CVE assignment
+ * No declaration of ``.secure`` property: follow the security
+   bug process initially. The virtualization vs non-virtualization
+   use case classification will be evaluated during bug triage
+   to determine whether to continue the security bug process,
+   or switch to the regular bug process.
+
 Architecture
 ------------
 
