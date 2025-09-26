@@ -1132,6 +1132,7 @@ static const TypeInfo virtio_gpu_rutabaga_info[] = {
         .parent = TYPE_VIRTIO_GPU,
         .instance_size = sizeof(VirtIOGPURutabaga),
         .class_init = virtio_gpu_rutabaga_class_init,
+        .secure = true,
     },
 };
 

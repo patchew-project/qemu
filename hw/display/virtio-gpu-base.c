@@ -308,7 +308,8 @@ static const TypeInfo virtio_gpu_base_info = {
     .instance_size = sizeof(VirtIOGPUBase),
     .class_size = sizeof(VirtIOGPUBaseClass),
     .class_init = virtio_gpu_base_class_init,
-    .abstract = true
+    .abstract = true,
+    .secure = true,
 };
 module_obj(TYPE_VIRTIO_GPU_BASE);
 module_kconfig(VIRTIO_GPU);
