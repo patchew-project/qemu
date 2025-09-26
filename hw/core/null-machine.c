@@ -55,4 +55,4 @@ static void machine_none_machine_init(MachineClass *mc)
     mc->no_cdrom = 1;
 }
 
-DEFINE_MACHINE("none", machine_none_machine_init)
+DEFINE_INSECURE_MACHINE("none", machine_none_machine_init)
