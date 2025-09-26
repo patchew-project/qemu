@@ -1142,12 +1142,31 @@ fi
 #########################################
 # gdb test
 
+# Check if all target arches are in a provided list of arches.
+is_target_arch_in_arch_list() {
+    arch_list=$1
+    for target in $target_list; do
+        arch=${target%%-*}
+        if test "${arch_list#*$arch}" = "$arch_list"; then
+            # Target arch not in arch list
+            return 1
+        fi
+    done
+    return 0
+}
+
 if test -n "$gdb_bin"; then
     gdb_version_string=$($gdb_bin --version | head -n 1)
     # Extract last field in the version string
     gdb_version=${gdb_version_string##* }
     if version_ge $gdb_version 9.1; then
         gdb_arches=$($python "$source_path/scripts/probe-gdb-support.py" $gdb_bin)
+
+	if is_target_arch_in_arch_list "$gdb_arches"; then
+            gdb_multiarch="yes"
+        else
+            gdb_multiarch=""
+	fi
     else
         gdb_bin=""
     fi
@@ -1984,6 +2003,8 @@ if test "$skip_meson" = no; then
   test -n "${LIB_FUZZING_ENGINE+xxx}" && meson_option_add "-Dfuzzing_engine=$LIB_FUZZING_ENGINE"
   test "$plugins" = yes && meson_option_add "-Dplugins=true"
   test "$tcg" != enabled && meson_option_add "-Dtcg=$tcg"
+  test "$gdb_multiarch" = yes && meson_option_add "-Dgdb=$gdb_bin"
+
   run_meson() {
     NINJA=$ninja $meson setup "$@" "$PWD" "$source_path"
   }
