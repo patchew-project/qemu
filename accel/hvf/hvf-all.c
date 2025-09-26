@@ -304,6 +304,7 @@ static const TypeInfo hvf_accel_type = {
     .parent = TYPE_ACCEL,
     .instance_size = sizeof(HVFState),
     .class_init = hvf_accel_class_init,
+    .secure = true,
 };
 
 static void hvf_type_init(void)

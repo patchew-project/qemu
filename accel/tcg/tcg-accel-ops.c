@@ -239,6 +239,7 @@ static const TypeInfo tcg_accel_ops_type = {
     .parent = TYPE_ACCEL_OPS,
     .class_init = tcg_accel_ops_class_init,
     .abstract = true,
+    .secure = false,
 };
 module_obj(ACCEL_OPS_NAME("tcg"));
 

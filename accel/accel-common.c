@@ -138,6 +138,7 @@ static const TypeInfo accel_types[] = {
         .class_size     = sizeof(AccelClass),
         .instance_size  = sizeof(AccelState),
         .abstract       = true,
+        .secure         = true,
     },
 };
 

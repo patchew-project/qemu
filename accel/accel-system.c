@@ -114,6 +114,7 @@ static const TypeInfo accel_ops_type_info = {
     .name = TYPE_ACCEL_OPS,
     .parent = TYPE_OBJECT,
     .abstract = true,
+    .secure = true,
     .class_size = sizeof(AccelOpsClass),
     .class_init = accel_ops_class_init,
 };

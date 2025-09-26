@@ -31,6 +31,7 @@ static const TypeInfo accel_cpu_type = {
     .parent = TYPE_OBJECT,
     .abstract = true,
     .class_size = sizeof(AccelCPUClass),
+    .secure = true,
 };
 
 static void register_accel_types(void)

@@ -58,6 +58,7 @@ static const TypeInfo qtest_accel_type = {
     .name = TYPE_QTEST_ACCEL,
     .parent = TYPE_ACCEL,
     .class_init = qtest_accel_class_init,
+    .secure = false,
 };
 module_obj(TYPE_QTEST_ACCEL);
 
@@ -77,6 +78,7 @@ static const TypeInfo qtest_accel_ops_type = {
     .parent = TYPE_ACCEL_OPS,
     .class_init = qtest_accel_ops_class_init,
     .abstract = true,
+    .secure = false,
 };
 module_obj(ACCEL_OPS_NAME("qtest"));
 

@@ -296,6 +296,7 @@ static const TypeInfo tcg_accel_type = {
     .instance_init = tcg_accel_instance_init,
     .class_init = tcg_accel_class_init,
     .instance_size = sizeof(TCGState),
+    .secure = false,
 };
 module_obj(TYPE_TCG_ACCEL);
 
