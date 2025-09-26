@@ -1261,12 +1261,14 @@ static const TypeInfo imx_fec_info = {
     .instance_size = sizeof(IMXFECState),
     .instance_init = imx_fec_init,
     .class_init    = imx_eth_class_init,
+    .secure        = false,
 };
 
 static const TypeInfo imx_enet_info = {
     .name          = TYPE_IMX_ENET,
     .parent        = TYPE_IMX_FEC,
     .instance_init = imx_enet_init,
+    .secure        = false,
 };
 
 static void imx_eth_register_types(void)

@@ -216,6 +216,7 @@ static const TypeInfo types[] = {
         .instance_size = sizeof(Lan9118PhyState),
         .instance_init = lan9118_phy_init,
         .class_init    = lan9118_phy_class_init,
+        .secure        = false,
     }
 };
 

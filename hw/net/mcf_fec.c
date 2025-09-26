@@ -681,6 +681,7 @@ static const TypeInfo mcf_fec_info = {
     .instance_size = sizeof(mcf_fec_state),
     .instance_init = mcf_fec_instance_init,
     .class_init    = mcf_fec_class_init,
+    .secure        = false,
 };
 
 static void mcf_fec_register_types(void)

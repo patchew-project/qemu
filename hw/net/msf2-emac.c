@@ -581,6 +581,7 @@ static const TypeInfo msf2_emac_info = {
     .instance_size = sizeof(MSF2EmacState),
     .instance_init = msf2_emac_init,
     .class_init    = msf2_emac_class_init,
+    .secure        = false,
 };
 
 static void msf2_emac_register_types(void)

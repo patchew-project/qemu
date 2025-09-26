@@ -181,6 +181,7 @@ static const TypeInfo lasi_82596_info = {
     .instance_size = sizeof(SysBusI82596State),
     .class_init    = lasi_82596_class_init,
     .instance_init = lasi_82596_instance_init,
+    .secure        = false,
 };
 
 static void lasi_82596_register_types(void)

@@ -933,6 +933,7 @@ static const TypeInfo npcm_gmac_types[] = {
         .parent = TYPE_SYS_BUS_DEVICE,
         .instance_size = sizeof(NPCMGMACState),
         .class_init = npcm_gmac_class_init,
+        .secure = false,
     },
 };
 DEFINE_TYPES(npcm_gmac_types)

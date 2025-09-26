@@ -2068,6 +2068,7 @@ static const TypeInfo canfd_info = {
     .instance_size = sizeof(XlnxVersalCANFDState),
     .class_init    = canfd_class_init,
     .instance_init = canfd_init,
+    .secure        = false,
 };
 
 static void canfd_register_types(void)

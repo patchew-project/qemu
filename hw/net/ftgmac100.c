@@ -1277,6 +1277,7 @@ static const TypeInfo ftgmac100_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(FTGMAC100State),
     .class_init = ftgmac100_class_init,
+    .secure = false,
 };
 
 /*

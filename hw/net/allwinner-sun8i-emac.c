@@ -892,6 +892,7 @@ static const TypeInfo allwinner_sun8i_emac_info = {
     .instance_size  = sizeof(AwSun8iEmacState),
     .instance_init  = allwinner_sun8i_emac_init,
     .class_init     = allwinner_sun8i_emac_class_init,
+    .secure         = false,
 };
 
 static void allwinner_sun8i_emac_register_types(void)

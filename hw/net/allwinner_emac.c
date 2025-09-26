@@ -528,8 +528,9 @@ static const TypeInfo aw_emac_info = {
     .name           = TYPE_AW_EMAC,
     .parent         = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(AwEmacState),
-    .instance_init   = aw_emac_init,
+    .instance_init  = aw_emac_init,
     .class_init     = aw_emac_class_init,
+    .secure         = false,
 };
 
 static void aw_emac_register_types(void)

@@ -516,6 +516,7 @@ static const TypeInfo stellaris_enet_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(stellaris_enet_state),
     .class_init    = stellaris_enet_class_init,
+    .secure        = false,
 };
 
 static void stellaris_enet_register_types(void)

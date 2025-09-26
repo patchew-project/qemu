@@ -161,6 +161,7 @@ static const TypeInfo lance_info = {
     .instance_size = sizeof(SysBusPCNetState),
     .class_init    = lance_class_init,
     .instance_init = lance_instance_init,
+    .secure        = false,
 };
 
 static void lance_register_types(void)

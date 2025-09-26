@@ -867,6 +867,7 @@ static const TypeInfo npcm7xx_emc_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(NPCM7xxEMCState),
     .class_init = npcm7xx_emc_class_init,
+    .secure = false,
 };
 
 static void npcm7xx_emc_register_type(void)

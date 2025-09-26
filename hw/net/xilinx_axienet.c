@@ -1038,6 +1038,7 @@ static const TypeInfo xilinx_enet_info = {
     .instance_size = sizeof(XilinxAXIEnet),
     .class_init    = xilinx_enet_class_init,
     .instance_init = xilinx_enet_init,
+    .secure = false,
 };
 
 static const TypeInfo xilinx_enet_data_stream_info = {

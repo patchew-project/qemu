@@ -763,6 +763,7 @@ static const TypeInfo open_eth_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(OpenEthState),
     .class_init    = open_eth_class_init,
+    .secure        = false,
 };
 
 static void open_eth_register_types(void)

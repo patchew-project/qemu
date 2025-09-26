@@ -401,6 +401,7 @@ static const TypeInfo xilinx_ethlite_types[] = {
         .instance_size = sizeof(XlnxXpsEthLite),
         .instance_init = xilinx_ethlite_init,
         .class_init    = xilinx_ethlite_class_init,
+        .secure        = false,
     },
 };
 

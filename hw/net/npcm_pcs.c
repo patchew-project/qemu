@@ -405,6 +405,7 @@ static const TypeInfo npcm_pcs_types[] = {
         .parent = TYPE_SYS_BUS_DEVICE,
         .instance_size = sizeof(NPCMPCSState),
         .class_init = npcm_pcs_class_init,
+        .secure = false,
     },
 };
 DEFINE_TYPES(npcm_pcs_types)

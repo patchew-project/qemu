@@ -956,6 +956,7 @@ static const TypeInfo dp8393x_info = {
     .instance_size = sizeof(dp8393xState),
     .instance_init = dp8393x_instance_init,
     .class_init    = dp8393x_class_init,
+    .secure        = false,
 };
 
 static void dp8393x_register_types(void)

@@ -1194,6 +1194,7 @@ static const TypeInfo can_info = {
     .instance_size = sizeof(XlnxZynqMPCANState),
     .class_init    = xlnx_zynqmp_can_class_init,
     .instance_init = xlnx_zynqmp_can_init,
+    .secure        = false,
 };
 
 static void can_register_types(void)

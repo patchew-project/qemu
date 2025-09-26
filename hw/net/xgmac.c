@@ -432,6 +432,7 @@ static const TypeInfo xgmac_enet_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XgmacState),
     .class_init    = xgmac_enet_class_init,
+    .secure        = false,
 };
 
 static void xgmac_enet_register_types(void)

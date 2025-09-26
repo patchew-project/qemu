@@ -142,6 +142,7 @@ static const TypeInfo ne2000_isa_info = {
     .instance_size = sizeof(ISANE2000State),
     .class_init    = isa_ne2000_class_initfn,
     .instance_init = isa_ne2000_instance_init,
+    .secure        = false,
 };
 
 static void ne2000_isa_register_types(void)

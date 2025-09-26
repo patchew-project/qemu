@@ -1325,6 +1325,7 @@ static const TypeInfo lan9118_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(lan9118_state),
     .class_init    = lan9118_class_init,
+    .secure        = false,
 };
 
 static void lan9118_register_types(void)

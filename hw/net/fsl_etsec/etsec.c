@@ -437,6 +437,7 @@ static const TypeInfo etsec_types[] = {
         .instance_size = sizeof(eTSEC),
         .class_init    = etsec_class_init,
         .instance_init = etsec_instance_init,
+        .secure        = false,
     },
 };
 

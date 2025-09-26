@@ -928,6 +928,7 @@ static const TypeInfo smc91c111_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(smc91c111_state),
     .class_init    = smc91c111_class_init,
+    .secure        = false,
 };
 
 static void smc91c111_register_types(void)

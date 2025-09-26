@@ -392,6 +392,7 @@ static const TypeInfo mv88w8618_eth_info = {
     .instance_size = sizeof(mv88w8618_eth_state),
     .instance_init = mv88w8618_eth_init,
     .class_init    = mv88w8618_eth_class_init,
+    .secure        = false,
 };
 
 static void musicpal_register_types(void)

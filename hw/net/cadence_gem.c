@@ -1833,6 +1833,7 @@ static const TypeInfo gem_info = {
     .instance_size  = sizeof(CadenceGEMState),
     .instance_init = gem_init,
     .class_init = gem_class_init,
+    .secure   = false,
 };
 
 static void gem_register_types(void)
