@@ -81,6 +81,7 @@ static const TypeInfo ohci_sysbus_types[] = {
         .parent        = TYPE_SYS_BUS_DEVICE,
         .instance_size = sizeof(OHCISysBusState),
         .class_init    = ohci_sysbus_class_init,
+        .secure        = true,
     },
 };
 

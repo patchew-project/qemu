@@ -240,6 +240,7 @@ static const TypeInfo ehci_sysbus_types[] = {
         .instance_init = ehci_sysbus_init,
         .instance_finalize = ehci_sysbus_finalize,
         .abstract      = true,
+        .secure        = true,
         .class_init    = ehci_sysbus_class_init,
         .class_size    = sizeof(SysBusEHCIClass),
     },
@@ -247,32 +248,38 @@ static const TypeInfo ehci_sysbus_types[] = {
         .name          = TYPE_PLATFORM_EHCI,
         .parent        = TYPE_SYS_BUS_EHCI,
         .class_init    = ehci_platform_class_init,
+        .secure        = true,
     },
     {
         .name          = TYPE_EXYNOS4210_EHCI,
         .parent        = TYPE_SYS_BUS_EHCI,
         .class_init    = ehci_exynos4210_class_init,
+        .secure        = true,
     },
     {
         .name          = TYPE_AW_H3_EHCI,
         .parent        = TYPE_SYS_BUS_EHCI,
         .class_init    = ehci_aw_h3_class_init,
+        .secure        = true,
     },
     {
         .name          = TYPE_NPCM7XX_EHCI,
         .parent        = TYPE_SYS_BUS_EHCI,
         .class_init    = ehci_npcm7xx_class_init,
+        .secure        = true,
     },
     {
         .name          = TYPE_TEGRA2_EHCI,
         .parent        = TYPE_SYS_BUS_EHCI,
         .class_init    = ehci_tegra2_class_init,
+        .secure        = true,
     },
     {
         .name          = TYPE_PPC4xx_EHCI,
         .parent        = TYPE_SYS_BUS_EHCI,
         .class_init    = ehci_ppc4xx_class_init,
         .instance_init = ehci_ppc4xx_init,
+        .secure        = true,
     },
     {
         .name          = TYPE_FUSBH200_EHCI,
@@ -280,6 +287,7 @@ static const TypeInfo ehci_sysbus_types[] = {
         .instance_size = sizeof(FUSBH200EHCIState),
         .instance_init = fusbh200_ehci_init,
         .class_init    = fusbh200_ehci_class_init,
+        .secure        = true,
     },
 };
 

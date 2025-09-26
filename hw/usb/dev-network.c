@@ -1435,6 +1435,7 @@ static const TypeInfo net_info = {
     .instance_size = sizeof(USBNetState),
     .class_init    = usb_net_class_initfn,
     .instance_init = usb_net_instance_init,
+    .secure        = true,
 };
 
 static void usb_net_register_types(void)

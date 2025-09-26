@@ -655,6 +655,7 @@ static const TypeInfo usb_serial_dev_type_info = {
     .parent = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBSerialState),
     .abstract = true,
+    .secure = true,
     .class_init = usb_serial_dev_class_init,
 };
 
@@ -672,6 +673,7 @@ static const TypeInfo serial_info = {
     .name          = "usb-serial",
     .parent        = TYPE_USB_SERIAL,
     .class_init    = usb_serial_class_initfn,
+    .secure        = true,
 };
 
 static const Property braille_properties[] = {
@@ -692,6 +694,7 @@ static const TypeInfo braille_info = {
     .name          = "usb-braille",
     .parent        = TYPE_USB_SERIAL,
     .class_init    = usb_braille_class_initfn,
+    .secure        = false,
 };
 
 static void usb_serial_register_types(void)

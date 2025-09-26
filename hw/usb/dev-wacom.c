@@ -442,6 +442,7 @@ static const TypeInfo wacom_info = {
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBWacomState),
     .class_init    = usb_wacom_class_init,
+    .secure        = true,
 };
 
 static void usb_wacom_register_types(void)

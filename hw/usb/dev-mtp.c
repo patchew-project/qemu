@@ -2107,6 +2107,7 @@ static const TypeInfo mtp_info = {
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(MTPState),
     .class_init    = usb_mtp_class_initfn,
+    .secure        = false,
 };
 
 static void usb_mtp_register_types(void)

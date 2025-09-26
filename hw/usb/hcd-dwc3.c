@@ -682,6 +682,7 @@ static const TypeInfo usb_dwc3_info = {
     .instance_size = sizeof(USBDWC3),
     .class_init    = usb_dwc3_class_init,
     .instance_init = usb_dwc3_init,
+    .secure        = false,
 };
 
 static void usb_dwc3_register_types(void)

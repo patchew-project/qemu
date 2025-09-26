@@ -1019,6 +1019,7 @@ static const TypeInfo usb_audio_info = {
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBAudioState),
     .class_init    = usb_audio_class_init,
+    .secure        = true,
 };
 
 static void usb_audio_register_types(void)

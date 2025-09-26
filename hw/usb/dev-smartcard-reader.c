@@ -1178,6 +1178,7 @@ static const TypeInfo ccid_bus_info = {
     .name = TYPE_CCID_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(CCIDBus),
+    .secure = true,
 };
 
 void ccid_card_send_apdu_to_guest(CCIDCardState *card,
@@ -1458,6 +1459,7 @@ static const TypeInfo ccid_info = {
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBCCIDState),
     .class_init    = ccid_class_initfn,
+    .secure        = true,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
         { }
@@ -1478,6 +1480,7 @@ static const TypeInfo ccid_card_type_info = {
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(CCIDCardState),
     .abstract = true,
+    .secure = true,
     .class_size = sizeof(CCIDCardClass),
     .class_init = ccid_card_class_init,
 };
