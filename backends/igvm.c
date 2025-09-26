@@ -34,6 +34,11 @@ typedef struct QIgvmParameterData {
     uint32_t index;
 } QIgvmParameterData;
 
+typedef struct QIgvmMemoryRegion {
+    QTAILQ_ENTRY(QIgvmMemoryRegion) next;
+    MemoryRegion mr;
+} QIgvmMemoryRegion;
+
 /*
  * Some directives are specific to particular confidential computing platforms.
  * Define required types for each of those platforms here.
@@ -79,6 +84,7 @@ typedef struct QIgvm {
     uint32_t compatibility_mask;
     unsigned current_header_index;
     QTAILQ_HEAD(, QIgvmParameterData) parameter_data;
+    QTAILQ_HEAD(, QIgvmMemoryRegion) memory_regions;
     IgvmPlatformType platform_type;
 
     /*
@@ -191,7 +197,7 @@ static void *qigvm_prepare_memory(QIgvm *ctx, uint64_t addr, uint64_t size,
                                   int region_identifier, Error **errp)
 {
     ERRP_GUARD();
-    MemoryRegion *igvm_pages = NULL;
+    QIgvmMemoryRegion *pages = NULL;
     Int128 gpa_region_size;
     MemoryRegionSection mrs =
         memory_region_find(get_system_memory(), addr, size);
@@ -225,20 +231,21 @@ static void *qigvm_prepare_memory(QIgvm *ctx, uint64_t addr, uint64_t size,
          */
         g_autofree char *region_name =
             g_strdup_printf("igvm.%X", region_identifier);
-        igvm_pages = g_new0(MemoryRegion, 1);
+        pages = g_new0(QIgvmMemoryRegion, 1);
         if (ctx->cgs && ctx->cgs->require_guest_memfd) {
-            if (!memory_region_init_ram_guest_memfd(igvm_pages, NULL,
+            if (!memory_region_init_ram_guest_memfd(&pages->mr, NULL,
                                                     region_name, size, errp)) {
                 return NULL;
             }
         } else {
-            if (!memory_region_init_ram(igvm_pages, NULL, region_name, size,
+            if (!memory_region_init_ram(&pages->mr, NULL, region_name, size,
                                         errp)) {
                 return NULL;
             }
         }
-        memory_region_add_subregion(get_system_memory(), addr, igvm_pages);
-        return memory_region_get_ram_ptr(igvm_pages);
+        memory_region_add_subregion(get_system_memory(), addr, &pages->mr);
+        QTAILQ_INSERT_TAIL(&ctx->memory_regions, pages, next);
+        return memory_region_get_ram_ptr(&pages->mr);
     }
 }
 
@@ -934,6 +941,7 @@ int qigvm_process_file(IgvmCfg *cfg, ConfidentialGuestSupport *cgs,
     }
 
     QTAILQ_INIT(&ctx.parameter_data);
+    QTAILQ_INIT(&ctx.memory_regions);
 
     for (ctx.current_header_index = 0;
          ctx.current_header_index < (unsigned)header_count;
