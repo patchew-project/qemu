@@ -901,6 +901,7 @@ static const TypeInfo tcx_info = {
     .instance_size = sizeof(TCXState),
     .instance_init = tcx_initfn,
     .class_init    = tcx_class_init,
+    .secure        = false,
 };
 
 static void tcx_register_types(void)

@@ -825,6 +825,7 @@ static const TypeInfo macfb_sysbus_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MacfbSysBusState),
     .class_init    = macfb_sysbus_class_init,
+    .secure        = false,
 };
 
 static const TypeInfo macfb_nubus_info = {
@@ -833,6 +834,7 @@ static const TypeInfo macfb_nubus_info = {
     .instance_size = sizeof(MacfbNubusState),
     .class_init    = macfb_nubus_class_init,
     .class_size    = sizeof(MacfbNubusDeviceClass),
+    .secure        = false,
 };
 
 static void macfb_register_types(void)

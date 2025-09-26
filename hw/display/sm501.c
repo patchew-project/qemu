@@ -2114,6 +2114,7 @@ static const TypeInfo sm501_sysbus_info = {
     .instance_size = sizeof(SM501SysBusState),
     .class_init    = sm501_sysbus_class_init,
     .instance_init = sm501_sysbus_init,
+    .secure        = false,
 };
 
 #define TYPE_PCI_SM501 "sm501"

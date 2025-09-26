@@ -384,6 +384,7 @@ static const TypeInfo cg3_info = {
     .instance_size = sizeof(CG3State),
     .instance_init = cg3_initfn,
     .class_init    = cg3_class_init,
+    .secure        = false,
 };
 
 static void cg3_register_types(void)

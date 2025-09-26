@@ -1504,6 +1504,7 @@ static const TypeInfo artist_info = {
     .instance_size = sizeof(ARTISTState),
     .instance_init = artist_initfn,
     .class_init    = artist_class_init,
+    .secure        = false,
 };
 
 static void artist_register_types(void)

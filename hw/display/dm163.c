@@ -343,6 +343,7 @@ static const TypeInfo dm163_types[] = {
         .parent = TYPE_DEVICE,
         .instance_size = sizeof(DM163State),
         .class_init = dm163_class_init
+        .secure = false,
     }
 };
 

@@ -459,6 +459,7 @@ static const TypeInfo bcm2835_fb_info = {
     .instance_size = sizeof(BCM2835FBState),
     .class_init    = bcm2835_fb_class_init,
     .instance_init = bcm2835_fb_init,
+    .secure        = false,
 };
 
 static void bcm2835_fb_register_types(void)

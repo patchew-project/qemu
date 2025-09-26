@@ -117,7 +117,8 @@ static const TypeInfo i2c_ddc_info = {
     .parent = TYPE_I2C_SLAVE,
     .instance_size = sizeof(I2CDDCState),
     .instance_init = i2c_ddc_init,
-    .class_init = i2c_ddc_class_init
+    .class_init = i2c_ddc_class_init,
+    .secure = false,
 };
 
 static void ddc_register_devices(void)

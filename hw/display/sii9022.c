@@ -185,6 +185,7 @@ static const TypeInfo sii9022_info = {
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(sii9022_state),
     .class_init    = sii9022_class_init,
+    .secure        = false,
 };
 
 static void sii9022_register_types(void)

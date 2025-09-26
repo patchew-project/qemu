@@ -132,6 +132,7 @@ static const TypeInfo vga_mmio_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(VGAMmioState),
     .class_init    = vga_mmio_class_initfn,
+    .secure        = true,
 };
 
 static void vga_mmio_register_types(void)

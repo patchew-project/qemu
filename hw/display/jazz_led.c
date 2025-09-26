@@ -310,6 +310,7 @@ static const TypeInfo jazz_led_info = {
     .instance_size = sizeof(LedState),
     .instance_init = jazz_led_init,
     .class_init    = jazz_led_class_init,
+    .secure        = false,
 };
 
 static void jazz_led_register(void)

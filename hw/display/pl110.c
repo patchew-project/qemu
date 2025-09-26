@@ -596,18 +596,21 @@ static const TypeInfo pl110_info = {
     .instance_size = sizeof(PL110State),
     .instance_init = pl110_init,
     .class_init    = pl110_class_init,
+    .secure        = false,
 };
 
 static const TypeInfo pl110_versatile_info = {
     .name          = "pl110_versatile",
     .parent        = TYPE_PL110,
     .instance_init = pl110_versatile_init,
+    .secure        = false,
 };
 
 static const TypeInfo pl111_info = {
     .name          = "pl111",
     .parent        = TYPE_PL110,
     .instance_init = pl111_init,
+    .secure        = false,
 };
 
 static void pl110_register_types(void)

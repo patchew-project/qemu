@@ -2516,7 +2516,9 @@ static const TypeInfo qxl_pci_type_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIQXLDevice),
     .abstract = true,
+    .secure = true,
     .class_init = qxl_pci_class_init,
+    .secure        = true,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
@@ -2539,6 +2541,7 @@ static const TypeInfo qxl_primary_info = {
     .name          = "qxl-vga",
     .parent        = TYPE_PCI_QXL,
     .class_init    = qxl_primary_class_init,
+    .secure        = true,
 };
 module_obj("qxl-vga");
 module_kconfig(QXL);
@@ -2557,6 +2560,7 @@ static const TypeInfo qxl_secondary_info = {
     .name          = "qxl",
     .parent        = TYPE_PCI_QXL,
     .class_init    = qxl_secondary_class_init,
+    .secure        = true,
 };
 module_obj("qxl");
 

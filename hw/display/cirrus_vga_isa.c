@@ -91,6 +91,7 @@ static const TypeInfo isa_cirrus_vga_info = {
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISACirrusVGAState),
     .class_init = isa_cirrus_vga_class_init,
+    .secure        = false,
 };
 
 static void cirrus_vga_isa_register_types(void)

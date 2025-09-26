@@ -378,6 +378,7 @@ static const TypeInfo ssd0323_info = {
     .parent        = TYPE_SSI_PERIPHERAL,
     .instance_size = sizeof(ssd0323_state),
     .class_init    = ssd0323_class_init,
+    .secure        = false,
 };
 
 static void ssd03232_register_types(void)

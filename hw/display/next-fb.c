@@ -134,6 +134,7 @@ static const TypeInfo nextfb_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(NeXTFbState),
     .class_init    = nextfb_class_init,
+    .secure        = false,
 };
 
 static void nextfb_register_types(void)

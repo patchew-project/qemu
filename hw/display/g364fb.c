@@ -543,6 +543,7 @@ static const TypeInfo g364fb_sysbus_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(G364SysBusState),
     .class_init    = g364fb_sysbus_class_init,
+    .secure        = false,
 };
 
 static void g364fb_register_types(void)

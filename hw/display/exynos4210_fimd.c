@@ -1974,6 +1974,7 @@ static const TypeInfo exynos4210_fimd_info = {
     .instance_size = sizeof(Exynos4210fimdState),
     .instance_init = exynos4210_fimd_init,
     .class_init = exynos4210_fimd_class_init,
+    .secure = false,
 };
 
 static void exynos4210_fimd_register_types(void)

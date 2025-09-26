@@ -328,6 +328,7 @@ static const TypeInfo ssd0303_info = {
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(ssd0303_state),
     .class_init    = ssd0303_class_init,
+    .secure        = false,
 };
 
 static void ssd0303_register_types(void)

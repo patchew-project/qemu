@@ -1412,6 +1412,7 @@ static const TypeInfo xlnx_dp_info = {
     .instance_init = xlnx_dp_init,
     .instance_finalize = xlnx_dp_finalize,
     .class_init    = xlnx_dp_class_init,
+    .secure        = false,
 };
 
 static void xlnx_dp_register_types(void)
