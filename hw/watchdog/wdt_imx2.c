@@ -303,6 +303,7 @@ static const TypeInfo imx2_wdt_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(IMX2WdtState),
     .class_init    = imx2_wdt_class_init,
+    .secure        = false,
 };
 
 static void imx2_wdt_register_type(void)

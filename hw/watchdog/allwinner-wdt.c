@@ -392,18 +392,21 @@ static const TypeInfo allwinner_wdt_info = {
     .class_init    = allwinner_wdt_class_init,
     .class_size    = sizeof(AwWdtClass),
     .abstract      = true,
+    .secure        = false,
 };
 
 static const TypeInfo allwinner_wdt_sun4i_info = {
     .name          = TYPE_AW_WDT_SUN4I,
     .parent        = TYPE_AW_WDT,
     .class_init    = allwinner_wdt_sun4i_class_init,
+    .secure        = false,
 };
 
 static const TypeInfo allwinner_wdt_sun6i_info = {
     .name          = TYPE_AW_WDT_SUN6I,
     .parent        = TYPE_AW_WDT,
     .class_init    = allwinner_wdt_sun6i_class_init,
+    .secure        = false,
 };
 
 static void allwinner_wdt_register(void)

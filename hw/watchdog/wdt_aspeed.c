@@ -327,6 +327,7 @@ static const TypeInfo aspeed_wdt_info = {
     .class_init = aspeed_wdt_class_init,
     .class_size    = sizeof(AspeedWDTClass),
     .abstract      = true,
+    .secure        = false,
 };
 
 static void aspeed_2400_wdt_class_init(ObjectClass *klass, const void *data)
@@ -349,6 +350,7 @@ static const TypeInfo aspeed_2400_wdt_info = {
     .parent = TYPE_ASPEED_WDT,
     .instance_size = sizeof(AspeedWDTState),
     .class_init = aspeed_2400_wdt_class_init,
+    .secure = false,
 };
 
 static void aspeed_2500_wdt_reset_pulse(AspeedWDTState *s, uint32_t property)
@@ -387,6 +389,7 @@ static const TypeInfo aspeed_2500_wdt_info = {
     .parent = TYPE_ASPEED_WDT,
     .instance_size = sizeof(AspeedWDTState),
     .class_init = aspeed_2500_wdt_class_init,
+    .secure = false,
 };
 
 static void aspeed_2600_wdt_class_init(ObjectClass *klass, const void *data)
@@ -410,6 +413,7 @@ static const TypeInfo aspeed_2600_wdt_info = {
     .parent = TYPE_ASPEED_WDT,
     .instance_size = sizeof(AspeedWDTState),
     .class_init = aspeed_2600_wdt_class_init,
+    .secure = false,
 };
 
 static void aspeed_1030_wdt_class_init(ObjectClass *klass, const void *data)
@@ -433,6 +437,7 @@ static const TypeInfo aspeed_1030_wdt_info = {
     .parent = TYPE_ASPEED_WDT,
     .instance_size = sizeof(AspeedWDTState),
     .class_init = aspeed_1030_wdt_class_init,
+    .secure = false,
 };
 
 static void aspeed_2700_wdt_class_init(ObjectClass *klass, const void *data)
@@ -456,6 +461,7 @@ static const TypeInfo aspeed_2700_wdt_info = {
     .parent = TYPE_ASPEED_WDT,
     .instance_size = sizeof(AspeedWDTState),
     .class_init = aspeed_2700_wdt_class_init,
+    .secure = false,
 };
 
 static void wdt_aspeed_register_types(void)

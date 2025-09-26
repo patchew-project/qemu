@@ -409,6 +409,7 @@ static const TypeInfo cmsdk_apb_watchdog_info = {
     .instance_size = sizeof(CMSDKAPBWatchdog),
     .instance_init = cmsdk_apb_watchdog_init,
     .class_init = cmsdk_apb_watchdog_class_init,
+    .secure = false,
 };
 
 static void luminary_watchdog_init(Object *obj)
