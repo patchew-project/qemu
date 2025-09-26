@@ -43,6 +43,8 @@
 #include "hw/qdev-properties.h"
 #include "hw/clock.h"
 #include "hw/boards.h"
+#include "qapi/compat-policy.h"
+
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them
@@ -641,6 +643,13 @@ DeviceState *qdev_device_add_from_qdict(const QDict *opts,
     /* find driver */
     dc = qdev_get_device_class(&driver, errp);
     if (!dc) {
+        return NULL;
+    }
+
+    if (!compat_policy_check_security(&compat_policy,
+                                      object_class_get_name(OBJECT_CLASS(dc)),
+                                      object_class_is_secure(OBJECT_CLASS(dc)),
+                                      errp)) {
         return NULL;
     }
 
