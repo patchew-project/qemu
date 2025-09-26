@@ -1265,10 +1265,12 @@ static const TypeInfo types[] = {
         .instance_init = vfio_iommu_legacy_instance_init,
         .instance_size = sizeof(VFIOContainer),
         .class_init = vfio_iommu_legacy_class_init,
+        .secure = true,
     }, {
         .name = TYPE_HOST_IOMMU_DEVICE_LEGACY_VFIO,
         .parent = TYPE_HOST_IOMMU_DEVICE,
         .class_init = hiod_legacy_vfio_class_init,
+        .secure = true,
     }
 };
 

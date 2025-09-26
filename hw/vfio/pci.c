@@ -3673,6 +3673,7 @@ static const TypeInfo vfio_pci_base_dev_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(VFIOPCIDevice),
     .abstract = true,
+    .secure = true,
     .class_init = vfio_pci_base_dev_class_init,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
@@ -3918,6 +3919,7 @@ static const TypeInfo vfio_pci_dev_info = {
     .class_init = vfio_pci_dev_class_init,
     .instance_init = vfio_instance_init,
     .instance_finalize = vfio_instance_finalize,
+    .secure = true,
 };
 
 static const Property vfio_pci_dev_nohotplug_properties[] = {
@@ -3954,6 +3956,7 @@ static const TypeInfo vfio_pci_nohotplug_dev_info = {
     .parent = TYPE_VFIO_PCI,
     .instance_size = sizeof(VFIOPCIDevice),
     .class_init = vfio_pci_nohotplug_dev_class_init,
+    .secure = true,
 };
 
 static void register_vfio_pci_dev_type(void)
