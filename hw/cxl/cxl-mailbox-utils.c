@@ -25,6 +25,7 @@
 #include "system/hostmem.h"
 #include "qemu/range.h"
 #include "qapi/qapi-types-cxl.h"
+#include "hw/cxl/mhsld/mhsld.h"
 
 #define CXL_CAPACITY_MULTIPLIER   (256 * MiB)
 #define CXL_DC_EVENT_LOG_SIZE 8
@@ -3582,6 +3583,8 @@ static CXLRetCode cmd_fm_initiate_dc_add(const struct cxl_cmd *cmd,
         CXLDCExtentRaw extents[];
     } QEMU_PACKED *in = (void *)payload_in;
     CXLType3Dev *ct3d = CXL_TYPE3(cci->d);
+    CXLType3Class *cvc = CXL_TYPE3_GET_CLASS(ct3d);
+    CXLDCRegion *region = &ct3d->dc.regions[in->reg_num];
     int i, rc;
 
     switch (in->selection_policy) {
@@ -3618,6 +3621,28 @@ static CXLRetCode cmd_fm_initiate_dc_add(const struct cxl_cmd *cmd,
 
             if (rc) {
                 return rc;
+            }
+
+            /* If this is an MHD, attempt to reserve the extents */
+            if (cvc->mhd_reserve_extents) {
+                g_autofree CxlDynamicCapacityExtentList *records =
+                    g_malloc0(in->ext_count * sizeof(*records));
+                g_autofree CxlDynamicCapacityExtent *dc_exts =
+                    g_malloc0(in->ext_count * sizeof(*dc_exts));
+
+                for (i = 0; i < in->ext_count; i++) {
+                    CxlDynamicCapacityExtent *value = &dc_exts[i];
+                    value->offset =
+                        in->extents[i].start_dpa - region->base;
+                    value->len = in->extents[i].len;
+
+                    records[i].value = value;
+                    records[i].next = &records[i + 1];
+                }
+                records[in->ext_count - 1].next = NULL;
+                if (!cvc->mhd_reserve_extents(&ct3d->parent_obj, records, in->reg_num)) {
+                    return CXL_MBOX_INVALID_INPUT;
+                }
             }
 
             CXLDCExtentGroup *group = NULL;
