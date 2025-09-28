@@ -2721,10 +2721,23 @@ void tcg_gen_extract2_i64(TCGv_i64 ret, TCGv_i64 al, TCGv_i64 ah,
     } else if (TCG_TARGET_REG_BITS == 64) {
         tcg_gen_op4i_i64(INDEX_op_extract2, ret, al, ah, ofs);
     } else {
-        TCGv_i64 t0 = tcg_temp_ebb_new_i64();
-        tcg_gen_shri_i64(t0, al, ofs);
-        tcg_gen_deposit_i64(ret, t0, ah, 64 - ofs, ofs);
-        tcg_temp_free_i64(t0);
+        TCGv_i32 rl = tcg_temp_ebb_new_i32();
+        TCGv_i32 rh = TCGV_HIGH(ret);
+        TCGv_i32 t0, t1, t2;
+
+        if (ofs & 32) {
+            t0 = TCGV_HIGH(al);
+            t1 = TCGV_LOW(ah);
+            t2 = TCGV_HIGH(ah);
+        } else {
+            t0 = TCGV_LOW(al);
+            t1 = TCGV_HIGH(al);
+            t2 = TCGV_LOW(ah);
+        }
+        tcg_gen_extract2_i32(rl, t0, t1, ofs & 31);
+        tcg_gen_extract2_i32(rh, t1, t2, ofs & 31);
+        tcg_gen_mov_i32(TCGV_LOW(ret), rl);
+        tcg_temp_free_i32(rl);
     }
 }
 
