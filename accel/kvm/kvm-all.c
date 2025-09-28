@@ -639,13 +639,10 @@ void kvm_close(void)
         cpu->kvm_vcpu_stats_fd = -1;
     }
 
-    if (kvm_state && kvm_state->fd != -1) {
-        close(kvm_state->vmfd);
-        kvm_state->vmfd = -1;
-        close(kvm_state->fd);
-        kvm_state->fd = -1;
-    }
-    kvm_state = NULL;
+    close(kvm_state->vmfd);
+    kvm_state->vmfd = -1;
+    close(kvm_state->fd);
+    kvm_state->fd = -1;
 }
 
 /*
