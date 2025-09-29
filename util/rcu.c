@@ -307,6 +307,8 @@ static void *call_rcu_thread(void *opaque)
 
 void call_rcu1(struct rcu_head *node, void (*func)(struct rcu_head *node))
 {
+    /* Avoid double rcu frees */
+    assert(node->func == NULL);
     node->func = func;
     enqueue(node);
     qatomic_inc(&rcu_call_count);
