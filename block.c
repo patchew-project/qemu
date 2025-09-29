@@ -38,7 +38,9 @@
 #include "qapi/error.h"
 #include "qobject/qdict.h"
 #include "qobject/qjson.h"
+#include "qobject/qlist.h"
 #include "qobject/qnull.h"
+#include "qobject/qnum.h"
 #include "qobject/qstring.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qapi-visit-block-core.h"
@@ -3956,6 +3958,35 @@ out:
     return bs_snapshot;
 }
 
+static bool bdrv_parse_stats_intervals(BlockDriverState *bs, QList *intervals,
+                                  Error **errp)
+{
+    unsigned i = 0;
+    const QListEntry *entry;
+    bs->num_stats_intervals = qlist_size(intervals);
+
+    if (bs->num_stats_intervals > 0) {
+        bs->stats_intervals = g_new(uint64_t, bs->num_stats_intervals);
+    }
+
+    for (entry = qlist_first(intervals); entry; entry = qlist_next(entry)) {
+        if (qobject_type(entry->value) == QTYPE_QNUM) {
+            uint64_t length = qnum_get_int(qobject_to(QNum, entry->value));
+
+            if (length > 0 && length <= UINT_MAX) {
+                bs->stats_intervals[i++] = length;
+            } else {
+                error_setg(errp, "Invalid interval length: %" PRId64, length);
+                return false;
+            }
+        } else {
+            error_setg(errp, "The specification of stats-intervals is invalid");
+            return false;
+        }
+    }
+    return true;
+}
+
 /*
  * Opens a disk image (raw, qcow2, vmdk, ...)
  *
@@ -3987,6 +4018,8 @@ bdrv_open_inherit(const char *filename, const char *reference, QDict *options,
     Error *local_err = NULL;
     QDict *snapshot_options = NULL;
     int snapshot_flags = 0;
+    QDict *interval_dict = NULL;
+    QList *interval_list = NULL;
 
     assert(!child_class || !flags);
     assert(!child_class == !parent);
@@ -4205,6 +4238,19 @@ bdrv_open_inherit(const char *filename, const char *reference, QDict *options,
         g_free(child_key_dot);
     }
 
+    qdict_extract_subqdict(options, &interval_dict, "stats-intervals.");
+    qdict_array_split(interval_dict, &interval_list);
+
+    if (qdict_size(interval_dict) != 0) {
+        error_setg(errp, "Invalid option stats-intervals.%s",
+                   qdict_first(interval_dict)->key);
+        goto close_and_fail;
+    }
+
+    if (!bdrv_parse_stats_intervals(bs, interval_list, errp)) {
+        goto close_and_fail;
+    }
+
     /* Check if any unknown options were used */
     if (qdict_size(options) != 0) {
         const QDictEntry *entry = qdict_first(options);
@@ -4261,6 +4307,8 @@ close_and_fail:
     bdrv_unref(bs);
     qobject_unref(snapshot_options);
     qobject_unref(options);
+    qobject_unref(interval_dict);
+    qobject_unref(interval_list);
     error_propagate(errp, local_err);
     return NULL;
 }
@@ -5190,6 +5238,8 @@ static void GRAPH_UNLOCKED bdrv_close(BlockDriverState *bs)
     bs->full_open_options = NULL;
     g_free(bs->block_status_cache);
     bs->block_status_cache = NULL;
+    g_free(bs->stats_intervals);
+    bs->stats_intervals = NULL;
 
     bdrv_release_named_dirty_bitmaps(bs);
     assert(QLIST_EMPTY(&bs->dirty_bitmaps));

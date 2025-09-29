@@ -4771,6 +4771,9 @@
 # @force-share: force share all permission on added nodes.  Requires
 #     read-only=true.  (Since 2.10)
 #
+# @stats-intervals: #optional list of intervals for collecting I/O
+#                   statistics, in seconds (default: none)
+#
 # Since: 2.9
 ##
 { 'union': 'BlockdevOptions',
@@ -4782,7 +4785,8 @@
             '*read-only': 'bool',
             '*auto-read-only': 'bool',
             '*force-share': 'bool',
-            '*detect-zeroes': 'BlockdevDetectZeroesOptions' },
+            '*detect-zeroes': 'BlockdevDetectZeroesOptions',
+            '*stats-intervals': ['int'] },
   'discriminator': 'driver',
   'data': {
       'blkdebug':   'BlockdevOptionsBlkdebug',

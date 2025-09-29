@@ -1814,6 +1814,12 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
                          conf->conf.lcyls,
                          conf->conf.lheads,
                          conf->conf.lsecs);
+
+    if (bs->stats_intervals) {
+        for (i = 0; i < bs->num_stats_intervals; i++) {
+            block_acct_add_interval(blk_get_stats(s->blk), bs->stats_intervals[i]);
+        }
+    }
 }
 
 static void virtio_blk_device_unrealize(DeviceState *dev)

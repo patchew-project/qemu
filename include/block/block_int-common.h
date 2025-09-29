@@ -1277,6 +1277,10 @@ struct BlockDriverState {
 
     /* array of write pointers' location of each zone in the zoned device. */
     BlockZoneWps *wps;
+
+    /* Array of intervals for collecting IO stats */
+    uint64_t *stats_intervals;
+    unsigned int num_stats_intervals;
 };
 
 struct BlockBackendRootState {
