@@ -3920,7 +3920,7 @@ err:
     return ret;
 }
 
-int ram_block_discard_guest_memfd_range(RAMBlock *rb, uint64_t start,
+int ram_block_discard_guest_memfd_range(RAMBlock *rb, ram_addr_t offset,
                                         size_t length)
 {
     int ret = -1;
@@ -3928,17 +3928,17 @@ int ram_block_discard_guest_memfd_range(RAMBlock *rb, uint64_t start,
 #ifdef CONFIG_FALLOCATE_PUNCH_HOLE
     /* ignore fd_offset with guest_memfd */
     ret = fallocate(rb->guest_memfd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-                    start, length);
+                    offset, length);
 
     if (ret) {
         ret = -errno;
-        error_report("%s: Failed to fallocate %s:%" PRIx64 " +%zx (%d)",
-                     __func__, rb->idstr, start, length, ret);
+        error_report("%s: Failed to fallocate %s:" RAM_ADDR_FMT " +%zx (%d)",
+                     __func__, rb->idstr, offset, length, ret);
     }
 #else
     ret = -ENOSYS;
-    error_report("%s: fallocate not available %s:%" PRIx64 " +%zx (%d)",
-                 __func__, rb->idstr, start, length, ret);
+    error_report("%s: fallocate not available %s:" RAM_ADDR_FMT " +%zx (%d)",
+                 __func__, rb->idstr, offset, length, ret);
 #endif
 
     return ret;
