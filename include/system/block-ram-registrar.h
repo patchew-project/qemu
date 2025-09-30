@@ -22,6 +22,8 @@
 typedef struct {
     BlockBackend *blk;
     RAMBlockNotifier ram_block_notifier;
+    Notifier blk_attach_notifier;
+    Notifier blk_detach_notifier;
     bool ok;
 } BlockRAMRegistrar;
 
