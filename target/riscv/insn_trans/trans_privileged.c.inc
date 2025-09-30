@@ -154,8 +154,10 @@ static bool trans_wfi(DisasContext *ctx, arg_wfi *a)
 static bool trans_sfence_vma(DisasContext *ctx, arg_sfence_vma *a)
 {
 #ifndef CONFIG_USER_ONLY
+    TCGv addr = get_gpr(ctx, a->rs1, EXT_NONE);
+
     decode_save_opc(ctx, 0);
-    gen_helper_tlb_flush(tcg_env);
+    gen_helper_tlb_flush(tcg_env, addr);
     return true;
 #endif
     return false;

@@ -555,7 +555,7 @@ void helper_wrs_nto(CPURISCVState *env)
     }
 }
 
-void helper_tlb_flush(CPURISCVState *env)
+void helper_tlb_flush(CPURISCVState *env, target_ulong addr)
 {
     CPUState *cs = env_cpu(env);
     if (!env->virt_enabled &&
@@ -566,7 +566,11 @@ void helper_tlb_flush(CPURISCVState *env)
                (env->priv == PRV_U || get_field(env->hstatus, HSTATUS_VTVM))) {
         riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, GETPC());
     } else {
-        tlb_flush(cs);
+        if (addr) {
+            tlb_flush_page(cs, addr);
+        } else {
+            tlb_flush(cs);
+        }
     }
 }
 

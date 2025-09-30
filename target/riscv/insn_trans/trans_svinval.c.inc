@@ -24,12 +24,14 @@
 
 static bool trans_sinval_vma(DisasContext *ctx, arg_sinval_vma *a)
 {
+    TCGv addr = get_gpr(ctx, a->rs1, EXT_NONE);
+
     REQUIRE_SVINVAL(ctx);
     /* Do the same as sfence.vma currently */
     REQUIRE_EXT(ctx, RVS);
 #ifndef CONFIG_USER_ONLY
     decode_save_opc(ctx, 0);
-    gen_helper_tlb_flush(tcg_env);
+    gen_helper_tlb_flush(tcg_env, addr);
     return true;
 #endif
     return false;
