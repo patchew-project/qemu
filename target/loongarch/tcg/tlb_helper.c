@@ -618,6 +618,22 @@ bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     /* Data access */
     context.addr = address;
     ret = get_physical_address(env, &context, access_type, mmu_idx, 0);
+    if (ret == TLBRET_MATCH && context.mmu_index != MMU_DA_IDX
+        && cpu_has_ptw(env)) {
+        bool need_update = true;
+
+        if (access_type == MMU_DATA_STORE && pte_dirty(context.pte)) {
+            need_update = false;
+        } else if (access_type != MMU_DATA_STORE && pte_access(context.pte)) {
+            need_update = false;
+        }
+
+        if (need_update) {
+            /* Need update bit A/D in PTE entry, take PTW again */
+            ret = TLBRET_NOMATCH;
+        }
+    }
+
     if (ret != TLBRET_MATCH && cpu_has_ptw(env)) {
         /* Take HW PTW if TLB missed or bit P is zero */
         if (ret == TLBRET_NOMATCH || ret == TLBRET_INVALID) {
