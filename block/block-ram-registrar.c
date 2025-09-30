@@ -12,7 +12,8 @@
 static void ram_block_added(RAMBlockNotifier *n, void *host, size_t size,
                             size_t max_size)
 {
-    BlockRAMRegistrar *r = container_of(n, BlockRAMRegistrar, notifier);
+    BlockRAMRegistrar *r =
+        container_of(n, BlockRAMRegistrar, ram_block_notifier);
     Error *err = NULL;
 
     if (!r->ok) {
@@ -21,7 +22,7 @@ static void ram_block_added(RAMBlockNotifier *n, void *host, size_t size,
 
     if (!blk_register_buf(r->blk, host, max_size, &err)) {
         error_report_err(err);
-        ram_block_notifier_remove(&r->notifier);
+        ram_block_notifier_remove(n);
         r->ok = false;
     }
 }
@@ -29,14 +30,15 @@ static void ram_block_added(RAMBlockNotifier *n, void *host, size_t size,
 static void ram_block_removed(RAMBlockNotifier *n, void *host, size_t size,
                               size_t max_size)
 {
-    BlockRAMRegistrar *r = container_of(n, BlockRAMRegistrar, notifier);
+    BlockRAMRegistrar *r =
+        container_of(n, BlockRAMRegistrar, ram_block_notifier);
     blk_unregister_buf(r->blk, host, max_size);
 }
 
 void blk_ram_registrar_init(BlockRAMRegistrar *r, BlockBackend *blk)
 {
     r->blk = blk;
-    r->notifier = (RAMBlockNotifier){
+    r->ram_block_notifier = (RAMBlockNotifier){
         .ram_block_added = ram_block_added,
         .ram_block_removed = ram_block_removed,
 
@@ -47,12 +49,12 @@ void blk_ram_registrar_init(BlockRAMRegistrar *r, BlockBackend *blk)
     };
     r->ok = true;
 
-    ram_block_notifier_add(&r->notifier);
+    ram_block_notifier_add(&r->ram_block_notifier);
 }
 
 void blk_ram_registrar_destroy(BlockRAMRegistrar *r)
 {
     if (r->ok) {
-        ram_block_notifier_remove(&r->notifier);
+        ram_block_notifier_remove(&r->ram_block_notifier);
     }
 }
