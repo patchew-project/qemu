@@ -963,6 +963,17 @@ struct BdrvChildClass {
     void GRAPH_RDLOCK_PTR (*activate)(BdrvChild *child, Error **errp);
     int GRAPH_RDLOCK_PTR (*inactivate)(BdrvChild *child);
 
+    /*
+     * Optional callbacks when a descendant (child, grandchild, etc) attaches
+     * or detaches a BlockDriverState. Allows monitoring changes to the graph.
+     *
+     * Called after ->attach() and before ->detach().
+     */
+    void GRAPH_WRLOCK_PTR (*propagate_attach)(BdrvChild *self,
+                                              BdrvChild *descendant);
+    void GRAPH_WRLOCK_PTR (*propagate_detach)(BdrvChild *self,
+                                              BdrvChild *descendant);
+
     void GRAPH_WRLOCK_PTR (*attach)(BdrvChild *child);
     void GRAPH_WRLOCK_PTR (*detach)(BdrvChild *child);
 
