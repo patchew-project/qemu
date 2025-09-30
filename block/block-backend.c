@@ -76,6 +76,7 @@ struct BlockBackend {
 
     /* Protected by BQL */
     NotifierList remove_bs_notifiers, insert_bs_notifiers;
+    NotifierList attach_notifiers, detach_notifiers;
     QLIST_HEAD(, BlockBackendAioNotifier) aio_notifiers;
 
     int quiesce_counter; /* atomic: written under BQL, read by other threads */
@@ -280,6 +281,30 @@ static int GRAPH_RDLOCK blk_root_inactivate(BdrvChild *child)
     return 0;
 }
 
+static void GRAPH_WRLOCK
+blk_root_propagate_attach(BdrvChild *self, BdrvChild *descendant)
+{
+    BlockBackend *blk = self->opaque;
+    BlockBackendAttachDetachArgs args = {
+        .blk = blk,
+        .bs = descendant->bs,
+    };
+
+    notifier_list_notify(&blk->attach_notifiers, &args);
+}
+
+static void GRAPH_WRLOCK
+blk_root_propagate_detach(BdrvChild *self, BdrvChild *descendant)
+{
+    BlockBackend *blk = self->opaque;
+    BlockBackendAttachDetachArgs args = {
+        .blk = blk,
+        .bs = descendant->bs,
+    };
+
+    notifier_list_notify(&blk->detach_notifiers, &args);
+}
+
 static void blk_root_attach(BdrvChild *child)
 {
     BlockBackend *blk = child->opaque;
@@ -333,6 +358,9 @@ static const BdrvChildClass child_root = {
     .activate           = blk_root_activate,
     .inactivate         = blk_root_inactivate,
 
+    .propagate_attach   = blk_root_propagate_attach,
+    .propagate_detach   = blk_root_propagate_detach,
+
     .attach             = blk_root_attach,
     .detach             = blk_root_detach,
 
@@ -374,6 +402,8 @@ BlockBackend *blk_new(AioContext *ctx, uint64_t perm, uint64_t shared_perm)
     qemu_co_queue_init(&blk->queued_requests);
     notifier_list_init(&blk->remove_bs_notifiers);
     notifier_list_init(&blk->insert_bs_notifiers);
+    notifier_list_init(&blk->attach_notifiers);
+    notifier_list_init(&blk->detach_notifiers);
     QLIST_INIT(&blk->aio_notifiers);
 
     QTAILQ_INSERT_TAIL(&block_backends, blk, link);
@@ -492,6 +522,8 @@ static void blk_delete(BlockBackend *blk)
     }
     assert(QLIST_EMPTY(&blk->remove_bs_notifiers.notifiers));
     assert(QLIST_EMPTY(&blk->insert_bs_notifiers.notifiers));
+    assert(QLIST_EMPTY(&blk->attach_notifiers.notifiers));
+    assert(QLIST_EMPTY(&blk->detach_notifiers.notifiers));
     assert(QLIST_EMPTY(&blk->aio_notifiers));
     assert(qemu_co_queue_empty(&blk->queued_requests));
     qemu_mutex_destroy(&blk->queued_requests_lock);
@@ -2510,6 +2542,18 @@ void blk_add_remove_bs_notifier(BlockBackend *blk, Notifier *notify)
 {
     GLOBAL_STATE_CODE();
     notifier_list_add(&blk->remove_bs_notifiers, notify);
+}
+
+void blk_add_attach_notifier(BlockBackend *blk, Notifier *notify)
+{
+    GLOBAL_STATE_CODE();
+    notifier_list_add(&blk->attach_notifiers, notify);
+}
+
+void blk_add_detach_notifier(BlockBackend *blk, Notifier *notify)
+{
+    GLOBAL_STATE_CODE();
+    notifier_list_add(&blk->detach_notifiers, notify);
 }
 
 BlockAcctStats *blk_get_stats(BlockBackend *blk)

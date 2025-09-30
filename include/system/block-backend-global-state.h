@@ -97,6 +97,15 @@ void blk_remove_aio_context_notifier(BlockBackend *blk,
                                      void (*detach_aio_context)(void *),
                                      void *opaque);
 void blk_add_remove_bs_notifier(BlockBackend *blk, Notifier *notify);
+
+typedef struct {
+    BlockBackend *blk;
+    BlockDriverState *bs;
+} BlockBackendAttachDetachArgs;
+
+void blk_add_attach_notifier(BlockBackend *blk, Notifier *notify);
+void blk_add_detach_notifier(BlockBackend *blk, Notifier *notify);
+
 BlockBackendRootState *blk_get_root_state(BlockBackend *blk);
 void blk_update_root_state(BlockBackend *blk);
 bool blk_get_detect_zeroes_from_root_state(BlockBackend *blk);
