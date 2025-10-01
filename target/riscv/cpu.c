@@ -348,7 +348,7 @@ static const char * const riscv_intr_names[] = {
     "reserved"
 };
 
-const char *riscv_cpu_get_trap_name(target_ulong cause, bool async)
+const char *riscv_cpu_get_trap_name(uint64_t cause, bool async)
 {
     if (async) {
         return (cause < ARRAY_SIZE(riscv_intr_names)) ?
