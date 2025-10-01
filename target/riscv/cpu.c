@@ -528,7 +528,8 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         qemu_fprintf(f, " %s %d\n", "V      =  ", env->virt_enabled);
     }
 #endif
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "pc      ", env->pc);
+    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "pc      ",
+                 (target_ulong) env->pc);
 #ifndef CONFIG_USER_ONLY
     {
         static const int dump_csrs[] = {
