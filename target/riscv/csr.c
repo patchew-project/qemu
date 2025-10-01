@@ -5653,6 +5653,23 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno,
     return riscv_csrrw_do64(env, csrno, ret_value, new_value, write_mask, ra);
 }
 
+int riscv_csr_write_i64(CPURISCVState *env, int csrno, uint64_t val)
+{
+    RISCVException ret;
+    ret = riscv_csrrw(env, csrno, NULL, val,
+                      MAKE_64BIT_MASK(0, TARGET_LONG_BITS), 0);
+    return ret;
+}
+
+int riscv_csr_read_i64(CPURISCVState *env, int csrno, uint64_t *res)
+{
+    RISCVException ret;
+    target_ulong val = 0;
+    ret = riscv_csrr(env, csrno, &val);
+    *res = val;
+    return ret;
+}
+
 static RISCVException riscv_csrrw_do128(CPURISCVState *env, int csrno,
                                         Int128 *ret_value,
                                         Int128 new_value,
