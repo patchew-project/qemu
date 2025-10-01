@@ -360,6 +360,12 @@ vext_page_ldst_us(CPURISCVState *env, void *vd, target_ulong addr,
     uint32_t evl = env->vstart + elems;
     MMUAccessType access_type = is_load ? MMU_DATA_LOAD : MMU_DATA_STORE;
 
+    /*
+     * Maximum vector length is VLMAX == 2^16 == LMUL * VL / SEW, and
+     * occurs for LMUL == 8, SEW == 8, VL == 2^16.
+     */
+    g_assert(env->vstart < UINT16_MAX && UINT16_MAX - env->vstart >= elems);
+
     /* Check page permission/pmp/watchpoint/etc. */
     probe_pages(env, addr, size, ra, access_type, mmu_index, &host, &flags,
                 true);
@@ -2594,19 +2600,27 @@ static inline uint8_t get_round(int vxrm, uint64_t v, uint8_t shift)
 
     d1 = extract64(v, shift - 1, 1);
     D1 = extract64(v, 0, shift);
-    if (vxrm == 0) { /* round-to-nearest-up (add +0.5 LSB) */
+    switch (vxrm) {
+    case 0:
+        /* round-to-nearest-up (add +0.5 LSB) */
         return d1;
-    } else if (vxrm == 1) { /* round-to-nearest-even */
+    case 1:
+        /* round-to-nearest-even */
         if (shift > 1) {
             D2 = extract64(v, 0, shift - 1);
             return d1 & ((D2 != 0) | d);
         } else {
             return d1 & d;
         }
-    } else if (vxrm == 3) { /* round-to-odd (OR bits into LSB, aka "jam") */
+    case 2:
+        /* round-down (truncate) */
+        return 0;
+    case 3:
+        /* round-to-odd (OR bits into LSB, aka "jam") */
         return !d & (D1 != 0);
+    default:
+        g_assert_not_reached();
     }
-    return 0; /* round-down (truncate) */
 }
 
 static inline int32_t aadd32(CPURISCVState *env, int vxrm, int32_t a,
