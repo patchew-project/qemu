@@ -20,6 +20,7 @@
 #include "exec/gdbstub.h"
 #include "gdbstub/helpers.h"
 #include "cpu.h"
+#include "csr.h"
 
 struct TypeSize {
     const char *gdb_type;
