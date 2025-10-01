@@ -30,8 +30,12 @@
 #include "ui/console.h"
 #include "hw/display/i2c-ddc.h"
 #include "trace.h"
+#include "qemu/units.h"
 
 #define ATI_DEBUG_HW_CURSOR 0
+
+#define ATI_RAGE128_LINEAR_APERTURE_SIZE (64 * MiB)
+#define ATI_RADEON_LINEAR_APERTURE_SIZE (128 * MiB)
 
 #ifdef CONFIG_PIXMAN
 #define DEFAULT_X_PIXMAN 3
@@ -361,7 +365,7 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
                                       PCI_BASE_ADDRESS_0, size) & 0xfffffff0;
         break;
     case CONFIG_APER_SIZE:
-        val = s->vga.vram_size / 2;
+        val = memory_region_size(&s->linear_aper);
         break;
     case CONFIG_REG_1_BASE:
         val = pci_default_read_config(&s->dev,
@@ -1011,7 +1015,25 @@ static void ati_vga_realize(PCIDevice *dev, Error **errp)
     /* io space is alias to beginning of mmregs */
     memory_region_init_alias(&s->io, OBJECT(s), "ati.io", &s->mm, 0, 0x100);
 
-    pci_register_bar(dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &vga->vram);
+    uint64_t aperture_size;
+    if (s->dev_id == PCI_DEVICE_ID_ATI_RADEON_QY) {
+        aperture_size = ATI_RADEON_LINEAR_APERTURE_SIZE;
+    } else {
+        aperture_size = ATI_RAGE128_LINEAR_APERTURE_SIZE;
+    }
+    memory_region_init(&s->linear_aper, OBJECT(dev), "ati-linear-aperture0",
+                       aperture_size);
+
+    /*
+     * Rage 128: Framebuffer inhabits the bottom 32MB of the linear aperture.
+     *           The top 32MB is reserved for AGP (not implemented).
+     *
+     * Radeon: The entire linear aperture is used for VRAM.
+     *         AGP is mapped separately.
+     */
+    memory_region_add_subregion(&s->linear_aper, 0, &vga->vram);
+
+    pci_register_bar(dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &s->linear_aper);
     pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
     pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mm);
 
