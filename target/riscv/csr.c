@@ -32,6 +32,9 @@
 #include "qapi/error.h"
 #include "tcg/insn-start-words.h"
 #include "internals.h"
+#if !defined(CONFIG_USER_ONLY)
+#include "debug.h"
+#endif
 #include <stdbool.h>
 
 /* CSR function table public API */
