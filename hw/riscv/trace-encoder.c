@@ -1,0 +1,216 @@
+/*
+ * Emulation of a RISC-V Trace Encoder
+ *
+ * Copyright (C) 2025 Ventana Micro Systems Inc.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+#include "qemu/osdep.h"
+
+#include "trace-encoder.h"
+#include "hw/irq.h"
+#include "hw/qdev-properties.h"
+#include "migration/vmstate.h"
+#include "qemu/bitops.h"
+#include "qemu/log.h"
+#include "qemu/module.h"
+#include "qapi/error.h"
+#include "trace.h"
+#include "system/device_tree.h"
+#include "hw/register.h"
+#include "cpu.h"
+
+/*
+ * trTeControl register fields
+ */
+REG32(TR_TE_CONTROL, 0x0)
+    FIELD(TR_TE_CONTROL, ACTIVE, 0, 1)
+    FIELD(TR_TE_CONTROL, ENABLE, 1, 1)
+    FIELD(TR_TE_CONTROL, INST_TRACING, 2, 1)
+    FIELD(TR_TE_CONTROL, EMPTY, 3, 1)
+    FIELD(TR_TE_CONTROL, INST_MODE, 4, 3)
+    FIELD(TR_TE_CONTROL, INST_SYNC_MODE, 16, 2)
+    FIELD(TR_TE_CONTROL, FORMAT, 24, 3)
+    /* reserved bits */
+    FIELD(TR_TE_CONTROL, RSVP1, 7, 2)
+    FIELD(TR_TE_CONTROL, RSVP2, 10, 1)
+    FIELD(TR_TE_CONTROL, RSVP3, 14, 1)
+    FIELD(TR_TE_CONTROL, RSVP4, 18, 2)
+    FIELD(TR_TE_CONTROL, RSVP5, 27, 4)
+
+#define R_TR_TE_CONTROL_RSVP_BITS (MAKE_64BIT_MASK(32, 32) | \
+                                   R_TR_TE_CONTROL_RSVP1_MASK | \
+                                   R_TR_TE_CONTROL_RSVP2_MASK | \
+                                   R_TR_TE_CONTROL_RSVP3_MASK | \
+                                   R_TR_TE_CONTROL_RSVP4_MASK | \
+                                   R_TR_TE_CONTROL_RSVP5_MASK)
+
+/* trTeControlEmpty is the only RO field and reset value */
+#define R_TR_TE_CONTROL_RESET R_TR_TE_CONTROL_EMPTY_MASK
+#define R_TR_TE_CONTROL_RO_BITS R_TR_TE_CONTROL_EMPTY_MASK
+
+/*
+ * trTeImpl register fields
+ */
+REG32(TR_TE_IMPL, 0x4)
+    FIELD(TR_TE_IMPL, VER_MAJOR, 0, 4)
+    FIELD(TR_TE_IMPL, VER_MINOR, 4, 4)
+    FIELD(TR_TE_IMPL, COMP_TYPE, 8, 4)
+    FIELD(TR_TE_IMPL, PROTOCOL_MAJOR, 16, 4)
+    FIELD(TR_TE_IMPL, PROTOCOL_MINOR, 20, 4)
+    /* reserved bits */
+    FIELD(TR_TE_IMPL, RSVP1, 12, 4)
+    FIELD(TR_TE_IMPL, RSVP2, 24, 8)
+
+#define R_TR_TE_IMPL_RSVP_BITS (MAKE_64BIT_MASK(32, 32) | \
+                                R_TR_TE_IMPL_RSVP1_MASK | \
+                                R_TR_TE_IMPL_RSVP2_MASK)
+
+#define R_TR_TE_IMPL_RO_BITS (R_TR_TE_IMPL_VER_MAJOR_MASK | \
+                              R_TR_TE_IMPL_VER_MINOR_MASK | \
+                              R_TR_TE_IMPL_COMP_TYPE_MASK | \
+                              R_TR_TE_IMPL_PROTOCOL_MAJOR_MASK | \
+                              R_TR_TE_IMPL_PROTOCOL_MINOR_MASK)
+
+#define R_TR_TE_IMPL_RESET (BIT(0) | BIT(8))
+
+static RegisterAccessInfo trencoder_regs_info[] = {
+    {   .name = "TR_TE_CONTROL", .addr = A_TR_TE_CONTROL,
+        .rsvd = R_TR_TE_CONTROL_RSVP_BITS,
+        .reset = R_TR_TE_CONTROL_RESET,
+        .ro = R_TR_TE_CONTROL_RO_BITS,
+    },
+    {   .name = "TR_TE_IMPL", .addr = A_TR_TE_IMPL,
+        .rsvd = R_TR_TE_IMPL_RSVP_BITS,
+        .reset = R_TR_TE_IMPL_RESET,
+        .ro = R_TR_TE_IMPL_RO_BITS,
+    },
+};
+
+static uint64_t trencoder_read(void *opaque, hwaddr addr, unsigned size)
+{
+    TraceEncoder *te = TRACE_ENCODER(opaque);
+    RegisterInfo *r = &te->regs_info[addr / 4];
+
+    if (!r->data) {
+        trace_trencoder_read_error(addr);
+        return 0;
+    }
+
+    return register_read(r, ~0, NULL, false);
+}
+
+static void trencoder_write(void *opaque, hwaddr addr,
+                            uint64_t value, unsigned size)
+{
+    TraceEncoder *te = TRACE_ENCODER(opaque);
+    RegisterInfo *r = &te->regs_info[addr / 4];
+
+    if (!r->data) {
+        trace_trencoder_write_error(addr, value);
+        return;
+    }
+
+    register_write(r, value, ~0, NULL, false);
+}
+
+static const MemoryRegionOps trencoder_ops = {
+    .read = trencoder_read,
+    .write = trencoder_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
+static void trencoder_reset(DeviceState *dev)
+{
+    TraceEncoder *te = TRACE_ENCODER(dev);
+
+    for (int i = 0; i < ARRAY_SIZE(te->regs_info); i++) {
+        register_reset(&te->regs_info[i]);
+    }
+}
+
+static void trencoder_realize(DeviceState *dev, Error **errp)
+{
+    TraceEncoder *te = TRACE_ENCODER(dev);
+
+    memory_region_init_io(&te->reg_mem, OBJECT(dev),
+                          &trencoder_ops, te,
+                          TYPE_TRACE_ENCODER,
+                          te->reg_mem_size);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &te->reg_mem);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, te->baseaddr);
+
+    /* RegisterInfo init taken from hw/dma/xlnx-zdma.c */
+    for (int i = 0; i < ARRAY_SIZE(trencoder_regs_info); i++) {
+        uint32_t reg_idx = trencoder_regs_info[i].addr / 4;
+        RegisterInfo *r = &te->regs_info[reg_idx];
+
+        *r = (RegisterInfo) {
+            .data = (uint8_t *)&te->regs[reg_idx],
+            .data_size = sizeof(uint32_t),
+            .access = &trencoder_regs_info[i],
+            .opaque = te,
+        };
+    }
+}
+
+static const Property trencoder_props[] = {
+    /*
+     * We need a link to the associated CPU to
+     * enable/disable tracing.
+     */
+    DEFINE_PROP_LINK("cpu", TraceEncoder, cpu, TYPE_RISCV_CPU, RISCVCPU *),
+    DEFINE_PROP_UINT64("baseaddr", TraceEncoder, baseaddr, 0),
+    DEFINE_PROP_UINT64("dest-baseaddr", TraceEncoder, dest_baseaddr, 0),
+    DEFINE_PROP_UINT64("ramsink-ramstart", TraceEncoder,
+                       ramsink_ramstart, 0),
+    DEFINE_PROP_UINT64("ramsink-ramlimit", TraceEncoder,
+                       ramsink_ramlimit, 0),
+    DEFINE_PROP_UINT32("reg-mem-size", TraceEncoder,
+                       reg_mem_size, TRACE_R_MAX * 4),
+    DEFINE_PROP_INT32("cpu-id", TraceEncoder, cpu_id, 0),
+};
+
+static const VMStateDescription vmstate_trencoder = {
+    .name = TYPE_TRACE_ENCODER,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(regs, TraceEncoder, TRACE_R_MAX),
+        VMSTATE_UINT64(baseaddr, TraceEncoder),
+        VMSTATE_UINT64(dest_baseaddr, TraceEncoder),
+        VMSTATE_UINT64(ramsink_ramstart, TraceEncoder),
+        VMSTATE_UINT64(ramsink_ramlimit, TraceEncoder),
+        VMSTATE_INT32(cpu_id, TraceEncoder),
+        VMSTATE_END_OF_LIST(),
+    }
+};
+
+static void trencoder_class_init(ObjectClass *klass, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    device_class_set_legacy_reset(dc, trencoder_reset);
+    device_class_set_props(dc, trencoder_props);
+    dc->realize = trencoder_realize;
+    dc->vmsd = &vmstate_trencoder;
+}
+
+static const TypeInfo trencoder_info = {
+    .name          = TYPE_TRACE_ENCODER,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(TraceEncoder),
+    .class_init    = trencoder_class_init,
+};
+
+static void trencoder_register_types(void)
+{
+    type_register_static(&trencoder_info);
+}
+
+type_init(trencoder_register_types)
