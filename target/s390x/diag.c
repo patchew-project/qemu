@@ -73,6 +73,17 @@ static int diag308_parm_check(CPUS390XState *env, uint64_t r1, uint64_t addr,
     return 0;
 }
 
+static void diag_iplb_write(IplParameterBlock *iplb, S390CPU *cpu, uint64_t addr)
+{
+    const size_t iplb_len = be32_to_cpu(iplb->len);
+
+    if (s390_is_pv()) {
+        s390_cpu_pv_mem_write(cpu, 0, iplb, iplb_len);
+    } else {
+        cpu_physical_memory_write(addr, iplb, iplb_len);
+    }
+}
+
 void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3, uintptr_t ra)
 {
     bool valid;
@@ -164,11 +175,7 @@ out:
             return;
         }
 
-        if (!s390_is_pv()) {
-            cpu_physical_memory_write(addr, iplb, be32_to_cpu(iplb->len));
-        } else {
-            s390_cpu_pv_mem_write(cpu, 0, iplb, be32_to_cpu(iplb->len));
-        }
+        diag_iplb_write(iplb, cpu, addr);
         env->regs[r1 + 1] = DIAG_308_RC_OK;
         return;
     case DIAG308_PV_START:
