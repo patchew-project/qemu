@@ -1602,6 +1602,23 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
 
             bs->bl.pdiscard_alignment = dalign;
         }
+
+#ifdef __linux__
+        /*
+         * When request_alignment > 1, pwrite_zeroes_alignment does not need to
+         * be set explicitly. When request_alignment == 1, it must be set
+         * explicitly because Linux requires logical block size alignment.
+         */
+        if (bs->bl.request_alignment == 1) {
+            ret = probe_logical_blocksize(s->fd,
+                                          &bs->bl.pwrite_zeroes_alignment);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret,
+                                 "Failed to probe logical block size");
+                return;
+            }
+        }
+#endif /* __linux__ */
     }
 
     raw_refresh_zoned_limits(bs, &st, errp);
