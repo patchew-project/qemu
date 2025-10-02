@@ -17,6 +17,7 @@
 #include "s390x-internal.h"
 #include "hw/watchdog/wdt_diag288.h"
 #include "system/cpus.h"
+#include "system/memory.h"
 #include "hw/s390x/ipl.h"
 #include "hw/s390x/s390-virtio-ccw.h"
 #include "system/kvm.h"
@@ -82,11 +83,14 @@ static bool diag_iplb_read(IplParameterBlock *iplb, S390CPU *cpu, uint64_t addr)
         }
         s390_cpu_pv_mem_read(cpu, 0, iplb, be32_to_cpu(iplb->len));
     } else {
-        cpu_physical_memory_read(addr, iplb, sizeof(iplb->len));
+        const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
+        AddressSpace *as = CPU(cpu)->as;
+
+        address_space_read(as, addr, attrs, iplb, sizeof(iplb->len));
         if (!iplb_valid_len(iplb)) {
             return false;
         }
-        cpu_physical_memory_read(addr, iplb, be32_to_cpu(iplb->len));
+        address_space_read(as, addr, attrs, iplb, be32_to_cpu(iplb->len));
     }
     return true;
 }
@@ -98,7 +102,10 @@ static void diag_iplb_write(IplParameterBlock *iplb, S390CPU *cpu, uint64_t addr
     if (s390_is_pv()) {
         s390_cpu_pv_mem_write(cpu, 0, iplb, iplb_len);
     } else {
-        cpu_physical_memory_write(addr, iplb, iplb_len);
+        const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
+        AddressSpace *as = CPU(cpu)->as;
+
+        address_space_write(as, addr, attrs, iplb, iplb_len);
     }
 }
 
