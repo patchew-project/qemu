@@ -1606,6 +1606,27 @@ void arm_cpu_finalize_features(ARMCPU *cpu, Error **errp)
     }
 }
 
+static void arm_clear_aarch64_idregs(ARMCPU *cpu)
+{
+    /* Zero out all the AArch64 ID registers in ARMISARegisters */
+    SET_IDREG(&cpu->isar, ID_AA64ISAR0, 0);
+    SET_IDREG(&cpu->isar, ID_AA64ISAR1, 0);
+    SET_IDREG(&cpu->isar, ID_AA64ISAR2, 0);
+    SET_IDREG(&cpu->isar, ID_AA64PFR0, 0);
+    SET_IDREG(&cpu->isar, ID_AA64PFR1, 0);
+    SET_IDREG(&cpu->isar, ID_AA64PFR2, 0);
+    SET_IDREG(&cpu->isar, ID_AA64MMFR0, 0);
+    SET_IDREG(&cpu->isar, ID_AA64MMFR1, 0);
+    SET_IDREG(&cpu->isar, ID_AA64MMFR2, 0);
+    SET_IDREG(&cpu->isar, ID_AA64MMFR3, 0);
+    SET_IDREG(&cpu->isar, ID_AA64DFR0, 0);
+    SET_IDREG(&cpu->isar, ID_AA64DFR1, 0);
+    SET_IDREG(&cpu->isar, ID_AA64AFR0, 0);
+    SET_IDREG(&cpu->isar, ID_AA64AFR1, 0);
+    SET_IDREG(&cpu->isar, ID_AA64ZFR0, 0);
+    SET_IDREG(&cpu->isar, ID_AA64SMFR0, 0);
+}
+
 static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -1730,6 +1751,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         return;
+    }
+
+    if (!arm_feature(env, ARM_FEATURE_AARCH64)) {
+        arm_clear_aarch64_idregs(cpu);
     }
 
 #ifdef CONFIG_USER_ONLY
