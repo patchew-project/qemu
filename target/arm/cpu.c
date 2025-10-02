@@ -1234,10 +1234,38 @@ static void aarch64_cpu_set_aarch64(Object *obj, bool value, Error **errp)
      * uniform execution state like do_interrupt.
      */
     if (value == false) {
-        if (!kvm_enabled() || !kvm_arm_aarch32_supported()) {
-            error_setg(errp, "'aarch64' feature cannot be disabled "
-                             "unless KVM is enabled and 32-bit EL1 "
-                             "is supported");
+        if (kvm_enabled()) {
+            if (!kvm_arm_aarch32_supported()) {
+                error_setg(errp, "'aarch64' feature cannot be disabled for KVM "
+                           "because this host does not support 32-bit EL1");
+                return;
+            }
+        } else if (tcg_enabled()) {
+#ifdef CONFIG_USER_ONLY
+            error_setg(errp, "'aarch64' feature cannot be disabled for "
+                       "usermode emulator qemu-aarch64; use qemu-arm instead");
+            return;
+#else
+            bool aa32_at_highest_el;
+            if (arm_feature(&cpu->env, ARM_FEATURE_EL3)) {
+                aa32_at_highest_el = cpu_isar_feature(aa64_aa32_el3, cpu);
+            } else if (arm_feature(&cpu->env, ARM_FEATURE_EL2)) {
+                aa32_at_highest_el = cpu_isar_feature(aa64_aa32_el2, cpu);
+            } else {
+                aa32_at_highest_el = cpu_isar_feature(aa64_aa32_el1, cpu);
+            }
+
+            if (!aa32_at_highest_el) {
+                error_setg(errp, "'aarch64' feature cannot be disabled for "
+                           "this TCG CPU because it does not support 32-bit "
+                           "execution at its highest implemented exception "
+                           "level");
+                return;
+            }
+#endif
+        } else {
+            error_setg(errp, "'aarch64' feature cannot be disabled for "
+                       "this accelerator");
             return;
         }
         unset_feature(&cpu->env, ARM_FEATURE_AARCH64);
