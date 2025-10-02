@@ -73,6 +73,24 @@ static int diag308_parm_check(CPUS390XState *env, uint64_t r1, uint64_t addr,
     return 0;
 }
 
+static bool diag_iplb_read(IplParameterBlock *iplb, S390CPU *cpu, uint64_t addr)
+{
+    if (s390_is_pv()) {
+        s390_cpu_pv_mem_read(cpu, 0, iplb, sizeof(iplb->len));
+        if (!iplb_valid_len(iplb)) {
+            return false;
+        }
+        s390_cpu_pv_mem_read(cpu, 0, iplb, be32_to_cpu(iplb->len));
+    } else {
+        cpu_physical_memory_read(addr, iplb, sizeof(iplb->len));
+        if (!iplb_valid_len(iplb)) {
+            return false;
+        }
+        cpu_physical_memory_read(addr, iplb, be32_to_cpu(iplb->len));
+    }
+    return true;
+}
+
 static void diag_iplb_write(IplParameterBlock *iplb, S390CPU *cpu, uint64_t addr)
 {
     const size_t iplb_len = be32_to_cpu(iplb->len);
@@ -125,21 +143,10 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3, uintptr_t ra)
             return;
         }
         iplb = g_new0(IplParameterBlock, 1);
-        if (!s390_is_pv()) {
-            cpu_physical_memory_read(addr, iplb, sizeof(iplb->len));
-        } else {
-            s390_cpu_pv_mem_read(cpu, 0, iplb, sizeof(iplb->len));
-        }
 
-        if (!iplb_valid_len(iplb)) {
+        if (!diag_iplb_read(iplb, cpu, addr)) {
             env->regs[r1 + 1] = DIAG_308_RC_INVALID;
             goto out;
-        }
-
-        if (!s390_is_pv()) {
-            cpu_physical_memory_read(addr, iplb, be32_to_cpu(iplb->len));
-        } else {
-            s390_cpu_pv_mem_read(cpu, 0, iplb, be32_to_cpu(iplb->len));
         }
 
         valid = subcode == DIAG308_PV_SET ? iplb_valid_pv(iplb) : iplb_valid(iplb);
