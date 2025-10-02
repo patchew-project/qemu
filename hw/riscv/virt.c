@@ -1142,6 +1142,62 @@ static void create_fdt_iommu(RISCVVirtState *s, uint16_t bdf)
     s->pci_iommu_bdf = bdf;
 }
 
+static void create_fdt_rvtrace(RISCVVirtState *s)
+{
+    static const char * const tr_compat[2] = { "ventana,veyron-v2-trace",
+                                               "riscv,trace-component" };
+    g_autofree char *cpu_name = NULL, *ram_sink_name = NULL,
+                    *trencoder_name = NULL, *ep = NULL;
+    MachineState *ms = MACHINE(s);
+    int socket_count = riscv_socket_count(ms), i;
+    uint64_t addr, size = 0x100;
+    uint32_t rs_phandle;
+    RISCVCPU *cpu_ptr;
+
+
+    for (i = 0; i < socket_count; i++) {
+        for (int cpu = 0; cpu < s->soc[i].num_harts; cpu++) {
+            cpu_ptr = &s->soc[i].harts[cpu];
+            if (!cpu_ptr->trencoder) {
+                continue;
+            }
+            cpu_name = g_strdup_printf("/cpus/cpu@%d",
+                                       s->soc[i].hartid_base + cpu);
+            ram_sink_name = g_strdup_printf("/soc/ramsink@%d",
+                                            s->soc[i].hartid_base + cpu);
+            qemu_fdt_add_subnode(ms->fdt, ram_sink_name);
+            addr = object_property_get_uint(cpu_ptr->trencoder, "dest-baseaddr",
+                                            &error_abort);
+            qemu_fdt_setprop_sized_cells(ms->fdt, ram_sink_name, "reg", 2, addr,
+                                         2, size);
+            qemu_fdt_setprop_string_array(ms->fdt, ram_sink_name, "compatible",
+                                          (char **)&tr_compat,
+                                          ARRAY_SIZE(tr_compat));
+            qemu_fdt_setprop_phandle(ms->fdt, ram_sink_name, "cpu", cpu_name);
+            ep = g_strdup_printf("%s/in-ports/port/endpoint", ram_sink_name);
+            qemu_fdt_add_path(ms->fdt, ep);
+            rs_phandle = qemu_fdt_alloc_phandle(ms->fdt);
+            qemu_fdt_setprop_cell(ms->fdt, ep, "phandle", rs_phandle);
+
+
+            trencoder_name = g_strdup_printf("/soc/encoder@%d",
+                                             s->soc[i].hartid_base + cpu);
+            qemu_fdt_add_subnode(ms->fdt, trencoder_name);
+            addr = object_property_get_uint(cpu_ptr->trencoder, "baseaddr",
+                                            &error_abort);
+            qemu_fdt_setprop_sized_cells(ms->fdt, trencoder_name, "reg", 2,
+                                         addr, 2, size);
+            qemu_fdt_setprop_string_array(ms->fdt, trencoder_name, "compatible",
+                                          (char **)&tr_compat,
+                                          ARRAY_SIZE(tr_compat));
+            qemu_fdt_setprop_phandle(ms->fdt, trencoder_name, "cpu", cpu_name);
+            ep = g_strdup_printf("%s/out-ports/port/endpoint", trencoder_name);
+            qemu_fdt_add_path(ms->fdt, ep);
+            qemu_fdt_setprop_cell(ms->fdt, ep, "remote-endpoint", rs_phandle);
+        }
+    }
+}
+
 static void finalize_fdt(RISCVVirtState *s)
 {
     uint32_t phandle = 1, irq_mmio_phandle = 1, msi_pcie_phandle = 1;
@@ -1166,6 +1222,8 @@ static void finalize_fdt(RISCVVirtState *s)
     create_fdt_uart(s, irq_mmio_phandle);
 
     create_fdt_rtc(s, irq_mmio_phandle);
+
+    create_fdt_rvtrace(s);
 }
 
 static void create_fdt(RISCVVirtState *s)
