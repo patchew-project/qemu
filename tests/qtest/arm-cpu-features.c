@@ -493,12 +493,8 @@ static void test_query_cpu_model_expansion(const void *data)
         sve_tests_default(qts, "max");
         pauth_tests_default(qts, "max");
 
-        /* Test that features that depend on KVM generate errors without. */
-        assert_error(qts, "max",
-                     "'aarch64' feature cannot be disabled "
-                     "unless KVM is enabled and 32-bit EL1 "
-                     "is supported",
-                     "{ 'aarch64': false }");
+        /* TCG allows us to turn off AArch64 on the 'max' CPU type */
+        assert_set_feature(qts, "max", "aarch64", false);
     }
 
     qtest_quit(qts);
