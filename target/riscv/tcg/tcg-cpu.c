@@ -37,6 +37,7 @@
 #include "hw/boards.h"
 #include "system/tcg.h"
 #include "exec/icount.h"
+#include "hw/riscv/trace-encoder.h"
 #endif
 
 /* Hash that stores user set extensions */
@@ -1281,6 +1282,10 @@ static bool riscv_tcg_cpu_realize(CPUState *cs, Error **errp)
     /* With H-Ext, VSSIP, VSTIP, VSEIP and SGEIP are hardwired to one. */
     if (riscv_has_ext(env, RVH)) {
         env->mideleg = MIP_VSSIP | MIP_VSTIP | MIP_VSEIP | MIP_SGEIP;
+    }
+
+    if (cpu->trencoder) {
+        qdev_realize(DEVICE(cpu->trencoder), NULL, &error_fatal);
     }
 #endif
 
