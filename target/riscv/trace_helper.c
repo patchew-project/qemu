@@ -37,6 +37,13 @@ void helper_trace_updiscon(CPURISCVState *env)
     te->updiscon_pending = true;
     te->trace_next_insn = true;
 }
+
+void helper_trace_branch(CPURISCVState *env, target_ulong pc, int taken)
+{
+    RISCVCPU *cpu = env_archcpu(env);
+
+    trencoder_report_branch(cpu->trencoder, pc, taken);
+}
 #else /* #ifndef CONFIG_USER_ONLY */
 void helper_trace_insn(CPURISCVState *env, uint64_t pc)
 {
@@ -44,6 +51,11 @@ void helper_trace_insn(CPURISCVState *env, uint64_t pc)
 }
 
 void helper_trace_updiscon(CPURISCVState *env)
+{
+    return;
+}
+
+void helper_trace_branch(CPURISCVState *env, target_ulong pc, int taken)
 {
     return;
 }

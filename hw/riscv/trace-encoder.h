@@ -28,6 +28,9 @@ struct TraceEncoder {
     uint32_t reg_mem_size;
 
     uint64_t first_pc;
+    uint64_t last_branch_pc;
+    uint32_t branch_map;
+    uint8_t branches;
 
     hwaddr baseaddr;
     hwaddr dest_baseaddr;
@@ -54,5 +57,6 @@ void trencoder_trace_trap_insn(Object *trencoder_obj,
                                uint64_t tval);
 void trencoder_trace_ppccd(Object *trencoder_obj, uint64_t pc);
 void trencoder_report_updiscon(Object *trencoder_obj);
+void trencoder_report_branch(Object *trencoder_obj, uint64_t pc, bool taken);
 
 #endif

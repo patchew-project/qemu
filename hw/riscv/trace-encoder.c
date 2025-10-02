@@ -29,6 +29,8 @@
  */
 #define TRACE_MSG_MAX_SIZE 32
 
+#define TRACE_MAX_BRANCHES 31
+
 static TracePrivLevel trencoder_get_curr_priv_level(TraceEncoder *te)
 {
     CPURISCVState *env = &te->cpu->env;
@@ -313,6 +315,9 @@ static void trencoder_reset(DeviceState *dev)
     te->trace_running = false;
     te->trace_next_insn = false;
     env->trace_running = false;
+
+    te->branch_map = 0;
+    te->branches = 0;
 }
 
 static void trencoder_realize(DeviceState *dev, Error **errp)
@@ -410,9 +415,20 @@ static void trencoder_send_updiscon(TraceEncoder *trencoder, uint64_t pc)
     bool updiscon = !notify;
     uint8_t msg_size;
 
-    msg_size = rv_etrace_gen_encoded_format2_msg(format2_msg, pc,
+    if (trencoder->branches > 0) {
+        msg_size = rv_etrace_gen_encoded_format1(format2_msg,
+                                                 trencoder->branches,
+                                                 trencoder->branch_map,
+                                                 pc,
                                                  notify,
                                                  updiscon);
+        trencoder->branches = 0;
+    } else {
+        msg_size = rv_etrace_gen_encoded_format2_msg(format2_msg, pc,
+                                                     notify,
+                                                     updiscon);
+    }
+
     trencoder_send_message_smem(trencoder, format2_msg, msg_size);
 
     trencoder->updiscon_pending = false;
@@ -455,6 +471,40 @@ void trencoder_trace_trap_insn(Object *trencoder_obj,
                                               tval);
 
     trencoder_send_message_smem(trencoder, msg, msg_size);
+}
+
+static void trencoder_send_branch_map(Object *trencoder_obj)
+{
+    TraceEncoder *te = TRACE_ENCODER(trencoder_obj);
+    g_autofree uint8_t *msg = g_malloc0(TRACE_MSG_MAX_SIZE);
+    uint8_t msg_size;
+
+    msg_size = rv_etrace_gen_encoded_format1_noaddr(msg,
+                                                    te->branches,
+                                                    te->branch_map);
+    trencoder_send_message_smem(te, msg, msg_size);
+}
+
+void trencoder_report_branch(Object *trencoder_obj, uint64_t pc, bool taken)
+{
+    TraceEncoder *te = TRACE_ENCODER(trencoder_obj);
+
+    /*
+     * Note: the e-trace spec determines the value '1' for a
+     * branch *not* taken. The helper API is using taken = 1
+     * to be more intuitive when reading TCG code.
+     */
+    if (!taken) {
+        te->branch_map = deposit32(te->branch_map, te->branches, 1, 1);
+    }
+
+    te->last_branch_pc = pc;
+    te->branches++;
+
+    if (te->branches == TRACE_MAX_BRANCHES) {
+        trencoder_send_branch_map(trencoder_obj);
+        te->branches = 0;
+    }
 }
 
 void trencoder_trace_ppccd(Object *trencoder_obj, uint64_t pc)
