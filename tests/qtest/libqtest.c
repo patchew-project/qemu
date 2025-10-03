@@ -433,24 +433,6 @@ static QTestState *qtest_spawn_qemu(const char *qemu_bin, const char *args,
 #ifndef _WIN32
     pid = fork();
     if (pid == 0) {
-#ifdef __linux__
-        /*
-         * Although we register a ABRT handler to kill off QEMU
-         * when g_assert() triggers, we want an extra safety
-         * net. The QEMU process might be non-functional and
-         * thus not have responded to SIGTERM. The test script
-         * might also have crashed with SEGV, in which case the
-         * cleanup handlers won't ever run.
-         *
-         * This PR_SET_PDEATHSIG setup will ensure any remaining
-         * QEMU will get terminated with SIGKILL in these cases.
-         */
-        prctl(PR_SET_PDEATHSIG, SIGKILL, 0, 0, 0);
-#endif /* __linux__ */
-#ifdef __FreeBSD__
-        int sig = SIGKILL;
-        procctl(P_PID, getpid(), PROC_PDEATHSIG_CTL, &sig);
-#endif /* __FreeBSD__ */
         execlp("/bin/sh", "sh", "-c", command->str, NULL);
         exit(1);
     }
@@ -481,6 +463,9 @@ gchar *qtest_qemu_args(const char *extra_args)
                       "-mon chardev=char0,mode=control "
                       "-display none "
                       "-audio none "
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__)
+                      "-run-with exit-with-parent=on "
+#endif
                       "%s"
                       " -accel qtest",
 
