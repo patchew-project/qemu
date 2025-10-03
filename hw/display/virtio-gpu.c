@@ -937,6 +937,10 @@ virtio_gpu_resource_attach_backing(VirtIOGPU *g,
         cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
         return;
     }
+
+    if (res->blob_size && res->dmabuf_fd < 0) {
+        virtio_gpu_init_udmabuf(res);
+    }
 }
 
 static void
