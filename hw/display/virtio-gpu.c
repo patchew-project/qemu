@@ -57,7 +57,7 @@ void virtio_gpu_update_cursor_data(VirtIOGPU *g,
     }
 
     if (res->blob_size) {
-        if (res->blob_size < (s->current_cursor->width *
+        if (!res->blob || res->blob_size < (s->current_cursor->width *
                               s->current_cursor->height * 4)) {
             return;
         }
@@ -144,7 +144,7 @@ virtio_gpu_find_check_resource(VirtIOGPU *g, uint32_t resource_id,
     }
 
     if (require_backing) {
-        if (!res->iov || (!res->image && !res->blob)) {
+        if (!res->iov || (!res->image && !res->blob_size)) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: no backing storage %d\n",
                           caller, resource_id);
             if (error) {
@@ -446,7 +446,7 @@ static void virtio_gpu_transfer_to_host_2d(VirtIOGPU *g,
 
     res = virtio_gpu_find_check_resource(g, t2d.resource_id, true,
                                          __func__, &cmd->error);
-    if (!res || res->blob) {
+    if (!res || res->blob_size) {
         return;
     }
 
@@ -509,7 +509,7 @@ static void virtio_gpu_resource_flush(VirtIOGPU *g,
         return;
     }
 
-    if (res->blob) {
+    if (res->blob_size) {
         for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
             scanout = &g->parent_obj.scanout[i];
             if (scanout->resource_id == res->resource_id &&
@@ -540,7 +540,7 @@ static void virtio_gpu_resource_flush(VirtIOGPU *g,
         }
     }
 
-    if (!res->blob &&
+    if (!res->blob_size &&
         (rf.r.x > res->width ||
         rf.r.y > res->height ||
         rf.r.width > res->width ||
@@ -636,7 +636,7 @@ static bool virtio_gpu_do_set_scanout(VirtIOGPU *g,
 
     g->parent_obj.enable = 1;
 
-    if (res->blob) {
+    if (res->blob_size) {
         if (console_has_gl(scanout->con)) {
             if (!virtio_gpu_update_dmabuf(g, scanout_id, res, fb, r)) {
                 virtio_gpu_update_scanout(g, scanout_id, res, fb, r);
@@ -647,13 +647,16 @@ static bool virtio_gpu_do_set_scanout(VirtIOGPU *g,
             return true;
         }
 
+        if (!res->blob) {
+            return false;
+        }
         data = res->blob;
     } else {
         data = (uint8_t *)pixman_image_get_data(res->image);
     }
 
     /* create a surface for this scanout */
-    if ((res->blob && !console_has_gl(scanout->con)) ||
+    if ((res->blob_size && !console_has_gl(scanout->con)) ||
         !scanout->ds ||
         surface_data(scanout->ds) != data + fb->offset ||
         scanout->width != r->width ||
@@ -901,7 +904,7 @@ void virtio_gpu_cleanup_mapping(VirtIOGPU *g,
     g_free(res->addrs);
     res->addrs = NULL;
 
-    if (res->blob) {
+    if (res->blob_size) {
         virtio_gpu_fini_udmabuf(res);
     }
 }
