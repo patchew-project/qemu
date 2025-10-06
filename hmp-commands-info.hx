@@ -977,3 +977,17 @@ SRST
   ``info cryptodev``
     Show the crypto devices.
 ERST
+
+    {
+        .name       = "ovmf-log",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show the ovmf debug log",
+        .cmd        = hmp_info_ovmf_log,
+        .flags      = "p",
+    },
+
+SRST
+  ``info ovmf-log``
+    Show the ovmf debug log.
+ERST
