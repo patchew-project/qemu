@@ -2007,4 +2007,7 @@ bool arm_pan_enabled(CPUARMState *env);
 /* Compare uint64_t for qsort and bsearch. */
 int compare_u64(const void *a, const void *b);
 
+/* Used in FEAT_MEC to set the MECIDWidthm1 field in the MECIDR_EL2 register. */
+#define MECID_WIDTH 16
+
 #endif
