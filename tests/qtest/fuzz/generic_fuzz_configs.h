@@ -247,6 +247,10 @@ const generic_fuzz_config predefined_configs[] = {
         .args = "-machine q35 -nodefaults "
         "-parallel file:/dev/null",
         .objects = "parallel*",
+    },{
+        .name = "pcie-root-port",
+        .args = "-machine q35 -nodefaults -device pcie-root-port",
+        .objects = "pcie-root*",
     }
 };
 
