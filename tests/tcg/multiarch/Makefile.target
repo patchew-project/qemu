@@ -204,6 +204,48 @@ run-plugin-test-plugin-mem-access-with-libmem.so: \
 	$(QEMU) $<
 
 EXTRA_RUNS_WITH_PLUGIN += run-plugin-test-plugin-mem-access-with-libmem.so
+
+# Test plugin control flow redirection by skipping system calls
+ifeq ($(TARGET),arm-linux-user)
+# Require emitting arm32 instructions, otherwise the vCPU might accidentally
+# try to execute Thumb instructions in arm32 mode after qemu_plugin_set_pc()
+test-plugin-skip-syscalls: CFLAGS+=-marm
+endif
+ifneq ($(filter mips64%-linux-user,$(TARGET)),)
+# Require no ABI calls to avoid $t9-relative .got address calculation
+test-plugin-skip-syscalls: CFLAGS+=-mno-abicalls -fno-pie
+test-plugin-skip-syscalls: LDFLAGS+=-no-pie
+endif
+ifneq ($(filter mips%-linux-user,\
+	   $(filter-out mips64%-linux-user,\
+	   $(TARGET))),)
+# qemu-mips(el) returns ENOSYS without triggering syscall plugin callbacks
+run-plugin-test-plugin-skip-syscalls-with-libsyscall.so:
+	$(call skip-test, $<, "qemu-mips(el) does not execute invalid syscalls")
+endif
+ifeq ($(TARGET),sparc64-linux-user)
+# The defined addresses for the binary are not aligned correctly for sparc64
+# but adjusting them breaks other architectures, so just skip it on sparc64.
+run-plugin-test-plugin-skip-syscalls-with-libsyscall.so:
+	$(call skip-test, $<, "qemu-sparc64 does not allow mapping at our given fixed address")
+endif
+ifeq ($(TARGET),hexagon-linux-user)
+# hexagon uses clang/lld which does not support -Ttext-segment but GNU ld does
+# not generally support --image-base.
+test-plugin-skip-syscalls: LDFLAGS+=-Wl,--image-base=0x40000
+else
+test-plugin-skip-syscalls: LDFLAGS+=-Wl,-Ttext-segment=0x40000
+endif
+test-plugin-skip-syscalls: LDFLAGS+=-Wl,--section-start,.redirect=0x20000
+run-plugin-test-plugin-skip-syscalls-with-libsyscall.so:
+
+EXTRA_RUNS_WITH_PLUGIN += run-plugin-test-plugin-skip-syscalls-with-libsyscall.so
+
+else # CONFIG_PLUGIN=n
+# Do not build the syscall skipping test if it's not tested with a plugin
+# because it will simply return an error and fail the test.
+MULTIARCH_TESTS := $(filter-out "test-plugin-skip-syscalls", $(MULTIARCH_TESTS))
+
 endif
 
 # Update TESTS
