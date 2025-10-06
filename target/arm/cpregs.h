@@ -136,6 +136,7 @@ enum {
      * identically to the normal one, other than FGT trapping handling.)
      */
     ARM_CP_ADD_TLBI_NXS          = 1 << 21,
+    ARM_CP_NV_NO_TRAP            = 1 << 22,
 };
 
 /*
@@ -1158,10 +1159,14 @@ static inline bool arm_cpreg_traps_in_nv(const ARMCPRegInfo *ri)
      *
      * In particular, note that the released sysreg XML defines that
      * the FEAT_MEC sysregs and instructions do not follow this FEAT_NV
-     * trapping rule, so we will need to add an ARM_CP_* flag to indicate
-     * "register does not trap on NV" to handle those if/when we implement
-     * FEAT_MEC.
+     * trapping rule, so a register flagged as ARM_CP_NV_NO_TRAP indicates
+     * the register does not trap on NV even if opc1 == 4 or 5.
      */
+
+    if (ri->type & ARM_CP_NV_NO_TRAP) {
+        return false;
+    }
+
     return ri->opc1 == 4 || ri->opc1 == 5;
 }
 
