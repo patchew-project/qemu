@@ -37,7 +37,19 @@ The virt board supports:
 - An RTC
 - The fw_cfg device that allows a guest to obtain data from QEMU
 - A PL061 GPIO controller
-- An optional SMMUv3 IOMMU
+- An optional machine-wide SMMUv3 IOMMU
+- User-creatable SMMUv3 devices
+
+  Allows instantiating multiple SMMUv3 devices, each associated with
+  a separate PCIe root complex. This is only allowed if the machine-wide
+  SMMUv3(``iommu=smmuv3``) is not used.
+
+  Example::
+
+      -device arm-smmuv3,primary-bus=pcie.0,id=smmuv3.0
+      ...
+      -device pxb-pcie,id=pcie.1
+      -device arm-smmuv3,primary-bus=pcie.1,id=smmuv3.1
 - hotpluggable DIMMs
 - hotpluggable NVDIMMs
 - An MSI controller (GICv2M or ITS). GICv2M is selected by default along
@@ -176,7 +188,8 @@ iommu
   ``none``
     Don't create an IOMMU (the default)
   ``smmuv3``
-    Create an SMMUv3
+    Create a machine-wide SMMUv3. Alternatively, SMMUv3 devices can be
+    instantiated directly using the ``-device`` option (see example above).
 
 default-bus-bypass-iommu
   Set ``on``/``off`` to enable/disable `bypass_iommu
