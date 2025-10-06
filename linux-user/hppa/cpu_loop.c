@@ -17,6 +17,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/compiler.h"
 #include "qemu/osdep.h"
 #include "qemu.h"
 #include "user-internals.h"
@@ -135,7 +136,10 @@ void cpu_loop(CPUHPPAState *env)
                 env->iaoq_b = env->iaoq_f + 4;
                 break;
             case -QEMU_ERESTARTSYS:
+                QEMU_FALLTHROUGH;
             case -QEMU_ESIGRETURN:
+                QEMU_FALLTHROUGH;
+            case -QEMU_ESETPC:
                 break;
             }
             break;

@@ -17,6 +17,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/compiler.h"
 #include "qemu/osdep.h"
 #include "qemu.h"
 #include "user-internals.h"
@@ -185,6 +186,8 @@ void cpu_loop(CPUXtensaState *env)
                     env->pc -= 3;
                     break;
 
+                case -QEMU_ESETPC:
+                    QEMU_FALLTHROUGH;
                 case -QEMU_ESIGRETURN:
                     break;
                 }
