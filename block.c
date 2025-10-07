@@ -1497,6 +1497,32 @@ static void GRAPH_WRLOCK bdrv_child_cb_detach(BdrvChild *child)
     }
 }
 
+static void GRAPH_WRLOCK
+bdrv_child_cb_propagate_attach(BdrvChild *self, BdrvChild *descendant)
+{
+    BlockDriverState *bs = self->opaque;
+    BdrvChild *c;
+
+    QLIST_FOREACH(c, &bs->parents, next_parent) {
+        if (c->klass->propagate_attach) {
+            c->klass->propagate_attach(c, descendant);
+        }
+    }
+}
+
+static void GRAPH_WRLOCK
+bdrv_child_cb_propagate_detach(BdrvChild *self, BdrvChild *descendant)
+{
+    BlockDriverState *bs = self->opaque;
+    BdrvChild *c;
+
+    QLIST_FOREACH(c, &bs->parents, next_parent) {
+        if (c->klass->propagate_detach) {
+            c->klass->propagate_detach(c, descendant);
+        }
+    }
+}
+
 static int bdrv_child_cb_update_filename(BdrvChild *c, BlockDriverState *base,
                                          const char *filename,
                                          bool backing_mask_protocol,
@@ -1519,17 +1545,19 @@ AioContext *child_of_bds_get_parent_aio_context(BdrvChild *c)
 }
 
 const BdrvChildClass child_of_bds = {
-    .parent_is_bds   = true,
-    .get_parent_desc = bdrv_child_get_parent_desc,
-    .inherit_options = bdrv_inherited_options,
-    .drained_begin   = bdrv_child_cb_drained_begin,
-    .drained_poll    = bdrv_child_cb_drained_poll,
-    .drained_end     = bdrv_child_cb_drained_end,
-    .attach          = bdrv_child_cb_attach,
-    .detach          = bdrv_child_cb_detach,
-    .inactivate      = bdrv_child_cb_inactivate,
-    .change_aio_ctx  = bdrv_child_cb_change_aio_ctx,
-    .update_filename = bdrv_child_cb_update_filename,
+    .parent_is_bds          = true,
+    .get_parent_desc        = bdrv_child_get_parent_desc,
+    .inherit_options        = bdrv_inherited_options,
+    .drained_begin          = bdrv_child_cb_drained_begin,
+    .drained_poll           = bdrv_child_cb_drained_poll,
+    .drained_end            = bdrv_child_cb_drained_end,
+    .attach                 = bdrv_child_cb_attach,
+    .detach                 = bdrv_child_cb_detach,
+    .propagate_attach       = bdrv_child_cb_propagate_attach,
+    .propagate_detach       = bdrv_child_cb_propagate_detach,
+    .inactivate             = bdrv_child_cb_inactivate,
+    .change_aio_ctx         = bdrv_child_cb_change_aio_ctx,
+    .update_filename        = bdrv_child_cb_update_filename,
     .get_parent_aio_context = child_of_bds_get_parent_aio_context,
 };
 
@@ -2967,6 +2995,9 @@ bdrv_replace_child_noperm(BdrvChild *child, BlockDriverState *new_bs)
     }
 
     if (old_bs) {
+        if (child->klass->propagate_detach) {
+            child->klass->propagate_detach(child, child);
+        }
         if (child->klass->detach) {
             child->klass->detach(child);
         }
@@ -2979,6 +3010,9 @@ bdrv_replace_child_noperm(BdrvChild *child, BlockDriverState *new_bs)
         QLIST_INSERT_HEAD(&new_bs->parents, child, next_parent);
         if (child->klass->attach) {
             child->klass->attach(child);
+        }
+        if (child->klass->propagate_attach) {
+            child->klass->propagate_attach(child, child);
         }
     }
 
