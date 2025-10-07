@@ -111,4 +111,8 @@ void hvf_arch_update_guest_debug(CPUState *cpu);
  */
 bool hvf_arch_supports_guest_debug(void);
 
+#ifdef __aarch64__
+hv_return_t hvf_vcpu_create(hv_vcpu_t* vcpu_ptr, hv_vcpu_exit_t ** exit);
+#endif
+
 #endif

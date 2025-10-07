@@ -22,6 +22,7 @@
 #include "cpu-sysregs.h"
 
 #include <mach/mach_time.h>
+#include <sys/sysctl.h>
 
 #include "system/address-spaces.h"
 #include "system/memory.h"
@@ -291,6 +292,8 @@ void hvf_arm_init_debug(void)
 #define SYSREG_DBGBCR15_EL1   SYSREG(2, 0, 0, 15, 5)
 #define SYSREG_DBGWVR15_EL1   SYSREG(2, 0, 0, 15, 6)
 #define SYSREG_DBGWCR15_EL1   SYSREG(2, 0, 0, 15, 7)
+
+#define SYSREG_SCTLR_EL1      SYSREG(3, 0, 1, 0, 0)
 
 #define WFX_IS_WFE (1 << 0)
 
@@ -1320,6 +1323,9 @@ static int hvf_sysreg_read(CPUState *cpu, uint32_t reg, uint64_t *val)
     case SYSREG_DBGWCR15_EL1:
         *val = env->cp15.dbgwcr[SYSREG_CRM(reg)];
         return 0;
+    case SYSREG_SCTLR_EL1:
+        *val =  env->cp15.sctlr_el[1] | SCTLR_DSSBS_64;
+        return 0;
     default:
         if (is_id_sysreg(reg)) {
             /* ID system registers read as RES0 */
@@ -1642,6 +1648,10 @@ static int hvf_sysreg_write(CPUState *cpu, uint32_t reg, uint64_t val)
     case SYSREG_DBGWCR14_EL1:
     case SYSREG_DBGWCR15_EL1:
         env->cp15.dbgwcr[SYSREG_CRM(reg)] = val;
+        return 0;
+    case SYSREG_SCTLR_EL1:
+        env->cp15.sctlr_el[1] = val;
+        assert_hvf_ok(hv_vcpu_set_sys_reg(cpu->accel->fd, HV_SYS_REG_SCTLR_EL1, val & ~SCTLR_DSSBS_64));
         return 0;
     }
 
@@ -2243,4 +2253,62 @@ void hvf_arch_update_guest_debug(CPUState *cpu)
 bool hvf_arch_supports_guest_debug(void)
 {
     return true;
+}
+
+/*
+ * Apple M4 removes FEAT_SSBS. However, older macOS releases
+ * do misbehave in such a configuration and do not boot.
+ *
+ * Using private API to trap SCTLR_EL1 accesses through FGT.
+ */
+
+void _hv_vcpu_config_set_fgt_enabled(hv_vcpu_config_t cfg, bool enabled);
+#define HV_CONTROL_FIELD_HFGRTR 0xb
+#define HV_CONTROL_FIELD_HFGWTR 0xc
+hv_return_t _hv_vcpu_get_control_field(hv_vcpu_t vcpu, int field, uint64_t* value);
+hv_return_t _hv_vcpu_set_control_field(hv_vcpu_t vcpu, int field, uint64_t value);
+
+static bool hvf_is_ssbs_implemented(void) {
+    int has_ssbs = -1;
+    size_t has_ssbs_sz = sizeof(has_ssbs);
+    if (sysctlbyname("hw.optional.arm.FEAT_SSBS", &has_ssbs, &has_ssbs_sz, NULL, 0) == -1) {
+        has_ssbs = 0;
+    }
+    return has_ssbs;
+}
+
+hv_return_t hvf_vcpu_create(hv_vcpu_t* vcpu_ptr, hv_vcpu_exit_t ** exit)
+{
+    hv_return_t r;
+    hv_vcpu_t vcpu;
+    uint64_t hfgwtr_el1, hfgrtr_el1;
+
+    hv_vcpu_config_t config;
+    config = hv_vcpu_config_create();
+    if (!hvf_is_ssbs_implemented()) {
+        _hv_vcpu_config_set_fgt_enabled(config, true);
+    }
+
+    r = hv_vcpu_create(&vcpu, (hv_vcpu_exit_t **)exit, config);
+
+    if (hvf_is_ssbs_implemented()) {
+        return r;
+    }
+
+    assert_hvf_ok(_hv_vcpu_get_control_field(vcpu, HV_CONTROL_FIELD_HFGWTR,&hfgwtr_el1));
+    assert_hvf_ok(_hv_vcpu_set_control_field(vcpu, HV_CONTROL_FIELD_HFGWTR,
+        hfgwtr_el1 | R_HFGWTR_EL2_SCTLR_EL1_MASK));
+    assert_hvf_ok(_hv_vcpu_get_control_field(vcpu, HV_CONTROL_FIELD_HFGWTR,
+        &hfgwtr_el1));
+
+    assert_hvf_ok(_hv_vcpu_get_control_field(vcpu, HV_CONTROL_FIELD_HFGRTR,
+        &hfgrtr_el1));
+    assert_hvf_ok(_hv_vcpu_set_control_field(vcpu, HV_CONTROL_FIELD_HFGRTR,
+        hfgrtr_el1 | R_HFGRTR_EL2_SCTLR_EL1_MASK));
+    assert_hvf_ok(_hv_vcpu_get_control_field(vcpu, HV_CONTROL_FIELD_HFGRTR,
+        &hfgrtr_el1));
+
+    *vcpu_ptr = vcpu;
+
+    return r;
 }

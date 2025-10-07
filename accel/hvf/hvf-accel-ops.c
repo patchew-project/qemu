@@ -152,8 +152,8 @@ static int hvf_init_vcpu(CPUState *cpu)
     sigdelset(&cpu->accel->unblock_ipi_mask, SIG_IPI);
 
 #ifdef __aarch64__
-    r = hv_vcpu_create(&cpu->accel->fd,
-                       (hv_vcpu_exit_t **)&cpu->accel->exit, NULL);
+    r = hvf_vcpu_create(&cpu->accel->fd,
+                       (hv_vcpu_exit_t **)&cpu->accel->exit);
 #else
     r = hv_vcpu_create(&cpu->accel->fd, HV_VCPU_DEFAULT);
 #endif
