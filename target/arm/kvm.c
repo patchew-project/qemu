@@ -2429,12 +2429,34 @@ int kvm_arch_get_registers(CPUState *cs, Error **errp)
     return ret;
 }
 
+static void push_ghes_memory_errors(CPUState *c, AcpiGhesState *ags,
+                                    uint64_t paddr)
+{
+    GArray *addresses = g_array_new(false, false, sizeof(paddr));
+    int ret;
+
+    kvm_cpu_synchronize_state(c);
+    g_array_append_vals(addresses, &paddr, 1);
+    ret = acpi_ghes_memory_errors(ags, ACPI_HEST_SRC_ID_SYNC, addresses);
+    if (ret) {
+        goto error;
+    }
+
+    kvm_inject_arm_sea(c);
+
+    g_array_free(addresses, true);
+
+    return;
+error:
+    error_report("failed to record the error");
+    abort();
+}
+
 void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
 {
     ram_addr_t ram_addr;
     hwaddr paddr;
     AcpiGhesState *ags;
-    GArray *addresses;
 
     assert(code == BUS_MCEERR_AR || code == BUS_MCEERR_AO);
 
@@ -2443,7 +2465,6 @@ void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
         ram_addr = qemu_ram_addr_from_host(addr);
         if (ram_addr != RAM_ADDR_INVALID &&
             kvm_physical_memory_addr_from_host(c->kvm_state, addr, &paddr)) {
-            addresses = g_array_new(false, false, sizeof(paddr));
             kvm_hwpoison_page_add(ram_addr);
             /*
              * If this is a BUS_MCEERR_AR, we know we have been called
@@ -2456,19 +2477,10 @@ void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
              * later from the main thread, so doing the injection of
              * the error would be more complicated.
              */
-            g_array_append_vals(addresses, &paddr, 1);
             if (code == BUS_MCEERR_AR) {
-                kvm_cpu_synchronize_state(c);
-                if (!acpi_ghes_memory_errors(ags, ACPI_HEST_SRC_ID_SYNC,
-                                             addresses)) {
-                    kvm_inject_arm_sea(c);
-                } else {
-                    error_report("failed to record the error");
-                    abort();
-                }
+                push_ghes_memory_errors(c, ags, paddr);
             }
 
-            g_array_free(addresses, true);
             return;
         }
         if (code == BUS_MCEERR_AO) {
