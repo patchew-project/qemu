@@ -51,6 +51,8 @@
 #include "system/reset.h"
 #include "system/runstate.h"
 #include "system/system.h"
+#include "gtimer.h"
+#include "cpu.h"
 
 struct VMAppleMachineState {
     MachineState parent;
