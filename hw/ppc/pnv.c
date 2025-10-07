@@ -1084,6 +1084,10 @@ static void pnv_init(MachineState *machine)
         if (kernel_size < 0) {
             error_report("Could not load kernel '%s'",
                          machine->kernel_filename);
+            error_report(
+                "Possible reasons: file not found, permission denied, or size "
+                "exceeds the maximum supported limit (%ld MiB).",
+                KERNEL_MAX_SIZE / 1024 / 1024);
             exit(1);
         }
     }
@@ -1096,6 +1100,10 @@ static void pnv_init(MachineState *machine)
         if (pnv->initrd_size < 0) {
             error_report("Could not load initial ram disk '%s'",
                          machine->initrd_filename);
+            error_report(
+                "Possible reasons: file not found, permission denied, or size "
+                "exceeds the maximum supported limit (%ld MiB).",
+                INITRD_MAX_SIZE / 1024 / 1024);
             exit(1);
         }
     }
