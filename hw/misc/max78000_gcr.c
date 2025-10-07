@@ -44,80 +44,106 @@ static void max78000_gcr_reset_hold(Object *obj, ResetType type)
     s->eccaddr = 0;
 }
 
-static uint64_t max78000_gcr_read(void *opaque, hwaddr addr,
-                                     unsigned int size)
+static MemTxResult max78000_gcr_read(void *opaque, hwaddr addr,
+                                     uint64_t *pdata, unsigned size,
+                                     MemTxAttrs attrs)
 {
     Max78000GcrState *s = opaque;
+    uint64_t r;
 
     switch (addr) {
     case SYSCTRL:
-        return s->sysctrl;
+        r = s->sysctrl;
+        break;
 
     case RST0:
-        return s->rst0;
+        r = s->rst0;
+        break;
 
     case CLKCTRL:
-        return s->clkctrl;
+        r = s->clkctrl;
+        break;
 
     case PM:
-        return s->pm;
+        r = s->pm;
+        break;
 
     case PCLKDIV:
-        return s->pclkdiv;
+        r = s->pclkdiv;
+        break;
 
     case PCLKDIS0:
-        return s->pclkdis0;
+        r = s->pclkdis0;
+        break;
 
     case MEMCTRL:
-        return s->memctrl;
+        r = s->memctrl;
+        break;
 
     case MEMZ:
-        return s->memz;
+        r = s->memz;
+        break;
 
     case SYSST:
-        return s->sysst;
+        r = s->sysst;
+        break;
 
     case RST1:
-        return s->rst1;
+        r = s->rst1;
+        break;
 
     case PCKDIS1:
-        return s->pckdis1;
+        r = s->pckdis1;
+        break;
 
     case EVENTEN:
-        return s->eventen;
+        r = s->eventen;
+        break;
 
     case REVISION:
-        return s->revision;
+        r = s->revision;
+        break;
 
     case SYSIE:
-        return s->sysie;
+        r = s->sysie;
+        break;
 
     case ECCERR:
-        return s->eccerr;
+        r = s->eccerr;
+        break;
 
     case ECCED:
-        return s->ecced;
+        r = s->ecced;
+        break;
 
     case ECCIE:
-        return s->eccie;
+        r = s->eccie;
+        break;
 
     case ECCADDR:
-        return s->eccaddr;
+        r = s->eccaddr;
+        break;
 
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%"
             HWADDR_PRIx "\n", __func__, addr);
-        return 0;
-
+        r = 0;
+        break;
     }
+    *pdata = r;
+
+    return MEMTX_OK;
 }
 
-static void max78000_gcr_write(void *opaque, hwaddr addr,
-                       uint64_t val64, unsigned int size)
+static MemTxResult max78000_gcr_write(void *opaque, hwaddr addr,
+                                      uint64_t val64, unsigned size,
+                                      MemTxAttrs attrs)
 {
     Max78000GcrState *s = opaque;
     uint32_t val = val64;
     uint8_t zero[0xc000] = {0};
+    MemTxResult res = MEMTX_OK;
+
     switch (addr) {
     case SYSCTRL:
         /* Checksum calculations always pass immediately */
@@ -190,20 +216,20 @@ static void max78000_gcr_write(void *opaque, hwaddr addr,
 
     case MEMZ:
         if (val & ram0) {
-            address_space_write(&s->sram_as, SYSRAM0_START,
-                                MEMTXATTRS_UNSPECIFIED, zero, 0x8000);
+            res |= address_space_write(&s->sram_as, SYSRAM0_START,
+                                       attrs, zero, 0x8000);
         }
         if (val & ram1) {
-            address_space_write(&s->sram_as, SYSRAM1_START,
-                                MEMTXATTRS_UNSPECIFIED, zero, 0x8000);
+            res |= address_space_write(&s->sram_as, SYSRAM1_START,
+                                       attrs, zero, 0x8000);
         }
         if (val & ram2) {
-            address_space_write(&s->sram_as, SYSRAM2_START,
-                                MEMTXATTRS_UNSPECIFIED, zero, 0xC000);
+            res |= address_space_write(&s->sram_as, SYSRAM2_START,
+                                       attrs, zero, 0xC000);
         }
         if (val & ram3) {
-            address_space_write(&s->sram_as, SYSRAM3_START,
-                                MEMTXATTRS_UNSPECIFIED, zero, 0x4000);
+            res |= address_space_write(&s->sram_as, SYSRAM3_START,
+                                       attrs, zero, 0x4000);
         }
         break;
 
@@ -254,6 +280,7 @@ static void max78000_gcr_write(void *opaque, hwaddr addr,
         break;
 
     }
+    return res;
 }
 
 static const Property max78000_gcr_properties[] = {
@@ -272,8 +299,8 @@ static const Property max78000_gcr_properties[] = {
 };
 
 static const MemoryRegionOps max78000_gcr_ops = {
-    .read = max78000_gcr_read,
-    .write = max78000_gcr_write,
+    .read_with_attrs = max78000_gcr_read,
+    .write_with_attrs = max78000_gcr_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid.min_access_size = 4,
     .valid.max_access_size = 4,
