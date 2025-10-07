@@ -43,7 +43,8 @@ static int ati_bpp_from_datatype(ATIVGAState *s)
     }
 }
 
-#define DEFAULT_CNTL (s->regs.dp_gui_master_cntl & GMC_DST_PITCH_OFFSET_CNTL)
+#define DFLT_CNTL_SRC (s->regs.dp_gui_master_cntl & GMC_SRC_PITCH_OFFSET_CNTL)
+#define DFLT_CNTL_DST (s->regs.dp_gui_master_cntl & GMC_DST_PITCH_OFFSET_CNTL)
 
 void ati_2d_blt(ATIVGAState *s)
 {
@@ -63,12 +64,12 @@ void ati_2d_blt(ATIVGAState *s)
         qemu_log_mask(LOG_GUEST_ERROR, "Invalid bpp\n");
         return;
     }
-    int dst_stride = DEFAULT_CNTL ? s->regs.dst_pitch : s->regs.default_pitch;
+    int dst_stride = DFLT_CNTL_DST ? s->regs.dst_pitch : s->regs.default_pitch;
     if (!dst_stride) {
         qemu_log_mask(LOG_GUEST_ERROR, "Zero dest pitch\n");
         return;
     }
-    uint8_t *dst_bits = s->vga.vram_ptr + (DEFAULT_CNTL ?
+    uint8_t *dst_bits = s->vga.vram_ptr + (DFLT_CNTL_DST ?
                         s->regs.dst_offset : s->regs.default_offset);
 
     if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
@@ -97,13 +98,13 @@ void ati_2d_blt(ATIVGAState *s)
                        s->regs.src_x : s->regs.src_x + 1 - s->regs.dst_width);
         unsigned src_y = (s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM ?
                        s->regs.src_y : s->regs.src_y + 1 - s->regs.dst_height);
-        int src_stride = DEFAULT_CNTL ?
+        int src_stride = DFLT_CNTL_SRC ?
                          s->regs.src_pitch : s->regs.default_pitch;
         if (!src_stride) {
             qemu_log_mask(LOG_GUEST_ERROR, "Zero source pitch\n");
             return;
         }
-        uint8_t *src_bits = s->vga.vram_ptr + (DEFAULT_CNTL ?
+        uint8_t *src_bits = s->vga.vram_ptr + (DFLT_CNTL_SRC ?
                             s->regs.src_offset : s->regs.default_offset);
 
         if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
