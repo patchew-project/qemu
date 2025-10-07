@@ -133,7 +133,7 @@
 #define FTYPE_FILE   0
 #define FTYPE_CD     1
 
-#define MAX_BLOCKSIZE	4096
+#define MAX_BLOCKSIZE 4096
 
 /* Posix file locking bytes. Libvirt takes byte 0, we start from higher bytes,
  * leaving a few more bytes for its future use. */
@@ -4578,7 +4578,7 @@ static BlockDriver bdrv_host_cdrom = {
     .protocol_name      = "host_cdrom",
     .instance_size      = sizeof(BDRVRawState),
     .bdrv_needs_filename = true,
-    .bdrv_probe_device	= cdrom_probe_device,
+    .bdrv_probe_device = cdrom_probe_device,
     .bdrv_parse_filename = cdrom_parse_filename,
     .bdrv_open          = cdrom_open,
     .bdrv_close         = raw_close,
@@ -4704,7 +4704,7 @@ static BlockDriver bdrv_host_cdrom = {
     .protocol_name      = "host_cdrom",
     .instance_size      = sizeof(BDRVRawState),
     .bdrv_needs_filename = true,
-    .bdrv_probe_device	= cdrom_probe_device,
+    .bdrv_probe_device = cdrom_probe_device,
     .bdrv_parse_filename = cdrom_parse_filename,
     .bdrv_open          = cdrom_open,
     .bdrv_close         = raw_close,
