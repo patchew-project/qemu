@@ -198,7 +198,8 @@ class util:
     def data_add(data, value, num_bytes):
         """Adds bytes from value inside a bitarray"""
 
-        data.extend(value.to_bytes(num_bytes, byteorder="little"))  # pylint: disable=E1101
+        # pylint: disable=E1101
+        data.extend(value.to_bytes(num_bytes, byteorder="little"))
 
     def dump_bytearray(name, data):
         """Does an hexdump of a byte array, grouping in bytes"""
@@ -416,12 +417,14 @@ class qmp:
     def argparse(parser):
         """Prepare a parser group to query generic error data"""
 
-        block_status_bits = ",".join(qmp.BLOCK_STATUS_BITS.keys())
-        error_severity_enum = ",".join(qmp.ERROR_SEVERITY.keys())
-        validation_bits = ",".join(qmp.VALIDATION_BITS.keys())
-        gedb_flags_bits = ",".join(qmp.GEDB_FLAGS_BITS.keys())
+        block_status_bits = ", ".join(qmp.BLOCK_STATUS_BITS.keys())
+        error_severity_enum = ", ".join(qmp.ERROR_SEVERITY.keys())
+        validation_bits = ", ".join(qmp.VALIDATION_BITS.keys())
+        gedb_flags_bits = ", ".join(qmp.GEDB_FLAGS_BITS.keys())
 
-        g_gen = parser.add_argument_group("Generic Error Data")  # pylint: disable=E1101
+        # pylint: disable=E1101
+        g_gen = parser.add_argument_group("Generic Error Data")
+
         g_gen.add_argument("--block-status",
                            help=f"block status bits: {block_status_bits}")
         g_gen.add_argument("--raw-data", nargs="+",
@@ -439,9 +442,10 @@ class qmp:
                            help="Time when the error info was collected")
         g_gen.add_argument("--precise", "--precise-timestamp",
                            action='store_true',
-                           help="Marks the timestamp as precise if --timestamp is used")
+                           help="if --timestamp is used, timestamp is precise")
         g_gen.add_argument("--gedb-flags",
-                           help=f"General Error Data Block flags: {gedb_flags_bits}")
+                           help="General Error Data Block flags: "
+                                f"{gedb_flags_bits}")
 
     def set_args(self, args):
         """Set the arguments optionally defined via self.argparse()"""
@@ -501,8 +505,9 @@ class qmp:
                 self.validation_bits |= self.VALIDATION_BITS["timestamp"]
 
         if args.gen_err_valid_bits:
+            gen_err_valid_bits = args.gen_err_valid_bits
             self.validation_bits = util.get_choice(name="validation",
-                                                   value=args.gen_err_valid_bits,
+                                                   value=gen_err_valid_bits,
                                                    choices=self.VALIDATION_BITS)
 
     def __init__(self, host, port, debug=False):

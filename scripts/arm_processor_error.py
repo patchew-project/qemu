@@ -80,12 +80,14 @@ Injects this error, as detected on a Linux guest:
 [Hardware Error]:    error_type: 0x08: bus error
 [Hardware Error]:    error_info: 0x00000080d6460fff
 [Hardware Error]:     transaction type: Generic
-[Hardware Error]:     bus error, operation type: Generic read (type of instruction or data request cannot be determined)
+[Hardware Error]:     bus error, operation type: Generic read
+                      (type of instruction or data request cannot be determined)
 [Hardware Error]:     affinity level at which the bus error occurred: 1
 [Hardware Error]:     processor context corrupted
 [Hardware Error]:     the error has been corrected
 [Hardware Error]:     PC is imprecise
-[Hardware Error]:     Program execution can be restarted reliably at the PC associated with the error.
+[Hardware Error]:     Program execution can be restarted reliably at the PC
+                      associated with the error.
 [Hardware Error]:     participation type: Local processor observed
 [Hardware Error]:     request timed out
 [Hardware Error]:     address space: External Memory Access
@@ -102,12 +104,14 @@ Injects this error, as detected on a Linux guest:
 [Hardware Error]:    register context type: AArch64 EL1 context registers
 [Hardware Error]:    00000000: 00000000 00000000
 [Hardware Error]:   Vendor specific error info has 5 bytes:
-[Hardware Error]:    00000000: 13 7b 04 05 01                                   .{...
+[Hardware Error]:    00000000: 13 7b 04 05 01                             .{...
 [Firmware Warn]: GHES: Unhandled processor error type 0x02: cache error
 [Firmware Warn]: GHES: Unhandled processor error type 0x04: TLB error
 [Firmware Warn]: GHES: Unhandled processor error type 0x08: bus error
-[Firmware Warn]: GHES: Unhandled processor error type 0x10: micro-architectural error
-[Firmware Warn]: GHES: Unhandled processor error type 0x14: TLB error|micro-architectural error
+[Firmware Warn]: GHES: Unhandled processor error type 0x10:
+                 micro-architectural error
+[Firmware Warn]: GHES: Unhandled processor error type 0x14:
+                 TLB error|micro-architectural error
 """
 
 import argparse
@@ -171,10 +175,10 @@ class ArmProcessorEinj:
 
         parser = subparsers.add_parser("arm", description=self.DESC)
 
-        arm_valid_bits = ",".join(self.arm_valid_bits.keys())
-        flags = ",".join(self.pei_flags.keys())
-        error_types = ",".join(self.pei_error_types.keys())
-        pei_valid_bits = ",".join(self.pei_valid_bits.keys())
+        arm_valid_bits = ", ".join(self.arm_valid_bits.keys())
+        flags = ", ".join(self.pei_flags.keys())
+        error_types = ", ".join(self.pei_error_types.keys())
+        pei_valid_bits = ", ".join(self.pei_valid_bits.keys())
 
         # UEFI N.16 ARM Validation bits
         g_arm = parser.add_argument_group("ARM processor")
@@ -193,7 +197,7 @@ class ArmProcessorEinj:
                            help="Indicates if the processor is running or not")
         g_arm.add_argument("--psci", "--psci-state",
                            type=lambda x: int(x, 0),
-                           help="Power State Coordination Interface - PSCI state")
+                           help="Power State Coordination Interface state")
 
         # TODO: Add vendor-specific support
 
@@ -208,9 +212,12 @@ class ArmProcessorEinj:
 
         # UEFI N.17 Integer values
         g_pei.add_argument("-m", "--multiple-error", nargs="+",
-                        help="Number of errors: 0: Single error, 1: Multiple errors, 2-65535: Error count if known")
+                        help="Number of errors: "
+                             "0: Single error, 1: Multiple errors, "
+                             "2-65535: Error count if known")
         g_pei.add_argument("-e", "--error-info", nargs="+",
-                        help="Error information (UEFI 2.10 tables N.18 to N.20)")
+                        help="Error information "
+                             "(UEFI 2.10 tables N.18 to N.20)")
         g_pei.add_argument("-p", "--physical-address",  nargs="+",
                         help="Physical address")
         g_pei.add_argument("-v", "--virtual-address",  nargs="+",
@@ -219,7 +226,9 @@ class ArmProcessorEinj:
         # UEFI N.21 Context
         g_ctx = parser.add_argument_group("Processor Context")
         g_ctx.add_argument("--ctx-type", "--context-type", nargs="*",
-                        help="Type of the context (0=ARM32 GPR, 5=ARM64 EL1, other values supported)")
+                        help="Type of the context "
+                             "(0=ARM32 GPR, 5=ARM64 EL1, "
+                             "other values supported)")
         g_ctx.add_argument("--ctx-size", "--context-size", nargs="*",
                         help="Minimal size of the context")
         g_ctx.add_argument("--ctx-array", "--context-array", nargs="*",

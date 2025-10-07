@@ -8,7 +8,7 @@
 Handle ACPI GHESv2 error injection logic QEMU QMP interface.
 """
 
-import argparse
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import sys
 
 from arm_processor_error import ArmProcessorEinj
@@ -26,9 +26,9 @@ def main():
     """Main program"""
 
     # Main parser - handle generic args like QEMU QMP TCP socket options
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-                                     usage="%(prog)s [options]",
-                                     description=EINJ_DESC)
+    parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter,
+                            usage="%(prog)s [options]",
+                            description=EINJ_DESC)
 
     g_options = parser.add_argument_group("QEMU QMP socket options")
     g_options.add_argument("-H", "--host", default="localhost", type=str,
