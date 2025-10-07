@@ -1840,6 +1840,16 @@
   'features': [ 'unstable' ]}
 
 ##
+# @query-ovmf-log:
+#
+# Find firmware memory log buffer in guest memory, return content.
+#
+# Since: 10.2
+##
+{ 'command': 'query-ovmf-log',
+  'returns': 'HumanReadableText' }
+
+##
 # @dump-skeys:
 #
 # Dump the storage keys for an s390x guest
