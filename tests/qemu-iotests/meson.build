@@ -23,7 +23,9 @@ qemu_iotests_formats = {
   'raw': 'slow',
   'qed': 'thorough',
   'vmdk': 'thorough',
-  'vpc': 'thorough'
+  'vpc': 'thorough',
+  'nbd': 'thorough',
+  'luks': 'thorough',
 }
 
 foreach k, v : emulators
