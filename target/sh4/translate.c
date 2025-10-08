@@ -223,7 +223,7 @@ static inline bool use_exit_tb(DisasContext *ctx)
     return (ctx->tbflags & TB_FLAG_GUSA_EXCLUSIVE) != 0;
 }
 
-static bool use_goto_tb(DisasContext *ctx, target_ulong dest)
+static bool use_goto_tb(DisasContext *ctx, vaddr dest)
 {
     if (use_exit_tb(ctx)) {
         return false;
@@ -231,7 +231,7 @@ static bool use_goto_tb(DisasContext *ctx, target_ulong dest)
     return translator_use_goto_tb(&ctx->base, dest);
 }
 
-static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
+static void gen_goto_tb(DisasContext *ctx, int n, vaddr dest)
 {
     if (use_goto_tb(ctx, dest)) {
         tcg_gen_goto_tb(n);
@@ -267,7 +267,7 @@ static void gen_jump(DisasContext * ctx)
 }
 
 /* Immediate conditional jump (bt or bf) */
-static void gen_conditional_jump(DisasContext *ctx, target_ulong dest,
+static void gen_conditional_jump(DisasContext *ctx, vaddr dest,
                                  bool jump_if_true)
 {
     TCGLabel *l1 = gen_new_label();
