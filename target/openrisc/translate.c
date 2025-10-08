@@ -307,7 +307,7 @@ static void gen_muld(DisasContext *dc, TCGv srca, TCGv srcb)
         tcg_gen_muls2_i64(cpu_mac, high, t1, t2);
         tcg_gen_sari_i64(t1, cpu_mac, 63);
         tcg_gen_negsetcond_i64(TCG_COND_NE, t1, t1, high);
-        tcg_gen_trunc_i64_tl(cpu_sr_ov, t1);
+        tcg_gen_extrl_i64_i32(cpu_sr_ov, t1);
 
         gen_ove_ov(dc);
     }
@@ -328,7 +328,7 @@ static void gen_muldu(DisasContext *dc, TCGv srca, TCGv srcb)
 
         tcg_gen_mulu2_i64(cpu_mac, high, t1, t2);
         tcg_gen_setcondi_i64(TCG_COND_NE, high, high, 0);
-        tcg_gen_trunc_i64_tl(cpu_sr_cy, high);
+        tcg_gen_extrl_i64_i32(cpu_sr_cy, high);
 
         gen_ove_cy(dc);
     }
@@ -370,7 +370,7 @@ static void gen_macu(DisasContext *dc, TCGv srca, TCGv srcb)
     /* Note that overflow is only computed during addition stage.  */
     tcg_gen_add_i64(cpu_mac, cpu_mac, t1);
     tcg_gen_setcond_i64(TCG_COND_LTU, t1, cpu_mac, t1);
-    tcg_gen_trunc_i64_tl(cpu_sr_cy, t1);
+    tcg_gen_extrl_i64_i32(cpu_sr_cy, t1);
 
     gen_ove_cy(dc);
 }
@@ -411,7 +411,7 @@ static void gen_msbu(DisasContext *dc, TCGv srca, TCGv srcb)
     /* Note that overflow is only computed during subtraction stage.  */
     tcg_gen_setcond_i64(TCG_COND_LTU, t2, cpu_mac, t1);
     tcg_gen_sub_i64(cpu_mac, cpu_mac, t1);
-    tcg_gen_trunc_i64_tl(cpu_sr_cy, t2);
+    tcg_gen_extrl_i64_i32(cpu_sr_cy, t2);
 
     gen_ove_cy(dc);
 }
@@ -929,7 +929,7 @@ static bool trans_l_movhi(DisasContext *dc, arg_l_movhi *a)
 static bool trans_l_macrc(DisasContext *dc, arg_l_macrc *a)
 {
     check_r0_write(dc, a->d);
-    tcg_gen_trunc_i64_tl(cpu_R(dc, a->d), cpu_mac);
+    tcg_gen_extrl_i64_i32(cpu_R(dc, a->d), cpu_mac);
     tcg_gen_movi_i64(cpu_mac, 0);
     return true;
 }
