@@ -42,4 +42,16 @@ struct AspeedCoprocessorClass {
     qemu_irq (*get_irq)(void *ctx, int dev);
 };
 
+struct Aspeed27x0SSPSoCState {
+    AspeedCoprocessorState parent;
+    AspeedINTCState intc[2];
+    UnimplementedDeviceState ipc[2];
+    UnimplementedDeviceState scuio;
+
+    ARMv7MState armv7m;
+};
+
+#define TYPE_ASPEED27X0SSP_SOC "aspeed27x0ssp-soc"
+OBJECT_DECLARE_SIMPLE_TYPE(Aspeed27x0SSPSoCState, ASPEED27X0SSP_SOC)
+
 #endif /* ASPEED_COPROCESSOR_H */
