@@ -99,7 +99,7 @@ void generate_exception(DisasContext *ctx, int excp)
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
-static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
+static inline void gen_goto_tb(DisasContext *ctx, int n, vaddr dest)
 {
     if (ctx->va32) {
         dest = (uint32_t) dest;
