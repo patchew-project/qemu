@@ -30,9 +30,10 @@ const char *aspeed_soc_cpu_type(const char * const *valid_cpu_types)
     return valid_cpu_types[0];
 }
 
-qemu_irq aspeed_soc_get_irq(AspeedSoCState *s, int dev)
+qemu_irq aspeed_soc_get_irq(qemu_irq (*fn)(void *ctx, int dev),
+                            void *ctx, int dev)
 {
-    return ASPEED_SOC_GET_CLASS(s)->get_irq(s, dev);
+    return fn(ctx, dev);
 }
 
 bool aspeed_soc_uart_realize(AspeedSoCState *s, Error **errp)
@@ -52,7 +53,8 @@ bool aspeed_soc_uart_realize(AspeedSoCState *s, Error **errp)
             return false;
         }
 
-        sysbus_connect_irq(SYS_BUS_DEVICE(smm), 0, aspeed_soc_get_irq(s, uart));
+        sysbus_connect_irq(SYS_BUS_DEVICE(smm), 0,
+                           aspeed_soc_get_irq(sc->get_irq, s, uart));
         aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(smm), 0, sc->memmap[uart]);
     }
 

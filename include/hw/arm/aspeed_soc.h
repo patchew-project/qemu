@@ -198,7 +198,7 @@ struct AspeedSoCClass {
     const int *irqmap;
     const hwaddr *memmap;
     uint32_t num_cpus;
-    qemu_irq (*get_irq)(AspeedSoCState *s, int dev);
+    qemu_irq (*get_irq)(void *ctx, int dev);
     bool (*boot_from_emmc)(AspeedSoCState *s);
 };
 
@@ -303,7 +303,8 @@ enum {
 };
 
 const char *aspeed_soc_cpu_type(const char * const *valid_cpu_types);
-qemu_irq aspeed_soc_get_irq(AspeedSoCState *s, int dev);
+qemu_irq aspeed_soc_get_irq(qemu_irq (*fn)(void *ctx, int dev),
+                            void *ctx, int dev);
 bool aspeed_soc_uart_realize(AspeedSoCState *s, Error **errp);
 void aspeed_soc_uart_set_chr(SerialMM *uart, int dev, int uarts_base,
                              int uarts_num, Chardev *chr);

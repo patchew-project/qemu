@@ -104,8 +104,9 @@ static struct nvic_intc_irq_info ast2700_tsp_intcmap[] = {
     {136, 0, 9, NULL},
 };
 
-static qemu_irq aspeed_soc_ast27x0tsp_get_irq(AspeedSoCState *s, int dev)
+static qemu_irq aspeed_soc_ast27x0tsp_get_irq(void *ctx, int dev)
 {
+    AspeedSoCState *s = (AspeedSoCState *)ctx;
     Aspeed27x0TSPSoCState *a = ASPEED27X0TSP_SOC(s);
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
 
