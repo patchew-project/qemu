@@ -87,7 +87,7 @@ struct DisasContext {
     CPUAVRState *env;
     CPUState *cs;
 
-    target_long npc;
+    vaddr npc;
     uint32_t opcode;
 
     /* Routine used to access memory */
@@ -981,7 +981,7 @@ static void gen_pop_ret(DisasContext *ctx, TCGv ret)
     }
 }
 
-static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
+static void gen_goto_tb(DisasContext *ctx, int n, vaddr dest)
 {
     const TranslationBlock *tb = ctx->base.tb;
 
@@ -1004,7 +1004,7 @@ static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
  */
 static bool trans_RJMP(DisasContext *ctx, arg_RJMP *a)
 {
-    int dst = ctx->npc + a->imm;
+    vaddr dst = ctx->npc + a->imm;
 
     gen_goto_tb(ctx, 0, dst);
 
@@ -1072,8 +1072,8 @@ static bool trans_JMP(DisasContext *ctx, arg_JMP *a)
  */
 static bool trans_RCALL(DisasContext *ctx, arg_RCALL *a)
 {
-    int ret = ctx->npc;
-    int dst = ctx->npc + a->imm;
+    vaddr ret = ctx->npc;
+    vaddr dst = ctx->npc + a->imm;
 
     gen_push_ret(ctx, ret);
     gen_goto_tb(ctx, 0, dst);
@@ -1094,7 +1094,7 @@ static bool trans_ICALL(DisasContext *ctx, arg_ICALL *a)
         return true;
     }
 
-    int ret = ctx->npc;
+    vaddr ret = ctx->npc;
 
     gen_push_ret(ctx, ret);
     gen_jmp_z(ctx);
@@ -1136,8 +1136,8 @@ static bool trans_CALL(DisasContext *ctx, arg_CALL *a)
         return true;
     }
 
-    int Imm = a->imm;
-    int ret = ctx->npc;
+    vaddr Imm = a->imm;
+    vaddr ret = ctx->npc;
 
     gen_push_ret(ctx, ret);
     gen_goto_tb(ctx, 0, Imm);
@@ -2743,7 +2743,7 @@ static void avr_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     }
 
     if (ctx->base.is_jmp == DISAS_NEXT) {
-        target_ulong page_first = ctx->base.pc_first & TARGET_PAGE_MASK;
+        vaddr page_first = ctx->base.pc_first & TARGET_PAGE_MASK;
 
         if ((ctx->base.pc_next - page_first) >= TARGET_PAGE_SIZE - 4) {
             ctx->base.is_jmp = DISAS_TOO_MANY;
