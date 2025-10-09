@@ -640,6 +640,7 @@ static void machine_HP_C3700_init(MachineState *machine)
 
 static void hppa_machine_reset(MachineState *ms, ResetType type)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
     unsigned int smp_cpus = ms->smp.cpus;
     int i;
 
@@ -671,7 +672,7 @@ static void hppa_machine_reset(MachineState *ms, ResetType type)
     cpu[0]->env.kernel_entry = 0;
     cpu[0]->env.initrd_base = 0;
     cpu[0]->env.initrd_end = 0;
-    cpu[0]->env.cmdline_or_bootorder = 'c';
+    cpu[0]->env.cmdline_or_bootorder = mc->default_boot_order[0];
 }
 
 static void hppa_nmi(NMIState *n, int cpu_index, Error **errp)
