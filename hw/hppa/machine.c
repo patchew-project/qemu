@@ -50,6 +50,8 @@ struct HppaMachineState {
                 bool interactive_mode;
             } firmware;
             struct {
+                vaddr entry; /* Linux kernel was loaded here */
+                vaddr initrd_base, initrd_end;
                 hwaddr cmdline_paddr;
             } kernel;
         };
@@ -365,8 +367,6 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
                                         TranslateFn *translate)
 {
     const char *kernel_filename = machine->kernel_filename;
-    const char *kernel_cmdline = machine->kernel_cmdline;
-    const char *initrd_filename = machine->initrd_filename;
     const char *firmware = machine->firmware;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     HppaMachineState *hms = HPPA_COMMON_MACHINE(machine);
@@ -375,7 +375,6 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
     char *firmware_filename;
     uint64_t firmware_low, firmware_high;
     long size;
-    uint64_t kernel_entry = 0, kernel_low, kernel_high;
     MemoryRegion *addr_space = get_system_memory();
     MemoryRegion *rom_region;
     SysBusDevice *s;
@@ -481,6 +480,11 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
 
     /* Load kernel */
     if (kernel_filename) {
+        uint64_t kernel_entry;
+        uint64_t kernel_low, kernel_high;
+        const char *kernel_cmdline = machine->kernel_cmdline;
+        const char *initrd_filename = machine->initrd_filename;
+
         size = load_elf(kernel_filename, NULL, linux_kernel_virt_to_phys,
                         NULL, &kernel_entry, &kernel_low, &kernel_high, NULL,
                         ELFDATA2MSB, EM_PARISC, 0, 0);
@@ -496,6 +500,8 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
                       ", size %" PRIu64 " kB\n",
                       kernel_low, kernel_high, kernel_entry, size / KiB);
         hms->boot_info.is_kernel = true;
+        /* Keep initial kernel_entry for first boot */
+        hms->boot_info.kernel.entry = kernel_entry;
 
         if (kernel_cmdline) {
             hms->boot_info.kernel.cmdline_paddr = 0x4000;
@@ -529,8 +535,8 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
             }
 
             load_image_targphys(initrd_filename, initrd_base, initrd_size);
-            cpu[0]->env.initrd_base = initrd_base;
-            cpu[0]->env.initrd_end  = initrd_base + initrd_size;
+            hms->boot_info.kernel.initrd_base = initrd_base;
+            hms->boot_info.kernel.initrd_end  = initrd_base + initrd_size;
         }
     }
 
@@ -544,9 +550,6 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
                                                   : 0;
         hms->boot_info.firmware.bootorder = machine->boot_config.order[0];
     }
-
-    /* Keep initial kernel_entry for first boot */
-    cpu[0]->env.kernel_entry = kernel_entry;
 }
 
 /*
@@ -687,20 +690,20 @@ static void hppa_machine_reset(MachineState *ms, ResetType type)
 
     cpu[0]->env.gr[26] = ms->ram_size;
     cpu[0]->env.gr[25] = hms->boot_info.is_kernel
-                         ? cpu[0]->env.kernel_entry
+                         ? hms->boot_info.kernel.entry
                          : hms->boot_info.firmware.interactive_mode;
     cpu[0]->env.gr[24] = hms->boot_info.is_kernel
                          ? hms->boot_info.kernel.cmdline_paddr
                          : hms->boot_info.firmware.bootorder;
-    cpu[0]->env.gr[23] = cpu[0]->env.initrd_base;
-    cpu[0]->env.gr[22] = cpu[0]->env.initrd_end;
+    cpu[0]->env.gr[23] = hms->boot_info.kernel.initrd_base;
+    cpu[0]->env.gr[22] = hms->boot_info.kernel.initrd_end;
     cpu[0]->env.gr[21] = smp_cpus;
     cpu[0]->env.gr[19] = FW_CFG_IO_BASE;
 
     /* reset static fields to avoid starting Linux kernel & initrd on reboot */
-    cpu[0]->env.kernel_entry = 0;
-    cpu[0]->env.initrd_base = 0;
-    cpu[0]->env.initrd_end = 0;
+    hms->boot_info.kernel.entry = 0;
+    hms->boot_info.kernel.initrd_base = 0;
+    hms->boot_info.kernel.initrd_end = 0;
     hms->boot_info.kernel.cmdline_paddr = 0;
     hms->boot_info.firmware.bootorder = mc->default_boot_order[0];
 }
