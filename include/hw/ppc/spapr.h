@@ -144,7 +144,6 @@ struct SpaprMachineClass {
 
     /*< public >*/
     uint32_t nr_xirqs;
-    hwaddr rma_limit;          /* clamp the RMA to this size */
     bool pre_5_1_assoc_refpoints;
     bool pre_5_2_numa_associativity;
     bool pre_6_2_numa_affinity;
