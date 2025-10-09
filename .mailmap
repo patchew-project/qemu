@@ -57,6 +57,7 @@ Stefan Weil <sw@weilnetz.de> Stefan Weil <stefan@kiwi.(none)>
 # precedence over any munged From: in the mail's headers.
 # See https://lists.openembedded.org/g/openembedded-core/message/166515
 # and https://lists.gnu.org/archive/html/qemu-devel/2023-09/msg06784.html
+Denis V. Lunev <den@openvz.org> Denis V. Lunev via <qemu-block@nongnu.org>
 Ed Swierk <eswierk@skyportsystems.com> Ed Swierk via Qemu-devel <qemu-devel@nongnu.org>
 Ian McKellar <ianloic@google.com> Ian McKellar via Qemu-devel <qemu-devel@nongnu.org>
 Julia Suvorova <jusual@mail.ru> Julia Suvorova via Qemu-devel <qemu-devel@nongnu.org>
