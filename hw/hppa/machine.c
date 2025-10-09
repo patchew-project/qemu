@@ -49,6 +49,9 @@ struct HppaMachineState {
                 char bootorder;
                 bool interactive_mode;
             } firmware;
+            struct {
+                hwaddr cmdline_paddr;
+            } kernel;
         };
     } boot_info;
 };
@@ -495,8 +498,8 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
         hms->boot_info.is_kernel = true;
 
         if (kernel_cmdline) {
-            cpu[0]->env.cmdline_or_bootorder = 0x4000;
-            pstrcpy_targphys("cmdline", cpu[0]->env.cmdline_or_bootorder,
+            hms->boot_info.kernel.cmdline_paddr = 0x4000;
+            pstrcpy_targphys("cmdline", hms->boot_info.kernel.cmdline_paddr,
                              TARGET_PAGE_SIZE, kernel_cmdline);
         }
 
@@ -687,7 +690,7 @@ static void hppa_machine_reset(MachineState *ms, ResetType type)
                          ? cpu[0]->env.kernel_entry
                          : hms->boot_info.firmware.interactive_mode;
     cpu[0]->env.gr[24] = hms->boot_info.is_kernel
-                         ? cpu[0]->env.cmdline_or_bootorder
+                         ? hms->boot_info.kernel.cmdline_paddr
                          : hms->boot_info.firmware.bootorder;
     cpu[0]->env.gr[23] = cpu[0]->env.initrd_base;
     cpu[0]->env.gr[22] = cpu[0]->env.initrd_end;
@@ -698,7 +701,7 @@ static void hppa_machine_reset(MachineState *ms, ResetType type)
     cpu[0]->env.kernel_entry = 0;
     cpu[0]->env.initrd_base = 0;
     cpu[0]->env.initrd_end = 0;
-    cpu[0]->env.cmdline_or_bootorder = 0;
+    hms->boot_info.kernel.cmdline_paddr = 0;
     hms->boot_info.firmware.bootorder = mc->default_boot_order[0];
 }
 
