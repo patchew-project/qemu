@@ -66,7 +66,8 @@ static int multifd_nocomp_send_setup(MultiFDSendParams *p, Error **errp)
     uint32_t page_count = multifd_ram_page_count();
 
     if (migrate_zero_copy_send()) {
-        p->write_flags |= QIO_CHANNEL_WRITE_FLAG_ZERO_COPY;
+        p->write_flags |= (QIO_CHANNEL_WRITE_FLAG_ZERO_COPY |
+                           QIO_CHANNEL_WRITE_FLAG_ZERO_COPY_FLUSH_ONCE);
     }
 
     if (!migrate_mapped_ram()) {

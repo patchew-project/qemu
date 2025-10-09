@@ -703,7 +703,8 @@ static void *multifd_send_thread(void *opaque)
                 multifd_device_state_send_prepare(p);
 
                 /* Device state packets cannot be sent via zerocopy */
-                write_flags_masked |= QIO_CHANNEL_WRITE_FLAG_ZERO_COPY;
+                write_flags_masked |= (QIO_CHANNEL_WRITE_FLAG_ZERO_COPY |
+                    QIO_CHANNEL_WRITE_FLAG_ZERO_COPY_FLUSH_ONCE);
             } else {
                 ret = multifd_send_state->ops->send_prepare(p, &local_err);
                 if (ret != 0) {
