@@ -109,6 +109,9 @@ used_underscore_binding = "deny"
 # nice to have, but cannot be enabled yet
 #wildcard_imports = "deny"   # still have many bindings::* imports
 
+# https://github.com/rust-lang/rust-clippy/issues/15852
+double_parens = "allow"
+
 # these may have false positives
 #option_if_let_else = "deny"
 cognitive_complexity = "deny"
