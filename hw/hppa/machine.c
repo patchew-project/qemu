@@ -41,6 +41,16 @@ OBJECT_DECLARE_SIMPLE_TYPE(HppaMachineState, HPPA_COMMON_MACHINE)
 
 struct HppaMachineState {
     MachineState parent_obj;
+
+    struct {
+        bool is_kernel; /* kernel:1 firmware:0 */
+        union {
+            struct {
+                char bootorder;
+                bool interactive_mode;
+            } firmware;
+        };
+    } boot_info;
 };
 
 #define MIN_SEABIOS_HPPA_VERSION 12 /* require at least this fw version */
@@ -356,6 +366,7 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
     const char *initrd_filename = machine->initrd_filename;
     const char *firmware = machine->firmware;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
+    HppaMachineState *hms = HPPA_COMMON_MACHINE(machine);
     DeviceState *dev;
     PCIDevice *pci_dev;
     char *firmware_filename;
@@ -481,6 +492,7 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
                       "-0x%08" PRIx64 ", entry at 0x%08" PRIx64
                       ", size %" PRIu64 " kB\n",
                       kernel_low, kernel_high, kernel_entry, size / KiB);
+        hms->boot_info.is_kernel = true;
 
         if (kernel_cmdline) {
             cpu[0]->env.cmdline_or_bootorder = 0x4000;
@@ -519,13 +531,15 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
         }
     }
 
-    if (!kernel_entry) {
+    if (!hms->boot_info.is_kernel) {
         /* When booting via firmware, tell firmware if we want interactive
-         * mode (kernel_entry=1), and to boot from CD (cmdline_or_bootorder='d')
-         * or hard disc (cmdline_or_bootorder='c').
+         * mode (interactive_mode=1), and to boot from CD (bootorder='d')
+         * or hard disc (bootorder='c').
          */
-        kernel_entry = machine->boot_config.has_menu ? machine->boot_config.menu : 0;
-        cpu[0]->env.cmdline_or_bootorder = machine->boot_config.order[0];
+        hms->boot_info.firmware.interactive_mode = machine->boot_config.has_menu
+                                                  ? machine->boot_config.menu
+                                                  : 0;
+        hms->boot_info.firmware.bootorder = machine->boot_config.order[0];
     }
 
     /* Keep initial kernel_entry for first boot */
@@ -648,6 +662,7 @@ static void machine_HP_C3700_init(MachineState *machine)
 static void hppa_machine_reset(MachineState *ms, ResetType type)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
+    HppaMachineState *hms = HPPA_COMMON_MACHINE(ms);
     unsigned int smp_cpus = ms->smp.cpus;
     int i;
 
@@ -668,8 +683,12 @@ static void hppa_machine_reset(MachineState *ms, ResetType type)
     }
 
     cpu[0]->env.gr[26] = ms->ram_size;
-    cpu[0]->env.gr[25] = cpu[0]->env.kernel_entry;
-    cpu[0]->env.gr[24] = cpu[0]->env.cmdline_or_bootorder;
+    cpu[0]->env.gr[25] = hms->boot_info.is_kernel
+                         ? cpu[0]->env.kernel_entry
+                         : hms->boot_info.firmware.interactive_mode;
+    cpu[0]->env.gr[24] = hms->boot_info.is_kernel
+                         ? cpu[0]->env.cmdline_or_bootorder
+                         : hms->boot_info.firmware.bootorder;
     cpu[0]->env.gr[23] = cpu[0]->env.initrd_base;
     cpu[0]->env.gr[22] = cpu[0]->env.initrd_end;
     cpu[0]->env.gr[21] = smp_cpus;
@@ -679,7 +698,8 @@ static void hppa_machine_reset(MachineState *ms, ResetType type)
     cpu[0]->env.kernel_entry = 0;
     cpu[0]->env.initrd_base = 0;
     cpu[0]->env.initrd_end = 0;
-    cpu[0]->env.cmdline_or_bootorder = mc->default_boot_order[0];
+    cpu[0]->env.cmdline_or_bootorder = 0;
+    hms->boot_info.firmware.bootorder = mc->default_boot_order[0];
 }
 
 static void hppa_nmi(NMIState *n, int cpu_index, Error **errp)
