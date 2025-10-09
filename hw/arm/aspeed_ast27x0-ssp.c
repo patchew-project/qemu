@@ -14,6 +14,7 @@
 #include "hw/qdev-clock.h"
 #include "hw/misc/unimp.h"
 #include "hw/arm/aspeed_soc.h"
+#include "hw/arm/aspeed_coprocessor.h"
 
 #define AST2700_SSP_RAM_SIZE (32 * MiB)
 
@@ -106,9 +107,9 @@ static struct nvic_intc_irq_info ast2700_ssp_intcmap[] = {
 
 static qemu_irq aspeed_soc_ast27x0ssp_get_irq(void *ctx, int dev)
 {
-    AspeedSoCState *s = (AspeedSoCState *)ctx;
+    AspeedCoprocessorState *s = (AspeedCoprocessorState *)ctx;
     Aspeed27x0SSPSoCState *a = ASPEED27X0SSP_SOC(s);
-    AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
+    AspeedCoprocessorClass *sc = ASPEED_COPROCESSOR_GET_CLASS(s);
 
     int or_idx;
     int idx;
@@ -130,8 +131,8 @@ static qemu_irq aspeed_soc_ast27x0ssp_get_irq(void *ctx, int dev)
 static void aspeed_soc_ast27x0ssp_init(Object *obj)
 {
     Aspeed27x0SSPSoCState *a = ASPEED27X0SSP_SOC(obj);
-    AspeedSoCState *s = ASPEED_SOC(obj);
-    AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
+    AspeedCoprocessorState *s = ASPEED_COPROCESSOR(obj);
+    AspeedCoprocessorClass *sc = ASPEED_COPROCESSOR_GET_CLASS(s);
     int i;
 
     object_initialize_child(obj, "armv7m", &a->armv7m, TYPE_ARMV7M);
@@ -161,8 +162,8 @@ static void aspeed_soc_ast27x0ssp_init(Object *obj)
 static void aspeed_soc_ast27x0ssp_realize(DeviceState *dev_soc, Error **errp)
 {
     Aspeed27x0SSPSoCState *a = ASPEED27X0SSP_SOC(dev_soc);
-    AspeedSoCState *s = ASPEED_SOC(dev_soc);
-    AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
+    AspeedCoprocessorState *s = ASPEED_COPROCESSOR(dev_soc);
+    AspeedCoprocessorClass *sc = ASPEED_COPROCESSOR_GET_CLASS(s);
     DeviceState *armv7m;
     g_autofree char *sram_name = NULL;
     int uart;
@@ -186,8 +187,8 @@ static void aspeed_soc_ast27x0ssp_realize(DeviceState *dev_soc, Error **errp)
     sram_name = g_strdup_printf("aspeed.dram.%d",
                                 CPU(a->armv7m.cpu)->cpu_index);
 
-    if (!memory_region_init_ram(&s->sram, OBJECT(s), sram_name, sc->sram_size,
-                                errp)) {
+    if (!memory_region_init_ram(&s->sram, OBJECT(s), sram_name,
+                                AST2700_SSP_RAM_SIZE, errp)) {
         return;
     }
     memory_region_add_subregion(s->memory,
@@ -269,31 +270,25 @@ static void aspeed_soc_ast27x0ssp_class_init(ObjectClass *klass, const void *dat
         NULL
     };
     DeviceClass *dc = DEVICE_CLASS(klass);
-    AspeedSoCClass *sc = ASPEED_SOC_CLASS(dc);
+    AspeedCoprocessorClass *sc = ASPEED_COPROCESSOR_CLASS(dc);
 
-    /* Reason: The Aspeed SoC can only be instantiated from a board */
+    /* Reason: The Aspeed Coprocessor can only be instantiated from a board */
     dc->user_creatable = false;
     dc->realize = aspeed_soc_ast27x0ssp_realize;
 
     sc->valid_cpu_types = valid_cpu_types;
     sc->silicon_rev = AST2700_A1_SILICON_REV;
-    sc->sram_size = AST2700_SSP_RAM_SIZE;
-    sc->spis_num = 0;
-    sc->ehcis_num = 0;
-    sc->wdts_num = 0;
-    sc->macs_num = 0;
     sc->uarts_num = 13;
     sc->uarts_base = ASPEED_DEV_UART0;
     sc->irqmap = aspeed_soc_ast27x0ssp_irqmap;
     sc->memmap = aspeed_soc_ast27x0ssp_memmap;
-    sc->num_cpus = 1;
     sc->get_irq = aspeed_soc_ast27x0ssp_get_irq;
 }
 
 static const TypeInfo aspeed_soc_ast27x0ssp_types[] = {
     {
         .name           = TYPE_ASPEED27X0SSP_SOC,
-        .parent         = TYPE_ASPEED_SOC,
+        .parent         = TYPE_ASPEED_COPROCESSOR,
         .instance_size  = sizeof(Aspeed27x0SSPSoCState),
         .instance_init  = aspeed_soc_ast27x0ssp_init,
         .class_init     = aspeed_soc_ast27x0ssp_class_init,
