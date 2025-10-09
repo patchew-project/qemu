@@ -144,8 +144,6 @@ struct SpaprMachineClass {
 
     /*< public >*/
     uint32_t nr_xirqs;
-    bool linux_pci_probe;
-    bool smp_threads_vsmt; /* set VSMT to smp_threads by default */
     hwaddr rma_limit;          /* clamp the RMA to this size */
     bool pre_5_1_assoc_refpoints;
     bool pre_5_2_numa_associativity;
