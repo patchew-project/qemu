@@ -96,5 +96,6 @@ if have_system or have_user
 
   # Also included in have_system for tests/unit/test-qdev-global-props
   stub_ss.add(files('hotplug-stubs.c'))
+  stub_ss.add(files('memory.c'))
   stub_ss.add(files('sysbus.c'))
 endif

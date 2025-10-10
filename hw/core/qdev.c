@@ -480,6 +480,17 @@ static bool check_only_migratable(Object *obj, Error **errp)
     return true;
 }
 
+static int del_memory_region(Object *child, void *opaque)
+{
+    MemoryRegion *mr = (MemoryRegion *)object_dynamic_cast(child, TYPE_MEMORY_REGION);
+
+    if (mr && mr->container) {
+        memory_region_del_subregion(mr->container, mr);
+    }
+
+    return 0;
+}
+
 static void device_set_realized(Object *obj, bool value, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -611,6 +622,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         if (dc->unrealize) {
             dc->unrealize(dev);
         }
+        object_child_foreach(OBJECT(dev), del_memory_region, NULL);
         dev->pending_deleted_event = true;
         DEVICE_LISTENER_CALL(unrealize, Reverse, dev);
     }
@@ -635,6 +647,8 @@ post_realize_fail:
     }
 
 fail:
+    object_child_foreach(OBJECT(dev), del_memory_region, NULL);
+
     error_propagate(errp, local_err);
     if (unattached_parent) {
         /*
