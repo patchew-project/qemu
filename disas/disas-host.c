@@ -37,11 +37,7 @@ static void initialize_debug_host(CPUDebug *s)
 
     s->info.read_memory_func = host_read_memory;
     s->info.print_address_func = host_print_address;
-#if HOST_BIG_ENDIAN
-    s->info.endian = BFD_ENDIAN_BIG;
-#else
-    s->info.endian = BFD_ENDIAN_LITTLE;
-#endif
+    s->info.endian = HOST_BIG_ENDIAN ? BFD_ENDIAN_BIG : BFD_ENDIAN_LITTLE;
 #if defined(CONFIG_TCG_INTERPRETER)
     s->info.print_insn = print_insn_tci;
 #elif defined(__i386__)
