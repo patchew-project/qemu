@@ -421,19 +421,14 @@ static void bitmap_to_from_le(unsigned long *dst,
 {
     long len = BITS_TO_LONGS(nbits);
 
-#if HOST_BIG_ENDIAN
-    long index;
-
-    for (index = 0; index < len; index++) {
-# if HOST_LONG_BITS == 64
-        dst[index] = bswap64(src[index]);
-# else
-        dst[index] = bswap32(src[index]);
-# endif
+    if (HOST_BIG_ENDIAN) {
+        for (long index = 0; index < len; index++) {
+            dst[index] = (HOST_LONG_BITS == 64) ? bswap64(src[index])
+                                                : bswap32(src[index]);
+        }
+    } else {
+        memcpy(dst, src, len * sizeof(unsigned long));
     }
-#else
-    memcpy(dst, src, len * sizeof(unsigned long));
-#endif
 }
 
 void bitmap_from_le(unsigned long *dst, const unsigned long *src,
