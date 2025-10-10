@@ -12,6 +12,7 @@
 #include "qemu/queue.h"
 #include "hw/block/flash.h"
 #include "hw/loongarch/boot.h"
+#include "hw/pci-host/gpex.h"
 
 #define IOCSRF_TEMP             0
 #define IOCSRF_NODECNT          1
@@ -77,7 +78,6 @@ struct LoongArchVirtMachineState {
     DeviceState  *acpi_ged;
     int          fdt_size;
     DeviceState *platform_bus_dev;
-    PCIBus       *pci_bus;
     PFlashCFI01  *flash[2];
     MemoryRegion system_iocsr;
     MemoryRegion iocsr_mem;
@@ -91,6 +91,7 @@ struct LoongArchVirtMachineState {
     uint64_t misc_status;
     DeviceState *dintc;
     hwaddr ram_end;
+    struct GPEXConfig gpex;
 };
 
 #define TYPE_LOONGARCH_VIRT_MACHINE  MACHINE_TYPE_NAME("virt")
