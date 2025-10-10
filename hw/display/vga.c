@@ -1307,13 +1307,13 @@ static void vga_draw_text(VGACommonState *s, int full_update)
                 if (cx > cx_max)
                     cx_max = cx;
                 *ch_attr_ptr = ch_attr;
-#if HOST_BIG_ENDIAN
-                ch = ch_attr >> 8;
-                cattr = ch_attr & 0xff;
-#else
-                ch = ch_attr & 0xff;
-                cattr = ch_attr >> 8;
-#endif
+                if (HOST_BIG_ENDIAN) {
+                    ch = ch_attr >> 8;
+                    cattr = ch_attr & 0xff;
+                } else {
+                    ch = ch_attr & 0xff;
+                    cattr = ch_attr >> 8;
+                }
                 font_ptr = font_base[(cattr >> 3) & 1];
                 font_ptr += 32 * 4 * ch;
                 bgcol = palette[cattr >> 4];
@@ -1489,11 +1489,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     vga_draw_line_func *vga_draw_line = NULL;
     bool allocate_surface, force_shadow = false;
     pixman_format_code_t format;
-#if HOST_BIG_ENDIAN
-    bool byteswap = !s->big_endian_fb;
-#else
-    bool byteswap = s->big_endian_fb;
-#endif
+    bool byteswap = s->big_endian_fb ^ HOST_BIG_ENDIAN;
 
     full_update |= update_basic_params(s);
 

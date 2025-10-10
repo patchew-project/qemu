@@ -29,7 +29,9 @@ virtio_gpu_ctrl_hdr_bswap(struct virtio_gpu_ctrl_hdr *hdr)
 static inline void
 virtio_gpu_bswap_32(void *ptr, size_t size)
 {
-#if HOST_BIG_ENDIAN
+    if (!HOST_BIG_ENDIAN) {
+        return;
+    }
 
     size_t i;
     struct virtio_gpu_ctrl_hdr *hdr = (struct virtio_gpu_ctrl_hdr *) ptr;
@@ -41,8 +43,6 @@ virtio_gpu_bswap_32(void *ptr, size_t size)
         le32_to_cpus((uint32_t *)(ptr + i));
         i = i + sizeof(uint32_t);
     }
-
-#endif
 }
 
 static inline void

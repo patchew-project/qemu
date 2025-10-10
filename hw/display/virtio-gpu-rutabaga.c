@@ -1074,10 +1074,10 @@ static void virtio_gpu_rutabaga_realize(DeviceState *qdev, Error **errp)
     VirtIOGPUBase *bdev = VIRTIO_GPU_BASE(qdev);
     VirtIOGPU *gpudev = VIRTIO_GPU(qdev);
 
-#if HOST_BIG_ENDIAN
-    error_setg(errp, "rutabaga is not supported on bigendian platforms");
-    return;
-#endif
+    if (HOST_BIG_ENDIAN) {
+        error_setg(errp, "rutabaga is not supported on bigendian platforms");
+        return;
+    }
 
     if (!virtio_gpu_rutabaga_init(gpudev, errp)) {
         return;
