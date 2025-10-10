@@ -766,3 +766,14 @@ int tap_disable(NetClientState *nc)
 {
     abort();
 }
+
+bool tap_wait_incoming(NetClientState *nc)
+{
+    return false;
+}
+
+bool tap_postponed_init(NetClientState *nc, Error **errp)
+{
+    error_setg(errp, "win32 tap postponed init is not supported");
+    return false;
+}
