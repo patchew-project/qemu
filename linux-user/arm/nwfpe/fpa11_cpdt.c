@@ -40,18 +40,18 @@ void loadSingle(const unsigned int Fn, target_ulong addr)
 static inline
 void loadDouble(const unsigned int Fn, target_ulong addr)
 {
-   FPA11 *fpa11 = GET_FPA11();
-   unsigned int *p;
-   p = (unsigned int*)&fpa11->fpreg[Fn].fDouble;
-   fpa11->fType[Fn] = typeDouble;
+    FPA11 *fpa11 = GET_FPA11();
+    unsigned int *p;
+    p = (unsigned int *)&fpa11->fpreg[Fn].fDouble;
+    fpa11->fType[Fn] = typeDouble;
 #if HOST_BIG_ENDIAN
-   /* FIXME - handle failure of get_user() */
-   get_user_u32(p[0], addr); /* sign & exponent */
-   get_user_u32(p[1], addr + 4);
+    /* FIXME - handle failure of get_user() */
+    get_user_u32(p[0], addr);       /* sign & exponent */
+    get_user_u32(p[1], addr + 4);
 #else
-   /* FIXME - handle failure of get_user() */
-   get_user_u32(p[0], addr + 4);
-   get_user_u32(p[1], addr); /* sign & exponent */
+    /* FIXME - handle failure of get_user() */
+    get_user_u32(p[0], addr + 4);
+    get_user_u32(p[1], addr);       /* sign & exponent */
 #endif
 }
 
@@ -108,16 +108,18 @@ void storeSingle(const unsigned int Fn, target_ulong addr)
 {
    FPA11 *fpa11 = GET_FPA11();
    float32 val;
-   register unsigned int *p = (unsigned int*)&val;
+   register unsigned int *p = (unsigned int *)&val;
 
    switch (fpa11->fType[Fn])
    {
       case typeDouble:
-         val = float64_to_float32(fpa11->fpreg[Fn].fDouble, &fpa11->fp_status);
+         val = float64_to_float32(fpa11->fpreg[Fn].fDouble,
+                                  &fpa11->fp_status);
       break;
 
       case typeExtended:
-         val = floatx80_to_float32(fpa11->fpreg[Fn].fExtended, &fpa11->fp_status);
+         val = floatx80_to_float32(fpa11->fpreg[Fn].fExtended,
+                                   &fpa11->fp_status);
       break;
 
       default: val = fpa11->fpreg[Fn].fSingle;
@@ -130,29 +132,31 @@ void storeSingle(const unsigned int Fn, target_ulong addr)
 static inline
 void storeDouble(const unsigned int Fn, target_ulong addr)
 {
-   FPA11 *fpa11 = GET_FPA11();
-   float64 val;
-   register unsigned int *p = (unsigned int*)&val;
+    FPA11 *fpa11 = GET_FPA11();
+    float64 val;
+    register unsigned int *p = (unsigned int *)&val;
 
-   switch (fpa11->fType[Fn])
-   {
-      case typeSingle:
-         val = float32_to_float64(fpa11->fpreg[Fn].fSingle, &fpa11->fp_status);
-      break;
+    switch (fpa11->fType[Fn]) {
+    case typeSingle:
+        val = float32_to_float64(fpa11->fpreg[Fn].fSingle,
+                                 &fpa11->fp_status);
+        break;
 
-      case typeExtended:
-         val = floatx80_to_float64(fpa11->fpreg[Fn].fExtended, &fpa11->fp_status);
-      break;
+    case typeExtended:
+        val = floatx80_to_float64(fpa11->fpreg[Fn].fExtended,
+                                  &fpa11->fp_status);
+        break;
 
-      default: val = fpa11->fpreg[Fn].fDouble;
-   }
-   /* FIXME - handle put_user() failures */
+    default:
+        val = fpa11->fpreg[Fn].fDouble;
+    }
+    /* FIXME - handle put_user() failures */
 #if HOST_BIG_ENDIAN
-   put_user_u32(p[0], addr);	/* msw */
-   put_user_u32(p[1], addr + 4);	/* lsw */
+    put_user_u32(p[0], addr);           /* msw */
+    put_user_u32(p[1], addr + 4);       /* lsw */
 #else
-   put_user_u32(p[1], addr);	/* msw */
-   put_user_u32(p[0], addr + 4);	/* lsw */
+    put_user_u32(p[1], addr);           /* msw */
+    put_user_u32(p[0], addr + 4);       /* lsw */
 #endif
 }
 
