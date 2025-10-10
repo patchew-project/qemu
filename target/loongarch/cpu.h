@@ -379,6 +379,8 @@ typedef struct CPUArchState {
 
     AddressSpace *address_space_iocsr;
     uint32_t mp_state;
+    /* Supported physical address width */
+    uint32_t phys_bits;
 #endif
 } CPULoongArchState;
 

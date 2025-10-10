@@ -248,7 +248,7 @@ static void loongarch_la464_initfn(Object *obj)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
     CPULoongArchState *env = &cpu->env;
-    uint32_t data = 0, field;
+    uint32_t data = 0;
     int i;
 
     for (i = 0; i < 21; i++) {
@@ -262,12 +262,12 @@ static void loongarch_la464_initfn(Object *obj)
     data = FIELD_DP32(data, CPUCFG1, PGMMU, 1);
     data = FIELD_DP32(data, CPUCFG1, IOCSR, 1);
     if (kvm_enabled()) {
-        /* GPA address width of VM is 47, field value is 47 - 1 */
-        field = 0x2e;
+        /* GPA address width of VM is 47 */
+        env->phys_bits = 47;
     } else {
-        field = 0x2f; /* 48 bit - 1 */
+        env->phys_bits = 48;
     }
-    data = FIELD_DP32(data, CPUCFG1, PALEN, field);
+    data = FIELD_DP32(data, CPUCFG1, PALEN, env->phys_bits - 1);
     data = FIELD_DP32(data, CPUCFG1, VALEN, 0x2f);
     data = FIELD_DP32(data, CPUCFG1, UAL, 1);
     data = FIELD_DP32(data, CPUCFG1, RI, 1);
@@ -364,10 +364,11 @@ static void loongarch_la132_initfn(Object *obj)
     cpu->dtb_compatible = "loongarch,Loongson-1C103";
     env->cpucfg[0] = 0x148042;  /* PRID */
 
+    env->phys_bits = 32;
     data = FIELD_DP32(data, CPUCFG1, ARCH, 1); /* LA32 */
     data = FIELD_DP32(data, CPUCFG1, PGMMU, 1);
     data = FIELD_DP32(data, CPUCFG1, IOCSR, 1);
-    data = FIELD_DP32(data, CPUCFG1, PALEN, 0x1f); /* 32 bits */
+    data = FIELD_DP32(data, CPUCFG1, PALEN, env->phys_bits - 1); /* 32 bits */
     data = FIELD_DP32(data, CPUCFG1, VALEN, 0x1f); /* 32 bits */
     data = FIELD_DP32(data, CPUCFG1, UAL, 1);
     data = FIELD_DP32(data, CPUCFG1, RI, 0);
