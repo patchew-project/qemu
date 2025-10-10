@@ -10,6 +10,7 @@ import logging
 import os
 import stat
 import sys
+import time
 import unittest
 import urllib.request
 from time import sleep
@@ -113,6 +114,11 @@ class Asset:
         self.log.debug("Time out while waiting for %s!", tmp_cache_file)
         raise
 
+    def _save_time_stamp(self):
+        with open(self.cache_file.with_suffix(".stamp"), 'w',
+                  encoding='utf-8') as fh:
+            fh.write(f"{int(time.time())}")
+
     def fetch(self):
         if not self.cache_dir.exists():
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -120,6 +126,7 @@ class Asset:
         if self.valid():
             self.log.debug("Using cached asset %s for %s",
                            self.cache_file, self.url)
+            self._save_time_stamp()
             return str(self.cache_file)
 
         if not self.fetchable():
@@ -208,6 +215,7 @@ class Asset:
             tmp_cache_file.unlink()
             raise AssetError(self, "Hash does not match %s" % self.hash)
         tmp_cache_file.replace(self.cache_file)
+        self._save_time_stamp()
         # Remove write perms to stop tests accidentally modifying them
         os.chmod(self.cache_file, stat.S_IRUSR | stat.S_IRGRP)
 
