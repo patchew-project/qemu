@@ -12,7 +12,7 @@ from importlib import import_module
 import sys
 from typing import Optional
 
-from .backend import QAPIBackend, QAPICBackend
+from .backend import QAPIBackend, QAPICodeBackend
 from .common import must_match
 from .error import QAPIError
 from .schema import QAPISchema
@@ -27,7 +27,7 @@ def invalid_prefix_char(prefix: str) -> Optional[str]:
 
 def create_backend(path: str) -> QAPIBackend:
     if path is None:
-        return QAPICBackend()
+        return QAPICodeBackend()
 
     module_path, dot, class_name = path.rpartition('.')
     if not dot:
