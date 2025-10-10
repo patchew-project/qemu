@@ -41,6 +41,10 @@ OBJECT_DECLARE_SIMPLE_TYPE(HppaMachineState, HPPA_COMMON_MACHINE)
 
 struct HppaMachineState {
     MachineState parent_obj;
+
+    struct {
+        uint64_t gr25;
+    } boot_info;
 };
 
 #define MIN_SEABIOS_HPPA_VERSION 12 /* require at least this fw version */
@@ -353,10 +357,10 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
 {
     const char *kernel_filename = machine->kernel_filename;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
+    HppaMachineState *hms = HPPA_COMMON_MACHINE(machine);
     DeviceState *dev;
     PCIDevice *pci_dev;
     long size;
-    uint64_t kernel_entry = 0;
     MemoryRegion *addr_space = get_system_memory();
     MemoryRegion *rom_region;
     SysBusDevice *s;
@@ -468,7 +472,7 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
     if (kernel_filename) {
         const char *kernel_cmdline = machine->kernel_cmdline;
         const char *initrd_filename = machine->initrd_filename;
-        uint64_t kernel_low, kernel_high;
+        uint64_t kernel_entry, kernel_low, kernel_high;
 
         size = load_elf(kernel_filename, NULL, linux_kernel_virt_to_phys,
                         NULL, &kernel_entry, &kernel_low, &kernel_high, NULL,
@@ -484,6 +488,8 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
                       "-0x%08" PRIx64 ", entry at 0x%08" PRIx64
                       ", size %" PRIu64 " kB\n",
                       kernel_low, kernel_high, kernel_entry, size / KiB);
+        /* Keep initial kernel_entry for first boot */
+        hms->boot_info.gr25 = kernel_entry;
 
         if (kernel_cmdline) {
             cpu[0]->env.cmdline_or_bootorder = 0x4000;
@@ -520,19 +526,16 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
             cpu[0]->env.initrd_base = initrd_base;
             cpu[0]->env.initrd_end  = initrd_base + initrd_size;
         }
-    }
-
-    if (!kernel_entry) {
+    } else {
         /* When booting via firmware, tell firmware if we want interactive
-         * mode (kernel_entry=1), and to boot from CD (cmdline_or_bootorder='d')
+         * mode (interactive_mode=1), and to boot from CD (cmdline_or_bootorder='d')
          * or hard disc (cmdline_or_bootorder='c').
          */
-        kernel_entry = machine->boot_config.has_menu ? machine->boot_config.menu : 0;
+        hms->boot_info.gr25 = machine->boot_config.has_menu
+                            ? machine->boot_config.menu
+                            : 0;
         cpu[0]->env.cmdline_or_bootorder = machine->boot_config.order[0];
     }
-
-    /* Keep initial kernel_entry for first boot */
-    cpu[0]->env.kernel_entry = kernel_entry;
 }
 
 /*
@@ -650,6 +653,7 @@ static void machine_HP_C3700_init(MachineState *machine)
 
 static void hppa_machine_reset(MachineState *ms, ResetType type)
 {
+    HppaMachineState *hms = HPPA_COMMON_MACHINE(ms);
     unsigned int smp_cpus = ms->smp.cpus;
     int i;
 
@@ -670,7 +674,7 @@ static void hppa_machine_reset(MachineState *ms, ResetType type)
     }
 
     cpu[0]->env.gr[26] = ms->ram_size;
-    cpu[0]->env.gr[25] = cpu[0]->env.kernel_entry;
+    cpu[0]->env.gr[25] = hms->boot_info.gr25;
     cpu[0]->env.gr[24] = cpu[0]->env.cmdline_or_bootorder;
     cpu[0]->env.gr[23] = cpu[0]->env.initrd_base;
     cpu[0]->env.gr[22] = cpu[0]->env.initrd_end;
@@ -678,7 +682,7 @@ static void hppa_machine_reset(MachineState *ms, ResetType type)
     cpu[0]->env.gr[19] = FW_CFG_IO_BASE;
 
     /* reset static fields to avoid starting Linux kernel & initrd on reboot */
-    cpu[0]->env.kernel_entry = 0;
+    memset(&hms->boot_info, 0, sizeof(hms->boot_info));
     cpu[0]->env.initrd_base = 0;
     cpu[0]->env.initrd_end = 0;
     cpu[0]->env.cmdline_or_bootorder = 'c';
