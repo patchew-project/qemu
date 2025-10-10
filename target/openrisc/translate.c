@@ -61,7 +61,7 @@ typedef struct DisasContext {
 
 static inline MemOp mo_endian(DisasContext *dc)
 {
-    return MO_TE;
+    return MO_BE;
 }
 
 static inline bool is_user(DisasContext *dc)
