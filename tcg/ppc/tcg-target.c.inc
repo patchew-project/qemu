@@ -3951,9 +3951,9 @@ static bool tcg_out_dupm_vec(TCGContext *s, TCGType type, unsigned vece,
             tcg_out_mem_long(s, 0, LVEBX, out, base, offset);
         }
         elt = extract32(offset, 0, 4);
-#if !HOST_BIG_ENDIAN
-        elt ^= 15;
-#endif
+        if (!HOST_BIG_ENDIAN) {
+            elt ^= 15;
+        }
         tcg_out32(s, VSPLTB | VRT(out) | VRB(out) | (elt << 16));
         break;
     case MO_16:
@@ -3964,9 +3964,9 @@ static bool tcg_out_dupm_vec(TCGContext *s, TCGType type, unsigned vece,
             tcg_out_mem_long(s, 0, LVEHX, out, base, offset);
         }
         elt = extract32(offset, 1, 3);
-#if !HOST_BIG_ENDIAN
-        elt ^= 7;
-#endif
+        if (!HOST_BIG_ENDIAN) {
+            elt ^= 7;
+        }
         tcg_out32(s, VSPLTH | VRT(out) | VRB(out) | (elt << 16));
         break;
     case MO_32:
@@ -3977,9 +3977,9 @@ static bool tcg_out_dupm_vec(TCGContext *s, TCGType type, unsigned vece,
         tcg_debug_assert((offset & 3) == 0);
         tcg_out_mem_long(s, 0, LVEWX, out, base, offset);
         elt = extract32(offset, 2, 2);
-#if !HOST_BIG_ENDIAN
-        elt ^= 3;
-#endif
+        if (!HOST_BIG_ENDIAN) {
+            elt ^= 3;
+        }
         tcg_out32(s, VSPLTW | VRT(out) | VRB(out) | (elt << 16));
         break;
     case MO_64:
@@ -3991,9 +3991,9 @@ static bool tcg_out_dupm_vec(TCGContext *s, TCGType type, unsigned vece,
         tcg_out_mem_long(s, 0, LVX, out, base, offset & -16);
         tcg_out_vsldoi(s, TCG_VEC_TMP1, out, out, 8);
         elt = extract32(offset, 3, 1);
-#if !HOST_BIG_ENDIAN
-        elt = !elt;
-#endif
+        if (!HOST_BIG_ENDIAN) {
+            elt = !elt;
+        }
         if (elt) {
             tcg_out_vsldoi(s, out, out, TCG_VEC_TMP1, 8);
         } else {
