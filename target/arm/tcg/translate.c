@@ -1199,15 +1199,15 @@ long neon_element_offset(int reg, int element, MemOp memop)
 {
     int element_size = 1 << (memop & MO_SIZE);
     int ofs = element * element_size;
-#if HOST_BIG_ENDIAN
+
     /*
      * Calculate the offset assuming fully little-endian,
      * then XOR to account for the order of the 8-byte units.
      */
-    if (element_size < 8) {
+    if (HOST_BIG_ENDIAN && element_size < 8) {
         ofs ^= 8 - element_size;
     }
-#endif
+
     return neon_full_reg_offset(reg) + ofs;
 }
 

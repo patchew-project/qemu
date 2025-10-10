@@ -1262,17 +1262,17 @@ void aarch64_set_svcr(CPUARMState *env, uint64_t new, uint64_t mask);
  */
 static inline uint64_t *sve_bswap64(uint64_t *dst, uint64_t *src, int nr)
 {
-#if HOST_BIG_ENDIAN
     int i;
+
+    if (!HOST_BIG_ENDIAN) {
+        return src;
+    }
 
     for (i = 0; i < nr; ++i) {
         dst[i] = bswap64(src[i]);
     }
 
     return dst;
-#else
-    return src;
-#endif
 }
 
 void aarch64_sync_32_to_64(CPUARMState *env);
