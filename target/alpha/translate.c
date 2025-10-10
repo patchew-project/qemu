@@ -235,11 +235,12 @@ static TCGv dest_fpr(DisasContext *ctx, unsigned reg)
 static int get_flag_ofs(unsigned shift)
 {
     int ofs = offsetof(CPUAlphaState, flags);
-#if HOST_BIG_ENDIAN
-    ofs += 3 - (shift / 8);
-#else
-    ofs += shift / 8;
-#endif
+
+    if (HOST_BIG_ENDIAN) {
+        ofs += 3 - (shift / 8);
+    } else {
+        ofs += shift / 8;
+    }
     return ofs;
 }
 
