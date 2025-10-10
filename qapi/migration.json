@@ -771,6 +771,19 @@
   } }
 
 ##
+# @BackendTransfer:
+#
+# @virtio-net-tap: Enable backend-transfer migration for
+#     virtio-net/tap. When enabled, TAP fds and all related state are
+#     passed to the destination in the migration channel (which must
+#     be a UNIX domain socket).
+#
+# Since: 10.2
+##
+{ 'enum': 'BackendTransfer',
+  'data': [ 'virtio-net-tap' ] }
+
+##
 # @BitmapMigrationNodeAlias:
 #
 # Maps a block node name and the bitmaps it has to aliases for dirty
@@ -951,9 +964,13 @@
 #     is @cpr-exec.  The first list element is the program's filename,
 #     the remainder its arguments.  (Since 10.2)
 #
+# @backend-transfer: List of targets for backend-transfer migration.
+#     See description in `BackendTransfer`.  Default is no
+#     backend-transfer migration (Since 10.2)
+#
 # Features:
 #
-# @unstable: Members @x-checkpoint-delay and
+# @unstable: Members @backend-transfer, @x-checkpoint-delay and
 #     @x-vcpu-dirty-limit-period are experimental.
 #
 # Since: 2.4
@@ -978,7 +995,8 @@
            'mode',
            'zero-page-detection',
            'direct-io',
-           'cpr-exec-command'] }
+           'cpr-exec-command',
+           { 'name': 'backend-transfer', 'features': ['unstable'] } ] }
 
 ##
 # @MigrateSetParameters:
@@ -1137,9 +1155,13 @@
 #     is @cpr-exec.  The first list element is the program's filename,
 #     the remainder its arguments.  (Since 10.2)
 #
+# @backend-transfer: List of targets for backend-transfer migration.
+#     See description in `BackendTransfer`.  Default is no
+#     backend-transfer migration (Since 10.2)
+#
 # Features:
 #
-# @unstable: Members @x-checkpoint-delay and
+# @unstable: Members @backend-transfer, @x-checkpoint-delay and
 #     @x-vcpu-dirty-limit-period are experimental.
 #
 # TODO: either fuse back into `MigrationParameters`, or make
@@ -1179,7 +1201,9 @@
             '*mode': 'MigMode',
             '*zero-page-detection': 'ZeroPageDetection',
             '*direct-io': 'bool',
-            '*cpr-exec-command': [ 'str' ]} }
+            '*cpr-exec-command': [ 'str' ],
+            '*backend-transfer': { 'type': [ 'BackendTransfer' ],
+                                   'features': [ 'unstable' ] } } }
 
 ##
 # @migrate-set-parameters:
@@ -1352,9 +1376,13 @@
 #     is @cpr-exec.  The first list element is the program's filename,
 #     the remainder its arguments.  (Since 10.2)
 #
+# @backend-transfer: List of targets for backend-transfer migration.
+#     See description in `BackendTransfer`.  Default is no
+#     backend-transfer migration (Since 10.2)
+#
 # Features:
 #
-# @unstable: Members @x-checkpoint-delay and
+# @unstable: Members @backend-transfer, @x-checkpoint-delay and
 #     @x-vcpu-dirty-limit-period are experimental.
 #
 # Since: 2.4
@@ -1391,7 +1419,9 @@
             '*mode': 'MigMode',
             '*zero-page-detection': 'ZeroPageDetection',
             '*direct-io': 'bool',
-            '*cpr-exec-command': [ 'str' ]} }
+            '*cpr-exec-command': [ 'str' ],
+            '*backend-transfer': { 'type': [ 'BackendTransfer' ],
+                                   'features': [ 'unstable' ] } } }
 
 ##
 # @query-migrate-parameters:
