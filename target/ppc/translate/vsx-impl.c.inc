@@ -1642,9 +1642,9 @@ static bool trans_XXSPLTW(DisasContext *ctx, arg_XX2_uim *a)
     tofs = vsr_full_offset(a->xt);
     bofs = vsr_full_offset(a->xb);
     bofs += a->uim << MO_32;
-#if !HOST_BIG_ENDIAN
-    bofs ^= 8 | 4;
-#endif
+    if (!HOST_BIG_ENDIAN) {
+        bofs ^= 8 | 4;
+    }
 
     tcg_gen_gvec_dup_mem(MO_32, tofs, bofs, 16, 16);
     return true;

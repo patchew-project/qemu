@@ -651,13 +651,13 @@ static int kvm_put_fp(CPUState *cs)
             uint64_t *fpr = cpu_fpr_ptr(env, i);
             uint64_t *vsrl = cpu_vsrl_ptr(env, i);
 
-#if HOST_BIG_ENDIAN
-            vsr[0] = float64_val(*fpr);
-            vsr[1] = *vsrl;
-#else
-            vsr[0] = *vsrl;
-            vsr[1] = float64_val(*fpr);
-#endif
+            if (HOST_BIG_ENDIAN) {
+                vsr[0] = float64_val(*fpr);
+                vsr[1] = *vsrl;
+            } else {
+                vsr[0] = *vsrl;
+                vsr[1] = float64_val(*fpr);
+            }
             reg.addr = (uintptr_t) &vsr;
             reg.id = vsx ? KVM_REG_PPC_VSR(i) : KVM_REG_PPC_FPR(i);
 
@@ -728,17 +728,10 @@ static int kvm_get_fp(CPUState *cs)
                                         strerror(errno));
                 return ret;
             } else {
-#if HOST_BIG_ENDIAN
-                *fpr = vsr[0];
+                *fpr = vsr[!HOST_BIG_ENDIAN];
                 if (vsx) {
-                    *vsrl = vsr[1];
+                    *vsrl = vsr[HOST_BIG_ENDIAN];
                 }
-#else
-                *fpr = vsr[1];
-                if (vsx) {
-                    *vsrl = vsr[0];
-                }
-#endif
             }
         }
     }

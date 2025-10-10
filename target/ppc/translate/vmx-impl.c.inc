@@ -134,9 +134,9 @@ static void gen_mtvscr(DisasContext *ctx)
 
     val = tcg_temp_new_i32();
     bofs = avr_full_offset(rB(ctx->opcode));
-#if HOST_BIG_ENDIAN
-    bofs += 3 * 4;
-#endif
+    if (HOST_BIG_ENDIAN) {
+        bofs += 3 * 4;
+    }
 
     tcg_gen_ld_i32(val, tcg_env, bofs);
     gen_helper_mtvscr(tcg_env, val);
@@ -1528,10 +1528,10 @@ static void gen_vsplt(DisasContext *ctx, int vece)
 
     /* Experimental testing shows that hardware masks the immediate.  */
     bofs += (uimm << vece) & 15;
-#if !HOST_BIG_ENDIAN
-    bofs ^= 15;
-    bofs &= ~((1 << vece) - 1);
-#endif
+    if (!HOST_BIG_ENDIAN) {
+        bofs ^= 15;
+        bofs &= ~((1 << vece) - 1);
+    }
 
     tcg_gen_gvec_dup_mem(vece, dofs, bofs, 16, 16);
 }

@@ -1678,13 +1678,13 @@ void helper_vslo(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
     int sh = (b->VsrB(0xf) >> 3) & 0xf;
 
-#if HOST_BIG_ENDIAN
-    memmove(&r->u8[0], &a->u8[sh], 16 - sh);
-    memset(&r->u8[16 - sh], 0, sh);
-#else
-    memmove(&r->u8[sh], &a->u8[0], 16 - sh);
-    memset(&r->u8[0], 0, sh);
-#endif
+    if (HOST_BIG_ENDIAN) {
+        memmove(&r->u8[0], &a->u8[sh], 16 - sh);
+        memset(&r->u8[16 - sh], 0, sh);
+    } else {
+        memmove(&r->u8[sh], &a->u8[0], 16 - sh);
+        memset(&r->u8[0], 0, sh);
+    }
 }
 
 #if HOST_BIG_ENDIAN
@@ -1898,13 +1898,13 @@ void helper_vsro(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
     int sh = (b->VsrB(0xf) >> 3) & 0xf;
 
-#if HOST_BIG_ENDIAN
-    memmove(&r->u8[sh], &a->u8[0], 16 - sh);
-    memset(&r->u8[0], 0, sh);
-#else
-    memmove(&r->u8[0], &a->u8[sh], 16 - sh);
-    memset(&r->u8[16 - sh], 0, sh);
-#endif
+    if (HOST_BIG_ENDIAN) {
+        memmove(&r->u8[sh], &a->u8[0], 16 - sh);
+        memset(&r->u8[0], 0, sh);
+    } else {
+        memmove(&r->u8[0], &a->u8[sh], 16 - sh);
+        memset(&r->u8[16 - sh], 0, sh);
+    }
 }
 
 void helper_vsumsws(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)

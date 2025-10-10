@@ -158,20 +158,15 @@ static void ppc_write_elf_vmxregset(NoteFuncArg *arg, PowerPCCPU *cpu, int id)
     struct PPCElfVmxregset *vmxregset;
     Note *note = &arg->note;
     DumpState *s = arg->state;
+    const int host_data_order = HOST_BIG_ENDIAN ? ELFDATA2MSB : ELFDATA2LSB;
+    const bool needs_byteswap = s->dump_info.d_endian == host_data_order;
 
     note->hdr.n_type = cpu_to_dump32(s, NT_PPC_VMX);
     vmxregset = &note->contents.vmxregset;
     memset(vmxregset, 0, sizeof(*vmxregset));
 
     for (i = 0; i < 32; i++) {
-        bool needs_byteswap;
         ppc_avr_t *avr = cpu_avr_ptr(&cpu->env, i);
-
-#if HOST_BIG_ENDIAN
-        needs_byteswap = s->dump_info.d_endian == ELFDATA2LSB;
-#else
-        needs_byteswap = s->dump_info.d_endian == ELFDATA2MSB;
-#endif
 
         if (needs_byteswap) {
             vmxregset->avr[i].u64[0] = bswap64(avr->u64[1]);
