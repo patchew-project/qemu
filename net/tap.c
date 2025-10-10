@@ -35,7 +35,9 @@
 #include "net/eth.h"
 #include "net/net.h"
 #include "clients.h"
+#include "migration/misc.h"
 #include "monitor/monitor.h"
+#include "system/runstate.h"
 #include "system/system.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
@@ -88,6 +90,13 @@ typedef struct TAPState {
     int sndbuf;
     int vhostfd;
     uint32_t vhost_busyloop_timeout;
+
+    /* for postponed setup */
+    QTAILQ_ENTRY(TAPState) next;
+    bool vnet_hdr_required;
+    int vnet_hdr;
+    bool mq_required;
+    char *ifname;
 } TAPState;
 
 static bool net_tap_setup(TAPState *s, int fd, int vnet_hdr, Error **errp);
@@ -366,6 +375,8 @@ static void tap_cleanup(NetClientState *nc)
         close(s->vhostfd);
         s->vhostfd = -1;
     }
+
+    g_free(s->ifname);
 }
 
 static void tap_poll(NetClientState *nc, bool enable)
@@ -381,6 +392,25 @@ static bool tap_set_steering_ebpf(NetClientState *nc, int prog_fd)
     assert(nc->info->type == NET_CLIENT_DRIVER_TAP);
 
     return tap_fd_set_steering_ebpf(s->fd, prog_fd) == 0;
+}
+
+static bool tap_check_peer_type(NetClientState *nc, ObjectClass *oc,
+                                Error **errp)
+{
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
+    const char *driver = object_class_get_name(oc);
+
+    if (!g_str_has_prefix(driver, "virtio-net-")) {
+        /*
+         * Only virtio-net support postponed TAP initialization, so
+         * for other drivers let's finalize initialization now.
+         */
+        if (tap_wait_incoming(nc)) {
+            return tap_postponed_init(&s->nc, errp);
+        }
+    }
+
+    return true;
 }
 
 int tap_get_fd(NetClientState *nc)
@@ -422,6 +452,7 @@ static NetClientInfo net_tap_info = {
     .set_vnet_be = tap_set_vnet_be,
     .set_steering_ebpf = tap_set_steering_ebpf,
     .get_vhost_net = tap_get_vhost_net,
+    .check_peer_type = tap_check_peer_type,
 };
 
 static TAPState *net_tap_new(NetClientState *peer, const char *model,
@@ -845,6 +876,93 @@ static int get_fds(char *str, char *fds[], int max)
     return i;
 }
 
+#define TAP_OPEN_IFNAME_SZ 128
+
+bool tap_postponed_init(NetClientState *nc, Error **errp)
+{
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
+    char ifname[TAP_OPEN_IFNAME_SZ];
+    int vnet_hdr = s->vnet_hdr;
+    int fd;
+
+    pstrcpy(ifname, sizeof(ifname), s->ifname);
+    fd = net_tap_open(&vnet_hdr, s->vnet_hdr_required, NULL,
+                      ifname, sizeof(ifname),
+                      s->mq_required, errp);
+    if (fd < 0) {
+        goto fail;
+    }
+
+    if (!net_tap_setup(s, fd, vnet_hdr, errp)) {
+        goto fail;
+    }
+
+    return true;
+
+fail:
+    qemu_del_net_client(&s->nc);
+    return false;
+}
+
+static bool check_no_script(const char *script_arg)
+{
+    return script_arg &&
+        (script_arg[0] == '\0' || strcmp(script_arg, "no") == 0);
+}
+
+static bool tap_postpone_init(const NetdevTapOptions *tap,
+                              const char *name, NetClientState *peer,
+                              bool *postponed, Error **errp)
+{
+    int queues = tap->has_queues ? tap->queues : 1;
+
+    *postponed = false;
+
+    if (!runstate_check(RUN_STATE_INMIGRATE)) {
+        return true;
+    }
+
+    if (tap->fd || tap->fds || tap->helper || tap->vhostfds) {
+        return true;
+    }
+
+    if (!tap->ifname || tap->ifname[0] == '\0' ||
+        strstr(tap->ifname, "%d") != NULL) {
+        /*
+         * It's hard to postpone logic of parsing template or
+         * absent ifname
+         */
+        return true;
+    }
+
+    /*
+     * Supporting downscipt means understanding and realizing the logic of
+     * transfer of responsibility to call it in target QEMU process. Or in
+     * source QEMU process in case of migration failure. So for simplicity we
+     * don't support scripts together with fds migration.
+     */
+    if (!check_no_script(tap->script) || !check_no_script(tap->downscript)) {
+        return true;
+    }
+
+    for (int i = 0; i < queues; i++) {
+        TAPState *s = net_tap_new(peer, "tap", name, tap, NULL, errp);
+        if (!s) {
+            return false;
+        }
+
+        s->vnet_hdr_required = tap->has_vnet_hdr && tap->vnet_hdr;
+        s->vnet_hdr = tap->has_vnet_hdr ? tap->vnet_hdr : 1;
+        s->mq_required = queues > 1;
+        s->ifname = g_strdup(tap->ifname);
+        qemu_set_info_str(&s->nc, "ifname=%s,script=no,downscript=no",
+                          tap->ifname);
+    }
+
+    *postponed = true;
+    return true;
+}
+
 int net_init_tap(const Netdev *netdev, const char *name,
                  NetClientState *peer, Error **errp)
 {
@@ -853,8 +971,9 @@ int net_init_tap(const Netdev *netdev, const char *name,
     /* for the no-fd, no-helper case */
     Error *err = NULL;
     const char *vhostfdname;
-    char ifname[128];
+    char ifname[TAP_OPEN_IFNAME_SZ];
     int ret = 0;
+    bool postponed = false;
 
     assert(netdev->type == NET_CLIENT_DRIVER_TAP);
     tap = &netdev->u.tap;
@@ -871,6 +990,14 @@ int net_init_tap(const Netdev *netdev, const char *name,
     if (tap->has_vhost && !tap->vhost && (tap->vhostfds || tap->vhostfd)) {
         error_setg(errp, "vhostfd(s)= is not valid without vhost");
         return -1;
+    }
+
+    if (!tap_postpone_init(tap, name, peer, &postponed, errp)) {
+        return -1;
+    }
+
+    if (postponed) {
+        return 0;
     }
 
     if (tap->fd) {
@@ -1096,4 +1223,11 @@ int tap_disable(NetClientState *nc)
         }
         return ret;
     }
+}
+
+bool tap_wait_incoming(NetClientState *nc)
+{
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
+
+    return s->fd == -1;
 }
