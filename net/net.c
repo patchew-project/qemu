@@ -593,28 +593,26 @@ bool qemu_get_vnet_hash_supported_types(NetClientState *nc, uint32_t *types)
 
 int qemu_set_vnet_le(NetClientState *nc, bool is_le)
 {
-#if HOST_BIG_ENDIAN
+    if (!HOST_BIG_ENDIAN) {
+        return 0;
+    }
     if (!nc || !nc->info->set_vnet_le) {
         return -ENOSYS;
     }
 
     return nc->info->set_vnet_le(nc, is_le);
-#else
-    return 0;
-#endif
 }
 
 int qemu_set_vnet_be(NetClientState *nc, bool is_be)
 {
-#if HOST_BIG_ENDIAN
-    return 0;
-#else
+    if (HOST_BIG_ENDIAN) {
+        return 0;
+    }
     if (!nc || !nc->info->set_vnet_be) {
         return -ENOSYS;
     }
 
     return nc->info->set_vnet_be(nc, is_be);
-#endif
 }
 
 int qemu_can_receive_packet(NetClientState *nc)
