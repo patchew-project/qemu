@@ -43,6 +43,8 @@ struct HppaMachineState {
     MachineState parent_obj;
 
     struct {
+        uint64_t gr22;
+        uint64_t gr23;
         uint64_t gr24;
         uint64_t gr25;
     } boot_info;
@@ -524,8 +526,8 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
             }
 
             load_image_targphys(initrd_filename, initrd_base, initrd_size);
-            cpu[0]->env.initrd_base = initrd_base;
-            cpu[0]->env.initrd_end  = initrd_base + initrd_size;
+            hms->boot_info.gr23 = initrd_base;
+            hms->boot_info.gr22 = initrd_base + initrd_size;
         }
     } else {
         /* When booting via firmware, tell firmware if we want interactive
@@ -677,15 +679,13 @@ static void hppa_machine_reset(MachineState *ms, ResetType type)
     cpu[0]->env.gr[26] = ms->ram_size;
     cpu[0]->env.gr[25] = hms->boot_info.gr25;
     cpu[0]->env.gr[24] = hms->boot_info.gr24;
-    cpu[0]->env.gr[23] = cpu[0]->env.initrd_base;
-    cpu[0]->env.gr[22] = cpu[0]->env.initrd_end;
+    cpu[0]->env.gr[23] = hms->boot_info.gr23;
+    cpu[0]->env.gr[22] = hms->boot_info.gr22;
     cpu[0]->env.gr[21] = smp_cpus;
     cpu[0]->env.gr[19] = FW_CFG_IO_BASE;
 
     /* reset static fields to avoid starting Linux kernel & initrd on reboot */
     memset(&hms->boot_info, 0, sizeof(hms->boot_info));
-    cpu[0]->env.initrd_base = 0;
-    cpu[0]->env.initrd_end = 0;
 }
 
 static void hppa_nmi(NMIState *n, int cpu_index, Error **errp)
