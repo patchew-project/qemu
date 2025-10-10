@@ -2557,10 +2557,6 @@ void usb_ehci_unrealize(EHCIState *s, DeviceState *dev)
     ehci_queues_rip_all(s, 0);
     ehci_queues_rip_all(s, 1);
 
-    memory_region_del_subregion(&s->mem, &s->mem_caps);
-    memory_region_del_subregion(&s->mem, &s->mem_opreg);
-    memory_region_del_subregion(&s->mem, &s->mem_ports);
-
     usb_bus_release(&s->bus);
 
     if (s->vmstate) {
