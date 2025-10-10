@@ -43,6 +43,7 @@ struct HppaMachineState {
     MachineState parent_obj;
 
     struct {
+        uint64_t gr24;
         uint64_t gr25;
     } boot_info;
 };
@@ -492,8 +493,8 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
         hms->boot_info.gr25 = kernel_entry;
 
         if (kernel_cmdline) {
-            cpu[0]->env.cmdline_or_bootorder = 0x4000;
-            pstrcpy_targphys("cmdline", cpu[0]->env.cmdline_or_bootorder,
+            hms->boot_info.gr24 = 0x4000;
+            pstrcpy_targphys("cmdline", hms->boot_info.gr24,
                              TARGET_PAGE_SIZE, kernel_cmdline);
         }
 
@@ -528,13 +529,13 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
         }
     } else {
         /* When booting via firmware, tell firmware if we want interactive
-         * mode (interactive_mode=1), and to boot from CD (cmdline_or_bootorder='d')
-         * or hard disc (cmdline_or_bootorder='c').
+         * mode (interactive_mode=1), and to boot from CD (bootorder='d')
+         * or hard disc (bootorder='c').
          */
         hms->boot_info.gr25 = machine->boot_config.has_menu
                             ? machine->boot_config.menu
                             : 0;
-        cpu[0]->env.cmdline_or_bootorder = machine->boot_config.order[0];
+        hms->boot_info.gr24 = machine->boot_config.order[0];
     }
 }
 
@@ -675,7 +676,7 @@ static void hppa_machine_reset(MachineState *ms, ResetType type)
 
     cpu[0]->env.gr[26] = ms->ram_size;
     cpu[0]->env.gr[25] = hms->boot_info.gr25;
-    cpu[0]->env.gr[24] = cpu[0]->env.cmdline_or_bootorder;
+    cpu[0]->env.gr[24] = hms->boot_info.gr24;
     cpu[0]->env.gr[23] = cpu[0]->env.initrd_base;
     cpu[0]->env.gr[22] = cpu[0]->env.initrd_end;
     cpu[0]->env.gr[21] = smp_cpus;
@@ -685,7 +686,6 @@ static void hppa_machine_reset(MachineState *ms, ResetType type)
     memset(&hms->boot_info, 0, sizeof(hms->boot_info));
     cpu[0]->env.initrd_base = 0;
     cpu[0]->env.initrd_end = 0;
-    cpu[0]->env.cmdline_or_bootorder = 'c';
 }
 
 static void hppa_nmi(NMIState *n, int cpu_index, Error **errp)
