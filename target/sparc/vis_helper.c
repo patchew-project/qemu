@@ -462,15 +462,15 @@ uint64_t helper_bshuffle(uint64_t gsr, uint64_t src1, uint64_t src2)
     uint32_t i, mask, host;
 
     /* Set up S such that we can index across all of the bytes.  */
-#if HOST_BIG_ENDIAN
-    s.ll[0] = src1;
-    s.ll[1] = src2;
-    host = 0;
-#else
-    s.ll[1] = src1;
-    s.ll[0] = src2;
-    host = 15;
-#endif
+    if (HOST_BIG_ENDIAN) {
+        s.ll[0] = src1;
+        s.ll[1] = src2;
+        host = 0;
+    } else {
+        s.ll[1] = src1;
+        s.ll[0] = src2;
+        host = 15;
+    }
     mask = gsr >> 32;
 
     for (i = 0; i < 8; ++i) {
