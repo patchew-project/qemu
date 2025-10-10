@@ -1190,10 +1190,6 @@ static void do_pci_unregister_device(PCIDevice *pci_dev)
     if (xen_mode == XEN_EMULATE) {
         xen_evtchn_remove_pci_device(pci_dev);
     }
-    if (memory_region_is_mapped(&pci_dev->bus_master_enable_region)) {
-        memory_region_del_subregion(&pci_dev->bus_master_container_region,
-                                    &pci_dev->bus_master_enable_region);
-    }
     address_space_destroy(&pci_dev->bus_master_as);
 }
 
@@ -1419,27 +1415,11 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev,
     return pci_dev;
 }
 
-static void pci_unregister_io_regions(PCIDevice *pci_dev)
-{
-    PCIIORegion *r;
-    int i;
-
-    for(i = 0; i < PCI_NUM_REGIONS; i++) {
-        r = &pci_dev->io_regions[i];
-        if (!r->size || r->addr == PCI_BAR_UNMAPPED)
-            continue;
-        memory_region_del_subregion(r->address_space, r->memory);
-    }
-
-    pci_unregister_vga(pci_dev);
-}
-
 static void pci_qdev_unrealize(DeviceState *dev)
 {
     PCIDevice *pci_dev = PCI_DEVICE(dev);
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
 
-    pci_unregister_io_regions(pci_dev);
     pci_del_option_rom(pci_dev);
     pcie_sriov_unregister_device(pci_dev);
 
