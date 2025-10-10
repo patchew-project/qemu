@@ -1983,6 +1983,10 @@ void qmp_migrate_incoming(const char *uri, bool has_channels,
         return;
     }
 
+    if (!qemu_pre_incoming(errp)) {
+        return;
+    }
+
     if (!yank_register_instance(MIGRATION_YANK_INSTANCE, errp)) {
         return;
     }
