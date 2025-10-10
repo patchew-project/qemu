@@ -738,9 +738,9 @@ static void combine_write_reg(hwaddr addr, uint64_t val, int size, void *out)
      * FIXME: is there a qemu helper for this?
      */
 
-#if !HOST_BIG_ENDIAN
-    addr ^= 3;
-#endif
+    if (!HOST_BIG_ENDIAN) {
+        addr ^= 3;
+    }
 
     switch (size) {
     case 1:
@@ -1132,9 +1132,9 @@ static uint64_t combine_read_reg(hwaddr addr, int size, void *in)
      * FIXME: is there a qemu helper for this?
      */
 
-#if !HOST_BIG_ENDIAN
-    addr ^= 3;
-#endif
+    if (!HOST_BIG_ENDIAN) {
+        addr ^= 3;
+    }
 
     switch (size) {
     case 1:

@@ -123,10 +123,10 @@ static void virtio_gpu_gl_device_realize(DeviceState *qdev, Error **errp)
     ERRP_GUARD();
     VirtIOGPU *g = VIRTIO_GPU(qdev);
 
-#if HOST_BIG_ENDIAN
-    error_setg(errp, "virgl is not supported on bigendian platforms");
-    return;
-#endif
+    if (HOST_BIG_ENDIAN) {
+        error_setg(errp, "virgl is not supported on bigendian platforms");
+        return;
+    }
 
     if (!object_resolve_path_type("", TYPE_VIRTIO_GPU_GL, NULL)) {
         error_setg(errp, "at most one %s device is permitted", TYPE_VIRTIO_GPU_GL);
