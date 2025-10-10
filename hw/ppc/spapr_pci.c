@@ -1734,25 +1734,11 @@ static void spapr_phb_unrealize(DeviceState *dev)
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
     SpaprPhbState *sphb = SPAPR_PCI_HOST_BRIDGE(phb);
-    SpaprTceTable *tcet;
     int i;
-    const unsigned windows_supported = spapr_phb_windows_supported(sphb);
 
     if (sphb->msi) {
         g_hash_table_unref(sphb->msi);
         sphb->msi = NULL;
-    }
-
-    /*
-     * Remove IO/MMIO subregions and aliases, rest should get cleaned
-     * via PHB's unrealize->object_finalize
-     */
-    for (i = windows_supported - 1; i >= 0; i--) {
-        tcet = spapr_tce_find_by_liobn(sphb->dma_liobn[i]);
-        if (tcet) {
-            memory_region_del_subregion(&sphb->iommu_root,
-                                        spapr_tce_get_iommu(tcet));
-        }
     }
 
     remove_drcs(sphb, phb->bus);
@@ -1766,8 +1752,6 @@ static void spapr_phb_unrealize(DeviceState *dev)
 
     QLIST_REMOVE(sphb, list);
 
-    memory_region_del_subregion(&sphb->iommu_root, &sphb->msiwindow);
-
     /*
      * An attached PCI device may have memory listeners, eg. VFIO PCI. We have
      * unmapped all sections. Remove the listeners now, before destroying the
@@ -1778,12 +1762,6 @@ static void spapr_phb_unrealize(DeviceState *dev)
 
     qbus_set_hotplug_handler(BUS(phb->bus), NULL);
     pci_unregister_root_bus(phb->bus);
-
-    memory_region_del_subregion(get_system_memory(), &sphb->iowindow);
-    if (sphb->mem64_win_pciaddr != (hwaddr)-1) {
-        memory_region_del_subregion(get_system_memory(), &sphb->mem64window);
-    }
-    memory_region_del_subregion(get_system_memory(), &sphb->mem32window);
 }
 
 static void spapr_phb_destroy_msi(gpointer opaque)
