@@ -149,11 +149,7 @@ static inline uint64_t virtio_ldq_p(VirtIODevice *vdev, const void *ptr)
 
 static inline uint16_t virtio_tswap16(VirtIODevice *vdev, uint16_t s)
 {
-#if HOST_BIG_ENDIAN
-    return virtio_access_is_big_endian(vdev) ? s : bswap16(s);
-#else
-    return virtio_access_is_big_endian(vdev) ? bswap16(s) : s;
-#endif
+    return HOST_BIG_ENDIAN ^ virtio_access_is_big_endian(vdev) ? s : bswap16(s);
 }
 
 static inline uint16_t virtio_lduw_phys_cached(VirtIODevice *vdev,
