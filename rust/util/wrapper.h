@@ -37,3 +37,4 @@ typedef enum memory_order {
 #include "qobject/qobject.h"
 #include "qobject/qlist.h"
 #include "qobject/qdict.h"
+#include "qobject/qjson.h"

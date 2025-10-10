@@ -23,6 +23,7 @@ use std::{
 use common::assert_field_type;
 pub use deserializer::from_qobject;
 pub use error::{Error, Result};
+use foreign::prelude::*;
 pub use serializer::to_qobject;
 
 use crate::bindings;
@@ -110,6 +111,22 @@ impl QObject {
         assert_field_type!(bindings::QObjectBase_, refcnt, usize);
         let qobj = self.0.get();
         unsafe { AtomicUsize::from_ptr(addr_of_mut!((*qobj).base.refcnt)) }
+    }
+
+    pub fn to_json(&self) -> String {
+        let qobj = self.0.get();
+        unsafe {
+            let json = bindings::qobject_to_json(qobj);
+            glib_sys::g_string_free(json, glib_sys::GFALSE).into_native()
+        }
+    }
+
+    pub fn from_json(json: &str) -> std::result::Result<Self, crate::Error> {
+        let c_json = std::ffi::CString::new(json)?;
+        unsafe {
+            crate::Error::with_errp(|errp| bindings::qobject_from_json(c_json.as_ptr(), errp))
+                .map(|qobj| QObject::from_raw(qobj))
+        }
     }
 }
 
