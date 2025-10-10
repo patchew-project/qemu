@@ -31,6 +31,7 @@ from .source import QAPISourceInfo
 
 
 objects_seen = set()
+SERDE_SKIP_NONE = '#[serde(skip_serializing_if = "Option::is_none")]'
 
 
 def gen_rs_variants_to_tag(name: str,
@@ -77,11 +78,13 @@ def gen_rs_variants(name: str,
     ret = mcgen('''
 
 %(cfg)s
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "%(tag)s")]
 pub enum %(rs_name)sVariant {
 ''',
                 cfg=ifcond.rsgen(),
-                rs_name=rs_name(name))
+                rs_name=rs_name(name),
+                tag=variants.tag_member.name)
 
     for var in variants.variants:
         type_name = var.type.name
@@ -89,21 +92,25 @@ pub enum %(rs_name)sVariant {
         if type_name == 'q_empty':
             ret += mcgen('''
     %(cfg)s
+    #[serde(rename = "%(rename)s")]
     %(var_name)s,
 ''',
                          cfg=var.ifcond.rsgen(),
-                         var_name=var_name)
+                         var_name=var_name,
+                         rename=var.name)
         else:
             c_type = var.type.c_unboxed_type()
             if c_type.endswith('_wrapper'):
                 c_type = c_type[6:-8]  # remove q_obj*-wrapper
             ret += mcgen('''
     %(cfg)s
+    #[serde(rename = "%(rename)s")]
     %(var_name)s(%(rs_type)s),
 ''',
                          cfg=var.ifcond.rsgen(),
                          var_name=var_name,
-                         rs_type=rs_type(c_type, ''))
+                         rs_type=rs_type(c_type, ''),
+                         rename=var.name)
 
     ret += mcgen('''
 }
@@ -159,9 +166,11 @@ def gen_struct_members(members: List[QAPISchemaObjectTypeMember],
                       optional=memb.optional, box=is_recursive)
         ret += mcgen('''
     %(cfg)s
+    %(serde_skip_if)s
     pub %(rs_name)s: %(rs_type)s,
 ''',
                      cfg=memb.ifcond.rsgen(),
+                     serde_skip_if=SERDE_SKIP_NONE if memb.optional else '',
                      rs_type=typ,
                      rs_name=rs_name(to_lower_case(memb.name)))
     return ret
@@ -182,17 +191,23 @@ def gen_rs_object(name: str,
     ret = ''
     objects_seen.add(name)
 
+    serde_deny_unknown_fields = "#[serde(deny_unknown_fields)]"
     if variants:
         ret += gen_rs_variants(name, ifcond, variants)
+        # we can't use because of the flatten unions
+        # serde FlatMapAccess should consume the fields?
+        serde_deny_unknown_fields = ""
 
     ret += mcgen('''
 
 %(cfg)s
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+%(serde_deny_unknown_fields)s
 pub struct %(rs_name)s {
 ''',
                  cfg=ifcond.rsgen(),
-                 rs_name=rs_name(name))
+                 rs_name=rs_name(name),
+                 serde_deny_unknown_fields=serde_deny_unknown_fields)
 
     if base:
         if not base.is_implicit():
@@ -214,6 +229,7 @@ pub struct %(rs_name)s {
 
     if variants:
         ret += mcgen('''
+    #[serde(flatten)]
     pub u: %(rs_type)sVariant,
 ''', rs_type=rs_name(name))
     ret += mcgen('''
@@ -232,7 +248,8 @@ def gen_rs_enum(name: str,
 
 %(cfg)s
 #[repr(u32)]
-#[derive(Copy, Clone, Debug, PartialEq, common::TryInto)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize,
+         common::TryInto)]
 pub enum %(rs_name)s {
 ''',
                 cfg=ifcond.rsgen(),
@@ -241,10 +258,12 @@ pub enum %(rs_name)s {
     for member in enum_members:
         ret += mcgen('''
     %(cfg)s
+    #[serde(rename = "%(member_name)s")]
     %(c_enum)s,
 ''',
                      cfg=member.ifcond.rsgen(),
-                     c_enum=rs_name(to_upper_case(member.name)))
+                     c_enum=rs_name(to_upper_case(member.name)),
+                     member_name=member.name)
     # picked the first, since that's what malloc0 does
     default = rs_name(to_upper_case(enum_members[0].name))
     ret += mcgen('''
@@ -275,7 +294,8 @@ def gen_rs_alternate(name: str,
 
     ret += mcgen('''
 %(cfg)s
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum %(rs_name)s {
 ''',
                  cfg=ifcond.rsgen(),
@@ -322,6 +342,8 @@ class QAPISchemaGenRsTypeVisitor(QAPISchemaRsVisitor):
 // derive Eq.  Clippy however would complain for those structs
 // that *could* be Eq too.
 #![allow(clippy::derive_partial_eq_without_eq)]
+
+use serde_derive::{Serialize, Deserialize};
 
 use util::qobject::QObject;
 '''))
