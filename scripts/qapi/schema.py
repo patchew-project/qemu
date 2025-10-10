@@ -37,6 +37,7 @@ from .common import (
     docgen_ifcond,
     gen_endif,
     gen_if,
+    rsgen_ifcond,
 )
 from .error import QAPIError, QAPISemError, QAPISourceError
 from .expr import check_exprs
@@ -62,6 +63,9 @@ class QAPISchemaIfCond:
 
     def docgen(self) -> str:
         return docgen_ifcond(self.ifcond)
+
+    def rsgen(self) -> str:
+        return rsgen_ifcond(self.ifcond)
 
     def is_present(self) -> bool:
         return bool(self.ifcond)
