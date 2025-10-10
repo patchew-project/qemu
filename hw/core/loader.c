@@ -491,7 +491,9 @@ ssize_t load_elf_ram_sym(const char *filename,
 
 static void bswap_uboot_header(uboot_image_header_t *hdr)
 {
-#if !HOST_BIG_ENDIAN
+    if (HOST_BIG_ENDIAN) {
+        return;
+    }
     bswap32s(&hdr->ih_magic);
     bswap32s(&hdr->ih_hcrc);
     bswap32s(&hdr->ih_time);
@@ -499,7 +501,6 @@ static void bswap_uboot_header(uboot_image_header_t *hdr)
     bswap32s(&hdr->ih_load);
     bswap32s(&hdr->ih_ep);
     bswap32s(&hdr->ih_dcrc);
-#endif
 }
 
 
