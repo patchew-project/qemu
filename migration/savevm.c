@@ -1268,6 +1268,21 @@ bool qemu_savevm_state_blocked(Error **errp)
     return false;
 }
 
+bool qemu_pre_incoming(Error **errp)
+{
+    SaveStateEntry *se;
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (se->vmsd && se->vmsd->pre_incoming) {
+            if (!se->vmsd->pre_incoming(se->opaque, errp)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 void qemu_savevm_non_migratable_list(strList **reasons)
 {
     SaveStateEntry *se;
