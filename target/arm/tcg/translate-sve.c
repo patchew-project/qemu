@@ -2770,12 +2770,12 @@ static TCGv_i64 load_last_active(DisasContext *s, TCGv_i32 last,
      * The final adjustment for the vector register base
      * is added via constant offset to the load.
      */
-#if HOST_BIG_ENDIAN
-    /* Adjust for element ordering.  See vec_reg_offset.  */
-    if (esz < 3) {
-        tcg_gen_xori_i32(last, last, 8 - (1 << esz));
+    if (HOST_BIG_ENDIAN) {
+        /* Adjust for element ordering.  See vec_reg_offset.  */
+        if (esz < 3) {
+            tcg_gen_xori_i32(last, last, 8 - (1 << esz));
+        }
     }
-#endif
     tcg_gen_ext_i32_ptr(p, last);
     tcg_gen_add_ptr(p, p, tcg_env);
 
@@ -5394,9 +5394,9 @@ static void do_ldrq(DisasContext *s, int zt, int pg, TCGv_i64 addr, int dtype)
          * for this load operation.
          */
         TCGv_i64 tmp = tcg_temp_new_i64();
-#if HOST_BIG_ENDIAN
-        poff += 6;
-#endif
+        if (HOST_BIG_ENDIAN) {
+            poff += 6;
+        }
         tcg_gen_ld16u_i64(tmp, tcg_env, poff);
 
         poff = offsetof(CPUARMState, vfp.preg_tmp);
@@ -5478,9 +5478,9 @@ static void do_ldro(DisasContext *s, int zt, int pg, TCGv_i64 addr, int dtype)
          * for this load operation.
          */
         TCGv_i64 tmp = tcg_temp_new_i64();
-#if HOST_BIG_ENDIAN
-        poff += 4;
-#endif
+        if (HOST_BIG_ENDIAN) {
+            poff += 4;
+        }
         tcg_gen_ld32u_i64(tmp, tcg_env, poff);
 
         poff = offsetof(CPUARMState, vfp.preg_tmp);

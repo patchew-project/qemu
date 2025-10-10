@@ -2861,12 +2861,9 @@ static void swap_memmove(void *vd, void *vs, size_t n)
 {
     uintptr_t d = (uintptr_t)vd;
     uintptr_t s = (uintptr_t)vs;
-    uintptr_t o = (d | s | n) & 7;
+    uintptr_t o = HOST_BIG_ENDIAN ? (d | s | n) & 7 : 0;
     size_t i;
 
-#if !HOST_BIG_ENDIAN
-    o = 0;
-#endif
     switch (o) {
     case 0:
         memmove(vd, vs, n);
@@ -2918,7 +2915,7 @@ static void swap_memmove(void *vd, void *vs, size_t n)
 static void swap_memzero(void *vd, size_t n)
 {
     uintptr_t d = (uintptr_t)vd;
-    uintptr_t o = (d | n) & 7;
+    uintptr_t o = HOST_BIG_ENDIAN ? (d | n) & 7 : 0;
     size_t i;
 
     /* Usually, the first bit of a predicate is set, so N is 0.  */
@@ -2926,9 +2923,6 @@ static void swap_memzero(void *vd, size_t n)
         return;
     }
 
-#if !HOST_BIG_ENDIAN
-    o = 0;
-#endif
     switch (o) {
     case 0:
         memset(vd, 0, n);
