@@ -44,15 +44,14 @@ void loadDouble(const unsigned int Fn, target_ulong addr)
     unsigned int *p;
     p = (unsigned int *)&fpa11->fpreg[Fn].fDouble;
     fpa11->fType[Fn] = typeDouble;
-#if HOST_BIG_ENDIAN
     /* FIXME - handle failure of get_user() */
-    get_user_u32(p[0], addr);       /* sign & exponent */
-    get_user_u32(p[1], addr + 4);
-#else
-    /* FIXME - handle failure of get_user() */
-    get_user_u32(p[0], addr + 4);
-    get_user_u32(p[1], addr);       /* sign & exponent */
-#endif
+    if (HOST_BIG_ENDIAN) {
+        get_user_u32(p[0], addr);   /* sign & exponent */
+        get_user_u32(p[1], addr + 4);
+    } else {
+        get_user_u32(p[0], addr + 4);
+        get_user_u32(p[1], addr);   /* sign & exponent */
+    }
 }
 
 static inline
@@ -151,13 +150,13 @@ void storeDouble(const unsigned int Fn, target_ulong addr)
         val = fpa11->fpreg[Fn].fDouble;
     }
     /* FIXME - handle put_user() failures */
-#if HOST_BIG_ENDIAN
-    put_user_u32(p[0], addr);           /* msw */
-    put_user_u32(p[1], addr + 4);       /* lsw */
-#else
-    put_user_u32(p[1], addr);           /* msw */
-    put_user_u32(p[0], addr + 4);       /* lsw */
-#endif
+    if (HOST_BIG_ENDIAN) {
+        put_user_u32(p[0], addr);       /* msw */
+        put_user_u32(p[1], addr + 4);   /* lsw */
+    } else {
+        put_user_u32(p[1], addr);       /* msw */
+        put_user_u32(p[0], addr + 4);   /* lsw */
+    }
 }
 
 static inline
