@@ -74,12 +74,6 @@ static void vfio_user_msix_setup(VFIOPCIDevice *vdev)
 
 static void vfio_user_msix_teardown(VFIOPCIDevice *vdev)
 {
-    MemoryRegion *mr, *sub;
-
-    mr = vdev->bars[vdev->msix->pba_bar].mr;
-    sub = vdev->msix->pba_region;
-    memory_region_del_subregion(mr, sub);
-
     g_free(vdev->msix->pba_region);
     vdev->msix->pba_region = NULL;
 }
