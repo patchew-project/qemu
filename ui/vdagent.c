@@ -660,14 +660,14 @@ static void vdagent_chr_open(Chardev *chr,
     VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(chr);
     ChardevQemuVDAgent *cfg = backend->u.qemu_vdagent.data;
 
-#if HOST_BIG_ENDIAN
-    /*
-     * TODO: vdagent protocol is defined to be LE,
-     * so we have to byteswap everything on BE hosts.
-     */
-    error_setg(errp, "vdagent is not supported on bigendian hosts");
-    return;
-#endif
+    if (HOST_BIG_ENDIAN) {
+        /*
+         * TODO: vdagent protocol is defined to be LE,
+         * so we have to byteswap everything on BE hosts.
+         */
+        error_setg(errp, "vdagent is not supported on bigendian hosts");
+        return;
+    }
 
     vd->mouse = VDAGENT_MOUSE_DEFAULT;
     if (cfg->has_mouse) {
