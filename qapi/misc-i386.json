@@ -137,9 +137,9 @@
 # .. qmp-example::
 #
 #     -> { "execute": "query-sev" }
-#     <- { "return": { "enabled": true, "api-major" : 0, "api-minor" : 0,
-#                      "build-id" : 0, "policy" : 0, "state" : "running",
-#                      "handle" : 1 } }
+#     <- { "return": { "enabled": true, "api-major" : 0,
+#                      "api-minor" : 0, "build-id" : 0, "policy" : 0,
+#                      "state" : "running", "handle" : 1 } }
 ##
 { 'command': 'query-sev', 'returns': 'SevInfo' }
 
@@ -220,7 +220,8 @@
 # .. qmp-example::
 #
 #     -> { "execute": "query-sev-capabilities" }
-#     <- { "return": { "pdh": "8CCDD8DDD", "cert-chain": "888CCCDDDEE",
+#     <- { "return": { "pdh": "8CCDD8DDD",
+#                      "cert-chain": "888CCCDDDEE",
 #                      "cpu0-id": "2lvmGwo+...61iEinw==",
 #                      "cbitpos": 47, "reduced-phys-bits": 1}}
 ##
