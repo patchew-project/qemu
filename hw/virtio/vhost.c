@@ -1603,7 +1603,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         }
     }
 
-    virtio_features_copy(hdev->features_ex, features);
+    virtio_features_copy(hdev->_features_ex, features);
 
     hdev->memory_listener = (MemoryListener) {
         .name = "vhost",
@@ -1626,7 +1626,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     };
 
     if (hdev->migration_blocker == NULL) {
-        if (!virtio_has_feature_ex(hdev->features_ex, VHOST_F_LOG_ALL)) {
+        if (!vhost_dev_has_feature(hdev, VHOST_F_LOG_ALL)) {
             error_setg(&hdev->migration_blocker,
                        "Migration disabled: vhost lacks VHOST_F_LOG_ALL feature.");
         } else if (vhost_dev_log_is_shared(hdev) && !qemu_memfd_alloc_check()) {
@@ -1900,7 +1900,7 @@ void vhost_get_features_ex(struct vhost_dev *hdev,
     const int *bit = feature_bits;
 
     while (*bit != VHOST_INVALID_FEATURE_BIT) {
-        if (!virtio_has_feature_ex(hdev->features_ex, *bit)) {
+        if (!vhost_dev_has_feature(hdev, *bit)) {
             virtio_clear_feature_ex(features, *bit);
         }
         bit++;
