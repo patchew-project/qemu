@@ -175,7 +175,8 @@
 #              "options":
 #                { "type": "passthrough",
 #                  "data":
-#                    { "cancel-path": "/sys/class/misc/tpm0/device/cancel",
+#                    { "cancel-path":
+#                        "/sys/class/misc/tpm0/device/cancel",
 #                      "path": "/dev/tpm0"
 #                    }
 #                },
