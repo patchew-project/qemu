@@ -428,7 +428,44 @@ class QAPISchemaParser:
             return ''
         if self.val[1] != ' ':
             raise QAPIParseError(self, "missing space after #")
-        return self.val[2:].rstrip()
+
+        line = self.val[2:].rstrip()
+
+        self._validate_doc_line_format(line)
+
+        return line
+
+    def _validate_doc_line_format(self, line: str) -> None:
+        """
+        Validate documentation format rules for a single line:
+        1. Lines should not exceed 70 columns
+        2. Sentences should be separated by two spaces
+        """
+        # Check 70-column width rule
+        full_line_length = len(line) + 2  # "# " = 2 characters
+        if full_line_length > 70:
+            # Skip URL lines - they can't be broken
+            stripped_line = line.strip()
+            if (stripped_line.startswith(('http://', 'https://', 'ftp://')) and
+                ' ' not in stripped_line):
+                pass
+            else:
+                raise QAPIParseError(
+                    self, f"documentation line exceeds 70 columns "
+                    f"({full_line_length} columns): {line[:50]}..."
+                )
+
+        single_space_pattern = r'[.!?] [A-Z0-9]'
+        for m in list(re.finditer(single_space_pattern, line)):
+            left = line[0:m.start() + 1]
+            # Ignore abbreviations and numbered lists
+            if left.endswith('e.g.') or re.fullmatch(r' *\d\.', left):
+                continue
+            raise QAPIParseError(
+                 self, f"documentation has single space after sentence "
+                 f"ending. Use two spaces between sentences: "
+                 f"...{line[m.start()-5:m.end()+5]}..."
+            )
 
     @staticmethod
     def _match_at_name_colon(string: str) -> Optional[Match[str]]:
