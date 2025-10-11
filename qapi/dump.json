@@ -176,9 +176,11 @@
 # .. qmp-example::
 #
 #     <- { "event": "DUMP_COMPLETED",
-#          "data": { "result": { "total": 1090650112, "status": "completed",
+#          "data": { "result": { "total": 1090650112,
+#                                "status": "completed",
 #                                "completed": 1090650112 } },
-#          "timestamp": { "seconds": 1648244171, "microseconds": 950316 } }
+#          "timestamp": { "seconds": 1648244171,
+#                         "microseconds": 950316 } }
 ##
 { 'event': 'DUMP_COMPLETED' ,
   'data': { 'result': 'DumpQueryResult', '*error': 'str' } }
@@ -207,7 +209,8 @@
 #
 #     -> { "execute": "query-dump-guest-memory-capability" }
 #     <- { "return": { "formats":
-#                      ["elf", "kdump-zlib", "kdump-lzo", "kdump-snappy"] } }
+#                      [ "elf", "kdump-zlib", "kdump-lzo",
+#                        "kdump-snappy" ] } }
 ##
 { 'command': 'query-dump-guest-memory-capability',
   'returns': 'DumpGuestMemoryCapability' }
