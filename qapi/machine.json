@@ -225,7 +225,8 @@
 #
 # .. qmp-example::
 #
-#     -> { "execute": "query-machines", "arguments": { "compat-props": true } }
+#     -> { "execute": "query-machines", "arguments": { "compat-props":
+#     true } }
 #     <- { "return": [
 #               {
 #                  "hotpluggable-cpus": true,
@@ -318,7 +319,8 @@
 # .. qmp-example::
 #
 #     -> { "execute": "query-uuid" }
-#     <- { "return": { "UUID": "550e8400-e29b-41d4-a716-446655440000" } }
+#     <- { "return": { "UUID": "550e8400-e29b-41d4-a716-
+#     446655440000" } }
 ##
 { 'command': 'query-uuid', 'returns': 'UuidInfo', 'allow-preconfig': true }
 
@@ -620,7 +622,8 @@
 ##
 # @NumaCpuOptions:
 #
-# Option "-numa cpu" overrides default cpu to node mapping.  It accepts
+# Option "-numa cpu" overrides default cpu to node mapping.  It
+#     accepts
 # the same set of cpu properties as returned by
 # `query-hotpluggable-cpus[].props <query-hotpluggable-cpus>`, where
 # node-id could be used to override default node mapping.
@@ -686,7 +689,8 @@
 # Set the system locality latency and bandwidth information between
 # Initiator and Target proximity Domains.
 #
-# For more information about `NumaHmatLBOptions`, see chapter 5.2.27.4:
+# For more information about `NumaHmatLBOptions`, see chapter
+#     5.2.27.4:
 # Table 5-146 of ACPI 6.3 spec.
 #
 # @initiator: the Initiator Proximity Domain.
@@ -743,7 +747,8 @@
 # Cache write policy in the Memory Side Cache Information Structure of
 # HMAT
 #
-# For more information of `HmatCacheWritePolicy`, see chapter 5.2.27.5:
+# For more information of `HmatCacheWritePolicy`, see chapter
+#     5.2.27.5:
 # Table 5-147: Field "Cache Attributes" of ACPI 6.3 spec.
 #
 # @none: None (no memory side cache in this proximity domain, or cache
@@ -763,8 +768,8 @@
 #
 # Set the memory side cache information for a given memory domain.
 #
-# For more information of `NumaHmatCacheOptions`, see chapter 5.2.27.5:
-# Table 5-147: Field "Cache Attributes" of ACPI 6.3 spec.
+# For more information of `NumaHmatCacheOptions`, see chapter
+# 5.2.27.5: Table 5-147: Field "Cache Attributes" of ACPI 6.3 spec.
 #
 # @node-id: the memory proximity domain to which the memory belongs.
 #
@@ -1023,10 +1028,13 @@
 #
 #     -> { "execute": "query-hotpluggable-cpus" }
 #     <- {"return": [
-#          { "props": { "core-id": 8 }, "type": "POWER8-spapr-cpu-core",
+#          { "props": { "core-id": 8 },
+#            "type": "POWER8-spapr-cpu-core",
 #            "vcpus-count": 1 },
-#          { "props": { "core-id": 0 }, "type": "POWER8-spapr-cpu-core",
-#            "vcpus-count": 1, "qom-path": "/machine/unattached/device[0]"}
+#          { "props": { "core-id": 0 },
+#            "type": "POWER8-spapr-cpu-core",
+#            "vcpus-count": 1,
+#            "qom-path": "/machine/unattached/device[0]"}
 #        ]}
 #
 # .. qmp-example::
@@ -1110,7 +1118,8 @@
 #
 #    ::
 #
-#      -> { "execute": "balloon", "arguments": { "value": 536870912 } }
+#      -> { "execute": "balloon",
+#           "arguments": { "value": 536870912 } }
 #      <- { "return": {} }
 #
 #    With a 2.5GiB guest this command inflated the ballon to 3GiB.
@@ -1169,7 +1178,8 @@
 #
 #     <- { "event": "BALLOON_CHANGE",
 #          "data": { "actual": 944766976 },
-#          "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
+#          "timestamp": { "seconds": 1267020223,
+#                         "microseconds": 435656 } }
 ##
 { 'event': 'BALLOON_CHANGE',
   'data': { 'actual': 'int' } }
@@ -1228,8 +1238,10 @@
 # .. qmp-example::
 #
 #     <- { "event": "HV_BALLOON_STATUS_REPORT",
-#          "data": { "committed": 816640000, "available": 3333054464 },
-#          "timestamp": { "seconds": 1600295492, "microseconds": 661044 } }
+#          "data": { "committed": 816640000,
+#                    "available": 3333054464 },
+#          "timestamp": { "seconds": 1600295492,
+#                         "microseconds": 661044 } }
 ##
 { 'event': 'HV_BALLOON_STATUS_REPORT',
   'data': 'HvBalloonInfo' }
@@ -1262,7 +1274,8 @@
 # .. qmp-example::
 #
 #     -> { "execute": "query-memory-size-summary" }
-#     <- { "return": { "base-memory": 4294967296, "plugged-memory": 0 } }
+#     <- { "return": { "base-memory": 4294967296,
+#                      "plugged-memory": 0 } }
 #
 # Since: 2.11
 ##
@@ -1577,7 +1590,8 @@
 #     <- { "event": "MEMORY_DEVICE_SIZE_CHANGE",
 #          "data": { "id": "vm0", "size": 1073741824,
 #                    "qom-path": "/machine/unattached/device[2]" },
-#          "timestamp": { "seconds": 1588168529, "microseconds": 201316 } }
+#          "timestamp": { "seconds": 1588168529,
+#                         "microseconds": 201316 } }
 ##
 { 'event': 'MEMORY_DEVICE_SIZE_CHANGE',
   'data': { '*id': 'str', 'size': 'size', 'qom-path' : 'str'} }
@@ -2000,7 +2014,8 @@
 #   `query-cpu-definitions`.)
 # * "-cpu" arguments and global properties: arguments to the -cpu
 #   option and global properties may affect expansion of CPU models.
-#   Using `query-cpu-model-expansion` while using these is not advised.
+#   Using `query-cpu-model-expansion` while using these is not
+#   advised.
 #
 # Some architectures may not support comparing CPU models.  s390x
 # supports comparing CPU models.
@@ -2054,7 +2069,8 @@
 #   `query-cpu-definitions`.)
 # * "-cpu" arguments and global properties: arguments to the -cpu
 #   option and global properties may affect expansion of CPU models.
-#   Using `query-cpu-model-expansion` while using these is not advised.
+#   Using `query-cpu-model-expansion` while using these is not
+#   advised.
 #
 # Some architectures may not support baselining CPU models.  s390x
 # supports baselining CPU models.
@@ -2085,8 +2101,8 @@
 #
 # @model: the expanded `CpuModelInfo`.
 #
-# @deprecated-props: an optional list of properties that are flagged as
-#     deprecated by the CPU vendor.  The list depends on the
+# @deprecated-props: an optional list of properties that are flagged
+#     as deprecated by the CPU vendor.  The list depends on the
 #     `CpuModelExpansionType`: "static" properties are a subset of the
 #     enabled-properties for the expanded model; "full" properties are
 #     a set of properties that are deprecated across all models for
@@ -2122,7 +2138,8 @@
 #   `query-cpu-definitions`.)
 # * "-cpu" arguments and global properties: arguments to the -cpu
 #   option and global properties may affect expansion of CPU models.
-#   Using `query-cpu-model-expansion` while using these is not advised.
+#   Using `query-cpu-model-expansion` while using these is not
+#   advised.
 #
 # Some architectures may not support all expansion types.  s390x
 # supports "full" and "static".  Arm only supports "full".
