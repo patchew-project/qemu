@@ -52,7 +52,8 @@
 #
 # @name: the name of the property.
 #
-# @type: the type of the property, as described in `ObjectPropertyInfo`.
+# @type: the type of the property, as described in
+#     `ObjectPropertyInfo`.
 #
 # @value: the value of the property.  Absent when the property cannot
 #     be read.
@@ -92,9 +93,12 @@
 #     -> { "execute": "qom-list",
 #          "arguments": { "path": "/chardevs" } }
 #     <- { "return": [ { "name": "type", "type": "string" },
-#                      { "name": "parallel0", "type": "child<chardev-vc>" },
-#                      { "name": "serial0", "type": "child<chardev-vc>" },
-#                      { "name": "mon0", "type": "child<chardev-stdio>" } ] }
+#                      { "name": "parallel0", "type":
+#     "child<chardev-vc>" },
+#                      { "name": "serial0", "type": "child<chardev-
+#     vc>" },
+#                      { "name": "mon0", "type": "child<chardev-
+#     stdio>" } ] }
 ##
 { 'command': 'qom-list',
   'data': { 'path': 'str' },
@@ -1082,7 +1086,8 @@
 #     Authentication Information Structure' for the SNP_LAUNCH_FINISH
 #     command defined in the SEV-SNP firmware ABI (default: all-zero)
 #
-# @author-key-enabled: true if 'id-auth' blob contains the 'AUTHOR_KEY'
+# @author-key-enabled: true if 'id-auth' blob contains the
+#     'AUTHOR_KEY'
 #     field defined SEV-SNP firmware ABI (default: false)
 #
 # @host-data: 32-byte, base64-encoded, user-defined blob to provide to
@@ -1117,17 +1122,17 @@
 # @attributes: The 'attributes' of a TD guest that is passed to
 #     KVM_TDX_INIT_VM
 #
-# @sept-ve-disable: toggle bit 28 of TD attributes to control disabling
-#     of EPT violation conversion to #VE on guest TD access of PENDING
-#     pages.  Some guest OS (e.g., Linux TD guest) may require this to
-#     be set, otherwise they refuse to boot.
+# @sept-ve-disable: toggle bit 28 of TD attributes to control
+#     disabling of EPT violation conversion to #VE on guest TD access
+#     of PENDING pages.  Some guest OS (e.g., Linux TD guest) may
+#     require this to be set, otherwise they refuse to boot.
 #
 # @mrconfigid: ID for non-owner-defined configuration of the guest TD,
-#     e.g., run-time or OS configuration (base64 encoded SHA384 digest).
-#     Defaults to all zeros.
+#     e.g., run-time or OS configuration (base64 encoded SHA384
+#     digest).  Defaults to all zeros.
 #
-# @mrowner: ID for the guest TD’s owner (base64 encoded SHA384 digest).
-#     Defaults to all zeros.
+# @mrowner: ID for the guest TD’s owner (base64 encoded SHA384
+#     digest).  Defaults to all zeros.
 #
 # @mrownerconfig: ID for owner-defined configuration of the guest TD,
 #     e.g., specific to the workload rather than the run-time or OS
