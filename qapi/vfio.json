@@ -53,7 +53,8 @@
 #
 # .. qmp-example::
 #
-#     <- { "timestamp": { "seconds": 1713771323, "microseconds": 212268 },
+#     <- { "timestamp": { "seconds": 1713771323,
+#                         "microseconds": 212268 },
 #          "event": "VFIO_MIGRATION",
 #          "data": {
 #              "device-id": "vfio_dev1",
