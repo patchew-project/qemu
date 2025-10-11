@@ -47,12 +47,14 @@
 #           "return": [
 #              {
 #                 "label": "charchannel0",
-#                 "filename": "unix:/var/lib/libvirt/qemu/seabios.rhel6.agent,server=on",
+#                 "filename":
+#                   "unix:/.../seabios.rhel6.agent,server=on",
 #                 "frontend-open": false
 #              },
 #              {
 #                 "label": "charmonitor",
-#                 "filename": "unix:/var/lib/libvirt/qemu/seabios.rhel6.monitor,server=on",
+#                 "filename":
+#                   "unix:/.../seabios.rhel6.monitor,server=on",
 #                 "frontend-open": true
 #              },
 #              {
@@ -272,7 +274,8 @@
 # @reconnect: For a client socket, if a socket is disconnected, then
 #     attempt a reconnect after the given number of seconds.  Setting
 #     this to zero disables this function.  The use of this member is
-#     deprecated, use @reconnect-ms instead.  (default: 0) (Since: 2.2)
+#     deprecated, use @reconnect-ms instead.
+#     (default: 0) (Since: 2.2)
 #
 # @reconnect-ms: For a client socket, if a socket is disconnected,
 #     then attempt a reconnect after the given number of milliseconds.
@@ -776,22 +779,25 @@
 #
 #     -> { "execute" : "chardev-add",
 #          "arguments" : { "id" : "foo",
-#                          "backend" : { "type" : "null", "data" : {} } } }
+#                          "backend" : { "type" : "null",
+#                                        "data" : {} } } }
 #     <- { "return": {} }
 #
 # .. qmp-example::
 #
 #     -> { "execute" : "chardev-add",
-#          "arguments" : { "id" : "bar",
-#                          "backend" : { "type" : "file",
-#                                        "data" : { "out" : "/tmp/bar.log" } } } }
+#          "arguments" : {
+#            "id" : "bar",
+#            "backend" : { "type" : "file",
+#                          "data" : { "out" : "/tmp/bar.log" } } } }
 #     <- { "return": {} }
 #
 # .. qmp-example::
 #
 #     -> { "execute" : "chardev-add",
 #          "arguments" : { "id" : "baz",
-#                          "backend" : { "type" : "pty", "data" : {} } } }
+#                          "backend" : { "type" : "pty",
+#                                        "data" : {} } } }
 #     <- { "return": { "pty" : "/dev/pty/42" } }
 ##
 { 'command': 'chardev-add',
@@ -814,7 +820,8 @@
 #
 #     -> { "execute" : "chardev-change",
 #          "arguments" : { "id" : "baz",
-#                          "backend" : { "type" : "pty", "data" : {} } } }
+#                          "backend" : { "type" : "pty",
+#                                        "data" : {} } } }
 #     <- { "return": { "pty" : "/dev/pty/42" } }
 #
 # .. qmp-example::
@@ -851,7 +858,8 @@
 #
 # .. qmp-example::
 #
-#     -> { "execute": "chardev-remove", "arguments": { "id" : "foo" } }
+#     -> { "execute": "chardev-remove",
+#          "arguments": { "id" : "foo" } }
 #     <- { "return": {} }
 ##
 { 'command': 'chardev-remove',
@@ -868,7 +876,8 @@
 #
 # .. qmp-example::
 #
-#     -> { "execute": "chardev-send-break", "arguments": { "id" : "foo" } }
+#     -> { "execute": "chardev-send-break",
+#          "arguments": { "id" : "foo" } }
 #     <- { "return": {} }
 ##
 { 'command': 'chardev-send-break',
@@ -891,7 +900,8 @@
 #
 #     <- { "event": "VSERPORT_CHANGE",
 #          "data": { "id": "channel0", "open": true },
-#          "timestamp": { "seconds": 1401385907, "microseconds": 422329 } }
+#          "timestamp": { "seconds": 1401385907,
+#                         "microseconds": 422329 } }
 ##
 { 'event': 'VSERPORT_CHANGE',
   'data': { 'id': 'str',
