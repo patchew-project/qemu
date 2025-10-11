@@ -57,7 +57,8 @@
 #
 #     -> { "execute": "trace-event-get-state",
 #          "arguments": { "name": "qemu_memalign" } }
-#     <- { "return": [ { "name": "qemu_memalign", "state": "disabled", "vcpu": false } ] }
+#     <- { "return": [ { "name": "qemu_memalign", "state": "disabled",
+#                        "vcpu": false } ] }
 ##
 { 'command': 'trace-event-get-state',
   'data': {'name': 'str' },
