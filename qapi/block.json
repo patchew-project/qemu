@@ -240,7 +240,8 @@
 #          "arguments": { "id": "ide0-1-0" } }
 #
 #     <- { "error": { "class": "GenericError",
-#                     "desc": "Tray of device 'ide0-1-0' is not open" } }
+#                     "desc": "Tray of device 'ide0-1-0' is not open"
+#     } }
 #
 #     -> { "execute": "blockdev-open-tray",
 #          "arguments": { "id": "ide0-1-0" } }
@@ -350,7 +351,8 @@
 #
 #     -> { "execute": "blockdev-change-medium",
 #          "arguments": { "id": "ide0-1-0",
-#                         "filename": "/srv/images/Fedora-12-x86_64-DVD.iso",
+#                         "filename":
+#                           "/srv/images/Fedora-12-x86_64-DVD.iso",
 #                         "format": "raw" } }
 #     <- { "return": {} }
 #
@@ -359,17 +361,17 @@
 #
 #     -> { "execute": "blockdev-change-medium",
 #          "arguments": { "id": "floppyA",
-#                         "filename": "/srv/images/ro.img",
+#                         "filename": "ro.img",
 #                         "format": "raw",
 #                         "read-only-mode": "retain" } }
 #
 #     <- { "error":
 #          { "class": "GenericError",
-#            "desc": "Could not open '/srv/images/ro.img': Permission denied" } }
+#            "desc": "Could not open 'ro.img': Permission denied" } }
 #
 #     -> { "execute": "blockdev-change-medium",
 #          "arguments": { "id": "floppyA",
-#                         "filename": "/srv/images/ro.img",
+#                         "filename": "ro.img",
 #                         "format": "raw",
 #                         "read-only-mode": "read-only" } }
 #
@@ -407,7 +409,8 @@
 #                    "id": "/machine/unattached/device[22]",
 #                    "tray-open": true
 #          },
-#          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#          "timestamp": { "seconds": 1265044230,
+#                         "microseconds": 450486 } }
 ##
 { 'event': 'DEVICE_TRAY_MOVED',
   'data': { 'device': 'str', 'id': 'str', 'tray-open': 'bool' } }
@@ -430,7 +433,8 @@
 #          "data": { "id": "pr-helper0",
 #                    "connected": true
 #          },
-#          "timestamp": { "seconds": 1519840375, "microseconds": 450486 } }
+#          "timestamp": { "seconds": 1519840375,
+#                         "microseconds": 450486 } }
 ##
 { 'event': 'PR_MANAGER_STATUS_CHANGED',
   'data': { 'id': 'str', 'connected': 'bool' } }
