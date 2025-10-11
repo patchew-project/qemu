@@ -1021,59 +1021,38 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
 static int mmap_reserve_or_unmap(abi_ulong start, abi_ulong len)
 {
     int host_page_size = qemu_real_host_page_size();
+    abi_ulong end;
     abi_ulong real_start;
-    abi_ulong real_last;
-    abi_ulong real_len;
-    abi_ulong last;
-    abi_ulong a;
+    abi_ulong real_end;
+    abi_ulong off;
     void *host_start;
     int prot;
 
-    last = start + len - 1;
+    end = ROUND_UP(start + len, TARGET_PAGE_SIZE);
+
     real_start = start & -host_page_size;
-    real_last = ROUND_UP(last, host_page_size) - 1;
+    real_end = ROUND_UP(end, host_page_size);
 
-    /*
-     * If guest pages remain on the first or last host pages,
-     * adjust the deallocation to retain those guest pages.
-     * The single page special case is required for the last page,
-     * lest real_start overflow to zero.
-     */
-    if (real_last - real_start < host_page_size) {
-        prot = 0;
-        for (a = real_start; a < start; a += TARGET_PAGE_SIZE) {
-            prot |= page_get_flags(a);
-        }
-        for (a = last; a < real_last; a += TARGET_PAGE_SIZE) {
-            prot |= page_get_flags(a + 1);
-        }
-        if (prot != 0) {
-            return 0;
-        }
-    } else {
-        for (prot = 0, a = real_start; a < start; a += TARGET_PAGE_SIZE) {
-            prot |= page_get_flags(a);
-        }
-        if (prot != 0) {
-            real_start += host_page_size;
-        }
+    /* end or real_end may have overflowed to 0, but that's okay. */
 
-        for (prot = 0, a = last; a < real_last; a += TARGET_PAGE_SIZE) {
-            prot |= page_get_flags(a + 1);
-        }
-        if (prot != 0) {
-            real_last -= host_page_size;
-        }
-
-        if (real_last < real_start) {
-            return 0;
-        }
+    /* If [real_start,start) contains a mapped guest page, retain the first page. */
+    for (prot = 0, off = 0; off < start - real_start; off += TARGET_PAGE_SIZE) {
+        prot |= page_get_flags(real_start + off);
+    }
+    if (prot != 0) {
+        real_start += host_page_size;
     }
 
-    real_len = real_last - real_start + 1;
-    host_start = g2h_untagged(real_start);
+    /* If [end,real_end) contains a mapped guest page, retain the last page. */
+    for (prot = 0, off = 0; off < real_end - end; off += TARGET_PAGE_SIZE) {
+        prot |= page_get_flags(end + off);
+    }
+    if (prot != 0) {
+        real_end -= host_page_size;
+    }
 
-    return do_munmap(host_start, real_len);
+    host_start = g2h_untagged(real_start);
+    return do_munmap(host_start, real_end - real_start);
 }
 
 int target_munmap(abi_ulong start, abi_ulong len)
