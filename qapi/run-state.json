@@ -156,7 +156,8 @@
 #
 #     <- { "event": "SHUTDOWN",
 #          "data": { "guest": true, "reason": "guest-shutdown" },
-#          "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
+#          "timestamp": { "seconds": 1267040730,
+#                         "microseconds": 682951 } }
 ##
 { 'event': 'SHUTDOWN', 'data': { 'guest': 'bool', 'reason': 'ShutdownCause' } }
 
@@ -171,7 +172,8 @@
 # .. qmp-example::
 #
 #     <- { "event": "POWERDOWN",
-#          "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
+#          "timestamp": { "seconds": 1267040730,
+#                         "microseconds": 682951 } }
 ##
 { 'event': 'POWERDOWN' }
 
@@ -193,7 +195,8 @@
 #
 #     <- { "event": "RESET",
 #          "data": { "guest": false, "reason": "guest-reset" },
-#          "timestamp": { "seconds": 1267041653, "microseconds": 9518 } }
+#          "timestamp": { "seconds": 1267041653,
+#                         "microseconds": 9518 } }
 ##
 { 'event': 'RESET', 'data': { 'guest': 'bool', 'reason': 'ShutdownCause' } }
 
@@ -207,7 +210,8 @@
 # .. qmp-example::
 #
 #     <- { "event": "STOP",
-#          "timestamp": { "seconds": 1267041730, "microseconds": 281295 } }
+#          "timestamp": { "seconds": 1267041730,
+#                         "microseconds": 281295 } }
 ##
 { 'event': 'STOP' }
 
@@ -221,7 +225,8 @@
 # .. qmp-example::
 #
 #     <- { "event": "RESUME",
-#          "timestamp": { "seconds": 1271770767, "microseconds": 582542 } }
+#          "timestamp": { "seconds": 1271770767,
+#                         "microseconds": 582542 } }
 ##
 { 'event': 'RESUME' }
 
@@ -236,7 +241,8 @@
 # .. qmp-example::
 #
 #     <- { "event": "SUSPEND",
-#          "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
+#          "timestamp": { "seconds": 1344456160,
+#                         "microseconds": 309119 } }
 ##
 { 'event': 'SUSPEND' }
 
@@ -247,15 +253,16 @@
 # saved on disk, for example, S4 state, which is sometimes called
 # hibernate state
 #
-# .. note:: QEMU shuts down (similar to event `SHUTDOWN`) when entering
-#    this state.
+# .. note:: QEMU shuts down (similar to event `SHUTDOWN`) when
+#    entering this state.
 #
 # Since: 1.2
 #
 # .. qmp-example::
 #
 #     <- { "event": "SUSPEND_DISK",
-#          "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
+#          "timestamp": { "seconds": 1344456160,
+#                         "microseconds": 309119 } }
 ##
 { 'event': 'SUSPEND_DISK' }
 
@@ -270,7 +277,8 @@
 # .. qmp-example::
 #
 #     <- { "event": "WAKEUP",
-#          "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
+#          "timestamp": { "seconds": 1344522075,
+#                         "microseconds": 745528 } }
 ##
 { 'event': 'WAKEUP' }
 
@@ -281,9 +289,9 @@
 #
 # @action: action that has been taken
 #
-# .. note:: If action is "reset", "shutdown", or "pause" the `WATCHDOG`
-#    event is followed respectively by the `RESET`, `SHUTDOWN`, or `STOP`
-#    events.
+# .. note:: If action is "reset", "shutdown", or "pause" the
+#   `WATCHDOG` event is followed respectively by the `RESET`,
+#   `SHUTDOWN`, or `STOP` events.
 #
 # .. note:: This event is rate-limited.
 #
@@ -293,7 +301,8 @@
 #
 #     <- { "event": "WATCHDOG",
 #          "data": { "action": "reset" },
-#          "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+#          "timestamp": { "seconds": 1267061043,
+#                         "microseconds": 959568 } }
 ##
 { 'event': 'WATCHDOG',
   'data': { 'action': 'WatchdogAction' } }
@@ -402,7 +411,8 @@
 #
 # @panic: `PanicAction` action taken on guest panic.
 #
-# @watchdog: `WatchdogAction` action taken when watchdog timer expires.
+# @watchdog: `WatchdogAction` action taken when watchdog timer
+#     expires.
 #
 # Since: 6.0
 #
@@ -437,7 +447,8 @@
 #
 #     <- { "event": "GUEST_PANICKED",
 #          "data": { "action": "pause" },
-#          "timestamp": { "seconds": 1648245231, "microseconds": 900001 } }
+#          "timestamp": { "seconds": 1648245231,
+#                         "microseconds": 900001 } }
 ##
 { 'event': 'GUEST_PANICKED',
   'data': { 'action': 'GuestPanicAction', '*info': 'GuestPanicInformation' } }
@@ -457,7 +468,8 @@
 #
 #     <- { "event": "GUEST_CRASHLOADED",
 #          "data": { "action": "run" },
-#          "timestamp": { "seconds": 1648245259, "microseconds": 893771 } }
+#          "timestamp": { "seconds": 1648245259,
+#                         "microseconds": 893771 } }
 ##
 { 'event': 'GUEST_CRASHLOADED',
   'data': { 'action': 'GuestPanicAction', '*info': 'GuestPanicInformation' } }
@@ -472,7 +484,8 @@
 # .. qmp-example::
 #
 #     <- { "event": "GUEST_PVSHUTDOWN",
-#          "timestamp": { "seconds": 1648245259, "microseconds": 893771 } }
+#          "timestamp": { "seconds": 1648245259,
+#                         "microseconds": 893771 } }
 ##
 { 'event': 'GUEST_PVSHUTDOWN' }
 
@@ -542,8 +555,8 @@
 # @arg4: for Windows, third argument of the `STOP`.  For Linux, the
 #     RAX register (x86) or the stack pointer (aarch64) of the guest.
 #
-# @arg5: for Windows, fourth argument of the `STOP`.  For x86 Linux, the
-#     stack pointer of the guest.
+# @arg5: for Windows, fourth argument of the `STOP`.  For x86 Linux,
+#     the stack pointer of the guest.
 #
 # Since: 2.9
 ##
@@ -610,7 +623,7 @@
 #
 # @error-code: TD-specific error code
 #
-# @message: Human-readable error message provided by the guest. Not
+# @message: Human-readable error message provided by the guest.  Not
 #     to be trusted.
 #
 # @gpa: guest-physical address of a page that contains more verbose
@@ -644,8 +657,9 @@
 #          "data": { "recipient": "hypervisor",
 #                    "action": "fatal",
 #                    "flags": { "action-required": false,
-#                               "recursive": false } },
-#          "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+#                               "recursive": false } }
+#          "timestamp": { "seconds": 1267061043,
+#                         "microseconds": 959568 } }
 ##
 { 'event': 'MEMORY_FAILURE',
   'data': { 'recipient': 'MemoryFailureRecipient',
