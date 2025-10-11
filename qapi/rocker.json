@@ -102,11 +102,16 @@
 #
 # .. qmp-example::
 #
-#     -> { "execute": "query-rocker-ports", "arguments": { "name": "sw1" } }
-#     <- { "return": [ {"duplex": "full", "enabled": true, "name": "sw1.1",
-#                       "autoneg": "off", "link-up": true, "speed": 10000},
-#                      {"duplex": "full", "enabled": true, "name": "sw1.2",
-#                       "autoneg": "off", "link-up": true, "speed": 10000}
+#     -> { "execute": "query-rocker-ports", "arguments": { "name":
+#     "sw1" } }
+#     <- { "return": [ {"duplex": "full", "enabled": true, "name":
+#     "sw1.1",
+#                       "autoneg": "off", "link-up": true, "speed":
+#     10000},
+#                      {"duplex": "full", "enabled": true, "name":
+#     "sw1.2",
+#                       "autoneg": "off", "link-up": true, "speed":
+#     10000}
 #        ]}
 ##
 { 'command': 'query-rocker-ports',
@@ -246,7 +251,8 @@
 #
 #     -> { "execute": "query-rocker-of-dpa-flows",
 #          "arguments": { "name": "sw1" } }
-#     <- { "return": [ {"key": {"in-pport": 0, "priority": 1, "tbl-id": 0},
+#     <- { "return": [ {"key": { "in-pport": 0, "priority": 1,
+#                                "tbl-id": 0},
 #                       "hits": 138,
 #                       "cookie": 0,
 #                       "action": {"goto-tbl": 10},
