@@ -34,8 +34,8 @@
 #
 # .. qmp-example::
 #
-#     -> { "execute": "add_client", "arguments": { "protocol": "vnc",
-#                                                  "fdname": "myclient" } }
+#     -> { "execute": "add_client",
+#          "arguments": { "protocol": "vnc", "fdname": "myclient" } }
 #     <- { "return": {} }
 ##
 { 'command': 'add_client',
@@ -288,7 +288,8 @@
 # .. qmp-example::
 #
 #     -> { "execute": "get-win32-socket",
-#          "arguments": { "info": "abcd123..", "fdname": "skclient" } }
+#          "arguments": { "info": "abcd123..",
+#                         "fdname": "skclient" } }
 #     <- { "return": {} }
 ##
 { 'command': 'get-win32-socket', 'data': {'info': 'str', 'fdname': 'str'}, 'if': 'CONFIG_WIN32' }
@@ -374,7 +375,8 @@
 #
 # .. qmp-example::
 #
-#     -> { "execute": "remove-fd", "arguments": { "fdset-id": 1, "fd": 3 } }
+#     -> { "execute": "remove-fd",
+#          "arguments": { "fdset-id": 1, "fd": 3 } }
 #     <- { "return": {} }
 ##
 { 'command': 'remove-fd', 'data': {'fdset-id': 'int', '*fd': 'int'} }
@@ -564,7 +566,8 @@
 #
 #     <- { "event": "RTC_CHANGE",
 #          "data": { "offset": 78 },
-#          "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
+#          "timestamp": { "seconds": 1267020223,
+#                         "microseconds": 435656 } }
 ##
 { 'event': 'RTC_CHANGE',
   'data': { 'offset': 'int', 'qom-path': 'str' } }
@@ -594,7 +597,8 @@
 #                    "vfu-qom-path": "/objects/vfu1",
 #                    "dev-id": "sas1",
 #                    "dev-qom-path": "/machine/peripheral/sas1" },
-#          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#          "timestamp": { "seconds": 1265044230,
+#                         "microseconds": 450486 } }
 ##
 { 'event': 'VFU_CLIENT_HANGUP',
   'data': { 'vfu-id': 'str', 'vfu-qom-path': 'str',
