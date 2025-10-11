@@ -41,7 +41,9 @@
 # .. qmp-example::
 #
 #     -> { "execute": "query-gic-capabilities" }
-#     <- { "return": [{ "version": 2, "emulated": true, "kernel": false },
-#                     { "version": 3, "emulated": false, "kernel": true } ] }
+#     <- { "return": [{ "version": 2, "emulated": true,
+#                       "kernel": false },
+#                     { "version": 3, "emulated": false,
+#                       "kernel": true } ] }
 ##
 { 'command': 'query-gic-capabilities', 'returns': ['GICCapability'] }
