@@ -331,6 +331,15 @@ static void smmuv3_init_regs(SMMUv3State *s)
     bk->gerrorn = 0;
     s->statusr = 0;
     bk->gbpa = SMMU_GBPA_RESET_VAL;
+
+    /* Initialize Secure bank */
+    SMMUv3RegBank *sbk = &s->bank[SMMU_SEC_SID_S];
+
+    memset(sbk->idr, 0, sizeof(sbk->idr));
+    sbk->idr[1] = FIELD_DP32(sbk->idr[1], S_IDR1, S_SIDSIZE, SMMU_IDR1_SIDSIZE);
+    sbk->gbpa = SMMU_GBPA_RESET_VAL;
+    sbk->cmdq.entry_size = sizeof(struct Cmd);
+    sbk->eventq.entry_size = sizeof(struct Evt);
 }
 
 static int smmu_get_ste(SMMUv3State *s, dma_addr_t addr, STE *buf,
