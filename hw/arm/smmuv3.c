@@ -1080,6 +1080,38 @@ static void smmuv3_fixup_event(SMMUEventInfo *event, hwaddr iova)
     }
 }
 
+static SMMUSecSID smmuv3_attrs_to_sec_sid(MemTxAttrs attrs)
+{
+    switch (attrs.space) {
+    case ARMSS_Secure:
+        return SMMU_SEC_SID_S;
+    case ARMSS_NonSecure:
+    default:
+        return SMMU_SEC_SID_NS;
+    }
+}
+
+/*
+ * ARM IOMMU index mapping (implements SEC_SID from ARM SMMU):
+ * iommu_idx = 0: Non-secure transactions
+ * iommu_idx = 1: Secure transactions
+ *
+ * The iommu_idx parameter effectively implements the SEC_SID
+ * (Security Stream ID) attribute from the ARM SMMU architecture specification,
+ * which allows the SMMU to differentiate between different security state
+ * transactions at the hardware level.
+ */
+static int smmuv3_attrs_to_index(IOMMUMemoryRegion *iommu, MemTxAttrs attrs)
+{
+    return (int)smmuv3_attrs_to_sec_sid(attrs);
+}
+
+static int smmuv3_num_indexes(IOMMUMemoryRegion *iommu)
+{
+    /* Support 2 IOMMU indexes for now: NS/S */
+    return SMMU_SEC_SID_NUM;
+}
+
 /* Entry point to SMMU, does everything. */
 static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
                                       IOMMUAccessFlags flag, int iommu_idx)
@@ -1087,7 +1119,7 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     SMMUDevice *sdev = container_of(mr, SMMUDevice, iommu);
     SMMUv3State *s = sdev->smmu;
     uint32_t sid = smmu_get_sid(sdev);
-    SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
+    SMMUSecSID sec_sid = iommu_idx;
     SMMUv3RegBank *bank = smmuv3_bank(s, sec_sid);
     SMMUEventInfo event = {.type = SMMU_EVT_NONE,
                            .sid = sid,
@@ -2540,6 +2572,8 @@ static void smmuv3_iommu_memory_region_class_init(ObjectClass *klass,
 
     imrc->translate = smmuv3_translate;
     imrc->notify_flag_changed = smmuv3_notify_flag_changed;
+    imrc->attrs_to_index = smmuv3_attrs_to_index;
+    imrc->num_indexes = smmuv3_num_indexes;
 }
 
 static const TypeInfo smmuv3_type_info = {
