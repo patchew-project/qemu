@@ -69,6 +69,7 @@ struct SMMUv3State {
     qemu_irq     irq[4];
     QemuMutex mutex;
     char *stage;
+    bool secure_impl;
 };
 
 typedef enum {
