@@ -512,6 +512,7 @@ static inline const char *smmu_event_string(SMMUEventType type)
 
 /*  Encode an event record */
 typedef struct SMMUEventInfo {
+    SMMUSecSID sec_sid;
     SMMUEventType type;
     uint32_t sid;
     bool recorded;
