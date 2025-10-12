@@ -109,6 +109,7 @@ typedef struct SMMUTransTableInfo {
     uint8_t tsz;               /* input range, ie. 2^(64 -tsz)*/
     uint8_t granule_sz;        /* granule page shift */
     bool had;                  /* hierarchical attribute disable */
+    int nscfg;                /* Non-secure attribute of Starting-level TT */
 } SMMUTransTableInfo;
 
 typedef struct SMMUTLBEntry {
@@ -116,6 +117,7 @@ typedef struct SMMUTLBEntry {
     uint8_t level;
     uint8_t granule;
     IOMMUAccessFlags parent_perm;
+    SMMUSecSID sec_sid;
 } SMMUTLBEntry;
 
 /* Stage-2 configuration. */
@@ -156,6 +158,7 @@ typedef struct SMMUTransCfg {
     struct SMMUS2Cfg s2cfg;
     MemTxAttrs txattrs;        /* cached transaction attributes */
     AddressSpace *as;          /* cached address space */
+    int sel2;                 /* Secure EL2 and Secure stage 2 support */
 } SMMUTransCfg;
 
 typedef struct SMMUDevice {

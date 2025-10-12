@@ -812,6 +812,7 @@ static int decode_cd(SMMUv3State *s, SMMUTransCfg *cfg,
             tt->ttb = CACHED_ENTRY_TO_ADDR(entry, tt->ttb);
         }
 
+        tt->nscfg = i ? CD_NSCFG1(cd) : CD_NSCFG0(cd);
         tt->had = CD_HAD(cd, i);
         trace_smmuv3_decode_cd_tt(i, tt->tsz, tt->ttb, tt->granule_sz, tt->had);
     }
@@ -915,6 +916,7 @@ static SMMUTransCfg *smmuv3_get_config(SMMUDevice *sdev, SMMUEventInfo *event,
             cfg = NULL;
             return cfg;
         }
+        cfg->sel2 = FIELD_EX32(s->bank[SMMU_SEC_SID_S].idr[1], S_IDR1, SEL2);
 
         if (!smmuv3_decode_config(&sdev->iommu, cfg, event)) {
             SMMUConfigKey *persistent_key = g_new(SMMUConfigKey, 1);
