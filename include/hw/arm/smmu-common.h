@@ -22,6 +22,7 @@
 #include "hw/sysbus.h"
 #include "hw/pci/pci.h"
 #include "qom/object.h"
+#include "hw/arm/arm-security.h"
 
 #define SMMU_PCI_BUS_MAX                    256
 #define SMMU_PCI_DEVFN_MAX                  256
@@ -46,6 +47,9 @@ typedef enum SMMUSecSID {
     SMMU_SEC_SID_S,
     SMMU_SEC_SID_NUM,
 } SMMUSecSID;
+
+MemTxAttrs smmu_get_txattrs(SMMUSecSID sec_sid);
+ARMSecuritySpace smmu_get_security_space(SMMUSecSID sec_sid);
 
 extern AddressSpace __attribute__((weak)) arm_secure_address_space;
 extern bool arm_secure_as_available;
@@ -150,6 +154,8 @@ typedef struct SMMUTransCfg {
     SMMUTransTableInfo tt[2];
     /* Used by stage-2 only. */
     struct SMMUS2Cfg s2cfg;
+    MemTxAttrs txattrs;        /* cached transaction attributes */
+    AddressSpace *as;          /* cached address space */
 } SMMUTransCfg;
 
 typedef struct SMMUDevice {
