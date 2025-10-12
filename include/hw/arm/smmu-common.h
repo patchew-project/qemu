@@ -43,8 +43,35 @@
 /* StreamID Security state */
 typedef enum SMMUSecSID {
     SMMU_SEC_SID_NS = 0,
+    SMMU_SEC_SID_S,
     SMMU_SEC_SID_NUM,
 } SMMUSecSID;
+
+extern AddressSpace __attribute__((weak)) arm_secure_address_space;
+extern bool arm_secure_as_available;
+void smmu_enable_secure_address_space(void);
+
+/*
+ * Return the address space corresponding to the SEC_SID.
+ * If SEC_SID is Secure, but secure address space is not available,
+ * return NULL and print a warning message.
+ */
+static inline AddressSpace *smmu_get_address_space(SMMUSecSID sec_sid)
+{
+    switch (sec_sid) {
+    case SMMU_SEC_SID_NS:
+        return &address_space_memory;
+    case SMMU_SEC_SID_S:
+        if (!arm_secure_as_available || arm_secure_address_space.root == NULL) {
+            printf("Secure address space requested but not available");
+            return NULL;
+        }
+        return &arm_secure_address_space;
+    default:
+        printf("Unknown SEC_SID value %d", sec_sid);
+        return NULL;
+    }
+}
 
 /*
  * Page table walk error types
