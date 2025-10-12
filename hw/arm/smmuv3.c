@@ -46,11 +46,11 @@
  *
  * @irq: irq type
  * @gerror_mask: mask of gerrors to toggle (relevant if @irq is GERROR)
+ * @sec_sid: SEC_SID of the bank
  */
 static void smmuv3_trigger_irq(SMMUv3State *s, SMMUIrq irq,
-                               uint32_t gerror_mask)
+                               uint32_t gerror_mask, SMMUSecSID sec_sid)
 {
-    SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
     SMMUv3RegBank *bank = smmuv3_bank(s, sec_sid);
 
     bool pulse = false;
@@ -87,9 +87,9 @@ static void smmuv3_trigger_irq(SMMUv3State *s, SMMUIrq irq,
     }
 }
 
-static void smmuv3_write_gerrorn(SMMUv3State *s, uint32_t new_gerrorn)
+static void smmuv3_write_gerrorn(SMMUv3State *s, uint32_t new_gerrorn,
+                                 SMMUSecSID sec_sid)
 {
-    SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
     SMMUv3RegBank *bank = smmuv3_bank(s, sec_sid);
     uint32_t pending = bank->gerror ^ bank->gerrorn;
     uint32_t toggled = bank->gerrorn ^ new_gerrorn;
@@ -109,7 +109,7 @@ static void smmuv3_write_gerrorn(SMMUv3State *s, uint32_t new_gerrorn)
     trace_smmuv3_write_gerrorn(toggled & pending, bank->gerrorn);
 }
 
-static inline MemTxResult queue_read(SMMUQueue *q, Cmd *cmd)
+static inline MemTxResult queue_read(SMMUQueue *q, Cmd *cmd, SMMUSecSID sec_sid)
 {
     dma_addr_t addr = Q_CONS_ENTRY(q);
     MemTxResult ret;
@@ -167,7 +167,7 @@ static MemTxResult smmuv3_write_eventq(SMMUv3State *s, SMMUSecSID sec_sid,
     }
 
     if (!smmuv3_q_empty(q)) {
-        smmuv3_trigger_irq(s, SMMU_IRQ_EVTQ, 0);
+        smmuv3_trigger_irq(s, SMMU_IRQ_EVTQ, 0, sec_sid);
     }
     return MEMTX_OK;
 }
@@ -263,7 +263,8 @@ void smmuv3_record_event(SMMUv3State *s, SMMUEventInfo *info)
                               info->sid);
     r = smmuv3_write_eventq(s, sec_sid, &evt);
     if (r != MEMTX_OK) {
-        smmuv3_trigger_irq(s, SMMU_IRQ_GERROR, R_GERROR_EVENTQ_ABT_ERR_MASK);
+        smmuv3_trigger_irq(s, SMMU_IRQ_GERROR,
+                           R_GERROR_EVENTQ_ABT_ERR_MASK, sec_sid);
     }
     info->recorded = true;
 }
@@ -1457,11 +1458,10 @@ static bool smmu_eventq_irq_cfg_writable(SMMUv3State *s, SMMUSecSID sec_sid)
     return smmu_irq_ctl_evtq_irqen_disabled(s, sec_sid);
 }
 
-static int smmuv3_cmdq_consume(SMMUv3State *s)
+static int smmuv3_cmdq_consume(SMMUv3State *s, SMMUSecSID sec_sid)
 {
     SMMUState *bs = ARM_SMMU(s);
     SMMUCmdError cmd_error = SMMU_CERROR_NONE;
-    SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
     SMMUv3RegBank *bank = smmuv3_bank(s, sec_sid);
     SMMUQueue *q = &bank->cmdq;
     SMMUCommandType type = 0;
@@ -1480,14 +1480,14 @@ static int smmuv3_cmdq_consume(SMMUv3State *s)
         uint32_t pending = bank->gerror ^ bank->gerrorn;
         Cmd cmd;
 
-        trace_smmuv3_cmdq_consume(Q_PROD(q), Q_CONS(q),
+        trace_smmuv3_cmdq_consume(sec_sid, Q_PROD(q), Q_CONS(q),
                                   Q_PROD_WRAP(q), Q_CONS_WRAP(q));
 
         if (FIELD_EX32(pending, GERROR, CMDQ_ERR)) {
             break;
         }
 
-        if (queue_read(q, &cmd) != MEMTX_OK) {
+        if (queue_read(q, &cmd, sec_sid) != MEMTX_OK) {
             cmd_error = SMMU_CERROR_ABT;
             break;
         }
@@ -1500,7 +1500,7 @@ static int smmuv3_cmdq_consume(SMMUv3State *s)
         switch (type) {
         case SMMU_CMD_SYNC:
             if (CMD_SYNC_CS(&cmd) & CMD_SYNC_SIG_IRQ) {
-                smmuv3_trigger_irq(s, SMMU_IRQ_CMD_SYNC, 0);
+                smmuv3_trigger_irq(s, SMMU_IRQ_CMD_SYNC, 0, sec_sid);
             }
             break;
         case SMMU_CMD_PREFETCH_CONFIG:
@@ -1512,6 +1512,11 @@ static int smmuv3_cmdq_consume(SMMUv3State *s)
             SMMUDevice *sdev = smmu_find_sdev(bs, sid);
 
             if (CMD_SSEC(&cmd)) {
+                if (sec_sid != SMMU_SEC_SID_S) {
+                    /* Secure Stream with Non-Secure command */
+                    cmd_error = SMMU_CERROR_ILL;
+                    break;
+                }
                 cmd_error = SMMU_CERROR_ILL;
                 break;
             }
@@ -1532,6 +1537,10 @@ static int smmuv3_cmdq_consume(SMMUv3State *s)
             SMMUSIDRange sid_range;
 
             if (CMD_SSEC(&cmd)) {
+                if (sec_sid != SMMU_SEC_SID_S) {
+                    cmd_error = SMMU_CERROR_ILL;
+                    break;
+                }
                 cmd_error = SMMU_CERROR_ILL;
                 break;
             }
@@ -1551,6 +1560,10 @@ static int smmuv3_cmdq_consume(SMMUv3State *s)
             SMMUDevice *sdev = smmu_find_sdev(bs, sid);
 
             if (CMD_SSEC(&cmd)) {
+                if (sec_sid != SMMU_SEC_SID_S) {
+                    cmd_error = SMMU_CERROR_ILL;
+                    break;
+                }
                 cmd_error = SMMU_CERROR_ILL;
                 break;
             }
@@ -1618,7 +1631,7 @@ static int smmuv3_cmdq_consume(SMMUv3State *s)
                 cmd_error = SMMU_CERROR_ILL;
                 break;
             }
-            smmuv3_range_inval(bs, &cmd, SMMU_STAGE_1, SMMU_SEC_SID_NS);
+            smmuv3_range_inval(bs, &cmd, SMMU_STAGE_1, sec_sid);
             break;
         case SMMU_CMD_TLBI_S12_VMALL:
         {
@@ -1626,6 +1639,11 @@ static int smmuv3_cmdq_consume(SMMUv3State *s)
 
             if (!STAGE2_SUPPORTED(s)) {
                 cmd_error = SMMU_CERROR_ILL;
+                break;
+            }
+            /* Secure Stage 2 isn't supported for now */
+            if (sec_sid != SMMU_SEC_SID_NS) {
+                cmd_error = SMMU_CERROR_ABT;
                 break;
             }
 
@@ -1639,11 +1657,16 @@ static int smmuv3_cmdq_consume(SMMUv3State *s)
                 cmd_error = SMMU_CERROR_ILL;
                 break;
             }
+
+            if (sec_sid != SMMU_SEC_SID_NS) {
+                cmd_error = SMMU_CERROR_ABT;
+                break;
+            }
             /*
              * As currently only either s1 or s2 are supported
              * we can reuse same function for s2.
              */
-            smmuv3_range_inval(bs, &cmd, SMMU_STAGE_2, SMMU_SEC_SID_NS);
+            smmuv3_range_inval(bs, &cmd, SMMU_STAGE_2, sec_sid);
             break;
         case SMMU_CMD_TLBI_EL3_ALL:
         case SMMU_CMD_TLBI_EL3_VA:
@@ -1680,7 +1703,7 @@ static int smmuv3_cmdq_consume(SMMUv3State *s)
     if (cmd_error) {
         trace_smmuv3_cmdq_consume_error(smmu_cmd_string(type), cmd_error);
         smmu_write_cmdq_err(s, cmd_error, sec_sid);
-        smmuv3_trigger_irq(s, SMMU_IRQ_GERROR, R_GERROR_CMDQ_ERR_MASK);
+        smmuv3_trigger_irq(s, SMMU_IRQ_GERROR, R_GERROR_CMDQ_ERR_MASK, sec_sid);
     }
 
     trace_smmuv3_cmdq_consume_out(Q_PROD(q), Q_CONS(q),
@@ -1772,7 +1795,7 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
         bank->cr[0] = data;
         bank->cr0ack = data & ~SMMU_CR0_RESERVED;
         /* in case the command queue has been enabled */
-        smmuv3_cmdq_consume(s);
+        smmuv3_cmdq_consume(s, reg_sec_sid);
         return MEMTX_OK;
     case A_CR1:
         bank->cr[1] = data;
@@ -1792,12 +1815,12 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
         bank->irq_ctrl = data;
         return MEMTX_OK;
     case A_GERRORN:
-        smmuv3_write_gerrorn(s, data);
+        smmuv3_write_gerrorn(s, data, reg_sec_sid);
         /*
          * By acknowledging the CMDQ_ERR, SW may notify cmds can
          * be processed again
          */
-        smmuv3_cmdq_consume(s);
+        smmuv3_cmdq_consume(s, reg_sec_sid);
         return MEMTX_OK;
     case A_GERROR_IRQ_CFG0: /* 64b */
         if (!smmu_gerror_irq_cfg_writable(s, reg_sec_sid)) {
@@ -1899,7 +1922,7 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
         return MEMTX_OK;
     case A_CMDQ_PROD:
         bank->cmdq.prod = data;
-        smmuv3_cmdq_consume(s);
+        smmuv3_cmdq_consume(s, reg_sec_sid);
         return MEMTX_OK;
     case A_CMDQ_CONS:
         if (!smmu_cmdqen_disabled(s, reg_sec_sid)) {
