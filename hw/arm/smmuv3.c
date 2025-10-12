@@ -354,6 +354,21 @@ static int smmu_get_ste(SMMUv3State *s, dma_addr_t addr, STE *buf,
 
 }
 
+static void smmuv3_invalidate_all_caches(SMMUv3State *s)
+{
+    trace_smmuv3_invalidate_all_caches();
+    SMMUState *bs = &s->smmu_state;
+
+    /* Clear all cached configs including STE and CD */
+    if (bs->configs) {
+        g_hash_table_remove_all(bs->configs);
+    }
+
+    /* Invalidate all SMMU IOTLB entries */
+    smmu_inv_notifiers_all(&s->smmu_state);
+    smmu_iotlb_inv_all(bs);
+}
+
 static SMMUTranslationStatus smmuv3_do_translate(SMMUv3State *s, hwaddr addr,
                                                  SMMUTransCfg *cfg,
                                                  SMMUEventInfo *event,
@@ -1969,6 +1984,21 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
 
         bank->eventq_irq_cfg2 = data;
         return MEMTX_OK;
+    case (A_S_INIT & 0xfff):
+        if (data & R_S_INIT_INV_ALL_MASK) {
+            int cr0_smmuen = smmu_enabled(s, reg_sec_sid);
+            int s_cr0_smmuen = smmuv3_get_cr0ack_smmuen(s, reg_sec_sid);
+            if (cr0_smmuen || s_cr0_smmuen) {
+                /* CONSTRAINED UNPREDICTABLE behavior: Ignore this write */
+                qemu_log_mask(LOG_GUEST_ERROR, "S_INIT write ignored: "
+                              "CR0.SMMUEN=%d or S_CR0.SMMUEN=%d is set\n",
+                              cr0_smmuen, s_cr0_smmuen);
+                return MEMTX_OK;
+            }
+            smmuv3_invalidate_all_caches(s);
+        }
+        /* Synchronous emulation: invalidation completed instantly. */
+        return MEMTX_OK;
     default:
         qemu_log_mask(LOG_UNIMP,
                       "%s Unexpected 32-bit access to 0x%"PRIx64" (WI)\n",
@@ -2171,6 +2201,9 @@ static MemTxResult smmu_readl(SMMUv3State *s, hwaddr offset,
         return MEMTX_OK;
     case A_EVENTQ_CONS:
         *data = bank->eventq.cons;
+        return MEMTX_OK;
+    case (A_S_INIT & 0xfff):
+        *data = 0;
         return MEMTX_OK;
     default:
         *data = 0;
