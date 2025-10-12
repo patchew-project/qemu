@@ -39,6 +39,7 @@ static const Property uefi_vars_sysbus_properties[] = {
                      state.disable_custom_mode, false),
     DEFINE_PROP_BOOL("use-pio", uefi_vars_sysbus_state,
                      state.use_pio, false),
+    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void uefi_vars_sysbus_init(Object *obj)
