@@ -1624,7 +1624,7 @@
 # containers.
 #
 # The ordering from highest/coarsest to lowest/finest is: @drawers,
-# @books, @sockets, @dies, @clusters, @cores, @threads.
+# @books, @sockets, @dies, @clusters, @modules, @cores, @threads.
 #
 # Different architectures support different subsets of topology
 # containers.
