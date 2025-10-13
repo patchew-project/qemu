@@ -2331,19 +2331,50 @@ static void qemu_read_default_config_file(Error **errp)
 
 static void qemu_set_option(const char *str, Error **errp)
 {
-    char group[64], id[64], arg[64];
+    char buffer[192];
+    char *group = buffer, *id, *arg;
     QemuOptsList *list;
     QemuOpts *opts;
-    int rc, offset;
+    int offset;
 
-    rc = sscanf(str, "%63[^.].%63[^.].%63[^=]%n", group, id, arg, &offset);
-    if (rc < 3 || str[offset] != '=') {
+    for (offset = 0; offset < sizeof(buffer) - 1; offset++) {
+        if (str[offset] == '\0' || str[offset] == '=') {
+            break;
+        }
+        buffer[offset] = str[offset];
+    }
+    if (str[offset] != '=') {
         error_setg(errp, "can't parse: \"%s\"", str);
         return;
     }
+    buffer[offset] = '\0';
+
+    for (id = buffer; id < buffer + offset; id++) {
+        if (*id == '.') {
+            break;
+        }
+    }
+    if (id == buffer || *id == '\0') {
+        error_setg(errp, "can't parse: \"%s\"", str);
+        return;
+    }
+    *id = '\0';
+    id++;
+
+    for (arg = buffer + offset - 1; *arg != '\0'; arg--) {
+        if (*arg == '.') {
+            break;
+        }
+    }
+    if (arg == id || arg == buffer + offset - 1 || *arg != '.') {
+        error_setg(errp, "can't parse: \"%s\"", str);
+        return;
+    }
+    *arg = '\0';
+    arg++;
 
     if (!is_qemuopts_group(group)) {
-        error_setg(errp, "-set is not supported with %s", group);
+        error_setg(errp, "-set is not supported with group \"%s\"", group);
     } else {
         list = qemu_find_opts_err(group, errp);
         if (list) {
