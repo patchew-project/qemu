@@ -34,6 +34,8 @@ struct CharBackend {
  * Returns: false on error.
  */
 bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp);
+bool qemu_chr_fe_init_ex(CharBackend *b, Chardev *s, ObjectClass *oc,
+                         Error **errp);
 
 /**
  * qemu_chr_fe_deinit:

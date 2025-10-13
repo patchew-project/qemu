@@ -189,12 +189,20 @@ bool qemu_chr_fe_backend_open(CharBackend *be)
     return be->chr && be->chr->be_open;
 }
 
-bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp)
+bool qemu_chr_fe_init_ex(CharBackend *b, Chardev *s, ObjectClass *oc,
+                         Error **errp)
 {
     unsigned int tag = 0;
+    const char *driver = oc ? object_class_get_name(oc) : NULL;
 
-    if (!qemu_chr_connect(s, errp)) {
-        return false;
+    /*
+     * vhost-user-blk wants call qemu_chr_connect by hand,
+     * to support backend-transfer migration feature.
+     */
+    if (!driver || !g_str_has_prefix(driver, "vhost-user-blk")) {
+        if (!qemu_chr_connect(s, errp)) {
+            return false;
+        }
     }
 
     if (s) {
@@ -216,6 +224,11 @@ bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp)
     b->tag = tag;
     b->chr = s;
     return true;
+}
+
+bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp)
+{
+    return qemu_chr_fe_init_ex(b, s, NULL, errp);
 }
 
 void qemu_chr_fe_deinit(CharBackend *b, bool del)
