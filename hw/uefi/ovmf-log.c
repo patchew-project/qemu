@@ -19,6 +19,7 @@
 #include "qapi/error.h"
 #include "qapi/type-helpers.h"
 #include "qapi/qapi-commands-machine.h"
+#include "qobject/qdict.h"
 
 
 /* ----------------------------------------------------------------------- */
@@ -167,7 +168,8 @@ static void handle_ovmf_log_range(GString *out,
     }
 }
 
-FirmwareLog *qmp_query_firmware_log(Error **errp)
+FirmwareLog *qmp_query_firmware_log(bool have_maxsize, uint64_t maxsize,
+                                    Error **errp)
 {
     MEM_DEBUG_LOG_HDR header;
     dma_addr_t offset, base;
@@ -187,16 +189,36 @@ FirmwareLog *qmp_query_firmware_log(Error **errp)
         return NULL;
     }
 
-    if (header.DebugLogSize > MiB) {
-        /* default size is 128k (32 pages), allow up to 1M */
-        error_setg(errp, "firmware log: log buffer is too big");
-        return NULL;
-    }
-
     if (header.DebugLogHeadOffset > header.DebugLogSize ||
         header.DebugLogTailOffset > header.DebugLogSize) {
         error_setg(errp, "firmware log: invalid header");
         return NULL;
+    }
+
+    if (!have_maxsize) {
+        maxsize = MiB;
+    }
+    if (maxsize > MiB) {
+        maxsize = MiB;
+    }
+
+    /* adjust header.DebugLogHeadOffset so we rezturn at most maxsize bytes */
+    if (header.DebugLogHeadOffset > header.DebugLogTailOffset) {
+        /* wrap around */
+        if (header.DebugLogTailOffset > maxsize) {
+            header.DebugLogHeadOffset = header.DebugLogTailOffset - maxsize;
+        } else {
+            uint64_t maxchunk = maxsize - header.DebugLogTailOffset;
+            if (header.DebugLogSize > maxchunk &&
+                header.DebugLogHeadOffset < header.DebugLogSize - maxchunk) {
+                header.DebugLogHeadOffset = header.DebugLogSize - maxchunk;
+            }
+        }
+    } else {
+        if (header.DebugLogTailOffset > maxsize &&
+            header.DebugLogHeadOffset < header.DebugLogTailOffset - maxsize) {
+            header.DebugLogHeadOffset = header.DebugLogTailOffset - maxsize;
+        }
     }
 
     base = offset + header.HeaderSize;
@@ -237,8 +259,10 @@ void hmp_info_firmware_log(Monitor *mon, const QDict *qdict)
 {
     Error *errp = NULL;
     FirmwareLog *log;
+    int64_t maxsize;
 
-    log = qmp_query_firmware_log(&errp);
+    maxsize = qdict_get_try_int(qdict, "maxsize", -1);
+    log = qmp_query_firmware_log(maxsize != -1, (uint64_t)maxsize, &errp);
     if (errp)  {
         hmp_handle_error(mon, errp);
         return;
