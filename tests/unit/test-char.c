@@ -845,6 +845,7 @@ static void char_websock_test(void)
                               0xef, 0xaa, 0xc5, 0x97, /* Masking key */
                               0xec, 0x42              /* Status code */ };
 
+    qemu_chr_fe_init(&be, chr, &error_abort);
     addr = object_property_get_qobject(OBJECT(chr), "addr", &error_abort);
     qdict = qobject_to(QDict, addr);
     port = qdict_get_str(qdict, "port");
@@ -852,7 +853,6 @@ static void char_websock_test(void)
     handshake_port = g_strdup_printf(handshake, port, port);
     qobject_unref(qdict);
 
-    qemu_chr_fe_init(&be, chr, &error_abort);
     qemu_chr_fe_set_handlers(&be, websock_server_can_read, websock_server_read,
                              NULL, NULL, chr, NULL, true);
 
@@ -1216,6 +1216,8 @@ static void char_socket_server_test(gconstpointer opaque)
     g_assert_nonnull(chr);
     g_assert(!object_property_get_bool(OBJECT(chr), "connected", &error_abort));
 
+    qemu_chr_fe_init(&be, chr, &error_abort);
+
     qaddr = object_property_get_qobject(OBJECT(chr), "addr", &error_abort);
     g_assert_nonnull(qaddr);
 
@@ -1223,8 +1225,6 @@ static void char_socket_server_test(gconstpointer opaque)
     visit_type_SocketAddress(v, "addr", &addr, &error_abort);
     visit_free(v);
     qobject_unref(qaddr);
-
-    qemu_chr_fe_init(&be, chr, &error_abort);
 
  reconnect:
     data.event = -1;
@@ -1417,6 +1417,8 @@ static void char_socket_client_test(gconstpointer opaque)
     qemu_opts_del(opts);
     g_assert_nonnull(chr);
 
+    qemu_chr_fe_init(&be, chr, &error_abort);
+
     if (config->reconnect) {
         /*
          * If reconnect is set, the connection will be
@@ -1430,8 +1432,6 @@ static void char_socket_client_test(gconstpointer opaque)
         g_assert(object_property_get_bool(OBJECT(chr), "connected",
                                           &error_abort));
     }
-
-    qemu_chr_fe_init(&be, chr, &error_abort);
 
  reconnect:
     data.event = -1;
@@ -1550,6 +1550,8 @@ static void char_socket_server_two_clients_test(gconstpointer opaque)
     g_assert_nonnull(chr);
     g_assert(!object_property_get_bool(OBJECT(chr), "connected", &error_abort));
 
+    qemu_chr_fe_init(&be, chr, &error_abort);
+
     qaddr = object_property_get_qobject(OBJECT(chr), "addr", &error_abort);
     g_assert_nonnull(qaddr);
 
@@ -1557,8 +1559,6 @@ static void char_socket_server_two_clients_test(gconstpointer opaque)
     visit_type_SocketAddress(v, "addr", &addr, &error_abort);
     visit_free(v);
     qobject_unref(qaddr);
-
-    qemu_chr_fe_init(&be, chr, &error_abort);
 
     qemu_chr_fe_set_handlers(&be, char_socket_can_read, char_socket_discard_read,
                              count_closed_event, NULL,

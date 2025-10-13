@@ -210,8 +210,14 @@ dbus_chr_open(Chardev *chr, ChardevBackend *backend,
     if (*errp) {
         return;
     }
-    CHARDEV_CLASS(object_class_by_name(TYPE_CHARDEV_SOCKET))->open(
-        chr, be, be_opened, errp);
+    if (!CHARDEV_CLASS(object_class_by_name(TYPE_CHARDEV_SOCKET))->init(
+        chr, be, errp)) {
+        return;
+    }
+    if (!CHARDEV_CLASS(object_class_by_name(TYPE_CHARDEV_SOCKET))->connect(
+        chr, errp)) {
+        return;
+    }
 }
 
 static void
@@ -276,6 +282,8 @@ char_dbus_class_init(ObjectClass *oc, const void *data)
 
     cc->parse = dbus_chr_parse;
     cc->open = dbus_chr_open;
+    cc->init = NULL;
+    cc->connect = NULL;
     cc->chr_set_fe_open = dbus_chr_set_fe_open;
     cc->chr_set_echo = dbus_chr_set_echo;
     klass->parent_chr_be_event = cc->chr_be_event;
