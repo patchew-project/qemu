@@ -18,6 +18,7 @@
 #include "migration/client-options.h"
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
+#include "qemu/int128.h"
 #include "trace.h"
 #include "qapi/error.h"
 
@@ -192,6 +193,35 @@ const VMStateInfo vmstate_info_int64 = {
     .name = "int64",
     .get  = get_int64,
     .put  = put_int64,
+};
+
+/* 128 bit int */
+
+static int get_int128(QEMUFile *f, void *pv, size_t size,
+                      const VMStateField *field)
+{
+    Int128 *v = pv;
+    uint64_t hi, lo;
+
+    qemu_get_be64s(f, &hi);
+    qemu_get_be64s(f, &lo);
+    *v = int128_make128(lo, hi);
+    return 0;
+}
+
+static int put_int128(QEMUFile *f, void *pv, size_t size,
+                      const VMStateField *field, JSONWriter *vmdesc)
+{
+    Int128 *v = pv;
+    qemu_put_be64(f, int128_gethi(*v));
+    qemu_put_be64(f, int128_getlo(*v));
+    return 0;
+}
+
+const VMStateInfo vmstate_info_int128 = {
+    .name = "int128",
+    .get  = get_int128,
+    .put  = put_int128,
 };
 
 /* 8 bit unsigned int */
