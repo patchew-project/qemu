@@ -918,16 +918,43 @@ static TLBIRange tlbi_aa64_get_range(CPUARMState *env, ARMMMUIdx mmuidx,
     return ret;
 }
 
-static void do_rvae_write(CPUARMState *env, uint64_t value,
-                          int idxmap, bool synced)
+static TLBIRange tlbi_aa64_get_range128(CPUARMState *env, ARMMMUIdx mmuidx,
+                                        uint64_t vallo, uint64_t valhi)
 {
-    ARMMMUIdx one_idx = ARM_MMU_IDX_A | ctz32(idxmap);
-    TLBIRange range;
-    int bits;
+    uint64_t uaddr = extract64(valhi << 12, 0, 56);
+    ARMVAParameters param = aa64_va_parameters(env, uaddr, mmuidx, true, false);
+    TLBIRange ret = { };
+    unsigned page_size_granule = extract64(vallo, 46, 2);
+    ARMGranuleSize gran = tlbi_range_tg_to_gran_size(page_size_granule);
 
-    range = tlbi_aa64_get_range(env, one_idx, value);
-    bits = tlbbits_for_regime(env, one_idx, range.base);
+    /* The granule encoded in value must match the granule in use. */
+    if (gran != param.gran) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Invalid tlbi page size granule %d\n",
+                      page_size_granule);
+    } else {
+        unsigned page_shift = arm_granule_bits(gran);
+        unsigned num = extract64(vallo, 39, 5);
+        unsigned scale = extract64(vallo, 44, 2);
+        unsigned exponent = (5 * scale) + 1;
+        uint64_t max = 1ull << 56;
 
+        ret.length = (num + 1) << (exponent + page_shift);
+        ret.length = MIN(ret.length, max - uaddr);
+        /*
+         * Note that TLBIPRange ignores the high bits, because the HW TLB
+         * does not use it.  But the qemu softmmu tlb does, so sign-extend
+         * if and only if the regime has two ranges.
+         */
+        ret.base = uaddr | (-(uint64_t)param.select << 56);
+    }
+
+    return ret;
+}
+
+static void do_flush_range(CPUARMState *env, ARMMMUIdx one_idx, int idxmap,
+                           bool synced, TLBIRange range)
+{
+    int bits = tlbbits_for_regime(env, one_idx, range.base);
     if (synced) {
         tlb_flush_range_by_mmuidx_all_cpus_synced(env_cpu(env),
                                                   range.base,
@@ -938,6 +965,22 @@ static void do_rvae_write(CPUARMState *env, uint64_t value,
         tlb_flush_range_by_mmuidx(env_cpu(env), range.base,
                                   range.length, idxmap, bits);
     }
+}
+
+static void do_rvae_write(CPUARMState *env, uint64_t value,
+                          int idxmap, bool synced)
+{
+    ARMMMUIdx one_idx = ARM_MMU_IDX_A | ctz32(idxmap);
+    do_flush_range(env, one_idx, idxmap, synced,
+                   tlbi_aa64_get_range(env, one_idx, value));
+}
+
+static void do_rvae_write128(CPUARMState *env, uint64_t vallo, uint64_t valhi,
+                             int idxmap, bool synced)
+{
+    ARMMMUIdx one_idx = ARM_MMU_IDX_A | ctz32(idxmap);
+    do_flush_range(env, one_idx, idxmap, synced,
+                   tlbi_aa64_get_range128(env, one_idx, vallo, valhi));
 }
 
 static void tlbi_aa64_rvae1_write(CPUARMState *env,
@@ -953,6 +996,14 @@ static void tlbi_aa64_rvae1_write(CPUARMState *env,
 
     do_rvae_write(env, value, vae1_tlbmask(env),
                   tlb_force_broadcast(env));
+}
+
+static void tlbi_aa64_rvae1_write128(CPUARMState *env,
+                                     const ARMCPRegInfo *ri,
+                                     uint64_t vallo, uint64_t valhi)
+{
+    do_rvae_write128(env, vallo, valhi, vae1_tlbmask(env),
+                     tlb_force_broadcast(env));
 }
 
 static void tlbi_aa64_rvae1is_write(CPUARMState *env,
@@ -1095,28 +1146,32 @@ static const ARMCPRegInfo tlbirange_reginfo[] = {
       .writefn = tlbi_aa64_rvae1is_write },
     { .name = "TLBI_RVAE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 6, .opc2 = 1,
-      .access = PL1_W, .accessfn = access_ttlb,
-      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS,
+      .access = PL1_W, .accessfn = access_ttlb, .access128fn = access_ttlb,
+      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS | ARM_CP_128BIT,
       .fgt = FGT_TLBIRVAE1,
-      .writefn = tlbi_aa64_rvae1_write },
+      .writefn = tlbi_aa64_rvae1_write,
+      .write128fn = tlbi_aa64_rvae1_write128 },
     { .name = "TLBI_RVAAE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 6, .opc2 = 3,
-      .access = PL1_W, .accessfn = access_ttlb,
-      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS,
+      .access = PL1_W, .accessfn = access_ttlb, .access128fn = access_ttlb,
+      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS | ARM_CP_128BIT,
       .fgt = FGT_TLBIRVAAE1,
-      .writefn = tlbi_aa64_rvae1_write },
+      .writefn = tlbi_aa64_rvae1_write,
+      .write128fn = tlbi_aa64_rvae1_write128 },
    { .name = "TLBI_RVALE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 6, .opc2 = 5,
-      .access = PL1_W, .accessfn = access_ttlb,
-      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS,
+      .access = PL1_W, .accessfn = access_ttlb, .access128fn = access_ttlb,
+      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS | ARM_CP_128BIT,
       .fgt = FGT_TLBIRVALE1,
-      .writefn = tlbi_aa64_rvae1_write },
+      .writefn = tlbi_aa64_rvae1_write,
+      .write128fn = tlbi_aa64_rvae1_write128 },
     { .name = "TLBI_RVAALE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 6, .opc2 = 7,
-      .access = PL1_W, .accessfn = access_ttlb,
-      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS,
+      .access = PL1_W, .accessfn = access_ttlb, .access128fn = access_ttlb,
+      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS | ARM_CP_128BIT,
       .fgt = FGT_TLBIRVAALE1,
-      .writefn = tlbi_aa64_rvae1_write },
+      .writefn = tlbi_aa64_rvae1_write,
+      .write128fn = tlbi_aa64_rvae1_write128 },
     { .name = "TLBI_RIPAS2E1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 0, .opc2 = 2,
       .access = PL2_W, .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS,
