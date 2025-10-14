@@ -897,6 +897,9 @@ int hvf_arch_init_vcpu(CPUState *cpu)
     env->aarch64 = true;
     asm volatile("mrs %0, cntfrq_el0" : "=r"(arm_cpu->gt_cntfrq_hz));
 
+    /* No support yet for FEAT_D128 */
+    assert(arm_cpu->cpreg128_array_len == 0);
+
     /* Allocate enough space for our sysreg sync */
     arm_cpu->cpreg_indexes = g_renew(uint64_t, arm_cpu->cpreg_indexes,
                                      sregs_match_len);
@@ -920,6 +923,7 @@ int hvf_arch_init_vcpu(CPUState *cpu)
 
         if (ri) {
             assert(!(ri->type & ARM_CP_NO_RAW));
+            assert(!(ri->type & ARM_CP_128BIT));
             arm_cpu->cpreg_indexes[sregs_cnt++] = kvm_id;
         }
     }
