@@ -193,6 +193,10 @@ bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp)
 {
     unsigned int tag = 0;
 
+    if (!qemu_chr_connect(s, errp)) {
+        return false;
+    }
+
     if (s) {
         if (CHARDEV_IS_MUX(s)) {
             MuxChardev *d = MUX_CHARDEV(s);
