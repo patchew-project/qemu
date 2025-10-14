@@ -40,6 +40,7 @@
 #include "system/reset.h"
 #endif
 #include "hw/s390x/cpu-topology.h"
+#include "tcg/tcg_s390x.h"
 
 #define CR0_RESET       0xE0UL
 #define CR14_RESET      0xC2000000UL;
@@ -215,6 +216,13 @@ static void s390_cpu_reset_hold(Object *obj, ResetType type)
             break;
         }
     }
+
+#ifndef CONFIG_USER_ONLY
+    if (tcg_enabled()) {
+        /* Rearm the CKC timer if necessary */
+        tcg_s390_tod_updated(CPU(cpu), RUN_ON_CPU_NULL);
+    }
+#endif
 }
 
 static void s390_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
