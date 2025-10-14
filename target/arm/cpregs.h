@@ -21,6 +21,7 @@
 #ifndef TARGET_ARM_CPREGS_H
 #define TARGET_ARM_CPREGS_H
 
+#include "qemu/int128.h"
 #include "hw/registerfields.h"
 #include "exec/memop.h"
 #include "target/arm/kvm-consts.h"
@@ -1123,6 +1124,11 @@ uint64_t raw_read(CPUARMState *env, const ARMCPRegInfo *ri);
 
 /* CPWriteFn that just writes the value to ri->fieldoffset */
 void raw_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value);
+
+/* Likewise for 128-bit fields. */
+Int128 raw_read128(CPUARMState *env, const ARMCPRegInfo *opaque);
+void raw_write128(CPUARMState *env, const ARMCPRegInfo *opaque,
+                  uint64_t lo, uint64_t hi);
 
 /*
  * CPResetFn that does nothing, for use if no reset is required even
