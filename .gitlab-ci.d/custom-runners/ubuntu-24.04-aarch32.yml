@@ -16,10 +16,21 @@ ubuntu-24.04-aarch32-all:
  - if: "$AARCH32_RUNNER_AVAILABLE"
    when: manual
    allow_failure: true
+ before_script:
+   - source scripts/ci/gitlab-ci-section
+   - section_start setup "Pre-script setup"
+   - JOBS=$(expr $(nproc) - 4)
+   - section_end setup
  script:
  - mkdir build
  - cd build
+ - section_start configure "Running configure"
  - ../configure --cross-prefix=arm-linux-gnueabihf-
    || { cat config.log meson-logs/meson-log.txt; exit 1; }
- - make --output-sync -j`nproc --ignore=40`
- - make --output-sync -j`nproc --ignore=40` check
+ - section_end configure
+ - section_start build "Building QEMU"
+ - make --output-sync -j"$JOBS"
+ - section_end build
+ - section_start test "Running tests"
+ - make --output-sync -j"$JOBS" check
+ - section_end test
