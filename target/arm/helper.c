@@ -2475,9 +2475,7 @@ static const ARMCPRegInfo gen_timer_ecv_cp_reginfo[] = {
 
 static void par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
-    if (arm_feature(env, ARM_FEATURE_LPAE)) {
-        raw_write(env, ri, value);
-    } else if (arm_feature(env, ARM_FEATURE_V7)) {
+    if (arm_feature(env, ARM_FEATURE_V7)) {
         raw_write(env, ri, value & 0xfffff6ff);
     } else {
         raw_write(env, ri, value & 0xfffff1ff);
@@ -3244,10 +3242,11 @@ static const ARMCPRegInfo lpae_cp_reginfo[] = {
     { .name = "AMAIR1", .cp = 15, .crn = 10, .crm = 3, .opc1 = 0, .opc2 = 1,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
       .type = ARM_CP_CONST, .resetvalue = 0 },
-    { .name = "PAR", .cp = 15, .crm = 7, .opc1 = 0,
-      .access = PL1_RW, .type = ARM_CP_64BIT, .resetvalue = 0,
-      .bank_fieldoffsets = { offsetof(CPUARMState, cp15.par_s),
-                             offsetof(CPUARMState, cp15.par_ns)} },
+
+    /*
+     * The primary definitions of TTBR[01]_EL1 are in vmsa_cp_reginfo[].
+     * Here we need only provide the 64-bit views for AArch32.
+     */
     { .name = "TTBR0", .cp = 15, .crm = 2, .opc1 = 0,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
       .type = ARM_CP_64BIT | ARM_CP_ALIAS,
@@ -3261,6 +3260,71 @@ static const ARMCPRegInfo lpae_cp_reginfo[] = {
                              offsetof(CPUARMState, cp15.ttbr1_ns) },
       .writefn = vmsa_ttbr_write, .raw_writefn = raw_write },
 };
+
+static void define_par_register(ARMCPU *cpu)
+{
+    /*
+     * For v8:
+     * The aarch64 reg is primary, since it might be 128-bit.
+     * The aarch32 64-bit non-secure reg is secondary to aa64.
+     * The aarch32 64-bit secure reg is primary.
+     *
+     * For v7:
+     * The aarch32 64-bit s+ns regs are primary.
+     *
+     * The aarch32 32-bit regs are secondary to one of the above,
+     * and we also don't expose them to gdb.
+     */
+    static const ARMCPRegInfo parv8_reginfo = {
+        .name = "PAR_EL1", .state = ARM_CP_STATE_AA64,
+        .opc0 = 3, .opc1 = 0, .crn = 7, .crm = 4, .opc2 = 0,
+        .access = PL1_RW, .fgt = FGT_PAR_EL1,
+        .fieldoffset = offsetof(CPUARMState, cp15.par_el[1])
+    };
+
+    static ARMCPRegInfo par64_reginfo[2] = {
+        [0 ... 1] = {
+            .state = ARM_CP_STATE_AA32,
+            .cp = 15, .crm = 7, .opc1 = 0,
+            .type = ARM_CP_64BIT, .access = PL1_RW,
+        },
+        [0].name = "PAR",
+        [0].secure = ARM_CP_SECSTATE_NS,
+        [0].fieldoffset = offsetof(CPUARMState, cp15.par_ns),
+        [1].name = "PAR_S",
+        [1].secure = ARM_CP_SECSTATE_S,
+        [1].fieldoffset = offsetof(CPUARMState, cp15.par_s),
+    };
+
+    static ARMCPRegInfo par32_reginfo = {
+        .name = "PAR", .state = ARM_CP_STATE_AA32,
+        .cp = 15, .crn = 7, .crm = 4, .opc1 = 0, .opc2 = 0,
+        .access = PL1_RW, .resetvalue = 0,
+        .bank_fieldoffsets = { offsetoflow32(CPUARMState, cp15.par_s),
+                               offsetoflow32(CPUARMState, cp15.par_ns) },
+        .writefn = par_write,
+    };
+
+    CPUARMState *env = &cpu->env;
+
+    /* With only VAPA, define a 32-bit reg that filters bits from write. */
+    if (!arm_feature(env, ARM_FEATURE_LPAE)) {
+        define_one_arm_cp_reg(cpu, &par32_reginfo);
+        return;
+    }
+
+    /* With LPAE, the 32-bit regs are aliases of 64-bit regs. */
+    par32_reginfo.type = ARM_CP_ALIAS | ARM_CP_NO_GDB;
+    par32_reginfo.writefn = NULL;
+    define_one_arm_cp_reg(cpu, &par32_reginfo);
+
+    if (arm_feature(env, ARM_FEATURE_V8)) {
+        define_one_arm_cp_reg(cpu, &parv8_reginfo);
+        par64_reginfo[0].type |= ARM_CP_ALIAS;
+    }
+
+    define_arm_cp_regs(cpu, par64_reginfo);
+}
 
 static uint64_t aa64_fpcr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
@@ -3765,13 +3829,6 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 14, .opc2 = 2,
       .fgt = FGT_DCCISW,
       .access = PL1_W, .accessfn = access_tsw, .type = ARM_CP_NOP },
-    { .name = "PAR_EL1", .state = ARM_CP_STATE_AA64,
-      .type = ARM_CP_ALIAS,
-      .opc0 = 3, .opc1 = 0, .crn = 7, .crm = 4, .opc2 = 0,
-      .access = PL1_RW, .resetvalue = 0,
-      .fgt = FGT_PAR_EL1,
-      .fieldoffset = offsetof(CPUARMState, cp15.par_el[1]),
-      .writefn = par_write },
     /* 32 bit cache operations */
     { .name = "ICIALLUIS", .cp = 15, .opc1 = 0, .crn = 7, .crm = 1, .opc2 = 0,
       .type = ARM_CP_NOP, .access = PL1_W, .accessfn = access_ticab },
@@ -7120,23 +7177,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         define_one_arm_cp_reg(cpu, &gen_timer_cntpoff_reginfo);
     }
 #endif
-    if (arm_feature(env, ARM_FEATURE_VAPA)) {
-        ARMCPRegInfo vapa_cp_reginfo[] = {
-            { .name = "PAR", .cp = 15, .crn = 7, .crm = 4, .opc1 = 0, .opc2 = 0,
-              .access = PL1_RW, .resetvalue = 0,
-              .bank_fieldoffsets = { offsetoflow32(CPUARMState, cp15.par_s),
-                                     offsetoflow32(CPUARMState, cp15.par_ns) },
-              .writefn = par_write},
-        };
 
-        /*
-         * When LPAE exists this 32-bit PAR register is an alias of the
-         * 64-bit AArch32 PAR register defined in lpae_cp_reginfo[]
-         */
-        if (arm_feature(env, ARM_FEATURE_LPAE)) {
-            vapa_cp_reginfo[0].type = ARM_CP_ALIAS | ARM_CP_NO_GDB;
-        }
-        define_arm_cp_regs(cpu, vapa_cp_reginfo);
+    if (arm_feature(env, ARM_FEATURE_VAPA)) {
+        define_par_register(cpu);
     }
     if (arm_feature(env, ARM_FEATURE_CACHE_TEST_CLEAN)) {
         define_arm_cp_regs(cpu, cache_test_clean_cp_reginfo);
