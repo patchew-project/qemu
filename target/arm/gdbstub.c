@@ -274,8 +274,9 @@ static int arm_gdb_set_sysreg(CPUState *cs, uint8_t *buf, int reg)
 static void arm_gen_one_feature_sysreg(GDBFeatureBuilder *builder,
                                        DynamicGDBFeatureInfo *dyn_feature,
                                        ARMCPRegInfo *ri, uint32_t ri_key,
-                                       int bitsize, int n)
+                                       int n)
 {
+    int bitsize = 8 << cpreg_field_type(ri);
     gdb_feature_builder_append_reg(builder, ri->name, bitsize, n,
                                    "int", "cp_regs");
 
@@ -292,28 +293,25 @@ static void arm_register_sysreg_for_feature(gpointer key, gpointer value,
     CPUARMState *env = &cpu->env;
     DynamicGDBFeatureInfo *dyn_feature = &cpu->dyn_sysreg_feature;
 
-    if (!(ri->type & (ARM_CP_NO_RAW | ARM_CP_NO_GDB))) {
-        if (arm_feature(env, ARM_FEATURE_AARCH64)) {
-            if (ri->state == ARM_CP_STATE_AA64) {
-                arm_gen_one_feature_sysreg(&param->builder, dyn_feature,
-                                           ri, ri_key, 64, param->n++);
-            }
-        } else {
-            if (ri->state == ARM_CP_STATE_AA32) {
-                if (!arm_feature(env, ARM_FEATURE_EL3) &&
-                    (ri->secure & ARM_CP_SECSTATE_S)) {
-                    return;
-                }
-                if (ri->type & ARM_CP_64BIT) {
-                    arm_gen_one_feature_sysreg(&param->builder, dyn_feature,
-                                               ri, ri_key, 64, param->n++);
-                } else {
-                    arm_gen_one_feature_sysreg(&param->builder, dyn_feature,
-                                               ri, ri_key, 32, param->n++);
-                }
-            }
+    if (ri->type & (ARM_CP_NO_RAW | ARM_CP_NO_GDB)) {
+        return;
+    }
+    if (arm_feature(env, ARM_FEATURE_AARCH64)) {
+        if (ri->state != ARM_CP_STATE_AA64) {
+            return;
+        }
+    } else {
+        if (ri->state != ARM_CP_STATE_AA32) {
+            return;
+        }
+        if (!arm_feature(env, ARM_FEATURE_EL3)
+            && (ri->secure & ARM_CP_SECSTATE_S)) {
+            return;
         }
     }
+
+    arm_gen_one_feature_sysreg(&param->builder, dyn_feature,
+                               ri, ri_key, param->n++);
 }
 
 static GDBFeature *arm_gen_dynamic_sysreg_feature(CPUState *cs, int base_reg)
