@@ -918,25 +918,36 @@ struct ArchCPU {
 
     /* Coprocessor information */
     GHashTable *cp_regs;
-    /* For marshalling (mostly coprocessor) register state between the
+    /*
+     * For marshalling (mostly coprocessor) register state between the
      * kernel and QEMU (for KVM) and between two QEMUs (for migration),
      * we use these arrays.
      */
-    /* List of register indexes managed via these arrays; (full KVM style
-     * 64 bit indexes, not CPRegInfo 32 bit indexes)
+    /*
+     * List of register indexes managed via these arrays (full KVM style
+     * 64 bit indexes, not CPRegInfo 32 bit indexes).  The registers are
+     * segregated by size, with 64-bit registers in cpreg_indexes and
+     * 128-bit registers in cpreg128_indexes.
      */
     uint64_t *cpreg_indexes;
+    uint64_t *cpreg128_indexes;
     /* Values of the registers (cpreg_indexes[i]'s value is cpreg_values[i]) */
     uint64_t *cpreg_values;
+    Int128 *cpreg128_values;
     /* Length of the indexes, values, reset_values arrays */
     int32_t cpreg_array_len;
-    /* These are used only for migration: incoming data arrives in
+    int32_t cpreg128_array_len;
+    /*
+     * These are used only for migration: incoming data arrives in
      * these fields and is sanity checked in post_load before copying
      * to the working data structures above.
      */
     uint64_t *cpreg_vmstate_indexes;
+    uint64_t *cpreg128_vmstate_indexes;
     uint64_t *cpreg_vmstate_values;
+    Int128 *cpreg128_vmstate_values;
     int32_t cpreg_vmstate_array_len;
+    int32_t cpreg128_vmstate_array_len;
 
     DynamicGDBFeatureInfo dyn_sysreg_feature;
     DynamicGDBFeatureInfo dyn_svereg_feature;
