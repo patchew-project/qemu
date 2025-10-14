@@ -1026,6 +1026,35 @@ uint64_t HELPER(get_cp_reg64)(CPUARMState *env, const void *rip)
     return res;
 }
 
+void HELPER(set_cp_reg128)(CPUARMState *env, const void *rip,
+                           uint64_t valuelo, uint64_t valuehi)
+{
+    const ARMCPRegInfo *ri = rip;
+
+    if (ri->type & ARM_CP_IO) {
+        bql_lock();
+        ri->write128fn(env, ri, valuelo, valuehi);
+        bql_unlock();
+    } else {
+        ri->write128fn(env, ri, valuelo, valuehi);
+    }
+}
+
+Int128 HELPER(get_cp_reg128)(CPUARMState *env, const void *rip)
+{
+    const ARMCPRegInfo *ri = rip;
+    Int128 res;
+
+    if (ri->type & ARM_CP_IO) {
+        bql_lock();
+        res = ri->read128fn(env, ri);
+        bql_unlock();
+    } else {
+        res = ri->read128fn(env, ri);
+    }
+    return res;
+}
+
 void HELPER(pre_hvc)(CPUARMState *env)
 {
     ARMCPU *cpu = env_archcpu(env);
