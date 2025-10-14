@@ -217,16 +217,21 @@ static bool raw_accessors_invalid(const ARMCPRegInfo *ri)
 bool write_cpustate_to_list(ARMCPU *cpu, bool kvm_sync)
 {
     /* Write the coprocessor state from cpu->env to the (index,value) list. */
-    int i;
+    int i, n;
     bool ok = true;
 
-    for (i = 0; i < cpu->cpreg_array_len; i++) {
+    n = cpu->cpreg_array_len;
+    for (i = 0; i < n; i++) {
         uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
         const ARMCPRegInfo *ri;
         uint64_t newval;
 
         ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
         if (!ri) {
+            ok = false;
+            continue;
+        }
+        if (ri->type & ARM_CP_128BIT) {
             ok = false;
             continue;
         }
@@ -257,35 +262,77 @@ bool write_cpustate_to_list(ARMCPU *cpu, bool kvm_sync)
         }
         cpu->cpreg_values[i] = newval;
     }
-    return ok;
-}
 
-bool write_list_to_cpustate(ARMCPU *cpu)
-{
-    int i;
-    bool ok = true;
+    n = cpu->cpreg128_array_len;
+    if (n == 0) {
+        return ok;
+    }
+    assert(!kvm_sync);
 
-    for (i = 0; i < cpu->cpreg_array_len; i++) {
-        uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
-        uint64_t v = cpu->cpreg_values[i];
-        const ARMCPRegInfo *ri;
+    for (i = 0; i < n; i++) {
+        uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg128_indexes[i]);
+        const ARMCPRegInfo *ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
 
-        ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
         if (!ri) {
+            ok = false;
+            continue;
+        }
+        if (!(ri->type & ARM_CP_128BIT)) {
             ok = false;
             continue;
         }
         if (ri->type & ARM_CP_NO_RAW) {
             continue;
         }
-        /*
-         * Write value and confirm it reads back as written
-         * (to catch read-only registers and partially read-only
-         * registers where the incoming migration value doesn't match)
-         */
-        write_raw_cp_reg(&cpu->env, ri, v);
-        if (read_raw_cp_reg(&cpu->env, ri) != v) {
+
+        cpu->cpreg128_values[i] = read_raw_cp_reg128(&cpu->env, ri);
+    }
+    return ok;
+}
+
+bool write_list_to_cpustate(ARMCPU *cpu)
+{
+    int i, n;
+    bool ok = true;
+
+    n = cpu->cpreg_array_len;
+    for (i = 0; i < n; i++) {
+        uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
+        const ARMCPRegInfo *ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
+
+        if (!ri) {
             ok = false;
+        } else if (ri->type & ARM_CP_128BIT) {
+            ok = false;
+        } else if (!(ri->type & ARM_CP_NO_RAW)) {
+            /*
+             * Write value and confirm it reads back as written
+             * (to catch read-only registers and partially read-only
+             * registers where the incoming migration value doesn't match)
+             */
+            uint64_t v = cpu->cpreg_values[i];
+            write_raw_cp_reg(&cpu->env, ri, v);
+            if (read_raw_cp_reg(&cpu->env, ri) != v) {
+                ok = false;
+            }
+        }
+    }
+
+    n = cpu->cpreg128_array_len;
+    for (i = 0; i < n; i++) {
+        uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg128_indexes[i]);
+        const ARMCPRegInfo *ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
+
+        if (!ri) {
+            ok = false;
+        } else if (!(ri->type & ARM_CP_128BIT)) {
+            ok = false;
+        } else if (!(ri->type & ARM_CP_NO_RAW)) {
+            Int128 v = cpu->cpreg128_values[i];
+            write_raw_cp_reg128(&cpu->env, ri, v);
+            if (int128_ne(read_raw_cp_reg128(&cpu->env, ri), v)) {
+                ok = false;
+            }
         }
     }
     return ok;
@@ -298,9 +345,14 @@ static void add_cpreg_to_list(gpointer key, gpointer value, gpointer opaque)
     const ARMCPRegInfo *ri = value;
 
     if (!(ri->type & (ARM_CP_NO_RAW | ARM_CP_ALIAS))) {
-        cpu->cpreg_indexes[cpu->cpreg_array_len] = cpreg_to_kvm_id(regidx);
+        uint64_t idx = cpreg_to_kvm_id(regidx);
+
         /* The value array need not be initialized at this point */
-        cpu->cpreg_array_len++;
+        if (ri->type & ARM_CP_128BIT) {
+            cpu->cpreg128_indexes[cpu->cpreg128_array_len++] = idx;
+        } else {
+            cpu->cpreg_indexes[cpu->cpreg_array_len++] = idx;
+        }
     }
 }
 
@@ -310,7 +362,11 @@ static void count_cpreg(gpointer key, gpointer value, gpointer opaque)
     const ARMCPRegInfo *ri = value;
 
     if (!(ri->type & (ARM_CP_NO_RAW | ARM_CP_ALIAS))) {
-        cpu->cpreg_array_len++;
+        if (ri->type & ARM_CP_128BIT) {
+            cpu->cpreg128_array_len++;
+        } else {
+            cpu->cpreg_array_len++;
+        }
     }
 }
 
@@ -320,9 +376,10 @@ void init_cpreg_list(ARMCPU *cpu)
      * Initialise the cpreg_tuples[] array based on the cp_regs hash.
      * Note that we require cpreg_tuples[] to be sorted by key ID.
      */
-    int arraylen;
+    int arraylen, array128len;
 
     cpu->cpreg_array_len = 0;
+    cpu->cpreg128_array_len = 0;
     g_hash_table_foreach(cpu->cp_regs, count_cpreg, cpu);
 
     arraylen = cpu->cpreg_array_len;
@@ -340,12 +397,32 @@ void init_cpreg_list(ARMCPU *cpu)
     cpu->cpreg_vmstate_array_len = arraylen;
     cpu->cpreg_array_len = 0;
 
+    array128len = cpu->cpreg128_array_len;
+    if (array128len) {
+        cpu->cpreg128_indexes = g_new(uint64_t, array128len);
+        cpu->cpreg128_values = g_new(Int128, array128len);
+        cpu->cpreg128_vmstate_indexes = g_new(uint64_t, array128len);
+        cpu->cpreg128_vmstate_values = g_new(Int128, array128len);
+    } else {
+        cpu->cpreg128_indexes = NULL;
+        cpu->cpreg128_values = NULL;
+        cpu->cpreg128_vmstate_indexes = NULL;
+        cpu->cpreg128_vmstate_values = NULL;
+    }
+    cpu->cpreg128_vmstate_array_len = array128len;
+    cpu->cpreg128_array_len = 0;
+
     g_hash_table_foreach(cpu->cp_regs, add_cpreg_to_list, cpu);
 
     assert(cpu->cpreg_array_len == arraylen);
+    assert(cpu->cpreg128_array_len == array128len);
 
     if (arraylen) {
         qsort(cpu->cpreg_indexes, arraylen, sizeof(uint64_t), compare_u64);
+    }
+    if (array128len) {
+        qsort(cpu->cpreg128_indexes, array128len,
+              sizeof(uint64_t), compare_u64);
     }
 }
 
