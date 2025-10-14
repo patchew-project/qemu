@@ -2752,17 +2752,23 @@ redirect_cpreg(DisasContext *s, uint32_t key, bool isread)
 
 /* MRS - move from system register
  * MSR (register) - move to system register
+ * MRRS
+ * MSRR
  * SYS
  * SYSL
+ * SYSP
  * These are all essentially the same insn in 'read' and 'write'
  * versions, with varying op0 fields.
+ *
+ * RT2 is non-zero if and only if this is a 128-bit access.
  */
 static void handle_sys(DisasContext *s, bool isread,
                        unsigned int op0, unsigned int op1, unsigned int op2,
-                       unsigned int crn, unsigned int crm, unsigned int rt)
+                       unsigned int crn, unsigned int crm, unsigned int rt,
+                       unsigned int rt2)
 {
     uint32_t key = ENCODE_AA64_CP_REG(op0, op1, crn, crm, op2);
-    const ARMCPRegInfo *ri = get_arm_cp_reginfo(s->cp_regs, key);
+    const ARMCPRegInfo *ri;
     bool need_exit_tb = false;
     bool nv_trap_to_el2 = false;
     bool nv_redirect_reg = false;
@@ -2770,7 +2776,16 @@ static void handle_sys(DisasContext *s, bool isread,
     bool nv2_mem_redirect = false;
     TCGv_ptr tcg_ri = NULL;
     TCGv_i64 tcg_rt;
-    uint32_t syndrome = syn_aa64_sysregtrap(op0, op1, op2, crn, crm, rt, isread);
+    uint32_t syndrome;
+    bool is128 = rt2 != 0;
+
+    if (is128) {
+        key |= CP_REG_AA64_128BIT_MASK;
+        syndrome = syn_aa64_sysreg128trap(op0, op1, op2, crn, crm, rt, isread);
+    } else {
+        syndrome = syn_aa64_sysregtrap(op0, op1, op2, crn, crm, rt, isread);
+    }
+    ri = get_arm_cp_reginfo(s->cp_regs, key);
 
     if (crn == 11 || crn == 15) {
         /*
@@ -2790,12 +2805,14 @@ static void handle_sys(DisasContext *s, bool isread,
     }
 
     if (!ri) {
-        /* Unknown register; this might be a guest error or a QEMU
-         * unimplemented feature.
+        /*
+         * Unknown register, or 128-bit access to a 64-bit register.
+         * This might be a guest error or a QEMU unimplemented feature.
          */
-        qemu_log_mask(LOG_UNIMP, "%s access to unsupported AArch64 "
+        qemu_log_mask(LOG_UNIMP, "%s%s access to unsupported AArch64 "
                       "system register op0:%d op1:%d crn:%d crm:%d op2:%d\n",
-                      isread ? "read" : "write", op0, op1, crn, crm, op2);
+                      isread ? "read" : "write", is128 ? "128" : "",
+                      op0, op1, crn, crm, op2);
         gen_sysreg_undef(s, isread, op0, op1, op2, crn, crm, rt);
         return;
     }
@@ -2918,7 +2935,7 @@ static void handle_sys(DisasContext *s, bool isread,
          * We don't use the EL1 register's access function, and
          * fine-grained-traps on EL1 also do not apply here.
          */
-        key = ENCODE_AA64_CP_REG(op0, 0, crn, crm, op2);
+        key &= ~CP_REG_ARM64_SYSREG_OP1_MASK;
         ri = redirect_cpreg(s, key, isread);
         /*
          * We might not have done an update_pc earlier, so check we don't
@@ -2933,32 +2950,44 @@ static void handle_sys(DisasContext *s, bool isread,
          * This means it is not an IO operation, doesn't change hflags,
          * and need not end the TB, because it has no side effects.
          *
-         * The access is 64-bit single copy atomic, guaranteed aligned because
-         * of the definition of VCNR_EL2. Its endianness depends on
-         * SCTLR_EL2.EE, not on the data endianness of EL1.
-         * It is done under either the EL2 translation regime or the EL2&0
-         * translation regime, depending on HCR_EL2.E2H. It behaves as if
-         * PSTATE.PAN is 0.
+         * The access is 64-bit (R_VFMQB) or 128-bit (R_BSBZP) single copy
+         * atomic, guaranteed aligned because of the definition of VCNR_EL2.
+         * Its endianness depends on SCTLR_EL2.EE, not on the data endianness
+         * of EL1. It is done under either the EL2 translation regime or
+         * the EL2&0 translation regime, depending on HCR_EL2.E2H.
+         * It behaves as if PSTATE.PAN is 0.
          */
         TCGv_i64 ptr = tcg_temp_new_i64();
-        MemOp mop = MO_64 | MO_ALIGN | MO_ATOM_IFALIGN;
+        MemOp mop = MO_ALIGN | MO_ATOM_IFALIGN;
         ARMMMUIdx armmemidx = s->nv2_mem_e20 ? ARMMMUIdx_E20_2 : ARMMMUIdx_E2;
         int memidx = arm_to_core_mmu_idx(armmemidx);
-        uint32_t syn;
 
         mop |= (s->nv2_mem_be ? MO_BE : MO_LE);
+        disas_set_insn_syndrome(s, syn_data_abort_vncr(0, !isread, 0));
 
         tcg_gen_ld_i64(ptr, tcg_env, offsetof(CPUARMState, cp15.vncr_el2));
         tcg_gen_addi_i64(ptr, ptr,
                          (ri->nv2_redirect_offset & ~NV2_REDIR_FLAG_MASK));
-        tcg_rt = cpu_reg(s, rt);
 
-        syn = syn_data_abort_vncr(0, !isread, 0);
-        disas_set_insn_syndrome(s, syn);
-        if (isread) {
-            tcg_gen_qemu_ld_i64(tcg_rt, ptr, memidx, mop);
+        if (is128) {
+            TCGv_i128 t128 = tcg_temp_new_i128();
+
+            mop |= MO_128;
+            if (isread) {
+                tcg_gen_qemu_ld_i128(t128, ptr, memidx, mop);
+                tcg_gen_extr_i128_i64(cpu_reg(s, rt), cpu_reg(s, rt2), t128);
+            } else {
+                tcg_gen_concat_i64_i128(t128, cpu_reg(s, rt), cpu_reg(s, rt2));
+                tcg_gen_qemu_st_i128(t128, ptr, memidx, mop);
+            }
         } else {
-            tcg_gen_qemu_st_i64(tcg_rt, ptr, memidx, mop);
+            mop |= MO_64;
+            tcg_rt = cpu_reg(s, rt);
+            if (isread) {
+                tcg_gen_qemu_ld_i64(tcg_rt, ptr, memidx, mop);
+            } else {
+                tcg_gen_qemu_st_i64(tcg_rt, ptr, memidx, mop);
+            }
         }
         return;
     }
@@ -3099,28 +3128,63 @@ static void handle_sys(DisasContext *s, bool isread,
 
     tcg_rt = cpu_reg(s, rt);
 
-    if (isread) {
-        if (ri->type & ARM_CP_CONST) {
-            tcg_gen_movi_i64(tcg_rt, ri->resetvalue);
-        } else if (ri->readfn) {
-            if (!tcg_ri) {
-                tcg_ri = gen_lookup_cp_reg(key);
+    if (is128) {
+        TCGv_i64 tcg_rt2 = cpu_reg(s, rt2);
+
+        if (isread) {
+            if (ri->type & ARM_CP_CONST) {
+                /* E.g. TTBR0_EL2 is RES0 from EL3 when !FEAT_EL2. */
+                tcg_gen_movi_i64(tcg_rt, ri->resetvalue);
+                tcg_gen_movi_i64(tcg_rt2, 0);
+            } else if (ri->read128fn) {
+                TCGv_i128 t128 = tcg_temp_new_i128();
+                if (!tcg_ri) {
+                    tcg_ri = gen_lookup_cp_reg(key);
+                }
+                gen_helper_get_cp_reg128(t128, tcg_env, tcg_ri);
+                tcg_gen_extr_i128_i64(tcg_rt, tcg_rt2, t128);
+            } else {
+                tcg_gen_ld_i64(tcg_rt, tcg_env, ri->fieldoffset);
+                tcg_gen_ld_i64(tcg_rt2, tcg_env, ri->fieldoffsethi);
             }
-            gen_helper_get_cp_reg64(tcg_rt, tcg_env, tcg_ri);
         } else {
-            tcg_gen_ld_i64(tcg_rt, tcg_env, ri->fieldoffset);
+            if (ri->type & ARM_CP_CONST) {
+                /* If not forbidden by access permissions, treat as WI */
+                return;
+            } else if (ri->write128fn) {
+                if (!tcg_ri) {
+                    tcg_ri = gen_lookup_cp_reg(key);
+                }
+                gen_helper_set_cp_reg128(tcg_env, tcg_ri, tcg_rt, tcg_rt2);
+            } else {
+                tcg_gen_st_i64(tcg_rt, tcg_env, ri->fieldoffset);
+                tcg_gen_st_i64(tcg_rt2, tcg_env, ri->fieldoffsethi);
+            }
         }
     } else {
-        if (ri->type & ARM_CP_CONST) {
-            /* If not forbidden by access permissions, treat as WI */
-            return;
-        } else if (ri->writefn) {
-            if (!tcg_ri) {
-                tcg_ri = gen_lookup_cp_reg(key);
+        if (isread) {
+            if (ri->type & ARM_CP_CONST) {
+                tcg_gen_movi_i64(tcg_rt, ri->resetvalue);
+            } else if (ri->readfn) {
+                if (!tcg_ri) {
+                    tcg_ri = gen_lookup_cp_reg(key);
+                }
+                gen_helper_get_cp_reg64(tcg_rt, tcg_env, tcg_ri);
+            } else {
+                tcg_gen_ld_i64(tcg_rt, tcg_env, ri->fieldoffset);
             }
-            gen_helper_set_cp_reg64(tcg_env, tcg_ri, tcg_rt);
         } else {
-            tcg_gen_st_i64(tcg_rt, tcg_env, ri->fieldoffset);
+            if (ri->type & ARM_CP_CONST) {
+                /* If not forbidden by access permissions, treat as WI */
+                return;
+            } else if (ri->writefn) {
+                if (!tcg_ri) {
+                    tcg_ri = gen_lookup_cp_reg(key);
+                }
+                gen_helper_set_cp_reg64(tcg_env, tcg_ri, tcg_rt);
+            } else {
+                tcg_gen_st_i64(tcg_rt, tcg_env, ri->fieldoffset);
+            }
         }
     }
 
@@ -3144,7 +3208,34 @@ static void handle_sys(DisasContext *s, bool isread,
 
 static bool trans_SYS(DisasContext *s, arg_SYS *a)
 {
-    handle_sys(s, a->l, a->op0, a->op1, a->op2, a->crn, a->crm, a->rt);
+    handle_sys(s, a->l, a->op0, a->op1, a->op2, a->crn, a->crm, a->rt, 0);
+    return true;
+}
+
+static bool trans_SYS128(DisasContext *s, arg_sys *a)
+{
+    if (!dc_isar_feature(aa64_sysreg128, s) || (a->rt & 1)) {
+        return false;
+    }
+    handle_sys(s, a->l, a->op0, a->op1, a->op2, a->crn, a->crm,
+               a->rt, a->rt + 1);
+    return true;
+}
+
+static bool trans_SYSP(DisasContext *s, arg_sys *a)
+{
+    int rt2;
+    if (!dc_isar_feature(aa64_sysinstr128, s)) {
+        return false;
+    }
+    if (a->rt == 31) {
+        rt2 = 31;
+    } else if (a->rt & 1) {
+        return false;
+    } else {
+        rt2 = a->rt + 1;
+    }
+    handle_sys(s, a->l, a->op0, a->op1, a->op2, a->crn, a->crm, a->rt, rt2);
     return true;
 }
 
