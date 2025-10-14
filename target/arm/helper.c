@@ -119,6 +119,7 @@ static void *raw_ptr(CPUARMState *env, const ARMCPRegInfo *ri)
 
 uint64_t read_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri)
 {
+    assert(!(ri->type & ARM_CP_128BIT));
     /* Raw read of a coprocessor register (as needed for migration, etc). */
     if (ri->type & ARM_CP_CONST) {
         return ri->resetvalue;
@@ -134,6 +135,7 @@ uint64_t read_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri)
 static void write_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri,
                              uint64_t v)
 {
+    assert(!(ri->type & ARM_CP_128BIT));
     /*
      * Raw write of a coprocessor register (as needed for migration, etc).
      * Note that constant registers are treated as write-ignored; the
@@ -151,6 +153,35 @@ static void write_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri,
     }
 }
 
+Int128 read_raw_cp_reg128(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    assert(ri->type & ARM_CP_128BIT);
+    if (ri->raw_read128fn) {
+        return ri->raw_read128fn(env, ri);
+    } else if (ri->read128fn) {
+        return ri->read128fn(env, ri);
+    } else {
+        return raw_read128(env, ri);
+    }
+}
+
+__attribute__((unused))
+static void write_raw_cp_reg128(CPUARMState *env, const ARMCPRegInfo *ri,
+                                Int128 v)
+{
+    uint64_t lo = int128_getlo(v);
+    uint64_t hi = int128_gethi(v);
+
+    assert(ri->type & ARM_CP_128BIT);
+    if (ri->raw_write128fn) {
+        ri->raw_write128fn(env, ri, lo, hi);
+    } else if (ri->write128fn) {
+        ri->write128fn(env, ri, lo, hi);
+    } else {
+        raw_write128(env, ri, lo, hi);
+    }
+}
+
 static bool raw_accessors_invalid(const ARMCPRegInfo *ri)
 {
    /*
@@ -165,12 +196,22 @@ static bool raw_accessors_invalid(const ARMCPRegInfo *ri)
     * The tests here line up with the conditions in read/write_raw_cp_reg()
     * and assertions in raw_read()/raw_write().
     */
-    if ((ri->type & ARM_CP_CONST) ||
-        ri->fieldoffset ||
-        ((ri->raw_writefn || ri->writefn) && (ri->raw_readfn || ri->readfn))) {
+    if (ri->type & ARM_CP_CONST) {
         return false;
     }
-    return true;
+    if (ri->fieldoffset) {
+        return false;
+    }
+    if (ri->type & ARM_CP_128BIT) {
+        if (ri->fieldoffsethi) {
+            return false;
+        }
+        return !((ri->raw_write128fn || ri->write128fn) &&
+                 (ri->raw_read128fn || ri->read128fn));
+    } else {
+        return !((ri->raw_writefn || ri->writefn) &&
+                 (ri->raw_readfn || ri->readfn));
+    }
 }
 
 bool write_cpustate_to_list(ARMCPU *cpu, bool kvm_sync)
