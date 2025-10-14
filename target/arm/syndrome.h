@@ -45,6 +45,7 @@ enum arm_exception_class {
     EC_AA32_SVC               = 0x11,
     EC_AA32_HVC               = 0x12,
     EC_AA32_SMC               = 0x13,
+    EC_SYSTEMREGISTER128TRAP  = 0x14,
     EC_AA64_SVC               = 0x15,
     EC_AA64_HVC               = 0x16,
     EC_AA64_SMC               = 0x17,
@@ -183,6 +184,15 @@ static inline uint32_t syn_aa64_sysregtrap(int op0, int op1, int op2,
                                            int isread)
 {
     return (EC_SYSTEMREGISTERTRAP << ARM_EL_EC_SHIFT) | ARM_EL_IL
+        | (op0 << 20) | (op2 << 17) | (op1 << 14) | (crn << 10) | (rt << 5)
+        | (crm << 1) | isread;
+}
+
+static inline uint32_t syn_aa64_sysreg128trap(int op0, int op1, int op2,
+                                              int crn, int crm, int rt,
+                                              int isread)
+{
+    return (EC_SYSTEMREGISTER128TRAP << ARM_EL_EC_SHIFT) | ARM_EL_IL
         | (op0 << 20) | (op2 << 17) | (op1 << 14) | (crn << 10) | (rt << 5)
         | (crm << 1) | isread;
 }
