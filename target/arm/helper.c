@@ -2929,6 +2929,17 @@ static void vmsa_tcr_el12_write(CPUARMState *env, const ARMCPRegInfo *ri,
     raw_write(env, ri, value);
 }
 
+static void flush_if_asid_change(CPUARMState *env, const ARMCPRegInfo *ri,
+                                 uint64_t new, unsigned mask)
+{
+    uint64_t old = raw_read(env, ri);
+
+    /* The ASID or VMID is in bits [63:48]. */
+    if ((old ^ new) >> 48) {
+        tlb_flush_by_mmuidx(env_cpu(env), mask);
+    }
+}
+
 static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t value)
 {
@@ -2950,14 +2961,13 @@ static void vmsa_tcr_ttbr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * TCR_EL2.A1 to know if this is really the TTBRx_EL2 that
      * holds the active ASID, only checking the field that might.
      */
-    if (extract64(raw_read(env, ri) ^ value, 48, 16) &&
-        (arm_hcr_el2_eff(env) & HCR_E2H)) {
-        uint16_t mask = ARMMMUIdxBit_E20_2 |
-                        ARMMMUIdxBit_E20_2_PAN |
-                        ARMMMUIdxBit_E20_2_GCS |
-                        ARMMMUIdxBit_E20_0 |
-                        ARMMMUIdxBit_E20_0_GCS;
-        tlb_flush_by_mmuidx(env_cpu(env), mask);
+    if (arm_hcr_el2_eff(env) & HCR_E2H) {
+        flush_if_asid_change(env, ri, value,
+                             ARMMMUIdxBit_E20_2 |
+                             ARMMMUIdxBit_E20_2_PAN |
+                             ARMMMUIdxBit_E20_2_GCS |
+                             ARMMMUIdxBit_E20_0 |
+                             ARMMMUIdxBit_E20_0_GCS);
     }
     raw_write(env, ri, value);
 }
@@ -2965,16 +2975,11 @@ static void vmsa_tcr_ttbr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void vttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
-    ARMCPU *cpu = env_archcpu(env);
-    CPUState *cs = CPU(cpu);
-
     /*
      * A change in VMID to the stage2 page table (Stage2) invalidates
      * the stage2 and combined stage 1&2 tlbs (EL10_1 and EL10_0).
      */
-    if (extract64(raw_read(env, ri) ^ value, 48, 16) != 0) {
-        tlb_flush_by_mmuidx(cs, alle1_tlbmask(env));
-    }
+    flush_if_asid_change(env, ri, value, alle1_tlbmask(env));
     raw_write(env, ri, value);
 }
 
