@@ -237,6 +237,7 @@ extern const VMStateInfo vmstate_info_int8;
 extern const VMStateInfo vmstate_info_int16;
 extern const VMStateInfo vmstate_info_int32;
 extern const VMStateInfo vmstate_info_int64;
+extern const VMStateInfo vmstate_info_int128;
 
 extern const VMStateInfo vmstate_info_uint8_equal;
 extern const VMStateInfo vmstate_info_uint16_equal;
