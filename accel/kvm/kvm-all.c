@@ -2800,7 +2800,7 @@ static int kvm_init(AccelState *as, MachineState *ms)
     s->memory_listener.listener.coalesced_io_del = kvm_uncoalesce_mmio_region;
 
     kvm_memory_listener_register(s, &s->memory_listener,
-                                 &address_space_memory, 0, "kvm-memory");
+                                 &address_space_memory, X86ASIdx_MEM, "kvm-memory");
     memory_listener_register(&kvm_io_listener,
                              &address_space_io);
 
