@@ -180,7 +180,7 @@ static void cp_reg_reset(gpointer key, gpointer value, gpointer opaque)
     ARMCPRegInfo *ri = value;
     ARMCPU *cpu = opaque;
 
-    if (ri->type & (ARM_CP_SPECIAL_MASK | ARM_CP_ALIAS)) {
+    if (ri->type & (ARM_CP_SPECIAL_MASK | ARM_CP_ALIAS | ARM_CP_128BIT)) {
         return;
     }
 
@@ -208,16 +208,24 @@ static void cp_reg_check_reset(gpointer key, gpointer value,  gpointer opaque)
      */
     ARMCPRegInfo *ri = value;
     ARMCPU *cpu = opaque;
-    uint64_t oldvalue, newvalue;
 
     if (ri->type & (ARM_CP_SPECIAL_MASK | ARM_CP_ALIAS | ARM_CP_NO_RAW)) {
         return;
     }
+    if (ri->type & ARM_CP_128BIT) {
+        /*
+         * All 128-bit registers are UNKNOWN at reset.
+         * For qemu, they are all cleared by memset to end_reset_fields.
+         */
+        assert(!int128_nz(read_raw_cp_reg128(&cpu->env, ri)));
+    } else {
+        uint64_t oldvalue, newvalue;
 
-    oldvalue = read_raw_cp_reg(&cpu->env, ri);
-    cp_reg_reset(key, value, opaque);
-    newvalue = read_raw_cp_reg(&cpu->env, ri);
-    assert(oldvalue == newvalue);
+        oldvalue = read_raw_cp_reg(&cpu->env, ri);
+        cp_reg_reset(key, value, opaque);
+        newvalue = read_raw_cp_reg(&cpu->env, ri);
+        assert(oldvalue == newvalue);
+    }
 }
 
 static void arm_cpu_reset_hold(Object *obj, ResetType type)
