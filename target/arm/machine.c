@@ -939,6 +939,34 @@ static const VMStateDescription vmstate_syndrome64 = {
     },
 };
 
+static bool sysreg128_needed(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+    return cpu->cpreg128_array_len != 0;
+}
+
+static const VMStateDescription vmstate_sysreg128 = {
+    .name = "cpu/sysreg128",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = sysreg128_needed,
+    .fields = (const VMStateField[]) {
+        /*
+         * The length-check must come before the arrays to avoid
+         * incoming data possibly overflowing the array.
+         */
+        VMSTATE_INT32_POSITIVE_LE(cpreg128_vmstate_array_len, ARMCPU),
+        VMSTATE_VARRAY_INT32(cpreg128_vmstate_indexes, ARMCPU,
+                             cpreg128_vmstate_array_len,
+                             0, vmstate_info_uint64, uint64_t),
+        VMSTATE_VARRAY_INT32(cpreg128_vmstate_values, ARMCPU,
+                             cpreg128_vmstate_array_len,
+                             0, vmstate_info_int128, Int128),
+
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static int cpu_pre_save(void *opaque)
 {
     ARMCPU *cpu = opaque;
@@ -970,6 +998,12 @@ static int cpu_pre_save(void *opaque)
            cpu->cpreg_array_len * sizeof(uint64_t));
     memcpy(cpu->cpreg_vmstate_values, cpu->cpreg_values,
            cpu->cpreg_array_len * sizeof(uint64_t));
+
+    cpu->cpreg128_vmstate_array_len = cpu->cpreg128_array_len;
+    memcpy(cpu->cpreg128_vmstate_indexes, cpu->cpreg128_indexes,
+           cpu->cpreg128_array_len * sizeof(uint64_t));
+    memcpy(cpu->cpreg128_vmstate_values, cpu->cpreg128_values,
+           cpu->cpreg128_array_len * sizeof(Int128));
 
     return 0;
 }
@@ -1062,6 +1096,21 @@ static int cpu_post_load(void *opaque, int version_id)
         }
         /* matching register, copy the value over */
         cpu->cpreg_values[i] = cpu->cpreg_vmstate_values[v];
+        v++;
+    }
+
+    for (i = 0, v = 0; i < cpu->cpreg128_array_len
+             && v < cpu->cpreg128_vmstate_array_len; i++) {
+        if (cpu->cpreg128_vmstate_indexes[v] > cpu->cpreg128_indexes[i]) {
+            /* register in our list but not incoming : skip it */
+            continue;
+        }
+        if (cpu->cpreg128_vmstate_indexes[v] < cpu->cpreg128_indexes[i]) {
+            /* register in their list but not ours: fail migration */
+            return -1;
+        }
+        /* matching register, copy the value over */
+        cpu->cpreg128_values[i] = cpu->cpreg128_vmstate_values[v];
         v++;
     }
 
@@ -1209,6 +1258,7 @@ const VMStateDescription vmstate_arm_cpu = {
         &vmstate_wfxt_timer,
         &vmstate_syndrome64,
         &vmstate_pstate64,
+        &vmstate_sysreg128,
         NULL
     }
 };
