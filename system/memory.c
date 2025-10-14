@@ -1821,6 +1821,11 @@ static void memory_region_finalize(Object *obj)
      * memory_region_set_enabled instead could trigger a transaction and
      * cause an infinite loop.
      */
+
+    if (mr->name) {
+        trace_memory_region_finalize(mr, mr->name);
+    }
+
     mr->enabled = false;
     memory_region_transaction_begin();
     if (mr->container) {
