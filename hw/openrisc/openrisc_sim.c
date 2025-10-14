@@ -281,7 +281,7 @@ static void openrisc_sim_serial_init(Or1ksimState *state, hwaddr base,
         /* The /chosen node is created during fdt creation. */
         qemu_fdt_setprop_string(fdt, "/chosen", "stdout-path", nodename);
     }
-    snprintf(alias, sizeof(alias), "serial%d", uart_idx);
+    snprintf(alias, sizeof(alias), "serial%u", uart_idx);
     qemu_fdt_setprop_string(fdt, "/aliases", alias, nodename);
 
     g_free(nodename);
