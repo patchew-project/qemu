@@ -508,6 +508,20 @@ static CPAccessResult access_tacr(CPUARMState *env, const ARMCPRegInfo *ri,
     return CP_ACCESS_OK;
 }
 
+static CPAccessResult access_d128(CPUARMState *env, const ARMCPRegInfo *ri,
+                                  bool isread)
+{
+    int el = arm_current_el(env);
+
+    if (el <= 1 && !(arm_hcrx_el2_eff(env) & HCRX_D128EN)) {
+        return CP_ACCESS_TRAP_EL2;
+    }
+    if (el <= 2 && !(env->cp15.scr_el3 & SCR_D128EN)) {
+        return CP_ACCESS_TRAP_EL3;
+    }
+    return CP_ACCESS_OK;
+}
+
 static void dacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     ARMCPU *cpu = env_archcpu(env);
@@ -3279,7 +3293,9 @@ static void define_par_register(ARMCPU *cpu)
         .name = "PAR_EL1", .state = ARM_CP_STATE_AA64,
         .opc0 = 3, .opc1 = 0, .crn = 7, .crm = 4, .opc2 = 0,
         .access = PL1_RW, .fgt = FGT_PAR_EL1,
-        .fieldoffset = offsetof(CPUARMState, cp15.par_el[1])
+        .type = ARM_CP_128BIT, .access128fn = access_d128,
+        .fieldoffset = offsetof(CPUARMState, cp15.par_el[1]),
+        .fieldoffsethi = offsetof(CPUARMState, cp15.par_el1_hi),
     };
 
     static ARMCPRegInfo par64_reginfo[2] = {

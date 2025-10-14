@@ -429,7 +429,8 @@ typedef struct CPUArchState {
         };
         uint64_t hpfar_el2;
         uint64_t hstr_el2;
-        union { /* Translation result. */
+        /* Translation result. */
+        union {
             struct {
                 uint64_t _unused_par_0;
                 uint64_t par_ns;
@@ -438,6 +439,7 @@ typedef struct CPUArchState {
             };
             uint64_t par_el[4];
         };
+        uint64_t par_el1_hi;  /* high 64 bits of 128-bit PAR_EL1 */
 
         uint32_t c9_insn; /* Cache lockdown registers.  */
         uint32_t c9_data;
@@ -1750,6 +1752,7 @@ static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
 #define SCR_SCTLR2EN          (1ULL << 44)
 #define SCR_PIEN              (1ULL << 45)
 #define SCR_AIEN              (1ULL << 46)
+#define SCR_D128EN            (1ULL << 47)
 #define SCR_GPF               (1ULL << 48)
 #define SCR_MECEN             (1ULL << 49)
 #define SCR_NSE               (1ULL << 62)

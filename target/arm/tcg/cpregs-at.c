@@ -353,6 +353,7 @@ static void ats_write64(CPUARMState *env, const ARMCPRegInfo *ri,
 
     ss = for_el3 ? arm_security_space(env) : arm_security_space_below_el3(env);
     env->cp15.par_el[1] = do_ats_write(env, value, access_perm, mmu_idx, ss);
+    env->cp15.par_el1_hi = 0;
 }
 
 static CPAccessResult ats_access(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -496,6 +497,7 @@ static void ats_s1e1a(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     ARMSecuritySpace ss = arm_security_space_below_el3(env);
 
     env->cp15.par_el[1] = do_ats_write(env, value, 0, mmu_idx, ss);
+    env->cp15.par_el1_hi = 0;
 }
 
 static void ats_s1e2a(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
@@ -505,12 +507,14 @@ static void ats_s1e2a(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     ARMSecuritySpace ss = arm_security_space_below_el3(env);
 
     env->cp15.par_el[1] = do_ats_write(env, value, 0, mmu_idx, ss);
+    env->cp15.par_el1_hi = 0;
 }
 
 static void ats_s1e3a(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     env->cp15.par_el[1] = do_ats_write(env, value, 0, ARMMMUIdx_E3,
                                        arm_security_space(env));
+    env->cp15.par_el1_hi = 0;
 }
 
 static const ARMCPRegInfo ats1a_reginfo[] = {
