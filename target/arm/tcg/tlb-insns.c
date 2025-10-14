@@ -442,6 +442,17 @@ static void tlbi_aa64_vae1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
     tlb_flush_page_bits_by_mmuidx_all_cpus_synced(cs, pageaddr, mask, bits);
 }
 
+static void tlbi_aa64_vae1is_write128(CPUARMState *env, const ARMCPRegInfo *ri,
+                                      uint64_t vallo, uint64_t valhi)
+{
+    CPUState *cs = env_cpu(env);
+    int mask = vae1_tlbmask(env);
+    uint64_t pageaddr = sextract64(valhi << 12, 0, 56);
+    int bits = vae1_tlbbits(env, pageaddr);
+
+    tlb_flush_page_bits_by_mmuidx_all_cpus_synced(cs, pageaddr, mask, bits);
+}
+
 static void tlbi_aa64_vae1_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                  uint64_t value)
 {
@@ -454,6 +465,21 @@ static void tlbi_aa64_vae1_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *cs = env_cpu(env);
     int mask = vae1_tlbmask(env);
     uint64_t pageaddr = sextract64(value << 12, 0, 56);
+    int bits = vae1_tlbbits(env, pageaddr);
+
+    if (tlb_force_broadcast(env)) {
+        tlb_flush_page_bits_by_mmuidx_all_cpus_synced(cs, pageaddr, mask, bits);
+    } else {
+        tlb_flush_page_bits_by_mmuidx(cs, pageaddr, mask, bits);
+    }
+}
+
+static void tlbi_aa64_vae1_write128(CPUARMState *env, const ARMCPRegInfo *ri,
+                                    uint64_t vallo, uint64_t valhi)
+{
+    CPUState *cs = env_cpu(env);
+    int mask = vae1_tlbmask(env);
+    uint64_t pageaddr = sextract64(valhi << 12, 0, 56);
     int bits = vae1_tlbbits(env, pageaddr);
 
     if (tlb_force_broadcast(env)) {
@@ -664,10 +690,11 @@ static const ARMCPRegInfo tlbi_v8_cp_reginfo[] = {
       .writefn = tlbi_aa64_vmalle1is_write },
     { .name = "TLBI_VAE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 1,
-      .access = PL1_W, .accessfn = access_ttlbis,
-      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS,
+      .access = PL1_W, .accessfn = access_ttlbis, .access128fn = access_ttlbis,
+      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS | ARM_CP_128BIT,
       .fgt = FGT_TLBIVAE1IS,
-      .writefn = tlbi_aa64_vae1is_write },
+      .writefn = tlbi_aa64_vae1is_write,
+      .write128fn = tlbi_aa64_vae1is_write128 },
     { .name = "TLBI_ASIDE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 2,
       .access = PL1_W, .accessfn = access_ttlbis,
@@ -676,10 +703,11 @@ static const ARMCPRegInfo tlbi_v8_cp_reginfo[] = {
       .writefn = tlbi_aa64_vmalle1is_write },
     { .name = "TLBI_VAAE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 3,
-      .access = PL1_W, .accessfn = access_ttlbis,
-      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS,
+      .access = PL1_W, .accessfn = access_ttlbis, .access128fn = access_ttlbis,
+      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS | ARM_CP_128BIT,
       .fgt = FGT_TLBIVAAE1IS,
-      .writefn = tlbi_aa64_vae1is_write },
+      .writefn = tlbi_aa64_vae1is_write,
+      .write128fn = tlbi_aa64_vae1is_write128 },
     { .name = "TLBI_VALE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 5,
       .access = PL1_W, .accessfn = access_ttlbis,
@@ -700,10 +728,11 @@ static const ARMCPRegInfo tlbi_v8_cp_reginfo[] = {
       .writefn = tlbi_aa64_vmalle1_write },
     { .name = "TLBI_VAE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 1,
-      .access = PL1_W, .accessfn = access_ttlb,
-      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS,
+      .access = PL1_W, .accessfn = access_ttlb, .access128fn = access_ttlb,
+      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS | ARM_CP_128BIT,
       .fgt = FGT_TLBIVAE1,
-      .writefn = tlbi_aa64_vae1_write },
+      .writefn = tlbi_aa64_vae1_write,
+      .write128fn = tlbi_aa64_vae1_write128 },
     { .name = "TLBI_ASIDE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 2,
       .access = PL1_W, .accessfn = access_ttlb,
@@ -712,22 +741,25 @@ static const ARMCPRegInfo tlbi_v8_cp_reginfo[] = {
       .writefn = tlbi_aa64_vmalle1_write },
     { .name = "TLBI_VAAE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 3,
-      .access = PL1_W, .accessfn = access_ttlb,
-      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS,
+      .access = PL1_W, .accessfn = access_ttlb, .access128fn = access_ttlb,
+      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS | ARM_CP_128BIT,
       .fgt = FGT_TLBIVAAE1,
-      .writefn = tlbi_aa64_vae1_write },
+      .writefn = tlbi_aa64_vae1_write,
+      .write128fn = tlbi_aa64_vae1_write128 },
     { .name = "TLBI_VALE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 5,
-      .access = PL1_W, .accessfn = access_ttlb,
-      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS,
+      .access = PL1_W, .accessfn = access_ttlb, .access128fn = access_ttlb,
+      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS | ARM_CP_128BIT,
       .fgt = FGT_TLBIVALE1,
-      .writefn = tlbi_aa64_vae1_write },
+      .writefn = tlbi_aa64_vae1_write,
+      .write128fn = tlbi_aa64_vae1_write128 },
     { .name = "TLBI_VAALE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 7,
-      .access = PL1_W, .accessfn = access_ttlb,
-      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS,
+      .access = PL1_W, .accessfn = access_ttlb, .access128fn = access_ttlb,
+      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS | ARM_CP_128BIT,
       .fgt = FGT_TLBIVAALE1,
-      .writefn = tlbi_aa64_vae1_write },
+      .writefn = tlbi_aa64_vae1_write,
+      .write128fn = tlbi_aa64_vae1_write128 },
     { .name = "TLBI_IPAS2E1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 0, .opc2 = 1,
       .access = PL2_W,
@@ -1324,9 +1356,10 @@ static const ARMCPRegInfo tlbios_reginfo[] = {
     { .name = "TLBI_VAE1OS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 1, .opc2 = 1,
       .fgt = FGT_TLBIVAE1OS,
-      .access = PL1_W, .accessfn = access_ttlbos,
-      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS,
-      .writefn = tlbi_aa64_vae1is_write },
+      .access = PL1_W, .accessfn = access_ttlbos, .access128fn = access_ttlbos,
+      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS | ARM_CP_128BIT,
+      .writefn = tlbi_aa64_vae1is_write,
+      .write128fn = tlbi_aa64_vae1is_write128 },
     { .name = "TLBI_ASIDE1OS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 1, .opc2 = 2,
       .access = PL1_W, .accessfn = access_ttlbos,
@@ -1335,22 +1368,25 @@ static const ARMCPRegInfo tlbios_reginfo[] = {
       .writefn = tlbi_aa64_vmalle1is_write },
     { .name = "TLBI_VAAE1OS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 1, .opc2 = 3,
-      .access = PL1_W, .accessfn = access_ttlbos,
-      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS,
+      .access = PL1_W, .accessfn = access_ttlbos, .access128fn = access_ttlbos,
+      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS | ARM_CP_128BIT,
       .fgt = FGT_TLBIVAAE1OS,
-      .writefn = tlbi_aa64_vae1is_write },
+      .writefn = tlbi_aa64_vae1is_write,
+      .write128fn = tlbi_aa64_vae1is_write128 },
     { .name = "TLBI_VALE1OS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 1, .opc2 = 5,
-      .access = PL1_W, .accessfn = access_ttlbos,
-      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS,
+      .access = PL1_W, .accessfn = access_ttlbos, .access128fn = access_ttlbos,
+      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS | ARM_CP_128BIT,
       .fgt = FGT_TLBIVALE1OS,
-      .writefn = tlbi_aa64_vae1is_write },
+      .writefn = tlbi_aa64_vae1is_write,
+      .write128fn = tlbi_aa64_vae1is_write128 },
     { .name = "TLBI_VAALE1OS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 1, .opc2 = 7,
-      .access = PL1_W, .accessfn = access_ttlbos,
-      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS,
+      .access = PL1_W, .accessfn = access_ttlbos, .access128fn = access_ttlbos,
+      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS | ARM_CP_128BIT,
       .fgt = FGT_TLBIVAALE1OS,
-      .writefn = tlbi_aa64_vae1is_write },
+      .writefn = tlbi_aa64_vae1is_write,
+      .write128fn = tlbi_aa64_vae1is_write128 },
     { .name = "TLBI_ALLE2OS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 1, .opc2 = 0,
       .access = PL2_W,
