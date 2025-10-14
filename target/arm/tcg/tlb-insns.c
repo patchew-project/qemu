@@ -1088,11 +1088,26 @@ static void tlbi_aa64_ripas2e1_write(CPUARMState *env, const ARMCPRegInfo *ri,
                   tlb_force_broadcast(env));
 }
 
+static void tlbi_aa64_ripas2e1_write128(CPUARMState *env,
+                                        const ARMCPRegInfo *ri,
+                                        uint64_t vallo, uint64_t valhi)
+{
+    do_rvae_write128(env, vallo, valhi, ipas2e1_tlbmask(env, vallo),
+                     tlb_force_broadcast(env));
+}
+
 static void tlbi_aa64_ripas2e1is_write(CPUARMState *env,
                                        const ARMCPRegInfo *ri,
                                        uint64_t value)
 {
     do_rvae_write(env, value, ipas2e1_tlbmask(env, value), true);
+}
+
+static void tlbi_aa64_ripas2e1is_write128(CPUARMState *env,
+                                          const ARMCPRegInfo *ri,
+                                          uint64_t vallo, uint64_t valhi)
+{
+    do_rvae_write128(env, vallo, valhi, ipas2e1_tlbmask(env, vallo), true);
 }
 
 static const ARMCPRegInfo tlbirange_reginfo[] = {
@@ -1174,12 +1189,16 @@ static const ARMCPRegInfo tlbirange_reginfo[] = {
       .write128fn = tlbi_aa64_rvae1_write128 },
     { .name = "TLBI_RIPAS2E1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 0, .opc2 = 2,
-      .access = PL2_W, .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS,
-      .writefn = tlbi_aa64_ripas2e1is_write },
+      .access = PL2_W,
+      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS | ARM_CP_128BIT,
+      .writefn = tlbi_aa64_ripas2e1is_write,
+      .write128fn = tlbi_aa64_ripas2e1is_write128 },
     { .name = "TLBI_RIPAS2LE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 0, .opc2 = 6,
-      .access = PL2_W, .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS,
-      .writefn = tlbi_aa64_ripas2e1is_write },
+      .access = PL2_W,
+      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS | ARM_CP_128BIT,
+      .writefn = tlbi_aa64_ripas2e1is_write,
+      .write128fn = tlbi_aa64_ripas2e1is_write128 },
     { .name = "TLBI_RVAE2IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 2, .opc2 = 1,
       .access = PL2_W,
@@ -1192,12 +1211,16 @@ static const ARMCPRegInfo tlbirange_reginfo[] = {
       .writefn = tlbi_aa64_rvae2is_write },
     { .name = "TLBI_RIPAS2E1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 4, .opc2 = 2,
-      .access = PL2_W, .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS,
-      .writefn = tlbi_aa64_ripas2e1_write },
+      .access = PL2_W,
+      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS | ARM_CP_128BIT,
+      .writefn = tlbi_aa64_ripas2e1_write,
+      .write128fn = tlbi_aa64_ripas2e1_write128 },
     { .name = "TLBI_RIPAS2LE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 4, .opc2 = 6,
-      .access = PL2_W, .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS,
-      .writefn = tlbi_aa64_ripas2e1_write },
+      .access = PL2_W,
+      .type = ARM_CP_NO_RAW | ARM_CP_ADD_TLBI_NXS | ARM_CP_128BIT,
+      .writefn = tlbi_aa64_ripas2e1_write,
+      .write128fn = tlbi_aa64_ripas2e1_write128 },
    { .name = "TLBI_RVAE2OS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 5, .opc2 = 1,
       .access = PL2_W,
