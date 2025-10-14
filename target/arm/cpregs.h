@@ -1157,6 +1157,7 @@ static inline bool cp_access_ok(int current_el,
 
 /* Raw read of a coprocessor register (as needed for migration, etc) */
 uint64_t read_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri);
+Int128 read_raw_cp_reg128(CPUARMState *env, const ARMCPRegInfo *ri);
 
 /*
  * Return true if the cp register encoding is in the "feature ID space" as
