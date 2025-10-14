@@ -2943,11 +2943,20 @@ static void flush_if_asid_change(CPUARMState *env, const ARMCPRegInfo *ri,
 static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t value)
 {
-    /* If the ASID changes (with a 64-bit write), we must flush the TLB.  */
-    if (cpreg_field_type(ri) == MO_64 &&
-        extract64(raw_read(env, ri) ^ value, 48, 16) != 0) {
-        ARMCPU *cpu = env_archcpu(env);
-        tlb_flush(CPU(cpu));
+    /*
+     * If the ASID changes (with a 64-bit write), we must flush the TLB.
+     * The non-secure ttbr registers affect the EL1 regime;
+     * the secure ttbr registers affect the AA32 EL3 regime.
+     */
+    if (cpreg_field_type(ri) == MO_64) {
+        flush_if_asid_change(env, ri, value,
+                             ri->secure & ARM_CP_SECSTATE_S
+                             ? (ARMMMUIdxBit_E30_0 |
+                                ARMMMUIdxBit_E30_3_PAN |
+                                ARMMMUIdxBit_E3)
+                             : (ARMMMUIdxBit_E10_1 |
+                                ARMMMUIdxBit_E10_1_PAN |
+                                ARMMMUIdxBit_E10_0));
     }
     raw_write(env, ri, value);
 }
