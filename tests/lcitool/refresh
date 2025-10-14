@@ -99,6 +99,16 @@ def generate_yaml(os, target, arch, trailer=None):
                          arch, target, "qemu"]
     generate(filename, cmd, trailer)
 
+# an overlay file only cares about the additional packages for cross
+# so we can skip all the host packages needed.
+def generate_cross_overlay_yaml(os, target, arch, name, cross, trailer=None):
+    filename = Path(src_dir, "scripts", "ci", "setup", os, f"{target}-{name}.yaml")
+    cmd = lcitool_cmd + ["variables", "--format", "yaml",
+                         "--layer", "foreign",
+                         "-a", arch, "--cross", cross,
+                         target, "qemu"]
+    generate(filename, cmd, trailer)
+
 
 alpine_extras = [
     "# https://gitlab.alpinelinux.org/alpine/aports/-/issues/17463\n",
@@ -271,6 +281,7 @@ try:
     # Ansible package lists
     #
     generate_yaml("ubuntu", "ubuntu-2404", "aarch64")
+    generate_cross_overlay_yaml("ubuntu", "ubuntu-2404", "aarch64", "armhf", cross="armv7l")
     generate_yaml("ubuntu", "ubuntu-2404", "s390x")
 
 
