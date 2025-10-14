@@ -3011,26 +3011,6 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
       .vhe_redir_to_el2 = ENCODE_AA64_CP_REG(3, 4, 5, 2, 0),
       .vhe_redir_to_el01 = ENCODE_AA64_CP_REG(3, 5, 5, 2, 0),
       .fieldoffset = offsetof(CPUARMState, cp15.esr_el[1]), .resetvalue = 0, },
-    { .name = "TTBR0_EL1", .state = ARM_CP_STATE_BOTH,
-      .opc0 = 3, .opc1 = 0, .crn = 2, .crm = 0, .opc2 = 0,
-      .access = PL1_RW, .accessfn = access_tvm_trvm,
-      .fgt = FGT_TTBR0_EL1,
-      .nv2_redirect_offset = 0x200 | NV2_REDIR_NV1,
-      .vhe_redir_to_el2 = ENCODE_AA64_CP_REG(3, 4, 2, 0, 0),
-      .vhe_redir_to_el01 = ENCODE_AA64_CP_REG(3, 5, 2, 0, 0),
-      .writefn = vmsa_ttbr_write, .resetvalue = 0, .raw_writefn = raw_write,
-      .bank_fieldoffsets = { offsetof(CPUARMState, cp15.ttbr0_s),
-                             offsetof(CPUARMState, cp15.ttbr0_ns) } },
-    { .name = "TTBR1_EL1", .state = ARM_CP_STATE_BOTH,
-      .opc0 = 3, .opc1 = 0, .crn = 2, .crm = 0, .opc2 = 1,
-      .access = PL1_RW, .accessfn = access_tvm_trvm,
-      .fgt = FGT_TTBR1_EL1,
-      .nv2_redirect_offset = 0x210 | NV2_REDIR_NV1,
-      .vhe_redir_to_el2 = ENCODE_AA64_CP_REG(3, 4, 2, 0, 1),
-      .vhe_redir_to_el01 = ENCODE_AA64_CP_REG(3, 5, 2, 0, 1),
-      .writefn = vmsa_ttbr_write, .resetvalue = 0, .raw_writefn = raw_write,
-      .bank_fieldoffsets = { offsetof(CPUARMState, cp15.ttbr1_s),
-                             offsetof(CPUARMState, cp15.ttbr1_ns) } },
     { .name = "TCR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 2,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
@@ -3256,23 +3236,6 @@ static const ARMCPRegInfo lpae_cp_reginfo[] = {
     { .name = "AMAIR1", .cp = 15, .crn = 10, .crm = 3, .opc1 = 0, .opc2 = 1,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
       .type = ARM_CP_CONST, .resetvalue = 0 },
-
-    /*
-     * The primary definitions of TTBR[01]_EL1 are in vmsa_cp_reginfo[].
-     * Here we need only provide the 64-bit views for AArch32.
-     */
-    { .name = "TTBR0", .cp = 15, .crm = 2, .opc1 = 0,
-      .access = PL1_RW, .accessfn = access_tvm_trvm,
-      .type = ARM_CP_64BIT | ARM_CP_ALIAS,
-      .bank_fieldoffsets = { offsetof(CPUARMState, cp15.ttbr0_s),
-                             offsetof(CPUARMState, cp15.ttbr0_ns) },
-      .writefn = vmsa_ttbr_write, .raw_writefn = raw_write },
-    { .name = "TTBR1", .cp = 15, .crm = 2, .opc1 = 1,
-      .access = PL1_RW, .accessfn = access_tvm_trvm,
-      .type = ARM_CP_64BIT | ARM_CP_ALIAS,
-      .bank_fieldoffsets = { offsetof(CPUARMState, cp15.ttbr1_s),
-                             offsetof(CPUARMState, cp15.ttbr1_ns) },
-      .writefn = vmsa_ttbr_write, .raw_writefn = raw_write },
 };
 
 static void define_par_register(ARMCPU *cpu)
@@ -3340,6 +3303,121 @@ static void define_par_register(ARMCPU *cpu)
     }
 
     define_arm_cp_regs(cpu, par64_reginfo);
+}
+
+static void define_ttbr_registers(ARMCPU *cpu)
+{
+    /*
+     * For v8:
+     * The aarch64 regs are primary, since they might be 128-bit.
+     * The aarch32 64-bit non-secure regs are secondary to aa64 el1.
+     * The aarch32 64-bit httbr is secondary to aa64 el2.
+     * The aarch32 64-bit secure ttbr0 is secondary to aa64 el3.
+     * The aarch32 64-bit secure ttbr1 is primary.
+     *
+     * For v7:
+     * The aarch32 64-bit s+ns regs are primary.
+     *
+     * The aarch32 32-bit regs are secondary to one of the above,
+     * and we also don't expose them to gdb.
+     */
+    static const ARMCPRegInfo ttbrv8_reginfo[] = {
+        { .name = "TTBR0_EL1", .state = ARM_CP_STATE_AA64,
+          .opc0 = 3, .opc1 = 0, .crn = 2, .crm = 0, .opc2 = 0,
+          .access = PL1_RW, .accessfn = access_tvm_trvm,
+          .fgt = FGT_TTBR0_EL1,
+          .nv2_redirect_offset = 0x200 | NV2_REDIR_NV1,
+          .vhe_redir_to_el2 = ENCODE_AA64_CP_REG(3, 4, 2, 0, 0),
+          .vhe_redir_to_el01 = ENCODE_AA64_CP_REG(3, 5, 2, 0, 0),
+          .writefn = vmsa_ttbr_write, .raw_writefn = raw_write,
+          .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el[1]) },
+        { .name = "TTBR1_EL1", .state = ARM_CP_STATE_AA64,
+          .opc0 = 3, .opc1 = 0, .crn = 2, .crm = 0, .opc2 = 1,
+          .access = PL1_RW, .accessfn = access_tvm_trvm,
+          .fgt = FGT_TTBR1_EL1,
+          .nv2_redirect_offset = 0x210 | NV2_REDIR_NV1,
+          .vhe_redir_to_el2 = ENCODE_AA64_CP_REG(3, 4, 2, 0, 1),
+          .vhe_redir_to_el01 = ENCODE_AA64_CP_REG(3, 5, 2, 0, 1),
+          .writefn = vmsa_ttbr_write, .raw_writefn = raw_write,
+          .fieldoffset = offsetof(CPUARMState, cp15.ttbr1_el[1]) },
+        { .name = "TTBR0_EL2", .state = ARM_CP_STATE_AA64,
+          .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 0, .opc2 = 0,
+          .access = PL2_RW, .resetvalue = 0,
+          .writefn = vmsa_tcr_ttbr_el2_write, .raw_writefn = raw_write,
+          .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el[2]) },
+        { .name = "TTBR0_EL3", .state = ARM_CP_STATE_AA64,
+          .opc0 = 3, .opc1 = 6, .crn = 2, .crm = 0, .opc2 = 0,
+          .access = PL3_RW, .resetvalue = 0,
+          .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el[3]) },
+    };
+
+    static ARMCPRegInfo ttbr64_reginfo[] = {
+        [0 ... 3] = {
+            .cp = 15, .crm = 2, .type = ARM_CP_64BIT,
+            .access = PL1_RW, .accessfn = access_tvm_trvm,
+            .writefn = vmsa_ttbr_write, .raw_writefn = raw_write
+        },
+        [0 ... 1].opc1 = 0,
+        [0].name = "TTBR0",
+        [0].secure = ARM_CP_SECSTATE_NS,
+        [0].fieldoffset = offsetof(CPUARMState, cp15.ttbr0_ns),
+        [1].name = "TTBR0_S",
+        [1].secure = ARM_CP_SECSTATE_S,
+        [1].fieldoffset = offsetof(CPUARMState, cp15.ttbr0_s),
+
+        [2 ... 3].opc1 = 1,
+        [2].name = "TTBR1",
+        [2].secure = ARM_CP_SECSTATE_NS,
+        [2].fieldoffset = offsetof(CPUARMState, cp15.ttbr1_ns),
+        [3].name = "TTBR1_S",
+        [3].secure = ARM_CP_SECSTATE_S,
+        [3].fieldoffset = offsetof(CPUARMState, cp15.ttbr1_s),
+
+        [4] = {
+            .name = "HTTBR", .cp = 15, .crm = 2, .opc1 = 4,
+            .access = PL2_RW, .type = ARM_CP_64BIT,
+            .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el[2])
+        },
+    };
+
+    static ARMCPRegInfo ttbr32_reginfo[] = {
+        { .name = "TTBR0", .cp = 15, .opc1 = 0, .crn = 2, .crm = 0, .opc2 = 0,
+          .access = PL1_RW, .accessfn = access_tvm_trvm,
+          .writefn = vmsa_ttbr_write, .raw_writefn = raw_write,
+          .bank_fieldoffsets = { offsetof(CPUARMState, cp15.ttbr0_s),
+                                 offsetof(CPUARMState, cp15.ttbr0_ns) } },
+        { .name = "TTBR1", .cp = 15, .opc1 = 0, .crn = 2, .crm = 0, .opc2 = 1,
+          .access = PL1_RW, .accessfn = access_tvm_trvm,
+          .writefn = vmsa_ttbr_write, .raw_writefn = raw_write,
+          .bank_fieldoffsets = { offsetof(CPUARMState, cp15.ttbr1_s),
+                                 offsetof(CPUARMState, cp15.ttbr1_ns) } },
+    };
+
+    CPUARMState *env = &cpu->env;
+
+    /* With only VMSA, define a 32-bit reg that filters bits from write. */
+    if (!arm_feature(env, ARM_FEATURE_LPAE)) {
+        define_arm_cp_regs(cpu, ttbr32_reginfo);
+        return;
+    }
+
+    /* With LPAE, the 32-bit regs are aliases of 64-bit regs. */
+    for (int i = 0; i < ARRAY_SIZE(ttbr32_reginfo); ++i) {
+        ttbr32_reginfo[i].type = ARM_CP_ALIAS | ARM_CP_NO_GDB;
+    }
+    define_arm_cp_regs(cpu, ttbr32_reginfo);
+
+    if (arm_feature(env, ARM_FEATURE_V8)) {
+        define_arm_cp_regs(cpu, ttbrv8_reginfo);
+
+        ttbr64_reginfo[0].type |= ARM_CP_ALIAS;
+        ttbr64_reginfo[1].type |= ARM_CP_ALIAS;
+        ttbr64_reginfo[2].type |= ARM_CP_ALIAS;
+        /* Index 3, TTBR1_S, is not an alias. */
+        ttbr64_reginfo[4].type |= ARM_CP_ALIAS;
+    }
+
+    define_arm_cp_regs(cpu, ttbr64_reginfo);
 }
 
 static uint64_t aa64_fpcr_read(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -4468,14 +4546,6 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .access = PL2_RW, .resetvalue = 0,
       .nv2_redirect_offset = 0x90,
       .fieldoffset = offsetof(CPUARMState, cp15.tpidr_el[2]) },
-    { .name = "TTBR0_EL2", .state = ARM_CP_STATE_AA64,
-      .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 0, .opc2 = 0,
-      .access = PL2_RW, .resetvalue = 0,
-      .writefn = vmsa_tcr_ttbr_el2_write, .raw_writefn = raw_write,
-      .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el[2]) },
-    { .name = "HTTBR", .cp = 15, .opc1 = 4, .crm = 2,
-      .access = PL2_RW, .type = ARM_CP_64BIT | ARM_CP_ALIAS,
-      .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el[2]) },
 #ifndef CONFIG_USER_ONLY
     { .name = "CNTHCTL_EL2", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 4, .crn = 14, .crm = 1, .opc2 = 0,
@@ -4660,10 +4730,6 @@ static const ARMCPRegInfo el3_cp_reginfo[] = {
       .access = PL1_RW, .accessfn = access_trap_aa32s_el1,
       .writefn = vbar_write, .resetvalue = 0,
       .fieldoffset = offsetof(CPUARMState, cp15.mvbar) },
-    { .name = "TTBR0_EL3", .state = ARM_CP_STATE_AA64,
-      .opc0 = 3, .opc1 = 6, .crn = 2, .crm = 0, .opc2 = 0,
-      .access = PL3_RW, .resetvalue = 0,
-      .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el[3]) },
     { .name = "TCR_EL3", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 6, .crn = 2, .crm = 0, .opc2 = 2,
       .access = PL3_RW,
@@ -7174,6 +7240,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     } else {
         define_arm_cp_regs(cpu, vmsa_pmsa_cp_reginfo);
         define_arm_cp_regs(cpu, vmsa_cp_reginfo);
+        define_ttbr_registers(cpu);
         /* TTCBR2 is introduced with ARMv8.2-AA32HPD.  */
         if (cpu_isar_feature(aa32_hpd, cpu)) {
             define_one_arm_cp_reg(cpu, &ttbcr2_reginfo);
