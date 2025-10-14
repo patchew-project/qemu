@@ -7668,11 +7668,9 @@ static void add_cpreg_to_hashtable_aa32(ARMCPU *cpu, ARMCPRegInfo *r)
     }
 }
 
-static void add_cpreg_to_hashtable_aa64(ARMCPU *cpu, ARMCPRegInfo *r)
+static void add_cpreg_to_hashtable_aa64_1(ARMCPU *cpu, ARMCPRegInfo *r,
+                                          uint32_t key)
 {
-    uint32_t key = ENCODE_AA64_CP_REG(r->opc0, r->opc1,
-                                      r->crn, r->crm, r->opc2);
-
     if ((r->type & ARM_CP_ADD_TLBI_NXS) &&
         cpu_isar_feature(aa64_xs, cpu)) {
         /*
@@ -7740,6 +7738,10 @@ static void add_cpreg_to_hashtable_aa64(ARMCPU *cpu, ARMCPRegInfo *r)
         r2->writefn = NULL;
         r2->raw_readfn = NULL;
         r2->raw_writefn = NULL;
+        r2->read128fn = NULL;
+        r2->write128fn = NULL;
+        r2->raw_read128fn = NULL;
+        r2->raw_write128fn = NULL;
         r2->accessfn = NULL;
         r2->fieldoffset = 0;
 
@@ -7759,6 +7761,57 @@ static void add_cpreg_to_hashtable_aa64(ARMCPU *cpu, ARMCPRegInfo *r)
 
     add_cpreg_to_hashtable(cpu, r, ARM_CP_STATE_AA64,
                            ARM_CP_SECSTATE_NS, key);
+}
+
+static void add_cpreg_to_hashtable_aa64(ARMCPU *cpu, ARMCPRegInfo *r)
+{
+    uint32_t key64 = ENCODE_AA64_CP_REG(r->opc0, r->opc1,
+                                        r->crn, r->crm, r->opc2);
+
+    /*
+     * All 128-bit system registers and instructions have 64-bit aliases.
+     * If the 128-bit feature is enabled, create a duplicate.
+     */
+    if (r->type & ARM_CP_128BIT) {
+        if (cpu_isar_feature(aa64_sysreg128, cpu) ||
+            cpu_isar_feature(aa64_sysinstr128, cpu)) {
+            ARMCPRegInfo *r128 = alloc_cpreg(r, NULL);
+            uint32_t key128 = key64 | CP_REG_AA64_128BIT_MASK;
+
+            r128->accessfn = r128->access128fn;
+            r128->access128fn = NULL;
+            r128->readfn = NULL;
+            r128->writefn = NULL;
+            r128->raw_readfn = NULL;
+            r128->raw_writefn = NULL;
+
+            if (r128->vhe_redir_to_el2) {
+                r128->vhe_redir_to_el2 |= CP_REG_AA64_128BIT_MASK;
+            }
+            if (r128->vhe_redir_to_el01) {
+                r128->vhe_redir_to_el01 |= CP_REG_AA64_128BIT_MASK;
+            }
+
+            add_cpreg_to_hashtable_aa64_1(cpu, r128, key128);
+
+            /*
+             * The 128-bit definition is the canonical view.
+             * The 64-bit definition is an alias, hidden from gdb.
+             */
+            r->type |= ARM_CP_ALIAS | ARM_CP_NO_GDB;
+        }
+
+        /* Squash the original to create the 64-bit view. */
+        r->type &= ~ARM_CP_128BIT;
+        r->access128fn = NULL;
+        r->read128fn = NULL;
+        r->write128fn = NULL;
+        r->raw_read128fn = NULL;
+        r->raw_write128fn = NULL;
+        r->fieldoffsethi = 0;
+    }
+
+    add_cpreg_to_hashtable_aa64_1(cpu, r, key64);
 }
 
 void define_one_arm_cp_reg(ARMCPU *cpu, const ARMCPRegInfo *r)
