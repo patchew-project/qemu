@@ -3191,6 +3191,20 @@ static int find_allocation(BlockDriverState *bs, off_t start,
     off_t offs;
 
     /*
+     * When using SEEK_HOLE on macOS, if errno is ENXIO even if start is not
+     * beyond EOF, then SEEK_HOLE and SEEK_DATA aren't supported for this file.
+     */
+#ifdef __APPLE__
+    offs = lseek(s->fd, start, SEEK_HOLE);
+    if (offs < 0) {
+        if (errno == ENXIO && start < bs->total_sectors * BDRV_SECTOR_SIZE) {
+            return -ENOTSUP;
+        }
+        return -errno;
+    }
+#endif
+
+    /*
      * SEEK_DATA cases:
      * D1. offs == start: start is in data
      * D2. offs > start: start is in a hole, next data at offs
