@@ -108,10 +108,6 @@ void raw_write128(CPUARMState *env, const ARMCPRegInfo *ri,
     CPREG_FIELD128_H64(env, ri) = valuehi;
 }
 
-#undef CPREG_FIELD32
-#undef CPREG_FIELD64
-#undef CPREG_FIELD128_H64
-
 static void *raw_ptr(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     return (char *)env + ri->fieldoffset;
@@ -520,6 +516,16 @@ static CPAccessResult access_d128(CPUARMState *env, const ARMCPRegInfo *ri,
         return CP_ACCESS_TRAP_EL3;
     }
     return CP_ACCESS_OK;
+}
+
+static CPAccessResult access_tvm_trvm_d128(CPUARMState *env,
+                                           const ARMCPRegInfo *ri, bool isread)
+{
+    CPAccessResult ret = access_tvm_trvm(env, ri, isread);
+    if (ret == CP_ACCESS_OK) {
+        ret = access_d128(env, ri, isread);
+    }
+    return ret;
 }
 
 static void dacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
@@ -2932,7 +2938,7 @@ static void vmsa_tcr_el12_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void flush_if_asid_change(CPUARMState *env, const ARMCPRegInfo *ri,
                                  uint64_t new, unsigned mask)
 {
-    uint64_t old = raw_read(env, ri);
+    uint64_t old = CPREG_FIELD64(env, ri);
 
     /* The ASID or VMID is in bits [63:48]. */
     if ((old ^ new) >> 48) {
@@ -2961,6 +2967,16 @@ static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     raw_write(env, ri, value);
 }
 
+static void vmsa_ttbr_write128(CPUARMState *env, const ARMCPRegInfo *ri,
+                               uint64_t vallo, uint64_t valhi)
+{
+    flush_if_asid_change(env, ri, vallo,
+                         ARMMMUIdxBit_E10_1 |
+                         ARMMMUIdxBit_E10_1_PAN |
+                         ARMMMUIdxBit_E10_0);
+    raw_write128(env, ri, vallo, valhi);
+}
+
 static void vmsa_tcr_ttbr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                     uint64_t value)
 {
@@ -2981,6 +2997,18 @@ static void vmsa_tcr_ttbr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
     raw_write(env, ri, value);
 }
 
+static void vmsa_tcr_ttbr_el2_write128(CPUARMState *env, const ARMCPRegInfo *ri,
+                                       uint64_t vallo, uint64_t valhi)
+{
+    if (arm_hcr_el2_eff(env) & HCR_E2H) {
+        flush_if_asid_change(env, ri, vallo,
+                             ARMMMUIdxBit_E20_2 |
+                             ARMMMUIdxBit_E20_2_PAN |
+                             ARMMMUIdxBit_E20_0);
+    }
+    raw_write128(env, ri, vallo, valhi);
+}
+
 static void vttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
@@ -2990,6 +3018,13 @@ static void vttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
      */
     flush_if_asid_change(env, ri, value, alle1_tlbmask(env));
     raw_write(env, ri, value);
+}
+
+static void vttbr_write128(CPUARMState *env, const ARMCPRegInfo *ri,
+                           uint64_t vallo, uint64_t valhi)
+{
+    flush_if_asid_change(env, ri, vallo, alle1_tlbmask(env));
+    raw_write128(env, ri, vallo, valhi);
 }
 
 static const ARMCPRegInfo vmsa_pmsa_cp_reginfo[] = {
@@ -3339,26 +3374,35 @@ static void define_ttbr_registers(ARMCPU *cpu)
         { .name = "TTBR0_EL1", .state = ARM_CP_STATE_AA64,
           .opc0 = 3, .opc1 = 0, .crn = 2, .crm = 0, .opc2 = 0,
           .access = PL1_RW, .accessfn = access_tvm_trvm,
-          .fgt = FGT_TTBR0_EL1,
+          .access128fn = access_tvm_trvm_d128,
+          .fgt = FGT_TTBR0_EL1, .type = ARM_CP_128BIT,
           .nv2_redirect_offset = 0x200 | NV2_REDIR_NV1,
           .vhe_redir_to_el2 = ENCODE_AA64_CP_REG(3, 4, 2, 0, 0),
           .vhe_redir_to_el01 = ENCODE_AA64_CP_REG(3, 5, 2, 0, 0),
           .writefn = vmsa_ttbr_write, .raw_writefn = raw_write,
-          .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el[1]) },
+          .write128fn = vmsa_ttbr_write128, .raw_write128fn = raw_write128,
+          .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el[1]),
+          .fieldoffsethi = offsetof(CPUARMState, cp15.ttbr0_el_hi[1]) },
         { .name = "TTBR1_EL1", .state = ARM_CP_STATE_AA64,
           .opc0 = 3, .opc1 = 0, .crn = 2, .crm = 0, .opc2 = 1,
           .access = PL1_RW, .accessfn = access_tvm_trvm,
-          .fgt = FGT_TTBR1_EL1,
+          .access128fn = access_tvm_trvm_d128,
+          .fgt = FGT_TTBR1_EL1, .type = ARM_CP_128BIT,
           .nv2_redirect_offset = 0x210 | NV2_REDIR_NV1,
           .vhe_redir_to_el2 = ENCODE_AA64_CP_REG(3, 4, 2, 0, 1),
           .vhe_redir_to_el01 = ENCODE_AA64_CP_REG(3, 5, 2, 0, 1),
           .writefn = vmsa_ttbr_write, .raw_writefn = raw_write,
-          .fieldoffset = offsetof(CPUARMState, cp15.ttbr1_el[1]) },
+          .write128fn = vmsa_ttbr_write128, .raw_write128fn = raw_write128,
+          .fieldoffset = offsetof(CPUARMState, cp15.ttbr1_el[1]),
+          .fieldoffsethi = offsetof(CPUARMState, cp15.ttbr1_el_hi[1]) },
         { .name = "TTBR0_EL2", .state = ARM_CP_STATE_AA64,
           .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 0, .opc2 = 0,
-          .access = PL2_RW, .resetvalue = 0,
+          .access = PL2_RW, .access128fn = access_d128, .type = ARM_CP_128BIT,
           .writefn = vmsa_tcr_ttbr_el2_write, .raw_writefn = raw_write,
-          .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el[2]) },
+          .write128fn = vmsa_tcr_ttbr_el2_write128,
+          .raw_write128fn = raw_write128,
+          .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el[2]),
+          .fieldoffsethi = offsetof(CPUARMState, cp15.ttbr0_el_hi[2]) },
         { .name = "TTBR0_EL3", .state = ARM_CP_STATE_AA64,
           .opc0 = 3, .opc1 = 6, .crn = 2, .crm = 0, .opc2 = 0,
           .access = PL3_RW, .resetvalue = 0,
@@ -4548,9 +4592,13 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .writefn = vttbr_write, .raw_writefn = raw_write },
     { .name = "VTTBR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 1, .opc2 = 0,
-      .access = PL2_RW, .writefn = vttbr_write, .raw_writefn = raw_write,
+      .type = ARM_CP_128BIT,
+      .access = PL2_RW, .access128fn = access_d128,
+      .writefn = vttbr_write, .raw_writefn = raw_write,
+      .write128fn = vttbr_write128, .raw_write128fn = raw_write128,
       .nv2_redirect_offset = 0x20,
-      .fieldoffset = offsetof(CPUARMState, cp15.vttbr_el2) },
+      .fieldoffset = offsetof(CPUARMState, cp15.vttbr_el2),
+      .fieldoffsethi = offsetof(CPUARMState, cp15.vttbr_el2_hi) },
     { .name = "SCTLR_EL2", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 0, .opc2 = 0,
       .access = PL2_RW, .raw_writefn = raw_write, .writefn = sctlr_write,
@@ -6196,9 +6244,12 @@ static const ARMCPRegInfo contextidr_el2 = {
 static const ARMCPRegInfo vhe_reginfo[] = {
     { .name = "TTBR1_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 0, .opc2 = 1,
-      .access = PL2_RW, .writefn = vmsa_tcr_ttbr_el2_write,
-      .raw_writefn = raw_write,
-      .fieldoffset = offsetof(CPUARMState, cp15.ttbr1_el[2]) },
+      .type = ARM_CP_128BIT,
+      .access = PL2_RW, .access128fn = access_d128,
+      .writefn = vmsa_tcr_ttbr_el2_write, .raw_writefn = raw_write,
+      .write128fn = vmsa_tcr_ttbr_el2_write128, .raw_write128fn = raw_write128,
+      .fieldoffset = offsetof(CPUARMState, cp15.ttbr1_el[2]),
+      .fieldoffset = offsetof(CPUARMState, cp15.ttbr1_el_hi[2]) },
 #ifndef CONFIG_USER_ONLY
     { .name = "CNTHV_CVAL_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 14, .crm = 3, .opc2 = 2,

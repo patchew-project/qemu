@@ -344,7 +344,8 @@ typedef struct CPUArchState {
         uint64_t cptr_el[4];  /* ARMv8 feature trap registers */
         uint64_t sder; /* Secure debug enable register. */
         uint32_t nsacr; /* Non-secure access control register. */
-        union { /* MMU translation table base 0. */
+        /* MMU translation table bases. */
+        union {
             struct {
                 uint64_t _unused_ttbr0_0;
                 uint64_t ttbr0_ns;
@@ -353,7 +354,7 @@ typedef struct CPUArchState {
             };
             uint64_t ttbr0_el[4];
         };
-        union { /* MMU translation table base 1. */
+        union {
             struct {
                 uint64_t _unused_ttbr1_0;
                 uint64_t ttbr1_ns;
@@ -364,6 +365,10 @@ typedef struct CPUArchState {
         };
         uint64_t vttbr_el2; /* Virtualization Translation Table Base.  */
         uint64_t vsttbr_el2; /* Secure Virtualization Translation Table. */
+        /* High 64 bits of 128-bit Translation Table Bases. */
+        uint64_t ttbr0_el_hi[4];
+        uint64_t ttbr1_el_hi[4];
+        uint64_t vttbr_el2_hi;
         /* MMU translation table base control. */
         uint64_t tcr_el[4];
         uint64_t tcr2_el[3];
