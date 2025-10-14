@@ -307,6 +307,11 @@ static void *call_rcu_thread(void *opaque)
 
 void call_rcu1(struct rcu_head *node, void (*func)(struct rcu_head *node))
 {
+    /*
+     * Avoid accidental reuse of rcu_head, e.g. enqueuing one node twice
+     * (especially, when the function pointers are different).
+     */
+    assert(node->func == NULL);
     node->func = func;
     enqueue(node);
     qatomic_inc(&rcu_call_count);
