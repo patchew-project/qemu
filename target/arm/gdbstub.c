@@ -271,18 +271,6 @@ static int arm_gdb_set_sysreg(CPUState *cs, uint8_t *buf, int reg)
     return 0;
 }
 
-static void arm_gen_one_feature_sysreg(GDBFeatureBuilder *builder,
-                                       DynamicGDBFeatureInfo *dyn_feature,
-                                       ARMCPRegInfo *ri, uint32_t ri_key,
-                                       int n)
-{
-    int bitsize = 8 << cpreg_field_type(ri);
-    gdb_feature_builder_append_reg(builder, ri->name, bitsize, n,
-                                   "int", "cp_regs");
-
-    dyn_feature->data.cpregs.keys[n] = ri_key;
-}
-
 static void arm_register_sysreg_for_feature(gpointer key, gpointer value,
                                             gpointer p)
 {
@@ -291,7 +279,6 @@ static void arm_register_sysreg_for_feature(gpointer key, gpointer value,
     RegisterSysregFeatureParam *param = p;
     ARMCPU *cpu = ARM_CPU(param->cs);
     CPUARMState *env = &cpu->env;
-    DynamicGDBFeatureInfo *dyn_feature = &cpu->dyn_sysreg_feature;
 
     if (ri->type & (ARM_CP_NO_RAW | ARM_CP_NO_GDB)) {
         return;
@@ -310,8 +297,10 @@ static void arm_register_sysreg_for_feature(gpointer key, gpointer value,
         }
     }
 
-    arm_gen_one_feature_sysreg(&param->builder, dyn_feature,
-                               ri, ri_key, param->n++);
+    gdb_feature_builder_append_reg(&param->builder, ri->name,
+                                   8 << cpreg_field_type(ri),
+                                   param->n, "int", "cp_regs");
+    cpu->dyn_sysreg_feature.data.cpregs.keys[param->n++] = ri_key;
 }
 
 static GDBFeature *arm_gen_dynamic_sysreg_feature(CPUState *cs, int base_reg)
