@@ -223,7 +223,7 @@ typedef struct PMUCTRState {
     /* Snapshot value of a counter */
     uint64_t mhpmcounter_prev;
     /* Value beyond UINT32_MAX/UINT64_MAX before overflow interrupt trigger */
-    target_ulong irq_overflow_left;
+    uint64_t irq_overflow_left;
 } PMUCTRState;
 
 typedef struct PMUFixedCtrState {
