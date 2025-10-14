@@ -126,6 +126,46 @@ static FuzzTarget *fuzz_get_target(char* name)
     return NULL;
 }
 
+/*
+ * Global variables to hold the unique socket paths for cleanup.
+ */
+static char g_vnc_socket_path[sizeof("/tmp/qemu-vnc.XXXXXX")];
+static char g_vnc_ws_socket_path[sizeof("/tmp/qemu-vnc-ws.XXXXXX")];
+
+/*
+ * atexit() handler to clean up both socket files.
+ */
+static void cleanup_vnc_sockets(void)
+{
+    if (g_vnc_socket_path[0] != '\0') {
+        unlink(g_vnc_socket_path);
+    }
+    if (g_vnc_ws_socket_path[0] != '\0') {
+        unlink(g_vnc_ws_socket_path);
+    }
+}
+
+/* Helper function to find and replace a placeholder in a GString */
+static bool replace_socket_placeholder(GString *cmd_line, const char *placeholder,
+                                       const char *path_template, char *global_path_out)
+{
+    char *placeholder_ptr = strstr(cmd_line->str, placeholder);
+    if (placeholder_ptr) {
+        int fd;
+        strcpy(global_path_out, path_template);
+        fd = mkstemp(global_path_out);
+        if (fd == -1) {
+            perror("mkstemp failed");
+            return false;
+        }
+        close(fd);
+
+        gssize pos = placeholder_ptr - cmd_line->str;
+        g_string_erase(cmd_line, pos, strlen(placeholder));
+        g_string_insert(cmd_line, pos, global_path_out);
+    }
+    return true;
+}
 
 /* Sometimes called by libfuzzer to mutate two inputs into one */
 size_t LLVMFuzzerCustomCrossOver(const uint8_t *data1, size_t size1,
@@ -212,6 +252,31 @@ int LLVMFuzzerInitialize(int *argc, char ***argv, char ***envp)
     cmd_line = fuzz_target->get_init_cmdline(fuzz_target);
     g_string_append_printf(cmd_line, " %s -qtest /dev/null ",
                            getenv("QTEST_LOG") ? "" : "-qtest-log none");
+
+    /*
+     * For the VNC fuzzer, we replace placeholders for both the standard
+     * and WebSocket VNC listeners with unique socket paths.
+     */
+    if (strcmp(fuzz_target->name, "generic-fuzz-vnc") == 0) {
+        bool success = true;
+        success &= replace_socket_placeholder(cmd_line, "VNC_SOCKET_PATH",
+                                              "/tmp/qemu-vnc.XXXXXX", g_vnc_socket_path);
+        success &= replace_socket_placeholder(cmd_line, "VNC_WS_SOCKET_PATH",
+                                              "/tmp/qemu-vnc-ws.XXXXXX", g_vnc_ws_socket_path);
+
+        if (!success) {
+            exit(1);
+        }
+
+        /* Check that placeholders were actually found and replaced */
+        if (g_vnc_socket_path[0] == '\0' || g_vnc_ws_socket_path[0] == '\0') {
+            fprintf(stderr, "ERROR: VNC fuzzer is missing a socket placeholder\n");
+            exit(1);
+        }
+
+        /* Register a single cleanup handler for both sockets */
+        atexit(cleanup_vnc_sockets);
+    }
 
     /* Split the runcmd into an argv and argc */
     wordexp_t result;

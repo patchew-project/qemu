@@ -247,6 +247,11 @@ const generic_fuzz_config predefined_configs[] = {
         .args = "-machine q35 -nodefaults "
         "-parallel file:/dev/null",
         .objects = "parallel*",
+    },{
+        .name = "vnc",
+        .args = "-machine q35 -nodefaults "
+		"-vnc vnc=unix:VNC_SOCKET_PATH,websocket=unix:VNC_WS_SOCKET_PATH",
+        .objects = "*",
     }
 };
 
