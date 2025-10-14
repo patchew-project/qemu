@@ -233,7 +233,7 @@ static void *rcu_q_updater(void *arg)
         TEST_LIST_FOREACH_RCU(el, &Q_list_head, entry) {
             j++;
             if (target_el == j) {
-                struct list_element *new_el = g_new(struct list_element, 1);
+                struct list_element *new_el = g_new0(struct list_element, 1);
                 n_nodes_local++;
                 TEST_LIST_INSERT_AFTER_RCU(el, new_el, entry);
                 break;
@@ -259,7 +259,7 @@ static void rcu_qtest_init(void)
     nthreadsrunning = 0;
     srand(time(0));
     for (i = 0; i < RCU_Q_LEN; i++) {
-        new_el = g_new(struct list_element, 1);
+        new_el = g_new0(struct list_element, 1);
         TEST_LIST_INSERT_HEAD_RCU(&Q_list_head, new_el, entry);
     }
     qemu_mutex_lock(&counts_mutex);
