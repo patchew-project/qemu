@@ -189,11 +189,12 @@ bool qemu_chr_fe_backend_open(CharBackend *be)
     return be->chr && be->chr->be_open;
 }
 
-bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp)
+bool qemu_chr_fe_init_ex(CharBackend *b, Chardev *s, bool connect,
+                         Error **errp)
 {
     unsigned int tag = 0;
 
-    if (!qemu_chr_connect(s, errp)) {
+    if (connect && !qemu_chr_connect(s, errp)) {
         return false;
     }
 
@@ -216,6 +217,11 @@ bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp)
     b->tag = tag;
     b->chr = s;
     return true;
+}
+
+bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp)
+{
+    return qemu_chr_fe_init_ex(b, s, true, errp);
 }
 
 void qemu_chr_fe_deinit(CharBackend *b, bool del)
