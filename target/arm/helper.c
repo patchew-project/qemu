@@ -7805,6 +7805,22 @@ void define_one_arm_cp_reg(ARMCPU *cpu, const ARMCPRegInfo *r)
     assert(r->state == ARM_CP_STATE_AA32 || !(r->type & ARM_CP_64BIT));
     /* AArch32 64-bit registers have only CRm and Opc1 fields. */
     assert(!(r->type & ARM_CP_64BIT) || !(r->opc2 || r->crn));
+    if (r->type & ARM_CP_128BIT) {
+        /*
+         * Only AArch64 regs are 128-bit.  There is usually an AArch32 64-bit
+         * register aliasing the low half, which must be defined separately due
+         * to encoding conflicts above.
+         */
+        assert(r->state == ARM_CP_STATE_AA64);
+        /*
+         * All 128-bit regs are UNKNOWN at reset, so there's no need
+         * for either resetvalue or resetfn.  For those EL2 registers
+         * that become CONST RES0 for EL3 with EL2 disabled, we allow
+         * ARM_CP_CONST, but only with value 0.
+         */
+        assert(r->resetvalue == 0);
+        assert(r->resetfn == NULL);
+    }
     /* op0 only exists in the AArch64 encodings */
     assert(r->state != ARM_CP_STATE_AA32 || r->opc0 == 0);
 
