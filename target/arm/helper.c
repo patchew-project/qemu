@@ -59,6 +59,8 @@ int compare_u64(const void *a, const void *b)
     (*(uint32_t *)((char *)(env) + (ri)->fieldoffset))
 #define CPREG_FIELD64(env, ri) \
     (*(uint64_t *)((char *)(env) + (ri)->fieldoffset))
+#define CPREG_FIELD128_H64(env, ri) \
+    (*(uint64_t *)((char *)(env) + (ri)->fieldoffsethi))
 
 uint64_t raw_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
@@ -88,8 +90,27 @@ void raw_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     }
 }
 
+Int128 raw_read128(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    assert(ri->type & ARM_CP_128BIT);
+    assert(ri->fieldoffset);
+    assert(ri->fieldoffsethi);
+    return int128_make128(CPREG_FIELD64(env, ri), CPREG_FIELD128_H64(env, ri));
+}
+
+void raw_write128(CPUARMState *env, const ARMCPRegInfo *ri,
+                  uint64_t valuelo, uint64_t valuehi)
+{
+    assert(ri->type & ARM_CP_128BIT);
+    assert(ri->fieldoffset);
+    assert(ri->fieldoffsethi);
+    CPREG_FIELD64(env, ri) = valuelo;
+    CPREG_FIELD128_H64(env, ri) = valuehi;
+}
+
 #undef CPREG_FIELD32
 #undef CPREG_FIELD64
+#undef CPREG_FIELD128_H64
 
 static void *raw_ptr(CPUARMState *env, const ARMCPRegInfo *ri)
 {
