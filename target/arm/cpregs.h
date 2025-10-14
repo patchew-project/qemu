@@ -149,6 +149,8 @@ enum {
      * should not trap to EL2 when HCR_EL2.NV is set.
      */
     ARM_CP_NV_NO_TRAP            = 1 << 22,
+    /* Flag: For ARM_CP_STATE_AA64, sysreg is 128-bit. */
+    ARM_CP_128BIT                = 1 << 23,
 };
 
 /*
@@ -190,6 +192,10 @@ enum {
  */
 #define CP_REG_AA32_NS_SHIFT     29
 #define CP_REG_AA32_NS_MASK      (1 << CP_REG_AA32_NS_SHIFT)
+
+/* Distinguish 64-bit and 128-bit views of AArch64 system registers. */
+#define CP_REG_AA64_128BIT_SHIFT 30
+#define CP_REG_AA64_128BIT_MASK  (1 << CP_REG_AA64_128BIT_SHIFT)
 
 /* Distinguish 32-bit and 64-bit views of AArch32 system registers. */
 #define CP_REG_AA32_64BIT_SHIFT  15
@@ -903,6 +909,9 @@ typedef struct ARMCPRegInfo ARMCPRegInfo;
 typedef uint64_t CPReadFn(CPUARMState *env, const ARMCPRegInfo *ri);
 typedef void CPWriteFn(CPUARMState *env, const ARMCPRegInfo *ri,
                        uint64_t value);
+typedef Int128 CPRead128Fn(CPUARMState *env, const ARMCPRegInfo *opaque);
+typedef void CPWrite128Fn(CPUARMState *env, const ARMCPRegInfo *opaque,
+                          uint64_t valuelo, uint64_t valuehi);
 /* Access permission check functions for coprocessor registers. */
 typedef CPAccessResult CPAccessFn(CPUARMState *env,
                                   const ARMCPRegInfo *ri,
@@ -991,6 +1000,11 @@ struct ARMCPRegInfo {
      *  2. both readfn and writefn are specified
      */
     ptrdiff_t fieldoffset; /* offsetof(CPUARMState, field) */
+    /*
+     * Offset of the high 64-bits of the field in CPUARMState.
+     * Similarly, may be omitted if read128fn and write128fn are set.
+     */
+    ptrdiff_t fieldoffsethi;
 
     /*
      * Offsets of the secure and non-secure fields in CPUARMState for the
@@ -1046,6 +1060,13 @@ struct ARMCPRegInfo {
      * fieldoffset is 0 then no reset will be done.
      */
     CPResetFn *resetfn;
+
+    /* For ARM_CP_128BIT, when accessed via MRRS/MSRR. */
+    CPAccessFn *access128fn;
+    CPRead128Fn *read128fn;
+    CPWrite128Fn *write128fn;
+    CPRead128Fn *raw_read128fn;
+    CPWrite128Fn *raw_write128fn;
 };
 
 void define_one_arm_cp_reg(ARMCPU *cpu, const ARMCPRegInfo *regs);
@@ -1115,6 +1136,9 @@ void arm_cp_reset_ignore(CPUARMState *env, const ARMCPRegInfo *ri);
  */
 static inline MemOp cpreg_field_type(const ARMCPRegInfo *ri)
 {
+    if (ri->type & ARM_CP_128BIT) {
+        return MO_128;
+    }
     return (ri->state == ARM_CP_STATE_AA64 || (ri->type & ARM_CP_64BIT)
             ? MO_64 : MO_32);
 }
