@@ -247,15 +247,20 @@ static int arm_gdb_get_sysreg(CPUState *cs, GByteArray *buf, int reg)
     key = cpu->dyn_sysreg_feature.data.cpregs.keys[reg];
     ri = get_arm_cp_reginfo(cpu->cp_regs, key);
     if (ri) {
+        if (ri->vhe_redir_to_el2 &&
+            (arm_hcr_el2_eff(env) & HCR_E2H) &&
+            arm_current_el(env) == 2) {
+            ri = get_arm_cp_reginfo(cpu->cp_regs, ri->vhe_redir_to_el2);
+        } else if (ri->vhe_redir_to_el01) {
+            ri = get_arm_cp_reginfo(cpu->cp_regs, ri->vhe_redir_to_el01);
+        }
         switch (cpreg_field_type(ri)) {
-        case MO_64:
-            if (ri->vhe_redir_to_el2 &&
-                (arm_hcr_el2_eff(env) & HCR_E2H) &&
-                arm_current_el(env) == 2) {
-                ri = get_arm_cp_reginfo(cpu->cp_regs, ri->vhe_redir_to_el2);
-            } else if (ri->vhe_redir_to_el01) {
-                ri = get_arm_cp_reginfo(cpu->cp_regs, ri->vhe_redir_to_el01);
+        case MO_128:
+            {
+                Int128 v = read_raw_cp_reg128(env, ri);
+                return gdb_get_reg128(buf, int128_gethi(v), int128_getlo(v));
             }
+        case MO_64:
             return gdb_get_reg64(buf, (uint64_t)read_raw_cp_reg(env, ri));
         case MO_32:
             return gdb_get_reg32(buf, (uint32_t)read_raw_cp_reg(env, ri));
@@ -279,6 +284,7 @@ static void arm_register_sysreg_for_feature(gpointer key, gpointer value,
     RegisterSysregFeatureParam *param = p;
     ARMCPU *cpu = ARM_CPU(param->cs);
     CPUARMState *env = &cpu->env;
+    int bitsize, n;
 
     if (ri->type & (ARM_CP_NO_RAW | ARM_CP_NO_GDB)) {
         return;
@@ -297,10 +303,26 @@ static void arm_register_sysreg_for_feature(gpointer key, gpointer value,
         }
     }
 
-    gdb_feature_builder_append_reg(&param->builder, ri->name,
-                                   8 << cpreg_field_type(ri),
-                                   param->n, "int", "cp_regs");
-    cpu->dyn_sysreg_feature.data.cpregs.keys[param->n++] = ri_key;
+    n = param->n++;
+    bitsize = 8 << cpreg_field_type(ri);
+    /*
+     * GDB generates an error for type="int" and bitsize=128.
+     * We need to use type="uint128" instead.
+     */
+    switch (bitsize) {
+    case 128:
+        gdb_feature_builder_append_reg(&param->builder, ri->name,
+                                       bitsize, n, "uint128", "cp_regs");
+        break;
+    case 64:
+    case 32:
+        gdb_feature_builder_append_reg(&param->builder, ri->name,
+                                       bitsize, n, "int", "cp_regs");
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    cpu->dyn_sysreg_feature.data.cpregs.keys[n] = ri_key;
 }
 
 static GDBFeature *arm_gen_dynamic_sysreg_feature(CPUState *cs, int base_reg)
