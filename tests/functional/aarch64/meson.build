@@ -26,6 +26,7 @@ tests_aarch64_system_thorough = [
   'aspeed_ast2700',
   'aspeed_ast2700fc',
   'device_passthrough',
+  'gpu_blob',
   'hotplug_pci',
   'imx8mp_evk',
   'kvm',
