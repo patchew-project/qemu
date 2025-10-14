@@ -441,7 +441,7 @@ static struct qht_map *qht_map_create(size_t n_buckets)
     struct qht_map *map;
     size_t i;
 
-    map = g_malloc(sizeof(*map));
+    map = g_malloc0(sizeof(*map));
     map->n_buckets = n_buckets;
 
     map->n_added_buckets = 0;
