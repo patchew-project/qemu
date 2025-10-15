@@ -25,15 +25,19 @@ struct CharBackend {
 };
 
 /**
- * qemu_chr_fe_init:
+ * qemu_chr_fe_init(_ex):
  *
  * Initializes a front end for the given CharBackend and
  * Chardev. Call qemu_chr_fe_deinit() to remove the association and
  * release the driver.
+ * Call qemu_chr_connect(), except for the case when connect=false
+ * parameter set for _ex() version.
  *
  * Returns: false on error.
  */
 bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp);
+bool qemu_chr_fe_init_ex(CharBackend *b, Chardev *s, bool connect,
+                         Error **errp);
 
 /**
  * qemu_chr_fe_deinit:

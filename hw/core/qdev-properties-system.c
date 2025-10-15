@@ -266,8 +266,8 @@ static void get_chr(Object *obj, Visitor *v, const char *name, void *opaque,
     g_free(p);
 }
 
-static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
-                    Error **errp)
+static void do_set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
+                       bool connect, Error **errp)
 {
     ERRP_GUARD();
     const Property *prop = opaque;
@@ -297,11 +297,23 @@ static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
     if (s == NULL) {
         error_setg(errp, "Property '%s.%s' can't find value '%s'",
                    object_get_typename(obj), name, str);
-    } else if (!qemu_chr_fe_init(be, s, errp)) {
+    } else if (!qemu_chr_fe_init_ex(be, s, connect, errp)) {
         error_prepend(errp, "Property '%s.%s' can't take value '%s': ",
                       object_get_typename(obj), name, str);
     }
     g_free(str);
+}
+
+static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
+                    Error **errp)
+{
+    do_set_chr(obj, v, name, opaque, true, errp);
+}
+
+static void set_chr_no_connect(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    do_set_chr(obj, v, name, opaque, false, errp);
 }
 
 static void release_chr(Object *obj, const char *name, void *opaque)
@@ -317,6 +329,14 @@ const PropertyInfo qdev_prop_chr = {
     .description = "ID of a chardev to use as a backend",
     .get   = get_chr,
     .set   = set_chr,
+    .release = release_chr,
+};
+
+const PropertyInfo qdev_prop_chr_no_connect = {
+    .type  = "str",
+    .description = "ID of a chardev to use as a backend",
+    .get   = get_chr,
+    .set   = set_chr_no_connect,
     .release = release_chr,
 };
 
