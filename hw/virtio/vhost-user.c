@@ -119,6 +119,94 @@ typedef enum VhostUserBackendRequest {
     VHOST_USER_BACKEND_MAX
 }  VhostUserBackendRequest;
 
+static const char *vhost_req_name(VhostUserRequest req)
+{
+    switch (req) {
+    case VHOST_USER_NONE:
+        return "NONE";
+    case VHOST_USER_GET_FEATURES:
+        return "GET_FEATURES";
+    case VHOST_USER_SET_FEATURES:
+        return "SET_FEATURES";
+    case VHOST_USER_SET_OWNER:
+        return "SET_OWNER";
+    case VHOST_USER_RESET_OWNER:
+        return "RESET_OWNER";
+    case VHOST_USER_SET_MEM_TABLE:
+        return "SET_MEM_TABLE";
+    case VHOST_USER_SET_LOG_BASE:
+        return "SET_LOG_BASE";
+    case VHOST_USER_SET_LOG_FD:
+        return "SET_LOG_FD";
+    case VHOST_USER_SET_VRING_NUM:
+        return "SET_VRING_NUM";
+    case VHOST_USER_SET_VRING_ADDR:
+        return "SET_VRING_ADDR";
+    case VHOST_USER_SET_VRING_BASE:
+        return "SET_VRING_BASE";
+    case VHOST_USER_GET_VRING_BASE:
+        return "GET_VRING_BASE";
+    case VHOST_USER_SET_VRING_KICK:
+        return "SET_VRING_KICK";
+    case VHOST_USER_SET_VRING_CALL:
+        return "SET_VRING_CALL";
+    case VHOST_USER_SET_VRING_ERR:
+        return "SET_VRING_ERR";
+    case VHOST_USER_GET_PROTOCOL_FEATURES:
+        return "GET_PROTOCOL_FEATURES";
+    case VHOST_USER_SET_PROTOCOL_FEATURES:
+        return "SET_PROTOCOL_FEATURES";
+    case VHOST_USER_GET_QUEUE_NUM:
+        return "GET_QUEUE_NUM";
+    case VHOST_USER_SET_VRING_ENABLE:
+        return "SET_VRING_ENABLE";
+    case VHOST_USER_SEND_RARP:
+        return "SEND_RARP";
+    case VHOST_USER_NET_SET_MTU:
+        return "NET_SET_MTU";
+    case VHOST_USER_SET_BACKEND_REQ_FD:
+        return "SET_BACKEND_REQ_FD";
+    case VHOST_USER_IOTLB_MSG:
+        return "IOTLB_MSG";
+    case VHOST_USER_SET_VRING_ENDIAN:
+        return "SET_VRING_ENDIAN";
+    case VHOST_USER_GET_CONFIG:
+        return "GET_CONFIG";
+    case VHOST_USER_SET_CONFIG:
+        return "SET_CONFIG";
+    case VHOST_USER_CREATE_CRYPTO_SESSION:
+        return "CREATE_CRYPTO_SESSION";
+    case VHOST_USER_CLOSE_CRYPTO_SESSION:
+        return "CLOSE_CRYPTO_SESSION";
+    case VHOST_USER_POSTCOPY_ADVISE:
+        return "POSTCOPY_ADVISE";
+    case VHOST_USER_POSTCOPY_LISTEN:
+        return "POSTCOPY_LISTEN";
+    case VHOST_USER_POSTCOPY_END:
+        return "POSTCOPY_END";
+    case VHOST_USER_GET_INFLIGHT_FD:
+        return "GET_INFLIGHT_FD";
+    case VHOST_USER_SET_INFLIGHT_FD:
+        return "SET_INFLIGHT_FD";
+    case VHOST_USER_GPU_SET_SOCKET:
+        return "GPU_SET_SOCKET";
+    case VHOST_USER_RESET_DEVICE:
+        return "RESET_DEVICE";
+    case VHOST_USER_GET_MAX_MEM_SLOTS:
+        return "GET_MAX_MEM_SLOTS";
+    case VHOST_USER_ADD_MEM_REG:
+        return "ADD_MEM_REG";
+    case VHOST_USER_REM_MEM_REG:
+        return "REM_MEM_REG";
+    case VHOST_USER_SET_STATUS:
+        return "SET_STATUS";
+    case VHOST_USER_GET_STATUS:
+        return "GET_STATUS";
+    default:
+        return "<unknown>";
+    }
+}
+
 typedef struct VhostUserMemoryRegion {
     uint64_t guest_phys_addr;
     uint64_t memory_size;
@@ -311,7 +399,8 @@ static int vhost_user_read_header(struct vhost_dev *dev, VhostUserMsg *msg)
         return -EPROTO;
     }
 
-    trace_vhost_user_read(msg->hdr.request, msg->hdr.flags);
+    trace_vhost_user_read(msg->hdr.request,
+                          vhost_req_name(msg->hdr.request), msg->hdr.flags);
 
     return 0;
 }
@@ -431,7 +520,8 @@ static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
         return ret < 0 ? -saved_errno : -EIO;
     }
 
-    trace_vhost_user_write(msg->hdr.request, msg->hdr.flags);
+    trace_vhost_user_write(msg->hdr.request, vhost_req_name(msg->hdr.request),
+                           msg->hdr.flags);
 
     return 0;
 }
