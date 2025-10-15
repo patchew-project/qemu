@@ -20,6 +20,7 @@
 #include "qemu/guest-random.h"
 #include "exec/target_page.h"
 #include "qapi/error.h"
+#include "cpu-models.h"
 #include "e500.h"
 #include "e500-ccsr.h"
 #include "net/net.h"
@@ -945,6 +946,10 @@ void ppce500_init(MachineState *machine)
         if (env->mmu_model != POWERPC_MMU_BOOKE206) {
             error_report("MMU model %i not supported by this machine",
                          env->mmu_model);
+            exit(1);
+        }
+        if (!(POWERPC_CPU_GET_CLASS(cpu)->svr & POWERPC_SVR_E500)) {
+            error_report("This machine needs a CPU from the e500 family");
             exit(1);
         }
 
