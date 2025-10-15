@@ -346,12 +346,19 @@
 # @vhostfds: file descriptors of multiple already opened vhost net
 #     devices
 #
-# @vhostforce: vhost on for non-MSIX virtio guests
+# @vhostforce: enable vhost-net network accelerator.  Ignored when
+#    @vhost is set.
 #
 # @queues: number of queues to be created for multiqueue capable tap
 #
 # @poll-us: maximum number of microseconds that could be spent on busy
 #     polling for tap (since 2.7)
+#
+# Features:
+#
+# @deprecated: Member @vhostforce is deprecated.  The @vhostforce
+#    option is redundant with the @vhost option. If they conflict,
+#    @vhost takes precedence.  Just use @vhost.
 #
 # Since: 1.2
 ##
@@ -369,7 +376,7 @@
     '*vhost':      'bool',
     '*vhostfd':    'str',
     '*vhostfds':   'str',
-    '*vhostforce': 'bool',
+    '*vhostforce': { 'type': 'bool', 'features': [ 'deprecated' ] },
     '*queues':     'uint32',
     '*poll-us':    'uint32'} }
 
@@ -606,17 +613,22 @@
 #
 # @chardev: name of a unix socket chardev
 #
-# @vhostforce: vhost on for non-MSIX virtio guests (default: false).
+# @vhostforce: no-op (default: false).
 #
 # @queues: number of queues to be created for multiqueue vhost-user
 #     (default: 1) (Since 2.5)
+#
+# Features:
+#
+# @deprecated: Member @vhostforce is deprecated.  The @vhostforce
+#    option is ignored in code and does nothing.  Don't use it.
 #
 # Since: 2.1
 ##
 { 'struct': 'NetdevVhostUserOptions',
   'data': {
     'chardev':        'str',
-    '*vhostforce':    'bool',
+    '*vhostforce': { 'type': 'bool', 'features': [ 'deprecated' ] },
     '*queues':        'int' } }
 
 ##
