@@ -764,6 +764,7 @@ SRST
 
 ERST
 
+#ifdef CONFIG_AUDIO_HMP
     {
         .name       = "wavcapture",
         .args_type  = "path:F,audiodev:s,freq:i?,bits:i?,nchannels:i?",
@@ -798,6 +799,7 @@ SRST
     info capture
 
 ERST
+#endif
 
     {
         .name       = "memsave",

@@ -2354,6 +2354,10 @@ endif
 config_host_data = configuration_data()
 
 config_host_data.set('CONFIG_HAVE_RUST', have_rust)
+
+# HMP code deprecated since v10.2, to be removed
+config_host_data.set('CONFIG_AUDIO_HMP', true)
+
 audio_drivers_selected = []
 if have_system
   audio_drivers_available = {
