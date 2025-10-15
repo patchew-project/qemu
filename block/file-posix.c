@@ -3203,6 +3203,19 @@ static int find_allocation(BlockDriverState *bs, off_t start,
      */
     offs = lseek(s->fd, start, SEEK_DATA);
     if (offs < 0) {
+#ifdef __APPLE__
+        /* On macOS, this error does not always mean that there is no data.
+         * Check if we can get the trailing hole, which should be guaranteed.
+         * If that fails, then SEEK_DATA/SEEK_HOLE won't work for this file. */
+        if (errno == ENXIO) {
+            if (start < raw_getlength(bs) &&
+                lseek(s->fd, start, SEEK_HOLE) < 0 &&
+                errno == ENXIO) {
+                return -ENOTSUP;
+            }
+            return -ENXIO;
+        }
+#endif
         return -errno;          /* D3 or D4 */
     }
 
