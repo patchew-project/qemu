@@ -22,6 +22,11 @@ unsigned target_long_bits(void)
     return target_info()->long_bits;
 }
 
+unsigned target_phys_addr_space_bits(void)
+{
+    return target_info()->phys_addr_space_bits;
+}
+
 SysEmuTarget target_arch(void)
 {
     SysEmuTarget arch = target_info()->target_arch;

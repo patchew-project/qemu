@@ -24,6 +24,14 @@ const char *target_name(void);
 unsigned target_long_bits(void);
 
 /**
+ * target_phys_addr_space_bits:
+ *
+ * Returns: number of bits needed to represent the targets physical
+ *          address space.
+ */
+unsigned target_phys_addr_space_bits(void);
+
+/**
  * target_machine_typename:
  *
  * Returns: Name of the QOM interface implemented by machines
