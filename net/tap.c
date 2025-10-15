@@ -702,15 +702,12 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
                              const char *downscript, const char *vhostfdname,
                              int vnet_hdr, int fd, Error **errp)
 {
-    Error *err = NULL;
     TAPState *s = net_tap_new(peer, model, name);
     int vhostfd;
 
     net_tap_set_fd(s, fd, vnet_hdr);
 
-    tap_set_sndbuf(s->fd, tap, &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!tap_set_sndbuf(s->fd, tap, errp)) {
         goto failed;
     }
 
