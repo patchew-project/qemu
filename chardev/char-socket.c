@@ -1287,6 +1287,25 @@ static int qmp_chardev_open_socket_client(Chardev *chr,
 }
 
 
+static bool char_socket_connect(Chardev *chr, Error **errp)
+{
+    SocketChardev *s = SOCKET_CHARDEV(chr);
+
+    if (s->is_listen) {
+        if (qmp_chardev_open_socket_server(chr, s->is_telnet || s->is_tn3270,
+                                           s->is_waitconnect, errp) < 0) {
+            return false;
+        }
+    } else {
+        if (qmp_chardev_open_socket_client(chr, errp) < 0) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
 static bool qmp_chardev_validate_socket(ChardevSocket *sock,
                                         SocketAddress *addr,
                                         Error **errp)
@@ -1363,10 +1382,9 @@ static bool qmp_chardev_validate_socket(ChardevSocket *sock,
 }
 
 
-static void qmp_chardev_open_socket(Chardev *chr,
-                                    ChardevBackend *backend,
-                                    bool *be_opened,
-                                    Error **errp)
+static bool char_socket_init(Chardev *chr,
+                             ChardevBackend *backend,
+                             Error **errp)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
     ChardevSocket *sock = backend->u.socket.data;
@@ -1374,7 +1392,6 @@ static void qmp_chardev_open_socket(Chardev *chr,
     bool is_listen      = sock->has_server  ? sock->server  : true;
     bool is_telnet      = sock->has_telnet  ? sock->telnet  : false;
     bool is_tn3270      = sock->has_tn3270  ? sock->tn3270  : false;
-    bool is_waitconnect = sock->has_wait    ? sock->wait    : false;
     bool is_websock     = sock->has_websocket ? sock->websocket : false;
     SocketAddress *addr;
 
@@ -1383,6 +1400,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
     s->is_tn3270 = is_tn3270;
     s->is_websock = is_websock;
     s->do_nodelay = do_nodelay;
+    s->is_waitconnect = sock->has_wait ? sock->wait : false;
     s->reconnect_time_ms = sock->has_reconnect_ms ? sock->reconnect_ms : 0;
 
     if (sock->tls_creds) {
@@ -1392,7 +1410,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
         if (!creds) {
             error_setg(errp, "No TLS credentials with id '%s'",
                        sock->tls_creds);
-            return;
+            return false;
         }
         s->tls_creds = (QCryptoTLSCreds *)
             object_dynamic_cast(creds,
@@ -1400,7 +1418,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
         if (!s->tls_creds) {
             error_setg(errp, "Object with id '%s' is not TLS credentials",
                        sock->tls_creds);
-            return;
+            return false;
         }
         object_ref(OBJECT(s->tls_creds));
         if (!qcrypto_tls_creds_check_endpoint(s->tls_creds,
@@ -1408,7 +1426,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
                                           ? QCRYPTO_TLS_CREDS_ENDPOINT_SERVER
                                           : QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT,
                                           errp)) {
-            return;
+            return false;
         }
     }
     s->tls_authz = g_strdup(sock->tls_authz);
@@ -1416,7 +1434,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
     s->addr = addr = socket_address_flatten(sock->addr);
 
     if (!qmp_chardev_validate_socket(sock, addr, errp)) {
-        return;
+        return false;
     }
 
     qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_RECONNECTABLE);
@@ -1433,26 +1451,14 @@ static void qmp_chardev_open_socket(Chardev *chr,
      */
     if (!chr->handover_yank_instance) {
         if (!yank_register_instance(CHARDEV_YANK_INSTANCE(chr->label), errp)) {
-            return;
+            return false;
         }
     }
     s->registered_yank = true;
 
-    /* be isn't opened until we get a connection */
-    *be_opened = false;
-
     update_disconnected_filename(s);
 
-    if (s->is_listen) {
-        if (qmp_chardev_open_socket_server(chr, is_telnet || is_tn3270,
-                                           is_waitconnect, errp) < 0) {
-            return;
-        }
-    } else {
-        if (qmp_chardev_open_socket_client(chr, errp) < 0) {
-            return;
-        }
-    }
+    return true;
 }
 
 static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
@@ -1576,7 +1582,8 @@ static void char_socket_class_init(ObjectClass *oc, const void *data)
     cc->supports_yank = true;
 
     cc->parse = qemu_chr_parse_socket;
-    cc->open = qmp_chardev_open_socket;
+    cc->init = char_socket_init;
+    cc->connect = char_socket_connect;
     cc->chr_wait_connected = tcp_chr_wait_connected;
     cc->chr_write = tcp_chr_write;
     cc->chr_sync_read = tcp_chr_sync_read;
