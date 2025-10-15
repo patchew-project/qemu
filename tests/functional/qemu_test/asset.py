@@ -111,7 +111,7 @@ class Asset:
                 return False
 
         self.log.debug("Time out while waiting for %s!", tmp_cache_file)
-        raise
+        raise TimeoutError(f"Time out while waiting for {tmp_cache_file}")
 
     def fetch(self):
         if not self.cache_dir.exists():
@@ -129,7 +129,7 @@ class Asset:
         self.log.info("Downloading %s to %s...", self.url, self.cache_file)
         tmp_cache_file = self.cache_file.with_suffix(".download")
 
-        for retries in range(3):
+        for _ in range(3):
             try:
                 with tmp_cache_file.open("xb") as dst:
                     with urllib.request.urlopen(self.url) as resp:
@@ -169,7 +169,7 @@ class Asset:
                 # server or networking problem
                 if e.code == 404:
                     raise AssetError(self, "Unable to download: "
-                                     "HTTP error %d" % e.code)
+                                     "HTTP error %d" % e.code) from e
                 continue
             except URLError as e:
                 # This is typically a network/service level error
@@ -178,7 +178,7 @@ class Asset:
                 self.log.error("Unable to download %s: URL error %s",
                                self.url, e.reason)
                 raise AssetError(self, "Unable to download: URL error %s" %
-                                 e.reason, transient=True)
+                                 e.reason, transient=True) from e
             except ConnectionError as e:
                 # A socket connection failure, such as dropped conn
                 # or refused conn
@@ -189,7 +189,7 @@ class Asset:
             except Exception as e:
                 tmp_cache_file.unlink()
                 raise AssetError(self, "Unable to download: %s" % e,
-                                 transient=True)
+                                 transient=True) from e
 
         if not os.path.exists(tmp_cache_file):
             raise AssetError(self, "Download retries exceeded", transient=True)
@@ -202,7 +202,6 @@ class Asset:
                         self.hash.encode('utf8'))
         except Exception as e:
             self.log.debug("Unable to set xattr on %s: %s", tmp_cache_file, e)
-            pass
 
         if not self._check(tmp_cache_file):
             tmp_cache_file.unlink()
@@ -211,9 +210,10 @@ class Asset:
         # Remove write perms to stop tests accidentally modifying them
         os.chmod(self.cache_file, stat.S_IRUSR | stat.S_IRGRP)
 
-        self.log.info("Cached %s at %s" % (self.url, self.cache_file))
+        self.log.info("Cached %s at %s", self.url, self.cache_file)
         return str(self.cache_file)
 
+    @staticmethod
     def precache_test(test):
         log = logging.getLogger('qemu-test')
         log.setLevel(logging.DEBUG)
@@ -224,16 +224,17 @@ class Asset:
         handler.setFormatter(formatter)
         log.addHandler(handler)
         for name, asset in vars(test.__class__).items():
-            if name.startswith("ASSET_") and type(asset) == Asset:
+            if name.startswith("ASSET_") and isinstance(asset, Asset):
                 try:
                     asset.fetch()
                 except AssetError as e:
                     if not e.transient:
                         raise
-                    log.error("%s: skipping asset precache" % e)
+                    log.error("%s: skipping asset precache", e)
 
         log.removeHandler(handler)
 
+    @staticmethod
     def precache_suite(suite):
         for test in suite:
             if isinstance(test, unittest.TestSuite):
@@ -241,9 +242,10 @@ class Asset:
             elif isinstance(test, unittest.TestCase):
                 Asset.precache_test(test)
 
-    def precache_suites(path, cacheTstamp):
+    @staticmethod
+    def precache_suites(path, cache_tstamp):
         loader = unittest.loader.defaultTestLoader
         tests = loader.loadTestsFromNames([path], None)
 
-        with open(cacheTstamp, "w") as fh:
+        with open(cache_tstamp, "w", encoding='utf-8'):
             Asset.precache_suite(tests)
