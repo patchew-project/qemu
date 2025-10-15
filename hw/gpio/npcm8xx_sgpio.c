@@ -22,10 +22,13 @@
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/units.h"
 #include "trace.h"
+
+#include <limits.h>
 
 #define NPCM8XX_SGPIO_RD_MODE_MASK      0x6
 #define NPCM8XX_SGPIO_RD_MODE_PERIODIC  0x4
@@ -126,24 +129,67 @@ static uint64_t npcm8xx_sgpio_regs_read_with_cfg(NPCM8xxSGPIOState *s,
     if (rd_word) {
         value = ((uint16_t)s->regs[reg] << 8) | s->regs[reg + 1];
     } else {
-        value = s->regs[reg];
+        value = (uint8_t) s->regs[reg];
     }
 
     return value;
 }
 
+/*
+ *  For each pin, event can be generated from one of 3 conditions.
+ *
+ *  | 1 | 0 | event configuration
+ *  -----------------------------
+ *  | 0 | 0 | disabled
+ *  | 0 | 1 | 0-1 transition
+ *  | 1 | 0 | 1-0 transition
+ *  | 1 | 1 | even by any transition
+ */
+
 static void npcm8xx_sgpio_update_event(NPCM8xxSGPIOState *s, uint64_t diff)
 {
-    /* TODO in upcoming patch */
+    uint8_t *d = (uint8_t *)&(diff);
+    uint8_t *p = (uint8_t *)&s->pin_in_level;
+    uint16_t type;
+    uint8_t sts;
+    int i;
+
+    for (i = 0; i < npcm8xx_sgpio_get_in_port(s); ++i) {
+        type = ((uint16_t)s->regs[NPCM8XX_SGPIO_XEVCFG0 + 2 * i] << 8) |
+                        s->regs[NPCM8XX_SGPIO_XEVCFG0 + 2 * i + 1];
+
+        /* 0-1 transitions */
+        sts = p[i] & d[i] & (uint8_t)half_unshuffle32(type);
+        /* 1-0 transitions */
+        sts |= (~p[i]) & (d[i] & (uint8_t)half_unshuffle32(type >> 1));
+
+        s->regs[NPCM8XX_SGPIO_XEVSTS0 + i] = sts;
+
+        /* Generate event if the event status register tells us so */
+        qemu_set_irq(s->irq, !!(s->regs[NPCM8XX_SGPIO_XEVSTS0 + i]));
+    }
 }
 
-static void npcm8xx_sgpio_update_pins_in(NPCM8xxSGPIOState *s, uint64_t diff)
+static void npcm8xx_sgpio_update_pins_in(NPCM8xxSGPIOState *s, uint64_t value)
 {
-    /* TODO in upcoming patch */
+    uint8_t *nv = (uint8_t *)&value;
+    uint8_t *ov = (uint8_t *)&s->pin_in_level;
+    uint64_t diff = s->pin_in_level ^ value;
+    int i;
+
+    for (i = 0; i < npcm8xx_sgpio_get_in_port(s); ++i) {
+        if (ov[i] == nv[i]) {
+            continue;
+        }
+        s->regs[NPCM8XX_SGPIO_XDIN0 + i] = nv[i];
+    }
+    s->pin_in_level = value;
+    npcm8xx_sgpio_update_event(s, diff);
 }
 
 static void npcm8xx_sgpio_update_pins_out(NPCM8xxSGPIOState *s, hwaddr reg)
 {
+    uint8_t *p = (uint8_t *)&s->pin_out_level;
     uint8_t nout, dout;
 
     if (~(s->regs[NPCM8XX_SGPIO_IOXCTS] & NPCM8XX_SGPIO_IOXCTS_IOXIF_EN)) {
@@ -159,7 +205,7 @@ static void npcm8xx_sgpio_update_pins_out(NPCM8xxSGPIOState *s, hwaddr reg)
                       "%s: Accessing XDOUT%d when NOUT is %d\n",
                       DEVICE(s)->canonical_path, dout, nout);
     }
-    s->pin_out_level[dout] = s->regs[NPCM8XX_SGPIO_XDOUT0 + dout];
+    p[dout] = s->regs[reg];
     /* unset WR_PEND */
     s->regs[NPCM8XX_SGPIO_IOXCTS] &= ~0x40;
 }
@@ -294,10 +340,8 @@ static void npcm8xx_sgpio_regs_write(void *opaque, hwaddr addr, uint64_t v,
             }
             s->regs[reg] ^= hi_val;
             s->regs[reg + 1] ^= value;
-            npcm8xx_sgpio_update_event(s, 0);
         } else {
             s->regs[reg] ^= value;
-            npcm8xx_sgpio_update_event(s, 0);
         }
         break;
 
@@ -371,19 +415,70 @@ static void npcm8xx_sgpio_hold_reset(Object *obj, ResetType type)
 {
     NPCM8xxSGPIOState *s = NPCM8XX_SGPIO(obj);
 
-    npcm8xx_sgpio_update_pins_in(s, -1);
+    npcm8xx_sgpio_update_pins_in(s, 0);
+}
+
+static void npcm8xx_sgpio_set_input_lo(void *opaque, int line, int level)
+{
+    NPCM8xxSGPIOState *s = opaque;
+
+    g_assert(line >= 0 && line < NPCM8XX_SGPIO_NR_PINS / 2);
+
+    npcm8xx_sgpio_update_pins_in(s, BIT(line) && level);
+}
+
+static void npcm8xx_sgpio_set_input_hi(void *opaque, int line, int level)
+{
+    NPCM8xxSGPIOState *s = opaque;
+    uint64_t line_ull = line;
+
+    g_assert(line >= NPCM8XX_SGPIO_NR_PINS / 2 && line < NPCM8XX_SGPIO_NR_PINS);
+
+    npcm8xx_sgpio_update_pins_in(s, BIT(line_ull << 32) && level);
+}
+
+static void npcm8xx_sgpio_get_pins_in(Object *obj, Visitor *v, const char *name,
+                                     void *opaque, Error **errp)
+{
+    NPCM8xxSGPIOState *s = NPCM8XX_SGPIO(obj);
+
+    visit_type_uint64(v, name, &s->pin_in_level, errp);
+}
+
+static void npcm8xx_sgpio_set_pins_in(Object *obj, Visitor *v, const char *name,
+                                     void *opaque, Error **errp)
+{
+    NPCM8xxSGPIOState *s = NPCM8XX_SGPIO(obj);
+    uint64_t new_pins_in;
+
+    if (!visit_type_uint64(v, name, &new_pins_in, errp)) {
+        return;
+    }
+
+    npcm8xx_sgpio_update_pins_in(s, new_pins_in);
 }
 
 static void npcm8xx_sgpio_init(Object *obj)
 {
     NPCM8xxSGPIOState *s = NPCM8XX_SGPIO(obj);
+    DeviceState *dev = DEVICE(obj);
 
     memory_region_init_io(&s->mmio, obj, &npcm8xx_sgpio_regs_ops, s,
                           "regs", NPCM8XX_SGPIO_REGS_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
 
-    /* TODO: Add input GPIO pins */
+    /* There are total 64 input pins that can be set */
+    QEMU_BUILD_BUG_ON(NPCM8XX_SGPIO_NR_PINS >
+                      sizeof(s->pin_in_level) * CHAR_BIT);
+    qdev_init_gpio_in(dev, npcm8xx_sgpio_set_input_hi,
+                      NPCM8XX_SGPIO_NR_PINS / 2);
+    qdev_init_gpio_in(dev, npcm8xx_sgpio_set_input_lo,
+                      NPCM8XX_SGPIO_NR_PINS / 2);
+
+    object_property_add(obj, "sgpio-pins-in", "uint64",
+                        npcm8xx_sgpio_get_pins_in, npcm8xx_sgpio_set_pins_in,
+                        NULL, NULL);
 }
 
 static const VMStateDescription vmstate_npcm8xx_sgpio = {
@@ -391,10 +486,8 @@ static const VMStateDescription vmstate_npcm8xx_sgpio = {
     .version_id = 0,
     .minimum_version_id = 0,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_ARRAY(pin_in_level, NPCM8xxSGPIOState,
-                            NPCM8XX_SGPIO_NR_PINS / NPCM8XX_SGPIO_MAX_PORTS),
-        VMSTATE_UINT8_ARRAY(pin_out_level, NPCM8xxSGPIOState,
-                            NPCM8XX_SGPIO_NR_PINS / NPCM8XX_SGPIO_MAX_PORTS),
+        VMSTATE_UINT64(pin_in_level, NPCM8xxSGPIOState),
+        VMSTATE_UINT64(pin_out_level, NPCM8xxSGPIOState),
         VMSTATE_UINT8_ARRAY(regs, NPCM8xxSGPIOState, NPCM8XX_SGPIO_NR_REGS),
         VMSTATE_END_OF_LIST(),
     },
