@@ -19,7 +19,7 @@
 
 static char *scsibus_get_dev_path(DeviceState *dev);
 static char *scsibus_get_fw_dev_path(DeviceState *dev);
-static void scsi_req_dequeue(SCSIRequest *req);
+static void scsi_req_dequeue(SCSIRequest *req, bool holds_requests_lock);
 static uint8_t *scsi_target_alloc_buf(SCSIRequest *req, size_t len);
 static void scsi_target_free_buf(SCSIRequest *req);
 static void scsi_clear_reported_luns_changed(SCSIRequest *req);
@@ -290,7 +290,7 @@ static void scsi_dma_restart_req(SCSIRequest *req, void *opaque)
                 scsi_req_continue(req);
                 break;
             case SCSI_XFER_NONE:
-                scsi_req_dequeue(req);
+                scsi_req_dequeue(req, false);
                 scsi_req_enqueue(req);
                 break;
         }
@@ -1029,13 +1029,17 @@ int32_t scsi_req_enqueue(SCSIRequest *req)
     return rc;
 }
 
-static void scsi_req_dequeue(SCSIRequest *req)
+static void scsi_req_dequeue(SCSIRequest *req, bool holds_requests_lock)
 {
     trace_scsi_req_dequeue(req->dev->id, req->lun, req->tag);
     req->retry = false;
     if (req->enqueued) {
-        WITH_QEMU_LOCK_GUARD(&req->dev->requests_lock) {
+        if (holds_requests_lock) {
             QTAILQ_REMOVE(&req->dev->requests, req, next);
+        } else {
+            WITH_QEMU_LOCK_GUARD(&req->dev->requests_lock) {
+                QTAILQ_REMOVE(&req->dev->requests, req, next);
+            }
         }
         req->enqueued = false;
         scsi_req_unref(req);
@@ -1618,7 +1622,7 @@ void scsi_req_complete_failed(SCSIRequest *req, int host_status)
 
     req->host_status = host_status;
     scsi_req_ref(req);
-    scsi_req_dequeue(req);
+    scsi_req_dequeue(req, false);
     req->bus->info->fail(req);
 
     /* Cancelled requests might end up being completed instead of cancelled */
@@ -1647,7 +1651,7 @@ void scsi_req_complete(SCSIRequest *req, int status)
     }
 
     scsi_req_ref(req);
-    scsi_req_dequeue(req);
+    scsi_req_dequeue(req, false);
     req->bus->info->complete(req, req->residual);
 
     /* Cancelled requests might end up being completed instead of cancelled */
@@ -1670,7 +1674,8 @@ void scsi_req_cancel_complete(SCSIRequest *req)
  * notifier list, the bus will be notified the requests cancellation is
  * completed.
  * */
-void scsi_req_cancel_async(SCSIRequest *req, Notifier *notifier)
+void scsi_req_cancel_async(SCSIRequest *req, Notifier *notifier,
+                           bool holds_requests_lock)
 {
     trace_scsi_req_cancel(req->dev->id, req->lun, req->tag);
     if (notifier) {
@@ -1686,7 +1691,7 @@ void scsi_req_cancel_async(SCSIRequest *req, Notifier *notifier)
     }
     /* Dropped in scsi_req_cancel_complete.  */
     scsi_req_ref(req);
-    scsi_req_dequeue(req);
+    scsi_req_dequeue(req, holds_requests_lock);
     req->io_canceled = true;
     if (req->aiocb) {
         blk_aio_cancel_async(req->aiocb);
@@ -1704,7 +1709,7 @@ void scsi_req_cancel(SCSIRequest *req)
     assert(!req->io_canceled);
     /* Dropped in scsi_req_cancel_complete.  */
     scsi_req_ref(req);
-    scsi_req_dequeue(req);
+    scsi_req_dequeue(req, false);
     req->io_canceled = true;
     if (req->aiocb) {
         blk_aio_cancel(req->aiocb);
@@ -1782,7 +1787,7 @@ void scsi_device_set_ua(SCSIDevice *sdev, SCSISense sense)
 
 static void scsi_device_purge_one_req(SCSIRequest *req, void *opaque)
 {
-    scsi_req_cancel_async(req, NULL);
+    scsi_req_cancel_async(req, NULL, false);
 }
 
 /**

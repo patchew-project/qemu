@@ -315,6 +315,7 @@ static void virtio_scsi_cancel_notify(Notifier *notifier, void *data)
     g_free(n);
 }
 
+/* Must be called with r->dev->requests_lock held. */
 static void virtio_scsi_tmf_cancel_req(VirtIOSCSIReq *tmf, SCSIRequest *r)
 {
     VirtIOSCSICancelNotifier *notifier;
@@ -327,7 +328,7 @@ static void virtio_scsi_tmf_cancel_req(VirtIOSCSIReq *tmf, SCSIRequest *r)
     notifier = g_new(VirtIOSCSICancelNotifier, 1);
     notifier->notifier.notify = virtio_scsi_cancel_notify;
     notifier->tmf_req = tmf;
-    scsi_req_cancel_async(r, &notifier->notifier);
+    scsi_req_cancel_async(r, &notifier->notifier, true);
 }
 
 /* Execute a TMF on the requests in the current AioContext */
@@ -364,7 +365,9 @@ static void virtio_scsi_do_tmf_aio_context(void *opaque)
     }
 
     WITH_QEMU_LOCK_GUARD(&d->requests_lock) {
-        QTAILQ_FOREACH(r, &d->requests, next) {
+        SCSIRequest *tmp;
+        /* scsi_req_dequeue() removes entries from queue, use safe iteration */
+        QTAILQ_FOREACH_SAFE(r, &d->requests, next, tmp) {
             VirtIOSCSIReq *cmd_req = r->hba_private;
             assert(cmd_req); /* request has hba_private while enqueued */
 
@@ -374,6 +377,7 @@ static void virtio_scsi_do_tmf_aio_context(void *opaque)
             if (match_tag && cmd_req->req.cmd.tag != tmf->req.tmf.tag) {
                 continue;
             }
+            assert(&d->requests_lock == &r->dev->requests_lock);
             virtio_scsi_tmf_cancel_req(tmf, r);
         }
     }

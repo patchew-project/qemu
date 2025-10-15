@@ -466,7 +466,7 @@ static void mptsas_process_scsi_task_mgmt(MPTSASState *s, MPIMsgSCSITaskMgmt *re
                 notifier->s = s;
                 notifier->reply = reply_async;
                 notifier->notifier.notify = mptsas_cancel_notify;
-                scsi_req_cancel_async(r, &notifier->notifier);
+                scsi_req_cancel_async(r, &notifier->notifier, false);
                 goto reply_maybe_async;
             }
         }
@@ -498,7 +498,7 @@ static void mptsas_process_scsi_task_mgmt(MPTSASState *s, MPIMsgSCSITaskMgmt *re
                 notifier->s = s;
                 notifier->reply = reply_async;
                 notifier->notifier.notify = mptsas_cancel_notify;
-                scsi_req_cancel_async(r, &notifier->notifier);
+                scsi_req_cancel_async(r, &notifier->notifier, false);
             }
         }
 

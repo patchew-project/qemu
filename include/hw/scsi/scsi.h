@@ -226,7 +226,8 @@ uint8_t *scsi_req_get_buf(SCSIRequest *req);
 int scsi_req_get_sense(SCSIRequest *req, uint8_t *buf, int len);
 void scsi_req_cancel_complete(SCSIRequest *req);
 void scsi_req_cancel(SCSIRequest *req);
-void scsi_req_cancel_async(SCSIRequest *req, Notifier *notifier);
+void scsi_req_cancel_async(SCSIRequest *req, Notifier *notifier,
+                           bool holds_requests_lock);
 void scsi_req_retry(SCSIRequest *req);
 void scsi_device_drained_begin(SCSIDevice *sdev);
 void scsi_device_drained_end(SCSIDevice *sdev);
