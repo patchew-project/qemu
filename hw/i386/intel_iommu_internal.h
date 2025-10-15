@@ -618,6 +618,7 @@ typedef struct VTDPASIDCacheInfo {
     uint8_t type;
     uint16_t did;
     uint32_t pasid;
+    bool reset;
 } VTDPASIDCacheInfo;
 
 /* PASID Table Related Definitions */

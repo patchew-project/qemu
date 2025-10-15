@@ -86,6 +86,18 @@ struct vtd_iotlb_key {
 
 static void vtd_address_space_refresh_all(IntelIOMMUState *s);
 static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n);
+static void vtd_pasid_cache_sync_locked(gpointer key, gpointer value,
+                                        gpointer user_data);
+
+static void vtd_pasid_cache_reset_locked(IntelIOMMUState *s)
+{
+    VTDPASIDCacheInfo pc_info = { .reset = true };
+
+    trace_vtd_pasid_cache_reset();
+    g_hash_table_foreach(s->vtd_address_spaces,
+                         vtd_pasid_cache_sync_locked, &pc_info);
+}
+
 
 static void vtd_define_quad(IntelIOMMUState *s, hwaddr addr, uint64_t val,
                             uint64_t wmask, uint64_t w1cmask)
@@ -381,6 +393,7 @@ static void vtd_reset_caches(IntelIOMMUState *s)
     vtd_iommu_lock(s);
     vtd_reset_iotlb_locked(s);
     vtd_reset_context_cache_locked(s);
+    vtd_pasid_cache_reset_locked(s);
     vtd_iommu_unlock(s);
 }
 
@@ -3083,11 +3096,12 @@ static void vtd_pasid_cache_sync_locked(gpointer key, gpointer value,
     VTDPASIDEntry pe;
     uint16_t did;
 
-    if (vtd_dev_get_pe_from_pasid(vtd_as, &pe)) {
+    if (vtd_dev_get_pe_from_pasid(vtd_as, &pe) || pc_info->reset) {
         /*
          * No valid pasid entry in guest memory. e.g. pasid entry was modified
          * to be either all-zero or non-present. Either case means existing
-         * pasid cache should be invalidated.
+         * pasid cache should be invalidated. This also applies to system level
+         * reset where the whole guest memory is treated as zeroed.
          */
         pc_entry->valid = false;
         return;
