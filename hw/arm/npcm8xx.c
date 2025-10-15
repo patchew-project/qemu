@@ -369,6 +369,11 @@ static const struct {
     },
 };
 
+static const hwaddr npcm8xx_sgpio_addr[] = {
+    0xf0101000,
+    0xf0102000,
+};
+
 static const struct {
     const char *name;
     hwaddr regs_addr;
@@ -473,6 +478,11 @@ static void npcm8xx_init(Object *obj)
         object_initialize_child(obj, "gpio[*]", &s->gpio[i], TYPE_NPCM7XX_GPIO);
     }
 
+
+    for (i = 0; i < ARRAY_SIZE(s->sgpio); i++) {
+        object_initialize_child(obj, "sgpio[*]",
+                                &s->sgpio[i], TYPE_NPCM8XX_SGPIO);
+    }
 
     for (i = 0; i < ARRAY_SIZE(s->smbus); i++) {
         object_initialize_child(obj, "smbus[*]", &s->smbus[i],
@@ -671,6 +681,17 @@ static void npcm8xx_realize(DeviceState *dev, Error **errp)
                            npcm8xx_irq(s, NPCM8XX_GPIO0_IRQ + i));
     }
 
+    /* Serial SIOX modules. Cannot fail. */
+    QEMU_BUILD_BUG_ON(ARRAY_SIZE(npcm8xx_sgpio_addr) != ARRAY_SIZE(s->sgpio));
+    for (i = 0; i < ARRAY_SIZE(s->sgpio); i++) {
+        Object *obj = OBJECT(&s->sgpio[i]);
+
+        sysbus_realize(SYS_BUS_DEVICE(obj), &error_abort);
+        sysbus_mmio_map(SYS_BUS_DEVICE(obj), 0, npcm8xx_sgpio_addr[i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(obj), 0,
+                           npcm8xx_irq(s, NPCM8XX_SIOX0_IRQ + i));
+    }
+
     /* SMBus modules. Cannot fail. */
     QEMU_BUILD_BUG_ON(ARRAY_SIZE(npcm8xx_smbus_addr) != ARRAY_SIZE(s->smbus));
     for (i = 0; i < ARRAY_SIZE(s->smbus); i++) {
@@ -818,8 +839,6 @@ static void npcm8xx_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("npcm8xx.bt",           0xf0030000,   4 * KiB);
     create_unimplemented_device("npcm8xx.espi",         0xf009f000,   4 * KiB);
     create_unimplemented_device("npcm8xx.peci",         0xf0100000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.siox[1]",      0xf0101000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.siox[2]",      0xf0102000,   4 * KiB);
     create_unimplemented_device("npcm8xx.tmps",         0xf0188000,   4 * KiB);
     create_unimplemented_device("npcm8xx.viru1",        0xf0204000,   4 * KiB);
     create_unimplemented_device("npcm8xx.viru2",        0xf0205000,   4 * KiB);

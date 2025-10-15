@@ -21,6 +21,7 @@
 #include "hw/cpu/cluster.h"
 #include "hw/gpio/npcm7xx_gpio.h"
 #include "hw/i2c/npcm7xx_smbus.h"
+#include "hw/gpio/npcm8xx_sgpio.h"
 #include "hw/intc/arm_gic_common.h"
 #include "hw/mem/npcm7xx_mc.h"
 #include "hw/misc/npcm_clk.h"
@@ -104,6 +105,7 @@ struct NPCM8xxState {
     NPCMPCSState        pcs;
     NPCM7xxSDHCIState   mmc;
     NPCMPSPIState       pspi;
+    NPCM8xxSGPIOState   sgpio[2];
 };
 
 struct NPCM8xxClass {
