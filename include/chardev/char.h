@@ -63,6 +63,7 @@ struct Chardev {
     CharBackend *be;
     char *label;
     char *filename;
+    bool connect_postponed;
     int logfd;
     int be_open;
     /* used to coordinate the chardev-change special-case: */
@@ -225,6 +226,7 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename,
                                 bool permit_mux_mon);
 int qemu_chr_write(Chardev *s, const uint8_t *buf, int len, bool write_all);
 #define qemu_chr_write_all(s, buf, len) qemu_chr_write(s, buf, len, true)
+bool qemu_chr_connect(Chardev *chr, Error **errp);
 int qemu_chr_wait_connected(Chardev *chr, Error **errp);
 
 #define TYPE_CHARDEV "chardev"
@@ -259,7 +261,31 @@ struct ChardevClass {
     /* parse command line options and populate QAPI @backend */
     void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp);
 
-    /* called after construction, open/starts the backend */
+    /*
+     * Called after construction, create the backend, mutually exclusive
+     * with @open, and should be followed by @connect().
+     * Must set the Chardev's chr->filename on success.
+     */
+    bool (*init)(Chardev *chr, ChardevBackend *backend,
+                 Error **errp);
+
+    /*
+     * Called after @init(), starts the backend, mutually exclusive
+     * with @open. Should care to send CHR_EVENT_OPENED when connected.
+     */
+    bool (*connect)(Chardev *chr, Error **errp);
+
+    /*
+     * Called after construction, an alternative to @init + @connect
+     * and should do the work for both: create and start the backend.
+     * Mutual exclusive with @init and @connect.
+     *
+     * May not set the Chardev's chr->filename (generic code will care),
+     * and may not send CHR_EVENT_OPENED when connected (@be_opened
+     * should not be touched in this case, to signal the generic code
+     * to care about CHR_EVENT_OPENED). If backend care about
+     * CHR_EVENT_OPENED, it should set @be_opened to false.
+     */
     void (*open)(Chardev *chr, ChardevBackend *backend,
                  bool *be_opened, Error **errp);
 
