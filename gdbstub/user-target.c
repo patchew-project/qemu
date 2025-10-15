@@ -302,6 +302,87 @@ static void hostio_reply_with_data(const void *buf, size_t n)
                           gdbserver_state.str_buf->len, true);
 }
 
+/*
+ * Map host error numbers to their GDB protocol counterparts.
+ * For the list of GDB File-I/O supported error numbers, please consult:
+ * https://sourceware.org/gdb/current/onlinedocs/gdb.html/Errno-Values.html
+ */
+
+static int gdb_host_errno_to_gdb(int errnum)
+{
+    enum {
+        GDB_EPERM        =    1,
+        GDB_ENOENT       =    2,
+        GDB_EINTR        =    4,
+        GDB_EIO          =    5,
+        GDB_EBADF        =    9,
+        GDB_EACCES       =   13,
+        GDB_EFAULT       =   14,
+        GDB_EBUSY        =   16,
+        GDB_EEXIST       =   17,
+        GDB_ENODEV       =   19,
+        GDB_ENOTDIR      =   20,
+        GDB_EISDIR       =   21,
+        GDB_EINVAL       =   22,
+        GDB_ENFILE       =   23,
+        GDB_EMFILE       =   24,
+        GDB_EFBIG        =   27,
+        GDB_ENOSPC       =   28,
+        GDB_ESPIPE       =   29,
+        GDB_EROFS        =   30,
+        GDB_ENOSYS       =   88,
+        GDB_ENAMETOOLONG =   91,
+        GDB_EUNKNOWN     = 9999,
+    };
+
+    switch (errnum) {
+    case EPERM:
+        return GDB_EPERM;
+    case ENOENT:
+        return GDB_ENOENT;
+    case EINTR:
+        return GDB_EINTR;
+    case EIO:
+        return GDB_EIO;
+    case EBADF:
+        return GDB_EBADF;
+    case EACCES:
+        return GDB_EACCES;
+    case EFAULT:
+        return GDB_EFAULT;
+    case EBUSY:
+        return GDB_EBUSY;
+    case EEXIST:
+        return GDB_EEXIST;
+    case ENODEV:
+        return GDB_ENODEV;
+    case ENOTDIR:
+        return GDB_ENOTDIR;
+    case EISDIR:
+        return GDB_EISDIR;
+    case EINVAL:
+        return GDB_EINVAL;
+    case ENFILE:
+        return GDB_ENFILE;
+    case EMFILE:
+        return GDB_EMFILE;
+    case EFBIG:
+        return GDB_EFBIG;
+    case ENOSPC:
+        return GDB_ENOSPC;
+    case ESPIPE:
+        return GDB_ESPIPE;
+    case EROFS:
+        return GDB_EROFS;
+    case ENOSYS:
+        return GDB_ENOSYS;
+    case ENAMETOOLONG:
+        return GDB_ENAMETOOLONG;
+    default:
+        return GDB_EUNKNOWN;
+    }
+}
+
 void gdb_handle_v_file_open(GArray *params, void *user_ctx)
 {
     const char *filename = get_filename_param(params, 0);
@@ -315,7 +396,8 @@ void gdb_handle_v_file_open(GArray *params, void *user_ctx)
     int fd = open(filename, flags, mode);
 #endif
     if (fd < 0) {
-        g_string_printf(gdbserver_state.str_buf, "F-1,%x", errno);
+        int gdb_errno = gdb_host_errno_to_gdb(errno);
+        g_string_printf(gdbserver_state.str_buf, "F-1,%x", gdb_errno);
     } else {
         g_string_printf(gdbserver_state.str_buf, "F%x", fd);
     }
@@ -327,7 +409,8 @@ void gdb_handle_v_file_close(GArray *params, void *user_ctx)
     int fd = gdb_get_cmd_param(params, 0)->val_ul;
 
     if (close(fd) == -1) {
-        g_string_printf(gdbserver_state.str_buf, "F-1,%x", errno);
+        int gdb_errno = gdb_host_errno_to_gdb(errno);
+        g_string_printf(gdbserver_state.str_buf, "F-1,%x", gdb_errno);
         gdb_put_strbuf();
         return;
     }
@@ -350,7 +433,8 @@ void gdb_handle_v_file_pread(GArray *params, void *user_ctx)
 
     ssize_t n = pread(fd, buf, bufsiz, offset);
     if (n < 0) {
-        g_string_printf(gdbserver_state.str_buf, "F-1,%x", errno);
+        int gdb_errno = gdb_host_errno_to_gdb(errno);
+        g_string_printf(gdbserver_state.str_buf, "F-1,%x", gdb_errno);
         gdb_put_strbuf();
         return;
     }
@@ -373,7 +457,8 @@ void gdb_handle_v_file_readlink(GArray *params, void *user_ctx)
     ssize_t n = readlink(filename, buf, BUFSIZ);
 #endif
     if (n < 0) {
-        g_string_printf(gdbserver_state.str_buf, "F-1,%x", errno);
+        int gdb_errno = gdb_host_errno_to_gdb(errno);
+        g_string_printf(gdbserver_state.str_buf, "F-1,%x", gdb_errno);
         gdb_put_strbuf();
         return;
     }
