@@ -262,6 +262,12 @@ bool migrate_mapped_ram(void)
     return s->capabilities[MIGRATION_CAPABILITY_MAPPED_RAM];
 }
 
+bool migrate_backend_transfer(void)
+{
+    MigrationState *s = migrate_get_current();
+    return s->parameters.backend_transfer;
+}
+
 bool migrate_ignore_shared(void)
 {
     MigrationState *s = migrate_get_current();
@@ -963,6 +969,9 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->cpr_exec_command = QAPI_CLONE(strList,
                                           s->parameters.cpr_exec_command);
 
+    params->has_backend_transfer = true;
+    params->backend_transfer = s->parameters.backend_transfer;
+
     return params;
 }
 
@@ -997,6 +1006,7 @@ void migrate_params_init(MigrationParameters *params)
     params->has_zero_page_detection = true;
     params->has_direct_io = true;
     params->has_cpr_exec_command = true;
+    params->has_backend_transfer = true;
 }
 
 /*
@@ -1305,6 +1315,10 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     if (params->has_cpr_exec_command) {
         dest->cpr_exec_command = params->cpr_exec_command;
     }
+
+    if (params->has_backend_transfer) {
+        dest->backend_transfer = params->backend_transfer;
+    }
 }
 
 static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
@@ -1442,6 +1456,10 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
         qapi_free_strList(s->parameters.cpr_exec_command);
         s->parameters.cpr_exec_command =
             QAPI_CLONE(strList, params->cpr_exec_command);
+    }
+
+    if (params->has_backend_transfer) {
+        s->parameters.backend_transfer = params->backend_transfer;
     }
 }
 
