@@ -36,4 +36,6 @@ int tap_get_fd(NetClientState *nc);
 bool tap_wait_incoming(NetClientState *nc);
 bool tap_postponed_init(NetClientState *nc, Error **errp);
 
+extern const VMStateDescription vmstate_tap;
+
 #endif /* QEMU_NET_TAP_H */
