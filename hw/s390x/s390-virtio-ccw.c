@@ -286,6 +286,9 @@ static void ccw_init(MachineState *machine)
     /* init memory + setup max page size. Required for the CPU model */
     s390_memory_init(machine);
 
+    /* init the TOD clock */
+    s390_init_tod();
+
     /* init CPUs (incl. CPU model) early so s390_has_feature() works */
     s390_init_cpus(machine);
 
@@ -331,9 +334,6 @@ static void ccw_init(MachineState *machine)
     if (serial_hd(1)) {
         s390_create_sclpconsole(ms->sclp, "sclplmconsole", serial_hd(1));
     }
-
-    /* init the TOD clock */
-    s390_init_tod();
 
     /* init SCLP event Control-Program Identification */
     if (s390mc->use_cpi) {
