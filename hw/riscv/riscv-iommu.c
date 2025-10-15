@@ -2449,7 +2449,7 @@ static void riscv_iommu_instance_init(Object *obj)
 
     /* Report QEMU target physical address space limits */
     s->cap = set_field(s->cap, RISCV_IOMMU_CAP_PAS,
-                       TARGET_PHYS_ADDR_SPACE_BITS);
+                       target_phys_addr_space_bits());
 
     /* TODO: method to report supported PID bits */
     s->pid_bits = 8; /* restricted to size of MemTxAttrs.pid */
