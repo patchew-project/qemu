@@ -11,6 +11,7 @@
 
 #include "hw/boards.h"
 #include "qom/object.h"
+#include "hw/arm/aspeed_soc.h"
 
 typedef struct AspeedMachineState AspeedMachineState;
 
@@ -24,6 +25,19 @@ DECLARE_OBJ_CHECKERS(AspeedMachineState, AspeedMachineClass,
 #define ASPEED_MAC2_ON   (1 << 2)
 #define ASPEED_MAC3_ON   (1 << 3)
 
+struct AspeedMachineState {
+    /* Private */
+    MachineState parent_obj;
+    /* Public */
+
+    AspeedSoCState *soc;
+    MemoryRegion boot_rom;
+    bool mmio_exec;
+    uint32_t uart_chosen;
+    char *fmc_model;
+    char *spi_model;
+    uint32_t hw_strap1;
+};
 
 struct AspeedMachineClass {
     MachineClass parent_obj;
@@ -45,5 +59,9 @@ struct AspeedMachineClass {
     bool vbootrom;
 };
 
+void aspeed_machine_class_init_cpus_defaults(MachineClass *mc);
+void connect_serial_hds_to_uarts(AspeedMachineState *bmc);
+void aspeed_machine_class_init(ObjectClass *oc, const void *data);
+void aspeed_machine_instance_init(Object *obj);
 
 #endif
