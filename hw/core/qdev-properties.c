@@ -1143,14 +1143,13 @@ static void qdev_class_add_legacy_property(DeviceClass *dc, const Property *prop
 {
     g_autofree char *name = NULL;
 
-    /* Register pointer properties as legacy properties */
-    if (!prop->info->print && prop->info->get) {
+    if (!prop->info->print) {
         return;
     }
 
     name = g_strdup_printf("legacy-%s", prop->name);
     object_class_property_add(OBJECT_CLASS(dc), name, "str",
-        prop->info->print ? qdev_get_legacy_property : prop->info->get,
+        qdev_get_legacy_property,
         NULL, NULL, (Property *)prop);
 }
 
