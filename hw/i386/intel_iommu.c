@@ -3104,7 +3104,7 @@ static void vtd_pasid_cache_sync_locked(gpointer key, gpointer value,
          * reset where the whole guest memory is treated as zeroed.
          */
         pc_entry->valid = false;
-        return;
+        goto switch_as;
     }
 
     /*
@@ -3134,6 +3134,10 @@ static void vtd_pasid_cache_sync_locked(gpointer key, gpointer value,
 
     pc_entry->pasid_entry = pe;
     pc_entry->valid = true;
+
+switch_as:
+    vtd_switch_address_space(vtd_as);
+    vtd_address_space_sync(vtd_as);
 }
 
 static void vtd_pasid_cache_sync(IntelIOMMUState *s, VTDPASIDCacheInfo *pc_info)
