@@ -1572,12 +1572,50 @@ static int vhost_dev_get_features(struct vhost_dev *hdev,
     return r;
 }
 
+static bool check_memslots(struct vhost_dev *hdev, Error **errp)
+{
+    unsigned int used, reserved, limit;
+
+    limit = hdev->vhost_ops->vhost_backend_memslots_limit(hdev);
+    if (limit < MEMORY_DEVICES_SAFE_MAX_MEMSLOTS &&
+        memory_devices_memslot_auto_decision_active()) {
+        error_setg(errp, "some memory device (like virtio-mem)"
+            " decided how many memory slots to use based on the overall"
+            " number of memory slots; this vhost backend would further"
+            " restricts the overall number of memory slots");
+        error_append_hint(errp, "Try plugging this vhost backend before"
+            " plugging such memory devices.\n");
+        return false;
+    }
+
+    /*
+     * The listener we registered properly setup the number of required
+     * memslots in vhost_commit().
+     */
+    used = hdev->mem->nregions;
+
+    /*
+     * We assume that all reserved memslots actually require a real memslot
+     * in our vhost backend. This might not be true, for example, if the
+     * memslot would be ROM. If ever relevant, we can optimize for that --
+     * but we'll need additional information about the reservations.
+     */
+    reserved = memory_devices_get_reserved_memslots();
+    if (used + reserved > limit) {
+        error_setg(errp, "vhost backend memory slots limit (%d) is less"
+                   " than current number of used (%d) and reserved (%d)"
+                   " memory slots for memory devices.", limit, used, reserved);
+        return false;
+    }
+
+    return true;
+}
+
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    VhostBackendType backend_type, uint32_t busyloop_timeout,
                    Error **errp)
 {
     uint64_t features[VIRTIO_FEATURES_NU64S];
-    unsigned int used, reserved, limit;
     int i, r, n_initialized_vqs = 0;
 
     hdev->vdev = NULL;
@@ -1600,19 +1638,6 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     r = vhost_dev_get_features(hdev, features);
     if (r < 0) {
         error_setg_errno(errp, -r, "vhost_get_features failed");
-        goto fail;
-    }
-
-    limit = hdev->vhost_ops->vhost_backend_memslots_limit(hdev);
-    if (limit < MEMORY_DEVICES_SAFE_MAX_MEMSLOTS &&
-        memory_devices_memslot_auto_decision_active()) {
-        error_setg(errp, "some memory device (like virtio-mem)"
-            " decided how many memory slots to use based on the overall"
-            " number of memory slots; this vhost backend would further"
-            " restricts the overall number of memory slots");
-        error_append_hint(errp, "Try plugging this vhost backend before"
-            " plugging such memory devices.\n");
-        r = -EINVAL;
         goto fail;
     }
 
@@ -1674,23 +1699,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
     QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
 
-    /*
-     * The listener we registered properly setup the number of required
-     * memslots in vhost_commit().
-     */
-    used = hdev->mem->nregions;
-
-    /*
-     * We assume that all reserved memslots actually require a real memslot
-     * in our vhost backend. This might not be true, for example, if the
-     * memslot would be ROM. If ever relevant, we can optimize for that --
-     * but we'll need additional information about the reservations.
-     */
-    reserved = memory_devices_get_reserved_memslots();
-    if (used + reserved > limit) {
-        error_setg(errp, "vhost backend memory slots limit (%d) is less"
-                   " than current number of used (%d) and reserved (%d)"
-                   " memory slots for memory devices.", limit, used, reserved);
+    if (!check_memslots(hdev, errp)) {
         r = -EINVAL;
         goto fail;
     }
