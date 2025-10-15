@@ -11,6 +11,7 @@ meson_options_help() {
   printf "%s\n" '                           set block driver read-write whitelist (by default'
   printf "%s\n" '                           affects only QEMU, not tools like qemu-img)'
   printf "%s\n" '  --datadir=VALUE          Data file directory [share]'
+  printf "%s\n" '  --disable-audio-hmp      enable HMP commands for audio'
   printf "%s\n" '  --disable-coroutine-pool coroutine freelist (better performance)'
   printf "%s\n" '  --disable-debug-info     Enable debug symbols and other information'
   printf "%s\n" '  --disable-hexagon-idef-parser'
@@ -244,6 +245,8 @@ _meson_option_parse() {
     --enable-attr) printf "%s" -Dattr=enabled ;;
     --disable-attr) printf "%s" -Dattr=disabled ;;
     --audio-drv-list=*) quote_sh "-Daudio_drv_list=$2" ;;
+    --enable-audio-hmp) printf "%s" -Daudio_hmp=true ;;
+    --disable-audio-hmp) printf "%s" -Daudio_hmp=false ;;
     --enable-auth-pam) printf "%s" -Dauth_pam=enabled ;;
     --disable-auth-pam) printf "%s" -Dauth_pam=disabled ;;
     --enable-gcov) printf "%s" -Db_coverage=true ;;

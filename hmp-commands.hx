@@ -764,6 +764,7 @@ SRST
 
 ERST
 
+#ifdef CONFIG_AUDIO_HMP
     {
         .name       = "wavcapture",
         .args_type  = "path:F,audiodev:s,freq:i?,bits:i?,nchannels:i?",
@@ -798,6 +799,7 @@ SRST
     info capture
 
 ERST
+#endif
 
     {
         .name       = "memsave",
@@ -1090,7 +1092,7 @@ ERST
 
 SRST
 ``dump-guest-memory [-p]`` *filename* *begin* *length*
-  \ 
+  \
 ``dump-guest-memory [-z|-l|-s|-w]`` *filename*
   Dump guest memory to *protocol*. The file can be processed with crash or
   gdb. Without ``-z|-l|-s|-w``, the dump format is ELF.

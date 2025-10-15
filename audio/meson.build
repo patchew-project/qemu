@@ -1,11 +1,14 @@
 system_ss.add([spice_headers, files('audio.c')])
 system_ss.add(files(
-  'audio-hmp-cmds.c',
+  'audio.c',
   'mixeng.c',
   'noaudio.c',
   'wavaudio.c',
-  'wavcapture.c',
 ))
+
+if get_option('audio_hmp')
+  system_ss.add(files('audio-hmp-cmds.c', 'wavcapture.c'))
+endif
 
 system_ss.add(when: coreaudio, if_true: files('coreaudio.m'))
 system_ss.add(when: dsound, if_true: files('dsoundaudio.c', 'audio_win_int.c'))

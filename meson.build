@@ -2354,6 +2354,7 @@ endif
 config_host_data = configuration_data()
 
 config_host_data.set('CONFIG_HAVE_RUST', have_rust)
+config_host_data.set('CONFIG_AUDIO_HMP', get_option('audio_hmp'))
 audio_drivers_selected = []
 if have_system
   audio_drivers_available = {
@@ -5104,4 +5105,12 @@ if not actually_reloc and (host_os == 'windows' or get_option('relocatable'))
   message()
   message('QEMU will have to be installed under ' + get_option('prefix') + '.')
   message('Use --disable-relocatable to remove this warning.')
+endif
+
+if get_option('audio_hmp')
+  message()
+  warning('DEPRECATED HMP audio commands')
+  message()
+  message('If you want to keep supporting this command, please')
+  message('contact the developers at qemu-devel@nongnu.org.')
 endif

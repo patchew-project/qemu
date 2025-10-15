@@ -363,6 +363,7 @@ SRST
     Show host USB devices.
 ERST
 
+#ifdef CONFIG_AUDIO_HMP
     {
         .name       = "capture",
         .args_type  = "",
@@ -375,6 +376,7 @@ SRST
   ``info capture``
     Show capture information.
 ERST
+#endif
 
     {
         .name       = "snapshots",

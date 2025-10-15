@@ -39,6 +39,9 @@ option('coroutine_backend', type: 'combo',
 option('gdb', type: 'string', value: '',
        description: 'Path to GDB')
 
+option('audio_hmp', type: 'boolean', value: true,
+       description: 'enable HMP commands for audio', deprecated: true)
+
 # Everything else can be set via --enable/--disable-* option
 # on the configure script command line.  After adding an option
 # here make sure to run "make update-buildoptions".
