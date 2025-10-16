@@ -354,6 +354,12 @@ void ga_channel_free(GAChannel *c)
     if (c->rstate.ov.hEvent) {
         CloseHandle(c->rstate.ov.hEvent);
     }
+
+    if (c->handle) {
+        CancelIo(c->handle);
+        CloseHandle(c->handle);
+    }
+
     g_free(c->rstate.buf);
     g_free(c);
 }
