@@ -1969,19 +1969,17 @@ int main(int argc, char **argv)
     g_test_add_data_func("/char/socket/client/reconnect-error/" # name, \
                          &client7 ##name, char_socket_client_test);     \
     g_test_add_data_func("/char/socket/client/dupid-reconnect/" # name, \
-                         &client8 ##name, char_socket_client_dupid_test)
+                         &client8 ##name, char_socket_client_dupid_test); \
+    g_test_add_data_func("/char/socket/server/two-clients/" # name,     \
+                         addr, char_socket_server_two_clients_test)
 
     if (has_ipv4) {
         SOCKET_SERVER_TEST(tcp, &tcpaddr);
         SOCKET_CLIENT_TEST(tcp, &tcpaddr);
-        g_test_add_data_func("/char/socket/server/two-clients/tcp", &tcpaddr,
-                             char_socket_server_two_clients_test);
     }
 #ifndef WIN32
     SOCKET_SERVER_TEST(unix, &unixaddr);
     SOCKET_CLIENT_TEST(unix, &unixaddr);
-    g_test_add_data_func("/char/socket/server/two-clients/unix", &unixaddr,
-                         char_socket_server_two_clients_test);
 #endif
 
     g_test_add_func("/char/udp", char_udp_test);
