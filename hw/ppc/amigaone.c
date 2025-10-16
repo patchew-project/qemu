@@ -276,6 +276,7 @@ static void amigaone_init(MachineState *machine)
     DriveInfo *di;
     hwaddr loadaddr;
     struct boot_info *bi = NULL;
+    Error *errp = NULL;
 
     /* init CPU */
     cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
@@ -324,9 +325,9 @@ static void amigaone_init(MachineState *machine)
             error_report("Could not find firmware '%s'", machine->firmware);
             exit(1);
         }
-        sz = load_image_targphys(filename, PROM_ADDR, PROM_SIZE, NULL);
+        sz = load_image_targphys(filename, PROM_ADDR, PROM_SIZE, &errp);
         if (sz <= 0 || sz > PROM_SIZE) {
-            error_report("Could not load firmware '%s'", filename);
+            error_reportf_err(errp, "Could not load firmware '%s': ", filename);
             exit(1);
         }
     }
@@ -413,10 +414,10 @@ static void amigaone_init(MachineState *machine)
         loadaddr = ROUND_UP(loadaddr + 4 * MiB, 4 * KiB);
         loadaddr = MAX(loadaddr, INITRD_MIN_ADDR);
         sz = load_image_targphys(machine->initrd_filename, loadaddr,
-                                 bi->bd_info - loadaddr, NULL);
+                                 bi->bd_info - loadaddr, &errp);
         if (sz <= 0) {
-            error_report("Could not load initrd '%s'",
-                         machine->initrd_filename);
+            error_reportf_err(errp, "Could not load initrd '%s': ",
+                              machine->initrd_filename);
             exit(1);
         }
         bi->initrd_start = loadaddr;

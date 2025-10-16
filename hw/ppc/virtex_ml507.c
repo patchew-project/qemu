@@ -195,6 +195,7 @@ static void virtex_init(MachineState *machine)
     qemu_irq irq[32], cpu_irq;
     int kernel_size;
     int i;
+    Error *errp = NULL;
 
     /* init CPUs */
     cpu = ppc440_init_xilinx(machine->cpu_type, 400000000);
@@ -253,7 +254,7 @@ static void virtex_init(MachineState *machine)
             /* If we failed loading ELF's try a raw image.  */
             kernel_size = load_image_targphys(kernel_filename,
                                               boot_offset,
-                                              machine->ram_size, NULL);
+                                              machine->ram_size, &errp);
             boot_info.bootstrap_pc = boot_offset;
             high = boot_info.bootstrap_pc + kernel_size + 8192;
         }
@@ -265,11 +266,11 @@ static void virtex_init(MachineState *machine)
             initrd_base = high = ROUND_UP(high, 4);
             initrd_size = load_image_targphys(machine->initrd_filename,
                                               high, machine->ram_size - high,
-                                              NULL);
+                                              &errp);
 
             if (initrd_size < 0) {
-                error_report("couldn't load ram disk '%s'",
-                             machine->initrd_filename);
+                error_reportf_err(errp, "couldn't load ram disk '%s': ",
+                                  machine->initrd_filename);
                 exit(1);
             }
             high = ROUND_UP(high + initrd_size, 4);

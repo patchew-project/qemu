@@ -932,6 +932,7 @@ void ppce500_init(MachineState *machine)
     MemoryRegion *ccsr_addr_space;
     SysBusDevice *s;
     I2CBus *i2c;
+    Error *errp = NULL;
 
     irqs = g_new0(IrqLines, smp_cpus);
     for (i = 0; i < smp_cpus; i++) {
@@ -1227,10 +1228,10 @@ void ppce500_init(MachineState *machine)
         kernel_base = cur_base;
         kernel_size = load_image_targphys(machine->kernel_filename,
                                           cur_base,
-                                          machine->ram_size - cur_base, NULL);
+                                          machine->ram_size - cur_base, &errp);
         if (kernel_size < 0) {
-            error_report("could not load kernel '%s'",
-                         machine->kernel_filename);
+            error_reportf_err(errp, "could not load kernel '%s': ",
+                              machine->kernel_filename);
             exit(1);
         }
 
@@ -1242,11 +1243,11 @@ void ppce500_init(MachineState *machine)
         initrd_base = (cur_base + INITRD_LOAD_PAD) & ~INITRD_PAD_MASK;
         initrd_size = load_image_targphys(machine->initrd_filename, initrd_base,
                                           machine->ram_size - initrd_base,
-                                          NULL);
+                                          &errp);
 
         if (initrd_size < 0) {
-            error_report("could not load initial ram disk '%s'",
-                         machine->initrd_filename);
+            error_reportf_err(errp, "could not load initial ram disk '%s': ",
+                              machine->initrd_filename);
             exit(1);
         }
 

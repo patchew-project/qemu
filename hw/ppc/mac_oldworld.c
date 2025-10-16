@@ -108,6 +108,7 @@ static void ppc_heathrow_init(MachineState *machine)
     DriveInfo *dinfo, *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
     uint64_t tbfreq = kvm_enabled() ? kvmppc_get_tbfreq() : TBFREQ;
+    Error *errp = NULL;
 
     /* init CPUs */
     for (i = 0; i < machine->smp.cpus; i++) {
@@ -144,13 +145,13 @@ static void ppc_heathrow_init(MachineState *machine)
         if (bios_size <= 0) {
             /* or if could not load ELF try loading a binary ROM image */
             bios_size = load_image_targphys(filename, PROM_BASE, PROM_SIZE,
-                    NULL);
+                                            &errp);
             bios_addr = PROM_BASE;
         }
         g_free(filename);
     }
     if (bios_size < 0 || bios_addr - PROM_BASE + bios_size > PROM_SIZE) {
-        error_report("could not load PowerPC bios '%s'", bios_name);
+        error_reportf_err(errp, "could not load PowerPC bios '%s': ", bios_name);
         exit(1);
     }
 
@@ -168,11 +169,11 @@ static void ppc_heathrow_init(MachineState *machine)
             kernel_size = load_image_targphys(machine->kernel_filename,
                                               kernel_base,
                                               machine->ram_size - kernel_base,
-                                              NULL);
+                                              &errp);
         }
         if (kernel_size < 0) {
-            error_report("could not load kernel '%s'",
-                         machine->kernel_filename);
+            error_reportf_err(errp, "could not load kernel '%s': ",
+                              machine->kernel_filename);
             exit(1);
         }
         /* load initrd */
@@ -182,10 +183,10 @@ static void ppc_heathrow_init(MachineState *machine)
             initrd_size = load_image_targphys(machine->initrd_filename,
                                               initrd_base,
                                               machine->ram_size - initrd_base,
-                                              NULL);
+                                              &errp);
             if (initrd_size < 0) {
-                error_report("could not load initial ram disk '%s'",
-                             machine->initrd_filename);
+                error_reportf_err(errp, "could not load initial ram disk '%s': ",
+                                  machine->initrd_filename);
                 exit(1);
             }
             cmdline_base = TARGET_PAGE_ALIGN(initrd_base + initrd_size);
