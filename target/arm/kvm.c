@@ -39,6 +39,8 @@
 #include "qemu/log.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/ghes.h"
+#include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "target/arm/gtimer.h"
 #include "migration/blocker.h"
 
@@ -484,6 +486,15 @@ static void kvm_steal_time_set(Object *obj, bool value, Error **errp)
     ARM_CPU(obj)->kvm_steal_time = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
 }
 
+static const Property arm_cpu_kvm_compat_hidden_regs_property =
+    DEFINE_PROP_ARRAY("kvm-hidden-regs", ARMCPU,
+                      nr_kvm_hidden_regs, kvm_hidden_regs, qdev_prop_uint64, uint64_t);
+
+static const Property arm_cpu_kvm_compat_enforced_regs_property =
+    DEFINE_PROP_ARRAY("kvm-enforced-regs", ARMCPU,
+                      nr_kvm_enforced_regs, kvm_enforced_regs,
+                      qdev_prop_uint64, uint64_t);
+
 /* KVM VCPU properties should be prefixed with "kvm-". */
 void kvm_arm_add_vcpu_properties(ARMCPU *cpu)
 {
@@ -505,6 +516,9 @@ void kvm_arm_add_vcpu_properties(ARMCPU *cpu)
                              kvm_steal_time_set);
     object_property_set_description(obj, "kvm-steal-time",
                                     "Set off to disable KVM steal time.");
+
+    qdev_property_add_static(DEVICE(obj), &arm_cpu_kvm_compat_hidden_regs_property);
+    qdev_property_add_static(DEVICE(obj), &arm_cpu_kvm_compat_enforced_regs_property);
 }
 
 bool kvm_arm_pmu_supported(void)
