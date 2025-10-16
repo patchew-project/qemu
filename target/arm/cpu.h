@@ -1041,6 +1041,17 @@ struct ArchCPU {
     /* KVM steal time */
     OnOffAuto kvm_steal_time;
 
+    /*
+     * KVM registers that must be ignored/hidden. While they may be
+     * exposed by KVM to userspace, they are not intended to be used
+     * by qemu and more importantly we don't want them to be migrated
+     * to another host which wouldn't expose them. This would break
+     * the migration. This may be useful to allow backward migration to
+     * older kernels with less features.
+     */
+    uint64_t *kvm_hidden_regs;
+    uint32_t nr_kvm_hidden_regs;
+
     /* Uniprocessor system with MP extensions */
     bool mp_is_up;
 
