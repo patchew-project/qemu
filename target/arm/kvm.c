@@ -1023,6 +1023,29 @@ void kvm_arm_cpu_pre_save(ARMCPU *cpu)
 
 bool kvm_arm_cpu_post_load(ARMCPU *cpu)
 {
+    int i;
+
+    for (i = 0; i < cpu->cpreg_vmstate_missing_indexes_array_len; i++) {
+        gchar *name;
+
+        name = kvm_print_register_name(cpu->cpreg_vmstate_missing_indexes[i]);
+        trace_kvm_arm_cpu_post_load_missing_reg(name);
+        g_free(name);
+    }
+
+    for (i = 0; i < cpu->cpreg_vmstate_unexpected_indexes_array_len; i++) {
+        gchar *name;
+
+        name = kvm_print_register_name(cpu->cpreg_vmstate_unexpected_indexes[i]);
+        error_report("%s Unexpected register in input stream: %i 0x%"PRIx64" %s",
+                     __func__, i, cpu->cpreg_vmstate_unexpected_indexes[i], name);
+        g_free(name);
+    }
+    /* Fail the migration if we detect unexpected registers */
+    if (cpu->cpreg_vmstate_unexpected_indexes_array_len) {
+        return false;
+    }
+
     if (!write_list_to_kvmstate(cpu, KVM_PUT_FULL_STATE)) {
         return false;
     }

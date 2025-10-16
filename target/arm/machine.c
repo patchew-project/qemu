@@ -9,6 +9,7 @@
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
 #include "target/arm/gtimer.h"
+#include "trace.h"
 
 static bool vfp_needed(void *opaque)
 {
@@ -989,7 +990,13 @@ static int cpu_pre_load(void *opaque)
 {
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
+    int arraylen = cpu->cpreg_vmstate_array_len + MAX_CPREG_VMSTATE_ANOMALIES;
 
+    cpu->cpreg_vmstate_indexes = g_renew(uint64_t, cpu->cpreg_vmstate_indexes,
+                                         arraylen);
+    cpu->cpreg_vmstate_values = g_renew(uint64_t, cpu->cpreg_vmstate_values,
+                                        arraylen);
+    cpu->cpreg_vmstate_array_len = arraylen;
     /*
      * In an inbound migration where on the source FPSCR/FPSR/FPCR are 0,
      * there will be no fpcr_fpsr subsection so we won't call vfp_set_fpcr()
@@ -1022,7 +1029,7 @@ static int cpu_post_load(void *opaque, int version_id)
 {
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
-    int i, v;
+    int i = 0, j = 0, k = 0, v = 0;
 
     /*
      * Handle migration compatibility from old QEMU which didn't
@@ -1050,27 +1057,66 @@ static int cpu_post_load(void *opaque, int version_id)
      * entries with the right slots in our own values array.
      */
 
-    for (i = 0, v = 0; i < cpu->cpreg_array_len
-             && v < cpu->cpreg_vmstate_array_len; i++) {
+    trace_cpu_post_load_len(cpu->cpreg_array_len, cpu->cpreg_vmstate_array_len);
+    for (; i < cpu->cpreg_array_len && v < cpu->cpreg_vmstate_array_len;) {
+        trace_cpu_post_load(i, v , cpu->cpreg_indexes[i]);
         if (cpu->cpreg_vmstate_indexes[v] > cpu->cpreg_indexes[i]) {
             /* register in our list but not incoming : skip it */
+            trace_cpu_post_load_missing(i, cpu->cpreg_indexes[i], v);
+            if (j < MAX_CPREG_VMSTATE_ANOMALIES) {
+                cpu->cpreg_vmstate_missing_indexes[j++] = cpu->cpreg_indexes[i];
+            }
+            i++;
             continue;
         }
         if (cpu->cpreg_vmstate_indexes[v] < cpu->cpreg_indexes[i]) {
-            /* register in their list but not ours: fail migration */
-            return -1;
+            /* register in their list but not ours: those will fail migration */
+            trace_cpu_post_load_unexpected(v, cpu->cpreg_vmstate_indexes[v], i);
+            if (k < MAX_CPREG_VMSTATE_ANOMALIES) {
+                cpu->cpreg_vmstate_unexpected_indexes[k++] =
+                    cpu->cpreg_vmstate_indexes[v];
+            }
+            v++;
+            continue;
         }
         /* matching register, copy the value over */
         cpu->cpreg_values[i] = cpu->cpreg_vmstate_values[v];
         v++;
+        i++;
     }
+    /*
+     * if we have reached the end of the incoming array but there are
+     * still regs in cpreg, continue parsing the regs which are missing
+     * in the input stream
+     */
+    for ( ; i < cpu->cpreg_array_len; i++) {
+        if (j < MAX_CPREG_VMSTATE_ANOMALIES) {
+            trace_cpu_post_load_missing(i, cpu->cpreg_indexes[i], v);
+            cpu->cpreg_vmstate_missing_indexes[j++] = cpu->cpreg_indexes[i];
+        }
+    }
+    /*
+     * if we have reached the end of the cpreg array but there are
+     * still regs in the input stream, continue parsing the vmstate array
+     */
+    for ( ; v < cpu->cpreg_vmstate_array_len; v++) {
+        if (k < MAX_CPREG_VMSTATE_ANOMALIES) {
+            trace_cpu_post_load_unexpected(v, cpu->cpreg_vmstate_indexes[v], i);
+            cpu->cpreg_vmstate_unexpected_indexes[k++] =
+                cpu->cpreg_vmstate_indexes[v];
+        }
+    }
+
+    cpu->cpreg_vmstate_missing_indexes_array_len = j;
+    cpu->cpreg_vmstate_unexpected_indexes_array_len = k;
 
     if (kvm_enabled()) {
         if (!kvm_arm_cpu_post_load(cpu)) {
             return -1;
         }
     } else {
-        if (!write_list_to_cpustate(cpu)) {
+        if (cpu->cpreg_vmstate_unexpected_indexes_array_len ||
+            !write_list_to_cpustate(cpu)) {
             return -1;
         }
     }
