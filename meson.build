@@ -3935,9 +3935,11 @@ endif
 
 common_user_inc = []
 
-subdir('common-user')
-subdir('bsd-user')
-subdir('linux-user')
+if have_user
+  subdir('common-user')
+  subdir('bsd-user')
+  subdir('linux-user')
+endif
 
 # needed for fuzzing binaries
 subdir('tests/qtest/libqos')
