@@ -335,6 +335,58 @@ int aarch64_gdb_set_sme_reg(CPUState *cs, uint8_t *buf, int reg)
     return 0;
 }
 
+int aarch64_gdb_get_sme2_reg(CPUState *cs, GByteArray *buf, int reg)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    int len = 0;
+
+    switch (reg) {
+    case 0: /* ZT0 */
+        for (int i = 0; i < ARRAY_SIZE(env->za_state.zt0); i+= 2) {
+            len += gdb_get_reg128(buf, env->za_state.zt0[i + 1],
+                                  env->za_state.zt0[i]);
+        }
+        return len;
+    default:
+        /* gdbstub asked for something out of range */
+        qemu_log_mask(LOG_UNIMP, "%s: out of range register %d", __func__, reg);
+        break;
+    }
+
+    return 0;
+}
+
+int aarch64_gdb_set_sme2_reg(CPUState *cs, uint8_t *buf, int reg)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    int len = 0;
+
+    switch (reg) {
+    case 0: /* ZT0 */
+        for (int i = 0; i < ARRAY_SIZE(env->za_state.zt0); i += 2) {
+            if (target_big_endian()) {
+                env->za_state.zt0[i + 1] = ldq_p(buf);
+                buf += 8;
+                env->za_state.zt0[i] = ldq_p(buf);
+            } else {
+                env->za_state.zt0[i] = ldq_p(buf);
+                buf += 8;
+                env->za_state.zt0[i + 1] = ldq_p(buf);
+            }
+            buf += 8;
+            len += 16;
+        }
+        return len;
+    default:
+        /* gdbstub asked for something out of range */
+        break;
+    }
+
+    return 0;
+}
+
 int aarch64_gdb_get_pauth_reg(CPUState *cs, GByteArray *buf, int reg)
 {
     ARMCPU *cpu = ARM_CPU(cs);
@@ -532,6 +584,30 @@ GDBFeature *arm_gen_dynamic_smereg_feature(CPUState *cs, int base_reg)
     gdb_feature_builder_end(&builder);
 
     return &cpu->dyn_smereg_feature.desc;
+}
+
+GDBFeature *arm_gen_dynamic_sme2reg_feature(CPUState *cs, int base_reg)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    GDBFeatureBuilder builder;
+    int reg = 0;
+
+    gdb_feature_builder_init(&builder, &cpu->dyn_sme2reg_feature.desc,
+                             "org.gnu.gdb.aarch64.sme2", "sme2-registers.xml",
+                             base_reg);
+
+
+    /* Create the sme2_bv vector type (a 64 byte vector) */
+    gdb_feature_builder_append_tag(
+        &builder, "<vector id=\"sme2_bv\" type=\"uint8\" count=\"64\"/>");
+
+    /* Define the ZT0 register */
+    gdb_feature_builder_append_reg(&builder, "zt0", 64 * 8, reg++,
+                                   "sme2_bv", NULL);
+
+    gdb_feature_builder_end(&builder);
+
+    return &cpu->dyn_sme2reg_feature.desc;
 }
 
 #ifdef CONFIG_USER_ONLY
