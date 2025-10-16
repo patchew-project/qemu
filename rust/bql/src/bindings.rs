@@ -19,7 +19,7 @@
 )]
 
 use glib_sys::{
-    guint, GArray, GHashTable, GHashTableIter, GList, GPollFD, GPtrArray, GQueue, GSList, GSource,
+    guint, GArray, GHashTable, GHashTableIter, GPollFD, GPtrArray, GSList, GSource,
 };
 
 #[cfg(MESON)]
