@@ -1052,6 +1052,19 @@ struct ArchCPU {
     uint64_t *kvm_hidden_regs;
     uint32_t nr_kvm_hidden_regs;
 
+    /*
+     * KVM registers whose presence must be enforced
+     * Either they must be exposed to user space by KVM or
+     * they must be faked for migration sake because the source does
+     * feature them.
+     */
+    uint64_t *kvm_enforced_regs;
+    uint32_t nr_kvm_enforced_regs;
+
+    /* registers that must be be faked */
+    uint64_t *kvm_fake_regs;
+    uint32_t nr_kvm_fake_regs;
+
     /* Uniprocessor system with MP extensions */
     bool mp_is_up;
 
@@ -2651,6 +2664,16 @@ static inline uint64_t *aa64_vfp_qreg(CPUARMState *env, unsigned regno)
 
 /* Shared between translate-sve.c and sve_helper.c.  */
 extern const uint64_t pred_esz_masks[5];
+
+static inline bool is_fake_reg(ARMCPU *cpu, uint64_t regidx)
+{
+    for (int i = 0; i < cpu->nr_kvm_fake_regs; i++) {
+        if (regidx == cpu->kvm_fake_regs[i]) {
+            return true;
+        }
+    }
+    return false;
+}
 
 /*
  * AArch64 usage of the PAGE_TARGET_* bits for linux-user.

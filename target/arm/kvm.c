@@ -788,6 +788,7 @@ static int kvm_arm_init_cpreg_list(ARMCPU *cpu)
     struct kvm_reg_list rl;
     struct kvm_reg_list *rlp;
     int i, ret, arraylen;
+    int nr_fake_regs = 0;
     CPUState *cs = CPU(cpu);
 
     rl.n = 0;
@@ -801,6 +802,29 @@ static int kvm_arm_init_cpreg_list(ARMCPU *cpu)
     if (ret) {
         goto out;
     }
+
+    /*
+     * Identify which registers belonging to the enforced list
+     * need to be faked because they are not exposed to userspace
+     * by KVM
+     */
+    cpu->kvm_fake_regs = g_new(uint64_t, cpu->nr_kvm_enforced_regs);
+    for (int j = 0; j < cpu->nr_kvm_enforced_regs; j++) {
+        uint64_t v64;
+        int r;
+
+        r = kvm_get_one_reg(cs, cpu->kvm_enforced_regs[j], &v64);
+        if (errno != ENOENT) {
+            /* enforced register exists, no need to fake */
+            trace_kvm_arm_init_cpreg_exposed(cpu->kvm_enforced_regs[j], v64, r);
+            continue;
+        }
+        cpu->kvm_fake_regs[nr_fake_regs] = cpu->kvm_enforced_regs[j];
+        trace_kvm_arm_init_cpreg_fake(cpu->kvm_fake_regs[nr_fake_regs]);
+        nr_fake_regs++;
+    }
+    cpu->nr_kvm_fake_regs = nr_fake_regs;
+
     /* Sort the list we get back from the kernel, since cpreg_tuples
      * must be in strictly ascending order.
      */
