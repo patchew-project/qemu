@@ -2687,4 +2687,6 @@ static inline bool is_fake_reg(ARMCPU *cpu, uint64_t regidx)
 #define LOG2_TAG_GRANULE 4
 #define TAG_GRANULE      (1 << LOG2_TAG_GRANULE)
 
+bool arm_cpu_hide_reg(CPUState *s, uint64_t regidx);
+
 #endif

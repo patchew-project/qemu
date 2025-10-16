@@ -2366,6 +2366,17 @@ static const TCGCPUOps arm_tcg_ops = {
 };
 #endif /* CONFIG_TCG */
 
+bool arm_cpu_hide_reg(CPUState *s, uint64_t regidx)
+{
+    ARMCPU *cpu = ARM_CPU(s);
+    for (int i = 0; i < cpu->nr_kvm_hidden_regs; i++) {
+        if (cpu->kvm_hidden_regs[i] == regidx) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static void arm_cpu_class_init(ObjectClass *oc, const void *data)
 {
     ARMCPUClass *acc = ARM_CPU_CLASS(oc);
@@ -2394,6 +2405,7 @@ static void arm_cpu_class_init(ObjectClass *oc, const void *data)
     cc->gdb_get_core_xml_file = arm_gdb_get_core_xml_file;
     cc->gdb_stop_before_watchpoint = true;
     cc->disas_set_info = arm_disas_set_info;
+    cc->hide_reg = arm_cpu_hide_reg;
 
 #ifdef CONFIG_TCG
     cc->tcg_ops = &arm_tcg_ops;
