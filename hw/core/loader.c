@@ -77,9 +77,8 @@ int64_t get_image_size(const char *filename, Error **errp)
 {
     int fd;
     int64_t size;
-    fd = open(filename, O_RDONLY | O_BINARY);
+    fd = qemu_open(filename, O_RDONLY | O_BINARY, errp);
     if (fd < 0) {
-        error_setg_file_open(errp, errno, filename);
         return -1;
     }
     size = lseek(fd, 0, SEEK_END);
