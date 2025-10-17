@@ -75,12 +75,10 @@ out:
 static void s390_init_cpus(MachineState *machine)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
-    S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
     int i;
 
-    if (machine->smp.threads > s390mc->max_threads) {
-        error_report("S390 does not support more than %d threads.",
-                     s390mc->max_threads);
+    if (machine->smp.threads > 1) {
+        error_report("S390 does not support more than 1 thread.");
         exit(1);
     }
 
@@ -779,7 +777,6 @@ static void ccw_machine_class_init(ObjectClass *oc, const void *data)
     S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
     DumpSKeysInterface *dsi = DUMP_SKEYS_INTERFACE_CLASS(oc);
 
-    s390mc->max_threads = 1;
     s390mc->use_cpi = true;
     mc->reset = s390_machine_reset;
     mc->block_default_type = IF_VIRTIO;

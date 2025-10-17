@@ -49,11 +49,8 @@ static inline uint64_t s390_get_memory_limit(S390CcwMachineState *s390ms)
 void s390_handle_ptf(S390CPU *cpu, uint8_t r1, uintptr_t ra);
 
 struct S390CcwMachineClass {
-    /*< private >*/
     MachineClass parent_class;
 
-    /*< public >*/
-    int max_threads;
     bool use_cpi;
 };
 
