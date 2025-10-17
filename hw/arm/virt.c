@@ -3597,10 +3597,3 @@ static void virt_machine_7_1_options(MachineClass *mc)
     vmc->no_highmem_compact = true;
 }
 DEFINE_VIRT_MACHINE(7, 1)
-
-static void virt_machine_7_0_options(MachineClass *mc)
-{
-    virt_machine_7_1_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_7_0, hw_compat_7_0_len);
-}
-DEFINE_VIRT_MACHINE(7, 0)
