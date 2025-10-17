@@ -51,6 +51,7 @@
 #include "qemu/module.h"
 #include "sdmmc-internal.h"
 #include "trace.h"
+#include "crypto/hmac.h"
 
 //#define DEBUG_SD 1
 
@@ -118,6 +119,7 @@ typedef struct SDProto {
 } SDProto;
 
 #define RPMB_KEY_MAC_LEN    32
+#define RPMB_HASH_LEN       284
 
 typedef struct {
     uint8_t stuff_bytes[196];
@@ -1120,6 +1122,66 @@ static void sd_blk_write(SDState *sd, uint64_t addr, uint32_t len)
     }
 }
 
+static bool rpmb_calc_hmac(SDState *sd, RPMBDataFrame *frame,
+                           unsigned int num_blocks, uint8_t *mac)
+{
+    size_t mac_len = RPMB_KEY_MAC_LEN;
+    bool success = true;
+    Error *err = NULL;
+    QCryptoHmac *hmac;
+    uint64_t addr;
+
+    hmac = qcrypto_hmac_new(QCRYPTO_HASH_ALGO_SHA256, sd->rpmb_key,
+                            RPMB_KEY_MAC_LEN, &err);
+    if (!hmac) {
+        error_report_err(err);
+        return false;
+    }
+
+    /*
+     * This implies a read request because we only support single-block write
+     * requests so far.
+     */
+    if (num_blocks > 1) {
+        /*
+         * Unfortunately, the underlying crypto libraries do not allow us to
+         * migrate an active QCryptoHmac state. Therefore, we have to calculate
+         * the HMAC in one run. To avoid buffering a complete read sequence in
+         * SDState, reconstruct all frames except for the last one.
+         */
+        char *buf = (char *)sd->data;
+
+        memcpy(buf, frame->data, RPMB_HASH_LEN);
+        addr = be16_to_cpu(frame->address) * 256 + sd_part_offset(sd);
+        do {
+            if (blk_pread(sd->blk, addr, 256, buf, 0) < 0) {
+                fprintf(stderr, "sd_blk_read: read error on host side\n");
+                success = false;
+                break;
+            }
+            if (qcrypto_hmac_bytes(hmac, buf, RPMB_HASH_LEN, NULL, NULL,
+                                   &err) < 0) {
+                error_report_err(err);
+                success = false;
+                break;
+            }
+            addr += 256;
+        } while (--num_blocks > 1);
+    }
+
+    if (success &&
+        qcrypto_hmac_bytes(hmac, (const char*)frame->data, RPMB_HASH_LEN, &mac,
+                           &mac_len, &err) < 0) {
+        error_report_err(err);
+        success = false;
+    }
+    assert(!success || mac_len == RPMB_KEY_MAC_LEN);
+
+    qcrypto_hmac_free(hmac);
+
+    return success;
+}
+
 static void emmc_rpmb_blk_read(SDState *sd, uint64_t addr, uint32_t len)
 {
     uint16_t resp = be16_to_cpu(sd->rpmb_result.req_resp);
@@ -1142,6 +1204,17 @@ static void emmc_rpmb_blk_read(SDState *sd, uint64_t addr, uint32_t len)
             sd->rpmb_result.result = cpu_to_be16(RPMB_RESULT_READ_FAILURE |
                 (result & RPMB_RESULT_COUTER_EXPIRED));
         }
+        if (sd->multi_blk_cnt == 1 &&
+            !rpmb_calc_hmac(sd, &sd->rpmb_result,
+                            be16_to_cpu(sd->rpmb_result.block_count),
+                            sd->rpmb_result.key_mac)) {
+            memset(sd->rpmb_result.data, 0, sizeof(sd->rpmb_result.data));
+            sd->rpmb_result.result = cpu_to_be16(RPMB_RESULT_AUTH_FAILURE);
+        }
+    } else if (!rpmb_calc_hmac(sd, &sd->rpmb_result, 1,
+                               sd->rpmb_result.key_mac)) {
+        memset(sd->rpmb_result.data, 0, sizeof(sd->rpmb_result.data));
+        sd->rpmb_result.result = cpu_to_be16(RPMB_RESULT_AUTH_FAILURE);
     }
     memcpy(sd->data, &sd->rpmb_result, sizeof(sd->rpmb_result));
 
@@ -1153,6 +1226,7 @@ static void emmc_rpmb_blk_write(SDState *sd, uint64_t addr, uint32_t len)
 {
     RPMBDataFrame *frame = (RPMBDataFrame *)sd->data;
     uint16_t req = be16_to_cpu(frame->req_resp);
+    uint8_t mac[RPMB_KEY_MAC_LEN];
 
     if (req == RPMB_REQ_READ_RESULT) {
         /* just return the current result register */
@@ -1188,6 +1262,11 @@ static void emmc_rpmb_blk_write(SDState *sd, uint64_t addr, uint32_t len)
         }
         if (sd->rpmb_write_counter == 0xffffffff) {
             sd->rpmb_result.result = cpu_to_be16(RPMB_RESULT_WRITE_FAILURE);
+            break;
+        }
+        if (!rpmb_calc_hmac(sd, frame, 1, mac) ||
+            memcmp(frame->key_mac, mac, RPMB_KEY_MAC_LEN) != 0) {
+            sd->rpmb_result.result = cpu_to_be16(RPMB_RESULT_AUTH_FAILURE);
             break;
         }
         if (be32_to_cpu(frame->write_counter) != sd->rpmb_write_counter) {
@@ -3114,6 +3193,8 @@ static void emmc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SDCardClass *sc = SDMMC_COMMON_CLASS(klass);
+
+    assert(qcrypto_hmac_supports(QCRYPTO_HASH_ALGO_SHA256));
 
     dc->desc = "eMMC";
     dc->realize = emmc_realize;
