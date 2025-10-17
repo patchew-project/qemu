@@ -3586,14 +3586,3 @@ static void virt_machine_7_2_options(MachineClass *mc)
     compat_props_add(mc->compat_props, hw_compat_7_2, hw_compat_7_2_len);
 }
 DEFINE_VIRT_MACHINE(7, 2)
-
-static void virt_machine_7_1_options(MachineClass *mc)
-{
-    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
-
-    virt_machine_7_2_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_7_1, hw_compat_7_1_len);
-    /* Compact layout for high memory regions was introduced with 7.2 */
-    vmc->no_highmem_compact = true;
-}
-DEFINE_VIRT_MACHINE(7, 1)
