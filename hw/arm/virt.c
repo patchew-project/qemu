@@ -2510,7 +2510,7 @@ static void machvirt_init(MachineState *machine)
         create_gpio_devices(vms, VIRT_GPIO, sysmem);
     }
 
-    if (vms->secure && !vmc->no_secure_gpio) {
+    if (vms->secure) {
         create_gpio_devices(vms, VIRT_SECURE_GPIO, secure_sysmem);
     }
 
