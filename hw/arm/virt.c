@@ -431,7 +431,6 @@ static void fdt_add_cpu_nodes(const VirtMachineState *vms)
     int cpu;
     int addr_cells = 1;
     const MachineState *ms = MACHINE(vms);
-    const VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
     int smp_cpus = ms->smp.cpus;
 
     /*
@@ -488,57 +487,53 @@ static void fdt_add_cpu_nodes(const VirtMachineState *vms)
                 ms->possible_cpus->cpus[cs->cpu_index].props.node_id);
         }
 
-        if (!vmc->no_cpu_topology) {
-            qemu_fdt_setprop_cell(ms->fdt, nodename, "phandle",
-                                  qemu_fdt_alloc_phandle(ms->fdt));
-        }
+        qemu_fdt_setprop_cell(ms->fdt, nodename, "phandle",
+                              qemu_fdt_alloc_phandle(ms->fdt));
 
         g_free(nodename);
     }
 
-    if (!vmc->no_cpu_topology) {
-        /*
-         * Add vCPU topology description through fdt node cpu-map.
-         *
-         * See Linux Documentation/devicetree/bindings/cpu/cpu-topology.txt
-         * In a SMP system, the hierarchy of CPUs can be defined through
-         * four entities that are used to describe the layout of CPUs in
-         * the system: socket/cluster/core/thread.
-         *
-         * A socket node represents the boundary of system physical package
-         * and its child nodes must be one or more cluster nodes. A system
-         * can contain several layers of clustering within a single physical
-         * package and cluster nodes can be contained in parent cluster nodes.
-         *
-         * Note: currently we only support one layer of clustering within
-         * each physical package.
-         */
-        qemu_fdt_add_subnode(ms->fdt, "/cpus/cpu-map");
+    /*
+     * Add vCPU topology description through fdt node cpu-map.
+     *
+     * See Linux Documentation/devicetree/bindings/cpu/cpu-topology.txt
+     * In a SMP system, the hierarchy of CPUs can be defined through
+     * four entities that are used to describe the layout of CPUs in
+     * the system: socket/cluster/core/thread.
+     *
+     * A socket node represents the boundary of system physical package
+     * and its child nodes must be one or more cluster nodes. A system
+     * can contain several layers of clustering within a single physical
+     * package and cluster nodes can be contained in parent cluster nodes.
+     *
+     * Note: currently we only support one layer of clustering within
+     * each physical package.
+     */
+    qemu_fdt_add_subnode(ms->fdt, "/cpus/cpu-map");
 
-        for (cpu = smp_cpus - 1; cpu >= 0; cpu--) {
-            char *cpu_path = g_strdup_printf("/cpus/cpu@%d", cpu);
-            char *map_path;
+    for (cpu = smp_cpus - 1; cpu >= 0; cpu--) {
+        char *cpu_path = g_strdup_printf("/cpus/cpu@%d", cpu);
+        char *map_path;
 
-            if (ms->smp.threads > 1) {
-                map_path = g_strdup_printf(
-                    "/cpus/cpu-map/socket%d/cluster%d/core%d/thread%d",
-                    cpu / (ms->smp.clusters * ms->smp.cores * ms->smp.threads),
-                    (cpu / (ms->smp.cores * ms->smp.threads)) % ms->smp.clusters,
-                    (cpu / ms->smp.threads) % ms->smp.cores,
-                    cpu % ms->smp.threads);
-            } else {
-                map_path = g_strdup_printf(
-                    "/cpus/cpu-map/socket%d/cluster%d/core%d",
-                    cpu / (ms->smp.clusters * ms->smp.cores),
-                    (cpu / ms->smp.cores) % ms->smp.clusters,
-                    cpu % ms->smp.cores);
-            }
-            qemu_fdt_add_path(ms->fdt, map_path);
-            qemu_fdt_setprop_phandle(ms->fdt, map_path, "cpu", cpu_path);
-
-            g_free(map_path);
-            g_free(cpu_path);
+        if (ms->smp.threads > 1) {
+            map_path = g_strdup_printf(
+                "/cpus/cpu-map/socket%d/cluster%d/core%d/thread%d",
+                cpu / (ms->smp.clusters * ms->smp.cores * ms->smp.threads),
+                (cpu / (ms->smp.cores * ms->smp.threads)) % ms->smp.clusters,
+                (cpu / ms->smp.threads) % ms->smp.cores,
+                cpu % ms->smp.threads);
+        } else {
+            map_path = g_strdup_printf(
+                "/cpus/cpu-map/socket%d/cluster%d/core%d",
+                cpu / (ms->smp.clusters * ms->smp.cores),
+                (cpu / ms->smp.cores) % ms->smp.clusters,
+                cpu % ms->smp.cores);
         }
+        qemu_fdt_add_path(ms->fdt, map_path);
+        qemu_fdt_setprop_phandle(ms->fdt, map_path, "cpu", cpu_path);
+
+        g_free(map_path);
+        g_free(cpu_path);
     }
 }
 
