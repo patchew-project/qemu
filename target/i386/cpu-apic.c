@@ -48,7 +48,7 @@ void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
         return;
     }
 
-    cpu->apic_state = DEVICE(object_new_with_class(OBJECT_CLASS(apic_class)));
+    cpu->apic_state = APIC_COMMON(object_new_with_class(OBJECT_CLASS(apic_class)));
     object_property_add_child(OBJECT(cpu), "lapic",
                               OBJECT(cpu->apic_state));
     object_unref(OBJECT(cpu->apic_state));
@@ -63,7 +63,7 @@ void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
      * feature in case APIC ID >= 255, so we need to set apic->cpu
      * before setting APIC ID
      */
-    qdev_prop_set_uint32(cpu->apic_state, "id", cpu->apic_id);
+    qdev_prop_set_uint32(DEVICE(cpu->apic_state), "id", cpu->apic_id);
 }
 
 void x86_cpu_apic_realize(X86CPU *cpu, Error **errp)
