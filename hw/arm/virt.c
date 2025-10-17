@@ -3663,13 +3663,3 @@ static void virt_machine_5_2_options(MachineClass *mc)
     vmc->no_secure_gpio = true;
 }
 DEFINE_VIRT_MACHINE(5, 2)
-
-static void virt_machine_5_1_options(MachineClass *mc)
-{
-    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
-
-    virt_machine_5_2_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_5_1, hw_compat_5_1_len);
-    vmc->no_kvm_steal_time = true;
-}
-DEFINE_VIRT_MACHINE(5, 1)
