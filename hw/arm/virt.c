@@ -3641,10 +3641,3 @@ static void virt_machine_6_1_options(MachineClass *mc)
     vmc->no_tcg_its = true;
 }
 DEFINE_VIRT_MACHINE(6, 1)
-
-static void virt_machine_6_0_options(MachineClass *mc)
-{
-    virt_machine_6_1_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_6_0, hw_compat_6_0_len);
-}
-DEFINE_VIRT_MACHINE(6, 0)
