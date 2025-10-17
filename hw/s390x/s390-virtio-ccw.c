@@ -1007,18 +1007,6 @@ static void ccw_machine_8_0_class_options(MachineClass *mc)
 }
 DEFINE_CCW_MACHINE(8, 0);
 
-static void ccw_machine_7_2_instance_options(MachineState *machine)
-{
-    ccw_machine_8_0_instance_options(machine);
-}
-
-static void ccw_machine_7_2_class_options(MachineClass *mc)
-{
-    ccw_machine_8_0_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_7_2, hw_compat_7_2_len);
-}
-DEFINE_CCW_MACHINE(7, 2);
-
 static void ccw_machine_register_types(void)
 {
     type_register_static(&ccw_machine_info);
