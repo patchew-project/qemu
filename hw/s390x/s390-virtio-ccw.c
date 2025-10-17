@@ -1022,30 +1022,6 @@ static void ccw_machine_7_2_class_options(MachineClass *mc)
 }
 DEFINE_CCW_MACHINE(7, 2);
 
-static void ccw_machine_7_1_instance_options(MachineState *machine)
-{
-    static const S390FeatInit qemu_cpu_feat = { S390_FEAT_LIST_QEMU_V7_1 };
-
-    ccw_machine_7_2_instance_options(machine);
-    s390_cpudef_featoff_greater(16, 1, S390_FEAT_PAIE);
-    s390_set_qemu_cpu_model(0x8561, 15, 1, qemu_cpu_feat);
-}
-
-static void ccw_machine_7_1_class_options(MachineClass *mc)
-{
-    S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
-    static GlobalProperty compat[] = {
-        { TYPE_S390_PCI_DEVICE, "interpret", "off", },
-        { TYPE_S390_PCI_DEVICE, "forwarding-assist", "off", },
-    };
-
-    ccw_machine_7_2_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_7_1, hw_compat_7_1_len);
-    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
-    s390mc->max_threads = S390_MAX_CPUS;
-}
-DEFINE_CCW_MACHINE(7, 1);
-
 static void ccw_machine_register_types(void)
 {
     type_register_static(&ccw_machine_info);
