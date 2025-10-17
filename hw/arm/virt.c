@@ -3438,7 +3438,6 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
 static void virt_instance_init(Object *obj)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
-    VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
 
     /* EL3 is disabled by default on virt: this makes us consistent
      * between KVM and TCG for this board, and it also allows us to
@@ -3451,7 +3450,7 @@ static void virt_instance_init(Object *obj)
 
     /* High memory is enabled by default */
     vms->highmem = true;
-    vms->highmem_compact = !vmc->no_highmem_compact;
+    vms->highmem_compact = true;
     vms->gic_version = VIRT_GIC_VERSION_NOSEL;
 
     vms->highmem_ecam = true;
