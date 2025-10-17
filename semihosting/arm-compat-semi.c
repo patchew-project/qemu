@@ -305,8 +305,19 @@ static uint64_t common_semi_flen_buf(CPUState *cs)
     return sp - 64;
 }
 
+static void common_semi_flen_cb(CPUState *cs, uint64_t ret, int err)
+{
+    CPUArchState *env = cpu_env(cs);
+
+    if (!err && !is_64bit_semihosting(env) && ret > INT32_MAX) {
+            ret = -1, err = EOVERFLOW;
+    }
+    common_semi_cb(cs, ret, err);
+}
+
+
 static void
-common_semi_flen_fstat_cb(CPUState *cs, uint64_t ret, int err)
+common_semi_flen_gdb_cb(CPUState *cs, uint64_t ret, int err)
 {
     if (!err) {
         /* The size is always stored in big-endian order, extract the value. */
@@ -319,7 +330,7 @@ common_semi_flen_fstat_cb(CPUState *cs, uint64_t ret, int err)
             ret = be64_to_cpu(size);
         }
     }
-    common_semi_cb(cs, ret, err);
+    common_semi_flen_cb(cs, ret, err);
 }
 
 static void
@@ -517,7 +528,7 @@ void do_common_semihosting(CPUState *cs)
 
     case TARGET_SYS_FLEN:
         GET_ARG(0);
-        semihost_sys_flen(cs, common_semi_flen_fstat_cb, common_semi_cb,
+        semihost_sys_flen(cs, common_semi_flen_gdb_cb, common_semi_flen_cb,
                           arg0, common_semi_flen_buf(cs));
         break;
 
