@@ -212,20 +212,25 @@ bool tap_probe_has_tunnel(int fd)
     return true;
 }
 
-void tap_fd_set_vnet_hdr_len(int fd, int len)
+int tap_fd_set_vnet_hdr_len(int fd, int len)
 {
-    if (ioctl(fd, TUNSETVNETHDRSZ, &len) == -1) {
-        fprintf(stderr, "TUNSETVNETHDRSZ ioctl() failed: %s. Exiting.\n",
-                strerror(errno));
-        abort();
+    int ret;
+
+    ret = ioctl(fd, TUNSETVNETHDRSZ, &len);
+    if (ret != 0) {
+        error_report("TUNSETVNETHDRSZ ioctl() failed: %s.", strerror(errno));
     }
+
+    return ret;
 }
 
 int tap_fd_set_vnet_le(int fd, int is_le)
 {
     int arg = is_le ? 1 : 0;
+    int ret;
 
-    if (!ioctl(fd, TUNSETVNETLE, &arg)) {
+    ret = ioctl(fd, TUNSETVNETLE, &arg);
+    if (!ret) {
         return 0;
     }
 
@@ -235,14 +240,16 @@ int tap_fd_set_vnet_le(int fd, int is_le)
     }
 
     error_report("TUNSETVNETLE ioctl() failed: %s.", strerror(errno));
-    abort();
+    return ret;
 }
 
 int tap_fd_set_vnet_be(int fd, int is_be)
 {
     int arg = is_be ? 1 : 0;
+    int ret;
 
-    if (!ioctl(fd, TUNSETVNETBE, &arg)) {
+    ret = ioctl(fd, TUNSETVNETBE, &arg);
+    if (!ret) {
         return 0;
     }
 
@@ -252,7 +259,7 @@ int tap_fd_set_vnet_be(int fd, int is_be)
     }
 
     error_report("TUNSETVNETBE ioctl() failed: %s.", strerror(errno));
-    abort();
+    return ret;
 }
 
 void tap_fd_set_offload(int fd, const NetOffloads *ol)
