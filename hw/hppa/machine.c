@@ -387,11 +387,13 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
                         enable_lasi_lan());
     }
 
-    pci_init_nic_devices(pci_bus, mc->default_nic);
+    if (pci_bus) {
+        pci_init_nic_devices(pci_bus, mc->default_nic);
+    }
 
     /* BMC board: HP Diva GSP */
-    dev = qdev_new("diva-gsp");
-    if (!object_property_get_bool(OBJECT(dev), "disable", NULL)) {
+    dev = pci_bus ? qdev_new("diva-gsp") : NULL;
+    if (dev && !object_property_get_bool(OBJECT(dev), "disable", NULL)) {
         pci_dev = pci_new_multifunction(PCI_DEVFN(2, 0), "diva-gsp");
         if (!lasi_dev) {
             /* bind default keyboard/serial to Diva card */
