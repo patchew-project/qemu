@@ -3608,13 +3608,3 @@ static void virt_machine_7_0_options(MachineClass *mc)
     compat_props_add(mc->compat_props, hw_compat_7_0, hw_compat_7_0_len);
 }
 DEFINE_VIRT_MACHINE(7, 0)
-
-static void virt_machine_6_2_options(MachineClass *mc)
-{
-    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
-
-    virt_machine_7_0_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_6_2, hw_compat_6_2_len);
-    vmc->no_tcg_lpa2 = true;
-}
-DEFINE_VIRT_MACHINE(6, 2)
