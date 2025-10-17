@@ -99,30 +99,6 @@ static void acpi_dsdt_add_uart(Aml *scope, const MemMapEntry *uart_memmap,
     aml_append(scope, dev);
 }
 
-static void acpi_dsdt_add_flash(Aml *scope, const MemMapEntry *flash_memmap)
-{
-    Aml *dev, *crs;
-    hwaddr base = flash_memmap->base;
-    hwaddr size = flash_memmap->size / 2;
-
-    dev = aml_device("FLS0");
-    aml_append(dev, aml_name_decl("_HID", aml_string("LNRO0015")));
-    aml_append(dev, aml_name_decl("_UID", aml_int(0)));
-
-    crs = aml_resource_template();
-    aml_append(crs, aml_memory32_fixed(base, size, AML_READ_WRITE));
-    aml_append(dev, aml_name_decl("_CRS", crs));
-    aml_append(scope, dev);
-
-    dev = aml_device("FLS1");
-    aml_append(dev, aml_name_decl("_HID", aml_string("LNRO0015")));
-    aml_append(dev, aml_name_decl("_UID", aml_int(1)));
-    crs = aml_resource_template();
-    aml_append(crs, aml_memory32_fixed(base + size, size, AML_READ_WRITE));
-    aml_append(dev, aml_name_decl("_CRS", crs));
-    aml_append(scope, dev);
-}
-
 static void build_acpi0017(Aml *table)
 {
     Aml *dev, *scope, *method;
@@ -1011,7 +987,6 @@ static void build_fadt_rev6(GArray *table_data, BIOSLinker *linker,
 static void
 build_dsdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 {
-    VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
     Aml *scope, *dsdt;
     MachineState *ms = MACHINE(vms);
     const MemMapEntry *memmap = vms->memmap;
@@ -1035,9 +1010,6 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     if (vms->second_ns_uart_present) {
         acpi_dsdt_add_uart(scope, &memmap[VIRT_UART1],
                            (irqmap[VIRT_UART1] + ARM_SPI_BASE), 1);
-    }
-    if (vmc->acpi_expose_flash) {
-        acpi_dsdt_add_flash(scope, &memmap[VIRT_FLASH]);
     }
     fw_cfg_acpi_dsdt_add(scope, &memmap[VIRT_FW_CFG]);
     virtio_acpi_dsdt_add(scope, memmap[VIRT_MMIO].base, memmap[VIRT_MMIO].size,
