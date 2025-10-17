@@ -3627,17 +3627,3 @@ static void virt_machine_6_2_options(MachineClass *mc)
     vmc->no_tcg_lpa2 = true;
 }
 DEFINE_VIRT_MACHINE(6, 2)
-
-static void virt_machine_6_1_options(MachineClass *mc)
-{
-    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
-
-    virt_machine_6_2_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_6_1, hw_compat_6_1_len);
-    mc->smp_props.prefer_sockets = true;
-    vmc->no_cpu_topology = true;
-
-    /* qemu ITS was introduced with 6.2 */
-    vmc->no_tcg_its = true;
-}
-DEFINE_VIRT_MACHINE(6, 1)
