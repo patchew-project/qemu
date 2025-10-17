@@ -121,7 +121,6 @@ typedef enum VirtGICType {
 
 struct VirtMachineClass {
     MachineClass parent;
-    bool no_tcg_its;
     bool no_highmem_compact;
     /* Machines < 6.2 have no support for describing cpu topology to guest */
     bool no_cpu_topology;
@@ -144,7 +143,6 @@ struct VirtMachineState {
     bool highmem_mmio;
     bool highmem_redists;
     bool its;
-    bool tcg_its;
     bool virt;
     bool ras;
     bool mte;

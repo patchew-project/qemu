@@ -735,7 +735,7 @@ static void create_its(VirtMachineState *vms)
     DeviceState *dev;
 
     assert(vms->its);
-    if (!kvm_irqchip_in_kernel() && !vms->tcg_its) {
+    if (!kvm_irqchip_in_kernel()) {
         /*
          * Do nothing if ITS is neither supported by the host nor emulated by
          * the machine.
@@ -857,11 +857,9 @@ static void create_gic(VirtMachineState *vms, MemoryRegion *mem)
                             redist_region_count);
 
         if (!kvm_irqchip_in_kernel()) {
-            if (vms->tcg_its) {
-                object_property_set_link(OBJECT(vms->gic), "sysmem",
-                                         OBJECT(mem), &error_fatal);
-                qdev_prop_set_bit(vms->gic, "has-lpi", true);
-            }
+            object_property_set_link(OBJECT(vms->gic), "sysmem",
+                                     OBJECT(mem), &error_fatal);
+            qdev_prop_set_bit(vms->gic, "has-lpi", true);
         } else if (vms->virt) {
             qdev_prop_set_uint32(vms->gic, "maintenance-interrupt-id",
                                  ARCH_GIC_MAINT_IRQ);
@@ -3471,8 +3469,6 @@ static void virt_instance_init(Object *obj)
 
     /* Default allows ITS instantiation */
     vms->its = true;
-    /* Allow ITS emulation if the machine version supports it */
-    vms->tcg_its = !vmc->no_tcg_its;
 
     /* Default disallows iommu instantiation */
     vms->iommu = VIRT_IOMMU_NONE;
