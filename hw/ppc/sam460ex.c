@@ -262,6 +262,7 @@ static void sam460ex_init(MachineState *machine)
     struct boot_info *boot_info;
     uint8_t *spd_data;
     int success;
+    Error *errp = NULL;
 
     cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
@@ -495,10 +496,10 @@ static void sam460ex_init(MachineState *machine)
         initrd_size = load_image_targphys(machine->initrd_filename,
                                           RAMDISK_ADDR,
                                           machine->ram_size - RAMDISK_ADDR,
-                                          NULL);
-        if (initrd_size < 0) {
-            error_report("could not load ram disk '%s' at %x",
-                    machine->initrd_filename, RAMDISK_ADDR);
+                                          &errp);
+        if (errp) {
+            error_reportf_err(errp, "could not load ram disk '%s' at %x: ",
+                              machine->initrd_filename, RAMDISK_ADDR);
             exit(1);
         }
     }
