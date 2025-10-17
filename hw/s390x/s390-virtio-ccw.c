@@ -1076,24 +1076,6 @@ static void ccw_machine_6_2_class_options(MachineClass *mc)
 }
 DEFINE_CCW_MACHINE(6, 2);
 
-static void ccw_machine_6_1_instance_options(MachineState *machine)
-{
-    ccw_machine_6_2_instance_options(machine);
-    s390_cpudef_featoff_greater(16, 1, S390_FEAT_NNPA);
-    s390_cpudef_featoff_greater(16, 1, S390_FEAT_VECTOR_PACKED_DECIMAL_ENH2);
-    s390_cpudef_featoff_greater(16, 1, S390_FEAT_BEAR_ENH);
-    s390_cpudef_featoff_greater(16, 1, S390_FEAT_RDP);
-    s390_cpudef_featoff_greater(16, 1, S390_FEAT_PAI);
-}
-
-static void ccw_machine_6_1_class_options(MachineClass *mc)
-{
-    ccw_machine_6_2_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_6_1, hw_compat_6_1_len);
-    mc->smp_props.prefer_sockets = true;
-}
-DEFINE_CCW_MACHINE(6, 1);
-
 static void ccw_machine_register_types(void)
 {
     type_register_static(&ccw_machine_info);
