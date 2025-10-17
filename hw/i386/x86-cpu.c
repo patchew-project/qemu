@@ -85,13 +85,3 @@ int cpu_get_pic_interrupt(CPUX86State *env)
     intno = pic_read_irq(isa_pic);
     return intno;
 }
-
-APICCommonState *cpu_get_current_apic(void)
-{
-    if (current_cpu) {
-        X86CPU *cpu = X86_CPU(current_cpu);
-        return cpu->apic_state;
-    } else {
-        return NULL;
-    }
-}
