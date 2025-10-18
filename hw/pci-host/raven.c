@@ -173,7 +173,6 @@ static void raven_pcihost_realize(DeviceState *d, Error **errp)
     memory_region_init_io(&s->pci_discontiguous_io, o,
                           &raven_io_ops, &s->pci_io,
                           "pci-discontiguous-io", 8 * MiB);
-    memory_region_set_enabled(&s->pci_discontiguous_io, false);
     memory_region_init(&s->pci_memory, o, "pci-memory", 0x3f000000);
 
     sysbus_init_mmio(dev, &s->pci_io);
