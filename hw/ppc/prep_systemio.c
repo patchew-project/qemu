@@ -44,9 +44,10 @@ OBJECT_DECLARE_SIMPLE_TYPE(PrepSystemIoState, PREP_SYSTEMIO)
 
 struct PrepSystemIoState {
     ISADevice parent_obj;
-    MemoryRegion ppc_parity_mem;
 
-    qemu_irq non_contiguous_io_map_irq;
+    MemoryRegion ppc_parity_mem;
+    MemoryRegion *discontiguous_io;
+
     uint8_t sreset; /* 0x0092 */
     uint8_t equipment; /* 0x080c */
     uint8_t system_control; /* 0x081c */
@@ -206,8 +207,8 @@ static void prep_port0850_write(void *opaque, uint32_t addr, uint32_t val)
     PrepSystemIoState *s = opaque;
 
     trace_prep_systemio_write(addr, val);
-    qemu_set_irq(s->non_contiguous_io_map_irq,
-                 val & PORT0850_IOMAP_NONCONTIGUOUS);
+    memory_region_set_enabled(s->discontiguous_io,
+                              !(val & PORT0850_IOMAP_NONCONTIGUOUS));
     s->iomap_type = val & PORT0850_IOMAP_NONCONTIGUOUS;
 }
 
@@ -257,10 +258,10 @@ static void prep_systemio_realize(DeviceState *dev, Error **errp)
     PrepSystemIoState *s = PREP_SYSTEMIO(dev);
     PowerPCCPU *cpu;
 
-    qdev_init_gpio_out(dev, &s->non_contiguous_io_map_irq, 1);
+    assert(s->discontiguous_io);
     s->iomap_type = PORT0850_IOMAP_NONCONTIGUOUS;
-    qemu_set_irq(s->non_contiguous_io_map_irq,
-                 s->iomap_type & PORT0850_IOMAP_NONCONTIGUOUS);
+    memory_region_set_enabled(s->discontiguous_io,
+                              !(s->iomap_type & PORT0850_IOMAP_NONCONTIGUOUS));
     cpu = POWERPC_CPU(first_cpu);
     s->softreset_irq = qdev_get_gpio_in(DEVICE(cpu), PPC6xx_INPUT_HRESET);
 
@@ -288,6 +289,8 @@ static const VMStateDescription vmstate_prep_systemio = {
 static const Property prep_systemio_properties[] = {
     DEFINE_PROP_UINT8("ibm-planar-id", PrepSystemIoState, ibm_planar_id, 0),
     DEFINE_PROP_UINT8("equipment", PrepSystemIoState, equipment, 0),
+    DEFINE_PROP_LINK("discontiguous-io", PrepSystemIoState, discontiguous_io,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
 static void prep_systemio_class_initfn(ObjectClass *klass, const void *data)
@@ -296,6 +299,8 @@ static void prep_systemio_class_initfn(ObjectClass *klass, const void *data)
 
     dc->realize = prep_systemio_realize;
     dc->vmsd = &vmstate_prep_systemio;
+    /* Reason: PReP specific device, needs to be wired via properties */
+    dc->user_creatable = false;
     device_class_set_props(dc, prep_systemio_properties);
 }
 
