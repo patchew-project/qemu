@@ -49,8 +49,6 @@ struct PREPPCIState {
     AddressSpace bm_as;
 };
 
-#define PCI_IO_BASE_ADDR    0x80000000  /* Physical address on main bus */
-
 static inline uint32_t raven_idsel_to_addr(hwaddr addr)
 {
     return (ctz16(addr >> 11) << 11) | (addr & 0x7ff);
@@ -170,7 +168,7 @@ static void raven_change_gpio(void *opaque, int n, int level)
     memory_region_set_enabled(&s->pci_discontiguous_io, !!level);
 }
 
-static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
+static void raven_pcihost_realize(DeviceState *d, Error **errp)
 {
     SysBusDevice *dev = SYS_BUS_DEVICE(d);
     PCIHostState *h = PCI_HOST_BRIDGE(dev);
@@ -180,7 +178,18 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
 
     qdev_init_gpio_in(d, raven_change_gpio, 1);
 
+    memory_region_init(&s->pci_io, o, "pci-io", 0x3f800000);
+    memory_region_init_io(&s->pci_discontiguous_io, o,
+                          &raven_io_ops, &s->pci_io,
+                          "pci-discontiguous-io", 8 * MiB);
+    memory_region_set_enabled(&s->pci_discontiguous_io, false);
+    memory_region_init(&s->pci_memory, o, "pci-memory", 0x3f000000);
+
+    sysbus_init_mmio(dev, &s->pci_io);
+    sysbus_init_mmio(dev, &s->pci_discontiguous_io);
+    sysbus_init_mmio(dev, &s->pci_memory);
     sysbus_init_irq(dev, &s->irq);
+
     h->bus = pci_register_root_bus(d, NULL, raven_set_irq, raven_map_irq,
                                    &s->irq, &s->pci_memory, &s->pci_io, 0, 1,
                                    TYPE_PCI_BUS);
@@ -219,32 +228,12 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
     pci_setup_iommu(h->bus, &raven_iommu_ops, s);
 }
 
-static void raven_pcihost_initfn(Object *obj)
-{
-    PREPPCIState *s = RAVEN_PCI_HOST_BRIDGE(obj);
-    MemoryRegion *address_space_mem = get_system_memory();
-
-    memory_region_init(&s->pci_io, obj, "pci-io", 0x3f800000);
-    memory_region_init_io(&s->pci_discontiguous_io, obj,
-                          &raven_io_ops, &s->pci_io,
-                          "pci-discontiguous-io", 8 * MiB);
-    memory_region_init(&s->pci_memory, obj, "pci-memory", 0x3f000000);
-
-    /* CPU address space */
-    memory_region_add_subregion(address_space_mem, PCI_IO_BASE_ADDR,
-                                &s->pci_io);
-    memory_region_add_subregion_overlap(address_space_mem, PCI_IO_BASE_ADDR,
-                                        &s->pci_discontiguous_io, 1);
-    memory_region_set_enabled(&s->pci_discontiguous_io, false);
-    memory_region_add_subregion(address_space_mem, 0xc0000000, &s->pci_memory);
-}
-
 static void raven_pcihost_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    dc->realize = raven_pcihost_realizefn;
+    dc->realize = raven_pcihost_realize;
     dc->fw_name = "pci";
 }
 
@@ -278,7 +267,6 @@ static const TypeInfo raven_types[] = {
         .name = TYPE_RAVEN_PCI_HOST_BRIDGE,
         .parent = TYPE_PCI_HOST_BRIDGE,
         .instance_size = sizeof(PREPPCIState),
-        .instance_init = raven_pcihost_initfn,
         .class_init = raven_pcihost_class_init,
     },
     {
