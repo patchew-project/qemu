@@ -42,17 +42,14 @@ struct PREPPCIState {
     PCIHostState parent_obj;
 
     qemu_irq irq;
-    AddressSpace pci_io_as;
     MemoryRegion pci_io;
-    MemoryRegion pci_io_non_contiguous;
+    MemoryRegion pci_discontiguous_io;
     MemoryRegion pci_memory;
     MemoryRegion pci_intack;
     MemoryRegion bm;
     MemoryRegion bm_ram_alias;
     MemoryRegion bm_pci_memory_alias;
     AddressSpace bm_as;
-
-    int contiguous_map;
 };
 
 #define PCI_IO_BASE_ADDR    0x80000000  /* Physical address on main bus */
@@ -103,63 +100,28 @@ static const MemoryRegionOps raven_intack_ops = {
     },
 };
 
-static inline hwaddr raven_io_address(PREPPCIState *s,
-                                      hwaddr addr)
+/* Convert 8 MB non-contiguous address to 64k ISA IO address */
+static inline hwaddr raven_io_addr(hwaddr addr)
 {
-    if (s->contiguous_map == 0) {
-        /* 64 KB contiguous space for IOs */
-        addr &= 0xFFFF;
-    } else {
-        /* 8 MB non-contiguous space for IOs */
-        addr = (addr & 0x1F) | ((addr & 0x007FFF000) >> 7);
-    }
-
-    /* FIXME: handle endianness switch */
-
-    return addr;
+    return ((addr & 0x007FFF000) >> 7) | (addr & 0x1F);
 }
 
-static uint64_t raven_io_read(void *opaque, hwaddr addr,
-                              unsigned int size)
+static uint64_t raven_io_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    PREPPCIState *s = opaque;
-    uint8_t buf[4];
+    uint64_t val = 0xffffffffULL;
 
-    addr = raven_io_address(s, addr);
-    address_space_read(&s->pci_io_as, addr + PCI_IO_BASE_ADDR,
-                       MEMTXATTRS_UNSPECIFIED, buf, size);
-
-    if (size == 1) {
-        return buf[0];
-    } else if (size == 2) {
-        return lduw_le_p(buf);
-    } else if (size == 4) {
-        return ldl_le_p(buf);
-    } else {
-        g_assert_not_reached();
-    }
+    memory_region_dispatch_read(opaque, raven_io_addr(addr), &val,
+                                size_memop(size) | MO_LE,
+                                MEMTXATTRS_UNSPECIFIED);
+    return val;
 }
 
-static void raven_io_write(void *opaque, hwaddr addr,
-                           uint64_t val, unsigned int size)
+static void raven_io_write(void *opaque, hwaddr addr, uint64_t val,
+                           unsigned int size)
 {
-    PREPPCIState *s = opaque;
-    uint8_t buf[4];
-
-    addr = raven_io_address(s, addr);
-
-    if (size == 1) {
-        buf[0] = val;
-    } else if (size == 2) {
-        stw_le_p(buf, val);
-    } else if (size == 4) {
-        stl_le_p(buf, val);
-    } else {
-        g_assert_not_reached();
-    }
-
-    address_space_write(&s->pci_io_as, addr + PCI_IO_BASE_ADDR,
-                        MEMTXATTRS_UNSPECIFIED, buf, size);
+    memory_region_dispatch_write(opaque, raven_io_addr(addr), val,
+                                 size_memop(size) | MO_LE,
+                                 MEMTXATTRS_UNSPECIFIED);
 }
 
 static const MemoryRegionOps raven_io_ops = {
@@ -208,7 +170,7 @@ static void raven_change_gpio(void *opaque, int n, int level)
 {
     PREPPCIState *s = opaque;
 
-    s->contiguous_map = level;
+    memory_region_set_enabled(&s->pci_discontiguous_io, !!level);
 }
 
 static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
@@ -254,23 +216,17 @@ static void raven_pcihost_initfn(Object *obj)
     MemoryRegion *address_space_mem = get_system_memory();
 
     memory_region_init(&s->pci_io, obj, "pci-io", 0x3f800000);
-    memory_region_init_io(&s->pci_io_non_contiguous, obj, &raven_io_ops, s,
-                          "pci-io-non-contiguous", 0x00800000);
+    memory_region_init_io(&s->pci_discontiguous_io, obj,
+                          &raven_io_ops, &s->pci_io,
+                          "pci-discontiguous-io", 8 * MiB);
     memory_region_init(&s->pci_memory, obj, "pci-memory", 0x3f000000);
-    address_space_init(&s->pci_io_as, &s->pci_io, "raven-io");
-
-    /*
-     * Raven's raven_io_ops use the address-space API to access pci-conf-idx
-     * (which is also owned by the raven device). As such, mark the
-     * pci_io_non_contiguous as re-entrancy safe.
-     */
-    s->pci_io_non_contiguous.disable_reentrancy_guard = true;
 
     /* CPU address space */
     memory_region_add_subregion(address_space_mem, PCI_IO_BASE_ADDR,
                                 &s->pci_io);
     memory_region_add_subregion_overlap(address_space_mem, PCI_IO_BASE_ADDR,
-                                        &s->pci_io_non_contiguous, 1);
+                                        &s->pci_discontiguous_io, 1);
+    memory_region_set_enabled(&s->pci_discontiguous_io, false);
     memory_region_add_subregion(address_space_mem, 0xc0000000, &s->pci_memory);
 
     /* Bus master address space */
