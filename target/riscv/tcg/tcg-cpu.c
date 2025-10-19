@@ -426,6 +426,8 @@ static void riscv_cpu_validate_v(CPURISCVState *env, RISCVCPUConfig *cfg,
         min_vlen = 64;
     } else if (cfg->ext_zve32x) {
         min_vlen = 32;
+    } else {
+        g_assert_not_reached();
     }
 
     if (vlen > RV_VLEN_MAX || vlen < min_vlen) {
