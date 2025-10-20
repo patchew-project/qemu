@@ -31,6 +31,7 @@
 #include "hw/virtio/virtio-access.h"
 #include "system/system.h"
 #include "system/runstate.h"
+#include "migration/options.h"
 
 static const int user_feature_bits[] = {
     VIRTIO_BLK_F_SIZE_MAX,
@@ -223,6 +224,11 @@ static int vhost_user_blk_stop(VirtIODevice *vdev)
 
     force_stop = s->skip_get_vring_base_on_force_shutdown &&
                  qemu_force_shutdown_requested();
+
+    if (migrate_inflight_vhost_user_blk() &&
+        runstate_check(RUN_STATE_FINISH_MIGRATE)) {
+        force_stop = true;
+    }
 
     ret = force_stop ? vhost_dev_force_stop(&s->dev, vdev, true) :
                        vhost_dev_stop(&s->dev, vdev, true);
@@ -568,12 +574,58 @@ static struct vhost_dev *vhost_user_blk_get_vhost(VirtIODevice *vdev)
     return &s->dev;
 }
 
+static int vhost_user_blk_save(QEMUFile *f, void *pv, size_t size,
+                               const VMStateField *field, JSONWriter *vmdesc)
+{
+    VirtIODevice *vdev = pv;
+    VHostUserBlk *s = VHOST_USER_BLK(vdev);
+
+    if (!migrate_inflight_vhost_user_blk()) {
+        return 0;
+    }
+
+    vhost_dev_save_inflight(s->inflight, f);
+
+    return 0;
+}
+
+static int vhost_user_blk_load(QEMUFile *f, void *pv, size_t size,
+                               const VMStateField *field)
+{
+    VirtIODevice *vdev = pv;
+    VHostUserBlk *s = VHOST_USER_BLK(vdev);
+    int ret;
+
+    if (!migrate_inflight_vhost_user_blk()) {
+        return 0;
+    }
+
+    ret = vhost_dev_load_inflight(s->inflight, f);
+    if (ret < 0) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(vdev));
+        error_report("%s [%s]: can't load in-flight requests",
+                     path, TYPE_VHOST_USER_BLK);
+        return ret;
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_vhost_user_blk = {
     .name = "vhost-user-blk",
     .minimum_version_id = 1,
     .version_id = 1,
     .fields = (const VMStateField[]) {
         VMSTATE_VIRTIO_DEVICE,
+        {
+            .name = "backend state",
+            .info = &(const VMStateInfo) {
+                .name = "vhost-user-blk backend state",
+                .get = vhost_user_blk_load,
+                .put = vhost_user_blk_save,
+            },
+            .flags = VMS_SINGLE,
+        },
         VMSTATE_END_OF_LIST()
     },
 };
