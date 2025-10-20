@@ -23,6 +23,7 @@
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/arm/boot.h"
+#include "hw/arm/machines-qom.h"
 #include "hw/loader.h"
 #include "net/net.h"
 #include "system/runstate.h"
@@ -364,6 +365,7 @@ static const TypeInfo highbank_type = {
     .name = MACHINE_TYPE_NAME("highbank"),
     .parent = TYPE_MACHINE,
     .class_init = highbank_class_init,
+    .interfaces = arm_aarch64_machine_interfaces,
 };
 
 static void midway_class_init(ObjectClass *oc, const void *data)
@@ -389,6 +391,7 @@ static const TypeInfo midway_type = {
     .name = MACHINE_TYPE_NAME("midway"),
     .parent = TYPE_MACHINE,
     .class_init = midway_class_init,
+    .interfaces = arm_aarch64_machine_interfaces,
 };
 
 static void calxeda_machines_init(void)
