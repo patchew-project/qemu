@@ -2728,7 +2728,6 @@ static PCIHostState *spapr_create_default_phb(void)
 static hwaddr spapr_rma_size(SpaprMachineState *spapr, Error **errp)
 {
     MachineState *machine = MACHINE(spapr);
-    SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
     hwaddr rma_size = machine->ram_size;
     hwaddr node0_size = spapr_node0_size(machine);
 
@@ -2740,15 +2739,6 @@ static hwaddr spapr_rma_size(SpaprMachineState *spapr, Error **errp)
      * never exceed that
      */
     rma_size = MIN(rma_size, 1 * TiB);
-
-    /*
-     * Clamp the RMA size based on machine type.  This is for
-     * migration compatibility with older qemu versions, which limited
-     * the RMA size for complicated and mostly bad reasons.
-     */
-    if (smc->rma_limit) {
-        rma_size = MIN(rma_size, smc->rma_limit);
-    }
 
     if (rma_size < MIN_RMA_SLOF) {
         error_setg(errp,
