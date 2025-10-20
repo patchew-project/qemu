@@ -19,6 +19,6 @@
 
 int clp_pci(void *data);
 int enable_pci_function(uint32_t *fhandle);
-int enumerate_pci_functions(void);
+int find_pci_function(uint32_t fid, ClpFhListEntry *entry);
 
 #endif

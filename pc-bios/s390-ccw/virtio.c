@@ -14,6 +14,7 @@
 #include "virtio.h"
 #include "virtio-scsi.h"
 #include "virtio-ccw.h"
+#include "virtio-pci.h"
 #include "bswap.h"
 #include "helper.h"
 #include "s390-time.h"
@@ -97,6 +98,8 @@ bool vring_notify(VRing *vr)
     case S390_IPL_TYPE_QEMU_SCSI:
     case S390_IPL_TYPE_CCW:
         vr->cookie = virtio_ccw_notify(vr->schid, vr->id, vr->cookie);
+    case S390_IPL_TYPE_PCI:
+        vr->cookie = virtio_pci_notify(virtio_get_device()->pci_fh, vr->id);
     }
 
     return vr->cookie >= 0;
@@ -181,6 +184,8 @@ int virtio_reset(VDev *vdev)
     case S390_IPL_TYPE_QEMU_SCSI:
     case S390_IPL_TYPE_CCW:
         return virtio_ccw_reset(vdev);
+    case S390_IPL_TYPE_PCI:
+        return virtio_pci_reset(vdev);
     }
 
     return -1;
