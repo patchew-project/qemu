@@ -20,6 +20,13 @@
 SysEmuTarget target_arch(void);
 
 /**
+ * target_base_arch:
+ *
+ * Returns: QAPI SysEmuTarget enum (i.e. SYS_EMU_TARGET_I386).
+ */
+SysEmuTarget target_base_arch(void);
+
+/**
  * target_endian_mode:
  *
  * Returns: QAPI EndianMode enum (e.g. ENDIAN_MODE_LITTLE).
