@@ -41,6 +41,7 @@ typedef struct NodeInfo {
     bool present;
     bool has_cpu;
     bool has_gi;
+    bool is_spm;
     uint8_t lb_info_provided;
     uint16_t initiator;
     uint8_t distance[MAX_NODES];

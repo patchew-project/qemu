@@ -26,6 +26,7 @@
 #include "qemu/units.h"
 #include "exec/target_page.h"
 #include "hw/i386/pc.h"
+#include "system/ramblock.h"
 #include "hw/char/serial-isa.h"
 #include "hw/char/parallel.h"
 #include "hw/hyperv/hv-balloon.h"
@@ -789,6 +790,41 @@ static hwaddr pc_max_used_gpa(PCMachineState *pcms, uint64_t pci_hole64_size)
     return pc_above_4g_end(pcms) - 1;
 }
 
+static int pc_update_spm_memory(RAMBlock *rb, void *opaque)
+{
+    X86MachineState *x86ms = opaque;
+    MachineState *ms = MACHINE(x86ms);
+    ram_addr_t offset;
+    ram_addr_t length;
+    bool is_spm = false;
+
+    /* Check if this RAM block belongs to a NUMA node with spm=on */
+    for (int i = 0; i < ms->numa_state->num_nodes; i++) {
+        NodeInfo *numa_info = &ms->numa_state->nodes[i];
+        if (numa_info->is_spm && numa_info->node_memdev) {
+            MemoryRegion *mr = &numa_info->node_memdev->mr;
+            if (mr->ram_block == rb) {
+                /* Mark this RAM block as SPM and set the flag */
+                rb->flags |= RAM_SPM;
+                is_spm = true;
+                break;
+            }
+        }
+    }
+
+    if (is_spm) {
+        offset = qemu_ram_get_offset(rb) +
+                 (0x100000000ULL - x86ms->below_4g_mem_size);
+        length = qemu_ram_get_used_length(rb);
+        if (!e820_update_entry_type(offset, length, E820_SOFT_RESERVED)) {
+            warn_report("Failed to update E820 entry for SPM at 0x%" PRIx64
+                        " length 0x%" PRIx64, offset, length);
+        }
+    }
+
+    return 0;
+}
+
 /*
  * AMD systems with an IOMMU have an additional hole close to the
  * 1Tb, which are special GPAs that cannot be DMA mapped. Depending
@@ -904,6 +940,7 @@ void pc_memory_init(PCMachineState *pcms,
     if (pcms->sgx_epc.size != 0) {
         e820_add_entry(pcms->sgx_epc.base, pcms->sgx_epc.size, E820_RESERVED);
     }
+    qemu_ram_foreach_block(pc_update_spm_memory, x86ms);
 
     if (!pcmc->has_reserved_memory &&
         (machine->ram_slots ||
