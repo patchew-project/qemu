@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/target-info.h"
 #include <sys/ioctl.h>
 
 #include "system/kvm.h"
@@ -220,9 +221,5 @@ bool vfio_arch_wants_loading_config_after_iter(void)
      * See commit d329f5032e17 ("vfio: Move the saving of the config space to
      * the right place in VFIO migration").
      */
-#if defined(TARGET_ARM)
-    return true;
-#else
-    return false;
-#endif
+    return target_base_arm();
 }
