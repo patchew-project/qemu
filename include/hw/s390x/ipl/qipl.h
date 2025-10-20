@@ -20,6 +20,12 @@
 #define LOADPARM_LEN    8
 #define NO_LOADPARM "\0\0\0\0\0\0\0\0"
 
+#define S390_IPL_TYPE_FCP 0x00
+#define S390_IPL_TYPE_CCW 0x02
+#define S390_IPL_TYPE_PCI 0x04
+#define S390_IPL_TYPE_PV 0x05
+#define S390_IPL_TYPE_QEMU_SCSI 0xff
+
 /*
  * The QEMU IPL Parameters will be stored at absolute address
  * 204 (0xcc) which means it is 32-bit word aligned but not

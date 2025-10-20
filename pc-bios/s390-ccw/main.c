@@ -19,11 +19,12 @@
 #include "virtio-scsi.h"
 #include "dasd-ipl.h"
 
-static SubChannelId blk_schid = { .one = 1 };
+SubChannelId blk_schid = { .one = 1 };
 static char loadparm_str[LOADPARM_LEN + 1];
 QemuIplParameters qipl;
 IplParameterBlock iplb __attribute__((__aligned__(PAGE_SIZE)));
 bool have_iplb;
+int ipl_type;
 static uint16_t cutype;
 LowCore *lowcore; /* Yes, this *is* a pointer to address 0 */
 
@@ -216,7 +217,7 @@ static bool find_boot_device(void)
     VDev *vdev = virtio_get_device();
     bool found = false;
 
-    switch (iplb.pbt) {
+    switch (ipl_type) {
     case S390_IPL_TYPE_CCW:
         vdev->scsi_device_selected = false;
         debug_print_int("device no. ", iplb.ccw.devno);
@@ -245,15 +246,15 @@ static int virtio_setup(void)
     vdev->is_cdrom = false;
     int ret;
 
-    switch (vdev->senseid.cu_model) {
+    switch (vdev->type) {
     case VIRTIO_ID_NET:
         puts("Network boot device detected");
         return 0;
     case VIRTIO_ID_BLOCK:
-        ret = virtio_blk_setup_device(blk_schid);
+        ret = virtio_blk_setup_device();
         break;
     case VIRTIO_ID_SCSI:
-        ret = virtio_scsi_setup_device(blk_schid);
+        ret = virtio_scsi_setup_device();
         break;
     default:
         puts("\n! No IPL device available !\n");
@@ -316,11 +317,13 @@ void main(void)
     css_setup();
     have_iplb = store_iplb(&iplb);
     if (!have_iplb) {
+        ipl_type = S390_IPL_TYPE_CCW; /* Assume CCW for probing */
         boot_setup();
         probe_boot_device();
     }
 
     while (have_iplb) {
+        ipl_type = iplb.pbt;
         boot_setup();
         if (have_iplb && find_boot_device()) {
             ipl_boot_device();

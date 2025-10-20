@@ -109,6 +109,8 @@ struct VRing {
 };
 typedef struct VRing VRing;
 
+char *virtio_get_ring_area(void);
+
 
 /***********************************************
  *               Virtio block                  *
@@ -137,6 +139,9 @@ typedef struct VRing VRing;
 
 /* Barrier before this op. */
 #define VIRTIO_BLK_T_BARRIER    0x80000000
+
+/* For device bus switches */
+extern int ipl_type;
 
 /* This is the first element of the read scatter-gather list. */
 struct VirtioBlkOuthdr {
@@ -236,6 +241,7 @@ struct VDev {
     int cmd_vr_idx;
     void *ring_area;
     long wait_reply_timeout;
+    VirtioDevType type;
     VirtioGDN guessed_disk_nature;
     SubChannelId schid;
     SenseId senseid;
@@ -268,8 +274,9 @@ struct VirtioCmd {
 };
 typedef struct VirtioCmd VirtioCmd;
 
+void vring_init(VRing *vr, VqInfo *info);
 bool vring_notify(VRing *vr);
-int drain_irqs(SubChannelId schid);
+int drain_irqs(VRing *vr);
 void vring_send_buf(VRing *vr, void *p, int len, int flags);
 int vr_poll(VRing *vr);
 int vring_wait_reply(void);
@@ -282,7 +289,7 @@ int virtio_net_init(void *mac_addr);
 void virtio_net_deinit(void);
 
 /* virtio-blkdev.c */
-int virtio_blk_setup_device(SubChannelId schid);
+int virtio_blk_setup_device(void);
 int virtio_read(unsigned long sector, void *load_addr);
 unsigned long virtio_load_direct(unsigned long rec_list1, unsigned long rec_list2,
                                  void *load_addr);
