@@ -473,7 +473,7 @@ static void glue (audio_close_, TYPE) (SW *sw)
     g_free (sw);
 }
 
-void glue (AUD_close_, TYPE) (QEMUSoundCard *card, SW *sw)
+void glue (AUD_close_, TYPE) (AudioFE *card, SW *sw)
 {
     if (sw) {
         if (audio_bug(__func__, !card)) {
@@ -486,7 +486,7 @@ void glue (AUD_close_, TYPE) (QEMUSoundCard *card, SW *sw)
 }
 
 SW *glue (AUD_open_, TYPE) (
-    QEMUSoundCard *card,
+    AudioFE *card,
     SW *sw,
     const char *name,
     void *callback_opaque ,

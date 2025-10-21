@@ -258,7 +258,7 @@ struct chan {
 
 struct ES1370State {
     PCIDevice dev;
-    QEMUSoundCard card;
+    AudioFE card;
     MemoryRegion io;
     struct chan chan[NB_CHANNELS];
     SWVoiceOut *dac_voice[2];
@@ -833,7 +833,7 @@ static void es1370_realize(PCIDevice *dev, Error **errp)
     ES1370State *s = ES1370(dev);
     uint8_t *c = s->dev.config;
 
-    if (!AUD_register_card ("es1370", &s->card, errp)) {
+    if (!AUD_register_fe ("es1370", &s->card, errp)) {
         return;
     }
 
@@ -865,7 +865,7 @@ static void es1370_exit(PCIDevice *dev)
     }
 
     AUD_close_in(&s->card, s->adc_voice);
-    AUD_remove_card(&s->card);
+    AUD_unregister_fe(&s->card);
 }
 
 static const Property es1370_properties[] = {

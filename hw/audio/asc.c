@@ -635,7 +635,7 @@ static void asc_unrealize(DeviceState *dev)
     g_free(s->mixbuf);
     g_free(s->silentbuf);
 
-    AUD_remove_card(&s->card);
+    AUD_unregister_fe(&s->card);
 }
 
 static void asc_realize(DeviceState *dev, Error **errp)
@@ -643,7 +643,7 @@ static void asc_realize(DeviceState *dev, Error **errp)
     ASCState *s = ASC(dev);
     struct audsettings as;
 
-    if (!AUD_register_card("Apple Sound Chip", &s->card, errp)) {
+    if (!AUD_register_fe("Apple Sound Chip", &s->card, errp)) {
         return;
     }
 
@@ -655,7 +655,7 @@ static void asc_realize(DeviceState *dev, Error **errp)
     s->voice = AUD_open_out(&s->card, s->voice, "asc.out", s, asc_out_cb,
                             &as);
     if (!s->voice) {
-        AUD_remove_card(&s->card);
+        AUD_unregister_fe(&s->card);
         error_setg(errp, "Initializing audio stream failed");
         return;
     }

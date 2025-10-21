@@ -426,7 +426,7 @@ static void via_ac97_realize(PCIDevice *pci_dev, Error **errp)
     ViaAC97State *s = VIA_AC97(pci_dev);
     Object *o = OBJECT(s);
 
-    if (!AUD_register_card ("via-ac97", &s->card, errp)) {
+    if (!AUD_register_fe ("via-ac97", &s->card, errp)) {
         return;
     }
 
@@ -456,7 +456,7 @@ static void via_ac97_exit(PCIDevice *dev)
     ViaAC97State *s = VIA_AC97(dev);
 
     AUD_close_out(&s->card, s->vo);
-    AUD_remove_card(&s->card);
+    AUD_unregister_fe(&s->card);
 }
 
 static const Property via_ac97_properties[] = {

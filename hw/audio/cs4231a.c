@@ -65,7 +65,7 @@ DECLARE_INSTANCE_CHECKER(CSState, CS4231A,
 
 struct CSState {
     ISADevice dev;
-    QEMUSoundCard card;
+    AudioFE card;
     MemoryRegion ioports;
     qemu_irq pic;
     uint32_t regs[CS_REGS];
@@ -674,7 +674,7 @@ static void cs4231a_realizefn (DeviceState *dev, Error **errp)
         return;
     }
 
-    if (!AUD_register_card ("cs4231a", &s->card, errp)) {
+    if (!AUD_register_fe ("cs4231a", &s->card, errp)) {
         return;
     }
 

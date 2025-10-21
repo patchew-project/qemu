@@ -50,7 +50,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(SB16State, SB16)
 struct SB16State {
     ISADevice parent_obj;
 
-    QEMUSoundCard card;
+    AudioFE card;
     qemu_irq pic;
     uint32_t irq;
     uint32_t dma;
@@ -1397,7 +1397,7 @@ static void sb16_realizefn (DeviceState *dev, Error **errp)
     SB16State *s = SB16 (dev);
     IsaDmaClass *k;
 
-    if (!AUD_register_card ("sb16", &s->card, errp)) {
+    if (!AUD_register_fe ("sb16", &s->card, errp)) {
         return;
     }
 

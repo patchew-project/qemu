@@ -635,7 +635,7 @@ static uint8_t *streambuf_get(struct streambuf *buf, size_t *len)
 struct USBAudioState {
     /* qemu interfaces */
     USBDevice dev;
-    QEMUSoundCard card;
+    AudioFE card;
 
     /* state */
     struct {
@@ -932,7 +932,7 @@ static void usb_audio_unrealize(USBDevice *dev)
 
     usb_audio_set_output_altset(s, ALTSET_OFF);
     AUD_close_out(&s->card, s->out.voice);
-    AUD_remove_card(&s->card);
+    AUD_unregister_fe(&s->card);
 
     streambuf_fini(&s->out.buf);
 }
@@ -942,7 +942,7 @@ static void usb_audio_realize(USBDevice *dev, Error **errp)
     USBAudioState *s = USB_AUDIO(dev);
     int i;
 
-    if (!AUD_register_card(TYPE_USB_AUDIO, &s->card, errp)) {
+    if (!AUD_register_fe(TYPE_USB_AUDIO, &s->card, errp)) {
         return;
     }
 

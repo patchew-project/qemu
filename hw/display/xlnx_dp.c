@@ -1306,7 +1306,7 @@ static void xlnx_dp_realize(DeviceState *dev, Error **errp)
     DisplaySurface *surface;
     struct audsettings as;
 
-    if (!AUD_register_card("xlnx_dp.audio", &s->aud_card, errp)) {
+    if (!AUD_register_fe("xlnx_dp.audio", &s->aud_card, errp)) {
         return;
     }
 
