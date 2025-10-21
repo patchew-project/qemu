@@ -1301,28 +1301,6 @@ static const TypeInfo hda_codec_device_type_info = {
     .class_init = hda_codec_device_class_init,
 };
 
-/*
- * create intel hda controller with codec attached to it,
- * so '-soundhw hda' works.
- */
-static int intel_hda_and_codec_init(const char *audiodev)
-{
-    g_autoptr(QDict) props = qdict_new();
-    DeviceState *intel_hda, *codec;
-    BusState *hdabus;
-
-    qdict_put_str(props, "driver", "intel-hda");
-    intel_hda = qdev_device_add_from_qdict(props, false, &error_fatal);
-    hdabus = QLIST_FIRST(&intel_hda->child_bus);
-
-    codec = qdev_new("hda-duplex");
-    qdev_prop_set_string(codec, "audiodev", audiodev);
-    qdev_realize_and_unref(codec, hdabus, &error_fatal);
-    object_unref(intel_hda);
-
-    return 0;
-}
-
 static void intel_hda_register_types(void)
 {
     type_register_static(&hda_codec_bus_info);
@@ -1330,7 +1308,6 @@ static void intel_hda_register_types(void)
     type_register_static(&intel_hda_info_ich6);
     type_register_static(&intel_hda_info_ich9);
     type_register_static(&hda_codec_device_type_info);
-    audio_register_model_with_cb("hda", "Intel HD Audio", intel_hda_and_codec_init);
 }
 
 type_init(intel_hda_register_types)
