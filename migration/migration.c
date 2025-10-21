@@ -87,6 +87,7 @@ enum mig_rp_message_type {
     MIG_RP_MSG_RECV_BITMAP,  /* send recved_bitmap back to source */
     MIG_RP_MSG_RESUME_ACK,   /* tell source that we are ready to resume */
     MIG_RP_MSG_SWITCHOVER_ACK, /* Tell source it's OK to do switchover */
+    MIG_RP_MSG_ERROR,        /* propogate error to source */
 
     MIG_RP_MSG_MAX
 };
@@ -608,6 +609,17 @@ int migrate_send_rp_req_pages(MigrationIncomingState *mis,
     return migrate_send_rp_message_req_pages(mis, rb, start);
 }
 
+static void migrate_send_rp_error(MigrationIncomingState *mis, Error *errp)
+{
+    const char *rpmsg = error_get_pretty(errp);
+    if (!mis->to_src_file) {
+        mis->to_src_file = qemu_file_get_return_path(mis->from_src_file);
+    }
+    migrate_send_rp_message(mis, MIG_RP_MSG_ERROR,
+                            (uint16_t)(strlen(rpmsg) + 1),
+                            (char *)rpmsg);
+}
+
 static bool migration_colo_enabled;
 bool migration_incoming_colo_enabled(void)
 {
@@ -905,8 +917,12 @@ process_incoming_migration_co(void *opaque)
     }
 
     if (ret < 0) {
-        error_prepend(&local_err, "load of migration failed: %s: ",
-                      strerror(-ret));
+        error_prepend(&local_err, "destination error : load of migration failed:
+                       %s: ", strerror(-ret));
+        /* Check if return path is enabled and then send error to source */
+        if (migrate_postcopy_ram() || migrate_return_path()) {
+            migrate_send_rp_error(mis, local_err);
+        }
         goto fail;
     }
 
@@ -2437,6 +2453,7 @@ static struct rp_cmd_args {
     [MIG_RP_MSG_RECV_BITMAP]    = { .len = -1, .name = "RECV_BITMAP" },
     [MIG_RP_MSG_RESUME_ACK]     = { .len =  4, .name = "RESUME_ACK" },
     [MIG_RP_MSG_SWITCHOVER_ACK] = { .len =  0, .name = "SWITCHOVER_ACK" },
+    [MIG_RP_MSG_ERROR]          = { .len = -1, .name = "ERROR"},
     [MIG_RP_MSG_MAX]            = { .len = -1, .name = "MAX" },
 };
 
@@ -2666,6 +2683,10 @@ static void *source_return_path_thread(void *opaque)
             ms->switchover_acked = true;
             trace_source_return_path_thread_switchover_acked();
             break;
+
+        case MIG_RP_MSG_ERROR:
+            error_setg(&err, "%s", (char *)buf);
+            goto out;
 
         default:
             break;
