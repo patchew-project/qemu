@@ -1620,7 +1620,6 @@ static void audio_be_init(Object *obj)
     QLIST_INIT (&s->hw_head_out);
     QLIST_INIT (&s->hw_head_in);
     QLIST_INIT (&s->cap_head);
-    QLIST_INIT (&s->fe_head);
     s->ts = timer_new_ns(QEMU_CLOCK_VIRTUAL, audio_timer, s);
 
     s->vmse = qemu_add_vm_change_state_handler(audio_vm_change_state_handler, s);
@@ -1822,15 +1821,12 @@ bool AUD_register_fe (const char *name, AudioFE *card, Error **errp)
     }
 
     card->name = g_strdup (name);
-    memset (&card->entries, 0, sizeof (card->entries));
-    QLIST_INSERT_HEAD(&card->be->fe_head, card, entries);
 
     return true;
 }
 
 void AUD_unregister_fe (AudioFE *card)
 {
-    QLIST_REMOVE (card, entries);
     g_free (card->name);
 }
 
