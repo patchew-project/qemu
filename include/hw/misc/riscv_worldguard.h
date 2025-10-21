@@ -48,6 +48,7 @@ extern struct RISCVWorldGuardState *worldguard_config;
 
 DeviceState *riscv_worldguard_create(uint32_t nworlds, uint32_t trustedwid,
                                      bool hw_bypass, bool tz_compat);
+void riscv_worldguard_apply_cpu(uint32_t hartid);
 
 void wid_to_mem_attrs(MemTxAttrs *attrs, uint32_t wid);
 uint32_t mem_attrs_to_wid(MemTxAttrs attrs);
