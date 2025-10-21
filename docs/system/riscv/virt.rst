@@ -146,6 +146,26 @@ The following machine-specific options are supported:
 
   Enables the riscv-iommu-sys platform device. Defaults to 'off'.
 
+- wg=[on|off]
+
+  When this option is "on", RISC-V WorldGuard will be enabled in the system
+  to provide the isolation of multiple worlds. RISC-V HARTs will enable WG
+  extensions to have WID in memory transaction. wgCheckers in front of RAMs
+  and device MMIO will be enabled to provide the access control of resources
+  if the transaction contains WID. When not specified, this option is assumed
+  to be "off".
+
+  The WG configuration of virt machine includes 4 worlds. For WG configuration
+  of CPUs, the M-mode WID of CPU (``mwid``) is set to the largest WID number,
+  and the authorized WID list of CPU (``mwidlist``) includes all WIDs. We can
+  modify the configuration of all CPUs via ``x-mwid`` and ``x-mwidlist``
+  CPU options. There are 3 wgCheckers in the virt machine, which separately
+  protects DRAM, FLASH, and UART. Default WG configuration on the virt machine
+  is enough to run the demo of dual OSes in the different worlds. For example,
+  running both Linux kernel and Secure OS (e.g. OP-TEE) in it's own world.
+
+  This option is restricted to the TCG accelerator.
+
 Running Linux kernel
 --------------------
 
