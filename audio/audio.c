@@ -1726,6 +1726,11 @@ void audio_create_default_audiodevs(void)
     }
 }
 
+static Object *get_audiodevs_root(void)
+{
+    return object_get_container("audiodevs");
+}
+
 /*
  * if we have dev, this function was called because of an -audiodev argument =>
  *   initialize a new state with it
@@ -1742,6 +1747,9 @@ static AudioState *audio_init(Audiodev *dev, Error **errp)
     struct audio_driver *driver;
 
     s = AUDIO_STATE(object_new(TYPE_AUDIO_STATE));
+    if (!object_property_try_add_child(get_audiodevs_root(), dev->id, OBJECT(s), errp)) {
+        goto out;
+    }
 
     if (!atexit_registered) {
         atexit(audio_cleanup);
