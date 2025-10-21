@@ -488,7 +488,7 @@ static void get_audiodev(Object *obj, Visitor *v, const char* name,
 {
     const Property *prop = opaque;
     AudioFE *card = object_field_prop_ptr(obj, prop);
-    char *p = g_strdup(audio_get_id(card));
+    char *p = g_strdup(audio_fe_get_be_id(card));
 
     visit_type_str(v, name, &p, errp);
     g_free(p);

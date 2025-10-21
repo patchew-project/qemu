@@ -156,7 +156,7 @@ void audio_help(void);
 
 AudioBE *audio_be_by_name(const char *name, Error **errp);
 AudioBE *audio_get_default_audio_be(Error **errp);
-const char *audio_get_id(AudioFE *fe);
+const char *audio_fe_get_be_id(AudioFE *fe);
 
 #define DEFINE_AUDIO_PROPERTIES(_s, _f)         \
     DEFINE_PROP_AUDIODEV("audiodev", _s, _f)

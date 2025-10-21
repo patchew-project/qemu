@@ -2232,7 +2232,7 @@ AudioBE *audio_be_by_name(const char *name, Error **errp)
     }
 }
 
-const char *audio_get_id(AudioFE *card)
+const char *audio_fe_get_be_id(AudioFE *card)
 {
     if (card->be) {
         assert(card->be->dev);
