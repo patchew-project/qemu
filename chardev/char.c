@@ -53,7 +53,7 @@ Object *get_chardevs_root(void)
 
 static void chr_be_event(Chardev *s, QEMUChrEvent event)
 {
-    CharBackend *be = s->be;
+    CharFrontend *be = s->be;
 
     if (!be || !be->chr_event) {
         return;
@@ -197,7 +197,7 @@ int qemu_chr_write(Chardev *s, const uint8_t *buf, int len, bool write_all)
 
 int qemu_chr_be_can_write(Chardev *s)
 {
-    CharBackend *be = s->be;
+    CharFrontend *be = s->be;
 
     if (!be || !be->chr_can_read) {
         return 0;
@@ -208,7 +208,7 @@ int qemu_chr_be_can_write(Chardev *s)
 
 void qemu_chr_be_write_impl(Chardev *s, const uint8_t *buf, int len)
 {
-    CharBackend *be = s->be;
+    CharFrontend *be = s->be;
 
     if (be && be->chr_read) {
         be->chr_read(be->opaque, buf, len);
@@ -1112,7 +1112,7 @@ err:
 ChardevReturn *qmp_chardev_change(const char *id, ChardevBackend *backend,
                                   Error **errp)
 {
-    CharBackend *be;
+    CharFrontend *be;
     const ChardevClass *cc, *cc_new;
     Chardev *chr, *chr_new;
     bool closed_sent = false;

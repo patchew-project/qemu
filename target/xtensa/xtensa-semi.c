@@ -148,7 +148,7 @@ static uint32_t errno_h2g(int host_errno)
 }
 
 typedef struct XtensaSimConsole {
-    CharBackend be;
+    CharFrontend be;
     struct {
         char buffer[16];
         size_t offset;

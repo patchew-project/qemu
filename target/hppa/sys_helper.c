@@ -135,7 +135,7 @@ void HELPER(rfi_r)(CPUHPPAState *env)
  */
 void HELPER(diag_console_output)(CPUHPPAState *env)
 {
-    CharBackend *serial_backend;
+    CharFrontend *serial_backend;
     Chardev *serial_port;
     unsigned char c;
 
