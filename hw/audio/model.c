@@ -34,21 +34,10 @@ struct audio_model {
     const char *name;
     const char *descr;
     const char *typename;
-    int (*init)(const char *audiodev);
 };
 
 static struct audio_model audio_models[9];
 static int audio_models_count;
-
-void audio_register_model_with_cb(const char *name, const char *descr,
-                                  int (*init_audio_model)(const char *audiodev))
-{
-    assert(audio_models_count < ARRAY_SIZE(audio_models) - 1);
-    audio_models[audio_models_count].name = name;
-    audio_models[audio_models_count].descr = descr;
-    audio_models[audio_models_count].init = init_audio_model;
-    audio_models_count++;
-}
 
 void audio_register_model(const char *name, const char *descr,
                           const char *typename)
@@ -105,17 +94,16 @@ void audio_set_model(const char *name, const char *audiodev)
 void audio_model_init(void)
 {
     struct audio_model *c = selected;
+    DeviceState *dev;
+    BusState *bus;
 
     if (!c) {
         return;
     }
 
-    if (c->typename) {
-        DeviceState *dev = qdev_new(c->typename);
-        BusState *bus = qdev_find_default_bus(DEVICE_GET_CLASS(dev), &error_fatal);
-        qdev_prop_set_string(dev, "audiodev", audiodev_id);
-        qdev_realize_and_unref(dev, bus, &error_fatal);
-    } else {
-        c->init(audiodev_id);
-    }
+    g_assert(c->typename);
+    dev = qdev_new(c->typename);
+    bus = qdev_find_default_bus(DEVICE_GET_CLASS(dev), &error_fatal);
+    qdev_prop_set_string(dev, "audiodev", audiodev_id);
+    qdev_realize_and_unref(dev, bus, &error_fatal);
 }

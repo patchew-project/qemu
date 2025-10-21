@@ -1,8 +1,6 @@
 #ifndef HW_AUDIO_MODEL_H
 #define HW_AUDIO_MODEL_H
 
-void audio_register_model_with_cb(const char *name, const char *descr,
-                                  int (*init_audio_model)(const char *audiodev));
 void audio_register_model(const char *name, const char *descr,
                           const char *typename);
 
