@@ -48,7 +48,7 @@ struct PCSpkState {
     MemoryRegion ioport;
     uint32_t iobase;
     uint8_t sample_buf[PCSPK_BUF_LEN];
-    QEMUSoundCard card;
+    AudioFE card;
     SWVoiceOut *voice;
     PITCommonState *pit;
     unsigned int pit_count;
@@ -188,7 +188,7 @@ static void pcspk_realizefn(DeviceState *dev, Error **errp)
 
     isa_register_ioport(isadev, &s->ioport, s->iobase);
 
-    if (s->card.be && AUD_register_card(s_spk, &s->card, errp)) {
+    if (s->card.be && AUD_register_fe(s_spk, &s->card, errp)) {
         pcspk_audio_init(s);
     }
 }

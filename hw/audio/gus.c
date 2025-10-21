@@ -45,7 +45,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(GUSState, GUS)
 struct GUSState {
     ISADevice dev;
     GUSEmuState emu;
-    QEMUSoundCard card;
+    AudioFE card;
     uint32_t freq;
     uint32_t port;
     int pos, left, shift, irqs;
@@ -238,7 +238,7 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
     IsaDmaClass *k;
     struct audsettings as;
 
-    if (!AUD_register_card ("gus", &s->card, errp)) {
+    if (!AUD_register_fe ("gus", &s->card, errp)) {
         return;
     }
 
@@ -263,7 +263,7 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
         );
 
     if (!s->voice) {
-        AUD_remove_card (&s->card);
+        AUD_unregister_fe (&s->card);
         error_setg(errp, "No voice");
         return;
     }

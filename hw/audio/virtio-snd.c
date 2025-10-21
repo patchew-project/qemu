@@ -1053,7 +1053,7 @@ static void virtio_snd_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (!AUD_register_card("virtio-sound", &vsnd->card, errp)) {
+    if (!AUD_register_fe("virtio-sound", &vsnd->card, errp)) {
         return;
     }
 
@@ -1330,7 +1330,7 @@ static void virtio_snd_unrealize(DeviceState *dev)
         g_free(vsnd->pcm);
         vsnd->pcm = NULL;
     }
-    AUD_remove_card(&vsnd->card);
+    AUD_unregister_fe(&vsnd->card);
     qemu_mutex_destroy(&vsnd->cmdq_mutex);
     virtio_delete_queue(vsnd->queues[VIRTIO_SND_VQ_CONTROL]);
     virtio_delete_queue(vsnd->queues[VIRTIO_SND_VQ_EVENT]);

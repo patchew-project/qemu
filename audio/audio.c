@@ -1620,7 +1620,7 @@ static void audio_be_init(Object *obj)
     QLIST_INIT (&s->hw_head_out);
     QLIST_INIT (&s->hw_head_in);
     QLIST_INIT (&s->cap_head);
-    QLIST_INIT (&s->card_head);
+    QLIST_INIT (&s->fe_head);
     s->ts = timer_new_ns(QEMU_CLOCK_VIRTUAL, audio_timer, s);
 
     s->vmse = qemu_add_vm_change_state_handler(audio_vm_change_state_handler, s);
@@ -1812,7 +1812,7 @@ AudioBE *audio_get_default_audio_be(Error **errp)
     return default_audio_be;
 }
 
-bool AUD_register_card (const char *name, QEMUSoundCard *card, Error **errp)
+bool AUD_register_fe (const char *name, AudioFE *card, Error **errp)
 {
     if (!card->be) {
         card->be = audio_get_default_audio_be(errp);
@@ -1823,12 +1823,12 @@ bool AUD_register_card (const char *name, QEMUSoundCard *card, Error **errp)
 
     card->name = g_strdup (name);
     memset (&card->entries, 0, sizeof (card->entries));
-    QLIST_INSERT_HEAD(&card->be->card_head, card, entries);
+    QLIST_INSERT_HEAD(&card->be->fe_head, card, entries);
 
     return true;
 }
 
-void AUD_remove_card (QEMUSoundCard *card)
+void AUD_unregister_fe (AudioFE *card)
 {
     QLIST_REMOVE (card, entries);
     g_free (card->name);
@@ -2232,7 +2232,7 @@ AudioBE *audio_be_by_name(const char *name, Error **errp)
     }
 }
 
-const char *audio_get_id(QEMUSoundCard *card)
+const char *audio_get_id(AudioFE *card)
 {
     if (card->be) {
         assert(card->be->dev);

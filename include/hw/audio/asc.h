@@ -61,7 +61,7 @@ struct ASCState {
     MemoryRegion mem_regs;
     MemoryRegion mem_extregs;
 
-    QEMUSoundCard card;
+    AudioFE card;
     SWVoiceOut *voice;
     uint8_t *mixbuf;
     int samples;

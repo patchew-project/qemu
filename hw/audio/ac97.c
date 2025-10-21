@@ -120,7 +120,7 @@ typedef struct AC97BusMasterRegs {
 
 struct AC97LinkState {
     PCIDevice dev;
-    QEMUSoundCard card;
+    AudioFE card;
     uint32_t glob_cnt;
     uint32_t glob_sta;
     uint32_t cas;
@@ -1271,7 +1271,7 @@ static void ac97_realize(PCIDevice *dev, Error **errp)
     AC97LinkState *s = AC97(dev);
     uint8_t *c = s->dev.config;
 
-    if (!AUD_register_card ("ac97", &s->card, errp)) {
+    if (!AUD_register_fe ("ac97", &s->card, errp)) {
         return;
     }
 
@@ -1319,7 +1319,7 @@ static void ac97_exit(PCIDevice *dev)
     AUD_close_in(&s->card, s->voice_pi);
     AUD_close_out(&s->card, s->voice_po);
     AUD_close_in(&s->card, s->voice_mc);
-    AUD_remove_card(&s->card);
+    AUD_unregister_fe(&s->card);
 }
 
 static const Property ac97_properties[] = {

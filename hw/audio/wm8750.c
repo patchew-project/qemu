@@ -34,7 +34,7 @@ struct WM8750State {
 
     uint8_t i2c_data[2];
     int i2c_len;
-    QEMUSoundCard card;
+    AudioFE card;
     SWVoiceIn *adc_voice[IN_PORT_N];
     SWVoiceOut *dac_voice[OUT_PORT_N];
     int enable;
@@ -624,7 +624,7 @@ static void wm8750_realize(DeviceState *dev, Error **errp)
 {
     WM8750State *s = WM8750(dev);
 
-    if (!AUD_register_card(CODEC, &s->card, errp)) {
+    if (!AUD_register_fe(CODEC, &s->card, errp)) {
         return;
     }
 
@@ -637,7 +637,7 @@ static void wm8750_fini(I2CSlave *i2c)
     WM8750State *s = WM8750(i2c);
 
     wm8750_reset(I2C_SLAVE(s));
-    AUD_remove_card(&s->card);
+    AUD_unregister_fe(&s->card);
     g_free(s);
 }
 #endif

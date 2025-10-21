@@ -178,7 +178,7 @@ struct HDAAudioState {
     HDACodecDevice hda;
     const char *name;
 
-    QEMUSoundCard card;
+    AudioFE card;
     const desc_codec *desc;
     HDAAudioStream st[4];
     bool running_compat[16];
@@ -696,7 +696,7 @@ static void hda_audio_init(HDACodecDevice *hda,
     const desc_param *param;
     uint32_t i, type;
 
-    if (!AUD_register_card("hda", &a->card, errp)) {
+    if (!AUD_register_fe("hda", &a->card, errp)) {
         return;
     }
 
@@ -759,7 +759,7 @@ static void hda_audio_exit(HDACodecDevice *hda)
             AUD_close_in(&a->card, st->voice.in);
         }
     }
-    AUD_remove_card(&a->card);
+    AUD_unregister_fe(&a->card);
 }
 
 static int hda_audio_post_load(void *opaque, int version)
