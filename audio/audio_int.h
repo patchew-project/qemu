@@ -67,9 +67,9 @@ typedef struct STSampleBuffer {
 
 typedef struct HWVoiceOut {
     AudioBE *s;
-    int enabled;
+    bool enabled;
     int poll_mode;
-    int pending_disable;
+    bool pending_disable;
     struct audio_pcm_info info;
 
     f_sample *clip;
@@ -88,7 +88,7 @@ typedef struct HWVoiceOut {
 
 typedef struct HWVoiceIn {
     AudioBE *s;
-    int enabled;
+    bool enabled;
     int poll_mode;
     struct audio_pcm_info info;
 
@@ -115,8 +115,8 @@ struct SWVoiceOut {
     STSampleBuffer resample_buf;
     void *rate;
     size_t total_hw_samples_mixed;
-    int active;
-    int empty;
+    bool active;
+    bool empty;
     HWVoiceOut *hw;
     char *name;
     struct mixeng_volume vol;
@@ -127,7 +127,7 @@ struct SWVoiceOut {
 struct SWVoiceIn {
     AudioFE *card;
     AudioBE *s;
-    int active;
+    bool active;
     struct audio_pcm_info info;
     void *rate;
     size_t total_hw_samples_acquired;
