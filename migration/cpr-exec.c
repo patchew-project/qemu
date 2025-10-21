@@ -43,13 +43,16 @@ static QEMUFile *qemu_file_new_fd_output(int fd, const char *name)
 void cpr_exec_persist_state(QEMUFile *f)
 {
     QIOChannelFile *fioc = QIO_CHANNEL_FILE(qemu_file_get_ioc(f));
+    /* coverity[leaked_storage] - mfd intentionally kept open across exec() */
     int mfd = dup(fioc->fd);
     char val[16];
 
     /* Remember mfd in environment for post-exec load */
     qemu_clear_cloexec(mfd);
     snprintf(val, sizeof(val), "%d", mfd);
-    g_setenv(CPR_EXEC_STATE_NAME, val, 1);
+    if (!g_setenv(CPR_EXEC_STATE_NAME, val, 1)) {
+        error_report("Setting env %s = %s failed", CPR_EXEC_STATE_NAME, val);
+    }
 }
 
 static int cpr_exec_find_state(void)
