@@ -64,15 +64,15 @@ typedef struct SWVoiceOut SWVoiceOut;
 typedef struct CaptureVoiceOut CaptureVoiceOut;
 typedef struct SWVoiceIn SWVoiceIn;
 
-typedef struct AudioStateClass AudioStateClass;
-struct AudioStateClass {
+typedef struct AudioBEClass AudioBEClass;
+struct AudioBEClass {
     ObjectClass parent_class;
 };
 
-typedef struct AudioState AudioState;
+typedef struct AudioBE AudioBE;
 typedef struct QEMUSoundCard {
     char *name;
-    AudioState *state;
+    AudioBE *be;
     QLIST_ENTRY (QEMUSoundCard) entries;
 } QEMUSoundCard;
 
@@ -83,7 +83,7 @@ typedef struct QEMUAudioTimeStamp {
 bool AUD_register_card (const char *name, QEMUSoundCard *card, Error **errp);
 void AUD_remove_card (QEMUSoundCard *card);
 CaptureVoiceOut *AUD_add_capture(
-    AudioState *s,
+    AudioBE *s,
     struct audsettings *as,
     struct audio_capture_ops *ops,
     void *opaque
@@ -154,14 +154,14 @@ void audio_create_default_audiodevs(void);
 void audio_init_audiodevs(void);
 void audio_help(void);
 
-AudioState *audio_state_by_name(const char *name, Error **errp);
-AudioState *audio_get_default_audio_state(Error **errp);
+AudioBE *audio_be_by_name(const char *name, Error **errp);
+AudioBE *audio_get_default_audio_be(Error **errp);
 const char *audio_get_id(QEMUSoundCard *card);
 
 #define DEFINE_AUDIO_PROPERTIES(_s, _f)         \
     DEFINE_PROP_AUDIODEV("audiodev", _s, _f)
 
-#define TYPE_AUDIO_STATE "audio-state"
-OBJECT_DECLARE_TYPE(AudioState, AudioStateClass, AUDIO_STATE)
+#define TYPE_AUDIO_BE "audio-be"
+OBJECT_DECLARE_TYPE(AudioBE, AudioBEClass, AUDIO_BE)
 
 #endif /* QEMU_AUDIO_H */
