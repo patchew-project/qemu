@@ -409,3 +409,11 @@ ivshmem_flat_interrupt_peer(uint16_t peer_id, uint16_t vector_id) "Interrupting 
 i2c_echo_event(const char *id, const char *event) "%s: %s"
 i2c_echo_recv(const char *id, uint8_t data) "%s: recv 0x%02" PRIx8
 i2c_echo_send(const char *id, uint8_t data) "%s: send 0x%02" PRIx8
+
+# riscv_worldguard.c
+riscv_wgchecker_mmio_read(uint64_t base, uint64_t offset, unsigned int size) "base = 0x%" PRIx64 ", offset = 0x%" PRIx64 ", size = 0x%x"
+riscv_wgchecker_mmio_write(uint64_t base, uint64_t offset, unsigned int size, uint64_t val) "base = 0x%" PRIx64 ", offset = 0x%" PRIx64 ", size = 0x%x, val = 0x%" PRIx64
+
+riscv_wgchecker_mem_blocked_read(uint64_t phys_addr, unsigned size, uint32_t wid) "phys_addr = 0x%" PRIx64 ", size = %u, wid = %" PRIu32
+riscv_wgchecker_mem_blocked_write(uint64_t phys_addr, uint64_t data, unsigned size, uint32_t wid) "phys_addr = 0x%" PRIx64 ", data = 0x%" PRIx64 ", size = %u, wid = %" PRIu32
+riscv_wgchecker_translate(uint64_t addr, int flags, int wid, const char *res) "addr = 0x%016" PRIx64 ", flags = 0x%x, wid = %d: %s"
