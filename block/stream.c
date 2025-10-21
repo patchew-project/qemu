@@ -132,6 +132,12 @@ static void stream_clean(Job *job)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
 
+    /*
+     * The job still holds a reference to cor_filter_bs; drop all bdrv to
+     * ensure that it is unref-ed
+     */
+    block_job_remove_all_bdrv(&s->common);
+
     if (s->cor_filter_bs) {
         bdrv_cor_filter_drop(s->cor_filter_bs);
         s->cor_filter_bs = NULL;
