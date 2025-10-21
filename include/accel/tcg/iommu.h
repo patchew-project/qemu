@@ -20,7 +20,8 @@ MemoryRegionSection *address_space_translate_for_iotlb(CPUState *cpu,
                                                        hwaddr *xlat,
                                                        hwaddr *plen,
                                                        MemTxAttrs attrs,
-                                                       int *prot);
+                                                       int *prot,
+                                                       MMUAccessType access_type);
 
 #endif
 

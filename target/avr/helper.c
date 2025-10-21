@@ -140,7 +140,7 @@ bool avr_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         prot = PAGE_READ | PAGE_WRITE;
     }
 
-    tlb_set_page(cs, address, paddr, prot, mmu_idx, TARGET_PAGE_SIZE);
+    tlb_set_page(cs, address, paddr, prot, access_type, mmu_idx, TARGET_PAGE_SIZE);
     return true;
 }
 
