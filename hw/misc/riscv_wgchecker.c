@@ -52,6 +52,52 @@ REG64(ERRCAUSE,             0x010)
      R_ERRCAUSE_IP_MASK)
 
 REG64(ERRADDR,              0x018)
+REG64(WGC_SLOT,             0x020)
+
+/* wgChecker slots */
+REG64(SLOT_ADDR,            0x000)
+REG64(SLOT_PERM,            0x008)
+REG32(SLOT_CFG,             0x010)
+    FIELD(SLOT_CFG, A,          0,  2)
+    FIELD(SLOT_CFG, ER,         8,  1)
+    FIELD(SLOT_CFG, EW,         9,  1)
+    FIELD(SLOT_CFG, IR,         10, 1)
+    FIELD(SLOT_CFG, IW,         11, 1)
+    FIELD(SLOT_CFG, LOCK,       31, 1)
+
+#define SLOT_SIZE               0x020
+
+#define SLOT0_CFG_MASK \
+    (R_SLOT_CFG_ER_MASK | \
+     R_SLOT_CFG_EW_MASK | \
+     R_SLOT_CFG_IR_MASK | \
+     R_SLOT_CFG_IW_MASK | \
+     R_SLOT_CFG_LOCK_MASK)
+
+#define SLOT_CFG_MASK \
+    (R_SLOT_CFG_A_MASK  | (SLOT0_CFG_MASK))
+
+#define WGC_SLOT_END(nslots) \
+    (A_WGC_SLOT + SLOT_SIZE * (nslots + 1))
+
+/* wgChecker slot is 4K alignment */
+#define WG_ALIGNED_SIZE         (1 << 12)
+#define WG_ALIGNED_MASK         MAKE_64BIT_MASK(0, 12)
+
+/* wgChecker slot address is (addr / 4). */
+#define TO_SLOT_ADDR(addr)      ((addr) >> 2)
+#define FROM_SLOT_ADDR(addr)    ((addr) << 2)
+
+/* wgChecker slot cfg.A[1:0] */
+#define A_OFF                   0
+#define A_TOR                   1
+#define A_NA4                   2
+#define A_NAPOT                 3
+
+/* wgChecker slot perm */
+#define WGC_PERM(wid, perm)     ((uint64_t)(perm) << (2 * (wid)))
+#define P_READ                  (1 << 0)
+#define P_WRITE                 (1 << 1)
 
 /*
  * Accesses only reach these read and write functions if the wgChecker
@@ -147,6 +193,28 @@ static uint64_t riscv_wgchecker_readq(void *opaque, hwaddr addr)
     RISCVWgCheckerState *s = RISCV_WGCHECKER(opaque);
     uint64_t val = 0;
 
+    if ((addr >= A_WGC_SLOT) && (addr < WGC_SLOT_END(s->slot_count))) {
+        /* Read from WGC slot */
+        int slot_id = (addr - A_WGC_SLOT) / SLOT_SIZE;
+        int slot_offset = (addr - A_WGC_SLOT) % SLOT_SIZE;
+
+        switch (slot_offset) {
+        case A_SLOT_ADDR:
+            val = s->slots[slot_id].addr;
+            break;
+        case A_SLOT_PERM:
+            val = s->slots[slot_id].perm;
+            break;
+        default:
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Unexpected memory access to (0x%" HWADDR_PRIX
+                          ", %u)\n", __func__, addr, 8);
+            break;
+        }
+
+        return val;
+    }
+
     switch (addr) {
     case A_ERRCAUSE:
         val = s->errcause & ERRCAUSE_MASK;
@@ -171,6 +239,37 @@ static uint64_t riscv_wgchecker_readl(void *opaque, hwaddr addr)
 {
     RISCVWgCheckerState *s = RISCV_WGCHECKER(opaque);
     uint64_t val = 0;
+
+    if ((addr >= A_WGC_SLOT) && (addr < WGC_SLOT_END(s->slot_count))) {
+        /* Read from WGC slot */
+        int slot_id = (addr - A_WGC_SLOT) / SLOT_SIZE;
+        int slot_offset = (addr - A_WGC_SLOT) % SLOT_SIZE;
+
+        switch (slot_offset) {
+        case A_SLOT_ADDR:
+            val = extract64(s->slots[slot_id].addr, 0, 32);
+            break;
+        case A_SLOT_ADDR + 4:
+            val = extract64(s->slots[slot_id].addr, 32, 32);
+            break;
+        case A_SLOT_PERM:
+            val = extract64(s->slots[slot_id].perm, 0, 32);
+            break;
+        case A_SLOT_PERM + 4:
+            val = extract64(s->slots[slot_id].perm, 32, 32);
+            break;
+        case A_SLOT_CFG:
+            val = s->slots[slot_id].cfg & SLOT_CFG_MASK;
+            break;
+        default:
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Unexpected memory access to (0x%" HWADDR_PRIX
+                          ", %u)\n", __func__, addr, 4);
+            break;
+        }
+
+        return val;
+    }
 
     switch (addr) {
     case A_VENDOR:
@@ -229,10 +328,120 @@ static uint64_t riscv_wgchecker_read(void *opaque, hwaddr addr, unsigned size)
     return val;
 }
 
+/*
+ * Validate the WGC slot address is between address range.
+ *
+ * Fix the slot address to the start address if it's not within the address range.
+ * We need validation when changing "slot address" or "TOR/NAPOT mode (cfg.A)"
+ */
+static void validate_slot_address(void *opaque, int slot_id)
+{
+    RISCVWgCheckerState *s = RISCV_WGCHECKER(opaque);
+    uint64_t start = TO_SLOT_ADDR(s->addr_range_start);
+    uint64_t end = TO_SLOT_ADDR(s->addr_range_start + s->addr_range_size);
+    uint32_t cfg_a = FIELD_EX32(s->slots[slot_id].cfg, SLOT_CFG, A);
+
+    /* First and last slot address are hard-coded. */
+    if ((slot_id == 0) || (slot_id == s->slot_count)) {
+        return;
+    }
+
+    /* Check WGC slot address is between address range. */
+    if ((s->slots[slot_id].addr < start) || (s->slots[slot_id].addr >= end)) {
+        s->slots[slot_id].addr = start;
+    }
+
+    /* Check WGC slot is 4k-aligned. */
+    if (cfg_a == A_TOR) {
+        s->slots[slot_id].addr &= ~TO_SLOT_ADDR(WG_ALIGNED_MASK);
+    } else if (cfg_a == A_NAPOT) {
+        s->slots[slot_id].addr |= TO_SLOT_ADDR(WG_ALIGNED_MASK >> 1);
+    } else if (cfg_a == A_NA4) {
+        /* Forcely replace NA4 slot with 4K-aligned NAPOT slot. */
+        FIELD_DP32(s->slots[slot_id].cfg, SLOT_CFG, A, A_NAPOT);
+        s->slots[slot_id].addr |= TO_SLOT_ADDR(WG_ALIGNED_MASK >> 1);
+    }
+}
+
+static bool slots_reg_is_ro(int slot_id, int slot_offset, uint32_t nslots)
+{
+    /*
+     * Special slots:
+     *   - slot[0]:
+     *     - addr is RO
+     *     - perm is RO
+     *     - cfg.A is OFF
+     *
+     *   - slot[nslots]:
+     *     - addr is RO
+     *     - cfg.A is OFF or TOR
+     */
+    if (slot_id == 0) {
+        switch (slot_offset) {
+        case A_SLOT_ADDR:
+        case A_SLOT_ADDR + 4:
+        case A_SLOT_PERM:
+        case A_SLOT_PERM + 4:
+            return true;
+        default:
+            break;
+        }
+    } else if (slot_id == nslots) {
+        switch (slot_offset) {
+        case A_SLOT_ADDR:
+        case A_SLOT_ADDR + 4:
+            return true;
+        default:
+            break;
+        }
+    }
+
+    return false;
+}
+
 static void riscv_wgchecker_writeq(void *opaque, hwaddr addr,
                                     uint64_t value)
 {
     RISCVWgCheckerState *s = RISCV_WGCHECKER(opaque);
+
+    if ((addr >= A_WGC_SLOT) && (addr < WGC_SLOT_END(s->slot_count))) {
+        /* Read from WGC slot */
+        int slot_id = (addr - A_WGC_SLOT) / SLOT_SIZE;
+        int slot_offset = (addr - A_WGC_SLOT) % SLOT_SIZE;
+        bool locked = FIELD_EX32(s->slots[slot_id].cfg, SLOT_CFG, LOCK);
+
+        if (locked) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Couldn't write access to locked wgChecker Slot: "
+                          "slot = %d, offset = %d\n", __func__, slot_id,
+                          slot_offset);
+            return;
+        }
+
+        if (slots_reg_is_ro(slot_id, slot_offset, s->slot_count)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Couldn't write access to RO reg (0x%"
+                          HWADDR_PRIX ", %u)n", __func__, addr, 8);
+        }
+
+        switch (slot_offset) {
+        case A_SLOT_ADDR:
+            s->slots[slot_id].addr = value;
+            validate_slot_address(s, slot_id);
+            break;
+        case A_SLOT_PERM:
+            value &= wgc_slot_perm_mask;
+            s->slots[slot_id].perm = value;
+            break;
+        default:
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Unexpected memory access to (0x%" HWADDR_PRIX
+                          ", %u)\n", __func__, addr, 8);
+            break;
+        }
+
+        return;
+    }
 
     switch (addr) {
     case A_ERRCAUSE:
@@ -253,6 +462,81 @@ static void riscv_wgchecker_writel(void *opaque, hwaddr addr,
                                     uint64_t value)
 {
     RISCVWgCheckerState *s = RISCV_WGCHECKER(opaque);
+
+    if ((addr >= A_WGC_SLOT) && (addr < WGC_SLOT_END(s->slot_count))) {
+        /* Write to WGC slot */
+        int slot_id = (addr - A_WGC_SLOT) / SLOT_SIZE;
+        int slot_offset = (addr - A_WGC_SLOT) % SLOT_SIZE;
+        bool locked = FIELD_EX32(s->slots[slot_id].cfg, SLOT_CFG, LOCK);
+        int cfg_a, old_cfg_a;
+
+        if (locked) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Couldn't write access to locked wgChecker Slot: "
+                          "slot = %d, offset = %d\n", __func__, slot_id,
+                          slot_offset);
+            return;
+        }
+
+        if (slots_reg_is_ro(slot_id, slot_offset, s->slot_count)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Unexpected memory access to (0x%" HWADDR_PRIX
+                          ", %u)\n", __func__, addr, 4);
+        }
+
+        switch (slot_offset) {
+        case A_SLOT_ADDR:
+            s->slots[slot_id].addr = deposit64(
+                s->slots[slot_id].addr, 0, 32, value);
+            validate_slot_address(s, slot_id);
+            break;
+        case A_SLOT_ADDR + 4:
+            s->slots[slot_id].addr = deposit64(
+                s->slots[slot_id].addr, 32, 32, value);
+            validate_slot_address(s, slot_id);
+            break;
+        case A_SLOT_PERM:
+            value &= wgc_slot_perm_mask;
+            s->slots[slot_id].perm = deposit64(
+                s->slots[slot_id].perm, 0, 32, value);
+            break;
+        case A_SLOT_PERM + 4:
+            value &= extract64(wgc_slot_perm_mask, 32, 32);
+            s->slots[slot_id].perm = deposit64(
+                s->slots[slot_id].perm, 32, 32, value);
+            break;
+        case A_SLOT_CFG:
+            if (slot_id == 0) {
+                value &= SLOT0_CFG_MASK;
+                s->slots[0].cfg = value;
+            } else if (slot_id == s->slot_count) {
+                old_cfg_a = FIELD_EX32(s->slots[s->slot_count].cfg, SLOT_CFG, A);
+                cfg_a = FIELD_EX32(value, SLOT_CFG, A);
+
+                value &= SLOT0_CFG_MASK;
+                if ((cfg_a == A_OFF) || (cfg_a == A_TOR)) {
+                    value |= cfg_a;
+                } else {
+                    /* slot[nslots] could only use OFF or TOR config. */
+                    value |= old_cfg_a;
+                }
+                s->slots[s->slot_count].cfg = value;
+
+                validate_slot_address(s, slot_id);
+            } else {
+                value &= SLOT_CFG_MASK;
+                s->slots[slot_id].cfg = value;
+            }
+            break;
+        default:
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Unexpected memory access to (0x%" HWADDR_PRIX
+                          ", %u)\n", __func__, addr, 4);
+            break;
+        }
+
+        return;
+    }
 
     switch (addr) {
     case A_ERRCAUSE:
@@ -475,6 +759,8 @@ static void riscv_wgchecker_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    s->slots = g_new0(WgCheckerSlot, s->slot_count + 1);
+
     memory_region_init_io(&s->mmio, OBJECT(dev), &riscv_wgchecker_ops, s,
                           TYPE_RISCV_WGCHECKER, s->mmio_size);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mmio);
@@ -538,6 +824,44 @@ static void riscv_wgchecker_reset_enter(Object *obj, ResetType type)
 
     s->errcause = 0;
     s->erraddr = 0;
+
+    for (int i = 0; i < nslots; i++) {
+        s->slots[i].addr = TO_SLOT_ADDR(start);
+        s->slots[i].perm = 0;
+        s->slots[i].cfg = 0;
+    }
+    s->slots[nslots].addr = TO_SLOT_ADDR(end);
+    s->slots[nslots].perm = 0;
+    s->slots[nslots].cfg = 0;
+
+    if (s->num_default_slots != 0) {
+        /*
+         * Use default slots:
+         *   slot[0] is hard-coded to start address, so the default slots
+         *   start from slot[1].
+         */
+        memcpy(&s->slots[1], s->default_slots,
+               sizeof(WgCheckerSlot) * s->num_default_slots);
+    } else if ((s->hw_bypass) ||
+               ((worldguard_config != NULL) && worldguard_config->hw_bypass)) {
+        /* HW bypass mode */
+        uint32_t trustedwid = worldguard_config->trustedwid;
+
+        if (trustedwid == NO_TRUSTEDWID) {
+            trustedwid = worldguard_config->nworlds - 1;
+        }
+
+        s->slots[nslots].perm = WGC_PERM(trustedwid, P_READ | P_WRITE);
+        s->slots[nslots].perm &= wgc_slot_perm_mask;
+        s->slots[nslots].cfg = A_TOR;
+    }
+
+    /*
+     * As reset function modify the wgC slot, we need to flush existing
+     * softmmu TLB. It is required since power-gating will reset wgC after
+     * running some workload and using TLB.
+     */
+    wgchecker_iommu_notify_all(s);
 }
 
 static void riscv_wgchecker_class_init(ObjectClass *klass, const void *data)
@@ -609,6 +933,19 @@ DeviceState *riscv_wgchecker_create(hwaddr addr, uint32_t size,
         object_property_set_link(OBJECT(dev), name_mr,
                                  OBJECT(downstream[i]), &error_fatal);
         qdev_prop_set_uint64(dev, name_offset, region_offset[i]);
+    }
+
+    if (num_default_slots > slot_count) {
+        num_default_slots = slot_count;
+    }
+
+    s->num_default_slots = num_default_slots;
+    if (s->num_default_slots) {
+        s->default_slots = g_new0(WgCheckerSlot, s->num_default_slots);
+        memcpy(s->default_slots, default_slots,
+               sizeof(WgCheckerSlot) * s->num_default_slots);
+    } else {
+        s->default_slots = NULL;
     }
 
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
