@@ -76,7 +76,6 @@ typedef struct AudioBE AudioBE;
 typedef struct AudioFE {
     char *name;
     AudioBE *be;
-    QLIST_ENTRY (AudioFE) entries;
 } AudioFE;
 
 typedef struct QEMUAudioTimeStamp {
