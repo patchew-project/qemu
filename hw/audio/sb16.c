@@ -30,22 +30,17 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qemu/timer.h"
+#include "qemu/error-report.h"
 #include "qemu/host-utils.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "qom/object.h"
 
-#define dolog(...) AUD_log ("sb16", __VA_ARGS__)
-
-/* #define DEBUG */
+#define DEBUG 0
 /* #define DEBUG_SB16_MOST */
 
-#ifdef DEBUG
-#define ldebug(...) dolog (__VA_ARGS__)
-#else
-#define ldebug(...)
-#endif
+#define ldebug(fmt, ...) do { if (DEBUG) error_report("sb16: " fmt, ##__VA_ARGS__); } while (0)
 
 static const char e3[] = "COPYRIGHT (C) CREATIVE TECHNOLOGY LTD, 1992.";
 
@@ -157,7 +152,7 @@ static int irq_of_magic (int magic)
 #if 0
 static void log_dsp (SB16State *dsp)
 {
-    ldebug ("%s:%s:%d:%s:dmasize=%d:freq=%d:const=%d:speaker=%d\n",
+    ldebug ("%s:%s:%d:%s:dmasize=%d:freq=%d:const=%d:speaker=%d",
             dsp->fmt_stereo ? "Stereo" : "Mono",
             dsp->fmt_signed ? "Signed" : "Unsigned",
             dsp->fmt_bits,
@@ -182,7 +177,7 @@ static void control (SB16State *s, int hold)
     IsaDmaClass *k = ISADMA_GET_CLASS(isa_dma);
     s->dma_running = hold;
 
-    ldebug ("hold %d high %d dma %d\n", hold, s->use_hdma, dma);
+    ldebug ("hold %d high %d dma %d", hold, s->use_hdma, dma);
 
     if (hold) {
         k->hold_DREQ(isa_dma, dma);
@@ -290,7 +285,7 @@ static void dma_cmd8 (SB16State *s, int mask, int dma_len)
     }
 
     ldebug ("freq %d, stereo %d, sign %d, bits %d, "
-            "dma %d, auto %d, fifo %d, high %d\n",
+            "dma %d, auto %d, fifo %d, high %d",
             s->freq, s->fmt_stereo, s->fmt_signed, s->fmt_bits,
             s->block_size, s->dma_auto, s->fifo, s->highspeed);
 
@@ -338,7 +333,7 @@ static void dma_cmd (SB16State *s, uint8_t cmd, uint8_t d0, int dma_len)
     }
 
     ldebug ("freq %d, stereo %d, sign %d, bits %d, "
-            "dma %d, auto %d, fifo %d, high %d\n",
+            "dma %d, auto %d, fifo %d, high %d",
             s->freq, s->fmt_stereo, s->fmt_signed, s->fmt_bits,
             s->block_size, s->dma_auto, s->fifo, s->highspeed);
 
@@ -395,7 +390,7 @@ static void dma_cmd (SB16State *s, uint8_t cmd, uint8_t d0, int dma_len)
 
 static inline void dsp_out_data (SB16State *s, uint8_t val)
 {
-    ldebug ("outdata %#x\n", val);
+    ldebug ("outdata %#x", val);
     if ((size_t) s->out_data_len < sizeof (s->out_data)) {
         s->out_data[s->out_data_len++] = val;
     }
@@ -407,14 +402,14 @@ static inline uint8_t dsp_get_data (SB16State *s)
         return s->in2_data[--s->in_index];
     }
     else {
-        dolog ("buffer underflow\n");
+        warn_report("sb16: buffer underflow");
         return 0;
     }
 }
 
 static void command (SB16State *s, uint8_t cmd)
 {
-    ldebug ("command %#x\n", cmd);
+    ldebug ("command %#x", cmd);
 
     if (cmd > 0xaf && cmd < 0xd0) {
         if (cmd & 8) {
@@ -651,7 +646,7 @@ static void command (SB16State *s, uint8_t cmd)
     }
 
     if (!s->needed_bytes) {
-        ldebug ("\n");
+        ldebug ("!needed_bytes");
     }
 
  exit:
@@ -687,7 +682,7 @@ static uint16_t dsp_get_hilo (SB16State *s)
 static void complete (SB16State *s)
 {
     int d0, d1, d2;
-    ldebug ("complete command %#x, in_index %d, needed_bytes %d\n",
+    ldebug ("complete command %#x, in_index %d, needed_bytes %d",
             s->cmd, s->in_index, s->needed_bytes);
 
     if (s->cmd > 0xaf && s->cmd < 0xd0) {
@@ -696,11 +691,11 @@ static void complete (SB16State *s)
         d0 = dsp_get_data (s);
 
         if (s->cmd & 8) {
-            dolog ("ADC params cmd = %#x d0 = %d, d1 = %d, d2 = %d\n",
+            warn_report("sb16: ADC params cmd = %#x d0 = %d, d1 = %d, d2 = %d",
                    s->cmd, d0, d1, d2);
         }
         else {
-            ldebug ("cmd = %#x d0 = %d, d1 = %d, d2 = %d\n",
+            ldebug ("cmd = %#x d0 = %d, d1 = %d, d2 = %d",
                     s->cmd, d0, d1, d2);
             dma_cmd (s, s->cmd, d0, d1 + (d2 << 8));
         }
@@ -711,13 +706,13 @@ static void complete (SB16State *s)
             s->csp_mode = dsp_get_data (s);
             s->csp_reg83r = 0;
             s->csp_reg83w = 0;
-            ldebug ("CSP command 0x04: mode=%#x\n", s->csp_mode);
+            ldebug ("CSP command 0x04: mode=%#x", s->csp_mode);
             break;
 
         case 0x05:
             s->csp_param = dsp_get_data (s);
             s->csp_value = dsp_get_data (s);
-            ldebug ("CSP command 0x05: param=%#x value=%#x\n",
+            ldebug ("CSP command 0x05: param=%#x value=%#x",
                     s->csp_param,
                     s->csp_value);
             break;
@@ -725,9 +720,9 @@ static void complete (SB16State *s)
         case 0x0e:
             d0 = dsp_get_data (s);
             d1 = dsp_get_data (s);
-            ldebug ("write CSP register %d <- %#x\n", d1, d0);
+            ldebug ("write CSP register %d <- %#x", d1, d0);
             if (d1 == 0x83) {
-                ldebug ("0x83[%d] <- %#x\n", s->csp_reg83r, d0);
+                ldebug ("0x83[%d] <- %#x", s->csp_reg83r, d0);
                 s->csp_reg83[s->csp_reg83r % 4] = d0;
                 s->csp_reg83r += 1;
             }
@@ -738,10 +733,10 @@ static void complete (SB16State *s)
 
         case 0x0f:
             d0 = dsp_get_data (s);
-            ldebug ("read CSP register %#x -> %#x, mode=%#x\n",
+            ldebug ("read CSP register %#x -> %#x, mode=%#x",
                     d0, s->csp_regs[d0], s->csp_mode);
             if (d0 == 0x83) {
-                ldebug ("0x83[%d] -> %#x\n",
+                ldebug ("0x83[%d] -> %#x",
                         s->csp_reg83w,
                         s->csp_reg83[s->csp_reg83w % 4]);
                 dsp_out_data (s, s->csp_reg83[s->csp_reg83w % 4]);
@@ -754,7 +749,7 @@ static void complete (SB16State *s)
 
         case 0x10:
             d0 = dsp_get_data (s);
-            dolog ("cmd 0x10 d0=%#x\n", d0);
+            warn_report("sb16: cmd 0x10 d0=%#x\n", d0);
             break;
 
         case 0x14:
@@ -763,7 +758,7 @@ static void complete (SB16State *s)
 
         case 0x40:
             s->time_const = dsp_get_data (s);
-            ldebug ("set time const %d\n", s->time_const);
+            ldebug ("set time const %d", s->time_const);
             break;
 
         case 0x41:
@@ -776,12 +771,12 @@ static void complete (SB16State *s)
              * http://homepages.cae.wisc.edu/~brodskye/sb16doc/sb16doc.html#SamplingRate
              */
             s->freq = restrict_sampling_rate(dsp_get_hilo(s));
-            ldebug ("set freq %d\n", s->freq);
+            ldebug ("set freq %d", s->freq);
             break;
 
         case 0x48:
             s->block_size = dsp_get_lohi (s) + 1;
-            ldebug ("set dma block len %d\n", s->block_size);
+            ldebug ("set dma block len %d", s->block_size);
             break;
 
         case 0x74:
@@ -811,21 +806,21 @@ static void complete (SB16State *s)
                             );
                     }
                 }
-                ldebug ("mix silence %d %d %" PRId64 "\n", samples, bytes, ticks);
+                ldebug ("mix silence %d %d %" PRId64, samples, bytes, ticks);
             }
             break;
 
         case 0xe0:
             d0 = dsp_get_data (s);
             s->out_data_len = 0;
-            ldebug ("E0 data = %#x\n", d0);
+            ldebug ("E0 data = %#x", d0);
             dsp_out_data (s, ~d0);
             break;
 
         case 0xe2:
-#ifdef DEBUG
+#if DEBUG
             d0 = dsp_get_data (s);
-            dolog ("E2 = %#x\n", d0);
+            warn_report("sb16: E2 = %#x", d0);
 #endif
             break;
 
@@ -835,7 +830,7 @@ static void complete (SB16State *s)
 
         case 0xf9:
             d0 = dsp_get_data (s);
-            ldebug ("command 0xf9 with %#x\n", d0);
+            ldebug ("command 0xf9 with %#x", d0);
             switch (d0) {
             case 0x0e:
                 dsp_out_data (s, 0xff);
@@ -862,7 +857,7 @@ static void complete (SB16State *s)
         }
     }
 
-    ldebug ("\n");
+    ldebug ("");
     s->cmd = -1;
 }
 
@@ -926,7 +921,7 @@ static void dsp_write(void *opaque, uint32_t nport, uint32_t val)
 
     iport = nport - s->port;
 
-    ldebug ("write %#x <- %#x\n", nport, val);
+    ldebug ("write %#x <- %#x", nport, val);
     switch (iport) {
     case 0x06:
         switch (val) {
@@ -976,7 +971,7 @@ static void dsp_write(void *opaque, uint32_t nport, uint32_t val)
         }
         else {
             if (s->in_index == sizeof (s->in2_data)) {
-                dolog ("in data overrun\n");
+                warn_report("sb16: in data overrun");
             }
             else {
                 s->in2_data[s->in_index++] = val;
@@ -992,7 +987,7 @@ static void dsp_write(void *opaque, uint32_t nport, uint32_t val)
         break;
 
     default:
-        ldebug ("(nport=%#x, val=%#x)\n", nport, val);
+        ldebug ("(nport=%#x, val=%#x)", nport, val);
         break;
     }
 }
@@ -1016,7 +1011,7 @@ static uint32_t dsp_read(void *opaque, uint32_t nport)
         }
         else {
             if (s->cmd != -1) {
-                dolog ("empty output buffer for command %#x\n",
+                warn_report("sb16: empty output buffer for command %#x",
                        s->cmd);
             }
             retval = s->last_read_byte;
@@ -1029,7 +1024,7 @@ static uint32_t dsp_read(void *opaque, uint32_t nport)
         break;
 
     case 0x0d:                  /* timer interrupt clear */
-        /* dolog ("timer interrupt clear\n"); */
+        /* warn_report("sb16: timer interrupt clear"); */
         retval = 0;
         break;
 
@@ -1056,13 +1051,13 @@ static uint32_t dsp_read(void *opaque, uint32_t nport)
     }
 
     if (!ack) {
-        ldebug ("read %#x -> %#x\n", nport, retval);
+        ldebug ("read %#x -> %#x", nport, retval);
     }
 
     return retval;
 
  error:
-    dolog ("warning: dsp_read %#x error\n", nport);
+    warn_report("sb16: dsp_read %#x error", nport);
     return 0xff;
 }
 
@@ -1108,7 +1103,7 @@ static void mixer_write_datab(void *opaque, uint32_t nport, uint32_t val)
     SB16State *s = opaque;
 
     (void) nport;
-    ldebug ("mixer_write [%#x] <- %#x\n", s->mixer_nreg, val);
+    ldebug ("mixer_write [%#x] <- %#x", s->mixer_nreg, val);
 
     switch (s->mixer_nreg) {
     case 0x00:
@@ -1118,7 +1113,7 @@ static void mixer_write_datab(void *opaque, uint32_t nport, uint32_t val)
     case 0x80:
         {
             int irq = irq_of_magic (val);
-            ldebug ("setting irq to %d (val=%#x)\n", irq, val);
+            ldebug ("setting irq to %d (val=%#x)", irq, val);
             if (irq > 0) {
                 s->irq = irq;
             }
@@ -1150,7 +1145,7 @@ static void mixer_write_datab(void *opaque, uint32_t nport, uint32_t val)
 
     default:
         if (s->mixer_nreg >= 0x80) {
-            ldebug ("attempt to write mixer[%#x] <- %#x\n", s->mixer_nreg, val);
+            ldebug ("attempt to write mixer[%#x] <- %#x", s->mixer_nreg, val);
         }
         break;
     }
@@ -1165,11 +1160,11 @@ static uint32_t mixer_read(void *opaque, uint32_t nport)
     (void) nport;
 #ifndef DEBUG_SB16_MOST
     if (s->mixer_nreg != 0x82) {
-        ldebug ("mixer_read[%#x] -> %#x\n",
+        ldebug ("mixer_read[%#x] -> %#x",
                 s->mixer_nreg, s->mixer_regs[s->mixer_nreg]);
     }
 #else
-    ldebug ("mixer_read[%#x] -> %#x\n",
+    ldebug ("mixer_read[%#x] -> %#x",
             s->mixer_nreg, s->mixer_regs[s->mixer_nreg]);
 #endif
     return s->mixer_regs[s->mixer_nreg];
@@ -1241,7 +1236,7 @@ static int SB_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
     till = s->left_till_irq;
 
 #ifdef DEBUG_SB16_MOST
-    dolog ("pos:%06d %d till:%d len:%d\n",
+    warn_report("sb16: pos:%06d %d till:%d len:%d",
            dma_pos, free, till, dma_len);
 #endif
 
@@ -1265,7 +1260,7 @@ static int SB_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
     }
 
 #ifdef DEBUG_SB16_MOST
-    ldebug ("pos %5d free %5d size %5d till % 5d copy %5d written %5d size %5d\n",
+    ldebug ("pos %5d free %5d size %5d till % 5d copy %5d written %5d size %5d",
             dma_pos, free, dma_len, s->left_till_irq, copy, written,
             s->block_size);
 #endif
