@@ -141,6 +141,7 @@ static void bamboo_init(MachineState *machine)
     DeviceState *uicdev;
     SysBusDevice *uicsbd;
     int success;
+    Error *errp = NULL;
 
     if (kvm_enabled()) {
         error_report("machine %s does not support the KVM accelerator",
@@ -243,11 +244,11 @@ static void bamboo_init(MachineState *machine)
     if (initrd_filename) {
         initrd_size = load_image_targphys(initrd_filename, RAMDISK_ADDR,
                                           machine->ram_size - RAMDISK_ADDR,
-                                          NULL);
+                                          &errp);
 
-        if (initrd_size < 0) {
-            error_report("could not load ram disk '%s' at %x",
-                         initrd_filename, RAMDISK_ADDR);
+        if (errp) {
+            error_reportf_err(errp, "could not load ram disk '%s' at %x: ",
+                              initrd_filename, RAMDISK_ADDR);
             exit(1);
         }
     }
