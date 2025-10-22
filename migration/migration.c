@@ -973,7 +973,9 @@ static void migration_incoming_setup(QEMUFile *f)
 
     assert(!mis->from_src_file);
     mis->from_src_file = f;
-    qemu_file_set_blocking(f, false, &error_abort);
+
+    /* Incoming migration runs in a thread now, nonblocking is not needed */
+    qemu_file_set_blocking(f, true, &error_abort);
 }
 
 void migration_incoming_process(void)
