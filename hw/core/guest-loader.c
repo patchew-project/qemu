@@ -81,6 +81,7 @@ static void loader_insert_platform_data(GuestLoaderState *s, int size,
 
 static void guest_loader_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_GUARD();
     GuestLoaderState *s = GUEST_LOADER(dev);
     char *file = s->kernel ? s->kernel : s->initrd;
     int size = 0;
@@ -101,9 +102,9 @@ static void guest_loader_realize(DeviceState *dev, Error **errp)
 
     /* Default to the maximum size being the machine's ram size */
     size = load_image_targphys_as(file, s->addr, current_machine->ram_size,
-                                  NULL, NULL);
-    if (size < 0) {
-        error_setg(errp, "Cannot load specified image %s", file);
+                                  NULL, errp);
+    if (*errp) {
+        error_prepend(errp, "Cannot load specified image %s: ", file);
         return;
     }
 
