@@ -113,6 +113,7 @@ static int qemu_chr_write_buffer(Chardev *s,
                                  int *offset, bool write_all)
 {
     ChardevClass *cc = CHARDEV_GET_CLASS(s);
+    int saved_errno;
     int res = 0;
     *offset = 0;
 
@@ -138,6 +139,7 @@ static int qemu_chr_write_buffer(Chardev *s,
             break;
         }
     }
+    saved_errno = errno;
     if (*offset > 0) {
         /*
          * If some data was written by backend, we should
@@ -154,6 +156,7 @@ static int qemu_chr_write_buffer(Chardev *s,
          */
         qemu_chr_write_log(s, buf, len);
     }
+    errno = saved_errno;
     qemu_mutex_unlock(&s->chr_write_lock);
 
     return res;
@@ -186,7 +189,9 @@ int qemu_chr_write(Chardev *s, const uint8_t *buf, int len, bool write_all)
     res = qemu_chr_write_buffer(s, buf, len, &offset, write_all);
 
     if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_RECORD) {
+        int saved_errno = errno;
         replay_char_write_event_save(res, offset);
+        errno = saved_errno;
     }
 
     if (res < 0 && offset == 0) {
