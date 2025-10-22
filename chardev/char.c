@@ -189,7 +189,7 @@ int qemu_chr_write(Chardev *s, const uint8_t *buf, int len, bool write_all)
         replay_char_write_event_save(res, offset);
     }
 
-    if (res < 0) {
+    if (res < 0 && offset == 0) {
         return res;
     }
     return offset;
