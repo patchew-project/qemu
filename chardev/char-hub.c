@@ -65,7 +65,7 @@ static int hub_chr_write(Chardev *chr, const uint8_t *buf, int len)
             continue;
         }
         r = qemu_chr_fe_write(&d->backends[i].fe, buf, len);
-        if (r < 0) {
+        if (r <= 0) {
             if (errno == EAGAIN) {
                 /* Set index and expect to be called soon on watch wake up */
                 d->be_eagain_ind = i;
