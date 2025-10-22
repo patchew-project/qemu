@@ -3051,37 +3051,6 @@ int rdma_control_save_page(QEMUFile *f, ram_addr_t block_offset,
 
 static void rdma_accept_incoming_migration(void *opaque);
 
-static void rdma_cm_poll_handler(void *opaque)
-{
-    RDMAContext *rdma = opaque;
-    struct rdma_cm_event *cm_event;
-    MigrationIncomingState *mis = migration_incoming_get_current();
-
-    if (rdma_get_cm_event(rdma->channel, &cm_event) < 0) {
-        error_report("get_cm_event failed %d", errno);
-        return;
-    }
-
-    if (cm_event->event == RDMA_CM_EVENT_DISCONNECTED ||
-        cm_event->event == RDMA_CM_EVENT_DEVICE_REMOVAL) {
-        if (!rdma->errored &&
-            migration_incoming_get_current()->state !=
-              MIGRATION_STATUS_COMPLETED) {
-            error_report("receive cm event, cm event is %d", cm_event->event);
-            rdma->errored = true;
-            if (rdma->return_path) {
-                rdma->return_path->errored = true;
-            }
-        }
-        rdma_ack_cm_event(cm_event);
-        if (mis->loadvm_co) {
-            qemu_coroutine_enter(mis->loadvm_co);
-        }
-        return;
-    }
-    rdma_ack_cm_event(cm_event);
-}
-
 static int qemu_rdma_accept(RDMAContext *rdma)
 {
     Error *err = NULL;
@@ -3199,8 +3168,7 @@ static int qemu_rdma_accept(RDMAContext *rdma)
                             NULL,
                             (void *)(intptr_t)rdma->return_path);
     } else {
-        qemu_set_fd_handler(rdma->channel->fd, rdma_cm_poll_handler,
-                            NULL, rdma);
+        qemu_set_fd_handler(rdma->channel->fd, NULL, NULL, NULL);
     }
 
     ret = rdma_accept(rdma->cm_id, &conn_param);
