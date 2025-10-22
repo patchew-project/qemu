@@ -686,7 +686,7 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
 
     bql_lock();
     cpu_synchronize_all_states();
-    ret = qemu_loadvm_state_main(mis->from_src_file, mis, errp);
+    ret = qemu_loadvm_state_main(mis->from_src_file, mis, true, errp);
     bql_unlock();
 
     if (ret < 0) {
