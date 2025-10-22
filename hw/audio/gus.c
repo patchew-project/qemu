@@ -45,7 +45,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(GUSState, GUS)
 struct GUSState {
     ISADevice dev;
     GUSEmuState emu;
-    QEMUSoundCard card;
+    AudioBackend *audio_be;
     uint32_t freq;
     uint32_t port;
     int pos, left, shift, irqs;
@@ -238,7 +238,7 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
     IsaDmaClass *k;
     struct audsettings as;
 
-    if (!AUD_register_card ("gus", &s->card, errp)) {
+    if (!AUD_backend_check(&s->audio_be, errp)) {
         return;
     }
 
@@ -254,7 +254,7 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
     as.endianness = HOST_BIG_ENDIAN;
 
     s->voice = AUD_open_out (
-        &s->card,
+        s->audio_be,
         NULL,
         "gus",
         s,
@@ -263,7 +263,6 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
         );
 
     if (!s->voice) {
-        AUD_remove_card (&s->card);
         error_setg(errp, "No voice");
         return;
     }
@@ -288,7 +287,7 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
 }
 
 static const Property gus_properties[] = {
-    DEFINE_AUDIO_PROPERTIES(GUSState, card),
+    DEFINE_AUDIO_PROPERTIES(GUSState, audio_be),
     DEFINE_PROP_UINT32 ("freq",    GUSState, freq,        44100),
     DEFINE_PROP_UINT32 ("iobase",  GUSState, port,        0x240),
     DEFINE_PROP_UINT32 ("irq",     GUSState, emu.gusirq,  7),

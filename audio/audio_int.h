@@ -108,7 +108,6 @@ typedef struct HWVoiceIn {
 } HWVoiceIn;
 
 struct SWVoiceOut {
-    QEMUSoundCard *card;
     AudioBackend *s;
     struct audio_pcm_info info;
     t_sample *conv;
@@ -125,7 +124,6 @@ struct SWVoiceOut {
 };
 
 struct SWVoiceIn {
-    QEMUSoundCard *card;
     AudioBackend *s;
     int active;
     struct audio_pcm_info info;
@@ -246,7 +244,6 @@ typedef struct AudioBackend {
     void *drv_opaque;
 
     QEMUTimer *ts;
-    QLIST_HEAD (card_listhead, QEMUSoundCard) card_head;
     QLIST_HEAD (hw_in_listhead, HWVoiceIn) hw_head_in;
     QLIST_HEAD (hw_out_listhead, HWVoiceOut) hw_head_out;
     QLIST_HEAD (cap_listhead, CaptureVoiceOut) cap_head;

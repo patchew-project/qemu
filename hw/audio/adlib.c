@@ -53,7 +53,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(AdlibState, ADLIB)
 struct AdlibState {
     ISADevice parent_obj;
 
-    QEMUSoundCard card;
+    AudioBackend *audio_be;
     uint32_t freq;
     uint32_t port;
     int ticking[2];
@@ -236,7 +236,6 @@ static void Adlib_fini (AdlibState *s)
 
     s->active = 0;
     s->enabled = 0;
-    AUD_remove_card (&s->card);
 }
 
 static MemoryRegionPortio adlib_portio_list[] = {
@@ -251,7 +250,7 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
     AdlibState *s = ADLIB(dev);
     struct audsettings as;
 
-    if (!AUD_register_card ("adlib", &s->card, errp)) {
+    if (!AUD_backend_check(&s->audio_be, errp)) {
         return;
     }
 
@@ -271,7 +270,7 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
     as.endianness = HOST_BIG_ENDIAN;
 
     s->voice = AUD_open_out (
-        &s->card,
+        s->audio_be,
         s->voice,
         "adlib",
         s,
@@ -294,7 +293,7 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
 }
 
 static const Property adlib_properties[] = {
-    DEFINE_AUDIO_PROPERTIES(AdlibState, card),
+    DEFINE_AUDIO_PROPERTIES(AdlibState, audio_be),
     DEFINE_PROP_UINT32 ("iobase",  AdlibState, port, 0x220),
     DEFINE_PROP_UINT32 ("freq",    AdlibState, freq,  44100),
 };

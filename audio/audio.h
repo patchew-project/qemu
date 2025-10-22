@@ -69,18 +69,12 @@ struct AudioBackendClass {
 };
 
 typedef struct AudioBackend AudioBackend;
-typedef struct QEMUSoundCard {
-    char *name;
-    AudioBackend *be;
-    QLIST_ENTRY (QEMUSoundCard) entries;
-} QEMUSoundCard;
 
 typedef struct QEMUAudioTimeStamp {
     uint64_t old_ts;
 } QEMUAudioTimeStamp;
 
-bool AUD_register_card (const char *name, QEMUSoundCard *card, Error **errp);
-void AUD_remove_card (QEMUSoundCard *card);
+bool AUD_backend_check (AudioBackend **be, Error **errp);
 CaptureVoiceOut *AUD_add_capture(
     AudioBackend *s,
     struct audsettings *as,
@@ -90,7 +84,7 @@ CaptureVoiceOut *AUD_add_capture(
 void AUD_del_capture (CaptureVoiceOut *cap, void *cb_opaque);
 
 SWVoiceOut *AUD_open_out (
-    QEMUSoundCard *card,
+    AudioBackend *be,
     SWVoiceOut *sw,
     const char *name,
     void *callback_opaque,
@@ -98,7 +92,7 @@ SWVoiceOut *AUD_open_out (
     struct audsettings *settings
     );
 
-void AUD_close_out (QEMUSoundCard *card, SWVoiceOut *sw);
+void AUD_close_out (AudioBackend *be, SWVoiceOut *sw);
 size_t AUD_write (SWVoiceOut *sw, void *pcm_buf, size_t size);
 int  AUD_get_buffer_size_out (SWVoiceOut *sw);
 void AUD_set_active_out (SWVoiceOut *sw, int on);
@@ -121,7 +115,7 @@ void AUD_set_volume_out(SWVoiceOut *sw, Volume *vol);
 void AUD_set_volume_in(SWVoiceIn *sw, Volume *vol);
 
 SWVoiceIn *AUD_open_in (
-    QEMUSoundCard *card,
+    AudioBackend *be,
     SWVoiceIn *sw,
     const char *name,
     void *callback_opaque,
@@ -129,7 +123,7 @@ SWVoiceIn *AUD_open_in (
     struct audsettings *settings
     );
 
-void AUD_close_in (QEMUSoundCard *card, SWVoiceIn *sw);
+void AUD_close_in (AudioBackend *be, SWVoiceIn *sw);
 size_t AUD_read (SWVoiceIn *sw, void *pcm_buf, size_t size);
 void AUD_set_active_in (SWVoiceIn *sw, int on);
 int  AUD_is_active_in (SWVoiceIn *sw);
@@ -155,7 +149,7 @@ void audio_help(void);
 
 AudioBackend *audio_be_by_name(const char *name, Error **errp);
 AudioBackend *audio_get_default_audio_be(Error **errp);
-const char *audio_get_id(QEMUSoundCard *card);
+const char *audio_be_get_id(AudioBackend *be);
 
 #define DEFINE_AUDIO_PROPERTIES(_s, _f)         \
     DEFINE_PROP_AUDIODEV("audiodev", _s, _f)
