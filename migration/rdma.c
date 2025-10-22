@@ -29,7 +29,6 @@
 #include "qemu/rcu.h"
 #include "qemu/sockets.h"
 #include "qemu/bitmap.h"
-#include "qemu/coroutine.h"
 #include "system/memory.h"
 #include <sys/socket.h>
 #include <netdb.h>
@@ -1345,61 +1344,54 @@ static int qemu_rdma_wait_comp_channel(RDMAContext *rdma,
 {
     struct rdma_cm_event *cm_event;
 
-    if (qemu_in_coroutine()) {
-        yield_until_fd_readable(comp_channel->fd);
-    } else {
-        /* This is the source side, we're in a separate thread
-         * or destination prior to migration_fd_process_incoming()
-         * after postcopy, the destination also in a separate thread.
-         * we can't yield; so we have to poll the fd.
-         * But we need to be able to handle 'cancel' or an error
-         * without hanging forever.
-         */
-        while (!rdma->errored && !rdma->received_error) {
-            GPollFD pfds[2];
-            pfds[0].fd = comp_channel->fd;
-            pfds[0].events = G_IO_IN | G_IO_HUP | G_IO_ERR;
-            pfds[0].revents = 0;
+    /*
+     * This is the source or dest side, either during precopy or
+     * postcopy.  We're always in a separate thread when reaching here.
+     * Poll the fd.  We need to be able to handle 'cancel' or an error
+     * without hanging forever.
+     */
+    while (!rdma->errored && !rdma->received_error) {
+        GPollFD pfds[2];
+        pfds[0].fd = comp_channel->fd;
+        pfds[0].events = G_IO_IN | G_IO_HUP | G_IO_ERR;
+        pfds[0].revents = 0;
 
-            pfds[1].fd = rdma->channel->fd;
-            pfds[1].events = G_IO_IN | G_IO_HUP | G_IO_ERR;
-            pfds[1].revents = 0;
+        pfds[1].fd = rdma->channel->fd;
+        pfds[1].events = G_IO_IN | G_IO_HUP | G_IO_ERR;
+        pfds[1].revents = 0;
 
-            /* 0.1s timeout, should be fine for a 'cancel' */
-            switch (qemu_poll_ns(pfds, 2, 100 * 1000 * 1000)) {
-            case 2:
-            case 1: /* fd active */
-                if (pfds[0].revents) {
-                    return 0;
+        /* 0.1s timeout, should be fine for a 'cancel' */
+        switch (qemu_poll_ns(pfds, 2, 100 * 1000 * 1000)) {
+        case 2:
+        case 1: /* fd active */
+            if (pfds[0].revents) {
+                return 0;
+            }
+
+            if (pfds[1].revents) {
+                if (rdma_get_cm_event(rdma->channel, &cm_event) < 0) {
+                    return -1;
                 }
 
-                if (pfds[1].revents) {
-                    if (rdma_get_cm_event(rdma->channel, &cm_event) < 0) {
-                        return -1;
-                    }
-
-                    if (cm_event->event == RDMA_CM_EVENT_DISCONNECTED ||
-                        cm_event->event == RDMA_CM_EVENT_DEVICE_REMOVAL) {
-                        rdma_ack_cm_event(cm_event);
-                        return -1;
-                    }
+                if (cm_event->event == RDMA_CM_EVENT_DISCONNECTED ||
+                    cm_event->event == RDMA_CM_EVENT_DEVICE_REMOVAL) {
                     rdma_ack_cm_event(cm_event);
+                    return -1;
                 }
-                break;
-
-            case 0: /* Timeout, go around again */
-                break;
-
-            default: /* Error of some type -
-                      * I don't trust errno from qemu_poll_ns
-                     */
-                return -1;
+                rdma_ack_cm_event(cm_event);
             }
+            break;
 
-            if (migrate_get_current()->state == MIGRATION_STATUS_CANCELLING) {
-                /* Bail out and let the cancellation happen */
-                return -1;
-            }
+        case 0: /* Timeout, go around again */
+            break;
+
+        default: /* Error of some type - don't trust errno from qemu_poll_ns */
+            return -1;
+        }
+
+        if (migrate_get_current()->state == MIGRATION_STATUS_CANCELLING) {
+            /* Bail out and let the cancellation happen */
+            return -1;
         }
     }
 
