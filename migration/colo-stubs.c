@@ -9,7 +9,7 @@ void colo_shutdown(void)
 {
 }
 
-void coroutine_fn colo_incoming_co(void)
+void colo_incoming_wait(void)
 {
 }
 
