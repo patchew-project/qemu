@@ -38,8 +38,26 @@ GSource *io_add_watch_poll(Chardev *chr,
 
 void remove_fd_in_watch(Chardev *chr);
 
+/**
+ * io_channel_send:
+ * @ioc: the IO channel object
+ * @buf: the data
+ * @len: the number of bytes to send
+ *
+ * Returns: the number of bytes consumed or -1 on error.
+ */
 int io_channel_send(QIOChannel *ioc, const void *buf, size_t len);
 
+/**
+ * io_channel_send_full:
+ * @ioc: the IO channel object
+ * @buf: the data
+ * @len: the number of bytes to send
+ * @fds: an array of file handles to send
+ * @nfds: number of file handles in @fds
+ *
+ * Returns: the number of bytes consumed or -1 on error.
+ */
 int io_channel_send_full(QIOChannel *ioc, const void *buf, size_t len,
                          int *fds, size_t nfds);
 
