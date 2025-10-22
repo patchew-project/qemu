@@ -26,6 +26,8 @@ struct CharFrontend {
 
 /**
  * qemu_chr_fe_init:
+ * @c: the character frontend
+ * @s: the character backend
  *
  * Initializes the frontend @c for the given Chardev backend @s. Call
  * qemu_chr_fe_deinit() to remove the association and release the backend.
@@ -47,6 +49,7 @@ void qemu_chr_fe_deinit(CharFrontend *c, bool del);
 
 /**
  * qemu_chr_fe_get_driver:
+ * @c: the character frontend
  *
  * Returns: the driver associated with a CharFrontend or NULL if no
  * associated Chardev.
@@ -58,6 +61,7 @@ Chardev *qemu_chr_fe_get_driver(CharFrontend *c);
 
 /**
  * qemu_chr_fe_backend_connected:
+ * @c: the character frontend
  *
  * Returns: true if there is a backend associated with @c.
  */
@@ -102,6 +106,7 @@ void qemu_chr_fe_set_handlers_full(CharFrontend *c,
 
 /**
  * qemu_chr_fe_set_handlers:
+ * @c: the character frontend
  *
  * Version of qemu_chr_fe_set_handlers_full() with sync_state = true.
  */
@@ -116,6 +121,7 @@ void qemu_chr_fe_set_handlers(CharFrontend *c,
 
 /**
  * qemu_chr_fe_take_focus:
+ * @c: the character frontend
  *
  * Take the focus (if the front end is muxed).
  *
@@ -125,6 +131,7 @@ void qemu_chr_fe_take_focus(CharFrontend *c);
 
 /**
  * qemu_chr_fe_accept_input:
+ * @c: the character frontend
  *
  * Notify that the frontend is ready to receive data
  */
@@ -132,6 +139,7 @@ void qemu_chr_fe_accept_input(CharFrontend *c);
 
 /**
  * qemu_chr_fe_disconnect:
+ * @c: the character frontend
  *
  * Close a fd accepted by character backend.
  * Without associated Chardev, do nothing.
@@ -148,6 +156,7 @@ int qemu_chr_fe_wait_connected(CharFrontend *c, Error **errp);
 
 /**
  * qemu_chr_fe_set_echo:
+ * @c: the character frontend
  * @echo: true to enable echo, false to disable echo
  *
  * Ask the backend to override its normal echo setting.  This only really
@@ -169,6 +178,7 @@ void qemu_chr_fe_set_open(CharFrontend *c, bool is_open);
 
 /**
  * qemu_chr_fe_printf:
+ * @c: the character frontend
  * @fmt: see #printf
  *
  * Write to a character backend using a printf style interface.  This
@@ -197,6 +207,7 @@ typedef gboolean (*FEWatchFunc)(void *do_not_use, GIOCondition condition, void *
 
 /**
  * qemu_chr_fe_add_watch:
+ * @c: the character frontend
  * @cond: the condition to poll for
  * @func: the function to call when the condition happens
  * @user_data: the opaque pointer to pass to @func
@@ -219,6 +230,7 @@ guint qemu_chr_fe_add_watch(CharFrontend *c, GIOCondition cond,
 
 /**
  * qemu_chr_fe_write:
+ * @c: the character frontend to write to
  * @buf: the data
  * @len: the number of bytes to send
  *
@@ -233,6 +245,7 @@ int qemu_chr_fe_write(CharFrontend *c, const uint8_t *buf, int len);
 
 /**
  * qemu_chr_fe_write_all:
+ * @c: the character frontend to write to
  * @buf: the data
  * @len: the number of bytes to send
  *
@@ -248,6 +261,7 @@ int qemu_chr_fe_write_all(CharFrontend *c, const uint8_t *buf, int len);
 
 /**
  * qemu_chr_fe_read_all:
+ * @c: the character frontend to read from
  * @buf: the data buffer
  * @len: the number of bytes to read
  *
@@ -260,6 +274,7 @@ int qemu_chr_fe_read_all(CharFrontend *c, uint8_t *buf, int len);
 
 /**
  * qemu_chr_fe_ioctl:
+ * @c: the character frontend to control
  * @cmd: see CHR_IOCTL_*
  * @arg: the data associated with @cmd
  *
@@ -273,6 +288,7 @@ int qemu_chr_fe_ioctl(CharFrontend *c, int cmd, void *arg);
 
 /**
  * qemu_chr_fe_get_msgfd:
+ * @c: the character frontend to access
  *
  * For backends capable of fd passing, return the latest file descriptor passed
  * by a client.
@@ -286,9 +302,12 @@ int qemu_chr_fe_get_msgfd(CharFrontend *c);
 
 /**
  * qemu_chr_fe_get_msgfds:
+ * @c: the character frontend
+ * @fds: an array of ancillary file descriptors to get
+ * @num: the maximum number of ancillary file descriptors to get in @fds
  *
  * For backends capable of fd passing, return the number of file received
- * descriptors and fills the fds array up to num elements
+ * descriptors and fills the fds array up to @num elements
  *
  * Returns: -1 if fd passing isn't supported or there are no pending file
  *          descriptors.  If file descriptors are returned, subsequent calls to
@@ -299,6 +318,9 @@ int qemu_chr_fe_get_msgfds(CharFrontend *c, int *fds, int num);
 
 /**
  * qemu_chr_fe_set_msgfds:
+ * @c: the character frontend
+ * @fds: an array of ancillary file descriptors to set
+ * @num: the number of ancillary file descriptors to set
  *
  * For backends capable of fd passing, set an array of fds to be passed with
  * the next send operation.
