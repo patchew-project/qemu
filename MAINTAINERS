@@ -3893,6 +3893,16 @@ F: roms/edk2-*
 F: tests/data/uefi-boot-images/
 F: tests/uefi-test-tools/
 
+IGVM Firmware
+M: Roy Hopkins <roy.hopkins@randomman.co.uk>
+R: Gerd Hoffmann <kraxel@redhat.com>
+R: Ani Sinha <anisinha@redhat.com>
+S: TBD
+F: backends/igvm*.c
+F: include/system/igvm*.h
+F: stubs/igvm.c
+F: target/i386/igvm.c
+
 VT-d Emulation
 M: Michael S. Tsirkin <mst@redhat.com>
 R: Jason Wang <jasowang@redhat.com>
