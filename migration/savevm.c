@@ -2647,8 +2647,7 @@ static int loadvm_process_command(QEMUFile *f, bool bql_held, Error **errp)
         return loadvm_process_enable_colo(mis, errp);
 
     case MIG_CMD_SWITCHOVER_START:
-        WITH_BQL_HELD(bql_held) {
-            /* TODO: drop the BQL dependency */
+        WITH_BQL_RELEASED(bql_held) {
             ret = loadvm_postcopy_handle_switchover_start(errp);
         }
         return ret;
