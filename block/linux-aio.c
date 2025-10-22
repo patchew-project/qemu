@@ -383,7 +383,6 @@ static int laio_do_submit(int fd, struct qemu_laiocb *laiocb, off_t offset,
         io_prep_pwritev2(iocbs, fd, qiov->iov, qiov->niov, offset, laio_flags);
     }
 #else
-        assert(flags == 0);
         io_prep_pwritev(iocbs, fd, qiov->iov, qiov->niov, offset);
 #endif
         break;

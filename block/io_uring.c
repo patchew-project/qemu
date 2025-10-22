@@ -349,7 +349,6 @@ static int luring_do_submit(int fd, LuringAIOCB *luringcb, LuringState *s,
                               luringcb->qiov->niov, offset, luring_flags);
     }
 #else
-        assert(flags == 0);
         io_uring_prep_writev(sqes, fd, luringcb->qiov->iov,
                              luringcb->qiov->niov, offset);
 #endif
