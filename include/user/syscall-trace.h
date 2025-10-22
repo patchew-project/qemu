@@ -39,5 +39,21 @@ static inline void record_syscall_return(CPUState *cpu, int num, abi_long ret)
     gdb_syscall_return(cpu, num);
 }
 
+static inline bool send_through_syscall_filters(CPUState *cpu, int num,
+                                  abi_long arg1, abi_long arg2,
+                                  abi_long arg3, abi_long arg4,
+                                  abi_long arg5, abi_long arg6,
+                                  abi_long arg7, abi_long arg8, abi_long *ret)
+{
+    uint64_t sysret64 = 0;
+    bool filtered = qemu_plugin_vcpu_syscall_filter(cpu, num,
+                             arg1, arg2, arg3, arg4,
+                             arg5, arg6, arg7, arg8, &sysret64);
+    if (filtered) {
+        *ret = sysret64;
+    }
+    return filtered;
+}
+
 
 #endif /* SYSCALL_TRACE_H */
