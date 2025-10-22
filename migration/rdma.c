@@ -357,13 +357,6 @@ typedef struct RDMAContext {
     /* Index of the next RAMBlock received during block registration */
     unsigned int    next_src_index;
 
-    /*
-     * Migration on *destination* started.
-     * Then use coroutine yield function.
-     * Source runs in a thread, so we don't care.
-     */
-    int migration_started_on_destination;
-
     int total_registrations;
     int total_writes;
 
@@ -1352,12 +1345,7 @@ static int qemu_rdma_wait_comp_channel(RDMAContext *rdma,
 {
     struct rdma_cm_event *cm_event;
 
-    /*
-     * Coroutine doesn't start until migration_fd_process_incoming()
-     * so don't yield unless we know we're running inside of a coroutine.
-     */
-    if (rdma->migration_started_on_destination &&
-        migration_incoming_get_current()->state == MIGRATION_STATUS_ACTIVE) {
+    if (qemu_in_coroutine()) {
         yield_until_fd_readable(comp_channel->fd);
     } else {
         /* This is the source side, we're in a separate thread
@@ -3884,7 +3872,6 @@ static void rdma_accept_incoming_migration(void *opaque)
         return;
     }
 
-    rdma->migration_started_on_destination = 1;
     migration_fd_process_incoming(f);
 }
 
