@@ -154,11 +154,12 @@ static void qemu_loadvm_thread_pool_destroy(MigrationIncomingState *mis)
 }
 
 static bool qemu_loadvm_thread_pool_wait(MigrationState *s,
-                                         MigrationIncomingState *mis)
+                                         MigrationIncomingState *mis,
+                                         bool bql_held)
 {
-    bql_unlock(); /* Let load threads do work requiring BQL */
-    thread_pool_wait(mis->load_threads);
-    bql_lock();
+    WITH_BQL_RELEASED(bql_held) {
+        thread_pool_wait(mis->load_threads);
+    }
 
     return !migrate_has_error(s);
 }
@@ -2117,7 +2118,7 @@ static void *postcopy_ram_listen_thread(void *opaque)
     qemu_file_set_blocking(f, true, &error_fatal);
 
     /* TODO: sanity check that only postcopiable data will be loaded here */
-    load_res = qemu_loadvm_state_main(f, mis, &local_err);
+    load_res = qemu_loadvm_state_main(f, mis, true, &local_err);
 
     /*
      * This is tricky, but, mis->from_src_file can change after it
@@ -2419,7 +2420,8 @@ static void loadvm_postcopy_handle_resume(MigrationIncomingState *mis)
  * Returns: Negative values on error
  *
  */
-static int loadvm_handle_cmd_packaged(MigrationIncomingState *mis, Error **errp)
+static int loadvm_handle_cmd_packaged(MigrationIncomingState *mis,
+                                      bool bql_held, Error **errp)
 {
     int ret;
     size_t length;
@@ -2470,7 +2472,7 @@ static int loadvm_handle_cmd_packaged(MigrationIncomingState *mis, Error **errp)
         qemu_coroutine_yield();
     } while (1);
 
-    ret = qemu_loadvm_state_main(packf, mis, errp);
+    ret = qemu_loadvm_state_main(packf, mis, bql_held, errp);
     trace_loadvm_handle_cmd_packaged_main(ret);
     qemu_fclose(packf);
     object_unref(OBJECT(bioc));
@@ -2570,7 +2572,7 @@ static int loadvm_postcopy_handle_switchover_start(Error **errp)
  * LOADVM_QUIT All good, but exit the loop
  * <0          Error
  */
-static int loadvm_process_command(QEMUFile *f, Error **errp)
+static int loadvm_process_command(QEMUFile *f, bool bql_held, Error **errp)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
     uint16_t cmd;
@@ -2640,7 +2642,8 @@ static int loadvm_process_command(QEMUFile *f, Error **errp)
         break;
 
     case MIG_CMD_PACKAGED:
-        return loadvm_handle_cmd_packaged(mis, errp);
+        /* PACKAGED may have bql dependency internally */
+        return loadvm_handle_cmd_packaged(mis, bql_held, errp);
 
     case MIG_CMD_POSTCOPY_ADVISE:
         return loadvm_postcopy_handle_advise(mis, len, errp);
@@ -2665,7 +2668,11 @@ static int loadvm_process_command(QEMUFile *f, Error **errp)
         return loadvm_process_enable_colo(mis, errp);
 
     case MIG_CMD_SWITCHOVER_START:
-        return loadvm_postcopy_handle_switchover_start(errp);
+        WITH_BQL_HELD(bql_held) {
+            /* TODO: drop the BQL dependency */
+            ret = loadvm_postcopy_handle_switchover_start(errp);
+        }
+        return ret;
     }
 
     return 0;
@@ -2881,6 +2888,10 @@ static int qemu_loadvm_state_header(QEMUFile *f, Error **errp)
             return -EINVAL;
         }
 
+        /*
+         * NOTE: this can be invoked with/without BQL.  It's safe because
+         * vmstate_configuration (and its hooks) doesn't rely on BQL status.
+         */
         ret = vmstate_load_state(f, &vmstate_configuration, &savevm_state, 0,
                                  errp);
         if (ret) {
@@ -3071,7 +3082,7 @@ static bool postcopy_pause_incoming(MigrationIncomingState *mis)
 }
 
 int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis,
-                           Error **errp)
+                           bool bql_held, Error **errp)
 {
     ERRP_GUARD();
     uint8_t section_type;
@@ -3093,20 +3104,33 @@ retry:
         switch (section_type) {
         case QEMU_VM_SECTION_START:
         case QEMU_VM_SECTION_FULL:
-            ret = qemu_loadvm_section_start_full(f, section_type, errp);
+            /*
+             * FULL should normally require BQL, e.g. during post_load()
+             * there can be memory region updates.  START may or may not
+             * require it, but just to keep it simple to always hold BQL
+             * for now.
+             */
+            WITH_BQL_HELD(bql_held) {
+                ret = qemu_loadvm_section_start_full(f, section_type, errp);
+            }
             if (ret < 0) {
                 goto out;
             }
             break;
         case QEMU_VM_SECTION_PART:
         case QEMU_VM_SECTION_END:
+            /* PART / END may be loaded without BQL */
             ret = qemu_loadvm_section_part_end(f, section_type, errp);
             if (ret < 0) {
                 goto out;
             }
             break;
         case QEMU_VM_COMMAND:
-            ret = loadvm_process_command(f, errp);
+            /*
+             * Be careful; QEMU_VM_COMMAND can embed FULL sections, so it
+             * may internally need BQL.
+             */
+            ret = loadvm_process_command(f, bql_held, errp);
             trace_qemu_loadvm_state_section_command(ret);
             if ((ret < 0) || (ret == LOADVM_QUIT)) {
                 goto out;
@@ -3151,7 +3175,7 @@ out:
     return ret;
 }
 
-int qemu_loadvm_state(QEMUFile *f, Error **errp)
+int qemu_loadvm_state(QEMUFile *f, bool bql_held, Error **errp)
 {
     MigrationState *s = migrate_get_current();
     MigrationIncomingState *mis = migration_incoming_get_current();
@@ -3176,9 +3200,12 @@ int qemu_loadvm_state(QEMUFile *f, Error **errp)
         qemu_loadvm_state_switchover_ack_needed(mis);
     }
 
-    cpu_synchronize_all_pre_loadvm();
+    /* run_on_cpu() requires BQL */
+    WITH_BQL_HELD(bql_held) {
+        cpu_synchronize_all_pre_loadvm();
+    }
 
-    ret = qemu_loadvm_state_main(f, mis, errp);
+    ret = qemu_loadvm_state_main(f, mis, bql_held, errp);
     qemu_event_set(&mis->main_thread_load_event);
 
     trace_qemu_loadvm_state_post_main(ret);
@@ -3194,7 +3221,7 @@ int qemu_loadvm_state(QEMUFile *f, Error **errp)
     /* When reaching here, it must be precopy */
     if (ret == 0) {
         if (migrate_has_error(migrate_get_current()) ||
-            !qemu_loadvm_thread_pool_wait(s, mis)) {
+            !qemu_loadvm_thread_pool_wait(s, mis, bql_held)) {
             ret = -EINVAL;
             error_setg(errp,
                        "Error while loading vmstate");
@@ -3248,7 +3275,10 @@ int qemu_loadvm_state(QEMUFile *f, Error **errp)
         }
     }
 
-    cpu_synchronize_all_post_init();
+    /* run_on_cpu() requires BQL */
+    WITH_BQL_HELD(bql_held) {
+        cpu_synchronize_all_post_init();
+    }
 
     return ret;
 }
@@ -3259,7 +3289,7 @@ int qemu_load_device_state(QEMUFile *f, Error **errp)
     int ret;
 
     /* Load QEMU_VM_SECTION_FULL section */
-    ret = qemu_loadvm_state_main(f, mis, errp);
+    ret = qemu_loadvm_state_main(f, mis, true, errp);
     if (ret < 0) {
         return ret;
     }
@@ -3490,7 +3520,7 @@ void qmp_xen_load_devices_state(const char *filename, Error **errp)
     f = qemu_file_new_input(QIO_CHANNEL(ioc));
     object_unref(OBJECT(ioc));
 
-    ret = qemu_loadvm_state(f, errp);
+    ret = qemu_loadvm_state(f, true, errp);
     qemu_fclose(f);
     if (ret < 0) {
         error_prepend(errp, "loading Xen device state failed: ");
@@ -3564,7 +3594,7 @@ bool load_snapshot(const char *name, const char *vmstate,
         ret = -EINVAL;
         goto err_drain;
     }
-    ret = qemu_loadvm_state(f, errp);
+    ret = qemu_loadvm_state(f, true, errp);
     migration_incoming_state_destroy();
 
     bdrv_drain_all_end();
