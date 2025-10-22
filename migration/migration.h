@@ -20,6 +20,7 @@
 #include "qobject/json-writer.h"
 #include "qemu/thread.h"
 #include "qemu/coroutine.h"
+#include "qemu/main-loop.h"
 #include "io/channel.h"
 #include "io/channel-buffer.h"
 #include "net/announce.h"
@@ -41,6 +42,100 @@
 #define  MIGRATION_THREAD_DST_FAULT         "mig/dst/fault"
 #define  MIGRATION_THREAD_DST_LISTEN        "mig/dst/listen"
 #define  MIGRATION_THREAD_DST_PREEMPT       "mig/dst/preempt"
+
+struct WithBqlHeldAuto;
+typedef struct WithBqlHeldAuto WithBqlHeldAuto;
+
+static inline WithBqlHeldAuto *
+with_bql_held_auto_lock(bool bql_held, const char *file, int line)
+{
+    assert(bql_held == bql_locked());
+    if (!bql_held) {
+        bql_lock_impl(file, line);
+        return (WithBqlHeldAuto *)1;
+    }
+    return (WithBqlHeldAuto *)2;
+}
+
+static inline void
+with_bql_held_auto_unlock(WithBqlHeldAuto *v)
+{
+    assert(bql_locked());
+    if (v == (WithBqlHeldAuto *)1) {
+        bql_unlock();
+    }
+}
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(WithBqlHeldAuto, with_bql_held_auto_unlock);
+
+#define  _WITH_BQL_HELD(bql_held, var)                              \
+    for (g_autoptr(WithBqlHeldAuto) var =                           \
+             with_bql_held_auto_lock(bql_held, __FILE__, __LINE__); \
+         var;                                                       \
+         with_bql_held_auto_unlock(var), var = NULL)
+
+/**
+ * WITH_BQL_HELD(): Run a block of code, making sure BQL is held
+ * @bql_held: Whether BQL is already held
+ *
+ * Example use case:
+ *
+ * WITH_BQL_HELD(bql_held) {
+ *     // BQL is guaranteed to be held within this block.
+ *     // If bql_held==false, bql will be released when the block finishes.
+ * }
+ */
+#define  WITH_BQL_HELD(bql_held)                                    \
+    _WITH_BQL_HELD(bql_held, glue(with_bql_held_var, __COUNTER__))
+
+struct WithBqlReleaseAuto;
+typedef struct WithBqlReleaseAuto WithBqlReleaseAuto;
+
+static inline WithBqlReleaseAuto *
+with_bql_release_auto_unlock(bool bql_held)
+{
+    assert(bql_held == bql_locked());
+    if (bql_held) {
+        bql_unlock();
+        return (WithBqlReleaseAuto *)1;
+    }
+    return (WithBqlReleaseAuto *)2;
+}
+
+static inline void
+with_bql_release_auto_lock(WithBqlReleaseAuto *v)
+{
+    assert(!bql_locked());
+    if (v == (WithBqlReleaseAuto *)1) {
+        /*
+         * NOTE: cleanup function cannot take more than 1 argument.  Keep
+         * it simple here by not passing __FILE__/__LINE__ from the caller.
+         */
+        bql_lock_impl(__FILE__, __LINE__);
+    }
+}
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(WithBqlReleaseAuto, with_bql_release_auto_lock);
+
+#define  _WITH_BQL_RELEASED(bql_held, var)              \
+    for (g_autoptr(WithBqlReleaseAuto) var =            \
+             with_bql_release_auto_unlock(bql_held);    \
+         var;                                           \
+         with_bql_release_auto_lock(var), var = NULL)
+
+/**
+ * WITH_BQL_RELEASED(): Run a block of code, making sure BQL is release
+ * @bql_held: Whether BQL is already held
+ *
+ * Example use case:
+ *
+ * WITH_BQL_RELEASE(bql_held) {
+ *     // BQL is guaranteed to be release within this block.
+ *     // If bql_held==true, bql will be re-taken when the block finishes.
+ * }
+ */
+#define  WITH_BQL_RELEASED(bql_held)                                    \
+    _WITH_BQL_RELEASED(bql_held, glue(with_bql_release_var, __COUNTER__))
 
 struct PostcopyBlocktimeContext;
 typedef struct ThreadPool ThreadPool;
