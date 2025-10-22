@@ -1782,7 +1782,7 @@ static bool mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
          * If the lookup potentially resized the table, refresh the
          * first CPUTLBEntryFull pointer.
          */
-        if (mmu_lookup1(cpu, &l->page[1], 0, l->mmu_idx, type, ra)) {
+        if (mmu_lookup1(cpu, &l->page[1], l->memop, l->mmu_idx, type, ra)) {
             uintptr_t index = tlb_index(cpu, l->mmu_idx, addr);
             l->page[0].full = &cpu->neg.tlb.d[l->mmu_idx].fulltlb[index];
         }
