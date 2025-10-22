@@ -2118,7 +2118,7 @@ static void *postcopy_ram_listen_thread(void *opaque)
     qemu_file_set_blocking(f, true, &error_fatal);
 
     /* TODO: sanity check that only postcopiable data will be loaded here */
-    load_res = qemu_loadvm_state_main(f, mis, true, &local_err);
+    load_res = qemu_loadvm_state_main(f, mis, false, &local_err);
 
     /*
      * This is tricky, but, mis->from_src_file can change after it
@@ -2414,11 +2414,11 @@ static void loadvm_postcopy_handle_resume(MigrationIncomingState *mis)
  * Immediately following this command is a blob of data containing an embedded
  * chunk of migration stream; read it and load it.
  *
- * @mis: Incoming state
- * @length: Length of packaged data to read
+ * @mis:      Incoming state
+ * @bql_held: Whether BQL is held already
+ * @errp:     The Error** to set when returning failures.
  *
  * Returns: Negative values on error
- *
  */
 static int loadvm_handle_cmd_packaged(MigrationIncomingState *mis,
                                       bool bql_held, Error **errp)
