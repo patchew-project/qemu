@@ -1305,7 +1305,7 @@ static const TypeInfo hda_codec_device_type_info = {
  * create intel hda controller with codec attached to it,
  * so '-soundhw hda' works.
  */
-static int intel_hda_and_codec_init(PCIBus *bus, const char *audiodev)
+static int intel_hda_and_codec_init(const char *audiodev)
 {
     g_autoptr(QDict) props = qdict_new();
     DeviceState *intel_hda, *codec;
