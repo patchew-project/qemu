@@ -264,7 +264,6 @@ class Configuration():
                  req_mt: List[str], all_mt: bool) -> None:
         self._vm = vm
         self._binary = vm.binary
-        self._qemu_args = args.qemu_args.split(' ')
 
         self._qemu_drivers = VMPropertyGetter(vm)
         self.req_mt = get_req_mt(self._qemu_drivers, vm, req_mt, all_mt)
@@ -482,17 +481,17 @@ def fill_prop_table(configs: List[Configuration],
 
 def print_table(table: pd.DataFrame, table_format: str) -> None:
     if table_format == 'json':
-        print(comp_table.to_json())
+        print(table.to_json())
     elif table_format == 'csv':
-        print(comp_table.to_csv())
+        print(table.to_csv())
     else:
-        print(comp_table.to_markdown(index=False, stralign='center',
-                                     colalign=('center',), headers='keys',
-                                     tablefmt='fancy_grid',
-                                     disable_numparse=True))
+        print(table.to_markdown(index=False, stralign='center',
+                                colalign=('center',), headers='keys',
+                                tablefmt='fancy_grid',
+                                disable_numparse=True))
 
 
-if __name__ == '__main__':
+def main() -> None:
     args = parse_args()
     with ExitStack() as stack:
         vms = [stack.enter_context(QEMUMachine(binary=binary, qmp_timer=15,
@@ -506,3 +505,7 @@ if __name__ == '__main__':
         comp_table = fill_prop_table(configurations, args.raw)
         if not comp_table.empty:
             print_table(comp_table, args.format)
+
+
+if __name__ == '__main__':
+    main()
