@@ -59,5 +59,6 @@ struct AspeedMachineClass {
     bool vbootrom;
 };
 
+void aspeed_machine_class_init_cpus_defaults(MachineClass *mc);
 
 #endif
