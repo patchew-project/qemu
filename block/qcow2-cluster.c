@@ -1032,6 +1032,10 @@ int coroutine_fn qcow2_alloc_cluster_link_l2(BlockDriverState *bs,
     int i, j = 0, l2_index, ret;
     uint64_t *old_cluster, *l2_slice;
     uint64_t cluster_offset = m->alloc_offset;
+    bool part_flush = false;
+    /* I haven't figured out yet how to perceive this IO
+     * as a writethrough cache mode. */
+    bool writethrough = true;
 
     trace_qcow2_cluster_link_l2(qemu_coroutine_self(), m->nb_clusters);
     assert(m->nb_clusters > 0);
@@ -1060,6 +1064,13 @@ int coroutine_fn qcow2_alloc_cluster_link_l2(BlockDriverState *bs,
     ret = get_cluster_table(bs, m->offset, &l2_slice, &l2_index);
     if (ret < 0) {
         goto err;
+    }
+
+    /* If the cache is clean before qcow2_cache_entry_mark_dirty(),
+     * we can flush only the modified L2 entries..
+     */
+    if (writethrough && !qcow2_cache_is_dirty(s->l2_table_cache, l2_slice)) {
+        part_flush = true;
     }
     qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_slice);
 
@@ -1102,6 +1113,10 @@ int coroutine_fn qcow2_alloc_cluster_link_l2(BlockDriverState *bs,
      }
 
 
+     if (part_flush) {
+        qcow2_write_l2_entry(bs, s->l2_table_cache, l2_slice, l2_index,
+                             m->nb_clusters);
+     }
     qcow2_cache_put(s->l2_table_cache, (void **) &l2_slice);
 
     /*
