@@ -30,11 +30,8 @@
 #include "hw/pci/pci_device.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_host.h"
-#include "hw/qdev-properties.h"
 #include "hw/intc/i8259.h"
 #include "hw/irq.h"
-#include "hw/or-irq.h"
-#include "qom/object.h"
 
 #define TYPE_RAVEN_PCI_DEVICE "raven"
 #define TYPE_RAVEN_PCI_HOST_BRIDGE "raven-pcihost"
@@ -44,8 +41,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(PREPPCIState, RAVEN_PCI_HOST_BRIDGE)
 struct PREPPCIState {
     PCIHostState parent_obj;
 
-    OrIRQState *or_irq;
-    qemu_irq pci_irqs[PCI_NUM_PINS];
+    qemu_irq irq;
     AddressSpace pci_io_as;
     MemoryRegion pci_io;
     MemoryRegion pci_io_non_contiguous;
@@ -175,16 +171,25 @@ static const MemoryRegionOps raven_io_ops = {
     .valid.unaligned = true,
 };
 
+/*
+ * All four IRQ[ABCD] pins from all slots are tied to a single board
+ * IRQ, so our mapping function here maps everything to IRQ 0.
+ * The code in pci_change_irq_level() tracks the number of times
+ * the mapped IRQ is asserted and deasserted, so if multiple devices
+ * assert an IRQ at the same time the behaviour is correct.
+ *
+ * This may need further refactoring for boards that use multiple IRQ lines.
+ */
 static int raven_map_irq(PCIDevice *pci_dev, int irq_num)
 {
-    return (irq_num + (pci_dev->devfn >> 3)) & 1;
+    return 0;
 }
 
 static void raven_set_irq(void *opaque, int irq_num, int level)
 {
-    PREPPCIState *s = opaque;
+    qemu_irq *irq = opaque;
 
-    qemu_set_irq(s->pci_irqs[irq_num], level);
+    qemu_set_irq(*irq, level);
 }
 
 static AddressSpace *raven_pcihost_set_iommu(PCIBus *bus, void *opaque,
@@ -212,26 +217,12 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
     PCIHostState *h = PCI_HOST_BRIDGE(dev);
     PREPPCIState *s = RAVEN_PCI_HOST_BRIDGE(dev);
     MemoryRegion *address_space_mem = get_system_memory();
-    int i;
-
-    /*
-     * According to PReP specification section 6.1.6 "System Interrupt
-     * Assignments", all PCI interrupts are routed via IRQ 15
-     */
-    s->or_irq = OR_IRQ(object_new(TYPE_OR_IRQ));
-    object_property_set_int(OBJECT(s->or_irq), "num-lines", PCI_NUM_PINS,
-                            &error_fatal);
-    qdev_realize(DEVICE(s->or_irq), NULL, &error_fatal);
-    sysbus_init_irq(dev, &s->or_irq->out_irq);
-
-    for (i = 0; i < PCI_NUM_PINS; i++) {
-        s->pci_irqs[i] = qdev_get_gpio_in(DEVICE(s->or_irq), i);
-    }
 
     qdev_init_gpio_in(d, raven_change_gpio, 1);
 
+    sysbus_init_irq(dev, &s->irq);
     h->bus = pci_register_root_bus(d, NULL, raven_set_irq, raven_map_irq,
-                                   s, &s->pci_memory, &s->pci_io, 0, 4,
+                                   &s->irq, &s->pci_memory, &s->pci_io, 0, 1,
                                    TYPE_PCI_BUS);
 
     memory_region_init_io(&h->conf_mem, OBJECT(h), &pci_host_conf_le_ops, s,
