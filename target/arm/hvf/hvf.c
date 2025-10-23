@@ -1596,6 +1596,9 @@ static int hvf_sysreg_write(CPUState *cpu, uint32_t reg, uint64_t val)
         }
         break;
     case SYSREG_MDSCR_EL1:
+        if (hvf_sysreg_write_cp(cpu, "Monitor Debug", reg, val)) {
+            return 0;
+        }
         env->cp15.mdscr_el1 = val;
         return 0;
     case SYSREG_DBGBVR0_EL1:
