@@ -355,6 +355,14 @@ typedef struct CPUArchState {
     uint64_t CSR_MERRSAVE;
     uint64_t CSR_CTAG;
     uint64_t CSR_DMW[4];
+    uint64_t CSR_PERFCTRL0;
+    uint64_t CSR_PERFCNTR0;
+    uint64_t CSR_PERFCTRL1;
+    uint64_t CSR_PERFCNTR1;
+    uint64_t CSR_PERFCTRL2;
+    uint64_t CSR_PERFCNTR2;
+    uint64_t CSR_PERFCTRL3;
+    uint64_t CSR_PERFCNTR3;
     uint64_t CSR_DBG;
     uint64_t CSR_DERA;
     uint64_t CSR_DSAVE;

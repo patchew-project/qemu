@@ -153,6 +153,31 @@ static const VMStateDescription vmstate_lbt = {
     },
 };
 
+static bool pmu_needed(void *opaque)
+{
+    LoongArchCPU *cpu = opaque;
+
+    return cpu->pmu == ON_OFF_AUTO_ON;
+}
+
+static const VMStateDescription vmstate_pmu = {
+    .name = "cpu/pmu",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .needed = pmu_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT64(env.CSR_PERFCTRL0,   LoongArchCPU),
+        VMSTATE_UINT64(env.CSR_PERFCNTR0,   LoongArchCPU),
+        VMSTATE_UINT64(env.CSR_PERFCTRL1,   LoongArchCPU),
+        VMSTATE_UINT64(env.CSR_PERFCNTR1,   LoongArchCPU),
+        VMSTATE_UINT64(env.CSR_PERFCTRL2,   LoongArchCPU),
+        VMSTATE_UINT64(env.CSR_PERFCNTR2,   LoongArchCPU),
+        VMSTATE_UINT64(env.CSR_PERFCTRL3,   LoongArchCPU),
+        VMSTATE_UINT64(env.CSR_PERFCNTR3,   LoongArchCPU),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 #if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
 static bool tlb_needed(void *opaque)
 {
@@ -266,6 +291,7 @@ const VMStateDescription vmstate_loongarch_cpu = {
 #endif
         &vmstate_lbt,
         &vmstate_msgint,
+        &vmstate_pmu,
         NULL
     }
 };

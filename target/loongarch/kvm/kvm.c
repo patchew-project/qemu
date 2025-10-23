@@ -155,6 +155,64 @@ static int kvm_loongarch_put_regs_core(CPUState *cs)
     return ret;
 }
 
+static int kvm_loongarch_put_pmu(CPUState *cs)
+{
+    int ret;
+    CPULoongArchState *env = cpu_env(cs);
+    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
+
+    if (cpu->pmu != ON_OFF_AUTO_ON) {
+        return 0;
+    }
+
+    ret  = kvm_set_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_PERFCTRL0),
+                           &env->CSR_PERFCTRL0);
+    ret |= kvm_set_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_PERFCNTR0),
+                           &env->CSR_PERFCNTR0);
+    ret |= kvm_set_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_PERFCTRL1),
+                           &env->CSR_PERFCTRL1);
+    ret |= kvm_set_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_PERFCNTR1),
+                           &env->CSR_PERFCNTR1);
+    ret |= kvm_set_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_PERFCTRL2),
+                           &env->CSR_PERFCTRL2);
+    ret |= kvm_set_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_PERFCNTR2),
+                           &env->CSR_PERFCNTR2);
+    ret |= kvm_set_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_PERFCTRL3),
+                           &env->CSR_PERFCTRL3);
+    ret |= kvm_set_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_PERFCNTR3),
+                           &env->CSR_PERFCNTR3);
+    return ret;
+}
+
+static int kvm_loongarch_get_pmu(CPUState *cs)
+{
+    int ret;
+    CPULoongArchState *env = cpu_env(cs);
+    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
+
+    if (cpu->pmu != ON_OFF_AUTO_ON) {
+        return 0;
+    }
+
+    ret  = kvm_get_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_PERFCTRL0),
+                           &env->CSR_PERFCTRL0);
+    ret |= kvm_get_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_PERFCNTR0),
+                           &env->CSR_PERFCNTR0);
+    ret |= kvm_get_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_PERFCTRL1),
+                           &env->CSR_PERFCTRL1);
+    ret |= kvm_get_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_PERFCNTR1),
+                           &env->CSR_PERFCNTR1);
+    ret |= kvm_get_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_PERFCTRL2),
+                           &env->CSR_PERFCTRL2);
+    ret |= kvm_get_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_PERFCNTR2),
+                           &env->CSR_PERFCNTR2);
+    ret |= kvm_get_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_PERFCTRL3),
+                           &env->CSR_PERFCTRL3);
+    ret |= kvm_get_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_PERFCNTR3),
+                           &env->CSR_PERFCNTR3);
+    return ret;
+}
+
 static int kvm_loongarch_get_csr(CPUState *cs)
 {
     int ret = 0;
@@ -315,6 +373,8 @@ static int kvm_loongarch_get_csr(CPUState *cs)
 
     ret |= kvm_get_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_DMW(3)),
                            &env->CSR_DMW[3]);
+
+    ret |= kvm_loongarch_get_pmu(cs);
 
     ret |= kvm_get_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_TVAL),
                            &env->CSR_TVAL);
@@ -488,6 +548,9 @@ static int kvm_loongarch_put_csr(CPUState *cs, KvmPutState level)
 
     ret |= kvm_set_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_DMW(3)),
                            &env->CSR_DMW[3]);
+
+    ret |= kvm_loongarch_put_pmu(cs);
+
     /*
      * timer cfg must be put at last since it is used to enable
      * guest timer
@@ -1021,6 +1084,7 @@ static int kvm_cpu_check_pmu(CPUState *cs, Error **errp)
     }
 
     if (kvm_supported) {
+        cpu->pmu = ON_OFF_AUTO_ON;
         env->cpucfg[6] = FIELD_DP32(env->cpucfg[6], CPUCFG6, PMP, 1);
         env->cpucfg[6] = FIELD_DP32(env->cpucfg[6], CPUCFG6, PMNUM, 3);
         env->cpucfg[6] = FIELD_DP32(env->cpucfg[6], CPUCFG6, PMBITS, 63);
