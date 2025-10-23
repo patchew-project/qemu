@@ -128,14 +128,15 @@ static int hvf_init_vcpu(CPUState *cpu)
     cpu->accel = g_new0(AccelCPUState, 1);
 
     /* init cpu signals */
+    sigset_t unblock_ipi_mask;
     struct sigaction sigact;
 
     memset(&sigact, 0, sizeof(sigact));
     sigact.sa_handler = dummy_signal;
     sigaction(SIG_IPI, &sigact, NULL);
 
-    pthread_sigmask(SIG_BLOCK, NULL, &cpu->accel->unblock_ipi_mask);
-    sigdelset(&cpu->accel->unblock_ipi_mask, SIG_IPI);
+    pthread_sigmask(SIG_BLOCK, NULL, &unblock_ipi_mask);
+    sigdelset(&unblock_ipi_mask, SIG_IPI);
 
 #ifdef __aarch64__
     r = hv_vcpu_create(&cpu->accel->fd,
