@@ -54,6 +54,8 @@ static void do_hv_vm_protect(hwaddr start, size_t size,
 {
     hv_return_t ret;
 
+    start &= qemu_real_host_page_mask();
+    size = REAL_HOST_PAGE_ALIGN(size);
     trace_hvf_vm_protect(start, size, flags,
                          flags & HV_MEMORY_READ  ? 'R' : '-',
                          flags & HV_MEMORY_WRITE ? 'W' : '-',
