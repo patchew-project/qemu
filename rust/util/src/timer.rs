@@ -16,14 +16,18 @@ use crate::bindings::{
 /// A safe wrapper around [`bindings::QEMUTimer`].
 #[repr(transparent)]
 #[derive(Debug, common::Wrapper)]
-pub struct Timer(Opaque<bindings::QEMUTimer>);
+pub struct Timer {
+    inner: Opaque<bindings::QEMUTimer>,
+}
 
 unsafe impl Send for Timer {}
 unsafe impl Sync for Timer {}
 
 #[repr(transparent)]
 #[derive(common::Wrapper)]
-pub struct TimerListGroup(Opaque<bindings::QEMUTimerListGroup>);
+pub struct TimerListGroup {
+    inner: Opaque<bindings::QEMUTimerListGroup>,
+}
 
 unsafe impl Send for TimerListGroup {}
 unsafe impl Sync for TimerListGroup {}
@@ -41,7 +45,7 @@ impl Timer {
     /// [`modify`](Self::modify).
     pub const unsafe fn new() -> Self {
         // SAFETY: requirements relayed to callers of Timer::new
-        Self(unsafe { Opaque::zeroed() })
+        Self { inner: unsafe { Opaque::zeroed() } }
     }
 
     /// Create a new timer with the given attributes.
