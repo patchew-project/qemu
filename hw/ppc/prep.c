@@ -322,6 +322,9 @@ static void ibm_40p_init(MachineState *machine)
     dev = DEVICE(isa_dev);
     qdev_prop_set_uint32(dev, "ibm-planar-id", 0xfc);
     qdev_prop_set_uint32(dev, "equipment", 0xc0);
+    object_property_set_link(OBJECT(dev), "discontiguous-io",
+                             OBJECT(sysbus_mmio_get_region(pcihost, 1)),
+                             &error_fatal);
     isa_realize_and_unref(isa_dev, isa_bus, &error_fatal);
 
     /* Memory controller */
