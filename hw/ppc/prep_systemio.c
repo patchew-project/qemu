@@ -252,6 +252,15 @@ static const MemoryRegionOps ppc_parity_error_ops = {
     },
 };
 
+static void prep_systemio_reset(DeviceState *dev)
+{
+    PrepSystemIoState *s = PREP_SYSTEMIO(dev);
+
+    s->iomap_type = PORT0850_IOMAP_NONCONTIGUOUS;
+    memory_region_set_enabled(s->discontiguous_io,
+                              !(s->iomap_type & PORT0850_IOMAP_NONCONTIGUOUS));
+}
+
 static void prep_systemio_realize(DeviceState *dev, Error **errp)
 {
     ISADevice *isa = ISA_DEVICE(dev);
@@ -259,9 +268,6 @@ static void prep_systemio_realize(DeviceState *dev, Error **errp)
     PowerPCCPU *cpu;
 
     assert(s->discontiguous_io);
-    s->iomap_type = PORT0850_IOMAP_NONCONTIGUOUS;
-    memory_region_set_enabled(s->discontiguous_io,
-                              !(s->iomap_type & PORT0850_IOMAP_NONCONTIGUOUS));
     cpu = POWERPC_CPU(first_cpu);
     s->softreset_irq = qdev_get_gpio_in(DEVICE(cpu), PPC6xx_INPUT_HRESET);
 
@@ -301,6 +307,7 @@ static void prep_systemio_class_initfn(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_prep_systemio;
     /* Reason: PReP specific device, needs to be wired via properties */
     dc->user_creatable = false;
+    device_class_set_legacy_reset(dc, prep_systemio_reset);
     device_class_set_props(dc, prep_systemio_properties);
 }
 
