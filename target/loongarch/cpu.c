@@ -129,6 +129,17 @@ static void loongarch_la464_init_csr(Object *obj)
         set_csr_flag(LOONGARCH_CSR_MERRERA, CSRFL_UNUSED);
         set_csr_flag(LOONGARCH_CSR_MERRSAVE, CSRFL_UNUSED);
         set_csr_flag(LOONGARCH_CSR_CTAG, CSRFL_UNUSED);
+
+        if (cpu->pmu != ON_OFF_AUTO_ON) {
+            set_csr_flag(LOONGARCH_CSR_PERFCTRL0, CSRFL_UNUSED);
+            set_csr_flag(LOONGARCH_CSR_PERFCNTR0, CSRFL_UNUSED);
+            set_csr_flag(LOONGARCH_CSR_PERFCTRL1, CSRFL_UNUSED);
+            set_csr_flag(LOONGARCH_CSR_PERFCNTR1, CSRFL_UNUSED);
+            set_csr_flag(LOONGARCH_CSR_PERFCTRL2, CSRFL_UNUSED);
+            set_csr_flag(LOONGARCH_CSR_PERFCNTR2, CSRFL_UNUSED);
+            set_csr_flag(LOONGARCH_CSR_PERFCTRL3, CSRFL_UNUSED);
+            set_csr_flag(LOONGARCH_CSR_PERFCNTR3, CSRFL_UNUSED);
+        }
     }
 #endif
 }
@@ -346,8 +357,9 @@ static void loongarch_la464_initfn(Object *obj)
     env->CSR_PRCFG3 = FIELD_DP64(env->CSR_PRCFG3, CSR_PRCFG3, STLB_SETS, 8);
 
     cpu->msgint = ON_OFF_AUTO_OFF;
-    loongarch_la464_init_csr(obj);
     loongarch_cpu_post_init(obj);
+    /* Some features with OnOffAuto type is detected after cpu_post_init */
+    loongarch_la464_init_csr(obj);
 }
 
 static void loongarch_la132_initfn(Object *obj)
