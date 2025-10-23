@@ -1214,6 +1214,10 @@ static int hvf_sysreg_read(CPUState *cpu, uint32_t reg, uint64_t *val)
             *val = env->cp15.c9_pmcnten;
             return 0;
         case SYSREG_PMUSERENR_EL0:
+            /* Call the TCG sysreg handler. This is only safe for PMU regs. */
+            if (hvf_sysreg_read_cp(cpu, "PMU", reg, val)) {
+                return 0;
+            }
             *val = env->cp15.c9_pmuserenr;
             return 0;
         case SYSREG_PMCEID0_EL0:
@@ -1505,6 +1509,10 @@ static int hvf_sysreg_write(CPUState *cpu, uint32_t reg, uint64_t val)
             pmu_op_finish(env);
             return 0;
         case SYSREG_PMUSERENR_EL0:
+            /* Call the TCG sysreg handler. This is only safe for PMU regs. */
+            if (hvf_sysreg_write_cp(cpu, "PMU", reg, val)) {
+                return 0;
+            }
             env->cp15.c9_pmuserenr = val & 0xf;
             return 0;
         case SYSREG_PMCNTENSET_EL0:
