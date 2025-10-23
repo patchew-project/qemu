@@ -1001,6 +1001,8 @@ qcow2_cache_create(BlockDriverState *bs, int num_tables, unsigned table_size);
 int qcow2_cache_destroy(Qcow2Cache *c);
 
 void qcow2_cache_entry_mark_dirty(Qcow2Cache *c, void *table);
+int qcow2_write_l2_entry(BlockDriverState *bs, Qcow2Cache *c, void *l2_tabel,
+                         int l2_index, int nb_clusters)
 int GRAPH_RDLOCK qcow2_cache_flush(BlockDriverState *bs, Qcow2Cache *c);
 int GRAPH_RDLOCK qcow2_cache_write(BlockDriverState *bs, Qcow2Cache *c);
 int GRAPH_RDLOCK qcow2_cache_set_dependency(BlockDriverState *bs, Qcow2Cache *c,

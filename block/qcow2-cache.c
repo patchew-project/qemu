@@ -180,7 +180,8 @@ qcow2_cache_flush_dependency(BlockDriverState *bs, Qcow2Cache *c)
 }
 
 static int GRAPH_RDLOCK
-qcow2_cache_entry_flush(BlockDriverState *bs, Qcow2Cache *c, int i)
+qcow2_cache_entry_flush_part(BlockDriverState *bs, Qcow2Cache *c, int i,
+                             int l2_index, int nb_clusters)
 {
     BDRVQcow2State *s = bs->opaque;
     int ret = 0;
@@ -226,8 +227,21 @@ qcow2_cache_entry_flush(BlockDriverState *bs, Qcow2Cache *c, int i)
         BLKDBG_EVENT(bs->file, BLKDBG_L2_UPDATE);
     }
 
-    ret = bdrv_pwrite(bs->file, c->entries[i].offset, c->table_size,
-                      qcow2_cache_get_table_addr(c, i), 0);
+    if (l2_index < 0) {
+        ret = bdrv_pwrite(bs->file, c->entries[i].offset, c->table_size,
+                          qcow2_cache_get_table_addr(c, i), 0);
+    } else {
+        /* Only flush the actual dirty portions. */
+        int64_t l2_offset = l2_index * l2_entry_size(s);
+        int64_t l2_bytes = nb_clusters * l2_entry_size(s);
+
+        int64_t aligned_offset = QEMU_ALIGN_DOWN(l2_offset, BDRV_SECTOR_SIZE);
+        int64_t aligned_end = QEMU_ALIGN_UP(l2_offset + l2_bytes, BDRV_SECTOR_SIZE);
+        ret = bdrv_pwrite(bs->file, c->entries[i].offset + aligned_offset,
+                          aligned_end - aligned_offset,
+                          qcow2_cache_get_table_addr(c, i) + aligned_offset, 0);
+    }
+
     if (ret < 0) {
         return ret;
     }
@@ -235,6 +249,19 @@ qcow2_cache_entry_flush(BlockDriverState *bs, Qcow2Cache *c, int i)
     c->entries[i].dirty = false;
 
     return 0;
+}
+
+static int GRAPH_RDLOCK
+qcow2_cache_entry_flush(BlockDriverState *bs, Qcow2Cache *c, int i)
+{
+    return qcow2_cache_entry_flush_part(bs, c, i, -1, 0);
+}
+
+int qcow2_write_l2_entry(BlockDriverState *bs, Qcow2Cache *c, void *l2_tabel,
+                         int l2_index, int nb_clusters)
+{
+    int l2 = qcow2_cache_get_table_idx(c, l2_tabel);
+    return qcow2_cache_entry_flush_part(bs, c, l2, l2_index, nb_clusters);
 }
 
 int qcow2_cache_write(BlockDriverState *bs, Qcow2Cache *c)
