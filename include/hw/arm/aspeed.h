@@ -61,5 +61,6 @@ struct AspeedMachineClass {
 
 void aspeed_machine_class_init_cpus_defaults(MachineClass *mc);
 void create_pca9552(AspeedSoCState *soc, int bus_id, int addr);
+I2CSlave *create_pca9554(AspeedSoCState *soc, int bus_id, int addr);
 
 #endif
