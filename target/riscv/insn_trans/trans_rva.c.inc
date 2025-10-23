@@ -57,9 +57,10 @@ static bool gen_lr(DisasContext *ctx, arg_atomic *a, MemOp mop)
 
 static bool gen_sc(DisasContext *ctx, arg_atomic *a, MemOp mop)
 {
-    TCGv dest, src1, src2;
+    TCGv dest, src1, src2, mc;
     TCGLabel *l1 = gen_new_label();
     TCGLabel *l2 = gen_new_label();
+    TCGLabel *l3 = gen_new_label();
 
     decode_save_opc(ctx, 0);
     src1 = get_address(ctx, a->rs1, 0);
@@ -93,6 +94,26 @@ static bool gen_sc(DisasContext *ctx, arg_atomic *a, MemOp mop)
      */
     tcg_gen_movi_tl(load_res, -1);
 
+    mc = tcg_constant_tl((1 << (mop & MO_SIZE)) - 1);
+    /*
+     *   When using misaligned address sc.w and sc.d commands
+     *   always skip store phase because either there was
+     *   no corresponding lr.w or lr.d command or there was
+     *   a corresponding command with an unaligned address
+     *   or there was mismatched command with a completely different
+     *   address.
+     *   In either case, the reservation set did not match the
+     *   address and command goes to final step to invalidate
+     *   reservation set. According specification all sc commands
+     *   always must first invalidate reservation set (if any)
+     *   and then complete execution normally or by throwing
+     *   an exception
+     */
+    tcg_gen_brcond_tl(TCG_COND_TSTEQ, src1, mc, l3);
+    gen_helper_raise_exception(tcg_env,
+        tcg_constant_i32(RISCV_EXCP_STORE_AMO_ADDR_MIS));
+
+    gen_set_label(l3);
     return true;
 }
 
