@@ -2011,6 +2011,7 @@ static int hvf_handle_vmexit(CPUState *cpu, hv_vcpu_exit_t *exit)
 
 void hvf_arch_cpu_synchronize_pre_exec(CPUState *cpu)
 {
+    flush_cpu_state(cpu);
 }
 
 void hvf_arch_cpu_synchronize_post_exec(CPUState *cpu)
@@ -2025,8 +2026,6 @@ int hvf_arch_vcpu_exec(CPUState *cpu)
     if (cpu->halted) {
         return EXCP_HLT;
     }
-
-    flush_cpu_state(cpu);
 
     do {
         if (!(cpu->singlestep_enabled & SSTEP_NOIRQ) &&
