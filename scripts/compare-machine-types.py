@@ -154,6 +154,26 @@ class QEMUMemoryBackend(QEMUObject):
         return 'Unknown property'
 
 
+# A stub to print default values of all types whose parent is
+# 'confidential-guest-support'. Some properties have default values
+# but can't be accessed without an instance initialization (e.g.
+# "policy" of "sev-snp-guest").
+class QEMUConfidentialGuestSupport(QEMUObject):
+    def __init__(self, vm: QEMUMachine) -> None:
+        super().__init__(vm, 'confidential-guest-support')
+        self.cached: Dict[str, List[Dict[str, Any]]] = {}
+
+    def get_prop(self, driver: str, prop_name: str) -> str:
+        if driver not in self.cached:
+            self.cached[driver] = self.vm.cmd('qom-list-properties',
+                                              typename=driver)
+        for prop in self.cached[driver]:
+            if prop['name'] == prop_name:
+                return str(prop.get('default-value', 'No default value'))
+
+        return 'Unknown property'
+
+
 def new_driver(vm: QEMUMachine, name: str, is_abstr: bool) -> Driver:
     if name == 'object':
         return QEMUObject(vm, 'object')
@@ -163,6 +183,8 @@ def new_driver(vm: QEMUMachine, name: str, is_abstr: bool) -> Driver:
         return QEMUx86CPU(vm)
     elif name == 'memory-backend':
         return QEMUMemoryBackend(vm)
+    elif name == 'confidential-guest-support':
+        return QEMUConfidentialGuestSupport(vm)
     else:
         return Driver(vm, name, is_abstr)
 # End of methods definition
