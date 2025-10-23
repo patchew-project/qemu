@@ -10,8 +10,8 @@ use syn::{
     punctuated::Punctuated,
     spanned::Spanned,
     token::Comma,
-    Attribute, Data, DeriveInput, Error, Field, Fields, FieldsUnnamed, Ident, Meta, Path, Token,
-    Variant,
+    Attribute, Data, DeriveInput, Error, Field, Fields, FieldsNamed,
+    FieldsUnnamed, Ident, Index, Member, Meta, Path, Token, Type, Variant,
 };
 
 mod bits;
@@ -42,26 +42,52 @@ fn get_fields<'a>(
     Ok(&fs.named)
 }
 
-fn get_unnamed_field<'a>(input: &'a DeriveInput, msg: &str) -> Result<&'a Field, Error> {
+fn get_wrapped_field<'a>(input: &'a DeriveInput, msg: &str) -> Result<(Member, &'a Type), Error> {
     let Data::Struct(ref s) = &input.data else {
         return Err(Error::new(
             input.ident.span(),
             format!("Struct required for {msg}"),
         ));
     };
-    let Fields::Unnamed(FieldsUnnamed { ref unnamed, .. }) = &s.fields else {
+    if let Fields::Unnamed(FieldsUnnamed { ref unnamed, .. }) = &s.fields {
+        if unnamed.len() != 1 {
+            return Err(Error::new(
+                s.fields.span(),
+                format!("A single field is required for {msg}"),
+            ));
+        }
+        return Ok((Member::Unnamed(Index::from(0)), &unnamed[0].ty));
+    }
+
+    let Fields::Named(FieldsNamed { ref named, .. }) = &s.fields else {
         return Err(Error::new(
             s.fields.span(),
-            format!("Tuple struct required for {msg}"),
+            format!("A tuple struct or a single field named 'inner' is required for {msg}"),
         ));
     };
-    if unnamed.len() != 1 {
+
+    if named.len() != 1 {
         return Err(Error::new(
             s.fields.span(),
             format!("A single field is required for {msg}"),
         ));
     }
-    Ok(&unnamed[0])
+
+    if let Field{ ident: Some(ref ident), .. } = named[0] {
+        if ident != "inner" {
+            return Err(Error::new(
+                ident.span(),
+                format!("The only field must be named 'inner': {msg}"),
+            ));
+        }
+
+        return Ok((Member::Named(ident.clone()), &named[0].ty))
+    }
+
+    Err(Error::new(
+        s.fields.span(),
+        format!("A single field struct is requried for {msg}"),
+    ))
 }
 
 fn is_c_repr(input: &DeriveInput, msg: &str) -> Result<(), Error> {
@@ -129,8 +155,7 @@ fn derive_opaque_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
     is_transparent_repr(&input, "#[derive(Wrapper)]")?;
 
     let name = &input.ident;
-    let field = &get_unnamed_field(&input, "#[derive(Wrapper)]")?;
-    let typ = &field.ty;
+    let (member, typ) = &get_wrapped_field(&input, "#[derive(Wrapper)]")?;
 
     Ok(quote! {
         unsafe impl ::common::opaque::Wrapper for #name {
@@ -143,15 +168,15 @@ fn derive_opaque_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
             }
 
             pub const fn as_mut_ptr(&self) -> *mut <Self as ::common::opaque::Wrapper>::Wrapped {
-                self.0.as_mut_ptr()
+                self.#member.as_mut_ptr()
             }
 
             pub const fn as_ptr(&self) -> *const <Self as ::common::opaque::Wrapper>::Wrapped {
-                self.0.as_ptr()
+                self.#member.as_ptr()
             }
 
             pub const fn as_void_ptr(&self) -> *mut ::core::ffi::c_void {
-                self.0.as_void_ptr()
+                self.#member.as_void_ptr()
             }
 
             pub const fn raw_get(slot: *mut Self) -> *mut <Self as ::common::opaque::Wrapper>::Wrapped {
