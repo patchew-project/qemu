@@ -24,6 +24,7 @@
 
 #include "hw/sysbus.h"
 #include "qom/object.h"
+#include "system/memory.h"
 
 
 #define TYPE_PLATFORM_BUS_DEVICE "platform-bus-device"
