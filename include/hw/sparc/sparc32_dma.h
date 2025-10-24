@@ -5,6 +5,7 @@
 #include "hw/scsi/esp.h"
 #include "hw/net/lance.h"
 #include "qom/object.h"
+#include "system/memory.h"
 
 #define DMA_REGS 4
 
