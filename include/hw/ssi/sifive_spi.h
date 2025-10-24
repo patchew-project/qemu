@@ -24,6 +24,7 @@
 
 #include "qemu/fifo8.h"
 #include "hw/sysbus.h"
+#include "system/memory.h"
 
 #define SIFIVE_SPI_REG_NUM  (0x78 / 4)
 

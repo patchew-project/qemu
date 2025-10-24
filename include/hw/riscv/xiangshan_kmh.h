@@ -12,6 +12,7 @@
 
 #include "hw/boards.h"
 #include "hw/riscv/riscv_hart.h"
+#include "system/memory.h"
 
 #define XIANGSHAN_KMH_MAX_CPUS 16
 

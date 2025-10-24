@@ -20,6 +20,7 @@
 #define HW_SIFIVE_U_OTP_H
 
 #include "hw/sysbus.h"
+#include "system/memory.h"
 
 #define SIFIVE_U_OTP_PA         0x00
 #define SIFIVE_U_OTP_PAIO       0x04

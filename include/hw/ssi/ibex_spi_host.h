@@ -32,6 +32,7 @@
 #include "qemu/fifo8.h"
 #include "qom/object.h"
 #include "qemu/timer.h"
+#include "system/memory.h"
 
 #define TYPE_IBEX_SPI_HOST "ibex-spi"
 #define IBEX_SPI_HOST(obj) \

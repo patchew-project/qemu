@@ -20,6 +20,7 @@
 #define HW_SIFIVE_U_PRCI_H
 
 #include "hw/sysbus.h"
+#include "system/memory.h"
 
 #define SIFIVE_U_PRCI_HFXOSCCFG     0x00
 #define SIFIVE_U_PRCI_COREPLLCFG0   0x04

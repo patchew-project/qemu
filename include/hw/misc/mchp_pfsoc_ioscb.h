@@ -24,6 +24,7 @@
 #define MCHP_PFSOC_IOSCB_H
 
 #include "hw/sysbus.h"
+#include "system/memory.h"
 
 typedef struct MchpPfSoCIoscbState {
     SysBusDevice parent;

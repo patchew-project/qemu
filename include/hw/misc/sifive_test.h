@@ -21,6 +21,7 @@
 
 #include "hw/sysbus.h"
 #include "qom/object.h"
+#include "system/memory.h"
 
 #define TYPE_SIFIVE_TEST "riscv.sifive.test"
 
