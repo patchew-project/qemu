@@ -2105,6 +2105,7 @@ typedef struct CPUArchState {
     uint64_t pl2_ssp;
     uint64_t pl3_ssp;
     uint64_t int_ssp_table;
+    uint64_t guest_ssp;
 
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
