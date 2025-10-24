@@ -25,6 +25,7 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 #include "qemu/fifo8.h"
+#include "system/memory.h"
 
 enum {
     SIFIVE_UART_TXFIFO        = 0,

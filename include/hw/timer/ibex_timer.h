@@ -26,6 +26,7 @@
 #define HW_IBEX_TIMER_H
 
 #include "hw/sysbus.h"
+#include "system/memory.h"
 
 #define TYPE_IBEX_TIMER "ibex-timer"
 OBJECT_DECLARE_SIMPLE_TYPE(IbexTimerState, IBEX_TIMER)

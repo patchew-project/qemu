@@ -23,6 +23,7 @@
 #include "qom/object.h"
 
 #define TYPE_RISCV_APLIC "riscv.aplic"
+#include "system/memory.h"
 
 typedef struct RISCVAPLICState RISCVAPLICState;
 DECLARE_INSTANCE_CHECKER(RISCVAPLICState, RISCV_APLIC, TYPE_RISCV_APLIC)

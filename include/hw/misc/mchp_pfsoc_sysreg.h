@@ -24,6 +24,7 @@
 #define MCHP_PFSOC_SYSREG_H
 
 #include "hw/sysbus.h"
+#include "system/memory.h"
 
 #define MCHP_PFSOC_SYSREG_REG_SIZE  0x2000
 

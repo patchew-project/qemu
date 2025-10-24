@@ -20,6 +20,7 @@
 
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
+#include "system/memory.h"
 
 typedef struct {
     QEMUTimer *timer;

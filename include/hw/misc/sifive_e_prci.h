@@ -20,6 +20,7 @@
 #define HW_SIFIVE_E_PRCI_H
 
 #include "hw/sysbus.h"
+#include "system/memory.h"
 
 enum {
     SIFIVE_E_PRCI_HFROSCCFG = 0x0,

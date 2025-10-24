@@ -27,6 +27,7 @@
 
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
+#include "system/memory.h"
 
 #define SHAKTI_UART_BAUD        0x00
 #define SHAKTI_UART_TX          0x04

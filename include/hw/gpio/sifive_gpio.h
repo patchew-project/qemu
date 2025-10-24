@@ -16,6 +16,7 @@
 
 #include "hw/sysbus.h"
 #include "qom/object.h"
+#include "system/memory.h"
 
 #define TYPE_SIFIVE_GPIO "sifive_soc.gpio"
 typedef struct SIFIVEGPIOState SIFIVEGPIOState;
