@@ -633,6 +633,11 @@ skip_ioas_alloc:
     QLIST_INIT(&container->hwpt_list);
 
     bcontainer = VFIO_IOMMU(container);
+
+    /* There is no limitation on dirty bitmap size in IOMMUFD */
+    bcontainer->max_dirty_bitmap_size = UINT64_MAX;
+    bcontainer->dirty_pgsizes = qemu_real_host_page_size();
+
     vfio_address_space_insert(space, bcontainer);
 
     if (!iommufd_cdev_attach_container(vbasedev, container, errp)) {
