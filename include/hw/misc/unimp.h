@@ -12,6 +12,7 @@
 #include "hw/sysbus.h"
 #include "qapi/error.h"
 #include "qom/object.h"
+#include "system/memory.h"
 
 #define TYPE_UNIMPLEMENTED_DEVICE "unimplemented-device"
 
