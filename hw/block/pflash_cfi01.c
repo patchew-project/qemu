@@ -51,6 +51,7 @@
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "system/blockdev.h"
+#include "system/memory.h"
 #include "system/runstate.h"
 #include "trace.h"
 
