@@ -12,6 +12,7 @@
 #include "qemu/timer.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"
+#include "system/memory.h"
 
 #define TYPE_RENESAS_TMR "renesas-tmr"
 typedef struct RTMRState RTMRState;
