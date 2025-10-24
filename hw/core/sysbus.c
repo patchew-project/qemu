@@ -206,6 +206,17 @@ void sysbus_init_ioports(SysBusDevice *dev, uint32_t ioport, uint32_t size)
     }
 }
 
+bool sysbus_has_pio(const SysBusDevice *dev, unsigned int n)
+{
+    return (n < dev->num_pio);
+}
+
+uint32_t sysbus_pio_get_address(const SysBusDevice *dev, int n)
+{
+    assert(n >= 0 && n < QDEV_MAX_PIO);
+    return dev->pio[n];
+}
+
 /* The purpose of preserving this empty realize function
  * is to prevent the parent_realize field of some subclasses
  * from being set to NULL to break the normal init/realize
