@@ -16,6 +16,7 @@
 #include "qapi/error.h"
 #include "trace.h"
 #include "qom/object.h"
+#include "system/memory.h"
 
 #define TYPE_EMPTY_SLOT "empty_slot"
 OBJECT_DECLARE_SIMPLE_TYPE(EmptySlot, EMPTY_SLOT)
