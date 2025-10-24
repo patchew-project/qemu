@@ -31,10 +31,12 @@
 #include "net/net.h"
 #include "net/checksum.h"
 
+#include "exec/cpu-common.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/stream.h"
 #include "qom/object.h"
+#include "system/memory.h"
 
 #define DPHY(x)
 
