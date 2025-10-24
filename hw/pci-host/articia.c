@@ -22,6 +22,11 @@
  * Most features are missing but those are not needed by firmware and guests.
  */
 
+#define PCI_HIGH_ADDR 0x80000000
+#define PCI_HIGH_SIZE 0x7d000000
+#define PCI_LOW_ADDR  0xfd000000
+#define PCI_LOW_SIZE   0x1000000
+
 OBJECT_DECLARE_SIMPLE_TYPE(ArticiaState, ARTICIA)
 
 OBJECT_DECLARE_SIMPLE_TYPE(ArticiaHostState, ARTICIA_PCI_HOST)
@@ -169,6 +174,7 @@ static void articia_realize(DeviceState *dev, Error **errp)
 {
     ArticiaState *s = ARTICIA(dev);
     PCIHostState *h = PCI_HOST_BRIDGE(dev);
+    MemoryRegion *mr;
     PCIDevice *pdev;
 
     bitbang_i2c_init(&s->smbus, i2c_init_bus(dev, "smbus"));
@@ -180,6 +186,14 @@ static void articia_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->reg, OBJECT(s), &articia_reg_ops, s,
                           TYPE_ARTICIA, 0x1000000);
     memory_region_add_subregion_overlap(&s->reg, 0, &s->io, 1);
+    mr = g_new(MemoryRegion, 1);
+    memory_region_init_alias(mr, OBJECT(dev), "pci-mem-low", &s->mem,
+                             0, PCI_LOW_SIZE);
+    memory_region_add_subregion(get_system_memory(), PCI_LOW_ADDR, mr);
+    mr = g_new(MemoryRegion, 1);
+    memory_region_init_alias(mr, OBJECT(dev), "pci-mem-high", &s->mem,
+                             PCI_HIGH_ADDR, PCI_HIGH_SIZE);
+    memory_region_add_subregion(get_system_memory(), PCI_HIGH_ADDR, mr);
 
     /* devfn_min is 8 that matches first PCI slot in AmigaOne */
     h->bus = pci_register_root_bus(dev, NULL, articia_pcihost_set_irq,
@@ -191,7 +205,6 @@ static void articia_realize(DeviceState *dev, Error **errp)
     pci_create_simple(h->bus, PCI_DEVFN(0, 1), TYPE_ARTICIA_PCI_BRIDGE);
 
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->reg);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mem);
     qdev_init_gpio_out(dev, s->irq, ARRAY_SIZE(s->irq));
 }
 

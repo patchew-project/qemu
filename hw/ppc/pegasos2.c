@@ -211,23 +211,10 @@ static void pegasos_init(MachineState *machine)
     /* north bridge */
     switch (pm->type) {
     case PEGASOS1:
-    {
-        MemoryRegion *pci_mem, *mr;
-
         /* Articia S */
         pm->nb = DEVICE(sysbus_create_simple(TYPE_ARTICIA, 0xfe000000, NULL));
-        pci_mem = sysbus_mmio_get_region(SYS_BUS_DEVICE(pm->nb), 1);
-        mr = g_new(MemoryRegion, 1);
-        memory_region_init_alias(mr, OBJECT(pm->nb), "pci-mem-low", pci_mem,
-                                 0, 0x1000000);
-        memory_region_add_subregion(get_system_memory(), 0xfd000000, mr);
-        mr = g_new(MemoryRegion, 1);
-        memory_region_init_alias(mr, OBJECT(pm->nb), "pci-mem-high", pci_mem,
-                                 0x80000000, 0x7d000000);
-        memory_region_add_subregion(get_system_memory(), 0x80000000, mr);
         pci_bus = PCI_BUS(qdev_get_child_bus(pm->nb, "pci.0"));
         break;
-    }
     case PEGASOS2:
         /* Marvell Discovery II system controller */
         pm->nb = DEVICE(sysbus_create_simple(TYPE_MV64361, -1,

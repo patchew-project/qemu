@@ -34,13 +34,6 @@
 #define INITRD_MIN_ADDR 0x600000
 #define INIT_RAM_ADDR 0x40000000
 
-#define PCI_HIGH_ADDR 0x80000000
-#define PCI_HIGH_SIZE 0x7d000000
-#define PCI_LOW_ADDR  0xfd000000
-#define PCI_LOW_SIZE  0xe0000
-
-#define ARTICIA_ADDR 0xfe000000
-
 /*
  * Firmware binary available at
  * https://www.hyperion-entertainment.com/index.php/downloads?view=files&parent=28
@@ -266,7 +259,7 @@ static void amigaone_init(MachineState *machine)
 {
     PowerPCCPU *cpu;
     CPUPPCState *env;
-    MemoryRegion *rom, *pci_mem, *mr;
+    MemoryRegion *rom, *mr;
     ssize_t sz;
     PCIBus *pci_bus;
     Object *via;
@@ -307,8 +300,8 @@ static void amigaone_init(MachineState *machine)
         qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(di));
     }
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    memory_region_add_subregion(get_system_memory(), NVRAM_ADDR,
-                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
+    mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
+    memory_region_add_subregion_overlap(get_system_memory(), NVRAM_ADDR, mr, 1);
 
     /* allocate and load firmware */
     rom = g_new(MemoryRegion, 1);
@@ -332,8 +325,8 @@ static void amigaone_init(MachineState *machine)
     }
 
     /* Articia S */
-    dev = sysbus_create_simple(TYPE_ARTICIA, ARTICIA_ADDR, NULL);
-
+    dev = sysbus_create_simple(TYPE_ARTICIA, 0xfe000000, NULL);
+    pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci.0"));
     i2c_bus = I2C_BUS(qdev_get_child_bus(dev, "smbus"));
     if (machine->ram_size > 512 * MiB) {
         spd_data = spd_data_generate(SDR, machine->ram_size / 2);
@@ -345,17 +338,6 @@ static void amigaone_init(MachineState *machine)
     if (machine->ram_size > 512 * MiB) {
         smbus_eeprom_init_one(i2c_bus, 0x52, spd_data);
     }
-
-    pci_mem = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 1);
-    mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(dev), "pci-mem-low", pci_mem,
-                             0, PCI_LOW_SIZE);
-    memory_region_add_subregion(get_system_memory(), PCI_LOW_ADDR, mr);
-    mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(dev), "pci-mem-high", pci_mem,
-                             PCI_HIGH_ADDR, PCI_HIGH_SIZE);
-    memory_region_add_subregion(get_system_memory(), PCI_HIGH_ADDR, mr);
-    pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci.0"));
 
     /* VIA VT82c686B South Bridge (multifunction PCI device) */
     via = OBJECT(pci_create_simple_multifunction(pci_bus, PCI_DEVFN(7, 0),
