@@ -24,6 +24,7 @@
 #include "hw/sysbus.h"
 #include "target/tricore/cpu.h"
 #include "qom/object.h"
+#include "system/memory.h"
 
 #define TYPE_TC27X_SOC ("tc27x-soc")
 OBJECT_DECLARE_TYPE(TC27XSoCState, TC27XSoCClass, TC27X_SOC)
