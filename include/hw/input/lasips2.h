@@ -22,6 +22,7 @@
 #include "exec/hwaddr.h"
 #include "hw/sysbus.h"
 #include "hw/input/ps2.h"
+#include "system/memory.h"
 
 #define TYPE_LASIPS2_PORT "lasips2-port"
 OBJECT_DECLARE_TYPE(LASIPS2Port, LASIPS2PortDeviceClass, LASIPS2_PORT)
