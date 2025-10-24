@@ -925,8 +925,13 @@ void pci_device_save(PCIDevice *s, QEMUFile *f)
      * in irq_state which we are saving.
      * This makes us compatible with old devices
      * which never set or clear this bit. */
+    int ret;
+    Error *local_err = NULL;
     s->config[PCI_STATUS] &= ~PCI_STATUS_INTERRUPT;
-    vmstate_save_state(f, &vmstate_pci_device, s, NULL, &error_fatal);
+    ret = vmstate_save_state(f, &vmstate_pci_device, s, NULL, &local_err);
+    if (ret < 0) {
+        error_report_err(local_err);
+    }
     /* Restore the interrupt status bit. */
     pci_update_irq_status(s);
 }
@@ -934,8 +939,12 @@ void pci_device_save(PCIDevice *s, QEMUFile *f)
 int pci_device_load(PCIDevice *s, QEMUFile *f)
 {
     int ret;
+    Error *local_err = NULL;
     ret = vmstate_load_state(f, &vmstate_pci_device, s, s->version_id,
-                             &error_fatal);
+                             &local_err);
+    if (ret < 0) {
+        error_report_err(local_err);
+    }
     /* Restore the interrupt status bit. */
     pci_update_irq_status(s);
     return ret;
