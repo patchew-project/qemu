@@ -17,6 +17,8 @@
 #include "hw/rtc/sun4v-rtc.h"
 #include "trace.h"
 #include "qom/object.h"
+#include "exec/cpu-common.h"
+#include "system/memory.h"
 
 
 #define TYPE_SUN4V_RTC "sun4v_rtc"
