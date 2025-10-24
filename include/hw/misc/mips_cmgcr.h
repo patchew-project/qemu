@@ -12,6 +12,7 @@
 
 #include "hw/sysbus.h"
 #include "qom/object.h"
+#include "system/memory.h"
 
 #define TYPE_MIPS_GCR "mips-gcr"
 OBJECT_DECLARE_SIMPLE_TYPE(MIPSGCRState, MIPS_GCR)
