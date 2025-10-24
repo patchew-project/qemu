@@ -79,6 +79,10 @@ int64_t get_image_size(const char *filename, Error **errp)
     if (fd < 0)
         return -1;
     size = lseek(fd, 0, SEEK_END);
+    if (size < 0) {
+        error_setg_errno(errp, errno, "lseek failure: %s", filename);
+        return -1;
+    }
     close(fd);
     return size;
 }
@@ -129,14 +133,24 @@ ssize_t load_image_targphys_as(const char *filename,
                                hwaddr addr, uint64_t max_sz, AddressSpace *as,
                                Error **errp)
 {
+    ERRP_GUARD();
     ssize_t size;
 
     size = get_image_size(filename, errp);
-    if (size < 0 || size > max_sz) {
+    if (*errp) {
         return -1;
     }
+
+    if (size > max_sz) {
+        error_setg(errp, "%s exceeds maximum image size (%" PRIu64 " MiB)",
+                   filename, max_sz / MiB);
+        return -1;
+    }
+
     if (size > 0) {
         if (rom_add_file_fixed_as(filename, addr, -1, as) < 0) {
+            error_setg(errp, "could not load '%s' at %" HWADDR_PRIx,
+                       filename, addr);
             return -1;
         }
     }
