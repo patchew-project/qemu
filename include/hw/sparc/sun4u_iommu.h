@@ -29,6 +29,7 @@
 
 #include "hw/sysbus.h"
 #include "qom/object.h"
+#include "system/memory.h"
 
 #define IOMMU_NREGS             3
 
