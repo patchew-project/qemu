@@ -6024,8 +6024,18 @@ int64_t coroutine_fn bdrv_co_get_allocated_file_size(BlockDriverState *bs)
          */
         return -ENOTSUP;
     } else if (drv->is_filter) {
+        BlockDriverState *filtered = bdrv_filter_bs(bs);
+
+        /*
+         * A filter may have been removed from the graph (child detached) but
+         * not yet unrefed.
+         */
+        if (!filtered) {
+            return -ENOMEDIUM;
+        }
+
         /* Filter drivers default to the size of their filtered child */
-        return bdrv_co_get_allocated_file_size(bdrv_filter_bs(bs));
+        return bdrv_co_get_allocated_file_size(filtered);
     } else {
         /* Other drivers default to summing their children's sizes */
         return bdrv_sum_allocated_file_size(bs);
@@ -8067,6 +8077,15 @@ void bdrv_refresh_filename(BlockDriverState *bs)
     }
 
     if (bs->implicit) {
+        /*
+         * An node may have been removed from the graph (child detached) but
+         * not yet unrefed. filename and full_open_options can be left
+         * unchanged since this state is temporary.
+         */
+        if (QLIST_EMPTY(&bs->children)) {
+            return;
+        }
+
         /* For implicit nodes, just copy everything from the single child */
         child = QLIST_FIRST(&bs->children);
         assert(QLIST_NEXT(child, next) == NULL);
