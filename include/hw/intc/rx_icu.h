@@ -23,6 +23,7 @@
 
 #include "hw/sysbus.h"
 #include "qom/object.h"
+#include "system/memory.h"
 
 enum TRG_MODE {
     TRG_LEVEL = 0,
