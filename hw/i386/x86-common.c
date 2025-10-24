@@ -874,8 +874,9 @@ void x86_load_linux(X86MachineState *x86ms,
         initrd_data = g_mapped_file_get_contents(mapped_file);
         initrd_size = g_mapped_file_get_length(mapped_file);
         if (initrd_size >= initrd_max) {
-            fprintf(stderr, "qemu: initrd is too large, cannot support."
-                    "(max: %"PRIu32", need %"PRId64")\n",
+            fprintf(stderr, "qemu: initrd is too large, try increasing"
+                    " the machine memory with -m."
+                    " (max: %"PRIu32", need %"PRId64")\n",
                     initrd_max, (uint64_t)initrd_size);
             exit(1);
         }
