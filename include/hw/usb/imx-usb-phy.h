@@ -4,6 +4,7 @@
 #include "hw/sysbus.h"
 #include "qemu/bitops.h"
 #include "qom/object.h"
+#include "system/memory.h"
 
 enum IMXUsbPhyRegisters {
     USBPHY_PWD,
