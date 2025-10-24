@@ -15,6 +15,7 @@
 #include "system/address-spaces.h"
 #include "hw/pci/pci_host.h"
 #include "hw/boards.h"
+#include "system/memory.h"
 
 #define TYPE_LASI_CHIP "lasi-chip"
 OBJECT_DECLARE_SIMPLE_TYPE(LasiState, LASI_CHIP)
