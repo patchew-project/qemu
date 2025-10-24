@@ -22,6 +22,7 @@
 
 #include "hw/sysbus.h"
 #include "qom/object.h"
+#include "system/memory.h"
 
 #define TYPE_MIPS_ITU "mips-itu"
 OBJECT_DECLARE_SIMPLE_TYPE(MIPSITUState, MIPS_ITU)
