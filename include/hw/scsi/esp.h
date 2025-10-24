@@ -1,6 +1,7 @@
 #ifndef QEMU_HW_ESP_H
 #define QEMU_HW_ESP_H
 
+#include "system/memory.h"
 #include "hw/scsi/scsi.h"
 #include "hw/sysbus.h"
 #include "qemu/fifo8.h"
