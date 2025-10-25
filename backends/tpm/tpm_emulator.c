@@ -961,6 +961,7 @@ static int tpm_emulator_post_load(void *opaque, int version_id, Error **errp)
     }
 
     if (tpm_emulator_startup_tpm_resume(tb, 0, true) < 0) {
+        error_setg(errp, "Failed to resume tpm");
         return -EIO;
     }
 
