@@ -96,6 +96,14 @@ void sdl2_window_create(struct sdl2_console *scon)
 #ifdef CONFIG_OPENGL
     if (scon->opengl) {
         flags |= SDL_WINDOW_OPENGL;
+        if (scon->opts->gl == DISPLAY_GL_MODE_ON ||
+            scon->opts->gl == DISPLAY_GL_MODE_CORE) {
+            SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
+                                SDL_GL_CONTEXT_PROFILE_CORE);
+        } else if (scon->opts->gl == DISPLAY_GL_MODE_ES) {
+            SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
+                                SDL_GL_CONTEXT_PROFILE_ES);
+        }
     }
 #endif
 
