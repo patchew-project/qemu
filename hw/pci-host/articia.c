@@ -174,24 +174,24 @@ static void articia_realize(DeviceState *dev, Error **errp)
 {
     ArticiaState *s = ARTICIA(dev);
     PCIHostState *h = PCI_HOST_BRIDGE(dev);
+    Object *o = OBJECT(dev);
     MemoryRegion *mr;
     PCIDevice *pdev;
 
     bitbang_i2c_init(&s->smbus, i2c_init_bus(dev, "smbus"));
-    memory_region_init_io(&s->gpio_reg, OBJECT(s), &articia_gpio_ops, s,
+    memory_region_init_io(&s->gpio_reg, o, &articia_gpio_ops, s,
                           TYPE_ARTICIA, 4);
 
-    memory_region_init(&s->mem, OBJECT(dev), "pci-mem", UINT64_MAX);
-    memory_region_init(&s->io, OBJECT(dev), "pci-io", 0xc00000);
-    memory_region_init_io(&s->reg, OBJECT(s), &articia_reg_ops, s,
+    memory_region_init(&s->mem, o, "pci-mem", UINT64_MAX);
+    memory_region_init(&s->io, o, "pci-io", 0xc00000);
+    memory_region_init_io(&s->reg, o, &articia_reg_ops, s,
                           TYPE_ARTICIA, 0x1000000);
     memory_region_add_subregion_overlap(&s->reg, 0, &s->io, 1);
     mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(dev), "pci-mem-low", &s->mem,
-                             0, PCI_LOW_SIZE);
+    memory_region_init_alias(mr, o, "pci-mem-low", &s->mem, 0, PCI_LOW_SIZE);
     memory_region_add_subregion(get_system_memory(), PCI_LOW_ADDR, mr);
     mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(dev), "pci-mem-high", &s->mem,
+    memory_region_init_alias(mr, o, "pci-mem-high", &s->mem,
                              PCI_HIGH_ADDR, PCI_HIGH_SIZE);
     memory_region_add_subregion(get_system_memory(), PCI_HIGH_ADDR, mr);
 
