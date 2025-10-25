@@ -179,7 +179,13 @@ fn test_derive_device() {
                         name: ::std::ffi::CStr::as_ptr(c"flags"),
                         info: <u32 as ::hwcore::QDevProp>::BIT_INFO,
                         offset: ::core::mem::offset_of!(DummyState, flags) as isize,
-                        bitnr: 3,
+                        bitnr : {
+                            const {
+                                assert!(3 >= 0 && 3 < u32::BITS as _ ,
+                                    concat!("bit number exceeds ", stringify!(u32), " bits range"));
+                            }
+                            3 as u8
+                        },
                         set_default: false,
                         defval: ::hwcore::bindings::Property__bindgen_ty_1 { u: 0 as u64 },
                         ..::common::Zeroable::ZERO
@@ -207,7 +213,13 @@ fn test_derive_device() {
                         name: ::std::ffi::CStr::as_ptr(c"flags"),
                         info: <u32 as ::hwcore::QDevProp>::BIT_INFO,
                         offset: ::core::mem::offset_of!(DummyState, flags) as isize,
-                        bitnr: 3,
+                        bitnr : {
+                            const {
+                                assert!(3 >= 0 && 3 < u32::BITS as _ ,
+                                    concat!("bit number exceeds ", stringify!(u32), " bits range"));
+                            }
+                            3 as u8
+                        },
                         set_default: true,
                         defval: ::hwcore::bindings::Property__bindgen_ty_1 { u: true as u64 },
                         ..::common::Zeroable::ZERO
@@ -235,7 +247,13 @@ fn test_derive_device() {
                         name: ::std::ffi::CStr::as_ptr(c"msi"),
                         info: <u64 as ::hwcore::QDevProp>::BIT_INFO,
                         offset: ::core::mem::offset_of!(DummyState, flags) as isize,
-                        bitnr: 3,
+                        bitnr : {
+                            const {
+                                assert!(3 >= 0 && 3 < u64::BITS as _ ,
+                                    concat!("bit number exceeds ", stringify!(u64), " bits range"));
+                            }
+                            3 as u8
+                        },
                         set_default: true,
                         defval: ::hwcore::bindings::Property__bindgen_ty_1 { u: false as u64 },
                         ..::common::Zeroable::ZERO
