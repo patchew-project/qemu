@@ -82,6 +82,7 @@ Board-specific documentation
    arm/aspeed
    arm/bananapi_m2u.rst
    arm/b-l475e-iot01a.rst
+   arm/STM32F407-RT-SPARK.rst
    arm/sabrelite
    arm/highbank
    arm/digic

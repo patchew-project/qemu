@@ -239,6 +239,12 @@ config STM32VLDISCOVERY
     depends on TCG && ARM
     select STM32F100_SOC
 
+config STM32F4SPARK
+    bool
+    default y
+    depends on TCG && ARM
+    select STM32F407_SOC
+
 config STRONGARM
     bool
     select PXA2XX_TIMER

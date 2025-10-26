@@ -1058,6 +1058,13 @@ S: Maintained
 F: hw/arm/stm32vldiscovery.c
 F: docs/system/arm/stm32.rst
 
+STM32F4SPARK
+M: yanl1229 <yanl1229@rt-thread.org>
+M: Yihao Fan <fanyihao@rt-thread.org>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/stm32f4spark.c
+
 Versatile Express
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
