@@ -1165,6 +1165,13 @@ F: hw/misc/stm32f4xx_exti.c
 F: hw/misc/stm32_rcc.c
 F: include/hw/misc/stm32_rcc.h
 
+STM32F407
+M: yanl1229 <yanl1229@rt-thread.org>
+M: Yihao Fan <fanyihao@rt-thread.org>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/stm32f407_soc.c
+
 Netduino 2
 M: Alistair Francis <alistair@alistair23.me>
 M: Peter Maydell <peter.maydell@linaro.org>
