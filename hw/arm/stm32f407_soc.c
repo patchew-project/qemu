@@ -51,6 +51,7 @@ static void stm32f407_soc_initfn(Object *obj)
     object_initialize_child(obj, "syscfg", &s->syscfg, TYPE_STM32F4XX_SYSCFG);
     object_initialize_child(obj, "exti", &s->exti, TYPE_STM32F4XX_EXTI);
     object_initialize_child(obj, "rcc", &s->rcc, TYPE_STM32_RCC);
+    object_initialize_child(obj, "pwr", &s->pwr, TYPE_STM32F4XX_PWR);
 
     for (i = 0; i < STM_NUM_USARTS; i++) {
         object_initialize_child(obj, "usart[*]", &s->usart[i],
@@ -182,6 +183,14 @@ static void stm32f407_soc_realize(DeviceState *dev_soc, Error **errp)
         sysbus_mmio_map(busdev, 0, timer_addr[i]);
         sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, timer_irq[i]));
     }
+
+    /* PWR controller */
+    dev = DEVICE(&s->pwr);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->pwr), errp)) {
+        return;
+    }
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_mmio_map(busdev, 0, PWR_BASE_ADDR);
 
 }
 

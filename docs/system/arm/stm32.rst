@@ -38,6 +38,7 @@ Supported devices
  * System configuration (SYSCFG)
  * Timer controller (TIMER)
  * Reset and Clock Controller (RCC) (STM32F4 only, reset and enable only)
+ * Power supply configuration (PWR) (STM32F4 only)
 
 Missing devices
 ---------------

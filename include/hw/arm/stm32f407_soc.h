@@ -17,6 +17,7 @@
 #include "hw/char/stm32f2xx_usart.h"
 #include "hw/timer/stm32f2xx_timer.h"
 #include "hw/misc/stm32_rcc.h"
+#include "hw/misc/stm32f4xx_pwr.h"
 #include "qom/object.h"
 
 #define TYPE_STM32F407_SOC "stm32f407-soc"
@@ -39,6 +40,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(STM32F407State, STM32F407_SOC)
 #define SYSCFG_BASE_ADDRESS 0x40013800
 #define SYSCFG_IRQ  71
 #define EXIT_BASE_ADDRESS 0x40013C00
+#define PWR_BASE_ADDR       0x40007000
 
 #define FLASH_BASE_ADDRESS  0x8000000
 #define FLASH_SIZE          0x100000
@@ -57,6 +59,7 @@ typedef struct STM32F407State {
     STM32RccState rcc;
     STM32F4xxSyscfgState syscfg;
     STM32F4xxExtiState exti;
+    STM32F4XXPwrState pwr;
     STM32F2XXUsartState usart[STM_NUM_USARTS];
     STM32F2XXTimerState timer[STM_NUM_TIMERS];
 

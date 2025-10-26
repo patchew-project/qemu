@@ -108,6 +108,9 @@ config STM32F4XX_SYSCFG
 config STM32F4XX_EXTI
     bool
 
+config STM32F4XX_PWR
+    bool
+
 config STM32L4X5_EXTI
     bool
 
