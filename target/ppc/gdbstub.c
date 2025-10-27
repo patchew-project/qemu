@@ -19,6 +19,8 @@
  */
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "accel/tcg/probe.h"
+#include "exec/tlb-flags.h"
 #include "exec/gdbstub.h"
 #include "gdbstub/helpers.h"
 #include "internal.h"
@@ -84,7 +86,20 @@ static int ppc_gdb_register_len(int n)
 void ppc_maybe_bswap_register(CPUPPCState *env, uint8_t *mem_buf, int len)
 {
 #ifndef CONFIG_USER_ONLY
-    if (!FIELD_EX64(env->msr, MSR, LE)) {
+    bool le_page = false;
+
+    if (env->mmu_model == POWERPC_MMU_BOOKE206) {
+        CPUTLBEntryFull *full;
+        void *host;
+        int mmu_idx = ppc_env_mmu_index(env, true);
+
+        probe_access_full_mmu(env, env->nip, 0, MMU_INST_FETCH, mmu_idx,
+                              &host, &full);
+
+        le_page = full->tlb_fill_flags & TLB_BSWAP;
+    }
+
+    if (!le_page && !FIELD_EX64(env->msr, MSR, LE)) {
         /* do nothing */
     } else if (len == 4) {
         bswap32s((uint32_t *)mem_buf);
