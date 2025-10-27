@@ -2714,6 +2714,8 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
                                          MemOp op,
                                          MemTxAttrs attrs);
 
+extern const MemoryRegionOps unassigned_mem_ops;
+
 /**
  * address_space_init: initializes an address space
  *

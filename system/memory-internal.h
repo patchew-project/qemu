@@ -28,8 +28,6 @@ static inline AddressSpaceDispatch *address_space_to_dispatch(AddressSpace *as)
 FlatView *address_space_get_flatview(AddressSpace *as);
 void flatview_unref(FlatView *view);
 
-extern const MemoryRegionOps unassigned_mem_ops;
-
 void flatview_add_to_dispatch(FlatView *fv, MemoryRegionSection *section);
 AddressSpaceDispatch *address_space_dispatch_new(FlatView *fv);
 void address_space_dispatch_compact(AddressSpaceDispatch *d);
