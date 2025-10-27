@@ -360,7 +360,7 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
      * memory access to this region to succeed which allows the OpenBSD kernel
      * to boot.
      */
-    memory_region_init_io(&s->bar0, OBJECT(s), &unassigned_io_ops, s,
+    memory_region_init_io(&s->bar0, OBJECT(s), &unassigned_mem_ops, s,
                           "bar0", 0x1000000);
     pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar0);
     memory_region_init_alias(&s->bar1, OBJECT(s), "bar1",
