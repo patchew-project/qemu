@@ -328,6 +328,7 @@ void migration_object_init(void)
     current_incoming->page_requested = g_tree_new(page_request_addr_cmp);
 
     current_incoming->exit_on_error = INMIGRATE_DEFAULT_EXIT_ON_ERROR;
+    current_incoming->postcopy_exit_on_error = INMIGRATE_DEFAULT_EXIT_ON_ERROR;
 
     migration_object_check(current_migration, &error_fatal);
 
@@ -436,11 +437,17 @@ void migration_incoming_transport_cleanup(MigrationIncomingState *mis)
     }
 }
 
-void migration_incoming_state_destroy(void)
+void migration_incoming_cleanup(void)
 {
-    struct MigrationIncomingState *mis = migration_incoming_get_current();
+    MigrationState *ms = migrate_get_current();
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    PostcopyState ps = postcopy_state_get();
 
     multifd_recv_cleanup();
+
+    if (ps != POSTCOPY_INCOMING_NONE) {
+        postcopy_incoming_cleanup(mis);
+    }
 
     /*
      * RAM state cleanup needs to happen after multifd cleanup, because
@@ -493,6 +500,22 @@ void migration_incoming_state_destroy(void)
 
     cpr_set_incoming_mode(MIG_MODE_NONE);
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
+
+    if (mis->state == MIGRATION_STATUS_FAILED &&
+        ((ps < POSTCOPY_INCOMING_LISTENING && mis->exit_on_error) ||
+         (ps >= POSTCOPY_INCOMING_LISTENING && mis->postcopy_exit_on_error))) {
+        WITH_QEMU_LOCK_GUARD(&ms->error_mutex) {
+            error_report_err(ms->error);
+            ms->error = NULL;
+        }
+
+        exit(EXIT_FAILURE);
+    }
+}
+
+void migration_incoming_cleanup_bh(void *opaque)
+{
+    migration_incoming_cleanup();
 }
 
 static void migrate_generate_event(MigrationStatus new_state)
@@ -858,7 +881,7 @@ static void process_incoming_migration_bh(void *opaque)
      */
     migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_COMPLETED);
-    migration_incoming_state_destroy();
+    migration_incoming_cleanup();
 }
 
 static void coroutine_fn
@@ -885,23 +908,13 @@ process_incoming_migration_co(void *opaque)
 
     ps = postcopy_state_get();
     trace_process_incoming_migration_co_end(ret, ps);
-    if (ps != POSTCOPY_INCOMING_NONE) {
-        if (ps == POSTCOPY_INCOMING_ADVISE) {
-            /*
-             * Where a migration had postcopy enabled (and thus went to advise)
-             * but managed to complete within the precopy period, we can use
-             * the normal exit.
-             */
-            postcopy_incoming_cleanup(mis);
-        } else if (ret >= 0) {
-            /*
-             * Postcopy was started, cleanup should happen at the end of the
-             * postcopy thread.
-             */
-            trace_process_incoming_migration_co_postcopy_end_main();
-            goto out;
-        }
-        /* Else if something went wrong then just fall out of the normal exit */
+    if (ps >= POSTCOPY_INCOMING_LISTENING) {
+        /*
+         * Postcopy was started, cleanup should happen at the end of the
+         * postcopy listen thread.
+         */
+        trace_process_incoming_migration_co_postcopy_end_main();
+        goto out;
     }
 
     if (ret < 0) {
@@ -924,25 +937,7 @@ fail:
     migrate_set_error(s, local_err);
     error_free(local_err);
 
-    migration_incoming_state_destroy();
-
-    if (mis->exit_on_error) {
-        WITH_QEMU_LOCK_GUARD(&s->error_mutex) {
-            error_report_err(s->error);
-            s->error = NULL;
-        }
-
-        exit(EXIT_FAILURE);
-    } else {
-        /*
-         * Report the error here in case that QEMU abruptly exits
-         * when postcopy is enabled.
-         */
-        WITH_QEMU_LOCK_GUARD(&s->error_mutex) {
-            error_report_err(s->error);
-            s->error = NULL;
-        }
-    }
+    migration_incoming_cleanup();
 out:
     /* Pairs with the refcount taken in qmp_migrate_incoming() */
     migrate_incoming_unref_outgoing_state();
@@ -1968,6 +1963,8 @@ void migrate_del_blocker(Error **reasonp)
 void qmp_migrate_incoming(const char *uri, bool has_channels,
                           MigrationChannelList *channels,
                           bool has_exit_on_error, bool exit_on_error,
+                          bool has_postcopy_exit_on_error,
+                          bool postcopy_exit_on_error,
                           Error **errp)
 {
     Error *local_err = NULL;
@@ -1989,6 +1986,8 @@ void qmp_migrate_incoming(const char *uri, bool has_channels,
 
     mis->exit_on_error =
         has_exit_on_error ? exit_on_error : INMIGRATE_DEFAULT_EXIT_ON_ERROR;
+    mis->postcopy_exit_on_error = has_postcopy_exit_on_error ?
+        postcopy_exit_on_error : INMIGRATE_DEFAULT_EXIT_ON_ERROR;
 
     qemu_start_incoming_migration(uri, has_channels, channels, &local_err);
 

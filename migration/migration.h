@@ -249,10 +249,12 @@ struct MigrationIncomingState {
 
     /* Do exit on incoming migration failure */
     bool exit_on_error;
+    bool postcopy_exit_on_error;
 };
 
 MigrationIncomingState *migration_incoming_get_current(void);
-void migration_incoming_state_destroy(void);
+void migration_incoming_cleanup(void);
+void migration_incoming_cleanup_bh(void *opaque);
 void migration_incoming_transport_cleanup(MigrationIncomingState *mis);
 /*
  * Functions to work with blocktime context

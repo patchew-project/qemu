@@ -3368,7 +3368,7 @@ void qmp_xen_load_devices_state(const char *filename, Error **errp)
     if (ret < 0) {
         error_prepend(errp, "loading Xen device state failed: ");
     }
-    migration_incoming_state_destroy();
+    migration_incoming_cleanup();
 }
 
 bool load_snapshot(const char *name, const char *vmstate,
@@ -3438,7 +3438,7 @@ bool load_snapshot(const char *name, const char *vmstate,
         goto err_drain;
     }
     ret = qemu_loadvm_state(f, errp);
-    migration_incoming_state_destroy();
+    migration_incoming_cleanup();
 
     bdrv_drain_all_end();
 

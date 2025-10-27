@@ -1817,6 +1817,12 @@
 #     event, and error details could be retrieved with `query-migrate`.
 #     (since 9.1)
 #
+# @postcopy-exit-on-error: same es exit-on-error, but used during postcopy
+#     migration.  Default true.  When set to true, QEMU only exits if a fatal
+#     unrecoverable error happens during postcopy, in which case QEMU would
+#     exit even before the introduction of this option.
+#     (since 10.2)
+#
 # Since: 2.3
 #
 # .. admonition:: Notes
@@ -1870,7 +1876,8 @@
 { 'command': 'migrate-incoming',
              'data': {'*uri': 'str',
                       '*channels': [ 'MigrationChannel' ],
-                      '*exit-on-error': 'bool' } }
+                      '*exit-on-error': 'bool',
+                      '*postcopy-exit-on-error': 'bool' } }
 
 ##
 # @xen-save-devices-state:
