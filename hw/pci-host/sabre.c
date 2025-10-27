@@ -246,28 +246,6 @@ static const MemoryRegionOps sabre_config_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void sabre_pci_config_write(void *opaque, hwaddr addr,
-                                   uint64_t val, unsigned size)
-{
-    SabreState *s = opaque;
-    PCIHostState *phb = PCI_HOST_BRIDGE(s);
-
-    trace_sabre_pci_config_write(addr, val);
-    pci_data_write(phb->bus, addr, val, size);
-}
-
-static uint64_t sabre_pci_config_read(void *opaque, hwaddr addr,
-                                      unsigned size)
-{
-    uint32_t ret;
-    SabreState *s = opaque;
-    PCIHostState *phb = PCI_HOST_BRIDGE(s);
-
-    ret = pci_data_read(phb->bus, addr, size);
-    trace_sabre_pci_config_read(addr, ret);
-    return ret;
-}
-
 /* The sabre host has an IRQ line for each IRQ line of each slot.  */
 static int pci_sabre_map_irq(PCIDevice *pci_dev, int irq_num)
 {
@@ -361,12 +339,6 @@ static void sabre_reset(DeviceState *d)
     pci_bridge_update_mappings(PCI_BRIDGE(pci_dev));
 }
 
-static const MemoryRegionOps pci_config_ops = {
-    .read = sabre_pci_config_read,
-    .write = sabre_pci_config_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
 static void sabre_realize(DeviceState *dev, Error **errp)
 {
     SabreState *s = SABRE(dev);
@@ -430,12 +402,12 @@ static void sabre_init(Object *obj)
 
     /* sabre_config */
     memory_region_init_io(&s->sabre_config, OBJECT(s), &sabre_config_ops, s,
-                          "sabre-config", 0x10000);
+                          "pci-conf-idx", 0x10000);
     /* at region 0 */
     sysbus_init_mmio(sbd, &s->sabre_config);
 
-    memory_region_init_io(&s->pci_config, OBJECT(s), &pci_config_ops, s,
-                          "sabre-pci-config", 0x1000000);
+    memory_region_init_io(&s->pci_config, OBJECT(s), &pci_host_data_le_ops, s,
+                          "pci-data-idx", 0x1000000);
     /* at region 1 */
     sysbus_init_mmio(sbd, &s->pci_config);
 
