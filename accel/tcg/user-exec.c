@@ -1217,7 +1217,7 @@ uint64_t cpu_ldq_code_mmu(CPUArchState *env, vaddr addr,
  * Do not allow unaligned operations to proceed.  Return the host address.
  */
 static void *atomic_mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
-                               int size, uintptr_t retaddr)
+                               int size, uintptr_t retaddr, bool *need_bswap)
 {
     MemOp mop = get_memop(oi);
     int a_bits = memop_alignment_bits(mop);

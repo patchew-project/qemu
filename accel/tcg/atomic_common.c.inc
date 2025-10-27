@@ -42,19 +42,15 @@ static void atomic_trace_rmw_post(CPUArchState *env, uint64_t addr,
     { return cpu_atomic_##OP##_mmu(env, addr, oldv, newv, oi, GETPC()); }
 
 CMPXCHG_HELPER(cmpxchgb, uint32_t)
-CMPXCHG_HELPER(cmpxchgw_be, uint32_t)
-CMPXCHG_HELPER(cmpxchgw_le, uint32_t)
-CMPXCHG_HELPER(cmpxchgl_be, uint32_t)
-CMPXCHG_HELPER(cmpxchgl_le, uint32_t)
+CMPXCHG_HELPER(cmpxchgw, uint32_t)
+CMPXCHG_HELPER(cmpxchgl, uint32_t)
 
 #ifdef CONFIG_ATOMIC64
-CMPXCHG_HELPER(cmpxchgq_be, uint64_t)
-CMPXCHG_HELPER(cmpxchgq_le, uint64_t)
+CMPXCHG_HELPER(cmpxchgq, uint64_t)
 #endif
 
 #if HAVE_CMPXCHG128
-CMPXCHG_HELPER(cmpxchgo_be, Int128)
-CMPXCHG_HELPER(cmpxchgo_le, Int128)
+CMPXCHG_HELPER(cmpxchgo, Int128)
 #endif
 
 #undef CMPXCHG_HELPER
@@ -87,19 +83,14 @@ Int128 HELPER(nonatomic_cmpxchgo)(CPUArchState *env, uint64_t addr,
 #ifdef CONFIG_ATOMIC64
 #define GEN_ATOMIC_HELPERS(OP)              \
     ATOMIC_HELPER(glue(OP,b), uint32_t)     \
-    ATOMIC_HELPER(glue(OP,w_be), uint32_t)  \
-    ATOMIC_HELPER(glue(OP,w_le), uint32_t)  \
-    ATOMIC_HELPER(glue(OP,l_be), uint32_t)  \
-    ATOMIC_HELPER(glue(OP,l_le), uint32_t)  \
-    ATOMIC_HELPER(glue(OP,q_be), uint64_t)  \
-    ATOMIC_HELPER(glue(OP,q_le), uint64_t)
+    ATOMIC_HELPER(glue(OP,w), uint32_t)     \
+    ATOMIC_HELPER(glue(OP,l), uint32_t)     \
+    ATOMIC_HELPER(glue(OP,q), uint64_t)
 #else
 #define GEN_ATOMIC_HELPERS(OP)              \
     ATOMIC_HELPER(glue(OP,b), uint32_t)     \
-    ATOMIC_HELPER(glue(OP,w_be), uint32_t)  \
-    ATOMIC_HELPER(glue(OP,w_le), uint32_t)  \
-    ATOMIC_HELPER(glue(OP,l_be), uint32_t)  \
-    ATOMIC_HELPER(glue(OP,l_le), uint32_t)
+    ATOMIC_HELPER(glue(OP,w), uint32_t)     \
+    ATOMIC_HELPER(glue(OP,l), uint32_t)
 #endif
 
 GEN_ATOMIC_HELPERS(fetch_add)
@@ -123,12 +114,9 @@ GEN_ATOMIC_HELPERS(umax_fetch)
 GEN_ATOMIC_HELPERS(xchg)
 
 #if HAVE_CMPXCHG128
-ATOMIC_HELPER(xchgo_be, Int128)
-ATOMIC_HELPER(xchgo_le, Int128)
-ATOMIC_HELPER(fetch_ando_be, Int128)
-ATOMIC_HELPER(fetch_ando_le, Int128)
-ATOMIC_HELPER(fetch_oro_be, Int128)
-ATOMIC_HELPER(fetch_oro_le, Int128)
+ATOMIC_HELPER(xchgo, Int128)
+ATOMIC_HELPER(fetch_ando, Int128)
+ATOMIC_HELPER(fetch_oro , Int128)
 #endif
 
 #undef ATOMIC_HELPER
