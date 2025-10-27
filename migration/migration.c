@@ -1217,6 +1217,7 @@ bool migration_is_running(void)
 
     switch (s->state) {
     case MIGRATION_STATUS_ACTIVE:
+    case MIGRATION_STATUS_POSTCOPY_DEVICE:
     case MIGRATION_STATUS_POSTCOPY_ACTIVE:
     case MIGRATION_STATUS_POSTCOPY_PAUSED:
     case MIGRATION_STATUS_POSTCOPY_RECOVER_SETUP:
@@ -1238,6 +1239,7 @@ static bool migration_is_active(void)
     MigrationState *s = current_migration;
 
     return (s->state == MIGRATION_STATUS_ACTIVE ||
+            s->state == MIGRATION_STATUS_POSTCOPY_DEVICE ||
             s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
 }
 
@@ -1360,6 +1362,7 @@ static void fill_source_migration_info(MigrationInfo *info)
         break;
     case MIGRATION_STATUS_ACTIVE:
     case MIGRATION_STATUS_CANCELLING:
+    case MIGRATION_STATUS_POSTCOPY_DEVICE:
     case MIGRATION_STATUS_POSTCOPY_ACTIVE:
     case MIGRATION_STATUS_PRE_SWITCHOVER:
     case MIGRATION_STATUS_DEVICE:
@@ -1413,6 +1416,7 @@ static void fill_destination_migration_info(MigrationInfo *info)
     case MIGRATION_STATUS_CANCELLING:
     case MIGRATION_STATUS_CANCELLED:
     case MIGRATION_STATUS_ACTIVE:
+    case MIGRATION_STATUS_POSTCOPY_DEVICE:
     case MIGRATION_STATUS_POSTCOPY_ACTIVE:
     case MIGRATION_STATUS_POSTCOPY_PAUSED:
     case MIGRATION_STATUS_POSTCOPY_RECOVER:
@@ -1752,6 +1756,7 @@ bool migration_in_postcopy(void)
     MigrationState *s = migrate_get_current();
 
     switch (s->state) {
+    case MIGRATION_STATUS_POSTCOPY_DEVICE:
     case MIGRATION_STATUS_POSTCOPY_ACTIVE:
     case MIGRATION_STATUS_POSTCOPY_PAUSED:
     case MIGRATION_STATUS_POSTCOPY_RECOVER_SETUP:
@@ -1852,6 +1857,8 @@ int migrate_init(MigrationState *s, Error **errp)
      */
     memset(&mig_stats, 0, sizeof(mig_stats));
     migration_reset_vfio_bytes_transferred();
+
+    s->postcopy_package_loaded = false;
 
     return 0;
 }
@@ -2608,6 +2615,11 @@ static void *source_return_path_thread(void *opaque)
             tmp32 = ldl_be_p(buf);
             trace_source_return_path_thread_pong(tmp32);
             qemu_sem_post(&ms->rp_state.rp_pong_acks);
+            if (tmp32 == QEMU_VM_PING_PACKAGED_LOADED) {
+                trace_source_return_path_thread_postcopy_package_loaded();
+                ms->postcopy_package_loaded = true;
+                qemu_event_set(&ms->postcopy_package_loaded_event);
+            }
             break;
 
         case MIG_RP_MSG_REQ_PAGES:
@@ -2853,6 +2865,13 @@ static int postcopy_start(MigrationState *ms, Error **errp)
     if (migrate_postcopy_ram()) {
         qemu_savevm_send_ping(fb, 3);
     }
+    /*
+     * This ping will tell us that all non-postcopiable device state has been
+     * successfully loaded and the destination is about to start. When response
+     * is received, it will trigger transition from POSTCOPY_DEVICE to
+     * POSTCOPY_ACTIVE state.
+     */
+    qemu_savevm_send_ping(fb, QEMU_VM_PING_PACKAGED_LOADED);
 
     qemu_savevm_send_postcopy_run(fb);
 
@@ -2910,7 +2929,7 @@ static int postcopy_start(MigrationState *ms, Error **errp)
 
     /* Now, switchover looks all fine, switching to postcopy-active */
     migrate_set_state(&ms->state, MIGRATION_STATUS_DEVICE,
-                      MIGRATION_STATUS_POSTCOPY_ACTIVE);
+                      MIGRATION_STATUS_POSTCOPY_DEVICE);
 
     bql_unlock();
 
@@ -3351,8 +3370,8 @@ static MigThrError migration_detect_error(MigrationState *s)
         return postcopy_pause(s);
     } else {
         /*
-         * For precopy (or postcopy with error outside IO), we fail
-         * with no time.
+         * For precopy (or postcopy with error outside IO, or before dest
+         * starts), we fail with no time.
          */
         migrate_set_state(&s->state, state, MIGRATION_STATUS_FAILED);
         trace_migration_thread_file_err();
@@ -3487,7 +3506,8 @@ static MigIterateState migration_iteration_run(MigrationState *s)
 {
     uint64_t must_precopy, can_postcopy, pending_size;
     Error *local_err = NULL;
-    bool in_postcopy = s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE;
+    bool in_postcopy = (s->state == MIGRATION_STATUS_POSTCOPY_DEVICE ||
+                        s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
     bool can_switchover = migration_can_switchover(s);
     bool complete_ready;
 
@@ -3503,6 +3523,18 @@ static MigIterateState migration_iteration_run(MigrationState *s)
          * POSTCOPY_ACTIVE it means switchover already happened.
          */
         complete_ready = !pending_size;
+        if (s->state == MIGRATION_STATUS_POSTCOPY_DEVICE &&
+            (s->postcopy_package_loaded || complete_ready)) {
+            /*
+             * If package has been loaded, the event is set and we will
+             * immediatelly transition to POSTCOPY_ACTIVE. If we are ready for
+             * completion, we need to wait for destination to load the postcopy
+             * package before actually completing.
+             */
+            qemu_event_wait(&s->postcopy_package_loaded_event);
+            migrate_set_state(&s->state, MIGRATION_STATUS_POSTCOPY_DEVICE,
+                              MIGRATION_STATUS_POSTCOPY_ACTIVE);
+        }
     } else {
         /*
          * Exact pending reporting is only needed for precopy.  Taking RAM
@@ -4157,6 +4189,7 @@ static void migration_instance_finalize(Object *obj)
     qemu_sem_destroy(&ms->rp_state.rp_pong_acks);
     qemu_sem_destroy(&ms->postcopy_qemufile_src_sem);
     error_free(ms->error);
+    qemu_event_destroy(&ms->postcopy_package_loaded_event);
 }
 
 static void migration_instance_init(Object *obj)
@@ -4178,6 +4211,7 @@ static void migration_instance_init(Object *obj)
     qemu_sem_init(&ms->wait_unplug_sem, 0);
     qemu_sem_init(&ms->postcopy_qemufile_src_sem, 0);
     qemu_mutex_init(&ms->qemu_file_lock);
+    qemu_event_init(&ms->postcopy_package_loaded_event, 0);
 }
 
 /*

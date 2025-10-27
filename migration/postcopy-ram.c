@@ -2094,7 +2094,7 @@ static void *postcopy_listen_thread(void *opaque)
     object_ref(OBJECT(migr));
 
     migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
-                                   MIGRATION_STATUS_POSTCOPY_ACTIVE);
+                                   MIGRATION_STATUS_POSTCOPY_DEVICE);
     qemu_event_set(&mis->thread_sync_event);
     trace_postcopy_ram_listen_thread_start();
 
@@ -2140,7 +2140,7 @@ static void *postcopy_listen_thread(void *opaque)
                           "loadvm failed during postcopy: %d: ", load_res);
             migrate_set_error(migr, local_err);
             error_report_err(local_err);
-            migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
+            migrate_set_state(&mis->state, mis->state,
                                            MIGRATION_STATUS_FAILED);
             goto out;
         }
@@ -2152,6 +2152,10 @@ static void *postcopy_listen_thread(void *opaque)
      */
     qemu_event_wait(&mis->main_thread_load_event);
 
+    /*
+     * Device load in the main thread has finished, we should be in
+     * POSTCOPY_ACTIVE now.
+     */
     migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
                                    MIGRATION_STATUS_COMPLETED);
 
