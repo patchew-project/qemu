@@ -449,7 +449,7 @@ static void elroy_pcihost_realize(DeviceState *dev, Error **errp)
 
     /* Elroy PCI bus memory.  */
     memory_region_init(&s->pci_mmio, obj, "pci-mmio", UINT64_MAX);
-    memory_region_init_io(&s->pci_io, obj, &unassigned_io_ops, obj,
+    memory_region_init_io(&s->pci_io, obj, &unassigned_mem_ops, obj,
                             "pci-isa-mmio",
                             ((uint32_t) IOS_DIST_BASE_SIZE) / ROPES_PER_IOC);
 
