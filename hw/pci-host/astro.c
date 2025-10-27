@@ -230,32 +230,6 @@ static const MemoryRegionOps elroy_chip_ops = {
 };
 
 
-/* Unlike pci_config_data_le_ops, no check of high bit set in config_reg.  */
-
-static uint64_t elroy_config_data_read(void *opaque, hwaddr addr, unsigned len)
-{
-    uint64_t val;
-
-    PCIHostState *s = opaque;
-    val = pci_data_read(s->bus, s->config_reg | (addr & 3), len);
-    trace_elroy_pci_config_data_read(s->config_reg | (addr & 3), len, val);
-    return val;
-}
-
-static void elroy_config_data_write(void *opaque, hwaddr addr,
-                                   uint64_t val, unsigned len)
-{
-    PCIHostState *s = opaque;
-    pci_data_write(s->bus, s->config_reg | (addr & 3), val, len);
-    trace_elroy_pci_config_data_write(s->config_reg | (addr & 3), len, val);
-}
-
-static const MemoryRegionOps elroy_config_data_ops = {
-    .read = elroy_config_data_read,
-    .write = elroy_config_data_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
 static uint64_t elroy_config_addr_read(void *opaque, hwaddr addr, unsigned len)
 {
     ElroyState *s = opaque;
@@ -424,6 +398,12 @@ static void elroy_reset(DeviceState *dev)
     }
 }
 
+static void elroy_pcihost_instance_init(Object *obj)
+{
+    object_property_set_bool(obj, "config-reg-check-high-bit", false,
+                             &error_fatal);
+}
+
 static void elroy_pcihost_realize(DeviceState *dev, Error **errp)
 {
     ElroyState *s = ELROY_PCI_HOST_BRIDGE(dev);
@@ -440,7 +420,7 @@ static void elroy_pcihost_realize(DeviceState *dev, Error **errp)
                           &elroy_config_addr_ops, dev,
                           "pci-conf-idx", 8);
     memory_region_init_io(&phb->data_mem, obj,
-                          &elroy_config_data_ops, dev,
+                          &pci_host_data_le_ops, dev,
                           "pci-conf-data", 8);
     memory_region_add_subregion(&s->this_mem, 0x40,
                                 &phb->conf_mem);
@@ -497,6 +477,7 @@ static const TypeInfo elroy_pcihost_info = {
     .name          = TYPE_ELROY_PCI_HOST_BRIDGE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(ElroyState),
+    .instance_init = elroy_pcihost_instance_init,
     .class_init    = elroy_pcihost_class_init,
 };
 

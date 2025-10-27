@@ -76,7 +76,5 @@ astro_chip_read(uint64_t addr, int size, uint64_t val) "addr 0x%"PRIx64" size %d
 astro_chip_write(uint64_t addr, int size, uint64_t val) "addr 0x%"PRIx64" size %d val 0x%"PRIx64
 elroy_read(uint64_t addr, int size, uint64_t val) "addr 0x%"PRIx64" size %d val 0x%"PRIx64
 elroy_write(uint64_t addr, int size, uint64_t val) "addr 0x%"PRIx64" size %d val 0x%"PRIx64
-elroy_pci_config_data_read(uint64_t addr, int size, uint64_t val) "addr 0x%"PRIx64" size %d val 0x%"PRIx64
-elroy_pci_config_data_write(uint64_t addr, int size, uint64_t val) "addr 0x%"PRIx64" size %d val 0x%"PRIx64
 iosapic_reg_write(uint64_t reg_select, int size, uint64_t val) "reg_select 0x%"PRIx64" size %d val 0x%"PRIx64
 iosapic_reg_read(uint64_t reg_select, int size, uint64_t val) "reg_select 0x%"PRIx64" size %d val 0x%"PRIx64
