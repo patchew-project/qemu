@@ -266,7 +266,6 @@ static FlatView *flatview_new(MemoryRegion *mr_root)
     view = g_new0(FlatView, 1);
     view->ref = 1;
     view->root = mr_root;
-    memory_region_ref(mr_root);
     trace_flatview_new(view, mr_root);
 
     return view;
@@ -301,7 +300,6 @@ static void flatview_destroy(FlatView *view)
         memory_region_unref(view->ranges[i].mr);
     }
     g_free(view->ranges);
-    memory_region_unref(view->root);
     g_free(view);
 }
 
@@ -1796,6 +1794,12 @@ void memory_region_init_iommu(void *_iommu_mr,
 static void memory_region_finalize(Object *obj)
 {
     MemoryRegion *mr = MEMORY_REGION(obj);
+    gpointer key;
+    gpointer value;
+
+    if (g_hash_table_steal_extended(flat_views, mr, &key, &value)) {
+        ((FlatView *)value)->root = NULL;
+    }
 
     /*
      * Each memory region (that can be freed) must have an owner, and it
