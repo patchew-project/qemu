@@ -302,27 +302,6 @@ static const VMStateDescription vmstate_dino = {
     }
 };
 
-/* Unlike pci_config_data_le_ops, no check of high bit set in config_reg.  */
-
-static uint64_t dino_config_data_read(void *opaque, hwaddr addr, unsigned len)
-{
-    PCIHostState *s = opaque;
-    return pci_data_read(s->bus, s->config_reg | (addr & 3), len);
-}
-
-static void dino_config_data_write(void *opaque, hwaddr addr,
-                                   uint64_t val, unsigned len)
-{
-    PCIHostState *s = opaque;
-    pci_data_write(s->bus, s->config_reg | (addr & 3), val, len);
-}
-
-static const MemoryRegionOps dino_config_data_ops = {
-    .read = dino_config_data_read,
-    .write = dino_config_data_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
 static uint64_t dino_config_addr_read(void *opaque, hwaddr addr, unsigned len)
 {
     DinoState *s = opaque;
@@ -410,6 +389,12 @@ static void dino_pcihost_reset(DeviceState *dev)
     s->toc_addr = 0xFFFA0030; /* IO_COMMAND of CPU */
 }
 
+static void dino_pcihost_instance_init(Object *obj)
+{
+    object_property_set_bool(obj, "config-reg-check-high-bit", false,
+                             &error_fatal);
+}
+
 static void dino_pcihost_realize(DeviceState *dev, Error **errp)
 {
     DinoState *s = DINO_PCI_HOST_BRIDGE(dev);
@@ -424,7 +409,7 @@ static void dino_pcihost_realize(DeviceState *dev, Error **errp)
                           &dino_config_addr_ops, DEVICE(s),
                           "pci-conf-idx", 4);
     memory_region_init_io(&phb->data_mem, OBJECT(phb),
-                          &dino_config_data_ops, DEVICE(s),
+                          &pci_host_data_le_ops, DEVICE(s),
                           "pci-conf-data", 4);
     memory_region_add_subregion(&s->this_mem, DINO_PCI_CONFIG_ADDR,
                                 &phb->conf_mem);
@@ -505,6 +490,7 @@ static const TypeInfo dino_pcihost_info = {
     .name          = TYPE_DINO_PCI_HOST_BRIDGE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(DinoState),
+    .instance_init = dino_pcihost_instance_init,
     .class_init    = dino_pcihost_class_init,
 };
 
