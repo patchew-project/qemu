@@ -246,8 +246,7 @@ static inline int check_prot_access_type(int prot, MMUAccessType access_type)
 /* PowerPC MMU emulation */
 
 bool ppc_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
-                      hwaddr *raddrp, int *psizep, int *protp,
-                      int mmu_idx, bool guest_visible);
+               CPUTLBEntryFull *full, int mmu_idx, bool guest_visible);
 
 /* Software driven TLB helpers */
 int ppc6xx_tlb_getnum(CPUPPCState *env, target_ulong eaddr,

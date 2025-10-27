@@ -820,20 +820,26 @@ static bool ppc_radix64_xlate_impl(PowerPCCPU *cpu, vaddr eaddr,
 }
 
 bool ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
-                       hwaddr *raddrp, int *psizep, int *protp, int mmu_idx,
+                       CPUTLBEntryFull *full, int mmu_idx,
                        bool guest_visible)
 {
-    bool ret = ppc_radix64_xlate_impl(cpu, eaddr, access_type, raddrp,
-                                      psizep, protp, mmu_idx, guest_visible);
+    int prot = 0, psize = 0;
+    hwaddr raddr = 0;
+    bool ret = ppc_radix64_xlate_impl(cpu, eaddr, access_type, &raddr,
+                                      &psize, &prot, mmu_idx, guest_visible);
+
+    full->phys_addr = raddr;
+    full->prot = prot;
+    full->lg_page_size = psize;
 
     qemu_log_mask(CPU_LOG_MMU, "%s for %s @0x%"VADDR_PRIx
                   " mmu_idx %u (prot %c%c%c) -> 0x%"HWADDR_PRIx"\n",
                   __func__, access_str(access_type),
                   eaddr, mmu_idx,
-                  *protp & PAGE_READ ? 'r' : '-',
-                  *protp & PAGE_WRITE ? 'w' : '-',
-                  *protp & PAGE_EXEC ? 'x' : '-',
-                  *raddrp);
+                  prot & PAGE_READ ? 'r' : '-',
+                  prot & PAGE_WRITE ? 'w' : '-',
+                  prot & PAGE_EXEC ? 'x' : '-',
+                  raddr);
 
     return ret;
 }

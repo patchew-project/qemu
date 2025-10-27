@@ -1363,13 +1363,14 @@ bool ppc_cpu_tlb_fill(CPUState *cs, vaddr eaddr, int size,
                       bool probe, uintptr_t retaddr)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
-    hwaddr raddr;
-    int page_size, prot;
+    CPUTLBEntryFull full = {
+        .attrs = MEMTXATTRS_UNSPECIFIED
+    };
 
-    if (ppc_xlate(cpu, eaddr, access_type, &raddr,
-                  &page_size, &prot, mmu_idx, !probe)) {
-        tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
-                     prot, mmu_idx, 1UL << page_size);
+    if (ppc_xlate(cpu, eaddr, access_type,
+                  &full, mmu_idx, !probe)) {
+        full.phys_addr &= TARGET_PAGE_MASK;
+        tlb_set_page_full(cs, mmu_idx, eaddr & TARGET_PAGE_MASK, &full);
         return true;
     }
     if (probe) {

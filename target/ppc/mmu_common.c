@@ -85,7 +85,7 @@ int ppc6xx_tlb_getnum(CPUPPCState *env, target_ulong eaddr,
 
 /* Software driven TLB helpers */
 
-static int ppc6xx_tlb_check(CPUPPCState *env, hwaddr *raddr, int *prot,
+static int ppc6xx_tlb_check(CPUPPCState *env, hwaddr *raddr, uint8_t *prot,
                             target_ulong eaddr, MMUAccessType access_type,
                             target_ulong ptem, bool key, bool nx)
 {
@@ -187,7 +187,7 @@ static int ppc6xx_tlb_check(CPUPPCState *env, hwaddr *raddr, int *prot,
     return ret;
 }
 
-static int get_bat_6xx_tlb(CPUPPCState *env, hwaddr *raddr, int *prot,
+static int get_bat_6xx_tlb(CPUPPCState *env, hwaddr *raddr, uint8_t *prot,
                            target_ulong eaddr, MMUAccessType access_type,
                            bool pr)
 {
@@ -259,7 +259,7 @@ static int get_bat_6xx_tlb(CPUPPCState *env, hwaddr *raddr, int *prot,
 }
 
 static int mmu6xx_get_physical_address(CPUPPCState *env, hwaddr *raddr,
-                                       int *prot, target_ulong eaddr,
+                                       uint8_t *prot, target_ulong eaddr,
                                        hwaddr *hashp, bool *keyp,
                                        MMUAccessType access_type, int type)
 {
@@ -583,15 +583,15 @@ void dump_mmu(CPUPPCState *env)
 
 static bool ppc_real_mode_xlate(PowerPCCPU *cpu, vaddr eaddr,
                                 MMUAccessType access_type,
-                                hwaddr *raddrp, int *psizep, int *protp)
+                                CPUTLBEntryFull *full)
 {
     CPUPPCState *env = &cpu->env;
 
     if (access_type == MMU_INST_FETCH ? !FIELD_EX64(env->msr, MSR, IR)
                                       : !FIELD_EX64(env->msr, MSR, DR)) {
-        *raddrp = eaddr;
-        *protp = PAGE_RWX;
-        *psizep = TARGET_PAGE_BITS;
+        full->phys_addr = eaddr;
+        full->prot = PAGE_RWX;
+        full->lg_page_size = TARGET_PAGE_BITS;
         return true;
     } else if (env->mmu_model == POWERPC_MMU_REAL) {
         cpu_abort(CPU(cpu), "PowerPC in real mode shold not do translation\n");
@@ -600,21 +600,24 @@ static bool ppc_real_mode_xlate(PowerPCCPU *cpu, vaddr eaddr,
 }
 
 static bool ppc_40x_xlate(PowerPCCPU *cpu, vaddr eaddr,
-                          MMUAccessType access_type,
-                          hwaddr *raddrp, int *psizep, int *protp,
+                          MMUAccessType access_type, CPUTLBEntryFull *full,
                           int mmu_idx, bool guest_visible)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     int ret;
 
-    if (ppc_real_mode_xlate(cpu, eaddr, access_type, raddrp, psizep, protp)) {
+    if (ppc_real_mode_xlate(cpu, eaddr, access_type, full)) {
         return true;
     }
 
-    ret = mmu40x_get_physical_address(env, raddrp, protp, eaddr, access_type);
+    int prot = 0;
+    ret = mmu40x_get_physical_address(env, &(full->phys_addr), &prot,
+                                      eaddr, access_type);
+    full->prot = prot;
+
     if (ret == 0) {
-        *psizep = TARGET_PAGE_BITS;
+        full->lg_page_size = TARGET_PAGE_BITS;
         return true;
     } else if (!guest_visible) {
         return false;
@@ -668,8 +671,7 @@ static bool ppc_40x_xlate(PowerPCCPU *cpu, vaddr eaddr,
 }
 
 static bool ppc_6xx_xlate(PowerPCCPU *cpu, vaddr eaddr,
-                          MMUAccessType access_type,
-                          hwaddr *raddrp, int *psizep, int *protp,
+                          MMUAccessType access_type, CPUTLBEntryFull *full,
                           int mmu_idx, bool guest_visible)
 {
     CPUState *cs = CPU(cpu);
@@ -678,7 +680,7 @@ static bool ppc_6xx_xlate(PowerPCCPU *cpu, vaddr eaddr,
     bool key;
     int type, ret;
 
-    if (ppc_real_mode_xlate(cpu, eaddr, access_type, raddrp, psizep, protp)) {
+    if (ppc_real_mode_xlate(cpu, eaddr, access_type, full)) {
         return true;
     }
 
@@ -692,10 +694,10 @@ static bool ppc_6xx_xlate(PowerPCCPU *cpu, vaddr eaddr,
         type = ACCESS_INT;
     }
 
-    ret = mmu6xx_get_physical_address(env, raddrp, protp, eaddr, &hash, &key,
-                                      access_type, type);
+    ret = mmu6xx_get_physical_address(env, &(full->phys_addr), &(full->prot),
+                                      eaddr, &hash, &key, access_type, type);
     if (ret == 0) {
-        *psizep = TARGET_PAGE_BITS;
+        full->lg_page_size = TARGET_PAGE_BITS;
         return true;
     } else if (!guest_visible) {
         return false;
@@ -806,15 +808,14 @@ tlb_miss:
 /*****************************************************************************/
 
 bool ppc_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
-                      hwaddr *raddrp, int *psizep, int *protp,
-                      int mmu_idx, bool guest_visible)
+               CPUTLBEntryFull *full, int mmu_idx, bool guest_visible)
 {
     switch (cpu->env.mmu_model) {
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_3_00:
         if (ppc64_v3_radix(cpu)) {
-            return ppc_radix64_xlate(cpu, eaddr, access_type, raddrp,
-                                     psizep, protp, mmu_idx, guest_visible);
+            return ppc_radix64_xlate(cpu, eaddr, access_type,
+                                     full, mmu_idx, guest_visible);
         }
         /* fall through */
     case POWERPC_MMU_64B:
@@ -822,25 +823,24 @@ bool ppc_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     case POWERPC_MMU_2_06:
     case POWERPC_MMU_2_07:
         return ppc_hash64_xlate(cpu, eaddr, access_type,
-                                raddrp, psizep, protp, mmu_idx, guest_visible);
+                                full, mmu_idx, guest_visible);
 #endif
 
     case POWERPC_MMU_32B:
-        return ppc_hash32_xlate(cpu, eaddr, access_type, raddrp,
-                               psizep, protp, mmu_idx, guest_visible);
+        return ppc_hash32_xlate(cpu, eaddr, access_type, full,
+                                mmu_idx, guest_visible);
     case POWERPC_MMU_BOOKE:
     case POWERPC_MMU_BOOKE206:
-        return ppc_booke_xlate(cpu, eaddr, access_type, raddrp,
-                               psizep, protp, mmu_idx, guest_visible);
+        return ppc_booke_xlate(cpu, eaddr, access_type,
+                               full, mmu_idx, guest_visible);
     case POWERPC_MMU_SOFT_4xx:
-        return ppc_40x_xlate(cpu, eaddr, access_type, raddrp,
-                             psizep, protp, mmu_idx, guest_visible);
+        return ppc_40x_xlate(cpu, eaddr, access_type,
+                             full, mmu_idx, guest_visible);
     case POWERPC_MMU_SOFT_6xx:
-        return ppc_6xx_xlate(cpu, eaddr, access_type, raddrp,
-                             psizep, protp, mmu_idx, guest_visible);
+        return ppc_6xx_xlate(cpu, eaddr, access_type,
+                             full, mmu_idx, guest_visible);
     case POWERPC_MMU_REAL:
-        return ppc_real_mode_xlate(cpu, eaddr, access_type, raddrp, psizep,
-                                   protp);
+        return ppc_real_mode_xlate(cpu, eaddr, access_type, full);
     case POWERPC_MMU_MPC8xx:
         cpu_abort(env_cpu(&cpu->env), "MPC8xx MMU model is not implemented\n");
     default:
@@ -851,19 +851,18 @@ bool ppc_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
 hwaddr ppc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
-    hwaddr raddr;
-    int s, p;
+    CPUTLBEntryFull full = {};
 
     /*
      * Some MMUs have separate TLBs for code and data. If we only
      * try an MMU_DATA_LOAD, we may not be able to read instructions
      * mapped by code TLBs, so we also try a MMU_INST_FETCH.
      */
-    if (ppc_xlate(cpu, addr, MMU_DATA_LOAD, &raddr, &s, &p,
+    if (ppc_xlate(cpu, addr, MMU_DATA_LOAD, &full,
                   ppc_env_mmu_index(&cpu->env, false), false) ||
-        ppc_xlate(cpu, addr, MMU_INST_FETCH, &raddr, &s, &p,
+        ppc_xlate(cpu, addr, MMU_INST_FETCH, &full,
                   ppc_env_mmu_index(&cpu->env, true), false)) {
-        return raddr & TARGET_PAGE_MASK;
+        return full.phys_addr & TARGET_PAGE_MASK;
     }
     return -1;
 }

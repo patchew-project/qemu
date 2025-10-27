@@ -11,7 +11,7 @@ hwaddr booke206_tlb_to_page_size(CPUPPCState *env, ppcmas_tlb_t *tlb);
 int ppcmas_tlb_check(CPUPPCState *env, ppcmas_tlb_t *tlb, hwaddr *raddrp,
                      target_ulong address, uint32_t pid);
 bool ppc_booke_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
-                     hwaddr *raddrp, int *psizep, int *protp, int mmu_idx,
+                     CPUTLBEntryFull *full, int mmu_idx,
                      bool guest_visible);
 
 #endif
