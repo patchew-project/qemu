@@ -1399,7 +1399,8 @@ static int probe_access_internal(CPUState *cpu, vaddr addr,
     flags |= full->slow_flags[access_type];
 
     /* Fold all "mmio-like" bits into TLB_MMIO.  This is not RAM.  */
-    if (unlikely(flags & ~(TLB_WATCHPOINT | TLB_NOTDIRTY | TLB_CHECK_ALIGNED))
+    if (unlikely(flags & ~(TLB_WATCHPOINT | TLB_NOTDIRTY
+                           | TLB_CHECK_ALIGNED | TLB_BSWAP))
         || (access_type != MMU_INST_FETCH && force_mmio)) {
         *phost = NULL;
         return TLB_MMIO;
@@ -1793,12 +1794,19 @@ static bool mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
             mmu_watch_or_dirty(cpu, &l->page[1], type, ra);
         }
 
-        /*
-         * Since target/sparc is the only user of TLB_BSWAP, and all
-         * Sparc accesses are aligned, any treatment across two pages
-         * would be arbitrary.  Refuse it until there's a use.
-         */
-        tcg_debug_assert((flags & TLB_BSWAP) == 0);
+        if (unlikely(flags & TLB_BSWAP)) {
+            /*
+             * TLB_BSWAP is relevant to SPARC and powerPC e500.
+             * SPARC never ends up here, as all its accesses are aligned
+             * cross-page accesses do work for e500, but crossing boundary
+             * between different endian pages should generate an exception
+             * Adding this would require another callback for a cpu for
+             * *just* this case, and such accesses are not correct anyway,
+             * so it just fails.
+             */
+            assert(!(TLB_BSWAP & (l->page[0].flags ^ l->page[1].flags)));
+            l->memop ^= MO_BSWAP;
+        }
     }
 
     return crosspage;
@@ -1896,10 +1904,6 @@ static void *atomic_mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
     }
 
     if (unlikely(tlb_addr & TLB_BSWAP)) {
-        assert(!( (  full->slow_flags[MMU_DATA_STORE]
-            ^ full->slow_flags[MMU_DATA_LOAD ])
-            & TLB_BSWAP));
-
         mop ^= MO_BSWAP;
     }
 

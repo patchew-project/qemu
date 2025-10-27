@@ -24,7 +24,9 @@
 #include "exec/target_page.h"
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-op-gvec.h"
+#include "accel/tcg/probe.h"
 #include "qemu/host-utils.h"
+#include "exec/tlb-flags.h"
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
@@ -171,7 +173,7 @@ struct DisasContext {
     target_ulong cia;  /* current instruction address */
     uint32_t opcode;
     /* Routine used to access memory */
-    bool pr, hv, dr, le_mode;
+    bool pr, hv, dr, le_mode, insn_le_mode;
     bool lazy_tlb_flush;
     bool need_access_type;
     int mem_idx;
@@ -214,15 +216,41 @@ static inline bool is_ppe(const DisasContext *ctx)
     return !!(ctx->flags & POWERPC_FLAG_PPE42);
 }
 
-/* Return true iff byteswap is needed in a scalar memop */
+/* Return true iff byteswap is needed in instruction fetch */
 static inline bool need_byteswap(const DisasContext *ctx)
 {
 #if TARGET_BIG_ENDIAN
-     return ctx->le_mode;
+     return ctx->insn_le_mode;
 #else
-     return !ctx->le_mode;
+     return !ctx->insn_le_mode;
 #endif
 }
+
+#ifndef CONFIG_USER_ONLY
+static bool is_page_little_endian(CPUPPCState *env, vaddr addr)
+{
+    /* booke206 is the only MMU supporting LE pages for now */
+    if (env->mmu_model != POWERPC_MMU_BOOKE206) {
+        return false;
+    }
+
+    CPUTLBEntryFull *full;
+    void *host;
+    int mmu_idx = ppc_env_mmu_index(env, true);
+    int flags;
+
+    flags = probe_access_full_mmu(env, addr, 0, MMU_INST_FETCH, mmu_idx,
+                                  &host, &full);
+    assert(!(flags & TLB_INVALID_MASK));
+
+    return full->tlb_fill_flags & TLB_BSWAP;
+}
+#else
+static bool is_page_little_endian(CPUPPCState *env, vaddr addr)
+{
+    return false;
+}
+#endif
 
 /* True when active word size < size of target_long.  */
 #ifdef TARGET_PPC64
@@ -6521,6 +6549,7 @@ static void ppc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     CPUPPCState *env = cpu_env(cs);
+
     uint32_t hflags = ctx->base.tb->flags;
 
     ctx->spr_cb = env->spr_cb;
@@ -6532,7 +6561,9 @@ static void ppc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->insns_flags2 = env->insns_flags2;
     ctx->access_type = -1;
     ctx->need_access_type = !mmu_is_64bit(env->mmu_model);
-    ctx->le_mode = (hflags >> HFLAGS_LE) & 1;
+    ctx->le_mode = ((hflags >> HFLAGS_LE) & 1);
+    ctx->insn_le_mode = ctx->le_mode ^
+                        is_page_little_endian(env, ctx->base.pc_next);
     ctx->default_tcg_memop_mask = ctx->le_mode ? MO_LE : MO_BE;
     ctx->flags = env->flags;
 #if defined(TARGET_PPC64)
@@ -6597,6 +6628,7 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
               ctx->base.pc_next, ctx->mem_idx, (int)msr_ir);
 
     ctx->cia = pc = ctx->base.pc_next;
+
     insn = translator_ldl_swap(env, dcbase, pc, need_byteswap(ctx));
     ctx->base.pc_next = pc += 4;
 

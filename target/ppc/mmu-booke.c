@@ -362,6 +362,10 @@ found_tlb:
     uint8_t *prot = &(full->prot);
     *prot = 0;
 
+    if (tlb->mas2 & MAS2_E) {
+        full->tlb_fill_flags |= TLB_BSWAP;
+    }
+
     if (pr) {
         if (tlb->mas7_3 & MAS3_UR) {
             *prot |= PAGE_READ;
