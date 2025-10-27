@@ -1126,8 +1126,7 @@ if not get_option('gio').auto() or have_system
     gio = not_found
   endif
   if gio.found()
-    gdbus_codegen = find_program('gdbus-codegen',
-                                 required: get_option('gio'))
+    gdbus_codegen = find_program('gdbus-codegen', required: false)
     gio_unix = dependency('gio-unix-2.0', required: get_option('gio'),
                           method: 'pkg-config')
     gio = declare_dependency(dependencies: [gio, gio_unix],
