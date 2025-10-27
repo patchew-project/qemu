@@ -184,8 +184,10 @@ static void pci_host_data_write(void *opaque, hwaddr addr,
 {
     PCIHostState *s = opaque;
 
-    if (s->config_reg & (1u << 31))
-        pci_data_write(s->bus, s->config_reg | (addr & 3), val, len);
+    if (s->config_reg_check_high_bit && !(s->config_reg & (1U << 31))) {
+        return;
+    }
+    pci_data_write(s->bus, s->config_reg | (addr & 3), val, len);
 }
 
 static uint64_t pci_host_data_read(void *opaque,
@@ -193,7 +195,7 @@ static uint64_t pci_host_data_read(void *opaque,
 {
     PCIHostState *s = opaque;
 
-    if (!(s->config_reg & (1U << 31))) {
+    if (s->config_reg_check_high_bit && !(s->config_reg & (1U << 31))) {
         return 0xffffffff;
     }
     return pci_data_read(s->bus, s->config_reg | (addr & 3), len);
@@ -237,6 +239,8 @@ const VMStateDescription vmstate_pcihost = {
 static const Property pci_host_properties_common[] = {
     DEFINE_PROP_BOOL("x-config-reg-migration-enabled", PCIHostState,
                      mig_enabled, true),
+    DEFINE_PROP_BOOL("config-reg-check-high-bit", PCIHostState,
+                     config_reg_check_high_bit, true),
     DEFINE_PROP_BOOL(PCI_HOST_BYPASS_IOMMU, PCIHostState, bypass_iommu, false),
 };
 
