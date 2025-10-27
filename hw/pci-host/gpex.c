@@ -128,7 +128,7 @@ static void gpex_host_realize(DeviceState *dev, Error **errp)
 
     if (s->allow_unmapped_accesses) {
         memory_region_init_io(&s->io_mmio_window, OBJECT(s),
-                              &unassigned_io_ops, OBJECT(s),
+                              &unassigned_mem_ops, OBJECT(s),
                               "gpex_mmio_window", UINT64_MAX);
         memory_region_init_io(&s->io_ioport_window, OBJECT(s),
                               &unassigned_io_ops, OBJECT(s),
