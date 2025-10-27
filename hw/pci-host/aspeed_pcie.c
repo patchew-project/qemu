@@ -197,7 +197,7 @@ static void aspeed_pcie_rc_realize(DeviceState *dev, Error **errp)
     memory_region_init(&rc->io, OBJECT(rc), "io", 0x10000);
 
     mmio_window_name = g_strdup_printf("pcie.%d.mmio_window", cfg->id);
-    memory_region_init_io(&rc->mmio_window, OBJECT(rc), &unassigned_io_ops,
+    memory_region_init_io(&rc->mmio_window, OBJECT(rc), &unassigned_mem_ops,
                           OBJECT(rc), mmio_window_name, UINT64_MAX);
     ioport_window_name = g_strdup_printf("pcie.%d.ioport_window", cfg->id);
     memory_region_init_io(&rc->io_window, OBJECT(rc), &unassigned_io_ops,
