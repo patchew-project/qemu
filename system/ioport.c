@@ -177,17 +177,19 @@ static uint64_t portio_read(void *opaque, hwaddr addr, unsigned size)
 {
     MemoryRegionPortioList *mrpio = opaque;
     const MemoryRegionPortio *mrp = find_portio(mrpio, addr, size, false);
+    hwaddr pio_base_addr = memory_region_get_address(&mrpio->mr);
     uint64_t data;
 
     data = ((uint64_t)1 << (size * 8)) - 1;
     if (mrp) {
-        data = mrp->read(mrpio->portio_opaque, mrpio->mr.addr + addr);
+        data = mrp->read(mrpio->portio_opaque, pio_base_addr + addr);
     } else if (size == 2) {
         mrp = find_portio(mrpio, addr, 1, false);
         if (mrp) {
-            data = mrp->read(mrpio->portio_opaque, mrpio->mr.addr + addr);
+            data = mrp->read(mrpio->portio_opaque, pio_base_addr + addr);
             if (addr + 1 < mrp->offset + mrp->len) {
-                data |= mrp->read(mrpio->portio_opaque, mrpio->mr.addr + addr + 1) << 8;
+                data |= mrp->read(mrpio->portio_opaque,
+                                  pio_base_addr + addr + 1) << 8;
             } else {
                 data |= 0xff00;
             }
@@ -201,15 +203,17 @@ static void portio_write(void *opaque, hwaddr addr, uint64_t data,
 {
     MemoryRegionPortioList *mrpio = opaque;
     const MemoryRegionPortio *mrp = find_portio(mrpio, addr, size, true);
+    hwaddr pio_base_addr = memory_region_get_address(&mrpio->mr);
 
     if (mrp) {
-        mrp->write(mrpio->portio_opaque, mrpio->mr.addr + addr, data);
+        mrp->write(mrpio->portio_opaque, pio_base_addr + addr, data);
     } else if (size == 2) {
         mrp = find_portio(mrpio, addr, 1, true);
         if (mrp) {
-            mrp->write(mrpio->portio_opaque, mrpio->mr.addr + addr, data & 0xff);
+            mrp->write(mrpio->portio_opaque, pio_base_addr + addr, data & 0xff);
             if (addr + 1 < mrp->offset + mrp->len) {
-                mrp->write(mrpio->portio_opaque, mrpio->mr.addr + addr + 1, data >> 8);
+                mrp->write(mrpio->portio_opaque,
+                           pio_base_addr + addr + 1, data >> 8);
             }
         }
     }
@@ -335,12 +339,15 @@ void portio_list_set_enabled(PortioList *piolist, bool enabled)
 void portio_list_set_address(PortioList *piolist, uint32_t addr)
 {
     MemoryRegionPortioList *mrpio;
+    hwaddr pio_base_addr;
     unsigned i, j;
 
     for (i = 0; i < piolist->nr; ++i) {
         mrpio = container_of(piolist->regions[i], MemoryRegionPortioList, mr);
+        pio_base_addr = memory_region_get_address(&mrpio->mr);
+
         memory_region_set_address(&mrpio->mr,
-                                  mrpio->mr.addr - piolist->addr + addr);
+                                  pio_base_addr - piolist->addr + addr);
         for (j = 0; mrpio->ports[j].size; ++j) {
             mrpio->ports[j].offset += addr - piolist->addr;
         }
