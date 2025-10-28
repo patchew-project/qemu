@@ -274,7 +274,7 @@ static void aspeed_wdt_timer_expired(void *dev)
     }
 
     qemu_log_mask(CPU_LOG_RESET, "Watchdog timer %" HWADDR_PRIx " expired.\n",
-                  s->iomem.addr);
+                  memory_region_get_address(&s->iomem));
     watchdog_perform_action();
     timer_del(s->timer);
 }
