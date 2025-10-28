@@ -522,7 +522,7 @@ static bool nvme_addr_is_cmb(NvmeCtrl *n, hwaddr addr)
     }
 
     mr = &n->cmb.mem;
-    lo = n->params.legacy_cmb ? n->cmb.mem.addr : n->cmb.cba;
+    lo = n->params.legacy_cmb ? memory_region_get_address(mr) : n->cmb.cba;
     hi = lo + memory_region_size(mr);
 
     return addr >= lo && addr < hi;
@@ -530,7 +530,8 @@ static bool nvme_addr_is_cmb(NvmeCtrl *n, hwaddr addr)
 
 static inline void *nvme_addr_to_cmb(NvmeCtrl *n, hwaddr addr)
 {
-    hwaddr base = n->params.legacy_cmb ? n->cmb.mem.addr : n->cmb.cba;
+    hwaddr base = n->params.legacy_cmb ? memory_region_get_address(&n->cmb.mem)
+                                       : n->cmb.cba;
     return &n->cmb.buf[addr - base];
 }
 
@@ -564,7 +565,7 @@ static inline bool nvme_addr_is_iomem(NvmeCtrl *n, hwaddr addr)
      * that if the device model is ever changed to allow the CMB to be located
      * in BAR0 as well, then this must be changed.
      */
-    lo = n->bar0.addr;
+    lo = memory_region_get_address(&n->bar0);
     hi = lo + memory_region_size(&n->bar0);
 
     return addr >= lo && addr < hi;
