@@ -257,13 +257,14 @@ bool sysbus_realize_and_unref(SysBusDevice *dev, Error **errp)
 static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 {
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
-    hwaddr size;
-    int i;
 
-    for (i = 0; i < s->num_mmio; i++) {
-        size = memory_region_size(s->mmio[i].memory);
-        monitor_printf(mon, "%*smmio " HWADDR_FMT_plx "/" HWADDR_FMT_plx "\n",
-                       indent, "", s->mmio[i].addr, size);
+    for (int i = 0; i < s->num_mmio; i++) {
+        MemoryRegion *mr = sysbus_mmio_get_region(s, i);
+        hwaddr addr = memory_region_get_address(mr);
+        uint64_t size = memory_region_size(mr);
+
+        monitor_printf(mon, "%*smmio " HWADDR_FMT_plx "/%016" PRIx64 "\n",
+                       indent, "", addr, size);
     }
 }
 
@@ -282,8 +283,10 @@ static char *sysbus_get_fw_dev_path(DeviceState *dev)
         }
     }
     if (s->num_mmio) {
+        MemoryRegion *mr = sysbus_mmio_get_region(s, 0);
+
         return g_strdup_printf("%s@" HWADDR_FMT_plx, qdev_fw_name(dev),
-                               s->mmio[0].addr);
+                               memory_region_get_address(mr));
     }
     if (s->num_pio) {
         return g_strdup_printf("%s@i%04x", qdev_fw_name(dev), s->pio[0]);
