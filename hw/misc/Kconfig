@@ -25,6 +25,13 @@ config PCI_TESTDEV
     default y if TEST_DEVICES
     depends on PCI
 
+config VIRTIO_MSG_AMP_PCI
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select VIRTIO
+    select VIRTIO_MSG
+
 config EDU
     bool
     default y if TEST_DEVICES
