@@ -2379,6 +2379,22 @@ void virtio_queue_set_rings(VirtIODevice *vdev, int n, hwaddr desc,
     virtio_init_region_cache(vdev, n);
 }
 
+void virtio_queue_get_rings(VirtIODevice *vdev, int n, hwaddr *desc,
+                            hwaddr *avail, hwaddr *used)
+{
+    assert(vdev->vq[n].vring.num);
+
+    if (desc) {
+        *desc = vdev->vq[n].vring.desc;
+    }
+    if (avail) {
+        *avail = vdev->vq[n].vring.avail;
+    }
+    if (used) {
+        *used = vdev->vq[n].vring.used;
+    }
+}
+
 void virtio_queue_set_num(VirtIODevice *vdev, int n, int num)
 {
     /* Don't allow guest to flip queue between existent and
