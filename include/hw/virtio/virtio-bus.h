@@ -39,6 +39,7 @@ DECLARE_OBJ_CHECKERS(VirtioBusState, VirtioBusClass,
 struct VirtioBusClass {
     /* This is what a VirtioBus must implement */
     BusClass parent;
+    void (*notify_queue)(DeviceState *d, uint16_t index);
     void (*notify)(DeviceState *d, uint16_t vector);
     void (*save_config)(DeviceState *d, QEMUFile *f);
     void (*save_queue)(DeviceState *d, int n, QEMUFile *f);

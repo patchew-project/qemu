@@ -2700,10 +2700,17 @@ static void virtio_irq(VirtQueue *vq)
 
 void virtio_notify(VirtIODevice *vdev, VirtQueue *vq)
 {
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+
     WITH_RCU_READ_LOCK_GUARD() {
         if (!virtio_should_notify(vdev, vq)) {
             return;
         }
+    }
+
+    if (k->notify_queue) {
+        k->notify_queue(qbus->parent, virtio_get_queue_index(vq));
     }
 
     trace_virtio_notify(vdev, vq);
