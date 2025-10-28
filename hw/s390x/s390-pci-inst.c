@@ -394,11 +394,14 @@ static MemoryRegion *s390_get_subregion(MemoryRegion *mr, uint64_t offset,
 {
     MemoryRegion *subregion;
     uint64_t subregion_size;
+    hwaddr subregion_addr;
 
     QTAILQ_FOREACH(subregion, &mr->subregions, subregions_link) {
         subregion_size = memory_region_size(subregion);
-        if ((offset >= subregion->addr) &&
-            (offset + len) <= (subregion->addr + subregion_size)) {
+        subregion_addr = memory_region_get_address(subregion);
+
+        if ((offset >= subregion_addr) &&
+            (offset + len) <= (subregion_addr + subregion_size)) {
             mr = subregion;
             break;
         }
@@ -410,11 +413,12 @@ static MemTxResult zpci_read_bar(S390PCIBusDevice *pbdev, uint8_t pcias,
                                  uint64_t offset, uint64_t *data, uint8_t len)
 {
     MemoryRegion *mr;
+    hwaddr subregion_base_addr;
 
     mr = pbdev->pdev->io_regions[pcias].memory;
     mr = s390_get_subregion(mr, offset, len);
-    offset -= mr->addr;
-    return memory_region_dispatch_read(mr, offset, data,
+    subregion_base_addr = memory_region_get_address(mr);
+    return memory_region_dispatch_read(mr, offset - subregion_base_addr, data,
                                        size_memop(len) | MO_BE,
                                        MEMTXATTRS_UNSPECIFIED);
 }
@@ -510,11 +514,12 @@ static MemTxResult zpci_write_bar(S390PCIBusDevice *pbdev, uint8_t pcias,
                                   uint64_t offset, uint64_t data, uint8_t len)
 {
     MemoryRegion *mr;
+    hwaddr subregion_base_addr;
 
     mr = pbdev->pdev->io_regions[pcias].memory;
     mr = s390_get_subregion(mr, offset, len);
-    offset -= mr->addr;
-    return memory_region_dispatch_write(mr, offset, data,
+    subregion_base_addr = memory_region_get_address(mr);
+    return memory_region_dispatch_write(mr, offset - subregion_base_addr, data,
                                         size_memop(len) | MO_BE,
                                         MEMTXATTRS_UNSPECIFIED);
 }
@@ -832,6 +837,7 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
     S390PCIBusDevice *pbdev;
     MemoryRegion *mr;
     MemTxResult result;
+    hwaddr subregion_base_addr;
     uint64_t offset;
     int i;
     uint32_t fh;
@@ -900,7 +906,8 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
 
     mr = pbdev->pdev->io_regions[pcias].memory;
     mr = s390_get_subregion(mr, offset, len);
-    offset -= mr->addr;
+    subregion_base_addr = memory_region_get_address(mr);
+    offset -= subregion_base_addr;
 
     for (i = 0; i < len; i += 8) {
         if (!memory_region_access_valid(mr, offset + i, 8, true,
