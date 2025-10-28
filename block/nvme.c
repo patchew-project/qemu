@@ -1176,8 +1176,8 @@ fail:
 
 typedef struct {
     Coroutine *co;
+    bool skip_yield;
     int ret;
-    AioContext *ctx;
 } NVMeCoData;
 
 static void nvme_rw_cb_bh(void *opaque)
@@ -1189,12 +1189,22 @@ static void nvme_rw_cb_bh(void *opaque)
 static void nvme_rw_cb(void *opaque, int ret)
 {
     NVMeCoData *data = opaque;
+    AioContext *ctx;
+
     data->ret = ret;
-    if (!data->co) {
-        /* The rw coroutine hasn't yielded, don't try to enter. */
-        return;
+
+    if (data->co == qemu_coroutine_self()) {
+        /*
+         * Fast path: We are inside of the request coroutine (through
+         * nvme_submit_command, nvme_deferred_fn, nvme_process_completion).
+         * We can set data->skip_yield here to keep the coroutine from
+         * yielding, and then we don't need to schedule a BH to wake it.
+         */
+        data->skip_yield = true;
+    } else {
+        ctx = qemu_coroutine_get_aio_context(data->co);
+        replay_bh_schedule_oneshot_event(ctx, nvme_rw_cb_bh, data);
     }
-    replay_bh_schedule_oneshot_event(data->ctx, nvme_rw_cb_bh, data);
 }
 
 static coroutine_fn int nvme_co_prw_aligned(BlockDriverState *bs,
@@ -1217,10 +1227,7 @@ static coroutine_fn int nvme_co_prw_aligned(BlockDriverState *bs,
         .cdw11 = cpu_to_le32(((offset >> s->blkshift) >> 32) & 0xFFFFFFFF),
         .cdw12 = cpu_to_le32(cdw12),
     };
-    NVMeCoData data = {
-        .ctx = bdrv_get_aio_context(bs),
-        .ret = -EINPROGRESS,
-    };
+    NVMeCoData data = { .co = qemu_coroutine_self() };
 
     trace_nvme_prw_aligned(s, is_write, offset, bytes, flags, qiov->niov);
     assert(s->queue_count > 1);
@@ -1235,9 +1242,7 @@ static coroutine_fn int nvme_co_prw_aligned(BlockDriverState *bs,
         return r;
     }
     nvme_submit_command(ioq, req, &cmd, nvme_rw_cb, &data);
-
-    data.co = qemu_coroutine_self();
-    while (data.ret == -EINPROGRESS) {
+    if (!data.skip_yield) {
         qemu_coroutine_yield();
     }
 
@@ -1332,18 +1337,13 @@ static coroutine_fn int nvme_co_flush(BlockDriverState *bs)
         .opcode = NVME_CMD_FLUSH,
         .nsid = cpu_to_le32(s->nsid),
     };
-    NVMeCoData data = {
-        .ctx = bdrv_get_aio_context(bs),
-        .ret = -EINPROGRESS,
-    };
+    NVMeCoData data = { .co = qemu_coroutine_self() };
 
     assert(s->queue_count > 1);
     req = nvme_get_free_req(ioq);
     assert(req);
     nvme_submit_command(ioq, req, &cmd, nvme_rw_cb, &data);
-
-    data.co = qemu_coroutine_self();
-    if (data.ret == -EINPROGRESS) {
+    if (!data.skip_yield) {
         qemu_coroutine_yield();
     }
 
@@ -1383,10 +1383,7 @@ static coroutine_fn int nvme_co_pwrite_zeroes(BlockDriverState *bs,
         .cdw11 = cpu_to_le32(((offset >> s->blkshift) >> 32) & 0xFFFFFFFF),
     };
 
-    NVMeCoData data = {
-        .ctx = bdrv_get_aio_context(bs),
-        .ret = -EINPROGRESS,
-    };
+    NVMeCoData data = { .co = qemu_coroutine_self() };
 
     if (flags & BDRV_REQ_MAY_UNMAP) {
         cdw12 |= (1 << 25);
@@ -1404,9 +1401,7 @@ static coroutine_fn int nvme_co_pwrite_zeroes(BlockDriverState *bs,
     assert(req);
 
     nvme_submit_command(ioq, req, &cmd, nvme_rw_cb, &data);
-
-    data.co = qemu_coroutine_self();
-    while (data.ret == -EINPROGRESS) {
+    if (!data.skip_yield) {
         qemu_coroutine_yield();
     }
 
@@ -1433,10 +1428,7 @@ static int coroutine_fn nvme_co_pdiscard(BlockDriverState *bs,
         .cdw11 = cpu_to_le32(1 << 2), /*deallocate bit*/
     };
 
-    NVMeCoData data = {
-        .ctx = bdrv_get_aio_context(bs),
-        .ret = -EINPROGRESS,
-    };
+    NVMeCoData data = { .co = qemu_coroutine_self() };
 
     if (!s->supports_discard) {
         return -ENOTSUP;
@@ -1479,9 +1471,7 @@ static int coroutine_fn nvme_co_pdiscard(BlockDriverState *bs,
     trace_nvme_dsm(s, offset, bytes);
 
     nvme_submit_command(ioq, req, &cmd, nvme_rw_cb, &data);
-
-    data.co = qemu_coroutine_self();
-    while (data.ret == -EINPROGRESS) {
+    if (!data.skip_yield) {
         qemu_coroutine_yield();
     }
 
