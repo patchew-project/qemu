@@ -677,7 +677,7 @@ static void hpet_reset(DeviceState *d)
     s->hpet_offset = 0ULL;
     s->config = 0ULL;
     hpet_fw_cfg.hpet[s->hpet_id].event_timer_block_id = (uint32_t)s->capability;
-    hpet_fw_cfg.hpet[s->hpet_id].address = mr->addr;
+    hpet_fw_cfg.hpet[s->hpet_id].address = memory_region_get_address(mr);
 
     /* to document that the RTC lowers its output on reset as well */
     s->rtc_irq_level = 0;
