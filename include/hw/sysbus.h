@@ -59,9 +59,7 @@ struct SysBusDevice {
     /*< public >*/
 
     int num_mmio;
-    struct {
-        MemoryRegion *memory;
-    } mmio[QDEV_MAX_MMIO];
+    MemoryRegion *mmio[QDEV_MAX_MMIO];
     int num_pio;
     uint32_t pio[QDEV_MAX_PIO];
 };

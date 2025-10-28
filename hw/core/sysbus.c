@@ -125,7 +125,7 @@ static void sysbus_mmio_map_common(SysBusDevice *dev, int n, hwaddr addr,
     MemoryRegion *mr;
 
     assert(n >= 0 && n < dev->num_mmio);
-    mr = dev->mmio[n].memory;
+    mr = dev->mmio[n];
 
     if (memory_region_is_mapped(mr)) {
         /* Unregister previous mapping.  */
@@ -143,7 +143,7 @@ void sysbus_mmio_map(SysBusDevice *dev, int n, hwaddr addr)
 int sysbus_mmio_map_name(SysBusDevice *dev, const char *name, hwaddr addr)
 {
     for (int i = 0; i < dev->num_mmio; i++) {
-        if (!strcmp(memory_region_name(dev->mmio[i].memory), name)) {
+        if (!strcmp(memory_region_name(dev->mmio[i]), name)) {
             sysbus_mmio_map(dev, i, addr);
             return i;
         }
@@ -175,13 +175,13 @@ void sysbus_init_mmio(SysBusDevice *dev, MemoryRegion *memory)
 
     assert(dev->num_mmio < QDEV_MAX_MMIO);
     n = dev->num_mmio++;
-    dev->mmio[n].memory = memory;
+    dev->mmio[n] = memory;
 }
 
 MemoryRegion *sysbus_mmio_get_region(const SysBusDevice *dev, int n)
 {
     assert(n >= 0 && n < QDEV_MAX_MMIO);
-    return dev->mmio[n].memory;
+    return dev->mmio[n];
 }
 
 void sysbus_init_ioports(SysBusDevice *dev, uint32_t ioport, uint32_t size)
