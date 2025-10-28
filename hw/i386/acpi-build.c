@@ -1039,7 +1039,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             /* Handle the ranges for the PXB expanders */
             if (pci_bus_is_cxl(bus)) {
                 MemoryRegion *mr = &pcms->cxl_devices_state.host_mr;
-                uint64_t base = mr->addr;
+                hwaddr base = memory_region_get_address(mr);
 
                 cxl_present = true;
                 crs_range_insert(crs_range_set.mem_ranges, base,
@@ -1822,7 +1822,8 @@ build_amd_iommu(GArray *table_data, BIOSLinker *linker, const char *oem_id,
     /* Capability offset */
     build_append_int_noprefix(table_data, s->pci->capab_offset, 2);
     /* IOMMU base address */
-    build_append_int_noprefix(table_data, s->mr_mmio.addr, 8);
+    build_append_int_noprefix(table_data,
+                              memory_region_get_address(&s->mr_mmio), 8);
     /* PCI Segment Group */
     build_append_int_noprefix(table_data, 0, 2);
     /* IOMMU info */
@@ -1857,7 +1858,8 @@ build_amd_iommu(GArray *table_data, BIOSLinker *linker, const char *oem_id,
     /* Capability offset */
     build_append_int_noprefix(table_data, s->pci->capab_offset, 2);
     /* IOMMU base address */
-    build_append_int_noprefix(table_data, s->mr_mmio.addr, 8);
+    build_append_int_noprefix(table_data,
+                              memory_region_get_address(&s->mr_mmio), 8);
     /* PCI Segment Group */
     build_append_int_noprefix(table_data, 0, 2);
     /* IOMMU info */

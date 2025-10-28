@@ -105,6 +105,7 @@ static void cedt_build_chbs(GArray *table_data, PXBCXLDev *cxl)
     PXBDev *pxb = PXB_DEV(cxl);
     SysBusDevice *sbd = SYS_BUS_DEVICE(cxl->cxl_host_bridge);
     MemoryRegion *mr = sysbus_mmio_get_region(sbd, 0);
+    hwaddr container_base_addr = memory_region_get_address(mr->container);
 
     /* Type */
     build_append_int_noprefix(table_data, 0, 1);
@@ -125,7 +126,9 @@ static void cedt_build_chbs(GArray *table_data, PXBCXLDev *cxl)
     build_append_int_noprefix(table_data, 0, 4);
 
     /* Base - subregion within a container that is in PA space */
-    build_append_int_noprefix(table_data, mr->container->addr + mr->addr, 8);
+    build_append_int_noprefix(table_data,
+                              container_base_addr
+                              + memory_region_get_address(mr), 8);
 
     /* Length */
     build_append_int_noprefix(table_data, memory_region_size(mr), 8);
@@ -154,7 +157,8 @@ static void cedt_build_cfmws(CXLFixedWindow *fw, Aml *cedt)
     build_append_int_noprefix(table_data, 0, 4);
 
     /* Base HPA */
-    build_append_int_noprefix(table_data, fw->mr.addr, 8);
+    build_append_int_noprefix(table_data,
+                              memory_region_get_address(&fw->mr), 8);
 
     /* Window Size */
     build_append_int_noprefix(table_data, fw->size, 8);
