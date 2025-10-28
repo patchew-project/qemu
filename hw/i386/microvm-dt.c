@@ -72,7 +72,7 @@ static void dt_add_virtio(MicrovmMachineState *mms, VirtIOMMIOProxy *mmio)
     }
 
     MemoryRegion *mr = sysbus_mmio_get_region(dev, 0);
-    hwaddr base = mr->addr;
+    hwaddr base = memory_region_get_address(mr);
     hwaddr size = 512;
     unsigned index = (base - VIRTIO_MMIO_BASE) / size;
     uint32_t irq = mms->virtio_irq_base + index;
@@ -152,7 +152,7 @@ static void dt_add_pcie(MicrovmMachineState *mms)
 static void dt_add_ioapic(MicrovmMachineState *mms, SysBusDevice *dev)
 {
     MemoryRegion *mr = sysbus_mmio_get_region(dev, 0);
-    hwaddr base = mr->addr;
+    hwaddr base = memory_region_get_address(mr);
     char *nodename;
     uint32_t ph;
     int index;
