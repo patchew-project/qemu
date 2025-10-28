@@ -1,3 +1,18 @@
+pyvenv_test_deps = custom_target(
+    'pyvenv_test_deps',
+    output: 'tests.group',
+    input: files(
+        meson.source_root() + '/pythondeps.toml',
+        meson.source_root() + '/python/scripts/mkvenv.py'
+    ),
+
+    command: [ python, '@INPUT1@',
+               'ensuregroup',
+               '--dir', meson.source_root() + '/python/wheels',
+               '@INPUT0@',
+               'tests' ],
+)
+
 subdir('bench')
 subdir('qemu-iotests')
 
