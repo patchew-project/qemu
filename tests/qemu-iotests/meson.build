@@ -62,7 +62,7 @@ foreach format, speed: qemu_iotests_formats
       test('io-' + format + '-' + item,
            python,
            args: args,
-           depends: qemu_iotests_binaries,
+           depends: qemu_iotests_binaries + pyvenv_test_deps,
            env: qemu_iotests_env,
            protocol: 'tap',
            timeout: 180,
