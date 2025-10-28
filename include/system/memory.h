@@ -2481,6 +2481,13 @@ void memory_region_set_enabled(MemoryRegion *mr, bool enabled);
  */
 void memory_region_set_address(MemoryRegion *mr, hwaddr addr);
 
+/**
+ * memory_region_get_address: Get the base address of a memory region
+ *
+ * @mr: the region to be queried
+ */
+hwaddr memory_region_get_address(const MemoryRegion *mr);
+
 /*
  * memory_region_set_size: dynamically update the size of a region.
  *

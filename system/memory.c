@@ -2777,6 +2777,11 @@ void memory_region_set_address(MemoryRegion *mr, hwaddr addr)
     }
 }
 
+hwaddr memory_region_get_address(const MemoryRegion *mr)
+{
+    return mr->addr;
+}
+
 void memory_region_set_alias_offset(MemoryRegion *mr, hwaddr offset)
 {
     assert(mr->alias);
