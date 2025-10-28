@@ -514,14 +514,16 @@ static bool nvme_update_ruh(NvmeCtrl *n, NvmeNamespace *ns, uint16_t pid)
 
 static bool nvme_addr_is_cmb(NvmeCtrl *n, hwaddr addr)
 {
+    MemoryRegion *mr;
     hwaddr hi, lo;
 
     if (!n->cmb.cmse) {
         return false;
     }
 
+    mr = &n->cmb.mem;
     lo = n->params.legacy_cmb ? n->cmb.mem.addr : n->cmb.cba;
-    hi = lo + int128_get64(n->cmb.mem.size);
+    hi = lo + memory_region_size(mr);
 
     return addr >= lo && addr < hi;
 }
@@ -540,7 +542,7 @@ static bool nvme_addr_is_pmr(NvmeCtrl *n, hwaddr addr)
         return false;
     }
 
-    hi = n->pmr.cba + int128_get64(n->pmr.dev->mr.size);
+    hi = n->pmr.cba + memory_region_size(&n->pmr.dev->mr);
 
     return addr >= n->pmr.cba && addr < hi;
 }
@@ -563,7 +565,7 @@ static inline bool nvme_addr_is_iomem(NvmeCtrl *n, hwaddr addr)
      * in BAR0 as well, then this must be changed.
      */
     lo = n->bar0.addr;
-    hi = lo + int128_get64(n->bar0.size);
+    hi = lo + memory_region_size(&n->bar0);
 
     return addr >= lo && addr < hi;
 }
