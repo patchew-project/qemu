@@ -347,6 +347,7 @@ typedef struct BDRVQcow2State {
     Qcow2Cache *refcount_block_cache;
     QEMUTimer *cache_clean_timer;
     unsigned cache_clean_interval;
+    bool cache_clean_running, cache_clean_polling;
 
     QLIST_HEAD(, QCowL2Meta) cluster_allocs;
 

@@ -835,12 +835,38 @@ static const char *overlap_bool_option_names[QCOW2_OL_MAX_BITNR] = {
     [QCOW2_OL_BITMAP_DIRECTORY_BITNR] = QCOW2_OPT_OVERLAP_BITMAP_DIRECTORY,
 };
 
+static void coroutine_fn cache_clean_timer_co(void *opaque)
+{
+    BlockDriverState *bs = opaque;
+    BDRVQcow2State *s = bs->opaque;
+
+    qemu_co_mutex_lock(&s->lock);
+    if (!s->cache_clean_timer) {
+        /* cache_clean_timer_del() has been called, skip doing anything */
+        goto out;
+    }
+    qcow2_cache_clean_unused(s->l2_table_cache);
+    qcow2_cache_clean_unused(s->refcount_block_cache);
+
+out:
+    qemu_co_mutex_unlock(&s->lock);
+    qatomic_set(&s->cache_clean_running, false);
+    if (qatomic_xchg(&s->cache_clean_polling, false)) {
+        aio_wait_kick();
+    }
+}
+
 static void cache_clean_timer_cb(void *opaque)
 {
     BlockDriverState *bs = opaque;
     BDRVQcow2State *s = bs->opaque;
-    qcow2_cache_clean_unused(s->l2_table_cache);
-    qcow2_cache_clean_unused(s->refcount_block_cache);
+    Coroutine *co;
+
+    co = qemu_coroutine_create(cache_clean_timer_co, bs);
+    /* cleared in cache_clean_timer_co() */
+    qatomic_set(&s->cache_clean_running, true);
+    qemu_coroutine_enter(co);
+
     timer_mod(s->cache_clean_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
               (int64_t) s->cache_clean_interval * 1000);
 }
@@ -864,6 +890,39 @@ static void cache_clean_timer_del(BlockDriverState *bs)
     if (s->cache_clean_timer) {
         timer_free(s->cache_clean_timer);
         s->cache_clean_timer = NULL;
+    }
+}
+
+/*
+ * Delete the cache clean timer and await any yet running instance.
+ * Must be called from the main or BDS AioContext, holding s->lock.
+ */
+static void coroutine_fn
+cache_clean_timer_locked_co_del_and_wait(BlockDriverState *bs)
+{
+    BDRVQcow2State *s = bs->opaque;
+    IO_OR_GS_CODE();
+    cache_clean_timer_del(bs);
+    if (qatomic_read(&s->cache_clean_running)) {
+        qemu_co_mutex_unlock(&s->lock);
+        qatomic_set(&s->cache_clean_polling, true);
+        BDRV_POLL_WHILE(bs, qatomic_read(&s->cache_clean_running));
+        qemu_co_mutex_lock(&s->lock);
+    }
+}
+
+/*
+ * Delete the cache clean timer and await any yet running instance.
+ * Must be called from the main or BDS AioContext without s->lock held.
+ */
+static void cache_clean_timer_del_and_wait(BlockDriverState *bs)
+{
+    BDRVQcow2State *s = bs->opaque;
+    IO_OR_GS_CODE();
+    cache_clean_timer_del(bs);
+    if (qatomic_read(&s->cache_clean_running)) {
+        qatomic_set(&s->cache_clean_polling, true);
+        BDRV_POLL_WHILE(bs, qatomic_read(&s->cache_clean_running));
     }
 }
 
@@ -1214,11 +1273,19 @@ fail:
     return ret;
 }
 
+/* s_locked specifies whether s->lock is held or not */
 static void qcow2_update_options_commit(BlockDriverState *bs,
-                                        Qcow2ReopenState *r)
+                                        Qcow2ReopenState *r,
+                                        bool s_locked)
 {
     BDRVQcow2State *s = bs->opaque;
     int i;
+
+    if (s_locked) {
+        cache_clean_timer_locked_co_del_and_wait(bs);
+    } else {
+        cache_clean_timer_del_and_wait(bs);
+    }
 
     if (s->l2_table_cache) {
         qcow2_cache_destroy(s->l2_table_cache);
@@ -1228,6 +1295,10 @@ static void qcow2_update_options_commit(BlockDriverState *bs,
     }
     s->l2_table_cache = r->l2_table_cache;
     s->refcount_block_cache = r->refcount_block_cache;
+
+    s->cache_clean_interval = r->cache_clean_interval;
+    cache_clean_timer_init(bs, bdrv_get_aio_context(bs));
+
     s->l2_slice_size = r->l2_slice_size;
 
     s->overlap_check = r->overlap_check;
@@ -1238,12 +1309,6 @@ static void qcow2_update_options_commit(BlockDriverState *bs,
     }
 
     s->discard_no_unref = r->discard_no_unref;
-
-    if (s->cache_clean_interval != r->cache_clean_interval) {
-        cache_clean_timer_del(bs);
-        s->cache_clean_interval = r->cache_clean_interval;
-        cache_clean_timer_init(bs, bdrv_get_aio_context(bs));
-    }
 
     qapi_free_QCryptoBlockOpenOptions(s->crypto_opts);
     s->crypto_opts = r->crypto_opts;
@@ -1261,6 +1326,7 @@ static void qcow2_update_options_abort(BlockDriverState *bs,
     qapi_free_QCryptoBlockOpenOptions(r->crypto_opts);
 }
 
+/* Called with s->lock held */
 static int coroutine_fn GRAPH_RDLOCK
 qcow2_update_options(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp)
@@ -1270,7 +1336,7 @@ qcow2_update_options(BlockDriverState *bs, QDict *options, int flags,
 
     ret = qcow2_update_options_prepare(bs, &r, options, flags, errp);
     if (ret >= 0) {
-        qcow2_update_options_commit(bs, &r);
+        qcow2_update_options_commit(bs, &r, true);
     } else {
         qcow2_update_options_abort(bs, &r);
     }
@@ -1908,7 +1974,7 @@ qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
     qemu_vfree(s->l1_table);
     /* else pre-write overlap checks in cache_destroy may crash */
     s->l1_table = NULL;
-    cache_clean_timer_del(bs);
+    cache_clean_timer_locked_co_del_and_wait(bs);
     if (s->l2_table_cache) {
         qcow2_cache_destroy(s->l2_table_cache);
     }
@@ -2048,7 +2114,7 @@ static void qcow2_reopen_commit(BDRVReopenState *state)
 
     GRAPH_RDLOCK_GUARD_MAINLOOP();
 
-    qcow2_update_options_commit(state->bs, state->opaque);
+    qcow2_update_options_commit(state->bs, state->opaque, false);
     if (!s->data_file) {
         /*
          * If we don't have an external data file, s->data_file was cleared by
@@ -2805,7 +2871,7 @@ qcow2_do_close(BlockDriverState *bs, bool close_data_file)
         qcow2_inactivate(bs);
     }
 
-    cache_clean_timer_del(bs);
+    cache_clean_timer_del_and_wait(bs);
     qcow2_cache_destroy(s->l2_table_cache);
     qcow2_cache_destroy(s->refcount_block_cache);
 
