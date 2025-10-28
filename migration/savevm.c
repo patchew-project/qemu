@@ -2141,6 +2141,7 @@ static void *postcopy_ram_listen_thread(void *opaque)
                          "bitmaps may be lost, and present migrated dirty "
                          "bitmaps are correctly migrated and valid.",
                          __func__, load_res);
+            error_free(local_err);
             load_res = 0; /* prevent further exit() */
         } else {
             error_prepend(&local_err,
