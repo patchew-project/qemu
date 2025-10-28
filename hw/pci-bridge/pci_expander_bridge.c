@@ -161,7 +161,7 @@ static char *pxb_host_ofw_unit_address(const SysBusDevice *dev)
         MemoryRegion *mr = sysbus_mmio_get_region(main_host_sbd, 0);
 
         return g_strdup_printf(HWADDR_FMT_plx ",%x",
-                               mr->addr, position + 1);
+                               memory_region_get_address(mr), position + 1);
     }
     if (main_host_sbd->num_pio > 0) {
         return g_strdup_printf("i%04x,%x",
