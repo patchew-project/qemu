@@ -3144,7 +3144,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque, Error **errp)
                 qemu_put_be64(f, block->page_size);
             }
             if (migrate_ignore_shared()) {
-                qemu_put_be64(f, block->mr->addr);
+                qemu_put_be64(f, memory_region_get_address(block->mr));
             }
 
             if (migrate_mapped_ram()) {
@@ -4190,11 +4190,12 @@ static int parse_ramblock(QEMUFile *f, RAMBlock *block, ram_addr_t length)
     }
     if (migrate_ignore_shared()) {
         hwaddr addr = qemu_get_be64(f);
-        if (migrate_ram_is_ignored(block) &&
-            block->mr->addr != addr) {
+        hwaddr block_addr = memory_region_get_address(block->mr);
+
+        if (migrate_ram_is_ignored(block) && block_addr != addr) {
             error_report("Mismatched GPAs for block %s "
-                         "%" PRId64 "!= %" PRId64, block->idstr,
-                         (uint64_t)addr, (uint64_t)block->mr->addr);
+                         "0x" HWADDR_FMT_plx "!= 0x" HWADDR_FMT_plx,
+                         block->idstr, addr, block_addr);
             return -EINVAL;
         }
     }
