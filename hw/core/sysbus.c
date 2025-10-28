@@ -127,15 +127,10 @@ static void sysbus_mmio_map_common(SysBusDevice *dev, int n, hwaddr addr,
     assert(n >= 0 && n < dev->num_mmio);
     mr = dev->mmio[n].memory;
 
-    if (dev->mmio[n].addr == addr) {
-        /* ??? region already mapped here.  */
-        return;
-    }
-    if (dev->mmio[n].addr != (hwaddr)-1) {
+    if (memory_region_is_mapped(mr)) {
         /* Unregister previous mapping.  */
         memory_region_del_subregion(get_system_memory(), mr);
     }
-    dev->mmio[n].addr = addr;
     memory_region_add_subregion_overlap(get_system_memory(),
                                         addr, mr, priority);
 }
@@ -180,7 +175,6 @@ void sysbus_init_mmio(SysBusDevice *dev, MemoryRegion *memory)
 
     assert(dev->num_mmio < QDEV_MAX_MMIO);
     n = dev->num_mmio++;
-    dev->mmio[n].addr = -1;
     dev->mmio[n].memory = memory;
 }
 

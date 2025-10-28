@@ -60,7 +60,6 @@ struct SysBusDevice {
 
     int num_mmio;
     struct {
-        hwaddr addr;
         MemoryRegion *memory;
     } mmio[QDEV_MAX_MMIO];
     int num_pio;
