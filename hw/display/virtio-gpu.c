@@ -1522,7 +1522,6 @@ void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     g->ctrl_bh = virtio_bh_new_guarded(qdev, virtio_gpu_ctrl_bh, g);
     g->cursor_bh = virtio_bh_new_guarded(qdev, virtio_gpu_cursor_bh, g);
     g->reset_bh = qemu_bh_new(virtio_gpu_reset_bh, g);
-    qemu_cond_init(&g->reset_cond);
     QTAILQ_INIT(&g->reslist);
     QTAILQ_INIT(&g->cmdq);
     QTAILQ_INIT(&g->fenceq);
@@ -1535,7 +1534,6 @@ static void virtio_gpu_device_unrealize(DeviceState *qdev)
     g_clear_pointer(&g->ctrl_bh, qemu_bh_delete);
     g_clear_pointer(&g->cursor_bh, qemu_bh_delete);
     g_clear_pointer(&g->reset_bh, qemu_bh_delete);
-    qemu_cond_destroy(&g->reset_cond);
     virtio_gpu_base_device_unrealize(qdev);
 }
 
@@ -1565,9 +1563,6 @@ static void virtio_gpu_reset_bh(void *opaque)
     for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
         dpy_gfx_replace_surface(g->parent_obj.scanout[i].con, NULL);
     }
-
-    g->reset_finished = true;
-    qemu_cond_signal(&g->reset_cond);
 }
 
 void virtio_gpu_reset(VirtIODevice *vdev)
@@ -1576,11 +1571,7 @@ void virtio_gpu_reset(VirtIODevice *vdev)
     struct virtio_gpu_ctrl_command *cmd;
 
     if (qemu_in_vcpu_thread()) {
-        g->reset_finished = false;
         qemu_bh_schedule(g->reset_bh);
-        while (!g->reset_finished) {
-            qemu_cond_wait_bql(&g->reset_cond);
-        }
     } else {
         aio_bh_call(g->reset_bh);
     }
