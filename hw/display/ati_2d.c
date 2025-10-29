@@ -24,6 +24,9 @@
  * possible.
  */
 
+#define DEFAULT_CNTL (s->regs.dp_gui_master_cntl & GMC_DST_PITCH_OFFSET_CNTL)
+#define EXPANDED_SRC_BPP 32
+
 static int ati_bpp_from_datatype(ATIVGAState *s)
 {
     switch (s->regs.dp_datatype & 0xf) {
@@ -43,7 +46,106 @@ static int ati_bpp_from_datatype(ATIVGAState *s)
     }
 }
 
-#define DEFAULT_CNTL (s->regs.dp_gui_master_cntl & GMC_DST_PITCH_OFFSET_CNTL)
+/* Convert 1bpp monochrome data to 32bpp ARGB using color expansion */
+static void expand_colors(uint8_t *color_dst, const uint8_t *mono_src,
+                          uint32_t width, uint32_t height,
+                          uint32_t fg_color, uint32_t bg_color,
+                          bool lsb_to_msb)
+{
+    uint32_t byte, color;
+    uint8_t *pixel;
+    int i, j, bit;
+    /* Rows are 32-bit aligned */
+    int bytes_per_row = ((width + 31) / 32) * 4;
+
+    for (i = 0; i < height; i++) {
+        for (j = 0; j < width; j++) {
+            byte = mono_src[i * bytes_per_row + (j / 8)];
+            bit = lsb_to_msb ? 7 - (j % 8) : j % 8;
+            color = (byte >> bit) & 0x1 ? fg_color : bg_color;
+            pixel = &color_dst[(i * width + j) * 4];
+            memcpy(pixel, &color, sizeof(color));
+        }
+    }
+}
+
+/* Blit color expanded HOST_DATA to the screen */
+static void ati_blt_mono_host_to_screen(ATIVGAState *s)
+{
+    DisplaySurface *ds = qemu_console_surface(s->vga.con);
+
+    uint8_t *mono_data, *color_data, *dst_data;
+    uint32_t dst_stride, dst_x, dst_y, bpp;
+    uint32_t width = s->regs.dst_width;
+    uint32_t height = s->regs.dst_height;
+    uint32_t pixels = width * height;
+    bool lsb_to_msb = s->regs.dp_gui_master_cntl & GMC_BYTE_ORDER_LSB_TO_MSB;
+    uint32_t fg_clr = s->regs.dp_src_frgd_clr;
+    uint32_t bg_clr = s->regs.dp_src_bkgd_clr;
+
+    /* Monochrome source is 1 bpp aligned to 32-bit rows */
+    uint32_t mono_size = ((width + 31) / 32) * 4 * height;
+    /* Color destination is 32 bpp */
+    uint32_t clr_size = pixels * sizeof(uint32_t);
+
+    if (s->host_data_pos < mono_size) {
+        qemu_log_mask(LOG_UNIMP,
+                      "HOST_DATA blit requires %u bytes, buffer holds %u "
+                      "(increase buffer size)\n",
+                      mono_size, s->host_data_pos);
+        return;
+    }
+
+    mono_data = s->host_data_buffer;
+    color_data = g_malloc(clr_size);
+
+    expand_colors(color_data, mono_data, width, height,
+                  fg_clr, bg_clr, lsb_to_msb);
+
+    /* Rage 128 stores pitch as pixels * 8. We need pixels. */
+    dst_stride = (DEFAULT_CNTL ?
+                 s->regs.dst_pitch : s->regs.default_pitch) * 8;
+    dst_x = (s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT ?
+            s->regs.dst_x : s->regs.dst_x + 1 - s->regs.dst_width);
+    dst_y = (s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM ?
+            s->regs.dst_y : s->regs.dst_y + 1 - s->regs.dst_height);
+    bpp = ati_bpp_from_datatype(s);
+    dst_data = s->vga.vram_ptr + (DEFAULT_CNTL ?
+               s->regs.dst_offset : s->regs.default_offset);
+    if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
+        dst_data += s->regs.crtc_offset & 0x07ffffff;
+    }
+    /* And now we need stride in words to pass to pixman */
+    dst_stride = (dst_stride * (bpp / 8)) / sizeof(uint32_t);
+
+    pixman_blt((uint32_t *)color_data, (uint32_t *)dst_data,
+               width, dst_stride, EXPANDED_SRC_BPP, bpp,
+               0, 0, dst_x, dst_y,
+               width, height);
+    DPRINTF("pixman_blt(%p, %p, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d)\n",
+            color_data, dst_data, width, dst_stride, EXPANDED_SRC_BPP, bpp,
+            0, 0, dst_x, dst_y,
+            width, height);
+
+    g_free(color_data);
+    s->host_data_pos = 0;
+
+    s->regs.dst_x = (s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT ?
+                     dst_x + s->regs.dst_width : dst_x);
+    s->regs.dst_y = (s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM ?
+                     dst_y + s->regs.dst_height : dst_y);
+
+    if (dst_data >= s->vga.vram_ptr + s->vga.vbe_start_addr &&
+        dst_data < s->vga.vram_ptr + s->vga.vbe_start_addr +
+        s->vga.vbe_regs[VBE_DISPI_INDEX_YRES] * s->vga.vbe_line_offset) {
+            memory_region_set_dirty(
+                &s->vga.vram, s->vga.vbe_start_addr +
+                (DEFAULT_CNTL ? s->regs.dst_offset : s->regs.default_offset) +
+                dst_y * surface_stride(ds),
+                height * surface_stride(ds)
+            );
+    }
+}
 
 void ati_2d_blt(ATIVGAState *s)
 {
@@ -92,6 +194,12 @@ void ati_2d_blt(ATIVGAState *s)
     switch (s->regs.dp_mix & GMC_ROP3_MASK) {
     case ROP3_SRCCOPY:
     {
+        uint32_t src = s->regs.dp_gui_master_cntl & GMC_SRC_SOURCE_MASK;
+        if (src == GMC_SRC_SOURCE_HOST_DATA) {
+            ati_blt_mono_host_to_screen(s);
+            return;
+        }
+
         bool fallback = false;
         unsigned src_x = (s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT ?
                        s->regs.src_x : s->regs.src_x + 1 - s->regs.dst_width);

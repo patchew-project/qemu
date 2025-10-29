@@ -510,6 +510,15 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case DEFAULT_SC_BOTTOM_RIGHT:
         val = s->regs.default_sc_bottom_right;
         break;
+    case SC_TOP_LEFT:
+        val = s->regs.sc_top_left;
+        break;
+    case SC_BOTTOM_RIGHT:
+        val = s->regs.sc_bottom_right;
+        break;
+    case SRC_SC_BOTTOM_RIGHT:
+        val = s->regs.src_sc_bottom_right;
+        break;
     default:
         break;
     }
@@ -804,9 +813,14 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         }
         break;
     case DST_WIDTH:
+    {
+        uint32_t src = s->regs.dp_gui_master_cntl & GMC_SRC_SOURCE_MASK;
         s->regs.dst_width = data & 0x3fff;
-        ati_2d_blt(s);
+        if (src != GMC_SRC_SOURCE_HOST_DATA) {
+            ati_2d_blt(s);
+        }
         break;
+    }
     case DST_HEIGHT:
         s->regs.dst_height = data & 0x3fff;
         break;
@@ -853,21 +867,39 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         s->regs.dst_y = (data >> 16) & 0x3fff;
         break;
     case DST_HEIGHT_WIDTH:
+    {
+        uint32_t src = s->regs.dp_gui_master_cntl & GMC_SRC_SOURCE_MASK;
         s->regs.dst_width = data & 0x3fff;
         s->regs.dst_height = (data >> 16) & 0x3fff;
-        ati_2d_blt(s);
+        if (src != GMC_SRC_SOURCE_HOST_DATA) {
+            ati_2d_blt(s);
+        }
         break;
+    }
     case DP_GUI_MASTER_CNTL:
-        s->regs.dp_gui_master_cntl = data & 0xf800000f;
+        s->regs.dp_gui_master_cntl = data & 0xff80000f;
         s->regs.dp_datatype = (data & 0x0f00) >> 8 | (data & 0x30f0) << 4 |
                               (data & 0x4000) << 16;
         s->regs.dp_mix = (data & GMC_ROP3_MASK) | (data & 0x7000000) >> 16;
+
+        if ((data & GMC_SRC_CLIPPING_MASK) == GMC_SRC_CLIP_DEFAULT) {
+            s->regs.src_sc_bottom_right = s->regs.default_sc_bottom_right;
+        }
+        if ((data & GMC_DST_CLIPPING_MASK) == GMC_DST_CLIP_DEFAULT) {
+            s->regs.sc_top_left = 0;
+            s->regs.sc_bottom_right = s->regs.default_sc_bottom_right;
+        }
         break;
     case DST_WIDTH_X:
+    {
+        uint32_t src = s->regs.dp_gui_master_cntl & GMC_SRC_SOURCE_MASK;
         s->regs.dst_x = data & 0x3fff;
         s->regs.dst_width = (data >> 16) & 0x3fff;
-        ati_2d_blt(s);
+        if (src != GMC_SRC_SOURCE_HOST_DATA) {
+            ati_2d_blt(s);
+        }
         break;
+    }
     case SRC_X_Y:
         s->regs.src_y = data & 0x3fff;
         s->regs.src_x = (data >> 16) & 0x3fff;
@@ -877,10 +909,15 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         s->regs.dst_x = (data >> 16) & 0x3fff;
         break;
     case DST_WIDTH_HEIGHT:
+    {
+        uint32_t src = s->regs.dp_gui_master_cntl & GMC_SRC_SOURCE_MASK;
         s->regs.dst_height = data & 0x3fff;
         s->regs.dst_width = (data >> 16) & 0x3fff;
-        ati_2d_blt(s);
+        if (src != GMC_SRC_SOURCE_HOST_DATA) {
+            ati_2d_blt(s);
+        }
         break;
+    }
     case DST_HEIGHT_Y:
         s->regs.dst_y = data & 0x3fff;
         s->regs.dst_height = (data >> 16) & 0x3fff;
@@ -909,6 +946,12 @@ static void ati_mm_write(void *opaque, hwaddr addr,
     case DP_CNTL:
         s->regs.dp_cntl = data;
         break;
+    case DP_SRC_FRGD_CLR:
+        s->regs.dp_src_frgd_clr = data;
+        break;
+    case DP_SRC_BKGD_CLR:
+        s->regs.dp_src_bkgd_clr = data;
+        break;
     case DP_DATATYPE:
         s->regs.dp_datatype = data & 0xe0070f0f;
         break;
@@ -936,6 +979,29 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         break;
     case DEFAULT_SC_BOTTOM_RIGHT:
         s->regs.default_sc_bottom_right = data & 0x3fff3fff;
+        break;
+    case SC_TOP_LEFT:
+        s->regs.sc_top_left = data;
+        break;
+    case SC_BOTTOM_RIGHT:
+        s->regs.sc_bottom_right = data;
+        break;
+    case SRC_SC_BOTTOM_RIGHT:
+        s->regs.src_sc_bottom_right = data;
+        break;
+    case HOST_DATA0 ... HOST_DATA7:
+    case HOST_DATA_LAST:
+        if (s->host_data_pos + 4 > sizeof(s->host_data_buffer)) {
+            qemu_log_mask(LOG_UNIMP, "HOST_DATA buffer overflow "
+                         "(buffer size: %zu bytes)\n",
+                          sizeof(s->host_data_buffer));
+            return;
+        }
+        stn_he_p(&s->host_data_buffer[s->host_data_pos], 4, data);
+        s->host_data_pos += 4;
+        if (addr == HOST_DATA_LAST) {
+            ati_2d_blt(s);
+        }
         break;
     default:
         break;
@@ -1018,6 +1084,7 @@ static void ati_vga_realize(PCIDevice *dev, Error **errp)
     /* most interrupts are not yet emulated but MacOS needs at least VBlank */
     dev->config[PCI_INTERRUPT_PIN] = 1;
     timer_init_ns(&s->vblank_timer, QEMU_CLOCK_VIRTUAL, ati_vga_vblank_irq, s);
+    s->host_data_pos = 0;
 }
 
 static void ati_vga_reset(DeviceState *dev)
@@ -1030,6 +1097,7 @@ static void ati_vga_reset(DeviceState *dev)
     /* reset vga */
     vga_common_reset(&s->vga);
     s->mode = VGA_MODE;
+    s->host_data_pos = 0;
 }
 
 static void ati_vga_exit(PCIDevice *dev)

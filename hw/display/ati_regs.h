@@ -252,6 +252,15 @@
 #define DP_T12_CNTL                             0x178c
 #define DST_BRES_T1_LNTH                        0x1790
 #define DST_BRES_T2_LNTH                        0x1794
+#define HOST_DATA0                              0x17c0
+#define HOST_DATA1                              0x17c4
+#define HOST_DATA2                              0x17c8
+#define HOST_DATA3                              0x17cc
+#define HOST_DATA4                              0x17d0
+#define HOST_DATA5                              0x17d4
+#define HOST_DATA6                              0x17d8
+#define HOST_DATA7                              0x17dc
+#define HOST_DATA_LAST                          0x17e0
 #define SCALE_SRC_HEIGHT_WIDTH                  0x1994
 #define SCALE_OFFSET_0                          0x1998
 #define SCALE_PITCH                             0x199c
@@ -392,17 +401,32 @@
 /* DP_GUI_MASTER_CNTL bit constants */
 #define GMC_SRC_PITCH_OFFSET_CNTL               0x00000001
 #define GMC_DST_PITCH_OFFSET_CNTL               0x00000002
-#define GMC_SRC_CLIP_DEFAULT                    0x00000000
-#define GMC_DST_CLIP_DEFAULT                    0x00000000
 #define GMC_BRUSH_SOLIDCOLOR                    0x000000d0
 #define GMC_SRC_DSTCOLOR                        0x00003000
 #define GMC_BYTE_ORDER_MSB_TO_LSB               0x00000000
+#define GMC_BYTE_ORDER_LSB_TO_MSB               0x00004000
 #define GMC_DP_SRC_RECT                         0x02000000
 #define GMC_3D_FCN_EN_CLR                       0x00000000
 #define GMC_AUX_CLIP_CLEAR                      0x20000000
 #define GMC_DST_CLR_CMP_FCN_CLEAR               0x10000000
 #define GMC_WRITE_MASK_SET                      0x40000000
 #define GMC_DP_CONVERSION_TEMP_6500             0x00000000
+
+/* DP_GUI_MASTER_CNTL DP_SRC_CLIPPING named constants */
+#define GMC_SRC_CLIPPING_MASK                   0x00000004
+#define GMC_SRC_CLIP_DEFAULT                    0x00000000
+#define GMC_SRC_CLIP_LEAVE_ALONE                0x00000004
+
+/* DP_GUI_MASTER_CNTL DP_DST_CLIPPING named constants */
+#define GMC_DST_CLIPPING_MASK                   0x00000008
+#define GMC_DST_CLIP_DEFAULT                    0x00000000
+#define GMC_DST_CLIP_LEAVE_ALONE                0x00000008
+
+/* DP_GUI_MASTER_CNTL DP_SRC_SOURCE named constants */
+#define GMC_SRC_SOURCE_MASK                     0x07000000
+#define GMC_SRC_SOURCE_MEMORY                   0x02000000
+#define GMC_SRC_SOURCE_HOST_DATA                0x03000000
+#define GMC_SRC_SOURCE_HOST_DATA_ALIGNED        0x04000000
 
 /* DP_GUI_MASTER_CNTL ROP3 named constants */
 #define GMC_ROP3_MASK                           0x00ff0000

@@ -14,6 +14,7 @@
 #include "hw/i2c/bitbang_i2c.h"
 #include "vga_int.h"
 #include "qom/object.h"
+#include "qemu/units.h"
 
 /*#define DEBUG_ATI*/
 
@@ -82,6 +83,9 @@ typedef struct ATIVGARegs {
     uint32_t default_pitch;
     uint32_t default_tile;
     uint32_t default_sc_bottom_right;
+    uint32_t sc_top_left;
+    uint32_t sc_bottom_right;
+    uint32_t src_sc_bottom_right;
 } ATIVGARegs;
 
 struct ATIVGAState {
@@ -100,6 +104,8 @@ struct ATIVGAState {
     MemoryRegion io;
     MemoryRegion mm;
     ATIVGARegs regs;
+    uint32_t host_data_pos;
+    uint8_t host_data_buffer[4 * MiB];
 };
 
 const char *ati_reg_name(int num);
