@@ -1481,7 +1481,7 @@ static int vhost_vdpa_get_vring_base(struct vhost_dev *dev,
         return 0;
     }
 
-    if (!v->suspended) {
+    if (!v->suspended && vhost_vdpa_first_dev(dev)) {
         /*
          * Cannot trust in value returned by device, let vhost recover used
          * idx from guest.
