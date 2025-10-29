@@ -845,6 +845,7 @@ static bool vfio_device_get(VFIOGroup *group, const char *name,
                             VFIODevice *vbasedev, Error **errp)
 {
     g_autofree struct vfio_device_info *info = NULL;
+    VFIOContainer *bcontainer = VFIO_IOMMU(group->container);
     int fd;
 
     fd = vfio_cpr_group_get_device_fd(group->fd, name);
@@ -883,7 +884,8 @@ static bool vfio_device_get(VFIOGroup *group, const char *name,
         }
     }
 
-    vfio_device_prepare(vbasedev, VFIO_IOMMU(group->container), info);
+    vfio_device_prepare(vbasedev, bcontainer, info);
+    vbasedev->iommu_dirty_tracking = bcontainer->dirty_pages_supported;
 
     vbasedev->fd = fd;
     vbasedev->group = group;
