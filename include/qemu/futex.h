@@ -24,6 +24,7 @@
 #ifndef QEMU_FUTEX_H
 #define QEMU_FUTEX_H
 
+#include "qemu/timer.h"
 #define HAVE_FUTEX
 
 #ifdef CONFIG_LINUX
@@ -42,18 +43,28 @@ static inline void qemu_futex_wake_single(void *f)
     qemu_futex(f, FUTEX_WAKE, 1, NULL, NULL, 0);
 }
 
-static inline void qemu_futex_wait(void *f, unsigned val)
+static inline bool qemu_futex_timedwait(void *f, unsigned val, int64_t ns)
 {
-    while (qemu_futex(f, FUTEX_WAIT, (int) val, NULL, NULL, 0)) {
+    struct timespec ts;
+    uint32_t bitset = FUTEX_BITSET_MATCH_ANY;
+
+    ts.tv_sec = ns / NANOSECONDS_PER_SECOND;
+    ts.tv_nsec = ns % NANOSECONDS_PER_SECOND;
+
+    while (qemu_futex(f, FUTEX_WAIT_BITSET, (int) val, &ts, NULL, bitset)) {
         switch (errno) {
         case EWOULDBLOCK:
-            return;
+            return true;
         case EINTR:
             break; /* get out of switch and retry */
+        case ETIMEDOUT:
+            return false;
         default:
             abort();
         }
     }
+
+    return true;
 }
 #elif defined(CONFIG_WIN32)
 #include <synchapi.h>
@@ -68,12 +79,20 @@ static inline void qemu_futex_wake_single(void *f)
     WakeByAddressSingle(f);
 }
 
-static inline void qemu_futex_wait(void *f, unsigned val)
+static inline bool qemu_futex_timedwait(void *f, unsigned val, int64_t ns)
 {
-    WaitOnAddress(f, &val, sizeof(val), INFINITE);
+    uint32_t duration = MIN((ns - get_clock()) / SCALE_MS, UINT32_MAX);
+    return WaitOnAddress(f, &val, sizeof(val), duration);
 }
 #else
 #undef HAVE_FUTEX
+#endif
+
+#ifdef HAVE_FUTEX
+static inline void qemu_futex_wait(void *f, unsigned val)
+{
+    qemu_futex_timedwait(f, val, INT64_MAX);
+}
 #endif
 
 #endif /* QEMU_FUTEX_H */
