@@ -415,8 +415,8 @@ static void get_netdev(Object *obj, Visitor *v, const char *name,
     g_free(p);
 }
 
-static void set_netdev(Object *obj, Visitor *v, const char *name,
-                       void *opaque, Error **errp)
+static void do_set_netdev(Object *obj, Visitor *v, const char *name,
+                          void *opaque, bool connect, Error **errp)
 {
     const Property *prop = opaque;
     NICPeers *peers_ptr = object_field_prop_ptr(obj, prop);
@@ -463,6 +463,12 @@ static void set_netdev(Object *obj, Visitor *v, const char *name,
             }
         }
 
+        if (connect) {
+            if (!net_backend_connect(peers[i], errp)) {
+                goto out;
+            }
+        }
+
         ncs[i] = peers[i];
         ncs[i]->queue_index = i;
     }
@@ -474,11 +480,30 @@ out:
     g_free(str);
 }
 
+static void set_netdev(Object *obj, Visitor *v, const char *name,
+                          void *opaque, Error **errp)
+{
+    return do_set_netdev(obj, v, name, opaque, true, errp);
+}
+
+static void set_netdev_no_connect(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
+{
+    return do_set_netdev(obj, v, name, opaque, false, errp);
+}
+
 const PropertyInfo qdev_prop_netdev = {
     .type  = "str",
     .description = "ID of a netdev to use as a backend",
     .get   = get_netdev,
     .set   = set_netdev,
+};
+
+const PropertyInfo qdev_prop_netdev_no_connect = {
+    .type  = "str",
+    .description = "ID of a netdev to use as a backend",
+    .get   = get_netdev,
+    .set   = set_netdev_no_connect,
 };
 
 

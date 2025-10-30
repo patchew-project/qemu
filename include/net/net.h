@@ -51,6 +51,9 @@ typedef struct NetOffloads {
     DEFINE_PROP_MACADDR("mac",   _state, _conf.macaddr),                \
     DEFINE_PROP_NETDEV("netdev", _state, _conf.peers)
 
+#define DEFINE_NIC_PROPERTIES_NO_CONNECT(_state, _conf)                 \
+    DEFINE_PROP_MACADDR("mac",   _state, _conf.macaddr),                \
+    DEFINE_PROP_NETDEV_NO_CONNECT("netdev", _state, _conf.peers)
 
 /* Net clients */
 
@@ -82,6 +85,7 @@ typedef void (NetAnnounce)(NetClientState *);
 typedef bool (SetSteeringEBPF)(NetClientState *, int);
 typedef bool (NetCheckPeerType)(NetClientState *, ObjectClass *, Error **);
 typedef struct vhost_net *(GetVHostNet)(NetClientState *nc);
+typedef bool (NetBackendConnect)(NetClientState *, Error **);
 
 typedef struct NetClientInfo {
     NetClientDriver type;
@@ -110,6 +114,7 @@ typedef struct NetClientInfo {
     SetSteeringEBPF *set_steering_ebpf;
     NetCheckPeerType *check_peer_type;
     GetVHostNet *get_vhost_net;
+    NetBackendConnect *backend_connect;
 } NetClientInfo;
 
 struct NetClientState {
@@ -322,6 +327,7 @@ void net_cleanup(void);
 void hmp_host_net_add(Monitor *mon, const QDict *qdict);
 void hmp_host_net_remove(Monitor *mon, const QDict *qdict);
 void netdev_add(QemuOpts *opts, Error **errp);
+bool net_backend_connect(NetClientState *nc, Error **errp);
 
 int net_hub_id_for_client(NetClientState *nc, int *id);
 

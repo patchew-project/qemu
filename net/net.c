@@ -2162,3 +2162,18 @@ int net_fill_rstate(SocketReadState *rs, const uint8_t *buf, int size)
     assert(size == 0);
     return 0;
 }
+
+bool net_backend_connect(NetClientState *nc, Error **errp)
+{
+    if (!nc->info->backend_connect) {
+        /*
+         * For most net backends from net/, the connection with
+         * some external entity is don in init function, defined
+         * in net_client_init_fun[] list. They don't have separate
+         * .backend_connect.
+         */
+        return true;
+    }
+
+    return nc->info->backend_connect(nc, errp);
+}
