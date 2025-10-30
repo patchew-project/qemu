@@ -2510,6 +2510,18 @@ static void test_acpi_isapc_smbios_legacy(void)
     free_test_data(&data);
 }
 
+static void test_acpi_q35_wdat(void)
+{
+    test_data data = {
+        .machine = MACHINE_Q35,
+        .arch    = "x86",
+        .variant = ".wdat",
+    };
+
+    test_acpi_one("-global ICH9-LPC.wdat=on", &data);
+    free_test_data(&data);
+}
+
 static void test_oem_fields(test_data *data)
 {
     int i;
@@ -2804,6 +2816,7 @@ int main(int argc, char *argv[])
             qtest_add_func("acpi/q35/cxl", test_acpi_q35_cxl);
 #endif
             qtest_add_func("acpi/q35/slic", test_acpi_q35_slic);
+            qtest_add_func("acpi/q35/wdat", test_acpi_q35_wdat);
         }
         if (qtest_has_machine("microvm")) {
             qtest_add_func("acpi/microvm", test_acpi_microvm_tcg);
