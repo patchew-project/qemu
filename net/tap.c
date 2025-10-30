@@ -90,6 +90,12 @@ typedef struct TAPState {
     int sndbuf;
     int vhostfd;
     uint32_t vhost_busyloop_timeout;
+
+    /* for postponed setup */
+    bool vnet_hdr_required;
+    int vnet_hdr;
+    bool mq_required;
+    char *ifname;
 } TAPState;
 
 static bool net_tap_setup(TAPState *s, int fd, int vnet_hdr, Error **errp);
@@ -99,6 +105,7 @@ static void launch_script(const char *setup_script, const char *ifname,
 
 static void tap_send(void *opaque);
 static void tap_writable(void *opaque);
+static bool tap_backend_connect(NetClientState *nc, Error **errp);
 
 static char *tap_parse_script(const char *script_arg, const char *default_path)
 {
@@ -368,6 +375,8 @@ static void tap_cleanup(NetClientState *nc)
         close(s->vhostfd);
         s->vhostfd = -1;
     }
+
+    g_free(s->ifname);
 }
 
 static void tap_poll(NetClientState *nc, bool enable)
@@ -424,6 +433,7 @@ static NetClientInfo net_tap_info = {
     .set_vnet_be = tap_set_vnet_be,
     .set_steering_ebpf = tap_set_steering_ebpf,
     .get_vhost_net = tap_get_vhost_net,
+    .backend_connect = tap_backend_connect,
 };
 
 static TAPState *net_tap_new(NetClientState *peer, const char *model,
@@ -847,6 +857,102 @@ static int get_fds(char *str, char *fds[], int max)
     return i;
 }
 
+static bool tap_wait_incoming(NetClientState *nc)
+{
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
+
+    return s->fd == -1;
+}
+
+static bool tap_backend_connect(NetClientState *nc, Error **errp)
+{
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
+    char ifname[TAP_IFNAME_SZ];
+    int vnet_hdr = s->vnet_hdr;
+    int fd;
+
+    if (!tap_wait_incoming(nc)) {
+        /* Already connected */
+        return true;
+    }
+
+    pstrcpy(ifname, sizeof(ifname), s->ifname);
+    fd = net_tap_open(&vnet_hdr, s->vnet_hdr_required, NULL,
+                      ifname, sizeof(ifname),
+                      s->mq_required, errp);
+    if (fd < 0) {
+        goto fail;
+    }
+
+    if (!net_tap_setup(s, fd, vnet_hdr, errp)) {
+        goto fail;
+    }
+
+    return true;
+
+fail:
+    qemu_del_net_client(&s->nc);
+    return false;
+}
+
+static bool check_no_script(const char *script_arg)
+{
+    return script_arg &&
+        (script_arg[0] == '\0' || strcmp(script_arg, "no") == 0);
+}
+
+/*
+ * Returns:
+ * -1 - failed, errp set. The whole tap creation process is faild.
+ *  0 - success, tap initialized, connect is postponed
+ *  1 - no critical error, but postponed connect is not supported,
+ *      caller should continue usual initialization
+ */
+static int tap_postpone_init(const NetdevTapOptions *tap,
+                             const char *name, NetClientState *peer,
+                             Error **errp)
+{
+    int queues = tap->has_queues ? tap->queues : 1;
+
+    if (tap->fd || tap->fds || tap->helper || tap->vhostfds) {
+        return 1;
+    }
+
+    if (!tap->ifname || tap->ifname[0] == '\0' ||
+        strstr(tap->ifname, "%d") != NULL) {
+        /*
+         * It's hard to postpone logic of parsing template or
+         * absent ifname
+         */
+        return 1;
+    }
+
+    /*
+     * It's not simple to support downscript for backend transfer migration,
+     * so for simplicity, let's not support postponed connect in case of
+     * any scripts given.
+     */
+    if (!check_no_script(tap->script) || !check_no_script(tap->downscript)) {
+        return 1;
+    }
+
+    for (int i = 0; i < queues; i++) {
+        TAPState *s = net_tap_new(peer, "tap", name, tap, NULL, errp);
+        if (!s) {
+            return -1;
+        }
+
+        s->vnet_hdr_required = tap->has_vnet_hdr && tap->vnet_hdr;
+        s->vnet_hdr = tap->has_vnet_hdr ? tap->vnet_hdr : 1;
+        s->mq_required = queues > 1;
+        s->ifname = g_strdup(tap->ifname);
+        qemu_set_info_str(&s->nc, "ifname=%s,script=no,downscript=no",
+                          tap->ifname);
+    }
+
+    return 0;
+}
+
 int net_init_tap(const Netdev *netdev, const char *name,
                  NetClientState *peer, Error **errp)
 {
@@ -873,6 +979,11 @@ int net_init_tap(const Netdev *netdev, const char *name,
     if (tap->has_vhost && !tap->vhost && (tap->vhostfds || tap->vhostfd)) {
         error_setg(errp, "vhostfd(s)= is not valid without vhost");
         return -1;
+    }
+
+    ret = tap_postpone_init(tap, name, peer, errp);
+    if (ret <= 0) {
+        return ret;
     }
 
     if (tap->fd) {
