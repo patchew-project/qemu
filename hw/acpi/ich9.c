@@ -321,6 +321,11 @@ void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm, qemu_irq sci_irq)
         acpi_pm_tco_init(&pm->tco_regs, &pm->io);
     }
 
+    if (pm->enable_wdat && !pm->enable_tco) {
+        error_setg(&error_fatal,
+            "'wdat' can not be enabled without 'enable_tco=on'");
+    }
+
     if (pm->acpi_pci_hotplug.use_acpi_hotplug_bridge) {
         object_property_set_link(OBJECT(lpc_pci), "bus",
                                  OBJECT(pci_get_bus(lpc_pci)), &error_abort);
