@@ -31,6 +31,9 @@
 
 #include <gnutls/gnutls.h>
 
+struct QCryptoTLSCredsAnon {
+    QCryptoTLSCreds parent_obj;
+};
 
 static int
 qcrypto_tls_creds_anon_load(QCryptoTLSCredsAnon *creds,

@@ -33,6 +33,12 @@
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
 
+struct QCryptoTLSCredsX509 {
+    QCryptoTLSCreds parent_obj;
+    bool sanityCheck;
+    char *passwordid;
+};
+
 
 static int
 qcrypto_tls_creds_check_cert_times(gnutls_x509_crt_t cert,
