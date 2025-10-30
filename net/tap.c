@@ -48,6 +48,8 @@
 
 #include "net/vhost_net.h"
 
+#define TAP_IFNAME_SZ 128
+
 static const int kernel_feature_bits[] = {
     VIRTIO_F_NOTIFY_ON_EMPTY,
     VIRTIO_RING_F_INDIRECT_DESC,
@@ -853,7 +855,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
     /* for the no-fd, no-helper case */
     Error *err = NULL;
     const char *vhostfdname;
-    char ifname[128];
+    char ifname[TAP_IFNAME_SZ];
     int ret = 0;
 
     assert(netdev->type == NET_CLIENT_DRIVER_TAP);
