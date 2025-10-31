@@ -759,6 +759,14 @@ static void test_cancel_src_after_none(QTestState *from, QTestState *to,
     wait_for_migration_complete(to);
 }
 
+static void assert_migration_error(QTestState *vm)
+{
+    QDict *rep = migrate_query(vm);
+
+    g_assert(qdict_get_str(rep, "error-desc"));
+    qobject_unref(rep);
+}
+
 static void test_cancel_src_pre_switchover(QTestState *from, QTestState *to,
                                            const char *uri, const char *phase)
 {
@@ -784,6 +792,7 @@ static void test_cancel_src_pre_switchover(QTestState *from, QTestState *to,
 
     wait_for_migration_status(to, "failed",
                               (const char * []) { "completed", NULL });
+    assert_migration_error(to);
 }
 
 static void test_cancel_src_after_status(void *opaque)
