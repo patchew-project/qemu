@@ -1803,7 +1803,9 @@ int hvf_vcpu_exec(CPUState *cpu)
     flush_cpu_state(cpu);
 
     bql_unlock();
+    cpu_exec_start(cpu);
     r = hv_vcpu_run(cpu->accel->fd);
+    cpu_exec_end(cpu);
     bql_lock();
     switch (r) {
     case HV_SUCCESS:
