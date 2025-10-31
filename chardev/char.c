@@ -1222,12 +1222,15 @@ ChardevReturn *qmp_chardev_change(const char *id, ChardevBackend *backend,
     }
 
     chr->fe = NULL;
-    qemu_chr_fe_init(fe, chr_new, &error_abort);
+    if (!qemu_chr_fe_init(fe, chr_new, errp)) {
+        object_unref(OBJECT(chr_new));
+        return NULL;
+    }
 
     if (fe->chr_be_change(fe->opaque) < 0) {
         error_setg(errp, "Chardev '%s' change failed", chr_new->label);
         chr_new->fe = NULL;
-        qemu_chr_fe_init(fe, chr, &error_abort);
+        qemu_chr_fe_init(fe, chr, NULL);
         if (closed_sent) {
             qemu_chr_be_event(chr, CHR_EVENT_OPENED);
         }
