@@ -3315,29 +3315,38 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
         *pnum = bytes;
         ret = BDRV_BLOCK_DATA;
     } else if (data == offset) {
-        /* On a data extent, compute bytes to the end of the extent,
-         * possibly including a partial sector at EOF. */
+        /* On a data extent, compute bytes to the end of the extent. */
         *pnum = hole - offset;
 
-        /*
-         * We are not allowed to return partial sectors, though, so
-         * round up if necessary.
-         */
-        if (!QEMU_IS_ALIGNED(*pnum, bs->bl.request_alignment)) {
-            int64_t file_length = raw_getlength(bs);
-            if (file_length > 0) {
-                /* Ignore errors, this is just a safeguard */
-                assert(hole == file_length);
-            }
-            *pnum = ROUND_UP(*pnum, bs->bl.request_alignment);
-        }
-
+         /*
+          * We may have allocation unaligned with the requested
+          * alignment due to the following reasons:
+          * - unaligned file size
+          * - inexact direct I/O alignment requirement estimation
+          * - mismatches between the allocation size and
+          *   direct I/O alignment requirement.
+          *
+          * We are not allowed to return partial sectors, though, so
+          * round up the end of allocation if necessary.
+          */
+        *pnum = ROUND_UP(*pnum, bs->bl.request_alignment);
         ret = BDRV_BLOCK_DATA;
     } else {
         /* On a hole, compute bytes to the beginning of the next extent.  */
         assert(hole == offset);
         *pnum = data - offset;
-        ret = BDRV_BLOCK_ZERO;
+
+        /*
+         * We may have allocation unaligned, so round down the beginning
+         * of allocation if necessary.
+         */
+        if (*pnum < bs->bl.request_alignment) {
+            *pnum = bs->bl.request_alignment;
+            ret = BDRV_BLOCK_DATA;
+        } else {
+            *pnum = ROUND_DOWN(*pnum, bs->bl.request_alignment);
+            ret = BDRV_BLOCK_ZERO;
+        }
     }
     *map = offset;
     *file = bs;
