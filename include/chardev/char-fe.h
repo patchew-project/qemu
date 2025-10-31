@@ -25,14 +25,18 @@ struct CharFrontend {
 };
 
 /**
- * qemu_chr_fe_init:
+ * qemu_chr_fe_init(_ex):
  *
  * Initializes the frontend @c for the given Chardev backend @s. Call
  * qemu_chr_fe_deinit() to remove the association and release the backend.
+ * Call qemu_chr_connect(), except for the case when connect=false
+ * parameter set for _ex() version.
  *
  * Returns: false on error.
  */
-bool qemu_chr_fe_init(CharFrontend *c, Chardev *be, Error **errp);
+bool qemu_chr_fe_init(CharFrontend *c, Chardev *s, Error **errp);
+bool qemu_chr_fe_init_ex(CharFrontend *c, Chardev *s, bool connect,
+                         Error **errp);
 
 /**
  * qemu_chr_fe_deinit:

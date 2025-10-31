@@ -189,15 +189,26 @@ bool qemu_chr_fe_backend_open(CharFrontend *c)
     return c->chr && c->chr->be_open;
 }
 
-bool qemu_chr_fe_init(CharFrontend *c, Chardev *s, Error **errp)
+bool qemu_chr_fe_init_ex(CharFrontend *c, Chardev *s, bool connect,
+                         Error **errp)
 {
     unsigned int tag = 0;
 
-    if (!qemu_chr_connect(s, errp)) {
-        return false;
-    }
-
     if (s) {
+        if (connect) {
+            if (!qemu_chr_connect(s, errp)) {
+                return false;
+            }
+        } else {
+            /* DEFINE_PROP_CHR_NO_CONNECT */
+            if (!s->connect_postponed) {
+                error_setg(errp,
+                           "Chardev %s does not support postponed connect",
+                           s->label);
+                return false;
+            }
+        }
+
         if (CHARDEV_IS_MUX(s)) {
             MuxChardev *d = MUX_CHARDEV(s);
 
@@ -210,12 +221,23 @@ bool qemu_chr_fe_init(CharFrontend *c, Chardev *s, Error **errp)
         } else {
             s->fe = c;
         }
+    } else {
+        /*
+         * connect=false comes only from DEFINE_PROP_CHR_NO_CONNECT,
+         * through do_set_chr, which provides chardev ptr.
+         */
+        assert(connect);
     }
 
     c->fe_is_open = false;
     c->tag = tag;
     c->chr = s;
     return true;
+}
+
+bool qemu_chr_fe_init(CharFrontend *c, Chardev *s, Error **errp)
+{
+    return qemu_chr_fe_init_ex(c, s, true, errp);
 }
 
 void qemu_chr_fe_deinit(CharFrontend *c, bool del)
