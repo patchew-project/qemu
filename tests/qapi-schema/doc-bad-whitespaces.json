@@ -1,0 +1,6 @@
+##
+# @foo:
+#
+# Sentences should be split by two whitespaces. But here is only one.
+##
+{ 'command': 'foo' }

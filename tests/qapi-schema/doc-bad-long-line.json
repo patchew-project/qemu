@@ -1,0 +1,6 @@
+##
+# @foo:
+#
+# This line has exactly 71 characters, including spaces and punctuation!
+##
+{ 'command': 'foo' }
