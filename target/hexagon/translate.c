@@ -272,12 +272,7 @@ static void mark_implicit_reg_write(DisasContext *ctx, int attrib, int rnum)
 {
     uint16_t opcode = ctx->insn->opcode;
     if (GET_ATTRIB(opcode, attrib)) {
-        /*
-         * USR is used to set overflow and FP exceptions,
-         * so treat it as conditional
-         */
-        bool is_predicated = GET_ATTRIB(opcode, A_CONDEXEC) ||
-                             rnum == HEX_REG_USR;
+        bool is_predicated = GET_ATTRIB(opcode, A_CONDEXEC);
 
         /* LC0/LC1 is conditionally written by endloop instructions */
         if ((rnum == HEX_REG_LC0 || rnum == HEX_REG_LC1) &&
@@ -300,8 +295,6 @@ static void mark_implicit_reg_writes(DisasContext *ctx)
     mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_SA0, HEX_REG_SA0);
     mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_LC1, HEX_REG_LC1);
     mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_SA1, HEX_REG_SA1);
-    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_USR, HEX_REG_USR);
-    mark_implicit_reg_write(ctx, A_FPOP, HEX_REG_USR);
 }
 
 static void mark_implicit_pred_write(DisasContext *ctx, int attrib, int pnum)
@@ -349,11 +342,6 @@ static bool need_commit(DisasContext *ctx)
         if (reg_immut_masks[rnum]) {
             return true;
         }
-    }
-
-    /* Floating point instructions are hard-coded to use new_value */
-    if (check_for_attrib(pkt, A_FPOP)) {
-        return true;
     }
 
     if (ctx->read_after_write || ctx->has_hvx_overlap) {
