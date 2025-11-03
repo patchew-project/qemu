@@ -867,7 +867,7 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         ati_2d_blt(s);
         break;
     case DP_GUI_MASTER_CNTL:
-        s->regs.dp_gui_master_cntl = data & 0xf800000f;
+        s->regs.dp_gui_master_cntl = data & 0xff00000f;
         s->regs.dp_datatype = (data & 0x0f00) >> 8 | (data & 0x30f0) << 4 |
                               (data & 0x4000) << 16;
         s->regs.dp_mix = (data & GMC_ROP3_MASK) | (data & 0x7000000) >> 16;
