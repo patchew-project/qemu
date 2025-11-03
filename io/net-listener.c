@@ -23,6 +23,7 @@
 #include "io/dns-resolver.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "trace.h"
 
 QIONetListener *qio_net_listener_new(void)
 {
@@ -50,6 +51,7 @@ static gboolean qio_net_listener_channel_func(QIOChannel *ioc,
         return TRUE;
     }
 
+    trace_qio_net_listener_callback(listener, listener->io_func);
     if (listener->io_func) {
         listener->io_func(listener, sioc, listener->io_data);
     }
@@ -124,6 +126,8 @@ void qio_net_listener_add(QIONetListener *listener,
     listener->connected = true;
 
     if (listener->io_func != NULL) {
+        trace_qio_net_listener_watch_enabled(listener, listener->io_func,
+                                             "add");
         object_ref(OBJECT(listener));
         listener->io_source[listener->nsioc] = qio_channel_add_watch_source(
             QIO_CHANNEL(listener->sioc[listener->nsioc]), G_IO_IN,
@@ -143,6 +147,9 @@ void qio_net_listener_set_client_func_full(QIONetListener *listener,
 {
     size_t i;
 
+    if (listener->io_func) {
+        trace_qio_net_listener_watch_disabled(listener, "set_client_func");
+    }
     if (listener->io_notify) {
         listener->io_notify(listener->io_data);
     }
@@ -159,6 +166,8 @@ void qio_net_listener_set_client_func_full(QIONetListener *listener,
     }
 
     if (listener->io_func != NULL) {
+        trace_qio_net_listener_watch_enabled(listener, listener->io_func,
+                                             "set_client_func");
         for (i = 0; i < listener->nsioc; i++) {
             object_ref(OBJECT(listener));
             listener->io_source[i] = qio_channel_add_watch_source(
@@ -218,6 +227,9 @@ QIOChannelSocket *qio_net_listener_wait_client(QIONetListener *listener)
     };
     size_t i;
 
+    if (listener->io_func) {
+        trace_qio_net_listener_watch_disabled(listener, "wait_client");
+    }
     for (i = 0; i < listener->nsioc; i++) {
         if (listener->io_source[i]) {
             g_source_destroy(listener->io_source[i]);
@@ -248,6 +260,8 @@ QIOChannelSocket *qio_net_listener_wait_client(QIONetListener *listener)
     g_main_context_unref(ctxt);
 
     if (listener->io_func != NULL) {
+        trace_qio_net_listener_watch_enabled(listener, listener->io_func,
+                                             "wait_client");
         for (i = 0; i < listener->nsioc; i++) {
             object_ref(OBJECT(listener));
             listener->io_source[i] = qio_channel_add_watch_source(
@@ -268,6 +282,9 @@ void qio_net_listener_disconnect(QIONetListener *listener)
         return;
     }
 
+    if (listener->io_func) {
+        trace_qio_net_listener_watch_disabled(listener, "disconnect");
+    }
     for (i = 0; i < listener->nsioc; i++) {
         if (listener->io_source[i]) {
             g_source_destroy(listener->io_source[i]);
