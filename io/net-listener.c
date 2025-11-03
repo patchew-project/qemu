@@ -23,6 +23,7 @@
 #include "io/dns-resolver.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qemu/main-loop.h"
 #include "trace.h"
 
 QIONetListener *qio_net_listener_new(void)
@@ -59,6 +60,15 @@ static gboolean qio_net_listener_channel_func(QIOChannel *ioc,
     object_unref(OBJECT(sioc));
 
     return TRUE;
+}
+
+
+static void qio_net_listener_aio_func(void *opaque)
+{
+    QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(opaque);
+
+    qio_net_listener_channel_func(QIO_CHANNEL(sioc), G_IO_IN,
+                                  sioc->listener);
 }
 
 
@@ -117,15 +127,33 @@ qio_net_listener_watch(QIONetListener *listener, size_t i, const char *caller)
         return;
     }
 
-    trace_qio_net_listener_watch_enabled(listener, listener->io_func, caller);
+    trace_qio_net_listener_watch_enabled(listener, listener->io_func,
+                                         listener->context, caller);
     if (i == 0) {
         object_ref(OBJECT(listener));
     }
     for ( ; i < listener->nsioc; i++) {
-        listener->io_source[i] = qio_channel_add_watch_source(
-            QIO_CHANNEL(listener->sioc[i]), G_IO_IN,
-            qio_net_listener_channel_func,
-            listener, NULL, listener->context);
+        if (listener->context) {
+            /*
+             * The user passed a GMainContext with the async callback;
+             * they plan on running their own g_main_loop.
+             */
+            listener->io_source[i] = qio_channel_add_watch_source(
+                QIO_CHANNEL(listener->sioc[i]), G_IO_IN,
+                qio_net_listener_channel_func,
+                listener, NULL, listener->context);
+        } else {
+            /*
+             * The user is fine with the default context. But by doing
+             * it in the main thread's AioContext rather than
+             * specifically in a GMainContext, we can remain
+             * responsive even if another AioContext depends on
+             * connecting to this server.
+             */
+            aio_set_fd_handler(qemu_get_aio_context(), listener->sioc[i]->fd,
+                               qio_net_listener_aio_func, NULL, NULL, NULL,
+                               listener->sioc[i]);
+        }
     }
 }
 
@@ -138,12 +166,17 @@ qio_net_listener_unwatch(QIONetListener *listener, const char *caller)
         return;
     }
 
-    trace_qio_net_listener_watch_disabled(listener, caller);
+    trace_qio_net_listener_watch_disabled(listener, listener->context, caller);
     for (i = 0; i < listener->nsioc; i++) {
-        if (listener->io_source[i]) {
-            g_source_destroy(listener->io_source[i]);
-            g_source_unref(listener->io_source[i]);
-            listener->io_source[i] = NULL;
+        if (listener->context) {
+            if (listener->io_source[i]) {
+                g_source_destroy(listener->io_source[i]);
+                g_source_unref(listener->io_source[i]);
+                listener->io_source[i] = NULL;
+            }
+        } else {
+            aio_set_fd_handler(qemu_get_aio_context(), listener->sioc[i]->fd,
+                               NULL, NULL, NULL, NULL, NULL);
         }
     }
     object_unref(OBJECT(listener));
