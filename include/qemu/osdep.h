@@ -763,14 +763,10 @@ bool qemu_finish_async_prealloc_mem(Error **errp);
  */
 char *qemu_get_pid_name(pid_t pid);
 
+uintptr_t qemu_real_host_page_size(void);
 /* Using intptr_t ensures that qemu_*_page_mask is sign-extended even
  * when intptr_t is 32-bit and we are aligning a long long.
  */
-static inline uintptr_t qemu_real_host_page_size(void)
-{
-    return getpagesize();
-}
-
 static inline intptr_t qemu_real_host_page_mask(void)
 {
     return -(intptr_t)qemu_real_host_page_size();

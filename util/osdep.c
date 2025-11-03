@@ -613,3 +613,8 @@ int qemu_fdatasync(int fd)
     return fsync(fd);
 #endif
 }
+
+uintptr_t qemu_real_host_page_size(void)
+{
+    return getpagesize();
+}
