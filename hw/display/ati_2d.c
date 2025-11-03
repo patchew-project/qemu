@@ -45,6 +45,28 @@ static int ati_bpp_from_datatype(ATIVGAState *s)
 }
 
 #define DEFAULT_CNTL (s->regs.dp_gui_master_cntl & GMC_DST_PITCH_OFFSET_CNTL)
+/* Convert 1bpp monochrome data to 32bpp ARGB using color expansion */
+static void expand_colors(uint8_t *color_dst, const uint8_t *mono_src,
+                          uint32_t width, uint32_t height,
+                          uint32_t fg_color, uint32_t bg_color,
+                          bool lsb_to_msb)
+{
+    uint32_t byte, color;
+    uint8_t *pixel;
+    int i, j, bit;
+    /* Rows are 32-bit aligned */
+    int bytes_per_row = ((width + 31) / 32) * 4;
+
+    for (i = 0; i < height; i++) {
+        for (j = 0; j < width; j++) {
+            byte = mono_src[i * bytes_per_row + (j / 8)];
+            bit = lsb_to_msb ? 7 - (j % 8) : j % 8;
+            color = (byte >> bit) & 0x1 ? fg_color : bg_color;
+            pixel = &color_dst[(i * width + j) * 4];
+            memcpy(pixel, &color, sizeof(color));
+        }
+    }
+}
 
 void ati_2d_blt(ATIVGAState *s)
 {
