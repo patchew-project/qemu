@@ -616,5 +616,11 @@ int qemu_fdatasync(int fd)
 
 uintptr_t qemu_real_host_page_size(void)
 {
-    return getpagesize();
+    static uintptr_t real_host_page_size;
+
+    if (!real_host_page_size) {
+        real_host_page_size = getpagesize();
+    }
+
+    return real_host_page_size;
 }
