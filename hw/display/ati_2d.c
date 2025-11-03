@@ -25,6 +25,9 @@
  * possible.
  */
 
+#define DEFAULT_CNTL (s->regs.dp_gui_master_cntl & GMC_DST_PITCH_OFFSET_CNTL)
+#define EXPANDED_SRC_BPP 32
+
 static int ati_bpp_from_datatype(ATIVGAState *s)
 {
     switch (s->regs.dp_datatype & 0xf) {
@@ -44,7 +47,6 @@ static int ati_bpp_from_datatype(ATIVGAState *s)
     }
 }
 
-#define DEFAULT_CNTL (s->regs.dp_gui_master_cntl & GMC_DST_PITCH_OFFSET_CNTL)
 /* Convert 1bpp monochrome data to 32bpp ARGB using color expansion */
 static void expand_colors(uint8_t *color_dst, const uint8_t *mono_src,
                           uint32_t width, uint32_t height,
@@ -139,30 +141,112 @@ void ati_2d_blt(ATIVGAState *s)
     switch (s->regs.dp_mix & GMC_ROP3_MASK) {
     case ROP3_SRCCOPY:
     {
+        uint32_t src = s->regs.dp_gui_master_cntl & GMC_SRC_SOURCE_MASK;
+        uint8_t *color_data = NULL;
         bool fallback = false;
-        unsigned src_x = (s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT ?
-                         s->regs.src_x + clip_left :
-                         s->regs.src_x + 1 - dst.width + clip_left);
-        unsigned src_y = (s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM ?
-                         s->regs.src_y + clip_top :
-                         s->regs.src_y + 1 - dst.height + clip_top);
-        int src_stride = DEFAULT_CNTL ?
+        unsigned src_x, src_y, src_stride, src_bpp;
+        uint8_t *src_bits;
+
+        switch (src) {
+        case GMC_SRC_SOURCE_HOST_DATA:
+        {
+            unsigned src_datatype = s->regs.dp_gui_master_cntl &
+                                    GMC_SRC_DATATYPE_MASK;
+            switch (src_datatype) {
+            case GMC_SRC_DATATYPE_MONO_FRGD_BKGD:
+            {
+                bool lsb_to_msb = s->regs.dp_gui_master_cntl &
+                                  GMC_BYTE_ORDER_LSB_TO_MSB;
+                /* Monochrome source is 1 bpp aligned to 32-bit rows */
+                uint32_t mono_size = ((dst.width + 31) / 32) * 4 * dst.height;
+                if (s->host_data_pos < mono_size) {
+                    qemu_log_mask(LOG_UNIMP,
+                                  "HOST_DATA blit requires %u bytes, buffer holds %u "
+                                  "(increase buffer size)\n",
+                                  mono_size, s->host_data_pos);
+                    return;
+                }
+
+                /* Expand all of the source, clipping will be applied later */
+                color_data = g_malloc(dst.width * dst.height *
+                                      sizeof(uint32_t));
+                src_bpp = EXPANDED_SRC_BPP;
+                expand_colors(color_data, s->host_data_buffer,
+                              dst.width, dst.height, s->regs.dp_src_frgd_clr,
+                              s->regs.dp_src_bkgd_clr, lsb_to_msb);
+                break;
+            }
+            case GMC_SRC_DATATYPE_COLOR:
+            {
+                uint32_t color_size = dst.width * dst.height * (bpp / 8);
+                if (s->host_data_pos < color_size) {
+                    qemu_log_mask(LOG_UNIMP,
+                                  "HOST_DATA blit requires %u bytes, buffer holds %u "
+                                  "(increase buffer size)\n",
+                                  color_size, s->host_data_pos);
+                    return;
+                }
+                /*
+                 * The rage128 register guide states that the bit depth in this
+                 * case matches the bit depth of the dst. There is no
+                 * independent bit depth register for the src.
+                 */
+                src_bpp = bpp;
+                color_data = s->host_data_buffer;
+                break;
+            }
+            case GMC_SRC_DATATYPE_MONO_FRGD:
+                qemu_log_mask(LOG_UNIMP, "ati_2d blt source datatype "
+                              "MONO_FRGD (leave-alone) not yet supported\n");
+                return;
+            default:
+                qemu_log_mask(LOG_UNIMP, "ati_2d blt source datatype %x is "
+                              "not yet supported\n", src_datatype);
+                return;
+            }
+
+            src_x = clip_left;
+            src_y = clip_top;
+            src_stride = dst.width * (src_bpp / 8);
+            src_bits = color_data;
+            s->host_data_pos = 0;
+            break;
+        }
+        case GMC_SRC_SOURCE_MEMORY:
+        {
+            src_x = (s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT ?
+                     s->regs.src_x + clip_left :
+                     s->regs.src_x + 1 - dst.width + clip_left);
+            src_y = (s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM ?
+                     s->regs.src_y + clip_top :
+                     s->regs.src_y + 1 - dst.height + clip_top);
+            src_stride = DEFAULT_CNTL ?
                          s->regs.src_pitch : s->regs.default_pitch;
-        if (!src_stride) {
-            qemu_log_mask(LOG_GUEST_ERROR, "Zero source pitch\n");
+            src_bpp = bpp;
+            src_bits = s->vga.vram_ptr + (DEFAULT_CNTL ?
+                       s->regs.src_offset : s->regs.default_offset);
+            if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
+                src_bits += s->regs.crtc_offset & 0x07ffffff;
+                src_stride *= bpp;
+            }
+            if (src_x > 0x3fff || src_y > 0x3fff || src_bits >= end
+                || src_bits + src_x
+                 + (src_y + clipped.height) * src_stride >= end) {
+                qemu_log_mask(LOG_UNIMP, "blt outside vram not implemented\n");
+                return;
+            }
+            break;
+        }
+        case GMC_SRC_SOURCE_HOST_DATA_ALIGNED:
+        default:
+            qemu_log_mask(LOG_UNIMP, "ati_2d blt source %x is not "
+                          "yet supported\n", src);
             return;
         }
-        uint8_t *src_bits = s->vga.vram_ptr + (DEFAULT_CNTL ?
-                            s->regs.src_offset : s->regs.default_offset);
 
-        if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
-            src_bits += s->regs.crtc_offset & 0x07ffffff;
-            src_stride *= bpp;
-        }
-        if (src_x > 0x3fff || src_y > 0x3fff || src_bits >= end
-            || src_bits + src_x
-             + (src_y + clipped.height) * src_stride >= end) {
-            qemu_log_mask(LOG_UNIMP, "blt outside vram not implemented\n");
+        if (!src_stride) {
+            qemu_log_mask(LOG_GUEST_ERROR, "Zero source pitch\n");
+            g_free(color_data);
             return;
         }
 
@@ -207,6 +291,15 @@ void ati_2d_blt(ATIVGAState *s)
             unsigned int src_pitch = src_stride * sizeof(uint32_t);
             unsigned int dst_pitch = dst_stride * sizeof(uint32_t);
 
+            if (src_bpp != bpp) {
+                qemu_log_mask(LOG_UNIMP,
+                              "Mismatched bit depths not yet supported "
+                              "in the fallback (non-pixman) implementation. "
+                              "src: %d != dst: %d\n", src_bpp, bpp);
+                g_free(color_data);
+                return;
+            }
+
             for (y = 0; y < clipped.height; y++) {
                 i = clipped.x * bypp;
                 j = src_x * bypp;
@@ -232,6 +325,8 @@ void ati_2d_blt(ATIVGAState *s)
                          clipped.x + clipped.width : clipped.x);
         s->regs.dst_y = (s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM ?
                          clipped.y + clipped.height : clipped.y);
+
+        g_free(color_data);
         break;
     }
     case ROP3_PATCOPY:

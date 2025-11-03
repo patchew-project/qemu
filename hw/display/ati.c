@@ -813,9 +813,14 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         }
         break;
     case DST_WIDTH:
+    {
+        uint32_t src = s->regs.dp_gui_master_cntl & GMC_SRC_SOURCE_MASK;
         s->regs.dst_width = data & 0x3fff;
-        ati_2d_blt(s);
+        if (src != GMC_SRC_SOURCE_HOST_DATA) {
+            ati_2d_blt(s);
+        }
         break;
+    }
     case DST_HEIGHT:
         s->regs.dst_height = data & 0x3fff;
         break;
@@ -862,10 +867,15 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         s->regs.dst_y = (data >> 16) & 0x3fff;
         break;
     case DST_HEIGHT_WIDTH:
+    {
+        uint32_t src = s->regs.dp_gui_master_cntl & GMC_SRC_SOURCE_MASK;
         s->regs.dst_width = data & 0x3fff;
         s->regs.dst_height = (data >> 16) & 0x3fff;
-        ati_2d_blt(s);
+        if (src != GMC_SRC_SOURCE_HOST_DATA) {
+            ati_2d_blt(s);
+        }
         break;
+    }
     case DP_GUI_MASTER_CNTL:
         s->regs.dp_gui_master_cntl = data & 0xff00000f;
         s->regs.dp_datatype = (data & 0x0f00) >> 8 | (data & 0x30f0) << 4 |
@@ -881,10 +891,15 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         }
         break;
     case DST_WIDTH_X:
+    {
+        uint32_t src = s->regs.dp_gui_master_cntl & GMC_SRC_SOURCE_MASK;
         s->regs.dst_x = data & 0x3fff;
         s->regs.dst_width = (data >> 16) & 0x3fff;
-        ati_2d_blt(s);
+        if (src != GMC_SRC_SOURCE_HOST_DATA) {
+            ati_2d_blt(s);
+        }
         break;
+    }
     case SRC_X_Y:
         s->regs.src_y = data & 0x3fff;
         s->regs.src_x = (data >> 16) & 0x3fff;
@@ -894,10 +909,15 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         s->regs.dst_x = (data >> 16) & 0x3fff;
         break;
     case DST_WIDTH_HEIGHT:
+    {
+        uint32_t src = s->regs.dp_gui_master_cntl & GMC_SRC_SOURCE_MASK;
         s->regs.dst_height = data & 0x3fff;
         s->regs.dst_width = (data >> 16) & 0x3fff;
-        ati_2d_blt(s);
+        if (src != GMC_SRC_SOURCE_HOST_DATA) {
+            ati_2d_blt(s);
+        }
         break;
+    }
     case DST_HEIGHT_Y:
         s->regs.dst_y = data & 0x3fff;
         s->regs.dst_height = (data >> 16) & 0x3fff;
