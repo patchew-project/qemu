@@ -969,6 +969,20 @@ static void ati_mm_write(void *opaque, hwaddr addr,
     case SRC_SC_BOTTOM_RIGHT:
         s->regs.src_sc_bottom_right = data;
         break;
+    case HOST_DATA0 ... HOST_DATA7:
+    case HOST_DATA_LAST:
+        if (s->host_data_pos + 4 > sizeof(s->host_data_buffer)) {
+            qemu_log_mask(LOG_UNIMP, "HOST_DATA buffer overflow "
+                         "(buffer size: %zu bytes)\n",
+                          sizeof(s->host_data_buffer));
+            return;
+        }
+        stn_he_p(&s->host_data_buffer[s->host_data_pos], 4, data);
+        s->host_data_pos += 4;
+        if (addr == HOST_DATA_LAST) {
+            ati_2d_blt(s);
+        }
+        break;
     default:
         break;
     }
@@ -1062,6 +1076,7 @@ static void ati_vga_reset(DeviceState *dev)
     /* reset vga */
     vga_common_reset(&s->vga);
     s->mode = VGA_MODE;
+    s->host_data_pos = 0;
 }
 
 static void ati_vga_exit(PCIDevice *dev)
