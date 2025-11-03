@@ -147,6 +147,10 @@ void qio_net_listener_set_client_func_full(QIONetListener *listener,
 {
     size_t i;
 
+    if (listener->io_func == func && listener->io_data == data) {
+        return;
+    }
+
     if (listener->io_func) {
         trace_qio_net_listener_watch_disabled(listener, "set_client_func");
     }
