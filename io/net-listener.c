@@ -152,6 +152,7 @@ void qio_net_listener_add(QIONetListener *listener,
     if (listener->name) {
         qio_channel_set_name(QIO_CHANNEL(sioc), listener->name);
     }
+    sioc->listener = listener;
 
     listener->sioc = g_renew(QIOChannelSocket *, listener->sioc,
                              listener->nsioc + 1);
