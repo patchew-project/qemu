@@ -182,5 +182,12 @@ dbus_gl_gfx_switch(void *p) "surf: %p"
 dbus_filter(unsigned int serial, unsigned int filter) "serial=%u (<= %u)"
 dbus_can_share_map(bool share) "can_share_map: %d"
 
+# sdl2-gl.c
+sdl2_gl_context_created(int profile, int major, int minor) "profile=%d version=%d.%d"
+sdl2_gl_using_angle(const char *renderer) "renderer=%s"
+sdl2_gl_fallback_to_es(void) "Falling back to OpenGL ES"
+sdl2_gl_request_core_profile(void) "Requesting Core profile"
+sdl2_gl_request_es_profile(void) "Requesting ES profile"
+
 # egl-helpers.c
 egl_init_d3d11_device(void *p) "d3d device: %p"

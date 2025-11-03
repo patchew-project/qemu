@@ -34,6 +34,7 @@
 #include "system/system.h"
 #include "qemu/log.h"
 #include "qemu-main.h"
+#include "trace.h"
 
 static int sdl2_num_outputs;
 static struct sdl2_console *sdl2_console;
@@ -96,6 +97,23 @@ void sdl2_window_create(struct sdl2_console *scon)
 #ifdef CONFIG_OPENGL
     if (scon->opengl) {
         flags |= SDL_WINDOW_OPENGL;
+
+        /*
+         * Set GL context profile before creating the window.
+         * This is critical on macOS where SDL needs to know which GL library
+         * to load: the native OpenGL framework (for Core profile) or ANGLE
+         * (for ES profile). This cannot be changed after window creation.
+         */
+        if (scon->opts->gl == DISPLAY_GL_MODE_ON ||
+            scon->opts->gl == DISPLAY_GL_MODE_CORE) {
+            SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
+                                SDL_GL_CONTEXT_PROFILE_CORE);
+            trace_sdl2_gl_request_core_profile();
+        } else if (scon->opts->gl == DISPLAY_GL_MODE_ES) {
+            SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
+                                SDL_GL_CONTEXT_PROFILE_ES);
+            trace_sdl2_gl_request_es_profile();
+        }
     }
 #endif
 

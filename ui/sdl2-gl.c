@@ -30,6 +30,11 @@
 #include "ui/input.h"
 #include "ui/sdl2.h"
 
+#ifdef CONFIG_DARWIN
+#include <TargetConditionals.h>
+#endif
+#include "trace.h"
+
 static void sdl2_set_scanout_mode(struct sdl2_console *scon, bool scanout)
 {
     if (scon->scanout_mode == scanout) {
@@ -147,27 +152,56 @@ QEMUGLContext sdl2_gl_create_context(DisplayGLCtx *dgc,
     SDL_GL_MakeCurrent(scon->real_window, scon->winctx);
 
     SDL_GL_SetAttribute(SDL_GL_SHARE_WITH_CURRENT_CONTEXT, 1);
-    if (scon->opts->gl == DISPLAY_GL_MODE_ON ||
-        scon->opts->gl == DISPLAY_GL_MODE_CORE) {
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
-                            SDL_GL_CONTEXT_PROFILE_CORE);
-    } else if (scon->opts->gl == DISPLAY_GL_MODE_ES) {
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
-                            SDL_GL_CONTEXT_PROFILE_ES);
-    }
+
+    /*
+     * Note: SDL_GL_CONTEXT_PROFILE_MASK should be set before window creation
+     * (see sdl2_window_create) so SDL can load the correct GL library (ANGLE
+     * for ES support on macOS). Setting it here only affects shared contexts.
+     */
+
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, params->major_ver);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, params->minor_ver);
 
     ctx = SDL_GL_CreateContext(scon->real_window);
 
-    /* If SDL fail to create a GL context and we use the "on" flag,
-     * then try to fallback to GLES.
+    if (ctx) {
+        /* Validate the created context */
+        SDL_GL_MakeCurrent(scon->real_window, ctx);
+        int profile = 0;
+        SDL_GL_GetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, &profile);
+
+        trace_sdl2_gl_context_created(profile, params->major_ver,
+                                       params->minor_ver);
+
+        /* Check if ANGLE is being used */
+        const char *renderer = (const char *)glGetString(GL_RENDERER);
+        if (renderer && strstr(renderer, "ANGLE")) {
+            trace_sdl2_gl_using_angle(renderer);
+        }
+    } else {
+        const char *err = SDL_GetError();
+        warn_report("Failed to create GL context (v%d.%d): %s",
+                    params->major_ver, params->minor_ver,
+                    err ? err : "unknown error");
+    }
+
+    /*
+     * If SDL fail to create a GL context and we use the "on" flag,
+     * then try to fallback to GLES. On macOS, this will not work because
+     * SDL must load ANGLE at window creation time for ES support. If the
+     * Core profile was requested initially, ANGLE was not loaded and this
+     * fallback will fail.
      */
+#if !TARGET_OS_OSX
     if (!ctx && scon->opts->gl == DISPLAY_GL_MODE_ON) {
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
                             SDL_GL_CONTEXT_PROFILE_ES);
         ctx = SDL_GL_CreateContext(scon->real_window);
+        if (ctx) {
+            trace_sdl2_gl_fallback_to_es();
+        }
     }
+#endif
     return (QEMUGLContext)ctx;
 }
 

@@ -26,6 +26,8 @@
  */
 #include "qemu/osdep.h"
 #include "ui/shader.h"
+#include "ui/shader/texture-blit-frag.h"
+#include "qemu/error-report.h"
 
 #include "ui/shader/texture-blit-vert.h"
 #include "ui/shader/texture-blit-flip-vert.h"
@@ -153,12 +155,68 @@ QemuGLShader *qemu_gl_init_shader(void)
 {
     QemuGLShader *gls = g_new0(QemuGLShader, 1);
 
+    /*
+     * Detect GL version and set appropriate shader version.
+     * Desktop GL: Use GLSL 1.40 (OpenGL 3.1) for broad compatibility
+     * ES: Use GLSL ES 3.00 (OpenGL ES 3.0)
+     */
+    bool is_desktop = epoxy_is_desktop_gl();
+    const char *version = is_desktop ? "140" : "300 es";
+
+    /*
+     * Add precision qualifiers for GLES (required), but not for desktop GL
+     * where they may cause warnings on some drivers.
+     */
+    const char *precision = is_desktop ? "" : "precision mediump float;\n";
+
+    /* Log GL context information for debugging */
+    int gl_version = epoxy_gl_version();
+    const char *vendor = (const char *)glGetString(GL_VENDOR);
+    const char *renderer = (const char *)glGetString(GL_RENDERER);
+    const char *gl_version_str = (const char *)glGetString(GL_VERSION);
+
+    info_report("Initializing shaders: %s GL %d.%d (%s / %s / %s)",
+                is_desktop ? "Desktop" : "ES",
+                gl_version / 10, gl_version % 10,
+                vendor ? vendor : "unknown",
+                renderer ? renderer : "unknown",
+                gl_version_str ? gl_version_str : "unknown");
+
+    /* Check for required GL features */
+    if (is_desktop &&
+        !epoxy_has_gl_extension("GL_ARB_vertex_array_object")) {
+        warn_report("GL_ARB_vertex_array_object not available, "
+                    "rendering may fail");
+    }
+
+    /* Build shader source with appropriate version and precision */
+    const char *vert_fmt = "#version %s\n%s";
+    const char *frag_fmt = "#version %s\n%s%s";
+
+    char *blit_vert_src = g_strdup_printf(
+        vert_fmt, version, texture_blit_vert_src);
+    char *blit_flip_vert_src = g_strdup_printf(
+        vert_fmt, version, texture_blit_flip_vert_src);
+    char *blit_frag_src = g_strdup_printf(
+        frag_fmt, version, precision, texture_blit_frag_src);
+
+    /* Compile and link shader programs */
     gls->texture_blit_prog = qemu_gl_create_compile_link_program
-        (texture_blit_vert_src, texture_blit_frag_src);
+        (blit_vert_src, blit_frag_src);
     gls->texture_blit_flip_prog = qemu_gl_create_compile_link_program
-        (texture_blit_flip_vert_src, texture_blit_frag_src);
+        (blit_flip_vert_src, blit_frag_src);
+
+    /* Clean up temporary shader source strings */
+    g_free(blit_vert_src);
+    g_free(blit_flip_vert_src);
+    g_free(blit_frag_src);
+
     if (!gls->texture_blit_prog || !gls->texture_blit_flip_prog) {
-        exit(1);
+        error_report("Failed to compile GL shaders (GL %s %d.%d)",
+                     is_desktop ? "Desktop" : "ES",
+                     gl_version / 10, gl_version % 10);
+        qemu_gl_fini_shader(gls);
+        return NULL;
     }
 
     gls->texture_blit_vao =
