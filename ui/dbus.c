@@ -35,6 +35,7 @@
 #include "ui/egl-context.h"
 #endif
 #include "qemu/audio.h"
+#include "audio/audio_int.h" /* FIXME: use QOM dynamic cast instead of drv->name */
 #include "qapi/error.h"
 #include "trace.h"
 
@@ -218,12 +219,20 @@ dbus_display_complete(UserCreatable *uc, Error **errp)
         return;
     }
 
+    AudioBackend *audio_be = audio_get_default_audio_be(NULL);
+    if (audio_be && !g_str_equal(audio_be->drv->name, "dbus")) {
+        audio_be = NULL;
+    }
     if (dd->audiodev && *dd->audiodev) {
-        AudioBackend *audio_be = audio_be_by_name(dd->audiodev, errp);
-        if (!audio_be || !audio_be_set_dbus_server(audio_be, dd->server, dd->p2p, errp)) {
+        audio_be = audio_be_by_name(dd->audiodev, errp);
+        if (!audio_be) {
             return;
         }
     }
+    if (audio_be && !audio_be_set_dbus_server(audio_be, dd->server, dd->p2p, errp)) {
+        return;
+    }
+
 
     consoles = g_array_new(FALSE, FALSE, sizeof(guint32));
     for (idx = 0;; idx++) {
@@ -475,6 +484,8 @@ early_dbus_init(DisplayOptions *opts)
 #endif
     }
 
+    using_dbus_display = 1;
+
     type_register_static(&dbus_vc_type_info);
 }
 
@@ -487,8 +498,6 @@ dbus_init(DisplayState *ds, DisplayOptions *opts)
         error_report("dbus: can't accept both addr=X and p2p=yes options");
         exit(1);
     }
-
-    using_dbus_display = 1;
 
     object_new_with_props(TYPE_DBUS_DISPLAY,
                           object_get_objects_root(),
