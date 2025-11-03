@@ -132,7 +132,7 @@ void qio_net_listener_add(QIONetListener *listener,
         listener->io_source[listener->nsioc] = qio_channel_add_watch_source(
             QIO_CHANNEL(listener->sioc[listener->nsioc]), G_IO_IN,
             qio_net_listener_channel_func,
-            listener, (GDestroyNotify)object_unref, NULL);
+            listener, (GDestroyNotify)object_unref, listener->context);
     }
 
     listener->nsioc++;
@@ -160,6 +160,7 @@ void qio_net_listener_set_client_func_full(QIONetListener *listener,
     listener->io_func = func;
     listener->io_data = data;
     listener->io_notify = notify;
+    listener->context = context;
 
     for (i = 0; i < listener->nsioc; i++) {
         if (listener->io_source[i]) {
@@ -271,7 +272,7 @@ QIOChannelSocket *qio_net_listener_wait_client(QIONetListener *listener)
             listener->io_source[i] = qio_channel_add_watch_source(
                 QIO_CHANNEL(listener->sioc[i]), G_IO_IN,
                 qio_net_listener_channel_func,
-                listener, (GDestroyNotify)object_unref, NULL);
+                listener, (GDestroyNotify)object_unref, listener->context);
         }
     }
 
