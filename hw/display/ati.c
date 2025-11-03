@@ -510,6 +510,15 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case DEFAULT_SC_BOTTOM_RIGHT:
         val = s->regs.default_sc_bottom_right;
         break;
+    case SC_TOP_LEFT:
+        val = s->regs.sc_top_left;
+        break;
+    case SC_BOTTOM_RIGHT:
+        val = s->regs.sc_bottom_right;
+        break;
+    case SRC_SC_BOTTOM_RIGHT:
+        val = s->regs.src_sc_bottom_right;
+        break;
     default:
         break;
     }
@@ -862,6 +871,14 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         s->regs.dp_datatype = (data & 0x0f00) >> 8 | (data & 0x30f0) << 4 |
                               (data & 0x4000) << 16;
         s->regs.dp_mix = (data & GMC_ROP3_MASK) | (data & 0x7000000) >> 16;
+
+        if ((data & GMC_SRC_CLIPPING_MASK) == GMC_SRC_CLIP_DEFAULT) {
+            s->regs.src_sc_bottom_right = s->regs.default_sc_bottom_right;
+        }
+        if ((data & GMC_DST_CLIPPING_MASK) == GMC_DST_CLIP_DEFAULT) {
+            s->regs.sc_top_left = 0;
+            s->regs.sc_bottom_right = s->regs.default_sc_bottom_right;
+        }
         break;
     case DST_WIDTH_X:
         s->regs.dst_x = data & 0x3fff;
@@ -936,6 +953,15 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         break;
     case DEFAULT_SC_BOTTOM_RIGHT:
         s->regs.default_sc_bottom_right = data & 0x3fff3fff;
+        break;
+    case SC_TOP_LEFT:
+        s->regs.sc_top_left = data;
+        break;
+    case SC_BOTTOM_RIGHT:
+        s->regs.sc_bottom_right = data;
+        break;
+    case SRC_SC_BOTTOM_RIGHT:
+        s->regs.src_sc_bottom_right = data;
         break;
     default:
         break;

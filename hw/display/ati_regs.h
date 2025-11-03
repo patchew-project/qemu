@@ -392,8 +392,6 @@
 /* DP_GUI_MASTER_CNTL bit constants */
 #define GMC_SRC_PITCH_OFFSET_CNTL               0x00000001
 #define GMC_DST_PITCH_OFFSET_CNTL               0x00000002
-#define GMC_SRC_CLIP_DEFAULT                    0x00000000
-#define GMC_DST_CLIP_DEFAULT                    0x00000000
 #define GMC_BRUSH_SOLIDCOLOR                    0x000000d0
 #define GMC_SRC_DSTCOLOR                        0x00003000
 #define GMC_BYTE_ORDER_MSB_TO_LSB               0x00000000
@@ -403,6 +401,16 @@
 #define GMC_DST_CLR_CMP_FCN_CLEAR               0x10000000
 #define GMC_WRITE_MASK_SET                      0x40000000
 #define GMC_DP_CONVERSION_TEMP_6500             0x00000000
+
+/* DP_GUI_MASTER_CNTL DP_SRC_CLIPPING named constants */
+#define GMC_SRC_CLIPPING_MASK                   0x00000004
+#define GMC_SRC_CLIP_DEFAULT                    0x00000000
+#define GMC_SRC_CLIP_LEAVE_ALONE                0x00000004
+
+/* DP_GUI_MASTER_CNTL DP_DST_CLIPPING named constants */
+#define GMC_DST_CLIPPING_MASK                   0x00000008
+#define GMC_DST_CLIP_DEFAULT                    0x00000000
+#define GMC_DST_CLIP_LEAVE_ALONE                0x00000008
 
 /* DP_GUI_MASTER_CNTL ROP3 named constants */
 #define GMC_ROP3_MASK                           0x00ff0000
