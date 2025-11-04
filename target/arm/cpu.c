@@ -2020,6 +2020,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
          */
         if (tcg_enabled() && cpu->tag_memory == NULL) {
             FIELD_DP64_IDREG(isar, ID_AA64PFR1, MTE, 1);
+            FIELD_DP64_IDREG(isar, ID_AA64PFR2, MTEFAR, 0);
         }
 
         /*
@@ -2027,7 +2028,8 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
          * enabled on the guest (i.e mte=off), clear guest's MTE bits."
          */
         if (kvm_enabled() && !cpu->kvm_mte) {
-                FIELD_DP64_IDREG(isar, ID_AA64PFR1, MTE, 0);
+            FIELD_DP64_IDREG(isar, ID_AA64PFR1, MTE, 0);
+            FIELD_DP64_IDREG(isar, ID_AA64PFR2, MTEFAR, 0);
         }
 #endif
     }
