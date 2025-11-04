@@ -406,18 +406,6 @@ static void usb_host_req_free(USBHostRequest *r)
     g_free(r);
 }
 
-static USBHostRequest *usb_host_req_find(USBHostDevice *s, USBPacket *p)
-{
-    USBHostRequest *r;
-
-    QTAILQ_FOREACH(r, &s->requests, next) {
-        if (r->p == p) {
-            return r;
-        }
-    }
-    return NULL;
-}
-
 static void LIBUSB_CALL usb_host_req_complete_ctrl(struct libusb_transfer *xfer)
 {
     USBHostRequest *r = xfer->user_data;
@@ -1276,7 +1264,7 @@ static void usb_host_unrealize(USBDevice *udev)
 static void usb_host_cancel_packet(USBDevice *udev, USBPacket *p)
 {
     USBHostDevice *s = USB_HOST_DEVICE(udev);
-    USBHostRequest *r;
+    USBHostRequest *r, *next_entry;
 
     if (p->combined) {
         usb_combined_packet_cancel(udev, p);
@@ -1285,10 +1273,17 @@ static void usb_host_cancel_packet(USBDevice *udev, USBPacket *p)
 
     trace_usb_host_req_canceled(s->bus_num, s->addr, p);
 
-    r = usb_host_req_find(s, p);
-    if (r && r->p) {
-        r->p = NULL; /* mark as dead */
-        libusb_cancel_transfer(r->xfer);
+    QTAILQ_FOREACH_SAFE(r, &s->requests, next, next_entry) {
+        if (r->p == p) {
+            if (unlikely(r && r->fake_in_flight)) {
+                usb_host_req_free(r);
+                continue;
+            }
+            if (r && r->p) {
+                r->p = NULL; /* mark as dead */
+                libusb_cancel_transfer(r->xfer);
+            }
+        }
     }
 }
 
