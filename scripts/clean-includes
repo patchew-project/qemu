@@ -42,6 +42,9 @@
 GIT=no
 DUPHEAD=no
 
+# Save the original arguments in case we want to put them in
+# a git commit message
+ORIGARGS="$*"
 
 while true
 do
@@ -198,7 +201,8 @@ if [ "$GIT" = "yes" ]; then
     git commit --signoff -F - <<EOF
 $GITSUBJ: Clean up includes
 
-This commit was created with scripts/clean-includes.
+This commit was created with scripts/clean-includes:
+ ./scripts/clean-includes $ORIGARGS
 
 All .c should include qemu/osdep.h first.  The script performs three
 related cleanups:
