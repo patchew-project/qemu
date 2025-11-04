@@ -608,6 +608,30 @@ TEST_CMP_xx(uint32_t, uint32_t, FUNC, SRC1, SRC2, RES, USR_RES)
 #define TEST_CMP_PP(FUNC, SRC1, SRC2, RES, USR_RES) \
 TEST_CMP_xx(uint64_t, uint64_t, FUNC, SRC1, SRC2, RES, USR_RES)
 
+static void test_usr_packets(void)
+{
+    uint32_t usr;
+    /* Test setting USR bits inside and outside packets */
+    asm(CLEAR_USRBITS \
+        "r10 = satub(%1)              /* Set usr.OVF */\n\t"
+        "{\n\t"
+        "    r11 = convert_uw2sf(%4)  /* Set usr.FPINPF */\n\t"
+        "    r10 = memw(%5)           /* Force pkt commit */\n\t"
+        "}\n\t"
+        "{\n\t"
+        "    r11 = sfadd(%2, %3)      /* Set usr.FPINVF */\n\t"
+        "    r10 = add(r10, #1)       /* Doesn't force pkt commit */\n\t"
+        "}\n\t"
+        "%0 = usr\n\t"
+        : "=r"(usr)
+        : "r"(0xfff),
+          "r"(SF_one), "r"(SF_SNaN),
+          "r"(0x010020a5),
+          "m"(err)
+        : "r2", "r10", "r11", "usr");
+    check32(usr & 0x3f, USR_OVF | USR_FPINVF | USR_FPINPF);
+}
+
 int main()
 {
     TEST_R_OP_R(satub,       0,         0,         USR_CLEAR);
@@ -1096,6 +1120,8 @@ int main()
     TEST_Rp_OP_R(sfinvsqrta, SF_QNaN,       SF_HEX_NaN,       0x00, USR_CLEAR);
     TEST_Rp_OP_R(sfinvsqrta, SF_small_neg,  SF_HEX_NaN,       0x00, USR_FPINVF);
     TEST_Rp_OP_R(sfinvsqrta, SF_SNaN,       SF_HEX_NaN,       0x00, USR_FPINVF);
+
+    test_usr_packets();
 
     puts(err ? "FAIL" : "PASS");
     return err;
