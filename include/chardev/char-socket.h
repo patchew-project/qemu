@@ -68,6 +68,7 @@ struct SocketChardev {
     bool is_listen;
     bool is_telnet;
     bool is_tn3270;
+    bool is_waitconnect;
     GSource *telnet_source;
     TCPChardevTelnetInit *telnet_init;
 
