@@ -19,6 +19,7 @@
 #define AST2700_SOC_LTPI_SIZE        0x01000000
 #define AST1700_SOC_SRAM_SIZE        0x00040000
 #define AST1700_SOC_I3C_SIZE         0x00010000
+#define AST1700_SOC_SGPIOM_SIZE      0x00002000
 
 enum {
     ASPEED_AST1700_DEV_SPI0,
@@ -26,6 +27,7 @@ enum {
     ASPEED_AST1700_DEV_ADC,
     ASPEED_AST1700_DEV_SCU,
     ASPEED_AST1700_DEV_GPIO,
+    ASPEED_AST1700_DEV_SGPIOM,
     ASPEED_AST1700_DEV_I2C,
     ASPEED_AST1700_DEV_I3C,
     ASPEED_AST1700_DEV_UART12,
@@ -40,6 +42,7 @@ static const hwaddr aspeed_ast1700_io_memmap[] = {
     [ASPEED_AST1700_DEV_ADC]       =  0x00C00000,
     [ASPEED_AST1700_DEV_SCU]       =  0x00C02000,
     [ASPEED_AST1700_DEV_GPIO]      =  0x00C0B000,
+    [ASPEED_AST1700_DEV_SGPIOM]    =  0x00C0C000,
     [ASPEED_AST1700_DEV_I2C]       =  0x00C0F000,
     [ASPEED_AST1700_DEV_I3C]       =  0x00C20000,
     [ASPEED_AST1700_DEV_UART12]    =  0x00C33B00,
@@ -162,6 +165,15 @@ static void aspeed_ast1700_realize(DeviceState *dev, Error **errp)
                         aspeed_ast1700_io_memmap[ASPEED_AST1700_DEV_LTPI_CTRL],
                         sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->ltpi), 0));
 
+    /* SGPIOM */
+    qdev_prop_set_string(DEVICE(&s->sgpiom), "name", "ioexp-sgpiom");
+    qdev_prop_set_uint64(DEVICE(&s->sgpiom), "size", AST1700_SOC_SGPIOM_SIZE);
+    sysbus_realize(SYS_BUS_DEVICE(&s->sgpiom), errp);
+    memory_region_add_subregion_overlap(&s->iomem,
+                        aspeed_ast1700_io_memmap[ASPEED_AST1700_DEV_SGPIOM],
+                        sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->sgpiom), 0),
+                        -1000);
+
     /* WDT */
     for (i = 0; i < AST1700_WDT_NUM; i++) {
         AspeedWDTClass *awc = ASPEED_WDT_GET_CLASS(&s->wdt[i]);
@@ -224,6 +236,10 @@ static void aspeed_ast1700_instance_init(Object *obj)
     /* LTPI controller */
     object_initialize_child(obj, "ltpi-ctrl",
                             &s->ltpi, TYPE_ASPEED_LTPI);
+
+    /* SGPIOM */
+    object_initialize_child(obj, "ioexp-sgpiom[*]", &s->sgpiom,
+                            TYPE_UNIMPLEMENTED_DEVICE);
 
     /* WDT */
     for (i = 0; i < AST1700_WDT_NUM; i++) {

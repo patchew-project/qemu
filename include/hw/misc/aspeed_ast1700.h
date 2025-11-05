@@ -44,6 +44,7 @@ struct AspeedAST1700SoCState {
     AspeedWDTState wdt[AST1700_WDT_NUM];
 
     UnimplementedDeviceState i3c;
+    UnimplementedDeviceState sgpiom;
 };
 
 #endif /* ASPEED_AST1700_H */
