@@ -2429,12 +2429,23 @@ int kvm_arch_get_registers(CPUState *cs, Error **errp)
     return ret;
 }
 
+static void push_ghes_memory_errors(CPUState *c, AcpiGhesState *ags,
+                                    uint64_t paddr, Error **errp)
+{
+    uint64_t addresses[16];
+
+    addresses[0] = paddr;
+
+    kvm_cpu_synchronize_state(c);
+    acpi_ghes_memory_errors(ags, ACPI_HEST_SRC_ID_SYNC, addresses, 1, errp);
+    kvm_inject_arm_sea(c);
+}
+
 void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
 {
     ram_addr_t ram_addr;
     hwaddr paddr;
     AcpiGhesState *ags;
-    uint64_t addresses[16];
 
     assert(code == BUS_MCEERR_AR || code == BUS_MCEERR_AO);
 
@@ -2455,12 +2466,8 @@ void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
              * later from the main thread, so doing the injection of
              * the error would be more complicated.
              */
-            addresses[0] = paddr;
             if (code == BUS_MCEERR_AR) {
-                kvm_cpu_synchronize_state(c);
-                acpi_ghes_memory_errors(ags, ACPI_HEST_SRC_ID_SYNC,
-                                        addresses, 1, &error_abort);
-                kvm_inject_arm_sea(c);
+                push_ghes_memory_errors(c, ags, paddr, &error_abort);
             }
             return;
         }
