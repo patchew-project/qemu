@@ -513,6 +513,9 @@ void ghes_record_cper_errors(AcpiGhesState *ags, const void *cper, size_t len,
     } else {
         get_ghes_source_offsets(source_id, le64_to_cpu(ags->hest_addr_le),
                                 &cper_addr, &read_ack_register_addr, errp);
+        if (*errp) {
+            return;
+        }
     }
 
     cpu_physical_memory_read(read_ack_register_addr,
