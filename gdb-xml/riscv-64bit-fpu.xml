@@ -9,6 +9,8 @@
 <feature name="org.gnu.gdb.riscv.fpu">
 
   <union id="riscv_double">
+    <field name="bfloat16" type="bfloat16"/>
+    <field name="half" type="ieee_half"/>
     <field name="float" type="ieee_single"/>
     <field name="double" type="ieee_double"/>
   </union>
