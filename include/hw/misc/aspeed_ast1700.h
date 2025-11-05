@@ -29,12 +29,14 @@ struct AspeedAST1700SoCState {
 
     MemoryRegion iomem;
     hwaddr mapped_base;
+    uint32_t silicon_rev;
 
     AspeedLTPIState ltpi;
     SerialMM uart;
     MemoryRegion sram;
     AspeedSMCState spi;
     AspeedADCState adc;
+    AspeedSCUState scu;
 };
 
 #endif /* ASPEED_AST1700_H */
