@@ -37,6 +37,7 @@ struct AspeedAST1700SoCState {
     AspeedSMCState spi;
     AspeedADCState adc;
     AspeedSCUState scu;
+    AspeedGPIOState gpio;
 };
 
 #endif /* ASPEED_AST1700_H */
