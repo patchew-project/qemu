@@ -86,6 +86,8 @@ static const hwaddr aspeed_soc_ast2700_memmap[] = {
     [ASPEED_DEV_UART10]    =  0x14C33900,
     [ASPEED_DEV_UART11]    =  0x14C33A00,
     [ASPEED_DEV_UART12]    =  0x14C33B00,
+    [ASPEED_DEV_LTPI_CTRL1] =  0x14C34000,
+    [ASPEED_DEV_LTPI_CTRL2] =  0x14C35000,
     [ASPEED_DEV_WDT]       =  0x14C37000,
     [ASPEED_DEV_PCIE_MMIO0] = 0x60000000,
     [ASPEED_DEV_PCIE_MMIO1] = 0x80000000,
@@ -543,6 +545,10 @@ static void aspeed_soc_ast2700_init(Object *obj)
         object_property_set_int(OBJECT(&s->pcie[i]), "id", i, &error_abort);
     }
 
+    for (i = 0; i < ASPEED_IOEXP_NUM; i++) {
+        object_initialize_child(obj, "ltpi-ctrl[*]",
+                                &s->ltpi_ctrl[i], TYPE_ASPEED_LTPI);
+    }
     object_initialize_child(obj, "dpmcu", &s->dpmcu,
                             TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "ltpi", &s->ltpi,
@@ -688,6 +694,8 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
     g_autofree char *name = NULL;
     qemu_irq irq;
     int uart;
+    AspeedLTPIState *ltpi_ctrl;
+    hwaddr ltpi_base;
 
     /* Default boot region (SPI memory or ROMs) */
     memory_region_init(&s->spi_boot_container, OBJECT(s),
@@ -1021,6 +1029,16 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* LTPI controller */
+    for (i = 0; i < ASPEED_IOEXP_NUM; i++) {
+        ltpi_ctrl = ASPEED_LTPI(&s->ltpi_ctrl[i]);
+        ltpi_base = sc->memmap[ASPEED_DEV_LTPI_CTRL1 + i];
+
+        if (!sysbus_realize(SYS_BUS_DEVICE(ltpi_ctrl), errp)) {
+            return;
+        }
+        aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(ltpi_ctrl), 0, ltpi_base);
+    }
     aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->dpmcu),
                                   "aspeed.dpmcu",
                                   sc->memmap[ASPEED_DEV_DPMCU],

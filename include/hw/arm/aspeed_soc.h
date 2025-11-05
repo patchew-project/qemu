@@ -42,6 +42,7 @@
 #include "hw/fsi/aspeed_apb2opb.h"
 #include "hw/char/serial-mm.h"
 #include "hw/intc/arm_gicv3.h"
+#include "hw/misc/aspeed_ltpi.h"
 
 #define VBOOTROM_FILE_NAME  "ast27x0_bootrom.bin"
 
@@ -53,6 +54,7 @@
 #define ASPEED_UARTS_NUM 13
 #define ASPEED_JTAG_NUM  2
 #define ASPEED_PCIE_NUM  3
+#define ASPEED_IOEXP_NUM 2
 
 struct AspeedSoCState {
     DeviceState parent;
@@ -110,6 +112,7 @@ struct AspeedSoCState {
     UnimplementedDeviceState ltpi;
     UnimplementedDeviceState jtag[ASPEED_JTAG_NUM];
     AspeedAPB2OPBState fsi[2];
+    AspeedLTPIState ltpi_ctrl[ASPEED_IOEXP_NUM];
 };
 
 #define TYPE_ASPEED_SOC "aspeed-soc"
@@ -275,6 +278,8 @@ enum {
     ASPEED_GIC_REDIST,
     ASPEED_DEV_IPC0,
     ASPEED_DEV_IPC1,
+    ASPEED_DEV_LTPI_CTRL1,
+    ASPEED_DEV_LTPI_CTRL2,
 };
 
 const char *aspeed_soc_cpu_type(const char * const *valid_cpu_types);
