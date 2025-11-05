@@ -68,7 +68,7 @@ Design Details
     and N Read Ack Register entries. The size for each entry is 8-byte.
     The Error Status Data Block table contains N Error Status Data Block
     entries. The size for each entry is defined at the source code as
-    ACPI_GHES_MAX_RAW_DATA_LENGTH (currently 1024 bytes). The total size
+    ACPI_GHES_MAX_RAW_DATA_LENGTH (currently 4096 bytes). The total size
     for the "etc/hardware_errors" fw_cfg blob is
     (N * 8 * 2 + N * ACPI_GHES_MAX_RAW_DATA_LENGTH) bytes.
     N is the number of the kinds of hardware error sources.
