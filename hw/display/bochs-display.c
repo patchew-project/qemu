@@ -20,6 +20,8 @@
 #include "ui/qemu-pixman.h"
 #include "qom/object.h"
 
+#include "system/kvm.h"
+
 typedef struct BochsDisplayMode {
     pixman_format_code_t format;
     uint32_t             bytepp;
@@ -309,6 +311,21 @@ static void bochs_display_realize(PCIDevice *dev, Error **errp)
     }
 
     memory_region_set_log(&s->vram, true, DIRTY_MEMORY_VGA);
+
+    /*
+     * On x86_64, where most CPUs support self-snoop, it is preferrable to
+     * always honor guest PAT. Not doing so is a quirk. There is a default
+     * enabled KVM quirk flag which enforces not doing so due to a former bug
+     * in Bochs display driver.
+     *
+     * The bug has been fixed but not enough has yet passed since so we only
+     * disable said quirk flag if a Bochs display is not configured for the
+     * virtual machine.
+     *
+     * The following flag tells KVM initialization code not to disable that
+     * quirk flag.
+     */
+    kvm_bochs_drm_quirk = true;
 }
 
 static bool bochs_display_get_big_endian_fb(Object *obj, Error **errp)
