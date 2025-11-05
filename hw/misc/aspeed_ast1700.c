@@ -22,6 +22,7 @@
 enum {
     ASPEED_AST1700_DEV_SPI0,
     ASPEED_AST1700_DEV_SRAM,
+    ASPEED_AST1700_DEV_ADC,
     ASPEED_AST1700_DEV_UART12,
     ASPEED_AST1700_DEV_LTPI_CTRL,
     ASPEED_AST1700_DEV_SPI0_MEM,
@@ -30,6 +31,7 @@ enum {
 static const hwaddr aspeed_ast1700_io_memmap[] = {
     [ASPEED_AST1700_DEV_SPI0]      =  0x00030000,
     [ASPEED_AST1700_DEV_SRAM]      =  0x00BC0000,
+    [ASPEED_AST1700_DEV_ADC]       =  0x00C00000,
     [ASPEED_AST1700_DEV_UART12]    =  0x00C33B00,
     [ASPEED_AST1700_DEV_LTPI_CTRL] =  0x00C34000,
     [ASPEED_AST1700_DEV_SPI0_MEM]  =  0x04000000,
@@ -94,6 +96,14 @@ static void aspeed_ast1700_realize(DeviceState *dev, Error **errp)
                         aspeed_ast1700_io_memmap[ASPEED_AST1700_DEV_SPI0_MEM],
                         sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->spi), 1));
 
+    /* ADC */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->adc), errp)) {
+        return;
+    }
+    memory_region_add_subregion(&s->iomem,
+                        aspeed_ast1700_io_memmap[ASPEED_AST1700_DEV_ADC],
+                        sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->adc), 0));
+
     /* LTPI controller */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->ltpi), errp)) {
         return;
@@ -120,6 +130,11 @@ static void aspeed_ast1700_instance_init(Object *obj)
     /* SPI */
     snprintf(typename, sizeof(typename), "aspeed.spi%d-%s", 0, socname);
     object_initialize_child(obj, "ioexp-spi[*]", &s->spi,
+                            typename);
+
+    /* ADC */
+    snprintf(typename, sizeof(typename), "aspeed.adc-%s", socname);
+    object_initialize_child(obj, "ioexp-adc[*]", &s->adc,
                             typename);
     /* LTPI controller */
     object_initialize_child(obj, "ltpi-ctrl",
