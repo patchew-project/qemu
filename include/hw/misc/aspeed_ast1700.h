@@ -45,6 +45,7 @@ struct AspeedAST1700SoCState {
 
     UnimplementedDeviceState i3c;
     UnimplementedDeviceState sgpiom;
+    UnimplementedDeviceState pwm;
 };
 
 #endif /* ASPEED_AST1700_H */

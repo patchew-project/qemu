@@ -20,9 +20,11 @@
 #define AST1700_SOC_SRAM_SIZE        0x00040000
 #define AST1700_SOC_I3C_SIZE         0x00010000
 #define AST1700_SOC_SGPIOM_SIZE      0x00002000
+#define AST1700_SOC_PWM_SIZE         0x00000200
 
 enum {
     ASPEED_AST1700_DEV_SPI0,
+    ASPEED_AST1700_DEV_PWM,
     ASPEED_AST1700_DEV_SRAM,
     ASPEED_AST1700_DEV_ADC,
     ASPEED_AST1700_DEV_SCU,
@@ -38,6 +40,7 @@ enum {
 
 static const hwaddr aspeed_ast1700_io_memmap[] = {
     [ASPEED_AST1700_DEV_SPI0]      =  0x00030000,
+    [ASPEED_AST1700_DEV_PWM]       =  0x000C0000,
     [ASPEED_AST1700_DEV_SRAM]      =  0x00BC0000,
     [ASPEED_AST1700_DEV_ADC]       =  0x00C00000,
     [ASPEED_AST1700_DEV_SCU]       =  0x00C02000,
@@ -174,6 +177,15 @@ static void aspeed_ast1700_realize(DeviceState *dev, Error **errp)
                         sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->sgpiom), 0),
                         -1000);
 
+    /* PWM */
+    qdev_prop_set_string(DEVICE(&s->pwm), "name", "ioexp-pwm");
+    qdev_prop_set_uint64(DEVICE(&s->pwm), "size", AST1700_SOC_PWM_SIZE);
+    sysbus_realize(SYS_BUS_DEVICE(&s->pwm), errp);
+    memory_region_add_subregion_overlap(&s->iomem,
+                        aspeed_ast1700_io_memmap[ASPEED_AST1700_DEV_PWM],
+                        sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->pwm), 0),
+                        -1000);
+
     /* WDT */
     for (i = 0; i < AST1700_WDT_NUM; i++) {
         AspeedWDTClass *awc = ASPEED_WDT_GET_CLASS(&s->wdt[i]);
@@ -239,6 +251,10 @@ static void aspeed_ast1700_instance_init(Object *obj)
 
     /* SGPIOM */
     object_initialize_child(obj, "ioexp-sgpiom[*]", &s->sgpiom,
+                            TYPE_UNIMPLEMENTED_DEVICE);
+
+    /* PWM */
+    object_initialize_child(obj, "ioexp-pwm", &s->pwm,
                             TYPE_UNIMPLEMENTED_DEVICE);
 
     /* WDT */
