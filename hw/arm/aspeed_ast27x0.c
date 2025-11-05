@@ -505,6 +505,10 @@ static void aspeed_soc_ast2700_init(Object *obj)
     object_initialize_child(obj, "intc", &a->intc[0], TYPE_ASPEED_2700_INTC);
     object_initialize_child(obj, "intcio", &a->intc[1],
                             TYPE_ASPEED_2700_INTCIO);
+    object_initialize_child(obj, "intcioexp0", &a->intc[2],
+                            TYPE_ASPEED_2700_INTCIOEXP1);
+    object_initialize_child(obj, "intcioexp1", &a->intc[3],
+                            TYPE_ASPEED_2700_INTCIOEXP2);
 
     snprintf(typename, sizeof(typename), "aspeed.adc-%s", socname);
     object_initialize_child(obj, "adc", &s->adc, typename);
@@ -701,6 +705,7 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
     g_autofree char *name = NULL;
     qemu_irq irq;
     int uart;
+    int j;
     AspeedLTPIState *ltpi_ctrl;
     hwaddr ltpi_base;
 
@@ -745,6 +750,22 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
 
     aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&a->intc[1]), 0,
                     sc->memmap[ASPEED_DEV_INTCIO]);
+
+    /* INTCIOEXP0 */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&a->intc[2]), errp)) {
+        return;
+    }
+
+    aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&a->intc[2]), 0,
+                    sc->memmap[ASPEED_DEV_IOEXP0_INTCIO]);
+
+    /* INTCIOEXP */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&a->intc[3]), errp)) {
+        return;
+    }
+
+    aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&a->intc[3]), 0,
+                    sc->memmap[ASPEED_DEV_IOEXP1_INTCIO]);
 
     /* irq sources -> orgates -> INTC */
     for (i = 0; i < ic->num_inpins; i++) {
@@ -1054,6 +1075,21 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
         }
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->ioexp[i]), 0,
                         sc->memmap[ASPEED_DEV_LTPI_IO0 + i]);
+
+        icio = ASPEED_INTC_GET_CLASS(&a->intc[2 + i]);
+        /* INTC2/3 internal: orgate[i] -> input[i] */
+        for (j = 0; j < icio->num_inpins; j++) {
+            irq = qdev_get_gpio_in(DEVICE(&a->intc[2 + i]), j);
+            qdev_connect_gpio_out(DEVICE(&a->intc[2 + i].orgates[j]), 0,
+                                  irq);
+        }
+
+        /* INTC2/3 output[i] -> INTC0.orgate[0].input[i] */
+        for (j = 0; j < icio->num_outpins; j++) {
+            irq = qdev_get_gpio_in(DEVICE(&a->intc[0].orgates[0]), j);
+            sysbus_connect_irq(SYS_BUS_DEVICE(&a->intc[2 + i]), j,
+                               irq);
+        }
     }
 
     aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->dpmcu),
