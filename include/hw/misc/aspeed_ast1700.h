@@ -19,6 +19,8 @@
 #include "hw/char/serial-mm.h"
 #include "hw/misc/unimp.h"
 
+#define AST1700_WDT_NUM              9
+
 #define TYPE_ASPEED_AST1700 "aspeed.ast1700"
 #define TYPE_ASPEED_AST1700_AST2700 "aspeed.ast1700-ast2700"
 
@@ -39,6 +41,7 @@ struct AspeedAST1700SoCState {
     AspeedSCUState scu;
     AspeedGPIOState gpio;
     AspeedI2CState i2c;
+    AspeedWDTState wdt[AST1700_WDT_NUM];
 };
 
 #endif /* ASPEED_AST1700_H */
