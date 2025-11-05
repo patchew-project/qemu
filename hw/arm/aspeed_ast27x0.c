@@ -26,7 +26,6 @@
 #define AST2700_SOC_IO_SIZE          0x00FE0000
 #define AST2700_SOC_IOMEM_SIZE       0x01000000
 #define AST2700_SOC_DPMCU_SIZE       0x00040000
-#define AST2700_SOC_LTPI_SIZE        0x01000000
 
 static const hwaddr aspeed_soc_ast2700_memmap[] = {
     [ASPEED_DEV_VBOOTROM]  =  0x00000000,
@@ -89,11 +88,14 @@ static const hwaddr aspeed_soc_ast2700_memmap[] = {
     [ASPEED_DEV_LTPI_CTRL1] =  0x14C34000,
     [ASPEED_DEV_LTPI_CTRL2] =  0x14C35000,
     [ASPEED_DEV_WDT]       =  0x14C37000,
+    [ASPEED_DEV_LTPI_IO0]  =  0x30000000,
+    [ASPEED_DEV_IOEXP0_INTCIO] = 0x30C18000,
+    [ASPEED_DEV_LTPI_IO1]  =  0x50000000,
+    [ASPEED_DEV_IOEXP1_INTCIO] = 0x50C18000,
     [ASPEED_DEV_PCIE_MMIO0] = 0x60000000,
     [ASPEED_DEV_PCIE_MMIO1] = 0x80000000,
     [ASPEED_DEV_PCIE_MMIO2] = 0xA0000000,
     [ASPEED_DEV_SPI_BOOT]  =  0x100000000,
-    [ASPEED_DEV_LTPI]      =  0x300000000,
     [ASPEED_DEV_SDRAM]     =  0x400000000,
 };
 
@@ -549,9 +551,14 @@ static void aspeed_soc_ast2700_init(Object *obj)
         object_initialize_child(obj, "ltpi-ctrl[*]",
                                 &s->ltpi_ctrl[i], TYPE_ASPEED_LTPI);
     }
+
+    for (i = 0; i < sc->ioexp_num; i++) {
+        /* AST1700 IOEXP */
+        object_initialize_child(obj, "ioexp[*]", &s->ioexp[i],
+                                TYPE_ASPEED_AST1700_AST2700);
+    }
+
     object_initialize_child(obj, "dpmcu", &s->dpmcu,
-                            TYPE_UNIMPLEMENTED_DEVICE);
-    object_initialize_child(obj, "ltpi", &s->ltpi,
                             TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "iomem", &s->iomem,
                             TYPE_UNIMPLEMENTED_DEVICE);
@@ -1039,14 +1046,20 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
         }
         aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(ltpi_ctrl), 0, ltpi_base);
     }
+
+    /* IO Expander */
+    for (i = 0; i < sc->ioexp_num; i++) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->ioexp[i]), errp)) {
+            return;
+        }
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->ioexp[i]), 0,
+                        sc->memmap[ASPEED_DEV_LTPI_IO0 + i]);
+    }
+
     aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->dpmcu),
                                   "aspeed.dpmcu",
                                   sc->memmap[ASPEED_DEV_DPMCU],
                                   AST2700_SOC_DPMCU_SIZE);
-    aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->ltpi),
-                                  "aspeed.ltpi",
-                                  sc->memmap[ASPEED_DEV_LTPI],
-                                  AST2700_SOC_LTPI_SIZE);
     aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->iomem),
                                   "aspeed.io",
                                   sc->memmap[ASPEED_DEV_IOMEM],
@@ -1112,6 +1125,7 @@ static void aspeed_soc_ast2700a1_class_init(ObjectClass *oc, const void *data)
     sc->macs_num     = 3;
     sc->uarts_num    = 13;
     sc->num_cpus     = 4;
+    sc->ioexp_num    = 2;
     sc->uarts_base   = ASPEED_DEV_UART0;
     sc->irqmap       = aspeed_soc_ast2700a1_irqmap;
     sc->memmap       = aspeed_soc_ast2700_memmap;

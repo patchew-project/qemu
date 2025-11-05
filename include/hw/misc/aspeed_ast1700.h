@@ -20,6 +20,7 @@
 #include "hw/misc/unimp.h"
 
 #define TYPE_ASPEED_AST1700 "aspeed.ast1700"
+#define TYPE_ASPEED_AST1700_AST2700 "aspeed.ast1700-ast2700"
 
 OBJECT_DECLARE_SIMPLE_TYPE(AspeedAST1700SoCState, ASPEED_AST1700)
 

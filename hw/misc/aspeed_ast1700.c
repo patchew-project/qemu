@@ -48,10 +48,16 @@ static const TypeInfo aspeed_ast1700_info = {
     .instance_init = aspeed_ast1700_instance_init,
 };
 
+static const TypeInfo aspeed_ast1700_ast2700_info = {
+    .name = TYPE_ASPEED_AST1700_AST2700,
+    .parent = TYPE_ASPEED_AST1700,
+};
+
 
 static void aspeed_ast1700_register_types(void)
 {
     type_register_static(&aspeed_ast1700_info);
+    type_register_static(&aspeed_ast1700_ast2700_info);
 }
 
 type_init(aspeed_ast1700_register_types);
