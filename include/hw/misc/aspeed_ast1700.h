@@ -32,6 +32,7 @@ struct AspeedAST1700SoCState {
 
     AspeedLTPIState ltpi;
     SerialMM uart;
+    MemoryRegion sram;
 };
 
 #endif /* ASPEED_AST1700_H */

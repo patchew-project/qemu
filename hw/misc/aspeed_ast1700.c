@@ -15,14 +15,18 @@
 #include "migration/vmstate.h"
 #include "hw/misc/aspeed_ast1700.h"
 
+#define AST1700_BOARD1_MEM_ADDR      0x30000000
 #define AST2700_SOC_LTPI_SIZE        0x01000000
+#define AST1700_SOC_SRAM_SIZE        0x00040000
 
 enum {
+    ASPEED_AST1700_DEV_SRAM,
     ASPEED_AST1700_DEV_UART12,
     ASPEED_AST1700_DEV_LTPI_CTRL,
 };
 
 static const hwaddr aspeed_ast1700_io_memmap[] = {
+    [ASPEED_AST1700_DEV_SRAM]      =  0x00BC0000,
     [ASPEED_AST1700_DEV_UART12]    =  0x00C33B00,
     [ASPEED_AST1700_DEV_LTPI_CTRL] =  0x00C34000,
 };
@@ -31,11 +35,32 @@ static void aspeed_ast1700_realize(DeviceState *dev, Error **errp)
     AspeedAST1700SoCState *s = ASPEED_AST1700(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     hwaddr uart_base;
+    Error *err = NULL;
+    int board_idx;
+    char sram_name[32];
+
+    if (s->mapped_base == AST1700_BOARD1_MEM_ADDR) {
+        board_idx = 0;
+    } else {
+        board_idx = 1;
+    }
 
     /* Occupy memory space for all controllers in AST1700 */
     memory_region_init(&s->iomem, OBJECT(s), TYPE_ASPEED_AST1700,
                        AST2700_SOC_LTPI_SIZE);
     sysbus_init_mmio(sbd, &s->iomem);
+
+    /* SRAM */
+    snprintf(sram_name, sizeof(sram_name), "aspeed.ioexp-sram.%d", board_idx);
+    memory_region_init_ram(&s->sram, OBJECT(s), sram_name,
+                           AST1700_SOC_SRAM_SIZE, &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
+    memory_region_add_subregion(&s->iomem,
+                                aspeed_ast1700_io_memmap[ASPEED_AST1700_DEV_SRAM],
+                                &s->sram);
 
     /* UART */
     uart_base = s->mapped_base +
