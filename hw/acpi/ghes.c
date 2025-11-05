@@ -543,8 +543,9 @@ void ghes_record_cper_errors(AcpiGhesState *ags, const void *cper, size_t len,
     notifier_list_notify(&acpi_generic_error_notifiers, &source_id);
 }
 
-int acpi_ghes_memory_errors(AcpiGhesState *ags, uint16_t source_id,
-                            uint64_t *addresses, uint32_t num_of_addresses)
+void acpi_ghes_memory_errors(AcpiGhesState *ags, uint16_t source_id,
+                             uint64_t *addresses, uint32_t num_of_addresses,
+                             Error **errp)
 {
     /* Memory Error Section Type */
     const uint8_t guid[] =
@@ -555,7 +556,6 @@ int acpi_ghes_memory_errors(AcpiGhesState *ags, uint16_t source_id,
      * Table 17-13 Generic Error Data Entry
      */
     QemuUUID fru_id = {};
-    Error *errp = NULL;
     int data_length;
     GArray *block;
     uint32_t block_status, i;
@@ -592,16 +592,9 @@ int acpi_ghes_memory_errors(AcpiGhesState *ags, uint16_t source_id,
     }
 
     /* Report the error */
-    ghes_record_cper_errors(ags, block->data, block->len, source_id, &errp);
+    ghes_record_cper_errors(ags, block->data, block->len, source_id, errp);
 
     g_array_free(block, true);
-
-    if (errp) {
-        error_report_err(errp);
-        return -1;
-    }
-
-    return 0;
 }
 
 AcpiGhesState *acpi_ghes_get_state(void)

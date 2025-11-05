@@ -11,10 +11,10 @@
 #include "qemu/osdep.h"
 #include "hw/acpi/ghes.h"
 
-int acpi_ghes_memory_errors(AcpiGhesState *ags, uint16_t source_id,
-                            uint64_t *addresses, uint32_t num_of_addresses)
+void acpi_ghes_memory_errors(AcpiGhesState *ags, uint16_t source_id,
+                             uint64_t *addresses, uint32_t num_of_addresses,
+                             Error **errp)
 {
-    return -1;
 }
 
 AcpiGhesState *acpi_ghes_get_state(void)
