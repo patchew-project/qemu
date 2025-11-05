@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include <sys/ioctl.h>
 
 #include <linux/kvm.h>
@@ -2432,12 +2433,59 @@ int kvm_arch_get_registers(CPUState *cs, Error **errp)
 static void push_ghes_memory_errors(CPUState *c, AcpiGhesState *ags,
                                     uint64_t paddr, Error **errp)
 {
+    uint64_t val, start, end, guest_pgsz, host_pgsz;
     uint64_t addresses[16];
+    uint32_t num_of_addresses;
+    int ret;
 
-    addresses[0] = paddr;
+    /*
+     * Sort out the guest page size from TCR_EL1, which can be modified
+     * by the guest from time to time. So we have to sort it out dynamically.
+     */
+    ret = read_sys_reg64(c->kvm_fd, &val, ARM64_SYS_REG(3, 0, 2, 0, 2));
+    if (ret) {
+        error_setg(errp, "Error %" PRId32 " to read TCR_EL1 register", ret);
+        return;
+    }
+
+    switch (extract64(val, 14, 2)) {
+    case 0:
+        guest_pgsz = 4 * KiB;
+        break;
+    case 1:
+        guest_pgsz = 64 * KiB;
+        break;
+    case 2:
+        guest_pgsz = 16 * KiB;
+        break;
+    default:
+        error_setg(errp, "Unknown page size from TCR_EL1 (0x%" PRIx64 ")", val);
+        return;
+    }
+
+    host_pgsz = qemu_real_host_page_size();
+    start = paddr & ~(host_pgsz - 1);
+    end = start + host_pgsz;
+    num_of_addresses = 0;
+
+    while (start < end) {
+        /*
+         * The precise physical address is provided for the affected
+         * guest page that contains @paddr. Otherwise, the starting
+         * address of the guest page is provided.
+         */
+        if (paddr >= start && paddr < (start + guest_pgsz)) {
+            addresses[num_of_addresses++] = paddr;
+        } else {
+            addresses[num_of_addresses++] = start;
+        }
+
+        start += guest_pgsz;
+    }
 
     kvm_cpu_synchronize_state(c);
-    acpi_ghes_memory_errors(ags, ACPI_HEST_SRC_ID_SYNC, addresses, 1, errp);
+    acpi_ghes_memory_errors(ags, ACPI_HEST_SRC_ID_SYNC,
+                            addresses, num_of_addresses, errp);
     kvm_inject_arm_sea(c);
 }
 
