@@ -102,6 +102,9 @@ static void riscv_cpu_cfg_merge(RISCVCPUConfig *dest, const RISCVCPUConfig *src)
  *
  * Single letter extensions are checked in riscv_cpu_validate_misa_priv()
  * instead.
+ *
+ * **NOTE**: please run ./scripts/riscv-isaedata-check.py every time a
+ * new entry is added in this array.
  */
 const RISCVIsaExtData isa_edata_arr[] = {
     ISA_EXT_DATA_ENTRY(zic64b, PRIV_VERSION_1_12_0, ext_zic64b),
