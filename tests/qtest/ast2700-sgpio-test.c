@@ -12,11 +12,12 @@
 #include "qobject/qdict.h"
 #include "libqtest-single.h"
 #include "qemu/error-report.h"
+#include "hw/registerfields.h"
+#include "hw/gpio/aspeed_sgpio.h"
 
 #define ASPEED_SGPIO_MAX_PIN_PAIR 256
 #define AST2700_SGPIO0_BASE 0x14C0C000
 #define AST2700_SGPIO1_BASE 0x14C0D000
-#define SGPIO_0_CONTROL 0x80
 
 static void test_output_pins(const char *machine, const uint32_t base, int idx)
 {
@@ -29,17 +30,17 @@ static void test_output_pins(const char *machine, const uint32_t base, int idx)
         /* Odd index is output port */
         sprintf(name, "sgpio%d", i * 2 + 1);
         sprintf(qom_path, "/machine/soc/sgpio[%d]", idx);
-        offset = base + SGPIO_0_CONTROL + (i * 4);
+        offset = base + (R_SGPIO_0_CONTROL + i) * 4;
         /* set serial output */
         qtest_writel(s, offset, 0x00000001);
         value = qtest_readl(s, offset);
-        g_assert_cmphex(value, ==, 0x00000001);
+        g_assert_cmphex(SHARED_FIELD_EX32(value, SGPIO_SERIAL_OUT_VAL), ==, 1);
         g_assert_cmphex(qtest_qom_get_bool(s, qom_path, name), ==, true);
 
         /* clear serial output */
         qtest_writel(s, offset, 0x00000000);
         value = qtest_readl(s, offset);
-        g_assert_cmphex(value, ==, 0);
+        g_assert_cmphex(SHARED_FIELD_EX32(value, SGPIO_SERIAL_OUT_VAL), ==, 0);
         g_assert_cmphex(qtest_qom_get_bool(s, qom_path, name), ==, false);
     }
     qtest_quit(s);
@@ -56,18 +57,71 @@ static void test_input_pins(const char *machine, const uint32_t base, int idx)
         /* Even index is input port */
         sprintf(name, "sgpio%d", i * 2);
         sprintf(qom_path, "/machine/soc/sgpio[%d]", idx);
-        offset = base + SGPIO_0_CONTROL + (i * 4);
+        offset = base + (R_SGPIO_0_CONTROL + i) * 4;
         /* set serial input */
         qtest_qom_set_bool(s, qom_path, name, true);
         value = qtest_readl(s, offset);
-        g_assert_cmphex(value, ==, 0x00002000);
+        g_assert_cmphex(SHARED_FIELD_EX32(value, SGPIO_SERIAL_IN_VAL), ==, 1);
         g_assert_cmphex(qtest_qom_get_bool(s, qom_path, name), ==, true);
 
         /* clear serial input */
         qtest_qom_set_bool(s, qom_path, name, false);
         value = qtest_readl(s, offset);
-        g_assert_cmphex(value, ==, 0);
+        g_assert_cmphex(SHARED_FIELD_EX32(value, SGPIO_SERIAL_IN_VAL), ==, 0);
         g_assert_cmphex(qtest_qom_get_bool(s, qom_path, name), ==, false);
+    }
+    qtest_quit(s);
+}
+
+static void test_irq_level_high(const char *machine,
+                                const uint32_t base, int idx)
+{
+    QTestState *s = qtest_init(machine);
+    char name[16];
+    char qom_path[64];
+    uint32_t ctrl_offset = 0;
+    uint32_t int_offset = 0;
+    uint32_t int_reg_idx = 0;
+    uint32_t int_bit_idx = 0;
+    uint32_t value = 0;
+    for (int i = 0; i < ASPEED_SGPIO_MAX_PIN_PAIR; i++) {
+        /* Even index is input port */
+        sprintf(name, "sgpio%d", i * 2);
+        sprintf(qom_path, "/machine/soc/sgpio[%d]", idx);
+        int_reg_idx = i / 32;
+        int_bit_idx = i % 32;
+        int_offset = base + (R_SGPIO_INT_STATUS_0 + int_reg_idx) * 4;
+        ctrl_offset = base + (R_SGPIO_0_CONTROL + i) * 4;
+
+        /* Enable the interrupt */
+        value = SHARED_FIELD_DP32(value, SGPIO_INT_EN, 1);
+        qtest_writel(s, ctrl_offset, value);
+
+        /* Set the interrupt type to level-high trigger */
+        value = SHARED_FIELD_DP32(qtest_readl(s, ctrl_offset),
+                                              SGPIO_INT_TYPE, 3);
+        qtest_writel(s, ctrl_offset, value);
+
+        /* Set serial input high */
+        qtest_qom_set_bool(s, qom_path, name, true);
+        value = qtest_readl(s, ctrl_offset);
+        g_assert_cmphex(SHARED_FIELD_EX32(value, SGPIO_SERIAL_IN_VAL), ==, 1);
+
+        /* Interrupt status is set */
+        value = qtest_readl(s, int_offset);
+        g_assert_cmphex(extract32(value, int_bit_idx, 1), ==, 1);
+
+        /* Clear Interrupt */
+        value = SHARED_FIELD_DP32(qtest_readl(s, ctrl_offset),
+                                              SGPIO_INT_STATUS, 1);
+        qtest_writel(s, ctrl_offset, value);
+        value = qtest_readl(s, int_offset);
+        g_assert_cmphex(extract32(value, int_bit_idx, 1), ==, 0);
+
+        /* Clear serial input */
+        qtest_qom_set_bool(s, qom_path, name, false);
+        value = qtest_readl(s, ctrl_offset);
+        g_assert_cmphex(SHARED_FIELD_EX32(value, SGPIO_SERIAL_IN_VAL), ==, 0);
     }
     qtest_quit(s);
 }
@@ -81,6 +135,10 @@ static void test_2700_input_pins(void)
     test_output_pins("-machine ast2700-evb",
                     AST2700_SGPIO0_BASE, 0);
     test_output_pins("-machine ast2700-evb",
+                    AST2700_SGPIO1_BASE, 1);
+    test_irq_level_high("-machine ast2700-evb",
+                    AST2700_SGPIO0_BASE, 0);
+    test_irq_level_high("-machine ast2700-evb",
                     AST2700_SGPIO1_BASE, 1);
 }
 
