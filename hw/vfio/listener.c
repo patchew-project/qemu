@@ -713,14 +713,27 @@ static void vfio_listener_region_del(MemoryListener *listener,
 
     if (try_unmap) {
         bool unmap_all = false;
+        IOMMUTLBEntry entry = {}, *iotlb = NULL;
 
         if (int128_eq(llsize, int128_2_64())) {
             assert(!iova);
             unmap_all = true;
             llsize = int128_zero();
         }
+
+        /*
+         * Fake an IOTLB entry for identity mapping which is needed by dirty
+         * tracking. In fact, in unmap_bitmap, only translated_addr field is
+         * used to set dirty bitmap.
+         */
+        if (!memory_region_is_iommu(section->mr)) {
+            entry.iova = iova;
+            entry.translated_addr = iova;
+            iotlb = &entry;
+        }
+
         ret = vfio_container_dma_unmap(bcontainer, iova, int128_get64(llsize),
-                                       NULL, unmap_all);
+                                       iotlb, unmap_all);
         if (ret) {
             error_report("vfio_container_dma_unmap(%p, 0x%"HWADDR_PRIx", "
                          "0x%"HWADDR_PRIx") = %d (%s)",
