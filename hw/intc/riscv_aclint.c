@@ -327,6 +327,21 @@ static void riscv_aclint_mtimer_reset_enter(Object *obj, ResetType type)
     riscv_aclint_mtimer_write(mtimer, mtimer->time_base, 0, 8);
 }
 
+static uint64_t riscv_aclint_mtimer_time_src_get_ticks(RISCVCPUTimeSrcIf *iface)
+{
+    RISCVAclintMTimerState *mtimer = RISCV_ACLINT_MTIMER(iface);
+
+    return riscv_aclint_mtimer_get_ticks(mtimer);
+}
+
+static uint32_t riscv_aclint_mtimer_time_src_get_tick_freq(RISCVCPUTimeSrcIf *iface)
+{
+    RISCVAclintMTimerState *mtimer = RISCV_ACLINT_MTIMER(iface);
+
+    return mtimer->timebase_freq;
+}
+
+
 static const VMStateDescription vmstate_riscv_mtimer = {
     .name = "riscv_mtimer",
     .version_id = 3,
@@ -346,11 +361,14 @@ static void riscv_aclint_mtimer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
+    RISCVCPUTimeSrcIfClass *rctsc = RISCV_CPU_TIME_SRC_IF_CLASS(klass);
 
     dc->realize = riscv_aclint_mtimer_realize;
     device_class_set_props(dc, riscv_aclint_mtimer_properties);
     rc->phases.enter = riscv_aclint_mtimer_reset_enter;
     dc->vmsd = &vmstate_riscv_mtimer;
+    rctsc->get_ticks = riscv_aclint_mtimer_time_src_get_ticks;
+    rctsc->get_tick_freq = riscv_aclint_mtimer_time_src_get_tick_freq;
 }
 
 static const TypeInfo riscv_aclint_mtimer_info = {
@@ -358,6 +376,10 @@ static const TypeInfo riscv_aclint_mtimer_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(RISCVAclintMTimerState),
     .class_init    = riscv_aclint_mtimer_class_init,
+    .interfaces    = (const InterfaceInfo []) {
+        { TYPE_RISCV_CPU_TIME_SRC_IF },
+        { },
+    },
 };
 
 /*
