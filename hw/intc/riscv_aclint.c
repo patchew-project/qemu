@@ -40,16 +40,17 @@ typedef struct riscv_aclint_mtimer_callback {
     int num;
 } riscv_aclint_mtimer_callback;
 
-static uint64_t cpu_riscv_read_rtc_raw(uint32_t timebase_freq)
+static uint64_t riscv_aclint_mtimer_get_ticks_raw(uint32_t timebase_freq)
 {
     return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
         timebase_freq, NANOSECONDS_PER_SECOND);
 }
 
-static uint64_t cpu_riscv_read_rtc(void *opaque)
+static uint64_t riscv_aclint_mtimer_get_ticks(void *opaque)
 {
     RISCVAclintMTimerState *mtimer = opaque;
-    return cpu_riscv_read_rtc_raw(mtimer->timebase_freq) + mtimer->time_delta;
+    return riscv_aclint_mtimer_get_ticks_raw(mtimer->timebase_freq) +
+           mtimer->time_delta;
 }
 
 /*
@@ -65,13 +66,13 @@ static void riscv_aclint_mtimer_write_timecmp(RISCVAclintMTimerState *mtimer,
     uint64_t next;
     uint64_t diff;
 
-    uint64_t rtc = cpu_riscv_read_rtc(mtimer);
+    uint64_t ticks = riscv_aclint_mtimer_get_ticks(mtimer);
 
     /* Compute the relative hartid w.r.t the socket */
     hartid = hartid - mtimer->hartid_base;
 
     mtimer->timecmp[hartid] = value;
-    if (mtimer->timecmp[hartid] <= rtc) {
+    if (mtimer->timecmp[hartid] <= ticks) {
         /*
          * If we're setting an MTIMECMP value in the "past",
          * immediately raise the timer interrupt
@@ -82,7 +83,7 @@ static void riscv_aclint_mtimer_write_timecmp(RISCVAclintMTimerState *mtimer,
 
     /* otherwise, set up the future timer interrupt */
     qemu_irq_lower(mtimer->timer_irqs[hartid]);
-    diff = mtimer->timecmp[hartid] - rtc;
+    diff = mtimer->timecmp[hartid] - ticks;
     /* back to ns (note args switched in muldiv64) */
     uint64_t ns_diff = muldiv64(diff, NANOSECONDS_PER_SECOND, timebase_freq);
 
@@ -151,11 +152,11 @@ static uint64_t riscv_aclint_mtimer_read(void *opaque, hwaddr addr,
         }
     } else if (addr == mtimer->time_base) {
         /* time_lo for RV32/RV64 or timecmp for RV64 */
-        uint64_t rtc = cpu_riscv_read_rtc(mtimer);
-        return (size == 4) ? (rtc & 0xFFFFFFFF) : rtc;
+        uint64_t ticks = riscv_aclint_mtimer_get_ticks(mtimer);
+        return (size == 4) ? (ticks & 0xFFFFFFFF) : ticks;
     } else if (addr == mtimer->time_base + 4) {
         /* time_hi */
-        return (cpu_riscv_read_rtc(mtimer) >> 32) & 0xFFFFFFFF;
+        return (riscv_aclint_mtimer_get_ticks(mtimer) >> 32) & 0xFFFFFFFF;
     }
 
     qemu_log_mask(LOG_UNIMP,
@@ -208,21 +209,21 @@ static void riscv_aclint_mtimer_write(void *opaque, hwaddr addr,
         }
         return;
     } else if (addr == mtimer->time_base || addr == mtimer->time_base + 4) {
-        uint64_t rtc_r = cpu_riscv_read_rtc_raw(mtimer->timebase_freq);
-        uint64_t rtc = cpu_riscv_read_rtc(mtimer);
+        uint64_t ticks_r = riscv_aclint_mtimer_get_ticks_raw(mtimer->timebase_freq);
+        uint64_t ticks = riscv_aclint_mtimer_get_ticks(mtimer);
 
         if (addr == mtimer->time_base) {
             if (size == 4) {
                 /* time_lo for RV32/RV64 */
-                mtimer->time_delta = ((rtc & ~0xFFFFFFFFULL) | value) - rtc_r;
+                mtimer->time_delta = ((ticks & ~0xFFFFFFFFULL) | value) - ticks_r;
             } else {
                 /* time for RV64 */
-                mtimer->time_delta = value - rtc_r;
+                mtimer->time_delta = value - ticks_r;
             }
         } else {
             if (size == 4) {
                 /* time_hi for RV32/RV64 */
-                mtimer->time_delta = (value << 32 | (rtc & 0xFFFFFFFF)) - rtc_r;
+                mtimer->time_delta = (value << 32 | (ticks & 0xFFFFFFFF)) - ticks_r;
             } else {
                 qemu_log_mask(LOG_GUEST_ERROR,
                               "aclint-mtimer: invalid time_hi write: %08x",
@@ -397,7 +398,7 @@ DeviceState *riscv_aclint_mtimer_create(hwaddr addr, hwaddr size,
             continue;
         }
         if (provide_rdtime) {
-            riscv_cpu_set_rdtime_fn(env, cpu_riscv_read_rtc, dev);
+            riscv_cpu_set_rdtime_fn(env, riscv_aclint_mtimer_get_ticks, dev);
         }
 
         cb->s = s;
