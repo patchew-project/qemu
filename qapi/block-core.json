@@ -3464,8 +3464,8 @@
 #
 # @fat-type: FAT type: 12, 16 or 32
 #
-# @floppy: whether to export a floppy image (true) or partitioned hard
-#     disk (false; default)
+# @floppy: whether to export a floppy image (true) or hard disk
+#     (false; default)
 #
 # @label: set the volume label, limited to 11 bytes.  FAT16 and FAT32
 #     traditionally have some restrictions on labels, which are
@@ -3474,11 +3474,15 @@
 #
 # @rw: whether to allow write operations (default: false)
 #
+# @partitioned: whether a hard disk will be partitioned
+#     (default: true)
+#     (since 10.2)
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsVVFAT',
   'data': { 'dir': 'str', '*fat-type': 'int', '*floppy': 'bool',
-            '*label': 'str', '*rw': 'bool' } }
+            '*label': 'str', '*rw': 'bool', '*partitioned': 'bool' } }
 
 ##
 # @BlockdevOptionsGenericFormat:

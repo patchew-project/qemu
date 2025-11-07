@@ -306,7 +306,8 @@ typedef struct BDRVVVFATState {
     array_t fat,directory,mapping;
     char volume_label[11];
 
-    uint32_t offset_to_bootsector; /* 0 for floppy, 0x3f for disk */
+    /* 0x3f for partitioned disk, 0x0 otherwise */
+    uint32_t offset_to_bootsector;
 
     unsigned int cluster_size;
     unsigned int sectors_per_cluster;
@@ -1082,6 +1083,12 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "Make the image writable",
         },
+        {
+            .name = "partitioned",
+            .type = QEMU_OPT_BOOL,
+            .def_value_str = "true",
+            .help = "Do not add a Master Boot Record on this disk",
+        },
         { /* end of list */ }
     },
 };
@@ -1092,6 +1099,7 @@ static void vvfat_parse_filename(const char *filename, QDict *options,
     int fat_type = 0;
     bool floppy = false;
     bool rw = false;
+    bool partitioned = true;
     int i;
 
     if (!strstart(filename, "fat:", NULL)) {
@@ -1116,6 +1124,10 @@ static void vvfat_parse_filename(const char *filename, QDict *options,
         rw = true;
     }
 
+    if (strstr(filename, ":unpartitioned:")) {
+        partitioned = false;
+    }
+
     /* Get the directory name without options */
     i = strrchr(filename, ':') - filename;
     assert(i >= 3);
@@ -1131,6 +1143,7 @@ static void vvfat_parse_filename(const char *filename, QDict *options,
     qdict_put_int(options, "fat-type", fat_type);
     qdict_put_bool(options, "floppy", floppy);
     qdict_put_bool(options, "rw", rw);
+    qdict_put_bool(options, "partitioned", partitioned);
 }
 
 static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
@@ -1196,7 +1209,10 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
         if (!s->fat_type) {
             s->fat_type = 16;
         }
-        s->offset_to_bootsector = 0x3f;
+        /* Reserver space for MBR */
+        if (qemu_opt_get_bool(opts, "partitioned", true)) {
+            s->offset_to_bootsector = 0x3f;
+        }
         cyls = s->fat_type == 12 ? 64 : 1024;
         heads = 16;
         secs = 63;
@@ -3246,6 +3262,7 @@ static const char *const vvfat_strong_runtime_opts[] = {
     "floppy",
     "label",
     "rw",
+    "partitioned",
 
     NULL
 };
