@@ -34,6 +34,7 @@ typedef struct RISCVAclintMTimerState {
     uint64_t time_delta;
     uint64_t *timecmp;
     QEMUTimer **timers;
+    NotifierList time_change_notifiers;
 
     /*< public >*/
     MemoryRegion mmio;
