@@ -460,9 +460,8 @@ struct CPUArchState {
     int64_t last_icount;
     bool itrigger_enabled;
 
-    /* machine specific rdtime callback */
-    uint64_t (*rdtime_fn)(void *);
-    void *rdtime_fn_arg;
+    /* machine specific time source interface */
+    RISCVCPUTimeSrcIf *time_src;
 
     /* machine specific AIA ireg read-modify-write callback */
 #define AIA_MAKE_IREG(__isel, __priv, __virt, __vgein, __xlen) \
@@ -644,8 +643,7 @@ uint64_t riscv_cpu_update_mip(CPURISCVState *env, uint64_t mask,
 void riscv_cpu_set_rnmi(RISCVCPU *cpu, uint32_t irq, bool level);
 void riscv_cpu_interrupt(CPURISCVState *env);
 #define BOOL_TO_MASK(x) (-!!(x)) /* helper for riscv_cpu_update_mip value */
-void riscv_cpu_set_rdtime_fn(CPURISCVState *env, uint64_t (*fn)(void *),
-                             void *arg);
+void riscv_cpu_set_time_src(CPURISCVState *env, RISCVCPUTimeSrcIf *src);
 void riscv_cpu_set_aia_ireg_rmw_fn(CPURISCVState *env, uint32_t priv,
                                    int (*rmw_fn)(void *arg,
                                                  target_ulong reg,

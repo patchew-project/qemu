@@ -420,7 +420,7 @@ DeviceState *riscv_aclint_mtimer_create(hwaddr addr, hwaddr size,
             continue;
         }
         if (provide_rdtime) {
-            riscv_cpu_set_rdtime_fn(env, riscv_aclint_mtimer_get_ticks, dev);
+            riscv_cpu_set_time_src(env, RISCV_CPU_TIME_SRC_IF(dev));
         }
 
         cb->s = s;
