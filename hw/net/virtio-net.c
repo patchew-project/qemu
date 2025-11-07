@@ -3090,53 +3090,120 @@ static void virtio_net_get_features(VirtIODevice *vdev, uint64_t *features,
     virtio_add_feature_ex(features, VIRTIO_NET_F_MAC);
 
     if (!peer_has_vnet_hdr(n)) {
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_CSUM);
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_HOST_TSO4);
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_HOST_TSO6);
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_HOST_ECN);
+        if (n->strict_peer_feature_check) {
+            if (virtio_has_feature_ex(features, VIRTIO_NET_F_CSUM) |
+                virtio_has_feature_ex(features, VIRTIO_NET_F_HOST_TSO4) |
+                virtio_has_feature_ex(features, VIRTIO_NET_F_HOST_TSO6) |
+                virtio_has_feature_ex(features, VIRTIO_NET_F_HOST_ECN) |
+                virtio_has_feature_ex(features, VIRTIO_NET_F_GUEST_CSUM) |
+                virtio_has_feature_ex(features, VIRTIO_NET_F_GUEST_TSO4) |
+                virtio_has_feature_ex(features, VIRTIO_NET_F_GUEST_TSO6) |
+                virtio_has_feature_ex(features, VIRTIO_NET_F_GUEST_ECN) |
+                virtio_has_feature_ex(features, VIRTIO_NET_F_HOST_USO) |
+                virtio_has_feature_ex(features, VIRTIO_NET_F_GUEST_USO4) |
+                virtio_has_feature_ex(features, VIRTIO_NET_F_GUEST_USO6) |
+                virtio_has_feature_ex(features,
+                                      VIRTIO_NET_F_GUEST_UDP_TUNNEL_GSO) |
+                virtio_has_feature_ex(features,
+                                      VIRTIO_NET_F_HOST_UDP_TUNNEL_GSO) |
+                virtio_has_feature_ex(features,
+                                      VIRTIO_NET_F_GUEST_UDP_TUNNEL_GSO_CSUM) |
+                virtio_has_feature_ex(features,
+                                      VIRTIO_NET_F_HOST_UDP_TUNNEL_GSO_CSUM) |
+                virtio_has_feature_ex(features,
+                                      VIRTIO_NET_F_HASH_REPORT)) {
+                error_setg(errp, "virtio_net: peer doesn't support vnet hdr");
+                return;
+            }
+        } else {
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_CSUM);
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_HOST_TSO4);
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_HOST_TSO6);
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_HOST_ECN);
 
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_CSUM);
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_TSO4);
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_TSO6);
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_ECN);
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_CSUM);
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_TSO4);
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_TSO6);
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_ECN);
 
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_HOST_USO);
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_USO4);
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_USO6);
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_HOST_USO);
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_USO4);
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_USO6);
 
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_UDP_TUNNEL_GSO);
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_HOST_UDP_TUNNEL_GSO);
-        virtio_clear_feature_ex(features,
-                                VIRTIO_NET_F_GUEST_UDP_TUNNEL_GSO_CSUM);
-        virtio_clear_feature_ex(features,
-                                VIRTIO_NET_F_HOST_UDP_TUNNEL_GSO_CSUM);
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_UDP_TUNNEL_GSO);
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_HOST_UDP_TUNNEL_GSO);
+            virtio_clear_feature_ex(features,
+                                    VIRTIO_NET_F_GUEST_UDP_TUNNEL_GSO_CSUM);
+            virtio_clear_feature_ex(features,
+                                    VIRTIO_NET_F_HOST_UDP_TUNNEL_GSO_CSUM);
 
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_HASH_REPORT);
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_HASH_REPORT);
+        }
     }
 
     if (!peer_has_vnet_hdr(n) || !peer_has_ufo(n)) {
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_UFO);
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_HOST_UFO);
+        if (n->strict_peer_feature_check) {
+            if (virtio_has_feature_ex(features, VIRTIO_NET_F_GUEST_UFO) |
+                virtio_has_feature_ex(features, VIRTIO_NET_F_HOST_UFO)) {
+                error_setg(errp, "virtio_net: peer doesn't support UFO");
+                return;
+            }
+        } else {
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_UFO);
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_HOST_UFO);
+        }
     }
     if (!peer_has_uso(n)) {
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_HOST_USO);
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_USO4);
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_USO6);
+        if (n->strict_peer_feature_check) {
+            if (virtio_has_feature_ex(features, VIRTIO_NET_F_HOST_USO) |
+                virtio_has_feature_ex(features, VIRTIO_NET_F_GUEST_USO4) |
+                virtio_has_feature_ex(features, VIRTIO_NET_F_GUEST_USO6)) {
+                error_setg(errp, "virtio_net: peer doesn't support USO");
+                return;
+            }
+        } else {
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_HOST_USO);
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_USO4);
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_USO6);
+        }
     }
 
     if (!peer_has_tunnel(n)) {
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_UDP_TUNNEL_GSO);
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_HOST_UDP_TUNNEL_GSO);
-        virtio_clear_feature_ex(features,
-                                VIRTIO_NET_F_GUEST_UDP_TUNNEL_GSO_CSUM);
-        virtio_clear_feature_ex(features,
-                                VIRTIO_NET_F_HOST_UDP_TUNNEL_GSO_CSUM);
+        if (n->strict_peer_feature_check) {
+            if (virtio_has_feature_ex(features,
+                                      VIRTIO_NET_F_GUEST_UDP_TUNNEL_GSO) |
+                virtio_has_feature_ex(features,
+                                      VIRTIO_NET_F_HOST_UDP_TUNNEL_GSO) |
+                virtio_has_feature_ex(features,
+                                      VIRTIO_NET_F_GUEST_UDP_TUNNEL_GSO_CSUM) |
+                virtio_has_feature_ex(features,
+                                      VIRTIO_NET_F_HOST_UDP_TUNNEL_GSO_CSUM)) {
+                error_setg(errp, "virtio_net: peer doesn't support tunnel GSO");
+                return;
+            }
+        } else {
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_GUEST_UDP_TUNNEL_GSO);
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_HOST_UDP_TUNNEL_GSO);
+            virtio_clear_feature_ex(features,
+                                    VIRTIO_NET_F_GUEST_UDP_TUNNEL_GSO_CSUM);
+            virtio_clear_feature_ex(features,
+                                    VIRTIO_NET_F_HOST_UDP_TUNNEL_GSO_CSUM);
+        }
     }
 
     if (!get_vhost_net(nc->peer)) {
         if (!use_own_hash) {
-            virtio_clear_feature_ex(features, VIRTIO_NET_F_HASH_REPORT);
-            virtio_clear_feature_ex(features, VIRTIO_NET_F_RSS);
+            if (n->strict_peer_feature_check) {
+                if (virtio_has_feature_ex(features, VIRTIO_NET_F_HASH_REPORT) |
+                    virtio_has_feature_ex(features, VIRTIO_NET_F_RSS)) {
+                    error_setg(errp,
+                               "virtio_net: peer doesn't support RSS/HASH_REPORT");
+                    return;
+                }
+            } else {
+                virtio_clear_feature_ex(features, VIRTIO_NET_F_HASH_REPORT);
+                virtio_clear_feature_ex(features, VIRTIO_NET_F_RSS);
+            }
         } else if (virtio_has_feature_ex(features, VIRTIO_NET_F_RSS)) {
             virtio_net_load_ebpf(n, errp);
         }
@@ -3145,14 +3212,26 @@ static void virtio_net_get_features(VirtIODevice *vdev, uint64_t *features,
     }
 
     if (!use_peer_hash) {
-        virtio_clear_feature_ex(features, VIRTIO_NET_F_HASH_REPORT);
+        if (n->strict_peer_feature_check &&
+            virtio_has_feature_ex(features, VIRTIO_NET_F_HASH_REPORT)) {
+            error_setg(errp, "virtio_net: peer doesn't HASH_REPORT");
+            return;
+        } else {
+            virtio_clear_feature_ex(features, VIRTIO_NET_F_HASH_REPORT);
+        }
 
         if (!use_own_hash || !virtio_net_attach_ebpf_to_backend(n->nic, -1)) {
             if (!virtio_net_load_ebpf(n, errp)) {
                 return;
             }
 
-            virtio_clear_feature_ex(features, VIRTIO_NET_F_RSS);
+            if (n->strict_peer_feature_check &&
+                virtio_has_feature_ex(features, VIRTIO_NET_F_RSS)) {
+                error_setg(errp, "virtio_net: fail to attach eBPF for RSS");
+                return;
+            } else {
+                virtio_clear_feature_ex(features, VIRTIO_NET_F_RSS);
+            }
         }
     }
 
@@ -4312,6 +4391,8 @@ static const Property virtio_net_properties[] = {
                                host_features_ex,
                                VIRTIO_NET_F_GUEST_UDP_TUNNEL_GSO_CSUM,
                                false),
+    DEFINE_PROP_BOOL("strict-peer-feature-check", VirtIONet,
+                     strict_peer_feature_check, true),
 };
 
 static void virtio_net_class_init(ObjectClass *klass, const void *data)
