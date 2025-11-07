@@ -44,4 +44,15 @@ static inline uint32_t riscv_cpu_time_src_get_tick_freq(RISCVCPUTimeSrcIf *src)
     return rctsc->get_tick_freq(src);
 }
 
+static inline void
+riscv_cpu_time_src_register_time_change_notifier(RISCVCPUTimeSrcIf *src,
+                                                 Notifier *notifier)
+{
+    RISCVCPUTimeSrcIfClass *rctsc = RISCV_CPU_TIME_SRC_IF_GET_CLASS(src);
+
+    if (rctsc->register_time_change_notifier) {
+        rctsc->register_time_change_notifier(src, notifier);
+    }
+}
+
 #endif

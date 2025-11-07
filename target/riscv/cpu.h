@@ -462,6 +462,7 @@ struct CPUArchState {
 
     /* machine specific time source interface */
     RISCVCPUTimeSrcIf *time_src;
+    Notifier time_change_notifier;
 
     /* machine specific AIA ireg read-modify-write callback */
 #define AIA_MAKE_IREG(__isel, __priv, __virt, __vgein, __xlen) \

@@ -183,6 +183,15 @@ void riscv_timer_stce_changed(CPURISCVState *env, bool is_m_mode, bool enable)
     }
 }
 
+static void time_src_ticks_change_cb(Notifier *notifier, void *opaque)
+{
+    CPURISCVState *env = container_of(notifier, CPURISCVState, time_change_notifier);
+
+    riscv_timer_write_timecmp(env, env->stimer, env->stimecmp, 0, MIP_STIP);
+    riscv_timer_write_timecmp(env, env->vstimer, env->vstimecmp,
+                              env->htimedelta, MIP_VSTIP);
+}
+
 void riscv_timer_init(RISCVCPU *cpu)
 {
     CPURISCVState *env;
@@ -202,6 +211,10 @@ void riscv_timer_init(RISCVCPU *cpu)
 void riscv_cpu_set_time_src(CPURISCVState *env, RISCVCPUTimeSrcIf *src)
 {
     env->time_src = src;
+    env->time_change_notifier.notify = time_src_ticks_change_cb;
+
+    riscv_cpu_time_src_register_time_change_notifier(src,
+                                                     &env->time_change_notifier);
 }
 
 static const TypeInfo riscv_cpu_time_src_if_info = {

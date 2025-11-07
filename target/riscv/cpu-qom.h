@@ -92,6 +92,13 @@ struct RISCVCPUTimeSrcIfClass {
      * get_tick_freq: get the tick frequency of this time source.
      */
     uint32_t (*get_tick_freq)(RISCVCPUTimeSrcIf *);
+
+    /*
+     * register_time_change_notifier: register a notifier which get notified
+     * when the value of the free running counter observes a discontinuity
+     * (e.g., the counter value gets reset to 0).
+     */
+    void (*register_time_change_notifier)(RISCVCPUTimeSrcIf *, Notifier *);
 };
 
 #endif /* RISCV_CPU_QOM_H */
