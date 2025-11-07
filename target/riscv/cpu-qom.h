@@ -60,4 +60,38 @@
 
 OBJECT_DECLARE_CPU_TYPE(RISCVCPU, RISCVCPUClass, RISCV_CPU)
 
+#define TYPE_RISCV_CPU_TIME_SRC_IF "riscv-cpu-time-src-if"
+
+typedef struct RISCVCPUTimeSrcIfClass RISCVCPUTimeSrcIfClass;
+DECLARE_CLASS_CHECKERS(RISCVCPUTimeSrcIfClass, RISCV_CPU_TIME_SRC_IF,
+                       TYPE_RISCV_CPU_TIME_SRC_IF)
+#define RISCV_CPU_TIME_SRC_IF(obj) \
+        INTERFACE_CHECK(RISCVCPUTimeSrcIf, (obj), TYPE_RISCV_CPU_TIME_SRC_IF)
+
+typedef struct RISCVCPUTimeSrcIf RISCVCPUTimeSrcIf;
+
+/**
+ * RISCVCPUTimeSrcIf interface
+ *
+ * This interface is used by CPUs implementing the sstc extension. When the CPU
+ * implements this extension, it must have a time source to implement the sstc
+ * timers. Devices implementing this interface provide a monotonic tick counter
+ * and the associated tick frequency so that the CPU code can compute timer
+ * deadlines.
+ */
+struct RISCVCPUTimeSrcIfClass {
+    InterfaceClass parent_class;
+
+    /**
+     * get_ticks: get the current value of the free running counter associated
+     * with this time source.
+     */
+    uint64_t (*get_ticks)(RISCVCPUTimeSrcIf *);
+
+    /**
+     * get_tick_freq: get the tick frequency of this time source.
+     */
+    uint32_t (*get_tick_freq)(RISCVCPUTimeSrcIf *);
+};
+
 #endif /* RISCV_CPU_QOM_H */

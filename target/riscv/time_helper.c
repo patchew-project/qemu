@@ -200,3 +200,16 @@ void riscv_timer_init(RISCVCPU *cpu)
     env->vstimer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &riscv_vstimer_cb, cpu);
     env->vstimecmp = 0;
 }
+
+static const TypeInfo riscv_cpu_time_src_if_info = {
+    .name = TYPE_RISCV_CPU_TIME_SRC_IF,
+    .parent = TYPE_INTERFACE,
+    .class_size = sizeof(RISCVCPUTimeSrcIfClass),
+};
+
+static void riscv_cpu_time_src_if_register_types(void)
+{
+    type_register_static(&riscv_cpu_time_src_if_info);
+}
+
+type_init(riscv_cpu_time_src_if_register_types)
