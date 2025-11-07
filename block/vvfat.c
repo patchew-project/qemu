@@ -1095,6 +1095,11 @@ static QemuOptsList runtime_opts = {
             .def_value_str = "true",
             .help = "Do not add a Master Boot Record on this disk",
         },
+        {
+            .name = "fat-size",
+            .type = QEMU_OPT_SIZE,
+            .help = "Virtual disk size"
+        },
         { /* end of list */ }
     },
 };
@@ -1152,10 +1157,150 @@ static void vvfat_parse_filename(const char *filename, QDict *options,
     qdict_put_bool(options, "partitioned", partitioned);
 }
 
+static void vvfat_get_size_parameters(uint64_t size, BDRVVVFATState *s,
+                                      bool floppy, Error **errp)
+{
+    if (floppy) {
+        if (s->fat_type == 16) {
+            /* The default for floppy FAT 16 is 2880 KiB */
+            if (!size) {
+                size = 2880 * 1024;
+            }
+
+            if (size != 2880 * 1024) {
+                error_setg(errp,
+                           "floppy FAT16 unsupported size; only support "
+                           "2880 KiB");
+            }
+
+        } else {
+            /* The default for floppy FAT 12 is 1440 KiB */
+            if (!size) {
+                size = 1440 * 1024;
+            }
+
+            if (size != 2880 * 1024 && size != 1440 * 1024) {
+                error_setg(errp,
+                           "floppy FAT12 unsupported size; only support "
+                           "1440 KiB or 2880 KiB");
+            }
+
+        }
+
+        if (s->fat_type == 12) {
+            if (size == 2880 * 1024) {
+                s->sectors_per_track = 36;
+            } else {
+                s->sectors_per_track = 18;
+            }
+        } else {
+            s->sectors_per_track = 36;
+        }
+
+        s->sectors_per_cluster = 0x10;
+        s->cylinders = 80;
+        s->number_of_heads = 2;
+    } else {
+
+        switch (s->fat_type) {
+        case 32:
+            /* TODO FAT32 adjust  */
+            if (size) {
+                warn_report("size parameters not supported with FAT32;"
+                            "default to 504 MiB.");
+            }
+            s->cylinders = 1024;
+            s->number_of_heads = 16;
+            s->sectors_per_cluster = 0x10;
+            s->sectors_per_track = 63;
+            return;
+
+        case 12:
+
+            /* Default is 32 MB */
+            if (!size) {
+                size = 32 * 1024 * 1024;
+            } else if (size > 32 * 1024 * 1024) {
+                error_setg(errp, "FAT12 unsupported size; higher than 32 MiB");
+            }
+
+            s->sectors_per_cluster = 0x10;
+            s->cylinders = 64;
+
+            /*
+             * Based on CHS Recommandation table:
+             *  Card Capacity | Number of Headers | Sectors per track
+             *      2 MiB     |         4         |       16
+             *      4 MiB     |         8         |       16
+             *      8 MiB     |        16         |       16
+             *      16 MiB    |         2         |       32
+             *      32 MiB    |         4         |       32
+             *
+             * For 2 MiB, the recommendation is heads = 2 and sectors = 16, but
+             * this requires a different number of cylinders. Thus, it was
+             * adjusted to keep this number constant.
+             */
+            if (size <= 8 * 1024 * 1024) {
+                s->sectors_per_track = 16;
+            } else {
+                s->sectors_per_track = 32;
+            }
+
+            break;
+
+        case 16:
+            /* Default is 504 MiB */
+            if (!size) {
+                size = 504 * 1024 * 1024;
+            } else if (size / 1024 > 4 * 1024 * 1024) {
+                error_setg(errp, "FAT16 unsupported size; higher than 4 GiB");
+            }
+
+            s->sectors_per_cluster = 0x10;
+            s->cylinders = 1024;
+
+            /*
+             * Based on CHS Recommandation table:
+             *  Card Capacity | Number of Headers | Sectors per track
+             *      64 MiB    |         4         |       32
+             *     128 MiB    |         8         |       32
+             *     256 MiB    |        16         |       32
+             *     504 MiB    |        16         |       63
+             *    1008 MiB    |        32         |       63
+             *    2016 MiB    |        64         |       63
+             */
+            if (size <= 256 * 1024 * 1024) {
+                s->sectors_per_track = 32;
+            } else {
+                s->sectors_per_track = 63;
+            }
+
+            break;
+        }
+
+        /*
+         * The formula between the size (in bytes) and the parameters are:
+         *  size = VVFAT_SECTOR_SIZE * sectors_per_track * number_of_headers *
+         *         cylinders
+         *
+         */
+        s->number_of_heads = size / s->sectors_per_track /
+            VVFAT_SECTOR_SIZE / s->cylinders;
+
+        /* Round up to the closest size if the given one cannot be reached. */
+        if (size %
+            (s->sectors_per_track * VVFAT_SECTOR_SIZE * s->cylinders) != 0) {
+            s->number_of_heads++;
+        }
+
+    }
+}
+
 static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
                       Error **errp)
 {
     BDRVVVFATState *s = bs->opaque;
+    uint64_t size;
     bool floppy;
     const char *dirname, *label;
     QemuOpts *opts;
@@ -1182,6 +1327,7 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
 
     s->fat_type = qemu_opt_get_number(opts, "fat-type", 0);
     floppy = qemu_opt_get_bool(opts, "floppy", false);
+    size = qemu_opt_get_size_del(opts, "fat-size", 0);
 
     memset(s->volume_label, ' ', sizeof(s->volume_label));
     label = qemu_opt_get(opts, "label");
@@ -1219,28 +1365,14 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
+    vvfat_get_size_parameters(size, s, floppy, errp);
 
-    if (floppy) {
-        /* Choose floppy size. 1440 KiB for FAT 12, 2880 KiB for FAT-16 */
-        s->sectors_per_track = s->fat_type == 12 ? 18 : 36;
-        s->cylinders = 80;
-        s->number_of_heads = 2;
-    } else {
-        /* Reserver space for MBR */
-        if (qemu_opt_get_bool(opts, "partitioned", true)) {
-            s->offset_to_bootsector = 0x3f;
-        }
-        /* 32MB or 504MB disk*/
-        s->cylinders = s->fat_type == 12 ? 64 : 1024;
-        s->number_of_heads = 16;
-        s->sectors_per_track = 63;
+    /* Reserver space for MBR */
+    if (!floppy && qemu_opt_get_bool(opts, "partitioned", true)) {
+        s->offset_to_bootsector = 0x3f;
     }
 
-
     s->bs = bs;
-
-    /* LATER TODO: if FAT32, adjust */
-    s->sectors_per_cluster=0x10;
 
     s->current_cluster=0xffffffff;
 
@@ -3280,6 +3412,7 @@ static const char *const vvfat_strong_runtime_opts[] = {
     "label",
     "rw",
     "partitioned",
+    "fat-size",
 
     NULL
 };

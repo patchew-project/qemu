@@ -3478,11 +3478,17 @@
 #     (default: true)
 #     (since 10.2)
 #
+# @fat-size: size of the device in bytes.  Due to FAT underlying
+#     architecture, this size can be rounded up to the closest valid
+#     size.
+#     (since 10.2)
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsVVFAT',
   'data': { 'dir': 'str', '*fat-type': 'int', '*floppy': 'bool',
-            '*label': 'str', '*rw': 'bool', '*partitioned': 'bool' } }
+            '*label': 'str', '*rw': 'bool', '*partitioned': 'bool',
+            'fat-size': 'int' } }
 
 ##
 # @BlockdevOptionsGenericFormat:
