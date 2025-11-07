@@ -46,9 +46,8 @@ static uint64_t riscv_aclint_mtimer_get_ticks_raw(uint32_t timebase_freq)
         timebase_freq, NANOSECONDS_PER_SECOND);
 }
 
-static uint64_t riscv_aclint_mtimer_get_ticks(void *opaque)
+static uint64_t riscv_aclint_mtimer_get_ticks(RISCVAclintMTimerState *mtimer)
 {
-    RISCVAclintMTimerState *mtimer = opaque;
     return riscv_aclint_mtimer_get_ticks_raw(mtimer->timebase_freq) +
            mtimer->time_delta;
 }
