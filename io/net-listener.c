@@ -72,6 +72,17 @@ static gboolean qio_net_listener_channel_func(QIOChannel *ioc,
 }
 
 
+static void qio_net_listener_aio_func(void *opaque)
+{
+    QIONetListenerSource *data = opaque;
+
+    assert(data->io_source == NULL);
+    assert(data->listener->aio_context != NULL);
+    qio_net_listener_channel_func(QIO_CHANNEL(data->sioc), G_IO_IN,
+                                  data->listener);
+}
+
+
 int qio_net_listener_open_sync(QIONetListener *listener,
                                SocketAddress *addr,
                                int num,
@@ -144,8 +155,12 @@ qio_net_listener_watch(QIONetListener *listener, size_t i, const char *caller)
                 qio_net_listener_channel_func,
                 listener, NULL, listener->context);
         } else {
-            /* The user passed an AioContext. Not supported yet. */
-            g_assert_not_reached();
+            /* The user passed an AioContext. */
+            assert(listener->context == NULL);
+            qio_channel_set_aio_fd_handler(
+                QIO_CHANNEL(listener->source[i]->sioc),
+                listener->aio_context, qio_net_listener_aio_func,
+                NULL, NULL, listener->source[i]);
         }
     }
 }
@@ -170,7 +185,10 @@ qio_net_listener_unwatch(QIONetListener *listener, const char *caller)
                 listener->source[i]->io_source = NULL;
             }
         } else {
-            g_assert_not_reached();
+            assert(listener->context == NULL);
+            qio_channel_set_aio_fd_handler(
+                QIO_CHANNEL(listener->source[i]->sioc),
+                NULL, NULL, NULL, NULL, NULL);
         }
     }
     object_unref(OBJECT(listener));
@@ -242,6 +260,18 @@ void qio_net_listener_set_client_func(QIONetListener *listener,
 {
     qio_net_listener_set_client_func_internal(listener, func, data,
                                               notify, NULL, NULL);
+}
+
+void qio_net_listener_set_client_aio_func(QIONetListener *listener,
+                                          QIONetListenerClientFunc func,
+                                          void *data,
+                                          AioContext *context)
+{
+    if (!context) {
+        context = qemu_get_aio_context();
+    }
+    qio_net_listener_set_client_func_internal(listener, func, data,
+                                              NULL, NULL, context);
 }
 
 struct QIONetListenerClientWaitData {

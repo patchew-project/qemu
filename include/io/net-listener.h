@@ -152,6 +152,22 @@ void qio_net_listener_set_client_func(QIONetListener *listener,
                                       GDestroyNotify notify);
 
 /**
+ * qio_net_listener_set_client_aio_func:
+ * @listener: the network listener object
+ * @func: the callback function
+ * @data: opaque data to pass to @func
+ * @context: AioContext that @func will be bound to; if #NULL, this will
+ *           will use qemu_get_aio_context().
+ *
+ * Similar to qio_net_listener_set_client_func_full(), except that the polling
+ * will be done by an AioContext rather than a GMainContext.
+ */
+void qio_net_listener_set_client_aio_func(QIONetListener *listener,
+                                          QIONetListenerClientFunc func,
+                                          void *data,
+                                          AioContext *context);
+
+/**
  * qio_net_listener_wait_client:
  * @listener: the network listener object
  *
