@@ -54,7 +54,9 @@ static gboolean qio_net_listener_channel_func(QIOChannel *ioc,
     trace_qio_net_listener_callback(listener, listener->io_func,
                                     listener->context);
     if (listener->io_func) {
+        object_ref(OBJECT(listener));
         listener->io_func(listener, sioc, listener->io_data);
+        object_unref(OBJECT(listener));
     }
 
     object_unref(OBJECT(sioc));
@@ -120,12 +122,14 @@ qio_net_listener_watch(QIONetListener *listener, size_t i, const char *caller)
 
     trace_qio_net_listener_watch(listener, listener->io_func,
                                  listener->context, caller);
-    for ( ; i < listener->nsioc; i++) {
+    if (i == 0) {
         object_ref(OBJECT(listener));
+    }
+    for ( ; i < listener->nsioc; i++) {
         listener->io_source[i] = qio_channel_add_watch_source(
             QIO_CHANNEL(listener->sioc[i]), G_IO_IN,
             qio_net_listener_channel_func,
-            listener, (GDestroyNotify)object_unref, listener->context);
+            listener, NULL, listener->context);
     }
 }
 
@@ -147,6 +151,7 @@ qio_net_listener_unwatch(QIONetListener *listener, const char *caller)
             listener->io_source[i] = NULL;
         }
     }
+    object_unref(OBJECT(listener));
 }
 
 void qio_net_listener_add(QIONetListener *listener,
