@@ -298,6 +298,18 @@ bool qio_net_listener_is_connected(QIONetListener *listener)
     return listener->connected;
 }
 
+size_t qio_net_listener_nsioc(QIONetListener *listener)
+{
+    return listener->nsioc;
+}
+
+QIOChannelSocket *qio_net_listener_sioc(QIONetListener *listener, size_t n)
+{
+    if (n > listener->nsioc) {
+        return NULL;
+    }
+    return listener->sioc[n];
+}
 static void qio_net_listener_finalize(Object *obj)
 {
     QIONetListener *listener = QIO_NET_LISTENER(obj);

@@ -184,4 +184,28 @@ void qio_net_listener_disconnect(QIONetListener *listener);
  */
 bool qio_net_listener_is_connected(QIONetListener *listener);
 
+
+/**
+ * qio_net_listener_nsioc:
+ * @listener: the network listener object
+ *
+ * Determine the number of listener channels currently owned by the
+ * given listener.
+ *
+ * Returns: number of channels, or 0 if not listening
+ */
+size_t qio_net_listener_nsioc(QIONetListener *listener);
+
+
+/**
+ * qio_net_listener_sioc:
+ * @listener: the network listener object
+ * @n: index of the sioc to grab
+ *
+ * Accessor for the nth sioc owned by the listener.
+ *
+ * Returns: the requested listener, or #NULL if not in bounds
+ */
+QIOChannelSocket *qio_net_listener_sioc(QIONetListener *listener, size_t n);
+
 #endif /* QIO_NET_LISTENER_H */
