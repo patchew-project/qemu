@@ -27,6 +27,31 @@
 #include "standard-headers/linux/udmabuf.h"
 #include "standard-headers/drm/drm_fourcc.h"
 
+static bool qemu_iovec_same_memory_regions(const struct iovec *iov, int iov_cnt)
+{
+    RAMBlock *rb, *curr_rb;
+    ram_addr_t offset;
+    int i;
+
+    rb = qemu_ram_block_from_host(iov[0].iov_base, false, &offset);
+    if (!rb) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Could not find ramblock/memory region\n", __func__);
+        return false;
+    }
+
+    for (i = 1; i < iov_cnt; i++) {
+	curr_rb = qemu_ram_block_from_host(iov[i].iov_base, false, &offset);
+	if (curr_rb != rb) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: memory regions not same for iov entries\n",
+                          __func__);
+            return false;
+	}
+    }
+    return true;
+}
+
 static void virtio_gpu_create_udmabuf(struct virtio_gpu_simple_resource *res)
 {
     struct udmabuf_create_list *list;
@@ -137,6 +162,10 @@ void virtio_gpu_init_dmabuf(struct virtio_gpu_simple_resource *res)
         res->iov[0].iov_len < 4096) {
         pdata = res->iov[0].iov_base;
     } else {
+        if (!qemu_iovec_same_memory_regions(res->iov, res->iov_cnt)) {
+            return;
+        }
+
         virtio_gpu_create_udmabuf(res);
         if (res->dmabuf_fd < 0) {
             return;
