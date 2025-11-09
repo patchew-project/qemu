@@ -18,6 +18,7 @@
 #include "ui/console.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-gpu-pixman.h"
+#include "hw/vfio/vfio-device.h"
 #include "trace.h"
 #include "system/ramblock.h"
 #include "system/hostmem.h"
@@ -50,6 +51,19 @@ static bool qemu_iovec_same_memory_regions(const struct iovec *iov, int iov_cnt)
 	}
     }
     return true;
+}
+
+static void vfio_create_dmabuf(VFIODevice *vdev,
+                               struct virtio_gpu_simple_resource *res)
+{
+#if defined(VIRTIO_GPU_VFIO_BLOB)
+    res->dmabuf_fd = vfio_device_create_dmabuf_fd(vdev, res->iov, res->iov_cnt);
+    if (res->dmabuf_fd < 0) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: VFIO_DEVICE_FEATURE_DMA_BUF: %s\n",
+                      __func__, strerror(errno));
+    }
+#endif
 }
 
 static void virtio_gpu_create_udmabuf(struct virtio_gpu_simple_resource *res)
@@ -93,11 +107,69 @@ static void virtio_gpu_create_udmabuf(struct virtio_gpu_simple_resource *res)
     g_free(list);
 }
 
-static void virtio_gpu_remap_dmabuf(struct virtio_gpu_simple_resource *res)
+static void *vfio_dmabuf_mmap(struct virtio_gpu_simple_resource *res,
+                              VFIODevice *vdev)
+{
+    struct vfio_region_info *info = NULL;
+    ram_addr_t offset, len = 0;
+    void *map, *submap;
+    int i, ret = -1;
+    RAMBlock *rb;
+
+    /*
+     * We first reserve a contiguous chunk of address space for the entire
+     * dmabuf, then replace it with smaller mappings that correspond to the
+     * individual segments of the dmabuf.
+     */
+    map = mmap(NULL, res->blob_size, PROT_READ, MAP_SHARED, vdev->fd, 0);
+    if (map == MAP_FAILED) {
+        return map;
+    }
+
+    for (i = 0; i < res->iov_cnt; i++) {
+        rb = qemu_ram_block_from_host(res->iov[i].iov_base, false, &offset);
+	if (!rb) {
+            goto err;
+        }
+#if defined(VIRTIO_GPU_VFIO_BLOB)
+        ret = vfio_get_region_index_from_mr(rb->mr);
+        if (ret < 0) {
+            goto err;
+        }
+
+        ret = vfio_device_get_region_info(vdev, ret, &info);
+#endif
+        if (ret < 0 || !info) {
+            goto err;
+        }
+
+        submap = mmap(map + len, res->iov[i].iov_len, PROT_READ,
+                      MAP_SHARED | MAP_FIXED, vdev->fd,
+                      info->offset + offset);
+        if (submap == MAP_FAILED) {
+            goto err;
+        }
+
+        len += res->iov[i].iov_len;
+    }
+    return map;
+err:
+    munmap(map, res->blob_size);
+    return MAP_FAILED;
+}
+
+static void virtio_gpu_remap_dmabuf(struct virtio_gpu_simple_resource *res,
+                                    VFIODevice *vdev)
 {
     res->remapped = mmap(NULL, res->blob_size, PROT_READ,
                          MAP_SHARED, res->dmabuf_fd, 0);
     if (res->remapped == MAP_FAILED) {
+        if (vdev) {
+            res->remapped = vfio_dmabuf_mmap(res, vdev);
+            if (res->remapped != MAP_FAILED) {
+                return;
+            }
+        }
         warn_report("%s: dmabuf mmap failed: %s", __func__,
                     strerror(errno));
         res->remapped = NULL;
@@ -155,7 +227,10 @@ bool virtio_gpu_have_udmabuf(void)
 
 void virtio_gpu_init_dmabuf(struct virtio_gpu_simple_resource *res)
 {
+    VFIODevice *vdev = NULL;
     void *pdata = NULL;
+    ram_addr_t offset;
+    RAMBlock *rb;
 
     res->dmabuf_fd = -1;
     if (res->iov_cnt == 1 &&
@@ -166,11 +241,38 @@ void virtio_gpu_init_dmabuf(struct virtio_gpu_simple_resource *res)
             return;
         }
 
-        virtio_gpu_create_udmabuf(res);
-        if (res->dmabuf_fd < 0) {
+        rb = qemu_ram_block_from_host(res->iov[0].iov_base, false, &offset);
+        if (memory_region_is_ram_device(rb->mr)) {
+            vdev = vfio_device_lookup(rb->mr);
+            if (!vdev) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "%s: Could not find device to create dmabuf\n",
+                              __func__);
+                return;
+            }
+
+            vfio_create_dmabuf(vdev, res);
+            if (res->dmabuf_fd < 0) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "%s: Could not create dmabuf from vfio device\n",
+                              __func__);
+                return;
+            }
+        } else if (memory_region_is_ram(rb->mr)) {
+            virtio_gpu_create_udmabuf(res);
+            if (res->dmabuf_fd < 0) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "%s: Could not create dmabuf from memfd\n",
+                              __func__);
+                return;
+            }
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: memory region cannot be used to create dmabuf\n",
+                          __func__);
             return;
         }
-        virtio_gpu_remap_dmabuf(res);
+        virtio_gpu_remap_dmabuf(res, vdev);
         if (!res->remapped) {
             return;
         }
@@ -182,9 +284,7 @@ void virtio_gpu_init_dmabuf(struct virtio_gpu_simple_resource *res)
 
 void virtio_gpu_fini_dmabuf(struct virtio_gpu_simple_resource *res)
 {
-    if (res->remapped) {
-        virtio_gpu_destroy_dmabuf(res);
-    }
+    virtio_gpu_destroy_dmabuf(res);
 }
 
 static void virtio_gpu_free_dmabuf(VirtIOGPU *g, VGPUDMABuf *dmabuf)
