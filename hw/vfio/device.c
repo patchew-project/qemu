@@ -603,3 +603,15 @@ static VFIODeviceIOOps vfio_device_io_ops_ioctl = {
     .region_read = vfio_device_io_region_read,
     .region_write = vfio_device_io_region_write,
 };
+
+VFIODevice *vfio_device_lookup(MemoryRegion *mr)
+{
+    VFIODevice *vbasedev;
+
+    QLIST_FOREACH(vbasedev, &vfio_device_list, next) {
+        if (vbasedev->dev == mr->dev) {
+            return vbasedev;
+        }
+    }
+    return NULL;
+}

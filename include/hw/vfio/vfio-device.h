@@ -300,6 +300,15 @@ int vfio_device_get_irq_info(VFIODevice *vbasedev, int index,
  * Returns the region index or -1 on error.
  */
 int vfio_get_region_index_from_mr(MemoryRegion *mr);
+
+/**
+ * Return the VFIO device associated with a given MemoryRegion.
+ *
+ * @mr: MemoryRegion to use
+ *
+ * Returns the VFIO device if found or NULL.
+ */
+VFIODevice *vfio_device_lookup(MemoryRegion *mr);
 #endif
 
 /* Returns 0 on success, or a negative errno. */
