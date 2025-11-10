@@ -20,6 +20,7 @@
 #include "hw/pci-host/designware.h"
 #include "hw/pci-host/fsl_imx8m_phy.h"
 #include "hw/sd/sdhci.h"
+#include "hw/ssi/imx_spi.h"
 #include "qom/object.h"
 #include "qemu/units.h"
 
@@ -31,6 +32,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(FslImx8mmState, FSL_IMX8MM)
 
 enum FslImx8mmConfiguration {
     FSL_IMX8MM_NUM_CPUS         = 4,
+    FSL_IMX8MM_NUM_ECSPIS       = 3,
     FSL_IMX8MM_NUM_GPIOS        = 5,
     FSL_IMX8MM_NUM_I2CS         = 4,
     FSL_IMX8MM_NUM_IRQS         = 128,
@@ -47,6 +49,7 @@ struct FslImx8mmState {
     IMX8MMCCMState     ccm;
     IMX8MMAnalogState  analog;
     IMX7SNVSState      snvs;
+    IMXSPIState        spi[FSL_IMX8MM_NUM_ECSPIS];
     IMXI2CState        i2c[FSL_IMX8MM_NUM_I2CS];
     IMXSerialState     uart[FSL_IMX8MM_NUM_UARTS];
     SDHCIState         usdhc[FSL_IMX8MM_NUM_USDHCS];
@@ -174,6 +177,10 @@ enum FslImx8mmIrqs {
     FSL_IMX8MM_UART2_IRQ    = 27,
     FSL_IMX8MM_UART3_IRQ    = 28,
     FSL_IMX8MM_UART4_IRQ    = 29,
+
+    FSL_IMX8MM_ECSPI1_IRQ   = 31,
+    FSL_IMX8MM_ECSPI2_IRQ   = 32,
+    FSL_IMX8MM_ECSPI3_IRQ   = 33,
 
     FSL_IMX8MM_I2C1_IRQ     = 35,
     FSL_IMX8MM_I2C2_IRQ     = 36,
