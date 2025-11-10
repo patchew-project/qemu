@@ -1389,20 +1389,6 @@ static int stat_to_v9stat_dotl(V9fsPDU *pdu, const struct stat *stbuf,
     return stat_to_qid(pdu, stbuf, &v9lstat->qid);
 }
 
-static void print_sg(struct iovec *sg, int cnt)
-{
-    int i;
-
-    printf("sg[%d]: {", cnt);
-    for (i = 0; i < cnt; i++) {
-        if (i) {
-            printf(", ");
-        }
-        printf("(%p, %zd)", sg[i].iov_base, sg[i].iov_len);
-    }
-    printf("}\n");
-}
-
 /* Will call this only for path name based fid */
 static void v9fs_fix_path(V9fsPath *dst, V9fsPath *src, int len)
 {
@@ -2468,9 +2454,6 @@ static void coroutine_fn v9fs_read(void *opaque)
         do {
             qemu_iovec_reset(&qiov);
             qemu_iovec_concat(&qiov, &qiov_full, count, qiov_full.size - count);
-            if (0) {
-                print_sg(qiov.iov, qiov.niov);
-            }
             /* Loop in case of EINTR */
             do {
                 len = v9fs_co_preadv(pdu, fidp, qiov.iov, qiov.niov, off);
@@ -2785,9 +2768,6 @@ static void coroutine_fn v9fs_write(void *opaque)
     do {
         qemu_iovec_reset(&qiov);
         qemu_iovec_concat(&qiov, &qiov_full, total, qiov_full.size - total);
-        if (0) {
-            print_sg(qiov.iov, qiov.niov);
-        }
         /* Loop in case of EINTR */
         do {
             len = v9fs_co_pwritev(pdu, fidp, qiov.iov, qiov.niov, off);
