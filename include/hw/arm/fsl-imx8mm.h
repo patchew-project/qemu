@@ -11,6 +11,7 @@
 
 #include "cpu.h"
 #include "hw/char/imx_serial.h"
+#include "hw/gpio/imx_gpio.h"
 #include "hw/intc/arm_gicv3_common.h"
 #include "hw/misc/imx7_snvs.h"
 #include "hw/misc/imx8mm_analog.h"
@@ -29,6 +30,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(FslImx8mmState, FSL_IMX8MM)
 
 enum FslImx8mmConfiguration {
     FSL_IMX8MM_NUM_CPUS         = 4,
+    FSL_IMX8MM_NUM_GPIOS        = 5,
     FSL_IMX8MM_NUM_IRQS         = 128,
     FSL_IMX8MM_NUM_UARTS        = 4,
     FSL_IMX8MM_NUM_USDHCS       = 3,
@@ -39,6 +41,7 @@ struct FslImx8mmState {
 
     ARMCPU             cpu[FSL_IMX8MM_NUM_CPUS];
     GICv3State         gic;
+    IMXGPIOState       gpio[FSL_IMX8MM_NUM_GPIOS];
     IMX8MMCCMState     ccm;
     IMX8MMAnalogState  analog;
     IMX7SNVSState      snvs;
@@ -168,6 +171,17 @@ enum FslImx8mmIrqs {
     FSL_IMX8MM_UART2_IRQ    = 27,
     FSL_IMX8MM_UART3_IRQ    = 28,
     FSL_IMX8MM_UART4_IRQ    = 29,
+
+    FSL_IMX8MM_GPIO1_LOW_IRQ  = 64,
+    FSL_IMX8MM_GPIO1_HIGH_IRQ = 65,
+    FSL_IMX8MM_GPIO2_LOW_IRQ  = 66,
+    FSL_IMX8MM_GPIO2_HIGH_IRQ = 67,
+    FSL_IMX8MM_GPIO3_LOW_IRQ  = 68,
+    FSL_IMX8MM_GPIO3_HIGH_IRQ = 69,
+    FSL_IMX8MM_GPIO4_LOW_IRQ  = 70,
+    FSL_IMX8MM_GPIO4_HIGH_IRQ = 71,
+    FSL_IMX8MM_GPIO5_LOW_IRQ  = 72,
+    FSL_IMX8MM_GPIO5_HIGH_IRQ = 73,
 
     FSL_IMX8MM_PCI_INTA_IRQ = 122,
     FSL_IMX8MM_PCI_INTB_IRQ = 123,
