@@ -75,6 +75,7 @@ static void imx8mm_evk_init(MachineState *machine)
     };
 
     s = FSL_IMX8MM(object_new(TYPE_FSL_IMX8MM));
+    object_property_set_uint(OBJECT(s), "fec1-phy-num", 1, &error_fatal);
     object_property_add_child(OBJECT(machine), "soc", OBJECT(s));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(s), &error_fatal);
 
