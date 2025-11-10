@@ -632,6 +632,7 @@ config FSL_IMX8MM
     select FSL_IMX8MM_ANALOG
     select FSL_IMX8MM_CCM
     select IMX
+    select SDHCI
 
 config FSL_IMX8MM_EVK
     bool
