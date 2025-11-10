@@ -626,6 +626,18 @@ config FSL_IMX8MP_EVK
     depends on TCG || KVM
     select FSL_IMX8MP
 
+config FSL_IMX8MM
+    bool
+    select ARM_GIC
+    select IMX
+
+config FSL_IMX8MM_EVK
+    bool
+    default y
+    depends on AARCH64
+    depends on TCG || KVM
+    select FSL_IMX8MM
+
 config ARM_SMMUV3
     bool
 
