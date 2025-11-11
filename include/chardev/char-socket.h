@@ -84,4 +84,6 @@ typedef struct SocketChardev SocketChardev;
 DECLARE_INSTANCE_CHECKER(SocketChardev, SOCKET_CHARDEV,
                          TYPE_CHARDEV_SOCKET)
 
+void socket_chr_listener_cleanup(Chardev *chr);
+
 #endif /* CHAR_SOCKET_H */

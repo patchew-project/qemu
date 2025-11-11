@@ -656,6 +656,24 @@ static void tcp_chr_telnet_destroy(SocketChardev *s)
     }
 }
 
+void socket_chr_listener_cleanup(Chardev *chr)
+{
+    SocketChardev *s = SOCKET_CHARDEV(chr);
+
+    if (s->listener) {
+        QIONetListener *listener = s->listener;
+        size_t i;
+
+        for (i = 0; i < listener->nsioc; i++) {
+            if (listener->io_source[i]) {
+                g_source_destroy(listener->io_source[i]);
+                g_source_unref(listener->io_source[i]);
+                listener->io_source[i] = NULL;
+            }
+        }
+    }
+}
+
 static void tcp_chr_update_read_handler(Chardev *chr)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);

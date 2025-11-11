@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 
 #include "chardev/char-io.h"
+#include "chardev/char-socket.h"
 #include "monitor-internal.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-control.h"
@@ -537,6 +538,11 @@ void monitor_init_qmp(Chardev *chr, bool pretty, Error **errp)
          * e.g. the chardev is in client mode, with wait=on.
          */
         remove_fd_in_watch(chr);
+        /*
+         * Clean up listener IO sources early to prevent racy fd
+         * handling between the main thread and the I/O thread.
+         */
+        socket_chr_listener_cleanup(chr);
         /*
          * We can't call qemu_chr_fe_set_handlers() directly here
          * since chardev might be running in the monitor I/O
