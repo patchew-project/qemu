@@ -272,7 +272,7 @@ static void fdt_add_pch_pic_node(LoongArchVirtMachineState *lvms,
     qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0,
                            pch_pic_base, 0, pch_pic_size);
     qemu_fdt_setprop(ms->fdt, nodename, "interrupt-controller", NULL, 0);
-    qemu_fdt_setprop_cell(ms->fdt, nodename, "#interrupt-cells", 2);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#interrupt-cells", 1);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
                           *eiointc_phandle);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "loongson,pic-base-vec", 0);
@@ -395,6 +395,8 @@ static void fdt_add_pcie_node(const LoongArchVirtMachineState *lvms,
                                  2, base_mmio, 2, size_mmio);
     qemu_fdt_setprop_cells(ms->fdt, nodename, "msi-map",
                            0, *pch_msi_phandle, 0, 0x10000);
+
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#interrupt-cells", 1);
     fdt_add_pcie_irq_map_node(lvms, nodename, pch_pic_phandle);
     g_free(nodename);
 }
