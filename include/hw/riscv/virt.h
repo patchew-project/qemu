@@ -88,6 +88,8 @@ enum {
     VIRT_PLATFORM_BUS,
     VIRT_PCIE_ECAM,
     VIRT_IOMMU_SYS,
+    VIRT_TR_ENCODERS,
+    VIRT_TR_RAM_SINKS,
 };
 
 enum {

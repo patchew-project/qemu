@@ -58,6 +58,8 @@
 #include "qapi/qapi-visit-common.h"
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/uefi/var-service-api.h"
+#include "hw/riscv/trace-encoder.h"
+#include "hw/riscv/trace-ram-sink.h"
 
 /* KVM AIA only supports APLIC MSI. APLIC Wired is always emulated by QEMU. */
 static bool virt_use_kvm_aia_aplic_imsic(RISCVVirtAIAType aia_type)
@@ -79,6 +81,17 @@ static bool virt_aclint_allowed(void)
     return tcg_enabled() || qtest_enabled();
 }
 
+#define TR_DEV_REGMAP_SIZE 0x1000
+/* For VIRT_CPUS_MAX = 512: TRACE_DEV_REG_MAX = 0x200000 */
+#define TRACE_DEV_REG_MAX (TR_DEV_REGMAP_SIZE * VIRT_CPUS_MAX)
+
+/*
+ * 64k for the RAM Sink that includes the 4k (0x1000)
+ * for regs, for each possible CPU. For 512 max CPUs,
+ * total size = 0x2000000.
+ */
+#define TRACE_RAM_SINK_SIZE (1UL << 16)
+
 static const MemMapEntry virt_memmap[] = {
     [VIRT_DEBUG] =        {        0x0,         0x100 },
     [VIRT_MROM] =         {     0x1000,        0xf000 },
@@ -88,7 +101,9 @@ static const MemMapEntry virt_memmap[] = {
     [VIRT_ACLINT_SSWI] =  {  0x2F00000,        0x4000 },
     [VIRT_PCIE_PIO] =     {  0x3000000,       0x10000 },
     [VIRT_IOMMU_SYS] =    {  0x3010000,        0x1000 },
+    [VIRT_TR_ENCODERS] =  {  0x3020000, TRACE_DEV_REG_MAX },
     [VIRT_PLATFORM_BUS] = {  0x4000000,     0x2000000 },
+    [VIRT_TR_RAM_SINKS] = {  0x6000000, TRACE_RAM_SINK_SIZE * VIRT_CPUS_MAX },
     [VIRT_PLIC] =         {  0xc000000, VIRT_PLIC_SIZE(VIRT_CPUS_MAX * 2) },
     [VIRT_APLIC_M] =      {  0xc000000, APLIC_SIZE(VIRT_CPUS_MAX) },
     [VIRT_APLIC_S] =      {  0xd000000, APLIC_SIZE(VIRT_CPUS_MAX) },
@@ -1525,6 +1540,64 @@ static void virt_machine_done(Notifier *notifier, void *data)
     }
 }
 
+/*
+ * Must be called after 'soc' realize since it
+ * uses CPU objs.
+ */
+static void virt_init_socket_trace_hw(RISCVVirtState *s, int socket_num)
+{
+    for (int cpu = 0; cpu < s->soc[socket_num].num_harts; cpu++) {
+        RISCVCPU *cpu_ptr = &s->soc[socket_num].harts[cpu];
+        DeviceState *trencoder, *ram_sink;
+        uint64_t trencoder_addr, ram_sink_addr, smem_addr;
+        uint32_t smem_size = TRACE_RAM_SINK_SIZE - TR_DEV_REGMAP_SIZE;
+
+        ram_sink = qdev_new(TYPE_TRACE_RAM_SINK);
+
+        ram_sink_addr = virt_memmap[VIRT_TR_RAM_SINKS].base +
+                        TRACE_RAM_SINK_SIZE * cpu;
+        /* smem is located right after ram sink base */
+        smem_addr = ram_sink_addr + TR_DEV_REGMAP_SIZE;
+
+        object_property_set_uint(OBJECT(ram_sink), "baseaddr",
+                                 ram_sink_addr, &error_fatal);
+        object_property_set_uint(OBJECT(ram_sink), "smemaddr",
+                                 smem_addr, &error_fatal);
+        object_property_set_uint(OBJECT(ram_sink), "smemsize",
+                                 smem_size, &error_fatal);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(ram_sink), &error_fatal);
+
+        /*
+         * We can't do object_property_set_link() because we're
+         * coming after cpu.realize() (the riscv_hart obj creates
+         * the CPU objs in its realize() since it has no init).
+         * We need changes in how riscv_hart works to use
+         * set_link() and to not manually realize the trace
+         * encoder.
+         *
+         * For now do everything manually.
+         */
+        trencoder = qdev_new(TYPE_TRACE_ENCODER);
+        cpu_ptr->trencoder = OBJECT(trencoder);
+
+        trencoder_addr = virt_memmap[VIRT_TR_ENCODERS].base +
+                         TR_DEV_REGMAP_SIZE * cpu;
+
+        object_property_set_link(OBJECT(trencoder), "cpu",
+                                 OBJECT(cpu_ptr), &error_fatal);
+        object_property_set_int(OBJECT(trencoder), "cpu-id", cpu, &error_fatal);
+        object_property_set_uint(OBJECT(trencoder), "baseaddr",
+                                 trencoder_addr, &error_fatal);
+        object_property_set_uint(OBJECT(trencoder), "dest-baseaddr",
+                                 ram_sink_addr, &error_fatal);
+        object_property_set_uint(OBJECT(trencoder), "ramsink-ramstart",
+                                 smem_addr, &error_fatal);
+        object_property_set_uint(OBJECT(trencoder), "ramsink-ramlimit",
+                                 smem_addr + smem_size, &error_fatal);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(trencoder), &error_fatal);
+    }
+}
+
 static void virt_machine_init(MachineState *machine)
 {
     RISCVVirtState *s = RISCV_VIRT_MACHINE(machine);
@@ -1579,6 +1652,10 @@ static void virt_machine_init(MachineState *machine)
         object_property_set_int(OBJECT(&s->soc[i]), "num-harts",
                                 hart_count, &error_abort);
         sysbus_realize(SYS_BUS_DEVICE(&s->soc[i]), &error_fatal);
+
+        if (tcg_enabled()) {
+            virt_init_socket_trace_hw(s, i);
+        }
 
         if (virt_aclint_allowed() && s->have_aclint) {
             if (s->aia_type == VIRT_AIA_TYPE_APLIC_IMSIC) {
