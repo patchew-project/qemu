@@ -18,11 +18,8 @@ from qemu_test.linuxkernel import LinuxKernelTest
 
 class Aarch64VirtKVMTests(LinuxKernelTest):
 
-    ASSET_KVM_TEST_KERNEL = Asset(
-        'https://fileserver.linaro.org/s/HmjaxXXYHYSqbes/'
-        'download?path=%2F&files='
-        'image-with-kvm-tool-and-unit-tests.gz',
-        '34de4aaea90db5da42729e7d28b77f392c37a2f4da859f889a5234aaf0970696')
+    ASSET_KVM_TEST_KERNEL = Asset('https://share.linaro.org/downloadFile?id=Dt5pQbTe5RrxEii',
+                                  '34de4aaea90db5da42729e7d28b77f392c37a2f4da859f889a5234aaf0970696')
 
     # make it easier to detect successful return to shell
     PS1 = 'RES=[$?] # '
