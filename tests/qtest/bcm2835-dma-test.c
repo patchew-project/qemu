@@ -105,12 +105,34 @@ static void bcm2835_dma_test_interrupts(void)
     bcm2835_dma_test_interrupt(14, 11);
 }
 
+static void test_cve_underflow_txfr_len_1(void)
+{
+    uint64_t dma_base = RASPI3_DMA_BASE; // 0x3f007000
+    uint32_t cb_addr = 0x1000;
+    uint32_t src_addr = 0x2000;
+    uint32_t dst_addr = 0x3000;
+    /* Prepare DMA Control Block with VULNERABLE configuration */
+    writel(cb_addr + 0, BCM2708_DMA_S_INC | BCM2708_DMA_D_INC); /* TI */
+    writel(cb_addr + 4, src_addr); /* source address */
+    writel(cb_addr + 8, dst_addr); /* destination address */
+    writel(cb_addr + 12, 1); /* ⚠️ txfr_len = 1 (TRIGGER!) */
+    writel(cb_addr + 16, 0); /* stride */
+    writel(cb_addr + 20, 0); /* next CB = NULL */
+    /* Set control block address */
+    writel(dma_base + BCM2708_DMA_ADDR, cb_addr);
+    /* Trigger DMA - this will cause the vulnerability */
+    writel(dma_base + BCM2708_DMA_CS, BCM2708_DMA_ACTIVE);
+    /* Without the fix, QEMU process will hang at 100% CPU */
+}
+
 int main(int argc, char **argv)
 {
     int ret;
     g_test_init(&argc, &argv, NULL);
     qtest_add_func("/bcm2835/dma/test_interrupts",
                    bcm2835_dma_test_interrupts);
+    qtest_add_func("/bcm2835/dma/test_underflow_txfr",
+                   test_cve_underflow_txfr_len_1);
     qtest_start("-machine raspi3b");
     ret = g_test_run();
     qtest_end();
