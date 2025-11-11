@@ -7,6 +7,10 @@ config RISCV_NUMA
 config IBEX
     bool
 
+config RISCV_TRACE
+    bool
+    select REGISTER
+
 # RISC-V machines in alphabetical order
 
 config MICROCHIP_PFSOC
@@ -68,6 +72,7 @@ config RISCV_VIRT
     select PLATFORM_BUS
     select ACPI
     select ACPI_PCI
+    select RISCV_TRACE
 
 config SHAKTI_C
     bool
