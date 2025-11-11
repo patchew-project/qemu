@@ -19,3 +19,7 @@
     - docker push "$TAG"
   after_script:
     - docker logout
+  rules:
+    # Allow for inclusion in schedules
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: on_success
