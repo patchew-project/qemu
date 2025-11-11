@@ -72,6 +72,7 @@ undocumented; you can get a complete list by running
    riscv/sifive_u
    riscv/virt
    riscv/xiangshan-kunminghu
+   riscv/rvsp-ref
 
 RISC-V CPU firmware
 -------------------
