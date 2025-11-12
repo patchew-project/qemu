@@ -49,21 +49,21 @@ void replay_mutex_unlock(void)
 {
 }
 
-void replay_register_char_driver(struct Chardev *chr)
+void replay_register_char_driver(Chardev *chr)
 {
 }
 
-void replay_chr_be_write(struct Chardev *s, const uint8_t *buf, int len)
-{
-    abort();
-}
-
-void replay_char_write_event_save(int res, int offset)
+void replay_chr_be_write(Chardev *s, const uint8_t *buf, int len)
 {
     abort();
 }
 
-void replay_char_write_event_load(int *res, int *offset)
+void replay_char_write_event_save(int nbytes, int offset)
+{
+    abort();
+}
+
+void replay_char_write_event_load(int *nbytes, int *offset)
 {
     abort();
 }
@@ -73,7 +73,7 @@ int replay_char_read_all_load(uint8_t *buf)
     abort();
 }
 
-void replay_char_read_all_save_error(int res)
+void replay_char_read_all_save_error(int errcode)
 {
     abort();
 }

@@ -93,23 +93,23 @@ void *replay_event_char_read_load(void)
     return event;
 }
 
-void replay_char_write_event_save(int res, int offset)
+void replay_char_write_event_save(int nbytes, int offset)
 {
     g_assert(replay_mutex_locked());
 
     replay_save_instructions();
     replay_put_event(EVENT_CHAR_WRITE);
-    replay_put_dword(res);
+    replay_put_dword(nbytes);
     replay_put_dword(offset);
 }
 
-void replay_char_write_event_load(int *res, int *offset)
+void replay_char_write_event_load(int *nbytes, int *offset)
 {
     g_assert(replay_mutex_locked());
 
     replay_account_executed_instructions();
     if (replay_next_event_is(EVENT_CHAR_WRITE)) {
-        *res = replay_get_dword();
+        *nbytes = replay_get_dword();
         *offset = replay_get_dword();
         replay_finish_event();
     } else {
@@ -138,13 +138,13 @@ int replay_char_read_all_load(uint8_t *buf)
     }
 }
 
-void replay_char_read_all_save_error(int res)
+void replay_char_read_all_save_error(int errcode)
 {
     g_assert(replay_mutex_locked());
-    assert(res < 0);
+    assert(errcode < 0);
     replay_save_instructions();
     replay_put_event(EVENT_CHAR_READ_ALL_ERROR);
-    replay_put_dword(res);
+    replay_put_dword(errcode);
 }
 
 void replay_char_read_all_save_buf(uint8_t *buf, int offset)
