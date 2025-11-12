@@ -794,6 +794,15 @@ static RISCVException rnmi(CPURISCVState *env, int csrno)
 
     return RISCV_EXCP_ILLEGAL_INST;
 }
+
+static RISCVException smsdid(CPURISCVState *env, int csrno)
+{
+    if (riscv_cpu_cfg(env)->ext_smsdid) {
+        return RISCV_EXCP_NONE;
+    }
+
+    return RISCV_EXCP_ILLEGAL_INST;
+}
 #endif
 
 static RISCVException seed(CPURISCVState *env, int csrno)
@@ -5470,6 +5479,89 @@ static RISCVException write_mnstatus(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
+static RISCVException read_mmpt(CPURISCVState *env, int csrno,
+                                target_ulong *val)
+{
+    if (riscv_cpu_xlen(env) == 32) {
+        uint32_t value = 0;
+        value |= env->mptmode << MMPT_MODE_SHIFT_32;
+        value |= (env->sdid << MMPT_SDID_SHIFT_32) & MMPT_SDID_MASK_32;
+        value |= env->mptppn & MMPT_PPN_MASK_32;
+        *val = value;
+    } else if (riscv_cpu_xlen(env) == 64) {
+        uint64_t value_64 = 0;
+        uint32_t mode_value = env->mptmode;
+        /* mpt_mode_t convert to mmpt.mode value */
+        if (mode_value) {
+            mode_value -= SMMPT43 - SMMPT34;
+        }
+        value_64 |= (uint64_t)mode_value << MMPT_MODE_SHIFT_64;
+        value_64 |= ((uint64_t)env->sdid << MMPT_SDID_SHIFT_64)
+                    & MMPT_SDID_MASK_64;
+        value_64 |= (uint64_t)env->mptppn & MMPT_PPN_MASK_64;
+        *val = value_64;
+    } else {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_mmpt(CPURISCVState *env, int csrno,
+                                 target_ulong val, uintptr_t ra)
+{
+    uint32_t mode_value = 0;
+    if (!riscv_cpu_cfg(env)->ext_smmpt) {
+        goto set_remaining_fields_zero;
+    }
+
+    if (riscv_cpu_xlen(env) == 32) {
+        mode_value = (val & MMPT_MODE_MASK_32) >> MMPT_MODE_SHIFT_32;
+        /* If mode is bare, the remaining fields in mmpt must be zero */
+        if (mode_value == SMMPTBARE) {
+            goto set_remaining_fields_zero;
+        } else if (mode_value <= SMMPT34) {
+            /* Only write the legal value */
+            env->mptmode = mode_value;
+        }
+        env->sdid = (val & MMPT_SDID_MASK_32) >> MMPT_SDID_SHIFT_32;
+        env->mptppn = val & MMPT_PPN_MASK_32;
+    } else if (riscv_cpu_xlen(env) == 64) {
+        mode_value = (val & MMPT_MODE_MASK_64) >> MMPT_MODE_SHIFT_64;
+        if (mode_value == SMMPTBARE) {
+            goto set_remaining_fields_zero;
+        } else if (mode_value < SMMPTMAX) {
+            /* convert to mpt_mode_t */
+            mode_value += SMMPT43 - SMMPT34;
+            env->mptmode = mode_value;
+        }
+        env->sdid = (val & MMPT_SDID_MASK_64) >> MMPT_SDID_SHIFT_64;
+        env->mptppn = val & MMPT_PPN_MASK_64;
+    } else {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+    return RISCV_EXCP_NONE;
+
+set_remaining_fields_zero:
+    env->sdid = 0;
+    env->mptmode = SMMPTBARE;
+    env->mptppn = 0;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_msdcfg(CPURISCVState *env, int csrno,
+                                   target_ulong *val)
+{
+    *val = env->msdcfg;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_msdcfg(CPURISCVState *env, int csrno,
+                                    target_ulong val, uintptr_t ra)
+{
+    env->msdcfg = val;
+    return RISCV_EXCP_NONE;
+}
+
 #endif
 
 /* Crypto Extension */
@@ -6666,6 +6758,9 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
                              write_mhpmcounterh                         },
     [CSR_SCOUNTOVF]      = { "scountovf", sscofpmf,  read_scountovf,
                              .min_priv_ver = PRIV_VERSION_1_12_0 },
+    /* Supervisor Domain Identifier and Protection Registers */
+    [CSR_MMPT] =    { "mmpt",   smsdid,  read_mmpt,   write_mmpt   },
+    [CSR_MSDCFG] =  { "msdcfg", smsdid,  read_msdcfg, write_msdcfg },
 
 #endif /* !CONFIG_USER_ONLY */
 };
