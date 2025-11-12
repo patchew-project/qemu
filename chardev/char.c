@@ -108,6 +108,7 @@ static void qemu_chr_write_log(Chardev *s, const uint8_t *buf, size_t len)
     }
 }
 
+/* qemu_chr_write_buffer: Return the number of bytes consumed or -1 on error. */
 static int qemu_chr_write_buffer(Chardev *s,
                                  const uint8_t *buf, int len,
                                  int *offset, bool write_all)

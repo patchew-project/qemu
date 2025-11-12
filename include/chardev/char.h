@@ -223,8 +223,37 @@ void qemu_chr_set_feature(Chardev *chr,
                           ChardevFeature feature);
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename,
                                 bool permit_mux_mon);
+
+/**
+ * qemu_chr_write: Write data to a character backend
+ * @s: the character backend to write to
+ * @buf: the data
+ * @len: the number of bytes to write
+ * @write_all: whether to block until all chars are written
+ *
+ * Attempt to write all the data to the backend. If not all
+ * data can be consumed and @write_all is %true, keep retrying
+ * while the backend return EAGAIN, effectively blocking the caller.
+ *
+ * Returns: the number of bytes consumed or -1 on error.
+ * On error, %errno is also set as appropriate.
+ */
 int qemu_chr_write(Chardev *s, const uint8_t *buf, int len, bool write_all);
+
+/**
+ * qemu_chr_write_all: Write data to a character backend
+ * @s: the character backend to write to
+ * @buf: the data
+ * @len: the number of bytes to write
+ *
+ * Unlike @qemu_chr_write, this call will block if the backend
+ * cannot consume all of the data attempted to be written.
+ *
+ * Returns: the number of bytes consumed or -1 on error.
+ * On error, %errno is also set as appropriate.
+ */
 #define qemu_chr_write_all(s, buf, len) qemu_chr_write(s, buf, len, true)
+
 int qemu_chr_wait_connected(Chardev *chr, Error **errp);
 
 #define TYPE_CHARDEV "chardev"
