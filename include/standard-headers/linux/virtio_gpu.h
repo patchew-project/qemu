@@ -65,6 +65,8 @@
  */
 #define VIRTIO_GPU_F_CONTEXT_INIT        4
 
+#define VIRTIO_GPU_F_RESOURCE_USERPTR    5
+
 enum virtio_gpu_ctrl_type {
 	VIRTIO_GPU_UNDEFINED = 0,
 
