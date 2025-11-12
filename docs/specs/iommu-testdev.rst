@@ -1,0 +1,96 @@
+iommu-testdev — IOMMU test device for bare-metal testing
+=========================================================
+
+Overview
+--------
+``iommu-testdev`` is a minimal, test-only PCI device designed to exercise
+IOMMU translation (such as ARM SMMUv3) without requiring firmware or a guest
+OS. Tests can populate IOMMU translation tables with known values and trigger
+DMA operations that flow through the IOMMU translation path. It is **not** a
+faithful PCIe endpoint and must be considered a QEMU-internal test vehicle.
+
+Key Features
+------------
+* **Bare-metal IOMMU testing**: No guest kernel or firmware required
+* **Configurable DMA attributes**: Supports address space  configuration via
+  MMIO registers
+* **Deterministic verification**: Write-then-read DMA pattern with automatic
+  result checking
+
+Status
+------
+* Location: ``hw/misc/iommu-testdev.c``
+* Header: ``include/hw/misc/iommu-testdev.h``
+* Build guard: ``CONFIG_IOMMU_TESTDEV``
+
+Device Interface
+----------------
+The device exposes a single PCI BAR0 with MMIO registers:
+
+* ``ITD_REG_DMA_TRIGGERING`` (0x00): Reading triggers DMA execution
+* ``ITD_REG_DMA_GVA_LO`` (0x04): IOVA/GVA bits [31:0]
+* ``ITD_REG_DMA_GVA_HI`` (0x08): IOVA/GVA bits [63:32]
+* ``ITD_REG_DMA_LEN`` (0x0C): DMA transfer length
+* ``ITD_REG_DMA_RESULT`` (0x10): DMA operation result (0=success)
+* ``ITD_REG_DMA_DBELL`` (0x14): Write 1 to arm DMA
+* ``ITD_REG_DMA_ATTRS`` (0x18): DMA attributes
+
+  - bit[0]: secure (1=Secure, 0=Non-Secure)
+  - bits[2:1]: address space (0=Non-Secure, 1=Secure, 2=Root, 3=Realm)
+
+DMA Operation Flow
+------------------
+1. Test programs IOMMU translation tables
+2. Test configures DMA address (GVA_LO/HI), length, and attributes
+3. Test writes 1 to DMA_DBELL to arm the operation
+4. Test reads DMA_TRIGGERING to execute DMA
+5. Test polls DMA_RESULT:
+
+   - 0x00000000: Success
+   - 0xFFFFFFFE: Busy (still in progress)
+   - 0xDEAD000X: Various error codes
+
+The device performs a write-then-read sequence using a known pattern
+(0x88888888) and verifies data integrity automatically.
+
+Running the qtest
+-----------------
+The SMMUv3 test suite uses this device and covers multiple translation modes::
+
+    cd build-debug
+    QTEST_QEMU_BINARY=./qemu-system-aarch64 \\
+        ./tests/qtest/iommu-smmuv3-test --tap -k
+
+This test suite exercises:
+
+* Stage 1 only translation
+* Stage 2 only translation
+* Nested (Stage 1 + Stage 2) translation
+* Multiple security spaces (Non-Secure, Secure, Root, Realm)
+
+Instantiation
+-------------
+The device is not wired into any board by default. Tests instantiate it
+via QEMU command line::
+
+    -device iommu-testdev
+
+For ARM platforms with SMMUv3::
+
+    -M virt,iommu=smmuv3 -device iommu-testdev
+
+The device will be placed behind the IOMMU automatically.
+
+Limitations
+-----------
+* No realistic PCIe enumeration, MSI/MSI-X, or interrupt handling
+* No ATS/PRI support
+* No actual device functionality beyond DMA test pattern
+* Test-only; not suitable for production or machine realism
+* Address space support (Secure/Root/Realm) is architecture-dependent
+
+See also
+--------
+* ``tests/qtest/iommu-smmuv3-test.c`` — SMMUv3 test suite
+* ``tests/qtest/libqos/qos-smmuv3.{c,h}`` — SMMUv3 test library
+* SMMUv3 emulation: ``hw/arm/smmu*``
