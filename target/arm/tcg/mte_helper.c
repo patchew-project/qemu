@@ -865,8 +865,30 @@ static int mte_probe_int(CPUARMState *env, uint32_t desc, uint64_t ptr,
     return 0;
 }
 
+static bool mte_store_only_active(CPUARMState *env)
+{
+    int el = arm_current_el(env);
+    if (el) {
+        if (SCTLR_TSCO & env->cp15.sctlr_el[el]) {
+            return true;
+        }
+    } else {
+        if ((HCR_E2H & env->cp15.hcr_el2) &&
+            (SCTLR_TSCO0 & env->cp15.sctlr_el[2])) {
+            return true;
+        } else if (SCTLR_TSCO0 & env->cp15.sctlr_el[1]) {
+            return true;
+        }
+    }
+    return false;
+}
+
 uint64_t mte_check(CPUARMState *env, uint32_t desc, uint64_t ptr, uintptr_t ra)
 {
+    if (!FIELD_EX32(desc, MTEDESC, WRITE) && mte_store_only_active(env)) {
+        return useronly_clean_ptr(ptr);
+    }
+
     uint64_t fault;
     int ret = mte_probe_int(env, desc, ptr, ra, &fault);
 
