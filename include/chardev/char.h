@@ -263,7 +263,17 @@ struct ChardevClass {
     void (*open)(Chardev *chr, ChardevBackend *backend,
                  bool *be_opened, Error **errp);
 
-    /* write buf to the backend */
+    /**
+     * chr_write: Write data to a character backend
+     * @s: the character backend to write to
+     * @buf: the data to write
+     * @len: the number of bytes to write
+     *
+     * Called with chr_write_lock held.
+     *
+     * Returns: the number of bytes consumed or -1 on error.
+     * On error, %errno is also set as appropriate.
+     */
     int (*chr_write)(Chardev *s, const uint8_t *buf, int len);
 
     /*
