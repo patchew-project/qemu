@@ -186,6 +186,11 @@ int qemu_chr_write(Chardev *s, const uint8_t *buf, int len, bool write_all)
 
     res = qemu_chr_write_buffer(s, buf, len, &offset, write_all);
 
+    if (!write_all && res < 0 && offset == 0) {
+        /* Allow partial writes */
+        return res;
+    }
+
     if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_RECORD) {
         replay_char_write_event_save(res, offset);
     }
