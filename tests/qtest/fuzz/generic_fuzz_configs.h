@@ -29,6 +29,52 @@ static inline gchar *generic_fuzzer_virtio_9p_args(void){
     "writeout=immediate,fmode=0600,dmode=0700", tmpdir);
 }
 
+/*
+ * Global variables and cleanup handler for VNC fuzzer sockets.
+ * These are needed because the socket paths must be available at exit.
+ */
+static char g_vnc_socket_path[sizeof("/tmp/qemu-vnc.XXXXXX")];
+static char g_vnc_ws_socket_path[sizeof("/tmp/qemu-vnc-ws.XXXXXX")];
+
+static void cleanup_vnc_sockets(void)
+{
+    if (g_vnc_socket_path[0] != '\0') {
+        unlink(g_vnc_socket_path);
+    }
+    if (g_vnc_ws_socket_path[0] != '\0') {
+        unlink(g_vnc_ws_socket_path);
+    }
+}
+
+/*
+ * Dynamically generate VNC arguments with unique unix socket paths.
+ * This allows multiple fuzzing jobs to run in parallel without conflict.
+ */
+static inline gchar *generic_fuzzer_vnc_args(void)
+{
+    static bool cleanup_registered = false;
+    int fd;
+
+    strcpy(g_vnc_socket_path, "/tmp/qemu-vnc.XXXXXX");
+    fd = g_mkstemp(g_vnc_socket_path);
+    g_assert_cmpint(fd, !=, -1);
+    close(fd);
+
+    strcpy(g_vnc_ws_socket_path, "/tmp/qemu-vnc-ws.XXXXXX");
+    fd = g_mkstemp(g_vnc_ws_socket_path);
+    g_assert_cmpint(fd, !=, -1);
+    close(fd);
+
+    if (!cleanup_registered) {
+        atexit(cleanup_vnc_sockets);
+        cleanup_registered = true;
+    }
+
+    return g_strdup_printf("-machine q35 -nodefaults "
+                           "-vnc vnc=unix:%s,websocket=unix:%s",
+                           g_vnc_socket_path, g_vnc_ws_socket_path);
+}
+
 const generic_fuzz_config predefined_configs[] = {
     {
         .name = "virtio-net-pci-slirp",
@@ -247,6 +293,10 @@ const generic_fuzz_config predefined_configs[] = {
         .args = "-machine q35 -nodefaults "
         "-parallel file:/dev/null",
         .objects = "parallel*",
+    },{
+        .name = "vnc",
+        .argfunc = generic_fuzzer_vnc_args,
+        .objects = "*",
     }
 };
 
