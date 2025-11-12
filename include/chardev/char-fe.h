@@ -238,8 +238,9 @@ guint qemu_chr_fe_add_watch(CharFrontend *c, GIOCondition cond,
  * will send data from the front end to the back end.  This function
  * is thread-safe.
  *
- * Returns: the number of bytes consumed (0 if no associated Chardev)
- *          or -1 on error.
+ * Returns: 0 if no associated Chardev or no data could be written,
+ *          a positive value indicating the number of bytes consumed,
+ *          or a negative %errno indicating a definite error.
  */
 int qemu_chr_fe_write(CharFrontend *c, const uint8_t *buf, int len);
 
@@ -254,8 +255,8 @@ int qemu_chr_fe_write(CharFrontend *c, const uint8_t *buf, int len);
  * this function will block if the back end cannot consume all of the data
  * attempted to be written.  This function is thread-safe.
  *
- * Returns: the number of bytes consumed (0 if no associated Chardev)
- *          or -1 on error.
+ * Returns: 0 if no associated Chardev or no data could be written,
+ *          @len on success or a negative %errno indicating a definite error.
  */
 int qemu_chr_fe_write_all(CharFrontend *c, const uint8_t *buf, int len);
 
