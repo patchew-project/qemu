@@ -628,11 +628,14 @@ config FSL_IMX8MP_EVK
 
 config FSL_IMX8MM
     bool
+    imply PCI_DEVICES
     select ARM_GIC
     select FSL_IMX8MM_ANALOG
     select FSL_IMX8MM_CCM
     select IMX
     select SDHCI
+    select PCI_EXPRESS_DESIGNWARE
+    select PCI_EXPRESS_FSL_IMX8M_PHY
 
 config FSL_IMX8MM_EVK
     bool
