@@ -177,6 +177,11 @@ static void fsl_imx8mm_init(Object *obj)
         object_initialize_child(obj, name, &s->uart[i], TYPE_IMX_SERIAL);
     }
 
+    for (i = 0; i < FSL_IMX8MM_NUM_GPIOS; i++) {
+        g_autofree char *name = g_strdup_printf("gpio%d", i + 1);
+        object_initialize_child(obj, name, &s->gpio[i], TYPE_IMX_GPIO);
+    }
+
     for (i = 0; i < FSL_IMX8MM_NUM_USDHCS; i++) {
         g_autofree char *name = g_strdup_printf("usdhc%d", i + 1);
         object_initialize_child(obj, name, &s->usdhc[i], TYPE_IMX_USDHC);
@@ -350,6 +355,54 @@ static void fsl_imx8mm_realize(DeviceState *dev, Error **errp)
                            qdev_get_gpio_in(gicdev, serial_table[i].irq));
     }
 
+    /* GPIOs */
+    for (i = 0; i < FSL_IMX8MM_NUM_GPIOS; i++) {
+        static const struct {
+            hwaddr addr;
+            unsigned int irq_low;
+            unsigned int irq_high;
+        } gpio_table[FSL_IMX8MM_NUM_GPIOS] = {
+            {
+                fsl_imx8mm_memmap[FSL_IMX8MM_GPIO1].addr,
+                FSL_IMX8MM_GPIO1_LOW_IRQ,
+                FSL_IMX8MM_GPIO1_HIGH_IRQ
+            },
+            {
+                fsl_imx8mm_memmap[FSL_IMX8MM_GPIO2].addr,
+                FSL_IMX8MM_GPIO2_LOW_IRQ,
+                FSL_IMX8MM_GPIO2_HIGH_IRQ
+            },
+            {
+                fsl_imx8mm_memmap[FSL_IMX8MM_GPIO3].addr,
+                FSL_IMX8MM_GPIO3_LOW_IRQ,
+                FSL_IMX8MM_GPIO3_HIGH_IRQ
+            },
+            {
+                fsl_imx8mm_memmap[FSL_IMX8MM_GPIO4].addr,
+                FSL_IMX8MM_GPIO4_LOW_IRQ,
+                FSL_IMX8MM_GPIO4_HIGH_IRQ
+            },
+            {
+                fsl_imx8mm_memmap[FSL_IMX8MM_GPIO5].addr,
+                FSL_IMX8MM_GPIO5_LOW_IRQ,
+                FSL_IMX8MM_GPIO5_HIGH_IRQ
+            },
+        };
+        object_property_set_bool(OBJECT(&s->gpio[i]), "has-edge-sel", true,
+                                 &error_abort);
+        object_property_set_bool(OBJECT(&s->gpio[i]), "has-upper-pin-irq",
+                                 true, &error_abort);
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio[i]), errp)) {
+            return;
+        }
+
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio[i]), 0, gpio_table[i].addr);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->gpio[i]), 0,
+                           qdev_get_gpio_in(gicdev, gpio_table[i].irq_low));
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->gpio[i]), 1,
+                           qdev_get_gpio_in(gicdev, gpio_table[i].irq_high));
+    }
+
     /* USDHCs */
     for (i = 0; i < FSL_IMX8MM_NUM_USDHCS; i++) {
         static const struct {
@@ -408,6 +461,7 @@ static void fsl_imx8mm_realize(DeviceState *dev, Error **errp)
         case FSL_IMX8MM_CCM:
         case FSL_IMX8MM_GIC_DIST:
         case FSL_IMX8MM_GIC_REDIST:
+        case FSL_IMX8MM_GPIO1 ... FSL_IMX8MM_GPIO5:
         case FSL_IMX8MM_PCIE1:
         case FSL_IMX8MM_PCIE_PHY1:
         case FSL_IMX8MM_RAM:
