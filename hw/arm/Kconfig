@@ -629,6 +629,8 @@ config FSL_IMX8MP_EVK
 config FSL_IMX8MM
     bool
     select ARM_GIC
+    select FSL_IMX8MM_ANALOG
+    select FSL_IMX8MM_CCM
     select IMX
 
 config FSL_IMX8MM_EVK

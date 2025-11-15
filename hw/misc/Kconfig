@@ -96,6 +96,12 @@ config FSL_IMX8MP_ANALOG
 config FSL_IMX8MP_CCM
     bool
 
+config FSL_IMX8MM_ANALOG
+    bool
+
+config FSL_IMX8MM_CCM
+    bool
+
 config STM32_RCC
     bool
 
