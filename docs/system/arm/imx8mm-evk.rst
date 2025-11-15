@@ -1,0 +1,51 @@
+NXP i.MX 8MM Evaluation Kit (``imx8mm-evk``)
+================================================
+
+The ``imx8mm-evk`` machine models the i.MX 8M Mini Evaluation Kit, based on an
+i.MX 8MM SoC.
+
+Supported devices
+-----------------
+
+The ``imx8mm-evk`` machine implements the following devices:
+
+ * Up to 4 Cortex-A53 cores
+ * Generic Interrupt Controller (GICv3)
+ * 4 UARTs
+
+Boot options
+------------
+
+The ``imx8mm-evk`` machine can start a Linux kernel directly using the standard
+``-kernel`` functionality.
+
+Direct Linux Kernel Boot
+''''''''''''''''''''''''
+
+Probably the easiest way to get started with a whole Linux system on the machine
+is to generate an image with Buildroot. Version 2024.11.1 is tested at the time
+of writing and involves two steps. First run the following commands in the
+toplevel directory of the Buildroot source tree:
+
+.. code-block:: bash
+
+  $ make freescale_imx8mmevk_defconfig
+  $ make
+
+Once finished successfully there is an ``output/image`` subfolder. Navigate into
+it and resize the SD card image to a power of two:
+
+.. code-block:: bash
+
+  $ qemu-img resize sdcard.img 256M
+
+Now that everything is prepared the machine can be started as follows:
+
+.. code-block:: bash
+
+  $ qemu-system-aarch64 -M imx8mm-evk -smp 4 -m 3G \
+      -display none -serial null -serial stdio \
+      -kernel Image \
+      -dtb imx8mm-evk.dtb \
+      -append "root=/dev/mmcblk2p2" \
+      -drive file=sdcard.img,if=sd,bus=2,format=raw,id=mmcblk2
