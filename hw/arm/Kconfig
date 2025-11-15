@@ -634,6 +634,7 @@ config FSL_IMX8MM
     select FSL_IMX8MM_ANALOG
     select FSL_IMX8MM_CCM
     select IMX
+    select IMX_FEC
     select IMX_I2C
     select OR_IRQ
     select SDHCI
