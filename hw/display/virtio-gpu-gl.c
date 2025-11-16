@@ -121,7 +121,12 @@ static void virtio_gpu_gl_reset(VirtIODevice *vdev)
 static void virtio_gpu_gl_device_realize(DeviceState *qdev, Error **errp)
 {
     ERRP_GUARD();
-    VirtIOGPU *g = VIRTIO_GPU(qdev);
+    VirtIOGPUBase *b = VIRTIO_GPU_BASE(qdev);
+    VirtIOGPU *g = VIRTIO_GPU(b);
+#if !defined(CONFIG_WIN32)
+    VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
+    void *map;
+#endif
 
 #if HOST_BIG_ENDIAN
     error_setg(errp, "virgl is not supported on bigendian platforms");
@@ -152,6 +157,33 @@ static void virtio_gpu_gl_device_realize(DeviceState *qdev, Error **errp)
 #endif
 
     virtio_gpu_device_realize(qdev, errp);
+
+    /*
+     * Check whether virtio_gpu_device_realize() failed.
+     */
+    if (*errp) {
+        return;
+    }
+
+#if !defined(CONFIG_WIN32)
+    if (virtio_gpu_hostmem_enabled(b->conf)) {
+        map = mmap(NULL, b->conf.hostmem, PROT_READ | PROT_WRITE,
+                   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        if (map == MAP_FAILED) {
+            error_setg(errp,
+                       "virgl hostmem region could not be initialized: %s",
+                       strerror(errno));
+            return;
+        }
+
+        gl->hostmem_mmap = map;
+        gl->hostmem_background = g_new0(MemoryRegion, 1);
+        memory_region_init_ram_ptr(gl->hostmem_background, NULL,
+                                   "hostmem-background", b->conf.hostmem,
+                                   gl->hostmem_mmap);
+        memory_region_add_subregion(&b->hostmem, 0, gl->hostmem_background);
+    }
+#endif
 }
 
 static const Property virtio_gpu_gl_properties[] = {
@@ -165,6 +197,7 @@ static const Property virtio_gpu_gl_properties[] = {
 
 static void virtio_gpu_gl_device_unrealize(DeviceState *qdev)
 {
+    VirtIOGPUBase *b = VIRTIO_GPU_BASE(qdev);
     VirtIOGPU *g = VIRTIO_GPU(qdev);
     VirtIOGPUGL *gl = VIRTIO_GPU_GL(qdev);
 
@@ -187,6 +220,16 @@ static void virtio_gpu_gl_device_unrealize(DeviceState *qdev)
     gl->renderer_state = RS_START;
 
     g_array_unref(g->capset_ids);
+
+    /*
+     * It is not guaranteed that the memory region will be finalized
+     * immediately with memory_region_del_subregion(), there can be
+     * a remaining reference to gl->hostmem_mmap. VirtIO-GPU is not
+     * hotpluggable, hence no need to worry about the leaked mapping.
+     */
+    if (gl->hostmem_background) {
+        memory_region_del_subregion(&b->hostmem, gl->hostmem_background);
+    }
 }
 
 static void virtio_gpu_gl_class_init(ObjectClass *klass, const void *data)
