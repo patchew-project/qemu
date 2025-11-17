@@ -2779,6 +2779,9 @@ config_host_data.set('HAVE_TCP_KEEPINTVL',
                      #endif
                      int main(void) { return 0; }''',
                      name: 'Win32 TCP_KEEPINTVL'))
+if host_os == 'sunos'
+  config_host_data.set('CONFIG_SOLARIS_FSCALE', cc.has_header_symbol('sys/param.h', 'FSCALE'))
+endif
 
 # has_member
 config_host_data.set('HAVE_SIGEV_NOTIFY_THREAD_ID',
