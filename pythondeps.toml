@@ -31,6 +31,8 @@ meson = { accepted = ">=1.9.0", installed = "1.9.0", canary = "meson" }
 sphinx = { accepted = ">=3.4.3", installed = "6.2.1", canary = "sphinx-build" }
 sphinx_rtd_theme = { accepted = ">=0.5", installed = "1.2.2" }
 
-[functests]
+[checktests]
 "qemu.qmp" = { accepted = ">=0.0.5", installed = "0.0.5" }
+
+[functests]
 pygdbmi = { accepted = ">=0.11.0.0", installed = "0.11.0.0" }
