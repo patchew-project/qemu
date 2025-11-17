@@ -1633,6 +1633,46 @@ static inline bool tcma_check(uint32_t desc, int bit55, int ptr_tag)
     return tcma && match;
 }
 
+/* Return whether or not the second nibble of a VA matches bit 55.  */
+static inline bool tag_is_canonical(int ptr_tag, int bit55)
+{
+    return ((ptr_tag + bit55) & 0xf) == 0;
+}
+
+/* Return true if mtx bits mean that the access is canonically checked.  */
+static inline bool mtx_check(CPUARMState *env, bool bit55)
+{
+    /*
+     * the MTX bits used in EL0 are those used in whichever EL is used
+     * for the supervisor. The EL that contains the supervisor uses
+     * bits 60 and 61 (MTX0 and MTX1), while the other ELs that aren't
+     * used by the supervisor.
+     */
+    int el = arm_current_el(env);
+    if (el == 0) {
+        if (HCR_E2H & env->cp15.hcr_el2) {
+            return (1l << (60 + bit55)) & env->cp15.tcr_el[2];
+        } else {
+            return (1l << (60 + bit55)) & env->cp15.tcr_el[1];
+        }
+    } else if (el == 1) {
+        if (HCR_E2H & env->cp15.hcr_el2) {
+            g_assert_not_reached();
+        } else {
+            return (1l << (60 + bit55)) & env->cp15.tcr_el[1];
+        }
+    } else if (el == 2) {
+        if (HCR_E2H & env->cp15.hcr_el2) {
+            return (1l << (60 + bit55)) & env->cp15.tcr_el[2];
+        } else {
+            return (1l << 33) & env->cp15.tcr_el[2];
+        }
+    } else if (el == 3) {
+        return (1l << 33) & env->cp15.tcr_el[3];
+    }
+    return false;
+}
+
 /*
  * For TBI, ideally, we would do nothing.  Proper behaviour on fault is
  * for the tag to be present in the FAR_ELx register.  But for user-only
