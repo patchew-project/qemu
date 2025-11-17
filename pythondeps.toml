@@ -33,6 +33,7 @@ sphinx_rtd_theme = { accepted = ">=0.5", installed = "1.2.2" }
 
 [checktests]
 "qemu.qmp" = { accepted = ">=0.0.5", installed = "0.0.5" }
+"$SRCROOT/python/" = { }
 
 [functests]
 pygdbmi = { accepted = ">=0.11.0.0", installed = "0.11.0.0" }
