@@ -350,6 +350,7 @@ build-tcg-disabled:
     - make -j"$JOBS"
     - make check-unit
     - make check-qapi-schema
+    - make check-venv
     - cd tests/qemu-iotests/
     - ../../pyvenv/bin/python3 ./check -raw 001 002 003 004 005 008 009 010 011 012 021 025 032 033 048
             052 063 077 086 101 104 106 113 148 150 151 152 157 159 160 163
