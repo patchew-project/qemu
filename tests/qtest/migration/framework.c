@@ -276,6 +276,9 @@ static char *migrate_mem_type_get_opts(MemType type, const char *memory_size)
         backend = g_strdup_printf("-object memory-backend-file,mem-path=%s",
                                   shmem_path);
         break;
+    case MEM_TYPE_MEMFD:
+        backend = g_strdup("-object memory-backend-memfd");
+        break;
     case MEM_TYPE_ANON:
         backend = g_strdup("-object memory-backend-ram");
         share = false;
