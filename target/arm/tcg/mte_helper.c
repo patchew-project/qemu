@@ -196,6 +196,23 @@ uint8_t *allocation_tag_mem_probe(CPUARMState *env, int ptr_mmu_idx,
 #endif
 }
 
+static void canonical_tag_write_fail(CPUARMState *env,
+                                uint64_t dirty_ptr, uintptr_t ra)
+{
+    uint64_t syn;
+
+    env->exception.vaddress = dirty_ptr;
+
+    /* bit 42 is TnD */
+    syn = (1l << 42) | syn_data_abort_no_iss(arm_current_el(env) != 0,
+            0, 0, 0, 0, 1, 0b1110);
+    raise_exception_ra(env, EXCP_DATA_ABORT, syn, exception_target_el(env), ra);
+    g_assert_not_reached();
+
+}
+
+
+
 static uint8_t *allocation_tag_mem(CPUARMState *env, int ptr_mmu_idx,
                                    uint64_t ptr, MMUAccessType ptr_access,
                                    int ptr_size, MMUAccessType tag_access,
@@ -332,6 +349,11 @@ static inline void do_stg(CPUARMState *env, uint64_t ptr, uint64_t xt,
     int mmu_idx = arm_env_mmu_index(env);
     uint8_t *mem;
 
+    if (mtx_check(env, 1 & (ptr >> 55))) {
+        canonical_tag_write_fail(env, ptr, ra);
+        return;
+    }
+
     check_tag_aligned(env, ptr, ra);
 
     /* Trap if accessing an invalid page.  */
@@ -359,6 +381,11 @@ void HELPER(stg_stub)(CPUARMState *env, uint64_t ptr)
     int mmu_idx = arm_env_mmu_index(env);
     uintptr_t ra = GETPC();
 
+    if (mtx_check(env, 1 & (ptr >> 55))) {
+        canonical_tag_write_fail(env, ptr, ra);
+        return;
+    }
+
     check_tag_aligned(env, ptr, ra);
     probe_write(env, ptr, TAG_GRANULE, mmu_idx, ra);
 }
@@ -369,6 +396,11 @@ static inline void do_st2g(CPUARMState *env, uint64_t ptr, uint64_t xt,
     int mmu_idx = arm_env_mmu_index(env);
     int tag = allocation_tag_from_addr(xt);
     uint8_t *mem1, *mem2;
+
+    if (mtx_check(env, 1 & (ptr >> 55))) {
+        canonical_tag_write_fail(env, ptr, ra);
+        return;
+    }
 
     check_tag_aligned(env, ptr, ra);
 
@@ -417,6 +449,11 @@ void HELPER(st2g_stub)(CPUARMState *env, uint64_t ptr)
     int mmu_idx = arm_env_mmu_index(env);
     uintptr_t ra = GETPC();
     int in_page = -(ptr | TARGET_PAGE_MASK);
+
+    if (mtx_check(env, 1 & (ptr >> 55))) {
+        canonical_tag_write_fail(env, ptr, ra);
+        return;
+    }
 
     check_tag_aligned(env, ptr, ra);
 
@@ -504,6 +541,11 @@ void HELPER(stgm)(CPUARMState *env, uint64_t ptr, uint64_t val)
 
     ptr = QEMU_ALIGN_DOWN(ptr, gm_bs_bytes);
 
+    if (mtx_check(env, 1 & (ptr >> 55))) {
+        canonical_tag_write_fail(env, ptr, ra);
+        return;
+    }
+
     /* Trap if accessing an invalid page.  */
     tag_mem = allocation_tag_mem(env, mmu_idx, ptr, MMU_DATA_STORE,
                                  gm_bs_bytes, MMU_DATA_LOAD, ra);
@@ -549,6 +591,11 @@ void HELPER(stzgm_tags)(CPUARMState *env, uint64_t ptr, uint64_t val)
     int log2_dcz_bytes, log2_tag_bytes;
     intptr_t dcz_bytes, tag_bytes;
     uint8_t *mem;
+
+    if (mtx_check(env, 1 & (ptr >> 55))) {
+        canonical_tag_write_fail(env, ptr, ra);
+        return;
+    }
 
     /*
      * In arm_cpu_realizefn, we assert that dcz > LOG2_TAG_GRANULE+1,
