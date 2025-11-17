@@ -430,15 +430,14 @@ static void throttle_group_restart_queue(ThrottleGroupMember *tgm,
                                         ThrottleDirection direction)
 {
     Coroutine *co;
+    if (timer_pending(tgm->throttle_timers.timers[direction])) {
+        return;
+    }
     RestartData *rd = g_new0(RestartData, 1);
 
     rd->tgm = tgm;
     rd->direction = direction;
 
-    /* This function is called when a timer is fired or when
-     * throttle_group_restart_tgm() is called. Either way, there can
-     * be no timer pending on this tgm at this point */
-    assert(!timer_pending(tgm->throttle_timers.timers[direction]));
 
     qatomic_inc(&tgm->restart_pending);
 
