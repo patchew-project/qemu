@@ -293,10 +293,6 @@ def prepare_env(cfg, silent = False):
         # ubuntu
         os.environ['GCC5_ARM_PREFIX'] = 'arm-linux-gnueabi-'
         os.environ['GCC_ARM_PREFIX'] = 'arm-linux-gnueabi-'
-    elif binary_exists('arm-linux-gnu-gcc'):
-        # fedora
-        os.environ['GCC5_ARM_PREFIX'] = 'arm-linux-gnu-'
-        os.environ['GCC_ARM_PREFIX'] = 'arm-linux-gnu-'
     if binary_exists('loongarch64-linux-gnu-gcc'):
         os.environ['GCC5_LOONGARCH64_PREFIX'] = 'loongarch64-linux-gnu-'
         os.environ['GCC_LOONGARCH64_PREFIX'] = 'loongarch64-linux-gnu-'
