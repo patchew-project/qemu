@@ -279,9 +279,14 @@ uint64_t HELPER(ldg)(CPUARMState *env, uint64_t ptr, uint64_t xt)
     mem = allocation_tag_mem(env, mmu_idx, ptr, MMU_DATA_LOAD, 1,
                              MMU_DATA_LOAD, GETPC());
 
-    /* Load if page supports tags. */
+    /* Load if page supports tags. Set to canonical value if MTX is set. */
     if (mem) {
-        rtag = load_tag1(ptr, mem);
+        uint64_t bit55 = extract64(ptr, 55, 1);
+        if (mtx_check(env, bit55)) {
+            rtag = 0xF * bit55;
+        } else {
+            rtag = load_tag1(ptr, mem);
+        }
     }
 
     return address_with_allocation_tag(xt, rtag);
@@ -442,6 +447,11 @@ uint64_t HELPER(ldgm)(CPUARMState *env, uint64_t ptr)
     /* The tag is squashed to zero if the page does not support tags.  */
     if (!tag_mem) {
         return 0;
+    }
+
+    if (mtx_check(env, extract64(ptr, 55, 1))) {
+        shift = extract64(ptr, LOG2_TAG_GRANULE, 4) * 4;
+        return (~0) << shift;
     }
 
     /*
