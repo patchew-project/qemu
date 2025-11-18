@@ -1548,6 +1548,7 @@ static void amdvi_handle_control_write(AMDVIState *s)
     s->cmdbuf_enabled = s->enabled && !!(control &
                         AMDVI_MMIO_CONTROL_CMDBUFLEN);
     s->ga_enabled = !!(control & AMDVI_MMIO_CONTROL_GAEN);
+    s->xten = !!(control & AMDVI_MMIO_CONTROL_XTEN) && s->xtsup;
 
     /* update the flags depending on the control register */
     if (s->cmdbuf_enabled) {
@@ -2020,7 +2021,7 @@ static int amdvi_int_remap_ga(AMDVIState *iommu,
     irq->vector = irte.hi.fields.vector;
     irq->dest_mode = irte.lo.fields_remap.dm;
     irq->redir_hint = irte.lo.fields_remap.rq_eoi;
-    if (iommu->xtsup) {
+    if (iommu->xten) {
         irq->dest = irte.lo.fields_remap.destination |
                     (irte.hi.fields.destination_hi << 24);
     } else {
