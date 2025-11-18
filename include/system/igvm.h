@@ -16,6 +16,7 @@
 #include "system/igvm-cfg.h"
 #include "qapi/error.h"
 
+IgvmHandle qigvm_file_init(char *filename, Error **errp);
 int qigvm_process_file(IgvmCfg *igvm, ConfidentialGuestSupport *cgs,
                       bool onlyVpContext, Error **errp);
 

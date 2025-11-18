@@ -15,6 +15,8 @@
 #include "qom/object.h"
 #include "hw/resettable.h"
 
+#include <igvm/igvm.h>
+
 typedef struct IgvmCfg {
     ObjectClass parent_class;
 
@@ -24,6 +26,7 @@ typedef struct IgvmCfg {
      *           format.
      */
     char *filename;
+    IgvmHandle file;
     ResettableState reset_state;
 } IgvmCfg;
 
