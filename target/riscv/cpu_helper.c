@@ -154,22 +154,30 @@ RISCVPmPmm riscv_pm_get_pmm(CPURISCVState *env)
         }
         break;
     case PRV_S:
-        if (riscv_cpu_cfg(env)->ext_smnpm) {
-            if (get_field(env->mstatus, MSTATUS_MPV)) {
-                return get_field(env->henvcfg, HENVCFG_PMM);
-            } else {
+        if (!env->virt_enabled) {
+            if (riscv_cpu_cfg(env)->ext_smnpm) {
                 return get_field(env->menvcfg, MENVCFG_PMM);
+            }
+        } else {
+            if (riscv_cpu_cfg(env)->ext_ssnpm) {
+                return get_field(env->henvcfg, HENVCFG_PMM);
             }
         }
         break;
     case PRV_U:
-        if (riscv_has_ext(env, RVS)) {
+        if (!env->virt_enabled) {
             if (riscv_cpu_cfg(env)->ext_ssnpm) {
                 return get_field(env->senvcfg, SENVCFG_PMM);
             }
-        } else {
+
             if (riscv_cpu_cfg(env)->ext_smnpm) {
-                return get_field(env->menvcfg, MENVCFG_PMM);
+                if (!riscv_has_ext(env, RVS)) {
+                    return get_field(env->menvcfg, MENVCFG_PMM);
+                }
+            }
+        } else {
+            if (riscv_cpu_cfg(env)->ext_ssnpm) {
+                return get_field(env->senvcfg, SENVCFG_PMM);
             }
         }
         break;
