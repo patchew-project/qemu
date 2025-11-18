@@ -18,6 +18,8 @@
 #include "system/address-spaces.h"
 #include "hw/core/cpu.h"
 
+#include "trace.h"
+
 #include <igvm/igvm.h>
 #include <igvm/igvm_defs.h>
 
@@ -884,6 +886,8 @@ IgvmHandle qigvm_file_init(char *filename, Error **errp)
         error_setg(errp, "Unable to parse IGVM file %s: %d", filename, igvm);
         return -1;
     }
+
+    trace_igvm_file_loaded(filename, igvm);
     return igvm;
 }
 
@@ -901,6 +905,7 @@ int qigvm_process_file(IgvmCfg *cfg, ConfidentialGuestSupport *cgs,
         return -1;
     }
     ctx.file = cfg->file;
+    trace_igvm_process_file(cfg->file, onlyVpContext);
 
     /*
      * The ConfidentialGuestSupport object is optional and allows a confidential
