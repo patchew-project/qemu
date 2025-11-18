@@ -13,6 +13,7 @@
 #define QEMU_IGVM_CFG_H
 
 #include "qom/object.h"
+#include "hw/resettable.h"
 
 typedef struct IgvmCfg {
     ObjectClass parent_class;
@@ -23,6 +24,7 @@ typedef struct IgvmCfg {
      *           format.
      */
     char *filename;
+    ResettableState reset_state;
 } IgvmCfg;
 
 typedef struct IgvmCfgClass {
