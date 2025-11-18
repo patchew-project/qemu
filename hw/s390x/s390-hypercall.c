@@ -42,6 +42,18 @@ static int handle_virtio_ccw_notify(uint64_t subch_id, uint64_t data)
     if (!sch || !css_subch_visible(sch)) {
         return -EINVAL;
     }
+    if (sch->id.cu_type != VIRTIO_CCW_CU_TYPE) {
+        /*
+         * This might happen in nested setups: If the L1 host defined the
+         * L2 guest with a virtio device (e.g. virtio-keyboard), and the
+         * L2 guest passes this device through to the L3 guest, the L3 guest
+         * might send virtio notifications to the QEMU in L2 for that device.
+         * But since the QEMU in L2 defined this device as vfio-ccw, it's not
+         * a VirtIODevice that we can handle here!
+         */
+        warn_report_once("Got virtio notification for unsupported device!");
+        return -EINVAL;
+    }
 
     vdev = virtio_ccw_get_vdev(sch);
     if (vq_idx >= VIRTIO_QUEUE_MAX || !virtio_queue_get_num(vdev, vq_idx)) {
