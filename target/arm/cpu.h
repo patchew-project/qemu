@@ -1044,6 +1044,18 @@ struct ArchCPU {
     /* KVM steal time */
     OnOffAuto kvm_steal_time;
 
+    /*
+     * Register indexes that must be hidden. Although normally
+     * supported (defined in TCG description or exposed by KVM) they are
+     * willingly hidden for migration sake. This may be used to allow
+     * backward migration to older versions that do implement a specific
+     * feature. With KVM acceleration the indexes are the ones described
+     * in linux/Documentation/virt/kvm/api.rst. With TCG, this is the TCG
+     * sysreg index.
+     */
+    uint64_t *hidden_regs;
+    uint32_t nr_hidden_regs;
+
     /* Uniprocessor system with MP extensions */
     bool mp_is_up;
 
@@ -1183,6 +1195,17 @@ struct ARMCPUClass {
     DeviceRealize parent_realize;
     ResettablePhases parent_phases;
 };
+
+static inline bool
+arm_cpu_hidden_reg(ARMCPU *cpu, uint64_t regidx)
+{
+    for (int i = 0; i < cpu->nr_hidden_regs; i++) {
+        if (cpu->hidden_regs[i] == regidx) {
+            return true;
+        }
+    }
+    return false;
+}
 
 /* Callback functions for the generic timer's timers. */
 void arm_gt_ptimer_cb(void *opaque);
