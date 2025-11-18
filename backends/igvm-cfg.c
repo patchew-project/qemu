@@ -15,6 +15,8 @@
 #include "system/igvm.h"
 #include "system/reset.h"
 #include "qom/object_interfaces.h"
+#include "hw/qdev-core.h"
+#include "hw/boards.h"
 
 #include "trace.h"
 
@@ -44,7 +46,12 @@ static void igvm_reset_enter(Object *obj, ResetType type)
 
 static void igvm_reset_hold(Object *obj, ResetType type)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
+    IgvmCfg *igvm = IGVM_CFG(obj);
+
     trace_igvm_reset_hold(type);
+
+    qigvm_process_file(igvm, ms->cgs, false, &error_fatal);
 }
 
 static void igvm_reset_exit(Object *obj, ResetType type)
