@@ -35,28 +35,13 @@
 #include "kvm/kvm_i386.h"
 #include "qemu/iova-tree.h"
 
-/* used AMD-Vi MMIO registers */
-const char *amdvi_mmio_low[] = {
-    "AMDVI_MMIO_DEVTAB_BASE",
-    "AMDVI_MMIO_CMDBUF_BASE",
-    "AMDVI_MMIO_EVTLOG_BASE",
-    "AMDVI_MMIO_CONTROL",
-    "AMDVI_MMIO_EXCL_BASE",
-    "AMDVI_MMIO_EXCL_LIMIT",
-    "AMDVI_MMIO_EXT_FEATURES",
-    "AMDVI_MMIO_PPR_BASE",
-    "UNHANDLED"
-};
-const char *amdvi_mmio_high[] = {
-    "AMDVI_MMIO_COMMAND_HEAD",
-    "AMDVI_MMIO_COMMAND_TAIL",
-    "AMDVI_MMIO_EVTLOG_HEAD",
-    "AMDVI_MMIO_EVTLOG_TAIL",
-    "AMDVI_MMIO_STATUS",
-    "AMDVI_MMIO_PPR_HEAD",
-    "AMDVI_MMIO_PPR_TAIL",
-    "UNHANDLED"
-};
+#define MMIO_REG_TO_STRING(mmio_reg, name) {\
+    case mmio_reg: \
+        name = #mmio_reg; \
+        break; \
+}
+
+#define MMIO_NAME_SIZE 50
 
 struct AMDVIAddressSpace {
     PCIBus *bus;                /* PCIBus (for bus number)              */
@@ -1484,31 +1469,48 @@ static void amdvi_cmdbuf_run(AMDVIState *s)
     }
 }
 
-static inline uint8_t amdvi_mmio_get_index(hwaddr addr)
+static inline void amdvi_mmio_get_name(hwaddr addr,
+                                       char mmio_name[MMIO_NAME_SIZE])
 {
-    uint8_t index = (addr & ~0x2000) / 8;
+    const char *name = NULL;
 
-    if ((addr & 0x2000)) {
-        /* high table */
-        index = index >= AMDVI_MMIO_REGS_HIGH ? AMDVI_MMIO_REGS_HIGH : index;
-    } else {
-        index = index >= AMDVI_MMIO_REGS_LOW ? AMDVI_MMIO_REGS_LOW : index;
+    switch (addr) {
+    MMIO_REG_TO_STRING(AMDVI_MMIO_DEVICE_TABLE, name)
+    MMIO_REG_TO_STRING(AMDVI_MMIO_COMMAND_BASE, name)
+    MMIO_REG_TO_STRING(AMDVI_MMIO_EVENT_BASE, name)
+    MMIO_REG_TO_STRING(AMDVI_MMIO_CONTROL, name)
+    MMIO_REG_TO_STRING(AMDVI_MMIO_EXCL_BASE, name)
+    MMIO_REG_TO_STRING(AMDVI_MMIO_EXCL_LIMIT, name)
+    MMIO_REG_TO_STRING(AMDVI_MMIO_EXT_FEATURES, name)
+    MMIO_REG_TO_STRING(AMDVI_MMIO_COMMAND_HEAD, name)
+    MMIO_REG_TO_STRING(AMDVI_MMIO_COMMAND_TAIL, name)
+    MMIO_REG_TO_STRING(AMDVI_MMIO_EVENT_HEAD, name)
+    MMIO_REG_TO_STRING(AMDVI_MMIO_EVENT_TAIL, name)
+    MMIO_REG_TO_STRING(AMDVI_MMIO_STATUS, name)
+    MMIO_REG_TO_STRING(AMDVI_MMIO_PPR_BASE, name)
+    MMIO_REG_TO_STRING(AMDVI_MMIO_PPR_HEAD, name)
+    MMIO_REG_TO_STRING(AMDVI_MMIO_PPR_TAIL, name)
+    default:
+        name = "UNHANDLED";
     }
 
-    return index;
+    strncpy(mmio_name, name, MMIO_NAME_SIZE);
 }
 
 static void amdvi_mmio_trace_read(hwaddr addr, unsigned size)
 {
-    uint8_t index = amdvi_mmio_get_index(addr);
-    trace_amdvi_mmio_read(amdvi_mmio_low[index], addr, size, addr & ~0x07);
+    char mmio_name[MMIO_NAME_SIZE];
+
+    amdvi_mmio_get_name(addr, mmio_name);
+    trace_amdvi_mmio_read(mmio_name, addr, size, addr & ~0x07);
 }
 
 static void amdvi_mmio_trace_write(hwaddr addr, unsigned size, uint64_t val)
 {
-    uint8_t index = amdvi_mmio_get_index(addr);
-    trace_amdvi_mmio_write(amdvi_mmio_low[index], addr, size, val,
-                           addr & ~0x07);
+    char mmio_name[MMIO_NAME_SIZE];
+
+    amdvi_mmio_get_name(addr, mmio_name);
+    trace_amdvi_mmio_write(mmio_name, addr, size, val, addr & ~0x07);
 }
 
 static uint64_t amdvi_mmio_read(void *opaque, hwaddr addr, unsigned size)
