@@ -9,6 +9,9 @@ import sys
 import tempfile
 
 
+DELETE_TEMPFILE = not os.getenv("QEMU_TEST_KEEP_SCRATCH", False)
+
+
 def get_formats(backend):
     formats = [
         "c",
@@ -49,7 +52,8 @@ def test_tracetool_one(tracetool, backend, fmt, src_dir, build_dir):
         check_call(args, cwd=build_dir)
         actual = actual_file.read_text()
     finally:
-        actual_file.unlink()
+        if DELETE_TEMPFILE:
+            actual_file.unlink()
 
     if os.getenv("QEMU_TEST_REGENERATE", False):
         print(f"# regenerate {expect_file}")
@@ -84,14 +88,25 @@ def test_tracetool(tracetool, backend, source_dir, build_dir):
             except Exception as e:
                 print(f"# {e}")
                 fail = True
+
+                if DELETE_TEMPFILE:
+                    tempfile_hint = (
+                        "QEMU_TEST_KEEP_SCRATCH=1 to preserve test output "
+                        + "files"
+                    )
+                else:
+                    tempfile_hint = f"check test output files in {build_dir}"
+
                 hint = (
                     " (set QEMU_TEST_REGENERATE=1 to recreate reference "
-                    + "output if tracetool generator was intentionally changed)"
+                    + "output if tracetool generator was intentionally "
+                    + "changed or " + tempfile_hint + ")"
                 )
             finally:
                 print(f"{status} {num} - {backend}.{fmt}{hint}")
     finally:
-        build_events.unlink()
+        if DELETE_TEMPFILE:
+            build_events.unlink()
 
     return fail
 
@@ -102,7 +117,8 @@ if __name__ == "__main__":
         print("syntax: {argv0} TRACE-TOOL BACKEND SRC-DIR BUILD-DIR", file=sys.stderr)
         sys.exit(1)
 
-    with tempfile.TemporaryDirectory(prefix=sys.argv[4]) as tmpdir:
+    with tempfile.TemporaryDirectory(prefix=sys.argv[4],
+                                     delete=DELETE_TEMPFILE) as tmpdir:
         fail = test_tracetool(sys.argv[1], sys.argv[2], sys.argv[3], tmpdir)
         if fail:
             sys.exit(1)
