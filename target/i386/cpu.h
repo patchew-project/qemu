@@ -609,6 +609,9 @@ typedef enum X86Seg {
 
 #define XSTATE_DYNAMIC_MASK             (XSTATE_XTILE_DATA_MASK)
 
+#define XSTATE_XTILE_MASK               (XSTATE_XTILE_DATA_MASK | \
+                                         XSTATE_XTILE_CFG_MASK)
+
 #define ESA_FEATURE_ALIGN64_BIT         1
 #define ESA_FEATURE_XFD_BIT             2
 

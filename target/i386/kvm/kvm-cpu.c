@@ -136,7 +136,7 @@ static void kvm_cpu_max_instance_init(X86CPU *cpu)
 static void kvm_cpu_xsave_init(void)
 {
     static bool first = true;
-    uint32_t eax, ebx, ecx, edx;
+    uint32_t eax, ebx, ecx, unused;
     int i;
 
     if (!first) {
@@ -154,12 +154,23 @@ static void kvm_cpu_xsave_init(void)
         if (!esa->size) {
             continue;
         }
-        host_cpuid(0xd, i, &eax, &ebx, &ecx, &edx);
-        if (eax != 0) {
-            assert(esa->size == eax);
-            esa->offset = ebx;
-            esa->ecx = ecx;
+
+        /*
+         * AMX xstates are supported in KVM_GET_SUPPORTED_CPUID only when
+         * XSTATE_XTILE_DATA_MASK gets guest permission in
+         * kvm_request_xsave_components().
+         */
+        if (!((1 << i) & XSTATE_XTILE_MASK)) {
+            eax = kvm_arch_get_supported_cpuid(kvm_state, 0xd, i, R_EAX);
+            ebx = kvm_arch_get_supported_cpuid(kvm_state, 0xd, i, R_EBX);
+            ecx = kvm_arch_get_supported_cpuid(kvm_state, 0xd, i, R_ECX);
+        } else {
+            host_cpuid(0xd, i, &eax, &ebx, &ecx, &unused);
         }
+
+        assert(esa->size == eax);
+        esa->offset = ebx;
+        esa->ecx = ecx;
     }
 }
 
