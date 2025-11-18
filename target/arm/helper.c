@@ -236,8 +236,11 @@ static void add_cpreg_to_list(gpointer key, gpointer value, gpointer opaque)
     uint32_t regidx = (uintptr_t)key;
     const ARMCPRegInfo *ri = value;
 
+    if (arm_cpu_hidden_reg(cpu, regidx)) {
+        return;
+    }
     if (!(ri->type & (ARM_CP_NO_RAW | ARM_CP_ALIAS))) {
-        cpu->cpreg_indexes[cpu->cpreg_array_len] = cpreg_to_kvm_id(regidx);
+        cpu->cpreg_indexes[cpu->cpreg_array_len] = kvm_regidx;
         /* The value array need not be initialized at this point */
         cpu->cpreg_array_len++;
     }
@@ -247,6 +250,11 @@ static void count_cpreg(gpointer key, gpointer value, gpointer opaque)
 {
     ARMCPU *cpu = opaque;
     const ARMCPRegInfo *ri = value;
+    uint32_t regidx = (uintptr_t)key;
+
+    if (arm_cpu_hidden_reg(cpu, regidx)) {
+        return;
+    }
 
     if (!(ri->type & (ARM_CP_NO_RAW | ARM_CP_ALIAS))) {
         cpu->cpreg_array_len++;
