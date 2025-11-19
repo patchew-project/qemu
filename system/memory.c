@@ -1899,7 +1899,7 @@ bool memory_region_is_protected(MemoryRegion *mr)
 
 bool memory_region_has_guest_memfd_private(MemoryRegion *mr)
 {
-    return mr->ram_block && mr->ram_block->guest_memfd >= 0;
+    return mr->ram_block && mr->ram_block->guest_memfd_private >= 0;
 }
 
 uint8_t memory_region_get_dirty_log_mask(MemoryRegion *mr)
