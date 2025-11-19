@@ -3324,7 +3324,8 @@ static uint64_t aa64_dczid_read(CPUARMState *env, const ARMCPRegInfo *ri)
     if (aa64_zva_access(env, NULL, false) == CP_ACCESS_OK) {
         dzp_bit = 0;
     }
-    return cpu->dcz_blocksize | dzp_bit;
+
+    return cpu->isar.idregs[DCZID_EL0_IDX] | dzp_bit;
 }
 
 static CPAccessResult sp_el0_access(CPUARMState *env, const ARMCPRegInfo *ri,

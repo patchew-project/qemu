@@ -2020,6 +2020,13 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
     cpu->mp_affinity = mpidr & ARM64_AFFINITY_MASK;
 
+    /*
+     * We currently do not need this, except for tcg. Should KVM gain support
+     * for accessing DCZID_EL0 via ONE_REG, we'll overwrite this below. Just
+     * set a dummy value that corresponds to the minimum value for FEAT_MTE2.
+     */
+    set_dcz_blocksize(cpu, 2);
+
     return kvm_arm_init_cpreg_list(cpu);
 }
 
