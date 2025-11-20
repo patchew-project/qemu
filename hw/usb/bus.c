@@ -262,7 +262,7 @@ static void usb_qdev_realize(DeviceState *qdev, Error **errp)
         int fd = qemu_open_old(dev->pcap_filename,
                                O_CREAT | O_WRONLY | O_TRUNC | O_BINARY, 0666);
         if (fd < 0) {
-            error_setg(errp, "open %s failed", dev->pcap_filename);
+            error_setg_file_open(errp, errno, dev->pcap_filename);
             usb_qdev_unrealize(qdev);
             return;
         }
