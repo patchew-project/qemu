@@ -140,7 +140,7 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
     }
 
     if (update_badinstr) {
-        env->CSR_BADI = cpu_ldl_code(env, env->pc);
+        env->CSR_BADI = cpu_ldl_le_code(env, env->pc);
     }
 
     /* Save PLV and IE */
