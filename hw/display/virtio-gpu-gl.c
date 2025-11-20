@@ -78,7 +78,7 @@ static void virtio_gpu_gl_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         }
         /* fallthrough */
     case RS_START:
-        if (virtio_gpu_virgl_init(g)) {
+        if (virtio_gpu_virgl_init(g) < 0) {
             gl->renderer_state = RS_INIT_FAILED;
             return;
         }
