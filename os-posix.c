@@ -94,6 +94,18 @@ static struct passwd *user_pwd;    /*   NULL   non-NULL   NULL   */
 static uid_t user_uid = (uid_t)-1; /*   -1      -1        >=0    */
 static gid_t user_gid = (gid_t)-1; /*   -1      -1        >=0    */
 
+void os_set_socket_permissions(const char *path)
+{
+    uid_t uid = user_pwd ? user_pwd->pw_uid : user_uid;
+    gid_t gid = user_pwd ? user_pwd->pw_gid : user_gid;
+
+    if (chown(path, uid, gid) < 0) {
+        error_report("Failed to chown socket %s: %s", path, strerror(errno));
+        exit(1);
+    }
+}
+
+
 /*
  * Prepare to change user ID. user_id can be one of 3 forms:
  *   - a username, in which case user ID will be changed to its uid,

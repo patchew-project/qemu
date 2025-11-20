@@ -54,6 +54,7 @@ void os_set_chroot(const char *path);
 void os_setup_limits(void);
 void os_setup_post(void);
 int os_mlock(bool on_fault);
+void os_set_socket_permissions(const char *path);
 
 /**
  * qemu_alloc_stack:

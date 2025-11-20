@@ -57,6 +57,7 @@ static inline int os_set_daemonize(bool d)
 };
 bool is_daemonized(void);
 static inline void os_daemonize(void) {}
+static inline void os_set_socket_permissions(const char *dummy) {};
 
 /**
  * qemu_alloc_stack:

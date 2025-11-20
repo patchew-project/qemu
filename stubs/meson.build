@@ -24,6 +24,7 @@ if have_block
   stub_ss.add(files('ram-block.c'))
   stub_ss.add(files('runstate-check.c'))
   stub_ss.add(files('uuid.c'))
+  stub_ss.add(files('os-file.c'))
 endif
 
 if have_block or have_ga

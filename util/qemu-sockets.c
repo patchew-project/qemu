@@ -1026,6 +1026,12 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
         error_setg_errno(errp, errno, "Failed to bind socket to %s", path);
         goto err;
     }
+    /*
+     * Change the permissions on the socket to match the permission of the
+     * counterparty process
+     */
+    os_set_socket_permissions(un.sun_path);
+
     if (listen(sock, num) < 0) {
         error_setg_errno(errp, errno, "Failed to listen on socket");
         goto err;

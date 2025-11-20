@@ -103,6 +103,7 @@ static inline void os_setup_post(void) {}
 static inline void os_set_proc_name(const char *dummy) {}
 void os_set_line_buffering(void);
 void os_setup_early_signal_handling(void);
+static inline void os_set_socket_permissions(const char *dummy) {};
 
 int getpagesize(void);
 
