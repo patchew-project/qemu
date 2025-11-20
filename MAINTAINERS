@@ -362,6 +362,7 @@ M: Nicolas Pitre <npitre@baylibre.com>
 M: Drew Fustini <fustini@kernel.org>
 L: qemu-riscv@nongnu.org
 S: Supported
+F: hw/riscv/cbqri_capacity.c
 F: include/hw/riscv/cbqri.h
 
 RENESAS RX CPUs
