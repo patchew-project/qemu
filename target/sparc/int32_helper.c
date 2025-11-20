@@ -151,7 +151,7 @@ void sparc_cpu_do_interrupt(CPUState *cs)
         if (!env->fsr_qne) {
             env->fsr_qne = FSR_QNE;
             env->fq.s.addr = env->pc;
-            env->fq.s.insn = cpu_ldl_code(env, env->pc);
+            env->fq.s.insn = cpu_ldl_be_code(env, env->pc);
         }
         env->pc = env->npc;
         env->npc = env->npc + 4;
