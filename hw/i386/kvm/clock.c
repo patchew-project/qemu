@@ -42,6 +42,7 @@ struct KVMClockState {
 
     /* whether the 'clock' value was obtained in the 'paused' state */
     bool runstate_paused;
+    RunState state;
 
     /* whether machine type supports reliable KVM_GET_CLOCK */
     bool mach_use_reliable_get_clock;
@@ -107,7 +108,10 @@ static void kvm_update_clock(KVMClockState *s)
         fprintf(stderr, "KVM_GET_CLOCK failed: %s\n", strerror(-ret));
                 abort();
     }
-    s->clock = data.clock;
+
+    if (s->state != RUN_STATE_FINISH_MIGRATE) {
+        s->clock = data.clock;
+    }
 
     /* If kvm_has_adjust_clock_stable() is false, KVM_GET_CLOCK returns
      * essentially CLOCK_MONOTONIC plus a guest-specific adjustment.  This
@@ -216,6 +220,8 @@ static void kvmclock_vm_state_change(void *opaque, bool running,
          */
         s->clock_valid = true;
     }
+
+    s->state = state;
 }
 
 static void kvmclock_realize(DeviceState *dev, Error **errp)
