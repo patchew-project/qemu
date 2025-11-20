@@ -371,8 +371,7 @@ qmp_screendump(const char *filename, const char *device,
 
     fd = qemu_open_old(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666);
     if (fd == -1) {
-        error_setg(errp, "failed to open file '%s': %s", filename,
-                   strerror(errno));
+        error_setg_file_open(errp, errno, filename);
         return;
     }
 
