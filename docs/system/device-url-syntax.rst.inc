@@ -43,6 +43,14 @@ These are specified using a special URL syntax.
       LIBISCSI_CHAP_PASSWORD="password" \\
       |qemu_system| -drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
 
+   Note on path parsing: If a local filename used with a device
+   option (e.g., ``-cdrom``) contains a colon (``:``), QEMU may
+   interpret it as a URL protocol; use the explicit prefix ``file:``
+   (e.g. ``-cdrom file:foo:bar.iso``) or a path with ``./`` in it
+   (e.g. ``-cdrom ./foo:bar.iso``) to ensure correct local file
+   resolution, and avoid using ``file://`` which may lead to
+   incorrect path resolution.
+
 ``NBD``
    QEMU supports NBD (Network Block Devices) both using TCP protocol as
    well as Unix Domain Sockets. With TCP, the default port is 10809.
