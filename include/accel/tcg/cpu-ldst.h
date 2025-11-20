@@ -523,14 +523,4 @@ static inline uint64_t cpu_ldq_be_code(CPUArchState *env, abi_ptr addr)
     return cpu_ldq_code_mmu(env, addr, oi, 0);
 }
 
-#if TARGET_BIG_ENDIAN
-# define cpu_lduw_code        cpu_lduw_be_code
-# define cpu_ldl_code         cpu_ldl_be_code
-# define cpu_ldq_code         cpu_ldq_be_code
-#else
-# define cpu_lduw_code        cpu_lduw_le_code
-# define cpu_ldl_code         cpu_ldl_le_code
-# define cpu_ldq_code         cpu_ldq_le_code
-#endif
-
 #endif /* ACCEL_TCG_CPU_LDST_H */
