@@ -196,9 +196,8 @@ virtio_gpu_virgl_unmap_resource_blob(VirtIOGPU *g,
 
         ret = virgl_renderer_resource_unmap(res->base.resource_id);
         if (ret) {
-            qemu_log_mask(LOG_GUEST_ERROR,
-                          "%s: failed to unmap virgl resource: %s\n",
-                          __func__, strerror(-ret));
+            error_report("%s: failed to unmap virgl resource: %s",
+                         __func__, strerror(-ret));
             return -1;
         }
     } else {
