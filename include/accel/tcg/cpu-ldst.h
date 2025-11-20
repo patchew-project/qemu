@@ -481,25 +481,56 @@ static inline uint32_t cpu_ldub_code(CPUArchState *env, abi_ptr addr)
     return cpu_ldb_code_mmu(env, addr, oi, 0);
 }
 
-static inline uint32_t cpu_lduw_code(CPUArchState *env, abi_ptr addr)
+static inline uint32_t cpu_lduw_le_code(CPUArchState *env, abi_ptr addr)
 {
     CPUState *cs = env_cpu(env);
-    MemOpIdx oi = make_memop_idx(MO_TEUW, cpu_mmu_index(cs, true));
+    MemOpIdx oi = make_memop_idx(MO_LEUW, cpu_mmu_index(cs, true));
     return cpu_ldw_code_mmu(env, addr, oi, 0);
 }
 
-static inline uint32_t cpu_ldl_code(CPUArchState *env, abi_ptr addr)
+static inline uint32_t cpu_ldl_le_code(CPUArchState *env, abi_ptr addr)
 {
     CPUState *cs = env_cpu(env);
-    MemOpIdx oi = make_memop_idx(MO_TEUL, cpu_mmu_index(cs, true));
+    MemOpIdx oi = make_memop_idx(MO_LEUL, cpu_mmu_index(cs, true));
     return cpu_ldl_code_mmu(env, addr, oi, 0);
 }
 
-static inline uint64_t cpu_ldq_code(CPUArchState *env, abi_ptr addr)
+static inline uint64_t cpu_ldq_le_code(CPUArchState *env, abi_ptr addr)
 {
     CPUState *cs = env_cpu(env);
-    MemOpIdx oi = make_memop_idx(MO_TEUQ, cpu_mmu_index(cs, true));
+    MemOpIdx oi = make_memop_idx(MO_LEUQ, cpu_mmu_index(cs, true));
     return cpu_ldq_code_mmu(env, addr, oi, 0);
 }
+
+static inline uint32_t cpu_lduw_be_code(CPUArchState *env, abi_ptr addr)
+{
+    CPUState *cs = env_cpu(env);
+    MemOpIdx oi = make_memop_idx(MO_BEUW, cpu_mmu_index(cs, true));
+    return cpu_ldw_code_mmu(env, addr, oi, 0);
+}
+
+static inline uint32_t cpu_ldl_be_code(CPUArchState *env, abi_ptr addr)
+{
+    CPUState *cs = env_cpu(env);
+    MemOpIdx oi = make_memop_idx(MO_BEUL, cpu_mmu_index(cs, true));
+    return cpu_ldl_code_mmu(env, addr, oi, 0);
+}
+
+static inline uint64_t cpu_ldq_be_code(CPUArchState *env, abi_ptr addr)
+{
+    CPUState *cs = env_cpu(env);
+    MemOpIdx oi = make_memop_idx(MO_BEUQ, cpu_mmu_index(cs, true));
+    return cpu_ldq_code_mmu(env, addr, oi, 0);
+}
+
+#if TARGET_BIG_ENDIAN
+# define cpu_lduw_code        cpu_lduw_be_code
+# define cpu_ldl_code         cpu_ldl_be_code
+# define cpu_ldq_code         cpu_ldq_be_code
+#else
+# define cpu_lduw_code        cpu_lduw_le_code
+# define cpu_ldl_code         cpu_ldl_le_code
+# define cpu_ldq_code         cpu_ldq_le_code
+#endif
 
 #endif /* ACCEL_TCG_CPU_LDST_H */
