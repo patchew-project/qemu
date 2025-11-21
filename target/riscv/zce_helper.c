@@ -44,10 +44,10 @@ target_ulong HELPER(cm_jalt)(CPURISCVState *env, uint32_t index)
 
     if (xlen == 32) {
         t0 = base + (index << 2);
-        target = cpu_ldl_code(env, t0);
+        target = cpu_ldl_le_code(env, t0);
     } else {
         t0 = base + (index << 3);
-        target = cpu_ldq_code(env, t0);
+        target = cpu_ldq_le_code(env, t0);
     }
 
     return target & ~0x1;
