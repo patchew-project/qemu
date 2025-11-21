@@ -39,6 +39,7 @@
 #include <winhvplatformdefs.h>
 
 bool whpx_allowed;
+bool whpx_irqchip_in_kernel;
 static bool whp_dispatch_initialized;
 static HMODULE hWinHvPlatform;
 #ifdef __x86_64__
@@ -491,15 +492,6 @@ static const TypeInfo whpx_cpu_accel_type = {
     .class_init = whpx_cpu_accel_class_init,
     .abstract = true,
 };
-
-/*
- * Partition support
- */
-
-bool whpx_irqchip_in_kernel(void)
-{
-    return whpx_global.kernel_irqchip;
-}
 
 static void whpx_accel_class_init(ObjectClass *oc, const void *data)
 {
