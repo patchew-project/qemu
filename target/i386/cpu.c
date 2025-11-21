@@ -495,6 +495,78 @@ static void encode_topo_cpuid1f(CPUX86State *env, uint32_t count,
     assert(!(*eax & ~0x1f));
 }
 
+/*
+ * CPUID_Fn80000026: Extended CPU Topology
+ *
+ * EAX Bits Description
+ * 31:5 Reserved
+ *  4:0 Number of bits to shift Extended APIC ID right to get a unique
+ *      topology ID of the current hierarchy level.
+ *
+ * EBX Bits Description
+ * 31:16 Reserved
+ * 15:0  Number of logical processors at the current hierarchy level.
+ *
+ * ECX Bits Description
+ * 31:16 Reserved
+ * 15:8  Level Type. Values:
+ *       Value   Description
+ *       0h      Reserved
+ *       1h      Core
+ *       2h      Complex
+ *       3h      Die
+ *       4h      Socket
+ *       FFh-05h Reserved
+ * 7:0   Input ECX
+ *
+ * EDX Bits Description
+ * 31:0 Extended APIC ID of the logical processor
+ */
+static void encode_topo_cpuid80000026(CPUX86State *env, uint32_t count,
+                                X86CPUTopoInfo *topo_info,
+                                uint32_t *eax, uint32_t *ebx,
+                                uint32_t *ecx, uint32_t *edx)
+{
+    X86CPU *cpu = env_archcpu(env);
+    uint32_t shift, nr_logproc, lvl_type;
+
+    switch (count) {
+    case 0:
+        shift = apicid_core_offset(topo_info);
+        nr_logproc = num_threads_by_topo_level(topo_info, CPU_TOPOLOGY_LEVEL_CORE);
+        lvl_type = 1;
+        break;
+
+    case 1:
+        shift = apicid_die_offset(topo_info);
+        nr_logproc = num_threads_by_topo_level(topo_info, CPU_TOPOLOGY_LEVEL_DIE);
+        lvl_type = 2;
+        break;
+
+    case 2:
+        shift = apicid_die_offset(topo_info);
+        nr_logproc = num_threads_by_topo_level(topo_info, CPU_TOPOLOGY_LEVEL_DIE);
+        lvl_type = 3;
+        break;
+
+    case 3:
+        shift = apicid_pkg_offset(topo_info);
+        nr_logproc = num_threads_by_topo_level(topo_info, CPU_TOPOLOGY_LEVEL_SOCKET);
+        lvl_type = 4;
+        break;
+
+    default:
+        shift = 0;
+        nr_logproc = 0;
+        lvl_type = 0;
+    }
+
+    *eax = shift & 0x1F;
+    *ebx = nr_logproc;
+    *ecx = ((lvl_type & 0xFF) << 8) | (count & 0xFF);
+    *edx = cpu->apic_id;
+}
+
 /* Encode cache info for CPUID[0x80000005].ECX or CPUID[0x80000005].EDX */
 static uint32_t encode_cache_cpuid80000005(CPUCacheInfo *cache)
 {
@@ -8553,6 +8625,10 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             *ebx |= kvm_arch_get_supported_cpuid(cs->kvm_state, index, count,
                                                  R_EBX) & 0xf;
         }
+        break;
+    case 0x80000026:
+        /* AMD Extended CPU Topology */
+        encode_topo_cpuid80000026(env, count, topo_info, eax, ebx, ecx, edx);
         break;
     case 0xC0000000:
         *eax = env->cpuid_xlevel2;

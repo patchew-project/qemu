@@ -2037,6 +2037,23 @@ uint32_t kvm_x86_build_cpuid(CPUX86State *env, struct kvm_cpuid_entry2 *entries,
                 c = &entries[cpuid_i++];
             }
             break;
+        case 0x80000026:
+            /* Query for all AMD extended topology information leaves */
+            for (j = 0; ; j++) {
+                c->function = i;
+                c->flags = KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
+                c->index = j;
+                cpu_x86_cpuid(env, i, j, &c->eax, &c->ebx, &c->ecx, &c->edx);
+
+                if (((c->ecx >> 8) & 0xFF) == 0) {
+                    break;
+                }
+                if (cpuid_i == KVM_MAX_CPUID_ENTRIES) {
+                    goto full;
+                }
+                c = &entries[cpuid_i++];
+            }
+            break;
         default:
             c->function = i;
             c->flags = 0;
