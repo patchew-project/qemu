@@ -264,6 +264,9 @@ virtio_gpu_base_get_features(VirtIODevice *vdev, uint64_t features,
     if (virtio_gpu_resource_uuid_enabled(g->conf)) {
         features |= (1 << VIRTIO_GPU_F_RESOURCE_UUID);
     }
+    if (virtio_gpu_resource_userptr_enabled(g->conf)) {
+        features |= (1 << VIRTIO_GPU_F_RESOURCE_USERPTR);
+    }
 
     return features;
 }
