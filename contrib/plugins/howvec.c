@@ -321,7 +321,7 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
 
         if (cnt) {
             if (do_inline) {
-                qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(
+                qemu_plugin_register_inline_per_vcpu(
                     insn, QEMU_PLUGIN_INLINE_ADD_U64,
                     qemu_plugin_scoreboard_u64(cnt), 1);
             } else {

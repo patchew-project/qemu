@@ -244,15 +244,15 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
         void *insn_store = insn;
         void *mem_store = (char *)insn_store + 0xff;
 
-        qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(
+        qemu_plugin_register_inline_per_vcpu(
             insn, QEMU_PLUGIN_INLINE_STORE_U64, data_insn,
             (uintptr_t) insn_store);
         qemu_plugin_register_vcpu_insn_exec_cb(
             insn, vcpu_insn_exec, QEMU_PLUGIN_CB_NO_REGS, insn_store);
-        qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(
+        qemu_plugin_register_inline_per_vcpu(
             insn, QEMU_PLUGIN_INLINE_ADD_U64, count_insn_inline, 1);
 
-        qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(
+        qemu_plugin_register_inline_per_vcpu(
             insn, QEMU_PLUGIN_INLINE_ADD_U64, insn_cond_track_count, 1);
         qemu_plugin_register_vcpu_insn_exec_cond_cb(
             insn, vcpu_insn_cond_exec, QEMU_PLUGIN_CB_NO_REGS,

@@ -320,14 +320,14 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
      * check where we are at. Do this on the first instruction and not
      * the TB so we don't get mixed up with above.
      */
-    qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(first_insn,
-                                                      QEMU_PLUGIN_INLINE_STORE_U64,
-                                                      end_block, qemu_plugin_insn_vaddr(last_insn));
-    qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(first_insn,
-                                                      QEMU_PLUGIN_INLINE_STORE_U64,
-                                                      pc_after_block,
-                                                      qemu_plugin_insn_vaddr(last_insn) +
-                                                      qemu_plugin_insn_size(last_insn));
+    qemu_plugin_register_inline_per_vcpu(first_insn,
+                                         QEMU_PLUGIN_INLINE_STORE_U64,
+                                         end_block, qemu_plugin_insn_vaddr(last_insn));
+    qemu_plugin_register_inline_per_vcpu(first_insn,
+                                         QEMU_PLUGIN_INLINE_STORE_U64,
+                                         pc_after_block,
+                                         qemu_plugin_insn_vaddr(last_insn) +
+                                         qemu_plugin_insn_size(last_insn));
 
     for (int idx = 0; idx < qemu_plugin_tb_n_insns(tb); ++idx) {
         struct qemu_plugin_insn *insn = qemu_plugin_tb_get_insn(tb, idx);
@@ -355,9 +355,9 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
         }
 
         /* Store the PC of what we are about to execute */
-        qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(insn,
-                                                            QEMU_PLUGIN_INLINE_STORE_U64,
-                                                            last_pc, ipc);
+        qemu_plugin_register_inline_per_vcpu(insn,
+                                             QEMU_PLUGIN_INLINE_STORE_U64,
+                                             last_pc, ipc);
     }
 }
 
