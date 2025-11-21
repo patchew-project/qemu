@@ -2292,6 +2292,9 @@ struct ArchCPU {
     /* Force to enable cpuid 0x1f */
     bool force_cpuid_0x1f;
 
+    /* Force to enable cpuid 0x80000026 */
+    bool force_cpuid_0x80000026;
+
     /* Enable auto level-increase for all CPUID leaves */
     bool full_cpuid_auto_level;
 
@@ -2878,6 +2881,21 @@ void x86_cpu_xrstor_all_areas(X86CPU *cpu, const void *buf, uint32_t buflen);
 void x86_cpu_xsave_all_areas(X86CPU *cpu, void *buf, uint32_t buflen);
 uint32_t xsave_area_size(uint64_t mask, bool compacted);
 void x86_update_hflags(CPUX86State* env);
+
+static inline bool x86_is_amd_zen4_or_above(X86CPU *cpu)
+{
+    uint32_t family = x86_cpu_family(cpu->env.cpuid_version);
+    uint32_t model = x86_cpu_model(cpu->env.cpuid_version);
+
+    if (!IS_AMD_CPU(&cpu->env) || family < 0x19) {
+        return false;
+    }
+    if (family > 0x19) {
+        return true;
+    }
+    return (model >= 0x10 && model <= 0x1f) ||
+           (model >= 0x60 && model <= 0xaf);
+}
 
 static inline bool hyperv_feat_enabled(X86CPU *cpu, int feat)
 {

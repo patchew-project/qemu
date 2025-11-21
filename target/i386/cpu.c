@@ -9158,6 +9158,12 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         if (env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_SGX) {
             x86_cpu_adjust_level(cpu, &env->cpuid_min_level, 0x12);
         }
+
+        /* Enable CPUID[0x80000026] for AMD Genoa models and above */
+        if (cpu->force_cpuid_0x80000026 ||
+            (!xcc->model && x86_is_amd_zen4_or_above(cpu))) {
+            x86_cpu_adjust_level(cpu, &env->cpuid_min_xlevel, 0x80000026);
+        }
     }
 
     /* Set cpuid_*level* based on cpuid_min_*level, if not explicitly set */
@@ -10133,6 +10139,8 @@ static const Property x86_cpu_properties[] = {
                      arch_cap_always_on, false),
     DEFINE_PROP_BOOL("x-pdcm-on-even-without-pmu", X86CPU,
                      pdcm_on_even_without_pmu, false),
+    DEFINE_PROP_BOOL("x-force-cpuid-0x80000026", X86CPU, force_cpuid_0x80000026,
+                     false),
 };
 
 #ifndef CONFIG_USER_ONLY
