@@ -6748,6 +6748,7 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                 .version = 2,
                 .props = (PropValue[]) {
                     { "x-force-cpuid-0x80000026", "on" },
+                    { "bus-lock-detect", "on" },
                     { /* end of list */ }
                 }
             },
