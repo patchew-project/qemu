@@ -997,18 +997,30 @@ static void set_hflags_for_handler(CPUMIPSState *env)
     }
 }
 
+static uint16_t lduw_code(CPUMIPSState *env, target_ulong addr)
+{
+    return mips_env_is_bigendian(env) ? cpu_lduw_be_code(env, addr)
+                                      : cpu_lduw_le_code(env, addr);
+}
+
+static uint32_t ldl_code(CPUMIPSState *env, target_ulong addr)
+{
+    return mips_env_is_bigendian(env) ? cpu_ldl_be_code(env, addr)
+                                      : cpu_ldl_le_code(env, addr);
+}
+
 static inline void set_badinstr_registers(CPUMIPSState *env)
 {
     if (env->insn_flags & ISA_NANOMIPS32) {
         if (env->CP0_Config3 & (1 << CP0C3_BI)) {
-            uint32_t instr = (cpu_lduw_code(env, env->active_tc.PC)) << 16;
+            uint32_t instr = (lduw_code(env, env->active_tc.PC)) << 16;
             if ((instr & 0x10000000) == 0) {
-                instr |= cpu_lduw_code(env, env->active_tc.PC + 2);
+                instr |= lduw_code(env, env->active_tc.PC + 2);
             }
             env->CP0_BadInstr = instr;
 
             if ((instr & 0xFC000000) == 0x60000000) {
-                instr = cpu_lduw_code(env, env->active_tc.PC + 4) << 16;
+                instr = lduw_code(env, env->active_tc.PC + 4) << 16;
                 env->CP0_BadInstrX = instr;
             }
         }
@@ -1020,11 +1032,11 @@ static inline void set_badinstr_registers(CPUMIPSState *env)
         return;
     }
     if (env->CP0_Config3 & (1 << CP0C3_BI)) {
-        env->CP0_BadInstr = cpu_ldl_code(env, env->active_tc.PC);
+        env->CP0_BadInstr = ldl_code(env, env->active_tc.PC);
     }
     if ((env->CP0_Config3 & (1 << CP0C3_BP)) &&
         (env->hflags & MIPS_HFLAG_BMASK)) {
-        env->CP0_BadInstrP = cpu_ldl_code(env, env->active_tc.PC - 4);
+        env->CP0_BadInstrP = ldl_code(env, env->active_tc.PC - 4);
     }
 }
 
