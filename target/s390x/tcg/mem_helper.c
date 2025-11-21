@@ -2437,7 +2437,7 @@ void HELPER(ex)(CPUS390XState *env, uint32_t ilen, uint64_t r1, uint64_t addr)
         tcg_s390_program_interrupt(env, PGM_SPECIFICATION, GETPC());
     }
 
-    insn = cpu_lduw_code(env, addr);
+    insn = cpu_lduw_be_code(env, addr);
     opc = insn >> 8;
 
     /* Or in the contents of R1[56:63].  */
@@ -2449,10 +2449,10 @@ void HELPER(ex)(CPUS390XState *env, uint32_t ilen, uint64_t r1, uint64_t addr)
     case 2:
         break;
     case 4:
-        insn |= (uint64_t)cpu_lduw_code(env, addr + 2) << 32;
+        insn |= (uint64_t)cpu_lduw_be_code(env, addr + 2) << 32;
         break;
     case 6:
-        insn |= (uint64_t)(uint32_t)cpu_ldl_code(env, addr + 2) << 16;
+        insn |= (uint64_t)(uint32_t)cpu_ldl_be_code(env, addr + 2) << 16;
         break;
     default:
         g_assert_not_reached();
