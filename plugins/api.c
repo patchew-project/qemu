@@ -154,7 +154,7 @@ void qemu_plugin_register_vcpu_insn_exec_cond_cb(
                                        cond, entry, imm, udata);
 }
 
-void qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(
+void qemu_plugin_register_inline_per_vcpu(
     struct qemu_plugin_insn *insn,
     enum qemu_plugin_op op,
     qemu_plugin_u64 entry,

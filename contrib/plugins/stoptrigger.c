@@ -73,10 +73,12 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
 
         if (exit_on_icount) {
             /* Increment and check scoreboard for each instruction */
-            qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(
-                insn, QEMU_PLUGIN_INLINE_ADD_U64, insn_count, 1);
-            qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(
-                insn, QEMU_PLUGIN_INLINE_STORE_U64, current_pc, insn_vaddr);
+            qemu_plugin_register_inline_per_vcpu(insn,
+                                                 QEMU_PLUGIN_INLINE_ADD_U64,
+                                                 insn_count, 1);
+            qemu_plugin_register_inline_per_vcpu(insn,
+                                                 QEMU_PLUGIN_INLINE_STORE_U64,
+                                                 current_pc, insn_vaddr);
             qemu_plugin_register_vcpu_insn_exec_cond_cb(
                 insn, exit_icount_reached, QEMU_PLUGIN_CB_NO_REGS,
                 QEMU_PLUGIN_COND_EQ, insn_count, icount + 1, NULL);
