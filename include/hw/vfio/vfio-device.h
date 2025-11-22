@@ -309,6 +309,20 @@ int vfio_get_region_index_from_mr(MemoryRegion *mr);
  * Returns the VFIO device if found or NULL.
  */
 VFIODevice *vfio_device_lookup(MemoryRegion *mr);
+
+/**
+ * Create and return a dmabuf fd by first translating the addresses in the
+ * iovec array into VFIO region offsets and then invoking the
+ * VFIO_DEVICE_FEATURE_DMA_BUF feature.
+ *
+ * @vbasedev: #VFIODevice to use
+ * @iov: array of iovec entries associated with a buffer
+ * @iov_cnt: number of entries in the iovec array
+ *
+ * Returns the newly created dmabuf fd or -1 on error.
+ */
+int vfio_device_create_dmabuf_fd(VFIODevice *vbasedev,
+                                 struct iovec *iov, unsigned int iov_cnt);
 #endif
 
 /* Returns 0 on success, or a negative errno. */
