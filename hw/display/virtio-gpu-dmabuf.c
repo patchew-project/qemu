@@ -27,6 +27,19 @@
 #include "standard-headers/linux/udmabuf.h"
 #include "standard-headers/drm/drm_fourcc.h"
 
+static bool ram_block_is_memfd_backed(RAMBlock *rb)
+{
+    int ret;
+
+    if (rb && rb->fd > 0) {
+	ret = fcntl(rb->fd, F_GET_SEALS);
+	if (ret > 0) {
+	    return true;
+	}
+    }
+    return false;
+}
+
 static void virtio_gpu_create_udmabuf(struct virtio_gpu_simple_resource *res)
 {
     struct udmabuf_create_list *list;
@@ -94,20 +107,14 @@ static void virtio_gpu_destroy_dmabuf(struct virtio_gpu_simple_resource *res)
 static int find_memory_backend_type(Object *obj, void *opaque)
 {
     bool *memfd_backend = opaque;
-    int ret;
 
     if (object_dynamic_cast(obj, TYPE_MEMORY_BACKEND)) {
         HostMemoryBackend *backend = MEMORY_BACKEND(obj);
-        RAMBlock *rb = backend->mr.ram_block;
 
-        if (rb && rb->fd > 0) {
-            ret = fcntl(rb->fd, F_GET_SEALS);
-            if (ret > 0) {
-                *memfd_backend = true;
-            }
+        if (ram_block_is_memfd_backed(backend->mr.ram_block)) {
+            *memfd_backend = true;
         }
     }
-
     return 0;
 }
 
