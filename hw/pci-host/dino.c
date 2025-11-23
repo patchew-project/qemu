@@ -466,7 +466,7 @@ static void dino_pcihost_realize(DeviceState *dev, Error **errp)
                              30 * DINO_MEM_CHUNK_SIZE);
     memory_region_init_alias(&s->bm_cpu_alias, OBJECT(s),
                              "bm-cpu", s->memory_as, 0xfff00000,
-                             0xfffff);
+                             1 * MiB);
     memory_region_add_subregion(&s->bm, 0,
                                 &s->bm_ram_alias);
     memory_region_add_subregion(&s->bm,
