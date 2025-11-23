@@ -17,8 +17,6 @@
 #include "hw/ide/ide-bus.h"
 #include "system/kvm.h"
 #include "hw/i386/kvm/clock.h"
-#include "hw/xen/xen-x86.h"
-#include "system/xen.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "target/i386/cpu.h"
 
@@ -37,7 +35,6 @@ static void pc_init_isa(MachineState *machine)
     ISABus *isa_bus;
     uint32_t irq;
     GSIState *gsi_state;
-    MemoryRegion *ram_memory;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     int i;
 
@@ -77,15 +74,9 @@ static void pc_init_isa(MachineState *machine)
     /*
      * There is no RAM split for the isapc machine
      */
-    if (xen_enabled()) {
-        xen_hvm_init_pc(pcms, &ram_memory);
-    } else {
-        ram_memory = machine->ram;
-
-        pcms->max_ram_below_4g = 3.5 * GiB;
-        x86ms->above_4g_mem_size = 0;
-        x86ms->below_4g_mem_size = machine->ram_size;
-    }
+    pcms->max_ram_below_4g = 3.5 * GiB;
+    x86ms->above_4g_mem_size = 0;
+    x86ms->below_4g_mem_size = machine->ram_size;
 
     x86_cpus_init(x86ms, pcmc->default_cpu_version);
 
@@ -94,17 +85,7 @@ static void pc_init_isa(MachineState *machine)
     }
 
     /* allocate ram and load rom/bios */
-    if (!xen_enabled()) {
-        pc_memory_init(pcms, system_memory, system_memory, 0);
-    } else {
-        assert(machine->ram_size == x86ms->below_4g_mem_size +
-                                    x86ms->above_4g_mem_size);
-
-        if (machine->kernel_filename != NULL) {
-            /* For xen HVM direct kernel boot, load linux here */
-            xen_load_linux(pcms);
-        }
-    }
+    pc_memory_init(pcms, system_memory, system_memory, 0);
 
     gsi_state = pc_gsi_create(&x86ms->gsi, false);
 
