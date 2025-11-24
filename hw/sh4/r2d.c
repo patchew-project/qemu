@@ -253,6 +253,7 @@ static void r2d_init(MachineState *machine)
     USBBus *usb_bus;
     r2d_fpga_t *fpga;
     const hwaddr flash_base = EXT_CS_BASE(0);
+    const hwaddr fpga_base = EXT_CS_BASE(1);
     hwaddr sdram_base;
     uint64_t sdram_size = machine->ram_size;
 
@@ -278,7 +279,7 @@ static void r2d_init(MachineState *machine)
     memory_region_add_subregion(address_space_mem, sdram_base, sdram);
     /* Register peripherals */
     s = sh7750_init(cpu, address_space_mem);
-    fpga = r2d_fpga_init(address_space_mem, 0x04000000, sh7750_irl(s));
+    fpga = r2d_fpga_init(address_space_mem, fpga_base, sh7750_irl(s));
 
     dev = qdev_new("sh_pci");
     busdev = SYS_BUS_DEVICE(dev);
