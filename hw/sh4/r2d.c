@@ -252,7 +252,7 @@ static void r2d_init(MachineState *machine)
     USBBus *usb_bus;
     r2d_fpga_t *fpga;
     hwaddr sdram_base;
-    uint64_t sdram_size = SDRAM_SIZE;
+    uint64_t sdram_size = machine->ram_size;
 
     switch (machine->ram_size) {
     case 64 * MiB:
@@ -272,7 +272,7 @@ static void r2d_init(MachineState *machine)
     qemu_register_reset(main_cpu_reset, reset_info);
 
     /* Allocate memory space */
-    memory_region_init_ram(sdram, NULL, "r2d.sdram", sdram_size, &error_fatal);
+    memory_region_init_alias(sdram, NULL, "sdram", machine->ram, 0, sdram_size);
     memory_region_add_subregion(address_space_mem, sdram_base, sdram);
     /* Register peripherals */
     s = sh7750_init(cpu, address_space_mem);
@@ -396,6 +396,8 @@ static void r2d_machine_init(MachineClass *mc)
     mc->init = r2d_init;
     mc->block_default_type = IF_IDE;
     mc->default_cpu_type = TYPE_SH7751R_CPU;
+    mc->default_ram_size = 64 * MiB;
+    mc->default_ram_id = "ram";
     mc->default_nic = "rtl8139";
 }
 
