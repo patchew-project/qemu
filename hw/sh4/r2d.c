@@ -45,10 +45,11 @@
 #include "hw/block/flash.h"
 #include "exec/tswap.h"
 
-#define FLASH_BASE 0x00000000
+#define EXT_CS_SIZE (64 * MiB)
+#define EXT_CS_BASE(cs_index) ((cs_index) * EXT_CS_SIZE)
+
 #define FLASH_SIZE (16 * MiB)
 
-#define SDRAM_BASE 0x0c000000 /* Physical location of SDRAM: Area 3 */
 #define SDRAM_SIZE 0x04000000
 
 #define SM501_VRAM_SIZE 0x800000
@@ -256,7 +257,7 @@ static void r2d_init(MachineState *machine)
 
     switch (machine->ram_size) {
     case 64 * MiB:
-        sdram_base = SDRAM_BASE;
+        sdram_base = EXT_CS_BASE(3); /* 64M @CS3 */
         break;
     default:
         error_report("This machine can only use 64M of memory");
