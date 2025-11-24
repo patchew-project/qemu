@@ -255,6 +255,7 @@ static void r2d_init(MachineState *machine)
     const hwaddr flash_base = EXT_CS_BASE(0);
     const hwaddr fpga_base = EXT_CS_BASE(1);
     const hwaddr sm501_base = EXT_CS_BASE(4);
+    const hwaddr isa_base = EXT_CS_BASE(5);
     hwaddr sdram_base;
     uint64_t sdram_size = machine->ram_size;
 
@@ -310,8 +311,8 @@ static void r2d_init(MachineState *machine)
     sysbus_connect_irq(busdev, 0, &fpga->irq[CF_IDE]);
     qdev_prop_set_uint32(dev, "shift", 1);
     sysbus_realize_and_unref(busdev, &error_fatal);
-    sysbus_mmio_map(busdev, 0, 0x14001000);
-    sysbus_mmio_map(busdev, 1, 0x1400080c);
+    sysbus_mmio_map(busdev, 0, isa_base + 0x1000);
+    sysbus_mmio_map(busdev, 1, isa_base + 0x080c);
     mmio_ide_init_drives(dev, dinfo, NULL);
 
     /*
