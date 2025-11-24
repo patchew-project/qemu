@@ -1375,7 +1375,8 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev,
     pstrcpy(pci_dev->name, sizeof(pci_dev->name), name);
 
     memory_region_init(&pci_dev->bus_master_container_region, OBJECT(pci_dev),
-                       "bus master container", UINT64_MAX);
+                       "bus master container",
+                       memory_region_size(bus->address_space_mem));
     address_space_init(&pci_dev->bus_master_as,
                        &pci_dev->bus_master_container_region, pci_dev->name);
     pci_dev->bus_master_as.max_bounce_buffer_size =
