@@ -263,8 +263,11 @@ static void r2d_init(MachineState *machine)
     case 64 * MiB:
         sdram_base = EXT_CS_BASE(3); /* 64M @CS3 */
         break;
+    case 128 * MiB:
+        sdram_base = EXT_CS_BASE(2); /* 64M @CS2, 64M@CS3 */
+        break;
     default:
-        error_report("This machine can only use 64M of memory");
+        error_report("This machine can only use 64M or 128M of memory");
         exit(EXIT_FAILURE);
     }
 
@@ -356,9 +359,11 @@ static void r2d_init(MachineState *machine)
 
         /* initialization which should be done by firmware */
         address_space_stl(&address_space_memory, SH7750_BCR1,
+                          (1 << 2) | /* Areas 2  accessed as SDRAM */
                           (1 << 3) | /* Areas 3  accessed as SDRAM */
                           0, MEMTXATTRS_UNSPECIFIED, NULL);
         address_space_stw(&address_space_memory, SH7750_BCR2,
+                          (0b11 << 2 * 2) | /* Area 2 Bus width is 32 bits */
                           (0b11 << 2 * 3) | /* Area 3 Bus width is 32 bits */
                           (0b10 << 14) |    /* Area 0 Bus Width is 16 bits */
                           0, MEMTXATTRS_UNSPECIFIED, NULL);
