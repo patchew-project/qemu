@@ -635,7 +635,7 @@ static ssize_t load_uboot_image(const char *filename, hwaddr *ep,
     uboot_image_header_t *hdr = &h;
     uint8_t *data = NULL;
     int ret = -1;
-    int do_uncompress = 0;
+    bool do_uncompress = false;
 
     fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0)
@@ -685,7 +685,8 @@ static ssize_t load_uboot_image(const char *filename, hwaddr *ep,
         case IH_COMP_NONE:
             break;
         case IH_COMP_GZIP:
-            do_uncompress = 1;
+        case IH_COMP_ZSTD:
+            do_uncompress = true;
             break;
         default:
             fprintf(stderr,
@@ -747,10 +748,23 @@ static ssize_t load_uboot_image(const char *filename, hwaddr *ep,
         max_bytes = UBOOT_MAX_GUNZIP_BYTES;
         data = g_malloc(max_bytes);
 
-        bytes = gunzip(data, max_bytes, compressed_data, hdr->ih_size);
+        switch (hdr->ih_comp) {
+        case IH_COMP_GZIP:
+            bytes = gunzip(data, max_bytes, compressed_data, hdr->ih_size);
+            break;
+#ifdef CONFIG_ZSTD
+        case IH_COMP_ZSTD: {
+            size_t ret = ZSTD_decompress(data, max_bytes,
+                                         compressed_data, hdr->ih_size);
+            bytes = ZSTD_isError(ret) ? -1 : (ssize_t) ret;
+            } break;
+#endif
+        default:
+            g_assert_not_reached();
+        }
         g_free(compressed_data);
         if (bytes < 0) {
-            fprintf(stderr, "Unable to decompress gzipped image!\n");
+            fprintf(stderr, "Unable to decompress image!\n");
             goto out;
         }
         hdr->ih_size = bytes;
