@@ -355,6 +355,7 @@ static void r2d_init(MachineState *machine)
                           0, MEMTXATTRS_UNSPECIFIED, NULL);
         address_space_stw(&address_space_memory, SH7750_BCR2,
                           (0b11 << 2 * 3) | /* Area 3 Bus width is 32 bits */
+                          (0b10 << 14) |    /* Area 0 Bus Width is 16 bits */
                           0, MEMTXATTRS_UNSPECIFIED, NULL);
         /* Start from P2 area */
         reset_info->vector = (sdram_base + LINUX_LOAD_OFFSET) | 0xa0000000;
