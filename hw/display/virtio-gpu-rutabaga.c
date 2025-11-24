@@ -466,7 +466,7 @@ rutabaga_cmd_attach_backing(VirtIOGPU *g, struct virtio_gpu_ctrl_command *cmd)
 
     ret = virtio_gpu_create_mapping_iov(g, att_rb.nr_entries, sizeof(att_rb),
                                         cmd, NULL, &res->iov, &res->iov_cnt);
-    CHECK(!ret, cmd);
+    CHECK(ret >= 0, cmd);
 
     vecs.iovecs = res->iov;
     vecs.num_iovecs = res->iov_cnt;
@@ -616,7 +616,7 @@ rutabaga_cmd_resource_create_blob(VirtIOGPU *g,
         result = virtio_gpu_create_mapping_iov(g, cblob.nr_entries,
                                                sizeof(cblob), cmd, &res->addrs,
                                                &res->iov, &res->iov_cnt);
-        CHECK(!result, cmd);
+        CHECK(result >= 0, cmd);
     }
 
     rc_blob.blob_id = cblob.blob_id;
