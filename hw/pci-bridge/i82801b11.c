@@ -75,7 +75,7 @@ static void i82801b11_bridge_realize(PCIDevice *d, Error **errp)
     return;
 
 err_bridge:
-    pci_bridge_exitfn(d);
+    pci_bridge_unrealize(d);
 }
 
 static const VMStateDescription i82801b11_bridge_dev_vmstate = {

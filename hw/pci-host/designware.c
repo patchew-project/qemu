@@ -599,7 +599,7 @@ static void designware_pcie_root_class_init(ObjectClass *klass,
     k->device_id = 0xABCD;
     k->revision = 0;
     k->class_id = PCI_CLASS_BRIDGE_PCI;
-    k->exit = pci_bridge_exitfn;
+    k->exit = pci_bridge_unrealize;
     k->realize = designware_pcie_root_realize;
     k->config_read = designware_pcie_root_config_read;
     k->config_write = designware_pcie_root_config_write;

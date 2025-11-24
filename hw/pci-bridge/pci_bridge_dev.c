@@ -122,7 +122,7 @@ slotid_error:
         shpc_cleanup(dev, &bridge_dev->bar);
     }
 shpc_error:
-    pci_bridge_exitfn(dev);
+    pci_bridge_unrealize(dev);
 }
 
 static void pci_bridge_dev_exitfn(PCIDevice *dev)
@@ -137,7 +137,7 @@ static void pci_bridge_dev_exitfn(PCIDevice *dev)
     if (shpc_present(dev)) {
         shpc_cleanup(dev, &bridge_dev->bar);
     }
-    pci_bridge_exitfn(dev);
+    pci_bridge_unrealize(dev);
 }
 
 static void pci_bridge_dev_instance_finalize(Object *obj)

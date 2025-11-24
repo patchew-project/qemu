@@ -72,7 +72,7 @@ static void simba_pci_bridge_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = simba_pci_bridge_realize;
-    k->exit = pci_bridge_exitfn;
+    k->exit = pci_bridge_unrealize;
     k->vendor_id = PCI_VENDOR_ID_SUN;
     k->device_id = PCI_DEVICE_ID_SUN_SIMBA;
     k->revision = 0x11;

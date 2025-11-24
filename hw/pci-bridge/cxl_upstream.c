@@ -351,7 +351,7 @@ err_cap:
 err_msi:
     msi_uninit(d);
 err_bridge:
-    pci_bridge_exitfn(d);
+    pci_bridge_unrealize(d);
 }
 
 static void cxl_usp_exitfn(PCIDevice *d)
@@ -359,7 +359,7 @@ static void cxl_usp_exitfn(PCIDevice *d)
     pcie_aer_exit(d);
     pcie_cap_exit(d);
     msi_uninit(d);
-    pci_bridge_exitfn(d);
+    pci_bridge_unrealize(d);
 }
 
 static const Property cxl_upstream_props[] = {

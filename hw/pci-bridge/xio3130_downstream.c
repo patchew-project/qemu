@@ -120,7 +120,7 @@ err_pcie_cap:
 err_msi:
     msi_uninit(d);
 err_bridge:
-    pci_bridge_exitfn(d);
+    pci_bridge_unrealize(d);
 }
 
 static void xio3130_downstream_exitfn(PCIDevice *d)
@@ -131,7 +131,7 @@ static void xio3130_downstream_exitfn(PCIDevice *d)
     pcie_chassis_del_slot(s);
     pcie_cap_exit(d);
     msi_uninit(d);
-    pci_bridge_exitfn(d);
+    pci_bridge_unrealize(d);
 }
 
 static const Property xio3130_downstream_props[] = {

@@ -198,7 +198,7 @@ static void cxl_dsp_realize(PCIDevice *d, Error **errp)
  err_msi:
     msi_uninit(d);
  err_bridge:
-    pci_bridge_exitfn(d);
+    pci_bridge_unrealize(d);
 }
 
 static void cxl_dsp_exitfn(PCIDevice *d)
@@ -209,7 +209,7 @@ static void cxl_dsp_exitfn(PCIDevice *d)
     pcie_chassis_del_slot(s);
     pcie_cap_exit(d);
     msi_uninit(d);
-    pci_bridge_exitfn(d);
+    pci_bridge_unrealize(d);
 }
 
 static const Property cxl_dsp_props[] = {

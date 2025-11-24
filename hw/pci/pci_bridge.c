@@ -397,7 +397,7 @@ void pci_bridge_initfn(PCIDevice *dev, const char *typename)
 }
 
 /* default qdev clean up function for PCI-to-PCI bridge */
-void pci_bridge_exitfn(PCIDevice *pci_dev)
+void pci_bridge_unrealize(PCIDevice *pci_dev)
 {
     PCIBridge *s = PCI_BRIDGE(pci_dev);
     assert(QLIST_EMPTY(&s->sec_bus.child));

@@ -131,7 +131,7 @@ err_int:
         rpc->interrupts_uninit(d);
     }
 err_bridge:
-    pci_bridge_exitfn(d);
+    pci_bridge_unrealize(d);
 }
 
 static void rp_exit(PCIDevice *d)
@@ -145,7 +145,7 @@ static void rp_exit(PCIDevice *d)
     if (rpc->interrupts_uninit) {
         rpc->interrupts_uninit(d);
     }
-    pci_bridge_exitfn(d);
+    pci_bridge_unrealize(d);
 }
 
 static const Property rp_props[] = {

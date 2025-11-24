@@ -92,7 +92,7 @@ pm_error:
 cap_error:
     shpc_cleanup(d, &pcie_br->shpc_bar);
 error:
-    pci_bridge_exitfn(d);
+    pci_bridge_unrealize(d);
 }
 
 static void pcie_pci_bridge_exit(PCIDevice *d)
@@ -100,7 +100,7 @@ static void pcie_pci_bridge_exit(PCIDevice *d)
     PCIEPCIBridge *bridge_dev = PCIE_PCI_BRIDGE_DEV(d);
     pcie_cap_exit(d);
     shpc_cleanup(d, &bridge_dev->shpc_bar);
-    pci_bridge_exitfn(d);
+    pci_bridge_unrealize(d);
 }
 
 static void pcie_pci_bridge_reset(DeviceState *qdev)
