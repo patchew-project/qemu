@@ -254,6 +254,7 @@ static void r2d_init(MachineState *machine)
     r2d_fpga_t *fpga;
     const hwaddr flash_base = EXT_CS_BASE(0);
     const hwaddr fpga_base = EXT_CS_BASE(1);
+    const hwaddr sm501_base = EXT_CS_BASE(4);
     hwaddr sdram_base;
     uint64_t sdram_size = machine->ram_size;
 
@@ -295,11 +296,11 @@ static void r2d_init(MachineState *machine)
     dev = qdev_new("sysbus-sm501");
     busdev = SYS_BUS_DEVICE(dev);
     qdev_prop_set_uint32(dev, "vram-size", SM501_VRAM_SIZE);
-    qdev_prop_set_uint64(dev, "dma-offset", 0x10000000);
+    qdev_prop_set_uint64(dev, "dma-offset", sm501_base);
     qdev_prop_set_chr(dev, "chardev", serial_hd(2));
     sysbus_realize_and_unref(busdev, &error_fatal);
-    sysbus_mmio_map(busdev, 0, 0x10000000);
-    sysbus_mmio_map(busdev, 1, 0x13e00000);
+    sysbus_mmio_map(busdev, 0, sm501_base);
+    sysbus_mmio_map(busdev, 1, sm501_base + 0x3e00000);
     sysbus_connect_irq(busdev, 0, &fpga->irq[SM501]);
 
     /* onboard CF (True IDE mode, Master only). */
