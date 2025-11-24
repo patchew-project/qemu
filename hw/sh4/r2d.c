@@ -251,6 +251,14 @@ static void r2d_init(MachineState *machine)
     USBBus *usb_bus;
     r2d_fpga_t *fpga;
 
+    switch (machine->ram_size) {
+    case 64 * MiB:
+        break;
+    default:
+        error_report("This machine can only use 64M of memory");
+        exit(EXIT_FAILURE);
+    }
+
     cpu = SUPERH_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
 
