@@ -3325,7 +3325,7 @@ static void rtl8139_timer(void *opaque)
     rtl8139_set_next_tctr_time(s);
 }
 
-static void pci_rtl8139_uninit(PCIDevice *dev)
+static void pci_rtl8139_unrealize(PCIDevice *dev)
 {
     RTL8139State *s = RTL8139(dev);
 
@@ -3421,7 +3421,7 @@ static void rtl8139_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pci_rtl8139_realize;
-    k->exit = pci_rtl8139_uninit;
+    k->unrealize = pci_rtl8139_unrealize;
     k->romfile = "efi-rtl8139.rom";
     k->vendor_id = PCI_VENDOR_ID_REALTEK;
     k->device_id = PCI_DEVICE_ID_REALTEK_8139;

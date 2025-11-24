@@ -62,7 +62,7 @@ static void cswbcci_realize(PCIDevice *pci_dev, Error **errp)
                                  CXL_MAILBOX_MAX_PAYLOAD_SIZE);
 }
 
-static void cswmbcci_exit(PCIDevice *pci_dev)
+static void cswbcci_unrealize(PCIDevice *pci_dev)
 {
     /* Nothing to do here yet */
 }
@@ -78,7 +78,7 @@ static void cswmbcci_class_init(ObjectClass *oc, const void *data)
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
 
     pc->realize = cswbcci_realize;
-    pc->exit = cswmbcci_exit;
+    pc->unrealize = cswbcci_unrealize;
     /* Serial bus, CXL Switch CCI */
     pc->class_id = 0x0c0b;
     /*

@@ -412,7 +412,7 @@ static void esp_pci_scsi_realize(PCIDevice *dev, Error **errp)
     scsi_bus_init(&s->bus, sizeof(s->bus), d, &esp_pci_scsi_info);
 }
 
-static void esp_pci_scsi_exit(PCIDevice *d)
+static void esp_pci_scsi_unrealize(PCIDevice *d)
 {
     PCIESPState *pci = PCI_ESP(d);
     ESPState *s = &pci->esp;
@@ -433,7 +433,7 @@ static void esp_pci_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = esp_pci_scsi_realize;
-    k->exit = esp_pci_scsi_exit;
+    k->unrealize = esp_pci_scsi_unrealize;
     k->vendor_id = PCI_VENDOR_ID_AMD;
     k->device_id = PCI_DEVICE_ID_AMD_SCSI;
     k->revision = 0x10;

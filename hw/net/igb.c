@@ -471,7 +471,7 @@ static void igb_pci_realize(PCIDevice *pci_dev, Error **errp)
                          macaddr);
 }
 
-static void igb_pci_uninit(PCIDevice *pci_dev)
+static void igb_pci_unrealize(PCIDevice *pci_dev)
 {
     IGBState *s = IGB(pci_dev);
 
@@ -606,7 +606,7 @@ static void igb_class_init(ObjectClass *class, const void *data)
     PCIDeviceClass *c = PCI_DEVICE_CLASS(class);
 
     c->realize = igb_pci_realize;
-    c->exit = igb_pci_uninit;
+    c->unrealize = igb_pci_unrealize;
     c->vendor_id = PCI_VENDOR_ID_INTEL;
     c->device_id = E1000_DEV_ID_82576;
     c->revision = 1;

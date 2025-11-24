@@ -9311,7 +9311,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
     }
 }
 
-static void nvme_exit(PCIDevice *pci_dev)
+static void nvme_unrealize(PCIDevice *pci_dev)
 {
     NvmeCtrl *n = NVME(pci_dev);
     NvmeNamespace *ns;
@@ -9509,9 +9509,9 @@ static void nvme_class_init(ObjectClass *oc, const void *data)
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
 
     pc->realize = nvme_realize;
+    pc->unrealize = nvme_unrealize;
     pc->config_write = nvme_pci_write_config;
     pc->config_read = nvme_pci_read_config;
-    pc->exit = nvme_exit;
     pc->class_id = PCI_CLASS_STORAGE_EXPRESS;
     pc->revision = 2;
 

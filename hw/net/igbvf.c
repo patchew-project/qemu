@@ -291,7 +291,7 @@ static void igbvf_qdev_reset_hold(Object *obj, ResetType type)
     igb_vf_reset(pcie_sriov_get_pf(vf), pcie_sriov_vf_number(vf));
 }
 
-static void igbvf_pci_uninit(PCIDevice *dev)
+static void igbvf_pci_unrealize(PCIDevice *dev)
 {
     IgbVfState *s = IGBVF(dev);
 
@@ -308,7 +308,7 @@ static void igbvf_class_init(ObjectClass *class, const void *data)
     ResettableClass *rc = RESETTABLE_CLASS(class);
 
     c->realize = igbvf_pci_realize;
-    c->exit = igbvf_pci_uninit;
+    c->unrealize = igbvf_pci_unrealize;
     c->vendor_id = PCI_VENDOR_ID_INTEL;
     c->device_id = E1000_DEV_ID_82576_VF;
     c->revision = 1;

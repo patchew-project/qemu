@@ -248,7 +248,7 @@ static void kvaser_pci_realize(PCIDevice *pci_dev, Error **errp)
                                             &d->xilinx_io);
 }
 
-static void kvaser_pci_exit(PCIDevice *pci_dev)
+static void kvaser_pci_unrealize(PCIDevice *pci_dev)
 {
     KvaserPCIState *d = KVASER_PCI_DEV(pci_dev);
     CanSJA1000State *s = &d->sja_state;
@@ -288,7 +288,7 @@ static void kvaser_pci_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = kvaser_pci_realize;
-    k->exit = kvaser_pci_exit;
+    k->unrealize = kvaser_pci_unrealize;
     k->vendor_id = KVASER_PCI_VENDOR_ID1;
     k->device_id = KVASER_PCI_DEVICE_ID1;
     k->revision = 0x00;

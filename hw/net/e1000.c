@@ -1590,8 +1590,7 @@ e1000_mmio_setup(E1000State *d)
     memory_region_init_io(&d->io, OBJECT(d), &e1000_io_ops, d, "e1000-io", IOPORT_SIZE);
 }
 
-static void
-pci_e1000_uninit(PCIDevice *dev)
+static void pci_e1000_unrealize(PCIDevice *dev)
 {
     E1000State *d = E1000(dev);
 
@@ -1690,7 +1689,7 @@ static void e1000_class_init(ObjectClass *klass, const void *data)
     const E1000Info *info = data;
 
     k->realize = pci_e1000_realize;
-    k->exit = pci_e1000_uninit;
+    k->unrealize = pci_e1000_unrealize;
     k->romfile = "efi-e1000.rom";
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = info->device_id;

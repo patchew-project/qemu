@@ -123,7 +123,7 @@ err_bridge:
     pci_bridge_unrealize(d);
 }
 
-static void xio3130_downstream_exitfn(PCIDevice *d)
+static void xio3130_downstream_unrealize(PCIDevice *d)
 {
     PCIESlot *s = PCIE_SLOT(d);
 
@@ -160,7 +160,7 @@ static void xio3130_downstream_class_init(ObjectClass *klass, const void *data)
 
     k->config_write = xio3130_downstream_write_config;
     k->realize = xio3130_downstream_realize;
-    k->exit = xio3130_downstream_exitfn;
+    k->unrealize = xio3130_downstream_unrealize;
     k->vendor_id = PCI_VENDOR_ID_TI;
     k->device_id = PCI_DEVICE_ID_TI_XIO3130D;
     k->revision = XIO3130_REVISION;

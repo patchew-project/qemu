@@ -125,7 +125,7 @@ shpc_error:
     pci_bridge_unrealize(dev);
 }
 
-static void pci_bridge_dev_exitfn(PCIDevice *dev)
+static void pci_bridge_dev_unrealize(PCIDevice *dev)
 {
     PCIBridgeDev *bridge_dev = PCI_BRIDGE_DEV(dev);
 
@@ -247,7 +247,7 @@ static void pci_bridge_dev_class_init(ObjectClass *klass, const void *data)
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
     k->realize = pci_bridge_dev_realize;
-    k->exit = pci_bridge_dev_exitfn;
+    k->unrealize = pci_bridge_dev_unrealize;
     k->config_write = pci_bridge_dev_write_config;
     k->vendor_id = PCI_VENDOR_ID_REDHAT;
     k->device_id = PCI_DEVICE_ID_REDHAT_BRIDGE;

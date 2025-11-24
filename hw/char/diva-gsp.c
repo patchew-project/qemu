@@ -186,7 +186,7 @@ static void diva_serial_class_initfn(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
     pc->realize = diva_pci_realize;
-    pc->exit = diva_pci_exit;
+    pc->unrealize = diva_pci_exit;
     pc->vendor_id = PCI_VENDOR_ID_HP;
     pc->device_id = PCI_DEVICE_ID_HP_DIVA;
     pc->subsystem_vendor_id = PCI_VENDOR_ID_HP;
@@ -234,7 +234,7 @@ static void diva_aux_realize(PCIDevice *dev, Error **errp)
     pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &pci->mem);
 }
 
-static void diva_aux_exit(PCIDevice *dev)
+static void diva_aux_unrealize(PCIDevice *dev)
 {
     DivaAuxState *pci = DO_UPCAST(DivaAuxState, dev, dev);
     qemu_free_irq(pci->irq);
@@ -245,7 +245,7 @@ static void diva_aux_class_initfn(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
     pc->realize = diva_aux_realize;
-    pc->exit = diva_aux_exit;
+    pc->unrealize = diva_aux_unrealize;
     pc->vendor_id = PCI_VENDOR_ID_HP;
     pc->device_id = PCI_DEVICE_ID_HP_DIVA_AUX;
     pc->subsystem_vendor_id = PCI_VENDOR_ID_HP;

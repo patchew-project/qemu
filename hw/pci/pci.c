@@ -1454,8 +1454,8 @@ static void pci_qdev_unrealize(DeviceState *dev)
     pci_del_option_rom(pci_dev);
     pcie_sriov_unregister_device(pci_dev);
 
-    if (pc->exit) {
-        pc->exit(pci_dev);
+    if (pc->unrealize) {
+        pc->unrealize(pci_dev);
     }
 
     pci_device_deassert_intx(pci_dev);

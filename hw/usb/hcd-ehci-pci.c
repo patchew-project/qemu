@@ -100,7 +100,7 @@ static void usb_ehci_pci_finalize(Object *obj)
     usb_ehci_finalize(s);
 }
 
-static void usb_ehci_pci_exit(PCIDevice *dev)
+static void usb_ehci_pci_unrealize(PCIDevice *dev)
 {
     EHCIPCIState *i = PCI_EHCI(dev);
     EHCIState *s = &i->ehci;
@@ -156,7 +156,7 @@ static void ehci_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = usb_ehci_pci_realize;
-    k->exit = usb_ehci_pci_exit;
+    k->unrealize = usb_ehci_pci_unrealize;
     k->class_id = PCI_CLASS_SERIAL_USB;
     k->config_write = usb_ehci_pci_write_config;
     dc->vmsd = &vmstate_ehci_pci;

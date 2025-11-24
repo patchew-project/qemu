@@ -354,7 +354,7 @@ err_bridge:
     pci_bridge_unrealize(d);
 }
 
-static void cxl_usp_exitfn(PCIDevice *d)
+static void cxl_usp_unrealize(PCIDevice *d)
 {
     pcie_aer_exit(d);
     pcie_cap_exit(d);
@@ -379,7 +379,7 @@ static void cxl_upstream_class_init(ObjectClass *oc, const void *data)
     k->config_write = cxl_usp_write_config;
     k->config_read = cxl_usp_read_config;
     k->realize = cxl_usp_realize;
-    k->exit = cxl_usp_exitfn;
+    k->unrealize = cxl_usp_unrealize;
     k->vendor_id = 0x19e5; /* Huawei */
     k->device_id = 0xa128; /* Emulated CXL Switch Upstream Port */
     k->revision = 0;

@@ -48,7 +48,7 @@ typedef struct PCIMultiSerialState {
     IRQState     irqs[PCI_SERIAL_MAX_PORTS];
 } PCIMultiSerialState;
 
-static void multi_serial_pci_exit(PCIDevice *dev)
+static void multi_serial_pci_unrealize(PCIDevice *dev)
 {
     PCIMultiSerialState *pci = DO_UPCAST(PCIMultiSerialState, dev, dev);
     SerialState *s;
@@ -104,7 +104,7 @@ static void multi_serial_pci_realize(PCIDevice *dev, Error **errp)
     for (i = 0; i < nports; i++) {
         s = pci->state + i;
         if (!qdev_realize(DEVICE(s), NULL, errp)) {
-            multi_serial_pci_exit(dev);
+            multi_serial_pci_unrealize(dev);
             return;
         }
         s->irq = &pci->irqs[i];
@@ -147,7 +147,7 @@ static void multi_2x_serial_pci_class_initfn(ObjectClass *klass,
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
     pc->realize = multi_serial_pci_realize;
-    pc->exit = multi_serial_pci_exit;
+    pc->unrealize = multi_serial_pci_unrealize;
     pc->vendor_id = PCI_VENDOR_ID_REDHAT;
     pc->device_id = PCI_DEVICE_ID_REDHAT_SERIAL2;
     pc->revision = 1;
@@ -163,7 +163,7 @@ static void multi_4x_serial_pci_class_initfn(ObjectClass *klass,
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
     pc->realize = multi_serial_pci_realize;
-    pc->exit = multi_serial_pci_exit;
+    pc->unrealize = multi_serial_pci_unrealize;
     pc->vendor_id = PCI_VENDOR_ID_REDHAT;
     pc->device_id = PCI_DEVICE_ID_REDHAT_SERIAL4;
     pc->revision = 1;

@@ -450,7 +450,7 @@ static void i6300esb_realize(PCIDevice *dev, Error **errp)
     pci_register_bar(&d->dev, 0, 0, &d->io_mem);
 }
 
-static void i6300esb_exit(PCIDevice *dev)
+static void i6300esb_unrealize(PCIDevice *dev)
 {
     I6300State *d = WATCHDOG_I6300ESB_DEVICE(dev);
 
@@ -465,7 +465,7 @@ static void i6300esb_class_init(ObjectClass *klass, const void *data)
     k->config_read = i6300esb_config_read;
     k->config_write = i6300esb_config_write;
     k->realize = i6300esb_realize;
-    k->exit = i6300esb_exit;
+    k->unrealize = i6300esb_unrealize;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_ESB_9;
     k->class_id = PCI_CLASS_SYSTEM_OTHER;

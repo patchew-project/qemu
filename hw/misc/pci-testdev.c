@@ -304,8 +304,7 @@ static void pci_testdev_realize(PCIDevice *pci_dev, Error **errp)
     }
 }
 
-static void
-pci_testdev_uninit(PCIDevice *dev)
+static void pci_testdev_unrealize(PCIDevice *dev)
 {
     PCITestDevState *d = PCI_TEST_DEV(dev);
     int i;
@@ -337,7 +336,7 @@ static void pci_testdev_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pci_testdev_realize;
-    k->exit = pci_testdev_uninit;
+    k->unrealize = pci_testdev_unrealize;
     k->vendor_id = PCI_VENDOR_ID_REDHAT;
     k->device_id = PCI_DEVICE_ID_REDHAT_TEST;
     k->revision = 0x00;

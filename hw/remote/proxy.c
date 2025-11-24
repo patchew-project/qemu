@@ -129,7 +129,7 @@ static void pci_proxy_dev_realize(PCIDevice *device, Error **errp)
     probe_pci_info(PCI_DEVICE(dev), errp);
 }
 
-static void pci_proxy_dev_exit(PCIDevice *pdev)
+static void pci_proxy_dev_unrealize(PCIDevice *pdev)
 {
     PCIProxyDev *dev = PCI_PROXY_DEV(pdev);
 
@@ -205,7 +205,7 @@ static void pci_proxy_dev_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pci_proxy_dev_realize;
-    k->exit = pci_proxy_dev_exit;
+    k->unrealize = pci_proxy_dev_unrealize;
     k->config_read = pci_proxy_read_config;
     k->config_write = pci_proxy_write_config;
 

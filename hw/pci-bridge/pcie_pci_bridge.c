@@ -95,7 +95,7 @@ error:
     pci_bridge_unrealize(d);
 }
 
-static void pcie_pci_bridge_exit(PCIDevice *d)
+static void pcie_pci_bridge_unrealize(PCIDevice *d)
 {
     PCIEPCIBridge *bridge_dev = PCIE_PCI_BRIDGE_DEV(d);
     pcie_cap_exit(d);
@@ -146,7 +146,7 @@ static void pcie_pci_bridge_class_init(ObjectClass *klass, const void *data)
     k->vendor_id = PCI_VENDOR_ID_REDHAT;
     k->device_id = PCI_DEVICE_ID_REDHAT_PCIE_BRIDGE;
     k->realize = pcie_pci_bridge_realize;
-    k->exit = pcie_pci_bridge_exit;
+    k->unrealize = pcie_pci_bridge_unrealize;
     k->config_write = pcie_pci_bridge_write_config;
     dc->vmsd = &pcie_pci_bridge_dev_vmstate;
     device_class_set_props(dc, pcie_pci_bridge_dev_properties);

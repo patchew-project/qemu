@@ -1328,7 +1328,7 @@ static void mptsas_scsi_realize(PCIDevice *dev, Error **errp)
     scsi_bus_init(&s->bus, sizeof(s->bus), &dev->qdev, &mptsas_scsi_info);
 }
 
-static void mptsas_scsi_uninit(PCIDevice *dev)
+static void mptsas_scsi_unrealize(PCIDevice *dev)
 {
     MPTSASState *s = MPT_SAS(dev);
 
@@ -1422,7 +1422,7 @@ static void mptsas1068_class_init(ObjectClass *oc, const void *data)
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
 
     pc->realize = mptsas_scsi_realize;
-    pc->exit = mptsas_scsi_uninit;
+    pc->unrealize = mptsas_scsi_unrealize;
     pc->romfile = 0;
     pc->vendor_id = PCI_VENDOR_ID_LSI_LOGIC;
     pc->device_id = PCI_DEVICE_ID_LSI_SAS1068;

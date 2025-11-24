@@ -1137,8 +1137,7 @@ static const struct SCSIBusInfo pvscsi_scsi_info = {
         .fail = pvscsi_command_failed,
 };
 
-static void
-pvscsi_realizefn(PCIDevice *pci_dev, Error **errp)
+static void pvscsi_realize(PCIDevice *pci_dev, Error **errp)
 {
     PVSCSIState *s = PVSCSI(pci_dev);
 
@@ -1176,8 +1175,7 @@ pvscsi_realizefn(PCIDevice *pci_dev, Error **errp)
     pvscsi_reset_state(s);
 }
 
-static void
-pvscsi_uninit(PCIDevice *pci_dev)
+static void pvscsi_unrealize(PCIDevice *pci_dev)
 {
     PVSCSIState *s = PVSCSI(pci_dev);
 
@@ -1278,8 +1276,8 @@ static void pvscsi_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
-    k->realize = pvscsi_realizefn;
-    k->exit = pvscsi_uninit;
+    k->realize = pvscsi_realize;
+    k->unrealize = pvscsi_unrealize;
     k->vendor_id = PCI_VENDOR_ID_VMWARE;
     k->device_id = PCI_DEVICE_ID_VMWARE_PVSCSI;
     k->class_id = PCI_CLASS_STORAGE_SCSI;

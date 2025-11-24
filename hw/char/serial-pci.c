@@ -60,7 +60,7 @@ static void serial_pci_realize(PCIDevice *dev, Error **errp)
     pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
 }
 
-static void serial_pci_exit(PCIDevice *dev)
+static void serial_pci_unrealize(PCIDevice *dev)
 {
     PCISerialState *pci = DO_UPCAST(PCISerialState, dev, dev);
     SerialState *s = &pci->state;
@@ -85,7 +85,7 @@ static void serial_pci_class_initfn(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
     pc->realize = serial_pci_realize;
-    pc->exit = serial_pci_exit;
+    pc->unrealize = serial_pci_unrealize;
     pc->vendor_id = PCI_VENDOR_ID_REDHAT;
     pc->device_id = PCI_DEVICE_ID_REDHAT_SERIAL;
     pc->revision = 1;

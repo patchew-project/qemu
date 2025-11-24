@@ -201,7 +201,7 @@ static void cxl_dsp_realize(PCIDevice *d, Error **errp)
     pci_bridge_unrealize(d);
 }
 
-static void cxl_dsp_exitfn(PCIDevice *d)
+static void cxl_dsp_unrealize(PCIDevice *d)
 {
     PCIESlot *s = PCIE_SLOT(d);
 
@@ -227,7 +227,7 @@ static void cxl_dsp_class_init(ObjectClass *oc, const void *data)
     device_class_set_props(dc, cxl_dsp_props);
     k->config_write = cxl_dsp_config_write;
     k->realize = cxl_dsp_realize;
-    k->exit = cxl_dsp_exitfn;
+    k->unrealize = cxl_dsp_unrealize;
     k->vendor_id = 0x19e5; /* Huawei */
     k->device_id = 0xa129; /* Emulated CXL Switch Downstream Port */
     k->revision = 0;

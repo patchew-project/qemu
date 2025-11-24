@@ -184,7 +184,7 @@ static void pcm3680i_pci_realize(PCIDevice *pci_dev, Error **errp)
     }
 }
 
-static void pcm3680i_pci_exit(PCIDevice *pci_dev)
+static void pcm3680i_pci_unrealize(PCIDevice *pci_dev)
 {
     Pcm3680iPCIState *d = PCM3680i_PCI_DEV(pci_dev);
     int i;
@@ -230,7 +230,7 @@ static void pcm3680i_pci_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pcm3680i_pci_realize;
-    k->exit = pcm3680i_pci_exit;
+    k->unrealize = pcm3680i_pci_unrealize;
     k->vendor_id = PCM3680i_PCI_VENDOR_ID1;
     k->device_id = PCM3680i_PCI_DEVICE_ID1;
     k->revision = 0x00;

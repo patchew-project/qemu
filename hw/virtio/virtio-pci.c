@@ -2351,7 +2351,7 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
     }
 }
 
-static void virtio_pci_exit(PCIDevice *pci_dev)
+static void virtio_pci_unrealize(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = VIRTIO_PCI(pci_dev);
     bool pcie_port = pci_bus_is_express(pci_get_bus(pci_dev)) &&
@@ -2491,7 +2491,7 @@ static void virtio_pci_class_init(ObjectClass *klass, const void *data)
 
     device_class_set_props(dc, virtio_pci_properties);
     k->realize = virtio_pci_realize;
-    k->exit = virtio_pci_exit;
+    k->unrealize = virtio_pci_unrealize;
     k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
     k->revision = VIRTIO_PCI_ABI_VERSION;
     k->class_id = PCI_CLASS_OTHERS;

@@ -134,7 +134,7 @@ err_bridge:
     pci_bridge_unrealize(d);
 }
 
-static void rp_exit(PCIDevice *d)
+static void rp_unrealize(PCIDevice *d)
 {
     PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(d);
     PCIESlot *s = PCIE_SLOT(d);
@@ -175,7 +175,7 @@ static void rp_class_init(ObjectClass *klass, const void *data)
 
     k->config_write = rp_write_config;
     k->realize = rp_realize;
-    k->exit = rp_exit;
+    k->unrealize = rp_unrealize;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     rc->phases.hold = rp_reset_hold;
     device_class_set_props(dc, rp_props);

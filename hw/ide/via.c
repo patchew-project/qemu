@@ -234,7 +234,7 @@ static void via_ide_realize(PCIDevice *dev, Error **errp)
     }
 }
 
-static void via_ide_exitfn(PCIDevice *dev)
+static void via_ide_unrealize(PCIDevice *dev)
 {
     PCIIDEState *d = PCI_IDE(dev);
     unsigned i;
@@ -258,7 +258,7 @@ static void via_ide_class_init(ObjectClass *klass, const void *data)
     k->config_read = via_ide_cfg_read;
     k->config_write = via_ide_cfg_write;
     k->realize = via_ide_realize;
-    k->exit = via_ide_exitfn;
+    k->unrealize = via_ide_unrealize;
     k->vendor_id = PCI_VENDOR_ID_VIA;
     k->device_id = PCI_DEVICE_ID_VIA_IDE;
     k->revision = 0x06;

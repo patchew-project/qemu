@@ -389,7 +389,7 @@ static void pci_edu_realize(PCIDevice *pdev, Error **errp)
     pci_register_bar(pdev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &edu->mmio);
 }
 
-static void pci_edu_uninit(PCIDevice *pdev)
+static void pci_edu_unrealize(PCIDevice *pdev)
 {
     EduState *edu = EDU(pdev);
 
@@ -421,7 +421,7 @@ static void edu_class_init(ObjectClass *class, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(class);
 
     k->realize = pci_edu_realize;
-    k->exit = pci_edu_uninit;
+    k->unrealize = pci_edu_unrealize;
     k->vendor_id = PCI_VENDOR_ID_QEMU;
     k->device_id = 0x11e8;
     k->revision = 0x10;

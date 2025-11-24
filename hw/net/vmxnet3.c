@@ -2237,7 +2237,7 @@ static void vmxnet3_instance_init(Object *obj)
     PCI_DEVICE(obj)->cap_present |= QEMU_PCI_CAP_EXPRESS;
 }
 
-static void vmxnet3_pci_uninit(PCIDevice *pci_dev)
+static void vmxnet3_pci_unrealize(PCIDevice *pci_dev)
 {
     VMXNET3State *s = VMXNET3(pci_dev);
 
@@ -2466,7 +2466,7 @@ static void vmxnet3_class_init(ObjectClass *class, const void *data)
     PCIDeviceClass *c = PCI_DEVICE_CLASS(class);
 
     c->realize = vmxnet3_pci_realize;
-    c->exit = vmxnet3_pci_uninit;
+    c->unrealize = vmxnet3_pci_unrealize;
     c->vendor_id = PCI_VENDOR_ID_VMWARE;
     c->device_id = PCI_DEVICE_ID_VMWARE_VMXNET3;
     c->revision = PCI_DEVICE_ID_VMWARE_VMXNET3_REVISION;

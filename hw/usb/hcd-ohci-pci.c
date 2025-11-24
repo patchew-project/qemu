@@ -59,7 +59,7 @@ static void ohci_pci_die(struct OHCIState *ohci)
                  PCI_STATUS_DETECTED_PARITY);
 }
 
-static void usb_ohci_realize_pci(PCIDevice *dev, Error **errp)
+static void usb_ohci_pci_realize(PCIDevice *dev, Error **errp)
 {
     Error *err = NULL;
     OHCIPCIState *ohci = PCI_OHCI(dev);
@@ -79,7 +79,7 @@ static void usb_ohci_realize_pci(PCIDevice *dev, Error **errp)
     pci_register_bar(dev, 0, 0, &ohci->state.mem);
 }
 
-static void usb_ohci_exit(PCIDevice *dev)
+static void usb_ohci_pci_unrealize(PCIDevice *dev)
 {
     OHCIPCIState *ohci = PCI_OHCI(dev);
     OHCIState *s = &ohci->state;
@@ -131,8 +131,8 @@ static void ohci_pci_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->realize = usb_ohci_realize_pci;
-    k->exit = usb_ohci_exit;
+    k->realize = usb_ohci_pci_realize;
+    k->unrealize = usb_ohci_pci_unrealize;
     k->vendor_id = PCI_VENDOR_ID_APPLE;
     k->device_id = PCI_DEVICE_ID_APPLE_IPID_USB;
     k->class_id = PCI_CLASS_SERIAL_USB;

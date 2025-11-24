@@ -1270,7 +1270,7 @@ static void ac97_on_reset(DeviceState *dev)
     mixer_reset(s);
 }
 
-static void ac97_realize(PCIDevice *dev, Error **errp)
+static void ac97_pci_realize(PCIDevice *dev, Error **errp)
 {
     AC97LinkState *s = AC97(dev);
     uint8_t *c = s->dev.config;
@@ -1297,7 +1297,7 @@ static void ac97_realize(PCIDevice *dev, Error **errp)
     ac97_on_reset(DEVICE(s));
 }
 
-static void ac97_exit(PCIDevice *dev)
+static void ac97_pci_unrealize(PCIDevice *dev)
 {
     AC97LinkState *s = AC97(dev);
 
@@ -1315,8 +1315,8 @@ static void ac97_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->realize = ac97_realize;
-    k->exit = ac97_exit;
+    k->realize = ac97_pci_realize;
+    k->unrealize = ac97_pci_unrealize;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_82801AA_5;
     k->revision = 0x01;

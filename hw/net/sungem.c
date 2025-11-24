@@ -1328,7 +1328,7 @@ static const MemoryRegionOps sungem_mmio_pcs_ops = {
     },
 };
 
-static void sungem_uninit(PCIDevice *dev)
+static void sungem_unrealize(PCIDevice *dev)
 {
     SunGEMState *s = SUNGEM(dev);
 
@@ -1460,7 +1460,7 @@ static void sungem_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = sungem_realize;
-    k->exit = sungem_uninit;
+    k->unrealize = sungem_unrealize;
     k->vendor_id = PCI_VENDOR_ID_APPLE;
     k->device_id = PCI_DEVICE_ID_APPLE_UNI_N_GMAC;
     k->revision = 0x01;

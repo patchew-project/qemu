@@ -1805,7 +1805,7 @@ static void ufs_realize(PCIDevice *pci_dev, Error **errp)
     ufs_init_wlu(&u->rpmb_wlu, UFS_UPIU_RPMB_WLUN);
 }
 
-static void ufs_exit(PCIDevice *pci_dev)
+static void ufs_unrealize(PCIDevice *pci_dev)
 {
     UfsHc *u = UFS(pci_dev);
 
@@ -1850,7 +1850,7 @@ static void ufs_class_init(ObjectClass *oc, const void *data)
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
 
     pc->realize = ufs_realize;
-    pc->exit = ufs_exit;
+    pc->unrealize = ufs_unrealize;
     pc->vendor_id = PCI_VENDOR_ID_REDHAT;
     pc->device_id = PCI_DEVICE_ID_REDHAT_UFS;
     pc->class_id = PCI_CLASS_STORAGE_UFS;

@@ -27,7 +27,8 @@ struct PCIDeviceClass {
     DeviceClass parent_class;
 
     void (*realize)(PCIDevice *dev, Error **errp);
-    PCIUnregisterFunc *exit;
+    void (*unrealize)(PCIDevice *dev);
+
     PCIConfigReadFunc *config_read;
     PCIConfigWriteFunc *config_write;
 

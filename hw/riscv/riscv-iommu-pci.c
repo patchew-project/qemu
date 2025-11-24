@@ -138,7 +138,7 @@ static void riscv_iommu_pci_realize(PCIDevice *dev, Error **errp)
     riscv_iommu_pci_setup_iommu(iommu, bus, errp);
 }
 
-static void riscv_iommu_pci_exit(PCIDevice *pci_dev)
+static void riscv_iommu_pci_unrealize(PCIDevice *pci_dev)
 {
     pci_setup_iommu(pci_device_root_bus(pci_dev), NULL, NULL);
 }
@@ -187,7 +187,7 @@ static void riscv_iommu_pci_class_init(ObjectClass *klass, const void *data)
     rc->phases.hold = riscv_iommu_pci_reset_hold;
 
     k->realize = riscv_iommu_pci_realize;
-    k->exit = riscv_iommu_pci_exit;
+    k->unrealize = riscv_iommu_pci_unrealize;
     k->class_id = RISCV_PCI_CLASS_SYSTEM_IOMMU;
     dc->desc = "RISCV-IOMMU DMA Remapping device";
     dc->vmsd = &riscv_iommu_vmstate;

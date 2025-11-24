@@ -302,7 +302,7 @@ static void pci_cmd646_ide_realize(PCIDevice *dev, Error **errp)
     }
 }
 
-static void pci_cmd646_ide_exitfn(PCIDevice *dev)
+static void pci_cmd646_ide_unrealize(PCIDevice *dev)
 {
     PCIIDEState *d = PCI_IDE(dev);
     unsigned i;
@@ -325,7 +325,7 @@ static void cmd646_ide_class_init(ObjectClass *klass, const void *data)
     device_class_set_legacy_reset(dc, cmd646_reset);
     dc->vmsd = &vmstate_ide_pci;
     k->realize = pci_cmd646_ide_realize;
-    k->exit = pci_cmd646_ide_exitfn;
+    k->unrealize = pci_cmd646_ide_unrealize;
     k->vendor_id = PCI_VENDOR_ID_CMD;
     k->device_id = PCI_DEVICE_ID_CMD_646;
     k->revision = 0x07;

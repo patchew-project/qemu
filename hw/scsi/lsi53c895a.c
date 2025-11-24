@@ -2367,7 +2367,7 @@ static void lsi_scsi_realize(PCIDevice *dev, Error **errp)
     scsi_bus_init(&s->bus, sizeof(s->bus), d, &lsi_scsi_info);
 }
 
-static void lsi_scsi_exit(PCIDevice *dev)
+static void lsi_scsi_unrealize(PCIDevice *dev)
 {
     LSIState *s = LSI53C895A(dev);
 
@@ -2381,7 +2381,7 @@ static void lsi_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = lsi_scsi_realize;
-    k->exit = lsi_scsi_exit;
+    k->unrealize = lsi_scsi_unrealize;
     k->vendor_id = PCI_VENDOR_ID_LSI_LOGIC;
     k->device_id = PCI_DEVICE_ID_LSI_53C895A;
     k->class_id = PCI_CLASS_STORAGE_SCSI;

@@ -301,7 +301,7 @@ static void pci_secondary_vga_realize(PCIDevice *dev, Error **errp)
     pci_register_bar(&d->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
 }
 
-static void pci_secondary_vga_exit(PCIDevice *dev)
+static void pci_secondary_vga_unrealize(PCIDevice *dev)
 {
     PCIVGAState *d = PCI_VGA(dev);
     VGACommonState *s = &d->vga;
@@ -398,7 +398,7 @@ static void secondary_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pci_secondary_vga_realize;
-    k->exit = pci_secondary_vga_exit;
+    k->unrealize = pci_secondary_vga_unrealize;
     k->class_id = PCI_CLASS_DISPLAY_OTHER;
     device_class_set_props(dc, secondary_pci_properties);
     device_class_set_legacy_reset(dc, pci_secondary_vga_reset);

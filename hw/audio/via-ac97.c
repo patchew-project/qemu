@@ -451,7 +451,7 @@ static void via_ac97_realize(PCIDevice *pci_dev, Error **errp)
     pci_register_bar(pci_dev, 2, PCI_BASE_ADDRESS_SPACE_IO, &s->midi);
 }
 
-static void via_ac97_exit(PCIDevice *dev)
+static void via_ac97_unrealize(PCIDevice *dev)
 {
     ViaAC97State *s = VIA_AC97(dev);
 
@@ -468,7 +468,7 @@ static void via_ac97_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = via_ac97_realize;
-    k->exit = via_ac97_exit;
+    k->unrealize = via_ac97_unrealize;
     k->vendor_id = PCI_VENDOR_ID_VIA;
     k->device_id = PCI_DEVICE_ID_VIA_AC97;
     k->revision = 0x50;

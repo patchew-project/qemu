@@ -988,7 +988,7 @@ static void pci_tulip_realize(PCIDevice *pci_dev, Error **errp)
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->c.macaddr.a);
 }
 
-static void pci_tulip_exit(PCIDevice *pci_dev)
+static void pci_tulip_unrealize(PCIDevice *pci_dev)
 {
     TULIPState *s = DO_UPCAST(TULIPState, dev, pci_dev);
 
@@ -1017,7 +1017,7 @@ static void tulip_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pci_tulip_realize;
-    k->exit = pci_tulip_exit;
+    k->unrealize = pci_tulip_unrealize;
     k->vendor_id = PCI_VENDOR_ID_DEC;
     k->device_id = PCI_DEVICE_ID_DEC_21143;
     k->subsystem_vendor_id = PCI_VENDOR_ID_HP;

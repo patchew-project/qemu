@@ -76,7 +76,7 @@ static void pci_ne2000_realize(PCIDevice *pci_dev, Error **errp)
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->c.macaddr.a);
 }
 
-static void pci_ne2000_exit(PCIDevice *pci_dev)
+static void pci_ne2000_unrealize(PCIDevice *pci_dev)
 {
     PCINE2000State *d = DO_UPCAST(PCINE2000State, dev, pci_dev);
     NE2000State *s = &d->ne2000;
@@ -106,7 +106,7 @@ static void ne2000_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pci_ne2000_realize;
-    k->exit = pci_ne2000_exit;
+    k->unrealize = pci_ne2000_unrealize;
     k->romfile = "efi-ne2k_pci.rom",
     k->vendor_id = PCI_VENDOR_ID_REALTEK;
     k->device_id = PCI_DEVICE_ID_REALTEK_8029;

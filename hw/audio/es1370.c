@@ -828,7 +828,7 @@ static void es1370_on_reset(DeviceState *dev)
     es1370_reset (s);
 }
 
-static void es1370_realize(PCIDevice *dev, Error **errp)
+static void es1370_pci_realize(PCIDevice *dev, Error **errp)
 {
     ES1370State *s = ES1370(dev);
     uint8_t *c = s->dev.config;
@@ -855,7 +855,7 @@ static void es1370_realize(PCIDevice *dev, Error **errp)
     es1370_reset (s);
 }
 
-static void es1370_exit(PCIDevice *dev)
+static void es1370_pci_unrealize(PCIDevice *dev)
 {
     ES1370State *s = ES1370(dev);
     int i;
@@ -876,8 +876,8 @@ static void es1370_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS (klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS (klass);
 
-    k->realize = es1370_realize;
-    k->exit = es1370_exit;
+    k->realize = es1370_pci_realize;
+    k->unrealize = es1370_pci_unrealize;
     k->vendor_id = PCI_VENDOR_ID_ENSONIQ;
     k->device_id = PCI_DEVICE_ID_ENSONIQ_ES1370;
     k->class_id = PCI_CLASS_MULTIMEDIA_AUDIO;

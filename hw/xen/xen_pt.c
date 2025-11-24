@@ -987,7 +987,7 @@ err_out:
     assert(rc);
 }
 
-static void xen_pt_unregister_device(PCIDevice *d)
+static void xen_pt_unrealize(PCIDevice *d)
 {
     xen_pt_destroy(d);
 }
@@ -1057,7 +1057,7 @@ static void xen_pci_passthrough_class_init(ObjectClass *klass, const void *data)
     xpdc->pci_qdev_realize = dc->realize;
     dc->realize = xen_igd_clear_slot;
     k->realize = xen_pt_realize;
-    k->exit = xen_pt_unregister_device;
+    k->unrealize = xen_pt_unrealize;
     k->config_read = xen_pt_pci_read_config;
     k->config_write = xen_pt_pci_write_config;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);

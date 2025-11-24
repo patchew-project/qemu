@@ -338,7 +338,7 @@ static void bochs_display_init(Object *obj)
     dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
 }
 
-static void bochs_display_exit(PCIDevice *dev)
+static void bochs_display_unrealize(PCIDevice *dev)
 {
     BochsDisplayState *s = BOCHS_DISPLAY(dev);
 
@@ -361,8 +361,8 @@ static void bochs_display_class_init(ObjectClass *klass, const void *data)
     k->device_id = PCI_DEVICE_ID_QEMU_VGA;
 
     k->realize   = bochs_display_realize;
+    k->unrealize = bochs_display_unrealize;
     k->romfile   = "vgabios-bochs-display.bin";
-    k->exit      = bochs_display_exit;
     dc->vmsd     = &vmstate_bochs_display;
     device_class_set_props(dc, bochs_display_properties);
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);

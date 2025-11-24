@@ -195,7 +195,7 @@ static void ctucan_pci_realize(PCIDevice *pci_dev, Error **errp)
     }
 }
 
-static void ctucan_pci_exit(PCIDevice *pci_dev)
+static void ctucan_pci_unrealize(PCIDevice *pci_dev)
 {
     CtuCanPCIState *d = CTUCAN_PCI_DEV(pci_dev);
     int i;
@@ -243,7 +243,7 @@ static void ctucan_pci_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = ctucan_pci_realize;
-    k->exit = ctucan_pci_exit;
+    k->unrealize = ctucan_pci_unrealize;
     k->vendor_id = PCI_VENDOR_ID_TEDIA;
     k->device_id = PCI_DEVICE_ID_TEDIA_CTUCAN_VER21;
     k->revision = 0x00;

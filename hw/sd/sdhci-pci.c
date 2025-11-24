@@ -45,7 +45,7 @@ static void sdhci_pci_realize(PCIDevice *dev, Error **errp)
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->iomem);
 }
 
-static void sdhci_pci_exit(PCIDevice *dev)
+static void sdhci_pci_unrealize(PCIDevice *dev)
 {
     SDHCIState *s = PCI_SDHCI(dev);
 
@@ -60,7 +60,7 @@ static void sdhci_pci_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = sdhci_pci_realize;
-    k->exit = sdhci_pci_exit;
+    k->unrealize = sdhci_pci_unrealize;
     k->vendor_id = PCI_VENDOR_ID_REDHAT;
     k->device_id = PCI_DEVICE_ID_REDHAT_SDHCI;
     k->class_id = PCI_CLASS_SYSTEM_SDHCI;

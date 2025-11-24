@@ -3560,7 +3560,7 @@ static void vfio_pci_finalize(Object *obj)
     vfio_pci_put_device(vdev);
 }
 
-static void vfio_exitfn(PCIDevice *pdev)
+static void vfio_pci_unrealize(PCIDevice *pdev)
 {
     VFIOPCIDevice *vdev = VFIO_PCI_DEVICE(pdev);
     VFIODevice *vbasedev = &vdev->vbasedev;
@@ -3666,7 +3666,7 @@ static void vfio_pci_device_class_init(ObjectClass *klass, const void *data)
 
     dc->desc = "VFIO PCI base device";
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    pdc->exit = vfio_exitfn;
+    pdc->unrealize = vfio_pci_unrealize;
     pdc->config_read = vfio_pci_read_config;
     pdc->config_write = vfio_pci_write_config;
 }

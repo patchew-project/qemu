@@ -166,7 +166,7 @@ static void pci_piix_ide_realize(PCIDevice *dev, Error **errp)
     }
 }
 
-static void pci_piix_ide_exitfn(PCIDevice *dev)
+static void pci_piix_ide_unrealize(PCIDevice *dev)
 {
     PCIIDEState *d = PCI_IDE(dev);
     unsigned i;
@@ -186,7 +186,7 @@ static void piix3_ide_class_init(ObjectClass *klass, const void *data)
     device_class_set_legacy_reset(dc, piix_ide_reset);
     dc->vmsd = &vmstate_ide_pci;
     k->realize = pci_piix_ide_realize;
-    k->exit = pci_piix_ide_exitfn;
+    k->unrealize = pci_piix_ide_unrealize;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_82371SB_1;
     k->class_id = PCI_CLASS_STORAGE_IDE;
@@ -209,7 +209,7 @@ static void piix4_ide_class_init(ObjectClass *klass, const void *data)
     device_class_set_legacy_reset(dc, piix_ide_reset);
     dc->vmsd = &vmstate_ide_pci;
     k->realize = pci_piix_ide_realize;
-    k->exit = pci_piix_ide_exitfn;
+    k->unrealize = pci_piix_ide_unrealize;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_82371AB;
     k->class_id = PCI_CLASS_STORAGE_IDE;

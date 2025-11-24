@@ -1233,7 +1233,7 @@ void usb_uhci_common_realize(PCIDevice *dev, Error **errp)
     pci_register_bar(&s->dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
 }
 
-static void usb_uhci_exit(PCIDevice *dev)
+static void usb_uhci_common_unrealize(PCIDevice *dev)
 {
     UHCIState *s = UHCI(dev);
 
@@ -1298,7 +1298,7 @@ void uhci_data_class_init(ObjectClass *klass, const void *data)
     const UHCIInfo *info = data;
 
     k->realize = info->realize ? info->realize : usb_uhci_common_realize;
-    k->exit = info->unplug ? usb_uhci_exit : NULL;
+    k->unrealize = info->unplug ? usb_uhci_common_unrealize : NULL;
     k->vendor_id = info->vendor_id;
     k->device_id = info->device_id;
     k->revision  = info->revision;

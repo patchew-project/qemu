@@ -163,7 +163,7 @@ static void cxl_rp_realize(DeviceState *dev, Error **errp)
     int rc =
         pci_bridge_qemu_reserve_cap_init(pci_dev, 0, crp->res_reserve, errp);
     if (rc < 0) {
-        rpc->parent_class.exit(pci_dev);
+        rpc->parent_class.unrealize(pci_dev);
         return;
     }
 

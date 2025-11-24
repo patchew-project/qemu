@@ -984,7 +984,7 @@ err_free_special_ops:
     }
 }
 
-static void ct3_exit(PCIDevice *pci_dev)
+static void ct3_unrealize(PCIDevice *pci_dev)
 {
     CXLType3Dev *ct3d = CXL_TYPE3(pci_dev);
     CXLComponentState *cxl_cstate = &ct3d->cxl_cstate;
@@ -2133,7 +2133,7 @@ static void ct3_class_init(ObjectClass *oc, const void *data)
     CXLType3Class *cvc = CXL_TYPE3_CLASS(oc);
 
     pc->realize = ct3_realize;
-    pc->exit = ct3_exit;
+    pc->unrealize = ct3_unrealize;
     pc->class_id = PCI_CLASS_MEMORY_CXL;
     pc->vendor_id = PCI_VENDOR_ID_INTEL;
     pc->device_id = 0xd93; /* LVF for now */

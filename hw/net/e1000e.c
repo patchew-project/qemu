@@ -494,7 +494,7 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
                             macaddr);
 }
 
-static void e1000e_pci_uninit(PCIDevice *pci_dev)
+static void e1000e_pci_unrealize(PCIDevice *pci_dev)
 {
     E1000EState *s = E1000E(pci_dev);
 
@@ -680,7 +680,7 @@ static void e1000e_class_init(ObjectClass *class, const void *data)
     PCIDeviceClass *c = PCI_DEVICE_CLASS(class);
 
     c->realize = e1000e_pci_realize;
-    c->exit = e1000e_pci_uninit;
+    c->unrealize = e1000e_pci_unrealize;
     c->vendor_id = PCI_VENDOR_ID_INTEL;
     c->device_id = E1000_DEV_ID_82574L;
     c->revision = 0;

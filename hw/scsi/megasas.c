@@ -2317,7 +2317,7 @@ static const VMStateDescription vmstate_megasas_gen2 = {
     }
 };
 
-static void megasas_scsi_uninit(PCIDevice *d)
+static void megasas_scsi_unrealize(PCIDevice *d)
 {
     MegasasState *s = MEGASAS(d);
 
@@ -2532,7 +2532,7 @@ static void megasas_class_init(ObjectClass *oc, const void *data)
     const MegasasInfo *info = data;
 
     pc->realize = megasas_scsi_realize;
-    pc->exit = megasas_scsi_uninit;
+    pc->unrealize = megasas_scsi_unrealize;
     pc->vendor_id = PCI_VENDOR_ID_LSI_LOGIC;
     pc->device_id = info->device_id;
     pc->subsystem_vendor_id = PCI_VENDOR_ID_LSI_LOGIC;

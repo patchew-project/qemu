@@ -948,7 +948,7 @@ static const MemoryRegionOps ati_mm_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void ati_vga_realize(PCIDevice *dev, Error **errp)
+static void ati_vga_pci_realize(PCIDevice *dev, Error **errp)
 {
     ATIVGAState *s = ATI_VGA(dev);
     VGACommonState *vga = &s->vga;
@@ -1032,7 +1032,7 @@ static void ati_vga_reset(DeviceState *dev)
     s->mode = VGA_MODE;
 }
 
-static void ati_vga_exit(PCIDevice *dev)
+static void ati_vga_pci_unrealize(PCIDevice *dev)
 {
     ATIVGAState *s = ATI_VGA(dev);
 
@@ -1064,8 +1064,8 @@ static void ati_vga_class_init(ObjectClass *klass, const void *data)
     k->vendor_id = PCI_VENDOR_ID_ATI;
     k->device_id = PCI_DEVICE_ID_ATI_RAGE128_PF;
     k->romfile = "vgabios-ati.bin";
-    k->realize = ati_vga_realize;
-    k->exit = ati_vga_exit;
+    k->realize = ati_vga_pci_realize;
+    k->unrealize = ati_vga_pci_unrealize;
 }
 
 static void ati_vga_init(Object *o)

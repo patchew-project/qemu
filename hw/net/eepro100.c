@@ -1820,7 +1820,7 @@ static const VMStateDescription vmstate_eepro100 = {
     }
 };
 
-static void pci_nic_uninit(PCIDevice *pci_dev)
+static void e100_pci_unrealize(PCIDevice *pci_dev)
 {
     EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
 
@@ -1836,7 +1836,7 @@ static NetClientInfo net_eepro100_info = {
     .receive = nic_receive,
 };
 
-static void e100_nic_realize(PCIDevice *pci_dev, Error **errp)
+static void e100_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
     EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
     E100PCIDeviceInfo *info = eepro100_get_class(s);
@@ -2074,8 +2074,8 @@ static void eepro100_class_init(ObjectClass *klass, const void *data)
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
     k->romfile = "pxe-eepro100.rom";
-    k->realize = e100_nic_realize;
-    k->exit = pci_nic_uninit;
+    k->realize = e100_pci_realize;
+    k->unrealize = e100_pci_unrealize;
     k->device_id = info->device_id;
     k->revision = info->revision;
     k->subsystem_vendor_id = info->subsystem_vendor_id;

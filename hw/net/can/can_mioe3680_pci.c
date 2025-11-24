@@ -183,7 +183,7 @@ static void mioe3680_pci_realize(PCIDevice *pci_dev, Error **errp)
     }
 }
 
-static void mioe3680_pci_exit(PCIDevice *pci_dev)
+static void mioe3680_pci_unrealize(PCIDevice *pci_dev)
 {
     Mioe3680PCIState *d = MIOe3680_PCI_DEV(pci_dev);
     int i;
@@ -229,7 +229,7 @@ static void mioe3680_pci_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = mioe3680_pci_realize;
-    k->exit = mioe3680_pci_exit;
+    k->unrealize = mioe3680_pci_unrealize;
     k->vendor_id = MIOe3680_PCI_VENDOR_ID1;
     k->device_id = MIOe3680_PCI_DEVICE_ID1;
     k->revision = 0x00;

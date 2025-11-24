@@ -412,7 +412,7 @@ static void pxb_dev_realize(PCIDevice *dev, Error **errp)
     pxb_dev_realize_common(dev, PCI, errp);
 }
 
-static void pxb_dev_exitfn(PCIDevice *pci_dev)
+static void pxb_dev_unrealize_common(PCIDevice *pci_dev)
 {
     PXBDev *pxb = PXB_DEV(pci_dev);
 
@@ -432,7 +432,7 @@ static void pxb_dev_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pxb_dev_realize;
-    k->exit = pxb_dev_exitfn;
+    k->unrealize = pxb_dev_unrealize_common;
     k->vendor_id = PCI_VENDOR_ID_REDHAT;
     k->device_id = PCI_DEVICE_ID_REDHAT_PXB;
     k->class_id = PCI_CLASS_BRIDGE_HOST;
@@ -470,7 +470,7 @@ static void pxb_pcie_dev_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pxb_pcie_dev_realize;
-    k->exit = pxb_dev_exitfn;
+    k->unrealize = pxb_dev_unrealize_common;
     k->vendor_id = PCI_VENDOR_ID_REDHAT;
     k->device_id = PCI_DEVICE_ID_REDHAT_PXB_PCIE;
     k->class_id = PCI_CLASS_BRIDGE_HOST;
@@ -515,7 +515,7 @@ static void pxb_cxl_dev_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize             = pxb_cxl_dev_realize;
-    k->exit                = pxb_dev_exitfn;
+    k->unrealize           = pxb_dev_unrealize_common;
     /*
      * XXX: These types of bridges don't actually show up in the hierarchy so
      * vendor, device, class, etc. ids are intentionally left out.

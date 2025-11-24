@@ -178,7 +178,7 @@ static void pci_physical_memory_read(void *dma_opaque, hwaddr addr,
     pci_dma_read(dma_opaque, addr, buf, len);
 }
 
-static void pci_pcnet_uninit(PCIDevice *dev)
+static void pci_pcnet_unrealize(PCIDevice *dev)
 {
     PCIPCNetState *d = PCI_PCNET(dev);
 
@@ -262,7 +262,7 @@ static void pcnet_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pci_pcnet_realize;
-    k->exit = pci_pcnet_uninit;
+    k->unrealize = pci_pcnet_unrealize;
     k->romfile = "efi-pcnet.rom",
     k->vendor_id = PCI_VENDOR_ID_AMD;
     k->device_id = PCI_DEVICE_ID_AMD_LANCE;

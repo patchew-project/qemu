@@ -149,7 +149,6 @@ typedef uint32_t PCIConfigReadFunc(PCIDevice *pci_dev,
                                    uint32_t address, int len);
 typedef void PCIMapIORegionFunc(PCIDevice *pci_dev, int region_num,
                                 pcibus_t addr, pcibus_t size, int type);
-typedef void PCIUnregisterFunc(PCIDevice *pci_dev);
 
 typedef void MSITriggerFunc(PCIDevice *dev, MSIMessage msg);
 typedef MSIMessage MSIPrepareMessageFunc(PCIDevice *dev, unsigned vector);

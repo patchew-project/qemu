@@ -1399,7 +1399,7 @@ err_world_type_by_name:
     }
 }
 
-static void pci_rocker_uninit(PCIDevice *dev)
+static void pci_rocker_unrealize(PCIDevice *dev)
 {
     Rocker *r = ROCKER(dev);
     int i;
@@ -1481,7 +1481,7 @@ static void rocker_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pci_rocker_realize;
-    k->exit = pci_rocker_uninit;
+    k->unrealize = pci_rocker_unrealize;
     k->vendor_id = PCI_VENDOR_ID_REDHAT;
     k->device_id = PCI_DEVICE_ID_REDHAT_ROCKER;
     k->revision = ROCKER_PCI_REVISION;

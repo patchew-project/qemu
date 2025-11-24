@@ -927,7 +927,7 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
                      s->ivshmem_bar2);
 }
 
-static void ivshmem_exit(PCIDevice *dev)
+static void ivshmem_common_unrealize(PCIDevice *dev)
 {
     IVShmemState *s = IVSHMEM_COMMON(dev);
     int i;
@@ -997,7 +997,7 @@ static void ivshmem_common_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = ivshmem_common_realize;
-    k->exit = ivshmem_exit;
+    k->unrealize = ivshmem_common_unrealize;
     k->config_write = ivshmem_write_config;
     k->vendor_id = PCI_VENDOR_ID_IVSHMEM;
     k->device_id = PCI_DEVICE_ID_IVSHMEM;

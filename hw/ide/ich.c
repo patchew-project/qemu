@@ -167,7 +167,7 @@ static void pci_ich9_ahci_realize(PCIDevice *dev, Error **errp)
     assert(!ret || ret == -ENOTSUP);
 }
 
-static void pci_ich9_uninit(PCIDevice *dev)
+static void pci_ich9_ahci_unrealize(PCIDevice *dev)
 {
     AHCIPCIState *d;
     d = ICH9_AHCI(dev);
@@ -182,7 +182,7 @@ static void ich_ahci_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pci_ich9_ahci_realize;
-    k->exit = pci_ich9_uninit;
+    k->unrealize = pci_ich9_ahci_unrealize;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_82801IR;
     k->revision = 0x02;

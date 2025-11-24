@@ -182,7 +182,7 @@ static void usb_xhci_pci_realize(struct PCIDevice *dev, Error **errp)
     s->xhci.as = pci_get_address_space(dev);
 }
 
-static void usb_xhci_pci_exit(PCIDevice *dev)
+static void usb_xhci_pci_unrealize(PCIDevice *dev)
 {
     XHCIPciState *s = XHCI_PCI(dev);
     /* destroy msix memory region */
@@ -232,7 +232,7 @@ static void xhci_class_init(ObjectClass *klass, const void *data)
     dc->vmsd    = &vmstate_xhci_pci;
     set_bit(DEVICE_CATEGORY_USB, dc->categories);
     k->realize      = usb_xhci_pci_realize;
-    k->exit         = usb_xhci_pci_exit;
+    k->unrealize    = usb_xhci_pci_unrealize;
     k->class_id     = PCI_CLASS_SERIAL_USB;
     device_class_set_props(dc, xhci_pci_properties);
     object_class_property_set_description(klass, "conditional-intr-mapping",

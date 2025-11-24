@@ -102,7 +102,7 @@ err_bridge:
     pci_bridge_unrealize(d);
 }
 
-static void xio3130_upstream_exitfn(PCIDevice *d)
+static void xio3130_upstream_unrealize(PCIDevice *d)
 {
     pcie_aer_exit(d);
     pcie_cap_exit(d);
@@ -130,7 +130,7 @@ static void xio3130_upstream_class_init(ObjectClass *klass, const void *data)
 
     k->config_write = xio3130_upstream_write_config;
     k->realize = xio3130_upstream_realize;
-    k->exit = xio3130_upstream_exitfn;
+    k->unrealize = xio3130_upstream_unrealize;
     k->vendor_id = PCI_VENDOR_ID_TI;
     k->device_id = PCI_DEVICE_ID_TI_XIO3130U;
     k->revision = XIO3130_REVISION;
