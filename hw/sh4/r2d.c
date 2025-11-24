@@ -245,6 +245,7 @@ static void r2d_init(MachineState *machine)
     ResetData *reset_info;
     struct SH7750State *s;
     MemoryRegion *sdram = g_new(MemoryRegion, 1);
+    MemoryRegion *sram = g_new(MemoryRegion, 1);
     DriveInfo *dinfo;
     DeviceState *dev;
     SysBusDevice *busdev;
@@ -266,8 +267,15 @@ static void r2d_init(MachineState *machine)
     case 128 * MiB:
         sdram_base = EXT_CS_BASE(2); /* 64M @CS2, 64M@CS3 */
         break;
+    case 192 * MiB:
+        sdram_base = EXT_CS_BASE(2); /* 64M @CS2, 64M@CS3, 64M@CS6 */
+        sdram_size = 128 * MiB;
+        memory_region_init_alias(sram, NULL,
+                                 "sram", machine->ram, 128 * MiB, 64 * MiB);
+        memory_region_add_subregion(address_space_mem, EXT_CS_BASE(6), sram);
+        break;
     default:
-        error_report("This machine can only use 64M or 128M of memory");
+        error_report("This machine can only use 64M, 128M or 192M of memory");
         exit(EXIT_FAILURE);
     }
 
@@ -365,6 +373,7 @@ static void r2d_init(MachineState *machine)
         address_space_stw(&address_space_memory, SH7750_BCR2,
                           (0b11 << 2 * 2) | /* Area 2 Bus width is 32 bits */
                           (0b11 << 2 * 3) | /* Area 3 Bus width is 32 bits */
+                          (0b11 << 2 * 6) | /* Area 6 Bus width is 32 bits */
                           (0b10 << 14) |    /* Area 0 Bus Width is 16 bits */
                           0, MEMTXATTRS_UNSPECIFIED, NULL);
         /* Start from P2 area */
