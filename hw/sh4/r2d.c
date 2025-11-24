@@ -53,6 +53,7 @@
 
 #define SM501_VRAM_SIZE 0x800000
 
+#define BOOT_PARAMS_BASE 0x0c000000
 #define BOOT_PARAMS_OFFSET 0x0010000
 /* CONFIG_BOOT_LINK_OFFSET of Linux kernel */
 #define LINUX_LOAD_OFFSET  0x0800000
@@ -383,7 +384,7 @@ static void r2d_init(MachineState *machine)
     }
 
     rom_add_blob_fixed("boot_params", &boot_params, sizeof(boot_params),
-                       SDRAM_BASE + BOOT_PARAMS_OFFSET);
+                       BOOT_PARAMS_BASE + BOOT_PARAMS_OFFSET);
 }
 
 static void r2d_machine_init(MachineClass *mc)
