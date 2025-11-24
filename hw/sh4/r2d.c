@@ -251,9 +251,12 @@ static void r2d_init(MachineState *machine)
     PCIBus *pci_bus;
     USBBus *usb_bus;
     r2d_fpga_t *fpga;
+    hwaddr sdram_base;
+    uint64_t sdram_size = SDRAM_SIZE;
 
     switch (machine->ram_size) {
     case 64 * MiB:
+        sdram_base = SDRAM_BASE;
         break;
     default:
         error_report("This machine can only use 64M of memory");
@@ -269,8 +272,8 @@ static void r2d_init(MachineState *machine)
     qemu_register_reset(main_cpu_reset, reset_info);
 
     /* Allocate memory space */
-    memory_region_init_ram(sdram, NULL, "r2d.sdram", SDRAM_SIZE, &error_fatal);
-    memory_region_add_subregion(address_space_mem, SDRAM_BASE, sdram);
+    memory_region_init_ram(sdram, NULL, "r2d.sdram", sdram_size, &error_fatal);
+    memory_region_add_subregion(address_space_mem, sdram_base, sdram);
     /* Register peripherals */
     s = sh7750_init(cpu, address_space_mem);
     fpga = r2d_fpga_init(address_space_mem, 0x04000000, sh7750_irl(s));
@@ -338,7 +341,7 @@ static void r2d_init(MachineState *machine)
         int kernel_size;
 
         kernel_size = load_image_targphys(kernel_filename,
-                                        SDRAM_BASE + LINUX_LOAD_OFFSET,
+                                        sdram_base + LINUX_LOAD_OFFSET,
                                         INITRD_LOAD_OFFSET - LINUX_LOAD_OFFSET,
                                         NULL);
         if (kernel_size < 0) {
@@ -352,15 +355,15 @@ static void r2d_init(MachineState *machine)
         address_space_stw(&address_space_memory, SH7750_BCR2, 3 << (3 * 2),
                           MEMTXATTRS_UNSPECIFIED, NULL); /* cs3 32bit */
         /* Start from P2 area */
-        reset_info->vector = (SDRAM_BASE + LINUX_LOAD_OFFSET) | 0xa0000000;
+        reset_info->vector = (sdram_base + LINUX_LOAD_OFFSET) | 0xa0000000;
     }
 
     if (initrd_filename) {
         int initrd_size;
 
         initrd_size = load_image_targphys(initrd_filename,
-                                          SDRAM_BASE + INITRD_LOAD_OFFSET,
-                                          SDRAM_SIZE - INITRD_LOAD_OFFSET,
+                                          sdram_base + INITRD_LOAD_OFFSET,
+                                          sdram_size - INITRD_LOAD_OFFSET,
                                           NULL);
 
         if (initrd_size < 0) {
