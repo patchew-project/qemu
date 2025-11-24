@@ -446,7 +446,7 @@ static void sd_set_scr(SDState *sd)
     /* reserved for manufacturer usage */
     sd->scr[4] = 0x00;
     sd->scr[5] = 0x00;
-    sd->scr[6] = 0x00;
+    sd->scr[6] = 1 << 7;        /* Data after an erase operation is 0xff */
     sd->scr[7] = 0x00;
 }
 
