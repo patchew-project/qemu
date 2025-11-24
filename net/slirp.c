@@ -40,6 +40,7 @@
 #include "qemu/sockets.h"
 #include <libslirp.h>
 #include "chardev/char-fe.h"
+#include "system/runstate.h"
 #include "system/system.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
@@ -119,6 +120,8 @@ static ssize_t net_slirp_send_packet(const void *pkt, size_t pkt_len,
     SlirpState *s = opaque;
     uint8_t min_pkt[ETH_ZLEN];
     size_t min_pktsz = sizeof(min_pkt);
+
+    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
 
     if (net_peer_needs_padding(&s->nc)) {
         if (eth_pad_short_frame(min_pkt, &min_pktsz, pkt, pkt_len)) {
