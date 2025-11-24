@@ -56,7 +56,7 @@ class MigrationFile(object):
         if size is None:
             size = self.read8()
         if size == 0:
-            return ""
+            return b""
         value = self.file.read(size)
         if len(value) != size:
             raise Exception("Unexpected end of %s at 0x%x" % (self.filename, self.file.tell()))
@@ -200,7 +200,7 @@ class RamSection(object):
                     self.files[self.name].seek(addr, os.SEEK_SET)
                     self.files[self.name].write(data)
                 if self.dump_memory:
-                    hexdata = " ".join("{0:02x}".format(ord(c)) for c in data)
+                    hexdata = " ".join("{0:02x}".format(c) for c in data)
                     self.memory['%s (0x%016x)' % (self.name, addr)] = hexdata
 
                 flags &= ~self.RAM_SAVE_FLAG_PAGE
