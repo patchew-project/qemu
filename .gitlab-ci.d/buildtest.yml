@@ -99,9 +99,9 @@ crash-test-debian:
       artifacts: true
   variables:
     IMAGE: debian
+    SETUP_CHECK_VENV: 1
   script:
     - cd build
-    - make NINJA=":" check-venv
     - pyvenv/bin/python3 scripts/device-crash-test -q --tcg-only ./qemu-system-i386
 
 build-system-fedora:
@@ -156,9 +156,9 @@ crash-test-fedora:
       artifacts: true
   variables:
     IMAGE: fedora
+    SETUP_CHECK_VENV: 1
   script:
     - cd build
-    - make NINJA=":" check-venv
     - pyvenv/bin/python3 scripts/device-crash-test -q ./qemu-system-ppc
     - pyvenv/bin/python3 scripts/device-crash-test -q ./qemu-system-riscv32
 
