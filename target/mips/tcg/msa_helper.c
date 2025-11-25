@@ -8231,8 +8231,8 @@ void helper_msa_ld_b(CPUMIPSState *env, uint32_t wd,
     uint64_t d0, d1;
 
     /* Load 8 bytes at a time.  Vector element ordering makes this LE.  */
-    d0 = cpu_ldq_le_data_ra(env, addr + 0, ra);
-    d1 = cpu_ldq_le_data_ra(env, addr + 8, ra);
+    d0 = cpu_ldq_be_data_ra(env, addr + 0, ra);
+    d1 = cpu_ldq_be_data_ra(env, addr + 8, ra);
     pwd->d[0] = d0;
     pwd->d[1] = d1;
 }
@@ -8248,9 +8248,9 @@ void helper_msa_ld_h(CPUMIPSState *env, uint32_t wd,
      * Load 8 bytes at a time.  Use little-endian load, then for
      * big-endian target, we must then swap the four halfwords.
      */
-    d0 = cpu_ldq_le_data_ra(env, addr + 0, ra);
-    d1 = cpu_ldq_le_data_ra(env, addr + 8, ra);
-    if (mips_env_is_bigendian(env)) {
+    d0 = cpu_ldq_be_data_ra(env, addr + 0, ra);
+    d1 = cpu_ldq_be_data_ra(env, addr + 8, ra);
+    if (!mips_env_is_bigendian(env)) {
         d0 = bswap16x4(d0);
         d1 = bswap16x4(d1);
     }
@@ -8269,9 +8269,9 @@ void helper_msa_ld_w(CPUMIPSState *env, uint32_t wd,
      * Load 8 bytes at a time.  Use little-endian load, then for
      * big-endian target, we must then bswap the two words.
      */
-    d0 = cpu_ldq_le_data_ra(env, addr + 0, ra);
-    d1 = cpu_ldq_le_data_ra(env, addr + 8, ra);
-    if (mips_env_is_bigendian(env)) {
+    d0 = cpu_ldq_be_data_ra(env, addr + 0, ra);
+    d1 = cpu_ldq_be_data_ra(env, addr + 8, ra);
+    if (!mips_env_is_bigendian(env)) {
         d0 = bswap32x2(d0);
         d1 = bswap32x2(d1);
     }
@@ -8286,8 +8286,12 @@ void helper_msa_ld_d(CPUMIPSState *env, uint32_t wd,
     uintptr_t ra = GETPC();
     uint64_t d0, d1;
 
-    d0 = cpu_ldq_data_ra(env, addr + 0, ra);
-    d1 = cpu_ldq_data_ra(env, addr + 8, ra);
+    d0 = cpu_ldq_be_data_ra(env, addr + 0, ra);
+    d1 = cpu_ldq_be_data_ra(env, addr + 8, ra);
+    if (!mips_env_is_bigendian(env)) {
+        d0 = bswap64(d0);
+        d1 = bswap64(d1);
+    }
     pwd->d[0] = d0;
     pwd->d[1] = d1;
 }
@@ -8320,8 +8324,8 @@ void helper_msa_st_b(CPUMIPSState *env, uint32_t wd,
     ensure_writable_pages(env, addr, mmu_idx, ra);
 
     /* Store 8 bytes at a time.  Vector element ordering makes this LE.  */
-    cpu_stq_le_data_ra(env, addr + 0, pwd->d[0], ra);
-    cpu_stq_le_data_ra(env, addr + 8, pwd->d[1], ra);
+    cpu_stq_be_data_ra(env, addr + 0, pwd->d[0], ra);
+    cpu_stq_be_data_ra(env, addr + 8, pwd->d[1], ra);
 }
 
 void helper_msa_st_h(CPUMIPSState *env, uint32_t wd,
@@ -8337,12 +8341,12 @@ void helper_msa_st_h(CPUMIPSState *env, uint32_t wd,
     /* Store 8 bytes at a time.  See helper_msa_ld_h. */
     d0 = pwd->d[0];
     d1 = pwd->d[1];
-    if (mips_env_is_bigendian(env)) {
+    if (!mips_env_is_bigendian(env)) {
         d0 = bswap16x4(d0);
         d1 = bswap16x4(d1);
     }
-    cpu_stq_le_data_ra(env, addr + 0, d0, ra);
-    cpu_stq_le_data_ra(env, addr + 8, d1, ra);
+    cpu_stq_be_data_ra(env, addr + 0, d0, ra);
+    cpu_stq_be_data_ra(env, addr + 8, d1, ra);
 }
 
 void helper_msa_st_w(CPUMIPSState *env, uint32_t wd,
@@ -8358,12 +8362,12 @@ void helper_msa_st_w(CPUMIPSState *env, uint32_t wd,
     /* Store 8 bytes at a time.  See helper_msa_ld_w. */
     d0 = pwd->d[0];
     d1 = pwd->d[1];
-    if (mips_env_is_bigendian(env)) {
+    if (!mips_env_is_bigendian(env)) {
         d0 = bswap32x2(d0);
         d1 = bswap32x2(d1);
     }
-    cpu_stq_le_data_ra(env, addr + 0, d0, ra);
-    cpu_stq_le_data_ra(env, addr + 8, d1, ra);
+    cpu_stq_be_data_ra(env, addr + 0, d0, ra);
+    cpu_stq_be_data_ra(env, addr + 8, d1, ra);
 }
 
 void helper_msa_st_d(CPUMIPSState *env, uint32_t wd,
@@ -8372,9 +8376,16 @@ void helper_msa_st_d(CPUMIPSState *env, uint32_t wd,
     wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
     int mmu_idx = mips_env_mmu_index(env);
     uintptr_t ra = GETPC();
+    uint64_t d0, d1;
 
     ensure_writable_pages(env, addr, mmu_idx, GETPC());
 
-    cpu_stq_data_ra(env, addr + 0, pwd->d[0], ra);
-    cpu_stq_data_ra(env, addr + 8, pwd->d[1], ra);
+    d0 = pwd->d[0];
+    d1 = pwd->d[1];
+    if (!mips_env_is_bigendian(env)) {
+        d0 = bswap64(d0);
+        d1 = bswap64(d1);
+    }
+    cpu_stq_be_data_ra(env, addr + 0, d0, ra);
+    cpu_stq_be_data_ra(env, addr + 8, d1, ra);
 }
