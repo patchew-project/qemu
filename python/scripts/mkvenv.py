@@ -736,6 +736,10 @@ def _do_ensure(
     present = []
     canary = None
     for name, info in group.items():
+        if name.startswith("$SRCROOT/"):
+            srcroot = Path(__file__).parents[2]
+            absent.append(name.replace("$SRCROOT/", f"file:///{srcroot}/"))
+            continue
         constraint = _make_version_constraint(info, False)
         matcher = Matcher(name + constraint)
         print(f"mkvenv: checking for {matcher}", file=sys.stderr)
