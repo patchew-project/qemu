@@ -143,7 +143,11 @@ void helper_ocbi(CPUSH4State *env, uint32_t address)
         if ((a & ~0x1F) == (address & ~0x1F))
         {
             memory_content *next = (*current)->next;
-            cpu_stl_data(env, a, (*current)->value);
+            if (TARGET_BIG_ENDIAN) {
+                cpu_stl_be_data(env, a, (*current)->value);
+            } else {
+                cpu_stl_le_data(env, a, (*current)->value);
+            }
 
             if (next == NULL)
             {
