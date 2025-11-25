@@ -556,9 +556,20 @@ VncInfo2List *qmp_query_vnc_servers(Error **errp)
         qmp_query_auth(vd->auth, vd->subauth, &info->auth,
                        &info->vencrypt, &info->has_vencrypt);
         if (vd->dcl.con) {
-            dev = DEVICE(object_property_get_link(OBJECT(vd->dcl.con),
-                                                  "device", &error_abort));
-            info->display = g_strdup(dev->id);
+            Error *err = NULL;
+            Object *obj = object_property_get_link(OBJECT(vd->dcl.con),
+                                                   "device", &err);
+            if (obj) {
+                dev = DEVICE(obj);
+                if (dev && dev->id) {
+                    info->display = g_strdup(dev->id);
+                } else {
+                    info->display = g_strdup("unknown");
+                }
+            } else {
+                info->display = g_strdup("none");
+                error_free(err);
+            }
         }
         if (vd->listener != NULL) {
             nsioc = qio_net_listener_nsioc(vd->listener);
