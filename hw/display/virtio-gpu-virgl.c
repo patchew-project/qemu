@@ -199,7 +199,7 @@ virtio_gpu_virgl_unmap_resource_blob(VirtIOGPU *g,
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: failed to unmap virgl resource: %s\n",
                           __func__, strerror(-ret));
-            return ret;
+            return -1;
         }
     } else {
         *cmd_suspended = true;
@@ -333,7 +333,7 @@ static void virgl_cmd_resource_unref(VirtIOGPU *g,
     }
 
 #if VIRGL_VERSION_MAJOR >= 1
-    if (virtio_gpu_virgl_unmap_resource_blob(g, res, cmd_suspended)) {
+    if (virtio_gpu_virgl_unmap_resource_blob(g, res, cmd_suspended) < 0) {
         cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
         return;
     }
@@ -829,7 +829,7 @@ static void virgl_cmd_resource_unmap_blob(VirtIOGPU *g,
     }
 
     ret = virtio_gpu_virgl_unmap_resource_blob(g, res, cmd_suspended);
-    if (ret) {
+    if (ret < 0) {
         cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
         return;
     }
