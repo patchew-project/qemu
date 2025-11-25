@@ -138,7 +138,7 @@ virtio_gpu_virgl_map_resource_blob(VirtIOGPU *g,
     if (ret) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: failed to map virgl resource: %s\n",
                       __func__, strerror(-ret));
-        return ret;
+        return -1;
     }
 
     vmr = g_new0(struct virtio_gpu_virgl_hostmem_region, 1);
@@ -789,7 +789,16 @@ static void virgl_cmd_resource_map_blob(VirtIOGPU *g,
     }
 
     ret = virtio_gpu_virgl_map_resource_blob(g, res, mblob.offset);
-    if (ret) {
+
+    switch (ret) {
+    case 0:
+        break;
+
+    case -EINVAL:
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
+        return;
+
+    default:
         cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
         return;
     }
