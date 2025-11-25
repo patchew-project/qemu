@@ -1371,7 +1371,7 @@ int virtio_gpu_virgl_init(VirtIOGPU *g)
              * Async-fence was bugged in virglrenderer versions <= 1.1.1.
              */
             error_report("drm requires egl display and virglrenderer >= 1.2.0");
-            return -EINVAL;
+            return -1;
         }
     }
 #endif
@@ -1379,7 +1379,7 @@ int virtio_gpu_virgl_init(VirtIOGPU *g)
     ret = virgl_renderer_init(g, flags, &virtio_gpu_3d_cbs);
     if (ret != 0) {
         error_report("virgl could not be initialized: %d", ret);
-        return ret;
+        return -1;
     }
 
     gl->fence_poll = timer_new_ms(QEMU_CLOCK_VIRTUAL,
