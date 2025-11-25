@@ -32,6 +32,10 @@
       then
         pyvenv/bin/meson configure . -Dbackend_max_links="$LD_JOBS" ;
       fi || exit 1;
+    - if test -n "$SETUP_CHECK_VENV";
+      then
+        make check-venv;
+      fi;
     - section_end configure
     - section_start build "Building QEMU"
     - $MAKE -j"$JOBS"
