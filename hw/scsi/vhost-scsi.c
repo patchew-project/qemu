@@ -353,6 +353,8 @@ static const Property vhost_scsi_properties[] = {
                        128),
     DEFINE_PROP_BOOL("seg_max_adjust", VirtIOSCSICommon, conf.seg_max_adjust,
                       true),
+    DEFINE_PROP_UINT16("max_target", VirtIOSCSICommon, conf.max_target,
+                        VIRTIO_SCSI_MAX_TARGET),
     DEFINE_PROP_UINT32("max_sectors", VirtIOSCSICommon, conf.max_sectors,
                        0xFFFF),
     DEFINE_PROP_UINT32("cmd_per_lun", VirtIOSCSICommon, conf.cmd_per_lun, 128),

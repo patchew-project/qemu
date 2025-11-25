@@ -971,7 +971,7 @@ static void virtio_scsi_get_config(VirtIODevice *vdev,
     virtio_stl_p(vdev, &scsiconf->sense_size, s->sense_size);
     virtio_stl_p(vdev, &scsiconf->cdb_size, s->cdb_size);
     virtio_stw_p(vdev, &scsiconf->max_channel, VIRTIO_SCSI_MAX_CHANNEL);
-    virtio_stw_p(vdev, &scsiconf->max_target, VIRTIO_SCSI_MAX_TARGET);
+    virtio_stw_p(vdev, &scsiconf->max_target, s->conf.max_target);
     virtio_stl_p(vdev, &scsiconf->max_lun, VIRTIO_SCSI_MAX_LUN);
 }
 
@@ -1260,23 +1260,26 @@ static void virtio_scsi_drained_end(SCSIBus *bus)
     }
 }
 
-static struct SCSIBusInfo virtio_scsi_scsi_info = {
-    .tcq = true,
-    .max_channel = VIRTIO_SCSI_MAX_CHANNEL,
-    .max_target = VIRTIO_SCSI_MAX_TARGET,
-    .max_lun = VIRTIO_SCSI_MAX_LUN,
+static struct SCSIBusInfo virtio_scsi_scsi_info;
 
-    .complete = virtio_scsi_command_complete,
-    .fail = virtio_scsi_command_failed,
-    .cancel = virtio_scsi_request_cancelled,
-    .change = virtio_scsi_change,
-    .parse_cdb = virtio_scsi_parse_cdb,
-    .get_sg_list = virtio_scsi_get_sg_list,
-    .save_request = virtio_scsi_save_request,
-    .load_request = virtio_scsi_load_request,
-    .drained_begin = virtio_scsi_drained_begin,
-    .drained_end = virtio_scsi_drained_end,
-};
+static void virtio_scsi_init_scsi_info(struct VirtIOSCSIConf *conf)
+{
+    virtio_scsi_scsi_info.tcq = true;
+    virtio_scsi_scsi_info.max_channel = VIRTIO_SCSI_MAX_CHANNEL;
+    virtio_scsi_scsi_info.max_lun = VIRTIO_SCSI_MAX_LUN;
+    virtio_scsi_scsi_info.max_target = conf->max_target;
+
+    virtio_scsi_scsi_info.complete = virtio_scsi_command_complete;
+    virtio_scsi_scsi_info.fail = virtio_scsi_command_failed;
+    virtio_scsi_scsi_info.cancel = virtio_scsi_request_cancelled;
+    virtio_scsi_scsi_info.change = virtio_scsi_change;
+    virtio_scsi_scsi_info.parse_cdb = virtio_scsi_parse_cdb;
+    virtio_scsi_scsi_info.get_sg_list = virtio_scsi_get_sg_list;
+    virtio_scsi_scsi_info.save_request = virtio_scsi_save_request;
+    virtio_scsi_scsi_info.load_request = virtio_scsi_load_request;
+    virtio_scsi_scsi_info.drained_begin = virtio_scsi_drained_begin;
+    virtio_scsi_scsi_info.drained_end = virtio_scsi_drained_end;
+}
 
 void virtio_scsi_common_realize(DeviceState *dev,
                                 VirtIOHandleOutput ctrl,
@@ -1289,6 +1292,7 @@ void virtio_scsi_common_realize(DeviceState *dev,
     int i;
 
     virtio_init(vdev, VIRTIO_ID_SCSI, sizeof(VirtIOSCSIConfig));
+    virtio_scsi_init_scsi_info(&s->conf);
 
     if (s->conf.num_queues == VIRTIO_SCSI_AUTO_NUM_QUEUES) {
         s->conf.num_queues = 1;
@@ -1379,6 +1383,8 @@ static const Property virtio_scsi_properties[] = {
                                          parent_obj.conf.virtqueue_size, 256),
     DEFINE_PROP_BOOL("seg_max_adjust", VirtIOSCSI,
                       parent_obj.conf.seg_max_adjust, true),
+    DEFINE_PROP_UINT16("max_target", VirtIOSCSICommon, conf.max_target,
+                        VIRTIO_SCSI_MAX_TARGET),
     DEFINE_PROP_UINT32("max_sectors", VirtIOSCSI, parent_obj.conf.max_sectors,
                                                   0xFFFF),
     DEFINE_PROP_UINT32("cmd_per_lun", VirtIOSCSI, parent_obj.conf.cmd_per_lun,
