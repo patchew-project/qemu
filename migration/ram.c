@@ -4277,6 +4277,11 @@ static int parse_ramblocks(QEMUFile *f, ram_addr_t total_ram_bytes)
         id[len] = 0;
         length = qemu_get_be64(f);
 
+        if (migrate_ignore_shared()) {
+            /* Read and discard the x-ignore-shared memory region address */
+            qemu_get_be64(f);
+        }
+
         block = qemu_ram_block_by_name(id);
         if (block) {
             ret = parse_ramblock(f, block, length);
