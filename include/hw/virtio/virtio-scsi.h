@@ -55,6 +55,7 @@ struct VirtIOSCSIConf {
     bool worker_per_virtqueue;
     bool seg_max_adjust;
     uint16_t max_target;
+    uint32_t max_lun;
     uint32_t max_sectors;
     uint32_t cmd_per_lun;
     char *vhostfd;

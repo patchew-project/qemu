@@ -972,7 +972,7 @@ static void virtio_scsi_get_config(VirtIODevice *vdev,
     virtio_stl_p(vdev, &scsiconf->cdb_size, s->cdb_size);
     virtio_stw_p(vdev, &scsiconf->max_channel, VIRTIO_SCSI_MAX_CHANNEL);
     virtio_stw_p(vdev, &scsiconf->max_target, s->conf.max_target);
-    virtio_stl_p(vdev, &scsiconf->max_lun, VIRTIO_SCSI_MAX_LUN);
+    virtio_stl_p(vdev, &scsiconf->max_lun, s->conf.max_lun);
 }
 
 static void virtio_scsi_set_config(VirtIODevice *vdev,
@@ -1266,7 +1266,7 @@ static void virtio_scsi_init_scsi_info(struct VirtIOSCSIConf *conf)
 {
     virtio_scsi_scsi_info.tcq = true;
     virtio_scsi_scsi_info.max_channel = VIRTIO_SCSI_MAX_CHANNEL;
-    virtio_scsi_scsi_info.max_lun = VIRTIO_SCSI_MAX_LUN;
+    virtio_scsi_scsi_info.max_lun = conf->max_lun;
     virtio_scsi_scsi_info.max_target = conf->max_target;
 
     virtio_scsi_scsi_info.complete = virtio_scsi_command_complete;
@@ -1385,6 +1385,8 @@ static const Property virtio_scsi_properties[] = {
                       parent_obj.conf.seg_max_adjust, true),
     DEFINE_PROP_UINT16("max_target", VirtIOSCSICommon, conf.max_target,
                         VIRTIO_SCSI_MAX_TARGET),
+    DEFINE_PROP_UINT32("max_lun", VirtIOSCSICommon, conf.max_lun,
+                        VIRTIO_SCSI_MAX_LUN),
     DEFINE_PROP_UINT32("max_sectors", VirtIOSCSI, parent_obj.conf.max_sectors,
                                                   0xFFFF),
     DEFINE_PROP_UINT32("cmd_per_lun", VirtIOSCSI, parent_obj.conf.cmd_per_lun,
