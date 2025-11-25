@@ -10,6 +10,13 @@
 # or later.  See the COPYING file in the top-level directory.
 
 import gdb
+import os
+import re
+import struct
+import shutil
+import subprocess
+import tempfile
+import textwrap
 
 VOID_PTR = gdb.lookup_type('void').pointer()
 
@@ -77,6 +84,65 @@ def symbol_lookup(addr):
 
     return f"{func_str} at {path}:{line}"
 
+def write_regs_to_coredump(corefile, set_regs):
+    # asm/ptrace.h
+    pt_regs = ['r15', 'r14', 'r13', 'r12', 'rbp', 'rbx', 'r11', 'r10',
+               'r9', 'r8', 'rax', 'rcx', 'rdx', 'rsi', 'rdi', 'orig_rax',
+               'rip', 'cs', 'eflags', 'rsp', 'ss']
+
+    with open(corefile, 'r+b') as f:
+        gdb.write(f'patching core file {corefile}\n')
+
+        while f.read(4) != b'CORE':
+            pass
+        gdb.write(f'found "CORE" at 0x{f.tell():x}\n')
+
+        # Looking for struct elf_prstatus and pr_reg field in it (an array
+        # of general purpose registers).  See sys/procfs.h
+
+        # lseek(f.fileno(), 4, SEEK_CUR): go to elf_prstatus
+        f.seek(4, 1)
+        # lseek(f.fileno(), 112, SEEK_CUR): offsetof(struct elf_prstatus, pr_reg)
+        f.seek(112, 1)
+
+        gdb.write(f'assume pt_regs at 0x{f.tell():x}\n')
+        for reg in pt_regs:
+            if reg in set_regs:
+                gdb.write(f'write {reg} at 0x{f.tell():x}\n')
+                f.write(struct.pack('q', set_regs[reg]))
+            else:
+                # lseek(f.fileno(), 8, SEEK_CUR): go to the next reg
+                f.seek(8, 1)
+
+def clone_coredump(source, target, set_regs):
+    shutil.copyfile(source, target)
+    write_regs_to_coredump(target, set_regs)
+
+def dump_backtrace_patched(regs):
+    files = gdb.execute('info files', False, True).split('\n')
+    executable = re.match('^Symbols from "(.*)".$', files[0]).group(1)
+    dump = re.search("`(.*)'", files[2]).group(1)
+
+    with tempfile.NamedTemporaryFile(dir='/tmp', delete=False) as f:
+        tmpcore = f.name
+
+    clone_coredump(dump, tmpcore, regs)
+
+    cmd = ['script', '-qec',
+           'gdb -batch ' +
+           '-ex "set complaints 0" ' +
+           '-ex "set verbose off" ' +
+           '-ex "set style enabled on" ' +
+           '-ex "python print(\'----split----\')" ' +
+           f'-ex bt {executable} {tmpcore}',
+           '/dev/null']
+    out = subprocess.check_output(cmd, stderr=subprocess.DEVNULL)
+    out = out.split(b'----split----')[1].decode('utf-8')
+
+    os.remove(tmpcore)
+
+    gdb.write(out)
+
 def dump_backtrace(regs):
     '''
     Backtrace dump with raw registers, mimic GDB command 'bt'.
@@ -120,7 +186,7 @@ def dump_backtrace_live(regs):
 
     selected_frame.select()
 
-def bt_jmpbuf(jmpbuf):
+def bt_jmpbuf(jmpbuf, detailed=False):
     '''Backtrace a jmpbuf'''
     regs = get_jmpbuf_regs(jmpbuf)
     try:
@@ -128,8 +194,12 @@ def bt_jmpbuf(jmpbuf):
         # but only works with live sessions.
         dump_backtrace_live(regs)
     except:
-        # If above doesn't work, fallback to poor man's unwind
-        dump_backtrace(regs)
+        if detailed:
+            # Obtain detailed trace by patching regs in copied coredump
+            dump_backtrace_patched(regs)
+        else:
+            # If above doesn't work, fallback to poor man's unwind
+            dump_backtrace(regs)
 
 def co_cast(co):
     return co.cast(gdb.lookup_type('CoroutineUContext').pointer())
@@ -140,26 +210,60 @@ def coroutine_to_jmpbuf(co):
 
 
 class CoroutineCommand(gdb.Command):
-    '''Display coroutine backtrace'''
+    __doc__ = textwrap.dedent("""\
+        Display coroutine backtrace
+
+        Usage: qemu coroutine COROPTR [--detailed]
+        Show backtrace for a coroutine specified by COROPTR
+
+          --detailed       obtain detailed trace by copying coredump, patching
+                           regs in it, and runing gdb subprocess to get
+                           backtrace from the patched coredump
+        """)
+
     def __init__(self):
         gdb.Command.__init__(self, 'qemu coroutine', gdb.COMMAND_DATA,
                              gdb.COMPLETE_NONE)
 
+    def _usage(self):
+        gdb.write('usage: qemu coroutine <coroutine-pointer> [--detailed]\n')
+        return
+
     def invoke(self, arg, from_tty):
         argv = gdb.string_to_argv(arg)
-        if len(argv) != 1:
-            gdb.write('usage: qemu coroutine <coroutine-pointer>\n')
-            return
+        argc = len(argv)
+        if argc == 0 or argc > 2 or (argc == 2 and argv[1] != '--detailed'):
+            return self._usage()
+        detailed = True if argc == 2 else False
 
-        bt_jmpbuf(coroutine_to_jmpbuf(gdb.parse_and_eval(argv[0])))
+        bt_jmpbuf(coroutine_to_jmpbuf(gdb.parse_and_eval(argv[0])),
+                  detailed=detailed)
 
 class CoroutineBt(gdb.Command):
-    '''Display backtrace including coroutine switches'''
+    __doc__ = textwrap.dedent("""\
+        Display backtrace including coroutine switches
+
+        Usage: qemu bt [--detailed]
+
+          --detailed       obtain detailed trace by copying coredump, patching
+                           regs in it, and runing gdb subprocess to get
+                           backtrace from the patched coredump
+        """)
+
     def __init__(self):
         gdb.Command.__init__(self, 'qemu bt', gdb.COMMAND_STACK,
                              gdb.COMPLETE_NONE)
 
+    def _usage(self):
+        gdb.write('usage: qemu bt [--detailed]\n')
+        return
+
     def invoke(self, arg, from_tty):
+        argv = gdb.string_to_argv(arg)
+        argc = len(argv)
+        if argc > 1 or (argc == 1 and argv[0] != '--detailed'):
+            return self._usage()
+        detailed = True if argc == 1 else False
 
         gdb.execute("bt")
 
@@ -178,8 +282,8 @@ class CoroutineBt(gdb.Command):
             co_ptr = co["base"]["caller"]
             if co_ptr == 0:
                 break
-            gdb.write("Coroutine at " + str(co_ptr) + ":\n")
-            bt_jmpbuf(coroutine_to_jmpbuf(co_ptr))
+            gdb.write("\nCoroutine at " + str(co_ptr) + ":\n")
+            bt_jmpbuf(coroutine_to_jmpbuf(co_ptr), detailed=detailed)
 
 class CoroutineSPFunction(gdb.Function):
     def __init__(self):
