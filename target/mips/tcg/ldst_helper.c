@@ -33,7 +33,6 @@
 target_ulong helper_##name(CPUMIPSState *env, target_ulong arg, int memop_idx)\
 {                                                                             \
     MemOpIdx oi = memop_idx;                                                  \
-    unsigned mem_idx = get_mmuidx(oi);                                        \
     MemOp op = get_memop(oi);                                                 \
     unsigned size = memop_size(op);                                           \
     if (arg & (size - 1)) {                                                   \
@@ -45,21 +44,21 @@ target_ulong helper_##name(CPUMIPSState *env, target_ulong arg, int memop_idx)\
     env->CP0_LLAddr = cpu_mips_translate_address(env, arg, MMU_DATA_LOAD,     \
                                                  GETPC());                    \
     env->lladdr = arg;                                                        \
-    env->llval = cpu_load(env, arg, mem_idx, GETPC());                        \
+    env->llval = cpu_load(env, arg, oi, GETPC());                             \
     return env->llval;                                                        \
 }
 
 static target_ulong loads4(CPUMIPSState *env, target_ulong arg,
-                           unsigned mem_idx, uintptr_t ra)
+                           MemOpIdx oi, uintptr_t ra)
 {
-    return (target_long)(int32_t)cpu_ldl_mmuidx_ra(env, arg, mem_idx, ra);
+    return (target_long)(int32_t)cpu_ldl_mmu(env, arg, oi, ra);
 }
 HELPER_LD_ATOMIC(ll, loads4)
 #ifdef TARGET_MIPS64
 static target_ulong loadu8(CPUMIPSState *env, target_ulong arg,
-                           unsigned mem_idx, uintptr_t ra)
+                           MemOpIdx oi, uintptr_t ra)
 {
-    return (target_ulong)cpu_ldq_mmuidx_ra(env, arg, mem_idx, ra);
+    return (target_ulong)cpu_ldq_mmu(env, arg, oi, ra);
 }
 HELPER_LD_ATOMIC(lld, loadu8)
 #endif
