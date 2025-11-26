@@ -29,12 +29,14 @@
 
 #ifndef CONFIG_USER_ONLY
 
-#define HELPER_LD_ATOMIC(name, almask, cpu_load)                              \
+#define HELPER_LD_ATOMIC(name, cpu_load)                                      \
 target_ulong helper_##name(CPUMIPSState *env, target_ulong arg, int memop_idx)\
 {                                                                             \
     MemOpIdx oi = memop_idx;                                                  \
     unsigned mem_idx = get_mmuidx(oi);                                        \
-    if (arg & almask) {                                                       \
+    MemOp op = get_memop(oi);                                                 \
+    unsigned size = memop_size(op);                                           \
+    if (arg & (size - 1)) {                                                   \
         if (!(env->hflags & MIPS_HFLAG_DM)) {                                 \
             env->CP0_BadVAddr = arg;                                          \
         }                                                                     \
@@ -52,14 +54,14 @@ static target_ulong loads4(CPUMIPSState *env, target_ulong arg,
 {
     return (target_long)(int32_t)cpu_ldl_mmuidx_ra(env, arg, mem_idx, ra);
 }
-HELPER_LD_ATOMIC(ll, 0x3, loads4)
+HELPER_LD_ATOMIC(ll, loads4)
 #ifdef TARGET_MIPS64
 static target_ulong loadu8(CPUMIPSState *env, target_ulong arg,
                            unsigned mem_idx, uintptr_t ra)
 {
     return (target_ulong)cpu_ldq_mmuidx_ra(env, arg, mem_idx, ra);
 }
-HELPER_LD_ATOMIC(lld, 0x7, loadu8)
+HELPER_LD_ATOMIC(lld, loadu8)
 #endif
 #undef HELPER_LD_ATOMIC
 
