@@ -29,7 +29,7 @@
 
 #ifndef CONFIG_USER_ONLY
 
-#define HELPER_LD_ATOMIC(name, insn, almask, do_cast)                         \
+#define HELPER_LD_ATOMIC(name, almask, cpu_load)                              \
 target_ulong helper_##name(CPUMIPSState *env, target_ulong arg, int mem_idx)  \
 {                                                                             \
     if (arg & almask) {                                                       \
@@ -41,12 +41,23 @@ target_ulong helper_##name(CPUMIPSState *env, target_ulong arg, int mem_idx)  \
     env->CP0_LLAddr = cpu_mips_translate_address(env, arg, MMU_DATA_LOAD,     \
                                                  GETPC());                    \
     env->lladdr = arg;                                                        \
-    env->llval = do_cast cpu_##insn##_mmuidx_ra(env, arg, mem_idx, GETPC());  \
+    env->llval = cpu_load(env, arg, mem_idx, GETPC());                        \
     return env->llval;                                                        \
 }
-HELPER_LD_ATOMIC(ll, ldl, 0x3, (target_long)(int32_t))
+
+static target_ulong loads4(CPUMIPSState *env, target_ulong arg,
+                           unsigned mem_idx, uintptr_t ra)
+{
+    return (target_long)(int32_t)cpu_ldl_mmuidx_ra(env, arg, mem_idx, ra);
+}
+HELPER_LD_ATOMIC(ll, 0x3, loads4)
 #ifdef TARGET_MIPS64
-HELPER_LD_ATOMIC(lld, ldq, 0x7, (target_ulong))
+static target_ulong loadu8(CPUMIPSState *env, target_ulong arg,
+                           unsigned mem_idx, uintptr_t ra)
+{
+    return (target_ulong)cpu_ldq_mmuidx_ra(env, arg, mem_idx, ra);
+}
+HELPER_LD_ATOMIC(lld, 0x7, loadu8)
 #endif
 #undef HELPER_LD_ATOMIC
 
