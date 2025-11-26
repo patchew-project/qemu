@@ -518,6 +518,11 @@ const char *qemu_get_vm_name(void)
     return qemu_name;
 }
 
+bool qemu_will_load_snapshot(void)
+{
+    return loadvm != NULL;
+}
+
 static void default_driver_disable(const char *driver)
 {
     int i;

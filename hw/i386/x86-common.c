@@ -35,10 +35,14 @@
 #include "target/i386/cpu.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "target/i386/sev.h"
+#include "hw/qdev-properties.h"
+#include "hw/intc/ioapic.h"
 
 #include "hw/acpi/cpu_hotplug.h"
 #include "hw/irq.h"
 #include "hw/loader.h"
+#include "migration/migration.h"
+#include "migration/vmstate.h"
 #include "multiboot.h"
 #include "elf.h"
 #include "standard-headers/asm-x86/bootparam.h"
@@ -67,6 +71,65 @@ out:
     object_unref(cpu);
 }
 
+static uint32_t get_ioapic_version_from_globals(void)
+{
+    Object *tmp = object_new(TYPE_IOAPIC);
+    const GlobalProperty *gp = qdev_find_global_prop(tmp, "version");
+    uint32_t version = 0;
+    if (gp) {
+        qemu_strtoui(gp->value, NULL, 0, &version);
+    } else {
+        version = IOAPIC_VER_DEF;
+    }
+    object_unref(tmp);
+    return version;
+}
+
+static int x86_seoib_post_load(void *opaque, int version_id)
+{
+    X86MachineState *x86ms = opaque;
+
+    if (kvm_enabled() && kvm_irqchip_is_split()) {
+        /* Set KVM LAPIC SEOIB flags based on x86ms->kvm_lapic_seoib_state */
+        if (!kvm_try_set_lapic_seoib_state(x86ms->kvm_lapic_seoib_state)) {
+            /* Migration from newer to older kernel. */
+            error_report("Failed to set KVM LAPIC SEOIB flags");
+            abort();
+        }
+    } else {
+        /*
+         * SEOIB state is only valid for split irqchip mode.
+         * This should never happen.
+         */
+        error_report("SEOIB state is only valid for split irqchip mode.");
+        abort();
+    }
+    return 0;
+}
+
+static bool x86_seoib_needed(void *opaque)
+{
+    /*
+     * Only migrate the SEOIB state if the state is not QUIRKED. This enables
+     * migration from new qemu version to older qemu version.
+     */
+    return kvm_irqchip_is_split() &&
+           ((X86MachineState *)opaque)->kvm_lapic_seoib_state !=
+               SEOIB_STATE_QUIRKED;
+}
+
+static const VMStateDescription vmstate_x86_seoib = {
+    .name = "x86-seoib-state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = x86_seoib_post_load,
+    .needed = x86_seoib_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(kvm_lapic_seoib_state, X86MachineState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 void x86_cpus_init(X86MachineState *x86ms, int default_cpu_version)
 {
     int i;
@@ -75,6 +138,8 @@ void x86_cpus_init(X86MachineState *x86ms, int default_cpu_version)
     MachineClass *mc = MACHINE_GET_CLASS(x86ms);
 
     x86_cpu_set_default_version(default_cpu_version);
+
+    vmstate_register(NULL, 0, &vmstate_x86_seoib, x86ms);
 
     /*
      * Calculates the limit to CPU APIC ID values
@@ -108,6 +173,39 @@ void x86_cpus_init(X86MachineState *x86ms, int default_cpu_version)
 
     if (!kvm_irqchip_in_kernel()) {
         apic_set_max_apic_id(x86ms->apic_id_limit);
+    }
+
+    if (kvm_enabled() && kvm_irqchip_is_split()) {
+        /*
+         * If -incoming or -loadvm, then defer the flag setting to later after
+         * the migration/loadvm is complete, but this must be done before apic
+         * state is migrated/loaded. This is done in x86_seoib_post_load. This
+         * is because x2apic api does not have support to unset flags. And, at
+         * this point we cannot determine the incoming SEOIB state.
+         * e.g. for ioapic version 0x20, incoming state can be either RESPECTED
+         * or QUIRKED.
+         *
+         * But for new power-ons, this is right place to set the flags.
+         */
+        if (!runstate_check(RUN_STATE_INMIGRATE) &&
+            !qemu_will_load_snapshot()) {
+            uint32_t ioapic_version = get_ioapic_version_from_globals();
+            if (ioapic_version >= 0x20) {
+                x86ms->kvm_lapic_seoib_state = SEOIB_STATE_RESPECTED;
+            } else {
+                x86ms->kvm_lapic_seoib_state = SEOIB_STATE_NOT_ADVERTISED;
+            }
+
+            /*
+             * Try setting the KVM SEOIB flags if that flags are present
+             * in the kernel.
+             */
+            if (!kvm_try_set_lapic_seoib_state(x86ms->kvm_lapic_seoib_state)) {
+                warn_report("Kernel does not support SEOIB flags; "
+                            "Falling back to QUIRKED lapic SEOIB behavior.");
+                x86ms->kvm_lapic_seoib_state = SEOIB_STATE_QUIRKED;
+            }
+        }
     }
 
     possible_cpus = mc->possible_cpu_arch_ids(ms);

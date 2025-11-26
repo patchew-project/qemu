@@ -36,6 +36,15 @@ struct X86MachineClass {
     bool apic_xrupt_override;
 };
 
+typedef enum KvmLapicSEOIBState {
+    /* Legacy behavior. SEOIB advertised but LAPIC still broadcasts EOIs. */
+    SEOIB_STATE_QUIRKED = 0,
+    /* SEOIB advertised and suppression honored. */
+    SEOIB_STATE_RESPECTED = 1,
+    /* SEOIB not advertised (required for IOAPIC v0x11). */
+    SEOIB_STATE_NOT_ADVERTISED = 2,
+} KvmLapicSEOIBState;
+
 struct X86MachineState {
     /*< private >*/
     MachineState parent;
@@ -95,6 +104,9 @@ struct X86MachineState {
     uint64_t bus_lock_ratelimit;
 
     IgvmCfg *igvm;
+
+    /* KVM LAPIC SEOIB policy for the VM. */
+    uint32_t kvm_lapic_seoib_state;
 };
 
 #define X86_MACHINE_SMM              "smm"

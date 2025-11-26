@@ -292,6 +292,52 @@ bool kvm_enable_x2apic(void)
              has_x2apic_api);
 }
 
+bool kvm_try_set_lapic_seoib_state(KvmLapicSEOIBState state)
+{
+    KVMState *s = KVM_STATE(current_accel());
+
+    trace_kvm_lapic_seoib_set_state(state);
+
+    if (state == SEOIB_STATE_QUIRKED) {
+        /*
+         * In case of SEOIB_STATE_QUIRKED, do nothing.
+         * The support will be advertised yet EOI broadcasts will still
+         * happen in case the guest decides to suppress EOI broadcasts.
+         */
+        return true;
+    }
+
+    uint64_t required =
+        KVM_X2APIC_API_DISABLE_IGNORE_SUPPRESS_EOI_BROADCAST_QUIRK |
+        KVM_X2APIC_API_DISABLE_SUPPRESS_EOI_BROADCAST;
+
+    int supported = kvm_check_extension(s, KVM_CAP_X2APIC_API);
+    if ((supported & required) != required) {
+        trace_kvm_lapic_seoib_set_state_failed(state, supported, required);
+        return false;
+    }
+
+    if (state == SEOIB_STATE_RESPECTED) {
+        /*
+         * The support will be advertised and the guest decision will be
+         * respected.
+         */
+        return kvm_x2apic_api_set_flags(
+            KVM_X2APIC_API_DISABLE_IGNORE_SUPPRESS_EOI_BROADCAST_QUIRK);
+    } else if (state == SEOIB_STATE_NOT_ADVERTISED) {
+        /*
+         * The support will not be advertised and the guest decision will
+         * be ignored (does not matter as the support is not advertised).
+         */
+        return kvm_x2apic_api_set_flags(
+            KVM_X2APIC_API_DISABLE_IGNORE_SUPPRESS_EOI_BROADCAST_QUIRK |
+            KVM_X2APIC_API_DISABLE_SUPPRESS_EOI_BROADCAST);
+    } else {
+        /* Invalid state.*/
+        return false;
+    }
+}
+
 bool kvm_hv_vpindex_settable(void)
 {
     return hv_vpindex_settable;

@@ -14,6 +14,7 @@ extern QemuUUID qemu_uuid;
 extern bool qemu_uuid_set;
 
 const char *qemu_get_vm_name(void);
+bool qemu_will_load_snapshot(void);
 
 /* Exit notifiers will run with BQL held. */
 void qemu_add_exit_notifier(Notifier *notify);

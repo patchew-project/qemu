@@ -15,6 +15,14 @@
 
 #define KVM_MAX_CPUID_ENTRIES  100
 
+#ifndef KVM_X2APIC_API_DISABLE_IGNORE_SUPPRESS_EOI_BROADCAST_QUIRK
+#define KVM_X2APIC_API_DISABLE_IGNORE_SUPPRESS_EOI_BROADCAST_QUIRK (1ULL << 2)
+#endif
+
+#ifndef KVM_X2APIC_API_DISABLE_SUPPRESS_EOI_BROADCAST
+#define KVM_X2APIC_API_DISABLE_SUPPRESS_EOI_BROADCAST (1ULL << 3)
+#endif
+
 /* always false if !CONFIG_KVM */
 #define kvm_pit_in_kernel() \
     (kvm_irqchip_in_kernel() && !kvm_irqchip_is_split())
@@ -23,8 +31,12 @@
 #define kvm_ioapic_in_kernel() \
     (kvm_irqchip_in_kernel() && !kvm_irqchip_is_split())
 
+/* Forward declaration to avoid including x86.h here */
+typedef enum KvmLapicSEOIBState KvmLapicSEOIBState;
+
 bool kvm_has_smm(void);
 bool kvm_enable_x2apic(void);
+bool kvm_try_set_lapic_seoib_state(KvmLapicSEOIBState state);
 bool kvm_hv_vpindex_settable(void);
 bool kvm_enable_hypercall(uint64_t enable_mask);
 
