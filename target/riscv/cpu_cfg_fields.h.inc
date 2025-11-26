@@ -151,6 +151,7 @@ BOOL_FIELD(ext_XVentanaCondOps)
 BOOL_FIELD(mmu)
 BOOL_FIELD(pmp)
 BOOL_FIELD(debug)
+BOOL_FIELD(debug_1_00)
 BOOL_FIELD(misa_w)
 
 BOOL_FIELD(short_isa_string)
