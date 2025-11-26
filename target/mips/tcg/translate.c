@@ -1936,7 +1936,7 @@ static inline void op_ld_##insn(TCGv ret, TCGv arg1, int mem_idx,          \
 static inline void op_ld_##insn(TCGv ret, TCGv arg1, int mem_idx,          \
                                 DisasContext *ctx)                         \
 {                                                                          \
-    MemOpIdx oi = make_memop_idx(mop | mo_endian(ctx), mem_idx);           \
+    MemOpIdx oi = make_memop_idx(mop | mo_endian(ctx) | MO_UNALN, mem_idx);\
     gen_helper_##insn(ret, tcg_env, arg1, tcg_constant_i32(oi));           \
 }
 #endif
