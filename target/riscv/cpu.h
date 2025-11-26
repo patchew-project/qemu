@@ -100,6 +100,7 @@ typedef struct riscv_cpu_profile {
     bool present;
     bool user_set;
     int priv_spec;
+    int debug_spec;
     int satp_mode;
     const int32_t ext_offsets[];
 } RISCVCPUProfile;
@@ -121,6 +122,16 @@ enum {
     PRIV_VERSION_1_13_0,
 
     PRIV_VERSION_LATEST = PRIV_VERSION_1_13_0,
+};
+
+/* Debug specification version */
+#define DEBUG_VER_0_13_0_STR "v0.13"
+#define DEBUG_VER_1_00_0_STR "v1.0"
+enum {
+    DEBUG_VERSION_0_13_0 = 0,
+    DEBUG_VERSION_1_00_0,
+
+    DEBUG_VERSION_LATEST = DEBUG_VERSION_1_00_0,
 };
 
 #define VEXT_VERSION_1_00_0 0x00010000
@@ -245,6 +256,7 @@ struct CPUArchState {
 
     target_ulong priv_ver;
     target_ulong vext_ver;
+    target_ulong debug_ver;
 
     /* RISCVMXL, but uint32_t for vmstate migration */
     uint32_t misa_mxl;      /* current mxl */
@@ -563,6 +575,7 @@ typedef struct RISCVCPUDef {
     uint32_t misa_ext;
     int priv_spec;
     int32_t vext_spec;
+    int debug_spec;
     RISCVCPUConfig cfg;
     bool bare;
     const RISCVCSR *custom_csrs;

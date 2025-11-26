@@ -1598,6 +1598,9 @@ static void riscv_init_max_cpu_extensions(Object *obj)
     /* set vector version */
     env->vext_ver = VEXT_VERSION_1_00_0;
 
+    /* Set debug version */
+    env->debug_ver = DEBUG_VERSION_0_13_0;
+
     /* Zfinx is not compatible with F. Disable it */
     isa_ext_update_enabled(cpu, CPU_CFG_OFFSET(ext_zfinx), false);
     isa_ext_update_enabled(cpu, CPU_CFG_OFFSET(ext_zdinx), false);

@@ -1123,6 +1123,7 @@ static void riscv_cpu_init(Object *obj)
     cpu->cfg.pmp_regions = 16;
     cpu->cfg.pmp_granularity = MIN_RISCV_PMP_GRANULARITY;
     cpu->env.vext_ver = VEXT_VERSION_1_00_0;
+    cpu->env.debug_ver = DEBUG_VERSION_0_13_0;
     cpu->cfg.max_satp_mode = -1;
 
     if (mcc->def->profile) {
@@ -1137,6 +1138,9 @@ static void riscv_cpu_init(Object *obj)
     }
     if (mcc->def->vext_spec != RISCV_PROFILE_ATTR_UNUSED) {
         cpu->env.vext_ver = mcc->def->vext_spec;
+    }
+    if (mcc->def->debug_spec != RISCV_PROFILE_ATTR_UNUSED) {
+        cpu->env.debug_ver = mcc->def->debug_spec;
     }
 #ifndef CONFIG_USER_ONLY
     if (mcc->def->custom_csrs) {
@@ -1718,6 +1722,66 @@ static const PropertyInfo prop_priv_spec = {
     /* FIXME enum? */
     .get = prop_priv_spec_get,
     .set = prop_priv_spec_set,
+};
+
+static int debug_spec_from_str(const char *debug_spec_str)
+{
+    int debug_version = -1;
+
+    if (!g_strcmp0(debug_spec_str, DEBUG_VER_0_13_0_STR)) {
+        debug_version = DEBUG_VERSION_0_13_0;
+    } else if (!g_strcmp0(debug_spec_str, DEBUG_VER_1_00_0_STR)) {
+        debug_version = DEBUG_VERSION_1_00_0;
+    }
+
+    return debug_version;
+}
+
+static const char *debug_spec_to_str(int debug_version)
+{
+    switch (debug_version) {
+    case DEBUG_VERSION_0_13_0:
+        return DEBUG_VER_0_13_0_STR;
+    case DEBUG_VERSION_1_00_0:
+        return DEBUG_VER_1_00_0_STR;
+    default:
+        return NULL;
+    }
+}
+
+static void prop_debug_spec_set(Object *obj, Visitor *v, const char *name,
+                                void *opaque, Error **errp)
+{
+    RISCVCPU *cpu = RISCV_CPU(obj);
+    g_autofree char *value = NULL;
+    int debug_version = -1;
+
+    visit_type_str(v, name, &value, errp);
+
+    debug_version = debug_spec_from_str(value);
+    if (debug_version < 0) {
+        error_setg(errp, "Unsupported debug spec version '%s'", value);
+        return;
+    }
+
+    cpu_option_add_user_setting(name, debug_version);
+    cpu->env.debug_ver = debug_version;
+}
+
+static void prop_debug_spec_get(Object *obj, Visitor *v, const char *name,
+                                void *opaque, Error **errp)
+{
+    RISCVCPU *cpu = RISCV_CPU(obj);
+    const char *value = debug_spec_to_str(cpu->env.debug_ver);
+
+    visit_type_str(v, name, (char **)&value, errp);
+}
+
+static const PropertyInfo prop_debug_spec = {
+    .type = "str",
+    .description = "debug_spec",
+    .get = prop_debug_spec_get,
+    .set = prop_debug_spec_set,
 };
 
 static void prop_vext_spec_set(Object *obj, Visitor *v, const char *name,
@@ -2648,6 +2712,7 @@ static const Property riscv_cpu_properties[] = {
 
     {.name = "priv_spec", .info = &prop_priv_spec},
     {.name = "vext_spec", .info = &prop_vext_spec},
+    {.name = "debug_spec", .info = &prop_debug_spec},
 
     {.name = "vlen", .info = &prop_vlen},
     {.name = "elen", .info = &prop_elen},
@@ -2817,6 +2882,10 @@ static void riscv_cpu_class_base_init(ObjectClass *c, const void *data)
         if (def->vext_spec != RISCV_PROFILE_ATTR_UNUSED) {
             assert(def->vext_spec != 0);
             mcc->def->vext_spec = def->vext_spec;
+        }
+        if (def->debug_spec != RISCV_PROFILE_ATTR_UNUSED) {
+            assert(def->debug_spec <= DEBUG_VERSION_LATEST);
+            mcc->def->debug_spec = def->debug_spec;
         }
         mcc->def->misa_ext |= def->misa_ext;
 
