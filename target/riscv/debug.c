@@ -64,6 +64,26 @@ static tdata_avail tdata_mapping[TRIGGER_TYPE_NUM] = {
     [TRIGGER_TYPE_UNAVAIL] = { true, true, true }
 };
 
+/* Valid trigger types supported by debug specification v0.13 */
+static bool valid_trigger_type_v013[TRIGGER_TYPE_NUM] = {
+    [TRIGGER_TYPE_AD_MATCH] = true,
+    [TRIGGER_TYPE_INST_CNT] = true,
+    [TRIGGER_TYPE_INT] = true,
+    [TRIGGER_TYPE_EXCP] = true,
+    [TRIGGER_TYPE_UNAVAIL] = true
+};
+
+/* Valid trigger types supported by debug specification v1.0 */
+static bool valid_trigger_type_v100[TRIGGER_TYPE_NUM] = {
+    [TRIGGER_TYPE_AD_MATCH] = true,
+    [TRIGGER_TYPE_INST_CNT] = true,
+    [TRIGGER_TYPE_INT] = true,
+    [TRIGGER_TYPE_EXCP] = true,
+    [TRIGGER_TYPE_AD_MATCH6] = true,
+    [TRIGGER_TYPE_EXT_SRC] = true,
+    [TRIGGER_TYPE_DISABLED] = true
+};
+
 /* only breakpoint size 1/2/4/8 supported */
 static int access_size[SIZE_NUM] = {
     [SIZE_ANY] = 0,
@@ -93,6 +113,20 @@ static inline target_ulong get_trigger_type(CPURISCVState *env,
                                             target_ulong trigger_index)
 {
     return extract_trigger_type(env, env->tdata1[trigger_index]);
+}
+
+static inline bool validate_trigger_type(CPURISCVState *env,
+                                         target_ulong trigger_type)
+{
+    if (trigger_type >= TRIGGER_TYPE_NUM) {
+        return false;
+    }
+
+    if (riscv_cpu_cfg(env)->debug_1_00) {
+        return valid_trigger_type_v100[trigger_type];
+    }
+
+    return valid_trigger_type_v013[trigger_type];
 }
 
 static trigger_action_t get_trigger_action(CPURISCVState *env,
@@ -889,6 +923,13 @@ void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
         trigger_type = get_trigger_type(env, env->trigger_cur);
     }
 
+    if (!validate_trigger_type(env, trigger_type)) {
+        /* Since the tdada1.type is WARL, we simpily ignore write here. */
+        qemu_log_mask(LOG_UNIMP, "trigger type: %d is not supported\n",
+                      trigger_type);
+        return;
+    }
+
     switch (trigger_type) {
     case TRIGGER_TYPE_AD_MATCH:
         type2_reg_write(env, env->trigger_cur, tdata_index, val);
@@ -918,8 +959,11 @@ void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
 target_ulong tinfo_csr_read(CPURISCVState *env)
 {
     /* assume all triggers support the same types of triggers */
-    return BIT(TRIGGER_TYPE_AD_MATCH) |
-           BIT(TRIGGER_TYPE_AD_MATCH6);
+    if (riscv_cpu_cfg(env)->debug_1_00) {
+        return BIT(TRIGGER_TYPE_AD_MATCH) | BIT(TRIGGER_TYPE_AD_MATCH6);
+    }
+
+    return BIT(TRIGGER_TYPE_AD_MATCH);
 }
 
 void riscv_cpu_debug_excp_handler(CPUState *cs)
@@ -1056,8 +1100,14 @@ void riscv_trigger_realize(CPURISCVState *env)
 
 void riscv_trigger_reset_hold(CPURISCVState *env)
 {
-    target_ulong tdata1 = build_tdata1(env, TRIGGER_TYPE_AD_MATCH, 0, 0);
+    target_ulong tdata1;
     int i;
+
+    if (riscv_cpu_cfg(env)->debug_1_00) {
+        tdata1 = build_tdata1(env, TRIGGER_TYPE_AD_MATCH6, 0, 0);
+    } else {
+        tdata1 = build_tdata1(env, TRIGGER_TYPE_AD_MATCH, 0, 0);
+    }
 
     /* init to type 2 triggers */
     for (i = 0; i < RV_MAX_TRIGGERS; i++) {
