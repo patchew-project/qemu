@@ -70,7 +70,7 @@ struct usbmon_packet {
 /* ------------------------------------------------------------------------ */
 
 #define CTRL_LEN                     4096
-#define DATA_LEN                     256
+#define DATA_LEN                     1024
 
 static int usbmon_status(USBPacket *p)
 {
