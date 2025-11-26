@@ -29,23 +29,26 @@
 
 #ifndef CONFIG_USER_ONLY
 
-#define HELPER_LD_ATOMIC(name, cpu_load)                                      \
-target_ulong helper_##name(CPUMIPSState *env, target_ulong arg, int memop_idx)\
-{                                                                             \
-    MemOpIdx oi = memop_idx;                                                  \
-    MemOp op = get_memop(oi);                                                 \
-    unsigned size = memop_size(op);                                           \
-    if (arg & (size - 1)) {                                                   \
-        if (!(env->hflags & MIPS_HFLAG_DM)) {                                 \
-            env->CP0_BadVAddr = arg;                                          \
-        }                                                                     \
-        do_raise_exception(env, EXCP_AdEL, GETPC());                          \
-    }                                                                         \
-    env->CP0_LLAddr = cpu_mips_translate_address(env, arg, MMU_DATA_LOAD,     \
-                                                 GETPC());                    \
-    env->lladdr = arg;                                                        \
-    env->llval = cpu_load(env, arg, oi, GETPC());                             \
-    return env->llval;                                                        \
+static target_ulong do_ll(target_ulong (*cpu_load_mmu)(CPUMIPSState *,
+                                                       target_ulong,
+                                                       MemOpIdx, uintptr_t),
+                          CPUMIPSState *env, target_ulong arg,
+                          MemOpIdx oi, uintptr_t ra)
+{
+    MemOp op = get_memop(oi);
+    unsigned size = memop_size(op);
+
+    if (arg & (size - 1)) {
+        if (!(env->hflags & MIPS_HFLAG_DM)) {
+            env->CP0_BadVAddr = arg;
+        }
+        do_raise_exception(env, EXCP_AdEL, ra);
+    }
+    env->CP0_LLAddr = cpu_mips_translate_address(env, arg, MMU_DATA_LOAD, ra);
+    env->llval = cpu_load_mmu(env, arg, oi, ra);
+    env->lladdr = arg;
+
+    return env->llval;
 }
 
 static target_ulong loads4(CPUMIPSState *env, target_ulong arg,
@@ -53,16 +56,24 @@ static target_ulong loads4(CPUMIPSState *env, target_ulong arg,
 {
     return (target_long)(int32_t)cpu_ldl_mmu(env, arg, oi, ra);
 }
-HELPER_LD_ATOMIC(ll, loads4)
+
+target_ulong helper_ll(CPUMIPSState *env, target_ulong arg, int memop_idx)
+{
+    return do_ll(loads4, env, arg, memop_idx, GETPC());
+}
+
 #ifdef TARGET_MIPS64
 static target_ulong loadu8(CPUMIPSState *env, target_ulong arg,
                            MemOpIdx oi, uintptr_t ra)
 {
     return (target_ulong)cpu_ldq_mmu(env, arg, oi, ra);
 }
-HELPER_LD_ATOMIC(lld, loadu8)
+
+target_ulong helper_lld(CPUMIPSState *env, target_ulong arg, int memop_idx)
+{
+    return do_ll(loadu8, env, arg, memop_idx, GETPC());
+}
 #endif
-#undef HELPER_LD_ATOMIC
 
 #endif /* !CONFIG_USER_ONLY */
 
