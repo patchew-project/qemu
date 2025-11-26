@@ -43,6 +43,7 @@ typedef enum {
     TRIGGER_TYPE_AD_MATCH6 = 6,     /* new address/data match trigger */
     TRIGGER_TYPE_EXT_SRC = 7,       /* external source trigger */
     TRIGGER_TYPE_UNAVAIL = 15,      /* trigger exists, but unavailable */
+    TRIGGER_TYPE_DISABLED = 15,     /* trigger exists, but disabled */
     TRIGGER_TYPE_NUM
 } trigger_type_t;
 
