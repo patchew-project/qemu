@@ -237,8 +237,10 @@ void helper_sdr(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
 static const int multiple_regs[] = { 16, 17, 18, 19, 20, 21, 22, 23, 30 };
 
 void helper_lwm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
-                uint32_t mem_idx)
+                uint32_t mmu_idx)
 {
+    MemOp op = mo_endian_env(env) | MO_UL | MO_UNALN;
+    MemOpIdx oi = make_memop_idx(op, mmu_idx);
     target_ulong base_reglist = reglist & 0xf;
     target_ulong do_r31 = reglist & 0x10;
 
@@ -247,20 +249,22 @@ void helper_lwm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
 
         for (i = 0; i < base_reglist; i++) {
             env->active_tc.gpr[multiple_regs[i]] =
-                (target_long)cpu_ldl_mmuidx_ra(env, addr, mem_idx, GETPC());
+                (target_long)cpu_ldl_mmu(env, addr, oi, GETPC());
             addr += 4;
         }
     }
 
     if (do_r31) {
         env->active_tc.gpr[31] =
-            (target_long)cpu_ldl_mmuidx_ra(env, addr, mem_idx, GETPC());
+            (target_long)cpu_ldl_mmu(env, addr, oi, GETPC());
     }
 }
 
 void helper_swm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
-                uint32_t mem_idx)
+                uint32_t mmu_idx)
 {
+    MemOp op = mo_endian_env(env) | MO_UL | MO_UNALN;
+    MemOpIdx oi = make_memop_idx(op, mmu_idx);
     target_ulong base_reglist = reglist & 0xf;
     target_ulong do_r31 = reglist & 0x10;
 
@@ -268,58 +272,59 @@ void helper_swm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
         target_ulong i;
 
         for (i = 0; i < base_reglist; i++) {
-            cpu_stl_mmuidx_ra(env, addr, env->active_tc.gpr[multiple_regs[i]],
-                              mem_idx, GETPC());
+            cpu_stl_mmu(env, addr, env->active_tc.gpr[multiple_regs[i]],
+                        oi, GETPC());
             addr += 4;
         }
     }
 
     if (do_r31) {
-        cpu_stl_mmuidx_ra(env, addr, env->active_tc.gpr[31], mem_idx, GETPC());
+        cpu_stl_mmu(env, addr, env->active_tc.gpr[31], oi, GETPC());
     }
 }
 
 #if defined(TARGET_MIPS64)
 void helper_ldm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
-                uint32_t mem_idx)
+                uint32_t mmu_idx)
 {
     target_ulong base_reglist = reglist & 0xf;
     target_ulong do_r31 = reglist & 0x10;
+    uintptr_t retaddr = GETPC();
+    MemOpIdx oi = make_memop_idx(mo_endian_env(env) | MO_UQ | MO_UNALN,
+                                 mmu_idx);
 
     if (base_reglist > 0 && base_reglist <= ARRAY_SIZE(multiple_regs)) {
-        target_ulong i;
-
-        for (i = 0; i < base_reglist; i++) {
-            env->active_tc.gpr[multiple_regs[i]] =
-                cpu_ldq_mmuidx_ra(env, addr, mem_idx, GETPC());
+        for (unsigned i = 0; i < base_reglist; i++) {
+            env->active_tc.gpr[multiple_regs[i]] = cpu_ldq_mmu(env, addr,
+                                                               oi, retaddr);
             addr += 8;
         }
     }
 
     if (do_r31) {
-        env->active_tc.gpr[31] =
-            cpu_ldq_mmuidx_ra(env, addr, mem_idx, GETPC());
+        env->active_tc.gpr[31] = cpu_ldq_mmu(env, addr, oi, retaddr);
     }
 }
 
 void helper_sdm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
-                uint32_t mem_idx)
+                uint32_t mmu_idx)
 {
     target_ulong base_reglist = reglist & 0xf;
     target_ulong do_r31 = reglist & 0x10;
+    uintptr_t retaddr = GETPC();
+    MemOpIdx oi = make_memop_idx(mo_endian_env(env) | MO_UQ | MO_UNALN,
+                                 mmu_idx);
 
     if (base_reglist > 0 && base_reglist <= ARRAY_SIZE(multiple_regs)) {
-        target_ulong i;
-
-        for (i = 0; i < base_reglist; i++) {
-            cpu_stq_mmuidx_ra(env, addr, env->active_tc.gpr[multiple_regs[i]],
-                              mem_idx, GETPC());
+        for (unsigned i = 0; i < base_reglist; i++) {
+            cpu_stq_mmu(env, addr, env->active_tc.gpr[multiple_regs[i]],
+                        oi, retaddr);
             addr += 8;
         }
     }
 
     if (do_r31) {
-        cpu_stq_mmuidx_ra(env, addr, env->active_tc.gpr[31], mem_idx, GETPC());
+        cpu_stq_mmu(env, addr, env->active_tc.gpr[31], oi, retaddr);
     }
 }
 
