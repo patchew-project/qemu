@@ -42,7 +42,7 @@
 //! references to an object and yet mutate it. In particular, QEMU objects
 //! usually have their pointer shared with the "outside world very early in
 //! their lifetime", for example when they create their
-//! [`MemoryRegion`s](crate::bindings::MemoryRegion).  Therefore, individual
+//! [`MemoryRegion`s](system::MemoryRegion).  Therefore, individual
 //! parts of a  device must be made mutable in a controlled manner; this module
 //! provides the tools to do so.
 //!
