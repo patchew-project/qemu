@@ -109,11 +109,11 @@ Monitor *monitor_set_cur(Coroutine *co, Monitor *mon)
 /**
  * Is the current monitor, if any, a QMP monitor?
  */
-bool monitor_cur_is_qmp(void)
+bool monitor_cur_is_hmp(void)
 {
     Monitor *cur_mon = monitor_cur();
 
-    return cur_mon && monitor_is_qmp(cur_mon);
+    return cur_mon && !monitor_is_qmp(cur_mon);
 }
 
 /**
@@ -275,7 +275,7 @@ int error_vprintf(const char *fmt, va_list ap)
 {
     Monitor *cur_mon = monitor_cur();
 
-    if (cur_mon && !monitor_cur_is_qmp()) {
+    if (monitor_cur_is_hmp()) {
         return monitor_vprintf(cur_mon, fmt, ap);
     }
     return vfprintf(stderr, fmt, ap);
