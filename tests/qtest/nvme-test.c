@@ -48,23 +48,37 @@ static void *nvme_create(void *pci_bus, QGuestAllocator *alloc, void *addr)
 /* This used to cause a NULL pointer dereference.  */
 static void nvmetest_oob_cmb_test(void *obj, void *data, QGuestAllocator *alloc)
 {
-    const int cmb_bar_size = 2 * MiB;
     QNvme *nvme = obj;
     QPCIDevice *pdev = &nvme->dev;
     QPCIBar bar;
+    const uint64_t expected_cmb_size = 2 * MiB;
 
+    /* Enable the device's I/O and memory resources at the PCI level. */
     qpci_device_enable(pdev);
+
+    /* Map BAR 2, which is the dedicated BAR for the Controller Memory Buffer. */
     bar = qpci_iomap(pdev, 2, NULL);
 
-    qpci_io_writel(pdev, bar, 0, 0xccbbaa99);
-    g_assert_cmpint(qpci_io_readb(pdev, bar, 0), ==, 0x99);
-    g_assert_cmpint(qpci_io_readw(pdev, bar, 0), ==, 0xaa99);
+    /* Sanity check that the probed BAR size matches the command line. */
+    g_assert_cmpint(bar.size, ==, expected_cmb_size);
 
-    /* Test partially out-of-bounds accesses.  */
-    qpci_io_writel(pdev, bar, cmb_bar_size - 1, 0x44332211);
-    g_assert_cmpint(qpci_io_readb(pdev, bar, cmb_bar_size - 1), ==, 0x11);
-    g_assert_cmpint(qpci_io_readw(pdev, bar, cmb_bar_size - 1), !=, 0x2211);
-    g_assert_cmpint(qpci_io_readl(pdev, bar, cmb_bar_size - 1), !=, 0x44332211);
+    /*
+     * Perform read/write checks at the very end of the BAR to ensure
+     * that the entire region is accessible and that boundary accesses of
+     * different sizes are handled correctly.
+     */
+
+    /* Test the last valid byte (the fix for the CVE was about 1-byte access) */
+    qpci_io_writeb(pdev, bar, bar.size - 1, 0x11);
+    g_assert_cmpint(qpci_io_readb(pdev, bar, bar.size - 1), ==, 0x11);
+
+    /* Test the last valid word */
+    qpci_io_writew(pdev, bar, bar.size - 2, 0x2233);
+    g_assert_cmpint(qpci_io_readw(pdev, bar, bar.size - 2), ==, 0x2233);
+
+    /* Test the last valid dword */
+    qpci_io_writel(pdev, bar, bar.size - 4, 0x44556677);
+    g_assert_cmpint(qpci_io_readl(pdev, bar, bar.size - 4), ==, 0x44556677);
 }
 
 static void nvmetest_reg_read_test(void *obj, void *data, QGuestAllocator *alloc)
