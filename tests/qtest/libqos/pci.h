@@ -123,7 +123,7 @@ void qpci_memwrite(QPCIDevice *bus, QPCIBar token, uint64_t off,
                    const void *buf, size_t len);
 QPCIBar qpci_iomap(QPCIDevice *dev, int barno, uint64_t *sizeptr);
 void qpci_iounmap(QPCIDevice *dev, QPCIBar addr);
-QPCIBar qpci_legacy_iomap(QPCIDevice *dev, uint16_t addr);
+QPCIBar qpci_legacy_iomap(QPCIDevice *dev, uint16_t addr, uint64_t size);
 
 void qpci_unplug_acpi_device_test(QTestState *qs, const char *id, uint8_t slot);
 

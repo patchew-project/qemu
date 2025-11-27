@@ -173,7 +173,7 @@ static QPCIDevice *get_pci_device(QTestState *qts, QPCIBar *bmdma_bar,
     /* Map bmdma BAR */
     *bmdma_bar = qpci_iomap(dev, 4, NULL);
 
-    *ide_bar = qpci_legacy_iomap(dev, IDE_BASE);
+    *ide_bar = qpci_legacy_iomap(dev, IDE_BASE, 8);
 
     qpci_device_enable(dev);
 

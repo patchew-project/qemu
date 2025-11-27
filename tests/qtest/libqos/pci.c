@@ -603,9 +603,9 @@ void qpci_iounmap(QPCIDevice *dev, QPCIBar bar)
     /* FIXME */
 }
 
-QPCIBar qpci_legacy_iomap(QPCIDevice *dev, uint16_t addr)
+QPCIBar qpci_legacy_iomap(QPCIDevice *dev, uint16_t addr, uint64_t size)
 {
-    QPCIBar bar = { .addr = addr, .is_io = true };
+    QPCIBar bar = { .addr = addr, .size = size, .is_io = true };
     return bar;
 }
 
