@@ -576,6 +576,8 @@ typedef struct NvmeParams {
     uint16_t id_device;
     uint16_t id_subsys_vendor;
     uint16_t id_subsys;
+
+    uint32_t ieee_oui;
 } NvmeParams;
 
 typedef struct NvmeCtrl {
