@@ -9131,6 +9131,10 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
         id->ieee[0] = 0xb3;
         id->ieee[1] = 0x02;
         id->ieee[2] = 0x00;
+     } else if (n->params.ieee_oui) {
+        id->ieee[0] = extract32(n->params.ieee_oui, 0,  8);
+        id->ieee[1] = extract32(n->params.ieee_oui, 8,  8);
+        id->ieee[2] = extract32(n->params.ieee_oui, 16, 8);
     } else {
         id->ieee[0] = 0x00;
         id->ieee[1] = 0x54;
@@ -9384,6 +9388,24 @@ static void nvme_exit(PCIDevice *pci_dev)
     memory_region_del_subregion(&n->bar0, &n->iomem);
 }
 
+static void nvme_prop_ieee_set(Object *obj, Visitor *v, const char *name,
+        void *opaque, Error **errp)
+{
+    Property *prop = opaque;
+    uint32_t *val = object_field_prop_ptr(obj, prop);
+    if (!visit_type_uint32(v, name, val, errp)) {
+        return;
+    }
+}
+
+static const PropertyInfo nvme_prop_ieee = {
+    .type = "uint32",
+    .description = "IEEE OUI: Identify Controller bytes 75:73\
+ in LE format. (e.g. ieee_oui=0xABCDEF => Byte[73]=0xEF, Byte[74]=0xCD,\
+ Byte[75]=0xAB)",
+    .set = nvme_prop_ieee_set,
+};
+
 static const Property nvme_props[] = {
     DEFINE_BLOCK_PROPERTIES(NvmeCtrl, namespace.blkconf),
     DEFINE_PROP_LINK("pmrdev", NvmeCtrl, pmr.dev, TYPE_MEMORY_BACKEND,
@@ -9431,6 +9453,8 @@ static const Property nvme_props[] = {
     DEFINE_PROP_UINT16("id_subsys_vendor", NvmeCtrl,
                                                     params.id_subsys_vendor, 0),
     DEFINE_PROP_UINT16("id_subsys", NvmeCtrl, params.id_subsys, 0),
+    DEFINE_PROP("ieee_oui", NvmeCtrl, params.ieee_oui, nvme_prop_ieee,
+                uint32_t),
 };
 
 static void nvme_get_smart_warning(Object *obj, Visitor *v, const char *name,
