@@ -306,7 +306,8 @@ typedef struct BDRVVVFATState {
     array_t fat,directory,mapping;
     char volume_label[11];
 
-    uint32_t offset_to_bootsector; /* 0 for floppy, 0x3f for disk */
+    /* 0x3f for partitioned disk, 0x0 otherwise */
+    uint32_t offset_to_bootsector;
 
     unsigned int cluster_size;
     unsigned int sectors_per_cluster;
@@ -1082,6 +1083,11 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "Make the image writable",
         },
+        {
+            .name = "partitioned",
+            .type = QEMU_OPT_BOOL,
+            .help = "Do not add a Master Boot Record on this disk",
+        },
         { /* end of list */ }
     },
 };
@@ -1138,7 +1144,7 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
 {
     BDRVVVFATState *s = bs->opaque;
     int cyls, heads, secs;
-    bool floppy;
+    bool floppy, partitioned;
     const char *dirname, *label;
     QemuOpts *opts;
     int ret;
@@ -1164,6 +1170,9 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
 
     s->fat_type = qemu_opt_get_number(opts, "fat-type", 0);
     floppy = qemu_opt_get_bool(opts, "floppy", false);
+
+    /* Hard disk are partitioned by default; floppy aren't.  */
+    partitioned = qemu_opt_get_bool(opts, "partitioned", floppy ? false : true);
 
     memset(s->volume_label, ' ', sizeof(s->volume_label));
     label = qemu_opt_get(opts, "label");
@@ -1196,7 +1205,6 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
         if (!s->fat_type) {
             s->fat_type = 16;
         }
-        s->offset_to_bootsector = 0x3f;
         cyls = s->fat_type == 12 ? 64 : 1024;
         heads = 16;
         secs = 63;
@@ -1215,6 +1223,10 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
+    /* Reserver space for MBR */
+    if (partitioned) {
+        s->offset_to_bootsector = 0x3f;
+    }
 
     s->bs = bs;
 
@@ -3246,6 +3258,7 @@ static const char *const vvfat_strong_runtime_opts[] = {
     "floppy",
     "label",
     "rw",
+    "partitioned",
 
     NULL
 };
