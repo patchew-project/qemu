@@ -396,6 +396,7 @@ void qpci_config_writel(QPCIDevice *dev, uint8_t offset, uint32_t value)
 
 uint8_t qpci_io_readb(QPCIDevice *dev, QPCIBar token, uint64_t off)
 {
+	g_assert(off + 1 <= token.size);
     QPCIBus *bus = dev->bus;
 
     if (token.is_io) {
@@ -410,6 +411,7 @@ uint8_t qpci_io_readb(QPCIDevice *dev, QPCIBar token, uint64_t off)
 
 uint16_t qpci_io_readw(QPCIDevice *dev, QPCIBar token, uint64_t off)
 {
+	g_assert(off + 2 <= token.size);
     QPCIBus *bus = dev->bus;
 
     if (token.is_io) {
@@ -424,6 +426,7 @@ uint16_t qpci_io_readw(QPCIDevice *dev, QPCIBar token, uint64_t off)
 
 uint32_t qpci_io_readl(QPCIDevice *dev, QPCIBar token, uint64_t off)
 {
+	g_assert(off + 4 <= token.size);
     QPCIBus *bus = dev->bus;
 
     if (token.is_io) {
@@ -438,6 +441,7 @@ uint32_t qpci_io_readl(QPCIDevice *dev, QPCIBar token, uint64_t off)
 
 uint64_t qpci_io_readq(QPCIDevice *dev, QPCIBar token, uint64_t off)
 {
+	g_assert(off + 8 <= token.size);
     QPCIBus *bus = dev->bus;
 
     if (token.is_io) {
@@ -453,6 +457,7 @@ uint64_t qpci_io_readq(QPCIDevice *dev, QPCIBar token, uint64_t off)
 void qpci_io_writeb(QPCIDevice *dev, QPCIBar token, uint64_t off,
                     uint8_t value)
 {
+	g_assert(off + 1 <= token.size);
     QPCIBus *bus = dev->bus;
 
     if (token.is_io) {
@@ -465,6 +470,7 @@ void qpci_io_writeb(QPCIDevice *dev, QPCIBar token, uint64_t off,
 void qpci_io_writew(QPCIDevice *dev, QPCIBar token, uint64_t off,
                     uint16_t value)
 {
+	g_assert(off + 2 <= token.size);
     QPCIBus *bus = dev->bus;
 
     if (token.is_io) {
@@ -478,6 +484,7 @@ void qpci_io_writew(QPCIDevice *dev, QPCIBar token, uint64_t off,
 void qpci_io_writel(QPCIDevice *dev, QPCIBar token, uint64_t off,
                     uint32_t value)
 {
+	g_assert(off + 4 <= token.size);
     QPCIBus *bus = dev->bus;
 
     if (token.is_io) {
@@ -491,6 +498,7 @@ void qpci_io_writel(QPCIDevice *dev, QPCIBar token, uint64_t off,
 void qpci_io_writeq(QPCIDevice *dev, QPCIBar token, uint64_t off,
                     uint64_t value)
 {
+	g_assert(off + 8 <= token.size);
     QPCIBus *bus = dev->bus;
 
     if (token.is_io) {
@@ -500,10 +508,10 @@ void qpci_io_writeq(QPCIDevice *dev, QPCIBar token, uint64_t off,
         bus->memwrite(bus, token.addr + off, &value, sizeof(value));
     }
 }
-
 void qpci_memread(QPCIDevice *dev, QPCIBar token, uint64_t off,
                   void *buf, size_t len)
 {
+	g_assert(off + len <= token.size);
     g_assert(!token.is_io);
     dev->bus->memread(dev->bus, token.addr + off, buf, len);
 }
@@ -511,6 +519,7 @@ void qpci_memread(QPCIDevice *dev, QPCIBar token, uint64_t off,
 void qpci_memwrite(QPCIDevice *dev, QPCIBar token, uint64_t off,
                    const void *buf, size_t len)
 {
+	g_assert(off + len <= token.size);
     g_assert(!token.is_io);
     dev->bus->memwrite(dev->bus, token.addr + off, buf, len);
 }
@@ -539,6 +548,19 @@ QPCIBar qpci_iomap(QPCIDevice *dev, int barno, uint64_t *sizeptr)
         addr &= PCI_BASE_ADDRESS_IO_MASK;
     } else {
         addr &= PCI_BASE_ADDRESS_MEM_MASK;
+    }
+
+    if (!addr){
+        /*
+         * This is an unimplemented BAR. It is not a fatal error.
+         * We model it as a BAR with a size of zero. Any attempt to
+         * access it will be caught by assertions in the accessors.
+         */
+        if (sizeptr) {
+            *sizeptr = 0;
+        }
+        memset(&bar, 0, sizeof(bar));
+        return bar;
     }
 
     g_assert(addr); /* Must have *some* size bits */
@@ -572,6 +594,7 @@ QPCIBar qpci_iomap(QPCIDevice *dev, int barno, uint64_t *sizeptr)
     }
 
     bar.addr = loc;
+    bar.size = size;
     return bar;
 }
 

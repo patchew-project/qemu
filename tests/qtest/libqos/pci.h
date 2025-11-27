@@ -58,6 +58,7 @@ struct QPCIBus {
 
 struct QPCIBar {
     uint64_t addr;
+    uint64_t size;
     bool is_io;
 };
 
