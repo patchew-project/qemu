@@ -81,6 +81,7 @@ static void string_bswap16(uint16_t *s, size_t bytes)
 static void verify_state(AHCIQState *ahci, uint64_t hba_old)
 {
     int i, j;
+    uint32_t ports_impl;
     uint32_t ahci_fingerprint;
     uint64_t hba_base;
     AHCICommandHeader cmd;
@@ -99,7 +100,14 @@ static void verify_state(AHCIQState *ahci, uint64_t hba_old)
     g_assert_cmphex(ahci_rreg(ahci, AHCI_CAP), ==, ahci->cap);
     g_assert_cmphex(ahci_rreg(ahci, AHCI_CAP2), ==, ahci->cap2);
 
+    ports_impl = ahci_rreg(ahci, AHCI_PI);
+
     for (i = 0; i < 32; i++) {
+
+        if (!(ports_impl & (1 << i))) {
+            continue; /* Skip unimplemented ports */
+        }
+
         g_assert_cmphex(ahci_px_rreg(ahci, i, AHCI_PX_FB), ==,
                         ahci->port[i].fb);
         g_assert_cmphex(ahci_px_rreg(ahci, i, AHCI_PX_CLB), ==,
