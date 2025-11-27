@@ -963,6 +963,25 @@ Aml *aml_gpio_int(AmlConsumerAndProducer con_and_pro,
 }
 
 /*
+ * ACPI 5.0: 19.5.54
+ * GpioIo(GPIO Connection IO Resource Descriptor Macro)
+ */
+Aml *aml_gpio_io(AmlConsumerAndProducer con_and_pro,
+                 AmlIoRestriction io_restriction, AmlShared shared,
+                 AmlPinConfig pin_config, uint16_t debounce_timeout,
+                 const uint32_t pin_list[], uint32_t pin_count,
+                 const char *resource_source_name,
+                 const uint8_t *vendor_data, uint16_t vendor_data_len)
+{
+    uint8_t flags = io_restriction | shared << 3;
+
+    return aml_gpio_connection(AML_IO_CONNECTION, con_and_pro, flags,
+                               pin_config, 0, debounce_timeout, pin_list,
+                               pin_count, resource_source_name, vendor_data,
+                               vendor_data_len);
+}
+
+/*
  * ACPI 1.0b: 6.4.3.4 32-Bit Fixed Location Memory Range Descriptor
  * (Type 1, Large Item Name 0x6)
  */

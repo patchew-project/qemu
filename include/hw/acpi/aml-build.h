@@ -168,6 +168,17 @@ typedef enum {
 } AmlActiveHighAndLow;
 
 /*
+ * ACPI 5.0: Table 5-133 Predefined ACPI Names
+ * _IOR field definition
+ */
+typedef enum {
+    AML_IO_RESTRICTION_NONE = 0,
+    AML_IO_RESTRICTION_INPUT_ONLY = 1,
+    AML_IO_RESTRICTION_OUTPUT_ONLY = 2,
+    AML_IO_RESTRICTION_NONE_AND_PRESERVE = 3,
+} AmlIoRestriction;
+
+/*
  * ACPI 5.0: Table 6-187 Extended Interrupt Descriptor Definition
  * _SHR field definition
  */
@@ -331,6 +342,12 @@ Aml *aml_gpio_int(AmlConsumerAndProducer con_and_pro,
                   const uint32_t pin_list[], uint32_t pin_count,
                   const char *resource_source_name,
                   const uint8_t *vendor_data, uint16_t vendor_data_len);
+Aml *aml_gpio_io(AmlConsumerAndProducer con_and_pro,
+                 AmlIoRestriction io_restriction, AmlShared shared,
+                 AmlPinConfig pin_config, uint16_t debounce_timeout,
+                 const uint32_t pin_list[], uint32_t pin_count,
+                 const char *resource_source_name,
+                 const uint8_t *vendor_data, uint16_t vendor_data_len);
 Aml *aml_memory32_fixed(uint32_t addr, uint32_t size,
                         AmlReadAndWrite read_and_write);
 Aml *aml_interrupt(AmlConsumerAndProducer con_and_pro,
