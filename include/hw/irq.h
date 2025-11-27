@@ -8,6 +8,8 @@
 #define TYPE_IRQ "irq"
 OBJECT_DECLARE_SIMPLE_TYPE(IRQState, IRQ)
 
+typedef void (*qemu_irq_handler)(void *opaque, int n, int level);
+
 struct IRQState {
     Object parent_obj;
 

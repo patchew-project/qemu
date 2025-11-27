@@ -8,6 +8,7 @@
 #include "qemu/rcu_queue.h"
 #include "qom/object.h"
 #include "hw/hotplug.h"
+#include "hw/irq.h"
 #include "hw/resettable.h"
 
 /**
