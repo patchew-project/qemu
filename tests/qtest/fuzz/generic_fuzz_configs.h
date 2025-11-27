@@ -247,6 +247,14 @@ const generic_fuzz_config predefined_configs[] = {
         .args = "-machine q35 -nodefaults "
         "-parallel file:/dev/null",
         .objects = "parallel*",
+    },{
+        .name = "pcie-pci-bridge",
+        .args = "-machine q35 -nodefaults "
+        "-device pcie-root-port,port=0x10,chassis=1,id=pci.1,bus=pcie.0,multifunction=true,addr=0x2 "
+        "-device pcie-pci-bridge,id=pci.2,bus=pci.1,addr=0x0 "
+        "-netdev user,id=net0 "
+        "-device e1000,netdev=net0,id=nic0,bus=pci.2,addr=0x3",
+        .objects = "pci* shpc*"
     }
 };
 
