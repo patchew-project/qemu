@@ -342,7 +342,7 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     }
 
     /* 3. Look up the Segment Register */
-    sr = env->sr[eaddr >> 28];
+    sr = env->sr[extract32(eaddr, 28, 4)];
 
     /* 4. Handle direct store segments */
     if (sr & SR32_T) {
