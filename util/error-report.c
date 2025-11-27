@@ -177,7 +177,7 @@ real_time_iso8601(void)
 }
 
 /*
- * Print a message to current monitor if we have one, else to stderr.
+ * Print a message to current HMP monitor if we have one, else to stderr.
  * @report_type is the type of message: error, warning or informational.
  * Format arguments like vsprintf().  The resulting message should be
  * a single phrase, with no newline or trailing punctuation.
