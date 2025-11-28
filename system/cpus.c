@@ -718,8 +718,8 @@ void qemu_init_vcpu(CPUState *cpu)
         /* If the target cpu hasn't set up any address spaces itself,
          * give it the default one.
          */
-        cpu->num_ases = 1;
-        cpu_address_space_init(cpu, 0, "cpu-memory", cpu->memory);
+        cpu_address_space_init(cpu, 1 /* Number of address spaces */);
+        cpu_address_space_add(cpu, 0 /* AS index */, "cpu-memory", cpu->memory);
     }
 
     /* accelerators all implement the AccelOpsClass */

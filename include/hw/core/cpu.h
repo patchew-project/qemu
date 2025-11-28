@@ -402,6 +402,9 @@ struct qemu_work_item;
 
 #define CPU_UNSET_NUMA_NODE_ID -1
 
+#define CPUAS_IDX(asidx)     (cpu->as_to_cpuas_idx[asidx])
+#define CPU_ASES(cpuas_idx)  (g_array_index(cpu->cpu_ases, CPUAddressSpace *, cpuas_idx))
+
 /**
  * struct CPUState - common state of one CPU core or thread.
  *
@@ -515,7 +518,8 @@ struct CPUState {
     QemuMutex work_mutex;
     QSIMPLEQ_HEAD(, qemu_work_item) work_list;
 
-    struct CPUAddressSpace *cpu_ases;
+    GArray *cpu_ases;
+    int *as_to_cpuas_idx;
     int num_ases;
     AddressSpace *as;
     MemoryRegion *memory;

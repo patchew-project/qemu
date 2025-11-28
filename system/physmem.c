@@ -692,7 +692,7 @@ address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr orig_addr,
     IOMMUTLBEntry iotlb;
     int iommu_idx;
     hwaddr addr = orig_addr;
-    AddressSpaceDispatch *d = address_space_to_dispatch(cpu->cpu_ases[asidx].as);
+    AddressSpaceDispatch *d = address_space_to_dispatch(CPU_ASES(CPUAS_IDX(asidx))->as);
 
     for (;;) {
         section = address_space_translate_internal(d, addr, &addr, plen, false);
@@ -752,7 +752,7 @@ MemoryRegionSection *iotlb_to_section(CPUState *cpu,
                                       hwaddr index, MemTxAttrs attrs)
 {
     int asidx = cpu_asidx_from_attrs(cpu, attrs);
-    CPUAddressSpace *cpuas = &cpu->cpu_ases[asidx];
+    CPUAddressSpace *cpuas = CPU_ASES(CPUAS_IDX(asidx));
     AddressSpaceDispatch *d = address_space_to_dispatch(cpuas->as);
     int section_index = index & ~TARGET_PAGE_MASK;
     MemoryRegionSection *ret;
@@ -775,10 +775,23 @@ hwaddr memory_region_section_get_iotlb(CPUState *cpu,
 
 #endif /* CONFIG_TCG */
 
-void cpu_address_space_init(CPUState *cpu, int asidx,
-                            const char *prefix, MemoryRegion *mr)
+void cpu_address_space_init(CPUState *cpu, int num_ases)
 {
-    CPUAddressSpace *newas;
+    /* Must be called only once per vCPU. */
+    assert(cpu->as_to_cpuas_idx == NULL);
+
+    cpu->num_ases = num_ases;
+    cpu->as_to_cpuas_idx = g_new0(int, num_ases);
+    /* Mark all AS indexes as uninitialized. */
+    for (int i = 0; i < num_ases; i++) {
+        cpu->as_to_cpuas_idx[i] = -1;
+    }
+}
+
+void cpu_address_space_add(CPUState *cpu, int asidx,
+                           const char *prefix, MemoryRegion *mr)
+{
+    CPUAddressSpace *newas = g_new0(CPUAddressSpace, 1);
     AddressSpace *as = g_new0(AddressSpace, 1);
     char *as_name;
 
@@ -787,8 +800,14 @@ void cpu_address_space_init(CPUState *cpu, int asidx,
     address_space_init(as, mr, as_name);
     g_free(as_name);
 
-    /* Target code should have set num_ases before calling us */
+    /*
+     * Target code should have called cpu_address_space_init()
+     * before to set the number of address spaces in a vCPU.
+     */
     assert(asidx < cpu->num_ases);
+
+    /* An address space can only be initialized once. */
+    assert(cpu->as_to_cpuas_idx[asidx] == -1);
 
     if (asidx == 0) {
         /* address space 0 gets the convenience alias */
@@ -796,10 +815,9 @@ void cpu_address_space_init(CPUState *cpu, int asidx,
     }
 
     if (!cpu->cpu_ases) {
-        cpu->cpu_ases = g_new0(CPUAddressSpace, cpu->num_ases);
+        cpu->cpu_ases = g_array_new(true, true, sizeof(CPUAddressSpace *));
     }
 
-    newas = &cpu->cpu_ases[asidx];
     newas->cpu = cpu;
     newas->as = as;
     if (tcg_enabled()) {
@@ -808,20 +826,25 @@ void cpu_address_space_init(CPUState *cpu, int asidx,
         newas->tcg_as_listener.name = "tcg";
         memory_listener_register(&newas->tcg_as_listener, as);
     }
+
+   /* Map the AS index to the next available index in the CPU ASes array. */
+   cpu->as_to_cpuas_idx[asidx] = cpu->cpu_ases->len;
+   /* Add the new CPU AS to the slot at the next available index. */
+   g_array_append_val(cpu->cpu_ases, newas);
 }
 
 void cpu_destroy_address_spaces(CPUState *cpu)
 {
     CPUAddressSpace *cpuas;
-    int asidx;
+    int cpuas_idx;
 
     assert(cpu->cpu_ases);
 
     /* convenience alias just points to some cpu_ases[n] */
     cpu->as = NULL;
 
-    for (asidx = 0; asidx < cpu->num_ases; asidx++) {
-        cpuas = &cpu->cpu_ases[asidx];
+    for (cpuas_idx = cpu->cpu_ases->len; cpuas_idx-- > 0; ) {
+        cpuas = CPU_ASES(cpuas_idx);
         if (!cpuas->as) {
             /* This index was never initialized; no deinit needed */
             continue;
@@ -829,16 +852,19 @@ void cpu_destroy_address_spaces(CPUState *cpu)
         if (tcg_enabled()) {
             memory_listener_unregister(&cpuas->tcg_as_listener);
         }
+        /* Free CPUAddressSpace->AddressSpace. */
         g_clear_pointer(&cpuas->as, address_space_destroy_free);
+        /* Free CPUAddressSpace. */
+        g_free(cpuas);
+        /* Remove pointer to freed CPUAddressSpace. */
+        g_array_remove_index(cpu->cpu_ases, cpuas_idx);
     }
-
-    g_clear_pointer(&cpu->cpu_ases, g_free);
 }
 
 AddressSpace *cpu_get_address_space(CPUState *cpu, int asidx)
 {
     /* Return the AddressSpace corresponding to the specified index */
-    return cpu->cpu_ases[asidx].as;
+    return CPU_ASES(CPUAS_IDX(asidx))->as;
 }
 
 /* Called from RCU critical section */
@@ -4056,7 +4082,7 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
         if (l > len)
             l = len;
         phys_addr += (addr & ~TARGET_PAGE_MASK);
-        res = address_space_rw(cpu->cpu_ases[asidx].as, phys_addr, attrs, buf,
+        res = address_space_rw(CPU_ASES(CPUAS_IDX(asidx))->as, phys_addr, attrs, buf,
                                l, is_write);
         if (res != MEMTX_OK) {
             return -1;
