@@ -929,11 +929,24 @@ void riscv_cpu_debug_excp_handler(CPUState *cs)
 
     if (cs->watchpoint_hit) {
         if (cs->watchpoint_hit->flags & BP_CPU) {
-            do_trigger_action(env, DBG_ACTION_BP);
+            /* Search fired trigger and do its action */
+            for (int i = 0; i < ARRAY_SIZE(env->cpu_watchpoint); i++) {
+                if (cs->watchpoint_hit == env->cpu_watchpoint[i]) {
+                    do_trigger_action(env, i);
+                    break;
+                }
+            }
         }
     } else {
         if (cpu_breakpoint_test(cs, env->pc, BP_CPU)) {
-            do_trigger_action(env, DBG_ACTION_BP);
+            /* Search fired trigger and do its action */
+            for (int i = 0; i < ARRAY_SIZE(env->cpu_breakpoint); i++) {
+                CPUBreakpoint *bp = env->cpu_breakpoint[i];
+                if (bp && bp->pc == env->pc && (bp->flags & BP_CPU)) {
+                    do_trigger_action(env, i);
+                    break;
+                }
+            }
         }
     }
 }
