@@ -74,4 +74,10 @@ extern bool message_with_timestamp;
 extern bool error_with_guestname;
 extern const char *error_guest_name;
 
+static inline char *real_time_iso8601(void)
+{
+    g_autoptr(GDateTime) dt = g_date_time_new_now_utc();
+    return g_date_time_format_iso8601(dt);
+}
+
 #endif
