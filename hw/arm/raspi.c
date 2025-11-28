@@ -24,7 +24,6 @@
 #include "qemu/error-report.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
-#include "hw/arm/boot.h"
 #include "hw/arm/machines-qom.h"
 #include "qom/object.h"
 
