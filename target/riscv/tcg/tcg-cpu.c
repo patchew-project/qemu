@@ -1120,6 +1120,37 @@ static void riscv_cpu_enable_implied_rules(RISCVCPU *cpu)
     }
 }
 
+/*
+ * MISA.C is set if the following extensions are selected:
+ *   - Zca and not F.
+ *   - Zca, Zcf and F (but not D) is specified on RV32.
+ *   - Zca, Zcf and Zcd if D is specified on RV32.
+ *   - Zca, Zcd if D is specified on RV64.
+ */
+static void riscv_cpu_update_misa_c(RISCVCPU *cpu)
+{
+    CPURISCVState *env = &cpu->env;
+
+    if (cpu->cfg.ext_zca && !riscv_has_ext(env, RVF)) {
+        riscv_cpu_set_misa_ext(env, env->misa_ext | RVC);
+        return;
+    }
+
+    if (riscv_cpu_mxl(env) == MXL_RV32 &&
+        cpu->cfg.ext_zca && cpu->cfg.ext_zcf &&
+        (riscv_has_ext(env, RVD) ? cpu->cfg.ext_zcd :
+                                   riscv_has_ext(env, RVF))) {
+        riscv_cpu_set_misa_ext(env, env->misa_ext | RVC);
+        return;
+    }
+
+    if (riscv_cpu_mxl(env) == MXL_RV64 &&
+        cpu->cfg.ext_zca && cpu->cfg.ext_zcd) {
+        riscv_cpu_set_misa_ext(env, env->misa_ext | RVC);
+        return;
+    }
+}
+
 void riscv_tcg_cpu_finalize_features(RISCVCPU *cpu, Error **errp)
 {
     CPURISCVState *env = &cpu->env;
@@ -1127,6 +1158,7 @@ void riscv_tcg_cpu_finalize_features(RISCVCPU *cpu, Error **errp)
 
     riscv_cpu_init_implied_exts_rules();
     riscv_cpu_enable_implied_rules(cpu);
+    riscv_cpu_update_misa_c(cpu);
 
     riscv_cpu_validate_misa_priv(env, &local_err);
     if (local_err != NULL) {
