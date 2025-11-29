@@ -251,9 +251,7 @@ static void chr_open(Chardev *chr, const char *subtype)
     s->sin.subtype = g_strdup(subtype);
 }
 
-static void spice_vmc_chr_open(Chardev *chr,
-                               ChardevBackend *backend,
-                               bool *be_opened,
+static void spice_vmc_chr_open(Chardev *chr, ChardevBackend *backend,
                                Error **errp)
 {
     ChardevSpiceChannel *spicevmc = backend->u.spicevmc.data;
@@ -277,19 +275,17 @@ static void spice_vmc_chr_open(Chardev *chr,
         return;
     }
 
-    *be_opened = false;
 #if SPICE_SERVER_VERSION < 0x000e02
     /* Spice < 0.14.2 doesn't explicitly open smartcard chardev */
     if (strcmp(type, "smartcard") == 0) {
-        *be_opened = true;
+        chr_open(chr, type);
+        qemu_chr_be_event(chr, CHR_EVENT_OPENED);
     }
 #endif
     chr_open(chr, type);
 }
 
-static void spice_port_chr_open(Chardev *chr,
-                                ChardevBackend *backend,
-                                bool *be_opened,
+static void spice_port_chr_open(Chardev *chr, ChardevBackend *backend,
                                 Error **errp)
 {
     ChardevSpicePort *spiceport = backend->u.spiceport.data;
@@ -308,7 +304,6 @@ static void spice_port_chr_open(Chardev *chr,
 
     chr_open(chr, "port");
 
-    *be_opened = false;
     s = SPICE_CHARDEV(chr);
     s->sin.portname = g_strdup(name);
 

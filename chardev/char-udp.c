@@ -188,10 +188,7 @@ static void udp_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)
     }
 }
 
-static void upd_chr_open(Chardev *chr,
-                         ChardevBackend *backend,
-                         bool *be_opened,
-                         Error **errp)
+static void upd_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevUdp *udp = backend->u.udp.data;
     SocketAddress *local_addr = socket_address_flatten(udp->local);
@@ -215,7 +212,6 @@ static void upd_chr_open(Chardev *chr,
 
     s->ioc = QIO_CHANNEL(sioc);
     /* be isn't opened until we get a connection */
-    *be_opened = false;
 }
 
 static void char_udp_class_init(ObjectClass *oc, const void *data)
