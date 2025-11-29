@@ -31,6 +31,7 @@ static void console_chr_open(Chardev *chr, ChardevBackend *backend,
 {
     win_chr_set_file(chr, GetStdHandle(STD_OUTPUT_HANDLE), true);
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    return true;
 }
 
 static void char_console_class_init(ObjectClass *oc, const void *data)
