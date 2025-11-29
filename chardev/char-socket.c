@@ -384,8 +384,7 @@ static void tcp_chr_free_connection(Chardev *chr)
     s->sioc = NULL;
     object_unref(OBJECT(s->ioc));
     s->ioc = NULL;
-    g_free(chr->filename);
-    chr->filename = NULL;
+    qemu_chr_set_filename(chr, NULL);
     tcp_chr_change_state(s, TCP_CHARDEV_STATE_DISCONNECTED);
 }
 
@@ -443,11 +442,11 @@ static void update_disconnected_filename(SocketChardev *s)
 {
     Chardev *chr = CHARDEV(s);
 
-    g_free(chr->filename);
     if (s->addr) {
-        chr->filename = qemu_chr_socket_address(s, "disconnected:");
+        g_autofree char *filename = qemu_chr_socket_address(s, "disconnected:");
+        qemu_chr_set_filename(chr, filename);
     } else {
-        chr->filename = g_strdup("disconnected:socket");
+        qemu_chr_set_filename(chr, "disconnected:socket");
     }
 }
 
@@ -638,9 +637,9 @@ static void tcp_chr_connect(void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
     SocketChardev *s = SOCKET_CHARDEV(opaque);
+    g_autofree char *filename = qemu_chr_compute_filename(s);
 
-    g_free(chr->filename);
-    chr->filename = qemu_chr_compute_filename(s);
+    qemu_chr_set_filename(chr, filename);
 
     tcp_chr_change_state(s, TCP_CHARDEV_STATE_CONNECTED);
     update_ioc_handlers(s);
@@ -1000,8 +999,8 @@ static void tcp_chr_accept_server_sync(Chardev *chr)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
     QIOChannelSocket *sioc;
-    info_report("QEMU waiting for connection on: %s",
-                chr->filename);
+    g_autofree char *filename = qemu_chr_get_filename(chr);
+    info_report("QEMU waiting for connection on: %s", filename);
     tcp_chr_change_state(s, TCP_CHARDEV_STATE_CONNECTING);
     sioc = qio_net_listener_wait_client(s->listener);
     tcp_chr_set_client_ioc_name(chr, sioc);
