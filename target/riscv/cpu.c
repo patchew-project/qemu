@@ -2637,6 +2637,7 @@ RISCVCPUImpliedExtsRule *riscv_multi_ext_implied_rules[] = {
 
 static const Property riscv_cpu_properties[] = {
     DEFINE_PROP_BOOL("debug", RISCVCPU, cfg.debug, true),
+    DEFINE_PROP_BOOL("debug-1.0", RISCVCPU, cfg.debug_1_00, false),
 
     {.name = "pmu-mask", .info = &prop_pmu_mask},
     {.name = "pmu-num", .info = &prop_pmu_num}, /* Deprecated */
