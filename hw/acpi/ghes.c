@@ -565,9 +565,7 @@ int acpi_ghes_memory_errors(AcpiGhesState *ags, uint16_t source_id,
                   0xED, 0x7C, 0x83, 0xB1);
     Error *errp = NULL;
     int data_length;
-    GArray *block;
-
-    block = g_array_new(false, true /* clear */, 1);
+    g_autoptr(GArray) block = g_array_new(false, true /* clear */, 1);
 
     data_length = ACPI_GHES_DATA_LENGTH + ACPI_GHES_MEM_CPER_LENGTH;
     /*
@@ -584,8 +582,6 @@ int acpi_ghes_memory_errors(AcpiGhesState *ags, uint16_t source_id,
 
     /* Report the error */
     ghes_record_cper_errors(ags, block->data, block->len, source_id, &errp);
-
-    g_array_free(block, true);
 
     if (errp) {
         error_report_err(errp);
