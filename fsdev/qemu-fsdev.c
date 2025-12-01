@@ -58,6 +58,8 @@ static FsDriverTable FsDrivers[] = {
             "writeout",
             "fmode",
             "dmode",
+            "uid",
+            "gid",
             "multidevs",
             "throttling.bps-total",
             "throttling.bps-read",

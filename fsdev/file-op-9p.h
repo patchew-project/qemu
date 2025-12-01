@@ -15,6 +15,7 @@
 #define FILE_OP_9P_H
 
 #include <dirent.h>
+#include <sys/types.h>
 #include <utime.h>
 #include "qemu-fsdev-throttle.h"
 #include "p9array.h"
@@ -96,6 +97,8 @@ typedef struct FsDriverEntry {
     FsThrottle fst;
     mode_t fmode;
     mode_t dmode;
+    uid_t dflt_uid;
+    gid_t dflt_gid;
 } FsDriverEntry;
 
 struct FsContext {
@@ -109,6 +112,8 @@ struct FsContext {
     void *private;
     mode_t fmode;
     mode_t dmode;
+    uid_t dflt_uid;
+    gid_t dflt_gid;
 };
 
 struct V9fsPath {

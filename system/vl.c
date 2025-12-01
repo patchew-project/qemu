@@ -3259,6 +3259,7 @@ void qemu_init(int argc, char **argv)
                 QemuOpts *fsdev;
                 QemuOpts *device;
                 const char *writeout, *sock_fd, *socket, *path, *security_model,
+                           *uid, *gid,
                            *multidevs;
 
                 olist = qemu_find_opts("virtfs");
@@ -3306,6 +3307,14 @@ void qemu_init(int argc, char **argv)
                 if (security_model) {
                     qemu_opt_set(fsdev, "security_model", security_model,
                                  &error_abort);
+                }
+                uid = qemu_opt_get(opts, "uid");
+                if (uid) {
+                    qemu_opt_set(fsdev, "uid", uid, &error_abort);
+                }
+                gid = qemu_opt_get(opts, "gid");
+                if (gid) {
+                    qemu_opt_set(fsdev, "gid", gid, &error_abort);
                 }
                 socket = qemu_opt_get(opts, "socket");
                 if (socket) {

@@ -198,6 +198,12 @@ static int local_lstat(FsContext *fs_ctx, V9fsPath *fs_path, struct stat *stbuf)
     if (err) {
         goto err_out;
     }
+    if (fs_ctx->dflt_uid != -1) {
+        stbuf->st_uid = fs_ctx->dflt_uid;
+    }
+    if (fs_ctx->dflt_gid != -1) {
+        stbuf->st_gid = fs_ctx->dflt_gid;
+    }
     if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
         /* Actual credentials are part of extended attrs */
         uid_t tmp_uid;
@@ -783,6 +789,12 @@ static int local_fstat(FsContext *fs_ctx, int fid_type,
     err = fstat(fd, stbuf);
     if (err) {
         return err;
+    }
+    if (fs_ctx->dflt_uid != -1) {
+        stbuf->st_uid = fs_ctx->dflt_uid;
+    }
+    if (fs_ctx->dflt_gid != -1) {
+        stbuf->st_gid = fs_ctx->dflt_gid;
     }
     if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
         /* Actual credentials are part of extended attrs */
@@ -1565,6 +1577,9 @@ static int local_parse_opts(QemuOpts *opts, FsDriverEntry *fse, Error **errp)
         error_prepend(errp, "invalid throttle configuration: ");
         return -1;
     }
+
+    fse->dflt_uid = qemu_opt_get_number(opts, "uid", -1);
+    fse->dflt_gid = qemu_opt_get_number(opts, "gid", -1);
 
     if (fse->export_flags & V9FS_SM_MAPPED ||
         fse->export_flags & V9FS_SM_MAPPED_FILE) {
