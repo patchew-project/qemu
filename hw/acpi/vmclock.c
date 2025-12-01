@@ -28,7 +28,7 @@
 void vmclock_build_acpi(VmclockState *vms, GArray *table_data,
                         BIOSLinker *linker, const char *oem_id)
 {
-    Aml *ssdt, *dev, *scope, *crs;
+    Aml *ssdt, *dev, *scope, *crs, *method;
     AcpiTable table = { .sig = "SSDT", .rev = 1,
                         .oem_id = oem_id, .oem_table_id = "VMCLOCK" };
 
@@ -57,6 +57,11 @@ void vmclock_build_acpi(VmclockState *vms, GArray *table_data,
     aml_append(scope, dev);
     aml_append(ssdt, scope);
 
+    /* Attach an ACPI notify */
+    method = aml_method("\\_GPE._E08", 0, AML_NOTSERIALIZED);
+    aml_append(method, aml_notify(aml_name("\\_SB.VCLK"), aml_int(0x80)));
+    aml_append(ssdt, method);
+
     g_array_append_vals(table_data, ssdt->buf->data, ssdt->buf->len);
     acpi_table_end(linker, &table);
     free_aml_allocator();
@@ -67,6 +72,10 @@ static void vmclock_update_guest(VmclockState *vms)
     uint64_t disruption_marker;
     uint64_t vm_generation_counter;
     uint32_t seq_count;
+    Object *obj = object_resolve_path_type("", TYPE_ACPI_DEVICE_IF, NULL);
+    if (!obj) {
+        return;
+    }
 
     if (!vms->clk) {
         return;
@@ -94,6 +103,9 @@ static void vmclock_update_guest(VmclockState *vms)
     /* These barriers pair with read barriers in the guest */
     smp_wmb();
     vms->clk->seq_count = cpu_to_le32(seq_count + 1);
+
+    /* Send _GPE.E08 event */
+    acpi_send_event(DEVICE(obj), ACPI_VMCLOCK_CHANGE_STATUS);
 }
 
 /*
@@ -156,7 +168,8 @@ static void vmclock_realize(DeviceState *dev, Error **errp)
     vms->clk->magic = cpu_to_le32(VMCLOCK_MAGIC);
     vms->clk->size = cpu_to_le16(VMCLOCK_SIZE);
     vms->clk->version = cpu_to_le16(1);
-    vms->clk->flags = cpu_to_le64(VMCLOCK_FLAG_VM_GEN_COUNTER_PRESENT);
+    vms->clk->flags = cpu_to_le64(VMCLOCK_FLAG_VM_GEN_COUNTER_PRESENT |
+                                  VMCLOCK_FLAG_NOTIFICATION_PRESENT);
 
     /* These are all zero and thus default, but be explicit */
     vms->clk->clock_status = VMCLOCK_STATUS_UNKNOWN;
