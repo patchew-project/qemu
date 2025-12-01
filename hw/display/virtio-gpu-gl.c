@@ -72,7 +72,10 @@ static void virtio_gpu_gl_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 
     switch (gl->renderer_state) {
     case RS_RESET:
-        virtio_gpu_virgl_reset(g);
+        if (virtio_gpu_virgl_reset(g)) {
+            gl->renderer_state = RS_INIT_FAILED;
+            return;
+        }
         /* fallthrough */
     case RS_START:
         if (virtio_gpu_virgl_init(g)) {
@@ -201,6 +204,7 @@ static void virtio_gpu_gl_class_init(ObjectClass *klass, const void *data)
     vgc->process_cmd = virtio_gpu_virgl_process_cmd;
     vgc->update_cursor_data = virtio_gpu_gl_update_cursor_data;
 
+    vgc->resource_destroy = virtio_gpu_virgl_resource_destroy;
     vdc->realize = virtio_gpu_gl_device_realize;
     vdc->unrealize = virtio_gpu_gl_device_unrealize;
     vdc->reset = virtio_gpu_gl_reset;
