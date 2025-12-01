@@ -730,7 +730,13 @@ uint32_t acpi_gpe_ioport_readb(ACPIREGS *ar, uint32_t addr)
 void acpi_send_gpe_event(ACPIREGS *ar, qemu_irq irq,
                          AcpiEventStatusBits status)
 {
-    ar->gpe.sts[0] |= status;
+    int i;
+
+    for (i = 0; i < ar->gpe.len; i++) {
+        ar->gpe.sts[i] |= (status & 0xff);
+        status >>= 8;
+    }
+
     acpi_update_sci(ar, irq);
 }
 
