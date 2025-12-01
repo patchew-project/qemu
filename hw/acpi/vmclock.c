@@ -20,6 +20,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"
+#include "migration/misc.h"
 #include "system/reset.h"
 
 #include "standard-headers/linux/vmclock-abi.h"
@@ -64,6 +65,7 @@ void vmclock_build_acpi(VmclockState *vms, GArray *table_data,
 static void vmclock_update_guest(VmclockState *vms)
 {
     uint64_t disruption_marker;
+    uint64_t vm_generation_counter;
     uint32_t seq_count;
 
     if (!vms->clk) {
@@ -78,6 +80,16 @@ static void vmclock_update_guest(VmclockState *vms)
     disruption_marker = le64_to_cpu(vms->clk->disruption_marker);
     disruption_marker++;
     vms->clk->disruption_marker = cpu_to_le64(disruption_marker);
+
+    /*
+     * We only increase the vm_generation_counter when loading from a snapshot,
+     * not during live migration
+     */
+    if (!migration_is_running()) {
+        vm_generation_counter = le64_to_cpu(vms->clk->vm_generation_counter);
+        vm_generation_counter++;
+        vms->clk->vm_generation_counter = cpu_to_le64(vm_generation_counter);
+    }
 
     /* These barriers pair with read barriers in the guest */
     smp_wmb();
@@ -144,6 +156,7 @@ static void vmclock_realize(DeviceState *dev, Error **errp)
     vms->clk->magic = cpu_to_le32(VMCLOCK_MAGIC);
     vms->clk->size = cpu_to_le16(VMCLOCK_SIZE);
     vms->clk->version = cpu_to_le16(1);
+    vms->clk->flags = cpu_to_le64(VMCLOCK_FLAG_VM_GEN_COUNTER_PRESENT);
 
     /* These are all zero and thus default, but be explicit */
     vms->clk->clock_status = VMCLOCK_STATUS_UNKNOWN;
