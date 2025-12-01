@@ -1122,6 +1122,7 @@ static void riscv_cpu_init(Object *obj)
     cpu->cfg.cboz_blocksize = 64;
     cpu->cfg.pmp_regions = 16;
     cpu->cfg.pmp_granularity = MIN_RISCV_PMP_GRANULARITY;
+    cpu->cfg.num_triggers = 2;
     cpu->env.vext_ver = VEXT_VERSION_1_00_0;
     cpu->cfg.max_satp_mode = -1;
 
@@ -1642,6 +1643,38 @@ static const PropertyInfo prop_pmp_granularity = {
     .description = "pmp-granularity",
     .get = prop_pmp_granularity_get,
     .set = prop_pmp_granularity_set,
+};
+
+static void prop_num_triggers_set(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
+{
+    RISCVCPU *cpu = RISCV_CPU(obj);
+    uint32_t value;
+
+    visit_type_uint32(v, name, &value, errp);
+
+    if (cpu->cfg.num_triggers != value && riscv_cpu_is_vendor(obj)) {
+        cpu_set_prop_err(cpu, name, errp);
+        return;
+    }
+
+    cpu_option_add_user_setting(name, value);
+    cpu->cfg.num_triggers = value;
+}
+
+static void prop_num_triggers_get(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
+{
+    uint32_t value = RISCV_CPU(obj)->cfg.pmp_regions;
+
+    visit_type_uint32(v, name, &value, errp);
+}
+
+static const PropertyInfo prop_num_triggers = {
+    .type = "uint32",
+    .description = "num-triggers",
+    .get = prop_num_triggers_get,
+    .set = prop_num_triggers_set,
 };
 
 static int priv_spec_from_str(const char *priv_spec_str)
@@ -2645,6 +2678,7 @@ static const Property riscv_cpu_properties[] = {
     {.name = "pmp", .info = &prop_pmp},
     {.name = "num-pmp-regions", .info = &prop_num_pmp_regions},
     {.name = "pmp-granularity", .info = &prop_pmp_granularity},
+    {.name = "num-triggers", .info = &prop_num_triggers},
 
     {.name = "priv_spec", .info = &prop_priv_spec},
     {.name = "vext_spec", .info = &prop_vext_spec},
