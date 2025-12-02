@@ -10,6 +10,9 @@
 #define TCG_HELPER_INFO_H
 
 #ifdef CONFIG_TCG_INTERPRETER
+#ifndef FFI_GO_CLOSURES
+#define FFI_GO_CLOSURES 0
+#endif
 #include <ffi.h>
 #endif
 #include "tcg-target-reg-bits.h"
