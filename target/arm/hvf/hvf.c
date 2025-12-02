@@ -2029,16 +2029,16 @@ int hvf_arch_vcpu_exec(CPUState *cpu)
     int ret;
     hv_return_t r;
 
-    if (cpu->halted) {
-        return EXCP_HLT;
-    }
-
     flush_cpu_state(cpu);
 
     do {
         if (!(cpu->singlestep_enabled & SSTEP_NOIRQ) &&
             hvf_inject_interrupts(cpu)) {
             return EXCP_INTERRUPT;
+        }
+
+        if (cpu->halted) {
+            return EXCP_HLT;
         }
 
         bql_unlock();
