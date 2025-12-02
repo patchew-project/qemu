@@ -481,7 +481,7 @@ SRST
 
     ::
 
-        -M pc \
+        -machine pc \
         -smp 1,sockets=2,maxcpus=2 \
         -numa node,nodeid=0 -numa node,nodeid=1 \
         -numa cpu,node-id=0,socket-id=0 -numa cpu,node-id=1,socket-id=1
