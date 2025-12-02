@@ -2996,7 +2996,7 @@ config_host_data.set('CONFIG_ATOMIC64', cc.links('''
 
 # has_int128_type is set to false on Emscripten to avoid errors by libffi
 # during runtime.
-has_int128_type = host_os != 'emscripten' and cc.compiles('''
+has_int128_type = host_os != 'emscripten' and tcg_arch != 'tci' and cc.compiles('''
   __int128_t a;
   __uint128_t b;
   int main(void) { b = a; }''')
