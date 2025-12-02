@@ -58,7 +58,7 @@ static inline Int128 atomic16_xchg(Int128 *ptr, Int128 new)
 static inline Int128 atomic16_fetch_and(Int128 *ptr, Int128 new)
 {
     uint64_t newl = int128_getlo(new), newh = int128_gethi(new);
-    uint64_t oldl, oldh, tmpl, tmph;
+    uint64_t oldl, oldh, tmpl = 0, tmph = 0;
     uint32_t tmp;
 
     asm("0: ldaxp %[oldl], %[oldh], %[mem]\n\t"
@@ -78,7 +78,7 @@ static inline Int128 atomic16_fetch_and(Int128 *ptr, Int128 new)
 static inline Int128 atomic16_fetch_or(Int128 *ptr, Int128 new)
 {
     uint64_t newl = int128_getlo(new), newh = int128_gethi(new);
-    uint64_t oldl, oldh, tmpl, tmph;
+    uint64_t oldl, oldh, tmpl = 0, tmph = 0;
     uint32_t tmp;
 
     asm("0: ldaxp %[oldl], %[oldh], %[mem]\n\t"
