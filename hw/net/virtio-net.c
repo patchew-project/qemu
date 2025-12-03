@@ -37,6 +37,7 @@
 #include "qapi/qapi-types-migration.h"
 #include "qapi/qapi-events-migration.h"
 #include "hw/virtio/virtio-access.h"
+#include "migration/cpr.h"
 #include "migration/misc.h"
 #include "standard-headers/linux/ethtool.h"
 #include "system/system.h"
@@ -788,6 +789,11 @@ static void virtio_net_set_queue_pairs(VirtIONet *n)
 {
     int i;
     int r;
+
+    if (cpr_is_incoming()) {
+        /* peers are already attached, do nothing */
+        return;
+    }
 
     if (n->nic->peer_deleted) {
         return;
