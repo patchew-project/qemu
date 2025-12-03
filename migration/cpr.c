@@ -85,6 +85,19 @@ void cpr_delete_fd(const char *name, int id)
     trace_cpr_delete_fd(name, id);
 }
 
+void cpr_delete_fd_all(const char *name)
+{
+    CprFd *elem, *next_elem;
+
+    QLIST_FOREACH_SAFE(elem, &cpr_state.fds, next, next_elem) {
+        if (!strcmp(elem->name, name)) {
+            QLIST_REMOVE(elem, next);
+            g_free(elem->name);
+            g_free(elem);
+        }
+    }
+}
+
 int cpr_find_fd(const char *name, int id)
 {
     CprFd *elem = find_fd(&cpr_state.fds, name, id);
