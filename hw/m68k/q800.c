@@ -47,7 +47,7 @@
 #include "hw/audio/asc.h"
 #include "hw/nubus/mac-nubus-bridge.h"
 #include "hw/display/macfb.h"
-#include "hw/block/swim.h"
+#include "hw/block/swim2.h"
 #include "net/net.h"
 #include "net/util.h"
 #include "qapi/error.h"
@@ -511,7 +511,7 @@ static void q800_machine_init(MachineState *machine)
     /* SWIM floppy controller */
 
     object_initialize_child(OBJECT(machine), "swim", &m->swim,
-                            TYPE_SWIM);
+                            TYPE_SWIM2);
     sysbus = SYS_BUS_DEVICE(&m->swim);
     sysbus_realize(sysbus, &error_fatal);
     memory_region_add_subregion(&m->macio, SWIM_BASE - IO_BASE,

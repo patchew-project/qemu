@@ -101,3 +101,20 @@ swim_iwmctrl_read(int reg, const char *name, unsigned size, uint64_t value) "reg
 swim_iwmctrl_write(int reg, const char *name, unsigned size, uint64_t value) "reg=%d [%s] size=%u value=0x%"PRIx64
 swim_switch_to_ism(void) "switch from IWM to ISM mode"
 swim_switch_to_iwm(void) "switch from ISM to IWM mode"
+
+# swim2.c
+swim2_mmio_read(uint64_t addr, unsigned size, int reg, const char *name, uint64_t value, uint8_t mode, uint8_t setup, uint8_t phase, uint32_t fifo_count) "addr=0x%"PRIx64" size=%u reg=%d [%s] value=0x%"PRIx64" mode=0x%02x setup=0x%02x phase=0x%02x fifo=%u"
+swim2_mmio_write(uint64_t addr, unsigned size, int reg, const char *name, uint64_t value, uint8_t mode, uint8_t setup, uint8_t phase, uint32_t fifo_count) "addr=0x%"PRIx64" size=%u reg=%d [%s] value=0x%"PRIx64" mode=0x%02x setup=0x%02x phase=0x%02x fifo=%u"
+swim2_fifo_push(uint32_t count, uint8_t data, uint8_t flags) "fifo=%u data=0x%02x flags=0x%02x"
+swim2_fifo_pop(uint32_t count, uint8_t data, uint8_t flags, bool success) "fifo=%u data=0x%02x flags=0x%02x success=%d"
+swim2_fifo_clear(void) "clear FIFO"
+swim2_error_set(uint8_t prev, uint8_t curr, uint8_t new_err, uint8_t mode, bool write_mode, uint32_t fifo_count) "prev=0x%02x curr=0x%02x new=0x%02x mode=0x%02x write=%d fifo=%u"
+
+# sony_superdrive.c
+sony_drive_prepare(void *drive, uint8_t track, uint8_t head, uint8_t sector, bool gcr, uint16_t payload_len) "drive=%p track=%"PRIu8" head=%"PRIu8" sector=%"PRIu8" gcr=%d length=%"PRIu16
+sony_drive_persist(void *drive, uint64_t lba) "drive=%p lba=0x%"PRIx64
+sony_drive_strobe(void *drive, uint8_t command, const char *name) "drive=%p cmd=0x%02"PRIx8" [%s]"
+sony_drive_read_sense(void *drive, uint8_t reg, const char *name, bool value) "drive=%p reg=0x%02"PRIx8" [%s] value=%d"
+sony_drive_read_byte(void *drive, uint8_t value, bool is_mark, uint64_t lba, uint16_t position) "drive=%p value=0x%02"PRIx8", is_mark=%d, lba=0x%"PRIx64", position=0x%"PRIx16
+sony_drive_write_byte(void *drive, uint8_t value, uint64_t lba, uint16_t position) "drive=%p value=0x%02"PRIx8", lba=0x%"PRIx64", position=0x%"PRIx16
+sony_drive_step(void *drive, uint8_t seek_direction, uint8_t current_track) "drive=%p direction=%"PRId8", track=%"PRId8
