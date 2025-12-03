@@ -316,6 +316,7 @@ bool cpr_incoming_needed(void *opaque)
  * @name: CPR name for the descriptor
  * @fdname: An integer-valued string, or a name passed to a getfd command
  * @index: CPR index of the descriptor
+ * @cpr: use cpr
  * @errp: returned error message
  *
  * If CPR is not being performed, then use @fdname to find the fd.
@@ -325,22 +326,22 @@ bool cpr_incoming_needed(void *opaque)
  * On success returns the fd value, else returns -1.
  */
 int cpr_get_fd_param(const char *name, const char *fdname, int index,
-                     Error **errp)
+                     bool cpr, Error **errp)
 {
     ERRP_GUARD();
     int fd;
 
-    if (cpr_is_incoming()) {
+    if (cpr && cpr_is_incoming()) {
         fd = cpr_find_fd(name, index);
         if (fd < 0) {
             error_setg(errp, "cannot find saved value for fd %s", fdname);
         }
     } else {
         fd = monitor_fd_param(monitor_cur(), fdname, errp);
-        if (fd >= 0) {
-            cpr_save_fd(name, index, fd);
-        } else {
+        if (fd < 0) {
             error_prepend(errp, "Could not parse object fd %s:", fdname);
+        } else if (cpr) {
+            cpr_save_fd(name, index, fd);
         }
     }
     return fd;
