@@ -2310,7 +2310,14 @@ void qmp_migrate(const char *uri, bool has_channels,
         stopped = true;
     }
 
+    /* Notify before starting migration thread, and before starting cpr */
+    if (!resume_requested &&
+        migration_call_notifiers(s, MIG_EVENT_PRECOPY_SETUP, &local_err)) {
+        goto out;
+    }
+
     if (!cpr_state_save(cpr_channel, &local_err)) {
+        migration_call_notifiers(s, MIG_EVENT_PRECOPY_FAILED, NULL);
         goto out;
     }
 
@@ -4108,11 +4115,6 @@ void migration_connect(MigrationState *s, Error *error_in)
     } else {
         /* This is a fresh new migration */
         rate_limit = migrate_max_bandwidth();
-
-        /* Notify before starting migration thread */
-        if (migration_call_notifiers(s, MIG_EVENT_PRECOPY_SETUP, &local_err)) {
-            goto fail;
-        }
     }
 
     migration_rate_set(rate_limit);
