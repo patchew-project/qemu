@@ -116,6 +116,20 @@ virtio_gpu_virgl_map_resource_blob(VirtIOGPU *g,
         return ret;
     }
 
+    if (!QEMU_IS_ALIGNED((uintptr_t)data, qemu_real_host_page_size())) {
+        virgl_renderer_resource_unmap(res->base.resource_id);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: address %p is not aligned to page size\n",
+                      __func__, data);
+        return -ENOMEM;
+    }
+
+    if (!QEMU_IS_ALIGNED(size, qemu_real_host_page_size())) {
+        virgl_renderer_resource_unmap(res->base.resource_id);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: size 0x%llx is not aligned to page size\n",
+                      __func__, size);
+        return -ENOMEM;
+    }
+
     vmr = g_new0(struct virtio_gpu_virgl_hostmem_region, 1);
     vmr->g = g;
 
