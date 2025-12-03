@@ -48,7 +48,7 @@ void cpr_state_close(void);
 struct QIOChannel *cpr_state_ioc(void);
 
 bool cpr_incoming_needed(void *opaque);
-int cpr_get_fd_param(const char *name, const char *fdname, int index,
+int cpr_get_fd_param(const char *name, const char *fdname, int index, bool cpr,
                      Error **errp);
 
 QEMUFile *cpr_transfer_output(MigrationChannel *channel, Error **errp);

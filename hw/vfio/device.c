@@ -362,7 +362,7 @@ void vfio_device_free_name(VFIODevice *vbasedev)
 
 void vfio_device_set_fd(VFIODevice *vbasedev, const char *str, Error **errp)
 {
-    vbasedev->fd = cpr_get_fd_param(vbasedev->dev->id, str, 0, errp);
+    vbasedev->fd = cpr_get_fd_param(vbasedev->dev->id, str, 0, true, errp);
 }
 
 static VFIODeviceIOOps vfio_device_io_ops_ioctl;
