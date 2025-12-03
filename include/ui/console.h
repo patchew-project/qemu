@@ -149,6 +149,11 @@ typedef struct ScanoutTextureNative {
     .type = SCANOUT_TEXTURE_NATIVE_TYPE_NONE \
 })
 
+/**
+ * Cleanup callback function when ScanoutTexture is about to be destroyed
+ */
+typedef void (*dpy_cleanup_texture)(ScanoutTextureNative *native);
+
 typedef struct ScanoutTexture {
     uint32_t backing_id;
     bool backing_y_0_top;
@@ -159,6 +164,7 @@ typedef struct ScanoutTexture {
     uint32_t width;
     uint32_t height;
     ScanoutTextureNative native;
+    dpy_cleanup_texture cb_cleanup;
 } ScanoutTexture;
 
 typedef struct QemuUIInfo {
@@ -347,7 +353,8 @@ void dpy_gl_scanout_texture(QemuConsole *con,
                             uint32_t backing_id, bool backing_y_0_top,
                             uint32_t backing_width, uint32_t backing_height,
                             uint32_t x, uint32_t y, uint32_t w, uint32_t h,
-                            ScanoutTextureNative native);
+                            ScanoutTextureNative native,
+                            dpy_cleanup_texture cb_cleanup);
 void dpy_gl_scanout_dmabuf(QemuConsole *con,
                            QemuDmaBuf *dmabuf);
 void dpy_gl_cursor_dmabuf(QemuConsole *con, QemuDmaBuf *dmabuf,
