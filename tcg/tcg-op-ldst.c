@@ -135,6 +135,16 @@ static void tcg_gen_req_mo(TCGBar type)
     }
 }
 
+static TCGv_i64 maybe_extend_addr64(TCGTemp *addr)
+{
+    if (tcg_ctx->addr_type == TCG_TYPE_I32) {
+        TCGv_i64 a64 = tcg_temp_ebb_new_i64();
+        tcg_gen_extu_i32_i64(a64, temp_tcgv_i32(addr));
+        return a64;
+    }
+    return temp_tcgv_i64(addr);
+}
+
 /* Only required for loads, where value might overlap addr. */
 static TCGv_i64 plugin_maybe_preserve_addr(TCGTemp *addr)
 {
@@ -151,6 +161,13 @@ static TCGv_i64 plugin_maybe_preserve_addr(TCGTemp *addr)
     }
 #endif
     return NULL;
+}
+
+static void maybe_free_addr64(TCGv_i64 a64)
+{
+    if (tcg_ctx->addr_type == TCG_TYPE_I32) {
+        tcg_temp_free_i64(a64);
+    }
 }
 
 #ifdef CONFIG_PLUGIN
@@ -506,23 +523,6 @@ static void canonicalize_memop_i128_as_i64(MemOp ret[2], MemOp orig)
 
     ret[0] = mop_1;
     ret[1] = mop_2;
-}
-
-static TCGv_i64 maybe_extend_addr64(TCGTemp *addr)
-{
-    if (tcg_ctx->addr_type == TCG_TYPE_I32) {
-        TCGv_i64 a64 = tcg_temp_ebb_new_i64();
-        tcg_gen_extu_i32_i64(a64, temp_tcgv_i32(addr));
-        return a64;
-    }
-    return temp_tcgv_i64(addr);
-}
-
-static void maybe_free_addr64(TCGv_i64 a64)
-{
-    if (tcg_ctx->addr_type == TCG_TYPE_I32) {
-        tcg_temp_free_i64(a64);
-    }
 }
 
 static void tcg_gen_qemu_ld_i128_int(TCGv_i128 val, TCGTemp *addr,
