@@ -24,6 +24,7 @@
 #include "io/channel-socket.h"
 #include "io/channel-util.h"
 #include "io/channel-watch.h"
+#include "migration/cpr.h"
 #include "trace.h"
 #include "qapi/clone-visitor.h"
 #ifdef CONFIG_LINUX
@@ -521,7 +522,8 @@ static bool qio_channel_handle_fds(int *fds, size_t nfds,
 
         if (!preserve_blocking) {
             /* O_NONBLOCK is preserved across SCM_RIGHTS so reset it */
-            if (!qemu_set_blocking(*fd, true, errp)) {
+              if (!cpr_is_incoming() &&
+                  qemu_set_blocking(*fd, true, errp)) {
                 return false;
             }
         }

@@ -1050,6 +1050,8 @@ free_fail:
                 if (cpr && fd >= 0) {
                     cpr_save_fd(name, TAP_FD_INDEX(i), fd);
                 }
+            } else {
+                vnet_hdr = tap->has_vnet_hdr ? tap->vnet_hdr : 1;
             }
             if (fd == -1) {
                 ret = -1;

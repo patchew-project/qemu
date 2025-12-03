@@ -10,6 +10,7 @@ stub_ss.add(files('is-daemonized.c'))
 stub_ss.add(files('monitor-core.c'))
 stub_ss.add(files('replay-mode.c'))
 stub_ss.add(files('trace-control.c'))
+stub_ss.add(files('cpr.c'))
 
 if have_block
   stub_ss.add(files('bdrv-next-monitor-owned.c'))
