@@ -1657,6 +1657,7 @@ void migration_cancel(void)
                           MIGRATION_STATUS_CANCELLED);
         cpr_state_close();
         migrate_hup_delete(s);
+        vm_resume(s->vm_old_state);
     }
 }
 
@@ -2216,6 +2217,7 @@ void qmp_migrate(const char *uri, bool has_channels,
     MigrationAddress *addr = NULL;
     MigrationChannel *channelv[MIGRATION_CHANNEL_TYPE__MAX] = { NULL };
     MigrationChannel *cpr_channel = NULL;
+    bool stopped = false;
 
     /*
      * Having preliminary checks for uri and channel
@@ -2268,6 +2270,46 @@ void qmp_migrate(const char *uri, bool has_channels,
         return;
     }
 
+    /*
+     * CPR-transfer  ordering:
+     *
+     *   SOURCE                              TARGET
+     *   ------                              ------
+     *                                       cpr_state_load() blocks
+     *   |                                        |
+     *   |  1. migration_stop_vm()                |
+     *   |     VM stopped, devices quiesced       |
+     *   |                                        | Waiting for
+     *   |  2. notifiers (PRECOPY_SETUP)          | FDs from source
+     *   |     vhost_reset_owner() releases       |
+     *   |     device ownership                   |
+     *   |                                        |
+     *   |  3. cpr_state_save() ---- FDs -------> |
+     *   |                                        |
+     *   v                                        v
+     *   postmigrate                         Device init begins
+     *                                       - cpr_find_fd()
+     *                                       - vhost_dev_init()
+     *                                       - VHOST_SET_OWNER
+     *
+     * Step 3 is the synchronization/cut-over point. Target proceeds immediately
+     * upon receiving FDs, so steps 1-2 must complete otherwise:
+     * - Target's VHOST_SET_OWNER fails with -EBUSY (source still owns)
+     * - Race between source I/O and target device init
+     *
+     *  We stop the VM early (before FD transfer) to prevent this race.
+     *  Unlike regular migration, CPR-transfer passes memory via FD (memfd)
+     *  rather than copying RAM, so early VM stop should have minimal downtime.
+     */
+    if (migrate_mode_is_cpr(s)) {
+        int ret = migration_stop_vm(s, RUN_STATE_FINISH_MIGRATE);
+        if (ret < 0) {
+            error_setg(&local_err, "migration_stop_vm failed, error %d", -ret);
+            goto out;
+        }
+        stopped = true;
+    }
+
     if (!cpr_state_save(cpr_channel, &local_err)) {
         goto out;
     }
@@ -2294,6 +2336,9 @@ out:
     if (local_err) {
         migration_connect_set_error(s, local_err);
         error_propagate(errp, local_err);
+        if (stopped) {
+            vm_resume(s->vm_old_state);
+        }
     }
 }
 
@@ -2339,6 +2384,9 @@ static void qmp_migrate_finish(MigrationAddress *addr, bool resume_requested,
         }
         migration_connect_set_error(s, local_err);
         error_propagate(errp, local_err);
+        if (migrate_mode_is_cpr(s)) {
+            vm_resume(s->vm_old_state);
+        }
         return;
     }
 }
@@ -4028,7 +4076,6 @@ void migration_connect(MigrationState *s, Error *error_in)
     Error *local_err = NULL;
     uint64_t rate_limit;
     bool resume = (s->state == MIGRATION_STATUS_POSTCOPY_RECOVER_SETUP);
-    int ret;
 
     /*
      * If there's a previous error, free it and prepare for another one.
@@ -4097,14 +4144,6 @@ void migration_connect(MigrationState *s, Error *error_in)
                           MIGRATION_STATUS_POSTCOPY_RECOVER);
         qemu_sem_post(&s->postcopy_pause_sem);
         return;
-    }
-
-    if (migrate_mode_is_cpr(s)) {
-        ret = migration_stop_vm(s, RUN_STATE_FINISH_MIGRATE);
-        if (ret < 0) {
-            error_setg(&local_err, "migration_stop_vm failed, error %d", -ret);
-            goto fail;
-        }
     }
 
     /*
