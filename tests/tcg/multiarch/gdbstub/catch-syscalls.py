@@ -22,7 +22,8 @@ def run_test():
         gdb.execute("catch syscall pipe2 read")
     except gdb.error as exc:
         exc_str = str(exc)
-        if "not supported on this architecture" in exc_str:
+        if "not supported on this architecture" in exc_str \
+                or if "Unknown syscall name 'pipe2'" in exc_str:
             print("SKIP: {}".format(exc_str))
             return
         raise
