@@ -766,3 +766,8 @@ int tap_disable(NetClientState *nc)
 {
     abort();
 }
+
+void tap_disable_postload(NetClientState *nc)
+{
+    abort();
+}
