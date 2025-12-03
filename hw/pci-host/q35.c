@@ -517,9 +517,27 @@ static void mch_update(MCHPCIState *mch)
                      IO_APIC_DEFAULT_ADDRESS - 1);
 }
 
+static void mch_smbase_smram_post_load(MCHPCIState *mch)
+{
+    PCIDevice *pd = PCI_DEVICE(mch);
+    uint8_t *reg = pd->config + MCH_HOST_BRIDGE_F_SMBASE;
+
+    if (!mch->has_smram_at_smbase) {
+        return;
+    }
+
+    if (*reg == MCH_HOST_BRIDGE_F_SMBASE_IN_RAM) {
+        pd->wmask[MCH_HOST_BRIDGE_F_SMBASE] =
+            MCH_HOST_BRIDGE_F_SMBASE_LCK;
+    } else if (*reg == MCH_HOST_BRIDGE_F_SMBASE_LCK) {
+        pd->wmask[MCH_HOST_BRIDGE_F_SMBASE] = 0;
+    }
+}
 static int mch_post_load(void *opaque, int version_id)
 {
     MCHPCIState *mch = opaque;
+
+    mch_smbase_smram_post_load(mch);
     mch_update(mch);
     return 0;
 }
