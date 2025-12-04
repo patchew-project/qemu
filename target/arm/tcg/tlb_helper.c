@@ -346,6 +346,17 @@ bool arm_cpu_tlb_fill_align(CPUState *cs, CPUTLBEntryFull *out, vaddr address,
     }
 
     /*
+     * PC alignment faults should be dealt with at translation time
+     * but we also need to make sure other faults don't preempt them
+     * while being probed.
+     */
+    if (access_type == MMU_INST_FETCH && !cpu->env.thumb) {
+        /* probe sets memop to 0 */
+        g_assert(!memop);
+        memop |= MO_ALIGN_4;
+    }
+
+    /*
      * Per R_XCHFJ, alignment fault not due to memory type has
      * highest precedence.  Otherwise, walk the page table and
      * and collect the page description.
