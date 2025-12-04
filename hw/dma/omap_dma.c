@@ -504,8 +504,18 @@ static void omap_dma_transfer_setup(struct soc_dma_ch_s *dma)
     struct omap_dma_channel_s *ch = dma->opaque;
     struct omap_dma_s *s = dma->dma->opaque;
     int frames, min_elems, elements[__omap_dma_intr_last];
+    uint64_t frames64, frame64, elements64, element64;
 
     a = &ch->active_set;
+
+    /*
+     * We do maths with the frame and element fields which exceeds
+     * a signed 32-bit integer, so convert all these to 64 bit for future use.
+     */
+    frames64 = a->frames;
+    frame64 = a->frame;
+    elements64 = a->elements;
+    element64 = a->element;
 
     src_p = &s->mpu->port[ch->port[0]];
     dest_p = &s->mpu->port[ch->port[1]];
@@ -527,7 +537,7 @@ static void omap_dma_transfer_setup(struct soc_dma_ch_s *dma)
     /* Check all the conditions that terminate the transfer starting
      * with those that can occur the soonest.  */
 #define INTR_CHECK(cond, id, nelements) \
-    if (cond) {         \
+    if (cond && nelements <= INT_MAX) {         \
         elements[id] = nelements;   \
         if (elements[id] < min_elems)   \
             min_elems = elements[id];   \
@@ -547,24 +557,24 @@ static void omap_dma_transfer_setup(struct soc_dma_ch_s *dma)
      * See also the TODO in omap_dma_channel_load.  */
     INTR_CHECK(
                     (ch->interrupts & LAST_FRAME_INTR) &&
-                    ((a->frame < a->frames - 1) || !a->element),
+                    ((frame64 < frames64 - 1) || !element64),
                     omap_dma_intr_last_frame,
-                    (a->frames - a->frame - 2) * a->elements +
-                    (a->elements - a->element + 1))
+                    (frames64 - frame64 - 2) * elements64 +
+                    (elements64 - element64 + 1))
     INTR_CHECK(
                     ch->interrupts & HALF_FRAME_INTR,
                     omap_dma_intr_half_frame,
-                    (a->elements >> 1) +
-                    (a->element >= (a->elements >> 1) ? a->elements : 0) -
-                    a->element)
+                    (elements64 >> 1) +
+                    (element64 >= (elements64 >> 1) ? elements64 : 0) -
+                    element64)
     INTR_CHECK(
                     ch->sync && ch->fs && (ch->interrupts & END_FRAME_INTR),
                     omap_dma_intr_frame,
-                    a->elements - a->element)
+                    elements64 - element64)
     INTR_CHECK(
                     ch->sync && ch->fs && !ch->bs,
                     omap_dma_intr_frame_sync,
-                    a->elements - a->element)
+                    elements64 - element64)
 
     /* Packets */
     INTR_CHECK(
@@ -581,8 +591,8 @@ static void omap_dma_transfer_setup(struct soc_dma_ch_s *dma)
     INTR_CHECK(
                     1,
                     omap_dma_intr_block,
-                    (a->frames - a->frame - 1) * a->elements +
-                    (a->elements - a->element))
+                    (frames64 - frame64 - 1) * elements64 +
+                    (elements64 - element64))
 
     dma->bytes = min_elems * ch->data_type;
 
