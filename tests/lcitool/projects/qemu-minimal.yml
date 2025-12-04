@@ -18,6 +18,7 @@ packages:
  - libffi
  - make
  - meson
+ - nettle
  - ninja
  - pixman
  - pkg-config
