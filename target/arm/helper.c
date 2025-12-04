@@ -6095,6 +6095,7 @@ static void tcr2_el1_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     ARMCPU *cpu = env_archcpu(env);
     uint64_t valid_mask = 0;
+    bool require_flush = false;
 
     if (cpu_isar_feature(aa64_s1pie, cpu)) {
         valid_mask |= TCR2_PIE;
@@ -6102,8 +6103,16 @@ static void tcr2_el1_write(CPUARMState *env, const ARMCPRegInfo *ri,
     if (cpu_isar_feature(aa64_aie, cpu)) {
         valid_mask |= TCR2_AIE;
     }
+    if (cpu_isar_feature(aa64_asid2, cpu)) {
+        valid_mask |= TCR2_FNG1 | TCR2_FNG0 | TCR2_A2;
+        require_flush = true;
+    }
     value &= valid_mask;
     raw_write(env, ri, value);
+
+    if (require_flush) {
+        tlb_flush(CPU(cpu));
+    }
 }
 
 static void tcr2_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -6111,6 +6120,7 @@ static void tcr2_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     ARMCPU *cpu = env_archcpu(env);
     uint64_t valid_mask = 0;
+    bool require_flush = false;
 
     if (cpu_isar_feature(aa64_s1pie, cpu)) {
         valid_mask |= TCR2_PIE;
@@ -6121,8 +6131,16 @@ static void tcr2_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
     if (cpu_isar_feature(aa64_mec, cpu)) {
         valid_mask |= TCR2_AMEC0 | TCR2_AMEC1;
     }
+    if (cpu_isar_feature(aa64_asid2, cpu)) {
+        valid_mask |= TCR2_FNG1 | TCR2_FNG0 | TCR2_A2;
+        require_flush = true;
+    }
     value &= valid_mask;
     raw_write(env, ri, value);
+
+    if (require_flush) {
+        tlb_flush(CPU(cpu));
+    }
 }
 
 static const ARMCPRegInfo tcr2_reginfo[] = {
