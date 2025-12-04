@@ -31,6 +31,7 @@ struct ZynqMachineState {
     Clock *ps_clk;
     ARMCPU *cpu[ZYNQ_MAX_CPUS];
     uint8_t boot_mode;
+    char *flash_type;
 };
 
 #endif /* QEMU_ARM_ZYNQ_H */
