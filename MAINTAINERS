@@ -1741,7 +1741,9 @@ K230 Machines
 M: Chao Liu <chao.liu@zevorn.cn>
 S: Maintained
 F: hw/riscv/k230.c
+F: hw/watchdog/k230_wdt.c
 F: include/hw/riscv/k230.h
+F: include/hw/watchdog/k230_wdt.h
 
 RX Machines
 -----------
