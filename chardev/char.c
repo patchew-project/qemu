@@ -309,7 +309,7 @@ static void char_finalize(Object *obj)
     if (chr->fe) {
         chr->fe->chr = NULL;
     }
-    g_free(chr->filename);
+    qemu_chr_set_filename(chr, NULL);
     g_free(chr->label);
     if (chr->logfd != -1) {
         close(chr->logfd);
@@ -796,7 +796,7 @@ static int qmp_query_chardev_foreach(Object *obj, void *data)
     ChardevInfo *value = g_malloc0(sizeof(*value));
 
     value->label = g_strdup(chr->label);
-    value->filename = g_strdup(chr->filename);
+    value->filename = qemu_chr_get_filename(chr);
     value->frontend_open = chr->fe && chr->fe->fe_is_open;
 
     QAPI_LIST_PREPEND(*list, value);
@@ -1023,10 +1023,6 @@ static Chardev *chardev_new(const char *id, const char *typename,
         error_propagate(errp, local_err);
         object_unref(obj);
         return NULL;
-    }
-
-    if (!chr->filename) {
-        chr->filename = g_strdup(typename + 8);
     }
 
     return chr;

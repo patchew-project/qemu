@@ -336,6 +336,7 @@ static bool pty_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
     int master_fd, slave_fd;
     char *name;
     char *path = backend->u.pty.data->path;
+    g_autofree char *filename = NULL;
 
     s = PTY_CHARDEV(chr);
 
@@ -351,7 +352,8 @@ static bool pty_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
         return false;
     }
 
-    chr->filename = g_strdup_printf("pty:%s", s->pty_name);
+    filename = g_strdup_printf("pty:%s", s->pty_name);
+    qemu_chr_set_filename(chr, filename);
     qemu_printf("char device redirected to %s (label %s)\n",
                 s->pty_name, chr->label);
 

@@ -62,7 +62,7 @@ struct Chardev {
     QemuMutex chr_write_lock;
     CharFrontend *fe;
     char *label;
-    char *filename;
+    char *_filename;
     int logfd;
     int be_open;
     /* used to coordinate the chardev-change special-case: */
@@ -71,6 +71,25 @@ struct Chardev {
     GMainContext *gcontext;
     DECLARE_BITMAP(features, QEMU_CHAR_FEATURE_LAST);
 };
+
+static inline char *qemu_chr_get_filename(Chardev *chr)
+{
+    const char *typename;
+
+    if (chr->_filename) {
+        return g_strdup(chr->_filename);
+    }
+
+    typename = object_get_typename(OBJECT(chr));
+    assert(g_str_has_prefix(typename, "chardev-"));
+    return g_strdup(typename + 8);
+}
+
+static inline void qemu_chr_set_filename(Chardev *chr, const char *filename)
+{
+    g_free(chr->_filename);
+    chr->_filename = g_strdup(filename);
+}
 
 /**
  * qemu_chr_new_from_opts:
