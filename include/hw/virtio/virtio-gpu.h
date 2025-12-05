@@ -152,6 +152,7 @@ struct VirtIOGPUBase {
     struct virtio_gpu_base_conf conf;
     struct virtio_gpu_config virtio_config;
     const GraphicHwOps *hw_ops;
+    char *drm_render_node;
 
     int renderer_blocked;
     int enable;

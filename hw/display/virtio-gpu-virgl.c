@@ -1020,6 +1020,15 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
     }
 }
 
+#if VIRGL_RENDERER_CALLBACKS_VERSION >= 2
+static int virtio_get_drm_fd(void *opaque)
+{
+    VirtIOGPU *g = opaque;
+    int fd = open(g->parent_obj.drm_render_node, O_RDWR);
+    return fd;
+}
+#endif
+
 static void virgl_write_fence(void *opaque, uint32_t fence)
 {
     VirtIOGPU *g = opaque;
@@ -1301,7 +1310,13 @@ int virtio_gpu_virgl_init(VirtIOGPU *g)
     }
     if (virtio_gpu_drm_enabled(g->parent_obj.conf)) {
         flags |= VIRGL_RENDERER_DRM;
-
+#if VIRGL_RENDERER_CALLBACKS_VERSION >= 2
+        if (g->parent_obj.drm_render_node) {
+            if (virtio_gpu_3d_cbs.version < 2)
+                virtio_gpu_3d_cbs.version = 2;
+            virtio_gpu_3d_cbs.get_drm_fd = virtio_get_drm_fd;
+        }
+#endif
         if (!(flags & VIRGL_RENDERER_ASYNC_FENCE_CB)) {
             /*
              * Virglrenderer skips enabling DRM context support without
