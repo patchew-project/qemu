@@ -72,7 +72,7 @@ build-system-debian:
     CONFIGURE_ARGS: --with-coroutine=sigaltstack --enable-rust
     TARGETS: arm-softmmu i386-softmmu riscv64-softmmu sh4eb-softmmu
       sparc-softmmu xtensa-softmmu
-    MAKE_CHECK_ARGS: check-build
+    MAKE_CHECK_ARGS: check-venv check-build
 
 check-system-debian:
   extends: .native_test_job_template
@@ -101,7 +101,6 @@ crash-test-debian:
     IMAGE: debian
   script:
     - cd build
-    - make NINJA=":" check-venv
     - pyvenv/bin/python3 scripts/device-crash-test -q --tcg-only ./qemu-system-i386
 
 build-system-fedora:
@@ -115,7 +114,7 @@ build-system-fedora:
     CONFIGURE_ARGS: --disable-gcrypt --enable-nettle --enable-docs --enable-crypto-afalg --enable-rust
     TARGETS: microblaze-softmmu mips-softmmu
       xtensa-softmmu m68k-softmmu riscv32-softmmu ppc-softmmu sparc64-softmmu
-    MAKE_CHECK_ARGS: check-build check-doc
+    MAKE_CHECK_ARGS: check-venv check-build check-doc
 
 build-system-fedora-rust-nightly:
   extends:
@@ -158,7 +157,6 @@ crash-test-fedora:
     IMAGE: fedora
   script:
     - cd build
-    - make NINJA=":" check-venv
     - pyvenv/bin/python3 scripts/device-crash-test -q ./qemu-system-ppc
     - pyvenv/bin/python3 scripts/device-crash-test -q ./qemu-system-riscv32
 
