@@ -540,7 +540,7 @@ static const TypeInfo virtio_tablet_info = {
 
 static const QemuInputHandler virtio_multitouch_handler = {
     .name  = VIRTIO_ID_NAME_MULTITOUCH,
-    .mask  = INPUT_EVENT_MASK_BTN | INPUT_EVENT_MASK_MTT,
+    .mask  = INPUT_EVENT_MASK_MTT,
     .event = virtio_input_handle_event,
     .sync  = virtio_input_handle_sync,
 };
@@ -603,9 +603,6 @@ static void virtio_multitouch_init(Object *obj)
 
     vhid->handler = &virtio_multitouch_handler;
     virtio_input_init_config(vinput, virtio_multitouch_config);
-    virtio_input_extend_config(vinput, keymap_button,
-                               ARRAY_SIZE(keymap_button),
-                               VIRTIO_INPUT_CFG_EV_BITS, EV_KEY);
     virtio_input_extend_config(vinput, abs_props,
                                ARRAY_SIZE(abs_props),
                                VIRTIO_INPUT_CFG_PROP_BITS, 0);
