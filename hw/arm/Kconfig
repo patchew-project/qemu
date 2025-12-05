@@ -638,6 +638,7 @@ config FSL_IMX8MM
     select SDHCI
     select PCI_EXPRESS_DESIGNWARE
     select PCI_EXPRESS_FSL_IMX8M_PHY
+    select WDT_IMX2
 
 config FSL_IMX8MM_EVK
     bool
