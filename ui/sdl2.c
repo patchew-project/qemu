@@ -651,6 +651,92 @@ static void handle_windowevent(SDL_Event *ev)
     }
 }
 
+static void handle_touch(SDL_Event *ev){
+    SDL_TouchFingerEvent *finger_ev = (SDL_TouchFingerEvent *)ev;
+    struct sdl2_console *scon = get_scon_from_window(finger_ev->windowID);
+    Error *err = NULL;
+    int num_slot = -1;
+    int type = -1;
+    int width, height;
+    double x, y;
+    int i;
+
+    if (!scon) {
+        return;
+    }
+
+    switch (finger_ev->type) {
+    case SDL_FINGERDOWN:
+        for (i = 0; i < INPUT_EVENT_SLOTS_MAX; i++){
+            if (scon->fingers[i].pressing &&
+                scon->fingers[i].touch_id == finger_ev->touchId &&
+                scon->fingers[i].finger_id == finger_ev->fingerId){
+                // it is possible for sdl2 to send this twice, in that case treat it as an update
+                num_slot = i;
+                type = INPUT_MULTI_TOUCH_TYPE_UPDATE;
+                break;
+            }
+        }
+        if (num_slot != -1){
+            break;
+        }
+        for (i = 0; i < INPUT_EVENT_SLOTS_MAX; i++){
+            if (!scon->fingers[i].pressing){
+                scon->fingers[i].pressing = true;
+                scon->fingers[i].touch_id = finger_ev->touchId;
+                scon->fingers[i].finger_id = finger_ev->fingerId;
+                num_slot = i;
+                type = INPUT_MULTI_TOUCH_TYPE_BEGIN;
+                break;
+            }
+        }
+        break;
+    case SDL_FINGERMOTION:
+        for (i = 0; i < INPUT_EVENT_SLOTS_MAX; i++){
+            if (scon->fingers[i].pressing &&
+                scon->fingers[i].touch_id == finger_ev->touchId &&
+                scon->fingers[i].finger_id == finger_ev->fingerId){
+                num_slot = i;
+                type = INPUT_MULTI_TOUCH_TYPE_UPDATE;
+                break;
+            }
+        }
+        break;
+    case SDL_FINGERUP:
+        for (i = 0; i < INPUT_EVENT_SLOTS_MAX; i++){
+            if (scon->fingers[i].pressing &&
+                scon->fingers[i].touch_id == finger_ev->touchId &&
+                scon->fingers[i].finger_id == finger_ev->fingerId){
+                scon->fingers[i].pressing = false;
+                num_slot = i;
+                type = INPUT_MULTI_TOUCH_TYPE_END;
+                break;
+            }
+        }
+        break;
+    }
+
+    if (num_slot == -1){
+        error_setg(&err, "Cannot handle more than %d fingers",
+                   INPUT_EVENT_SLOTS_MAX);
+        warn_report_err(err);
+        return;
+    }
+
+    width = surface_width(scon->surface);
+    height = surface_height(scon->surface);
+    x = finger_ev->x * width;
+    y = finger_ev->y * height;
+
+    console_handle_touch_event(scon->dcl.con, scon->touch_slots,
+                               num_slot, width, height, x, y,
+                               type, &err);
+
+    if (err) {
+        warn_report_err(err);
+    }
+}
+
 void sdl2_poll_events(struct sdl2_console *scon)
 {
     SDL_Event ev1, *ev = &ev1;
@@ -700,6 +786,12 @@ void sdl2_poll_events(struct sdl2_console *scon)
             break;
         case SDL_WINDOWEVENT:
             handle_windowevent(ev);
+            break;
+        case SDL_FINGERMOTION:
+        case SDL_FINGERDOWN:
+        case SDL_FINGERUP:
+            idle = 0;
+            handle_touch(ev);
             break;
         default:
             break;
@@ -838,7 +930,7 @@ static void sdl2_display_early_init(DisplayOptions *o)
 static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
 {
     uint8_t data = 0;
-    int i;
+    int i, j;
     SDL_SysWMinfo info;
     SDL_Surface *icon = NULL;
     char *dir;
@@ -862,6 +954,7 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
     SDL_SetHint(SDL_HINT_ALLOW_ALT_TAB_WHILE_GRABBED, "0");
 #endif
     SDL_SetHint(SDL_HINT_WINDOWS_NO_CLOSE_ON_ALT_F4, "1");
+    SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
     SDL_EnableScreenSaver();
     memset(&info, 0, sizeof(info));
     SDL_VERSION(&info.version);
@@ -920,6 +1013,10 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
 #endif
         }
 #endif
+
+        for (j = 0; j < INPUT_EVENT_SLOTS_MAX; j++) {
+            sdl2_console[i].touch_slots[j].tracking_id = -1;
+        }
     }
 
 #ifdef CONFIG_SDL_IMAGE

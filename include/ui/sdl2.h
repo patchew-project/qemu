@@ -26,6 +26,9 @@
 # include "ui/egl-helpers.h"
 #endif
 
+#include "input.h"
+#include "console.h"
+
 struct sdl2_console {
     DisplayGLCtx dgc;
     DisplayChangeListener dcl;
@@ -52,6 +55,12 @@ struct sdl2_console {
     bool y0_top;
     bool scanout_mode;
 #endif
+    struct {
+        bool pressing;
+        SDL_TouchID touch_id;
+        SDL_FingerID finger_id;
+    } fingers[INPUT_EVENT_SLOTS_MAX];
+    struct touch_slot touch_slots[INPUT_EVENT_SLOTS_MAX];
 };
 
 void sdl2_window_create(struct sdl2_console *scon);
