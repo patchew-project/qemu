@@ -57,16 +57,20 @@ foreach speed : ['quick', 'thorough']
       continue
     endif
 
+    test_deps = [roms, keymap_targets]
+
     if speed == 'quick'
       suites = ['func-quick', 'func-' + target_base]
       target_tests = get_variable('tests_' + target_base + '_' + sysmode + '_quick', []) \
                      + get_variable('tests_generic_' + sysmode)
+      test_deps += [pyvenv_checktests_group]
     else
       suites = ['func-' + speed, 'func-' + target_base + '-' + speed, speed]
       target_tests = get_variable('tests_' + target_base + '_' + sysmode + '_' + speed, [])
+      test_deps += [pyvenv_functests_group]
     endif
 
-    test_deps = [roms, keymap_targets]
+
     test_env = environment()
     if have_tools
       test_env.set('QEMU_TEST_QEMU_IMG', meson.global_build_root() / 'qemu-img')
@@ -99,6 +103,7 @@ foreach speed : ['quick', 'thorough']
       precache = custom_target('func-precache-' + testname,
                                output: teststamp,
                                command: [python, testpath],
+                               depends: pyvenv_functests_group,
                                depend_files: files(testpath),
                                build_by_default: false,
                                env: test_precache_env)
