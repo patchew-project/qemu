@@ -348,6 +348,7 @@ build-tcg-disabled:
                    --disable-docs --disable-sdl --disable-gtk --disable-vnc
       || { cat config.log meson-logs/meson-log.txt && exit 1; }
     - make -j"$JOBS"
+    - make check-venv
     - make check-unit
     - make check-qapi-schema
     - cd tests/qemu-iotests/
