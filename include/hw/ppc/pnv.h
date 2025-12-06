@@ -295,5 +295,6 @@ void pnv_bmc_set_pnor(IPMIBmc *bmc, PnvPnor *pnor);
 
 /* MPIPL helpers */
 void do_mpipl_preserve(PnvMachineState *pnv);
+void do_mpipl_write(PnvMachineState *pnv);
 
 #endif /* PPC_PNV_H */
