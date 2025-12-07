@@ -13,3 +13,6 @@ pub use qdev::*;
 
 mod sysbus;
 pub use sysbus::*;
+
+mod bus;
+pub use bus::*;
