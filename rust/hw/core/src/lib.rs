@@ -16,3 +16,6 @@ pub use sysbus::*;
 
 mod bus;
 pub use bus::*;
+
+mod i2c;
+pub use i2c::*;
