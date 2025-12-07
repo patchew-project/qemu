@@ -1,0 +1,2 @@
+config X_PCF8574_RUST
+    bool
