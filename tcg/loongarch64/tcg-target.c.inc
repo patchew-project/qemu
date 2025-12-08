@@ -2184,6 +2184,33 @@ static void tcg_out_cmp_vec(TCGContext *s, bool lasx, unsigned vece,
                             bool a2_is_const, TCGCond cond)
 {
     LoongArchInsn insn;
+    bool need_invert = false;
+
+    switch (cond) {
+    case TCG_COND_EQ:
+    case TCG_COND_LE:
+    case TCG_COND_LEU:
+    case TCG_COND_LT:
+    case TCG_COND_LTU:
+        /* These are directly expressible. */
+        break;
+    case TCG_COND_NE:
+        need_invert = true;
+        cond = TCG_COND_EQ;
+        break;
+    case TCG_COND_GE:
+    case TCG_COND_GEU:
+    case TCG_COND_GT:
+    case TCG_COND_GTU:
+        {
+            TCGArg t;
+            t = a1, a1 = a2, a2 = t;
+            cond = tcg_swap_cond(cond);
+            break;
+        }
+    default:
+        g_assert_not_reached();
+    }
 
     static const LoongArchInsn cmp_vec_insn[16][2][4] = {
         [TCG_COND_EQ] = {
@@ -2236,32 +2263,30 @@ static void tcg_out_cmp_vec(TCGContext *s, bool lasx, unsigned vece,
          * Try vseqi/vslei/vslti
          */
         int64_t value = sextract64(a2, 0, 8 << vece);
+
+        insn = cmp_vec_imm_insn[cond][lasx][vece];
         switch (cond) {
         case TCG_COND_EQ:
         case TCG_COND_LE:
         case TCG_COND_LT:
-            insn = cmp_vec_imm_insn[cond][lasx][vece];
             tcg_out32(s, encode_vdvjsk5_insn(insn, a0, a1, value));
             break;
         case TCG_COND_LEU:
         case TCG_COND_LTU:
-            insn = cmp_vec_imm_insn[cond][lasx][vece];
             tcg_out32(s, encode_vdvjuk5_insn(insn, a0, a1, value));
             break;
         default:
             g_assert_not_reached();
         }
+    } else {
+        insn = cmp_vec_insn[cond][lasx][vece];
+        tcg_out32(s, encode_vdvjvk_insn(insn, a0, a1, a2));
     }
 
-    insn = cmp_vec_insn[cond][lasx][vece];
-    if (insn == 0) {
-        TCGArg t;
-        t = a1, a1 = a2, a2 = t;
-        cond = tcg_swap_cond(cond);
-        insn = cmp_vec_insn[cond][lasx][vece];
-        tcg_debug_assert(insn != 0);
+    if (need_invert) {
+        insn = lasx ? OPC_XVNOR_V : OPC_VNOR_V;
+        tcg_out32(s, encode_vdvjvk_insn(insn, a0, a0, a0));
     }
-    tcg_out32(s, encode_vdvjvk_insn(insn, a0, a1, a2));
 }
 
 static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
