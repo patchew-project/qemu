@@ -2179,14 +2179,10 @@ static void tcg_out_addsub_vec(TCGContext *s, bool lasx, unsigned vece,
     tcg_out32(s, encode_vdvjvk_insn(insn, a0, a1, a2));
 }
 
-static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
-                           unsigned vecl, unsigned vece,
-                           const TCGArg args[TCG_MAX_OP_ARGS],
-                           const int const_args[TCG_MAX_OP_ARGS])
+static void tcg_out_cmp_vec(TCGContext *s, bool lasx, unsigned vece,
+                            TCGArg a0, TCGArg a1, TCGArg a2,
+                            bool a2_is_const, TCGCond cond)
 {
-    TCGType type = vecl + TCG_TYPE_V64;
-    bool lasx = type == TCG_TYPE_V256;
-    TCGArg a0, a1, a2, a3;
     LoongArchInsn insn;
 
     static const LoongArchInsn cmp_vec_insn[16][2][4] = {
@@ -2233,6 +2229,51 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
             { OPC_XVSLTI_BU, OPC_XVSLTI_HU, OPC_XVSLTI_WU, OPC_XVSLTI_DU },
         }
     };
+
+    if (a2_is_const) {
+        /*
+         * cmp_vec dest, src, value
+         * Try vseqi/vslei/vslti
+         */
+        int64_t value = sextract64(a2, 0, 8 << vece);
+        switch (cond) {
+        case TCG_COND_EQ:
+        case TCG_COND_LE:
+        case TCG_COND_LT:
+            insn = cmp_vec_imm_insn[cond][lasx][vece];
+            tcg_out32(s, encode_vdvjsk5_insn(insn, a0, a1, value));
+            break;
+        case TCG_COND_LEU:
+        case TCG_COND_LTU:
+            insn = cmp_vec_imm_insn[cond][lasx][vece];
+            tcg_out32(s, encode_vdvjuk5_insn(insn, a0, a1, value));
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+
+    insn = cmp_vec_insn[cond][lasx][vece];
+    if (insn == 0) {
+        TCGArg t;
+        t = a1, a1 = a2, a2 = t;
+        cond = tcg_swap_cond(cond);
+        insn = cmp_vec_insn[cond][lasx][vece];
+        tcg_debug_assert(insn != 0);
+    }
+    tcg_out32(s, encode_vdvjvk_insn(insn, a0, a1, a2));
+}
+
+static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
+                           unsigned vecl, unsigned vece,
+                           const TCGArg args[TCG_MAX_OP_ARGS],
+                           const int const_args[TCG_MAX_OP_ARGS])
+{
+    TCGType type = vecl + TCG_TYPE_V64;
+    bool lasx = type == TCG_TYPE_V256;
+    TCGArg a0, a1, a2, a3;
+    LoongArchInsn insn;
+
     static const LoongArchInsn neg_vec_insn[2][4] = {
         { OPC_VNEG_B, OPC_VNEG_H, OPC_VNEG_W, OPC_VNEG_D },
         { OPC_XVNEG_B, OPC_XVNEG_H, OPC_XVNEG_W, OPC_XVNEG_D },
@@ -2347,43 +2388,8 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         insn = lasx ? OPC_XVNOR_V : OPC_VNOR_V;
         goto vdvjvk;
     case INDEX_op_cmp_vec:
-        {
-            TCGCond cond = args[3];
-
-            if (const_args[2]) {
-                /*
-                 * cmp_vec dest, src, value
-                 * Try vseqi/vslei/vslti
-                 */
-                int64_t value = sextract64(a2, 0, 8 << vece);
-                switch (cond) {
-                case TCG_COND_EQ:
-                case TCG_COND_LE:
-                case TCG_COND_LT:
-                    insn = cmp_vec_imm_insn[cond][lasx][vece];
-                    tcg_out32(s, encode_vdvjsk5_insn(insn, a0, a1, value));
-                    break;
-                case TCG_COND_LEU:
-                case TCG_COND_LTU:
-                    insn = cmp_vec_imm_insn[cond][lasx][vece];
-                    tcg_out32(s, encode_vdvjuk5_insn(insn, a0, a1, value));
-                    break;
-                default:
-                    g_assert_not_reached();
-                }
-                break;
-            }
-
-            insn = cmp_vec_insn[cond][lasx][vece];
-            if (insn == 0) {
-                TCGArg t;
-                t = a1, a1 = a2, a2 = t;
-                cond = tcg_swap_cond(cond);
-                insn = cmp_vec_insn[cond][lasx][vece];
-                tcg_debug_assert(insn != 0);
-            }
-        }
-        goto vdvjvk;
+        tcg_out_cmp_vec(s, lasx, vece, a0, a1, a2, const_args[2], a3);
+        break;
     case INDEX_op_add_vec:
         tcg_out_addsub_vec(s, lasx, vece, a0, a1, a2, const_args[2], true);
         break;
