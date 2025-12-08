@@ -380,6 +380,16 @@ void migration_bh_schedule(QEMUBHFunc *cb, void *opaque)
     qemu_bh_schedule(bh);
 }
 
+static void migration_thread_join(MigrationState *s)
+{
+    if (s && s->migration_thread_running) {
+        bql_unlock();
+        qemu_thread_join(&s->thread);
+        s->migration_thread_running = false;
+        bql_lock();
+    }
+}
+
 void migration_shutdown(void)
 {
     /*
@@ -393,6 +403,13 @@ void migration_shutdown(void)
      * stop the migration using this structure
      */
     migration_cancel();
+    /*
+     * Wait for migration thread to finish to prevent a possible race where
+     * the migration thread is still running and accessing host block drivers
+     * while the main cleanup proceeds to remove them in bdrv_close_all()
+     * later.
+     */
+    migration_thread_join(migrate_get_current());
     object_unref(OBJECT(current_migration));
 
     /*
@@ -1499,12 +1516,7 @@ static void migration_cleanup(MigrationState *s)
 
     close_return_path_on_source(s);
 
-    if (s->migration_thread_running) {
-        bql_unlock();
-        qemu_thread_join(&s->thread);
-        s->migration_thread_running = false;
-        bql_lock();
-    }
+    migration_thread_join(s);
 
     WITH_QEMU_LOCK_GUARD(&s->qemu_file_lock) {
         /*
