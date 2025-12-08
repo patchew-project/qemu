@@ -41,7 +41,8 @@ void physical_memory_dirty_bits_cleared(ram_addr_t start, ram_addr_t length);
 
 bool physical_memory_test_and_clear_dirty(ram_addr_t start,
                                           ram_addr_t length,
-                                          unsigned client);
+                                          unsigned client,
+                                          bool clear_dirty);
 
 DirtyBitmapSnapshot *
 physical_memory_snapshot_and_clear_dirty(MemoryRegion *mr, hwaddr offset,
