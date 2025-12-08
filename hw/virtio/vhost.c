@@ -268,14 +268,6 @@ static int vhost_sync_dirty_bitmap(struct vhost_dev *dev,
     return 0;
 }
 
-static void vhost_log_sync(MemoryListener *listener,
-                          MemoryRegionSection *section)
-{
-    struct vhost_dev *dev = container_of(listener, struct vhost_dev,
-                                         memory_listener);
-    vhost_sync_dirty_bitmap(dev, section, 0x0, ~0x0ULL);
-}
-
 static void vhost_log_sync_range(struct vhost_dev *dev,
                                  hwaddr first, hwaddr last)
 {
@@ -284,6 +276,27 @@ static void vhost_log_sync_range(struct vhost_dev *dev,
     for (i = 0; i < dev->n_mem_sections; ++i) {
         MemoryRegionSection *section = &dev->mem_sections[i];
         vhost_sync_dirty_bitmap(dev, section, first, last);
+    }
+}
+
+static void vhost_log_sync(MemoryListener *listener,
+                          MemoryRegionSection *section)
+{
+    struct vhost_dev *dev = container_of(listener, struct vhost_dev,
+                                         memory_listener);
+    struct vhost_log *log = dev->log;
+
+    if (log && log->refcnt > 1) {
+        /*
+         * When multiple devices use same log, we implement the logic of
+         * vhost_log_sync just like what we do in vhost_log_put.
+         */
+        log->sync_cnt = (log->sync_cnt + 1) % log->refcnt;
+        if (!log->sync_cnt) {
+            vhost_log_sync_range(dev, 0, dev->log_size * VHOST_LOG_CHUNK - 1);
+        }
+    } else {
+        vhost_sync_dirty_bitmap(dev, section, 0x0, ~0x0ULL);
     }
 }
 
@@ -383,6 +396,7 @@ static struct vhost_log *vhost_log_get(VhostBackendType backend_type,
         ++log->refcnt;
     }
 
+    log->sync_cnt = 0;
     return log;
 }
 

@@ -50,6 +50,7 @@ typedef unsigned long vhost_log_chunk_t;
 struct vhost_log {
     unsigned long long size;
     int refcnt;
+    int sync_cnt;
     int fd;
     vhost_log_chunk_t *log;
 };
