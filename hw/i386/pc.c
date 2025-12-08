@@ -792,6 +792,58 @@ static hwaddr pc_max_used_gpa(PCMachineState *pcms, uint64_t pci_hole64_size)
 }
 
 /*
+ * Update E820 entries for NUMA nodes marked as SPM (Specific Purpose Memory).
+ * This function directly iterates over NUMA nodes instead of RAMBlocks,
+ * as suggested by code review to simplify the implementation.
+ */
+static void pc_update_spm_memory(X86MachineState *x86ms)
+{
+    MachineState *ms = MACHINE(x86ms);
+    uint64_t addr = 0;
+
+    for (int i = 0; i < ms->numa_state->num_nodes; i++) {
+        NodeInfo *numa_info = &ms->numa_state->nodes[i];
+        uint64_t node_size = numa_info->node_mem;
+
+        /* Process SPM nodes */
+        if (numa_info->is_spm && numa_info->node_memdev) {
+            uint64_t guest_addr;
+
+            /* Calculate guest physical address accounting for PCI hole */
+            if (addr < x86ms->below_4g_mem_size) {
+                if (addr + node_size <= x86ms->below_4g_mem_size) {
+                    /* Entirely below 4GB */
+                    guest_addr = addr;
+                } else {
+                    /* Spans across 4GB boundary - should not happen with proper config */
+                    warn_report("SPM node %d spans 4GB boundary, "
+                                "using address above 4GB", i);
+                    guest_addr = 0x100000000ULL + 
+                                (addr + node_size - x86ms->below_4g_mem_size);
+                }
+            } else {
+                /* Above 4GB, account for PCI hole */
+                guest_addr = 0x100000000ULL + 
+                            (addr - x86ms->below_4g_mem_size);
+            }
+
+            /* Update E820 entry type to SOFT_RESERVED */
+            if (!e820_update_entry_type(guest_addr, node_size, 
+                                       E820_SOFT_RESERVED)) {
+                warn_report("Failed to update E820 entry for SPM node %d "
+                           "at 0x%" PRIx64 " length 0x%" PRIx64,
+                           i, guest_addr, node_size);
+            }
+        }
+
+        /* Accumulate address for next node */
+        if (numa_info->node_memdev) {
+            addr += node_size;
+        }
+    }
+}
+
+/*
  * AMD systems with an IOMMU have an additional hole close to the
  * 1Tb, which are special GPAs that cannot be DMA mapped. Depending
  * on kernel version, VFIO may or may not let you DMA map those ranges.
@@ -906,6 +958,9 @@ void pc_memory_init(PCMachineState *pcms,
     if (pcms->sgx_epc.size != 0) {
         e820_add_entry(pcms->sgx_epc.base, pcms->sgx_epc.size, E820_RESERVED);
     }
+
+    /* Update E820 for NUMA nodes marked as SPM */
+    pc_update_spm_memory(x86ms);
 
     if (!pcmc->has_reserved_memory &&
         (machine->ram_slots ||
