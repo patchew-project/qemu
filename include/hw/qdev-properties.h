@@ -242,6 +242,16 @@ void error_set_from_qdev_prop_error(Error **errp, int ret, Object *obj,
 void qdev_property_add_static(DeviceState *dev, const Property *prop);
 
 /**
+ * object_class_add_property:
+ * @oc: Object class to operate on.
+ * @prop: The qdev property definition.
+ *
+ * Add a Property to @oc.  This is the bridge to convert a Property into
+ * an object class property (as in ObjectClass.properties).
+ */
+void object_class_add_property(ObjectClass *oc, const Property *prop);
+
+/**
  * qdev_alias_all_properties: Create aliases on source for all target properties
  * @target: Device which has properties to be aliased
  * @source: Object to add alias properties to
