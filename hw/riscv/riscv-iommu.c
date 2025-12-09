@@ -2448,9 +2448,15 @@ static void riscv_iommu_instance_init(Object *obj)
     /* Enable translation debug interface */
     s->cap = RISCV_IOMMU_CAP_DBG;
 
-    /* Report QEMU target physical address space limits */
-    s->cap = set_field(s->cap, RISCV_IOMMU_CAP_PAS,
-                       TARGET_PHYS_ADDR_SPACE_BITS);
+    /*
+     * Report QEMU target physical address space limits.
+     *
+     * Currently set to the riscv64 limit of 56 bits (44 bit PPN),
+     * riscv32 would use 34 bits (22 bit PPN).
+     *
+     * This field is currently unused.
+     */
+    s->cap = set_field(s->cap, RISCV_IOMMU_CAP_PAS, 56);
 
     /* TODO: method to report supported PID bits */
     s->pid_bits = 8; /* restricted to size of MemTxAttrs.pid */
