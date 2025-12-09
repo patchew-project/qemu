@@ -530,7 +530,7 @@ void object_set_accelerator_compat_props(GPtrArray *compat_props)
     object_compat_props[0] = compat_props;
 }
 
-void object_apply_compat_props(Object *obj)
+static void object_apply_compat_props(Object *obj)
 {
     int i;
 
