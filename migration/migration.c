@@ -4136,11 +4136,9 @@ fail:
 
 static void migration_class_init(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->user_creatable = false;
-    device_class_set_props_n(dc, migration_properties,
-                             migration_properties_count);
+    for (int i = 0; i < migration_properties_count; i++) {
+        object_class_add_property(klass, &migration_properties[i]);
+    }
 }
 
 static void migration_instance_finalize(Object *obj)
@@ -4198,21 +4196,24 @@ static bool migration_object_check(MigrationState *ms, Error **errp)
     return migrate_caps_check(old_caps, ms->capabilities, errp);
 }
 
+static void migration_instance_post_init(Object *obj)
+{
+    /*
+     * Note: ordered so that the user's global properties take
+     * precedence over compat properties.  Compat-properties will be
+     * applied first in the parent class (TYPE_OBJECT_COMPAT).
+     */
+    object_apply_globals(obj);
+}
+
 static const TypeInfo migration_type = {
     .name = TYPE_MIGRATION,
-    /*
-     * NOTE: TYPE_MIGRATION is not really a device, as the object is
-     * not created using qdev_new(), it is not attached to the qdev
-     * device tree, and it is never realized.
-     *
-     * TODO: Make this TYPE_OBJECT once QOM provides something like
-     * TYPE_DEVICE's "-global" properties.
-     */
-    .parent = TYPE_DEVICE,
+    .parent = TYPE_OBJECT_COMPAT,
     .class_init = migration_class_init,
-    .class_size = sizeof(MigrationClass),
+    .class_size = sizeof(ObjectClass),
     .instance_size = sizeof(MigrationState),
     .instance_init = migration_instance_init,
+    .instance_post_init = migration_instance_post_init,
     .instance_finalize = migration_instance_finalize,
 };
 

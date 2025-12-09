@@ -273,7 +273,7 @@ struct MigrationClass {
 
 struct MigrationState {
     /*< private >*/
-    DeviceState parent_obj;
+    Object parent_obj;
 
     /*< public >*/
     QemuThread thread;
