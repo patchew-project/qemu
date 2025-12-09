@@ -124,17 +124,33 @@ static void sifive_uart_trigger_tx_fifo(SiFiveUARTState *s)
 static void sifive_uart_write_tx_fifo(SiFiveUARTState *s, const uint8_t *buf,
                                       int size)
 {
+    uint32_t txcnt = SIFIVE_UART_GET_TXCNT(s->txctrl);
+    bool update_irq = false;
+
     if (size > fifo8_num_free(&s->tx_fifo)) {
         size = fifo8_num_free(&s->tx_fifo);
         qemu_log_mask(LOG_GUEST_ERROR, "sifive_uart: TX FIFO overflow.\n");
     }
 
     if (size > 0) {
+        if (fifo8_num_used(&s->tx_fifo) < txcnt &&
+            (fifo8_num_used(&s->tx_fifo) + size) >= txcnt) {
+            update_irq = true;
+        }
+
         fifo8_push_all(&s->tx_fifo, buf, size);
     }
 
     if (fifo8_is_full(&s->tx_fifo)) {
         s->txfifo |= SIFIVE_UART_TXFIFO_FULL;
+    }
+
+    /*
+     * Update txwm interrupt pending status when the number of entries
+     * in the transmit FIFO crosses or reaches the watermark.
+     */
+    if (update_irq) {
+        sifive_uart_update_irq(s);
     }
 
     sifive_uart_trigger_tx_fifo(s);
