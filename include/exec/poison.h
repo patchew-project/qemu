@@ -43,8 +43,6 @@
 #pragma GCC poison TARGET_FMT_ld
 #pragma GCC poison TARGET_FMT_lu
 
-#pragma GCC poison TARGET_PHYS_ADDR_SPACE_BITS
-
 #pragma GCC poison CONFIG_ALPHA_DIS
 #pragma GCC poison CONFIG_HPPA_DIS
 #pragma GCC poison CONFIG_I386_DIS
