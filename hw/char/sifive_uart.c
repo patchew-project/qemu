@@ -216,6 +216,7 @@ sifive_uart_write(void *opaque, hwaddr addr,
         return;
     case SIFIVE_UART_RXCTRL:
         s->rxctrl = val64;
+        sifive_uart_update_irq(s);
         return;
     case SIFIVE_UART_DIV:
         s->div = val64;
