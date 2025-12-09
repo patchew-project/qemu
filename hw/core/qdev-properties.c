@@ -1036,6 +1036,11 @@ void qdev_prop_set_globals(DeviceState *dev)
                               dev->hotplugged ? NULL : &error_fatal);
 }
 
+void object_apply_globals(Object *obj)
+{
+    object_apply_global_props(obj, global_props(), &error_fatal);
+}
+
 /* --- 64bit unsigned int 'size' type --- */
 
 static void get_size(Object *obj, Visitor *v, const char *name, void *opaque,
