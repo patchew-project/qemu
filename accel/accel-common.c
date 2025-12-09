@@ -134,7 +134,7 @@ int accel_supported_gdbstub_sstep_flags(void)
 static const TypeInfo accel_types[] = {
     {
         .name           = TYPE_ACCEL,
-        .parent         = TYPE_OBJECT,
+        .parent         = TYPE_OBJECT_COMPAT,
         .class_size     = sizeof(AccelClass),
         .instance_size  = sizeof(AccelState),
         .abstract       = true,

@@ -2404,7 +2404,6 @@ static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
         goto bad;
     }
     accel = ACCEL(object_new_with_class(OBJECT_CLASS(ac)));
-    object_apply_compat_props(OBJECT(accel));
     qemu_opt_foreach(opts, accelerator_set_property,
                      accel,
                      &error_fatal);
