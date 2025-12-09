@@ -30,8 +30,14 @@ void qdev_prop_set_after_realize(DeviceState *dev, const char *name,
 static bool qdev_prop_allow_set(Object *obj, const char *name,
                                 const PropertyInfo *info, Error **errp)
 {
-    DeviceState *dev = DEVICE(obj);
+    DeviceState *dev;
 
+    if (!object_dynamic_cast(obj, TYPE_DEVICE)) {
+        /* Currently, non-qdev can always set Property anytime */
+        return true;
+    }
+
+    dev = DEVICE(obj);
     if (dev->realized && !info->realized_set_allowed) {
         qdev_prop_set_after_realize(dev, name, errp);
         return false;
@@ -987,6 +993,7 @@ int qdev_prop_check_globals(void)
 
     for (i = 0; i < global_props()->len; i++) {
         GlobalProperty *prop;
+        bool hotpluggable;
         ObjectClass *oc;
         DeviceClass *dc;
 
@@ -995,15 +1002,25 @@ int qdev_prop_check_globals(void)
             continue;
         }
         oc = object_class_by_name(prop->driver);
-        oc = object_class_dynamic_cast(oc, TYPE_DEVICE);
+        oc = object_class_dynamic_cast(oc, TYPE_OBJECT_COMPAT);
         if (!oc) {
             warn_report("global %s.%s has invalid class name",
                         prop->driver, prop->property);
             ret = 1;
             continue;
         }
-        dc = DEVICE_CLASS(oc);
-        if (!dc->hotpluggable && !prop->used) {
+        oc = object_class_dynamic_cast(oc, TYPE_DEVICE);
+        if (oc) {
+            dc = DEVICE_CLASS(oc);
+            hotpluggable = dc->hotpluggable;
+        } else {
+            /*
+             * Currently, to be strict to assume all non-qdev are not
+             * hotpluggable (whoever will use -global).
+             */
+            hotpluggable = false;
+        }
+        if (!hotpluggable && !prop->used) {
             warn_report("global %s.%s=%s not used",
                         prop->driver, prop->property, prop->value);
             ret = 1;
