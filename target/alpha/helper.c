@@ -523,6 +523,24 @@ void alpha_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     qemu_fprintf(f, "\n");
 }
 
+uint8_t alpha_phys_addr_space_bits(CPUAlphaState *env)
+{
+    switch (env->implver) {
+    case IMPLVER_2106x:
+        /* EV4 */
+        return 34;
+    case IMPLVER_21164:
+        /* EV5 */
+        return 40;
+    case IMPLVER_21264:
+    case IMPLVER_21364:
+        /* EV6 and EV7*/
+        return 44;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 /* This should only be called from translate, via gen_excp.
    We expect that ENV->PC has already been updated.  */
 G_NORETURN void helper_excp(CPUAlphaState *env, int excp, int error)

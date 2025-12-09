@@ -57,7 +57,7 @@ static int open_cpuinfo(CPUArchState *cpu_env, int fd)
             "L1 Dcache\t\t: n/a\n"
             "L2 cache\t\t: n/a\n"
             "L3 cache\t\t: n/a\n",
-            model, TARGET_PAGE_SIZE, TARGET_PHYS_ADDR_SPACE_BITS,
+            model, TARGET_PAGE_SIZE, alpha_phys_addr_space_bits(cpu_env),
             max_cpus, num_cpus, cpu_mask);
 
     return 0;
