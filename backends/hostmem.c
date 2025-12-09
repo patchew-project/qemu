@@ -293,11 +293,6 @@ static void host_memory_backend_init(Object *obj)
     backend->prealloc_threads = machine->smp.cpus;
 }
 
-static void host_memory_backend_post_init(Object *obj)
-{
-    object_apply_compat_props(obj);
-}
-
 bool host_memory_backend_mr_inited(HostMemoryBackend *backend)
 {
     /*
@@ -579,13 +574,12 @@ host_memory_backend_class_init(ObjectClass *oc, const void *data)
 
 static const TypeInfo host_memory_backend_info = {
     .name = TYPE_MEMORY_BACKEND,
-    .parent = TYPE_OBJECT,
+    .parent = TYPE_OBJECT_COMPAT,
     .abstract = true,
     .class_size = sizeof(HostMemoryBackendClass),
     .class_init = host_memory_backend_class_init,
     .instance_size = sizeof(HostMemoryBackend),
     .instance_init = host_memory_backend_init,
-    .instance_post_init = host_memory_backend_post_init,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
