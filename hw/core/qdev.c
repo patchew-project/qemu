@@ -683,9 +683,9 @@ static void device_post_init(Object *obj)
 {
     /*
      * Note: ordered so that the user's global properties take
-     * precedence.
+     * precedence over compat properties.  Compat-properties will be
+     * applied first in the parent class (TYPE_OBJECT_COMPAT).
      */
-    object_apply_compat_props(obj);
     qdev_prop_set_globals(DEVICE(obj));
 }
 
@@ -890,7 +890,7 @@ void phase_advance(MachineInitPhase phase)
 
 static const TypeInfo device_type_info = {
     .name = TYPE_DEVICE,
-    .parent = TYPE_OBJECT,
+    .parent = TYPE_OBJECT_COMPAT,
     .instance_size = sizeof(DeviceState),
     .instance_init = device_initfn,
     .instance_post_init = device_post_init,
