@@ -500,6 +500,12 @@
 # @memdev: memory backend object.  If specified for one node, it must
 #     be specified for all nodes.
 #
+# @spm: if true, mark the memory region of this node as Specific
+#     Purpose Memory (SPM).  The memory will be reported to the
+#     guest as soft reserved, allowing device drivers to manage it
+#     separately from normal system RAM.  Currently only supported
+#     on x86.  (default: false, since 10.0)
+#
 # @initiator: defined in ACPI 6.3 Chapter 5.2.27.3 Table 5-145, points
 #     to the nodeid which has the memory controller responsible for
 #     this NUMA node.  This field provides additional information as
@@ -514,6 +520,7 @@
    '*cpus':   ['uint16'],
    '*mem':    'size',
    '*memdev': 'str',
+   '*spm':    'bool',
    '*initiator': 'uint16' }}
 
 ##

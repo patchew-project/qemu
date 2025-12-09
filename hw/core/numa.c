@@ -37,6 +37,7 @@
 #include "hw/mem/pc-dimm.h"
 #include "hw/boards.h"
 #include "hw/mem/memory-device.h"
+#include "hw/i386/x86.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qemu/cutils.h"
@@ -161,6 +162,14 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
         object_ref(o);
         numa_info[nodenr].node_mem = object_property_get_uint(o, "size", NULL);
         numa_info[nodenr].node_memdev = MEMORY_BACKEND(o);
+    }
+
+    if (node->has_spm && node->spm) {
+        if (!object_dynamic_cast(OBJECT(ms), TYPE_X86_MACHINE)) {
+            error_setg(errp, "spm option is only supported on x86 machines");
+            return;
+        }
+        numa_info[nodenr].is_spm = true;
     }
 
     numa_info[nodenr].present = true;
