@@ -2893,6 +2893,11 @@ void object_class_property_set_description(ObjectClass *klass,
     op->description = g_strdup(description);
 }
 
+static void object_compat_post_init(Object *obj)
+{
+    object_apply_compat_props(obj);
+}
+
 static void object_class_init(ObjectClass *klass, const void *data)
 {
     object_class_property_add_str(klass, "type", object_get_type,
@@ -2914,8 +2919,17 @@ static void register_types(void)
         .abstract = true,
     };
 
+    static const TypeInfo object_compat_info = {
+        .parent = TYPE_OBJECT,
+        .name = TYPE_OBJECT_COMPAT,
+        .instance_size = sizeof(Object),
+        .instance_post_init = object_compat_post_init,
+        .abstract = true,
+    };
+
     type_interface = type_register_internal(&interface_info);
     type_register_internal(&object_info);
+    type_register_internal(&object_compat_info);
 }
 
 type_init(register_types)
