@@ -19,7 +19,7 @@
 OBJECT_DEFINE_ABSTRACT_TYPE(ConfidentialGuestSupport,
                             confidential_guest_support,
                             CONFIDENTIAL_GUEST_SUPPORT,
-                            OBJECT)
+                            OBJECT_COMPAT)
 
 static bool check_support(ConfidentialGuestPlatformType platform,
                          uint16_t platform_version, uint8_t highest_vtl,
