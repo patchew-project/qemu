@@ -1,0 +1,15 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# Ensure that we find our local builds first
+PATH=@build_dir@/qemu-bundle/@bin_dir@:$PATH
+export PATH
+
+# Ensure that functional tests find their lib
+PYTHONPATH=@src_dir@/tests/functional${PYTHONPATH:+:${PYTHONPATH}}
+export PYTHONPATH
+
+# Ensure that everything uses the venv python & site packages
+source @build_dir@/pyvenv/bin/activate
+
+exec $@

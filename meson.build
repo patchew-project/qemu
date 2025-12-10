@@ -3507,6 +3507,17 @@ endif
 config_host_h = configure_file(output: 'config-host.h', configuration: config_host_data)
 genh += config_host_h
 
+run_config = configuration_data(
+    {'build_dir': meson.current_build_dir(),
+     'src_dir': meson.current_source_dir(),
+     'bin_dir': get_option('prefix') / get_option('bindir')},
+)
+
+run = configure_file(input: 'run.in',
+                     output: 'run',
+                     configuration: run_config)
+run_command('chmod', 'a+x', meson.current_build_dir() / 'run', check: true)
+
 hxtool = find_program('scripts/hxtool')
 shaderinclude = find_program('scripts/shaderinclude.py')
 qapi_gen = find_program('scripts/qapi-gen.py')
