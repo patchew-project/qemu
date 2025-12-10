@@ -623,10 +623,10 @@ static const X86OpEntry opcodes_0F38_00toEF[240] = {
     [0x46] = X86_OP_ENTRY3(VPSRAV,      V,x,  H,x,       W,x,  vex6 chk(W0) cpuid(AVX2) p_66),
     [0x47] = X86_OP_ENTRY3(VPSLLV,      V,x,  H,x,       W,x,  vex6 cpuid(AVX2) p_66),
 
-    [0x90] = X86_OP_ENTRY3(VPGATHERD, V,x,  H,x,  M,d,  vex12 cpuid(AVX2) p_66), /* vpgatherdd/q */
-    [0x91] = X86_OP_ENTRY3(VPGATHERQ, V,x,  H,x,  M,q,  vex12 cpuid(AVX2) p_66), /* vpgatherqd/q */
-    [0x92] = X86_OP_ENTRY3(VPGATHERD, V,x,  H,x,  M,d,  vex12 cpuid(AVX2) p_66), /* vgatherdps/d */
-    [0x93] = X86_OP_ENTRY3(VPGATHERQ, V,x,  H,x,  M,q,  vex12 cpuid(AVX2) p_66), /* vgatherqps/d */
+    [0x90] = X86_OP_ENTRY3(VPGATHERD, V,x,  H,x,  M,d,  vex12 chk(no_adr) cpuid(AVX2) p_66), /* vpgatherdd/q */
+    [0x91] = X86_OP_ENTRY3(VPGATHERQ, V,x,  H,x,  M,q,  vex12 chk(no_adr) cpuid(AVX2) p_66), /* vpgatherqd/q */
+    [0x92] = X86_OP_ENTRY3(VPGATHERD, V,x,  H,x,  M,d,  vex12 chk(no_adr) cpuid(AVX2) p_66), /* vgatherdps/d */
+    [0x93] = X86_OP_ENTRY3(VPGATHERQ, V,x,  H,x,  M,q,  vex12 chk(no_adr) cpuid(AVX2) p_66), /* vgatherqps/d */
 
     /* Should be exception type 2 but they do not have legacy SSE equivalents? */
     [0x96] = X86_OP_ENTRY3(VFMADDSUB132Px, V,x,  H,x, W,x,  vex6 cpuid(FMA) p_66),
@@ -2435,8 +2435,8 @@ static bool validate_vex(DisasContext *s, X86DecodedInsn *decode)
         break;
     case 12:
         /* Must have a VSIB byte and no address prefix.  */
-        assert(s->has_modrm);
-        if ((s->modrm & 7) != 4 || s->aflag == MO_16) {
+        assert(s->has_modrm && (decode->e.check & X86_CHECK_no_adr));
+        if ((s->modrm & 7) != 4) {
             goto illegal;
         }
 
@@ -2740,15 +2740,14 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
                 goto illegal_op;
             }
         }
-        if (decode.e.check & X86_CHECK_prot_or_vm86) {
-            if (!PE(s)) {
-                goto illegal_op;
-            }
+        if ((decode.e.check & X86_CHECK_prot_or_vm86) && !PE(s)) {
+            goto illegal_op;
         }
-        if (decode.e.check & X86_CHECK_no_vm86) {
-            if (VM86(s)) {
-                goto illegal_op;
-            }
+        if ((decode.e.check & X86_CHECK_no_vm86) && VM86(s)) {
+            goto illegal_op;
+        }
+        if ((decode.e.check & X86_CHECK_no_adr) && (s->prefix & PREFIX_ADR)) {
+            goto illegal_op;
         }
     }
 

@@ -181,6 +181,9 @@ typedef enum X86InsnCheck {
     /* Vendor-specific checks for Intel/AMD differences */
     X86_CHECK_i64_amd = 2048,
     X86_CHECK_o64_intel = 4096,
+
+    /* No 0x67 prefix allowed */
+    X86_CHECK_no_adr = 8192,
 } X86InsnCheck;
 
 typedef enum X86InsnSpecial {
