@@ -129,6 +129,32 @@ class MaintainerSection:
             else:
                 raise UnhandledTag(f"'{tag}' is not understood.")
 
+    def __str__(self) -> str:
+        entries = []
+
+        for m in self.maintainers:
+            entries.append(f"{m.name} <{m.email}> (maintainer: {self.section})")
+
+        for r in self.reviewers:
+            entries.append(f"{r.name} <{r.email}> (reviewer: {self.section})")
+
+        for l in self.lists:
+            entries.append(f"{l} (open list: {self.section})")
+
+        return "\n".join(entries)
+
+    def is_file_covered(self, filename):
+        "Is filename covered by this maintainer section"
+
+        for fx in self.files_exclude:
+            if filename.match(fx):
+                return False
+
+        for f in self.files:
+            if filename.match(f):
+                return True
+
+        return False
 
 
 def read_maintainers(src):
@@ -278,6 +304,15 @@ def main():
     if args.validate:
         print(f"loaded {len(maint_sections)} from MAINTAINERS")
         exit(0)
+
+    relevent_maintainers = None
+
+    if args.file:
+        relevent_maintainers = [ms for ms in maint_sections if
+                                ms.is_file_covered(args.file)]
+
+    for rm in relevent_maintainers:
+        print(rm)
 
 
 if __name__ == '__main__':
