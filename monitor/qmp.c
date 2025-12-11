@@ -462,9 +462,11 @@ static void monitor_qmp_event(void *opaque, QEMUChrEvent event)
 
     switch (event) {
     case CHR_EVENT_OPENED:
+        qemu_mutex_lock(&mon->common.mon_lock);
         mon->commands = &qmp_cap_negotiation_commands;
         monitor_qmp_caps_reset(mon);
         data = qmp_greeting(mon);
+        qemu_mutex_unlock(&mon->common.mon_lock);
         qmp_send_response(mon, data);
         qobject_unref(data);
         break;

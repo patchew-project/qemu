@@ -5474,7 +5474,10 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
     int ret;
+    bool nmi_pending = false;
+    bool smi_pending = false;
 
+    bql_lock();
     /* Inject NMI */
     if (cpu_test_interrupt(cpu, CPU_INTERRUPT_NMI | CPU_INTERRUPT_SMI)) {
         if (cpu_test_interrupt(cpu, CPU_INTERRUPT_NMI)) {

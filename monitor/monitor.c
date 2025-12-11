@@ -338,15 +338,21 @@ static void monitor_qapi_event_emit(QAPIEvent event, QDict *qdict)
 {
     Monitor *mon;
     MonitorQMP *qmp_mon;
+    bool send;
 
     trace_monitor_protocol_event_emit(event, qdict);
     QTAILQ_FOREACH(mon, &mon_list, entry) {
+        qemu_mutex_lock(&mon->mon_lock);
         if (!monitor_is_qmp(mon)) {
+            qemu_mutex_unlock(&mon->mon_lock);
             continue;
         }
 
         qmp_mon = container_of(mon, MonitorQMP, common);
-        if (qmp_mon->commands != &qmp_cap_negotiation_commands) {
+        send = qmp_mon->commands != &qmp_cap_negotiation_commands;
+        qemu_mutex_unlock(&mon->mon_lock);
+
+        if (send) {
             qmp_send_response(qmp_mon, qdict);
         }
     }
