@@ -805,6 +805,43 @@ static inline RISCVMXL riscv_cpu_sxl(CPURISCVState *env)
 }
 #endif
 
+/*
+ * Returns the current effective privilege mode.
+ *
+ * @env: CPURISCVState
+ * @priv: The returned effective privilege mode.
+ * @virt: The returned effective virtualization mode.
+ *
+ * Returns true if the effective privilege mode is modified.
+ */
+static inline QEMU_ALWAYS_INLINE
+bool riscv_cpu_eff_priv(CPURISCVState *env, int *priv, bool *virt)
+{
+    int mode = env->priv;
+    bool virt_enabled = false;
+    bool mode_modified = false;
+
+#ifndef CONFIG_USER_ONLY
+    if (mode == PRV_M && get_field(env->mstatus, MSTATUS_MPRV)) {
+        mode = get_field(env->mstatus, MSTATUS_MPP);
+        virt_enabled = get_field(env->mstatus, MSTATUS_MPV) && (mode != PRV_M);
+        mode_modified = true;
+    } else {
+        virt_enabled = env->virt_enabled;
+    }
+#endif
+
+    if (priv) {
+        *priv = mode;
+    }
+
+    if (virt) {
+        *virt = virt_enabled;
+    }
+
+    return mode_modified;
+}
+
 static inline bool riscv_cpu_allow_16bit_insn(const RISCVCPUConfig *cfg,
                                               target_long priv_ver,
                                               uint32_t misa_ext)
