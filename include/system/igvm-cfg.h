@@ -14,6 +14,7 @@
 
 #include "qemu/typedefs.h"
 #include "qom/object.h"
+#include "hw/resettable.h"
 
 typedef struct IgvmCfgClass {
     ObjectClass parent_class;
