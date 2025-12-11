@@ -26,3 +26,5 @@ iommufd_backend_invalidate_cache(int iommufd, uint32_t id, uint32_t data_type, u
 igvm_reset_enter(int type) "type=%u"
 igvm_reset_hold(int type) "type=%u"
 igvm_reset_exit(int type) "type=%u"
+igvm_file_loaded(const char *fn, int32_t handle) "fn=%s, handle=0x%x"
+igvm_process_file(int32_t handle, bool context_only) "handle=0x%x context-only=%d"
