@@ -98,6 +98,13 @@ static const Property pci_props[] = {
     DEFINE_PROP_STRING("sriov-pf", PCIDevice, sriov_pf),
     DEFINE_PROP_BIT("x-pcie-ext-tag", PCIDevice, cap_present,
                     QEMU_PCIE_EXT_TAG_BITNR, true),
+
+    /*
+     * System-defined, statically configured SEC_SID for this PCI device, used
+     * by Arm SMMU. Currently only support Non-secure (0) and Secure (1)
+     * security states.
+     */
+    DEFINE_PROP_UINT8("sec-sid", PCIDevice, sec_sid, 0),
     { .name = "busnr", .info = &prop_pci_busnr },
 };
 

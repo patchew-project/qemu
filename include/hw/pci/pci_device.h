@@ -184,6 +184,9 @@ struct PCIDevice {
     uint32_t max_bounce_buffer_size;
 
     char *sriov_pf;
+
+    /* Arm SMMU SEC_SID */
+    uint8_t sec_sid;
 };
 
 static inline int pci_intx(PCIDevice *pci_dev)
