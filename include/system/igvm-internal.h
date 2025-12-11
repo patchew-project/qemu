@@ -21,6 +21,7 @@ struct IgvmCfg {
      *           format.
      */
     char *filename;
+    ResettableState reset_state;
 };
 
 #endif
