@@ -892,7 +892,10 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
 
     s->ivq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
     s->dvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
-    s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
+
+    if (virtio_has_feature(s->host_features, VIRTIO_BALLOON_F_STATS_VQ)) {
+        s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
+    }
 
     if (virtio_has_feature(s->host_features, VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
         s->free_page_vq = virtio_add_queue(vdev, VIRTQUEUE_MAX_SIZE,
@@ -932,7 +935,9 @@ static void virtio_balloon_device_unrealize(DeviceState *dev)
 
     virtio_delete_queue(s->ivq);
     virtio_delete_queue(s->dvq);
-    virtio_delete_queue(s->svq);
+    if (s->svq) {
+        virtio_delete_queue(s->svq);
+    }
     if (s->free_page_vq) {
         virtio_delete_queue(s->free_page_vq);
     }
