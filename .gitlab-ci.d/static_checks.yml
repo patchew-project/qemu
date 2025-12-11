@@ -23,6 +23,15 @@ check-dco:
   before_script:
     - apk -U add git
 
+check-maintainers:
+  extends: .base_job_template
+  stage: build
+  image: python:3.10-alpine
+  needs: []
+  script: scripts/get_maintainer.py --validate
+  variables:
+    GIT_DEPTH: 1
+
 check-python-minreqs:
   extends: .base_job_template
   stage: test
