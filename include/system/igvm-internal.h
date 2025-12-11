@@ -12,6 +12,8 @@
 #include "qemu/typedefs.h"
 #include "qom/object.h"
 
+#include <igvm/igvm.h>
+
 struct IgvmCfg {
     ObjectClass parent_class;
 
@@ -21,7 +23,10 @@ struct IgvmCfg {
      *           format.
      */
     char *filename;
+    IgvmHandle file;
     ResettableState reset_state;
 };
+
+IgvmHandle qigvm_file_init(char *filename, Error **errp);
 
 #endif
