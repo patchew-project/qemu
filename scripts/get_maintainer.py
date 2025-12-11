@@ -15,6 +15,7 @@ from os import path
 from pathlib import Path
 from enum import StrEnum, auto
 from re import compile as re_compile
+from re import sub as re_sub
 
 #
 # Subsystem MAINTAINER entries
@@ -187,6 +188,29 @@ def read_maintainers(src):
 
     return entries
 
+#
+# Helper functions for dealing with patch files
+#
+patchfile_re = re_compile(r"\+\+\+\s+(\S+)")
+
+#TODO: also return a list of keyword hits for K:?
+def extract_filenames_from_patch(patchfile):
+    """
+    Read a patchfile and return a list of files which are modified by
+    the patch.
+    """
+    file_list = []
+
+    with open(patchfile, 'r', encoding='utf-8') as f:
+        for line in f:
+            m = patchfile_re.match(line)
+            if m:
+                # strip leading [ab]/
+                stripped = re_sub(r'^[^/]*/', '', m.group(1))
+                as_path = Path(path.abspath(stripped))
+                file_list.append(as_path)
+
+    return file_list
 
 #
 # Helper functions for dealing with the source path
@@ -305,14 +329,27 @@ def main():
         print(f"loaded {len(maint_sections)} from MAINTAINERS")
         exit(0)
 
-    relevent_maintainers = None
+    # Build array of Path objects representing the files
+    files = []
 
     if args.file:
-        relevent_maintainers = [ms for ms in maint_sections if
-                                ms.is_file_covered(args.file)]
+        files.append(args.file)
 
-    for rm in relevent_maintainers:
-        print(rm)
+    if args.patch:
+        for p in args.patch:
+            pfiles = extract_filenames_from_patch(p)
+            files.extend(pfiles)
+
+    # unique set of maintainer sections
+    maintained: set[MaintainerSection] = set()
+
+    for f in files:
+        fmaint = [ms for ms in maint_sections if ms.is_file_covered(f)]
+        for m in fmaint:
+            maintained.add(m)
+
+    for rm in maintained:
+        print(str(rm))
 
 
 if __name__ == '__main__':
