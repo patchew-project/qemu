@@ -456,7 +456,7 @@ fail:
 
 /* @p_info will be set only on success. */
 static void GRAPH_RDLOCK
-bdrv_query_info(BlockBackend *blk, BlockInfo **p_info, Error **errp)
+bdrv_query_info(BlockBackend *blk, bool flat, BlockInfo **p_info, Error **errp)
 {
     BlockInfo *info = g_malloc0(sizeof(*info));
     BlockDriverState *bs = blk_bs(blk);
@@ -488,7 +488,7 @@ bdrv_query_info(BlockBackend *blk, BlockInfo **p_info, Error **errp)
     }
 
     if (bs && bs->drv) {
-        info->inserted = bdrv_block_device_info(blk, bs, false, errp);
+        info->inserted = bdrv_block_device_info(blk, bs, flat, errp);
         if (info->inserted == NULL) {
             goto err;
         }
@@ -698,11 +698,12 @@ bdrv_query_bds_stats(BlockDriverState *bs, bool blk_level)
     return s;
 }
 
-BlockInfoList *qmp_query_block(Error **errp)
+BlockInfoList *qmp_query_block(bool has_flat, bool flat, Error **errp)
 {
     BlockInfoList *head = NULL, **p_next = &head;
     BlockBackend *blk;
     Error *local_err = NULL;
+    bool return_flat = has_flat && flat;
 
     GRAPH_RDLOCK_GUARD_MAINLOOP();
 
@@ -714,7 +715,7 @@ BlockInfoList *qmp_query_block(Error **errp)
         }
 
         info = g_malloc0(sizeof(*info));
-        bdrv_query_info(blk, &info->value, &local_err);
+        bdrv_query_info(blk, return_flat, &info->value, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             g_free(info);
