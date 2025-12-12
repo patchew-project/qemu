@@ -127,6 +127,9 @@ static NotifierList kvm_irqchip_change_notifiers =
 static NotifierWithReturnList register_vmfd_changed_notifiers =
     NOTIFIER_WITH_RETURN_LIST_INITIALIZER(register_vmfd_changed_notifiers);
 
+static NotifierWithReturnList register_vmfd_pre_change_notifiers =
+    NOTIFIER_WITH_RETURN_LIST_INITIALIZER(register_vmfd_pre_change_notifiers);
+
 struct KVMResampleFd {
     int gsi;
     EventNotifier *resample_event;
@@ -2193,6 +2196,22 @@ static int kvm_vmfd_change_notify(Error **errp)
                                             &vmfd_notifier, errp);
 }
 
+void kvm_vmfd_add_pre_change_notifier(NotifierWithReturn *n)
+{
+    notifier_with_return_list_add(&register_vmfd_pre_change_notifiers, n);
+}
+
+void kvm_vmfd_remove_pre_change_notifier(NotifierWithReturn *n)
+{
+    notifier_with_return_remove(n);
+}
+
+static int kvm_vmfd_pre_change_notify(Error **errp)
+{
+    return notifier_with_return_list_notify(&register_vmfd_pre_change_notifiers,
+                                            NULL, errp);
+}
+
 int kvm_irqchip_get_virq(KVMState *s)
 {
     int next_virq;
@@ -2643,6 +2662,12 @@ static int kvm_reset_vmfd(MachineState *ms)
 
     memory_listener_unregister(&kml->listener);
     memory_listener_unregister(&kvm_io_listener);
+
+    ret = kvm_vmfd_pre_change_notify(&err);
+    if (ret < 0) {
+        return ret;
+    }
+    assert(!err);
 
     if (s->vmfd >= 0) {
         close(s->vmfd);

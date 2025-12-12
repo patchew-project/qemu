@@ -586,4 +586,19 @@ void kvm_vmfd_add_change_notifier(NotifierWithReturn *n);
  */
 void kvm_vmfd_remove_change_notifier(NotifierWithReturn *n);
 
+/**
+ * kvm_vmfd_add_pre_change_notifier - register a notifier to get notified when
+ * kvm vm file descriptor is about to be changed as a part of the confidential
+ * guest "reset" process.
+ * @n: notifier with return value.
+ */
+void kvm_vmfd_add_pre_change_notifier(NotifierWithReturn *n);
+
+/**
+ * kvm_vmfd_remove_pre_change_notifier - de-register a notifier previously
+ * registered with kvm_vmfd_add_pre_change_notifier.
+ * @n: the notifier that was previously registered.
+ */
+void kvm_vmfd_remove_pre_change_notifier(NotifierWithReturn *n);
+
 #endif
