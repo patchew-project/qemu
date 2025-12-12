@@ -403,6 +403,32 @@ static void tdx_handle_reset(Object *obj, ResetType type)
     tdx_finalize_vm(NULL, NULL);
 }
 
+/* TDX guest reset will require us to reinitialize some of tdx guest state. */
+static int set_tdx_vm_uninitialized(NotifierWithReturn *notifier,
+                                    void *data, Error** errp)
+{
+    TdxFirmware *fw = &tdx_guest->tdvf;
+
+    if (tdx_guest->initialized) {
+        tdx_guest->initialized = false;
+    }
+
+    g_free(tdx_guest->ram_entries);
+
+    /*
+     * the firmware entries will be parsed again, see
+     * x86_firmware_configure() -> tdx_parse_tdvf()
+     */
+    fw->entries = 0;
+    g_free(fw->entries);
+
+    return 0;
+}
+
+static NotifierWithReturn tdx_vmfd_pre_change_notifier = {
+    .notify = set_tdx_vm_uninitialized,
+};
+
 static Notifier tdx_machine_done_notify = {
     .notify = tdx_finalize_vm,
 };
@@ -753,6 +779,7 @@ static int tdx_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
 
     if (!notifier_added) {
         qemu_add_machine_init_done_notifier(&tdx_machine_done_notify);
+        kvm_vmfd_add_pre_change_notifier(&tdx_vmfd_pre_change_notifier);
         notifier_added = true;
     }
     tdx_guest = tdx;
