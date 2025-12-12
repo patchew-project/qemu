@@ -1409,6 +1409,7 @@ static void
 sev_launch_finish(SevCommonState *sev_common)
 {
     int ret, error;
+    static bool added_migration_blocker;
 
     trace_kvm_sev_launch_finish();
     ret = sev_ioctl(sev_common->sev_fd, KVM_SEV_LAUNCH_FINISH, 0,
@@ -1421,10 +1422,13 @@ sev_launch_finish(SevCommonState *sev_common)
 
     sev_set_guest_state(sev_common, SEV_STATE_RUNNING);
 
-    /* add migration blocker */
-    error_setg(&sev_mig_blocker,
-               "SEV: Migration is not implemented");
-    migrate_add_blocker(&sev_mig_blocker, &error_fatal);
+    if (!added_migration_blocker) {
+        /* add migration blocker */
+        error_setg(&sev_mig_blocker,
+                   "SEV: Migration is not implemented");
+        migrate_add_blocker(&sev_mig_blocker, &error_fatal);
+        added_migration_blocker = true;
+    }
 }
 
 static int snp_launch_update_data(uint64_t gpa, void *hva, size_t len,
@@ -1608,6 +1612,7 @@ sev_snp_launch_finish(SevCommonState *sev_common)
 {
     int ret, error;
     Error *local_err = NULL;
+    static bool added_migration_blocker;
     OvmfSevMetadata *metadata;
     SevLaunchUpdateData *data;
     SevSnpGuestState *sev_snp = SEV_SNP_GUEST(sev_common);
@@ -1655,13 +1660,16 @@ sev_snp_launch_finish(SevCommonState *sev_common)
     kvm_mark_guest_state_protected();
     sev_set_guest_state(sev_common, SEV_STATE_RUNNING);
 
-    /* add migration blocker */
-    error_setg(&sev_mig_blocker,
-               "SEV-SNP: Migration is not implemented");
-    ret = migrate_add_blocker(&sev_mig_blocker, &local_err);
-    if (local_err) {
-        error_report_err(local_err);
-        exit(1);
+    if (!added_migration_blocker) {
+        /* add migration blocker */
+        error_setg(&sev_mig_blocker,
+                   "SEV-SNP: Migration is not implemented");
+        ret = migrate_add_blocker(&sev_mig_blocker, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            exit(1);
+        }
+        added_migration_blocker = true;
     }
 }
 
