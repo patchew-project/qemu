@@ -2659,6 +2659,14 @@ static int cgs_set_guest_state(hwaddr gpa, uint8_t *ptr, uint64_t len,
     return -1;
 }
 
+static bool sev_can_rebuild_guest_state(ConfidentialGuestSupport *cgs)
+{
+    if (!sev_snp_enabled() && !sev_es_enabled()) {
+        return false;
+    }
+    return true;
+}
+
 static int cgs_get_mem_map_entry(int index,
                                  ConfidentialGuestMemoryMapEntry *entry,
                                  Error **errp)
@@ -2833,6 +2841,7 @@ sev_common_instance_init(Object *obj)
     cgs->set_guest_state = cgs_set_guest_state;
     cgs->get_mem_map_entry = cgs_get_mem_map_entry;
     cgs->set_guest_policy = cgs_set_guest_policy;
+    cgs->can_rebuild_guest_state = sev_can_rebuild_guest_state;
 
     qemu_register_resettable(OBJECT(sev_common));
 
