@@ -130,8 +130,10 @@ static NotifierWithReturnList register_vmfd_changed_notifiers =
 static NotifierWithReturnList register_vmfd_pre_change_notifiers =
     NOTIFIER_WITH_RETURN_LIST_INITIALIZER(register_vmfd_pre_change_notifiers);
 
-static int kvm_rebind_vcpus(Error **errp);
+static NotifierWithReturnList register_vcpufd_changed_notifiers =
+    NOTIFIER_WITH_RETURN_LIST_INITIALIZER(register_vcpufd_changed_notifiers);
 
+static int kvm_rebind_vcpus(Error **errp);
 static int map_kvm_run(KVMState *s, CPUState *cpu, Error **errp);
 static int map_kvm_dirty_gfns(KVMState *s, CPUState *cpu, Error **errp);
 static int vcpu_unmap_regions(KVMState *s, CPUState *cpu);
@@ -2327,6 +2329,22 @@ void kvm_vmfd_remove_pre_change_notifier(NotifierWithReturn *n)
     notifier_with_return_remove(n);
 }
 
+void kvm_vcpufd_add_change_notifier(NotifierWithReturn *n)
+{
+    notifier_with_return_list_add(&register_vcpufd_changed_notifiers, n);
+}
+
+void kvm_vcpufd_remove_change_notifier(NotifierWithReturn *n)
+{
+    notifier_with_return_remove(n);
+}
+
+static int kvm_vcpufd_change_notify(Error **errp)
+{
+    return notifier_with_return_list_notify(&register_vcpufd_changed_notifiers,
+                                            &vmfd_notifier, errp);
+}
+
 static int kvm_vmfd_pre_change_notify(Error **errp)
 {
     return notifier_with_return_list_notify(&register_vmfd_pre_change_notifiers,
@@ -2842,6 +2860,13 @@ static int kvm_reset_vmfd(MachineState *ms)
      * These can only be called after kvm_arch_vmfd_change_ops()
      */
     ret = kvm_rebind_vcpus(&err);
+    if (ret < 0) {
+        return ret;
+    }
+    assert(!err);
+
+    /* notify everyone that vcpu fd has changed. */
+    ret = kvm_vcpufd_change_notify(&err);
     if (ret < 0) {
         return ret;
     }
