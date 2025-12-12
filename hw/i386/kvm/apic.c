@@ -229,6 +229,16 @@ static void kvm_apic_reset(APICCommonState *s)
     run_on_cpu(CPU(s->cpu), kvm_apic_put, RUN_ON_CPU_HOST_PTR(s));
 }
 
+static int apic_vcpufd_change_handler(NotifierWithReturn *n,
+                                      void *data, Error** errp) {
+    APICCommonState *s = container_of(n, APICCommonState,
+                                      vcpufd_change_notifier);
+
+    run_on_cpu(CPU(s->cpu), kvm_apic_put, RUN_ON_CPU_HOST_PTR(s));
+
+    return 0;
+}
+
 static void kvm_apic_realize(DeviceState *dev, Error **errp)
 {
     APICCommonState *s = APIC_COMMON(dev);
@@ -238,6 +248,9 @@ static void kvm_apic_realize(DeviceState *dev, Error **errp)
 
     assert(kvm_has_gsi_routing());
     msi_nonbroken = true;
+
+    s->vcpufd_change_notifier.notify = apic_vcpufd_change_handler;
+    kvm_vcpufd_add_change_notifier(&s->vcpufd_change_notifier);
 }
 
 static void kvm_apic_unrealize(DeviceState *dev)
