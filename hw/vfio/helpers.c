@@ -109,12 +109,66 @@ bool vfio_get_info_dma_avail(struct vfio_iommu_type1_info *info,
 #ifdef CONFIG_KVM
 /*
  * We have a single VFIO pseudo device per KVM VM.  Once created it lives
- * for the life of the VM.  Closing the file descriptor only drops our
- * reference to it and the device's reference to kvm.  Therefore once
- * initialized, this file descriptor is only released on QEMU exit and
+ * for the life of the VM except when the vm file descriptor changes for
+ * confidential virtual machines. In that case, the old file descriptor is
+ * closed and a new file descriptor is recreated.  Closing the file descriptor
+ * only drops our reference to it and the device's reference to kvm.
+ * Therefore once initialized, this file descriptor is normally only released
+ * on QEMU exit (except for confidential VMs as stated above) and
  * we'll re-use it should another vfio device be attached before then.
  */
 int vfio_kvm_device_fd = -1;
+
+typedef struct KVMVfioFileFd {
+    int fd;
+    QLIST_ENTRY(KVMVfioFileFd) node;
+} KVMVfioFileFd;
+
+static QLIST_HEAD(, KVMVfioFileFd) kvm_vfio_file_fds =
+    QLIST_HEAD_INITIALIZER(kvm_vfio_file_fds);
+
+static int kvm_vfio_filefd_rebind(NotifierWithReturn *notifier, void *data,
+                                  Error **errp);
+static struct NotifierWithReturn kvm_vfio_vmfd_change_notifier = {
+    .notify = kvm_vfio_filefd_rebind,
+};
+
+static int kvm_vfio_filefd_rebind(NotifierWithReturn *notifier, void *data,
+                                  Error **errp)
+{
+    KVMVfioFileFd *file_fd;
+    int ret = 0;
+    struct kvm_device_attr attr = {
+        .group = KVM_DEV_VFIO_FILE,
+        .attr = KVM_DEV_VFIO_FILE_ADD,
+    };
+    struct kvm_create_device cd = {
+        .type = KVM_DEV_TYPE_VFIO,
+    };
+
+    if (kvm_vm_ioctl(kvm_state, KVM_CREATE_DEVICE, &cd)) {
+        error_setg_errno(errp, errno, "Failed to create KVM VFIO device");
+        return -errno;
+    }
+
+    if (vfio_kvm_device_fd) {
+        close(vfio_kvm_device_fd);
+    }
+
+    vfio_kvm_device_fd = cd.fd;
+
+    QLIST_FOREACH(file_fd, &kvm_vfio_file_fds, node) {
+        attr.addr = (uint64_t)(unsigned long)&file_fd->fd;
+        if (ioctl(vfio_kvm_device_fd, KVM_SET_DEVICE_ATTR, &attr)) {
+            error_setg_errno(errp, errno,
+                             "Failed to add fd %d to KVM VFIO device",
+                             file_fd->fd);
+            ret = -errno;
+        }
+    }
+    return ret;
+}
+
 #endif
 
 void vfio_kvm_device_close(void)
@@ -136,6 +190,7 @@ int vfio_kvm_device_add_fd(int fd, Error **errp)
         .attr = KVM_DEV_VFIO_FILE_ADD,
         .addr = (uint64_t)(unsigned long)&fd,
     };
+    KVMVfioFileFd *file_fd;
 
     if (!kvm_enabled()) {
         return 0;
@@ -152,6 +207,11 @@ int vfio_kvm_device_add_fd(int fd, Error **errp)
         }
 
         vfio_kvm_device_fd = cd.fd;
+        /*
+         * If the vm file descriptor changes, add a notifier so that we can
+         * re-create the vfio_kvm_device_fd.
+         */
+        kvm_vmfd_add_change_notifier(&kvm_vfio_vmfd_change_notifier);
     }
 
     if (ioctl(vfio_kvm_device_fd, KVM_SET_DEVICE_ATTR, &attr)) {
@@ -159,6 +219,11 @@ int vfio_kvm_device_add_fd(int fd, Error **errp)
                          fd);
         return -errno;
     }
+
+    file_fd = g_malloc0(sizeof(*file_fd));
+    file_fd->fd = fd;
+    QLIST_INSERT_HEAD(&kvm_vfio_file_fds, file_fd, node);
+
 #endif
     return 0;
 }
@@ -171,6 +236,7 @@ int vfio_kvm_device_del_fd(int fd, Error **errp)
         .attr = KVM_DEV_VFIO_FILE_DEL,
         .addr = (uint64_t)(unsigned long)&fd,
     };
+    KVMVfioFileFd *file_fd;
 
     if (vfio_kvm_device_fd < 0) {
         error_setg(errp, "KVM VFIO device isn't created yet");
@@ -182,6 +248,15 @@ int vfio_kvm_device_del_fd(int fd, Error **errp)
                          "Failed to remove fd %d from KVM VFIO device", fd);
         return -errno;
     }
+
+    QLIST_FOREACH(file_fd, &kvm_vfio_file_fds, node) {
+        if (file_fd->fd == fd) {
+            QLIST_REMOVE(file_fd, node);
+            g_free(file_fd);
+            break;
+        }
+    }
+
 #endif
     return 0;
 }
