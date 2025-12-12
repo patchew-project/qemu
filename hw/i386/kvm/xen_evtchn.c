@@ -133,6 +133,26 @@ struct pirq_info {
     bool is_translated;
 };
 
+struct eventfds {
+    uint16_t type;
+    evtchn_port_t port;
+    int fd;
+    QLIST_ENTRY(eventfds) node;
+};
+
+struct kernel_ports {
+    uint16_t type;
+    evtchn_port_t port;
+    uint32_t vcpu_id;
+    QLIST_ENTRY(kernel_ports) node;
+};
+
+static QLIST_HEAD(, eventfds) eventfd_list =
+    QLIST_HEAD_INITIALIZER(eventfd_list);
+
+static QLIST_HEAD(, kernel_ports) kernel_port_list =
+    QLIST_HEAD_INITIALIZER(kernel_port_list);
+
 struct XenEvtchnState {
     /*< private >*/
     SysBusDevice busdev;
@@ -178,6 +198,7 @@ struct XenEvtchnState {
 #define pirq_inuse(s, pirq) (pirq_inuse_word(s, pirq) & pirq_inuse_bit(pirq))
 
 struct XenEvtchnState *xen_evtchn_singleton;
+static NotifierWithReturn xen_eventchn_notifier;
 
 /* Top bits of callback_param are the type (HVM_PARAM_CALLBACK_TYPE_xxx) */
 #define CALLBACK_VIA_TYPE_SHIFT 56
@@ -304,6 +325,52 @@ static void gsi_assert_bh(void *opaque)
     }
 }
 
+static int xen_eventchn_handle_vmfd_change(NotifierWithReturn *notifier,
+                                           void *data, Error **errp)
+{
+    struct eventfds *ef;
+    struct kernel_ports *kp;
+    struct kvm_xen_hvm_attr ha;
+    CPUState *cpu;
+    int ret;
+
+    QLIST_FOREACH(ef, &eventfd_list, node) {
+        ha.type = KVM_XEN_ATTR_TYPE_EVTCHN;
+        ha.u.evtchn.send_port = ef->port;
+        ha.u.evtchn.type = ef->type;
+        ha.u.evtchn.flags = 0;
+        ha.u.evtchn.deliver.eventfd.port = 0;
+        ha.u.evtchn.deliver.eventfd.fd = ef->fd;
+
+        ret = kvm_vm_ioctl(kvm_state, KVM_XEN_HVM_SET_ATTR, &ha);
+        if (ret < 0) {
+            error_setg(errp, "KVM_XEN_HVM_SET_ATTR failed with %d", ret);
+            return ret;
+        }
+    }
+
+    memset(&ha, 0, sizeof(ha));
+
+    QLIST_FOREACH(kp, &kernel_port_list, node) {
+        cpu = qemu_get_cpu(kp->vcpu_id);
+        ha.type = KVM_XEN_ATTR_TYPE_EVTCHN;
+        ha.u.evtchn.send_port = kp->port;
+        ha.u.evtchn.type = kp->type;
+        ha.u.evtchn.flags = 0;
+        ha.u.evtchn.deliver.port.port = kp->port;
+        ha.u.evtchn.deliver.port.vcpu = kvm_arch_vcpu_id(cpu);
+        ha.u.evtchn.deliver.port.priority =
+            KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL;
+
+        ret = kvm_vm_ioctl(kvm_state, KVM_XEN_HVM_SET_ATTR, &ha);
+        if (ret < 0) {
+            error_setg(errp, "KVM_XEN_HVM_SET_ATTR failed with %d", ret);
+            return ret;
+        }
+    }
+    return 0;
+}
+
 void xen_evtchn_create(unsigned int nr_gsis, qemu_irq *system_gsis)
 {
     XenEvtchnState *s = XEN_EVTCHN(sysbus_create_simple(TYPE_XEN_EVTCHN,
@@ -350,6 +417,9 @@ void xen_evtchn_create(unsigned int nr_gsis, qemu_irq *system_gsis)
 
     /* Set event channel functions for backend drivers to use */
     xen_evtchn_ops = &emu_evtchn_backend_ops;
+
+    xen_eventchn_notifier.notify = xen_eventchn_handle_vmfd_change;
+    kvm_vmfd_add_change_notifier(&xen_eventchn_notifier);
 }
 
 static void xen_evtchn_register_types(void)
@@ -547,6 +617,7 @@ static void inject_callback(XenEvtchnState *s, uint32_t vcpu)
 static void deassign_kernel_port(evtchn_port_t port)
 {
     struct kvm_xen_hvm_attr ha;
+    struct kernel_ports *kp;
     int ret;
 
     ha.type = KVM_XEN_ATTR_TYPE_EVTCHN;
@@ -557,6 +628,12 @@ static void deassign_kernel_port(evtchn_port_t port)
     if (ret) {
         qemu_log_mask(LOG_GUEST_ERROR, "Failed to unbind kernel port %d: %s\n",
                       port, strerror(ret));
+    } else {
+        QLIST_FOREACH(kp, &kernel_port_list, node) {
+            if (kp->port == port) {
+                QLIST_REMOVE(kp, node);
+            }
+        }
     }
 }
 
@@ -565,6 +642,8 @@ static int assign_kernel_port(uint16_t type, evtchn_port_t port,
 {
     CPUState *cpu = qemu_get_cpu(vcpu_id);
     struct kvm_xen_hvm_attr ha;
+    g_autofree struct kernel_ports *kp = g_malloc0(sizeof(*kp));
+    int ret;
 
     if (!cpu) {
         return -ENOENT;
@@ -578,12 +657,21 @@ static int assign_kernel_port(uint16_t type, evtchn_port_t port,
     ha.u.evtchn.deliver.port.vcpu = kvm_arch_vcpu_id(cpu);
     ha.u.evtchn.deliver.port.priority = KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL;
 
-    return kvm_vm_ioctl(kvm_state, KVM_XEN_HVM_SET_ATTR, &ha);
+    ret = kvm_vm_ioctl(kvm_state, KVM_XEN_HVM_SET_ATTR, &ha);
+    if (ret == 0) {
+        kp->type = type;
+        kp->port = port;
+        kp->vcpu_id = vcpu_id;
+        QLIST_INSERT_HEAD(&kernel_port_list, kp, node);
+    }
+    return ret;
 }
 
 static int assign_kernel_eventfd(uint16_t type, evtchn_port_t port, int fd)
 {
     struct kvm_xen_hvm_attr ha;
+    g_autofree struct eventfds *ef = g_malloc0(sizeof(*ef));
+    int ret;
 
     ha.type = KVM_XEN_ATTR_TYPE_EVTCHN;
     ha.u.evtchn.send_port = port;
@@ -592,7 +680,14 @@ static int assign_kernel_eventfd(uint16_t type, evtchn_port_t port, int fd)
     ha.u.evtchn.deliver.eventfd.port = 0;
     ha.u.evtchn.deliver.eventfd.fd = fd;
 
-    return kvm_vm_ioctl(kvm_state, KVM_XEN_HVM_SET_ATTR, &ha);
+    ret = kvm_vm_ioctl(kvm_state, KVM_XEN_HVM_SET_ATTR, &ha);
+    if (ret == 0) {
+        ef->type = type;
+        ef->port = port;
+        ef->fd = fd;
+        QLIST_INSERT_HEAD(&eventfd_list, ef, node);
+    }
+    return ret;
 }
 
 static bool valid_port(evtchn_port_t port)
@@ -2391,4 +2486,3 @@ void hmp_xen_event_inject(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "Delivered port %d\n", port);
     }
 }
-
