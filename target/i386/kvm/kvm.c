@@ -50,6 +50,8 @@
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "qemu/memalign.h"
+#include "qemu/datadir.h"
+#include "hw/loader.h"
 #include "hw/i386/x86.h"
 #include "hw/i386/kvm/xen_evtchn.h"
 #include "hw/i386/pc.h"
@@ -3254,6 +3256,22 @@ static int kvm_vm_enable_energy_msrs(KVMState *s)
 
 static int xen_init_wrapper(MachineState *ms, KVMState *s);
 
+static void reload_bios_rom(X86MachineState *x86ms)
+{
+    int bios_size;
+    const char *bios_name;
+    char *filename;
+
+    bios_name = MACHINE(x86ms)->firmware ?: "bios.bin";
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+
+    bios_size = get_bios_size(x86ms, bios_name, filename);
+
+    void *ptr = memory_region_get_ram_ptr(&x86ms->bios);
+    load_image_size(filename, ptr, bios_size);
+    x86_firmware_configure(0x100000000ULL - bios_size, ptr, bios_size);
+}
+
 int kvm_arch_vmfd_change_ops(MachineState *ms, KVMState *s)
 {
     Error *local_err = NULL;
@@ -3271,6 +3289,16 @@ int kvm_arch_vmfd_change_ops(MachineState *ms, KVMState *s)
         if (ret < 0) {
             error_report_err(local_err);
             return ret;
+        }
+        if (object_dynamic_cast(OBJECT(ms), TYPE_X86_MACHINE)) {
+            X86MachineState *x86ms = X86_MACHINE(ms);
+            /*
+             * If an IGVM file is specified then the firmware must be provided
+             * in the IGVM file.
+             */
+            if (!x86ms->igvm) {
+                reload_bios_rom(x86ms);
+            }
         }
     }
 
