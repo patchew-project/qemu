@@ -3252,6 +3252,11 @@ static int kvm_vm_enable_energy_msrs(KVMState *s)
     return 0;
 }
 
+int kvm_arch_vmfd_change_ops(MachineState *ms, KVMState *s)
+{
+    abort();
+}
+
 int kvm_arch_init(MachineState *ms, KVMState *s)
 {
     int ret;

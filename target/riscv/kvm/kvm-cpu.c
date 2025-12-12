@@ -1545,6 +1545,11 @@ int kvm_arch_irqchip_create(KVMState *s)
     return kvm_check_extension(s, KVM_CAP_DEVICE_CTRL);
 }
 
+int kvm_arch_vmfd_change_ops(MachineState *ms, KVMState *s)
+{
+    return 0;
+}
+
 int kvm_arch_process_async_events(CPUState *cs)
 {
     return 0;
