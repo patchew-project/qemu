@@ -1789,6 +1789,7 @@ static int sev_common_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     int ret, fw_error, cmd;
     uint32_t ebx;
     uint32_t host_cbitpos;
+    static bool notifiers_added;
     struct sev_user_data_status status = {};
     SevCommonState *sev_common = SEV_COMMON(cgs);
     SevCommonStateClass *klass = SEV_COMMON_GET_CLASS(cgs);
@@ -1939,8 +1940,11 @@ static int sev_common_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
         return -1;
     }
 
-    qemu_add_vm_change_state_handler(sev_vm_state_change, sev_common);
-
+    if (!notifiers_added) {
+        /* add notifiers only once */
+        qemu_add_vm_change_state_handler(sev_vm_state_change, sev_common);
+        notifiers_added = true;
+    }
     cgs->ready = true;
 
     return 0;
