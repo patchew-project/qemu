@@ -25,6 +25,7 @@
 #include "qemu/module.h"
 #include "system/reset.h"
 #include "qapi/error.h"
+#include "migration/vmstate.h"
 
 
 #include "hw/ppc/fdt.h"
@@ -34,6 +35,8 @@
 #include "hw/ppc/pnv_psi.h"
 
 #include <libfdt.h>
+
+#undef PSI_DEBUG
 
 #define PSIHB_XSCOM_FIR_RW      0x00
 #define PSIHB_XSCOM_FIR_AND     0x01
@@ -130,12 +133,11 @@ static void pnv_psi_set_bar(PnvPsi *psi, uint64_t bar)
 {
     PnvPsiClass *ppc = PNV_PSI_GET_CLASS(psi);
     MemoryRegion *sysmem = get_system_memory();
-    uint64_t old = psi->regs[PSIHB_XSCOM_BAR];
 
     psi->regs[PSIHB_XSCOM_BAR] = bar & (ppc->bar_mask | PSIHB_BAR_EN);
 
     /* Update MR, always remove it first */
-    if (old & PSIHB_BAR_EN) {
+    if (memory_region_is_mapped(&psi->regs_mr)) {
         memory_region_del_subregion(sysmem, &psi->regs_mr);
     }
 
@@ -975,6 +977,40 @@ static void pnv_psi_register_types(void)
 
 type_init(pnv_psi_register_types);
 
+#ifdef PSI_DEBUG
+static void psi_regs_pic_print_info(uint64_t *regs, uint32_t nr_regs,
+                                    GString *buf) {
+    uint i, prev_idx = -1;
+    uint64_t  reg1, prev_reg1 = -1;
+    uint64_t  reg2, prev_reg2 = -1;
+    uint64_t  reg3, prev_reg3 = -1;
+    uint64_t  reg4, prev_reg4 = -1;
+    for (i = 0; i < nr_regs; i = i + 4) {
+        /* Don't print if values do not change, but print last*/
+        reg1 = regs[i];
+        reg2 = regs[i + 1];
+        reg3 = regs[i + 2];
+        reg4 = regs[i + 3];
+        if (reg1 == prev_reg1 && reg2 == prev_reg2 &&
+            reg3 == prev_reg3 && reg4 == prev_reg4 &&
+            i < (nr_regs - 4)) {
+            if (i == (prev_idx + 4)) {
+                g_string_append_printf(buf, "        . . .\n");
+            }
+            continue;
+        }
+
+        g_string_append_printf(buf, "  [%03X] 0x%016lX %016lX %016lX %016lX\n",
+            i, reg1, reg2, reg3, reg4);
+        prev_idx = i;
+        prev_reg1 = reg1;
+        prev_reg2 = reg2;
+        prev_reg3 = reg3;
+        prev_reg4 = reg4;
+    }
+}
+#endif
+
 void pnv_psi_pic_print_info(Pnv9Psi *psi9, GString *buf)
 {
     PnvPsi *psi = PNV_PSI(psi9);
@@ -985,4 +1021,10 @@ void pnv_psi_pic_print_info(Pnv9Psi *psi9, GString *buf)
     g_string_append_printf(buf, "PSIHB Source %08x .. %08x\n",
                            offset, offset + psi9->source.nr_irqs - 1);
     xive_source_pic_print_info(&psi9->source, offset, buf);
+#ifdef PSI_DEBUG
+    /* Print PSI registers */
+    g_string_append_printf(buf, "\nPSI Regs[0x0..%X]\n",
+                           PSIHB_XSCOM_MAX);
+    psi_regs_pic_print_info(psi->regs, PSIHB_XSCOM_MAX, buf);
+#endif
 }
