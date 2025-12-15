@@ -324,6 +324,7 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
     g_autofree gchar *arch_opts = NULL;
     gchar *cmd_source = NULL;
     gchar *cmd_target = NULL;
+    g_autofree gchar *config_opts = NULL;
     const gchar *ignore_stderr;
     g_autofree char *mem_object = NULL;
     const char *kvm_opts = NULL;
@@ -428,17 +429,23 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
      */
     events = args->defer_target_connect ? "-global migration.x-events=on" : "";
 
+    if (args->config) {
+        GString *json = qobject_to_json(QOBJECT(args->config));
+        config_opts = g_strdup_printf("-incoming '%s'", json->str);
+    }
+
     cmd_target = g_strdup_printf("-accel kvm%s -accel tcg "
                                  "-machine %s,%s "
                                  "-name target,debug-threads=on "
                                  "%s "
                                  "-serial file:%s/dest_serial "
                                  "-incoming %s "
-                                 "%s %s %s %s",
+                                 "%s %s %s %s %s",
                                  kvm_opts ? kvm_opts : "",
                                  machine, machine_opts,
                                  memory_backend, tmpfs,
                                  args->incoming_defer ? "defer" : uri,
+                                 config_opts ? config_opts : "",
                                  events,
                                  arch_opts ? arch_opts : "",
                                  args->opts_target ? args->opts_target : "",
@@ -503,9 +510,11 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
     bootfile_create(qtest_get_arch(), tmpfs, args->suspend_me);
     src_state.suspend_me = args->suspend_me;
 
+    args->config = config_load(args->config);
     if (migrate_args(&cmd_source, &cmd_target, uri, args)) {
         return -1;
     }
+    config_put(args->config);
 
     if (!args->only_target) {
         *from = qtest_init_ext(QEMU_ENV_SRC, cmd_source, capabilities, true);
