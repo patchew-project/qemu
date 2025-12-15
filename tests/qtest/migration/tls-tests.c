@@ -30,13 +30,26 @@ struct TestMigrateTLSPSKData {
     char *pskfilealt;
 };
 
+typedef struct {
+    bool mismatch;
+} TestMigrateTLSPSK;
+
+static TestMigrateTLSPSK tls_psk_match = {
+    .mismatch = false,
+};
+
+static TestMigrateTLSPSK tls_psk_mismatch = {
+    .mismatch = true,
+};
+
 static char *tmpfs;
 
 static void *
 migrate_hook_start_tls_psk_common(QTestState *from,
                                   QTestState *to,
-                                  bool mismatch)
+                                  void *opaque)
 {
+    TestMigrateTLSPSK *args = opaque;
     struct TestMigrateTLSPSKData *data =
         g_new0(struct TestMigrateTLSPSKData, 1);
 
@@ -46,7 +59,7 @@ migrate_hook_start_tls_psk_common(QTestState *from,
     g_mkdir_with_parents(data->workdir, 0700);
     test_tls_psk_init(data->pskfile);
 
-    if (mismatch) {
+    if (args->mismatch) {
         data->workdiralt = g_strdup_printf("%s/tlscredspskalt0", tmpfs);
         data->pskfilealt = g_strdup_printf("%s/%s", data->workdiralt,
                                            QCRYPTO_TLS_CREDS_PSKFILE);
@@ -69,26 +82,12 @@ migrate_hook_start_tls_psk_common(QTestState *from,
                              "                 'id': 'tlscredspsk0',"
                              "                 'endpoint': 'server',"
                              "                 'dir': %s } }",
-                             mismatch ? data->workdiralt : data->workdir);
+                             args->mismatch ? data->workdiralt : data->workdir);
 
     migrate_set_parameter_str(from, "tls-creds", "tlscredspsk0");
     migrate_set_parameter_str(to, "tls-creds", "tlscredspsk0");
 
     return data;
-}
-
-static void *
-migrate_hook_start_tls_psk_match(QTestState *from,
-                                 QTestState *to)
-{
-    return migrate_hook_start_tls_psk_common(from, to, false);
-}
-
-static void *
-migrate_hook_start_tls_psk_mismatch(QTestState *from,
-                                    QTestState *to)
-{
-    return migrate_hook_start_tls_psk_common(from, to, true);
 }
 
 static void
@@ -339,7 +338,8 @@ static void test_precopy_tls_x509_common(MigrateCommon *args,
 
 static void test_postcopy_tls_psk(char *name, MigrateCommon *args)
 {
-    args->start_hook = migrate_hook_start_tls_psk_match;
+    args->start_hook_full = migrate_hook_start_tls_psk_common;
+    args->start_hook_data = &tls_psk_match;
     args->end_hook = migrate_hook_end_tls_psk;
 
     test_postcopy_common(args);
@@ -347,7 +347,8 @@ static void test_postcopy_tls_psk(char *name, MigrateCommon *args)
 
 static void test_postcopy_preempt_tls_psk(char *name, MigrateCommon *args)
 {
-    args->start_hook = migrate_hook_start_tls_psk_match;
+    args->start_hook_full = migrate_hook_start_tls_psk_common;
+    args->start_hook_data = &tls_psk_match;
     args->end_hook = migrate_hook_end_tls_psk;
 
     args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT] = true;
@@ -357,7 +358,8 @@ static void test_postcopy_preempt_tls_psk(char *name, MigrateCommon *args)
 
 static void test_postcopy_recovery_tls_psk(char *name, MigrateCommon *args)
 {
-    args->start_hook = migrate_hook_start_tls_psk_match;
+    args->start_hook_full = migrate_hook_start_tls_psk_common;
+    args->start_hook_data = &tls_psk_match;
     args->end_hook = migrate_hook_end_tls_psk;
 
     test_postcopy_recovery_common(args);
@@ -366,7 +368,8 @@ static void test_postcopy_recovery_tls_psk(char *name, MigrateCommon *args)
 static void test_multifd_postcopy_recovery_tls_psk(char *name,
                                                    MigrateCommon *args)
 {
-    args->start_hook = migrate_hook_start_tls_psk_match;
+    args->start_hook_full = migrate_hook_start_tls_psk_common;
+    args->start_hook_data = &tls_psk_match;
     args->end_hook = migrate_hook_end_tls_psk;
 
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
@@ -377,7 +380,8 @@ static void test_multifd_postcopy_recovery_tls_psk(char *name,
 /* This contains preempt+recovery+tls test altogether */
 static void test_postcopy_preempt_all(char *name, MigrateCommon *args)
 {
-    args->start_hook = migrate_hook_start_tls_psk_match;
+    args->start_hook_full = migrate_hook_start_tls_psk_common;
+    args->start_hook_data = &tls_psk_match;
     args->end_hook = migrate_hook_end_tls_psk;
 
     args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT] = true;
@@ -388,7 +392,8 @@ static void test_postcopy_preempt_all(char *name, MigrateCommon *args)
 static void test_multifd_postcopy_preempt_recovery_tls_psk(char *name,
                                                            MigrateCommon *args)
 {
-    args->start_hook = migrate_hook_start_tls_psk_match;
+    args->start_hook_full = migrate_hook_start_tls_psk_common;
+    args->start_hook_data = &tls_psk_match;
     args->end_hook = migrate_hook_end_tls_psk;
 
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
@@ -403,7 +408,8 @@ static void test_precopy_unix_tls_psk(char *name, MigrateCommon *args)
 
     args->connect_uri = uri;
     args->listen_uri = uri;
-    args->start_hook = migrate_hook_start_tls_psk_match;
+    args->start_hook_full = migrate_hook_start_tls_psk_common;
+    args->start_hook_data = &tls_psk_match;
     args->end_hook = migrate_hook_end_tls_psk;
 
     test_precopy_common(args);
@@ -443,7 +449,8 @@ static void test_precopy_unix_tls_x509_override_host(char *name,
 static void test_precopy_tcp_tls_psk_match(char *name, MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook = migrate_hook_start_tls_psk_match;
+    args->start_hook_full = migrate_hook_start_tls_psk_common;
+    args->start_hook_data = &tls_psk_match;
     args->end_hook = migrate_hook_end_tls_psk;
 
     test_precopy_common(args);
@@ -452,7 +459,8 @@ static void test_precopy_tcp_tls_psk_match(char *name, MigrateCommon *args)
 static void test_precopy_tcp_tls_psk_mismatch(char *name, MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook = migrate_hook_start_tls_psk_mismatch;
+    args->start_hook_full = migrate_hook_start_tls_psk_common;
+    args->start_hook_data = &tls_psk_mismatch;
     args->end_hook = migrate_hook_end_tls_psk;
     args->result = MIG_TEST_FAIL;
 
@@ -589,7 +597,7 @@ migrate_hook_start_multifd_tcp_tls_psk_match(QTestState *from,
                                              QTestState *to)
 {
     migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
-    return migrate_hook_start_tls_psk_match(from, to);
+    return migrate_hook_start_tls_psk_common(from, to, &tls_psk_match);
 }
 
 static void *
@@ -597,7 +605,7 @@ migrate_hook_start_multifd_tcp_tls_psk_mismatch(QTestState *from,
                                                 QTestState *to)
 {
     migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
-    return migrate_hook_start_tls_psk_mismatch(from, to);
+    return migrate_hook_start_tls_psk_common(from, to, &tls_psk_mismatch);
 }
 
 #ifdef CONFIG_TASN1
