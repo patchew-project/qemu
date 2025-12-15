@@ -28,6 +28,9 @@ static void test_baddest(char *name, MigrateCommon *args)
 
     args->start.hide_stderr = true;
 
+    /* temporary */
+    qdict_put_bool(args->start.config, "use-config", true);
+
     if (migrate_start(&from, &to, "tcp:127.0.0.1:0", &args->start)) {
         return;
     }
@@ -52,6 +55,9 @@ static void test_analyze_script(char *name, MigrateCommon *args)
         return;
     }
 
+    /* temporary */
+    qdict_put_bool(args->start.config, "use-config", true);
+
     /* dummy url */
     if (migrate_start(&from, &to, "tcp:127.0.0.1:0", &args->start)) {
         return;
@@ -62,8 +68,8 @@ static void test_analyze_script(char *name, MigrateCommon *args)
      * vmstate to include subsections for them. The script needs to
      * parse those subsections properly.
      */
-    migrate_set_capability(from, "validate-uuid", true);
-    migrate_set_capability(from, "x-ignore-shared", true);
+    qdict_put_bool(args->start.config, "validate-uuid", true);
+    qdict_put_bool(args->start.config, "x-ignore-shared", true);
 
     file = g_strdup_printf("%s/migfile", tmpfs);
     uri = g_strdup_printf("exec:cat > %s", file);
@@ -96,7 +102,11 @@ static void test_ignore_shared(char *name, MigrateCommon *args)
     QTestState *from, *to;
 
     args->start.mem_type = MEM_TYPE_SHMEM;
-    args->start.caps[MIGRATION_CAPABILITY_X_IGNORE_SHARED] = true;
+
+    /* temporary */
+    qdict_put_bool(args->start.config, "use-config", true);
+
+    qdict_put_bool(args->start.config, "x-ignore-shared", true);
 
     if (migrate_start(&from, &to, uri, &args->start)) {
         return;
@@ -131,6 +141,9 @@ static void do_test_validate_uuid(MigrateStart *args, bool should_fail)
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
 
+    /* temporary */
+    qdict_put_bool(args->config, "use-config", true);
+
     if (migrate_start(&from, &to, uri, args)) {
         return;
     }
@@ -140,8 +153,8 @@ static void do_test_validate_uuid(MigrateStart *args, bool should_fail)
      * migration is not interesting for us here. Thus, set huge downtime for
      * very fast migration.
      */
-    migrate_set_parameter_int(from, "downtime-limit", 1000000);
-    migrate_set_capability(from, "validate-uuid", true);
+    qdict_put_int(args->config, "downtime-limit", 1000000);
+    qdict_put_bool(args->config, "validate-uuid", true);
 
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
