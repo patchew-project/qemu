@@ -208,6 +208,29 @@ static QList *migrate_start_get_qmp_capabilities(const MigrateStart *args)
     return capabilities;
 }
 
+static void migrate_start_set_default_options(MigrateStart *args)
+{
+    if (args->config && qdict_get_bool(args->config, "use-config")) {
+        /*
+         * Always enable migration events. Libvirt always uses it,
+         * let's mimic that.
+         */
+        qdict_put_bool(args->config, "events", true);
+
+        /*
+         * Default number of channels should be fine for most
+         * tests. Individual tests can override by calling
+         * migrate_set_parameter() directly.
+         */
+        if (qdict_get_try_bool(args->config, "multifd", false)) {
+            qdict_put_int(args->config, "multifd-channels",
+                          MULTIFD_TEST_CHANNELS);
+        }
+
+        return;
+    }
+}
+
 static void migrate_start_set_capabilities(QTestState *from, QTestState *to,
                                            MigrateStart *args)
 {
@@ -468,6 +491,8 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
     g_autofree gchar *cmd_source = NULL;
     g_autofree gchar *cmd_target = NULL;
     g_autoptr(QList) capabilities = migrate_start_get_qmp_capabilities(args);
+
+    migrate_start_set_default_options(args);
 
     if (!migrate_mem_type_prepare(args->mem_type)) {
         return -1;
