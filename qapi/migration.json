@@ -1546,6 +1546,10 @@
 #     will fail unless migration is in "postcopy-paused" state.
 #     (default: false, since 3.0)
 #
+# @config: migration configuration options.  When present, any
+#     migration configuration previously set with
+#     @migrate-set-parameters is ignored.  (since 11.0)
+#
 # Features:
 #
 # @deprecated: Argument @detach is deprecated.
@@ -1610,6 +1614,7 @@
   'data': {'*uri': 'str',
            '*channels': [ 'MigrationChannel' ],
            '*detach': { 'type': 'bool', 'features': [ 'deprecated' ] },
+           '*config': 'MigrationParameters',
            '*resume': 'bool' } }
 
 ##
@@ -1628,6 +1633,10 @@
 #     When set to false, the failure triggers a
 #     :qapi:event:`MIGRATION` event, and error details could be
 #     retrieved with `query-migrate`.  (since 9.1)
+#
+# @config: migration configuration options.  When present, any
+#     migration configuration previously set with
+#     @migrate-set-parameters is ignored.  (since 11.0)
 #
 # Since: 2.3
 #
@@ -1682,6 +1691,7 @@
 { 'command': 'migrate-incoming',
              'data': {'*uri': 'str',
                       '*channels': [ 'MigrationChannel' ],
+                      '*config': 'MigrationParameters',
                       '*exit-on-error': 'bool' } }
 
 ##
