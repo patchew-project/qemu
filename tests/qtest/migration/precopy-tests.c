@@ -282,10 +282,11 @@ static void migrate_hook_end_fd(QTestState *from,
 
 static void test_precopy_fd_socket(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
     args->connect_uri = "fd:fd-mig";
     args->start_hook = migrate_hook_start_fd;
     args->end_hook = migrate_hook_end_fd;
+
+    args->start.incoming_defer = true;
 
     test_precopy_common(args);
 }
@@ -321,10 +322,12 @@ static void *migrate_hook_start_precopy_fd_file(QTestState *from,
 
 static void test_precopy_fd_file(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
+    args->listen_uri = "fd:fd-mig";
     args->connect_uri = "fd:fd-mig";
     args->start_hook = migrate_hook_start_precopy_fd_file;
     args->end_hook = migrate_hook_end_fd;
+
+    args->start.incoming_defer = true;
 
     test_file_common(args, true);
 }
@@ -474,7 +477,6 @@ migrate_hook_start_precopy_tcp_multifd_no_zero_page(QTestState *from,
 
 static void test_multifd_tcp_uri_none(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
     args->start_hook = migrate_hook_start_precopy_tcp_multifd;
     /*
      * Multifd is more complicated than most of the features, it
@@ -483,6 +485,7 @@ static void test_multifd_tcp_uri_none(char *name, MigrateCommon *args)
      */
     args->live = true;
 
+    args->start.incoming_defer = true;
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
 
     test_precopy_common(args);
@@ -490,7 +493,6 @@ static void test_multifd_tcp_uri_none(char *name, MigrateCommon *args)
 
 static void test_multifd_tcp_zero_page_legacy(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
     args->start_hook = migrate_hook_start_precopy_tcp_multifd_zero_page_legacy;
     /*
      * Multifd is more complicated than most of the features, it
@@ -499,6 +501,7 @@ static void test_multifd_tcp_zero_page_legacy(char *name, MigrateCommon *args)
      */
     args->live = true;
 
+    args->start.incoming_defer = true;
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
 
     test_precopy_common(args);
@@ -506,7 +509,6 @@ static void test_multifd_tcp_zero_page_legacy(char *name, MigrateCommon *args)
 
 static void test_multifd_tcp_no_zero_page(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
     args->start_hook = migrate_hook_start_precopy_tcp_multifd_no_zero_page;
     /*
      * Multifd is more complicated than most of the features, it
@@ -515,6 +517,7 @@ static void test_multifd_tcp_no_zero_page(char *name, MigrateCommon *args)
      */
     args->live = true;
 
+    args->start.incoming_defer = true;
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
 
     test_precopy_common(args);
@@ -522,15 +525,15 @@ static void test_multifd_tcp_no_zero_page(char *name, MigrateCommon *args)
 
 static void test_multifd_tcp_channels_none(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
     args->start_hook = migrate_hook_start_precopy_tcp_multifd;
     args->live = true;
     args->connect_channels = ("[ { 'channel-type': 'main',"
-                             "    'addr': { 'transport': 'socket',"
-                             "              'type': 'inet',"
-                             "              'host': '127.0.0.1',"
+                              "    'addr': { 'transport': 'socket',"
+                              "              'type': 'inet',"
+                              "              'host': '127.0.0.1',"
                               "              'port': '0' } } ]");
 
+    args->start.incoming_defer = true;
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
 
     test_precopy_common(args);
@@ -552,6 +555,7 @@ static void test_multifd_tcp_cancel(MigrateCommon *args, bool postcopy_ram)
     QTestState *from, *to, *to2;
 
     args->start.hide_stderr = true;
+    args->start.incoming_defer = true;
 
     if (migrate_start(&from, &to, "defer", &args->start)) {
         return;
@@ -599,6 +603,9 @@ static void test_multifd_tcp_cancel(MigrateCommon *args, bool postcopy_ram)
     wait_for_migration_status(from, "cancelled", NULL);
 
     args->start.only_target = true;
+    args->start.incoming_defer = true;
+
+    /* reusing the same config for to2 */
 
     if (migrate_start(&from, &to2, "defer", &args->start)) {
         return;
@@ -773,6 +780,7 @@ static void test_cancel_src_after_status(char *test_path, MigrateCommon *args)
     QTestState *from, *to;
 
     args->start.hide_stderr = true;
+    args->start.incoming_defer = true;
 
     if (migrate_start(&from, &to, "defer", &args->start)) {
         return;

@@ -217,7 +217,6 @@ static void do_test_validate_uri_channel(MigrateCommon *args)
 
 static void test_validate_uri_channels_both_set(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer",
     args->connect_uri = "tcp:127.0.0.1:0",
     args->connect_channels = ("[ { ""'channel-type': 'main',"
                               "    'addr': { 'transport': 'socket',"
@@ -225,6 +224,7 @@ static void test_validate_uri_channels_both_set(char *name, MigrateCommon *args)
                               "              'host': '127.0.0.1',"
                               "              'port': '0' } } ]"),
 
+    args->start.incoming_defer = true;
     args->start.hide_stderr = true;
 
     do_test_validate_uri_channel(args);
@@ -232,8 +232,8 @@ static void test_validate_uri_channels_both_set(char *name, MigrateCommon *args)
 
 static void test_validate_uri_channels_none_set(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
     args->start.hide_stderr = true;
+    args->start.incoming_defer = true;
 
     do_test_validate_uri_channel(args);
 }

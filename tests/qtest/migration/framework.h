@@ -144,6 +144,13 @@ typedef struct {
      * migration_set_capabilities().
      */
     bool caps[MIGRATION_CAPABILITY__MAX];
+
+    /*
+     * Whether to use "defer" as the uri for the -incoming command
+     * line option. If set to true, MigrateCommon.listen_uri will be
+     * used for the deferred migrate_incoming call.
+     */
+    bool incoming_defer;
 } MigrateStart;
 
 typedef enum PostcopyRecoveryFailStage {

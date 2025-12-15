@@ -414,7 +414,8 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
                                  "%s %s %s %s",
                                  kvm_opts ? kvm_opts : "",
                                  machine, machine_opts,
-                                 memory_backend, tmpfs, uri,
+                                 memory_backend, tmpfs,
+                                 args->incoming_defer ? "defer" : uri,
                                  events,
                                  arch_opts ? arch_opts : "",
                                  args->opts_target ? args->opts_target : "",
@@ -856,8 +857,7 @@ int test_precopy_common(MigrateCommon *args)
      * migrate-incoming channels.
      */
     if (args->connect_channels) {
-        if (args->start.defer_target_connect &&
-            !strcmp(args->listen_uri, "defer")) {
+        if (args->start.defer_target_connect && args->start.incoming_defer) {
             in_channels = qobject_from_json(args->connect_channels,
                                             &error_abort);
         }
@@ -881,8 +881,8 @@ int test_precopy_common(MigrateCommon *args)
     if (args->start.defer_target_connect) {
         qtest_connect(to);
         qtest_qmp_handshake(to, NULL);
-        if (!strcmp(args->listen_uri, "defer")) {
-            migrate_incoming_qmp(to, args->connect_uri, in_channels, "{}");
+        if (args->start.incoming_defer) {
+            migrate_incoming_qmp(to, NULL, in_channels, "{}");
         }
     }
 
@@ -1031,7 +1031,7 @@ void test_file_common(MigrateCommon *args, bool stop_src)
      * We need to wait for the source to finish before starting the
      * destination.
      */
-    migrate_incoming_qmp(to, args->connect_uri, NULL, "{}");
+    migrate_incoming_qmp(to, args->listen_uri, NULL, "{}");
     wait_for_migration_complete(to);
 
     if (stop_src) {

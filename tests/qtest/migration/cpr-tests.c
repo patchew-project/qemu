@@ -32,10 +32,11 @@ static void test_mode_reboot(char *name, MigrateCommon *args)
     g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
                                            FILE_TEST_FILENAME);
 
+    args->listen_uri = uri;
     args->connect_uri = uri;
-    args->listen_uri = "defer";
     args->start_hook = migrate_hook_start_mode_reboot;
 
+    args->start.incoming_defer = true;
     args->start.mem_type = MEM_TYPE_SHMEM;
     args->start.caps[MIGRATION_CAPABILITY_X_IGNORE_SHARED] = true;
 
@@ -53,7 +54,7 @@ static void *test_mode_transfer_start(QTestState *from, QTestState *to)
  * migration, and cannot connect synchronously to the monitor, so defer
  * the target connection.
  */
-static void test_mode_transfer_common(MigrateCommon *args, bool incoming_defer)
+static void test_mode_transfer_common(MigrateCommon *args)
 {
     g_autofree char *cpr_path = g_strdup_printf("%s/cpr.sock", tmpfs);
     g_autofree char *mig_path = g_strdup_printf("%s/migsocket", tmpfs);
@@ -84,7 +85,11 @@ static void test_mode_transfer_common(MigrateCommon *args, bool incoming_defer)
                                   "addr.type=fd,addr.str=%d %s",
                                   cpr_sockfd, opts);
 
-    args->listen_uri = incoming_defer ? "defer" : uri;
+    /*
+     * The URI is used only for the deferred target connection when
+     * !incoming_defer.
+     */
+    args->listen_uri = uri;
     args->connect_channels = connect_channels;
     args->cpr_channel = cpr_channel;
     args->start_hook = test_mode_transfer_start;
@@ -102,12 +107,14 @@ static void test_mode_transfer_common(MigrateCommon *args, bool incoming_defer)
 
 static void test_mode_transfer(char *name, MigrateCommon *args)
 {
-    test_mode_transfer_common(args, false);
+    args->start.incoming_defer = false;
+    test_mode_transfer_common(args);
 }
 
 static void test_mode_transfer_defer(char *name, MigrateCommon *args)
 {
-    test_mode_transfer_common(args, true);
+    args->start.incoming_defer = true;
+    test_mode_transfer_common(args);
 }
 
 static void set_cpr_exec_args(QTestState *who, MigrateCommon *args)
