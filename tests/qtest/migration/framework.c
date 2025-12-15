@@ -868,6 +868,9 @@ int test_precopy_common(MigrateCommon *args)
     QObject *in_channels = NULL;
     QObject *out_channels = NULL;
 
+    /* temporary */
+    qdict_put_bool(args->start.config, "use-config", true);
+
     g_assert(!args->cpr_channel || args->connect_channels);
     if (args->start.incoming_defer) {
         g_assert(args->listen_uri || args->connect_channels);
@@ -951,7 +954,7 @@ int test_precopy_common(MigrateCommon *args)
         qtest_connect(to);
         qtest_qmp_handshake(to, NULL);
         if (args->start.incoming_defer) {
-            migrate_incoming_qmp(to, args->connect_uri, in_channels,
+            migrate_incoming_qmp(to, NULL, in_channels,
                                  args->start.config, "{}");
         }
     }

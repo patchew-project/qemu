@@ -216,8 +216,8 @@ static void test_precopy_tcp_switchover_ack(char *name, MigrateCommon *args)
      */
     args->live = true;
 
-    args->start.caps[MIGRATION_CAPABILITY_RETURN_PATH] = true;
-    args->start.caps[MIGRATION_CAPABILITY_SWITCHOVER_ACK] = true;
+    qdict_put_bool(args->start.config, "return-path", true);
+    qdict_put_bool(args->start.config, "switchover-ack", true);
 
     test_precopy_common(args);
 }
@@ -365,10 +365,10 @@ static void test_auto_converge(char *name, MigrateCommon *args)
         return;
     }
 
-    migrate_set_capability(from, "auto-converge", true);
-    migrate_set_parameter_int(from, "cpu-throttle-initial", init_pct);
-    migrate_set_parameter_int(from, "cpu-throttle-increment", inc_pct);
-    migrate_set_parameter_int(from, "max-cpu-throttle", max_pct);
+    qdict_put_bool(args->start.config, "auto-converge", true);
+    qdict_put_int(args->start.config, "cpu-throttle-initial", init_pct);
+    qdict_put_int(args->start.config, "cpu-throttle-increment", inc_pct);
+    qdict_put_int(args->start.config, "max-cpu-throttle", max_pct);
 
     /*
      * Set the initial parameters so that the migration could not converge
@@ -377,7 +377,7 @@ static void test_auto_converge(char *name, MigrateCommon *args)
     migrate_ensure_non_converge(from, args->start.config);
 
     /* To check remaining size after precopy */
-    migrate_set_capability(from, "pause-before-switchover", true);
+    qdict_put_bool(args->start.config, "pause-before-switchover", true);
 
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
@@ -448,37 +448,8 @@ static void test_auto_converge(char *name, MigrateCommon *args)
     migrate_end(from, to, true);
 }
 
-static void *
-migrate_hook_start_precopy_tcp_multifd(QTestState *from,
-                                       QTestState *to)
-{
-    migrate_set_parameter_str(from, "multifd-compression", "none");
-    migrate_set_parameter_str(to, "multifd-compression", "none");
-
-    return NULL;
-}
-
-static void *
-migrate_hook_start_precopy_tcp_multifd_zero_page_legacy(QTestState *from,
-                                                        QTestState *to)
-{
-    migrate_hook_start_precopy_tcp_multifd(from, to);
-    migrate_set_parameter_str(from, "zero-page-detection", "legacy");
-    return NULL;
-}
-
-static void *
-migrate_hook_start_precopy_tcp_multifd_no_zero_page(QTestState *from,
-                                                    QTestState *to)
-{
-    migrate_hook_start_precopy_tcp_multifd(from, to);
-    migrate_set_parameter_str(from, "zero-page-detection", "none");
-    return NULL;
-}
-
 static void test_multifd_tcp_uri_none(char *name, MigrateCommon *args)
 {
-    args->start_hook = migrate_hook_start_precopy_tcp_multifd;
     /*
      * Multifd is more complicated than most of the features, it
      * directly takes guest page buffers when sending, make sure
@@ -488,14 +459,15 @@ static void test_multifd_tcp_uri_none(char *name, MigrateCommon *args)
     args->listen_uri = "tcp:127.0.0.1:0";
 
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+
+    qdict_put_bool(args->start.config, "multifd", true);
+    qdict_put_str(args->start.config, "multifd-compression", "none");
 
     test_precopy_common(args);
 }
 
 static void test_multifd_tcp_zero_page_legacy(char *name, MigrateCommon *args)
 {
-    args->start_hook = migrate_hook_start_precopy_tcp_multifd_zero_page_legacy;
     /*
      * Multifd is more complicated than most of the features, it
      * directly takes guest page buffers when sending, make sure
@@ -505,14 +477,16 @@ static void test_multifd_tcp_zero_page_legacy(char *name, MigrateCommon *args)
     args->listen_uri = "tcp:127.0.0.1:0";
 
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+
+    qdict_put_bool(args->start.config, "multifd", true);
+    qdict_put_str(args->start.config, "multifd-compression", "none");
+    qdict_put_str(args->start.config, "zero-page-detection", "legacy");
 
     test_precopy_common(args);
 }
 
 static void test_multifd_tcp_no_zero_page(char *name, MigrateCommon *args)
 {
-    args->start_hook = migrate_hook_start_precopy_tcp_multifd_no_zero_page;
     /*
      * Multifd is more complicated than most of the features, it
      * directly takes guest page buffers when sending, make sure
@@ -522,14 +496,16 @@ static void test_multifd_tcp_no_zero_page(char *name, MigrateCommon *args)
     args->listen_uri = "tcp:127.0.0.1:0";
 
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+
+    qdict_put_bool(args->start.config, "multifd", true);
+    qdict_put_str(args->start.config, "multifd-compression", "none");
+    qdict_put_str(args->start.config, "zero-page-detection", "none");
 
     test_precopy_common(args);
 }
 
 static void test_multifd_tcp_channels_none(char *name, MigrateCommon *args)
 {
-    args->start_hook = migrate_hook_start_precopy_tcp_multifd;
     args->live = true;
     args->connect_channels = ("[ { 'channel-type': 'main',"
                               "    'addr': { 'transport': 'socket',"
@@ -538,7 +514,9 @@ static void test_multifd_tcp_channels_none(char *name, MigrateCommon *args)
                               "              'port': '0' } } ]");
 
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+
+    qdict_put_bool(args->start.config, "multifd", true);
+    qdict_put_str(args->start.config, "multifd-compression", "none");
 
     test_precopy_common(args);
 }
@@ -558,6 +536,9 @@ static void test_multifd_tcp_cancel(MigrateCommon *args, bool postcopy_ram)
 {
     QTestState *from, *to, *to2;
 
+    /* temporary */
+    qdict_put_bool(args->start.config, "use-config", true);
+
     args->start.hide_stderr = true;
     args->start.incoming_defer = true;
 
@@ -569,15 +550,11 @@ static void test_multifd_tcp_cancel(MigrateCommon *args, bool postcopy_ram)
     migrate_prepare_for_dirty_mem(from);
 
     if (postcopy_ram) {
-        migrate_set_capability(from, "postcopy-ram", true);
-        migrate_set_capability(to, "postcopy-ram", true);
+        qdict_put_bool(args->start.config, "postcopy-ram", true);
     }
 
-    migrate_set_parameter_int(from, "multifd-channels", 16);
-    migrate_set_parameter_int(to, "multifd-channels", 16);
-
-    migrate_set_capability(from, "multifd", true);
-    migrate_set_capability(to, "multifd", true);
+    qdict_put_int(args->start.config, "multifd-channels", 16);
+    qdict_put_bool(args->start.config, "multifd", true);
 
     /* Start incoming migration from the 1st socket */
     migrate_incoming_qmp(to, "tcp:127.0.0.1:0", NULL, args->start.config, "{}");
@@ -615,13 +592,7 @@ static void test_multifd_tcp_cancel(MigrateCommon *args, bool postcopy_ram)
         return;
     }
 
-    if (postcopy_ram) {
-        migrate_set_capability(to2, "postcopy-ram", true);
-    }
-
-    migrate_set_parameter_int(to2, "multifd-channels", 16);
-
-    migrate_set_capability(to2, "multifd", true);
+    /* reusing the same config for to2 */
 
     /* Start incoming migration from the 1st socket */
     migrate_incoming_qmp(to2, "tcp:127.0.0.1:0", NULL, args->start.config,
@@ -755,12 +726,6 @@ static void test_cancel_src_pre_switchover(QTestState *from, QTestState *to,
                                            const char *uri, const char *phase,
                                            MigrateStart *args)
 {
-    migrate_set_capability(from, "pause-before-switchover", true);
-    migrate_set_capability(to, "pause-before-switchover", true);
-
-    migrate_set_capability(from, "multifd", true);
-    migrate_set_capability(to, "multifd", true);
-
     migrate_incoming_qmp(to, uri, NULL, args->config,
                          "{ 'exit-on-error': false }");
 
@@ -786,6 +751,9 @@ static void test_cancel_src_after_status(char *test_path, MigrateCommon *args)
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
 
+    /* temporary */
+    qdict_put_bool(args->start.config, "use-config", true);
+
     args->start.hide_stderr = true;
     args->start.incoming_defer = true;
 
@@ -808,6 +776,10 @@ static void test_cancel_src_after_status(char *test_path, MigrateCommon *args)
 
     } else {
         /* any state that comes before pre-switchover */
+
+        qdict_put_bool(args->start.config, "pause-before-switchover", true);
+        qdict_put_bool(args->start.config, "multifd", true);
+
         test_cancel_src_pre_switchover(from, to, uri, phase, &args->start);
     }
 
@@ -1061,19 +1033,19 @@ static void test_vcpu_dirty_limit(char *name, MigrateCommon *args)
     dirtylimit_stop_vm(vm);
 }
 
-static void migrate_dirty_limit_wait_showup(QTestState *from,
+static void migrate_dirty_limit_wait_showup(QDict *config,
                                             const int64_t period,
                                             const int64_t value)
 {
     /* Enable dirty limit capability */
-    migrate_set_capability(from, "dirty-limit", true);
+    qdict_put_bool(config, "dirty-limit", true);
 
     /* Set dirty limit parameters */
-    migrate_set_parameter_int(from, "x-vcpu-dirty-limit-period", period);
-    migrate_set_parameter_int(from, "vcpu-dirty-limit", value);
+    qdict_put_int(config, "x-vcpu-dirty-limit-period", period);
+    qdict_put_int(config, "vcpu-dirty-limit", value);
 
     /* To check limit rate after precopy */
-    migrate_set_capability(from, "pause-before-switchover", true);
+    qdict_put_bool(config, "pause-before-switchover", true);
 
     /* Wait for the serial output from the source */
     wait_for_serial("src_serial");
@@ -1132,7 +1104,8 @@ static void test_dirty_limit(char *name, MigrateCommon *args)
 
     /* Prepare for dirty limit migration and wait src vm show up */
     migrate_ensure_non_converge(from, args->start.config);
-    migrate_dirty_limit_wait_showup(from, dirtylimit_period, dirtylimit_value);
+    migrate_dirty_limit_wait_showup(args->start.config, dirtylimit_period,
+                                    dirtylimit_value);
 
     /* Start migrate */
     migrate_qmp(from, to, args->connect_uri, NULL, args->start.config, "{}");

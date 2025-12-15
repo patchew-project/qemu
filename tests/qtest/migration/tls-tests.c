@@ -118,9 +118,6 @@ static void test_precopy_tls_psk_common(MigrateCommon *args,
 {
     TestMigrateTLSPSKData *data = g_new0(TestMigrateTLSPSKData, 1);
 
-    /* temporary */
-    qdict_put_bool(args->start.config, "use-config", true);
-
     qdict_put_str(args->start.config, "tls-creds", "tlscredspsk0");
 
     migrate_tls_psk_init(args, test_args, data);
@@ -384,9 +381,6 @@ static void test_precopy_tls_x509_common(MigrateCommon *args,
                                          TestMigrateTLSX509 *test_args)
 {
     TestMigrateTLSX509Data *data = g_new0(TestMigrateTLSX509Data, 1);
-
-    /* temporary */
-    qdict_put_bool(args->start.config, "use-config", true);
 
     migrate_tls_x509_init(args, test_args, data);
     test_precopy_common(args);

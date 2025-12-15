@@ -88,9 +88,6 @@ static void test_mode_transfer_common(MigrateCommon *args)
 
     qdict_put_str(args->start.config, "mode", "cpr-transfer");
 
-    /* temporary */
-    qdict_put_bool(args->start.config, "use-config", true);
-
     if (test_precopy_common(args) < 0) {
         close(cpr_sockfd);
         unlink(cpr_path);

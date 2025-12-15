@@ -29,9 +29,6 @@ static void test_multifd_tcp_zstd(char *name, MigrateCommon *args)
 
     qdict_put_bool(args->start.config, "multifd", true);
 
-    /* temporary */
-    qdict_put_bool(args->start.config, "use-config", true);
-
     test_precopy_common(args);
 }
 
@@ -45,9 +42,6 @@ static void test_multifd_postcopy_tcp_zstd(char *name, MigrateCommon *args)
     qdict_put_bool(args->start.config, "postcopy-ram", true);
     qdict_put_int(args->start.config, "multifd-zstd-level", 2);
     qdict_put_str(args->start.config, "multifd-compression", "zstd");
-
-    /* temporary */
-    qdict_put_bool(args->start.config, "use-config", true);
 
     test_precopy_common(args);
 }
@@ -64,9 +58,6 @@ static void test_multifd_tcp_qatzip(char *name, MigrateCommon *args)
     qdict_put_int(args->start.config, "multifd-qatzip-level", 2);
     qdict_put_str(args->start.config, "multifd-compression", "qatzip");
 
-    /* temporary */
-    qdict_put_bool(args->start.config, "use-config", true);
-
     test_precopy_common(args);
 }
 #endif
@@ -81,9 +72,6 @@ static void test_multifd_tcp_qpl(char *name, MigrateCommon *args)
     qdict_put_bool(args->start.config, "multifd", true);
     qdict_put_str(args->start.config, "multifd-compression", "qpl");
 
-    /* temporary */
-    qdict_put_bool(args->start.config, "use-config", true);
-
     test_precopy_common(args);
 }
 #endif /* CONFIG_QPL */
@@ -97,9 +85,6 @@ static void test_multifd_tcp_uadk(char *name, MigrateCommon *args)
 
     qdict_put_bool(args->start.config, "multifd", true);
     qdict_put_str(args->start.config, "multifd-compression", "uadk");
-
-    /* temporary */
-    qdict_put_bool(args->start.config, "use-config", true);
 
     test_precopy_common(args);
 }
@@ -121,9 +106,6 @@ static void test_precopy_unix_xbzrle(char *name, MigrateCommon *args)
     qdict_put_bool(args->start.config, "xbzrle", true);
     qdict_put_int(args->start.config, "xbzrle-cache-size", 33554432);
 
-    /* temporary */
-    qdict_put_bool(args->start.config, "use-config", true);
-
     test_precopy_common(args);
 }
 
@@ -140,9 +122,6 @@ static void test_multifd_tcp_zlib(char *name, MigrateCommon *args)
      */
     qdict_put_int(args->start.config, "multifd-zlib-level", 2);
     qdict_put_str(args->start.config, "multifd-compression", "zlib");
-
-    /* temporary */
-    qdict_put_bool(args->start.config, "use-config", true);
 
     test_precopy_common(args);
 }
