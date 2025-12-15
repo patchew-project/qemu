@@ -169,6 +169,9 @@ static const char *mem_path;
 static const char *incoming;
 static const char *incoming_str[MIGRATION_CHANNEL_TYPE__MAX];
 static MigrationChannel *incoming_channels[MIGRATION_CHANNEL_TYPE__MAX];
+static MigrationParameters *migration_config;
+static Error *migration_channel_err;
+static Error *migration_config_err;
 static const char *loadvm;
 static const char *accelerators;
 static bool have_custom_ram_size;
@@ -1825,28 +1828,102 @@ static void object_option_add_visitor(Visitor *v)
     QTAILQ_INSERT_TAIL(&object_opts, opt, next);
 }
 
-static void incoming_option_parse(const char *str)
+/*
+ * Either "defer" or a proper uri, whether plain string or a json
+ * representation of MigrationChannel.
+ */
+static bool incoming_option_parse_channels(const char *str, Error **errp)
 {
     MigrationChannelType type = MIGRATION_CHANNEL_TYPE_MAIN;
-    MigrationChannel *channel;
+    MigrationChannel *channel = NULL;
     Visitor *v;
 
-    if (!strcmp(str, "defer")) {
-        channel = NULL;
-    } else if (migrate_is_uri(str)) {
+    if (g_str_equal(str, "defer")) {
+        incoming_str[type] = str;
+        return true;
+    }
+
+    if (migrate_is_uri(str)) {
         migrate_uri_parse(str, &channel, &error_fatal);
     } else {
         v = qobject_input_visitor_new_str(str, "channel-type", &error_fatal);
-        visit_type_MigrationChannel(v, NULL, &channel, &error_fatal);
+        if (v && !visit_type_MigrationChannel(v, NULL, &channel, errp)) {
+            visit_free(v);
+            return false;
+        }
         visit_free(v);
-        type = channel->channel_type;
     }
 
-    /* New incoming spec replaces the previous */
-    qapi_free_MigrationChannel(incoming_channels[type]);
-    incoming_channels[type] = channel;
-    incoming_str[type] = str;
+    if (channel) {
+        type = channel->channel_type;
+        /* New incoming spec replaces the previous */
+        qapi_free_MigrationChannel(incoming_channels[type]);
+        incoming_channels[type] = channel;
+        incoming_str[type] = str;
+    }
+
     incoming = incoming_str[MIGRATION_CHANNEL_TYPE_MAIN];
+    return true;
+}
+
+/*
+ * The migration configuration object in JSON form.
+ */
+static bool incoming_option_parse_config(const char *str, Error **errp)
+{
+    MigrationParameters *config = NULL;
+    Visitor *v;
+
+    v = qobject_input_visitor_new_str(str, "config", &error_fatal);
+    if (v && !visit_type_MigrationParameters(v, NULL, &config, errp)) {
+        visit_free(v);
+        return false;
+    }
+
+    if (config) {
+        /* later incoming configs replace the previous ones */
+        migration_config = config;
+    }
+
+    visit_free(v);
+    return true;
+}
+
+static void incoming_option_parse(const char *str)
+{
+    /*
+     * Independent Error objects because we don't know whether the
+     * input is meant to be the channels or the config. The parsing
+     * may fail for one and succeed for the other.
+     */
+    g_autoptr(Error) channel_err = NULL;
+    g_autoptr(Error) config_err = NULL;
+
+    /*
+     * Skip if there's already an error for a previous -incoming
+     * instance.
+     */
+    if (migration_channel_err || migration_config_err) {
+        return;
+    }
+
+    if (!migration_channel_err &&
+        incoming_option_parse_channels(str, &channel_err)) {
+        return;
+    }
+
+    if (!migration_config_err &&
+        incoming_option_parse_config(str, &config_err)) {
+        return;
+    }
+
+    if (channel_err) {
+        migration_channel_err = error_copy(channel_err);
+        error_prepend(&migration_channel_err, "-incoming %s: ", str);
+    } else if (config_err) {
+        migration_config_err = error_copy(config_err);
+        error_prepend(&migration_config_err, "-incoming %s: ", str);
+    }
 }
 
 static void object_option_parse(const char *str)
@@ -2537,6 +2614,16 @@ static void qemu_validate_options(const QDict *machine_opts)
         exit(EXIT_FAILURE);
     }
 
+    if (migration_channel_err && !incoming) {
+        error_report_err(migration_config_err);
+        exit(EXIT_FAILURE);
+    }
+
+    if (migration_config_err && !migration_config) {
+        error_report_err(migration_config_err);
+        exit(EXIT_FAILURE);
+    }
+
 #ifdef CONFIG_CURSES
     if (is_daemonized() && dpy.type == DISPLAY_TYPE_CURSES) {
         error_report("curses display cannot be used with -daemonize");
@@ -2824,13 +2911,14 @@ void qmp_x_exit_preconfig(Error **errp)
 
     if (incoming) {
         Error *local_err = NULL;
+
         if (strcmp(incoming, "defer") != 0) {
             g_autofree MigrationChannelList *channels =
                 g_new0(MigrationChannelList, 1);
 
             channels->value = incoming_channels[MIGRATION_CHANNEL_TYPE_MAIN];
-            qmp_migrate_incoming(NULL, true, channels, NULL, true, true,
-                                 &local_err);
+            qmp_migrate_incoming(NULL, true, channels, migration_config, true,
+                                 true, &local_err);
             if (local_err) {
                 error_reportf_err(local_err, "-incoming %s: ", incoming);
                 exit(1);
