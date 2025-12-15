@@ -73,9 +73,6 @@ static void *migrate_hook_start_tls_psk_common(QTestState *from,
                              "                 'dir': %s } }",
                              args->mismatch ? workdiralt : workdir);
 
-    migrate_set_parameter_str(from, "tls-creds", "tlscredspsk0");
-    migrate_set_parameter_str(to, "tls-creds", "tlscredspsk0");
-
     return NULL;
 }
 
@@ -120,6 +117,11 @@ static void test_precopy_tls_psk_common(MigrateCommon *args,
                                         TestMigrateTLSPSK *test_args)
 {
     TestMigrateTLSPSKData *data = g_new0(TestMigrateTLSPSKData, 1);
+
+    /* temporary */
+    qdict_put_bool(args->start.config, "use-config", true);
+
+    qdict_put_str(args->start.config, "tls-creds", "tlscredspsk0");
 
     migrate_tls_psk_init(args, test_args, data);
     test_precopy_common(args);
@@ -497,18 +499,11 @@ static void test_precopy_tcp_tls_psk_mismatch(char *name, MigrateCommon *args)
     test_precopy_tls_psk_common(args, &tls_psk_mismatch);
 }
 
-static void *migrate_hook_start_no_tls(QTestState *from, QTestState *to)
-{
-    migrate_set_parameter_null(from, "tls-creds");
-    migrate_set_parameter_null(to, "tls-creds");
-
-    return NULL;
-}
-
 static void test_precopy_tcp_no_tls(char *name, MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook = migrate_hook_start_no_tls;
+
+    qdict_put_null(args->start.config, "tls-creds");
 
     test_precopy_common(args);
 }
@@ -614,29 +609,7 @@ static void test_precopy_tcp_tls_x509_reject_anon_client(char *name,
 
     test_precopy_tls_x509_common(args, &tls_x509_reject_anon_client);
 }
-#endif /* CONFIG_TASN1 */
 
-static void *
-migrate_hook_start_multifd_tcp_tls_psk_match(QTestState *from,
-                                             QTestState *to)
-{
-    migrate_set_parameter_str(from, "multifd-compression", "none");
-    migrate_set_parameter_str(to, "multifd-compression", "none");
-
-    return migrate_hook_start_tls_psk_common(from, to, &tls_psk_match);
-}
-
-static void *
-migrate_hook_start_multifd_tcp_tls_psk_mismatch(QTestState *from,
-                                                QTestState *to)
-{
-    migrate_set_parameter_str(from, "multifd-compression", "none");
-    migrate_set_parameter_str(to, "multifd-compression", "none");
-
-    return migrate_hook_start_tls_psk_common(from, to, &tls_psk_mismatch);
-}
-
-#ifdef CONFIG_TASN1
 static void *
 migrate_hook_start_multifd_tls_x509_default_host(QTestState *from,
                                                  QTestState *to)
@@ -694,39 +667,34 @@ migrate_hook_start_multifd_tls_x509_reject_anon_client(QTestState *from,
 
 static void test_multifd_tcp_tls_psk_match(char *name, MigrateCommon *args)
 {
-    args->start_hook = migrate_hook_start_multifd_tcp_tls_psk_match;
-    args->listen_uri = "tcp:127.0.0.1:0";
-
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
 
-    test_precopy_tls_psk_common(args, &tls_psk_match);
+    qdict_put_str(args->start.config, "multifd-compression", "none");
+    qdict_put_bool(args->start.config, "multifd", true);
+
+    test_precopy_tcp_tls_psk_match(name, args);
 }
 
 static void test_multifd_tcp_tls_psk_mismatch(char *name, MigrateCommon *args)
 {
-    args->start_hook = migrate_hook_start_multifd_tcp_tls_psk_mismatch;
-    args->result = MIG_TEST_FAIL;
-    args->listen_uri = "tcp:127.0.0.1:0";
-
-    args->start.hide_stderr = true;
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
 
-    test_precopy_tls_psk_common(args, &tls_psk_mismatch);
+    qdict_put_str(args->start.config, "multifd-compression", "none");
+    qdict_put_bool(args->start.config, "multifd", true);
+
+    test_precopy_tcp_tls_psk_mismatch(name, args);
 }
 
 static void test_multifd_postcopy_tcp_tls_psk_match(char *name,
                                                     MigrateCommon *args)
 {
-    args->start_hook = migrate_hook_start_multifd_tcp_tls_psk_match;
-    args->listen_uri = "tcp:127.0.0.1:0";
-
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
-    args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_RAM] = true;
 
-    test_precopy_tls_psk_common(args, &tls_psk_match);
+    qdict_put_str(args->start.config, "multifd-compression", "none");
+    qdict_put_bool(args->start.config, "multifd", true);
+    qdict_put_bool(args->start.config, "postcopy-ram", true);
+
+    test_precopy_tcp_tls_psk_match(name, args);
 }
 
 #ifdef CONFIG_TASN1
