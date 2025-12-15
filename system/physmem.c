@@ -1090,18 +1090,19 @@ void physical_memory_set_dirty_range(ram_addr_t start, ram_addr_t length,
 }
 
 /* Note: start and end must be within the same ram block.  */
-bool physical_memory_test_and_clear_dirty(ram_addr_t start,
+uint64_t physical_memory_test_and_clear_dirty(ram_addr_t start,
                                               ram_addr_t length,
-                                              unsigned client)
+                                              unsigned client,
+                                              unsigned long *dest)
 {
     DirtyMemoryBlocks *blocks;
     unsigned long end, page, start_page;
-    bool dirty = false;
+    uint64_t num_dirty = 0;
     RAMBlock *ramblock;
     uint64_t mr_offset, mr_size;
 
     if (length == 0) {
-        return false;
+        return 0;
     }
 
     end = TARGET_PAGE_ALIGN(start + length) >> TARGET_PAGE_BITS;
@@ -1118,31 +1119,40 @@ bool physical_memory_test_and_clear_dirty(ram_addr_t start,
         while (page < end) {
             unsigned long idx = page / DIRTY_MEMORY_BLOCK_SIZE;
             unsigned long offset = page % DIRTY_MEMORY_BLOCK_SIZE;
-            unsigned long num = MIN(end - page,
-                                    DIRTY_MEMORY_BLOCK_SIZE - offset);
 
-            dirty |= bitmap_test_and_clear_atomic(blocks->blocks[idx],
-                                                  offset, num);
-            page += num;
+            if (bitmap_test_and_clear_atomic(blocks->blocks[idx], offset, 1)) {
+                if (dest) {
+                    unsigned long k = page - (ramblock->offset >> TARGET_PAGE_BITS);
+                    if (!test_and_set_bit(k, dest)) {
+                        num_dirty++;
+                    }
+                } else {
+                    num_dirty++;
+                }
+            }
+
+            page++;
         }
 
-        mr_offset = (ram_addr_t)(start_page << TARGET_PAGE_BITS) - ramblock->offset;
-        mr_size = (end - start_page) << TARGET_PAGE_BITS;
-        memory_region_clear_dirty_bitmap(ramblock->mr, mr_offset, mr_size);
+        if (!dest && num_dirty) {
+            mr_offset = (ram_addr_t)(start_page << TARGET_PAGE_BITS) - ramblock->offset;
+            mr_size = (end - start_page) << TARGET_PAGE_BITS;
+            memory_region_clear_dirty_bitmap(ramblock->mr, mr_offset, mr_size);
+        }
     }
 
-    if (dirty) {
+    if (num_dirty) {
         physical_memory_dirty_bits_cleared(start, length);
     }
 
-    return dirty;
+    return num_dirty;
 }
 
 static void physical_memory_clear_dirty_range(ram_addr_t addr, ram_addr_t length)
 {
-    physical_memory_test_and_clear_dirty(addr, length, DIRTY_MEMORY_MIGRATION);
-    physical_memory_test_and_clear_dirty(addr, length, DIRTY_MEMORY_VGA);
-    physical_memory_test_and_clear_dirty(addr, length, DIRTY_MEMORY_CODE);
+    physical_memory_test_and_clear_dirty(addr, length, DIRTY_MEMORY_MIGRATION, NULL);
+    physical_memory_test_and_clear_dirty(addr, length, DIRTY_MEMORY_VGA, NULL);
+    physical_memory_test_and_clear_dirty(addr, length, DIRTY_MEMORY_CODE, NULL);
 }
 
 DirtyBitmapSnapshot *physical_memory_snapshot_and_clear_dirty

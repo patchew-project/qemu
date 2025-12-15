@@ -942,7 +942,6 @@ static uint64_t physical_memory_sync_dirty_bitmap(RAMBlock *rb,
                                                   ram_addr_t start,
                                                   ram_addr_t length)
 {
-    ram_addr_t addr;
     unsigned long word = BIT_WORD((start + rb->offset) >> TARGET_PAGE_BITS);
     uint64_t num_dirty = 0;
     unsigned long *dest = rb->bmap;
@@ -995,18 +994,19 @@ static uint64_t physical_memory_sync_dirty_bitmap(RAMBlock *rb,
         }
     } else {
         ram_addr_t offset = rb->offset;
+        unsigned long end, start_page;
+        uint64_t mr_offset, mr_size;
 
-        for (addr = 0; addr < length; addr += TARGET_PAGE_SIZE) {
-            if (physical_memory_test_and_clear_dirty(
-                        start + addr + offset,
-                        TARGET_PAGE_SIZE,
-                        DIRTY_MEMORY_MIGRATION)) {
-                long k = (start + addr) >> TARGET_PAGE_BITS;
-                if (!test_and_set_bit(k, dest)) {
-                    num_dirty++;
-                }
-            }
-        }
+        num_dirty = physical_memory_test_and_clear_dirty(
+                        start + offset,
+                        length,
+                        DIRTY_MEMORY_MIGRATION,
+                        dest);
+        end = TARGET_PAGE_ALIGN(start + offset + length) >> TARGET_PAGE_BITS;
+        start_page = (start + offset) >> TARGET_PAGE_BITS;
+        mr_offset = (ram_addr_t)(start_page << TARGET_PAGE_BITS) - offset;
+        mr_size = (end - start_page) << TARGET_PAGE_BITS;
+        memory_region_clear_dirty_bitmap(rb->mr, mr_offset, mr_size);
     }
 
     return num_dirty;
