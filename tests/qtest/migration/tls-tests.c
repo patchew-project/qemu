@@ -207,8 +207,9 @@ static TestMigrateTLSX509 tls_x509_no_host = {
 static void *
 migrate_hook_start_tls_x509_common(QTestState *from,
                                    QTestState *to,
-                                   TestMigrateTLSX509 *args)
+                                   void *opaque)
 {
+    TestMigrateTLSX509 *args = opaque;
     TestMigrateTLSX509Data *data = g_new0(TestMigrateTLSX509Data, 1);
 
     data->workdir = g_strdup_printf("%s/tlscredsx5090", tmpfs);
@@ -291,60 +292,6 @@ migrate_hook_start_tls_x509_common(QTestState *from,
     }
 
     return data;
-}
-
-static void *
-migrate_hook_start_tls_x509_default_host(QTestState *from,
-                                         QTestState *to)
-{
-    return migrate_hook_start_tls_x509_common(from, to, &tls_x509_default_host);
-}
-
-static void *
-migrate_hook_start_tls_x509_override_host(QTestState *from,
-                                          QTestState *to)
-{
-    return migrate_hook_start_tls_x509_common(from, to,
-                                              &tls_x509_override_host);
-}
-
-static void *
-migrate_hook_start_tls_x509_mismatch_host(QTestState *from,
-                                          QTestState *to)
-{
-    return migrate_hook_start_tls_x509_common(from, to,
-                                              &tls_x509_mismatch_host);
-}
-
-static void *
-migrate_hook_start_tls_x509_friendly_client(QTestState *from,
-                                            QTestState *to)
-{
-    return migrate_hook_start_tls_x509_common(from, to, &x509_friendly_client);
-}
-
-static void *
-migrate_hook_start_tls_x509_hostile_client(QTestState *from,
-                                           QTestState *to)
-{
-    return migrate_hook_start_tls_x509_common(from, to,
-                                              &tls_x509_hostile_client);
-}
-
-static void *
-migrate_hook_start_tls_x509_allow_anon_client(QTestState *from,
-                                              QTestState *to)
-{
-    return migrate_hook_start_tls_x509_common(from, to,
-                                              &tls_x509_allow_anon_client);
-}
-
-static void *
-migrate_hook_start_tls_x509_reject_anon_client(QTestState *from,
-                                               QTestState *to)
-{
-    return migrate_hook_start_tls_x509_common(from, to,
-                                              &tls_x509_reject_anon_client);
 }
 
 static void
@@ -460,7 +407,8 @@ static void test_precopy_unix_tls_x509_default_host(char *name,
 
     args->connect_uri = uri;
     args->listen_uri = uri;
-    args->start_hook = migrate_hook_start_tls_x509_default_host;
+    args->start_hook_full = migrate_hook_start_tls_x509_common;
+    args->start_hook_data = &tls_x509_default_host;
     args->end_hook = migrate_hook_end_tls_x509;
     args->result = MIG_TEST_FAIL_DEST_QUIT_ERR;
 
@@ -476,7 +424,8 @@ static void test_precopy_unix_tls_x509_override_host(char *name,
 
     args->connect_uri = uri;
     args->listen_uri = uri;
-    args->start_hook = migrate_hook_start_tls_x509_override_host;
+    args->start_hook_full = migrate_hook_start_tls_x509_common;
+    args->start_hook_data = &tls_x509_override_host;
     args->end_hook = migrate_hook_end_tls_x509;
 
     test_precopy_common(args);
@@ -552,7 +501,8 @@ static void test_precopy_tcp_tls_x509_default_host(char *name,
                                                    MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook = migrate_hook_start_tls_x509_default_host;
+    args->start_hook_full = migrate_hook_start_tls_x509_common;
+    args->start_hook_data = &tls_x509_default_host;
     args->end_hook = migrate_hook_end_tls_x509;
 
     test_precopy_common(args);
@@ -562,7 +512,8 @@ static void test_precopy_tcp_tls_x509_override_host(char *name,
                                                     MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook = migrate_hook_start_tls_x509_override_host;
+    args->start_hook_full = migrate_hook_start_tls_x509_common;
+    args->start_hook_data = &tls_x509_override_host;
     args->end_hook = migrate_hook_end_tls_x509;
 
     test_precopy_common(args);
@@ -572,7 +523,8 @@ static void test_precopy_tcp_tls_x509_mismatch_host(char *name,
                                                     MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook = migrate_hook_start_tls_x509_mismatch_host;
+    args->start_hook_full = migrate_hook_start_tls_x509_common;
+    args->start_hook_data = &tls_x509_mismatch_host;
     args->end_hook = migrate_hook_end_tls_x509;
     args->result = MIG_TEST_FAIL_DEST_QUIT_ERR;
 
@@ -585,7 +537,8 @@ static void test_precopy_tcp_tls_x509_friendly_client(char *name,
                                                       MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook = migrate_hook_start_tls_x509_friendly_client;
+    args->start_hook_full = migrate_hook_start_tls_x509_common;
+    args->start_hook_data = &x509_friendly_client;
     args->end_hook = migrate_hook_end_tls_x509;
 
     test_precopy_common(args);
@@ -595,7 +548,8 @@ static void test_precopy_tcp_tls_x509_hostile_client(char *name,
                                                      MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook = migrate_hook_start_tls_x509_hostile_client;
+    args->start_hook_full = migrate_hook_start_tls_x509_common;
+    args->start_hook_data = &tls_x509_hostile_client;
     args->end_hook = migrate_hook_end_tls_x509;
     args->result = MIG_TEST_FAIL;
 
@@ -608,7 +562,8 @@ static void test_precopy_tcp_tls_x509_allow_anon_client(char *name,
                                                         MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook = migrate_hook_start_tls_x509_allow_anon_client;
+    args->start_hook_full = migrate_hook_start_tls_x509_common;
+    args->start_hook_data = &tls_x509_allow_anon_client;
     args->end_hook = migrate_hook_end_tls_x509;
 
     test_precopy_common(args);
@@ -618,7 +573,8 @@ static void test_precopy_tcp_tls_x509_reject_anon_client(char *name,
                                                          MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook = migrate_hook_start_tls_x509_reject_anon_client;
+    args->start_hook_full = migrate_hook_start_tls_x509_common;
+    args->start_hook_data = &tls_x509_reject_anon_client;
     args->end_hook = migrate_hook_end_tls_x509;
     args->result = MIG_TEST_FAIL;
 
@@ -650,7 +606,7 @@ migrate_hook_start_multifd_tls_x509_default_host(QTestState *from,
                                                  QTestState *to)
 {
     migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
-    return migrate_hook_start_tls_x509_default_host(from, to);
+    return migrate_hook_start_tls_x509_common(from, to, &tls_x509_default_host);
 }
 
 static void *
@@ -658,7 +614,8 @@ migrate_hook_start_multifd_tls_x509_override_host(QTestState *from,
                                                   QTestState *to)
 {
     migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
-    return migrate_hook_start_tls_x509_override_host(from, to);
+    return migrate_hook_start_tls_x509_common(from, to,
+                                              &tls_x509_override_host);
 }
 
 static void *
@@ -666,7 +623,8 @@ migrate_hook_start_multifd_tls_x509_mismatch_host(QTestState *from,
                                                   QTestState *to)
 {
     migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
-    return migrate_hook_start_tls_x509_mismatch_host(from, to);
+    return migrate_hook_start_tls_x509_common(from, to,
+                                              &tls_x509_mismatch_host);
 }
 
 static void *
@@ -674,7 +632,8 @@ migrate_hook_start_multifd_tls_x509_allow_anon_client(QTestState *from,
                                                       QTestState *to)
 {
     migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
-    return migrate_hook_start_tls_x509_allow_anon_client(from, to);
+    return migrate_hook_start_tls_x509_common(from, to,
+                                              &tls_x509_allow_anon_client);
 }
 
 static void *
@@ -682,7 +641,8 @@ migrate_hook_start_multifd_tls_x509_reject_anon_client(QTestState *from,
                                                        QTestState *to)
 {
     migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
-    return migrate_hook_start_tls_x509_reject_anon_client(from, to);
+    return migrate_hook_start_tls_x509_common(from, to,
+                                              &tls_x509_reject_anon_client);
 }
 #endif /* CONFIG_TASN1 */
 
