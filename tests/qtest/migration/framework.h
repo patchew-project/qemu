@@ -151,6 +151,8 @@ typedef struct {
      * used for the deferred migrate_incoming call.
      */
     bool incoming_defer;
+
+    QDict *config;
 } MigrateStart;
 
 typedef enum PostcopyRecoveryFailStage {

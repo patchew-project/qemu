@@ -243,6 +243,7 @@ static void migration_test_destroy(gpointer data)
 {
     MigrationTest *test = (MigrationTest *)data;
 
+    qdict_unref(test->data->start.config);
     g_free(test->data);
     g_free(test->name);
     g_free(test);
@@ -253,6 +254,7 @@ static void migration_test_wrapper(const void *data)
     MigrationTest *test = (MigrationTest *)data;
 
     test->data = g_new0(MigrateCommon, 1);
+    test->data->start.config = qdict_new();
 
     g_test_message("Running /%s%s", qtest_get_arch(), test->name);
     test->func(test->name, test->data);
