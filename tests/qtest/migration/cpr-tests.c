@@ -21,14 +21,6 @@
 
 static char *tmpfs;
 
-static void *migrate_hook_start_mode_reboot(QTestState *from, QTestState *to)
-{
-    migrate_set_parameter_str(from, "mode", "cpr-reboot");
-    migrate_set_parameter_str(to, "mode", "cpr-reboot");
-
-    return NULL;
-}
-
 static void test_mode_reboot(char *name, MigrateCommon *args)
 {
     g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
@@ -36,19 +28,13 @@ static void test_mode_reboot(char *name, MigrateCommon *args)
 
     args->listen_uri = uri;
     args->connect_uri = uri;
-    args->start_hook = migrate_hook_start_mode_reboot;
 
     args->start.incoming_defer = true;
     args->start.mem_type = MEM_TYPE_SHMEM;
-    args->start.caps[MIGRATION_CAPABILITY_X_IGNORE_SHARED] = true;
 
+    qdict_put_bool(args->start.config, "x-ignore-shared", true);
+    qdict_put_str(args->start.config, "mode", "cpr-reboot");
     test_file_common(args, true);
-}
-
-static void *test_mode_transfer_start(QTestState *from, QTestState *to)
-{
-    migrate_set_parameter_str(from, "mode", "cpr-transfer");
-    return NULL;
 }
 
 /*
@@ -94,12 +80,16 @@ static void test_mode_transfer_common(MigrateCommon *args)
     args->listen_uri = uri;
     args->connect_channels = connect_channels;
     args->cpr_channel = cpr_channel;
-    args->start_hook = test_mode_transfer_start;
 
     args->start.opts_source = opts;
     args->start.opts_target = opts_target;
     args->start.defer_target_connect = true;
     args->start.mem_type = MEM_TYPE_MEMFD;
+
+    qdict_put_str(args->start.config, "mode", "cpr-transfer");
+
+    /* temporary */
+    qdict_put_bool(args->start.config, "use-config", true);
 
     if (test_precopy_common(args) < 0) {
         close(cpr_sockfd);
@@ -117,6 +107,18 @@ static void test_mode_transfer_defer(char *name, MigrateCommon *args)
 {
     args->start.incoming_defer = true;
     test_mode_transfer_common(args);
+}
+
+static void set_cpr_exec_command(QDict *config, char **strv)
+{
+    QList *list = qlist_new();
+
+    while (*strv) {
+        qlist_append_str(list, *strv);
+        strv++;
+    }
+
+    qdict_put_obj(config, "cpr-exec-command", (QObject *)list);
 }
 
 static void set_cpr_exec_args(QTestState *who, MigrateCommon *args)
@@ -157,7 +159,7 @@ static void set_cpr_exec_args(QTestState *who, MigrateCommon *args)
     exec_args = g_strconcat(qtest_qemu_binary(migration_get_env()->qemu_dst),
                             " -incoming defer ", from_str, NULL);
     argv = g_strsplit(exec_args, " ", -1);
-    migrate_set_parameter_strv(who, "cpr-exec-command", argv);
+    set_cpr_exec_command(args->start.config, argv);
 }
 
 static void wait_for_migration_event(QTestState *who, const char *waitfor)
@@ -187,6 +189,9 @@ static void test_cpr_exec(MigrateCommon *args)
                                                 FILE_TEST_FILENAME);
     g_autofree char *channels = NULL;
 
+    /* temporary */
+    qdict_put_bool(args->start.config, "use-config", true);
+
     if (migrate_start(&from, NULL, args->listen_uri, &args->start)) {
         return;
     }
@@ -200,7 +205,6 @@ static void test_cpr_exec(MigrateCommon *args)
 
     wait_for_serial("src_serial");
     set_cpr_exec_args(from, args);
-    migrate_set_capability(from, "events", true);
     migrate_qmp(from, NULL, connect_uri, NULL, args->start.config, "{}");
     wait_for_migration_event(from, "completed");
 
@@ -229,13 +233,6 @@ static void test_cpr_exec(MigrateCommon *args)
     migrate_end(from, to, args->result == MIG_TEST_SUCCEED);
 }
 
-static void *test_mode_exec_start(QTestState *from, QTestState *to)
-{
-    assert(!to);
-    migrate_set_parameter_str(from, "mode", "cpr-exec");
-    return NULL;
-}
-
 static void test_mode_exec(char *name, MigrateCommon *args)
 {
     g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
@@ -244,12 +241,12 @@ static void test_mode_exec(char *name, MigrateCommon *args)
 
     args->connect_uri = uri;
     args->listen_uri = listen_uri;
-    args->start_hook = test_mode_exec_start;
 
     args->start.only_source = true;
     args->start.opts_source = "-machine aux-ram-share=on -nodefaults";
     args->start.mem_type = MEM_TYPE_MEMFD;
 
+    qdict_put_str(args->start.config, "mode", "cpr-exec");
     test_cpr_exec(args);
 }
 

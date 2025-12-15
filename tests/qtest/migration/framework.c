@@ -1056,6 +1056,9 @@ void test_file_common(MigrateCommon *args, bool stop_src)
     void *data_hook = NULL;
     bool check_offset = false;
 
+    /* temporary */
+    qdict_put_bool(args->start.config, "use-config", true);
+
     if (migrate_start(&from, &to, args->listen_uri, &args->start)) {
         return;
     }

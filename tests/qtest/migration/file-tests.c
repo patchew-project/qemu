@@ -118,8 +118,8 @@ static void test_precopy_file_mapped_ram_live(char *name, MigrateCommon *args)
     args->listen_uri = uri;
 
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true;
 
+    qdict_put_bool(args->start.config, "mapped-ram", true);
     test_file_common(args, false);
 }
 
@@ -132,8 +132,8 @@ static void test_precopy_file_mapped_ram(char *name, MigrateCommon *args)
     args->listen_uri = uri;
 
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true;
 
+    qdict_put_bool(args->start.config, "mapped-ram", true);
     test_file_common(args, true);
 }
 
@@ -145,9 +145,9 @@ static void test_multifd_file_mapped_ram_live(char *name, MigrateCommon *args)
     args->listen_uri = uri;
 
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
-    args->start.caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true;
 
+    qdict_put_bool(args->start.config, "multifd", true);
+    qdict_put_bool(args->start.config, "mapped-ram", true);
     test_file_common(args, false);
 }
 
@@ -160,19 +160,10 @@ static void test_multifd_file_mapped_ram(char *name, MigrateCommon *args)
     args->listen_uri = uri;
 
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
-    args->start.caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true;
 
+    qdict_put_bool(args->start.config, "multifd", true);
+    qdict_put_bool(args->start.config, "mapped-ram", true);
     test_file_common(args, true);
-}
-
-static void *migrate_hook_start_multifd_mapped_ram_dio(QTestState *from,
-                                                       QTestState *to)
-{
-    migrate_set_parameter_bool(from, "direct-io", true);
-    migrate_set_parameter_bool(to, "direct-io", true);
-
-    return NULL;
 }
 
 static void test_multifd_file_mapped_ram_dio(char *name, MigrateCommon *args)
@@ -181,17 +172,17 @@ static void test_multifd_file_mapped_ram_dio(char *name, MigrateCommon *args)
                                            FILE_TEST_FILENAME);
     args->connect_uri = uri;
     args->listen_uri = uri;
-    args->start_hook = migrate_hook_start_multifd_mapped_ram_dio;
 
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
 
     if (!probe_o_direct_support(tmpfs)) {
         g_test_skip("Filesystem does not support O_DIRECT");
         return;
     }
 
+    qdict_put_bool(args->start.config, "multifd", true);
+    qdict_put_bool(args->start.config, "mapped-ram", true);
+    qdict_put_bool(args->start.config, "direct-io", true);
     test_file_common(args, true);
 }
 
@@ -230,9 +221,6 @@ static void *migrate_hook_start_multifd_mapped_ram_fdset_dio(QTestState *from,
     fdset_add_fds(from, file, O_WRONLY, 2, true);
     fdset_add_fds(to, file, O_RDONLY, 2, true);
 
-    migrate_set_parameter_bool(from, "direct-io", true);
-    migrate_set_parameter_bool(to, "direct-io", true);
-
     return NULL;
 }
 
@@ -258,9 +246,9 @@ static void test_multifd_file_mapped_ram_fdset(char *name, MigrateCommon *args)
     args->end_hook = migrate_hook_end_multifd_mapped_ram_fdset;
 
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
 
+    qdict_put_bool(args->start.config, "multifd", true);
+    qdict_put_bool(args->start.config, "mapped-ram", true);
     test_file_common(args, true);
 }
 
@@ -276,14 +264,15 @@ static void test_multifd_file_mapped_ram_fdset_dio(char *name,
     args->end_hook = migrate_hook_end_multifd_mapped_ram_fdset;
 
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
 
     if (!probe_o_direct_support(tmpfs)) {
         g_test_skip("Filesystem does not support O_DIRECT");
         return;
     }
 
+    qdict_put_bool(args->start.config, "multifd", true);
+    qdict_put_bool(args->start.config, "mapped-ram", true);
+    qdict_put_bool(args->start.config, "direct-io", true);
     test_file_common(args, true);
 }
 #endif /* !_WIN32 */
