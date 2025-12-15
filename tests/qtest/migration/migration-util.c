@@ -395,3 +395,47 @@ bool kvm_dirty_ring_supported(void)
     return false;
 #endif
 }
+
+QDict *fixup_tls_creds(QDict *config)
+{
+    QDict *new;
+
+    if (!config) {
+        return NULL;
+    }
+
+    /*
+     * The tests expect the tls-creds to have different values for
+     * client and server, but there's only one config object. The
+     * tls-tests have passed the values in the two temporary keys
+     * below.
+     */
+    const char *server = qdict_get_try_str(config, "tmp-tls-server");
+    const char *client = qdict_get_try_str(config, "tmp-tls-client");
+
+    if (server && client) {
+        new = qdict_clone_shallow(config);
+
+        /*
+         * Set the proper value for the incoming side and discard the
+         * temporaries. Note that removing the temporaries cannot
+         * happen before cloning because the qdict code frees the
+         * strings.
+         */
+        qdict_put_str(new, "tls-creds", server);
+        qdict_del(new, "tmp-tls-client");
+        qdict_del(new, "tmp-tls-server");
+
+        /*
+         * Set the value for the outgoing side for further usage
+         * outside this function.
+         */
+        qdict_put_str(config, "tls-creds", client);
+        qdict_del(config, "tmp-tls-client");
+        qdict_del(config, "tmp-tls-server");
+
+        return new;
+    }
+
+    return config;
+}

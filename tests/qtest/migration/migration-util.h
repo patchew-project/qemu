@@ -59,6 +59,7 @@ void migration_test_add_suffix(const char *path, const char *suffix,
                                void (*fn)(char *name, MigrateCommon *args));
 char *migrate_get_connect_uri(QTestState *who);
 void migrate_set_ports(QTestState *to, QList *channel_list);
+QDict *fixup_tls_creds(QDict *config);
 
 /*
  * Scaffolding to allow the framework _common functions and _qmp

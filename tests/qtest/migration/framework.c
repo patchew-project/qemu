@@ -429,8 +429,10 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
      */
     events = args->defer_target_connect ? "-global migration.x-events=on" : "";
 
-    if (args->config) {
-        GString *json = qobject_to_json(QOBJECT(args->config));
+    if (!args->incoming_defer && args->config) {
+        QDict *conf = fixup_tls_creds(args->config);
+        GString *json = qobject_to_json(QOBJECT(conf));
+
         config_opts = g_strdup_printf("-incoming '%s'", json->str);
     }
 
@@ -883,12 +885,15 @@ int test_precopy_common(MigrateCommon *args)
     }
 
     if (args->start.incoming_defer && !args->start.defer_target_connect) {
+        QDict *incoming_conf = fixup_tls_creds(args->start.config);
+
         if (args->connect_channels) {
             in_channels = qobject_from_json(args->connect_channels,
                                             &error_abort);
         }
+
         migrate_incoming_qmp(to, args->listen_uri, in_channels,
-                             args->start.config, "{}");
+                             incoming_conf, "{}");
     }
 
     /* Wait for the first serial output from the source */

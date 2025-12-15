@@ -259,10 +259,6 @@ migrate_hook_start_tls_x509_common(QTestState *from,
                              "                 'sanity-check': true,"
                              "                 'verify-peer': true} }",
                              workdir);
-    migrate_set_parameter_str(from, "tls-creds", "tlscredsx509client0");
-    if (args->certhostname) {
-        migrate_set_parameter_str(from, "tls-hostname", args->certhostname);
-    }
 
     qtest_qmp_assert_success(to,
                              "{ 'execute': 'object-add',"
@@ -273,7 +269,6 @@ migrate_hook_start_tls_x509_common(QTestState *from,
                              "                 'sanity-check': true,"
                              "                 'verify-peer': %i} }",
                              workdir, args->verifyclient);
-    migrate_set_parameter_str(to, "tls-creds", "tlscredsx509server0");
 
     if (args->authzclient) {
         qtest_qmp_assert_success(to,
@@ -282,7 +277,6 @@ migrate_hook_start_tls_x509_common(QTestState *from,
                                  "                 'id': 'tlsauthz0',"
                                  "                 'identity': %s} }",
                                  "CN=" QCRYPTO_TLS_TEST_CLIENT_NAME);
-        migrate_set_parameter_str(to, "tls-authz", "tlsauthz0");
     }
 
     return NULL;
@@ -335,6 +329,28 @@ static void migrate_tls_x509_init(MigrateCommon *args,
                                test_args->certipaddr);
     test_tls_deinit_cert(&clientcertreq);
     test_tls_deinit_cert(&cacertreq);
+
+    /*
+     * These keys are not actual parameters, we need them for the test
+     * code because it uses the same config object for both QEMUs.
+     */
+    qdict_put_str(args->start.config, "tmp-tls-client", "tlscredsx509client0");
+    qdict_put_str(args->start.config, "tmp-tls-server", "tlscredsx509server0");
+
+    if (test_args->certhostname) {
+        qdict_put_str(args->start.config, "tls-hostname",
+                      test_args->certhostname);
+    } else {
+        qdict_put_null(args->start.config, "tls-hostname");
+    }
+
+    if (test_args->authzclient) {
+        qdict_put_str(args->start.config, "tls-authz", "tlsauthz0");
+    }
+
+    if (qdict_get_try_bool(args->start.config, "multifd", false)) {
+        qdict_put_str(args->start.config, "multifd-compression", "none");
+    }
 }
 
 static void migrate_tls_x509_cleanup(TestMigrateTLSX509Data *data)
@@ -368,6 +384,9 @@ static void test_precopy_tls_x509_common(MigrateCommon *args,
                                          TestMigrateTLSX509 *test_args)
 {
     TestMigrateTLSX509Data *data = g_new0(TestMigrateTLSX509Data, 1);
+
+    /* temporary */
+    qdict_put_bool(args->start.config, "use-config", true);
 
     migrate_tls_x509_init(args, test_args, data);
     test_precopy_common(args);
@@ -508,21 +527,11 @@ static void test_precopy_tcp_no_tls(char *name, MigrateCommon *args)
     test_precopy_common(args);
 }
 
-static void *
-migrate_hook_start_tls_x509_no_host(QTestState *from, QTestState *to)
-{
-    TestMigrateTLSX509Data *data = migrate_hook_start_tls_x509_common(
-        from, to, &tls_x509_no_host);
-    migrate_set_parameter_null(from, "tls-hostname");
-    migrate_set_parameter_null(to, "tls-hostname");
-
-    return data;
-}
-
 static void test_precopy_tcp_tls_no_hostname(char *name, MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook = migrate_hook_start_tls_x509_no_host;
+    args->start_hook_full = migrate_hook_start_tls_x509_common;
+    args->start_hook_data = &tls_x509_no_host;
     args->result = MIG_TEST_FAIL_DEST_QUIT_ERR;
 
     args->start.hide_stderr = true;
@@ -609,60 +618,6 @@ static void test_precopy_tcp_tls_x509_reject_anon_client(char *name,
 
     test_precopy_tls_x509_common(args, &tls_x509_reject_anon_client);
 }
-
-static void *
-migrate_hook_start_multifd_tls_x509_default_host(QTestState *from,
-                                                 QTestState *to)
-{
-    migrate_set_parameter_str(from, "multifd-compression", "none");
-    migrate_set_parameter_str(to, "multifd-compression", "none");
-
-    return migrate_hook_start_tls_x509_common(from, to, &tls_x509_default_host);
-}
-
-static void *
-migrate_hook_start_multifd_tls_x509_override_host(QTestState *from,
-                                                  QTestState *to)
-{
-    migrate_set_parameter_str(from, "multifd-compression", "none");
-    migrate_set_parameter_str(to, "multifd-compression", "none");
-
-    return migrate_hook_start_tls_x509_common(from, to,
-                                              &tls_x509_override_host);
-}
-
-static void *
-migrate_hook_start_multifd_tls_x509_mismatch_host(QTestState *from,
-                                                  QTestState *to)
-{
-    migrate_set_parameter_str(from, "multifd-compression", "none");
-    migrate_set_parameter_str(to, "multifd-compression", "none");
-
-    return migrate_hook_start_tls_x509_common(from, to,
-                                              &tls_x509_mismatch_host);
-}
-
-static void *
-migrate_hook_start_multifd_tls_x509_allow_anon_client(QTestState *from,
-                                                      QTestState *to)
-{
-    migrate_set_parameter_str(from, "multifd-compression", "none");
-    migrate_set_parameter_str(to, "multifd-compression", "none");
-
-    return migrate_hook_start_tls_x509_common(from, to,
-                                              &tls_x509_allow_anon_client);
-}
-
-static void *
-migrate_hook_start_multifd_tls_x509_reject_anon_client(QTestState *from,
-                                                       QTestState *to)
-{
-    migrate_set_parameter_str(from, "multifd-compression", "none");
-    migrate_set_parameter_str(to, "multifd-compression", "none");
-
-    return migrate_hook_start_tls_x509_common(from, to,
-                                              &tls_x509_reject_anon_client);
-}
 #endif /* CONFIG_TASN1 */
 
 static void test_multifd_tcp_tls_psk_match(char *name, MigrateCommon *args)
@@ -701,25 +656,17 @@ static void test_multifd_postcopy_tcp_tls_psk_match(char *name,
 static void test_multifd_tcp_tls_x509_default_host(char *name,
                                                    MigrateCommon *args)
 {
-    args->start_hook = migrate_hook_start_multifd_tls_x509_default_host;
-    args->listen_uri = "tcp:127.0.0.1:0";
-
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
-
-    test_precopy_tls_x509_common(args, &tls_x509_default_host);
+    qdict_put_bool(args->start.config, "multifd", true);
+    test_precopy_tcp_tls_x509_default_host(name, args);
 }
 
 static void test_multifd_tcp_tls_x509_override_host(char *name,
                                                     MigrateCommon *args)
 {
-    args->start_hook = migrate_hook_start_multifd_tls_x509_override_host;
-    args->listen_uri = "tcp:127.0.0.1:0";
-
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
-
-    test_precopy_tls_x509_common(args, &tls_x509_override_host);
+    qdict_put_bool(args->start.config, "multifd", true);
+    test_precopy_tcp_tls_x509_override_host(name, args);
 }
 
 static void test_multifd_tcp_tls_x509_mismatch_host(char *name,
@@ -738,13 +685,15 @@ static void test_multifd_tcp_tls_x509_mismatch_host(char *name,
      * to load migration state, and thus just aborts the migration
      * without exiting.
      */
-    args->start_hook = migrate_hook_start_multifd_tls_x509_mismatch_host;
+    args->start_hook_full = migrate_hook_start_tls_x509_common;
+    args->start_hook_data = &tls_x509_mismatch_host;
     args->result = MIG_TEST_FAIL;
     args->listen_uri = "tcp:127.0.0.1:0";
 
     args->start.incoming_defer = true;
     args->start.hide_stderr = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+
+    qdict_put_bool(args->start.config, "multifd", true);
 
     test_precopy_tls_x509_common(args, &tls_x509_mismatch_host);
 }
@@ -752,27 +701,17 @@ static void test_multifd_tcp_tls_x509_mismatch_host(char *name,
 static void test_multifd_tcp_tls_x509_allow_anon_client(char *name,
                                                         MigrateCommon *args)
 {
-    args->start_hook = migrate_hook_start_multifd_tls_x509_allow_anon_client;
-    args->listen_uri = "tcp:127.0.0.1:0";
-
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
-
-    test_precopy_tls_x509_common(args, &tls_x509_allow_anon_client);
+    qdict_put_bool(args->start.config, "multifd", true);
+    test_precopy_tcp_tls_x509_allow_anon_client(name, args);
 }
 
 static void test_multifd_tcp_tls_x509_reject_anon_client(char *name,
                                                          MigrateCommon *args)
 {
-    args->start_hook = migrate_hook_start_multifd_tls_x509_reject_anon_client;
-    args->result = MIG_TEST_FAIL;
-    args->listen_uri = "tcp:127.0.0.1:0";
-
     args->start.incoming_defer = true;
-    args->start.hide_stderr = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
-
-    test_precopy_tls_x509_common(args, &tls_x509_reject_anon_client);
+    qdict_put_bool(args->start.config, "multifd", true);
+    test_precopy_tcp_tls_x509_reject_anon_client(name, args);
 }
 #endif /* CONFIG_TASN1 */
 
