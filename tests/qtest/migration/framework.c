@@ -579,6 +579,7 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
                                     MigrateCommon *args)
 {
     QTestState *from, *to;
+    QObject *channels;
 
     /* set postcopy capabilities */
     args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_BLOCKTIME] = true;
@@ -594,13 +595,14 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
 
     migrate_ensure_non_converge(from, args->start.config);
     migrate_prepare_for_dirty_mem(from);
-    qtest_qmp_assert_success(to, "{ 'execute': 'migrate-incoming',"
-                             "  'arguments': { "
-                             "      'channels': [ { 'channel-type': 'main',"
-                             "      'addr': { 'transport': 'socket',"
-                             "                'type': 'inet',"
-                             "                'host': '127.0.0.1',"
-                             "                'port': '0' } } ] } }");
+
+    channels = qobject_from_json("[ { 'channel-type': 'main',"
+                                 "    'addr': { 'transport': 'socket',"
+                                 "              'type': 'inet',"
+                                 "              'host': '127.0.0.1',"
+                                 "              'port': '0' } } ]",
+                                 &error_abort);
+    migrate_incoming_qmp(to, NULL, channels, "{}");
 
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");

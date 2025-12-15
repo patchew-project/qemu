@@ -15,6 +15,8 @@
 #include "migration/framework.h"
 #include "migration/migration-qmp.h"
 #include "migration/migration-util.h"
+#include "qapi/error.h"
+#include "qobject/qjson.h"
 
 
 static char *tmpfs;
@@ -183,6 +185,7 @@ static void test_cpr_exec(MigrateCommon *args)
     g_autofree char *connect_uri = g_strdup(args->connect_uri);
     g_autofree char *filename = g_strdup_printf("%s/%s", tmpfs,
                                                 FILE_TEST_FILENAME);
+    g_autofree char *channels = NULL;
 
     if (migrate_start(&from, NULL, args->listen_uri, &args->start)) {
         return;
@@ -203,13 +206,15 @@ static void test_cpr_exec(MigrateCommon *args)
 
     to = qtest_init_after_exec(from);
 
-    qtest_qmp_assert_success(to, "{ 'execute': 'migrate-incoming',"
-                             "  'arguments': { "
-                             "      'channels': [ { 'channel-type': 'main',"
-                             "      'addr': { 'transport': 'file',"
-                             "                'filename': %s,"
-                             "                'offset': 0  } } ] } }",
-                             filename);
+    channels = g_strdup_printf("[ { 'channel-type': 'main',"
+                               "    'addr': { 'transport': 'file',"
+                               "              'filename': '%s',"
+                               "              'offset': 0  } } ]",
+                               filename);
+
+    migrate_incoming_qmp(to, NULL,
+                         qobject_from_json(channels, &error_abort),
+                         "{}");
     wait_for_migration_complete(to);
 
     wait_for_resume(to, get_dst());
