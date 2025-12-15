@@ -134,6 +134,76 @@ typedef struct {
     const char *certipaddr;
 } TestMigrateTLSX509;
 
+/*
+ * The normal case: match server's cert hostname against
+ * whatever host we were telling QEMU to connect to (if any)
+ */
+static TestMigrateTLSX509 tls_x509_default_host = {
+    .verifyclient = true,
+    .clientcert = true,
+    .certipaddr = "127.0.0.1"
+};
+
+/*
+ * The unusual case: the server's cert is different from
+ * the address we're telling QEMU to connect to (if any),
+ * so we must give QEMU an explicit hostname to validate
+ */
+static TestMigrateTLSX509 tls_x509_override_host = {
+    .verifyclient = true,
+    .clientcert = true,
+    .certhostname = "qemu.org",
+};
+
+/*
+ * The unusual case: the server's cert is different from
+ * the address we're telling QEMU to connect to, and so we
+ * expect the client to reject the server
+ */
+static TestMigrateTLSX509 tls_x509_mismatch_host = {
+    .verifyclient = true,
+    .clientcert = true,
+    .certipaddr = "10.0.0.1",
+};
+
+static TestMigrateTLSX509 x509_friendly_client = {
+    .verifyclient = true,
+    .clientcert = true,
+    .authzclient = true,
+    .certipaddr = "127.0.0.1",
+};
+
+static TestMigrateTLSX509 tls_x509_hostile_client = {
+    .verifyclient = true,
+    .clientcert = true,
+    .hostileclient = true,
+    .authzclient = true,
+    .certipaddr = "127.0.0.1",
+};
+
+/*
+ * The case with no client certificate presented,
+ * and no server verification
+ */
+static TestMigrateTLSX509 tls_x509_allow_anon_client = {
+    .certipaddr = "127.0.0.1",
+};
+
+/*
+ * The case with no client certificate presented,
+ * and server verification rejecting
+ */
+static TestMigrateTLSX509 tls_x509_reject_anon_client = {
+    .verifyclient = true,
+    .certipaddr = "127.0.0.1",
+};
+
+static TestMigrateTLSX509 tls_x509_no_host = {
+    .verifyclient = true,
+    .clientcert = true,
+    .authzclient = true,
+};
+
 static void *
 migrate_hook_start_tls_x509_common(QTestState *from,
                                    QTestState *to,
@@ -223,110 +293,58 @@ migrate_hook_start_tls_x509_common(QTestState *from,
     return data;
 }
 
-/*
- * The normal case: match server's cert hostname against
- * whatever host we were telling QEMU to connect to (if any)
- */
 static void *
 migrate_hook_start_tls_x509_default_host(QTestState *from,
                                          QTestState *to)
 {
-    TestMigrateTLSX509 args = {
-        .verifyclient = true,
-        .clientcert = true,
-        .certipaddr = "127.0.0.1"
-    };
-    return migrate_hook_start_tls_x509_common(from, to, &args);
+    return migrate_hook_start_tls_x509_common(from, to, &tls_x509_default_host);
 }
 
-/*
- * The unusual case: the server's cert is different from
- * the address we're telling QEMU to connect to (if any),
- * so we must give QEMU an explicit hostname to validate
- */
 static void *
 migrate_hook_start_tls_x509_override_host(QTestState *from,
                                           QTestState *to)
 {
-    TestMigrateTLSX509 args = {
-        .verifyclient = true,
-        .clientcert = true,
-        .certhostname = "qemu.org",
-    };
-    return migrate_hook_start_tls_x509_common(from, to, &args);
+    return migrate_hook_start_tls_x509_common(from, to,
+                                              &tls_x509_override_host);
 }
 
-/*
- * The unusual case: the server's cert is different from
- * the address we're telling QEMU to connect to, and so we
- * expect the client to reject the server
- */
 static void *
 migrate_hook_start_tls_x509_mismatch_host(QTestState *from,
                                           QTestState *to)
 {
-    TestMigrateTLSX509 args = {
-        .verifyclient = true,
-        .clientcert = true,
-        .certipaddr = "10.0.0.1",
-    };
-    return migrate_hook_start_tls_x509_common(from, to, &args);
+    return migrate_hook_start_tls_x509_common(from, to,
+                                              &tls_x509_mismatch_host);
 }
 
 static void *
 migrate_hook_start_tls_x509_friendly_client(QTestState *from,
                                             QTestState *to)
 {
-    TestMigrateTLSX509 args = {
-        .verifyclient = true,
-        .clientcert = true,
-        .authzclient = true,
-        .certipaddr = "127.0.0.1",
-    };
-    return migrate_hook_start_tls_x509_common(from, to, &args);
+    return migrate_hook_start_tls_x509_common(from, to, &x509_friendly_client);
 }
 
 static void *
 migrate_hook_start_tls_x509_hostile_client(QTestState *from,
                                            QTestState *to)
 {
-    TestMigrateTLSX509 args = {
-        .verifyclient = true,
-        .clientcert = true,
-        .hostileclient = true,
-        .authzclient = true,
-        .certipaddr = "127.0.0.1",
-    };
-    return migrate_hook_start_tls_x509_common(from, to, &args);
+    return migrate_hook_start_tls_x509_common(from, to,
+                                              &tls_x509_hostile_client);
 }
 
-/*
- * The case with no client certificate presented,
- * and no server verification
- */
 static void *
 migrate_hook_start_tls_x509_allow_anon_client(QTestState *from,
                                               QTestState *to)
 {
-    TestMigrateTLSX509 args = {
-        .certipaddr = "127.0.0.1",
-    };
-    return migrate_hook_start_tls_x509_common(from, to, &args);
+    return migrate_hook_start_tls_x509_common(from, to,
+                                              &tls_x509_allow_anon_client);
 }
 
-/*
- * The case with no client certificate presented,
- * and server verification rejecting
- */
 static void *
 migrate_hook_start_tls_x509_reject_anon_client(QTestState *from,
                                                QTestState *to)
 {
-    TestMigrateTLSX509 args = {
-        .verifyclient = true,
-        .certipaddr = "127.0.0.1",
-    };
-    return migrate_hook_start_tls_x509_common(from, to, &args);
+    return migrate_hook_start_tls_x509_common(from, to,
+                                              &tls_x509_reject_anon_client);
 }
 
 static void
@@ -509,13 +527,8 @@ static void test_precopy_tcp_no_tls(char *name, MigrateCommon *args)
 static void *
 migrate_hook_start_tls_x509_no_host(QTestState *from, QTestState *to)
 {
-    TestMigrateTLSX509 args = {
-        .verifyclient = true,
-        .clientcert = true,
-        .authzclient = true,
-    };
-    TestMigrateTLSX509Data *data = migrate_hook_start_tls_x509_common(from, to,
-                                                                      &args);
+    TestMigrateTLSX509Data *data = migrate_hook_start_tls_x509_common(
+        from, to, &tls_x509_no_host);
     migrate_set_parameter_null(from, "tls-hostname");
     migrate_set_parameter_null(to, "tls-hostname");
 
