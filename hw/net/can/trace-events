@@ -1,3 +1,21 @@
+# flexcan.c
+flexcan_irq_update(void *inst, uint32_t mb_irqs1, uint32_t mb_irqs2, int setting) "%p: irqs1 0x%08x irqs2 0x%08x request %i"
+flexcan_set_mcr(void* inst, const char *enabled, const char *freeze, const char *fifo, const char *rdy, const char *sync) "%p: %s %s %s %s %s"
+flexcan_mb_write(void *inst, int mbidx, const char *code, int is_mailbox, uint32_t ctrl, uint32_t id) "%p: mbidx %i code %s is_mailbox %i ctrl 0x%08x id 0x%08x"
+flexcan_mb_lock(void *inst, int mbidx, int had_rx_code) "%p: mbidx %i had_rx_code %i"
+flexcan_mb_unlock(void *inst, int mbidx, const char *pending_frame) "%p: mbidx %i%s"
+flexcan_fifo_pop(void *inst, int non_empty_before, int non_empty_after) "%p: non_empty before %i non_empty_after %i"
+flexcan_fifo_push(void *inst, int n_occupied) "%p: n_slots_occupied %i"
+flexcan_reset(void* inst) "%p: resetting"
+flexcan_mem_op(void *inst, const char *op, uint32_t v, int offset, const char *reg_name, int size) "%p: %s 0x%08x at offset %i register %s size %i"
+flexcan_mem_accepts(void *inst, int offset, int size, int is_write, int is_supv) "%p: denied access: offset %i size %i is_write %i is_supv %i"
+flexcan_get_timestamp(void *inst, int64_t time_elapsed_ms, uint32_t bitrate, uint64_t cycles, uint32_t shift, uint32_t timestamp) "%p: time_elapsed %" PRIi64 "ms bitrate %ub/s cycles %" PRIu64 " shift %u timestamp 0x%04x"
+flexcan_get_bitrate(void *inst, uint32_t pe_freq, uint32_t prediv, uint32_t s_freq, uint32_t tseg1, uint32_t tseg2, uint32_t quata_per_bit, uint32_t bitrate) "%p: pe_freq %uHz prescaler %u s_freq %uHz tseg1 %uq tseg2 %uq total %uq/b bitrate %ub/s"
+flexcan_timer_start(void *inst, uint32_t bitrate, uint32_t value) "%p: bitrate %ub/s value 0x%04x"
+flexcan_timer_stop(void *inst, uint32_t bitrate, uint32_t value) "%p: bitrate %ub/s value 0x%04x"
+flexcan_mb_rx_check_mb(void *inst, int mbidx, const char *code, int is_matched, int is_ftr, int is_serviced, int is_locked) "%p: checking mb %i code %s is_matched %i is_free_to_receive %i is_serviced %i is_locked %i"
+flexcan_receive(void *inst, size_t n_frames) "%p: received %zu frames"
+
 # xlnx-zynqmp-can.c
 xlnx_can_update_irq(uint32_t isr, uint32_t ier, uint32_t irq) "ISR: 0x%08x IER: 0x%08x IRQ: 0x%08x"
 xlnx_can_reset(uint32_t val) "Resetting controller with value = 0x%08x"
