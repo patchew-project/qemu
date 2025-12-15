@@ -80,6 +80,11 @@ static void migrate_tls_psk_init(MigrateCommon *args,
                                  TestMigrateTLSPSK *test_args,
                                  TestMigrateTLSPSKData *data)
 {
+    qdict_put_str(args->start.config, "tls-creds", "tlscredspsk0");
+
+    args->start_hook_full = migrate_hook_start_tls_psk_common;
+    args->start_hook_data = test_args;
+
     data->workdir = g_strdup_printf("%s/tlscredspsk0", tmpfs);
     data->pskfile = g_strdup_printf("%s/%s", data->workdir,
                                     QCRYPTO_TLS_CREDS_PSKFILE);
@@ -118,8 +123,6 @@ static void test_precopy_tls_psk_common(MigrateCommon *args,
 {
     TestMigrateTLSPSKData *data = g_new0(TestMigrateTLSPSKData, 1);
 
-    qdict_put_str(args->start.config, "tls-creds", "tlscredspsk0");
-
     migrate_tls_psk_init(args, test_args, data);
     test_precopy_common(args);
     migrate_tls_psk_cleanup(data);
@@ -130,8 +133,6 @@ static void test_postcopy_tls_psk_common(MigrateCommon *args,
 {
     TestMigrateTLSPSKData *data = g_new0(TestMigrateTLSPSKData, 1);
 
-    qdict_put_str(args->start.config, "tls-creds", "tlscredspsk0");
-
     migrate_tls_psk_init(args, test_args, data);
     test_postcopy_common(args);
     migrate_tls_psk_cleanup(data);
@@ -141,8 +142,6 @@ static void test_postcopy_recovery_tls_psk_common(MigrateCommon *args,
                                                   TestMigrateTLSPSK *test_args)
 {
     TestMigrateTLSPSKData *data = g_new0(TestMigrateTLSPSKData, 1);
-
-    qdict_put_str(args->start.config, "tls-creds", "tlscredspsk0");
 
     migrate_tls_psk_init(args, test_args, data);
     test_postcopy_recovery_common(args);
@@ -283,6 +282,9 @@ static void migrate_tls_x509_init(MigrateCommon *args,
                                   TestMigrateTLSX509 *test_args,
                                   TestMigrateTLSX509Data *data)
 {
+    args->start_hook_full = migrate_hook_start_tls_x509_common;
+    args->start_hook_data = test_args;
+
     data->workdir = g_strdup_printf("%s/tlscredsx5090", tmpfs);
     data->keyfile = g_strdup_printf("%s/key.pem", data->workdir);
 
@@ -390,17 +392,11 @@ static void test_precopy_tls_x509_common(MigrateCommon *args,
 
 static void test_postcopy_tls_psk(char *name, MigrateCommon *args)
 {
-    args->start_hook_full = migrate_hook_start_tls_psk_common;
-    args->start_hook_data = &tls_psk_match;
-
     test_postcopy_tls_psk_common(args, &tls_psk_match);
 }
 
 static void test_postcopy_preempt_tls_psk(char *name, MigrateCommon *args)
 {
-    args->start_hook_full = migrate_hook_start_tls_psk_common;
-    args->start_hook_data = &tls_psk_match;
-
     qdict_put_bool(args->start.config, "postcopy-preempt", true);
 
     test_postcopy_tls_psk_common(args, &tls_psk_match);
@@ -408,18 +404,12 @@ static void test_postcopy_preempt_tls_psk(char *name, MigrateCommon *args)
 
 static void test_postcopy_recovery_tls_psk(char *name, MigrateCommon *args)
 {
-    args->start_hook_full = migrate_hook_start_tls_psk_common;
-    args->start_hook_data = &tls_psk_match;
-
     test_postcopy_recovery_tls_psk_common(args, &tls_psk_match);
 }
 
 static void test_multifd_postcopy_recovery_tls_psk(char *name,
                                                    MigrateCommon *args)
 {
-    args->start_hook_full = migrate_hook_start_tls_psk_common;
-    args->start_hook_data = &tls_psk_match;
-
     qdict_put_bool(args->start.config, "multifd", true);
 
     test_postcopy_recovery_tls_psk_common(args, &tls_psk_match);
@@ -428,9 +418,6 @@ static void test_multifd_postcopy_recovery_tls_psk(char *name,
 /* This contains preempt+recovery+tls test altogether */
 static void test_postcopy_preempt_all(char *name, MigrateCommon *args)
 {
-    args->start_hook_full = migrate_hook_start_tls_psk_common;
-    args->start_hook_data = &tls_psk_match;
-
     qdict_put_bool(args->start.config, "postcopy-preempt", true);
 
     test_postcopy_recovery_tls_psk_common(args, &tls_psk_match);
@@ -439,9 +426,6 @@ static void test_postcopy_preempt_all(char *name, MigrateCommon *args)
 static void test_multifd_postcopy_preempt_recovery_tls_psk(char *name,
                                                            MigrateCommon *args)
 {
-    args->start_hook_full = migrate_hook_start_tls_psk_common;
-    args->start_hook_data = &tls_psk_match;
-
     qdict_put_bool(args->start.config, "multifd", true);
     qdict_put_bool(args->start.config, "postcopy-preempt", true);
 
@@ -454,8 +438,6 @@ static void test_precopy_unix_tls_psk(char *name, MigrateCommon *args)
 
     args->connect_uri = uri;
     args->listen_uri = uri;
-    args->start_hook_full = migrate_hook_start_tls_psk_common;
-    args->start_hook_data = &tls_psk_match;
 
     test_precopy_tls_psk_common(args, &tls_psk_match);
 }
@@ -468,8 +450,6 @@ static void test_precopy_unix_tls_x509_default_host(char *name,
 
     args->connect_uri = uri;
     args->listen_uri = uri;
-    args->start_hook_full = migrate_hook_start_tls_x509_common;
-    args->start_hook_data = &tls_x509_default_host;
     args->result = MIG_TEST_FAIL_DEST_QUIT_ERR;
 
     args->start.hide_stderr = true;
@@ -484,8 +464,6 @@ static void test_precopy_unix_tls_x509_override_host(char *name,
 
     args->connect_uri = uri;
     args->listen_uri = uri;
-    args->start_hook_full = migrate_hook_start_tls_x509_common;
-    args->start_hook_data = &tls_x509_override_host;
 
     test_precopy_tls_x509_common(args, &tls_x509_override_host);
 }
@@ -494,8 +472,6 @@ static void test_precopy_unix_tls_x509_override_host(char *name,
 static void test_precopy_tcp_tls_psk_match(char *name, MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook_full = migrate_hook_start_tls_psk_common;
-    args->start_hook_data = &tls_psk_match;
 
     test_precopy_tls_psk_common(args, &tls_psk_match);
 }
@@ -503,8 +479,6 @@ static void test_precopy_tcp_tls_psk_match(char *name, MigrateCommon *args)
 static void test_precopy_tcp_tls_psk_mismatch(char *name, MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook_full = migrate_hook_start_tls_psk_common;
-    args->start_hook_data = &tls_psk_mismatch;
     args->result = MIG_TEST_FAIL;
 
     args->start.hide_stderr = true;
@@ -524,8 +498,6 @@ static void test_precopy_tcp_no_tls(char *name, MigrateCommon *args)
 static void test_precopy_tcp_tls_no_hostname(char *name, MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook_full = migrate_hook_start_tls_x509_common;
-    args->start_hook_data = &tls_x509_no_host;
     args->result = MIG_TEST_FAIL_DEST_QUIT_ERR;
 
     args->start.hide_stderr = true;
@@ -538,8 +510,6 @@ static void test_precopy_tcp_tls_x509_default_host(char *name,
                                                    MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook_full = migrate_hook_start_tls_x509_common;
-    args->start_hook_data = &tls_x509_default_host;
 
     test_precopy_tls_x509_common(args, &tls_x509_default_host);
 }
@@ -548,8 +518,6 @@ static void test_precopy_tcp_tls_x509_override_host(char *name,
                                                     MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook_full = migrate_hook_start_tls_x509_common;
-    args->start_hook_data = &tls_x509_override_host;
 
     test_precopy_tls_x509_common(args, &tls_x509_override_host);
 }
@@ -558,8 +526,6 @@ static void test_precopy_tcp_tls_x509_mismatch_host(char *name,
                                                     MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook_full = migrate_hook_start_tls_x509_common;
-    args->start_hook_data = &tls_x509_mismatch_host;
     args->result = MIG_TEST_FAIL_DEST_QUIT_ERR;
 
     args->start.hide_stderr = true;
@@ -571,8 +537,6 @@ static void test_precopy_tcp_tls_x509_friendly_client(char *name,
                                                       MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook_full = migrate_hook_start_tls_x509_common;
-    args->start_hook_data = &x509_friendly_client;
 
     test_precopy_tls_x509_common(args, &x509_friendly_client);
 }
@@ -581,8 +545,6 @@ static void test_precopy_tcp_tls_x509_hostile_client(char *name,
                                                      MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook_full = migrate_hook_start_tls_x509_common;
-    args->start_hook_data = &tls_x509_hostile_client;
     args->result = MIG_TEST_FAIL;
 
     args->start.hide_stderr = true;
@@ -594,8 +556,6 @@ static void test_precopy_tcp_tls_x509_allow_anon_client(char *name,
                                                         MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook_full = migrate_hook_start_tls_x509_common;
-    args->start_hook_data = &tls_x509_allow_anon_client;
 
     test_precopy_tls_x509_common(args, &tls_x509_allow_anon_client);
 }
@@ -604,8 +564,6 @@ static void test_precopy_tcp_tls_x509_reject_anon_client(char *name,
                                                          MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook_full = migrate_hook_start_tls_x509_common;
-    args->start_hook_data = &tls_x509_reject_anon_client;
     args->result = MIG_TEST_FAIL;
 
     args->start.hide_stderr = true;
@@ -679,8 +637,6 @@ static void test_multifd_tcp_tls_x509_mismatch_host(char *name,
      * to load migration state, and thus just aborts the migration
      * without exiting.
      */
-    args->start_hook_full = migrate_hook_start_tls_x509_common;
-    args->start_hook_data = &tls_x509_mismatch_host;
     args->result = MIG_TEST_FAIL;
     args->listen_uri = "tcp:127.0.0.1:0";
 
