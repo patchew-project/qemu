@@ -21,26 +21,16 @@
 static char *tmpfs;
 
 #ifdef CONFIG_ZSTD
-static void *
-migrate_hook_start_precopy_tcp_multifd_zstd(QTestState *from,
-                                            QTestState *to)
-{
-    migrate_set_parameter_int(from, "multifd-zstd-level", 2);
-    migrate_set_parameter_int(to, "multifd-zstd-level", 2);
-
-    migrate_set_parameter_str(from, "multifd-compression", "zstd");
-    migrate_set_parameter_str(to, "multifd-compression", "zstd");
-
-    return NULL;
-}
-
 static void test_multifd_tcp_zstd(char *name, MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook = migrate_hook_start_precopy_tcp_multifd_zstd;
 
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+
+    qdict_put_bool(args->start.config, "multifd", true);
+
+    /* temporary */
+    qdict_put_bool(args->start.config, "use-config", true);
 
     test_precopy_common(args);
 }
@@ -48,95 +38,72 @@ static void test_multifd_tcp_zstd(char *name, MigrateCommon *args)
 static void test_multifd_postcopy_tcp_zstd(char *name, MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook = migrate_hook_start_precopy_tcp_multifd_zstd,
 
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
-    args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_RAM] = true;
+
+    qdict_put_bool(args->start.config, "multifd", true);
+    qdict_put_bool(args->start.config, "postcopy-ram", true);
+    qdict_put_int(args->start.config, "multifd-zstd-level", 2);
+    qdict_put_str(args->start.config, "multifd-compression", "zstd");
+
+    /* temporary */
+    qdict_put_bool(args->start.config, "use-config", true);
 
     test_precopy_common(args);
 }
 #endif /* CONFIG_ZSTD */
 
 #ifdef CONFIG_QATZIP
-static void *
-migrate_hook_start_precopy_tcp_multifd_qatzip(QTestState *from,
-                                              QTestState *to)
-{
-    migrate_set_parameter_int(from, "multifd-qatzip-level", 2);
-    migrate_set_parameter_int(to, "multifd-qatzip-level", 2);
-
-    migrate_set_parameter_str(from, "multifd-compression", "qatzip");
-    migrate_set_parameter_str(to, "multifd-compression", "qatzip");
-
-    return NULL;
-}
-
 static void test_multifd_tcp_qatzip(char *name, MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook = migrate_hook_start_precopy_tcp_multifd_qatzip;
 
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+
+    qdict_put_bool(args->start.config, "multifd", true);
+    qdict_put_int(args->start.config, "multifd-qatzip-level", 2);
+    qdict_put_str(args->start.config, "multifd-compression", "qatzip");
+
+    /* temporary */
+    qdict_put_bool(args->start.config, "use-config", true);
 
     test_precopy_common(args);
 }
 #endif
 
 #ifdef CONFIG_QPL
-static void *
-migrate_hook_start_precopy_tcp_multifd_qpl(QTestState *from,
-                                           QTestState *to)
-{
-    migrate_set_parameter_str(from, "multifd-compression", "qpl");
-    migrate_set_parameter_str(to, "multifd-compression", "qpl");
-
-    return NULL;
-}
-
 static void test_multifd_tcp_qpl(char *name, MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook = migrate_hook_start_precopy_tcp_multifd_qpl;
 
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+
+    qdict_put_bool(args->start.config, "multifd", true);
+    qdict_put_str(args->start.config, "multifd-compression", "qpl");
+
+    /* temporary */
+    qdict_put_bool(args->start.config, "use-config", true);
 
     test_precopy_common(args);
 }
 #endif /* CONFIG_QPL */
 
 #ifdef CONFIG_UADK
-static void *
-migrate_hook_start_precopy_tcp_multifd_uadk(QTestState *from,
-                                            QTestState *to)
-{
-    migrate_set_parameter_str(from, "multifd-compression", "uadk");
-    migrate_set_parameter_str(to, "multifd-compression", "uadk");
-
-    return NULL;
-}
-
 static void test_multifd_tcp_uadk(char *name, MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook = migrate_hook_start_precopy_tcp_multifd_uadk;
 
     args->start.incoming_defer = true;
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+
+    qdict_put_bool(args->start.config, "multifd", true);
+    qdict_put_str(args->start.config, "multifd-compression", "uadk");
+
+    /* temporary */
+    qdict_put_bool(args->start.config, "use-config", true);
 
     test_precopy_common(args);
 }
 #endif /* CONFIG_UADK */
-
-static void *
-migrate_hook_start_xbzrle(QTestState *from,
-                          QTestState *to)
-{
-    migrate_set_parameter_int(from, "xbzrle-cache-size", 33554432);
-    return NULL;
-}
 
 static void test_precopy_unix_xbzrle(char *name, MigrateCommon *args)
 {
@@ -144,7 +111,6 @@ static void test_precopy_unix_xbzrle(char *name, MigrateCommon *args)
 
     args->connect_uri = uri;
     args->listen_uri = uri;
-    args->start_hook = migrate_hook_start_xbzrle;
     args->iterations = 2;
     /*
      * XBZRLE needs pages to be modified when doing the 2nd+ round
@@ -152,35 +118,31 @@ static void test_precopy_unix_xbzrle(char *name, MigrateCommon *args)
      */
     args->live = true;
 
-    args->start.caps[MIGRATION_CAPABILITY_XBZRLE] = true;
+    qdict_put_bool(args->start.config, "xbzrle", true);
+    qdict_put_int(args->start.config, "xbzrle-cache-size", 33554432);
+
+    /* temporary */
+    qdict_put_bool(args->start.config, "use-config", true);
 
     test_precopy_common(args);
-}
-
-static void *
-migrate_hook_start_precopy_tcp_multifd_zlib(QTestState *from,
-                                            QTestState *to)
-{
-    /*
-     * Overloading this test to also check that set_parameter does not error.
-     * This is also done in the tests for the other compression methods.
-     */
-    migrate_set_parameter_int(from, "multifd-zlib-level", 2);
-    migrate_set_parameter_int(to, "multifd-zlib-level", 2);
-
-    migrate_set_parameter_str(from, "multifd-compression", "zlib");
-    migrate_set_parameter_str(to, "multifd-compression", "zlib");
-
-    return NULL;
 }
 
 static void test_multifd_tcp_zlib(char *name, MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
-    args->start_hook = migrate_hook_start_precopy_tcp_multifd_zlib;
 
     args->start.incoming_defer = true;
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+
+    /*
+     * Overloading this test to also check that set_parameter does not error.
+     * This is also done in the tests for the other compression methods.
+     */
+    qdict_put_int(args->start.config, "multifd-zlib-level", 2);
+    qdict_put_str(args->start.config, "multifd-compression", "zlib");
+
+    /* temporary */
+    qdict_put_bool(args->start.config, "use-config", true);
 
     test_precopy_common(args);
 }
