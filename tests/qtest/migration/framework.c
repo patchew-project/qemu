@@ -582,8 +582,8 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
     QObject *channels;
 
     /* set postcopy capabilities */
-    args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_BLOCKTIME] = true;
-    args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_RAM] = true;
+    qdict_put_bool(args->start.config, "postcopy-blocktime", true);
+    qdict_put_bool(args->start.config, "postcopy-ram", true);
 
     if (migrate_start(&from, &to, "defer", &args->start)) {
         return -1;
@@ -651,6 +651,9 @@ static void migrate_postcopy_complete(QTestState *from, QTestState *to,
 void test_postcopy_common(MigrateCommon *args)
 {
     QTestState *from, *to;
+
+    /* temporary */
+    qdict_put_bool(args->start.config, "use-config", true);
 
     if (migrate_postcopy_prepare(&from, &to, args)) {
         return;
@@ -784,6 +787,9 @@ void test_postcopy_recovery_common(MigrateCommon *args)
 {
     QTestState *from, *to;
     g_autofree char *uri = NULL;
+
+    /* temporary */
+    qdict_put_bool(args->start.config, "use-config", true);
 
     /*
      * Always enable OOB QMP capability for recovery tests, migrate-recover is

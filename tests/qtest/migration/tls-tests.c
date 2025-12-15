@@ -131,6 +131,8 @@ static void test_postcopy_tls_psk_common(MigrateCommon *args,
 {
     TestMigrateTLSPSKData *data = g_new0(TestMigrateTLSPSKData, 1);
 
+    qdict_put_str(args->start.config, "tls-creds", "tlscredspsk0");
+
     migrate_tls_psk_init(args, test_args, data);
     test_postcopy_common(args);
     migrate_tls_psk_cleanup(data);
@@ -140,6 +142,8 @@ static void test_postcopy_recovery_tls_psk_common(MigrateCommon *args,
                                                   TestMigrateTLSPSK *test_args)
 {
     TestMigrateTLSPSKData *data = g_new0(TestMigrateTLSPSKData, 1);
+
+    qdict_put_str(args->start.config, "tls-creds", "tlscredspsk0");
 
     migrate_tls_psk_init(args, test_args, data);
     test_postcopy_recovery_common(args);
@@ -382,7 +386,7 @@ static void test_postcopy_preempt_tls_psk(char *name, MigrateCommon *args)
     args->start_hook_full = migrate_hook_start_tls_psk_common;
     args->start_hook_data = &tls_psk_match;
 
-    args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT] = true;
+    qdict_put_bool(args->start.config, "postcopy-preempt", true);
 
     test_postcopy_tls_psk_common(args, &tls_psk_match);
 }
@@ -401,7 +405,7 @@ static void test_multifd_postcopy_recovery_tls_psk(char *name,
     args->start_hook_full = migrate_hook_start_tls_psk_common;
     args->start_hook_data = &tls_psk_match;
 
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+    qdict_put_bool(args->start.config, "multifd", true);
 
     test_postcopy_recovery_tls_psk_common(args, &tls_psk_match);
 }
@@ -412,7 +416,7 @@ static void test_postcopy_preempt_all(char *name, MigrateCommon *args)
     args->start_hook_full = migrate_hook_start_tls_psk_common;
     args->start_hook_data = &tls_psk_match;
 
-    args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT] = true;
+    qdict_put_bool(args->start.config, "postcopy-preempt", true);
 
     test_postcopy_recovery_tls_psk_common(args, &tls_psk_match);
 }
@@ -423,8 +427,8 @@ static void test_multifd_postcopy_preempt_recovery_tls_psk(char *name,
     args->start_hook_full = migrate_hook_start_tls_psk_common;
     args->start_hook_data = &tls_psk_match;
 
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
-    args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT] = true;
+    qdict_put_bool(args->start.config, "multifd", true);
+    qdict_put_bool(args->start.config, "postcopy-preempt", true);
 
     test_postcopy_recovery_tls_psk_common(args, &tls_psk_match);
 }

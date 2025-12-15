@@ -34,7 +34,7 @@ static void test_postcopy_suspend(char *name, MigrateCommon *args)
 
 static void test_postcopy_preempt(char *name, MigrateCommon *args)
 {
-    args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT] = true;
+    qdict_put_bool(args->start.config, "postcopy-preempt", true);
 
     test_postcopy_common(args);
 }
@@ -62,7 +62,7 @@ static void test_postcopy_recovery_fail_reconnect(char *name,
 
 static void test_postcopy_preempt_recovery(char *name, MigrateCommon *args)
 {
-    args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT] = true;
+    qdict_put_bool(args->start.config, "postcopy-preempt", true);
 
     test_postcopy_recovery_common(args);
 }
@@ -80,15 +80,15 @@ static void migration_test_add_postcopy_smoke(MigrationTestEnv *env)
 
 static void test_multifd_postcopy(char *name, MigrateCommon *args)
 {
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+    qdict_put_bool(args->start.config, "multifd", true);
 
     test_postcopy_common(args);
 }
 
 static void test_multifd_postcopy_preempt(char *name, MigrateCommon *args)
 {
-    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
-    args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT] = true;
+    qdict_put_bool(args->start.config, "multifd", true);
+    qdict_put_bool(args->start.config, "postcopy-preempt", true);
 
     test_postcopy_common(args);
 }
