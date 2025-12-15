@@ -1823,7 +1823,7 @@ static inline bool memory_region_is_romd(MemoryRegion *mr)
 bool memory_region_is_protected(MemoryRegion *mr);
 
 /**
- * memory_region_has_guest_memfd: check whether a memory region has
+ * memory_region_has_guest_memfd_private: check whether a memory region has
  *     guest_memfd_private associated
  *
  * Returns %true if a memory region's ram_block has guest_memfd_private
@@ -1831,7 +1831,7 @@ bool memory_region_is_protected(MemoryRegion *mr);
  *
  * @mr: the memory region being queried
  */
-bool memory_region_has_guest_memfd(MemoryRegion *mr);
+bool memory_region_has_guest_memfd_private(MemoryRegion *mr);
 
 /**
  * memory_region_get_iommu: check whether a memory region is an iommu
