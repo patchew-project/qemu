@@ -31,7 +31,7 @@ static void test_baddest(char *name, MigrateCommon *args)
     if (migrate_start(&from, &to, "tcp:127.0.0.1:0", &args->start)) {
         return;
     }
-    migrate_qmp(from, to, "tcp:127.0.0.1:0", NULL, "{}");
+    migrate_qmp(from, to, "tcp:127.0.0.1:0", NULL, args->start.config, "{}");
     wait_for_migration_fail(from, false);
     migrate_end(from, to, false);
 }
@@ -69,7 +69,7 @@ static void test_analyze_script(char *name, MigrateCommon *args)
     uri = g_strdup_printf("exec:cat > %s", file);
 
     migrate_ensure_converge(from, args->start.config);
-    migrate_qmp(from, to, uri, NULL, "{}");
+    migrate_qmp(from, to, uri, NULL, args->start.config, "{}");
     wait_for_migration_complete(from);
 
     pid = fork();
@@ -108,7 +108,7 @@ static void test_ignore_shared(char *name, MigrateCommon *args)
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
-    migrate_qmp(from, to, uri, NULL, "{}");
+    migrate_qmp(from, to, uri, NULL, args->start.config, "{}");
 
     migrate_wait_for_dirty_mem(from, to);
 
@@ -146,7 +146,7 @@ static void do_test_validate_uuid(MigrateStart *args, bool should_fail)
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
-    migrate_qmp(from, to, uri, NULL, "{}");
+    migrate_qmp(from, to, uri, NULL, args->config, "{}");
 
     if (should_fail) {
         qtest_set_expected_status(to, EXIT_FAILURE);
@@ -210,7 +210,8 @@ static void do_test_validate_uri_channel(MigrateCommon *args)
     channels = args->connect_channels ?
                qobject_from_json(args->connect_channels, &error_abort) :
                NULL;
-    migrate_qmp_fail(from, args->connect_uri, channels, "{}");
+    migrate_qmp_fail(from, args->connect_uri, channels,
+                     args->start.config, "{}");
 
     migrate_end(from, to, false);
 }

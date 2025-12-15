@@ -6,17 +6,18 @@
 
 QObject *migrate_str_to_channel(const char *str);
 
-G_GNUC_PRINTF(4, 5)
+G_GNUC_PRINTF(5, 6)
 void migrate_qmp_fail(QTestState *who, const char *uri,
-                      QObject *channels, const char *fmt, ...);
+                      QObject *channels, QDict *config, const char *fmt, ...);
+
+G_GNUC_PRINTF(6, 7)
+void migrate_qmp(QTestState *who, QTestState *to, const char *uri,
+                 QObject *channels, QDict *config, const char *fmt, ...);
 
 G_GNUC_PRINTF(5, 6)
-void migrate_qmp(QTestState *who, QTestState *to, const char *uri,
-                 QObject *channels, const char *fmt, ...);
-
-G_GNUC_PRINTF(4, 5)
 void migrate_incoming_qmp(QTestState *who, const char *uri,
-                          QObject *channels, const char *fmt, ...);
+                          QObject *channels, QDict *config,
+                          const char *fmt, ...);
 
 void migration_event_wait(QTestState *s, const char *target);
 void migrate_set_capability(QTestState *who, const char *capability,

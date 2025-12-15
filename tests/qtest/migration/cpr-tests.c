@@ -201,7 +201,7 @@ static void test_cpr_exec(MigrateCommon *args)
     wait_for_serial("src_serial");
     set_cpr_exec_args(from, args);
     migrate_set_capability(from, "events", true);
-    migrate_qmp(from, NULL, connect_uri, NULL, "{}");
+    migrate_qmp(from, NULL, connect_uri, NULL, args->start.config, "{}");
     wait_for_migration_event(from, "completed");
 
     to = qtest_init_after_exec(from);
@@ -214,6 +214,7 @@ static void test_cpr_exec(MigrateCommon *args)
 
     migrate_incoming_qmp(to, NULL,
                          qobject_from_json(channels, &error_abort),
+                         args->start.config,
                          "{}");
     wait_for_migration_complete(to);
 

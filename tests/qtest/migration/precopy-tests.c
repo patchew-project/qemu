@@ -382,7 +382,7 @@ static void test_auto_converge(char *name, MigrateCommon *args)
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
-    migrate_qmp(from, to, uri, NULL, "{}");
+    migrate_qmp(from, to, uri, NULL, args->start.config, "{}");
 
     /* Wait for throttling begins */
     percentage = 0;
@@ -577,12 +577,12 @@ static void test_multifd_tcp_cancel(MigrateCommon *args, bool postcopy_ram)
     migrate_set_capability(to, "multifd", true);
 
     /* Start incoming migration from the 1st socket */
-    migrate_incoming_qmp(to, "tcp:127.0.0.1:0", NULL, "{}");
+    migrate_incoming_qmp(to, "tcp:127.0.0.1:0", NULL, args->start.config, "{}");
 
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
-    migrate_qmp(from, to, NULL, NULL, "{}");
+    migrate_qmp(from, to, NULL, NULL, args->start.config, "{}");
 
     migrate_wait_for_dirty_mem(from, to);
 
@@ -621,11 +621,12 @@ static void test_multifd_tcp_cancel(MigrateCommon *args, bool postcopy_ram)
     migrate_set_capability(to2, "multifd", true);
 
     /* Start incoming migration from the 1st socket */
-    migrate_incoming_qmp(to2, "tcp:127.0.0.1:0", NULL, "{}");
+    migrate_incoming_qmp(to2, "tcp:127.0.0.1:0", NULL, args->start.config,
+                         "{}");
 
     migrate_ensure_non_converge(from, args->start.config);
 
-    migrate_qmp(from, to2, NULL, NULL, "{}");
+    migrate_qmp(from, to2, NULL, NULL, args->start.config, "{}");
 
     migrate_wait_for_dirty_mem(from, to2);
     migrate_ongoing_ensure_converge(from);
@@ -659,7 +660,7 @@ static void test_cancel_src_after_failed(QTestState *from, QTestState *to,
     wait_for_serial("src_serial");
     migrate_ensure_converge(from, args->config);
 
-    migrate_qmp(from, to, uri, NULL, "{}");
+    migrate_qmp(from, to, uri, NULL, args->config, "{}");
 
     migration_event_wait(from, phase);
     migrate_cancel(from);
@@ -679,12 +680,13 @@ static void test_cancel_src_after_cancelled(QTestState *from, QTestState *to,
                                             const char *uri, const char *phase,
                                             MigrateStart *args)
 {
-    migrate_incoming_qmp(to, uri, NULL, "{ 'exit-on-error': false }");
+    migrate_incoming_qmp(to, uri, NULL, args->config,
+                         "{ 'exit-on-error': false }");
 
     wait_for_serial("src_serial");
     migrate_ensure_converge(from, args->config);
 
-    migrate_qmp(from, to, uri, NULL, "{}");
+    migrate_qmp(from, to, uri, NULL, args->config, "{}");
 
     /* To move to cancelled/cancelling */
     migrate_cancel(from);
@@ -704,12 +706,13 @@ static void test_cancel_src_after_complete(QTestState *from, QTestState *to,
                                            const char *uri, const char *phase,
                                            MigrateStart *args)
 {
-    migrate_incoming_qmp(to, uri, NULL, "{ 'exit-on-error': false }");
+    migrate_incoming_qmp(to, uri, NULL, args->config,
+                         "{ 'exit-on-error': false }");
 
     wait_for_serial("src_serial");
     migrate_ensure_converge(from, args->config);
 
-    migrate_qmp(from, to, uri, NULL, "{}");
+    migrate_qmp(from, to, uri, NULL, args->config, "{}");
 
     migration_event_wait(from, phase);
     migrate_cancel(from);
@@ -735,10 +738,11 @@ static void test_cancel_src_after_none(QTestState *from, QTestState *to,
     wait_for_serial("src_serial");
     migrate_cancel(from);
 
-    migrate_incoming_qmp(to, uri, NULL, "{ 'exit-on-error': false }");
+    migrate_incoming_qmp(to, uri, NULL, args->config,
+                         "{ 'exit-on-error': false }");
 
     migrate_ensure_converge(from, args->config);
-    migrate_qmp(from, to, uri, NULL, "{}");
+    migrate_qmp(from, to, uri, NULL, args->config, "{}");
 
     wait_for_migration_complete(from);
     wait_for_migration_complete(to);
@@ -754,12 +758,13 @@ static void test_cancel_src_pre_switchover(QTestState *from, QTestState *to,
     migrate_set_capability(from, "multifd", true);
     migrate_set_capability(to, "multifd", true);
 
-    migrate_incoming_qmp(to, uri, NULL, "{ 'exit-on-error': false }");
+    migrate_incoming_qmp(to, uri, NULL, args->config,
+                         "{ 'exit-on-error': false }");
 
     wait_for_serial("src_serial");
     migrate_ensure_converge(from, args->config);
 
-    migrate_qmp(from, to, uri, NULL, "{}");
+    migrate_qmp(from, to, uri, NULL, args->config, "{}");
 
     migration_event_wait(from, phase);
     migrate_cancel(from);
@@ -1127,7 +1132,7 @@ static void test_dirty_limit(char *name, MigrateCommon *args)
     migrate_dirty_limit_wait_showup(from, dirtylimit_period, dirtylimit_value);
 
     /* Start migrate */
-    migrate_qmp(from, to, args->connect_uri, NULL, "{}");
+    migrate_qmp(from, to, args->connect_uri, NULL, args->start.config, "{}");
 
     /* Wait for dirty limit throttle begin */
     throttle_us_per_full = 0;
@@ -1172,7 +1177,7 @@ static void test_dirty_limit(char *name, MigrateCommon *args)
     }
 
     /* Start migrate */
-    migrate_qmp(from, to, args->connect_uri, NULL, "{}");
+    migrate_qmp(from, to, args->connect_uri, NULL, args->start.config, "{}");
 
     /* Wait for dirty limit throttle begin */
     throttle_us_per_full = 0;

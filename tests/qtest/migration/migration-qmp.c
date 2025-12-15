@@ -77,7 +77,7 @@ QObject *migrate_str_to_channel(const char *str)
 }
 
 void migrate_qmp_fail(QTestState *who, const char *uri,
-                      QObject *channels, const char *fmt, ...)
+                      QObject *channels, QDict *config, const char *fmt, ...)
 {
     va_list ap;
     QDict *args, *err;
@@ -96,12 +96,19 @@ void migrate_qmp_fail(QTestState *who, const char *uri,
         qdict_put_obj(args, "channels", channels);
     }
 
+    config = config_load(config);
+    if (config) {
+        qdict_put_obj(args, "config", QOBJECT(config));
+        qobject_ref(config);
+    }
+
     err = qtest_qmp_assert_failure_ref(
         who, "{ 'execute': 'migrate', 'arguments': %p}", args);
 
     g_assert(qdict_haskey(err, "desc"));
 
     qobject_unref(err);
+    config_put(config);
 }
 
 /*
@@ -110,7 +117,7 @@ void migrate_qmp_fail(QTestState *who, const char *uri,
  * qobject_from_jsonf_nofail()) with "uri": @uri spliced in.
  */
 void migrate_qmp(QTestState *who, QTestState *to, const char *uri,
-                 QObject *channels, const char *fmt, ...)
+                 QObject *channels, QDict *config, const char *fmt, ...)
 {
     va_list ap;
     QDict *args;
@@ -135,8 +142,15 @@ void migrate_qmp(QTestState *who, QTestState *to, const char *uri,
         qdict_put_obj(args, "channels", channels);
     }
 
+    config = config_load(config);
+    if (config) {
+        qdict_put_obj(args, "config", QOBJECT(config));
+        qobject_ref(config);
+    }
+
     qtest_qmp_assert_success(who,
                              "{ 'execute': 'migrate', 'arguments': %p}", args);
+    config_put(config);
 }
 
 void migrate_set_capability(QTestState *who, const char *capability,
@@ -151,7 +165,7 @@ void migrate_set_capability(QTestState *who, const char *capability,
 }
 
 void migrate_incoming_qmp(QTestState *to, const char *uri, QObject *channels,
-                          const char *fmt, ...)
+                          QDict *config, const char *fmt, ...)
 {
     va_list ap;
     QDict *args, *rsp;
@@ -173,6 +187,12 @@ void migrate_incoming_qmp(QTestState *to, const char *uri, QObject *channels,
     /* This function relies on the event to work, make sure it's enabled */
     migrate_set_capability(to, "events", true);
 
+    config = config_load(config);
+    if (config) {
+        qdict_put_obj(args, "config", QOBJECT(config));
+        qobject_ref(config);
+    }
+
     rsp = qtest_qmp(to, "{ 'execute': 'migrate-incoming', 'arguments': %p}",
                     args);
 
@@ -185,6 +205,7 @@ void migrate_incoming_qmp(QTestState *to, const char *uri, QObject *channels,
     qobject_unref(rsp);
 
     migration_event_wait(to, "setup");
+    config_put(config);
 }
 
 static bool check_migration_status(QTestState *who, const char *goal,

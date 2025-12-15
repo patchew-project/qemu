@@ -602,13 +602,13 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
                                  "              'host': '127.0.0.1',"
                                  "              'port': '0' } } ]",
                                  &error_abort);
-    migrate_incoming_qmp(to, NULL, channels, "{}");
+    migrate_incoming_qmp(to, NULL, channels, args->start.config, "{}");
 
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
     wait_for_suspend(from, &src_state);
 
-    migrate_qmp(from, to, NULL, NULL, "{}");
+    migrate_qmp(from, to, NULL, NULL, args->start.config, "{}");
 
     migrate_wait_for_dirty_mem(from, to);
 
@@ -666,9 +666,10 @@ static void wait_for_postcopy_status(QTestState *one, const char *status)
 }
 
 static void postcopy_recover_fail(QTestState *from, QTestState *to,
-                                  PostcopyRecoveryFailStage stage)
+                                  MigrateCommon *args)
 {
 #ifndef _WIN32
+    PostcopyRecoveryFailStage stage = args->postcopy_recovery_fail_stage;
     bool fail_early = (stage == POSTCOPY_FAIL_CHANNEL_ESTABLISH);
     int ret, pair1[2], pair2[2];
     char c;
@@ -717,7 +718,8 @@ static void postcopy_recover_fail(QTestState *from, QTestState *to,
     }
 
     migrate_recover(to, "fd:fd-mig");
-    migrate_qmp(from, to, "fd:fd-mig", NULL, "{'resume': true}");
+    migrate_qmp(from, to, "fd:fd-mig", NULL, args->start.config,
+                "{'resume': true}");
 
     /*
      * Source QEMU has an extra RECOVER_SETUP phase, dest doesn't have it.
@@ -824,7 +826,7 @@ void test_postcopy_recovery_common(MigrateCommon *args)
          * Test when a wrong socket specified for recover, and then the
          * ability to kick it out, and continue with a correct socket.
          */
-        postcopy_recover_fail(from, to, args->postcopy_recovery_fail_stage);
+        postcopy_recover_fail(from, to, args);
         /* continue with a good recovery */
     }
 
@@ -840,7 +842,7 @@ void test_postcopy_recovery_common(MigrateCommon *args)
      * Try to rebuild the migration channel using the resume flag and
      * the newly created channel
      */
-    migrate_qmp(from, to, uri, NULL, "{'resume': true}");
+    migrate_qmp(from, to, uri, NULL, args->start.config, "{'resume': true}");
 
     /* Restore the postcopy bandwidth to unlimited */
     migrate_set_parameter_int(from, "max-postcopy-bandwidth", 0);
@@ -873,7 +875,8 @@ int test_precopy_common(MigrateCommon *args)
             in_channels = qobject_from_json(args->connect_channels,
                                             &error_abort);
         }
-        migrate_incoming_qmp(to, args->listen_uri, in_channels, "{}");
+        migrate_incoming_qmp(to, args->listen_uri, in_channels,
+                             args->start.config, "{}");
     }
 
     /* Wait for the first serial output from the source */
@@ -919,17 +922,20 @@ int test_precopy_common(MigrateCommon *args)
     }
 
     if (args->result == MIG_TEST_QMP_ERROR) {
-        migrate_qmp_fail(from, args->connect_uri, out_channels, "{}");
+        migrate_qmp_fail(from, args->connect_uri, out_channels,
+                         args->start.config, "{}");
         goto finish;
     }
 
-    migrate_qmp(from, to, args->connect_uri, out_channels, "{}");
+    migrate_qmp(from, to, args->connect_uri, out_channels,
+                args->start.config, "{}");
 
     if (args->start.defer_target_connect) {
         qtest_connect(to);
         qtest_qmp_handshake(to, NULL);
         if (args->start.incoming_defer) {
-            migrate_incoming_qmp(to, NULL, in_channels, "{}");
+            migrate_incoming_qmp(to, args->connect_uri, in_channels,
+                                 args->start.config, "{}");
         }
     }
 
@@ -1067,18 +1073,19 @@ void test_file_common(MigrateCommon *args, bool stop_src)
     }
 
     if (args->result == MIG_TEST_QMP_ERROR) {
-        migrate_qmp_fail(from, args->connect_uri, NULL, "{}");
+        migrate_qmp_fail(from, args->connect_uri, NULL,
+                         args->start.config, "{}");
         goto finish;
     }
 
-    migrate_qmp(from, to, args->connect_uri, NULL, "{}");
+    migrate_qmp(from, to, args->connect_uri, NULL, args->start.config, "{}");
     wait_for_migration_complete(from);
 
     /*
      * We need to wait for the source to finish before starting the
      * destination.
      */
-    migrate_incoming_qmp(to, args->listen_uri, NULL, "{}");
+    migrate_incoming_qmp(to, args->listen_uri, NULL, args->start.config, "{}");
     wait_for_migration_complete(to);
 
     if (stop_src) {
