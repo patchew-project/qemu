@@ -65,6 +65,19 @@ int migration_env_clean(MigrationTestEnv *env);
 typedef void * (*TestMigrateStartHook)(QTestState *from,
                                        QTestState *to);
 
+
+/*
+ * A hook that runs after the src and dst QEMUs have been created, but
+ * before the migration is started. This can be used to run routines
+ * that require the QTestState object.
+ *
+ * Returns: NULL, or a pointer to opaque state to be
+ *          later passed to the TestMigrateEndHook
+ */
+typedef void * (*TestMigrateStartHookFull)(QTestState *from,
+                                           QTestState *to,
+                                           void *opaque);
+
 /*
  * A hook that runs after the migration has finished,
  * regardless of whether it succeeded or failed, but
@@ -195,6 +208,9 @@ typedef struct {
     TestMigrateStartHook start_hook;
     /* Optional: callback to run at finish to cleanup */
     TestMigrateEndHook end_hook;
+
+    TestMigrateStartHookFull start_hook_full;
+    void *start_hook_data;
 
     /*
      * Optional: normally we expect the migration process to complete.

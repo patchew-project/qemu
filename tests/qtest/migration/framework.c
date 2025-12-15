@@ -591,6 +591,9 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
 
     if (args->start_hook) {
         args->postcopy_data = args->start_hook(from, to);
+    } else if (args->start_hook_full) {
+        args->postcopy_data = args->start_hook_full(from, to,
+                                                    args->start_hook_data);
     }
 
     migrate_ensure_non_converge(from, args->start.config);
@@ -868,6 +871,9 @@ int test_precopy_common(MigrateCommon *args)
 
     if (args->start_hook) {
         data_hook = args->start_hook(from, to);
+    } else if (args->start_hook_full) {
+        data_hook = args->start_hook_full(from, to,
+                                          args->start_hook_data);
     }
 
     if (args->start.incoming_defer && !args->start.defer_target_connect) {
@@ -1062,6 +1068,8 @@ void test_file_common(MigrateCommon *args, bool stop_src)
 
     if (args->start_hook) {
         data_hook = args->start_hook(from, to);
+    } else if (args->start_hook_full) {
+        data_hook = args->start_hook_full(from, to, args->start_hook_data);
     }
 
     migrate_ensure_converge(from, args->start.config);
