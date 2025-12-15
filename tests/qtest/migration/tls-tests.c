@@ -677,6 +677,7 @@ static void test_multifd_tcp_tls_psk_match(char *name, MigrateCommon *args)
 {
     args->start_hook = migrate_hook_start_multifd_tcp_tls_psk_match;
     args->end_hook = migrate_hook_end_tls_psk;
+    args->listen_uri = "tcp:127.0.0.1:0";
 
     args->start.incoming_defer = true;
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
@@ -689,6 +690,7 @@ static void test_multifd_tcp_tls_psk_mismatch(char *name, MigrateCommon *args)
     args->start_hook = migrate_hook_start_multifd_tcp_tls_psk_mismatch;
     args->end_hook = migrate_hook_end_tls_psk;
     args->result = MIG_TEST_FAIL;
+    args->listen_uri = "tcp:127.0.0.1:0";
 
     args->start.hide_stderr = true;
     args->start.incoming_defer = true;
@@ -702,6 +704,7 @@ static void test_multifd_postcopy_tcp_tls_psk_match(char *name,
 {
     args->start_hook = migrate_hook_start_multifd_tcp_tls_psk_match;
     args->end_hook = migrate_hook_end_tls_psk;
+    args->listen_uri = "tcp:127.0.0.1:0";
 
     args->start.incoming_defer = true;
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
@@ -716,6 +719,7 @@ static void test_multifd_tcp_tls_x509_default_host(char *name,
 {
     args->start_hook = migrate_hook_start_multifd_tls_x509_default_host;
     args->end_hook = migrate_hook_end_tls_x509;
+    args->listen_uri = "tcp:127.0.0.1:0";
 
     args->start.incoming_defer = true;
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
@@ -728,6 +732,7 @@ static void test_multifd_tcp_tls_x509_override_host(char *name,
 {
     args->start_hook = migrate_hook_start_multifd_tls_x509_override_host;
     args->end_hook = migrate_hook_end_tls_x509;
+    args->listen_uri = "tcp:127.0.0.1:0";
 
     args->start.incoming_defer = true;
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
@@ -754,6 +759,7 @@ static void test_multifd_tcp_tls_x509_mismatch_host(char *name,
     args->start_hook = migrate_hook_start_multifd_tls_x509_mismatch_host;
     args->end_hook = migrate_hook_end_tls_x509;
     args->result = MIG_TEST_FAIL;
+    args->listen_uri = "tcp:127.0.0.1:0";
 
     args->start.incoming_defer = true;
     args->start.hide_stderr = true;
@@ -767,6 +773,7 @@ static void test_multifd_tcp_tls_x509_allow_anon_client(char *name,
 {
     args->start_hook = migrate_hook_start_multifd_tls_x509_allow_anon_client;
     args->end_hook = migrate_hook_end_tls_x509;
+    args->listen_uri = "tcp:127.0.0.1:0";
 
     args->start.incoming_defer = true;
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
@@ -780,6 +787,7 @@ static void test_multifd_tcp_tls_x509_reject_anon_client(char *name,
     args->start_hook = migrate_hook_start_multifd_tls_x509_reject_anon_client;
     args->end_hook = migrate_hook_end_tls_x509;
     args->result = MIG_TEST_FAIL;
+    args->listen_uri = "tcp:127.0.0.1:0";
 
     args->start.incoming_defer = true;
     args->start.hide_stderr = true;

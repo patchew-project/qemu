@@ -239,9 +239,6 @@ static void *migrate_hook_start_fd(QTestState *from,
                                  "  'arguments': { 'fdname': 'fd-mig' }}");
     close(pair[0]);
 
-    /* Start incoming migration from the 1st socket */
-    migrate_incoming_qmp(to, "fd:fd-mig", NULL, "{}");
-
     /* Send the 2nd socket to the target */
     qtest_qmp_fds_assert_success(from, &pair[1], 1,
                                  "{ 'execute': 'getfd',"
@@ -283,6 +280,7 @@ static void migrate_hook_end_fd(QTestState *from,
 static void test_precopy_fd_socket(char *name, MigrateCommon *args)
 {
     args->connect_uri = "fd:fd-mig";
+    args->listen_uri = "fd:fd-mig";
     args->start_hook = migrate_hook_start_fd;
     args->end_hook = migrate_hook_end_fd;
 
@@ -484,6 +482,7 @@ static void test_multifd_tcp_uri_none(char *name, MigrateCommon *args)
      * everything will work alright even if guest page is changing.
      */
     args->live = true;
+    args->listen_uri = "tcp:127.0.0.1:0";
 
     args->start.incoming_defer = true;
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
@@ -500,6 +499,7 @@ static void test_multifd_tcp_zero_page_legacy(char *name, MigrateCommon *args)
      * everything will work alright even if guest page is changing.
      */
     args->live = true;
+    args->listen_uri = "tcp:127.0.0.1:0";
 
     args->start.incoming_defer = true;
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
@@ -516,6 +516,7 @@ static void test_multifd_tcp_no_zero_page(char *name, MigrateCommon *args)
      * everything will work alright even if guest page is changing.
      */
     args->live = true;
+    args->listen_uri = "tcp:127.0.0.1:0";
 
     args->start.incoming_defer = true;
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
