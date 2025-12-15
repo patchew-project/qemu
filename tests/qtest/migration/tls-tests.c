@@ -616,7 +616,9 @@ static void *
 migrate_hook_start_multifd_tcp_tls_psk_match(QTestState *from,
                                              QTestState *to)
 {
-    migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
+    migrate_set_parameter_str(from, "multifd-compression", "none");
+    migrate_set_parameter_str(to, "multifd-compression", "none");
+
     return migrate_hook_start_tls_psk_common(from, to, &tls_psk_match);
 }
 
@@ -624,7 +626,9 @@ static void *
 migrate_hook_start_multifd_tcp_tls_psk_mismatch(QTestState *from,
                                                 QTestState *to)
 {
-    migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
+    migrate_set_parameter_str(from, "multifd-compression", "none");
+    migrate_set_parameter_str(to, "multifd-compression", "none");
+
     return migrate_hook_start_tls_psk_common(from, to, &tls_psk_mismatch);
 }
 
@@ -633,7 +637,9 @@ static void *
 migrate_hook_start_multifd_tls_x509_default_host(QTestState *from,
                                                  QTestState *to)
 {
-    migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
+    migrate_set_parameter_str(from, "multifd-compression", "none");
+    migrate_set_parameter_str(to, "multifd-compression", "none");
+
     return migrate_hook_start_tls_x509_common(from, to, &tls_x509_default_host);
 }
 
@@ -641,7 +647,9 @@ static void *
 migrate_hook_start_multifd_tls_x509_override_host(QTestState *from,
                                                   QTestState *to)
 {
-    migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
+    migrate_set_parameter_str(from, "multifd-compression", "none");
+    migrate_set_parameter_str(to, "multifd-compression", "none");
+
     return migrate_hook_start_tls_x509_common(from, to,
                                               &tls_x509_override_host);
 }
@@ -650,7 +658,9 @@ static void *
 migrate_hook_start_multifd_tls_x509_mismatch_host(QTestState *from,
                                                   QTestState *to)
 {
-    migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
+    migrate_set_parameter_str(from, "multifd-compression", "none");
+    migrate_set_parameter_str(to, "multifd-compression", "none");
+
     return migrate_hook_start_tls_x509_common(from, to,
                                               &tls_x509_mismatch_host);
 }
@@ -659,7 +669,9 @@ static void *
 migrate_hook_start_multifd_tls_x509_allow_anon_client(QTestState *from,
                                                       QTestState *to)
 {
-    migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
+    migrate_set_parameter_str(from, "multifd-compression", "none");
+    migrate_set_parameter_str(to, "multifd-compression", "none");
+
     return migrate_hook_start_tls_x509_common(from, to,
                                               &tls_x509_allow_anon_client);
 }
@@ -668,7 +680,9 @@ static void *
 migrate_hook_start_multifd_tls_x509_reject_anon_client(QTestState *from,
                                                        QTestState *to)
 {
-    migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
+    migrate_set_parameter_str(from, "multifd-compression", "none");
+    migrate_set_parameter_str(to, "multifd-compression", "none");
+
     return migrate_hook_start_tls_x509_common(from, to,
                                               &tls_x509_reject_anon_client);
 }

@@ -28,7 +28,10 @@ migrate_hook_start_precopy_tcp_multifd_zstd(QTestState *from,
     migrate_set_parameter_int(from, "multifd-zstd-level", 2);
     migrate_set_parameter_int(to, "multifd-zstd-level", 2);
 
-    return migrate_hook_start_precopy_tcp_multifd_common(from, to, "zstd");
+    migrate_set_parameter_str(from, "multifd-compression", "zstd");
+    migrate_set_parameter_str(to, "multifd-compression", "zstd");
+
+    return NULL;
 }
 
 static void test_multifd_tcp_zstd(char *name, MigrateCommon *args)
@@ -63,7 +66,10 @@ migrate_hook_start_precopy_tcp_multifd_qatzip(QTestState *from,
     migrate_set_parameter_int(from, "multifd-qatzip-level", 2);
     migrate_set_parameter_int(to, "multifd-qatzip-level", 2);
 
-    return migrate_hook_start_precopy_tcp_multifd_common(from, to, "qatzip");
+    migrate_set_parameter_str(from, "multifd-compression", "qatzip");
+    migrate_set_parameter_str(to, "multifd-compression", "qatzip");
+
+    return NULL;
 }
 
 static void test_multifd_tcp_qatzip(char *name, MigrateCommon *args)
@@ -83,7 +89,10 @@ static void *
 migrate_hook_start_precopy_tcp_multifd_qpl(QTestState *from,
                                            QTestState *to)
 {
-    return migrate_hook_start_precopy_tcp_multifd_common(from, to, "qpl");
+    migrate_set_parameter_str(from, "multifd-compression", "qpl");
+    migrate_set_parameter_str(to, "multifd-compression", "qpl");
+
+    return NULL;
 }
 
 static void test_multifd_tcp_qpl(char *name, MigrateCommon *args)
@@ -103,7 +112,10 @@ static void *
 migrate_hook_start_precopy_tcp_multifd_uadk(QTestState *from,
                                             QTestState *to)
 {
-    return migrate_hook_start_precopy_tcp_multifd_common(from, to, "uadk");
+    migrate_set_parameter_str(from, "multifd-compression", "uadk");
+    migrate_set_parameter_str(to, "multifd-compression", "uadk");
+
+    return NULL;
 }
 
 static void test_multifd_tcp_uadk(char *name, MigrateCommon *args)
@@ -156,7 +168,10 @@ migrate_hook_start_precopy_tcp_multifd_zlib(QTestState *from,
     migrate_set_parameter_int(from, "multifd-zlib-level", 2);
     migrate_set_parameter_int(to, "multifd-zlib-level", 2);
 
-    return migrate_hook_start_precopy_tcp_multifd_common(from, to, "zlib");
+    migrate_set_parameter_str(from, "multifd-compression", "zlib");
+    migrate_set_parameter_str(to, "multifd-compression", "zlib");
+
+    return NULL;
 }
 
 static void test_multifd_tcp_zlib(char *name, MigrateCommon *args)

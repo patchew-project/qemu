@@ -452,14 +452,17 @@ static void *
 migrate_hook_start_precopy_tcp_multifd(QTestState *from,
                                        QTestState *to)
 {
-    return migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
+    migrate_set_parameter_str(from, "multifd-compression", "none");
+    migrate_set_parameter_str(to, "multifd-compression", "none");
+
+    return NULL;
 }
 
 static void *
 migrate_hook_start_precopy_tcp_multifd_zero_page_legacy(QTestState *from,
                                                         QTestState *to)
 {
-    migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
+    migrate_hook_start_precopy_tcp_multifd(from, to);
     migrate_set_parameter_str(from, "zero-page-detection", "legacy");
     return NULL;
 }
@@ -468,7 +471,7 @@ static void *
 migrate_hook_start_precopy_tcp_multifd_no_zero_page(QTestState *from,
                                                     QTestState *to)
 {
-    migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
+    migrate_hook_start_precopy_tcp_multifd(from, to);
     migrate_set_parameter_str(from, "zero-page-detection", "none");
     return NULL;
 }
