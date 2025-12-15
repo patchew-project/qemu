@@ -39,8 +39,10 @@ void migrate_set_parameter_strv(QTestState *who, const char *parameter,
 void migrate_set_parameter_null(QTestState *who, const char *parameter);
 void migrate_set_parameter_bool(QTestState *who, const char *parameter,
                                 int value);
-void migrate_ensure_non_converge(QTestState *who);
-void migrate_ensure_converge(QTestState *who);
+void migrate_ongoing_ensure_non_converge(QTestState *who);
+void migrate_ongoing_ensure_converge(QTestState *who);
+void migrate_ensure_non_converge(QTestState *who, QDict *config);
+void migrate_ensure_converge(QTestState *who, QDict *config);
 void migrate_pause(QTestState *who);
 void migrate_continue(QTestState *who, const char *state);
 void migrate_recover(QTestState *who, const char *uri);
