@@ -2859,6 +2859,7 @@ F: net/can/*
 F: hw/net/can/*
 F: include/net/can_*.h
 F: include/hw/net/flexcan.h
+F: tests/qtest/flexcan-test.c
 F: docs/system/devices/can.rst
 
 OpenPIC interrupt controller
