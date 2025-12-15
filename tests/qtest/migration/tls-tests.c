@@ -210,51 +210,7 @@ migrate_hook_start_tls_x509_common(QTestState *from,
                                    void *opaque)
 {
     TestMigrateTLSX509 *args = opaque;
-    TestMigrateTLSX509Data *data = g_new0(TestMigrateTLSX509Data, 1);
-
-    data->workdir = g_strdup_printf("%s/tlscredsx5090", tmpfs);
-    data->keyfile = g_strdup_printf("%s/key.pem", data->workdir);
-
-    data->cacert = g_strdup_printf("%s/ca-cert.pem", data->workdir);
-    data->serverkey = g_strdup_printf("%s/server-key.pem", data->workdir);
-    data->servercert = g_strdup_printf("%s/server-cert.pem", data->workdir);
-    if (args->clientcert) {
-        data->clientkey = g_strdup_printf("%s/client-key.pem", data->workdir);
-        data->clientcert = g_strdup_printf("%s/client-cert.pem", data->workdir);
-    }
-
-    g_mkdir_with_parents(data->workdir, 0700);
-
-    test_tls_init(data->keyfile);
-#ifndef _WIN32
-    g_assert(link(data->keyfile, data->serverkey) == 0);
-#else
-    g_assert(CreateHardLink(data->serverkey, data->keyfile, NULL) != 0);
-#endif
-    if (args->clientcert) {
-#ifndef _WIN32
-        g_assert(link(data->keyfile, data->clientkey) == 0);
-#else
-        g_assert(CreateHardLink(data->clientkey, data->keyfile, NULL) != 0);
-#endif
-    }
-
-    TLS_ROOT_REQ_SIMPLE(cacertreq, data->cacert);
-    if (args->clientcert) {
-        TLS_CERT_REQ_SIMPLE_CLIENT(servercertreq, cacertreq,
-                                   args->hostileclient ?
-                                   QCRYPTO_TLS_TEST_CLIENT_HOSTILE_NAME :
-                                   QCRYPTO_TLS_TEST_CLIENT_NAME,
-                                   data->clientcert);
-        test_tls_deinit_cert(&servercertreq);
-    }
-
-    TLS_CERT_REQ_SIMPLE_SERVER(clientcertreq, cacertreq,
-                               data->servercert,
-                               args->certhostname,
-                               args->certipaddr);
-    test_tls_deinit_cert(&clientcertreq);
-    test_tls_deinit_cert(&cacertreq);
+    const char *workdir = g_strdup_printf("%s/tlscredsx5090", tmpfs);
 
     qtest_qmp_assert_success(from,
                              "{ 'execute': 'object-add',"
@@ -264,7 +220,7 @@ migrate_hook_start_tls_x509_common(QTestState *from,
                              "                 'dir': %s,"
                              "                 'sanity-check': true,"
                              "                 'verify-peer': true} }",
-                             data->workdir);
+                             workdir);
     migrate_set_parameter_str(from, "tls-creds", "tlscredsx509client0");
     if (args->certhostname) {
         migrate_set_parameter_str(from, "tls-hostname", args->certhostname);
@@ -278,7 +234,7 @@ migrate_hook_start_tls_x509_common(QTestState *from,
                              "                 'dir': %s,"
                              "                 'sanity-check': true,"
                              "                 'verify-peer': %i} }",
-                             data->workdir, args->verifyclient);
+                             workdir, args->verifyclient);
     migrate_set_parameter_str(to, "tls-creds", "tlscredsx509server0");
 
     if (args->authzclient) {
@@ -291,16 +247,60 @@ migrate_hook_start_tls_x509_common(QTestState *from,
         migrate_set_parameter_str(to, "tls-authz", "tlsauthz0");
     }
 
-    return data;
+    return NULL;
 }
 
-static void
-migrate_hook_end_tls_x509(QTestState *from,
-                          QTestState *to,
-                          void *opaque)
+static void migrate_tls_x509_init(MigrateCommon *args,
+                                  TestMigrateTLSX509 *test_args,
+                                  TestMigrateTLSX509Data *data)
 {
-    TestMigrateTLSX509Data *data = opaque;
+    data->workdir = g_strdup_printf("%s/tlscredsx5090", tmpfs);
+    data->keyfile = g_strdup_printf("%s/key.pem", data->workdir);
 
+    data->cacert = g_strdup_printf("%s/ca-cert.pem", data->workdir);
+    data->serverkey = g_strdup_printf("%s/server-key.pem", data->workdir);
+    data->servercert = g_strdup_printf("%s/server-cert.pem", data->workdir);
+    if (test_args->clientcert) {
+        data->clientkey = g_strdup_printf("%s/client-key.pem", data->workdir);
+        data->clientcert = g_strdup_printf("%s/client-cert.pem", data->workdir);
+    }
+
+    g_mkdir_with_parents(data->workdir, 0700);
+
+    test_tls_init(data->keyfile);
+#ifndef _WIN32
+    g_assert(link(data->keyfile, data->serverkey) == 0);
+#else
+    g_assert(CreateHardLink(data->serverkey, data->keyfile, NULL) != 0);
+#endif
+    if (test_args->clientcert) {
+#ifndef _WIN32
+        g_assert(link(data->keyfile, data->clientkey) == 0);
+#else
+        g_assert(CreateHardLink(data->clientkey, data->keyfile, NULL) != 0);
+#endif
+    }
+
+    TLS_ROOT_REQ_SIMPLE(cacertreq, data->cacert);
+    if (test_args->clientcert) {
+        TLS_CERT_REQ_SIMPLE_CLIENT(servercertreq, cacertreq,
+                                   test_args->hostileclient ?
+                                   QCRYPTO_TLS_TEST_CLIENT_HOSTILE_NAME :
+                                   QCRYPTO_TLS_TEST_CLIENT_NAME,
+                                   data->clientcert);
+        test_tls_deinit_cert(&servercertreq);
+    }
+
+    TLS_CERT_REQ_SIMPLE_SERVER(clientcertreq, cacertreq,
+                               data->servercert,
+                               test_args->certhostname,
+                               test_args->certipaddr);
+    test_tls_deinit_cert(&clientcertreq);
+    test_tls_deinit_cert(&cacertreq);
+}
+
+static void migrate_tls_x509_cleanup(TestMigrateTLSX509Data *data)
+{
     test_tls_cleanup(data->keyfile);
     g_free(data->keyfile);
 
@@ -324,6 +324,16 @@ migrate_hook_end_tls_x509(QTestState *from,
     g_free(data->workdir);
 
     g_free(data);
+}
+
+static void test_precopy_tls_x509_common(MigrateCommon *args,
+                                         TestMigrateTLSX509 *test_args)
+{
+    TestMigrateTLSX509Data *data = g_new0(TestMigrateTLSX509Data, 1);
+
+    migrate_tls_x509_init(args, test_args, data);
+    test_precopy_common(args);
+    migrate_tls_x509_cleanup(data);
 }
 #endif /* CONFIG_TASN1 */
 
@@ -409,12 +419,11 @@ static void test_precopy_unix_tls_x509_default_host(char *name,
     args->listen_uri = uri;
     args->start_hook_full = migrate_hook_start_tls_x509_common;
     args->start_hook_data = &tls_x509_default_host;
-    args->end_hook = migrate_hook_end_tls_x509;
     args->result = MIG_TEST_FAIL_DEST_QUIT_ERR;
 
     args->start.hide_stderr = true;
 
-    test_precopy_common(args);
+    test_precopy_tls_x509_common(args, &tls_x509_default_host);
 }
 
 static void test_precopy_unix_tls_x509_override_host(char *name,
@@ -426,9 +435,8 @@ static void test_precopy_unix_tls_x509_override_host(char *name,
     args->listen_uri = uri;
     args->start_hook_full = migrate_hook_start_tls_x509_common;
     args->start_hook_data = &tls_x509_override_host;
-    args->end_hook = migrate_hook_end_tls_x509;
 
-    test_precopy_common(args);
+    test_precopy_tls_x509_common(args, &tls_x509_override_host);
 }
 #endif /* CONFIG_TASN1 */
 
@@ -488,12 +496,11 @@ static void test_precopy_tcp_tls_no_hostname(char *name, MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
     args->start_hook = migrate_hook_start_tls_x509_no_host;
-    args->end_hook = migrate_hook_end_tls_x509;
     args->result = MIG_TEST_FAIL_DEST_QUIT_ERR;
 
     args->start.hide_stderr = true;
 
-    test_precopy_common(args);
+    test_precopy_tls_x509_common(args, &tls_x509_no_host);
 }
 
 #ifdef CONFIG_TASN1
@@ -503,9 +510,8 @@ static void test_precopy_tcp_tls_x509_default_host(char *name,
     args->listen_uri = "tcp:127.0.0.1:0";
     args->start_hook_full = migrate_hook_start_tls_x509_common;
     args->start_hook_data = &tls_x509_default_host;
-    args->end_hook = migrate_hook_end_tls_x509;
 
-    test_precopy_common(args);
+    test_precopy_tls_x509_common(args, &tls_x509_default_host);
 }
 
 static void test_precopy_tcp_tls_x509_override_host(char *name,
@@ -514,9 +520,8 @@ static void test_precopy_tcp_tls_x509_override_host(char *name,
     args->listen_uri = "tcp:127.0.0.1:0";
     args->start_hook_full = migrate_hook_start_tls_x509_common;
     args->start_hook_data = &tls_x509_override_host;
-    args->end_hook = migrate_hook_end_tls_x509;
 
-    test_precopy_common(args);
+    test_precopy_tls_x509_common(args, &tls_x509_override_host);
 }
 
 static void test_precopy_tcp_tls_x509_mismatch_host(char *name,
@@ -525,12 +530,11 @@ static void test_precopy_tcp_tls_x509_mismatch_host(char *name,
     args->listen_uri = "tcp:127.0.0.1:0";
     args->start_hook_full = migrate_hook_start_tls_x509_common;
     args->start_hook_data = &tls_x509_mismatch_host;
-    args->end_hook = migrate_hook_end_tls_x509;
     args->result = MIG_TEST_FAIL_DEST_QUIT_ERR;
 
     args->start.hide_stderr = true;
 
-    test_precopy_common(args);
+    test_precopy_tls_x509_common(args, &tls_x509_mismatch_host);
 }
 
 static void test_precopy_tcp_tls_x509_friendly_client(char *name,
@@ -539,9 +543,8 @@ static void test_precopy_tcp_tls_x509_friendly_client(char *name,
     args->listen_uri = "tcp:127.0.0.1:0";
     args->start_hook_full = migrate_hook_start_tls_x509_common;
     args->start_hook_data = &x509_friendly_client;
-    args->end_hook = migrate_hook_end_tls_x509;
 
-    test_precopy_common(args);
+    test_precopy_tls_x509_common(args, &x509_friendly_client);
 }
 
 static void test_precopy_tcp_tls_x509_hostile_client(char *name,
@@ -550,12 +553,11 @@ static void test_precopy_tcp_tls_x509_hostile_client(char *name,
     args->listen_uri = "tcp:127.0.0.1:0";
     args->start_hook_full = migrate_hook_start_tls_x509_common;
     args->start_hook_data = &tls_x509_hostile_client;
-    args->end_hook = migrate_hook_end_tls_x509;
     args->result = MIG_TEST_FAIL;
 
     args->start.hide_stderr = true;
 
-    test_precopy_common(args);
+    test_precopy_tls_x509_common(args, &tls_x509_hostile_client);
 }
 
 static void test_precopy_tcp_tls_x509_allow_anon_client(char *name,
@@ -564,9 +566,8 @@ static void test_precopy_tcp_tls_x509_allow_anon_client(char *name,
     args->listen_uri = "tcp:127.0.0.1:0";
     args->start_hook_full = migrate_hook_start_tls_x509_common;
     args->start_hook_data = &tls_x509_allow_anon_client;
-    args->end_hook = migrate_hook_end_tls_x509;
 
-    test_precopy_common(args);
+    test_precopy_tls_x509_common(args, &tls_x509_allow_anon_client);
 }
 
 static void test_precopy_tcp_tls_x509_reject_anon_client(char *name,
@@ -575,12 +576,11 @@ static void test_precopy_tcp_tls_x509_reject_anon_client(char *name,
     args->listen_uri = "tcp:127.0.0.1:0";
     args->start_hook_full = migrate_hook_start_tls_x509_common;
     args->start_hook_data = &tls_x509_reject_anon_client;
-    args->end_hook = migrate_hook_end_tls_x509;
     args->result = MIG_TEST_FAIL;
 
     args->start.hide_stderr = true;
 
-    test_precopy_common(args);
+    test_precopy_tls_x509_common(args, &tls_x509_reject_anon_client);
 }
 #endif /* CONFIG_TASN1 */
 
@@ -691,26 +691,24 @@ static void test_multifd_tcp_tls_x509_default_host(char *name,
                                                    MigrateCommon *args)
 {
     args->start_hook = migrate_hook_start_multifd_tls_x509_default_host;
-    args->end_hook = migrate_hook_end_tls_x509;
     args->listen_uri = "tcp:127.0.0.1:0";
 
     args->start.incoming_defer = true;
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
 
-    test_precopy_common(args);
+    test_precopy_tls_x509_common(args, &tls_x509_default_host);
 }
 
 static void test_multifd_tcp_tls_x509_override_host(char *name,
                                                     MigrateCommon *args)
 {
     args->start_hook = migrate_hook_start_multifd_tls_x509_override_host;
-    args->end_hook = migrate_hook_end_tls_x509;
     args->listen_uri = "tcp:127.0.0.1:0";
 
     args->start.incoming_defer = true;
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
 
-    test_precopy_common(args);
+    test_precopy_tls_x509_common(args, &tls_x509_override_host);
 }
 
 static void test_multifd_tcp_tls_x509_mismatch_host(char *name,
@@ -730,7 +728,6 @@ static void test_multifd_tcp_tls_x509_mismatch_host(char *name,
      * without exiting.
      */
     args->start_hook = migrate_hook_start_multifd_tls_x509_mismatch_host;
-    args->end_hook = migrate_hook_end_tls_x509;
     args->result = MIG_TEST_FAIL;
     args->listen_uri = "tcp:127.0.0.1:0";
 
@@ -738,27 +735,25 @@ static void test_multifd_tcp_tls_x509_mismatch_host(char *name,
     args->start.hide_stderr = true;
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
 
-    test_precopy_common(args);
+    test_precopy_tls_x509_common(args, &tls_x509_mismatch_host);
 }
 
 static void test_multifd_tcp_tls_x509_allow_anon_client(char *name,
                                                         MigrateCommon *args)
 {
     args->start_hook = migrate_hook_start_multifd_tls_x509_allow_anon_client;
-    args->end_hook = migrate_hook_end_tls_x509;
     args->listen_uri = "tcp:127.0.0.1:0";
 
     args->start.incoming_defer = true;
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
 
-    test_precopy_common(args);
+    test_precopy_tls_x509_common(args, &tls_x509_allow_anon_client);
 }
 
 static void test_multifd_tcp_tls_x509_reject_anon_client(char *name,
                                                          MigrateCommon *args)
 {
     args->start_hook = migrate_hook_start_multifd_tls_x509_reject_anon_client;
-    args->end_hook = migrate_hook_end_tls_x509;
     args->result = MIG_TEST_FAIL;
     args->listen_uri = "tcp:127.0.0.1:0";
 
@@ -766,7 +761,7 @@ static void test_multifd_tcp_tls_x509_reject_anon_client(char *name,
     args->start.hide_stderr = true;
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
 
-    test_precopy_common(args);
+    test_precopy_tls_x509_common(args, &tls_x509_reject_anon_client);
 }
 #endif /* CONFIG_TASN1 */
 
