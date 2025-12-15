@@ -28,9 +28,6 @@ static void test_baddest(char *name, MigrateCommon *args)
 
     args->start.hide_stderr = true;
 
-    /* temporary */
-    qdict_put_bool(args->start.config, "use-config", true);
-
     if (migrate_start(&from, &to, "tcp:127.0.0.1:0", &args->start)) {
         return;
     }
@@ -55,9 +52,6 @@ static void test_analyze_script(char *name, MigrateCommon *args)
         return;
     }
 
-    /* temporary */
-    qdict_put_bool(args->start.config, "use-config", true);
-
     /* dummy url */
     if (migrate_start(&from, &to, "tcp:127.0.0.1:0", &args->start)) {
         return;
@@ -74,7 +68,7 @@ static void test_analyze_script(char *name, MigrateCommon *args)
     file = g_strdup_printf("%s/migfile", tmpfs);
     uri = g_strdup_printf("exec:cat > %s", file);
 
-    migrate_ensure_converge(from, args->start.config);
+    migrate_ensure_converge(args->start.config);
     migrate_qmp(from, to, uri, NULL, args->start.config, "{}");
     wait_for_migration_complete(from);
 
@@ -103,16 +97,13 @@ static void test_ignore_shared(char *name, MigrateCommon *args)
 
     args->start.mem_type = MEM_TYPE_SHMEM;
 
-    /* temporary */
-    qdict_put_bool(args->start.config, "use-config", true);
-
     qdict_put_bool(args->start.config, "x-ignore-shared", true);
 
     if (migrate_start(&from, &to, uri, &args->start)) {
         return;
     }
 
-    migrate_ensure_non_converge(from, args->start.config);
+    migrate_ensure_non_converge(args->start.config);
     migrate_prepare_for_dirty_mem(from);
 
     /* Wait for the first serial output from the source */
@@ -140,9 +131,6 @@ static void do_test_validate_uuid(MigrateStart *args, bool should_fail)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
-
-    /* temporary */
-    qdict_put_bool(args->config, "use-config", true);
 
     if (migrate_start(&from, &to, uri, args)) {
         return;

@@ -186,9 +186,6 @@ static void test_cpr_exec(MigrateCommon *args)
                                                 FILE_TEST_FILENAME);
     g_autofree char *channels = NULL;
 
-    /* temporary */
-    qdict_put_bool(args->start.config, "use-config", true);
-
     if (migrate_start(&from, NULL, args->listen_uri, &args->start)) {
         return;
     }

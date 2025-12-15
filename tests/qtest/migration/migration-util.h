@@ -61,38 +61,4 @@ char *migrate_get_connect_uri(QTestState *who);
 void migrate_set_ports(QTestState *to, QList *channel_list);
 QDict *fixup_tls_creds(QDict *config);
 
-/*
- * Scaffolding to allow the framework _common functions and _qmp
- * functions to use the config object while some tests are still using
- * migrate_set_*. Tests that have been converted will set use-config =
- * true on the config dict.
- */
-static bool has_key;
-static bool use_config;
-static inline QDict *config_load(QDict *config)
-{
-    if (!config) {
-        return NULL;
-    }
-
-    has_key = qdict_haskey(config, "use-config");
-    if (has_key) {
-        use_config = qdict_get_try_bool(config, "use-config", false);
-        qdict_del(config, "use-config");
-    }
-
-    if (use_config) {
-        return config;
-    }
-
-    return NULL;
-}
-
-static inline void config_put(QDict *config)
-{
-    if (config && has_key) {
-        qdict_put_bool(config, "use-config", use_config);
-    }
-}
-
 #endif /* MIGRATION_UTIL_H */

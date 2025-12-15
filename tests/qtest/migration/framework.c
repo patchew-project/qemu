@@ -210,69 +210,20 @@ static QList *migrate_start_get_qmp_capabilities(const MigrateStart *args)
 
 static void migrate_start_set_default_options(MigrateStart *args)
 {
-    if (args->config && qdict_get_bool(args->config, "use-config")) {
-        /*
-         * Always enable migration events. Libvirt always uses it,
-         * let's mimic that.
-         */
-        qdict_put_bool(args->config, "events", true);
-
-        /*
-         * Default number of channels should be fine for most
-         * tests. Individual tests can override by calling
-         * migrate_set_parameter() directly.
-         */
-        if (qdict_get_try_bool(args->config, "multifd", false)) {
-            qdict_put_int(args->config, "multifd-channels",
-                          MULTIFD_TEST_CHANNELS);
-        }
-
-        return;
-    }
-}
-
-static void migrate_start_set_capabilities(QTestState *from, QTestState *to,
-                                           MigrateStart *args)
-{
     /*
-     * MigrationCapability_lookup and MIGRATION_CAPABILITY_ constants
-     * are from qapi-types-migration.h.
+     * Always enable migration events. Libvirt always uses it,
+     * let's mimic that.
      */
-    for (uint8_t i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
-        if (!args->caps[i]) {
-            continue;
-        }
-        if (from) {
-            migrate_set_capability(from,
-                            MigrationCapability_lookup.array[i], true);
-        }
-        if (to) {
-            migrate_set_capability(to,
-                            MigrationCapability_lookup.array[i], true);
-        }
-    }
-
-    /*
-     * Always enable migration events.  Libvirt always uses it, let's try
-     * to mimic as closer as that.
-     */
-    migrate_set_capability(from, "events", true);
-    if (!args->defer_target_connect && to) {
-        migrate_set_capability(to, "events", true);
-    }
+    qdict_put_bool(args->config, "events", true);
 
     /*
      * Default number of channels should be fine for most
      * tests. Individual tests can override by calling
      * migrate_set_parameter() directly.
      */
-    if (args->caps[MIGRATION_CAPABILITY_MULTIFD]) {
-        migrate_set_parameter_int(from, "multifd-channels",
-                                  MULTIFD_TEST_CHANNELS);
-        if (to) {
-            migrate_set_parameter_int(to, "multifd-channels",
-                                      MULTIFD_TEST_CHANNELS);
-        }
+    if (qdict_get_try_bool(args->config, "multifd", false)) {
+        qdict_put_int(args->config, "multifd-channels",
+                      MULTIFD_TEST_CHANNELS);
     }
 
     return;
@@ -429,7 +380,7 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
      */
     events = args->defer_target_connect ? "-global migration.x-events=on" : "";
 
-    if (!args->incoming_defer && args->config) {
+    if (!args->incoming_defer) {
         QDict *conf = fixup_tls_creds(args->config);
         GString *json = qobject_to_json(QOBJECT(conf));
 
@@ -512,11 +463,9 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
     bootfile_create(qtest_get_arch(), tmpfs, args->suspend_me);
     src_state.suspend_me = args->suspend_me;
 
-    args->config = config_load(args->config);
     if (migrate_args(&cmd_source, &cmd_target, uri, args)) {
         return -1;
     }
-    config_put(args->config);
 
     if (!args->only_target) {
         *from = qtest_init_ext(QEMU_ENV_SRC, cmd_source, capabilities, true);
@@ -534,9 +483,6 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
     }
 
     migrate_mem_type_cleanup(args->mem_type);
-    migrate_start_set_capabilities(*from,
-                                   args->only_source ? NULL : *to,
-                                   args);
 
     return 0;
 }
@@ -598,7 +544,7 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
                                                     args->start_hook_data);
     }
 
-    migrate_ensure_non_converge(from, args->start.config);
+    migrate_ensure_non_converge(args->start.config);
     migrate_prepare_for_dirty_mem(from);
 
     channels = qobject_from_json("[ { 'channel-type': 'main',"
@@ -653,9 +599,6 @@ static void migrate_postcopy_complete(QTestState *from, QTestState *to,
 void test_postcopy_common(MigrateCommon *args)
 {
     QTestState *from, *to;
-
-    /* temporary */
-    qdict_put_bool(args->start.config, "use-config", true);
 
     if (migrate_postcopy_prepare(&from, &to, args)) {
         return;
@@ -790,9 +733,6 @@ void test_postcopy_recovery_common(MigrateCommon *args)
     QTestState *from, *to;
     g_autofree char *uri = NULL;
 
-    /* temporary */
-    qdict_put_bool(args->start.config, "use-config", true);
-
     /*
      * Always enable OOB QMP capability for recovery tests, migrate-recover is
      * executed out-of-band
@@ -868,9 +808,6 @@ int test_precopy_common(MigrateCommon *args)
     QObject *in_channels = NULL;
     QObject *out_channels = NULL;
 
-    /* temporary */
-    qdict_put_bool(args->start.config, "use-config", true);
-
     g_assert(!args->cpr_channel || args->connect_channels);
     if (args->start.incoming_defer) {
         g_assert(args->listen_uri || args->connect_channels);
@@ -906,7 +843,7 @@ int test_precopy_common(MigrateCommon *args)
     }
 
     if (args->live) {
-        migrate_ensure_non_converge(from, args->start.config);
+        migrate_ensure_non_converge(args->start.config);
         migrate_prepare_for_dirty_mem(from);
     } else {
         /*
@@ -1059,9 +996,6 @@ void test_file_common(MigrateCommon *args, bool stop_src)
     void *data_hook = NULL;
     bool check_offset = false;
 
-    /* temporary */
-    qdict_put_bool(args->start.config, "use-config", true);
-
     if (migrate_start(&from, &to, args->listen_uri, &args->start)) {
         return;
     }
@@ -1089,7 +1023,7 @@ void test_file_common(MigrateCommon *args, bool stop_src)
         data_hook = args->start_hook_full(from, to, args->start_hook_data);
     }
 
-    migrate_ensure_converge(from, args->start.config);
+    migrate_ensure_converge(args->start.config);
     wait_for_serial("src_serial");
 
     if (stop_src) {

@@ -96,11 +96,8 @@ void migrate_qmp_fail(QTestState *who, const char *uri,
         qdict_put_obj(args, "channels", channels);
     }
 
-    config = config_load(config);
-    if (config) {
-        qdict_put_obj(args, "config", QOBJECT(config));
-        qobject_ref(config);
-    }
+    qdict_put_obj(args, "config", QOBJECT(config));
+    qobject_ref(config);
 
     err = qtest_qmp_assert_failure_ref(
         who, "{ 'execute': 'migrate', 'arguments': %p}", args);
@@ -108,7 +105,6 @@ void migrate_qmp_fail(QTestState *who, const char *uri,
     g_assert(qdict_haskey(err, "desc"));
 
     qobject_unref(err);
-    config_put(config);
 }
 
 /*
@@ -142,26 +138,11 @@ void migrate_qmp(QTestState *who, QTestState *to, const char *uri,
         qdict_put_obj(args, "channels", channels);
     }
 
-    config = config_load(config);
-    if (config) {
-        qdict_put_obj(args, "config", QOBJECT(config));
-        qobject_ref(config);
-    }
+    qdict_put_obj(args, "config", QOBJECT(config));
+    qobject_ref(config);
 
     qtest_qmp_assert_success(who,
                              "{ 'execute': 'migrate', 'arguments': %p}", args);
-    config_put(config);
-}
-
-void migrate_set_capability(QTestState *who, const char *capability,
-                            bool value)
-{
-    qtest_qmp_assert_success(who,
-                             "{ 'execute': 'migrate-set-capabilities',"
-                             "'arguments': { "
-                             "'capabilities': [ { "
-                             "'capability': %s, 'state': %i } ] } }",
-                             capability, value);
 }
 
 void migrate_incoming_qmp(QTestState *to, const char *uri, QObject *channels,
@@ -185,13 +166,10 @@ void migrate_incoming_qmp(QTestState *to, const char *uri, QObject *channels,
     }
 
     /* This function relies on the event to work, make sure it's enabled */
-    migrate_set_capability(to, "events", true);
+    qdict_put_bool(config, "events", true);
 
-    config = config_load(config);
-    if (config) {
-        qdict_put_obj(args, "config", QOBJECT(config));
-        qobject_ref(config);
-    }
+    qdict_put_obj(args, "config", QOBJECT(config));
+    qobject_ref(config);
 
     rsp = qtest_qmp(to, "{ 'execute': 'migrate-incoming', 'arguments': %p}",
                     args);
@@ -205,7 +183,6 @@ void migrate_incoming_qmp(QTestState *to, const char *uri, QObject *channels,
     qobject_unref(rsp);
 
     migration_event_wait(to, "setup");
-    config_put(config);
 }
 
 static bool check_migration_status(QTestState *who, const char *goal,
@@ -463,22 +440,6 @@ void migrate_set_parameter_str(QTestState *who, const char *parameter,
     migrate_check_parameter_str(who, parameter, value);
 }
 
-void migrate_set_parameter_strv(QTestState *who, const char *parameter,
-                                char **strv)
-{
-    g_autofree char *args = g_strjoinv("\",\"", strv);
-    g_autoptr(GString) value = g_string_new("");
-    g_autofree char *command = NULL;
-
-    g_string_printf(value, "\"%s\"", args);
-
-    command = g_strdup_printf("{ 'execute': 'migrate-set-parameters',"
-                              "'arguments': { %%s: [ %s ]}}",
-                              value->str);
-
-    qtest_qmp_assert_success(who, command, parameter);
-}
-
 void migrate_set_parameter_null(QTestState *who, const char *parameter)
 {
     qtest_qmp_assert_success(who,
@@ -534,32 +495,17 @@ void migrate_ongoing_ensure_converge(QTestState *who)
     migrate_set_parameter_int(who, "downtime-limit", 30 * 1000);
 }
 
-void migrate_ensure_non_converge(QTestState *who, QDict *config)
+void migrate_ensure_non_converge(QDict *config)
 {
-    config = config_load(config);
-    if (config) {
-        /* Can't converge with 1ms downtime + 3 mbs bandwidth limit */
-        qdict_put_int(config, "max-bandwidth", 3 * 1000 * 1000);
-        qdict_put_int(config, "downtime-limit", 1);
-    } else {
-        assert(who);
-        migrate_ongoing_ensure_non_converge(who);
-    }
-    config_put(config);
+    /* Can't converge with 1ms downtime + 3 mbs bandwidth limit */
+    qdict_put_int(config, "max-bandwidth", 3 * 1000 * 1000);
+    qdict_put_int(config, "downtime-limit", 1);
 }
 
-void migrate_ensure_converge(QTestState *who, QDict *config)
+void migrate_ensure_converge(QDict *config)
 {
-    config = config_load(config);
-    /* Should converge with 30s downtime + 1 gbs bandwidth limit */
-    if (config) {
-        qdict_put_int(config, "max-bandwidth", 1 * 1000 * 1000 * 1000);
-        qdict_put_int(config, "downtime-limit", 30 * 1000);
-    } else {
-        assert(who);
-        migrate_ongoing_ensure_converge(who);
-    }
-    config_put(config);
+    qdict_put_int(config, "max-bandwidth", 1 * 1000 * 1000 * 1000);
+    qdict_put_int(config, "downtime-limit", 30 * 1000);
 }
 
 void migrate_pause(QTestState *who)

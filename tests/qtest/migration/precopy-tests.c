@@ -374,7 +374,7 @@ static void test_auto_converge(char *name, MigrateCommon *args)
      * Set the initial parameters so that the migration could not converge
      * without throttling.
      */
-    migrate_ensure_non_converge(from, args->start.config);
+    migrate_ensure_non_converge(args->start.config);
 
     /* To check remaining size after precopy */
     qdict_put_bool(args->start.config, "pause-before-switchover", true);
@@ -536,9 +536,6 @@ static void test_multifd_tcp_cancel(MigrateCommon *args, bool postcopy_ram)
 {
     QTestState *from, *to, *to2;
 
-    /* temporary */
-    qdict_put_bool(args->start.config, "use-config", true);
-
     args->start.hide_stderr = true;
     args->start.incoming_defer = true;
 
@@ -546,7 +543,7 @@ static void test_multifd_tcp_cancel(MigrateCommon *args, bool postcopy_ram)
         return;
     }
 
-    migrate_ensure_non_converge(from, args->start.config);
+    migrate_ensure_non_converge(args->start.config);
     migrate_prepare_for_dirty_mem(from);
 
     if (postcopy_ram) {
@@ -598,7 +595,7 @@ static void test_multifd_tcp_cancel(MigrateCommon *args, bool postcopy_ram)
     migrate_incoming_qmp(to2, "tcp:127.0.0.1:0", NULL, args->start.config,
                          "{}");
 
-    migrate_ensure_non_converge(from, args->start.config);
+    migrate_ensure_non_converge(args->start.config);
 
     migrate_qmp(from, to2, NULL, NULL, args->start.config, "{}");
 
@@ -632,7 +629,7 @@ static void test_cancel_src_after_failed(QTestState *from, QTestState *to,
      */
 
     wait_for_serial("src_serial");
-    migrate_ensure_converge(from, args->config);
+    migrate_ensure_converge(args->config);
 
     migrate_qmp(from, to, uri, NULL, args->config, "{}");
 
@@ -658,7 +655,7 @@ static void test_cancel_src_after_cancelled(QTestState *from, QTestState *to,
                          "{ 'exit-on-error': false }");
 
     wait_for_serial("src_serial");
-    migrate_ensure_converge(from, args->config);
+    migrate_ensure_converge(args->config);
 
     migrate_qmp(from, to, uri, NULL, args->config, "{}");
 
@@ -684,7 +681,7 @@ static void test_cancel_src_after_complete(QTestState *from, QTestState *to,
                          "{ 'exit-on-error': false }");
 
     wait_for_serial("src_serial");
-    migrate_ensure_converge(from, args->config);
+    migrate_ensure_converge(args->config);
 
     migrate_qmp(from, to, uri, NULL, args->config, "{}");
 
@@ -715,7 +712,7 @@ static void test_cancel_src_after_none(QTestState *from, QTestState *to,
     migrate_incoming_qmp(to, uri, NULL, args->config,
                          "{ 'exit-on-error': false }");
 
-    migrate_ensure_converge(from, args->config);
+    migrate_ensure_converge(args->config);
     migrate_qmp(from, to, uri, NULL, args->config, "{}");
 
     wait_for_migration_complete(from);
@@ -730,7 +727,7 @@ static void test_cancel_src_pre_switchover(QTestState *from, QTestState *to,
                          "{ 'exit-on-error': false }");
 
     wait_for_serial("src_serial");
-    migrate_ensure_converge(from, args->config);
+    migrate_ensure_converge(args->config);
 
     migrate_qmp(from, to, uri, NULL, args->config, "{}");
 
@@ -750,9 +747,6 @@ static void test_cancel_src_after_status(char *test_path, MigrateCommon *args)
     g_autofree char *phase = g_path_get_basename(test_path);
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
-
-    /* temporary */
-    qdict_put_bool(args->start.config, "use-config", true);
 
     args->start.hide_stderr = true;
     args->start.incoming_defer = true;
@@ -1103,7 +1097,7 @@ static void test_dirty_limit(char *name, MigrateCommon *args)
     }
 
     /* Prepare for dirty limit migration and wait src vm show up */
-    migrate_ensure_non_converge(from, args->start.config);
+    migrate_ensure_non_converge(args->start.config);
     migrate_dirty_limit_wait_showup(args->start.config, dirtylimit_period,
                                     dirtylimit_value);
 

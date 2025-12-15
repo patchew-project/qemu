@@ -255,7 +255,6 @@ static void migration_test_wrapper(const void *data)
 
     test->data = g_new0(MigrateCommon, 1);
     test->data->start.config = qdict_new();
-    qdict_put_bool(test->data->start.config, "use-config", false);
 
     g_test_message("Running /%s%s", qtest_get_arch(), test->name);
     test->func(test->name, test->data);
