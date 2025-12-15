@@ -505,7 +505,7 @@ bool migrate_can_snapshot(Error **errp)
     return true;
 }
 
-bool migrate_rdma_caps_check(MigrationParameters *params, Error **errp)
+bool migrate_rdma_caps_check(const MigrationParameters *params, Error **errp)
 {
     if (params->xbzrle) {
         error_setg(errp, "RDMA and XBZRLE can't be used together");
@@ -523,7 +523,7 @@ bool migrate_rdma_caps_check(MigrationParameters *params, Error **errp)
     return true;
 }
 
-bool migrate_caps_check(MigrationParameters *new, Error **errp)
+bool migrate_caps_check(const MigrationParameters *new, Error **errp)
 {
     MigrationState *s = migrate_get_current();
     MigrationIncomingState *mis = migration_incoming_get_current();
@@ -1182,7 +1182,7 @@ static void migrate_post_update_params(MigrationParameters *new, Error **errp)
  * Check whether the parameters are valid. Error will be put into errp
  * (if provided). Return true if valid, otherwise false.
  */
-bool migrate_params_check(MigrationParameters *params, Error **errp)
+bool migrate_params_check(const MigrationParameters *params, Error **errp)
 {
     ERRP_GUARD();
 
@@ -1363,7 +1363,7 @@ static void migrate_params_merge(MigrationParameters *dst,
  * Caller must ensure all has_* fields of @params are true to ensure
  * all fields get copied and the pointer members don't dangle.
  */
-static void migrate_params_apply(MigrationParameters *params)
+static void migrate_params_apply(const MigrationParameters *params)
 {
     MigrationState *s = migrate_get_current();
     MigrationParameters *cur = &s->parameters;
@@ -1374,6 +1374,19 @@ static void migrate_params_apply(MigrationParameters *params)
     qapi_free_BitmapMigrationNodeAliasList(cur->block_bitmap_mapping);
     qapi_free_strList(cur->cpr_exec_command);
     QAPI_CLONE_MEMBERS(MigrationParameters, cur, params);
+}
+
+void migrate_params_store_defaults(MigrationState *s)
+{
+    assert(!s->initial_params);
+
+    /*
+     * The defaults set for each qdev property in migration_properties
+     * will be stored as the default values for each migration
+     * parameter. For debugging, using -global can override the
+     * defaults.
+     */
+    s->initial_params = QAPI_CLONE(MigrationParameters, &s->parameters);
 }
 
 void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)

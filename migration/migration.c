@@ -331,6 +331,7 @@ void migration_object_init(void)
     current_incoming->exit_on_error = INMIGRATE_DEFAULT_EXIT_ON_ERROR;
 
     migration_object_check(current_migration, &error_fatal);
+    migrate_params_store_defaults(current_migration);
 
     ram_mig_init();
     dirty_bitmap_mig_init();
@@ -4149,6 +4150,8 @@ static void migration_instance_finalize(Object *obj)
 
     qapi_free_BitmapMigrationNodeAliasList(ms->parameters.block_bitmap_mapping);
     qapi_free_strList(ms->parameters.cpr_exec_command);
+    /* drop const */
+    qapi_free_MigrationParameters((MigrationParameters *)ms->initial_params);
     qemu_mutex_destroy(&ms->error_mutex);
     qemu_mutex_destroy(&ms->qemu_file_lock);
     qemu_sem_destroy(&ms->wait_unplug_sem);
