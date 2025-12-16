@@ -52,6 +52,11 @@ void qdev_prop_allow_set_link_before_realize(const Object *obj,
     }
 }
 
+void qdev_prop_allow_set_link(const Object *obj, const char *name,
+                              Object *val, Error **errp)
+{
+}
+
 void *object_field_prop_ptr(Object *obj, const Property *prop)
 {
     void *ptr = obj;

@@ -346,6 +346,15 @@ void qemu_chr_fe_set_open(CharFrontend *c, bool is_open)
     }
 }
 
+void qemu_chr_fe_set_blocking(CharFrontend *be, bool blocking)
+{
+    Chardev *chr = be->chr;
+
+    if (chr && CHARDEV_GET_CLASS(chr)->chr_set_blocking) {
+        CHARDEV_GET_CLASS(chr)->chr_set_blocking(chr, blocking);
+    }
+}
+
 guint qemu_chr_fe_add_watch(CharFrontend *c, GIOCondition cond,
                             FEWatchFunc func, void *user_data)
 {

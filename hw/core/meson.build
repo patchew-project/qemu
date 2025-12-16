@@ -48,6 +48,13 @@ system_ss.add(files(
   'sysbus.c',
   'vm-change-state-handler.c',
   'clock-vmstate.c',
+  'remote-port-proto.c',
+  'remote-port.c',
+  'remote-port-memory-master.c',
+  'remote-port-memory-slave.c',
+  'remote-port-gpio.c',
+  'remote-port-stream.c',
+  'remote-port-ats.c'
 ))
 user_ss.add(files(
   'cpu-user.c',

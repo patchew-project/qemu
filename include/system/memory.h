@@ -27,6 +27,7 @@
 #include "qom/object.h"
 #include "qemu/rcu.h"
 
+extern const char *machine_path;
 #define RAM_ADDR_INVALID (~(ram_addr_t)0)
 
 #define MAX_PHYS_ADDR_SPACE_BITS 62
@@ -35,6 +36,11 @@
 #define TYPE_MEMORY_REGION "memory-region"
 DECLARE_INSTANCE_CHECKER(MemoryRegion, MEMORY_REGION,
                          TYPE_MEMORY_REGION)
+
+#define TYPE_MEMORY_TRANSACTION_ATTR "memory-transaction-attr"
+#define MEMORY_TRANSACTION_ATTR(obj) \
+        OBJECT_CHECK(MemTxAttrs, (obj), TYPE_MEMORY_TRANSACTION_ATTR)
+
 
 #define TYPE_IOMMU_MEMORY_REGION "iommu-memory-region"
 typedef struct IOMMUMemoryRegionClass IOMMUMemoryRegionClass;
@@ -76,6 +82,29 @@ static inline void fuzz_dma_read_cb(size_t addr,
 extern unsigned int global_dirty_tracking;
 
 typedef struct MemoryRegionOps MemoryRegionOps;
+
+typedef struct MemoryTransaction
+{
+    union {
+        /*
+         * Data is passed by values up to 64bit sizes. Beyond
+         * that, a pointer is passed in p8.
+         *
+         * Note that p8 has no alignment restrictions.
+         */
+        uint8_t *p8;
+        uint64_t u64;
+        uint32_t u32;
+        uint16_t u16;
+        uint8_t  u8;
+    } data;
+    bool rw;
+    hwaddr addr;
+    unsigned int size;
+    MemTxAttrs attr;
+    void *opaque;
+} MemoryTransaction;
+
 
 struct ReservedRegion {
     Range range;
@@ -291,6 +320,8 @@ static inline void iommu_notifier_init(IOMMUNotifier *n, IOMMUNotify fn,
  * Memory region callbacks
  */
 struct MemoryRegionOps {
+        /* FIXME: Remove */
+    MemTxResult (*access)(MemoryTransaction *tr);
     /* Read from the memory region. @addr is relative to @mr; @size is
      * in bytes. */
     uint64_t (*read)(void *opaque,
@@ -428,6 +459,9 @@ struct IOMMUMemoryRegionClass {
      */
     IOMMUTLBEntry (*translate)(IOMMUMemoryRegion *iommu, hwaddr addr,
                                IOMMUAccessFlags flag, int iommu_idx);
+    IOMMUTLBEntry (*translate_attr)(IOMMUMemoryRegion *iommu, hwaddr addr,
+                                    bool is_write, MemTxAttrs *attr);
+    
     /**
      * @get_min_page_size:
      *
@@ -2724,6 +2758,10 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
  */
 void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name);
 
+
+/* Remove this */
+AddressSpace *address_space_init_shareable(MemoryRegion *root,
+    const char *name);
 /**
  * address_space_destroy: destroy an address space
  *
@@ -3029,6 +3067,18 @@ static inline MemoryRegion *address_space_translate(AddressSpace *as,
     return flatview_translate(address_space_to_flatview(as),
                               addr, xlat, len, is_write, attrs);
 }
+
+MemoryRegion *ats_do_translate(AddressSpace *as,
+    hwaddr addr,
+    hwaddr *xlat,
+    hwaddr *plen_out,
+    AddressSpace **target_as,
+    int *prot,
+    MemTxAttrs attrs);
+
+MemoryRegion *address_space_translate_attr(AddressSpace *as, hwaddr addr,
+           hwaddr *xlat, hwaddr *plen,
+           bool is_write, MemTxAttrs *attr);
 
 /* address_space_access_valid: check for validity of accessing an address
  * space range

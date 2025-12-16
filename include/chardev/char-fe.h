@@ -179,6 +179,8 @@ void qemu_chr_fe_printf(CharFrontend *c, const char *fmt, ...)
     G_GNUC_PRINTF(2, 3);
 
 
+void qemu_chr_fe_set_blocking(CharFrontend *be, bool blocking);
+
 /**
  * FEWatchFunc: a #GSourceFunc called when any conditions requested by
  *              qemu_chr_fe_add_watch() is satisfied.

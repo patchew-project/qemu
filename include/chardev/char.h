@@ -305,6 +305,8 @@ struct ChardevClass {
     /* notify the backend of frontend open state */
     void (*chr_set_fe_open)(Chardev *chr, int fe_open);
 
+    void (*chr_set_blocking)(Chardev *chr, bool blocking);
+
     /* handle various events */
     void (*chr_be_event)(Chardev *s, QEMUChrEvent event);
 };
