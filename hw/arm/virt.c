@@ -1514,8 +1514,9 @@ static void create_smmuv3_dev_dtb(VirtMachineState *vms,
                            0x0, vms->iommu_phandle, 0x0, 0x10000);
 }
 
-static void create_smmu(const VirtMachineState *vms,
-                        PCIBus *bus)
+static void create_smmu(const VirtMachineState *vms, PCIBus *bus,
+                        MemoryRegion *sysmem,
+                        MemoryRegion *secure_sysmem)
 {
     VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
     int irq =  vms->irqmap[VIRT_SMMU];
@@ -1534,6 +1535,10 @@ static void create_smmu(const VirtMachineState *vms,
         object_property_set_str(OBJECT(dev), "stage", "nested", &error_fatal);
     }
     object_property_set_link(OBJECT(dev), "primary-bus", OBJECT(bus),
+                             &error_abort);
+    object_property_set_link(OBJECT(dev), "memory", OBJECT(sysmem),
+                             &error_abort);
+    object_property_set_link(OBJECT(dev), "secure-memory", OBJECT(secure_sysmem),
                              &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
@@ -1573,7 +1578,8 @@ static void create_virtio_iommu_dt_bindings(VirtMachineState *vms)
     }
 }
 
-static void create_pcie(VirtMachineState *vms)
+static void create_pcie(VirtMachineState *vms,
+                        MemoryRegion *sysmem, MemoryRegion *secure_sysmem)
 {
     hwaddr base_mmio = vms->memmap[VIRT_PCIE_MMIO].base;
     hwaddr size_mmio = vms->memmap[VIRT_PCIE_MMIO].size;
@@ -1692,7 +1698,7 @@ static void create_pcie(VirtMachineState *vms)
 
         switch (vms->iommu) {
         case VIRT_IOMMU_SMMUV3:
-            create_smmu(vms, vms->bus);
+            create_smmu(vms, vms->bus, sysmem, secure_sysmem);
             if (!vms->default_bus_bypass_iommu) {
                 qemu_fdt_setprop_cells(ms->fdt, nodename, "iommu-map",
                                        0x0, vms->iommu_phandle, 0x0, 0x10000);
@@ -2506,7 +2512,7 @@ static void machvirt_init(MachineState *machine)
 
     create_rtc(vms);
 
-    create_pcie(vms);
+    create_pcie(vms, sysmem, secure_sysmem);
     create_cxl_host_reg_region(vms);
 
     if (aarch64 && firmware_loaded && virt_is_acpi_enabled(vms)) {
