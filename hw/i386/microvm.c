@@ -36,6 +36,7 @@
 #include "hw/i386/microvm.h"
 #include "hw/i386/x86.h"
 #include "target/i386/cpu.h"
+#include "target/i386/sev.h"
 #include "hw/intc/i8259.h"
 #include "hw/timer/i8254.h"
 #include "hw/rtc/mc146818rtc.h"
@@ -230,7 +231,11 @@ static void microvm_devices_init(MicrovmMachineState *mms)
 
     if (x86_machine_is_acpi_enabled(x86ms) && mms->pcie == ON_OFF_AUTO_ON) {
         /* use topmost 25% of the address space available */
-        hwaddr phys_size = (hwaddr)1 << X86_CPU(first_cpu)->phys_bits;
+        int phys_bits = X86_CPU(first_cpu)->phys_bits;
+        if (sev_enabled()) {
+            phys_bits -= sev_get_reduced_phys_bits();
+        }
+        hwaddr phys_size = (hwaddr)1 << phys_bits;
         if (phys_size > 0x1000000ll) {
             mms->gpex.mmio64.size = phys_size / 4;
             mms->gpex.mmio64.base = phys_size - mms->gpex.mmio64.size;
