@@ -39,6 +39,9 @@ bool qemu_log_separate(void);
 #define LOG_TB_OP_PLUGIN   (1u << 22)
 #define LOG_INVALID_MEM    (1u << 23)
 
+/* device entries */
+#define LOG_FDT            (1 << 24)
+
 /* Lock/unlock output. */
 
 FILE *qemu_log_trylock(void) G_GNUC_WARN_UNUSED_RESULT;

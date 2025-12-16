@@ -28,6 +28,9 @@ system_ss.add(when: 'CONFIG_EIF', if_true: [files('eif.c'), zlib, libcbor, gnutl
 
 system_ss.add(files(
   'cpu-system.c',
+  'fdt_generic.c',
+  'fdt_generic_devices.c',
+  'fdt_generic_util.c',
   'fw-path-provider.c',
   'gpio.c',
   'hotplug.c',

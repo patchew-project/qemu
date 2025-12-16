@@ -375,6 +375,20 @@ static void machine_set_dtb(Object *obj, const char *value, Error **errp)
     ms->dtb = g_strdup(value);
 }
 
+static char *machine_get_hw_dtb(Object *obj, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    return g_strdup(ms->hw_dtb);
+}
+
+static void machine_set_hw_dtb(Object *obj, const char *value, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    ms->hw_dtb = g_strdup(value);
+}
+
 static char *machine_get_dumpdtb(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
@@ -1283,6 +1297,11 @@ static void machine_initfn(Object *obj)
     ms->kernel_cmdline = g_strdup("");
     ms->ram_size = mc->default_ram_size;
     ms->maxram_size = mc->default_ram_size;
+
+    object_property_add_str(obj, "hw-dtb",
+        machine_get_hw_dtb, machine_set_hw_dtb);
+    object_property_set_description(obj, "hw-dtb",
+                "A device tree used to describe the hardware to QEMU.");
 
     if (mc->nvdimm_supported) {
         ms->nvdimms_state = g_new0(NVDIMMState, 1);

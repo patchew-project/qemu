@@ -55,6 +55,8 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
 void drive_check_orphaned(void);
 DriveInfo *drive_get_by_index(BlockInterfaceType type, int index);
 int drive_get_max_bus(BlockInterfaceType type);
+/* Xilinx: keep for fdt_generic */
+DriveInfo *drive_get_next(BlockInterfaceType type);
 
 QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
                     const char *optstr);

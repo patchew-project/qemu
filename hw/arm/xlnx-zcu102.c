@@ -88,7 +88,8 @@ static void zcu102_modify_dtb(const struct arm_boot_info *binfo, void *fdt)
                                        &error_fatal);
 
         for (i = 0; node_path && node_path[i]; i++) {
-            r = qemu_fdt_getprop(fdt, node_path[i], "method", &prop_len, NULL);
+            r = qemu_fdt_getprop(fdt, node_path[i], "method", &prop_len,
+                false, NULL);
             method_is_hvc = r && !strcmp("hvc", r);
 
             /* Allow HVC based firmware if EL2 is enabled.  */

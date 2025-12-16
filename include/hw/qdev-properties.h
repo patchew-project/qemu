@@ -133,6 +133,7 @@ extern const PropertyInfo qdev_prop_link;
                 .bitmask    = (_bitmask),                     \
                 .set_default = false)
 
+#define PROP_ARRAY_LEN_PREFIX "len-"
 /**
  * DEFINE_PROP_ARRAY:
  * @_name: name of the array

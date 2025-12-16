@@ -46,6 +46,8 @@ int display_opengl;
 const char* keyboard_layout;
 MlockState mlock_state;
 bool enable_cpu_pm;
+int nb_nics;
+NICInfo nd_table[MAX_NICS];
 int autostart = 1;
 int vga_interface_type = VGA_NONE;
 bool vga_interface_created;

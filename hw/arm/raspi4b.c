@@ -42,9 +42,9 @@ static void raspi_add_memory_node(void *fdt, hwaddr mem_base, hwaddr mem_len)
     uint32_t acells, scells;
     char *nodename = g_strdup_printf("/memory@%" PRIx64, mem_base);
 
-    acells = qemu_fdt_getprop_cell(fdt, "/", "#address-cells",
+    acells = qemu_fdt_getprop_cell(fdt, "/", "#address-cells", 0,
                                    NULL, &error_fatal);
-    scells = qemu_fdt_getprop_cell(fdt, "/", "#size-cells",
+    scells = qemu_fdt_getprop_cell(fdt, "/", "#size-cells", 0,
                                    NULL, &error_fatal);
     /* validated by arm_load_dtb */
     g_assert(acells && scells);
