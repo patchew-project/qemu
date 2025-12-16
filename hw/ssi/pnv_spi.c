@@ -1176,6 +1176,13 @@ static void pnv_spi_realize(DeviceState *dev, Error **errp)
                           s, "xscom-spi", PNV10_XSCOM_PIB_SPIC_SIZE);
 }
 
+static void pnv_spi_unrealize(DeviceState *dev)
+{
+    PnvSpi *s = PNV_SPI(dev);
+    fifo8_destroy(&s->tx_fifo);
+    fifo8_destroy(&s->rx_fifo);
+}
+
 static int pnv_spi_dt_xscom(PnvXScomInterface *dev, void *fdt,
                              int offset)
 {
@@ -1208,6 +1215,7 @@ static void pnv_spi_class_init(ObjectClass *klass, const void *data)
 
     dc->desc = "PowerNV SPI";
     dc->realize = pnv_spi_realize;
+    dc->unrealize = pnv_spi_unrealize;
     device_class_set_legacy_reset(dc, do_reset);
     device_class_set_props(dc, pnv_spi_properties);
 }
