@@ -102,7 +102,7 @@ size_t qemu_ram_pagesize(RAMBlock *block);
 size_t qemu_ram_pagesize_largest(void);
 
 /**
- * cpu_address_space_init:
+ * cpu_address_space_add:
  * @cpu: CPU to add this address space to
  * @asidx: integer index of this address space
  * @prefix: prefix to be used as name of address space
@@ -120,8 +120,8 @@ size_t qemu_ram_pagesize_largest(void);
  *
  * Note that with KVM only one address space is supported.
  */
-void cpu_address_space_init(CPUState *cpu, int asidx,
-                            const char *prefix, MemoryRegion *mr);
+void cpu_address_space_add(CPUState *cpu, int asidx,
+                           const char *prefix, MemoryRegion *mr);
 /**
  * cpu_destroy_address_spaces:
  * @cpu: CPU for which address spaces need to be destroyed

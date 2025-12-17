@@ -2330,7 +2330,7 @@ bool write_cpustate_to_list(ARMCPU *cpu, bool kvm_sync);
 
 #define TYPE_ARM_HOST_CPU "host-" TYPE_ARM_CPU
 
-/* Indexes used when registering address spaces with cpu_address_space_init */
+/* Indexes used when registering address spaces with cpu_address_space_add */
 typedef enum ARMASIdx {
     ARMASIdx_NS = 0,
     ARMASIdx_S = 1,

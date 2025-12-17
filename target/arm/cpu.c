@@ -1681,7 +1681,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
          *
          * Catch all the cases which might cause us to create more than one
          * address space for the CPU (otherwise we will assert() later in
-         * cpu_address_space_init()).
+         * cpu_address_space_add()).
          */
         if (arm_feature(env, ARM_FEATURE_M)) {
             error_setg(errp,
@@ -2158,22 +2158,22 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         cs->num_ases = 1 + has_secure;
     }
 
-    cpu_address_space_init(cs, ARMASIdx_NS, "cpu-memory", cs->memory);
+    cpu_address_space_add(cs, ARMASIdx_NS, "cpu-memory", cs->memory);
 
     if (has_secure) {
         if (!cpu->secure_memory) {
             cpu->secure_memory = cs->memory;
         }
-        cpu_address_space_init(cs, ARMASIdx_S, "cpu-secure-memory",
-                               cpu->secure_memory);
+        cpu_address_space_add(cs, ARMASIdx_S, "cpu-secure-memory",
+                              cpu->secure_memory);
     }
 
     if (cpu->tag_memory != NULL) {
-        cpu_address_space_init(cs, ARMASIdx_TagNS, "cpu-tag-memory",
-                               cpu->tag_memory);
+        cpu_address_space_add(cs, ARMASIdx_TagNS, "cpu-tag-memory",
+                              cpu->tag_memory);
         if (has_secure) {
-            cpu_address_space_init(cs, ARMASIdx_TagS, "cpu-tag-memory",
-                                   cpu->secure_tag_memory);
+            cpu_address_space_add(cs, ARMASIdx_TagS, "cpu-tag-memory",
+                                  cpu->secure_tag_memory);
         }
     }
 
