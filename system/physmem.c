@@ -775,6 +775,14 @@ hwaddr memory_region_section_get_iotlb(CPUState *cpu,
 
 #endif /* CONFIG_TCG */
 
+void cpu_address_space_init(CPUState *cpu, int num_ases)
+{
+    assert(num_ases > 0);
+    assert(cpu->num_ases == 0);
+
+    cpu->num_ases = num_ases;
+}
+
 void cpu_address_space_add(CPUState *cpu, int asidx,
                            const char *prefix, MemoryRegion *mr)
 {

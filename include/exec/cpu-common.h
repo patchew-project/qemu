@@ -101,6 +101,19 @@ int qemu_ram_get_fd(RAMBlock *rb);
 size_t qemu_ram_pagesize(RAMBlock *block);
 size_t qemu_ram_pagesize_largest(void);
 
+
+/**
+ * cpu_address_space_init:
+ * @cpu: CPU to init the number of address space(s)
+ * @num_ases: number of address space(s) in @cpu
+ *
+ * This function must be called before calling cpu_address_space_add and
+ * it sets the total number of address spaces that can be added to @cpu
+ * using cpu_address_space_add.
+ *
+ */
+void cpu_address_space_init(CPUState *cpu, int num_ases);
+
 /**
  * cpu_address_space_add:
  * @cpu: CPU to add this address space to
@@ -114,9 +127,9 @@ size_t qemu_ram_pagesize_largest(void);
  * The target-specific code which registers ASes is responsible
  * for defining what semantics address space 0, 1, 2, etc have.
  *
- * Before the first call to this function, the caller must set
- * cpu->num_ases to the total number of address spaces it needs
- * to support.
+ * Before the first call to this function, the caller must call
+ * cpu_address_space_init to set the total number of address
+ * spaces @cpu can support.
  *
  * Note that with KVM only one address space is supported.
  */
