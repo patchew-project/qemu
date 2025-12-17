@@ -266,8 +266,7 @@ static void default_reset_secondary(ARMCPU *cpu,
     AddressSpace *as = arm_boot_address_space(cpu, info);
     CPUState *cs = CPU(cpu);
 
-    address_space_stl_notdirty(as, info->smp_bootreg_addr,
-                               0, MEMTXATTRS_UNSPECIFIED, NULL);
+    stl_phys(as, info->smp_bootreg_addr, 0);
     cpu_set_pc(cs, info->smp_loader_start);
 }
 
@@ -277,8 +276,7 @@ static inline bool have_dtb(const struct arm_boot_info *info)
 }
 
 #define WRITE_WORD(p, value) do { \
-    address_space_stl_notdirty(as, p, value, \
-                               MEMTXATTRS_UNSPECIFIED, NULL);  \
+    stl_phys(as, p, value);       \
     p += 4;                       \
 } while (0)
 
