@@ -515,6 +515,17 @@ It was implemented as a no-op instruction in TCG up to QEMU 9.0, but
 only with ``-cpu max`` (which does not guarantee migration compatibility
 across versions).
 
+VirtIO devices
+''''''''''''''
+
+Legacy VirtIO devices on Big-Endian ARM architecture (since 11.0)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+There are no functional tests for legacy virtio devices used by ARM
+machines running in big-endian order, which makes harder to maintain
+the code path while the code base evolve.
+
+
 Backwards compatibility
 -----------------------
 
