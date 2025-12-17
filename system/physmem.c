@@ -2896,8 +2896,8 @@ static MemTxResult flatview_write(FlatView *fv, hwaddr addr, MemTxAttrs attrs,
 static bool flatview_access_valid(FlatView *fv, hwaddr addr, hwaddr len,
                                   bool is_write, MemTxAttrs attrs);
 
-static MemTxResult subpage_read(void *opaque, hwaddr addr, uint64_t *data,
-                                unsigned len, MemTxAttrs attrs)
+static MemTxResult subpage_read_le(void *opaque, hwaddr addr, uint64_t *data,
+                                   unsigned len, MemTxAttrs attrs)
 {
     subpage_t *subpage = opaque;
     uint8_t buf[8];
@@ -2911,12 +2911,32 @@ static MemTxResult subpage_read(void *opaque, hwaddr addr, uint64_t *data,
     if (res) {
         return res;
     }
-    *data = ldn_p(buf, len);
+    *data = ldn_le_p(buf, len);
     return MEMTX_OK;
 }
 
-static MemTxResult subpage_write(void *opaque, hwaddr addr,
-                                 uint64_t value, unsigned len, MemTxAttrs attrs)
+static MemTxResult subpage_read_be(void *opaque, hwaddr addr, uint64_t *data,
+                                   unsigned len, MemTxAttrs attrs)
+{
+    subpage_t *subpage = opaque;
+    uint8_t buf[8];
+    MemTxResult res;
+
+#if defined(DEBUG_SUBPAGE)
+    printf("%s: subpage %p len %u addr " HWADDR_FMT_plx "\n", __func__,
+           subpage, len, addr);
+#endif
+    res = flatview_read(subpage->fv, addr + subpage->base, attrs, buf, len);
+    if (res) {
+        return res;
+    }
+    *data = ldn_be_p(buf, len);
+    return MEMTX_OK;
+}
+
+static MemTxResult subpage_write_le(void *opaque, hwaddr addr,
+                                    uint64_t value, unsigned len,
+                                    MemTxAttrs attrs)
 {
     subpage_t *subpage = opaque;
     uint8_t buf[8];
@@ -2926,7 +2946,23 @@ static MemTxResult subpage_write(void *opaque, hwaddr addr,
            " value %"PRIx64"\n",
            __func__, subpage, len, addr, value);
 #endif
-    stn_p(buf, len, value);
+    stn_le_p(buf, len, value);
+    return flatview_write(subpage->fv, addr + subpage->base, attrs, buf, len);
+}
+
+static MemTxResult subpage_write_be(void *opaque, hwaddr addr,
+                                    uint64_t value, unsigned len,
+                                    MemTxAttrs attrs)
+{
+    subpage_t *subpage = opaque;
+    uint8_t buf[8];
+
+#if defined(DEBUG_SUBPAGE)
+    printf("%s: subpage %p len %u addr " HWADDR_FMT_plx
+           " value %"PRIx64"\n",
+           __func__, subpage, len, addr, value);
+#endif
+    stn_be_p(buf, len, value);
     return flatview_write(subpage->fv, addr + subpage->base, attrs, buf, len);
 }
 
@@ -2944,15 +2980,26 @@ static bool subpage_accepts(void *opaque, hwaddr addr,
                                  len, is_write, attrs);
 }
 
-static const MemoryRegionOps subpage_ops = {
-    .read_with_attrs = subpage_read,
-    .write_with_attrs = subpage_write,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 8,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 8,
-    .valid.accepts = subpage_accepts,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+static const MemoryRegionOps subpage_ops[2] = {
+    [0 ... 1] = {
+        .impl = {
+            .min_access_size = 1,
+            .max_access_size = 8,
+        },
+        .valid = {
+            .min_access_size = 1,
+            .max_access_size = 8,
+            .accepts = subpage_accepts,
+        },
+    },
+
+    [0].endianness = DEVICE_LITTLE_ENDIAN,
+    [0].read_with_attrs = subpage_read_le,
+    [0].write_with_attrs = subpage_write_le,
+
+    [1].endianness = DEVICE_BIG_ENDIAN,
+    [1].read_with_attrs = subpage_read_be,
+    [1].write_with_attrs = subpage_write_be,
 };
 
 static int subpage_register(subpage_t *mmio, uint32_t start, uint32_t end,
@@ -2983,8 +3030,8 @@ static subpage_t *subpage_init(FlatView *fv, hwaddr base)
     mmio = g_malloc0(sizeof(subpage_t) + TARGET_PAGE_SIZE * sizeof(uint16_t));
     mmio->fv = fv;
     mmio->base = base;
-    memory_region_init_io(&mmio->iomem, NULL, &subpage_ops, mmio,
-                          NULL, TARGET_PAGE_SIZE);
+    memory_region_init_io(&mmio->iomem, NULL, &subpage_ops[target_big_endian()],
+                          mmio, NULL, TARGET_PAGE_SIZE);
     mmio->iomem.subpage = true;
 #if defined(DEBUG_SUBPAGE)
     printf("%s: %p base " HWADDR_FMT_plx " len %08x\n", __func__,
