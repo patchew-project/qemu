@@ -282,6 +282,41 @@ void os_setup_limits(void)
     }
 }
 
+static void sd_notify_ready(void)
+{
+#ifdef CONFIG_LINUX
+    static const char message[] = "READY=1";
+    static const char sock_env[] = "NOTIFY_SOCKET";
+
+    struct sockaddr_un sun;
+    int sock;
+    const char *sock_path;
+
+    sock_path = getenv(sock_env);
+    if (!sock_path ||
+        (*sock_path != '/' && *sock_path != '@') ||
+        strlen(sock_path) >= sizeof(sun.sun_path)) {
+        return;
+    }
+
+    memset(&sun, 0, sizeof(sun));
+    sun.sun_family = AF_UNIX;
+    strcpy(sun.sun_path, sock_path);
+    if (*sock_path == '@') {
+        sun.sun_path[0] = '\0';
+    }
+
+    sock = socket(AF_UNIX, SOCK_DGRAM, 0);
+    if (sock >= 0) {
+        /* ignore errors */
+        sendto(sock, message, sizeof(message) - 1, 0,
+               (struct sockaddr *)&sun, sizeof(sun));
+        close(sock);
+    }
+    unsetenv(sock_env);
+#endif
+}
+
 void os_setup_post(void)
 {
     int fd = 0;
@@ -297,6 +332,7 @@ void os_setup_post(void)
         }
     }
 
+    sd_notify_ready();
     change_root();
     change_process_uid();
 
