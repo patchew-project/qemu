@@ -1419,9 +1419,9 @@ static int rmw_cd_mhpmcounter(CPURISCVState *env, int ctr_idx,
     }
 
     if (!wr_mask && val) {
-        riscv_pmu_read_ctr(env, val, false, ctr_idx);
+        read_hpmcounter(env, CSR_MCYCLE + ctr_idx, val);
     } else if (wr_mask) {
-        riscv_pmu_write_ctr(env, new_val, ctr_idx);
+        write_mhpmcounter(env, CSR_MCYCLE + ctr_idx, new_val, 0);
     } else {
         return -EINVAL;
     }
@@ -1438,9 +1438,9 @@ static int rmw_cd_mhpmcounterh(CPURISCVState *env, int ctr_idx,
     }
 
     if (!wr_mask && val) {
-        riscv_pmu_read_ctr(env, val, true, ctr_idx);
+        read_hpmcounterh(env, CSR_MCYCLEH + ctr_idx, val);
     } else if (wr_mask) {
-        riscv_pmu_write_ctrh(env, new_val, ctr_idx);
+        write_mhpmcounterh(env, CSR_MCYCLEH + ctr_idx, new_val, 0);
     } else {
         return -EINVAL;
     }
@@ -1448,31 +1448,18 @@ static int rmw_cd_mhpmcounterh(CPURISCVState *env, int ctr_idx,
     return 0;
 }
 
-static int rmw_cd_mhpmevent(CPURISCVState *env, int evt_index,
+static int rmw_cd_mhpmevent(CPURISCVState *env, int ctr_idx,
                             target_ulong *val, target_ulong new_val,
                             target_ulong wr_mask)
 {
-    uint64_t mhpmevt_val = new_val;
-
     if (wr_mask != 0 && wr_mask != -1) {
         return -EINVAL;
     }
 
     if (!wr_mask && val) {
-        *val = env->mhpmevent_val[evt_index];
-        if (riscv_cpu_cfg(env)->ext_sscofpmf) {
-            *val &= ~MHPMEVENT_BIT_MINH;
-        }
+        read_mhpmevent(env, ctr_idx - 3 + CSR_MHPMEVENT3, val);
     } else if (wr_mask) {
-        wr_mask &= ~MHPMEVENT_BIT_MINH;
-        mhpmevt_val = (new_val & wr_mask) |
-                      (env->mhpmevent_val[evt_index] & ~wr_mask);
-        if (riscv_cpu_mxl(env) == MXL_RV32) {
-            mhpmevt_val = mhpmevt_val |
-                          ((uint64_t)env->mhpmeventh_val[evt_index] << 32);
-        }
-        env->mhpmevent_val[evt_index] = mhpmevt_val;
-        riscv_pmu_update_event_map(env, mhpmevt_val, evt_index);
+        write_mhpmevent(env, ctr_idx - 3 + CSR_MHPMEVENT3, new_val, 0);
     } else {
         return -EINVAL;
     }
@@ -1480,29 +1467,18 @@ static int rmw_cd_mhpmevent(CPURISCVState *env, int evt_index,
     return 0;
 }
 
-static int rmw_cd_mhpmeventh(CPURISCVState *env, int evt_index,
+static int rmw_cd_mhpmeventh(CPURISCVState *env, int ctr_idx,
                              target_ulong *val, target_ulong new_val,
                              target_ulong wr_mask)
 {
-    uint64_t mhpmevth_val;
-    uint64_t mhpmevt_val = env->mhpmevent_val[evt_index];
-
     if (wr_mask != 0 && wr_mask != -1) {
         return -EINVAL;
     }
 
     if (!wr_mask && val) {
-        *val = env->mhpmeventh_val[evt_index];
-        if (riscv_cpu_cfg(env)->ext_sscofpmf) {
-            *val &= ~MHPMEVENTH_BIT_MINH;
-        }
+        read_mhpmeventh(env, ctr_idx - 3 + CSR_MHPMEVENT3H, val);
     } else if (wr_mask) {
-        wr_mask &= ~MHPMEVENTH_BIT_MINH;
-        env->mhpmeventh_val[evt_index] =
-            (new_val & wr_mask) | (env->mhpmeventh_val[evt_index] & ~wr_mask);
-        mhpmevth_val = env->mhpmeventh_val[evt_index];
-        mhpmevt_val = mhpmevt_val | (mhpmevth_val << 32);
-        riscv_pmu_update_event_map(env, mhpmevt_val, evt_index);
+        write_mhpmeventh(env, ctr_idx - 3 + CSR_MHPMEVENT3H, new_val, 0);
     } else {
         return -EINVAL;
     }
@@ -1514,21 +1490,18 @@ static int rmw_cd_ctr_cfg(CPURISCVState *env, int cfg_index, target_ulong *val,
                             target_ulong new_val, target_ulong wr_mask)
 {
     switch (cfg_index) {
-    case 0:             /* CYCLECFG */
+    case HPM_MCYCLE_IDX:
         if (wr_mask) {
-            wr_mask &= ~MCYCLECFG_BIT_MINH;
-            env->mcyclecfg = (new_val & wr_mask) | (env->mcyclecfg & ~wr_mask);
+            write_mcyclecfg(env, CSR_MCYCLE, new_val, 0);
         } else {
-            *val = env->mcyclecfg &= ~MHPMEVENTH_BIT_MINH;
+            read_mcyclecfg(env, CSR_MCYCLE, val);
         }
         break;
-    case 2:             /* INSTRETCFG */
+    case HPM_MINSTRET_IDX:
         if (wr_mask) {
-            wr_mask &= ~MINSTRETCFG_BIT_MINH;
-            env->minstretcfg = (new_val & wr_mask) |
-                               (env->minstretcfg & ~wr_mask);
+            write_minstretcfg(env, CSR_MINSTRET, new_val, 0);
         } else {
-            *val = env->minstretcfg &= ~MHPMEVENTH_BIT_MINH;
+            read_minstretcfg(env, CSR_MINSTRET, val);
         }
         break;
     default:
@@ -1540,28 +1513,19 @@ static int rmw_cd_ctr_cfg(CPURISCVState *env, int cfg_index, target_ulong *val,
 static int rmw_cd_ctr_cfgh(CPURISCVState *env, int cfg_index, target_ulong *val,
                             target_ulong new_val, target_ulong wr_mask)
 {
-
-    if (riscv_cpu_mxl(env) != MXL_RV32) {
-        return RISCV_EXCP_ILLEGAL_INST;
-    }
-
     switch (cfg_index) {
-    case 0:         /* CYCLECFGH */
+    case HPM_MCYCLE_IDX:
         if (wr_mask) {
-            wr_mask &= ~MCYCLECFGH_BIT_MINH;
-            env->mcyclecfgh = (new_val & wr_mask) |
-                              (env->mcyclecfgh & ~wr_mask);
+            write_mcyclecfgh(env, CSR_MCYCLEH, new_val, 0);
         } else {
-            *val = env->mcyclecfgh;
+            read_mcyclecfgh(env, CSR_MCYCLEH, val);
         }
         break;
-    case 2:          /* INSTRETCFGH */
+    case HPM_MINSTRET_IDX:
         if (wr_mask) {
-            wr_mask &= ~MINSTRETCFGH_BIT_MINH;
-            env->minstretcfgh = (new_val & wr_mask) |
-                                (env->minstretcfgh & ~wr_mask);
+            write_minstretcfgh(env, CSR_MINSTRETH, new_val, 0);
         } else {
-            *val = env->minstretcfgh;
+            read_minstretcfgh(env, CSR_MINSTRETH, val);
         }
         break;
     default:
