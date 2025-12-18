@@ -37,6 +37,7 @@
 #include "kvm/kvm_riscv.h"
 #include "tcg/tcg-cpu.h"
 #include "tcg/tcg.h"
+#include "hw/misc/virt_pmu.h"
 
 /* RISC-V CPU definitions */
 static const char riscv_single_letter_exts[] = "IEMAFDQCBPVH";
@@ -1124,6 +1125,13 @@ static void riscv_cpu_init(Object *obj)
     cpu->cfg.pmp_granularity = MIN_RISCV_PMP_GRANULARITY;
     cpu->env.vext_ver = VEXT_VERSION_1_00_0;
     cpu->cfg.max_satp_mode = -1;
+
+#ifndef CONFIG_USER_ONLY
+    /* Default PMU implementation */
+    env->pmu_ctr_write = riscv_virt_pmu_ctr_write;
+    env->pmu_ctr_read = riscv_virt_pmu_ctr_read;
+    env->pmu_vendor_support = riscv_virt_supported_events;
+#endif /* CONFIG_USER_ONLY */
 
     if (mcc->def->profile) {
         mcc->def->profile->enabled = true;

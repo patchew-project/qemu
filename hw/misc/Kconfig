@@ -150,6 +150,9 @@ config IOTKIT_SYSINFO
 config PVPANIC_COMMON
     bool
 
+config VIRT_PMU
+    bool
+
 config PVPANIC_PCI
     bool
     default y if PCI_DEVICES
