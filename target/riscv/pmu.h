@@ -38,5 +38,6 @@ void riscv_pmu_update_fixed_ctrs(CPURISCVState *env, target_ulong newpriv,
                                  bool new_virt);
 RISCVException riscv_pmu_read_ctr(CPURISCVState *env, target_ulong *val,
                                   bool upper_half, uint32_t ctr_idx);
+uint32_t riscv_pmu_csrno_to_ctr_idx(int csrno);
 
 #endif /* RISCV_PMU_H */

@@ -600,3 +600,47 @@ void riscv_pmu_init(RISCVCPU *cpu, Error **errp)
 
     cpu->pmu_avail_ctrs = cpu->cfg.pmu_mask;
 }
+
+uint32_t riscv_pmu_csrno_to_ctr_idx(int csrno)
+{
+    #define CASE_RANGE(low, high, offset) { \
+        case (low)...(high): \
+            return csrno - (low) + (offset); \
+    }
+    #define HPMCOUNTER_START (HPM_MINSTRET_IDX + 1)
+
+    switch (csrno) {
+    CASE_RANGE(CSR_MHPMEVENT3, CSR_MHPMEVENT31, HPMCOUNTER_START)
+    CASE_RANGE(CSR_MHPMEVENT3H, CSR_MHPMEVENT31H, HPMCOUNTER_START)
+    CASE_RANGE(CSR_HPMCOUNTER3, CSR_HPMCOUNTER31, HPMCOUNTER_START)
+    CASE_RANGE(CSR_HPMCOUNTER3H, CSR_HPMCOUNTER31H, HPMCOUNTER_START)
+    CASE_RANGE(CSR_MHPMCOUNTER3, CSR_MHPMCOUNTER31, HPMCOUNTER_START)
+    CASE_RANGE(CSR_MHPMCOUNTER3H, CSR_MHPMCOUNTER31H, HPMCOUNTER_START)
+
+    case CSR_MCYCLE:
+    case CSR_MCYCLEH:
+    case CSR_CYCLE:
+    case CSR_CYCLEH:
+    case CSR_MCYCLECFG:
+    case CSR_MCYCLECFGH:
+        return HPM_MCYCLE_IDX;
+
+    case CSR_MINSTRET:
+    case CSR_MINSTRETH:
+    case CSR_INSTRET:
+    case CSR_INSTRETH:
+    case CSR_MINSTRETCFG:
+    case CSR_MINSTRETCFGH:
+        return HPM_MINSTRET_IDX;
+
+    case CSR_TIME:
+    case CSR_TIMEH:
+        return HPM_MTIME_IDX;
+
+    default:
+        g_assert_not_reached();
+    }
+
+    #undef HPMCOUNTER_START
+    #undef CASE_RANGE
+}
