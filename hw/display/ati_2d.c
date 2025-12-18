@@ -221,7 +221,7 @@ void ati_2d_blt(ATIVGAState *s)
             for (y = 0; y < s->regs.dst_height; y++) {
                 i = dst_x * bypp + (dst_y + y) * dst_pitch;
                 for (x = 0; x < s->regs.dst_width; x++, i += bypp) {
-                    stn_he_p(&dst_bits[i], bypp, filler);
+                    stn_le_p(&dst_bits[i], bypp, filler);
                 }
             }
         }
