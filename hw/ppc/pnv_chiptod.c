@@ -146,6 +146,15 @@ static uint64_t pnv_chiptod_xscom_read(void *opaque, hwaddr addr,
             val |= PPC_BIT(4);
         }
         break;
+    case TOD_M_PATH_CTRL_REG:
+    case TOD_PRI_PORT_0_CTRL_REG:
+    case TOD_PRI_PORT_1_CTRL_REG:
+    case TOD_SEC_PORT_0_CTRL_REG:
+    case TOD_SEC_PORT_1_CTRL_REG:
+    case TOD_S_PATH_CTRL_REG:
+    case TOD_TX_TTYPE_2_REG:
+        /* unimplemented, but suppressing logging for now */
+        break;
     default:
         qemu_log_mask(LOG_UNIMP, "pnv_chiptod: unimplemented register: Ox%"
                       HWADDR_PRIx "\n", addr >> 3);
@@ -422,6 +431,15 @@ static void pnv_chiptod_xscom_write(void *opaque, hwaddr addr,
     case TOD_TX_TTYPE_4_REG:
     case TOD_TX_TTYPE_5_REG:
         pctc->broadcast_ttype(chiptod, offset);
+        break;
+    case TOD_M_PATH_CTRL_REG:
+    case TOD_PRI_PORT_0_CTRL_REG:
+    case TOD_PRI_PORT_1_CTRL_REG:
+    case TOD_SEC_PORT_0_CTRL_REG:
+    case TOD_SEC_PORT_1_CTRL_REG:
+    case TOD_S_PATH_CTRL_REG:
+    case TOD_TX_TTYPE_2_REG:
+        /* unimplemented, but suppressing logging for now */
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "pnv_chiptod: unimplemented register: Ox%"
