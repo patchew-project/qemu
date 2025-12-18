@@ -1188,8 +1188,6 @@ static RISCVException write_mhpmevent(CPURISCVState *env, int csrno,
         env->mhpmevent_val[ctr_idx] = mhpmevt_val;
     }
 
-    riscv_pmu_update_event_map(env, mhpmevt_val, ctr_idx);
-
     return RISCV_EXCP_NONE;
 }
 
@@ -1223,8 +1221,6 @@ static RISCVException write_mhpmeventh(CPURISCVState *env, int csrno,
     mhpmevt_val = mhpmevt_val | (mhpmevth_val << 32);
     env->mhpmeventh_val[ctr_idx] = mhpmevth_val;
 
-    riscv_pmu_update_event_map(env, mhpmevt_val, ctr_idx);
-
     return RISCV_EXCP_NONE;
 }
 
@@ -1232,7 +1228,7 @@ static target_ulong riscv_pmu_ctr_get_fixed_counters_val(CPURISCVState *env,
                                                          int counter_idx,
                                                          bool upper_half)
 {
-    int inst = riscv_pmu_ctr_monitor_instructions(env, counter_idx);
+    int inst = (counter_idx == HPM_MINSTRET_IDX);
     uint64_t *counter_arr_virt = env->pmu_fixed_ctrs[inst].counter_virt;
     uint64_t *counter_arr = env->pmu_fixed_ctrs[inst].counter;
     target_ulong result = 0;
@@ -1303,8 +1299,7 @@ static RISCVException riscv_pmu_write_ctr(CPURISCVState *env, target_ulong val,
 
     counter->mhpmcounter_val = val;
     if (!get_field(env->mcountinhibit, BIT(ctr_idx)) &&
-        (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
-         riscv_pmu_ctr_monitor_instructions(env, ctr_idx))) {
+        (ctr_idx == HPM_MCYCLE_IDX || ctr_idx == HPM_MINSTRET_IDX)) {
         counter->mhpmcounter_prev = riscv_pmu_ctr_get_fixed_counters_val(env,
                                                                 ctr_idx, false);
         if (ctr_idx > 2) {
@@ -1332,8 +1327,7 @@ static RISCVException riscv_pmu_write_ctrh(CPURISCVState *env, target_ulong val,
     counter->mhpmcounterh_val = val;
     mhpmctr_val = mhpmctr_val | (mhpmctrh_val << 32);
     if (!get_field(env->mcountinhibit, BIT(ctr_idx)) &&
-        (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
-         riscv_pmu_ctr_monitor_instructions(env, ctr_idx))) {
+        (ctr_idx == HPM_MCYCLE_IDX || ctr_idx == HPM_MINSTRET_IDX)) {
         counter->mhpmcounterh_prev = riscv_pmu_ctr_get_fixed_counters_val(env,
                                                                  ctr_idx, true);
         if (ctr_idx > 2) {
@@ -1384,8 +1378,7 @@ RISCVException riscv_pmu_read_ctr(CPURISCVState *env, target_ulong *val,
      * The kernel computes the perf delta by subtracting the current value from
      * the value it initialized previously (ctr_val).
      */
-    if (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
-        riscv_pmu_ctr_monitor_instructions(env, ctr_idx)) {
+    if (ctr_idx == HPM_MCYCLE_IDX || ctr_idx == HPM_MINSTRET_IDX) {
         *val = riscv_pmu_ctr_get_fixed_counters_val(env, ctr_idx, upper_half) -
                                                     ctr_prev + ctr_val;
     } else {
@@ -2955,8 +2948,7 @@ static RISCVException write_mcountinhibit(CPURISCVState *env, int csrno,
     /* Check if any other counter is also monitoring cycles/instructions */
     for (cidx = 0; cidx < RV_MAX_MHPMCOUNTERS; cidx++) {
         if (!(updated_ctrs & BIT(cidx)) ||
-            (!riscv_pmu_ctr_monitor_cycles(env, cidx) &&
-            !riscv_pmu_ctr_monitor_instructions(env, cidx))) {
+            (cidx != HPM_MCYCLE_IDX && cidx != HPM_MINSTRET_IDX)) {
             continue;
         }
 
