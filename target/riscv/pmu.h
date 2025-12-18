@@ -22,15 +22,24 @@
 #include "cpu.h"
 #include "qapi/error.h"
 
+#define RISCV_PMU_CTR_IS_HPM(x) ((x) > HPM_MINSTRET_IDX)
+
 void riscv_pmu_timer_cb(void *priv);
 void riscv_pmu_init(RISCVCPU *cpu, Error **errp);
 void riscv_pmu_generate_fdt_node(void *fdt, uint32_t cmask, char *pmu_name);
 int riscv_pmu_setup_timer(CPURISCVState *env, uint64_t value,
                           uint32_t ctr_idx);
-void riscv_pmu_update_fixed_ctrs(CPURISCVState *env, target_ulong newpriv,
-                                 bool new_virt);
-RISCVException riscv_pmu_read_ctr(CPURISCVState *env, target_ulong *val,
-                                  bool upper_half, uint32_t ctr_idx);
 uint32_t riscv_pmu_csrno_to_ctr_idx(int csrno);
+RISCVException riscv_pmu_ctr_read(CPURISCVState *env, uint32_t ctr_idx,
+                                  uint64_t *val);
+RISCVException riscv_pmu_ctr_write(CPURISCVState *env, uint32_t ctr_idx,
+                                   uint64_t val);
+RISCVException riscv_pmu_ctr_read_general(CPURISCVState *env, uint32_t ctr_idx,
+                                          uint64_t *val);
+RISCVException riscv_pmu_ctr_write_general(CPURISCVState *env, uint32_t ctr_idx,
+                                           uint64_t val);
+typedef uint64_t riscv_pmu_preserved_ctrs_t[RV_MAX_MHPMCOUNTERS];
+void riscv_pmu_preserve_ctrs(CPURISCVState *env, riscv_pmu_preserved_ctrs_t data);
+void riscv_pmu_restore_ctrs(CPURISCVState *env, riscv_pmu_preserved_ctrs_t data);
 
 #endif /* RISCV_PMU_H */

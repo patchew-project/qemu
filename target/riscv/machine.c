@@ -339,10 +339,9 @@ static const VMStateDescription vmstate_pmu_ctr_state = {
     .minimum_version_id = 2,
     .needed = pmu_needed,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINTTL(mhpmcounter_val, PMUCTRState),
-        VMSTATE_UINTTL(mhpmcounterh_val, PMUCTRState),
-        VMSTATE_UINTTL(mhpmcounter_prev, PMUCTRState),
-        VMSTATE_UINTTL(mhpmcounterh_prev, PMUCTRState),
+        VMSTATE_UINT64(mhpmcounter_val, PMUCTRState),
+        VMSTATE_UINT64(mhpmcounter_prev, PMUCTRState),
+        VMSTATE_BOOL(overflowed, PMUCTRState),
         VMSTATE_END_OF_LIST()
     }
 };

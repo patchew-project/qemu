@@ -194,27 +194,43 @@ FIELD(VTYPE, VMA, 7, 1)
 FIELD(VTYPE, VEDIV, 8, 2)
 FIELD(VTYPE, RESERVED, 10, sizeof(target_ulong) * 8 - 11)
 
+/*
+ * Let the counter count some event E.
+ *
+ * Lets call a `raw` value of the counter some arbitrary value,
+ * which increases as event E happens.
+ * Lets also assume the `raw` value is read-only and can't be changed by us.
+ *
+ * Now we want to initialize the counter with some value X.
+ * For that lets add a few more variables:
+ * `val` would contain our initial value X,
+ * `prev` would contain the `raw` value of the counter at the moment of the write.
+ * `(raw - prev)` is `delta` -- the number of events,
+ *  which happened since the last write.
+ *
+ * So the current value of the counter can be calculated as
+ * `(delta + val) == (raw - prev + val)`.
+ *
+ * Each time you write X to the counter, just do:
+ * `val = X; prev = raw`
+ * We can also avoid manual usage of `raw` in code by doing:
+ * `val = X; prev += delta`
+ *
+ * We also want to inhibit our counter sometimes.
+ * If the counter is inhibited, just assume `delta == 0`.
+ *
+ * Text above describes the way builtin counters (mcycle, minstret)
+ * work. However, when implementing vendor events, you are
+ * free to use `prev` and `val` registers whatever you want.
+ */
 typedef struct PMUCTRState {
     /* Current value of a counter */
-    target_ulong mhpmcounter_val;
-    /* Current value of a counter in RV32 */
-    target_ulong mhpmcounterh_val;
+    uint64_t mhpmcounter_val;
     /* Snapshot values of counter */
-    target_ulong mhpmcounter_prev;
-    /* Snapshort value of a counter in RV32 */
-    target_ulong mhpmcounterh_prev;
-    /* Value beyond UINT32_MAX/UINT64_MAX before overflow interrupt trigger */
-    target_ulong irq_overflow_left;
+    uint64_t mhpmcounter_prev;
+    /* Is counter overflowed */
+    bool overflowed;
 } PMUCTRState;
-
-typedef struct PMUFixedCtrState {
-        /* Track cycle and icount for each privilege mode */
-        uint64_t counter[4];
-        uint64_t counter_prev[4];
-        /* Track cycle and icount for each privilege mode when V = 1*/
-        uint64_t counter_virt[2];
-        uint64_t counter_virt_prev[2];
-} PMUFixedCtrState;
 
 struct CPUArchState {
     target_ulong gpr[32];
@@ -434,8 +450,6 @@ struct CPUArchState {
     /* PMU event selector configured values for RV32 */
     target_ulong mhpmeventh_val[RV_MAX_MHPMEVENTS];
 
-    PMUFixedCtrState pmu_fixed_ctrs[2];
-
     target_ulong sscratch;
     target_ulong mscratch;
 
@@ -463,6 +477,35 @@ struct CPUArchState {
     /* machine specific rdtime callback */
     uint64_t (*rdtime_fn)(void *);
     void *rdtime_fn_arg;
+
+    /*machine specific pmu callback */
+
+    /*
+     * Returns uint64 value of the counter `ctr_idx`.
+     *
+     * Should also set `PMUCTRState::overflowed`,
+     * if the counter overflows.
+     *
+     * See `riscv_pmu_ctr_read_general` for the example.
+     */
+    RISCVException (*pmu_ctr_read)(CPURISCVState *env, uint32_t ctr_idx,
+                                   uint64_t *value);
+    /*
+     * Writes value to the counter `ctr_idx`.
+     *
+     * Guarantied to be called for vendor events, when:
+     * - inhibiting/uninhibiting
+     * - switching cpu mode (to support filtering)
+     * - changing mhpmevent/mhpmeventh
+     *
+     * See `riscv_pmu_ctr_write_general` for the example.
+     */
+    RISCVException (*pmu_ctr_write)(CPURISCVState *env, uint32_t ctr_idx,
+                                    uint64_t value);
+    /*
+     * Returns true, if the event is supported by vendor.
+     */
+    bool (*pmu_vendor_support)(CPURISCVState *env, uint32_t ctr_idx);
 
     /* machine specific AIA ireg read-modify-write callback */
 #define AIA_MAKE_IREG(__isel, __priv, __virt, __vgein, __xlen) \

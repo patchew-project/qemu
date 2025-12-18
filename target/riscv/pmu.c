@@ -81,119 +81,17 @@ void riscv_pmu_generate_fdt_node(void *fdt, uint32_t cmask, char *pmu_name)
 
 static bool riscv_pmu_counter_valid(RISCVCPU *cpu, uint32_t ctr_idx)
 {
-    if (ctr_idx < 3 || ctr_idx >= RV_MAX_MHPMCOUNTERS ||
-        !(cpu->pmu_avail_ctrs & BIT(ctr_idx))) {
-        return false;
-    } else {
-        return true;
-    }
-}
-
-static bool riscv_pmu_counter_enabled(RISCVCPU *cpu, uint32_t ctr_idx)
-{
     CPURISCVState *env = &cpu->env;
 
-    if (riscv_pmu_counter_valid(cpu, ctr_idx) &&
-        !get_field(env->mcountinhibit, BIT(ctr_idx))) {
+    if (!RISCV_PMU_CTR_IS_HPM(ctr_idx)) {
         return true;
-    } else {
+    }
+
+    if (!(cpu->pmu_avail_ctrs & BIT(ctr_idx))) {
         return false;
     }
-}
 
-/*
- * Information needed to update counters:
- *  new_priv, new_virt: To correctly save starting snapshot for the newly
- *                      started mode. Look at array being indexed with newprv.
- *  old_priv, old_virt: To correctly select previous snapshot for old priv
- *                      and compute delta. Also to select correct counter
- *                      to inc. Look at arrays being indexed with env->priv.
- *
- *  To avoid the complexity of calling this function, we assume that
- *  env->priv and env->virt_enabled contain old priv and old virt and
- *  new priv and new virt values are passed in as arguments.
- */
-static void riscv_pmu_icount_update_priv(CPURISCVState *env,
-                                         target_ulong newpriv, bool new_virt)
-{
-    uint64_t *snapshot_prev, *snapshot_new;
-    uint64_t current_icount;
-    uint64_t *counter_arr;
-    uint64_t delta;
-
-    if (icount_enabled()) {
-        current_icount = icount_get_raw();
-    } else {
-        current_icount = cpu_get_host_ticks();
-    }
-
-    if (env->virt_enabled) {
-        g_assert(env->priv <= PRV_S);
-        counter_arr = env->pmu_fixed_ctrs[1].counter_virt;
-        snapshot_prev = env->pmu_fixed_ctrs[1].counter_virt_prev;
-    } else {
-        counter_arr = env->pmu_fixed_ctrs[1].counter;
-        snapshot_prev = env->pmu_fixed_ctrs[1].counter_prev;
-    }
-
-    if (new_virt) {
-        g_assert(newpriv <= PRV_S);
-        snapshot_new = env->pmu_fixed_ctrs[1].counter_virt_prev;
-    } else {
-        snapshot_new = env->pmu_fixed_ctrs[1].counter_prev;
-    }
-
-     /*
-      * new_priv can be same as env->priv. So we need to calculate
-      * delta first before updating snapshot_new[new_priv].
-      */
-    delta = current_icount - snapshot_prev[env->priv];
-    snapshot_new[newpriv] = current_icount;
-
-    counter_arr[env->priv] += delta;
-}
-
-static void riscv_pmu_cycle_update_priv(CPURISCVState *env,
-                                        target_ulong newpriv, bool new_virt)
-{
-    uint64_t *snapshot_prev, *snapshot_new;
-    uint64_t current_ticks;
-    uint64_t *counter_arr;
-    uint64_t delta;
-
-    if (icount_enabled()) {
-        current_ticks = icount_get();
-    } else {
-        current_ticks = cpu_get_host_ticks();
-    }
-
-    if (env->virt_enabled) {
-        g_assert(env->priv <= PRV_S);
-        counter_arr = env->pmu_fixed_ctrs[0].counter_virt;
-        snapshot_prev = env->pmu_fixed_ctrs[0].counter_virt_prev;
-    } else {
-        counter_arr = env->pmu_fixed_ctrs[0].counter;
-        snapshot_prev = env->pmu_fixed_ctrs[0].counter_prev;
-    }
-
-    if (new_virt) {
-        g_assert(newpriv <= PRV_S);
-        snapshot_new = env->pmu_fixed_ctrs[0].counter_virt_prev;
-    } else {
-        snapshot_new = env->pmu_fixed_ctrs[0].counter_prev;
-    }
-
-    delta = current_ticks - snapshot_prev[env->priv];
-    snapshot_new[newpriv] = current_ticks;
-
-    counter_arr[env->priv] += delta;
-}
-
-void riscv_pmu_update_fixed_ctrs(CPURISCVState *env, target_ulong newpriv,
-                                 bool new_virt)
-{
-    riscv_pmu_cycle_update_priv(env, newpriv, new_virt);
-    riscv_pmu_icount_update_priv(env, newpriv, new_virt);
+    return env->pmu_vendor_support && env->pmu_vendor_support(env, ctr_idx);
 }
 
 static int64_t pmu_icount_ticks_to_ns(int64_t value)
@@ -249,51 +147,23 @@ static bool pmu_hpmevent_set_of_if_clear(CPURISCVState *env, uint32_t ctr_idx)
 static void pmu_timer_trigger_irq(RISCVCPU *cpu, uint32_t ctr_idx)
 {
     CPURISCVState *env = &cpu->env;
-    PMUCTRState *counter;
-    int64_t irq_trigger_at;
-    uint64_t curr_ctr_val, curr_ctrh_val;
+    PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
     uint64_t ctr_val;
-
-    if (ctr_idx != HPM_MINSTRET_IDX &&
-        ctr_idx != HPM_MCYCLE_IDX) {
-        return;
-    }
-
-    if (!riscv_pmu_counter_enabled(cpu, ctr_idx)) {
-        return;
-    }
+    RISCVException excp;
 
     /* Generate interrupt only if OF bit is clear */
     if (pmu_hpmevent_is_of_set(env, ctr_idx)) {
         return;
     }
 
-    counter = &env->pmu_ctrs[ctr_idx];
-    if (counter->irq_overflow_left > 0) {
-        irq_trigger_at = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                        counter->irq_overflow_left;
-        timer_mod_anticipate_ns(cpu->pmu_timer, irq_trigger_at);
-        counter->irq_overflow_left = 0;
+    excp = riscv_pmu_ctr_read(env, ctr_idx, &ctr_val);
+
+    if (excp != RISCV_EXCP_NONE) {
         return;
     }
 
-    riscv_pmu_read_ctr(env, (target_ulong *)&curr_ctr_val, false, ctr_idx);
-    ctr_val = counter->mhpmcounter_val;
-    if (riscv_cpu_mxl(env) == MXL_RV32) {
-        riscv_pmu_read_ctr(env, (target_ulong *)&curr_ctrh_val, true, ctr_idx);
-        curr_ctr_val = curr_ctr_val | (curr_ctrh_val << 32);
-        ctr_val = ctr_val |
-                ((uint64_t)counter->mhpmcounterh_val << 32);
-    }
-
-    /*
-     * We can not accommodate for inhibited modes when setting up timer. Check
-     * if the counter has actually overflowed or not by comparing current
-     * counter value (accommodated for inhibited modes) with software written
-     * counter value.
-     */
-    if (curr_ctr_val >= ctr_val) {
-        riscv_pmu_setup_timer(env, curr_ctr_val, ctr_idx);
+    if (!counter->overflowed) {
+        riscv_pmu_setup_timer(env, ctr_val, ctr_idx);
         return;
     }
 
@@ -302,6 +172,7 @@ static void pmu_timer_trigger_irq(RISCVCPU *cpu, uint32_t ctr_idx)
             riscv_cpu_update_mip(env, MIP_LCOFIP, BOOL_TO_MASK(1));
         }
     }
+    counter->overflowed = false;
 }
 
 /* Timer callback for instret and cycle counter overflow */
@@ -320,7 +191,7 @@ void riscv_pmu_timer_cb(void *priv)
 int riscv_pmu_setup_timer(CPURISCVState *env, uint64_t value, uint32_t ctr_idx)
 {
     uint64_t overflow_delta, overflow_at, curr_ns;
-    int64_t overflow_ns, overflow_left = 0;
+    uint64_t overflow_ns;
     RISCVCPU *cpu = env_archcpu(env);
     PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
 
@@ -328,6 +199,11 @@ int riscv_pmu_setup_timer(CPURISCVState *env, uint64_t value, uint32_t ctr_idx)
     if (!riscv_pmu_counter_valid(cpu, ctr_idx) || !cpu->cfg.ext_sscofpmf ||
         pmu_hpmevent_is_of_set(env, ctr_idx)) {
         return -1;
+    }
+
+    if (counter->overflowed) {
+        pmu_timer_trigger_irq(cpu, ctr_idx);
+        return 0;
     }
 
     if (value) {
@@ -338,28 +214,11 @@ int riscv_pmu_setup_timer(CPURISCVState *env, uint64_t value, uint32_t ctr_idx)
 
     /*
      * QEMU supports only int64_t timers while RISC-V counters are uint64_t.
-     * Compute the leftover and save it so that it can be reprogrammed again
-     * when timer expires.
      */
-    if (overflow_delta > INT64_MAX) {
-        overflow_left = overflow_delta - INT64_MAX;
-    }
-
-    if (ctr_idx == HPM_MCYCLE_IDX ||
-        ctr_idx == HPM_MINSTRET_IDX) {
-        overflow_ns = pmu_icount_ticks_to_ns((int64_t)overflow_delta);
-        overflow_left = pmu_icount_ticks_to_ns(overflow_left) ;
-    } else {
-        return -1;
-    }
+    overflow_ns = pmu_icount_ticks_to_ns(overflow_delta);
     curr_ns = (uint64_t)qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    overflow_at =  curr_ns + overflow_ns;
-    if (overflow_at <= curr_ns)
-        overflow_at = UINT64_MAX;
-
-    if (overflow_at > INT64_MAX) {
-        overflow_left += overflow_at - INT64_MAX;
-        counter->irq_overflow_left = overflow_left;
+    if (uadd64_overflow(curr_ns, overflow_ns, &overflow_at) ||
+        overflow_at > INT64_MAX) {
         overflow_at = INT64_MAX;
     }
     timer_mod_anticipate_ns(cpu->pmu_timer, overflow_at);
@@ -425,4 +284,202 @@ uint32_t riscv_pmu_csrno_to_ctr_idx(int csrno)
 
     #undef HPMCOUNTER_START
     #undef CASE_RANGE
+}
+
+static uint64_t get_ticks(bool instructions)
+{
+    if (icount_enabled()) {
+        if (instructions) {
+            return icount_get_raw();
+        } else {
+            return icount_get();
+        }
+    } else {
+        return cpu_get_host_ticks();
+    }
+}
+
+static bool riscv_pmu_general_ctr_is_running(CPURISCVState *env, uint32_t ctr_idx)
+{
+    #define PRIV_CASE(priv, nonvirt, nonvirth, virt, virth) { \
+        case (priv): \
+            if (env->virt_enabled) { \
+                mask = (target_ulong) (virt); \
+                maskh = (target_ulong) (virth); \
+            } else { \
+                mask = (target_ulong) (nonvirt); \
+                maskh = (target_ulong) (nonvirth); \
+            } \
+            break; \
+        }
+
+    target_ulong event;
+    target_ulong eventh;
+    target_ulong mask = 0;
+    target_ulong maskh = 0;
+
+    if (!riscv_pmu_counter_valid(env_archcpu(env), ctr_idx)) {
+        return false;
+    }
+
+    if (get_field(env->mcountinhibit, BIT(ctr_idx))) {
+        return false;
+    }
+
+    if (RISCV_PMU_CTR_IS_HPM(ctr_idx) &&
+            (env->mhpmevent_val[ctr_idx] == 0) && (env->mhpmeventh_val[ctr_idx] == 0)) {
+        return false;
+    }
+
+    if ((riscv_cpu_cfg(env)->ext_smcntrpmf && !RISCV_PMU_CTR_IS_HPM(ctr_idx)) ||
+        (riscv_cpu_cfg(env)->ext_sscofpmf && RISCV_PMU_CTR_IS_HPM(ctr_idx))) {
+        if (ctr_idx == HPM_MCYCLE_IDX) {
+            event = env->mcyclecfg;
+            eventh = env->mcyclecfgh;
+        } else if (ctr_idx == HPM_MTIME_IDX) {
+            return true;
+        } else if (ctr_idx == HPM_MINSTRET_IDX) {
+            event = env->minstretcfg;
+            eventh = env->minstretcfgh;
+        } else {
+            event = env->mhpmevent_val[ctr_idx];
+            eventh = env->mhpmeventh_val[ctr_idx];
+        }
+
+        switch (env->priv) {
+        PRIV_CASE(PRV_U, MHPMEVENT_BIT_UINH, MHPMEVENTH_BIT_UINH,
+                         MHPMEVENT_BIT_VUINH, MHPMEVENTH_BIT_VUINH);
+        PRIV_CASE(PRV_S, MHPMEVENT_BIT_SINH, MHPMEVENTH_BIT_SINH,
+                         MHPMEVENT_BIT_VSINH, MHPMEVENTH_BIT_VSINH);
+        PRIV_CASE(PRV_M, MHPMEVENT_BIT_MINH, MHPMEVENTH_BIT_MINH,
+                         MHPMEVENT_BIT_MINH,  MHPMEVENTH_BIT_MINH);
+        }
+
+        bool match = !(event & mask);
+        bool matchh = !(eventh & maskh);
+        return riscv_cpu_mxl(env) == MXL_RV32 ? match && matchh : match;
+    } else {
+        return true;
+    }
+    #undef PRIV_CASE
+}
+
+static uint64_t riscv_pmu_ctr_delta_general(CPURISCVState *env, uint32_t ctr_idx)
+{
+    PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
+    if (riscv_pmu_general_ctr_is_running(env, ctr_idx)) {
+        return get_ticks(ctr_idx == HPM_MINSTRET_IDX) - counter->mhpmcounter_prev;
+    } else {
+        /*
+         * We assume, what write() is called after each change of
+         * inhibited/filtered status.
+         *
+         * So if counter is inhibited or filtered now, the delta is zero.
+         * (By definition of `prev`).
+         *
+         * See documentation for PMUCTRState.
+         */
+        return 0;
+    }
+}
+
+RISCVException riscv_pmu_ctr_read_general(CPURISCVState *env, uint32_t ctr_idx,
+                                          uint64_t *value)
+{
+
+    PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
+    int64_t delta = riscv_pmu_ctr_delta_general(env, ctr_idx);
+    uint64_t result;
+
+    counter->overflowed |=
+        uadd64_overflow(counter->mhpmcounter_val, delta, &result);
+    *value = result;
+    return RISCV_EXCP_NONE;
+}
+
+RISCVException riscv_pmu_ctr_read(CPURISCVState *env, uint32_t ctr_idx,
+                                  uint64_t *value)
+{
+    if (RISCV_PMU_CTR_IS_HPM(ctr_idx)) {
+        if (!env->pmu_ctr_read) {
+            *value = 0;
+            return RISCV_EXCP_NONE;
+        }
+
+        return env->pmu_ctr_read(env, ctr_idx, value);
+    } else {
+        return riscv_pmu_ctr_read_general(env, ctr_idx, value);
+    }
+}
+
+RISCVException riscv_pmu_ctr_write_general(CPURISCVState *env, uint32_t ctr_idx,
+                                           uint64_t value)
+{
+    PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
+
+    counter->mhpmcounter_prev +=
+        riscv_pmu_ctr_delta_general(env, ctr_idx);
+    counter->mhpmcounter_val = value;
+    return RISCV_EXCP_NONE;
+}
+
+RISCVException riscv_pmu_ctr_write(CPURISCVState *env, uint32_t ctr_idx,
+                                   uint64_t value)
+{
+    RISCVException excp;
+
+    if (RISCV_PMU_CTR_IS_HPM(ctr_idx)) {
+        if (!env->pmu_ctr_write) {
+            value = 0;
+            return RISCV_EXCP_NONE;
+        }
+
+        excp = env->pmu_ctr_write(env, ctr_idx, value);
+    } else  {
+        excp = riscv_pmu_ctr_write_general(env, ctr_idx, value);
+    }
+
+    if (excp != RISCV_EXCP_NONE) {
+        return excp;
+    }
+
+    riscv_pmu_setup_timer(env, value, ctr_idx);
+
+    return RISCV_EXCP_NONE;
+}
+
+void riscv_pmu_preserve_ctrs(CPURISCVState *env, riscv_pmu_preserved_ctrs_t data)
+{
+    RISCVException excp;
+
+    for (uint32_t ctr_idx = 0; ctr_idx < RV_MAX_MHPMCOUNTERS; ctr_idx++) {
+        excp = riscv_pmu_ctr_read(env, ctr_idx, &data[ctr_idx]);
+
+        if (excp != RISCV_EXCP_NONE) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "Reading the counter %d value is failed "
+                          "while changing the privilige mode",
+                          ctr_idx);
+            continue;
+        }
+
+    }
+}
+
+void riscv_pmu_restore_ctrs(CPURISCVState *env, riscv_pmu_preserved_ctrs_t data)
+{
+    RISCVException excp;
+
+    for (uint32_t ctr_idx = 0; ctr_idx < RV_MAX_MHPMCOUNTERS; ctr_idx++) {
+        excp = riscv_pmu_ctr_write(env, ctr_idx, data[ctr_idx]);
+
+        if (excp != RISCV_EXCP_NONE) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "Writing to the counter %d value is failed "
+                          "while changing the privilige mode",
+                          ctr_idx);
+            continue;
+        }
+
+    }
 }

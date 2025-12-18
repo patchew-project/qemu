@@ -1036,9 +1036,14 @@ void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv, bool virt_en)
         if (icount_enabled()) {
             riscv_itrigger_update_priv(env);
         }
-
-        riscv_pmu_update_fixed_ctrs(env, newpriv, virt_en);
     }
+
+    /*
+     * Preserve pmu ctr values and
+     * restore them after the mode change.
+     */
+    riscv_pmu_preserved_ctrs_t preserved_ctrs;
+    riscv_pmu_preserve_ctrs(env, preserved_ctrs);
 
     /* tlb_flush is unnecessary as mode is contained in mmu_idx */
     env->priv = newpriv;
@@ -1075,6 +1080,8 @@ void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv, bool virt_en)
             riscv_cpu_update_mip(env, 0, 0);
         }
     }
+
+    riscv_pmu_restore_ctrs(env, preserved_ctrs);
 }
 
 /*
