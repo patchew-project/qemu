@@ -1361,41 +1361,69 @@ const MemoryRegionOps unassigned_mem_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint64_t memory_region_ram_device_read(void *opaque,
-                                              hwaddr addr, unsigned size)
+static uint64_t memory_region_ram_device_read_le(void *opaque,
+                                                 hwaddr addr, unsigned size)
 {
     MemoryRegion *mr = opaque;
-    uint64_t data = ldn_he_p(mr->ram_block->host + addr, size);
+    uint64_t data = ldn_le_p(mr->ram_block->host + addr, size);
 
     trace_memory_region_ram_device_read(get_cpu_index(), mr, addr, data, size);
 
     return data;
 }
 
-static void memory_region_ram_device_write(void *opaque, hwaddr addr,
-                                           uint64_t data, unsigned size)
+static uint64_t memory_region_ram_device_read_be(void *opaque,
+                                                 hwaddr addr, unsigned size)
+{
+    MemoryRegion *mr = opaque;
+    uint64_t data = ldn_be_p(mr->ram_block->host + addr, size);
+
+    trace_memory_region_ram_device_read(get_cpu_index(), mr, addr, data, size);
+
+    return data;
+}
+
+static void memory_region_ram_device_write_le(void *opaque, hwaddr addr,
+                                              uint64_t data, unsigned size)
 {
     MemoryRegion *mr = opaque;
 
     trace_memory_region_ram_device_write(get_cpu_index(), mr, addr, data, size);
 
-    stn_he_p(mr->ram_block->host + addr, size, data);
+    stn_le_p(mr->ram_block->host + addr, size, data);
 }
 
-static const MemoryRegionOps ram_device_mem_ops = {
-    .read = memory_region_ram_device_read,
-    .write = memory_region_ram_device_write,
-    .endianness = HOST_BIG_ENDIAN ? DEVICE_BIG_ENDIAN : DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 8,
-        .unaligned = true,
+static void memory_region_ram_device_write_be(void *opaque, hwaddr addr,
+                                              uint64_t data, unsigned size)
+{
+    MemoryRegion *mr = opaque;
+
+    trace_memory_region_ram_device_write(get_cpu_index(), mr, addr, data, size);
+
+    stn_be_p(mr->ram_block->host + addr, size, data);
+}
+
+static const MemoryRegionOps ram_device_mem_ops[2] = {
+    [0 ... 1] = {
+        .valid = {
+            .min_access_size = 1,
+            .max_access_size = 8,
+            .unaligned = true,
+        },
+        .impl = {
+            .min_access_size = 1,
+            .max_access_size = 8,
+            .unaligned = true,
+        },
     },
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 8,
-        .unaligned = true,
-    },
+
+    [0].endianness = DEVICE_LITTLE_ENDIAN,
+    [0].read = memory_region_ram_device_read_le,
+    [0].write = memory_region_ram_device_write_le,
+
+    [1].endianness = DEVICE_BIG_ENDIAN,
+    [1].read = memory_region_ram_device_read_be,
+    [1].write = memory_region_ram_device_write_be,
 };
 
 bool memory_region_access_valid(MemoryRegion *mr,
@@ -1712,7 +1740,7 @@ void memory_region_init_ram_device_ptr(MemoryRegion *mr,
     mr->ram = true;
     mr->terminates = true;
     mr->ram_device = true;
-    mr->ops = &ram_device_mem_ops;
+    mr->ops = &ram_device_mem_ops[HOST_BIG_ENDIAN];
     mr->opaque = mr;
     mr->destructor = memory_region_destructor_ram;
 
