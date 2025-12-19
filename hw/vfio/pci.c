@@ -2616,13 +2616,9 @@ void vfio_pci_pre_reset(VFIOPCIDevice *vdev)
 
     vfio_disable_interrupts(vdev);
 
-    /*
-     * Stop any ongoing DMA by disconnecting I/O, MMIO, and bus master.
-     * Also put INTx Disable in known state.
-     */
+    /* Stop any ongoing DMA by disconnecting I/O, MMIO, and bus master. */
     cmd = vfio_pci_read_config(pdev, PCI_COMMAND, 2);
-    cmd &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
-             PCI_COMMAND_INTX_DISABLE);
+    cmd &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
     vfio_pci_write_config(pdev, PCI_COMMAND, cmd, 2);
 
     /* Make sure the device is in D0 */
