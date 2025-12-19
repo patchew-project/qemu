@@ -25,7 +25,6 @@
 #ifndef MIGRATION_QEMU_FILE_H
 #define MIGRATION_QEMU_FILE_H
 
-#include <zlib.h>
 #include "exec/cpu-common.h"
 #include "io/channel.h"
 
