@@ -375,6 +375,7 @@ succeeded using a MemTxResult return code.
  - ``w`` : 16 bits
  - ``l`` : 32 bits
  - ``q`` : 64 bits
+ - ``n`` : size in bytes
 
 ``endian``
  - ``le`` : little endian
@@ -384,8 +385,8 @@ The ``_{endian}`` suffix is omitted for byte accesses.
 
 Regexes for git grep:
  - ``\<address_space_\(read\|write\|rw\)\>``
- - ``\<address_space_ldu\?[bwql]\(_[lb]e\)\?\>``
- - ``\<address_space_st[bwql]\(_[lb]e\)\?\>``
+ - ``\<address_space_ldu\?[bwlqn]\(_[lb]e\)\?\>``
+ - ``\<address_space_st[bwlqn]\(_[lb]e\)\?\>``
 
 ``address_space_write_rom``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -431,6 +432,7 @@ device doing the access has no way to report such an error.
  - ``w`` : 16 bits
  - ``l`` : 32 bits
  - ``q`` : 64 bits
+ - ``n`` : size in bytes
 
 ``endian``
  - ``le`` : little endian
@@ -439,8 +441,8 @@ device doing the access has no way to report such an error.
 The ``_{endian}_`` infix is omitted for byte accesses.
 
 Regexes for git grep:
- - ``\<ldu\?[bwlq]\(_[bl]e\)\?_phys\>``
- - ``\<st[bwlq]\(_[bl]e\)\?_phys\>``
+ - ``\<ldu\?[bwlqn]\(_[bl]e\)\?_phys\>``
+ - ``\<st[bwlqn]\(_[bl]e\)\?_phys\>``
 
 ``cpu_physical_memory_*``
 ~~~~~~~~~~~~~~~~~~~~~~~~~
