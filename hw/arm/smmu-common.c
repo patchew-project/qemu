@@ -981,8 +981,8 @@ static void smmu_base_realize(DeviceState *dev, Error **errp)
                                      g_free, g_free);
     s->smmu_pcibus_by_busptr = g_hash_table_new(NULL, NULL);
 
-    if (s->generic_primary_bus ) {
-        bus_setup_iommu(s->generic_primary_bus, &bus_smmu_ops, s);
+    if (s->generic_bus) {
+        bus_setup_iommu(s->generic_bus, s->generic_bus_iommu_id, &bus_smmu_ops, s);
         return;
     }
 
@@ -1041,8 +1041,9 @@ static const Property smmu_dev_properties[] = {
     DEFINE_PROP_BOOL("pci_smmu_per_bus", SMMUState, pci_smmu_per_bus, false),
     DEFINE_PROP_LINK("pci-primary-bus", SMMUState, pci_primary_bus,
                      TYPE_PCI_BUS, PCIBus *),
-    DEFINE_PROP_LINK("generic-primary-bus", SMMUState, generic_primary_bus,
+    DEFINE_PROP_LINK("generic-bus", SMMUState, generic_bus,
                      TYPE_BUS, BusState *),
+    DEFINE_PROP_UINT8("generic-bus-iommu-id", SMMUState, generic_bus_iommu_id, 255u),
 };
 
 static void smmu_base_class_init(ObjectClass *klass, const void *data)

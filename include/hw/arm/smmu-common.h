@@ -171,7 +171,8 @@ struct SMMUState {
     uint8_t bus_num;
     PCIBus *pci_primary_bus;
     bool pci_smmu_per_bus; /* SMMU is specific to the pci_primary_bus */
-    BusState *generic_primary_bus;
+    BusState *generic_bus;
+    uint8_t generic_bus_iommu_id;
 };
 
 struct SMMUBaseClass {

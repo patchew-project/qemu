@@ -387,6 +387,20 @@ typedef struct BusIOMMUOps {
 } BusIOMMUOps;
 
 /**
+ * struct BusIOMMU:
+ * @iommu_ops: TODO
+ * @iommu_opaque: TODO
+ * @used: TODO
+ */
+struct BusIOMMU {
+    const BusIOMMUOps *iommu_ops;
+    void *iommu_opaque;
+    bool used;
+};
+
+#define BUS_IOMMU_MAX 10
+
+/**
  * struct BusState:
  * @obj: parent object
  * @parent: parent Device
@@ -396,8 +410,7 @@ typedef struct BusIOMMUOps {
  * @realized: is the bus itself realized?
  * @full: is the bus full?
  * @num_children: current number of child buses
- * @iommu_ops: TODO
- * @iommu_opaque: TODO
+ * @iommu: TODO
  */
 struct BusState {
     /* private: */
@@ -410,8 +423,7 @@ struct BusState {
     bool realized;
     bool full;
     int num_children;
-    const BusIOMMUOps *iommu_ops;
-    void *iommu_opaque;
+    BusIOMMU iommu[BUS_IOMMU_MAX];
 
     /**
      * @children: an RCU protected QTAILQ, thus readers must use RCU
@@ -958,13 +970,14 @@ bool bus_is_in_reset(BusState *bus);
  * bus_setup_iommu() - Set up IOMMU operations for a bus
  * @bus: the bus to configure
  * @ops: IOMMU operations structure containing callback functions
+ * @iommu_id: TODO
  * @opaque: opaque data passed to IOMMU operation callbacks
  *
  * Configure IOMMU operations for the specified bus. The ops structure
  * must contain at least the get_address_space callback. The opaque
  * parameter is passed through to the operation callbacks.
  */
-void bus_setup_iommu(BusState *bus, const BusIOMMUOps *ops, void *opaque);
+void bus_setup_iommu(BusState *bus, uint8_t iommu_id, const BusIOMMUOps *ops, void *opaque);
 
 /* This should go away once we get rid of the NULL bus hack */
 BusState *sysbus_get_default(void);

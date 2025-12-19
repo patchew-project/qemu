@@ -1,3 +1,4 @@
+
 /*
  * Virtio MMIO bindings
  *
@@ -36,6 +37,8 @@
 #include "qemu/log.h"
 #include "trace.h"
 #include "qapi/error.h"
+
+#define VIRTIO_SYSBUS_IOMMU_ID (0u)
 
 static bool virtio_mmio_ioeventfd_enabled(DeviceState *d)
 {
@@ -874,13 +877,14 @@ static void virtio_mmio_vmstate_change(DeviceState *d, bool running)
 static AddressSpace *virtio_mmio_get_dma_as(DeviceState *parent)
 {
     // BusState *iommu_bus = qdev_get_parent_bus(parent);
+    const uint32_t iommu_id = VIRTIO_SYSBUS_IOMMU_ID;
     BusState *iommu_bus = sysbus_get_default();
     VirtIOMMIOProxy *proxy = VIRTIO_MMIO(parent);
     AddressSpace *as = NULL;
 
-    if (iommu_bus && iommu_bus->iommu_ops) {
-        as = iommu_bus->iommu_ops->get_address_space(
-            iommu_bus, iommu_bus->iommu_opaque, proxy->stream_id);
+    if (iommu_bus && iommu_bus->iommu[iommu_id].iommu_ops) {
+        as = iommu_bus->iommu[iommu_id].iommu_ops->get_address_space(
+                iommu_bus, iommu_bus->iommu[iommu_id].iommu_opaque, proxy->stream_id);
     }
 
     return as ? as : &address_space_memory;

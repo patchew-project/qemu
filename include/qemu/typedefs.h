@@ -34,6 +34,7 @@ typedef struct BlockBackend BlockBackend;
 typedef struct BlockBackendRootState BlockBackendRootState;
 typedef struct BlockDriverState BlockDriverState;
 typedef struct BusClass BusClass;
+typedef struct BusIOMMU BusIOMMU;
 typedef struct BusState BusState;
 typedef struct Chardev Chardev;
 typedef struct Clock Clock;
