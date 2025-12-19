@@ -226,7 +226,7 @@ plugin_register_cb_udata(qemu_plugin_id_t id, enum qemu_plugin_event ev,
     do_plugin_register_cb(id, ev, func, udata);
 }
 
-CPUPluginState *qemu_plugin_create_vcpu_state(void)
+static CPUPluginState *qemu_plugin_create_vcpu_state(void)
 {
     return g_new0(CPUPluginState, 1);
 }
@@ -279,7 +279,25 @@ static void plugin_grow_scoreboards__locked(CPUState *cpu)
     end_exclusive();
 }
 
-static void qemu_plugin_vcpu_init__async(CPUState *cpu, run_on_cpu_data unused)
+static void qemu_plugin_vcpu_reset__async(CPUState *cpu, run_on_cpu_data unused)
+{
+    assert(cpu->cpu_index != UNASSIGNED_CPU_INDEX);
+
+    qemu_plugin_set_cb_flags(cpu, QEMU_PLUGIN_CB_RW_REGS);
+    plugin_vcpu_cb__simple(cpu, QEMU_PLUGIN_EV_VCPU_INIT);
+    qemu_plugin_set_cb_flags(cpu, QEMU_PLUGIN_CB_NO_REGS);
+}
+
+void qemu_plugin_vcpu_reset_hook(CPUState *cpu)
+{
+    async_run_on_cpu(cpu, qemu_plugin_vcpu_reset__async, RUN_ON_CPU_NULL);
+}
+
+/*
+ * This is purely internal to plugins as we need to expand scoreboards
+ * each time a new vCPU is created.
+ */
+static void qemu_plugin_vcpu_create__async(CPUState *cpu, run_on_cpu_data unused)
 {
     bool success;
 
@@ -292,16 +310,13 @@ static void qemu_plugin_vcpu_init__async(CPUState *cpu, run_on_cpu_data unused)
     g_assert(success);
     plugin_grow_scoreboards__locked(cpu);
     qemu_rec_mutex_unlock(&plugin.lock);
-
-    qemu_plugin_set_cb_flags(cpu, QEMU_PLUGIN_CB_RW_REGS);
-    plugin_vcpu_cb__simple(cpu, QEMU_PLUGIN_EV_VCPU_INIT);
-    qemu_plugin_set_cb_flags(cpu, QEMU_PLUGIN_CB_NO_REGS);
 }
 
-void qemu_plugin_vcpu_init_hook(CPUState *cpu)
+void qemu_plugin_vcpu_create_hook(CPUState *cpu)
 {
+    cpu->plugin_state = qemu_plugin_create_vcpu_state();
     /* Plugin initialization must wait until the cpu start executing code */
-    async_run_on_cpu(cpu, qemu_plugin_vcpu_init__async, RUN_ON_CPU_NULL);
+    async_run_on_cpu(cpu, qemu_plugin_vcpu_create__async, RUN_ON_CPU_NULL);
 }
 
 void qemu_plugin_vcpu_exit_hook(CPUState *cpu)

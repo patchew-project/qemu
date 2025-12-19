@@ -100,8 +100,18 @@ void cpu_dump_state(CPUState *cpu, FILE *f, int flags)
 void cpu_reset(CPUState *cpu)
 {
     device_cold_reset(DEVICE(cpu));
-
     trace_cpu_reset(cpu->cpu_index);
+
+#ifdef CONFIG_TCG
+    /*
+     * Because vCPUs get "started" before the machine is ready we often
+     * can't provide all the information plugins need during
+     * cpu_common_initfn. However the vCPU will be reset a few times
+     * before we eventually set things going giving plugins an
+     * opportunity to update things.
+     */
+    qemu_plugin_vcpu_reset_hook(cpu);
+#endif
 }
 
 static void cpu_common_reset_hold(Object *obj, ResetType type)
@@ -328,14 +338,13 @@ static void cpu_common_initfn(Object *obj)
     cpu_exec_initfn(cpu);
 
     /*
-     * Plugin initialization must wait until the cpu start executing
-     * code, but we must queue this work before the threads are
-     * created to ensure we don't race.
+     * Called once at vCPU creation so the plugin subsystem can do its
+     * housekeeping. See also cpu_reset() and
+     * qemu_plugin_vcpu_reset_hook() above.
      */
 #ifdef CONFIG_PLUGIN
     if (tcg_enabled()) {
-        cpu->plugin_state = qemu_plugin_create_vcpu_state();
-        qemu_plugin_vcpu_init_hook(cpu);
+        qemu_plugin_vcpu_create_hook(cpu);
     }
 #endif
 }

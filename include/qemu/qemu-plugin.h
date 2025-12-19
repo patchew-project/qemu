@@ -238,7 +238,9 @@ void qemu_plugin_reset(qemu_plugin_id_t id, qemu_plugin_simple_cb_t cb);
  * @id: plugin ID
  * @cb: callback function
  *
- * The @cb function is called every time a vCPU is initialized.
+ * The @cb function is called every time a vCPU is initialised. This
+ * includes resets. NOTE: not all register information may be
+ * available the first time this is called.
  *
  * See also: qemu_plugin_register_vcpu_exit_cb()
  */

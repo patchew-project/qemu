@@ -150,14 +150,23 @@ struct CPUPluginState {
 };
 
 /**
- * qemu_plugin_create_vcpu_state: allocate plugin state
+ * qemu_plugin_vcpu_create_hook() - called on vcpu creation
+ * @cpu: vCPU CPUState
  *
- * The returned data must be released with g_free()
- * when no longer required.
+ * We don't expose creation to plugins but we need to do internal
+ * housekeeping of stuff. Called once per vCPU creation.
  */
-CPUPluginState *qemu_plugin_create_vcpu_state(void);
+void qemu_plugin_vcpu_create_hook(CPUState *cpu);
 
-void qemu_plugin_vcpu_init_hook(CPUState *cpu);
+/**
+ * qemu_plugin_vcpu_reset_hook() - called on vcpu reset
+ * @cpu: vCPU CPUState
+ *
+ * Called each time the vcpu is reset. This can happen multiple times
+ * for a given vCPU. We expose this to plugins as vcpu_init.
+ */
+void qemu_plugin_vcpu_reset_hook(CPUState *cpu);
+
 void qemu_plugin_vcpu_exit_hook(CPUState *cpu);
 void qemu_plugin_tb_trans_cb(CPUState *cpu, struct qemu_plugin_tb *tb);
 void qemu_plugin_vcpu_idle_cb(CPUState *cpu);
