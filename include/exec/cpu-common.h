@@ -39,7 +39,9 @@ void tcg_iommu_init_notifier_list(CPUState *cpu);
 void tcg_iommu_free_notifier_list(CPUState *cpu);
 
 enum device_endian {
+#ifdef TARGET_USE_LEGACY_NATIVE_ENDIAN_API
     DEVICE_NATIVE_ENDIAN,
+#endif
     DEVICE_BIG_ENDIAN,
     DEVICE_LITTLE_ENDIAN,
 };
