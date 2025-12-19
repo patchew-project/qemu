@@ -53,6 +53,8 @@ typedef struct VirtIOMMIOQueue {
 #define VIRTIO_IOMMIO_FLAG_USE_IOEVENTFD \
         (1 << VIRTIO_IOMMIO_FLAG_USE_IOEVENTFD_BIT)
 
+#define VIRTIO_MMIO_STREAM_ID_OFFSET 0x50
+
 struct VirtIOMMIOProxy {
     /* Generic */
     SysBusDevice parent_obj;
@@ -67,6 +69,7 @@ struct VirtIOMMIOProxy {
     /* virtio-bus */
     VirtioBusState bus;
     bool format_transport_address;
+    uint32_t stream_id;
     /* Fields only used for non-legacy (v2) devices */
     uint32_t guest_features[2];
     VirtIOMMIOQueue vqs[VIRTIO_QUEUE_MAX];

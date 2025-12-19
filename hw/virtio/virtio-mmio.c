@@ -31,6 +31,7 @@
 #include "system/kvm.h"
 #include "system/replay.h"
 #include "hw/virtio/virtio-mmio.h"
+#include "system/address-spaces.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "trace.h"
@@ -775,6 +776,7 @@ static void virtio_mmio_realizefn(DeviceState *d, Error **errp)
 {
     VirtIOMMIOProxy *proxy = VIRTIO_MMIO(d);
     SysBusDevice *sbd = SYS_BUS_DEVICE(d);
+    static uint32_t stream_id = VIRTIO_MMIO_STREAM_ID_OFFSET;
 
     qbus_init(&proxy->bus, sizeof(proxy->bus), TYPE_VIRTIO_MMIO_BUS, d, NULL);
     sysbus_init_irq(sbd, &proxy->irq);
@@ -783,6 +785,8 @@ static void virtio_mmio_realizefn(DeviceState *d, Error **errp)
     if (replay_mode != REPLAY_MODE_NONE) {
         proxy->flags &= ~VIRTIO_IOMMIO_FLAG_USE_IOEVENTFD;
     }
+
+    proxy->stream_id = stream_id++;
 
     if (proxy->legacy) {
         memory_region_init_io(&proxy->iomem, OBJECT(d),
@@ -867,6 +871,27 @@ static void virtio_mmio_vmstate_change(DeviceState *d, bool running)
     }
 }
 
+static AddressSpace *virtio_mmio_get_dma_as(DeviceState *parent)
+{
+    // BusState *iommu_bus = qdev_get_parent_bus(parent);
+    BusState *iommu_bus = sysbus_get_default();
+    VirtIOMMIOProxy *proxy = VIRTIO_MMIO(parent);
+    AddressSpace *as = NULL;
+
+    if (iommu_bus && iommu_bus->iommu_ops) {
+        as = iommu_bus->iommu_ops->get_address_space(
+            iommu_bus, iommu_bus->iommu_opaque, proxy->stream_id);
+    }
+
+    return as ? as : &address_space_memory;
+}
+
+static bool virtio_mmio_iommu_enabled(DeviceState *parent)
+{
+    AddressSpace *as = virtio_mmio_get_dma_as(parent);
+    return as == &address_space_memory;
+}
+
 static void virtio_mmio_bus_class_init(ObjectClass *klass, const void *data)
 {
     BusClass *bus_class = BUS_CLASS(klass);
@@ -884,6 +909,10 @@ static void virtio_mmio_bus_class_init(ObjectClass *klass, const void *data)
     k->pre_plugged = virtio_mmio_pre_plugged;
     k->vmstate_change = virtio_mmio_vmstate_change;
     k->has_variable_vring_alignment = true;
+
+   k->get_dma_as = virtio_mmio_get_dma_as;
+   k->iommu_enabled = virtio_mmio_iommu_enabled;
+
     bus_class->max_dev = 1;
     bus_class->get_dev_path = virtio_mmio_bus_get_dev_path;
 }
