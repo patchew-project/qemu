@@ -41,6 +41,7 @@
 #ifdef CONFIG_TCG
 #include "hw/intc/armv7m_nvic.h"
 #endif /* CONFIG_TCG */
+#include "system/system.h"
 #endif /* !CONFIG_USER_ONLY */
 #include "system/tcg.h"
 #include "system/qtest.h"
@@ -1535,6 +1536,23 @@ static void arm_cpu_post_init(Object *obj)
     qdev_property_add_static(DEVICE(obj), &arm_cpu_cfgend_property);
 }
 
+#ifndef CONFIG_USER_ONLY
+static void arm_finalize_gdb_regs(Notifier *notifier, void *unused)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        ARMCPU *cpu = ARM_CPU(cs);
+        arm_cpu_register_gdb_regs_for_features(cpu);
+        arm_cpu_register_gdb_commands(cpu);
+    }
+}
+
+static Notifier arm_machine_setup_gdb_notify = {
+    .notify = arm_finalize_gdb_regs,
+};
+#endif
+
 static void arm_cpu_finalizefn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -2138,8 +2156,15 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 #endif
 
     register_cp_regs_for_features(cpu);
+
+#ifdef CONFIG_USER_ONLY
+    /*
+     * For system emulation not everything is done yet - see
+     * arm_machine_setup_gdb_notify
+     */
     arm_cpu_register_gdb_regs_for_features(cpu);
     arm_cpu_register_gdb_commands(cpu);
+#endif
 
     arm_init_cpreg_list(cpu);
 
@@ -2392,6 +2417,14 @@ static void arm_cpu_class_init(ObjectClass *oc, const void *data)
     cc->gdb_write_register = arm_cpu_gdb_write_register;
 #ifndef CONFIG_USER_ONLY
     cc->sysemu_ops = &arm_sysemu_ops;
+    /*
+     * For system emulation we defer setting up GDB registers until
+     * the whole machine in setup. This is because we may still have
+     * some to define for emulated HW (e.g. the GIC).
+     */
+    qemu_add_machine_init_done_notifier(&arm_machine_setup_gdb_notify);
+#else
+
 #endif
     cc->gdb_arch_name = arm_gdb_arch_name;
     cc->gdb_get_core_xml_file = arm_gdb_get_core_xml_file;
