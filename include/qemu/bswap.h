@@ -412,7 +412,9 @@ static inline void stq_be_p(void *ptr, uint64_t v)
         }                                                               \
     }
 
+#ifdef TARGET_USE_LEGACY_NATIVE_ENDIAN_API
 DO_STN_LDN_P(he)
+#endif
 DO_STN_LDN_P(le)
 DO_STN_LDN_P(be)
 
@@ -423,6 +425,7 @@ DO_STN_LDN_P(be)
 #undef le_bswaps
 #undef be_bswaps
 
+#ifdef TARGET_USE_LEGACY_NATIVE_ENDIAN_API
 
 /* Return ld{word}_{le,be}_p following target endianness. */
 #define LOAD_IMPL(word, args...)                    \
@@ -493,5 +496,7 @@ static inline void stn_p(void *ptr, int sz, uint64_t v)
 }
 
 #undef STORE_IMPL
+
+#endif /* TARGET_USE_LEGACY_NATIVE_ENDIAN_API */
 
 #endif /* BSWAP_H */
