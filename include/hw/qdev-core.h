@@ -367,6 +367,26 @@ typedef QTAILQ_HEAD(, BusChild) BusChildHead;
 typedef QLIST_ENTRY(BusState) BusStateEntry;
 
 /**
+ * struct BusIOMMUOps: callbacks structure for specific IOMMU handlers
+ * of a bus
+ */
+typedef struct BusIOMMUOps {
+    /**
+     * @get_address_space: get the address space for a set of devices
+     * on a bus.
+     *
+     * Mandatory callback which returns a pointer to an #AddressSpace
+     *
+     * @bus: the #Bus being accessed.
+     *
+     * @opaque: the data passed to bus_setup_iommu().
+     *
+     * @devif: device identification number
+     */
+    AddressSpace * (*get_address_space)(BusState *bus, void *opaque, int devid);
+} BusIOMMUOps;
+
+/**
  * struct BusState:
  * @obj: parent object
  * @parent: parent Device
@@ -376,6 +396,8 @@ typedef QLIST_ENTRY(BusState) BusStateEntry;
  * @realized: is the bus itself realized?
  * @full: is the bus full?
  * @num_children: current number of child buses
+ * @iommu_ops: TODO
+ * @iommu_opaque: TODO
  */
 struct BusState {
     /* private: */
@@ -388,6 +410,8 @@ struct BusState {
     bool realized;
     bool full;
     int num_children;
+    const BusIOMMUOps *iommu_ops;
+    void *iommu_opaque;
 
     /**
      * @children: an RCU protected QTAILQ, thus readers must use RCU
