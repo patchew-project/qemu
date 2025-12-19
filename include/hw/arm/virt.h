@@ -63,7 +63,8 @@ enum {
     VIRT_GIC_VCPU,
     VIRT_GIC_ITS,
     VIRT_GIC_REDIST,
-    VIRT_SMMU,
+    VIRT_SMMU_PCIE,
+    VIRT_SMMU_SYSBUS,
     VIRT_UART0,
     VIRT_MMIO,
     VIRT_RTC,
@@ -168,6 +169,7 @@ struct VirtMachineState {
     uint32_t gic_phandle;
     uint32_t msi_phandle;
     uint32_t iommu_phandle;
+    uint32_t sysbus_iommu_phandle;
     int psci_conduit;
     hwaddr highest_gpa;
     DeviceState *gic;

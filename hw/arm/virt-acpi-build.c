@@ -334,8 +334,8 @@ static int populate_smmuv3_legacy_dev(GArray *sdev_blob)
      */
     g_array_sort(sdev.rc_smmu_idmaps, iort_idmap_compare);
 
-    sdev.base = vms->memmap[VIRT_SMMU].base;
-    sdev.irq = vms->irqmap[VIRT_SMMU] + ARM_SPI_BASE;
+    sdev.base = vms->memmap[VIRT_SMMU_PCIE].base;
+    sdev.irq = vms->irqmap[VIRT_SMMU_PCIE] + ARM_SPI_BASE;
     g_array_append_val(sdev_blob, sdev);
     return sdev.rc_smmu_idmaps->len;
 }
