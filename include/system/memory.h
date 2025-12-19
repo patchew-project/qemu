@@ -2848,12 +2848,12 @@ MemTxResult address_space_write_rom(AddressSpace *as, hwaddr addr,
 #define SUFFIX
 #define ARG1         as
 #define ARG1_DECL    AddressSpace *as
-#include "exec/memory_ldst.h.inc"
+#include "system/memory_ldst.h.inc"
 
 #define SUFFIX
 #define ARG1         as
 #define ARG1_DECL    AddressSpace *as
-#include "exec/memory_ldst_phys.h.inc"
+#include "system/memory_ldst_phys.h.inc"
 
 void address_space_flush_icache_range(AddressSpace *as, hwaddr addr, hwaddr len);
 
