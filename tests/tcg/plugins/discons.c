@@ -156,15 +156,15 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
         uint64_t next_pc = pc + qemu_plugin_insn_size(insn);
         uint64_t has_next = (i + 1) < n_insns;
 
-        qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(insn,
-                                                            QEMU_PLUGIN_INLINE_STORE_U64,
-                                                            last_pc, pc);
-        qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(insn,
-                                                            QEMU_PLUGIN_INLINE_STORE_U64,
-                                                            from_pc, next_pc);
-        qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(insn,
-                                                            QEMU_PLUGIN_INLINE_STORE_U64,
-                                                            has_from, has_next);
+        qemu_plugin_register_inline_per_vcpu(insn,
+                                             QEMU_PLUGIN_INLINE_STORE_U64,
+                                             last_pc, pc);
+        qemu_plugin_register_inline_per_vcpu(insn,
+                                             QEMU_PLUGIN_INLINE_STORE_U64,
+                                             from_pc, next_pc);
+        qemu_plugin_register_inline_per_vcpu(insn,
+                                             QEMU_PLUGIN_INLINE_STORE_U64,
+                                             has_from, has_next);
         qemu_plugin_register_vcpu_insn_exec_cb(insn, insn_exec,
                                                QEMU_PLUGIN_CB_NO_REGS, NULL);
     }

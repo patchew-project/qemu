@@ -516,7 +516,7 @@ void qemu_plugin_register_vcpu_insn_exec_cond_cb(
     void *userdata);
 
 /**
- * qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu() - insn exec inline op
+ * qemu_plugin_register_inline_per_vcpu() - insn exec inline op
  * @insn: the opaque qemu_plugin_insn handle for an instruction
  * @op: the type of qemu_plugin_op (e.g. ADD_U64)
  * @entry: entry to run op
@@ -525,7 +525,7 @@ void qemu_plugin_register_vcpu_insn_exec_cond_cb(
  * Insert an inline op to every time an instruction executes.
  */
 QEMU_PLUGIN_API
-void qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(
+void qemu_plugin_register_inline_per_vcpu(
     struct qemu_plugin_insn *insn,
     enum qemu_plugin_op op,
     qemu_plugin_u64 entry,
