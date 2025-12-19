@@ -77,8 +77,10 @@ static inline void address_space_stb_cached(MemoryRegionCache *cache,
     }
 }
 
+#ifdef TARGET_USE_LEGACY_NATIVE_ENDIAN_API
 #define ENDIANNESS
 #include "system/memory_ldst_cached.h.inc"
+#endif
 
 #define ENDIANNESS   _le
 #include "system/memory_ldst_cached.h.inc"
