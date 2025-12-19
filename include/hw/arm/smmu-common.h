@@ -27,6 +27,8 @@
 #define SMMU_PCI_DEVFN_MAX                  256
 #define SMMU_PCI_DEVFN(sid)                 (sid & 0xFF)
 
+#define SMMU_DEVID_MAX                      256
+
 /* VMSAv8-64 Translation constants and functions */
 #define VMSA_LEVELS                         4
 #define VMSA_MAX_S2_CONCAT                  16
@@ -120,12 +122,13 @@ typedef struct SMMUTransCfg {
 
 typedef struct SMMUDevice {
     void               *smmu;
-    PCIBus             *bus;
+    void               *bus;
     int                devfn;
     IOMMUMemoryRegion  iommu;
     AddressSpace       as;
     uint32_t           cfg_cache_hits;
     uint32_t           cfg_cache_misses;
+    bool               pcie_device;
     QLIST_ENTRY(SMMUDevice) next;
 } SMMUDevice;
 
@@ -133,6 +136,11 @@ typedef struct SMMUPciBus {
     PCIBus       *bus;
     SMMUDevice   *pbdev[]; /* Parent array is sparse, so dynamically alloc */
 } SMMUPciBus;
+
+typedef struct SMMUBus {
+    BusState     *bus;
+    SMMUDevice   *pbdev[]; /* Parent array is sparse, so dynamically alloc */
+} SMMUBus;
 
 typedef struct SMMUIOTLBKey {
     uint64_t iova;
@@ -154,14 +162,16 @@ struct SMMUState {
     MemoryRegion iomem;
 
     GHashTable *smmu_pcibus_by_busptr;
+    GHashTable *smmu_bus_by_busptr;
     GHashTable *configs; /* cache for configuration data */
     GHashTable *iotlb;
     SMMUPciBus *smmu_pcibus_by_bus_num[SMMU_PCI_BUS_MAX];
     PCIBus *pci_bus;
     QLIST_HEAD(, SMMUDevice) devices_with_notifiers;
     uint8_t bus_num;
-    PCIBus *primary_bus;
-    bool smmu_per_bus; /* SMMU is specific to the primary_bus */
+    PCIBus *pci_primary_bus;
+    bool pci_smmu_per_bus; /* SMMU is specific to the pci_primary_bus */
+    BusState *generic_primary_bus;
 };
 
 struct SMMUBaseClass {
@@ -183,7 +193,11 @@ SMMUPciBus *smmu_find_smmu_pcibus(SMMUState *s, uint8_t bus_num);
 /* Return the stream ID of an SMMU device */
 static inline uint16_t smmu_get_sid(SMMUDevice *sdev)
 {
-    return PCI_BUILD_BDF(pci_bus_num(sdev->bus), sdev->devfn);
+    if (sdev->pcie_device) {
+        return PCI_BUILD_BDF(pci_bus_num(sdev->bus), sdev->devfn);
+    } else {
+        return sdev->devfn;
+    }
 }
 
 /**

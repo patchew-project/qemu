@@ -80,6 +80,19 @@ bool bus_is_in_reset(BusState *bus)
     return resettable_is_in_reset(OBJECT(bus));
 }
 
+void bus_setup_iommu(BusState *bus, const BusIOMMUOps *ops, void *opaque)
+{
+    /*
+     * If called, bus_setup_iommu() should provide a minimum set of
+     * useful callbacks for the bus.
+     */
+    assert(ops);
+    assert(ops->get_address_space);
+
+    bus->iommu_ops = ops;
+    bus->iommu_opaque = opaque;
+}
+
 static ResettableState *bus_get_reset_state(Object *obj)
 {
     BusState *bus = BUS(obj);

@@ -25,6 +25,7 @@
 #include "qapi/error.h"
 #include "qemu/jhash.h"
 #include "qemu/module.h"
+#include "hw/qdev-core.h"
 
 #include "qemu/error-report.h"
 #include "hw/arm/smmu-common.h"
@@ -824,7 +825,7 @@ SMMUTLBEntry *smmu_translate(SMMUState *bs, SMMUTransCfg *cfg, dma_addr_t addr,
 /**
  * The bus number is used for lookup when SID based invalidation occurs.
  * In that case we lazily populate the SMMUPciBus array from the bus hash
- * table. At the time the SMMUPciBus is created (smmu_find_add_as), the bus
+ * table. At the time the SMMUPciBus is created (pci_smmu_find_add_as), the bus
  * numbers may not be always initialized yet.
  */
 SMMUPciBus *smmu_find_smmu_pcibus(SMMUState *s, uint8_t bus_num)
@@ -847,7 +848,7 @@ SMMUPciBus *smmu_find_smmu_pcibus(SMMUState *s, uint8_t bus_num)
     return NULL;
 }
 
-static AddressSpace *smmu_find_add_as(PCIBus *bus, void *opaque, int devfn)
+static AddressSpace *pci_smmu_find_add_as(PCIBus *bus, void *opaque, int devfn)
 {
     SMMUState *s = opaque;
     SMMUPciBus *sbus = g_hash_table_lookup(s->smmu_pcibus_by_busptr, bus);
@@ -870,6 +871,7 @@ static AddressSpace *smmu_find_add_as(PCIBus *bus, void *opaque, int devfn)
         sdev->smmu = s;
         sdev->bus = bus;
         sdev->devfn = devfn;
+        sdev->pcie_device = true;
 
         memory_region_init_iommu(&sdev->iommu, sizeof(sdev->iommu),
                                  s->mrtypename,
@@ -883,8 +885,48 @@ static AddressSpace *smmu_find_add_as(PCIBus *bus, void *opaque, int devfn)
     return &sdev->as;
 }
 
-static const PCIIOMMUOps smmu_ops = {
-    .get_address_space = smmu_find_add_as,
+static AddressSpace *bus_smmu_find_add_as(BusState *bus, void *opaque, int devid)
+{
+    SMMUState *s = opaque;
+    SMMUBus *sbus = g_hash_table_lookup(s->smmu_bus_by_busptr, bus);
+    SMMUDevice *sdev;
+    static unsigned int index;
+
+    if (!sbus) {
+        sbus = g_malloc0(sizeof(SMMUBus) +
+                         sizeof(SMMUDevice *) * SMMU_DEVID_MAX);
+        sbus->bus = bus;
+        g_hash_table_insert(s->smmu_bus_by_busptr, bus, sbus);
+    }
+
+    sdev = sbus->pbdev[devid];
+    if (!sdev) {
+        char *name = g_strdup_printf("%s-%d-%d", s->mrtypename, devid, index++);
+
+        sdev = sbus->pbdev[devid] = g_new0(SMMUDevice, 1);
+
+        sdev->smmu = s;
+        sdev->bus = bus;
+        sdev->devfn = devid;
+
+        memory_region_init_iommu(&sdev->iommu, sizeof(sdev->iommu),
+                                 s->mrtypename,
+                                 OBJECT(s), name, UINT64_MAX);
+        address_space_init(&sdev->as,
+                           MEMORY_REGION(&sdev->iommu), name);
+        trace_smmu_add_mr(name);
+        g_free(name);
+    }
+
+    return &sdev->as;
+}
+
+static const PCIIOMMUOps pci_smmu_ops = {
+    .get_address_space = pci_smmu_find_add_as,
+};
+
+static const BusIOMMUOps bus_smmu_ops = {
+    .get_address_space = bus_smmu_find_add_as,
 };
 
 SMMUDevice *smmu_find_sdev(SMMUState *s, uint32_t sid)
@@ -926,7 +968,7 @@ static void smmu_base_realize(DeviceState *dev, Error **errp)
 {
     SMMUState *s = ARM_SMMU(dev);
     SMMUBaseClass *sbc = ARM_SMMU_GET_CLASS(dev);
-    PCIBus *pci_bus = s->primary_bus;
+    PCIBus *pci_bus = s->pci_primary_bus;
     Error *local_err = NULL;
 
     sbc->parent_realize(dev, &local_err);
@@ -938,6 +980,11 @@ static void smmu_base_realize(DeviceState *dev, Error **errp)
     s->iotlb = g_hash_table_new_full(smmu_iotlb_key_hash, smmu_iotlb_key_equal,
                                      g_free, g_free);
     s->smmu_pcibus_by_busptr = g_hash_table_new(NULL, NULL);
+
+    if (s->generic_primary_bus ) {
+        bus_setup_iommu(s->generic_primary_bus, &bus_smmu_ops, s);
+        return;
+    }
 
     if (!pci_bus) {
         error_setg(errp, "SMMU is not attached to any PCI bus!");
@@ -962,10 +1009,10 @@ static void smmu_base_realize(DeviceState *dev, Error **errp)
             }
         }
 
-        if (s->smmu_per_bus) {
-            pci_setup_iommu_per_bus(pci_bus, &smmu_ops, s);
+        if (s->pci_smmu_per_bus) {
+            pci_setup_iommu_per_bus(pci_bus, &pci_smmu_ops, s);
         } else {
-            pci_setup_iommu(pci_bus, &smmu_ops, s);
+            pci_setup_iommu(pci_bus, &pci_smmu_ops, s);
         }
         return;
     }
@@ -991,9 +1038,11 @@ static void smmu_base_reset_exit(Object *obj, ResetType type)
 
 static const Property smmu_dev_properties[] = {
     DEFINE_PROP_UINT8("bus_num", SMMUState, bus_num, 0),
-    DEFINE_PROP_BOOL("smmu_per_bus", SMMUState, smmu_per_bus, false),
-    DEFINE_PROP_LINK("primary-bus", SMMUState, primary_bus,
+    DEFINE_PROP_BOOL("pci_smmu_per_bus", SMMUState, pci_smmu_per_bus, false),
+    DEFINE_PROP_LINK("pci-primary-bus", SMMUState, pci_primary_bus,
                      TYPE_PCI_BUS, PCIBus *),
+    DEFINE_PROP_LINK("generic-primary-bus", SMMUState, generic_primary_bus,
+                     TYPE_BUS, BusState *),
 };
 
 static void smmu_base_class_init(ObjectClass *klass, const void *data)

@@ -954,6 +954,18 @@ bool device_is_in_reset(DeviceState *dev);
  */
 bool bus_is_in_reset(BusState *bus);
 
+/**
+ * bus_setup_iommu() - Set up IOMMU operations for a bus
+ * @bus: the bus to configure
+ * @ops: IOMMU operations structure containing callback functions
+ * @opaque: opaque data passed to IOMMU operation callbacks
+ *
+ * Configure IOMMU operations for the specified bus. The ops structure
+ * must contain at least the get_address_space callback. The opaque
+ * parameter is passed through to the operation callbacks.
+ */
+void bus_setup_iommu(BusState *bus, const BusIOMMUOps *ops, void *opaque);
+
 /* This should go away once we get rid of the NULL bus hack */
 BusState *sysbus_get_default(void);
 

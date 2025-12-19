@@ -3050,7 +3050,7 @@ static void virt_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
                        "iommu=smmuv3" : "virtio-iommu");
         } else if (vms->iommu == VIRT_IOMMU_NONE) {
             /* The new SMMUv3 device is specific to the PCI bus */
-            object_property_set_bool(OBJECT(dev), "smmu_per_bus", true, NULL);
+            object_property_set_bool(OBJECT(dev), "pci_smmu_per_bus", true, NULL);
         }
     }
 }
