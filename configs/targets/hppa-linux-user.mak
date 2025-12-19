@@ -5,3 +5,4 @@ TARGET_SYSTBL=syscall.tbl
 TARGET_BIG_ENDIAN=y
 # Compromise to ease maintenance vs system mode
 TARGET_LONG_BITS=64
+TARGET_USE_LEGACY_NATIVE_ENDIAN_API=y

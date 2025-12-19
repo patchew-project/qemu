@@ -6,3 +6,4 @@ TARGET_XML_FILES= gdb-xml/power64-core.xml gdb-xml/power-fpu.xml gdb-xml/power-a
 # all boards require libfdt
 TARGET_NEED_FDT=y
 TARGET_LONG_BITS=64
+TARGET_USE_LEGACY_NATIVE_ENDIAN_API=y
