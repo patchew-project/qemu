@@ -419,10 +419,12 @@ static const VMStateDescription allwinner_i2c_vmstate = {
         VMSTATE_UINT8(xaddr, AWI2CState),
         VMSTATE_UINT8(data, AWI2CState),
         VMSTATE_UINT8(cntr, AWI2CState),
+        VMSTATE_UINT8(stat, AWI2CState),
         VMSTATE_UINT8(ccr, AWI2CState),
         VMSTATE_UINT8(srst, AWI2CState),
         VMSTATE_UINT8(efr, AWI2CState),
         VMSTATE_UINT8(lcr, AWI2CState),
+        VMSTATE_BOOL(irq_clear_inverted, AWI2CState),
         VMSTATE_END_OF_LIST()
     }
 };
