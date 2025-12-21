@@ -52,7 +52,7 @@ G_NORETURN void HELPER(raise_exception)(CPUHexagonState *env, uint32_t excp)
 }
 
 void log_store32(CPUHexagonState *env, target_ulong addr,
-                 target_ulong val, int width, int slot)
+                 target_ulong val, uint8_t width, int slot)
 {
     env->mem_log_stores[slot].va = addr;
     env->mem_log_stores[slot].width = width;
@@ -60,7 +60,7 @@ void log_store32(CPUHexagonState *env, target_ulong addr,
 }
 
 void log_store64(CPUHexagonState *env, target_ulong addr,
-                 int64_t val, int width, int slot)
+                 int64_t val, uint8_t width, int slot)
 {
     env->mem_log_stores[slot].va = addr;
     env->mem_log_stores[slot].width = width;
