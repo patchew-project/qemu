@@ -692,7 +692,7 @@ static const MemoryRegionOps virt_iocsr_misc_ops = {
     .write_with_attrs = virt_iocsr_misc_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
-        .min_access_size = 4,
+        .min_access_size = 1,
         .max_access_size = 8,
     },
     .impl = {
