@@ -1053,6 +1053,15 @@ struct ArchCPU {
     uint64_t *hidden_regs;
     uint32_t nr_hidden_regs;
 
+    /*
+     * Registers that are likely to be part of the migration
+     * incoming stream but not exposed on destination. If
+     * their indexes are stored in this array, it is OK to
+     * ignore those registers in the inbound data.
+     */
+    uint64_t *mig_safe_missing_regs;
+    uint32_t nr_mig_safe_missing_regs;
+
     /* Uniprocessor system with MP extensions */
     bool mp_is_up;
 
@@ -1203,6 +1212,19 @@ arm_cpu_hidden_reg(ARMCPU *cpu, uint64_t regidx)
     }
     return false;
 }
+
+
+static inline bool
+arm_cpu_safe_missing_reg(ARMCPU *cpu, uint64_t regidx)
+{
+    for (int i = 0; i < cpu->nr_mig_safe_missing_regs; i++) {
+        if (regidx == cpu->mig_safe_missing_regs[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
 
 /* Callback functions for the generic timer's timers. */
 void arm_gt_ptimer_cb(void *opaque);
