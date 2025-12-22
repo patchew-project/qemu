@@ -100,6 +100,15 @@ static GlobalProperty arm_virt_compat_defaults[] = {
 static const size_t arm_virt_compat_defaults_len =
     G_N_ELEMENTS(arm_virt_compat_defaults);
 
+/* Register erronously exposed on 10.2 and earlier */
+#define DBGDTRTX 0x40200000200e0298
+
+static GlobalProperty arm_virt_compat_10_2[] = {
+    { TYPE_ARM_CPU, "x-mig-safe-missing-regs", stringify(DBGDTRTX)},
+};
+static const size_t arm_virt_compat_10_2_len =
+    G_N_ELEMENTS(arm_virt_compat_10_2);
+
 /*
  * This cannot be called from the virt_machine_class_init() because
  * TYPE_VIRT_MACHINE is abstract and mc->compat_props g_ptr_array_new()
@@ -3536,6 +3545,7 @@ type_init(machvirt_machine_init);
 
 static void virt_machine_10_2_options(MachineClass *mc)
 {
+    compat_props_add(mc->compat_props, arm_virt_compat_10_2, arm_virt_compat_10_2_len);
 }
 DEFINE_VIRT_MACHINE_AS_LATEST(10, 2)
 
