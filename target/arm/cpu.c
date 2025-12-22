@@ -2248,6 +2248,11 @@ static const Property arm_cpu_properties[] = {
     DEFINE_PROP_BOOL("backcompat-cntfrq", ARMCPU, backcompat_cntfrq, false),
     DEFINE_PROP_BOOL("backcompat-pauth-default-use-qarma5", ARMCPU,
                       backcompat_pauth_default_use_qarma5, false),
+    DEFINE_PROP_ARRAY("x-mig-hidden-regs", ARMCPU,
+                      nr_hidden_regs, hidden_regs, qdev_prop_uint64, uint64_t),
+    DEFINE_PROP_ARRAY("x-mig-safe-missing-regs", ARMCPU,
+                      nr_mig_safe_missing_regs, mig_safe_missing_regs,
+                      qdev_prop_uint64, uint64_t),
 };
 
 static const gchar *arm_gdb_arch_name(CPUState *cs)
