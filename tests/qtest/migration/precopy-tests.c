@@ -807,7 +807,8 @@ static void test_cancel_src_after_status(void *opaque)
     } else if (g_str_equal(phase, "completed")) {
         test_cancel_src_after_complete(from, to, uri, phase);
 
-    } else if (g_str_equal(phase, "failed")) {
+    } else if (g_str_equal(phase, "failing") ||
+               g_str_equal(phase, "failed")) {
         test_cancel_src_after_failed(from, to, uri, phase);
 
     } else if (g_str_equal(phase, "none")) {
@@ -1316,7 +1317,7 @@ void migration_test_add_precopy(MigrationTestEnv *env)
     }
 
     /* ensure new status don't go unnoticed */
-    assert(MIGRATION_STATUS__MAX == 16);
+    assert(MIGRATION_STATUS__MAX == 17);
 
     for (int i = MIGRATION_STATUS_NONE; i < MIGRATION_STATUS__MAX; i++) {
         switch (i) {
