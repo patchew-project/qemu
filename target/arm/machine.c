@@ -508,6 +508,24 @@ static const VMStateDescription vmstate_m_mve = {
     },
 };
 
+static bool m_event_needed(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+    /* Only save the state if the event register is set (non-zero) */
+    return cpu->env.v7m.event_register != 0;
+}
+
+static const VMStateDescription vmstate_m_event = {
+    .name = "cpu/m/event",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = m_event_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(env.v7m.event_register, ARMCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_m = {
     .name = "cpu/m",
     .version_id = 4,
@@ -535,6 +553,7 @@ static const VMStateDescription vmstate_m = {
         &vmstate_m_v8m,
         &vmstate_m_fp,
         &vmstate_m_mve,
+        &vmstate_m_event,
         NULL
     }
 };

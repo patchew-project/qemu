@@ -639,6 +639,7 @@ typedef struct CPUArchState {
         uint32_t nsacr;
         uint32_t ltpsize;
         uint32_t vpr;
+        uint32_t event_register;
     } v7m;
 
     /* Information associated with an exception about to be taken:

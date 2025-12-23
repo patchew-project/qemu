@@ -32,6 +32,7 @@ typedef struct VecInfo {
     uint8_t pending;
     uint8_t active;
     uint8_t level; /* exceptions <=15 never set level */
+    bool was_pending;
 } VecInfo;
 
 struct NVICState {

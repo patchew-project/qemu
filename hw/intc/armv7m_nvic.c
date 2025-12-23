@@ -16,6 +16,7 @@
 #include "migration/vmstate.h"
 #include "qemu/timer.h"
 #include "hw/intc/armv7m_nvic.h"
+#include "hw/arm/armv7m.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "system/tcg.h"
@@ -232,6 +233,8 @@ static void nvic_recompute_state_secure(NVICState *s)
     int pend_irq = 0;
     bool pending_is_s_banked = false;
     int pend_subprio = 0;
+    ARMv7MState *armv7m = container_of(s, ARMv7MState, nvic);
+    ARMCPU *cpu = armv7m->cpu;
 
     /* R_CQRV: precedence is by:
      *  - lowest group priority; if both the same then
@@ -258,6 +261,14 @@ static void nvic_recompute_state_secure(NVICState *s)
                 vec = &s->vectors[i];
                 targets_secure = !exc_is_banked(i) && exc_targets_secure(s, i);
             }
+
+            if (!vec->was_pending && vec->pending) {
+                if (cpu->env.v7m.scr[bank] & R_V7M_SCR_SEVONPEND_MASK) {
+                    cpu->env.v7m.event_register = 1;
+                    qemu_cpu_kick(CPU(cpu));
+                }
+            }
+            vec->was_pending = vec->pending;
 
             prio = exc_group_prio(s, vec->prio, targets_secure);
             subprio = vec->prio & ~nvic_gprio_mask(s, targets_secure);
@@ -293,6 +304,8 @@ static void nvic_recompute_state(NVICState *s)
     int pend_prio = NVIC_NOEXC_PRIO;
     int active_prio = NVIC_NOEXC_PRIO;
     int pend_irq = 0;
+    ARMv7MState *armv7m = container_of(s, ARMv7MState, nvic);
+    ARMCPU *cpu = armv7m->cpu;
 
     /* In theory we could write one function that handled both
      * the "security extension present" and "not present"; however
@@ -316,6 +329,13 @@ static void nvic_recompute_state(NVICState *s)
         if (vec->active && vec->prio < active_prio) {
             active_prio = vec->prio;
         }
+        if (!vec->was_pending && vec->pending) {
+            if (cpu->env.v7m.scr[M_REG_NS] & R_V7M_SCR_SEVONPEND_MASK) {
+                cpu->env.v7m.event_register = 1;
+                qemu_cpu_kick(CPU(cpu));
+            }
+        }
+        vec->was_pending = vec->pending;
     }
 
     if (active_prio > 0) {
@@ -1657,7 +1677,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
         }
         /* We don't implement deep-sleep so these bits are RAZ/WI.
          * The other bits in the register are banked.
-         * QEMU's implementation ignores SEVONPEND and SLEEPONEXIT, which
+         * QEMU's implementation ignores SLEEPONEXIT, which
          * is architecturally permitted.
          */
         value &= ~(R_V7M_SCR_SLEEPDEEP_MASK | R_V7M_SCR_SLEEPDEEPS_MASK);

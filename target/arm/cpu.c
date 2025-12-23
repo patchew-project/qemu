@@ -143,6 +143,12 @@ static bool arm_cpu_has_work(CPUState *cs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
 
+    if (arm_feature(&cpu->env, ARM_FEATURE_M)) {
+        if (cpu->env.v7m.event_register) {
+            return true;
+        }
+    }
+
     return (cpu->power_state != PSCI_OFF)
         && cpu_test_interrupt(cs,
                CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD
@@ -480,6 +486,7 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
             ~(R_V7M_FPCCR_LSPEN_MASK | R_V7M_FPCCR_S_MASK);
         env->v7m.control[M_REG_S] |= R_V7M_CONTROL_FPCA_MASK;
 #endif
+        env->v7m.event_register = 0;
     }
 
     /* M profile requires that reset clears the exclusive monitor;
