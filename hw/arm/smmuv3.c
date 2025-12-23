@@ -79,6 +79,10 @@ static void smmuv3_trigger_irq(SMMUv3State *s, SMMUIrq irq,
         break;
     }
     }
+
+    if (s->combined_irq)
+        irq = 0;
+
     if (pulse) {
             trace_smmuv3_trigger_irq(irq);
             qemu_irq_pulse(s->irq[irq]);
@@ -1850,8 +1854,9 @@ static const MemoryRegionOps smmu_mem_ops = {
 static void smmu_init_irq(SMMUv3State *s, SysBusDevice *dev)
 {
     int i;
+    int irq_num = s->combined_irq ? 1 : ARRAY_SIZE(s->irq);
 
-    for (i = 0; i < ARRAY_SIZE(s->irq); i++) {
+    for (i = 0; i < irq_num; i++) {
         sysbus_init_irq(dev, &s->irq[i]);
     }
 }
@@ -1977,6 +1982,11 @@ static const Property smmuv3_properties[] = {
      * Defaults to stage 1
      */
     DEFINE_PROP_STRING("stage", SMMUv3State, stage),
+    /*
+     * Use single IRQ line for each event type,
+     * instead of 4 different irq's
+     */
+    DEFINE_PROP_BOOL("combined_irq", SMMUv3State, combined_irq, false),
 };
 
 static void smmuv3_instance_init(Object *obj)

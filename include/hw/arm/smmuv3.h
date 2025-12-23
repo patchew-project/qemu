@@ -61,6 +61,7 @@ struct SMMUv3State {
     SMMUQueue eventq, cmdq;
 
     qemu_irq     irq[4];
+    bool         combined_irq;
     QemuMutex mutex;
     char *stage;
 };
