@@ -1763,6 +1763,366 @@ bool memory_region_init_rom_device(MemoryRegion *mr,
                                    uint64_t size,
                                    Error **errp);
 
+/**
+ * memory_region_new: Allocate and initialize a memory region
+ *
+ * This is like memory_region_init() but allocates the #MemoryRegion and
+ * attaches it to the owner to free it when the owner is freed.
+ *
+ * @owner: the object that tracks the region's reference count
+ * @name: used for debugging; not visible to the user or ABI
+ * @size: size of the region; any subregions beyond this size will be clipped
+ *
+ * Return: Pointer to the allocated #MemoryRegion.
+ */
+MemoryRegion *memory_region_new(Object *owner,
+                                const char *name, uint64_t size);
+
+/**
+ * memory_region_new_io: Allocate and initialize an I/O memory region.
+ *
+ * This is like memory_region_init_io() but allocates the #MemoryRegion and
+ * attaches it to the owner to free it when the owner is freed.
+ *
+ * @owner: the object that tracks the region's reference count
+ * @ops: a structure containing read and write callbacks to be used when
+ *       I/O is performed on the region.
+ * @opaque: passed to the read and write callbacks of the @ops structure.
+ * @name: used for debugging; not visible to the user or ABI
+ * @size: size of the region.
+ *
+ * Return: Pointer to the allocated #MemoryRegion.
+ */
+MemoryRegion *memory_region_new_io(Object *owner,
+                                   const MemoryRegionOps *ops, void *opaque,
+                                   const char *name, uint64_t size);
+
+/**
+ * memory_region_new_ram_nomigrate:  Allocate and initialize RAM memory region.
+ *
+ * This is like memory_region_init_ram_nomigrate() but allocates the
+ * #MemoryRegion and attaches is to the owner to free when the owner is freed.
+ *
+ * @owner: the object that tracks the region's reference count
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
+ * @size: size of the region.
+ * @errp: pointer to Error*, to store an error if it happens.
+ *
+ * Note that this function does not do anything to cause the data in the
+ * RAM memory region to be migrated; that is the responsibility of the caller.
+ *
+ * Return: Pointer to the allocated #MemoryRegion or NULL on error.
+ */
+MemoryRegion *memory_region_new_ram_nomigrate(Object *owner,
+                                              const char *name, uint64_t size,
+                                              Error **errp);
+
+/**
+ * memory_region_new_ram_flags_nomigrate:  Allocata and initialize RAM memory
+ *                                         region with flags.
+ *
+ * This is like memory_region_init_ram_flags_nomigrate() but allocates the
+ * #MemoryRegion and attaches is to the owner to free when the owner is freed.
+ *
+ * @owner: the object that tracks the region's reference count
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
+ * @size: size of the region.
+ * @ram_flags: RamBlock flags. Supported flags: RAM_SHARED, RAM_NORESERVE,
+ *             RAM_GUEST_MEMFD.
+ * @errp: pointer to Error*, to store an error if it happens.
+ *
+ * Note that this function does not do anything to cause the data in the
+ * RAM memory region to be migrated; that is the responsibility of the caller.
+ *
+ * Return: Pointer to the allocated #MemoryRegion or NULL on error.
+ */
+MemoryRegion *memory_region_new_ram_flags_nomigrate(Object *owner,
+                                                    const char *name,
+                                                    uint64_t size,
+                                                    uint32_t ram_flags,
+                                                    Error **errp);
+
+/**
+ * memory_region_new_resizeable_ram:  Allocate and initialize memory region
+ *                                    with resizable RAM.
+ *
+ * This is like memory_region_init_resizable_ram() but allocates the
+ * #MemoryRegion and attaches is to the owner to free when the owner is freed.
+ *
+ * @owner: the object that tracks the region's reference count
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
+ * @size: used size of the region.
+ * @max_size: max size of the region.
+ * @resized: callback to notify owner about used size change.
+ * @errp: pointer to Error*, to store an error if it happens.
+ *
+ * Note that this function does not do anything to cause the data in the
+ * RAM memory region to be migrated; that is the responsibility of the caller.
+ *
+ * Return: Pointer to the allocated #MemoryRegion or NULL on error.
+ */
+MemoryRegion *memory_region_new_resizeable_ram(Object *owner,
+                                               const char *name,
+                                               uint64_t size,
+                                               uint64_t max_size,
+                                               void (*resized)(const char*,
+                                                               uint64_t length,
+                                                               void *host),
+                                               Error **errp);
+
+/**
+ * memory_region_new_ram_from_file:  Allocate and initialize RAM memory region
+ *                                   with a mmap-ed backend.
+ *
+ * This is like memory_region_init_ram_from_file() but allocates the
+ * #MemoryRegion and attaches is to the owner to free when the owner is freed.
+ *
+ * @owner: the object that tracks the region's reference count
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
+ * @size: size of the region.
+ * @align: alignment of the region base address; if 0, the default alignment
+ *         (getpagesize()) will be used.
+ * @ram_flags: RamBlock flags. Supported flags: RAM_SHARED, RAM_PMEM,
+ *             RAM_NORESERVE, RAM_PROTECTED, RAM_NAMED_FILE, RAM_READONLY,
+ *             RAM_READONLY_FD, RAM_GUEST_MEMFD
+ * @path: the path in which to allocate the RAM.
+ * @offset: offset within the file referenced by path
+ * @errp: pointer to Error*, to store an error if it happens.
+ *
+ * Note that this function does not do anything to cause the data in the
+ * RAM memory region to be migrated; that is the responsibility of the caller.
+ *
+ * Return: Pointer to the allocated #MemoryRegion or NULL on error.
+ */
+MemoryRegion *memory_region_new_ram_from_file(Object *owner,
+                                              const char *name,
+                                              uint64_t size,
+                                              uint64_t align,
+                                              uint32_t ram_flags,
+                                              const char *path,
+                                              ram_addr_t offset,
+                                              Error **errp);
+
+/**
+ * memory_region_new_ram_from_fd:  Allocate and initialize RAM memory region
+ *                                 with a mmap-ed backend.
+ *
+ * This is like memory_region_init_ram_from_fd() but allocates the
+ * #MemoryRegion and attaches is to the owner to free when the owner is freed.
+ *
+ * @owner: the object that tracks the region's reference count
+ * @name: the name of the region.
+ * @size: size of the region.
+ * @ram_flags: RamBlock flags. Supported flags: RAM_SHARED, RAM_PMEM,
+ *             RAM_NORESERVE, RAM_PROTECTED, RAM_NAMED_FILE, RAM_READONLY,
+ *             RAM_READONLY_FD, RAM_GUEST_MEMFD
+ * @fd: the fd to mmap.
+ * @offset: offset within the file referenced by fd
+ * @errp: pointer to Error*, to store an error if it happens.
+ *
+ * Note that this function does not do anything to cause the data in the
+ * RAM memory region to be migrated; that is the responsibility of the caller.
+ *
+ * Return: Pointer to the allocated #MemoryRegion or NULL on error.
+ */
+MemoryRegion *memory_region_new_ram_from_fd(Object *owner,
+                                            const char *name, uint64_t size,
+                                            uint32_t ram_flags, int fd,
+                                            ram_addr_t offset, Error **errp);
+
+/**
+ * memory_region_new_ram_ptr:  Allocate and initialize RAM memory region from a
+ *                             user-provided pointer.
+ *
+ * This is like memory_region_init_ram_ptr() but allocates the
+ * #MemoryRegion and attaches is to the owner to free when the owner is freed.
+ *
+ * @owner: the object that tracks the region's reference count
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
+ * @size: size of the region.
+ * @ptr: memory to be mapped; must contain at least @size bytes.
+ *
+ * Note that this function does not do anything to cause the data in the
+ * RAM memory region to be migrated; that is the responsibility of the caller.
+ *
+ * Return: Pointer to the allocated #MemoryRegion
+ */
+MemoryRegion *memory_region_new_ram_ptr(Object *owner, const char *name,
+                                        uint64_t size, void *ptr);
+
+/**
+ * memory_region_new_ram_device_ptr:  Allocate and initialize RAM device memory
+ *                                    region from a user-provided pointer.
+ *
+ * This is like memory_region_init_ram_device_ptr() but allocates the
+ * #MemoryRegion and attaches is to the owner to free when the owner is freed.
+ *
+ * @owner: the object that tracks the region's reference count
+ * @name: the name of the region.
+ * @size: size of the region.
+ * @ptr: memory to be mapped; must contain at least @size bytes.
+ *
+ * Note that this function does not do anything to cause the data in the
+ * RAM memory region to be migrated; that is the responsibility of the caller.
+ * (For RAM device memory regions, migrating the contents rarely makes sense.)
+ *
+ * Return: Pointer to the allocated #MemoryRegion
+ */
+MemoryRegion *memory_region_new_ram_device_ptr(Object *owner, const char *name,
+                                               uint64_t size, void *ptr);
+
+/**
+ * memory_region_new_alias:  Allocate and initialize a memory region that
+ *                           aliases all or a part of another memory region.
+ *
+ * This is like memory_region_init_alias() but allocates the
+ * #MemoryRegion and attaches is to the owner to free when the owner is freed.
+ *
+ * @owner: the object that tracks the region's reference count
+ * @name: used for debugging; not visible to the user or ABI
+ * @orig: the region to be referenced; @mr will be equivalent to
+ *        @orig between @offset and @offset + @size - 1.
+ * @offset: start of the section in @orig to be referenced.
+ * @size: size of the region.
+ *
+ * Return: Pointer to the allocated #MemoryRegion
+ */
+MemoryRegion *memory_region_new_alias(Object *owner,
+                                      const char *name, MemoryRegion *orig,
+                                      hwaddr offset, uint64_t size);
+
+/**
+ * memory_region_new_rom_nomigrate:  Allocate and initialize a ROM memory
+ *                                   region.
+ *
+ * This is like memory_region_init_rom_nomigrate() but allocates the
+ * #MemoryRegion and attaches is to the owner to free when the owner is freed.
+ *
+ * @owner: the object that tracks the region's reference count
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
+ * @size: size of the region.
+ * @errp: pointer to Error*, to store an error if it happens.
+ *
+ * Return: Pointer to the allocated #MemoryRegion or NULL on error.
+ */
+MemoryRegion *memory_region_new_rom_nomigrate(Object *owner,
+                                              const char *name, uint64_t size,
+                                              Error **errp);
+
+/**
+ * memory_region_new_rom_device_nomigrate:  Allocate and initialize a ROM
+ *                                          device memory region.
+ *
+ * This is like memory_region_init_rom_device_nomigrate() but allocates the
+ * #MemoryRegion and attaches is to the owner to free when the owner is freed.
+ *
+ * @owner: the object that tracks the region's reference count
+ * @ops: callbacks for write access handling (must not be NULL).
+ * @opaque: passed to the read and write callbacks of the @ops structure.
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
+ * @size: size of the region.
+ * @errp: pointer to Error*, to store an error if it happens.
+ *
+ * Note that this function does not do anything to cause the data in the
+ * RAM side of the memory region to be migrated; that is the responsibility
+ * of the caller.
+ *
+ * Return: Pointer to the allocated #MemoryRegion or NULL on error.
+ */
+MemoryRegion *memory_region_new_rom_device_nomigrate(Object *owner,
+                                                     const MemoryRegionOps *ops,
+                                                     void *opaque,
+                                                     const char *name,
+                                                     uint64_t size,
+                                                     Error **errp);
+/**
+ * memory_region_new_ram - Allocate and initialize RAM memory region.
+ *
+ * This is like memory_region_init_ram() but allocates the
+ * #MemoryRegion and attaches is to the owner to free when the owner is freed.
+ *
+ * @owner: the object that tracks the region's reference count (must be
+ *         TYPE_DEVICE or a subclass of TYPE_DEVICE, or NULL)
+ * @name: name of the memory region
+ * @size: size of the region in bytes
+ * @errp: pointer to Error*, to store an error if it happens.
+ *
+ * TODO: Currently we restrict @owner to being either NULL (for
+ * global RAM regions with no owner) or devices, so that we can
+ * give the RAM block a unique name for migration purposes.
+ * We should lift this restriction and allow arbitrary Objects.
+ * If you pass a non-NULL non-device @owner then we will assert.
+ *
+ * Return: Pointer to the allocated #MemoryRegion or NULL on error.
+ */
+MemoryRegion *memory_region_new_ram(Object *owner,
+                                    const char *name, uint64_t size,
+                                    Error **errp);
+
+MemoryRegion *memory_region_new_ram_guest_memfd(Object *owner,
+                                                const char *name,
+                                                uint64_t size,
+                                                Error **errp);
+
+/**
+ * memory_region_new_rom: Allocate and initialize a ROM memory region.
+ *
+ * This is like memory_region_init_rom() but allocates the
+ * #MemoryRegion and attaches is to the owner to free when the owner is freed.
+ *
+ * TODO: Currently we restrict @owner to being either NULL (for
+ * global RAM regions with no owner) or devices, so that we can
+ * give the RAM block a unique name for migration purposes.
+ * We should lift this restriction and allow arbitrary Objects.
+ * If you pass a non-NULL non-device @owner then we will assert.
+ *
+ * @owner: the object that tracks the region's reference count
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
+ * @size: size of the region.
+ * @errp: pointer to Error*, to store an error if it happens.
+ *
+ * Return: Pointer to the allocated #MemoryRegion or NULL on error.
+ */
+MemoryRegion *memory_region_new_rom(Object *owner,
+                                    const char *name, uint64_t size,
+                                    Error **errp);
+
+/**
+ * memory_region_new_rom_device:  Allocate and initialize a ROM device memory
+ *                                region.
+ *
+ * This is like memory_region_init_rom_device() but allocates the
+ * #MemoryRegion and attaches is to the owner to free when the owner is freed.
+ *
+ * TODO: Currently we restrict @owner to being either NULL (for
+ * global RAM regions with no owner) or devices, so that we can
+ * give the RAM block a unique name for migration purposes.
+ * We should lift this restriction and allow arbitrary Objects.
+ * If you pass a non-NULL non-device @owner then we will assert.
+ *
+ * @owner: the object that tracks the region's reference count
+ * @ops: callbacks for write access handling (must not be NULL).
+ * @opaque: passed to the read and write callbacks of the @ops structure.
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
+ * @size: size of the region.
+ * @errp: pointer to Error*, to store an error if it happens.
+ *
+ * Return: Pointer to the allocated #MemoryRegion or NULL on error.
+ */
+MemoryRegion *memory_region_new_rom_device(Object *owner,
+                                           const MemoryRegionOps *ops,
+                                           void *opaque,
+                                           const char *name, uint64_t size,
+                                           Error **errp);
 
 /**
  * memory_region_owner: get a memory region's owner.
