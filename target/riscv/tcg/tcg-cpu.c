@@ -1478,7 +1478,6 @@ static void cpu_set_multi_ext_cfg(Object *obj, Visitor *v, const char *name,
 {
     const RISCVCPUMultiExtConfig *multi_ext_cfg = opaque;
     RISCVCPU *cpu = RISCV_CPU(obj);
-    bool vendor_cpu = riscv_cpu_is_vendor(obj);
     bool prev_val, value;
 
     if (!visit_type_bool(v, name, &value, errp)) {
@@ -1490,13 +1489,6 @@ static void cpu_set_multi_ext_cfg(Object *obj, Visitor *v, const char *name,
     prev_val = isa_ext_is_enabled(cpu, multi_ext_cfg->offset);
 
     if (value == prev_val) {
-        return;
-    }
-
-    if (value && vendor_cpu) {
-        g_autofree char *cpuname = riscv_cpu_get_name(cpu);
-        error_setg(errp, "'%s' CPU does not allow enabling extensions",
-                   cpuname);
         return;
     }
 
