@@ -2600,6 +2600,8 @@ void cpu_sync_avx_hflag(CPUX86State *env);
 typedef enum X86ASIdx {
     X86ASIdx_MEM = 0,
     X86ASIdx_SMM = 1,
+    X86ASIdx_MAX = X86ASIdx_SMM
+#define X86ASIdx_COUNT (X86ASIdx_MAX + 1)
 } X86ASIdx;
 
 #ifndef CONFIG_USER_ONLY
