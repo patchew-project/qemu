@@ -7,6 +7,7 @@
 #include "hw/ppc/pnv_core.h"
 #include "hw/ppc/pnv_homer.h"
 #include "hw/ppc/pnv_n1_chiplet.h"
+#include "hw/ppc/pnv_nmmu.h"
 #include "hw/ssi/pnv_spi.h"
 #include "hw/ppc/pnv_lpc.h"
 #include "hw/ppc/pnv_occ.h"
@@ -126,6 +127,8 @@ struct Pnv10Chip {
     PnvN1Chiplet     n1_chiplet;
 #define PNV10_CHIP_MAX_PIB_SPIC 6
     PnvSpi pib_spic[PNV10_CHIP_MAX_PIB_SPIC];
+#define PNV10_CHIP_MAX_NMMU 2
+    PnvNMMU      nmmu[PNV10_CHIP_MAX_NMMU];
 
     uint32_t     nr_quads;
     PnvQuad      *quads;
