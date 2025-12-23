@@ -188,12 +188,6 @@ void cpu_exec_class_post_init(CPUClass *cc)
     g_assert(cc->sysemu_ops->has_work);
 }
 
-void cpu_exec_initfn(CPUState *cpu)
-{
-    cpu->memory = get_system_memory();
-    object_ref(OBJECT(cpu->memory));
-}
-
 static int cpu_common_post_load(void *opaque, int version_id)
 {
     if (tcg_enabled()) {

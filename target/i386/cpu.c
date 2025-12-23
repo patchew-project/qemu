@@ -10106,6 +10106,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, const void *data)
     cc->get_arch_id = x86_cpu_get_arch_id;
 
 #ifndef CONFIG_USER_ONLY
+    cc->num_ases = X86ASIdx_COUNT;
     cc->sysemu_ops = &i386_sysemu_ops;
 #endif /* !CONFIG_USER_ONLY */
 #ifdef CONFIG_TCG

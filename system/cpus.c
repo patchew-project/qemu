@@ -715,10 +715,11 @@ void qemu_init_vcpu(CPUState *cpu)
     cpu->random_seed = qemu_guest_random_seed_thread_part1();
 
     if (!cpu->as) {
-        /* If the target cpu hasn't set up any address spaces itself,
-         * give it the default one.
+        /*
+         * If the target has not set up the address space 0 (main memory),
+         * set it. Address space 0 is special and has an alias kept in
+         * cpu->as. If address space 0 is set up cpu->as is always != NULL.
          */
-        cpu->num_ases = 1;
         cpu_address_space_init(cpu, 0, "cpu-memory", cpu->memory);
     }
 

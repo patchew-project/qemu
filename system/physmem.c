@@ -775,6 +775,22 @@ hwaddr memory_region_section_get_iotlb(CPUState *cpu,
 
 #endif /* CONFIG_TCG */
 
+void cpu_exec_initfn(CPUState *cpu)
+{
+
+    /*
+     * If the total number of address spaces for CPUs is not defined explicitly
+     * by the arch the default is 1 address space.
+     */
+    unsigned num_ases = cpu->cc->num_ases ? cpu->cc->num_ases : 1;
+
+    cpu->cpu_ases = g_new0(CPUAddressSpace, num_ases);
+    cpu->num_ases = num_ases;
+
+    cpu->memory = get_system_memory();
+    object_ref(OBJECT(cpu->memory));
+}
+
 void cpu_address_space_init(CPUState *cpu, int asidx,
                             const char *prefix, MemoryRegion *mr)
 {
@@ -793,10 +809,6 @@ void cpu_address_space_init(CPUState *cpu, int asidx,
     if (asidx == 0) {
         /* address space 0 gets the convenience alias */
         cpu->as = as;
-    }
-
-    if (!cpu->cpu_ases) {
-        cpu->cpu_ases = g_new0(CPUAddressSpace, cpu->num_ases);
     }
 
     newas = &cpu->cpu_ases[asidx];
@@ -831,8 +843,6 @@ void cpu_destroy_address_spaces(CPUState *cpu)
         }
         g_clear_pointer(&cpuas->as, address_space_destroy_free);
     }
-
-    g_clear_pointer(&cpu->cpu_ases, g_free);
 }
 
 AddressSpace *cpu_get_address_space(CPUState *cpu, int asidx)

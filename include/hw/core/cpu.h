@@ -145,6 +145,7 @@ struct SysemuCPUOps;
  * address before attempting to match it against watchpoints.
  * @deprecation_note: If this CPUClass is deprecated, this field provides
  *                    related information.
+ * @num_ases: Total number of address spaces usable by the architecture.
  *
  * Represents a CPU family or model.
  */
@@ -195,6 +196,8 @@ struct CPUClass {
     int reset_dump_flags;
     int gdb_num_core_regs;
     bool gdb_stop_before_watchpoint;
+    /* Total number of address spaces. */
+    unsigned num_ases;
 };
 
 /*

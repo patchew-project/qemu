@@ -309,7 +309,6 @@ static void cpu_common_initfn(Object *obj)
     cpu->cpu_index = UNASSIGNED_CPU_INDEX;
     cpu->cluster_index = UNASSIGNED_CLUSTER_INDEX;
     cpu->as = NULL;
-    cpu->num_ases = 0;
     /* user-mode doesn't have configurable SMP topology */
     /* the default value is changed by qemu_init_vcpu() for system-mode */
     cpu->nr_threads = 1;
@@ -359,6 +358,7 @@ static void cpu_common_finalize(Object *obj)
     qemu_cond_destroy(cpu->halt_cond);
     g_free(cpu->halt_cond);
     g_free(cpu->thread);
+    g_free(cpu->cpu_ases);
 }
 
 static int64_t cpu_common_get_arch_id(CPUState *cpu)
