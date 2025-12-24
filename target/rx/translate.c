@@ -101,16 +101,16 @@ static uint32_t li(DisasContext *ctx, int sz)
         return (int8_t)translator_ldub(env, &ctx->base, addr);
     case 2:
         ctx->base.pc_next += 2;
-        return (int16_t)translator_lduw(env, &ctx->base, addr);
+        return (int16_t) translator_lduw_end(env, &ctx->base, addr, MO_LE);
     case 3:
         ctx->base.pc_next += 3;
         tmp = (int8_t)translator_ldub(env, &ctx->base, addr + 2);
         tmp <<= 16;
-        tmp |= translator_lduw(env, &ctx->base, addr);
+        tmp |= translator_lduw_end(env, &ctx->base, addr, MO_LE);
         return tmp;
     case 0:
         ctx->base.pc_next += 4;
-        return translator_ldl(env, &ctx->base, addr);
+        return translator_ldl_end(env, &ctx->base, addr, MO_LE);
     default:
         g_assert_not_reached();
     }
@@ -206,7 +206,8 @@ static TCGv_i32 rx_index_addr(DisasContext *ctx, TCGv_i32 mem,
         ctx->base.pc_next += 1;
         return mem;
     case 2:
-        dsp = translator_lduw(ctx->env, &ctx->base, ctx->base.pc_next) << size;
+        dsp = translator_lduw_end(ctx->env, &ctx->base, ctx->base.pc_next,
+                                  MO_LE) << size;
         tcg_gen_addi_i32(mem, cpu_regs[reg], dsp);
         ctx->base.pc_next += 2;
         return mem;
