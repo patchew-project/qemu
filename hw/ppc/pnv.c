@@ -2187,6 +2187,7 @@ static void pnv_chip_power10_instance_init(Object *obj)
     object_initialize_child(obj, "homer", &chip10->homer, TYPE_PNV10_HOMER);
     object_initialize_child(obj, "n1-chiplet", &chip10->n1_chiplet,
                             TYPE_PNV_N1_CHIPLET);
+    object_initialize_child(obj, "ocmb", &chip10->ocmb, TYPE_PNV10_OCMB);
 
     chip->num_pecs = pcc->num_pecs;
 
@@ -2408,6 +2409,15 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
 
     pnv_xscom_add_subregion(chip, PNV10_XSCOM_N1_PB_SCOM_ES_BASE,
                            &chip10->n1_chiplet.xscom_pb_es_mr);
+
+    /* Memory Controller OCMB CFG/MMIO space */
+    object_property_set_link(OBJECT(&chip10->ocmb), "chip", OBJECT(chip),
+                             &error_abort);
+    if (!qdev_realize(DEVICE(&chip10->ocmb), NULL, errp)) {
+        return;
+    }
+    memory_region_add_subregion(get_system_memory(), PNV10_OCMB_BASE(chip),
+                                &chip10->ocmb.regs);
 
     /* PHBs */
     pnv_chip_power10_phb_realize(chip, &local_err);
