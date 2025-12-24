@@ -21,30 +21,24 @@
 #include "gdbstub/helpers.h"
 #include "cpu.h"
 
-struct TypeSize {
-    const char *gdb_type;
-    const char *id;
-    int size;
-    const char suffix;
+/*
+ * Vector lane type definitions for GDB target description.
+ * Uses GDB's builtin type names (uint8, int8, ieee_half, etc.)
+ */
+enum RVVExtension {
+    RVV_EXT_NONE = 0,   /* Zve32x (checked at call site) */
+    RVV_EXT_ZVE64X,     /* 64-bit integer elements */
+    RVV_EXT_ZVE64D,     /* Double-precision float */
+    RVV_EXT_ZVE32F,     /* Single-precision float */
+    RVV_EXT_ZVFHMIN,    /* Half-precision float */
+    RVV_EXT_ZVFBFMIN,   /* BFloat16 */
 };
 
-static const struct TypeSize vec_lanes[] = {
-    /* quads */
-    { "uint128", "quads", 128, 'q' },
-    /* 64 bit */
-    { "uint64", "longs", 64, 'l' },
-    /* 32 bit */
-    { "uint32", "words", 32, 'w' },
-    /* 16 bit */
-    { "uint16", "shorts", 16, 's' },
-    /*
-     * TODO: currently there is no reliable way of telling
-     * if the remote gdb actually understands ieee_half so
-     * we don't expose it in the target description for now.
-     * { "ieee_half", 16, 'h', 'f' },
-     */
-    /* bytes */
-    { "uint8", "bytes", 8, 'b' },
+struct TypeSize {
+    const char *gdb_type;        /* GDB builtin type name */
+    const char *name;            /* Short name for union field (NULL = use gdb_type) */
+    int size;                    /* Element size in bits */
+    enum RVVExtension required;  /* Required extension, RVV_EXT_NONE if always enabled */
 };
 
 int riscv_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
@@ -300,6 +294,53 @@ static GDBFeature *riscv_gen_dynamic_csr_feature(CPUState *cs, int base_reg)
     return &cpu->dyn_csr_feature;
 }
 
+/*
+ * Vector lane types using GDB's builtin type names.
+ * Float types are conditionally included based on extension availability.
+ */
+static const struct TypeSize vec_lanes[] = {
+    /* 128 bit - requires Zve64x */
+    { "uint128",     NULL,   128, RVV_EXT_ZVE64X },
+    { "int128",      NULL,   128, RVV_EXT_ZVE64X },
+    /* 64 bit - requires Zve64x */
+    { "uint64",      NULL,   64,  RVV_EXT_ZVE64X },
+    { "int64",       NULL,   64,  RVV_EXT_ZVE64X },
+    { "ieee_double", "fp64", 64,  RVV_EXT_ZVE64D },
+    /* 32 bit */
+    { "uint32",      NULL,   32,  RVV_EXT_NONE },
+    { "int32",       NULL,   32,  RVV_EXT_NONE },
+    { "ieee_single", "fp32", 32,  RVV_EXT_ZVE32F },
+    /* 16 bit */
+    { "uint16",      NULL,   16,  RVV_EXT_NONE },
+    { "int16",       NULL,   16,  RVV_EXT_NONE },
+    { "ieee_half",   "fp16", 16,  RVV_EXT_ZVFHMIN },
+    { "bfloat16",    "bf16", 16,  RVV_EXT_ZVFBFMIN },
+    /* 8 bit */
+    { "uint8",       NULL,   8,   RVV_EXT_NONE },
+    { "int8",        NULL,   8,   RVV_EXT_NONE },
+};
+
+/* Check if a vector lane type should be included based on CPU extensions */
+static bool riscv_gdb_vec_lane_enabled(RISCVCPU *cpu, const struct TypeSize *ts)
+{
+    switch (ts->required) {
+    case RVV_EXT_NONE:
+        return true;
+    case RVV_EXT_ZVE64X:
+        return cpu->cfg.ext_zve64x;
+    case RVV_EXT_ZVE64D:
+        return cpu->cfg.ext_zve64d;
+    case RVV_EXT_ZVE32F:
+        return cpu->cfg.ext_zve32f;
+    case RVV_EXT_ZVFHMIN:
+        return cpu->cfg.ext_zvfhmin;
+    case RVV_EXT_ZVFBFMIN:
+        return cpu->cfg.ext_zvfbfmin;
+    default:
+        return false;
+    }
+}
+
 static GDBFeature *ricsv_gen_dynamic_vector_feature(CPUState *cs, int base_reg)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
@@ -311,21 +352,44 @@ static GDBFeature *ricsv_gen_dynamic_vector_feature(CPUState *cs, int base_reg)
                              "org.gnu.gdb.riscv.vector", "riscv-vector.xml",
                              base_reg);
 
-    /* First define types and totals in a whole VL */
+    /* Define vector types for each lane type */
     for (i = 0; i < ARRAY_SIZE(vec_lanes); i++) {
-        int count = bitsize / vec_lanes[i].size;
+        const struct TypeSize *ts = &vec_lanes[i];
+        if (!riscv_gdb_vec_lane_enabled(cpu, ts)) {
+            continue;
+        }
         gdb_feature_builder_append_tag(
             &builder, "<vector id=\"%s\" type=\"%s\" count=\"%d\"/>",
-            vec_lanes[i].id, vec_lanes[i].gdb_type, count);
+            ts->gdb_type, ts->gdb_type, bitsize / ts->size);
     }
 
-    /* Define unions */
+    /* Create a single flat union with all type views */
     gdb_feature_builder_append_tag(&builder, "<union id=\"riscv_vector\">");
     for (i = 0; i < ARRAY_SIZE(vec_lanes); i++) {
+        const struct TypeSize *ts = &vec_lanes[i];
+        const char *name = ts->name ? ts->name : ts->gdb_type;
+        if (!riscv_gdb_vec_lane_enabled(cpu, ts)) {
+            continue;
+        }
         gdb_feature_builder_append_tag(&builder,
-                                       "<field name=\"%c\" type=\"%s\"/>",
-                                       vec_lanes[i].suffix, vec_lanes[i].id);
+                                       "<field name=\"%s\" type=\"%s\"/>",
+                                       name, ts->gdb_type);
     }
+
+    /* Add backward-compatible aliases for unsigned types */
+    gdb_feature_builder_append_tag(&builder,
+                                   "<field name=\"b\" type=\"uint8\"/>");
+    gdb_feature_builder_append_tag(&builder,
+                                   "<field name=\"s\" type=\"uint16\"/>");
+    gdb_feature_builder_append_tag(&builder,
+                                   "<field name=\"w\" type=\"uint32\"/>");
+    if (cpu->cfg.ext_zve64x) {
+        gdb_feature_builder_append_tag(&builder,
+                                       "<field name=\"l\" type=\"uint64\"/>");
+        gdb_feature_builder_append_tag(&builder,
+                                       "<field name=\"q\" type=\"uint128\"/>");
+    }
+
     gdb_feature_builder_append_tag(&builder, "</union>");
 
     /* Define vector registers */
