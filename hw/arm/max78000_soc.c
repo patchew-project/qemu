@@ -88,13 +88,7 @@ static void max78000_soc_realize(DeviceState *dev_soc, Error **errp)
 
     armv7m = DEVICE(&s->armv7m);
 
-    /*
-     * The MAX78000 user guide's Interrupt Vector Table section
-     * suggests that there are 120 IRQs in the text, while only listing
-     * 104 in table 5-1. Implement the more generous of the two.
-     * This has not been tested in hardware.
-     */
-    qdev_prop_set_uint32(armv7m, "num-irq", 120);
+    qdev_prop_set_uint32(armv7m, "num-irq", 119);
     qdev_prop_set_uint8(armv7m, "num-prio-bits", 3);
     qdev_prop_set_string(armv7m, "cpu-type", ARM_CPU_TYPE_NAME("cortex-m4"));
     qdev_prop_set_bit(armv7m, "enable-bitband", true);
