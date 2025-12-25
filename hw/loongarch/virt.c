@@ -1371,18 +1371,21 @@ static void virt_class_init(ObjectClass *oc, const void *data)
                                           "The string may be up to 8 bytes in size");
 }
 
-static const TypeInfo virt_machine_types[] = {
-    {
-        .name           = TYPE_LOONGARCH_VIRT_MACHINE,
-        .parent         = TYPE_MACHINE,
-        .instance_size  = sizeof(LoongArchVirtMachineState),
-        .class_init     = virt_class_init,
-        .instance_init  = virt_initfn,
-        .interfaces = (const InterfaceInfo[]) {
-         { TYPE_HOTPLUG_HANDLER },
-         { }
-        },
-    }
+static const TypeInfo virt_machine_info = {
+    .name           = TYPE_LOONGARCH_VIRT_MACHINE,
+    .parent         = TYPE_MACHINE,
+    .instance_size  = sizeof(LoongArchVirtMachineState),
+    .class_init     = virt_class_init,
+    .instance_init  = virt_initfn,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { }
+    },
 };
 
-DEFINE_TYPES(virt_machine_types)
+static void machvirt_machine_init(void)
+{
+    type_register_static(&virt_machine_info);
+}
+
+type_init(machvirt_machine_init);
