@@ -124,11 +124,15 @@ static int char_pty_chr_write(Chardev *chr, const uint8_t *buf, int len)
     pfd.revents = 0;
     rc = RETRY_ON_EINTR(g_poll(&pfd, 1, 0));
     g_assert(rc >= 0);
+    if ((pfd.revents & G_IO_HUP) || !(pfd.revents & G_IO_OUT)) {
+        return 0;
+    }
     if (!(pfd.revents & G_IO_HUP) && (pfd.revents & G_IO_OUT)) {
         return io_channel_send(s->ioc, buf, len);
     }
 
-    return len;
+    int ret = io_channel_send(s->ioc, buf, len);
+    return ret;
 }
 
 static GSource *pty_chr_add_watch(Chardev *chr, GIOCondition cond)
