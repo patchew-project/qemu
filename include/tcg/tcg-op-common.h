@@ -9,6 +9,7 @@
 #define TCG_TCG_OP_COMMON_H
 
 #include "tcg/tcg.h"
+#include "tcg/tcg-print.h"
 #include "exec/helper-proto-common.h"
 #include "exec/helper-gen-common.h"
 
@@ -77,6 +78,7 @@ void tcg_gen_lookup_and_goto_ptr(void);
 
 void tcg_gen_plugin_cb(unsigned from);
 void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo);
+void tcg_gen_print(const char *fmt, ...);
 
 /* 32 bit ops */
 

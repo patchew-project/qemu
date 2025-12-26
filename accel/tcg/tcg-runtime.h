@@ -27,6 +27,7 @@ DEF_HELPER_FLAGS_1(ctpop_i64, TCG_CALL_NO_RWG_SE, i64, i64)
 DEF_HELPER_FLAGS_1(lookup_tb_ptr, TCG_CALL_NO_WG_SE, cptr, env)
 
 DEF_HELPER_FLAGS_1(exit_atomic, TCG_CALL_NO_WG, noreturn, env)
+DEF_HELPER_FLAGS_7(tcg_print, 0, void, ptr, i32, i64, i64, i64, i64, i64)
 
 #ifndef IN_HELPER_PROTO
 /*

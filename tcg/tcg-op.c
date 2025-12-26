@@ -323,6 +323,95 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
     tcg_gen_op2(INDEX_op_plugin_mem_cb, 0, tcgv_i64_arg(addr), meminfo);
 }
 
+void tcg_gen_print(const char *fmt, ...)
+{
+    TCGTemp *temps[TCG_PRINT_MAX_ARGS];
+    TCGPrintArgType kinds[TCG_PRINT_MAX_ARGS];
+    TCGv_i64 values[TCG_PRINT_MAX_ARGS];
+    TCGv_i64 to_free[TCG_PRINT_MAX_ARGS];
+    int free_count = 0;
+    int count = 0;
+    va_list ap;
+    uint32_t desc;
+    TCGv_ptr fmt_ptr;
+    TCGv_i32 desc_arg;
+    TCGv_i64 zero;
+    int i;
+
+    QEMU_BUILD_BUG_ON(TCG_PRINT_MAX_ARGS != 5);
+
+    va_start(ap, fmt);
+    for (;;) {
+        int kind = va_arg(ap, int);
+
+        if (kind == TCG_PRINT_ARG_END) {
+            break;
+        }
+        g_assert(count < TCG_PRINT_MAX_ARGS);
+
+        switch (kind) {
+        case TCG_PRINT_ARG_I32:
+            temps[count] = tcgv_i32_temp(va_arg(ap, TCGv_i32));
+            break;
+        case TCG_PRINT_ARG_I64:
+            temps[count] = tcgv_i64_temp(va_arg(ap, TCGv_i64));
+            break;
+        case TCG_PRINT_ARG_PTR:
+            temps[count] = tcgv_ptr_temp(va_arg(ap, TCGv_ptr));
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        kinds[count++] = kind;
+    }
+    va_end(ap);
+
+    desc = count;
+    for (i = 0; i < count; i++) {
+        desc = tcg_print_desc_add_type(desc, i, kinds[i]);
+    }
+
+    fmt_ptr = tcg_constant_ptr(fmt);
+    desc_arg = tcg_constant_i32(desc);
+    zero = tcg_constant_i64(0);
+
+    for (i = 0; i < count; i++) {
+        switch (kinds[i]) {
+        case TCG_PRINT_ARG_I32:
+            values[i] = tcg_temp_ebb_new_i64();
+            tcg_gen_extu_i32_i64(values[i], temp_tcgv_i32(temps[i]));
+            to_free[free_count++] = values[i];
+            break;
+        case TCG_PRINT_ARG_I64:
+            values[i] = temp_tcgv_i64(temps[i]);
+            break;
+        case TCG_PRINT_ARG_PTR:
+#if UINTPTR_MAX == UINT32_MAX
+            values[i] = tcg_temp_ebb_new_i64();
+            tcg_gen_extu_i32_i64(values[i],
+                                 (TCGv_i32)temp_tcgv_ptr(temps[i]));
+            to_free[free_count++] = values[i];
+#else
+            values[i] = temp_tcgv_i64(temps[i]);
+#endif
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+    for (; i < TCG_PRINT_MAX_ARGS; i++) {
+        values[i] = zero;
+    }
+
+    gen_helper_tcg_print(fmt_ptr, desc_arg,
+                         values[0], values[1], values[2], values[3],
+                         values[4]);
+
+    for (i = 0; i < free_count; i++) {
+        tcg_temp_free_i64(to_free[i]);
+    }
+}
+
 /* 32 bit ops */
 
 void tcg_gen_discard_i32(TCGv_i32 arg)
