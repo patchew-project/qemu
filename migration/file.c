@@ -93,8 +93,7 @@ out:
     return ret;
 }
 
-QIOChannel *file_connect_outgoing(MigrationState *s,
-                                  FileMigrationArgs *file_args, Error **errp)
+QIOChannel *file_connect_outgoing(FileMigrationArgs *file_args, Error **errp)
 {
     QIOChannelFile *fioc = NULL;
     g_autofree char *filename = g_strdup(file_args->filename);

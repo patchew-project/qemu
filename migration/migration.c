@@ -101,7 +101,7 @@ static bool migration_object_check(MigrationState *ms, Error **errp);
 static bool migration_switchover_start(MigrationState *s, Error **errp);
 static bool close_return_path_on_source(MigrationState *s);
 static void migration_completion_end(MigrationState *s);
-static void migrate_hup_delete(MigrationState *s);
+static void migrate_hup_delete(void);
 
 static void migration_downtime_start(MigrationState *s)
 {
@@ -1372,7 +1372,7 @@ static void migration_cleanup(MigrationState *s)
 
     qemu_savevm_state_cleanup();
     cpr_state_close();
-    migrate_hup_delete(s);
+    migrate_hup_delete();
 
     close_return_path_on_source(s);
 
@@ -1454,8 +1454,9 @@ static void migrate_error_free(MigrationState *s)
     }
 }
 
-void migration_connect_error_propagate(MigrationState *s, Error *error)
+void migration_connect_error_propagate(Error *error)
 {
+    MigrationState *s = migrate_get_current();
     MigrationStatus current = s->state;
     MigrationStatus next = MIGRATION_STATUS_NONE;
     bool resume = false;
@@ -1555,7 +1556,7 @@ void migration_cancel(void)
         migrate_set_state(&s->state, MIGRATION_STATUS_CANCELLING,
                           MIGRATION_STATUS_CANCELLED);
         cpr_state_close();
-        migrate_hup_delete(s);
+        migrate_hup_delete();
     }
 }
 
@@ -1961,8 +1962,10 @@ bool migration_is_blocked(Error **errp)
 }
 
 /* Returns true if continue to migrate, or false if error detected */
-static bool migrate_prepare(MigrationState *s, bool resume, Error **errp)
+static bool migrate_prepare(bool resume, Error **errp)
 {
+    MigrationState *s = migrate_get_current();
+
     if (resume) {
         if (s->state != MIGRATION_STATUS_POSTCOPY_PAUSED) {
             error_setg(errp, "Cannot resume if there is no "
@@ -2080,16 +2083,19 @@ static bool migrate_prepare(MigrationState *s, bool resume, Error **errp)
 
 static void qmp_migrate_finish(MigrationAddress *addr, Error **errp);
 
-static void migrate_hup_add(MigrationState *s, QIOChannel *ioc, GSourceFunc cb,
-                            void *opaque)
+static void migrate_hup_add(QIOChannel *ioc, GSourceFunc cb, void *opaque)
 {
-        s->hup_source = qio_channel_create_watch(ioc, G_IO_HUP);
-        g_source_set_callback(s->hup_source, cb, opaque, NULL);
-        g_source_attach(s->hup_source, NULL);
+    MigrationState *s = migrate_get_current();
+
+    s->hup_source = qio_channel_create_watch(ioc, G_IO_HUP);
+    g_source_set_callback(s->hup_source, cb, opaque, NULL);
+    g_source_attach(s->hup_source, NULL);
 }
 
-static void migrate_hup_delete(MigrationState *s)
+static void migrate_hup_delete(void)
 {
+    MigrationState *s = migrate_get_current();
+
     if (s->hup_source) {
         g_source_destroy(s->hup_source);
         g_source_unref(s->hup_source);
@@ -2101,19 +2107,18 @@ static gboolean qmp_migrate_finish_cb(QIOChannel *channel,
                                       GIOCondition cond,
                                       void *opaque)
 {
-    MigrationState *s = migrate_get_current();
     MigrationAddress *addr = opaque;
     Error *local_err = NULL;
 
     qmp_migrate_finish(addr, &local_err);
 
     if (local_err) {
-        migration_connect_error_propagate(s, local_err);
+        migration_connect_error_propagate(local_err);
     }
 
 
     cpr_state_close();
-    migrate_hup_delete(s);
+    migrate_hup_delete();
     qapi_free_MigrationAddress(addr);
     return G_SOURCE_REMOVE;
 }
@@ -2122,7 +2127,6 @@ void qmp_migrate(const char *uri, bool has_channels,
                  MigrationChannelList *channels, bool has_detach, bool detach,
                  bool has_resume, bool resume, Error **errp)
 {
-    MigrationState *s = migrate_get_current();
     g_autoptr(MigrationChannel) channel = NULL;
     MigrationAddress *addr = NULL;
     MigrationChannel *channelv[MIGRATION_CHANNEL_TYPE__MAX] = { NULL };
@@ -2173,7 +2177,7 @@ void qmp_migrate(const char *uri, bool has_channels,
         return;
     }
 
-    if (!migrate_prepare(s, has_resume && resume, errp)) {
+    if (!migrate_prepare(has_resume && resume, errp)) {
         /* Error detected, put into errp */
         return;
     }
@@ -2200,7 +2204,7 @@ void qmp_migrate(const char *uri, bool has_channels,
      * connection, so qmp_migrate_finish will fail to connect, and then recover.
      */
     if (migrate_mode() == MIG_MODE_CPR_TRANSFER) {
-        migrate_hup_add(s, cpr_state_ioc(), (GSourceFunc)qmp_migrate_finish_cb,
+        migrate_hup_add(cpr_state_ioc(), (GSourceFunc)qmp_migrate_finish_cb,
                         QAPI_CLONE(MigrationAddress, addr));
 
     } else {
@@ -2209,16 +2213,14 @@ void qmp_migrate(const char *uri, bool has_channels,
 
 out:
     if (local_err) {
-        migration_connect_error_propagate(s, error_copy(local_err));
+        migration_connect_error_propagate(error_copy(local_err));
         error_propagate(errp, local_err);
     }
 }
 
 static void qmp_migrate_finish(MigrationAddress *addr, Error **errp)
 {
-    MigrationState *s = migrate_get_current();
-
-    migration_connect_outgoing(s, addr, errp);
+    migration_connect_outgoing(addr, errp);
 }
 
 void qmp_migrate_cancel(Error **errp)
@@ -3895,8 +3897,9 @@ fail_setup:
     return NULL;
 }
 
-void migration_start_outgoing(MigrationState *s)
+void migration_start_outgoing(void)
 {
+    MigrationState *s = migrate_get_current();
     Error *local_err = NULL;
     uint64_t rate_limit;
     bool resume = (s->state == MIGRATION_STATUS_POSTCOPY_RECOVER_SETUP);
@@ -3975,7 +3978,7 @@ void migration_start_outgoing(MigrationState *s)
     return;
 
 fail:
-    migration_connect_error_propagate(s, local_err);
+    migration_connect_error_propagate(local_err);
     if (s->error) {
         error_report_err(error_copy(s->error));
     }

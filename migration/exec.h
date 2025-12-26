@@ -27,6 +27,5 @@ const char *exec_get_cmd_path(void);
 #endif
 void exec_connect_incoming(strList *host_port, Error **errp);
 
-QIOChannel *exec_connect_outgoing(MigrationState *s, strList *host_port,
-                                  Error **errp);
+QIOChannel *exec_connect_outgoing(strList *host_port, Error **errp);
 #endif

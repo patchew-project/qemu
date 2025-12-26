@@ -21,6 +21,5 @@
 
 void fd_connect_incoming(const char *fdname, Error **errp);
 
-QIOChannel *fd_connect_outgoing(MigrationState *s, const char *fdname,
-                                Error **errp);
+QIOChannel *fd_connect_outgoing(const char *fdname, Error **errp);
 #endif

@@ -16,8 +16,7 @@
 
 void file_connect_incoming(FileMigrationArgs *file_args, Error **errp);
 
-QIOChannel *file_connect_outgoing(MigrationState *s,
-                                  FileMigrationArgs *file_args, Error **errp);
+QIOChannel *file_connect_outgoing(FileMigrationArgs *file_args, Error **errp);
 int file_parse_offset(char *filespec, uint64_t *offsetp, Error **errp);
 void file_cleanup_outgoing_migration(void);
 bool file_send_channel_create(gpointer opaque, Error **errp);

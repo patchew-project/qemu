@@ -31,8 +31,7 @@
 #include "trace.h"
 #include "yank_functions.h"
 
-bool migration_connect_outgoing(MigrationState *s, MigrationAddress *addr,
-                                Error **errp)
+bool migration_connect_outgoing(MigrationAddress *addr, Error **errp)
 {
     g_autoptr(QIOChannel) ioc = NULL;
     SocketAddress *saddr;
@@ -45,7 +44,7 @@ bool migration_connect_outgoing(MigrationState *s, MigrationAddress *addr,
         case SOCKET_ADDRESS_TYPE_INET:
         case SOCKET_ADDRESS_TYPE_UNIX:
         case SOCKET_ADDRESS_TYPE_VSOCK:
-            socket_connect_outgoing(s, saddr, errp);
+            socket_connect_outgoing(saddr, errp);
             /*
              * async: after the socket is connected, calls
              * migration_channel_connect_outgoing() directly.
@@ -53,7 +52,7 @@ bool migration_connect_outgoing(MigrationState *s, MigrationAddress *addr,
             return true;
             break;
         case SOCKET_ADDRESS_TYPE_FD:
-            ioc = fd_connect_outgoing(s, saddr->u.fd.str, errp);
+            ioc = fd_connect_outgoing(saddr->u.fd.str, errp);
             break;
         default:
             g_assert_not_reached();
@@ -63,16 +62,16 @@ bool migration_connect_outgoing(MigrationState *s, MigrationAddress *addr,
 
 #ifdef CONFIG_RDMA
     case MIGRATION_ADDRESS_TYPE_RDMA:
-        ioc = rdma_connect_outgoing(s, &addr->u.rdma, errp);
+        ioc = rdma_connect_outgoing(&addr->u.rdma, errp);
         break;
 #endif
 
     case MIGRATION_ADDRESS_TYPE_EXEC:
-        ioc = exec_connect_outgoing(s, addr->u.exec.args, errp);
+        ioc = exec_connect_outgoing(addr->u.exec.args, errp);
         break;
 
     case MIGRATION_ADDRESS_TYPE_FILE:
-        ioc = file_connect_outgoing(s, &addr->u.file, errp);
+        ioc = file_connect_outgoing(&addr->u.file, errp);
         break;
 
     default:
@@ -84,7 +83,7 @@ bool migration_connect_outgoing(MigrationState *s, MigrationAddress *addr,
         return false;
     }
 
-    migration_channel_connect_outgoing(s, ioc);
+    migration_channel_connect_outgoing(ioc);
     return true;
 }
 
@@ -252,12 +251,12 @@ out:
     }
 }
 
-void migration_channel_connect_outgoing(MigrationState *s, QIOChannel *ioc)
+void migration_channel_connect_outgoing(QIOChannel *ioc)
 {
     trace_migration_set_outgoing_channel(ioc, object_get_typename(OBJECT(ioc)));
 
     if (migrate_channel_requires_tls_upgrade(ioc)) {
-        migration_tls_channel_connect(s, ioc);
+        migration_tls_channel_connect(ioc);
 
         /*
          * async: the above will call back to this function after
@@ -268,7 +267,7 @@ void migration_channel_connect_outgoing(MigrationState *s, QIOChannel *ioc)
 
     migration_ioc_register_yank(ioc);
     migration_outgoing_setup(ioc);
-    migration_start_outgoing(s);
+    migration_start_outgoing();
 }
 
 

@@ -29,7 +29,7 @@ enum {
 
 void migration_channel_process_incoming(QIOChannel *ioc);
 
-void migration_channel_connect_outgoing(MigrationState *s, QIOChannel *ioc);
+void migration_channel_connect_outgoing(QIOChannel *ioc);
 
 int migration_channel_read_peek(QIOChannel *ioc,
                                 const char *buf,
@@ -39,7 +39,6 @@ int migration_channel_read_peek(QIOChannel *ioc,
 bool migration_has_main_and_multifd_channels(void);
 bool migration_has_all_channels(void);
 
-bool migration_connect_outgoing(MigrationState *s, MigrationAddress *addr,
-                                Error **errp);
+bool migration_connect_outgoing(MigrationAddress *addr, Error **errp);
 void migration_connect_incoming(MigrationAddress *addr, Error **errp);
 #endif

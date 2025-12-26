@@ -3923,10 +3923,9 @@ err:
     g_free(rdma);
 }
 
-QIOChannel *rdma_connect_outgoing(void *opaque,
-                                  InetSocketAddress *host_port, Error **errp)
+QIOChannel *rdma_connect_outgoing(InetSocketAddress *host_port, Error **errp)
 {
-    MigrationState *s = opaque;
+    MigrationState *s = migrate_get_current();
     RDMAContext *rdma_return_path = NULL;
     RDMAContext *rdma;
     int ret;

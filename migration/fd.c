@@ -49,8 +49,7 @@ static bool migration_fd_valid(int fd)
     return false;
 }
 
-QIOChannel *fd_connect_outgoing(MigrationState *s, const char *fdname,
-                                Error **errp)
+QIOChannel *fd_connect_outgoing(const char *fdname, Error **errp)
 {
     QIOChannel *ioc = NULL;
     int fd = monitor_get_fd(monitor_cur(), fdname, errp);

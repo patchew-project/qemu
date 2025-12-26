@@ -529,11 +529,11 @@ void migrate_set_state(MigrationStatus *state, MigrationStatus old_state,
 void migration_outgoing_setup(QIOChannel *ioc);
 bool migration_incoming_setup(QIOChannel *ioc, uint8_t channel, Error **errp);
 
-void migration_connect_error_propagate(MigrationState *s, Error *error);
+void migration_connect_error_propagate(Error *error);
 void migrate_error_propagate(MigrationState *s, Error *error);
 bool migrate_has_error(MigrationState *s);
 
-void migration_start_outgoing(MigrationState *s);
+void migration_start_outgoing(void);
 void migration_start_incoming(void);
 
 int migration_call_notifiers(MigrationState *s, MigrationEventType type,

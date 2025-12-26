@@ -42,23 +42,8 @@ void socket_send_channel_create(QIOTaskFunc f, void *data)
                                      f, data, NULL, NULL);
 }
 
-struct SocketConnectData {
-    MigrationState *s;
-};
-
-static void socket_connect_data_free(void *opaque)
+static void socket_outgoing_migration(QIOTask *task, gpointer opaque)
 {
-    struct SocketConnectData *data = opaque;
-    if (!data) {
-        return;
-    }
-    g_free(data);
-}
-
-static void socket_outgoing_migration(QIOTask *task,
-                                      gpointer opaque)
-{
-    struct SocketConnectData *data = opaque;
     g_autoptr(QIOChannel) sioc = QIO_CHANNEL(qio_task_get_source(task));
     Error *err = NULL;
 
@@ -73,21 +58,18 @@ static void socket_outgoing_migration(QIOTask *task,
     }
 
     trace_migration_socket_outgoing_connected();
-    migration_channel_connect_outgoing(data->s, sioc);
+    migration_channel_connect_outgoing(sioc);
     return;
 err:
     trace_migration_socket_outgoing_error(error_get_pretty(err));
-    migration_connect_error_propagate(data->s, err);
+    migration_connect_error_propagate(err);
 }
 
-void socket_connect_outgoing(MigrationState *s, SocketAddress *saddr,
-                             Error **errp)
+void socket_connect_outgoing(SocketAddress *saddr, Error **errp)
 {
+    MigrationState *s = migrate_get_current();
     QIOChannelSocket *sioc = qio_channel_socket_new();
-    struct SocketConnectData *data = g_new0(struct SocketConnectData, 1);
     SocketAddress *addr = QAPI_CLONE(SocketAddress, saddr);
-
-    data->s = s;
 
     /* in case previous migration leaked it */
     qapi_free_SocketAddress(outgoing_args.saddr);
@@ -101,8 +83,8 @@ void socket_connect_outgoing(MigrationState *s, SocketAddress *saddr,
     qio_channel_socket_connect_async(sioc,
                                      saddr,
                                      socket_outgoing_migration,
-                                     data,
-                                     socket_connect_data_free,
+                                     NULL,
+                                     NULL,
                                      NULL);
 }
 

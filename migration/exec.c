@@ -40,8 +40,7 @@ const char *exec_get_cmd_path(void)
 }
 #endif
 
-QIOChannel *exec_connect_outgoing(MigrationState *s, strList *command,
-                                  Error **errp)
+QIOChannel *exec_connect_outgoing(strList *command, Error **errp)
 {
     QIOChannel *ioc = NULL;
     g_auto(GStrv) argv = strv_from_str_list(command);
