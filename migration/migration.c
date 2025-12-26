@@ -786,6 +786,10 @@ static void qemu_start_incoming_migration(const char *uri, bool has_channels,
         return;
     }
 
+    if (multifd_recv_setup(errp) != 0) {
+        return;
+    }
+
     if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET) {
         SocketAddress *saddr = &addr->u.socket;
         if (saddr->type == SOCKET_ADDRESS_TYPE_INET ||
@@ -1063,10 +1067,6 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
     } else {
         assert(migrate_postcopy_preempt());
         channel = CH_POSTCOPY;
-    }
-
-    if (multifd_recv_setup(errp) != 0) {
-        return;
     }
 
     if (channel == CH_MAIN) {
