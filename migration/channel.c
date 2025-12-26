@@ -31,10 +31,11 @@
 #include "trace.h"
 #include "yank_functions.h"
 
-bool migration_connect_outgoing(MigrationAddress *addr, Error **errp)
+bool migration_connect(MigrationAddress *addr, bool out, Error **errp)
 {
     g_autoptr(QIOChannel) ioc = NULL;
     SocketAddress *saddr;
+    ERRP_GUARD();
 
     switch (addr->transport) {
     case MIGRATION_ADDRESS_TYPE_SOCKET:
@@ -44,15 +45,24 @@ bool migration_connect_outgoing(MigrationAddress *addr, Error **errp)
         case SOCKET_ADDRESS_TYPE_INET:
         case SOCKET_ADDRESS_TYPE_UNIX:
         case SOCKET_ADDRESS_TYPE_VSOCK:
-            socket_connect_outgoing(saddr, errp);
-            /*
-             * async: after the socket is connected, calls
-             * migration_channel_connect_outgoing() directly.
-             */
-            return true;
+            if (out) {
+                socket_connect_outgoing(saddr, errp);
+                /*
+                 * async: after the socket is connected, calls
+                 * migration_channel_connect_outgoing() directly.
+                 */
+                return true;
+            } else {
+                socket_connect_incoming(saddr, errp);
+            }
+
             break;
         case SOCKET_ADDRESS_TYPE_FD:
-            ioc = fd_connect_outgoing(saddr->u.fd.str, errp);
+            if (out) {
+                ioc = fd_connect_outgoing(saddr->u.fd.str, errp);
+            } else {
+                fd_connect_incoming(saddr->u.fd.str, errp);
+            }
             break;
         default:
             g_assert_not_reached();
@@ -62,16 +72,28 @@ bool migration_connect_outgoing(MigrationAddress *addr, Error **errp)
 
 #ifdef CONFIG_RDMA
     case MIGRATION_ADDRESS_TYPE_RDMA:
-        ioc = rdma_connect_outgoing(&addr->u.rdma, errp);
+        if (out) {
+            ioc = rdma_connect_outgoing(&addr->u.rdma, errp);
+        } else {
+            rdma_connect_incoming(&addr->u.rdma, errp);
+        }
         break;
 #endif
 
     case MIGRATION_ADDRESS_TYPE_EXEC:
-        ioc = exec_connect_outgoing(addr->u.exec.args, errp);
+        if (out) {
+            ioc = exec_connect_outgoing(addr->u.exec.args, errp);
+        } else {
+            exec_connect_incoming(addr->u.exec.args, errp);
+        }
         break;
 
     case MIGRATION_ADDRESS_TYPE_FILE:
-        ioc = file_connect_outgoing(&addr->u.file, errp);
+        if (out) {
+            ioc = file_connect_outgoing(&addr->u.file, errp);
+        } else {
+            file_connect_incoming(&addr->u.file, errp);
+        }
         break;
 
     default:
@@ -79,42 +101,22 @@ bool migration_connect_outgoing(MigrationAddress *addr, Error **errp)
         break;
     }
 
-    if (!ioc) {
-        return false;
-    }
-
-    migration_channel_connect_outgoing(ioc);
-    return true;
-}
-
-void migration_connect_incoming(MigrationAddress *addr, Error **errp)
-{
-    if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET) {
-        SocketAddress *saddr = &addr->u.socket;
-        if (saddr->type == SOCKET_ADDRESS_TYPE_INET ||
-            saddr->type == SOCKET_ADDRESS_TYPE_UNIX ||
-            saddr->type == SOCKET_ADDRESS_TYPE_VSOCK) {
-            socket_connect_incoming(saddr, errp);
-        } else if (saddr->type == SOCKET_ADDRESS_TYPE_FD) {
-            fd_connect_incoming(saddr->u.fd.str, errp);
+    if (out) {
+        if (!ioc) {
+            return false;
         }
-#ifdef CONFIG_RDMA
-    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_RDMA) {
-        rdma_connect_incoming(&addr->u.rdma, errp);
-#endif
-    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_EXEC) {
-        exec_connect_incoming(addr->u.exec.args, errp);
-    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
-        file_connect_incoming(&addr->u.file, errp);
-    } else {
-        error_setg(errp, "unknown migration protocol");
+
+        migration_channel_connect_outgoing(ioc);
+        return true;
     }
 
     /*
-     * async: the above routines all wait for the incoming connection
-     * and call back to migration_channel_process_incoming() to start
-     * the migration.
+     * async: on the incoming side all of the transport routines above
+     * wait for the incoming connection and call back to
+     * migration_channel_process_incoming() to start the migration.
      */
+
+    return !*errp;
 }
 
 bool migration_has_main_and_multifd_channels(void)

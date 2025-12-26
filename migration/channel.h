@@ -39,6 +39,16 @@ int migration_channel_read_peek(QIOChannel *ioc,
 bool migration_has_main_and_multifd_channels(void);
 bool migration_has_all_channels(void);
 
-bool migration_connect_outgoing(MigrationAddress *addr, Error **errp);
-void migration_connect_incoming(MigrationAddress *addr, Error **errp);
+bool migration_connect(MigrationAddress *addr, bool out, Error **errp);
+static inline bool migration_connect_outgoing(MigrationAddress *addr,
+                                              Error **errp)
+{
+    return migration_connect(addr, true, errp);
+}
+
+static inline bool migration_connect_incoming(MigrationAddress *addr,
+                                              Error **errp)
+{
+    return migration_connect(addr, false, errp);
+}
 #endif
