@@ -924,6 +924,39 @@ a constant (e.g. addi for add, movi for mov).
 as some of them may not be available as "real" opcodes. Always use the
 function tcg_gen_xxx(args).
 
+Debug Print Helpers
+--------------------
+
+When debugging decode logic or validating a freshly built TCG sequence, you can
+insert a printf-style TCG operation via ``tcg_gen_print()``. The generated op
+calls the ``tcg_print`` helper when the TB runs and forwards the formatted
+string to ``qemu_printf``. This impacts performance, so enable it only during
+local debugging or under controlled conditions.
+
+The first argument to ``tcg_gen_print`` is a ``printf``-style format string.
+Each subsequent argument must be provided as a pair consisting of a
+``TCGPrintArgType`` enum value (defined in ``tcg/tcg-print.h``) and a TCG
+register or constant of the matching type, and the list ends with
+``TCG_PRINT_ARG_END``. At most ``TCG_PRINT_MAX_ARGS`` (currently 5) dynamic
+arguments are supported; use ``TCG_PRINT_ARG_PTR`` when printing pointers. For
+literal numbers, first create a TCG constant via ``tcg_constant_i32`` or
+``tcg_constant_i64`` before passing it in.
+
+.. code-block:: c
+
+    tcg_gen_print("rd=%d sum=0x%" PRId64 "\n",
+                  TCG_PRINT_ARG_I32, tcg_constant_i32(1),
+                  TCG_PRINT_ARG_I64, cpu_gpr[1],
+                  TCG_PRINT_ARG_END);
+
+When the translated TB executes, the snippet above prints the destination
+register number, and the value written back, which helps observe the runtime
+values of TCG variables quickly.
+
+It is worth noting that ``tcg_gen_print()`` is only recommended for debugging
+purposes. You must remove all instances of it from your patch before
+submitting official code. The ``checkpatch.pl`` script will check your patch
+for any usage of ``tcg_gen_print()`` and throw a warning if detected.
 
 Backend
 =======
