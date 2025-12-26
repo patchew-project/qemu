@@ -1985,6 +1985,11 @@ sub process {
 			ERROR("adding a line without newline at end of file\n" . $herecurr);
 		}
 
+# check for tcg_gen_print is present in submitted patches
+		if ($rawline =~ /^\+.*\btcg_gen_print\s*\(/) {
+			WARN("tcg_gen_print(): debug-only, remove all calls before patch submission.\n" . $herecurr);
+		}
+
 # check for RCS/CVS revision markers
 		if ($rawline =~ /^\+.*\$(Revision|Log|Id)(?:\$|\b)/) {
 			ERROR("CVS style keyword markers, these will _not_ be updated\n". $herecurr);
