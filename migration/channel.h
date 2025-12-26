@@ -51,4 +51,9 @@ static inline bool migration_connect_incoming(MigrationAddress *addr,
 {
     return migration_connect(addr, false, errp);
 }
+
+bool migrate_channels_parse(MigrationChannelList *channels,
+                            MigrationChannel **main_channelp,
+                            MigrationChannel **cpr_channelp,
+                            Error **errp);
 #endif
