@@ -1078,8 +1078,8 @@ float64 HELPER(rsqrte_f64)(float64 input, float_status *s)
 
     f64_frac = recip_sqrt_estimate(&f64_exp, 3068, f64_frac, false);
 
-    /* result = sign : result_exp<4:0> : estimate<7:0> : Zeros(44) */
-    val = deposit64(0, 61, 1, f64_sign);
+    /* result = sign : result_exp<10:0> : estimate<7:0> : Zeros(44) */
+    val = deposit64(0, 63, 1, f64_sign);
     val = deposit64(val, 52, 11, f64_exp);
     val = deposit64(val, 44, 8, extract64(f64_frac, 52 - 8, 8));
     return make_float64(val);
