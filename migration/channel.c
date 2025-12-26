@@ -35,31 +35,49 @@ bool migration_connect_outgoing(MigrationState *s, MigrationAddress *addr,
                                 Error **errp)
 {
     g_autoptr(QIOChannel) ioc = NULL;
+    SocketAddress *saddr;
 
-    if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET) {
-        SocketAddress *saddr = &addr->u.socket;
-        if (saddr->type == SOCKET_ADDRESS_TYPE_INET ||
-            saddr->type == SOCKET_ADDRESS_TYPE_UNIX ||
-            saddr->type == SOCKET_ADDRESS_TYPE_VSOCK) {
+    switch (addr->transport) {
+    case MIGRATION_ADDRESS_TYPE_SOCKET:
+        saddr = &addr->u.socket;
+
+        switch (saddr->type) {
+        case SOCKET_ADDRESS_TYPE_INET:
+        case SOCKET_ADDRESS_TYPE_UNIX:
+        case SOCKET_ADDRESS_TYPE_VSOCK:
             socket_connect_outgoing(s, saddr, errp);
             /*
              * async: after the socket is connected, calls
              * migration_channel_connect_outgoing() directly.
              */
             return true;
-        } else if (saddr->type == SOCKET_ADDRESS_TYPE_FD) {
+            break;
+        case SOCKET_ADDRESS_TYPE_FD:
             ioc = fd_connect_outgoing(s, saddr->u.fd.str, errp);
+            break;
+        default:
+            g_assert_not_reached();
         }
+
+        break;
+
 #ifdef CONFIG_RDMA
-    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_RDMA) {
+    case MIGRATION_ADDRESS_TYPE_RDMA:
         ioc = rdma_connect_outgoing(s, &addr->u.rdma, errp);
+        break;
 #endif
-    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_EXEC) {
+
+    case MIGRATION_ADDRESS_TYPE_EXEC:
         ioc = exec_connect_outgoing(s, addr->u.exec.args, errp);
-    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
+        break;
+
+    case MIGRATION_ADDRESS_TYPE_FILE:
         ioc = file_connect_outgoing(s, &addr->u.file, errp);
-    } else {
+        break;
+
+    default:
         error_setg(errp, "uri is not a valid migration protocol");
+        break;
     }
 
     if (!ioc) {
