@@ -13,4 +13,7 @@
 /* arch/x86/include/asm/elf.h */
 #define ELF_ET_DYN_BASE       (TASK_UNMAPPED_BASE * 2)
 
+/* arch/x86/include/uapi/asm/mman.h */
+#define TARGET_MAP_32BIT 0x40
+
 #include "../generic/target_mman.h"

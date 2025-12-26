@@ -47,6 +47,8 @@ typedef uint32_t abi_uint __attribute__((aligned(ABI_INT_ALIGNMENT)));
 typedef int64_t abi_llong __attribute__((aligned(ABI_LLONG_ALIGNMENT)));
 typedef uint64_t abi_ullong __attribute__((aligned(ABI_LLONG_ALIGNMENT)));
 
+#define TARGET_ABI_FMT_x  "%08x"
+
 #ifdef TARGET_ABI32
 typedef uint32_t abi_ulong __attribute__((aligned(ABI_LONG_ALIGNMENT)));
 typedef int32_t abi_long __attribute__((aligned(ABI_LONG_ALIGNMENT)));

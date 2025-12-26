@@ -802,6 +802,27 @@ print_syscall_ret_addr(CPUArchState *cpu_env, const struct syscallname *name,
     qemu_log("\n");
 }
 
+static void
+print_mmap_ret(CPUArchState *cpu_env, const struct syscallname *name,
+               abi_long ret, abi_long arg0, abi_long arg1,
+               abi_long arg2, abi_long arg3, abi_long arg4,
+               abi_long arg5)
+{
+    if (!print_syscall_err(ret)) {
+        const abi_ulong mmap_flags = (abi_ulong)arg3;
+        /*
+         * If MAP_32BIT is set, print the address as a 32-bit value. This is
+         * consistent with strace output
+         */
+        if (mmap_flags & MAP_32BIT) {
+            qemu_log("0x" TARGET_ABI_FMT_x, (abi_uint)ret);
+        } else {
+            qemu_log("0x" TARGET_ABI_FMT_lx, ret);
+        }
+    }
+    qemu_log("\n");
+}
+
 #if 0 /* currently unused */
 static void
 print_syscall_ret_raw(struct syscallname *name, abi_long ret)
@@ -1196,8 +1217,11 @@ UNUSED static const struct flags mmap_flags[] = {
     FLAG_TARGET(MAP_POPULATE),
     FLAG_TARGET(MAP_STACK),
     FLAG_TARGET(MAP_SYNC),
-#if TARGET_MAP_UNINITIALIZED != 0
+#ifdef TARGET_MAP_UNINITIALIZED
     FLAG_TARGET(MAP_UNINITIALIZED),
+#endif
+#ifdef TARGET_MAP_32BIT
+    FLAG_TARGET(MAP_32BIT),
 #endif
     FLAG_END,
 };

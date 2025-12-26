@@ -5896,32 +5896,6 @@ static const StructEntry struct_termios_def = {
 #define MAP_UNINITIALIZED 0
 #endif
 
-static const bitmask_transtbl mmap_flags_tbl[] = {
-    { TARGET_MAP_FIXED, TARGET_MAP_FIXED, MAP_FIXED, MAP_FIXED },
-    { TARGET_MAP_ANONYMOUS, TARGET_MAP_ANONYMOUS,
-      MAP_ANONYMOUS, MAP_ANONYMOUS },
-    { TARGET_MAP_GROWSDOWN, TARGET_MAP_GROWSDOWN,
-      MAP_GROWSDOWN, MAP_GROWSDOWN },
-    { TARGET_MAP_DENYWRITE, TARGET_MAP_DENYWRITE,
-      MAP_DENYWRITE, MAP_DENYWRITE },
-    { TARGET_MAP_EXECUTABLE, TARGET_MAP_EXECUTABLE,
-      MAP_EXECUTABLE, MAP_EXECUTABLE },
-    { TARGET_MAP_LOCKED, TARGET_MAP_LOCKED, MAP_LOCKED, MAP_LOCKED },
-    { TARGET_MAP_NORESERVE, TARGET_MAP_NORESERVE,
-      MAP_NORESERVE, MAP_NORESERVE },
-    { TARGET_MAP_HUGETLB, TARGET_MAP_HUGETLB, MAP_HUGETLB, MAP_HUGETLB },
-    /* MAP_STACK had been ignored by the kernel for quite some time.
-       Recognize it for the target insofar as we do not want to pass
-       it through to the host.  */
-    { TARGET_MAP_STACK, TARGET_MAP_STACK, 0, 0 },
-    { TARGET_MAP_NONBLOCK, TARGET_MAP_NONBLOCK, MAP_NONBLOCK, MAP_NONBLOCK },
-    { TARGET_MAP_POPULATE, TARGET_MAP_POPULATE, MAP_POPULATE, MAP_POPULATE },
-    { TARGET_MAP_FIXED_NOREPLACE, TARGET_MAP_FIXED_NOREPLACE,
-      MAP_FIXED_NOREPLACE, MAP_FIXED_NOREPLACE },
-    { TARGET_MAP_UNINITIALIZED, TARGET_MAP_UNINITIALIZED,
-      MAP_UNINITIALIZED, MAP_UNINITIALIZED },
-};
-
 /*
  * Arrange for legacy / undefined architecture specific flags to be
  * ignored by mmap handling code.
@@ -5935,6 +5909,30 @@ static const bitmask_transtbl mmap_flags_tbl[] = {
 #ifndef TARGET_MAP_HUGE_1GB
 #define TARGET_MAP_HUGE_1GB 0
 #endif
+
+static const bitmask_transtbl mmap_flags_tbl[] = {
+    BITMASK_BIT(TARGET_MAP_FIXED, MAP_FIXED),
+    BITMASK_BIT(TARGET_MAP_ANONYMOUS, MAP_ANONYMOUS),
+    BITMASK_BIT(TARGET_MAP_GROWSDOWN, MAP_GROWSDOWN),
+    BITMASK_BIT(TARGET_MAP_DENYWRITE, MAP_DENYWRITE),
+    BITMASK_BIT(TARGET_MAP_EXECUTABLE, MAP_EXECUTABLE),
+    BITMASK_BIT(TARGET_MAP_LOCKED, MAP_LOCKED),
+    BITMASK_BIT(TARGET_MAP_NORESERVE, MAP_NORESERVE),
+    BITMASK_BIT(TARGET_MAP_HUGETLB, MAP_HUGETLB),
+    /*
+     * MAP_STACK had been ignored by the kernel for quite some time.
+     * Recognize it for the target insofar as we do not want to pass
+     * it through to the host.
+     */
+    BITMASK_BIT(TARGET_MAP_STACK, 0),
+    BITMASK_BIT(TARGET_MAP_NONBLOCK, MAP_NONBLOCK),
+    BITMASK_BIT(TARGET_MAP_POPULATE, MAP_POPULATE),
+    BITMASK_BIT(TARGET_MAP_FIXED_NOREPLACE, MAP_FIXED_NOREPLACE),
+    BITMASK_BIT(TARGET_MAP_UNINITIALIZED, MAP_UNINITIALIZED),
+#if TARGET_MAP_32BIT != 0
+    BITMASK_BIT(TARGET_MAP_32BIT, MAP_32BIT),
+#endif
+};
 
 static abi_long do_mmap(abi_ulong addr, abi_ulong len, int prot,
                         int target_flags, int fd, off_t offset)

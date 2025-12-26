@@ -602,10 +602,10 @@
 { TARGET_NR_mlockall, "mlockall" , NULL, print_mlockall, NULL },
 #endif
 #ifdef TARGET_NR_mmap
-{ TARGET_NR_mmap, "mmap" , NULL, print_mmap, print_syscall_ret_addr },
+{ TARGET_NR_mmap, "mmap" , NULL, print_mmap, print_mmap_ret },
 #endif
 #ifdef TARGET_NR_mmap2
-{ TARGET_NR_mmap2, "mmap2" , NULL, print_mmap2, print_syscall_ret_addr },
+{ TARGET_NR_mmap2, "mmap2" , NULL, print_mmap2, print_mmap_ret },
 #endif
 #ifdef TARGET_NR_modify_ldt
 { TARGET_NR_modify_ldt, "modify_ldt" , NULL, NULL, NULL },

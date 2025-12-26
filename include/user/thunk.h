@@ -73,6 +73,9 @@ typedef struct bitmask_transtbl {
     unsigned int host_bits;
 } bitmask_transtbl;
 
+#define BITMASK_BIT(target, host) \
+    { target, target, host, host }
+
 void thunk_register_struct(int id, const char *name, const argtype *types);
 void thunk_register_struct_direct(int id, const char *name,
                                   const StructEntry *se1);
