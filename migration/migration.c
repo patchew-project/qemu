@@ -2217,9 +2217,8 @@ out:
 static void qmp_migrate_finish(MigrationAddress *addr, Error **errp)
 {
     MigrationState *s = migrate_get_current();
-    Error *local_err = NULL;
 
-    migration_connect_outgoing(s, addr, &local_err);
+    migration_connect_outgoing(s, addr, errp);
 }
 
 void qmp_migrate_cancel(Error **errp)

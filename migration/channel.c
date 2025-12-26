@@ -31,29 +31,43 @@
 #include "trace.h"
 #include "yank_functions.h"
 
-void migration_connect_outgoing(MigrationState *s, MigrationAddress *addr,
+bool migration_connect_outgoing(MigrationState *s, MigrationAddress *addr,
                                 Error **errp)
 {
+    g_autoptr(QIOChannel) ioc = NULL;
+
     if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET) {
         SocketAddress *saddr = &addr->u.socket;
         if (saddr->type == SOCKET_ADDRESS_TYPE_INET ||
             saddr->type == SOCKET_ADDRESS_TYPE_UNIX ||
             saddr->type == SOCKET_ADDRESS_TYPE_VSOCK) {
             socket_connect_outgoing(s, saddr, errp);
+            /*
+             * async: after the socket is connected, calls
+             * migration_channel_connect_outgoing() directly.
+             */
+            return true;
         } else if (saddr->type == SOCKET_ADDRESS_TYPE_FD) {
-            fd_connect_outgoing(s, saddr->u.fd.str, errp);
+            ioc = fd_connect_outgoing(s, saddr->u.fd.str, errp);
         }
 #ifdef CONFIG_RDMA
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_RDMA) {
-        rdma_connect_outgoing(s, &addr->u.rdma, errp);
+        ioc = rdma_connect_outgoing(s, &addr->u.rdma, errp);
 #endif
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_EXEC) {
-        exec_connect_outgoing(s, addr->u.exec.args, errp);
+        ioc = exec_connect_outgoing(s, addr->u.exec.args, errp);
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
-        file_connect_outgoing(s, &addr->u.file, errp);
+        ioc = file_connect_outgoing(s, &addr->u.file, errp);
     } else {
         error_setg(errp, "uri is not a valid migration protocol");
     }
+
+    if (!ioc) {
+        return false;
+    }
+
+    migration_channel_connect_outgoing(s, ioc);
+    return true;
 }
 
 void migration_connect_incoming(MigrationAddress *addr, Error **errp)
@@ -78,6 +92,12 @@ void migration_connect_incoming(MigrationAddress *addr, Error **errp)
     } else {
         error_setg(errp, "unknown migration protocol");
     }
+
+    /*
+     * async: the above routines all wait for the incoming connection
+     * and call back to migration_channel_process_incoming() to start
+     * the migration.
+     */
 }
 
 bool migration_has_main_and_multifd_channels(void)
