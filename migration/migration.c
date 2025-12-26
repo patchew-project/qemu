@@ -1470,8 +1470,8 @@ void migration_cancel(void)
     }
 
     /*
-     * If qmp_migrate_finish has not been called, then there is no path that
-     * will complete the cancellation.  Do it now.
+     * If migration_connect_outgoing has not been called, then there
+     * is no path that will complete the cancellation.  Do it now.
      */
     if (setup && !s->to_dst_file) {
         migrate_set_state(&s->state, MIGRATION_STATUS_CANCELLING,
@@ -2002,8 +2002,6 @@ static bool migrate_prepare(bool resume, Error **errp)
     return true;
 }
 
-static void qmp_migrate_finish(MigrationAddress *addr, Error **errp);
-
 static void migrate_hup_add(QIOChannel *ioc, GSourceFunc cb, void *opaque)
 {
     MigrationState *s = migrate_get_current();
@@ -2031,7 +2029,7 @@ static gboolean qmp_migrate_finish_cb(QIOChannel *channel,
     MigrationAddress *addr = opaque;
     Error *local_err = NULL;
 
-    qmp_migrate_finish(addr, &local_err);
+    migration_connect_outgoing(addr, &local_err);
 
     if (local_err) {
         migration_connect_error_propagate(local_err);
@@ -2086,18 +2084,19 @@ void qmp_migrate(const char *uri, bool has_channels,
      * For cpr-transfer, the target may not be listening yet on the migration
      * channel, because first it must finish cpr_load_state.  The target tells
      * us it is listening by closing the cpr-state socket.  Wait for that HUP
-     * event before connecting in qmp_migrate_finish.
+     * event before connecting in migration_connect_outgoing.
      *
      * The HUP could occur because the target fails while reading CPR state,
      * in which case the target will not listen for the incoming migration
-     * connection, so qmp_migrate_finish will fail to connect, and then recover.
+     * connection, so migration_connect_outgoing fail to connect, and
+     * then recover.
      */
     if (migrate_mode() == MIG_MODE_CPR_TRANSFER) {
         migrate_hup_add(cpr_state_ioc(), (GSourceFunc)qmp_migrate_finish_cb,
                         QAPI_CLONE(MigrationAddress, main_ch->addr));
 
     } else {
-        qmp_migrate_finish(main_ch->addr, &local_err);
+        migration_connect_outgoing(main_ch->addr, &local_err);
     }
 
 out:
@@ -2105,11 +2104,6 @@ out:
         migration_connect_error_propagate(error_copy(local_err));
         error_propagate(errp, local_err);
     }
-}
-
-static void qmp_migrate_finish(MigrationAddress *addr, Error **errp)
-{
-    migration_connect_outgoing(addr, errp);
 }
 
 void qmp_migrate_cancel(Error **errp)
