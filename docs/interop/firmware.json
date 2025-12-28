@@ -233,7 +233,7 @@
              'verbose-dynamic', 'verbose-static' ] }
 
 ##
-# @FirmwareFormat:
+# @FirmwareFlashFormat:
 #
 # Formats that are supported for firmware images.
 #
@@ -243,7 +243,7 @@
 #
 # Since: 3.0
 ##
-{ 'enum': 'FirmwareFormat',
+{ 'enum': 'FirmwareFlashFormat',
   'data': [ 'raw', 'qcow2' ] }
 
 ##
@@ -265,7 +265,7 @@
 ##
 { 'struct' : 'FirmwareFlashFile',
   'data'   : { 'filename' : 'str',
-               'format'   : 'FirmwareFormat' } }
+               'format'   : 'FirmwareFlashFormat' } }
 
 
 ##
