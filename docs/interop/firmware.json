@@ -370,20 +370,196 @@
   'data'   : { 'filename' : 'str' } }
 
 ##
+# @FirmwareMemoryExecutableFormat:
+#
+# Formats that are supported for firmware executables.
+#
+# @raw: Raw disk image format.
+#
+# Since: 11.0
+##
+{ 'enum': 'FirmwareMemoryExecutableFormat',
+  'data': [ 'raw' ] }
+
+##
+# @FirmwareMemoryNvramFormat:
+#
+# Formats that are supported for firmware NVRAM files.
+#
+# @json: JSON format.
+#
+# Since: 11.0
+##
+{ 'enum': 'FirmwareMemoryNvramFormat',
+  'data': [ 'json' ] }
+
+##
+# @FirmwareMemoryExecutableFile:
+#
+# Describes the firmware executable.
+#
+# @filename: Filename on the host filesystem where the executable can
+#     be found.
+#
+# @format: Block format of the file pointed to by @filename.
+#
+# Since: 11.0
+##
+{ 'struct' : 'FirmwareMemoryExecutableFile',
+  'data'   : { 'filename' : 'str',
+               'format'   : 'FirmwareMemoryExecutableFormat' } }
+
+##
+# @FirmwareMemoryNvramTemplateFile:
+#
+# Describes the NVRAM template to be used together with the
+# corresponding firmware executable.
+#
+# @filename: Filename on the host filesystem where the NVRAM template
+#     can be found.
+#
+# @format: Block format of the file pointed to by @filename.
+#
+# Since: 11.0
+##
+{ 'struct' : 'FirmwareMemoryNvramTemplateFile',
+  'data'   : { 'filename' : 'str',
+               'format'   : 'FirmwareMemoryNvramFormat' } }
+
+##
+# @FirmwareMemoryMode:
+#
+# Describes how the firmware build handles variable persistence.
+#
+# @split: the executable file contains code while the NVRAM template
+#     provides variable storage.  The executable can be shared
+#     between multiple guests.  The NVRAM template must be cloned for
+#     each new guest and configured read-write.
+#
+# @stateless: the executable file contains code and variable storage
+#     is not persisted.  The executable can be shared between
+#     multiple guests.  No NVRAM template will be specified.
+#
+# Since: 11.0
+##
+{ 'enum' : 'FirmwareMemoryMode',
+  'data' : [ 'split', 'stateless' ] }
+
+##
 # @FirmwareMappingMemory:
 #
 # Describes loading and mapping properties for the firmware
 # executable, when @FirmwareDevice is @memory.
 #
-# @filename: Identifies the firmware executable.  The firmware
-#     executable may be shared by multiple virtual machine
-#     definitions.  The corresponding QEMU command line option is
-#     "-bios @filename".
+# Two syntaxes are possible: a legacy one, which can only describe
+# stateless firmware builds, and an extended one, which can
+# additionally describe firmware builds that support variable
+# storage via the "uefi-vars" device appropriate for the
+# architecture.
+#
+# The two syntaxes are mutually exclusive. In particular:
+#
+# - only one of @filename and @executable can be specified;
+#
+# - if @filename is specified, @mode must be omitted and its value
+#   is assumed to be @stateless.  If @executable is used instead,
+#   the value for @mode must be provided explicitly;
+#
+# - @nvram-template can only be specified together with @executable,
+#   and in this case the value of @mode must be @split.
+#
+# Based on these rules,
+#
+# ::
+#
+#     {
+#         "mapping: {
+#             "device": "memory",
+#             "filename": "/path/to/firmware.bin"
+#         }
+#     }
+#
+# and
+#
+# ::
+#
+#     {
+#         "mapping": {
+#             "device": "memory",
+#             "mode": "stateless",
+#             "executable": {
+#                 "filename": "/path/to/firmware.bin",
+#                 "format": "raw"
+#             }
+#         }
+#     }
+#
+# are completely equivalent, whereas
+#
+# ::
+#
+#     {
+#         "mapping": {
+#             "device": "memory",
+#             "mode": "split",
+#             "executable": {
+#                 "filename": "/path/to/firmware.bin",
+#                 "format": "raw"
+#             },
+#             "nvram-template": {
+#                 "filename": "/path/to/variables.json",
+#                 "format": "json"
+#             }
+#         }
+#     }
+#
+# can only be described using the extended syntax.
+#
+# @mode: Describes how the firmware build handles variable storage.
+#     Must be present when @executable is used and absent when
+#     @filename is used; in the latter scenario, its value will be
+#     assumed to be @stateless.  Since: 11.0
+#
+# @executable: Describes the firmware excutable.  The corresponding
+#     QEMU command line option is "-bios @executable.@filename".
+#     Since: 11.0
+#
+# @nvram-template: Describes the NVRAM template compatible with
+#     @executable, when @mode is set to @split, otherwise it should
+#     not be present.  Management software instantiates an individual
+#     copy -- a specific NVRAM file -- from @nvram-template.@filename
+#     for each new virtual machine definition created.
+#     @nvram-template.@filename itself is never mapped into virtual
+#     machines, only individual copies of it are.  An NVRAM file is
+#     typically used for persistently storing the non-volatile UEFI
+#     variables of a virtual machine definition.  The corresponding
+#     QEMU command line option is
+#
+#     ::
+#
+#         -device uefi-vars-x64,jsonfile=FILENAME_OF_PRIVATE_NVRAM_FILE
+#
+#     on x86_64 and
+#
+#     ::
+#
+#         -device uefi-vars-sysbus,jsonfile=FILENAME_OF_PRIVATE_NVRAM_FILE
+#
+#     on other architectures (aarch64, riscv64, loongarch64).
+#     Since: 11.0
+#
+# @filename: Legacy syntax that can only describe @stateless firmware
+#     builds.  The corresponding QEMU command line option is "-bios
+#     @filename".  If present, none of the other attributes (@mode,
+#     @executable, @template) can be present.
 #
 # Since: 3.0
 ##
 { 'struct' : 'FirmwareMappingMemory',
-  'data'   : { 'filename' : 'str' } }
+  'data'   : { '*mode'           : 'FirmwareMemoryMode',
+               '*executable'     : 'FirmwareMemoryExecutableFile',
+               '*nvram-template' : 'FirmwareMemoryNvramTemplateFile',
+               '*filename'       : 'str' } }
 
 ##
 # @FirmwareMappingIgvm:
