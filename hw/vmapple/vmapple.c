@@ -83,6 +83,7 @@ enum {
     VMAPPLE_MEM,
     VMAPPLE_GIC_DIST,
     VMAPPLE_GIC_REDIST,
+    VMAPPLE_GICV2M,
     VMAPPLE_UART,
     VMAPPLE_RTC,
     VMAPPLE_PCIE,
@@ -104,6 +105,7 @@ static const MemMapEntry memmap[] = {
 
     [VMAPPLE_GIC_DIST] =           { 0x10000000, 0x00010000 },
     [VMAPPLE_GIC_REDIST] =         { 0x10010000, 0x00400000 },
+    [VMAPPLE_GICV2M] =             { 0x1FFF0000, 0x00010000 },
 
     [VMAPPLE_UART] =               { 0x20010000, 0x00010000 },
     [VMAPPLE_RTC] =                { 0x20050000, 0x00001000 },
@@ -283,6 +285,26 @@ static void create_gic(VMAppleMachineState *vms, MemoryRegion *mem)
         sysbus_connect_irq(gicbusdev, i, qdev_get_gpio_in(cpudev, ARM_CPU_IRQ));
         sysbus_connect_irq(gicbusdev, i + smp_cpus,
                            qdev_get_gpio_in(cpudev, ARM_CPU_FIQ));
+    }
+}
+
+#define NUM_GICV2M_SPIS       128
+
+static void create_gicv2m(VMAppleMachineState *vms)
+{
+    int i;
+    int irq = vms->irqmap[VMAPPLE_GICV2M];
+    DeviceState *dev;
+
+    dev = qdev_new("arm-gicv2m");
+    qdev_prop_set_uint32(dev, "base-spi", irq);
+    qdev_prop_set_uint32(dev, "num-spi", NUM_GICV2M_SPIS);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, vms->memmap[VMAPPLE_GICV2M].base);
+
+    for (i = 0; i < NUM_GICV2M_SPIS; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
+                           qdev_get_gpio_in(vms->gic, irq + i));
     }
 }
 
@@ -496,6 +518,7 @@ static void mach_vmapple_init(MachineState *machine)
                                 machine->ram);
 
     create_gic(vms, sysmem);
+    create_gicv2m(vms);
     create_bdif(vms, sysmem);
     create_pvpanic(vms, sysmem);
     create_aes(vms, sysmem);
