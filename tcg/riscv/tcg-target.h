@@ -55,6 +55,7 @@ typedef enum {
     TCG_REG_TMP0       = TCG_REG_T6,
     TCG_REG_TMP1       = TCG_REG_T5,
     TCG_REG_TMP2       = TCG_REG_T4,
+    TCG_REG_TMP3       = TCG_REG_T3,
 } TCGReg;
 
 #define TCG_REG_ZERO  TCG_REG_ZERO

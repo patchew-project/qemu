@@ -3022,10 +3022,12 @@ static void probe_frac_lmul_1(TCGType type, MemOp vsew)
         p->vset_insn = encode_vseti(OPC_VSETIVLI, TCG_REG_ZERO, avl, vtype);
     } else if (lmul_eq_avl) {
         /* rd != 0 and rs1 == 0 uses vlmax */
-        p->vset_insn = encode_vset(OPC_VSETVLI, TCG_REG_TMP0, TCG_REG_ZERO, vtype);
+        p->vset_insn = encode_vset(OPC_VSETVLI, TCG_REG_TMP3, TCG_REG_ZERO,
+                                   vtype);
     } else {
-        p->movi_insn = encode_i(OPC_ADDI, TCG_REG_TMP0, TCG_REG_ZERO, avl);
-        p->vset_insn = encode_vset(OPC_VSETVLI, TCG_REG_ZERO, TCG_REG_TMP0, vtype);
+        p->movi_insn = encode_i(OPC_ADDI, TCG_REG_TMP3, TCG_REG_ZERO, avl);
+        p->vset_insn = encode_vset(OPC_VSETVLI, TCG_REG_ZERO, TCG_REG_TMP3,
+                                   vtype);
     }
 }
 
@@ -3070,6 +3072,8 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_TP);
 
     if (cpuinfo & CPUINFO_ZVE64X) {
+        tcg_regset_set_reg(s->reserved_regs, TCG_REG_TMP3);
+
         switch (riscv_lg2_vlenb) {
         case TCG_TYPE_V64:
             tcg_target_available_regs[TCG_TYPE_V64] = ALL_VECTOR_REGS;
