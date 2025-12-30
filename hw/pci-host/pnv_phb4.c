@@ -955,10 +955,29 @@ static uint64_t pnv_phb4_reg_read(void *opaque, hwaddr off, unsigned size)
         val |= PHB_PCIE_SCR_PLW_X16; /* RO bit */
         break;
 
-    /* Link training always appears trained */
     case PHB_PCIE_DLP_TRAIN_CTL:
-        /* TODO: Do something sensible with speed ? */
+        /* Link training always appears trained */
         val |= PHB_PCIE_DLP_INBAND_PRESENCE | PHB_PCIE_DLP_TL_LINKACT;
+
+        /* Get the current link-status from PCIE */
+        PCIHostState *pci = PCI_HOST_BRIDGE(phb->phb_base);
+        PCIDevice *pdev = pci_find_device(pci->bus, 0, 0);
+        uint32_t exp_offset = get_exp_offset(pdev);
+        uint32_t lnkstatus = bswap32(pnv_phb4_rc_config_read(phb,
+                                exp_offset + PCI_EXP_LNKSTA, 4));
+
+        /* Extract link-speed from the link-status */
+        uint32_t v = lnkstatus & PCI_EXP_LNKSTA_CLS;
+        /* Set the current link-speed at the LINK_SPEED position */
+        val = SETFIELD(PHB_PCIE_DLP_LINK_SPEED, val, v);
+
+        /*
+         * Extract link-width from the link-status,
+         * after shifting the required bitfields.
+         */
+        v = (lnkstatus & PCI_EXP_LNKSTA_NLW) >> PCI_EXP_LNKSTA_NLW_SHIFT;
+        /* Set the current link-width at the LINK_WIDTH position */
+        val = SETFIELD(PHB_PCIE_DLP_LINK_WIDTH, val, v);
         return val;
 
     /*
@@ -975,8 +994,8 @@ static uint64_t pnv_phb4_reg_read(void *opaque, hwaddr off, unsigned size)
         val |= PHB_PCIE_HPSTAT_PRESENCE;
 
         /* Get the PCI-E capability offset from the root-port */
-        PCIHostState *pci = PCI_HOST_BRIDGE(phb->phb_base);
-        PCIDevice *pdev = pci_find_device(pci->bus, 0, 0);
+        pci = PCI_HOST_BRIDGE(phb->phb_base);
+        pdev = pci_find_device(pci->bus, 0, 0);
         uint32_t exp_base = get_exp_offset(pdev);
 
         /*
