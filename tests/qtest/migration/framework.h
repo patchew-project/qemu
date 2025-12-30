@@ -134,6 +134,7 @@ typedef struct {
     bool suspend_me;
     /* enable OOB QMP capability */
     bool oob;
+    bool is_colo;
 
     /* Do not connect to target monitor and qtest sockets in qtest_init */
     bool defer_target_connect;

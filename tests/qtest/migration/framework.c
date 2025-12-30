@@ -322,7 +322,9 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
         }
         arch_opts = g_strdup_printf(
             "-drive if=none,id=d0,file=%s,format=raw "
-            "-device ide-hd,drive=d0,secs=1,cyls=1,heads=1", bootpath);
+            "-device ide-hd,drive=d0,secs=1,cyls=1,heads=1 %s",
+            bootpath,
+            args->is_colo ? "-snapshot" : "");
         start_address = X86_TEST_MEM_START;
         end_address = X86_TEST_MEM_END;
     } else if (g_str_equal(arch, "s390x")) {
