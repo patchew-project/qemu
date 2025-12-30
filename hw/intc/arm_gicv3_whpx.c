@@ -17,6 +17,7 @@
 #include "system/whpx-internal.h"
 #include "gicv3_internal.h"
 #include "vgic_common.h"
+#include "migration/blocker.h"
 #include "qom/object.h"
 #include "target/arm/cpregs.h"
 
@@ -203,6 +204,15 @@ static void whpx_gicv3_realize(DeviceState *dev, Error **errp)
 
     if (s->maint_irq) {
         error_setg(errp, "Nested virtualisation not currently supported by WHPX.");
+        return;
+    }
+
+    Error *whpx_migration_blocker = NULL;
+
+    error_setg(&whpx_migration_blocker,
+        "Live migration disabled because GIC state save/restore not supported on WHPX");
+    if (migrate_add_blocker(&whpx_migration_blocker, errp)) {
+        error_free(whpx_migration_blocker);
         return;
     }
 }
