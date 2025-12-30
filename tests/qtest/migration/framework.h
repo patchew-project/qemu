@@ -230,6 +230,9 @@ typedef struct {
      */
     bool live;
 
+    bool colo_primary_failover;
+    bool colo_failover_during_checkpoint;
+
     /* Postcopy specific fields */
     void *postcopy_data;
     PostcopyRecoveryFailStage postcopy_recovery_fail_stage;
@@ -248,6 +251,7 @@ void test_postcopy_common(MigrateCommon *args);
 void test_postcopy_recovery_common(MigrateCommon *args);
 int test_precopy_common(MigrateCommon *args);
 void test_file_common(MigrateCommon *args, bool stop_src);
+int test_colo_common(MigrateCommon *args);
 void *migrate_hook_start_precopy_tcp_multifd_common(QTestState *from,
                                                     QTestState *to,
                                                     const char *method);
@@ -267,5 +271,10 @@ void migration_test_add_file(MigrationTestEnv *env);
 void migration_test_add_precopy(MigrationTestEnv *env);
 void migration_test_add_cpr(MigrationTestEnv *env);
 void migration_test_add_misc(MigrationTestEnv *env);
+#ifdef CONFIG_REPLICATION
+void migration_test_add_colo(MigrationTestEnv *env);
+#else
+static inline void migration_test_add_colo(MigrationTestEnv *env) {};
+#endif
 
 #endif /* TEST_FRAMEWORK_H */

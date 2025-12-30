@@ -315,7 +315,7 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         memory_size = "150M";
 
-        if (g_str_equal(arch, "i386")) {
+        if (g_str_equal(arch, "i386") || args->is_colo) {
             machine_alias = "pc";
         } else {
             machine_alias = "q35";
@@ -1066,6 +1066,69 @@ void *migrate_hook_start_precopy_tcp_multifd_common(QTestState *from,
     migrate_incoming_qmp(to, "tcp:127.0.0.1:0", NULL, "{}");
 
     return NULL;
+}
+
+int test_colo_common(MigrateCommon *args)
+{
+    QTestState *from, *to;
+    void *data_hook = NULL;
+
+    args->start.oob = true;
+    args->start.is_colo = true;
+    args->start.caps[MIGRATION_CAPABILITY_X_COLO] = true;
+
+    if (migrate_start(&from, &to, args->listen_uri, &args->start)) {
+        return -1;
+    }
+
+    migrate_set_parameter_int(from, "x-checkpoint-delay", 300);
+
+    if (args->start_hook) {
+        data_hook = args->start_hook(from, to);
+    }
+
+    migrate_ensure_converge(from);
+    wait_for_serial("src_serial");
+
+    migrate_qmp(from, to, args->connect_uri, NULL, "{}");
+
+    wait_for_migration_status(from, "colo", NULL);
+    wait_for_resume(to, &dst_state);
+
+    wait_for_serial("src_serial");
+    wait_for_serial("dest_serial");
+
+    /* wait for 3 checkpoints */
+    for (int i = 0; i < 3; i++) {
+        qtest_qmp_eventwait(to, "RESUME");
+        wait_for_serial("src_serial");
+        wait_for_serial("dest_serial");
+    }
+
+    if (args->colo_failover_during_checkpoint) {
+        qtest_qmp_eventwait(to, "STOP");
+    }
+    if (args->colo_primary_failover) {
+        qtest_qmp_assert_success(from, "{'exec-oob': 'yank', 'id': 'yank-cmd', "
+                                            "'arguments': {'instances':"
+                                                "[{'type': 'migration'}]}}");
+        qtest_qmp_assert_success(from, "{'execute': 'x-colo-lost-heartbeat'}");
+        wait_for_serial("src_serial");
+    } else {
+        qtest_qmp_assert_success(to, "{'exec-oob': 'yank', 'id': 'yank-cmd', "
+                                        "'arguments': {'instances':"
+                                            "[{'type': 'migration'}]}}");
+        qtest_qmp_assert_success(to, "{'execute': 'x-colo-lost-heartbeat'}");
+        wait_for_serial("dest_serial");
+    }
+
+    if (args->end_hook) {
+        args->end_hook(from, to, data_hook);
+    }
+
+    migrate_end(from, to, !args->colo_primary_failover);
+
+    return 0;
 }
 
 QTestMigrationState *get_src(void)
