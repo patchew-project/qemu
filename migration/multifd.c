@@ -29,6 +29,7 @@
 #include "qemu-file.h"
 #include "trace.h"
 #include "multifd.h"
+#include "multifd-colo.h"
 #include "threadinfo.h"
 #include "options.h"
 #include "qemu/yank.h"
@@ -1398,11 +1399,18 @@ static void *multifd_recv_thread(void *opaque)
             if (is_device_state) {
                 assert(use_packets);
                 ret = multifd_device_state_recv(p, &local_err);
+                if (ret != 0) {
+                    break;
+                }
             } else {
+                multifd_colo_prepare_recv(p);
+
                 ret = multifd_recv_state->ops->recv(p, &local_err);
-            }
-            if (ret != 0) {
-                break;
+                if (ret != 0) {
+                    break;
+                }
+
+                multifd_colo_process_recv(p);
             }
         } else if (is_device_state) {
             error_setg(&local_err,
