@@ -22,7 +22,7 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qobject/qbool.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 #include "qemu/main-loop.h"
 
 Visitor *qobject_input_visitor_new_qmp(QObject *obj)

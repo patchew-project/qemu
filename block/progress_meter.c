@@ -25,7 +25,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 #include "qemu/progress_meter.h"
 
 void progress_init(ProgressMeter *pm)

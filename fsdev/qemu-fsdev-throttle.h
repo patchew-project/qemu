@@ -15,7 +15,7 @@
 #ifndef QEMU_FSDEV_THROTTLE_H
 #define QEMU_FSDEV_THROTTLE_H
 
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 #include "qemu/throttle.h"
 
 typedef struct FsThrottle {

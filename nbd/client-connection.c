@@ -29,7 +29,7 @@
 
 #include "qapi/qapi-visit-sockets.h"
 #include "qapi/clone-visitor.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 
 #include "nbd/nbd-internal.h"
 

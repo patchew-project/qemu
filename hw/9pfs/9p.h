@@ -7,7 +7,7 @@
 #include "fsdev/file-op-9p.h"
 #include "fsdev/9p-iov-marshal.h"
 #include "qemu/thread.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 #include "qemu/qht.h"
 
 enum {

@@ -26,7 +26,7 @@
 #define BLOCK_QCOW2_H
 
 #include "crypto/block.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 #include "qemu/units.h"
 #include "block/block_int.h"
 

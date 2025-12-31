@@ -29,7 +29,7 @@
 #include "qemu/rcu.h"
 #include "qemu/sockets.h"
 #include "qemu/bitmap.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 #include "system/memory.h"
 #include <sys/socket.h>
 #include <netdb.h>

@@ -15,7 +15,7 @@
 #ifndef BLOCK_BLOCK_HMP_CMDS_H
 #define BLOCK_BLOCK_HMP_CMDS_H
 
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 
 void hmp_drive_add(Monitor *mon, const QDict *qdict);
 

@@ -45,7 +45,7 @@
 #include "system/block-backend.h"
 #include "qemu/notify.h"
 #include "qemu/option.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 #include "block/qapi.h"
 #include "qemu/timer.h"
 #include "qemu/cutils.h"

@@ -12,7 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/aio.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 #include "qemu/thread.h"
 #include "qemu/error-report.h"
 #include "iothread.h"

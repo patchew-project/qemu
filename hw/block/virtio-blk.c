@@ -36,7 +36,7 @@
 #include "hw/virtio/iothread-vq-mapping.h"
 #include "hw/virtio/virtio-access.h"
 #include "hw/virtio/virtio-blk-common.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 
 static void virtio_blk_ioeventfd_attach(VirtIOBlock *s);
 

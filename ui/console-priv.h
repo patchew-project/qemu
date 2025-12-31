@@ -6,7 +6,7 @@
 #define CONSOLE_PRIV_H
 
 #include "ui/console.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 #include "qemu/timer.h"
 
 #include "vgafont.h"

@@ -13,7 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 #include "qemu/range.h"
 #include "trace.h"
 #include "block/blockjob_int.h"

@@ -19,7 +19,7 @@
 #include "qemu/queue.h"
 #include "qemu/thread.h"
 #include "qemu/atomic.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 #include "trace.h"
 #include "block/thread-pool.h"
 #include "qemu/main-loop.h"

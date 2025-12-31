@@ -31,7 +31,7 @@
 #include "util.h"
 
 #include "qemu/aio-wait.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 
 #define TYPE_COLO_COMPARE "colo-compare"
 typedef struct CompareState CompareState;

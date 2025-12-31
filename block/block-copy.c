@@ -23,7 +23,7 @@
 #include "system/block-backend.h"
 #include "qemu/units.h"
 #include "qemu/co-shared-resource.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 #include "qemu/ratelimit.h"
 #include "block/aio_task.h"
 #include "qemu/error-report.h"

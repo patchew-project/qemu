@@ -13,7 +13,7 @@
 #include "qemu/aio.h"
 #include "block/block.h"
 #include "block/raw-aio.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 #include "system/block-backend.h"
 #include "trace.h"
 

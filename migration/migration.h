@@ -20,7 +20,7 @@
 #include "qapi/qapi-types-migration.h"
 #include "qobject/json-writer.h"
 #include "qemu/thread.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 #include "io/channel.h"
 #include "io/channel-buffer.h"
 #include "net/announce.h"

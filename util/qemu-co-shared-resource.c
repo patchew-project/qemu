@@ -24,7 +24,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 #include "qemu/co-shared-resource.h"
 
 struct SharedResource {

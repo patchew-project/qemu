@@ -24,7 +24,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/sockets.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 #include "qemu/iov.h"
 #include "qemu/main-loop.h"
 

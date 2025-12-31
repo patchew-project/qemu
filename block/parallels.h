@@ -31,7 +31,7 @@
 */
 #ifndef BLOCK_PARALLELS_H
 #define BLOCK_PARALLELS_H
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 
 #define HEADS_NUMBER 16
 #define SEC_IN_CYL 32

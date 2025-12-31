@@ -26,7 +26,7 @@
 #define QEMU_COROUTINE_INT_H
 
 #include "qemu/queue.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 
 #ifdef CONFIG_SAFESTACK
 /* Pointer to the unsafe stack, defined by the compiler */

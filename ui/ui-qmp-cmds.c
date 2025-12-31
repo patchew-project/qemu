@@ -19,7 +19,7 @@
 #include "monitor/qmp-helpers.h"
 #include "qapi/qapi-commands-ui.h"
 #include "qapi/qmp/qerror.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 #include "qemu/cutils.h"
 #include "trace.h"
 #include "ui/console.h"

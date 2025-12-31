@@ -30,7 +30,7 @@
 #include "qemu/aiocb.h"
 #include "qemu/queue.h"
 #include "qemu/progress_meter.h"
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 #include "qemu/aio.h"
 #include "block/graph-lock.h"
 

@@ -15,7 +15,7 @@
 #ifndef REQLIST_H
 #define REQLIST_H
 
-#include "qemu/coroutine.h"
+#include "qemu/qemu-coroutine.h"
 
 /*
  * The API is not thread-safe and shouldn't be. The struct is public to be part
