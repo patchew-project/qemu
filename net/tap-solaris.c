@@ -25,7 +25,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "tap_int.h"
-#include "qemu/ctype.h"
+#include "qemu/qemu-ctype.h"
 #include "qemu/cutils.h"
 #include "net/net.h"
 

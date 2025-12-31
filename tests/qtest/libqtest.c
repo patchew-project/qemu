@@ -31,7 +31,7 @@
 #include "libqtest.h"
 #include "libqmp.h"
 #include "qemu/accel.h"
-#include "qemu/ctype.h"
+#include "qemu/qemu-ctype.h"
 #include "qemu/cutils.h"
 #include "qemu/exit-with-parent.h"
 #include "qemu/sockets.h"

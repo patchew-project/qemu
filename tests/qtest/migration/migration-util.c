@@ -11,7 +11,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/ctype.h"
+#include "qemu/qemu-ctype.h"
 #include "qapi/qapi-visit-sockets.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/error.h"

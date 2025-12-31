@@ -31,7 +31,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/atomic.h"
-#include "qemu/ctype.h"
+#include "qemu/qemu-ctype.h"
 #include "qemu/iov.h"
 #include "standard-headers/linux/virtio_net.h"
 #include "libvhost-user.h"

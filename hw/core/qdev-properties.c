@@ -4,7 +4,7 @@
 #include "qapi/qapi-types-misc.h"
 #include "qapi/qapi-visit-common.h"
 #include "qobject/qlist.h"
-#include "qemu/ctype.h"
+#include "qemu/qemu-ctype.h"
 #include "qemu/error-report.h"
 #include "qapi/visitor.h"
 #include "qemu/units.h"

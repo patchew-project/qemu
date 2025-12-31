@@ -48,7 +48,7 @@
 #include <wchar.h>
 #endif
 
-#include "qemu/ctype.h"
+#include "qemu/qemu-ctype.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
 

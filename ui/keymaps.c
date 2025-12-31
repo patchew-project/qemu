@@ -26,7 +26,7 @@
 #include "qemu/datadir.h"
 #include "keymaps.h"
 #include "trace.h"
-#include "qemu/ctype.h"
+#include "qemu/qemu-ctype.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "ui/input.h"

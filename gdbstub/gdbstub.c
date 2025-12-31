@@ -24,7 +24,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/ctype.h"
+#include "qemu/qemu-ctype.h"
 #include "qemu/cutils.h"
 #include "qemu/module.h"
 #include "qemu/error-report.h"

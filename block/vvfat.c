@@ -36,7 +36,7 @@
 #include "migration/blocker.h"
 #include "qobject/qdict.h"
 #include "qobject/qstring.h"
-#include "qemu/ctype.h"
+#include "qemu/qemu-ctype.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
 

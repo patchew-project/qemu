@@ -31,7 +31,7 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/visitor.h"
 #include "qom/qom-qobject.h"
-#include "qemu/ctype.h"
+#include "qemu/qemu-ctype.h"
 #include "qemu/qemu-print.h"
 #include "monitor/hmp.h"
 #include "monitor/hmp-target.h"

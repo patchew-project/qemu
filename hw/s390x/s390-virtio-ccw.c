@@ -19,7 +19,7 @@
 #include "hw/s390x/s390_flic.h"
 #include "virtio-ccw.h"
 #include "qemu/config-file.h"
-#include "qemu/ctype.h"
+#include "qemu/qemu-ctype.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/qemu-print.h"

@@ -30,7 +30,7 @@
 #include "qobject/qdict.h"
 #include "qobject/qnum.h"
 #include "qemu/config-file.h"
-#include "qemu/ctype.h"
+#include "qemu/qemu-ctype.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
 #include "qemu/option.h"

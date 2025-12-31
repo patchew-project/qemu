@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/readline.h"
-#include "qemu/ctype.h"
+#include "qemu/qemu-ctype.h"
 #include "qemu/cutils.h"
 
 #define IS_NORM 0

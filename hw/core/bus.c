@@ -19,7 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/core/qdev-properties.h"
-#include "qemu/ctype.h"
+#include "qemu/qemu-ctype.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
 

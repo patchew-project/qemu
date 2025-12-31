@@ -43,7 +43,7 @@
 #include "qemu/sockets.h"
 #include "qemu/cutils.h"
 #include "qemu/config-file.h"
-#include "qemu/ctype.h"
+#include "qemu/qemu-ctype.h"
 #include "qemu/id.h"
 #include "qemu/iov.h"
 #include "qemu/qemu-print.h"

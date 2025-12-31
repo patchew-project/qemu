@@ -15,7 +15,7 @@
 #include "qemu/module.h"
 #include "ipl.h"
 #include "qapi/visitor.h"
-#include "qemu/ctype.h"
+#include "qemu/qemu-ctype.h"
 #include "qapi/error.h"
 
 static void ccw_device_refill_ids(CcwDevice *dev)
