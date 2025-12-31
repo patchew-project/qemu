@@ -235,8 +235,9 @@ void pmp_update_rule_addr(CPURISCVState *env, uint32_t pmp_index)
     case PMP_AMATCH_TOR:
         /* Bits pmpaddr[G-1:0] do not affect the TOR address-matching logic. */
         if (g >= 1) {
-            prev_addr &= ~((1ULL << g) - 1ULL);
-            this_addr &= ~((1ULL << g) - 1ULL);
+            target_ulong granule = 1ULL << g;
+            prev_addr = ROUND_DOWN(prev_addr, granule);
+            this_addr = ROUND_DOWN(this_addr, granule);
         }
         if (prev_addr >= this_addr) {
             sa = ea = 0u;
@@ -254,7 +255,8 @@ void pmp_update_rule_addr(CPURISCVState *env, uint32_t pmp_index)
     case PMP_AMATCH_NAPOT:
         /* Bits [g-2:0] need to be all one to align pmp granularity */
         if (g >= 2) {
-            this_addr |= ((1ULL << (g - 1ULL)) - 1ULL);
+            target_ulong granule = 1ULL << (g - 1);
+            this_addr = ROUND_UP(this_addr + 1ULL, granule) - 1ULL;
         }
 
         pmp_decode_napot(this_addr, &sa, &ea);
@@ -625,13 +627,15 @@ target_ulong pmpaddr_csr_read(CPURISCVState *env, uint32_t addr_index)
         case PMP_AMATCH_TOR:
             /* Bit [g-1:0] read all zero */
             if (g >= 1 && g < TARGET_LONG_BITS) {
-                val &= ~((1ULL << g) - 1ULL);
+                target_ulong granule = 1ULL << g;
+                val = ROUND_DOWN(val, granule);
             }
             break;
         case PMP_AMATCH_NAPOT:
             /* Bit [g-2:0] read all one */
             if (g >= 2 && g < TARGET_LONG_BITS) {
-                val |= ((1ULL << (g - 1)) - 1ULL);
+                target_ulong granule = 1ULL << (g - 1);
+                val = ROUND_UP(val + 1ULL, granule) - 1ULL;
             }
             break;
         default:
