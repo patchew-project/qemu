@@ -11,6 +11,24 @@
 #include "ati_int.h"
 #include "trace.h"
 
+static uint32_t
+ati_cce_fifo_max(uint8_t mode)
+{
+    switch (mode) {
+    case PM4_BUFFER_CNTL_NONPM4...PM4_BUFFER_CNTL_192BM:
+        return 192;
+    case PM4_BUFFER_CNTL_128PIO_64INDBM...PM4_BUFFER_CNTL_128BM_64INDBM:
+        return 128;
+    case PM4_BUFFER_CNTL_64PIO_128INDBM...PM4_BUFFER_CNTL_64PIO_64VCBM_64INDBM:
+        /* fall through */
+    case PM4_BUFFER_CNTL_64PIO_64VCPIO_64INPIO:
+        return 64;
+    default:
+        /* Undocumented but testing shows this returns 192 otherwise */
+        return 192;
+    }
+}
+
 static inline uint32_t
 ati_cce_data_packets_remaining(const ATIPM4PacketState *p)
 {
@@ -153,4 +171,24 @@ ati_cce_receive_data(ATIVGAState *s, uint32_t data)
         return;
     }
     ati_cce_process_packet_data(s, data);
+}
+
+bool
+ati_cce_micro_busy(const ATIPM4PacketState *p)
+{
+    uint32_t remaining = ati_cce_data_packets_remaining(p);
+    if (remaining > 0) {
+        return true;
+    }
+    return false;
+}
+
+uint32_t
+ati_cce_fifo_cnt(const ATICCEState *c)
+{
+    /*
+     * This should return the available slots. Given that commands are
+     * processed immediately this returns the fifo max for now.
+     */
+    return ati_cce_fifo_max(c->buffer_mode);
 }

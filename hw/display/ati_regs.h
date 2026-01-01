@@ -280,6 +280,7 @@
 
 /* CONSTANTS */
 #define GUI_ACTIVE                              0x80000000
+#define MICRO_BUSY                              0x00020000
 #define ENGINE_IDLE                             0x0
 
 #define PLL_WR_EN                               0x00000080

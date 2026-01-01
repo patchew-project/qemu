@@ -276,6 +276,16 @@ static inline uint64_t ati_reg_read_offs(uint32_t reg, int offs,
     }
 }
 
+static uint32_t ati_common_stat(ATIVGAState *s)
+{
+    /* TODO: This is _very_ naive. It will evolve. */
+    uint32_t micro_busy = ati_cce_micro_busy(&s->cce.cur_packet) ?
+                          MICRO_BUSY : 0;
+    /* GUI_ACTIVE is the OR of all other status flags */
+    uint32_t gui_active = micro_busy ? GUI_ACTIVE : 0;
+    return gui_active | micro_busy;
+}
+
 static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
 {
     ATIVGAState *s = opaque;
@@ -383,7 +393,7 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
         break;
     case RBBM_STATUS:
     case GUI_STAT:
-        val = 64; /* free CMDFIFO entries */
+        val = ati_common_stat(s) | 64; /* free CMDFIFO entries */
         break;
     case CRTC_H_TOTAL_DISP:
         val = s->regs.crtc_h_total_disp;
@@ -543,6 +553,10 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case PM4_MICRO_CNTL:
         val = s->cce.freerun ? PM4_MICRO_FREERUN : 0;
         break;
+    case PM4_STAT: {
+        val = ati_common_stat(s) | ati_cce_fifo_cnt(&s->cce);
+        break;
+    }
     default:
         break;
     }
