@@ -1275,16 +1275,6 @@ static bool riscv_tcg_cpu_realize(CPUState *cs, Error **errp)
     }
 
 #ifndef CONFIG_USER_ONLY
-    RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(cpu);
-
-    if (mcc->def->misa_mxl_max >= MXL_RV128 && qemu_tcg_mttcg_enabled()) {
-        /* Missing 128-bit aligned atomics */
-        error_setg(errp,
-                   "128-bit RISC-V currently does not work with Multi "
-                   "Threaded TCG. Please use: -accel tcg,thread=single");
-        return false;
-    }
-
     CPURISCVState *env = &cpu->env;
 
     tcg_cflags_set(CPU(cs), CF_PCREL);
