@@ -14,6 +14,7 @@
 #include "hw/i2c/bitbang_i2c.h"
 #include "vga_int.h"
 #include "qom/object.h"
+#include "ati_cce.h"
 
 /*#define DEBUG_ATI*/
 
@@ -100,6 +101,7 @@ struct ATIVGAState {
     MemoryRegion io;
     MemoryRegion mm;
     ATIVGARegs regs;
+    ATICCEState cce;
 };
 
 const char *ati_reg_name(int num);
