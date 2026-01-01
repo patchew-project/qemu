@@ -392,6 +392,9 @@
 #define PM4_BUFFER_CNTL_64BM_64VCBM_64INDBM     0x00000008
 #define PM4_BUFFER_CNTL_64PIO_64VCPIO_64INPIO   0x0000000f
 
+/* PM4_MICRO_CNTL bit constants */
+#define PM4_MICRO_FREERUN                       0x40000000
+
 /* DP_DATATYPE bit constants */
 #define DST_8BPP                                0x00000002
 #define DST_15BPP                               0x00000003

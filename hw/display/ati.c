@@ -540,6 +540,9 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
               (s->cce.no_update << 27) |
               (s->cce.buffer_size_l2qw & 0x7ffffff);
         break;
+    case PM4_MICRO_CNTL:
+        val = s->cce.freerun ? PM4_MICRO_FREERUN : 0;
+        break;
     default:
         break;
     }
@@ -988,6 +991,10 @@ void ati_reg_write(ATIVGAState *s, hwaddr addr,
         s->cce.buffer_size_l2qw = data & 0x7ffffff;
         s->cce.no_update = (data >> 27) & 1;
         s->cce.buffer_mode = (data >> 28) & 0xf;
+        break;
+    }
+    case PM4_MICRO_CNTL: {
+        s->cce.freerun = data & PM4_MICRO_FREERUN;
         break;
     }
     default:
