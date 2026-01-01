@@ -378,7 +378,19 @@
 #define PC_BUSY                                 0x80000000
 
 #define BUS_MASTER_DIS                          0x00000040
+
+
+/* PM4_BUFFER_CNTL buffer mode bit constants */
 #define PM4_BUFFER_CNTL_NONPM4                  0x00000000
+#define PM4_BUFFER_CNTL_192PIO                  0x00000001
+#define PM4_BUFFER_CNTL_192BM                   0x00000002
+#define PM4_BUFFER_CNTL_128PIO_64INDBM          0x00000003
+#define PM4_BUFFER_CNTL_128BM_64INDBM           0x00000004
+#define PM4_BUFFER_CNTL_64PIO_128INDBM          0x00000005
+#define PM4_BUFFER_CNTL_64BM_128INDBM           0x00000006
+#define PM4_BUFFER_CNTL_64PIO_64VCBM_64INDBM    0x00000007
+#define PM4_BUFFER_CNTL_64BM_64VCBM_64INDBM     0x00000008
+#define PM4_BUFFER_CNTL_64PIO_64VCPIO_64INPIO   0x0000000f
 
 /* DP_DATATYPE bit constants */
 #define DST_8BPP                                0x00000002

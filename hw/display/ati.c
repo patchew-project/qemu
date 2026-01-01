@@ -535,6 +535,11 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
          */
         s->cce.microcode.raddr = s->cce.microcode.addr;
         break;
+    case PM4_BUFFER_CNTL:
+        val = ((s->cce.buffer_mode & 0xf) << 28) |
+              (s->cce.no_update << 27) |
+              (s->cce.buffer_size_l2qw & 0x7ffffff);
+        break;
     default:
         break;
     }
@@ -977,6 +982,12 @@ void ati_reg_write(ATIVGAState *s, hwaddr addr,
         uint64_t high = curr & (0xffffffffull << 32);
         s->cce.microcode.microcode[s->cce.microcode.addr] = high | low;
         s->cce.microcode.addr += 1;
+        break;
+    }
+    case PM4_BUFFER_CNTL: {
+        s->cce.buffer_size_l2qw = data & 0x7ffffff;
+        s->cce.no_update = (data >> 27) & 1;
+        s->cce.buffer_mode = (data >> 28) & 0xf;
         break;
     }
     default:
