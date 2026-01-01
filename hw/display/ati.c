@@ -1011,6 +1011,13 @@ static void ati_mm_write(void *opaque, hwaddr addr,
     if (addr < CUR_OFFSET || addr > CUR_CLR1 || ATI_DEBUG_HW_CURSOR) {
         trace_ati_mm_write(size, addr, ati_reg_name(addr & ~3ULL), data);
     }
+    if (addr >= 0x1400 && addr <= 0x1fff && s->cce.buffer_mode != 0) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+            "ati_mm_write: wrote 0x%lx to gui register 0x%lx while cce engine enabled, ignored.\n",
+            data, addr);
+        return;
+    }
+
     ati_reg_write(s, addr, data, size);
 }
 
