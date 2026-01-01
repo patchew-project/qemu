@@ -997,6 +997,16 @@ void ati_reg_write(ATIVGAState *s, hwaddr addr,
         s->cce.freerun = data & PM4_MICRO_FREERUN;
         break;
     }
+    case PM4_FIFO_DATA_EVEN:
+        /* fall through */
+    case PM4_FIFO_DATA_ODD:
+        /*
+         * Real hardware does seem to behave differently when the even/odd
+         * sequence is not strictly adhered to but it's difficult to determine
+         * exactly what is happenning. So for now we treat them the same.
+         */
+        ati_cce_receive_data(s, data);
+        break;
     default:
         break;
     }

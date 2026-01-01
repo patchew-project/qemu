@@ -147,6 +147,15 @@ sii9022_switch_mode(const char *mode) "mode: %s"
 ati_mm_read(unsigned int size, uint64_t addr, const char *name, uint64_t val) "%u 0x%"PRIx64 " %s -> 0x%"PRIx64
 ati_mm_write(unsigned int size, uint64_t addr, const char *name, uint64_t val) "%u 0x%"PRIx64 " %s <- 0x%"PRIx64
 
+# ati_cce.c
+ati_cce_packet_type0(uint32_t base_reg, uint32_t count, bool one_reg_wr) "base_reg=0x%x count=%u one_reg_wr=%u"
+ati_cce_packet_type0_data(uint32_t data_idx, uint32_t reg, uint32_t data) "data_idx=%u reg=0x%x data=0x%x"
+ati_cce_packet_type1(uint32_t reg0, uint32_t reg1) "reg0=0x%x reg1=0x%x"
+ati_cce_packet_type1_data(uint32_t data_idx, uint32_t reg, uint32_t data) "data_idx=%u reg=0x%x data=0x%x"
+ati_cce_packet_type2(void) ""
+ati_cce_packet_type3(uint8_t opcode, uint32_t count) "opcode=0x%x count=%u"
+ati_cce_packet_type3_data(uint32_t data_idx, uint8_t opcode, uint32_t data) "data_idx=%u opcode=0x%x data=%u"
+
 # artist.c
 artist_reg_read(unsigned int size, uint64_t addr, const char *name, uint64_t val) "%u 0x%"PRIx64 "%s -> 0x%08"PRIx64
 artist_reg_write(unsigned int size, uint64_t addr, const char *name, uint64_t val) "%u 0x%"PRIx64 "%s <- 0x%08"PRIx64
