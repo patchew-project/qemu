@@ -134,6 +134,8 @@ extensions:
   Special extensions:
 
   - ``g`` expands to ``imafd_zicsr_zifencei`` (General purpose)
+  - ``zvl<N>b`` specifies vector length (VLEN) in bits, where N must
+    be a power of 2 (e.g., ``zvl128b``, ``zvl256b``, ``zvl512b``)
 
   The ISA string must match the CPU's XLEN. For example, ``arch=rv32i`` will
   fail on a 64-bit CPU.

@@ -1596,6 +1596,73 @@ static void riscv_cpu_disable_all_extensions(RISCVCPU *cpu)
     for (const RISCVIsaExtData *edata = isa_edata_arr; edata->name; edata++) {
         isa_ext_update_enabled(cpu, edata->ext_enable_offset, false);
     }
+
+    /* Reset vector length to 0 (will be set by zvl*b or implied by zve/v) */
+    cpu->cfg.vlenb = 0;
+}
+
+/*
+ * Parse zvl*b extension name and return the minimum VLEN in bits.
+ * Returns 0 if the extension name is not a valid zvl*b pattern.
+ * Valid patterns: zvl32b, zvl64b, zvl128b, zvl256b, zvl512b, zvl1024b, etc.
+ */
+static int riscv_parse_zvl_vlen(const char *ext_name)
+{
+    int vlen;
+    char suffix;
+
+    if (g_ascii_strncasecmp(ext_name, "zvl", 3) != 0) {
+        return 0;
+    }
+
+    if (sscanf(ext_name + 3, "%d%c", &vlen, &suffix) != 2) {
+        return 0;
+    }
+
+    if (g_ascii_tolower(suffix) != 'b') {
+        return 0;
+    }
+
+    /* Validate VLEN is a power of 2 and within reasonable range */
+    if (vlen < 32 || vlen > 65536 || (vlen & (vlen - 1)) != 0) {
+        return 0;
+    }
+
+    return vlen;
+}
+
+/*
+ * Get the implied minimum VLEN (in bits) for an extension.
+ * Returns 0 if the extension doesn't imply a minimum VLEN.
+ *
+ * According to RISC-V specification:
+ * - zve32x, zve32f imply zvl32b (VLEN >= 32)
+ * - zve64x, zve64f, zve64d imply zvl64b (VLEN >= 64)
+ * - v implies zvl128b (VLEN >= 128)
+ */
+static int riscv_ext_implied_vlen(const char *ext_name)
+{
+    if (g_ascii_strcasecmp(ext_name, "v") == 0) {
+        return 128;
+    }
+    if (g_ascii_strncasecmp(ext_name, "zve64", 5) == 0) {
+        return 64;
+    }
+    if (g_ascii_strncasecmp(ext_name, "zve32", 5) == 0) {
+        return 32;
+    }
+    return 0;
+}
+
+/*
+ * Update vlenb if the new VLEN is larger than the current one.
+ */
+static void riscv_update_vlen(RISCVCPU *cpu, int vlen)
+{
+    uint16_t current_vlen = cpu->cfg.vlenb << 3;
+    if (vlen > current_vlen) {
+        cpu->cfg.vlenb = vlen >> 3;
+    }
 }
 
 /*
@@ -1700,6 +1767,9 @@ static bool riscv_cpu_parse_isa_string(RISCVCPU *cpu, const char *isa_str,
 
             uint32_t bit = riscv_get_misa_bit_from_name(ext_char);
             riscv_cpu_write_misa_bit(cpu, bit, true);
+            if (ext_char == 'v') {
+                riscv_update_vlen(cpu, 128);
+            }
             is_first_ext = false;
         }
 
@@ -1711,6 +1781,13 @@ static bool riscv_cpu_parse_isa_string(RISCVCPU *cpu, const char *isa_str,
         /* Process the remaining multi-letter extension */
         const char *multi_ext = ext_name + single_count;
 
+        /* Check for zvl*b extension (vector length) */
+        int zvl_vlen = riscv_parse_zvl_vlen(multi_ext);
+        if (zvl_vlen > 0) {
+            riscv_update_vlen(cpu, zvl_vlen);
+            continue;
+        }
+
         /* Look up the extension */
         const RISCVIsaExtData *edata = riscv_find_ext_data(multi_ext);
         if (edata == NULL) {
@@ -1720,6 +1797,29 @@ static bool riscv_cpu_parse_isa_string(RISCVCPU *cpu, const char *isa_str,
 
         /* Enable the extension */
         isa_ext_update_enabled(cpu, edata->ext_enable_offset, true);
+
+        /* Check for implied minimum VLEN (zve32*, zve64*) */
+        int implied_vlen = riscv_ext_implied_vlen(multi_ext);
+        if (implied_vlen > 0) {
+            riscv_update_vlen(cpu, implied_vlen);
+        }
+    }
+
+    /*
+     * Validate that zvl*b is only specified with a vector extension.
+     * zvl*b requires v or zve* extension to also be specified.
+     */
+    if (cpu->cfg.vlenb > 0) {
+        CPURISCVState *env = &cpu->env;
+        bool has_vector = (env->misa_ext & RVV) ||
+                          cpu->cfg.ext_zve32x || cpu->cfg.ext_zve32f ||
+                          cpu->cfg.ext_zve64x || cpu->cfg.ext_zve64f ||
+                          cpu->cfg.ext_zve64d;
+        if (!has_vector) {
+            error_setg(errp, "zvl*b requires v or zve* extension to also be "
+                       "specified");
+            return false;
+        }
     }
 
     return true;
@@ -1799,6 +1899,13 @@ static bool riscv_cpu_parse_profile_string(RISCVCPU *cpu, const char *str,
         size_t ext_len = p - ext_start;
         g_autofree char *ext_name = g_strndup(ext_start, ext_len);
 
+        /* Check for zvl*b extension */
+        int zvl_vlen = riscv_parse_zvl_vlen(ext_name);
+        if (zvl_vlen > 0) {
+            riscv_update_vlen(cpu, zvl_vlen);
+            continue;
+        }
+
         /* Look up the extension */
         const RISCVIsaExtData *edata = riscv_find_ext_data(ext_name);
         if (edata == NULL) {
@@ -1809,6 +1916,12 @@ static bool riscv_cpu_parse_profile_string(RISCVCPU *cpu, const char *str,
 
         /* Enable the extension */
         isa_ext_update_enabled(cpu, edata->ext_enable_offset, true);
+
+        /* Check for implied minimum VLEN */
+        int implied_vlen = riscv_ext_implied_vlen(ext_name);
+        if (implied_vlen > 0) {
+            riscv_update_vlen(cpu, implied_vlen);
+        }
     }
 
     return true;
@@ -1856,7 +1969,8 @@ static void riscv_cpu_add_arch_property(Object *obj)
         "ISA configuration (write-only). "
         "Use 'help' to list extensions, 'dump' to show current config, "
         "provide an ISA string (e.g., rv64gc_zba_zbb), "
-        "or use a profile (e.g., rva23u64).");
+        "or a profile with optional extensions (e.g., rva23u64, "
+        "rva23u64_zbkb_zkne).");
 }
 
 /*

@@ -1028,6 +1028,11 @@ G_NORETURN void riscv_cpu_list_supported_extensions(void)
     riscv_cpu_help_multiext("Experimental Extensions",
                             riscv_cpu_experimental_exts);
 
+    /* Print vector length extensions */
+    qemu_printf("Vector Length Extensions (zvl*b):\n");
+    qemu_printf("  zvl32b, zvl64b, zvl128b, zvl256b, zvl512b, zvl1024b, ...\n");
+    qemu_printf("  (Specifies VLEN in bits, must be power of 2)\n\n");
+
     /* Print available profiles */
     qemu_printf("Profiles (64-bit only):\n");
     for (int i = 0; riscv_profiles[i] != NULL; i++) {
@@ -1062,7 +1067,14 @@ static G_NORETURN void riscv_cpu_dump_isa_config(RISCVCPU *cpu)
 
     /* Print base information */
     qemu_printf("Base: RV%d\n", xlen);
-    qemu_printf("Privilege spec: %s\n\n", priv_spec_to_str(env->priv_ver));
+    qemu_printf("Privilege spec: %s\n", priv_spec_to_str(env->priv_ver));
+
+    /* Print vector length configuration */
+    if (cpu->cfg.vlenb > 0) {
+        uint16_t vlen = cpu->cfg.vlenb << 3;
+        qemu_printf("Vector length: VLEN=%u bits (zvl%ub)\n", vlen, vlen);
+    }
+    qemu_printf("\n");
 
     /* Print single-letter extensions */
     qemu_printf("Standard Extensions (single-letter):\n");
@@ -3051,6 +3063,15 @@ static void riscv_isa_string_ext(RISCVCPU *cpu, char **isa_str,
             g_free(old);
             old = new;
         }
+    }
+
+    /* Add zvl*b if vector length is configured */
+    if (cpu->cfg.vlenb > 0) {
+        uint16_t vlen = cpu->cfg.vlenb << 3;
+        g_autofree char *zvl_ext = g_strdup_printf("zvl%ub", vlen);
+        new = g_strconcat(old, "_", zvl_ext, NULL);
+        g_free(old);
+        old = new;
     }
 
     *isa_str = new;

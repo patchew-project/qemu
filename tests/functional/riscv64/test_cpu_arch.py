@@ -266,6 +266,13 @@ class RiscvCpuArch(QemuUserTest):
         self.assertRegex(res.stdout, r'd\s+enabled')
         self.assertRegex(res.stdout, r'c\s+enabled')
 
+    def test_arch_isa_string_zvl_requires_vector(self):
+        """Test zvl*b requires v or zve* extension"""
+        res = self.run_qemu('rv64,arch=rv64g_zvl128b')
+
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("zvl*b requires v or zve* extension", res.stderr)
+
     def test_arch_profile_rva23u64(self):
         """Test arch=rva23u64 enables RVA23 profile extensions"""
         res = self.run_qemu('rv64,arch=rva23u64,arch=dump')
@@ -337,6 +344,67 @@ class RiscvCpuArch(QemuUserTest):
 
         self.assertNotEqual(res.returncode, 0)
         self.assertIn("unknown extension 'unknown'", res.stderr)
+
+    def test_arch_help_shows_zvl(self):
+        """Test arch=help lists zvl*b extensions"""
+        res = self.run_qemu('rv64,arch=help')
+
+        self.assertEqual(res.returncode, 0)
+        self.assertIn('Vector Length Extensions', res.stdout)
+        self.assertIn('zvl32b', res.stdout)
+        self.assertIn('zvl128b', res.stdout)
+
+    def test_arch_isa_string_zvl(self):
+        """Test arch=ISA-STRING accepts zvl*b extensions"""
+        res = self.run_qemu('rv64,arch=rv64gcv_zvl256b,arch=dump')
+
+        self.assertEqual(res.returncode, 0)
+        self.assertIn('VLEN=256', res.stdout)
+        self.assertIn('zvl256b', res.stdout)
+        # Check zvl*b is included in Full ISA string
+        self.assertRegex(res.stdout, r'Full ISA string:.*_zvl256b')
+
+    def test_arch_dump_shows_vlen(self):
+        """Test arch=dump shows vector length configuration"""
+        res = self.run_qemu('rv64,arch=rv64gcv_zvl512b,arch=dump')
+
+        self.assertEqual(res.returncode, 0)
+        self.assertIn('Vector length:', res.stdout)
+        self.assertIn('VLEN=512', res.stdout)
+
+    def test_arch_isa_string_zvl_takes_max(self):
+        """Test multiple zvl*b extensions take maximum value"""
+        # zvl128b followed by zvl512b - should use 512
+        res1 = self.run_qemu('rv64,arch=rv64gcv_zvl128b_zvl512b,arch=dump')
+        self.assertEqual(res1.returncode, 0)
+        self.assertIn('VLEN=512', res1.stdout)
+
+        # zvl512b followed by zvl128b - should still use 512
+        res2 = self.run_qemu('rv64,arch=rv64gcv_zvl512b_zvl128b,arch=dump')
+        self.assertEqual(res2.returncode, 0)
+        self.assertIn('VLEN=512', res2.stdout)
+
+        # Three zvl extensions - should use maximum (1024)
+        res3 = self.run_qemu('rv64,arch=rv64gcv_zvl256b_zvl1024b_zvl512b,arch=dump')
+        self.assertEqual(res3.returncode, 0)
+        self.assertIn('VLEN=1024', res3.stdout)
+
+    def test_arch_isa_string_implied_vlen(self):
+        """Test extensions imply minimum VLEN correctly"""
+        # zve64f implies zvl64b, so zvl32b should be ignored
+        res1 = self.run_qemu('rv64,arch=rv64i_zve64f_zvl32b,arch=dump')
+        self.assertEqual(res1.returncode, 0)
+        self.assertIn('VLEN=64', res1.stdout)
+
+        # v implies zvl128b, so zvl64b should be ignored
+        res2 = self.run_qemu('rv64,arch=rv64gcv_zvl64b,arch=dump')
+        self.assertEqual(res2.returncode, 0)
+        self.assertIn('VLEN=128', res2.stdout)
+
+        # zve64x alone should have VLEN=64
+        res3 = self.run_qemu('rv64,arch=rv64i_zve64x,arch=dump')
+        self.assertEqual(res3.returncode, 0)
+        self.assertIn('VLEN=64', res3.stdout)
 
 
 if __name__ == '__main__':
