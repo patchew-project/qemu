@@ -266,6 +266,78 @@ class RiscvCpuArch(QemuUserTest):
         self.assertRegex(res.stdout, r'd\s+enabled')
         self.assertRegex(res.stdout, r'c\s+enabled')
 
+    def test_arch_profile_rva23u64(self):
+        """Test arch=rva23u64 enables RVA23 profile extensions"""
+        res = self.run_qemu('rv64,arch=rva23u64,arch=dump')
+
+        self.assertEqual(res.returncode, 0)
+
+        # RVA23U64 mandates vector extension
+        self.assertRegex(res.stdout, r'\bv\s+enabled')
+
+        # RVA23U64 mandates these extensions
+        self.assertRegex(res.stdout, r'zicond\s+enabled')
+        self.assertRegex(res.stdout, r'zimop\s+enabled')
+        self.assertRegex(res.stdout, r'zcmop\s+enabled')
+        self.assertRegex(res.stdout, r'zcb\s+enabled')
+        self.assertRegex(res.stdout, r'zfa\s+enabled')
+        self.assertRegex(res.stdout, r'zvbb\s+enabled')
+
+    def test_arch_profile_rva22u64(self):
+        """Test arch=rva22u64 enables RVA22 profile extensions"""
+        res = self.run_qemu('rv64,arch=rva22u64,arch=dump')
+
+        self.assertEqual(res.returncode, 0)
+
+        # RVA22U64 mandates these MISA extensions
+        self.assertRegex(res.stdout, r'\bi\s+enabled')
+        self.assertRegex(res.stdout, r'm\s+enabled')
+        self.assertRegex(res.stdout, r'a\s+enabled')
+        self.assertRegex(res.stdout, r'f\s+enabled')
+        self.assertRegex(res.stdout, r'd\s+enabled')
+        self.assertRegex(res.stdout, r'c\s+enabled')
+
+        # RVA22U64 mandates zicsr and zifencei
+        self.assertRegex(res.stdout, r'zicsr\s+enabled')
+        self.assertRegex(res.stdout, r'zifencei\s+enabled')
+
+    def test_arch_profile_case_insensitive(self):
+        """Test arch=PROFILE is case-insensitive"""
+        res = self.run_qemu('rv64,arch=RVA23U64,arch=dump')
+
+        self.assertEqual(res.returncode, 0)
+        # Should enable vector like lowercase version
+        self.assertRegex(res.stdout, r'\bv\s+enabled')
+
+    def test_arch_help_shows_profiles(self):
+        """Test arch=help lists available profiles"""
+        res = self.run_qemu('rv64,arch=help')
+
+        self.assertEqual(res.returncode, 0)
+        self.assertIn('Profiles', res.stdout)
+        self.assertIn('rva22u64', res.stdout)
+        self.assertIn('rva22s64', res.stdout)
+        self.assertIn('rva23u64', res.stdout)
+        self.assertIn('rva23s64', res.stdout)
+
+    def test_arch_profile_with_extensions(self):
+        """Test arch=PROFILE_EXT enables profile plus additional extensions"""
+        res = self.run_qemu('rv64,arch=rva23u64_zbkb_zkne,arch=dump')
+
+        self.assertEqual(res.returncode, 0)
+        # Profile extensions should be enabled
+        self.assertRegex(res.stdout, r'\bv\s+enabled')
+        # Additional extensions should also be enabled
+        self.assertRegex(res.stdout, r'zbkb\s+enabled')
+        self.assertRegex(res.stdout, r'zkne\s+enabled')
+
+    def test_arch_profile_with_unknown_extension(self):
+        """Test arch=PROFILE_EXT rejects unknown extensions"""
+        res = self.run_qemu('rv64,arch=rva23u64_unknown')
+
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("unknown extension 'unknown'", res.stderr)
+
 
 if __name__ == '__main__':
     QemuUserTest.main()

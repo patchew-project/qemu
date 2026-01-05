@@ -1028,7 +1028,15 @@ G_NORETURN void riscv_cpu_list_supported_extensions(void)
     riscv_cpu_help_multiext("Experimental Extensions",
                             riscv_cpu_experimental_exts);
 
+    /* Print available profiles */
+    qemu_printf("Profiles (64-bit only):\n");
+    for (int i = 0; riscv_profiles[i] != NULL; i++) {
+        qemu_printf("  %s\n", riscv_profiles[i]->name);
+    }
+    qemu_printf("\n");
+
     qemu_printf("Use '-cpu <cpu>,<ext>=true' to enable an extension.\n");
+    qemu_printf("Use '-cpu <cpu>,arch=<profile>' to enable a profile.\n");
     qemu_printf("Use '-cpu <cpu>,arch=dump' to show current configuration.\n");
 
     exit(0);

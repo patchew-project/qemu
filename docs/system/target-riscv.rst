@@ -167,6 +167,30 @@ extensions:
 
     $ qemu-riscv64 -cpu rv64,arch=rv64gc_zba_zbb,arch=dump /bin/true
 
+* ``arch=<PROFILE-NAME>[_extension]*``
+
+  Configure the CPU using a standard RISC-V profile, optionally with additional
+  extensions. Profiles define sets of mandatory extensions for specific use
+  cases. Available profiles (64-bit only):
+
+  - ``rva22u64`` - RVA22 User-mode profile
+  - ``rva22s64`` - RVA22 Supervisor-mode profile
+  - ``rva23u64`` - RVA23 User-mode profile (includes mandatory vector)
+  - ``rva23s64`` - RVA23 Supervisor-mode profile
+
+  Examples::
+
+    $ qemu-riscv64 -cpu rv64,arch=rva23u64 /bin/true
+    $ qemu-riscv64 -cpu rv64,arch=rva22s64,arch=dump /bin/true
+    $ qemu-riscv64 -cpu rv64,arch=rva23u64_zbkb_zkne /bin/true
+
+  Profiles automatically enable all mandatory extensions defined by the RISC-V
+  profile specification. For example, RVA23 profiles enable the vector extension
+  (V) which was optional in RVA22. Additional extensions can be appended after
+  the profile name using underscores (following the RISC-V toolchain convention).
+
+  Use ``arch=help`` to see all available profiles.
+
 Privilege-implied extensions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

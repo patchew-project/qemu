@@ -1726,8 +1726,98 @@ static bool riscv_cpu_parse_isa_string(RISCVCPU *cpu, const char *isa_str,
 }
 
 /*
+ * Find a profile by prefix (case-insensitive).
+ * The profile name must be followed by end of string or underscore.
+ * Returns the profile and sets *end_ptr to point after the profile name.
+ */
+static RISCVCPUProfile *riscv_find_profile_by_prefix(const char *str,
+                                                      const char **end_ptr)
+{
+    for (int i = 0; riscv_profiles[i] != NULL; i++) {
+        size_t len = strlen(riscv_profiles[i]->name);
+        if (g_ascii_strncasecmp(str, riscv_profiles[i]->name, len) == 0) {
+            char next_char = str[len];
+            if (next_char == '\0' || next_char == '_') {
+                if (end_ptr) {
+                    *end_ptr = str + len;
+                }
+                return riscv_profiles[i];
+            }
+        }
+    }
+    return NULL;
+}
+
+/*
+ * Parse profile string with optional extensions.
+ * Format: <profile-name>[_<extension>]*
+ * Examples: rva23u64, rva23u64_zbkb_zkne
+ */
+static bool riscv_cpu_parse_profile_string(RISCVCPU *cpu, const char *str,
+                                           Error **errp)
+{
+    const char *p;
+    RISCVCPUProfile *profile;
+
+    profile = riscv_find_profile_by_prefix(str, &p);
+    if (profile == NULL) {
+        error_setg(errp, "unknown profile in '%s'", str);
+        return false;
+    }
+
+    /* Check CPU compatibility */
+    if (riscv_cpu_is_vendor(OBJECT(cpu))) {
+        error_setg(errp, "Profile %s is not available for vendor CPUs",
+                   profile->name);
+        return false;
+    }
+    if (riscv_cpu_is_32bit(cpu)) {
+        error_setg(errp, "Profile %s is only available for 64-bit CPUs",
+                   profile->name);
+        return false;
+    }
+
+    /* Enable the profile */
+    profile->user_set = true;
+    riscv_cpu_set_profile(cpu, profile, true);
+
+    /* Parse additional extensions after the profile name */
+    while (*p == '_') {
+        p++;  /* Skip underscore */
+
+        if (*p == '\0') {
+            break;  /* Trailing underscore is ok */
+        }
+
+        /* Find the end of this extension name */
+        const char *ext_start = p;
+        while (*p && *p != '_') {
+            p++;
+        }
+
+        /* Extract extension name */
+        size_t ext_len = p - ext_start;
+        g_autofree char *ext_name = g_strndup(ext_start, ext_len);
+
+        /* Look up the extension */
+        const RISCVIsaExtData *edata = riscv_find_ext_data(ext_name);
+        if (edata == NULL) {
+            error_setg(errp, "unknown extension '%s' in profile string",
+                       ext_name);
+            return false;
+        }
+
+        /* Enable the extension */
+        isa_ext_update_enabled(cpu, edata->ext_enable_offset, true);
+    }
+
+    return true;
+}
+
+/*
  * arch= property handler for ISA configuration.
- * Supports: dump, help, or an ISA string like rv64gc_zba_zbb.
+ * Supports: dump, help, ISA string (rv64gc_zba_zbb),
+ * or profile with optional extensions (rva23u64, rva23u64_zbkb_zkne).
  */
 static void cpu_set_arch(Object *obj, Visitor *v, const char *name,
                          void *opaque, Error **errp)
@@ -1743,13 +1833,17 @@ static void cpu_set_arch(Object *obj, Visitor *v, const char *name,
         cpu->cfg.arch_dump_requested = true;
     } else if (g_strcmp0(value, "help") == 0) {
         riscv_cpu_list_supported_extensions();
+    } else if (riscv_find_profile_by_prefix(value, NULL) != NULL) {
+        /* Parse as profile with optional extensions */
+        riscv_cpu_parse_profile_string(cpu, value, errp);
     } else if (g_ascii_strncasecmp(value, "rv", 2) == 0) {
         /* Parse as ISA string */
         riscv_cpu_parse_isa_string(cpu, value, errp);
     } else {
         error_setg(errp, "unknown arch option '%s'. "
-                   "Supported options: dump, help, or ISA string (e.g., "
-                   "rv64gc_zba_zbb)", value);
+                   "Supported options: dump, help, ISA string (e.g., "
+                   "rv64gc_zba_zbb), or profile (e.g., rva23u64, "
+                   "rva23u64_zbkb)", value);
     }
 }
 
@@ -1761,7 +1855,8 @@ static void riscv_cpu_add_arch_property(Object *obj)
     object_property_set_description(obj, "arch",
         "ISA configuration (write-only). "
         "Use 'help' to list extensions, 'dump' to show current config, "
-        "or provide an ISA string (e.g., rv64gc_zba_zbb).");
+        "provide an ISA string (e.g., rv64gc_zba_zbb), "
+        "or use a profile (e.g., rva23u64).");
 }
 
 /*
