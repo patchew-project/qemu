@@ -51,6 +51,18 @@ static void enable_mte(int tcf)
     }
 }
 
+static void enable_mte_store_only(int tcf)
+{
+    int r = prctl(PR_SET_TAGGED_ADDR_CTRL,
+                  PR_TAGGED_ADDR_ENABLE | PR_MTE_STORE_ONLY | tcf |
+                  (0xfffe << PR_MTE_TAG_SHIFT),
+                  0, 0, 0);
+    if (r < 0) {
+        perror("PR_SET_TAGGED_ADDR_CTRL");
+        exit(2);
+    }
+}
+
 static void * alloc_mte_mem(size_t size) __attribute__((unused));
 static void * alloc_mte_mem(size_t size)
 {
