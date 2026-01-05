@@ -3364,10 +3364,17 @@ static void sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     if (ri->state == ARM_CP_STATE_AA64 && !cpu_isar_feature(aa64_mte, cpu)) {
         if (ri->opc1 == 6) { /* SCTLR_EL3 */
-            value &= ~(SCTLR_ITFSB | SCTLR_TCF | SCTLR_ATA);
+            value &= ~(SCTLR_ITFSB | SCTLR_TCF | SCTLR_ATA | SCTLR_TCSO);
         } else {
             value &= ~(SCTLR_ITFSB | SCTLR_TCF0 | SCTLR_TCF |
-                       SCTLR_ATA0 | SCTLR_ATA);
+                       SCTLR_ATA0 | SCTLR_ATA | SCTLR_TCSO | SCTLR_TCSO0);
+        }
+    } else if (ri->state == ARM_CP_STATE_AA64
+            && !cpu_isar_feature(aa64_mte4, cpu)) { /* mte but not mte4 */
+        if (ri->opc1 == 6) { /* SCTLR_EL3 */
+            value &= ~SCTLR_TCSO;
+        } else {
+            value &= ~(SCTLR_TCSO | SCTLR_TCSO0);
         }
     }
 
