@@ -73,6 +73,66 @@ undocumented; you can get a complete list by running
    riscv/virt
    riscv/xiangshan-kunminghu
 
+RISC-V CPU options
+------------------
+
+RISC-V CPUs support various options to configure ISA extensions and other
+features. These options can be specified using the ``-cpu`` command line
+option.
+
+ISA extension configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Individual ISA extensions can be enabled or disabled using boolean properties::
+
+  $ qemu-system-riscv64 -M virt -cpu rv64,v=true,zba=false
+
+The ``arch`` property
+^^^^^^^^^^^^^^^^^^^^^
+
+The ``arch`` property provides a convenient way to inspect the current ISA
+configuration:
+
+* ``arch=dump``
+
+  Print the current ISA configuration and exit. This shows the full ISA string
+  and the status of all supported extensions::
+
+    $ qemu-system-riscv64 -M virt -cpu rv64,arch=dump
+    $ qemu-riscv64 -cpu rv64,v=true,arch=dump /bin/true
+
+  The dump shows the final configuration after all CPU properties are applied,
+  regardless of where ``arch=dump`` appears in the option list. For example,
+  both of the following commands show the same result with vector extension
+  enabled::
+
+    $ qemu-riscv64 -cpu rv64,v=true,arch=dump /bin/true
+    $ qemu-riscv64 -cpu rv64,arch=dump,v=true /bin/true
+
+Privilege-implied extensions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Some RISC-V extensions cannot be individually enabled or disabled. These
+extensions are automatically enabled based on the privilege specification
+version configured for the CPU. Examples include:
+
+- ``shcounterenw``, ``shgatpa``, ``shtvala``, ``shvsatpa``, ``shvstvala``,
+  ``shvstvecd`` - Enabled when privilege spec 1.12 or later is supported
+- ``ssccptr``, ``sscounterenw``, ``ssstrict``, ``sstvala``, ``sstvecd``,
+  ``ssu64xl`` - Enabled when privilege spec 1.12 or later is supported
+- ``ziccamoa``, ``ziccif``, ``zicclsm``, ``za64rs`` - Enabled when
+  privilege spec 1.12 or later is supported
+
+These extensions appear in the ``arch=dump`` output under "Privilege Implied
+Extensions" section. To control these extensions, use the ``priv_spec``
+property to set the privilege specification version::
+
+  $ qemu-riscv64 -cpu rv64,h=false,priv_spec=v1.11.0,arch=dump /bin/true
+
+Note: Some extensions like H (Hypervisor) require a minimum privilege spec
+version. When lowering the privilege spec, you may need to disable such
+extensions first.
+
 RISC-V CPU firmware
 -------------------
 

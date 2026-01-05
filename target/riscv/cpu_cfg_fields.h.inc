@@ -155,6 +155,9 @@ BOOL_FIELD(misa_w)
 
 BOOL_FIELD(short_isa_string)
 
+/* arch= property flags */
+BOOL_FIELD(arch_dump_requested)
+
 TYPED_FIELD(uint32_t, mvendorid, 0)
 TYPED_FIELD(uint64_t, marchid, 0)
 TYPED_FIELD(uint64_t, mimpid, 0)

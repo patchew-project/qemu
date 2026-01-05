@@ -13,3 +13,7 @@ tests_riscv64_system_thorough = [
   'sifive_u',
   'tuxrun',
 ]
+
+tests_riscv64_linuxuser_quick = [
+  'cpu_arch',
+]

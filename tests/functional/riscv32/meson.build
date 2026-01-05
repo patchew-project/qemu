@@ -8,3 +8,7 @@ tests_riscv32_system_quick = [
 tests_riscv32_system_thorough = [
   'tuxrun',
 ]
+
+tests_riscv32_linuxuser_quick = [
+  'cpu_arch',
+]

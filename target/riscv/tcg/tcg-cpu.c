@@ -1552,6 +1552,37 @@ static void riscv_cpu_add_multiext_prop_array(Object *obj,
 }
 
 /*
+ * arch= property handler for ISA string configuration.
+ * This is a write-only property used to trigger actions like arch=dump.
+ */
+static void cpu_set_arch(Object *obj, Visitor *v, const char *name,
+                         void *opaque, Error **errp)
+{
+    RISCVCPU *cpu = RISCV_CPU(obj);
+    g_autofree char *value = NULL;
+
+    if (!visit_type_str(v, name, &value, errp)) {
+        return;
+    }
+
+    if (g_strcmp0(value, "dump") == 0) {
+        cpu->cfg.arch_dump_requested = true;
+    } else {
+        error_setg(errp, "unknown arch option '%s'. "
+                   "Supported options: dump", value);
+    }
+}
+
+static void riscv_cpu_add_arch_property(Object *obj)
+{
+    object_property_add(obj, "arch", "str",
+                        NULL, cpu_set_arch,
+                        NULL, NULL);
+    object_property_set_description(obj, "arch",
+        "ISA configuration string (write-only). Use 'dump' to print ISA config.");
+}
+
+/*
  * Add CPU properties with user-facing flags.
  *
  * This will overwrite existing env->misa_ext values with the
@@ -1570,6 +1601,8 @@ static void riscv_cpu_add_user_properties(Object *obj)
     riscv_cpu_add_multiext_prop_array(obj, riscv_cpu_experimental_exts);
 
     riscv_cpu_add_profiles(obj);
+
+    riscv_cpu_add_arch_property(obj);
 }
 
 /*

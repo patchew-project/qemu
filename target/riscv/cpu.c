@@ -896,6 +896,129 @@ static void riscv_cpu_satp_mode_finalize(RISCVCPU *cpu, Error **errp)
 }
 #endif
 
+static inline const char *riscv_ext_status_str(bool enabled)
+{
+    return enabled ? "enabled" : "disabled";
+}
+
+/*
+ * Helper function to print multi-letter extension entries for arch=dump.
+ * Does not print section header.
+ */
+static void riscv_cpu_dump_multiext_entries(RISCVCPU *cpu,
+                                            const RISCVCPUMultiExtConfig *exts)
+{
+    for (const RISCVCPUMultiExtConfig *prop = exts;
+         prop && prop->name; prop++) {
+        bool enabled = isa_ext_is_enabled(cpu, prop->offset);
+        qemu_printf("  %-20s  %-8s\n",
+                    prop->name,
+                    riscv_ext_status_str(enabled));
+    }
+}
+
+/*
+ * Helper function to print multi-letter extensions for arch=dump.
+ */
+static void riscv_cpu_dump_multiext(RISCVCPU *cpu, const char *title,
+                                    const RISCVCPUMultiExtConfig *exts)
+{
+    qemu_printf("%s:\n", title);
+    qemu_printf("  %-20s  %-8s\n", "Name", "Status");
+    qemu_printf("  %-20s  %-8s\n", "----", "------");
+
+    riscv_cpu_dump_multiext_entries(cpu, exts);
+    qemu_printf("\n");
+}
+
+/*
+ * Check if an extension offset corresponds to a privilege-implied extension.
+ * These are extensions that map to has_priv_1_11, has_priv_1_12, or
+ * has_priv_1_13 instead of individual ext_* fields.
+ */
+static bool riscv_ext_is_priv_implied(uint32_t offset)
+{
+    return offset == CPU_CFG_OFFSET(has_priv_1_11) ||
+           offset == CPU_CFG_OFFSET(has_priv_1_12) ||
+           offset == CPU_CFG_OFFSET(has_priv_1_13);
+}
+
+/*
+ * Helper function to print privilege-implied extensions for arch=dump.
+ * These are extensions that are automatically enabled based on the
+ * privilege specification version.
+ */
+static void riscv_cpu_dump_priv_implied_exts(RISCVCPU *cpu)
+{
+    qemu_printf("Privilege Implied Extensions:\n");
+    qemu_printf("  %-20s  %-8s\n", "Name", "Status");
+    qemu_printf("  %-20s  %-8s\n", "----", "------");
+
+    for (const RISCVIsaExtData *edata = isa_edata_arr; edata->name; edata++) {
+        if (riscv_ext_is_priv_implied(edata->ext_enable_offset)) {
+            bool enabled = isa_ext_is_enabled(cpu, edata->ext_enable_offset);
+            qemu_printf("  %-20s  %-8s\n",
+                        edata->name,
+                        riscv_ext_status_str(enabled));
+        }
+    }
+    qemu_printf("\n");
+}
+
+/*
+ * Print detailed ISA configuration and exit.
+ * Called when arch=dump is specified.
+ */
+static G_NORETURN void riscv_cpu_dump_isa_config(RISCVCPU *cpu)
+{
+    RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(cpu);
+    CPURISCVState *env = &cpu->env;
+    g_autofree char *isa_str = riscv_isa_string(cpu);
+    int xlen = riscv_cpu_max_xlen(mcc);
+
+    qemu_printf("\n");
+    qemu_printf("RISC-V ISA Configuration (arch=dump)\n");
+    qemu_printf("=====================================\n\n");
+
+    /* Print full ISA string */
+    qemu_printf("Full ISA string: %s\n\n", isa_str);
+
+    /* Print base information */
+    qemu_printf("Base: RV%d\n", xlen);
+    qemu_printf("Privilege spec: %s\n\n", priv_spec_to_str(env->priv_ver));
+
+    /* Print single-letter extensions */
+    qemu_printf("Standard Extensions (single-letter):\n");
+    qemu_printf("  %-20s  %-8s\n", "Name", "Status");
+    qemu_printf("  %-20s  %-8s\n", "----", "------");
+
+    for (int i = 0; misa_bits[i] != 0; i++) {
+        uint32_t bit = misa_bits[i];
+        const char *name = riscv_get_misa_ext_name(bit);
+        bool enabled = env->misa_ext & bit;
+
+        qemu_printf("  %-20s  %-8s\n",
+                    name,
+                    riscv_ext_status_str(enabled));
+    }
+    qemu_printf("\n");
+
+    /* Print multi-letter standard extensions (including named features) */
+    qemu_printf("Standard Extensions (multi-letter):\n");
+    qemu_printf("  %-20s  %-8s\n", "Name", "Status");
+    qemu_printf("  %-20s  %-8s\n", "----", "------");
+    riscv_cpu_dump_multiext_entries(cpu, riscv_cpu_extensions);
+    riscv_cpu_dump_multiext_entries(cpu, riscv_cpu_named_features);
+    qemu_printf("\n");
+
+    riscv_cpu_dump_multiext(cpu, "Vendor Extensions", riscv_cpu_vendor_exts);
+    riscv_cpu_dump_multiext(cpu, "Experimental Extensions",
+                            riscv_cpu_experimental_exts);
+    riscv_cpu_dump_priv_implied_exts(cpu);
+
+    exit(0);
+}
+
 void riscv_cpu_finalize_features(RISCVCPU *cpu, Error **errp)
 {
     Error *local_err = NULL;
@@ -941,6 +1064,11 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         return;
+    }
+
+    /* Check for arch=dump request after all features are finalized */
+    if (cpu->cfg.arch_dump_requested) {
+        riscv_cpu_dump_isa_config(cpu);
     }
 
     riscv_cpu_register_gdb_regs_for_features(cs);
