@@ -896,6 +896,23 @@ static void riscv_cpu_satp_mode_finalize(RISCVCPU *cpu, Error **errp)
 }
 #endif
 
+/*
+ * Helper function to print single-letter extensions for arch=help.
+ */
+static void riscv_cpu_help_misa_exts(void)
+{
+    qemu_printf("Standard Extensions (single-letter):\n");
+
+    for (int i = 0; misa_bits[i] != 0; i++) {
+        uint32_t bit = misa_bits[i];
+        const char *name = riscv_get_misa_ext_name(bit);
+        const char *desc = riscv_get_misa_ext_description(bit);
+
+        qemu_printf("  %-4s  %s\n", name, desc);
+    }
+    qemu_printf("\n");
+}
+
 static inline const char *riscv_ext_status_str(bool enabled)
 {
     return enabled ? "enabled" : "disabled";
@@ -963,6 +980,58 @@ static void riscv_cpu_dump_priv_implied_exts(RISCVCPU *cpu)
         }
     }
     qemu_printf("\n");
+}
+
+/*
+ * Helper function to print multi-letter extension names for arch=help.
+ * Does not print section header.
+ */
+static void riscv_cpu_help_multiext_entries(const RISCVCPUMultiExtConfig *exts)
+{
+    for (const RISCVCPUMultiExtConfig *prop = exts;
+         prop && prop->name; prop++) {
+        qemu_printf("  %s\n", prop->name);
+    }
+}
+
+/*
+ * Helper function to print multi-letter extensions for arch=help.
+ */
+static void riscv_cpu_help_multiext(const char *title,
+                                    const RISCVCPUMultiExtConfig *exts)
+{
+    qemu_printf("%s:\n", title);
+
+    riscv_cpu_help_multiext_entries(exts);
+    qemu_printf("\n");
+}
+
+/*
+ * Print list of supported ISA extensions and exit.
+ * Called when arch=help is specified.
+ */
+G_NORETURN void riscv_cpu_list_supported_extensions(void)
+{
+    qemu_printf("\n");
+    qemu_printf("Supported RISC-V ISA Extensions\n");
+    qemu_printf("================================\n\n");
+
+    riscv_cpu_help_misa_exts();
+
+    /* Print multi-letter standard extensions (including named features) */
+    qemu_printf("Standard Extensions (multi-letter):\n");
+    riscv_cpu_help_multiext_entries(riscv_cpu_extensions);
+    riscv_cpu_help_multiext_entries(riscv_cpu_named_features);
+    qemu_printf("\n");
+
+    riscv_cpu_help_multiext("Vendor Extensions", riscv_cpu_vendor_exts);
+    riscv_cpu_help_multiext("Experimental Extensions",
+                            riscv_cpu_experimental_exts);
+
+    qemu_printf("Use '-cpu <cpu>,<ext>=true' to enable an extension.\n");
+    qemu_printf("Use '-cpu <cpu>,arch=dump' to show current configuration.\n");
+
+    exit(0);
 }
 
 /*

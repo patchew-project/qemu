@@ -90,8 +90,18 @@ Individual ISA extensions can be enabled or disabled using boolean properties::
 The ``arch`` property
 ^^^^^^^^^^^^^^^^^^^^^
 
-The ``arch`` property provides a convenient way to inspect the current ISA
-configuration:
+The ``arch`` property provides convenient ways to discover and inspect ISA
+extensions:
+
+* ``arch=help``
+
+  Print a list of all supported ISA extensions and exit::
+
+    $ qemu-system-riscv64 -M virt -cpu rv64,arch=help
+    $ qemu-riscv64 -cpu rv64,arch=help /bin/true
+
+  This lists standard single-letter extensions (with descriptions), multi-letter
+  extensions, vendor extensions, and experimental extensions.
 
 * ``arch=dump``
 

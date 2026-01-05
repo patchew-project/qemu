@@ -986,4 +986,5 @@ const char *satp_mode_str(uint8_t satp_mode, bool is_32_bit);
 extern const RISCVCSR th_csr_list[];
 
 const char *priv_spec_to_str(int priv_version);
+G_NORETURN void riscv_cpu_list_supported_extensions(void);
 #endif /* RISCV_CPU_H */

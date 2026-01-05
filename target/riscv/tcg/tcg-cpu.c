@@ -1567,9 +1567,11 @@ static void cpu_set_arch(Object *obj, Visitor *v, const char *name,
 
     if (g_strcmp0(value, "dump") == 0) {
         cpu->cfg.arch_dump_requested = true;
+    } else if (g_strcmp0(value, "help") == 0) {
+        riscv_cpu_list_supported_extensions();
     } else {
         error_setg(errp, "unknown arch option '%s'. "
-                   "Supported options: dump", value);
+                   "Supported options: dump, help", value);
     }
 }
 
@@ -1579,7 +1581,8 @@ static void riscv_cpu_add_arch_property(Object *obj)
                         NULL, cpu_set_arch,
                         NULL, NULL);
     object_property_set_description(obj, "arch",
-        "ISA configuration string (write-only). Use 'dump' to print ISA config.");
+        "ISA configuration (write-only). "
+        "Use 'help' to list extensions, 'dump' to show current config.");
 }
 
 /*

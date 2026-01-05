@@ -66,6 +66,31 @@ class RiscvCpuArch(QemuUserTest):
         self.assertRegex(res1.stdout, r'v\s+enabled')
         self.assertRegex(res2.stdout, r'v\s+enabled')
 
+    def test_arch_help(self):
+        """Test arch=help prints list of supported extensions and exits"""
+        res = self.run_qemu('rv64,arch=help')
+
+        self.assertEqual(res.returncode, 0,
+                         f"arch=help should exit with 0, got {res.returncode}")
+
+        # Check for expected output sections
+        self.assertIn('Supported RISC-V ISA Extensions', res.stdout)
+        self.assertIn('Standard Extensions (single-letter):', res.stdout)
+        self.assertIn('Standard Extensions (multi-letter):', res.stdout)
+        self.assertIn('Vendor Extensions:', res.stdout)
+
+    def test_arch_help_shows_extensions(self):
+        """Test arch=help lists common extensions"""
+        res = self.run_qemu('rv64,arch=help')
+
+        # Check single-letter extensions with descriptions
+        self.assertIn('Base integer instruction set', res.stdout)
+        self.assertIn('Vector operations', res.stdout)
+
+        # Check multi-letter extensions are listed
+        self.assertIn('zba', res.stdout)
+        self.assertIn('zbb', res.stdout)
+
     def test_arch_invalid_option(self):
         """Test invalid arch= option shows error with supported options"""
         res = self.run_qemu('rv64,arch=invalid')
