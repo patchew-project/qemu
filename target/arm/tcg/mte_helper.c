@@ -310,9 +310,14 @@ uint64_t HELPER(ldg)(CPUARMState *env, uint64_t ptr, uint64_t xt)
     mem = allocation_tag_mem(env, mmu_idx, ptr, MMU_DATA_LOAD, 1,
                              MMU_DATA_LOAD, GETPC());
 
-    /* Load if page supports tags. */
+    /* Load if page supports tags. Set to canonical value if MTX is set. */
     if (mem) {
-        rtag = load_tag1(ptr, mem);
+        uint64_t bit55 = extract64(ptr, 55, 1);
+        if (mtx_check(env, bit55)) {
+            rtag = 0xF * bit55;
+        } else {
+            rtag = load_tag1(ptr, mem);
+        }
     }
 
     return address_with_allocation_tag(xt, rtag);
@@ -463,8 +468,10 @@ uint64_t HELPER(ldgm)(CPUARMState *env, uint64_t ptr)
     void *tag_mem;
     uint64_t ret;
     int shift;
+    bool bit55;
 
     ptr = QEMU_ALIGN_DOWN(ptr, gm_bs_bytes);
+    bit55 = extract64(ptr, 55, 1);
 
     /* Trap if accessing an invalid page.  */
     tag_mem = allocation_tag_mem(env, mmu_idx, ptr, MMU_DATA_LOAD,
@@ -490,19 +497,35 @@ uint64_t HELPER(ldgm)(CPUARMState *env, uint64_t ptr)
     switch (gm_bs) {
     case 3:
         /* 32 bytes -> 2 tags -> 8 result bits */
-        ret = *(uint8_t *)tag_mem;
+        if (mtx_check(env, bit55)) {
+            ret = -(uint8_t)bit55;
+        } else {
+            ret = *(uint8_t *)tag_mem;
+        }
         break;
     case 4:
         /* 64 bytes -> 4 tags -> 16 result bits */
-        ret = cpu_to_le16(*(uint16_t *)tag_mem);
+        if (mtx_check(env, bit55)) {
+            ret = -(uint16_t)bit55;
+        } else {
+            ret = cpu_to_le16(*(uint16_t *)tag_mem);
+        }
         break;
     case 5:
         /* 128 bytes -> 8 tags -> 32 result bits */
-        ret = cpu_to_le32(*(uint32_t *)tag_mem);
+        if (mtx_check(env, bit55)) {
+            ret = -(uint32_t)bit55;
+        } else {
+            ret = cpu_to_le32(*(uint32_t *)tag_mem);
+        }
         break;
     case 6:
         /* 256 bytes -> 16 tags -> 64 result bits */
-        return cpu_to_le64(*(uint64_t *)tag_mem);
+        if (mtx_check(env, bit55)) {
+            return -(uint64_t)bit55;
+        } else {
+            return cpu_to_le64(*(uint64_t *)tag_mem);
+        }
     default:
         /*
          * CPU configured with unsupported/invalid gm blocksize.
