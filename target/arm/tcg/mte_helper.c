@@ -825,6 +825,14 @@ static int mte_probe_int(CPUARMState *env, uint32_t desc, uint64_t ptr,
         return 1;
     }
 
+    /*
+     * If mtx is enabled, then the access is MemTag_CanonicallyTagged,
+     * otherwise it is MemTag_AllocationTagged. See AArch64.CheckTag.
+     */
+    if (mtx_check(env, bit55)) {
+        return tag_is_canonical(ptr_tag, bit55);
+    }
+
     mmu_idx = FIELD_EX32(desc, MTEDESC, MIDX);
     type = FIELD_EX32(desc, MTEDESC, WRITE) ? MMU_DATA_STORE : MMU_DATA_LOAD;
     sizem1 = FIELD_EX32(desc, MTEDESC, SIZEM1);
@@ -960,6 +968,18 @@ uint64_t HELPER(mte_check_zva)(CPUARMState *env, uint32_t desc, uint64_t ptr)
     if (tcma_check(desc, bit55, ptr_tag)) {
         goto done;
     }
+
+    /*
+     * If mtx is enabled, then the access is MemTag_CanonicallyTagged,
+     * otherwise it is MemTag_AllocationTagged. See AArch64.CheckTag.
+     */
+    if (mtx_check(env, bit55)) {
+        if (tag_is_canonical(ptr_tag, bit55)) {
+            goto done;
+        }
+        mte_check_fail(env, desc, ptr, ra);
+    }
+
 
     /*
      * In arm_cpu_realizefn, we asserted that dcz > LOG2_TAG_GRANULE+1,

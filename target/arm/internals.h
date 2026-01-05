@@ -1633,6 +1633,35 @@ static inline bool tcma_check(uint32_t desc, int bit55, int ptr_tag)
     return tcma && match;
 }
 
+/* Return whether or not the second nibble of a VA matches bit 55.  */
+static inline bool tag_is_canonical(int ptr_tag, int bit55)
+{
+    return ((ptr_tag + bit55) & 0xf) == 0;
+}
+
+/* Return true if mtx bits mean that the access is canonically checked.  */
+static inline bool mtx_check(CPUARMState *env, bool bit55)
+{
+    int mmu_idx;
+    uint64_t tcr, mtx_bit;
+
+    /* If mte4 is not implemented, then mtx is by definition not enabled */
+    if (!cpu_isar_feature(aa64_mte4, env_archcpu(env))) {
+        return false;
+    }
+
+    mmu_idx = arm_mmu_idx_el(env, arm_current_el(env));
+    tcr = regime_tcr(env, mmu_idx);
+
+    /*
+     * In two-range regimes, mtx is governed by bit 60 or 61 of TCR, and in
+     * one-range regimes, bit 33 is used.
+     */
+    mtx_bit = regime_has_2_ranges(mmu_idx) ? 60 + bit55 : 33;
+
+    return extract64(tcr, mtx_bit, 1);
+}
+
 /*
  * For TBI, ideally, we would do nothing.  Proper behaviour on fault is
  * for the tag to be present in the FAR_ELx register.  But for user-only
