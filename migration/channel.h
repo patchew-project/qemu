@@ -20,6 +20,7 @@
 
 /* Migration channel types */
 enum {
+    CH_NONE,
     CH_MAIN,
     CH_MULTIFD,
     CH_POSTCOPY
