@@ -57,6 +57,28 @@ static int choose_nonexcluded_tag(int tag, int offset, uint16_t exclude)
     return tag;
 }
 
+#ifdef CONFIG_USER_ONLY
+#else
+/*
+ * Constructs S2 Permission Fault as described in ARM ARM "Stage 2 Memory
+ * Tagging Attributes".
+ */
+static void mte_perm_check_fail(CPUARMState *env, uint64_t dirty_ptr,
+                                uintptr_t ra, bool is_write)
+{
+    uint64_t syn;
+
+    env->exception.vaddress = dirty_ptr;
+
+    syn = syn_data_abort_no_iss(0, 0, 0, 0, 0, is_write, 0);
+
+    syn |= BIT_ULL(42); /* TnD is bit 42 */
+
+    raise_exception_ra(env, EXCP_DATA_ABORT, syn, 2, ra);
+    g_assert_not_reached();
+}
+#endif
+
 uint8_t *allocation_tag_mem_probe(CPUARMState *env, int ptr_mmu_idx,
                                   uint64_t ptr, MMUAccessType ptr_access,
                                   int ptr_size, MMUAccessType tag_access,
@@ -115,6 +137,15 @@ uint8_t *allocation_tag_mem_probe(CPUARMState *env, int ptr_mmu_idx,
         return NULL;
     }
     assert(!(flags & TLB_INVALID_MASK));
+
+    /*
+     * If the virtual page MemAttr == Tagged NoTagAccess, throw S2 permission
+     * fault (conditional on mteperm being implemented and RA != 0).
+     */
+    if (ra && cpu_isar_feature(aa64_mteperm, env_archcpu(env))
+        && full->extra.arm.pte_attrs == 0xe0) {
+        mte_perm_check_fail(env, ptr, ra, tag_access == 1);
+    }
 
     /* If the virtual page MemAttr != Tagged, access unchecked. */
     if (full->extra.arm.pte_attrs != 0xf0) {

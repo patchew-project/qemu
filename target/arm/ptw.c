@@ -3393,7 +3393,7 @@ static ARMCacheAttrs combine_cacheattrs(uint64_t hcr,
                                         ARMCacheAttrs s1, ARMCacheAttrs s2)
 {
     ARMCacheAttrs ret;
-    bool tagged = false;
+    bool tagged, notagaccess = false;
 
     assert(!s1.is_s2_format);
     ret.is_s2_format = false;
@@ -3401,6 +3401,18 @@ static ARMCacheAttrs combine_cacheattrs(uint64_t hcr,
     if (s1.attrs == 0xf0) {
         tagged = true;
         s1.attrs = 0xff;
+    }
+
+    if (hcr & HCR_FWB) {
+        if (s2.attrs >= 0xe) {
+            notagaccess = true;
+            s2.attrs = 0x7;
+        }
+    } else {
+        if (s2.attrs == 0x4) {
+            notagaccess = true;
+            s2.attrs = 0xf;
+        }
     }
 
     /* Combine shareability attributes (table D4-43) */
@@ -3437,6 +3449,9 @@ static ARMCacheAttrs combine_cacheattrs(uint64_t hcr,
     /* TODO: CombineS1S2Desc does not consider transient, only WB, RWA. */
     if (tagged && ret.attrs == 0xff) {
         ret.attrs = 0xf0;
+        if (notagaccess) {
+            ret.attrs = 0xe0;
+        }
     }
 
     return ret;
