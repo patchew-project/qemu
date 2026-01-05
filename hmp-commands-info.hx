@@ -294,6 +294,7 @@ SRST
     being coalesced.
 ERST
 
+#if defined(CONFIG_KVM)
     {
         .name       = "kvm",
         .args_type  = "",
@@ -301,6 +302,7 @@ ERST
         .help       = "show KVM information",
         .cmd        = hmp_info_kvm,
     },
+#endif
 
 SRST
   ``info kvm``
