@@ -68,6 +68,27 @@ class RiscvCpuArch(QemuUserTest):
         self.assertIn("unknown arch option 'invalid'", res.stderr)
         self.assertIn("Supported options:", res.stderr)
 
+    def test_arch_isa_string_basic(self):
+        """Test arch=ISA-STRING enables specified extensions"""
+        res = self.run_qemu('rv32,arch=rv32gc_zba_zbb,arch=dump')
+
+        self.assertEqual(res.returncode, 0)
+
+        # Check single-letter extensions from 'gc'
+        self.assertRegex(res.stdout, r'g\s+enabled')
+        self.assertRegex(res.stdout, r'c\s+enabled')
+
+        # Check multi-letter extensions
+        self.assertRegex(res.stdout, r'zba\s+enabled')
+        self.assertRegex(res.stdout, r'zbb\s+enabled')
+
+    def test_arch_isa_string_xlen_mismatch(self):
+        """Test arch=ISA-STRING rejects XLEN mismatch"""
+        res = self.run_qemu('rv32,arch=rv64i')
+
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("RV64 but CPU is RV32", res.stderr)
+
 
 if __name__ == '__main__':
     QemuUserTest.main()

@@ -119,6 +119,54 @@ extensions:
     $ qemu-riscv64 -cpu rv64,v=true,arch=dump /bin/true
     $ qemu-riscv64 -cpu rv64,arch=dump,v=true /bin/true
 
+* ``arch=<ISA-STRING>``
+
+  Configure extensions using a standard RISC-V ISA string. The format is
+  ``rv{32|64}[single-letter-exts][_multi-letter-ext]*``. Examples::
+
+    $ qemu-riscv64 -cpu rv64,arch=rv64gc_zba_zbb /bin/true
+    $ qemu-riscv64 -cpu rv64,arch=rv64imafdc_zba_zbb_zbc /bin/true
+
+  Single-letter extensions are specified immediately after the base ISA
+  (e.g., ``rv64gc`` enables G and C extensions). Multi-letter extensions
+  are separated by underscores.
+
+  Special extensions:
+
+  - ``g`` expands to ``imafd_zicsr_zifencei`` (General purpose)
+
+  The ISA string must match the CPU's XLEN. For example, ``arch=rv32i`` will
+  fail on a 64-bit CPU.
+
+  **Important behavioral notes:**
+
+  - When ``arch=<ISA-STRING>`` is specified, all extensions are first reset
+    to disabled, then only the extensions in the ISA string are enabled.
+    For example, ``-cpu rv64,zba=true,arch=rv64gc`` will have ``zba`` disabled
+    because ``arch=`` resets extensions before applying the ISA string.
+
+  - Extensions can be specified in any order and can be repeated. For example,
+    ``rv64gc_zba_zbb`` and ``rv64gc_zbb_zba`` produce the same result.
+
+  - Single-letter extensions can appear anywhere in the string separated by
+    underscores. For example, ``rv64im_zba_afc`` is equivalent to
+    ``rv64imafc_zba``.
+
+  - The individual extension properties (e.g., ``zba=true``) still work and
+    can be combined with ``arch=``. Properties specified after ``arch=`` will
+    override the ISA string settings::
+
+      $ qemu-riscv64 -cpu rv64,arch=rv64gc,zba=true /bin/true
+
+  - Some extensions are controlled by the privilege specification version
+    and cannot be enabled or disabled via ``arch=``. See the
+    "Privilege-implied extensions" section below for details.
+
+  You can combine ``arch=<ISA-STRING>`` with ``arch=dump`` to verify the
+  configuration::
+
+    $ qemu-riscv64 -cpu rv64,arch=rv64gc_zba_zbb,arch=dump /bin/true
+
 Privilege-implied extensions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

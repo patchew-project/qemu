@@ -100,6 +100,172 @@ class RiscvCpuArch(QemuUserTest):
         self.assertIn("unknown arch option 'invalid'", res.stderr)
         self.assertIn("Supported options:", res.stderr)
 
+    def test_arch_isa_string_basic(self):
+        """Test arch=ISA-STRING enables specified extensions"""
+        res = self.run_qemu('rv64,arch=rv64gc_zba_zbb,arch=dump')
+
+        self.assertEqual(res.returncode, 0)
+
+        # Check single-letter extensions from 'gc' (g = imafd_zicsr_zifencei)
+        self.assertRegex(res.stdout, r'g\s+enabled')
+        self.assertRegex(res.stdout, r'c\s+enabled')
+
+        # Check multi-letter extensions
+        self.assertRegex(res.stdout, r'zba\s+enabled')
+        self.assertRegex(res.stdout, r'zbb\s+enabled')
+
+    def test_arch_isa_string_g_expands(self):
+        """Test arch=rv64g enables IMAFD + Zicsr + Zifencei"""
+        res = self.run_qemu('rv64,arch=rv64g,arch=dump')
+
+        self.assertEqual(res.returncode, 0)
+
+        # G expands to IMAFD_Zicsr_Zifencei
+        self.assertRegex(res.stdout, r'i\s+enabled')
+        self.assertRegex(res.stdout, r'm\s+enabled')
+        self.assertRegex(res.stdout, r'a\s+enabled')
+        self.assertRegex(res.stdout, r'f\s+enabled')
+        self.assertRegex(res.stdout, r'd\s+enabled')
+        self.assertRegex(res.stdout, r'zicsr\s+enabled')
+        self.assertRegex(res.stdout, r'zifencei\s+enabled')
+
+    def test_arch_isa_string_b_expands(self):
+        """Test arch=rv64ib enables Zba + Zbb + Zbs"""
+        res = self.run_qemu('rv64,arch=rv64ib,arch=dump')
+
+        self.assertEqual(res.returncode, 0)
+
+        # B expands to Zba_Zbb_Zbs
+        self.assertRegex(res.stdout, r'b\s+enabled')
+
+    def test_arch_isa_string_flexible_order(self):
+        """Test extensions can be in any order"""
+        # Both should produce equivalent results
+        res1 = self.run_qemu('rv64,arch=rv64gc_zba_zbb,arch=dump')
+        res2 = self.run_qemu('rv64,arch=rv64gc_zbb_zba,arch=dump')
+
+        self.assertEqual(res1.returncode, 0)
+        self.assertEqual(res2.returncode, 0)
+        self.assertRegex(res1.stdout, r'zba\s+enabled')
+        self.assertRegex(res1.stdout, r'zbb\s+enabled')
+        self.assertRegex(res2.stdout, r'zba\s+enabled')
+        self.assertRegex(res2.stdout, r'zbb\s+enabled')
+
+    def test_arch_isa_string_mixed_single_multi(self):
+        """Test single-letter extensions can appear after underscores"""
+        # rv64im_zba_afc should be equivalent to rv64imafc_zba
+        res = self.run_qemu('rv64,arch=rv64im_zba_afc,arch=dump')
+
+        self.assertEqual(res.returncode, 0)
+        self.assertRegex(res.stdout, r'\bi\s+enabled')
+        self.assertRegex(res.stdout, r'm\s+enabled')
+        self.assertRegex(res.stdout, r'a\s+enabled')
+        self.assertRegex(res.stdout, r'f\s+enabled')
+        self.assertRegex(res.stdout, r'c\s+enabled')
+        self.assertRegex(res.stdout, r'zba\s+enabled')
+
+    def test_arch_isa_string_no_underscore_before_multi(self):
+        """Test multi-letter extension can follow single-letter directly"""
+        # rv64imazba should be equivalent to rv64ima_zba
+        res1 = self.run_qemu('rv64,arch=rv64imazba,arch=dump')
+        res2 = self.run_qemu('rv64,arch=rv64ima_zba,arch=dump')
+
+        self.assertEqual(res1.returncode, 0)
+        self.assertEqual(res2.returncode, 0)
+
+        # Both should have ima and zba enabled
+        for res in [res1, res2]:
+            self.assertRegex(res.stdout, r'\bi\s+enabled')
+            self.assertRegex(res.stdout, r'm\s+enabled')
+            self.assertRegex(res.stdout, r'a\s+enabled')
+            self.assertRegex(res.stdout, r'zba\s+enabled')
+
+    def test_arch_isa_string_repeated_extension(self):
+        """Test extensions can be repeated"""
+        res = self.run_qemu('rv64,arch=rv64gc_zba_zba,arch=dump')
+
+        self.assertEqual(res.returncode, 0)
+        self.assertRegex(res.stdout, r'zba\s+enabled')
+
+    def test_arch_isa_string_resets_extensions(self):
+        """Test arch= resets all extensions first"""
+        # zba=true before arch= should be reset
+        res = self.run_qemu('rv64,zba=true,arch=rv64gc,arch=dump')
+
+        self.assertEqual(res.returncode, 0)
+        self.assertRegex(res.stdout, r'zba\s+disabled')
+
+    def test_arch_combined_with_property(self):
+        """Test arch= can be combined with individual properties"""
+        # arch=rv64gc,zba=true should enable zba
+        res = self.run_qemu('rv64,arch=rv64gc,zba=true,arch=dump')
+
+        self.assertEqual(res.returncode, 0)
+        self.assertRegex(res.stdout, r'zba\s+enabled')
+
+    def test_arch_isa_string_xlen_mismatch(self):
+        """Test arch=ISA-STRING rejects XLEN mismatch"""
+        res = self.run_qemu('rv64,arch=rv32i')
+
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("RV32 but CPU is RV64", res.stderr)
+
+    def test_arch_isa_string_unknown_extension(self):
+        """Test arch=ISA-STRING rejects unknown extension"""
+        # Unknown extension after valid single-letters (ix -> i + x)
+        res = self.run_qemu('rv64,arch=rv64ix')
+
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("unknown extension 'x'", res.stderr)
+
+        # Unknown multi-letter extension after underscore
+        res = self.run_qemu('rv64,arch=rv64i_xyzfoo')
+
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("unknown extension 'xyzfoo'", res.stderr)
+
+    def test_arch_isa_string_first_ext_validation(self):
+        """Test arch=ISA-STRING requires first extension to be i, e, or g"""
+        # First extension must be i, e, or g
+        res = self.run_qemu('rv64,arch=rv64m')
+
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("first extension after rv64 must be 'i', 'e', or 'g'",
+                      res.stderr)
+
+    def test_arch_isa_string_base_ext_only_first(self):
+        """Test i, e, g can only appear as the first extension"""
+        # 'e' cannot appear after other extensions
+        res = self.run_qemu('rv64,arch=rv64imae')
+
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("'e' must be the first extension", res.stderr)
+
+        # 'g' cannot appear after 'i'
+        res = self.run_qemu('rv64,arch=rv64ig')
+
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("'g' must be the first extension", res.stderr)
+
+        # 'i' cannot appear after underscore
+        res = self.run_qemu('rv64,arch=rv64g_i')
+
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("'i' must be the first extension", res.stderr)
+
+    def test_arch_isa_string_underscore_separated_single(self):
+        """Test single-letter extensions can be separated by underscores"""
+        # rv64i_m_a_f_d_c should be equivalent to rv64imafdc
+        res = self.run_qemu('rv64,arch=rv64i_m_a_f_d_c,arch=dump')
+
+        self.assertEqual(res.returncode, 0)
+        self.assertRegex(res.stdout, r'\bi\s+enabled')
+        self.assertRegex(res.stdout, r'm\s+enabled')
+        self.assertRegex(res.stdout, r'a\s+enabled')
+        self.assertRegex(res.stdout, r'f\s+enabled')
+        self.assertRegex(res.stdout, r'd\s+enabled')
+        self.assertRegex(res.stdout, r'c\s+enabled')
+
 
 if __name__ == '__main__':
     QemuUserTest.main()

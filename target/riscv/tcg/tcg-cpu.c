@@ -1552,8 +1552,182 @@ static void riscv_cpu_add_multiext_prop_array(Object *obj,
 }
 
 /*
- * arch= property handler for ISA string configuration.
- * This is a write-only property used to trigger actions like arch=dump.
+ * Get MISA bit from single-letter extension name.
+ * Returns 0 if not found.
+ */
+static uint32_t riscv_get_misa_bit_from_name(char ext_char)
+{
+    for (int i = 0; misa_bits[i] != 0; i++) {
+        uint32_t bit = misa_bits[i];
+        const char *name = riscv_get_misa_ext_name(bit);
+
+        if (name && name[0] == ext_char && name[1] == '\0') {
+            return bit;
+        }
+    }
+    return 0;
+}
+
+/*
+ * Find multi-letter extension data by name.
+ * Returns NULL if not found.
+ */
+static const RISCVIsaExtData *riscv_find_ext_data(const char *name)
+{
+    for (const RISCVIsaExtData *edata = isa_edata_arr; edata->name; edata++) {
+        if (g_ascii_strcasecmp(edata->name, name) == 0) {
+            return edata;
+        }
+    }
+    return NULL;
+}
+
+/*
+ * Disable all ISA extensions to prepare for ISA string configuration.
+ */
+static void riscv_cpu_disable_all_extensions(RISCVCPU *cpu)
+{
+    /* Disable all MISA extensions */
+    for (int i = 0; misa_bits[i] != 0; i++) {
+        riscv_cpu_write_misa_bit(cpu, misa_bits[i], false);
+    }
+
+    /* Disable all multi-letter extensions */
+    for (const RISCVIsaExtData *edata = isa_edata_arr; edata->name; edata++) {
+        isa_ext_update_enabled(cpu, edata->ext_enable_offset, false);
+    }
+}
+
+/*
+ * Parse ISA string and configure CPU extensions.
+ * Format: rv{32|64}[single-letter-exts][_multi-letter-ext]*
+ * Examples: rv64gc, rv64imafdc_zba_zbb, rv32i
+ *
+ * This first disables all extensions, then enables only those specified
+ * in the ISA string.
+ */
+static bool riscv_cpu_parse_isa_string(RISCVCPU *cpu, const char *isa_str,
+                                       Error **errp)
+{
+    RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(cpu);
+    int xlen = riscv_cpu_max_xlen(mcc);
+    const char *p = isa_str;
+    int expected_xlen;
+
+    /* Parse rv32/rv64 prefix */
+    if (g_ascii_strncasecmp(p, "rv32", 4) == 0) {
+        expected_xlen = 32;
+        p += 4;
+    } else if (g_ascii_strncasecmp(p, "rv64", 4) == 0) {
+        expected_xlen = 64;
+        p += 4;
+    } else {
+        error_setg(errp, "ISA string must start with rv32 or rv64");
+        return false;
+    }
+
+    /* Verify XLEN matches the CPU type */
+    if (expected_xlen != xlen) {
+        error_setg(errp, "ISA string specifies RV%d but CPU is RV%d",
+                   expected_xlen, xlen);
+        return false;
+    }
+
+    /* First extension must be i, e, or g */
+    char first_ext = g_ascii_tolower(*p);
+    if (first_ext != 'i' && first_ext != 'e' && first_ext != 'g') {
+        error_setg(errp, "first extension after rv%d must be 'i', 'e', or 'g'",
+                   expected_xlen);
+        return false;
+    }
+
+    /* Disable all extensions first, then enable only those in ISA string */
+    riscv_cpu_disable_all_extensions(cpu);
+
+    /*
+     * Parse extensions. Both single-letter and multi-letter extensions
+     * can be separated by underscores (e.g., rv64i_m_a_f_d_c_zba_zbb).
+     * Single-letter extensions can also be concatenated (e.g., rv64imafdc).
+     */
+    bool is_first_ext = true;
+    while (*p) {
+        if (*p == '_') {
+            p++;  /* Skip underscore */
+            if (*p == '\0') {
+                break;  /* Trailing underscore is ok */
+            }
+        }
+
+        /* Find the end of this extension name */
+        const char *ext_start = p;
+        while (*p && *p != '_') {
+            p++;
+        }
+
+        /* Extract extension name */
+        size_t ext_len = p - ext_start;
+        g_autofree char *ext_name = g_strndup(ext_start, ext_len);
+
+        /*
+         * Parse single-letter extensions at the beginning of the group.
+         * Single-letter extensions can be followed directly by a multi-letter
+         * extension without underscore (e.g., "imazba" = "ima" + "zba").
+         */
+        size_t single_count = 0;
+        for (size_t i = 0; i < ext_len; i++) {
+            char c = g_ascii_tolower(ext_name[i]);
+            if (riscv_get_misa_bit_from_name(c) == 0) {
+                break;
+            }
+            single_count++;
+        }
+
+        /* Process single-letter extensions */
+        for (size_t i = 0; i < single_count; i++) {
+            char ext_char = g_ascii_tolower(ext_name[i]);
+
+            /*
+             * 'i', 'e', 'g' can only appear as the first extension.
+             * They define the base ISA and cannot be specified elsewhere.
+             */
+            if (ext_char == 'i' || ext_char == 'e' || ext_char == 'g') {
+                if (!is_first_ext) {
+                    error_setg(errp, "'%c' must be the first extension in ISA "
+                               "string", ext_char);
+                    return false;
+                }
+            }
+
+            uint32_t bit = riscv_get_misa_bit_from_name(ext_char);
+            riscv_cpu_write_misa_bit(cpu, bit, true);
+            is_first_ext = false;
+        }
+
+        /* If entire group was single-letter extensions, we're done */
+        if (single_count == ext_len) {
+            continue;
+        }
+
+        /* Process the remaining multi-letter extension */
+        const char *multi_ext = ext_name + single_count;
+
+        /* Look up the extension */
+        const RISCVIsaExtData *edata = riscv_find_ext_data(multi_ext);
+        if (edata == NULL) {
+            error_setg(errp, "unknown extension '%s' in ISA string", multi_ext);
+            return false;
+        }
+
+        /* Enable the extension */
+        isa_ext_update_enabled(cpu, edata->ext_enable_offset, true);
+    }
+
+    return true;
+}
+
+/*
+ * arch= property handler for ISA configuration.
+ * Supports: dump, help, or an ISA string like rv64gc_zba_zbb.
  */
 static void cpu_set_arch(Object *obj, Visitor *v, const char *name,
                          void *opaque, Error **errp)
@@ -1569,9 +1743,13 @@ static void cpu_set_arch(Object *obj, Visitor *v, const char *name,
         cpu->cfg.arch_dump_requested = true;
     } else if (g_strcmp0(value, "help") == 0) {
         riscv_cpu_list_supported_extensions();
+    } else if (g_ascii_strncasecmp(value, "rv", 2) == 0) {
+        /* Parse as ISA string */
+        riscv_cpu_parse_isa_string(cpu, value, errp);
     } else {
         error_setg(errp, "unknown arch option '%s'. "
-                   "Supported options: dump, help", value);
+                   "Supported options: dump, help, or ISA string (e.g., "
+                   "rv64gc_zba_zbb)", value);
     }
 }
 
@@ -1582,7 +1760,8 @@ static void riscv_cpu_add_arch_property(Object *obj)
                         NULL, NULL);
     object_property_set_description(obj, "arch",
         "ISA configuration (write-only). "
-        "Use 'help' to list extensions, 'dump' to show current config.");
+        "Use 'help' to list extensions, 'dump' to show current config, "
+        "or provide an ISA string (e.g., rv64gc_zba_zbb).");
 }
 
 /*
