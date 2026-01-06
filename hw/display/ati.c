@@ -460,7 +460,14 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
         val = s->regs.dst_y;
         break;
     case DP_GUI_MASTER_CNTL:
-        val = s->regs.dp_gui_master_cntl;
+        val = s->regs.dp_gui_master_cntl |
+              (s->regs.dp_brush_datatype << 4) |
+              (s->regs.dp_dst_datatype << 8) |
+              (s->regs.dp_src_datatype << 12) |
+              (s->regs.byte_pix_order << 14) |
+              (s->regs.conversion_temp << 15) |
+              (s->regs.dp_rop3 << 16) |
+              (s->regs.dp_src_source << 24);
         break;
     case SRC_OFFSET:
         val = s->regs.src_offset;
@@ -487,10 +494,15 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
         val = s->regs.dp_cntl;
         break;
     case DP_DATATYPE:
-        val = s->regs.dp_datatype;
+        val = (s->regs.dp_dst_datatype) |
+              (s->regs.dp_brush_datatype << 8) |
+              (s->regs.dp_src_datatype << 16) |
+              (s->regs.host_big_endian_en << 29) |
+              (s->regs.byte_pix_order << 30) |
+              (s->regs.conversion_temp << 31);
         break;
     case DP_MIX:
-        val = s->regs.dp_mix;
+        val = (s->regs.dp_rop3 << 16) | (s->regs.dp_src_source << 8);
         break;
     case DP_WRITE_MASK:
         val = s->regs.dp_write_mask;
@@ -858,10 +870,17 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         ati_2d_blt(s);
         break;
     case DP_GUI_MASTER_CNTL:
+        /* Mask out fields that are stored independently */
         s->regs.dp_gui_master_cntl = data & 0xf800000f;
-        s->regs.dp_datatype = (data & 0x0f00) >> 8 | (data & 0x30f0) << 4 |
-                              (data & 0x4000) << 16;
-        s->regs.dp_mix = (data & GMC_ROP3_MASK) | (data & 0x7000000) >> 16;
+        /* DP_DATATYPE fields */
+        s->regs.dp_brush_datatype = (data & GMC_BRUSH_DATATYPE_MASK) >> 4;
+        s->regs.dp_dst_datatype = (data & GMC_DST_DATATYPE_MASK) >> 8;
+        s->regs.dp_src_datatype = (data & GMC_SRC_DATATYPE_MASK) >> 12;
+        s->regs.byte_pix_order = (data & GMC_BYTE_PIX_ORDER) >> 14;
+        s->regs.conversion_temp = (data & GMC_CONVERSION_TEMP) >> 15;
+        /* DP_MIX fields */
+        s->regs.dp_rop3 = (data & GMC_ROP3_MASK) >> 16;
+        s->regs.dp_src_source = (data & GMC_SRC_SOURCE_MASK) >> 24;
         break;
     case DST_WIDTH_X:
         s->regs.dst_x = data & 0x3fff;
@@ -910,10 +929,16 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         s->regs.dp_cntl = data;
         break;
     case DP_DATATYPE:
-        s->regs.dp_datatype = data & 0xe0070f0f;
+        s->regs.dp_dst_datatype = (data & DP_DATATYPE_DST_DATATYPE_MASK);
+        s->regs.dp_brush_datatype = (data & DP_DATATYPE_BRUSH_DATATYPE_MASK) >> 8;
+        s->regs.dp_src_datatype = (data & DP_DATATYPE_SRC_DATATYPE_MASK) >> 16;
+        s->regs.host_big_endian_en = (data & DP_DATATYPE_HOST_BE_EN) >> 29;
+        s->regs.byte_pix_order = (data & DP_DATATYPE_BYTE_PIX_ORDER) >> 30;
+        s->regs.conversion_temp = (data & DP_DATATYPE_CONVERSION_TEMP) >> 31;
         break;
     case DP_MIX:
-        s->regs.dp_mix = data & 0x00ff0700;
+        s->regs.dp_src_source = (data & DP_MIX_SRC_SOURCE_MASK) >> 8;
+        s->regs.dp_rop3 = (data & DP_MIX_ROP3_MASK) >> 16;
         break;
     case DP_WRITE_MASK:
         s->regs.dp_write_mask = data;

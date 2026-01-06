@@ -26,7 +26,7 @@
 
 static int ati_bpp_from_datatype(ATIVGAState *s)
 {
-    switch (s->regs.dp_datatype & 0xf) {
+    switch (s->regs.dp_dst_datatype) {
     case 2:
         return 8;
     case 3:
@@ -38,7 +38,7 @@ static int ati_bpp_from_datatype(ATIVGAState *s)
         return 32;
     default:
         qemu_log_mask(LOG_UNIMP, "Unknown dst datatype %d\n",
-                      s->regs.dp_datatype & 0xf);
+                      s->regs.dp_dst_datatype);
         return 0;
     }
 }
@@ -53,7 +53,7 @@ void ati_2d_blt(ATIVGAState *s)
     DPRINTF("%p %u ds: %p %d %d rop: %x\n", s->vga.vram_ptr,
             s->vga.vbe_start_addr, surface_data(ds), surface_stride(ds),
             surface_bits_per_pixel(ds),
-            (s->regs.dp_mix & GMC_ROP3_MASK) >> 16);
+            (s->regs.dp_rop3));
     unsigned dst_x = (s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT ?
                       s->regs.dst_x : s->regs.dst_x + 1 - s->regs.dst_width);
     unsigned dst_y = (s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM ?
@@ -89,7 +89,7 @@ void ati_2d_blt(ATIVGAState *s)
             s->regs.dst_width, s->regs.dst_height,
             (s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT ? '>' : '<'),
             (s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM ? 'v' : '^'));
-    switch (s->regs.dp_mix & GMC_ROP3_MASK) {
+    switch (s->regs.dp_rop3) {
     case ROP3_SRCCOPY:
     {
         bool fallback = false;
@@ -191,7 +191,7 @@ void ati_2d_blt(ATIVGAState *s)
     {
         uint32_t filler = 0;
 
-        switch (s->regs.dp_mix & GMC_ROP3_MASK) {
+        switch (s->regs.dp_rop3) {
         case ROP3_PATCOPY:
             filler = s->regs.dp_brush_frgd_clr;
             break;
@@ -239,6 +239,6 @@ void ati_2d_blt(ATIVGAState *s)
     }
     default:
         qemu_log_mask(LOG_UNIMP, "Unimplemented ati_2d blt op %x\n",
-                      (s->regs.dp_mix & GMC_ROP3_MASK) >> 16);
+                      s->regs.dp_rop3);
     }
 }

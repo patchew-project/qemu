@@ -75,13 +75,19 @@ typedef struct ATIVGARegs {
     uint32_t dp_src_frgd_clr;
     uint32_t dp_src_bkgd_clr;
     uint32_t dp_cntl;
-    uint32_t dp_datatype;
-    uint32_t dp_mix;
     uint32_t dp_write_mask;
     uint32_t default_offset;
     uint32_t default_pitch;
     uint32_t default_tile;
     uint32_t default_sc_bottom_right;
+    uint8_t dp_src_source;
+    uint8_t dp_rop3;
+    uint8_t dp_dst_datatype;
+    uint8_t dp_brush_datatype;
+    uint8_t dp_src_datatype;
+    bool host_big_endian_en;
+    bool byte_pix_order;
+    bool conversion_temp;
 } ATIVGARegs;
 
 struct ATIVGAState {

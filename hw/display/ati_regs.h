@@ -381,6 +381,12 @@
 #define PM4_BUFFER_CNTL_NONPM4                  0x00000000
 
 /* DP_DATATYPE bit constants */
+#define DP_DATATYPE_DST_DATATYPE_MASK           0x0000000f
+#define DP_DATATYPE_BRUSH_DATATYPE_MASK         0x00000f00
+#define DP_DATATYPE_SRC_DATATYPE_MASK           0x00030000
+#define DP_DATATYPE_HOST_BE_EN                  0x20000000
+#define DP_DATATYPE_BYTE_PIX_ORDER              0x40000000
+#define DP_DATATYPE_CONVERSION_TEMP             0x80000000
 #define DST_8BPP                                0x00000002
 #define DST_15BPP                               0x00000003
 #define DST_16BPP                               0x00000004
@@ -394,6 +400,11 @@
 #define GMC_DST_PITCH_OFFSET_CNTL               0x00000002
 #define GMC_SRC_CLIP_DEFAULT                    0x00000000
 #define GMC_DST_CLIP_DEFAULT                    0x00000000
+#define GMC_BRUSH_DATATYPE_MASK                 0x000000f0
+#define GMC_DST_DATATYPE_MASK                   0x00000f00
+#define GMC_SRC_DATATYPE_MASK                   0x00003000
+#define GMC_BYTE_PIX_ORDER                      0x00004000
+#define GMC_CONVERSION_TEMP                     0x00008000
 #define GMC_BRUSH_SOLIDCOLOR                    0x000000d0
 #define GMC_SRC_DSTCOLOR                        0x00003000
 #define GMC_BYTE_ORDER_MSB_TO_LSB               0x00000000
@@ -404,12 +415,24 @@
 #define GMC_WRITE_MASK_SET                      0x40000000
 #define GMC_DP_CONVERSION_TEMP_6500             0x00000000
 
+/* DP_GUI_MASTER_CNTL DP_SRC_DATATYPE named constants */
+#define GMC_SRC_DATATYPE_MASK                   0x00003000
+#define GMC_SRC_DATATYPE_MONO_FRGD_BKGD         0
+#define GMC_SRC_DATATYPE_MONO_FRGD              1
+#define GMC_SRC_DATATYPE_COLOR                  3
+
+/* DP_GUI_MASTER_CNTL DP_SRC_SOURCE named constants */
+#define GMC_SRC_SOURCE_MASK                     0x07000000
+#define GMC_SRC_SOURCE_MEMORY                   2
+#define GMC_SRC_SOURCE_HOST_DATA                3
+#define GMC_SRC_SOURCE_HOST_DATA_ALIGNED        4
+
 /* DP_GUI_MASTER_CNTL ROP3 named constants */
 #define GMC_ROP3_MASK                           0x00ff0000
-#define ROP3_BLACKNESS                          0x00000000
-#define ROP3_SRCCOPY                            0x00cc0000
-#define ROP3_PATCOPY                            0x00f00000
-#define ROP3_WHITENESS                          0x00ff0000
+#define ROP3_BLACKNESS                          0
+#define ROP3_SRCCOPY                            0xcc
+#define ROP3_PATCOPY                            0xf0
+#define ROP3_WHITENESS                          0xff
 
 #define SRC_DSTCOLOR                            0x00030000
 
@@ -434,6 +457,8 @@
 #define DST_POLY_EDGE                           0x00040000
 
 /* DP_MIX bit constants */
+#define DP_MIX_SRC_SOURCE_MASK                  0x00000700
+#define DP_MIX_ROP3_MASK                        0x00ff0000
 #define DP_SRC_RECT                             0x00000200
 #define DP_SRC_HOST                             0x00000300
 #define DP_SRC_HOST_BYTEALIGN                   0x00000400
