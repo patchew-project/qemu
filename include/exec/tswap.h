@@ -10,6 +10,7 @@
 
 #include "qemu/bswap.h"
 #include "qemu/target-info.h"
+#include "hw/core/cpu.h"
 
 /*
  * If we're in target-specific code, we can hard-code the swapping
@@ -20,6 +21,8 @@
 #else
 #define target_needs_bswap()  (HOST_BIG_ENDIAN != target_big_endian())
 #endif /* COMPILING_PER_TARGET */
+
+#define cpu_needs_bswap(cpu)  (HOST_BIG_ENDIAN != cpu_virtio_is_big_endian(cpu))
 
 static inline uint16_t tswap16(uint16_t s)
 {
@@ -42,6 +45,33 @@ static inline uint32_t tswap32(uint32_t s)
 static inline uint64_t tswap64(uint64_t s)
 {
     if (target_needs_bswap()) {
+        return bswap64(s);
+    } else {
+        return s;
+    }
+}
+
+static inline uint16_t cpu_tswap16(CPUState *cpu, uint16_t s)
+{
+    if (target_needs_bswap() || cpu_needs_bswap(cpu)) {
+        return bswap16(s);
+    } else {
+        return s;
+    }
+}
+
+static inline uint32_t cpu_tswap32(CPUState *cpu, uint32_t s)
+{
+    if (target_needs_bswap() || cpu_needs_bswap(cpu)) {
+        return bswap32(s);
+    } else {
+        return s;
+    }
+}
+
+static inline uint64_t cpu_tswap64(CPUState *cpu, uint64_t s)
+{
+    if (target_needs_bswap() || cpu_needs_bswap(cpu)) {
         return bswap64(s);
     } else {
         return s;
