@@ -29,7 +29,7 @@
 #include "system/memory.h"
 #include "instmap.h"
 #include "tcg/tcg-op.h"
-#include "accel/tcg/cpu-ops.h"
+#include "accel/tcg/watchpoint.h"
 #include "trace.h"
 #include "semihosting/common-semi.h"
 #include "exec/icount.h"

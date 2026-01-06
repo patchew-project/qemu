@@ -33,6 +33,7 @@
 #include "exec/tlb-flags.h"
 #include "accel/tcg/cpu-ops.h"
 #include "accel/tcg/helper-retaddr.h"
+#include "accel/tcg/watchpoint.h"
 #include "qemu/int128.h"
 #include "qemu/atomic128.h"
 

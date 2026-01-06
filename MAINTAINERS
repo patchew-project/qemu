@@ -156,7 +156,6 @@ Overall TCG CPUs
 M: Richard Henderson <richard.henderson@linaro.org>
 R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
-F: system/watchpoint.c
 F: page-vary-target.c
 F: page-vary-common.c
 F: accel/tcg/

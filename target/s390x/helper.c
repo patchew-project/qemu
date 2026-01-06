@@ -28,7 +28,7 @@
 #include "system/memory.h"
 #include "system/runstate.h"
 #include "exec/target_page.h"
-#include "exec/watchpoint.h"
+#include "accel/tcg/watchpoint.h"
 
 void s390x_tod_timer(void *opaque)
 {

@@ -10,7 +10,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "exec/watchpoint.h"
+#include "accel/tcg/watchpoint.h"
 #include "target/s390x/cpu.h"
 #include "tcg_s390x.h"
 

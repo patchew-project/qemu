@@ -29,7 +29,7 @@
 #include "cpu.h"
 #include "trace.h"
 #include "exec/helper-proto.h"
-#include "exec/watchpoint.h"
+#include "accel/tcg/watchpoint.h"
 #include "system/cpu-timers.h"
 #include "exec/icount.h"
 

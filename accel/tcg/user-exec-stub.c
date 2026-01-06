@@ -1,8 +1,7 @@
 #include "qemu/osdep.h"
 #include "hw/core/cpu.h"
-#include "accel/tcg/cpu-ops.h"
 #include "exec/replay-core.h"
-#include "exec/watchpoint.h"
+#include "accel/tcg/watchpoint.h"
 #include "internal-common.h"
 
 void cpu_resume(CPUState *cpu)

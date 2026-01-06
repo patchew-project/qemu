@@ -20,7 +20,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
-#include "exec/watchpoint.h"
+#include "accel/tcg/watchpoint.h"
 #include "tcg/helper-tcg.h"
 
 

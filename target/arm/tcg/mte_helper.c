@@ -31,9 +31,9 @@
 #endif
 #include "accel/tcg/cpu-ldst.h"
 #include "accel/tcg/probe.h"
+#include "accel/tcg/watchpoint.h"
 #include "exec/helper-proto.h"
 #include "exec/tlb-flags.h"
-#include "accel/tcg/cpu-ops.h"
 #include "qapi/error.h"
 #include "qemu/guest-random.h"
 #include "mte_helper.h"

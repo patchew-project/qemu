@@ -11,7 +11,7 @@
 #include "internals.h"
 #include "cpu-features.h"
 #include "cpregs.h"
-#include "exec/watchpoint.h"
+#include "accel/tcg/watchpoint.h"
 #include "system/tcg.h"
 
 #define HELPER_H "tcg/helper.h"

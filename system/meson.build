@@ -29,7 +29,6 @@ system_ss.add(files(
   'runstate-hmp-cmds.c',
   'runstate.c',
   'tpm-hmp-cmds.c',
-  'watchpoint.c',
 ))
 
 if have_tpm

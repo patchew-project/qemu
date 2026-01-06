@@ -27,7 +27,7 @@
 
 #include "exec/hwaddr.h"
 #include "exec/vaddr.h"
-#include "exec/breakpoint.h"
+#include "accel/tcg/watchpoint.h"
 #include "accel/tcg/tb-cpu-state.h"
 #include "hw/core/registerfields.h"
 #include "tcg/tcg-gvec-desc.h"

@@ -28,6 +28,7 @@
 #include "exec/memattrs.h"
 #include "exec/mmu-access-type.h"
 #include "exec/tlb-common.h"
+#include "accel/tcg/watchpoint.h"
 #include "qapi/qapi-types-machine.h"
 #include "qapi/qapi-types-run-state.h"
 #include "qemu/bitmap.h"
@@ -83,8 +84,6 @@ DECLARE_CLASS_CHECKERS(CPUClass, CPU,
 #define OBJECT_DECLARE_CPU_TYPE(CpuInstanceType, CpuClassType, CPU_MODULE_OBJ_NAME) \
     typedef struct ArchCPU CpuInstanceType; \
     OBJECT_DECLARE_TYPE(ArchCPU, CpuClassType, CPU_MODULE_OBJ_NAME);
-
-typedef struct CPUWatchpoint CPUWatchpoint;
 
 /* see physmem.c */
 struct CPUAddressSpace;

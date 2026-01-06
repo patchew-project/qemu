@@ -22,7 +22,7 @@
 #ifndef RISCV_DEBUG_H
 #define RISCV_DEBUG_H
 
-#include "exec/breakpoint.h"
+#include "accel/tcg/watchpoint.h"
 
 #define RV_MAX_TRIGGERS         2
 

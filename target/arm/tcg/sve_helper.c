@@ -31,8 +31,8 @@
 #include "sve_ldst_internal.h"
 #include "accel/tcg/cpu-ldst.h"
 #include "accel/tcg/helper-retaddr.h"
-#include "accel/tcg/cpu-ops.h"
 #include "accel/tcg/probe.h"
+#include "accel/tcg/watchpoint.h"
 #ifdef CONFIG_USER_ONLY
 #include "user/page-protection.h"
 #endif

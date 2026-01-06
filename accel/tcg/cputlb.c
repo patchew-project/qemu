@@ -28,6 +28,7 @@
 #include "system/physmem.h"
 #include "accel/tcg/cpu-ldst-common.h"
 #include "accel/tcg/cpu-mmu-index.h"
+#include "accel/tcg/watchpoint.h"
 #include "exec/cputlb.h"
 #include "exec/tb-flush.h"
 #include "system/ramblock.h"
