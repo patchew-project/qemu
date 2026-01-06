@@ -964,6 +964,12 @@ static void ati_mm_write(void *opaque, hwaddr addr,
     case DP_CNTL:
         s->regs.dp_cntl = data;
         break;
+    case DP_SRC_FRGD_CLR:
+        s->regs.dp_src_frgd_clr = data;
+        break;
+    case DP_SRC_BKGD_CLR:
+        s->regs.dp_src_bkgd_clr = data;
+        break;
     case DP_DATATYPE:
         s->regs.dp_dst_datatype = (data & DP_DATATYPE_DST_DATATYPE_MASK);
         s->regs.dp_brush_datatype = (data & DP_DATATYPE_BRUSH_DATATYPE_MASK) >> 8;
