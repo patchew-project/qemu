@@ -2952,7 +2952,8 @@ void riscv_isa_write_fdt(RISCVCPU *cpu, void *fdt, char *nodename)
 
 #define DEFINE_PROFILE_CPU(type_name, parent_type_name, profile_)    \
     DEFINE_RISCV_CPU(type_name, parent_type_name,             \
-        .profile = &(profile_))
+        .profile = &(profile_), \
+        .cfg.pmp = true)
 
 static const TypeInfo riscv_cpu_type_infos[] = {
     {
