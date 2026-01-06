@@ -117,6 +117,11 @@ static ATIBlitDest setup_2d_blt_dst(ATIVGAState *s)
 
 void ati_2d_blt(ATIVGAState *s)
 {
+    if (s->regs.dp_src_source == GMC_SRC_SOURCE_HOST_DATA) {
+        /* HOST_DATA blits are handled separately by ati_flush_host_data() */
+        return;
+    }
+
     /* FIXME it is probably more complex than this and may need to be */
     /* rewritten but for now as a start just to get some output: */
     DisplaySurface *ds = qemu_console_surface(s->vga.con);
@@ -291,5 +296,124 @@ void ati_2d_blt(ATIVGAState *s)
     default:
         qemu_log_mask(LOG_UNIMP, "Unimplemented ati_2d blt op %x\n",
                       s->regs.dp_rop3);
+    }
+}
+
+void ati_flush_host_data(ATIVGAState *s)
+{
+    DisplaySurface *ds;
+    ATIBlitDest dst;
+    uint32_t fg, bg;
+    unsigned bypp, row, col, idx;
+    uint8_t pix_buf[ATI_HOST_DATA_ACC_BITS * sizeof(uint32_t)];
+
+    if (s->regs.dp_src_source != GMC_SRC_SOURCE_HOST_DATA) {
+        qemu_log_mask(LOG_UNIMP,
+                      "host_data_blt: only GMC_SRC_SOURCE_HOST_DATA "
+                      "supported\n");
+        return;
+    }
+
+    if (s->regs.dp_src_datatype != GMC_SRC_DATATYPE_MONO_FRGD_BKGD) {
+        qemu_log_mask(LOG_UNIMP,
+                      "host_data_blt: only GMC_SRC_DATATYPE_MONO_FRGD_BKGD "
+                      "supported\n");
+        return;
+    }
+
+    if (s->regs.dp_rop3 != ROP3_SRCCOPY) {
+        qemu_log_mask(LOG_UNIMP,
+                      "host_data_blt: only ROP3_SRCCOPY supported. rop: %x\n",
+                      s->regs.dp_rop3);
+        return;
+    }
+
+    dst = setup_2d_blt_dst(s);
+    if (!dst.valid) {
+        return;
+    }
+
+    if (!dst.left_to_right || !dst.top_to_bottom) {
+        qemu_log_mask(LOG_UNIMP, "host_data_blt: only L->R, T->B supported\n");
+        return;
+    }
+
+    fg = s->regs.dp_src_frgd_clr;
+    bg = s->regs.dp_src_bkgd_clr;
+    bypp = dst.bpp / 8;
+
+    /* Expand monochrome bits to color pixels */
+    idx = 0;
+    for (int word = 0; word < 4; word++) {
+        for (int byte = 0; byte < 4; byte++) {
+            uint8_t byte_val = s->host_data.acc[word] >> (byte * 8);
+            for (int i = 0; i < 8; i++) {
+                int bit = s->regs.byte_pix_order ? i : (7 - i);
+                bool is_fg = extract8(byte_val, bit, 1);
+                uint32_t color = is_fg ? fg : bg;
+                stn_he_p(&pix_buf[idx * bypp], bypp, color);
+                idx += 1;
+            }
+        }
+    }
+
+    /* Copy to VRAM one scanline at a time */
+    row = s->host_data.row;
+    col = s->host_data.col;
+    idx = 0;
+    while (idx < ATI_HOST_DATA_ACC_BITS && row < dst.rect.height) {
+        uint8_t *vram_dst;
+        unsigned start_col, end_col, vis_row, num_pix, pix_idx;
+        unsigned pix_in_scanline = MIN(ATI_HOST_DATA_ACC_BITS -
+                                       idx, dst.rect.width - col);
+
+        /* Row-based clipping */
+        if (row < dst.src_top_offset ||
+            row >= dst.src_top_offset + dst.visible.height) {
+            goto skip_pix;
+        }
+
+        /* Column-based clipping */
+        start_col = MAX(col, dst.src_left_offset);
+        end_col = MIN(col + pix_in_scanline,
+                      dst.src_left_offset + dst.visible.width);
+        if (end_col <= start_col) {
+            goto skip_pix;
+        }
+
+        /* Copy expanded bits/pixels to VRAM */
+        vis_row = row - dst.src_top_offset;
+        num_pix = end_col - start_col;
+        vram_dst = dst.bits +
+                   (dst.visible.y + vis_row) * dst.stride +
+                   (dst.visible.x + (start_col - dst.src_left_offset)) * bypp;
+
+        pix_idx = (idx + (start_col - col)) * bypp;
+        memcpy(vram_dst, &pix_buf[pix_idx], num_pix * bypp);
+
+    skip_pix:
+        idx += pix_in_scanline;
+        col += pix_in_scanline;
+        if (col >= dst.rect.width) {
+            col = 0;
+            row += 1;
+        }
+    }
+    /* Track state of the overall blit for use by the next flush */
+    s->host_data.row = row;
+    s->host_data.col = col;
+
+    /*
+     * TODO: This is setting the entire blit region to dirty.
+     *       We maybe just need this tiny section?
+     */
+    ds = qemu_console_surface(s->vga.con);
+    if (dst.bits >= s->vga.vram_ptr + s->vga.vbe_start_addr &&
+        dst.bits < s->vga.vram_ptr + s->vga.vbe_start_addr +
+        s->vga.vbe_regs[VBE_DISPI_INDEX_YRES] * s->vga.vbe_line_offset) {
+        memory_region_set_dirty(&s->vga.vram, s->vga.vbe_start_addr +
+                                s->regs.dst_offset +
+                                dst.visible.y * surface_stride(ds),
+                                dst.visible.height * surface_stride(ds));
     }
 }
