@@ -57,6 +57,64 @@ static QemuRect dst_rect(ATIVGAState *s)
     return dst;
 }
 
+typedef struct {
+    QemuRect rect;
+    QemuRect visible;
+    uint32_t src_left_offset;
+    uint32_t src_top_offset;
+    int bpp;
+    int stride;
+    bool top_to_bottom;
+    bool left_to_right;
+    bool valid;
+    uint8_t *bits;
+} ATIBlitDest;
+
+static ATIBlitDest setup_2d_blt_dst(ATIVGAState *s)
+{
+    ATIBlitDest dst = { .valid = false };
+    uint8_t *end = s->vga.vram_ptr + s->vga.vram_size;
+    QemuRect scissor;
+    qemu_rect_init(&scissor,
+                   s->regs.sc_left, s->regs.sc_top,
+                   s->regs.sc_right - s->regs.sc_left + 1,
+                   s->regs.sc_bottom - s->regs.sc_top + 1);
+
+    dst.rect = dst_rect(s);
+    if (!qemu_rect_intersect(&dst.rect, &scissor, &dst.visible)) {
+        /* Destination is completely clipped, nothing to draw */
+        return dst;
+    }
+    dst.bpp = ati_bpp_from_datatype(s);
+    if (!dst.bpp) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Invalid bpp\n");
+        return dst;
+    }
+    dst.stride = s->regs.dst_pitch;
+    if (!dst.stride) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Zero dest pitch\n");
+        return dst;
+    }
+    dst.bits = s->vga.vram_ptr + s->regs.dst_offset;
+    if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
+        dst.bits += s->regs.crtc_offset & 0x07ffffff;
+        dst.stride *= dst.bpp;
+    }
+    if (dst.visible.x > 0x3fff || dst.visible.y > 0x3fff || dst.bits >= end
+        || dst.bits + dst.visible.x
+         + (dst.visible.y + dst.visible.height) * dst.stride >= end) {
+        qemu_log_mask(LOG_UNIMP, "blt outside vram not implemented\n");
+        return dst;
+    }
+    dst.src_left_offset = dst.visible.x - dst.rect.x;
+    dst.src_top_offset = dst.visible.y - dst.rect.y;
+    dst.left_to_right = s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT;
+    dst.top_to_bottom = s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM;
+    dst.valid = true;
+
+    return dst;
+}
+
 void ati_2d_blt(ATIVGAState *s)
 {
     /* FIXME it is probably more complex than this and may need to be */
@@ -66,59 +124,29 @@ void ati_2d_blt(ATIVGAState *s)
             s->vga.vbe_start_addr, surface_data(ds), surface_stride(ds),
             surface_bits_per_pixel(ds),
             s->regs.dp_rop3);
-
-    QemuRect dst = dst_rect(s);
-    QemuRect scissor;
-    qemu_rect_init(&scissor,
-                   s->regs.sc_left, s->regs.sc_top,
-                   s->regs.sc_right - s->regs.sc_left + 1,
-                   s->regs.sc_bottom - s->regs.sc_top + 1);
-    QemuRect visible;
-    if (!qemu_rect_intersect(&dst, &scissor, &visible)) {
-        return;
-    }
-    uint32_t src_left_offset = visible.x - dst.x;
-    uint32_t src_top_offset = visible.y - dst.y;
-
-    int bpp = ati_bpp_from_datatype(s);
-    if (!bpp) {
-        qemu_log_mask(LOG_GUEST_ERROR, "Invalid bpp\n");
-        return;
-    }
-    int dst_stride = s->regs.dst_pitch;
-    if (!dst_stride) {
-        qemu_log_mask(LOG_GUEST_ERROR, "Zero dest pitch\n");
-        return;
-    }
-    uint8_t *dst_bits = s->vga.vram_ptr + s->regs.dst_offset;
-
-    if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
-        dst_bits += s->regs.crtc_offset & 0x07ffffff;
-        dst_stride *= bpp;
-    }
+    ATIBlitDest dst = setup_2d_blt_dst(s);
     uint8_t *end = s->vga.vram_ptr + s->vga.vram_size;
-    if (visible.x > 0x3fff || visible.y > 0x3fff || dst_bits >= end
-        || dst_bits + visible.x
-         + (visible.y + visible.height) * dst_stride >= end) {
-        qemu_log_mask(LOG_UNIMP, "blt outside vram not implemented\n");
-        return;
-    }
+
     DPRINTF("%d %d %d, %d %d %d, (%d,%d) -> (%d,%d) %dx%d %c %c\n",
             s->regs.src_offset, s->regs.dst_offset, s->regs.default_offset,
             s->regs.src_pitch, s->regs.dst_pitch, s->regs.default_pitch,
-            s->regs.src_x, s->regs.src_y, dst.x, dst.y, dst.width, dst.height,
-            (s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT ? '>' : '<'),
-            (s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM ? 'v' : '^'));
+            s->regs.src_x, s->regs.src_y,
+            dst.rect.x, dst.rect.y, dst.rect.width, dst.rect.height,
+            (dst.left_to_right ? '>' : '<'),
+            (dst.top_to_bottom ? 'v' : '^'));
+
     switch (s->regs.dp_rop3) {
     case ROP3_SRCCOPY:
     {
         bool fallback = false;
-        unsigned src_x = (s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT ?
-                         s->regs.src_x + src_left_offset :
-                         s->regs.src_x + 1 - dst.width + src_left_offset);
-        unsigned src_y = (s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM ?
-                         s->regs.src_y + src_top_offset :
-                         s->regs.src_y + 1 - dst.height + src_top_offset);
+        unsigned src_x = (dst.left_to_right ?
+                         s->regs.src_x + dst.src_left_offset :
+                         s->regs.src_x + 1 -
+                         dst.rect.width + dst.src_left_offset);
+        unsigned src_y = (dst.top_to_bottom ?
+                         s->regs.src_y + dst.src_top_offset :
+                         s->regs.src_y + 1 -
+                         dst.rect.height + dst.src_top_offset);
         int src_stride = s->regs.src_pitch;
         if (!src_stride) {
             qemu_log_mask(LOG_GUEST_ERROR, "Zero source pitch\n");
@@ -128,44 +156,44 @@ void ati_2d_blt(ATIVGAState *s)
 
         if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
             src_bits += s->regs.crtc_offset & 0x07ffffff;
-            src_stride *= bpp;
+            src_stride *= dst.bpp;
         }
         if (src_x > 0x3fff || src_y > 0x3fff || src_bits >= end
             || src_bits + src_x
-             + (src_y + visible.height) * src_stride >= end) {
+             + (src_y + dst.visible.height) * src_stride >= end) {
             qemu_log_mask(LOG_UNIMP, "blt outside vram not implemented\n");
             return;
         }
 
         src_stride /= sizeof(uint32_t);
-        dst_stride /= sizeof(uint32_t);
+        dst.stride /= sizeof(uint32_t);
         DPRINTF("pixman_blt(%p, %p, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d)\n",
-                src_bits, dst_bits, src_stride, dst_stride, bpp, bpp,
-                src_x, src_y, visible.x, visible.y,
-                visible.width, visible.height);
+                src_bits, dst.bits, src_stride, dst.stride, dst.bpp, dst.bpp,
+                src_x, src_y, dst.visible.x, dst.visible.y,
+                dst.visible.width, dst.visible.height);
 #ifdef CONFIG_PIXMAN
         if ((s->use_pixman & BIT(1)) &&
-            s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT &&
-            s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM) {
-            fallback = !pixman_blt((uint32_t *)src_bits, (uint32_t *)dst_bits,
-                                   src_stride, dst_stride, bpp, bpp,
-                                   src_x, src_y, visible.x, visible.y,
-                                   visible.width, visible.height);
+            dst.left_to_right &&
+            dst.top_to_bottom) {
+            fallback = !pixman_blt((uint32_t *)src_bits, (uint32_t *)dst.bits,
+                                   src_stride, dst.stride, dst.bpp, dst.bpp,
+                                   src_x, src_y, dst.visible.x, dst.visible.y,
+                                   dst.visible.width, dst.visible.height);
         } else if (s->use_pixman & BIT(1)) {
             /* FIXME: We only really need a temporary if src and dst overlap */
-            int llb = visible.width * (bpp / 8);
+            int llb = dst.visible.width * (dst.bpp / 8);
             int tmp_stride = DIV_ROUND_UP(llb, sizeof(uint32_t));
             uint32_t *tmp = g_malloc(tmp_stride * sizeof(uint32_t) *
-                                     visible.height);
+                                     dst.visible.height);
             fallback = !pixman_blt((uint32_t *)src_bits, tmp,
-                                   src_stride, tmp_stride, bpp, bpp,
+                                   src_stride, tmp_stride, dst.bpp, dst.bpp,
                                    src_x, src_y, 0, 0,
-                                   visible.width, visible.height);
+                                   dst.visible.width, dst.visible.height);
             if (!fallback) {
-                fallback = !pixman_blt(tmp, (uint32_t *)dst_bits,
-                                       tmp_stride, dst_stride, bpp, bpp,
-                                       0, 0, visible.x, visible.y,
-                                       visible.width, visible.height);
+                fallback = !pixman_blt(tmp, (uint32_t *)dst.bits,
+                                       tmp_stride, dst.stride, dst.bpp, dst.bpp,
+                                       0, 0, dst.visible.x, dst.visible.y,
+                                       dst.visible.width, dst.visible.height);
             }
             g_free(tmp);
         } else
@@ -174,35 +202,36 @@ void ati_2d_blt(ATIVGAState *s)
             fallback = true;
         }
         if (fallback) {
-            unsigned int y, i, j, bypp = bpp / 8;
+            unsigned int y, i, j, bypp = dst.bpp / 8;
             unsigned int src_pitch = src_stride * sizeof(uint32_t);
-            unsigned int dst_pitch = dst_stride * sizeof(uint32_t);
+            unsigned int dst_pitch = dst.stride * sizeof(uint32_t);
 
-            for (y = 0; y < visible.height; y++) {
-                i = visible.x * bypp;
+            for (y = 0; y < dst.visible.height; y++) {
+                i = dst.visible.x * bypp;
                 j = src_x * bypp;
-                if (s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM) {
-                    i += (visible.y + y) * dst_pitch;
+                if (dst.top_to_bottom) {
+                    i += (dst.visible.y + y) * dst_pitch;
                     j += (src_y + y) * src_pitch;
                 } else {
-                    i += (visible.y + visible.height - 1 - y) * dst_pitch;
-                    j += (src_y + visible.height - 1 - y) * src_pitch;
+                    i += (dst.visible.y + dst.visible.height - 1 - y) *
+                         dst_pitch;
+                    j += (src_y + dst.visible.height - 1 - y) * src_pitch;
                 }
-                memmove(&dst_bits[i], &src_bits[j], visible.width * bypp);
+                memmove(&dst.bits[i], &src_bits[j], dst.visible.width * bypp);
             }
         }
-        if (dst_bits >= s->vga.vram_ptr + s->vga.vbe_start_addr &&
-            dst_bits < s->vga.vram_ptr + s->vga.vbe_start_addr +
+        if (dst.bits >= s->vga.vram_ptr + s->vga.vbe_start_addr &&
+            dst.bits < s->vga.vram_ptr + s->vga.vbe_start_addr +
             s->vga.vbe_regs[VBE_DISPI_INDEX_YRES] * s->vga.vbe_line_offset) {
             memory_region_set_dirty(&s->vga.vram, s->vga.vbe_start_addr +
                                     s->regs.dst_offset +
-                                    visible.y * surface_stride(ds),
-                                    visible.height * surface_stride(ds));
+                                    dst.visible.y * surface_stride(ds),
+                                    dst.visible.height * surface_stride(ds));
         }
-        s->regs.dst_x = (s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT ?
-                         visible.x + visible.width : visible.x);
-        s->regs.dst_y = (s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM ?
-                         visible.y + visible.height : visible.y);
+        s->regs.dst_x = (dst.left_to_right ?
+                         dst.visible.x + dst.visible.width : dst.visible.x);
+        s->regs.dst_y = (dst.top_to_bottom ?
+                         dst.visible.y + dst.visible.height : dst.visible.y);
         break;
     }
     case ROP3_PATCOPY:
@@ -225,37 +254,38 @@ void ati_2d_blt(ATIVGAState *s)
             break;
         }
 
-        dst_stride /= sizeof(uint32_t);
+        dst.stride /= sizeof(uint32_t);
         DPRINTF("pixman_fill(%p, %d, %d, %d, %d, %d, %d, %x)\n",
-                dst_bits, dst_stride, bpp, visible.x, visible.y,
-                visible.width, visible.height, filler);
+                dst.bits, dst.stride, dst.bpp, dst.visible.x, dst.visible.y,
+                dst.visible.width, dst.visible.height, filler);
 #ifdef CONFIG_PIXMAN
         if (!(s->use_pixman & BIT(0)) ||
-            !pixman_fill((uint32_t *)dst_bits, dst_stride, bpp,
-                         visible.x, visible.y, visible.width, visible.height,
+            !pixman_fill((uint32_t *)dst.bits, dst.stride, dst.bpp,
+                         dst.visible.x, dst.visible.y,
+                         dst.visible.width, dst.visible.height,
                          filler))
 #endif
         {
             /* fallback when pixman failed or we don't want to call it */
-            unsigned int x, y, i, bypp = bpp / 8;
-            unsigned int dst_pitch = dst_stride * sizeof(uint32_t);
-            for (y = 0; y < visible.height; y++) {
-                i = visible.x * bypp + (visible.y + y) * dst_pitch;
-                for (x = 0; x < visible.width; x++, i += bypp) {
-                    stn_he_p(&dst_bits[i], bypp, filler);
+            unsigned int x, y, i, bypp = dst.bpp / 8;
+            unsigned int dst_pitch = dst.stride * sizeof(uint32_t);
+            for (y = 0; y < dst.visible.height; y++) {
+                i = dst.visible.x * bypp + (dst.visible.y + y) * dst_pitch;
+                for (x = 0; x < dst.visible.width; x++, i += bypp) {
+                    stn_he_p(&dst.bits[i], bypp, filler);
                 }
             }
         }
-        if (dst_bits >= s->vga.vram_ptr + s->vga.vbe_start_addr &&
-            dst_bits < s->vga.vram_ptr + s->vga.vbe_start_addr +
+        if (dst.bits >= s->vga.vram_ptr + s->vga.vbe_start_addr &&
+            dst.bits < s->vga.vram_ptr + s->vga.vbe_start_addr +
             s->vga.vbe_regs[VBE_DISPI_INDEX_YRES] * s->vga.vbe_line_offset) {
             memory_region_set_dirty(&s->vga.vram, s->vga.vbe_start_addr +
                                     s->regs.dst_offset +
-                                    visible.y * surface_stride(ds),
-                                    visible.height * surface_stride(ds));
+                                    dst.visible.y * surface_stride(ds),
+                                    dst.visible.height * surface_stride(ds));
         }
-        s->regs.dst_y = (s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM ?
-                         visible.y + visible.height : visible.y);
+        s->regs.dst_y = (dst.top_to_bottom ?
+                         dst.visible.y + dst.visible.height : dst.visible.y);
         break;
     }
     default:
