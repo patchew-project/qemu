@@ -226,6 +226,36 @@
 { 'command': 'query-sev-capabilities', 'returns': 'SevCapability' }
 
 ##
+# @TdxCapability:
+#
+# The struct describes capability for Intel Trust Domain Extensions
+# (TDX) feature.
+#
+# Since: 11.0
+##
+{ 'struct': 'TdxCapability',
+  'data': { } }
+
+##
+# @query-tdx-capabilities:
+#
+# Get TDX capabilities.
+#
+# This is only supported on Intel X86 platforms with KVM enabled.
+#
+# Errors:
+#     - If TDX is not available on the platform, GenericError
+#
+# Since: 11.0
+#
+# .. qmp-example::
+#
+#     -> { "execute": "query-tdx-capabilities" }
+#     <- { "return": {} }
+##
+{ 'command': 'query-tdx-capabilities', 'returns': 'TdxCapability' }
+
+##
 # @sev-inject-launch-secret:
 #
 # Inject a secret blob into a SEV/SEV-ES guest's memory.

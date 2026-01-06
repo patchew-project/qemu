@@ -6582,6 +6582,11 @@ bool kvm_has_waitpkg(void)
     return has_msr_umwait;
 }
 
+bool kvm_has_tdx(void)
+{
+    return kvm_is_vm_type_supported(KVM_X86_TDX_VM);
+}
+
 #define ARCH_REQ_XCOMP_GUEST_PERM       0x1025
 
 void kvm_request_xsave_components(X86CPU *cpu, uint64_t mask)

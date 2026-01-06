@@ -14,6 +14,7 @@
 #include "qemu/base64.h"
 #include "qemu/mmap-alloc.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-misc-i386.h"
 #include "qapi/qapi-visit-sockets.h"
 #include "qom/object_interfaces.h"
 #include "crypto/hash.h"
@@ -1535,6 +1536,26 @@ static void tdx_guest_init(Object *obj)
 
 static void tdx_guest_finalize(Object *obj)
 {
+}
+
+static TdxCapability *tdx_get_capabilities(Error **errp)
+{
+    if (!kvm_enabled()) {
+        error_setg(errp, "TDX is not available without KVM");
+        return NULL;
+    }
+
+    if (!kvm_has_tdx()) {
+        error_setg(errp, "TDX is not supported by this host");
+        return NULL;
+    }
+
+    return g_new0(TdxCapability, 1);
+}
+
+TdxCapability *qmp_query_tdx_capabilities(Error **errp)
+{
+    return tdx_get_capabilities(errp);
 }
 
 static void tdx_guest_class_init(ObjectClass *oc, const void *data)
