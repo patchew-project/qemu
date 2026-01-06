@@ -9184,7 +9184,9 @@ static void x86_cpu_reset_hold(Object *obj, ResetType type)
     env->dr[6] = DR6_FIXED_1;
     env->dr[7] = DR7_FIXED_1;
     cpu_breakpoint_remove_all(cs, BP_CPU);
-    cpu_watchpoint_remove_all(cs, BP_CPU);
+    if (tcg_enabled()) {
+        cpu_watchpoint_remove_all(cs, BP_CPU);
+    }
 
     cr4 = 0;
     xcr0 = XSTATE_FP_MASK;
