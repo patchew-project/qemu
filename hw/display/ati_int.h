@@ -79,7 +79,6 @@ typedef struct ATIVGARegs {
     uint32_t default_offset;
     uint32_t default_pitch;
     uint32_t default_tile;
-    uint32_t default_sc_bottom_right;
     uint8_t dp_src_source;
     uint8_t dp_rop3;
     uint8_t dp_dst_datatype;
@@ -88,6 +87,14 @@ typedef struct ATIVGARegs {
     bool host_big_endian_en;
     bool byte_pix_order;
     bool conversion_temp;
+    uint16_t default_sc_bottom;
+    uint16_t default_sc_right;
+    uint16_t sc_top;
+    uint16_t sc_left;
+    uint16_t sc_bottom;
+    uint16_t sc_right;
+    uint16_t src_sc_bottom;
+    uint16_t src_sc_right;
 } ATIVGARegs;
 
 struct ATIVGAState {

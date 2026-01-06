@@ -405,6 +405,8 @@
 #define GMC_SRC_DATATYPE_MASK                   0x00003000
 #define GMC_BYTE_PIX_ORDER                      0x00004000
 #define GMC_CONVERSION_TEMP                     0x00008000
+#define GMC_SRC_CLIPPING                        0x00000004
+#define GMC_DST_CLIPPING                        0x00000008
 #define GMC_BRUSH_SOLIDCOLOR                    0x000000d0
 #define GMC_SRC_DSTCOLOR                        0x00003000
 #define GMC_BYTE_ORDER_MSB_TO_LSB               0x00000000
