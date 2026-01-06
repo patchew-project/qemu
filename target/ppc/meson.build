@@ -43,6 +43,7 @@ ppc_system_ss.add(files(
   'ppc-qmp-cmds.c',
 ))
 ppc_system_ss.add(when: 'CONFIG_TCG', if_true: files(
+  'watchpoint.c',
   'mmu_helper.c',
 ), if_false: files(
   'tcg-stub.c',
