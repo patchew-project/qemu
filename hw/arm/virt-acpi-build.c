@@ -100,6 +100,34 @@ static void acpi_dsdt_add_uart(Aml *scope, const MemMapEntry *uart_memmap,
     aml_append(scope, dev);
 }
 
+static void acpi_dsdt_add_i2c(Aml *scope, const MemMapEntry *i2c_memmap,
+                               uint32_t i2c_irq)
+{
+    Aml *i2c_dev, *eprm_dev, *crs;
+
+    i2c_dev = aml_device("I2C0");
+    aml_append(i2c_dev, aml_name_decl("_HID", aml_string("INT3433")));
+    aml_append(i2c_dev, aml_name_decl("_UID", aml_int(0)));
+
+    crs = aml_resource_template();
+    aml_append(crs, aml_memory32_fixed(i2c_memmap->base,
+                                       i2c_memmap->size, AML_READ_WRITE));
+    aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
+                                  AML_EXCLUSIVE, &i2c_irq, 1));
+    aml_append(i2c_dev, aml_name_decl("_CRS", crs));
+
+    eprm_dev = aml_device("EPRM");
+    aml_append(eprm_dev, aml_name_decl("_HID", aml_string("INT3499")));
+    aml_append(eprm_dev, aml_name_decl("_UID", aml_int(0)));
+
+    crs = aml_resource_template();
+    aml_append(crs, aml_i2c_serial_bus_device(0x50, "^"));
+    aml_append(eprm_dev, aml_name_decl("_CRS", crs));
+
+    aml_append(i2c_dev, eprm_dev);
+    aml_append(scope, i2c_dev);
+}
+
 static void acpi_dsdt_add_flash(Aml *scope, const MemMapEntry *flash_memmap)
 {
     Aml *dev, *crs;
@@ -1037,6 +1065,10 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
         acpi_dsdt_add_uart(scope, &memmap[VIRT_UART1],
                            (irqmap[VIRT_UART1] + ARM_SPI_BASE), 1);
     }
+
+    acpi_dsdt_add_i2c(scope, &memmap[VIRT_I2C],
+                      irqmap[VIRT_I2C] + ARM_SPI_BASE);
+
     if (vmc->acpi_expose_flash) {
         acpi_dsdt_add_flash(scope, &memmap[VIRT_FLASH]);
     }
