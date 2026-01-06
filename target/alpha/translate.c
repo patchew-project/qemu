@@ -98,7 +98,11 @@ static TCGv cpu_pal_ir[31];
 
 static inline MemOp mo_endian(DisasContext *dc)
 {
-    return MO_TE;
+    /*
+     * Technically, Alpha can be run in big-endian mode, but we don't bother.
+     * This was only ever used for the Cray T3[DE] machines.  :-)
+     */
+    return MO_LE;
 }
 
 void alpha_translate_init(void)
