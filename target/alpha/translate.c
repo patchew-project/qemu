@@ -96,6 +96,11 @@ static TCGv cpu_lock_value;
 static TCGv cpu_pal_ir[31];
 #endif
 
+static inline MemOp mo_endian(DisasContext *dc)
+{
+    return MO_TE;
+}
+
 void alpha_translate_init(void)
 {
 #define DEF_VAR(V)  { &cpu_##V, #V, offsetof(CPUAlphaState, V) }
@@ -2905,7 +2910,7 @@ static void alpha_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     uint32_t insn = translator_ldl_end(cpu_env(cpu), &ctx->base,
-                                       ctx->base.pc_next, MO_TE);
+                                       ctx->base.pc_next, mo_endian(ctx));
 
     ctx->base.pc_next += 4;
     ctx->base.is_jmp = translate_one(ctx, insn);
