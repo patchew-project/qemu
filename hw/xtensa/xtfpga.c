@@ -27,6 +27,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+#include "qemu/target-info.h"
 #include "qapi/error.h"
 #include "cpu.h"
 #include "system/system.h"
@@ -313,7 +314,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     if (dinfo) {
-        flash = xtfpga_flash_init(system_io, board, dinfo, TARGET_BIG_ENDIAN);
+        flash = xtfpga_flash_init(system_io, board, dinfo, target_big_endian());
     }
 
     /* Use presence of kernel file name as 'boot from SRAM' switch. */
@@ -402,7 +403,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
         uint64_t elf_entry;
         int success = load_elf(kernel_filename, NULL, translate_phys_addr, cpu,
                                &elf_entry, NULL, NULL, NULL,
-                               TARGET_BIG_ENDIAN ? ELFDATA2MSB : ELFDATA2LSB,
+                               target_big_endian() ? ELFDATA2MSB : ELFDATA2LSB,
                                EM_XTENSA, 0, 0);
         if (success > 0) {
             entry_point = elf_entry;
@@ -440,9 +441,9 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
                 0x21, 0xfe, 0xff,       /* l32r a2, entry_a2 */
                 0xa0, 0x00, 0x00,       /* jx   a0 */
             };
-            const size_t boot_sz = TARGET_BIG_ENDIAN ? sizeof(boot_be)
-                                                     : sizeof(boot_le);
-            uint8_t *boot = TARGET_BIG_ENDIAN ? boot_be : boot_le;
+            const size_t boot_sz = target_big_endian() ? sizeof(boot_be)
+                                                       : sizeof(boot_le);
+            uint8_t *boot = target_big_endian() ? boot_be : boot_le;
             uint32_t entry_pc = tswap32(entry_point);
             uint32_t entry_a2 = tswap32(tagptr);
 
