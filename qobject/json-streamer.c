@@ -23,7 +23,7 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
                                 JSONTokenType type, int x, int y)
 {
     JSONMessageParser *parser = container_of(lexer, JSONMessageParser, lexer);
-    g_autofree JSONToken *token = json_token(type, x, y, input);
+    JSONToken token = (JSONToken) { .type = type, .x = x, .y = y, .str = input->str };
     Error *err = NULL;
 
     parser->token_size += input->len;
@@ -64,7 +64,7 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
         } else if (parser->bracket_count + parser->brace_count > MAX_NESTING) {
             error_setg(&err, "JSON nesting depth limit exceeded");
         } else {
-            QObject *json = json_parser_feed(&parser->parser, token, &err);
+            QObject *json = json_parser_feed(&parser->parser, &token, &err);
             if (json) {
                 parser->emit(parser->opaque, json, NULL);
             }
