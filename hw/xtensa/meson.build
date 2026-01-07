@@ -8,4 +8,4 @@ xtensa_ss.add(when: 'CONFIG_XTENSA_SIM', if_true: files('sim.c'))
 xtensa_ss.add(when: 'CONFIG_XTENSA_VIRT', if_true: files('virt.c'))
 xtensa_ss.add(when: 'CONFIG_XTENSA_XTFPGA', if_true: files('xtfpga.c'))
 
-hw_arch += {'xtensa': xtensa_ss}
+hw_common_arch += {'xtensa': xtensa_ss}
