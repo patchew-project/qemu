@@ -31,12 +31,36 @@ struct JSONToken {
     char str[];
 };
 
-typedef struct JSONParserContext {
-    Error *err;
-    JSONToken *current;
-    GQueue *buf;
-    va_list *ap;
-} JSONParserContext;
+/*
+ * Objects: { } | { members }
+ * - Empty: { -> AFTER_LCURLY -> }
+ * - Non-empty: { -> AFTER_LCURLY -> BEFORE_KEY -> string -> END_OF_KEY -> : ->
+ *              BEFORE_VALUE -> value -> END_OF_VALUE -> , -> BEFORE_KEY -> ... -> }
+ *
+ * Arrays: [ ] | [ elements ]
+ * - Empty: [ -> AFTER_LSQUARE -> ]
+ * - Non-empty: [ -> AFTER_LSQUARE -> BEFORE_VALUE -> value -> END_OF_VALUE -> , ->
+ *              BEFORE_VALUE -> ... -> ]
+ *
+ * The two cases for END_OF_VALUE are distinguished based on the type of QObject at
+ * top-of-stack.
+ */
+typedef enum JSONParserState {
+    AFTER_LCURLY,
+    AFTER_LSQUARE,
+    BEFORE_KEY,
+    BEFORE_VALUE,
+    END_OF_KEY,
+    END_OF_VALUE,
+} JSONParserState;
+
+typedef struct JSONParserStackEntry {
+    /* A QString with the last parsed key, or a QList/QDict for the current container.  */
+    QObject *partial;
+
+    /* Needed to distinguish whether the parser is waiting for a colon or comma.  */
+    JSONParserState state;
+} JSONParserStackEntry;
 
 #define BUG_ON(cond) assert(!(cond))
 
@@ -49,7 +73,29 @@ typedef struct JSONParserContext {
  * 4) deal with premature EOI
  */
 
-static QObject *parse_value(JSONParserContext *ctxt, const JSONToken *token);
+static inline JSONParserStackEntry *current_entry(JSONParserContext *ctxt)
+{
+    return g_queue_peek_tail(ctxt->stack);
+}
+
+static void push_entry(JSONParserContext *ctxt, QObject *partial, JSONParserState state)
+{
+    JSONParserStackEntry *entry = g_new(JSONParserStackEntry, 1);
+    entry->partial = partial;
+    entry->state = state;
+    g_queue_push_tail(ctxt->stack, entry);
+}
+
+/* Note that entry->partial does *not* lose its reference count even if value == NULL.  */
+static JSONParserStackEntry *pop_entry(JSONParserContext *ctxt, QObject **value)
+{
+    JSONParserStackEntry *entry = g_queue_pop_tail(ctxt->stack);
+    if (value) {
+        *value = entry->partial;
+    }
+    g_free(entry);
+    return current_entry(ctxt);
+}
 
 /**
  * Error handler
@@ -235,189 +281,7 @@ out:
     return NULL;
 }
 
-/* Note: the token object returned by parser_context_pop_token is
- * deleted as soon as parser_context_pop_token is called again.
- */
-static const JSONToken *parser_context_pop_token(JSONParserContext *ctxt)
-{
-    g_free(ctxt->current);
-    ctxt->current = g_queue_pop_head(ctxt->buf);
-    return ctxt->current;
-}
-
-/**
- * Parsing rules
- */
-static int parse_pair(JSONParserContext *ctxt, const JSONToken *token, QDict *dict)
-{
-    QObject *key_obj = NULL;
-    QString *key;
-    QObject *value;
-
-    key_obj = parse_value(ctxt, token);
-    key = qobject_to(QString, key_obj);
-    if (!key) {
-        parse_error(ctxt, token, "key is not a string in object");
-        goto out;
-    }
-
-    token = parser_context_pop_token(ctxt);
-    if (token == NULL) {
-        parse_error(ctxt, NULL, "premature EOI");
-        goto out;
-    }
-
-    if (token->type != JSON_COLON) {
-        parse_error(ctxt, token, "missing : in object pair");
-        goto out;
-    }
-
-    token = parser_context_pop_token(ctxt);
-    if (token == NULL) {
-        parse_error(ctxt, NULL, "premature EOI");
-        goto out;
-    }
-
-    value = parse_value(ctxt, token);
-    if (value == NULL) {
-        parse_error(ctxt, token, "Missing value in dict");
-        goto out;
-    }
-
-    if (qdict_haskey(dict, qstring_get_str(key))) {
-        parse_error(ctxt, token, "duplicate key");
-        goto out;
-    }
-
-    qdict_put_obj(dict, qstring_get_str(key), value);
-
-    qobject_unref(key_obj);
-    return 0;
-
-out:
-    qobject_unref(key_obj);
-    return -1;
-}
-
-static QObject *parse_object(JSONParserContext *ctxt)
-{
-    QDict *dict = NULL;
-    const JSONToken *token;
-
-    dict = qdict_new();
-
-    token = parser_context_pop_token(ctxt);
-    if (token == NULL) {
-        parse_error(ctxt, NULL, "premature EOI");
-        goto out;
-    }
-
-    if (token->type != JSON_RCURLY) {
-        if (parse_pair(ctxt, token, dict) == -1) {
-            goto out;
-        }
-
-        token = parser_context_pop_token(ctxt);
-        if (token == NULL) {
-            parse_error(ctxt, NULL, "premature EOI");
-            goto out;
-        }
-
-        while (token->type != JSON_RCURLY) {
-            if (token->type != JSON_COMMA) {
-                parse_error(ctxt, token, "expected separator in dict");
-                goto out;
-            }
-
-            token = parser_context_pop_token(ctxt);
-            if (token == NULL) {
-                parse_error(ctxt, NULL, "premature EOI");
-                goto out;
-            }
-
-            if (parse_pair(ctxt, token, dict) == -1) {
-                goto out;
-            }
-
-            token = parser_context_pop_token(ctxt);
-            if (token == NULL) {
-                parse_error(ctxt, NULL, "premature EOI");
-                goto out;
-            }
-        }
-    }
-
-    return QOBJECT(dict);
-
-out:
-    qobject_unref(dict);
-    return NULL;
-}
-
-static QObject *parse_array(JSONParserContext *ctxt)
-{
-    QList *list = NULL;
-    const JSONToken *token;
-
-    list = qlist_new();
-
-    token = parser_context_pop_token(ctxt);
-    if (token == NULL) {
-        parse_error(ctxt, NULL, "premature EOI");
-        goto out;
-    }
-
-    if (token->type != JSON_RSQUARE) {
-        QObject *obj;
-
-        obj = parse_value(ctxt, token);
-        if (obj == NULL) {
-            parse_error(ctxt, token, "expecting value");
-            goto out;
-        }
-
-        qlist_append_obj(list, obj);
-
-        token = parser_context_pop_token(ctxt);
-        if (token == NULL) {
-            parse_error(ctxt, NULL, "premature EOI");
-            goto out;
-        }
-
-        while (token->type != JSON_RSQUARE) {
-            if (token->type != JSON_COMMA) {
-                parse_error(ctxt, token, "expected separator in list");
-                goto out;
-            }
-
-            token = parser_context_pop_token(ctxt);
-            if (token == NULL) {
-                parse_error(ctxt, NULL, "premature EOI");
-                goto out;
-            }
-
-            obj = parse_value(ctxt, token);
-            if (obj == NULL) {
-                parse_error(ctxt, token, "expecting value");
-                goto out;
-            }
-
-            qlist_append_obj(list, obj);
-
-            token = parser_context_pop_token(ctxt);
-            if (token == NULL) {
-                parse_error(ctxt, NULL, "premature EOI");
-                goto out;
-            }
-        }
-    }
-
-    return QOBJECT(list);
-
-out:
-    qobject_unref(list);
-    return NULL;
-}
+/* Terminals  */
 
 static QObject *parse_keyword(JSONParserContext *ctxt, const JSONToken *token)
 {
@@ -516,13 +380,17 @@ static QObject *parse_literal(JSONParserContext *ctxt, const JSONToken *token)
     }
 }
 
-static QObject *parse_value(JSONParserContext *ctxt, const JSONToken *token)
+/* Parsing state machine  */
+
+static QObject *parse_begin_value(JSONParserContext *ctxt, const JSONToken *token)
 {
     switch (token->type) {
     case JSON_LCURLY:
-        return parse_object(ctxt);
+        push_entry(ctxt, QOBJECT(qdict_new()), AFTER_LCURLY);
+        return NULL;
     case JSON_LSQUARE:
-        return parse_array(ctxt);
+        push_entry(ctxt, QOBJECT(qlist_new()), AFTER_LSQUARE);
+        return NULL;
     case JSON_INTERP:
         return parse_interpolation(ctxt, token);
     case JSON_INTEGER:
@@ -537,6 +405,130 @@ static QObject *parse_value(JSONParserContext *ctxt, const JSONToken *token)
     }
 }
 
+static QObject *json_parser_parse_token(JSONParserContext *ctxt, const JSONToken *token)
+{
+    JSONParserStackEntry *entry;
+    JSONParserState state;
+    QString *key;
+    QObject *value = NULL;
+
+    entry = current_entry(ctxt);
+    state = entry ? entry->state : BEFORE_VALUE;
+    switch (state) {
+    case AFTER_LCURLY:
+        /* Grab '}' for empty object or fall through to BEFORE_KEY */
+        if (token->type == JSON_RCURLY) {
+            entry = pop_entry(ctxt, &value);
+            break;
+        }
+        entry->state = BEFORE_KEY;
+        /* fall through */
+
+    case BEFORE_KEY:
+        /* Expecting object key */
+        if (token->type == JSON_STRING) {
+            key = parse_string(ctxt, token);
+            if (!key) {
+                return NULL;
+            }
+
+            /* Store key in a special entry on the stack */
+            push_entry(ctxt, QOBJECT(key), END_OF_KEY);
+        } else {
+            parse_error(ctxt, token, "expecting key");
+        }
+        return NULL;
+
+    case END_OF_KEY:
+        /* Expecting ':' after key */
+        if (token->type == JSON_COLON) {
+            entry->state = BEFORE_VALUE;
+        } else {
+            parse_error(ctxt, token, "expecting ':'");
+        }
+        return NULL;
+
+    case AFTER_LSQUARE:
+        /* Grab ']' for empty array or fall through to BEFORE_VALUE */
+        if (token->type == JSON_RSQUARE) {
+            entry = pop_entry(ctxt, &value);
+            break;
+        }
+        entry->state = BEFORE_VALUE;
+        /* fall through */
+
+    case BEFORE_VALUE:
+        /* Expecting value */
+        value = parse_begin_value(ctxt, token);
+        if (!value) {
+            /* Error or '['/'{' */
+            return NULL;
+        }
+        /* Return value or insert it into a container */
+        break;
+
+    case END_OF_VALUE:
+        /* Grab ',' or ']' for array; ',' or '}' for object */
+        if (qobject_to(QList, entry->partial)) {
+            /* Array */
+            if (token->type != JSON_RSQUARE) {
+                if (token->type == JSON_COMMA) {
+                    entry->state = BEFORE_VALUE;
+                } else {
+                    parse_error(ctxt, token, "expected ',' or ']'");
+                }
+                return NULL;
+            }
+        } else if (qobject_to(QDict, entry->partial)) {
+            /* Object */
+            if (token->type != JSON_RCURLY) {
+                if (token->type == JSON_COMMA) {
+                    entry->state = BEFORE_KEY;
+                } else {
+                    parse_error(ctxt, token, "expected ',' or '}'");
+                }
+                return NULL;
+            }
+        } else {
+            g_assert_not_reached();
+        }
+
+        /* Got ']' or '}', return value or insert into parent container */
+        entry = pop_entry(ctxt, &value);
+        break;
+    }
+
+    assert(value);
+    if (entry == NULL) {
+        /* The toplevel value is complete.  */
+        return value;
+    }
+
+    key = qobject_to(QString, entry->partial);
+    if (key) {
+        const char *key_str;
+        QDict *dict;
+
+        entry = pop_entry(ctxt, NULL);
+        dict = qobject_to(QDict, entry->partial);
+        assert(dict);
+        key_str = qstring_get_str(key);
+        if (qdict_haskey(dict, key_str)) {
+            parse_error(ctxt, token, "duplicate key");
+            qobject_unref(value);
+            return NULL;
+        }
+        qdict_put_obj(dict, key_str, value);
+        qobject_unref(key);
+    } else {
+        /* Add to array */
+        qlist_append_obj(qobject_to(QList, entry->partial), value);
+    }
+
+    entry->state = END_OF_VALUE;
+    return NULL;
+}
+
 JSONToken *json_token(JSONTokenType type, int x, int y, GString *tokstr)
 {
     JSONToken *token = g_malloc(sizeof(JSONToken) + tokstr->len + 1);
@@ -549,27 +541,43 @@ JSONToken *json_token(JSONTokenType type, int x, int y, GString *tokstr)
     return token;
 }
 
-QObject *json_parser_parse(GQueue *tokens, va_list *ap, Error **errp)
+void json_parser_init(JSONParserContext *ctxt, va_list *ap)
 {
-    JSONParserContext ctxt = { .buf = tokens, .ap = ap };
-    QObject *result;
-    const JSONToken *token;
+    ctxt->err = NULL;
+    ctxt->stack = g_queue_new();
+    ctxt->ap = ap;
+}
 
-    token = parser_context_pop_token(&ctxt);
-    if (token == NULL) {
-        parse_error(&ctxt, NULL, "premature EOI");
-        return NULL;
+void json_parser_destroy(JSONParserContext *ctxt)
+{
+    JSONParserStackEntry *entry;
+
+    while ((entry = g_queue_pop_tail(ctxt->stack)) != NULL) {
+        qobject_unref(entry->partial);
+        g_free(entry);
+    }
+    g_queue_free(ctxt->stack);
+    ctxt->stack = NULL;
+}
+
+QObject *json_parser_feed(JSONParserContext *ctxt, const JSONToken *token, Error **errp)
+{
+    QObject *result = NULL;
+
+    assert(!ctxt->err);
+    switch (token->type) {
+    case JSON_END_OF_INPUT:
+        /* Check for premature end of input */
+        if (!g_queue_is_empty(ctxt->stack)) {
+            parse_error(ctxt, token, "premature end of input");
+        }
+        break;
+
+    default:
+        result = json_parser_parse_token(ctxt, token);
+        break;
     }
 
-    result = parse_value(&ctxt, token);
-    assert(ctxt.err || g_queue_is_empty(ctxt.buf));
-
-    error_propagate(errp, ctxt.err);
-
-    while (!g_queue_is_empty(ctxt.buf)) {
-        parser_context_pop_token(&ctxt);
-    }
-    g_free(ctxt.current);
-
+    error_propagate(errp, ctxt->err);
     return result;
 }
