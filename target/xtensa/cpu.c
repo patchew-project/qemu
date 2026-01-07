@@ -29,6 +29,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/target-info.h"
 #include "qapi/error.h"
 #include "cpu.h"
 #include "fpu/softfloat.h"
@@ -40,6 +41,10 @@
 #include "system/memory.h"
 #endif
 
+const char *xtensa_default_cpu_model(void)
+{
+    return target_big_endian() ? "fsf" : "dc232b";
+}
 
 static void xtensa_cpu_set_pc(CPUState *cs, vaddr value)
 {

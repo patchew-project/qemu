@@ -4,11 +4,11 @@
 #include "qemu.h"
 #include "loader.h"
 #include "target_elf.h"
-
+#include "target/xtensa/cpu-qom.h"
 
 const char *get_elf_cpu_model(uint32_t eflags)
 {
-    return XTENSA_DEFAULT_CPU_MODEL;
+    return xtensa_default_cpu_model();
 }
 
 void elf_core_copy_regs(target_elf_gregset_t *r, const CPUXtensaState *env)

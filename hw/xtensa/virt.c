@@ -35,8 +35,10 @@
 #include "elf.h"
 #include "system/memory.h"
 #include "qemu/error-report.h"
+#include "qemu/target-info.h"
 #include "xtensa_memory.h"
 #include "xtensa_sim.h"
+#include "target/xtensa/cpu-qom.h"
 
 static void create_pcie(MachineState *ms, CPUXtensaState *env, int irq_base,
                         hwaddr addr_base)
@@ -117,10 +119,15 @@ static void xtensa_virt_init(MachineState *machine)
 
 static void xtensa_virt_machine_init(MachineClass *mc)
 {
-    mc->desc = "virt machine (" XTENSA_DEFAULT_CPU_MODEL ")";
+    if (target_big_endian()) {
+        mc->default_cpu_type = XTENSA_CPU_TYPE_NAME("fsf");
+        mc->desc = "virt machine (fsf)";
+    } else {
+        mc->default_cpu_type = XTENSA_CPU_TYPE_NAME("dc232b");
+        mc->desc = "virt machine (dc232b)";
+    }
     mc->init = xtensa_virt_init;
     mc->max_cpus = 32;
-    mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
     mc->default_nic = "virtio-net-pci";
 }
 

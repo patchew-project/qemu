@@ -51,6 +51,7 @@
 #include "hw/xtensa/mx_pic.h"
 #include "exec/cpu-common.h"
 #include "migration/vmstate.h"
+#include "target/xtensa/cpu-qom.h"
 
 typedef struct XtfpgaFlashDesc {
     hwaddr base;
@@ -591,10 +592,10 @@ static void xtfpga_lx60_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "lx60 EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
+    mc->desc = g_strdup_printf("lx60 EVB (%s)", xtensa_default_cpu_model());
     mc->init = xtfpga_lx60_init;
     mc->max_cpus = 32;
-    mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
+    mc->default_cpu_type = xtensa_default_cpu_model();
     mc->default_ram_size = 64 * MiB;
 }
 
@@ -625,10 +626,10 @@ static void xtfpga_lx200_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "lx200 EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
+    mc->desc = g_strdup_printf("lx200 EVB (%s)", xtensa_default_cpu_model());
     mc->init = xtfpga_lx200_init;
     mc->max_cpus = 32;
-    mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
+    mc->default_cpu_type = xtensa_default_cpu_model();
     mc->default_ram_size = 96 * MiB;
 }
 
@@ -659,10 +660,10 @@ static void xtfpga_ml605_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "ml605 EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
+    mc->desc = g_strdup_printf("ml605 EVB (%s)", xtensa_default_cpu_model());
     mc->init = xtfpga_ml605_init;
     mc->max_cpus = 32;
-    mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
+    mc->default_cpu_type = xtensa_default_cpu_model();
     mc->default_ram_size = 512 * MiB - XTFPGA_MMU_RESERVED_MEMORY_SIZE;
 }
 
@@ -693,10 +694,10 @@ static void xtfpga_kc705_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "kc705 EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
+    mc->desc = g_strdup_printf("kc705 EVB (%s)", xtensa_default_cpu_model());
     mc->init = xtfpga_kc705_init;
     mc->max_cpus = 32;
-    mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
+    mc->default_cpu_type = xtensa_default_cpu_model();
     mc->default_ram_size = 1 * GiB - XTFPGA_MMU_RESERVED_MEMORY_SIZE;
 }
 

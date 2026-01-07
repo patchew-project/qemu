@@ -36,6 +36,7 @@
 #include "qemu/error-report.h"
 #include "xtensa_memory.h"
 #include "xtensa_sim.h"
+#include "target/xtensa/cpu-qom.h"
 
 static uint64_t translate_phys_addr(void *opaque, uint64_t addr)
 {
@@ -119,12 +120,17 @@ static void xtensa_sim_init(MachineState *machine)
 
 static void xtensa_sim_machine_init(MachineClass *mc)
 {
-    mc->desc = "sim machine (" XTENSA_DEFAULT_CPU_MODEL ")";
+    if (target_big_endian()) {
+        mc->default_cpu_type = XTENSA_CPU_TYPE_NAME("fsf");
+        mc->desc = "sim machine (fsf)";
+    } else {
+        mc->default_cpu_type = XTENSA_CPU_TYPE_NAME("dc232b");
+        mc->desc = "sim machine (dc232b)";
+    }
     mc->is_default = true;
     mc->init = xtensa_sim_init;
     mc->max_cpus = 4;
     mc->no_serial = 1;
-    mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
 }
 
 DEFINE_MACHINE("sim", xtensa_sim_machine_init)
