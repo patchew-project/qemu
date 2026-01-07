@@ -11,6 +11,7 @@
 #include "qemu/target-info-qapi.h"
 #include "qemu/target-info-impl.h"
 #include "qapi/error.h"
+#include "system/arch_init.h"
 
 const char *target_name(void)
 {
@@ -31,6 +32,46 @@ SysEmuTarget target_arch(void)
                                &error_abort);
     }
     return arch;
+}
+
+bool qemu_arch_available(unsigned qemu_arch_mask)
+{
+    static const unsigned base_arch_mask[SYS_EMU_TARGET__MAX] = {
+        [SYS_EMU_TARGET_AARCH64]        = QEMU_ARCH_ARM,
+        [SYS_EMU_TARGET_ALPHA]          = QEMU_ARCH_ALPHA,
+        [SYS_EMU_TARGET_ARM]            = QEMU_ARCH_ARM,
+        [SYS_EMU_TARGET_AVR]            = QEMU_ARCH_AVR,
+        /*
+        [SYS_EMU_TARGET_HEXAGON]        = QEMU_ARCH_HEXAGON,
+        */
+        [SYS_EMU_TARGET_HPPA]           = QEMU_ARCH_HPPA,
+        [SYS_EMU_TARGET_I386]           = QEMU_ARCH_I386,
+        [SYS_EMU_TARGET_LOONGARCH64]    = QEMU_ARCH_LOONGARCH,
+        [SYS_EMU_TARGET_M68K]           = QEMU_ARCH_M68K,
+        [SYS_EMU_TARGET_MICROBLAZE]     = QEMU_ARCH_MICROBLAZE,
+        [SYS_EMU_TARGET_MICROBLAZEEL]   = QEMU_ARCH_MICROBLAZE,
+        [SYS_EMU_TARGET_MIPS]           = QEMU_ARCH_MIPS,
+        [SYS_EMU_TARGET_MIPS64]         = QEMU_ARCH_MIPS,
+        [SYS_EMU_TARGET_MIPS64EL]       = QEMU_ARCH_MIPS,
+        [SYS_EMU_TARGET_MIPSEL]         = QEMU_ARCH_MIPS,
+        [SYS_EMU_TARGET_OR1K]           = QEMU_ARCH_OPENRISC,
+        [SYS_EMU_TARGET_PPC]            = QEMU_ARCH_PPC,
+        [SYS_EMU_TARGET_PPC64]          = QEMU_ARCH_PPC,
+        [SYS_EMU_TARGET_RISCV32]        = QEMU_ARCH_RISCV,
+        [SYS_EMU_TARGET_RISCV64]        = QEMU_ARCH_RISCV,
+        [SYS_EMU_TARGET_RX]             = QEMU_ARCH_RX,
+        [SYS_EMU_TARGET_S390X]          = QEMU_ARCH_S390X,
+        [SYS_EMU_TARGET_SH4]            = QEMU_ARCH_SH4,
+        [SYS_EMU_TARGET_SH4EB]          = QEMU_ARCH_SH4,
+        [SYS_EMU_TARGET_SPARC]          = QEMU_ARCH_SPARC,
+        [SYS_EMU_TARGET_SPARC64]        = QEMU_ARCH_SPARC,
+        [SYS_EMU_TARGET_TRICORE]        = QEMU_ARCH_TRICORE,
+        [SYS_EMU_TARGET_X86_64]         = QEMU_ARCH_I386,
+        [SYS_EMU_TARGET_XTENSA]         = QEMU_ARCH_XTENSA,
+        [SYS_EMU_TARGET_XTENSAEB]       = QEMU_ARCH_XTENSA,
+    };
+
+    return qemu_arch_mask & base_arch_mask[target_arch()];
 }
 
 const char *target_cpu_type(void)
