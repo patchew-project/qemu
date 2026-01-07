@@ -605,14 +605,6 @@ G_NORETURN void xtensa_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
 
 #define CPU_RESOLVING_TYPE TYPE_XTENSA_CPU
 
-#if TARGET_BIG_ENDIAN
-#define XTENSA_DEFAULT_CPU_NOMMU_MODEL "fsf"
-#else
-#define XTENSA_DEFAULT_CPU_NOMMU_MODEL "de212"
-#endif
-#define XTENSA_DEFAULT_CPU_NOMMU_TYPE \
-    XTENSA_CPU_TYPE_NAME(XTENSA_DEFAULT_CPU_NOMMU_MODEL)
-
 void xtensa_collect_sr_names(const XtensaConfig *config);
 void xtensa_translate_init(void);
 void xtensa_translate_code(CPUState *cs, TranslationBlock *tb,

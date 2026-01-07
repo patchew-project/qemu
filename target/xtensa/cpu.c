@@ -46,6 +46,11 @@ const char *xtensa_default_cpu_model(void)
     return target_big_endian() ? "fsf" : "dc232b";
 }
 
+const char *xtensa_default_cpu_model_nommu(void)
+{
+    return target_big_endian() ? "fsf" : "de212";
+}
+
 static void xtensa_cpu_set_pc(CPUState *cs, vaddr value)
 {
     XtensaCPU *cpu = XTENSA_CPU(cs);
