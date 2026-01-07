@@ -2875,7 +2875,7 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
          * VEX prefixes cannot be used except in 32-bit mode.
          * Otherwise the instruction is LES or LDS.
          */
-        if (CODE32(s) && !VM86(s)) {
+        if (PE(s) && !VM86(s)) {
             static const int pp_prefix[4] = {
                 0, PREFIX_DATA, PREFIX_REPZ, PREFIX_REPNZ
             };
