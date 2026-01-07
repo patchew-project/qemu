@@ -743,7 +743,7 @@ static RISCVException pmp(CPURISCVState *env, int csrno)
 {
     if (riscv_cpu_cfg(env)->pmp) {
         int max_pmpcfg = (env->priv_ver >= PRIV_VERSION_1_12_0) ?
-+                              CSR_PMPCFG15 : CSR_PMPCFG3;
+                               CSR_PMPCFG15 : CSR_PMPCFG3;
 
         if (csrno <= max_pmpcfg) {
             uint32_t reg_index = csrno - CSR_PMPCFG0;
