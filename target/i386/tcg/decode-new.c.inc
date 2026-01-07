@@ -2024,12 +2024,6 @@ static AddressParts decode_modrm_address(CPUX86State *env, DisasContext *s,
     rm = modrm & 7;
     base = rm | REX_B(s);
 
-    if (mod == 3) {
-        /* Normally filtered out earlier, but including this path
-           simplifies multi-byte nop, as well as bndcl, bndcu, bndcn.  */
-        goto done;
-    }
-
     switch (s->aflag) {
     case MO_64:
     case MO_32:
@@ -2127,7 +2121,6 @@ static AddressParts decode_modrm_address(CPUX86State *env, DisasContext *s,
         g_assert_not_reached();
     }
 
- done:
     return (AddressParts){ def_seg, base, index, scale, disp };
 }
 
