@@ -49,6 +49,8 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
 
 /* json-parser.c */
 JSONToken *json_token(JSONTokenType type, int x, int y, GString *tokstr);
-QObject *json_parser_parse(GQueue *tokens, va_list *ap, Error **errp);
+void json_parser_init(JSONParserContext *ctxt, va_list *ap);
+QObject *json_parser_feed(JSONParserContext *ctxt, const JSONToken *token, Error **errp);
+void json_parser_destroy(JSONParserContext *ctxt);
 
 #endif

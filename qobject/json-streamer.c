@@ -32,6 +32,7 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
                                 JSONTokenType type, int x, int y)
 {
     JSONMessageParser *parser = container_of(lexer, JSONMessageParser, lexer);
+    JSONParserContext ctxt;
     QObject *json = NULL;
     Error *err = NULL;
     JSONToken *token;
@@ -56,8 +57,7 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
         if (g_queue_is_empty(&parser->tokens)) {
             return;
         }
-        json = json_parser_parse(&parser->tokens, parser->ap, &err);
-        goto out_emit;
+        break;
     default:
         break;
     }
@@ -85,11 +85,24 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
     g_queue_push_tail(&parser->tokens, token);
 
     if ((parser->brace_count > 0 || parser->bracket_count > 0)
-        && parser->brace_count >= 0 && parser->bracket_count >= 0) {
+        && parser->brace_count >= 0 && parser->bracket_count >= 0
+        && type != JSON_END_OF_INPUT) {
         return;
     }
 
-    json = json_parser_parse(&parser->tokens, parser->ap, &err);
+    json_parser_init(&ctxt, parser->ap);
+
+    /* Process all tokens in the queue */
+    while (!g_queue_is_empty(&parser->tokens)) {
+        token = g_queue_pop_head(&parser->tokens);
+        json = json_parser_feed(&ctxt, token, &err);
+        g_free(token);
+        if (json || err) {
+            break;
+        }
+    }
+
+    json_parser_destroy(&ctxt);
 
 out_emit:
     parser->brace_count = 0;
