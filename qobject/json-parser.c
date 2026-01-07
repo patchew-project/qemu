@@ -541,21 +541,27 @@ JSONToken *json_token(JSONTokenType type, int x, int y, GString *tokstr)
     return token;
 }
 
-void json_parser_init(JSONParserContext *ctxt, va_list *ap)
-{
-    ctxt->err = NULL;
-    ctxt->stack = g_queue_new();
-    ctxt->ap = ap;
-}
-
-void json_parser_destroy(JSONParserContext *ctxt)
+void json_parser_reset(JSONParserContext *ctxt)
 {
     JSONParserStackEntry *entry;
 
+    ctxt->err = NULL;
     while ((entry = g_queue_pop_tail(ctxt->stack)) != NULL) {
         qobject_unref(entry->partial);
         g_free(entry);
     }
+}
+
+void json_parser_init(JSONParserContext *ctxt, va_list *ap)
+{
+    ctxt->stack = g_queue_new();
+    ctxt->ap = ap;
+    json_parser_reset(ctxt);
+}
+
+void json_parser_destroy(JSONParserContext *ctxt)
+{
+    json_parser_reset(ctxt);
     g_queue_free(ctxt->stack);
     ctxt->stack = NULL;
 }
@@ -566,6 +572,10 @@ QObject *json_parser_feed(JSONParserContext *ctxt, const JSONToken *token, Error
 
     assert(!ctxt->err);
     switch (token->type) {
+    case JSON_ERROR:
+        parse_error(ctxt, token, "JSON parse error, stray '%s'", token->str);
+        break;
+
     case JSON_END_OF_INPUT:
         /* Check for premature end of input */
         if (!g_queue_is_empty(ctxt->stack)) {

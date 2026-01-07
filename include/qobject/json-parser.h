@@ -29,11 +29,12 @@ typedef struct JSONParserContext {
 typedef struct JSONMessageParser {
     void (*emit)(void *opaque, QObject *json, Error *err);
     void *opaque;
-    va_list *ap;
     JSONLexer lexer;
+    JSONParserContext parser;
     int brace_count;
     int bracket_count;
-    GQueue tokens;
+    int token_count;
+    bool error;
     uint64_t token_size;
 } JSONMessageParser;
 
