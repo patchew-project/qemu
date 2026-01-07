@@ -12,13 +12,15 @@
 #include "system/dump.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "win_dump.h"
+
+#ifdef CONFIG_WIN32
+#if defined(TARGET_X86_64)
+
 #include "exec/cpu-defs.h"
 #include "hw/core/cpu.h"
 #include "qemu/win_dump_defs.h"
-#include "win_dump.h"
 #include "cpu.h"
-
-#if defined(TARGET_X86_64)
 
 bool win_dump_available(Error **errp)
 {
@@ -478,7 +480,9 @@ out_cr3:
     first_x86_cpu->env.cr[3] = saved_cr3;
 }
 
-#else /* !TARGET_X86_64 */
+#endif /* !TARGET_X86_64 */
+
+#else /* !CONFIG_WIN32 */
 
 bool win_dump_available(Error **errp)
 {

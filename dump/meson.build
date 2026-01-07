@@ -1,2 +1,6 @@
 system_ss.add([files('dump.c', 'dump-hmp-cmds.c'), snappy, lzo])
-specific_ss.add(when: 'CONFIG_SYSTEM_ONLY', if_true: files('win_dump.c'))
+if host_os == 'windows'
+  system_ss.add(files('win_dump.c'))
+else
+  system_ss.add(files('win_dump-stubs.c'))
+endif
