@@ -462,15 +462,15 @@ static void monitor_qmp_event(void *opaque, QEMUChrEvent event)
 
     switch (event) {
     case CHR_EVENT_OPENED:
-        WITH_QEMU_LOCK_GUARD(&mon->common.mon_lock) {
-            mon->commands = &qmp_cap_negotiation_commands;
-            monitor_qmp_caps_reset(mon);
-        }
         data = qmp_greeting(mon);
         qmp_send_response(mon, data);
         qobject_unref(data);
         break;
     case CHR_EVENT_CLOSED:
+        WITH_QEMU_LOCK_GUARD(&mon->common.mon_lock) {
+            mon->commands = &qmp_cap_negotiation_commands;
+            monitor_qmp_caps_reset(mon);
+        }
         /*
          * Note: this is only useful when the output of the chardev
          * backend is still open.  For example, when the backend is
@@ -527,6 +527,7 @@ void monitor_init_qmp(Chardev *chr, bool pretty, Error **errp)
     monitor_data_init(&mon->common, true, false,
                       qemu_chr_has_feature(chr, QEMU_CHAR_FEATURE_GCONTEXT));
 
+    mon->commands = &qmp_cap_negotiation_commands;
     mon->pretty = pretty;
 
     qemu_mutex_init(&mon->qmp_queue_lock);
