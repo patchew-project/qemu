@@ -1403,14 +1403,17 @@ static int fdctrl_seek_to_next_sect(FDCtrl *fdctrl, FDrive *cur_drv)
             } else {
                 new_head = 0;
                 new_track++;
-                fdctrl->status0 |= FD_SR0_SEEK;
+                /* Don't set FD_SR0_SEEK for implicit track crossing during
+                 * multi-track transfers. SEEK bit must only be set for
+                 * explicit SEEK commands, not automatic track advancement.
+                 */
                 if ((cur_drv->flags & FDISK_DBL_SIDES) == 0) {
                     ret = 0;
                 }
             }
         } else {
-            fdctrl->status0 |= FD_SR0_SEEK;
-            new_track++;
+            /* Not in multi-track mode: stop at end of track and don't seek. */
+            FLOPPY_DPRINTF("end of track, stopping transfer\n");
             ret = 0;
         }
         if (ret == 1) {
