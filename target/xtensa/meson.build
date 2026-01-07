@@ -12,6 +12,10 @@ xtensa_ss.add(files(
   'op_helper.c',
   'translate.c',
   'win_helper.c',
+))
+
+xtensa_common_ss = ss.source_set()
+xtensa_common_ss.add(files(
   'xtensa-isa.c',
 ))
 
@@ -24,4 +28,5 @@ xtensa_system_ss.add(files(
 ))
 
 target_arch += {'xtensa': xtensa_ss}
+target_common_arch += {'xtensa': xtensa_common_ss}
 target_common_system_arch += {'xtensa': xtensa_system_ss}
