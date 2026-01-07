@@ -49,13 +49,13 @@ typedef struct JSONParserContext {
  * 4) deal with premature EOI
  */
 
-static QObject *parse_value(JSONParserContext *ctxt);
+static QObject *parse_value(JSONParserContext *ctxt, const JSONToken *token);
 
 /**
  * Error handler
  */
 static void G_GNUC_PRINTF(3, 4) parse_error(JSONParserContext *ctxt,
-                                           JSONToken *token, const char *msg, ...)
+                                           const JSONToken *token, const char *msg, ...)
 {
     va_list ap;
     char message[1024];
@@ -126,7 +126,7 @@ static int cvt4hex(const char *s)
  * - Invalid Unicode characters are rejected.
  * - Control characters \x00..\x1F are rejected by the lexer.
  */
-static QString *parse_string(JSONParserContext *ctxt, JSONToken *token)
+static QString *parse_string(JSONParserContext *ctxt, const JSONToken *token)
 {
     const char *ptr = token->str;
     GString *str;
@@ -235,42 +235,29 @@ out:
     return NULL;
 }
 
-/* Note: the token object returned by parser_context_peek_token or
- * parser_context_pop_token is deleted as soon as parser_context_pop_token
- * is called again.
+/* Note: the token object returned by parser_context_pop_token is
+ * deleted as soon as parser_context_pop_token is called again.
  */
-static JSONToken *parser_context_pop_token(JSONParserContext *ctxt)
+static const JSONToken *parser_context_pop_token(JSONParserContext *ctxt)
 {
     g_free(ctxt->current);
     ctxt->current = g_queue_pop_head(ctxt->buf);
     return ctxt->current;
 }
 
-static JSONToken *parser_context_peek_token(JSONParserContext *ctxt)
-{
-    return g_queue_peek_head(ctxt->buf);
-}
-
 /**
  * Parsing rules
  */
-static int parse_pair(JSONParserContext *ctxt, QDict *dict)
+static int parse_pair(JSONParserContext *ctxt, const JSONToken *token, QDict *dict)
 {
     QObject *key_obj = NULL;
     QString *key;
     QObject *value;
-    JSONToken *peek, *token;
 
-    peek = parser_context_peek_token(ctxt);
-    if (peek == NULL) {
-        parse_error(ctxt, NULL, "premature EOI");
-        goto out;
-    }
-
-    key_obj = parse_value(ctxt);
+    key_obj = parse_value(ctxt, token);
     key = qobject_to(QString, key_obj);
     if (!key) {
-        parse_error(ctxt, peek, "key is not a string in object");
+        parse_error(ctxt, token, "key is not a string in object");
         goto out;
     }
 
@@ -285,7 +272,13 @@ static int parse_pair(JSONParserContext *ctxt, QDict *dict)
         goto out;
     }
 
-    value = parse_value(ctxt);
+    token = parser_context_pop_token(ctxt);
+    if (token == NULL) {
+        parse_error(ctxt, NULL, "premature EOI");
+        goto out;
+    }
+
+    value = parse_value(ctxt, token);
     if (value == NULL) {
         parse_error(ctxt, token, "Missing value in dict");
         goto out;
@@ -309,21 +302,18 @@ out:
 static QObject *parse_object(JSONParserContext *ctxt)
 {
     QDict *dict = NULL;
-    JSONToken *token, *peek;
-
-    token = parser_context_pop_token(ctxt);
-    assert(token && token->type == JSON_LCURLY);
+    const JSONToken *token;
 
     dict = qdict_new();
 
-    peek = parser_context_peek_token(ctxt);
-    if (peek == NULL) {
+    token = parser_context_pop_token(ctxt);
+    if (token == NULL) {
         parse_error(ctxt, NULL, "premature EOI");
         goto out;
     }
 
-    if (peek->type != JSON_RCURLY) {
-        if (parse_pair(ctxt, dict) == -1) {
+    if (token->type != JSON_RCURLY) {
+        if (parse_pair(ctxt, token, dict) == -1) {
             goto out;
         }
 
@@ -339,7 +329,13 @@ static QObject *parse_object(JSONParserContext *ctxt)
                 goto out;
             }
 
-            if (parse_pair(ctxt, dict) == -1) {
+            token = parser_context_pop_token(ctxt);
+            if (token == NULL) {
+                parse_error(ctxt, NULL, "premature EOI");
+                goto out;
+            }
+
+            if (parse_pair(ctxt, token, dict) == -1) {
                 goto out;
             }
 
@@ -349,8 +345,6 @@ static QObject *parse_object(JSONParserContext *ctxt)
                 goto out;
             }
         }
-    } else {
-        (void)parser_context_pop_token(ctxt);
     }
 
     return QOBJECT(dict);
@@ -363,23 +357,20 @@ out:
 static QObject *parse_array(JSONParserContext *ctxt)
 {
     QList *list = NULL;
-    JSONToken *token, *peek;
-
-    token = parser_context_pop_token(ctxt);
-    assert(token && token->type == JSON_LSQUARE);
+    const JSONToken *token;
 
     list = qlist_new();
 
-    peek = parser_context_peek_token(ctxt);
-    if (peek == NULL) {
+    token = parser_context_pop_token(ctxt);
+    if (token == NULL) {
         parse_error(ctxt, NULL, "premature EOI");
         goto out;
     }
 
-    if (peek->type != JSON_RSQUARE) {
+    if (token->type != JSON_RSQUARE) {
         QObject *obj;
 
-        obj = parse_value(ctxt);
+        obj = parse_value(ctxt, token);
         if (obj == NULL) {
             parse_error(ctxt, token, "expecting value");
             goto out;
@@ -399,7 +390,13 @@ static QObject *parse_array(JSONParserContext *ctxt)
                 goto out;
             }
 
-            obj = parse_value(ctxt);
+            token = parser_context_pop_token(ctxt);
+            if (token == NULL) {
+                parse_error(ctxt, NULL, "premature EOI");
+                goto out;
+            }
+
+            obj = parse_value(ctxt, token);
             if (obj == NULL) {
                 parse_error(ctxt, token, "expecting value");
                 goto out;
@@ -413,8 +410,6 @@ static QObject *parse_array(JSONParserContext *ctxt)
                 goto out;
             }
         }
-    } else {
-        (void)parser_context_pop_token(ctxt);
     }
 
     return QOBJECT(list);
@@ -424,11 +419,8 @@ out:
     return NULL;
 }
 
-static QObject *parse_keyword(JSONParserContext *ctxt)
+static QObject *parse_keyword(JSONParserContext *ctxt, const JSONToken *token)
 {
-    JSONToken *token;
-
-    token = parser_context_pop_token(ctxt);
     assert(token && token->type == JSON_KEYWORD);
 
     if (!strcmp(token->str, "true")) {
@@ -442,11 +434,8 @@ static QObject *parse_keyword(JSONParserContext *ctxt)
     return NULL;
 }
 
-static QObject *parse_interpolation(JSONParserContext *ctxt)
+static QObject *parse_interpolation(JSONParserContext *ctxt, const JSONToken *token)
 {
-    JSONToken *token;
-
-    token = parser_context_pop_token(ctxt);
     assert(token && token->type == JSON_INTERP);
 
     if (!strcmp(token->str, "%p")) {
@@ -478,11 +467,8 @@ static QObject *parse_interpolation(JSONParserContext *ctxt)
     return NULL;
 }
 
-static QObject *parse_literal(JSONParserContext *ctxt)
+static QObject *parse_literal(JSONParserContext *ctxt, const JSONToken *token)
 {
-    JSONToken *token;
-
-    token = parser_context_pop_token(ctxt);
     assert(token);
 
     switch (token->type) {
@@ -530,29 +516,21 @@ static QObject *parse_literal(JSONParserContext *ctxt)
     }
 }
 
-static QObject *parse_value(JSONParserContext *ctxt)
+static QObject *parse_value(JSONParserContext *ctxt, const JSONToken *token)
 {
-    JSONToken *token;
-
-    token = parser_context_peek_token(ctxt);
-    if (token == NULL) {
-        parse_error(ctxt, NULL, "premature EOI");
-        return NULL;
-    }
-
     switch (token->type) {
     case JSON_LCURLY:
         return parse_object(ctxt);
     case JSON_LSQUARE:
         return parse_array(ctxt);
     case JSON_INTERP:
-        return parse_interpolation(ctxt);
+        return parse_interpolation(ctxt, token);
     case JSON_INTEGER:
     case JSON_FLOAT:
     case JSON_STRING:
-        return parse_literal(ctxt);
+        return parse_literal(ctxt, token);
     case JSON_KEYWORD:
-        return parse_keyword(ctxt);
+        return parse_keyword(ctxt, token);
     default:
         parse_error(ctxt, token, "expecting value");
         return NULL;
@@ -575,8 +553,15 @@ QObject *json_parser_parse(GQueue *tokens, va_list *ap, Error **errp)
 {
     JSONParserContext ctxt = { .buf = tokens, .ap = ap };
     QObject *result;
+    const JSONToken *token;
 
-    result = parse_value(&ctxt);
+    token = parser_context_pop_token(&ctxt);
+    if (token == NULL) {
+        parse_error(&ctxt, NULL, "premature EOI");
+        return NULL;
+    }
+
+    result = parse_value(&ctxt, token);
     assert(ctxt.err || g_queue_is_empty(ctxt.buf));
 
     error_propagate(errp, ctxt.err);
