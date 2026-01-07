@@ -398,6 +398,7 @@ typedef struct ChscResp {
     char data[];
 } QEMU_PACKED ChscResp;
 
+#define CHSC_MAX_REQ_LEN  0x1000
 #define CHSC_MIN_RESP_LEN 0x0008
 
 #define CHSC_SCPD 0x0002
@@ -660,7 +661,7 @@ void ioinst_handle_chsc(S390CPU *cpu, uint32_t ipb, uintptr_t ra)
     uint16_t len;
     uint16_t command;
     CPUS390XState *env = &cpu->env;
-    uint8_t buf[TARGET_PAGE_SIZE];
+    uint8_t buf[CHSC_MAX_REQ_LEN];
 
     trace_ioinst("chsc");
     reg = (ipb >> 20) & 0x00f;
@@ -690,7 +691,7 @@ void ioinst_handle_chsc(S390CPU *cpu, uint32_t ipb, uintptr_t ra)
         s390_program_interrupt(env, PGM_OPERAND, ra);
         return;
     }
-    memset((char *)req + len, 0, TARGET_PAGE_SIZE - len);
+    memset((char *)req + len, 0, CHSC_MAX_REQ_LEN - len);
     res = (void *)((char *)req + len);
     command = be16_to_cpu(req->command);
     trace_ioinst_chsc_cmd(command, len);
