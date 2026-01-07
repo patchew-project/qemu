@@ -34,6 +34,7 @@
 #include "tcg/tcg-op.h"
 #include "qemu/log.h"
 #include "qemu/qemu-print.h"
+#include "qemu/target-info.h"
 #include "exec/translator.h"
 #include "exec/translation-block.h"
 #include "exec/target_page.h"
@@ -1381,7 +1382,7 @@ static void translate_bb(DisasContext *dc, const OpcodeArg arg[],
     TCGv_i32 tmp = tcg_temp_new_i32();
 
     tcg_gen_andi_i32(tmp, arg[1].in, 0x1f);
-    if (TARGET_BIG_ENDIAN) {
+    if (target_big_endian()) {
         tcg_gen_shr_i32(tmp, tcg_constant_i32(0x80000000u), tmp);
     } else {
         tcg_gen_shl_i32(tmp, tcg_constant_i32(0x00000001u), tmp);
@@ -1394,7 +1395,7 @@ static void translate_bbi(DisasContext *dc, const OpcodeArg arg[],
                           const uint32_t par[])
 {
     TCGv_i32 tmp = tcg_temp_new_i32();
-    if (TARGET_BIG_ENDIAN) {
+    if (target_big_endian()) {
         tcg_gen_andi_i32(tmp, arg[0].in, 0x80000000u >> arg[1].imm);
     } else {
         tcg_gen_andi_i32(tmp, arg[0].in, 0x00000001u << arg[1].imm);
