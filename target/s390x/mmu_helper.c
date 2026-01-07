@@ -122,8 +122,8 @@ static inline bool read_table_entry(CPUS390XState *env, hwaddr gaddr,
     return ret == MEMTX_OK;
 }
 
-static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
-                              uint64_t asc, uint64_t asce, target_ulong *raddr,
+static int mmu_translate_asce(CPUS390XState *env, vaddr vaddr,
+                              uint64_t asc, uint64_t asce, hwaddr *raddr,
                               int *flags)
 {
     const bool edat1 = (env->cregs[0] & CR0_EDAT) &&
