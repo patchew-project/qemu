@@ -15,10 +15,25 @@
 #include "elf.h"
 #include "qemu/error-report.h"
 #include "system/qtest.h"
+#include "system/reset.h"
 
 #define KERNEL_LOAD_ADDR 0x10000
 #define AN5206_MBAR_ADDR 0x10000000
 #define AN5206_RAMBAR_ADDR 0x20000000
+
+static void an5206_cpu_reset(void *opaque)
+{
+    M68kCPU *cpu = opaque;
+    CPUM68KState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
+
+    cpu_reset(cs);
+    cpu->env.vbr = 0;
+    cpu->env.mbar = AN5206_MBAR_ADDR | 1;
+    cpu->env.rambar0 = AN5206_RAMBAR_ADDR | 1;
+
+    cpu->env.pc = env->reset_pc;
+}
 
 static void mcf5206_init(M68kCPU *cpu, MemoryRegion *sysmem, uint32_t base)
 {
@@ -47,13 +62,8 @@ static void an5206_init(MachineState *machine)
     MemoryRegion *sram = g_new(MemoryRegion, 1);
 
     cpu = M68K_CPU(cpu_create(machine->cpu_type));
+    qemu_register_reset(an5206_cpu_reset, cpu);
     env = &cpu->env;
-
-    /* Initialize CPU registers.  */
-    env->vbr = 0;
-    /* TODO: allow changing MBAR and RAMBAR.  */
-    env->mbar = AN5206_MBAR_ADDR | 1;
-    env->rambar0 = AN5206_RAMBAR_ADDR | 1;
 
     /* DRAM at address zero */
     memory_region_add_subregion(address_space_mem, 0, machine->ram);
@@ -90,7 +100,7 @@ static void an5206_init(MachineState *machine)
         exit(1);
     }
 
-    env->pc = entry;
+    env->reset_pc = entry;
 }
 
 static void an5206_machine_init(MachineClass *mc)
