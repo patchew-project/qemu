@@ -37,6 +37,7 @@ from .common import (
     docgen_ifcond,
     gen_endif,
     gen_if,
+    rs_name,
     rsgen_ifcond,
 )
 from .error import QAPIError, QAPISemError, QAPISourceError
@@ -341,6 +342,11 @@ class QAPISchemaType(QAPISchemaDefinition, ABC):
     def c_unboxed_type(self) -> str:
         return self.c_type()
 
+    # Return the Rust type for common use
+    @abstractmethod
+    def rs_type(self) -> str:
+        pass
+
     @abstractmethod
     def json_type(self) -> str:
         pass
@@ -382,11 +388,12 @@ class QAPISchemaType(QAPISchemaDefinition, ABC):
 class QAPISchemaBuiltinType(QAPISchemaType):
     meta = 'built-in'
 
-    def __init__(self, name: str, json_type: str, c_type: str):
+    def __init__(self, name: str, json_type: str, rs_type: str, c_type: str):
         super().__init__(name, None, None)
         assert json_type in ('string', 'number', 'int', 'boolean', 'null',
                              'value')
         self._json_type_name = json_type
+        self._rs_type_name = rs_type
         self._c_type_name = c_type
 
     def c_name(self) -> str:
@@ -405,6 +412,9 @@ class QAPISchemaBuiltinType(QAPISchemaType):
 
     def doc_type(self) -> str:
         return self.json_type()
+
+    def rs_type(self) -> str:
+        return self._rs_type_name
 
     def visit(self, visitor: QAPISchemaVisitor) -> None:
         super().visit(visitor)
@@ -448,6 +458,9 @@ class QAPISchemaEnumType(QAPISchemaType):
 
     def c_type(self) -> str:
         return c_name(self.name)
+
+    def rs_type(self) -> str:
+        return rs_name(self.name)
 
     def member_names(self) -> List[str]:
         return [m.name for m in self.members]
@@ -497,6 +510,9 @@ class QAPISchemaArrayType(QAPISchemaType):
 
     def c_type(self) -> str:
         return c_name(self.name) + POINTER_SUFFIX
+
+    def rs_type(self) -> str:
+        return 'Vec<%s>' % self.element_type.rs_type()
 
     def json_type(self) -> str:
         return 'array'
@@ -630,6 +646,9 @@ class QAPISchemaObjectType(QAPISchemaType):
     def c_unboxed_type(self) -> str:
         return c_name(self.name)
 
+    def rs_type(self) -> str:
+        return rs_name(self.name)
+
     def json_type(self) -> str:
         return 'object'
 
@@ -710,6 +729,9 @@ class QAPISchemaAlternateType(QAPISchemaType):
 
     def json_type(self) -> str:
         return 'value'
+
+    def rs_type(self) -> str:
+        return rs_name(self.name)
 
     def visit(self, visitor: QAPISchemaVisitor) -> None:
         super().visit(visitor)
@@ -1234,9 +1256,10 @@ class QAPISchema:
             QAPISchemaInclude(self._make_module(include), expr.info))
 
     def _def_builtin_type(
-        self, name: str, json_type: str, c_type: str
+        self, name: str, json_type: str, rs_type: str, c_type: str
     ) -> None:
-        self._def_definition(QAPISchemaBuiltinType(name, json_type, c_type))
+        builtin = QAPISchemaBuiltinType(name, json_type, rs_type, c_type)
+        self._def_definition(builtin)
         # Instantiating only the arrays that are actually used would
         # be nice, but we can't as long as their generated code
         # (qapi-builtin-types.[ch]) may be shared by some other
@@ -1255,21 +1278,21 @@ class QAPISchema:
         return False
 
     def _def_predefineds(self) -> None:
-        for t in [('str',    'string',  'char' + POINTER_SUFFIX),
-                  ('number', 'number',  'double'),
-                  ('int',    'int',     'int64_t'),
-                  ('int8',   'int',     'int8_t'),
-                  ('int16',  'int',     'int16_t'),
-                  ('int32',  'int',     'int32_t'),
-                  ('int64',  'int',     'int64_t'),
-                  ('uint8',  'int',     'uint8_t'),
-                  ('uint16', 'int',     'uint16_t'),
-                  ('uint32', 'int',     'uint32_t'),
-                  ('uint64', 'int',     'uint64_t'),
-                  ('size',   'int',     'uint64_t'),
-                  ('bool',   'boolean', 'bool'),
-                  ('any',    'value',   'QObject' + POINTER_SUFFIX),
-                  ('null',   'null',    'QNull' + POINTER_SUFFIX)]:
+        for t in [('str',    'string',  'String',  'char' + POINTER_SUFFIX),
+                  ('number', 'number',  'f64',     'double'),
+                  ('int',    'int',     'i64',     'int64_t'),
+                  ('int8',   'int',     'i8',      'int8_t'),
+                  ('int16',  'int',     'i16',     'int16_t'),
+                  ('int32',  'int',     'i32',     'int32_t'),
+                  ('int64',  'int',     'i64',     'int64_t'),
+                  ('uint8',  'int',     'u8',      'uint8_t'),
+                  ('uint16', 'int',     'u16',     'uint16_t'),
+                  ('uint32', 'int',     'u32',     'uint32_t'),
+                  ('uint64', 'int',     'u64',     'uint64_t'),
+                  ('size',   'int',     'u64',     'uint64_t'),
+                  ('bool',   'boolean', 'bool',    'bool'),
+                  ('any',    'value',   'QObject', 'QObject' + POINTER_SUFFIX),
+                  ('null',   'null',    '()',      'QNull' + POINTER_SUFFIX)]:
             self._def_builtin_type(*t)
         self.the_empty_object_type = QAPISchemaObjectType(
             'q_empty', None, None, None, None, None, [], None)
