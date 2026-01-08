@@ -7,6 +7,12 @@ Monitor *monitor_cur(void)
     return NULL;
 }
 
+bool monitor_cur_is_hmp(void)
+{
+    /* since monitor_cur() above returns NULL, this can't be true */
+    return false;
+}
+
 Monitor *monitor_set_cur(Coroutine *co, Monitor *mon)
 {
     return NULL;
