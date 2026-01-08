@@ -1,0 +1,4 @@
+config WINDUMP
+    bool
+    default y if I386
+    depends on I386
