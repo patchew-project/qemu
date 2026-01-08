@@ -134,6 +134,12 @@ impl Drop for LogGuard {
 ///     "Address 0x{:x} out of range",
 ///     error_address,
 /// );
+///
+/// The `log_mask_ln` macro should only be used for emitting complete
+/// log messages. Where it is required to incrementally output string
+/// fragments to construct a complete message, `LogGuard::new()` should
+/// be directly used in combination with `writeln()` to avoid output
+/// races with other QEMU threads.
 /// ```
 #[macro_export]
 macro_rules! log_mask_ln {
