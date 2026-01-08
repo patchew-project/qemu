@@ -142,6 +142,10 @@ Use ``job-dismiss`` instead.
 
 Use ``job-finalize`` instead.
 
+``query-kvm`` (since 11.0)
+
+Use ``query-accelerators`` instead.
+
 Human Machine Protocol (HMP) commands
 -------------------------------------
 
