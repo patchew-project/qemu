@@ -27,6 +27,7 @@
 #include "qemu/timer.h"
 #include "hw/core/ptimer.h"
 #include "system/system.h"
+#include "system/reset.h"
 #include "system/qtest.h"
 #include "net/net.h"
 #include "hw/core/boards.h"
@@ -274,6 +275,20 @@ static void mcf_fec_init(MemoryRegion *sysmem, hwaddr base, qemu_irq *irqs)
     memory_region_add_subregion(sysmem, base, sysbus_mmio_get_region(s, 0));
 }
 
+static void mcf5208evb_cpu_reset(void *opaque)
+{
+    M68kCPU *cpu = opaque;
+    CPUM68KState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
+
+    cpu_reset(cs);
+    /* Initialize CPU registers.  */
+    env->vbr = 0;
+    /* TODO: Configure BARs.  */
+    env->aregs[7] = ldl_phys(cs->as, 0);
+    env->pc = env->reset_pc;
+}
+
 static void mcf5208evb_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
@@ -289,11 +304,9 @@ static void mcf5208evb_init(MachineState *machine)
     MemoryRegion *sram = g_new(MemoryRegion, 1);
 
     cpu = M68K_CPU(cpu_create(machine->cpu_type));
-    env = &cpu->env;
+    qemu_register_reset(mcf5208evb_cpu_reset, cpu);
 
-    /* Initialize CPU registers.  */
-    env->vbr = 0;
-    /* TODO: Configure BARs.  */
+    env = &cpu->env;
 
     /* ROM at 0x00000000 */
     memory_region_init_rom(rom, NULL, "mcf5208.rom", ROM_SIZE, &error_fatal);
@@ -359,7 +372,7 @@ static void mcf5208evb_init(MachineState *machine)
         /* Initial PC is always at offset 4 in firmware binaries */
         ptr = rom_ptr(0x4, 4);
         assert(ptr != NULL);
-        env->pc = ldl_be_p(ptr);
+        env->reset_pc = ldl_be_p(ptr);
     }
 
     /* Load kernel.  */
@@ -388,7 +401,7 @@ static void mcf5208evb_init(MachineState *machine)
         exit(1);
     }
 
-    env->pc = entry;
+    env->reset_pc = entry;
 }
 
 static void mcf5208evb_machine_init(MachineClass *mc)
