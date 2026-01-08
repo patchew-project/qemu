@@ -20,7 +20,7 @@ anyhow = "~1.0"
 foreign = "~0.3.1"
 libc = "0.2.162"
 glib-sys = { version = "0.21.2", features = ["v2_66"] }
-serde = "1.0.226"
+serde = { version = "1.0.226", features = ["derive"] }
 serde_derive = "1.0.226"
 
 [workspace.lints.rust]
