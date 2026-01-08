@@ -40,6 +40,8 @@ _util_rs = static_library(
     {'.': _util_bindings_inc_rs,
     'qobject': [
       'src/qobject/mod.rs',
+      'src/qobject/error.rs',
+      'src/qobject/serializer.rs',
       'src/qobject/serialize.rs',
     ]}),
   dependencies: [anyhow_rs, libc_rs, foreign_rs, glib_sys_rs, common_rs, serde_rs],
