@@ -22,6 +22,7 @@
 #include "qemu/range.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qemu/message.h"
 #include "qemu/cutils.h"
 #include "trace/control.h"
 #include "qemu/thread.h"
@@ -147,11 +148,8 @@ FILE *qemu_log_trylock(void)
 FILE *qemu_log_trylock_context(void)
 {
     FILE *f = qemu_log_trylock();
-    if (log_depth == 1 && message_with_timestamp) {
-        g_autofree const char *timestr = NULL;
-        g_autoptr(GDateTime) dt = g_date_time_new_now_utc();
-        timestr = g_date_time_format_iso8601(dt);
-        fprintf(f, "%s ", timestr);
+    if (log_depth == 1) {
+        qmessage_context_print(f);
     }
     return f;
 }
