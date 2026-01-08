@@ -1243,6 +1243,17 @@ class QAPISchema:
         # schema.
         self._make_array_type(name, None)
 
+    def is_predefined(self, name: str) -> bool:
+        # See QAPISchema._def_predefineds()
+        entity = self._entity_dict[name]
+        if isinstance(entity, QAPISchemaBuiltinType):
+            return True
+        if entity is self.the_empty_object_type:
+            return True
+        if name == 'QType':
+            return True
+        return False
+
     def _def_predefineds(self) -> None:
         for t in [('str',    'string',  'char' + POINTER_SUFFIX),
                   ('number', 'number',  'double'),
