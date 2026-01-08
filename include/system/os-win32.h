@@ -140,7 +140,7 @@ static inline void os_setup_limits(void)
 
 int qemu_ftruncate64(int, int64_t);
 
-#if !defined(ftruncate)
+#ifndef CONFIG_FTRUNCATE
 # define ftruncate qemu_ftruncate64
 #endif
 

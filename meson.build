@@ -3253,6 +3253,17 @@ if host_os == 'windows'
   config_host_data.set('CONFIG_CONVERT_STRING_TO_BSTR', has_convert_string_to_bstr)
 endif
 
+# Detect if ftruncate exist
+if host_os == 'windows'
+  has_ftruncate = cxx.links('''
+    #include <unistd.h>
+    int main() {
+        return ftruncate(0, 0);
+    }
+  ''')
+  config_host_data.set('CONFIG_FTRUNCATE', has_ftruncate)
+endif
+
 ########################
 # Target configuration #
 ########################
