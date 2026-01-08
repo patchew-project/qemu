@@ -14,7 +14,7 @@
 #include "system/dump.h"
 
 /* Check Windows dump availability for the current target */
-bool win_dump_available(Error **errp);
+bool win_dump_available(DumpState *s, Error **errp);
 
 void create_win_dump(DumpState *s, Error **errp);
 
