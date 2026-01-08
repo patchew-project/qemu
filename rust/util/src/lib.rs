@@ -9,6 +9,10 @@ pub mod module;
 // for prelude-like modules
 #[rustfmt::skip]
 pub mod prelude;
+
+#[macro_use]
+pub mod qobject;
+
 pub mod timer;
 
 pub use error::{Error, Result, ResultExt};

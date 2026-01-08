@@ -35,7 +35,10 @@
 #include "qemu/atomic.h"
 #include "qapi/qapi-builtin-types.h"
 
-/* Not for use outside include/qobject/ */
+/*
+ * Not for use outside include/qobject/ (and Rust bindings, when they
+ * have to redo inline functions here).
+ */
 struct QObjectBase_ {
     QType type;
     size_t refcnt;
