@@ -55,6 +55,18 @@ static void main_cpu_reset(void *opaque)
     cpu_reset(cs);
 }
 
+static void mps_reset(void *opaque)
+{
+    DeviceState *dev = opaque;
+    MIPSCPSState *s = MIPS_CPS(dev);
+    hwaddr gcr_base;
+
+    /* Global Configuration Registers - only valid once the CPU has been reset */
+    gcr_base = MIPS_CPU(first_cpu)->env.CP0_CMGCRBase << 4;
+    memory_region_add_subregion(&s->container, gcr_base,
+                            sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->gcr), 0));
+}
+
 static bool cpu_mips_itu_supported(CPUMIPSState *env)
 {
     bool is_mt = (env->CP0_Config5 & (1 << CP0C5_VP)) || ase_mt_available(env);
@@ -65,7 +77,6 @@ static bool cpu_mips_itu_supported(CPUMIPSState *env)
 static void mips_cps_realize(DeviceState *dev, Error **errp)
 {
     MIPSCPSState *s = MIPS_CPS(dev);
-    target_ulong gcr_base;
     bool itu_present = false;
 
     if (!clock_get(s->clock)) {
@@ -144,15 +155,10 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&s->container, 0,
                             sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->gic), 0));
 
-    /* Global Configuration Registers */
-    gcr_base = MIPS_CPU(first_cpu)->env.CP0_CMGCRBase << 4;
-
     object_initialize_child(OBJECT(dev), "gcr", &s->gcr, TYPE_MIPS_GCR);
     object_property_set_uint(OBJECT(&s->gcr), "num-vp", s->num_vp,
                             &error_abort);
     object_property_set_int(OBJECT(&s->gcr), "gcr-rev", 0x800,
-                            &error_abort);
-    object_property_set_int(OBJECT(&s->gcr), "gcr-base", gcr_base,
                             &error_abort);
     object_property_set_link(OBJECT(&s->gcr), "gic", OBJECT(&s->gic.mr),
                              &error_abort);
@@ -161,9 +167,7 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->gcr), errp)) {
         return;
     }
-
-    memory_region_add_subregion(&s->container, gcr_base,
-                            sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->gcr), 0));
+    qemu_register_reset(mps_reset, s);
 }
 
 static const Property mips_cps_properties[] = {
