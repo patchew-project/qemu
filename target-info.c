@@ -11,6 +11,7 @@
 #include "qemu/target-info-qapi.h"
 #include "qemu/target-info-impl.h"
 #include "qapi/error.h"
+#include "system/arch_init.h"
 
 const char *target_name(void)
 {
@@ -31,6 +32,65 @@ SysEmuTarget target_arch(void)
                                &error_abort);
     }
     return arch;
+}
+
+bool qemu_arch_available(unsigned qemu_arch_mask)
+{
+    switch (target_arch()) {
+    case SYS_EMU_TARGET_ALPHA:
+        return qemu_arch_mask & QEMU_ARCH_ALPHA;
+    case SYS_EMU_TARGET_ARM:
+    case SYS_EMU_TARGET_AARCH64:
+        return qemu_arch_mask & QEMU_ARCH_ARM;
+    case SYS_EMU_TARGET_I386:
+    case SYS_EMU_TARGET_X86_64:
+        return qemu_arch_mask & QEMU_ARCH_I386;
+    case SYS_EMU_TARGET_M68K:
+        return qemu_arch_mask & QEMU_ARCH_M68K;
+    case SYS_EMU_TARGET_MICROBLAZE:
+    case SYS_EMU_TARGET_MICROBLAZEEL:
+        return qemu_arch_mask & QEMU_ARCH_MICROBLAZE;
+    case SYS_EMU_TARGET_MIPS:
+    case SYS_EMU_TARGET_MIPSEL:
+    case SYS_EMU_TARGET_MIPS64:
+    case SYS_EMU_TARGET_MIPS64EL:
+        return qemu_arch_mask & QEMU_ARCH_MIPS;
+    case SYS_EMU_TARGET_PPC:
+    case SYS_EMU_TARGET_PPC64:
+        return qemu_arch_mask & QEMU_ARCH_PPC;
+    case SYS_EMU_TARGET_S390X:
+        return qemu_arch_mask & QEMU_ARCH_S390X;
+    case SYS_EMU_TARGET_SH4:
+    case SYS_EMU_TARGET_SH4EB:
+        return qemu_arch_mask & QEMU_ARCH_SH4;
+    case SYS_EMU_TARGET_SPARC:
+    case SYS_EMU_TARGET_SPARC64:
+        return qemu_arch_mask & QEMU_ARCH_SPARC;
+    case SYS_EMU_TARGET_XTENSA:
+    case SYS_EMU_TARGET_XTENSAEB:
+        return qemu_arch_mask & QEMU_ARCH_XTENSA;
+    case SYS_EMU_TARGET_OR1K:
+        return qemu_arch_mask & QEMU_ARCH_OPENRISC;
+    case SYS_EMU_TARGET_TRICORE:
+        return qemu_arch_mask & QEMU_ARCH_TRICORE;
+    case SYS_EMU_TARGET_HPPA:
+        return qemu_arch_mask & QEMU_ARCH_HPPA;
+    case SYS_EMU_TARGET_RISCV32:
+    case SYS_EMU_TARGET_RISCV64:
+        return qemu_arch_mask & QEMU_ARCH_RISCV;
+    case SYS_EMU_TARGET_RX:
+        return qemu_arch_mask & QEMU_ARCH_RX;
+    case SYS_EMU_TARGET_AVR:
+        return qemu_arch_mask & QEMU_ARCH_AVR;
+    /*
+    case SYS_EMU_TARGET_HEXAGON:
+        return qemu_arch_mask & QEMU_ARCH_HEXAGON;
+    */
+    case SYS_EMU_TARGET_LOONGARCH64:
+        return qemu_arch_mask & QEMU_ARCH_LOONGARCH;
+    default:
+        g_assert_not_reached();
+    };
 }
 
 const char *target_cpu_type(void)
