@@ -28,6 +28,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
+#include "qemu/ldst_unaligned.h"
 #include "qemu/module.h"
 #include "hw/usb/hcd-ohci.h"
 #include "hw/char/serial-mm.h"
@@ -40,7 +41,6 @@
 #include "hw/display/i2c-ddc.h"
 #include "qemu/range.h"
 #include "ui/pixel_ops.h"
-#include "qemu/bswap.h"
 #include "trace.h"
 #include "qom/object.h"
 

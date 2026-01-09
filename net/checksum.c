@@ -16,6 +16,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/ldst_unaligned.h"
 #include "net/checksum.h"
 #include "net/eth.h"
 

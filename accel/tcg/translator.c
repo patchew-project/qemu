@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/bswap.h"
+#include "qemu/ldst_unaligned.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"
 #include "accel/tcg/cpu-ldst-common.h"

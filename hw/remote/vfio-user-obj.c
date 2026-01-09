@@ -49,6 +49,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-visit-sockets.h"
 #include "qapi/qapi-events-misc.h"
+#include "qemu/ldst_unaligned.h"
 #include "qemu/notify.h"
 #include "qemu/thread.h"
 #include "qemu/main-loop.h"

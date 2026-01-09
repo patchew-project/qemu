@@ -10,6 +10,7 @@
 #include "qemu/osdep.h"
 #include "ati_int.h"
 #include "ati_regs.h"
+#include "qemu/ldst_unaligned.h"
 #include "qemu/log.h"
 #include "ui/pixel_ops.h"
 #include "ui/console.h"

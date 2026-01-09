@@ -3283,6 +3283,7 @@ R: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Supported
 F: include/system/ioport.h
 F: include/exec/memop.h
+F: include/qemu/ldst_unaligned.h
 F: include/system/ram_addr.h
 F: include/system/memory.h
 F: include/system/physmem.h

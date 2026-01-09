@@ -1,6 +1,7 @@
 #ifndef BSWAP_H
 #define BSWAP_H
 
+#include "qemu/ldst_unaligned.h"
 #include "qemu/target-info.h"
 
 #undef  bswap16
@@ -173,8 +174,6 @@ CPU_CONVERT(le, 64, uint64_t)
 # define const_le16(_x) (_x)
 #endif
 
-/* unaligned/endian-independent pointer access */
-
 /*
  * the generic syntax is:
  *
@@ -201,7 +200,6 @@ CPU_CONVERT(le, 64, uint64_t)
  *   q: 64 bits
  *
  * endian is:
- *   he   : host endian
  *   be   : big endian
  *   le   : little endian
  *   te   : target endian
@@ -235,64 +233,6 @@ static inline int ldsb_p(const void *ptr)
 static inline void stb_p(void *ptr, uint8_t v)
 {
     *(uint8_t *)ptr = v;
-}
-
-/*
- * Any compiler worth its salt will turn these memcpy into native unaligned
- * operations.  Thus we don't need to play games with packed attributes, or
- * inline byte-by-byte stores.
- * Some compilation environments (eg some fortify-source implementations)
- * may intercept memcpy() in a way that defeats the compiler optimization,
- * though, so we use __builtin_memcpy() to give ourselves the best chance
- * of good performance.
- */
-
-static inline int lduw_he_p(const void *ptr)
-{
-    uint16_t r;
-    __builtin_memcpy(&r, ptr, sizeof(r));
-    return r;
-}
-
-static inline int ldsw_he_p(const void *ptr)
-{
-    int16_t r;
-    __builtin_memcpy(&r, ptr, sizeof(r));
-    return r;
-}
-
-static inline void stw_he_p(void *ptr, uint16_t v)
-{
-    __builtin_memcpy(ptr, &v, sizeof(v));
-}
-
-static inline void st24_he_p(void *ptr, uint32_t v)
-{
-    __builtin_memcpy(ptr, &v, 3);
-}
-
-static inline int ldl_he_p(const void *ptr)
-{
-    int32_t r;
-    __builtin_memcpy(&r, ptr, sizeof(r));
-    return r;
-}
-
-static inline void stl_he_p(void *ptr, uint32_t v)
-{
-    __builtin_memcpy(ptr, &v, sizeof(v));
-}
-
-static inline uint64_t ldq_he_p(const void *ptr)
-{
-    uint64_t r;
-    __builtin_memcpy(&r, ptr, sizeof(r));
-    return r;
-}
-
-static inline void stq_he_p(void *ptr, uint64_t v)
-{
-    __builtin_memcpy(ptr, &v, sizeof(v));
 }
 
 static inline int lduw_le_p(const void *ptr)

@@ -42,6 +42,7 @@
 #include <jpeglib.h>
 #endif
 
+#include "qemu/ldst_unaligned.h"
 #include "qemu/bswap.h"
 #include "vnc.h"
 #include "vnc-enc-tight.h"

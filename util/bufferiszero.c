@@ -23,7 +23,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
-#include "qemu/bswap.h"
+#include "qemu/ldst_unaligned.h"
 #include "host/cpuinfo.h"
 
 typedef bool (*biz_accel_fn)(const void *, size_t);
