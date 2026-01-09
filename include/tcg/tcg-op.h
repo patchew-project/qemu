@@ -8,20 +8,14 @@
 #ifndef TCG_TCG_OP_H
 #define TCG_TCG_OP_H
 
+#include "tcg/tcg-op-address-bits.h"
 #include "tcg/tcg-op-common.h"
 #include "tcg/insn-start-words.h"
-#include "exec/target_long.h"
 
-#ifndef TARGET_LONG_BITS
-#error must include QEMU headers
-#endif
-
-#if TARGET_LONG_BITS == 32
+#if TARGET_ADDRESS_BITS == 32
 # define TCG_TYPE_TL  TCG_TYPE_I32
-#elif TARGET_LONG_BITS == 64
+#elif TARGET_ADDRESS_BITS == 64
 # define TCG_TYPE_TL  TCG_TYPE_I64
-#else
-# error
 #endif
 
 #if INSN_START_WORDS != 3
@@ -56,22 +50,20 @@ static inline void tcg_gen_insn_start2(uint64_t pc, uint64_t a1,
     tcg_set_insn_start_param(op, 2, a2);
 }
 
-#if TARGET_LONG_BITS == 32
+#if TARGET_ADDRESS_BITS == 32
 typedef TCGv_i32 TCGv;
 #define tcg_temp_new() tcg_temp_new_i32()
 #define tcg_global_mem_new tcg_global_mem_new_i32
 #define tcgv_tl_temp tcgv_i32_temp
 #define tcg_gen_qemu_ld_tl tcg_gen_qemu_ld_i32
 #define tcg_gen_qemu_st_tl tcg_gen_qemu_st_i32
-#elif TARGET_LONG_BITS == 64
+#elif TARGET_ADDRESS_BITS == 64
 typedef TCGv_i64 TCGv;
 #define tcg_temp_new() tcg_temp_new_i64()
 #define tcg_global_mem_new tcg_global_mem_new_i64
 #define tcgv_tl_temp tcgv_i64_temp
 #define tcg_gen_qemu_ld_tl tcg_gen_qemu_ld_i64
 #define tcg_gen_qemu_st_tl tcg_gen_qemu_st_i64
-#else
-#error Unhandled TARGET_LONG_BITS value
 #endif
 
 static inline void
@@ -171,7 +163,7 @@ DEF_ATOMIC2(tcg_gen_atomic_umax_fetch, i64)
 #undef DEF_ATOMIC2
 #undef DEF_ATOMIC3
 
-#if TARGET_LONG_BITS == 64
+#if TARGET_ADDRESS_BITS == 64
 #define tcg_gen_movi_tl tcg_gen_movi_i64
 #define tcg_gen_mov_tl tcg_gen_mov_i64
 #define tcg_gen_ld8u_tl tcg_gen_ld8u_i64
@@ -419,5 +411,5 @@ DEF_ATOMIC2(tcg_gen_atomic_umax_fetch, i64)
         : (qemu_build_not_reached_always(), 0))                    \
      :  (target_long)dup_const(VECE, C))
 
-#endif /* TARGET_LONG_BITS == 64 */
+#endif /* TARGET_ADDRESS_BITS == 64 */
 #endif /* TCG_TCG_OP_H */
