@@ -1511,7 +1511,7 @@ static bool bdrv_init_padding(BlockDriverState *bs,
 }
 
 static int coroutine_fn GRAPH_RDLOCK
-bdrv_padding_rmw_read(BdrvChild *child, BdrvTrackedRequest *req,
+bdrv_padding_rmw_read(BdrvChild *child, BdrvTrackedRequest *req, int64_t bytes,
                       BdrvRequestPadding *pad, bool zero_middle)
 {
     QEMUIOVector local_qiov;
@@ -1522,7 +1522,9 @@ bdrv_padding_rmw_read(BdrvChild *child, BdrvTrackedRequest *req,
     assert(req->serialising && pad->buf);
 
     if (pad->head || pad->merge_reads) {
-        int64_t bytes = pad->merge_reads ? pad->buf_len : align;
+        if (pad->merge_reads) {
+            bytes = pad->buf_len;
+        }
 
         qemu_iovec_init_buf(&local_qiov, pad->buf, bytes);
 
@@ -1550,13 +1552,13 @@ bdrv_padding_rmw_read(BdrvChild *child, BdrvTrackedRequest *req,
     }
 
     if (pad->tail) {
-        qemu_iovec_init_buf(&local_qiov, pad->tail_buf, align);
+        qemu_iovec_init_buf(&local_qiov, pad->tail_buf, bytes);
 
         bdrv_co_debug_event(bs, BLKDBG_PWRITEV_RMW_TAIL);
         ret = bdrv_aligned_preadv(
                 child, req,
-                req->overlap_offset + req->overlap_bytes - align,
-                align, align, &local_qiov, 0, 0);
+                req->overlap_offset + req->overlap_bytes - bytes,
+                bytes, align, &local_qiov, 0, 0);
         if (ret < 0) {
             return ret;
         }
@@ -2166,7 +2168,7 @@ bdrv_co_do_zero_pwritev(BdrvChild *child, int64_t offset, int64_t bytes,
         assert(!(flags & BDRV_REQ_NO_WAIT));
         bdrv_make_request_serialising(req, align);
 
-        bdrv_padding_rmw_read(child, req, &pad, true);
+        bdrv_padding_rmw_read(child, req, align, &pad, true);
 
         if (pad.head || pad.merge_reads) {
             int64_t aligned_offset = offset & ~(align - 1);
@@ -2302,7 +2304,7 @@ int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
          */
         assert(!(flags & BDRV_REQ_NO_WAIT));
         bdrv_make_request_serialising(&req, align);
-        bdrv_padding_rmw_read(child, &req, &pad, false);
+        bdrv_padding_rmw_read(child, &req, align, &pad, false);
     }
 
     ret = bdrv_aligned_pwritev(child, &req, offset, bytes, align,
