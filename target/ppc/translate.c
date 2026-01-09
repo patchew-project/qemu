@@ -6574,7 +6574,7 @@ static void ppc_tr_tb_start(DisasContextBase *db, CPUState *cs)
 
 static void ppc_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 {
-    tcg_gen_insn_start(dcbase->pc_next);
+    tcg_gen_insn_start0(dcbase->pc_next);
 }
 
 static bool is_prefix_insn(DisasContext *ctx, uint32_t insn)

@@ -6402,7 +6402,7 @@ static void s390x_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
     /* Delay the set of ilen until we've read the insn. */
-    tcg_gen_insn_start(dc->base.pc_next, dc->cc_op, 0);
+    tcg_gen_insn_start2(dc->base.pc_next, dc->cc_op, 0);
 }
 
 static target_ulong get_next_pc(CPUS390XState *env, DisasContext *s,

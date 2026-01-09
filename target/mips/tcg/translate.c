@@ -15133,8 +15133,8 @@ static void mips_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
-    tcg_gen_insn_start(ctx->base.pc_next, ctx->hflags & MIPS_HFLAG_BMASK,
-                       ctx->btarget);
+    tcg_gen_insn_start2(ctx->base.pc_next, ctx->hflags & MIPS_HFLAG_BMASK,
+                        ctx->btarget);
 }
 
 static void mips_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)

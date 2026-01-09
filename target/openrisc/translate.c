@@ -1551,8 +1551,8 @@ static void openrisc_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
-    tcg_gen_insn_start(dc->base.pc_next, (dc->delayed_branch ? 1 : 0)
-                       | (dc->base.num_insns > 1 ? 2 : 0));
+    tcg_gen_insn_start1(dc->base.pc_next, (dc->delayed_branch ? 1 : 0)
+                        | (dc->base.num_insns > 1 ? 2 : 0));
 }
 
 static void openrisc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)

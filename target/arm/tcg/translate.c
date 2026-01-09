@@ -6453,7 +6453,7 @@ static void arm_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
     } else {
         condexec_bits = (dc->condexec_cond << 4) | (dc->condexec_mask >> 1);
     }
-    tcg_gen_insn_start(pc_arg, condexec_bits, 0);
+    tcg_gen_insn_start2(pc_arg, condexec_bits, 0);
     dc->insn_start_updated = false;
 }
 

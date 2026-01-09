@@ -4716,7 +4716,7 @@ static void hppa_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
         tcg_debug_assert(diff != INT32_MIN);
     }
 
-    tcg_gen_insn_start(iaoq_f & ~TARGET_PAGE_MASK, diff, 0);
+    tcg_gen_insn_start2(iaoq_f & ~TARGET_PAGE_MASK, diff, 0);
     ctx->insn_start_updated = false;
 }
 

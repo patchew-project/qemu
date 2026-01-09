@@ -10764,7 +10764,7 @@ static void aarch64_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
     if (tb_cflags(dcbase->tb) & CF_PCREL) {
         pc_arg &= ~TARGET_PAGE_MASK;
     }
-    tcg_gen_insn_start(pc_arg, 0, 0);
+    tcg_gen_insn_start2(pc_arg, 0, 0);
     dc->insn_start_updated = false;
 }
 

@@ -2689,7 +2689,7 @@ static void avr_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
-    tcg_gen_insn_start(ctx->npc);
+    tcg_gen_insn_start0(ctx->npc);
 }
 
 static void avr_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
