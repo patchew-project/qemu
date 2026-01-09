@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 
+#include "hw/boards.h"
 #include "qapi/error.h"
 #include "qemu/target-info-qapi.h"
 #include "system/igvm.h"
@@ -93,6 +94,7 @@ typedef struct QIgvm {
     unsigned region_start_index;
     unsigned region_last_index;
     unsigned region_page_count;
+    MachineState *machine_state;
 } QIgvm;
 
 static QIgvmParameterData *qigvm_find_param_entry(QIgvm *igvm, const IGVM_VHS_PARAMETER *param) {
@@ -906,7 +908,7 @@ IgvmHandle qigvm_file_init(char *filename, Error **errp)
 }
 
 int qigvm_process_file(IgvmCfg *cfg, ConfidentialGuestSupport *cgs,
-                       bool onlyVpContext, Error **errp)
+                       bool onlyVpContext, MachineState *machine_state, Error **errp)
 {
     int32_t header_count;
     QIgvmParameterData *parameter;
@@ -928,6 +930,8 @@ int qigvm_process_file(IgvmCfg *cfg, ConfidentialGuestSupport *cgs,
      */
     ctx.cgs = cgs;
     ctx.cgsc = cgs ? CONFIDENTIAL_GUEST_SUPPORT_GET_CLASS(cgs) : NULL;
+
+    ctx.machine_state = machine_state;
 
     /*
      * Check that the IGVM file provides configuration for the current
