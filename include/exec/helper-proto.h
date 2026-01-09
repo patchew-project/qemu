@@ -13,4 +13,10 @@
 #include "exec/helper-proto.h.inc"
 #undef  HELPER_H
 
+#ifdef HAS_HELPER64
+#define HELPER_H "helper64.h"
+#include "exec/helper-proto.h.inc"
+#undef  HELPER_H
+#endif
+
 #endif /* HELPER_PROTO_H */

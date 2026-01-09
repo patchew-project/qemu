@@ -13,4 +13,10 @@
 #include "exec/helper-gen.h.inc"
 #undef  HELPER_H
 
+#ifdef HAS_HELPER64
+#define HELPER_H "helper64.h"
+#include "exec/helper-gen.h.inc"
+#undef  HELPER_H
+#endif
+
 #endif /* HELPER_GEN_H */
