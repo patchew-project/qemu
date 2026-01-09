@@ -1474,10 +1474,9 @@ typedef struct BdrvRequestPadding {
 
 static bool bdrv_init_padding(BlockDriverState *bs,
                               int64_t offset, int64_t bytes,
-                              bool write,
+                              uint64_t align, bool write,
                               BdrvRequestPadding *pad)
 {
-    int64_t align = bs->bl.request_alignment;
     int64_t sum;
 
     bdrv_check_request(offset, bytes, &error_abort);
@@ -1716,6 +1715,7 @@ static int bdrv_pad_request(BlockDriverState *bs,
     struct iovec *sliced_iov;
     int sliced_niov;
     size_t sliced_head, sliced_tail;
+    uint64_t align = bs->bl.request_alignment;
 
     /* Should have been checked by the caller already */
     ret = bdrv_check_request32(*offset, *bytes, *qiov, *qiov_offset);
@@ -1723,7 +1723,7 @@ static int bdrv_pad_request(BlockDriverState *bs,
         return ret;
     }
 
-    if (!bdrv_init_padding(bs, *offset, *bytes, write, pad)) {
+    if (!bdrv_init_padding(bs, *offset, *bytes, align, write, pad)) {
         if (padded) {
             *padded = false;
         }
@@ -2161,7 +2161,7 @@ bdrv_co_do_zero_pwritev(BdrvChild *child, int64_t offset, int64_t bytes,
     /* This flag doesn't make sense for padding or zero writes */
     flags &= ~BDRV_REQ_REGISTERED_BUF;
 
-    padding = bdrv_init_padding(bs, offset, bytes, true, &pad);
+    padding = bdrv_init_padding(bs, offset, bytes, align, true, &pad);
     if (padding) {
         assert(!(flags & BDRV_REQ_NO_WAIT));
         bdrv_make_request_serialising(req, align);
