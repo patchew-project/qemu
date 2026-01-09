@@ -805,7 +805,7 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         break;
     case DST_WIDTH:
         s->regs.dst_width = data & 0x3fff;
-        ati_2d_blt(s);
+        ati_2d_blt_from_memory(s);
         break;
     case DST_HEIGHT:
         s->regs.dst_height = data & 0x3fff;
@@ -855,7 +855,7 @@ static void ati_mm_write(void *opaque, hwaddr addr,
     case DST_HEIGHT_WIDTH:
         s->regs.dst_width = data & 0x3fff;
         s->regs.dst_height = (data >> 16) & 0x3fff;
-        ati_2d_blt(s);
+        ati_2d_blt_from_memory(s);
         break;
     case DP_GUI_MASTER_CNTL:
         s->regs.dp_gui_master_cntl = data & 0xf800000f;
@@ -866,7 +866,7 @@ static void ati_mm_write(void *opaque, hwaddr addr,
     case DST_WIDTH_X:
         s->regs.dst_x = data & 0x3fff;
         s->regs.dst_width = (data >> 16) & 0x3fff;
-        ati_2d_blt(s);
+        ati_2d_blt_from_memory(s);
         break;
     case SRC_X_Y:
         s->regs.src_y = data & 0x3fff;
@@ -879,7 +879,7 @@ static void ati_mm_write(void *opaque, hwaddr addr,
     case DST_WIDTH_HEIGHT:
         s->regs.dst_height = data & 0x3fff;
         s->regs.dst_width = (data >> 16) & 0x3fff;
-        ati_2d_blt(s);
+        ati_2d_blt_from_memory(s);
         break;
     case DST_HEIGHT_Y:
         s->regs.dst_y = data & 0x3fff;

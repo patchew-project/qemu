@@ -434,6 +434,7 @@
 #define DST_POLY_EDGE                           0x00040000
 
 /* DP_MIX bit constants */
+#define DP_SRC_SOURCE                           0x00000700
 #define DP_SRC_RECT                             0x00000200
 #define DP_SRC_HOST                             0x00000300
 #define DP_SRC_HOST_BYTEALIGN                   0x00000400
