@@ -26,6 +26,13 @@
 #include "semihosting/semihost.h"
 #include "cpregs.h"
 
+#define HAS_HELPER64
+#include "exec/helper-proto.h"
+
+#define HELPER_H "helper64.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
+
 static TCGv_i64 cpu_X[32];
 static TCGv_i64 cpu_gcspr[4];
 static TCGv_i64 cpu_pc;
