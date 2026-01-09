@@ -69,9 +69,20 @@ char *riscv_plic_hart_config_string(int hart_count)
 
 void riscv_boot_info_init(RISCVBootInfo *info, RISCVHartArrayState *harts)
 {
+    info->ram_low_start = 0;
+    info->ram_low_size = 0;
     info->kernel_size = 0;
     info->initrd_size = 0;
     info->is_32bit = riscv_is_32bit(harts);
+}
+
+void riscv_boot_info_init_discontig_mem(RISCVBootInfo *info,
+                                        RISCVHartArrayState *harts,
+                                        hwaddr start, hwaddr size)
+{
+    riscv_boot_info_init(info, harts);
+    info->ram_low_start = start;
+    info->ram_low_size = size;
 }
 
 vaddr riscv_calc_kernel_start_addr(RISCVBootInfo *info,
