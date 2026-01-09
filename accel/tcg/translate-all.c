@@ -257,6 +257,19 @@ static int setjmp_gen_code(CPUArchState *env, TranslationBlock *tb,
     return tcg_gen_code(tcg_ctx, tb, pc);
 }
 
+static TCGType tcgv_type_to_tcg_type(TCGvType t)
+{
+    switch (t) {
+    case TCGV_TYPE_TARGET_LONG:
+        return target_long_bits() == 64 ? TCG_TYPE_I64 : TCG_TYPE_I32;
+    case TCGV_TYPE_I32:
+        return TCG_TYPE_I32;
+    case TCGV_TYPE_I64:
+        return TCG_TYPE_I64;
+    }
+    g_assert_not_reached();
+}
+
 /* Called with mmap_lock held for user mode emulation.  */
 TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
 {
@@ -316,7 +329,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
     }
 
     tcg_ctx->gen_tb = tb;
-    tcg_ctx->addr_type = target_long_bits() == 32 ? TCG_TYPE_I32 : TCG_TYPE_I64;
+    tcg_ctx->addr_type = tcgv_type_to_tcg_type(s.tcgv_type);
     tcg_ctx->guest_mo = cpu->cc->tcg_ops->guest_default_memory_order;
 
  restart_translate:
