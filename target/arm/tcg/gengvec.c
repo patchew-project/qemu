@@ -20,8 +20,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "translate.h"
 
+#define TARGET_ADDRESS_BITS 32
+#include "translate.h"
 
 static void gen_gvec_fn3_qc(uint32_t rd_ofs, uint32_t rn_ofs, uint32_t rm_ofs,
                             uint32_t opr_sz, uint32_t max_sz,

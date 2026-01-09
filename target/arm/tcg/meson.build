@@ -25,7 +25,6 @@ arm_ss.add(when: 'TARGET_AARCH64', if_false: files('stubs32.c'))
 
 arm_ss.add(files(
   'cpu32.c',
-  'gengvec.c',
   'translate.c',
   'm_helper.c',
   'mve_helper.c',
@@ -65,6 +64,7 @@ arm_common_system_ss.add(
   decodetree.process('neon-ls.decode', extra_args: '--decode=disas_neon_ls'),
   files(
   'cpregs-at.c',
+  'gengvec.c',
   'hflags.c',
   'neon_helper.c',
   'op_helper.c',
@@ -79,6 +79,7 @@ arm_common_system_ss.add(
   'vfp_helper.c',
 ))
 arm_user_ss.add(files(
+  'gengvec.c',
   'hflags.c',
   'neon_helper.c',
   'op_helper.c',
