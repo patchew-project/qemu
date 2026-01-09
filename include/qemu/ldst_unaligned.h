@@ -16,50 +16,50 @@
  * of good performance.
  */
 
-static inline int lduw_he_p(const void *ptr)
+static inline int lduw_unaligned_p(const void *ptr)
 {
     uint16_t r;
     __builtin_memcpy(&r, ptr, sizeof(r));
     return r;
 }
 
-static inline int ldsw_he_p(const void *ptr)
+static inline int ldsw_unaligned_p(const void *ptr)
 {
     int16_t r;
     __builtin_memcpy(&r, ptr, sizeof(r));
     return r;
 }
 
-static inline void stw_he_p(void *ptr, uint16_t v)
+static inline void stw_unaligned_p(void *ptr, uint16_t v)
 {
     __builtin_memcpy(ptr, &v, sizeof(v));
 }
 
-static inline void st24_he_p(void *ptr, uint32_t v)
+static inline void st24_unaligned_p(void *ptr, uint32_t v)
 {
     __builtin_memcpy(ptr, &v, 3);
 }
 
-static inline int ldl_he_p(const void *ptr)
+static inline int ldl_unaligned_p(const void *ptr)
 {
     int32_t r;
     __builtin_memcpy(&r, ptr, sizeof(r));
     return r;
 }
 
-static inline void stl_he_p(void *ptr, uint32_t v)
+static inline void stl_unaligned_p(void *ptr, uint32_t v)
 {
     __builtin_memcpy(ptr, &v, sizeof(v));
 }
 
-static inline uint64_t ldq_he_p(const void *ptr)
+static inline uint64_t ldq_unaligned_p(const void *ptr)
 {
     uint64_t r;
     __builtin_memcpy(&r, ptr, sizeof(r));
     return r;
 }
 
-static inline void stq_he_p(void *ptr, uint64_t v)
+static inline void stq_unaligned_p(void *ptr, uint64_t v)
 {
     __builtin_memcpy(ptr, &v, sizeof(v));
 }

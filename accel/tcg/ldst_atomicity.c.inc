@@ -415,7 +415,7 @@ static uint16_t load_atom_2(CPUState *cpu, uintptr_t ra,
     atmax = required_atomicity(cpu, pi, memop);
     switch (atmax) {
     case MO_8:
-        return lduw_he_p(pv);
+        return lduw_unaligned_p(pv);
     case MO_16:
         /* The only case remaining is MO_ATOM_WITHIN16. */
         if (!HAVE_al8_fast && (pi & 3) == 1) {
@@ -512,7 +512,7 @@ static uint64_t load_atom_8(CPUState *cpu, uintptr_t ra,
     }
     switch (atmax) {
     case MO_8:
-        return ldq_he_p(pv);
+        return ldq_unaligned_p(pv);
     case MO_16:
         return load_atom_8_by_2(pv);
     case MO_32:
@@ -875,7 +875,7 @@ static void store_atom_2(CPUState *cpu, uintptr_t ra,
 
     atmax = required_atomicity(cpu, pi, memop);
     if (atmax == MO_8) {
-        stw_he_p(pv, val);
+        stw_unaligned_p(pv, val);
         return;
     }
 
@@ -928,7 +928,7 @@ static void store_atom_4(CPUState *cpu, uintptr_t ra,
     atmax = required_atomicity(cpu, pi, memop);
     switch (atmax) {
     case MO_8:
-        stl_he_p(pv, val);
+        stl_unaligned_p(pv, val);
         return;
     case MO_16:
         store_atom_4_by_2(pv, val);
@@ -996,7 +996,7 @@ static void store_atom_8(CPUState *cpu, uintptr_t ra,
     atmax = required_atomicity(cpu, pi, memop);
     switch (atmax) {
     case MO_8:
-        stq_he_p(pv, val);
+        stq_unaligned_p(pv, val);
         return;
     case MO_16:
         store_atom_8_by_2(pv, val);

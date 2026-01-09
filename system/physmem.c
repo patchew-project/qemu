@@ -3275,7 +3275,7 @@ static MemTxResult flatview_write_continue_step(MemTxAttrs attrs,
 
         /*
          * Assure Coverity (and ourselves) that we are not going to OVERRUN
-         * the buffer by following ldn_he_p().
+         * the buffer by following ldn_unaligned_p().
          */
 #ifdef QEMU_STATIC_ANALYSIS
         assert((*l == 1 && len >= 1) ||
@@ -3283,7 +3283,7 @@ static MemTxResult flatview_write_continue_step(MemTxAttrs attrs,
                (*l == 4 && len >= 4) ||
                (*l == 8 && len >= 8));
 #endif
-        val = ldn_he_p(buf, *l);
+        val = ldn_unaligned_p(buf, *l);
         result = memory_region_dispatch_write(mr, mr_addr, val,
                                               size_memop(*l), attrs);
         if (release_lock) {
@@ -3370,7 +3370,7 @@ static MemTxResult flatview_read_continue_step(MemTxAttrs attrs, uint8_t *buf,
 
         /*
          * Assure Coverity (and ourselves) that we are not going to OVERRUN
-         * the buffer by following stn_he_p().
+         * the buffer by following stn_unaligned_p().
          */
 #ifdef QEMU_STATIC_ANALYSIS
         assert((*l == 1 && len >= 1) ||
@@ -3378,7 +3378,7 @@ static MemTxResult flatview_read_continue_step(MemTxAttrs attrs, uint8_t *buf,
                (*l == 4 && len >= 4) ||
                (*l == 8 && len >= 8));
 #endif
-        stn_he_p(buf, *l, val);
+        stn_unaligned_p(buf, *l, val);
 
         if (release_lock) {
             bql_unlock();

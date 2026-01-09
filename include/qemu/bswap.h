@@ -237,82 +237,82 @@ static inline void stb_p(void *ptr, uint8_t v)
 
 static inline int lduw_le_p(const void *ptr)
 {
-    return (uint16_t)le_bswap(lduw_he_p(ptr), 16);
+    return (uint16_t)le_bswap(lduw_unaligned_p(ptr), 16);
 }
 
 static inline int ldsw_le_p(const void *ptr)
 {
-    return (int16_t)le_bswap(lduw_he_p(ptr), 16);
+    return (int16_t)le_bswap(lduw_unaligned_p(ptr), 16);
 }
 
 static inline int ldl_le_p(const void *ptr)
 {
-    return le_bswap(ldl_he_p(ptr), 32);
+    return le_bswap(ldl_unaligned_p(ptr), 32);
 }
 
 static inline uint64_t ldq_le_p(const void *ptr)
 {
-    return le_bswap(ldq_he_p(ptr), 64);
+    return le_bswap(ldq_unaligned_p(ptr), 64);
 }
 
 static inline void stw_le_p(void *ptr, uint16_t v)
 {
-    stw_he_p(ptr, le_bswap(v, 16));
+    stw_unaligned_p(ptr, le_bswap(v, 16));
 }
 
 static inline void st24_le_p(void *ptr, uint32_t v)
 {
-    st24_he_p(ptr, le_bswap24(v));
+    st24_unaligned_p(ptr, le_bswap24(v));
 }
 
 static inline void stl_le_p(void *ptr, uint32_t v)
 {
-    stl_he_p(ptr, le_bswap(v, 32));
+    stl_unaligned_p(ptr, le_bswap(v, 32));
 }
 
 static inline void stq_le_p(void *ptr, uint64_t v)
 {
-    stq_he_p(ptr, le_bswap(v, 64));
+    stq_unaligned_p(ptr, le_bswap(v, 64));
 }
 
 static inline int lduw_be_p(const void *ptr)
 {
-    return (uint16_t)be_bswap(lduw_he_p(ptr), 16);
+    return (uint16_t)be_bswap(lduw_unaligned_p(ptr), 16);
 }
 
 static inline int ldsw_be_p(const void *ptr)
 {
-    return (int16_t)be_bswap(lduw_he_p(ptr), 16);
+    return (int16_t)be_bswap(lduw_unaligned_p(ptr), 16);
 }
 
 static inline int ldl_be_p(const void *ptr)
 {
-    return be_bswap(ldl_he_p(ptr), 32);
+    return be_bswap(ldl_unaligned_p(ptr), 32);
 }
 
 static inline uint64_t ldq_be_p(const void *ptr)
 {
-    return be_bswap(ldq_he_p(ptr), 64);
+    return be_bswap(ldq_unaligned_p(ptr), 64);
 }
 
 static inline void stw_be_p(void *ptr, uint16_t v)
 {
-    stw_he_p(ptr, be_bswap(v, 16));
+    stw_unaligned_p(ptr, be_bswap(v, 16));
 }
 
 static inline void st24_be_p(void *ptr, uint32_t v)
 {
-    st24_he_p(ptr, be_bswap24(v));
+    st24_unaligned_p(ptr, be_bswap24(v));
 }
 
 static inline void stl_be_p(void *ptr, uint32_t v)
 {
-    stl_he_p(ptr, be_bswap(v, 32));
+    stl_unaligned_p(ptr, be_bswap(v, 32));
 }
 
 static inline void stq_be_p(void *ptr, uint64_t v)
 {
-    stq_he_p(ptr, be_bswap(v, 64));
+    stq_unaligned_p(ptr, be_bswap(v, 64));
 }
 
 static inline unsigned long leul_to_cpu(unsigned long v)
@@ -363,7 +363,7 @@ static inline unsigned long leul_to_cpu(unsigned long v)
         }                                                               \
     }
 
-DO_STN_LDN_P(he)
+DO_STN_LDN_P(unaligned)
 DO_STN_LDN_P(le)
 DO_STN_LDN_P(be)
 

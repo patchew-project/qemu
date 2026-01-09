@@ -768,7 +768,7 @@ static void sm501_2d_operation(SM501State *s)
             for (y = 0; y < height; y++) {
                 i = (dst_x + (dst_y + y) * dst_pitch) * bypp;
                 for (x = 0; x < width; x++, i += bypp) {
-                    stn_he_p(&d[i], bypp, ~ldn_he_p(&d[i], bypp));
+                    stn_unaligned_p(&d[i], bypp, ~ldn_unaligned_p(&d[i], bypp));
                 }
             }
         } else if (!rop_mode && rop == 0x99) {
@@ -781,8 +781,9 @@ static void sm501_2d_operation(SM501State *s)
                 i = (dst_x + (dst_y + y) * dst_pitch) * bypp;
                 j = (src_x + (src_y + y) * src_pitch) * bypp;
                 for (x = 0; x < width; x++, i += bypp, j += bypp) {
-                    stn_he_p(&d[i], bypp,
-                             ~(ldn_he_p(&sp[j], bypp) ^ ldn_he_p(&d[i], bypp)));
+                    stn_unaligned_p(&d[i], bypp,
+                                    ~(ldn_unaligned_p(&sp[j], bypp)
+                                      ^ ldn_unaligned_p(&d[i], bypp)));
                 }
             }
         } else if (!rop_mode && rop == 0xee) {
@@ -795,8 +796,9 @@ static void sm501_2d_operation(SM501State *s)
                 i = (dst_x + (dst_y + y) * dst_pitch) * bypp;
                 j = (src_x + (src_y + y) * src_pitch) * bypp;
                 for (x = 0; x < width; x++, i += bypp, j += bypp) {
-                    stn_he_p(&d[i], bypp,
-                             ldn_he_p(&sp[j], bypp) | ldn_he_p(&d[i], bypp));
+                    stn_unaligned_p(&d[i], bypp,
+                                    ldn_unaligned_p(&sp[j], bypp)
+                                    | ldn_unaligned_p(&d[i], bypp));
                 }
             }
         } else {
@@ -818,8 +820,9 @@ static void sm501_2d_operation(SM501State *s)
             if (width == 1 && height == 1) {
                 unsigned int si = (src_x + src_y * src_pitch) * bypp;
                 unsigned int di = (dst_x + dst_y * dst_pitch) * bypp;
-                stn_he_p(&s->local_mem[dst_base + di], bypp,
-                         ldn_he_p(&s->local_mem[src_base + si], bypp));
+                stn_unaligned_p(&s->local_mem[dst_base + di], bypp,
+                                ldn_unaligned_p(&s->local_mem[src_base + si],
+                                                bypp));
                 break;
             }
             /* If reverse blit do simple check for overlaps */
@@ -917,7 +920,7 @@ static void sm501_2d_operation(SM501State *s)
                 for (y = 0; y < height; y++) {
                     i = (dst_x + (dst_y + y) * dst_pitch) * bypp;
                     for (x = 0; x < width; x++, i += bypp) {
-                        stn_he_p(&d[i], bypp, color);
+                        stn_unaligned_p(&d[i], bypp, color);
                     }
                 }
             }

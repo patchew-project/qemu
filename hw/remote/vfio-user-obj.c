@@ -392,7 +392,7 @@ static int vfu_object_mr_rw(MemoryRegion *mr, uint8_t *buf, hwaddr offset,
         access_size = memory_access_size(mr, size, offset);
 
         if (is_write) {
-            val = ldn_he_p(ptr, access_size);
+            val = ldn_unaligned_p(ptr, access_size);
 
             result = memory_region_dispatch_write(mr, offset, val,
                                                   size_memop(access_size),
@@ -402,7 +402,7 @@ static int vfu_object_mr_rw(MemoryRegion *mr, uint8_t *buf, hwaddr offset,
                                                  size_memop(access_size),
                                                  MEMTXATTRS_UNSPECIFIED);
 
-            stn_he_p(ptr, access_size, val);
+            stn_unaligned_p(ptr, access_size, val);
         }
 
         if (release_lock) {

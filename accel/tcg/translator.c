@@ -342,14 +342,14 @@ static bool translator_ld(CPUArchState *env, DisasContextBase *db,
     case 2:
         if (QEMU_IS_ALIGNED(pc, 2)) {
             uint16_t t = qatomic_read((uint16_t *)host);
-            stw_he_p(dest, t);
+            stw_unaligned_p(dest, t);
             return true;
         }
         break;
     case 4:
         if (QEMU_IS_ALIGNED(pc, 4)) {
             uint32_t t = qatomic_read((uint32_t *)host);
-            stl_he_p(dest, t);
+            stl_unaligned_p(dest, t);
             return true;
         }
         break;
@@ -357,7 +357,7 @@ static bool translator_ld(CPUArchState *env, DisasContextBase *db,
     case 8:
         if (QEMU_IS_ALIGNED(pc, 8)) {
             uint64_t t = qatomic_read__nocheck((uint64_t *)host);
-            stq_he_p(dest, t);
+            stq_unaligned_p(dest, t);
             return true;
         }
         break;

@@ -912,7 +912,7 @@ static void tight_pack24(VncState *vs, uint8_t *buf, size_t count, size_t *ret)
     }
 
     while (count--) {
-        pix = ldl_he_p(buf8);
+        pix = ldl_unaligned_p(buf8);
         *buf++ = (char)(pix >> rshift);
         *buf++ = (char)(pix >> gshift);
         *buf++ = (char)(pix >> bshift);

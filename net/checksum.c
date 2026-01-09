@@ -110,7 +110,7 @@ void net_checksum_calculate(void *data, int length, int csum_flag)
 
     /* Calculate IP checksum */
     if (csum_flag & CSUM_IP) {
-        stw_he_p(&ip->ip_sum, 0);
+        stw_unaligned_p(&ip->ip_sum, 0);
         csum = net_raw_checksum((uint8_t *)ip, IP_HDR_GET_LEN(ip));
         stw_be_p(&ip->ip_sum, csum);
     }
@@ -142,7 +142,7 @@ void net_checksum_calculate(void *data, int length, int csum_flag)
         }
 
         /* Set csum to 0 */
-        stw_he_p(&tcp->th_sum, 0);
+        stw_unaligned_p(&tcp->th_sum, 0);
 
         csum = net_checksum_tcpudp(ip_len, ip->ip_p,
                                    (uint8_t *)&ip->ip_src,
@@ -166,7 +166,7 @@ void net_checksum_calculate(void *data, int length, int csum_flag)
         }
 
         /* Set csum to 0 */
-        stw_he_p(&udp->uh_sum, 0);
+        stw_unaligned_p(&udp->uh_sum, 0);
 
         csum = net_checksum_tcpudp(ip_len, ip->ip_p,
                                    (uint8_t *)&ip->ip_src,

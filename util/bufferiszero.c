@@ -38,10 +38,10 @@ static bool buffer_is_zero_int_lt256(const void *buf, size_t len)
      * the beginning and end of the buffer.
      */
     if (unlikely(len <= 8)) {
-        return (ldl_he_p(buf) | ldl_he_p(buf + len - 4)) == 0;
+        return (ldl_unaligned_p(buf) | ldl_unaligned_p(buf + len - 4)) == 0;
     }
 
-    t = ldq_he_p(buf) | ldq_he_p(buf + len - 8);
+    t = ldq_unaligned_p(buf) | ldq_unaligned_p(buf + len - 8);
     p = QEMU_ALIGN_PTR_DOWN(buf + 8, 8);
     e = QEMU_ALIGN_PTR_DOWN(buf + len - 1, 8);
 
@@ -58,7 +58,7 @@ static bool buffer_is_zero_int_ge256(const void *buf, size_t len)
      * Use unaligned memory access functions to handle
      * the beginning and end of the buffer.
      */
-    uint64_t t = ldq_he_p(buf) | ldq_he_p(buf + len - 8);
+    uint64_t t = ldq_unaligned_p(buf) | ldq_unaligned_p(buf + len - 8);
     const uint64_t *p = QEMU_ALIGN_PTR_DOWN(buf + 8, 8);
     const uint64_t *e = QEMU_ALIGN_PTR_DOWN(buf + len - 1, 8);
 
