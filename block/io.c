@@ -2087,8 +2087,10 @@ bdrv_aligned_pwritev(BdrvChild *child, BdrvTrackedRequest *req,
     assert(is_power_of_2(align));
     assert((offset & (align - 1)) == 0);
     assert((bytes & (align - 1)) == 0);
-    max_transfer = QEMU_ALIGN_DOWN(MIN_NON_ZERO(bs->bl.max_transfer, INT_MAX),
-                                   align);
+    max_transfer = MIN_NON_ZERO(bs->bl.max_transfer, INT_MAX);
+    if (max_transfer > align) {
+        max_transfer = QEMU_ALIGN_DOWN(max_transfer, align);
+    }
 
     ret = bdrv_co_write_req_prepare(child, offset, bytes, req, flags);
 
