@@ -2162,6 +2162,7 @@ bdrv_co_do_zero_pwritev(BdrvChild *child, int64_t offset, int64_t bytes,
     int ret = 0;
     bool padding;
     BdrvRequestPadding pad;
+    uint64_t total_length = bs->total_sectors * BDRV_SECTOR_SIZE;
 
     /* This flag doesn't make sense for padding or zero writes */
     flags &= ~BDRV_REQ_REGISTERED_BUF;
@@ -2177,10 +2178,21 @@ bdrv_co_do_zero_pwritev(BdrvChild *child, int64_t offset, int64_t bytes,
             int64_t aligned_offset = offset & ~(align - 1);
             int64_t write_bytes = pad.merge_reads ? pad.buf_len : align;
 
-            qemu_iovec_init_buf(&local_qiov, pad.buf, write_bytes);
-            ret = bdrv_aligned_pwritev(child, req, aligned_offset, write_bytes,
-                                       align, &local_qiov, 0,
-                                       flags & ~BDRV_REQ_ZERO_WRITE);
+            if (total_length >= aligned_offset + write_bytes) {
+                qemu_iovec_init_buf(&local_qiov, pad.buf, write_bytes);
+                ret = bdrv_aligned_pwritev(child, req, aligned_offset,
+                                           write_bytes, align, &local_qiov, 0,
+                                           flags & ~BDRV_REQ_ZERO_WRITE);
+            } else {
+                write_bytes = total_length - aligned_offset;
+                qemu_iovec_init_buf(&local_qiov, pad.buf, write_bytes);
+                ret = bdrv_aligned_pwritev(child, req, aligned_offset,
+                                           write_bytes,
+                                           bs->bl.request_alignment,
+                                           &local_qiov, 0,
+                                           flags & ~BDRV_REQ_ZERO_WRITE);
+            }
+
             if (ret < 0 || pad.merge_reads) {
                 /* Error or all work is done */
                 goto out;
@@ -2205,12 +2217,20 @@ bdrv_co_do_zero_pwritev(BdrvChild *child, int64_t offset, int64_t bytes,
 
     assert(!bytes || (offset & (align - 1)) == 0);
     if (bytes) {
-        assert(align == pad.tail + bytes);
+        if (total_length >= offset + align) {
+            assert(align == pad.tail + bytes);
 
-        qemu_iovec_init_buf(&local_qiov, pad.tail_buf, align);
-        ret = bdrv_aligned_pwritev(child, req, offset, align, align,
-                                   &local_qiov, 0,
-                                   flags & ~BDRV_REQ_ZERO_WRITE);
+            qemu_iovec_init_buf(&local_qiov, pad.tail_buf, align);
+            ret = bdrv_aligned_pwritev(child, req, offset, align, align,
+                                       &local_qiov, 0,
+                                       flags & ~BDRV_REQ_ZERO_WRITE);
+        } else {
+            int64_t write_bytes = total_length - offset;
+            qemu_iovec_init_buf(&local_qiov, pad.tail_buf, write_bytes);
+            ret = bdrv_aligned_pwritev(child, req, offset, write_bytes,
+                                       bs->bl.request_alignment, &local_qiov, 0,
+                                       flags & ~BDRV_REQ_ZERO_WRITE);
+        }
     }
 
 out:
