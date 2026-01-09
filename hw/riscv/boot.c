@@ -179,11 +179,25 @@ hwaddr riscv_load_firmware(MachineState *machine,
 
     g_assert(firmware_filename != NULL);
 
-    if (load_elf_ram_sym(firmware_filename, NULL, NULL, NULL,
-                         &firmware_entry, NULL, &firmware_end, NULL,
-                         0, EM_RISCV, 1, 0, NULL, true, sym_cb) > 0) {
+    firmware_size = load_elf_ram_sym(firmware_filename, NULL, NULL, NULL,
+                                     &firmware_entry, NULL, &firmware_end,
+                                     NULL, 0, EM_RISCV, 1, 0, NULL, false,
+                                     sym_cb);
+    if (firmware_size > 0) {
         *firmware_load_addr = firmware_entry;
         return firmware_end;
+    }
+
+    if (firmware_size != ELF_LOAD_NOT_ELF) {
+        /*
+         * If the user specified an ELF format firmware that could not be
+         * loaded as an ELF, it's possible that loading it as a binary is
+         * not what was intended.
+         */
+        warn_report("could not load ELF format firmware '%s' (%s). "
+                    "Attempting to load as binary.",
+                    firmware_filename,
+                    load_elf_strerror(firmware_size));
     }
 
     firmware_size = load_image_targphys_as(firmware_filename,
@@ -195,7 +209,8 @@ hwaddr riscv_load_firmware(MachineState *machine,
         return *firmware_load_addr + firmware_size;
     }
 
-    error_report("could not load firmware '%s'", firmware_filename);
+    error_report("could not load firmware '%s': %s", firmware_filename,
+                 load_elf_strerror(firmware_size));
     exit(1);
 }
 
