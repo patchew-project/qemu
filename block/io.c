@@ -2155,7 +2155,8 @@ bdrv_co_do_zero_pwritev(BdrvChild *child, int64_t offset, int64_t bytes,
 {
     BlockDriverState *bs = child->bs;
     QEMUIOVector local_qiov;
-    uint64_t align = bs->bl.request_alignment;
+    uint64_t align = MAX(bs->bl.pwrite_zeroes_alignment,
+                         bs->bl.request_alignment);
     int ret = 0;
     bool padding;
     BdrvRequestPadding pad;
