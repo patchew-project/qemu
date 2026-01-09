@@ -15,3 +15,5 @@ void a64_translate_init(void)
 {
     /* Don't initialize for 32 bits. Call site will be fixed later. */
 }
+
+const TranslatorOps aarch64_translator_ops;
