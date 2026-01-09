@@ -170,9 +170,16 @@ static int qigvm_handler(QIgvm *ctx, uint32_t type, Error **errp)
                 (int)header_handle);
             return -1;
         }
-        header_data = igvm_get_buffer(ctx->file, header_handle) +
-                      sizeof(IGVM_VHS_VARIABLE_HEADER);
-        result = handlers[handler].handler(ctx, header_data, errp);
+        header_data = igvm_get_buffer(ctx->file, header_handle);
+        if (header_data == NULL) {
+            error_setg(
+                errp,
+                "IGVM: Failed to get directive header data (code: %d)",
+                (int)header_handle);
+            result = -1;
+        } else {
+            result = handlers[handler].handler(ctx, header_data + sizeof(IGVM_VHS_VARIABLE_HEADER), errp);
+        }
         igvm_free_buffer(ctx->file, header_handle);
         return result;
     }
