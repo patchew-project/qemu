@@ -10972,80 +10972,50 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
         return ret;
     case TARGET_NR_setpriority:
         return get_errno(setpriority(arg1, arg2, arg3));
-#ifdef TARGET_NR_statfs
-    case TARGET_NR_statfs:
-    case TARGET_NR_fstatfs:
-        {
-            struct statf stfs;
-            struct target_statfs *target_stfs;
-            if (num == TARGET_NR_statfs) {
-                if (!(p = lock_user_string(arg1))) {
-                    return -TARGET_EFAULT;
-                }
-                ret = get_errno(statfs(path(p), &stfs));
-                unlock_user(p, arg1, 0);
-            } else /* if (num == TARGET_NR_fstatfs) */ {
-                ret = get_errno(fstatfs(arg1, &stfs));
-            }
-            if (is_error(ret)) {
-                return ret;
-            }
-            if (!lock_user_struct(VERIFY_WRITE, target_stfs, arg2, 0))
-                return -TARGET_EFAULT;
-            __put_user(stfs.f_type, &target_stfs->f_type);
-            __put_user(stfs.f_bsize, &target_stfs->f_bsize);
-            __put_user(stfs.f_blocks, &target_stfs->f_blocks);
-            __put_user(stfs.f_bfree, &target_stfs->f_bfree);
-            __put_user(stfs.f_bavail, &target_stfs->f_bavail);
-            __put_user(stfs.f_files, &target_stfs->f_files);
-            __put_user(stfs.f_ffree, &target_stfs->f_ffree);
-            __put_user(stfs.f_fsid.__val[0], &target_stfs->f_fsid.val[0]);
-            __put_user(stfs.f_fsid.__val[1], &target_stfs->f_fsid.val[1]);
-            __put_user(stfs.f_namelen, &target_stfs->f_namelen);
-            __put_user(stfs.f_frsize, &target_stfs->f_frsize);
-            __put_user(stfs.f_flags, &target_stfs->f_flags);
-            memset(target_stfs->f_spare, 0, sizeof(target_stfs->f_spare));
-            unlock_user_struct(target_stfs, arg2, 1);
-            return ret;
+
+#define statfs_fstatfs_impl(variant) /* variant is statfs or statfs64 */ \
+    case TARGET_NR_##variant: \
+    case TARGET_NR_f##variant: \
+        { \
+            struct statfs stfs; \
+            struct target_##variant *target_stfs; \
+            if (num == TARGET_NR_##variant) { \
+                if (!(p = lock_user_string(arg1))) { \
+                    return -TARGET_EFAULT; \
+                } \
+                ret = get_errno(statfs(path(p), &stfs)); \
+                unlock_user(p, arg1, 0); \
+            } else /* if (num == TARGET_NR_f##variant) */ { \
+                ret = get_errno(fstatfs(arg1, &stfs)); \
+            } \
+            if (is_error(ret)) { \
+                return ret; \
+            } \
+            if (!lock_user_struct(VERIFY_WRITE, target_stfs, arg2, 0)) \
+                return -TARGET_EFAULT; \
+            __put_user(stfs.f_type, &target_stfs->f_type); \
+            __put_user(stfs.f_bsize, &target_stfs->f_bsize); \
+            __put_user(stfs.f_blocks, &target_stfs->f_blocks); \
+            __put_user(stfs.f_bfree, &target_stfs->f_bfree); \
+            __put_user(stfs.f_bavail, &target_stfs->f_bavail); \
+            __put_user(stfs.f_files, &target_stfs->f_files); \
+            __put_user(stfs.f_ffree, &target_stfs->f_ffree); \
+            __put_user(stfs.f_fsid.__val[0], &target_stfs->f_fsid.val[0]); \
+            __put_user(stfs.f_fsid.__val[1], &target_stfs->f_fsid.val[1]); \
+            __put_user(stfs.f_namelen, &target_stfs->f_namelen); \
+            __put_user(stfs.f_frsize, &target_stfs->f_frsize); \
+            __put_user(stfs.f_flags, &target_stfs->f_flags); \
+            memset(target_stfs->f_spare, 0, sizeof(target_stfs->f_spare)); \
+            unlock_user_struct(target_stfs, arg2, 1); \
+            return ret; \
         }
+#ifdef TARGET_NR_statfs
+    statfs_fstatfs_impl(statfs);
 #endif
 #ifdef TARGET_NR_statfs64
-    case TARGET_NR_statfs64:
-    case TARGET_NR_fstatfs64:
-        {
-            struct statfs stfs;
-            struct target_statfs64 *target_stfs;
-            if (num == TARGET_NR_statfs64) {
-                if (!(p = lock_user_string(arg1))) {
-                    return -TARGET_EFAULT;
-                }
-                ret = get_errno(statfs(path(p), &stfs));
-                unlock_user(p, arg1, 0);
-                } else /* if (num == TARGET_NR_fstatfs64) */ {
-                ret = get_errno(fstatfs(arg1, &stfs));
-            }
-            if (is_error(ret)) {
-                return ret;
-            }
-            if (!lock_user_struct(VERIFY_WRITE, target_stfs, arg3, 0))
-                return -TARGET_EFAULT;
-            __put_user(stfs.f_type, &target_stfs->f_type);
-            __put_user(stfs.f_bsize, &target_stfs->f_bsize);
-            __put_user(stfs.f_blocks, &target_stfs->f_blocks);
-            __put_user(stfs.f_bfree, &target_stfs->f_bfree);
-            __put_user(stfs.f_bavail, &target_stfs->f_bavail);
-            __put_user(stfs.f_files, &target_stfs->f_files);
-            __put_user(stfs.f_ffree, &target_stfs->f_ffree);
-            __put_user(stfs.f_fsid.__val[0], &target_stfs->f_fsid.val[0]);
-            __put_user(stfs.f_fsid.__val[1], &target_stfs->f_fsid.val[1]);
-            __put_user(stfs.f_namelen, &target_stfs->f_namelen);
-            __put_user(stfs.f_frsize, &target_stfs->f_frsize);
-            __put_user(stfs.f_flags, &target_stfs->f_flags);
-            memset(target_stfs->f_spare, 0, sizeof(target_stfs->f_spare));
-            unlock_user_struct(target_stfs, arg3, 1);
-            return ret;
-        }
+    statfs_fstatfs_impl(statfs64);
 #endif
+
 #ifdef TARGET_NR_socketcall
     case TARGET_NR_socketcall:
         return do_socketcall(arg1, arg2);
