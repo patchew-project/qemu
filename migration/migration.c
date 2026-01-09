@@ -1534,7 +1534,7 @@ static void migration_cleanup(MigrationState *s)
     }
     type = migration_has_failed(s) ? MIG_EVENT_PRECOPY_FAILED :
                                      MIG_EVENT_PRECOPY_DONE;
-    migration_call_notifiers(s, type, NULL);
+    migration_call_notifiers(type, NULL);
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
 }
 
@@ -1696,10 +1696,9 @@ void migration_remove_notifier(NotifierWithReturn *notify)
     }
 }
 
-int migration_call_notifiers(MigrationState *s, MigrationEventType type,
-                             Error **errp)
+int migration_call_notifiers(MigrationEventType type, Error **errp)
 {
-    MigMode mode = s->parameters.mode;
+    MigMode mode = migrate_mode();
     MigrationEvent e;
     NotifierWithReturn *notifier;
     GSList *elem, *next;
@@ -1780,9 +1779,9 @@ bool migration_thread_is_self(void)
     return qemu_thread_is_self(&s->thread);
 }
 
-bool migrate_mode_is_cpr(MigrationState *s)
+bool migrate_mode_is_cpr(void)
 {
-    MigMode mode = s->parameters.mode;
+    MigMode mode = migrate_mode();
     return mode == MIG_MODE_CPR_REBOOT ||
            mode == MIG_MODE_CPR_TRANSFER ||
            mode == MIG_MODE_CPR_EXEC;
@@ -2136,7 +2135,7 @@ static bool migrate_prepare(MigrationState *s, bool resume, Error **errp)
         }
     }
 
-    if (migrate_mode_is_cpr(s)) {
+    if (migrate_mode_is_cpr()) {
         const char *conflict = NULL;
 
         if (migrate_postcopy()) {
@@ -2252,7 +2251,7 @@ void qmp_migrate(const char *uri, bool has_channels,
         return;
     }
 
-    if (s->parameters.mode == MIG_MODE_CPR_TRANSFER && !cpr_channel) {
+    if (migrate_mode() == MIG_MODE_CPR_TRANSFER && !cpr_channel) {
         error_setg(errp, "missing 'cpr' migration channel");
         return;
     }
@@ -2277,7 +2276,7 @@ void qmp_migrate(const char *uri, bool has_channels,
      * in which case the target will not listen for the incoming migration
      * connection, so qmp_migrate_finish will fail to connect, and then recover.
      */
-    if (s->parameters.mode == MIG_MODE_CPR_TRANSFER) {
+    if (migrate_mode() == MIG_MODE_CPR_TRANSFER) {
         migrate_hup_add(s, cpr_state_ioc(), (GSourceFunc)qmp_migrate_finish_cb,
                         QAPI_CLONE(MigrationAddress, addr));
 
@@ -2852,7 +2851,7 @@ static int postcopy_start(MigrationState *ms, Error **errp)
      * at the transition to postcopy and after the device state; in particular
      * spice needs to trigger a transition now
      */
-    migration_call_notifiers(ms, MIG_EVENT_PRECOPY_DONE, NULL);
+    migration_call_notifiers(MIG_EVENT_PRECOPY_DONE, NULL);
 
     migration_downtime_end(ms);
 
@@ -2901,7 +2900,7 @@ fail:
         migrate_set_state(&ms->state, ms->state, MIGRATION_STATUS_FAILED);
     }
     migration_block_activate(NULL);
-    migration_call_notifiers(ms, MIG_EVENT_PRECOPY_FAILED, NULL);
+    migration_call_notifiers(MIG_EVENT_PRECOPY_FAILED, NULL);
     bql_unlock();
     return -1;
 }
@@ -3003,7 +3002,7 @@ static int migration_completion_precopy(MigrationState *s)
 
     bql_lock();
 
-    if (!migrate_mode_is_cpr(s)) {
+    if (!migrate_mode_is_cpr()) {
         ret = migration_stop_vm(s, RUN_STATE_FINISH_MIGRATE);
         if (ret < 0) {
             goto out_unlock;
@@ -4049,7 +4048,7 @@ void migration_connect(MigrationState *s, Error *error_in)
         rate_limit = migrate_max_bandwidth();
 
         /* Notify before starting migration thread */
-        if (migration_call_notifiers(s, MIG_EVENT_PRECOPY_SETUP, &local_err)) {
+        if (migration_call_notifiers(MIG_EVENT_PRECOPY_SETUP, &local_err)) {
             goto fail;
         }
     }
@@ -4085,7 +4084,7 @@ void migration_connect(MigrationState *s, Error *error_in)
         return;
     }
 
-    if (migrate_mode_is_cpr(s)) {
+    if (migrate_mode_is_cpr()) {
         ret = migration_stop_vm(s, RUN_STATE_FINISH_MIGRATE);
         if (ret < 0) {
             error_setg(&local_err, "migration_stop_vm failed, error %d", -ret);
