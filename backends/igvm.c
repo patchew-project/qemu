@@ -15,9 +15,11 @@
 #include "qapi/error.h"
 #include "qemu/target-info-qapi.h"
 #include "system/igvm.h"
+#include "glib.h"
 #include "system/memory.h"
 #include "system/address-spaces.h"
 #include "hw/core/cpu.h"
+#include "hw/i386/acpi-build.h"
 
 #include "trace.h"
 
@@ -134,6 +136,8 @@ static int qigvm_directive_snp_id_block(QIgvm *ctx, const uint8_t *header_data,
 static int qigvm_initialization_guest_policy(QIgvm *ctx,
                                        const uint8_t *header_data,
                                        Error **errp);
+static int qigvm_directive_madt(QIgvm *ctx,
+                                     const uint8_t *header_data, Error **errp);
 
 struct QIGVMHandler {
     uint32_t type;
@@ -162,6 +166,8 @@ static struct QIGVMHandler handlers[] = {
       qigvm_directive_snp_id_block },
     { IGVM_VHT_GUEST_POLICY, IGVM_HEADER_SECTION_INITIALIZATION,
       qigvm_initialization_guest_policy },
+    { IGVM_VHT_MADT, IGVM_HEADER_SECTION_DIRECTIVE,
+      qigvm_directive_madt },
 };
 
 static int qigvm_handler(QIgvm *ctx, uint32_t type, Error **errp)
@@ -776,6 +782,35 @@ static int qigvm_initialization_guest_policy(QIgvm *ctx,
 
     if (guest->compatibility_mask & ctx->compatibility_mask) {
         ctx->sev_policy = guest->policy;
+    }
+    return 0;
+}
+
+static int qigvm_directive_madt(QIgvm *ctx,
+                                     const uint8_t *header_data, Error **errp)
+{
+    const IGVM_VHS_PARAMETER *param = (const IGVM_VHS_PARAMETER *)header_data;
+    QIgvmParameterData *param_entry;
+
+    if (ctx->machine_state == NULL) {
+        return 0;
+    }
+
+    /* Find the parameter area that should hold the MADT data */
+    param_entry = qigvm_find_param_entry(ctx, param);
+    if (param_entry != NULL) {
+
+        GArray *madt = acpi_build_madt_standalone(ctx->machine_state);
+
+        if (madt->len > param_entry->size) {
+            error_setg(
+                errp,
+                "IGVM: MADT size exceeds parameter area defined in IGVM file");
+            return -1;
+        }
+        memcpy(param_entry->data, madt->data, madt->len);
+
+        g_array_free(madt, true);
     }
     return 0;
 }
