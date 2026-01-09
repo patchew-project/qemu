@@ -29,7 +29,7 @@
 #endif
 
 #if TARGET_INSN_START_EXTRA_WORDS == 0
-static inline void tcg_gen_insn_start(target_ulong pc)
+static inline void tcg_gen_insn_start(uint64_t pc)
 {
     TCGOp *op = tcg_emit_op(INDEX_op_insn_start,
                             INSN_START_WORDS * 64 / TCG_TARGET_REG_BITS);
@@ -38,7 +38,7 @@ static inline void tcg_gen_insn_start(target_ulong pc)
     tcg_set_insn_start_param(op, 2, 0);
 }
 #elif TARGET_INSN_START_EXTRA_WORDS == 1
-static inline void tcg_gen_insn_start(target_ulong pc, target_ulong a1)
+static inline void tcg_gen_insn_start(uint64_t pc, uint64_t a1)
 {
     TCGOp *op = tcg_emit_op(INDEX_op_insn_start,
                             INSN_START_WORDS * 64 / TCG_TARGET_REG_BITS);
@@ -47,8 +47,8 @@ static inline void tcg_gen_insn_start(target_ulong pc, target_ulong a1)
     tcg_set_insn_start_param(op, 2, 0);
 }
 #elif TARGET_INSN_START_EXTRA_WORDS == 2
-static inline void tcg_gen_insn_start(target_ulong pc, target_ulong a1,
-                                      target_ulong a2)
+static inline void tcg_gen_insn_start(uint64_t pc, uint64_t a1,
+                                      uint64_t a2)
 {
     TCGOp *op = tcg_emit_op(INDEX_op_insn_start,
                             INSN_START_WORDS * 64 / TCG_TARGET_REG_BITS);
