@@ -20,6 +20,7 @@
  */
 #include "qemu/osdep.h"
 
+#define TARGET_ADDRESS_BITS 32
 #include "translate.h"
 #include "translate-a32.h"
 #include "qemu/log.h"

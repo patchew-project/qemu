@@ -693,5 +693,6 @@ TCGTBCPUState arm_get_tb_cpu_state(CPUState *cs)
         .pc = pc,
         .flags = flags.flags,
         .cs_base = flags.flags2,
+        .tcgv_type = is_a64(env) ? TCGV_TYPE_I64 : TCGV_TYPE_I32
     };
 }
