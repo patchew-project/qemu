@@ -6948,8 +6948,8 @@ static const X86CPUDefinition builtin_x86_defs[] = {
             CPUID_EXT3_3DNOWPREFETCH | CPUID_EXT3_ABM | CPUID_EXT3_LAHF_LM,
         .features[FEAT_8000_0007_EDX] = CPUID_APM_INVTSC,
         /*
-         * TODO: When the Linux kernel introduces other existing definitions
-         * for this leaf, remember to update the definitions here.
+         * missing: SM2/SM2_EN, CCS/CCS_EN, PARALLAX/PARALLAX_EN,
+         * TM3/TM3_EN, RNG2/RNG2_EN, PHE2/PHE2_EN, RSA/RSA_EN
          */
         .features[FEAT_C000_0001_EDX] =
             CPUID_C000_0001_EDX_PMM_EN | CPUID_C000_0001_EDX_PMM |
