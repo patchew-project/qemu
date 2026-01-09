@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#define HAS_HELPER64
 #include "translate.h"
 #include "translate-a64.h"
 #include "fpu/softfloat.h"

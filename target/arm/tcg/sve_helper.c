@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "internals.h"
 #include "exec/page-protection.h"
+#define HAS_HELPER64
 #include "exec/helper-proto.h"
 #include "exec/target_page.h"
 #include "exec/tlb-flags.h"
