@@ -73,6 +73,8 @@ _supported_fmt raw
 _supported_proto file
 _supported_os Linux
 
+test -n "$GITLAB_CI" && _notrun "dmsetup not functional on GitLab CI runners"
+
 _setup_eiodev
 
 TEST_IMG="/dev/mapper/$devname"
