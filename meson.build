@@ -4557,6 +4557,7 @@ if have_tools
     subdir('contrib/vhost-user-gpu')
     subdir('contrib/vhost-user-input')
     subdir('contrib/vhost-user-scsi')
+    subdir('contrib/vhost-user-bridge')
   endif
 
   if host_os == 'linux'
