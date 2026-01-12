@@ -279,7 +279,7 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
                 fprintf(stderr, "boolean argument parsing failed: %s\n", opt);
                 return -1;
             }
-        } else if (g_strcmp0(tokens[0], "match") == 0) {
+        } else if (g_strcmp0(tokens[0], "match") == 0 && tokens[1]) {
             parse_match(tokens[1]);
         } else if (g_strcmp0(tokens[0], "trace") == 0) {
             if (!qemu_plugin_bool_parse(tokens[0], tokens[1], &do_trace)) {

@@ -767,29 +767,29 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
         char *opt = argv[i];
         g_auto(GStrv) tokens = g_strsplit(opt, "=", 2);
 
-        if (g_strcmp0(tokens[0], "iblksize") == 0) {
+        if (g_strcmp0(tokens[0], "iblksize") == 0 && tokens[1]) {
             l1_iblksize = STRTOLL(tokens[1]);
-        } else if (g_strcmp0(tokens[0], "iassoc") == 0) {
+        } else if (g_strcmp0(tokens[0], "iassoc") == 0 && tokens[1]) {
             l1_iassoc = STRTOLL(tokens[1]);
-        } else if (g_strcmp0(tokens[0], "icachesize") == 0) {
+        } else if (g_strcmp0(tokens[0], "icachesize") == 0 && tokens[1]) {
             l1_icachesize = STRTOLL(tokens[1]);
-        } else if (g_strcmp0(tokens[0], "dblksize") == 0) {
+        } else if (g_strcmp0(tokens[0], "dblksize") == 0 && tokens[1]) {
             l1_dblksize = STRTOLL(tokens[1]);
-        } else if (g_strcmp0(tokens[0], "dassoc") == 0) {
+        } else if (g_strcmp0(tokens[0], "dassoc") == 0 && tokens[1]) {
             l1_dassoc = STRTOLL(tokens[1]);
-        } else if (g_strcmp0(tokens[0], "dcachesize") == 0) {
+        } else if (g_strcmp0(tokens[0], "dcachesize") == 0 && tokens[1]) {
             l1_dcachesize = STRTOLL(tokens[1]);
-        } else if (g_strcmp0(tokens[0], "limit") == 0) {
+        } else if (g_strcmp0(tokens[0], "limit") == 0 && tokens[1]) {
             limit = STRTOLL(tokens[1]);
-        } else if (g_strcmp0(tokens[0], "cores") == 0) {
+        } else if (g_strcmp0(tokens[0], "cores") == 0 && tokens[1]) {
             cores = STRTOLL(tokens[1]);
-        } else if (g_strcmp0(tokens[0], "l2cachesize") == 0) {
+        } else if (g_strcmp0(tokens[0], "l2cachesize") == 0 && tokens[1]) {
             use_l2 = true;
             l2_cachesize = STRTOLL(tokens[1]);
-        } else if (g_strcmp0(tokens[0], "l2blksize") == 0) {
+        } else if (g_strcmp0(tokens[0], "l2blksize") == 0 && tokens[1]) {
             use_l2 = true;
             l2_blksize = STRTOLL(tokens[1]);
-        } else if (g_strcmp0(tokens[0], "l2assoc") == 0) {
+        } else if (g_strcmp0(tokens[0], "l2assoc") == 0 && tokens[1]) {
             use_l2 = true;
             l2_assoc = STRTOLL(tokens[1]);
         } else if (g_strcmp0(tokens[0], "l2") == 0) {
@@ -797,7 +797,7 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
                 fprintf(stderr, "boolean argument parsing failed: %s\n", opt);
                 return -1;
             }
-        } else if (g_strcmp0(tokens[0], "evict") == 0) {
+        } else if (g_strcmp0(tokens[0], "evict") == 0 && tokens[1]) {
             if (g_strcmp0(tokens[1], "rand") == 0) {
                 policy = RAND;
             } else if (g_strcmp0(tokens[1], "lru") == 0) {

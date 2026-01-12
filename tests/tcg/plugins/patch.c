@@ -208,14 +208,14 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
                         "Failed to parse boolean argument use_hwaddr\n");
                 return -1;
             }
-        } else if (g_strcmp0(tokens[0], "target") == 0) {
+        } else if (g_strcmp0(tokens[0], "target") == 0 && tokens[1]) {
             target_data = str_to_bytes(tokens[1]);
             if (!target_data) {
                 fprintf(stderr,
                          "Failed to parse target bytes.\n");
                 return -1;
             }
-        } else if (g_strcmp0(tokens[0], "patch") == 0) {
+        } else if (g_strcmp0(tokens[0], "patch") == 0 && tokens[1]) {
             patch_data = str_to_bytes(tokens[1]);
             if (!patch_data) {
                 fprintf(stderr, "Failed to parse patch bytes.\n");

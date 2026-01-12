@@ -171,7 +171,7 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
         char *opt = argv[i];
         g_auto(GStrv) tokens = g_strsplit(opt, "=", -1);
 
-        if (g_strcmp0(tokens[0], "sortby") == 0) {
+        if (g_strcmp0(tokens[0], "sortby") == 0 && tokens[1]) {
             if (g_strcmp0(tokens[1], "reads") == 0) {
                 sort_by = SORT_R;
             } else if (g_strcmp0(tokens[1], "writes") == 0) {
@@ -182,12 +182,12 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
                 fprintf(stderr, "invalid value to sortby: %s\n", tokens[1]);
                 return -1;
             }
-        } else if (g_strcmp0(tokens[0], "io") == 0) {
+        } else if (g_strcmp0(tokens[0], "io") == 0 && tokens[1]) {
             if (!qemu_plugin_bool_parse(tokens[0], tokens[1], &track_io)) {
                 fprintf(stderr, "boolean argument parsing failed: %s\n", opt);
                 return -1;
             }
-        } else if (g_strcmp0(tokens[0], "pagesize") == 0) {
+        } else if (g_strcmp0(tokens[0], "pagesize") == 0 && tokens[1]) {
             page_size = g_ascii_strtoull(tokens[1], NULL, 10);
         } else {
             fprintf(stderr, "option parsing failed: %s\n", opt);

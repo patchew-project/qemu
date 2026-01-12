@@ -132,7 +132,7 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
     for (int i = 0; i < argc; i++) {
         char *opt = argv[i];
         g_auto(GStrv) tokens = g_strsplit(opt, "=", 2);
-        if (g_strcmp0(tokens[0], "interval") == 0) {
+        if (g_strcmp0(tokens[0], "interval") == 0 && tokens[1]) {
             interval = g_ascii_strtoull(tokens[1], NULL, 10);
         } else if (g_strcmp0(tokens[0], "outfile") == 0) {
             filename = tokens[1];

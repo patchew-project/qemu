@@ -460,11 +460,11 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
     for (int i = 0; i < argc; i++) {
         char *opt = argv[i];
         g_auto(GStrv) tokens = g_strsplit(opt, "=", 2);
-        if (g_strcmp0(tokens[0], "ifilter") == 0) {
+        if (g_strcmp0(tokens[0], "ifilter") == 0 && tokens[1]) {
             parse_insn_match(tokens[1]);
-        } else if (g_strcmp0(tokens[0], "afilter") == 0) {
+        } else if (g_strcmp0(tokens[0], "afilter") == 0 && tokens[1]) {
             parse_vaddr_match(tokens[1]);
-        } else if (g_strcmp0(tokens[0], "reg") == 0) {
+        } else if (g_strcmp0(tokens[0], "reg") == 0 && tokens[1]) {
             add_regpat(tokens[1]);
         } else if (g_strcmp0(tokens[0], "rdisas") == 0) {
             if (!qemu_plugin_bool_parse(tokens[0], tokens[1], &disas_assist)) {

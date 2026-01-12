@@ -149,7 +149,7 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
 {
     for (int i = 0; i < argc; i++) {
         g_auto(GStrv) tokens = g_strsplit(argv[i], "=", 2);
-        if (g_strcmp0(tokens[0], "filename") == 0) {
+        if (g_strcmp0(tokens[0], "filename") == 0 && tokens[1]) {
             file_name = g_strdup(tokens[1]);
         }
     }
