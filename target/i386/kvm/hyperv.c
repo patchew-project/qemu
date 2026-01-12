@@ -55,7 +55,9 @@ static uint64_t calc_supported_ext_hypercalls(X86CPU *cpu)
 {
     uint64_t ret = 0;
 
-    /* For now, no extended hypercalls are supported. */
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_BOOT_ZEROED_MEMORY)) {
+        ret |= HV_EXT_CAP_GET_BOOT_ZEROED_MEMORY;
+    }
 
     return ret;
 }
@@ -121,6 +123,14 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
             exit->u.hcall.result =
                 hyperv_ext_hcall_query_caps(calc_supported_ext_hypercalls(cpu),
                                             out_param, fast);
+            break;
+        case HV_EXT_CALL_GET_BOOT_ZEROED_MEMORY:
+            if (!hyperv_feat_enabled(cpu, HYPERV_FEAT_BOOT_ZEROED_MEMORY)) {
+                exit->u.hcall.result = HV_STATUS_INVALID_HYPERCALL_CODE;
+            } else {
+                exit->u.hcall.result =
+                    hyperv_ext_hcall_get_boot_zeroed_memory(out_param, fast);
+            }
             break;
         default:
             exit->u.hcall.result = HV_STATUS_INVALID_HYPERCALL_CODE;

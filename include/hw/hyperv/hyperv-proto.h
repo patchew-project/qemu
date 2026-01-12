@@ -36,6 +36,7 @@
 #define HV_RETRIEVE_DEBUG_DATA                0x006a
 #define HV_RESET_DEBUG_SESSION                0x006b
 #define HV_EXT_CALL_QUERY_CAPABILITIES        0x8001
+#define HV_EXT_CALL_GET_BOOT_ZEROED_MEMORY    0x8002
 #define HV_HYPERCALL_FAST                     (1u << 16)
 
 /*
@@ -191,5 +192,15 @@ struct hyperv_retrieve_debug_data_input {
 struct hyperv_retrieve_debug_data_output {
     uint32_t retrieved_count;
     uint32_t remaining_count;
+} __attribute__ ((__packed__));
+
+struct hyperv_get_boot_zeroed_memory_range {
+    uint64_t start_pfn;
+    uint64_t page_count;
+} __attribute__ ((__packed__));
+
+struct hyperv_get_boot_zeroed_memory_output {
+    uint64_t range_count;
+    struct hyperv_get_boot_zeroed_memory_range ranges[255];
 } __attribute__ ((__packed__));
 #endif

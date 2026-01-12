@@ -256,6 +256,11 @@ Existing enlightenments
 
   Recommended: ``hv-evmcs`` (Intel)
 
+``hv-boot-zeroed-mem``
+  Enables the HvExtGetBootZeroedMemory hypercall. This allows a Windows guest to
+  inquire which memory has already been zeroed out by the host and thus doesn't
+  need to be zeroed out at boot again.
+
 Supplementary features
 ----------------------
 

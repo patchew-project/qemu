@@ -727,6 +727,40 @@ cleanup:
     return ret;
 }
 
+uint16_t hyperv_ext_hcall_get_boot_zeroed_memory(uint64_t outgpa, bool fast)
+{
+    uint16_t ret;
+    struct hyperv_get_boot_zeroed_memory_output *zero_ranges = NULL;
+    hwaddr len;
+
+    if (fast) {
+        ret = HV_STATUS_INVALID_HYPERCALL_CODE;
+        goto cleanup;
+    }
+
+    len = sizeof(*zero_ranges);
+    zero_ranges = cpu_physical_memory_map(outgpa, &len, 1);
+    if (!zero_ranges || len < sizeof(*zero_ranges)) {
+        ret = HV_STATUS_INSUFFICIENT_MEMORY;
+        goto cleanup;
+    }
+
+    /*
+     * All memory we pass through will always be zeroed.
+     * (Check if that's actually true!)
+     */
+    zero_ranges->range_count = 1;
+    zero_ranges->ranges[0].start_pfn = 0x0;
+    zero_ranges->ranges[0].page_count = 0x10000000000000;
+    ret = HV_STATUS_SUCCESS;
+
+cleanup:
+    if (zero_ranges) {
+        cpu_physical_memory_unmap(zero_ranges, sizeof(*zero_ranges), 1, len);
+    }
+    return ret;
+}
+
 uint16_t hyperv_hcall_signal_event(uint64_t param, bool fast)
 {
     EventFlagHandler *handler;

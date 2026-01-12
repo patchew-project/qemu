@@ -95,6 +95,11 @@
 #define HV_NESTED_MSR_BITMAP                (1u << 19)
 
 /*
+ * HV_EXT_CALL_QUERY_CAPABILITIES bits
+ */
+#define HV_EXT_CAP_GET_BOOT_ZEROED_MEMORY   (1u << 0)
+
+/*
  * Basic virtualized MSRs
  */
 #define HV_X64_MSR_GUEST_OS_ID                0x40000000
