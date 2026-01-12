@@ -699,6 +699,34 @@ int hyperv_set_event_flag_handler(uint32_t conn_id, EventNotifier *notifier)
     return set_event_flag_handler(conn_id, notifier);
 }
 
+uint16_t hyperv_ext_hcall_query_caps(uint64_t sup, uint64_t outgpa, bool fast)
+{
+    uint16_t ret;
+    uint64_t *supported = NULL;
+    hwaddr len;
+
+    if (fast) {
+        ret = HV_STATUS_INVALID_HYPERCALL_CODE;
+        goto cleanup;
+    }
+
+    len = sizeof(*supported);
+    supported = cpu_physical_memory_map(outgpa, &len, 1);
+    if (!supported || len < sizeof(*supported)) {
+        ret = HV_STATUS_INSUFFICIENT_MEMORY;
+        goto cleanup;
+    }
+
+    *supported = sup;
+    ret = HV_STATUS_SUCCESS;
+
+cleanup:
+    if (supported) {
+        cpu_physical_memory_unmap(supported, sizeof(*supported), 1, len);
+    }
+    return ret;
+}
+
 uint16_t hyperv_hcall_signal_event(uint64_t param, bool fast)
 {
     EventFlagHandler *handler;

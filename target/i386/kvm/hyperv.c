@@ -51,6 +51,15 @@ static void async_synic_update(CPUState *cs, run_on_cpu_data data)
     bql_unlock();
 }
 
+static uint64_t calc_supported_ext_hypercalls(X86CPU *cpu)
+{
+    uint64_t ret = 0;
+
+    /* For now, no extended hypercalls are supported. */
+
+    return ret;
+}
+
 int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
 {
     CPUX86State *env = &cpu->env;
@@ -107,6 +116,11 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
         case HV_RESET_DEBUG_SESSION:
             exit->u.hcall.result =
                 hyperv_hcall_reset_dbg_session(out_param);
+            break;
+        case HV_EXT_CALL_QUERY_CAPABILITIES:
+            exit->u.hcall.result =
+                hyperv_ext_hcall_query_caps(calc_supported_ext_hypercalls(cpu),
+                                            out_param, fast);
             break;
         default:
             exit->u.hcall.result = HV_STATUS_INVALID_HYPERCALL_CODE;
