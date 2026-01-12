@@ -235,8 +235,8 @@ formats. The most comprehensive test plan can be run by defining
 ``SPEED=thorough``, which enables all available tests for every format.
 
 This set of formats currently enabled for make integration are
-``parallels``, ``qcow2``, ``qed``, ``raw``, ``vdi``, ``vhdx``,
-``vmdk``, and ``vpc``.
+``luks``, ``nbd``, ``parallels``, ``qcow2``, ``qed``, ``raw``, ``vdi``,
+``vhdx``, ``vmdk``, and ``vpc``.
 
 Each of formats also has its own dedicated make target, named
 ``make check-block-$FORMAT`` which will run all available tests for
