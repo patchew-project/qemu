@@ -285,6 +285,13 @@ that are specific to certain cache mode.
 More options are supported by the ``./check`` script, run ``./check -h`` for
 help.
 
+If a test program is known to be broken, it can be disabled by setting
+the ``QEMU_TEST_IO_SKIP`` environment variable with a list of tests to
+be skipped. The values are of the form FORMAT-OR-PROTOCOL:NAME, the
+leading component can be omitted to skip the test for all formats and
+protocols. For example ``export QEMU_TEST_IO_SKIP="luks:149 185 iov-padding``
+will skip for LUKS only, and ``185`` and ``iov-padding`` for all.
+
 Writing a new test case
 ~~~~~~~~~~~~~~~~~~~~~~~
 
