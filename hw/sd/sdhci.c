@@ -1892,9 +1892,33 @@ static void fsl_esdhc_le_init(Object *obj)
     qdev_prop_set_uint8(dev, "vendor", SDHCI_VENDOR_FSL);
 }
 
+static uint64_t usdhc_read(void *opaque, hwaddr offset, unsigned size)
+{
+    if (offset == SDHC_CLKCON) {
+        /* we force the reset value of the lower nibble since QEMU alters it */
+        return esdhc_read(opaque, offset, size) | 0xf;
+    }
+
+    return esdhc_read(opaque, offset, size);
+}
+
+static void usdhc_write(void *opaque, hwaddr offset, uint64_t val,
+                        unsigned size)
+{
+    if (offset == SDHC_CLKCON) {
+        if ((val & 0xf) != 1) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: SYS_CTRL[3..0] shall always be written as 0xf",
+                          DEVICE(opaque)->canonical_path);
+        }
+    }
+
+    esdhc_write(opaque, offset, val, size);
+}
+
 static const MemoryRegionOps usdhc_mmio_ops = {
-    .read = esdhc_read,
-    .write = esdhc_write,
+    .read = usdhc_read,
+    .write = usdhc_write,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 4,
