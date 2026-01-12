@@ -133,7 +133,7 @@ static void riscv_cps_realize(DeviceState *dev, Error **errp)
                             sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->gcr), 0));
 
     for (i = 0; i < num_of_clusters; i++) {
-        uint64_t cm_base = GLOBAL_CM_BASE + (CM_SIZE * i);
+        uint64_t cm_base = GLOBAL_CM_BASE + ((uint64_t)CM_SIZE * i);
         uint32_t hartid_base = i << MHARTID_CLUSTER_SHIFT;
         s->aplic = riscv_aplic_create(cm_base + AIA_PLIC_M_OFFSET,
                                       AIA_PLIC_M_SIZE,
