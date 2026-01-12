@@ -83,6 +83,7 @@ void cpu_set_exception_base(int vp_index, target_ulong address)
         qemu_log_mask(LOG_GUEST_ERROR,
                       "cpu_set_exception_base: invalid vp_index: %u",
                       vp_index);
+        return;
     }
     cpu = RISCV_CPU(cs);
     cpu->env.resetvec = address;
