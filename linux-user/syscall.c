@@ -72,9 +72,7 @@
 #ifdef CONFIG_EVENTFD
 #include <sys/eventfd.h>
 #endif
-#ifdef CONFIG_EPOLL
 #include <sys/epoll.h>
-#endif
 #ifdef CONFIG_ATTR
 #include "qemu/xattr.h"
 #endif
@@ -13513,16 +13511,13 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
     case TARGET_NR_signalfd:
         return do_signalfd4(arg1, arg2, 0);
 #endif
-#if defined(CONFIG_EPOLL)
+
 #if defined(TARGET_NR_epoll_create)
     case TARGET_NR_epoll_create:
         return get_errno(epoll_create(arg1));
 #endif
-#if defined(TARGET_NR_epoll_create1) && defined(CONFIG_EPOLL_CREATE1)
     case TARGET_NR_epoll_create1:
         return get_errno(epoll_create1(target_to_host_bitmask(arg1, fcntl_flags_tbl)));
-#endif
-#if defined(TARGET_NR_epoll_ctl)
     case TARGET_NR_epoll_ctl:
     {
         struct epoll_event ep;
@@ -13551,7 +13546,6 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
         }
         return get_errno(epoll_ctl(arg1, arg2, arg3, epp));
     }
-#endif
 
 #if defined(TARGET_NR_epoll_wait)
     case TARGET_NR_epoll_wait:
@@ -13637,7 +13631,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
         g_free(ep);
         return ret;
     }
-#endif /* CONFIG_EPOLL */
+
 #ifdef TARGET_NR_prlimit64
     case TARGET_NR_prlimit64:
     {
