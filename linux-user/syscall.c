@@ -13433,15 +13433,9 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
         return ret;
 #endif
 
-#ifdef CONFIG_SPLICE
-#ifdef TARGET_NR_tee
     case TARGET_NR_tee:
-        {
-            ret = get_errno(tee(arg1,arg2,arg3,arg4));
-        }
+        ret = get_errno(tee(arg1, arg2, arg3, arg4));
         return ret;
-#endif
-#ifdef TARGET_NR_splice
     case TARGET_NR_splice:
         {
             loff_t loff_in, loff_out;
@@ -13471,9 +13465,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             }
         }
         return ret;
-#endif
-#ifdef TARGET_NR_vmsplice
-	case TARGET_NR_vmsplice:
+    case TARGET_NR_vmsplice:
         {
             struct iovec *vec = lock_iovec(VERIFY_READ, arg2, arg3, 1);
             if (vec != NULL) {
@@ -13484,8 +13476,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             }
         }
         return ret;
-#endif
-#endif /* CONFIG_SPLICE */
+
 #ifdef CONFIG_EVENTFD
 #if defined(TARGET_NR_eventfd)
     case TARGET_NR_eventfd:
