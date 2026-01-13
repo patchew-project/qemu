@@ -28,9 +28,11 @@
 
 /* Stop userspace polling on a handler if it isn't active for some time */
 #define POLL_IDLE_INTERVAL_NS (7 * NANOSECONDS_PER_SECOND)
+#define POLL_WEIGHT_SHIFT   (2)
 
-static void adjust_polling_time(AioContext *ctx, AioPolledEvent *poll,
-                                int64_t block_ns);
+static void adjust_block_ns(AioContext *ctx, int64_t block_ns);
+static void grow_polling_time(AioContext *ctx, int64_t block_ns);
+static void shrink_polling_time(AioContext *ctx, int64_t block_ns);
 
 bool aio_poll_disabled(AioContext *ctx)
 {
@@ -372,7 +374,7 @@ static bool aio_dispatch_ready_handlers(AioContext *ctx,
          * add the handler to ctx->poll_aio_handlers.
          */
         if (ctx->poll_max_ns && QLIST_IS_INSERTED(node, node_poll)) {
-            adjust_polling_time(ctx, &node->poll, block_ns);
+            node->poll.has_event = true;
         }
     }
 
@@ -559,18 +561,13 @@ static bool run_poll_handlers(AioContext *ctx, AioHandlerList *ready_list,
 static bool try_poll_mode(AioContext *ctx, AioHandlerList *ready_list,
                           int64_t *timeout)
 {
-    AioHandler *node;
     int64_t max_ns;
 
     if (QLIST_EMPTY_RCU(&ctx->poll_aio_handlers)) {
         return false;
     }
 
-    max_ns = 0;
-    QLIST_FOREACH(node, &ctx->poll_aio_handlers, node_poll) {
-        max_ns = MAX(max_ns, node->poll.ns);
-    }
-    max_ns = qemu_soonest_timeout(*timeout, max_ns);
+    max_ns = qemu_soonest_timeout(*timeout, ctx->poll_ns);
 
     if (max_ns && !ctx->fdmon_ops->need_wait(ctx)) {
         /*
@@ -586,45 +583,97 @@ static bool try_poll_mode(AioContext *ctx, AioHandlerList *ready_list,
     return false;
 }
 
-static void adjust_polling_time(AioContext *ctx, AioPolledEvent *poll,
-                                int64_t block_ns)
+static void shrink_polling_time(AioContext *ctx, int64_t block_ns)
 {
-    if (block_ns <= poll->ns) {
-        /* This is the sweet spot, no adjustment needed */
-    } else if (block_ns > ctx->poll_max_ns) {
-        /* We'd have to poll for too long, poll less */
-        int64_t old = poll->ns;
+    /*
+     * Reduce polling time if the block_ns is zero or
+     * less than the current poll_ns.
+     */
+    int64_t old = ctx->poll_ns;
+    int64_t shrink = ctx->poll_shrink;
 
-        if (ctx->poll_shrink) {
-            poll->ns /= ctx->poll_shrink;
-        } else {
-            poll->ns = 0;
-        }
-
-        trace_poll_shrink(ctx, old, poll->ns);
-    } else if (poll->ns < ctx->poll_max_ns &&
-               block_ns < ctx->poll_max_ns) {
-        /* There is room to grow, poll longer */
-        int64_t old = poll->ns;
-        int64_t grow = ctx->poll_grow;
-
-        if (grow == 0) {
-            grow = 2;
-        }
-
-        if (poll->ns) {
-            poll->ns *= grow;
-        } else {
-            poll->ns = 4000; /* start polling at 4 microseconds */
-        }
-
-        if (poll->ns > ctx->poll_max_ns) {
-            poll->ns = ctx->poll_max_ns;
-        }
-
-        trace_poll_grow(ctx, old, poll->ns);
+    if (shrink == 0) {
+        shrink = 2;
     }
+
+    if (block_ns < (ctx->poll_ns / shrink)) {
+        ctx->poll_ns /= shrink;
+    }
+
+    trace_poll_shrink(ctx, old, ctx->poll_ns);
 }
+
+static void grow_polling_time(AioContext *ctx, int64_t block_ns)
+{
+    /* There is room to grow, poll longer */
+    int64_t old = ctx->poll_ns;
+    int64_t grow = ctx->poll_grow;
+
+    if (grow == 0) {
+        grow = 2;
+    }
+
+    if (block_ns > ctx->poll_ns * grow) {
+        ctx->poll_ns = block_ns;
+    } else {
+        ctx->poll_ns *= grow;
+    }
+
+    if (ctx->poll_ns > ctx->poll_max_ns) {
+        ctx->poll_ns = ctx->poll_max_ns;
+    }
+
+    trace_poll_grow(ctx, old, ctx->poll_ns);
+}
+
+static void adjust_block_ns(AioContext *ctx, int64_t block_ns)
+{
+    AioHandler *node;
+    int64_t adj_block_ns = -1;
+
+    QLIST_FOREACH(node, &ctx->poll_aio_handlers, node_poll) {
+        if (node->poll.has_event) {
+            /*
+             * Update poll.ns for the node with an event.
+             * Uses a weighted average of the current block_ns and the previous
+             * poll.ns to smooth out polling time adjustments.
+             */
+            node->poll.ns = node->poll.ns
+                ? (node->poll.ns - (node->poll.ns >> POLL_WEIGHT_SHIFT))
+                + (block_ns >> POLL_WEIGHT_SHIFT) : block_ns;
+
+            if (node->poll.ns >= ctx->poll_max_ns) {
+                node->poll.ns = 0;
+            }
+            /*
+             * To avoid excessive polling time increase, update adj_block_ns
+             * for nodes with the event flag set to true
+             */
+            adj_block_ns = MAX(adj_block_ns, node->poll.ns);
+            node->poll.has_event = false;
+         } else {
+            /*
+             * No event now, but was active before.
+             * If it waits longer than poll_max_ns, poll.ns will stay 0
+             * until the next event arrives.
+             */
+            if (node->poll.ns != 0) {
+                node->poll.ns += block_ns;
+                if (node->poll.ns >= ctx->poll_max_ns) {
+                    node->poll.ns = 0;
+                }
+            }
+        }
+    }
+
+    if (adj_block_ns >= 0) {
+        if (adj_block_ns > ctx->poll_ns) {
+            grow_polling_time(ctx, adj_block_ns);
+        } else {
+            shrink_polling_time(ctx, adj_block_ns);
+         }
+     }
+ }
 
 bool aio_poll(AioContext *ctx, bool blocking)
 {
@@ -722,6 +771,10 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
     aio_free_deleted_handlers(ctx);
 
+    if (ctx->poll_max_ns) {
+        adjust_block_ns(ctx, block_ns);
+    }
+
     qemu_lockcnt_dec(&ctx->list_lock);
 
     progress |= timerlistgroup_run_timers(&ctx->tlg);
@@ -783,6 +836,7 @@ void aio_context_set_poll_params(AioContext *ctx, int64_t max_ns,
 
     qemu_lockcnt_inc(&ctx->list_lock);
     QLIST_FOREACH(node, &ctx->aio_handlers, node) {
+        node->poll.has_event = false;
         node->poll.ns = 0;
     }
     qemu_lockcnt_dec(&ctx->list_lock);
@@ -793,6 +847,7 @@ void aio_context_set_poll_params(AioContext *ctx, int64_t max_ns,
     ctx->poll_max_ns = max_ns;
     ctx->poll_grow = grow;
     ctx->poll_shrink = shrink;
+    ctx->poll_ns = 0;
 
     aio_notify(ctx);
 }
