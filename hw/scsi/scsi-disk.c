@@ -3209,6 +3209,46 @@ static const Property scsi_hd_properties[] = {
     DEFINE_BLOCK_CHS_PROPERTIES(SCSIDiskState, qdev.conf),
 };
 
+#ifdef __linux__
+static bool scsi_disk_pr_state_post_load_errp(void *opaque, int version_id, Error **errp)
+{
+    SCSIDiskState *s = opaque;
+    SCSIDevice *dev = &s->qdev;
+
+    return scsi_generic_pr_state_post_load_errp(dev, errp);
+}
+
+static bool scsi_disk_pr_state_needed(void *opaque)
+{
+    SCSIDiskState *s = opaque;
+    SCSIPRState *pr_state = &s->qdev.pr_state;
+    bool ret;
+
+    if (!s->qdev.migrate_pr) {
+        return false;
+    }
+
+    /* A reservation requires a key, so checking this field is enough */
+    WITH_QEMU_LOCK_GUARD(&pr_state->mutex) {
+        ret = pr_state->key;
+    }
+    return ret;
+}
+
+static const VMStateDescription vmstate_scsi_disk_pr_state = {
+    .name = "scsi-disk/pr",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load_errp = scsi_disk_pr_state_post_load_errp,
+    .needed = scsi_disk_pr_state_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT64(qdev.pr_state.key, SCSIDiskState),
+        VMSTATE_UINT8(qdev.pr_state.resv_type, SCSIDiskState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+#endif /* __linux__ */
+
 static const VMStateDescription vmstate_scsi_disk_state = {
     .name = "scsi-disk",
     .version_id = 1,
@@ -3221,7 +3261,13 @@ static const VMStateDescription vmstate_scsi_disk_state = {
         VMSTATE_BOOL(tray_open, SCSIDiskState),
         VMSTATE_BOOL(tray_locked, SCSIDiskState),
         VMSTATE_END_OF_LIST()
-    }
+    },
+    .subsections = (const VMStateDescription * const []) {
+#ifdef __linux__
+        &vmstate_scsi_disk_pr_state,
+#endif
+        NULL
+    },
 };
 
 static void scsi_hd_class_initfn(ObjectClass *klass, const void *data)
@@ -3301,6 +3347,7 @@ static const Property scsi_block_properties[] = {
                       -1),
     DEFINE_PROP_UINT32("io_timeout", SCSIDiskState, qdev.io_timeout,
                        DEFAULT_IO_TIMEOUT),
+    DEFINE_PROP_BOOL("migrate-pr", SCSIDiskState, qdev.migrate_pr, true),
 };
 
 static void scsi_block_class_initfn(ObjectClass *klass, const void *data)
