@@ -1090,7 +1090,7 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
         }
     } else {
         /* I/O or ROMD */
-        iotlb = memory_region_section_get_iotlb(cpu, section) + xlat;
+        iotlb = memory_region_section_get_iotlb(cpu, section) + (xlat & TARGET_PAGE_MASK);
         /*
          * Writes to romd devices must go through MMIO to enable write.
          * Reads to romd devices go through the ram_ptr found above,
@@ -1277,7 +1277,8 @@ io_prepare(hwaddr *out_offset, CPUState *cpu, hwaddr xlat,
     hwaddr mr_offset;
 
     section = iotlb_to_section(cpu, xlat, attrs);
-    mr_offset = (xlat & TARGET_PAGE_MASK) + addr;
+    mr_offset = (xlat & TARGET_PAGE_MASK) + addr +
+                (section->offset_within_region & ~TARGET_PAGE_MASK);
     cpu->mem_io_pc = retaddr;
     if (!cpu->neg.can_do_io) {
         cpu_io_recompile(cpu, retaddr);
