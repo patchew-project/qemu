@@ -2669,7 +2669,6 @@ if (have_inotify_init or have_inotify_init1) and host_os == 'freebsd'
     have_inotify_init1 = inotify.found()
   endif
 endif
-config_host_data.set('CONFIG_INOTIFY', have_inotify_init)
 config_host_data.set('CONFIG_INOTIFY1', have_inotify_init1)
 
 # has_header_symbol
