@@ -1075,6 +1075,7 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
 
             if ((wp->flags & flags) && (wp->vaddr == addr)) {
                 if (do_trigger_action(env, i)) {
+                    env->badaddr = wp->vaddr;
                     return true;
                 }
             }
@@ -1093,6 +1094,7 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
 
             if ((wp->flags & flags) && (wp->vaddr == addr)) {
                 if (do_trigger_action(env, i)) {
+                    env->badaddr = wp->vaddr;
                     return true;
                 }
             }
