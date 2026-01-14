@@ -449,7 +449,11 @@ static inline bool type2_breakpoint_enabled(target_ulong ctrl)
 static target_ulong type2_mcontrol_validate(CPURISCVState *env,
                                             target_ulong ctrl)
 {
+    CPUState *cs = env_cpu(env);
+    RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(cs);
+    target_ulong index = env->sdtrig_state.trigger_cur;
     target_ulong val;
+    target_ulong rwx_mask;
     uint32_t size;
 
     /* validate the generic part first */
@@ -475,9 +479,12 @@ static target_ulong type2_mcontrol_validate(CPURISCVState *env,
         }
     }
 
-    /* keep the mode and attribute bits */
-    val |= (ctrl & (TYPE2_U | TYPE2_S | TYPE2_M |
-                    TYPE2_LOAD | TYPE2_STORE | TYPE2_EXEC));
+    /* only set supported access (load/store/exec) bits */
+    rwx_mask = mcc->def->debug_cfg->triggers[index].mcontrol_rwx_mask;
+    val |= ctrl & rwx_mask;
+
+    /* keep the mode bits */
+    val |= ctrl & (TYPE2_U | TYPE2_S | TYPE2_M);
 
     return val;
 }
@@ -573,7 +580,11 @@ static inline bool type6_breakpoint_enabled(target_ulong ctrl)
 static target_ulong type6_mcontrol6_validate(CPURISCVState *env,
                                              target_ulong ctrl)
 {
+    CPUState *cs = env_cpu(env);
+    RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(cs);
+    target_ulong index = env->sdtrig_state.trigger_cur;
     target_ulong val;
+    target_ulong rwx_mask;
     uint32_t size;
 
     /* validate the generic part first */
@@ -596,9 +607,12 @@ static target_ulong type6_mcontrol6_validate(CPURISCVState *env,
         val |= (ctrl & TYPE6_SIZE);
     }
 
-    /* keep the mode and attribute bits */
-    val |= (ctrl & (TYPE6_VU | TYPE6_VS | TYPE6_U | TYPE6_S | TYPE6_M |
-                    TYPE6_LOAD | TYPE6_STORE | TYPE6_EXEC));
+    /* only set supported access (load/store/exec) bits */
+    rwx_mask = mcc->def->debug_cfg->triggers[index].mcontrol_rwx_mask;
+    val |= ctrl & rwx_mask;
+
+    /* keep the mode bits */
+    val |= (ctrl & (TYPE6_VU | TYPE6_VS | TYPE6_U | TYPE6_S | TYPE6_M));
 
     return val;
 }

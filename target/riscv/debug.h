@@ -137,6 +137,7 @@ enum {
 
 struct trigger_properties {
     uint16_t type_mask; /* Trigger types supported (0 = no trigger here) */
+    uint8_t mcontrol_rwx_mask; /* mc/mc6 rwx access match supported */
 };
 
 typedef struct RISCVSdtrigConfig {

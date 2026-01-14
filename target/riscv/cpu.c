@@ -2967,6 +2967,7 @@ static const RISCVSdtrigConfig default_sdtrig_config = {
                          (1 << TRIGGER_TYPE_AD_MATCH6) |
                          (1 << TRIGGER_TYPE_INST_CNT) |
                          (1 << TRIGGER_TYPE_UNAVAIL),
+            .mcontrol_rwx_mask = 0x7, /* WP/BP */
         },
     },
 };
