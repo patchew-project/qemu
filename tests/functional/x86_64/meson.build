@@ -9,12 +9,13 @@ test_x86_64_timeouts = {
   'virtio_balloon': 120,
 }
 
-tests_x86_64_system_quick = [
+tests_x86_64_system_quick = \
+  (host_os == 'linux' ? ['memlock'] : []) + \
+[
   'bad_vmstate',
   'cpu_model_versions',
   'cpu_queries',
   'mem_addr_space',
-  'memlock',
   'migration',
   'pc_cpu_hotplug_props',
   'virtio_version',
