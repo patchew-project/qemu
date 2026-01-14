@@ -15,6 +15,8 @@ backends = [
 
 # The tracetool-test.py program has portability problems on Windows.
 if host_machine.system() != 'windows'
+    test_env = environment()
+    test_env.set('PYTHON', python.full_path())
     foreach backend: backends
         test(backend,
              python,
@@ -23,6 +25,7 @@ if host_machine.system() != 'windows'
                     backend,
                     meson.current_source_dir(),
                     meson.current_build_dir()],
+             env: test_env,
              suite: ['tracetool'])
     endforeach
 endif
