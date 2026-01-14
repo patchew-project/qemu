@@ -25,4 +25,10 @@ typedef struct QapiDeallocVisitor QapiDeallocVisitor;
  */
 Visitor *qapi_dealloc_visitor_new(void);
 
+/*
+ * Like qapi_dealloc_visitor_new but visits a QObject and only frees
+ * present members.
+ */
+Visitor *qapi_dealloc_present_visitor_new(QObject *);
+
 #endif
