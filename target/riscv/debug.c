@@ -120,7 +120,7 @@ static trigger_action_t get_trigger_action(CPURISCVState *env,
         break;
     case TRIGGER_TYPE_NO_EXIST:
     case TRIGGER_TYPE_UNAVAIL:
-        qemu_log_mask(LOG_GUEST_ERROR, "trigger type: %d does not exit\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "trigger type: %d does not exist\n",
                       trigger_type);
         break;
     default:
@@ -895,7 +895,7 @@ void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
                       trigger_type);
         break;
     case TRIGGER_TYPE_NO_EXIST:
-        qemu_log_mask(LOG_GUEST_ERROR, "trigger type: %d does not exit\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "trigger type: %d does not exist\n",
                       trigger_type);
         break;
     default:
