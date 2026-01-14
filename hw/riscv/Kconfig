@@ -120,6 +120,22 @@ config SPIKE
     select RISCV_ACLINT
     select SIFIVE_PLIC
 
+config TENSTORRENT
+    bool
+    default y
+    depends on RISCV64
+    imply PCI_DEVICES
+    imply TEST_DEVICES
+    select DEVICE_TREE
+    select RISCV_NUMA
+    select PVPANIC_MMIO
+    select SERIAL_MM
+    select RISCV_ACLINT
+    select RISCV_APLIC
+    select RISCV_IMSIC
+    select FW_CFG_DMA
+    select PLATFORM_BUS
+
 config XIANGSHAN_KUNMINGHU
     bool
     default y
