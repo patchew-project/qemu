@@ -571,6 +571,9 @@ typedef struct RISCVCSR RISCVCSR;
 typedef struct RISCVCPUDef {
     RISCVMXL misa_mxl_max;  /* max mxl for this cpu */
     RISCVCPUProfile *profile;
+#if !defined(CONFIG_USER_ONLY)
+    const RISCVSdtrigConfig *debug_cfg;
+#endif
     uint32_t misa_ext;
     int priv_spec;
     int32_t vext_spec;
@@ -666,6 +669,7 @@ void riscv_cpu_set_aia_ireg_rmw_fn(CPURISCVState *env, uint32_t priv,
                                    void *rmw_fn_arg);
 
 RISCVException smstateen_acc_ok(CPURISCVState *env, int index, uint64_t bit);
+bool riscv_sdtrig_default_implementation(const RISCVSdtrigConfig *config);
 #endif /* !CONFIG_USER_ONLY */
 
 void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv, bool virt_en);

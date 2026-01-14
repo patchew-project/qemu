@@ -135,6 +135,10 @@ enum {
 #define MHSELECT_IGNORE       0
 #define MHSELECT_MCONTEXT     4
 
+typedef struct RISCVSdtrigConfig {
+    unsigned int nr_triggers;
+} RISCVSdtrigConfig;
+
 bool tdata_available(CPURISCVState *env, int tdata_index);
 
 target_ulong tselect_csr_read(CPURISCVState *env);

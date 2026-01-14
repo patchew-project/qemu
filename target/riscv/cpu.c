@@ -23,6 +23,7 @@
 #include "qemu/log.h"
 #include "cpu.h"
 #include "cpu_vendorid.h"
+#include "debug.h"
 #include "internals.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
@@ -2816,6 +2817,11 @@ static void riscv_cpu_class_base_init(ObjectClass *c, const void *data)
             mcc->def->vext_spec = def->vext_spec;
         }
         mcc->def->misa_ext |= def->misa_ext;
+#if !defined(CONFIG_USER_ONLY)
+        if (def->debug_cfg) {
+            mcc->def->debug_cfg = def->debug_cfg;
+        }
+#endif
 
         riscv_cpu_cfg_merge(&mcc->def->cfg, &def->cfg);
 
@@ -2951,6 +2957,18 @@ void riscv_isa_write_fdt(RISCVCPU *cpu, void *fdt, char *nodename)
     DEFINE_RISCV_CPU(type_name, parent_type_name,             \
         .profile = &(profile_))
 
+#if !defined(CONFIG_USER_ONLY)
+/* Sdtrig implementation has 2 triggers that support match, match6, icount */
+static const RISCVSdtrigConfig default_sdtrig_config = {
+    .nr_triggers = 2,
+};
+
+bool riscv_sdtrig_default_implementation(const RISCVSdtrigConfig *config)
+{
+    return config == &default_sdtrig_config;
+}
+#endif
+
 static const TypeInfo riscv_cpu_type_infos[] = {
     {
         .name = TYPE_RISCV_CPU,
@@ -2968,6 +2986,9 @@ static const TypeInfo riscv_cpu_type_infos[] = {
         .cfg.mmu = true,
         .cfg.pmp = true,
         .priv_spec = PRIV_VERSION_LATEST,
+#if !defined(CONFIG_USER_ONLY)
+        .debug_cfg = &default_sdtrig_config,
+#endif
     ),
 
     DEFINE_ABSTRACT_RISCV_CPU(TYPE_RISCV_VENDOR_CPU, TYPE_RISCV_CPU),
@@ -2994,6 +3015,10 @@ static const TypeInfo riscv_cpu_type_infos[] = {
         .cfg.max_satp_mode = VM_1_10_SV32,
 #else
         .cfg.max_satp_mode = VM_1_10_SV57,
+#endif
+
+#if !defined(CONFIG_USER_ONLY)
+        .debug_cfg = &default_sdtrig_config,
 #endif
     ),
 

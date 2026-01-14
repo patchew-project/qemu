@@ -221,10 +221,12 @@ static const VMStateDescription vmstate_kvmtimer = {
 static bool debug_needed(void *opaque)
 {
     RISCVCPU *cpu = opaque;
+    RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(cpu);
     CPURISCVState *env = &cpu->env;
 
     return cpu->cfg.debug &&
-           env->sdtrig_state.mcontext == 0;
+           (riscv_sdtrig_default_implementation(mcc->def->debug_cfg) &&
+            env->sdtrig_state.mcontext == 0);
 }
 
 static int debug_pre_save(void *opaque)
@@ -277,15 +279,18 @@ static const VMStateDescription vmstate_debug = {
 
 /*
  * This is a newer version of the debug (sdtrig) state, required
- * to migrate hcontext/mcontext.
+ * to migrate hcontext/mcontext, or machines with non-default
+ * sdtrig implementation.
  */
 static bool sdtrig_needed(void *opaque)
 {
     RISCVCPU *cpu = opaque;
+    RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(cpu);
     CPURISCVState *env = &cpu->env;
 
     return cpu->cfg.debug &&
-           env->sdtrig_state.mcontext != 0;
+           !(riscv_sdtrig_default_implementation(mcc->def->debug_cfg) &&
+             env->sdtrig_state.mcontext == 0);
 }
 
 static int sdtrig_post_load(void *opaque, int version_id)
