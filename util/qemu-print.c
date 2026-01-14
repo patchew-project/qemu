@@ -45,6 +45,7 @@ int qemu_printf(const char *fmt, ...)
 /*
  * Print like vfprintf()
  * Print to @stream if non-null, else to current monitor.
+ * Beware: the latter fails unless we have one and it is HMP.
  */
 int qemu_vfprintf(FILE *stream, const char *fmt, va_list ap)
 {
@@ -57,6 +58,7 @@ int qemu_vfprintf(FILE *stream, const char *fmt, va_list ap)
 /*
  * Print like fprintf().
  * Print to @stream if non-null, else to current monitor.
+ * Beware: the latter fails unless we have one and it is HMP.
  */
 int qemu_fprintf(FILE *stream, const char *fmt, ...)
 {
