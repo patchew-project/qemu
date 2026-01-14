@@ -1043,10 +1043,10 @@ void riscv_cpu_debug_post_load(CPURISCVState *env)
 
 void riscv_trigger_reset_hold(CPURISCVState *env)
 {
-    target_ulong tdata1 = build_tdata1(env, TRIGGER_TYPE_AD_MATCH, 0, 0);
+    target_ulong tdata1 = build_tdata1(env, TRIGGER_TYPE_UNAVAIL, 0, 0);
     int i;
 
-    /* init to type 2 triggers */
+    /* init to type 15 (unavailable) triggers */
     for (i = 0; i < RV_MAX_TRIGGERS; i++) {
         int trigger_type = get_trigger_type(env, i);
 
@@ -1061,19 +1061,6 @@ void riscv_trigger_reset_hold(CPURISCVState *env)
             break;
         }
 
-        /*
-         * type = TRIGGER_TYPE_AD_MATCH
-         * dmode = 0 (both debug and M-mode can write tdata)
-         * maskmax = 0 (unimplemented, always 0)
-         * sizehi = 0 (match against any size, RV64 only)
-         * hit = 0 (unimplemented, always 0)
-         * select = 0 (always 0, perform match on address)
-         * timing = 0 (always 0, trigger before instruction)
-         * sizelo = 0 (match against any size)
-         * action = 0 (always 0, raise a breakpoint exception)
-         * chain = 0 (unimplemented, always 0)
-         * match = 0 (always 0, when any compare value equals tdata2)
-         */
         env->tdata1[i] = tdata1;
         env->tdata2[i] = 0;
         env->tdata3[i] = 0;
