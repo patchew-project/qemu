@@ -188,6 +188,22 @@ static bool apple_gfx_mmio_unmap_surface_memory(void *ptr)
     return true;
 }
 
+/* Legacy memory management API: Gone in macOS 15.4 and later. */
+static bool (^apple_gfx_map_memory)
+ (uint64_t phys, uint64_t len, bool ro, void **va, void *e, void *f)
+ = ^bool(uint64_t phys, uint64_t len, bool ro, void **va, void *e, void *f){
+    *va = apple_gfx_mmio_map_surface_memory(phys, len, ro);
+
+    trace_apple_gfx_iosfc_map_memory(phys, len, ro, va, e, f, *va);
+
+    return *va != NULL;
+};
+
+static bool (^apple_gfx_unmap_memory)(void *va, void *b, void *c, void *d, void *e, void *f)
+ = ^bool(void *va, void *b, void *c, void *d, void *e, void *f){
+    return apple_gfx_mmio_unmap_surface_memory(va);
+};
+
 static PGIOSurfaceHostDevice *apple_gfx_prepare_iosurface_host_device(
     AppleGFXMMIOState *s)
 {
@@ -207,19 +223,8 @@ static PGIOSurfaceHostDevice *apple_gfx_prepare_iosurface_host_device(
         iosfc_desc.mmioLength = 0x10000;
         iosfc_desc.memoryMapDescriptor = memoryMapDescriptor;
     } else {
-        iosfc_desc.mapMemory =
-            ^bool(uint64_t phys, uint64_t len, bool ro, void **va, void *e, void *f) {
-                *va = apple_gfx_mmio_map_surface_memory(phys, len, ro);
-
-                trace_apple_gfx_iosfc_map_memory(phys, len, ro, va, e, f, *va);
-
-                return *va != NULL;
-            };
-
-        iosfc_desc.unmapMemory =
-            ^bool(void *va, void *b, void *c, void *d, void *e, void *f) {
-                return apple_gfx_mmio_unmap_surface_memory(va);
-            };
+        iosfc_desc.mapMemory = apple_gfx_map_memory;
+        iosfc_desc.unmapMemory = apple_gfx_unmap_memory;
     }
 
     iosfc_desc.raiseInterrupt = ^bool(uint32_t vector) {
