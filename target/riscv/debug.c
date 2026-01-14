@@ -693,9 +693,18 @@ bool riscv_itrigger_enabled(CPURISCVState *env)
     return false;
 }
 
+/*
+ * This is called by TCG when an instruction completes.
+ * TCG runs in single-step mode when itrigger_enabled = true, so
+ * it can call after each insn.
+ */
 void helper_itrigger_match(CPURISCVState *env)
 {
     int count;
+    bool enabled = false;
+
+    g_assert(env->itrigger_enabled);
+
     for (int i = 0; i < RV_MAX_TRIGGERS; i++) {
         if (get_trigger_type(env, i) != TRIGGER_TYPE_INST_CNT) {
             continue;
@@ -709,10 +718,12 @@ void helper_itrigger_match(CPURISCVState *env)
         }
         itrigger_set_count(env, i, count--);
         if (!count) {
-            env->itrigger_enabled = riscv_itrigger_enabled(env);
             do_trigger_action(env, i);
+        } else {
+            enabled = true;
         }
     }
+    env->itrigger_enabled = enabled;
 }
 
 static void riscv_itrigger_update_count(CPURISCVState *env)
