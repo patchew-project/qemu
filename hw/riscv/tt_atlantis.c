@@ -497,6 +497,19 @@ static void create_fdt_i2c(void *fdt, const MemMapEntry *mem, uint32_t irq,
     qemu_fdt_setprop_cell(fdt, name, "#size-cells", 0);
 }
 
+static void create_fdt_i2c_device(TTAtlantisState *s, int bus,
+                                  const char *compat, int addr)
+{
+    void *fdt = MACHINE(s)->fdt;
+    hwaddr base = s->memmap[TT_ATL_I2C0 + bus].base;
+    g_autofree char *name = g_strdup_printf("/soc/i2c@%"PRIx64"/sensor@%d",
+                            base, addr);
+
+    qemu_fdt_add_subnode(fdt, name);
+    qemu_fdt_setprop_string(fdt, name, "compatible", compat);
+    qemu_fdt_setprop_cell(fdt, name, "reg", addr);
+}
+
 static void finalize_fdt(TTAtlantisState *s)
 {
     uint32_t aplic_s_phandle = next_phandle();
@@ -531,6 +544,9 @@ static void finalize_fdt(TTAtlantisState *s)
                        TT_ATL_I2C0_IRQ + i,
                        aplic_s_phandle);
     }
+
+    create_fdt_i2c_device(s, 0, "national,lm75", 0x48);
+    create_fdt_i2c_device(s, 0, "dallas,ds1338", 0x6f);
 }
 
 static void create_fdt(TTAtlantisState *s)
@@ -851,6 +867,8 @@ static void tt_atlantis_machine_init(MachineState *machine)
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c[i]), 0,
                            qdev_get_gpio_in(s->irqchip, TT_ATL_I2C0_IRQ + i));
     }
+    i2c_slave_create_simple(s->i2c[0].bus, "ds1338", 0x6f);
+    i2c_slave_create_simple(s->i2c[0].bus, "tmp105", 0x48);
 
     /* Load or create device tree */
     if (machine->dtb) {

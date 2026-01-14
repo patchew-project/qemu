@@ -138,6 +138,8 @@ config TENSTORRENT
     select FW_CFG_DMA
     select PLATFORM_BUS
     select DESIGNWARE_I2C
+    select DS1338
+    select TMP105
 
 config XIANGSHAN_KUNMINGHU
     bool
