@@ -1036,9 +1036,6 @@ void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv, bool virt_en)
 
     if (newpriv != env->priv || env->virt_enabled != virt_en) {
         change = true;
-        if (icount_enabled()) {
-            riscv_itrigger_update_priv(env);
-        }
 
         riscv_pmu_update_fixed_ctrs(env, newpriv, virt_en);
     }

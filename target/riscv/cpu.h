@@ -450,8 +450,6 @@ struct CPUArchState {
     target_ulong mcontext;
     struct CPUBreakpoint *cpu_breakpoint[RV_MAX_TRIGGERS];
     struct CPUWatchpoint *cpu_watchpoint[RV_MAX_TRIGGERS];
-    QEMUTimer *itrigger_timer[RV_MAX_TRIGGERS];
-    int64_t last_icount;
     bool itrigger_enabled;
 
     /* machine specific rdtime callback */

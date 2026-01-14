@@ -30,8 +30,6 @@
 #include "trace.h"
 #include "exec/helper-proto.h"
 #include "exec/watchpoint.h"
-#include "system/cpu-timers.h"
-#include "exec/icount.h"
 
 /*
  * The following M-mode trigger CSRs are implemented:
@@ -668,11 +666,6 @@ itrigger_set_count(CPURISCVState *env, int index, int value)
                                    ITRIGGER_COUNT, value);
 }
 
-static bool check_itrigger_priv(CPURISCVState *env, int index)
-{
-    return icount_priv_match(env, index);
-}
-
 static bool riscv_itrigger_enabled(CPURISCVState *env)
 {
     int count;
@@ -729,62 +722,6 @@ void helper_itrigger_match(CPURISCVState *env)
     env->itrigger_enabled = enabled;
 }
 
-static void riscv_itrigger_update_count(CPURISCVState *env)
-{
-    int count, executed;
-    /*
-     * Record last icount, so that we can evaluate the executed instructions
-     * since last privilege mode change or timer expire.
-     */
-    int64_t last_icount = env->last_icount, current_icount;
-    current_icount = env->last_icount = icount_get_raw();
-
-    for (int i = 0; i < RV_MAX_TRIGGERS; i++) {
-        if (get_trigger_type(env, i) != TRIGGER_TYPE_INST_CNT) {
-            continue;
-        }
-        count = itrigger_get_count(env, i);
-        if (!count) {
-            continue;
-        }
-        /*
-         * Only when privilege is changed or itrigger timer expires,
-         * the count field in itrigger tdata1 register is updated.
-         * And the count field in itrigger only contains remaining value.
-         */
-        if (check_itrigger_priv(env, i)) {
-            /*
-             * If itrigger enabled in this privilege mode, the number of
-             * executed instructions since last privilege change
-             * should be reduced from current itrigger count.
-             */
-            executed = current_icount - last_icount;
-            itrigger_set_count(env, i, count - executed);
-            if (count == executed) {
-                do_trigger_action(env, i);
-            }
-        } else {
-            /*
-             * If itrigger is not enabled in this privilege mode,
-             * the number of executed instructions will be discard and
-             * the count field in itrigger will not change.
-             */
-            timer_mod(env->itrigger_timer[i],
-                      current_icount + count);
-        }
-    }
-}
-
-static void riscv_itrigger_timer_cb(void *opaque)
-{
-    riscv_itrigger_update_count((CPURISCVState *)opaque);
-}
-
-void riscv_itrigger_update_priv(CPURISCVState *env)
-{
-    riscv_itrigger_update_count(env);
-}
-
 static target_ulong itrigger_validate(CPURISCVState *env,
                                       target_ulong ctrl)
 {
@@ -808,21 +745,9 @@ static target_ulong itrigger_validate(CPURISCVState *env,
 static void itrigger_reg_write(CPURISCVState *env, target_ulong index,
                                int tdata_index, target_ulong val)
 {
-    target_ulong new_val;
-
     switch (tdata_index) {
     case TDATA1:
-        /* set timer for icount */
-        new_val = itrigger_validate(env, val);
-        if (new_val != env->tdata1[index]) {
-            env->tdata1[index] = new_val;
-            if (icount_enabled()) {
-                env->last_icount = icount_get_raw();
-                /* set the count to timer */
-                timer_mod(env->itrigger_timer[index],
-                          env->last_icount + itrigger_get_count(env, index));
-            }
-        }
+        env->tdata1[index] = itrigger_validate(env, val);
         break;
     case TDATA2:
         qemu_log_mask(LOG_UNIMP,
@@ -858,27 +783,10 @@ static void anytype_reg_write(CPURISCVState *env, target_ulong index,
     }
 }
 
-static int itrigger_get_adjust_count(CPURISCVState *env)
-{
-    int count = itrigger_get_count(env, env->trigger_cur), executed;
-    if ((count != 0) && check_itrigger_priv(env, env->trigger_cur)) {
-        executed = icount_get_raw() - env->last_icount;
-        count += executed;
-    }
-    return count;
-}
-
 target_ulong tdata_csr_read(CPURISCVState *env, int tdata_index)
 {
-    int trigger_type;
     switch (tdata_index) {
     case TDATA1:
-        trigger_type = extract_trigger_type(env,
-                                            env->tdata1[env->trigger_cur]);
-        if ((trigger_type == TRIGGER_TYPE_INST_CNT) && icount_enabled()) {
-            return deposit64(env->tdata1[env->trigger_cur], 10, 14,
-                             itrigger_get_adjust_count(env));
-        }
         return env->tdata1[env->trigger_cur];
     case TDATA2:
         return env->tdata2[env->trigger_cur];
@@ -949,7 +857,7 @@ void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
         g_assert_not_reached();
     }
 
-    if (check_itrigger && !icount_enabled()) {
+    if (check_itrigger) {
         env->itrigger_enabled = riscv_itrigger_enabled(env);
     }
 }
@@ -1107,21 +1015,9 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
     return false;
 }
 
-void riscv_trigger_realize(CPURISCVState *env)
-{
-    int i;
-
-    for (i = 0; i < RV_MAX_TRIGGERS; i++) {
-        env->itrigger_timer[i] = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                              riscv_itrigger_timer_cb, env);
-    }
-}
-
 void riscv_cpu_debug_change_priv(CPURISCVState *env)
 {
-    if (!icount_enabled()) {
-        env->itrigger_enabled = riscv_itrigger_enabled(env);
-    }
+    env->itrigger_enabled = riscv_itrigger_enabled(env);
 }
 
 void riscv_cpu_debug_post_load(CPURISCVState *env)
@@ -1140,9 +1036,7 @@ void riscv_cpu_debug_post_load(CPURISCVState *env)
             break;
         }
     }
-    if (!icount_enabled()) {
-        env->itrigger_enabled = riscv_itrigger_enabled(env);
-    }
+    env->itrigger_enabled = riscv_itrigger_enabled(env);
 }
 
 void riscv_trigger_reset_hold(CPURISCVState *env)
@@ -1181,7 +1075,6 @@ void riscv_trigger_reset_hold(CPURISCVState *env)
         env->tdata1[i] = tdata1;
         env->tdata2[i] = 0;
         env->tdata3[i] = 0;
-        timer_del(env->itrigger_timer[i]);
     }
 
     env->mcontext = 0;
