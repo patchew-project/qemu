@@ -4229,9 +4229,8 @@ if have_rust
     '--with-derive-default',
     '--no-layout-tests',
     '--no-prepend-enum-name',
-    '--allowlist-file', meson.project_source_root() + '/include/.*',
-    '--allowlist-file', meson.project_build_root() + '/.*',
     '--blocklist-file', glib_pc.get_variable('includedir') + '/glib-2.0/.*',
+    '--blocklist-file', meson.project_source_root() + '/include/qemu/typedefs.h',
     '--blocklist-type', '.*_([a-z]*autoptr)$',
     ]
   if not rustfmt.found()
