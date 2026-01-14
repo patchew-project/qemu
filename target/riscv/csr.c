@@ -5311,7 +5311,8 @@ static RISCVException read_tdata(CPURISCVState *env, int csrno,
                                  target_ulong *val)
 {
     /* return 0 in tdata1 to end the trigger enumeration */
-    if (env->trigger_cur >= RV_MAX_TRIGGERS && csrno == CSR_TDATA1) {
+    if (env->sdtrig_state.trigger_cur >= RV_MAX_SDTRIG_TRIGGERS &&
+        csrno == CSR_TDATA1) {
         *val = 0;
         return RISCV_EXCP_NONE;
     }
@@ -5345,7 +5346,7 @@ static RISCVException read_tinfo(CPURISCVState *env, int csrno,
 static RISCVException read_mcontext(CPURISCVState *env, int csrno,
                                     target_ulong *val)
 {
-    *val = env->mcontext;
+    *val = env->sdtrig_state.mcontext;
     return RISCV_EXCP_NONE;
 }
 
@@ -5363,7 +5364,7 @@ static RISCVException write_mcontext(CPURISCVState *env, int csrno,
         mask = rv32 ? MCONTEXT32 : MCONTEXT64;
     }
 
-    env->mcontext = val & mask;
+    env->sdtrig_state.mcontext = val & mask;
     return RISCV_EXCP_NONE;
 }
 

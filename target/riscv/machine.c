@@ -225,10 +225,32 @@ static bool debug_needed(void *opaque)
     return cpu->cfg.debug;
 }
 
+static int debug_pre_save(void *opaque)
+{
+    RISCVCPU *cpu = opaque;
+    CPURISCVState *env = &cpu->env;
+    int i;
+
+    for (i = 0; i < RV_DEFAULT_TRIGGERS; i++) {
+        env->old_tdata1[i] = env->sdtrig_state.triggers[i].tdata1;
+        env->old_tdata2[i] = env->sdtrig_state.triggers[i].tdata2;
+        env->old_tdata3[i] = env->sdtrig_state.triggers[i].tdata3;
+    }
+
+    return 0;
+}
+
 static int debug_post_load(void *opaque, int version_id)
 {
     RISCVCPU *cpu = opaque;
     CPURISCVState *env = &cpu->env;
+    int i;
+
+    for (i = 0; i < RV_DEFAULT_TRIGGERS; i++) {
+        env->sdtrig_state.triggers[i].tdata1 = env->old_tdata1[i];
+        env->sdtrig_state.triggers[i].tdata2 = env->old_tdata2[i];
+        env->sdtrig_state.triggers[i].tdata3 = env->old_tdata3[i];
+    }
 
     riscv_cpu_debug_post_load(env);
 
@@ -240,12 +262,13 @@ static const VMStateDescription vmstate_debug = {
     .version_id = 2,
     .minimum_version_id = 2,
     .needed = debug_needed,
+    .pre_save = debug_pre_save,
     .post_load = debug_post_load,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINTTL(env.trigger_cur, RISCVCPU),
-        VMSTATE_UINTTL_ARRAY(env.tdata1, RISCVCPU, RV_MAX_TRIGGERS),
-        VMSTATE_UINTTL_ARRAY(env.tdata2, RISCVCPU, RV_MAX_TRIGGERS),
-        VMSTATE_UINTTL_ARRAY(env.tdata3, RISCVCPU, RV_MAX_TRIGGERS),
+        VMSTATE_UINTTL(env.sdtrig_state.trigger_cur, RISCVCPU),
+        VMSTATE_UINTTL_ARRAY(env.old_tdata1, RISCVCPU, RV_DEFAULT_TRIGGERS),
+        VMSTATE_UINTTL_ARRAY(env.old_tdata2, RISCVCPU, RV_DEFAULT_TRIGGERS),
+        VMSTATE_UINTTL_ARRAY(env.old_tdata3, RISCVCPU, RV_DEFAULT_TRIGGERS),
         VMSTATE_END_OF_LIST()
     }
 };

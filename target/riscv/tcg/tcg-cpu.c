@@ -178,7 +178,8 @@ static TCGTBCPUState riscv_get_tb_cpu_state(CPUState *cs)
     }
 
     if (cpu->cfg.debug) {
-        flags = FIELD_DP32(flags, TB_FLAGS, ITRIGGER, env->itrigger_enabled);
+        flags = FIELD_DP32(flags, TB_FLAGS, ITRIGGER,
+                           env->sdtrig_state.itrigger_enabled);
     }
 #endif
 

@@ -24,7 +24,8 @@
 
 #include "exec/breakpoint.h"
 
-#define RV_MAX_TRIGGERS         2
+#define RV_MAX_SDTRIG_TRIGGERS        32
+#define RV_DEFAULT_TRIGGERS            2
 
 /* register index of tdata CSRs */
 enum {

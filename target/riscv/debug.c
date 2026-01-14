@@ -90,13 +90,15 @@ static inline target_ulong extract_trigger_type(CPURISCVState *env,
 static inline target_ulong get_trigger_type(CPURISCVState *env,
                                             target_ulong trigger_index)
 {
-    return extract_trigger_type(env, env->tdata1[trigger_index]);
+    SdtrigTrigger *trigger = &env->sdtrig_state.triggers[trigger_index];
+    return extract_trigger_type(env, trigger->tdata1);
 }
 
 static trigger_action_t get_trigger_action(CPURISCVState *env,
                                            target_ulong trigger_index)
 {
-    target_ulong tdata1 = env->tdata1[trigger_index];
+    SdtrigTrigger *trigger = &env->sdtrig_state.triggers[trigger_index];
+    target_ulong tdata1 = trigger->tdata1;
     int trigger_type = get_trigger_type(env, trigger_index);
     trigger_action_t action = DBG_ACTION_NONE;
 
@@ -155,7 +157,7 @@ static inline target_ulong build_tdata1(CPURISCVState *env,
 
 bool tdata_available(CPURISCVState *env, int tdata_index)
 {
-    int trigger_type = get_trigger_type(env, env->trigger_cur);
+    int trigger_type = get_trigger_type(env, env->sdtrig_state.trigger_cur);
 
     if (unlikely(tdata_index >= TDATA_NUM)) {
         return false;
@@ -166,13 +168,13 @@ bool tdata_available(CPURISCVState *env, int tdata_index)
 
 target_ulong tselect_csr_read(CPURISCVState *env)
 {
-    return env->trigger_cur;
+    return env->sdtrig_state.trigger_cur;
 }
 
 void tselect_csr_write(CPURISCVState *env, target_ulong val)
 {
-    if (val < RV_MAX_TRIGGERS) {
-        env->trigger_cur = val;
+    if (val < RV_DEFAULT_TRIGGERS) {
+        env->sdtrig_state.trigger_cur = val;
     }
 }
 
@@ -342,7 +344,8 @@ static bool icount_priv_match(CPURISCVState *env, target_ulong tdata1)
 static bool trigger_priv_match(CPURISCVState *env, trigger_type_t type,
                                int trigger_index)
 {
-    target_ulong tdata1 = env->tdata1[trigger_index];
+    SdtrigTrigger *trigger = &env->sdtrig_state.triggers[trigger_index];
+    target_ulong tdata1 = trigger->tdata1;
 
     switch (type) {
     case TRIGGER_TYPE_AD_MATCH:
@@ -371,7 +374,8 @@ static bool trigger_priv_match(CPURISCVState *env, trigger_type_t type,
 static bool trigger_textra_match(CPURISCVState *env, trigger_type_t type,
                                  int trigger_index)
 {
-    target_ulong textra = env->tdata3[trigger_index];
+    SdtrigTrigger *trigger = &env->sdtrig_state.triggers[trigger_index];
+    target_ulong textra = trigger->tdata3;
     target_ulong mhvalue, mhselect;
 
     if (type < TRIGGER_TYPE_AD_MATCH || type > TRIGGER_TYPE_AD_MATCH6) {
@@ -399,7 +403,7 @@ static bool trigger_textra_match(CPURISCVState *env, trigger_type_t type,
         break;
     case MHSELECT_MCONTEXT:
         /* Match if the low bits of mcontext/hcontext equal mhvalue. */
-        if (mhvalue != env->mcontext) {
+        if (mhvalue != env->sdtrig_state.mcontext) {
             return false;
         }
         break;
@@ -477,8 +481,9 @@ static target_ulong type2_mcontrol_validate(CPURISCVState *env,
 
 static void type2_breakpoint_insert(CPURISCVState *env, target_ulong index)
 {
-    target_ulong ctrl = env->tdata1[index];
-    target_ulong addr = env->tdata2[index];
+    SdtrigTrigger *trigger = &env->sdtrig_state.triggers[index];
+    target_ulong ctrl = trigger->tdata1;
+    target_ulong addr = trigger->tdata2;
     bool enabled = type2_breakpoint_enabled(ctrl);
     CPUState *cs = env_cpu(env);
     int flags = BP_CPU | BP_STOP_BEFORE_ACCESS;
@@ -489,7 +494,8 @@ static void type2_breakpoint_insert(CPURISCVState *env, target_ulong index)
     }
 
     if (ctrl & TYPE2_EXEC) {
-        cpu_breakpoint_insert(cs, addr, flags, &env->cpu_breakpoint[index]);
+        cpu_breakpoint_insert(cs, addr, flags,
+                              &env->sdtrig_state.cpu_breakpoint[index]);
     }
 
     if (ctrl & TYPE2_LOAD) {
@@ -503,12 +509,12 @@ static void type2_breakpoint_insert(CPURISCVState *env, target_ulong index)
         size = type2_breakpoint_size(env, ctrl);
         if (size != 0) {
             cpu_watchpoint_insert(cs, addr, size, flags,
-                                  &env->cpu_watchpoint[index]);
+                                  &env->sdtrig_state.cpu_watchpoint[index]);
         } else {
             def_size = riscv_cpu_mxl(env) == MXL_RV64 ? 8 : 4;
 
             cpu_watchpoint_insert(cs, addr, def_size, flags,
-                                  &env->cpu_watchpoint[index]);
+                                  &env->sdtrig_state.cpu_watchpoint[index]);
         }
     }
 }
@@ -517,29 +523,32 @@ static void type2_breakpoint_remove(CPURISCVState *env, target_ulong index)
 {
     CPUState *cs = env_cpu(env);
 
-    if (env->cpu_breakpoint[index]) {
-        cpu_breakpoint_remove_by_ref(cs, env->cpu_breakpoint[index]);
-        env->cpu_breakpoint[index] = NULL;
+    if (env->sdtrig_state.cpu_breakpoint[index]) {
+        cpu_breakpoint_remove_by_ref(cs,
+                                     env->sdtrig_state.cpu_breakpoint[index]);
+        env->sdtrig_state.cpu_breakpoint[index] = NULL;
     }
 
-    if (env->cpu_watchpoint[index]) {
-        cpu_watchpoint_remove_by_ref(cs, env->cpu_watchpoint[index]);
-        env->cpu_watchpoint[index] = NULL;
+    if (env->sdtrig_state.cpu_watchpoint[index]) {
+        cpu_watchpoint_remove_by_ref(cs,
+                                     env->sdtrig_state.cpu_watchpoint[index]);
+        env->sdtrig_state.cpu_watchpoint[index] = NULL;
     }
 }
 
 static void type2_reg_write(CPURISCVState *env, target_ulong index,
                             int tdata_index, target_ulong val)
 {
+    SdtrigTrigger *trigger = &env->sdtrig_state.triggers[index];
     switch (tdata_index) {
     case TDATA1:
-        env->tdata1[index] = type2_mcontrol_validate(env, val);
+        trigger->tdata1 = type2_mcontrol_validate(env, val);
         break;
     case TDATA2:
-        env->tdata2[index] = val;
+        trigger->tdata2 = val;
         break;
     case TDATA3:
-        env->tdata3[index] = textra_validate(env, val);
+        trigger->tdata3 = textra_validate(env, val);
         break;
     default:
         g_assert_not_reached();
@@ -593,8 +602,9 @@ static target_ulong type6_mcontrol6_validate(CPURISCVState *env,
 
 static void type6_breakpoint_insert(CPURISCVState *env, target_ulong index)
 {
-    target_ulong ctrl = env->tdata1[index];
-    target_ulong addr = env->tdata2[index];
+    SdtrigTrigger *trigger = &env->sdtrig_state.triggers[index];
+    target_ulong ctrl = trigger->tdata1;
+    target_ulong addr = trigger->tdata2;
     bool enabled = type6_breakpoint_enabled(ctrl);
     CPUState *cs = env_cpu(env);
     int flags = BP_CPU | BP_STOP_BEFORE_ACCESS;
@@ -605,7 +615,8 @@ static void type6_breakpoint_insert(CPURISCVState *env, target_ulong index)
     }
 
     if (ctrl & TYPE6_EXEC) {
-        cpu_breakpoint_insert(cs, addr, flags, &env->cpu_breakpoint[index]);
+        cpu_breakpoint_insert(cs, addr, flags,
+                              &env->sdtrig_state.cpu_breakpoint[index]);
     }
 
     if (ctrl & TYPE6_LOAD) {
@@ -620,10 +631,10 @@ static void type6_breakpoint_insert(CPURISCVState *env, target_ulong index)
         size = extract32(ctrl, 16, 4);
         if (size != 0) {
             cpu_watchpoint_insert(cs, addr, size, flags,
-                                  &env->cpu_watchpoint[index]);
+                                  &env->sdtrig_state.cpu_watchpoint[index]);
         } else {
             cpu_watchpoint_insert(cs, addr, 8, flags,
-                                  &env->cpu_watchpoint[index]);
+                                  &env->sdtrig_state.cpu_watchpoint[index]);
         }
     }
 }
@@ -636,15 +647,16 @@ static void type6_breakpoint_remove(CPURISCVState *env, target_ulong index)
 static void type6_reg_write(CPURISCVState *env, target_ulong index,
                             int tdata_index, target_ulong val)
 {
+    SdtrigTrigger *trigger = &env->sdtrig_state.triggers[index];
     switch (tdata_index) {
     case TDATA1:
-        env->tdata1[index] = type6_mcontrol6_validate(env, val);
+        trigger->tdata1 = type6_mcontrol6_validate(env, val);
         break;
     case TDATA2:
-        env->tdata2[index] = val;
+        trigger->tdata2 = val;
         break;
     case TDATA3:
-        env->tdata3[index] = textra_validate(env, val);
+        trigger->tdata3 = textra_validate(env, val);
         break;
     default:
         g_assert_not_reached();
@@ -656,21 +668,22 @@ static void type6_reg_write(CPURISCVState *env, target_ulong index,
 static inline int
 itrigger_get_count(CPURISCVState *env, int index)
 {
-    return get_field(env->tdata1[index], ITRIGGER_COUNT);
+    SdtrigTrigger *trigger = &env->sdtrig_state.triggers[index];
+    return get_field(trigger->tdata1, ITRIGGER_COUNT);
 }
 
 static inline void
 itrigger_set_count(CPURISCVState *env, int index, int value)
 {
-    env->tdata1[index] = set_field(env->tdata1[index],
-                                   ITRIGGER_COUNT, value);
+    SdtrigTrigger *trigger = &env->sdtrig_state.triggers[index];
+    trigger->tdata1 = set_field(trigger->tdata1, ITRIGGER_COUNT, value);
 }
 
 static bool riscv_itrigger_enabled(CPURISCVState *env)
 {
     int count;
 
-    for (int i = 0; i < RV_MAX_TRIGGERS; i++) {
+    for (int i = 0; i < RV_MAX_SDTRIG_TRIGGERS; i++) {
         if (get_trigger_type(env, i) != TRIGGER_TYPE_INST_CNT) {
             continue;
         }
@@ -697,9 +710,9 @@ void helper_itrigger_match(CPURISCVState *env)
     int count;
     bool enabled = false;
 
-    g_assert(env->itrigger_enabled);
+    g_assert(env->sdtrig_state.itrigger_enabled);
 
-    for (int i = 0; i < RV_MAX_TRIGGERS; i++) {
+    for (int i = 0; i < RV_MAX_SDTRIG_TRIGGERS; i++) {
         if (get_trigger_type(env, i) != TRIGGER_TYPE_INST_CNT) {
             continue;
         }
@@ -719,7 +732,7 @@ void helper_itrigger_match(CPURISCVState *env)
             enabled = true;
         }
     }
-    env->itrigger_enabled = enabled;
+    env->sdtrig_state.itrigger_enabled = enabled;
 }
 
 static target_ulong itrigger_validate(CPURISCVState *env,
@@ -745,16 +758,17 @@ static target_ulong itrigger_validate(CPURISCVState *env,
 static void itrigger_reg_write(CPURISCVState *env, target_ulong index,
                                int tdata_index, target_ulong val)
 {
+    SdtrigTrigger *trigger = &env->sdtrig_state.triggers[index];
     switch (tdata_index) {
     case TDATA1:
-        env->tdata1[index] = itrigger_validate(env, val);
+        trigger->tdata1 = itrigger_validate(env, val);
         break;
     case TDATA2:
         qemu_log_mask(LOG_UNIMP,
                       "tdata2 is not supported for icount trigger\n");
         break;
     case TDATA3:
-        env->tdata3[index] = textra_validate(env, val);
+        trigger->tdata3 = textra_validate(env, val);
         break;
     default:
         g_assert_not_reached();
@@ -764,19 +778,21 @@ static void itrigger_reg_write(CPURISCVState *env, target_ulong index,
 static void anytype_reg_write(CPURISCVState *env, target_ulong index,
                               int tdata_index, target_ulong val)
 {
+    SdtrigTrigger *trigger = &env->sdtrig_state.triggers[index];
+
     /*
      * This should check the value is valid for at least one of the supported
      * trigger types.
      */
     switch (tdata_index) {
     case TDATA1:
-        env->tdata1[env->trigger_cur] = val;
+        trigger->tdata1 = val;
         break;
     case TDATA2:
-        env->tdata2[env->trigger_cur] = val;
+        trigger->tdata2 = val;
         break;
     case TDATA3:
-        env->tdata3[env->trigger_cur] = val;
+        trigger->tdata3 = val;
         break;
     default:
         g_assert_not_reached();
@@ -785,13 +801,16 @@ static void anytype_reg_write(CPURISCVState *env, target_ulong index,
 
 target_ulong tdata_csr_read(CPURISCVState *env, int tdata_index)
 {
+    target_ulong index = env->sdtrig_state.trigger_cur;
+    SdtrigTrigger *trigger = &env->sdtrig_state.triggers[index];
+
     switch (tdata_index) {
     case TDATA1:
-        return env->tdata1[env->trigger_cur];
+        return trigger->tdata1;
     case TDATA2:
-        return env->tdata2[env->trigger_cur];
+        return trigger->tdata2;
     case TDATA3:
-        return env->tdata3[env->trigger_cur];
+        return trigger->tdata3;
     default:
         g_assert_not_reached();
     }
@@ -799,15 +818,16 @@ target_ulong tdata_csr_read(CPURISCVState *env, int tdata_index)
 
 void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
 {
-    int trigger_type = get_trigger_type(env, env->trigger_cur);
+    target_ulong index = env->sdtrig_state.trigger_cur;
+    int trigger_type = get_trigger_type(env, index);
     bool check_itrigger = false;
 
     switch (trigger_type) {
     case TRIGGER_TYPE_AD_MATCH:
-        type2_breakpoint_remove(env, env->trigger_cur);
+        type2_breakpoint_remove(env, index);
         break;
     case TRIGGER_TYPE_AD_MATCH6:
-        type6_breakpoint_remove(env, env->trigger_cur);
+        type6_breakpoint_remove(env, index);
         break;
     case TRIGGER_TYPE_INST_CNT:
         /*
@@ -831,17 +851,17 @@ void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
 
     switch (trigger_type) {
     case TRIGGER_TYPE_AD_MATCH:
-        type2_reg_write(env, env->trigger_cur, tdata_index, val);
+        type2_reg_write(env, index, tdata_index, val);
         break;
     case TRIGGER_TYPE_AD_MATCH6:
-        type6_reg_write(env, env->trigger_cur, tdata_index, val);
+        type6_reg_write(env, index, tdata_index, val);
         break;
     case TRIGGER_TYPE_INST_CNT:
-        itrigger_reg_write(env, env->trigger_cur, tdata_index, val);
+        itrigger_reg_write(env, index, tdata_index, val);
         check_itrigger = true;
         break;
     case TRIGGER_TYPE_UNAVAIL:
-        anytype_reg_write(env, env->trigger_cur, tdata_index, val);
+        anytype_reg_write(env, index, tdata_index, val);
         break;
     case TRIGGER_TYPE_INT:
     case TRIGGER_TYPE_EXCP:
@@ -858,7 +878,7 @@ void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
     }
 
     if (check_itrigger) {
-        env->itrigger_enabled = riscv_itrigger_enabled(env);
+        env->sdtrig_state.itrigger_enabled = riscv_itrigger_enabled(env);
     }
 }
 
@@ -898,7 +918,8 @@ bool riscv_cpu_debug_check_breakpoint(CPUState *cs)
     int i;
 
     QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-        for (i = 0; i < RV_MAX_TRIGGERS; i++) {
+        for (i = 0; i < RV_MAX_SDTRIG_TRIGGERS; i++) {
+            SdtrigTrigger *trigger = &env->sdtrig_state.triggers[i];
             trigger_type = get_trigger_type(env, i);
 
             switch (trigger_type) {
@@ -915,8 +936,8 @@ bool riscv_cpu_debug_check_breakpoint(CPUState *cs)
 
             switch (trigger_type) {
             case TRIGGER_TYPE_AD_MATCH:
-                ctrl = env->tdata1[i];
-                pc = env->tdata2[i];
+                ctrl = trigger->tdata1;
+                pc = trigger->tdata2;
 
                 if ((ctrl & TYPE2_EXEC) && (bp->pc == pc)) {
                     if (do_trigger_action(env, i)) {
@@ -926,8 +947,8 @@ bool riscv_cpu_debug_check_breakpoint(CPUState *cs)
                 }
                 break;
             case TRIGGER_TYPE_AD_MATCH6:
-                ctrl = env->tdata1[i];
-                pc = env->tdata2[i];
+                ctrl = trigger->tdata1;
+                pc = trigger->tdata2;
 
                 if ((ctrl & TYPE6_EXEC) && (bp->pc == pc)) {
                     if (do_trigger_action(env, i)) {
@@ -955,7 +976,8 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
     int flags;
     int i;
 
-    for (i = 0; i < RV_MAX_TRIGGERS; i++) {
+    for (i = 0; i < RV_MAX_SDTRIG_TRIGGERS; i++) {
+        SdtrigTrigger *trigger = &env->sdtrig_state.triggers[i];
         trigger_type = get_trigger_type(env, i);
 
         switch (trigger_type) {
@@ -972,8 +994,8 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
 
         switch (trigger_type) {
         case TRIGGER_TYPE_AD_MATCH:
-            ctrl = env->tdata1[i];
-            addr = env->tdata2[i];
+            ctrl = trigger->tdata1;
+            addr = trigger->tdata2;
             flags = 0;
 
             if (ctrl & TYPE2_LOAD) {
@@ -991,8 +1013,8 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
             }
             break;
         case TRIGGER_TYPE_AD_MATCH6:
-            ctrl = env->tdata1[i];
-            addr = env->tdata2[i];
+            ctrl = trigger->tdata1;
+            addr = trigger->tdata2;
             flags = 0;
 
             if (ctrl & TYPE6_LOAD) {
@@ -1019,12 +1041,12 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
 
 void riscv_cpu_debug_change_priv(CPURISCVState *env)
 {
-    env->itrigger_enabled = riscv_itrigger_enabled(env);
+    env->sdtrig_state.itrigger_enabled = riscv_itrigger_enabled(env);
 }
 
 void riscv_cpu_debug_post_load(CPURISCVState *env)
 {
-    for (int i = 0; i < RV_MAX_TRIGGERS; i++) {
+    for (int i = 0; i < RV_MAX_SDTRIG_TRIGGERS; i++) {
         int trigger_type = get_trigger_type(env, i);
 
         switch (trigger_type) {
@@ -1038,7 +1060,7 @@ void riscv_cpu_debug_post_load(CPURISCVState *env)
             break;
         }
     }
-    env->itrigger_enabled = riscv_itrigger_enabled(env);
+    env->sdtrig_state.itrigger_enabled = riscv_itrigger_enabled(env);
 }
 
 void riscv_trigger_reset_hold(CPURISCVState *env)
@@ -1047,7 +1069,8 @@ void riscv_trigger_reset_hold(CPURISCVState *env)
     int i;
 
     /* init to type 15 (unavailable) triggers */
-    for (i = 0; i < RV_MAX_TRIGGERS; i++) {
+    for (i = 0; i < RV_MAX_SDTRIG_TRIGGERS; i++) {
+        SdtrigTrigger *trigger = &env->sdtrig_state.triggers[i];
         int trigger_type = get_trigger_type(env, i);
 
         switch (trigger_type) {
@@ -1061,10 +1084,10 @@ void riscv_trigger_reset_hold(CPURISCVState *env)
             break;
         }
 
-        env->tdata1[i] = tdata1;
-        env->tdata2[i] = 0;
-        env->tdata3[i] = 0;
+        trigger->tdata1 = tdata1;
+        trigger->tdata2 = 0;
+        trigger->tdata3 = 0;
     }
 
-    env->mcontext = 0;
+    env->sdtrig_state.mcontext = 0;
 }

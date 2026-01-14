@@ -194,6 +194,28 @@ FIELD(VTYPE, VMA, 7, 1)
 FIELD(VTYPE, VEDIV, 8, 2)
 FIELD(VTYPE, RESERVED, 10, sizeof(target_ulong) * 8 - 11)
 
+#ifndef CONFIG_USER_ONLY
+typedef struct SdtrigTrigger {
+    target_ulong tdata1;
+    target_ulong tdata2;
+    target_ulong tdata3;
+} SdtrigTrigger;
+
+typedef struct SdtrigState {
+    /* Architected state */
+    target_ulong trigger_cur; /* tselect */
+    SdtrigTrigger triggers[RV_MAX_SDTRIG_TRIGGERS];
+    target_ulong tcontrol;
+    target_ulong mcontext; /* hcontext */
+    target_ulong scontext;
+
+    /* QEMU state */
+    struct CPUBreakpoint *cpu_breakpoint[RV_MAX_SDTRIG_TRIGGERS];
+    struct CPUWatchpoint *cpu_watchpoint[RV_MAX_SDTRIG_TRIGGERS];
+    bool itrigger_enabled;
+} SdtrigState;
+#endif
+
 typedef struct PMUCTRState {
     /* Current value of a counter */
     uint64_t mhpmcounter_val;
@@ -443,14 +465,11 @@ struct CPUArchState {
     target_ulong mseccfg;
 
     /* trigger module */
-    target_ulong trigger_cur;
-    target_ulong tdata1[RV_MAX_TRIGGERS];
-    target_ulong tdata2[RV_MAX_TRIGGERS];
-    target_ulong tdata3[RV_MAX_TRIGGERS];
-    target_ulong mcontext;
-    struct CPUBreakpoint *cpu_breakpoint[RV_MAX_TRIGGERS];
-    struct CPUWatchpoint *cpu_watchpoint[RV_MAX_TRIGGERS];
-    bool itrigger_enabled;
+    SdtrigState sdtrig_state;
+    /* migration compat */
+    target_ulong old_tdata1[RV_DEFAULT_TRIGGERS];
+    target_ulong old_tdata2[RV_DEFAULT_TRIGGERS];
+    target_ulong old_tdata3[RV_DEFAULT_TRIGGERS];
 
     /* machine specific rdtime callback */
     uint64_t (*rdtime_fn)(void *);
