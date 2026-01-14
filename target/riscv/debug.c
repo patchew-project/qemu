@@ -845,11 +845,19 @@ void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
     }
 
     if (tdata_index == TDATA1) {
+        CPUState *cs = env_cpu(env);
+        RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(cs);
+
         if (val == 0) {
             /* special case, writing 0 results in disabled trigger */
             val = build_tdata1(env, TRIGGER_TYPE_UNAVAIL, 0, 0);
         }
         trigger_type = extract_trigger_type(env, val);
+        if (!(mcc->def->debug_cfg->triggers[index].type_mask &
+              (1 << trigger_type))) {
+            val = build_tdata1(env, TRIGGER_TYPE_UNAVAIL, 0, 0);
+            trigger_type = extract_trigger_type(env, val);
+        }
     }
 
     switch (trigger_type) {
@@ -887,11 +895,12 @@ void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
 
 target_ulong tinfo_csr_read(CPURISCVState *env)
 {
-    /* assume all triggers support the same types of triggers */
+    CPUState *cs = env_cpu(env);
+    RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(cs);
+    target_ulong index = env->sdtrig_state.trigger_cur;
+
     /* XXX: should we set 1 (version 1.0) in the version field? */
-    return BIT(TRIGGER_TYPE_AD_MATCH) |
-           BIT(TRIGGER_TYPE_INST_CNT) |
-           BIT(TRIGGER_TYPE_AD_MATCH6);
+    return mcc->def->debug_cfg->triggers[index].type_mask;
 }
 
 void riscv_cpu_debug_excp_handler(CPUState *cs)

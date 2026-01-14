@@ -135,8 +135,13 @@ enum {
 #define MHSELECT_IGNORE       0
 #define MHSELECT_MCONTEXT     4
 
+struct trigger_properties {
+    uint16_t type_mask; /* Trigger types supported (0 = no trigger here) */
+};
+
 typedef struct RISCVSdtrigConfig {
     unsigned int nr_triggers;
+    struct trigger_properties triggers[RV_MAX_SDTRIG_TRIGGERS];
 } RISCVSdtrigConfig;
 
 bool tdata_available(CPURISCVState *env, int tdata_index);

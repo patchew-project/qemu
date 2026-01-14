@@ -2961,6 +2961,14 @@ void riscv_isa_write_fdt(RISCVCPU *cpu, void *fdt, char *nodename)
 /* Sdtrig implementation has 2 triggers that support match, match6, icount */
 static const RISCVSdtrigConfig default_sdtrig_config = {
     .nr_triggers = 2,
+    .triggers = {
+        [0 ... 1] = {
+            .type_mask = (1 << TRIGGER_TYPE_AD_MATCH) |
+                         (1 << TRIGGER_TYPE_AD_MATCH6) |
+                         (1 << TRIGGER_TYPE_INST_CNT) |
+                         (1 << TRIGGER_TYPE_UNAVAIL),
+        },
+    },
 };
 
 bool riscv_sdtrig_default_implementation(const RISCVSdtrigConfig *config)
