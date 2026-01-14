@@ -679,7 +679,7 @@ bool riscv_itrigger_enabled(CPURISCVState *env)
         if (get_trigger_type(env, i) != TRIGGER_TYPE_INST_CNT) {
             continue;
         }
-        if (check_itrigger_priv(env, i)) {
+        if (!check_itrigger_priv(env, i)) {
             continue;
         }
         count = itrigger_get_count(env, i);
