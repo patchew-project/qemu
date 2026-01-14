@@ -673,7 +673,7 @@ static bool check_itrigger_priv(CPURISCVState *env, int index)
     return icount_priv_match(env, index);
 }
 
-bool riscv_itrigger_enabled(CPURISCVState *env)
+static bool riscv_itrigger_enabled(CPURISCVState *env)
 {
     int count;
 
@@ -1118,6 +1118,13 @@ void riscv_trigger_realize(CPURISCVState *env)
 }
 
 void riscv_cpu_debug_change_priv(CPURISCVState *env)
+{
+    if (!icount_enabled()) {
+        env->itrigger_enabled = riscv_itrigger_enabled(env);
+    }
+}
+
+void riscv_cpu_debug_post_load(CPURISCVState *env)
 {
     if (!icount_enabled()) {
         env->itrigger_enabled = riscv_itrigger_enabled(env);
