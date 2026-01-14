@@ -230,7 +230,7 @@ static int debug_post_load(void *opaque, int version_id)
     RISCVCPU *cpu = opaque;
     CPURISCVState *env = &cpu->env;
 
-    if (icount_enabled()) {
+    if (!icount_enabled()) {
         env->itrigger_enabled = riscv_itrigger_enabled(env);
     }
 
