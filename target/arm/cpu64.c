@@ -329,8 +329,19 @@ void arm_cpu_sme_finalize(ARMCPU *cpu, Error **errp)
 {
     uint32_t vq_map = cpu->sme_vq.map;
     uint32_t vq_init = cpu->sme_vq.init;
-    uint32_t vq_supported = cpu->sme_vq.supported;
+    uint32_t vq_supported;
     uint32_t vq;
+
+    if (hvf_enabled()) {
+        if (hvf_arm_sme2_supported()) {
+            vq_supported = hvf_arm_sme2_get_svl();
+        } else {
+            assert(!cpu_isar_feature(aa64_sme, cpu));
+            vq_supported = 0;
+        }
+    } else {
+        vq_supported = cpu->sme_vq.supported;
+    }
 
     if (vq_map == 0) {
         if (!cpu_isar_feature(aa64_sme, cpu)) {
