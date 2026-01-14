@@ -528,23 +528,12 @@ static void type2_breakpoint_remove(CPURISCVState *env, target_ulong index)
 static void type2_reg_write(CPURISCVState *env, target_ulong index,
                             int tdata_index, target_ulong val)
 {
-    target_ulong new_val;
-
     switch (tdata_index) {
     case TDATA1:
-        new_val = type2_mcontrol_validate(env, val);
-        if (new_val != env->tdata1[index]) {
-            env->tdata1[index] = new_val;
-            type2_breakpoint_remove(env, index);
-            type2_breakpoint_insert(env, index);
-        }
+        env->tdata1[index] = type2_mcontrol_validate(env, val);
         break;
     case TDATA2:
-        if (val != env->tdata2[index]) {
-            env->tdata2[index] = val;
-            type2_breakpoint_remove(env, index);
-            type2_breakpoint_insert(env, index);
-        }
+        env->tdata2[index] = val;
         break;
     case TDATA3:
         env->tdata3[index] = textra_validate(env, val);
@@ -552,6 +541,8 @@ static void type2_reg_write(CPURISCVState *env, target_ulong index,
     default:
         g_assert_not_reached();
     }
+
+    type2_breakpoint_insert(env, index);
 }
 
 /* type 6 trigger */
@@ -642,23 +633,12 @@ static void type6_breakpoint_remove(CPURISCVState *env, target_ulong index)
 static void type6_reg_write(CPURISCVState *env, target_ulong index,
                             int tdata_index, target_ulong val)
 {
-    target_ulong new_val;
-
     switch (tdata_index) {
     case TDATA1:
-        new_val = type6_mcontrol6_validate(env, val);
-        if (new_val != env->tdata1[index]) {
-            env->tdata1[index] = new_val;
-            type6_breakpoint_remove(env, index);
-            type6_breakpoint_insert(env, index);
-        }
+        env->tdata1[index] = type6_mcontrol6_validate(env, val);
         break;
     case TDATA2:
-        if (val != env->tdata2[index]) {
-            env->tdata2[index] = val;
-            type6_breakpoint_remove(env, index);
-            type6_breakpoint_insert(env, index);
-        }
+        env->tdata2[index] = val;
         break;
     case TDATA3:
         env->tdata3[index] = textra_validate(env, val);
@@ -666,6 +646,7 @@ static void type6_reg_write(CPURISCVState *env, target_ulong index,
     default:
         g_assert_not_reached();
     }
+    type6_breakpoint_insert(env, index);
 }
 
 /* icount trigger type */
@@ -831,8 +812,6 @@ static void itrigger_reg_write(CPURISCVState *env, target_ulong index,
                 /* set the count to timer */
                 timer_mod(env->itrigger_timer[index],
                           env->last_icount + itrigger_get_count(env, index));
-            } else {
-                env->itrigger_enabled = riscv_itrigger_enabled(env);
             }
         }
         break;
@@ -881,12 +860,30 @@ target_ulong tdata_csr_read(CPURISCVState *env, int tdata_index)
 
 void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
 {
-    int trigger_type;
+    int trigger_type = get_trigger_type(env, env->trigger_cur);
+    bool check_itrigger = false;
+
+    switch (trigger_type) {
+    case TRIGGER_TYPE_AD_MATCH:
+        type2_breakpoint_remove(env, env->trigger_cur);
+        break;
+    case TRIGGER_TYPE_AD_MATCH6:
+        type6_breakpoint_remove(env, env->trigger_cur);
+        break;
+    case TRIGGER_TYPE_INST_CNT:
+        /*
+         * itrigger_enabled is the union of all enabled icount triggers,
+         * so it's easiest to recheck all if any have changed (removed or
+         * added or modified).
+         */
+        check_itrigger = true;
+        break;
+    default:
+        break;
+    }
 
     if (tdata_index == TDATA1) {
         trigger_type = extract_trigger_type(env, val);
-    } else {
-        trigger_type = get_trigger_type(env, env->trigger_cur);
     }
 
     switch (trigger_type) {
@@ -898,6 +895,7 @@ void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
         break;
     case TRIGGER_TYPE_INST_CNT:
         itrigger_reg_write(env, env->trigger_cur, tdata_index, val);
+        check_itrigger = true;
         break;
     case TRIGGER_TYPE_INT:
     case TRIGGER_TYPE_EXCP:
@@ -912,6 +910,10 @@ void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
         break;
     default:
         g_assert_not_reached();
+    }
+
+    if (check_itrigger && !icount_enabled()) {
+        env->itrigger_enabled = riscv_itrigger_enabled(env);
     }
 }
 
