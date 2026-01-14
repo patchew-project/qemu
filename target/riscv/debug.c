@@ -827,6 +827,28 @@ static void itrigger_reg_write(CPURISCVState *env, target_ulong index,
     }
 }
 
+static void anytype_reg_write(CPURISCVState *env, target_ulong index,
+                              int tdata_index, target_ulong val)
+{
+    /*
+     * This should check the value is valid for at least one of the supported
+     * trigger types.
+     */
+    switch (tdata_index) {
+    case TDATA1:
+        env->tdata1[env->trigger_cur] = val;
+        break;
+    case TDATA2:
+        env->tdata2[env->trigger_cur] = val;
+        break;
+    case TDATA3:
+        env->tdata3[env->trigger_cur] = val;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static int itrigger_get_adjust_count(CPURISCVState *env)
 {
     int count = itrigger_get_count(env, env->trigger_cur), executed;
@@ -883,6 +905,10 @@ void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
     }
 
     if (tdata_index == TDATA1) {
+        if (val == 0) {
+            /* special case, writing 0 results in disabled trigger */
+            val = build_tdata1(env, TRIGGER_TYPE_UNAVAIL, 0, 0);
+        }
         trigger_type = extract_trigger_type(env, val);
     }
 
@@ -897,6 +923,9 @@ void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
         itrigger_reg_write(env, env->trigger_cur, tdata_index, val);
         check_itrigger = true;
         break;
+    case TRIGGER_TYPE_UNAVAIL:
+        anytype_reg_write(env, env->trigger_cur, tdata_index, val);
+        break;
     case TRIGGER_TYPE_INT:
     case TRIGGER_TYPE_EXCP:
     case TRIGGER_TYPE_EXT_SRC:
@@ -904,7 +933,6 @@ void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
                       trigger_type);
         break;
     case TRIGGER_TYPE_NO_EXIST:
-    case TRIGGER_TYPE_UNAVAIL:
         qemu_log_mask(LOG_GUEST_ERROR, "trigger type: %d does not exit\n",
                       trigger_type);
         break;
