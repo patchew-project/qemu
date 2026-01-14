@@ -221,8 +221,10 @@ static const VMStateDescription vmstate_kvmtimer = {
 static bool debug_needed(void *opaque)
 {
     RISCVCPU *cpu = opaque;
+    CPURISCVState *env = &cpu->env;
 
-    return cpu->cfg.debug;
+    return cpu->cfg.debug &&
+           env->sdtrig_state.mcontext == 0;
 }
 
 static int debug_pre_save(void *opaque)
@@ -269,6 +271,59 @@ static const VMStateDescription vmstate_debug = {
         VMSTATE_UINTTL_ARRAY(env.old_tdata1, RISCVCPU, RV_DEFAULT_TRIGGERS),
         VMSTATE_UINTTL_ARRAY(env.old_tdata2, RISCVCPU, RV_DEFAULT_TRIGGERS),
         VMSTATE_UINTTL_ARRAY(env.old_tdata3, RISCVCPU, RV_DEFAULT_TRIGGERS),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+/*
+ * This is a newer version of the debug (sdtrig) state, required
+ * to migrate hcontext/mcontext.
+ */
+static bool sdtrig_needed(void *opaque)
+{
+    RISCVCPU *cpu = opaque;
+    CPURISCVState *env = &cpu->env;
+
+    return cpu->cfg.debug &&
+           env->sdtrig_state.mcontext != 0;
+}
+
+static int sdtrig_post_load(void *opaque, int version_id)
+{
+    RISCVCPU *cpu = opaque;
+    CPURISCVState *env = &cpu->env;
+
+    riscv_cpu_debug_post_load(env);
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_sdtrig_trigger = {
+    .name = "cpu/sdtrig/trigger",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINTTL(tdata1, SdtrigTrigger),
+        VMSTATE_UINTTL(tdata2, SdtrigTrigger),
+        VMSTATE_UINTTL(tdata3, SdtrigTrigger),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_sdtrig = {
+    .name = "cpu/sdtrig",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = sdtrig_needed,
+    .post_load = sdtrig_post_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINTTL(env.sdtrig_state.trigger_cur, RISCVCPU),
+        VMSTATE_UINTTL(env.sdtrig_state.tcontrol, RISCVCPU),
+        VMSTATE_UINTTL(env.sdtrig_state.mcontext, RISCVCPU),
+        VMSTATE_UINTTL(env.sdtrig_state.scontext, RISCVCPU),
+        VMSTATE_STRUCT_ARRAY(env.sdtrig_state.triggers, RISCVCPU,
+                             RV_MAX_SDTRIG_TRIGGERS,
+                             0, vmstate_sdtrig_trigger, SdtrigTrigger),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -514,6 +569,7 @@ const VMStateDescription vmstate_riscv_cpu = {
 #endif
         &vmstate_envcfg,
         &vmstate_debug,
+        &vmstate_sdtrig,
         &vmstate_smstateen,
         &vmstate_jvt,
         &vmstate_elp,
