@@ -306,48 +306,50 @@ static void do_trigger_action(CPURISCVState *env, target_ulong trigger_index)
  * Check the privilege level of specific trigger matches CPU's current privilege
  * level.
  */
+static bool type2_priv_match(CPURISCVState *env, target_ulong tdata1)
+{
+    /* type 2 trigger cannot be fired in VU/VS mode */
+    if (env->virt_enabled) {
+        return false;
+    }
+    /* check U/S/M bit against current privilege level */
+    return (((tdata1 >> 3) & 0b1011) & BIT(env->priv));
+}
+
+static bool type6_priv_match(CPURISCVState *env, target_ulong tdata1)
+{
+    if (env->virt_enabled) {
+        /* check VU/VS bit against current privilege level */
+        return (((tdata1 >> 23) & 0b11) & BIT(env->priv));
+    } else {
+        /* check U/S/M bit against current privilege level */
+        return (((tdata1 >> 3) & 0b1011) & BIT(env->priv));
+    }
+}
+
+static bool icount_priv_match(CPURISCVState *env, target_ulong tdata1)
+{
+    if (env->virt_enabled) {
+        /* check VU/VS bit against current privilege level */
+        return (((tdata1 >> 25) & 0b11) & BIT(env->priv));
+    } else {
+        /* check U/S/M bit against current privilege level */
+        return (((tdata1 >> 6) & 0b1011) & BIT(env->priv));
+    }
+}
+
 static bool trigger_priv_match(CPURISCVState *env, trigger_type_t type,
                                int trigger_index)
 {
-    target_ulong ctrl = env->tdata1[trigger_index];
+    target_ulong tdata1 = env->tdata1[trigger_index];
 
     switch (type) {
     case TRIGGER_TYPE_AD_MATCH:
-        /* type 2 trigger cannot be fired in VU/VS mode */
-        if (env->virt_enabled) {
-            return false;
-        }
-        /* check U/S/M bit against current privilege level */
-        if ((ctrl >> 3) & BIT(env->priv)) {
-            return true;
-        }
-        break;
+        return type2_priv_match(env, tdata1);
     case TRIGGER_TYPE_AD_MATCH6:
-        if (env->virt_enabled) {
-            /* check VU/VS bit against current privilege level */
-            if ((ctrl >> 23) & BIT(env->priv)) {
-                return true;
-            }
-        } else {
-            /* check U/S/M bit against current privilege level */
-            if ((ctrl >> 3) & BIT(env->priv)) {
-                return true;
-            }
-        }
-        break;
+        return type6_priv_match(env, tdata1);
     case TRIGGER_TYPE_INST_CNT:
-        if (env->virt_enabled) {
-            /* check VU/VS bit against current privilege level */
-            if ((ctrl >> 25) & BIT(env->priv)) {
-                return true;
-            }
-        } else {
-            /* check U/S/M bit against current privilege level */
-            if ((ctrl >> 6) & BIT(env->priv)) {
-                return true;
-            }
-        }
-        break;
+        return icount_priv_match(env, tdata1);
     case TRIGGER_TYPE_INT:
     case TRIGGER_TYPE_EXCP:
     case TRIGGER_TYPE_EXT_SRC:
@@ -665,17 +667,7 @@ itrigger_set_count(CPURISCVState *env, int index, int value)
 
 static bool check_itrigger_priv(CPURISCVState *env, int index)
 {
-    target_ulong tdata1 = env->tdata1[index];
-    if (env->virt_enabled) {
-        /* check VU/VS bit against current privilege level */
-        return (get_field(tdata1, ITRIGGER_VS) == env->priv) ||
-               (get_field(tdata1, ITRIGGER_VU) == env->priv);
-    } else {
-        /* check U/S/M bit against current privilege level */
-        return (get_field(tdata1, ITRIGGER_M) == env->priv) ||
-               (get_field(tdata1, ITRIGGER_S) == env->priv) ||
-               (get_field(tdata1, ITRIGGER_U) == env->priv);
-    }
+    return icount_priv_match(env, index);
 }
 
 bool riscv_itrigger_enabled(CPURISCVState *env)
