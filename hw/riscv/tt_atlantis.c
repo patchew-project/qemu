@@ -745,15 +745,15 @@ static void tt_atlantis_machine_done(Notifier *notifier, void *data)
                                                      firmware_name,
                                                      &start_addr, NULL);
 
+    kernel_start_addr = riscv_calc_kernel_start_addr(&boot_info,
+                                                     firmware_end_addr);
     if (machine->kernel_filename) {
-        kernel_start_addr = riscv_calc_kernel_start_addr(&boot_info,
-                                                         firmware_end_addr);
         riscv_load_kernel(machine, &boot_info, kernel_start_addr,
                           true, NULL);
-        kernel_entry = boot_info.image_low_addr;
     } else {
-        kernel_entry = 0;
+        riscv_setup_halting_payload(machine, &boot_info, kernel_start_addr);
     }
+    kernel_entry = boot_info.image_low_addr;
 
     fdt_load_addr = riscv_compute_fdt_addr(s->memmap[TT_ATL_DDR_LO].base,
                                            s->memmap[TT_ATL_DDR_LO].size,
