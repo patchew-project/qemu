@@ -575,12 +575,6 @@ deprecated in favor of explicitly using the ``file:`` URI with the
 file descriptor being passed as an ``fdset``. Refer to the ``add-fd``
 command documentation for details on the ``fdset`` usage.
 
-``zero-blocks`` capability (since 9.2)
-''''''''''''''''''''''''''''''''''''''
-
-The ``zero-blocks`` capability was part of the block migration which
-doesn't exist anymore since it was removed in QEMU v9.1.
-
 COLO migration framework (since 11.0)
 '''''''''''''''''''''''''''''''''''''
 
