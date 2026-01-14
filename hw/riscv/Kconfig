@@ -129,6 +129,8 @@ config TENSTORRENT
     select DEVICE_TREE
     select RISCV_NUMA
     select PVPANIC_MMIO
+    select PCI
+    select PCI_EXPRESS_GENERIC_BRIDGE
     select SERIAL_MM
     select RISCV_ACLINT
     select RISCV_APLIC
