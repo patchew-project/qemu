@@ -2972,6 +2972,28 @@ static const RISCVSdtrigConfig default_sdtrig_config = {
     },
 };
 
+#if defined(TARGET_RISCV64)
+static const RISCVSdtrigConfig tt_ascalon_sdtrig_config = {
+    .nr_triggers = 9,
+    .triggers = {
+        [0 ... 3] = {
+            .type_mask = (1 << TRIGGER_TYPE_AD_MATCH6) |
+                         (1 << TRIGGER_TYPE_UNAVAIL),
+            .mcontrol_rwx_mask = 0x4, /* BP */
+        },
+        [4 ... 7] = {
+            .type_mask = (1 << TRIGGER_TYPE_AD_MATCH6) |
+                         (1 << TRIGGER_TYPE_UNAVAIL),
+            .mcontrol_rwx_mask = 0x3, /* WP */
+        },
+        [8]       = {
+            .type_mask = (1 << TRIGGER_TYPE_INST_CNT) |
+                         (1 << TRIGGER_TYPE_UNAVAIL),
+        },
+    },
+};
+#endif
+
 bool riscv_sdtrig_default_implementation(const RISCVSdtrigConfig *config)
 {
     return config == &default_sdtrig_config;
@@ -3166,6 +3188,9 @@ static const TypeInfo riscv_cpu_type_infos[] = {
         .misa_ext = RVG | RVC | RVS | RVU | RVH | RVV,
         .priv_spec = PRIV_VERSION_1_13_0,
         .vext_spec = VEXT_VERSION_1_00_0,
+#if !defined(CONFIG_USER_ONLY)
+        .debug_cfg = &tt_ascalon_sdtrig_config,
+#endif
 
         /* ISA extensions */
         .cfg.mmu = true,
