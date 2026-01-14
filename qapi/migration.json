@@ -531,8 +531,7 @@
 #
 # @unstable: Members @x-colo and @x-ignore-shared are experimental.
 #
-# @deprecated: Member @zero-blocks is deprecated as being part of
-#     block migration which was already removed.
+# @deprecated: Member @zero-blocks and @x-colo are deprecated.
 #
 # Since: 1.2
 ##
@@ -540,7 +539,7 @@
   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge',
            { 'name': 'zero-blocks', 'features': [ 'deprecated' ] },
            'events', 'postcopy-ram',
-           { 'name': 'x-colo', 'features': [ 'unstable' ] },
+           { 'name': 'x-colo', 'features': [ 'unstable', 'deprecated' ] },
            'release-ram',
            'return-path', 'pause-before-switchover', 'multifd',
            'dirty-bitmaps', 'postcopy-blocktime', 'late-block-activate',

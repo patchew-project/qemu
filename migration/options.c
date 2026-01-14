@@ -580,6 +580,10 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
         warn_report("zero-blocks capability is deprecated");
     }
 
+    if (new_caps[MIGRATION_CAPABILITY_X_COLO]) {
+        warn_report("COLO migration framework is deprecated");
+    }
+
 #ifndef CONFIG_REPLICATION
     if (new_caps[MIGRATION_CAPABILITY_X_COLO]) {
         error_setg(errp, "QEMU compiled without replication module"

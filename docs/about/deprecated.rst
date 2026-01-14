@@ -580,3 +580,9 @@ command documentation for details on the ``fdset`` usage.
 
 The ``zero-blocks`` capability was part of the block migration which
 doesn't exist anymore since it was removed in QEMU v9.1.
+
+COLO migration framework (since 11.0)
+'''''''''''''''''''''''''''''''''''''
+
+To be removed with no replacement, as the COLO migration framework doesn't
+seem to have any active user for a while.
