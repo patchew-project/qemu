@@ -3,9 +3,11 @@
 //! This crate provides macros that aid in using QEMU's tracepoint
 //! functionality.
 
+#[cfg(not(windows))]
 #[doc(hidden)]
 /// Re-exported item to avoid adding libc as a dependency everywhere.
 pub use libc::{syslog, LOG_INFO};
+
 #[doc(hidden)]
 /// Re-exported item to avoid adding probe as a dependency everywhere.
 pub use probe::probe;
