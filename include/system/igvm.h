@@ -14,11 +14,12 @@
 
 #include "system/confidential-guest-support.h"
 #include "system/igvm-cfg.h"
+#include "hw/boards.h"
 #include "qapi/error.h"
 
 IgvmHandle qigvm_file_init(char *filename, Error **errp);
-int qigvm_process_file(IgvmCfg *igvm, ConfidentialGuestSupport *cgs,
-                      bool onlyVpContext, Error **errp);
+int qigvm_process_file(IgvmCfg *igvm, MachineState *machine_state,
+                       bool onlyVpContext, Error **errp);
 
 /* x86 native */
 int qigvm_x86_get_mem_map_entry(int index,
