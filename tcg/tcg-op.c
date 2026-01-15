@@ -995,18 +995,17 @@ void tcg_gen_extract_i32(TCGv_i32 ret, TCGv_i32 arg,
         return;
     }
 
-    /* ??? Ideally we'd know what values are available for immediate AND.
-       Assume that 8 bits are available, plus the special case of 16,
-       so that we get ext8u, ext16u.  */
-    switch (len) {
-    case 1 ... 8: case 16:
+    /*
+     * Use TCG_TARGET_extract_valid to check for 8- and 16-bit extension
+     * opcodes, which tcg_gen_andi_i32 can produce.
+     */
+    if (TCG_TARGET_extract_valid(TCG_TYPE_I32, 0, len) ||
+        tcg_op_imm_match(INDEX_op_and, TCG_TYPE_I32, (1u << len) - 1)) {
         tcg_gen_shri_i32(ret, arg, ofs);
         tcg_gen_andi_i32(ret, ret, (1u << len) - 1);
-        break;
-    default:
+    } else {
         tcg_gen_shli_i32(ret, arg, 32 - len - ofs);
         tcg_gen_shri_i32(ret, ret, 32 - len);
-        break;
     }
 }
 
@@ -2690,18 +2689,17 @@ void tcg_gen_extract_i64(TCGv_i64 ret, TCGv_i64 arg,
         return;
     }
 
-    /* ??? Ideally we'd know what values are available for immediate AND.
-       Assume that 8 bits are available, plus the special cases of 16 and 32,
-       so that we get ext8u, ext16u, and ext32u.  */
-    switch (len) {
-    case 1 ... 8: case 16: case 32:
+    /*
+     * Use TCG_TARGET_extract_valid to check for 8-, 16- and 32-bit extension
+     * opcodes, which tcg_gen_andi_i64 can produce.
+     */
+    if (TCG_TARGET_extract_valid(TCG_TYPE_I64, 0, len) ||
+        tcg_op_imm_match(INDEX_op_and, TCG_TYPE_I64, (1ull << len) - 1)) {
         tcg_gen_shri_i64(ret, arg, ofs);
         tcg_gen_andi_i64(ret, ret, (1ull << len) - 1);
-        break;
-    default:
+    } else {
         tcg_gen_shli_i64(ret, arg, 64 - len - ofs);
         tcg_gen_shri_i64(ret, ret, 64 - len);
-        break;
     }
 }
 

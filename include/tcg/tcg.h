@@ -795,6 +795,8 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags);
  */
 bool tcg_op_deposit_valid(TCGType type, unsigned ofs, unsigned len);
 
+bool tcg_op_imm_match(TCGOpcode op, TCGType type, tcg_target_ulong imm);
+
 void tcg_gen_call0(void *func, TCGHelperInfo *, TCGTemp *ret);
 void tcg_gen_call1(void *func, TCGHelperInfo *, TCGTemp *ret, TCGTemp *);
 void tcg_gen_call2(void *func, TCGHelperInfo *, TCGTemp *ret,
