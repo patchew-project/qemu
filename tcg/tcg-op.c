@@ -960,8 +960,18 @@ void tcg_gen_deposit_z_i32(TCGv_i32 ret, TCGv_i32 arg,
             tcg_gen_extract_i32(ret, ret, 0, ofs + len);
             return;
         }
-        tcg_gen_andi_i32(ret, arg, (1u << len) - 1);
-        tcg_gen_shli_i32(ret, ret, ofs);
+        /*
+         * Use TCG_TARGET_extract_valid to check for 8- and 16-bit extension
+         * opcodes, which tcg_gen_andi_i32 can produce.
+         */
+        if (TCG_TARGET_extract_valid(TCG_TYPE_I32, 0, len) ||
+            tcg_op_imm_match(INDEX_op_and, TCG_TYPE_I32, (1u << len) - 1)) {
+            tcg_gen_andi_i32(ret, arg, (1u << len) - 1);
+            tcg_gen_shli_i32(ret, ret, ofs);
+        } else {
+            tcg_gen_shli_i32(ret, arg, 32 - len);
+            tcg_gen_shri_i32(ret, ret, 32 - len - ofs);
+        }
     }
 }
 
@@ -2628,8 +2638,18 @@ void tcg_gen_deposit_z_i64(TCGv_i64 ret, TCGv_i64 arg,
             tcg_gen_extract_i64(ret, ret, 0, ofs + len);
             return;
         }
-        tcg_gen_andi_i64(ret, arg, (1ull << len) - 1);
-        tcg_gen_shli_i64(ret, ret, ofs);
+        /*
+         * Use TCG_TARGET_extract_valid to check for 8-, 16- and 32-bit extension
+         * opcodes, which tcg_gen_andi_i64 can produce.
+         */
+        if (TCG_TARGET_extract_valid(TCG_TYPE_I64, 0, len) ||
+	    tcg_op_imm_match(INDEX_op_and, TCG_TYPE_I64, (1ull << len) - 1)) {
+            tcg_gen_andi_i64(ret, arg, (1ull << len) - 1);
+            tcg_gen_shli_i64(ret, ret, ofs);
+        } else {
+            tcg_gen_shli_i64(ret, arg, 64 - len);
+            tcg_gen_shri_i64(ret, ret, 64 - len - ofs);
+        }
     }
 }
 
