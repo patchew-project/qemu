@@ -8960,6 +8960,10 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 0x8000001D:
         *eax = 0;
+        /* 0x8000001D leaf is reserved if CPUID_EXT3_TOPOEXT is not set */
+        if (!(env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_TOPOEXT)) {
+            break;
+        }
         if (cpu->cache_info_passthrough) {
             x86_cpu_get_cache_cpuid(index, count, eax, ebx, ecx, edx);
             break;
@@ -8990,7 +8994,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
         break;
     case 0x8000001E:
-        if (cpu->core_id <= 255) {
+        if ((env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_TOPOEXT) &&
+            cpu->core_id <= 255) {
             encode_topo_cpuid8000001e(cpu, topo_info, eax, ebx, ecx, edx);
         } else {
             *eax = 0;

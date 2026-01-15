@@ -2030,6 +2030,7 @@ uint32_t kvm_x86_build_cpuid(CPUX86State *env, struct kvm_cpuid_entry2 *entries,
                 cpu_x86_cpuid(env, i, j, &c->eax, &c->ebx, &c->ecx, &c->edx);
 
                 if (c->eax == 0) {
+                    cpuid_i--;
                     break;
                 }
                 if (cpuid_i == KVM_MAX_CPUID_ENTRIES) {
