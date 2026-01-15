@@ -1577,7 +1577,9 @@ void arm_cpu_finalize_features(ARMCPU *cpu, Error **errp)
          * assumes it, so if the user asked for sve=off then turn off SME also.
          * (KVM doesn't currently support SME at all.)
          */
-        if (cpu_isar_feature(aa64_sme, cpu) && !cpu_isar_feature(aa64_sve, cpu)) {
+        if (!hvf_enabled()
+            && cpu_isar_feature(aa64_sme, cpu)
+            && !cpu_isar_feature(aa64_sve, cpu)) {
             object_property_set_bool(OBJECT(cpu), "sme", false, &error_abort);
         }
 
