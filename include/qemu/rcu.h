@@ -118,6 +118,7 @@ static inline void rcu_read_unlock(void)
     }
 }
 
+void force_rcu(void);
 void synchronize_rcu(void);
 
 /*

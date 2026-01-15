@@ -45,12 +45,14 @@
 
 
 #define RCU_CALL_MIN_SIZE        30
+#define RCU_CALL_STATE_FORCED   ((uint32_t)1 << 31)
+#define RCU_CALL_STATE_COUNT    (~RCU_CALL_STATE_FORCED)
 
 unsigned long rcu_gp_ctr = RCU_GP_LOCKED;
 
 QemuEvent rcu_gp_event;
-static int in_drain_call_rcu;
-static int rcu_call_count;
+static QemuEvent rcu_call_force_event;
+static uint32_t rcu_call_state;
 static QemuMutex rcu_registry_lock;
 
 /*
@@ -74,28 +76,35 @@ QEMU_DEFINE_CO_TLS(struct rcu_reader_data, rcu_reader)
 typedef QLIST_HEAD(, rcu_reader_data) ThreadList;
 static ThreadList registry = QLIST_HEAD_INITIALIZER(registry);
 
+void force_rcu(void)
+{
+    qatomic_or(&rcu_call_state, RCU_CALL_STATE_FORCED);
+    qemu_event_set(&rcu_call_force_event);
+}
+
 /* Wait for previous parity/grace period to be empty of readers.  */
-static void wait_for_readers(void)
+static void wait_for_readers(bool force)
 {
     ThreadList qsreaders = QLIST_HEAD_INITIALIZER(qsreaders);
     struct rcu_reader_data *index, *tmp;
-    int sleeps = 0;
+    int sleeps = force ? 0 : 5;
     bool forced = false;
+
+    qemu_event_reset(&rcu_call_force_event);
 
     for (;;) {
         /*
          * Force the grace period to end and wait for it if any of the
          * following heuristical conditions are satisfied:
          * - A decent number of callbacks piled up.
+         * - force_rcu() was called.
          * - It timed out.
-         * - It is in a drain_call_rcu() call.
          *
          * Otherwise, periodically poll the grace period, hoping it ends
          * promptly.
          */
         if (!forced &&
-            (qatomic_read(&rcu_call_count) >= RCU_CALL_MIN_SIZE ||
-             sleeps >= 5 || qatomic_read(&in_drain_call_rcu))) {
+            (qatomic_read(&rcu_call_state) >= RCU_CALL_MIN_SIZE || !sleeps)) {
             forced = true;
 
             QLIST_FOREACH(index, &registry, node) {
@@ -159,8 +168,8 @@ static void wait_for_readers(void)
              */
             qemu_event_reset(&rcu_gp_event);
         } else {
-            g_usleep(10000);
-            sleeps++;
+            qemu_event_timedwait(&rcu_call_force_event, 10);
+            sleeps--;
         }
 
         qemu_mutex_lock(&rcu_registry_lock);
@@ -170,7 +179,7 @@ static void wait_for_readers(void)
     QLIST_SWAP(&registry, &qsreaders, node);
 }
 
-static void enter_qs(void)
+static void enter_qs(bool force)
 {
     /* Write RCU-protected pointers before reading p_rcu_reader->ctr.
      * Pairs with smp_mb_placeholder() in rcu_read_lock().
@@ -189,14 +198,14 @@ static void enter_qs(void)
              * Switch parity: 0 -> 1, 1 -> 0.
              */
             qatomic_set(&rcu_gp_ctr, rcu_gp_ctr ^ RCU_GP_CTR);
-            wait_for_readers();
+            wait_for_readers(force);
             qatomic_set(&rcu_gp_ctr, rcu_gp_ctr ^ RCU_GP_CTR);
         } else {
             /* Increment current grace period.  */
             qatomic_set(&rcu_gp_ctr, rcu_gp_ctr + RCU_GP_CTR);
         }
 
-        wait_for_readers();
+        wait_for_readers(force);
     }
 }
 
@@ -282,15 +291,17 @@ static void *call_rcu_thread(void *opaque)
     rcu_register_thread();
 
     for (;;) {
-        int n;
+        uint32_t state;
+        uint32_t n;
 
         /*
-         * Fetch rcu_call_count now, we only must process elements that were
+         * Fetch rcu_call_state now, we only must process elements that were
          * added before enter_qs() starts.
          */
         for (;;) {
             qemu_event_reset(&rcu_call_ready_event);
-            n = qatomic_read(&rcu_call_count);
+            state = qatomic_fetch_and(&rcu_call_state, RCU_CALL_STATE_COUNT);
+            n = state & RCU_CALL_STATE_COUNT;
             if (n) {
                 break;
             }
@@ -301,8 +312,8 @@ static void *call_rcu_thread(void *opaque)
             qemu_event_wait(&rcu_call_ready_event);
         }
 
-        enter_qs();
-        qatomic_sub(&rcu_call_count, n);
+        enter_qs(state & RCU_CALL_STATE_FORCED);
+        qatomic_sub(&rcu_call_state, n);
         bql_lock();
         while (n > 0) {
             node = try_dequeue();
@@ -329,7 +340,7 @@ void call_rcu1(struct rcu_head *node, void (*func)(struct rcu_head *node))
 {
     node->func = func;
     enqueue(node);
-    qatomic_inc(&rcu_call_count);
+    qatomic_inc(&rcu_call_state);
     qemu_event_set(&rcu_call_ready_event);
 }
 
@@ -388,10 +399,9 @@ void drain_call_rcu(void)
      * assumed.
      */
 
-    qatomic_inc(&in_drain_call_rcu);
     call_rcu(&sync, sync_rcu_callback, rcu);
+    force_rcu();
     qemu_event_wait(&sync.complete_event);
-    qatomic_dec(&in_drain_call_rcu);
 
     if (locked) {
         bql_lock();
@@ -435,6 +445,7 @@ static void rcu_init_complete(void)
     qemu_mutex_init(&rcu_registry_lock);
     qemu_event_init(&rcu_gp_event, true);
 
+    qemu_event_init(&rcu_call_force_event, false);
     qemu_event_init(&rcu_call_ready_event, false);
 
     /* The caller is assumed to have BQL, so the call_rcu thread
