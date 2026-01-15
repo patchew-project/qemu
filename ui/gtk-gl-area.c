@@ -86,6 +86,7 @@ void gd_gl_area_draw(VirtualConsole *vc)
             } else {
                 qemu_dmabuf_set_draw_submitted(dmabuf, false);
             }
+            graphic_hw_gl_block(vc->gfx.dcl.con, true);
         }
 #endif
 
@@ -162,27 +163,6 @@ void gd_gl_area_refresh(DisplayChangeListener *dcl)
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
 
     gd_update_monitor_refresh_rate(vc, vc->window ? vc->window : vc->gfx.drawing_area);
-
-    if (vc->gfx.guest_fb.dmabuf &&
-        qemu_dmabuf_get_draw_submitted(vc->gfx.guest_fb.dmabuf)) {
-        /*
-         * gd_egl_refresh() calls gd_egl_draw() if a DMA-BUF draw has already
-         * been submitted, but this function does not call gd_gl_area_draw() in
-         * such a case due to display corruption.
-         *
-         * Calling gd_gl_area_draw() is necessary to prevent a situation where
-         * there is a scheduled draw event but it won't happen bacause the window
-         * is currently in inactive state (minimized or tabified). If draw is not
-         * done for a long time, gl_block timeout and/or fence timeout (on the
-         * guest) will happen eventually.
-         *
-         * However, it is found that calling gd_gl_area_draw() here causes guest
-         * display corruption on a Wayland Compositor. The display corruption is
-         * more serious than the possible fence timeout so gd_gl_area_draw() is
-         * omitted for now.
-         */
-        return;
-    }
 
     if (!vc->gfx.gls) {
         if (!gtk_widget_get_realized(vc->gfx.drawing_area)) {
@@ -342,7 +322,6 @@ void gd_gl_area_scanout_flush(DisplayChangeListener *dcl,
 
     if (vc->gfx.guest_fb.dmabuf &&
         !qemu_dmabuf_get_draw_submitted(vc->gfx.guest_fb.dmabuf)) {
-        graphic_hw_gl_block(vc->gfx.dcl.con, true);
         qemu_dmabuf_set_draw_submitted(vc->gfx.guest_fb.dmabuf, true);
         gtk_gl_area_set_scanout_mode(vc, true);
     }
