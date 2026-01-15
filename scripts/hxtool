@@ -2,15 +2,29 @@
 
 hxtoh()
 {
-    flag=1
+    outsiderst=1
     while read -r str; do
         case $str in
             HXCOMM*)
             ;;
-            SRST*|ERST*) flag=$(($flag^1))
+            SRST*)
+              if [ $outsiderst -eq 0 ]
+              then
+                echo "Error: SRST inside another RST" >&2
+                exit 1
+              fi
+              outsiderst=0
+            ;;
+            ERST*)
+              if [ $outsiderst -eq 1 ]
+              then
+                echo "Error: ERST already outside RST" >&2
+                exit 1
+              fi
+              outsiderst=1
             ;;
             *)
-            test $flag -eq 1 && printf "%s\n" "$str"
+            test $outsiderst -eq 1 && printf "%s\n" "$str"
             ;;
         esac
     done
