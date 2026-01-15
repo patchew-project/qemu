@@ -1,8 +1,14 @@
 #!/bin/sh
 
+printifnotrst()
+{
+    test $outsiderst -eq 1 && printf "%s\n" "$str"
+}
 hxtoh()
 {
     outsiderst=1
+    # .name for HMP
+    seenname=0
     while read -r str; do
         case $str in
             HXCOMM*)
@@ -13,6 +19,8 @@ hxtoh()
                 echo "Error: SRST inside another RST" >&2
                 exit 1
               fi
+              # consume the name
+              seenname=0
               outsiderst=0
             ;;
             ERST*)
@@ -23,8 +31,18 @@ hxtoh()
               fi
               outsiderst=1
             ;;
+            # Note the space at the start - we need to exclude something.name
+             .name*)
+              if [ $seenname -eq 1 ]
+              then
+                echo "Error: Seen another .name, maybe missing docs?" >&2
+                exit 1
+              fi
+              seenname=1
+              printifnotrst
+            ;;
             *)
-            test $outsiderst -eq 1 && printf "%s\n" "$str"
+            printifnotrst
             ;;
         esac
     done
