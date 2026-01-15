@@ -171,3 +171,155 @@ Only 64-bit Windows is supported.
 .. _MacPorts: https://www.macports.org/
 .. _MSYS2: https://www.msys2.org/
 .. _Repology: https://repology.org/
+
+OS Support Tiers
+----------------
+
+While the QEMU code targets a number of different OS platforms, they don't
+all get the same level of support from the project. This applies to
+contributor & maintainer expectations, CI automation and requirements
+for merge gating.
+
+Tier 1
+~~~~~~
+
+These platforms attain the highest level of quality offered by
+the QEMU project.
+
+ * Builds and all tests pass at all times in both git HEAD and releases
+
+ * Builds for multiple build configuration are integrated in CI
+
+ * Runs all available tests frameworks (unit, qtest, iotests, functional)
+   in CI
+
+ * Merging code is gated on successful CI jobs
+
+This covers
+
+ * Linux (x86_64, aarch64, s390x)
+
+Responsibilities:
+
+ * Contributors MUST test submitted patches on one of Tier 1 platforms.
+
+ * Contributors SHOULD test submitted patches on Tier 1 platforms
+   by running a GitLab CI pipeline in their fork.
+
+ * Maintainers MUST request contributors to fix problems with Tier 1
+   platforms.
+
+ * Maintainers MUST test pull requests on Tier 1 platforms
+   by running a GitLab CI pipeline in their fork.
+
+ * Maintainers MUST co-ordinate fixing regressions identified
+   post-merge immediately.
+
+
+Tier 2
+~~~~~~
+
+These platforms are considered to be near Tier 1 level, but are
+lacking sufficient automated CI testing cover to guarantee this.
+
+ * Builds and all tests pass at all times in both git HEAD and releases
+
+ * Builds for multiple build configuration are integrated in CI
+
+ * Runs some test frameworks in CI
+
+This covers
+
+ * Linux (mips64el, ppc64el, riscv64)
+
+ * FreeBSD (x86_64)
+
+ * macOS (aarch64)
+
+ * Windows (x86_64)
+
+Responsibilities:
+
+ * Contributors MAY test patches on Tier 2 platforms
+   by running a GitLab CI pipeline in their fork
+
+ * Maintainers SHOULD request contributors to fix problems with Tier 2
+   platforms.
+
+ * Maintainers MUST test pull requests on all Tier 2 platforms,
+   by running a GitLab CI pipeline in their fork.
+
+ * Maintainers MUST co-ordinate fixing regressions identified
+   post-merge quickly.
+
+
+Tier 3
+~~~~~~
+
+These platforms have theoretical support in the code, but have
+little, or no, automated build and test coverage. Downstream
+consumers (users or distributors) who care about these platforms
+are requested to perform manual testing, report bugs and provide
+patches.
+
+ * Builds and tests may be broken at any time in Git HEAD and
+   releases
+
+ * Builds are not integrated into CI
+
+ * Tests are not integrated into CI
+
+ * Merging code is not gated
+
+This covers:
+
+ * NetBSD
+ * OpenBSD
+ * macOS (except aarch64)
+ * FreeBSD (except x86_64)
+ * Windows (except x86_64)
+ * Solaris
+
+Responsibilities:
+
+ * Contributors MAY test patches on Tier 3 platforms manually
+
+ * Maintainers MAY request contributors to fix problems
+   on Tier 3 platforms
+
+ * Maintainers MAY test patches on Tier 3 platforms manually
+
+ * Maintainers SHOULD NOT accept patches that remove code
+   targetting Tier 3 platforms even if currently broken
+
+ * Downstream vendors SHOULD test RC releases on Tier 3 platforms
+   and provide bug reports and patches to address problems
+
+Note: if a Tier 3 platform is found to be significantly broken,
+no patches are contributed for a prolonged period, and there is
+no sign of downstream usage, it is liable to be moved to
+"Unclassified" and thus be subject to removal.
+
+
+Unclassified
+~~~~~~~~~~~~
+
+These platforms are not intended to be supported in the code
+and outside the scope of any support tiers.
+
+  * Code supporting these platforms can removed at any time
+  * Bugs reports related to these platforms will generally
+    be ignored
+
+This covers:
+
+ * All 32-bit architectures on any OS
+ * Any OS not listed above
+
+Responsibilities:
+
+ * Maintainers MAY decline patches that add code targetting
+   unclassified platforms
+
+ * Maintainers MAY accept patches that remove code targetting
+   unclassified platforms
