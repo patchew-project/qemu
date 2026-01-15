@@ -8,14 +8,7 @@ HXCOMM
 HXCOMM In this file, generally SRST fragments should have two extra
 HXCOMM spaces of indent, so that the documentation list item for "info foo"
 HXCOMM appears inside the documentation list item for the top level
-HXCOMM "info" documentation entry. The exception is the first SRST
-HXCOMM fragment that defines that top level entry.
-
-SRST
-``info`` *subcommand*
-  Show various information about the system state.
-
-ERST
+HXCOMM "info" documentation entry.
 
     {
         .name       = "version",
