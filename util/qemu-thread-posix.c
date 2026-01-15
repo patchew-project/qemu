@@ -44,16 +44,7 @@ static void error_exit(int err, const char *msg)
     abort();
 }
 
-static inline clockid_t qemu_timedwait_clockid(void)
-{
-#ifdef CONFIG_PTHREAD_CONDATTR_SETCLOCK
-    return CLOCK_MONOTONIC;
-#else
-    return CLOCK_REALTIME;
-#endif
-}
-
-static void compute_abs_deadline(struct timespec *ts, int ms)
+void compute_abs_deadline(struct timespec *ts, int ms)
 {
     clock_gettime(qemu_timedwait_clockid(), ts);
     ts->tv_nsec += (ms % 1000) * 1000000;

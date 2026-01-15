@@ -33,7 +33,15 @@ void qemu_event_init(QemuEvent *ev, bool init)
 {
 #ifndef HAVE_FUTEX
     pthread_mutex_init(&ev->lock, NULL);
+#ifdef CONFIG_PTHREAD_CONDATTR_SETCLOCK
+    pthread_condattr_t attr;
+    pthread_condattr_init(&attr);
+    pthread_condattr_setclock(&attr, qemu_timedwait_clockid());
+    pthread_cond_init(&ev->cond, &attr);
+    pthread_condattr_destroy(&attr);
+#else
     pthread_cond_init(&ev->cond, NULL);
+#endif
 #endif
 
     ev->value = (init ? EV_SET : EV_FREE);
@@ -121,15 +129,17 @@ void qemu_event_reset(QemuEvent *ev)
 #endif
 }
 
-void qemu_event_wait(QemuEvent *ev)
+void qemu_event_timedwait(QemuEvent *ev, int ms)
 {
     assert(ev->initialized);
 
 #ifdef HAVE_FUTEX
+    int64_t deadline = get_clock() + (int64_t)ms * SCALE_MS;
+
     while (true) {
         /*
-         * qemu_event_wait must synchronize with qemu_event_set even if it does
-         * not go down the slow path, so this load-acquire is needed that
+         * qemu_event_timedwait must synchronize with qemu_event_set even if it
+         * does not go down the slow path, so this load-acquire is needed that
          * synchronizes with the first memory barrier in qemu_event_set().
          */
         unsigned value = qatomic_load_acquire(&ev->value);
@@ -159,12 +169,20 @@ void qemu_event_wait(QemuEvent *ev)
          * a smp_mb() pairing with the second barrier of qemu_event_set().
          * The barrier is inside the FUTEX_WAIT system call.
          */
-        qemu_futex_wait(ev, EV_BUSY);
+        if (!qemu_futex_timedwait(ev, EV_BUSY, deadline)) {
+            break;
+        }
     }
 #else
+    struct timespec ts;
+
+    compute_abs_deadline(&ts, ms);
+
     pthread_mutex_lock(&ev->lock);
     while (qatomic_read(&ev->value) != EV_SET) {
-        pthread_cond_wait(&ev->cond, &ev->lock);
+        if (pthread_cond_timedwait(&ev->cond, &ev->lock, &ts)) {
+            break;
+        }
     }
     pthread_mutex_unlock(&ev->lock);
 #endif

@@ -201,7 +201,13 @@ void qemu_sem_destroy(QemuSemaphore *sem);
 void qemu_event_init(QemuEvent *ev, bool init);
 void qemu_event_set(QemuEvent *ev);
 void qemu_event_reset(QemuEvent *ev);
-void qemu_event_wait(QemuEvent *ev);
+void qemu_event_timedwait(QemuEvent *ev, int ms);
+
+static inline void qemu_event_wait(QemuEvent *ev)
+{
+    qemu_event_timedwait(ev, INT_MAX);
+}
+
 void qemu_event_destroy(QemuEvent *ev);
 
 void qemu_thread_create(QemuThread *thread, const char *name,
