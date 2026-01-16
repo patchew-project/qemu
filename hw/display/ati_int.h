@@ -81,7 +81,14 @@ typedef struct ATIVGARegs {
     uint32_t default_offset;
     uint32_t default_pitch;
     uint32_t default_tile;
-    uint32_t default_sc_bottom_right;
+    uint16_t default_sc_bottom;
+    uint16_t default_sc_right;
+    uint16_t sc_top;
+    uint16_t sc_left;
+    uint16_t sc_bottom;
+    uint16_t sc_right;
+    uint16_t src_sc_bottom;
+    uint16_t src_sc_right;
 } ATIVGARegs;
 
 struct ATIVGAState {
