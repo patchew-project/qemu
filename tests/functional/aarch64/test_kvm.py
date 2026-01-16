@@ -29,7 +29,30 @@ class Aarch64VirtKVMTests(LinuxKernelTest):
     # base of tests
     KUT_BASE = "/usr/share/kvm-unit-tests/"
 
+    def require_nested_virtualization(self):
+        """
+        Requires the accelerator to support nested virtualization for the test
+        to continue
+
+        If the check fails, the test is canceled.
+        """
+        import platform, re, subprocess
+
+        if platform.system() != 'Darwin':
+            return
+        r = subprocess.run(['sysctl', '-n', 'machdep.cpu.brand_string'],
+                           text=True, capture_output=True)
+        if r.returncode != 0:
+            return
+        m = re.match(r"Apple M(\d+)( .*)?", r.stdout)
+        if m:
+            if int(m.group(1)) < 3:
+                self.skipTest("Nested Virtualization not available"
+                              " on %s" % r.stdout.strip())
+
     def _launch_guest(self, kvm_mode="nvhe"):
+
+        self.require_nested_virtualization()
 
         self.set_machine('virt')
         kernel_path = self.ASSET_KVM_TEST_KERNEL.fetch()
