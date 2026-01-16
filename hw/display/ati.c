@@ -459,9 +459,22 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case DST_Y:
         val = s->regs.dst_y;
         break;
-    case DP_GUI_MASTER_CNTL:
-        val = s->regs.dp_gui_master_cntl;
+    case DP_GUI_MASTER_CNTL: {
+        /* DP_GUI_MASTER_CNTL aliases fields from DP_MIX and DP_DATATYPE */
+        uint32_t dst_datatype = s->regs.dp_datatype & DP_DST_DATATYPE;
+        uint32_t brush_datatype = (s->regs.dp_datatype &
+                                  DP_BRUSH_DATATYPE) >> 8;
+        uint32_t src_datatype = (s->regs.dp_datatype & DP_SRC_DATATYPE) >> 16;
+        uint32_t src_source = (s->regs.dp_mix & DP_SRC_SOURCE) >> 8;
+        uint32_t rop3 = (s->regs.dp_mix & DP_ROP3) >> 16;
+        val = s->regs.dp_gui_master_cntl |
+              (brush_datatype << 4) |
+              (dst_datatype << 8) |
+              (src_datatype << 12) |
+              (rop3 << 16) |
+              (src_source << 24);
         break;
+    }
     case SRC_OFFSET:
         val = s->regs.src_offset;
         break;
