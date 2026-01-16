@@ -80,37 +80,18 @@ static void setup_2d_blt_dst(const ATIVGAState *s, ATIBltDst *dst)
     }
 }
 
-void ati_2d_blt(ATIVGAState *s)
+static void ati_2d_do_blt(ATIVGAState *s, const ATIBltSrc *src, ATIBltDst *dst)
 {
     /* FIXME it is probably more complex than this and may need to be */
     /* rewritten but for now as a start just to get some output: */
     DisplaySurface *ds = qemu_console_surface(s->vga.con);
     uint8_t *end = s->vga.vram_ptr + s->vga.vram_size;
     int dst_stride_words, src_stride_words;
-    ATIBltDst _dst; /* TEMP: avoid churn in future patches */
-    ATIBltDst *dst = &_dst;
-    ATIBltSrc _src; /* TEMP: avoid churn in future patches */
-    ATIBltSrc *src = &_src;
 
     DPRINTF("%p %u ds: %p %d %d rop: %x\n", s->vga.vram_ptr,
             s->vga.vbe_start_addr, surface_data(ds), surface_stride(ds),
             surface_bits_per_pixel(ds),
             (s->regs.dp_mix & GMC_ROP3_MASK) >> 16);
-
-    setup_2d_blt_dst(s, dst);
-
-    src->x = (dst->left_to_right ?
-             s->regs.src_x :
-             s->regs.src_x + 1 - dst->rect.width);
-    src->y = (dst->top_to_bottom ?
-             s->regs.src_y :
-             s->regs.src_y + 1 - dst->rect.height);
-    src->stride = s->regs.src_pitch;
-    src->bits = s->vga.vram_ptr + s->regs.src_offset;
-    if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
-        src->bits += s->regs.crtc_offset & 0x07ffffff;
-        src->stride *= dst->bpp;
-    }
 
     if (!dst->bpp) {
         qemu_log_mask(LOG_GUEST_ERROR, "Invalid bpp\n");
@@ -145,12 +126,6 @@ void ati_2d_blt(ATIVGAState *s)
 
         if (!src->stride) {
             qemu_log_mask(LOG_GUEST_ERROR, "Zero source pitch\n");
-            return;
-        }
-        if (src->x > 0x3fff || src->y > 0x3fff || src->bits >= end
-            || src->bits + src->x
-             + (src->y + dst->rect.height) * src->stride >= end) {
-            qemu_log_mask(LOG_UNIMP, "blt outside vram not implemented\n");
             return;
         }
 
@@ -273,4 +248,36 @@ void ati_2d_blt(ATIVGAState *s)
                                 dst->rect.y * surface_stride(ds),
                                 dst->rect.height * surface_stride(ds));
     }
+}
+
+void ati_2d_blt(ATIVGAState *s)
+{
+    uint8_t *end = s->vga.vram_ptr + s->vga.vram_size;
+    ATIBltDst dst;
+    ATIBltSrc src;
+
+    setup_2d_blt_dst(s, &dst);
+
+    /* Setup src to point at VRAM */
+    src.x = (dst.left_to_right ?
+             s->regs.src_x :
+             s->regs.src_x + 1 - dst.rect.width);
+    src.y = (dst.top_to_bottom ?
+             s->regs.src_y :
+             s->regs.src_y + 1 - dst.rect.height);
+    src.stride = s->regs.src_pitch;
+    src.bits = s->vga.vram_ptr + s->regs.src_offset;
+    if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
+        src.bits += s->regs.crtc_offset & 0x07ffffff;
+        src.stride *= dst.bpp;
+    }
+
+    if (src.x > 0x3fff || src.y > 0x3fff || src.bits >= end
+        || src.bits + src.x
+         + (src.y + dst.rect.height) * src.stride >= end) {
+        qemu_log_mask(LOG_UNIMP, "blt src outside vram not implemented\n");
+        return;
+    }
+
+    ati_2d_do_blt(s, &src, &dst);
 }
