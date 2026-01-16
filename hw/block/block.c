@@ -254,6 +254,21 @@ bool blkconf_apply_backend_options(BlockConf *conf, bool readonly,
                           conf->num_stats_intervals, errp)) {
         return false;
     }
+
+    if (conf->throttle_group) {
+        if (!throttle_group_exists(conf->throttle_group)) {
+            error_setg(errp, "Throttle group '%s' not found",
+                       conf->throttle_group);
+            return false;
+        }
+        if (blk_get_public(blk)->throttle_group_member.throttle_state) {
+            error_setg(errp, "Cannot set throttle group, because there already"
+                       " is a throttle configuration (via '-drive'?)");
+            return false;
+        }
+        blk_io_limits_enable(blk, conf->throttle_group);
+    }
+
     return true;
 }
 
