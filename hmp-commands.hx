@@ -1814,16 +1814,6 @@ SRST
   command.
 ERST
 
-    {
-        .name       = "info",
-        .args_type  = "item:s?",
-        .params     = "[subcommand]",
-        .help       = "show various information about the system state",
-        .cmd        = hmp_info_help,
-        .sub_table  = hmp_info_cmds,
-        .flags      = "p",
-    },
-
 #if defined(CONFIG_FDT)
     {
         .name       = "dumpdtb",
@@ -1867,3 +1857,20 @@ SRST
   List event channels in the guest
 ERST
 #endif
+
+HXCOMM *** MUST BE LAST ENTRY **
+    {
+        .name       = "info",
+        .args_type  = "item:s?",
+        .params     = "[subcommand]",
+        .help       = "show various information about the system state",
+        .cmd        = hmp_info_help,
+        .sub_table  = hmp_info_cmds,
+        .flags      = "p",
+    },
+
+SRST
+``info`` *subcommand*
+  Show various information about the system state.
+ERST
+HXCOMM *** MUST BE LAST ENTRY **
