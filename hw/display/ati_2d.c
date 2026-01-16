@@ -207,18 +207,6 @@ void ati_2d_blt(ATIVGAState *s)
                 memmove(&dst->bits[i], &src->bits[j], dst->rect.width * bypp);
             }
         }
-        if (dst->bits >= s->vga.vram_ptr + s->vga.vbe_start_addr &&
-            dst->bits < s->vga.vram_ptr + s->vga.vbe_start_addr +
-            s->vga.vbe_regs[VBE_DISPI_INDEX_YRES] * s->vga.vbe_line_offset) {
-            memory_region_set_dirty(&s->vga.vram, s->vga.vbe_start_addr +
-                                    s->regs.dst_offset +
-                                    dst->rect.y * surface_stride(ds),
-                                    dst->rect.height * surface_stride(ds));
-        }
-        s->regs.dst_x = (dst->left_to_right ?
-                         dst->rect.x + dst->rect.width : dst->rect.x);
-        s->regs.dst_y = (dst->top_to_bottom ?
-                         dst->rect.y + dst->rect.height : dst->rect.y);
         break;
     }
     case ROP3_PATCOPY:
@@ -260,20 +248,29 @@ void ati_2d_blt(ATIVGAState *s)
                 }
             }
         }
-        if (dst->bits >= s->vga.vram_ptr + s->vga.vbe_start_addr &&
-            dst->bits < s->vga.vram_ptr + s->vga.vbe_start_addr +
-            s->vga.vbe_regs[VBE_DISPI_INDEX_YRES] * s->vga.vbe_line_offset) {
-            memory_region_set_dirty(&s->vga.vram, s->vga.vbe_start_addr +
-                                    s->regs.dst_offset +
-                                    dst->rect.y * surface_stride(ds),
-                                    dst->rect.height * surface_stride(ds));
-        }
-        s->regs.dst_y = (dst->top_to_bottom ?
-                         dst->rect.y + dst->rect.height : dst->rect.y);
         break;
     }
     default:
         qemu_log_mask(LOG_UNIMP, "Unimplemented ati_2d blt op %x\n",
                       (s->regs.dp_mix & GMC_ROP3_MASK) >> 16);
+    }
+
+    if (s->dev_id != PCI_DEVICE_ID_ATI_RAGE128_PF) {
+        /*
+         * Hardware testing shows that dst is _not_ updated for Rage 128.
+         * The M6 (R100/Radeon) docs state however that dst_y is updated.
+         * This has not yet been validated on R100 hardware.
+         */
+        s->regs.dst_y = (dst->top_to_bottom ?
+                        dst->rect.y + dst->rect.height : dst->rect.y);
+    }
+
+    if (dst->bits >= s->vga.vram_ptr + s->vga.vbe_start_addr &&
+        dst->bits < s->vga.vram_ptr + s->vga.vbe_start_addr +
+        s->vga.vbe_regs[VBE_DISPI_INDEX_YRES] * s->vga.vbe_line_offset) {
+        memory_region_set_dirty(&s->vga.vram, s->vga.vbe_start_addr +
+                                s->regs.dst_offset +
+                                dst->rect.y * surface_stride(ds),
+                                dst->rect.height * surface_stride(ds));
     }
 }
