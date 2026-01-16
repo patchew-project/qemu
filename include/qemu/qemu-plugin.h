@@ -997,7 +997,7 @@ int qemu_plugin_read_register(struct qemu_plugin_register *handle,
  * Attempting to write a register with @buf smaller than the register size
  * will result in a crash or other undesired behavior.
  *
- * Returns the number of bytes written. On failure returns 0.
+ * Returns the number of bytes written. On failure returns -1.
  */
 QEMU_PLUGIN_API
 int qemu_plugin_write_register(struct qemu_plugin_register *handle,
