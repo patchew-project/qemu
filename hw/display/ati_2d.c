@@ -26,6 +26,13 @@
  */
 
 typedef struct {
+    int x;
+    int y;
+    int stride;
+    uint8_t *bits;
+} ATIBltSrc;
+
+typedef struct {
     QemuRect rect;
     int bpp;
     int stride;
@@ -79,9 +86,11 @@ void ati_2d_blt(ATIVGAState *s)
     /* rewritten but for now as a start just to get some output: */
     DisplaySurface *ds = qemu_console_surface(s->vga.con);
     uint8_t *end = s->vga.vram_ptr + s->vga.vram_size;
-    int dst_stride_words;
+    int dst_stride_words, src_stride_words;
     ATIBltDst _dst; /* TEMP: avoid churn in future patches */
     ATIBltDst *dst = &_dst;
+    ATIBltSrc _src; /* TEMP: avoid churn in future patches */
+    ATIBltSrc *src = &_src;
 
     DPRINTF("%p %u ds: %p %d %d rop: %x\n", s->vga.vram_ptr,
             s->vga.vbe_start_addr, surface_data(ds), surface_stride(ds),
@@ -89,6 +98,19 @@ void ati_2d_blt(ATIVGAState *s)
             (s->regs.dp_mix & GMC_ROP3_MASK) >> 16);
 
     setup_2d_blt_dst(s, dst);
+
+    src->x = (dst->left_to_right ?
+             s->regs.src_x :
+             s->regs.src_x + 1 - dst->rect.width);
+    src->y = (dst->top_to_bottom ?
+             s->regs.src_y :
+             s->regs.src_y + 1 - dst->rect.height);
+    src->stride = s->regs.src_pitch;
+    src->bits = s->vga.vram_ptr + s->regs.src_offset;
+    if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
+        src->bits += s->regs.crtc_offset & 0x07ffffff;
+        src->stride *= dst->bpp;
+    }
 
     if (!dst->bpp) {
         qemu_log_mask(LOG_GUEST_ERROR, "Invalid bpp\n");
@@ -106,11 +128,12 @@ void ati_2d_blt(ATIVGAState *s)
     }
 
     dst_stride_words = dst->stride / sizeof(uint32_t);
+    src_stride_words = src->stride / sizeof(uint32_t);
 
     DPRINTF("%d %d %d, %d %d %d, (%d,%d) -> (%d,%d) %dx%d %c %c\n",
             s->regs.src_offset, s->regs.dst_offset, s->regs.default_offset,
-            s->regs.src_pitch, dst->stride, s->regs.default_pitch,
-            s->regs.src_x, s->regs.src_y, dst->rect.x, dst->rect.y,
+            src->stride, dst->stride, s->regs.default_pitch,
+            src->x, src->y, dst->rect.x, dst->rect.y,
             dst->rect.width, dst->rect.height,
             (dst->left_to_right ? '>' : '<'),
             (dst->top_to_bottom ? 'v' : '^'));
@@ -119,42 +142,31 @@ void ati_2d_blt(ATIVGAState *s)
     case ROP3_SRCCOPY:
     {
         bool fallback = false;
-        unsigned src_x = (dst->left_to_right ?
-                       s->regs.src_x : s->regs.src_x + 1 - dst->rect.width);
-        unsigned src_y = (dst->top_to_bottom ?
-                       s->regs.src_y : s->regs.src_y + 1 - dst->rect.height);
-        int src_stride = s->regs.src_pitch;
-        if (!src_stride) {
+
+        if (!src->stride) {
             qemu_log_mask(LOG_GUEST_ERROR, "Zero source pitch\n");
             return;
         }
-        uint8_t *src_bits = s->vga.vram_ptr + s->regs.src_offset;
-
-        if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
-            src_bits += s->regs.crtc_offset & 0x07ffffff;
-            src_stride *= dst->bpp;
-        }
-        if (src_x > 0x3fff || src_y > 0x3fff || src_bits >= end
-            || src_bits + src_x
-             + (src_y + dst->rect.height) * src_stride >= end) {
+        if (src->x > 0x3fff || src->y > 0x3fff || src->bits >= end
+            || src->bits + src->x
+             + (src->y + dst->rect.height) * src->stride >= end) {
             qemu_log_mask(LOG_UNIMP, "blt outside vram not implemented\n");
             return;
         }
 
-        src_stride /= sizeof(uint32_t);
         DPRINTF("pixman_blt(%p, %p, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d)\n",
-                src_bits, dst->bits,
-                src_stride, dst_stride_words,
+                src->bits, dst->bits,
+                src_stride_words, dst_stride_words,
                 dst->bpp, dst->bpp,
-                src_x, src_y, dst->rect.x, dst->rect.y,
+                src->x, src->y, dst->rect.x, dst->rect.y,
                 dst->rect.width, dst->rect.height);
 #ifdef CONFIG_PIXMAN
         if ((s->use_pixman & BIT(1)) &&
             dst->left_to_right && dst->top_to_bottom) {
-            fallback = !pixman_blt((uint32_t *)src_bits, (uint32_t *)dst->bits,
-                                   src_stride, dst_stride_words,
+            fallback = !pixman_blt((uint32_t *)src->bits, (uint32_t *)dst->bits,
+                                   src_stride_words, dst_stride_words,
                                    dst->bpp, dst->bpp,
-                                   src_x, src_y, dst->rect.x, dst->rect.y,
+                                   src->x, src->y, dst->rect.x, dst->rect.y,
                                    dst->rect.width, dst->rect.height);
         } else if (s->use_pixman & BIT(1)) {
             /* FIXME: We only really need a temporary if src and dst overlap */
@@ -162,10 +174,10 @@ void ati_2d_blt(ATIVGAState *s)
             int tmp_stride = DIV_ROUND_UP(llb, sizeof(uint32_t));
             uint32_t *tmp = g_malloc(tmp_stride * sizeof(uint32_t) *
                                      dst->rect.height);
-            fallback = !pixman_blt((uint32_t *)src_bits, tmp,
-                                   src_stride, tmp_stride,
+            fallback = !pixman_blt((uint32_t *)src->bits, tmp,
+                                   src_stride_words, tmp_stride,
                                    dst->bpp, dst->bpp,
-                                   src_x, src_y, 0, 0,
+                                   src->x, src->y, 0, 0,
                                    dst->rect.width, dst->rect.height);
             if (!fallback) {
                 fallback = !pixman_blt(tmp, (uint32_t *)dst->bits,
@@ -182,18 +194,17 @@ void ati_2d_blt(ATIVGAState *s)
         }
         if (fallback) {
             unsigned int y, i, j, bypp = dst->bpp / 8;
-            unsigned int src_pitch = src_stride * sizeof(uint32_t);
             for (y = 0; y < dst->rect.height; y++) {
                 i = dst->rect.x * bypp;
-                j = src_x * bypp;
+                j = src->x * bypp;
                 if (dst->top_to_bottom) {
                     i += (dst->rect.y + y) * dst->stride;
-                    j += (src_y + y) * src_pitch;
+                    j += (src->y + y) * src->stride;
                 } else {
                     i += (dst->rect.y + dst->rect.height - 1 - y) * dst->stride;
-                    j += (src_y + dst->rect.height - 1 - y) * src_pitch;
+                    j += (src->y + dst->rect.height - 1 - y) * src->stride;
                 }
-                memmove(&dst->bits[i], &src_bits[j], dst->rect.width * bypp);
+                memmove(&dst->bits[i], &src->bits[j], dst->rect.width * bypp);
             }
         }
         if (dst->bits >= s->vga.vram_ptr + s->vga.vbe_start_addr &&
