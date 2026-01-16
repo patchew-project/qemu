@@ -86,7 +86,8 @@ static void ati_2d_do_blt(ATIVGAState *s, const ATIBltSrc *src, ATIBltDst *dst)
     /* rewritten but for now as a start just to get some output: */
     DisplaySurface *ds = qemu_console_surface(s->vga.con);
     uint8_t *end = s->vga.vram_ptr + s->vga.vram_size;
-    int dst_stride_words, src_stride_words;
+    int dst_stride_words, src_stride_words, vis_src_x, vis_src_y;
+    QemuRect scissor, vis_dst;
 
     DPRINTF("%p %u ds: %p %d %d rop: %x\n", s->vga.vram_ptr,
             s->vga.vbe_start_addr, surface_data(ds), surface_stride(ds),
@@ -108,14 +109,32 @@ static void ati_2d_do_blt(ATIVGAState *s, const ATIBltSrc *src, ATIBltDst *dst)
         return;
     }
 
+    qemu_rect_init(&scissor,
+                   s->regs.sc_left, s->regs.sc_top,
+                   s->regs.sc_right - s->regs.sc_left + 1,
+                   s->regs.sc_bottom - s->regs.sc_top + 1);
+    qemu_rect_intersect(&dst->rect, &scissor, &vis_dst);
+    if (!vis_dst.height || !vis_dst.width) {
+        /* Nothing to do, completely clipped */
+        return;
+    }
+
     dst_stride_words = dst->stride / sizeof(uint32_t);
     src_stride_words = src->stride / sizeof(uint32_t);
+    /*
+     * The src must be offset if clipping is applied to the dst.
+     * This is so that when the source is blit to a dst clipped
+     * on the top or left the src image is not shifted into the
+     * clipped region but actually clipped.
+     */
+    vis_src_x = src->x + (vis_dst.x - dst->rect.x);
+    vis_src_y = src->y + (vis_dst.y - dst->rect.y);
 
     DPRINTF("%d %d %d, %d %d %d, (%d,%d) -> (%d,%d) %dx%d %c %c\n",
             s->regs.src_offset, s->regs.dst_offset, s->regs.default_offset,
             src->stride, dst->stride, s->regs.default_pitch,
-            src->x, src->y, dst->rect.x, dst->rect.y,
-            dst->rect.width, dst->rect.height,
+            vis_src_x, vis_src_y, vis_dst.x, vis_dst.y,
+            vis_dst.width, vis_dst.height,
             (dst->left_to_right ? '>' : '<'),
             (dst->top_to_bottom ? 'v' : '^'));
 
@@ -133,33 +152,33 @@ static void ati_2d_do_blt(ATIVGAState *s, const ATIBltSrc *src, ATIBltDst *dst)
                 src->bits, dst->bits,
                 src_stride_words, dst_stride_words,
                 dst->bpp, dst->bpp,
-                src->x, src->y, dst->rect.x, dst->rect.y,
-                dst->rect.width, dst->rect.height);
+                vis_src_x, vis_src_y, vis_dst.x, vis_dst.y,
+                vis_dst.width, vis_dst.height);
 #ifdef CONFIG_PIXMAN
         if ((s->use_pixman & BIT(1)) &&
             dst->left_to_right && dst->top_to_bottom) {
             fallback = !pixman_blt((uint32_t *)src->bits, (uint32_t *)dst->bits,
                                    src_stride_words, dst_stride_words,
                                    dst->bpp, dst->bpp,
-                                   src->x, src->y, dst->rect.x, dst->rect.y,
-                                   dst->rect.width, dst->rect.height);
+                                   vis_src_x, vis_src_y, vis_dst.x, vis_dst.y,
+                                   vis_dst.width, vis_dst.height);
         } else if (s->use_pixman & BIT(1)) {
             /* FIXME: We only really need a temporary if src and dst overlap */
-            int llb = dst->rect.width * (dst->bpp / 8);
+            int llb = vis_dst.width * (dst->bpp / 8);
             int tmp_stride = DIV_ROUND_UP(llb, sizeof(uint32_t));
             uint32_t *tmp = g_malloc(tmp_stride * sizeof(uint32_t) *
-                                     dst->rect.height);
+                                     vis_dst.height);
             fallback = !pixman_blt((uint32_t *)src->bits, tmp,
                                    src_stride_words, tmp_stride,
                                    dst->bpp, dst->bpp,
-                                   src->x, src->y, 0, 0,
-                                   dst->rect.width, dst->rect.height);
+                                   vis_src_x, vis_src_y, 0, 0,
+                                   vis_dst.width, vis_dst.height);
             if (!fallback) {
                 fallback = !pixman_blt(tmp, (uint32_t *)dst->bits,
                                        tmp_stride, dst_stride_words,
                                        dst->bpp, dst->bpp,
-                                       0, 0, dst->rect.x, dst->rect.y,
-                                       dst->rect.width, dst->rect.height);
+                                       0, 0, vis_dst.x, vis_dst.y,
+                                       vis_dst.width, vis_dst.height);
             }
             g_free(tmp);
         } else
@@ -169,17 +188,17 @@ static void ati_2d_do_blt(ATIVGAState *s, const ATIBltSrc *src, ATIBltDst *dst)
         }
         if (fallback) {
             unsigned int y, i, j, bypp = dst->bpp / 8;
-            for (y = 0; y < dst->rect.height; y++) {
-                i = dst->rect.x * bypp;
-                j = src->x * bypp;
+            for (y = 0; y < vis_dst.height; y++) {
+                i = vis_dst.x * bypp;
+                j = vis_src_x * bypp;
                 if (dst->top_to_bottom) {
-                    i += (dst->rect.y + y) * dst->stride;
-                    j += (src->y + y) * src->stride;
+                    i += (vis_dst.y + y) * dst->stride;
+                    j += (vis_src_y + y) * src->stride;
                 } else {
-                    i += (dst->rect.y + dst->rect.height - 1 - y) * dst->stride;
-                    j += (src->y + dst->rect.height - 1 - y) * src->stride;
+                    i += (vis_dst.y + vis_dst.height - 1 - y) * dst->stride;
+                    j += (vis_src_y + vis_dst.height - 1 - y) * src->stride;
                 }
-                memmove(&dst->bits[i], &src->bits[j], dst->rect.width * bypp);
+                memmove(&dst->bits[i], &src->bits[j], vis_dst.width * bypp);
             }
         }
         break;
@@ -205,20 +224,20 @@ static void ati_2d_do_blt(ATIVGAState *s, const ATIBltSrc *src, ATIBltDst *dst)
         }
 
         DPRINTF("pixman_fill(%p, %d, %d, %d, %d, %d, %d, %x)\n",
-                dst->bits, dst_stride_words, dst->bpp, dst->rect.x, dst->rect.y,
-                dst->rect.width, dst->rect.height, filler);
+                dst->bits, dst_stride_words, dst->bpp, vis_dst.x, vis_dst.y,
+                vis_dst.width, vis_dst.height, filler);
 #ifdef CONFIG_PIXMAN
         if (!(s->use_pixman & BIT(0)) ||
             !pixman_fill((uint32_t *)dst->bits,
-                    dst_stride_words, dst->bpp, dst->rect.x, dst->rect.y,
-                    dst->rect.width, dst->rect.height, filler))
+                    dst_stride_words, dst->bpp, vis_dst.x, vis_dst.y,
+                    vis_dst.width, vis_dst.height, filler))
 #endif
         {
             /* fallback when pixman failed or we don't want to call it */
             unsigned int x, y, i, bypp = dst->bpp / 8;
-            for (y = 0; y < dst->rect.height; y++) {
-                i = dst->rect.x * bypp + (dst->rect.y + y) * dst->stride;
-                for (x = 0; x < dst->rect.width; x++, i += bypp) {
+            for (y = 0; y < vis_dst.height; y++) {
+                i = vis_dst.x * bypp + (vis_dst.y + y) * dst->stride;
+                for (x = 0; x < vis_dst.width; x++, i += bypp) {
                     stn_he_p(&dst->bits[i], bypp, filler);
                 }
             }
@@ -237,7 +256,7 @@ static void ati_2d_do_blt(ATIVGAState *s, const ATIBltSrc *src, ATIBltDst *dst)
          * This has not yet been validated on R100 hardware.
          */
         s->regs.dst_y = (dst->top_to_bottom ?
-                        dst->rect.y + dst->rect.height : dst->rect.y);
+                        vis_dst.y + vis_dst.height : vis_dst.y);
     }
 
     if (dst->bits >= s->vga.vram_ptr + s->vga.vbe_start_addr &&
@@ -245,8 +264,8 @@ static void ati_2d_do_blt(ATIVGAState *s, const ATIBltSrc *src, ATIBltDst *dst)
         s->vga.vbe_regs[VBE_DISPI_INDEX_YRES] * s->vga.vbe_line_offset) {
         memory_region_set_dirty(&s->vga.vram, s->vga.vbe_start_addr +
                                 s->regs.dst_offset +
-                                dst->rect.y * surface_stride(ds),
-                                dst->rect.height * surface_stride(ds));
+                                vis_dst.y * surface_stride(ds),
+                                vis_dst.height * surface_stride(ds));
     }
 }
 
