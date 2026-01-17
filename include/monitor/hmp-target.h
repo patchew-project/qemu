@@ -27,15 +27,12 @@
 
 typedef struct MonitorDef MonitorDef;
 
-#ifdef COMPILING_PER_TARGET
-#include "cpu.h"
 struct MonitorDef {
     const char *name;
     int offset;
     uint64_t (*get_value)(Monitor *mon, const struct MonitorDef *md, int val);
     int type;
 };
-#endif
 
 #define MD_TLONG 0
 #define MD_I32   1

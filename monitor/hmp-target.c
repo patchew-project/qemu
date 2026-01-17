@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/bswap.h"
 #include "monitor-internal.h"
 #include "monitor/qdev.h"
 #include "net/slirp.h"
@@ -65,6 +66,7 @@ HMPCommand *hmp_cmds_for_target(bool info_command)
  */
 int get_monitor_def(Monitor *mon, uint64_t *pval, const char *name)
 {
+    const unsigned length = target_long_bits() / 8;
     const MonitorDef *md = target_monitor_defs();
     CPUState *cs = mon_get_cpu(mon);
     uint64_t tmp = 0;
@@ -87,7 +89,7 @@ int get_monitor_def(Monitor *mon, uint64_t *pval, const char *name)
                     *pval = *(uint32_t *)ptr;
                     break;
                 case MD_TLONG:
-                    *pval = *(target_ulong *)ptr;
+                    *pval = ldn_he_p(ptr, length);
                     break;
                 default:
                     *pval = 0;
@@ -100,7 +102,7 @@ int get_monitor_def(Monitor *mon, uint64_t *pval, const char *name)
 
     ret = target_get_monitor_def(cs, name, &tmp);
     if (!ret) {
-        *pval = (target_ulong)tmp;
+        *pval = ldn_he_p(&tmp, length);
     }
 
     return ret;
