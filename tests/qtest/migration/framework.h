@@ -139,6 +139,9 @@ typedef struct {
     /* Do not connect to target monitor and qtest sockets in qtest_init */
     bool defer_target_connect;
 
+    /* Use pc machine for x86_64 */
+    bool force_pc_machine;
+
     /*
      * Migration capabilities to be set in both source and
      * destination. For unilateral capabilities, use
@@ -248,6 +251,8 @@ void test_postcopy_common(MigrateCommon *args);
 void test_postcopy_recovery_common(MigrateCommon *args);
 int test_precopy_common(MigrateCommon *args);
 void test_file_common(MigrateCommon *args, bool stop_src);
+int test_colo_common(MigrateCommon *args, bool failover_during_checkpoint,
+                     bool colo_primary_failover);
 void *migrate_hook_start_precopy_tcp_multifd_common(QTestState *from,
                                                     QTestState *to,
                                                     const char *method);
@@ -267,5 +272,10 @@ void migration_test_add_file(MigrationTestEnv *env);
 void migration_test_add_precopy(MigrationTestEnv *env);
 void migration_test_add_cpr(MigrationTestEnv *env);
 void migration_test_add_misc(MigrationTestEnv *env);
+#ifdef CONFIG_REPLICATION
+void migration_test_add_colo(MigrationTestEnv *env);
+#else
+static inline void migration_test_add_colo(MigrationTestEnv *env) {};
+#endif
 
 #endif /* TEST_FRAMEWORK_H */
