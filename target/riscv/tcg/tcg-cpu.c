@@ -177,7 +177,7 @@ static TCGTBCPUState riscv_get_tb_cpu_state(CPUState *cs)
              ? EXT_STATUS_DIRTY : EXT_STATUS_DISABLED;
     }
 
-    if (cpu->cfg.debug && !icount_enabled()) {
+    if (cpu->cfg.ext_sdtrig && !icount_enabled()) {
         flags = FIELD_DP32(flags, TB_FLAGS, ITRIGGER, env->itrigger_enabled);
     }
 #endif
@@ -466,15 +466,6 @@ static void riscv_cpu_disable_priv_spec_isa_exts(RISCVCPU *cpu)
              */
             if (!strcmp(edata->name, "zicntr") ||
                 !strcmp(edata->name, "zihpm")) {
-                continue;
-            }
-
-            /*
-             * cpu.debug = true is marked as 'sdtrig', priv spec 1.12.
-             * Skip this warning since existing CPUs with older priv
-             * spec and debug = true will be impacted.
-             */
-            if (!strcmp(edata->name, "sdtrig")) {
                 continue;
             }
 

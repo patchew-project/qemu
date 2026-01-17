@@ -775,9 +775,9 @@ static RISCVException have_mseccfg(CPURISCVState *env, int csrno)
     return RISCV_EXCP_ILLEGAL_INST;
 }
 
-static RISCVException debug(CPURISCVState *env, int csrno)
+static RISCVException sdtrig(CPURISCVState *env, int csrno)
 {
-    if (riscv_cpu_cfg(env)->debug) {
+    if (riscv_cpu_cfg(env)->ext_sdtrig) {
         return RISCV_EXCP_NONE;
     }
 
@@ -6291,12 +6291,12 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
 
     /* Debug CSRs */
-    [CSR_TSELECT]   =  { "tselect",  debug, read_tselect,  write_tselect  },
-    [CSR_TDATA1]    =  { "tdata1",   debug, read_tdata,    write_tdata    },
-    [CSR_TDATA2]    =  { "tdata2",   debug, read_tdata,    write_tdata    },
-    [CSR_TDATA3]    =  { "tdata3",   debug, read_tdata,    write_tdata    },
-    [CSR_TINFO]     =  { "tinfo",    debug, read_tinfo,    write_ignore   },
-    [CSR_MCONTEXT]  =  { "mcontext", debug, read_mcontext, write_mcontext },
+    [CSR_TSELECT]   =  { "tselect",  sdtrig, read_tselect,  write_tselect  },
+    [CSR_TDATA1]    =  { "tdata1",   sdtrig, read_tdata,    write_tdata    },
+    [CSR_TDATA2]    =  { "tdata2",   sdtrig, read_tdata,    write_tdata    },
+    [CSR_TDATA3]    =  { "tdata3",   sdtrig, read_tdata,    write_tdata    },
+    [CSR_TINFO]     =  { "tinfo",    sdtrig, read_tinfo,    write_ignore   },
+    [CSR_MCONTEXT]  =  { "mcontext", sdtrig, read_mcontext, write_mcontext },
 
     [CSR_MCTRCTL]    = { "mctrctl",    ctr_mmode,  NULL, NULL, rmw_xctrctl    },
     [CSR_SCTRCTL]    = { "sctrctl",    ctr_smode,  NULL, NULL, rmw_xctrctl    },
