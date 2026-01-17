@@ -29,6 +29,7 @@
 #include "qemu-file.h"
 #include "trace.h"
 #include "multifd.h"
+#include "multifd-colo.h"
 #include "threadinfo.h"
 #include "options.h"
 #include "qemu/yank.h"
@@ -1265,7 +1266,18 @@ static int multifd_ram_state_recv(MultiFDRecvParams *p, Error **errp)
 {
     int ret;
 
+    if (migrate_colo()) {
+        multifd_colo_prepare_recv(p);
+    }
+
     ret = multifd_recv_state->ops->recv(p, errp);
+    if (ret != 0) {
+        return ret;
+    }
+
+    if (migrate_colo()) {
+        multifd_colo_process_recv(p);
+    }
 
     return ret;
 }

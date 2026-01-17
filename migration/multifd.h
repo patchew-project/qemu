@@ -280,6 +280,7 @@ typedef struct {
     /* ramblock */
     RAMBlock *block;
     /* ramblock host address */
+    /* or points to the corresponding address in the colo cache */
     uint8_t *host;
     /* buffers to recv */
     struct iovec *iov;
