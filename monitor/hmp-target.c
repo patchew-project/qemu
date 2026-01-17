@@ -63,7 +63,7 @@ HMPCommand *hmp_cmds_for_target(bool info_command)
  * Set @pval to the value in the register identified by @name.
  * return 0 if OK, -1 if not found
  */
-int get_monitor_def(Monitor *mon, int64_t *pval, const char *name)
+int get_monitor_def(Monitor *mon, uint64_t *pval, const char *name)
 {
     const MonitorDef *md = target_monitor_defs();
     CPUState *cs = mon_get_cpu(mon);
@@ -100,7 +100,7 @@ int get_monitor_def(Monitor *mon, int64_t *pval, const char *name)
 
     ret = target_get_monitor_def(cs, name, &tmp);
     if (!ret) {
-        *pval = (target_long) tmp;
+        *pval = (target_ulong)tmp;
     }
 
     return ret;
