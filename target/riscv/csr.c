@@ -3136,15 +3136,10 @@ static RISCVException write_mtval(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
-#ifndef CONFIG_USER_ONLY
-static bool riscv_sdext_available(CPURISCVState *env)
+#if !defined(CONFIG_USER_ONLY)
+static RISCVException sdext(CPURISCVState *env, int csrno)
 {
-    return riscv_cpu_cfg(env)->ext_sdext;
-}
-
-static RISCVException dcsr_predicate(CPURISCVState *env, int csrno)
-{
-    if (!riscv_sdext_available(env)) {
+    if (!riscv_cpu_cfg(env)->ext_sdext) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
@@ -6423,12 +6418,10 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_TINFO]     =  { "tinfo",    sdtrig, read_tinfo,    write_ignore   },
     [CSR_MCONTEXT]  =  { "mcontext", sdtrig, read_mcontext, write_mcontext },
 #if !defined(CONFIG_USER_ONLY)
-    [CSR_DCSR]      =  { "dcsr", dcsr_predicate, read_dcsr, write_dcsr },
-    [CSR_DPC]       =  { "dpc", dcsr_predicate, read_dpc, write_dpc },
-    [CSR_DSCRATCH]  =  { "dscratch0", dcsr_predicate,
-                         read_dscratch, write_dscratch },
-    [CSR_DSCRATCH1] =  { "dscratch1", dcsr_predicate,
-                         read_dscratch, write_dscratch },
+    [CSR_DCSR]      =  { "dcsr",      sdext, read_dcsr,     write_dcsr },
+    [CSR_DPC]       =  { "dpc",       sdext, read_dpc,      write_dpc },
+    [CSR_DSCRATCH]  =  { "dscratch0", sdext, read_dscratch, write_dscratch },
+    [CSR_DSCRATCH1] =  { "dscratch1", sdext, read_dscratch, write_dscratch },
 #endif
 
     [CSR_MCTRCTL]    = { "mctrctl",    ctr_mmode,  NULL, NULL, rmw_xctrctl    },
