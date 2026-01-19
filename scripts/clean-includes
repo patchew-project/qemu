@@ -128,7 +128,7 @@ for f in "$@"; do
       ;;
     *include/qemu/osdep.h | \
     *include/qemu/compiler.h | \
-    *include/qemu/qemu-plugin.h | \
+    *include/plugins/qemu-plugin.h | \
     *include/glib-compat.h | \
     *include/system/os-posix.h | \
     *include/system/os-win32.h | \
