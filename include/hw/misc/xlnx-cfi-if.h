@@ -7,8 +7,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+
 #ifndef XLNX_CFI_IF_H
-#define XLNX_CFI_IF_H 1
+#define XLNX_CFI_IF_H
 
 #include "qemu/help-texts.h"
 #include "qom/object.h"

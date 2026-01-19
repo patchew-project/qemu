@@ -16,8 +16,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+
 #ifndef EXEC_TLB_COMMON_H
-#define EXEC_TLB_COMMON_H 1
+#define EXEC_TLB_COMMON_H
 
 #define CPU_TLB_ENTRY_BITS (HOST_LONG_BITS == 32 ? 4 : 5)
 
