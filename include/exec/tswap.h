@@ -69,4 +69,4 @@ static inline void tswap64s(uint64_t *s)
     }
 }
 
-#endif  /* TSWAP_H */
+#endif /* TSWAP_H */

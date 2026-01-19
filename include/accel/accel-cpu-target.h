@@ -28,4 +28,4 @@
 #define ACCEL_CPU_NAME(name) (name "-" TYPE_ACCEL_CPU)
 DECLARE_CLASS_CHECKERS(AccelCPUClass, ACCEL_CPU, TYPE_ACCEL_CPU)
 
-#endif /* ACCEL_CPU_H */
+#endif /* ACCEL_CPU_TARGET_H */

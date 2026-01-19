@@ -75,4 +75,4 @@ struct Max78000UartState {
     CharFrontend chr;
     qemu_irq irq;
 };
-#endif /* HW_STM32F2XX_USART_H */
+#endif /* HW_MAX78000_UART_H */

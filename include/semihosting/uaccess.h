@@ -118,4 +118,4 @@ void uaccess_unlock_user(CPUArchState *env, void *p,
 ssize_t uaccess_strlen_user(CPUArchState *env, vaddr addr);
 #define target_strlen(p) uaccess_strlen_user(env, p)
 
-#endif /* SEMIHOSTING_SOFTMMU_UACCESS_H */
+#endif /* SEMIHOSTING_UACCESS_H */

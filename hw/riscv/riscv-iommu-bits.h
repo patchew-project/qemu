@@ -466,4 +466,4 @@ struct riscv_iommu_msi_pte {
 #define RISCV_IOMMU_MSI_MRIF_NPPN       RISCV_IOMMU_PPN_FIELD
 #define RISCV_IOMMU_MSI_MRIF_NID_MSB    BIT_ULL(60)
 
-#endif /* _RISCV_IOMMU_BITS_H_ */
+#endif /* HW_RISCV_IOMMU_BITS_H */

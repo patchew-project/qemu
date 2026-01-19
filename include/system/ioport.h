@@ -72,4 +72,4 @@ void portio_list_del(PortioList *piolist);
 void portio_list_set_enabled(PortioList *piolist, bool enabled);
 void portio_list_set_address(PortioList *piolist, uint32_t addr);
 
-#endif /* IOPORT_H */
+#endif /* SYSTEM_IOPORT_H */

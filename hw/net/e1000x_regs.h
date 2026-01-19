@@ -968,4 +968,4 @@ struct e1000_context_desc {
 #define E1000_VFTA_ENTRY_MASK           0x7F
 #define E1000_VFTA_ENTRY_BIT_SHIFT_MASK 0x1F
 
-#endif /* HW_E1000_REGS_H */
+#endif /* HW_E1000X_REGS_H */

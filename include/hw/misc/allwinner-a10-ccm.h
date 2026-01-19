@@ -64,4 +64,4 @@ struct AwA10ClockCtlState {
     uint32_t regs[AW_A10_CCM_REGS_NUM];
 };
 
-#endif /* HW_MISC_ALLWINNER_H3_CCU_H */
+#endif /* HW_MISC_ALLWINNER_A10_CCM_H */

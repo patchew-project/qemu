@@ -67,4 +67,4 @@ struct compat_physdev_map_pirq {
     uint64_t table_base;
 } __attribute__((packed));
 
-#endif /* QEMU_I386_XEN_COMPAT_H */
+#endif /* QEMU_I386_KVM_XEN_COMPAT_H */

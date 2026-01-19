@@ -79,4 +79,4 @@ struct LoongArchPICCommonClass {
     int (*pre_save)(LoongArchPICCommonState *s);
     int (*post_load)(LoongArchPICCommonState *s, int version_id);
 };
-#endif  /* HW_LOONGARCH_PIC_COMMON_H */
+#endif /* HW_LOONGARCH_PIC_COMMON_H */

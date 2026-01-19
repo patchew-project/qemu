@@ -100,4 +100,4 @@ struct LoongArchExtIOICommonClass {
     int (*pre_save)(void *s);
     int (*post_load)(void *s, int version_id);
 };
-#endif /* LOONGARCH_EXTIOI_H */
+#endif /* LOONGARCH_EXTIOI_COMMON_H */

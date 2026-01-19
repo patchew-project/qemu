@@ -8,4 +8,4 @@
 #define VEYRON_V1_MIMPID        0x111
 #define VEYRON_V1_MVENDORID     0x61f
 
-#endif /*  TARGET_RISCV_CPU_VENDORID_H */
+#endif /* TARGET_RISCV_CPU_VENDORID_H */

@@ -4,8 +4,10 @@
  *
  * Copyright (c) 2025 Loongson Technology Corporation Limited
  */
+
 #ifndef TARGET_LOONGARCH_TCG_LOONGARCH_H
 #define TARGET_LOONGARCH_TCG_LOONGARCH_H
+
 #include "cpu.h"
 #include "cpu-mmu.h"
 
@@ -20,4 +22,4 @@ TLBRet loongarch_get_addr_from_tlb(CPULoongArchState *env,
                                    MMUContext *context,
                                    MMUAccessType access_type, int mmu_idx);
 
-#endif  /* TARGET_LOONGARCH_TCG_LOONGARCH_H */
+#endif /* TARGET_LOONGARCH_TCG_LOONGARCH_H */

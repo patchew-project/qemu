@@ -350,4 +350,4 @@ void assert_signedness(Context *c,
                        YYLTYPE *locp,
                        HexSignedness signedness);
 
-#endif /* PARSER_HELPERS_h */
+#endif /* PARSER_HELPERS_H */

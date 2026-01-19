@@ -4,6 +4,7 @@
  *
  * IBM Flexible Service Interface Master
  */
+
 #ifndef FSI_FSI_MASTER_H
 #define FSI_FSI_MASTER_H
 
@@ -29,4 +30,4 @@ typedef struct FSIMasterState {
 } FSIMasterState;
 
 
-#endif /* FSI_FSI_H */
+#endif /* FSI_FSI_MASTER_H */

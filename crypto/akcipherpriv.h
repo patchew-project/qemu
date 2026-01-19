@@ -52,4 +52,4 @@ struct QCryptoAkCipherDriver {
     void (*free)(QCryptoAkCipher *akcipher);
 };
 
-#endif /* QCRYPTO_AKCIPHER_H */
+#endif /* QCRYPTO_AKCIPHERPRIV_H */

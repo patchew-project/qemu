@@ -29,4 +29,4 @@ typedef struct PnvN1Chiplet {
 #define PNV_PB_SCOM_ES_SIZE 4
     PnvPbScom es[PNV_PB_SCOM_ES_SIZE];
 } PnvN1Chiplet;
-#endif /*PPC_PNV_N1_CHIPLET_H */
+#endif /* PPC_PNV_N1_CHIPLET_H */

@@ -261,4 +261,4 @@ size_t qcrypto_der_encode_ctx_buffer_len(QCryptoEncodeContext *ctx);
 void qcrypto_der_encode_ctx_flush_and_free(QCryptoEncodeContext *ctx,
                                            uint8_t *dst);
 
-#endif  /* QCRYPTO_ASN1_DECODER_H */
+#endif /* QCRYPTO_ASN1_DECODER_H */
