@@ -82,9 +82,11 @@ def emit_prolog(suites, prefix):
 
 def emit_suite(name, suite, prefix):
     deps = ' '.join(suite.deps)
+    testdeps = ' '.join([x for x in suite.deps if 'pyvenv' not in x])
     print()
     print(f'.{prefix}-{name}.deps = {deps}')
-    print(f'.ninja-goals.check-build += $(.{prefix}-{name}.deps)')
+    print(f'.{prefix}-{name}.testdeps = {testdeps}')
+    print(f'.ninja-goals.check-build += $(.{prefix}-{name}.testdeps)')
 
     names = ' '.join(suite.names(name))
     targets = f'{prefix}-{name} {prefix}-report-{name}.junit.xml'
