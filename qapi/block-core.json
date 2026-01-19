@@ -6334,3 +6334,27 @@
 ##
 { 'struct': 'DummyBlockCoreForceArrays',
   'data': { 'unused-block-graph-info': ['BlockGraphInfo'] } }
+
+##
+# @blockdev-replace:
+#
+# Replace a block-node associated with device (@parent should be
+# QOM path, and @child should be "root") or with block-export (@parent
+# should be export name, and @child should be "root") or any child
+# of block-node (@parent should be node-name, and @child should be any
+# if its children names) with @new-child block-node.
+#
+# @parent: QOM path or block-export or node-name, which @child should
+#     be repalced.  If several matching parents exist, the command
+#     will fail
+#
+# @child: child to replace.  Must be "root" when parent is QOM path or
+#     block-export
+#
+# @new-child: node-name of the block-node, which should become a
+#    replacement for @child's current block-node
+#
+# Since 11.0
+##
+{ 'command': 'blockdev-replace',
+  'data': { 'parent': 'str', 'child': 'str', 'new-child': 'str' } }

@@ -3681,6 +3681,74 @@ out:
     bdrv_drain_all_end();
 }
 
+void qmp_blockdev_replace(const char *parent, const char *child,
+                          const char *new_child, Error **errp)
+{
+    BdrvChild *child_to_replace = NULL;
+    BlockDriverState *new_child_bs;
+    Error *dev_err = NULL, *exp_err = NULL;
+    BlockDriverState *parent_bs = bdrv_find_node(parent);
+    BlockBackend *dev_blk = blk_by_qdev_id(parent, &dev_err);
+    BlockBackend *exp_blk = blk_by_export_id(parent, &exp_err);
+    unsigned found = !!parent_bs + !!dev_blk + !!exp_blk;
+
+    if (found == 0) {
+        error_setg(errp, "Neither device, nor export, nor block-node exist"
+                   " with name '%s'. block-node: not found,"
+                   " device block-backend: %s, export block-backend: %s",
+                   parent, error_get_pretty(dev_err),
+                   error_get_pretty(exp_err));
+    }
+    error_free(dev_err);
+    error_free(exp_err);
+
+    if (found == 0) {
+        return;
+    }
+
+    if (found > 1) {
+        error_setg(errp, "Parent name '%s' is ambigous: block-node %s,"
+                   " device block-backend %s, export block-backend %s",
+                   parent, parent_bs ? "found" : "not found",
+                   dev_blk ? "found" : "not found",
+                   exp_blk ? "found" : "not found");
+        return;
+    }
+
+    if (parent_bs) {
+        child_to_replace = bdrv_find_child(parent_bs, child);
+        if (!child_to_replace) {
+            error_setg(errp, "Block driver node '%s' doesn't have child "
+                       "named '%s'", parent, child);
+            return;
+        }
+    } else {
+        BlockBackend *blk = dev_blk ?: exp_blk;
+
+        if (strcmp(child, "root")) {
+            error_setg(errp, "Devices and exports may have only 'root' child");
+        }
+
+        child_to_replace = blk_root(blk);
+        if (!child_to_replace) {
+            error_setg(errp, "%s '%s' is empty, nothing to replace",
+                       dev_blk ? "Device" : "Export", parent);
+            return;
+        }
+    }
+
+    assert(child_to_replace);
+    assert(child_to_replace->bs);
+
+    new_child_bs = bdrv_find_node(new_child);
+    if (!new_child_bs) {
+        error_setg(errp, "Node '%s' not found", new_child);
+        return;
+    }
+
+    bdrv_replace_child_bs(child_to_replace, new_child_bs, errp);
+}
+
 QemuOptsList qemu_common_drive_opts = {
     .name = "drive",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_common_drive_opts.head),
