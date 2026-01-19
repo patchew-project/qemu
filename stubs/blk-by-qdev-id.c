@@ -11,3 +11,8 @@ BlockBackend *blk_by_qdev_id(const char *id, Error **errp)
     error_setg(errp, "Parameter 'parent-type' does not accept value 'qdev'");
     return NULL;
 }
+
+void warn_device_exists(const char *id)
+{
+    /* do nothing */
+}

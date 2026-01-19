@@ -605,6 +605,8 @@ const char *qdev_set_id(DeviceState *dev, char *id, Error **errp)
                                              OBJECT(dev), NULL);
         if (prop) {
             dev->id = id;
+            warn_block_export_exists(id);
+            warn_block_node_exists(id);
         } else {
             error_setg(errp, "Duplicate device ID '%s'", id);
             g_free(id);
@@ -901,6 +903,20 @@ static DeviceState *find_device_state(const char *id, bool use_generic_error,
     }
 
     return dev;
+}
+
+void warn_device_exists(const char *id)
+{
+    Object *obj = object_resolve_path_at(qdev_get_peripheral(), id);
+
+    if (obj) {
+        DeviceState *dev = (DeviceState *)object_dynamic_cast(obj, TYPE_DEVICE);
+
+        warn_report("%s '%s' already exist. "
+                    "Ambigous identifiers are deprecated. "
+                    "In future that would be an error.",
+                    dev ? "Device" : "Object", id);
+    }
 }
 
 void qdev_unplug(DeviceState *dev, Error **errp)

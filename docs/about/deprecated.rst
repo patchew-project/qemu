@@ -551,3 +551,13 @@ command documentation for details on the ``fdset`` usage.
 
 The ``zero-blocks`` capability was part of the block migration which
 doesn't exist anymore since it was removed in QEMU v9.1.
+
+Identifiers
+-----------
+
+Possibility to intersect qdev ids/paths, block node names, and block
+export names namespaces is deprecated. In future that would be
+abandoned and all block exports, block nodes and devices will have
+unique names. Now, reusing the name for another type of object (for
+example, creating block-node with node-name equal to existing qdev
+id) produce a warning.

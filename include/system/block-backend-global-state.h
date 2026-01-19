@@ -73,6 +73,8 @@ DeviceState *blk_get_attached_dev(BlockBackend *blk);
 BlockBackend *blk_by_dev(void *dev);
 BlockBackend *blk_by_qdev_id(const char *id, Error **errp);
 BlockBackend *blk_by_export_id(const char *id, Error **errp);
+void warn_block_export_exists(const char *id);
+void warn_device_exists(const char *id);
 void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops, void *opaque);
 
 int blk_make_zero(BlockBackend *blk, BdrvRequestFlags flags);

@@ -7,3 +7,7 @@ BlockExport *blk_exp_find_by_blk(BlockBackend *blk)
     return NULL;
 }
 
+void warn_block_export_exists(const char *id)
+{
+    /* do nothing */
+}

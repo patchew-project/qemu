@@ -1649,6 +1649,9 @@ static void bdrv_assign_node_name(BlockDriverState *bs,
         goto out;
     }
 
+    warn_device_exists(node_name);
+    warn_block_export_exists(node_name);
+
     /* copy node name into the bs and insert it into the graph list */
     pstrcpy(bs->node_name, sizeof(bs->node_name), node_name);
     QTAILQ_INSERT_TAIL(&graph_bdrv_states, bs, node_list);
@@ -6231,6 +6234,15 @@ BlockDriverState *bdrv_find_node(const char *node_name)
         }
     }
     return NULL;
+}
+
+void warn_block_node_exists(const char *node_name)
+{
+    if (bdrv_find_node(node_name)) {
+        warn_report("block node already exist with name '%s'. "
+                    "Ambigous identifiers are deprecated. "
+                    "In future that would be an error.", node_name);
+    }
 }
 
 /* Put this QMP function here so it can access the static graph_bdrv_states. */

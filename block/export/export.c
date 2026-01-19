@@ -23,6 +23,7 @@
 #include "qapi/qapi-commands-block-export.h"
 #include "qapi/qapi-events-block-export.h"
 #include "qemu/id.h"
+#include "qemu/error-report.h"
 #ifdef CONFIG_VHOST_USER_BLK_SERVER
 #include "vhost-user-blk-server.h"
 #endif
@@ -107,6 +108,9 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
         error_setg(errp, "Block export id '%s' is already in use", export->id);
         return NULL;
     }
+
+    warn_device_exists(export->id);
+    warn_block_node_exists(export->id);
 
     drv = blk_exp_find_driver(export->type);
     if (!drv) {
@@ -382,6 +386,15 @@ BlockExportInfoList *qmp_query_block_exports(Error **errp)
     }
 
     return head;
+}
+
+void warn_block_export_exists(const char *id)
+{
+    if (blk_exp_find(id)) {
+        warn_report("block-export already exist with name '%s'. "
+                    "Ambigous identifiers are deprecated. "
+                    "In future that would be an error.", id);
+    }
 }
 
 BlockBackend *blk_by_export_id(const char *id, Error **errp)
