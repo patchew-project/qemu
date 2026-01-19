@@ -9,8 +9,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef _GDBSTUB_HELPERS_H_
-#define _GDBSTUB_HELPERS_H_
+#ifndef GDBSTUB_HELPERS_H
+#define GDBSTUB_HELPERS_H
 
 #include "qemu/bswap.h"
 #include "qemu/target-info.h"
@@ -115,4 +115,4 @@ static inline uint8_t *gdb_get_reg_ptr(GByteArray *buf, int len)
 #endif
 #endif /* COMPILING_PER_TARGET */
 
-#endif /* _GDBSTUB_HELPERS_H_ */
+#endif /* GDBSTUB_HELPERS_H */

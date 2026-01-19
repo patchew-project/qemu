@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef XEN_PVH_COMMON_H__
-#define XEN_PVH_COMMON_H__
+#ifndef XEN_PVH_COMMON_H
+#define XEN_PVH_COMMON_H
 
 #include "system/memory.h"
 #include "qom/object.h"

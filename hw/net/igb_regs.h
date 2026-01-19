@@ -4,8 +4,8 @@
  * drivers/net/ethernet/intel/igb
  */
 
-#ifndef HW_IGB_REGS_H_
-#define HW_IGB_REGS_H_
+#ifndef HW_IGB_REGS_H
+#define HW_IGB_REGS_H
 
 #include "e1000x_regs.h"
 

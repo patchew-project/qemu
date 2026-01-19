@@ -5,8 +5,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
-#ifndef _TB_FLUSH_H_
-#define _TB_FLUSH_H_
+
+#ifndef TB_FLUSH_H
+#define TB_FLUSH_H
 
 /**
  * tb_flush__exclusive_or_serial()
@@ -35,4 +36,4 @@ void queue_tb_flush(CPUState *cs);
 
 void tcg_flush_jmp_cache(CPUState *cs);
 
-#endif /* _TB_FLUSH_H_ */
+#endif /* TB_FLUSH_H */

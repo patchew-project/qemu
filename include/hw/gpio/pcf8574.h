@@ -7,9 +7,9 @@
  * Written by Dmitrii Sharikhin <d.sharikhin@yadro.com>
  */
 
-#ifndef _HW_GPIO_PCF8574
-#define _HW_GPIO_PCF8574
+#ifndef HW_GPIO_PCF8574_H
+#define HW_GPIO_PCF8574_H
 
 #define TYPE_PCF8574 "pcf8574"
 
-#endif /* _HW_GPIO_PCF8574 */
+#endif /* HW_GPIO_PCF8574_H */

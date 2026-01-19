@@ -7,9 +7,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef INCLUDE_HW_MISC_RASPBERRYPI_FW_DEFS_H_
-#define INCLUDE_HW_MISC_RASPBERRYPI_FW_DEFS_H_
-
+#ifndef INCLUDE_HW_MISC_RASPBERRYPI_FW_DEFS_H
+#define INCLUDE_HW_MISC_RASPBERRYPI_FW_DEFS_H
 
 enum rpi_firmware_property_tag {
     RPI_FWREQ_PROPERTY_END =                           0,
@@ -172,4 +171,4 @@ typedef struct rpi_firmware_prop_request {
     uint8_t payload[0];
 } rpi_firmware_prop_request_t;
 
-#endif /* INCLUDE_HW_MISC_RASPBERRYPI_FW_DEFS_H_ */
+#endif /* INCLUDE_HW_MISC_RASPBERRYPI_FW_DEFS_H */

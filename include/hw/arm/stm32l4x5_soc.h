@@ -21,8 +21,8 @@
  * https://www.st.com/en/microcontrollers-microprocessors/stm32l4x5/documentation.html
  */
 
-#ifndef HW_ARM_STM32L4x5_SOC_H
-#define HW_ARM_STM32L4x5_SOC_H
+#ifndef HW_ARM_STM32L4X5_SOC_H
+#define HW_ARM_STM32L4X5_SOC_H
 
 #include "system/memory.h"
 #include "hw/arm/armv7m.h"

@@ -4,9 +4,9 @@
  * Copyright (c) 2008 Fabrice Bellard
  */
 
-#ifndef TCG_INSN_START_WORDS
-#define TCG_INSN_START_WORDS
+#ifndef TCG_INSN_START_WORDS_H
+#define TCG_INSN_START_WORDS_H
 
 #define INSN_START_WORDS 3
 
-#endif /* TCG_INSN_START_WORDS */
+#endif /* TCG_INSN_START_WORDS_H */

@@ -5,8 +5,9 @@
  *
  * This file is licensed under the terms of the 3-clause BSD license
  */
-#ifndef _TPM_IOCTL_H_
-#define _TPM_IOCTL_H_
+
+#ifndef TPM_IOCTL_H
+#define TPM_IOCTL_H
 
 #if defined(__CYGWIN__)
 # define __USE_LINUX_IOCTL_DEFS
@@ -341,4 +342,4 @@ enum {
     CMD_LOCK_STORAGE,         /* 0x13 */
 };
 
-#endif /* _TPM_IOCTL_H_ */
+#endif /* TPM_IOCTL_H */
