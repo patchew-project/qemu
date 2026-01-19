@@ -14,18 +14,18 @@ __maintainer__ = "Stefan Hajnoczi"
 __email__      = "stefanha@redhat.com"
 
 
-from tracetool import expand_format_string, out
+from tracetool import Event, expand_format_string, out
 
 PUBLIC = True
 CHECK_TRACE_EVENT_GET_STATE = True
 
 
-def generate_h_begin(events, group):
+def generate_h_begin(events: list[Event], group: str) -> None:
     out('#include <syslog.h>',
         '')
 
 
-def generate_h(event, group):
+def generate_h(event: Event, group: str) -> None:
     argnames = ", ".join(event.args.names())
     if len(event.args) > 0:
         argnames = ", " + argnames
@@ -39,12 +39,12 @@ def generate_h(event, group):
         fmt=event.fmt.rstrip("\n"),
         argnames=argnames)
 
-def generate_rs(event, group):
+def generate_rs(event: Event, group: str) -> None:
     out('        let format_string = c"%(fmt)s";',
         '        unsafe {::trace::syslog(::trace::LOG_INFO, format_string.as_ptr() as *const c_char, %(args)s);}',
         fmt=expand_format_string(event.fmt),
         args=event.args.rust_call_varargs())
 
-def generate_h_backend_dstate(event, group):
+def generate_h_backend_dstate(event: Event, group: str) -> None:
     out('    trace_event_get_state_dynamic_by_id(%(event_id)s) || \\',
         event_id="TRACE_" + event.name.upper())

@@ -16,7 +16,8 @@ __email__      = "stefanha@redhat.com"
 
 from sys import platform
 
-from tracetool import out
+from tracetool import Event, out
+from tracetool.backend import Wrapper
 
 # Reserved keywords from
 # https://wikis.oracle.com/display/DTrace/Types,+Operators+and+Expressions
@@ -31,7 +32,7 @@ RESERVED_WORDS = (
 )
 
 
-def generate(events, backend, group):
+def generate(events: list[Event], backend: Wrapper, group: str) -> None:
     events = [e for e in events
               if "disable" not in e.properties]
 

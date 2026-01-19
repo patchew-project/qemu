@@ -60,11 +60,12 @@ __email__      = "stefanha@redhat.com"
 
 
 import os
+from typing import Any, Iterator
 
 import tracetool
 
 
-def get_list(only_public = False):
+def get_list(only_public: bool = False) -> list[tuple[str, str]]:
     """Get a list of (name, description) pairs."""
     res = [("nop", "Tracing disabled.")]
     modnames = []
@@ -93,7 +94,7 @@ def get_list(only_public = False):
     return res
 
 
-def exists(name):
+def exists(name: str) -> bool:
     """Return whether the given backend exists."""
     if len(name) == 0:
         return False
@@ -104,7 +105,7 @@ def exists(name):
 
 
 class Wrapper:
-    def __init__(self, backends, format):
+    def __init__(self, backends: list[str], format: str) -> None:
         self._backends = [backend.replace("-", "_") for backend in backends]
         self._format = format.replace("-", "_")
         self.check_trace_event_get_state = False
@@ -115,13 +116,13 @@ class Wrapper:
             check_trace_event_get_state = getattr(backend, "CHECK_TRACE_EVENT_GET_STATE", False)
             self.check_trace_event_get_state = self.check_trace_event_get_state or check_trace_event_get_state
 
-    def backend_modules(self):
+    def backend_modules(self) -> Iterator[Any]:
         for backend in self._backends:
              module = tracetool.try_import("tracetool.backend." + backend)[1]
              if module is not None:
                  yield module
 
-    def _run_function(self, name, *args, check_trace_event_get_state=None, **kwargs):
+    def _run_function(self, name: str, *args, check_trace_event_get_state: bool | None=None, **kwargs) -> None:
         for backend in self.backend_modules():
             func = getattr(backend, name % self._format, None)
             if func is not None and \
@@ -129,14 +130,14 @@ class Wrapper:
                  check_trace_event_get_state == getattr(backend, 'CHECK_TRACE_EVENT_GET_STATE', False)):
                     func(*args, **kwargs)
 
-    def generate_begin(self, events, group):
+    def generate_begin(self, events: list[tracetool.Event], group: str) -> None:
         self._run_function("generate_%s_begin", events, group)
 
-    def generate(self, event, group, check_trace_event_get_state=None):
+    def generate(self, event: tracetool.Event, group: str, check_trace_event_get_state: bool | None=None) -> None:
         self._run_function("generate_%s", event, group, check_trace_event_get_state=check_trace_event_get_state)
 
-    def generate_backend_dstate(self, event, group):
+    def generate_backend_dstate(self, event: tracetool.Event, group: str) -> None:
         self._run_function("generate_%s_backend_dstate", event, group)
 
-    def generate_end(self, events, group):
+    def generate_end(self, events: list[tracetool.Event], group: str) -> None:
         self._run_function("generate_%s_end", events, group)

@@ -14,28 +14,28 @@ __maintainer__ = "Stefan Hajnoczi"
 __email__      = "stefanha@redhat.com"
 
 
-from tracetool import out
+from tracetool import Event, out
 
 PUBLIC = True
 
 
-PROBEPREFIX = None
+PROBEPREFIX: str|None = None
 
-def probeprefix():
+def probeprefix() -> str:
     if PROBEPREFIX is None:
         raise ValueError("you must set PROBEPREFIX")
     return PROBEPREFIX
 
 
-BINARY = None
+BINARY: str|None = None
 
-def binary():
+def binary() -> str:
     if BINARY is None:
         raise ValueError("you must set BINARY")
     return BINARY
 
 
-def generate_h_begin(events, group):
+def generate_h_begin(events: list[Event], group: str) -> None:
     if group == "root":
         header = "trace-dtrace-root.h"
     else:
@@ -62,13 +62,13 @@ def generate_h_begin(events, group):
             '#endif',
             uppername=e.name.upper())
 
-def generate_h(event, group):
+def generate_h(event: Event, group: str) -> None:
     out('    QEMU_%(uppername)s(%(argnames)s);',
         uppername=event.name.upper(),
         argnames=", ".join(event.args.names()))
 
 
-def generate_h_backend_dstate(event, group):
+def generate_h_backend_dstate(event: Event, group: str) -> None:
     out('    QEMU_%(uppername)s_ENABLED() || \\',
         uppername=event.name.upper())
 

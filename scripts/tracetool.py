@@ -16,6 +16,7 @@ __email__      = "stefanha@redhat.com"
 
 import getopt
 import sys
+from typing import NoReturn
 
 import tracetool.backend
 import tracetool.format
@@ -23,7 +24,7 @@ from tracetool import error_write, out, out_open
 
 _SCRIPT = ""
 
-def error_opt(msg = None):
+def error_opt(msg: str | None = None) -> NoReturn:
     if msg is not None:
         error_write("Error: " + msg + "\n")
 
@@ -58,7 +59,7 @@ Options:
     else:
         sys.exit(1)
 
-def main(args):
+def main(args: list[str]) -> None:
     global _SCRIPT
     _SCRIPT = args[0]
 

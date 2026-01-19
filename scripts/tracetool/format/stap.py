@@ -14,7 +14,8 @@ __maintainer__ = "Stefan Hajnoczi"
 __email__      = "stefanha@redhat.com"
 
 
-from tracetool import out
+from tracetool import Event, out
+from tracetool.backend import Wrapper
 from tracetool.backend.dtrace import binary, probeprefix
 
 # Technically 'self' is not used by systemtap yet, but
@@ -27,14 +28,14 @@ RESERVED_WORDS = (
     )
 
 
-def stap_escape(identifier):
+def stap_escape(identifier: str) -> str:
     # Append underscore to reserved keywords
     if identifier in RESERVED_WORDS:
         return identifier + '_'
     return identifier
 
 
-def generate(events, backend, group):
+def generate(events: list[Event], backend: Wrapper, group: str) -> None:
     events = [e for e in events
               if "disable" not in e.properties]
 

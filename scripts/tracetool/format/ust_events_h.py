@@ -14,10 +14,11 @@ __maintainer__ = "Stefan Hajnoczi"
 __email__      = "stefanha@redhat.com"
 
 
-from tracetool import out
+from tracetool import Event, out
+from tracetool.backend import Wrapper
 
 
-def generate(events, backend, group):
+def generate(events: list[Event], backend: Wrapper, group: str) -> None:
     events = [e for e in events
               if "disabled" not in e.properties]
 

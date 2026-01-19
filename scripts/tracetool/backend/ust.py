@@ -14,12 +14,12 @@ __maintainer__ = "Stefan Hajnoczi"
 __email__      = "stefanha@redhat.com"
 
 
-from tracetool import out
+from tracetool import Event, out
 
 PUBLIC = True
 
 
-def generate_h_begin(events, group):
+def generate_h_begin(events: list[Event], group: str) -> None:
     header = 'trace-ust-' + group + '.h'
     out('#include <lttng/tracepoint.h>',
         '#include "%s"' % header,
@@ -31,7 +31,7 @@ def generate_h_begin(events, group):
         '')
 
 
-def generate_h(event, group):
+def generate_h(event: Event, group: str) -> None:
     argnames = ", ".join(event.args.names())
     if len(event.args) > 0:
         argnames = ", " + argnames
@@ -41,6 +41,6 @@ def generate_h(event, group):
         tp_args=argnames)
 
 
-def generate_h_backend_dstate(event, group):
+def generate_h_backend_dstate(event: Event, group: str) -> None:
     out('    tracepoint_enabled(qemu, %(name)s) || \\',
         name=event.name)

@@ -40,9 +40,10 @@ __email__      = "stefanha@redhat.com"
 import os
 
 import tracetool
+from tracetool.backend import Wrapper
 
 
-def get_list():
+def get_list() -> list[tuple[str, str]]:
     """Get a list of (name, description) pairs."""
     res = []
     modnames = []
@@ -67,7 +68,7 @@ def get_list():
     return res
 
 
-def exists(name):
+def exists(name: str) -> bool:
     """Return whether the given format exists."""
     if len(name) == 0:
         return False
@@ -75,7 +76,7 @@ def exists(name):
     return tracetool.try_import("tracetool.format." + name)[0]
 
 
-def generate(events, format, backend, group):
+def generate(events: list[tracetool.Event], format: str, backend: Wrapper, group: str) -> None:
     if not exists(format):
         raise ValueError("unknown format: %s" % format)
     format = format.replace("-", "_")
