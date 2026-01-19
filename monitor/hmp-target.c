@@ -23,7 +23,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/bswap.h"
 #include "monitor-internal.h"
 #include "monitor/qdev.h"
 #include "net/slirp.h"
@@ -58,54 +57,6 @@ static HMPCommand hmp_cmds[] = {
 HMPCommand *hmp_cmds_for_target(bool info_command)
 {
     return info_command ? hmp_info_cmds : hmp_cmds;
-}
-
-/*
- * Set @pval to the value in the register identified by @name.
- * return 0 if OK, -1 if not found
- */
-int get_monitor_def(Monitor *mon, uint64_t *pval, const char *name)
-{
-    const unsigned length = target_long_bits() / 8;
-    const MonitorDef *md = target_monitor_defs();
-    CPUState *cs = mon_get_cpu(mon);
-    uint64_t tmp = 0;
-    int ret;
-
-    if (cs == NULL || md == NULL) {
-        return -1;
-    }
-
-    for(; md->name != NULL; md++) {
-        if (hmp_compare_cmd(name, md->name)) {
-            if (md->get_value) {
-                *pval = md->get_value(mon, md, md->offset);
-            } else {
-                CPUArchState *env = mon_get_cpu_env(mon);
-                void *ptr = (uint8_t *)env + md->offset;
-
-                switch(md->type) {
-                case MD_I32:
-                    *pval = *(uint32_t *)ptr;
-                    break;
-                case MD_TULONG:
-                    *pval = ldn_he_p(ptr, length);
-                    break;
-                default:
-                    *pval = 0;
-                    break;
-                }
-            }
-            return 0;
-        }
-    }
-
-    ret = target_get_monitor_def(cs, name, &tmp);
-    if (!ret) {
-        *pval = ldn_he_p(&tmp, length);
-    }
-
-    return ret;
 }
 
 static int
