@@ -567,9 +567,9 @@ def generate(events, group, format, backends,
 
     if len(backends) == 0:
         raise TracetoolError("no backends specified")
-    for backend in backends:
-        if not tracetool.backend.exists(backend):
-            raise TracetoolError("unknown backend: %s" % backend)
+    for backend_name in backends:
+        if not tracetool.backend.exists(backend_name):
+            raise TracetoolError("unknown backend: %s" % backend_name)
     backend = tracetool.backend.Wrapper(backends, format)
 
     import tracetool.backend.dtrace
