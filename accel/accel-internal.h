@@ -14,4 +14,4 @@
 
 void accel_init_ops_interfaces(AccelClass *ac);
 
-#endif /* ACCEL_SYSTEM_H */
+#endif /* ACCEL_INTERNAL_H */

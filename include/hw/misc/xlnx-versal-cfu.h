@@ -14,8 +14,9 @@
  * [2] Versal ACAP Register Reference,
  *     https://docs.xilinx.com/r/en-US/am012-versal-register-reference/CFU_CSR-Module
  */
-#ifndef HW_MISC_XLNX_VERSAL_CFU_APB_H
-#define HW_MISC_XLNX_VERSAL_CFU_APB_H
+
+#ifndef HW_MISC_XLNX_VERSAL_CFU_H
+#define HW_MISC_XLNX_VERSAL_CFU_H
 
 #include "hw/core/sysbus.h"
 #include "hw/core/register.h"

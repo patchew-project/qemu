@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QIO_CHANNEL_FILE_H
-#define QIO_CHANNEL_FILE_H
+#ifndef QIO_CHANNEL_NULL_H
+#define QIO_CHANNEL_NULL_H
 
 #include "io/channel.h"
 #include "qom/object.h"

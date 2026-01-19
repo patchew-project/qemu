@@ -1,5 +1,5 @@
-#ifndef QDEV_CORE_H
-#define QDEV_CORE_H
+#ifndef HW_CORE_QDEV_H
+#define HW_CORE_QDEV_H
 
 #include "qemu/atomic.h"
 #include "qemu/queue.h"

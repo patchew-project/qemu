@@ -9,8 +9,9 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
-#ifndef TARGET_I386_CG_H
-#define TARGET_I386_CG_H
+
+#ifndef TARGET_I386_CONFIDENTIAL_GUEST_H
+#define TARGET_I386_CONFIDENTIAL_GUEST_H
 
 #include "qom/object.h"
 

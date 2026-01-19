@@ -6,8 +6,8 @@
  * Copyright (c) 2025 Red Hat, Inc.
  */
 
-#ifndef QCRYPTO_TLSCREDS_BOX_H
-#define QCRYPTO_TLSCREDS_BOX_H
+#ifndef QCRYPTO_TLSCREDSBOX_H
+#define QCRYPTO_TLSCREDSBOX_H
 
 #include "qom/object.h"
 
@@ -47,4 +47,4 @@ void qcrypto_tls_creds_box_unref(QCryptoTLSCredsBox *credsbox);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(QCryptoTLSCredsBox, qcrypto_tls_creds_box_unref);
 
-#endif /* QCRYPTO_TLSCREDS_BOX_H */
+#endif /* QCRYPTO_TLSCREDSBOX_H */

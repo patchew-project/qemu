@@ -9,8 +9,9 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
-#ifndef QEMU_DIRTYRLIMIT_H
-#define QEMU_DIRTYRLIMIT_H
+
+#ifndef SYSTEM_DIRTYLIMIT_H
+#define SYSTEM_DIRTYLIMIT_H
 
 #define DIRTYLIMIT_CALC_TIME_MS         1000    /* 1000ms */
 

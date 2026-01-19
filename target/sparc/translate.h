@@ -4,8 +4,9 @@
  * Copyright (c) 2024 Linaro, Ltd
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
-#ifndef SPARC_TRANSLATION_H
-#define SPARC_TRANSLATION_H
+
+#ifndef SPARC_TRANSLATE_H
+#define SPARC_TRANSLATE_H
 
 /* Dynamic PC, must exit to main loop. */
 #define DYNAMIC_PC         1

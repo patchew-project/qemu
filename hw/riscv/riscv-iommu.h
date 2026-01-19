@@ -16,8 +16,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HW_RISCV_IOMMU_STATE_H
-#define HW_RISCV_IOMMU_STATE_H
+#ifndef HW_RISCV_IOMMU_H
+#define HW_RISCV_IOMMU_H
 
 #include "qom/object.h"
 #include "hw/core/qdev-properties.h"

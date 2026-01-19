@@ -17,8 +17,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TARGET_ARM_FEATURES_H
-#define TARGET_ARM_FEATURES_H
+#ifndef TARGET_ARM_CPU_FEATURES_H
+#define TARGET_ARM_CPU_FEATURES_H
 
 #include "hw/core/registerfields.h"
 #include "qemu/host-utils.h"

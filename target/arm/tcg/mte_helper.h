@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later
  */
 
-#ifndef TARGET_ARM_MTE_H
-#define TARGET_ARM_MTE_H
+#ifndef TARGET_ARM_TCG_MTE_HELPER_H
+#define TARGET_ARM_TCG_MTE_HELPER_H
 
 #include "exec/mmu-access-type.h"
 
@@ -63,4 +63,4 @@ int load_tag1(uint64_t ptr, uint8_t *mem);
  */
 void store_tag1(uint64_t ptr, uint8_t *mem, int tag);
 
-#endif /* TARGET_ARM_MTE_H */
+#endif /* TARGET_ARM_TCG_MTE_HELPER_H */

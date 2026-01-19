@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef HW_PCIHOST_FSLIMX8MPCIEPHY_H
-#define HW_PCIHOST_FSLIMX8MPCIEPHY_H
+#ifndef HW_PCI_HOST_FSL_IMX8M_PHY_H
+#define HW_PCI_HOST_FSL_IMX8M_PHY_H
 
 #include "hw/core/sysbus.h"
 #include "qom/object.h"

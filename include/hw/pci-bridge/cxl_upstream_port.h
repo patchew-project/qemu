@@ -1,6 +1,7 @@
 
-#ifndef CXL_USP_H
-#define CXL_USP_H
+#ifndef HW_PCI_BRIDGE_CXL_UPSTREAM_PORT_H
+#define HW_PCI_BRIDGE_CXL_UPSTREAM_PORT_H
+
 #include "hw/pci/pcie.h"
 #include "hw/pci/pcie_port.h"
 #include "hw/cxl/cxl.h"
@@ -20,4 +21,4 @@ typedef struct CXLUpstreamPort {
     uint64_t sn;
 } CXLUpstreamPort;
 
-#endif /* CXL_SUP_H */
+#endif /* HW_PCI_BRIDGE_CXL_UPSTREAM_PORT_H */

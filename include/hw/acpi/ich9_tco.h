@@ -7,8 +7,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#ifndef HW_ACPI_TCO_H
-#define HW_ACPI_TCO_H
+#ifndef HW_ACPI_ICH9_TCO_H
+#define HW_ACPI_ICH9_TCO_H
 
 #include "system/memory.h"
 #include "migration/vmstate.h"
@@ -80,4 +80,4 @@ void acpi_pm_tco_init(TCOIORegs *tr, MemoryRegion *parent);
 
 extern const VMStateDescription vmstate_tco_io_sts;
 
-#endif /* HW_ACPI_TCO_H */
+#endif /* HW_ACPI_ICH9_TCO_H */

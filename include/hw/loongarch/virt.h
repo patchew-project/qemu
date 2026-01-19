@@ -5,8 +5,8 @@
  * Copyright (C) 2021 Loongson Technology Corporation Limited
  */
 
-#ifndef HW_LOONGARCH_H
-#define HW_LOONGARCH_H
+#ifndef HW_LOONGARCH_VIRT_H
+#define HW_LOONGARCH_VIRT_H
 
 #include "hw/core/boards.h"
 #include "qemu/queue.h"

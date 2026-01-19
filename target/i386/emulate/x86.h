@@ -16,8 +16,8 @@
  * License along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef X86_EMU_DEFS_H
-#define X86_EMU_DEFS_H
+#ifndef TARGET_I386_EMULATE_X86_H
+#define TARGET_I386_EMULATE_X86_H
 
 typedef struct x86_register {
     union {

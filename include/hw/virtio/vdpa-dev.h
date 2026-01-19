@@ -12,8 +12,9 @@
  * This work is licensed under the terms of the GNU LGPL, version 2 or later.
  * See the COPYING.LIB file in the top-level directory.
  */
-#ifndef _VHOST_VDPA_DEVICE_H
-#define _VHOST_VDPA_DEVICE_H
+
+#ifndef HW_VIRTIO_VDPA_DEV_H
+#define HW_VIRTIO_VDPA_DEV_H
 
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-vdpa.h"

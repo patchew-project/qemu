@@ -5,8 +5,9 @@
  *
  * SPDX-License-Identifier: LGPL-2.1-or-later
  */
-#ifndef USER_TSWAP_H
-#define USER_TSWAP_H
+
+#ifndef USER_TSWAP_TARGET_H
+#define USER_TSWAP_TARGET_H
 
 #include "exec/cpu-defs.h"
 #include "exec/tswap.h"

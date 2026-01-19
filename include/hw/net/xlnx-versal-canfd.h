@@ -25,8 +25,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef HW_CANFD_XILINX_H
-#define HW_CANFD_XILINX_H
+#ifndef HW_NET_XLNX_VERSAL_CANFD_H
+#define HW_NET_XLNX_VERSAL_CANFD_H
 
 #include "hw/core/register.h"
 #include "hw/core/ptimer.h"

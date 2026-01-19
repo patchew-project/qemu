@@ -5,8 +5,9 @@
  *
  * SPDX-License-Identifier: LGPL-2.1+
  */
-#ifndef EXEC_PAGE_PROT_COMMON_H
-#define EXEC_PAGE_PROT_COMMON_H
+
+#ifndef EXEC_PAGE_PROTECTION_H
+#define EXEC_PAGE_PROTECTION_H
 
 /* same as PROT_xxx */
 #define PAGE_READ      0x0001

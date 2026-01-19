@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later
  */
 
-#ifndef ACCEL_TCG_TB_INTERNAL_TARGET_H
-#define ACCEL_TCG_TB_INTERNAL_TARGET_H
+#ifndef ACCEL_TCG_TB_INTERNAL_H
+#define ACCEL_TCG_TB_INTERNAL_H
 
 #include "exec/translation-block.h"
 

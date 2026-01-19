@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#ifndef HW_I386_TD_HOB_H
-#define HW_I386_TD_HOB_H
+#ifndef HW_I386_TDVF_HOB_H
+#define HW_I386_TDVF_HOB_H
 
 #include "hw/i386/tdvf.h"
 #include "target/i386/kvm/tdx.h"

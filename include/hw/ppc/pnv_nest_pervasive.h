@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef PPC_PNV_NEST_CHIPLET_PERVASIVE_H
-#define PPC_PNV_NEST_CHIPLET_PERVASIVE_H
+#ifndef HW_PPC_PNV_NEST_PERVASIVE_H
+#define HW_PPC_PNV_NEST_PERVASIVE_H
 
 #define TYPE_PNV_NEST_CHIPLET_PERVASIVE "pnv-nest-chiplet-pervasive"
 #define PNV_NEST_CHIPLET_PERVASIVE(obj) OBJECT_CHECK(PnvNestChipletPervasive, (obj), TYPE_PNV_NEST_CHIPLET_PERVASIVE)
@@ -29,4 +29,4 @@ typedef struct PnvNestChipletPervasive {
     PnvPervasiveCtrlRegs    control_regs;
 } PnvNestChipletPervasive;
 
-#endif /*PPC_PNV_NEST_CHIPLET_PERVASIVE_H */
+#endif /* HW_PPC_PNV_NEST_PERVASIVE_H */

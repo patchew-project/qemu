@@ -11,8 +11,8 @@
  *
  */
 
-#ifndef QAPI_QMP_DISPATCH_H
-#define QAPI_QMP_DISPATCH_H
+#ifndef QAPI_QMP_REGISTRY_H
+#define QAPI_QMP_REGISTRY_H
 
 #include "monitor/monitor.h"
 #include "qemu/queue.h"

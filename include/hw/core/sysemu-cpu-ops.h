@@ -7,8 +7,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#ifndef SYSTEM_CPU_OPS_H
-#define SYSTEM_CPU_OPS_H
+#ifndef HW_CORE_SYSEMU_CPU_OPS_H
+#define HW_CORE_SYSEMU_CPU_OPS_H
 
 #include "hw/core/cpu.h"
 
@@ -93,4 +93,4 @@ typedef struct SysemuCPUOps {
 
 } SysemuCPUOps;
 
-#endif /* SYSTEM_CPU_OPS_H */
+#endif /* HW_CORE_SYSEMU_CPU_OPS_H */

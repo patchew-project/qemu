@@ -13,8 +13,8 @@
  * top-level directory.
  */
 
-#ifndef QEMU_VIRTIO_SOUND_H
-#define QEMU_VIRTIO_SOUND_H
+#ifndef HW_AUDIO_VIRTIO_SND_H
+#define HW_AUDIO_VIRTIO_SND_H
 
 #include "hw/virtio/virtio.h"
 #include "qemu/audio.h"

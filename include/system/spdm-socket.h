@@ -20,8 +20,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef SPDM_REQUESTER_H
-#define SPDM_REQUESTER_H
+#ifndef SYSTEM_SPDM_SOCKET_H
+#define SYSTEM_SPDM_SOCKET_H
 
 /**
  * spdm_socket_connect: connect to an external SPDM socket

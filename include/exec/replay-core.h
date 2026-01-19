@@ -8,8 +8,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#ifndef EXEC_REPLAY_H
-#define EXEC_REPLAY_H
+#ifndef EXEC_REPLAY_CORE_H
+#define EXEC_REPLAY_CORE_H
 
 #include "qapi/qapi-types-replay.h"
 

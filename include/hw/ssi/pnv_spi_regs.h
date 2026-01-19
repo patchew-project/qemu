@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef PNV_SPI_CONTROLLER_REGS_H
-#define PNV_SPI_CONTROLLER_REGS_H
+#ifndef HW_SSI_PNV_SPI_REGS_H
+#define HW_SSI_PNV_SPI_REGS_H
 
 /*
  * Macros from target/ppc/cpu.h

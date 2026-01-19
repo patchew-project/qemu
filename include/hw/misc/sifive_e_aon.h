@@ -16,8 +16,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HW_SIFIVE_AON_H
-#define HW_SIFIVE_AON_H
+#ifndef HW_SIFIVE_E_AON_H
+#define HW_SIFIVE_E_AON_H
 
 #include "hw/core/sysbus.h"
 #include "qom/object.h"
