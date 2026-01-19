@@ -19,17 +19,17 @@ import re
 import sys
 from io import TextIOWrapper
 from pathlib import PurePath
-from typing import Any, Iterator
+from typing import Any, Iterator, Sequence
 
 import tracetool.backend
 import tracetool.format
 
 
-def error_write(*lines) -> None:
+def error_write(*lines: str) -> None:
     """Write a set of error lines."""
     sys.stderr.writelines("\n".join(lines) + "\n")
 
-def error(*lines):
+def error(*lines: str) -> None:
     """Write a set of error lines and exit."""
     error_write(*lines)
     sys.exit(1)
@@ -51,7 +51,7 @@ PRI_SIZE_MAP = {
 }
 
 def expand_format_string(c_fmt: str, prefix: str="") -> str:
-    def pri_macro_to_fmt(pri_macro):
+    def pri_macro_to_fmt(pri_macro: str) -> str:
         assert pri_macro.startswith("PRI")
         fmt_type = pri_macro[3]  # 'd', 'i', 'u', or 'x'
         fmt_size = pri_macro[4:]  # '8', '16', '32', '64', 'PTR', 'MAX'
@@ -87,7 +87,7 @@ def out_open(filename: str) -> None:
     out_filename = posix_relpath(filename)
     out_fobj = open(filename, 'wt')
 
-def out(*lines, **kwargs) -> None:
+def out(*lines: str, **kwargs: Any) -> None:
     """Write a set of output lines.
 
     You can use kwargs as a shorthand for mapping variables when formatting all
@@ -229,14 +229,14 @@ def c_type_to_rust(name: str) -> str:
 class Arguments:
     """Event arguments description."""
 
-    def __init__(self, args: list[tuple[str, str]]) -> None:
+    def __init__(self, args: Sequence[tuple[str, str] | Arguments]) -> None:
         """
         Parameters
         ----------
         args :
             List of (type, name) tuples or Arguments objects.
         """
-        self._args = []
+        self._args: list[tuple[str, str]] = []
         for arg in args:
             if isinstance(arg, Arguments):
                 self._args.extend(arg._args)
@@ -271,7 +271,7 @@ class Arguments:
             res.append((arg_type, identifier))
         return Arguments(res)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int | slice) -> Arguments | tuple[str, str]:
         if isinstance(index, slice):
             return Arguments(self._args[index])
         else:
@@ -287,7 +287,7 @@ class Arguments:
 
     def __str__(self) -> str:
         """String suitable for declaring function arguments."""
-        def onearg(t, n):
+        def onearg(t: str, n: str) -> str:
             if t[-1] == '*':
                 return "".join([t, n])
             else:
@@ -298,7 +298,7 @@ class Arguments:
         else:
             return ", ".join([ onearg(t, n) for t,n in self._args ])
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Evaluable string representation for this object."""
         return "Arguments(\"%s\")" % str(self)
 
@@ -310,7 +310,7 @@ class Arguments:
         """List of argument types."""
         return [ type_ for type_, _ in self._args ]
 
-    def casted(self):
+    def casted(self) -> list[str]:
         """List of argument names casted to their type."""
         return ["(%s)%s" % (type_, name) for type_, name in self._args]
 
@@ -321,7 +321,7 @@ class Arguments:
 
     def rust_decl(self) -> str:
         """Return a Rust argument list for a tracepoint function"""
-        def decl_type(type_):
+        def decl_type(type_: str) -> str:
             if type_ == "const char *":
                 return "&std::ffi::CStr"
             return c_type_to_rust(type_)
@@ -331,7 +331,7 @@ class Arguments:
 
     def rust_call_extern(self) -> str:
         """Return a Rust argument list for a call to an extern "C" function"""
-        def rust_cast(name, type_):
+        def rust_cast(name: str, type_: str) -> str:
             if type_ == "const char *":
                 return f"_{name}.as_ptr()"
             return f"_{name}"
@@ -340,7 +340,7 @@ class Arguments:
 
     def rust_call_varargs(self) -> str:
         """Return a Rust argument list for a call to a C varargs function"""
-        def rust_cast(name, type_):
+        def rust_cast(name: str, type_: str) -> str:
             if type_ == "const char *":
                 return f"_{name}.as_ptr()"
 
@@ -449,7 +449,7 @@ class Event(object):
 
         return Event(name, props, fmt, args, lineno, posix_relpath(filename))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Evaluable string representation for this object."""
         return "Event('%s %s(%s) %s')" % (" ".join(self.properties),
                                           self.name,

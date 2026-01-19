@@ -25,7 +25,7 @@ STATE_SKIP = 0
 STATE_LITERAL = 1
 STATE_MACRO = 2
 
-def c_macro_to_format(macro):
+def c_macro_to_format(macro: str) -> str:
     if macro.startswith("PRI"):
         return macro[3]
 

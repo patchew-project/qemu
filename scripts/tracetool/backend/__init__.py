@@ -122,7 +122,7 @@ class Wrapper:
              if module is not None:
                  yield module
 
-    def _run_function(self, name: str, *args, check_trace_event_get_state: bool | None=None, **kwargs) -> None:
+    def _run_function(self, name: str, *args: Any, check_trace_event_get_state: bool | None=None, **kwargs: Any) -> None:
         for backend in self.backend_modules():
             func = getattr(backend, name % self._format, None)
             if func is not None and \
