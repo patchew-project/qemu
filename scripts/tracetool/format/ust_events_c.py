@@ -4,6 +4,8 @@
 trace/generated-ust.c
 """
 
+from __future__ import annotations
+
 __author__     = "Mohamad Gebai <mohamad.gebai@polymtl.ca>"
 __copyright__  = "Copyright 2012, Mohamad Gebai <mohamad.gebai@polymtl.ca>"
 __license__    = "GPL version 2 or (at your option) any later version"

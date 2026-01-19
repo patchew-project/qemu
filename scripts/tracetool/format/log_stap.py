@@ -4,6 +4,8 @@
 Generate .stp file that printfs log messages (DTrace with SystemTAP only).
 """
 
+from __future__ import annotations
+
 __author__     = "Daniel P. Berrange <berrange@redhat.com>"
 __copyright__  = "Copyright (C) 2014-2019, Red Hat, Inc."
 __license__    = "GPL version 2 or (at your option) any later version"

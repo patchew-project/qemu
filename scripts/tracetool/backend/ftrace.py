@@ -4,6 +4,8 @@
 Ftrace built-in backend.
 """
 
+from __future__ import annotations
+
 __author__     = "Eiichi Tsukata <eiichi.tsukata.xh@hitachi.com>"
 __copyright__  = "Copyright (C) 2013 Hitachi, Ltd."
 __license__    = "GPL version 2 or (at your option) any later version"

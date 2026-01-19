@@ -4,6 +4,8 @@
 trace-DIR.rs
 """
 
+from __future__ import annotations
+
 __author__     = "Tanish Desai <tanishdesai37@gmail.com>"
 __copyright__  = "Copyright 2025, Tanish Desai <tanishdesai37@gmail.com>"
 __license__    = "GPL version 2 or (at your option) any later version"

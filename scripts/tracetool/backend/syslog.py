@@ -4,6 +4,8 @@
 Syslog built-in backend.
 """
 
+from __future__ import annotations
+
 __author__     = "Paul Durrant <paul.durrant@citrix.com>"
 __copyright__  = "Copyright 2016, Citrix Systems Inc."
 __license__    = "GPL version 2 or (at your option) any later version"

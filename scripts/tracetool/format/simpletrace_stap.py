@@ -4,6 +4,8 @@
 Generate .stp file that outputs simpletrace binary traces (DTrace with SystemTAP only).
 """
 
+from __future__ import annotations
+
 __author__     = "Stefan Hajnoczi <redhat.com>"
 __copyright__  = "Copyright (C) 2014, Red Hat, Inc."
 __license__    = "GPL version 2 or (at your option) any later version"
