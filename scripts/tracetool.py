@@ -12,13 +12,12 @@ __maintainer__ = "Stefan Hajnoczi"
 __email__      = "stefanha@redhat.com"
 
 
-import sys
 import getopt
+import sys
 
-from tracetool import error_write, out, out_open
 import tracetool.backend
 import tracetool.format
-
+from tracetool import error_write, out, out_open
 
 _SCRIPT = ""
 

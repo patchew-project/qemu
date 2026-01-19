@@ -14,7 +14,6 @@ __email__      = "stefanha@redhat.com"
 
 from tracetool import out
 
-
 PUBLIC = True
 CHECK_TRACE_EVENT_GET_STATE = True
 

@@ -14,7 +14,6 @@ __email__      = "stefanha@redhat.com"
 
 from tracetool import out
 
-
 PUBLIC = True
 
 

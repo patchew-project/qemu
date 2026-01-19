@@ -15,7 +15,6 @@ __email__      = "stefanha@redhat.com"
 from tracetool import out
 from tracetool.backend.dtrace import binary, probeprefix
 
-
 # Technically 'self' is not used by systemtap yet, but
 # they recommended we keep it in the reserved list anyway
 RESERVED_WORDS = (
