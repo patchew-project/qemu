@@ -340,8 +340,10 @@ void cpu_loop(CPUPPCState *env)
                 env->nip -= 4;
                 break;
             }
-            if (ret == (target_ulong)(-QEMU_ESIGRETURN)) {
-                /* Returning from a successful sigreturn syscall.
+            if (ret == (target_ulong)(-QEMU_ESIGRETURN)
+                    || ret == (target_ulong)(-QEMU_ESETPC)) {
+                /* Returning from a successful sigreturn syscall or from
+                   control flow diversion in a plugin callback.
                    Avoid corrupting register state.  */
                 break;
             }
