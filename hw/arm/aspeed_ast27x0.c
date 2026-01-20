@@ -389,6 +389,8 @@ static void aspeed_soc_ast2700_init(Object *obj)
                               "hw-strap1");
     object_property_add_alias(obj, "hw-prot-key", OBJECT(&s->scu),
                               "hw-prot-key");
+    object_property_add_alias(obj, "ssp-cpuid", OBJECT(&s->scu),
+                              "ssp-cpuid");
 
     object_initialize_child(obj, "scuio", &s->scuio, TYPE_ASPEED_2700_SCUIO);
     qdev_prop_set_uint32(DEVICE(&s->scuio), "silicon-rev",
@@ -740,6 +742,8 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
                                 sc->memmap[ASPEED_DEV_VBOOTROM], &s->vbootrom);
 
     /* SCU */
+    object_property_set_link(OBJECT(&s->scu), "dram", OBJECT(s->dram_mr),
+                             &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->scu), errp)) {
         return;
     }

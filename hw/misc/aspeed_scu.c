@@ -20,6 +20,7 @@
 #include "qemu/guest-random.h"
 #include "qemu/module.h"
 #include "trace.h"
+#include "qemu/units.h"
 
 #define TO_REG(offset) ((offset) >> 2)
 
@@ -602,12 +603,20 @@ static void aspeed_scu_realize(DeviceState *dev, Error **errp)
                           TYPE_ASPEED_SCU, SCU_IO_REGION_SIZE);
 
     sysbus_init_mmio(sbd, &s->iomem);
+
+    if (asc->dram_remap) {
+        if (!s->dram) {
+            error_setg(errp, TYPE_ASPEED_SCU ": 'dram' link not set");
+            return;
+        }
+        asc->dram_remap(s);
+    }
 }
 
 static const VMStateDescription vmstate_aspeed_scu = {
     .name = "aspeed.scu",
-    .version_id = 2,
-    .minimum_version_id = 2,
+    .version_id = 3,
+    .minimum_version_id = 3,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, AspeedSCUState, ASPEED_AST2600_SCU_NR_REGS),
         VMSTATE_END_OF_LIST()
@@ -619,6 +628,9 @@ static const Property aspeed_scu_properties[] = {
     DEFINE_PROP_UINT32("hw-strap1", AspeedSCUState, hw_strap1, 0),
     DEFINE_PROP_UINT32("hw-strap2", AspeedSCUState, hw_strap2, 0),
     DEFINE_PROP_UINT32("hw-prot-key", AspeedSCUState, hw_prot_key, 0),
+    DEFINE_PROP_INT32("ssp-cpuid", AspeedSCUState, ssp_cpuid, -1),
+    DEFINE_PROP_LINK("dram", AspeedSCUState, dram, TYPE_MEMORY_REGION,
+                     MemoryRegion *),
 };
 
 static void aspeed_scu_class_init(ObjectClass *klass, const void *data)
@@ -872,6 +884,27 @@ static const TypeInfo aspeed_2600_scu_info = {
     .class_init = aspeed_2600_scu_class_init,
 };
 
+static void aspeed_2700_scu_dram_remap_alias_init(AspeedSCUState *s)
+{
+    if (s->ssp_cpuid > 0) {
+        /*
+         * The SSP coprocessor uses two memory aliases (remap1 and remap2)
+         * to access shared memory regions in the PSP DRAM:
+         *
+         * - remap1 maps PSP DRAM at 0x400000000 (size: 32MB) to SSP SDRAM
+         *   offset 0x2000000
+         * - remap2 maps PSP DRAM at 0x42c000000 (size: 32MB) to SSP SDRAM
+         *   offset 0x0
+         */
+        memory_region_init_alias(&s->dram_remap_alias[0], OBJECT(s),
+                                 "ssp.dram.remap1", s->dram,
+                                 0, 32 * MiB);
+        memory_region_init_alias(&s->dram_remap_alias[1], OBJECT(s),
+                                 "ssp.dram.remap2", s->dram,
+                                 0x2c000000, 32 * MiB);
+    }
+}
+
 static uint64_t aspeed_ast2700_scu_read(void *opaque, hwaddr offset,
                                         unsigned size)
 {
@@ -982,6 +1015,7 @@ static void aspeed_2700_scu_class_init(ObjectClass *klass, const void *data)
     asc->nr_regs = ASPEED_AST2700_SCU_NR_REGS;
     asc->clkin_25Mhz = true;
     asc->ops = &aspeed_ast2700_scu_ops;
+    asc->dram_remap = aspeed_2700_scu_dram_remap_alias_init;
 }
 
 static uint64_t aspeed_ast2700_scuio_read(void *opaque, hwaddr offset,

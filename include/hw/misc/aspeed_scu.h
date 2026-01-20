@@ -39,6 +39,10 @@ struct AspeedSCUState {
     uint32_t hw_strap1;
     uint32_t hw_strap2;
     uint32_t hw_prot_key;
+
+    MemoryRegion dram_remap_alias[3];
+    MemoryRegion *dram;
+    int ssp_cpuid;
 };
 
 #define AST2400_A0_SILICON_REV   0x02000303U
@@ -73,6 +77,7 @@ struct AspeedSCUClass {
     uint32_t nr_regs;
     bool clkin_25Mhz;
     const MemoryRegionOps *ops;
+    void (*dram_remap)(AspeedSCUState *s);
 };
 
 #define ASPEED_SCU_PROT_KEY      0x1688A8A8

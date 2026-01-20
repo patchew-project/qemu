@@ -101,6 +101,8 @@ static bool ast2700fc_ca35_init(MachineState *machine, Error **errp)
                             sc->uarts_num, serial_hd(1));
     aspeed_soc_uart_set_chr(soc->uart, ASPEED_DEV_UART7, sc->uarts_base,
                             sc->uarts_num, serial_hd(2));
+    object_property_set_int(OBJECT(&s->ca35), "ssp-cpuid", 4,
+                            &error_abort);
     if (!qdev_realize(DEVICE(&s->ca35), NULL, errp)) {
         return false;
     }
