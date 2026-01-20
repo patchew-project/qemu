@@ -2082,8 +2082,10 @@ static void finalize_msi_controller(VirtMachineState *vms)
      * the relevant user settings and compat data. Called
      * after finalizing the GIC version.
      */
+    VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
+
     if (vms->gic_version != VIRT_GIC_VERSION_2 && vms->its) {
-        if (!kvm_irqchip_in_kernel() && !vms->tcg_its) {
+        if (!kvm_irqchip_in_kernel() && vmc->no_tcg_its) {
             vms->msi_controller = VIRT_MSI_CTRL_NONE;
         } else {
             vms->msi_controller = VIRT_MSI_CTRL_ITS;
@@ -3511,8 +3513,6 @@ static void virt_instance_init(Object *obj)
 
     /* Default allows ITS instantiation */
     vms->its = true;
-    /* Allow ITS emulation if the machine version supports it */
-    vms->tcg_its = !vmc->no_tcg_its;
 
     /* Default disallows iommu instantiation */
     vms->iommu = VIRT_IOMMU_NONE;
