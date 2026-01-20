@@ -3571,8 +3571,13 @@ DEFINE_VIRT_MACHINE(10, 0)
 
 static void virt_machine_9_2_options(MachineClass *mc)
 {
+    static GlobalProperty compat_9_2[] = {
+        { "arm-cpu", "backcompat-pauth-default-use-qarma5", "true"},
+    };
+
     virt_machine_10_0_options(mc);
     compat_props_add(mc->compat_props, hw_compat_9_2, hw_compat_9_2_len);
+    compat_props_add(mc->compat_props, compat_9_2, G_N_ELEMENTS(compat_9_2));
 }
 DEFINE_VIRT_MACHINE(9, 2)
 
@@ -3589,9 +3594,14 @@ DEFINE_VIRT_MACHINE(9, 1)
 
 static void virt_machine_9_0_options(MachineClass *mc)
 {
+    static GlobalProperty compat_9_0[] = {
+        { "arm-cpu", "backcompat-cntfrq", "true" },
+    };
+
     virt_machine_9_1_options(mc);
     mc->smbios_memory_device_size = 16 * GiB;
     compat_props_add(mc->compat_props, hw_compat_9_0, hw_compat_9_0_len);
+    compat_props_add(mc->compat_props, compat_9_0, G_N_ELEMENTS(compat_9_0));
 }
 DEFINE_VIRT_MACHINE(9, 0)
 
