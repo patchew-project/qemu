@@ -391,6 +391,8 @@ static void aspeed_soc_ast2700_init(Object *obj)
                               "hw-prot-key");
     object_property_add_alias(obj, "ssp-cpuid", OBJECT(&s->scu),
                               "ssp-cpuid");
+    object_property_add_alias(obj, "tsp-cpuid", OBJECT(&s->scu),
+                              "tsp-cpuid");
 
     object_initialize_child(obj, "scuio", &s->scuio, TYPE_ASPEED_2700_SCUIO);
     qdev_prop_set_uint32(DEVICE(&s->scuio), "silicon-rev",
