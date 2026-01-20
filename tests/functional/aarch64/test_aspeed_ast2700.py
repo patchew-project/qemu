@@ -15,11 +15,12 @@ from qemu_test import exec_command_and_wait_for_pattern
 
 class AST2x00MachineSDK(QemuSystemTest):
 
-    def do_test_aarch64_aspeed_sdk_start(self, image):
+    def do_test_aarch64_aspeed_sdk_start(self, image, bus_id):
+        bus_str = str(bus_id)
         self.require_netdev('user')
         self.vm.set_console()
         self.vm.add_args('-device',
-                         'tmp105,bus=aspeed.i2c.bus.1,address=0x4d,id=tmp-test')
+                         f'tmp105,bus=aspeed.i2c.bus.{bus_str},address=0x4d,id=tmp-test-{bus_str}')
         self.vm.add_args('-drive', 'file=' + image + ',if=mtd,format=raw',
                          '-net', 'nic', '-net', 'user', '-snapshot')
 
@@ -53,16 +54,17 @@ class AST2x00MachineSDK(QemuSystemTest):
             'https://github.com/AspeedTech-BMC/openbmc/releases/download/v09.08/ast2700-default-obmc.tar.gz',
             'eac3dc409b7ea3cd4b03d4792d3cebd469792ad893cb51e1d15f0fc20bd1e2cd')
 
-    def do_ast2700_i2c_test(self):
+    def do_ast2700_i2c_test(self, bus_id):
+        bus_str = str(bus_id)
         exec_command_and_wait_for_pattern(self,
-            'echo lm75 0x4d > /sys/class/i2c-dev/i2c-1/device/new_device ',
-            'i2c i2c-1: new_device: Instantiated device lm75 at 0x4d')
+            f'echo lm75 0x4d > /sys/class/i2c-dev/i2c-{bus_str}/device/new_device ',
+            f'i2c i2c-{bus_str}: new_device: Instantiated device lm75 at 0x4d')
         exec_command_and_wait_for_pattern(self,
-            'cat /sys/bus/i2c/devices/1-004d/hwmon/hwmon*/temp1_input', '0')
-        self.vm.cmd('qom-set', path='/machine/peripheral/tmp-test',
+            f'cat /sys/bus/i2c/devices/{bus_str}-004d/hwmon/hwmon*/temp1_input', '0')
+        self.vm.cmd('qom-set', path=f'/machine/peripheral/tmp-test-{bus_str}',
                     property='temperature', value=18000)
         exec_command_and_wait_for_pattern(self,
-            'cat /sys/bus/i2c/devices/1-004d/hwmon/hwmon*/temp1_input', '18000')
+            f'cat /sys/bus/i2c/devices/{bus_str}-004d/hwmon/hwmon*/temp1_input', '18000')
 
     def do_ast2700_pcie_test(self):
         exec_command_and_wait_for_pattern(self,
@@ -116,12 +118,12 @@ class AST2x00MachineSDK(QemuSystemTest):
 
         self.vm.add_args('-smp', str(num_cpu))
         self.do_test_aarch64_aspeed_sdk_start(
-            self.scratch_file(name, 'image-bmc'))
+            self.scratch_file(name, 'image-bmc'), 1)
 
-    def start_ast2700_test_vbootrom(self, name):
+    def start_ast2700_test_vbootrom(self, name, bus_id):
         self.vm.add_args('-bios', 'ast27x0_bootrom.bin')
         self.do_test_aarch64_aspeed_sdk_start(
-                self.scratch_file(name, 'image-bmc'))
+                self.scratch_file(name, 'image-bmc'), bus_id)
 
     def test_aarch64_ast2700a1_evb_sdk_v09_08(self):
         self.set_machine('ast2700a1-evb')
@@ -132,7 +134,7 @@ class AST2x00MachineSDK(QemuSystemTest):
         self.vm.add_args('-netdev', 'user,id=net1')
         self.start_ast2700_test('ast2700-default')
         self.verify_openbmc_boot_and_login('ast2700-default')
-        self.do_ast2700_i2c_test()
+        self.do_ast2700_i2c_test(1)
         self.do_ast2700_pcie_test()
 
     def test_aarch64_ast2700a1_evb_sdk_vbootrom_v09_08(self):
@@ -142,7 +144,7 @@ class AST2x00MachineSDK(QemuSystemTest):
         self.archive_extract(self.ASSET_SDK_V908_AST2700A1)
         self.vm.add_args('-device', 'e1000e,netdev=net1,bus=pcie.2')
         self.vm.add_args('-netdev', 'user,id=net1')
-        self.start_ast2700_test_vbootrom('ast2700-default')
+        self.start_ast2700_test_vbootrom('ast2700-default', 1)
         self.verify_vbootrom_firmware_flow()
         self.verify_openbmc_boot_start()
 
