@@ -738,13 +738,6 @@ static void create_its(VirtMachineState *vms)
     DeviceState *dev;
 
     assert(vms->its);
-    if (!kvm_irqchip_in_kernel() && !vms->tcg_its) {
-        /*
-         * Do nothing if ITS is neither supported by the host nor emulated by
-         * the machine.
-         */
-        return;
-    }
 
     dev = qdev_new(its_class_name());
 
@@ -754,7 +747,6 @@ static void create_its(VirtMachineState *vms)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, vms->memmap[VIRT_GIC_ITS].base);
 
     fdt_add_its_gic_node(vms);
-    vms->msi_controller = VIRT_MSI_CTRL_ITS;
 }
 
 static void create_v2m(VirtMachineState *vms)
@@ -775,7 +767,6 @@ static void create_v2m(VirtMachineState *vms)
     }
 
     fdt_add_v2m_gic_node(vms);
-    vms->msi_controller = VIRT_MSI_CTRL_GICV2M;
 }
 
 /*
@@ -957,10 +948,15 @@ static void create_gic(VirtMachineState *vms, MemoryRegion *mem)
 
     fdt_add_gic_node(vms);
 
-    if (vms->gic_version != VIRT_GIC_VERSION_2 && vms->its) {
+    switch (vms->msi_controller) {
+    case VIRT_MSI_CTRL_NONE:
+        break;
+    case VIRT_MSI_CTRL_ITS:
         create_its(vms);
-    } else if (vms->gic_version == VIRT_GIC_VERSION_2) {
+        break;
+    case VIRT_MSI_CTRL_GICV2M:
         create_v2m(vms);
+        break;
     }
 }
 
@@ -2079,6 +2075,24 @@ static VirtGICType finalize_gic_version_do(const char *accel_name,
     return gic_version;
 }
 
+static void finalize_msi_controller(VirtMachineState *vms)
+{
+    /*
+     * Determine the final msi_controller according to
+     * the relevant user settings and compat data. Called
+     * after finalizing the GIC version.
+     */
+    if (vms->gic_version != VIRT_GIC_VERSION_2 && vms->its) {
+        if (!kvm_irqchip_in_kernel() && !vms->tcg_its) {
+            vms->msi_controller = VIRT_MSI_CTRL_NONE;
+        } else {
+            vms->msi_controller = VIRT_MSI_CTRL_ITS;
+        }
+    } else if (vms->gic_version == VIRT_GIC_VERSION_2) {
+        vms->msi_controller = VIRT_MSI_CTRL_GICV2M;
+    }
+}
+
 /*
  * finalize_gic_version - Determines the final gic_version
  * according to the gic-version property
@@ -2251,6 +2265,8 @@ static void machvirt_init(MachineState *machine)
      * KVM is not available yet
      */
     finalize_gic_version(vms);
+    /* MSI controller type depends on GIC version */
+    finalize_msi_controller(vms);
 
     if (vms->secure) {
         /*
