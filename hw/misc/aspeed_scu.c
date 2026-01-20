@@ -21,6 +21,7 @@
 #include "qemu/module.h"
 #include "trace.h"
 #include "qemu/units.h"
+#include "target/arm/arm-powerctl.h"
 
 #define TO_REG(offset) ((offset) >> 2)
 
@@ -143,6 +144,17 @@
 #define AST2700_HW_STRAP1_SEC1    TO_REG(0x24)
 #define AST2700_HW_STRAP1_SEC2    TO_REG(0x28)
 #define AST2700_HW_STRAP1_SEC3    TO_REG(0x2C)
+
+/* SSP TSP */
+#define AST2700_SCU_SSP_CTRL_0          TO_REG(0x120)
+#define AST2700_SSP_TSP_ENABLE          BIT(0)
+#define AST2700_SSP_TSP_RST             BIT(1)
+#define AST2700_SSP_TSP_RST_RB          BIT(8)
+#define AST2700_SSP_TSP_RST_HOLD_RB     BIT(9)
+#define AST2700_SSP_TSP_RST_SRC_RB      BIT(10)
+#define AST2700_SCU_SYS_RST_CTRL_1      TO_REG(0x200)
+#define AST2700_SCU_SYS_RST_CLR_1       TO_REG(0x204)
+#define AST2700_SCU_SYS_RST_SSP         BIT(30)
 
 #define AST2700_SCU_CLK_SEL_1       TO_REG(0x280)
 #define AST2700_SCU_HPLL_PARAM      TO_REG(0x300)
@@ -920,6 +932,35 @@ static void aspeed_2700_scu_dram_remap_alias_init(AspeedSCUState *s)
     }
 }
 
+static void handle_2700_ssp_tsp_on(struct AspeedSCUState *s, int cpuid,
+                                   int reg)
+{
+    uint32_t val = s->regs[reg];
+
+    val &= ~AST2700_SSP_TSP_RST_SRC_RB;
+    if (!(val & AST2700_SSP_TSP_RST_HOLD_RB)) {
+        val &= ~AST2700_SSP_TSP_RST_RB;
+        arm_set_cpu_on_and_reset(cpuid);
+    }
+
+    s->regs[reg] = val;
+}
+
+static void handle_2700_ssp_tsp_off(struct AspeedSCUState *s, int cpuid,
+                                    int reg)
+{
+    uint32_t val = s->regs[reg];
+
+    val |= AST2700_SSP_TSP_RST_RB;
+    val |= AST2700_SSP_TSP_RST_SRC_RB;
+    if (val & AST2700_SSP_TSP_RST) {
+        val |= AST2700_SSP_TSP_RST_HOLD_RB;
+    }
+    arm_set_cpu_off(cpuid);
+
+    s->regs[reg] = val;
+}
+
 static uint64_t aspeed_ast2700_scu_read(void *opaque, hwaddr offset,
                                         unsigned size)
 {
@@ -951,6 +992,9 @@ static void aspeed_ast2700_scu_write(void *opaque, hwaddr offset,
     int reg = TO_REG(offset);
     /* Truncate here so bitwise operations below behave as expected */
     uint32_t data = data64;
+    uint32_t active;
+    uint32_t oldval;
+    int cpuid;
 
     if (reg >= ASPEED_AST2700_SCU_NR_REGS) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -962,6 +1006,63 @@ static void aspeed_ast2700_scu_write(void *opaque, hwaddr offset,
     trace_aspeed_ast2700_scu_write(offset, size, data);
 
     switch (reg) {
+    case AST2700_SCU_SSP_CTRL_0:
+        cpuid = s->ssp_cpuid;
+        if (cpuid < 0) {
+            return;
+        }
+        oldval = s->regs[reg];
+        data &= 0xff;
+        active = oldval ^ data;
+
+        /*
+         * If reset bit is being released (1 -> 0) and no other reset source
+         * is active, clear HOLD_RB and power on the corresponding CPU.
+         */
+        if ((active & AST2700_SSP_TSP_RST) && !(data & AST2700_SSP_TSP_RST)) {
+            s->regs[reg] &= ~AST2700_SSP_TSP_RST_HOLD_RB;
+            if ((oldval & AST2700_SSP_TSP_RST_RB) &&
+                !(oldval & AST2700_SSP_TSP_RST_SRC_RB)) {
+                handle_2700_ssp_tsp_on(s, cpuid, reg);
+            }
+        }
+
+        /*
+         * If ENABLE bit is newly set and reset state is ready,
+         * clear HOLD_RB and power on the corresponding CPU.
+         */
+        if ((active & AST2700_SSP_TSP_ENABLE) &&
+            (oldval & AST2700_SSP_TSP_RST_RB) &&
+            (oldval & AST2700_SSP_TSP_RST_HOLD_RB) &&
+            !(oldval & AST2700_SSP_TSP_RST_SRC_RB)) {
+                s->regs[reg] &= ~AST2700_SSP_TSP_RST_HOLD_RB;
+                handle_2700_ssp_tsp_on(s, cpuid, reg);
+        }
+
+        /* Auto-clear the ENABLE bit (one-shot behavior) */
+        data &= ~AST2700_SSP_TSP_ENABLE;
+        s->regs[reg] = (s->regs[reg] & ~0xff) | (data & 0xff);
+        return;
+    case AST2700_SCU_SYS_RST_CTRL_1:
+        if (s->ssp_cpuid < 0) {
+            return;
+        }
+        if (data & AST2700_SCU_SYS_RST_SSP) {
+            handle_2700_ssp_tsp_off(s, s->ssp_cpuid, AST2700_SCU_SSP_CTRL_0);
+        }
+        s->regs[reg] |= data;
+        return;
+    case AST2700_SCU_SYS_RST_CLR_1:
+        if (s->ssp_cpuid < 0) {
+            return;
+        }
+        oldval = s->regs[AST2700_SCU_SYS_RST_CTRL_1];
+        active = data & oldval;
+        if (active & AST2700_SCU_SYS_RST_SSP) {
+            handle_2700_ssp_tsp_on(s, s->ssp_cpuid, AST2700_SCU_SSP_CTRL_0);
+        }
+        s->regs[AST2700_SCU_SYS_RST_CTRL_1] &= ~active;
+        return;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Unhandled write at offset 0x%" HWADDR_PRIx "\n",
@@ -989,6 +1090,8 @@ static const uint32_t ast2700_a0_resets[ASPEED_AST2700_SCU_NR_REGS] = {
     [AST2700_HW_STRAP1_SEC1]        = 0x000000FF,
     [AST2700_HW_STRAP1_SEC2]        = 0x00000000,
     [AST2700_HW_STRAP1_SEC3]        = 0x1000408F,
+    [AST2700_SCU_SSP_CTRL_0]        = 0x000007FE,
+    [AST2700_SCU_SYS_RST_CTRL_1]    = 0xFFC37FDC,
     [AST2700_SCU_HPLL_PARAM]        = 0x0000009f,
     [AST2700_SCU_HPLL_EXT_PARAM]    = 0x8000004f,
     [AST2700_SCU_DPLL_PARAM]        = 0x0080009f,
@@ -1014,6 +1117,10 @@ static void aspeed_ast2700_scu_reset(DeviceState *dev)
     memcpy(s->regs, asc->resets, asc->nr_regs * 4);
     s->regs[AST2700_SILICON_REV] = s->silicon_rev;
     s->regs[AST2700_HW_STRAP1] = s->hw_strap1;
+
+    if (s->ssp_cpuid > 0) {
+        arm_set_cpu_off(s->ssp_cpuid);
+    }
 }
 
 static void aspeed_2700_scu_class_init(ObjectClass *klass, const void *data)
