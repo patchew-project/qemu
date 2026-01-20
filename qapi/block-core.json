@@ -855,6 +855,12 @@
 #
 # Get a list of `BlockInfo` for all virtual block devices.
 #
+# @flat: Omit the nested data about backing image (Omitted are
+#        contents of 'backing-image' key of the 'ImageInfo' struct
+#        which is returned as 'image' key of 'BlockDeviceInfo' struct
+#        returned as 'inserted' key in  'BlockInfo' struct returned
+#        by this command).  Default is false (Since 11.0)
+#
 # Returns: a list describing each virtual block device.  Filter nodes
 #     that were created implicitly are skipped over.
 #
@@ -945,6 +951,7 @@
 #        }
 ##
 { 'command': 'query-block', 'returns': ['BlockInfo'],
+  'data': { '*flat': 'bool' },
   'allow-preconfig': true }
 
 ##
