@@ -24,8 +24,8 @@ if not cache_dir.exists():
 os.chdir(cache_dir)
 
 for file in cache_dir.iterdir():
-    # Only consider the files that use a sha256 as filename:
-    if len(file.name) != 64:
+    # Only consider the files that use a sha256 or sha512 as filename:
+    if len(file.name) != 64 and len(file.name) != 128:
         continue
 
     try:
