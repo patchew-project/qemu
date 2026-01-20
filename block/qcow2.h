@@ -1039,6 +1039,8 @@ bool coroutine_fn GRAPH_RDLOCK
 qcow2_load_dirty_bitmaps(BlockDriverState *bs, bool *header_updated,
                          Error **errp);
 
+int GRAPH_RDLOCK qcow2_remove_in_use_bitmaps(BlockDriverState *bs);
+
 bool GRAPH_RDLOCK
 qcow2_get_bitmap_info_list(BlockDriverState *bs,
                            Qcow2BitmapInfoList **info_list, Error **errp);

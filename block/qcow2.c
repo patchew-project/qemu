@@ -634,6 +634,15 @@ qcow2_co_check_locked(BlockDriverState *bs, BdrvCheckResult *result,
     }
 
     if (fix && result->check_errors == 0 && result->corruptions == 0) {
+        /*
+         * Run the removal of inconsistent bitmaps that we've skipped on
+         * qcow2_load_dirty_bitmaps().
+         */
+        ret = qcow2_remove_in_use_bitmaps(bs);
+        if (ret < 0) {
+            return ret;
+        }
+
         ret = qcow2_mark_clean(bs);
         if (ret < 0) {
             return ret;

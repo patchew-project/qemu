@@ -81,7 +81,8 @@ for max_bitmap in 6 7; do
     $QEMU_IMG commit -d "$TEST_IMG" 2>&1 | _filter_generated_node_ids
     echo "qemu-img commit exit code: ${PIPESTATUS[0]}"
 
-    $QEMU_IMG bitmap --add "$BASE_JSON" "good-bitmap"
+    $QEMU_IMG bitmap --add "$BASE_JSON" "good-bitmap" 2>&1 | \
+        sed '/^Removing inconsistent bitmap.*/d'
     echo "qemu-img bitmap --add exit code: $?"
 
     $QEMU_IMG bitmap --merge "good-bitmap" -b "$TEST_IMG" "$BASE_JSON" \

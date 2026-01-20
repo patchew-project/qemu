@@ -197,6 +197,8 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
             log = self.vm_b.get_log()
             log = re.sub(r'^\[I \d+\.\d+\] OPENED\n', '', log)
             log = re.sub(r'\[I \+\d+\.\d+\] CLOSED\n?$', '', log)
+            if persistent and shared_storage and pre_shutdown:
+                log = re.sub(r'Removed inconsistent bitmap.*\n', '', log)
             self.assertEqual(log, '')
 
             # recreate vm_b, as we don't want -incoming option (this will lead
