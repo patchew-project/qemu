@@ -1758,6 +1758,12 @@ F: docs/system/riscv/xiangshan-kunminghu.rst
 F: hw/riscv/xiangshan_kmh.c
 F: include/hw/riscv/xiangshan_kmh.h
 
+K230 Machines
+M: Chao Liu <chao.liu.zevorn@gmail.com>
+S: Maintained
+F: hw/riscv/k230.c
+F: include/hw/riscv/k230.h
+
 RX Machines
 -----------
 rx-gdbsim
@@ -3576,7 +3582,7 @@ M: Alexander Bulekov <alxndr@bu.edu>
 R: Paolo Bonzini <pbonzini@redhat.com>
 R: Stefan Hajnoczi <stefanha@redhat.com>
 R: Fabiano Rosas <farosas@suse.de>
-R: Darren Kenny <darren.kenny@oracle.com> 
+R: Darren Kenny <darren.kenny@oracle.com>
 R: Qiuhao Li <Qiuhao.Li@outlook.com>
 S: Maintained
 F: tests/qtest/fuzz/
