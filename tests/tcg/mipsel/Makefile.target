@@ -1,0 +1,15 @@
+# -*- Mode: makefile -*-
+#
+# MIPSEL - included from tests/tcg/Makefile.target
+#
+
+MIPSEL_SRC=$(SRC_PATH)/tests/tcg/mipsel
+
+# Set search path for all sources
+VPATH += $(MIPSEL_SRC)
+
+ifeq ($(CONFIG_PLUGIN),y)
+# qemu-mips(el) returns ENOSYS without triggering syscall plugin callbacks
+run-plugin-test-plugin-skip-syscalls-with-libsyscall.so:
+	$(call skip-test, $<, "qemu-mipsel does not execute invalid syscalls")
+endif

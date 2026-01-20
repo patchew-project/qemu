@@ -130,3 +130,10 @@ v73_scalar: CFLAGS += -Wno-unused-function
 
 hvx_histogram: hvx_histogram.c hvx_histogram_row.S
 	$(CC) $(CFLAGS) $(CROSS_CC_GUEST_CFLAGS) $^ -o $@ $(LDFLAGS)
+
+ifeq ($(CONFIG_PLUGIN),y)
+# hexagon uses clang/lld which does not support -Ttext-segment but GNU ld does
+# not generally support --image-base. Therefore, the multiarch Makefile uses
+# the GNU ld flag and we special-case here for hexagon.
+override LDFLAG_TEXT_BASE = -Wl,--image-base=0x40000
+endif
