@@ -196,6 +196,10 @@ struct PnvXScomInterfaceClass {
 #define PNV10_XSCOM_N1_PB_SCOM_ES_BASE      0x3011300
 #define PNV10_XSCOM_N1_PB_SCOM_ES_SIZE      0x100
 
+#define PNV10_XSCOM_NEST0_MMU_BASE      0x2010c40
+#define PNV10_XSCOM_NEST1_MMU_BASE      0x3010c40
+#define PNV10_XSCOM_NMMU_SIZE      0x20
+
 #define PNV10_XSCOM_PEC_NEST_BASE  0x3011800 /* index goes downwards ... */
 #define PNV10_XSCOM_PEC_NEST_SIZE  0x100
 
