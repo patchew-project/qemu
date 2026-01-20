@@ -167,9 +167,28 @@ gic-version
     with TCG this is currently ``3`` if ``virtualization`` is ``off`` and
     ``4`` if ``virtualization`` is ``on``, but this may change in future)
 
+msi
+  Specify the MSI controller to use to handle MSI and MSI-X interrupts
+  from PCI devices. Valid values are:
+
+  ``its``
+     ITS, which can be used with a GICv3 or better.
+  ``gicv2m``
+     The GICv2m; this is typically used with a GICv2, but it is possible
+     to use it with a GICv3.
+  ``none``
+     Do not provide any MSI controller. MSI and MSI-X interrupts will
+     not be supported.
+  ``auto``
+     Pick the best available controller. This will be an ITS if the
+     GIC and virtualization accelerator support it, and a GICv2m if not.
+     This is the default.
+
 its
   Set ``on``/``off`` to enable/disable ITS instantiation. The default is ``on``
-  for machine types later than ``virt-2.7``.
+  for machine types later than ``virt-2.7``. This is a deprecated option;
+  instead of ``its=on`` use ``msi=its`` or ``msi=auto``, and instead of
+  ``its=off`` use ``msi=none``.
 
 iommu
   Set the IOMMU type to create for the guest. Valid values are:

@@ -103,6 +103,7 @@ typedef enum VirtMSIControllerType {
     VIRT_MSI_CTRL_NONE,
     VIRT_MSI_CTRL_GICV2M,
     VIRT_MSI_CTRL_ITS,
+    VIRT_MSI_CTRL_NOSEL,
 } VirtMSIControllerType;
 
 typedef enum VirtGICType {

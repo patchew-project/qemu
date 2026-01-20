@@ -957,6 +957,8 @@ static void create_gic(VirtMachineState *vms, MemoryRegion *mem)
     case VIRT_MSI_CTRL_GICV2M:
         create_v2m(vms);
         break;
+    default:
+        g_assert_not_reached();
     }
 }
 
@@ -2084,6 +2086,23 @@ static void finalize_msi_controller(VirtMachineState *vms)
      */
     VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
 
+    if (vms->msi_controller != VIRT_MSI_CTRL_NOSEL) {
+        /*
+         * User specified an "msi" option: check what they
+         * specified, and use it.
+         */
+        if (vms->msi_controller == VIRT_MSI_CTRL_ITS &&
+            vms->gic_version == VIRT_GIC_VERSION_2) {
+            error_report("A GICv2 cannot use an ITS");
+            exit(1);
+        }
+        return;
+    }
+
+    /*
+     * Pick a "best available" MSI controller, including handling
+     * the legacy "its" option and the no_tcg_its compat flag.
+     */
     if (vms->gic_version != VIRT_GIC_VERSION_2 && vms->its) {
         if (!kvm_irqchip_in_kernel() && vmc->no_tcg_its) {
             vms->msi_controller = VIRT_MSI_CTRL_NONE;
@@ -2092,6 +2111,8 @@ static void finalize_msi_controller(VirtMachineState *vms)
         }
     } else if (vms->gic_version == VIRT_GIC_VERSION_2) {
         vms->msi_controller = VIRT_MSI_CTRL_GICV2M;
+    } else {
+        vms->msi_controller = VIRT_MSI_CTRL_NONE;
     }
 }
 
@@ -2881,6 +2902,36 @@ static void virt_set_gic_version(Object *obj, const char *value, Error **errp)
     }
 }
 
+static const char *msi_option_values[] = {
+    [VIRT_MSI_CTRL_NONE] = "off",
+    [VIRT_MSI_CTRL_GICV2M] = "gicv2m",
+    [VIRT_MSI_CTRL_ITS] = "its",
+    [VIRT_MSI_CTRL_NOSEL] = "auto",
+};
+
+static char *virt_get_msi(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    assert(vms->msi_controller >= 0 &&
+           vms->msi_controller < ARRAY_SIZE(msi_option_values));
+    return g_strdup(msi_option_values[vms->msi_controller]);
+}
+
+static void virt_set_msi(Object *obj, const char *value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    for (int i = 0; i < ARRAY_SIZE(msi_option_values); i++) {
+        if (!strcmp(value, msi_option_values[i])) {
+            vms->msi_controller = i;
+            return;
+        }
+    }
+    error_setg(errp, "Invalid msi value");
+    error_append_hint(errp, "Valid values are off, its, gicv2m, auto.\n");
+}
+
 static char *virt_get_iommu(Object *obj, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
@@ -3056,6 +3107,8 @@ static void virt_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
             db_start = base_memmap[VIRT_GIC_V2M].base;
             db_end = db_start + base_memmap[VIRT_GIC_V2M].size - 1;
             break;
+        default:
+            g_assert_not_reached();
         }
         resv_prop_str = g_strdup_printf("0x%"PRIx64":0x%"PRIx64":%u",
                                         db_start, db_end,
@@ -3454,7 +3507,13 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
                                    virt_set_its);
     object_class_property_set_description(oc, "its",
                                           "Set on/off to enable/disable "
-                                          "ITS instantiation");
+                                          "ITS instantiation. Deprecated; "
+                                          "use the msi option instead");
+
+    object_class_property_add_str(oc, "msi", virt_get_msi, virt_set_msi);
+    object_class_property_set_description(oc, "msi",
+                                          "Set to configure MSI handling. "
+                                          "Valid values are auto, its, gicv2m, and off");
 
     object_class_property_add_bool(oc, "dtb-randomness",
                                    virt_get_dtb_randomness,
@@ -3513,6 +3572,9 @@ static void virt_instance_init(Object *obj)
 
     /* Default allows ITS instantiation */
     vms->its = true;
+
+    /* Default to autoselection of MSI controller */
+    vms->msi_controller = VIRT_MSI_CTRL_NOSEL;
 
     /* Default disallows iommu instantiation */
     vms->iommu = VIRT_IOMMU_NONE;
