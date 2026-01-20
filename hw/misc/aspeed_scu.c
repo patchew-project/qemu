@@ -147,6 +147,7 @@
 
 /* SSP TSP */
 #define AST2700_SCU_SSP_CTRL_0          TO_REG(0x120)
+#define AST2700_SCU_TSP_CTRL_0          TO_REG(0x160)
 #define AST2700_SSP_TSP_ENABLE          BIT(0)
 #define AST2700_SSP_TSP_RST             BIT(1)
 #define AST2700_SSP_TSP_RST_RB          BIT(8)
@@ -155,6 +156,9 @@
 #define AST2700_SCU_SYS_RST_CTRL_1      TO_REG(0x200)
 #define AST2700_SCU_SYS_RST_CLR_1       TO_REG(0x204)
 #define AST2700_SCU_SYS_RST_SSP         BIT(30)
+#define AST2700_SCU_SYS_RST_CTRL_2      TO_REG(0x220)
+#define AST2700_SCU_SYS_RST_CLR_2       TO_REG(0x224)
+#define AST2700_SCU_SYS_RST_TSP         BIT(9)
 
 #define AST2700_SCU_CLK_SEL_1       TO_REG(0x280)
 #define AST2700_SCU_HPLL_PARAM      TO_REG(0x300)
@@ -1007,7 +1011,10 @@ static void aspeed_ast2700_scu_write(void *opaque, hwaddr offset,
 
     switch (reg) {
     case AST2700_SCU_SSP_CTRL_0:
-        cpuid = s->ssp_cpuid;
+    case AST2700_SCU_TSP_CTRL_0:
+        cpuid = (reg == AST2700_SCU_SSP_CTRL_0) ?
+                s->ssp_cpuid : s->tsp_cpuid;
+
         if (cpuid < 0) {
             return;
         }
@@ -1063,6 +1070,28 @@ static void aspeed_ast2700_scu_write(void *opaque, hwaddr offset,
         }
         s->regs[AST2700_SCU_SYS_RST_CTRL_1] &= ~active;
         return;
+    case AST2700_SCU_SYS_RST_CTRL_2:
+        if (s->tsp_cpuid < 0) {
+            return;
+        }
+        data &= 0x00001fff;
+        if (data & AST2700_SCU_SYS_RST_TSP) {
+            handle_2700_ssp_tsp_off(s, s->tsp_cpuid, AST2700_SCU_TSP_CTRL_0);
+        }
+        s->regs[reg] |= data;
+        return;
+    case AST2700_SCU_SYS_RST_CLR_2:
+        if (s->tsp_cpuid < 0) {
+            return;
+        }
+        data &= 0x00001fff;
+        oldval = s->regs[AST2700_SCU_SYS_RST_CTRL_2];
+        active = data & oldval;
+        if (active & AST2700_SCU_SYS_RST_TSP) {
+            handle_2700_ssp_tsp_on(s, s->tsp_cpuid, AST2700_SCU_TSP_CTRL_0);
+        }
+        s->regs[AST2700_SCU_SYS_RST_CTRL_2] &= ~active;
+        return;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Unhandled write at offset 0x%" HWADDR_PRIx "\n",
@@ -1091,7 +1120,9 @@ static const uint32_t ast2700_a0_resets[ASPEED_AST2700_SCU_NR_REGS] = {
     [AST2700_HW_STRAP1_SEC2]        = 0x00000000,
     [AST2700_HW_STRAP1_SEC3]        = 0x1000408F,
     [AST2700_SCU_SSP_CTRL_0]        = 0x000007FE,
+    [AST2700_SCU_TSP_CTRL_0]        = 0x000007FE,
     [AST2700_SCU_SYS_RST_CTRL_1]    = 0xFFC37FDC,
+    [AST2700_SCU_SYS_RST_CTRL_2]    = 0x00001FFF,
     [AST2700_SCU_HPLL_PARAM]        = 0x0000009f,
     [AST2700_SCU_HPLL_EXT_PARAM]    = 0x8000004f,
     [AST2700_SCU_DPLL_PARAM]        = 0x0080009f,
@@ -1120,6 +1151,10 @@ static void aspeed_ast2700_scu_reset(DeviceState *dev)
 
     if (s->ssp_cpuid > 0) {
         arm_set_cpu_off(s->ssp_cpuid);
+    }
+
+    if (s->tsp_cpuid > 0) {
+        arm_set_cpu_off(s->tsp_cpuid);
     }
 }
 
