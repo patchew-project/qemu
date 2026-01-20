@@ -503,11 +503,14 @@ static void aspeed_soc_ast2700_init(Object *obj)
     }
 
     for (i = 0; i < sc->ioexp_num; i++) {
+        g_autofree char *bus_label = g_strdup_printf("ioexp%d", i);
         /* AST1700 IOEXP */
         object_initialize_child(obj, "ioexp[*]", &s->ioexp[i],
                                 TYPE_ASPEED_AST1700);
         qdev_prop_set_uint32(DEVICE(&s->ioexp[i]), "silicon-rev",
                              sc->silicon_rev);
+        qdev_prop_set_string(DEVICE(&s->ioexp[i]), "bus-label",
+                             bus_label);
     }
 
     object_initialize_child(obj, "dpmcu", &s->dpmcu,

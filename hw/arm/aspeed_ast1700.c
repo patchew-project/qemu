@@ -156,6 +156,7 @@ static void aspeed_ast1700_instance_init(Object *obj)
 static const Property aspeed_ast1700_props[] = {
     DEFINE_PROP_UINT8("board-idx", AspeedAST1700SoCState, board_idx, 0),
     DEFINE_PROP_UINT32("silicon-rev", AspeedAST1700SoCState, silicon_rev, 0),
+    DEFINE_PROP_STRING("bus-label", AspeedAST1700SoCState, bus_label),
     DEFINE_PROP_LINK("dram", AspeedAST1700SoCState, dram_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };

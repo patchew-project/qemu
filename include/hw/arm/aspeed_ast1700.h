@@ -27,6 +27,7 @@ struct AspeedAST1700SoCState {
     MemoryRegion *dram_mr;
     uint8_t board_idx;
     uint32_t silicon_rev;
+    char *bus_label;
 
     AspeedLTPIState ltpi;
     SerialMM uart;
