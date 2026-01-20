@@ -403,6 +403,12 @@ bool qemu_plugin_bool_parse(const char *name, const char *value, bool *ret)
  * ancillary data the plugin might find useful.
  */
 
+static const char pc_str[] = "pc"; // generic name for program counter
+static const char eip_str[] = "eip"; // x86 specific name for program counter
+static const char rip_str[] = "rip"; // x86_64 specific name for program counter
+static const char pswa_str[] = "pswa"; // s390x specific name for program counter
+static const char iaoq_str[] = "iaoq"; // HP/PA specific name for program counter
+static const char rpc_str[] = "rpc"; // microblaze specific name for program counter
 static GArray *create_register_handles(GArray *gdbstub_regs)
 {
     GArray *find_data = g_array_new(true, true,
@@ -417,9 +423,20 @@ static GArray *create_register_handles(GArray *gdbstub_regs)
             continue;
         }
 
+        gint plugin_ro_bit = 0;
         /* Create a record for the plugin */
         desc.handle = GINT_TO_POINTER(grd->gdb_reg + 1);
         desc.name = g_intern_string(grd->name);
+        if (!strcmp(desc.name, pc_str)
+            || !strcmp(desc.name, eip_str)
+            || !strcmp(desc.name, rip_str)
+            || !strcmp(desc.name, pswa_str)
+            || !strcmp(desc.name, iaoq_str)
+            || !strcmp(desc.name, rpc_str)
+           ) {
+            plugin_ro_bit = 1;
+        }
+        desc.is_readonly = plugin_ro_bit == 1 ? true : false;
         desc.feature = g_intern_string(grd->feature_name);
         g_array_append_val(find_data, desc);
     }
