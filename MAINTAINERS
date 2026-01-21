@@ -2231,6 +2231,7 @@ F: scripts/arm_processor_error.py
 F: scripts/fuzzy_error.py
 F: scripts/pcie_bus_error.py
 F: scripts/qmp_helper.py
+F: scripts/raw_error.py
 
 ppc4xx
 L: qemu-ppc@nongnu.org
