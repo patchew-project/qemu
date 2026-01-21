@@ -3623,9 +3623,16 @@ DEFINE_VIRT_MACHINE(10, 2)
 
 static void virt_machine_10_1_options(MachineClass *mc)
 {
+    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
+
     virt_machine_10_2_options(mc);
     mc->smbios_memory_device_size = 2047 * TiB;
     compat_props_add(mc->compat_props, hw_compat_10_1, hw_compat_10_1_len);
+    /* KVM_REG_ARM_VENDOR_HYP_BMAP_2 */
+    arm_virt_compat_register_hidden_reg(vmc, 0x6030000000160003);
+    arm_virt_compat_register_safe_missing_reg(vmc, 0x603000000013c103 /* TCR_EL1 */);
+    arm_virt_compat_register_safe_missing_reg(vmc, 0x603000000013c512 /* PIRE0_EL1 */);
+    arm_virt_compat_register_safe_missing_reg(vmc, 0x603000000013c513 /* PIR_EL1 */);
 }
 DEFINE_VIRT_MACHINE(10, 1)
 
