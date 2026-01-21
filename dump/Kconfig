@@ -1,0 +1,4 @@
+config WINDUMP
+    bool
+    default y if X86_64
+    depends on X86_64
