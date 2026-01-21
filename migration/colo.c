@@ -472,8 +472,6 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
     qemu_savevm_state_complete_precopy_iterable(s->to_dst_file, false);
     qemu_put_byte(s->to_dst_file, QEMU_VM_EOF);
 
-    qemu_fflush(fb);
-
     /*
      * We need the size of the VMstate data in Secondary side,
      * With which we can decide how much data should be read.
@@ -484,6 +482,8 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
         goto out;
     }
 
+    /* Flush to make sure everything lands bioc->data */
+    qemu_fflush(fb);
     qemu_put_buffer(s->to_dst_file, bioc->data, bioc->usage);
     ret = qemu_fflush(s->to_dst_file);
     if (ret < 0) {
