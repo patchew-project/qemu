@@ -286,6 +286,205 @@ Int128 HELPER(dxb)(CPUS390XState *env, Int128 a, Int128 b)
     return RET128(ret);
 }
 
+static float128 float128_precision_round_to_float32(float128 x)
+{
+    x.low = 0;
+    x.high = deposit64(x.high, 0, 25, 0);
+    return x;
+}
+
+static float128 float128_precision_round_to_float64(float128 x)
+{
+    x.low = deposit64(x.low, 0, 60, 0);
+    return x;
+}
+
+static int float128_get_exp(float128 x)
+{
+    return extract64(x.high, 48, 15) - 16383;
+}
+
+static float128 float128_set_exp(float128 x, int exp)
+{
+    x.high = deposit64(x.high, 48, 15, exp + 16383);
+    return x;
+}
+
+static float128 float128_adjust_exp(float128 x, int delta)
+{
+    return float128_set_exp(x, float128_get_exp(x) + delta);
+}
+
+static bool float128_is_int(float128 x)
+{
+    return extract64(x.high, 0, 48) == 0 && x.low == 0;
+}
+
+static float32 extract_float32(CPUS390XState *env, uint32_t r)
+{
+    return env->vregs[r][0] >> 32;
+}
+
+static void deposit_float32(CPUS390XState *env, uint32_t r, float32 x)
+{
+    env->vregs[r][0] = deposit64(env->vregs[r][0], 32, 32, x);
+}
+
+static float64 extract_float64(CPUS390XState *env, uint32_t r)
+{
+    return env->vregs[r][0];
+}
+
+static void deposit_float64(CPUS390XState *env, uint32_t r, float64 x)
+{
+    env->vregs[r][0] = x;
+}
+
+#define DIVIDE_TO_INTEGER(name, floatN, p, exp_max, exp_bias)                  \
+void HELPER(name)(CPUS390XState *env, uint32_t r1, uint32_t r2,                \
+                  uint32_t r3, uint32_t m4)                                    \
+{                                                                              \
+    int float_exception_flags = 0;                                             \
+    floatN a, b, n, r;                                                         \
+    int dxc = -1;                                                              \
+    uint32_t cc;                                                               \
+                                                                               \
+    a = extract_ ## floatN(env, r1);                                           \
+    b = extract_ ## floatN(env, r2);                                           \
+                                                                               \
+    /* POp table "Results: DIVIDE TO INTEGER (Part 1 of 2)" */                 \
+    if (floatN ## _is_signaling_nan(a, &env->fpu_status)) {                    \
+        r = n = floatN ## _silence_nan(a, &env->fpu_status);                   \
+        cc = 1;                                                                \
+        float_exception_flags |= float_flag_invalid;                           \
+    } else if (floatN ## _is_signaling_nan(b, &env->fpu_status)) {             \
+        r = n = floatN ## _silence_nan(b, &env->fpu_status);                   \
+        cc = 1;                                                                \
+        float_exception_flags |= float_flag_invalid;                           \
+    } else if (floatN ## _is_quiet_nan(a, &env->fpu_status)) {                 \
+        r = n = a;                                                             \
+        cc = 1;                                                                \
+    } else if (floatN ## _is_quiet_nan(b, &env->fpu_status)) {                 \
+        r = n = b;                                                             \
+        cc = 1;                                                                \
+    } else if (floatN ## _is_infinity(a) || floatN ## _is_zero(b)) {           \
+        r = n = floatN ## _default_nan(&env->fpu_status);                      \
+        cc = 1;                                                                \
+        float_exception_flags |= float_flag_invalid;                           \
+    } else if (floatN ## _is_infinity(b))  {                                   \
+        r = a;                                                                 \
+        n = floatN ## _set_sign(floatN ## _zero,                               \
+                                floatN ## _is_neg(a) != floatN ## _is_neg(b)); \
+        cc = 0;                                                                \
+    } else {                                                                   \
+        float128 a128, b128, m128, n128, q128, r128;                           \
+        bool is_final, is_q128_smallish;                                       \
+        int old_mode, r128_exp;                                                \
+        uint32_t r_flags;                                                      \
+                                                                               \
+        /* Compute precise quotient */                                         \
+        a128 = floatN ## _to_float128(a, &env->fpu_status);                    \
+        b128 = floatN ## _to_float128(b, &env->fpu_status);                    \
+        q128 = float128_div(a128, b128, &env->fpu_status);                     \
+                                                                               \
+        /* Final or partial case? */                                           \
+        is_q128_smallish = float128_get_exp(q128) < p;                         \
+        is_final = is_q128_smallish || float128_is_int(q128);                  \
+                                                                               \
+        /*                                                                     \
+         * Final quotient is rounded using M4,                                 \
+         * partial quotient is rounded toward zero.                            \
+         */                                                                    \
+        old_mode = s390_swap_bfp_rounding_mode(env, is_final ? m4 : 5);        \
+        n128 = float128_round_to_int(q128, &env->fpu_status);                  \
+        s390_restore_bfp_rounding_mode(env, old_mode);                         \
+                                                                               \
+        /*                                                                     \
+         * Intermediate values are precision-rounded,                          \
+         * see "Intermediate Values" in POp.                                   \
+         */                                                                    \
+        n128 = float128_precision_round_to_ ## floatN(n128);                   \
+                                                                               \
+        /* Compute remainder */                                                \
+        m128 = float128_mul(b128, n128, &env->fpu_status);                     \
+        env->fpu_status.float_exception_flags = 0;                             \
+        r128 = float128_sub(a128, m128, &env->fpu_status);                     \
+        r128_exp = float128_get_exp(r128);                                     \
+        r = float128_to_## floatN(r128, &env->fpu_status);                     \
+        r_flags = env->fpu_status.float_exception_flags;                       \
+                                                                               \
+        /* POp table "Results: DIVIDE TO INTEGER (Part 2 of 2)" */             \
+        if (is_q128_smallish) {                                                \
+            cc = 0;                                                            \
+            if (!floatN ## _is_zero(r)) {                                      \
+                if (r128_exp < -(exp_max - 1)) {                               \
+                    if ((env->fpc >> 24) & S390_IEEE_MASK_UNDERFLOW) {         \
+                        float_exception_flags |= float_flag_underflow;         \
+                        dxc = 0x10;                                            \
+                        r128 = float128_adjust_exp(r128, exp_bias);            \
+                        r = float128_to_## floatN(r128, &env->fpu_status);     \
+                    }                                                          \
+                } else if (r_flags & float_flag_inexact) {                     \
+                    float_exception_flags |= float_flag_inexact;               \
+                    if ((env->fpc >> 24) & S390_IEEE_MASK_INEXACT) {           \
+                        /*                                                     \
+                         * Check whether remainder was truncated (rounded      \
+                         * toward zero) or incremented.                        \
+                         */                                                    \
+                        if (float128_lt(                                       \
+                                floatN ## _to_float128(floatN ## _abs(r),      \
+                                                       &env->fpu_status),      \
+                                float128_abs(r128), &env->fpu_status)) {       \
+                           dxc = 0x8;                                          \
+                        } else {                                               \
+                           dxc = 0xc;                                          \
+                        }                                                      \
+                    }                                                          \
+                }                                                              \
+            }                                                                  \
+        } else if (float128_get_exp(n128) > exp_max) {                         \
+            n128 = float128_adjust_exp(n128, -exp_bias);                       \
+            cc = floatN ## _is_zero(r) ? 1 : 3;                                \
+        } else {                                                               \
+            cc = floatN ## _is_zero(r) ? 0 : 2;                                \
+        }                                                                      \
+                                                                               \
+        /* Adjust sign of zero */                                              \
+        if (floatN ## _is_zero(r)) {                                           \
+            r = floatN ## _set_sign(r, float128_is_neg(a128));                 \
+        }                                                                      \
+        n = float128_to_ ## floatN(n128, &env->fpu_status);                    \
+        if (floatN ## _is_zero(n)) {                                           \
+            n = floatN ## _set_sign(n,                                         \
+                                    float128_is_neg(a128) !=                   \
+                                        float128_is_neg(b128));                \
+        }                                                                      \
+    }                                                                          \
+                                                                               \
+    /* Flush the results if needed */                                          \
+    if ((float_exception_flags & float_flag_invalid) &&                        \
+        ((env->fpc >> 24) & S390_IEEE_MASK_INVALID)) {                         \
+        /* The action for invalid operation is "Suppress" */                   \
+    } else {                                                                   \
+        /* The action for other exceptions is "Complete" */                    \
+        deposit_ ## floatN(env, r1, r);                                        \
+        deposit_ ## floatN(env, r3, n);                                        \
+        env->cc_op = cc;                                                       \
+    }                                                                          \
+                                                                               \
+    /* Raise an exception if needed */                                         \
+    if (dxc == -1) {                                                           \
+        env->fpu_status.float_exception_flags = float_exception_flags;         \
+        handle_exceptions(env, false, GETPC());                                \
+    } else {                                                                   \
+        env->fpu_status.float_exception_flags = 0;                             \
+        tcg_s390_data_exception(env, dxc, GETPC());                            \
+    }                                                                          \
+}
+
+DIVIDE_TO_INTEGER(dieb, float32, 24, 127, 192)
+DIVIDE_TO_INTEGER(didb, float64, 53, 1023, 1536)
+
 /* 32-bit FP multiplication */
 uint64_t HELPER(meeb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
 {
