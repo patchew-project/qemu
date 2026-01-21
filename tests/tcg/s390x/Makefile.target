@@ -49,14 +49,17 @@ TESTS+=cvd
 TESTS+=cvb
 TESTS+=ts
 TESTS+=ex-smc
+TESTS+=divide-to-integer
 
 cdsg: CFLAGS+=-pthread
 cdsg: LDFLAGS+=-pthread
 
 rxsbg: CFLAGS+=-O2
+divide-to-integer: CFLAGS+=-O2
 
 cgebra: LDFLAGS+=-lm
 clgebr: LDFLAGS+=-lm
+divide-to-integer: LDFLAGS+=-lm
 
 include $(S390X_SRC)/pgm-specification.mak
 $(PGM_SPECIFICATION_TESTS): pgm-specification-user.o
