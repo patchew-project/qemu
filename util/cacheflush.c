@@ -121,7 +121,7 @@ static void sys_cache_info(int *isize, int *dsize)
 static bool have_coherent_icache;
 #endif
 
-#if defined(__aarch64__) && !defined(CONFIG_DARWIN) && !defined(CONFIG_WIN32)
+#if defined(__aarch64__) && !defined(CONFIG_DARWIN) && !defined(CONFIG_WIN64)
 /*
  * Apple does not expose CTR_EL0, so we must use system interfaces.
  * Windows neither, but we use a generic implementation of flush_idcache_range
@@ -231,7 +231,7 @@ static void __attribute__((constructor)) init_cache_info(void)
 
 /* Wasm doesn't have executable region of memory. */
 
-#elif defined(__aarch64__) && !defined(CONFIG_WIN32)
+#elif defined(__aarch64__) && !defined(CONFIG_WIN64)
 /*
  * For Windows, we use generic implementation of flush_idcache_range, that
  * performs a call to FlushInstructionCache, through __builtin___clear_cache.

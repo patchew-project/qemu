@@ -55,7 +55,7 @@ static inline void qemu_futex_wait(void *f, unsigned val)
         }
     }
 }
-#elif defined(CONFIG_WIN32)
+#elif defined(CONFIG_WIN64)
 #include <synchapi.h>
 
 static inline void qemu_futex_wake_all(void *f)

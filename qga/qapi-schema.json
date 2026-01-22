@@ -413,7 +413,7 @@
 ##
 { 'enum': 'GuestFsfreezeStatus',
   'data': [ 'thawed', 'frozen' ],
-  'if': { 'any': ['CONFIG_WIN32', 'CONFIG_FSFREEZE'] } }
+  'if': { 'any': ['CONFIG_WIN64', 'CONFIG_FSFREEZE'] } }
 
 ##
 # @guest-fsfreeze-status:
@@ -428,7 +428,7 @@
 ##
 { 'command': 'guest-fsfreeze-status',
   'returns': 'GuestFsfreezeStatus',
-  'if': { 'any': ['CONFIG_WIN32', 'CONFIG_FSFREEZE'] } }
+  'if': { 'any': ['CONFIG_WIN64', 'CONFIG_FSFREEZE'] } }
 
 ##
 # @guest-fsfreeze-freeze:
@@ -451,7 +451,7 @@
 ##
 { 'command': 'guest-fsfreeze-freeze',
   'returns': 'int',
-  'if': { 'any': ['CONFIG_WIN32', 'CONFIG_FSFREEZE'] } }
+  'if': { 'any': ['CONFIG_WIN64', 'CONFIG_FSFREEZE'] } }
 
 ##
 # @guest-fsfreeze-freeze-list:
@@ -472,7 +472,7 @@
 { 'command': 'guest-fsfreeze-freeze-list',
   'data':    { '*mountpoints': ['str'] },
   'returns': 'int',
-  'if': { 'any': ['CONFIG_WIN32', 'CONFIG_FSFREEZE'] } }
+  'if': { 'any': ['CONFIG_WIN64', 'CONFIG_FSFREEZE'] } }
 
 ##
 # @guest-fsfreeze-thaw:
@@ -490,7 +490,7 @@
 ##
 { 'command': 'guest-fsfreeze-thaw',
   'returns': 'int',
-  'if': { 'any': ['CONFIG_WIN32', 'CONFIG_FSFREEZE'] } }
+  'if': { 'any': ['CONFIG_WIN64', 'CONFIG_FSFREEZE'] } }
 
 ##
 # @GuestFilesystemTrimResult:
@@ -508,7 +508,7 @@
 { 'struct': 'GuestFilesystemTrimResult',
   'data': {'path': 'str',
            '*trimmed': 'int', '*minimum': 'int', '*error': 'str'},
-  'if': { 'any': ['CONFIG_WIN32', 'CONFIG_FSTRIM'] } }
+  'if': { 'any': ['CONFIG_WIN64', 'CONFIG_FSTRIM'] } }
 
 ##
 # @GuestFilesystemTrimResponse:
@@ -520,7 +520,7 @@
 ##
 { 'struct': 'GuestFilesystemTrimResponse',
   'data': {'paths': ['GuestFilesystemTrimResult']},
-  'if': { 'any': ['CONFIG_WIN32', 'CONFIG_FSTRIM'] } }
+  'if': { 'any': ['CONFIG_WIN64', 'CONFIG_FSTRIM'] } }
 
 ##
 # @guest-fstrim:
@@ -542,7 +542,7 @@
 { 'command': 'guest-fstrim',
   'data': { '*minimum': 'int' },
   'returns': 'GuestFilesystemTrimResponse',
-  'if': { 'any': ['CONFIG_WIN32', 'CONFIG_FSTRIM'] } }
+  'if': { 'any': ['CONFIG_WIN64', 'CONFIG_FSTRIM'] } }
 
 ##
 # @guest-suspend-disk:
@@ -572,7 +572,7 @@
 # Since: 1.1
 ##
 { 'command': 'guest-suspend-disk', 'success-response': false,
-  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN32'] } }
+  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN64'] } }
 
 ##
 # @guest-suspend-ram:
@@ -609,7 +609,7 @@
 # Since: 1.1
 ##
 { 'command': 'guest-suspend-ram', 'success-response': false,
-  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN32'] } }
+  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN64'] } }
 
 ##
 # @guest-suspend-hybrid:
@@ -660,7 +660,7 @@
 ##
 { 'enum': 'GuestIpAddressType',
   'data': [ 'ipv4', 'ipv6' ],
-  'if': { 'any': ['CONFIG_WIN32', 'HAVE_GETIFADDRS'] } }
+  'if': { 'any': ['CONFIG_WIN64', 'HAVE_GETIFADDRS'] } }
 
 ##
 # @GuestIpAddress:
@@ -677,7 +677,7 @@
   'data': {'ip-address': 'str',
            'ip-address-type': 'GuestIpAddressType',
            'prefix': 'int'},
-  'if': { 'any': ['CONFIG_WIN32', 'HAVE_GETIFADDRS'] } }
+  'if': { 'any': ['CONFIG_WIN64', 'HAVE_GETIFADDRS'] } }
 
 ##
 # @GuestNetworkInterfaceStat:
@@ -710,7 +710,7 @@
             'tx-errs': 'uint64',
             'tx-dropped': 'uint64'
            },
-  'if': { 'any': ['CONFIG_WIN32', 'HAVE_GETIFADDRS'] } }
+  'if': { 'any': ['CONFIG_WIN64', 'HAVE_GETIFADDRS'] } }
 
 ##
 # @GuestNetworkInterface:
@@ -731,7 +731,7 @@
            '*hardware-address': 'str',
            '*ip-addresses': ['GuestIpAddress'],
            '*statistics': 'GuestNetworkInterfaceStat' },
-  'if': { 'any': ['CONFIG_WIN32', 'HAVE_GETIFADDRS'] } }
+  'if': { 'any': ['CONFIG_WIN64', 'HAVE_GETIFADDRS'] } }
 
 ##
 # @guest-network-get-interfaces:
@@ -742,7 +742,7 @@
 ##
 { 'command': 'guest-network-get-interfaces',
   'returns': ['GuestNetworkInterface'],
-  'if': { 'any': ['CONFIG_WIN32', 'HAVE_GETIFADDRS'] } }
+  'if': { 'any': ['CONFIG_WIN64', 'HAVE_GETIFADDRS'] } }
 
 ##
 # @GuestLogicalProcessor:
@@ -762,7 +762,7 @@
   'data': {'logical-id': 'int',
            'online': 'bool',
            '*can-offline': 'bool'},
-  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN32'] } }
+  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN64'] } }
 
 ##
 # @guest-get-vcpus:
@@ -778,7 +778,7 @@
 ##
 { 'command': 'guest-get-vcpus',
   'returns': ['GuestLogicalProcessor'],
-  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN32'] } }
+  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN64'] } }
 
 ##
 # @guest-set-vcpus:
@@ -874,7 +874,7 @@
   'data': [ 'ide', 'fdc', 'scsi', 'virtio', 'xen', 'usb', 'uml', 'sata',
             'sd', 'unknown', 'ieee1394', 'ssa', 'fibre', 'raid', 'iscsi',
             'sas', 'mmc', 'virtual', 'file-backed-virtual', 'nvme' ],
-  'if': { 'any': [ 'CONFIG_WIN32', 'CONFIG_LINUX' ] } }
+  'if': { 'any': [ 'CONFIG_WIN64', 'CONFIG_LINUX' ] } }
 
 ##
 # @GuestPCIAddress:
@@ -892,7 +892,7 @@
 { 'struct': 'GuestPCIAddress',
   'data': {'domain': 'int', 'bus': 'int',
            'slot': 'int', 'function': 'int'},
-  'if': { 'any': [ 'CONFIG_WIN32', 'CONFIG_LINUX' ] } }
+  'if': { 'any': [ 'CONFIG_WIN64', 'CONFIG_LINUX' ] } }
 
 ##
 # @GuestCCWAddress:
@@ -912,7 +912,7 @@
            'ssid': 'int',
            'subchno': 'int',
            'devno': 'int'},
-  'if': { 'any': [ 'CONFIG_WIN32', 'CONFIG_LINUX' ] } }
+  'if': { 'any': [ 'CONFIG_WIN64', 'CONFIG_LINUX' ] } }
 
 ##
 # @GuestDiskAddress:
@@ -942,7 +942,7 @@
            'bus': 'int', 'target': 'int', 'unit': 'int',
            '*serial': 'str', '*dev': 'str',
            '*ccw-address': 'GuestCCWAddress'},
-  'if': { 'any': [ 'CONFIG_WIN32', 'CONFIG_LINUX' ] } }
+  'if': { 'any': [ 'CONFIG_WIN64', 'CONFIG_LINUX' ] } }
 
 ##
 # @GuestNVMeSmart:
@@ -980,7 +980,7 @@
            'media-errors-hi': 'uint64',
            'number-of-error-log-entries-lo': 'uint64',
            'number-of-error-log-entries-hi': 'uint64' },
-  'if': { 'any': [ 'CONFIG_WIN32', 'CONFIG_LIBUDEV' ] } }
+  'if': { 'any': [ 'CONFIG_WIN64', 'CONFIG_LIBUDEV' ] } }
 
 ##
 # @GuestDiskSmart:
@@ -995,7 +995,7 @@
   'base': { 'type': 'GuestDiskBusType' },
   'discriminator': 'type',
   'data': { 'nvme': 'GuestNVMeSmart' },
-  'if': { 'any': [ 'CONFIG_WIN32', 'CONFIG_LIBUDEV' ] } }
+  'if': { 'any': [ 'CONFIG_WIN64', 'CONFIG_LIBUDEV' ] } }
 
 ##
 # @GuestDiskInfo:
@@ -1021,7 +1021,7 @@
   'data': {'name': 'str', 'partition': 'bool', '*dependencies': ['str'],
            '*address': 'GuestDiskAddress', '*alias': 'str',
            '*smart': 'GuestDiskSmart'},
-  'if': { 'any': [ 'CONFIG_WIN32', 'CONFIG_LIBUDEV' ] } }
+  'if': { 'any': [ 'CONFIG_WIN64', 'CONFIG_LIBUDEV' ] } }
 
 ##
 # @guest-get-disks:
@@ -1035,7 +1035,7 @@
 ##
 { 'command': 'guest-get-disks',
   'returns': ['GuestDiskInfo'],
-  'if': { 'any': [ 'CONFIG_WIN32', 'CONFIG_LIBUDEV' ] } }
+  'if': { 'any': [ 'CONFIG_WIN64', 'CONFIG_LIBUDEV' ] } }
 
 ##
 # @GuestFilesystemInfo:
@@ -1063,7 +1063,7 @@
   'data': {'name': 'str', 'mountpoint': 'str', 'type': 'str',
            '*used-bytes': 'uint64', '*total-bytes': 'uint64',
            '*total-bytes-privileged': 'uint64', 'disk': ['GuestDiskAddress']},
-  'if': { 'any': [ 'CONFIG_WIN32', 'CONFIG_LINUX' ] } }
+  'if': { 'any': [ 'CONFIG_WIN64', 'CONFIG_LINUX' ] } }
 
 ##
 # @guest-get-fsinfo:
@@ -1077,7 +1077,7 @@
 ##
 { 'command': 'guest-get-fsinfo',
   'returns': ['GuestFilesystemInfo'],
-  'if': { 'any': [ 'CONFIG_WIN32', 'CONFIG_LINUX' ] } }
+  'if': { 'any': [ 'CONFIG_WIN64', 'CONFIG_LINUX' ] } }
 
 ##
 # @guest-set-user-password:
@@ -1105,7 +1105,7 @@
 ##
 { 'command': 'guest-set-user-password',
   'data': { 'username': 'str', 'password': 'str', 'crypted': 'bool' },
-  'if': { 'any': [ 'CONFIG_WIN32', 'CONFIG_LINUX', 'CONFIG_FREEBSD'] } }
+  'if': { 'any': [ 'CONFIG_WIN64', 'CONFIG_LINUX', 'CONFIG_FREEBSD'] } }
 
 ##
 # @GuestMemoryBlock:
@@ -1322,7 +1322,7 @@
 ##
  { 'enum': 'GuestExecCaptureOutputMode',
    'data': [ 'none', 'stdout', 'stderr', 'separated',
-             { 'name': 'merged', 'if': { 'not': 'CONFIG_WIN32' } } ] }
+             { 'name': 'merged', 'if': { 'not': 'CONFIG_WIN64' } } ] }
 
 ##
 # @GuestExecCaptureOutput:
@@ -1407,7 +1407,7 @@
 ##
 { 'struct': 'GuestUser',
   'data': { 'user': 'str', 'login-time': 'number', '*domain': 'str' },
-  'if': { 'any': ['CONFIG_WIN32', 'HAVE_UTMPX' ] } }
+  'if': { 'any': ['CONFIG_WIN64', 'HAVE_UTMPX' ] } }
 
 ##
 # @guest-get-users:
@@ -1420,7 +1420,7 @@
 ##
 { 'command': 'guest-get-users',
   'returns': ['GuestUser'],
-  'if': { 'any': ['CONFIG_WIN32', 'HAVE_UTMPX' ] } }
+  'if': { 'any': ['CONFIG_WIN64', 'HAVE_UTMPX' ] } }
 
 ##
 # @GuestTimezone:
@@ -1527,7 +1527,7 @@
 ##
 { 'enum': 'GuestDeviceType',
   'data': [ 'pci' ],
-  'if': 'CONFIG_WIN32' }
+  'if': 'CONFIG_WIN64' }
 
 ##
 # @GuestDeviceIdPCI:
@@ -1540,7 +1540,7 @@
 ##
 { 'struct': 'GuestDeviceIdPCI',
   'data': { 'vendor-id': 'uint16', 'device-id': 'uint16' },
-  'if': 'CONFIG_WIN32' }
+  'if': 'CONFIG_WIN64' }
 
 ##
 # @GuestDeviceId:
@@ -1555,7 +1555,7 @@
   'base': { 'type': 'GuestDeviceType' },
   'discriminator': 'type',
   'data': { 'pci': 'GuestDeviceIdPCI' },
-  'if': 'CONFIG_WIN32' }
+  'if': 'CONFIG_WIN64' }
 
 ##
 # @GuestDeviceInfo:
@@ -1577,7 +1577,7 @@
       '*driver-version': 'str',
       '*id': 'GuestDeviceId'
   },
-  'if': 'CONFIG_WIN32' }
+  'if': 'CONFIG_WIN64' }
 
 ##
 # @guest-get-devices:
@@ -1588,7 +1588,7 @@
 ##
 { 'command': 'guest-get-devices',
   'returns': ['GuestDeviceInfo'],
-  'if': 'CONFIG_WIN32' }
+  'if': 'CONFIG_WIN64' }
 
 ##
 # @GuestAuthorizedKeys:
@@ -1854,7 +1854,7 @@
       'load5m': 'number',
       'load15m': 'number'
   },
-  'if': { 'any': ['CONFIG_WIN32', 'CONFIG_GETLOADAVG'] }
+  'if': { 'any': ['CONFIG_WIN64', 'CONFIG_GETLOADAVG'] }
 }
 
 ##
@@ -1873,7 +1873,7 @@
 ##
 { 'command': 'guest-get-load',
   'returns': 'GuestLoadAverage',
-  'if': { 'any': ['CONFIG_WIN32', 'CONFIG_GETLOADAVG'] }
+  'if': { 'any': ['CONFIG_WIN64', 'CONFIG_GETLOADAVG'] }
 }
 
 ##

@@ -30,7 +30,7 @@ struct QIOChannelFDSource {
 };
 
 
-#ifdef CONFIG_WIN32
+#ifdef CONFIG_WIN64
 typedef struct QIOChannelSocketSource QIOChannelSocketSource;
 struct QIOChannelSocketSource {
     GSource parent;
@@ -96,7 +96,7 @@ qio_channel_fd_source_finalize(GSource *source)
 }
 
 
-#ifdef CONFIG_WIN32
+#ifdef CONFIG_WIN64
 static gboolean
 qio_channel_socket_source_prepare(GSource *source G_GNUC_UNUSED,
                                   gint *timeout)
@@ -261,7 +261,7 @@ GSource *qio_channel_create_fd_watch(QIOChannel *ioc,
 
     ssource->condition = condition;
 
-#ifdef CONFIG_WIN32
+#ifdef CONFIG_WIN64
     ssource->fd.fd = (gint64)_get_osfhandle(fd);
 #else
     ssource->fd.fd = fd;
@@ -273,7 +273,7 @@ GSource *qio_channel_create_fd_watch(QIOChannel *ioc,
     return source;
 }
 
-#ifdef CONFIG_WIN32
+#ifdef CONFIG_WIN64
 GSource *qio_channel_create_socket_watch(QIOChannel *ioc,
                                          int sockfd,
                                          GIOCondition condition)
@@ -329,7 +329,7 @@ GSource *qio_channel_create_fd_pair_watch(QIOChannel *ioc,
 
     ssource->condition = condition;
 
-#ifdef CONFIG_WIN32
+#ifdef CONFIG_WIN64
     ssource->fdread.fd = (gint64)_get_osfhandle(fdread);
     ssource->fdwrite.fd = (gint64)_get_osfhandle(fdwrite);
 #else

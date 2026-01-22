@@ -35,7 +35,7 @@
 
 #include "qemu/osdep.h"
 #include "qom/object.h"
-#ifndef CONFIG_WIN32
+#ifndef CONFIG_WIN64
 #include <poll.h>
 #endif
 #include <libusb.h>
@@ -233,7 +233,7 @@ static const char *err_names[] = {
 static libusb_context *ctx;
 static uint32_t loglevel;
 
-#ifndef CONFIG_WIN32
+#ifndef CONFIG_WIN64
 
 static void usb_host_handle_fd(void *opaque)
 {
@@ -277,11 +277,11 @@ static void usb_host_timer(void *opaque)
     usb_host_timer_kick();
 }
 
-#endif /* !CONFIG_WIN32 */
+#endif /* !CONFIG_WIN64 */
 
 static int usb_host_init(void)
 {
-#ifndef CONFIG_WIN32
+#ifndef CONFIG_WIN64
     const struct libusb_pollfd **poll;
 #endif
     int rc;
@@ -298,7 +298,7 @@ static int usb_host_init(void)
 #else
     libusb_set_debug(ctx, loglevel);
 #endif
-#ifdef CONFIG_WIN32
+#ifdef CONFIG_WIN64
     poll_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, usb_host_timer, NULL);
     usb_host_timer_kick();
 #else
@@ -388,7 +388,7 @@ static USBHostRequest *usb_host_req_alloc(USBHostDevice *s, USBPacket *p,
         r->buffer = g_malloc(bufsize);
     }
     QTAILQ_INSERT_TAIL(&s->requests, r, next);
-#ifdef CONFIG_WIN32
+#ifdef CONFIG_WIN64
     request_count++;
     usb_host_timer_kick();
 #endif
@@ -397,7 +397,7 @@ static USBHostRequest *usb_host_req_alloc(USBHostDevice *s, USBPacket *p,
 
 static void usb_host_req_free(USBHostRequest *r)
 {
-#ifdef CONFIG_WIN32
+#ifdef CONFIG_WIN64
     request_count--;
 #endif
     QTAILQ_REMOVE(&r->host->requests, r, next);
@@ -971,7 +971,7 @@ static int usb_host_open(USBHostDevice *s, libusb_device *dev, int hostfd)
             goto fail;
         }
     } else {
-#if LIBUSB_API_VERSION >= 0x01000107 && !defined(CONFIG_WIN32)
+#if LIBUSB_API_VERSION >= 0x01000107 && !defined(CONFIG_WIN64)
         trace_usb_host_open_hostfd(hostfd);
 
         rc = libusb_wrap_sys_device(ctx, hostfd, &s->dh);
@@ -1208,7 +1208,7 @@ static void usb_host_realize(USBDevice *udev, Error **errp)
     QTAILQ_INIT(&s->isorings);
     s->hostfd = -1;
 
-#if LIBUSB_API_VERSION >= 0x01000107 && !defined(CONFIG_WIN32)
+#if LIBUSB_API_VERSION >= 0x01000107 && !defined(CONFIG_WIN64)
     if (s->hostdevice) {
         int fd;
         s->needs_autoscan = false;

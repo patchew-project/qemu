@@ -3110,7 +3110,7 @@ sub process {
 			}
 		}
 # check of hardware specific defines
-# we have e.g. CONFIG_LINUX and CONFIG_WIN32 for common cases
+# we have e.g. CONFIG_LINUX and CONFIG_WIN64 for common cases
 # where they might be necessary.
 		if ($line =~ m@^.\s*\#\s*if.*\b__@) {
 			WARN("architecture specific defines should be avoided\n" .  $herecurr);

@@ -1363,7 +1363,7 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
 static gboolean gd_grab_broken_event(GtkWidget *widget,
                                      GdkEventGrabBroken *event, void *opaque)
 {
-#ifdef CONFIG_WIN32
+#ifdef CONFIG_WIN64
     /*
      * On Windows the Ctrl-Alt-Del key combination can't be grabbed. This
      * key combination leaves all three keys in a stuck condition. We use

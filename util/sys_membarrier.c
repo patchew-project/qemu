@@ -23,7 +23,7 @@ membarrier(int cmd, int flags)
 
 void smp_mb_global(void)
 {
-#if defined CONFIG_WIN32
+#if defined CONFIG_WIN64
     FlushProcessWriteBuffers();
 #elif defined CONFIG_LINUX
     membarrier(MEMBARRIER_CMD_SHARED, 0);
