@@ -605,5 +605,6 @@ void migration_bitmap_sync_precopy(bool last_stage);
 /* migration/block-dirty-bitmap.c */
 void dirty_bitmap_mig_init(void);
 bool should_send_vmdesc(void);
+bool migrate_use_return_path(void);
 
 #endif

@@ -109,6 +109,19 @@ static bool close_return_path_on_source(MigrationState *s);
 static void migration_completion_end(MigrationState *s);
 static void migrate_hup_delete(MigrationState *s);
 
+/*
+ * Postcopy-ram will imply return path.
+ *
+ * Normally we don't describe capability dependencies like this; we could
+ * have failed the migration request if postcopy-ram is selected withour
+ * return-path.  Said that, we had this as part of postcopy-ram capability
+ * ABI for years.. let's stick with it.
+ */
+bool migrate_use_return_path(void)
+{
+    return migrate_postcopy_ram() || migrate_return_path();
+}
+
 static void migration_downtime_start(MigrationState *s)
 {
     trace_vmstate_downtime_checkpoint("src-downtime-start");
@@ -4067,7 +4080,7 @@ void migration_connect(MigrationState *s, Error *error_in)
      * precopy, only if user specified "return-path" capability would
      * QEMU uses the return path.
      */
-    if (migrate_postcopy_ram() || migrate_return_path()) {
+    if (migrate_use_return_path()) {
         open_return_path_on_source(s);
     }
 
