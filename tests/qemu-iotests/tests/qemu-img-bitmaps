@@ -137,7 +137,7 @@ echo
 
 # Prepare image with corrupted bitmap
 $QEMU_IO -c abort "$TEST_IMG" 2>/dev/null
-$QEMU_IMG bitmap --add "$TEST_IMG" b4
+$QEMU_IMG bitmap --add "$TEST_IMG" b4 2>&1 | _filter_testdir
 $QEMU_IMG bitmap --remove "$TEST_IMG" b1
 _img_info --format-specific | _filter_irrelevant_img_info
 # Proof that we fail fast if bitmaps can't be copied

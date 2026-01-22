@@ -30,6 +30,8 @@
 #include "block/dirty-bitmap.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
+#include "qemu/log.h"
+#include "qemu/error-report.h"
 
 #include "qcow2.h"
 
@@ -958,6 +960,48 @@ static void set_readonly_helper(gpointer bitmap, gpointer value)
     bdrv_dirty_bitmap_set_readonly(bitmap, (bool)value);
 }
 
+int qcow2_remove_in_use_bitmaps(BlockDriverState *bs)
+{
+    BDRVQcow2State *s = bs->opaque;
+    Qcow2BitmapList *bm_list;
+    Qcow2Bitmap *bm, *next;
+    bool removed_any = false;
+
+    if (s->nb_bitmaps == 0) {
+        return 0;
+    }
+
+    bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
+                               s->bitmap_directory_size, NULL);
+    if (bm_list == NULL) {
+        return 0;
+    }
+
+    QSIMPLEQ_FOREACH_SAFE(bm, bm_list, entry, next) {
+        if (bm->flags & BME_FLAG_IN_USE) {
+            qemu_log("Removing inconsistent bitmap '%s' at image '%s'\n",
+                     bm->name, bs->filename);
+
+            QSIMPLEQ_REMOVE(bm_list, bm, Qcow2Bitmap, entry);
+            free_bitmap_clusters(bs, &bm->table);
+            bitmap_free(bm);
+            removed_any = true;
+        }
+    }
+
+    int ret = 0;
+    if (removed_any) {
+        ret = update_ext_header_and_dir(bs, bm_list);
+        if (ret < 0) {
+            error_report("Can't update bitmap directory after removing "
+                         "inconsistent bitmaps");
+        }
+    }
+
+    bitmap_list_free(bm_list);
+    return ret;
+}
+
 /*
  * Return true on success, false on failure.
  * If header_updated is not NULL then it is set appropriately regardless of
@@ -969,9 +1013,9 @@ qcow2_load_dirty_bitmaps(BlockDriverState *bs,
 {
     BDRVQcow2State *s = bs->opaque;
     Qcow2BitmapList *bm_list;
-    Qcow2Bitmap *bm;
+    Qcow2Bitmap *bm, *next;
     GSList *created_dirty_bitmaps = NULL;
-    bool needs_update = false;
+    bool needs_update = false, removed_persistent_bitmaps = false;
 
     if (header_updated) {
         *header_updated = false;
@@ -988,7 +1032,7 @@ qcow2_load_dirty_bitmaps(BlockDriverState *bs,
         return false;
     }
 
-    QSIMPLEQ_FOREACH(bm, bm_list, entry) {
+    QSIMPLEQ_FOREACH_SAFE(bm, bm_list, entry, next) {
         BdrvDirtyBitmap *bitmap;
 
         if ((bm->flags & BME_FLAG_IN_USE) &&
@@ -1008,6 +1052,32 @@ qcow2_load_dirty_bitmaps(BlockDriverState *bs,
             continue;
         }
 
+        if ((bm->flags & BME_FLAG_IN_USE) && can_write(bs) &&
+            !(s->flags & BDRV_O_CHECK))
+        {
+            /*
+             * Remove inconsistent bitmaps.
+             * This is to avoid errors on migrations, when
+             * when bdrv_dirty_bitmap_check() could be called on a bitmap
+             * marked as inconsistent, causing an error and requiring the user
+             * to manually request inconsistent bitmap deletion.
+             *
+             * In case we have a corrupted image, there's no guarantee that
+             * update_ext_header_and_dir() will succeed.
+             * This would render some images impossible to repair.
+             * Therefore, skip it on the image open if we're in the check mode
+             * (and do it later when the image is successfully repaired).
+             */
+            qemu_log("Removing inconsistent bitmap '%s' at image '%s'\n",
+                     bm->name, bs->filename);
+
+            QSIMPLEQ_REMOVE(bm_list, bm, Qcow2Bitmap, entry);
+            free_bitmap_clusters(bs, &bm->table);
+            bitmap_free(bm);
+            removed_persistent_bitmaps = true;
+            continue;
+        }
+
         bitmap = load_bitmap(bs, bm, errp);
         if (bitmap == NULL) {
             goto fail;
@@ -1015,6 +1085,7 @@ qcow2_load_dirty_bitmaps(BlockDriverState *bs,
 
         bdrv_dirty_bitmap_set_persistence(bitmap, true);
         if (bm->flags & BME_FLAG_IN_USE) {
+            /* Reached in check mode or readonly mode */
             bdrv_dirty_bitmap_set_inconsistent(bitmap);
         } else {
             /* NB: updated flags only get written if can_write(bs) is true. */
@@ -1028,15 +1099,31 @@ qcow2_load_dirty_bitmaps(BlockDriverState *bs,
             g_slist_append(created_dirty_bitmaps, bitmap);
     }
 
-    if (needs_update && can_write(bs)) {
-        /* in_use flags must be updated */
-        int ret = update_ext_header_and_dir_in_place(bs, bm_list);
-        if (ret < 0) {
-            error_setg_errno(errp, -ret, "Can't update bitmap directory");
-            goto fail;
-        }
-        if (header_updated) {
-            *header_updated = true;
+    if (can_write(bs)) {
+        if (removed_persistent_bitmaps) {
+            /*
+             * Bitmaps must be removed
+             * (possibly along with updating in_use flags)
+             */
+            int ret = update_ext_header_and_dir(bs, bm_list);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret, "Can't update bitmap directory "
+                                 "after removing inconsistent bitmaps");
+                goto fail;
+            }
+            if (header_updated) {
+                *header_updated = true;
+            }
+        } else if (needs_update) {
+            /* Only in_use flags must be updated */
+            int ret = update_ext_header_and_dir_in_place(bs, bm_list);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret, "Can't update bitmap directory");
+                goto fail;
+            }
+            if (header_updated) {
+                *header_updated = true;
+            }
         }
     }
 
