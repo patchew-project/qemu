@@ -225,6 +225,7 @@ static void get_StrOrNull(Object *obj, Visitor *v, const char *name,
         str_or_null = g_new0(StrOrNull, 1);
         str_or_null->type = QTYPE_QSTRING;
         str_or_null->u.s = g_strdup("");
+        *ptr = str_or_null;
     } else {
         /* the setter doesn't allow QNULL */
         assert(str_or_null->type != QTYPE_QNULL);
@@ -245,6 +246,7 @@ static void set_StrOrNull(Object *obj, Visitor *v, const char *name,
      */
     str_or_null->type = QTYPE_QSTRING;
     if (!visit_type_str(v, name, &str_or_null->u.s, errp)) {
+        qapi_free_StrOrNull(str_or_null);
         return;
     }
 
