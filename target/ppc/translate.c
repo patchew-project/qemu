@@ -219,12 +219,6 @@ static inline MemOp ppc_code_endian(const DisasContext *ctx)
     return MO_BE ^ (ctx->le_mode * MO_BSWAP);
 }
 
-/* Return true iff byteswap is needed in a scalar memop */
-static inline bool need_byteswap(const DisasContext *ctx)
-{
-    return ppc_code_endian(ctx) != MO_TE;
-}
-
 /* True when active word size < size of target_long.  */
 #ifdef TARGET_PPC64
 # define NARROW_MODE(C)  (!(C)->sf_mode)
@@ -6589,6 +6583,7 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = cpu_env(cs);
+    MemOp mo_endian = ppc_code_endian(ctx);
     target_ulong pc;
     uint32_t insn;
     bool ok;
@@ -6598,7 +6593,7 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
               ctx->base.pc_next, ctx->mem_idx, (int)msr_ir);
 
     ctx->cia = pc = ctx->base.pc_next;
-    insn = translator_ldl_swap(env, dcbase, pc, need_byteswap(ctx));
+    insn = translator_ldl_end(env, dcbase, pc, mo_endian);
     ctx->base.pc_next = pc += 4;
 
     if (!is_prefix_insn(ctx, insn)) {
@@ -6614,8 +6609,7 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
         gen_exception_err(ctx, POWERPC_EXCP_ALIGN, POWERPC_EXCP_ALIGN_INSN);
         ok = true;
     } else {
-        uint32_t insn2 = translator_ldl_swap(env, dcbase, pc,
-                                             need_byteswap(ctx));
+        uint32_t insn2 = translator_ldl_end(env, dcbase, pc, mo_endian);
         ctx->base.pc_next = pc += 4;
         ok = decode_insn64(ctx, deposit64(insn2, 32, 32, insn));
     }
