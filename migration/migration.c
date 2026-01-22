@@ -2910,7 +2910,6 @@ fail:
     if (ms->state != MIGRATION_STATUS_CANCELLING) {
         migrate_set_state(&ms->state, ms->state, MIGRATION_STATUS_FAILED);
     }
-    migration_block_activate(NULL);
     bql_unlock();
     return -1;
 }
