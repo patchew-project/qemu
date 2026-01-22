@@ -28,7 +28,7 @@
 
 typedef struct DisasContext {
     DisasContextBase base;
-    Packet *pkt;
+    Packet pkt;
     Insn *insn;
     uint32_t next_PC;
     uint32_t mem_idx;

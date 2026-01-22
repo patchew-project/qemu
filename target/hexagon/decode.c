@@ -748,14 +748,12 @@ int disassemble_hexagon(uint32_t *words, int nwords, bfd_vma pc,
                         GString *buf)
 {
     DisasContext ctx;
-    Packet pkt;
 
     memset(&ctx, 0, sizeof(DisasContext));
-    ctx.pkt = &pkt;
 
-    if (decode_packet(&ctx, nwords, words, &pkt, true) > 0) {
-        snprint_a_pkt_disas(buf, &pkt, words, pc);
-        return pkt.encod_pkt_size_in_bytes;
+    if (decode_packet(&ctx, nwords, words, &ctx.pkt, true) > 0) {
+        snprint_a_pkt_disas(buf, &ctx.pkt, words, pc);
+        return ctx.pkt.encod_pkt_size_in_bytes;
     } else {
         g_string_assign(buf, "<invalid>");
         return 0;

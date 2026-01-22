@@ -72,7 +72,7 @@ def gen_tcg_func(f, tag, regs, imms):
         for immlett, bits, immshift in imms:
             declared.append(hex_common.imm_name(immlett))
 
-        arguments = ", ".join(["ctx", "ctx->insn", "ctx->pkt"] + declared)
+        arguments = ", ".join(["ctx", "ctx->insn", "&ctx->pkt"] + declared)
         f.write(f"    emit_{tag}({arguments});\n")
 
     elif hex_common.skip_qemu_helper(tag):

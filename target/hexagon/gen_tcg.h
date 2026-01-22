@@ -1363,7 +1363,7 @@
 #define fGEN_TCG_J2_trap0(SHORTCODE) \
     do { \
         uiV = uiV; \
-        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->pkt->pc); \
+        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->pkt.pc); \
         TCGv excp = tcg_constant_tl(HEX_EVENT_TRAP0); \
         gen_helper_raise_exception(tcg_env, excp); \
     } while (0)
