@@ -19,9 +19,15 @@
 #define PPC_INTERNAL_H
 
 #include "exec/breakpoint.h"
+#include "exec/memop.h"
 #include "hw/core/registerfields.h"
 #include "exec/page-protection.h"
 #include "accel/tcg/tb-cpu-state.h"
+
+static inline MemOp mo_endian_env(const CPUPPCState *env)
+{
+    return MO_TE;
+}
 
 /* PM instructions */
 typedef enum {
