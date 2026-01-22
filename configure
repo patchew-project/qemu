@@ -968,6 +968,12 @@ mkvenv="$python ${source_path}/python/scripts/mkvenv.py"
 $mkvenv ensuregroup --dir "${source_path}/python/wheels" \
      ${source_path}/pythondeps.toml meson || exit 1
 
+# For some unknown reason, the meson binary shows up in the wrong
+# folder on Haiku. Use a symlink to fix it.
+if test "$host_os" = "haiku" && test ! -e pyvenv/bin/meson ; then
+    ln -s "$PWD"/pyvenv/non-packaged/bin/meson pyvenv/bin/meson
+fi
+
 # At this point, we expect Meson to be installed and available.
 # We expect mkvenv or pip to have created pyvenv/bin/meson for us.
 # We ignore PATH completely here: we want to use the venv's Meson
@@ -1069,7 +1075,7 @@ static THREAD int tls_var;
 int main(void) { return tls_var; }
 EOF
 
-if test "$host_os" = windows || test "$host_os" = haiku; then
+if test "$host_os" = windows ; then
   if test "$pie" = "yes"; then
     error_exit "PIE not available due to missing OS support"
   fi
