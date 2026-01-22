@@ -31,7 +31,7 @@ static inline bool ppc_env_is_little_endian(const CPUPPCState *env)
 
 static inline MemOp mo_endian_env(const CPUPPCState *env)
 {
-    return MO_TE;
+    return ppc_env_is_little_endian(env) ? MO_LE : MO_BE;
 }
 
 /* PM instructions */
