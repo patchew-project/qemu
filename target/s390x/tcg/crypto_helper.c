@@ -128,6 +128,26 @@ static int cpacf_kmc(CPUS390XState *env, uintptr_t ra, uint32_t r1,
     return rc;
 }
 
+static int cpacf_kmctr(CPUS390XState *env, uintptr_t ra, uint32_t r1,
+                       uint32_t r2, uint32_t r3, uint8_t fc, uint8_t mod)
+{
+    int rc = 0;
+
+    switch (fc) {
+    case 0x12: /* CPACF_KMCTR_AES_128 */
+    case 0x13: /* CPACF_KMCTR_AES_192 */
+    case 0x14: /* CPACF_KMCTR_AES_256 */
+        rc = cpacf_aes_ctr(env, ra, env->regs[1],
+                           &env->regs[r1], &env->regs[r2], &env->regs[r2 + 1],
+                           &env->regs[r3], S390_FEAT_TYPE_KMCTR, fc, mod);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    return rc;
+}
+
 static int cpacf_ppno(CPUS390XState *env, uintptr_t ra,
                       uint32_t r1, uint32_t r2, uint32_t r3, uint8_t fc)
 {
@@ -197,6 +217,9 @@ uint32_t HELPER(msa)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t r3,
         break;
     case S390_FEAT_TYPE_KMC:
         rc = cpacf_kmc(env, ra, r1, r2, r3, fc, mod);
+        break;
+    case S390_FEAT_TYPE_KMCTR:
+        rc = cpacf_kmctr(env, ra, r1, r2, r3, fc, mod);
         break;
     default:
         g_assert_not_reached();
