@@ -42,5 +42,7 @@ int cpacf_paes_cbc(CPUS390XState *env, uintptr_t ra, uint64_t param_addr,
 int cpacf_paes_ctr(CPUS390XState *env, uintptr_t ra, uint64_t param_addr,
                    uint64_t *dst_ptr, uint64_t *src_ptr, uint64_t *src_len,
                    uint64_t *ctr_ptr, uint32_t type, uint8_t fc, uint8_t mod);
+int cpacf_paes_pcc(CPUS390XState *env, uintptr_t ra, uint64_t param_addr,
+                   uint8_t fc);
 
 #endif
