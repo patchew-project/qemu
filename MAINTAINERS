@@ -2237,6 +2237,7 @@ F: qapi/acpi-hest.json
 F: scripts/ghes_decode.py
 F: scripts/ghes_inject.py
 F: scripts/arm_processor_error.py
+F: scripts/fuzzy_error.py
 F: scripts/pci_bus_error.py
 F: scripts/qmp_helper.py
 
