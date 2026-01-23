@@ -932,7 +932,7 @@ void AUD_set_active_out(SWVoiceOut *sw, bool on)
             hw->pending_disable = 0;
             if (!hw->enabled) {
                 hw->enabled = true;
-                if (s->vm_running) {
+                if (runstate_is_running()) {
                     if (hw->pcm_ops->enable_out) {
                         hw->pcm_ops->enable_out(hw, true);
                     }
@@ -978,7 +978,7 @@ void AUD_set_active_in(SWVoiceIn *sw, bool on)
         if (on) {
             if (!hw->enabled) {
                 hw->enabled = true;
-                if (s->vm_running) {
+                if (runstate_is_running()) {
                     if (hw->pcm_ops->enable_in) {
                         hw->pcm_ops->enable_in(hw, true);
                     }
@@ -1597,7 +1597,6 @@ static void audio_vm_change_state_handler (void *opaque, bool running,
     HWVoiceOut *hwo = NULL;
     HWVoiceIn *hwi = NULL;
 
-    s->vm_running = running;
     while ((hwo = audio_pcm_hw_find_any_enabled_out(s, hwo))) {
         if (hwo->pcm_ops->enable_out) {
             hwo->pcm_ops->enable_out(hwo, running);
