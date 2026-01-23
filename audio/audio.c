@@ -846,7 +846,8 @@ static void audio_timer (void *opaque)
 /*
  * Public API
  */
-size_t AUD_write(AudioBackend *be, SWVoiceOut *sw, void *buf, size_t size)
+static size_t audio_mixeng_backend_write(AudioBackend *be, SWVoiceOut *sw,
+                                         void *buf, size_t size)
 {
     HWVoiceOut *hw;
 
@@ -857,7 +858,7 @@ size_t AUD_write(AudioBackend *be, SWVoiceOut *sw, void *buf, size_t size)
     hw = sw->hw;
 
     if (!hw->enabled) {
-        dolog ("Writing to disabled voice %s\n", SW_NAME (sw));
+        dolog("Writing to disabled voice %s\n", SW_NAME(sw));
         return 0;
     }
 
@@ -868,7 +869,15 @@ size_t AUD_write(AudioBackend *be, SWVoiceOut *sw, void *buf, size_t size)
     }
 }
 
-size_t AUD_read(AudioBackend *be, SWVoiceIn *sw, void *buf, size_t size)
+size_t AUD_write(AudioBackend *be, SWVoiceOut *sw, void *buf, size_t size)
+{
+    AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
+
+    return klass->write(be, sw, buf, size);
+}
+
+static size_t audio_mixeng_backend_read(AudioBackend *be, SWVoiceIn *sw,
+                                        void *buf, size_t size)
 {
     HWVoiceIn *hw;
 
@@ -879,7 +888,7 @@ size_t AUD_read(AudioBackend *be, SWVoiceIn *sw, void *buf, size_t size)
     hw = sw->hw;
 
     if (!hw->enabled) {
-        dolog ("Reading from disabled voice %s\n", SW_NAME (sw));
+        dolog("Reading from disabled voice %s\n", SW_NAME(sw));
         return 0;
     }
 
@@ -888,9 +897,17 @@ size_t AUD_read(AudioBackend *be, SWVoiceIn *sw, void *buf, size_t size)
     } else {
         return hw->pcm_ops->read(hw, buf, size);
     }
+
 }
 
-int AUD_get_buffer_size_out(AudioBackend *be, SWVoiceOut *sw)
+size_t AUD_read(AudioBackend *be, SWVoiceIn *sw, void *buf, size_t size)
+{
+    AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
+
+    return klass->read(be, sw, buf, size);
+}
+
+static int audio_mixeng_backend_get_buffer_size_out(AudioBackend *be, SWVoiceOut *sw)
 {
     if (!sw) {
         return 0;
@@ -903,7 +920,15 @@ int AUD_get_buffer_size_out(AudioBackend *be, SWVoiceOut *sw)
     return sw->hw->samples * sw->hw->info.bytes_per_frame;
 }
 
-void AUD_set_active_out(AudioBackend *be, SWVoiceOut *sw, bool on)
+int AUD_get_buffer_size_out(AudioBackend *be, SWVoiceOut *sw)
+{
+    AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
+
+    return klass->get_buffer_size_out(be, sw);
+}
+
+static void audio_mixeng_backend_set_active_out(AudioBackend *be, SWVoiceOut *sw,
+                                                bool on)
 {
     HWVoiceOut *hw;
 
@@ -949,9 +974,17 @@ void AUD_set_active_out(AudioBackend *be, SWVoiceOut *sw, bool on)
         }
         sw->active = on;
     }
+
 }
 
-void AUD_set_active_in(AudioBackend *be, SWVoiceIn *sw, bool on)
+void AUD_set_active_out(AudioBackend *be, SWVoiceOut *sw, bool on)
+{
+    AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
+
+    return klass->set_active_out(be, sw, on);
+}
+
+static void audio_mixeng_backend_set_active_in(AudioBackend *be, SWVoiceIn *sw, bool on)
 {
     HWVoiceIn *hw;
 
@@ -994,6 +1027,13 @@ void AUD_set_active_in(AudioBackend *be, SWVoiceIn *sw, bool on)
         }
         sw->active = on;
     }
+}
+
+void AUD_set_active_in(AudioBackend *be, SWVoiceIn *sw, bool on)
+{
+    AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
+
+    return klass->set_active_in(be, sw, on);
 }
 
 static size_t audio_get_avail(SWVoiceIn *sw)
@@ -1657,12 +1697,97 @@ static const char *audio_mixeng_backend_get_id(AudioBackend *be)
     return AUDIO_MIXENG_BACKEND(be)->dev->id;
 }
 
+static CaptureVoiceOut *audio_mixeng_backend_add_capture(
+    AudioBackend *be,
+    struct audsettings *as,
+    struct audio_capture_ops *ops,
+    void *cb_opaque);
+
+static void audio_mixeng_backend_del_capture(
+    AudioBackend *be,
+    CaptureVoiceOut *cap,
+    void *cb_opaque);
+
+static void audio_mixeng_backend_set_volume_out(AudioBackend *be, SWVoiceOut *sw,
+                                                Volume *vol);
+static void audio_mixeng_backend_set_volume_in(AudioBackend *be, SWVoiceIn *sw,
+                                               Volume *vol);
+
+SWVoiceOut *AUD_open_out(
+    AudioBackend *be,
+    SWVoiceOut *sw,
+    const char *name,
+    void *callback_opaque,
+    audio_callback_fn callback_fn,
+    const struct audsettings *as)
+{
+    AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
+
+    return klass->open_out(be, sw, name, callback_opaque, callback_fn, as);
+}
+
+SWVoiceIn *AUD_open_in(
+    AudioBackend *be,
+    SWVoiceIn *sw,
+    const char *name,
+    void *callback_opaque,
+    audio_callback_fn callback_fn,
+    const struct audsettings *as)
+{
+    AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
+
+    return klass->open_in(be, sw, name, callback_opaque, callback_fn, as);
+}
+
+void AUD_close_out(AudioBackend *be, SWVoiceOut *sw)
+{
+    AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
+
+    return klass->close_out(be, sw);
+}
+
+void AUD_close_in(AudioBackend *be, SWVoiceIn *sw)
+{
+    AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
+
+    return klass->close_in(be, sw);
+}
+
+bool AUD_is_active_out(AudioBackend *be, SWVoiceOut *sw)
+{
+    AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
+
+    return klass->is_active_out(be, sw);
+}
+
+bool AUD_is_active_in(AudioBackend *be, SWVoiceIn *sw)
+{
+    AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
+
+    return klass->is_active_in(be, sw);
+}
+
 static void audio_mixeng_backend_class_init(ObjectClass *klass, const void *data)
 {
     AudioBackendClass *be = AUDIO_BACKEND_CLASS(klass);
 
     be->realize = audio_mixeng_backend_realize;
     be->get_id = audio_mixeng_backend_get_id;
+    be->open_in = audio_mixeng_backend_open_in;
+    be->open_out = audio_mixeng_backend_open_out;
+    be->close_in = audio_mixeng_backend_close_in;
+    be->close_out = audio_mixeng_backend_close_out;
+    be->is_active_out = audio_mixeng_backend_is_active_out;
+    be->is_active_in = audio_mixeng_backend_is_active_in;
+    be->set_active_out = audio_mixeng_backend_set_active_out;
+    be->set_active_in = audio_mixeng_backend_set_active_in;
+    be->set_volume_out = audio_mixeng_backend_set_volume_out;
+    be->set_volume_in = audio_mixeng_backend_set_volume_in;
+    be->read = audio_mixeng_backend_read;
+    be->write = audio_mixeng_backend_write;
+    be->get_buffer_size_out = audio_mixeng_backend_get_buffer_size_out;
+    be->add_capture = audio_mixeng_backend_add_capture;
+    be->del_capture = audio_mixeng_backend_del_capture;
 }
 
 static void audio_mixeng_backend_init(Object *obj)
@@ -1862,12 +1987,11 @@ bool AUD_backend_check(AudioBackend **be, Error **errp)
 
 static struct audio_pcm_ops capture_pcm_ops;
 
-CaptureVoiceOut *AUD_add_capture(
+static CaptureVoiceOut *audio_mixeng_backend_add_capture(
     AudioBackend *be,
     struct audsettings *as,
     struct audio_capture_ops *ops,
-    void *cb_opaque
-    )
+    void *cb_opaque)
 {
     AudioMixengBackend *s = AUDIO_MIXENG_BACKEND(be);
     CaptureVoiceOut *cap;
@@ -1937,7 +2061,21 @@ CaptureVoiceOut *AUD_add_capture(
     return cap;
 }
 
-void AUD_del_capture(AudioBackend *be, CaptureVoiceOut *cap, void *cb_opaque)
+CaptureVoiceOut *AUD_add_capture(
+    AudioBackend *be,
+    struct audsettings *as,
+    struct audio_capture_ops *ops,
+    void *cb_opaque)
+{
+    AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
+
+    return klass->add_capture(be, as, ops, cb_opaque);
+}
+
+static void audio_mixeng_backend_del_capture(
+    AudioBackend *be,
+    CaptureVoiceOut *cap,
+    void *cb_opaque)
 {
     struct capture_callback *cb;
 
@@ -1976,7 +2114,15 @@ void AUD_del_capture(AudioBackend *be, CaptureVoiceOut *cap, void *cb_opaque)
     }
 }
 
-void AUD_set_volume_out(AudioBackend *be, SWVoiceOut *sw, Volume *vol)
+void AUD_del_capture(AudioBackend *be, CaptureVoiceOut *cap, void *cb_opaque)
+{
+    AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
+
+    klass->del_capture(be, cap, cb_opaque);
+}
+
+static void audio_mixeng_backend_set_volume_out(AudioBackend *be, SWVoiceOut *sw,
+                                                Volume *vol)
 {
     if (sw) {
         HWVoiceOut *hw = sw->hw;
@@ -1992,7 +2138,15 @@ void AUD_set_volume_out(AudioBackend *be, SWVoiceOut *sw, Volume *vol)
     }
 }
 
-void AUD_set_volume_in(AudioBackend *be, SWVoiceIn *sw, Volume *vol)
+void AUD_set_volume_out(AudioBackend *be, SWVoiceOut *sw, Volume *vol)
+{
+    AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
+
+    klass->set_volume_out(be, sw, vol);
+}
+
+static void audio_mixeng_backend_set_volume_in(AudioBackend *be, SWVoiceIn *sw,
+                                               Volume *vol)
 {
     if (sw) {
         HWVoiceIn *hw = sw->hw;
@@ -2006,6 +2160,13 @@ void AUD_set_volume_in(AudioBackend *be, SWVoiceIn *sw, Volume *vol)
             hw->pcm_ops->volume_in(hw, vol);
         }
     }
+}
+
+void AUD_set_volume_in(AudioBackend *be, SWVoiceIn *sw, Volume *vol)
+{
+    AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
+
+    klass->set_volume_in(be, sw, vol);
 }
 
 static void audio_create_pdos(Audiodev *dev)
