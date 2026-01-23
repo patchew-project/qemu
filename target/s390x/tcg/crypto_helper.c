@@ -87,6 +87,27 @@ static int cpacf_klmd(CPUS390XState *env, const uintptr_t ra,
     return rc;
 }
 
+
+static int cpacf_km(CPUS390XState *env, uintptr_t ra, uint32_t r1,
+                    uint32_t r2, uint32_t r3, uint8_t fc, uint8_t mod)
+{
+    int rc = 0;
+
+    switch (fc) {
+    case 0x12: /* CPACF_KM_AES_128 */
+    case 0x13: /* CPACF_KM_AES_192 */
+    case 0x14: /* CPACF_KM_AES_256 */
+        rc = cpacf_aes_ecb(env, ra, env->regs[1],
+                           &env->regs[r1], &env->regs[r2], &env->regs[r2 + 1],
+                           S390_FEAT_TYPE_KM, fc, mod);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    return rc;
+}
+
 static int cpacf_ppno(CPUS390XState *env, uintptr_t ra,
                       uint32_t r1, uint32_t r2, uint32_t r3, uint8_t fc)
 {
@@ -150,6 +171,9 @@ uint32_t HELPER(msa)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t r3,
         break;
     case S390_FEAT_TYPE_PPNO:
         rc = cpacf_ppno(env, ra, r1, r2, r3, fc);
+        break;
+    case S390_FEAT_TYPE_KM:
+        rc = cpacf_km(env, ra, r1, r2, r3, fc, mod);
         break;
     default:
         g_assert_not_reached();
