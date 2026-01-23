@@ -846,7 +846,7 @@ static void audio_timer (void *opaque)
 /*
  * Public API
  */
-size_t AUD_write(SWVoiceOut *sw, void *buf, size_t size)
+size_t AUD_write(AudioBackend *be, SWVoiceOut *sw, void *buf, size_t size)
 {
     HWVoiceOut *hw;
 
@@ -868,7 +868,7 @@ size_t AUD_write(SWVoiceOut *sw, void *buf, size_t size)
     }
 }
 
-size_t AUD_read(SWVoiceIn *sw, void *buf, size_t size)
+size_t AUD_read(AudioBackend *be, SWVoiceIn *sw, void *buf, size_t size)
 {
     HWVoiceIn *hw;
 
@@ -890,7 +890,7 @@ size_t AUD_read(SWVoiceIn *sw, void *buf, size_t size)
     }
 }
 
-int AUD_get_buffer_size_out(SWVoiceOut *sw)
+int AUD_get_buffer_size_out(AudioBackend *be, SWVoiceOut *sw)
 {
     if (!sw) {
         return 0;
@@ -903,7 +903,7 @@ int AUD_get_buffer_size_out(SWVoiceOut *sw)
     return sw->hw->samples * sw->hw->info.bytes_per_frame;
 }
 
-void AUD_set_active_out(SWVoiceOut *sw, bool on)
+void AUD_set_active_out(AudioBackend *be, SWVoiceOut *sw, bool on)
 {
     HWVoiceOut *hw;
 
@@ -951,7 +951,7 @@ void AUD_set_active_out(SWVoiceOut *sw, bool on)
     }
 }
 
-void AUD_set_active_in(SWVoiceIn *sw, bool on)
+void AUD_set_active_in(AudioBackend *be, SWVoiceIn *sw, bool on)
 {
     HWVoiceIn *hw;
 
@@ -996,7 +996,7 @@ void AUD_set_active_in(SWVoiceIn *sw, bool on)
     }
 }
 
-static size_t audio_get_avail (SWVoiceIn *sw)
+static size_t audio_get_avail(SWVoiceIn *sw)
 {
     size_t live;
 
@@ -1937,7 +1937,7 @@ CaptureVoiceOut *AUD_add_capture(
     return cap;
 }
 
-void AUD_del_capture (CaptureVoiceOut *cap, void *cb_opaque)
+void AUD_del_capture(AudioBackend *be, CaptureVoiceOut *cap, void *cb_opaque)
 {
     struct capture_callback *cb;
 
@@ -1976,7 +1976,7 @@ void AUD_del_capture (CaptureVoiceOut *cap, void *cb_opaque)
     }
 }
 
-void AUD_set_volume_out(SWVoiceOut *sw, Volume *vol)
+void AUD_set_volume_out(AudioBackend *be, SWVoiceOut *sw, Volume *vol)
 {
     if (sw) {
         HWVoiceOut *hw = sw->hw;
@@ -1992,7 +1992,7 @@ void AUD_set_volume_out(SWVoiceOut *sw, Volume *vol)
     }
 }
 
-void AUD_set_volume_in(SWVoiceIn *sw, Volume *vol)
+void AUD_set_volume_in(AudioBackend *be, SWVoiceIn *sw, Volume *vol)
 {
     if (sw) {
         HWVoiceIn *hw = sw->hw;
