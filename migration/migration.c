@@ -1038,10 +1038,10 @@ static bool migration_has_main_and_multifd_channels(void)
     return true;
 }
 
-void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
+MigChannelType migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
-    uint8_t channel;
+    MigChannelType channel = CH_NONE;
     uint32_t channel_magic = 0;
     int ret = 0;
 
@@ -1060,7 +1060,7 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
             ret = migration_channel_read_peek(ioc, (void *)&channel_magic,
                                               sizeof(channel_magic), errp);
             if (ret != 0) {
-                return;
+                goto out;
             }
 
             channel_magic = be32_to_cpu(channel_magic);
@@ -1075,7 +1075,6 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
                 channel = CH_MAIN;
             } else {
                 error_setg(errp, "unknown channel magic: %u", channel_magic);
-                return;
             }
         } else if (mis->from_src_file && migrate_multifd()) {
             /*
@@ -1087,16 +1086,14 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
             channel = CH_MAIN;
         } else {
             error_setg(errp, "non-peekable channel used without multifd");
-            return;
         }
     } else {
         assert(migrate_postcopy_preempt());
         channel = CH_POSTCOPY;
     }
 
-    if (migration_incoming_setup(ioc, channel, errp)) {
-        migration_incoming_process();
-    }
+out:
+    return channel;
 }
 
 /**
