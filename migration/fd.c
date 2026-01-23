@@ -49,12 +49,13 @@ static bool migration_fd_valid(int fd)
     return false;
 }
 
-void fd_connect_outgoing(MigrationState *s, const char *fdname, Error **errp)
+QIOChannel *fd_connect_outgoing(MigrationState *s, const char *fdname,
+                                Error **errp)
 {
-    QIOChannel *ioc;
+    QIOChannel *ioc = NULL;
     int fd = monitor_get_fd(monitor_cur(), fdname, errp);
     if (fd == -1) {
-        return;
+        goto out;
     }
 
     if (!migration_fd_valid(fd)) {
@@ -66,12 +67,12 @@ void fd_connect_outgoing(MigrationState *s, const char *fdname, Error **errp)
     ioc = qio_channel_new_fd(fd, errp);
     if (!ioc) {
         close(fd);
-        return;
+        goto out;
     }
 
     qio_channel_set_name(ioc, "migration-fd-outgoing");
-    migration_channel_connect_outgoing(s, ioc);
-    object_unref(OBJECT(ioc));
+out:
+    return ioc;
 }
 
 static gboolean fd_accept_incoming_migration(QIOChannel *ioc,
