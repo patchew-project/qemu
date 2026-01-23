@@ -427,6 +427,53 @@
                       'igvm'   : 'FirmwareMappingIgvm' } }
 
 ##
+# @FirmwareDigestType:
+#
+# Type of digest.
+#
+# @amd-sev-snp-launch: AMD SEV-SNP launch digest.
+##
+{ 'enum': 'FirmwareDigestType',
+  'data': [ 'amd-sev-snp-launch' ] }
+
+##
+# @AmdSevSnpLaunchHashAlg:
+#
+# Hash algorithms used for AMD SEV-SNP launch digests.
+#
+# @sha384: SHA-384
+##
+{ 'enum': 'AmdSevSnpLaunchHashAlg',
+  'data': [ 'sha384' ] }
+
+##
+# @AmdSevSnpLaunchDigest:
+#
+# Description of a launch digest as used by AMD SEV-SNP
+#
+# @hash-alg: Hashing algorithm
+#
+# @value: Digest value as hex string
+##
+{ 'struct' : 'AmdSevSnpLaunchDigest',
+  'data'   : { 'hash-alg' : 'AmdSevSnpLaunchHashAlg',
+               'value'    : 'str' } }
+
+##
+# @FirmwareDigest:
+#
+# Digests associated with the firmware image
+#
+# For example launch digests for attestation of confidential VMs.
+#
+# @type: Kind of digest.
+##
+{ 'union'         : 'FirmwareDigest',
+  'base'          : { 'type' : 'FirmwareDigestType' },
+  'discriminator' : 'type',
+  'data'          : { 'amd-sev-snp-launch' : 'AmdSevSnpLaunchDigest' } }
+
+##
 # @Firmware:
 #
 # Describes a firmware (or a firmware use case) to management
@@ -511,6 +558,10 @@
 #     possible exposure to the end-user.  @tags serves development and
 #     debugging purposes only, and management software shall
 #     explicitly ignore it.
+#
+# @digests: (optional) Digest information associated with the
+#     firmware image, for example launch digests for confidential
+#     virtualization.
 #
 # Since: 3.0
 #
@@ -713,6 +764,38 @@
 #             "-D DEBUG_PRINT_ERROR_LEVEL=0x80000000"
 #         ]
 #     }
+#
+#     {
+#        "description": "Coconut SVSM for QEMU under AMD SEV-SNP",
+#        "interface-types": [
+#            "uefi",
+#            "svsm"
+#         ],
+#        "mapping": {
+#           "device": "igvm",
+#           "filename": "/usr/share/coconut-svsm/coconut-qemu.igvm"
+#        },
+#        "targets": [
+#           {
+#              "architecture": "x86_64",
+#              "machines": [
+#                  "pc-q35-*"
+#              ]
+#           }
+#        ],
+#        "features": [
+#           "amd-sev-snp",
+#           "vtpm"
+#        ],
+#        "tags": [],
+#        "digests": [
+#           {
+#             "type": "amd-sev-snp-launch",
+#             "hash-alg": "sha384",
+#             "value": "ec664e889ed6c1b2763cacf7899d95b7f347373eb982e523419feea3aa362d891b3bf025f292267a5854049091789c3e"
+#           }
+#        ]
+#     }
 ##
 { 'struct' : 'Firmware',
   'data'   : { 'description'     : 'str',
@@ -720,4 +803,5 @@
                'mapping'         : 'FirmwareMapping',
                'targets'         : [ 'FirmwareTarget' ],
                'features'        : [ 'FirmwareFeature' ],
-               'tags'            : [ 'str' ] } }
+               'tags'            : [ 'str' ],
+               '*digests'        : [ 'FirmwareDigest' ] } }
