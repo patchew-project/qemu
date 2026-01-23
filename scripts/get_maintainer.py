@@ -11,12 +11,16 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from argparse import ArgumentParser, ArgumentTypeError, BooleanOptionalAction
+from dataclasses import dataclass
 from os import path
 from pathlib import Path
 from enum import StrEnum, auto
 from re import compile as re_compile
 from re import sub as re_sub
+from re import IGNORECASE
 from regex import compile as prec_compile
+from git import Repo
+from collections import Counter
 
 #
 # Subsystem MAINTAINER entries
@@ -231,6 +235,96 @@ def process_patch_file(patchfile):
     return (msg, file_list)
 
 #
+# Helpers for querying git
+#
+
+
+@dataclass
+class GitOptions:
+    repo: Repo
+    singers: bool
+    since: str
+    min_sig: int
+    max_maint: int
+    min_percent: int
+
+
+def rank_signers(git_opts, all_signers, total_commits):
+    """
+    Counts signer occurrences and returns a list of (Person, count, percent).
+    """
+    if total_commits == 0:
+        return []
+
+    # Count by email to handle duplicates/mailmap issues
+    counts = Counter(s.email for s in all_signers)
+
+    # Keep a map of email -> Person object for the most recent name used
+    email_to_person = {p.email: p for p in all_signers}
+
+    ranked_results = []
+
+    # Sort by count descending, then take the top N
+    for email, count in counts.most_common(git_opts.max_maint):
+        percent = min(100.0, (count / total_commits) * 100)
+        if percent >= git_opts.min_percent:
+            person = email_to_person[email]
+            ranked_results.append((person, count, percent))
+
+    return ranked_results
+
+
+# regex to extract name/email from *-by: tags
+sig_line_re = re_compile(r"^\s*[\w-]+-by:\s*(?P<person_info>.*)", IGNORECASE)
+
+
+def extract_signers(commit_message):
+    """
+    Return a list of Persons found in commit.
+    """
+    signers = []
+    for line in commit_message.splitlines():
+        match = sig_line_re.match(line)
+        if match:
+            try:
+                p = Person(match.group('person_info'))
+                signers.append(p)
+            except BadPerson:
+                continue
+    return signers
+
+
+def extract_from_git(git_opts, src_file):
+    """
+    Extract 'maintainers' from examining the git history of a file.
+    Return an array of Person/role tuples.
+    """
+    repo = git_opts.repo
+
+    # use the porcelain to fetch the log
+    hashes = repo.git.log('--follow', f"--since={git_opts.since}",
+                          "--format=%H", '--', src_file).splitlines()
+
+    if len(hashes) <= 0:
+        return []
+
+    commits = [repo.commit(h) for h in hashes]
+
+    all_signers = []
+
+    for c in commits:
+        all_signers.extend(extract_signers(f"{c.message}"))
+
+    ranked = rank_signers(git_opts, all_signers, len(commits))
+    results = []
+
+    for person, count, percent in ranked:
+        role = f"commit_signer: {count}/{len(commits)}={percent:.0f}%"
+        results.append((person, role))
+
+    return results
+
+#
 # Helper functions for dealing with the source path
 #
 
@@ -331,6 +425,22 @@ def main():
     parser.add_argument('--src', type=valid_src_root, default=src,
                         help=f'Root of QEMU source tree{" (default: " + src + ")" if src else ""}')
 
+    # Git Options
+    parser.add_argument('--git', action=BooleanOptionalAction,
+                        default=False,
+                        help="Include recent git *-by: signers (default: don't)")
+    parser.add_argument('--git-since', default="1-year-ago",
+                        help='git history to use when falling back (default: 1-year-ago)')
+    parser.add_argument('--git-fallback',
+                        action=BooleanOptionalAction, default=True,
+                        help='use git when no exact MAINTAINERS pattern (default: fallback)')
+    parser.add_argument('--git-min-signatures', default=1,
+                        help='number of signatures required (default: 1)')
+    parser.add_argument('--git-max-maintainers', default=5,
+                        help='maximum number of git derived maintainers to add (default: 5)')
+    parser.add_argument('--git-min-percent', default=5,
+                        help='minimum percentage of commits to tagged as a maintainer (default: 5)')
+
     args = parser.parse_args()
 
     try:
@@ -368,6 +478,21 @@ def main():
 
     for rm in maintained:
         print(str(rm))
+
+    # Git fallback
+    if args.git or (args.git_fallback and len(maintained) == 0):
+        repo = Repo(src)
+        git_opts = GitOptions(repo=repo, singers=args.git,
+                              since=args.git_since,
+                              min_sig=args.git_min_signatures,
+                              max_maint=args.git_max_maintainers,
+                              min_percent=args.git_min_percent)
+
+        for f in files:
+            gmaint = extract_from_git(git_opts, f)
+
+            for (person, role) in gmaint:
+                print(f"{person} ({role})")
 
 
 if __name__ == '__main__':
