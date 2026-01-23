@@ -1989,7 +1989,7 @@ void AUD_set_volume_in(SWVoiceIn *sw, Volume *vol)
     }
 }
 
-void audio_create_pdos(Audiodev *dev)
+static void audio_create_pdos(Audiodev *dev)
 {
     switch (dev->driver) {
 #define CASE(DRIVER, driver, pdo_name)                              \
