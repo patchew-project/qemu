@@ -7961,7 +7961,10 @@ static int do_futex(CPUState *cpu, bool time64, target_ulong uaddr,
 #endif
     switch (base_op) {
     case FUTEX_WAIT:
+        val = tswap32(val);
+        break;
     case FUTEX_WAIT_BITSET:
+        val3 = tswap32(val3);
         val = tswap32(val);
         break;
     case FUTEX_WAIT_REQUEUE_PI:
@@ -7971,8 +7974,11 @@ static int do_futex(CPUState *cpu, bool time64, target_ulong uaddr,
     case FUTEX_LOCK_PI:
     case FUTEX_LOCK_PI2:
         break;
-    case FUTEX_WAKE:
     case FUTEX_WAKE_BITSET:
+        val3 = tswap32(val3);
+        timeout = 0;
+        break;
+    case FUTEX_WAKE:
     case FUTEX_TRYLOCK_PI:
     case FUTEX_UNLOCK_PI:
         timeout = 0;
