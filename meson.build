@@ -3869,6 +3869,7 @@ target_modules += { 'accel' : { 'qtest': qtest_module_ss }}
 modinfo_collect = find_program('scripts/modinfo-collect.py')
 modinfo_generate = find_program('scripts/modinfo-generate.py')
 modinfo_files = []
+audio_modinfo_files = []
 
 block_mods = []
 system_mods = []
@@ -3896,11 +3897,15 @@ foreach d, list : modules
                     install: true,
                     install_dir: qemu_moddir)
       if module_ss.sources() != []
-        modinfo_files += custom_target(d + '-' + m + '.modinfo',
-                                       output: d + '-' + m + '.modinfo',
-                                       input: sl.extract_all_objects(recursive: true),
-                                       capture: true,
-                                       command: [modinfo_collect, '@INPUT@'])
+        modinfo = custom_target(d + '-' + m + '.modinfo',
+                                output: d + '-' + m + '.modinfo',
+                                input: sl.extract_all_objects(recursive: true),
+                                capture: true,
+                                command: [modinfo_collect, '@INPUT@'])
+        modinfo_files += modinfo
+        if d == 'audio'
+          audio_modinfo_files += modinfo
+        endif
       endif
     else
       if d == 'block'
