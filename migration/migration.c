@@ -1570,7 +1570,7 @@ static void migrate_error_free(MigrationState *s)
     s->error = NULL;
 }
 
-static void migration_connect_error_propagate(MigrationState *s, Error *error)
+void migration_connect_error_propagate(MigrationState *s, Error *error)
 {
     MigrationStatus current = s->state;
     MigrationStatus next = MIGRATION_STATUS_NONE;
@@ -4026,7 +4026,7 @@ fail_setup:
     return NULL;
 }
 
-void migration_connect(MigrationState *s, Error *error_in)
+void migration_connect(MigrationState *s)
 {
     Error *local_err = NULL;
     uint64_t rate_limit;
@@ -4034,13 +4034,6 @@ void migration_connect(MigrationState *s, Error *error_in)
     int ret;
 
     s->expected_downtime = migrate_downtime_limit();
-    if (error_in) {
-        migration_connect_error_propagate(s, error_in);
-        if (s->error) {
-            error_report_err(error_copy(s->error));
-        }
-        return;
-    }
 
     if (resume) {
         /* This is a resumed migration */
