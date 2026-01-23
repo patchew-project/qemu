@@ -114,6 +114,12 @@ static int cpacf_km(CPUS390XState *env, uintptr_t ra, uint32_t r1,
                            &env->regs[r1], &env->regs[r2], &env->regs[r2 + 1],
                            S390_FEAT_TYPE_KM, fc, mod);
         break;
+    case 0x3a: /* CPACF_KM_PXTS_128 */
+    case 0x3c: /* CPACF_KM_PXTS_256 */
+        rc = cpacf_paes_xts(env, ra, env->regs[1],
+                            &env->regs[r1], &env->regs[r2], &env->regs[r2 + 1],
+                            S390_FEAT_TYPE_KM, fc, mod);
+        break;
     default:
         g_assert_not_reached();
     }
