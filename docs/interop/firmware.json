@@ -222,6 +222,8 @@
 #     loading the firmware into flash the 'stateless' setup should be
 #     used.  It is recommened to load the firmware into memory though.
 #
+# @vtpm: The firmware provides a virtual TPM device.
+#
 # Since: 3.0
 ##
 { 'enum' : 'FirmwareFeature',
@@ -230,7 +232,7 @@
              'intel-tdx',
              'enrolled-keys', 'requires-smm',
              'secure-boot', 'host-uefi-vars',
-             'verbose-dynamic', 'verbose-static' ] }
+             'verbose-dynamic', 'verbose-static', 'vtpm' ] }
 
 ##
 # @FirmwareFormat:
