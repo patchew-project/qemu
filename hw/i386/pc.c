@@ -795,6 +795,64 @@ static hwaddr pc_max_used_gpa(PCMachineState *pcms, uint64_t pci_hole64_size)
 }
 
 /*
+ * Update E820 entries for NUMA nodes with non-default memory types.
+ */
+static void pc_update_numa_memory_types(X86MachineState *x86ms)
+{
+    MachineState *ms = MACHINE(x86ms);
+    uint64_t addr = 0;
+
+    for (int i = 0; i < ms->numa_state->num_nodes; i++) {
+        NodeInfo *numa_info = &ms->numa_state->nodes[i];
+        uint64_t node_size = numa_info->node_mem;
+
+        /* Process non-normal memory types */
+        if (numa_info->memmap_type != NUMA_MEMMAP_NORMAL &&
+            numa_info->node_memdev) {
+            uint64_t guest_addr;
+            uint32_t e820_type;
+
+            switch (numa_info->memmap_type) {
+            case NUMA_MEMMAP_SPM:
+                e820_type = E820_SOFT_RESERVED;
+                break;
+            case NUMA_MEMMAP_RESERVED:
+                e820_type = E820_RESERVED;
+                break;
+            default:
+                goto next;
+            }
+
+            /* Calculate guest physical address accounting for PCI hole */
+            if (addr < x86ms->below_4g_mem_size) {
+                if (addr + node_size <= x86ms->below_4g_mem_size) {
+                    guest_addr = addr;
+                } else {
+                    error_report("NUMA node %d with memmap-type spans across "
+                                 "4GB boundary, not supported", i);
+                    exit(EXIT_FAILURE);
+                }
+            } else {
+                guest_addr = 0x100000000ULL +
+                            (addr - x86ms->below_4g_mem_size);
+            }
+
+            if (!e820_update_entry_type(guest_addr, node_size, e820_type)) {
+                warn_report("Failed to update E820 entry for node %d "
+                           "at 0x%" PRIx64 " length 0x%" PRIx64,
+                           i, guest_addr, node_size);
+            }
+        }
+
+next:
+        /* Accumulate address for next node */
+        if (numa_info->node_memdev) {
+            addr += node_size;
+        }
+    }
+}
+
+/*
  * AMD systems with an IOMMU have an additional hole close to the
  * 1Tb, which are special GPAs that cannot be DMA mapped. Depending
  * on kernel version, VFIO may or may not let you DMA map those ranges.
@@ -909,6 +967,9 @@ void pc_memory_init(PCMachineState *pcms,
     if (pcms->sgx_epc.size != 0) {
         e820_add_entry(pcms->sgx_epc.base, pcms->sgx_epc.size, E820_RESERVED);
     }
+
+    /* Update E820 for NUMA nodes with special memory types */
+    pc_update_numa_memory_types(x86ms);
 
     if (!pcmc->has_reserved_memory &&
         (machine->ram_slots ||

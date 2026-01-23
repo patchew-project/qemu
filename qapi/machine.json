@@ -465,6 +465,22 @@
   'data': [ 'node', 'dist', 'cpu', 'hmat-lb', 'hmat-cache' ] }
 
 ##
+# @NumaMemmapType:
+#
+# Memory mapping type for a NUMA node.
+#
+# @normal: Normal system RAM (E820 type 1)
+#
+# @spm: Specific Purpose Memory (E820 type 0xEFFFFFFF)
+#
+# @reserved: Reserved memory (E820 type 2)
+#
+# Since: 10.2
+##
+{ 'enum': 'NumaMemmapType',
+  'data': ['normal', 'spm', 'reserved'] }
+
+##
 # @NumaOptions:
 #
 # A discriminated record of NUMA options.  (for OptsVisitor)
@@ -500,6 +516,13 @@
 # @memdev: memory backend object.  If specified for one node, it must
 #     be specified for all nodes.
 #
+# @memmap-type: specifies the memory type for this NUMA node.
+#     'normal' (default) is regular system RAM.
+#     'spm' is Specific Purpose Memory - a hint to the guest that
+#     this memory might be managed by device drivers based on policy.
+#     'reserved' is reserved memory, not usable as RAM.
+#     Currently only supported on x86.  (since 10.2)
+#
 # @initiator: defined in ACPI 6.3 Chapter 5.2.27.3 Table 5-145, points
 #     to the nodeid which has the memory controller responsible for
 #     this NUMA node.  This field provides additional information as
@@ -514,6 +537,7 @@
    '*cpus':   ['uint16'],
    '*mem':    'size',
    '*memdev': 'str',
+   '*memmap-type': 'NumaMemmapType',
    '*initiator': 'uint16' }}
 
 ##

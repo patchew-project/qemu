@@ -38,6 +38,7 @@
 #include "hw/mem/pc-dimm.h"
 #include "hw/core/boards.h"
 #include "hw/mem/memory-device.h"
+#include "hw/i386/x86.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qemu/cutils.h"
@@ -162,6 +163,24 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
         object_ref(o);
         numa_info[nodenr].node_mem = object_property_get_uint(o, "size", NULL);
         numa_info[nodenr].node_memdev = MEMORY_BACKEND(o);
+    }
+
+    if (node->has_memmap_type && node->memmap_type != NUMA_MEMMAP_TYPE_NORMAL) {
+        if (!object_dynamic_cast(OBJECT(ms), TYPE_X86_MACHINE)) {
+            error_setg(errp, "memmap-type=%s is only supported on x86 machines",
+                       NumaMemmapType_str(node->memmap_type));
+            return;
+        }
+        switch (node->memmap_type) {
+        case NUMA_MEMMAP_TYPE_SPM:
+            numa_info[nodenr].memmap_type = NUMA_MEMMAP_SPM;
+            break;
+        case NUMA_MEMMAP_TYPE_RESERVED:
+            numa_info[nodenr].memmap_type = NUMA_MEMMAP_RESERVED;
+            break;
+        default:
+            break;
+        }
     }
 
     numa_info[nodenr].present = true;
