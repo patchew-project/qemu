@@ -2661,7 +2661,7 @@ have_inotify_init1 = cc.has_header_symbol('sys/inotify.h', 'inotify_init1')
 inotify = not_found
 if (have_inotify_init or have_inotify_init1) and host_os == 'freebsd'
   # libinotify-kqueue
-  inotify = cc.find_library('inotify')
+  inotify = cc.find_library('inotify', required: false)
   if have_inotify_init
     have_inotify_init = inotify.found()
   endif
