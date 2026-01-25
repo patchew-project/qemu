@@ -571,7 +571,7 @@ static void test_visitor_out_list_struct(TestOutputVisitorData *data,
     i = 0;
     QLIST_FOREACH_ENTRY(qlist, e) {
         QNum *qvalue = qobject_to(QNum, qlist_entry_obj(e));
-        char expected[32], actual[32];
+        char expected[318], actual[318];
 
         g_assert(qvalue);
         sprintf(expected, "%.6f", (double)i / 3);
