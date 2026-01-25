@@ -142,7 +142,8 @@ stability.
 Region lifecycle
 ----------------
 
-A region is created by one of the memory_region_init*() functions and
+A region is allocated by one of the memory_region_new*() functions or
+pre-allocated and initialized by memory_region_init*() functions and
 attached to an object, which acts as its owner or parent.  QEMU ensures
 that the owner object remains alive as long as the region is visible to
 the guest, or as long as the region is in use by a virtual CPU or another
@@ -158,16 +159,16 @@ ioeventfd) can be changed during the region lifecycle.  They take effect
 as soon as the region is made visible.  This can be immediately, later,
 or never.
 
-Destruction of a memory region happens automatically when the owner object
-dies.  When there are multiple memory regions under the same owner object,
-the memory API will guarantee all memory regions will be properly detached
-and finalized one by one.  The order in which memory regions will be
-finalized is not guaranteed.
+Destruction of a memory region allocated with memory_region_new*() functions
+happens automatically when the owner object dies.  When there are multiple
+memory regions under the same owner object, the memory API will guarantee all
+memory regions will be properly detached and finalized one by one.  The order
+in which memory regions will be finalized is not guaranteed.
 
-If however the memory region is part of a dynamically allocated data
-structure, you should free the memory region in the instance_finalize
-callback.  For an example see VFIOMSIXInfo and VFIOQuirk in
-hw/vfio/pci.c.
+If however the memory region is part of a separately allocated data structure
+and initialized with one of the memory_region_init*() functions, you may have
+to free the memory region e.g. in an instance_finalize callback.  For an
+example see VFIOMSIXInfo and VFIOQuirk in hw/vfio/pci.c.
 
 You must not destroy a memory region as long as it may be in use by a
 device or CPU.  In order to do this, as a general rule do not create or
