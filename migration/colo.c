@@ -727,6 +727,7 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
 
     bql_lock();
     vmstate_loading = true;
+    qemu_system_reset(SHUTDOWN_CAUSE_SNAPSHOT_LOAD);
     colo_flush_ram_cache();
     ret = qemu_load_device_state(fb, errp);
     if (ret < 0) {
