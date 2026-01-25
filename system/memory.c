@@ -1663,14 +1663,20 @@ bool memory_region_init_ram_from_fd(MemoryRegion *mr, Object *owner,
 }
 #endif
 
-void memory_region_init_ram_ptr(MemoryRegion *mr, Object *owner,
-                                const char *name, uint64_t size, void *ptr)
+static void memory_region_do_init_ram_ptr(MemoryRegion *mr, uint64_t size,
+                                          void *ptr)
 {
-    memory_region_init(mr, owner, name, size);
     /* qemu_ram_alloc_from_ptr cannot fail with ptr != NULL.  */
     assert(ptr != NULL);
     mr->ram_block = qemu_ram_alloc_from_ptr(size, ptr, mr, &error_abort);
     memory_region_do_init_ram(mr, NULL, NULL);
+}
+
+void memory_region_init_ram_ptr(MemoryRegion *mr, Object *owner,
+                                const char *name, uint64_t size, void *ptr)
+{
+    memory_region_init(mr, owner, name, size);
+    memory_region_do_init_ram_ptr(mr, size, ptr);
 }
 
 void memory_region_init_ram_device_ptr(MemoryRegion *mr, Object *owner,
@@ -1679,10 +1685,7 @@ void memory_region_init_ram_device_ptr(MemoryRegion *mr, Object *owner,
 {
     memory_region_init(mr, owner, name, size);
     memory_region_set_ops(mr, &ram_device_mem_ops, mr);
-    /* qemu_ram_alloc_from_ptr cannot fail with ptr != NULL.  */
-    assert(ptr != NULL);
-    mr->ram_block = qemu_ram_alloc_from_ptr(size, ptr, mr, &error_abort);
-    memory_region_do_init_ram(mr, NULL, NULL);
+    memory_region_do_init_ram_ptr(mr, size, ptr);
     mr->ram_device = true;
 }
 
