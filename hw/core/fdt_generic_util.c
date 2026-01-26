@@ -40,6 +40,7 @@
 #include "qemu/config-file.h"
 #include "hw/core/boards.h"
 #include "qemu/option.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/cpu/cluster.h"
 
 #ifndef FDT_GENERIC_UTIL_ERR_DEBUG
@@ -58,6 +59,8 @@
         DB_PRINT((lvl), ## __VA_ARGS__); \
     } \
 } while (0)
+
+#define PROP_ARRAY_LEN_PREFIX "len-"
 
 /* FIXME: wrap direct calls into libfdt */
 
@@ -339,6 +342,25 @@ static Object *fdt_create_from_compat(const char *compat, char **dev_type)
     return ret;
 }
 
+/*FIXME: roll into device tree functionality */
+
+static inline uint64_t get_int_be(const void *p, int len)
+{
+    switch (len) {
+    case 1:
+        return *((uint8_t *)p);
+    case 2:
+        return be16_to_cpu(*((uint16_t *)p));
+    case 4:
+        return be32_to_cpu(*((uint32_t *)p));
+    case 8:
+        return be32_to_cpu(*((uint64_t *)p));
+    default:
+        fprintf(stderr, "unsupported integer length\n");
+        abort();
+    }
+}
+
 /*
  * Error handler for device creation failure.
  *
@@ -368,10 +390,248 @@ static void fdt_dev_error(FDTMachineInfo *fdti, char *node_path, char *compat)
     }
 }
 
+static void fdt_init_qdev_link_prop(Object *obj, ObjectProperty *p,
+                                    FDTMachineInfo *fdti,
+                                    const char *node_path,
+                                    const QEMUDevtreeProp *prop)
+{
+    int len = prop->len;
+    void *val = prop->value;
+    const char *propname = prop->name;
+
+    Object *linked_dev, *proxy;
+    char target_node_path[DT_PATH_LENGTH];
+    g_autofree char *propname_target = g_strconcat(propname, "-target", NULL);
+    Error *errp = NULL;
+
+    if (qemu_devtree_get_node_by_phandle(fdti->fdt, target_node_path,
+                                         get_int_be(val, len))) {
+        abort();
+    }
+
+    while (!fdt_init_has_opaque(fdti, target_node_path)) {
+        fdt_init_yield(fdti);
+    }
+    linked_dev = fdt_init_get_opaque(fdti, target_node_path);
+
+    proxy = linked_dev ? object_property_get_link(linked_dev,
+                                                  propname_target,
+                                                  &errp) : NULL;
+    if (!errp && proxy) {
+        DB_PRINT_NP(0, "detected proxy object for %s connection\n", propname);
+        linked_dev = proxy;
+    }
+
+    if (!linked_dev) {
+        return;
+    }
+
+    errp = NULL;
+    object_property_set_link(obj, propname, linked_dev, &errp);
+    if (errp) {
+        /* Unable to set the property, maybe it is a memory alias? */
+        MemoryRegion *alias_mr;
+        int offset = len / 2;
+        int region = 0;
+
+        if (len > 4) {
+            region = get_int_be(val + offset, len - offset);
+        }
+
+        alias_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(linked_dev), region);
+
+        object_property_set_link(obj, propname, OBJECT(alias_mr), &error_abort);
+
+    }
+
+    DB_PRINT_NP(0, "set link %s\n", propname);
+}
+
+static void fdt_init_qdev_scalar_prop(Object *obj, ObjectProperty *p,
+                                      FDTMachineInfo *fdti,
+                                      const char *node_path,
+                                      const QEMUDevtreeProp *prop)
+{
+    const char *propname = trim_vendor(prop->name);
+    void *val = prop->value;
+    int len = prop->len;
+
+    /* FIXME: handle generically using accessors and stuff */
+    if (!strncmp(p->type, "link", 4)) {
+        fdt_init_qdev_link_prop(obj, p, fdti, node_path, prop);
+        return;
+    }
+
+    if (!strcmp(p->type, "uint8") || !strcmp(p->type, "uint16") ||
+        !strcmp(p->type, "uint32") || !strcmp(p->type, "uint64") ||
+        !strcmp(p->type, "int8") || !strcmp(p->type, "int16") ||
+        !strcmp(p->type, "int32") || !strcmp(p->type, "int64")) {
+        object_property_set_int(obj, propname,
+                                get_int_be(val, len), &error_abort);
+        DB_PRINT_NP(0, "set property %s to 0x%llx\n", propname,
+                    (unsigned long long)get_int_be(val, len));
+        return;
+    }
+
+    if (!strcmp(p->type, "boolean") || !strcmp(p->type, "bool")) {
+        object_property_set_bool(obj, propname,
+                                 !!get_int_be(val, len), &error_abort);
+        DB_PRINT_NP(0, "set property %s to %s\n", propname,
+                    get_int_be(val, len) ? "true" : "false");
+        return;
+    }
+
+    if (!strcmp(p->type, "string") || !strcmp(p->type, "str")) {
+        object_property_set_str(obj, propname,
+                                (const char *)val, &error_abort);
+        DB_PRINT_NP(0, "set property %s to %s\n", propname, (const char *)val);
+        return;
+    }
+
+    DB_PRINT_NP(0, "WARNING: property is of unknown type\n");
+}
+
+static size_t fdt_array_elem_len(FDTMachineInfo *fdti,
+                                 const char *node_path,
+                                 const char *propname)
+{
+    g_autofree char *elem_cells_propname = NULL;
+    Error *err = NULL;
+    uint32_t elem_cells;
+
+    /*
+     * Default element size to 1 uint32_t cell, unless it is explicitly
+     * given in the same FDT node (not inherited).
+     */
+    elem_cells_propname = g_strconcat("#", propname, "-cells", NULL);
+    elem_cells = qemu_fdt_getprop_cell(fdti->fdt, node_path,
+                                       elem_cells_propname, 0, false, &err);
+
+    return (err ? 1 : elem_cells) * 4;
+}
+
+static ObjectProperty *fdt_array_elem_prop(Object *obj,
+                                           const char *propname, int k)
+{
+    g_autofree char *elem_name = g_strdup_printf("%s[%d]", propname, k);
+
+    return object_property_find(obj, elem_name);
+}
+
+static char *fdt_array_elem_type(ObjectProperty *e)
+{
+    size_t n = strlen(e->type);
+
+    if (strncmp(e->type, "link", 4)) {
+        return NULL;
+    }
+    if (n > 6) {
+        return g_strndup(&e->type[5], (n - 6));
+    }
+
+    return g_strdup(TYPE_OBJECT);
+}
+
+static ObjectProperty *fdt_array_link_elem_prop(Object *obj, ObjectProperty *e,
+                                                const char *elem_link_type)
+{
+    /*
+     * Starting QEMU 8.2.0, the array-scheme has changed to be a single
+     * property of list.  See:
+     *   https://mail.gnu.org/archive/html/qemu-devel/2023-09/msg01832.html
+     *
+     * Thus, fdt_init_qdev_array_prop() below will have to be changed
+     * substantially.
+     *
+     * So for now, use a temporary hack to work around DEFINE_PROP_ARRAY() not
+     * creating the proper elements of type "link" (see set_prop_arraylen()).
+     */
+    g_autofree char *elem_name = g_strdup(e->name);
+    void *elem_ptr = object_field_prop_ptr(obj, e->opaque);
+
+    object_property_del(obj, elem_name);
+    e = object_property_add_link(obj, elem_name,
+                                 elem_link_type, elem_ptr,
+                                 qdev_prop_allow_set_link_before_realize,
+                                 OBJ_PROP_LINK_STRONG);
+
+    return e;
+}
+
+static void fdt_init_qdev_array_prop(Object *obj,
+                                     FDTMachineInfo *fdti,
+                                     const char *node_path,
+                                     QEMUDevtreeProp *prop)
+{
+    const char *propname = trim_vendor(prop->name);
+    int nr = prop->len;
+    Error *local_err = NULL;
+    char *len_name;
+    uint32_t elem_len;
+    g_autofree char *elem_link_type = NULL;
+    ObjectProperty *e;
+
+    if (!prop->value || !nr) {
+        return;
+    }
+
+    elem_len = fdt_array_elem_len(fdti, node_path, propname);
+    if (nr % elem_len) {
+        return;
+    }
+
+    nr /= elem_len;
+
+    /*
+     * Fail gracefully on setting the 'len-' property, due to:
+     * 1. The property does not exist, or
+     * 2. The property is not integer type, or
+     * 3. The property has been set, e.g., by the '-global' cmd option
+     */
+    len_name = g_strconcat(PROP_ARRAY_LEN_PREFIX, propname, NULL);
+    object_property_set_int(obj, len_name, nr, &local_err);
+    g_free(len_name);
+
+    if (local_err) {
+        error_free(local_err);
+        return;
+    }
+
+    e = fdt_array_elem_prop(obj, propname, 0);
+    if (!e) {
+        return;
+    }
+
+    elem_link_type = fdt_array_elem_type(e);
+
+    while (nr--) {
+        QEMUDevtreeProp q;
+
+        e = fdt_array_elem_prop(obj, propname, nr);
+        if (!e) {
+            continue;
+        }
+
+        q = (QEMUDevtreeProp){.name = e->name,
+                              .value = prop->value + nr * elem_len,
+                              .len = elem_len,
+                             };
+
+        if (elem_link_type) {
+            e = fdt_array_link_elem_prop(obj, e, elem_link_type);
+            q.name = e->name;
+            fdt_init_qdev_link_prop(obj, e, fdti, node_path, &q);
+        } else {
+            fdt_init_qdev_scalar_prop(obj, e, fdti, node_path, &q);
+        }
+    }
+}
+
 static int fdt_init_qdev(char *node_path, FDTMachineInfo *fdti, char *compat)
 {
     Object *dev, *parent;
     char *dev_type = NULL;
+    QEMUDevtreeProp *prop, *props;
     char parent_node_path[DT_PATH_LENGTH];
 
     if (!compat) {
@@ -458,6 +718,28 @@ static int fdt_init_qdev(char *node_path, FDTMachineInfo *fdti, char *compat)
                               OBJECT(dev));
     }
     fdt_init_set_opaque(fdti, node_path, dev);
+
+    props = qemu_devtree_get_props(fdti->fdt, node_path);
+    for (prop = props; prop->name; prop++) {
+        const char *propname = trim_vendor(prop->name);
+        ObjectProperty *p = NULL;
+
+        p = object_property_find(OBJECT(dev), propname);
+        if (p) {
+            DB_PRINT_NP(1, "matched property: %s of type %s, len %d\n",
+                                            propname, p->type, prop->len);
+        }
+        if (!p) {
+            fdt_init_qdev_array_prop(dev, fdti, node_path, prop);
+            continue;
+        }
+
+        if (!strcmp(propname, "type")) {
+            continue;
+        }
+
+        fdt_init_qdev_scalar_prop(OBJECT(dev), p, fdti, node_path, prop);
+    }
 
     g_free(dev_type);
 
