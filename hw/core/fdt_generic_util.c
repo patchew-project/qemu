@@ -71,6 +71,11 @@ static int fdt_generic_num_cpus;
 
 static int simple_bus_fdt_init(char *bus_node_path, FDTMachineInfo *fdti);
 
+static void fdt_get_irq_info_from_intc(FDTMachineInfo *fdti, qemu_irq *ret,
+                                       char *intc_node_path,
+                                       uint32_t *cells, uint32_t num_cells,
+                                       uint32_t max, Error **errp);
+
 FDTMachineInfo *fdt_generic_create_machine(void *fdt, qemu_irq *cpu_irq)
 {
     char node_path[DT_PATH_LENGTH];
@@ -237,6 +242,262 @@ static int simple_bus_fdt_init(char *node_path, FDTMachineInfo *fdti)
 
     g_free(children);
     return 0;
+}
+
+static void fdt_get_irq_info_from_intc(FDTMachineInfo *fdti, qemu_irq *ret,
+                                       char *intc_node_path,
+                                       uint32_t *cells, uint32_t num_cells,
+                                       uint32_t max, Error **errp)
+{
+    FDTGenericIntcClass *intc_fdt_class;
+    DeviceState *intc;
+
+    while (!fdt_init_has_opaque(fdti, intc_node_path)) {
+        fdt_init_yield(fdti);
+    }
+    intc = DEVICE(fdt_init_get_opaque(fdti, intc_node_path));
+
+    if (!intc) {
+        goto fail;
+    }
+
+    while (!intc->realized) {
+        fdt_init_yield(fdti);
+    }
+
+    intc_fdt_class = FDT_GENERIC_INTC_GET_CLASS(intc);
+    if (!intc_fdt_class) {
+        goto fail;
+    }
+
+    intc_fdt_class->get_irq(FDT_GENERIC_INTC(intc), ret, cells, num_cells,
+                            max, errp);
+
+    return;
+fail:
+    error_setg(errp, "%s", __func__);
+}
+
+static uint32_t imap_cache[32 * 1024];
+static bool imap_cached;
+
+qemu_irq *fdt_get_irq_info(FDTMachineInfo *fdti, char *node_path, int irq_idx,
+                          char *info, bool *map_mode) {
+    void *fdt = fdti->fdt;
+    uint32_t intc_phandle, intc_cells, cells[32];
+    char intc_node_path[DT_PATH_LENGTH];
+    qemu_irq *ret = NULL;
+    int i;
+    Error *errp = NULL;
+
+    intc_phandle = qemu_fdt_getprop_cell(fdt, node_path, "interrupt-parent",
+                                         0, true, &errp);
+    if (errp) {
+        errp = NULL;
+        intc_cells = qemu_fdt_getprop_cell(fdt, node_path,
+                                           "#interrupt-cells", 0, true, &errp);
+        *map_mode = true;
+    } else {
+        if (qemu_devtree_get_node_by_phandle(fdt, intc_node_path,
+                                             intc_phandle)) {
+            goto fail;
+        }
+
+        /* Check if the device is using interrupt-maps */
+        qemu_fdt_getprop_cell(fdt, node_path, "interrupt-map-mask", 0,
+                              false, &errp);
+        if (!errp) {
+            errp = NULL;
+            intc_cells = qemu_fdt_getprop_cell(fdt, node_path,
+                                               "#interrupt-cells", 0,
+                                               true, &errp);
+            *map_mode = true;
+        } else {
+            errp = NULL;
+            intc_cells = qemu_fdt_getprop_cell(fdt, intc_node_path,
+                                               "#interrupt-cells", 0,
+                                               true, &errp);
+            *map_mode = false;
+        }
+    }
+
+    if (errp) {
+        goto fail;
+    }
+
+    DB_PRINT_NP(2, "%s intc_phandle: %d\n", node_path, intc_phandle);
+
+    for (i = 0; i < intc_cells; ++i) {
+        cells[i] = qemu_fdt_getprop_cell(fdt, node_path, "interrupts",
+                                        intc_cells * irq_idx + i, false, &errp);
+        if (errp) {
+            goto fail;
+        }
+    }
+
+    if (*map_mode) {
+        int k;
+        ret = g_new0(qemu_irq, 1);
+        int num_matches = 0;
+        int len;
+        g_autofree uint32_t *imap_mask = g_new(uint32_t, intc_cells);
+        const uint32_t *prop;
+        uint32_t *imap;
+        bool use_parent = false;
+
+        for (k = 0; k < intc_cells; ++k) {
+            imap_mask[k] = qemu_fdt_getprop_cell(fdt, node_path,
+                                                 "interrupt-map-mask", k + 2,
+                                                 true, &errp);
+            if (errp) {
+                goto fail;
+            }
+        }
+
+        /* Check if the device has an interrupt-map property */
+        prop = qemu_fdt_getprop(fdt, node_path, "interrupt-map", &len,
+                                  use_parent, &errp);
+        imap = g_memdup2(prop, len);
+        if (!imap || errp) {
+            /*
+             * If the device doesn't have an interrupt-map, try again with
+             * inheritance. This will return the parents interrupt-map
+             */
+            use_parent = true;
+            errp = NULL;
+
+            prop = qemu_fdt_getprop(fdt, node_path, "interrupt-map",
+                                      &len, use_parent, &errp);
+            if (!imap_cached) {
+                memcpy(imap_cache, prop, len);
+                imap_cached = true;
+            }
+            imap = imap_cache;
+
+            if (errp) {
+                goto fail;
+            }
+        }
+
+        len /= sizeof(uint32_t);
+
+        i = 0;
+        assert(imap);
+        while (i < len) {
+            if (!use_parent) {
+                /*
+                 * Only re-sync the interrupt-map when the device has it's
+                 * own map, to save time.
+                 */
+                prop = qemu_fdt_getprop(fdt, node_path, "interrupt-map", &len,
+                                          use_parent, &errp);
+                if (imap != imap_cache) {
+                    g_free(imap);
+                }
+                imap = g_memdup2(prop, len);
+                if (errp) {
+                    goto fail;
+                }
+
+                len /= sizeof(uint32_t);
+            }
+
+            bool match = true;
+            uint32_t new_intc_cells, new_cells[32];
+            i++; i++; /* FIXME: do address cells properly */
+            for (k = 0; k < intc_cells; ++k) {
+                uint32_t  map_val = be32_to_cpu(imap[i++]);
+                if ((cells[k] ^ map_val) & imap_mask[k]) {
+                    match = false;
+                }
+            }
+            /*
+             * when caching, we hackishly store the number of cells for
+             * the parent in the MSB. +1, so zero MSB means non cachd
+             * and the full lookup is needed.
+             */
+            intc_phandle = be32_to_cpu(imap[i++]);
+            if (intc_phandle & (0xffu << 24)) {
+                new_intc_cells = (intc_phandle >> 24) - 1;
+            } else {
+                if (qemu_devtree_get_node_by_phandle(fdt, intc_node_path,
+                                                     intc_phandle)) {
+                    goto fail;
+                }
+                new_intc_cells = qemu_fdt_getprop_cell(fdt, intc_node_path,
+                                                       "#interrupt-cells", 0,
+                                                       false, &errp);
+                imap[i - 1] = cpu_to_be32(intc_phandle |
+                                            (new_intc_cells + 1) << 24);
+                if (errp) {
+                    goto fail;
+                }
+            }
+            for (k = 0; k < new_intc_cells; ++k) {
+                new_cells[k] = be32_to_cpu(imap[i++]);
+            }
+            if (match) {
+                num_matches++;
+                ret = g_renew(qemu_irq, ret, num_matches + 1);
+                if (intc_phandle & (0xffu << 24)) {
+                    if (qemu_devtree_get_node_by_phandle(fdt, intc_node_path,
+                                                         intc_phandle &
+                                                         ((1 << 24) - 1))) {
+                        goto fail;
+                    }
+                }
+
+                DB_PRINT_NP(2, "Getting IRQ information: %s -> 0x%x (%s)\n",
+                            node_path, intc_phandle, intc_node_path);
+
+                memset(&ret[num_matches], 0, sizeof(*ret));
+                fdt_get_irq_info_from_intc(fdti, &ret[num_matches - 1],
+                                           intc_node_path, new_cells,
+                                           new_intc_cells, 1, NULL);
+                if (info) {
+                    sprintf(info, "%s", intc_node_path);
+                    info += strlen(info) + 1;
+                }
+            }
+        }
+
+        if (imap != imap_cache) {
+            g_free(imap);
+        }
+        return ret;
+    }
+
+    DB_PRINT_NP(2, "Getting IRQ information: %s -> %s\n",
+                node_path, intc_node_path);
+
+    ret = g_new0(qemu_irq, fdt_generic_num_cpus + 2);
+    fdt_get_irq_info_from_intc(fdti, ret, intc_node_path, cells, intc_cells,
+                               fdt_generic_num_cpus, &errp);
+
+    if (errp) {
+        goto fail;
+    }
+
+    /* FIXME: Phase out this info bussiness */
+    if (info) {
+        sprintf(info, "%s", intc_node_path);
+    }
+
+    return ret;
+
+fail:
+    if (errp) {
+        sprintf(info, "%s", error_get_pretty(errp));
+    } else {
+        sprintf(info, "(none)");
+    }
+    return NULL;
+}
+
+qemu_irq *fdt_get_irq(FDTMachineInfo *fdti, char *node_path, int irq_idx,
+                      bool *map_mode)
+{
+    return fdt_get_irq_info(fdti, node_path, irq_idx, NULL, map_mode);
 }
 
 /* FIXME: figure out a real solution to this */
