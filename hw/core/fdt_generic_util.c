@@ -76,6 +76,88 @@ static void fdt_get_irq_info_from_intc(FDTMachineInfo *fdti, qemu_irq *ret,
                                        uint32_t *cells, uint32_t num_cells,
                                        uint32_t max, Error **errp);
 
+typedef struct QEMUIRQSharedState {
+    qemu_irq sink;
+    int num;
+    bool (*merge_fn)(bool *, int);
+/* FIXME: remove artificial limit */
+#define MAX_IRQ_SHARED_INPUTS 256
+    bool inputs[MAX_IRQ_SHARED_INPUTS];
+} QEMUIRQSharedState;
+
+static bool qemu_irq_shared_or_handler(bool *inputs, int n)
+{
+    int i;
+
+    assert(n < MAX_IRQ_SHARED_INPUTS);
+
+    for (i = 0; i < n; ++i) {
+        if (inputs[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void qemu_irq_shared_handler(void *opaque, int n, int level)
+{
+    QEMUIRQSharedState *s = opaque;
+
+    assert(n < MAX_IRQ_SHARED_INPUTS);
+    s->inputs[n] = level;
+    qemu_set_irq(s->sink, s->merge_fn(s->inputs, s->num));
+}
+
+static void fdt_init_all_irqs(FDTMachineInfo *fdti)
+{
+    while (fdti->irqs) {
+        FDTIRQConnection *first = fdti->irqs;
+        qemu_irq sink = first->irq;
+        bool (*merge_fn)(bool *, int) = first->merge_fn;
+        int num_sources = 0;
+        FDTIRQConnection *irq;
+
+        for (irq = first; irq; irq = irq->next) {
+            if (irq->irq == sink) { /* Same sink */
+                num_sources++;
+            }
+        }
+        if (num_sources > 1) {
+            QEMUIRQSharedState *s = g_malloc0(sizeof *s);
+            s->sink = sink;
+            s->merge_fn = merge_fn;
+            qemu_irq *sources = qemu_allocate_irqs(qemu_irq_shared_handler, s,
+                                                   num_sources);
+            for (irq = first; irq; irq = irq->next) {
+                if (irq->irq == sink) {
+                    char *shared_irq_name = g_strdup_printf("shared-irq-%p",
+                                                            *sources);
+
+                    if (irq->merge_fn != merge_fn) {
+                        fprintf(stderr, "ERROR: inconsistent IRQ merge fns\n");
+                        exit(1);
+                    }
+
+                    object_property_add_child(OBJECT(irq->dev), shared_irq_name,
+                                              OBJECT(*sources));
+                    g_free(shared_irq_name);
+                    irq->irq = *(sources++);
+                    s->num++;
+                }
+            }
+        }
+        DB_PRINT(0, "%s: connected to %s irq line %d (%s)\n",
+                 first->sink_info ? first->sink_info : "",
+                 object_get_canonical_path(OBJECT(first->dev)),
+                 first->i, first->name ? first->name : "");
+
+        qdev_connect_gpio_out_named(DEVICE(first->dev), first->name, first->i,
+                                    first->irq);
+        fdti->irqs = first->next;
+        g_free(first);
+    }
+}
+
 FDTMachineInfo *fdt_generic_create_machine(void *fdt, qemu_irq *cpu_irq)
 {
     char node_path[DT_PATH_LENGTH];
@@ -91,6 +173,7 @@ FDTMachineInfo *fdt_generic_create_machine(void *fdt, qemu_irq *cpu_irq)
         while (qemu_co_enter_next(fdti->cq, NULL)) {
             ;
         }
+        fdt_init_all_irqs(fdti);
         memory_region_transaction_commit();
     } else {
         fprintf(stderr, "FDT: ERROR: cannot get root node from device tree %s\n"
@@ -908,8 +991,9 @@ static int fdt_init_qdev(char *node_path, FDTMachineInfo *fdti, char *compat)
 {
     Object *dev, *parent;
     char *dev_type = NULL;
+    int is_intc;
     Error *errp = NULL;
-    int i;
+    int i, j;
     QEMUDevtreeProp *prop, *props;
     char parent_node_path[DT_PATH_LENGTH];
 
@@ -1121,6 +1205,66 @@ exit_reg_parse:
                                       &error_abort)) {
                     fdt_init_yield(fdti);
                 }
+            }
+        }
+    }
+
+    if (object_dynamic_cast(dev, TYPE_SYS_BUS_DEVICE)) {
+        {
+            int len;
+            fdt_get_property(fdti->fdt, fdt_path_offset(fdti->fdt, node_path),
+                                    "interrupt-controller", &len);
+            is_intc = len >= 0;
+            DB_PRINT_NP(is_intc ? 0 : 1, "is interrupt controller: %c\n",
+                        is_intc ? 'y' : 'n');
+        }
+        /* connect irq */
+        j = 0;
+        for (i = 0;; i++) {
+            char irq_info[6 * 1024];
+            char *irq_info_p = irq_info;
+            bool map_mode;
+            int len = -1;
+            qemu_irq *irqs = fdt_get_irq_info(fdti, node_path, i, irq_info,
+                                              &map_mode);
+            /* INTCs inferr their top level, if no IRQ connection specified */
+            fdt_get_property(fdti->fdt, fdt_path_offset(fdti->fdt, node_path),
+                             "interrupts-extended", &len);
+            if (!irqs && is_intc && i == 0 && len <= 0) {
+                FDTGenericIntc *id = (FDTGenericIntc *)object_dynamic_cast(
+                                        dev, TYPE_FDT_GENERIC_INTC);
+                FDTGenericIntcClass *idc = FDT_GENERIC_INTC_GET_CLASS(id);
+                if (id && idc->auto_parent) {
+                    Error *err = NULL;
+                    idc->auto_parent(id, &err);
+                } else {
+                    irqs = fdti->irq_base;
+                }
+            }
+            if (!irqs) {
+                break;
+            }
+            while (*irqs) {
+                FDTIRQConnection *irq = g_new0(FDTIRQConnection, 1);
+                *irq = (FDTIRQConnection) {
+                    .dev = DEVICE(dev),
+                    .name = SYSBUS_DEVICE_GPIO_IRQ,
+                    .merge_fn = qemu_irq_shared_or_handler,
+                    .i = j,
+                    .irq = *irqs,
+                    .sink_info = g_strdup(irq_info_p),
+                    .next = fdti->irqs
+                };
+                if (!map_mode) {
+                    j++;
+                } else {
+                    irq_info_p += strlen(irq_info_p) + 1;
+                }
+                fdti->irqs = irq;
+                irqs++;
+            }
+            if (map_mode) {
+                j++;
             }
         }
     }
