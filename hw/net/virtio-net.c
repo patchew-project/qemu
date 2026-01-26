@@ -3786,7 +3786,7 @@ static void virtio_net_handle_migration_primary(VirtIONet *n, MigrationEvent *e)
 
     should_be_hidden = qatomic_read(&n->failover_primary_hidden);
 
-    if (e->type == MIG_EVENT_PRECOPY_SETUP && !should_be_hidden) {
+    if (e->type == MIG_EVENT_SETUP && !should_be_hidden) {
         if (failover_unplug_primary(n, dev)) {
             vmstate_unregister(VMSTATE_IF(dev), qdev_get_vmsd(dev), dev);
             qapi_event_send_unplug_primary(dev->id);
@@ -3794,7 +3794,7 @@ static void virtio_net_handle_migration_primary(VirtIONet *n, MigrationEvent *e)
         } else {
             warn_report("couldn't unplug primary device");
         }
-    } else if (e->type == MIG_EVENT_PRECOPY_FAILED) {
+    } else if (e->type == MIG_EVENT_FAILED) {
         /* We already unplugged the device let's plug it back */
         if (!failover_replug_primary(n, dev, &err)) {
             if (err) {
