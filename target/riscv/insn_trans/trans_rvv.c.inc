@@ -1235,6 +1235,7 @@ static bool ldst_whole_trans(uint32_t vd, uint32_t rs1, uint32_t nf,
 static bool trans_##NAME(DisasContext *s, arg_##NAME * a)                   \
 {                                                                           \
     if (require_rvv(s) &&                                                   \
+        vext_check_isa_ill(s) &&                                            \
         QEMU_IS_ALIGNED(a->rd, ARG_NF)) {                                   \
         return ldst_whole_trans(a->rd, a->rs1, ARG_NF, ctzl(sizeof(ETYPE)), \
                                 gen_helper_##NAME, s, IS_LOAD);             \
