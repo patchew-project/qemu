@@ -40,6 +40,7 @@
 #include "qemu/config-file.h"
 #include "hw/core/boards.h"
 #include "qemu/option.h"
+#include "hw/cpu/cluster.h"
 
 #ifndef FDT_GENERIC_UTIL_ERR_DEBUG
 #define FDT_GENERIC_UTIL_ERR_DEBUG 3
@@ -235,8 +236,231 @@ static int simple_bus_fdt_init(char *node_path, FDTMachineInfo *fdti)
     return 0;
 }
 
+/* FIXME: figure out a real solution to this */
+
+#define DIGIT(a) ((a) >= '0' && (a) <= '9')
+#define LOWER_CASE(a) ((a) >= 'a' && (a) <= 'z')
+
+static void trim_version(char *x)
+{
+    long result;
+
+    for (;;) {
+        x = strchr(x, '-');
+        if (!x) {
+            return;
+        }
+        if (DIGIT(x[1])) {
+            /* Try to trim Xilinx version suffix */
+            const char *p;
+
+            qemu_strtol(x + 1, &p, 0, &result);
+
+            if (*p == '.') {
+                *x = 0;
+                return;
+            } else if (*p == 0) {
+                return;
+            }
+        } else if (x[1] == 'r' && x[3] == 'p') {
+            /* Try to trim ARM version suffix */
+            if (DIGIT(x[2]) && DIGIT(x[4])) {
+                *x = 0;
+                return;
+            }
+        }
+        x++;
+    }
+}
+
+static void substitute_char(char *s, char a, char b)
+{
+    for (;;) {
+        s = strchr(s, a);
+        if (!s) {
+            return;
+        }
+        *s = b;
+        s++;
+    }
+}
+
+static inline const char *trim_vendor(const char *s)
+{
+    /* FIXME: be more intelligent */
+    const char *ret = memchr(s, ',', strlen(s));
+    return ret ? ret + 1 : s;
+}
+
+static Object *fdt_create_from_compat(const char *compat, char **dev_type)
+{
+    Object *ret = NULL;
+    char *c = g_strdup(compat);
+
+    /* Try to create the object */
+    ret = object_new(c);
+
+    if (!ret) {
+        /* Trim the version off the end and try again */
+        trim_version(c);
+        ret = object_new(c);
+
+        if (!ret) {
+            /* Replace commas with full stops */
+            substitute_char(c, ',', '.');
+            ret = object_new(c);
+        }
+    }
+
+    if (!ret) {
+        /*
+         * Restart with the orginal string and now replace commas with full
+         * stops and try again. This means that versions are still included.
+         */
+        g_free(c);
+        c = g_strdup(compat);
+        substitute_char(c, ',', '.');
+        ret = object_new(c);
+    }
+
+    if (dev_type) {
+        *dev_type = c;
+    } else {
+        g_free(c);
+    }
+
+    if (!ret) {
+        const char *no_vendor = trim_vendor(compat);
+
+        if (no_vendor != compat) {
+            return fdt_create_from_compat(no_vendor, dev_type);
+        }
+    }
+    return ret;
+}
+
+/*
+ * Error handler for device creation failure.
+ *
+ * We look for qemu-fdt-abort-on-error properties up the tree.
+ * If we find one, we abort with the provided error message.
+ */
+static void fdt_dev_error(FDTMachineInfo *fdti, char *node_path, char *compat)
+{
+    const char *abort_on_error;
+    const char *warn_on_error;
+
+    warn_on_error = qemu_fdt_getprop(fdti->fdt, node_path,
+                                   "qemu-fdt-warn-on-error", 0,
+                                   true, NULL);
+    abort_on_error = qemu_fdt_getprop(fdti->fdt, node_path,
+                                   "qemu-fdt-abort-on-error", 0,
+                                   true, NULL);
+    if (warn_on_error) {
+        if (strncmp("device_type", compat, strlen("device_type"))) {
+            warn_report("%s: %s", compat, warn_on_error);
+        }
+    }
+
+    if (abort_on_error) {
+        error_report("Failed to create %s", compat);
+        error_setg(&error_fatal, "%s", abort_on_error);
+    }
+}
+
 static int fdt_init_qdev(char *node_path, FDTMachineInfo *fdti, char *compat)
 {
+    Object *dev, *parent;
+    char *dev_type = NULL;
+    char parent_node_path[DT_PATH_LENGTH];
+
+    if (!compat) {
+        return 1;
+    }
+    dev = fdt_create_from_compat(compat, &dev_type);
+    if (!dev) {
+        DB_PRINT_NP(1, "no match found for %s\n", compat);
+        fdt_dev_error(fdti, node_path, compat);
+        return 1;
+    }
+    DB_PRINT_NP(1, "matched compat %s\n", compat);
+
+    /* Do this super early so fdt_generic_num_cpus is correct ASAP */
+    if (object_dynamic_cast(dev, TYPE_CPU)) {
+        fdt_generic_num_cpus++;
+        DB_PRINT_NP(0, "is a CPU - total so far %d\n", fdt_generic_num_cpus);
+    }
+
+    if (qemu_devtree_getparent(fdti->fdt, parent_node_path, node_path)) {
+        abort();
+    }
+    while (!fdt_init_has_opaque(fdti, parent_node_path) &&
+           !object_dynamic_cast(dev, TYPE_CPU)) {
+        fdt_init_yield(fdti);
+    }
+
+    parent = fdt_init_get_opaque(fdti, parent_node_path);
+
+    if (object_dynamic_cast(dev, TYPE_CPU)) {
+        parent = fdt_init_get_cpu_cluster(fdti, parent, compat);
+    }
+
+    if (dev->parent) {
+        DB_PRINT_NP(0, "Node already parented - skipping node\n");
+    } else if (parent) {
+        DB_PRINT_NP(1, "parenting node\n");
+        object_property_add_child(OBJECT(parent),
+                              qemu_devtree_get_node_name(fdti->fdt, node_path),
+                              OBJECT(dev));
+        if (object_dynamic_cast(dev, TYPE_DEVICE)) {
+            Object *parent_bus = parent;
+            unsigned int depth = 0;
+
+            DB_PRINT_NP(1, "bus parenting node\n");
+            /* Look for an FDT ancestor that is a Bus.  */
+            while (parent_bus && !object_dynamic_cast(parent_bus, TYPE_BUS)) {
+                /*
+                 * Assert against insanely deep hierarchies which are an
+                 * indication of loops.
+                 */
+                assert(depth < 4096);
+
+                parent_bus = parent_bus->parent;
+                depth++;
+            }
+
+            if (!parent_bus
+                && object_dynamic_cast(OBJECT(dev), TYPE_SYS_BUS_DEVICE)) {
+                /*
+                 * Didn't find any bus. Use the default sysbus one.
+                 * This allows ad-hoc busses belonging to sysbus devices to be
+                 * visible to -device bus=x.
+                 */
+                parent_bus = OBJECT(sysbus_get_default());
+            }
+
+            if (parent_bus) {
+                qdev_set_parent_bus(DEVICE(dev), BUS(parent_bus),
+                                    &error_abort);
+            }
+        }
+    } else {
+        DB_PRINT_NP(1, "orphaning node\n");
+        if (object_dynamic_cast(OBJECT(dev), TYPE_SYS_BUS_DEVICE)) {
+            qdev_set_parent_bus(DEVICE(dev), BUS(sysbus_get_default()),
+                                &error_abort);
+        }
+
+        /* FIXME: Make this go away (centrally) */
+        object_property_add_child(
+                              object_get_root(),
+                              qemu_devtree_get_node_name(fdti->fdt, node_path),
+                              OBJECT(dev));
+    }
+    fdt_init_set_opaque(fdti, node_path, dev);
+
+    g_free(dev_type);
+
     return 0;
 }
 
