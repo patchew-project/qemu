@@ -2034,6 +2034,18 @@ int object_child_foreach_recursive(Object *obj,
  */
 Object *object_property_add_new_container(Object *obj, const char *name);
 
+/*
+ * object_resolve_link:
+ *
+ * Lookup an object and ensure its type matches the link property type.  This
+ * is similar to object_resolve_path() except type verification against the
+ * link property is performed.
+ *
+ * Returns: The matched object or NULL on path lookup failures.
+ */
+Object *object_resolve_link(Object *obj, const char *name,
+    const char *path, Error **errp);
+
 /**
  * object_property_help:
  * @name: the name of the property
