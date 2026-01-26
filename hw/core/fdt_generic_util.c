@@ -36,6 +36,7 @@
 #include "system/system.h"
 #include "system/reset.h"
 #include "qemu/cutils.h"
+#include "chardev/char.h"
 #include "qemu/log.h"
 #include "qemu/config-file.h"
 #include "hw/core/boards.h"
@@ -68,6 +69,7 @@
 #include <stdlib.h>
 
 static int fdt_generic_num_cpus;
+static int fdt_serial_ports;
 
 static int simple_bus_fdt_init(char *bus_node_path, FDTMachineInfo *fdti);
 
@@ -174,6 +176,8 @@ FDTMachineInfo *fdt_generic_create_machine(void *fdt, qemu_irq *cpu_irq)
     FDTMachineInfo *fdti = fdt_init_new_fdti(fdt);
 
     fdti->irq_base = cpu_irq;
+
+    fdt_serial_ports = 0;
 
     /* parse the device tree */
     if (!qemu_devtree_get_root_node(fdt, node_path)) {
@@ -1096,6 +1100,8 @@ static int fdt_init_qdev(char *node_path, FDTMachineInfo *fdti, char *compat)
     props = qemu_devtree_get_props(fdti->fdt, node_path);
     for (prop = props; prop->name; prop++) {
         const char *propname = trim_vendor(prop->name);
+        int len = prop->len;
+        void *val = prop->value;
         ObjectProperty *p = NULL;
 
         p = object_property_find(OBJECT(dev), propname);
@@ -1112,12 +1118,50 @@ static int fdt_init_qdev(char *node_path, FDTMachineInfo *fdti, char *compat)
             continue;
         }
 
+        /* Special case for chardevs. It's an ordered list of strings.  */
+        if (!strcmp(propname, "chardev") && !strcmp(p->type, "str")) {
+            const char *chardev = val;
+            const char *chardevs_end = chardev + len;
+
+            assert(errp == NULL);
+            while (chardev < chardevs_end) {
+                object_property_set_str(OBJECT(dev), propname,
+                                        (const char *)chardev, &errp);
+                if (!errp) {
+                    fprintf(stderr, "set property %s to %s\n", propname,
+                                chardev);
+                    break;
+                }
+                chardev += strlen(chardev) + 1;
+                errp = NULL;
+            }
+            assert(errp == NULL);
+            continue;
+        }
+
         fdt_init_qdev_scalar_prop(OBJECT(dev), p, fdti, node_path, prop);
     }
 
     if (object_dynamic_cast(dev, TYPE_DEVICE)) {
         const char *short_name = qemu_devtree_get_node_name(fdti->fdt,
                                                             node_path);
+
+        /* Connect chardev if we can */
+        if (serial_hd(fdt_serial_ports)) {
+            Chardev *value = (Chardev *) serial_hd(fdt_serial_ports);
+            char *chardev;
+
+            /* Check if the device already has a chardev.  */
+            chardev = object_property_get_str(dev, "chardev", &errp);
+            if (!errp && !strcmp(chardev, "")) {
+                object_property_set_str(dev, "chardev", value->label, &errp);
+                if (!errp) {
+                    /* It worked, the device is a charecter device */
+                    fdt_serial_ports++;
+                }
+            }
+            errp = NULL;
+        }
 
         /* Regular TYPE_DEVICE houskeeping */
         DB_PRINT_NP(0, "Short naming node: %s\n", short_name);
