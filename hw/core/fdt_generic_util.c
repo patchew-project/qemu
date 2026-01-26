@@ -622,6 +622,22 @@ static inline uint64_t get_int_be(const void *p, int len)
     }
 }
 
+/* FIXME: use structs instead of parallel arrays */
+
+static const char *fdt_generic_reg_size_prop_names[] = {
+    "#address-cells",
+    "#size-cells",
+    "#bus-cells",
+    "#priority-cells",
+};
+
+static const int fdt_generic_reg_cells_defaults[] = {
+    1,
+    1,
+    0,
+    0,
+};
+
 /*
  * Error handler for device creation failure.
  *
@@ -892,6 +908,8 @@ static int fdt_init_qdev(char *node_path, FDTMachineInfo *fdti, char *compat)
 {
     Object *dev, *parent;
     char *dev_type = NULL;
+    Error *errp = NULL;
+    int i;
     QEMUDevtreeProp *prop, *props;
     char parent_node_path[DT_PATH_LENGTH];
 
@@ -1019,6 +1037,91 @@ static int fdt_init_qdev(char *node_path, FDTMachineInfo *fdti, char *compat)
         } else {
             object_property_set_bool(OBJECT(dev), "realized", true,
                                      &error_fatal);
+        }
+    }
+
+    if (object_dynamic_cast(dev, TYPE_SYS_BUS_DEVICE) ||
+        object_dynamic_cast(dev, TYPE_FDT_GENERIC_MMAP)) {
+        FDTGenericRegPropInfo reg = {0};
+        char parent_path[DT_PATH_LENGTH];
+        int cell_idx = 0;
+        bool extended = true;
+
+        qemu_fdt_getprop_cell(fdti->fdt, node_path, "reg-extended", 0, false,
+                              &errp);
+        if (errp) {
+            error_free(errp);
+            errp = NULL;
+            extended = false;
+            qemu_devtree_getparent(fdti->fdt, parent_path, node_path);
+        }
+
+        for (reg.n = 0;; reg.n++) {
+            char ph_parent[DT_PATH_LENGTH];
+            const char *pnp = parent_path;
+
+            reg.parents = g_renew(Object *, reg.parents, reg.n + 1);
+            reg.parents[reg.n] = parent;
+
+            if (extended) {
+                int p_ph = qemu_fdt_getprop_cell(fdti->fdt, node_path,
+                                                 "reg-extended", cell_idx++,
+                                                 false, &errp);
+                if (errp) {
+                    error_free(errp);
+                    errp = NULL;
+                    goto exit_reg_parse;
+                }
+                if (qemu_devtree_get_node_by_phandle(fdti->fdt, ph_parent,
+                                                     p_ph)) {
+                    goto exit_reg_parse;
+                }
+                while (!fdt_init_has_opaque(fdti, ph_parent)) {
+                    fdt_init_yield(fdti);
+                }
+                reg.parents[reg.n] = fdt_init_get_opaque(fdti, ph_parent);
+                pnp = ph_parent;
+            }
+
+            for (i = 0; i < FDT_GENERIC_REG_TUPLE_LENGTH; ++i) {
+                const char *size_prop_name = fdt_generic_reg_size_prop_names[i];
+                int nc = qemu_fdt_getprop_cell(fdti->fdt, pnp, size_prop_name,
+                                               0, true, &errp);
+
+                if (errp) {
+                    int size_default = fdt_generic_reg_cells_defaults[i];
+
+                    DB_PRINT_NP(0, "WARNING: no %s for %s container, assuming "
+                                "default of %d\n", size_prop_name, pnp,
+                                size_default);
+                    nc = size_default;
+                    error_free(errp);
+                    errp = NULL;
+                }
+
+                reg.x[i] = g_renew(uint64_t, reg.x[i], reg.n + 1);
+                reg.x[i][reg.n] = nc ?
+                    qemu_fdt_getprop_sized_cell(fdti->fdt, node_path,
+                                                extended ? "reg-extended"
+                                                         : "reg",
+                                                cell_idx, nc, &errp)
+                    : 0;
+                cell_idx += nc;
+                if (errp) {
+                    goto exit_reg_parse;
+                }
+            }
+        }
+exit_reg_parse:
+
+        if (object_dynamic_cast(dev, TYPE_FDT_GENERIC_MMAP)) {
+            FDTGenericMMapClass *fmc = FDT_GENERIC_MMAP_GET_CLASS(dev);
+            if (fmc->parse_reg) {
+                while (fmc->parse_reg(FDT_GENERIC_MMAP(dev), reg,
+                                      &error_abort)) {
+                    fdt_init_yield(fdti);
+                }
+            }
         }
     }
 
