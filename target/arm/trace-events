@@ -35,3 +35,4 @@ cpu_post_load_len(int cpreg_array_len, int cpreg_vmstate_array_len) "cpreg_array
 cpu_post_load(int i, int v, uint64_t regidx) "i=%d v=%d regidx=0x%"PRIx64
 cpu_post_load_missing(int i, uint64_t regidx, int v) "missing register in input stream: i=%d index=0x%"PRIx64" (v=%d)"
 cpu_post_load_unexpected(int v, uint64_t regidx, int i) "unexpected register in input stream: v=%d index=0x%"PRIx64" (i=%d)"
+cpu_post_load_missing_as_expected(int v, uint64_t regidx, int i) "register missing as expected in input stream: v=%d index=0x%"PRIx64" (i=%d)"
