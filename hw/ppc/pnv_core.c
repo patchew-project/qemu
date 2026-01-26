@@ -185,10 +185,18 @@ static const MemoryRegionOps pnv_core_power9_xscom_ops = {
  * POWER10 core controls
  */
 
+#define PNV10_XSCOM_EC_IMA_EVENT_MASK       0x400
 #define PNV10_XSCOM_EC_CORE_THREAD_STATE    0x412
 #define PNV10_XSCOM_EC_CORE_THREAD_INFO     0x413
+#define PNV10_XSCOM_EC_CORE_FIRMASK         0x443
+#define PNV10_XSCOM_EC_CORE_FIRMASK_AND     0x444
+#define PNV10_XSCOM_EC_CORE_FIRMASK_OR      0x445
 #define PNV10_XSCOM_EC_CORE_DIRECT_CONTROLS 0x449
 #define PNV10_XSCOM_EC_CORE_RAS_STATUS      0x454
+#define PNV10_XSCOM_EC_SPATTN_OR            0x497
+#define PNV10_XSCOM_EC_SPATTN_AND           0x498
+#define PNV10_XSCOM_EC_SPATTN               0x499
+#define PNV10_XSCOM_EC_SPATTN_MASK          0x49A
 
 static uint64_t pnv_core_power10_xscom_read(void *opaque, hwaddr addr,
                                            unsigned int width)
@@ -224,6 +232,19 @@ static uint64_t pnv_core_power10_xscom_read(void *opaque, hwaddr addr,
             }
         }
         break;
+    case PNV10_XSCOM_EC_IMA_EVENT_MASK:
+    case PNV10_XSCOM_EC_CORE_FIRMASK:
+        return 0;
+    case PNV10_XSCOM_EC_CORE_FIRMASK_OR:
+    case PNV10_XSCOM_EC_CORE_FIRMASK_AND:
+    case PNV10_XSCOM_EC_SPATTN_OR:
+    case PNV10_XSCOM_EC_SPATTN_AND:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Write only register, ignoring "
+                              "xscom read at 0x%08x\n", __func__, offset);
+        break;
+    case PNV10_XSCOM_EC_SPATTN:
+    case PNV10_XSCOM_EC_SPATTN_MASK:
+        return 0;
     default:
         qemu_log_mask(LOG_UNIMP, "%s: unimp read 0x%08x\n", __func__,
                       offset);
@@ -284,6 +305,15 @@ static void pnv_core_power10_xscom_write(void *opaque, hwaddr addr,
         }
         break;
 
+    case PNV10_XSCOM_EC_IMA_EVENT_MASK:
+    case PNV10_XSCOM_EC_CORE_FIRMASK:
+    case PNV10_XSCOM_EC_CORE_FIRMASK_OR:
+    case PNV10_XSCOM_EC_CORE_FIRMASK_AND:
+    case PNV10_XSCOM_EC_SPATTN_OR:
+    case PNV10_XSCOM_EC_SPATTN_AND:
+    case PNV10_XSCOM_EC_SPATTN:
+    case PNV10_XSCOM_EC_SPATTN_MASK:
+        break;
     default:
         qemu_log_mask(LOG_UNIMP, "%s: unimp write 0x%08x\n", __func__,
                       offset);
@@ -579,6 +609,23 @@ static const MemoryRegionOps pnv_quad_power9_xscom_ops = {
  * POWER10 Quads
  */
 
+#define P10_XSCOM_EQ3_MODE_REG1         0x1160a
+#define P10_XSCOM_EQ3_NCU_SPEC_BAR_REG  0x11650
+#define P10_XSCOM_EQ3_HTM_MODE          0x11680
+#define P10_XSCOM_EQ3_HTM_IMA_PDBAR     0x1168b
+#define P10_XSCOM_EQ2_MODE_REG1         0x1260a
+#define P10_XSCOM_EQ2_NCU_SPEC_BAR_REG  0x12650
+#define P10_XSCOM_EQ2_HTM_MODE          0x12680
+#define P10_XSCOM_EQ2_HTM_IMA_PDBAR     0x1268b
+#define P10_XSCOM_EQ1_MODE_REG1         0x1460a
+#define P10_XSCOM_EQ1_NCU_SPEC_BAR_REG  0x14650
+#define P10_XSCOM_EQ1_HTM_MODE          0x14680
+#define P10_XSCOM_EQ1_HTM_IMA_PDBAR     0x1468b
+#define P10_XSCOM_EQ0_MODE_REG1         0x1860a
+#define P10_XSCOM_EQ0_NCU_SPEC_BAR_REG  0x18650
+#define P10_XSCOM_EQ0_HTM_MODE          0x18680
+#define P10_XSCOM_EQ0_HTM_IMA_PDBAR     0x1868b
+
 static uint64_t pnv_quad_power10_xscom_read(void *opaque, hwaddr addr,
                                             unsigned int width)
 {
@@ -586,6 +633,23 @@ static uint64_t pnv_quad_power10_xscom_read(void *opaque, hwaddr addr,
     uint64_t val = -1;
 
     switch (offset) {
+    case P10_XSCOM_EQ0_MODE_REG1:
+    case P10_XSCOM_EQ0_NCU_SPEC_BAR_REG:
+    case P10_XSCOM_EQ0_HTM_MODE:
+    case P10_XSCOM_EQ0_HTM_IMA_PDBAR:
+    case P10_XSCOM_EQ1_MODE_REG1:
+    case P10_XSCOM_EQ1_NCU_SPEC_BAR_REG:
+    case P10_XSCOM_EQ1_HTM_MODE:
+    case P10_XSCOM_EQ1_HTM_IMA_PDBAR:
+    case P10_XSCOM_EQ2_MODE_REG1:
+    case P10_XSCOM_EQ2_NCU_SPEC_BAR_REG:
+    case P10_XSCOM_EQ2_HTM_MODE:
+    case P10_XSCOM_EQ2_HTM_IMA_PDBAR:
+    case P10_XSCOM_EQ3_MODE_REG1:
+    case P10_XSCOM_EQ3_NCU_SPEC_BAR_REG:
+    case P10_XSCOM_EQ3_HTM_MODE:
+    case P10_XSCOM_EQ3_HTM_IMA_PDBAR:
+        return 0;
     default:
         qemu_log_mask(LOG_UNIMP, "%s: unimp read 0x%08x\n", __func__,
                       offset);
@@ -600,6 +664,23 @@ static void pnv_quad_power10_xscom_write(void *opaque, hwaddr addr,
     uint32_t offset = addr >> 3;
 
     switch (offset) {
+    case P10_XSCOM_EQ0_MODE_REG1:
+    case P10_XSCOM_EQ0_NCU_SPEC_BAR_REG:
+    case P10_XSCOM_EQ0_HTM_MODE:
+    case P10_XSCOM_EQ0_HTM_IMA_PDBAR:
+    case P10_XSCOM_EQ1_MODE_REG1:
+    case P10_XSCOM_EQ1_NCU_SPEC_BAR_REG:
+    case P10_XSCOM_EQ1_HTM_MODE:
+    case P10_XSCOM_EQ1_HTM_IMA_PDBAR:
+    case P10_XSCOM_EQ2_MODE_REG1:
+    case P10_XSCOM_EQ2_NCU_SPEC_BAR_REG:
+    case P10_XSCOM_EQ2_HTM_MODE:
+    case P10_XSCOM_EQ2_HTM_IMA_PDBAR:
+    case P10_XSCOM_EQ3_MODE_REG1:
+    case P10_XSCOM_EQ3_NCU_SPEC_BAR_REG:
+    case P10_XSCOM_EQ3_HTM_MODE:
+    case P10_XSCOM_EQ3_HTM_IMA_PDBAR:
+        break;
     default:
         qemu_log_mask(LOG_UNIMP, "%s: unimp write 0x%08x\n", __func__,
                       offset);
