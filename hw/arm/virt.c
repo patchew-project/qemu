@@ -93,6 +93,7 @@
 #include "hw/cxl/cxl.h"
 #include "hw/cxl/cxl_host.h"
 #include "qemu/guest-random.h"
+#include "qobject/qnum.h"
 
 static GlobalProperty arm_virt_compat_defaults[] = {
     { TYPE_VIRTIO_IOMMU_PCI, "aw-bits", "48" },
@@ -100,14 +101,17 @@ static GlobalProperty arm_virt_compat_defaults[] = {
 static const size_t arm_virt_compat_defaults_len =
     G_N_ELEMENTS(arm_virt_compat_defaults);
 
+/*
+ * Array made of x-mig-safe-missing-regs and x-mig-hidden-regs global
+ * properties. It is populated by arm_virt_aggregate_x_mig_props() that
+ * aggregates registrations respectively made with:
+ * - arm_virt_compat_register_safe_missing_reg() and
+ * - arm_virt_compat_register_hidden_reg()
+ */
+static GlobalProperty aggregated_x_mig_array_props[2];
+
 /* Register erronously exposed on 10.2 and earlier */
 #define DBGDTRTX 0x40200000200e0298
-
-static GlobalProperty arm_virt_compat_10_2[] = {
-    { TYPE_ARM_CPU, "x-mig-safe-missing-regs", stringify(DBGDTRTX)},
-};
-static const size_t arm_virt_compat_10_2_len =
-    G_N_ELEMENTS(arm_virt_compat_10_2);
 
 /*
  * This cannot be called from the virt_machine_class_init() because
@@ -120,14 +124,67 @@ static void arm_virt_compat_default_set(MachineClass *mc)
                      arm_virt_compat_defaults_len);
 }
 
+static char *get_prop_value_from_reg_qlist(QList *l)
+{
+    size_t size = qlist_size(l);
+    QListEntry *item;
+    GString *s;
+    int i = 0;
+    QNum *qi;
+
+    if (!size) {
+        return NULL;
+    }
+
+    s = g_string_new("");
+
+    QLIST_FOREACH_ENTRY(l, item) {
+        qi = qobject_to(QNum, qlist_entry_obj(item));
+        int64_t regidx;
+
+        qnum_get_try_int(qi, &regidx);
+        if (i++ > 0) {
+            g_string_append(s, ", ");
+        }
+        g_string_append_printf(s, "%" G_GINT64_FORMAT, regidx);
+    }
+    return g_string_free(s, false);
+}
+
+static void arm_virt_aggregate_x_mig_props(MachineClass *mc)
+{
+    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
+    const char *safe_missing_regs_prop_value =
+                    get_prop_value_from_reg_qlist(vmc->safe_missing_regs);
+    const char *hidden_regs_prop_value =
+                    get_prop_value_from_reg_qlist(vmc->hidden_regs);
+    int i = 0;
+
+    if (safe_missing_regs_prop_value) {
+        aggregated_x_mig_array_props[i].driver = TYPE_ARM_CPU;
+        aggregated_x_mig_array_props[i].property = "x-mig-safe-missing-regs";
+        aggregated_x_mig_array_props[i++].value = safe_missing_regs_prop_value;
+    }
+
+    if (hidden_regs_prop_value) {
+        aggregated_x_mig_array_props[i].driver = TYPE_ARM_CPU;
+        aggregated_x_mig_array_props[i].property = "x-mig-hidden-regs";
+        aggregated_x_mig_array_props[i++].value = hidden_regs_prop_value;
+    }
+
+    compat_props_add(mc->compat_props, aggregated_x_mig_array_props, i);
+}
+
 #define DEFINE_VIRT_MACHINE_IMPL(latest, ...) \
     static void MACHINE_VER_SYM(class_init, virt, __VA_ARGS__)( \
         ObjectClass *oc, \
         const void *data) \
     { \
         MachineClass *mc = MACHINE_CLASS(oc); \
+        arm_virt_class_init(mc); \
         arm_virt_compat_default_set(mc); \
         MACHINE_VER_SYM(options, virt, __VA_ARGS__)(mc); \
+        arm_virt_aggregate_x_mig_props(mc); \
         mc->desc = "QEMU " MACHINE_VER_STR(__VA_ARGS__) " ARM Virtual Machine"; \
         MACHINE_VER_DEPRECATION(__VA_ARGS__); \
         if (latest) { \
@@ -3559,9 +3616,11 @@ DEFINE_VIRT_MACHINE_AS_LATEST(11, 0)
 
 static void virt_machine_10_2_options(MachineClass *mc)
 {
+    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
+
     virt_machine_11_0_options(mc);
     compat_props_add(mc->compat_props, hw_compat_10_2, hw_compat_10_2_len);
-    compat_props_add(mc->compat_props, arm_virt_compat_10_2, arm_virt_compat_10_2_len);
+    arm_virt_compat_register_safe_missing_reg(vmc, DBGDTRTX);
 }
 DEFINE_VIRT_MACHINE(10, 2)
 

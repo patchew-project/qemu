@@ -41,6 +41,7 @@
 #include "system/kvm.h"
 #include "hw/intc/arm_gicv3_common.h"
 #include "qom/object.h"
+#include "qobject/qlist.h"
 
 #define NUM_GICV2M_SPIS       64
 #define NUM_VIRTIO_TRANSPORTS 32
@@ -131,6 +132,8 @@ struct VirtMachineClass {
     bool no_tcg_lpa2;
     bool no_ns_el2_virt_timer_irq;
     bool no_nested_smmu;
+    QList *safe_missing_regs;
+    QList *hidden_regs;
 };
 
 struct VirtMachineState {
@@ -214,6 +217,26 @@ static inline int virt_gicv3_redist_region_count(VirtMachineState *vms)
 
     return (MACHINE(vms)->smp.cpus > redist0_capacity &&
             vms->highmem_redists) ? 2 : 1;
+}
+
+static inline void arm_virt_class_init(MachineClass *mc)
+{
+    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
+
+    vmc->safe_missing_regs = qlist_new();
+    vmc->hidden_regs = qlist_new();
+}
+
+static inline void
+arm_virt_compat_register_safe_missing_reg(VirtMachineClass *vmc, int64_t regidx)
+{
+    qlist_append_int(vmc->safe_missing_regs, regidx);
+}
+
+static inline void
+arm_virt_compat_register_hidden_reg(VirtMachineClass *vmc, int64_t regidx)
+{
+    qlist_append_int(vmc->hidden_regs, regidx);
 }
 
 #endif /* QEMU_ARM_VIRT_H */
