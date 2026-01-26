@@ -573,6 +573,9 @@ static uintptr_t tcg_qemu_tb_exec_tci(CPUArchState *env, const void *v_tb_ptr)
             taddr = regs[r1];
             oi = regs[r2];
             tci_qemu_st(env, taddr, regs[r0], oi, tb_ptr);
+        case INDEX_op_mb:
+            /* Ensure ordering for all kinds */
+            smp_mb();
             break;
         default:
             g_assert_not_reached();
