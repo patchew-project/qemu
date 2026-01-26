@@ -96,27 +96,28 @@ int qemu_fdt_setprop_phandle(void *fdt, const char *node_path,
  * @node_path: node path
  * @property: name of the property to find
  * @lenp: fdt error if any or length of the property on success
+ * @inherit: if not found in node, look for property in parent
  * @errp: handle to an error object
  *
  * returns a pointer to the property on success and NULL on failure
  */
 const void *qemu_fdt_getprop(void *fdt, const char *node_path,
                              const char *property, int *lenp,
-                             Error **errp);
+                             bool inherit, Error **errp);
 /**
- * qemu_fdt_getprop_cell: retrieve the value of a given 4 byte property
- * @fdt: pointer to the device tree blob
- * @node_path: node path
- * @property: name of the property to find
- * @lenp: fdt error if any or -EINVAL if the property size is different from
- *        4 bytes, or 4 (expected length of the property) upon success.
- * @errp: handle to an error object
- *
- * returns the property value on success
- */
+* qemu_fdt_getprop_cell: retrieve the value of a given 4 byte property
+* @fdt: pointer to the device tree blob
+* @node_path: node path
+* @property: name of the property to find
+* @ofset: the index of 32bit cell to retrive
+* @inherit: if not found in node, look for property in parent
+* @errp: handle to an error object
+*
+* returns the property value on success
+*/
 uint32_t qemu_fdt_getprop_cell(void *fdt, const char *node_path,
-                               const char *property, int *lenp,
-                               Error **errp);
+                               const char *property, int offset,
+                               bool inherit, Error **errp);
 uint32_t qemu_fdt_get_phandle(void *fdt, const char *path);
 uint32_t qemu_fdt_alloc_phandle(void *fdt);
 int qemu_fdt_nop_node(void *fdt, const char *node_path);
@@ -192,6 +193,11 @@ int qemu_fdt_setprop_sized_cells_from_array(void *fdt,
                                                 qdt_tmp);                 \
     })
 
+
+int qemu_devtree_getparent(void *fdt, char *node_path,
+                           const char *current);
+
+#define DT_PATH_LENGTH 1024
 
 /**
  * qemu_fdt_randomize_seeds:

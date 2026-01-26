@@ -429,7 +429,8 @@ int qemu_fdt_setprop_string_array(void *fdt, const char *node_path,
 }
 
 const void *qemu_fdt_getprop(void *fdt, const char *node_path,
-                             const char *property, int *lenp, Error **errp)
+                             const char *property, int *lenp,
+                             bool inherit, Error **errp)
 {
     int len;
     const void *r;
@@ -439,31 +440,35 @@ const void *qemu_fdt_getprop(void *fdt, const char *node_path,
     }
     r = fdt_getprop(fdt, findnode_nofail(fdt, node_path), property, lenp);
     if (!r) {
+        char parent[DT_PATH_LENGTH];
+        if (inherit && !qemu_devtree_getparent(fdt, parent, node_path)) {
+            return qemu_fdt_getprop(fdt, parent, property, lenp, true, errp);
+        }
         error_setg(errp, "%s: Couldn't get %s/%s: %s", __func__,
                   node_path, property, fdt_strerror(*lenp));
+        return NULL;
     }
     return r;
 }
 
 uint32_t qemu_fdt_getprop_cell(void *fdt, const char *node_path,
-                               const char *property, int *lenp, Error **errp)
+                               const char *property, int offset,
+                               bool inherit, Error **errp)
 {
     int len;
     const uint32_t *p;
 
-    if (!lenp) {
-        lenp = &len;
-    }
-    p = qemu_fdt_getprop(fdt, node_path, property, lenp, errp);
+    p = qemu_fdt_getprop(fdt, node_path, property, &len,
+                                         inherit, errp);
     if (!p) {
         return 0;
-    } else if (*lenp != 4) {
+    }
+    if (len < (offset + 1) * 4) {
         error_setg(errp, "%s: %s/%s not 4 bytes long (not a cell?)",
                    __func__, node_path, property);
-        *lenp = -EINVAL;
         return 0;
     }
-    return be32_to_cpu(*p);
+    return be32_to_cpu(p[offset]);
 }
 
 uint32_t qemu_fdt_get_phandle(void *fdt, const char *path)
@@ -631,6 +636,16 @@ int qemu_fdt_setprop_sized_cells_from_array(void *fdt,
 out:
     g_free(propcells);
     return ret;
+}
+
+int qemu_devtree_getparent(void *fdt, char *node_path, const char *current)
+{
+    int offset = fdt_path_offset(fdt, current);
+    int parent_offset = fdt_supernode_atdepth_offset(fdt, offset,
+        fdt_node_depth(fdt, offset) - 1, NULL);
+
+    return parent_offset >= 0 ?
+        fdt_get_path(fdt, parent_offset, node_path, DT_PATH_LENGTH) : 1;
 }
 
 void qmp_dumpdtb(const char *filename, Error **errp)
