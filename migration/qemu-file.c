@@ -227,6 +227,12 @@ void qemu_file_set_error(QEMUFile *f, int ret)
     qemu_file_set_error_obj(f, ret, NULL);
 }
 
+void qemu_file_clear_error(QEMUFile *f)
+{
+    f->last_error = 0;
+    error_free(f->last_error_obj);
+}
+
 static bool qemu_file_is_writable(QEMUFile *f)
 {
     return f->is_writable;
