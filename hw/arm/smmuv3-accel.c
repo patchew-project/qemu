@@ -390,6 +390,60 @@ bool smmuv3_accel_issue_inv_cmd(SMMUv3State *bs, void *cmd, SMMUDevice *sdev,
                    sizeof(Cmd), &entry_num, cmd, errp);
 }
 
+static void smmuv3_accel_event_read(void *opaque)
+{
+    SMMUv3State *s = opaque;
+    SMMUv3AccelState *accel = s->s_accel;
+    struct {
+        struct iommufd_vevent_header hdr;
+        struct iommu_vevent_arm_smmuv3 vevent;
+    } buf;
+    ssize_t readsz = sizeof(buf);
+    uint32_t last_seq = accel->last_event_seq;
+    ssize_t bytes;
+
+    bytes = read(accel->veventq->veventq_fd, &buf, readsz);
+    if (bytes <= 0) {
+        if (errno == EAGAIN || errno == EINTR) {
+            return;
+        }
+        error_report("vEVENTQ: read failed (%m)");
+        return;
+    }
+
+    if (bytes < readsz) {
+        error_report("vEVENTQ: incomplete read (%zd/%zd bytes)", bytes, readsz);
+        return;
+    }
+
+    if (buf.hdr.flags & IOMMU_VEVENTQ_FLAG_LOST_EVENTS) {
+        error_report("vEVENTQ has lost events");
+        accel->event_start = false;
+        accel->last_event_seq = 0;
+        return;
+    }
+
+    /* Check sequence in hdr for lost events if any */
+    if (accel->event_start) {
+        uint32_t expected = (last_seq == INT_MAX) ? 0 : last_seq + 1;
+
+        if (buf.hdr.sequence != expected) {
+            uint32_t delta;
+
+            if (buf.hdr.sequence >= last_seq) {
+                delta = buf.hdr.sequence - last_seq;
+            } else {
+                /* Handle wraparound from INT_MAX */
+                delta = (INT_MAX - last_seq) + buf.hdr.sequence + 1;
+            }
+            error_report_once("vEVENTQ: detected lost %u event(s)", delta - 1);
+        }
+    }
+    accel->last_event_seq = buf.hdr.sequence;
+    accel->event_start = true;
+    smmuv3_propagate_event(s, (Evt *)&buf.vevent);
+}
+
 static void smmuv3_accel_free_veventq(SMMUv3AccelState *accel)
 {
     IOMMUFDVeventq *veventq = accel->veventq;
@@ -397,6 +451,8 @@ static void smmuv3_accel_free_veventq(SMMUv3AccelState *accel)
     if (!veventq) {
         return;
     }
+    qemu_set_fd_handler(veventq->veventq_fd, NULL, NULL, NULL);
+    close(veventq->veventq_fd);
     iommufd_backend_free_id(accel->viommu->iommufd, veventq->veventq_id);
     g_free(veventq);
     accel->veventq = NULL;
@@ -439,6 +495,10 @@ bool smmuv3_accel_alloc_veventq(SMMUv3State *s, Error **errp)
     veventq->veventq_fd = veventq_fd;
     veventq->viommu = accel->viommu;
     accel->veventq = veventq;
+
+    /* Set up event handler for veventq fd */
+    fcntl(veventq_fd, F_SETFL, O_NONBLOCK);
+    qemu_set_fd_handler(veventq_fd, smmuv3_accel_event_read, NULL, s);
     return true;
 }
 
