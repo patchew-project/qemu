@@ -1,5 +1,14 @@
 config CMSDK_APB_WATCHDOG
     bool
+    select CMSDK_APB_WATCHDOG_C if !HAVE_RUST
+    select X_CMSDK_APB_WATCHDOG_RUST if HAVE_RUST
+
+config CMSDK_APB_WATCHDOG_C
+    bool
+    select PTIMER
+
+config X_CMSDK_APB_WATCHDOG_RUST
+    bool
     select PTIMER
 
 config WDT_IB6300ESB
