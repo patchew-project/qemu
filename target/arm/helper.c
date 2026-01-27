@@ -4936,12 +4936,12 @@ static void smcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                        uint64_t value)
 {
     int cur_el = arm_current_el(env);
-    int old_len = sve_vqm1_for_el(env, cur_el);
+    ARMCPU *cpu = env_archcpu(env);
+    int old_len = cpu_isar_feature(aa64_sve, cpu) ? sve_vqm1_for_el(env, cur_el) : 0;
     uint64_t valid_mask = R_SMCR_LEN_MASK | R_SMCR_FA64_MASK;
-    int new_len;
 
     QEMU_BUILD_BUG_ON(ARM_MAX_VQ > R_SMCR_LEN_MASK + 1);
-    if (cpu_isar_feature(aa64_sme2, env_archcpu(env))) {
+    if (cpu_isar_feature(aa64_sme2, cpu)) {
         valid_mask |= R_SMCR_EZT0_MASK;
     }
     value &= valid_mask;
@@ -4953,10 +4953,17 @@ static void smcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * current values for simplicity.  But for QEMU internals, we must still
      * apply the narrower SVL to the Zregs and Pregs -- see the comment
      * above aarch64_sve_narrow_vq.
+     *
+     * If the CPU has only SME and not SVE, then turning streaming mode
+     * on and off can't ever change the SVL; we must avoid calling
+     * sve_vqm1_for_el() to ask for the SVE vector length when SM is 0
+     * because it will assert.
      */
-    new_len = sve_vqm1_for_el(env, cur_el);
-    if (new_len < old_len) {
-        aarch64_sve_narrow_vq(env, new_len + 1);
+    if (cpu_isar_feature(aa64_sve, cpu)) {
+        int new_len = sve_vqm1_for_el(env, cur_el);
+        if (new_len < old_len) {
+            aarch64_sve_narrow_vq(env, new_len + 1);
+        }
     }
 }
 
