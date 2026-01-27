@@ -28,8 +28,6 @@
 #define AUDIO_CAP "audio"
 #include "audio_int.h"
 
-/* #define DEBUG_OUT */
-
 #define SW_NAME(sw) (sw)->name ? (sw)->name : "unknown"
 
 const struct mixeng_volume nominal_volume = {
@@ -567,9 +565,7 @@ static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t buf_len)
     }
 
     if (live == hw->mix_buf.size) {
-#ifdef DEBUG_OUT
-        dolog ("%s is full %zu\n", sw->name, live);
-#endif
+        trace_audio_out_full(sw->name, live);
         return 0;
     }
 
@@ -617,15 +613,8 @@ static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t buf_len)
         sw->resample_buf.pos = 0;
     }
 
-#ifdef DEBUG_OUT
-    dolog (
-        "%s: write size %zu written %zu total mixed %zu\n",
-        SW_NAME(sw),
-        buf_len / sw->info.bytes_per_frame,
-        total_in,
-        sw->total_hw_samples_mixed
-        );
-#endif
+    trace_audio_sw_write(SW_NAME(sw), buf_len / sw->info.bytes_per_frame,
+                         total_in, sw->total_hw_samples_mixed);
 
     return total_in * sw->info.bytes_per_frame;
 }
@@ -899,10 +888,8 @@ static size_t audio_get_free(SWVoiceOut *sw)
 
     dead = sw->hw->mix_buf.size - live;
 
-#ifdef DEBUG_OUT
-    dolog("%s: get_free live %zu dead %zu frontend frames %u\n",
-          SW_NAME(sw), live, dead, st_rate_frames_in(sw->rate, dead));
-#endif
+    trace_audio_get_free(SW_NAME(sw), live, dead,
+                         st_rate_frames_in(sw->rate, dead));
 
     return dead;
 }
@@ -1057,9 +1044,8 @@ static void audio_run_out(AudioMixengBackend *s)
 
         if (hw->pending_disable && !nb_live) {
             SWVoiceCap *sc;
-#ifdef DEBUG_OUT
-            dolog ("Disabling voice\n");
-#endif
+
+            trace_audio_out_disable();
             hw->enabled = false;
             hw->pending_disable = false;
             if (k->enable_out) {
@@ -1088,9 +1074,7 @@ static void audio_run_out(AudioMixengBackend *s)
             hw->mix_buf.pos = 0;
         }
 
-#ifdef DEBUG_OUT
-        dolog("played=%zu\n", played);
-#endif
+        trace_audio_out_played(played);
 
         if (played) {
             audio_capture_mix_and_clear (hw, prev_rpos, played);
