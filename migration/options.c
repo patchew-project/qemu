@@ -216,36 +216,36 @@ const size_t migration_properties_count = ARRAY_SIZE(migration_properties);
 static void get_StrOrNull(Object *obj, Visitor *v, const char *name,
                           void *opaque, Error **errp)
 {
-    const Property *prop = opaque;
-    StrOrNull **ptr = object_field_prop_ptr(obj, prop);
+    StrOrNull **ptr = object_field_prop_ptr(obj, opaque);
     StrOrNull *str_or_null = *ptr;
 
-    if (!str_or_null) {
-        str_or_null = g_new0(StrOrNull, 1);
-        str_or_null->type = QTYPE_QSTRING;
-        str_or_null->u.s = g_strdup("");
-    } else {
-        /* the setter doesn't allow QNULL */
-        assert(str_or_null->type != QTYPE_QNULL);
-    }
+    /*
+     * The property should never be NULL because it's part of
+     * s->parameters and a default value is always set. It should also
+     * never be QNULL as the setter doesn't allow it.
+     */
+    assert(str_or_null && str_or_null->type != QTYPE_QNULL);
     visit_type_str(v, name, &str_or_null->u.s, errp);
 }
 
 static void set_StrOrNull(Object *obj, Visitor *v, const char *name,
                           void *opaque, Error **errp)
 {
-    const Property *prop = opaque;
-    StrOrNull **ptr = object_field_prop_ptr(obj, prop);
-    StrOrNull *str_or_null = g_new0(StrOrNull, 1);
+    StrOrNull **ptr = object_field_prop_ptr(obj, opaque);
+    StrOrNull *str_or_null;
+    char *str;
+
+    if (!visit_type_str(v, name, &str, errp)) {
+        return;
+    }
 
     /*
      * Only str to keep compatibility, QNULL was never used via
      * command line.
      */
+    str_or_null = g_new0(StrOrNull, 1);
     str_or_null->type = QTYPE_QSTRING;
-    if (!visit_type_str(v, name, &str_or_null->u.s, errp)) {
-        return;
-    }
+    str_or_null->u.s = str;
 
     qapi_free_StrOrNull(*ptr);
     *ptr = str_or_null;
