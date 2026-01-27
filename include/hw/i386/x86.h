@@ -122,7 +122,6 @@ void x86_cpu_unplug_request_cb(HotplugHandler *hotplug_dev,
                                DeviceState *dev, Error **errp);
 void x86_cpu_unplug_cb(HotplugHandler *hotplug_dev,
                        DeviceState *dev, Error **errp);
-
 void x86_isa_bios_init(MemoryRegion *isa_bios, MemoryRegion *isa_memory,
                        MemoryRegion *bios, bool read_only);
 void x86_bios_rom_init(X86MachineState *x86ms, const char *default_firmware,
