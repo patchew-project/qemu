@@ -5361,6 +5361,164 @@ floatx80 floatx80_round(floatx80 a, float_status *status)
     return floatx80_round_pack_canonical(&p, status);
 }
 
+static void parts_s390_precision_round_normal(FloatParts128 *p,
+                                              const FloatFmt *fmt)
+{
+    /* Use precision of the target format, but unbounded exponent range */
+    p->frac_hi &= ((1ULL << (fmt->frac_size + 1)) - 1) <<
+                  (63 - fmt->frac_size);
+    p->frac_lo = 0;
+}
+
+static void parts_s390_divide_to_integer(FloatParts64 *a, FloatParts64 *b,
+                                         int final_quotient_rounding_mode,
+                                         bool mask_underflow, bool mask_inexact,
+                                         const FloatFmt *fmt,
+                                         FloatParts64 *r, FloatParts64 *n,
+                                         uint32_t *cc, int *dxc,
+                                         float_status *status)
+{
+    /* POp table "Results: DIVIDE TO INTEGER (Part 1 of 2)" */
+    if ((float_cmask(a->cls) | float_cmask(b->cls)) & float_cmask_anynan) {
+        *r = *parts_pick_nan(a, b, status);
+        *n = *r;
+        *cc = 1;
+    } else if (a->cls == float_class_inf || b->cls == float_class_zero) {
+        parts_default_nan(r, status);
+        *n = *r;
+        *cc = 1;
+        status->float_exception_flags |= float_flag_invalid;
+    } else if (b->cls == float_class_inf) {
+        *r = *a;
+        n->cls = float_class_zero;
+        n->sign = a->sign ^ b->sign;
+        *cc = 0;
+    } else {
+        FloatParts128 a128, b128, *m128, m128_buf, n128, *q128, q128_buf,
+                      r128, *r128_precise;
+        int float_exception_flags = 0;
+        bool is_q128_smallish;
+        uint32_t r_flags;
+        int saved_flags;
+
+        /* Compute precise quotient */
+        parts_float_to_float_widen(&a128, a, status);
+        parts_float_to_float_widen(&b128, b, status);
+        q128_buf = a128;
+        q128 = parts_div(&q128_buf, &b128, status);
+
+        /* Final or partial case? */
+        is_q128_smallish = q128->exp < (fmt->frac_size + 1);
+
+        /*
+         * Final quotient is rounded using final-quotient-rounding method, and
+         * partial quotient is rounded toward zero.
+         *
+         * Rounding of partial quotient may be inexact. This is the whole point
+         * of distinguishing partial quotients, so ignore the exception.
+         */
+        n128 = *q128;
+        saved_flags = status->float_exception_flags;
+        parts_round_to_int(&n128,
+                           is_q128_smallish ? final_quotient_rounding_mode :
+                                              float_round_to_zero,
+                           0, status, &float128_params);
+        float_exception_flags = saved_flags;
+        parts_s390_precision_round_normal(&n128, fmt);
+
+        /* Compute precise remainder */
+        m128_buf = b128;
+        m128 = parts_mul(&m128_buf, &n128, status);
+        m128->sign = !m128->sign;
+        status->float_exception_flags = 0;
+        r128_precise = parts_addsub(m128, &a128, status, false);
+
+        /* Round remainder to the target format */
+        parts_float_to_float_narrow(r, r128_precise, status);
+        parts_uncanon(r, status, fmt);
+        r->frac &= (1ULL << fmt->frac_size) - 1;
+        parts_canonicalize(r, status, fmt);
+        parts_float_to_float_widen(&r128, r, status);
+        r_flags = status->float_exception_flags;
+
+        /* POp table "Results: DIVIDE TO INTEGER (Part 2 of 2)" */
+        if (is_q128_smallish) {
+            if (r128.cls != float_class_zero) {
+                if (r128.exp < 2 - (1 << (fmt->exp_size - 1))) {
+                    if (mask_underflow) {
+                        float_exception_flags |= float_flag_underflow;
+                        *dxc = 0x10;
+                        r128.exp += fmt->exp_re_bias;
+                    }
+                } else if (r_flags & float_flag_inexact) {
+                    float_exception_flags |= float_flag_inexact;
+                    if (mask_inexact) {
+                        bool saved_r128_sign, saved_r128_precise_sign;
+
+                        /*
+                         * Check whether remainder was truncated (rounded
+                         * toward zero) or incremented.
+                         */
+                        saved_r128_sign = r128.sign;
+                        saved_r128_precise_sign = r128_precise->sign;
+                        r128.sign = false;
+                        r128_precise->sign = false;
+                        if (parts_compare(&r128, r128_precise, status, true) <
+                            float_relation_equal) {
+                            *dxc = 0x8;
+                        } else {
+                            *dxc = 0xc;
+                        }
+                        r128.sign = saved_r128_sign;
+                        r128_precise->sign = saved_r128_precise_sign;
+                    }
+                }
+            }
+            *cc = 0;
+        } else if (n128.exp > (1 << (fmt->exp_size - 1)) - 1) {
+            n128.exp -= fmt->exp_re_bias;
+            *cc = r128.cls == float_class_zero ? 1 : 3;
+        } else {
+            *cc = r128.cls == float_class_zero ? 0 : 2;
+        }
+
+        /* Adjust signs of zero results */
+        parts_float_to_float_narrow(r, &r128, status);
+        if (r->cls == float_class_zero) {
+            r->sign = a->sign;
+        }
+        parts_float_to_float_narrow(n, &n128, status);
+        if (n->cls == float_class_zero) {
+            n->sign = a->sign ^ b->sign;
+        }
+
+        status->float_exception_flags = float_exception_flags;
+    }
+}
+
+#define DEFINE_S390_DIVIDE_TO_INTEGER(floatN)                                  \
+void floatN ## _s390_divide_to_integer(floatN a, floatN b,                     \
+                                       int final_quotient_rounding_mode,       \
+                                       bool mask_underflow, bool mask_inexact, \
+                                       floatN *r, floatN *n,                   \
+                                       uint32_t *cc, int *dxc,                 \
+                                       float_status *status)                   \
+{                                                                              \
+    FloatParts64 pa, pb, pr, pn;                                               \
+                                                                               \
+    floatN ## _unpack_canonical(&pa, a, status);                               \
+    floatN ## _unpack_canonical(&pb, b, status);                               \
+    parts_s390_divide_to_integer(&pa, &pb, final_quotient_rounding_mode,       \
+                                 mask_underflow, mask_inexact,                 \
+                                 &floatN ## _params,                           \
+                                 &pr, &pn, cc, dxc, status);                   \
+    *r = floatN ## _round_pack_canonical(&pr, status);                         \
+    *n = floatN ## _round_pack_canonical(&pn, status);                         \
+}
+
+DEFINE_S390_DIVIDE_TO_INTEGER(float32)
+DEFINE_S390_DIVIDE_TO_INTEGER(float64)
+
 static void __attribute__((constructor)) softfloat_init(void)
 {
     union_float64 ua, ub, uc, ur;
