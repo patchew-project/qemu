@@ -161,7 +161,7 @@ static bool trans_vfwmaccbf16_vf(DisasContext *ctx, arg_vfwmaccbf16_vf *a)
         data = FIELD_DP32(data, VDATA, VTA, ctx->vta);
         data = FIELD_DP32(data, VDATA, VMA, ctx->vma);
         return opfvf_trans(a->rd, a->rs1, a->rs2, data,
-                           gen_helper_vfwmaccbf16_vf, ctx);
+                           gen_helper_vfwmaccbf16_vf, ctx, false);
     }
 
     return false;
