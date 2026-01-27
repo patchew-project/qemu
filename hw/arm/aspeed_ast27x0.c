@@ -702,6 +702,26 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
                            qdev_get_gpio_in(DEVICE(&a->intc[0].orgates[0]), i));
     }
 
+    /*
+     * SDMC - SDRAM Memory Controller
+     * The SDMC controller is unlocked at SPL stage.
+     * At present, only supports to emulate booting
+     * start from u-boot stage. Set SDMC controller
+     * unlocked by default. It is a temporarily solution.
+     */
+    object_property_set_bool(OBJECT(&s->sdmc), "unlocked", true,
+                                 &error_abort);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->sdmc), errp)) {
+        return;
+    }
+    aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&s->sdmc), 0,
+                    sc->memmap[ASPEED_DEV_SDMC]);
+
+    /* RAM */
+    if (!aspeed_soc_ast2700_dram_init(dev, errp)) {
+        return;
+    }
+
     /* SRAM */
     name = g_strdup_printf("aspeed.sram.%d", CPU(&a->cpu[0])->cpu_index);
     if (!memory_region_init_ram(&s->sram, OBJECT(s), name, sc->sram_size,
@@ -790,26 +810,6 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->ehci[i]), 0,
                            aspeed_soc_ast2700_get_irq(s,
                                                       ASPEED_DEV_EHCI1 + i));
-    }
-
-    /*
-     * SDMC - SDRAM Memory Controller
-     * The SDMC controller is unlocked at SPL stage.
-     * At present, only supports to emulate booting
-     * start from u-boot stage. Set SDMC controller
-     * unlocked by default. It is a temporarily solution.
-     */
-    object_property_set_bool(OBJECT(&s->sdmc), "unlocked", true,
-                                 &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->sdmc), errp)) {
-        return;
-    }
-    aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&s->sdmc), 0,
-                    sc->memmap[ASPEED_DEV_SDMC]);
-
-    /* RAM */
-    if (!aspeed_soc_ast2700_dram_init(dev, errp)) {
-        return;
     }
 
     /* Net */
