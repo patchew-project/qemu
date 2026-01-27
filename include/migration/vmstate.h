@@ -186,18 +186,29 @@ struct VMStateField {
     bool (*field_exists)(void *opaque, int version_id);
 };
 
+typedef enum {
+    /*
+     * Specifies a VMSD of a device that should be migrated during the migration
+     * completion phase (switch-over). (Default behavior, same behavior as
+     * before the introduction of save phase.)
+     */
+    VMS_PHASE_COMPLETE = 0,
+    /*
+     * Specifies a VMSD of a device that should be saved during setup phase of
+     * migration. It plays similar role as save_setup() for explicitly
+     * registered vmstate entries, so it can be seen as a way to describe
+     * save_setup() in VMSD structures.
+     */
+    VMS_PHASE_EARLY_SETUP,
+} VMStateSavePhase;
+
 struct VMStateDescription {
     const char *name;
     bool unmigratable;
     /*
-     * This VMSD describes something that should be sent during setup phase
-     * of migration. It plays similar role as save_setup() for explicitly
-     * registered vmstate entries, so it can be seen as a way to describe
-     * save_setup() in VMSD structures.
-     *
      * Note that for now, a SaveStateEntry cannot have a VMSD and
      * operations (e.g., save_setup()) set at the same time. Consequently,
-     * save_setup() and a VMSD with early_setup set to true are mutually
+     * save_setup() and a VMSD with phase set to EARLY_SETUP are mutually
      * exclusive. For this reason, also early_setup VMSDs are migrated in a
      * QEMU_VM_SECTION_FULL section, while save_setup() data is migrated in
      * a QEMU_VM_SECTION_START section.
@@ -213,7 +224,7 @@ struct VMStateDescription {
      *          <0 on error where -value is an error number from errno.h
      */
 
-    bool early_setup;
+    VMStateSavePhase phase;
     int version_id;
     int minimum_version_id;
     MigrationPriority priority;

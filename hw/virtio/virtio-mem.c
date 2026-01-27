@@ -1438,7 +1438,7 @@ static const VMStateDescription vmstate_virtio_mem_device_early = {
     .name = "virtio-mem-device-early",
     .minimum_version_id = 1,
     .version_id = 1,
-    .early_setup = true,
+    .phase = VMS_PHASE_EARLY_SETUP,
     .post_load = virtio_mem_post_load_early,
     .fields = (const VMStateField[]) {
         VMSTATE_WITH_TMP(VirtIOMEM, VirtIOMEMMigSanityChecks,

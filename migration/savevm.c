@@ -1370,7 +1370,7 @@ int qemu_savevm_state_setup(QEMUFile *f, Error **errp)
 
     trace_savevm_state_setup();
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
-        if (se->vmsd && se->vmsd->early_setup) {
+        if (se->vmsd && se->vmsd->phase == VMS_PHASE_EARLY_SETUP) {
             ret = vmstate_save(f, se, vmdesc, errp);
             if (ret) {
                 migrate_error_propagate(ms, error_copy(*errp));
@@ -1672,7 +1672,7 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
     cpu_synchronize_all_states();
 
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
-        if (se->vmsd && se->vmsd->early_setup) {
+        if (se->vmsd && se->vmsd->phase != VMS_PHASE_COMPLETE) {
             /* Already saved during qemu_savevm_state_setup(). */
             continue;
         }
