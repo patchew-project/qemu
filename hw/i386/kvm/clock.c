@@ -207,7 +207,9 @@ static void kvmclock_vm_state_change(void *opaque, bool running,
 
         s->runstate_paused = runstate_check(RUN_STATE_PAUSED);
 
-        kvm_synchronize_all_tsc();
+        if (!runstate_check(RUN_STATE_SHUTDOWN)) {
+            kvm_synchronize_all_tsc();
+        }
 
         kvm_update_clock(s);
         /*
