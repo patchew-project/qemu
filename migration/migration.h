@@ -522,6 +522,14 @@ struct MigrationState {
      * anything as input.
      */
     bool has_block_bitmap_mapping;
+
+    /*
+     * Do send VM_START message on the return-path when dest VM finishes
+     * loading device state and switches out of INMIGRATE run state.
+     */
+    bool send_vm_started;
+    bool dest_vm_started;
+    QemuEvent dest_vm_started_event;
 };
 
 void migrate_set_state(MigrationStatus *state, MigrationStatus old_state,
@@ -564,6 +572,7 @@ void migrate_send_rp_recv_bitmap(MigrationIncomingState *mis,
                                  char *block_name);
 void migrate_send_rp_resume_ack(MigrationIncomingState *mis, uint32_t value);
 int migrate_send_rp_switchover_ack(MigrationIncomingState *mis);
+void migrate_send_rp_vm_started(MigrationIncomingState *mis);
 
 void dirty_bitmap_mig_before_vm_start(void);
 void dirty_bitmap_mig_cancel_outgoing(void);

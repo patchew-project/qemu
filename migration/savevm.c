@@ -2157,6 +2157,9 @@ static void loadvm_postcopy_handle_run_bh(void *opaque)
     }
 
     trace_vmstate_downtime_checkpoint("dst-postcopy-bh-vm-started");
+    if (mis->to_src_file && migrate_send_vm_started()) {
+        migrate_send_rp_vm_started(mis);
+    }
 }
 
 /* After all discards we can start running and asking for pages */
