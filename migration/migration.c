@@ -63,6 +63,7 @@
 #include "system/dirtylimit.h"
 #include "qemu/sockets.h"
 #include "system/kvm.h"
+#include "netpass.h"
 
 #define NOTIFIER_ELEM_INIT(array, elem)    \
     [elem] = NOTIFIER_WITH_RETURN_LIST_INITIALIZER((array)[elem])
@@ -488,6 +489,10 @@ void migration_incoming_state_destroy(void)
         mis->postcopy_qemufile_dst = NULL;
     }
 
+    if (migrate_netpass()) {
+        migration_netpass_cleanup();
+    }
+
     cpr_set_incoming_mode(MIG_MODE_NONE);
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
 }
@@ -755,6 +760,10 @@ static void process_incoming_migration_bh(void *opaque)
         migrate_send_rp_vm_started(mis);
     }
 
+    if (migrate_netpass()) {
+        qemu_loadvm_state_netpass(mis->from_src_file, mis);
+    }
+
     /*
      * This must happen after any state changes since as soon as an external
      * observer sees this event they might start to prod at the VM assuming
@@ -774,6 +783,13 @@ process_incoming_migration_co(void *opaque)
     Error *local_err = NULL;
 
     assert(mis->from_src_file);
+
+    if (migrate_netpass()) {
+        ret = migration_netpass_setup(&local_err);
+        if (ret < 0) {
+            goto fail;
+        }
+    }
 
     mis->largest_page_size = qemu_ram_pagesize_largest();
     postcopy_state_set(POSTCOPY_INCOMING_NONE);
@@ -811,8 +827,7 @@ process_incoming_migration_co(void *opaque)
     goto out;
 
 fail:
-    migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
-                      MIGRATION_STATUS_FAILED);
+    migrate_set_state(&mis->state, mis->state, MIGRATION_STATUS_FAILED);
     migrate_error_propagate(s, local_err);
     migration_incoming_state_destroy();
 
@@ -1336,6 +1351,10 @@ static void migration_cleanup(MigrationState *s)
         qemu_fclose(tmp);
     }
 
+    if (migrate_netpass()) {
+        migration_netpass_cleanup();
+    }
+
     assert(!migration_is_active());
 
     if (s->state == MIGRATION_STATUS_CANCELLING) {
@@ -1672,6 +1691,8 @@ int migrate_init(MigrationState *s, Error **errp)
 
     s->dest_vm_started = false;
     qemu_event_reset(&s->dest_vm_started_event);
+
+    s->netpass_state_sent = false;
 
     return 0;
 }
@@ -2729,6 +2750,10 @@ static bool migration_switchover_start(MigrationState *s, Error **errp)
 {
     ERRP_GUARD();
 
+    if (migrate_netpass()) {
+        migration_netpass_activate();
+    }
+
     if (!migration_switchover_prepare(s)) {
         error_setg(errp, "Switchover is interrupted");
         return false;
@@ -2819,6 +2844,14 @@ static void migration_completion(MigrationState *s)
 
     if (ret < 0) {
         goto fail;
+    }
+
+    if (migrate_netpass() && !s->netpass_state_sent) {
+        qemu_event_wait(&s->dest_vm_started_event);
+        qemu_savevm_state_netpass(s->to_dst_file);
+        s->netpass_state_sent = true;
+        qemu_put_byte(s->to_dst_file, QEMU_VM_EOF);
+        qemu_fflush(s->to_dst_file);
     }
 
     if (close_return_path_on_source(s)) {
@@ -3250,6 +3283,11 @@ static MigIterateState migration_iteration_run(MigrationState *s)
             qemu_event_wait(&s->postcopy_package_loaded_event);
             migrate_set_state(&s->state, MIGRATION_STATUS_POSTCOPY_DEVICE,
                               MIGRATION_STATUS_POSTCOPY_ACTIVE);
+        }
+
+        if (s->dest_vm_started && migrate_netpass() && !s->netpass_state_sent) {
+            qemu_savevm_state_netpass(s->to_dst_file);
+            s->netpass_state_sent = true;
         }
     } else {
         /*
@@ -3773,6 +3811,13 @@ void migration_start_outgoing(MigrationState *s)
     int ret;
 
     s->expected_downtime = migrate_downtime_limit();
+
+    if (migrate_netpass()) {
+        ret = migration_netpass_setup(&local_err);
+        if (ret < 0) {
+            goto fail;
+        }
+    }
 
     if (resume) {
         /* This is a resumed migration */

@@ -82,6 +82,7 @@ typedef void (NetAnnounce)(NetClientState *);
 typedef bool (SetSteeringEBPF)(NetClientState *, int);
 typedef bool (NetCheckPeerType)(NetClientState *, ObjectClass *, Error **);
 typedef struct vhost_net *(GetVHostNet)(NetClientState *nc);
+typedef void (NetpassEnabledNotify)(NetClientState *nc, void *opaque);
 
 typedef struct NetClientInfo {
     NetClientDriver type;
@@ -130,6 +131,9 @@ struct NetClientState {
     bool is_netdev;
     bool do_not_pad; /* do not pad to the minimum ethernet frame length */
     bool is_datapath;
+    bool netpass_enabled;
+    NetpassEnabledNotify *netpass_enabled_notify;
+    void *netpass_enabled_notify_opaque;
     QTAILQ_HEAD(, NetFilterState) filters;
 };
 
@@ -198,6 +202,7 @@ void qemu_flush_queued_packets(NetClientState *nc);
 void qemu_flush_or_purge_queued_packets(NetClientState *nc, bool purge);
 void qemu_set_info_str(NetClientState *nc,
                        const char *fmt, ...) G_GNUC_PRINTF(2, 3);
+void qemu_set_netpass_enabled(NetClientState *nc, bool enabled);
 void qemu_format_nic_info_str(NetClientState *nc, uint8_t macaddr[6]);
 bool qemu_has_ufo(NetClientState *nc);
 bool qemu_has_uso(NetClientState *nc);

@@ -30,6 +30,7 @@ system_ss.add(files(
   'multifd-nocomp.c',
   'multifd-zlib.c',
   'multifd-zero-page.c',
+  'netpass.c',
   'options.c',
   'postcopy-ram.c',
   'ram.c',

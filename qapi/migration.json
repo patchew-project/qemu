@@ -520,6 +520,11 @@
 #     each RAM page.  Requires a migration URI that supports seeking,
 #     such as a file.  (since 9.0)
 #
+# @netpass: Collect packets received by network backedns after source
+#     VM is paused and send them to the destination once it resumes.
+#     This (almost) completely eliminates packet loss caused by
+#     switchover.  (since 11.0)
+#
 # Features:
 #
 # @unstable: Members @x-colo and @x-ignore-shared are experimental.
@@ -536,7 +541,7 @@
            { 'name': 'x-ignore-shared', 'features': [ 'unstable' ] },
            'validate-uuid', 'background-snapshot',
            'zero-copy-send', 'postcopy-preempt', 'switchover-ack',
-           'dirty-limit', 'mapped-ram'] }
+           'dirty-limit', 'mapped-ram', 'netpass'] }
 
 ##
 # @MigrationCapabilityStatus:

@@ -200,6 +200,12 @@ typedef enum {
      * save_setup() in VMSD structures.
      */
     VMS_PHASE_EARLY_SETUP,
+    /*
+     * Specifies a netpass VMSD, these devices are copied right after the
+     * destination is started regardless of precopy/postcopy. Failure in this
+     * phase does not fail the migration in case of precopy.
+     */
+    VMS_PHASE_NETPASS,
 } VMStateSavePhase;
 
 struct VMStateDescription {

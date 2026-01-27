@@ -109,7 +109,8 @@ static char *tap_parse_script(const char *script_arg, const char *default_path)
 static void tap_update_fd_handler(TAPState *s)
 {
     qemu_set_fd_handler(s->fd,
-                        s->read_poll && s->enabled ? tap_send : NULL,
+                        (s->read_poll || s->nc.netpass_enabled) && s->enabled ?
+                            tap_send : NULL,
                         s->write_poll && s->enabled ? tap_writable : NULL,
                         s);
 }
@@ -412,6 +413,11 @@ static NetClientInfo net_tap_info = {
     .get_vhost_net = tap_get_vhost_net,
 };
 
+static void tap_netpass_enabled_nofity(NetClientState *nc, void *opaque)
+{
+    tap_update_fd_handler(opaque);
+}
+
 static TAPState *net_tap_fd_init(NetClientState *peer,
                                  const char *model,
                                  const char *name,
@@ -443,6 +449,9 @@ static TAPState *net_tap_fd_init(NetClientState *peer,
     }
     tap_read_poll(s, true);
     s->vhost_net = NULL;
+
+    nc->netpass_enabled_notify = &tap_netpass_enabled_nofity;
+    nc->netpass_enabled_notify_opaque = s;
 
     return s;
 }

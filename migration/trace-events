@@ -10,6 +10,8 @@ qemu_savevm_send_packaged(void) ""
 loadvm_state_switchover_ack_needed(unsigned int switchover_ack_pending_num) "Switchover ack pending num=%u"
 loadvm_state_setup(void) ""
 loadvm_state_cleanup(void) ""
+loadvm_state_netpass_begin(void) ""
+loadvm_state_netpass_end(int ret) "ret=%d"
 loadvm_handle_cmd_packaged(unsigned int length) "%u"
 loadvm_handle_cmd_packaged_main(int ret) "%d"
 loadvm_handle_cmd_packaged_received(int ret) "%d"
@@ -45,6 +47,8 @@ savevm_state_resume_prepare(void) ""
 savevm_state_header(void) ""
 savevm_state_iterate(void) ""
 savevm_state_cleanup(void) ""
+savevm_state_netpass_begin(void) ""
+savevm_state_netpass_end(int ret) "ret=%d"
 vmstate_save(const char *idstr, const char *vmsd_name) "%s, %s"
 vmstate_load(const char *idstr, const char *vmsd_name) "%s, %s"
 vmstate_downtime_save(const char *type, const char *idstr, uint32_t instance_id, int64_t downtime) "type=%s idstr=%s instance_id=%d downtime=%"PRIi64
@@ -401,3 +405,8 @@ cpu_throttle_dirty_sync(void) ""
 
 # block-active.c
 migration_block_activation(const char *name) "%s"
+
+# netpass.c
+migration_netpass_setup_created_filter(const char *netdev) "netdev=%s"
+migration_netpass_passed_packet_count(const char *netdev, size_t count) "netdev=%s count=%zu"
+migration_netpass_received_packet_count(const char *netdev, size_t count) "netdev=%s count=%zu"

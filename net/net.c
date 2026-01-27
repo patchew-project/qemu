@@ -158,6 +158,14 @@ void qemu_set_info_str(NetClientState *nc, const char *fmt, ...)
     va_end(ap);
 }
 
+void qemu_set_netpass_enabled(NetClientState *nc, bool enabled)
+{
+    nc->netpass_enabled = enabled;
+    if (nc->netpass_enabled_notify)  {
+        nc->netpass_enabled_notify(nc, nc->netpass_enabled_notify_opaque);
+    }
+}
+
 void qemu_format_nic_info_str(NetClientState *nc, uint8_t macaddr[6])
 {
     qemu_set_info_str(nc, "model=%s,macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
@@ -287,6 +295,9 @@ static void qemu_net_client_setup(NetClientState *nc,
     nc->incoming_queue = qemu_new_net_queue(qemu_deliver_packet_iov, nc);
     nc->destructor = destructor;
     nc->is_datapath = is_datapath;
+    nc->netpass_enabled = false;
+    nc->netpass_enabled_notify = NULL;
+    nc->netpass_enabled_notify_opaque = NULL;
     QTAILQ_INIT(&nc->filters);
 }
 

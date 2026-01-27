@@ -530,6 +530,8 @@ struct MigrationState {
     bool send_vm_started;
     bool dest_vm_started;
     QemuEvent dest_vm_started_event;
+
+    bool netpass_state_sent;
 };
 
 void migrate_set_state(MigrationStatus *state, MigrationStatus old_state,

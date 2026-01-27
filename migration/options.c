@@ -211,6 +211,7 @@ const Property migration_properties[] = {
     DEFINE_PROP_MIG_CAP("mapped-ram", MIGRATION_CAPABILITY_MAPPED_RAM),
     DEFINE_PROP_MIG_CAP("x-ignore-shared",
                         MIGRATION_CAPABILITY_X_IGNORE_SHARED),
+    DEFINE_PROP_MIG_CAP("netpass", MIGRATION_CAPABILITY_NETPASS),
 };
 const size_t migration_properties_count = ARRAY_SIZE(migration_properties);
 
@@ -440,6 +441,13 @@ bool migrate_send_vm_started(void)
     MigrationState *s = migrate_get_current();
 
     return s->send_vm_started;
+}
+
+bool migrate_netpass(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->capabilities[MIGRATION_CAPABILITY_NETPASS];
 }
 
 /* pseudo capabilities */
@@ -719,6 +727,19 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
         if (new_caps[MIGRATION_CAPABILITY_POSTCOPY_RAM]) {
             error_setg(errp,
                        "Mapped-ram migration is incompatible with postcopy");
+            return false;
+        }
+    }
+
+    if (new_caps[MIGRATION_CAPABILITY_NETPASS]) {
+        if (!new_caps[MIGRATION_CAPABILITY_RETURN_PATH]) {
+            error_setg(errp, "Capability 'netpass' requires capability "
+                             "'return-path'");
+            return false;
+        }
+        if (!migrate_send_vm_started()) {
+            error_setg(errp, "Capability 'netpass' requires support for VM_STARTED "
+                             "return-path message");
             return false;
         }
     }
