@@ -604,7 +604,7 @@ static void aspeed_scu_realize(DeviceState *dev, Error **errp)
 
     sysbus_init_mmio(sbd, &s->iomem);
 
-    if (s->ssp_cpuid > 0) {
+    if (s->ssp_cpuid > 0 || s->tsp_cpuid > 0) {
         if (!s->dram) {
             error_setg(errp, TYPE_ASPEED_SCU ": 'dram' link not set");
             return;
@@ -629,6 +629,7 @@ static const Property aspeed_scu_properties[] = {
     DEFINE_PROP_UINT32("hw-strap2", AspeedSCUState, hw_strap2, 0),
     DEFINE_PROP_UINT32("hw-prot-key", AspeedSCUState, hw_prot_key, 0),
     DEFINE_PROP_INT32("ssp-cpuid", AspeedSCUState, ssp_cpuid, -1),
+    DEFINE_PROP_INT32("tsp-cpuid", AspeedSCUState, tsp_cpuid, -1),
     DEFINE_PROP_LINK("dram", AspeedSCUState, dram, TYPE_MEMORY_REGION,
                      MemoryRegion *),
 };
@@ -902,6 +903,20 @@ static void aspeed_2700_scu_dram_remap_alias_init(AspeedSCUState *s)
         memory_region_init_alias(&s->dram_remap_alias[1], OBJECT(s),
                                  "ssp.dram.remap2", s->dram,
                                  0x2c000000, 32 * MiB);
+    }
+
+    if (s->tsp_cpuid > 0) {
+        /*
+         * The TSP coprocessor uses one memory alias (remap) to access a shared
+         * region in the PSP DRAM:
+         *
+         * - remap maps PSP DRAM at 0x42e000000 (size: 32MB) to TSP SDRAM
+         *   offset 0x0
+         *
+         */
+        memory_region_init_alias(&s->dram_remap_alias[2], OBJECT(s),
+                                 "tsp.dram.remap", s->dram,
+                                 0x2e000000, 32 * MiB);
     }
 }
 
