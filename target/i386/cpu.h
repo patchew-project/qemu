@@ -483,6 +483,7 @@ typedef enum X86Seg {
 /* Indicates good rep/movs microcode on some processors: */
 #define MSR_IA32_MISC_ENABLE_FASTSTRING    (1ULL << 0)
 #define MSR_IA32_MISC_ENABLE_BTS_UNAVAIL   (1ULL << 11)
+#define MSR_IA32_MISC_ENABLE_PEBS_UNAVAIL  (1ULL << 12)
 #define MSR_IA32_MISC_ENABLE_MWAIT      (1ULL << 18)
 #define MSR_IA32_MISC_ENABLE_DEFAULT    (MSR_IA32_MISC_ENABLE_FASTSTRING     |\
                                          MSR_IA32_MISC_ENABLE_BTS_UNAVAIL)
