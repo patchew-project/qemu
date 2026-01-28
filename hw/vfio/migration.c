@@ -90,9 +90,11 @@ mig_state_to_qapi_state(enum vfio_device_mig_state state)
     }
 }
 
-static void vfio_migration_send_event(VFIODevice *vbasedev)
+static void vfio_migration_send_event(VFIODevice *vbasedev,
+                                      enum vfio_device_mig_state state,
+                                      bool prep)
 {
-    VFIOMigration *migration = vbasedev->migration;
+    QapiVfioMigrationState qapi_state;
     DeviceState *dev = vbasedev->dev;
     g_autofree char *qom_path = NULL;
     Object *obj;
@@ -105,9 +107,13 @@ static void vfio_migration_send_event(VFIODevice *vbasedev)
     obj = vbasedev->ops->vfio_get_object(vbasedev);
     g_assert(obj);
     qom_path = object_get_canonical_path(obj);
+    qapi_state = mig_state_to_qapi_state(state);
 
-    qapi_event_send_vfio_migration(
-        dev->id, qom_path, mig_state_to_qapi_state(migration->device_state));
+    if (prep) {
+        qapi_event_send_vfio_migration_prepare(dev->id, qom_path, qapi_state);
+    } else {
+        qapi_event_send_vfio_migration(dev->id, qom_path, qapi_state);
+    }
 }
 
 static void vfio_migration_set_device_state(VFIODevice *vbasedev,
@@ -119,7 +125,7 @@ static void vfio_migration_set_device_state(VFIODevice *vbasedev,
                                           mig_state_to_str(state));
 
     migration->device_state = state;
-    vfio_migration_send_event(vbasedev);
+    vfio_migration_send_event(vbasedev, state, false);
 }
 
 int vfio_migration_set_state(VFIODevice *vbasedev,
@@ -145,6 +151,8 @@ int vfio_migration_set_state(VFIODevice *vbasedev,
     if (new_state == migration->device_state) {
         return 0;
     }
+
+    vfio_migration_send_event(vbasedev, new_state, true);
 
     feature->argsz = sizeof(buf);
     feature->flags =
