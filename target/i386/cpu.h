@@ -422,6 +422,8 @@ typedef enum X86Seg {
 #define MSR_IA32_PERF_CAPABILITIES      0x345
 #define PERF_CAP_LBR_FMT_MASK           0x3f
 #define PERF_CAP_LBR_FMT_SHIFT          0x0
+#define PERF_CAP_PEBS_FMT_MASK          0xf
+#define PERF_CAP_PEBS_FMT_SHIFT         0x8
 #define PERF_CAP_FULL_WRITE             (1U << 13)
 #define PERF_CAP_PEBS_BASELINE          (1U << 14)
 
@@ -2398,6 +2400,9 @@ struct ArchCPU {
      * host CPU and kernel capabilities) to the guest.
      */
     uint64_t lbr_fmt;
+
+    /* PEBS_FMT bits in IA32_PERF_CAPABILITIES MSR. */
+    uint64_t pebs_fmt;
 
     /* LMCE support can be enabled/disabled via cpu option 'lmce=on/off'. It is
      * disabled by default to avoid breaking migration between QEMU with

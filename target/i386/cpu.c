@@ -9786,7 +9786,9 @@ static bool x86_cpu_apply_lbr_pebs_fmt(X86CPU *cpu, uint64_t host_perf_cap,
         shift = PERF_CAP_LBR_FMT_SHIFT;
         name = "lbr";
     } else {
-        return false;
+        mask = PERF_CAP_PEBS_FMT_MASK;
+        shift = PERF_CAP_PEBS_FMT_SHIFT;
+        name = "pebs";
     }
 
     if (user_req != -1) {
@@ -9825,6 +9827,11 @@ static int x86_cpu_pmu_realize(X86CPU *cpu, Error **errp)
      */
     if (!x86_cpu_apply_lbr_pebs_fmt(cpu, host_perf_cap,
                                     cpu->lbr_fmt, true, errp)) {
+        return -EINVAL;
+    }
+
+    if (!x86_cpu_apply_lbr_pebs_fmt(cpu, host_perf_cap,
+                                    cpu->pebs_fmt, false, errp)) {
         return -EINVAL;
     }
 
@@ -10297,6 +10304,7 @@ static void x86_cpu_initfn(Object *obj)
 
     object_property_add_alias(obj, "hv-apicv", obj, "hv-avic");
     object_property_add_alias(obj, "lbr_fmt", obj, "lbr-fmt");
+    object_property_add_alias(obj, "pebs_fmt", obj, "pebs-fmt");
 
     if (xcc->model) {
         x86_cpu_load_model(cpu, xcc->model);
@@ -10468,6 +10476,7 @@ static const Property x86_cpu_properties[] = {
     DEFINE_PROP_INT32("node-id", X86CPU, node_id, CPU_UNSET_NUMA_NODE_ID),
     DEFINE_PROP_BOOL("pmu", X86CPU, enable_pmu, false),
     DEFINE_PROP_UINT64_CHECKMASK("lbr-fmt", X86CPU, lbr_fmt, PERF_CAP_LBR_FMT_MASK),
+    DEFINE_PROP_UINT64_CHECKMASK("pebs-fmt", X86CPU, pebs_fmt, PERF_CAP_PEBS_FMT_MASK),
 
     DEFINE_PROP_UINT32("hv-spinlocks", X86CPU, hyperv_spinlock_attempts,
                        HYPERV_SPINLOCK_NEVER_NOTIFY),
