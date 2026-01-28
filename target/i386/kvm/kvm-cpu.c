@@ -231,6 +231,7 @@ static void kvm_cpu_instance_init(CPUState *cs)
     }
 
     cpu->lbr_fmt = -1;
+    cpu->pebs_fmt = -1;
 
     kvm_cpu_xsave_init();
 }
