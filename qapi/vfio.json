@@ -66,3 +66,36 @@
       'qom-path': 'str',
       'device-state': 'QapiVfioMigrationState'
   } }
+
+##
+# @VFIO_MIGRATION_PREPARE:
+#
+# This event is emitted when a VFIO device migration state is about to
+# be changed.  Note that even if this event is received for state X,
+# the VFIO device may transition to a different state if the original
+# state transition to X failed.
+#
+# @device-id: The device's id, if it has one.
+#
+# @qom-path: The device's QOM path.
+#
+# @device-state: The new device migration state that is about to be
+#     changed.
+#
+# Since: 11.0
+#
+# .. qmp-example::
+#
+#     <- { "timestamp": { "seconds": 1713771323, "microseconds": 212268 },
+#          "event": "VFIO_MIGRATION_PREPARE",
+#          "data": {
+#              "device-id": "vfio_dev1",
+#              "qom-path": "/machine/peripheral/vfio_dev1",
+#              "device-state": "stop" } }
+##
+{ 'event': 'VFIO_MIGRATION_PREPARE',
+  'data': {
+      'device-id': 'str',
+      'qom-path': 'str',
+      'device-state': 'QapiVfioMigrationState'
+  } }
