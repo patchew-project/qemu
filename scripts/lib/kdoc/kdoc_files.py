@@ -5,7 +5,8 @@
 # pylint: disable=R0903,R0913,R0914,R0917
 
 """
-Parse lernel-doc tags on multiple kernel source files.
+Classes for navigating through the files that kernel-doc needs to handle
+to generate documentation.
 """
 
 import argparse
@@ -13,8 +14,9 @@ import logging
 import os
 import re
 
-from kdoc_parser import KernelDoc
-from kdoc_output import OutputFormat
+from kdoc.kdoc_parser import KernelDoc
+from kdoc.xforms_lists import CTransforms
+from kdoc.kdoc_output import OutputFormat
 
 
 class GlobSourceFiles:
@@ -43,7 +45,7 @@ class GlobSourceFiles:
         self.srctree = srctree
 
     def _parse_dir(self, dirname):
-        """Internal function to parse files recursively"""
+        """Internal function to parse files recursively."""
 
         with os.scandir(dirname) as obj:
             for entry in obj:
@@ -65,7 +67,7 @@ class GlobSourceFiles:
     def parse_files(self, file_list, file_not_found_cb):
         """
         Define an iterator to parse all source files from file_list,
-        handling directories if any
+        handling directories if any.
         """
 
         if not file_list:
@@ -91,18 +93,18 @@ class KernelFiles():
 
     There are two type of parsers defined here:
         - self.parse_file(): parses both kernel-doc markups and
-          EXPORT_SYMBOL* macros;
-        - self.process_export_file(): parses only EXPORT_SYMBOL* macros.
+          ``EXPORT_SYMBOL*`` macros;
+        - self.process_export_file(): parses only ``EXPORT_SYMBOL*`` macros.
     """
 
     def warning(self, msg):
-        """Ancillary routine to output a warning and increment error count"""
+        """Ancillary routine to output a warning and increment error count."""
 
         self.config.log.warning(msg)
         self.errors += 1
 
     def error(self, msg):
-        """Ancillary routine to output an error and increment error count"""
+        """Ancillary routine to output an error and increment error count."""
 
         self.config.log.error(msg)
         self.errors += 1
@@ -116,7 +118,7 @@ class KernelFiles():
         if fname in self.files:
             return
 
-        doc = KernelDoc(self.config, fname)
+        doc = KernelDoc(self.config, fname, self.xforms)
         export_table, entries = doc.parse_kdoc()
 
         self.export_table[fname] = export_table
@@ -128,7 +130,7 @@ class KernelFiles():
 
     def process_export_file(self, fname):
         """
-        Parses EXPORT_SYMBOL* macros from a single Kernel source file.
+        Parses ``EXPORT_SYMBOL*`` macros from a single Kernel source file.
         """
 
         # Prevent parsing the same file twice if results are cached
@@ -152,12 +154,12 @@ class KernelFiles():
 
         self.error(f"Cannot find file {fname}")
 
-    def __init__(self, verbose=False, out_style=None,
+    def __init__(self, verbose=False, out_style=None, xforms=None,
                  werror=False, wreturn=False, wshort_desc=False,
                  wcontents_before_sections=False,
                  logger=None):
         """
-        Initialize startup variables and parse all files
+        Initialize startup variables and parse all files.
         """
 
         if not verbose:
@@ -191,6 +193,11 @@ class KernelFiles():
         self.config.wshort_desc = wshort_desc
         self.config.wcontents_before_sections = wcontents_before_sections
 
+        if xforms:
+            self.xforms = xforms
+        else:
+            self.xforms = CTransforms()
+
         if not logger:
             self.config.log = logging.getLogger("kernel-doc")
         else:
@@ -213,7 +220,7 @@ class KernelFiles():
 
     def parse(self, file_list, export_file=None):
         """
-        Parse all files
+        Parse all files.
         """
 
         glob = GlobSourceFiles(srctree=self.config.src_tree)
@@ -242,7 +249,7 @@ class KernelFiles():
             filenames=None, export_file=None):
         """
         Interacts over the kernel-doc results and output messages,
-        returning kernel-doc markups on each interaction
+        returning kernel-doc markups on each interaction.
         """
 
         self.out_style.set_config(self.config)

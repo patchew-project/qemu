@@ -1,8 +1,29 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0
-# Copyright(c) 2025: Mauro Carvalho Chehab <mchehab@kernel.org>.
+# Copyright(c) 2025-2026: Mauro Carvalho Chehab <mchehab@kernel.org>.
 #
-# pylint: disable=C0103,R0915
+# pylint: disable=C0103,R0912,R0914,R0915
+
+###############################################################################
+# NOTE:
+###############################################################################
+#       DON'T BLINDLY COPY THE LINUX KERNEL VERSION OF THIS FILE.
+#
+#       This version contains QEMU-specific fork from Linux Kernel kernel-doc.
+#
+#       Differences against Linux Kernel upstream:
+#       - dropped python3 version checks;
+#       - the location of kernel-doc modules is different at QEMU tree;
+#       - the CTransforms class is overriden to add QEMU macros;
+#       - the RestFormat class is overriden to use some different regexes
+#         to match the way enum, struct, typedef, and union works on QEMU
+#
+#       With such changes, syncing kernel-doc with a new kernel version
+#       should be as simple as:
+#
+#           cp <linux_dir>/docs/tools/lib/python/kdoc/*.py scripts/lib/kdoc/
+###############################################################################
+
 #
 # Converted from the kernel-doc script originally written in Perl
 # under GPLv2, copyrighted since 1998 by the following authors:
@@ -79,19 +100,16 @@
 #    Yujie Liu <yujie.liu@intel.com>
 
 """
-kernel_doc
-==========
-
-Print formatted kernel documentation to stdout
+Print formatted kernel documentation to stdout.
 
 Read C language source or header FILEs, extract embedded
 documentation comments, and print formatted documentation
 to standard output.
 
-The documentation comments are identified by the "/**"
+The documentation comments are identified by the ``/**``
 opening comment mark.
 
-See Documentation/doc-guide/kernel-doc.rst for the
+See Linux Kernel Documentation/doc-guide/kernel-doc.rst for the
 documentation comment syntax.
 """
 
@@ -102,13 +120,72 @@ import sys
 
 # Import Python modules
 
-LIB_DIR = "lib/kdoc"
+# QEMU: the location of the library directory is different for QEMU
+LIB_DIR = "lib"
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 
 sys.path.insert(0, os.path.join(SRC_DIR, LIB_DIR))
 
-from kdoc_files import KernelFiles                      # pylint: disable=C0413
-from kdoc_output import RestFormat, ManFormat           # pylint: disable=C0413
+from kdoc.kdoc_files import KernelFiles             # pylint: disable=C0415
+from kdoc.kdoc_re   import KernRe                   # pylint: disable=C0415
+from kdoc.kdoc_output import RestFormat, ManFormat  # pylint: disable=C0415
+
+# QEMU: add QEMU-specific xforms
+from kdoc.xforms_lists import CTransforms  # pylint: disable=C0415
+
+class QemuCTransforms(CTransforms):
+    def __init__(self):
+        self.function_xforms += [
+            # Add a handler for QEMU macros
+            (KernRe(r"QEMU_[A-Z_]+ +"), ""),
+        ]
+
+# QEMU prepend cross-references on a different way than the Linux Kernel
+# So, let's redefine the RestFormat highlights
+
+# Those are currently identical to what Linux Kernel does:
+type_constant = KernRe(r"\b``([^\`]+)``\b", cache=False)
+type_constant2 = KernRe(r"\%([-_*\w]+)", cache=False)
+type_func = KernRe(r"(\w+)\(\)", cache=False)
+type_param_ref = KernRe(r"([\!~\*]?)\@(\w*((\.\w+)|(->\w+))*(\.\.\.)?)", cache=False)
+type_fp_param = KernRe(r"\@(\w+)\(\)", cache=False)
+type_fp_param2 = KernRe(r"\@(\w+->\S+)\(\)", cache=False)
+
+# Those are QEMU-specific ones
+type_enum = KernRe(r"#(enum\s*([_\w]+))", cache=False)
+type_struct = KernRe(r"#(struct\s*([_\w]+))", cache=False)
+type_typedef = KernRe(r"#(typedef\s*([_\w]+))", cache=False)
+type_union = KernRe(r"#(union\s*([_\w]+))", cache=False)
+type_member = KernRe(r"#([_\w]+)(\.|->)([_\w]+)", cache=False)
+type_fallback = KernRe(r"#([_\w]+)", cache=False)
+type_member_func = type_member + KernRe(r"\(\)", cache=False)
+
+# QEMU: override ReST highlights
+class QemuRestFormat(RestFormat):
+    # The content here is identical to RestFormat, but it uses the local
+    # static vars above instead of the Kernel ones
+    highlights = [
+        (type_constant, r"``\1``"),
+        (type_constant2, r"``\1``"),
+
+        # Note: need to escape () to avoid func matching later
+        (type_member_func, r":c:type:`\1\2\3\\(\\) <\1>`"),
+        (type_member, r":c:type:`\1\2\3 <\1>`"),
+        (type_fp_param, r"**\1\\(\\)**"),
+        (type_fp_param2, r"**\1\\(\\)**"),
+        (type_func, r"\1()"),
+        (type_enum, r":c:type:`\1 <\2>`"),
+        (type_struct, r":c:type:`\1 <\2>`"),
+        (type_typedef, r":c:type:`\1 <\2>`"),
+        (type_union, r":c:type:`\1 <\2>`"),
+
+        # in rst this can refer to any type
+        (type_fallback, r":c:type:`\1`"),
+        (type_param_ref, r"**\1\2**")
+    ]
+
+
+WERROR_RETURN_CODE = 3
 
 DESC = """
 Read C language source or header FILEs, extract embedded documentation comments,
@@ -126,13 +203,13 @@ May be used multiple times.
 """
 
 EXPORT_DESC = """
-Only output documentation for the symbols that have been
+Only output documentation for symbols that have been
 exported using EXPORT_SYMBOL() and related macros in any input
 FILE or -export-file FILE.
 """
 
 INTERNAL_DESC = """
-Only output documentation for the symbols that have NOT been
+Only output documentation for symbols that have NOT been
 exported using EXPORT_SYMBOL() and related macros in any input
 FILE or -export-file FILE.
 """
@@ -155,28 +232,49 @@ Header and C source files to be parsed.
 """
 
 WARN_CONTENTS_BEFORE_SECTIONS_DESC = """
-Warns if there are contents before sections (deprecated).
+Warn if there are contents before sections (deprecated).
 
 This option is kept just for backward-compatibility, but it does nothing,
 neither here nor at the original Perl script.
 """
 
+EPILOG = """
+The return value is:
+
+- 0: success or Python version is not compatible with
+kernel-doc.  If -Werror is not used, it will also
+return 0 if there are issues at kernel-doc markups;
+
+- 1: an abnormal condition happened;
+
+- 2: argparse issued an error;
+
+- 3: When -Werror is used, it means that one or more unfiltered parse
+     warnings happened.
+"""
 
 class MsgFormatter(logging.Formatter):
-    """Helper class to format warnings on a similar way to kernel-doc.pl"""
+    """
+    Helper class to capitalize errors and warnings, the same way
+    the venerable (now retired) kernel-doc.pl used to do.
+    """
 
     def format(self, record):
         record.levelname = record.levelname.capitalize()
         return logging.Formatter.format(self, record)
 
 def main():
-    """Main program"""
+    """
+    Main program.
+
+    """
 
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter,
-                                     description=DESC)
+                                     description=DESC, epilog=EPILOG)
 
+    #
     # Normal arguments
-
+    #
     parser.add_argument("-v", "-verbose", "--verbose", action="store_true",
                         help="Verbose output, more warnings and other information.")
 
@@ -191,8 +289,9 @@ def main():
                         action="store_true",
                         help="Enable line number output (only in ReST mode)")
 
+    #
     # Arguments to control the warning behavior
-
+    #
     parser.add_argument("-Wreturn", "--wreturn", action="store_true",
                         help="Warns about the lack of a return markup on functions.")
 
@@ -213,8 +312,9 @@ def main():
     parser.add_argument("-export-file", "--export-file", action='append',
                         help=EXPORT_FILE_DESC)
 
+    #
     # Output format mutually-exclusive group
-
+    #
     out_group = parser.add_argument_group("Output format selection (mutually exclusive)")
 
     out_fmt = out_group.add_mutually_exclusive_group()
@@ -226,8 +326,9 @@ def main():
     out_fmt.add_argument("-N", "-none", "--none", action="store_true",
                          help="Do not output documentation, only warnings.")
 
+    #
     # Output selection mutually-exclusive group
-
+    #
     sel_group = parser.add_argument_group("Output selection (mutually exclusive)")
     sel_mut = sel_group.add_mutually_exclusive_group()
 
@@ -240,12 +341,14 @@ def main():
     sel_mut.add_argument("-s", "-function", "--symbol", action='append',
                          help=FUNCTION_DESC)
 
+    #
     # Those are valid for all 3 types of filter
+    #
     parser.add_argument("-n", "-nosymbol", "--nosymbol", action='append',
                         help=NOSYMBOL_DESC)
 
     parser.add_argument("-D", "-no-doc-sections", "--no-doc-sections",
-                        action='store_true', help="Don't outputt DOC sections")
+                        action='store_true', help="Don't output DOC sections")
 
     parser.add_argument("files", metavar="FILE",
                         nargs="+", help=FILES_DESC)
@@ -271,24 +374,18 @@ def main():
 
     logger.addHandler(handler)
 
-    python_ver = sys.version_info[:2]
-    if python_ver < (3,6):
-        logger.warning("Python 3.6 or later is required by kernel-doc")
-
-        # Return 0 here to avoid breaking compilation
-        sys.exit(0)
-
-    if python_ver < (3,7):
-        logger.warning("Python 3.7 or later is required for correct results")
+    #
+    # Import kernel-doc libraries only after checking the Python version
+    #
 
     if args.man:
         out_style = ManFormat(modulename=args.modulename)
     elif args.none:
         out_style = None
     else:
-        out_style = RestFormat()
+        out_style = QemuRestFormat()
 
-    kfiles = KernelFiles(verbose=args.verbose,
+    kfiles = KernelFiles(verbose=args.verbose, xforms=QemuCTransforms(),
                          out_style=out_style, werror=args.werror,
                          wreturn=args.wreturn, wshort_desc=args.wshort_desc,
                          wcontents_before_sections=args.wcontents_before_sections)
@@ -308,18 +405,16 @@ def main():
         sys.exit(0)
 
     if args.werror:
-        print(f"{error_count} warnings as errors")
-        sys.exit(error_count)
+        print("%s warnings as errors" % error_count)    # pylint: disable=C0209
+        sys.exit(WERROR_RETURN_CODE)
 
     if args.verbose:
-        print(f"{error_count} errors")
+        print("%s errors" % error_count)                # pylint: disable=C0209
 
-    if args.none:
-        sys.exit(0)
+    sys.exit(0)
 
-    sys.exit(error_count)
-
-
+#
 # Call main method
+#
 if __name__ == "__main__":
     main()
