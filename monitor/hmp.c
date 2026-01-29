@@ -27,8 +27,10 @@
 #include "hw/core/qdev.h"
 #include "monitor-internal.h"
 #include "monitor/hmp.h"
+#include "monitor/hmp-target.h"
 #include "qobject/qdict.h"
 #include "qobject/qnum.h"
+#include "qemu/bswap.h"
 #include "qemu/config-file.h"
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
@@ -310,6 +312,8 @@ void hmp_help_cmd(Monitor *mon, const char *name)
 
 static const char *pch;
 static sigjmp_buf expr_env;
+
+static int get_monitor_def(Monitor *mon, uint64_t *pval, const char *name);
 
 static G_NORETURN G_GNUC_PRINTF(2, 3)
 void expr_error(Monitor *mon, const char *fmt, ...)
@@ -1551,4 +1555,52 @@ void monitor_register_hmp_info_hrt(const char *name,
         table++;
     }
     g_assert_not_reached();
+}
+
+/*
+ * Set @pval to the value in the register identified by @name.
+ * return 0 if OK, -1 if not found
+ */
+static int get_monitor_def(Monitor *mon, uint64_t *pval, const char *name)
+{
+    const unsigned length = target_long_bits() / 8;
+    const MonitorDef *md = target_monitor_defs();
+    CPUState *cs = mon_get_cpu(mon);
+    uint64_t tmp = 0;
+    int ret;
+
+    if (cs == NULL || md == NULL) {
+        return -1;
+    }
+
+    for(; md->name != NULL; md++) {
+        if (hmp_compare_cmd(name, md->name)) {
+            if (md->get_value) {
+                *pval = md->get_value(mon, md, md->offset);
+            } else {
+                CPUArchState *env = mon_get_cpu_env(mon);
+                void *ptr = (uint8_t *)env + md->offset;
+
+                switch(md->type) {
+                case MD_U32:
+                    *pval = *(uint32_t *)ptr;
+                    break;
+                case MD_TULONG:
+                    *pval = ldn_he_p(ptr, length);
+                    break;
+                default:
+                    *pval = 0;
+                    break;
+                }
+            }
+            return 0;
+        }
+    }
+
+    ret = target_get_monitor_def(cs, name, &tmp);
+    if (!ret) {
+        *pval = ldn_he_p(&tmp, length);
+    }
+
+    return ret;
 }
