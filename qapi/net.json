@@ -326,8 +326,7 @@
 #
 # @fd: file descriptor of an already opened tap
 #
-# @fds: multiple file descriptors of already opened multiqueue capable
-#     tap
+# @fds: multiple file descriptors of already opened tap
 #
 # @script: script to initialize the interface
 #
@@ -359,13 +358,15 @@
 # Features:
 #
 # @deprecated: Member @vhostforce is deprecated.  Use @vhost instead.
+#     Member @fd is deprecated.  Use @fds instead.
+#     Member @vhostfd is deprecated.  Use @vhostfds instead.
 #
 # Since: 1.2
 ##
 { 'struct': 'NetdevTapOptions',
   'data': {
     '*ifname':     'str',
-    '*fd':         'str',
+    '*fd':         { 'type': 'str', 'features': [ 'deprecated' ] },
     '*fds':        'str',
     '*script':     'str',
     '*downscript': 'str',
@@ -374,7 +375,7 @@
     '*sndbuf':     'size',
     '*vnet_hdr':   'bool',
     '*vhost':      'bool',
-    '*vhostfd':    'str',
+    '*vhostfd':    { 'type': 'str', 'features': [ 'deprecated' ] },
     '*vhostfds':   'str',
     '*vhostforce': { 'type': 'bool', 'features': [ 'deprecated' ] },
     '*queues':     'uint32',

@@ -504,6 +504,12 @@ TAP ``vhostforce`` (since 11.0)
 The ``vhostforce`` option is redundant with the ``vhost`` option.
 If they conflict, ``vhost`` takes precedence.  Just use ``vhost``.
 
+TAP ``fd`` and ``vhostfd`` (since 11.0)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use ``fds`` and ``vhostfds`` correspondingly, each set with one fd
+instead of ``fd`` and ``vhsotfd``.
+
 Vhost-user ``vhostforce`` (since 11.0)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
