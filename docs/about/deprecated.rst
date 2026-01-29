@@ -181,6 +181,14 @@ is going to be so much slower it wouldn't make sense for any serious
 instrumentation. Due to implementation differences there will also be
 anomalies in things like memory instrumentation.
 
+User emulation CPUs
+-------------------
+
+Arm 'any' CPU (since 11.0)
+''''''''''''''''''''''''''
+
+The Arm 'any' CPU is an alias for the 'max' CPU. Use the latter instead.
+
 System emulator CPUs
 --------------------
 
