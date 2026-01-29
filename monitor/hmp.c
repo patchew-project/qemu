@@ -376,7 +376,7 @@ static int64_t expr_unary(Monitor *mon)
     case '$':
         {
             char buf[128], *q;
-            int64_t reg = 0;
+            uint64_t reg = 0;
 
             pch++;
             q = buf;
