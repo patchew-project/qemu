@@ -67,7 +67,6 @@ int get_monitor_def(Monitor *mon, int64_t *pval, const char *name)
 {
     const MonitorDef *md = target_monitor_defs();
     CPUState *cs = mon_get_cpu(mon);
-    void *ptr;
     uint64_t tmp = 0;
     int ret;
 
@@ -81,13 +80,14 @@ int get_monitor_def(Monitor *mon, int64_t *pval, const char *name)
                 *pval = md->get_value(mon, md, md->offset);
             } else {
                 CPUArchState *env = mon_get_cpu_env(mon);
-                ptr = (uint8_t *)env + md->offset;
+                void *ptr = (uint8_t *)env + md->offset;
+
                 switch(md->type) {
-                case MD_I32:
-                    *pval = *(int32_t *)ptr;
+                case MD_U32:
+                    *pval = *(uint32_t *)ptr;
                     break;
-                case MD_TLONG:
-                    *pval = *(target_long *)ptr;
+                case MD_TULONG:
+                    *pval = *(target_ulong *)ptr;
                     break;
                 default:
                     *pval = 0;
