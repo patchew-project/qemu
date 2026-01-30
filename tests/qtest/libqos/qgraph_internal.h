@@ -27,8 +27,6 @@
 #include "qgraph.h"
 
 typedef struct QOSGraphMachine QOSGraphMachine;
-typedef enum QOSEdgeType QOSEdgeType;
-typedef enum QOSNodeType QOSNodeType;
 
 /* callback called when the walk path algorithm found a
  * valid path
@@ -36,19 +34,19 @@ typedef enum QOSNodeType QOSNodeType;
 typedef void (*QOSTestCallback) (QOSGraphNode *path, int len);
 
 /* edge types*/
-enum QOSEdgeType {
+typedef enum QOSEdgeType {
     QEDGE_CONTAINS,
     QEDGE_PRODUCES,
     QEDGE_CONSUMED_BY
-};
+} QOSEdgeType;
 
 /* node types*/
-enum QOSNodeType {
+typedef enum QOSNodeType {
     QNODE_MACHINE,
     QNODE_DRIVER,
     QNODE_INTERFACE,
     QNODE_TEST
-};
+} QOSNodeType;
 
 /* Graph Node */
 struct QOSGraphNode {

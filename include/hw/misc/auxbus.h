@@ -29,16 +29,13 @@
 #include "hw/core/qdev.h"
 #include "qom/object.h"
 
-typedef enum AUXCommand AUXCommand;
-typedef enum AUXReply AUXReply;
-
 #define TYPE_AUXTOI2C "aux-to-i2c-bridge"
 OBJECT_DECLARE_SIMPLE_TYPE(AUXTOI2CState, AUXTOI2C)
 
 #define TYPE_AUX_SLAVE "aux-slave"
 OBJECT_DECLARE_SIMPLE_TYPE(AUXSlave, AUX_SLAVE)
 
-enum AUXCommand {
+typedef enum AUXCommand {
     WRITE_I2C = 0,
     READ_I2C = 1,
     WRITE_I2C_STATUS = 2,
@@ -46,15 +43,15 @@ enum AUXCommand {
     READ_I2C_MOT = 5,
     WRITE_AUX = 8,
     READ_AUX = 9
-};
+} AUXCommand;
 
-enum AUXReply {
+typedef enum AUXReply {
     AUX_I2C_ACK = 0,
     AUX_NACK = 1,
     AUX_DEFER = 2,
     AUX_I2C_NACK = 4,
     AUX_I2C_DEFER = 8
-};
+} AUXReply;
 
 #define TYPE_AUX_BUS "aux-bus"
 OBJECT_DECLARE_SIMPLE_TYPE(AUXBus, AUX_BUS)

@@ -1688,15 +1688,14 @@ HumanReadableText *qmp_x_query_roms(Error **errp)
     return human_readable_text_from_str(buf);
 }
 
-typedef enum HexRecord HexRecord;
-enum HexRecord {
+typedef enum HexRecord {
     DATA_RECORD = 0,
     EOF_RECORD,
     EXT_SEG_ADDR_RECORD,
     START_SEG_ADDR_RECORD,
     EXT_LINEAR_ADDR_RECORD,
     START_LINEAR_ADDR_RECORD,
-};
+} HexRecord;
 
 /* Each record contains a 16-bit address which is combined with the upper 16
  * bits of the implicit "next address" to form a 32-bit address.

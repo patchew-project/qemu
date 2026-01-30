@@ -38,9 +38,8 @@ OBJECT_DECLARE_TYPE(QIOChannel, QIOChannelClass,
 #define QIO_CHANNEL_READ_FLAG_RELAXED_EOF 0x2
 #define QIO_CHANNEL_READ_FLAG_FD_PRESERVE_BLOCKING 0x4
 
-typedef enum QIOChannelFeature QIOChannelFeature;
 
-enum QIOChannelFeature {
+typedef enum QIOChannelFeature {
     QIO_CHANNEL_FEATURE_FD_PASS,
     QIO_CHANNEL_FEATURE_SHUTDOWN,
     QIO_CHANNEL_FEATURE_LISTEN,
@@ -48,16 +47,14 @@ enum QIOChannelFeature {
     QIO_CHANNEL_FEATURE_READ_MSG_PEEK,
     QIO_CHANNEL_FEATURE_SEEKABLE,
     QIO_CHANNEL_FEATURE_CONCURRENT_IO,
-};
+} QIOChannelFeature;
 
 
-typedef enum QIOChannelShutdown QIOChannelShutdown;
-
-enum QIOChannelShutdown {
+typedef enum QIOChannelShutdown {
     QIO_CHANNEL_SHUTDOWN_READ = 1,
     QIO_CHANNEL_SHUTDOWN_WRITE = 2,
     QIO_CHANNEL_SHUTDOWN_BOTH = 3,
-};
+} QIOChannelShutdown;
 
 typedef gboolean (*QIOChannelFunc)(QIOChannel *ioc,
                                    GIOCondition condition,

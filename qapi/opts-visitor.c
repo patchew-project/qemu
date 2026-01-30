@@ -20,8 +20,7 @@
 #include "qapi/visitor-impl.h"
 
 
-enum ListMode
-{
+typedef enum ListMode {
     LM_NONE,             /* not traversing a list of repeated options */
 
     LM_IN_PROGRESS,      /*
@@ -58,9 +57,7 @@ enum ListMode
                            * No more QemuOpt instance in the list.
                            * The traversal has been completed.
                            */
-};
-
-typedef enum ListMode ListMode;
+} ListMode;
 
 struct OptsVisitor
 {

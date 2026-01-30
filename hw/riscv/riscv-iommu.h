@@ -25,8 +25,6 @@
 #include "hw/riscv/iommu.h"
 #include "hw/riscv/riscv-iommu-bits.h"
 
-typedef enum riscv_iommu_igs_modes riscv_iommu_igs_mode;
-
 struct RISCVIOMMUState {
     /*< private >*/
     DeviceState parent_obj;

@@ -16,7 +16,7 @@
  * the state of the connection between the driver and the kernel's device
  * layers.
  */
-enum xenbus_state {
+typedef enum xenbus_state {
     XenbusStateUnknown       = 0,
 
     XenbusStateInitialising  = 1,
@@ -47,8 +47,7 @@ enum xenbus_state {
     XenbusStateReconfiguring = 7,
 
     XenbusStateReconfigured  = 8
-};
-typedef enum xenbus_state XenbusState;
+} XenbusState;
 
 #endif /* _XEN_PUBLIC_IO_XENBUS_H */
 
