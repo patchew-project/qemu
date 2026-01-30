@@ -68,6 +68,10 @@ static void ati_set_dirty(VGACommonState *vga, const ATI2DCtx *ctx)
 {
     DisplaySurface *ds = qemu_console_surface(vga->con);
     unsigned dst_offset = ctx->dst_bits - vga->vram_ptr;
+    DPRINTF("%p %u ds: %p %d %d rop: %x\n", vga->vram_ptr,
+            vga->vbe_start_addr, surface_data(ds), surface_stride(ds),
+            surface_bits_per_pixel(ds),
+            ctx->rop3 >> 16);
     if (ctx->dst_bits >= vga->vram_ptr + vga->vbe_start_addr &&
         ctx->dst_bits < vga->vram_ptr + vga->vbe_start_addr +
         vga->vbe_regs[VBE_DISPI_INDEX_YRES] * vga->vbe_line_offset) {
@@ -114,16 +118,12 @@ static void setup_2d_blt_ctx(const ATIVGAState *s, ATI2DCtx *ctx)
     }
 }
 
-static void ati_2d_do_blt(ATIVGAState *s, ATI2DCtx *ctx, uint8_t use_pixman)
+static void ati_2d_do_blt(ATI2DCtx *ctx, uint8_t use_pixman)
 {
     /* FIXME it is probably more complex than this and may need to be */
     /* rewritten but for now as a start just to get some output: */
     bool use_pixman_fill = use_pixman & BIT(0);
     bool use_pixman_blt = use_pixman & BIT(1);
-    DPRINTF("%p %u ds: %p %d %d rop: %x\n", s->vga.vram_ptr,
-            s->vga.vbe_start_addr, surface_data(ds), surface_stride(ds),
-            surface_bits_per_pixel(ds),
-            ctx->rop3 >> 16);
     if (!ctx->bpp) {
         qemu_log_mask(LOG_GUEST_ERROR, "Invalid bpp\n");
         return;
@@ -140,9 +140,8 @@ static void ati_2d_do_blt(ATIVGAState *s, ATI2DCtx *ctx, uint8_t use_pixman)
         qemu_log_mask(LOG_UNIMP, "blt outside vram not implemented\n");
         return;
     }
-    DPRINTF("%d %d %d, %d %d %d, (%d,%d) -> (%d,%d) %dx%d %c %c\n",
-            s->regs.src_offset, dst_offset, s->regs.default_offset,
-            ctx->src_stride, ctx->dst_stride, s->regs.default_pitch,
+    DPRINTF("%d %d, (%d,%d) -> (%d,%d) %dx%d %c %c\n",
+            ctx->src_stride, ctx->dst_stride,
             ctx->src.x, ctx->src.y, ctx->dst.x, ctx->dst.y,
             ctx->dst.width, ctx->dst.height,
             (ctx->left_to_right ? '>' : '<'),
@@ -278,6 +277,6 @@ void ati_2d_blt(ATIVGAState *s)
 {
     ATI2DCtx ctx;
     setup_2d_blt_ctx(s, &ctx);
-    ati_2d_do_blt(s, &ctx, s->use_pixman);
+    ati_2d_do_blt(&ctx, s->use_pixman);
     ati_set_dirty(&s->vga, &ctx);
 }
