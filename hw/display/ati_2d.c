@@ -101,88 +101,90 @@ static void setup_2d_blt_ctx(const ATIVGAState *s, ATI2DCtx *ctx)
     }
 }
 
-void ati_2d_blt(ATIVGAState *s)
+static void ati_2d_do_blt(ATIVGAState *s, ATI2DCtx *ctx)
 {
     /* FIXME it is probably more complex than this and may need to be */
     /* rewritten but for now as a start just to get some output: */
     DisplaySurface *ds = qemu_console_surface(s->vga.con);
     bool use_pixman_fill = s->use_pixman & BIT(0);
     bool use_pixman_blt = s->use_pixman & BIT(1);
-    ATI2DCtx ctx;
-    setup_2d_blt_ctx(s, &ctx);
     DPRINTF("%p %u ds: %p %d %d rop: %x\n", s->vga.vram_ptr,
             s->vga.vbe_start_addr, surface_data(ds), surface_stride(ds),
             surface_bits_per_pixel(ds),
-            ctx.rop3 >> 16);
+            ctx->rop3 >> 16);
     unsigned dst_offset = s->regs.dst_offset;
-    if (!ctx.bpp) {
+    if (!ctx->bpp) {
         qemu_log_mask(LOG_GUEST_ERROR, "Invalid bpp\n");
         return;
     }
-    if (!ctx.dst_stride) {
+    if (!ctx->dst_stride) {
         qemu_log_mask(LOG_GUEST_ERROR, "Zero dest pitch\n");
         return;
     }
-    int dst_stride_words = ctx.dst_stride / sizeof(uint32_t);
-    if (ctx.dst.x > 0x3fff || ctx.dst.y > 0x3fff || ctx.dst_bits >= ctx.vram_end
-        || ctx.dst_bits + ctx.dst.x
-         + (ctx.dst.y + ctx.dst.height) * ctx.dst_stride >= ctx.vram_end) {
+    int dst_stride_words = ctx->dst_stride / sizeof(uint32_t);
+    if (ctx->dst.x > 0x3fff || ctx->dst.y > 0x3fff
+        || ctx->dst_bits >= ctx->vram_end
+        || ctx->dst_bits + ctx->dst.x
+         + (ctx->dst.y + ctx->dst.height) * ctx->dst_stride >= ctx->vram_end) {
         qemu_log_mask(LOG_UNIMP, "blt outside vram not implemented\n");
         return;
     }
     DPRINTF("%d %d %d, %d %d %d, (%d,%d) -> (%d,%d) %dx%d %c %c\n",
             s->regs.src_offset, dst_offset, s->regs.default_offset,
-            ctx.src_stride, ctx.dst_stride, s->regs.default_pitch,
-            ctx.src.x, ctx.src.y, ctx.dst.x, ctx.dst.y,
-            ctx.dst.width, ctx.dst.height,
-            (ctx.left_to_right ? '>' : '<'),
-            (ctx.top_to_bottom ? 'v' : '^'));
-    switch (ctx.rop3) {
+            ctx->src_stride, ctx->dst_stride, s->regs.default_pitch,
+            ctx->src.x, ctx->src.y, ctx->dst.x, ctx->dst.y,
+            ctx->dst.width, ctx->dst.height,
+            (ctx->left_to_right ? '>' : '<'),
+            (ctx->top_to_bottom ? 'v' : '^'));
+    switch (ctx->rop3) {
     case ROP3_SRCCOPY:
     {
         bool fallback = false;
-        if (!ctx.src_stride) {
+        if (!ctx->src_stride) {
             qemu_log_mask(LOG_GUEST_ERROR, "Zero source pitch\n");
             return;
         }
-        int src_stride_words = ctx.src_stride / sizeof(uint32_t);
-        if (ctx.src.x > 0x3fff || ctx.src.y > 0x3fff
-            || ctx.src_bits >= ctx.vram_end
-            || ctx.src_bits + ctx.src.x
-             + (ctx.src.y + ctx.dst.height) * ctx.src_stride >= ctx.vram_end) {
+        int src_stride_words = ctx->src_stride / sizeof(uint32_t);
+        if (ctx->src.x > 0x3fff || ctx->src.y > 0x3fff
+            || ctx->src_bits >= ctx->vram_end
+            || ctx->src_bits + ctx->src.x
+             + (ctx->src.y + ctx->dst.height)
+             * ctx->src_stride >= ctx->vram_end) {
             qemu_log_mask(LOG_UNIMP, "blt outside vram not implemented\n");
             return;
         }
 
         DPRINTF("pixman_blt(%p, %p, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d)\n",
-                ctx.src_bits, ctx.dst_bits, src_stride_words, dst_stride_words,
-                ctx.bpp, ctx.bpp, ctx.src.x, ctx.src.y, ctx.dst.x, ctx.dst.y,
-                ctx.dst.width, ctx.dst.height);
+                ctx->src_bits, ctx->dst_bits,
+                src_stride_words, dst_stride_words, ctx->bpp, ctx->bpp,
+                ctx->src.x, ctx->src.y, ctx->dst.x, ctx->dst.y,
+                ctx->dst.width, ctx->dst.height);
 #ifdef CONFIG_PIXMAN
-        if (use_pixman_blt && ctx.left_to_right && ctx.top_to_bottom) {
-            fallback = !pixman_blt((uint32_t *)ctx.src_bits,
-                                   (uint32_t *)ctx.dst_bits,
+        if (use_pixman_blt && ctx->left_to_right && ctx->top_to_bottom) {
+            fallback = !pixman_blt((uint32_t *)ctx->src_bits,
+                                   (uint32_t *)ctx->dst_bits,
                                    src_stride_words, dst_stride_words,
-                                   ctx.bpp, ctx.bpp,
-                                   ctx.src.x, ctx.src.y, ctx.dst.x, ctx.dst.y,
-                                   ctx.dst.width, ctx.dst.height);
+                                   ctx->bpp, ctx->bpp,
+                                   ctx->src.x, ctx->src.y,
+                                   ctx->dst.x, ctx->dst.y,
+                                   ctx->dst.width, ctx->dst.height);
         } else if (use_pixman_blt) {
             /* FIXME: We only really need a temporary if src and dst overlap */
-            int llb = ctx.dst.width * (ctx.bpp / 8);
+            int llb = ctx->dst.width * (ctx->bpp / 8);
             int tmp_stride = DIV_ROUND_UP(llb, sizeof(uint32_t));
             uint32_t *tmp = g_malloc(tmp_stride * sizeof(uint32_t) *
-                                     ctx.dst.height);
-            fallback = !pixman_blt((uint32_t *)ctx.src_bits, tmp,
+                                     ctx->dst.height);
+            fallback = !pixman_blt((uint32_t *)ctx->src_bits, tmp,
                                    src_stride_words, tmp_stride,
-                                   ctx.bpp, ctx.bpp,
-                                   ctx.src.x, ctx.src.y, 0, 0,
-                                   ctx.dst.width, ctx.dst.height);
+                                   ctx->bpp, ctx->bpp,
+                                   ctx->src.x, ctx->src.y, 0, 0,
+                                   ctx->dst.width, ctx->dst.height);
             if (!fallback) {
-                fallback = !pixman_blt(tmp, (uint32_t *)ctx.dst_bits,
+                fallback = !pixman_blt(tmp, (uint32_t *)ctx->dst_bits,
                                        tmp_stride, dst_stride_words,
-                                       ctx.bpp, ctx.bpp,
-                                       0, 0, ctx.dst.x, ctx.dst.y,
-                                       ctx.dst.width, ctx.dst.height);
+                                       ctx->bpp, ctx->bpp,
+                                       0, 0, ctx->dst.x, ctx->dst.y,
+                                       ctx->dst.width, ctx->dst.height);
             }
             g_free(tmp);
         } else
@@ -191,19 +193,21 @@ void ati_2d_blt(ATIVGAState *s)
             fallback = true;
         }
         if (fallback) {
-            unsigned int y, i, j, bypp = ctx.bpp / 8;
-            for (y = 0; y < ctx.dst.height; y++) {
-                i = ctx.dst.x * bypp;
-                j = ctx.src.x * bypp;
-                if (ctx.top_to_bottom) {
-                    i += (ctx.dst.y + y) * ctx.dst_stride;
-                    j += (ctx.src.y + y) * ctx.src_stride;
+            unsigned int y, i, j, bypp = ctx->bpp / 8;
+            for (y = 0; y < ctx->dst.height; y++) {
+                i = ctx->dst.x * bypp;
+                j = ctx->src.x * bypp;
+                if (ctx->top_to_bottom) {
+                    i += (ctx->dst.y + y) * ctx->dst_stride;
+                    j += (ctx->src.y + y) * ctx->src_stride;
                 } else {
-                    i += (ctx.dst.y + ctx.dst.height - 1 - y) * ctx.dst_stride;
-                    j += (ctx.src.y + ctx.dst.height - 1 - y) * ctx.src_stride;
+                    i += (ctx->dst.y + ctx->dst.height - 1 - y)
+                         * ctx->dst_stride;
+                    j += (ctx->src.y + ctx->dst.height - 1 - y)
+                         * ctx->src_stride;
                 }
-                memmove(&ctx.dst_bits[i], &ctx.src_bits[j],
-                        ctx.dst.width * bypp);
+                memmove(&ctx->dst_bits[i], &ctx->src_bits[j],
+                        ctx->dst.width * bypp);
             }
         }
         break;
@@ -214,38 +218,39 @@ void ati_2d_blt(ATIVGAState *s)
     {
         uint32_t filler = 0;
 
-        switch (ctx.rop3) {
+        switch (ctx->rop3) {
         case ROP3_PATCOPY:
-            filler = ctx.frgd_clr;
+            filler = ctx->frgd_clr;
             break;
         case ROP3_BLACKNESS:
-            filler = 0xffUL << 24 | rgb_to_pixel32(ctx.palette[0],
-                                                   ctx.palette[1],
-                                                   ctx.palette[2]);
+            filler = 0xffUL << 24 | rgb_to_pixel32(ctx->palette[0],
+                                                   ctx->palette[1],
+                                                   ctx->palette[2]);
             break;
         case ROP3_WHITENESS:
-            filler = 0xffUL << 24 | rgb_to_pixel32(ctx.palette[3],
-                                                   ctx.palette[4],
-                                                   ctx.palette[5]);
+            filler = 0xffUL << 24 | rgb_to_pixel32(ctx->palette[3],
+                                                   ctx->palette[4],
+                                                   ctx->palette[5]);
             break;
         }
 
         DPRINTF("pixman_fill(%p, %d, %d, %d, %d, %d, %d, %x)\n",
-                ctx.dst_bits, dst_stride_words, ctx.bpp, ctx.dst.x, ctx.dst.y,
-                ctx.dst.width, ctx.dst.height, filler);
+                ctx->dst_bits, dst_stride_words, ctx->bpp,
+                ctx->dst.x, ctx->dst.y,
+                ctx->dst.width, ctx->dst.height, filler);
 #ifdef CONFIG_PIXMAN
         if (!use_pixman_fill ||
-            !pixman_fill((uint32_t *)ctx.dst_bits, dst_stride_words,
-                         ctx.bpp, ctx.dst.x, ctx.dst.y,
-                         ctx.dst.width, ctx.dst.height, filler))
+            !pixman_fill((uint32_t *)ctx->dst_bits, dst_stride_words,
+                         ctx->bpp, ctx->dst.x, ctx->dst.y,
+                         ctx->dst.width, ctx->dst.height, filler))
 #endif
         {
             /* fallback when pixman failed or we don't want to call it */
-            unsigned int x, y, i, bypp = ctx.bpp / 8;
-            for (y = 0; y < ctx.dst.height; y++) {
-                i = ctx.dst.x * bypp + (ctx.dst.y + y) * ctx.dst_stride;
-                for (x = 0; x < ctx.dst.width; x++, i += bypp) {
-                    stn_he_p(&ctx.dst_bits[i], bypp, filler);
+            unsigned int x, y, i, bypp = ctx->bpp / 8;
+            for (y = 0; y < ctx->dst.height; y++) {
+                i = ctx->dst.x * bypp + (ctx->dst.y + y) * ctx->dst_stride;
+                for (x = 0; x < ctx->dst.width; x++, i += bypp) {
+                    stn_he_p(&ctx->dst_bits[i], bypp, filler);
                 }
             }
         }
@@ -253,15 +258,22 @@ void ati_2d_blt(ATIVGAState *s)
     }
     default:
         qemu_log_mask(LOG_UNIMP, "Unimplemented ati_2d blt op %x\n",
-                      ctx.rop3 >> 16);
+                      ctx->rop3 >> 16);
         return;
     }
 
-    if (ctx.dst_bits >= s->vga.vram_ptr + s->vga.vbe_start_addr &&
-        ctx.dst_bits < s->vga.vram_ptr + s->vga.vbe_start_addr +
+    if (ctx->dst_bits >= s->vga.vram_ptr + s->vga.vbe_start_addr &&
+        ctx->dst_bits < s->vga.vram_ptr + s->vga.vbe_start_addr +
         s->vga.vbe_regs[VBE_DISPI_INDEX_YRES] * s->vga.vbe_line_offset) {
         memory_region_set_dirty(&s->vga.vram, s->vga.vbe_start_addr +
-                                dst_offset + ctx.dst.y * surface_stride(ds),
-                                ctx.dst.height * surface_stride(ds));
+                                dst_offset + ctx->dst.y * surface_stride(ds),
+                                ctx->dst.height * surface_stride(ds));
     }
+}
+
+void ati_2d_blt(ATIVGAState *s)
+{
+    ATI2DCtx ctx;
+    setup_2d_blt_ctx(s, &ctx);
+    ati_2d_do_blt(s, &ctx);
 }
