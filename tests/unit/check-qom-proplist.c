@@ -40,15 +40,13 @@ typedef struct DummyObjectClass DummyObjectClass;
 DECLARE_INSTANCE_CHECKER(DummyObject, DUMMY_OBJECT,
                          TYPE_DUMMY)
 
-typedef enum DummyAnimal DummyAnimal;
-
-enum DummyAnimal {
+typedef enum DummyAnimal {
     DUMMY_FROG,
     DUMMY_ALLIGATOR,
     DUMMY_PLATYPUS,
 
     DUMMY_LAST,
-};
+} DummyAnimal;
 
 const QEnumLookup dummy_animal_map = {
     .array = (const char *const[]) {

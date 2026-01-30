@@ -20,9 +20,6 @@
  * is supported for now.
  */
 
-typedef enum QemuClipboardType QemuClipboardType;
-typedef enum QemuClipboardNotifyType QemuClipboardNotifyType;
-typedef enum QemuClipboardSelection QemuClipboardSelection;
 typedef struct QemuClipboardPeer QemuClipboardPeer;
 typedef struct QemuClipboardNotify QemuClipboardNotify;
 typedef struct QemuClipboardInfo QemuClipboardInfo;
@@ -36,10 +33,10 @@ extern const VMStateDescription vmstate_cbinfo;
  * @QEMU_CLIPBOARD_TYPE_TEXT: text/plain; charset=utf-8
  * @QEMU_CLIPBOARD_TYPE__COUNT: type count.
  */
-enum QemuClipboardType {
+typedef enum QemuClipboardType {
     QEMU_CLIPBOARD_TYPE_TEXT,
     QEMU_CLIPBOARD_TYPE__COUNT,
-};
+} QemuClipboardType;
 
 /* same as VD_AGENT_CLIPBOARD_SELECTION_* */
 /**
@@ -50,12 +47,12 @@ enum QemuClipboardType {
  * @QEMU_CLIPBOARD_SELECTION_SECONDARY: secondary selection (dunno).
  * @QEMU_CLIPBOARD_SELECTION__COUNT: selection count.
  */
-enum QemuClipboardSelection {
+typedef enum QemuClipboardSelection {
     QEMU_CLIPBOARD_SELECTION_CLIPBOARD,
     QEMU_CLIPBOARD_SELECTION_PRIMARY,
     QEMU_CLIPBOARD_SELECTION_SECONDARY,
     QEMU_CLIPBOARD_SELECTION__COUNT,
-};
+} QemuClipboardSelection;
 
 /**
  * struct QemuClipboardPeer
@@ -81,10 +78,10 @@ struct QemuClipboardPeer {
  *
  * Clipboard notify type.
  */
-enum QemuClipboardNotifyType {
+typedef enum QemuClipboardNotifyType {
     QEMU_CLIPBOARD_UPDATE_INFO,
     QEMU_CLIPBOARD_RESET_SERIAL,
-};
+} QemuClipboardNotifyType;
 
 /**
  * struct QemuClipboardNotify

@@ -212,7 +212,7 @@
 #define DP_GRAPHIC_DMA_CHANNEL              (3)
 #define DP_VIDEO_DMA_CHANNEL                (0)
 
-enum DPGraphicFmt {
+typedef enum DPGraphicFmt {
     DP_GRAPHIC_RGBA8888 = 0 << 8,
     DP_GRAPHIC_ABGR8888 = 1 << 8,
     DP_GRAPHIC_RGB888 = 2 << 8,
@@ -225,9 +225,9 @@ enum DPGraphicFmt {
     DP_GRAPHIC_2BPP = 9 << 8,
     DP_GRAPHIC_1BPP = 10 << 8,
     DP_GRAPHIC_MASK = 0xF << 8
-};
+} DPGraphicFmt;
 
-enum DPVideoFmt {
+typedef enum DPVideoFmt {
     DP_NL_VID_CB_Y0_CR_Y1 = 0,
     DP_NL_VID_CR_Y0_CB_Y1 = 1,
     DP_NL_VID_Y0_CR_Y1_CB = 2,
@@ -254,10 +254,7 @@ enum DPVideoFmt {
     DP_NL_VID_YV16CL_420_10BPC = 23,
     DP_NL_VID_YV16CL2_420_10BPC = 24,
     DP_NL_VID_FMT_MASK = 0x1F
-};
-
-typedef enum DPGraphicFmt DPGraphicFmt;
-typedef enum DPVideoFmt DPVideoFmt;
+} DPVideoFmt;
 
 static const VMStateDescription vmstate_dp = {
     .name = TYPE_XLNX_DP,

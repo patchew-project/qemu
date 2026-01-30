@@ -173,13 +173,12 @@ struct VirtioBlkConfig {
 } __attribute__((packed));
 typedef struct VirtioBlkConfig VirtioBlkConfig;
 
-enum guessed_disk_nature_type {
+typedef enum guessed_disk_nature_type {
     VIRTIO_GDN_NONE     = 0,
     VIRTIO_GDN_DASD     = 1,
     VIRTIO_GDN_CDROM    = 2,
     VIRTIO_GDN_SCSI     = 3,
-};
-typedef enum guessed_disk_nature_type VirtioGDN;
+} VirtioGDN;
 
 VirtioGDN virtio_guessed_disk_nature(void);
 void virtio_assume_eckd(void);

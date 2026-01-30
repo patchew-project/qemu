@@ -122,15 +122,15 @@
 
 #define DPDMA_FRAG_MAX_SZ                     (4096)
 
-enum DPDMABurstType {
+typedef enum DPDMABurstType {
     DPDMA_INCR = 0,
     DPDMA_FIXED = 1
-};
+} DPDMABurstType;
 
-enum DPDMAMode {
+typedef enum DPDMAMode {
     DPDMA_CONTIGOUS = 0,
     DPDMA_FRAGMENTED = 1
-};
+} DPDMAMode;
 
 struct DPDMADescriptor {
     uint32_t control;
@@ -153,8 +153,6 @@ struct DPDMADescriptor {
     uint32_t crc;
 };
 
-typedef enum DPDMABurstType DPDMABurstType;
-typedef enum DPDMAMode DPDMAMode;
 typedef struct DPDMADescriptor DPDMADescriptor;
 
 static bool xlnx_dpdma_desc_is_last(DPDMADescriptor *desc)

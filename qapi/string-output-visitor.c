@@ -17,7 +17,7 @@
 #include <math.h>
 #include "qemu/range.h"
 
-enum ListMode {
+typedef enum ListMode {
     LM_NONE,             /* not traversing a list of repeated options */
     LM_STARTED,          /* next_list() ready to be called */
 
@@ -48,9 +48,7 @@ enum ListMode {
     LM_UNSIGNED_INTERVAL,/* Same as above, only for an unsigned interval. */
 
     LM_END,              /* next_list() called, about to see last element. */
-};
-
-typedef enum ListMode ListMode;
+} ListMode;
 
 struct StringOutputVisitor
 {

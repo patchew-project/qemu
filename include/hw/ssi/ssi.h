@@ -16,19 +16,17 @@
 #include "hw/core/qdev.h"
 #include "qom/object.h"
 
-typedef enum SSICSMode SSICSMode;
-
 #define TYPE_SSI_PERIPHERAL "ssi-peripheral"
 OBJECT_DECLARE_TYPE(SSIPeripheral, SSIPeripheralClass,
                     SSI_PERIPHERAL)
 
 #define SSI_GPIO_CS "ssi-gpio-cs"
 
-enum SSICSMode {
+typedef enum SSICSMode {
     SSI_CS_NONE = 0,
     SSI_CS_LOW,
     SSI_CS_HIGH,
-};
+} SSICSMode;
 
 /* Peripherals.  */
 struct SSIPeripheralClass {

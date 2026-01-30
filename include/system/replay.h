@@ -19,17 +19,16 @@
 #include "qemu/audio.h"
 
 /* replay clock kinds */
-enum ReplayClockKind {
+typedef enum ReplayClockKind {
     /* host_clock */
     REPLAY_CLOCK_HOST,
     /* virtual_rt_clock */
     REPLAY_CLOCK_VIRTUAL_RT,
     REPLAY_CLOCK_COUNT
-};
-typedef enum ReplayClockKind ReplayClockKind;
+} ReplayClockKind;
 
 /* IDs of the checkpoints */
-enum ReplayCheckpoint {
+typedef enum ReplayCheckpoint {
     CHECKPOINT_CLOCK_WARP_START,
     CHECKPOINT_CLOCK_WARP_ACCOUNT,
     CHECKPOINT_RESET_REQUESTED,
@@ -40,8 +39,7 @@ enum ReplayCheckpoint {
     CHECKPOINT_INIT,
     CHECKPOINT_RESET,
     CHECKPOINT_COUNT
-};
-typedef enum ReplayCheckpoint ReplayCheckpoint;
+} ReplayCheckpoint;
 
 typedef struct ReplayNetState ReplayNetState;
 

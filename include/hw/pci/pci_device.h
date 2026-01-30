@@ -43,13 +43,12 @@ struct PCIDeviceClass {
     bool sriov_vf_user_creatable;
 };
 
-enum PCIReqIDType {
+typedef enum PCIReqIDType {
     PCI_REQ_ID_INVALID = 0,
     PCI_REQ_ID_BDF,
     PCI_REQ_ID_SECONDARY_BUS,
     PCI_REQ_ID_MAX,
-};
-typedef enum PCIReqIDType PCIReqIDType;
+} PCIReqIDType;
 
 struct PCIReqIDCache {
     PCIDevice *dev;
