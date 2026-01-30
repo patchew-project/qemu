@@ -64,6 +64,19 @@ typedef struct {
     const uint8_t *src_bits;
 } ATI2DCtx;
 
+static void ati_set_dirty(VGACommonState *vga, const ATI2DCtx *ctx)
+{
+    DisplaySurface *ds = qemu_console_surface(vga->con);
+    unsigned dst_offset = ctx->dst_bits - vga->vram_ptr;
+    if (ctx->dst_bits >= vga->vram_ptr + vga->vbe_start_addr &&
+        ctx->dst_bits < vga->vram_ptr + vga->vbe_start_addr +
+        vga->vbe_regs[VBE_DISPI_INDEX_YRES] * vga->vbe_line_offset) {
+        memory_region_set_dirty(&vga->vram, vga->vbe_start_addr +
+                                dst_offset + ctx->dst.y * surface_stride(ds),
+                                ctx->dst.height * surface_stride(ds));
+    }
+}
+
 static void setup_2d_blt_ctx(const ATIVGAState *s, ATI2DCtx *ctx)
 {
     ctx->bpp = ati_bpp_from_datatype(s);
@@ -105,14 +118,12 @@ static void ati_2d_do_blt(ATIVGAState *s, ATI2DCtx *ctx, uint8_t use_pixman)
 {
     /* FIXME it is probably more complex than this and may need to be */
     /* rewritten but for now as a start just to get some output: */
-    DisplaySurface *ds = qemu_console_surface(s->vga.con);
     bool use_pixman_fill = use_pixman & BIT(0);
     bool use_pixman_blt = use_pixman & BIT(1);
     DPRINTF("%p %u ds: %p %d %d rop: %x\n", s->vga.vram_ptr,
             s->vga.vbe_start_addr, surface_data(ds), surface_stride(ds),
             surface_bits_per_pixel(ds),
             ctx->rop3 >> 16);
-    unsigned dst_offset = s->regs.dst_offset;
     if (!ctx->bpp) {
         qemu_log_mask(LOG_GUEST_ERROR, "Invalid bpp\n");
         return;
@@ -261,14 +272,6 @@ static void ati_2d_do_blt(ATIVGAState *s, ATI2DCtx *ctx, uint8_t use_pixman)
                       ctx->rop3 >> 16);
         return;
     }
-
-    if (ctx->dst_bits >= s->vga.vram_ptr + s->vga.vbe_start_addr &&
-        ctx->dst_bits < s->vga.vram_ptr + s->vga.vbe_start_addr +
-        s->vga.vbe_regs[VBE_DISPI_INDEX_YRES] * s->vga.vbe_line_offset) {
-        memory_region_set_dirty(&s->vga.vram, s->vga.vbe_start_addr +
-                                dst_offset + ctx->dst.y * surface_stride(ds),
-                                ctx->dst.height * surface_stride(ds));
-    }
 }
 
 void ati_2d_blt(ATIVGAState *s)
@@ -276,4 +279,5 @@ void ati_2d_blt(ATIVGAState *s)
     ATI2DCtx ctx;
     setup_2d_blt_ctx(s, &ctx);
     ati_2d_do_blt(s, &ctx, s->use_pixman);
+    ati_set_dirty(&s->vga, &ctx);
 }
