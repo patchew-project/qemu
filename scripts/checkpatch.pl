@@ -2414,6 +2414,11 @@ sub process {
 			ERROR("missing space after $1 definition\n" . $herecurr);
 		}
 
+# forward declared enum typedef
+		if ($line =~ /^.\s*typedef\s+enum(?:\s+$Ident)?(?:\s+$Ident)?;/) {
+			ERROR("forward declared enum typedef\n" . $herecurr);
+		}
+
 # check for spacing round square brackets; allowed:
 #  1. with a type on the left -- int [] a;
 #  2. at the beginning of a line for slice initialisers -- [0...10] = 5,

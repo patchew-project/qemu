@@ -416,6 +416,17 @@ definitions instead of typedefs in headers and function prototypes; this
 avoids problems with duplicated typedefs and reduces the need to include
 headers from other headers.
 
+Enumeration (enum) type can not be forward declared as typedef, because
+C compilers should be able to know the size of enums before hand. Simply
+define the typedef along with the enum:
+
+.. code-block:: c
+
+    typedef enum MyEnum {
+        FOO,
+        BAR,
+    } MyEnum;
+
 Bitfields
 ---------
 
