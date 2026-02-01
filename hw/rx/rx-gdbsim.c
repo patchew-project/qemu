@@ -173,7 +173,7 @@ static void rx62n7_class_init(ObjectClass *oc, const void *data)
     rxc->mcu_name = TYPE_R5F562N7_MCU;
     rxc->xtal_freq_hz = 12 * 1000 * 1000;
     mc->desc = "gdb simulator (R5F562N7 MCU and external RAM)";
-};
+}
 
 static void rx62n8_class_init(ObjectClass *oc, const void *data)
 {
@@ -183,7 +183,7 @@ static void rx62n8_class_init(ObjectClass *oc, const void *data)
     rxc->mcu_name = TYPE_R5F562N8_MCU;
     rxc->xtal_freq_hz = 12 * 1000 * 1000;
     mc->desc = "gdb simulator (R5F562N8 MCU and external RAM)";
-};
+}
 
 static const TypeInfo rx_gdbsim_types[] = {
     {

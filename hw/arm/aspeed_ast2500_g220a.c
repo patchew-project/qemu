@@ -78,7 +78,7 @@ static void aspeed_machine_g220a_class_init(ObjectClass *oc, const void *data)
     amc->i2c_init  = g220a_bmc_i2c_init;
     mc->default_ram_size = 1024 * MiB;
     aspeed_machine_class_init_cpus_defaults(mc);
-};
+}
 
 static const TypeInfo aspeed_ast2500_g220a_types[] = {
     {

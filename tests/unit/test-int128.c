@@ -42,7 +42,7 @@ static Int128 expand(uint32_t x)
     l = expand16(x & 65535);
     h = expand16(x >> 16);
     return (Int128) int128_make128(l, h);
-};
+}
 
 static void test_and(void)
 {

@@ -51,7 +51,7 @@ static void aspeed_machine_ast2600_evb_class_init(ObjectClass *oc,
     mc->default_ram_size = 1 * GiB;
     aspeed_machine_class_init_cpus_defaults(mc);
     aspeed_machine_ast2600_class_emmc_init(oc);
-};
+}
 
 static const TypeInfo aspeed_ast2600_evb_types[] = {
     {

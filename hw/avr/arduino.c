@@ -82,7 +82,7 @@ static void arduino_duemilanove_class_init(ObjectClass *oc, const void *data)
     mc->alias       = "2009";
     amc->mcu_type   = TYPE_ATMEGA168_MCU;
     amc->xtal_hz    = 16 * 1000 * 1000;
-};
+}
 
 static void arduino_uno_class_init(ObjectClass *oc, const void *data)
 {
@@ -97,7 +97,7 @@ static void arduino_uno_class_init(ObjectClass *oc, const void *data)
     mc->alias       = "uno";
     amc->mcu_type   = TYPE_ATMEGA328_MCU;
     amc->xtal_hz    = 16 * 1000 * 1000;
-};
+}
 
 static void arduino_mega_class_init(ObjectClass *oc, const void *data)
 {
@@ -112,7 +112,7 @@ static void arduino_mega_class_init(ObjectClass *oc, const void *data)
     mc->alias       = "mega";
     amc->mcu_type   = TYPE_ATMEGA1280_MCU;
     amc->xtal_hz    = 16 * 1000 * 1000;
-};
+}
 
 static void arduino_mega2560_class_init(ObjectClass *oc, const void *data)
 {
@@ -127,7 +127,7 @@ static void arduino_mega2560_class_init(ObjectClass *oc, const void *data)
     mc->alias       = "mega2560";
     amc->mcu_type   = TYPE_ATMEGA2560_MCU;
     amc->xtal_hz    = 16 * 1000 * 1000; /* CSTCE16M0V53-R0 */
-};
+}
 
 static const TypeInfo arduino_machine_types[] = {
     {

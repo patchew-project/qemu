@@ -1389,7 +1389,7 @@ static void aspeed_mii_reset(DeviceState *dev)
     s->phydata = 0;
 
     aspeed_mii_transition(s, !!(s->phycr & ASPEED_MII_PHYCR_FIRE));
-};
+}
 
 static void aspeed_mii_realize(DeviceState *dev, Error **errp)
 {

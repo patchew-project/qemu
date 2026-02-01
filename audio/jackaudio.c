@@ -160,7 +160,7 @@ static int qjack_buffer_write(QJackBuffer *buffer, float *data, int size)
 
     qatomic_add(&buffer->used, frames);
     return frames * buffer->channels * sizeof(float);
-};
+}
 
 /* write PCM linear */
 static int qjack_buffer_write_l(QJackBuffer *buffer, float **dest, int frames)

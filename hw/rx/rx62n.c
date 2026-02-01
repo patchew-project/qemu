@@ -279,7 +279,7 @@ static void r5f562n7_class_init(ObjectClass *oc, const void *data)
     rxc->ram_size = 64 * KiB;
     rxc->rom_flash_size = 384 * KiB;
     rxc->data_flash_size = 32 * KiB;
-};
+}
 
 static void r5f562n8_class_init(ObjectClass *oc, const void *data)
 {
@@ -288,7 +288,7 @@ static void r5f562n8_class_init(ObjectClass *oc, const void *data)
     rxc->ram_size = 96 * KiB;
     rxc->rom_flash_size = 512 * KiB;
     rxc->data_flash_size = 32 * KiB;
-};
+}
 
 static const TypeInfo rx62n_types[] = {
     {

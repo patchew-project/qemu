@@ -856,7 +856,7 @@ build_dbg2(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     g_array_append_vals(table_data, name, namespace_length);
 
     acpi_table_end(linker, &table);
-};
+}
 
 /*
  * ACPI spec, Revision 6.0 Errata A

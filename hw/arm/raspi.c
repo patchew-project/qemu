@@ -328,14 +328,14 @@ void raspi_machine_class_common_init(MachineClass *mc,
     mc->default_cpus = mc->min_cpus = mc->max_cpus = cores_count(board_rev);
     mc->default_ram_size = board_ram_size(board_rev);
     mc->default_ram_id = "ram";
-};
+}
 
 static void raspi_machine_class_init(MachineClass *mc,
                                      uint32_t board_rev)
 {
     raspi_machine_class_common_init(mc, board_rev);
     mc->init = raspi_machine_init;
-};
+}
 
 static void raspi0_machine_class_init(ObjectClass *oc, const void *data)
 {
@@ -345,7 +345,7 @@ static void raspi0_machine_class_init(ObjectClass *oc, const void *data)
     mc->auto_create_sdcard = true;
     rmc->board_rev = 0x920092; /* Revision 1.2 */
     raspi_machine_class_init(mc, rmc->board_rev);
-};
+}
 
 static void raspi1ap_machine_class_init(ObjectClass *oc, const void *data)
 {
@@ -355,7 +355,7 @@ static void raspi1ap_machine_class_init(ObjectClass *oc, const void *data)
     mc->auto_create_sdcard = true;
     rmc->board_rev = 0x900021; /* Revision 1.1 */
     raspi_machine_class_init(mc, rmc->board_rev);
-};
+}
 
 static void raspi2b_machine_class_init(ObjectClass *oc, const void *data)
 {
@@ -365,7 +365,7 @@ static void raspi2b_machine_class_init(ObjectClass *oc, const void *data)
     mc->auto_create_sdcard = true;
     rmc->board_rev = 0xa21041;
     raspi_machine_class_init(mc, rmc->board_rev);
-};
+}
 
 #ifdef TARGET_AARCH64
 static void raspi3ap_machine_class_init(ObjectClass *oc, const void *data)
@@ -376,7 +376,7 @@ static void raspi3ap_machine_class_init(ObjectClass *oc, const void *data)
     mc->auto_create_sdcard = true;
     rmc->board_rev = 0x9020e0; /* Revision 1.0 */
     raspi_machine_class_init(mc, rmc->board_rev);
-};
+}
 
 static void raspi3b_machine_class_init(ObjectClass *oc, const void *data)
 {
@@ -386,7 +386,7 @@ static void raspi3b_machine_class_init(ObjectClass *oc, const void *data)
     mc->auto_create_sdcard = true;
     rmc->board_rev = 0xa02082;
     raspi_machine_class_init(mc, rmc->board_rev);
-};
+}
 #endif /* TARGET_AARCH64 */
 
 static const TypeInfo raspi_machine_types[] = {

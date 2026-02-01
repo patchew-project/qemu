@@ -184,7 +184,7 @@ static void aspeed_machine_rainier_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_size = 1 * GiB;
     aspeed_machine_class_init_cpus_defaults(mc);
     aspeed_machine_ast2600_class_emmc_init(oc);
-};
+}
 
 static const TypeInfo aspeed_ast2600_rainier_types[] = {
     {

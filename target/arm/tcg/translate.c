@@ -603,7 +603,7 @@ static inline void gen_arm_shift_im(TCGv_i32 var, int shiftop,
             tcg_gen_or_i32(var, var, tmp);
         }
     }
-};
+}
 
 static inline void gen_arm_shift_reg(TCGv_i32 var, int shiftop,
                                      TCGv_i32 shift, int flags)

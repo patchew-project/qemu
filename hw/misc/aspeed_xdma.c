@@ -187,7 +187,7 @@ static void aspeed_2500_xdma_class_init(ObjectClass *klass, const void *data)
     axc->intr_ctrl_mask = XDMA_IRQ_ENG_CTRL_W_MASK;
     axc->intr_status = XDMA_IRQ_ENG_STAT;
     axc->intr_complete = XDMA_IRQ_ENG_STAT_US_COMP | XDMA_IRQ_ENG_STAT_DS_COMP;
-};
+}
 
 static const TypeInfo aspeed_2500_xdma_info = {
     .name = TYPE_ASPEED_2500_XDMA,
@@ -209,7 +209,7 @@ static void aspeed_2400_xdma_class_init(ObjectClass *klass, const void *data)
     axc->intr_ctrl_mask = XDMA_IRQ_ENG_CTRL_W_MASK;
     axc->intr_status = XDMA_IRQ_ENG_STAT;
     axc->intr_complete = XDMA_IRQ_ENG_STAT_US_COMP | XDMA_IRQ_ENG_STAT_DS_COMP;
-};
+}
 
 static const TypeInfo aspeed_2400_xdma_info = {
     .name = TYPE_ASPEED_2400_XDMA,

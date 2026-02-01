@@ -76,7 +76,7 @@ static void aspeed_machine_tiogapass_class_init(ObjectClass *oc,
     amc->i2c_init  = tiogapass_bmc_i2c_init;
     mc->default_ram_size       = 1 * GiB;
     aspeed_machine_class_init_cpus_defaults(mc);
-};
+}
 
 static const TypeInfo aspeed_ast2500_tiogapass_types[] = {
     {

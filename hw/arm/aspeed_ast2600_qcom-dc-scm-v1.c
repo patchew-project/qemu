@@ -41,7 +41,7 @@ static void aspeed_machine_qcom_dc_scm_v1_class_init(ObjectClass *oc,
     amc->i2c_init  = qcom_dc_scm_bmc_i2c_init;
     mc->default_ram_size = 1 * GiB;
     aspeed_machine_class_init_cpus_defaults(mc);
-};
+}
 
 static const TypeInfo aspeed_ast2600_qcom_dc_scm_v1_types[] = {
     {

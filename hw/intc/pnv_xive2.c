@@ -2606,7 +2606,7 @@ static void pnv_xive2_class_init(ObjectClass *klass, const void *data)
     xpc->match_nvt  = pnv_xive2_match_nvt;
     xpc->get_config = pnv_xive2_presenter_get_config;
     xpc->broadcast  = pnv_xive2_broadcast;
-};
+}
 
 static const TypeInfo pnv_xive2_info = {
     .name          = TYPE_PNV_XIVE2,

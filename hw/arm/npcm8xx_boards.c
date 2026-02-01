@@ -235,7 +235,7 @@ static void npcm845_evb_machine_class_init(ObjectClass *oc, const void *data)
     mc->desc = "Nuvoton NPCM845 Evaluation Board (Cortex-A35)";
     mc->init = npcm845_evb_init;
     mc->default_ram_size = 1 * GiB;
-};
+}
 
 static const TypeInfo npcm8xx_machine_types[] = {
     {

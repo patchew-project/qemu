@@ -126,7 +126,7 @@ static void aspeed_machine_fuji_class_init(ObjectClass *oc, const void *data)
     amc->uart_default = ASPEED_DEV_UART1;
     mc->default_ram_size = FUJI_BMC_RAM_SIZE;
     aspeed_machine_class_init_cpus_defaults(mc);
-};
+}
 
 static const TypeInfo aspeed_ast2600_fuji_types[] = {
     {

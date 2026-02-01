@@ -74,7 +74,7 @@ static void triboard_machine_tc277d_class_init(ObjectClass *oc,
     mc->desc        = "Infineon AURIX TriBoard TC277 (D-Step)";
     mc->max_cpus    = 1;
     amc->soc_name   = "tc277d-soc";
-};
+}
 
 static const TypeInfo triboard_machine_types[] = {
     {

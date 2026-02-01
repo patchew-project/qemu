@@ -58,7 +58,7 @@ static inline void s390_pv_prep_reset(void) {}
 static inline int s390_pv_verify(struct S390PVResponse *pv_resp) { return 0; }
 static inline void s390_pv_unshare(void) {}
 static inline void s390_pv_inject_reset_error(CPUState *cs,
-                                              struct S390PVResponse pv_resp) {};
+                                              struct S390PVResponse pv_resp) {}
 static inline uint64_t kvm_s390_pv_dmp_get_size_cpu(void) { return 0; }
 static inline uint64_t kvm_s390_pv_dmp_get_size_mem_state(void) { return 0; }
 static inline uint64_t kvm_s390_pv_dmp_get_size_completion_data(void) { return 0; }

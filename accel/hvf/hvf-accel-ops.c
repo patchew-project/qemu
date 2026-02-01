@@ -374,7 +374,7 @@ static void hvf_accel_ops_class_init(ObjectClass *oc, const void *data)
     ops->supports_guest_debug = hvf_arch_supports_guest_debug;
 
     ops->get_vcpu_stats = hvf_get_vcpu_stats;
-};
+}
 
 static const TypeInfo hvf_accel_ops_type = {
     .name = ACCEL_OPS_NAME("hvf"),

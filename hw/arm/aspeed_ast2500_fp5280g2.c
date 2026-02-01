@@ -74,7 +74,7 @@ static void aspeed_machine_fp5280g2_class_init(ObjectClass *oc,
     amc->i2c_init  = fp5280g2_bmc_i2c_init;
     mc->default_ram_size = 512 * MiB;
     aspeed_machine_class_init_cpus_defaults(mc);
-};
+}
 
 static const TypeInfo aspeed_ast2500_fp5280g2_types[] = {
     {

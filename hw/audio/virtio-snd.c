@@ -498,7 +498,7 @@ static const char *print_code(uint32_t code)
     }
 
     #undef CASE
-};
+}
 
 /*
  * Handles VIRTIO_SND_R_PCM_PREPARE.

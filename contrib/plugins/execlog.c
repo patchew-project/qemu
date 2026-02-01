@@ -331,7 +331,7 @@ gboolean g_pattern_spec_match_string_qemu(GPatternSpec *pspec,
 #else
     return g_pattern_match_string(pspec, string);
 #endif
-};
+}
 #define g_pattern_spec_match_string(p, s) g_pattern_spec_match_string_qemu(p, s)
 
 static GPtrArray *registers_init(int vcpu_index)

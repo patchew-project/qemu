@@ -22,13 +22,13 @@ RockerSwitch *qmp_query_rocker(const char *name, Error **errp)
 {
     error_setg(errp, "rocker %s not found", name);
     return NULL;
-};
+}
 
 RockerPortList *qmp_query_rocker_ports(const char *name, Error **errp)
 {
     error_setg(errp, "rocker %s not found", name);
     return NULL;
-};
+}
 
 RockerOfDpaFlowList *qmp_query_rocker_of_dpa_flows(const char *name,
                                                    bool has_tbl_id,
@@ -37,7 +37,7 @@ RockerOfDpaFlowList *qmp_query_rocker_of_dpa_flows(const char *name,
 {
     error_setg(errp, "rocker %s not found", name);
     return NULL;
-};
+}
 
 RockerOfDpaGroupList *qmp_query_rocker_of_dpa_groups(const char *name,
                                                      bool has_type,
@@ -46,4 +46,4 @@ RockerOfDpaGroupList *qmp_query_rocker_of_dpa_groups(const char *name,
 {
     error_setg(errp, "rocker %s not found", name);
     return NULL;
-};
+}

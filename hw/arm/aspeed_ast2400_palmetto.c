@@ -66,7 +66,7 @@ static void aspeed_machine_palmetto_class_init(ObjectClass *oc,
     amc->i2c_init  = palmetto_bmc_i2c_init;
     mc->default_ram_size       = 256 * MiB;
     aspeed_machine_class_init_cpus_defaults(mc);
-};
+}
 
 static const TypeInfo aspeed_ast2400_palmetto_types[] = {
     {

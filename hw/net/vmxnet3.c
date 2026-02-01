@@ -1288,7 +1288,7 @@ vmxnet3_dump_conf_descr(const char *name,
     VMW_CFPRN("%s descriptor dump: Version %u, Length %u",
               name, pm_descr->confVer, pm_descr->confLen);
 
-};
+}
 
 static void vmxnet3_update_pm_state(VMXNET3State *s)
 {

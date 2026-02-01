@@ -180,7 +180,7 @@ static void bcm2835_class_init(ObjectClass *oc, const void *data)
     bc->core_count = 1;
     bc->peri_base = 0x20000000;
     dc->realize = bcm2835_realize;
-};
+}
 
 static void bcm2836_class_init(ObjectClass *oc, const void *data)
 {
@@ -193,7 +193,7 @@ static void bcm2836_class_init(ObjectClass *oc, const void *data)
     bc->ctrl_base = 0x40000000;
     bc->clusterid = 0xf;
     dc->realize = bcm2836_realize;
-};
+}
 
 #ifdef TARGET_AARCH64
 static void bcm2837_class_init(ObjectClass *oc, const void *data)
@@ -207,7 +207,7 @@ static void bcm2837_class_init(ObjectClass *oc, const void *data)
     bc->ctrl_base = 0x40000000;
     bc->clusterid = 0x0;
     dc->realize = bcm2836_realize;
-};
+}
 #endif
 
 static const TypeInfo bcm283x_types[] = {

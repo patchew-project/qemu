@@ -409,7 +409,7 @@ static void atmega168_class_init(ObjectClass *oc, const void *data)
     amc->adc_count = 6;
     amc->irq = irq168_328;
     amc->dev = dev168_328;
-};
+}
 
 static void atmega328_class_init(ObjectClass *oc, const void *data)
 {
@@ -424,7 +424,7 @@ static void atmega328_class_init(ObjectClass *oc, const void *data)
     amc->adc_count = 6;
     amc->irq = irq168_328;
     amc->dev = dev168_328;
-};
+}
 
 static void atmega1280_class_init(ObjectClass *oc, const void *data)
 {
@@ -439,7 +439,7 @@ static void atmega1280_class_init(ObjectClass *oc, const void *data)
     amc->adc_count = 16;
     amc->irq = irq1280_2560;
     amc->dev = dev1280_2560;
-};
+}
 
 static void atmega2560_class_init(ObjectClass *oc, const void *data)
 {
@@ -454,7 +454,7 @@ static void atmega2560_class_init(ObjectClass *oc, const void *data)
     amc->adc_count = 16;
     amc->irq = irq1280_2560;
     amc->dev = dev1280_2560;
-};
+}
 
 static const TypeInfo atmega_mcu_types[] = {
     {

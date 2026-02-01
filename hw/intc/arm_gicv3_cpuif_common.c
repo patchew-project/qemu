@@ -19,4 +19,4 @@ void gicv3_set_gicv3state(CPUState *cpu, GICv3CPUState *s)
     CPUARMState *env = &arm_cpu->env;
 
     env->gicv3state = (void *)s;
-};
+}

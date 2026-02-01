@@ -378,7 +378,7 @@ uint8_t riscv_cpu_default_priority(int irq)
     }
 
     return default_iprio[irq] ? default_iprio[irq] : IPRIO_MMAXIPRIO;
-};
+}
 
 static int riscv_cpu_pending_to_irq(CPURISCVState *env,
                                     int extirq, unsigned int extirq_def_prio,
