@@ -68,7 +68,7 @@ static const char *mig_state_to_str(enum vfio_device_mig_state state)
 }
 
 static QapiVfioMigrationState
-mig_state_to_qapi_state(enum vfio_device_mig_state state)
+mig_state_to_qapi_state(enum vfio_device_mig_state state, bool prep)
 {
     switch (state) {
     case VFIO_DEVICE_STATE_STOP:
@@ -84,15 +84,17 @@ mig_state_to_qapi_state(enum vfio_device_mig_state state)
     case VFIO_DEVICE_STATE_PRE_COPY:
         return QAPI_VFIO_MIGRATION_STATE_PRE_COPY;
     case VFIO_DEVICE_STATE_PRE_COPY_P2P:
-        return QAPI_VFIO_MIGRATION_STATE_PRE_COPY_P2P;
+        return prep ? QAPI_VFIO_MIGRATION_STATE_PREPARE_PRE_COPY_P2P :
+                      QAPI_VFIO_MIGRATION_STATE_PRE_COPY_P2P;
     default:
         g_assert_not_reached();
     }
 }
 
-static void vfio_migration_send_event(VFIODevice *vbasedev)
+static void vfio_migration_send_event(VFIODevice *vbasedev,
+                                      enum vfio_device_mig_state state,
+                                      bool prep)
 {
-    VFIOMigration *migration = vbasedev->migration;
     DeviceState *dev = vbasedev->dev;
     g_autofree char *qom_path = NULL;
     Object *obj;
@@ -106,8 +108,8 @@ static void vfio_migration_send_event(VFIODevice *vbasedev)
     g_assert(obj);
     qom_path = object_get_canonical_path(obj);
 
-    qapi_event_send_vfio_migration(
-        dev->id, qom_path, mig_state_to_qapi_state(migration->device_state));
+    qapi_event_send_vfio_migration(dev->id, qom_path,
+                                   mig_state_to_qapi_state(state, prep));
 }
 
 static void vfio_migration_set_device_state(VFIODevice *vbasedev,
@@ -119,7 +121,7 @@ static void vfio_migration_set_device_state(VFIODevice *vbasedev,
                                           mig_state_to_str(state));
 
     migration->device_state = state;
-    vfio_migration_send_event(vbasedev);
+    vfio_migration_send_event(vbasedev, state, false);
 }
 
 int vfio_migration_set_state(VFIODevice *vbasedev,
@@ -144,6 +146,10 @@ int vfio_migration_set_state(VFIODevice *vbasedev,
 
     if (new_state == migration->device_state) {
         return 0;
+    }
+
+    if (new_state == VFIO_DEVICE_STATE_PRE_COPY_P2P) {
+        vfio_migration_send_event(vbasedev, new_state, true);
     }
 
     feature->argsz = sizeof(buf);
