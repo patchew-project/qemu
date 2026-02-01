@@ -64,6 +64,8 @@ struct Chardev {
     char *label;
     char *filename;
     int logfd;
+    bool logtimestamp;
+    bool log_line_start;
     int be_open;
     /* used to coordinate the chardev-change special-case: */
     bool handover_yank_instance;
