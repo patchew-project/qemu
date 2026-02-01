@@ -828,7 +828,8 @@
            'mode',
            'zero-page-detection',
            'direct-io',
-           'cpr-exec-command'] }
+           'cpr-exec-command',
+           'backend-transfer'] }
 
 ##
 # @migrate-set-parameters:
@@ -1004,6 +1005,13 @@
 #     is @cpr-exec.  The first list element is the program's filename,
 #     the remainder its arguments.  (Since 10.2)
 #
+# @backend-transfer: Enable backend-transfer feature for devices that
+#     supports it.  In general that means that backend state and its
+#     file descriptors are passed to the destination in the migraton
+#     channel (which must be a UNIX socket).  Individual devices
+#     declare the support for backend-transfer by per-device
+#     backend-transfer option.  (Since 11.0)
+#
 # Features:
 #
 # @unstable: Members @x-checkpoint-delay and
@@ -1043,7 +1051,8 @@
             '*mode': 'MigMode',
             '*zero-page-detection': 'ZeroPageDetection',
             '*direct-io': 'bool',
-            '*cpr-exec-command': [ 'str' ]} }
+            '*cpr-exec-command': [ 'str' ],
+            '*backend-transfer': 'bool' } }
 
 ##
 # @query-migrate-parameters:
