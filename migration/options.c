@@ -1266,25 +1266,11 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
     return true;
 }
 
-static void migrate_params_apply(MigrationParameters *params)
-{
-    MigrationState *s = migrate_get_current();
-    MigrationParameters *cur = &s->parameters;
-
-    migrate_tls_opts_free(cur);
-    qapi_free_BitmapMigrationNodeAliasList(cur->block_bitmap_mapping);
-    qapi_free_strList(cur->cpr_exec_command);
-
-    /* mark all present, so they're all copied */
-    migrate_mark_all_params_present(params);
-    QAPI_CLONE_MEMBERS(MigrationParameters, cur, params);
-}
-
 void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
 {
     MigrationState *s = migrate_get_current();
-    g_autoptr(MigrationParameters) tmp = QAPI_CLONE(MigrationParameters,
-                                                    &s->parameters);
+    MigrationParameters *cur = &s->parameters;
+    g_autoptr(MigrationParameters) tmp = QAPI_CLONE(MigrationParameters, cur);
 
     /*
      * Convert QTYPE_QNULL and NULL to the empty string (""). Even
@@ -1300,8 +1286,17 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
 
     QAPI_MERGE(MigrationParameters, tmp, params);
 
-    if (migrate_params_check(tmp, errp)) {
-        migrate_params_apply(tmp);
-        migrate_post_update_params(params, errp);
+    if (!migrate_params_check(tmp, errp)) {
+        return;
     }
+
+    migrate_tls_opts_free(cur);
+    qapi_free_BitmapMigrationNodeAliasList(cur->block_bitmap_mapping);
+    qapi_free_strList(cur->cpr_exec_command);
+
+    /* mark all present, so they're all copied */
+    migrate_mark_all_params_present(tmp);
+    QAPI_CLONE_MEMBERS(MigrationParameters, cur, tmp);
+
+    migrate_post_update_params(params, errp);
 }
