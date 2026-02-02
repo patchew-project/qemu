@@ -2390,7 +2390,7 @@ static inline bool arm_sctlr_b(CPUARMState *env)
     return
         /* We need not implement SCTLR.ITD in user-mode emulation, so
          * let linux-user ignore the fact that it conflicts with SCTLR_B.
-         * This lets people run BE32 binaries with "-cpu any".
+         * This lets people run BE32 binaries with "-cpu max".
          */
 #ifndef CONFIG_USER_ONLY
         !arm_feature(env, ARM_FEATURE_V7) &&

@@ -2218,6 +2218,7 @@ static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
      * which has the same semantics as "-cpu max".
      */
     if (!strcmp(cpunamestr, "any")) {
+        warn_report("CPU type 'any' is deprecated, use 'max' instead.");
         cpunamestr = "max";
     }
 #endif
