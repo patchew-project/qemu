@@ -152,14 +152,6 @@ static void ati_2d_do_blt(ATI2DCtx *ctx, uint8_t use_pixman)
             return;
         }
         int src_stride_words = ctx->src_stride / sizeof(uint32_t);
-        if (ctx->src.x > 0x3fff || ctx->src.y > 0x3fff
-            || ctx->src_bits >= ctx->vram_end
-            || ctx->src_bits + ctx->src.x
-             + (ctx->src.y + ctx->dst.height)
-             * ctx->src_stride >= ctx->vram_end) {
-            qemu_log_mask(LOG_UNIMP, "blt outside vram not implemented\n");
-            return;
-        }
 
         DPRINTF("pixman_blt(%p, %p, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d)\n",
                 ctx->src_bits, ctx->dst_bits,
@@ -275,6 +267,14 @@ void ati_2d_blt(ATIVGAState *s)
 {
     ATI2DCtx ctx;
     setup_2d_blt_ctx(s, &ctx);
+    if (ctx.src.x > 0x3fff || ctx.src.y > 0x3fff
+        || ctx.src_bits >= ctx.vram_end
+        || ctx.src_bits + ctx.src.x
+         + (ctx.src.y + ctx.dst.height)
+         * ctx.src_stride >= ctx.vram_end) {
+        qemu_log_mask(LOG_UNIMP, "blt outside vram not implemented\n");
+        return;
+    }
     ati_2d_do_blt(&ctx, s->use_pixman);
     ati_set_dirty(&s->vga, &ctx);
 }
