@@ -289,6 +289,11 @@ static void ati_2d_do_blt(ATI2DCtx *ctx, uint8_t use_pixman)
 void ati_2d_blt(ATIVGAState *s)
 {
     ATI2DCtx ctx;
+    uint32_t src_source = s->regs.dp_mix & DP_SRC_SOURCE;
+    if (src_source == DP_SRC_HOST || src_source == DP_SRC_HOST_BYTEALIGN) {
+        /* HOST_DATA sources are handled by ati_flush_host_data() */
+        return;
+    }
     setup_2d_blt_ctx(s, &ctx);
     if (ctx.src.x > 0x3fff || ctx.src.y > 0x3fff
         || ctx.src_bits >= ctx.vram_end
@@ -300,4 +305,83 @@ void ati_2d_blt(ATIVGAState *s)
     }
     ati_2d_do_blt(&ctx, s->use_pixman);
     ati_set_dirty(&s->vga, &ctx);
+}
+
+void ati_flush_host_data(ATIVGAState *s)
+{
+    ATI2DCtx ctx, chunk;
+    uint32_t fg = s->regs.dp_src_frgd_clr;
+    uint32_t bg = s->regs.dp_src_bkgd_clr;
+    unsigned bypp, row, col, idx;
+    uint8_t pix_buf[ATI_HOST_DATA_ACC_BITS * sizeof(uint32_t)];
+    uint32_t byte_pix_order = s->regs.dp_datatype & DP_BYTE_PIX_ORDER;
+    uint32_t src_source = s->regs.dp_mix & DP_SRC_SOURCE;
+    uint32_t src_datatype = s->regs.dp_datatype & DP_SRC_DATATYPE;
+
+    if (src_source != DP_SRC_HOST) {
+        qemu_log_mask(LOG_UNIMP, "host_data_blt: only DP_SRC_HOST supported\n");
+        return;
+    }
+    if (src_datatype != SRC_MONO_FRGD_BKGD) {
+        qemu_log_mask(LOG_UNIMP,
+                      "host_data_blt: only SRC_MONO_FRGD_BKGD supported\n");
+        return;
+    }
+
+    setup_2d_blt_ctx(s, &ctx);
+
+    if (!ctx.left_to_right || !ctx.top_to_bottom) {
+        qemu_log_mask(LOG_UNIMP, "host_data_blt: only L->R, T->B supported\n");
+        return;
+    }
+
+    bypp = ctx.bpp / 8;
+
+    /* Expand monochrome bits to color pixels */
+    idx = 0;
+    for (int word = 0; word < 4; word++) {
+        for (int byte = 0; byte < 4; byte++) {
+            uint8_t byte_val = s->host_data.acc[word] >> (byte * 8);
+            for (int i = 0; i < 8; i++) {
+                int bit = byte_pix_order ? i : (7 - i);
+                bool is_fg = extract8(byte_val, bit, 1);
+                uint32_t color = is_fg ? fg : bg;
+                stn_he_p(&pix_buf[idx * bypp], bypp, color);
+                idx += 1;
+            }
+        }
+    }
+
+    /* Copy and then modify blit ctx for use in a chunked blit */
+    chunk = ctx;
+    chunk.src_bits = pix_buf;
+    chunk.src.y = 0;
+    chunk.src_stride = ATI_HOST_DATA_ACC_BITS * bypp;
+
+    /* Blit one scanline chunk at a time */
+    row = s->host_data.row;
+    col = s->host_data.col;
+    idx = 0;
+    while (idx < ATI_HOST_DATA_ACC_BITS && row < ctx.dst.height) {
+        unsigned pix_in_scanline = MIN(ATI_HOST_DATA_ACC_BITS - idx,
+                                       ctx.dst.width - col);
+        chunk.src.x = idx;
+        /* Build a rect for this scanline chunk */
+        chunk.dst.x = ctx.dst.x + col;
+        chunk.dst.y = ctx.dst.y + row;
+        chunk.dst.width = pix_in_scanline;
+        chunk.dst.height = 1;
+        ati_2d_do_blt(&chunk, s->use_pixman);
+        ati_set_dirty(&s->vga, &chunk);
+        idx += pix_in_scanline;
+        col += pix_in_scanline;
+        if (col >= ctx.dst.width) {
+            col = 0;
+            row += 1;
+        }
+    }
+
+    /* Track state of the overall blit for use by the next flush */
+    s->host_data.row = row;
+    s->host_data.col = col;
 }
