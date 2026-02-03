@@ -19,6 +19,9 @@ X86_64_TESTS += test-1648
 X86_64_TESTS += test-2175
 X86_64_TESTS += cross-modifying-code
 X86_64_TESTS += fma
+
+X86_64_TESTS +=  test-zerobss-1
+X86_64_TESTS +=  test-zerobss-2
 TESTS=$(MULTIARCH_TESTS) $(X86_64_TESTS) test-x86_64
 else
 TESTS=$(MULTIARCH_TESTS)
@@ -35,6 +38,18 @@ cross-modifying-code: LDFLAGS+=-pthread
 test-x86_64: LDFLAGS+=-lm -lc
 test-x86_64: test-i386.c test-i386.h test-i386-shift.h test-i386-muldiv.h
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
+
+test-zerobss-1: $(SRC_PATH)/tests/tcg/x86_64/test-zerobss-1.c
+	$(CC) -nostdlib -static -fno-stack-protector -fno-pie -no-pie \
+	     -Wl,-T,$(SRC_PATH)/tests/tcg/x86_64/rx_anonymous_bss.ld \
+	     -Wl,--build-id=none \
+	     $< -o $@
+
+test-zerobss-2: $(SRC_PATH)/tests/tcg/x86_64/test-zerobss-2.c
+	$(CC) -nostdlib -static -fno-stack-protector -fno-pie -no-pie \
+	     -Wl,-T,$(SRC_PATH)/tests/tcg/x86_64/rx_anonymous_bss.ld \
+	     -Wl,--build-id=none \
+	     $< -o $@
 
 %: $(SRC_PATH)/tests/tcg/x86_64/%.c
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
