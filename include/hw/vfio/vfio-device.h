@@ -318,6 +318,20 @@ int vfio_device_get_irq_info(VFIODevice *vbasedev, int index,
  * Returns the region index or -1 on error.
  */
 int vfio_get_region_index_from_mr(MemoryRegion *mr);
+
+/**
+ * Create a dmabuf fd by first translating the addresses in the
+ * iovec array into VFIO region offsets and then invoking the
+ * VFIO_DEVICE_FEATURE_DMA_BUF feature.
+ *
+ * @iov: array of iovec entries associated with a buffer
+ * @iov_cnt: number of entries in the iovec array
+ * @fd: pointer to store the resulting dmabuf fd
+ *
+ * Returns true on success and false in case of an error.
+ */
+bool vfio_device_create_dmabuf(struct iovec *iov, unsigned int iov_cnt,
+                               int *fd, Error **errp);
 #endif
 
 /* Returns 0 on success, or a negative errno. */
