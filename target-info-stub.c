@@ -10,13 +10,14 @@
 #include "qemu/target-info.h"
 #include "qemu/target-info-impl.h"
 #include "hw/core/boards.h"
+#include "qapi/error.h"
 #include "cpu.h"
 
 /* Validate correct placement of CPUArchState. */
 QEMU_BUILD_BUG_ON(offsetof(ArchCPU, parent_obj) != 0);
 QEMU_BUILD_BUG_ON(offsetof(ArchCPU, env) != sizeof(CPUState));
 
-static const TargetInfo target_info_stub = {
+static TargetInfo target_info_stub = {
     .target_name = TARGET_NAME,
     .target_arch = SYS_EMU_TARGET__MAX,
     .long_bits = TARGET_LONG_BITS,
@@ -28,4 +29,12 @@ static const TargetInfo target_info_stub = {
 const TargetInfo *target_info(void)
 {
     return &target_info_stub;
+}
+
+__attribute__((constructor))
+static void init_target_arch(void)
+{
+    target_info_stub.target_arch = qapi_enum_parse(&SysEmuTarget_lookup,
+                                                   target_name(), -1,
+                                                   &error_abort);
 }
