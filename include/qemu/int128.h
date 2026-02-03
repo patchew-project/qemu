@@ -62,6 +62,11 @@ static inline Int128 int128_exts64(int64_t a)
     return a;
 }
 
+static inline Int128 int128_signextend(Int128 a)
+{
+    return int128_gethi(a) ? a : int128_exts64(int128_getlo(a));
+}
+
 static inline Int128 int128_not(Int128 a)
 {
     return ~a;
@@ -293,6 +298,11 @@ static inline Int128 int128_2_64(void)
 static inline Int128 int128_exts64(int64_t a)
 {
     return int128_make128(a, (a < 0) ? -1 : 0);
+}
+
+static inline Int128 int128_signextend(Int128 a)
+{
+    return a.hi ? a : int128_exts64(a.lo);
 }
 
 static inline Int128 int128_not(Int128 a)

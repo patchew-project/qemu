@@ -255,6 +255,27 @@ static void test_urshift(void)
                      0x8000000000000000ULL);
 }
 
+static void __attribute__((__noinline__)) ATTRIBUTE_NOCLONE
+test_signextend_one(uint64_t ah, uint64_t al, uint64_t rh, uint64_t rl)
+{
+    Int128 r = int128_make128(rl, rh);
+    Int128 s = int128_signextend(int128_make128(al, ah));
+    g_assert_cmphex(int128_getlo(r), ==, int128_getlo(s));
+    g_assert_cmphex(int128_gethi(r), ==, int128_gethi(s));
+}
+
+static void test_signextend(void)
+{
+    test_signextend_one(0x0000000000000000ULL, 0x0000000000000001ULL,
+                        0x0000000000000000ULL, 0x0000000000000001ULL);
+    test_signextend_one(0x0000000000000000ULL, 0x7FFFFFFFFFFFFFFEULL,
+                        0x0000000000000000ULL, 0x7FFFFFFFFFFFFFFEULL);
+    test_signextend_one(0x0000000000000000ULL, 0x8000000000000001ULL,
+                        0xFFFFFFFFFFFFFFFFULL, 0x8000000000000001ULL);
+    test_signextend_one(0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFEULL,
+                        0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFEULL);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -269,5 +290,6 @@ int main(int argc, char **argv)
     g_test_add_func("/int128/int128_gt", test_gt);
     g_test_add_func("/int128/int128_rshift", test_rshift);
     g_test_add_func("/int128/int128_urshift", test_urshift);
+    g_test_add_func("/int128/int128_signextend", test_signextend);
     return g_test_run();
 }
