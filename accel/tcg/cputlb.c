@@ -2296,12 +2296,18 @@ static uint8_t do_ld1_mmu(CPUState *cpu, vaddr addr, MemOpIdx oi,
 {
     MMULookupLocals l;
     bool crosspage;
+    uint8_t ret;
 
     cpu_req_mo(cpu, TCG_MO_LD_LD | TCG_MO_ST_LD);
     crosspage = mmu_lookup(cpu, addr, oi, ra, access_type, &l);
     tcg_debug_assert(!crosspage);
 
-    return do_ld_1(cpu, &l.page[0], l.mmu_idx, access_type, ra);
+    ret = do_ld_1(cpu, &l.page[0], l.mmu_idx, access_type, ra);
+
+    if (l.memop & MO_SIGN) {
+        ret = (int8_t)ret;
+    }
+    return ret;
 }
 
 static uint16_t do_ld2_mmu(CPUState *cpu, vaddr addr, MemOpIdx oi,
@@ -2315,7 +2321,8 @@ static uint16_t do_ld2_mmu(CPUState *cpu, vaddr addr, MemOpIdx oi,
     cpu_req_mo(cpu, TCG_MO_LD_LD | TCG_MO_ST_LD);
     crosspage = mmu_lookup(cpu, addr, oi, ra, access_type, &l);
     if (likely(!crosspage)) {
-        return do_ld_2(cpu, &l.page[0], l.mmu_idx, access_type, l.memop, ra);
+        ret = do_ld_2(cpu, &l.page[0], l.mmu_idx, access_type, l.memop, ra);
+        goto return_signextended;
     }
 
     a = do_ld_1(cpu, &l.page[0], l.mmu_idx, access_type, ra);
@@ -2325,6 +2332,10 @@ static uint16_t do_ld2_mmu(CPUState *cpu, vaddr addr, MemOpIdx oi,
         ret = a | (b << 8);
     } else {
         ret = b | (a << 8);
+    }
+return_signextended:
+    if (l.memop & MO_SIGN) {
+        ret = (int16_t)ret;
     }
     return ret;
 }
@@ -2339,13 +2350,18 @@ static uint32_t do_ld4_mmu(CPUState *cpu, vaddr addr, MemOpIdx oi,
     cpu_req_mo(cpu, TCG_MO_LD_LD | TCG_MO_ST_LD);
     crosspage = mmu_lookup(cpu, addr, oi, ra, access_type, &l);
     if (likely(!crosspage)) {
-        return do_ld_4(cpu, &l.page[0], l.mmu_idx, access_type, l.memop, ra);
+        ret = do_ld_4(cpu, &l.page[0], l.mmu_idx, access_type, l.memop, ra);
+        goto return_signextended;
     }
 
     ret = do_ld_beN(cpu, &l.page[0], 0, l.mmu_idx, access_type, l.memop, ra);
     ret = do_ld_beN(cpu, &l.page[1], ret, l.mmu_idx, access_type, l.memop, ra);
     if ((l.memop & MO_BSWAP) == MO_LE) {
         ret = bswap32(ret);
+    }
+return_signextended:
+    if (l.memop & MO_SIGN) {
+        ret = (int32_t)ret;
     }
     return ret;
 }
@@ -2360,13 +2376,18 @@ static uint64_t do_ld8_mmu(CPUState *cpu, vaddr addr, MemOpIdx oi,
     cpu_req_mo(cpu, TCG_MO_LD_LD | TCG_MO_ST_LD);
     crosspage = mmu_lookup(cpu, addr, oi, ra, access_type, &l);
     if (likely(!crosspage)) {
-        return do_ld_8(cpu, &l.page[0], l.mmu_idx, access_type, l.memop, ra);
+        ret = do_ld_8(cpu, &l.page[0], l.mmu_idx, access_type, l.memop, ra);
+        goto return_signextended;
     }
 
     ret = do_ld_beN(cpu, &l.page[0], 0, l.mmu_idx, access_type, l.memop, ra);
     ret = do_ld_beN(cpu, &l.page[1], ret, l.mmu_idx, access_type, l.memop, ra);
     if ((l.memop & MO_BSWAP) == MO_LE) {
         ret = bswap64(ret);
+    }
+return_signextended:
+    if (l.memop & MO_SIGN) {
+        ret = (int64_t)ret;
     }
     return ret;
 }
@@ -2396,7 +2417,7 @@ static Int128 do_ld16_mmu(CPUState *cpu, vaddr addr,
                 ret = bswap128(ret);
             }
         }
-        return ret;
+        goto return_signextended;
     }
 
     first = l.page[0].size;
@@ -2410,7 +2431,7 @@ static Int128 do_ld16_mmu(CPUState *cpu, vaddr addr,
         } else {
             ret = int128_make128(b, a);
         }
-        return ret;
+        goto return_signextended;
     }
 
     if (first < 8) {
@@ -2428,6 +2449,10 @@ static Int128 do_ld16_mmu(CPUState *cpu, vaddr addr,
     }
     if ((l.memop & MO_BSWAP) == MO_LE) {
         ret = bswap128(ret);
+    }
+return_signextended:
+    if (l.memop & MO_SIGN) {
+        ret = int128_signextend(ret);
     }
     return ret;
 }
