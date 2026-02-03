@@ -20,6 +20,7 @@
 %rs3       27:5
 %rs2       20:5
 %rs1       15:5
+%rs1_3     17:3                  !function=ex_rvc_register
 %rd        7:5
 %sh5       20:5
 %sh6       20:6
@@ -40,6 +41,7 @@
 %imm_z6   26:1 15:5
 %imm_mop5 30:1 26:2 20:2
 %imm_mop3 30:1 26:2
+%imm_bi   20:5                   !function=ex_bi
 
 # Argument sets:
 &empty
@@ -60,6 +62,7 @@
 &k_aes     shamt rs2 rs1 rd
 &mop5 imm rd rs1
 &mop3 imm rd rs1 rs2
+&bi   imm imm2 rs1
 
 # Formats 32:
 @r       .......   ..... ..... ... ..... ....... &r                %rs2 %rs1 %rd
@@ -110,6 +113,8 @@
 
 # Formats 128:
 @sh6       ...... ...... ..... ... ..... ....... &shift shamt=%sh6 %rs1 %rd
+
+@bi      ....... ..... ... .. ... ..... ....... &bi imm=%imm_b imm2=%imm_bi rs1=%rs1
 
 # *** Privileged Instructions ***
 ecall       000000000000     00000 000 00000 1110011
@@ -1084,3 +1089,7 @@ sb_aqrl  00111 . . ..... ..... 000 ..... 0101111 @atom_st
 sh_aqrl  00111 . . ..... ..... 001 ..... 0101111 @atom_st
 sw_aqrl  00111 . . ..... ..... 010 ..... 0101111 @atom_st
 sd_aqrl  00111 . . ..... ..... 011 ..... 0101111 @atom_st
+
+# *** Zibi Extension ***
+beqi       ....... ..... ..... 010 ..... 1100011 @bi
+bnei       ....... ..... ..... 011 ..... 1100011 @bi

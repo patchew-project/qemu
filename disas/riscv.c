@@ -984,6 +984,8 @@ typedef enum {
     rv_op_ssamoswap_d = 953,
     rv_op_c_sspush = 954,
     rv_op_c_sspopchk = 955,
+    rv_op_beqi      = 956,
+    rv_op_bnei      = 957,
 } rv_op;
 
 /* register names */
@@ -2254,6 +2256,8 @@ const rv_opcode_data rvi_opcode_data[] = {
       rv_op_sspush, 0 },
     { "c.sspopchk", rv_codec_cmop_ss, rv_fmt_rs1, NULL, rv_op_sspopchk,
       rv_op_sspopchk, 0 },
+    { "beqi", rv_codec_bi, rv_fmt_rs1_imm1_offset, NULL, 0, 0, 0 },
+    { "bnei", rv_codec_bi, rv_fmt_rs1_imm1_offset, NULL, 0, 0, 0 },
 };
 
 /* CSR names */
@@ -3997,6 +4001,8 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
             switch ((inst >> 12) & 0b111) {
             case 0: op = rv_op_beq; break;
             case 1: op = rv_op_bne; break;
+            case 2: op = rv_op_beqi; break;
+            case 3: op = rv_op_bnei; break;
             case 4: op = rv_op_blt; break;
             case 5: op = rv_op_bge; break;
             case 6: op = rv_op_bltu; break;
@@ -4529,6 +4535,12 @@ static uint32_t operand_imml(rv_inst inst)
     return (inst << 38) >> 58;
 }
 
+static int32_t operand_bi(rv_inst inst)
+{
+    uint32_t cimm = (inst << 39) >> 59;
+    return cimm == 0 ? -1 : cimm;
+}
+
 static uint32_t calculate_stack_adj(rv_isa isa, uint32_t rlist, uint32_t spimm)
 {
     int xlen_bytes_log2 = isa == rv64 ? 3 : 2;
@@ -4947,6 +4959,11 @@ static void decode_inst_operands(rv_decode *dec, rv_isa isa)
         dec->rd = rv_ireg_zero;
         dec->rs1 = dec->rs2 = operand_crs1(inst);
         dec->imm = 0;
+        break;
+    case rv_codec_bi:
+        dec->rs1 = operand_rs1(inst);
+        dec->imm = operand_sbimm12(inst);
+        dec->imm1 = operand_bi(inst);
         break;
     };
 }
