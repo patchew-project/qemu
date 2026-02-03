@@ -221,6 +221,29 @@ static int exc_group_prio(NVICState *s, int rawprio, bool targets_secure)
     return rawprio;
 }
 
+/*
+ * Update the pending state of an exception vector.
+ * This is the central function for all updates to vec->pending.
+ * Handles SEVONPEND: if this is a 0->1 transition on an external interrupt
+ * and SEVONPEND is set in the appropriate SCR, sets the event register.
+ */
+static void nvic_update_pending_state(NVICState *s, VecInfo *vec,
+                                      int irq, int scr_bank,
+                                      uint8_t next_pending_val)
+{
+    uint8_t prev_pending_val = vec->pending;
+    vec->pending = next_pending_val;
+
+    /* Check for 0->1 transition on interrupts (>= NVIC_FIRST_IRQ) only */
+    if (!prev_pending_val && next_pending_val && irq >= NVIC_FIRST_IRQ) {
+        /* SEVONPEND: interrupt going to pending is a WFE wakeup event */
+        if (s->cpu->env.v7m.scr[scr_bank] & R_V7M_SCR_SEVONPEND_MASK) {
+            s->cpu->env.event_register = true;
+            qemu_cpu_kick(CPU(s->cpu));
+        }
+    }
+}
+
 /* Recompute vectpending and exception_prio for a CPU which implements
  * the Security extension
  */
@@ -505,18 +528,21 @@ static void nvic_irq_update(NVICState *s)
 static void armv7m_nvic_clear_pending(NVICState *s, int irq, bool secure)
 {
     VecInfo *vec;
+    int scr_bank;
 
     assert(irq > ARMV7M_EXCP_RESET && irq < s->num_irq);
 
     if (secure) {
         assert(exc_is_banked(irq));
         vec = &s->sec_vectors[irq];
+        scr_bank = M_REG_S;
     } else {
         vec = &s->vectors[irq];
+        scr_bank = M_REG_NS;
     }
     trace_nvic_clear_pending(irq, secure, vec->enabled, vec->prio);
     if (vec->pending) {
-        vec->pending = 0;
+        nvic_update_pending_state(s, vec, irq, scr_bank, 0);
         nvic_irq_update(s);
     }
 }
@@ -544,11 +570,18 @@ static void do_armv7m_nvic_set_pending(void *opaque, int irq, bool secure,
     bool banked = exc_is_banked(irq);
     VecInfo *vec;
     bool targets_secure;
+    int scr_bank;
 
     assert(irq > ARMV7M_EXCP_RESET && irq < s->num_irq);
     assert(!secure || banked);
 
-    vec = (banked && secure) ? &s->sec_vectors[irq] : &s->vectors[irq];
+    if (banked && secure) {
+        vec = &s->sec_vectors[irq];
+        scr_bank = M_REG_S;
+    } else {
+        vec = &s->vectors[irq];
+        scr_bank = M_REG_NS;
+    }
 
     targets_secure = banked ? secure : exc_targets_secure(s, irq);
 
@@ -636,8 +669,10 @@ static void do_armv7m_nvic_set_pending(void *opaque, int irq, bool secure,
                 (targets_secure ||
                  !(s->cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK))) {
                 vec = &s->sec_vectors[irq];
+                scr_bank = M_REG_S;
             } else {
                 vec = &s->vectors[irq];
+                scr_bank = M_REG_NS;
             }
             if (running <= vec->prio) {
                 /* We want to escalate to HardFault but we can't take the
@@ -656,7 +691,7 @@ static void do_armv7m_nvic_set_pending(void *opaque, int irq, bool secure,
     }
 
     if (!vec->pending) {
-        vec->pending = 1;
+        nvic_update_pending_state(s, vec, irq, scr_bank, 1);
         nvic_irq_update(s);
     }
 }
@@ -683,6 +718,7 @@ void armv7m_nvic_set_pending_lazyfp(NVICState *s, int irq, bool secure)
     VecInfo *vec;
     bool targets_secure;
     bool escalate = false;
+    int scr_bank;
     /*
      * We will only look at bits in fpccr if this is a banked exception
      * (in which case 'secure' tells us whether it is the S or NS version).
@@ -694,7 +730,13 @@ void armv7m_nvic_set_pending_lazyfp(NVICState *s, int irq, bool secure)
     assert(irq > ARMV7M_EXCP_RESET && irq < s->num_irq);
     assert(!secure || banked);
 
-    vec = (banked && secure) ? &s->sec_vectors[irq] : &s->vectors[irq];
+    if (banked && secure) {
+        vec = &s->sec_vectors[irq];
+        scr_bank = M_REG_S;
+    } else {
+        vec = &s->vectors[irq];
+        scr_bank = M_REG_NS;
+    }
 
     targets_secure = banked ? secure : exc_targets_secure(s, irq);
 
@@ -731,8 +773,10 @@ void armv7m_nvic_set_pending_lazyfp(NVICState *s, int irq, bool secure)
             (targets_secure ||
              !(s->cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK))) {
             vec = &s->sec_vectors[irq];
+            scr_bank = M_REG_S;
         } else {
             vec = &s->vectors[irq];
+            scr_bank = M_REG_NS;
         }
     }
 
@@ -753,7 +797,7 @@ void armv7m_nvic_set_pending_lazyfp(NVICState *s, int irq, bool secure)
         s->cpu->env.v7m.hfsr |= R_V7M_HFSR_FORCED_MASK;
     }
     if (!vec->pending) {
-        vec->pending = 1;
+        nvic_update_pending_state(s, vec, irq, scr_bank, 1);
         /*
          * We do not call nvic_irq_update(), because we know our caller
          * is going to handle causing us to take the exception by
@@ -773,13 +817,16 @@ void armv7m_nvic_acknowledge_irq(NVICState *s)
     const int pending = s->vectpending;
     const int running = nvic_exec_prio(s);
     VecInfo *vec;
+    int scr_bank;
 
     assert(pending > ARMV7M_EXCP_RESET && pending < s->num_irq);
 
     if (s->vectpending_is_s_banked) {
         vec = &s->sec_vectors[pending];
+        scr_bank = M_REG_S;
     } else {
         vec = &s->vectors[pending];
+        scr_bank = M_REG_NS;
     }
 
     assert(vec->enabled);
@@ -790,7 +837,7 @@ void armv7m_nvic_acknowledge_irq(NVICState *s)
     trace_nvic_acknowledge_irq(pending, s->vectpending_prio);
 
     vec->active = 1;
-    vec->pending = 0;
+    nvic_update_pending_state(s, vec, pending, scr_bank, 0);
 
     write_v7m_exception(env, s->vectpending);
 
@@ -827,6 +874,7 @@ int armv7m_nvic_complete_irq(NVICState *s, int irq, bool secure)
 {
     VecInfo *vec = NULL;
     int ret = 0;
+    int scr_bank;
 
     assert(irq > ARMV7M_EXCP_RESET && irq < s->num_irq);
 
@@ -834,8 +882,10 @@ int armv7m_nvic_complete_irq(NVICState *s, int irq, bool secure)
 
     if (secure && exc_is_banked(irq)) {
         vec = &s->sec_vectors[irq];
+        scr_bank = M_REG_S;
     } else {
         vec = &s->vectors[irq];
+        scr_bank = M_REG_NS;
     }
 
     /*
@@ -873,15 +923,19 @@ int armv7m_nvic_complete_irq(NVICState *s, int irq, bool secure)
         case -1:
             if (s->cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK) {
                 vec = &s->vectors[ARMV7M_EXCP_HARD];
+                scr_bank = M_REG_NS;
             } else {
                 vec = &s->sec_vectors[ARMV7M_EXCP_HARD];
+                scr_bank = M_REG_S;
             }
             break;
         case -2:
             vec = &s->vectors[ARMV7M_EXCP_NMI];
+            scr_bank = M_REG_NS;
             break;
         case -3:
             vec = &s->sec_vectors[ARMV7M_EXCP_HARD];
+            scr_bank = M_REG_S;
             break;
         default:
             break;
@@ -898,7 +952,7 @@ int armv7m_nvic_complete_irq(NVICState *s, int irq, bool secure)
          * happens for external IRQs
          */
         assert(irq >= NVIC_FIRST_IRQ);
-        vec->pending = 1;
+        nvic_update_pending_state(s, vec, irq, scr_bank, 1);
     }
 
     nvic_irq_update(s);
@@ -1657,7 +1711,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
         }
         /* We don't implement deep-sleep so these bits are RAZ/WI.
          * The other bits in the register are banked.
-         * QEMU's implementation ignores SEVONPEND and SLEEPONEXIT, which
+         * QEMU's implementation ignores SLEEPONEXIT, which
          * is architecturally permitted.
          */
         value &= ~(R_V7M_SCR_SLEEPDEEP_MASK | R_V7M_SCR_SLEEPDEEPS_MASK);
@@ -1722,38 +1776,57 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
                 (value & (1 << 10)) != 0;
             s->sec_vectors[ARMV7M_EXCP_SYSTICK].active =
                 (value & (1 << 11)) != 0;
-            s->sec_vectors[ARMV7M_EXCP_USAGE].pending =
-                (value & (1 << 12)) != 0;
-            s->sec_vectors[ARMV7M_EXCP_MEM].pending = (value & (1 << 13)) != 0;
-            s->sec_vectors[ARMV7M_EXCP_SVC].pending = (value & (1 << 15)) != 0;
+            nvic_update_pending_state(s, &s->sec_vectors[ARMV7M_EXCP_USAGE],
+                                      ARMV7M_EXCP_USAGE, M_REG_S,
+                                      (value & (1 << 12)) != 0);
+            nvic_update_pending_state(s, &s->sec_vectors[ARMV7M_EXCP_MEM],
+                                      ARMV7M_EXCP_MEM, M_REG_S,
+                                      (value & (1 << 13)) != 0);
+            nvic_update_pending_state(s, &s->sec_vectors[ARMV7M_EXCP_SVC],
+                                      ARMV7M_EXCP_SVC, M_REG_S,
+                                      (value & (1 << 15)) != 0);
             s->sec_vectors[ARMV7M_EXCP_MEM].enabled = (value & (1 << 16)) != 0;
             s->sec_vectors[ARMV7M_EXCP_BUS].enabled = (value & (1 << 17)) != 0;
             s->sec_vectors[ARMV7M_EXCP_USAGE].enabled =
                 (value & (1 << 18)) != 0;
-            s->sec_vectors[ARMV7M_EXCP_HARD].pending = (value & (1 << 21)) != 0;
+            nvic_update_pending_state(s, &s->sec_vectors[ARMV7M_EXCP_HARD],
+                                      ARMV7M_EXCP_HARD, M_REG_S,
+                                      (value & (1 << 21)) != 0);
             /* SecureFault not banked, but RAZ/WI to NS */
             s->vectors[ARMV7M_EXCP_SECURE].active = (value & (1 << 4)) != 0;
             s->vectors[ARMV7M_EXCP_SECURE].enabled = (value & (1 << 19)) != 0;
-            s->vectors[ARMV7M_EXCP_SECURE].pending = (value & (1 << 20)) != 0;
+            nvic_update_pending_state(s, &s->vectors[ARMV7M_EXCP_SECURE],
+                                      ARMV7M_EXCP_SECURE, M_REG_NS,
+                                      (value & (1 << 20)) != 0);
         } else {
             s->vectors[ARMV7M_EXCP_MEM].active = (value & (1 << 0)) != 0;
             if (arm_feature(&cpu->env, ARM_FEATURE_V8)) {
                 /* HARDFAULTPENDED is not present in v7M */
-                s->vectors[ARMV7M_EXCP_HARD].pending = (value & (1 << 21)) != 0;
+                nvic_update_pending_state(s, &s->vectors[ARMV7M_EXCP_HARD],
+                                          ARMV7M_EXCP_HARD, M_REG_NS,
+                                          (value & (1 << 21)) != 0);
             }
             s->vectors[ARMV7M_EXCP_USAGE].active = (value & (1 << 3)) != 0;
             s->vectors[ARMV7M_EXCP_SVC].active = (value & (1 << 7)) != 0;
             s->vectors[ARMV7M_EXCP_PENDSV].active = (value & (1 << 10)) != 0;
             s->vectors[ARMV7M_EXCP_SYSTICK].active = (value & (1 << 11)) != 0;
-            s->vectors[ARMV7M_EXCP_USAGE].pending = (value & (1 << 12)) != 0;
-            s->vectors[ARMV7M_EXCP_MEM].pending = (value & (1 << 13)) != 0;
-            s->vectors[ARMV7M_EXCP_SVC].pending = (value & (1 << 15)) != 0;
+            nvic_update_pending_state(s, &s->vectors[ARMV7M_EXCP_USAGE],
+                                      ARMV7M_EXCP_USAGE, M_REG_NS,
+                                      (value & (1 << 12)) != 0);
+            nvic_update_pending_state(s, &s->vectors[ARMV7M_EXCP_MEM],
+                                      ARMV7M_EXCP_MEM, M_REG_NS,
+                                      (value & (1 << 13)) != 0);
+            nvic_update_pending_state(s, &s->vectors[ARMV7M_EXCP_SVC],
+                                      ARMV7M_EXCP_SVC, M_REG_NS,
+                                      (value & (1 << 15)) != 0);
             s->vectors[ARMV7M_EXCP_MEM].enabled = (value & (1 << 16)) != 0;
             s->vectors[ARMV7M_EXCP_USAGE].enabled = (value & (1 << 18)) != 0;
         }
         if (attrs.secure || (cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK)) {
             s->vectors[ARMV7M_EXCP_BUS].active = (value & (1 << 1)) != 0;
-            s->vectors[ARMV7M_EXCP_BUS].pending = (value & (1 << 14)) != 0;
+            nvic_update_pending_state(s, &s->vectors[ARMV7M_EXCP_BUS],
+                                      ARMV7M_EXCP_BUS, M_REG_NS,
+                                      (value & (1 << 14)) != 0);
             s->vectors[ARMV7M_EXCP_BUS].enabled = (value & (1 << 17)) != 0;
         }
         /* NMIACT can only be written if the write is of a zero, with
@@ -2389,7 +2462,8 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
                 (attrs.secure || s->itns[startvec + i]) &&
                 !(setval == 0 && s->vectors[startvec + i].level &&
                   !s->vectors[startvec + i].active)) {
-                s->vectors[startvec + i].pending = setval;
+                nvic_update_pending_state(s, &s->vectors[startvec + i],
+                                          startvec + i, M_REG_NS, setval);
             }
         }
         nvic_irq_update(s);
