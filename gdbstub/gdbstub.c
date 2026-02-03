@@ -1431,11 +1431,10 @@ static void handle_v_attach(GArray *params, void *user_ctx)
         gdbserver_state.g_cpu = cpu;
         gdbserver_state.c_cpu = cpu;
 
-    if (gdbserver_state.allow_stop_reply) {
-        g_string_printf(gdbserver_state.str_buf, "T%02xthread:", GDB_SIGNAL_TRAP);
-        gdb_append_thread_id(cpu, gdbserver_state.str_buf);
-        g_string_append_c(gdbserver_state.str_buf, ';');
-        gdbserver_state.allow_stop_reply = false;
+        if (gdbserver_state.allow_stop_reply) {
+            gdb_build_stop_packet(cpu);
+            gdbserver_state.allow_stop_reply = false;
+        }
     }
 
     gdb_put_strbuf();
@@ -2037,11 +2036,9 @@ static void handle_gen_set(GArray *params, void *user_ctx)
 static void handle_target_halt(GArray *params, void *user_ctx)
 {
     if (gdbserver_state.allow_stop_reply) {
-        g_string_printf(gdbserver_state.str_buf, "T%02xthread:", GDB_SIGNAL_TRAP);
-        gdb_append_thread_id(gdbserver_state.c_cpu, gdbserver_state.str_buf);
-        g_string_append_c(gdbserver_state.str_buf, ';');
-        gdb_put_strbuf();
+        gdb_build_stop_packet(gdbserver_state.c_cpu);
         gdbserver_state.allow_stop_reply = false;
+        gdb_put_strbuf();
     }
     /*
      * Remove all the breakpoints when this query is issued,
