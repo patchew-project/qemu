@@ -1432,7 +1432,7 @@ static void handle_v_attach(GArray *params, void *user_ctx)
         gdbserver_state.c_cpu = cpu;
 
         if (gdbserver_state.allow_stop_reply) {
-            gdb_build_stop_packet(cpu);
+            gdb_build_stop_packet(gdbserver_state.str_buf, cpu);
             gdbserver_state.allow_stop_reply = false;
         }
     }
@@ -2036,7 +2036,7 @@ static void handle_gen_set(GArray *params, void *user_ctx)
 static void handle_target_halt(GArray *params, void *user_ctx)
 {
     if (gdbserver_state.allow_stop_reply) {
-        gdb_build_stop_packet(gdbserver_state.c_cpu);
+        gdb_build_stop_packet(gdbserver_state.str_buf, gdbserver_state.c_cpu);
         gdbserver_state.allow_stop_reply = false;
         gdb_put_strbuf();
     }

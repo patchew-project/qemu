@@ -976,9 +976,9 @@ void gdb_handle_query_xfer_siginfo(GArray *params, void *user_ctx)
  *   T05thread:{id};
  */
 
-void gdb_build_stop_packet(CPUState *cs)
+void gdb_build_stop_packet(GString *buf, CPUState *cs)
 {
-    g_string_printf(gdbserver_state.str_buf, "T%02xthread:", GDB_SIGNAL_TRAP);
-    gdb_append_thread_id(cs, gdbserver_state.str_buf);
-    g_string_append_c(gdbserver_state.str_buf, ';');
+    g_string_printf(buf, "T%02xthread:", GDB_SIGNAL_TRAP);
+    gdb_append_thread_id(cs, buf);
+    g_string_append_c(buf, ';');
 }

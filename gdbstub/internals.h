@@ -239,9 +239,12 @@ int gdb_target_memory_rw_debug(CPUState *cs, hwaddr addr,
 
 /**
  * gdb_build_stop_packet() - craft the stop packet
+ * @buf: GString buffer for building the packet
  * @cs: CPUState
+ *
+ * Craft the Stop/Reply packet when we halt.
  */
 
-void gdb_build_stop_packet(CPUState *cs);
+void gdb_build_stop_packet(GString *buf, CPUState *cs);
 
 #endif /* GDBSTUB_INTERNALS_H */

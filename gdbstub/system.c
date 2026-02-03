@@ -668,8 +668,8 @@ void gdb_breakpoint_remove_all(CPUState *cs)
  *   T05core:{id};
  */
 
-void gdb_build_stop_packet(CPUState *cs)
+void gdb_build_stop_packet(GString *buf, CPUState *cs)
 {
-    g_string_printf(gdbserver_state.str_buf,
+    g_string_printf(buf,
                     "T%02xcore:%02x;", GDB_SIGNAL_TRAP, gdb_get_cpu_index(cs));
 }
