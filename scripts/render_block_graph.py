@@ -106,7 +106,10 @@ class LibvirtGuest():
 
         ar += ['qemu-monitor-command', self.name, json.dumps(m)]
 
-        reply = json.loads(subprocess.check_output(ar))
+        try:
+            reply = json.loads(subprocess.check_output(ar))
+        except subprocess.CalledProcessError:
+            sys.exit(1)
 
         if 'error' in reply:
             raise QMPError(reply)
