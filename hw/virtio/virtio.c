@@ -3248,6 +3248,7 @@ void virtio_reset(void *opaque)
         /* System reset */
         vdev->device_endian = virtio_default_endian();
     }
+    vdev->access_is_big_endian = virtio_access_is_big_endian(vdev);
 
     if (k->get_vhost) {
         struct vhost_dev *hdev = k->get_vhost(vdev);
