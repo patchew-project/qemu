@@ -35,6 +35,19 @@ typedef enum ARMSysRegs {
 
 #undef DEF
 
+/* ID registers that vary based upon another register */
+typedef enum ARMIDRegisterDemuxIdx {
+    NUM_ID_DEMUX_IDX,
+} ARMIDRegisterDemuxIdx;
+
+/*
+ * Number of register variants per demuxed register, trying to accommodate
+ * possible use cases.
+ * CCSIDR_EL1 currently needs 7*2, could be 7 more with FEAT_MTE2, in which
+ * case we would need to bump this number.
+ */
+#define ID_DEMUX_ARRAYLEN 16
+
 extern const uint32_t id_register_sysreg[NUM_ID_IDX];
 
 int get_sysreg_idx(ARMSysRegs sysreg);

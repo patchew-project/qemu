@@ -906,6 +906,25 @@ typedef struct {
         i_->idregs[REG ## _EL1_IDX];                                    \
     })
 
+#define SET_IDREG_DEMUX(ISAR, REG, INDEX, VALUE)                        \
+    ({                                                                  \
+        ARMISARegisters *i_ = (ISAR);                                   \
+        i_->idregs_demux[REG ## _EL1_DEMUX_IDX][INDEX] = VALUE;         \
+    })
+
+#define GET_IDREG_DEMUX(ISAR, REG, INDEX)                               \
+    ({                                                                  \
+        ARMISARegisters *i_ = (ISAR);                                   \
+        i_->idregs_demux[REG ## _EL1_DEMUX_IDX][INDEX];                 \
+    })
+
+#define COPY_IDREG_DEMUX(ISAR, REG, FROM_INDEX, TO_INDEX)               \
+    ({                                                                  \
+        ARMISARegisters *i_ = (ISAR);                                   \
+        i_->idregs_demux[REG ## _EL1_DEMUX_IDX][TO_INDEX] =             \
+            i_->idregs_demux[REG ## _EL1_DEMUX_IDX][FROM_INDEX];        \
+    })
+
 /**
  * ARMCPU:
  * @env: #CPUARMState
@@ -1084,6 +1103,7 @@ struct ArchCPU {
         uint32_t dbgdevid1;
         uint64_t reset_pmcr_el0;
         uint64_t idregs[NUM_ID_IDX];
+        uint64_t idregs_demux[NUM_ID_DEMUX_IDX][ID_DEMUX_ARRAYLEN];
     } isar;
     uint64_t midr;
     uint32_t revidr;
