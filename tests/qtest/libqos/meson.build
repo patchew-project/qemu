@@ -73,6 +73,9 @@ endif
 if config_all_devices.has_key('CONFIG_RISCV_IOMMU')
   libqos_srcs += files('riscv-iommu.c')
 endif
+if config_all_devices.has_key('CONFIG_VTD')
+  libqos_srcs += files('qos-intel-iommu.c')
+endif
 if config_all_devices.has_key('CONFIG_TPCI200')
   libqos_srcs += files('tpci200.c')
 endif
