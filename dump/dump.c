@@ -1288,6 +1288,7 @@ static bool get_next_page(GuestPhysBlock **blockptr, uint64_t *pfnptr,
     /* block == NULL means the start of the iteration */
     if (!block) {
         block = QTAILQ_FIRST(&s->guest_phys_blocks.head);
+        assert(block);
         *blockptr = block;
         addr = block->target_start;
         *pfnptr = dump_paddr_to_pfn(s, addr);
@@ -1295,7 +1296,6 @@ static bool get_next_page(GuestPhysBlock **blockptr, uint64_t *pfnptr,
         *pfnptr += 1;
         addr = dump_pfn_to_paddr(s, *pfnptr);
     }
-    assert(block != NULL);
 
     while (1) {
         if (addr >= block->target_start && addr < block->target_end) {
