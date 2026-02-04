@@ -115,4 +115,7 @@ void build_append_wdat_ins(GArray *table_data,
                            struct AcpiGenericAddress as,
                            uint32_t val, uint32_t mask);
 
+void build_wdat(GArray *table_data, BIOSLinker *linker, const char *oem_id,
+                const char *oem_table_id, uint64_t tco_base);
+
 #endif /* QEMU_HW_ACPI_WDAT_H */
