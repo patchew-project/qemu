@@ -160,9 +160,15 @@ static inline float16 check_nanbox_bf16(CPURISCVState *env, uint64_t f)
 
 static inline target_ulong get_xepc_mask(CPURISCVState *env)
 {
-    /* When IALIGN=32, both low bits must be zero.
-     * When IALIGN=16 (has C extension), only bit 0 must be zero. */
-    if (riscv_has_ext(env, RVC)) {
+    RISCVCPU *cpu = env_archcpu(env);
+
+    /*
+     * When IALIGN=32, both low bits must be zero.
+     * When IALIGN=16 (has C or Zc* extensions), only bit 0 must be zero.
+     */
+    if (riscv_has_ext(env, RVC) || cpu->cfg.ext_zca ||
+        cpu->cfg.ext_zcb || cpu->cfg.ext_zcd || cpu->cfg.ext_zce ||
+        cpu->cfg.ext_zcf || cpu->cfg.ext_zcmp || cpu->cfg.ext_zcmt) {
         return ~(target_ulong)1;
     } else {
         return ~(target_ulong)3;
