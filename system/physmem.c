@@ -2023,10 +2023,10 @@ static int memory_try_enable_merging(void *addr, size_t len)
  */
 int qemu_ram_resize(RAMBlock *block, ram_addr_t newsize, Error **errp)
 {
+    assert(block);
+
     const ram_addr_t oldsize = block->used_length;
     const ram_addr_t unaligned_size = newsize;
-
-    assert(block);
 
     newsize = TARGET_PAGE_ALIGN(newsize);
     newsize = REAL_HOST_PAGE_ALIGN(newsize);
