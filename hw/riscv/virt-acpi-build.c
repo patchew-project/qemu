@@ -506,6 +506,8 @@ static void build_dsdt(GArray *table_data,
                       s->memmap[VIRT_ACPI_GED].base);
     }
 
+    acpi_dsdt_add_power_button(scope);
+
     aml_append(dsdt, scope);
 
     /* copy AML table into ACPI tables blob and patch header there */
