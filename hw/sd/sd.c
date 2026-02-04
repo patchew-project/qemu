@@ -162,6 +162,7 @@ struct SDState {
     /* Static properties */
 
     uint8_t spec_version;
+    bool erase_blocks_as_zero;
     uint64_t boot_part_size;
     uint64_t rpmb_part_size;
     BlockBackend *blk;
@@ -439,6 +440,9 @@ static void sd_set_scr(SDState *sd)
     sd->scr[0] |= 2;            /* Spec Version 2.00 or Version 3.0X */
     sd->scr[1] = (2 << 4)       /* SDSC Card (Security Version 1.01) */
                  | 0b0101;      /* 1-bit or 4-bit width bus modes */
+    if (!sd->erase_blocks_as_zero) {
+        sd->scr[1] |= (1 << 7); /* DATA_STAT_AFTER_ERASE: Erase produces 0xFF */
+    }
     sd->scr[2] = 0x00;          /* Extended Security is not supported. */
     if (sd->spec_version >= SD_PHY_SPECv3_01_VERS) {
         sd->scr[2] |= 1 << 7;   /* Spec Version 3.0X */
@@ -456,7 +460,7 @@ static void sd_set_scr(SDState *sd)
 #define MID     0xaa
 #define OID     "XY"
 #define PNM     "QEMU!"
-#define PRV     0x01
+#define PRV     0x02
 #define MDT_YR  2006
 #define MDT_MON 2
 
@@ -1363,7 +1367,12 @@ static void sd_erase(SDState *sd)
     sd->erase_end = INVALID_ADDRESS;
     sd->csd[14] |= 0x40;
 
-    memset(sd->data, 0xff, erase_len);
+    if (sd->erase_blocks_as_zero) {
+        memset(sd->data, 0x0, erase_len);
+    } else {
+        memset(sd->data, 0xFF, erase_len);
+    }
+
     for (erase_addr = erase_start; erase_addr <= erase_end;
          erase_addr += erase_len) {
         if (sdsc) {
@@ -3287,6 +3296,8 @@ static void emmc_realize(DeviceState *dev, Error **errp)
 
 static const Property sdmmc_common_properties[] = {
     DEFINE_PROP_DRIVE("drive", SDState, blk),
+    DEFINE_PROP_BOOL("erase-blocks-as-zero", SDState, erase_blocks_as_zero,
+                     false),
 };
 
 static const Property sd_properties[] = {
