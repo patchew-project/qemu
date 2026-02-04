@@ -243,6 +243,33 @@ static int get_host_cpu_reg(int fd, ARMHostCPUFeatures *ahcf,
     return ret;
 }
 
+static int get_host_cpu_reg_demux(int fd, ARMHostCPUFeatures *ahcf,
+                                  ARMIDRegisterIdx index, int subindex)
+{
+
+    struct kvm_one_reg one_reg = {
+        .id = KVM_REG_ARM64 | KVM_REG_SIZE_U32 | KVM_REG_ARM_DEMUX,
+    };
+    ARMIDRegisterDemuxIdx demux_index;
+
+    switch (index) {
+    case CCSIDR_EL1_IDX:
+        if (subindex < 14) {
+            one_reg.id |= KVM_REG_ARM_DEMUX_ID_CCSIDR | subindex;
+        } else {
+            return -EINVAL;
+        }
+        demux_index = CCSIDR_EL1_DEMUX_IDX;
+        break;
+    default:
+        return -EINVAL;
+    }
+    one_reg.addr = (uintptr_t)&ahcf->isar.idregs_demux[demux_index][subindex];
+
+    return ioctl(fd, KVM_GET_ONE_REG, &one_reg);
+
+}
+
 static bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
 {
     /* Identify the feature bits corresponding to the host CPU, and
@@ -256,6 +283,7 @@ static bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
     bool pmu_supported = false;
     uint64_t features = 0;
     int err;
+    int i;
 
     /*
      * target = -1 informs kvm_arm_create_scratch_host_vcpu()
@@ -415,6 +443,11 @@ static bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
              * So only read the register if we set KVM_ARM_VCPU_SVE above.
              */
             err |= get_host_cpu_reg(fd, ahcf, ID_AA64ZFR0_EL1_IDX);
+        }
+        /* grab demuxed registers */
+        for (i = 0; i < 14; i++) {
+            /* KVM only allows 0..13 */
+            err |= get_host_cpu_reg_demux(fd, ahcf, CCSIDR_EL1_IDX, i);
         }
     }
 
