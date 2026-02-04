@@ -386,6 +386,24 @@ static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
     CharFrontend *chr = u->user->chr;
     int ret, size = VHOST_USER_HDR_SIZE + msg->hdr.size;
 
+    if (msg->hdr.request == VHOST_USER_REM_MEM_REG ||
+        msg->hdr.request == VHOST_USER_ADD_MEM_REG) {
+
+        /*
+         * In QEMU we pass guest physical addresses to vhost-user server
+         * instead of QEMUs virtual address. Server have no option to
+         * distinguesh, but we get a benefit: guest physical address is
+         * stable during migration, and we don't have to reset memory
+         * regions.
+         *
+         * Look also at vhost_user_vq_get_addr(): like in VDPA, we pass
+         * physical addresses instead of user.
+         */
+
+        msg->payload.mem_reg.region.userspace_addr =
+            msg->payload.mem_reg.region.guest_phys_addr;
+    }
+
     /*
      * Some devices, like virtio-scsi, are implemented as a single vhost_dev,
      * while others, like virtio-net, contain multiple vhost_devs. For
@@ -3021,6 +3039,17 @@ static int vhost_user_check_device_state(struct vhost_dev *dev, Error **errp)
     return 0;
 }
 
+static int vhost_user_vq_get_addr(struct vhost_dev *dev,
+                                  struct vhost_vring_addr *addr,
+                                  struct vhost_virtqueue *vq)
+{
+    assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
+    addr->desc_user_addr = (uint64_t)(unsigned long)vq->desc_phys;
+    addr->avail_user_addr = (uint64_t)(unsigned long)vq->avail_phys;
+    addr->used_user_addr = (uint64_t)(unsigned long)vq->used_phys;
+    return 0;
+}
+
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
         .vhost_backend_init = vhost_user_backend_init,
@@ -3059,4 +3088,5 @@ const VhostOps user_ops = {
         .vhost_supports_device_state = vhost_user_supports_device_state,
         .vhost_set_device_state_fd = vhost_user_set_device_state_fd,
         .vhost_check_device_state = vhost_user_check_device_state,
+        .vhost_vq_get_addr = vhost_user_vq_get_addr,
 };
