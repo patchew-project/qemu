@@ -37,6 +37,7 @@ typedef enum ARMSysRegs {
 
 /* ID registers that vary based upon another register */
 typedef enum ARMIDRegisterDemuxIdx {
+    CCSIDR_EL1_DEMUX_IDX,
     NUM_ID_DEMUX_IDX,
 } ARMIDRegisterDemuxIdx;
 
