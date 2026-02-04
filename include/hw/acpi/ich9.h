@@ -69,6 +69,7 @@ typedef struct ICH9LPCPMRegs {
     bool smm_compat;
     bool enable_tco;
     TCOIORegs tco_regs;
+    bool enable_wdat;
 
     bool swsmi_timer_enabled;
     bool periodic_timer_enabled;
