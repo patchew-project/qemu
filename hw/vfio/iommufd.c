@@ -931,6 +931,51 @@ host_iommu_device_iommufd_vfio_detach_hwpt(HostIOMMUDeviceIOMMUFD *idev,
     return iommufd_cdev_detach_ioas_hwpt(vbasedev, errp);
 }
 
+static bool
+host_iommu_device_iommufd_vfio_pasid_attach_hwpt(HostIOMMUDeviceIOMMUFD *idev,
+                                                 uint32_t pasid,
+                                                 uint32_t hwpt_id,
+                                                 Error **errp)
+{
+    VFIODevice *vbasedev = HOST_IOMMU_DEVICE(idev)->agent;
+    struct vfio_device_attach_iommufd_pt attach = {
+        .argsz = sizeof(attach),
+        .flags = VFIO_DEVICE_ATTACH_PASID,
+        .pasid = pasid,
+        .pt_id = hwpt_id,
+    };
+
+    if (ioctl(vbasedev->fd, VFIO_DEVICE_ATTACH_IOMMUFD_PT, &attach)) {
+        error_setg_errno(errp, errno, "error attach %s pasid %d to id=%d",
+                         vbasedev->name, pasid, hwpt_id);
+        return false;
+    }
+
+    trace_hiod_iommufd_vfio_pasid_attach_hwpt(vbasedev->name, pasid, hwpt_id);
+    return true;
+}
+
+static bool
+host_iommu_device_iommufd_vfio_pasid_detach_hwpt(HostIOMMUDeviceIOMMUFD *idev,
+                                                 uint32_t pasid, Error **errp)
+{
+    VFIODevice *vbasedev = HOST_IOMMU_DEVICE(idev)->agent;
+    struct vfio_device_detach_iommufd_pt detach = {
+        .argsz = sizeof(detach),
+        .pasid = pasid,
+        .flags = VFIO_DEVICE_DETACH_PASID,
+    };
+
+    if (ioctl(vbasedev->fd, VFIO_DEVICE_DETACH_IOMMUFD_PT, &detach)) {
+        error_setg_errno(errp, errno, "detach %s pasid %d failed",
+                         vbasedev->name, pasid);
+        return false;
+    }
+
+    trace_hiod_iommufd_vfio_pasid_detach_hwpt(vbasedev->name, pasid);
+    return true;
+}
+
 static bool hiod_iommufd_vfio_realize(HostIOMMUDevice *hiod, void *opaque,
                                       Error **errp)
 {
@@ -993,6 +1038,8 @@ static void hiod_iommufd_vfio_class_init(ObjectClass *oc, const void *data)
 
     idevc->attach_hwpt = host_iommu_device_iommufd_vfio_attach_hwpt;
     idevc->detach_hwpt = host_iommu_device_iommufd_vfio_detach_hwpt;
+    idevc->pasid_attach_hwpt = host_iommu_device_iommufd_vfio_pasid_attach_hwpt;
+    idevc->pasid_detach_hwpt = host_iommu_device_iommufd_vfio_pasid_detach_hwpt;
 };
 
 static const TypeInfo types[] = {
