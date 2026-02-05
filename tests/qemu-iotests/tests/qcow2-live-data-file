@@ -1,0 +1,274 @@
+#!/usr/bin/env python3
+# group: rw
+#
+# Given a raw image file already attached to a VM, create a qcow2 file with
+# that image as its external (raw) data file, and replace the raw image by
+# the qcow2 image.
+#
+# Copyright (C) 2026 Red Hat, Inc.
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Creator/Owner: Hanna Czenczek <hreitz@redhat.com>
+
+from enum import Enum, auto
+import re
+import iotests
+from iotests import log, qemu_img, qemu_img_log, qemu_io_log
+
+iotests.script_initialize(
+    supported_fmts=['qcow2'],
+    unsupported_imgopts=['compat'],
+)
+
+DISK_SIZE = 64 * 1024 * 1024
+
+class CreateException(Exception):
+    pass
+
+class GuestDiskType(Enum):
+    VIRTIO_BLK = auto()
+    SCSI_HD = auto()
+    SCSI_CD = auto()
+
+def do_test(
+    vm: iotests.VM,
+    with_raw_node: bool,
+    guest_disk_type: GuestDiskType,
+    preallocation: str,
+    qcow2_size: int,
+    raw_img_path: str,
+    qcow2_img_path: str,
+) -> None:
+    log('=== do_test() ===')
+    log(f' - with_raw_node={with_raw_node}')
+    log(f' - guest_disk_type={guest_disk_type}')
+    log(f' - preallocation={preallocation}')
+    log(f' - qcow2_size={qcow2_size}')
+
+    log('')
+    log('--- Setting up raw image ---')
+    qemu_img('create', '-f', 'raw', raw_img_path, str(DISK_SIZE))
+
+    log('')
+    log('--- Launching VM ---')
+
+    vm.add_blockdev(vm.qmp_to_opts({
+        'driver': 'file',
+        'node-name': 'protocol',
+        'filename': raw_img_path,
+    }))
+
+    if with_raw_node:
+        vm.add_blockdev(vm.qmp_to_opts({
+            'driver': 'raw',
+            'node-name': 'raw',
+            'file': 'protocol',
+        }))
+        raw_node = 'raw'
+    else:
+        raw_node = 'protocol'
+
+    dev_id = 'sda'
+    qom_path = f'/machine/peripheral/{dev_id}'
+    if guest_disk_type == GuestDiskType.VIRTIO_BLK:
+        vm.add_device(f'virtio-blk,id={dev_id},drive={raw_node}')
+        dev_id = f'{qom_path}/virtio-backend'
+    elif guest_disk_type == GuestDiskType.SCSI_HD:
+        vm.add_device('virtio-scsi')
+        vm.add_device(f'scsi-hd,id={dev_id},drive={raw_node}')
+    elif guest_disk_type == GuestDiskType.SCSI_CD:
+        vm.add_device('virtio-scsi')
+        vm.add_device(f'scsi-cd,id={dev_id},drive={raw_node}')
+
+    vm.launch()
+
+    log('')
+    log('--- Creating qcow2 image ---')
+
+    create_and_open(vm, {
+        'driver': 'file',
+        'filename': qcow2_img_path,
+    }, {
+        'size': 0,
+    }, {
+        'node-name': 'qcow2-protocol',
+    })
+
+    create_and_open(vm, {
+        'driver': 'qcow2',
+        'file': 'qcow2-protocol',
+        'data-file': 'protocol',
+    }, {
+        'data-file-raw': True,
+        'size': qcow2_size,
+        'preallocation': preallocation,
+    }, {
+        'node-name': 'qcow2',
+    })
+
+    cmd = 'aio_write -P 42 0 4M'
+    log(f'[HMP qemu-io: {cmd}]')
+    log(vm.qmp(
+        'human-monitor-command',
+        command_line=f'qemu-io -d {dev_id} "{cmd}"',
+    ))
+
+    if with_raw_node:
+        log('[blockdev-reopen]')
+        log(vm.qmp('blockdev-reopen', {
+            'options': [{
+                'driver': 'raw',
+                'node-name': 'raw',
+                'file': 'qcow2',
+            }],
+        }))
+    else:
+        log('[qom-set]')
+        log(vm.qmp('qom-set', {
+            'path': qom_path,
+            'property': 'drive',
+            'value': 'qcow2',
+        }))
+
+    cmd = 'aio_flush'
+    log(f'[HMP qemu-io: {cmd}]')
+    log(vm.qmp(
+        'human-monitor-command',
+        command_line=f'qemu-io -d {dev_id} {cmd}',
+    ))
+
+    vm.shutdown()
+
+    qlog = vm.get_log()
+    if qlog is not None:
+        log('[qemu log]')
+        qlog = iotests.filter_qemu_io(iotests.filter_qtest(qlog))
+        log(qlog)
+
+    log('[qemu-img check]')
+    qemu_img_log('check', '-f', 'qcow2', qcow2_img_path)
+
+    cmd = 'read -P 42 0 4M'
+    log(f'[qemu-io: {cmd}]')
+    qemu_io_log(qcow2_img_path, '-c', cmd)
+
+def create_and_open(
+    vm: iotests.VM,
+    base_options: dict[str, object],
+    create_options: dict[str, object],
+    open_options: dict[str, object],
+) -> None:
+    log(f'[blockdev-create: {base_options['driver']}]')
+    log(vm.qmp('blockdev-create', {
+        'job-id': 'create',
+        'options': base_options | create_options,
+    }))
+
+    while True:
+        event = vm.event_wait(
+            name='JOB_STATUS_CHANGE',
+            match={'data': {'id': 'create'}},
+        )
+        assert event is not None
+        status = event['data']['status']
+        log(f' -> {status}')
+        if status == 'aborting':
+            jobs = vm.qmp('query-jobs')['return']
+            job_info = next(job for job in jobs if job['id'] == 'create')
+            error = re.sub(r'#block\d+', '#blockXXX', job_info['error'])
+            log(f'blockdev-create failed: {error}')
+            raise CreateException(error)
+        if status == 'concluded':
+            break
+
+    log('[job-dismiss]')
+    log(vm.qmp('job-dismiss', id='create'))
+    log('[blockdev-add]')
+    log(vm.qmp('blockdev-add', base_options | open_options))
+
+def verify_exception(
+    exception: CreateException,
+    conflicting_permissions: list[str],
+    with_raw_node: bool,
+    guest_disk_type: GuestDiskType,
+) -> None:
+    if with_raw_node:
+        user = "node 'raw'"
+        user_child = 'file'
+    elif guest_disk_type == GuestDiskType.VIRTIO_BLK:
+        user = "block device '/machine/peripheral/sda/virtio-backend'"
+        user_child = 'root'
+    else:
+        user = "block device 'sda'"
+        user_child = 'root'
+
+    refstr = (
+        "Permission conflict on node 'protocol': permissions "
+        f"'{', '.join(conflicting_permissions)}' are both required by node "
+        "'#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared "
+        f"by {user} (uses node 'protocol' as '{user_child}' child)."
+    )
+
+    if str(exception) != refstr:
+        log("Exception differs from reference:")
+        log(f'Is:       {exception}')
+        log(f'Expected: {refstr}')
+        assert str(exception) == refstr
+
+def run_test(
+    with_raw_node: bool,
+    guest_disk_type: GuestDiskType,
+    preallocation: str,
+    qcow2_size: int,
+) -> None:
+    with iotests.FilePath('raw.img') as raw_img_path, \
+         iotests.FilePath('metadata.qcow2') as qcow2_img_path, \
+         iotests.VM() as vm:
+        try:
+            do_test(
+                vm,
+                with_raw_node,
+                guest_disk_type,
+                preallocation,
+                qcow2_size,
+                raw_img_path,
+                qcow2_img_path,
+            )
+        except CreateException as e:
+            expected_conflicting_perms = []
+
+            if preallocation in ('falloc', 'full'):
+                # Data preallocation must fail because it must write to the
+                # data file, requiring the WRITE permission.
+                expected_conflicting_perms += ['write']
+
+            if guest_disk_type == GuestDiskType.SCSI_CD and \
+                    qcow2_size > DISK_SIZE:
+                # CD does not allow resizing, but creating a bigger qcow2 image
+                # would require growing the raw image, necessitating the RESIZE
+                # permission.  (Creating a smaller qcow2 however will not
+                # shrink it.)
+                expected_conflicting_perms += ['resize']
+
+            if not expected_conflicting_perms:
+                raise e
+
+            verify_exception(e, expected_conflicting_perms,
+                             with_raw_node, guest_disk_type)
+            log('(Handled expected exception)')
+            log('')
+
+
+def run_all_test_combinations():
+    for with_raw_node in (False, True):
+        for guest_disk_type in GuestDiskType:
+            for preallocation in ('off', 'metadata', 'falloc', 'full'):
+                # Sprinkle in -512 and +512 to verify that non-cluster-aligned
+                # sizes work, too
+                for qcow2_size in (DISK_SIZE, DISK_SIZE // 2 - 512,
+                                   DISK_SIZE * 2 + 512):
+                    run_test(with_raw_node, guest_disk_type, preallocation,
+                             qcow2_size)
+
+run_all_test_combinations()

@@ -1,0 +1,2904 @@
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=off
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[qom-set]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+1024/1024 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=off
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[qom-set]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+512/512 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=off
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[qom-set]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+2049/2049 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=metadata
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[qom-set]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+1024/1024 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=metadata
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[qom-set]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+512/512 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=metadata
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[qom-set]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+2049/2049 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=falloc
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by block device '/machine/peripheral/sda/virtio-backend' (uses node 'protocol' as 'root' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=falloc
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by block device '/machine/peripheral/sda/virtio-backend' (uses node 'protocol' as 'root' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=falloc
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by block device '/machine/peripheral/sda/virtio-backend' (uses node 'protocol' as 'root' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=full
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by block device '/machine/peripheral/sda/virtio-backend' (uses node 'protocol' as 'root' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=full
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by block device '/machine/peripheral/sda/virtio-backend' (uses node 'protocol' as 'root' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=full
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by block device '/machine/peripheral/sda/virtio-backend' (uses node 'protocol' as 'root' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=off
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[qom-set]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+1024/1024 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=off
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[qom-set]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+512/512 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=off
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[qom-set]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+2049/2049 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=metadata
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[qom-set]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+1024/1024 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=metadata
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[qom-set]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+512/512 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=metadata
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[qom-set]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+2049/2049 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=falloc
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by block device 'sda' (uses node 'protocol' as 'root' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=falloc
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by block device 'sda' (uses node 'protocol' as 'root' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=falloc
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by block device 'sda' (uses node 'protocol' as 'root' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=full
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by block device 'sda' (uses node 'protocol' as 'root' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=full
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by block device 'sda' (uses node 'protocol' as 'root' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=full
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by block device 'sda' (uses node 'protocol' as 'root' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=off
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[qom-set]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+1024/1024 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=off
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[qom-set]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+512/512 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=off
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'resize' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by block device 'sda' (uses node 'protocol' as 'root' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=metadata
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[qom-set]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+1024/1024 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=metadata
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[qom-set]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+512/512 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=metadata
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'resize' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by block device 'sda' (uses node 'protocol' as 'root' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=falloc
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by block device 'sda' (uses node 'protocol' as 'root' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=falloc
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by block device 'sda' (uses node 'protocol' as 'root' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=falloc
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write, resize' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by block device 'sda' (uses node 'protocol' as 'root' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=full
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by block device 'sda' (uses node 'protocol' as 'root' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=full
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by block device 'sda' (uses node 'protocol' as 'root' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=False
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=full
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write, resize' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by block device 'sda' (uses node 'protocol' as 'root' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=off
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[blockdev-reopen]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+1024/1024 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=off
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[blockdev-reopen]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+512/512 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=off
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[blockdev-reopen]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+2049/2049 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=metadata
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[blockdev-reopen]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+1024/1024 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=metadata
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[blockdev-reopen]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+512/512 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=metadata
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[blockdev-reopen]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+2049/2049 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=falloc
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by node 'raw' (uses node 'protocol' as 'file' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=falloc
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by node 'raw' (uses node 'protocol' as 'file' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=falloc
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by node 'raw' (uses node 'protocol' as 'file' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=full
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by node 'raw' (uses node 'protocol' as 'file' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=full
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by node 'raw' (uses node 'protocol' as 'file' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.VIRTIO_BLK
+ - preallocation=full
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by node 'raw' (uses node 'protocol' as 'file' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=off
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[blockdev-reopen]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+1024/1024 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=off
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[blockdev-reopen]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+512/512 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=off
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[blockdev-reopen]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+2049/2049 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=metadata
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[blockdev-reopen]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+1024/1024 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=metadata
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[blockdev-reopen]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+512/512 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=metadata
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[blockdev-reopen]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+2049/2049 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=falloc
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by node 'raw' (uses node 'protocol' as 'file' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=falloc
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by node 'raw' (uses node 'protocol' as 'file' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=falloc
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by node 'raw' (uses node 'protocol' as 'file' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=full
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by node 'raw' (uses node 'protocol' as 'file' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=full
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by node 'raw' (uses node 'protocol' as 'file' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_HD
+ - preallocation=full
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by node 'raw' (uses node 'protocol' as 'file' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=off
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[blockdev-reopen]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+1024/1024 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=off
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[blockdev-reopen]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+512/512 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=off
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'resize' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by node 'raw' (uses node 'protocol' as 'file' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=metadata
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[blockdev-reopen]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+1024/1024 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=metadata
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[HMP qemu-io: aio_write -P 42 0 4M]
+{"return": ""}
+[blockdev-reopen]
+{"return": {}}
+[HMP qemu-io: aio_flush]
+{"return": ""}
+[qemu log]
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[qemu-img check]
+No errors were found on the image.
+512/512 = 100.00% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 327680
+
+[qemu-io: read -P 42 0 4M]
+read 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=metadata
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'resize' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by node 'raw' (uses node 'protocol' as 'file' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=falloc
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by node 'raw' (uses node 'protocol' as 'file' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=falloc
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by node 'raw' (uses node 'protocol' as 'file' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=falloc
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write, resize' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by node 'raw' (uses node 'protocol' as 'file' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=full
+ - qcow2_size=67108864
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by node 'raw' (uses node 'protocol' as 'file' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=full
+ - qcow2_size=33553920
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by node 'raw' (uses node 'protocol' as 'file' child).
+(Handled expected exception)
+
+=== do_test() ===
+ - with_raw_node=True
+ - guest_disk_type=GuestDiskType.SCSI_CD
+ - preallocation=full
+ - qcow2_size=134218240
+
+--- Setting up raw image ---
+
+--- Launching VM ---
+
+--- Creating qcow2 image ---
+[blockdev-create: file]
+{"return": {}}
+ -> created
+ -> running
+ -> waiting
+ -> pending
+ -> concluded
+[job-dismiss]
+{"return": {}}
+[blockdev-add]
+{"return": {}}
+[blockdev-create: qcow2]
+{"return": {}}
+ -> null
+ -> created
+ -> running
+ -> aborting
+blockdev-create failed: Permission conflict on node 'protocol': permissions 'write, resize' are both required by node '#blockXXX' (uses node 'protocol' as 'data-file' child) and unshared by node 'raw' (uses node 'protocol' as 'file' child).
+(Handled expected exception)
+
