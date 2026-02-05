@@ -154,3 +154,36 @@ abi_long host_to_target_semid_ds(abi_ulong target_addr,
 
     return 0;
 }
+
+abi_long target_to_host_msqid_ds(struct msqid_ds *host_md,
+        abi_ulong target_addr)
+{
+    struct target_msqid_ds *target_md;
+
+    if (!lock_user_struct(VERIFY_READ, target_md, target_addr, 1)) {
+        return -TARGET_EFAULT;
+    }
+
+    memset(host_md, 0, sizeof(struct msqid_ds));
+    target_to_host_ipc_perm__locked(&host_md->msg_perm,
+                                    &target_md->msg_perm);
+
+    /* msg_first and msg_last are not used by IPC_SET/IPC_STAT in kernel. */
+    host_md->msg_cbytes = tswapal(target_md->msg_cbytes);
+    host_md->msg_qnum = tswapal(target_md->msg_qnum);
+    host_md->msg_qbytes = tswapal(target_md->msg_qbytes);
+    host_md->msg_lspid = tswapal(target_md->msg_lspid);
+    host_md->msg_lrpid = tswapal(target_md->msg_lrpid);
+#if defined(TARGET_I386)
+    host_md->msg_stime = tswap32(target_md->msg_stime);
+    host_md->msg_rtime = tswap32(target_md->msg_rtime);
+    host_md->msg_ctime = tswap32(target_md->msg_ctime);
+#else
+    host_md->msg_stime = tswap64(target_md->msg_stime);
+    host_md->msg_rtime = tswap64(target_md->msg_rtime);
+    host_md->msg_ctime = tswap64(target_md->msg_ctime);
+#endif
+    unlock_user_struct(target_md, target_addr, 0);
+
+    return 0;
+}
