@@ -5490,17 +5490,6 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     X86MachineState *x86ms = X86_MACHINE(ms);
     PCIBus *bus = pcms->pcibus;
     IntelIOMMUState *s = INTEL_IOMMU_DEVICE(dev);
-    X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
-
-    if (s->pasid && x86_iommu->dt_supported) {
-        /*
-         * PASID-based-Device-TLB Invalidate Descriptor is not
-         * implemented and it requires support from vhost layer which
-         * needs to be implemented in the future.
-         */
-        error_setg(errp, "PASID based device IOTLB is not supported");
-        return;
-    }
 
     if (!vtd_decide_config(s, errp)) {
         return;
