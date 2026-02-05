@@ -539,6 +539,29 @@ static int hiod_iommufd_get_cap(HostIOMMUDevice *hiod, int cap, Error **errp)
     }
 }
 
+bool host_iommu_device_iommufd_pasid_attach_hwpt(HostIOMMUDeviceIOMMUFD *idev,
+                                                 uint32_t pasid,
+                                                 uint32_t hwpt_id,
+                                                 Error **errp)
+{
+    HostIOMMUDeviceIOMMUFDClass *idevc =
+        HOST_IOMMU_DEVICE_IOMMUFD_GET_CLASS(idev);
+
+    g_assert(idevc->pasid_attach_hwpt);
+    return idevc->pasid_attach_hwpt(idev, pasid, hwpt_id, errp);
+}
+
+bool host_iommu_device_iommufd_pasid_detach_hwpt(HostIOMMUDeviceIOMMUFD *idev,
+                                                 uint32_t pasid,
+                                                 Error **errp)
+{
+    HostIOMMUDeviceIOMMUFDClass *idevc =
+        HOST_IOMMU_DEVICE_IOMMUFD_GET_CLASS(idev);
+
+    g_assert(idevc->pasid_detach_hwpt);
+    return idevc->pasid_detach_hwpt(idev, pasid, errp);
+}
+
 static bool hiod_iommufd_get_pasid_info(HostIOMMUDevice *hiod,
                                         PasidInfo *pasid_info)
 {
