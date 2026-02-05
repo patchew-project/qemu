@@ -3368,7 +3368,25 @@ preallocate_co(BlockDriverState *bs, uint64_t offset, uint64_t new_length,
         }
 
         for (m = meta; m != NULL; m = m->next) {
+            int64_t disk_end_ofs;
+
             m->prealloc = true;
+
+            /*
+             * Do not COW beyond the supposed image end: There is no point, and
+             * it could break BDRV_O_NO_DATA_WRITE from qcow2_co_create():
+             * qcow2_alloc_host_offset() does not COW anything for the range we
+             * pass, but everything outside.  If growing to a non-cluster
+             * aligned size, it will thus request COW beyond the image end,
+             * breaking the BDRV_O_NO_DATA_WRITE promise.
+             * (As long as the @offset passed to this function was aligned to
+             * full clusters, that is the only possible instance of COW.  With
+             * qcow2_co_create(), it's always 0, so always aligned.)
+             */
+            disk_end_ofs = new_length - (int64_t)m->offset;
+            if (m->cow_end.offset + m->cow_end.nb_bytes > disk_end_ofs) {
+                m->cow_end.nb_bytes = MAX(disk_end_ofs - m->cow_end.offset, 0);
+            }
         }
 
         ret = qcow2_handle_l2meta(bs, &meta, true);

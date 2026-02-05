@@ -172,10 +172,10 @@ done
 # Test image resizing using preallocation and unaligned offsets
 $QEMU_IMG create -f raw "$TEST_IMG.base" 128k | _filter_img_create
 $QEMU_IO -c 'write -q -P 1 0 128k' -f raw "$TEST_IMG.base"
-for orig_size in 31k 33k; do
-    for dst_size in 96k 128k; do
+for orig_size in $((31 * 1024)) $((33 * 1024)); do
+    for dst_size in $((96 * 1024)) $((128 * 1024)); do
         for prealloc in metadata full; do
-            echo "--- Resizing image from $orig_size to $dst_size (preallocation=$prealloc) ---"
+            echo "--- Resizing image from $((orig_size / 1024))k to $((dst_size / 1024))k (preallocation=$prealloc) ---"
             _make_test_img -F raw -b "$TEST_IMG.base" -o cluster_size=64k "$orig_size"
             $QEMU_IMG resize -f "$IMGFMT" --preallocation="$prealloc" "$TEST_IMG" "$dst_size"
             # The first part of the image should contain data from the backing file
@@ -183,10 +183,15 @@ for orig_size in 31k 33k; do
             # The resized part of the image should contain zeroes
             $QEMU_IO -c "read -q -P 0 ${orig_size} 63k" "$TEST_IMG"
             # If the image does not have an external data file we can also verify its
-            # actual size. The resized image should have 7 clusters:
-            # header, L1 table, L2 table, refcount table, refcount block, 2 data clusters
+            # actual size. The resized image should have 5 metadata clusters
+            # (header, L1 table, L2 table, refcount table, refcount block)
+            # plus the data.  We round up that data to full clusters for full
+            # preallocation, but not for metadata preallocation.
             if ! _get_data_file "$TEST_IMG" > /dev/null; then
-                expected_file_length=$((65536 * 7))
+                expected_file_length=$((65536 * 5 + dst_size))
+                if [ "$prealloc" = full ]; then
+                    expected_file_length=$(((expected_file_length + 65535) / 65536 * 65536))
+                fi
                 file_length=$(stat -c '%s' "$TEST_IMG_FILE")
                 if [ "$file_length" != "$expected_file_length" ]; then
                     echo "ERROR: file length $file_length (expected $expected_file_length)"
