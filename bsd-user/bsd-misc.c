@@ -111,3 +111,26 @@ abi_long host_to_target_semarray(int semid, abi_ulong target_addr,
     unlock_user(array, target_addr, 1);
     return 0;
 }
+
+abi_long target_to_host_semid_ds(struct semid_ds *host_sd,
+        abi_ulong target_addr)
+{
+    struct target_semid_ds *target_sd;
+
+    if (!lock_user_struct(VERIFY_READ, target_sd, target_addr, 1)) {
+        return -TARGET_EFAULT;
+    }
+    target_to_host_ipc_perm__locked(&(host_sd->sem_perm), &target_sd->sem_perm);
+    /* sem_base is not used by kernel for IPC_STAT/IPC_SET */
+    /* host_sd->sem_base  = g2h_untagged(target_sd->sem_base); */
+    host_sd->sem_nsems = tswap16(target_sd->sem_nsems);
+#if defined(TARGET_I386)
+    host_sd->sem_otime = tswap32(target_sd->sem_otime);
+    host_sd->sem_ctime = tswap32(target_sd->sem_ctime);
+#else
+    host_sd->sem_otime = tswap64(target_sd->sem_otime);
+    host_sd->sem_ctime = tswap64(target_sd->sem_ctime);
+#endif
+    unlock_user_struct(target_sd, target_addr, 0);
+    return 0;
+}
