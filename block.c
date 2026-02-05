@@ -2887,6 +2887,21 @@ static void bdrv_default_perms_for_storage(BlockDriverState *bs, BdrvChild *c,
         if (perm & BLK_PERM_WRITE) {
             perm |= BLK_PERM_RESIZE;
         }
+
+        if (!(role & BDRV_CHILD_METADATA)) {
+            /*
+             * For a pure data storage child (no metadata), these flags
+             * respectively promise that
+             * - nothing will be written, and/or
+             * - it will not be resized.
+             */
+            if (flags & BDRV_O_NO_DATA_WRITE) {
+                perm &= ~BLK_PERM_WRITE;
+            }
+            if (flags & BDRV_O_NO_DATA_RESIZE) {
+                perm &= ~BLK_PERM_RESIZE;
+            }
+        }
     }
 
     if (bs->open_flags & BDRV_O_INACTIVE) {

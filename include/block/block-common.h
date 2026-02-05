@@ -245,6 +245,17 @@ typedef enum {
 
 #define BDRV_O_CBW_DISCARD_SOURCE 0x80000 /* for copy-before-write filter */
 
+/*
+ * Promise not to write any data to pure (non-metadata-bearing) data storage
+ * children, so we don't need the WRITE permission for them.
+ * For image creation, formatting requires write access to the image, but not
+ * necessarily to its pure storage children.  This allows creating an image on
+ * top of an existing raw storage image that is already attached to the VM.
+ */
+#define BDRV_O_NO_DATA_WRITE  0x100000
+/* Same as O_NO_DATA_WRITE, but for resizing */
+#define BDRV_O_NO_DATA_RESIZE 0x200000
+
 #define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_NO_FLUSH)
 
 
