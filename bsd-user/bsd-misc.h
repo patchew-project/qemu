@@ -111,6 +111,123 @@ static inline abi_long do_bsd_semop(int semid, abi_long ptr, unsigned nsops)
     return semop(semid, sops, nsops);
 }
 
+/* __semctl(2) */
+static inline abi_long do_bsd___semctl(int semid, int semnum, int target_cmd,
+        union target_semun target_su)
+{
+    union semun arg;
+    struct semid_ds dsarg;
+    unsigned short *array = NULL;
+    int host_cmd;
+    abi_long ret = 0;
+    abi_long err;
+
+    switch (target_cmd) {
+    case TARGET_GETVAL:
+        host_cmd = GETVAL;
+        break;
+
+    case TARGET_SETVAL:
+        host_cmd = SETVAL;
+        break;
+
+    case TARGET_GETALL:
+        host_cmd = GETALL;
+        break;
+
+    case TARGET_SETALL:
+        host_cmd = SETALL;
+        break;
+
+    case TARGET_IPC_STAT:
+        host_cmd = IPC_STAT;
+        break;
+
+    case TARGET_IPC_SET:
+        host_cmd = IPC_SET;
+        break;
+
+    case TARGET_IPC_RMID:
+        host_cmd = IPC_RMID;
+        break;
+
+    case TARGET_GETPID:
+        host_cmd = GETPID;
+        break;
+
+    case TARGET_GETNCNT:
+        host_cmd = GETNCNT;
+        break;
+
+    case TARGET_GETZCNT:
+        host_cmd = GETZCNT;
+        break;
+
+    default:
+        return -TARGET_EINVAL;
+    }
+
+    switch (host_cmd) {
+    case GETVAL:
+    case SETVAL:
+        /*
+         * In 64 bit cross-endian situations, we will erroneously pick up the
+         * wrong half of the union for the "val" element.  To rectify this, the
+         * entire 8-byte structure is byteswapped, followed by a swap of the 4
+         * byte val field. In other cases, the data is already in proper host
+         * byte order.
+         */
+        if (sizeof(target_su.val) != (sizeof(target_su.buf))) {
+            target_su.buf = tswapal(target_su.buf);
+            arg.val = tswap32(target_su.val);
+        } else {
+            arg.val = target_su.val;
+        }
+        ret = get_errno(semctl(semid, semnum, host_cmd, arg));
+        break;
+
+    case GETALL:
+    case SETALL:
+        err = target_to_host_semarray(semid, &array, target_su.array);
+        if (is_error(err)) {
+            return err;
+        }
+        arg.array = array;
+        ret = get_errno(semctl(semid, semnum, host_cmd, arg));
+        err = host_to_target_semarray(semid, target_su.array, &array);
+        if (is_error(err)) {
+            return err;
+        }
+        break;
+
+    case IPC_STAT:
+    case IPC_SET:
+        err = target_to_host_semid_ds(&dsarg, target_su.buf);
+        if (is_error(err)) {
+            return err;
+        }
+        arg.buf = &dsarg;
+        ret = get_errno(semctl(semid, semnum, host_cmd, arg));
+        err = host_to_target_semid_ds(target_su.buf, &dsarg);
+        if (is_error(err)) {
+            return err;
+        }
+        break;
+
+    case IPC_RMID:
+    case GETPID:
+    case GETNCNT:
+    case GETZCNT:
+        ret = get_errno(semctl(semid, semnum, host_cmd, NULL));
+        break;
+
+    default:
+        ret = -TARGET_EINVAL;
+        break;
+    }
+    return ret;
+}
+
 /* getdtablesize(2) */
 static inline abi_long do_bsd_getdtablesize(void)
 {
