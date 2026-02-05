@@ -4515,15 +4515,22 @@ qcow2_co_truncate(BlockDriverState *bs, int64_t offset, bool exact,
     switch (prealloc) {
     case PREALLOC_MODE_OFF:
         if (has_data_file(bs)) {
+            int64_t data_file_length = bdrv_co_getlength(s->data_file->bs);
+
             /*
              * If the caller wants an exact resize, the external data
              * file should be resized to the exact target size, too,
              * so we pass @exact here.
+             * Without @exact, we leave it as-is if it is already big enough.
+             * Implicitly handle bdrv_co_getlength() errors by resizing.
              */
-            ret = bdrv_co_truncate(s->data_file, offset, exact, prealloc, 0,
-                                   errp);
-            if (ret < 0) {
-                goto fail;
+            if (data_file_length < offset ||
+                (exact && data_file_length != offset)) {
+                ret = bdrv_co_truncate(s->data_file, offset, exact, prealloc, 0,
+                                       errp);
+                if (ret < 0) {
+                    goto fail;
+                }
             }
         }
         break;
