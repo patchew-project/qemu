@@ -2661,16 +2661,16 @@ config_host_data.set('CONFIG_ASAN_IFACE_FIBER', have_asan_fiber)
 have_inotify_init = cc.has_header_symbol('sys/inotify.h', 'inotify_init')
 have_inotify_init1 = cc.has_header_symbol('sys/inotify.h', 'inotify_init1')
 inotify = not_found
-if (have_inotify_init or have_inotify_init1) and host_os == 'freebsd'
-  # libinotify-kqueue
-  inotify = cc.find_library('inotify')
-  if have_inotify_init
-    have_inotify_init = inotify.found()
-  endif
-  if have_inotify_init1
-    have_inotify_init1 = inotify.found()
-  endif
-endif
+#if (have_inotify_init or have_inotify_init1) and host_os == 'freebsd'
+#  # libinotify-kqueue
+#  inotify = cc.find_library('inotify')
+#  if have_inotify_init
+#    have_inotify_init = inotify.found()
+#  endif
+#  if have_inotify_init1
+#    have_inotify_init1 = inotify.found()
+#  endif
+#endif
 config_host_data.set('CONFIG_INOTIFY', have_inotify_init)
 config_host_data.set('CONFIG_INOTIFY1', have_inotify_init1)
 
