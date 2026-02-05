@@ -153,7 +153,7 @@ static TCGTBCPUState riscv_get_tb_cpu_state(CPUState *cs)
 
 #ifdef CONFIG_USER_ONLY
     fs = EXT_STATUS_DIRTY;
-    vs = EXT_STATUS_DIRTY;
+    vs = riscv_has_ext(env, RVV) ? EXT_STATUS_DIRTY : EXT_STATUS_DISABLED;
 #else
     flags = FIELD_DP32(flags, TB_FLAGS, PRIV, env->priv);
 
