@@ -64,6 +64,7 @@
 #include "hw/virtio/virtio-acpi.h"
 #include "target/arm/cpu.h"
 #include "target/arm/multiprocessing.h"
+#include "hw/acpi/wdat-gwdt.h"
 
 #define ARM_SPI_BASE 32
 
@@ -1269,6 +1270,21 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
 
     acpi_add_table(table_offsets, tables_blob);
     build_madt(tables_blob, tables->linker, vms);
+
+    acpi_add_table(table_offsets, tables_blob);
+    if (ms->acpi_watchdog) {
+        uint64_t freq;
+
+        freq = object_property_get_uint(
+            object_resolve_type_unambiguous(TYPE_WDT_SBSA, &error_abort),
+            "clock-frequency", &error_abort);
+
+        build_gwdt_wdat(tables_blob, tables->linker,
+                        vms->oem_id, vms->oem_table_id,
+                        vms->memmap[VIRT_GWDT_REFRESH].base,
+                        vms->memmap[VIRT_GWDT_CONTROL].base,
+                        freq);
+    }
 
     if (!vmc->no_cpu_topology) {
         acpi_add_table(table_offsets, tables_blob);
