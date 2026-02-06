@@ -499,6 +499,20 @@ static void machine_set_usb(Object *obj, bool value, Error **errp)
     ms->usb_disabled = !value;
 }
 
+static bool machine_get_acpi_watchdog(Object *obj, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    return ms->acpi_watchdog;
+}
+
+static void machine_set_acpi_watchdog(Object *obj, bool value, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    ms->acpi_watchdog = value;
+}
+
 static bool machine_get_graphics(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
@@ -1257,6 +1271,12 @@ static void machine_class_init(ObjectClass *oc, const void *data)
         NULL, NULL);
     object_class_property_set_description(oc, "memory",
         "Memory size configuration");
+
+    object_class_property_add_bool(oc, "acpi-watchdog",
+        machine_get_acpi_watchdog, machine_set_acpi_watchdog);
+     object_class_property_set_description(oc, "acpi-watchdog",
+        "Set on/off to enable/disable ACPI watchdog."
+        " Default: off (ACPI watchdog is disabled).");
 }
 
 static void machine_class_base_init(ObjectClass *oc, const void *data)

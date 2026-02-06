@@ -447,6 +447,7 @@ struct MachineState {
     struct NVDIMMState *nvdimms_state;
     struct NumaState *numa_state;
     bool acpi_spcr_enabled;
+    bool acpi_watchdog;
 };
 
 /*
