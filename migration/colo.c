@@ -457,9 +457,8 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
 
     /* Note: device state is saved into buffer */
     ret = qemu_save_device_state(fb);
-
-    bql_unlock();
     if (ret < 0) {
+        bql_unlock();
         goto out;
     }
 
@@ -472,6 +471,7 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
      * to be blocked here.
      */
     qemu_savevm_live_state(s->to_dst_file);
+    bql_unlock();
 
     qemu_fflush(fb);
 
