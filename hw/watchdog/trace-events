@@ -33,3 +33,12 @@ spapr_watchdog_expired(uint64_t num, unsigned action) "num=%" PRIu64 " action=%u
 # watchdog.c
 watchdog_perform_action(unsigned int action) "action=%u"
 watchdog_set_action(unsigned int action) "action=%u"
+
+#sbsa_gwdt.c
+sbsa_gwdt_refresh_read(uint64_t addr, uint32_t value) "[0x%" PRIu64 "] -> 0x%" PRIu32
+sbsa_gwdt_refresh_write(uint64_t addr, uint32_t value) "[0x%" PRIu64 "] <- 0x%" PRIu32
+sbsa_gwdt_control_read(uint64_t addr, uint32_t value) "[0x%" PRIu64 "] -> 0x%" PRIu32
+sbsa_gwdt_control_write(uint64_t addr, uint32_t value) "[0x%" PRIu64 "] <- 0x%" PRIu32
+sbsa_gwdt_ws0_asserted(void) "WS0 signal is asserted"
+sbsa_gwdt_ws1_asserted(void) "WS1 signal is asserted"
+sbsa_gwdt_reset(void) "reset watchdog to defaut state"
