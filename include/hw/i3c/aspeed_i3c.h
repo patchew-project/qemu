@@ -34,3 +34,5 @@ typedef struct AspeedI3CState {
     uint8_t id;
 } AspeedI3CState;
 #endif /* ASPEED_I3C_H */
+
+I3CBus *aspeed_i3c_get_bus(AspeedI3CState *s, uint8_t bus_num);
