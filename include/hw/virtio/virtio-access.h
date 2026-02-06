@@ -17,27 +17,27 @@
 #define QEMU_VIRTIO_ACCESS_H
 
 #include "exec/hwaddr.h"
+#include "qemu/target-info.h"
 #include "system/memory_cached.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-bus.h"
 
-#if defined(TARGET_PPC64) || defined(TARGET_ARM)
-#define LEGACY_VIRTIO_IS_BIENDIAN 1
-#endif
-
 static inline bool virtio_access_is_big_endian(VirtIODevice *vdev)
 {
-#if defined(LEGACY_VIRTIO_IS_BIENDIAN)
-    return virtio_is_big_endian(vdev);
-#elif TARGET_BIG_ENDIAN
-    if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
-        /* Devices conforming to VIRTIO 1.0 or later are always LE. */
-        return false;
+    if (target_ppc64() || target_base_arm()) {
+        return virtio_is_big_endian(vdev);
     }
-    return true;
-#else
+
+    if (target_big_endian()) {
+        if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+            /* Devices conforming to VIRTIO 1.0 or later are always LE. */
+            return false;
+        } else {
+            return true;
+        }
+    }
+
     return false;
-#endif
 }
 
 static inline void virtio_stw_p(VirtIODevice *vdev, void *ptr, uint16_t v)
