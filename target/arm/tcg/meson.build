@@ -58,20 +58,20 @@ arm_user_ss.add(when: 'TARGET_AARCH64', if_false: files('cpu-v7m.c'))
 
 arm_common_ss.add(zlib)
 
-arm_common_ss.add(files(
+arm_common_system_ss.add(files(
   'arith_helper.c',
   'crypto_helper.c',
-))
-
-arm_common_system_ss.add(files(
   'cpregs-at.c',
   'hflags.c',
   'neon_helper.c',
   'tlb_helper.c',
   'tlb-insns.c',
   'vfp_helper.c',
+  'crypto_helper.c',
 ))
 arm_user_ss.add(files(
+  'arith_helper.c',
+  'crypto_helper.c',
   'hflags.c',
   'neon_helper.c',
   'tlb_helper.c',
