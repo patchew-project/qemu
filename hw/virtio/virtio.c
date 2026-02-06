@@ -3154,6 +3154,10 @@ static int virtio_set_features_nocheck(VirtIODevice *vdev, const uint64_t *val)
     }
 
     virtio_features_copy(vdev->guest_features_ex, tmp);
+    if (!bad) {
+        /* set_features might enable VIRTIO_F_VERSION_1 */
+        vdev->access_is_big_endian = virtio_access_is_big_endian(vdev);
+    }
     return bad ? -1 : 0;
 }
 
@@ -4075,6 +4079,7 @@ static void virtio_device_realize(DeviceState *dev, Error **errp)
     vdev->listener.commit = virtio_memory_listener_commit;
     vdev->listener.name = "virtio";
     memory_listener_register(&vdev->listener, vdev->dma_as);
+    vdev->access_is_big_endian = virtio_access_is_big_endian(vdev);
 }
 
 static void virtio_device_unrealize(DeviceState *dev)

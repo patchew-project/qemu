@@ -155,6 +155,11 @@ struct VirtIODevice
     char *bus_name;
     uint8_t device_endian;
     /**
+     * @access_is_big_endian: whether load/store memory accesses are ordered
+     * using big endianness.
+     */
+    bool access_is_big_endian;
+    /**
      * @user_guest_notifier_mask: gate usage of ->guest_notifier_mask() callback.
      * This is used to suppress the masking of guest updates for
      * vhost-user devices which are asynchronous by design.
