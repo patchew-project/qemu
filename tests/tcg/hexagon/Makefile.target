@@ -51,13 +51,22 @@ HEX_TESTS += scatter_gather
 HEX_TESTS += hvx_misc
 HEX_TESTS += hvx_histogram
 HEX_TESTS += invalid-slots
+HEX_TESTS += invalid-duplex
 HEX_TESTS += unaligned_pc
 
 run-and-check-exception = $(call run-test,$2,$3 2>$2.stderr; \
 	test $$? -eq 1 && grep -q "exception $(strip $1)" $2.stderr)
 
+# Check that command dies from SIGILL (exit code = 128 + 4 = 132)
 run-invalid-slots: invalid-slots
-	$(call run-and-check-exception, 0x15, $@, $(QEMU) $(QEMU_OPTS) $<)
+	$(call quiet-command, \
+		$(QEMU) $(QEMU_OPTS) $< ; test $$? -eq 132, \
+		TEST, invalid-slots on $(TARGET_NAME))
+
+run-invalid-duplex: invalid-duplex
+	$(call quiet-command, \
+		$(QEMU) $(QEMU_OPTS) $< ; test $$? -eq 132, \
+		TEST, invalid-duplex on $(TARGET_NAME))
 
 HEX_TESTS += test_abs
 HEX_TESTS += test_bitcnt
