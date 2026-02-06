@@ -22,21 +22,16 @@
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-bus.h"
 
+static inline bool legacy_virtio_is_biendian(void)
+{
+    return target_ppc64() || target_base_arm();
+}
+
 static inline bool virtio_access_is_big_endian(VirtIODevice *vdev)
 {
-    if (target_ppc64() || target_base_arm()) {
+    if (target_big_endian() || legacy_virtio_is_biendian()) {
         return virtio_is_big_endian(vdev);
     }
-
-    if (target_big_endian()) {
-        if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
-            /* Devices conforming to VIRTIO 1.0 or later are always LE. */
-            return false;
-        } else {
-            return true;
-        }
-    }
-
     return false;
 }
 
