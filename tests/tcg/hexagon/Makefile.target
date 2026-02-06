@@ -53,6 +53,7 @@ HEX_TESTS += hvx_histogram
 HEX_TESTS += invalid-slots
 HEX_TESTS += invalid-duplex
 HEX_TESTS += invalid-dups
+HEX_TESTS += invalid-encoding
 HEX_TESTS += unaligned_pc
 
 run-and-check-exception = $(call run-test,$2,$3 2>$2.stderr; \
@@ -73,6 +74,11 @@ run-invalid-dups: invalid-dups
 	$(call quiet-command, \
 		$(QEMU) $(QEMU_OPTS) $< ; test $$? -eq 132, \
 		TEST, invalid-dups on $(TARGET_NAME))
+
+run-invalid-encoding: invalid-encoding
+	$(call quiet-command, \
+		$(QEMU) $(QEMU_OPTS) $< ; test $$? -eq 132, \
+		TEST, invalid-encoding on $(TARGET_NAME))
 
 HEX_TESTS += test_abs
 HEX_TESTS += test_bitcnt
