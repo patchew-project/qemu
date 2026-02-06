@@ -501,12 +501,24 @@ decode_insns(DisasContext *ctx, Insn *insn, uint32_t encoding)
 
         /* The slot1 subinsn needs to be in the packet first */
         if (decode_slot1_subinsn(ctx, slot1_subinsn)) {
+            Insn *slot1_insn = insn;
             insn->generate = opcode_genptr[insn->opcode];
             insn->iclass = iclass_bits(encoding);
             ctx->insn = ++insn;
             if (decode_slot0_subinsn(ctx, slot0_subinsn)) {
                 insn->generate = opcode_genptr[insn->opcode];
                 insn->iclass = iclass_bits(encoding);
+                /*
+                 * Check that the two sub-instructions don't write the same
+                 * destination register (e.g., encoding 0x0 decodes as two
+                 * loads both writing R0, which is an invalid packet).
+                 */
+                if (insn->dest_idx >= 0 && slot1_insn->dest_idx >= 0 &&
+                    insn->regno[insn->dest_idx] ==
+                        slot1_insn->regno[slot1_insn->dest_idx]) {
+                    ctx->insn = --insn;
+                    return 0;
+                }
                 return 2;
             }
             /*
