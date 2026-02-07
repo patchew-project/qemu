@@ -65,6 +65,34 @@ static int test_invalid_duplex(void)
     return sig;
 }
 
+/*
+ * Duplex with duplicate destination registers (issue #2696):
+ * The encoding 0x00000000 decodes as a duplex with parse bits
+ * [15:14] = 0b00:
+ *   slot1: SL1_loadri_io R0 = memw(R0+#0x0)
+ *   slot0: SL1_loadri_io R0 = memw(R0+#0x0)
+ *
+ * Both sub-instructions write R0, which is an invalid packet (duplicate
+ * destination register).  This should raise SIGILL.
+ */
+static int test_invalid_dups(void)
+{
+    int sig;
+
+    asm volatile(
+        "r0 = #0\n"
+        "r1 = ##1f\n"
+        "memw(%1) = r1\n"
+        ".word 0x00000000\n"
+        "1:\n"
+        "%0 = r0\n"
+        : "=r"(sig)
+        : "r"(&resume_pc)
+        : "r0", "r1", "memory");
+
+    return sig;
+}
+
 int main()
 {
     struct sigaction act;
@@ -75,6 +103,7 @@ int main()
     assert(sigaction(SIGILL, &act, NULL) == 0);
 
     assert(test_invalid_duplex() == SIGILL);
+    assert(test_invalid_dups() == SIGILL);
 
     puts("PASS");
     return EXIT_SUCCESS;
