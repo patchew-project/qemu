@@ -2662,13 +2662,15 @@ have_inotify_init = cc.has_header_symbol('sys/inotify.h', 'inotify_init')
 have_inotify_init1 = cc.has_header_symbol('sys/inotify.h', 'inotify_init1')
 inotify = not_found
 if (have_inotify_init or have_inotify_init1) and host_os == 'freebsd'
-  # libinotify-kqueue
-  inotify = cc.find_library('inotify')
-  if have_inotify_init
-    have_inotify_init = inotify.found()
-  endif
-  if have_inotify_init1
-    have_inotify_init1 = inotify.found()
+  if not cc.has_function('inotify_init') and not cc.has_function('inotify_init1')
+    inotify = cc.find_library('inotify')
+    # libinotify-kqueue
+    if have_inotify_init
+      have_inotify_init = inotify.found()
+    endif
+    if have_inotify_init1
+      have_inotify_init1 = inotify.found()
+    endif
   endif
 endif
 config_host_data.set('CONFIG_INOTIFY', have_inotify_init)
