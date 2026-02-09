@@ -47,6 +47,7 @@ struct RISCVVirtState {
 
     /*< public >*/
     Notifier machine_done;
+    Notifier powerdown_notifier;
     DeviceState *acpi_ged;
     DeviceState *platform_bus_dev;
     RISCVHartArrayState soc[VIRT_SOCKETS_MAX];
