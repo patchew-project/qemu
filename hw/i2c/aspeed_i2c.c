@@ -1091,10 +1091,9 @@ static const MemoryRegionOps aspeed_i2c_bus_pool_ops = {
 
 static const VMStateDescription aspeed_i2c_bus_vmstate = {
     .name = TYPE_ASPEED_I2C,
-    .version_id = 6,
-    .minimum_version_id = 6,
+    .version_id = 7,
+    .minimum_version_id = 7,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, AspeedI2CBus, ASPEED_I2C_NEW_NUM_REG),
         VMSTATE_UINT8_ARRAY(pool, AspeedI2CBus, ASPEED_I2C_BUS_POOL_SIZE),
         VMSTATE_UINT64(dma_dram_offset, AspeedI2CBus),
         VMSTATE_END_OF_LIST()
@@ -1465,8 +1464,9 @@ static const TypeInfo aspeed_i2c_bus_slave_info = {
 static void aspeed_i2c_bus_reset(DeviceState *dev)
 {
     AspeedI2CBus *s = ASPEED_I2C_BUS(dev);
+    AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(s->controller);
 
-    memset(s->regs, 0, sizeof(s->regs));
+    memset(s->regs, 0, aic->reg_size);
     i2c_end_transfer(s->bus);
 }
 
@@ -1492,6 +1492,7 @@ static void aspeed_i2c_bus_realize(DeviceState *dev, Error **errp)
     s->slave = i2c_slave_create_simple(s->bus, TYPE_ASPEED_I2C_BUS_SLAVE,
                                        0xff);
 
+    s->regs = g_new(uint32_t, aic->reg_size >> 2);
     memory_region_init_io(&s->mr, OBJECT(s), &aspeed_i2c_bus_ops,
                           s, s->name, aic->reg_size);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mr);
@@ -1499,6 +1500,14 @@ static void aspeed_i2c_bus_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->mr_pool, OBJECT(s), &aspeed_i2c_bus_pool_ops,
                           s, pool_name, aic->pool_size);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mr_pool);
+}
+
+static void aspeed_i2c_bus_unrealize(DeviceState *dev)
+{
+    AspeedI2CBus *s = ASPEED_I2C_BUS(dev);
+
+    g_free(s->regs);
+    s->regs = NULL;
 }
 
 static const Property aspeed_i2c_bus_properties[] = {
@@ -1514,6 +1523,7 @@ static void aspeed_i2c_bus_class_init(ObjectClass *klass, const void *data)
 
     dc->desc = "Aspeed I2C Bus";
     dc->realize = aspeed_i2c_bus_realize;
+    dc->unrealize = aspeed_i2c_bus_unrealize;
     device_class_set_legacy_reset(dc, aspeed_i2c_bus_reset);
     device_class_set_props(dc, aspeed_i2c_bus_properties);
 }
