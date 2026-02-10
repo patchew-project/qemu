@@ -1310,17 +1310,22 @@ object_property_add(Object *obj, const char *name, const char *type,
 }
 
 ObjectProperty *
-object_class_property_add(ObjectClass *klass,
-                          const char *name,
-                          const char *type,
-                          ObjectPropertyAccessor *get,
-                          ObjectPropertyAccessor *set,
-                          ObjectPropertyRelease *release,
-                          void *opaque)
+object_class_property_try_add(ObjectClass *klass,
+                              const char *name,
+                              const char *type,
+                              ObjectPropertyAccessor *get,
+                              ObjectPropertyAccessor *set,
+                              ObjectPropertyRelease *release,
+                              void *opaque, Error **errp)
 {
     ObjectProperty *prop;
 
-    assert(!object_class_property_find(klass, name));
+    if (object_class_property_find(klass, name) != NULL) {
+        error_setg(errp, "attempt to add duplicate property '%s'"
+                   " to object class (type '%s')",
+                   name, object_class_get_name(klass));
+        return NULL;
+    }
 
     prop = g_malloc0(sizeof(*prop));
 
@@ -1335,6 +1340,19 @@ object_class_property_add(ObjectClass *klass,
 
     g_hash_table_insert(klass->properties, prop->name, prop);
     return prop;
+}
+
+ObjectProperty *
+object_class_property_add(ObjectClass *klass,
+                          const char *name,
+                          const char *type,
+                          ObjectPropertyAccessor *get,
+                          ObjectPropertyAccessor *set,
+                          ObjectPropertyRelease *release,
+                          void *opaque)
+{
+    return object_class_property_try_add(klass, name, type, get, set, release,
+                                         opaque, &error_abort);
 }
 
 ObjectProperty *object_property_find(Object *obj, const char *name)
