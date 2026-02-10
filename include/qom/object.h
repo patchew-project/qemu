@@ -16,6 +16,7 @@
 
 #include "qapi/qapi-builtin-types.h"
 #include "qemu/module.h"
+#include "qemu/bitops.h"
 
 struct TypeImpl;
 typedef struct TypeImpl *Type;
@@ -1841,9 +1842,9 @@ ObjectProperty *object_class_property_add_tm(ObjectClass *klass,
 
 typedef enum {
     /* Automatically add a getter to the property */
-    OBJ_PROP_FLAG_READ = 1 << 0,
+    OBJ_PROP_FLAG_READ = BIT(0),
     /* Automatically add a setter to the property */
-    OBJ_PROP_FLAG_WRITE = 1 << 1,
+    OBJ_PROP_FLAG_WRITE = BIT(1),
     /* Automatically add a getter and a setter to the property */
     OBJ_PROP_FLAG_READWRITE = (OBJ_PROP_FLAG_READ | OBJ_PROP_FLAG_WRITE),
 } ObjectPropertyFlags;
