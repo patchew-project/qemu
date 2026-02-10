@@ -10,6 +10,7 @@
 #include "qemu/log.h"
 #include "trace.h"
 #include "cpu.h"
+#include "helper.h"
 #include "internals.h"
 #include "cpu-features.h"
 #include "exec/page-protection.h"
@@ -36,8 +37,8 @@
 #include "target/arm/gtimer.h"
 #include "qemu/plugin.h"
 
-#define HELPER_H "tcg/helper.h"
-#include "exec/helper-proto.h.inc"
+#define HELPER_H "tcg/helper-defs.h"
+#include "exec/helper-info.c.inc"
 
 static void switch_mode(CPUARMState *env, int mode);
 
