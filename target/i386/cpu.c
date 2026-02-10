@@ -9779,6 +9779,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     CPUX86State *env = &cpu->env;
     Error *local_err = NULL;
     unsigned requested_lbr_fmt;
+    int lbr_fmt_set;
 
 #if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
     /* Use pc-relative instructions in system-mode */
@@ -9815,7 +9816,11 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
      * Override env->features[FEAT_PERF_CAPABILITIES].LBR_FMT
      * with user-provided setting.
      */
-    if (cpu->lbr_fmt != ~PERF_CAP_LBR_FMT) {
+    lbr_fmt_set = object_property_check_flags(OBJECT(dev), "lbr-fmt",
+                                              OBJ_PROP_FLAG_USER_SET, errp);
+    if (lbr_fmt_set < 0) {
+        return;
+    } else if (lbr_fmt_set > 0) {
         env->features[FEAT_PERF_CAPABILITIES] &= ~PERF_CAP_LBR_FMT;
         env->features[FEAT_PERF_CAPABILITIES] |= cpu->lbr_fmt;
     }
