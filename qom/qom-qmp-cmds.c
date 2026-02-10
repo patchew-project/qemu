@@ -134,7 +134,12 @@ void qmp_qom_set(const char *path, const char *property, QObject *value,
         return;
     }
 
-    object_property_set_qobject(obj, property, value, errp);
+    if (!object_property_set_qobject(obj, property, value, errp)) {
+        return;
+    }
+
+    object_property_set_flags(obj, property,
+                              OBJ_PROP_FLAG_USER_SET, errp);
 }
 
 QObject *qmp_qom_get(const char *path, const char *property, Error **errp)
