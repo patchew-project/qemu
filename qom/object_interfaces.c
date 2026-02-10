@@ -56,6 +56,11 @@ static void object_set_properties_from_qdict(Object *obj, const QDict *qdict,
         if (!object_property_set(obj, e->key, v, errp)) {
             goto out;
         }
+
+        if (!object_property_set_flags(obj, e->key,
+                                       OBJ_PROP_FLAG_USER_SET, errp)) {
+            goto out;
+        }
     }
     visit_check_struct(v, errp);
 out:
