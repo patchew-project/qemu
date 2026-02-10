@@ -11,6 +11,7 @@
  *     and the field retains whatever value it was given by instance_init).
  * @defval: default value for the property. This is used only if @set_default
  *     is true.
+ * @flags: property flags to control uses.
  */
 struct Property {
     const char   *name;
@@ -27,6 +28,7 @@ struct Property {
     int          arrayfieldsize;
     uint8_t      bitnr;
     bool         set_default;
+    uint8_t      flags;
 };
 
 struct PropertyInfo {
@@ -97,10 +99,11 @@ extern const PropertyInfo qdev_prop_link;
                 .set_default = true,                            \
                 .defval.u    = (bool)_defval)
 
-#define DEFINE_PROP_UNSIGNED(_name, _state, _field, _defval, _prop, _type) \
-    DEFINE_PROP(_name, _state, _field, _prop, _type,                       \
-                .set_default = true,                                       \
-                .defval.u  = (_type)_defval)
+#define DEFINE_PROP_UNSIGNED(_name, _state, _field, _defval, _prop, _type, ...) \
+    DEFINE_PROP(_name, _state, _field, _prop, _type,                            \
+                .set_default = true,                                            \
+                .defval.u  = (_type)_defval,                                    \
+                ##__VA_ARGS__)
 
 #define DEFINE_PROP_UNSIGNED_NODEFAULT(_name, _state, _field, _prop, _type) \
     DEFINE_PROP(_name, _state, _field, _prop, _type)
@@ -118,10 +121,11 @@ extern const PropertyInfo qdev_prop_link;
                 .set_default = true,                                        \
                 .defval.i = (OnOffAuto)_defval)
 
-#define DEFINE_PROP_BOOL(_name, _state, _field, _defval)     \
-    DEFINE_PROP(_name, _state, _field, qdev_prop_bool, bool, \
-                .set_default = true,                         \
-                .defval.u    = (bool)_defval)
+#define DEFINE_PROP_BOOL(_name, _state, _field, _defval, ...) \
+    DEFINE_PROP(_name, _state, _field, qdev_prop_bool, bool,  \
+                .set_default = true,                          \
+                .defval.u    = (bool)_defval,                 \
+                ##__VA_ARGS__)
 
 /**
  * The DEFINE_PROP_UINT64_CHECKMASK macro checks a user-supplied value
@@ -168,8 +172,8 @@ extern const PropertyInfo qdev_prop_link;
     DEFINE_PROP(_name, _state, _field, qdev_prop_link, _ptr_type,     \
                 .link_type  = _type)
 
-#define DEFINE_PROP_UINT8(_n, _s, _f, _d)                       \
-    DEFINE_PROP_UNSIGNED(_n, _s, _f, _d, qdev_prop_uint8, uint8_t)
+#define DEFINE_PROP_UINT8(_n, _s, _f, _d, ...)                  \
+    DEFINE_PROP_UNSIGNED(_n, _s, _f, _d, qdev_prop_uint8, uint8_t, ##__VA_ARGS__)
 #define DEFINE_PROP_UINT16(_n, _s, _f, _d)                      \
     DEFINE_PROP_UNSIGNED(_n, _s, _f, _d, qdev_prop_uint16, uint16_t)
 #define DEFINE_PROP_UINT32(_n, _s, _f, _d)                      \

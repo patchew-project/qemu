@@ -1071,11 +1071,13 @@ void qdev_property_add_static(DeviceState *dev, const Property *prop)
 
     assert(!prop->info->create);
 
-    op = object_property_add(obj, prop->name, prop->info->type,
-                             field_prop_getter(prop->info),
-                             field_prop_setter(prop->info),
-                             prop->info->release,
-                             (Property *)prop);
+    op = object_property_add_full(obj, prop->name, prop->info->type,
+                                  field_prop_getter(prop->info),
+                                  field_prop_setter(prop->info),
+                                  prop->info->release,
+                                  prop->flags,
+                                  (Property *)prop,
+                                  &error_abort);
 
     object_property_set_description(obj, prop->name,
                                     prop->info->description);
@@ -1097,12 +1099,14 @@ static void qdev_class_add_property(DeviceClass *klass, const char *name,
     if (prop->info->create) {
         op = prop->info->create(oc, name, prop);
     } else {
-        op = object_class_property_add(oc,
-                                       name, prop->info->type,
-                                       field_prop_getter(prop->info),
-                                       field_prop_setter(prop->info),
-                                       prop->info->release,
-                                       (Property *)prop);
+        op = object_class_property_add_full(oc,
+                                            name, prop->info->type,
+                                            field_prop_getter(prop->info),
+                                            field_prop_setter(prop->info),
+                                            prop->info->release,
+                                            prop->flags,
+                                            (Property *)prop,
+                                            &error_abort);
     }
     if (prop->set_default) {
         prop->info->set_default_value(op, prop);
