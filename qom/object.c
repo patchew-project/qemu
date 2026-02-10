@@ -1242,6 +1242,21 @@ bool object_property_set_flags(Object *obj, const char *name,
         return false;
     }
 
+    if ((flags & OBJ_PROP_FLAG_USER_SET)) {
+        if (prop->flags & OBJ_PROP_FLAG_DEPRECATED) {
+            warn_report("Property '%s.%s' has been deprecated. "
+                        "Please do not use it.",
+                        object_get_typename(obj), name);
+        }
+
+        if (prop->flags & OBJ_PROP_FLAG_INTERNAL) {
+            error_setg(errp, "Property '%s.%s' is internal only. "
+                       "It can't be set by external user",
+                       object_get_typename(obj), name);
+            return false;
+        }
+    }
+
     prop->flags |= flags;
     return true;
 }

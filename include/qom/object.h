@@ -109,6 +109,30 @@ typedef enum {
      * will automatically add a getter and a setter to this property.
      */
     OBJ_PROP_FLAG_READWRITE = (OBJ_PROP_FLAG_READ | OBJ_PROP_FLAG_WRITE),
+    /*
+     * The property was explicitly set by an external user.
+     *
+     * This flag is set whenever the property is modified via external interfaces
+     * (CLI, QMP, HMP). It allows internal code to distinguish whether the
+     * property has been modified by the user.
+     *
+     * Once set, this flag persists even if the property value is subsequently
+     * overwritten by internal logic. It is NOT automatically cleared and must
+     * be explicitly cleared using object_property_clear_flags().
+     */
+    OBJ_PROP_FLAG_USER_SET = BIT(2),
+    /*
+     * The property is deprecated and will be removed in the future version.
+     *
+     * Any setting to this property by the user will raise a deprecation warning.
+     */
+    OBJ_PROP_FLAG_DEPRECATED = BIT(3),
+    /*
+     * The property is internal only and cannot be set by the user.
+     *
+     * Any setting to this property by the user will raise an error.
+     */
+    OBJ_PROP_FLAG_INTERNAL = BIT(4),
 } ObjectPropertyFlags;
 
 struct ObjectProperty
