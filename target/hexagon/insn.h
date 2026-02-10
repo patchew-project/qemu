@@ -41,6 +41,8 @@ struct Instruction {
     uint32_t new_value_producer_slot:4;
     int32_t new_read_idx;
     int32_t dest_idx;
+    bool dest_is_pair;
+    bool dest_is_gpr;
     bool has_pred_dest;
 
     bool part1;              /*
@@ -71,6 +73,10 @@ struct Packet {
 
     bool pkt_has_hvx;
     Insn *vhist_insn;
+
+    /* Bitmaps for detecting duplicate GPR destination writes */
+    DECLARE_BITMAP(wreg_mult_gprs, 32);   /* GPRs written by >1 insn */
+    DECLARE_BITMAP(uncond_wreg_gprs, 32); /* GPRs written unconditionally */
 
     Insn insn[INSTRUCTIONS_MAX];
 };
