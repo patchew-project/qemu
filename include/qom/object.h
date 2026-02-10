@@ -87,6 +87,30 @@ typedef void (ObjectPropertyRelease)(Object *obj,
  */
 typedef void (ObjectPropertyInit)(Object *obj, ObjectProperty *prop);
 
+typedef enum {
+    /*
+     * The property is readable and has a getter.
+     *
+     * For pointer property, this flag (set in object_{class_}property_add_*_ptr())
+     * will automatically add a getter to this property.
+     */
+    OBJ_PROP_FLAG_READ = BIT(0),
+    /*
+     * The property is writable and has a setter.
+     *
+     * For pointer property, this flag (set in object_{class_}property_add_*_ptr())
+     * will automatically add a setter to this property.
+     */
+    OBJ_PROP_FLAG_WRITE = BIT(1),
+    /*
+     * The property is readable and writable, as well as has a getter and a setter.
+     *
+     * For pointer property, this flag (set in object_{class_}property_add_*_ptr())
+     * will automatically add a getter and a setter to this property.
+     */
+    OBJ_PROP_FLAG_READWRITE = (OBJ_PROP_FLAG_READ | OBJ_PROP_FLAG_WRITE),
+} ObjectPropertyFlags;
+
 struct ObjectProperty
 {
     char *name;
@@ -99,6 +123,7 @@ struct ObjectProperty
     ObjectPropertyInit *init;
     void *opaque;
     QObject *defval;
+    ObjectPropertyFlags flags;
 };
 
 /**
@@ -1839,15 +1864,6 @@ ObjectProperty *object_property_add_tm(Object *obj, const char *name,
 ObjectProperty *object_class_property_add_tm(ObjectClass *klass,
                             const char *name,
                             void (*get)(Object *, struct tm *, Error **));
-
-typedef enum {
-    /* Automatically add a getter to the property */
-    OBJ_PROP_FLAG_READ = BIT(0),
-    /* Automatically add a setter to the property */
-    OBJ_PROP_FLAG_WRITE = BIT(1),
-    /* Automatically add a getter and a setter to the property */
-    OBJ_PROP_FLAG_READWRITE = (OBJ_PROP_FLAG_READ | OBJ_PROP_FLAG_WRITE),
-} ObjectPropertyFlags;
 
 /**
  * object_property_add_uint8_ptr:

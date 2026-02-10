@@ -1233,6 +1233,19 @@ void object_unref(void *objptr)
     }
 }
 
+static inline void object_property_flags_init(ObjectProperty *prop)
+{
+    uint8_t flags = 0;
+
+    if (prop->set) {
+        flags |= OBJ_PROP_FLAG_WRITE;
+    }
+    if (prop->get) {
+        flags |= OBJ_PROP_FLAG_READ;
+    }
+    prop->flags |= flags;
+}
+
 ObjectProperty *
 object_property_try_add(Object *obj, const char *name, const char *type,
                         ObjectPropertyAccessor *get,
@@ -1279,6 +1292,7 @@ object_property_try_add(Object *obj, const char *name, const char *type,
     prop->set = set;
     prop->release = release;
     prop->opaque = opaque;
+    object_property_flags_init(prop);
 
     g_hash_table_insert(obj->properties, prop->name, prop);
     return prop;
@@ -1317,9 +1331,9 @@ object_class_property_add(ObjectClass *klass,
     prop->set = set;
     prop->release = release;
     prop->opaque = opaque;
+    object_property_flags_init(prop);
 
     g_hash_table_insert(klass->properties, prop->name, prop);
-
     return prop;
 }
 
