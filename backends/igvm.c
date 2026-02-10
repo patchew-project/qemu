@@ -152,9 +152,17 @@ static int qigvm_handler(QIgvm *ctx, uint32_t type, Error **errp)
                 (int)header_handle);
             return -1;
         }
-        header_data = igvm_get_buffer(ctx->file, header_handle) +
-                      sizeof(IGVM_VHS_VARIABLE_HEADER);
-        result = handlers[handler].handler(ctx, header_data, errp);
+        header_data = igvm_get_buffer(ctx->file, header_handle);
+        if (header_data != NULL) {
+            header_data += sizeof(IGVM_VHS_VARIABLE_HEADER);
+            result = handlers[handler].handler(ctx, header_data, errp);
+        } else {
+            error_setg(errp,
+                    "IGVM: No buffer for handle %d: "
+                    "(type 0x%X)",
+                    header_handle, type);
+            result = -1;
+        }
         igvm_free_buffer(ctx->file, header_handle);
         return result;
     }
@@ -316,7 +324,13 @@ static int qigvm_process_mem_region(QIgvm *ctx, unsigned start_index,
                 return -1;
             }
             data = igvm_get_buffer(ctx->file, data_handle);
-            memcpy(&region[page_index * page_size], data, data_size);
+            if (data != NULL) {
+                memcpy(&region[page_index * page_size], data, data_size);
+            } else {
+                error_setg(errp, "IGVM: No buffer for handle %d: ", data_handle);
+                igvm_free_buffer(ctx->file, data_handle);
+                return -1;
+            }
             igvm_free_buffer(ctx->file, data_handle);
         }
     }
@@ -426,6 +440,11 @@ static int qigvm_directive_vp_context(QIgvm *ctx, const uint8_t *header_data,
     }
 
     data = (uint8_t *)igvm_get_buffer(ctx->file, data_handle);
+    if (data == NULL) {
+        error_setg(errp, "IGVM: No buffer for handle %d: ", data_handle);
+        result = -1;
+        goto exit;
+    }
 
     if (ctx->machine_state->cgs) {
         result = ctx->cgsc->set_guest_state(
@@ -441,6 +460,7 @@ static int qigvm_directive_vp_context(QIgvm *ctx, const uint8_t *header_data,
         result = -1;
     }
 
+exit:
     igvm_free_buffer(ctx->file, data_handle);
     if (result < 0) {
         return result;
@@ -778,33 +798,39 @@ static int qigvm_supported_platform_compat_mask(QIgvm *ctx, Error **errp)
             }
             platform =
                 (IGVM_VHS_SUPPORTED_PLATFORM *)(igvm_get_buffer(ctx->file,
-                                                                header_handle) +
-                                                sizeof(
-                                                    IGVM_VHS_VARIABLE_HEADER));
-            if ((platform->platform_type == IGVM_PLATFORM_TYPE_SEV_ES) &&
-                ctx->machine_state->cgs) {
-                if (ctx->cgsc->check_support(
-                        CGS_PLATFORM_SEV_ES, platform->platform_version,
-                        platform->highest_vtl, platform->shared_gpa_boundary)) {
-                    compatibility_mask_sev_es = platform->compatibility_mask;
+                                                                header_handle));
+            if (platform != NULL) {
+                platform = (IGVM_VHS_SUPPORTED_PLATFORM *)((void *)platform
+                                            + sizeof(IGVM_VHS_VARIABLE_HEADER));
+                if ((platform->platform_type == IGVM_PLATFORM_TYPE_SEV_ES) &&
+                    ctx->machine_state->cgs) {
+                    if (ctx->cgsc->check_support(
+                            CGS_PLATFORM_SEV_ES, platform->platform_version,
+                            platform->highest_vtl, platform->shared_gpa_boundary)) {
+                        compatibility_mask_sev_es = platform->compatibility_mask;
+                    }
+                } else if ((platform->platform_type == IGVM_PLATFORM_TYPE_SEV) &&
+                        ctx->machine_state->cgs) {
+                    if (ctx->cgsc->check_support(
+                            CGS_PLATFORM_SEV, platform->platform_version,
+                            platform->highest_vtl, platform->shared_gpa_boundary)) {
+                        compatibility_mask_sev = platform->compatibility_mask;
+                    }
+                } else if ((platform->platform_type ==
+                            IGVM_PLATFORM_TYPE_SEV_SNP) &&
+                        ctx->machine_state->cgs) {
+                    if (ctx->cgsc->check_support(
+                            CGS_PLATFORM_SEV_SNP, platform->platform_version,
+                            platform->highest_vtl, platform->shared_gpa_boundary)) {
+                        compatibility_mask_sev_snp = platform->compatibility_mask;
+                    }
+                } else if (platform->platform_type == IGVM_PLATFORM_TYPE_NATIVE) {
+                    compatibility_mask = platform->compatibility_mask;
                 }
-            } else if ((platform->platform_type == IGVM_PLATFORM_TYPE_SEV) &&
-                       ctx->machine_state->cgs) {
-                if (ctx->cgsc->check_support(
-                        CGS_PLATFORM_SEV, platform->platform_version,
-                        platform->highest_vtl, platform->shared_gpa_boundary)) {
-                    compatibility_mask_sev = platform->compatibility_mask;
-                }
-            } else if ((platform->platform_type ==
-                        IGVM_PLATFORM_TYPE_SEV_SNP) &&
-                       ctx->machine_state->cgs) {
-                if (ctx->cgsc->check_support(
-                        CGS_PLATFORM_SEV_SNP, platform->platform_version,
-                        platform->highest_vtl, platform->shared_gpa_boundary)) {
-                    compatibility_mask_sev_snp = platform->compatibility_mask;
-                }
-            } else if (platform->platform_type == IGVM_PLATFORM_TYPE_NATIVE) {
-                compatibility_mask = platform->compatibility_mask;
+            } else {
+                error_setg(errp, "IGVM: No buffer for handle %d: ", header_handle);
+                igvm_free_buffer(ctx->file, header_handle);
+                return -1;
             }
             igvm_free_buffer(ctx->file, header_handle);
         }
