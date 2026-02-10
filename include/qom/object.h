@@ -1087,7 +1087,7 @@ Object *object_ref(void *obj);
 void object_unref(void *obj);
 
 /**
- * object_property_try_add:
+ * object_property_add_full:
  * @obj: the object to add a property to
  * @name: the name of the property.  This can contain any character except for
  *  a forward slash.  In general, you should use hyphens '-' instead of
@@ -1114,17 +1114,17 @@ void object_unref(void *obj);
  * Returns: The #ObjectProperty; this can be used to set the @resolve
  * callback for child and link properties.
  */
-ObjectProperty *object_property_try_add(Object *obj, const char *name,
-                                        const char *type,
-                                        ObjectPropertyAccessor *get,
-                                        ObjectPropertyAccessor *set,
-                                        ObjectPropertyRelease *release,
-                                        ObjectPropertyFlags flags,
-                                        void *opaque, Error **errp);
+ObjectProperty *object_property_add_full(Object *obj, const char *name,
+                                         const char *type,
+                                         ObjectPropertyAccessor *get,
+                                         ObjectPropertyAccessor *set,
+                                         ObjectPropertyRelease *release,
+                                         ObjectPropertyFlags flags,
+                                         void *opaque, Error **errp);
 
 /**
  * object_property_add:
- * Same as object_property_try_add() with @flags hardcoded to 0 and @errp
+ * Same as object_property_add_full() with @flags hardcoded to 0 and @errp
  * hardcoded to &error_abort.
  *
  * @obj: the object to add a property to
@@ -1154,7 +1154,7 @@ ObjectProperty *object_property_add(Object *obj, const char *name,
 void object_property_del(Object *obj, const char *name);
 
 /**
- * object_class_property_try_add:
+ * object_class_property_add_full:
  * @klass: the object class to add a property to
  * @name: the name of the property.  This can contain any character except for
  *  a forward slash.  In general, you should use hyphens '-' instead of
@@ -1181,18 +1181,18 @@ void object_property_del(Object *obj, const char *name);
  * Returns: The #ObjectProperty; this can be used to set the @resolve
  * callback for child and link properties.
  */
-ObjectProperty *object_class_property_try_add(ObjectClass *klass, const char *name,
-                                              const char *type,
-                                              ObjectPropertyAccessor *get,
-                                              ObjectPropertyAccessor *set,
-                                              ObjectPropertyRelease *release,
-                                              ObjectPropertyFlags flags,
-                                              void *opaque, Error **errp);
+ObjectProperty *object_class_property_add_full(ObjectClass *klass, const char *name,
+                                               const char *type,
+                                               ObjectPropertyAccessor *get,
+                                               ObjectPropertyAccessor *set,
+                                               ObjectPropertyRelease *release,
+                                               ObjectPropertyFlags flags,
+                                               void *opaque, Error **errp);
 
 /**
  * object_class_property_add:
- * Same as object_class_property_try_add() with @flags hardcoded to 0 and @errp
- * hardcoded to &error_abort.
+ * Same as object_class_property_add_full() with @flags hardcoded to 0 and
+ * @errp hardcoded to &error_abort.
  *
  * @klass: the object class to add a property to
  * @name: the name of the property.  This can contain any character except for
