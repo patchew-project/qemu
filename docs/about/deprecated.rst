@@ -448,6 +448,14 @@ Backend ``memory`` (since 9.0)
 CPU device properties
 '''''''''''''''''''''
 
+``fill-mtrr-mask`` on x86 (since 11.0)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``fill-mtrr-mask=true`` fill the bits between 51..number-of-physical-address
+-bits in the MTRR_PHYSMASKn variable range mtrr masks. It was previously set to
+false only on PC-Q35-2.6 and PC-I440FX-2.6 machines, but PC v2.6 machines have
+been removed. Deprecate this property to stop external use.
+
 ``pmu-num=n`` on RISC-V CPUs (since 8.2)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
