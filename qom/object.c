@@ -1233,10 +1233,9 @@ void object_unref(void *objptr)
     }
 }
 
-static inline void object_property_flags_init(ObjectProperty *prop)
+static inline void object_property_flags_init(ObjectProperty *prop,
+                                              ObjectPropertyFlags flags)
 {
-    uint8_t flags = 0;
-
     if (prop->set) {
         flags |= OBJ_PROP_FLAG_WRITE;
     }
@@ -1251,6 +1250,7 @@ object_property_try_add(Object *obj, const char *name, const char *type,
                         ObjectPropertyAccessor *get,
                         ObjectPropertyAccessor *set,
                         ObjectPropertyRelease *release,
+                        ObjectPropertyFlags flags,
                         void *opaque, Error **errp)
 {
     ObjectProperty *prop;
@@ -1266,7 +1266,7 @@ object_property_try_add(Object *obj, const char *name, const char *type,
             char *full_name = g_strdup_printf("%s[%d]", name_no_array, i);
 
             ret = object_property_try_add(obj, full_name, type, get, set,
-                                          release, opaque, NULL);
+                                          release, flags, opaque, NULL);
             g_free(full_name);
             if (ret) {
                 break;
@@ -1292,7 +1292,7 @@ object_property_try_add(Object *obj, const char *name, const char *type,
     prop->set = set;
     prop->release = release;
     prop->opaque = opaque;
-    object_property_flags_init(prop);
+    object_property_flags_init(prop, flags);
 
     g_hash_table_insert(obj->properties, prop->name, prop);
     return prop;
@@ -1306,7 +1306,7 @@ object_property_add(Object *obj, const char *name, const char *type,
                     void *opaque)
 {
     return object_property_try_add(obj, name, type, get, set, release,
-                                   opaque, &error_abort);
+                                   0, opaque, &error_abort);
 }
 
 ObjectProperty *
@@ -1316,6 +1316,7 @@ object_class_property_try_add(ObjectClass *klass,
                               ObjectPropertyAccessor *get,
                               ObjectPropertyAccessor *set,
                               ObjectPropertyRelease *release,
+                              ObjectPropertyFlags flags,
                               void *opaque, Error **errp)
 {
     ObjectProperty *prop;
@@ -1336,7 +1337,7 @@ object_class_property_try_add(ObjectClass *klass,
     prop->set = set;
     prop->release = release;
     prop->opaque = opaque;
-    object_property_flags_init(prop);
+    object_property_flags_init(prop, flags);
 
     g_hash_table_insert(klass->properties, prop->name, prop);
     return prop;
@@ -1352,7 +1353,7 @@ object_class_property_add(ObjectClass *klass,
                           void *opaque)
 {
     return object_class_property_try_add(klass, name, type, get, set, release,
-                                         opaque, &error_abort);
+                                         0, opaque, &error_abort);
 }
 
 ObjectProperty *object_property_find(Object *obj, const char *name)
@@ -1863,7 +1864,7 @@ object_property_try_add_child(Object *obj, const char *name,
     type = g_strdup_printf("child<%s>", object_get_typename(child));
 
     op = object_property_try_add(obj, name, type, object_get_child_property,
-                                 NULL, object_finalize_child_property,
+                                 NULL, object_finalize_child_property, 0,
                                  child, errp);
     if (!op) {
         return NULL;

@@ -1103,6 +1103,11 @@ void object_unref(void *obj);
  * @release: called when the property is removed from the object.  This is
  *   meant to allow a property to free its opaque upon object
  *   destruction.  This may be NULL.
+ * @flags: property flags used to control property uses.  The
+ *   OBJ_PROP_FLAG_READ and OBJ_PROP_FLAG_WRITE flags are automatically
+ *   set based on the presence of the @get and @set callbacks.  The value
+ *   passed here is bitwise-ORed with those automatic flags.  Pass 0 if no
+ *   other flags are needed.
  * @opaque: an opaque pointer to pass to the callbacks for the property
  * @errp: pointer to error object
  *
@@ -1114,12 +1119,13 @@ ObjectProperty *object_property_try_add(Object *obj, const char *name,
                                         ObjectPropertyAccessor *get,
                                         ObjectPropertyAccessor *set,
                                         ObjectPropertyRelease *release,
+                                        ObjectPropertyFlags flags,
                                         void *opaque, Error **errp);
 
 /**
  * object_property_add:
- * Same as object_property_try_add() with @errp hardcoded to
- * &error_abort.
+ * Same as object_property_try_add() with @flags hardcoded to 0 and @errp
+ * hardcoded to &error_abort.
  *
  * @obj: the object to add a property to
  * @name: the name of the property.  This can contain any character except for
@@ -1164,6 +1170,11 @@ void object_property_del(Object *obj, const char *name);
  * @release: called when the property is removed from the object.  This is
  *   meant to allow a property to free its opaque upon object
  *   destruction.  This may be NULL.
+ * @flags: property flags used to control property uses.  The
+ *   OBJ_PROP_FLAG_READ and OBJ_PROP_FLAG_WRITE flags are automatically
+ *   set based on the presence of the @get and @set callbacks.  The value
+ *   passed here is bitwise-ORed with those automatic flags.  Pass 0 if no
+ *   other flags are needed.
  * @opaque: an opaque pointer to pass to the callbacks for the property
  * @errp: pointer to error object
  *
@@ -1175,13 +1186,13 @@ ObjectProperty *object_class_property_try_add(ObjectClass *klass, const char *na
                                               ObjectPropertyAccessor *get,
                                               ObjectPropertyAccessor *set,
                                               ObjectPropertyRelease *release,
+                                              ObjectPropertyFlags flags,
                                               void *opaque, Error **errp);
-
 
 /**
  * object_class_property_add:
- * Same as object_class_property_try_add() with @errp hardcoded to
- * &error_abort.
+ * Same as object_class_property_try_add() with @flags hardcoded to 0 and @errp
+ * hardcoded to &error_abort.
  *
  * @klass: the object class to add a property to
  * @name: the name of the property.  This can contain any character except for
