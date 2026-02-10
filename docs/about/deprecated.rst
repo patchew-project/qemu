@@ -456,6 +456,16 @@ The ``fill-mtrr-mask=true`` fill the bits between 51..number-of-physical-address
 false only on PC-Q35-2.6 and PC-I440FX-2.6 machines, but PC v2.6 machines have
 been removed. Deprecate this property to stop external use.
 
+``cpuid-0xb`` on x86 (since 11.0)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``cpuid-0xb`` is used to control whether to encode CPUID 0xB leaf or not.
+Only legacy x86 CPUs didn't have 0xB leaf, and the ```level``` property can
+control whether CPUID exposes the 0xB leaf and emulate legacy CPUs. This
+property was previously set to false only on PC-Q35-2.6 and PC-I440FX-2.6
+machines, but PC v2.6 machines have been removed. Deprecate this property to
+stop external use.
+
 ``pmu-num=n`` on RISC-V CPUs (since 8.2)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
