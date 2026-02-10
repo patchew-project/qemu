@@ -1655,14 +1655,15 @@ bool object_property_set(Object *obj, const char *name, Visitor *v,
  * @obj: the object
  * @name: the name of the property
  * @string: the string that will be used to parse the property value.
+ * @from_user: whether the property is being set by a external user.
  * @errp: returns an error if this function fails
  *
  * Parses a string and writes the result into a property of an object.
  *
  * Returns: %true on success, %false on failure.
  */
-bool object_property_parse(Object *obj, const char *name,
-                           const char *string, Error **errp);
+bool object_property_parse(Object *obj, const char *name, const char *string,
+                           bool from_user, Error **errp);
 
 /**
  * object_property_print:

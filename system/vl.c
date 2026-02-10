@@ -1708,7 +1708,7 @@ static int object_parse_property_opt(Object *obj,
         return 0;
     }
 
-    if (!object_property_parse(obj, name, value, errp)) {
+    if (!object_property_parse(obj, name, value, false, errp)) {
         return -1;
     }
 

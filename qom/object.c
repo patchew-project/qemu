@@ -460,7 +460,7 @@ bool object_apply_global_props(Object *obj, const GPtrArray *props,
             continue;
         }
         p->used = true;
-        if (!object_property_parse(obj, p->property, p->value, &err)) {
+        if (!object_property_parse(obj, p->property, p->value, false, &err)) {
             error_prepend(&err, "can't apply global %s.%s=%s: ",
                           p->driver, p->property, p->value);
             /*
@@ -882,7 +882,7 @@ bool object_set_propv(Object *obj,
         const char *value = va_arg(vargs, char *);
 
         g_assert(value != NULL);
-        if (!object_property_parse(obj, propname, value, errp)) {
+        if (!object_property_parse(obj, propname, value, false, errp)) {
             return false;
         }
         propname = va_arg(vargs, char *);
@@ -1802,13 +1802,23 @@ int object_property_get_enum(Object *obj, const char *name,
     return ret;
 }
 
-bool object_property_parse(Object *obj, const char *name,
-                           const char *string, Error **errp)
+bool object_property_parse(Object *obj, const char *name, const char *string,
+                           bool from_user, Error **errp)
 {
     Visitor *v = string_input_visitor_new(string);
-    bool ok = object_property_set(obj, name, v, errp);
+    bool ok;
 
+    ok = object_property_set(obj, name, v, errp);
     visit_free(v);
+
+    if (!ok) {
+        return false;
+    }
+
+    if (from_user) {
+        ok = object_property_set_flags(obj, name,
+                                       OBJ_PROP_FLAG_USER_SET, errp);
+    }
     return ok;
 }
 

@@ -8089,7 +8089,7 @@ void x86_cpu_apply_props(X86CPU *cpu, PropValue *props)
             continue;
         }
         object_property_parse(OBJECT(cpu), pv->prop, pv->value,
-                              &error_abort);
+                              false, &error_abort);
     }
 }
 
@@ -8112,7 +8112,7 @@ static void x86_cpu_apply_version_props(X86CPU *cpu, const X86CPUModel *model)
 
         for (p = vdef->props; p && p->prop; p++) {
             object_property_parse(OBJECT(cpu), p->prop, p->value,
-                                  &error_abort);
+                                  false, &error_abort);
         }
 
         if (vdef->version == version) {
