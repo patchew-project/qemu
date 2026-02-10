@@ -751,7 +751,7 @@ Object *object_new_with_propv(const char *typename,
                               va_list vargs);
 
 bool object_apply_global_props(Object *obj, const GPtrArray *props,
-                               Error **errp);
+                               bool from_user, Error **errp);
 void object_set_machine_compat_props(GPtrArray *compat_props);
 void object_set_accelerator_compat_props(GPtrArray *compat_props);
 void object_register_sugar_prop(const char *driver, const char *prop,

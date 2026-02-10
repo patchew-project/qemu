@@ -1017,7 +1017,7 @@ int qdev_prop_check_globals(void)
 
 void qdev_prop_set_globals(DeviceState *dev)
 {
-    object_apply_global_props(OBJECT(dev), global_props(),
+    object_apply_global_props(OBJECT(dev), global_props(), true,
                               dev->hotplugged ? NULL : &error_fatal);
 }
 

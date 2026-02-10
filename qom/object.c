@@ -441,7 +441,7 @@ static void object_post_init_with_type(Object *obj, TypeImpl *ti)
 }
 
 bool object_apply_global_props(Object *obj, const GPtrArray *props,
-                               Error **errp)
+                               bool from_user, Error **errp)
 {
     int i;
 
@@ -460,7 +460,8 @@ bool object_apply_global_props(Object *obj, const GPtrArray *props,
             continue;
         }
         p->used = true;
-        if (!object_property_parse(obj, p->property, p->value, false, &err)) {
+        if (!object_property_parse(obj, p->property, p->value,
+                                   from_user, &err)) {
             error_prepend(&err, "can't apply global %s.%s=%s: ",
                           p->driver, p->property, p->value);
             /*
@@ -536,6 +537,7 @@ void object_apply_compat_props(Object *obj)
 
     for (i = 0; i < ARRAY_SIZE(object_compat_props); i++) {
         object_apply_global_props(obj, object_compat_props[i],
+                                  i == 2 ? true : false,
                                   i == 2 ? &error_fatal : &error_abort);
     }
 }
