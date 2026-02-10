@@ -1233,6 +1233,69 @@ void object_unref(void *objptr)
     }
 }
 
+bool object_property_set_flags(Object *obj, const char *name,
+                               ObjectPropertyFlags flags,
+                               Error **errp)
+{
+    ObjectProperty *prop = object_property_find_err(obj, name, errp);
+    if (!prop) {
+        return false;
+    }
+
+    prop->flags |= flags;
+    return true;
+}
+
+bool object_property_get_flags(Object *obj, const char *name,
+                               ObjectPropertyFlags *flags,
+                               Error **errp)
+{
+    ObjectProperty *prop;
+
+    if (!flags) {
+        error_setg(errp, "invalid argument: flags is NULL");
+        return false;
+    }
+
+    prop = object_property_find_err(obj, name, errp);
+    if (!prop) {
+        return false;
+    }
+
+    *flags = prop->flags;
+    return true;
+}
+
+int object_property_check_flags(Object *obj, const char *name,
+                                ObjectPropertyFlags flags,
+                                Error **errp)
+{
+    ObjectPropertyFlags prop_flags;
+
+    if (!object_property_get_flags(obj, name, &prop_flags, errp)) {
+        return -1;
+    }
+
+    if ((prop_flags & flags) == flags) {
+        return 1;
+    }
+
+    return 0;
+}
+
+bool object_property_clear_flags(Object *obj, const char *name,
+                                 ObjectPropertyFlags flags,
+                                 Error **errp)
+{
+    ObjectProperty *prop = object_property_find_err(obj, name, errp);
+    if (!prop) {
+        return false;
+    }
+
+    prop->flags &= ~flags;
+    return true;
+}
+
 static inline void object_property_flags_init(ObjectProperty *prop,
                                               ObjectPropertyFlags flags)
 {

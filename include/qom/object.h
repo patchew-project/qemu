@@ -1087,6 +1087,70 @@ Object *object_ref(void *obj);
 void object_unref(void *obj);
 
 /**
+ * object_property_set_flags:
+ * @obj: the object.
+ * @name: the name of the property.
+ * @flags: the flags to be set for the property.
+ * @errp: pointer to error object.
+ *
+ * Set the @flags to the property. Existing flags are preserved.
+ *
+ * Returns: %true on success, %false on failure.
+ */
+bool object_property_set_flags(Object *obj, const char *name,
+                               ObjectPropertyFlags flags,
+                               Error **errp);
+
+/**
+ * object_property_get_flags:
+ * @obj: the object.
+ * @name: the name of the property.
+ * @flags: pointer to a location to store the retrieved flags. Must not be
+ *  NULL.
+ * @errp: pointer to error object.
+ *
+ * Get the current flags of the specified property.
+ *
+ * Returns: %true on success, %false on failure.
+ */
+bool object_property_get_flags(Object *obj, const char *name,
+                               ObjectPropertyFlags *flags,
+                               Error **errp);
+
+/**
+ * object_property_check_flags:
+ * @obj: the object.
+ * @name: the name of the property.
+ * @flags: the flags to check for on the property.
+ * @errp: pointer to error object.
+ *
+ * Check whether the specified property has all bits in @flags set.
+ * This is useful for detecting if a property has been explicitly set
+ * by the user (e.g. with %OBJ_PROP_FLAG_USER_SET).
+ *
+ * Returns: 1 if all @flags are set, 0 if not all @flags are set,
+ * or -1 on failure (property not found).
+ */
+int object_property_check_flags(Object *obj, const char *name,
+                                ObjectPropertyFlags flags,
+                                Error **errp);
+
+/**
+ * object_property_clear_flags:
+ * @obj: the object.
+ * @name: the name of the property.
+ * @flags: the flags to be removed from the property.
+ * @errp: pointer to error object
+ *
+ * Clear the @flags from the property. Other flags remain unchanged.
+ *
+ * Returns: %true on success, %false on failure.
+ */
+bool object_property_clear_flags(Object *obj, const char *name,
+                                 ObjectPropertyFlags flags,
+                                 Error **errp);
+
+/**
  * object_property_add_full:
  * @obj: the object to add a property to
  * @name: the name of the property.  This can contain any character except for
