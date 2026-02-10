@@ -507,6 +507,7 @@ const PropertyInfo qdev_prop_uint64_checkmask = {
     .type  = "uint64",
     .get   = get_uint64,
     .set   = set_uint64_checkmask,
+    .set_default_value = qdev_propinfo_set_default_value_uint,
 };
 
 /* --- pointer-size integer --- */

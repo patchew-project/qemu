@@ -128,14 +128,14 @@ extern const PropertyInfo qdev_prop_link;
                 ##__VA_ARGS__)
 
 /**
- * The DEFINE_PROP_UINT64_CHECKMASK macro checks a user-supplied value
- * against corresponding bitmask, rejects the value if it violates.
- * The default value is set in instance_init().
+ * The DEFINE_PROP_UINT64_CHECKMASK macro checks a value against corresponding
+ * bitmask, rejects the value if it violates.
  */
-#define DEFINE_PROP_UINT64_CHECKMASK(_name, _state, _field, _bitmask)   \
-    DEFINE_PROP(_name, _state, _field, qdev_prop_uint64_checkmask, uint64_t, \
-                .bitmask    = (_bitmask),                     \
-                .set_default = false)
+#define DEFINE_PROP_UINT64_CHECKMASK(_name, _state, _field, _bitmask, _defval) \
+    DEFINE_PROP(_name, _state, _field, qdev_prop_uint64_checkmask, uint64_t,   \
+                .bitmask    = (_bitmask),                                      \
+                .set_default = true,                                           \
+                .defval.u    = (_defval))
 
 /**
  * DEFINE_PROP_ARRAY:
