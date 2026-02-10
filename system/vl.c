@@ -1700,6 +1700,10 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
     return machine_class;
 }
 
+/*
+ * object_parse_property_opt() is only used for -accel, so mark the
+ * property as USER_SET in object_property_parse().
+ */
 static int object_parse_property_opt(Object *obj,
                                      const char *name, const char *value,
                                      const char *skip, Error **errp)
@@ -1708,7 +1712,7 @@ static int object_parse_property_opt(Object *obj,
         return 0;
     }
 
-    if (!object_property_parse(obj, name, value, false, errp)) {
+    if (!object_property_parse(obj, name, value, true, errp)) {
         return -1;
     }
 
