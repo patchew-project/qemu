@@ -483,6 +483,19 @@ It was implemented as a no-op instruction in TCG up to QEMU 9.0, but
 only with ``-cpu max`` (which does not guarantee migration compatibility
 across versions).
 
+
+Global options
+--------------
+
+``-global ioapic.version=version_id`` (since 11.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``version`` configures IOAPIC version for x86 machines. It was previously
+set to ``0x11`` for v2.7 machines, and since v2.8, the default version is
+bumped up to ``0x20``. The v2.7 machines have been removed, and ``0x11``
+version should be not needed. Deprecate this property to stop external use.
+
+
 Backwards compatibility
 -----------------------
 
