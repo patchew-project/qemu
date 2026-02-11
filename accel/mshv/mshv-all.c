@@ -112,19 +112,38 @@ static int resume_vm(int vm_fd)
 
 static int create_partition(int mshv_fd, int *vm_fd)
 {
-    int ret;
-    struct mshv_create_partition args = {0};
+    int ret, i;
+    uint64_t pt_flags;
+    union hv_partition_processor_xsave_features disabled_xsave_features;
+    union hv_partition_processor_features disabled_processor_features;
+    struct mshv_create_partition_v2 args = {0};
 
     /* Initialize pt_flags with the desired features */
-    uint64_t pt_flags = (1ULL << MSHV_PT_BIT_LAPIC) |
-                        (1ULL << MSHV_PT_BIT_X2APIC) |
-                        (1ULL << MSHV_PT_BIT_GPA_SUPER_PAGES);
+    pt_flags = (1ULL << MSHV_PT_BIT_LAPIC) |
+               (1ULL << MSHV_PT_BIT_X2APIC) |
+               (1ULL << MSHV_PT_BIT_GPA_SUPER_PAGES) |
+               (1ULL << MSHV_PT_BIT_CPU_AND_XSAVE_FEATURES);
 
-    /* Set default isolation type */
-    uint64_t pt_isolation = MSHV_PT_ISOLATION_NONE;
+    /* enable all */
+    disabled_xsave_features.as_uint64 = 0;
 
+    /* Enable all proc features by default */
+    for (i = 0; i < MSHV_NUM_CPU_FEATURES_BANKS; i++) {
+        disabled_processor_features.as_uint64[i] = 0;
+    }
+    disabled_processor_features.reserved_bank0 = 1;
+    for (i = 0; i < MSHV_NUM_CPU_FEATURES_BANKS; i++) {
+        disabled_processor_features.as_uint64[i] = 0;
+    }
+
+    /* populate args structure */
     args.pt_flags = pt_flags;
-    args.pt_isolation = pt_isolation;
+    args.pt_isolation = MSHV_PT_ISOLATION_NONE;
+    args.pt_disabled_xsave = disabled_xsave_features.as_uint64;
+    args.pt_num_cpu_fbanks = MSHV_NUM_CPU_FEATURES_BANKS;
+    for (i = 0; i < MSHV_NUM_CPU_FEATURES_BANKS; i++) {
+        args.pt_cpu_fbanks[i] = disabled_processor_features.as_uint64[i];
+    }
 
     ret = ioctl(mshv_fd, MSHV_CREATE_PARTITION, &args);
     if (ret < 0) {
