@@ -1605,6 +1605,10 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
         s->cr0ack = data & ~SMMU_CR0_RESERVED;
         /* in case the command queue has been enabled */
         smmuv3_cmdq_consume(s, &local_err);
+        /* Allocate vEVENTQ if EventQ is enabled and a vIOMMU is available */
+        if (local_err == NULL) {
+            smmuv3_accel_alloc_veventq(s, &local_err);
+        }
         break;
     case A_CR1:
         s->cr[1] = data;
