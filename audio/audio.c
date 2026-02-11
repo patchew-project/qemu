@@ -1948,7 +1948,7 @@ void AUD_set_volume_out(SWVoiceOut *sw, Volume *vol)
 
         sw->vol.mute = vol->mute;
         sw->vol.l = nominal_volume.l * vol->vol[0] / 255;
-        sw->vol.r = nominal_volume.l * vol->vol[vol->channels > 1 ? 1 : 0] /
+        sw->vol.r = nominal_volume.r * vol->vol[vol->channels > 1 ? 1 : 0] /
             255;
 
         if (hw->pcm_ops->volume_out) {
