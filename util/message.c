@@ -29,8 +29,9 @@ void qmessage_context_print(FILE *fp)
 
     if ((message_format & QMESSAGE_FORMAT_WORKLOAD_NAME) &&
         message_workloadname) {
+        fputc('[', fp);
         fputs(message_workloadname, fp);
-        fputc(' ', fp);
+        fputs("] ", fp);
     }
 
     if (message_format & QMESSAGE_FORMAT_PROGRAM_NAME) {
