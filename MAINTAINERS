@@ -569,7 +569,7 @@ F: accel/stubs/whpx-stub.c
 F: include/system/whpx.h
 
 MSHV
-M: Magnus Kulke <magnus.kulke@linux.microsoft.com>
+M: Magnus Kulke <magnuskulke@linux.microsoft.com>
 R: Wei Liu <wei.liu@kernel.org>
 S: Supported
 F: accel/mshv/
@@ -578,7 +578,7 @@ F: include/hw/hyperv/hvgdk*.h
 F: include/hw/hyperv/hvhdk*.h
 
 X86 MSHV CPUs
-M: Magnus Kulke <magnus.kulke@linux.microsoft.com>
+M: Magnus Kulke <magnuskulke@linux.microsoft.com>
 R: Wei Liu <wei.liu@kernel.org>
 S: Supported
 F: target/i386/mshv/
