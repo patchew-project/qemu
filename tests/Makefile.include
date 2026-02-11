@@ -106,7 +106,7 @@ quiet-venv-pip = $(quiet-@)$(call quiet-command-run, \
     "VENVPIP","$1")
 
 $(TESTS_VENV_TOKEN): $(SRC_PATH)/pythondeps.toml
-	$(call quiet-venv-pip,install -e "$(SRC_PATH)/python/")
+	$(call quiet-venv-pip,install --no-build-isolation -e "$(SRC_PATH)/python/")
 	$(MKVENV_ENSUREGROUP) $< testdeps
 	$(call quiet-command, touch $@)
 
