@@ -43,6 +43,8 @@ def main() -> int:
     packages = {
         "meson==1.10.0":
         "4b27aafce281e652dcb437b28007457411245d975c48b5db3a797d3e93ae1585",
+        "pycotap==1.3.1":
+        "1c3a25b3ff89e48f4e00f1f71dbbc1642b4f65c65d416524d07e73492fff25ea",
     }
 
     vendor_dir = Path(__file__, "..", "..", "wheels").resolve()
