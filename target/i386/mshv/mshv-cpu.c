@@ -1781,6 +1781,25 @@ uint32_t mshv_get_supported_cpuid(uint32_t func, uint32_t idx, int reg)
     if (func == 0x01       && reg == R_ECX) {
         ret &= ~CPUID_EXT_VMX;
     }
+
+    /*
+     * MSHV currently uses static CPUID intercept results for leaf 0xD.
+     * However there are feature-responses that are dynamic based on what a
+     * guest enables in XCR0 and XSS, such as CET shadow stack.
+     *
+     * A guest which doesn't know about those features yet would encounter an
+     * unexpcted CPUID[0xD,1].EBX (compactes XSAVE size) and either fail
+     * or gracefully degrade by not using XSAVE at all.
+     *
+     * To avoid this, we filter out supervisor xstate features.
+     */
+    if (func == 0x07 && idx == 0 && reg == R_ECX) {
+        ret &= ~CPUID_7_0_ECX_CET_SHSTK;
+    }
+    if (func == 0x07 && idx == 0 && reg == R_EDX) {
+        ret &= ~CPUID_7_0_EDX_CET_IBT;
+    }
+
     return ret;
 }
 
