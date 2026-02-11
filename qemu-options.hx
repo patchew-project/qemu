@@ -5515,13 +5515,15 @@ ERST
 
 DEF("msg", HAS_ARG, QEMU_OPTION_msg,
     "-msg [timestamp=on|off][,guest-name=on|off]\n"
+    "     [,program-name=on|off]\n"
     "                control error message format\n"
     "                timestamp=on enables timestamps (default: off)\n"
     "                guest-name=on enables guest name prefix but only if\n"
-    "                              -name guest option is set (default: off)\n",
+    "                              -name guest option is set (default: off)\n"
+    "                program-name=off disables program name prefix (default: on)\n",
     QEMU_ARCH_ALL)
 SRST
-``-msg [timestamp=on|off][,guest-name=on|off]``
+``-msg [timestamp=on|off][,guest-name=on|off][,program-name=on|off]``
     Control error message format.
 
     ``timestamp=on|off``
@@ -5530,6 +5532,9 @@ SRST
     ``guest-name=on|off``
         Prefix messages with guest name but only if -name guest option is set
         otherwise the option is ignored. Default is off.
+
+    ``program-name=on|off``
+        Prefix messages with the program name. Default is on.
 ERST
 
 DEF("dump-vmstate", HAS_ARG, QEMU_OPTION_dump_vmstate,

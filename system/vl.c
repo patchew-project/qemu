@@ -381,6 +381,12 @@ static QemuOptsList qemu_msg_opts = {
             .help = "Prepends guest name for error messages but only if "
                     "-name guest is set otherwise option is ignored\n",
         },
+        {
+            .name = "program-name",
+            .type = QEMU_OPT_BOOL,
+            .help = "Prepends program name for error messages (enabled "
+                    "by default)\n",
+        },
         { /* end of list */ }
     },
 };
@@ -819,12 +825,15 @@ static void realtime_init(void)
 
 static void configure_msg(QemuOpts *opts)
 {
-    int flags = 0;
+    int flags = QMESSAGE_FORMAT_PROGRAM_NAME;
     if (qemu_opt_get_bool(opts, "timestamp", false)) {
         flags |= QMESSAGE_FORMAT_TIMESTAMP;
     }
     if (qemu_opt_get_bool(opts, "guest-name", false)) {
         flags |= QMESSAGE_FORMAT_WORKLOAD_NAME;
+    }
+    if (!qemu_opt_get_bool(opts, "program-name", true)) {
+        flags &= ~QMESSAGE_FORMAT_PROGRAM_NAME;
     }
     qmessage_set_format(flags);
 }
