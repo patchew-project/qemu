@@ -525,6 +525,18 @@ static gboolean qapi_event_throttle_equal(const void *a, const void *b)
                        qdict_get_str(evb->data, "node-name"));
     }
 
+    /*
+     * If the VM is stopped after an I/O error, this is important information
+     * for the management tool to keep track of the state of QEMU and we can't
+     * merge any events. At the same time, stopping the VM means that the guest
+     * can't send additional requests and the number of events is already
+     * limited, so we can do without rate limiting.
+     */
+    if (eva->event == QAPI_EVENT_BLOCK_IO_ERROR &&
+        !strcmp(qdict_get_str(eva->data, "action"), "stop")) {
+        return FALSE;
+    }
+
     if (eva->event == QAPI_EVENT_MEMORY_DEVICE_SIZE_CHANGE ||
         eva->event == QAPI_EVENT_BLOCK_IO_ERROR) {
         return !strcmp(qdict_get_str(eva->data, "qom-path"),
