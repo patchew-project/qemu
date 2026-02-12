@@ -314,8 +314,11 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 static void hexagon_cpu_disas_set_info(const CPUState *cs,
                                        disassemble_info *info)
 {
+    CPUState *cs_nonconst = (CPUState *)cs;  /* so we can get hex_cpu */
+    HexagonCPU *hex_cpu = env_archcpu(cpu_env(cs_nonconst));
     info->print_insn = print_insn_hexagon;
     info->endian = BFD_ENDIAN_LITTLE;
+    info->target_info = (void *)HEXAGON_CPU_GET_CLASS(hex_cpu)->hex_version;
 }
 
 static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
