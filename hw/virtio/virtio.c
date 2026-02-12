@@ -2279,7 +2279,7 @@ int virtio_set_status(VirtIODevice *vdev, uint8_t val)
     trace_virtio_set_status(vdev, val);
     int ret = 0;
 
-    if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+    if (virtio_vdev_is_modern(vdev)) {
         if (!(vdev->status & VIRTIO_CONFIG_S_FEATURES_OK) &&
             val & VIRTIO_CONFIG_S_FEATURES_OK) {
             ret = virtio_validate_features(vdev);
@@ -2365,7 +2365,7 @@ void virtio_queue_enable(VirtIODevice *vdev, uint32_t queue_index)
      * be re-enabled for new machine types only, and also after
      * being converted to LOG_GUEST_ERROR.
      *
-    if (!virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+    if (virtio_vdev_is_legacy(vdev)) {
         error_report("queue_enable is only supported in devices of virtio "
                      "1.0 or later.");
     }
@@ -2454,7 +2454,7 @@ void virtio_queue_set_align(VirtIODevice *vdev, int n, int align)
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
     /* virtio-1 compliant devices cannot change the alignment */
-    if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+    if (virtio_vdev_is_modern(vdev)) {
         error_report("tried to modify queue alignment for virtio-1 device");
         return;
     }
@@ -2753,7 +2753,7 @@ static bool virtio_device_endian_needed(void *opaque)
     VirtIODevice *vdev = opaque;
 
     assert(vdev->device_endian != VIRTIO_DEVICE_ENDIAN_UNKNOWN);
-    if (!virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+    if (virtio_vdev_is_legacy(vdev)) {
         return vdev->device_endian != virtio_default_endian();
     }
     /* Devices conforming to VIRTIO 1.0 or later are always LE. */
@@ -3228,7 +3228,7 @@ int virtio_set_features_ex(VirtIODevice *vdev, const uint64_t *features)
     }
     if (!ret) {
         if (!virtio_device_started(vdev, vdev->status) &&
-            !virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+            virtio_vdev_is_legacy(vdev)) {
             vdev->start_on_kick = true;
         }
     }
@@ -3446,7 +3446,7 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     }
 
     if (!virtio_device_started(vdev, vdev->status) &&
-        !virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+        virtio_vdev_is_legacy(vdev)) {
         vdev->start_on_kick = true;
     }
 
@@ -3461,7 +3461,7 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
              * to calculate used and avail ring addresses based on the desc
              * address.
              */
-            if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+            if (virtio_vdev_is_modern(vdev)) {
                 virtio_init_region_cache(vdev, i);
             } else {
                 virtio_queue_update_rings(vdev, i);
@@ -4019,7 +4019,7 @@ void G_GNUC_PRINTF(2, 3) virtio_error(VirtIODevice *vdev, const char *fmt, ...)
     error_vreport(fmt, ap);
     va_end(ap);
 
-    if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+    if (virtio_vdev_is_modern(vdev)) {
         vdev->status = vdev->status | VIRTIO_CONFIG_S_NEEDS_RESET;
         virtio_notify_config(vdev);
     }

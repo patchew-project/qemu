@@ -1449,7 +1449,7 @@ static bool virtio_pci_queue_enabled(DeviceState *d, int n)
     VirtIOPCIProxy *proxy = VIRTIO_PCI(d);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
 
-    if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+    if (virtio_vdev_is_modern(vdev)) {
         return proxy->vqs[n].enabled;
     }
 
