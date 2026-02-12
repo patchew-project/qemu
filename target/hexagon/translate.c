@@ -968,6 +968,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->branch_cond = TCG_COND_NEVER;
     ctx->is_tight_loop = FIELD_EX32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP);
     ctx->short_circuit = hex_cpu->short_circuit;
+    ctx->hex_version = HEXAGON_CPU_GET_CLASS(hex_cpu)->hex_version;
 }
 
 static void hexagon_tr_tb_start(DisasContextBase *db, CPUState *cpu)
