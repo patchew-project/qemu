@@ -1123,6 +1123,21 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
      */
     mirror_top_opaque->job = s;
 
+    /*
+     * Disabling the dirty bitmap is safe once bdrv_mirror_top_do_write() sees
+     * that the job is set, because then:
+     *
+     * 1. When not using MIRROR_COPY_MODE_WRITE_BLOCKING, the dirty bitmap will
+     * be set by bdrv_mirror_top_do_write().
+     *
+     * 2. When using MIRROR_COPY_MODE_WRITE_BLOCKING, writes will be done
+     * synchronously to the target.
+     *
+     * bdrv_disable_dirty_bitmap() acquires and releases the dirty bitmap mutex,
+     * so the memory is synchronized between threads.
+     */
+    bdrv_disable_dirty_bitmap(s->dirty_bitmap);
+
     assert(!s->dbi);
     s->dbi = bdrv_dirty_iter_new(s->dirty_bitmap);
     for (;;) {
@@ -2013,12 +2028,6 @@ static BlockJob *mirror_start_job(
     if (!s->dirty_bitmap) {
         goto fail;
     }
-
-    /*
-     * The dirty bitmap is set by bdrv_mirror_top_do_write() when not in active
-     * mode.
-     */
-    bdrv_disable_dirty_bitmap(s->dirty_bitmap);
 
     bdrv_graph_wrlock_drained();
     ret = block_job_add_bdrv(&s->common, "source", bs, 0,
