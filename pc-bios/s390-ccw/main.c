@@ -329,6 +329,9 @@ void main(void)
     }
 
     boot_mode = get_boot_mode(iplb->hdr_flags);
+    if (boot_mode == ZIPL_BOOT_MODE_INVALID) {
+        panic("Need at least one certificate for secure boot!");
+    }
 
     while (have_iplb) {
         boot_setup();
