@@ -648,6 +648,18 @@ decode_set_slot_number(Packet *pkt)
     return has_valid_slot_assignment(pkt);
 }
 
+static bool opcode_supported(uint16_t opcode, HexagonVersion hex_version)
+{
+#include "tag_rev_info.c.inc"
+
+    struct tag_rev_info info = tag_rev_info[opcode];
+    if ((info.introduced && hex_version < info.introduced) ||
+        (info.removed && hex_version >= info.removed)) {
+        return false;
+    }
+    return true;
+}
+
 /*
  * decode_packet
  * Decodes packet with given words
@@ -691,6 +703,17 @@ int decode_packet(DisasContext *ctx, int max_words, const uint32_t *words,
         /* Ran out of words! */
         return 0;
     }
+
+    /*
+     * Check that all the opcodes are supported in this Hexagon version
+     * If not, return decode error
+     */
+    for (i = 0; i < num_insns; i++) {
+        if (!opcode_supported(pkt->insn[i].opcode, ctx->hex_version)) {
+            return 0;
+        }
+    }
+
     pkt->encod_pkt_size_in_bytes = words_read * 4;
     pkt->pkt_has_hvx = false;
     for (i = 0; i < num_insns; i++) {
