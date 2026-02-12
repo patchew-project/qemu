@@ -157,6 +157,7 @@ M: Ani Sinha <anisinha@redhat.com>
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: stubs/kvm.c
+F: tests/functional/x86_64/test_vmfd_change_reboot.py
 
 Guest CPU cores (TCG)
 ---------------------
