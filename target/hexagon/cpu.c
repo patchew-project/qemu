@@ -27,12 +27,22 @@
 #include "exec/gdbstub.h"
 #include "accel/tcg/cpu-ops.h"
 
-static void hexagon_v66_cpu_init(Object *obj) { }
-static void hexagon_v67_cpu_init(Object *obj) { }
-static void hexagon_v68_cpu_init(Object *obj) { }
-static void hexagon_v69_cpu_init(Object *obj) { }
-static void hexagon_v71_cpu_init(Object *obj) { }
-static void hexagon_v73_cpu_init(Object *obj) { }
+#define HEX_CPU_INIT(NAME, VER) \
+static void hexagon_##NAME##_cpu_init(Object *obj) \
+{ HEXAGON_CPU_GET_CLASS(obj)->hex_version = VER; }
+
+HEX_CPU_INIT(v5, HEX_VER_V5)
+HEX_CPU_INIT(v55, HEX_VER_V55)
+HEX_CPU_INIT(v60, HEX_VER_V60)
+HEX_CPU_INIT(v61, HEX_VER_V61)
+HEX_CPU_INIT(v62, HEX_VER_V62)
+HEX_CPU_INIT(v65, HEX_VER_V65)
+HEX_CPU_INIT(v66, HEX_VER_V66)
+HEX_CPU_INIT(v67, HEX_VER_V67)
+HEX_CPU_INIT(v68, HEX_VER_V68)
+HEX_CPU_INIT(v69, HEX_VER_V69)
+HEX_CPU_INIT(v71, HEX_VER_V71)
+HEX_CPU_INIT(v73, HEX_VER_V73)
 
 static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
 {
@@ -395,6 +405,12 @@ static const TypeInfo hexagon_cpu_type_infos[] = {
         .class_size = sizeof(HexagonCPUClass),
         .class_init = hexagon_cpu_class_init,
     },
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V5,               hexagon_v5_cpu_init),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V55,              hexagon_v55_cpu_init),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V60,              hexagon_v60_cpu_init),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V61,              hexagon_v61_cpu_init),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V62,              hexagon_v62_cpu_init),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V65,              hexagon_v65_cpu_init),
     DEFINE_CPU(TYPE_HEXAGON_CPU_V66,              hexagon_v66_cpu_init),
     DEFINE_CPU(TYPE_HEXAGON_CPU_V67,              hexagon_v67_cpu_init),
     DEFINE_CPU(TYPE_HEXAGON_CPU_V68,              hexagon_v68_cpu_init),
