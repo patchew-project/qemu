@@ -526,25 +526,25 @@ void qemu_system_reset(ShutdownCause reason)
         type = RESET_TYPE_COLD;
     }
 
-    /*
-     * different accelerators implement how to close the old file handle of
-     * the accelerator descriptor and create a new one here. Resetting
-     * file handle is necessary to create a new confidential VM context post
-     * VM reset.
-     */
-    if (!cpus_are_resettable() &&
-        (reason == SHUTDOWN_CAUSE_GUEST_RESET ||
-         reason == SHUTDOWN_CAUSE_HOST_QMP_SYSTEM_RESET)) {
+    if ((reason == SHUTDOWN_CAUSE_GUEST_RESET ||
+         reason == SHUTDOWN_CAUSE_HOST_QMP_SYSTEM_RESET) &&
+        (current_machine->new_accel_vmfd_on_reset || !cpus_are_resettable())) {
         if (ac->reset_vmfd) {
             ret = ac->reset_vmfd(current_machine);
             if (ret < 0) {
                 error_report("unable to reset vmfd: %s(%d)",
                              strerror(-ret), ret);
                 vm_stop(RUN_STATE_INTERNAL_ERROR);
+            } else if (current_machine->new_accel_vmfd_on_reset) {
+                info_report("virtual machine accel file descriptor "
+                            "has changed.");
             }
             vmfd_reset = true;
+        } else if (!cpus_are_resettable())  {
+            error_report("accelerator does not support reset!");
         } else {
-            error_report("accelerator does not support reset");
+            error_report("accelerator does not support vmfd change reset, "
+                         "proceeding with normal reset!");
         }
     }
 

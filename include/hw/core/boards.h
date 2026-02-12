@@ -448,6 +448,12 @@ struct MachineState {
     struct NVDIMMState *nvdimms_state;
     struct NumaState *numa_state;
     bool acpi_spcr_enabled;
+    /*
+     * whether to change virtual machine accelerator file descriptor upon
+     * reset or not. used only for debugging and testing purpose.
+     * It should be set to false for all regular use.
+     */
+    bool new_accel_vmfd_on_reset;
 };
 
 /*
