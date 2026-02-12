@@ -79,6 +79,7 @@ HEX_TESTS += test_vminh
 HEX_TESTS += test_vpmpyh
 HEX_TESTS += test_vspliceb
 
+HEX_TESTS += check_rev_gating
 HEX_TESTS += v68_scalar
 HEX_TESTS += v68_hvx
 HEX_TESTS += v69_hvx
@@ -103,6 +104,11 @@ preg_alias: preg_alias.c hex_test.h
 read_write_overlap: read_write_overlap.c hex_test.h
 reg_mut: reg_mut.c hex_test.h
 unaligned_pc: unaligned_pc.c
+
+# Compile for v66 so that the ELF selects a v66 CPU; the test then
+# exercises revision gating by executing a v68 .word instruction.
+check_rev_gating: check_rev_gating.c
+	$(CC) $(CFLAGS) -mv66 -O2 $< -o $@ $(LDFLAGS)
 
 # This test has to be compiled for the -mv67t target
 usr: usr.c hex_test.h
