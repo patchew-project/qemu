@@ -1168,7 +1168,7 @@ static void vhost_log_stop(MemoryListener *listener,
  */
 static inline bool vhost_needs_vring_endian(VirtIODevice *vdev)
 {
-    if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+    if (virtio_vdev_is_modern(vdev)) {
         return false;
     }
 #if HOST_BIG_ENDIAN
