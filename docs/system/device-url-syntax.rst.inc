@@ -179,6 +179,12 @@ These are specified using a special URL syntax.
       get the size of the image to be downloaded. If not set, the
       default timeout of 5 seconds is used.
 
+   ``force-range``
+      Assume the HTTP backend supports range requests and avoid doing
+      a HTTP HEAD request to discover the feature. Typically S3
+      presigned URLs will only support one method and refuse other
+      requests types.
+
    Note that when passing options to qemu explicitly, ``driver`` is the
    value of <protocol>.
 
