@@ -16,6 +16,38 @@
 VCStorageSizeBlock *zipl_secure_get_vcssb(void);
 int zipl_run_secure(ComponentEntry **entry_ptr, uint8_t *tmp_sec);
 
+#define S390_SECURE_IPL_SCLAB_FLAG_OPSW    0x8000
+#define S390_SECURE_IPL_SCLAB_FLAG_OLA     0x4000
+#define S390_SECURE_IPL_SCLAB_FLAG_NUC     0x2000
+#define S390_SECURE_IPL_SCLAB_FLAG_SC      0x1000
+
+#define S390_SECURE_IPL_SCLAB_MIN_LEN      32
+
+struct SecureCodeLoadingAttributesBlock {
+    uint8_t  format;
+    uint8_t  reserved1;
+    uint16_t flags;
+    uint8_t  reserved2[4];
+    uint64_t load_psw;
+    uint64_t load_addr;
+    uint64_t reserved3[];
+} __attribute__ ((packed));
+typedef struct SecureCodeLoadingAttributesBlock SecureCodeLoadingAttributesBlock;
+
+struct SclabOriginLocator {
+    uint8_t reserved[2];
+    uint16_t len;
+    uint8_t magic[4];
+} __attribute__ ((packed));
+typedef struct SclabOriginLocator SclabOriginLocator;
+
+typedef struct SecureIplSclabInfo {
+    int count;
+    int global_count;
+    uint64_t load_psw;
+    uint16_t flags;
+} SecureIplSclabInfo;
+
 typedef struct SecureIplCompAddrRange {
     bool is_signed;
     uint64_t start_addr;
@@ -31,6 +63,16 @@ static inline void zipl_secure_handle(const char *message)
     default:
         break;
     }
+}
+
+static inline void set_comp_cei_with_log(IplDeviceComponentEntry *comp_entry,
+                                         uint32_t flag, const char *message)
+{
+    if (comp_entry) {
+        comp_entry->cei |= flag;
+    }
+
+    zipl_secure_handle(message);
 }
 
 static inline uint64_t diag320(void *data, unsigned long subcode)
