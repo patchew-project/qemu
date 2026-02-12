@@ -289,6 +289,10 @@ static bool check_sclab_presence(uint8_t *sclab_magic,
     }
 
     /* a missing SCLAB will not be reported in audit mode */
+    if (boot_mode == ZIPL_BOOT_MODE_SECURE) {
+        zipl_secure_handle("Magic does not match. SCLAB does not exist");
+    }
+
     return false;
 }
 
