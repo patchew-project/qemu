@@ -420,6 +420,13 @@ void whpx_set_registers(CPUState *cpu, int level)
         vcxt.values[idx].Segment = whpx_seg_q2h(&env->segs[i], v86, r86);
     }
 
+    /*
+     * This is a hot path called on every MMIO access.
+     */
+    if (level <= WHPX_SET_FAST_RUNTIME_STATE) {
+        goto skip_to_set_registers;
+    }
+
     assert(idx == WHvX64RegisterLdtr);
     vcxt.values[idx++].Segment = whpx_seg_q2h(&env->ldt, 0, 0);
 
@@ -529,10 +536,11 @@ void whpx_set_registers(CPUState *cpu, int level)
 
     assert(idx == RTL_NUMBER_OF(whpx_register_names));
 
+    skip_to_set_registers:
     hr = whp_dispatch.WHvSetVirtualProcessorRegisters(
         whpx->partition, cpu->cpu_index,
         whpx_register_names,
-        RTL_NUMBER_OF(whpx_register_names),
+        idx,
         &vcxt.values[0]);
 
     if (FAILED(hr)) {
@@ -771,7 +779,7 @@ static int emulate_instruction(CPUState *cpu, const uint8_t *insn_bytes, size_t 
     whpx_get_registers(cpu);
     decode_instruction_stream(env, &decode, &stream);
     exec_instruction(env, &decode);
-    whpx_set_registers(cpu, WHPX_SET_RUNTIME_STATE);
+    whpx_set_registers(cpu, WHPX_SET_FAST_RUNTIME_STATE);
 
     return 0;
 }

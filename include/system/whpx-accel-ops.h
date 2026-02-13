@@ -22,11 +22,13 @@ void whpx_cpu_synchronize_post_reset(CPUState *cpu);
 void whpx_cpu_synchronize_post_init(CPUState *cpu);
 void whpx_cpu_synchronize_pre_loadvm(CPUState *cpu);
 
+/* subset of runtime state for faster returns from vmexit */
+#define WHPX_SET_FAST_RUNTIME_STATE   1
 /* state subset only touched by the VCPU itself during runtime */
-#define WHPX_SET_RUNTIME_STATE   1
+#define WHPX_SET_RUNTIME_STATE   2
 /* state subset modified during VCPU reset */
-#define WHPX_SET_RESET_STATE     2
+#define WHPX_SET_RESET_STATE     3
 /* full state set, modified during initialization or on vmload */
-#define WHPX_SET_FULL_STATE      3
+#define WHPX_SET_FULL_STATE      4
 
 #endif /* TARGET_I386_WHPX_ACCEL_OPS_H */
