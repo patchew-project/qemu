@@ -181,6 +181,14 @@ static void fdmon_io_uring_add_sqe(AioContext *ctx,
 
     trace_fdmon_io_uring_add_sqe(ctx, opaque, sqe->opcode, sqe->fd, sqe->off,
                                  cqe_handler);
+
+    /*
+     * Wake the main loop if it is sleeping in ppoll().  When a vCPU thread
+     * runs a coroutine inline (holding BQL), it queues SQEs here but the
+     * actual io_uring_submit() only happens in gsource_prepare().  Without
+     * this notify, ppoll() can sleep up to 499ms before submitting.
+     */
+    aio_notify(ctx);
 }
 
 static void fdmon_special_cqe_handler(CqeHandler *cqe_handler)
