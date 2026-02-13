@@ -20,6 +20,7 @@
 #define IN_PAGE_VARY 1
 
 #include "qemu/osdep.h"
+#include "qemu/target-info.h"
 #include "exec/page-vary.h"
 
 /* WARNING: This file must *not* be complied with -flto. */
@@ -39,6 +40,15 @@ bool set_preferred_target_page_bits_common(int bits)
             return false;
         }
         target_page.bits = bits;
+    }
+    return true;
+}
+
+bool set_preferred_target_page_bits(int bits)
+{
+    assert(bits >= TARGET_PAGE_BITS_MIN);
+    if (target_page_bits_vary()) {
+        return set_preferred_target_page_bits_common(bits);
     }
     return true;
 }

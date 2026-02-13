@@ -20,7 +20,6 @@
 #define IN_PAGE_VARY 1
 
 #include "qemu/osdep.h"
-#include "qemu/target-info.h"
 #include "exec/page-vary.h"
 #include "exec/target_page.h"
 
@@ -43,15 +42,6 @@ int migration_legacy_page_bits(void)
 #endif
 }
 #endif
-
-bool set_preferred_target_page_bits(int bits)
-{
-    assert(bits >= TARGET_PAGE_BITS_MIN);
-    if (target_page_bits_vary()) {
-        return set_preferred_target_page_bits_common(bits);
-    }
-    return true;
-}
 
 void finalize_target_page_bits(void)
 {
