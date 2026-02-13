@@ -1597,14 +1597,17 @@ static MemTxResult smmu_writell(SMMUv3State *s, hwaddr offset,
 static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
                                uint64_t data, MemTxAttrs attrs)
 {
-    Error *local_err = NULL;
+    Error *err = NULL, *local_err = NULL;
 
     switch (offset) {
     case A_CR0:
         s->cr[0] = data;
         s->cr0ack = data & ~SMMU_CR0_RESERVED;
         /* in case the command queue has been enabled */
-        smmuv3_cmdq_consume(s, &local_err);
+        smmuv3_cmdq_consume(s, &err);
+        /* Allocate vEVENTQ if EVENTQ is enabled and a vIOMMU is available */
+        smmuv3_accel_alloc_veventq(s, &local_err);
+        error_propagate(&err, local_err);
         break;
     case A_CR1:
         s->cr[1] = data;
@@ -1621,7 +1624,7 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
          * By acknowledging the CMDQ_ERR, SW may notify cmds can
          * be processed again
          */
-        smmuv3_cmdq_consume(s, &local_err);
+        smmuv3_cmdq_consume(s, &err);
         break;
     case A_GERROR_IRQ_CFG0: /* 64b */
         s->gerror_irq_cfg0 = deposit64(s->gerror_irq_cfg0, 0, 32, data);
@@ -1643,7 +1646,7 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
         if (data & R_GBPA_UPDATE_MASK) {
             /* Ignore update bit as write is synchronous. */
             s->gbpa = data & ~R_GBPA_UPDATE_MASK;
-            smmuv3_accel_attach_gbpa_hwpt(s, &local_err);
+            smmuv3_accel_attach_gbpa_hwpt(s, &err);
         }
         break;
     case A_STRTAB_BASE: /* 64b */
@@ -1671,7 +1674,7 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
         break;
     case A_CMDQ_PROD:
         s->cmdq.prod = data;
-        smmuv3_cmdq_consume(s, &local_err);
+        smmuv3_cmdq_consume(s, &err);
         break;
     case A_CMDQ_CONS:
         s->cmdq.cons = data;
@@ -1711,8 +1714,8 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
         break;
     }
 
-    if (local_err) {
-        error_report_err(local_err);
+    if (err) {
+        error_report_err(err);
     }
     return MEMTX_OK;
 }
