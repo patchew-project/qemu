@@ -19,6 +19,8 @@ typedef struct TargetInfo {
     SysEmuTarget target_arch;
     /* runtime equivalent of TARGET_LONG_BITS definition */
     unsigned long_bits;
+    /* runtime equivalent of TARGET_PAGE_BITS_VARY definition */
+    bool page_bits_vary;
     /* runtime equivalent of CPU_RESOLVING_TYPE definition */
     const char *cpu_type;
     /* QOM typename machines for this binary must implement */

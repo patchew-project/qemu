@@ -22,6 +22,11 @@ unsigned target_long_bits(void)
     return target_info()->long_bits;
 }
 
+bool target_page_bits_vary(void)
+{
+    return target_info()->page_bits_vary;
+}
+
 SysEmuTarget target_arch(void)
 {
     return target_info()->target_arch;

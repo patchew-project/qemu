@@ -24,6 +24,13 @@ const char *target_name(void);
 unsigned target_long_bits(void);
 
 /**
+ * target_page_bits_vary:
+ *
+ * Returns: whether the target support variable page sizes
+ */
+bool target_page_bits_vary(void);
+
+/**
  * target_machine_typename:
  *
  * Returns: Name of the QOM interface implemented by machines

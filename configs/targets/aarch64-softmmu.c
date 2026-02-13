@@ -15,6 +15,7 @@ static const TargetInfo target_info_aarch64_system = {
     .target_name = "aarch64",
     .target_arch = SYS_EMU_TARGET_AARCH64,
     .long_bits = 64,
+    .page_bits_vary = true,
     .cpu_type = TYPE_ARM_CPU,
     .machine_typename = TYPE_TARGET_AARCH64_MACHINE,
     .endianness = ENDIAN_MODE_LITTLE,
