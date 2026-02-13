@@ -3310,9 +3310,16 @@ static int coroutine_fn v9fs_complete_rename(V9fsPDU *pdu, V9fsFidState *fidp,
             goto out;
         }
     } else {
-        char *dir_name = g_path_get_dirname(fidp->path.data);
+        char *dir_name;
         V9fsPath dir_path;
 
+        if (!(s->ctx.export_flags & V9FS_PATHNAME_FSCONTEXT)) {
+            /* path renaming is only supported for path based fid */
+            err = -EOPNOTSUPP;
+            goto out;
+        }
+
+        dir_name = g_path_get_dirname(fidp->path.data);
         v9fs_path_init(&dir_path);
         v9fs_path_sprintf(&dir_path, "%s", dir_name);
         g_free(dir_name);
