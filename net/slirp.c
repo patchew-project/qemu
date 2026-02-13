@@ -69,6 +69,26 @@ static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
     return 0;
 }
 
+static int get_last_str_sep(char *buf, int buf_size, const char **pp, int sep)
+{
+    const char *p, *p1;
+    int len;
+    p = *pp;
+    p1 = strrchr(p, sep);
+    if (!p1)
+        return -1;
+    len = p1 - p;
+    p1++;
+    if (buf_size > 0) {
+        if (len > buf_size - 1)
+            len = buf_size - 1;
+        memcpy(buf, p, len);
+        buf[len] = '\0';
+    }
+    *pp = p1;
+    return 0;
+}
+
 /* slirp network adapter */
 
 #define SLIRP_CFG_HOSTFWD 1
@@ -848,7 +868,7 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
 
 #if !defined(WIN32) && SLIRP_CHECK_VERSION(4, 7, 0)
     if (is_unix) {
-        if (get_str_sep(buf, sizeof(buf), &p, '-') < 0) {
+        if (get_last_str_sep(buf, sizeof(buf), &p, '-') < 0) {
             fail_reason = "Missing - separator";
             goto fail_syntax;
         }
