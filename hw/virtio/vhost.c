@@ -1920,6 +1920,7 @@ void vhost_get_features_ex(struct vhost_dev *hdev,
 
 static bool vhost_inflight_buffer_pre_load(void *opaque, Error **errp)
 {
+    ERRP_GUARD();
     struct vhost_inflight *inflight = opaque;
 
     int fd = -1;
@@ -1927,7 +1928,7 @@ static bool vhost_inflight_buffer_pre_load(void *opaque, Error **errp)
                                   F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL,
                                   &fd, errp);
     if (*errp) {
-        return -ENOMEM;
+        return false;
     }
 
     inflight->offset = 0;
