@@ -505,23 +505,24 @@ bool iommufd_backend_alloc_vdev(IOMMUFDBackend *be, uint32_t dev_id,
 }
 
 bool host_iommu_device_iommufd_attach_hwpt(HostIOMMUDeviceIOMMUFD *idev,
-                                           uint32_t hwpt_id, Error **errp)
-{
-    HostIOMMUDeviceIOMMUFDClass *idevc =
-        HOST_IOMMU_DEVICE_IOMMUFD_GET_CLASS(idev);
-
-    g_assert(idevc->attach_hwpt);
-    return idevc->attach_hwpt(idev, hwpt_id, errp);
-}
-
-bool host_iommu_device_iommufd_detach_hwpt(HostIOMMUDeviceIOMMUFD *idev,
+                                           uint32_t pasid, uint32_t hwpt_id,
                                            Error **errp)
 {
     HostIOMMUDeviceIOMMUFDClass *idevc =
         HOST_IOMMU_DEVICE_IOMMUFD_GET_CLASS(idev);
 
+    g_assert(idevc->attach_hwpt);
+    return idevc->attach_hwpt(idev, pasid, hwpt_id, errp);
+}
+
+bool host_iommu_device_iommufd_detach_hwpt(HostIOMMUDeviceIOMMUFD *idev,
+                                           uint32_t pasid, Error **errp)
+{
+    HostIOMMUDeviceIOMMUFDClass *idevc =
+        HOST_IOMMU_DEVICE_IOMMUFD_GET_CLASS(idev);
+
     g_assert(idevc->detach_hwpt);
-    return idevc->detach_hwpt(idev, errp);
+    return idevc->detach_hwpt(idev, pasid, errp);
 }
 
 static int hiod_iommufd_get_cap(HostIOMMUDevice *hiod, int cap, Error **errp)
