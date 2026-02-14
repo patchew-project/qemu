@@ -2194,6 +2194,14 @@ static void kvm_init_pmu_info(struct kvm_cpuid2 *cpuid, X86CPU *cpu)
     CPUX86State *env = &cpu->env;
 
     /*
+     * Reset PMU state to avoid stale values from previous VCPU
+     * initializations affecting subsequent ones.
+     */
+    pmu_version = 0;
+    num_pmu_gp_counters = 0;
+    num_pmu_fixed_counters = 0;
+
+    /*
      * If KVM_CAP_PMU_CAPABILITY is not supported, there is no way to
      * disable the AMD PMU virtualization.
      *
