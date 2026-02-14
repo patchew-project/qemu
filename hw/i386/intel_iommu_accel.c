@@ -257,6 +257,176 @@ void vtd_flush_host_piotlb_all_locked(IntelIOMMUState *s, uint16_t domain_id,
                          vtd_flush_host_piotlb_locked, &piotlb_info);
 }
 
+static void vtd_find_add_pc(VTDHostIOMMUDevice *vtd_hiod, uint32_t pasid,
+                            VTDPASIDEntry *pe)
+{
+    VTDACCELPASIDCacheEntry *vtd_pce;
+
+    QLIST_FOREACH(vtd_pce, &vtd_hiod->pasid_cache_list, next) {
+        if (vtd_pce->pasid == pasid) {
+            if (vtd_pasid_entry_compare(pe, &vtd_pce->pe)) {
+                vtd_pce->pe = *pe;
+            }
+            return;
+        }
+    }
+
+    vtd_pce = g_malloc0(sizeof(VTDACCELPASIDCacheEntry));
+    vtd_pce->vtd_hiod = vtd_hiod;
+    vtd_pce->pasid = pasid;
+    vtd_pce->pe = *pe;
+    QLIST_INSERT_HEAD(&vtd_hiod->pasid_cache_list, vtd_pce, next);
+}
+
+/*
+ * This function walks over PASID range within [start, end) in a single
+ * PASID table for entries matching @info type/did, then create
+ * VTDACCELPASIDCacheEntry if not exist yet.
+ */
+static void vtd_sm_pasid_table_walk_one(VTDHostIOMMUDevice *vtd_hiod,
+                                        dma_addr_t pt_base,
+                                        int start,
+                                        int end,
+                                        VTDPASIDCacheInfo *info)
+{
+    IntelIOMMUState *s = vtd_hiod->iommu_state;
+    VTDPASIDEntry pe;
+    int pasid;
+
+    for (pasid = start; pasid < end; pasid++) {
+        if (vtd_get_pe_in_pasid_leaf_table(s, pasid, pt_base, &pe) ||
+            !vtd_pe_present(&pe)) {
+            continue;
+        }
+
+        if ((info->type == VTD_INV_DESC_PASIDC_G_DSI ||
+             info->type == VTD_INV_DESC_PASIDC_G_PASID_SI) &&
+            (info->did != VTD_SM_PASID_ENTRY_DID(&pe))) {
+            /*
+             * VTD_PASID_CACHE_DOMSI and VTD_PASID_CACHE_PASIDSI
+             * requires domain id check. If domain id check fail,
+             * go to next pasid.
+             */
+            continue;
+        }
+
+        vtd_find_add_pc(vtd_hiod, pasid, &pe);
+    }
+}
+
+/*
+ * In VT-d scalable mode translation, PASID dir + PASID table is used.
+ * This function aims at looping over a range of PASIDs in the given
+ * two level table to identify the pasid config in guest.
+ */
+static void vtd_sm_pasid_table_walk(VTDHostIOMMUDevice *vtd_hiod,
+                                    dma_addr_t pdt_base,
+                                    int start, int end,
+                                    VTDPASIDCacheInfo *info)
+{
+    VTDPASIDDirEntry pdire;
+    int pasid = start;
+    int pasid_next;
+    dma_addr_t pt_base;
+
+    while (pasid < end) {
+        pasid_next = (pasid + VTD_PASID_TABLE_ENTRY_NUM) &
+                     ~(VTD_PASID_TABLE_ENTRY_NUM - 1);
+        pasid_next = pasid_next < end ? pasid_next : end;
+
+        if (!vtd_get_pdire_from_pdir_table(pdt_base, pasid, &pdire)
+            && vtd_pdire_present(&pdire)) {
+            pt_base = pdire.val & VTD_PASID_TABLE_BASE_ADDR_MASK;
+            vtd_sm_pasid_table_walk_one(vtd_hiod, pt_base, pasid, pasid_next,
+                                        info);
+        }
+        pasid = pasid_next;
+    }
+}
+
+static void vtd_replay_pasid_bind_for_dev(VTDHostIOMMUDevice *vtd_hiod,
+                                          int start, int end,
+                                          VTDPASIDCacheInfo *pc_info)
+{
+    IntelIOMMUState *s = vtd_hiod->iommu_state;
+    VTDContextEntry ce;
+    int dev_max_pasid = 1 << vtd_hiod->hiod->caps.max_pasid_log2;
+
+    if (!vtd_dev_to_context_entry(s, pci_bus_num(vtd_hiod->bus),
+                                  vtd_hiod->devfn, &ce)) {
+        VTDPASIDCacheInfo walk_info = *pc_info;
+        uint32_t ce_max_pasid = vtd_sm_ce_get_pdt_entry_num(&ce) *
+                                VTD_PASID_TABLE_ENTRY_NUM;
+
+        end = MIN(end, MIN(dev_max_pasid, ce_max_pasid));
+
+        vtd_sm_pasid_table_walk(vtd_hiod, VTD_CE_GET_PASID_DIR_TABLE(&ce),
+                                start, end, &walk_info);
+    }
+}
+
+/*
+ * This function replays the guest pasid bindings by walking the two level
+ * guest PASID table. For each valid pasid entry, it creates an entry
+ * VTDACCELPASIDCacheEntry dynamically if not exist yet. This entry holds
+ * info specific to a pasid
+ */
+void vtd_pasid_cache_sync_accel(IntelIOMMUState *s, VTDPASIDCacheInfo *pc_info)
+{
+    int start = PASID_0, end = 1 << s->pasid;
+    VTDHostIOMMUDevice *vtd_hiod;
+    GHashTableIter as_it;
+
+    if (!s->fsts) {
+        return;
+    }
+
+    /*
+     * VTDPASIDCacheInfo honors PCI pasid but VTDACCELPASIDCacheEntry honors
+     * iommu pasid
+     */
+    if (pc_info->pasid == PCI_NO_PASID) {
+        pc_info->pasid = PASID_0;
+    }
+
+    switch (pc_info->type) {
+    case VTD_INV_DESC_PASIDC_G_PASID_SI:
+        start = pc_info->pasid;
+        end = pc_info->pasid + 1;
+        /* fall through */
+    case VTD_INV_DESC_PASIDC_G_DSI:
+        /*
+         * loop all assigned devices, do domain id check in
+         * vtd_sm_pasid_table_walk_one() after get pasid entry.
+         */
+        break;
+    case VTD_INV_DESC_PASIDC_G_GLOBAL:
+        /* loop all assigned devices */
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    /*
+     * In this replay, one only needs to care about the devices which are
+     * backed by host IOMMU. Those devices have a corresponding vtd_hiod
+     * in s->vtd_host_iommu_dev. For devices not backed by host IOMMU, it
+     * is not necessary to replay the bindings since their cache should be
+     * created in the future DMA address translation.
+     *
+     * VTD translation callback never accesses vtd_hiod and its corresponding
+     * cached pasid entry, so no iommu lock needed here.
+     */
+    g_hash_table_iter_init(&as_it, s->vtd_host_iommu_dev);
+    while (g_hash_table_iter_next(&as_it, NULL, (void **)&vtd_hiod)) {
+        if (!object_dynamic_cast(OBJECT(vtd_hiod->hiod),
+                                 TYPE_HOST_IOMMU_DEVICE_IOMMUFD)) {
+            continue;
+        }
+        vtd_replay_pasid_bind_for_dev(vtd_hiod, start, end, pc_info);
+    }
+}
+
 static uint64_t vtd_get_host_iommu_quirks(uint32_t type,
                                           void *caps, uint32_t size)
 {
