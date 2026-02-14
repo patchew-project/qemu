@@ -5545,6 +5545,11 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
         error_setg(errp, "Need to set scalable mode for PASID");
         return false;
     }
+    if (s->pasid >= PCI_EXT_CAP_PASID_MAX_WIDTH) {
+        error_setg(errp, "PASID width %d, exceed Max PASID Width %d allowed "
+                   "in PCI spec", s->pasid, PCI_EXT_CAP_PASID_MAX_WIDTH);
+        return false;
+    }
 
     if (s->svm) {
         if (!x86_iommu->dt_supported) {
