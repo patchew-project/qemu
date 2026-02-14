@@ -2994,11 +2994,11 @@ static void vtd_piotlb_pasid_invalidate(IntelIOMMUState *s,
     info.domain_id = domain_id;
     info.pasid = pasid;
 
+    vtd_flush_host_piotlb_all_accel(s, domain_id, pasid, 0, (uint64_t)-1,
+                                     false);
     vtd_iommu_lock(s);
     g_hash_table_foreach_remove(s->iotlb, vtd_hash_remove_by_pasid,
                                 &info);
-    vtd_flush_host_piotlb_all_locked(s, domain_id, pasid, 0, (uint64_t)-1,
-                                     false);
     vtd_iommu_unlock(s);
 
     QLIST_FOREACH(vtd_as, &s->vtd_as_with_notifiers, next) {
@@ -3028,10 +3028,11 @@ static void vtd_piotlb_page_invalidate(IntelIOMMUState *s, uint16_t domain_id,
     info.addr = addr;
     info.mask = ~((1 << am) - 1);
 
+    vtd_flush_host_piotlb_all_accel(s, domain_id, pasid, addr, 1 << am, ih);
+
     vtd_iommu_lock(s);
     g_hash_table_foreach_remove(s->iotlb,
                                 vtd_hash_remove_by_page_piotlb, &info);
-    vtd_flush_host_piotlb_all_locked(s, domain_id, pasid, addr, 1 << am, ih);
     vtd_iommu_unlock(s);
 
     vtd_iotlb_page_invalidate_notify(s, domain_id, addr, am, pasid);
