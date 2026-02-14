@@ -4779,6 +4779,7 @@ static uint64_t vtd_get_viommu_flags(void *opaque)
     uint64_t flags;
 
     flags = s->fsts ? VIOMMU_FLAG_WANT_NESTING_PARENT : 0;
+    flags |= s->pasid ? VIOMMU_FLAG_PASID_SUPPORTED : 0;
 
     return flags;
 }
