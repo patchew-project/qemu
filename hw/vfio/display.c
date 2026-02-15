@@ -449,7 +449,7 @@ static void vfio_display_region_update(void *opaque)
         ret = vfio_region_setup(OBJECT(vdev), &vdev->vbasedev,
                                 &dpy->region.buffer,
                                 plane.region_index,
-                                "display");
+                                "display", NULL);
         if (ret != 0) {
             error_report("%s: vfio_region_setup(%d): %s",
                          __func__, plane.region_index, strerror(-ret));

@@ -227,13 +227,14 @@ static int vfio_setup_region_sparse_mmaps(VFIORegion *region,
 }
 
 int vfio_region_setup(Object *obj, VFIODevice *vbasedev, VFIORegion *region,
-                      int index, const char *name)
+                      int index, const char *name, Error **errp)
 {
     struct vfio_region_info *info = NULL;
     int ret;
 
     ret = vfio_device_get_region_info(vbasedev, index, &info);
     if (ret) {
+        error_setg_errno(errp, -ret, "failed to get region %d info", index);
         return ret;
     }
 
@@ -260,6 +261,8 @@ int vfio_region_setup(Object *obj, VFIODevice *vbasedev, VFIORegion *region,
                 region->mmaps[0].offset = 0;
                 region->mmaps[0].size = region->size;
             } else if (ret) {
+                error_setg_errno(errp, -ret, "failed to setup region %d",
+                                 index);
                 return ret;
             }
         }
