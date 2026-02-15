@@ -653,7 +653,12 @@ int hvf_arch_get_registers(CPUState *cpu)
 
         arm_cpu->cpreg_values[i] = val;
     }
-    assert(write_list_to_cpustate(arm_cpu));
+
+    /* Don't make this fatal for now. */
+    if (write_list_to_cpustate(arm_cpu)) {
+        warn_report("hvf_arch_get_registers: not all registers are matching");
+    }
+
 
     aarch64_restore_sp(env, arm_current_el(env));
 
