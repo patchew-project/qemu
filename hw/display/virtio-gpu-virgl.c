@@ -896,14 +896,19 @@ static void virgl_cmd_set_scanout_blob(VirtIOGPU *g,
 }
 #endif
 
-void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
-                                      struct virtio_gpu_ctrl_command *cmd)
+static void virtio_gpu_virgl_unset_gl_context(void)
+{
+    dpy_gl_ctx_make_current(qemu_console_lookup_default(), NULL);
+}
+
+static void
+virtio_gpu_virgl_do_process_cmd(VirtIOGPU *g,
+                                struct virtio_gpu_ctrl_command *cmd)
 {
     bool cmd_suspended = false;
 
     VIRTIO_GPU_FILL_CMD(cmd->cmd_hdr);
 
-    virgl_renderer_force_ctx_0();
     switch (cmd->cmd_hdr.type) {
     case VIRTIO_GPU_CMD_CTX_CREATE:
         virgl_cmd_context_create(g, cmd);
@@ -1008,6 +1013,14 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
     }
 #endif
     virgl_renderer_create_fence(cmd->cmd_hdr.fence_id, cmd->cmd_hdr.type);
+}
+
+void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
+                                  struct virtio_gpu_ctrl_command *cmd)
+{
+    virgl_renderer_force_ctx_0();
+    virtio_gpu_virgl_do_process_cmd(g, cmd);
+    virtio_gpu_virgl_unset_gl_context();
 }
 
 static void virgl_write_fence(void *opaque, uint32_t fence)
@@ -1136,8 +1149,10 @@ static void virtio_gpu_fence_poll(void *opaque)
     VirtIOGPU *g = opaque;
     VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
 
+    virgl_renderer_force_ctx_0();
     virgl_renderer_poll();
     virtio_gpu_process_cmdq(g);
+    virtio_gpu_virgl_unset_gl_context();
     if (!QTAILQ_EMPTY(&g->cmdq) || !QTAILQ_EMPTY(&g->fenceq)) {
         timer_mod(gl->fence_poll, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 10);
     }
