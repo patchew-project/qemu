@@ -61,6 +61,7 @@ typedef struct ARMHostCPUFeatures {
     uint64_t features;
     uint32_t target;
     uint32_t sve_vq_supported;
+    uint32_t sme_vq_supported;
     const char *dtb_compatible;
 } ARMHostCPUFeatures;
 
@@ -273,6 +274,36 @@ static uint32_t kvm_arm_sve_get_vls(int fd)
     return vls[0] & MAKE_64BIT_MASK(0, ARM_MAX_VQ);
 }
 
+static uint32_t kvm_arm_sme_get_vls(int fd)
+{
+    uint64_t vls[KVM_ARM64_SME_VLS_WORDS];
+    struct kvm_one_reg reg = {
+        .id = KVM_REG_ARM64_SME_VLS,
+        .addr = (uint64_t)&vls[0],
+    };
+    uint32_t vq = 0;
+    int ret;
+
+    ret = ioctl(fd, KVM_GET_ONE_REG, &reg);
+    if (ret) {
+        error_report("failed to get KVM_REG_ARM64_SME_VLS: %s",
+                     strerror(errno));
+        abort();
+    }
+
+    for (int i = KVM_ARM64_SME_VLS_WORDS - 1; i >= 0; --i) {
+        if (vls[i]) {
+            vq = 64 - clz64(vls[i]) + i * 64;
+            break;
+        }
+    }
+    if (vq > ARM_MAX_VQ) {
+        warn_report("KVM supports vector lengths larger than QEMU can enable");
+    }
+    return vls[0] & MAKE_64BIT_MASK(0, ARM_MAX_VQ);
+}
+
+
 static bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
 {
     /* Identify the feature bits corresponding to the host CPU, and
@@ -282,6 +313,7 @@ static bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
      */
     int fdarray[3];
     bool sve_supported;
+    bool sme_supported;
     bool el2_supported;
     bool pmu_supported = false;
     uint64_t features = 0;
@@ -302,9 +334,13 @@ static bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
         init.features[0] |= 1 << KVM_ARM_VCPU_SVE;
     }
 
-    /*
-     * Ask for EL2 if supported.
-     */
+    /* Similarly for SME... */
+    sme_supported = kvm_check_extension(kvm_state, KVM_CAP_ARM_SME);
+    if (sme_supported) {
+        init.features[0] |= 1 << KVM_ARM_VCPU_SME;
+    }
+
+    /* ... and EL2. */
     el2_supported = kvm_arm_el2_supported();
     if (el2_supported) {
         init.features[0] |= 1 << KVM_ARM_VCPU_HAS_EL2;
@@ -449,6 +485,17 @@ static bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
             /* Read the set of supported vector lengths. */
             arm_host_cpu_features.sve_vq_supported = kvm_arm_sve_get_vls(fd);
         }
+
+	if (sme_supported) {
+            /*
+	     * While ID_AA64SMFR0_EL1 is always accessible, if RAZ,
+	     * it's unused if !sme_supported.
+	     */
+            err |= get_host_cpu_reg(fd, ahcf, ID_AA64SMFR0_EL1_IDX);
+
+            /* Read the set of supported vector lengths. */
+            arm_host_cpu_features.sme_vq_supported = kvm_arm_sme_get_vls(fd);
+        }
     }
 
     kvm_arm_destroy_scratch_host_vcpu(fdarray);
@@ -496,6 +543,7 @@ void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu)
     cpu->dtb_compatible = arm_host_cpu_features.dtb_compatible;
     cpu->isar = arm_host_cpu_features.isar;
     cpu->sve_vq.supported = arm_host_cpu_features.sve_vq_supported;
+    cpu->sme_vq.supported = arm_host_cpu_features.sme_vq_supported;
     env->features = arm_host_cpu_features.features;
 }
 
