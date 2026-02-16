@@ -93,16 +93,11 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 }
 
 const MonitorDef monitor_defs[] = {
-    { "fpscr", offsetof(CPUPPCState, fpscr) },
     /* Next instruction pointer */
-    { "nip|pc", offsetof(CPUPPCState, nip) },
-    { "lr", offsetof(CPUPPCState, lr) },
-    { "ctr", offsetof(CPUPPCState, ctr) },
     { "decr", 0, &monitor_get_decr, },
     { "ccr|cr", 0, &monitor_get_ccr, },
     /* Machine state register */
     { "xer", 0, &monitor_get_xer },
-    { "msr", offsetof(CPUPPCState, msr) },
     { "tbu", 0, &monitor_get_tbu, },
 #if defined(TARGET_PPC64)
     { "tb", 0, &monitor_get_tbl, },
