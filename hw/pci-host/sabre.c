@@ -382,6 +382,7 @@ static void sabre_realize(DeviceState *dev, Error **errp)
                                      &s->pci_mmio,
                                      &s->pci_ioport,
                                      0, 0x40, TYPE_PCI_BUS);
+    qbus_mark_full(&phb->bus->qbus);
 
     pci_create_simple(phb->bus, 0, TYPE_SABRE_PCI_DEVICE);
 
@@ -400,6 +401,7 @@ static void sabre_realize(DeviceState *dev, Error **errp)
     s->bridgeA = PCI_BRIDGE(pci_dev);
     pci_bridge_map_irq(s->bridgeA, "pciA", pci_simbaA_map_irq);
     pci_realize_and_unref(pci_dev, phb->bus, &error_fatal);
+    qbus_mark_full(&s->bridgeA->sec_bus.qbus);
 }
 
 static void sabre_init(Object *obj)
