@@ -43,6 +43,11 @@
 #include "target/arm/gtimer.h"
 #include "migration/blocker.h"
 
+/* ??? This probably belongs in asm-arm64/kvm.h */
+#define KVM_REG_ARM64_SME_ZT0 \
+    (KVM_REG_ARM64 | KVM_REG_ARM64_SME | \
+     KVM_REG_ARM64_SME_ZT_BASE | KVM_REG_SIZE_U512)
+
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_INFO(DEVICE_CTRL),
     KVM_CAP_LAST_INFO
@@ -2157,10 +2162,39 @@ static int kvm_arch_put_sve(CPUState *cs, uint32_t vq, bool have_ffr)
     return 0;
 }
 
+static int kvm_arch_put_sme(CPUState *cs, uint32_t svq)
+{
+    CPUARMState *env = cpu_env(cs);
+    ARMCPU *cpu = env_archcpu(env);
+    uint64_t tmp[ARM_MAX_VQ * 2];
+    uint64_t *r;
+    int ret;
+
+    for (int n = 0; n < svq * 16; ++n) {
+        r = sve_bswap64(tmp, &env->za_state.za[n].d[0], svq * 2);
+        ret = kvm_set_one_reg(cs, KVM_REG_ARM64_SME_ZAHREG(n, 0), r);
+        if (ret) {
+            return ret;
+        }
+    }
+
+    if (cpu_isar_feature(aa64_sme2, cpu)) {
+        r = sve_bswap64(tmp, env->za_state.zt0, ARRAY_SIZE(env->za_state.zt0));
+        ret = kvm_set_one_reg(cs, KVM_REG_ARM64_SME_ZT0, r);
+        if (ret) {
+            return ret;
+        }
+    }
+    return 0;
+}
+
 int kvm_arch_put_registers(CPUState *cs, KvmPutState level, Error **errp)
 {
     uint64_t val;
     uint32_t fpr;
+    bool sme_sm = false;
+    bool sme_za = false;
+    uint32_t svq = 0;
     int i, ret;
     unsigned int el;
 
@@ -2239,13 +2273,31 @@ int kvm_arch_put_registers(CPUState *cs, KvmPutState level, Error **errp)
         }
     }
 
-    if (cpu_isar_feature(aa64_sve, cpu)) {
+    if (cpu_isar_feature(aa64_sme, cpu)) {
+        /* Current SVL is required for either SM or ZA */
+        sme_sm = FIELD_EX64(env->svcr, SVCR, SM);
+        sme_za = FIELD_EX64(env->svcr, SVCR, ZA);
+        if (sme_sm || sme_za) {
+            svq = sve_vqm1_for_el_sm(env, el, true) + 1;
+        }
+    }
+
+    if (sme_sm) {
+        ret = kvm_arch_put_sve(cs, svq, cpu_isar_feature(aa64_sme_fa64, cpu));
+    } else if (cpu_isar_feature(aa64_sve, cpu)) {
         ret = kvm_arch_put_sve(cs, cpu->sve_max_vq, true);
     } else {
         ret = kvm_arch_put_fpsimd(cs);
     }
     if (ret) {
         return ret;
+    }
+
+    if (sme_za) {
+        ret = kvm_arch_put_sme(cs, svq);
+        if (ret) {
+            return ret;
+        }
     }
 
     fpr = vfp_get_fpsr(env);
@@ -2342,11 +2394,41 @@ static int kvm_arch_get_sve(CPUState *cs, uint32_t vq, bool have_ffr)
     return 0;
 }
 
+static int kvm_arch_get_sme(CPUState *cs, uint32_t svq)
+{
+    CPUARMState *env = cpu_env(cs);
+    ARMCPU *cpu = env_archcpu(env);
+    uint64_t *r;
+    int ret;
+
+    for (int n = 0; n < svq * 16; ++n) {
+        r = &env->za_state.za[n].d[0];
+        ret = kvm_get_one_reg(cs, KVM_REG_ARM64_SME_ZAHREG(n, 0), r);
+        if (ret) {
+            return ret;
+        }
+        sve_bswap64(r, r, svq * 2);
+    }
+
+    if (cpu_isar_feature(aa64_sme2, cpu)) {
+        r = env->za_state.zt0;
+        ret = kvm_get_one_reg(cs, KVM_REG_ARM64_SME_ZT0, r);
+        if (ret) {
+            return ret;
+        }
+        sve_bswap64(r, r, ARRAY_SIZE(env->za_state.zt0));
+    }
+    return 0;
+}
+
 int kvm_arch_get_registers(CPUState *cs, Error **errp)
 {
     uint64_t val;
     unsigned int el;
     uint32_t fpr;
+    bool sme_sm = false;
+    bool sme_za = false;
+    uint32_t svq = 0;
     int i, ret;
 
     ARMCPU *cpu = ARM_CPU(cs);
@@ -2424,13 +2506,31 @@ int kvm_arch_get_registers(CPUState *cs, Error **errp)
         env->spsr = env->banked_spsr[i];
     }
 
-    if (cpu_isar_feature(aa64_sve, cpu)) {
+    if (cpu_isar_feature(aa64_sme, cpu)) {
+        /* Current SVL is required for either SM or ZA */
+        sme_sm = FIELD_EX64(env->svcr, SVCR, SM);
+        sme_za = FIELD_EX64(env->svcr, SVCR, ZA);
+        if (sme_sm || sme_za) {
+            svq = sve_vqm1_for_el_sm(env, el, true) + 1;
+        }
+    }
+
+    if (sme_sm) {
+        ret = kvm_arch_get_sve(cs, svq, cpu_isar_feature(aa64_sme_fa64, cpu));
+    } else if (cpu_isar_feature(aa64_sve, cpu)) {
         ret = kvm_arch_get_sve(cs, cpu->sve_max_vq, true);
     } else {
         ret = kvm_arch_get_fpsimd(cs);
     }
     if (ret) {
         return ret;
+    }
+
+    if (sme_za) {
+        ret = kvm_arch_get_sme(cs, svq);
+        if (ret) {
+            return ret;
+        }
     }
 
     ret = kvm_get_one_reg(cs, AARCH64_SIMD_CTRL_REG(fp_regs.fpsr), &fpr);
