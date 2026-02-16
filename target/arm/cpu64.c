@@ -496,9 +496,20 @@ void aarch64_add_sme_properties(Object *obj)
     ARMCPU *cpu = ARM_CPU(obj);
     uint32_t vq;
 
-    object_property_add_bool(obj, "sme", cpu_arm_get_sme, cpu_arm_set_sme);
-    object_property_add_bool(obj, "sme_fa64", cpu_arm_get_sme_fa64,
-                             cpu_arm_set_sme_fa64);
+    if (cpu->sme_vq.supported) {
+        object_property_add_bool(obj, "sme", cpu_arm_get_sme, cpu_arm_set_sme);
+    } else {
+        assert(!tcg_enabled());
+        prop_add_stub_bool(obj, "sme");
+    }
+    /*
+     * Only TCG allows FA64 to be configured; host virtualization
+     * enables it if and only if the host cpu supports it.
+     */
+    if (tcg_enabled()) {
+        object_property_add_bool(obj, "sme_fa64", cpu_arm_get_sme_fa64,
+                                 cpu_arm_set_sme_fa64);
+    }
 
     for (vq = 1; vq <= ARM_MAX_VQ; vq <<= 1) {
         char name[8];
@@ -784,6 +795,7 @@ static void aarch64_host_initfn(Object *obj)
 #if defined(CONFIG_KVM)
     kvm_arm_set_cpu_features_from_host(cpu);
     aarch64_add_sve_properties(obj);
+    aarch64_add_sme_properties(obj);
 #elif defined(CONFIG_HVF)
     hvf_arm_set_cpu_features_from_host(cpu);
 #elif defined(CONFIG_WHPX)
