@@ -2122,16 +2122,15 @@ static int kvm_arch_put_fpsimd(CPUState *cs)
  * code the slice index to zero for now as it's unlikely we'll need more than
  * one slice for quite some time.
  */
-static int kvm_arch_put_sve(CPUState *cs)
+static int kvm_arch_put_sve(CPUState *cs, uint32_t vq)
 {
-    ARMCPU *cpu = ARM_CPU(cs);
-    CPUARMState *env = &cpu->env;
+    CPUARMState *env = cpu_env(cs);
     uint64_t tmp[ARM_MAX_VQ * 2];
     uint64_t *r;
     int n, ret;
 
     for (n = 0; n < KVM_ARM64_SVE_NUM_ZREGS; ++n) {
-        r = sve_bswap64(tmp, &env->vfp.zregs[n].d[0], cpu->sve_max_vq * 2);
+        r = sve_bswap64(tmp, &env->vfp.zregs[n].d[0], vq * 2);
         ret = kvm_set_one_reg(cs, KVM_REG_ARM64_SVE_ZREG(n, 0), r);
         if (ret) {
             return ret;
@@ -2139,8 +2138,7 @@ static int kvm_arch_put_sve(CPUState *cs)
     }
 
     for (n = 0; n < KVM_ARM64_SVE_NUM_PREGS; ++n) {
-        r = sve_bswap64(tmp, r = &env->vfp.pregs[n].p[0],
-                        DIV_ROUND_UP(cpu->sve_max_vq * 2, 8));
+        r = sve_bswap64(tmp, &env->vfp.pregs[n].p[0], DIV_ROUND_UP(vq * 2, 8));
         ret = kvm_set_one_reg(cs, KVM_REG_ARM64_SVE_PREG(n, 0), r);
         if (ret) {
             return ret;
@@ -2148,7 +2146,7 @@ static int kvm_arch_put_sve(CPUState *cs)
     }
 
     r = sve_bswap64(tmp, &env->vfp.pregs[FFR_PRED_NUM].p[0],
-                    DIV_ROUND_UP(cpu->sve_max_vq * 2, 8));
+                    DIV_ROUND_UP(vq * 2, 8));
     ret = kvm_set_one_reg(cs, KVM_REG_ARM64_SVE_FFR(0), r);
     if (ret) {
         return ret;
@@ -2240,7 +2238,7 @@ int kvm_arch_put_registers(CPUState *cs, KvmPutState level, Error **errp)
     }
 
     if (cpu_isar_feature(aa64_sve, cpu)) {
-        ret = kvm_arch_put_sve(cs);
+        ret = kvm_arch_put_sve(cs, cpu->sve_max_vq);
     } else {
         ret = kvm_arch_put_fpsimd(cs);
     }
@@ -2306,10 +2304,9 @@ static int kvm_arch_get_fpsimd(CPUState *cs)
  * code the slice index to zero for now as it's unlikely we'll need more than
  * one slice for quite some time.
  */
-static int kvm_arch_get_sve(CPUState *cs)
+static int kvm_arch_get_sve(CPUState *cs, uint32_t vq)
 {
-    ARMCPU *cpu = ARM_CPU(cs);
-    CPUARMState *env = &cpu->env;
+    CPUARMState *env = cpu_env(cs);
     uint64_t *r;
     int n, ret;
 
@@ -2319,7 +2316,7 @@ static int kvm_arch_get_sve(CPUState *cs)
         if (ret) {
             return ret;
         }
-        sve_bswap64(r, r, cpu->sve_max_vq * 2);
+        sve_bswap64(r, r, vq * 2);
     }
 
     for (n = 0; n < KVM_ARM64_SVE_NUM_PREGS; ++n) {
@@ -2328,7 +2325,7 @@ static int kvm_arch_get_sve(CPUState *cs)
         if (ret) {
             return ret;
         }
-        sve_bswap64(r, r, DIV_ROUND_UP(cpu->sve_max_vq * 2, 8));
+        sve_bswap64(r, r, DIV_ROUND_UP(vq * 2, 8));
     }
 
     r = &env->vfp.pregs[FFR_PRED_NUM].p[0];
@@ -2336,7 +2333,7 @@ static int kvm_arch_get_sve(CPUState *cs)
     if (ret) {
         return ret;
     }
-    sve_bswap64(r, r, DIV_ROUND_UP(cpu->sve_max_vq * 2, 8));
+    sve_bswap64(r, r, DIV_ROUND_UP(vq * 2, 8));
 
     return 0;
 }
@@ -2424,7 +2421,7 @@ int kvm_arch_get_registers(CPUState *cs, Error **errp)
     }
 
     if (cpu_isar_feature(aa64_sve, cpu)) {
-        ret = kvm_arch_get_sve(cs);
+        ret = kvm_arch_get_sve(cs, cpu->sve_max_vq);
     } else {
         ret = kvm_arch_get_fpsimd(cs);
     }
