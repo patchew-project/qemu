@@ -389,6 +389,11 @@ void gtk_gl_area_init(void)
 int gd_gl_area_make_current(DisplayGLCtx *dgc,
                             QEMUGLContext ctx)
 {
-    gdk_gl_context_make_current(ctx);
+    if (!ctx) {
+        gdk_gl_context_clear_current();
+    } else {
+        gdk_gl_context_make_current(ctx);
+    }
+
     return 0;
 }
