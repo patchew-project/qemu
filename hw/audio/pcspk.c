@@ -36,10 +36,12 @@
 #include "qom/object.h"
 #include "trace.h"
 
+#ifdef CONFIG_AUDIO
 #define PCSPK_BUF_LEN 1792
 #define PCSPK_SAMPLE_RATE 32000
 #define PCSPK_MAX_FREQ (PCSPK_SAMPLE_RATE >> 1)
 #define PCSPK_MIN_COUNT DIV_ROUND_UP(PIT_FREQ, PCSPK_MAX_FREQ)
+#endif
 
 OBJECT_DECLARE_SIMPLE_TYPE(PCSpkState, PC_SPEAKER)
 
@@ -48,17 +50,24 @@ struct PCSpkState {
 
     MemoryRegion ioport;
     uint32_t iobase;
+#ifdef CONFIG_AUDIO
     uint8_t sample_buf[PCSPK_BUF_LEN];
+#endif
     AudioBackend *audio_be;
+#ifdef CONFIG_AUDIO
     SWVoiceOut *voice;
+#endif
     PITCommonState *pit;
+#ifdef CONFIG_AUDIO
     unsigned int pit_count;
     unsigned int samples;
     unsigned int play_pos;
+#endif
     uint8_t data_on;
     uint8_t dummy_refresh_clock;
 };
 
+#ifdef CONFIG_AUDIO
 static const char *s_spk = "pcspk";
 
 static inline void generate_samples(PCSpkState *s)
@@ -130,6 +139,7 @@ static int pcspk_audio_init(PCSpkState *s)
 
     return 0;
 }
+#endif
 
 static uint64_t pcspk_io_read(void *opaque, hwaddr addr,
                               unsigned size)
@@ -160,11 +170,13 @@ static void pcspk_io_write(void *opaque, hwaddr addr, uint64_t val,
 
     s->data_on = (val >> 1) & 1;
     pit_set_gate(s->pit, 2, gate);
+#ifdef CONFIG_AUDIO
     if (s->voice) {
         if (gate) /* restart */
             s->play_pos = 0;
         AUD_set_active_out(s->voice, gate & s->data_on);
     }
+#endif
 }
 
 static const MemoryRegionOps pcspk_io_ops = {
@@ -195,10 +207,12 @@ static void pcspk_realizefn(DeviceState *dev, Error **errp)
 
     isa_register_ioport(isadev, &s->ioport, s->iobase);
 
+#ifdef CONFIG_AUDIO
     if (s->audio_be && AUD_backend_check(&s->audio_be, errp)) {
         pcspk_audio_init(s);
         return;
     }
+#endif
 }
 
 static const VMStateDescription vmstate_spk = {
