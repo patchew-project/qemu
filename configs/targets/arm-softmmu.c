@@ -10,7 +10,6 @@
 #include "qemu/target-info-impl.h"
 #include "hw/arm/machines-qom.h"
 #include "target/arm/cpu-qom.h"
-#include "target/arm/cpu-param.h"
 
 static const TargetInfo target_info_arm_system = {
     .target_name = "arm",
@@ -20,7 +19,7 @@ static const TargetInfo target_info_arm_system = {
     .machine_typename = TYPE_TARGET_ARM_MACHINE,
     .endianness = ENDIAN_MODE_LITTLE,
     .page_bits_vary = true,
-    .page_bits_init = TARGET_PAGE_BITS_LEGACY,
+    .page_bits_init = 10,
 };
 
 const TargetInfo *target_info(void)
