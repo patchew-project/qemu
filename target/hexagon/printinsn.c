@@ -21,6 +21,7 @@
 #include "insn.h"
 #include "reg_fields.h"
 #include "internal.h"
+#include "decode.h"
 
 static const char *sreg2str(unsigned int reg)
 {
@@ -51,7 +52,7 @@ static void snprintinsn(GString *buf, Insn *insn)
 }
 
 void snprint_a_pkt_disas(GString *buf, Packet *pkt, uint32_t *words,
-                         target_ulong pc)
+                         target_ulong pc, const HexagonCPUDef *hex_def)
 {
     bool has_endloop0 = false;
     bool has_endloop1 = false;
@@ -83,7 +84,11 @@ void snprint_a_pkt_disas(GString *buf, Packet *pkt, uint32_t *words,
         }
 
         g_string_append(buf, "\t");
-        snprintinsn(buf, &(pkt->insn[i]));
+        if (opcode_supported(pkt->insn[i].opcode, hex_def)) {
+            snprintinsn(buf, &(pkt->insn[i]));
+        } else {
+            g_string_append(buf, "<invalid>");
+        }
 
         if (i < pkt->num_insns - 1) {
             /*
