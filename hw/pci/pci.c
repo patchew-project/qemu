@@ -2071,6 +2071,15 @@ const pci_class_desc *get_class_desc(int class)
     return desc;
 }
 
+static void pci_dev_property_add_child(PCIBus *bus, const char *name,
+                                       PCIDevice *dev)
+{
+    g_autofree char *childname = g_strdup_printf("%s[%d.%d]", name,
+                                                 PCI_SLOT(dev->devfn),
+                                                 PCI_FUNC(dev->devfn));
+    object_property_add_child(OBJECT(bus), childname, OBJECT(dev));
+}
+
 void pci_init_nic_devices(PCIBus *bus, const char *default_model)
 {
     qemu_create_nic_bus_devices(&bus->qbus, TYPE_PCI_DEVICE, default_model,
@@ -2114,6 +2123,7 @@ bool pci_init_nic_in_slot(PCIBus *rootbus, const char *model,
 
     pci_dev = pci_new(devfn, model);
     qdev_set_nic_properties(&pci_dev->qdev, nd);
+    pci_dev_property_add_child(bus, model, pci_dev);
     pci_realize_and_unref(pci_dev, bus, &error_fatal);
     return true;
 }
@@ -2412,6 +2422,8 @@ PCIDevice *pci_create_simple_multifunction(PCIBus *bus, int devfn,
                                            const char *name)
 {
     PCIDevice *dev = pci_new_multifunction(devfn, name);
+
+    pci_dev_property_add_child(bus, name, dev);
     pci_realize_and_unref(dev, bus, &error_fatal);
     return dev;
 }
@@ -2419,6 +2431,8 @@ PCIDevice *pci_create_simple_multifunction(PCIBus *bus, int devfn,
 PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name)
 {
     PCIDevice *dev = pci_new(devfn, name);
+
+    pci_dev_property_add_child(bus, name, dev);
     pci_realize_and_unref(dev, bus, &error_fatal);
     return dev;
 }
