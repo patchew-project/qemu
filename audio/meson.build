@@ -1,3 +1,8 @@
+if not audio_enabled
+  system_ss.add(files('audio-stub.c', 'audio-hmp-cmds-stub.c'))
+  subdir_done()
+endif
+
 system_ss.add(files(
   'audio.c',
   'mixeng.c',
