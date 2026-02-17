@@ -118,34 +118,3 @@ void snprint_a_pkt_disas(GString *buf, Packet *pkt, uint32_t *words,
         g_string_append(buf, "  :endloop01");
     }
 }
-
-void snprint_a_pkt_debug(GString *buf, Packet *pkt)
-{
-    int slot, opcode;
-
-    if (pkt->num_insns > 1) {
-        g_string_append(buf, "\n{\n");
-    }
-
-    for (int i = 0; i < pkt->num_insns; i++) {
-        if (pkt->insn[i].part1) {
-            continue;
-        }
-        g_string_append(buf, "\t");
-        snprintinsn(buf, &(pkt->insn[i]));
-
-        if (GET_ATTRIB(pkt->insn[i].opcode, A_SUBINSN)) {
-            g_string_append(buf, " //subinsn");
-        }
-        if (pkt->insn[i].extension_valid) {
-            g_string_append(buf, " //constant extended");
-        }
-        slot = pkt->insn[i].slot;
-        opcode = pkt->insn[i].opcode;
-        g_string_append_printf(buf, " //slot=%d:tag=%s\n",
-                               slot, opcode_names[opcode]);
-    }
-    if (pkt->num_insns > 1) {
-        g_string_append(buf, "}\n");
-    }
-}
