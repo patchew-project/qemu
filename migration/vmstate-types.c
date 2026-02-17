@@ -942,3 +942,91 @@ const VMStateInfo vmstate_info_qlist = {
     .get  = get_qlist,
     .put  = put_qlist,
 };
+
+static int put_ptrs_array_entry(QEMUFile *f, void *ppv, size_t unused_size,
+                                const VMStateField *field, JSONWriter *vmdesc)
+{
+    const VMStateDescription *vmsd = field->vmsd;
+    int ret;
+    Error *local_err = NULL;
+    void *pv;
+
+    /*
+     * (ppv) is an address of an i-th element of a dynamic array.
+     *
+     * (ppv) can not be NULL unless we have some regression/bug in
+     * vmstate_save_state_v(), because it is result of pointer arithemic like:
+     * first_elem + size * i.
+     */
+    if (ppv == NULL) {
+        error_report("vmstate: put_ptrs_array_entry must be called with ppv != NULL");
+        return -EINVAL;
+    }
+
+    /* get a pointer to a structure */
+    pv = *(void **)ppv;
+
+    if (pv == NULL) {
+        /* write a mark telling that there was a NULL pointer */
+        qemu_put_byte(f, false);
+        return 0;
+    }
+
+    /* if pointer is not NULL, dump the structure contents with help of vmsd */
+    qemu_put_byte(f, true);
+    ret = vmstate_save_state(f, vmsd, pv, vmdesc, &local_err);
+    if (ret) {
+        error_report_err(local_err);
+        return ret;
+    }
+
+    return 0;
+}
+
+static int get_ptrs_array_entry(QEMUFile *f, void *ppv, size_t unused_size,
+                                const VMStateField *field)
+{
+    int ret = 0;
+    Error *local_err = NULL;
+    const VMStateDescription *vmsd = field->vmsd;
+    /* size of structure pointed to by elements of array */
+    size_t size = field->start;
+
+    if (ppv == NULL) {
+        error_report("vmstate: get_ptrs_array_entry must be called with ppv != NULL");
+        return -EINVAL;
+    }
+
+    /*
+     * We start from a clean array, all elements must be NULL, unless
+     * something we haven't prepared for has changed in vmstate_save_state_v().
+     * Let's check for this just in case.
+     */
+    if (*(void **)ppv != NULL) {
+        error_report("vmstate: get_ptrs_array_entry must be called with *ppv == NULL");
+        return -EINVAL;
+    }
+
+    if (qemu_get_byte(f)) {
+        void *pv;
+
+        /* allocate memory for structure */
+        pv = g_malloc0(size);
+        ret = vmstate_load_state(f, vmsd, pv, vmsd->version_id, &local_err);
+        if (ret) {
+            error_report_err(local_err);
+            g_free(pv);
+            return ret;
+        }
+
+        *(void **)ppv = pv;
+    }
+
+    return ret;
+}
+
+const VMStateInfo vmstate_info_ptrs_array_entry = {
+    .name = "ptrs_array_entry",
+    .get  = get_ptrs_array_entry,
+    .put  = put_ptrs_array_entry,
+};
