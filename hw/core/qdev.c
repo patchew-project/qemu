@@ -266,8 +266,18 @@ bool qdev_realize(DeviceState *dev, BusState *bus, Error **errp)
     assert(!dev->realized && !dev->parent_bus);
 
     if (bus) {
+        Object *obj = OBJECT(dev);
+
         if (!qdev_set_parent_bus(dev, bus, errp)) {
             return false;
+        }
+
+        if (!obj->parent) {
+            static int count;
+            g_autofree char *name = g_strdup_printf("x-%s[%d]",
+                                                    object_get_typename(obj),
+                                                    count++);
+            object_property_add_child(OBJECT(bus), name, obj);
         }
     } else {
         assert(!DEVICE_GET_CLASS(dev)->bus_type);
