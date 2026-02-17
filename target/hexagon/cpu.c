@@ -27,13 +27,6 @@
 #include "exec/gdbstub.h"
 #include "accel/tcg/cpu-ops.h"
 
-static void hexagon_v66_cpu_init(Object *obj) { }
-static void hexagon_v67_cpu_init(Object *obj) { }
-static void hexagon_v68_cpu_init(Object *obj) { }
-static void hexagon_v69_cpu_init(Object *obj) { }
-static void hexagon_v71_cpu_init(Object *obj) { }
-static void hexagon_v73_cpu_init(Object *obj) { }
-
 static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
@@ -377,11 +370,21 @@ static void hexagon_cpu_class_init(ObjectClass *c, const void *data)
     cc->tcg_ops = &hexagon_tcg_ops;
 }
 
-#define DEFINE_CPU(type_name, initfn)      \
-    {                                      \
-        .name = type_name,                 \
-        .parent = TYPE_HEXAGON_CPU,        \
-        .instance_init = initfn            \
+static void hexagon_cpu_class_base_init(ObjectClass *c, const void *data)
+{
+    HexagonCPUClass *mcc = HEXAGON_CPU_CLASS(c);
+    /* Make sure all CPU models define a HexagonCPUDef */
+    g_assert(!object_class_is_abstract(c) && data != NULL);
+    mcc->hex_def = data;
+}
+
+#define DEFINE_CPU(type_name, version)         \
+    {                                          \
+        .name = type_name,                     \
+        .parent = TYPE_HEXAGON_CPU,            \
+        .class_data = &(const HexagonCPUDef) { \
+            .hex_version = version,            \
+        }                                      \
     }
 
 static const TypeInfo hexagon_cpu_type_infos[] = {
@@ -394,13 +397,20 @@ static const TypeInfo hexagon_cpu_type_infos[] = {
         .abstract = true,
         .class_size = sizeof(HexagonCPUClass),
         .class_init = hexagon_cpu_class_init,
+        .class_base_init = hexagon_cpu_class_base_init,
     },
-    DEFINE_CPU(TYPE_HEXAGON_CPU_V66,              hexagon_v66_cpu_init),
-    DEFINE_CPU(TYPE_HEXAGON_CPU_V67,              hexagon_v67_cpu_init),
-    DEFINE_CPU(TYPE_HEXAGON_CPU_V68,              hexagon_v68_cpu_init),
-    DEFINE_CPU(TYPE_HEXAGON_CPU_V69,              hexagon_v69_cpu_init),
-    DEFINE_CPU(TYPE_HEXAGON_CPU_V71,              hexagon_v71_cpu_init),
-    DEFINE_CPU(TYPE_HEXAGON_CPU_V73,              hexagon_v73_cpu_init),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V5,               HEX_VER_V5),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V55,              HEX_VER_V55),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V60,              HEX_VER_V60),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V61,              HEX_VER_V61),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V62,              HEX_VER_V62),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V65,              HEX_VER_V65),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V66,              HEX_VER_V66),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V67,              HEX_VER_V67),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V68,              HEX_VER_V68),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V69,              HEX_VER_V69),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V71,              HEX_VER_V71),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V73,              HEX_VER_V73),
 };
 
 DEFINE_TYPES(hexagon_cpu_type_infos)
