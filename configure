@@ -762,6 +762,10 @@ for opt do
   ;;
   --wasm64-32bit-address-limit)
   ;;
+  --enable-audio) meson_option_add -Daudio=true
+  ;;
+  --disable-audio) meson_option_add -Daudio=false
+  ;;
   # everything else has the same name in configure and meson
   --*) meson_option_parse "$opt" "$optarg"
   ;;
