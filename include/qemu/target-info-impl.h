@@ -27,7 +27,7 @@ typedef struct TargetInfo {
     EndianMode endianness;
     /*
      * runtime equivalent of
-     *   TARGET_PAGE_BITS_VARY ? TARGET_PAGE_BITS_LEGACY : TARGET_PAGE_BITS
+     *   TARGET_PAGE_BITS_VARY ? minimum for the target : TARGET_PAGE_BITS
      */
     unsigned page_bits_init;
     /* runtime equivalent of TARGET_PAGE_BITS_VARY definition */
