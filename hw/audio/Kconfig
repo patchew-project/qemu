@@ -1,37 +1,37 @@
 config SB16
     bool
     default y
-    depends on ISA_BUS
+    depends on ISA_BUS && AUDIO
 
 config ES1370
     bool
     default y if PCI_DEVICES
-    depends on PCI
+    depends on PCI && AUDIO
 
 config AC97
     bool
     default y if PCI_DEVICES
-    depends on PCI
+    depends on PCI && AUDIO
 
 config ADLIB
     bool
     default y
-    depends on ISA_BUS
+    depends on ISA_BUS && AUDIO
 
 config GUS
     bool
     default y
-    depends on ISA_BUS
+    depends on ISA_BUS && AUDIO
 
 config CS4231A
     bool
     default y
-    depends on ISA_BUS
+    depends on ISA_BUS && AUDIO
 
 config HDA
     bool
     default y if PCI_DEVICES
-    depends on PCI
+    depends on PCI && AUDIO
 
 config PCSPK
     bool
@@ -40,18 +40,21 @@ config PCSPK
 
 config WM8750
     bool
-    depends on I2C
+    depends on I2C && AUDIO
 
 config PL041
     bool
+    depends on AUDIO
 
 config CS4231
     bool
+    depends on AUDIO
 
 config ASC
     bool
+    depends on AUDIO
 
 config VIRTIO_SND
     bool
     default y
-    depends on VIRTIO
+    depends on VIRTIO && AUDIO
