@@ -1,3 +1,7 @@
 config NITRO_SERIAL_VSOCK
     bool
     depends on NITRO
+
+config NITRO_HEARTBEAT
+    bool
+    depends on NITRO
