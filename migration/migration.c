@@ -1702,6 +1702,10 @@ static int add_blockers(Error **reasonp, unsigned modes, Error **errp)
 {
     for (MigMode mode = 0; mode < MIG_MODE__MAX; mode++) {
         if (modes & BIT(mode)) {
+            if (g_slist_index(migration_blockers[mode],
+                                 *reasonp) >= 0) {
+                return -EEXIST;
+            }
             migration_blockers[mode] = g_slist_prepend(migration_blockers[mode],
                                                        *reasonp);
         }
