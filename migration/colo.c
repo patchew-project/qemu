@@ -173,11 +173,13 @@ static void primary_vm_do_failover(void)
      * The s->rp_state.from_dst_file and s->to_dst_file may use the
      * same fd, but we still shutdown the fd for twice, it is harmless.
      */
-    if (s->to_dst_file) {
-        qemu_file_shutdown(s->to_dst_file);
-    }
-    if (s->rp_state.from_dst_file) {
-        qemu_file_shutdown(s->rp_state.from_dst_file);
+    WITH_QEMU_LOCK_GUARD(&s->qemu_file_lock) {
+        if (s->to_dst_file) {
+            qemu_file_shutdown(s->to_dst_file);
+        }
+        if (s->rp_state.from_dst_file) {
+            qemu_file_shutdown(s->rp_state.from_dst_file);
+        }
     }
 
     old_state = failover_set_state(FAILOVER_STATUS_ACTIVE,
@@ -544,11 +546,14 @@ static void colo_process_checkpoint(MigrationState *s)
 
     failover_init_state();
 
+    qemu_mutex_lock(&s->qemu_file_lock);
     s->rp_state.from_dst_file = qemu_file_get_return_path(s->to_dst_file);
     if (!s->rp_state.from_dst_file) {
+        qemu_mutex_unlock(&s->qemu_file_lock);
         error_report("Open QEMUFile from_dst_file failed");
         goto out;
     }
+    qemu_mutex_unlock(&s->qemu_file_lock);
 
     packets_compare_notifier.notify = colo_compare_notify_checkpoint;
     colo_compare_register_notifier(&packets_compare_notifier);
@@ -640,9 +645,11 @@ out:
      * Or the failover BH may shutdown the wrong fd that
      * re-used by other threads after we release here.
      */
-    if (s->rp_state.from_dst_file) {
-        qemu_fclose(s->rp_state.from_dst_file);
-        s->rp_state.from_dst_file = NULL;
+    WITH_QEMU_LOCK_GUARD(&s->qemu_file_lock) {
+        if (s->rp_state.from_dst_file) {
+            qemu_fclose(s->rp_state.from_dst_file);
+            s->rp_state.from_dst_file = NULL;
+        }
     }
 }
 
