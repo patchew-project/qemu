@@ -677,6 +677,7 @@ static void *multifd_send_thread(void *opaque)
         qemu_sem_wait(&p->sem);
 
         if (multifd_send_should_exit()) {
+            multifd_send_kick_main(p);
             break;
         }
 
