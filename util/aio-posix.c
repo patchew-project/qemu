@@ -813,5 +813,13 @@ void aio_add_sqe(void (*prep_sqe)(struct io_uring_sqe *sqe, void *opaque),
 {
     AioContext *ctx = qemu_get_current_aio_context();
     ctx->fdmon_ops->add_sqe(ctx, prep_sqe, opaque, cqe_handler);
+
+    /*
+     * Wake the main loop if it is sleeping in ppoll().  When a vCPU thread
+     * runs a coroutine inline (holding BQL), it queues SQEs here but the
+     * actual io_uring_submit() only happens in gsource_prepare().  Without
+     * this notify, ppoll() can sleep up to 499ms before submitting.
+     */
+    aio_notify(ctx);
 }
 #endif /* CONFIG_LINUX_IO_URING */
