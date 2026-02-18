@@ -3634,6 +3634,7 @@ if have_system
     'hw/misc/macio',
     'hw/net',
     'hw/net/can',
+    'hw/nitro',
     'hw/nubus',
     'hw/nvme',
     'hw/nvram',

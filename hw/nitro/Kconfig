@@ -1,0 +1,3 @@
+config NITRO_SERIAL_VSOCK
+    bool
+    depends on NITRO
