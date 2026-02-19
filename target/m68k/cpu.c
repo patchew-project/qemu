@@ -193,6 +193,11 @@ static void m68k_cpu_reset_exit(Object *obj, ResetType type)
                                          MEMTXATTRS_UNSPECIFIED, NULL);
     env->pc = address_space_ldl_be(cs->as, 4,
                                    MEMTXATTRS_UNSPECIFIED, NULL);
+
+    /* some machine models support direct kernel boot */
+    if (env->direct_kernel_boot_pc) {
+        env->pc = env->direct_kernel_boot_pc;
+    }
 #endif
 }
 
