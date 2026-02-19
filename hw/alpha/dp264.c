@@ -17,6 +17,7 @@
 #include "hw/ide/pci.h"
 #include "hw/isa/superio.h"
 #include "qemu/datadir.h"
+#include "system/reset.h"
 
 static uint64_t cpu_alpha_superpage_to_phys(void *opaque, uint64_t addr)
 {
@@ -40,6 +41,14 @@ static int clipper_pci_map_irq(PCIDevice *d, int irq_num)
     assert(irq_num >= 0 && irq_num <= 3);
 
     return (slot + 1) * 4 + irq_num;
+}
+
+static void clipper_reset(MachineState *ms, ResetType type)
+{
+   CPUState *cs = first_cpu;
+
+   qemu_devices_reset(type);
+   cpu_reset(cs);
 }
 
 static void clipper_init(MachineState *machine)
@@ -205,6 +214,7 @@ static void clipper_machine_init(MachineClass *mc)
 {
     mc->desc = "Alpha DP264/CLIPPER";
     mc->init = clipper_init;
+    mc->reset = clipper_reset;
     mc->block_default_type = IF_IDE;
     mc->max_cpus = 4;
     mc->is_default = true;
