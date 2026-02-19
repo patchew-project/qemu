@@ -202,11 +202,9 @@ static void ev67_cpu_initfn(Object *obj)
     cpu_env(CPU(obj))->amask |= AMASK_CIX | AMASK_PREFETCH;
 }
 
-static void alpha_cpu_initfn(Object *obj)
+static void alpha_cpu_reset_exit(Object *obj, ResetType type)
 {
     CPUAlphaState *env = cpu_env(CPU(obj));
-
-    /* TODO all this should be done in reset, not init */
 
     env->lock_addr = -1;
 
@@ -277,9 +275,14 @@ static void alpha_cpu_class_init(ObjectClass *oc, const void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
     AlphaCPUClass *acc = ALPHA_CPU_CLASS(oc);
+    ResettableClass *rc = RESETTABLE_CLASS(oc);
 
     device_class_set_parent_realize(dc, alpha_cpu_realizefn,
                                     &acc->parent_realize);
+
+    resettable_class_set_parent_phases(rc,
+                                       NULL, NULL, alpha_cpu_reset_exit,
+                                       &acc->parent_phases);
 
     cc->class_by_name = alpha_cpu_class_by_name;
     cc->dump_state = alpha_cpu_dump_state;
@@ -311,7 +314,6 @@ static const TypeInfo alpha_cpu_type_infos[] = {
         .parent = TYPE_CPU,
         .instance_size = sizeof(AlphaCPU),
         .instance_align = __alignof(AlphaCPU),
-        .instance_init = alpha_cpu_initfn,
         .abstract = true,
         .class_size = sizeof(AlphaCPUClass),
         .class_init = alpha_cpu_class_init,
