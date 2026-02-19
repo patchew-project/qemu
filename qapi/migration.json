@@ -828,7 +828,8 @@
            'mode',
            'zero-page-detection',
            'direct-io',
-           'cpr-exec-command'] }
+           'cpr-exec-command',
+           'local'] }
 
 ##
 # @migrate-set-parameters:
@@ -1004,6 +1005,14 @@
 #     is @cpr-exec.  The first list element is the program's filename,
 #     the remainder its arguments.  (Since 10.2)
 #
+# @local: Enable local migration feature for devices that support
+#     it.  The feature is for local migation only and rely on the
+#     channel support for passing file desciptors (it must be a UNIX
+#     socket).  In general that means that backend state and its file
+#     descriptors are passed to the destination in the migration
+#     channel.  Individual devices declare the support for local
+#     migration by per-device local-migration option.  (Since 11.0)
+#
 # Features:
 #
 # @unstable: Members @x-checkpoint-delay and
@@ -1043,7 +1052,8 @@
             '*mode': 'MigMode',
             '*zero-page-detection': 'ZeroPageDetection',
             '*direct-io': 'bool',
-            '*cpr-exec-command': [ 'str' ]} }
+            '*cpr-exec-command': [ 'str' ],
+            '*local': 'bool' } }
 
 ##
 # @query-migrate-parameters:
