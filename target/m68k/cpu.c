@@ -25,6 +25,7 @@
 
 #ifndef CONFIG_USER_ONLY
 #include "migration/vmstate.h"
+#include "system/memory.h"
 #endif
 
 #include "cpu.h"
@@ -174,9 +175,25 @@ static void m68k_cpu_reset_hold(Object *obj, ResetType type)
     }
     cpu_m68k_set_fpcr(env, 0);
     env->fpsr = 0;
+}
 
-    /* TODO: We should set PC from the interrupt vector.  */
-    env->pc = 0;
+/*
+ * We defer the final setting of the PC to the exit phase to ensure
+ * if any memory controllers need to be reset they are before we read
+ * the initial reset vector. This is a NOP for user-mode which will
+ * set the PC in init_main_thread() after the CPU is reset.
+ */
+static void m68k_cpu_reset_exit(Object *obj, ResetType type)
+{
+#ifndef CONFIG_USER_ONLY
+    CPUState *cs = CPU(obj);
+    CPUM68KState *env = cpu_env(cs);
+
+    env->aregs[7] = address_space_ldl_be(cs->as, 0,
+                                         MEMTXATTRS_UNSPECIFIED, NULL);
+    env->pc = address_space_ldl_be(cs->as, 4,
+                                   MEMTXATTRS_UNSPECIFIED, NULL);
+#endif
 }
 
 static void m68k_cpu_disas_set_info(const CPUState *cs, disassemble_info *info)
@@ -396,7 +413,6 @@ static void m68k_cpu_realizefn(DeviceState *dev, Error **errp)
 
     m68k_cpu_init_gdb(cpu);
 
-    cpu_reset(cs);
     qemu_init_vcpu(cs);
 
     mcc->parent_realize(dev, errp);
@@ -641,7 +657,8 @@ static void m68k_cpu_class_init(ObjectClass *c, const void *data)
 
     device_class_set_parent_realize(dc, m68k_cpu_realizefn,
                                     &mcc->parent_realize);
-    resettable_class_set_parent_phases(rc, NULL, m68k_cpu_reset_hold, NULL,
+    resettable_class_set_parent_phases(rc, NULL,
+                                       m68k_cpu_reset_hold, m68k_cpu_reset_exit,
                                        &mcc->parent_phases);
 
     cc->class_by_name = m68k_cpu_class_by_name;
