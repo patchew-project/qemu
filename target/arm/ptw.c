@@ -3449,8 +3449,6 @@ static bool get_phys_addr_disabled(CPUARMState *env,
     int r_el;
 
     switch (mmu_idx) {
-    case ARMMMUIdx_Stage2:
-    case ARMMMUIdx_Stage2_S:
     case ARMMMUIdx_Phys_S:
     case ARMMMUIdx_Phys_NS:
     case ARMMMUIdx_Phys_Root:
