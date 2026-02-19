@@ -30,7 +30,7 @@
 #include "qom/object.h"
 
 #define TYPE_MIPS_CPS "mips-cps"
-OBJECT_DECLARE_SIMPLE_TYPE(MIPSCPSState, MIPS_CPS)
+OBJECT_DECLARE_TYPE(MIPSCPSState, MIPSCPSClass, MIPS_CPS)
 
 struct MIPSCPSState {
     SysBusDevice parent_obj;
@@ -46,6 +46,18 @@ struct MIPSCPSState {
     MIPSCPCState cpc;
     MIPSITUState itu;
     Clock *clock;
+};
+
+/*
+ * MIPSCPSClass:
+ * @parent_phases: The parent class' reset phase handlers.
+ *
+ * A Coherent Processing System model.
+ */
+struct MIPSCPSClass {
+    SysBusDeviceClass parent_class;
+
+    ResettablePhases parent_phases;
 };
 
 qemu_irq get_cps_irq(MIPSCPSState *cps, int pin_number);
