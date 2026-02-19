@@ -15,10 +15,24 @@
 #include "elf.h"
 #include "qemu/error-report.h"
 #include "system/qtest.h"
+#include "system/reset.h"
 
 #define KERNEL_LOAD_ADDR 0x10000
 #define AN5206_MBAR_ADDR 0x10000000
 #define AN5206_RAMBAR_ADDR 0x20000000
+
+static void an5206_reset(MachineState *ms, ResetType type)
+{
+   CPUState *cs = first_cpu;
+   M68kCPU *cpu = M68K_CPU(cs);
+
+   qemu_devices_reset(type);
+   cpu_reset(cs);
+
+   cpu->env.vbr = 0;
+   cpu->env.mbar = AN5206_MBAR_ADDR | 1;
+   cpu->env.rambar0 = AN5206_RAMBAR_ADDR | 1;
+}
 
 static void mcf5206_init(M68kCPU *cpu, MemoryRegion *sysmem, uint32_t base)
 {
@@ -48,12 +62,6 @@ static void an5206_init(MachineState *machine)
 
     cpu = M68K_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
-
-    /* Initialize CPU registers.  */
-    env->vbr = 0;
-    /* TODO: allow changing MBAR and RAMBAR.  */
-    env->mbar = AN5206_MBAR_ADDR | 1;
-    env->rambar0 = AN5206_RAMBAR_ADDR | 1;
 
     /* DRAM at address zero */
     memory_region_add_subregion(address_space_mem, 0, machine->ram);
@@ -90,13 +98,14 @@ static void an5206_init(MachineState *machine)
         exit(1);
     }
 
-    env->pc = entry;
+    env->direct_kernel_boot_pc = entry;
 }
 
 static void an5206_machine_init(MachineClass *mc)
 {
     mc->desc = "Arnewsh 5206";
     mc->init = an5206_init;
+    mc->reset = an5206_reset;
     mc->default_cpu_type = M68K_CPU_TYPE_NAME("m5206");
     mc->default_ram_id = "an5206.ram";
 }
