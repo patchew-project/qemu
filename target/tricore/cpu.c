@@ -24,6 +24,7 @@
 #include "qemu/error-report.h"
 #include "tcg/debug-assert.h"
 #include "accel/tcg/cpu-ops.h"
+#include "system/reset.h"
 
 static inline void set_feature(CPUTriCoreState *env, int feature)
 {
@@ -81,6 +82,12 @@ static void tricore_cpu_reset_hold(Object *obj, ResetType type)
     cpu_state_reset(cpu_env(cs));
 }
 
+static void tricore_cpu_reset(void *opaque)
+{
+    CPUState *cs = opaque;
+    cpu_reset(cs);
+}
+
 static bool tricore_cpu_has_work(CPUState *cs)
 {
     return true;
@@ -120,8 +127,8 @@ static void tricore_cpu_realizefn(DeviceState *dev, Error **errp)
     if (tricore_has_feature(env, TRICORE_FEATURE_131)) {
         set_feature(env, TRICORE_FEATURE_13);
     }
-    cpu_reset(cs);
     qemu_init_vcpu(cs);
+    qemu_register_reset(tricore_cpu_reset, cs);
 
     tcc->parent_realize(dev, errp);
 }
