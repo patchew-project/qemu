@@ -16,6 +16,7 @@
 #include "exec/cpu-interrupt.h"
 #include "system/system.h"
 #include "system/qtest.h"
+#include "system/reset.h"
 #include "hw/core/irq.h"
 #include "hw/m68k/next-cube.h"
 #include "hw/core/boards.h"
@@ -1249,6 +1250,19 @@ static const TypeInfo next_pc_info = {
     .class_init = next_pc_class_init,
 };
 
+static void next_cube_reset(MachineState *ms, ResetType type)
+{
+    CPUState *cs = first_cpu;
+    M68kCPU *cpu = M68K_CPU(cs);
+
+    qemu_devices_reset(type);
+    cpu_reset(cs);
+
+    /* Initialize CPU registers.  */
+    cpu->env.vbr = 0;
+    cpu->env.sr  = 0x2700;
+}
+
 static void next_cube_init(MachineState *machine)
 {
     NeXTState *m = NEXT_MACHINE(machine);
@@ -1265,10 +1279,6 @@ static void next_cube_init(MachineState *machine)
         exit(1);
     }
     env = &cpu->env;
-
-    /* Initialize CPU registers.  */
-    env->vbr = 0;
-    env->sr  = 0x2700;
 
     /* Peripheral Controller */
     pcdev = qdev_new(TYPE_NEXT_PC);
@@ -1335,8 +1345,8 @@ static void next_cube_init(MachineState *machine)
         /* Initial PC is always at offset 4 in firmware binaries */
         ptr = rom_ptr(0x01000004, 4);
         g_assert(ptr != NULL);
-        env->pc = ldl_be_p(ptr);
-        if (env->pc >= 0x01020000) {
+        cpu->env.direct_kernel_boot_pc = ldl_be_p(ptr);
+        if (env->direct_kernel_boot_pc >= 0x01020000) {
             error_report("'%s' does not seem to be a valid firmware image.",
                          bios_name);
             exit(1);
@@ -1355,6 +1365,7 @@ static void next_machine_class_init(ObjectClass *oc, const void *data)
 
     mc->desc = "NeXT Cube";
     mc->init = next_cube_init;
+    mc->reset = next_cube_reset;
     mc->block_default_type = IF_SCSI;
     mc->default_ram_size = RAM_SIZE;
     mc->default_ram_id = "next.ram";
