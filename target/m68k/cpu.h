@@ -155,6 +155,8 @@ typedef struct CPUArchState {
 
     /* Fields from here on are preserved across CPU reset. */
     uint64_t features;
+    /* Override the normal reset vector with a direct kernel boot */
+    uint32_t direct_kernel_boot_pc;
 } CPUM68KState;
 
 /*

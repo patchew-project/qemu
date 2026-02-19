@@ -87,28 +87,19 @@
 #define VIRT_VIRTIO_MMIO_BASE 0xff010000     /* MMIO: 0xff010000 - 0xff01ffff */
 #define VIRT_VIRTIO_IRQ_BASE  PIC_IRQ(2, 1)  /* PIC: 2, 3, 4, 5, IRQ: ALL */
 
-typedef struct {
-    M68kCPU *cpu;
-    hwaddr initial_pc;
-    hwaddr initial_stack;
-} ResetInfo;
-
-static void main_cpu_reset(void *opaque)
-{
-    ResetInfo *reset_info = opaque;
-    M68kCPU *cpu = reset_info->cpu;
-    CPUState *cs = CPU(cpu);
-
-    cpu_reset(cs);
-    cpu->env.aregs[7] = reset_info->initial_stack;
-    cpu->env.pc = reset_info->initial_pc;
-}
-
 static void rerandomize_rng_seed(void *opaque)
 {
     struct bi_record *rng_seed = opaque;
     qemu_guest_getrandom_nofail((void *)rng_seed->data + 2,
                                 be16_to_cpu(*(uint16_t *)rng_seed->data));
+}
+
+static void virt_machine_reset(MachineState *ms, ResetType type)
+{
+    CPUState *cs = first_cpu;
+
+    qemu_devices_reset(type);
+    cpu_reset(cs);
 }
 
 static void virt_init(MachineState *machine)
@@ -129,7 +120,6 @@ static void virt_init(MachineState *machine)
     SysBusDevice *sysbus;
     hwaddr io_base;
     int i;
-    ResetInfo *reset_info;
     uint8_t rng_seed[32];
 
     if (ram_size > 3399672 * KiB) {
@@ -142,13 +132,8 @@ static void virt_init(MachineState *machine)
         exit(1);
     }
 
-    reset_info = g_new0(ResetInfo, 1);
-
     /* init CPUs */
     cpu = M68K_CPU(cpu_create(machine->cpu_type));
-
-    reset_info->cpu = cpu;
-    qemu_register_reset(main_cpu_reset, reset_info);
 
     /* RAM */
     memory_region_add_subregion(get_system_memory(), 0, machine->ram);
@@ -235,7 +220,7 @@ static void virt_init(MachineState *machine)
             error_report("could not load kernel '%s'", kernel_filename);
             exit(1);
         }
-        reset_info->initial_pc = elf_entry;
+        cpu->env.direct_kernel_boot_pc = elf_entry;
         parameters_base = (high + 1) & ~1;
         param_ptr = param_blob;
 
@@ -315,6 +300,7 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     mc->desc = "QEMU M68K Virtual Machine";
     mc->init = virt_init;
+    mc->reset = virt_machine_reset;
     mc->default_cpu_type = M68K_CPU_TYPE_NAME("m68040");
     mc->max_cpus = 1;
     mc->no_floppy = 1;
