@@ -39,6 +39,8 @@ static void gtk_egl_set_scanout_mode(VirtualConsole *vc, bool scanout)
             surface_gl_destroy_texture(vc->gfx.gls, vc->gfx.ds);
             surface_gl_create_texture(vc->gfx.gls, vc->gfx.ds);
         }
+        eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE,
+                       EGL_NO_SURFACE, EGL_NO_CONTEXT);
     }
 }
 
@@ -125,6 +127,9 @@ void gd_egl_draw(VirtualConsole *vc)
                         surface_height(vc->gfx.ds));
 
         glFlush();
+
+        eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE,
+                       EGL_NO_SURFACE, EGL_NO_CONTEXT);
     }
 }
 
@@ -261,6 +266,9 @@ void gd_egl_scanout_texture(DisplayChangeListener *dcl,
     gtk_egl_set_scanout_mode(vc, true);
     egl_fb_setup_for_tex(&vc->gfx.guest_fb, backing_width, backing_height,
                          backing_id, false);
+
+    eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE,
+                    EGL_NO_SURFACE, EGL_NO_CONTEXT);
 }
 
 void gd_egl_scanout_dmabuf(DisplayChangeListener *dcl,
@@ -277,6 +285,8 @@ void gd_egl_scanout_dmabuf(DisplayChangeListener *dcl,
     egl_dmabuf_import_texture(dmabuf);
     texture = qemu_dmabuf_get_texture(dmabuf);
     if (!texture) {
+        eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE,
+                       EGL_NO_SURFACE, EGL_NO_CONTEXT);
         return;
     }
 
@@ -294,6 +304,9 @@ void gd_egl_scanout_dmabuf(DisplayChangeListener *dcl,
     if (qemu_dmabuf_get_allow_fences(dmabuf)) {
         vc->gfx.guest_fb.dmabuf = dmabuf;
     }
+
+    eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE,
+                    EGL_NO_SURFACE, EGL_NO_CONTEXT);
 #endif
 }
 
@@ -397,6 +410,9 @@ void gd_egl_scanout_flush(DisplayChangeListener *dcl,
 #endif
 
     eglSwapBuffers(qemu_egl_display, vc->gfx.esurface);
+
+    eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE,
+                    EGL_NO_SURFACE, EGL_NO_CONTEXT);
 }
 
 void gd_egl_flush(DisplayChangeListener *dcl,
