@@ -140,6 +140,8 @@ void gd_gl_area_draw(VirtualConsole *vc)
         surface_gl_setup_viewport(vc->gfx.gls, vc->gfx.ds, pw, ph);
         surface_gl_render_texture(vc->gfx.gls, vc->gfx.ds);
     }
+
+    gdk_gl_context_clear_current();
 }
 
 void gd_gl_area_update(DisplayChangeListener *dcl,
@@ -201,6 +203,8 @@ void gd_gl_area_refresh(DisplayChangeListener *dcl)
         vc->gfx.glupdates = 0;
         gtk_gl_area_queue_render(GTK_GL_AREA(vc->gfx.drawing_area));
     }
+
+    gdk_gl_context_clear_current();
 }
 
 void gd_gl_area_switch(DisplayChangeListener *dcl,
@@ -227,6 +231,8 @@ void gd_gl_area_switch(DisplayChangeListener *dcl,
     if (resized) {
         gd_update_windowsize(vc);
     }
+
+    gdk_gl_context_clear_current();
 }
 
 static int gd_cmp_gl_context_version(int major, int minor, QEMUGLParams *params)
@@ -333,6 +339,8 @@ void gd_gl_area_scanout_texture(DisplayChangeListener *dcl,
     gtk_gl_area_set_scanout_mode(vc, true);
     egl_fb_setup_for_tex(&vc->gfx.guest_fb, backing_width, backing_height,
                          backing_id, false);
+
+    gdk_gl_context_clear_current();
 }
 
 void gd_gl_area_scanout_disable(DisplayChangeListener *dcl)
@@ -386,6 +394,8 @@ void gd_gl_area_scanout_dmabuf(DisplayChangeListener *dcl,
     if (qemu_dmabuf_get_allow_fences(dmabuf)) {
         vc->gfx.guest_fb.dmabuf = dmabuf;
     }
+
+    gdk_gl_context_clear_current();
 #endif
 }
 
@@ -397,6 +407,11 @@ void gtk_gl_area_init(void)
 int gd_gl_area_make_current(DisplayGLCtx *dgc,
                             QEMUGLContext ctx)
 {
-    gdk_gl_context_make_current(ctx);
+    if (ctx) {
+        gdk_gl_context_make_current(ctx);
+    } else {
+        gdk_gl_context_clear_current();
+    }
+
     return 0;
 }
