@@ -251,10 +251,12 @@ QEMUGLContext gd_gl_area_create_context(DisplayGLCtx *dgc,
                                         QEMUGLParams *params)
 {
     VirtualConsole *vc = container_of(dgc, VirtualConsole, gfx.dgc);
+    GdkGLContext *ctx, *current_ctx;
     GdkWindow *window;
-    GdkGLContext *ctx;
     GError *err = NULL;
     int major, minor;
+
+    current_ctx = gdk_gl_context_get_current();
 
     window = gtk_widget_get_window(vc->gfx.drawing_area);
     ctx = gdk_window_create_gl_context(window, &err);
@@ -282,6 +284,12 @@ QEMUGLContext gd_gl_area_create_context(DisplayGLCtx *dgc,
     if (gd_cmp_gl_context_version(major, minor, params) == -1) {
         /* created ctx version < requested version */
         g_clear_object(&ctx);
+    }
+
+    if (current_ctx) {
+        gdk_gl_context_make_current(current_ctx);
+    } else {
+        gdk_gl_context_clear_current();
     }
 
     trace_gd_gl_area_create_context(ctx, params->major_ver, params->minor_ver);
