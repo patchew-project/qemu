@@ -97,7 +97,7 @@ static GSList *migration_blockers[MIG_MODE__MAX];
 
 static bool migration_object_check(MigrationState *ms, Error **errp);
 static bool migration_switchover_start(MigrationState *s, Error **errp);
-static bool close_return_path_on_source(MigrationState *s);
+static bool stop_return_path_thread_on_source(MigrationState *s);
 static void migration_completion_end(MigrationState *s);
 
 static void migration_downtime_start(MigrationState *s)
@@ -1278,7 +1278,7 @@ static void migration_cleanup(MigrationState *s)
     cpr_state_close();
     cpr_transfer_source_destroy(s);
 
-    close_return_path_on_source(s);
+    stop_return_path_thread_on_source(s);
 
     if (s->migration_thread_running) {
         bql_unlock();
@@ -1304,6 +1304,14 @@ static void migration_cleanup(MigrationState *s)
          */
         multifd_send_shutdown();
         migration_ioc_unregister_yank_from_file(tmp);
+        qemu_fclose(tmp);
+    }
+
+    WITH_QEMU_LOCK_GUARD(&s->qemu_file_lock) {
+        tmp = s->rp_state.from_dst_file;
+        s->rp_state.from_dst_file = NULL;
+    }
+    if (tmp) {
         qemu_fclose(tmp);
     }
 
@@ -2188,38 +2196,6 @@ static bool migrate_handle_rp_resume_ack(MigrationState *s,
 }
 
 /*
- * Release ms->rp_state.from_dst_file (and postcopy_qemufile_src if
- * existed) in a safe way.
- */
-static void migration_release_dst_files(MigrationState *ms)
-{
-    QEMUFile *file = NULL;
-
-    WITH_QEMU_LOCK_GUARD(&ms->qemu_file_lock) {
-        /*
-         * Reset the from_dst_file pointer first before releasing it, as we
-         * can't block within lock section
-         */
-        file = ms->rp_state.from_dst_file;
-        ms->rp_state.from_dst_file = NULL;
-    }
-
-    /*
-     * Do the same to postcopy fast path socket too if there is.  No
-     * locking needed because this qemufile should only be managed by
-     * return path thread.
-     */
-    if (ms->postcopy_qemufile_src) {
-        migration_ioc_unregister_yank_from_file(ms->postcopy_qemufile_src);
-        qemu_file_shutdown(ms->postcopy_qemufile_src);
-        qemu_fclose(ms->postcopy_qemufile_src);
-        ms->postcopy_qemufile_src = NULL;
-    }
-
-    qemu_fclose(file);
-}
-
-/*
  * Handles messages sent on the return path towards the source VM
  *
  */
@@ -2388,9 +2364,9 @@ out:
     return NULL;
 }
 
-static void open_return_path_on_source(MigrationState *ms)
+static void start_return_path_thread_on_source(MigrationState *ms)
 {
-    ms->rp_state.from_dst_file = qemu_file_get_return_path(ms->to_dst_file);
+    assert(ms->rp_state.from_dst_file);
 
     trace_open_return_path_on_source();
 
@@ -2402,7 +2378,7 @@ static void open_return_path_on_source(MigrationState *ms)
 }
 
 /* Return true if error detected, or false otherwise */
-static bool close_return_path_on_source(MigrationState *ms)
+static bool stop_return_path_thread_on_source(MigrationState *ms)
 {
     if (!ms->rp_state.rp_thread_created) {
         return false;
@@ -2424,7 +2400,17 @@ static bool close_return_path_on_source(MigrationState *ms)
 
     qemu_thread_join(&ms->rp_state.rp_thread);
     ms->rp_state.rp_thread_created = false;
-    migration_release_dst_files(ms);
+    /*
+     * Close the postcopy fast path socket if there is one.
+     * No locking needed because this qemufile should only be managed by
+     * return path thread which we just stopped.
+     */
+    if (ms->postcopy_qemufile_src) {
+        migration_ioc_unregister_yank_from_file(ms->postcopy_qemufile_src);
+        qemu_file_shutdown(ms->postcopy_qemufile_src);
+        qemu_fclose(ms->postcopy_qemufile_src);
+        ms->postcopy_qemufile_src = NULL;
+    }
     trace_migration_return_path_end_after();
 
     /* Return path will persist the error in MigrationState when quit */
@@ -2787,7 +2773,7 @@ static void migration_completion(MigrationState *s)
         goto fail;
     }
 
-    if (close_return_path_on_source(s)) {
+    if (stop_return_path_thread_on_source(s)) {
         goto fail;
     }
 
@@ -2941,7 +2927,15 @@ static MigThrError postcopy_pause(MigrationState *s)
          * path and just wait for the thread to finish. It will be
          * re-created when we resume.
          */
-        close_return_path_on_source(s);
+        stop_return_path_thread_on_source(s);
+        QEMUFile *rp_file;
+        WITH_QEMU_LOCK_GUARD(&s->qemu_file_lock) {
+            rp_file = s->rp_state.from_dst_file;
+            s->rp_state.from_dst_file = NULL;
+        }
+        if (rp_file) {
+            qemu_fclose(rp_file);
+        }
 
         /*
          * Current channel is possibly broken. Release it.  Note that this is
@@ -3758,6 +3752,7 @@ void migration_start_outgoing(MigrationState *s)
     if (!qemu_file_set_blocking(s->to_dst_file, true, &local_err)) {
         goto fail;
     }
+    s->rp_state.from_dst_file = qemu_file_get_return_path(s->to_dst_file);
 
     /*
      * Open the return path. For postcopy, it is used exclusively. For
@@ -3765,7 +3760,7 @@ void migration_start_outgoing(MigrationState *s)
      * QEMU uses the return path.
      */
     if (migrate_postcopy_ram() || migrate_return_path()) {
-        open_return_path_on_source(s);
+        start_return_path_thread_on_source(s);
     }
 
     /*
