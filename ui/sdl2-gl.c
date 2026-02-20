@@ -57,6 +57,8 @@ static void sdl2_gl_render_surface(struct sdl2_console *scon)
 
     surface_gl_render_texture(scon->gls, scon->surface);
     SDL_GL_SwapWindow(scon->real_window);
+
+    SDL_GL_MakeCurrent(scon->real_window, NULL);
 }
 
 void sdl2_gl_update(DisplayChangeListener *dcl,
@@ -73,6 +75,8 @@ void sdl2_gl_update(DisplayChangeListener *dcl,
     SDL_GL_MakeCurrent(scon->real_window, scon->winctx);
     surface_gl_update_texture(scon->gls, scon->surface, x, y, w, h);
     scon->updates++;
+
+    SDL_GL_MakeCurrent(scon->real_window, NULL);
 }
 
 void sdl2_gl_switch(DisplayChangeListener *dcl,
@@ -91,6 +95,7 @@ void sdl2_gl_switch(DisplayChangeListener *dcl,
     if (surface_is_placeholder(new_surface) && qemu_console_get_index(dcl->con)) {
         qemu_gl_fini_shader(scon->gls);
         scon->gls = NULL;
+        SDL_GL_MakeCurrent(scon->real_window, NULL);
         sdl2_window_destroy(scon);
         return;
     }
@@ -105,6 +110,8 @@ void sdl2_gl_switch(DisplayChangeListener *dcl,
     }
 
     surface_gl_create_texture(scon->gls, scon->surface);
+
+    SDL_GL_MakeCurrent(scon->real_window, NULL);
 }
 
 void sdl2_gl_refresh(DisplayChangeListener *dcl)
