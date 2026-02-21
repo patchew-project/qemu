@@ -244,6 +244,16 @@ bool smmuv3_accel_install_ste(SMMUv3State *s, SMMUDevice *sdev, int sid,
     const char *type;
     STE ste;
     SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
+    /*
+     * smmu_find_ste() requires a SMMUTransCfg to provide address space and
+     * transaction attributes for DMA reads. Only NS state is supported here.
+     */
+    SMMUState *bc = &s->smmu_state;
+    SMMUTransCfg cfg = {
+        .sec_sid = sec_sid,
+        .txattrs = smmu_get_txattrs(sec_sid),
+        .as = smmu_get_address_space(bc, sec_sid),
+    };
 
     if (!accel || !accel->viommu) {
         return true;
@@ -259,7 +269,7 @@ bool smmuv3_accel_install_ste(SMMUv3State *s, SMMUDevice *sdev, int sid,
         return false;
     }
 
-    if (smmu_find_ste(sdev->smmu, sid, &ste, &event)) {
+    if (smmu_find_ste(sdev->smmu, sid, &ste, &event, &cfg)) {
         /* No STE found, nothing to install */
         return true;
     }

@@ -22,6 +22,7 @@
 #include "hw/core/sysbus.h"
 #include "hw/pci/pci.h"
 #include "qom/object.h"
+#include "hw/arm/arm-security.h"
 
 #define SMMU_PCI_BUS_MAX                    256
 #define SMMU_PCI_DEVFN_MAX                  256
@@ -46,6 +47,9 @@ typedef enum SMMUSecSID {
     SMMU_SEC_SID_S,
     SMMU_SEC_SID_NUM,
 } SMMUSecSID;
+
+MemTxAttrs smmu_get_txattrs(SMMUSecSID sec_sid);
+ARMSecuritySpace smmu_get_security_space(SMMUSecSID sec_sid);
 
 /*
  * Page table walk error types
@@ -124,6 +128,14 @@ typedef struct SMMUTransCfg {
     SMMUTransTableInfo tt[2];
     /* Used by stage-2 only. */
     struct SMMUS2Cfg s2cfg;
+    MemTxAttrs txattrs;        /* cached transaction attributes */
+    /*
+     * Cached AS related to the SEC_SID, which will be statically marked, and
+     * in future RME support it will be implemented as a dynamic switch.
+     */
+    AddressSpace *as;
+    /* Cached NS AS. It will be used if previous SEC_SID != SMMU_SEC_SID_NS. */
+    AddressSpace *ns_as;
 } SMMUTransCfg;
 
 typedef struct SMMUDevice {

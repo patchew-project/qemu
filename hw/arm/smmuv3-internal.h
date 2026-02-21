@@ -363,7 +363,8 @@ typedef struct SMMUEventInfo {
     } while (0)
 
 void smmuv3_record_event(SMMUv3State *s, SMMUEventInfo *event);
-int smmu_find_ste(SMMUv3State *s, uint32_t sid, STE *ste, SMMUEventInfo *event);
+int smmu_find_ste(SMMUv3State *s, uint32_t sid, STE *ste, SMMUEventInfo *event,
+                  SMMUTransCfg *cfg);
 
 static inline int oas2bits(int oas_field)
 {
