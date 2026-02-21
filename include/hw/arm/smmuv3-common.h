@@ -312,9 +312,9 @@ REG32(IDR1,                0x4)
     FIELD(IDR1, ECMDQ,        31, 1)
 
 #define SMMU_SSID_MAX_BITS 20
-#define SMMU_IDR1_SIDSIZE 16
-#define SMMU_CMDQS   19
-#define SMMU_EVENTQS 19
+#define SMMU_IDR1_SIDSIZE 6
+#define SMMU_CMDQS   10
+#define SMMU_EVENTQS 10
 
 REG32(IDR2,                0x8)
      FIELD(IDR2, BA_VATOS, 0, 10)
