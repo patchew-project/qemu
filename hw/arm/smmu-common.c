@@ -406,15 +406,16 @@ void smmu_iotlb_inv_vmid_s1(SMMUState *s, int vmid)
 /**
  * get_pte - Get the content of a page table entry located at
  * @base_addr[@index]
+ * @as: AddressSpace to read from
  */
 static int get_pte(dma_addr_t baseaddr, uint32_t index, uint64_t *pte,
-                   SMMUPTWEventInfo *info)
+                   SMMUPTWEventInfo *info, AddressSpace *as, MemTxAttrs attrs)
 {
     int ret;
     dma_addr_t addr = baseaddr + index * sizeof(*pte);
 
     /* TODO: guarantee 64-bit single-copy atomicity */
-    ret = ldq_le_dma(&address_space_memory, addr, pte, MEMTXATTRS_UNSPECIFIED);
+    ret = ldq_le_dma(as, addr, pte, attrs);
 
     if (ret != MEMTX_OK) {
         info->type = SMMU_PTW_ERR_WALK_EABT;
@@ -538,6 +539,9 @@ static int smmu_ptw_64_s1(SMMUState *bs, SMMUTransCfg *cfg,
     SMMUStage stage = cfg->stage;
     SMMUTransTableInfo *tt = select_tt(cfg, iova);
     uint8_t level, granule_sz, inputsize, stride;
+    int nscfg, current_ns, new_nstable;
+    bool sid_is_ns = cfg->sec_sid == SMMU_SEC_SID_NS;
+    bool forced_ns = false;  /* Once true, NSTable is ignored */
 
     if (!tt || tt->disabled) {
         info->type = SMMU_PTW_ERR_TRANSLATION;
@@ -552,6 +556,8 @@ static int smmu_ptw_64_s1(SMMUState *bs, SMMUTransCfg *cfg,
 
     baseaddr = extract64(tt->ttb, 0, cfg->oas);
     baseaddr &= ~indexmask;
+    nscfg = tt->nscfg;
+    forced_ns = sid_is_ns || nscfg;
 
     while (level < VMSA_LEVELS) {
         uint64_t subpage_size = 1ULL << level_shift(level, granule_sz);
@@ -560,8 +566,17 @@ static int smmu_ptw_64_s1(SMMUState *bs, SMMUTransCfg *cfg,
         uint64_t pte, gpa;
         dma_addr_t pte_addr = baseaddr + offset * sizeof(pte);
         uint8_t ap;
+        AddressSpace *pte_as;
+        MemTxAttrs pte_attrs;
 
-        if (get_pte(baseaddr, offset, &pte, info)) {
+        /*
+         * Start in NS for Non-secure streams or CD.NSCFGx == 1.
+         * Once walk is in NS, NSTable is ignored on subsequent levels.
+         */
+        current_ns = forced_ns || nscfg;
+        pte_as = current_ns ? &bs->memory_as : &bs->secure_memory_as;
+        pte_attrs = current_ns ? MEMTXATTRS_UNSPECIFIED : cfg->txattrs;
+        if (get_pte(baseaddr, offset, &pte, info, pte_as, pte_attrs)) {
                 goto error;
         }
         trace_smmu_ptw_level(stage, level, iova, subpage_size,
@@ -584,6 +599,23 @@ static int smmu_ptw_64_s1(SMMUState *bs, SMMUTransCfg *cfg,
             if (cfg->stage == SMMU_NESTED) {
                 if (translate_table_addr_ipa(bs, &baseaddr, cfg, info)) {
                     goto error;
+                }
+            }
+
+            /*
+             * NSTable can switch the walk to NS only while the current walk
+             * level is Secure. Once switched to NS, NSTable is ignored according
+             * to hierarchical control of Secure/Non-secure accesses:
+             * (IHI 0070G.b)13.4.1 Stage 1 page permissions and
+             * (DDI 0487H.a)D8.4.2 Control of Secure or Non-secure memory access
+             */
+            if (!forced_ns) {
+                new_nstable = PTE_NSTABLE(pte);
+                if (new_nstable) {
+                    forced_ns = true;
+                    nscfg = 1;
+                } else {
+                    nscfg = 0;
                 }
             }
             level++;
@@ -628,6 +660,13 @@ static int smmu_ptw_64_s1(SMMUState *bs, SMMUTransCfg *cfg,
             goto error;
         }
 
+        if (current_ns) {
+            tlbe->sec_sid = SMMU_SEC_SID_NS;
+        } else {
+            tlbe->sec_sid = PTE_NS(pte) ? SMMU_SEC_SID_NS : SMMU_SEC_SID_S;
+        }
+        tlbe->entry.target_as = (tlbe->sec_sid == SMMU_SEC_SID_S)
+                                ? &bs->secure_memory_as : &bs->memory_as;
         tlbe->entry.translated_addr = gpa;
         tlbe->entry.iova = iova & ~mask;
         tlbe->entry.addr_mask = mask;
@@ -697,7 +736,8 @@ static int smmu_ptw_64_s2(SMMUTransCfg *cfg,
         dma_addr_t pte_addr = baseaddr + offset * sizeof(pte);
         uint8_t s2ap;
 
-        if (get_pte(baseaddr, offset, &pte, info)) {
+        if (get_pte(baseaddr, offset, &pte, info, cfg->ns_as,
+                    MEMTXATTRS_UNSPECIFIED)) {
                 goto error;
         }
         trace_smmu_ptw_level(stage, level, ipa, subpage_size,
@@ -750,6 +790,8 @@ static int smmu_ptw_64_s2(SMMUTransCfg *cfg,
             goto error_ipa;
         }
 
+        tlbe->sec_sid = SMMU_SEC_SID_NS;
+        tlbe->entry.target_as = cfg->ns_as;
         tlbe->entry.translated_addr = gpa;
         tlbe->entry.iova = ipa & ~mask;
         tlbe->entry.addr_mask = mask;
