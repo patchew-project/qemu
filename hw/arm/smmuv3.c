@@ -1503,6 +1503,12 @@ static bool smmu_eventq_irq_cfg_writable(SMMUv3State *s, SMMUSecSID sec_sid)
     return (FIELD_EX32(s->bank[sec_sid].irq_ctrl, IRQ_CTRL, EVENTQ_IRQEN) == 0);
 }
 
+/* Check if the SMMU hardware itself implements secure state features */
+static inline bool smmu_hw_secure_implemented(SMMUv3State *s)
+{
+    return FIELD_EX32(s->bank[SMMU_SEC_SID_S].idr[1], S_IDR1, SECURE_IMPL);
+}
+
 static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
 {
     SMMUState *bs = ARM_SMMU(s);
@@ -1793,6 +1799,63 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
                                   Q_PROD_WRAP(q), Q_CONS_WRAP(q));
 
     return 0;
+}
+
+/*
+ * Check if a register is exempt from the secure implementation check.
+ *
+ * The SMMU architecture specifies that certain secure registers, such as
+ * the secure Event Queue IRQ configuration registers, must be accessible
+ * even if the full secure hardware is not implemented. This function
+ * identifies those registers.
+ *
+ * Returns true if the register is exempt, false otherwise.
+ */
+static bool is_secure_impl_exempt_reg(hwaddr offset)
+{
+    switch (offset) {
+    case A_S_EVENTQ_IRQ_CFG0:
+    case A_S_EVENTQ_IRQ_CFG1:
+    case A_S_EVENTQ_IRQ_CFG2:
+        return true;
+    default:
+        return false;
+    }
+}
+
+/*
+ * Helper function for Secure register access validation.
+ *
+ * Follow S_IDR1.SECURE_IMPL accessibility rules for SMMU_S_*:
+ *  - SECURE_IMPL == 0: Secure state is not implemented; SMMU_S_* are RAZ/WI to
+ *    all accesses.
+ *  - SECURE_IMPL == 1: Non-secure accesses to SMMU_S_* are RAZ/WI.
+ */
+static bool smmu_check_secure_access(SMMUv3State *s, MemTxAttrs attrs,
+                                     hwaddr offset, bool is_read)
+{
+    /* Check if the access is secure */
+    if (!(attrs.space == ARMSS_Secure ||
+          attrs.secure == 1)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+            "%s: Non-secure %s attempt at offset 0x%" PRIx64 " (%s)\n",
+            __func__, is_read ? "read" : "write", offset,
+            is_read ? "RAZ" : "WI");
+        return false;
+    }
+
+    /*
+     * Check if the secure state is implemented. Some registers are exempted
+     * from this check.
+     */
+    if (!is_secure_impl_exempt_reg(offset) && !smmu_hw_secure_implemented(s)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+            "%s: Secure %s attempt at offset 0x%" PRIx64 ". But Secure state "
+            "is not implemented (RES0)\n",
+            __func__, is_read ? "read" : "write", offset);
+        return false;
+    }
+    return true;
 }
 
 static MemTxResult smmu_writell(SMMUv3State *s, hwaddr offset,
@@ -2140,6 +2203,18 @@ static MemTxResult smmu_write_mmio(void *opaque, hwaddr offset, uint64_t data,
      * the same layout but is mapped starting at 0x8000(SMMU_SECURE_REG_START)
      */
     if (offset >= SMMU_SECURE_REG_START) {
+        if (!smmu_check_secure_access(s, attrs, offset, false)) {
+            trace_smmuv3_write_mmio(offset, data, size, MEMTX_OK);
+            /*
+             * RAZ/WI/RES0 are deterministic register-level behaviors and do not
+             * imply a bus protocol error or abort. Therefore we acknowledge the
+             * MMIO transaction with MEMTX_OK and implement
+             * "Read-As-Zero / Write-Ignored" in the register model, instead of
+             * returning MEMTX_*_ERROR which is reserved for real decode/access
+             * failures.
+             */
+            return MEMTX_OK;
+        }
         reg_sec_sid = SMMU_SEC_SID_S;
     }
 
@@ -2334,6 +2409,11 @@ static MemTxResult smmu_read_mmio(void *opaque, hwaddr offset, uint64_t *data,
     /* CONSTRAINED UNPREDICTABLE choice to have page0/1 be exact aliases */
     offset &= ~0x10000;
     if (offset >= SMMU_SECURE_REG_START) {
+        if (!smmu_check_secure_access(s, attrs, offset, true)) {
+            *data = 0;
+            trace_smmuv3_read_mmio(offset, *data, size, MEMTX_OK);
+            return MEMTX_OK;
+        }
         reg_sec_sid = SMMU_SEC_SID_S;
     }
 
