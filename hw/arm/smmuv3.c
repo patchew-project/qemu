@@ -321,7 +321,12 @@ static void smmuv3_init_id_regs(SMMUv3State *s)
     bk->idr[5] = FIELD_DP32(bk->idr[5], IDR5, GRAN4K, 1);
     bk->idr[5] = FIELD_DP32(bk->idr[5], IDR5, GRAN16K, 1);
     bk->idr[5] = FIELD_DP32(bk->idr[5], IDR5, GRAN64K, 1);
-    s->aidr = 0x1;
+
+    /* Initialize Secure bank */
+    SMMUv3RegBank *sbk = smmuv3_bank(s, SMMU_SEC_SID_S);
+    memset(sbk->idr, 0, sizeof(sbk->idr));
+    sbk->idr[0] = FIELD_DP32(bk->idr[0], S_IDR0, STALL_MODEL, 1); /* No stall */
+    sbk->idr[1] = FIELD_DP32(sbk->idr[1], S_IDR1, S_SIDSIZE, SMMU_IDR1_SIDSIZE);
     smmuv3_accel_idr_override(s);
 }
 
@@ -346,6 +351,26 @@ static void smmuv3_reset(SMMUv3State *s)
     bk->gerror = 0;
     bk->gerrorn = 0;
     bk->gbpa = SMMU_GBPA_RESET_VAL;
+
+    SMMUv3RegBank *sbk = smmuv3_bank(s, SMMU_SEC_SID_S);
+
+    sbk->cmdq.base = deposit64(sbk->cmdq.base, 0, 5, SMMU_CMDQS);
+    sbk->cmdq.prod = 0;
+    sbk->cmdq.cons = 0;
+    sbk->cmdq.entry_size = sizeof(struct Cmd);
+    sbk->eventq.base = deposit64(sbk->eventq.base, 0, 5, SMMU_EVENTQS);
+    sbk->eventq.prod = 0;
+    sbk->eventq.cons = 0;
+    sbk->eventq.entry_size = sizeof(struct Evt);
+
+    sbk->features = 0;
+    sbk->sid_split = 0;
+    sbk->cr[0] = 0;
+    sbk->cr0ack = 0;
+    sbk->irq_ctrl = 0;
+    sbk->gerror = 0;
+    sbk->gerrorn = 0;
+    sbk->gbpa = SMMU_GBPA_RESET_VAL;
 
     s->aidr = 0x1;
     s->statusr = 0;
