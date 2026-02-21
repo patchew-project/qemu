@@ -30,6 +30,23 @@
 #include "hw/arm/smmu-common.h"
 #include "smmu-internal.h"
 
+AddressSpace *smmu_get_address_space(SMMUState *s, SMMUSecSID sec_sid)
+{
+    switch (sec_sid) {
+    case SMMU_SEC_SID_NS:
+        return &s->memory_as;
+    case SMMU_SEC_SID_S:
+        if (!s->secure_memory || s->secure_memory_as.root == NULL) {
+            warn_report("Secure address space requested but not available");
+            return NULL;
+        }
+        return &s->secure_memory_as;
+    default:
+        warn_report("Unknown SEC_SID value %d", sec_sid);
+        return NULL;
+    }
+}
+
 /* IOTLB Management */
 
 static guint smmu_iotlb_key_hash(gconstpointer v)
