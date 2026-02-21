@@ -30,6 +30,25 @@
 #include "hw/arm/smmu-common.h"
 #include "smmu-internal.h"
 
+ARMSecuritySpace smmu_get_security_space(SMMUSecSID sec_sid)
+{
+    switch (sec_sid) {
+    case SMMU_SEC_SID_S:
+        return ARMSS_Secure;
+    case SMMU_SEC_SID_NS:
+    default:
+        return ARMSS_NonSecure;
+    }
+}
+
+MemTxAttrs smmu_get_txattrs(SMMUSecSID sec_sid)
+{
+    return (MemTxAttrs) {
+        .secure = sec_sid > SMMU_SEC_SID_NS ? 1 : 0,
+        .space = smmu_get_security_space(sec_sid),
+    };
+}
+
 AddressSpace *smmu_get_address_space(SMMUState *s, SMMUSecSID sec_sid)
 {
     switch (sec_sid) {
