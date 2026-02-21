@@ -144,6 +144,7 @@ typedef struct SMMUDevice {
     void               *smmu;
     PCIBus             *bus;
     int                devfn;
+    SMMUSecSID         sec_sid;
     IOMMUMemoryRegion  iommu;
     AddressSpace       as;
     uint32_t           cfg_cache_hits;
@@ -204,6 +205,7 @@ struct SMMUBaseClass {
     /*< public >*/
 
     DeviceRealize parent_realize;
+    bool (*validate_sec_sid)(struct SMMUState *s, SMMUDevice *sdev, int bus_num);
 
 };
 
