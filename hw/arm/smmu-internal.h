@@ -145,12 +145,14 @@ static inline int pgd_concat_idx(int start_level, int granule_sz,
 
 #define SMMU_IOTLB_ASID(key) ((key).asid)
 #define SMMU_IOTLB_VMID(key) ((key).vmid)
+#define SMMU_IOTLB_SEC_SID(key) ((key).sec_sid)
 
 typedef struct SMMUIOTLBPageInvInfo {
     int asid;
     int vmid;
     uint64_t iova;
     uint64_t mask;
+    SMMUSecSID sec_sid;
 } SMMUIOTLBPageInvInfo;
 
 #endif
