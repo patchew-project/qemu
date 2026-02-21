@@ -373,6 +373,21 @@ static int smmu_get_ste(SMMUv3State *s, dma_addr_t addr, STE *buf,
 
 }
 
+static void smmuv3_invalidate_all_caches(SMMUv3State *s)
+{
+    SMMUState *bs = &s->smmu_state;
+    trace_smmuv3_invalidate_all_caches();
+
+    /* Clear all cached configs including STE and CD */
+    if (bs->configs) {
+        g_hash_table_remove_all(bs->configs);
+    }
+
+    /* Invalidate all SMMU IOTLB entries */
+    smmu_inv_notifiers_all(&s->smmu_state);
+    smmu_iotlb_inv_all(bs, SMMU_SEC_SID_NUM);
+}
+
 static SMMUTranslationStatus smmuv3_do_translate(SMMUv3State *s, hwaddr addr,
                                                  SMMUTransCfg *cfg,
                                                  SMMUEventInfo *event,
@@ -2077,6 +2092,25 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
 
         bank->eventq_irq_cfg2 = data;
         break;
+    /* S_INIT is Secure-only. So match it as a one-off via & 0xfff. */
+    case (A_S_INIT & 0xfff):
+        if (data & R_S_INIT_INV_ALL_MASK) {
+            /*
+             * If SMMU_ROOT_CR0.GPCEN == 0, a write of 1 to INV_ALL when any
+             * SMMU_(*_)CR0.SMMUEN == 1, .... , is CONSTRAINED UNPREDICTABLE
+             * according to (IHI 0070G.b) 6.3.62 SMMU_S_INIT, Page 465.
+             */
+            if (!smmuv3_smmu_disabled_stable(s, SMMU_SEC_SID_NS) ||
+                !smmuv3_smmu_disabled_stable(s, SMMU_SEC_SID_S)) {
+                /* CONSTRAINED UNPREDICTABLE behavior: Ignore this write */
+                qemu_log_mask(LOG_GUEST_ERROR, "S_INIT write ignored: "
+                              "(S_)CR0.SMMUEN or (S_)CR0ACK.SMMUEN is set\n");
+                return MEMTX_OK;
+            }
+            smmuv3_invalidate_all_caches(s);
+        }
+        /* Synchronous emulation: invalidation completed instantly. */
+        break;
     default:
         qemu_log_mask(LOG_UNIMP,
                       "%s Unexpected 32-bit access to 0x%"PRIx64" (WI)\n",
@@ -2276,6 +2310,9 @@ static MemTxResult smmu_readl(SMMUv3State *s, hwaddr offset,
         return MEMTX_OK;
     case A_EVENTQ_CONS:
         *data = bank->eventq.cons;
+        return MEMTX_OK;
+    case (A_S_INIT & 0xfff):
+        *data = 0;
         return MEMTX_OK;
     default:
         *data = 0;
