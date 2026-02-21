@@ -21,6 +21,7 @@
 #include "exec/target_page.h"
 #include "hw/core/cpu.h"
 #include "hw/pci/pci_bridge.h"
+#include "hw/pci/pci_device.h"
 #include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/jhash.h"
@@ -1071,14 +1072,50 @@ SMMUPciBus *smmu_find_smmu_pcibus(SMMUState *s, uint8_t bus_num)
     return NULL;
 }
 
+static SMMUSecSID smmu_parse_pci_sec_sid(PCIDevice *pdev, int bus_num,
+                                         int devfn)
+{
+    const char *sec_sid;
+
+    if (!pdev || !pdev->sec_sid) {
+        return SMMU_SEC_SID_NS;
+    }
+
+    sec_sid = pdev->sec_sid;
+    if (!strcmp(sec_sid, "non-secure")) {
+        return SMMU_SEC_SID_NS;
+    }
+    if (!strcmp(sec_sid, "secure")) {
+        return SMMU_SEC_SID_S;
+    }
+
+    error_report("Invalid sec-sid value '%s' for PCI device %02x:%02x.%x; "
+                 "allowed values: non-secure or secure (case-sensitive)",
+                 sec_sid, bus_num, PCI_SLOT(devfn), PCI_FUNC(devfn));
+    exit(EXIT_FAILURE);
+}
+
 void smmu_init_sdev(SMMUState *s, SMMUDevice *sdev, PCIBus *bus, int devfn)
 {
     static unsigned int index;
     g_autofree char *name = g_strdup_printf("%s-%d-%d", s->mrtypename, devfn,
                                             index++);
+    SMMUBaseClass *sbc = ARM_SMMU_GET_CLASS(s);
+    PCIDevice *pdev;
+    int bus_num;
+
     sdev->smmu = s;
     sdev->bus = bus;
     sdev->devfn = devfn;
+    sdev->sec_sid = SMMU_SEC_SID_NS;
+
+    bus_num = pci_bus_num(bus);
+    pdev = pci_find_device(bus, bus_num, devfn);
+    sdev->sec_sid = smmu_parse_pci_sec_sid(pdev, bus_num, devfn);
+    if (sbc->validate_sec_sid &&
+        !sbc->validate_sec_sid(s, sdev, bus_num)) {
+        exit(EXIT_FAILURE);
+    }
 
     memory_region_init_iommu(&sdev->iommu, sizeof(sdev->iommu),
                              s->mrtypename, OBJECT(s), name, UINT64_MAX);
