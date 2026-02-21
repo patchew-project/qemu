@@ -623,6 +623,16 @@ static int decode_ste(SMMUv3State *s, SMMUTransCfg *cfg,
         if (ret) {
             goto bad_ste;
         }
+
+        /*
+         * Stage 2 is implemented but Secure stage 2 is not supported while
+         * STE is from Secure stream table. STE is ILLEGAL in this case
+         * according to (IHI 0070G.b) 5.2 STE, Stream Table Entry, Page 218.
+         */
+        if ((cfg->sec_sid == SMMU_SEC_SID_S) &&
+            !(FIELD_EX32(s->bank[SMMU_SEC_SID_S].idr[1], S_IDR1, SEL2))) {
+            goto bad_ste;
+        }
     }
 
     /* Multiple context descriptors require SubstreamID support */
