@@ -1391,6 +1391,36 @@ static inline bool smmu_gerror_irq_cfg_writable(SMMUv3State *s, SMMUSecSID sec_s
     return (FIELD_EX32(s->bank[sec_sid].irq_ctrl, IRQ_CTRL, GERROR_IRQEN) == 0);
 }
 
+static inline int smmuv3_get_cr0ack_smmuen(SMMUv3State *s, SMMUSecSID sec_sid)
+{
+    /*
+     * CR0, CR0ACK, S_CR0 and S_CR0ACK are bit-layout compatible, so we reuse
+     * the CR0 field definitions and only switch banks via sec_sid to reduce
+     * code duplication. Also the other bits in CR0/CR0ACK are relevant here.
+     */
+    return FIELD_EX32(s->bank[sec_sid].cr0ack, CR0, SMMUEN);
+}
+
+/* Check if SMMU is disabled in stable status */
+static inline bool smmuv3_smmu_disabled_stable(SMMUv3State *s, SMMUSecSID sec_sid)
+{
+    int cr0_smmuen = smmu_enabled(s, sec_sid);
+    int cr0ack_smmuen = smmuv3_get_cr0ack_smmuen(s, sec_sid);
+    return (cr0_smmuen == 0 && cr0ack_smmuen == 0);
+}
+
+/* Check if STRTAB_BASE register is writable */
+static bool smmu_strtab_base_writable(SMMUv3State *s, SMMUSecSID sec_sid)
+{
+    /* Use NS bank as it's designed for all security states */
+    if (FIELD_EX32(s->bank[SMMU_SEC_SID_NS].idr[1], IDR1, TABLES_PRESET)) {
+        return false;
+    }
+
+    /* Check SMMUEN conditions for the specific security domain */
+    return smmuv3_smmu_disabled_stable(s, sec_sid);
+}
+
 static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
 {
     SMMUState *bs = ARM_SMMU(s);
@@ -1701,7 +1731,14 @@ static MemTxResult smmu_writell(SMMUv3State *s, hwaddr offset,
         bank->gerror_irq_cfg0 = data & SMMU_GERROR_IRQ_CFG0_RESERVED;
         return MEMTX_OK;
     case A_STRTAB_BASE:
-        bank->strtab_base = data;
+        if (!smmu_strtab_base_writable(s, reg_sec_sid)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "STRTAB_BASE write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
+
+        /* Clear reserved bits according to spec */
+        bank->strtab_base = data & SMMU_STRTAB_BASE_RESERVED;
         return MEMTX_OK;
     case A_CMDQ_BASE:
         bank->cmdq.base = data;
@@ -1746,7 +1783,15 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
         bank->cr[1] = data;
         break;
     case A_CR2:
-        bank->cr[2] = data;
+        if (smmuv3_smmu_disabled_stable(s, reg_sec_sid)) {
+            /* Allow write: SMMUEN is 0 in both CR0 and CR0ACK */
+            bank->cr[2] = data;
+        } else {
+            /* CONSTRAINED UNPREDICTABLE behavior: Ignore this write */
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "CR2 write ignored: register is read-only when "
+                          "CR0.SMMUEN or CR0ACK.SMMUEN is set\n");
+        }
         break;
     case A_IRQ_CTRL:
         bank->irq_ctrl = data;
@@ -1802,12 +1847,32 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
         }
         break;
     case A_STRTAB_BASE: /* 64b */
+        if (!smmu_strtab_base_writable(s, reg_sec_sid)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "STRTAB_BASE write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
+
+        data &= SMMU_STRTAB_BASE_RESERVED;
         bank->strtab_base = deposit64(bank->strtab_base, 0, 32, data);
         break;
     case A_STRTAB_BASE + 4:
+        if (!smmu_strtab_base_writable(s, reg_sec_sid)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "STRTAB_BASE + 4 write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
+
+        data &= SMMU_STRTAB_BASE_RESERVED;
         bank->strtab_base = deposit64(bank->strtab_base, 32, 32, data);
         break;
     case A_STRTAB_BASE_CFG:
+        if (!smmu_strtab_base_writable(s, reg_sec_sid)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "STRTAB_BASE_CFG write ignored: register is RO\n");
+            return MEMTX_OK;
+        }
+
         bank->strtab_base_cfg = data;
         if (FIELD_EX32(data, STRTAB_BASE_CFG, FMT) == 1) {
             bank->sid_split = FIELD_EX32(data, STRTAB_BASE_CFG, SPLIT);
