@@ -328,6 +328,7 @@ static void smmuv3_init_id_regs(SMMUv3State *s)
     sbk->idr[0] = FIELD_DP32(bk->idr[0], S_IDR0, STALL_MODEL, 1); /* No stall */
     sbk->idr[1] = FIELD_DP32(sbk->idr[1], S_IDR1, S_SIDSIZE, SMMU_IDR1_SIDSIZE);
     sbk->idr[1] = FIELD_DP32(sbk->idr[1], S_IDR1, SECURE_IMPL, s->secure_impl);
+    sbk->idr[1] = FIELD_DP32(sbk->idr[1], S_IDR1, SEL2, 1);
     smmuv3_accel_idr_override(s);
 }
 
@@ -373,7 +374,7 @@ static void smmuv3_reset(SMMUv3State *s)
     sbk->gerrorn = 0;
     sbk->gbpa = SMMU_GBPA_RESET_VAL;
 
-    s->aidr = 0x1;
+    s->aidr = 0x2; /* SMMUv3.2 */
     s->statusr = 0;
 }
 
