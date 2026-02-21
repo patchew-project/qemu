@@ -128,7 +128,8 @@ static inline MemTxResult queue_read(SMMUQueue *q, Cmd *cmd,
     return ret;
 }
 
-static MemTxResult queue_write(SMMUQueue *q, Evt *evt_in)
+static MemTxResult queue_write(SMMUQueue *q, Evt *evt_in,
+                               AddressSpace *as, MemTxAttrs attrs)
 {
     dma_addr_t addr = Q_PROD_ENTRY(q);
     MemTxResult ret;
@@ -138,8 +139,7 @@ static MemTxResult queue_write(SMMUQueue *q, Evt *evt_in)
     for (i = 0; i < ARRAY_SIZE(evt.word); i++) {
         cpu_to_le32s(&evt.word[i]);
     }
-    ret = dma_memory_write(&address_space_memory, addr, &evt, sizeof(Evt),
-                           MEMTXATTRS_UNSPECIFIED);
+    ret = dma_memory_write(as, addr, &evt, sizeof(Evt), attrs);
     if (ret != MEMTX_OK) {
         return ret;
     }
@@ -154,6 +154,11 @@ static MemTxResult smmuv3_write_eventq(SMMUv3State *s, SMMUSecSID sec_sid,
     SMMUv3RegBank *bank = smmuv3_bank(s, sec_sid);
     SMMUQueue *q = &bank->eventq;
     MemTxResult r;
+    SMMUState *bs = ARM_SMMU(s);
+    MemTxAttrs txattrs = smmu_get_txattrs(sec_sid);
+    AddressSpace *as = smmu_get_address_space(bs, sec_sid);
+    /* Secure AddressSpace must be available, assert if not. */
+    g_assert(as);
 
     if (!smmuv3_eventq_enabled(s, sec_sid)) {
         return MEMTX_ERROR;
@@ -163,7 +168,7 @@ static MemTxResult smmuv3_write_eventq(SMMUv3State *s, SMMUSecSID sec_sid,
         return MEMTX_ERROR;
     }
 
-    r = queue_write(q, evt);
+    r = queue_write(q, evt, as, txattrs);
     if (r != MEMTX_OK) {
         return r;
     }
