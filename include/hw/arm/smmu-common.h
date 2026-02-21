@@ -107,6 +107,7 @@ typedef struct SMMUS2Cfg {
 typedef struct SMMUTransCfg {
     /* Shared fields between stage-1 and stage-2. */
     SMMUStage stage;           /* translation stage */
+    SMMUSecSID sec_sid;        /* cached sec sid */
     bool disabled;             /* smmu is disabled */
     bool bypassed;             /* translation is bypassed */
     bool aborted;              /* translation is aborted */
