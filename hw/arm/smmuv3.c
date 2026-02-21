@@ -1369,6 +1369,28 @@ static inline bool smmu_cmdq_stage2_supported(SMMUv3State *s, SMMUSecSID sec_sid
     return true;
 }
 
+/* Check if MSI is supported */
+static inline bool smmu_msi_supported(SMMUv3State *s)
+{
+    return FIELD_EX32(s->bank[SMMU_SEC_SID_NS].idr[0], IDR0, MSI);
+}
+
+/* Check if secure GERROR_IRQ_CFGx registers are writable */
+static inline bool smmu_gerror_irq_cfg_writable(SMMUv3State *s, SMMUSecSID sec_sid)
+{
+    if (!smmu_msi_supported(s)) {
+        return false;
+    }
+
+    /*
+     * Only writable if:
+     * - IRQ_CTRL.GERROR_IRQEN == 0 and
+     * - IRQ_CTRLACK.GERROR_IRQEN == 0.
+     * IRQ_CTRL and IRQ_CTRL_ACK are folded into a single backing field here.
+     */
+    return (FIELD_EX32(s->bank[sec_sid].irq_ctrl, IRQ_CTRL, GERROR_IRQEN) == 0);
+}
+
 static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp, SMMUSecSID sec_sid)
 {
     SMMUState *bs = ARM_SMMU(s);
@@ -1669,7 +1691,14 @@ static MemTxResult smmu_writell(SMMUv3State *s, hwaddr offset,
 
     switch (offset) {
     case A_GERROR_IRQ_CFG0:
-        bank->gerror_irq_cfg0 = data;
+        if (!smmu_gerror_irq_cfg_writable(s, reg_sec_sid)) {
+            /* SMMU_(*_)_IRQ_CTRL.GERROR_IRQEN == 1: IGNORED this write */
+            qemu_log_mask(LOG_GUEST_ERROR, "GERROR_IRQ_CFG0 write ignored: "
+                         "register is RO when IRQ enabled\n");
+            return MEMTX_OK;
+        }
+
+        bank->gerror_irq_cfg0 = data & SMMU_GERROR_IRQ_CFG0_RESERVED;
         return MEMTX_OK;
     case A_STRTAB_BASE:
         bank->strtab_base = data;
@@ -1731,12 +1760,31 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
         smmuv3_cmdq_consume(s, &local_err, reg_sec_sid);
         break;
     case A_GERROR_IRQ_CFG0: /* 64b */
+        if (!smmu_gerror_irq_cfg_writable(s, reg_sec_sid)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "GERROR_IRQ_CFG0 write ignored: "
+                          "register is RO when IRQ enabled\n");
+            return MEMTX_OK;
+        }
+
+        data &= SMMU_GERROR_IRQ_CFG0_RESERVED;
         bank->gerror_irq_cfg0 = deposit64(bank->gerror_irq_cfg0, 0, 32, data);
         break;
     case A_GERROR_IRQ_CFG0 + 4:
+        if (!smmu_gerror_irq_cfg_writable(s, reg_sec_sid)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "GERROR_IRQ_CFG0 + 4 write ignored: "
+                          "register is RO when IRQ enabled\n");
+            return MEMTX_OK;
+        }
+
         bank->gerror_irq_cfg0 = deposit64(bank->gerror_irq_cfg0, 32, 32, data);
         break;
     case A_GERROR_IRQ_CFG1:
+        if (!smmu_gerror_irq_cfg_writable(s, reg_sec_sid)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "GERROR_IRQ_CFG1 write ignored: "
+                          "register is RO when IRQ enabled\n");
+            return MEMTX_OK;
+        }
+
         bank->gerror_irq_cfg1 = data;
         break;
     case A_GERROR_IRQ_CFG2:
@@ -1858,6 +1906,12 @@ static MemTxResult smmu_readll(SMMUv3State *s, hwaddr offset,
 
     switch (offset) {
     case A_GERROR_IRQ_CFG0:
+        /* SMMU_(*_)GERROR_IRQ_CFG0 BOTH check SMMU_IDR0.MSI */
+        if (!smmu_msi_supported(s)) {
+            *data = 0; /* RES0 */
+            return MEMTX_OK;
+        }
+
         *data = bank->gerror_irq_cfg0;
         return MEMTX_OK;
     case A_STRTAB_BASE:
@@ -1926,15 +1980,35 @@ static MemTxResult smmu_readl(SMMUv3State *s, hwaddr offset,
         *data = bank->gerrorn;
         return MEMTX_OK;
     case A_GERROR_IRQ_CFG0: /* 64b */
+        if (!smmu_msi_supported(s)) {
+            *data = 0; /* RES0 */
+            return MEMTX_OK;
+        }
+
         *data = extract64(bank->gerror_irq_cfg0, 0, 32);
         return MEMTX_OK;
     case A_GERROR_IRQ_CFG0 + 4:
+        if (!smmu_msi_supported(s)) {
+            *data = 0; /* RES0 */
+            return MEMTX_OK;
+        }
+
         *data = extract64(bank->gerror_irq_cfg0, 32, 32);
         return MEMTX_OK;
     case A_GERROR_IRQ_CFG1:
+        if (!smmu_msi_supported(s)) {
+            *data = 0; /* RES0 */
+            return MEMTX_OK;
+        }
+
         *data = bank->gerror_irq_cfg1;
         return MEMTX_OK;
     case A_GERROR_IRQ_CFG2:
+        if (!smmu_msi_supported(s)) {
+            *data = 0; /* RES0 */
+            return MEMTX_OK;
+        }
+
         *data = bank->gerror_irq_cfg2;
         return MEMTX_OK;
     case A_STRTAB_BASE: /* 64b */
