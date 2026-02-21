@@ -59,7 +59,7 @@ static void smmuv3_trigger_irq(SMMUv3State *s, SMMUIrq irq,
 
     switch (irq) {
     case SMMU_IRQ_EVTQ:
-        pulse = smmuv3_eventq_irq_enabled(s);
+        pulse = smmuv3_eventq_irq_enabled(s, sec_sid);
         break;
     case SMMU_IRQ_PRIQ:
         qemu_log_mask(LOG_UNIMP, "PRI not yet supported\n");
@@ -79,7 +79,7 @@ static void smmuv3_trigger_irq(SMMUv3State *s, SMMUIrq irq,
         bank->gerror ^= new_gerrors;
         trace_smmuv3_write_gerror(new_gerrors, bank->gerror);
 
-        pulse = smmuv3_gerror_irq_enabled(s);
+        pulse = smmuv3_gerror_irq_enabled(s, sec_sid);
         break;
     }
     }
@@ -155,7 +155,7 @@ static MemTxResult smmuv3_write_eventq(SMMUv3State *s, Evt *evt)
     SMMUQueue *q = &bank->eventq;
     MemTxResult r;
 
-    if (!smmuv3_eventq_enabled(s)) {
+    if (!smmuv3_eventq_enabled(s, sec_sid)) {
         return MEMTX_ERROR;
     }
 
@@ -178,8 +178,9 @@ void smmuv3_record_event(SMMUv3State *s, SMMUEventInfo *info)
 {
     Evt evt = {};
     MemTxResult r;
+    SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
 
-    if (!smmuv3_eventq_enabled(s)) {
+    if (!smmuv3_eventq_enabled(s, sec_sid)) {
         return;
     }
 
@@ -1087,7 +1088,7 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
 
     qemu_mutex_lock(&s->mutex);
 
-    if (!smmu_enabled(s)) {
+    if (!smmu_enabled(s, sec_sid)) {
         if (FIELD_EX32(bank->gbpa, GBPA, ABORT)) {
             status = SMMU_TRANS_ABORT;
         } else {
@@ -1317,7 +1318,7 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp)
     SMMUQueue *q = &bank->cmdq;
     SMMUCommandType type = 0;
 
-    if (!smmuv3_cmdq_enabled(s)) {
+    if (!smmuv3_cmdq_enabled(s, sec_sid)) {
         return 0;
     }
     /*
@@ -1568,7 +1569,7 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp)
 
     if (cmd_error) {
         trace_smmuv3_cmdq_consume_error(smmu_cmd_string(type), cmd_error);
-        smmu_write_cmdq_err(s, cmd_error);
+        smmu_write_cmdq_err(s, cmd_error, sec_sid);
         smmuv3_trigger_irq(s, SMMU_IRQ_GERROR, R_GERROR_CMDQ_ERR_MASK);
     }
 

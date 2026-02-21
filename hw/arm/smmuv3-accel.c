@@ -243,6 +243,7 @@ bool smmuv3_accel_install_ste(SMMUv3State *s, SMMUDevice *sdev, int sid,
     SMMUS1Hwpt *s1_hwpt = NULL;
     const char *type;
     STE ste;
+    SMMUSecSID sec_sid = SMMU_SEC_SID_NS;
 
     if (!accel || !accel->viommu) {
         return true;
@@ -272,7 +273,7 @@ bool smmuv3_accel_install_ste(SMMUv3State *s, SMMUDevice *sdev, int sid,
      * attach/alloc fails, since the Guest–Host SID mapping stays
      * valid as long as the device is behind the accelerated SMMUv3.
      */
-    if (!smmu_enabled(s)) {
+    if (!smmu_enabled(s, sec_sid)) {
         hwpt_id = smmuv3_accel_gbpa_hwpt(s, accel);
     } else {
         config = STE_CONFIG(&ste);
