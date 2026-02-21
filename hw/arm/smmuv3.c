@@ -1279,7 +1279,8 @@ static void smmuv3_inv_notifiers_iova(SMMUState *s, int asid, int vmid,
     }
 }
 
-static void smmuv3_range_inval(SMMUState *s, Cmd *cmd, SMMUStage stage)
+static void smmuv3_range_inval(SMMUState *s, Cmd *cmd, SMMUStage stage,
+                               SMMUSecSID sec_sid)
 {
     dma_addr_t end, addr = CMD_ADDR(cmd);
     uint8_t type = CMD_TYPE(cmd);
@@ -1304,12 +1305,13 @@ static void smmuv3_range_inval(SMMUState *s, Cmd *cmd, SMMUStage stage)
     }
 
     if (!tg) {
-        trace_smmuv3_range_inval(vmid, asid, addr, tg, 1, ttl, leaf, stage);
+        trace_smmuv3_range_inval(sec_sid, vmid, asid, addr,
+                                 tg, 1, ttl, leaf, stage);
         smmuv3_inv_notifiers_iova(s, asid, vmid, addr, tg, 1, stage);
         if (stage == SMMU_STAGE_1) {
-            smmu_iotlb_inv_iova(s, asid, vmid, addr, tg, 1, ttl);
+            smmu_iotlb_inv_iova(s, asid, vmid, addr, tg, 1, ttl, sec_sid);
         } else {
-            smmu_iotlb_inv_ipa(s, vmid, addr, tg, 1, ttl);
+            smmu_iotlb_inv_ipa(s, vmid, addr, tg, 1, ttl, sec_sid);
         }
         return;
     }
@@ -1326,13 +1328,15 @@ static void smmuv3_range_inval(SMMUState *s, Cmd *cmd, SMMUStage stage)
         uint64_t mask = dma_aligned_pow2_mask(addr, end, 64);
 
         num_pages = (mask + 1) >> granule;
-        trace_smmuv3_range_inval(vmid, asid, addr, tg, num_pages,
-                                 ttl, leaf, stage);
-        smmuv3_inv_notifiers_iova(s, asid, vmid, addr, tg, num_pages, stage);
+        trace_smmuv3_range_inval(sec_sid, vmid, asid, addr, tg,
+                                 num_pages, ttl, leaf, stage);
+        smmuv3_inv_notifiers_iova(s, asid, vmid, addr, tg,
+                                  num_pages, stage);
         if (stage == SMMU_STAGE_1) {
-            smmu_iotlb_inv_iova(s, asid, vmid, addr, tg, num_pages, ttl);
+            smmu_iotlb_inv_iova(s, asid, vmid, addr, tg,
+                                num_pages, ttl, sec_sid);
         } else {
-            smmu_iotlb_inv_ipa(s, vmid, addr, tg, num_pages, ttl);
+            smmu_iotlb_inv_ipa(s, vmid, addr, tg, num_pages, ttl, sec_sid);
         }
         addr += mask + 1;
     }
@@ -1474,9 +1478,9 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp)
                 vmid = CMD_VMID(&cmd);
             }
 
-            trace_smmuv3_cmdq_tlbi_nh_asid(asid);
+            trace_smmuv3_cmdq_tlbi_nh_asid(sec_sid, asid);
             smmu_inv_notifiers_all(&s->smmu_state);
-            smmu_iotlb_inv_asid_vmid(bs, asid, vmid);
+            smmu_iotlb_inv_asid_vmid(bs, asid, vmid, sec_sid);
             if (!smmuv3_accel_issue_inv_cmd(s, &cmd, NULL, errp)) {
                 cmd_error = SMMU_CERROR_ILL;
                 break;
@@ -1498,8 +1502,8 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp)
              */
             if (STAGE2_SUPPORTED(s)) {
                 vmid = CMD_VMID(&cmd);
-                trace_smmuv3_cmdq_tlbi_nh(vmid);
-                smmu_iotlb_inv_vmid_s1(bs, vmid);
+                trace_smmuv3_cmdq_tlbi_nh(sec_sid, vmid);
+                smmu_iotlb_inv_vmid_s1(bs, vmid, sec_sid);
                 break;
             }
             QEMU_FALLTHROUGH;
@@ -1519,7 +1523,7 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp)
                 cmd_error = SMMU_CERROR_ILL;
                 break;
             }
-            smmuv3_range_inval(bs, &cmd, SMMU_STAGE_1);
+            smmuv3_range_inval(bs, &cmd, SMMU_STAGE_1, SMMU_SEC_SID_NS);
             if (!smmuv3_accel_issue_inv_cmd(s, &cmd, NULL, errp)) {
                 cmd_error = SMMU_CERROR_ILL;
                 break;
@@ -1536,7 +1540,7 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp)
 
             trace_smmuv3_cmdq_tlbi_s12_vmid(vmid);
             smmu_inv_notifiers_all(&s->smmu_state);
-            smmu_iotlb_inv_vmid(bs, vmid);
+            smmu_iotlb_inv_vmid(bs, vmid, SMMU_SEC_SID_NS);
             break;
         }
         case SMMU_CMD_TLBI_S2_IPA:
@@ -1548,7 +1552,7 @@ static int smmuv3_cmdq_consume(SMMUv3State *s, Error **errp)
              * As currently only either s1 or s2 are supported
              * we can reuse same function for s2.
              */
-            smmuv3_range_inval(bs, &cmd, SMMU_STAGE_2);
+            smmuv3_range_inval(bs, &cmd, SMMU_STAGE_2, SMMU_SEC_SID_NS);
             break;
         case SMMU_CMD_ATC_INV:
         {
