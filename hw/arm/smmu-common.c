@@ -201,7 +201,7 @@ void smmu_iotlb_insert(SMMUState *bs, SMMUTransCfg *cfg, SMMUTLBEntry *new)
     uint8_t tg = (new->granule - 10) / 2;
 
     if (g_hash_table_size(bs->iotlb) >= SMMU_IOTLB_MAX_SIZE) {
-        smmu_iotlb_inv_all(bs);
+        smmu_iotlb_inv_all(bs, SMMU_SEC_SID_NUM);
     }
 
     *key = smmu_get_iotlb_key(cfg->asid, cfg->s2cfg.vmid, new->entry.iova,
@@ -211,10 +211,23 @@ void smmu_iotlb_insert(SMMUState *bs, SMMUTransCfg *cfg, SMMUTLBEntry *new)
     g_hash_table_insert(bs->iotlb, key, new);
 }
 
-void smmu_iotlb_inv_all(SMMUState *s)
+static gboolean smmu_hash_remove_by_sec_sid(gpointer key, gpointer value,
+                                            gpointer user_data)
+{
+    SMMUIOTLBKey *iotlb_key = (SMMUIOTLBKey *)key;
+    SMMUSecSID *sec_sid = (SMMUSecSID *)user_data;
+
+    return SMMU_IOTLB_SEC_SID(*iotlb_key) == *sec_sid;
+}
+
+void smmu_iotlb_inv_all(SMMUState *s, SMMUSecSID sec_sid)
 {
     trace_smmu_iotlb_inv_all();
-    g_hash_table_remove_all(s->iotlb);
+    if (sec_sid == SMMU_SEC_SID_NUM) {
+        g_hash_table_remove_all(s->iotlb);
+        return;
+    }
+    g_hash_table_foreach_remove(s->iotlb, smmu_hash_remove_by_sec_sid, &sec_sid);
 }
 
 static gboolean smmu_hash_remove_by_asid_vmid(gpointer key, gpointer value,
@@ -292,6 +305,16 @@ static gboolean smmu_hash_remove_by_vmid_ipa(gpointer key, gpointer value,
            ((entry->iova & ~info->mask) == info->iova);
 }
 
+typedef struct SMMUConfigInvRangeInfo {
+    SMMUSIDRange sid_range;
+    SMMUSecSID sec_sid;
+} SMMUConfigInvRangeInfo;
+
+typedef struct SMMUConfigInvSdevInfo {
+    SMMUDevice *sdev;
+    SMMUSecSID sec_sid;
+} SMMUConfigInvSdevInfo;
+
 static gboolean
 smmu_hash_remove_by_sid_range(gpointer key, gpointer value, gpointer user_data)
 {
@@ -307,11 +330,41 @@ smmu_hash_remove_by_sid_range(gpointer key, gpointer value, gpointer user_data)
     return true;
 }
 
-void smmu_configs_inv_sid_range(SMMUState *s, SMMUSIDRange sid_range)
+static gboolean
+smmu_hash_remove_by_sid_range_sec(gpointer key, gpointer value,
+                                  gpointer user_data)
 {
+    SMMUConfigKey *config_key = (SMMUConfigKey *)key;
+    SMMUConfigInvRangeInfo *info = (SMMUConfigInvRangeInfo *)user_data;
+    SMMUDevice *sdev = config_key->sdev;
+    uint32_t sid = smmu_get_sid(sdev);
+
+    if (config_key->sec_sid != info->sec_sid) {
+        return false;
+    }
+    if (sid < info->sid_range.start || sid > info->sid_range.end) {
+        return false;
+    }
+    trace_smmu_config_cache_inv(sid);
+    return true;
+}
+
+void smmu_configs_inv_sid_range(SMMUState *s, SMMUSIDRange sid_range,
+                                SMMUSecSID sec_sid)
+{
+    SMMUConfigInvRangeInfo info = {
+        .sid_range = sid_range,
+        .sec_sid = sec_sid,
+    };
+
     trace_smmu_configs_inv_sid_range(sid_range.start, sid_range.end);
-    g_hash_table_foreach_remove(s->configs, smmu_hash_remove_by_sid_range,
-                                &sid_range);
+    if (sec_sid == SMMU_SEC_SID_NUM) {
+        g_hash_table_foreach_remove(s->configs, smmu_hash_remove_by_sid_range,
+                                    &sid_range);
+        return;
+    }
+    g_hash_table_foreach_remove(s->configs, smmu_hash_remove_by_sid_range_sec,
+                                &info);
 }
 
 static gboolean smmu_hash_remove_by_sdev(gpointer key, gpointer value,
@@ -327,9 +380,35 @@ static gboolean smmu_hash_remove_by_sdev(gpointer key, gpointer value,
     return true;
 }
 
-void smmu_configs_inv_sdev(SMMUState *s, SMMUDevice *sdev)
+static gboolean smmu_hash_remove_by_sdev_sec(gpointer key, gpointer value,
+                                             gpointer user_data)
 {
-    g_hash_table_foreach_remove(s->configs, smmu_hash_remove_by_sdev, sdev);
+    SMMUConfigKey *config_key = (SMMUConfigKey *)key;
+    SMMUConfigInvSdevInfo *info = (SMMUConfigInvSdevInfo *)user_data;
+
+    if (config_key->sdev != info->sdev) {
+        return false;
+    }
+    if (config_key->sec_sid != info->sec_sid) {
+        return false;
+    }
+    trace_smmu_config_cache_inv(smmu_get_sid(info->sdev));
+    return true;
+}
+
+void smmu_configs_inv_sdev(SMMUState *s, SMMUDevice *sdev,
+                           SMMUSecSID sec_sid)
+{
+    SMMUConfigInvSdevInfo info = {
+        .sdev = sdev,
+        .sec_sid = sec_sid,
+    };
+
+    if (sec_sid == SMMU_SEC_SID_NUM) {
+        g_hash_table_foreach_remove(s->configs, smmu_hash_remove_by_sdev, sdev);
+        return;
+    }
+    g_hash_table_foreach_remove(s->configs, smmu_hash_remove_by_sdev_sec, &info);
 }
 
 void smmu_iotlb_inv_iova(SMMUState *s, int asid, int vmid, dma_addr_t iova,
@@ -1193,4 +1272,3 @@ static void smmu_base_register_types(void)
 }
 
 type_init(smmu_base_register_types)
-

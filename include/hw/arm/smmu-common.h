@@ -259,7 +259,7 @@ void smmu_iotlb_insert(SMMUState *bs, SMMUTransCfg *cfg, SMMUTLBEntry *entry);
 SMMUIOTLBKey smmu_get_iotlb_key(int asid, int vmid, uint64_t iova,
                                 uint8_t tg, uint8_t level, SMMUSecSID sec_sid);
 SMMUConfigKey smmu_get_config_key(SMMUDevice *sdev, SMMUSecSID sec_sid);
-void smmu_iotlb_inv_all(SMMUState *s);
+void smmu_iotlb_inv_all(SMMUState *s, SMMUSecSID sec_sid);
 void smmu_iotlb_inv_asid_vmid(SMMUState *s, int asid, int vmid,
                               SMMUSecSID sec_sid);
 void smmu_iotlb_inv_vmid(SMMUState *s, int vmid, SMMUSecSID sec_sid);
@@ -270,8 +270,10 @@ void smmu_iotlb_inv_iova(SMMUState *s, int asid, int vmid, dma_addr_t iova,
 void smmu_iotlb_inv_ipa(SMMUState *s, int vmid, dma_addr_t ipa, uint8_t tg,
                         uint64_t num_pages, uint8_t ttl,
                         SMMUSecSID sec_sid);
-void smmu_configs_inv_sid_range(SMMUState *s, SMMUSIDRange sid_range);
-void smmu_configs_inv_sdev(SMMUState *s, SMMUDevice *sdev);
+void smmu_configs_inv_sid_range(SMMUState *s, SMMUSIDRange sid_range,
+                                SMMUSecSID sec_sid);
+void smmu_configs_inv_sdev(SMMUState *s, SMMUDevice *sdev,
+                           SMMUSecSID sec_sid);
 /* Unmap the range of all the notifiers registered to any IOMMU mr */
 void smmu_inv_notifiers_all(SMMUState *s);
 
