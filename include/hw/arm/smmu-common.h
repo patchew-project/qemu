@@ -91,6 +91,7 @@ typedef struct SMMUTLBEntry {
     uint8_t level;
     uint8_t granule;
     IOMMUAccessFlags parent_perm;
+    SMMUSecSID sec_sid;
 } SMMUTLBEntry;
 
 /* Stage-2 configuration. */
