@@ -291,6 +291,139 @@ static inline void memwrite(uint64_t addr, const void *data, size_t size)
     qtest_memwrite(global_qtest, addr, data, size);
 }
 
+/*
+ * *_secure commands: only available with x86/ARM.
+ */
+
+static inline void writeb_secure(uint64_t addr, uint8_t value,
+                                 unsigned secure)
+{
+    qtest_writeb_secure(global_qtest, addr, value, secure);
+}
+
+static inline void writew_secure(uint64_t addr, uint16_t value,
+                                 unsigned secure)
+{
+    qtest_writew_secure(global_qtest, addr, value, secure);
+}
+
+static inline void writel_secure(uint64_t addr, uint32_t value,
+                                 unsigned secure)
+{
+    qtest_writel_secure(global_qtest, addr, value, secure);
+}
+
+static inline void writeq_secure(uint64_t addr, uint64_t value,
+                                 unsigned secure)
+{
+    qtest_writeq_secure(global_qtest, addr, value, secure);
+}
+
+static inline uint8_t readb_secure(uint64_t addr, unsigned secure)
+{
+    return qtest_readb_secure(global_qtest, addr, secure);
+}
+
+static inline uint16_t readw_secure(uint64_t addr, unsigned secure)
+{
+    return qtest_readw_secure(global_qtest, addr, secure);
+}
+
+static inline uint32_t readl_secure(uint64_t addr, unsigned secure)
+{
+    return qtest_readl_secure(global_qtest, addr, secure);
+}
+
+static inline uint64_t readq_secure(uint64_t addr, unsigned secure)
+{
+    return qtest_readq_secure(global_qtest, addr, secure);
+}
+
+static inline void memread_secure(uint64_t addr, void *data, size_t size,
+                                  unsigned secure)
+{
+    qtest_memread_secure(global_qtest, addr, data, size, secure);
+}
+
+static inline void memwrite_secure(uint64_t addr, const void *data,
+                                   size_t size, unsigned secure)
+{
+    qtest_memwrite_secure(global_qtest, addr, data, size, secure);
+}
+
+static inline void memset_secure(uint64_t addr, uint8_t pattern,
+                                 size_t size, unsigned secure)
+{
+    qtest_memset_secure(global_qtest, addr, pattern, size, secure);
+}
+
+/**
+ * *_space commands: ARM-specific.
+ * Only specifies SPACE parameter, SECURE is auto-derived using
+ * arm_space_is_secure-like semantics.
+ */
+static inline void writeb_space(uint64_t addr, uint8_t value,
+                                unsigned space)
+{
+    qtest_writeb_space(global_qtest, addr, value, space);
+}
+
+static inline void writew_space(uint64_t addr, uint16_t value,
+                                unsigned space)
+{
+    qtest_writew_space(global_qtest, addr, value, space);
+}
+
+static inline void writel_space(uint64_t addr, uint32_t value,
+                                unsigned space)
+{
+    qtest_writel_space(global_qtest, addr, value, space);
+}
+
+static inline void writeq_space(uint64_t addr, uint64_t value,
+                                unsigned space)
+{
+    qtest_writeq_space(global_qtest, addr, value, space);
+}
+
+static inline uint8_t readb_space(uint64_t addr, unsigned space)
+{
+    return qtest_readb_space(global_qtest, addr, space);
+}
+
+static inline uint16_t readw_space(uint64_t addr, unsigned space)
+{
+    return qtest_readw_space(global_qtest, addr, space);
+}
+
+static inline uint32_t readl_space(uint64_t addr, unsigned space)
+{
+    return qtest_readl_space(global_qtest, addr, space);
+}
+
+static inline uint64_t readq_space(uint64_t addr, unsigned space)
+{
+    return qtest_readq_space(global_qtest, addr, space);
+}
+
+static inline void memread_space(uint64_t addr, void *data, size_t size,
+                                 unsigned space)
+{
+    qtest_memread_space(global_qtest, addr, data, size, space);
+}
+
+static inline void memwrite_space(uint64_t addr, const void *data,
+                                  size_t size, unsigned space)
+{
+    qtest_memwrite_space(global_qtest, addr, data, size, space);
+}
+
+static inline void memset_space(uint64_t addr, uint8_t pattern,
+                                size_t size, unsigned space)
+{
+    qtest_memset_space(global_qtest, addr, pattern, size, space);
+}
+
 /**
  * clock_step_next:
  *

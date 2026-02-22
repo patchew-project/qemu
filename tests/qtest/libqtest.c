@@ -1447,6 +1447,255 @@ void qtest_memset(QTestState *s, uint64_t addr, uint8_t pattern, size_t size)
     qtest_rsp(s);
 }
 
+/**
+ * qtest_*_secure commands: only available with x86/ARM.
+ */
+static void qtest_write_secure(QTestState *s, const char *cmd, uint64_t addr,
+                               uint64_t value, unsigned secure)
+{
+    qtest_sendf(s, "%s 0x%" PRIx64 " 0x%" PRIx64 " %u\n",
+                cmd, addr, value, secure);
+    qtest_rsp(s);
+}
+
+static uint64_t qtest_read_secure(QTestState *s, const char *cmd,
+                                  uint64_t addr, unsigned secure)
+{
+    gchar **args;
+    int ret;
+    uint64_t value;
+
+    qtest_sendf(s, "%s 0x%" PRIx64 " %u\n", cmd, addr, secure);
+    args = qtest_rsp_args(s, 2);
+    ret = qemu_strtou64(args[1], NULL, 0, &value);
+    g_assert(!ret);
+    g_strfreev(args);
+
+    return value;
+}
+
+void qtest_writeb_secure(QTestState *s, uint64_t addr, uint8_t value,
+                         unsigned secure)
+{
+    qtest_write_secure(s, "writeb_secure", addr, value, secure);
+}
+
+void qtest_writew_secure(QTestState *s, uint64_t addr, uint16_t value,
+                         unsigned secure)
+{
+    qtest_write_secure(s, "writew_secure", addr, value, secure);
+}
+
+void qtest_writel_secure(QTestState *s, uint64_t addr, uint32_t value,
+                         unsigned secure)
+{
+    qtest_write_secure(s, "writel_secure", addr, value, secure);
+}
+
+void qtest_writeq_secure(QTestState *s, uint64_t addr, uint64_t value,
+                         unsigned secure)
+{
+    qtest_write_secure(s, "writeq_secure", addr, value, secure);
+}
+
+uint8_t qtest_readb_secure(QTestState *s, uint64_t addr, unsigned secure)
+{
+    return qtest_read_secure(s, "readb_secure", addr, secure);
+}
+
+uint16_t qtest_readw_secure(QTestState *s, uint64_t addr, unsigned secure)
+{
+    return qtest_read_secure(s, "readw_secure", addr, secure);
+}
+
+uint32_t qtest_readl_secure(QTestState *s, uint64_t addr, unsigned secure)
+{
+    return qtest_read_secure(s, "readl_secure", addr, secure);
+}
+
+uint64_t qtest_readq_secure(QTestState *s, uint64_t addr, unsigned secure)
+{
+    return qtest_read_secure(s, "readq_secure", addr, secure);
+}
+
+void qtest_memread_secure(QTestState *s, uint64_t addr, void *data,
+                          size_t size, unsigned secure)
+{
+    uint8_t *ptr = data;
+    gchar **args;
+    size_t i;
+
+    if (!size) {
+        return;
+    }
+
+    qtest_sendf(s, "read_secure 0x%" PRIx64 " 0x%zx %u\n", addr, size, secure);
+    args = qtest_rsp_args(s, 2);
+
+    for (i = 0; i < size; i++) {
+        ptr[i] = hex2nib(args[1][2 + (i * 2)]) << 4;
+        ptr[i] |= hex2nib(args[1][2 + (i * 2) + 1]);
+    }
+
+    g_strfreev(args);
+}
+
+void qtest_memwrite_secure(QTestState *s, uint64_t addr, const void *data,
+                           size_t size, unsigned secure)
+{
+    const uint8_t *ptr = data;
+    size_t i;
+    char *enc;
+
+    if (!size) {
+        return;
+    }
+
+    enc = g_malloc(2 * size + 1);
+
+    for (i = 0; i < size; i++) {
+        sprintf(&enc[i * 2], "%02x", ptr[i]);
+    }
+
+    qtest_sendf(s, "write_secure 0x%" PRIx64 " 0x%zx 0x%s %u\n",
+                addr, size, enc, secure);
+    qtest_rsp(s);
+    g_free(enc);
+}
+
+void qtest_memset_secure(QTestState *s, uint64_t addr, uint8_t pattern,
+                         size_t size, unsigned secure)
+{
+    qtest_sendf(s, "memset_secure 0x%" PRIx64 " 0x%zx 0x%02x %u\n",
+                addr, size, pattern, secure);
+    qtest_rsp(s);
+}
+
+/**
+ * *_space commands: ARM-specific
+ */
+
+static void qtest_write_space(QTestState *s, const char *cmd,
+                              uint64_t addr, uint64_t value, unsigned space)
+{
+    qtest_sendf(s, "%s 0x%" PRIx64 " 0x%" PRIx64 " %u\n",
+                cmd, addr, value, space);
+    qtest_rsp(s);
+}
+
+static uint64_t qtest_read_space(QTestState *s, const char *cmd,
+                                 uint64_t addr, unsigned space)
+{
+    gchar **args;
+    int ret;
+    uint64_t value;
+
+    qtest_sendf(s, "%s 0x%" PRIx64 " %u\n", cmd, addr, space);
+    args = qtest_rsp_args(s, 2);
+    ret = qemu_strtou64(args[1], NULL, 0, &value);
+    g_assert(!ret);
+    g_strfreev(args);
+
+    return value;
+}
+
+void qtest_writeb_space(QTestState *s, uint64_t addr, uint8_t value,
+                        unsigned space)
+{
+    qtest_write_space(s, "writeb_space", addr, value, space);
+}
+
+void qtest_writew_space(QTestState *s, uint64_t addr, uint16_t value,
+                        unsigned space)
+{
+    qtest_write_space(s, "writew_space", addr, value, space);
+}
+
+void qtest_writel_space(QTestState *s, uint64_t addr, uint32_t value,
+                        unsigned space)
+{
+    qtest_write_space(s, "writel_space", addr, value, space);
+}
+
+void qtest_writeq_space(QTestState *s, uint64_t addr, uint64_t value,
+                        unsigned space)
+{
+    qtest_write_space(s, "writeq_space", addr, value, space);
+}
+
+uint8_t qtest_readb_space(QTestState *s, uint64_t addr, unsigned space)
+{
+    return qtest_read_space(s, "readb_space", addr, space);
+}
+
+uint16_t qtest_readw_space(QTestState *s, uint64_t addr, unsigned space)
+{
+    return qtest_read_space(s, "readw_space", addr, space);
+}
+
+uint32_t qtest_readl_space(QTestState *s, uint64_t addr, unsigned space)
+{
+    return qtest_read_space(s, "readl_space", addr, space);
+}
+
+uint64_t qtest_readq_space(QTestState *s, uint64_t addr, unsigned space)
+{
+    return qtest_read_space(s, "readq_space", addr, space);
+}
+
+void qtest_memread_space(QTestState *s, uint64_t addr, void *data,
+                         size_t size, unsigned space)
+{
+    uint8_t *ptr = data;
+    gchar **args;
+    size_t i;
+
+    if (!size) {
+        return;
+    }
+
+    qtest_sendf(s, "read_space 0x%" PRIx64 " 0x%zx %u\n", addr, size, space);
+    args = qtest_rsp_args(s, 2);
+
+    for (i = 0; i < size; i++) {
+        ptr[i] = hex2nib(args[1][2 + (i * 2)]) << 4;
+        ptr[i] |= hex2nib(args[1][2 + (i * 2) + 1]);
+    }
+
+    g_strfreev(args);
+}
+
+void qtest_memwrite_space(QTestState *s, uint64_t addr, const void *data,
+                          size_t size, unsigned space)
+{
+    const uint8_t *ptr = data;
+    size_t i;
+    char *enc;
+
+    if (!size) {
+        return;
+    }
+
+    enc = g_malloc(2 * size + 1);
+
+    for (i = 0; i < size; i++) {
+        sprintf(&enc[i * 2], "%02x", ptr[i]);
+    }
+
+    qtest_sendf(s, "write_space 0x%" PRIx64 " 0x%zx 0x%s %u\n",
+                addr, size, enc, space);
+    qtest_rsp(s);
+    g_free(enc);
+}
+
+void qtest_memset_space(QTestState *s, uint64_t addr, uint8_t pattern,
+                        size_t size, unsigned space)
+{
+    qtest_sendf(s, "memset_space 0x%" PRIx64 " 0x%zx 0x%02x %u\n",
+                addr, size, pattern, space);
+    qtest_rsp(s);
+}
+
 QDict *qtest_vqmp_assert_failure_ref(QTestState *qts,
                                      const char *fmt, va_list args)
 {

@@ -705,6 +705,287 @@ void qtest_bufwrite(QTestState *s, uint64_t addr,
  */
 void qtest_memset(QTestState *s, uint64_t addr, uint8_t patt, size_t size);
 
+/*
+ * qtest_*_secure commands: only available with x86/ARM.
+ */
+
+/**
+ * qtest_writeb_secure:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to write to.
+ * @value: Value being written.
+ * @secure: 1 for secure access, 0 for non-secure.
+ *
+ * Writes an 8-bit value to memory with secure attribute (x86/ARM).
+ */
+void qtest_writeb_secure(QTestState *s, uint64_t addr, uint8_t value,
+                         unsigned secure);
+
+/**
+ * qtest_writew_secure:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to write to.
+ * @value: Value being written.
+ * @secure: 1 for secure access, 0 for non-secure.
+ *
+ * Writes a 16-bit value to memory with secure attribute (x86/ARM).
+ */
+void qtest_writew_secure(QTestState *s, uint64_t addr, uint16_t value,
+                         unsigned secure);
+
+/**
+ * qtest_writel_secure:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to write to.
+ * @value: Value being written.
+ * @secure: 1 for secure access, 0 for non-secure.
+ *
+ * Writes a 32-bit value to memory with secure attribute (x86/ARM).
+ */
+void qtest_writel_secure(QTestState *s, uint64_t addr, uint32_t value,
+                         unsigned secure);
+
+/**
+ * qtest_writeq_secure:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to write to.
+ * @value: Value being written.
+ * @secure: 1 for secure access, 0 for non-secure.
+ *
+ * Writes a 64-bit value to memory with secure attribute (x86/ARM).
+ */
+void qtest_writeq_secure(QTestState *s, uint64_t addr, uint64_t value,
+                         unsigned secure);
+
+/**
+ * qtest_readb_secure:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to read from.
+ * @secure: 1 for secure access, 0 for non-secure.
+ *
+ * Reads an 8-bit value from memory with secure attribute (x86/ARM).
+ *
+ * Returns: Value read.
+ */
+uint8_t qtest_readb_secure(QTestState *s, uint64_t addr, unsigned secure);
+
+/**
+ * qtest_readw_secure:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to read from.
+ * @secure: 1 for secure access, 0 for non-secure.
+ *
+ * Reads a 16-bit value from memory with secure attribute (x86/ARM).
+ *
+ * Returns: Value read.
+ */
+uint16_t qtest_readw_secure(QTestState *s, uint64_t addr, unsigned secure);
+
+/**
+ * qtest_readl_secure:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to read from.
+ * @secure: 1 for secure access, 0 for non-secure.
+ *
+ * Reads a 32-bit value from memory with secure attribute (x86/ARM).
+ *
+ * Returns: Value read.
+ */
+uint32_t qtest_readl_secure(QTestState *s, uint64_t addr, unsigned secure);
+
+/**
+ * qtest_readq_secure:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to read from.
+ * @secure: 1 for secure access, 0 for non-secure.
+ *
+ * Reads a 64-bit value from memory with secure attribute (x86/ARM).
+ *
+ * Returns: Value read.
+ */
+uint64_t qtest_readq_secure(QTestState *s, uint64_t addr, unsigned secure);
+
+/**
+ * qtest_memread_secure:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to read from.
+ * @data: Pointer to where memory contents will be stored.
+ * @size: Number of bytes to read.
+ * @secure: 1 for secure access, 0 for non-secure.
+ *
+ * Read guest memory into a buffer with secure attribute (x86/ARM).
+ */
+void qtest_memread_secure(QTestState *s, uint64_t addr, void *data,
+                          size_t size, unsigned secure);
+
+/**
+ * qtest_memwrite_secure:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to write to.
+ * @data: Pointer to the bytes that will be written to guest memory.
+ * @size: Number of bytes to write.
+ * @secure: 1 for secure access, 0 for non-secure.
+ *
+ * Write a buffer to guest memory with secure attribute (x86/ARM).
+ */
+void qtest_memwrite_secure(QTestState *s, uint64_t addr, const void *data,
+                           size_t size, unsigned secure);
+
+/**
+ * qtest_memset_secure:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to write to.
+ * @patt: Byte pattern to fill the guest memory region with.
+ * @size: Number of bytes to write.
+ * @secure: 1 for secure access, 0 for non-secure.
+ *
+ * Write a pattern to guest memory with secure attribute (x86/ARM).
+ */
+void qtest_memset_secure(QTestState *s, uint64_t addr, uint8_t patt,
+                         size_t size, unsigned secure);
+
+
+/*
+ * qtest_*_space commands: ARM-specific.
+ * Only specifies SPACE parameter, SECURE is auto-derived using
+ * arm_space_is_secure-like semantics.
+ */
+
+/**
+ * qtest_writeb_space:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to write to.
+ * @value: Value being written.
+ * @space: Security space (0=Secure, 1=NonSecure, 2=Root, 3=Realm).
+ *
+ * Writes an 8-bit value to memory with ARM security space (ARM-specific).
+ */
+void qtest_writeb_space(QTestState *s, uint64_t addr, uint8_t value,
+                        unsigned space);
+
+/**
+ * qtest_writew_space:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to write to.
+ * @value: Value being written.
+ * @space: Security space (0=Secure, 1=NonSecure, 2=Root, 3=Realm).
+ *
+ * Writes a 16-bit value to memory with ARM security space (ARM-specific).
+ */
+void qtest_writew_space(QTestState *s, uint64_t addr, uint16_t value,
+                        unsigned space);
+
+/**
+ * qtest_writel_space:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to write to.
+ * @value: Value being written.
+ * @space: Security space (0=Secure, 1=NonSecure, 2=Root, 3=Realm).
+ *
+ * Writes a 32-bit value to memory with ARM security space (ARM-specific).
+ */
+void qtest_writel_space(QTestState *s, uint64_t addr, uint32_t value,
+                        unsigned space);
+
+/**
+ * qtest_writeq_space:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to write to.
+ * @value: Value being written.
+ * @space: Security space (0=Secure, 1=NonSecure, 2=Root, 3=Realm).
+ *
+ * Writes a 64-bit value to memory with ARM security space (ARM-specific).
+ */
+void qtest_writeq_space(QTestState *s, uint64_t addr, uint64_t value,
+                        unsigned space);
+
+/**
+ * qtest_readb_space:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to read from.
+ * @space: Security space (0=Secure, 1=NonSecure, 2=Root, 3=Realm).
+ *
+ * Reads an 8-bit value from memory with ARM security space (ARM-specific).
+ *
+ * Returns: Value read.
+ */
+uint8_t qtest_readb_space(QTestState *s, uint64_t addr, unsigned space);
+
+/**
+ * qtest_readw_space:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to read from.
+ * @space: Security space (0=Secure, 1=NonSecure, 2=Root, 3=Realm).
+ *
+ * Reads a 16-bit value from memory with ARM security space (ARM-specific).
+ *
+ * Returns: Value read.
+ */
+uint16_t qtest_readw_space(QTestState *s, uint64_t addr, unsigned space);
+
+/**
+ * qtest_readl_space:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to read from.
+ * @space: Security space (0=Secure, 1=NonSecure, 2=Root, 3=Realm).
+ *
+ * Reads a 32-bit value from memory with ARM security space (ARM-specific).
+ *
+ * Returns: Value read.
+ */
+uint32_t qtest_readl_space(QTestState *s, uint64_t addr, unsigned space);
+
+/**
+ * qtest_readq_space:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to read from.
+ * @space: Security space (0=Secure, 1=NonSecure, 2=Root, 3=Realm).
+ *
+ * Reads a 64-bit value from memory with ARM security space (ARM-specific).
+ *
+ * Returns: Value read.
+ */
+uint64_t qtest_readq_space(QTestState *s, uint64_t addr, unsigned space);
+
+/**
+ * qtest_memread_space:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to read from.
+ * @data: Pointer to where memory contents will be stored.
+ * @size: Number of bytes to read.
+ * @space: Security space (0=Secure, 1=NonSecure, 2=Root, 3=Realm).
+ *
+ * Read guest memory into a buffer with ARM security space (ARM-specific).
+ */
+void qtest_memread_space(QTestState *s, uint64_t addr, void *data,
+                         size_t size, unsigned space);
+
+/**
+ * qtest_memwrite_space:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to write to.
+ * @data: Pointer to the bytes that will be written to guest memory.
+ * @size: Number of bytes to write.
+ * @space: Security space (0=Secure, 1=NonSecure, 2=Root, 3=Realm).
+ *
+ * Write a buffer to guest memory with ARM security space (ARM-specific).
+ */
+void qtest_memwrite_space(QTestState *s, uint64_t addr, const void *data,
+                          size_t size, unsigned space);
+
+/**
+ * qtest_memset_space:
+ * @s: #QTestState instance to operate on.
+ * @addr: Guest address to write to.
+ * @patt: Byte pattern to fill the guest memory region with.
+ * @size: Number of bytes to write.
+ * @space: Security space (0=Secure, 1=NonSecure, 2=Root, 3=Realm).
+ *
+ * Write a pattern to guest memory with ARM security space (ARM-specific).
+ */
+void qtest_memset_space(QTestState *s, uint64_t addr, uint8_t patt,
+                        size_t size, unsigned space);
+
 /**
  * qtest_clock_step_next:
  * @s: #QTestState instance to operate on.
