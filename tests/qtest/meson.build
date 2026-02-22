@@ -115,6 +115,7 @@ qtests_i386 = \
    'drive_del-test',
    'cpu-plug-test',
    'migration-test',
+   'qtest-attrs-test',
   ]
 
 if dbus_display and config_all_devices.has_key('CONFIG_VGA')
@@ -272,7 +273,8 @@ qtests_aarch64 = \
   ['arm-cpu-features',
    'numa-test',
    'boot-serial-test',
-   'migration-test']
+   'migration-test',
+   'qtest-attrs-test']
 
 qtests_s390x = \
   qtests_filter + \
