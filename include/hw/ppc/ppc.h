@@ -102,6 +102,8 @@ enum {
     ARCH_MAC99_U3,
 };
 
+void ppc_graphic_dimensions(int *width, int *height, int *depth);
+
 #define FW_CFG_PPC_WIDTH        (FW_CFG_ARCH_LOCAL + 0x00)
 #define FW_CFG_PPC_HEIGHT       (FW_CFG_ARCH_LOCAL + 0x01)
 #define FW_CFG_PPC_DEPTH        (FW_CFG_ARCH_LOCAL + 0x02)

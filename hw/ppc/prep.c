@@ -43,6 +43,7 @@
 #include "exec/target_page.h"
 #include "system/kvm.h"
 #include "system/reset.h"
+#include "system/system.h"
 #include "trace.h"
 #include "elf.h"
 #include "qemu/units.h"
@@ -250,6 +251,7 @@ static void ibm_40p_init(MachineState *machine)
     uint32_t kernel_base = 0, initrd_base = 0;
     long kernel_size = 0, initrd_size = 0;
     char boot_device;
+    int graphic_width, graphic_height, graphic_depth;
 
     if (kvm_enabled()) {
         error_report("machine %s does not support the KVM accelerator",
@@ -411,6 +413,8 @@ static void ibm_40p_init(MachineState *machine)
     fw_cfg_add_i16(fw_cfg, FW_CFG_MAX_CPUS, (uint16_t)machine->smp.max_cpus);
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)machine->ram_size);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, ARCH_PREP);
+
+    ppc_graphic_dimensions(&graphic_width, &graphic_height, &graphic_depth);
 
     fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_WIDTH, graphic_width);
     fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_HEIGHT, graphic_height);

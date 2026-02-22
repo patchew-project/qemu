@@ -29,6 +29,7 @@
 #include "qemu/timer.h"
 #include "exec/cpu-interrupt.h"
 #include "system/cpus.h"
+#include "system/system.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
 #include "qemu/error-report.h"
@@ -1556,4 +1557,11 @@ void ppc_irq_reset(PowerPCCPU *cpu)
     if (kvm_enabled()) {
         kvmppc_set_interrupt(cpu, PPC_INTERRUPT_EXT, 0);
     }
+}
+
+void ppc_graphic_dimensions(int *width, int *height, int *depth)
+{
+    *width = graphic_width ?: 800;
+    *height = graphic_height ?: 600;
+    *depth = graphic_depth ?: 32;
 }

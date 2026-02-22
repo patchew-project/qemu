@@ -156,6 +156,7 @@ static void ppc_core99_init(MachineState *machine)
     DeviceState *uninorth_internal_dev = NULL, *uninorth_agp_dev = NULL;
     hwaddr nvram_addr = 0xFFF04000;
     uint64_t tbfreq = kvm_enabled() ? kvmppc_get_tbfreq() : TBFREQ;
+    int graphic_width, graphic_height, graphic_depth;
 
     /* init CPUs */
     for (i = 0; i < machine->smp.cpus; i++) {
@@ -432,10 +433,6 @@ static void ppc_core99_init(MachineState *machine)
 
     pci_vga_init(pci_bus);
 
-    if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8) {
-        graphic_depth = 15;
-    }
-
     pci_init_nic_devices(pci_bus, mc->default_nic);
 
     /* The NewWorld NVRAM is not located in the MacIO device */
@@ -479,6 +476,11 @@ static void ppc_core99_init(MachineState *machine)
     fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, initrd_base);
     fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, initrd_size);
     fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, ppc_boot_device);
+
+    ppc_graphic_dimensions(&graphic_width, &graphic_height, &graphic_depth);
+    if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8) {
+        graphic_depth = 15;
+    }
 
     fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_WIDTH, graphic_width);
     fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_HEIGHT, graphic_height);
