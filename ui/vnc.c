@@ -1072,6 +1072,7 @@ static void vnc_update_throttle_offset(VncState *vs)
     size_t offset =
         vs->client_width * vs->client_height * vs->client_pf.bytes_per_pixel;
 
+#ifdef CONFIG_AUDIO
     if (vs->audio_cap) {
         int bps;
         switch (vs->as.fmt) {
@@ -1091,6 +1092,7 @@ static void vnc_update_throttle_offset(VncState *vs)
         }
         offset += vs->as.freq * bps * vs->as.nchannels;
     }
+#endif
 
     /* Put a floor of 1MB on offset, so that if we have a large pending
      * buffer and the display is resized to a small size & back again
@@ -1214,6 +1216,7 @@ static int vnc_update_client(VncState *vs, int has_dirty)
     return n;
 }
 
+#ifdef CONFIG_AUDIO
 /* audio */
 static void audio_capture_notify(void *opaque, audcnotification_e cmd)
 {
@@ -1293,6 +1296,7 @@ static void audio_del(VncState *vs)
         vs->audio_cap = NULL;
     }
 }
+#endif
 
 static void vnc_disconnect_start(VncState *vs)
 {
@@ -1332,7 +1336,9 @@ void vnc_disconnect_finish(VncState *vs)
 #ifdef CONFIG_VNC_SASL
     vnc_sasl_client_cleanup(vs);
 #endif /* CONFIG_VNC_SASL */
+#ifdef CONFIG_AUDIO
     audio_del(vs);
+#endif
     qkbd_state_lift_all_keys(vs->vd->kbd);
 
     if (vs->mouse_mode_notifier.notify != NULL) {
@@ -2097,6 +2103,7 @@ static void send_ext_key_event_ack(VncState *vs)
     vnc_flush(vs);
 }
 
+#ifdef CONFIG_AUDIO
 static void send_ext_audio_ack(VncState *vs)
 {
     vnc_lock_output(vs);
@@ -2110,6 +2117,7 @@ static void send_ext_audio_ack(VncState *vs)
     vnc_unlock_output(vs);
     vnc_flush(vs);
 }
+#endif
 
 static void send_xvp_message(VncState *vs, int code)
 {
@@ -2197,10 +2205,15 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             send_ext_key_event_ack(vs);
             break;
         case VNC_ENCODING_AUDIO:
+#ifdef CONFIG_AUDIO
             if (vs->vd->audio_be) {
                 vnc_set_feature(vs, VNC_FEATURE_AUDIO);
                 send_ext_audio_ack(vs);
             }
+#else
+            VNC_DEBUG("Audio encoding received with audio subsystem "
+                      "disabled\n");
+#endif
             break;
         case VNC_ENCODING_WMVi:
             vnc_set_feature(vs, VNC_FEATURE_WMVI);
@@ -2394,7 +2407,9 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
 {
     int i;
     uint16_t limit;
-    uint32_t freq;
+    #ifdef CONFIG_AUDIO
+        uint32_t freq;
+    #endif
     VncDisplay *vd = vs->vd;
 
     if (data[0] > 3) {
@@ -2571,7 +2586,9 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
                 vnc_client_error(vs);
                 break;
             }
-
+#ifndef CONFIG_AUDIO
+            abort();
+#else
             if (len == 2)
                 return 4;
 
@@ -2626,7 +2643,7 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
                 break;
             }
             break;
-
+#endif
         default:
             VNC_DEBUG("Msg: %d\n", read_u16(data, 0));
             vnc_client_error(vs);
@@ -3369,10 +3386,12 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
     vs->last_x = -1;
     vs->last_y = -1;
 
+#ifdef CONFIG_AUDIO
     vs->as.freq = 44100;
     vs->as.nchannels = 2;
     vs->as.fmt = AUDIO_FORMAT_S16;
     vs->as.big_endian = false;
+#endif
 
     qemu_mutex_init(&vs->output_mutex);
     vs->bh = qemu_bh_new(vnc_jobs_bh, vs);
@@ -3645,9 +3664,11 @@ static QemuOptsList qemu_vnc_opts = {
         },{
             .name = "non-adaptive",
             .type = QEMU_OPT_BOOL,
+#ifdef CONFIG_AUDIO
         },{
             .name = "audiodev",
             .type = QEMU_OPT_STRING,
+#endif
         },{
             .name = "power-control",
             .type = QEMU_OPT_BOOL,
@@ -4080,7 +4101,9 @@ void vnc_display_open(const char *id, Error **errp)
     const char *saslauthz;
     int lock_key_sync = 1;
     int key_delay_ms;
+#ifdef CONFIG_AUDIO
     const char *audiodev;
+#endif
     const char *passwordSecret;
 
     if (!vd) {
@@ -4238,6 +4261,7 @@ void vnc_display_open(const char *id, Error **errp)
     }
     vd->ledstate = 0;
 
+#ifdef CONFIG_AUDIO
     audiodev = qemu_opt_get(opts, "audiodev");
     if (audiodev) {
         vd->audio_be = audio_be_by_name(audiodev, errp);
@@ -4247,6 +4271,7 @@ void vnc_display_open(const char *id, Error **errp)
     } else {
         vd->audio_be = audio_get_default_audio_be(NULL);
     }
+#endif
 
     device_id = qemu_opt_get(opts, "display");
     if (device_id) {
