@@ -2540,7 +2540,6 @@ void kvm_arm_enable_mte(Object *cpuobj, Error **errp)
         error_setg(&mte_migration_blocker,
                    "Live migration disabled due to MTE enabled");
         if (migrate_add_blocker(&mte_migration_blocker, errp)) {
-            error_free(mte_migration_blocker);
             return;
         }
 
