@@ -18,6 +18,7 @@
 #include "ui/console.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-gpu-pixman.h"
+#include "hw/vfio/vfio-device.h"
 #include "trace.h"
 #include "system/ramblock.h"
 #include "system/hostmem.h"
@@ -82,13 +83,21 @@ virtio_gpu_create_udmabuf(struct virtio_gpu_simple_resource *res, int *fd,
 static bool virtio_gpu_remap_dmabuf(struct virtio_gpu_simple_resource *res,
                                     Error **errp)
 {
+    Error *mmap_err = NULL;
     void *map;
 
     map = mmap(NULL, res->blob_size, PROT_READ, MAP_SHARED, res->dmabuf_fd, 0);
     if (map == MAP_FAILED) {
-        error_setg_errno(errp, errno, "dmabuf mmap failed");
+        error_setg_errno(&mmap_err, errno, "dmabuf mmap failed: ");
         res->remapped = NULL;
-        return false;
+
+        if (!vfio_device_mmap_dmabuf(res->iov, res->iov_cnt, &map,
+                                     res->blob_size, errp)) {
+            error_report_err(mmap_err);
+            return false;
+        }
+        error_free(mmap_err);
+        mmap_err = NULL;
     }
     res->remapped = map;
     return true;
@@ -145,7 +154,7 @@ bool virtio_gpu_have_udmabuf(void)
 
 void virtio_gpu_init_dmabuf(struct virtio_gpu_simple_resource *res)
 {
-    Error *local_err = NULL;
+    Error *local_err = NULL, *vfio_err = NULL;
     VirtIOGPUErrorType err;
     void *pdata = NULL;
     int fd;
@@ -158,12 +167,19 @@ void virtio_gpu_init_dmabuf(struct virtio_gpu_simple_resource *res)
         err = virtio_gpu_create_udmabuf(res, &fd, &local_err);
         if (err != VIRTIO_GPU_NO_ERROR) {
             error_prepend(&local_err, "Cannot create dmabuf: ");
-            if (err == VIRTIO_GPU_GUEST_ERROR) {
-                qemu_log_mask(LOG_GUEST_ERROR,
-                              "Cannot create dmabuf: incompatible mem\n");
+
+            if (!vfio_device_create_dmabuf(res->iov, res->iov_cnt, &fd,
+                                           &vfio_err)) {
+                if (err == VIRTIO_GPU_GUEST_ERROR) {
+                    qemu_log_mask(LOG_GUEST_ERROR,
+                                  "Cannot create dmabuf: incompatible mem\n");
+                }
+                error_report_err(local_err);
+                error_report_err(vfio_err);
+                return;
             }
-            error_report_err(local_err);
-            return;
+            error_free(local_err);
+            local_err = NULL;
         }
 
         res->dmabuf_fd = fd;

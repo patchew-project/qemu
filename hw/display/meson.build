@@ -70,6 +70,7 @@ if config_all_devices.has_key('CONFIG_VIRTIO_GPU')
                     if_true: [files('virtio-gpu-base.c', 'virtio-gpu.c'), pixman])
   if host_os == 'linux'
     virtio_gpu_ss.add(files('virtio-gpu-dmabuf.c'))
+    virtio_gpu_ss.add(when: 'CONFIG_VFIO', if_false: files('vfio-dmabuf-stubs.c'))
   else
     virtio_gpu_ss.add(files('virtio-gpu-dmabuf-stubs.c'))
   endif
