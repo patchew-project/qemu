@@ -8,6 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/intc/arm_gicv5_common.h"
+#include "hw/intc/arm_gicv5_stream.h"
 #include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
 #include "trace.h"
@@ -127,6 +128,14 @@ static void gicv5_common_realize(DeviceState *dev, Error **errp)
     if (!cs->dma) {
         error_setg(errp, "sysmem link property not set");
         return;
+    }
+
+    for (int i = 0; i < cs->num_cpus; i++) {
+        if (!gicv5_set_gicv5state(cs->cpus[i], cs)) {
+            error_setg(errp,
+                       "CPU %d does not implement GICv5 CPU interface", i);
+            return;
+        }
     }
 
     address_space_init(&cs->dma_as, cs->dma, "gicv5-sysmem");
