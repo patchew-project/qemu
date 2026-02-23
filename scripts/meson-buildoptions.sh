@@ -96,6 +96,7 @@ meson_options_help() {
   printf "%s\n" '  af-xdp          AF_XDP network backend support'
   printf "%s\n" '  alsa            ALSA sound support'
   printf "%s\n" '  attr            attr/xattr support'
+  printf "%s\n" '  audio           Audio support'
   printf "%s\n" '  auth-pam        PAM access control'
   printf "%s\n" '  blkio           libblkio block device driver'
   printf "%s\n" '  bochs           bochs image format support'
@@ -242,6 +243,8 @@ _meson_option_parse() {
     --disable-asan) printf "%s" -Dasan=false ;;
     --enable-attr) printf "%s" -Dattr=enabled ;;
     --disable-attr) printf "%s" -Dattr=disabled ;;
+    --enable-audio) printf "%s" -Daudio=enabled ;;
+    --disable-audio) printf "%s" -Daudio=disabled ;;
     --audio-drv-list=*) quote_sh "-Daudio_drv_list=$2" ;;
     --enable-auth-pam) printf "%s" -Dauth_pam=enabled ;;
     --disable-auth-pam) printf "%s" -Dauth_pam=disabled ;;

@@ -68,6 +68,8 @@ foreach target : target_dirs
 endforeach
 have_user = have_linux_user or have_bsd_user
 
+have_audio = get_option('audio').disable_auto_if(not have_system).allowed()
+
 ############
 # Programs #
 ############
@@ -3250,6 +3252,7 @@ disassemblers = {
 have_ivshmem = config_host_data.get('CONFIG_EVENTFD')
 host_kconfig = \
   (get_option('fuzzing') ? ['CONFIG_FUZZ=y'] : []) + \
+  (have_audio ? ['CONFIG_AUDIO=y'] : []) + \
   (have_tpm ? ['CONFIG_TPM=y'] : []) + \
   (pixman.found() ? ['CONFIG_PIXMAN=y'] : []) + \
   (spice.found() ? ['CONFIG_SPICE=y'] : []) + \
