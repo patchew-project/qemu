@@ -285,6 +285,9 @@ REG64(IRS_SWERR_SYNDROMER0, 0x3c8)
 REG64(IRS_SWERR_SYNDROMER1, 0x3d0)
     FIELD(IRS_SWERR_SYNDROMER2, ADDR, 3, 53)
 
+REG32(IRS_IDREGS, 0xffd0)
+REG32(IRS_DEVARCH, 0xffbc)
+
 FIELD(L1_ISTE, VALID, 0, 1)
 FIELD(L1_ISTE, L2_ADDR, 12, 44)
 
@@ -309,6 +312,31 @@ FIELD(ICSR, ACTIVE, 4, 1)
 FIELD(ICSR, HM, 5, 1)
 FIELD(ICSR, PRIORITY, 11, 5)
 FIELD(ICSR, IAFFID, 32, 16)
+
+#define IRS_DEVARCH_VALUE ((0x23b << 31) | (0x1 << 20) | 0x5a19)
+
+static uint32_t gicv5_idreg(int regoffset)
+{
+    /*
+     * As with the main IRS_IIDR, we don't identify as a specific
+     * hardware GICv5 implementation. Arm suggests that the Implementer,
+     * Product, etc in IRS_IIDR should also be reported here, so we
+     * do that.
+     */
+    static const uint8_t gic_ids[] = {
+        QEMU_GICV5_IMPLEMENTER >> 8, 0x00, 0x00, 0x00, /* PIDR4..PIDR7 */
+        QEMU_GICV5_PRODUCTID & 0xff, /* PIDR0 */
+        ((QEMU_GICV5_PRODUCTID >> 8) |
+         ((QEMU_GICV5_IMPLEMENTER & 0xf) << 4)), /* PIDR1 */
+        ((QEMU_GICV5_REVISION << 4) | (1 << 3) |
+         ((QEMU_GICV5_IMPLEMENTER & 0x70) >> 4)), /* PIDR2 */
+        QEMU_GICV5_VARIANT << 4, /* PIDR3 */
+        0x0D, 0xF0, 0x05, 0xB1, /* CIDR0..CIDR3 */
+    };
+
+    regoffset /= 4;
+    return gic_ids[regoffset];
+}
 
 static GICv5SPIState *spi_for_selr(GICv5Common *cs, GICv5Domain domain)
 {
@@ -1083,6 +1111,13 @@ static bool config_readl(GICv5 *s, GICv5Domain domain, hwaddr offset,
             v |= R_IRS_PE_STATUSR_V_MASK | R_IRS_PE_STATUSR_ONLINE_MASK;
         }
         *data = v;
+        return true;
+    case A_IRS_DEVARCH:
+        *data = IRS_DEVARCH_VALUE;
+        return true;
+    case A_IRS_IDREGS ... A_IRS_IDREGS + 0x2f:
+        /* CoreSight ID registers */
+        *data = gicv5_idreg(offset - A_IRS_IDREGS);
         return true;
     }
 
