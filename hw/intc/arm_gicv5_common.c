@@ -11,6 +11,8 @@
 #include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
 #include "trace.h"
+#include "qemu/error-report.h"
+#include "system/kvm.h"
 
 OBJECT_DEFINE_ABSTRACT_TYPE(GICv5Common, gicv5_common, ARM_GICV5_COMMON, SYS_BUS_DEVICE)
 
@@ -156,4 +158,14 @@ static void gicv5_common_class_init(ObjectClass *oc, const void *data)
 
     dc->realize = gicv5_common_realize;
     device_class_set_props(dc, arm_gicv5_common_properties);
+}
+
+const char *gicv5_class_name(void)
+{
+    /* When we implement KVM GICv5 we might return "kvm-arm-gicv5" here. */
+    if (kvm_enabled()) {
+        error_report("Userspace GICv5 is not supported with KVM");
+        exit(1);
+    }
+    return "arm-gicv5";
 }
