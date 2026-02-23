@@ -152,6 +152,29 @@ uint64_t gicv5_request_config(GICv5Common *cs, uint32_t id, GICv5Domain domain,
                               GICv5IntType type, bool virtual);
 
 /**
+ * gicv5_activate
+ * @cs: GIC IRS to send command to
+ * @id: interrupt ID
+ * @domain: interrupt domain to act on
+ * @type: interrupt type (LPI or SPI)
+ * @virtual: true if this is a virtual interrupt
+ *
+ * Activate the IRS's highest priority pending interrupt; matches
+ * the stream interface's Activate command.
+ *
+ * In the stream interface, the command has only the domain
+ * and virtual fields, because both the IRS and the CPUIF keep
+ * track of the IRS's current HPPI. In QEMU, we also have arguments
+ * here for @id and @type which are telling the IRS something that
+ * in hardware it already knows. This is because we have them to
+ * hand in the cpuif code, and it means we don't need to pass in
+ * an iaffid argument to tell the IRS which CPU we are so it can
+ * find the right element in its hppi[][] array.
+ */
+void gicv5_activate(GICv5Common *cs, uint32_t id, GICv5Domain domain,
+                    GICv5IntType type, bool virtual);
+
+/**
  * gicv5_forward_interrupt
  * @cpu: CPU interface to forward interrupt to
  * @domain: domain this interrupt is for
