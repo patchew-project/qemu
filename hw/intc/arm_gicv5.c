@@ -297,6 +297,19 @@ FIELD(L2_ISTE, HWU, 9, 2)
 FIELD(L2_ISTE, PRIORITY, 11, 5)
 FIELD(L2_ISTE, IAFFID, 16, 16)
 
+/*
+ * Format used for gicv5_request_config() return value, which matches
+ * the ICC_ICSR_EL1 bit layout.
+ */
+FIELD(ICSR, F, 0, 1)
+FIELD(ICSR, ENABLED, 1, 1)
+FIELD(ICSR, PENDING, 2, 1)
+FIELD(ICSR, IRM, 3, 1)
+FIELD(ICSR, ACTIVE, 4, 1)
+FIELD(ICSR, HM, 5, 1)
+FIELD(ICSR, PRIORITY, 11, 5)
+FIELD(ICSR, IAFFID, 32, 16)
+
 static MemTxAttrs irs_txattrs(GICv5Common *cs, GICv5Domain domain)
 {
     /*
@@ -682,6 +695,85 @@ void gicv5_set_target(GICv5Common *cs, uint32_t id, uint32_t iaffid,
      */
     *l2_iste_p = FIELD_DP32(*l2_iste_p, L2_ISTE, IAFFID, iaffid);
     put_l2_iste(cs, cfg, &h);
+}
+
+static uint64_t l2_iste_to_icsr(GICv5Common *cs, const GICv5ISTConfig *cfg,
+                                uint32_t id)
+{
+    uint64_t icsr = 0;
+    const uint32_t *l2_iste_p;
+    L2_ISTE_Handle h;
+
+    l2_iste_p = get_l2_iste(cs, cfg, id, &h);
+    if (!l2_iste_p) {
+        return R_ICSR_F_MASK;
+    }
+
+    /*
+     * The field locations in the L2 ISTE do not line up with the
+     * corresponding fields in the ICC_ICSR_EL1 register, so we need to
+     * extract and deposit them individually.
+     */
+    icsr = FIELD_DP64(icsr, ICSR, F, 0);
+    icsr = FIELD_DP64(icsr, ICSR, ENABLED, FIELD_EX32(*l2_iste_p, L2_ISTE, ENABLE));
+    icsr = FIELD_DP64(icsr, ICSR, PENDING, FIELD_EX32(*l2_iste_p, L2_ISTE, PENDING));
+    icsr = FIELD_DP64(icsr, ICSR, IRM, FIELD_EX32(*l2_iste_p, L2_ISTE, IRM));
+    icsr = FIELD_DP64(icsr, ICSR, ACTIVE, FIELD_EX32(*l2_iste_p, L2_ISTE, ACTIVE));
+    icsr = FIELD_DP64(icsr, ICSR, HM, FIELD_EX32(*l2_iste_p, L2_ISTE, HM));
+    icsr = FIELD_DP64(icsr, ICSR, PRIORITY, FIELD_EX32(*l2_iste_p, L2_ISTE, PRIORITY));
+    icsr = FIELD_DP64(icsr, ICSR, IAFFID, FIELD_EX32(*l2_iste_p, L2_ISTE, IAFFID));
+
+    return icsr;
+}
+
+static uint64_t spi_state_to_icsr(GICv5SPIState *spi)
+{
+    uint64_t icsr = 0;
+
+    icsr = FIELD_DP64(icsr, ICSR, F, 0);
+    icsr = FIELD_DP64(icsr, ICSR, ENABLED, spi->enabled);
+    icsr = FIELD_DP64(icsr, ICSR, PENDING, spi->pending);
+    icsr = FIELD_DP64(icsr, ICSR, IRM, spi->irm);
+    icsr = FIELD_DP64(icsr, ICSR, ACTIVE, spi->active);
+    icsr = FIELD_DP64(icsr, ICSR, HM, spi->hm);
+    icsr = FIELD_DP64(icsr, ICSR, PRIORITY, spi->priority);
+    icsr = FIELD_DP64(icsr, ICSR, IAFFID, spi->iaffid);
+
+    return icsr;
+}
+
+uint64_t gicv5_request_config(GICv5Common *cs, uint32_t id, GICv5Domain domain,
+                              GICv5IntType type, bool virtual)
+{
+    const GICv5ISTConfig *cfg;
+    GICv5 *s = ARM_GICV5(cs);
+    uint64_t icsr;
+
+    if (virtual) {
+        qemu_log_mask(LOG_GUEST_ERROR, "gicv5_request_config: tried to "
+                      "read config of a virtual interrupt\n");
+        return R_ICSR_F_MASK;
+    }
+    if (type == GICV5_SPI) {
+        GICv5SPIState *spi = gicv5_spi_state(cs, id, domain);
+
+        if (!spi) {
+            qemu_log_mask(LOG_GUEST_ERROR, "gicv5_request_config: tried to "
+                          "read config of unreachable SPI %d\n", id);
+            return R_ICSR_F_MASK;
+        }
+
+        icsr = spi_state_to_icsr(spi);
+        trace_gicv5_request_config(domain_name[domain], inttype_name(type),
+                                   virtual, id, icsr);
+        return icsr;
+    }
+    cfg = &s->phys_lpi_config[domain];
+
+    icsr = l2_iste_to_icsr(cs, cfg, id);
+    trace_gicv5_request_config(domain_name[domain], inttype_name(type),
+                               virtual, id, icsr);
+    return icsr;
 }
 
 static void irs_map_l2_istr_write(GICv5 *s, GICv5Domain domain, uint64_t value)

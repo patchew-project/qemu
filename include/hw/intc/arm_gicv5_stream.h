@@ -126,4 +126,28 @@ void gicv5_set_handling(GICv5Common *cs, uint32_t id,
 void gicv5_set_target(GICv5Common *cs, uint32_t id, uint32_t iaffid,
                       GICv5RoutingMode irm, GICv5Domain domain,
                       GICv5IntType type, bool virtual);
+
+/**
+ * gicv5_request_config
+ * @cs: GIC IRS to send command to
+ * @id: interrupt ID
+ * @domain: interrupt domain to act on
+ * @type: interrupt type (LPI or SPI)
+ * @virtual: true if this is a virtual interrupt
+ *
+ * Query the current configuration of an interrupt; matches stream
+ * interface RequestConfig command from CPUIF to IRS and the RequestConfigAck
+ * reply to it.
+ *
+ * In the real stream protocol, the RequestConfigAck packet has the same
+ * information as the register but in a different order; we use the register
+ * order, not the packet order, so we don't need to unpack and repack in
+ * the cpuif.
+ *
+ * Returns: the config of the interrupt, in the format used by
+ * ICC_ICSR_EL1.
+ */
+uint64_t gicv5_request_config(GICv5Common *cs, uint32_t id, GICv5Domain domain,
+                              GICv5IntType type, bool virtual);
+
 #endif
