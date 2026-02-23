@@ -1,4 +1,9 @@
 audio_ss = ss.source_set()
+if not have_audio
+  audio_ss.add(files('audio-stub.c'))
+  subdir_done()
+endif
+
 audio_ss.add(files(
   'audio.c',
   'audio-be.c',

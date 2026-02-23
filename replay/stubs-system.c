@@ -15,18 +15,6 @@ void replay_input_sync_event(void)
 void replay_add_blocker(const char *feature)
 {
 }
-void replay_audio_in_start(size_t *nsamples)
-{
-}
-void replay_audio_in_sample_lr(uint64_t *left, uint64_t *right)
-{
-}
-void replay_audio_in_finish(void)
-{
-}
-void replay_audio_out(size_t *played)
-{
-}
 void replay_breakpoint(void)
 {
 }
