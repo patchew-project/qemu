@@ -16,6 +16,7 @@
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
+#include "qapi/error.h"
 #include "trace.h"
 #include "gicv3_internal.h"
 #include "hw/core/irq.h"
@@ -3016,7 +3017,7 @@ static void gicv3_cpuif_el_change_hook(ARMCPU *cpu, void *opaque)
     gicv3_cpuif_virt_irq_fiq_update(cs);
 }
 
-void gicv3_init_cpuif(GICv3State *s)
+void gicv3_init_cpuif(GICv3State *s, Error **errp)
 {
     /* Called from the GICv3 realize function; register our system
      * registers with the CPU
@@ -3026,6 +3027,17 @@ void gicv3_init_cpuif(GICv3State *s)
     for (i = 0; i < s->num_cpu; i++) {
         ARMCPU *cpu = ARM_CPU(qemu_get_cpu(s->first_cpu_idx + i));
         GICv3CPUState *cs = &s->cpu[i];
+
+        if (cpu_isar_feature(aa64_gcie, cpu)) {
+            /*
+             * Attempt to connect GICv3 to a CPU with GICv5 cpuif
+             * (almost certainly a bug in the board code)
+             */
+            error_setg(errp,
+                       "Cannot connect GICv3 to CPU %d which has GICv5 cpuif",
+                       i);
+            return;
+        }
 
         /*
          * If the CPU doesn't define a GICv3 configuration, probably because
