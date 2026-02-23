@@ -492,6 +492,44 @@ void gicv5_set_priority(GICv5Common *cs, uint32_t id,
     put_l2_iste(cs, cfg, &h);
 }
 
+static void irs_map_l2_istr_write(GICv5 *s, GICv5Domain domain, uint64_t value)
+{
+    GICv5Common *cs = ARM_GICV5_COMMON(s);
+    GICv5ISTConfig *cfg = &s->phys_lpi_config[domain];
+    uint32_t intid = FIELD_EX32(value, IRS_MAP_L2_ISTR, ID);
+    hwaddr l1_addr;
+    uint64_t l1_iste;
+    MemTxResult res;
+
+    if (!FIELD_EX64(cs->irs_ist_baser[domain], IRS_IST_BASER, VALID) ||
+        !cfg->structure) {
+        /* WI if no IST set up or it is not 2-level */
+        return;
+    }
+
+    /* Find the relevant L1 ISTE and set its VALID bit */
+    l1_addr = l1_iste_addr(cs, cfg, intid);
+
+    l1_iste = address_space_ldq_le(&cs->dma_as, l1_addr, cfg->txattrs, &res);
+    if (res != MEMTX_OK) {
+        goto txfail;
+    }
+
+    l1_iste = FIELD_DP64(l1_iste, L1_ISTE, VALID, 1);
+
+    address_space_stq_le(&cs->dma_as, l1_addr, l1_iste, cfg->txattrs, &res);
+    if (res != MEMTX_OK) {
+        goto txfail;
+    }
+    return;
+
+txfail:
+    /* Reportable with EC=0x0 if sw error reporting implemented */
+    qemu_log_mask(LOG_GUEST_ERROR, "L1 ISTE update failed for ID 0x%x at "
+                  "physical address 0x" HWADDR_FMT_plx "\n", intid, l1_addr);
+}
+
+
 static void irs_ist_baser_write(GICv5 *s, GICv5Domain domain, uint64_t value)
 {
     GICv5Common *cs = ARM_GICV5_COMMON(s);
@@ -674,6 +712,9 @@ static bool config_writel(GICv5 *s, GICv5Domain domain, hwaddr offset,
         } else {
             cs->irs_ist_cfgr[domain] = data;
         }
+        return true;
+    case A_IRS_MAP_L2_ISTR:
+        irs_map_l2_istr_write(s, domain, data);
         return true;
     }
     return false;
