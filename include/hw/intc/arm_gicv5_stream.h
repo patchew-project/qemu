@@ -151,4 +151,28 @@ void gicv5_set_target(GICv5Common *cs, uint32_t id, uint32_t iaffid,
 uint64_t gicv5_request_config(GICv5Common *cs, uint32_t id, GICv5Domain domain,
                               GICv5IntType type, bool virtual);
 
+/**
+ * gicv5_forward_interrupt
+ * @cpu: CPU interface to forward interrupt to
+ * @domain: domain this interrupt is for
+ *
+ * Tell the CPU interface that the highest priority pending interrupt
+ * that the IRS has available for it has changed.
+ * This is the equivalent of the stream protocol's Forward packet,
+ * and also of its Recall packet.
+ *
+ * The stream protocol makes this asynchronous, allowing two
+ * Forward packets to be in flight and requiring an acknowledge,
+ * because the cpuif might be about to activate the previous
+ * forwarded interrupt while we are trying to tell it about a new
+ * one. But for QEMU we hold the BQL, so we know the vcpu might be
+ * executing guest code but it cannot be in the middle of changing
+ * cpuif state. So we can just synchronously tell it that a new
+ * HPPI exists (which might cause it to assert IRQ or FIQ to itself);
+ * this works as if the cpuif gave us a Release for the old HPPI.
+ * The cpuif will ask the IRS for the HPPI info via a function
+ * call, so we do not need to pass it across here.
+ */
+void gicv5_forward_interrupt(ARMCPU *cpu, GICv5Domain domain);
+
 #endif

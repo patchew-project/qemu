@@ -376,6 +376,157 @@ static MemTxAttrs irs_txattrs(GICv5Common *cs, GICv5Domain domain)
     };
 }
 
+/* Data we need to pass through to lpi_cache_get_hppi() */
+typedef struct GetHPPIUserData {
+    GICv5PendingIrq *best;
+    uint32_t iaffid;
+} GetHPPIUserData;
+
+static void lpi_cache_get_hppi(gpointer key, gpointer value, gpointer user_data)
+{
+    uint64_t id = GPOINTER_TO_INT(key);
+    uint64_t l2_iste = *(uint64_t *)value;
+    uint32_t prio, iaffid;
+    GetHPPIUserData *ud = user_data;
+
+    if ((l2_iste & (R_L2_ISTE_PENDING_MASK | R_L2_ISTE_ACTIVE_MASK | R_L2_ISTE_ENABLE_MASK))
+        != (R_L2_ISTE_PENDING_MASK | R_L2_ISTE_ENABLE_MASK)) {
+        return;
+    }
+    prio = FIELD_EX32(l2_iste, L2_ISTE, PRIORITY);
+    iaffid = FIELD_EX32(l2_iste, L2_ISTE, IAFFID);
+    if (iaffid == ud->iaffid && prio < ud->best->prio) {
+        id = FIELD_DP32(id, INTID, TYPE, GICV5_LPI);
+        ud->best->intid = id;
+        ud->best->prio = prio;
+    }
+}
+
+static int irs_cpuidx_from_iaffid(GICv5Common *cs, uint32_t iaffid)
+{
+    for (int i = 0; i < cs->num_cpus; i++) {
+        if (cs->cpu_iaffids[i] == iaffid) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static void irs_recalc_hppi(GICv5 *s, GICv5Domain domain, uint32_t iaffid)
+{
+    /*
+     * Recalculate the highest priority pending interrupt for the
+     * specified domain and cpuif.
+     * HPPI candidates must be pending, inactive and enabled.
+     */
+    GICv5Common *cs = ARM_GICV5_COMMON(s);
+    int cpuidx = irs_cpuidx_from_iaffid(cs, iaffid);
+    ARMCPU *cpu = cpuidx >= 0 ? cs->cpus[cpuidx] : NULL;
+    GICv5PendingIrq best;
+
+    best.intid = 0;
+    best.prio = PRIO_IDLE;
+
+    if (!cpu) {
+        /* Nothing happens for iaffids targeting nonexistent CPUs */
+        trace_gicv5_irs_recalc_hppi_fail(domain_name[domain], iaffid,
+                                         "IAFFID doesn't match any CPU");
+        return;
+    }
+
+    if (!FIELD_EX32(cs->irs_cr0[domain], IRS_CR0, IRSEN)) {
+        /* When the IRS is disabled we don't forward HPPIs */
+        trace_gicv5_irs_recalc_hppi_fail(domain_name[domain], iaffid,
+                                         "IRS_CR0.IRSEN is zero");
+        return;
+    }
+
+    if (s->phys_lpi_config[domain].valid) {
+        GetHPPIUserData ud;
+
+        ud.best = &best;
+        ud.iaffid = iaffid;
+        g_hash_table_foreach(s->phys_lpi_config[domain].lpi_cache,
+                             lpi_cache_get_hppi, &ud);
+    }
+
+    /*
+     * OPT: consider also caching the SPI interrupt information,
+     * similarly to how we handle LPIs, if iterating through the
+     * whole SPI array every time is too expensive.
+     */
+    for (int i = 0; i < cs->spi_irs_range; i++) {
+        GICv5SPIState *spi = &cs->spi[i];
+
+        if (spi->active || !spi->pending || !spi->enabled) {
+            continue;
+        }
+        if (spi->domain != domain || spi->iaffid != iaffid) {
+            continue;
+        }
+        if (spi->priority < best.prio) {
+            uint32_t intid = 0;
+            intid = FIELD_DP32(intid, INTID, ID, i);
+            intid = FIELD_DP32(intid, INTID, TYPE, GICV5_SPI);
+            best.intid = intid;
+            best.prio = spi->priority;
+        }
+    }
+
+    trace_gicv5_irs_recalc_hppi(domain_name[domain], iaffid,
+                                best.intid, best.prio);
+
+    s->hppi[domain][cpuidx] = best;
+    /*
+     * Now present the HPPI to the cpuif. In the real hardware
+     * stream protocol, the connection between IRS and cpuif is
+     * asynchronous, and so both ends track their idea of the
+     * current HPPI, with a back-and-forth sequence so they stay
+     * in sync and more interaction when the cpuif resets.
+     * For QEMU, we are strictly synchronous and the cpuif asking
+     * the IRS for data is a cheap function call, so we simplify this:
+     *  - the IRS knows what the current HPPI is
+     *  - s->hppi[][] is a cache we can recalculate
+     *  - the IRS merely tells the cpuif "something changed", and
+     *    the cpuif asks for the current HPPI when it needs it
+     *  - the cpuif does not cache the HPPI on its end
+     */
+    gicv5_forward_interrupt(cpu, domain);
+}
+
+static void irs_recalc_hppi_all_cpus(GICv5 *s, GICv5Domain domain)
+{
+    /*
+     * Recalculate the HPPI for every CPU for this domain.
+     * This is not as efficient as it could be because we will
+     * scan through the LPI cached hash table and the SPI array
+     * for each CPU rather than doing a single combined scan,
+     * but we only need to do this very rarely, when the guest
+     * enables or disables the IST, so we implement this the simple way.
+     */
+    GICv5Common *cs = ARM_GICV5_COMMON(s);
+    for (int i = 0; i < cs->num_cpus; i++) {
+        irs_recalc_hppi(s, domain, cs->cpu_iaffids[i]);
+    }
+}
+
+static void irs_recall_hppis(GICv5 *s, GICv5Domain domain)
+{
+    /*
+     * The IRS was just disabled -- we must recall any pending
+     * HPPIs we have sent to the CPU interfaces. For us this means
+     * that we clear our cached HPPI data and tell the cpuif
+     * that it has changed.
+     */
+    GICv5Common *cs = ARM_GICV5_COMMON(s);
+
+    for (int i = 0; i < cs->num_cpus; i++) {
+        s->hppi[domain][i].intid = 0;
+        s->hppi[domain][i].prio = PRIO_IDLE;
+        gicv5_forward_interrupt(cs->cpus[i], domain);
+    }
+}
+
 static hwaddr l1_iste_addr(GICv5Common *cs, const GICv5ISTConfig *cfg,
                            uint32_t id)
 {
@@ -582,6 +733,7 @@ void gicv5_set_priority(GICv5Common *cs, uint32_t id,
     GICv5 *s = ARM_GICV5(cs);
     uint32_t *l2_iste_p;
     L2_ISTE_Handle h;
+    uint32_t iaffid;
 
     trace_gicv5_set_priority(domain_name[domain], inttype_name(type), virtual,
                              id, priority);
@@ -603,6 +755,7 @@ void gicv5_set_priority(GICv5Common *cs, uint32_t id,
         }
 
         spi->priority = priority;
+        irs_recalc_hppi(s, domain, spi->iaffid);
         return;
     }
     if (type != GICV5_LPI) {
@@ -616,7 +769,10 @@ void gicv5_set_priority(GICv5Common *cs, uint32_t id,
         return;
     }
     *l2_iste_p = FIELD_DP32(*l2_iste_p, L2_ISTE, PRIORITY, priority);
+    iaffid = FIELD_EX32(*l2_iste_p, L2_ISTE, IAFFID);
     put_l2_iste(cs, cfg, &h);
+
+    irs_recalc_hppi(s, domain, iaffid);
 }
 
 void gicv5_set_enabled(GICv5Common *cs, uint32_t id,
@@ -627,6 +783,7 @@ void gicv5_set_enabled(GICv5Common *cs, uint32_t id,
     GICv5 *s = ARM_GICV5(cs);
     uint32_t *l2_iste_p;
     L2_ISTE_Handle h;
+    uint32_t iaffid;
 
     trace_gicv5_set_enabled(domain_name[domain], inttype_name(type), virtual,
                             id, enabled);
@@ -645,6 +802,7 @@ void gicv5_set_enabled(GICv5Common *cs, uint32_t id,
         }
 
         spi->enabled = true;
+        irs_recalc_hppi(s, domain, spi->iaffid);
         return;
     }
     if (type != GICV5_LPI) {
@@ -658,7 +816,9 @@ void gicv5_set_enabled(GICv5Common *cs, uint32_t id,
         return;
     }
     *l2_iste_p = FIELD_DP32(*l2_iste_p, L2_ISTE, ENABLE, enabled);
+    iaffid = FIELD_EX32(*l2_iste_p, L2_ISTE, IAFFID);
     put_l2_iste(cs, cfg, &h);
+    irs_recalc_hppi(s, domain, iaffid);
 }
 
 void gicv5_set_pending(GICv5Common *cs, uint32_t id,
@@ -669,6 +829,7 @@ void gicv5_set_pending(GICv5Common *cs, uint32_t id,
     GICv5 *s = ARM_GICV5(cs);
     uint32_t *l2_iste_p;
     L2_ISTE_Handle h;
+    uint32_t iaffid;
 
     trace_gicv5_set_pending(domain_name[domain], inttype_name(type), virtual,
                             id, pending);
@@ -687,6 +848,7 @@ void gicv5_set_pending(GICv5Common *cs, uint32_t id,
         }
 
         spi->pending = true;
+        irs_recalc_hppi(s, domain, spi->iaffid);
         return;
     }
     if (type != GICV5_LPI) {
@@ -700,7 +862,9 @@ void gicv5_set_pending(GICv5Common *cs, uint32_t id,
         return;
     }
     *l2_iste_p = FIELD_DP32(*l2_iste_p, L2_ISTE, PENDING, pending);
+    iaffid = FIELD_EX32(*l2_iste_p, L2_ISTE, IAFFID);
     put_l2_iste(cs, cfg, &h);
+    irs_recalc_hppi(s, domain, iaffid);
 }
 
 void gicv5_set_handling(GICv5Common *cs, uint32_t id,
@@ -752,6 +916,7 @@ void gicv5_set_target(GICv5Common *cs, uint32_t id, uint32_t iaffid,
     GICv5 *s = ARM_GICV5(cs);
     uint32_t *l2_iste_p;
     L2_ISTE_Handle h;
+    uint32_t old_iaffid;
 
     trace_gicv5_set_target(domain_name[domain], inttype_name(type), virtual,
                            id, iaffid, irm);
@@ -778,7 +943,10 @@ void gicv5_set_target(GICv5Common *cs, uint32_t id, uint32_t iaffid,
             return;
         }
 
+        old_iaffid = spi->iaffid;
         spi->iaffid = iaffid;
+        irs_recalc_hppi(s, domain, old_iaffid);
+        irs_recalc_hppi(s, domain, iaffid);
         return;
     }
     if (type != GICV5_LPI) {
@@ -795,8 +963,12 @@ void gicv5_set_target(GICv5Common *cs, uint32_t id, uint32_t iaffid,
      * For QEMU we do not implement 1-of-N routing, and so L2_ISTE.IRM is RES0.
      * We never read it, and we can skip explicitly writing it to zero here.
      */
+    old_iaffid = FIELD_EX32(*l2_iste_p, L2_ISTE, IAFFID);
     *l2_iste_p = FIELD_DP32(*l2_iste_p, L2_ISTE, IAFFID, iaffid);
     put_l2_iste(cs, cfg, &h);
+
+    irs_recalc_hppi(s, domain, old_iaffid);
+    irs_recalc_hppi(s, domain, iaffid);
 }
 
 static uint64_t l2_iste_to_icsr(GICv5Common *cs, const GICv5ISTConfig *cfg,
@@ -907,6 +1079,12 @@ static void irs_map_l2_istr_write(GICv5 *s, GICv5Domain domain, uint64_t value)
     if (res != MEMTX_OK) {
         goto txfail;
     }
+    /*
+     * It's CONSTRAINED UNPREDICTABLE to make an L2 IST valid
+     * when some of its entries have Pending already set, so we don't
+     * need to go through looking for Pending bits and pulling them
+     * into the cache, and we don't need to recalc our HPPI.
+     */
     return;
 
 txfail:
@@ -964,6 +1142,7 @@ static void irs_ist_baser_write(GICv5 *s, GICv5Domain domain, uint64_t value)
                                                IRS_IST_BASER, VALID, valid);
         s->phys_lpi_config[domain].valid = false;
         trace_gicv5_ist_invalid(domain_name[domain]);
+        irs_recalc_hppi_all_cpus(s, domain);
         return;
     }
     cs->irs_ist_baser[domain] = value;
@@ -1033,6 +1212,7 @@ static void irs_ist_baser_write(GICv5 *s, GICv5Domain domain, uint64_t value)
         cfg->valid = true;
         trace_gicv5_ist_valid(domain_name[domain], cfg->base, cfg->id_bits,
                               cfg->l2_idx_bits, cfg->istsz, cfg->structure);
+        irs_recalc_hppi_all_cpus(s, domain);
     }
 }
 
@@ -1186,6 +1366,11 @@ static bool config_readl(GICv5 *s, GICv5Domain domain, hwaddr offset,
     case A_IRS_CR0:
         /* Enabling is instantaneous for us so IDLE is always 1 */
         *data = cs->irs_cr0[domain] | R_IRS_CR0_IDLE_MASK;
+        if (FIELD_EX32(cs->irs_cr0[domain], IRS_CR0, IRSEN)) {
+            irs_recalc_hppi_all_cpus(s, domain);
+        } else {
+            irs_recall_hppis(s, domain);
+        }
         return true;
     case A_IRS_CR1:
         *data = cs->irs_cr1[domain];
@@ -1274,6 +1459,7 @@ static bool config_writel(GICv5 *s, GICv5Domain domain, hwaddr offset,
                 } else if (spi->level) {
                     spi->pending = false;
                 }
+                irs_recalc_hppi(s, spi->domain, spi->iaffid);
             }
         }
         return true;
@@ -1283,7 +1469,12 @@ static bool config_writel(GICv5 *s, GICv5Domain domain, hwaddr offset,
             /* this is RAZ/WI except for the EL3 domain */
             GICv5SPIState *spi = spi_for_selr(cs, domain);
             if (spi) {
+                GICv5Domain old_domain = spi->domain;
                 spi->domain = FIELD_EX32(data, IRS_SPI_DOMAINR, DOMAIN);
+                if (spi->domain != old_domain) {
+                    irs_recalc_hppi(s, old_domain, spi->iaffid);
+                    irs_recalc_hppi(s, spi->domain, spi->iaffid);
+                }
             }
         }
         return true;
@@ -1294,6 +1485,7 @@ static bool config_writel(GICv5 *s, GICv5Domain domain, hwaddr offset,
 
         if (spi) {
             spi_sample(spi);
+            irs_recalc_hppi(s, spi->domain, spi->iaffid);
         }
         trace_gicv5_spi_state(id, spi->level, spi->pending, spi->active);
         return true;
@@ -1480,6 +1672,7 @@ static void gicv5_set_spi(void *opaque, int irq, int level)
 {
     /* These irqs are all SPIs; the INTID is irq + s->spi_base */
     GICv5Common *cs = ARM_GICV5_COMMON(opaque);
+    GICv5 *s = ARM_GICV5(cs);
     uint32_t spi_id = irq + cs->spi_base;
     GICv5SPIState *spi = gicv5_raw_spi_state(cs, spi_id);
 
@@ -1492,6 +1685,8 @@ static void gicv5_set_spi(void *opaque, int irq, int level)
     spi->level = level;
     spi_sample(spi);
     trace_gicv5_spi_state(spi_id, spi->level, spi->pending, spi->active);
+
+    irs_recalc_hppi(s, spi->domain, spi->iaffid);
 }
 
 static void gicv5_reset_hold(Object *obj, ResetType type)
@@ -1573,6 +1768,7 @@ static void gicv5_set_idregs(GICv5Common *cs)
 
 static void gicv5_realize(DeviceState *dev, Error **errp)
 {
+    GICv5 *s = ARM_GICV5(dev);
     GICv5Common *cs = ARM_GICV5_COMMON(dev);
     GICv5Class *gc = ARM_GICV5_GET_CLASS(dev);
     Error *migration_blocker = NULL;
@@ -1600,6 +1796,12 @@ static void gicv5_realize(DeviceState *dev, Error **errp)
 
     gicv5_set_idregs(cs);
     gicv5_common_init_irqs_and_mmio(cs, gicv5_set_spi, config_frame_ops);
+
+    for (int i = 0; i < NUM_GICV5_DOMAINS; i++) {
+        if (gicv5_domain_implemented(cs, i)) {
+            s->hppi[i] = g_new0(GICv5PendingIrq, cs->num_cpus);
+        }
+    }
 }
 
 static void gicv5_init(Object *obj)
