@@ -39,6 +39,8 @@ typedef struct DisasContext {
     int reg_log_idx;
     DECLARE_BITMAP(regs_written, TOTAL_PER_THREAD_REGS);
     DECLARE_BITMAP(predicated_regs, TOTAL_PER_THREAD_REGS);
+    DECLARE_BITMAP(gpr_multi_write, TOTAL_PER_THREAD_REGS);
+    DECLARE_BITMAP(gpr_uncond, TOTAL_PER_THREAD_REGS);
     bool implicit_usr_write;
     int preg_log[PRED_WRITES_MAX];
     int preg_log_idx;
@@ -113,9 +115,13 @@ static inline void ctx_log_reg_write(DisasContext *ctx, int rnum,
             ctx->reg_log[ctx->reg_log_idx] = rnum;
             ctx->reg_log_idx++;
             set_bit(rnum, ctx->regs_written);
+        } else {
+            set_bit(rnum, ctx->gpr_multi_write);
         }
         if (is_predicated) {
             set_bit(rnum, ctx->predicated_regs);
+        } else {
+            set_bit(rnum, ctx->gpr_uncond);
         }
     }
 }
