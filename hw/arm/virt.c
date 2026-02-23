@@ -432,13 +432,13 @@ static void fdt_add_timer_nodes(const VirtMachineState *vms)
     }
 }
 
-static void fdt_add_cpu_nodes(const VirtMachineState *vms)
+static void fdt_add_cpu_nodes(VirtMachineState *vms)
 {
     int cpu;
     int addr_cells = 1;
     const MachineState *ms = MACHINE(vms);
     const VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
-    int smp_cpus = ms->smp.cpus;
+    unsigned int smp_cpus = ms->smp.cpus;
 
     /*
      * See Linux Documentation/devicetree/bindings/arm/cpus.yaml
@@ -466,10 +466,13 @@ static void fdt_add_cpu_nodes(const VirtMachineState *vms)
     qemu_fdt_setprop_cell(ms->fdt, "/cpus", "#address-cells", addr_cells);
     qemu_fdt_setprop_cell(ms->fdt, "/cpus", "#size-cells", 0x0);
 
+    vms->cpu_phandles = g_new0(uint32_t, smp_cpus);
+
     for (cpu = smp_cpus - 1; cpu >= 0; cpu--) {
         char *nodename = g_strdup_printf("/cpus/cpu@%d", cpu);
         ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(cpu));
         CPUState *cs = CPU(armcpu);
+        uint32_t phandle;
 
         qemu_fdt_add_subnode(ms->fdt, nodename);
         qemu_fdt_setprop_string(ms->fdt, nodename, "device_type", "cpu");
@@ -494,10 +497,9 @@ static void fdt_add_cpu_nodes(const VirtMachineState *vms)
                 ms->possible_cpus->cpus[cs->cpu_index].props.node_id);
         }
 
-        if (!vmc->no_cpu_topology) {
-            qemu_fdt_setprop_cell(ms->fdt, nodename, "phandle",
-                                  qemu_fdt_alloc_phandle(ms->fdt));
-        }
+        phandle = qemu_fdt_alloc_phandle(ms->fdt);
+        qemu_fdt_setprop_cell(ms->fdt, nodename, "phandle", phandle);
+        vms->cpu_phandles[cpu] = phandle;
 
         g_free(nodename);
     }
@@ -522,7 +524,6 @@ static void fdt_add_cpu_nodes(const VirtMachineState *vms)
         qemu_fdt_add_subnode(ms->fdt, "/cpus/cpu-map");
 
         for (cpu = smp_cpus - 1; cpu >= 0; cpu--) {
-            char *cpu_path = g_strdup_printf("/cpus/cpu@%d", cpu);
             char *map_path;
 
             if (ms->smp.threads > 1) {
@@ -540,10 +541,10 @@ static void fdt_add_cpu_nodes(const VirtMachineState *vms)
                     cpu % ms->smp.cores);
             }
             qemu_fdt_add_path(ms->fdt, map_path);
-            qemu_fdt_setprop_phandle(ms->fdt, map_path, "cpu", cpu_path);
+            qemu_fdt_setprop_cell(ms->fdt, map_path, "cpu",
+                                  vms->cpu_phandles[cpu]);
 
             g_free(map_path);
-            g_free(cpu_path);
         }
     }
 }
