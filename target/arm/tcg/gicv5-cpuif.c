@@ -171,6 +171,88 @@ static GICv5PendingIrq gic_hppi(CPUARMState *env, GICv5Domain domain)
     return best;
 }
 
+static void cpu_interrupt_update(CPUARMState *env, int irqtype, bool new_state)
+{
+    CPUState *cs = env_cpu(env);
+
+    /*
+     * OPT: calling cpu_interrupt() and cpu_reset_interrupt()
+     * has the correct behaviour, but is not optimal for the
+     * case where we're setting the interrupt line to the same
+     * level it already has.
+     *
+     * Clearing an already clear interrupt is free (it's just
+     * doing an atomic AND operation). Signalling an already set
+     * interrupt is a bit less ideal (it might unnecessarily kick
+     * the CPU).
+     *
+     * We could potentially use cpu_test_interrupt(), like
+     * arm_cpu_update_{virq,vfiq,vinmi,vserr}, since we always
+     * hold the BQL here; or perhaps there is an abstraction
+     * we could provide in the core code that all these places
+     * could call.
+     *
+     * For now, this is simple and definitely correct.
+     */
+    if (new_state) {
+        cpu_interrupt(cs, irqtype);
+    } else {
+        cpu_reset_interrupt(cs, irqtype);
+    }
+}
+
+static void gicv5_update_irq_fiq(CPUARMState *env)
+{
+    /*
+     * Update whether we are signalling IRQ or FIQ based
+     * on the current state of the CPU interface (and in
+     * particular on the HPPI information from the IRS and
+     * for the PPIs for each interrupt domain);
+     *
+     * The logic here for IRQ and FIQ is defined by rules R_QLGBG
+     * and R_ZGHMN; whether to signal with superpriority is
+     * defined by rule R_CSBDX.
+     *
+     * For the moment, we do not consider preemptive interrupts,
+     * because these only occur when there is a HPPI of
+     * sufficient priority for another interrupt domain, and
+     * we only support EL1 and the NonSecure interrupt domain
+     * currently.
+     *
+     * NB: when we handle more than just EL1 we will need to
+     * arrange to call this function to re-evaluate the IRQ
+     * and FIQ state when we change EL.
+     */
+    GICv5PendingIrq current_hppi;
+    bool irq, fiq, superpriority;
+
+    /*
+     * We will never signal FIQ because FIQ is for
+     * preemptive interrupts or for EL3 HPPIs.
+     */
+    fiq = false;
+
+    /*
+     * We signal IRQ when we are not signalling FIQ and there is a
+     * HPPI of sufficient priority for the current domain. It
+     * has Superpriority if its priority is 0 (in which case it
+     * is CPU_INTERRUPT_NMI rather than CPU_INTERRUPT_HARD).
+     */
+    current_hppi = gic_hppi(env, gicv5_current_phys_domain(env));
+    superpriority = current_hppi.prio == 0;
+    irq = current_hppi.prio != PRIO_IDLE && !superpriority;
+
+    /*
+     * Unlike a GICv3 or GICv2, there is no external IRQ or FIQ
+     * line to the CPU. Instead we directly signal the interrupt
+     * via cpu_interrupt()/cpu_reset_interrupt().
+     */
+    trace_gicv5_update_irq_fiq(irq, fiq, superpriority);
+    cpu_interrupt_update(env, CPU_INTERRUPT_HARD, irq);
+    cpu_interrupt_update(env, CPU_INTERRUPT_FIQ, fiq);
+    cpu_interrupt_update(env, CPU_INTERRUPT_NMI, superpriority);
+}
+
 static void gic_recalc_ppi_hppi(CPUARMState *env)
 {
     /*
@@ -220,15 +302,16 @@ static void gic_recalc_ppi_hppi(CPUARMState *env)
                                   env->gicv5_cpuif.ppi_hppi[i].intid,
                                   env->gicv5_cpuif.ppi_hppi[i].prio);
     }
+    gicv5_update_irq_fiq(env);
 }
 
 void gicv5_forward_interrupt(ARMCPU *cpu, GICv5Domain domain)
 {
     /*
-     * For now, we do nothing. Later we will recalculate the overall
-     * HPPI by combining the IRS HPPI with the PPI HPPI, and possibly
-     * signal IRQ/FIQ.
+     * IRS HPPI has changed: recalculate the IRQ/FIQ levels by
+     * combining the IRS HPPI with the PPI HPPI.
      */
+    gicv5_update_irq_fiq(&cpu->env);
 }
 
 static void gic_cddis_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -431,6 +514,7 @@ static void gic_icc_cr0_el1_write(CPUARMState *env, const ARMCPRegInfo *ri,
     value |= R_ICC_CR0_LINK_MASK | R_ICC_CR0_LINK_IDLE_MASK;
 
     env->gicv5_cpuif.icc_cr0[domain] = value;
+    gicv5_update_irq_fiq(env);
 }
 
 static void gic_icc_cr0_el1_reset(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -573,6 +657,7 @@ static void gic_cdeoi_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     /* clear lowest bit, doing nothing if already zero */
     *apr &= *apr - 1;
+    gicv5_update_irq_fiq(env);
 }
 
 static void gic_cddi_write(CPUARMState *env, const ARMCPRegInfo *ri,
