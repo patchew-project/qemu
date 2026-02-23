@@ -1047,6 +1047,10 @@ static bool config_readl(GICv5 *s, GICv5Domain domain, hwaddr offset,
     case A_IRS_CR1:
         *data = cs->irs_cr1[domain];
         return true;
+    case A_IRS_SYNC_STATUSR:
+        /* Sync is a no-op for QEMU: we are always IDLE */
+        *data = R_IRS_SYNC_STATUSR_IDLE_MASK;
+        return true;
     }
 
     return false;
@@ -1131,6 +1135,9 @@ static bool config_writel(GICv5 *s, GICv5Domain domain, hwaddr offset,
         return true;
     case A_IRS_CR1:
         cs->irs_cr1[domain] = data;
+        return true;
+    case A_IRS_SYNCR:
+        /* Sync is a no-op for QEMU: ignore write */
         return true;
     }
     return false;
