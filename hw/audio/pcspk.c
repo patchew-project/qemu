@@ -48,17 +48,20 @@ struct PCSpkState {
 
     MemoryRegion ioport;
     uint32_t iobase;
+    PITCommonState *pit;
+#ifdef CONFIG_AUDIO
     uint8_t sample_buf[PCSPK_BUF_LEN];
     AudioBackend *audio_be;
     SWVoiceOut *voice;
-    PITCommonState *pit;
     unsigned int pit_count;
     unsigned int samples;
     unsigned int play_pos;
+#endif
     uint8_t data_on;
     uint8_t dummy_refresh_clock;
 };
 
+#ifdef CONFIG_AUDIO
 static const char *s_spk = "pcspk";
 
 static inline void generate_samples(PCSpkState *s)
@@ -130,6 +133,7 @@ static int pcspk_audio_init(PCSpkState *s)
 
     return 0;
 }
+#endif
 
 static uint64_t pcspk_io_read(void *opaque, hwaddr addr,
                               unsigned size)
@@ -160,11 +164,13 @@ static void pcspk_io_write(void *opaque, hwaddr addr, uint64_t val,
 
     s->data_on = (val >> 1) & 1;
     pit_set_gate(s->pit, 2, gate);
+#ifdef CONFIG_AUDIO
     if (s->voice) {
         if (gate) /* restart */
             s->play_pos = 0;
         audio_be_set_active_out(s->audio_be, s->voice, gate & s->data_on);
     }
+#endif
 }
 
 static const MemoryRegionOps pcspk_io_ops = {
@@ -195,10 +201,12 @@ static void pcspk_realizefn(DeviceState *dev, Error **errp)
 
     isa_register_ioport(isadev, &s->ioport, s->iobase);
 
+#ifdef CONFIG_AUDIO
     if (s->audio_be && audio_be_check(&s->audio_be, errp)) {
         pcspk_audio_init(s);
         return;
     }
+#endif
 }
 
 static const VMStateDescription vmstate_spk = {
@@ -213,7 +221,9 @@ static const VMStateDescription vmstate_spk = {
 };
 
 static const Property pcspk_properties[] = {
+#ifdef CONFIG_AUDIO
     DEFINE_AUDIO_PROPERTIES(PCSpkState, audio_be),
+#endif
     DEFINE_PROP_UINT32("iobase", PCSpkState, iobase,  0x61),
     DEFINE_PROP_LINK("pit", PCSpkState, pit, TYPE_PIT_COMMON, PITCommonState *),
 };
