@@ -598,6 +598,11 @@ typedef struct CPUArchState {
     } cp15;
 
     struct {
+        /* GICv5 CPU interface data */
+        uint64_t icc_icsr_el1;
+    } gicv5_cpuif;
+
+    struct {
         /* M profile has up to 4 stack pointers:
          * a Main Stack Pointer and a Process Stack Pointer for each
          * of the Secure and Non-Secure states. (If the CPU doesn't support
