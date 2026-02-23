@@ -27,7 +27,17 @@
 #include "standard-headers/linux/udmabuf.h"
 #include "standard-headers/drm/drm_fourcc.h"
 
-static void virtio_gpu_create_udmabuf(struct virtio_gpu_simple_resource *res)
+typedef enum VirtIOGPUErrorType {
+    VIRTIO_GPU_NO_ERROR = 0,
+    /* Guest is responsible for this error */
+    VIRTIO_GPU_GUEST_ERROR = 1,
+    /* Host is at fault for this error */
+    VIRTIO_GPU_HOST_ERROR = 2,
+} VirtIOGPUErrorType;
+
+static VirtIOGPUErrorType
+virtio_gpu_create_udmabuf(struct virtio_gpu_simple_resource *res, int *fd,
+                          Error **errp)
 {
     g_autofree struct udmabuf_create_list *list = NULL;
     RAMBlock *rb;
@@ -36,7 +46,8 @@ static void virtio_gpu_create_udmabuf(struct virtio_gpu_simple_resource *res)
 
     udmabuf = udmabuf_fd();
     if (udmabuf < 0) {
-        return;
+        error_setg(errp, "udmabuf device not available");
+        return VIRTIO_GPU_HOST_ERROR;
     }
 
     list = g_malloc0(sizeof(struct udmabuf_create_list) +
@@ -45,7 +56,8 @@ static void virtio_gpu_create_udmabuf(struct virtio_gpu_simple_resource *res)
     for (i = 0; i < res->iov_cnt; i++) {
         rb = qemu_ram_block_from_host(res->iov[i].iov_base, false, &offset);
         if (!rb || rb->fd < 0) {
-            return;
+            error_setg(errp, "Could not find valid ramblock");
+            return VIRTIO_GPU_GUEST_ERROR;
         }
 
         list->list[i].memfd  = rb->fd;
@@ -56,22 +68,30 @@ static void virtio_gpu_create_udmabuf(struct virtio_gpu_simple_resource *res)
     list->count = res->iov_cnt;
     list->flags = UDMABUF_FLAGS_CLOEXEC;
 
-    res->dmabuf_fd = ioctl(udmabuf, UDMABUF_CREATE_LIST, list);
-    if (res->dmabuf_fd < 0) {
-        warn_report("%s: UDMABUF_CREATE_LIST: %s", __func__,
-                    strerror(errno));
+    *fd = ioctl(udmabuf, UDMABUF_CREATE_LIST, list);
+    if (*fd < 0) {
+        error_setg_errno(errp, errno, "UDMABUF_CREATE_LIST: ioctl failed");
+        if (errno == EINVAL || errno == EBADFD) {
+            return VIRTIO_GPU_GUEST_ERROR;
+        }
+        return VIRTIO_GPU_HOST_ERROR;
     }
+    return VIRTIO_GPU_NO_ERROR;
 }
 
-static void virtio_gpu_remap_dmabuf(struct virtio_gpu_simple_resource *res)
+static bool virtio_gpu_remap_dmabuf(struct virtio_gpu_simple_resource *res,
+                                    Error **errp)
 {
-    res->remapped = mmap(NULL, res->blob_size, PROT_READ,
-                         MAP_SHARED, res->dmabuf_fd, 0);
-    if (res->remapped == MAP_FAILED) {
-        warn_report("%s: dmabuf mmap failed: %s", __func__,
-                    strerror(errno));
+    void *map;
+
+    map = mmap(NULL, res->blob_size, PROT_READ, MAP_SHARED, res->dmabuf_fd, 0);
+    if (map == MAP_FAILED) {
+        error_setg_errno(errp, errno, "dmabuf mmap failed");
         res->remapped = NULL;
+        return false;
     }
+    res->remapped = map;
+    return true;
 }
 
 static void virtio_gpu_destroy_dmabuf(struct virtio_gpu_simple_resource *res)
@@ -125,19 +145,30 @@ bool virtio_gpu_have_udmabuf(void)
 
 void virtio_gpu_init_dmabuf(struct virtio_gpu_simple_resource *res)
 {
+    Error *local_err = NULL;
+    VirtIOGPUErrorType err;
     void *pdata = NULL;
+    int fd;
 
     res->dmabuf_fd = -1;
     if (res->iov_cnt == 1 &&
         res->iov[0].iov_len < 4096) {
         pdata = res->iov[0].iov_base;
     } else {
-        virtio_gpu_create_udmabuf(res);
-        if (res->dmabuf_fd < 0) {
+        err = virtio_gpu_create_udmabuf(res, &fd, &local_err);
+        if (err != VIRTIO_GPU_NO_ERROR) {
+            error_prepend(&local_err, "Cannot create dmabuf: ");
+            if (err == VIRTIO_GPU_GUEST_ERROR) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "Cannot create dmabuf: incompatible mem\n");
+            }
+            error_report_err(local_err);
             return;
         }
-        virtio_gpu_remap_dmabuf(res);
-        if (!res->remapped) {
+
+        res->dmabuf_fd = fd;
+        if (!virtio_gpu_remap_dmabuf(res, &local_err)) {
+            error_report_err(local_err);
             return;
         }
         pdata = res->remapped;
