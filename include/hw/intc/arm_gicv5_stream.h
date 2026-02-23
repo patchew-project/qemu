@@ -212,4 +212,18 @@ void gicv5_forward_interrupt(ARMCPU *cpu, GICv5Domain domain);
 GICv5PendingIrq gicv5_get_hppi(GICv5Common *cs, GICv5Domain domain,
                                uint32_t iaffid);
 
+/**
+ * gicv5_deactivate
+ * @cs: GIC IRS to send command to
+ * @id: interrupt ID
+ * @domain: interrupt Domain to act on
+ * @type: interrupt type (LPI or SPI)
+ * @virtual: true if this is a virtual interrupt
+ *
+ * Deactivate the specified interrupt. There is no report back
+ * of success/failure to the CPUIF in the protocol.
+ */
+void gicv5_deactivate(GICv5Common *cs, uint32_t id, GICv5Domain domain,
+                      GICv5IntType type, bool virtual);
+
 #endif
