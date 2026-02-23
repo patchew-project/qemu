@@ -2272,46 +2272,55 @@ endif
 config_host_data = configuration_data()
 
 config_host_data.set('CONFIG_HAVE_RUST', have_rust)
-audio_drivers_selected = []
-if have_system
-  audio_drivers_available = {
-    'alsa': alsa.found(),
-    'coreaudio': coreaudio.found(),
-    'dsound': dsound.found(),
-    'jack': jack.found(),
-    'oss': oss.found(),
-    'pa': pulse.found(),
-    'pipewire': pipewire.found(),
-    'sdl': sdl.found(),
-    'sndio': sndio.found(),
-  }
-  foreach k, v: audio_drivers_available
-    config_host_data.set('CONFIG_AUDIO_' + k.to_upper(), v)
-  endforeach
+config_host_data.set('CONFIG_AUDIO', have_audio)
+if have_audio
+  audio_drivers_selected = []
+  if have_system
+    audio_drivers_available = {
+      'alsa': alsa.found(),
+      'coreaudio': coreaudio.found(),
+      'dsound': dsound.found(),
+      'jack': jack.found(),
+      'oss': oss.found(),
+      'pa': pulse.found(),
+      'pipewire': pipewire.found(),
+      'sdl': sdl.found(),
+      'sndio': sndio.found(),
+    }
+    foreach k, v: audio_drivers_available
+      config_host_data.set('CONFIG_AUDIO_' + k.to_upper(), v)
+    endforeach
 
-  # Default to native drivers first, OSS second, SDL third
-  audio_drivers_priority = \
-    [ 'pa', 'coreaudio', 'dsound', 'sndio', 'oss' ] + \
-    (host_os == 'linux' ? [] : [ 'sdl' ])
-  audio_drivers_default = []
-  foreach k: audio_drivers_priority
-    if audio_drivers_available[k]
-      audio_drivers_default += k
-    endif
-  endforeach
+    # Default to native drivers first, OSS second, SDL third
+    audio_drivers_priority = \
+      [ 'pa', 'coreaudio', 'dsound', 'sndio', 'oss' ] + \
+      (host_os == 'linux' ? [] : [ 'sdl' ])
+    audio_drivers_default = []
+    foreach k: audio_drivers_priority
+      if audio_drivers_available[k]
+        audio_drivers_default += k
+      endif
+    endforeach
 
+    foreach k: get_option('audio_drv_list')
+      if k == 'default'
+        audio_drivers_selected += audio_drivers_default
+      elif not audio_drivers_available[k]
+        error('Audio driver "@0@" not available.'.format(k))
+      else
+        audio_drivers_selected += k
+      endif
+    endforeach
+  endif
+  config_host_data.set('CONFIG_AUDIO_DRIVERS',
+                      '"' + '", "'.join(audio_drivers_selected) + '", ')
+else
   foreach k: get_option('audio_drv_list')
-    if k == 'default'
-      audio_drivers_selected += audio_drivers_default
-    elif not audio_drivers_available[k]
-      error('Audio driver "@0@" not available.'.format(k))
-    else
-      audio_drivers_selected += k
+    if k != 'default'
+      error('Audio drivers are not supported because audio is disabled.')
     endif
   endforeach
 endif
-config_host_data.set('CONFIG_AUDIO_DRIVERS',
-                     '"' + '", "'.join(audio_drivers_selected) + '", ')
 
 have_host_block_device = (host_os != 'darwin' or
     cc.has_header('IOKit/storage/IOMedia.h'))
@@ -4684,7 +4693,8 @@ if enable_modules
   summary_info += {'alternative module path': get_option('module_upgrades')}
 endif
 summary_info += {'fuzzing support':   get_option('fuzzing')}
-if have_system
+summary_info += {'Audio support':     have_audio}
+if have_audio
   summary_info += {'Audio drivers':     ' '.join(audio_drivers_selected)}
 endif
 summary_info += {'Trace backends':    ','.join(get_option('trace_backends'))}
