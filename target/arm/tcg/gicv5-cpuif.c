@@ -556,6 +556,22 @@ static uint64_t gicr_cdia_read(CPUARMState *env, const ARMCPRegInfo *ri)
     return hppi.intid | R_GICR_CDIA_VALID_MASK;
 }
 
+static void gic_cdeoi_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    /*
+     * Perform Priority Drop in the current interrupt domain.
+     * This is just clearing the lowest set bit in the APR.
+     */
+    GICv5Domain domain = gicv5_current_phys_domain(env);
+    uint64_t *apr = &env->gicv5_cpuif.icc_apr[domain];
+
+    trace_gicv5_cdeoi(domain);
+
+    /* clear lowest bit, doing nothing if already zero */
+    *apr &= *apr - 1;
+}
+
 static const ARMCPRegInfo gicv5_cpuif_reginfo[] = {
     /*
      * Barrier: wait until the effects of a cpuif system register
@@ -607,6 +623,11 @@ static const ARMCPRegInfo gicv5_cpuif_reginfo[] = {
         .opc0 = 1, .opc1 = 0, .crn = 12, .crm = 1, .opc2 = 5,
         .access = PL1_W, .type = ARM_CP_IO | ARM_CP_NO_RAW,
         .writefn = gic_cdrcfg_write,
+    },
+    {   .name = "GIC_CDEOI", .state = ARM_CP_STATE_AA64,
+        .opc0 = 1, .opc1 = 0, .crn = 12, .crm = 1, .opc2 = 7,
+        .access = PL1_W, .type = ARM_CP_IO | ARM_CP_NO_RAW,
+        .writefn = gic_cdeoi_write,
     },
     {   .name = "GIC_CDHM", .state = ARM_CP_STATE_AA64,
         .opc0 = 1, .opc1 = 0, .crn = 12, .crm = 2, .opc2 = 1,
