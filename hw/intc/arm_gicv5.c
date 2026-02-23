@@ -474,10 +474,21 @@ static bool write_l2_iste_mem(GICv5Common *cs, const GICv5ISTConfig *cfg,
  * reads and writes to update the L2 ISTE. In a future commit we
  * will add support for a cache of some of the ISTE data in a
  * local hashtable; the APIs are designed with that in mind.
+ * Not all these fields are always valid; they are private to
+ * the implementation of get_l2_iste() and put_l2_iste().
  */
 typedef struct L2_ISTE_Handle {
+    /* Guest memory address of the L2 ISTE; valid only if !hashed */
     hwaddr l2_iste_addr;
-    uint32_t l2_iste;
+    union {
+        /* Actual L2_ISTE word; valid only if !hashed */
+        uint32_t l2_iste;
+        /* Pointer to L2 ISTE word; valid only if hashed */
+        uint32_t *l2_iste_p;
+    };
+    uint32_t id;
+    /* True if this ISTE is currently in the cache */
+    bool hashed;
 } L2_ISTE_Handle;
 
 static uint32_t *get_l2_iste(GICv5Common *cs, const GICv5ISTConfig *cfg,
@@ -498,6 +509,25 @@ static uint32_t *get_l2_iste(GICv5Common *cs, const GICv5ISTConfig *cfg,
      * If the ISTE could not be read (typically because of a
      * memory error), return NULL.
      */
+    uint32_t *hashvalue;
+
+    if (!cfg->valid) {
+        /* Catch invalid config early, it has no lpi_cache */
+        return NULL;
+    }
+
+    hashvalue = g_hash_table_lookup(cfg->lpi_cache,
+                                    GINT_TO_POINTER(id));
+
+    h->id = id;
+
+    if (hashvalue) {
+        h->hashed = true;
+        h->l2_iste_p = hashvalue;
+        return hashvalue;
+    }
+
+    h->hashed = false;
     if (!get_l2_iste_addr(cs, cfg, id, &h->l2_iste_addr) ||
         !read_l2_iste_mem(cs, cfg, h->l2_iste_addr, &h->l2_iste)) {
         return NULL;
@@ -513,6 +543,34 @@ static void put_l2_iste(GICv5Common *cs, const GICv5ISTConfig *cfg,
      * Once this has been called the L2_ISTE_Handle @h and the
      * pointer to the L2 ISTE word are no longer valid.
      */
+    if (h->hashed) {
+        uint32_t l2_iste = *h->l2_iste_p;
+        if (!FIELD_EX32(l2_iste, L2_ISTE, PENDING)) {
+            /*
+             * We just made this not pending: remove from hash table
+             * and write back to memory.
+             */
+            hwaddr l2_iste_addr;
+
+            g_hash_table_remove(cfg->lpi_cache, GINT_TO_POINTER(h->id));
+            if (get_l2_iste_addr(cs, cfg, h->id, &l2_iste_addr)) {
+                write_l2_iste_mem(cs, cfg, l2_iste_addr, l2_iste);
+                /* Writeback errors are ignored. */
+            }
+        }
+        return;
+    }
+
+    if (FIELD_EX32(h->l2_iste, L2_ISTE, PENDING)) {
+        /*
+         * We just made this pending: add it to the hash table, and
+         * don't bother writing it back to memory.
+         */
+        uint32_t *hashvalue = g_new(uint32_t, 1);
+        *hashvalue = h->l2_iste;
+        g_hash_table_insert(cfg->lpi_cache, GINT_TO_POINTER(h->id), hashvalue);
+        return;
+    }
     write_l2_iste_mem(cs, cfg, h->l2_iste_addr, h->l2_iste);
 }
 
@@ -857,6 +915,38 @@ txfail:
                   "physical address 0x" HWADDR_FMT_plx "\n", intid, l1_addr);
 }
 
+/* Data we need to pass through to irs_clean_lpi_cache_entry() */
+typedef struct CleanLPICacheUserData {
+    GICv5Common *cs;
+    GICv5ISTConfig *cfg;
+} CleanLPICacheUserData;
+
+static gboolean irs_clean_lpi_cache_entry(gpointer key, gpointer value,
+                                          gpointer user_data)
+{
+    /* Drop this entry from the LPI cache, writing it back to guest memory. */
+    CleanLPICacheUserData *ud = user_data;
+    hwaddr l2_iste_addr;
+    uint64_t id = GPOINTER_TO_INT(key);
+    uint32_t l2_iste = *(uint32_t *)value;
+
+    if (!get_l2_iste_addr(ud->cs, ud->cfg, id, &l2_iste_addr) ||
+        !write_l2_iste_mem(ud->cs, ud->cfg, l2_iste_addr, l2_iste)) {
+        /* We drop the cached entry regardless of writeback errors */
+        return true;
+    }
+    return true;
+}
+
+static void irs_clean_lpi_cache(GICv5Common *cs, GICv5ISTConfig *cfg)
+{
+    /* Write everything in the LPI cache out to guest memory */
+    CleanLPICacheUserData ud;
+    ud.cs = cs;
+    ud.cfg = cfg;
+
+    g_hash_table_foreach_remove(cfg->lpi_cache, irs_clean_lpi_cache_entry, &ud);
+}
 
 static void irs_ist_baser_write(GICv5 *s, GICv5Domain domain, uint64_t value)
 {
@@ -869,6 +959,7 @@ static void irs_ist_baser_write(GICv5 *s, GICv5Domain domain, uint64_t value)
             /* Ignore 1->1 transition */
             return;
         }
+        irs_clean_lpi_cache(cs, &s->phys_lpi_config[domain]);
         cs->irs_ist_baser[domain] = FIELD_DP64(cs->irs_ist_baser[domain],
                                                IRS_IST_BASER, VALID, valid);
         s->phys_lpi_config[domain].valid = false;
@@ -930,6 +1021,15 @@ static void irs_ist_baser_write(GICv5 *s, GICv5Domain domain, uint64_t value)
         cfg->l2_idx_bits = l2_idx_bits;
         cfg->structure = FIELD_EX64(cs->irs_ist_cfgr[domain],
                                     IRS_IST_CFGR, STRUCTURE);
+        if (!cfg->lpi_cache) {
+            /*
+             * Keys are GINT_TO_POINTER(intid), so we want the g_direct_hash
+             * and g_direct_equal hash and equality functions. We don't
+             * want to free the keys, but we do want to free the values
+             * (which are pointer-to-uint32_t).
+             */
+            cfg->lpi_cache = g_hash_table_new_full(NULL, NULL, NULL, g_free);
+        }
         cfg->valid = true;
         trace_gicv5_ist_valid(domain_name[domain], cfg->base, cfg->id_bits,
                               cfg->l2_idx_bits, cfg->istsz, cfg->structure);
@@ -1406,6 +1506,14 @@ static void gicv5_reset_hold(Object *obj, ResetType type)
     /* IRS_IST_BASER and IRS_IST_CFGR reset to 0, clear cached info */
     for (int i = 0; i < NUM_GICV5_DOMAINS; i++) {
         s->phys_lpi_config[i].valid = false;
+        /*
+         * If we got reset (power-cycled) with data in the cache,
+         * we don't write it out to guest memory; just return to
+         * "empty cache".
+         */
+        if (s->phys_lpi_config[i].lpi_cache) {
+            g_hash_table_remove_all(s->phys_lpi_config[i].lpi_cache);
+        }
     }
 }
 

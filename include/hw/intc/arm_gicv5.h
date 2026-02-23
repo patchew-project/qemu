@@ -25,6 +25,8 @@ typedef struct GICv5ISTConfig {
     uint8_t istsz; /* L2 ISTE size in bytes */
     bool structure; /* true if using 2-level table */
     bool valid; /* true if this table is valid and usable */
+    /* This caches IST information about pending LPIs */
+    GHashTable *lpi_cache;
 } GICv5ISTConfig;
 
 /*
