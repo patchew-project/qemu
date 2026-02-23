@@ -478,6 +478,18 @@ void gicv5_set_priority(GICv5Common *cs, uint32_t id,
                       "priority of a virtual interrupt\n");
         return;
     }
+    if (type == GICV5_SPI) {
+        GICv5SPIState *spi = gicv5_spi_state(cs, id, domain);
+
+        if (!spi) {
+            qemu_log_mask(LOG_GUEST_ERROR, "gicv5_set_priority: tried to set "
+                          "priority of unreachable SPI %d\n", id);
+            return;
+        }
+
+        spi->priority = priority;
+        return;
+    }
     if (type != GICV5_LPI) {
         qemu_log_mask(LOG_GUEST_ERROR, "gicv5_set_priority: tried to set "
                       "priority of bad interrupt type %d\n", type);
@@ -506,6 +518,18 @@ void gicv5_set_enabled(GICv5Common *cs, uint32_t id,
     if (virtual) {
         qemu_log_mask(LOG_GUEST_ERROR, "gicv5_set_enabled: tried to set "
                       "enable state of a virtual interrupt\n");
+        return;
+    }
+    if (type == GICV5_SPI) {
+        GICv5SPIState *spi = gicv5_spi_state(cs, id, domain);
+
+        if (!spi) {
+            qemu_log_mask(LOG_GUEST_ERROR, "gicv5_set_enabled: tried to set "
+                          "enable state of unreachable SPI %d\n", id);
+            return;
+        }
+
+        spi->enabled = true;
         return;
     }
     if (type != GICV5_LPI) {
@@ -538,6 +562,18 @@ void gicv5_set_pending(GICv5Common *cs, uint32_t id,
                       "pending state of a virtual interrupt\n");
         return;
     }
+    if (type == GICV5_SPI) {
+        GICv5SPIState *spi = gicv5_spi_state(cs, id, domain);
+
+        if (!spi) {
+            qemu_log_mask(LOG_GUEST_ERROR, "gicv5_set_pending: tried to set "
+                          "pending state of unreachable SPI %d\n", id);
+            return;
+        }
+
+        spi->pending = true;
+        return;
+    }
     if (type != GICV5_LPI) {
         qemu_log_mask(LOG_GUEST_ERROR, "gicv5_set_pending: tried to set "
                       "pending state of bad interrupt type %d\n", type);
@@ -566,6 +602,17 @@ void gicv5_set_handling(GICv5Common *cs, uint32_t id,
     if (virtual) {
         qemu_log_mask(LOG_GUEST_ERROR, "gicv5_set_handling: tried to set "
                       "handling mode of a virtual interrupt\n");
+        return;
+    }
+    if (type == GICV5_SPI) {
+        GICv5SPIState *spi = gicv5_spi_state(cs, id, domain);
+
+        if (!spi) {
+            qemu_log_mask(LOG_GUEST_ERROR, "gicv5_set_handling: tried to set "
+                          "priority of unreachable SPI %d\n", id);
+        }
+
+        spi->hm = handling;
         return;
     }
     if (type != GICV5_LPI) {
@@ -606,6 +653,18 @@ void gicv5_set_target(GICv5Common *cs, uint32_t id, uint32_t iaffid,
          * support 1-of-N routing. So warn, and fall through to treat
          * IRM=1 the same as IRM=0.
          */
+    }
+    if (type == GICV5_SPI) {
+        GICv5SPIState *spi = gicv5_spi_state(cs, id, domain);
+
+        if (!spi) {
+            qemu_log_mask(LOG_GUEST_ERROR, "gicv5_set_target: tried to set "
+                          "target of unreachable SPI %d\n", id);
+            return;
+        }
+
+        spi->iaffid = iaffid;
+        return;
     }
     if (type != GICV5_LPI) {
         qemu_log_mask(LOG_GUEST_ERROR, "gicv5_set_target: tried to set "
