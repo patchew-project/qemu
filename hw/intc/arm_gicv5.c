@@ -492,6 +492,139 @@ void gicv5_set_priority(GICv5Common *cs, uint32_t id,
     put_l2_iste(cs, cfg, &h);
 }
 
+void gicv5_set_enabled(GICv5Common *cs, uint32_t id,
+                        bool enabled, GICv5Domain domain,
+                        GICv5IntType type, bool virtual)
+{
+    const GICv5ISTConfig *cfg;
+    GICv5 *s = ARM_GICV5(cs);
+    uint32_t *l2_iste_p;
+    L2_ISTE_Handle h;
+
+    trace_gicv5_set_enabled(domain_name[domain], inttype_name(type), virtual,
+                            id, enabled);
+    if (virtual) {
+        qemu_log_mask(LOG_GUEST_ERROR, "gicv5_set_enabled: tried to set "
+                      "enable state of a virtual interrupt\n");
+        return;
+    }
+    if (type != GICV5_LPI) {
+        qemu_log_mask(LOG_GUEST_ERROR, "gicv5_set_enabled: tried to set "
+                      "enable state of bad interrupt type %d\n", type);
+        return;
+    }
+    cfg = &s->phys_lpi_config[domain];
+    l2_iste_p = get_l2_iste(cs, cfg, id, &h);
+    if (!l2_iste_p) {
+        return;
+    }
+    *l2_iste_p = FIELD_DP32(*l2_iste_p, L2_ISTE, ENABLE, enabled);
+    put_l2_iste(cs, cfg, &h);
+}
+
+void gicv5_set_pending(GICv5Common *cs, uint32_t id,
+                       bool pending, GICv5Domain domain,
+                       GICv5IntType type, bool virtual)
+{
+    const GICv5ISTConfig *cfg;
+    GICv5 *s = ARM_GICV5(cs);
+    uint32_t *l2_iste_p;
+    L2_ISTE_Handle h;
+
+    trace_gicv5_set_pending(domain_name[domain], inttype_name(type), virtual,
+                            id, pending);
+    if (virtual) {
+        qemu_log_mask(LOG_GUEST_ERROR, "gicv5_set_pending: tried to set "
+                      "pending state of a virtual interrupt\n");
+        return;
+    }
+    if (type != GICV5_LPI) {
+        qemu_log_mask(LOG_GUEST_ERROR, "gicv5_set_pending: tried to set "
+                      "pending state of bad interrupt type %d\n", type);
+        return;
+    }
+    cfg = &s->phys_lpi_config[domain];
+    l2_iste_p = get_l2_iste(cs, cfg, id, &h);
+    if (!l2_iste_p) {
+        return;
+    }
+    *l2_iste_p = FIELD_DP32(*l2_iste_p, L2_ISTE, PENDING, pending);
+    put_l2_iste(cs, cfg, &h);
+}
+
+void gicv5_set_handling(GICv5Common *cs, uint32_t id,
+                        GICv5HandlingMode handling, GICv5Domain domain,
+                        GICv5IntType type, bool virtual)
+{
+    const GICv5ISTConfig *cfg;
+    GICv5 *s = ARM_GICV5(cs);
+    uint32_t *l2_iste_p;
+    L2_ISTE_Handle h;
+
+    trace_gicv5_set_handling(domain_name[domain], inttype_name(type), virtual,
+                            id, handling);
+    if (virtual) {
+        qemu_log_mask(LOG_GUEST_ERROR, "gicv5_set_handling: tried to set "
+                      "handling mode of a virtual interrupt\n");
+        return;
+    }
+    if (type != GICV5_LPI) {
+        qemu_log_mask(LOG_GUEST_ERROR, "gicv5_set_handling: tried to set "
+                      "handling mode of bad interrupt type %d\n", type);
+        return;
+    }
+    cfg = &s->phys_lpi_config[domain];
+    l2_iste_p = get_l2_iste(cs, cfg, id, &h);
+    if (!l2_iste_p) {
+        return;
+    }
+    *l2_iste_p = FIELD_DP32(*l2_iste_p, L2_ISTE, HM, handling);
+    put_l2_iste(cs, cfg, &h);
+}
+
+void gicv5_set_target(GICv5Common *cs, uint32_t id, uint32_t iaffid,
+                      GICv5RoutingMode irm, GICv5Domain domain,
+                      GICv5IntType type, bool virtual)
+{
+    const GICv5ISTConfig *cfg;
+    GICv5 *s = ARM_GICV5(cs);
+    uint32_t *l2_iste_p;
+    L2_ISTE_Handle h;
+
+    trace_gicv5_set_target(domain_name[domain], inttype_name(type), virtual,
+                           id, iaffid, irm);
+    if (virtual) {
+        qemu_log_mask(LOG_GUEST_ERROR, "gicv5_set_target: tried to set "
+                      "target of a virtual interrupt\n");
+        return;
+    }
+    if (irm != GICV5_TARGETED) {
+        qemu_log_mask(LOG_GUEST_ERROR, "gicv5_set_target: tried to set "
+                      "1-of-N routing\n");
+        /*
+         * In the cpuif insn "GIC CDAFF", IRM is RES0 for a GIC which does not
+         * support 1-of-N routing. So warn, and fall through to treat
+         * IRM=1 the same as IRM=0.
+         */
+    }
+    if (type != GICV5_LPI) {
+        qemu_log_mask(LOG_GUEST_ERROR, "gicv5_set_target: tried to set "
+                      "target of bad interrupt type %d\n", type);
+        return;
+    }
+    cfg = &s->phys_lpi_config[domain];
+    l2_iste_p = get_l2_iste(cs, cfg, id, &h);
+    if (!l2_iste_p) {
+        return;
+    }
+    /*
+     * For QEMU we do not implement 1-of-N routing, and so L2_ISTE.IRM is RES0.
+     * We never read it, and we can skip explicitly writing it to zero here.
+     */
+    *l2_iste_p = FIELD_DP32(*l2_iste_p, L2_ISTE, IAFFID, iaffid);
+    put_l2_iste(cs, cfg, &h);
+}
+
 static void irs_map_l2_istr_write(GICv5 *s, GICv5Domain domain, uint64_t value)
 {
     GICv5Common *cs = ARM_GICV5_COMMON(s);

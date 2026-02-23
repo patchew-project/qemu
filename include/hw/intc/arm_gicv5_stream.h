@@ -58,4 +58,72 @@ void gicv5_set_priority(GICv5Common *cs, uint32_t id,
                         uint8_t priority, GICv5Domain domain,
                         GICv5IntType type, bool virtual);
 
+/**
+ * gicv5_set_enabled
+ * @cs: GIC IRS to send command to
+ * @id: interrupt ID
+ * @enabled: new enabled state
+ * @domain: interrupt Domain to act on
+ * @type: interrupt type (LPI or SPI)
+ * @virtual: true if this is a virtual interrupt
+ *
+ * Set enabled state of an interrupt; matches stream interface
+ * SetEnabled command from CPUIF to IRS. There is no report back
+ * of success/failure to the CPUIF in the protocol.
+ */
+void gicv5_set_enabled(GICv5Common *cs, uint32_t id,
+                       bool enabled, GICv5Domain domain,
+                       GICv5IntType type, bool virtual);
+
+/**
+ * gicv5_set_pending
+ * @cs: GIC IRS to send command to
+ * @id: interrupt ID
+ * @pending: new pending state
+ * @domain: interrupt Domain to act on
+ * @type: interrupt type (LPI or SPI)
+ * @virtual: true if this is a virtual interrupt
+ *
+ * Set pending state of an interrupt; matches stream interface
+ * SetPending command from CPUIF to IRS. There is no report back
+ * of success/failure to the CPUIF in the protocol.
+ */
+void gicv5_set_pending(GICv5Common *cs, uint32_t id,
+                       bool pending, GICv5Domain domain,
+                       GICv5IntType type, bool virtual);
+
+/**
+ * gicv5_set_handling
+ * @cs: GIC IRS to send command to
+ * @id: interrupt ID
+ * @handling: new handling mode
+ * @domain: interrupt Domain to act on
+ * @type: interrupt type (LPI or SPI)
+ * @virtual: true if this is a virtual interrupt
+ *
+ * Set handling mode of an interrupt (edge/level); matches stream interface
+ * SetHandling command from CPUIF to IRS. There is no report back
+ * of success/failure to the CPUIF in the protocol.
+ */
+void gicv5_set_handling(GICv5Common *cs, uint32_t id,
+                        GICv5HandlingMode handling, GICv5Domain domain,
+                        GICv5IntType type, bool virtual);
+
+/**
+ * gicv5_set_target
+ * @cs: GIC IRS to send command to
+ * @id: interrupt ID
+ * @iaffid: new target PE's interrupt affinity
+ * @irm: interrupt routing mode (targeted vs 1-of-N)
+ * @domain: interrupt Domain to act on
+ * @type: interrupt type (LPI or SPI)
+ * @virtual: true if this is a virtual interrupt
+ *
+ * Set handling mode of an interrupt (edge/level); matches stream interface
+ * SetHandling command from CPUIF to IRS. There is no report back
+ * of success/failure to the CPUIF in the protocol.
+ */
+void gicv5_set_target(GICv5Common *cs, uint32_t id, uint32_t iaffid,
+                      GICv5RoutingMode irm, GICv5Domain domain,
+                      GICv5IntType type, bool virtual);
 #endif
