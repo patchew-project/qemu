@@ -11,6 +11,7 @@
 #include "internals.h"
 #include "cpregs.h"
 #include "hw/intc/arm_gicv5_stream.h"
+#include "trace.h"
 
 FIELD(GIC_CDPRI, ID, 0, 24)
 FIELD(GIC_CDPRI, TYPE, 29, 3)
@@ -103,6 +104,57 @@ static uint64_t gic_running_prio(CPUARMState *env, GICv5Domain domain)
      */
     uint64_t hap = ctz64(env->gicv5_cpuif.icc_apr[domain]);
     return hap < 32 ? hap : PRIO_IDLE;
+}
+
+static void gic_recalc_ppi_hppi(CPUARMState *env)
+{
+    /*
+     * Recalculate the HPPI PPI: this is the best PPI which
+     * is enabled, pending and not active.
+     */
+    for (int i = 0; i < ARRAY_SIZE(env->gicv5_cpuif.ppi_hppi); i++) {
+        env->gicv5_cpuif.ppi_hppi[i].intid = 0;
+        env->gicv5_cpuif.ppi_hppi[i].prio = PRIO_IDLE;
+    };
+
+    for (int i = 0; i < ARRAY_SIZE(env->gicv5_cpuif.ppi_active); i++) {
+        uint64_t en_pend_nact = env->gicv5_cpuif.ppi_enable[i] &
+            env->gicv5_cpuif.ppi_pend[i] &
+            ~env->gicv5_cpuif.ppi_active[i];
+
+        while (en_pend_nact) {
+            /*
+             * When EL3 is supported ICC_PPI_DOMAINR<n>_EL3 tells us
+             * the domain of each PPI. While we only support EL1, the
+             * domain is always NS.
+             */
+            GICv5Domain ppi_domain = GICV5_ID_NS;
+            uint8_t prio;
+            int ppi;
+            int bit = ctz64(en_pend_nact);
+
+            en_pend_nact &= ~(1 << bit);
+
+            ppi = i * 64 + bit;
+            prio = extract64(env->gicv5_cpuif.ppi_priority[ppi / 8],
+                             (ppi & 7) * 8, 5);
+
+            if (prio < env->gicv5_cpuif.ppi_hppi[ppi_domain].prio) {
+                uint32_t intid = 0;
+
+                intid = FIELD_DP32(intid, INTID, ID, ppi);
+                intid = FIELD_DP32(intid, INTID, TYPE, GICV5_PPI);
+                env->gicv5_cpuif.ppi_hppi[ppi_domain].intid = intid;
+                env->gicv5_cpuif.ppi_hppi[ppi_domain].prio = prio;
+            }
+        }
+    }
+
+    for (int i = 0; i < ARRAY_SIZE(env->gicv5_cpuif.ppi_hppi); i++) {
+      trace_gicv5_recalc_ppi_hppi(i,
+                                  env->gicv5_cpuif.ppi_hppi[i].intid,
+                                  env->gicv5_cpuif.ppi_hppi[i].prio);
+    }
 }
 
 static void gic_cddis_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -200,6 +252,7 @@ static void gic_ppi_cactive_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     uint64_t old = raw_read(env, ri);
     raw_write(env, ri, old & ~value);
+    gic_recalc_ppi_hppi(env);
 }
 
 static void gic_ppi_sactive_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -207,6 +260,7 @@ static void gic_ppi_sactive_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     uint64_t old = raw_read(env, ri);
     raw_write(env, ri, old | value);
+    gic_recalc_ppi_hppi(env);
 }
 
 static void gic_ppi_cpend_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -217,6 +271,7 @@ static void gic_ppi_cpend_write(CPUARMState *env, const ARMCPRegInfo *ri,
     uint64_t hm = env->gicv5_cpuif.ppi_hm[ri->opc2 & 1];
     value &= ~hm;
     raw_write(env, ri, old & ~value);
+    gic_recalc_ppi_hppi(env);
 }
 
 static void gic_ppi_spend_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -227,18 +282,21 @@ static void gic_ppi_spend_write(CPUARMState *env, const ARMCPRegInfo *ri,
     uint64_t hm = env->gicv5_cpuif.ppi_hm[ri->opc2 & 1];
     value &= ~hm;
     raw_write(env, ri, old | value);
+    gic_recalc_ppi_hppi(env);
 }
 
 static void gic_ppi_enable_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                  uint64_t value)
 {
     raw_write(env, ri, value);
+    gic_recalc_ppi_hppi(env);
 }
 
 static void gic_ppi_priority_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                    uint64_t value)
 {
     raw_write(env, ri, value);
+    gic_recalc_ppi_hppi(env);
 }
 
 /*

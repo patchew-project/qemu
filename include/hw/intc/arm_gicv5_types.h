@@ -12,6 +12,8 @@
 #ifndef HW_INTC_ARM_GICv5_TYPES_H
 #define HW_INTC_ARM_GICv5_TYPES_H
 
+#include "hw/core/registerfields.h"
+
 /*
  * The GICv5 has four physical Interrupt Domains. This numbering
  * must match the encoding used in IRS_IDR0.INT_DOM.
@@ -86,5 +88,24 @@ typedef enum GICv5TriggerMode {
 } GICv5TriggerMode;
 
 #define PRIO_IDLE 0xff
+
+/*
+ * We keep track of candidate highest possible pending interrupts
+ * using this struct.
+ *
+ * Unlike GICv3, we don't need a separate NMI bool, because for
+ * GICv5 superpriority is signaled by @prio == 0.
+ *
+ * In this struct the intid includes the interrupt type in bits [31:29]
+ * (i.e. it is in the form defined by R_TJPHS).
+ */
+typedef struct GICv5PendingIrq {
+    uint32_t intid;
+    uint8_t prio;
+} GICv5PendingIrq;
+
+/* Fields in a generic 32-bit INTID, per R_TJPHS */
+FIELD(INTID, ID, 0, 24)
+FIELD(INTID, TYPE, 29, 3)
 
 #endif
