@@ -2248,7 +2248,9 @@ static int global_init_func(void *opaque, QemuOpts *opts, Error **errp)
 static bool is_qemuopts_group(const char *group)
 {
     if (g_str_equal(group, "object") ||
+#ifdef CONFIG_AUDIO
         g_str_equal(group, "audiodev") ||
+#endif
         g_str_equal(group, "machine") ||
         g_str_equal(group, "smp-opts") ||
         g_str_equal(group, "boot-opts")) {
@@ -2265,6 +2267,7 @@ static void qemu_record_config_group(const char *group, QDict *dict,
         object_option_add_visitor(v);
         visit_free(v);
 
+#ifdef CONFIG_AUDIO
     } else if (g_str_equal(group, "audiodev")) {
         Audiodev *dev = NULL;
         Visitor *v = qobject_input_visitor_new_keyval(QOBJECT(dict));
@@ -2272,6 +2275,7 @@ static void qemu_record_config_group(const char *group, QDict *dict,
             audio_add_audiodev(dev);
         }
         visit_free(v);
+#endif
 
     } else if (g_str_equal(group, "machine")) {
         /*
@@ -3057,6 +3061,7 @@ void qemu_init(int argc, char **argv)
                 }
                 break;
 #endif
+#ifdef CONFIG_AUDIO
             case QEMU_OPTION_audiodev:
                 default_audio = 0;
                 audio_parse_option(optarg);
@@ -3097,6 +3102,7 @@ void qemu_init(int argc, char **argv)
                 }
                 break;
             }
+#endif
             case QEMU_OPTION_h:
                 help(0);
                 break;
