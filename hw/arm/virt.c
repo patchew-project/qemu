@@ -69,6 +69,7 @@
 #include "hw/intc/arm_gic.h"
 #include "hw/intc/arm_gicv3_common.h"
 #include "hw/intc/arm_gicv3_its_common.h"
+#include "hw/intc/arm_gicv5_common.h"
 #include "hw/core/irq.h"
 #include "kvm_arm.h"
 #include "hvf_arm.h"
@@ -185,6 +186,19 @@ static const MemMapEntry base_memmap[] = {
     [VIRT_GIC_ITS] =            { 0x08080000, 0x00020000 },
     /* This redistributor space allows up to 2*64kB*123 CPUs */
     [VIRT_GIC_REDIST] =         { 0x080A0000, 0x00F60000 },
+    /* The GICv5 uses this address range differently from GICv2/v3/v4 */
+    [VIRT_GICV5_IRS_S] =        { 0x08000000, 0x00010000 },
+    [VIRT_GICV5_IRS_NS] =       { 0x08010000, 0x00010000 },
+    [VIRT_GICV5_IRS_EL3] =      { 0x08020000, 0x00010000 },
+    [VIRT_GICV5_IRS_REALM] =    { 0x08030000, 0x00010000 },
+    [VIRT_GICV5_ITS_S] =        { 0x08040000, 0x00010000 },
+    [VIRT_GICV5_ITS_NS] =       { 0x08050000, 0x00010000 },
+    [VIRT_GICV5_ITS_EL3] =      { 0x08060000, 0x00010000 },
+    [VIRT_GICV5_ITS_REALM] =    { 0x08070000, 0x00010000 },
+    [VIRT_GICV5_ITS_TR_S] =     { 0x08080000, 0x00010000 },
+    [VIRT_GICV5_ITS_TR_NS] =    { 0x08090000, 0x00010000 },
+    [VIRT_GICV5_ITS_TR_EL3] =   { 0x080A0000, 0x00010000 },
+    [VIRT_GICV5_ITS_TR_REALM] = { 0x080B0000, 0x00010000 },
     [VIRT_UART0] =              { 0x09000000, 0x00001000 },
     [VIRT_RTC] =                { 0x09010000, 0x00001000 },
     [VIRT_FW_CFG] =             { 0x09020000, 0x00000018 },
@@ -781,6 +795,49 @@ static void create_v2m(VirtMachineState *vms)
     vms->msi_controller = VIRT_MSI_CTRL_GICV2M;
 }
 
+static void create_gicv5(VirtMachineState *vms, MemoryRegion *mem)
+{
+    MachineState *ms = MACHINE(vms);
+    SysBusDevice *gicbusdev;
+    const char *gictype = gicv5_class_name();
+    QList *cpulist = qlist_new(), *iaffidlist = qlist_new();
+
+    vms->gic = qdev_new(gictype);
+    qdev_prop_set_uint32(vms->gic, "spi-range", NUM_IRQS);
+
+    object_property_set_link(OBJECT(vms->gic), "sysmem",
+                             OBJECT(mem), &error_fatal);
+
+    for (int i = 0; i < ms->smp.cpus; i++) {
+        qlist_append_link(cpulist, OBJECT(qemu_get_cpu(i)));
+        /*
+         * GICv5 IAFFIDs must be system-wide unique across all GICs.
+         * For virt we make them the same as the CPU index.
+         */
+        qlist_append_int(iaffidlist, i);
+    }
+    qdev_prop_set_array(vms->gic, "cpus", cpulist);
+    qdev_prop_set_array(vms->gic, "cpu-iaffids", iaffidlist);
+
+    gicbusdev = SYS_BUS_DEVICE(vms->gic);
+    sysbus_realize_and_unref(gicbusdev, &error_fatal);
+
+    /*
+     * Map the IRS config frames for the interrupt domains.
+     * At the moment we implement only the NS domain, so this is simple.
+     */
+    sysbus_mmio_map(gicbusdev, GICV5_ID_NS,
+                    vms->memmap[VIRT_GICV5_IRS_NS].base);
+
+    /*
+     * The GICv5 does not need to wire up CPU timer IRQ outputs to the GIC
+     * because for the GICv5 those PPIs are entirely internal to the CPU.
+     * Nor do we need to wire up GIC IRQ/FIQ signals to the CPUs, because
+     * that information is communicated directly between a GICv5 IRS and
+     * the GICv5 CPU interface via our equivalent of the stream protocol.
+     */
+}
+
 /*
  * If the CPU has FEAT_NMI, then turn on the NMI support in the GICv3 too.
  * It's permitted to have a configuration with NMI in the CPU (and thus the
@@ -993,6 +1050,9 @@ static void create_gic(VirtMachineState *vms, MemoryRegion *mem)
     case VIRT_GIC_VERSION_3:
     case VIRT_GIC_VERSION_4:
         create_gicv3(vms, mem);
+        break;
+    case VIRT_GIC_VERSION_5:
+        create_gicv5(vms, mem);
         break;
     default:
         g_assert_not_reached();
@@ -1929,6 +1989,11 @@ static uint64_t virt_cpu_mp_affinity(VirtMachineState *vms, int idx)
     /*
      * Adjust MPIDR to make TCG consistent (with 64-bit KVM hosts)
      * and to improve SGI efficiency.
+     * - GICv2 only supports 8 CPUs anyway
+     * - GICv3 wants 16 CPUs per Aff0 because of an ICC_SGIxR
+     *   register limitation
+     * - GICv5 has no restrictions, so we retain the GICv3 16-per-Aff0
+     *   layout because that's what KVM does
      */
     if (vms->gic_version == VIRT_GIC_VERSION_2) {
         clustersz = GIC_TARGETLIST_BITS;
@@ -2074,6 +2139,11 @@ static VirtGICType finalize_gic_version_do(const char *accel_name,
         return finalize_gic_version_do(accel_name, VIRT_GIC_VERSION_MAX,
                                        gics_supported, max_cpus);
     case VIRT_GIC_VERSION_MAX:
+        /*
+         * We don't (currently) make 'max' select GICv5 as it is not
+         * backwards compatible for system software with GICv3/v4 and
+         * at time of writing not widely supported in guest kernels.
+         */
         if (gics_supported & VIRT_GIC_VERSION_4_MASK) {
             gic_version = VIRT_GIC_VERSION_4;
         } else if (gics_supported & VIRT_GIC_VERSION_3_MASK) {
@@ -2102,6 +2172,7 @@ static VirtGICType finalize_gic_version_do(const char *accel_name,
     case VIRT_GIC_VERSION_2:
     case VIRT_GIC_VERSION_3:
     case VIRT_GIC_VERSION_4:
+    case VIRT_GIC_VERSION_5:
         break;
     }
 
@@ -2123,6 +2194,12 @@ static VirtGICType finalize_gic_version_do(const char *accel_name,
         if (!(gics_supported & VIRT_GIC_VERSION_4_MASK)) {
             error_report("%s does not support GICv4 emulation, is virtualization=on?",
                          accel_name);
+            exit(1);
+        }
+        break;
+    case VIRT_GIC_VERSION_5:
+        if (!(gics_supported & VIRT_GIC_VERSION_5_MASK)) {
+            error_report("%s does not support GICv5 emulation", accel_name);
             exit(1);
         }
         break;
@@ -2177,6 +2254,10 @@ static void finalize_gic_version(VirtMachineState *vms)
                 gics_supported |= VIRT_GIC_VERSION_4_MASK;
             }
         }
+        if (!hvf_enabled() && module_object_class_by_name("arm-gicv5")) {
+            /* HVF doesn't have GICv5 support */
+            gics_supported |= VIRT_GIC_VERSION_5_MASK;
+        }
     } else {
         error_report("Unsupported accelerator, can not determine GIC support");
         exit(1);
@@ -2210,6 +2291,9 @@ static void finalize_msi_controller(VirtMachineState *vms)
             vms->msi_controller = VIRT_MSI_CTRL_GICV2M;
         } else if (whpx_enabled()) {
             vms->msi_controller = VIRT_MSI_CTRL_GICV2M;
+        } else if (vms->gic_version == VIRT_GIC_VERSION_5) {
+            /* GICv5 ITS is not yet implemented */
+            vms->msi_controller = VIRT_MSI_CTRL_NONE;
         } else {
             vms->msi_controller = VIRT_MSI_CTRL_ITS;
         }
@@ -2223,6 +2307,10 @@ static void finalize_msi_controller(VirtMachineState *vms)
              * Diagnose it as an error even for that case.
              */
             error_report("GICv2 + ITS is an invalid configuration.");
+            exit(1);
+        }
+        if (vms->gic_version == VIRT_GIC_VERSION_5) {
+            error_report("GICv5 + ITS is not yet implemented.");
             exit(1);
         }
         if (whpx_enabled()) {
@@ -2397,6 +2485,13 @@ static void machvirt_init(MachineState *machine)
      */
     if (vms->gic_version == VIRT_GIC_VERSION_2) {
         virt_max_cpus = GIC_NCPU;
+    } else if (vms->gic_version == VIRT_GIC_VERSION_5) {
+        /*
+         * GICv5 imposes no CPU limit beyond the 16-bit IAFFID field.
+         * The maximum number of CPUs will be limited not by this, but
+         * by the MachineClass::max_cpus value we set earlier.
+         */
+        virt_max_cpus = 1 << QEMU_GICV5_IAFFID_BITS;
     } else {
         virt_max_cpus = virt_redist_capacity(vms, VIRT_GIC_REDIST);
         if (vms->highmem_redists) {
@@ -2439,6 +2534,12 @@ static void machvirt_init(MachineState *machine)
         error_report("mach-virt: %s does not support providing "
                      "MTE to the guest CPU",
                      current_accel_name());
+        exit(1);
+    }
+
+    if ((vms->virt || vms->secure) &&
+        vms->gic_version == VIRT_GIC_VERSION_5) {
+        error_report("mach-virt: GICv5 currently supports EL1 only\n");
         exit(1);
     }
 
