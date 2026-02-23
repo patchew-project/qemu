@@ -199,7 +199,8 @@ class util:
     def data_add(data, value, num_bytes):
         """Adds bytes from value inside a bitarray"""
 
-        data.extend(value.to_bytes(num_bytes, byteorder="little"))  # pylint: disable=E1101
+        # pylint: disable=E1101
+        data.extend(value.to_bytes(num_bytes, byteorder="little"))
 
     def dump_bytearray(name, data):
         """Does an hexdump of a byte array, grouping in bytes"""
@@ -351,7 +352,7 @@ class qmp:
                 if obj and "return" in obj and not obj["return"]:
                     break
 
-            except Exception as e:                     # pylint: disable=W0718
+            except Exception as e:            # pylint: disable=W0718
                 print(f"Command: {command}")
                 print(f"Failed to inject error: {e}.")
                 obj = None
@@ -443,7 +444,9 @@ class qmp:
         validation_bits = ",".join(qmp.VALIDATION_BITS.keys())
         gedb_flags_bits = ",".join(qmp.GEDB_FLAGS_BITS.keys())
 
-        g_gen = parser.add_argument_group("Generic Error Data")  # pylint: disable=E1101
+        # pylint: disable=E1101
+        g_gen = parser.add_argument_group("Generic Error Data")
+
         g_gen.add_argument("--block-status",
                            help=f"block status bits: {block_status_bits}")
         g_gen.add_argument("--raw-data", nargs="+",
