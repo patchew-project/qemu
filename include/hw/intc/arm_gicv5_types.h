@@ -70,4 +70,19 @@ typedef enum GICv5RoutingMode {
     GICV5_1OFN = 1,
 } GICv5RoutingMode;
 
+/*
+ * Interrupt trigger mode (same encoding as IRS_SPI_CFGR.TM)
+ * Note that this is not the same thing as handling mode, even though
+ * the two possible states have the same names. Trigger mode applies
+ * only for SPIs and tells the IRS what kinds of changes to the input
+ * signal wire should make it generate SET and CLEAR events.
+ * Handling mode affects whether the pending state of an interrupt
+ * is cleared when the interrupt is acknowledged, and applies to
+ * both SPIs and LPIs.
+ */
+typedef enum GICv5TriggerMode {
+    GICV5_TRIGGER_EDGE = 0,
+    GICV5_TRIGGER_LEVEL = 1,
+} GICv5TriggerMode;
+
 #endif

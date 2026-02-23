@@ -54,6 +54,26 @@
 OBJECT_DECLARE_TYPE(GICv5Common, GICv5CommonClass, ARM_GICV5_COMMON)
 
 /*
+ * This is where we store the state the IRS handles for an SPI.
+ * Generally this corresponds to the spec's list of state in
+ * I_JVVTZ and J_BWPPP. level is a QEMU implementation detail and
+ * is where we store the actual current state of the incoming
+ * qemu_irq line.
+ */
+typedef struct GICv5SPIState {
+    uint32_t iaffid;
+    uint8_t priority;
+    bool level;
+    bool pending;
+    bool active;
+    bool enabled;
+    GICv5HandlingMode hm;
+    GICv5RoutingMode irm;
+    GICv5TriggerMode tm;
+    GICv5Domain domain;
+} GICv5SPIState;
+
+/*
  * This class is for common state that will eventually be shared
  * between TCG and KVM implementations of the GICv5.
  */
@@ -64,6 +84,14 @@ struct GICv5Common {
 
     uint64_t irs_ist_baser[NUM_GICV5_DOMAINS];
     uint32_t irs_ist_cfgr[NUM_GICV5_DOMAINS];
+
+    /*
+     * Pointer to an array of state information for the SPIs.
+     * Array element 0 is SPI ID s->spi_base, and there are s->spi_irs_range
+     * elements in total. SPI state is not per-domain: SPI is configurable
+     * to a particular domain via IRS_SPI_DOMAINR.
+     */
+    GICv5SPIState *spi;
 
     /* Bits here are set for each physical interrupt domain implemented */
     uint8_t implemented_domains;
