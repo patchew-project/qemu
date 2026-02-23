@@ -278,9 +278,68 @@ static void irs_ist_baser_write(GICv5 *s, GICv5Domain domain, uint64_t value)
         }
         cs->irs_ist_baser[domain] = FIELD_DP64(cs->irs_ist_baser[domain],
                                                IRS_IST_BASER, VALID, valid);
+        s->phys_lpi_config[domain].valid = false;
+        trace_gicv5_ist_invalid(domain_name[domain]);
         return;
     }
     cs->irs_ist_baser[domain] = value;
+
+    if (FIELD_EX64(cs->irs_ist_baser[domain], IRS_IST_BASER, VALID)) {
+        /*
+         * If the guest just set VALID then capture data into config struct,
+         * sanitize the reserved values, and expand fields out into byte counts.
+         */
+        GICv5ISTConfig *cfg = &s->phys_lpi_config[domain];
+        uint8_t istbits, l2bits, l2_idx_bits;
+        uint8_t id_bits = FIELD_EX64(cs->irs_ist_cfgr[domain],
+                                     IRS_IST_CFGR, LPI_ID_BITS);
+        id_bits = MIN(MAX(id_bits, QEMU_GICV5_MIN_LPI_ID_BITS), QEMU_GICV5_ID_BITS);
+
+        switch (FIELD_EX64(cs->irs_ist_cfgr[domain], IRS_IST_CFGR, ISTSZ)) {
+        case 0:
+        case 3: /* reserved: acts like the minimum required size */
+            istbits = 2;
+            break;
+        case 1:
+            istbits = 3;
+            break;
+        case 2:
+            istbits = 4;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        switch (FIELD_EX64(cs->irs_ist_cfgr[domain], IRS_IST_CFGR, L2SZ)) {
+        case 0:
+        case 3: /* reserved; CONSTRAINED UNPREDICTABLE */
+            l2bits = 12; /* 4K: 12 bits */
+            break;
+        case 1:
+            l2bits = 14; /* 16K: 14 bits */
+            break;
+        case 2:
+            l2bits = 16; /* 64K: 16 bits */
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        /*
+         * Calculate how many bits of an ID index the L2 table
+         * (e.g. if we need 14 bits to index each byte in a 16K L2 table,
+         * but each entry is 4 bytes wide then we need 14 - 2 = 12 bits
+         * to index an entry in the table).
+         */
+        l2_idx_bits = l2bits - istbits;
+        cfg->base = cs->irs_ist_baser[domain] & R_IRS_IST_BASER_ADDR_MASK;
+        cfg->id_bits = id_bits;
+        cfg->istsz = 1 << istbits;
+        cfg->l2_idx_bits = l2_idx_bits;
+        cfg->structure = FIELD_EX64(cs->irs_ist_cfgr[domain],
+                                    IRS_IST_CFGR, STRUCTURE);
+        cfg->valid = true;
+        trace_gicv5_ist_valid(domain_name[domain], cfg->base, cfg->id_bits,
+                              cfg->l2_idx_bits, cfg->istsz, cfg->structure);
+    }
 }
 
 static bool config_readl(GICv5 *s, GICv5Domain domain, hwaddr offset,
@@ -567,6 +626,11 @@ static void gicv5_reset_hold(Object *obj, ResetType type)
 
     if (c->parent_phases.hold) {
         c->parent_phases.hold(obj, type);
+    }
+
+    /* IRS_IST_BASER and IRS_IST_CFGR reset to 0, clear cached info */
+    for (int i = 0; i < NUM_GICV5_DOMAINS; i++) {
+        s->phys_lpi_config[i].valid = false;
     }
 }
 
