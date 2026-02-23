@@ -35,8 +35,10 @@ class PcieBusError:
 
         self.data = bytearray()
 
+        DESC = "Inject a PCIe bus error CPER"
+
         parser = subparsers.add_parser("pcie-bus",
-                                       description="Generate PCIe bus error CPER")
+                                       help=DESC, description=DESC)
         g_pcie = parser.add_argument_group("PCIe bus error")
 
         valid_bits = ",".join(self.valid_bits.keys())
