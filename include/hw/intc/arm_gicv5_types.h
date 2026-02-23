@@ -85,4 +85,6 @@ typedef enum GICv5TriggerMode {
     GICV5_TRIGGER_LEVEL = 1,
 } GICv5TriggerMode;
 
+#define PRIO_IDLE 0xff
+
 #endif

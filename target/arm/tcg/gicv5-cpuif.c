@@ -95,6 +95,16 @@ static GICv5Domain gicv5_current_phys_domain(CPUARMState *env)
     return gicv5_logical_domain(env);
 }
 
+static uint64_t gic_running_prio(CPUARMState *env, GICv5Domain domain)
+{
+    /*
+     * Return the current running priority; this is the lowest set bit in
+     * the Active Priority Register, or the idle priority if none (D_XMBQZ)
+     */
+    uint64_t hap = ctz64(env->gicv5_cpuif.icc_apr[domain]);
+    return hap < 32 ? hap : PRIO_IDLE;
+}
+
 static void gic_cddis_write(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t value)
 {
@@ -229,6 +239,44 @@ static void gic_ppi_priority_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                    uint64_t value)
 {
     raw_write(env, ri, value);
+}
+
+/*
+ * ICC_APR_EL1 is banked and reads/writes as the version for the
+ * current logical interrupt domain.
+ */
+static void gic_icc_apr_el1_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                  uint64_t value)
+{
+    /*
+     * With an architectural 5 bits of priority, this register has
+     * 32 non-RES0 bits
+     */
+    GICv5Domain domain = gicv5_logical_domain(env);
+    value &= 0xffffffff;
+    env->gicv5_cpuif.icc_apr[domain] = value;
+}
+
+static uint64_t gic_icc_apr_el1_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    GICv5Domain domain = gicv5_logical_domain(env);
+    return env->gicv5_cpuif.icc_apr[domain];
+}
+
+static void gic_icc_apr_el1_reset(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    for (int i = 0; i < ARRAY_SIZE(env->gicv5_cpuif.icc_apr); i++) {
+        env->gicv5_cpuif.icc_apr[i] = 0;
+    }
+}
+
+static uint64_t gic_icc_hapr_el1_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    /*
+     * ICC_HAPR_EL1 reports the current running priority, which
+     * can be calculated from the APR register.
+     */
+    return gic_running_prio(env, gicv5_current_phys_domain(env));
 }
 
 static const ARMCPRegInfo gicv5_cpuif_reginfo[] = {
@@ -381,6 +429,18 @@ static const ARMCPRegInfo gicv5_cpuif_reginfo[] = {
         .access = PL1_RW, .type = ARM_CP_IO | ARM_CP_NO_RAW,
         .fieldoffset = offsetof(CPUARMState, gicv5_cpuif.ppi_pend[1]),
         .writefn = gic_ppi_spend_write,
+    },
+    {   .name = "ICC_APR_EL1", .state = ARM_CP_STATE_AA64,
+        .opc0 = 3, .opc1 = 1, .crn = 12, .crm = 0, .opc2 = 0,
+        .access = PL1_RW, .type = ARM_CP_IO | ARM_CP_NO_RAW,
+        .readfn = gic_icc_apr_el1_read,
+        .writefn = gic_icc_apr_el1_write,
+        .resetfn = gic_icc_apr_el1_reset,
+    },
+    {   .name = "ICC_HAPR_EL1", .state = ARM_CP_STATE_AA64,
+        .opc0 = 3, .opc1 = 1, .crn = 12, .crm = 0, .opc2 = 3,
+        .access = PL1_R, .type = ARM_CP_IO | ARM_CP_NO_RAW,
+        .readfn = gic_icc_hapr_el1_read, .raw_writefn = arm_cp_write_ignore,
     },
 };
 
