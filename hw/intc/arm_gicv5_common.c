@@ -68,6 +68,7 @@ static void gicv5_common_reset_hold(Object *obj, ResetType type)
     memset(cs->irs_ist_cfgr, 0, sizeof(cs->irs_ist_cfgr));
     memset(cs->irs_cr0, 0, sizeof(cs->irs_cr0));
     memset(cs->irs_cr1, 0, sizeof(cs->irs_cr1));
+    memset(cs->irs_pe_selr, 0, sizeof(cs->irs_pe_selr));
 
     if (cs->spi) {
         GICv5Domain mp_domain;

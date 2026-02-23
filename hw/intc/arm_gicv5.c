@@ -930,6 +930,21 @@ static void spi_sample(GICv5SPIState *spi)
     }
 }
 
+static bool irs_pe_selr_valid(GICv5Common *cs, GICv5Domain domain)
+{
+    /*
+     * Return true if IRS_PE_SELR has a valid AFFID in it. We don't
+     * expect the guest to do this except perhaps once at startup,
+     * so do a simple linear scan through the cpu_iaffids array.
+     */
+    for (int i = 0; i < cs->num_cpu_iaffids; i++) {
+        if (cs->irs_pe_selr[domain] == cs->cpu_iaffids[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static bool config_readl(GICv5 *s, GICv5Domain domain, hwaddr offset,
                          uint64_t *data, MemTxAttrs attrs)
 {
@@ -1051,6 +1066,24 @@ static bool config_readl(GICv5 *s, GICv5Domain domain, hwaddr offset,
         /* Sync is a no-op for QEMU: we are always IDLE */
         *data = R_IRS_SYNC_STATUSR_IDLE_MASK;
         return true;
+    case A_IRS_PE_SELR:
+        *data = cs->irs_pe_selr[domain];
+        return true;
+    case A_IRS_PE_CR0:
+        /* We don't implement 1ofN, so this is RAZ/WI for us */
+        *data = 0;
+        return true;
+    case A_IRS_PE_STATUSR:
+        /*
+         * Our CPUs are always online, so we're really just reporting
+         * whether the guest wrote a valid AFFID to IRS_PE_SELR
+         */
+        v = R_IRS_PE_STATUSR_IDLE_MASK;
+        if (irs_pe_selr_valid(cs, domain)) {
+            v |= R_IRS_PE_STATUSR_V_MASK | R_IRS_PE_STATUSR_ONLINE_MASK;
+        }
+        *data = v;
+        return true;
     }
 
     return false;
@@ -1138,6 +1171,12 @@ static bool config_writel(GICv5 *s, GICv5Domain domain, hwaddr offset,
         return true;
     case A_IRS_SYNCR:
         /* Sync is a no-op for QEMU: ignore write */
+        return true;
+    case A_IRS_PE_SELR:
+        cs->irs_pe_selr[domain] = data;
+        return true;
+    case A_IRS_PE_CR0:
+        /* We don't implement 1ofN, so this is RAZ/WI for us */
         return true;
     }
     return false;
