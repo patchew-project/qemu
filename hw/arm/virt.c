@@ -296,6 +296,16 @@ static bool ns_el2_virt_timer_present(void)
         arm_feature(env, ARM_FEATURE_EL2) && cpu_isar_feature(aa64_vh, cpu);
 }
 
+/*
+ * The correct value to use in a DTB "interrupts" property for an SPI
+ * depends on the GIC version.
+ */
+static int gic_fdt_irq_type_spi(const VirtMachineState *vms)
+{
+    return vms->gic_version == VIRT_GIC_VERSION_5 ?
+        GICV5_SPI : GIC_FDT_IRQ_TYPE_SPI;
+}
+
 static void create_fdt(VirtMachineState *vms)
 {
     MachineState *ms = MACHINE(vms);
@@ -1185,7 +1195,7 @@ static void create_uart(const VirtMachineState *vms, int uart,
     qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
                                      2, base, 2, size);
     qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts",
-                               GIC_FDT_IRQ_TYPE_SPI, irq,
+                               gic_fdt_irq_type_spi(vms), irq,
                                GIC_FDT_IRQ_FLAGS_LEVEL_HI);
     qemu_fdt_setprop_cells(ms->fdt, nodename, "clocks",
                                vms->clock_phandle, vms->clock_phandle);
@@ -1227,7 +1237,7 @@ static void create_rtc(const VirtMachineState *vms)
     qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
                                  2, base, 2, size);
     qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts",
-                           GIC_FDT_IRQ_TYPE_SPI, irq,
+                           gic_fdt_irq_type_spi(vms), irq,
                            GIC_FDT_IRQ_FLAGS_LEVEL_HI);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "clocks", vms->clock_phandle);
     qemu_fdt_setprop_string(ms->fdt, nodename, "clock-names", "apb_pclk");
@@ -1346,7 +1356,7 @@ static void create_gpio_devices(const VirtMachineState *vms, int gpio,
     qemu_fdt_setprop_cell(ms->fdt, nodename, "#gpio-cells", 2);
     qemu_fdt_setprop(ms->fdt, nodename, "gpio-controller", NULL, 0);
     qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts",
-                           GIC_FDT_IRQ_TYPE_SPI, irq,
+                           gic_fdt_irq_type_spi(vms), irq,
                            GIC_FDT_IRQ_FLAGS_LEVEL_HI);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "clocks", vms->clock_phandle);
     qemu_fdt_setprop_string(ms->fdt, nodename, "clock-names", "apb_pclk");
@@ -1427,7 +1437,7 @@ static void create_virtio_devices(const VirtMachineState *vms)
         qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
                                      2, base, 2, size);
         qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts",
-                               GIC_FDT_IRQ_TYPE_SPI, irq,
+                               gic_fdt_irq_type_spi(vms), irq,
                                GIC_FDT_IRQ_FLAGS_EDGE_LO_HI);
         qemu_fdt_setprop(ms->fdt, nodename, "dma-coherent", NULL, 0);
         g_free(nodename);
@@ -1627,10 +1637,11 @@ static void create_pcie_irq_map(const MachineState *ms,
     int devfn, pin;
     uint32_t full_irq_map[4 * 4 * 10] = { 0 };
     uint32_t *irq_map = full_irq_map;
+    const VirtMachineState *vms = VIRT_MACHINE(ms);
 
     for (devfn = 0; devfn <= 0x18; devfn += 0x8) {
         for (pin = 0; pin < 4; pin++) {
-            int irq_type = GIC_FDT_IRQ_TYPE_SPI;
+            int irq_type = gic_fdt_irq_type_spi(vms);
             int irq_nr = first_irq + ((pin + PCI_SLOT(devfn)) % PCI_NUM_PINS);
             int irq_level = GIC_FDT_IRQ_FLAGS_LEVEL_HI;
             int i;
@@ -1671,10 +1682,10 @@ static void create_smmuv3_dt_bindings(const VirtMachineState *vms, hwaddr base,
     qemu_fdt_setprop_sized_cells(ms->fdt, node, "reg", 2, base, 2, size);
 
     qemu_fdt_setprop_cells(ms->fdt, node, "interrupts",
-            GIC_FDT_IRQ_TYPE_SPI, irq    , GIC_FDT_IRQ_FLAGS_EDGE_LO_HI,
-            GIC_FDT_IRQ_TYPE_SPI, irq + 1, GIC_FDT_IRQ_FLAGS_EDGE_LO_HI,
-            GIC_FDT_IRQ_TYPE_SPI, irq + 2, GIC_FDT_IRQ_FLAGS_EDGE_LO_HI,
-            GIC_FDT_IRQ_TYPE_SPI, irq + 3, GIC_FDT_IRQ_FLAGS_EDGE_LO_HI);
+            gic_fdt_irq_type_spi(vms), irq    , GIC_FDT_IRQ_FLAGS_EDGE_LO_HI,
+            gic_fdt_irq_type_spi(vms), irq + 1, GIC_FDT_IRQ_FLAGS_EDGE_LO_HI,
+            gic_fdt_irq_type_spi(vms), irq + 2, GIC_FDT_IRQ_FLAGS_EDGE_LO_HI,
+            gic_fdt_irq_type_spi(vms), irq + 3, GIC_FDT_IRQ_FLAGS_EDGE_LO_HI);
 
     qemu_fdt_setprop(ms->fdt, node, "interrupt-names", irq_names,
                      sizeof(irq_names));
