@@ -13,6 +13,7 @@ import sys
 
 from arm_processor_error import ArmProcessorEinj
 from pcie_bus_error import PcieBusError
+from fuzzy_error import FuzzyError
 
 EINJ_DESC = """
 Handle ACPI GHESv2 error injection logic QEMU QMP interface.
@@ -42,6 +43,7 @@ def main():
 
     ArmProcessorEinj(subparsers)
     PcieBusError(subparsers)
+    FuzzyError(subparsers)
 
     args = parser.parse_args()
     if "func" in args:
