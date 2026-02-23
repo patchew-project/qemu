@@ -219,6 +219,7 @@ dbus_display_complete(UserCreatable *uc, Error **errp)
         return;
     }
 
+#ifdef CONFIG_AUDIO
     {
         AudioBackend *audio_be = audio_get_default_audio_be(NULL);
         if (audio_be && !audio_be_can_set_dbus_server(audio_be)) {
@@ -234,6 +235,7 @@ dbus_display_complete(UserCreatable *uc, Error **errp)
             return;
         }
     }
+#endif
 
     consoles = g_array_new(FALSE, FALSE, sizeof(guint32));
     for (idx = 0;; idx++) {
