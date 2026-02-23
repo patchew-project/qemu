@@ -118,6 +118,7 @@ vector_add_int: CFLAGS += -mhvx -fvectorize
 hvx_misc: hvx_misc.c hvx_misc.h
 hvx_misc: CFLAGS += -mhvx
 hvx_histogram: CFLAGS += -mhvx -Wno-gnu-folding-constant
+multiple-writes: CFLAGS += -mhvx
 v68_hvx: v68_hvx.c hvx_misc.h v6mpy_ref.c.inc
 v68_hvx: CFLAGS += -mhvx -Wno-unused-function
 v69_hvx: v69_hvx.c hvx_misc.h
