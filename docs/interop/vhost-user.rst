@@ -1262,7 +1262,8 @@ Front-end message types
   specified vring before stopping it.
 
   If the ``VHOST_USER_PROTOCOL_F_GET_VRING_BASE_INFLIGHT`` protocol
-  feature has been negotiated, the back-end may suspend in-flight I/O
+  feature has been negotiated, using request payload's *num* field,
+  when num is set to 1, QEMU can tell the back-end to suspend in-flight I/O
   requests and record them as described in :ref:`Inflight I/O tracking
   <inflight_io_tracking>` instead of completing them before stopping the vring.
   How to suspend an in-flight request depends on the implementation of the back-end
