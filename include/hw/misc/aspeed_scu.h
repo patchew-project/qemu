@@ -43,6 +43,7 @@ struct AspeedSCUState {
     MemoryRegion dram_remap_alias[3];
     MemoryRegion *dram;
     int ssp_cpuid;
+    int tsp_cpuid;
 };
 
 #define AST2400_A1_SILICON_REV   0x02010303U
