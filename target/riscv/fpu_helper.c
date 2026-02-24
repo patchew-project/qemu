@@ -50,7 +50,7 @@ void riscv_cpu_set_fflags(CPURISCVState *env, target_ulong hard)
     set_float_exception_flags(soft, &env->fp_status);
 }
 
-void helper_set_rounding_mode(CPURISCVState *env, uint32_t rm)
+void helper_riscv_set_rounding_mode(CPURISCVState *env, uint32_t rm)
 {
     int softrm;
 
