@@ -296,6 +296,8 @@ enum {
     ASPEED_DEV_IOEXP1_INTCIO,
     ASPEED_DEV_IOEXP0_I3C,
     ASPEED_DEV_IOEXP1_I3C,
+    ASPEED_DEV_PRIC0,
+    ASPEED_DEV_PRIC1,
 };
 
 const char *aspeed_soc_cpu_type(const char * const *valid_cpu_types);
