@@ -3248,9 +3248,7 @@ static bool trans_SEV(DisasContext *s, arg_SEV *a)
      * For system-mode M-profile, it sets the event register.
      */
 #ifndef CONFIG_USER_ONLY
-    if (arm_dc_feature(s, ARM_FEATURE_M)) {
-        gen_helper_sev(tcg_env);
-    }
+    gen_helper_sev(tcg_env);
 #endif
     return true;
 }
