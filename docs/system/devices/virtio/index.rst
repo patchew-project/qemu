@@ -21,6 +21,7 @@ can also be off-loaded to an external process via :ref:`vhost user
    :maxdepth: 1
 
    virtio-gpu.rst
+   virtio-msg-amp-pci.rst
    virtio-pmem.rst
    virtio-snd.rst
    vhost-user.rst
