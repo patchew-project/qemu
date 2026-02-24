@@ -30,6 +30,7 @@ static const hwaddr aspeed_soc_ast27x0tsp_memmap[] = {
     [ASPEED_DEV_FMC]       =  0x74000000,
     [ASPEED_DEV_PRIC1]     =  0x74100000,
     [ASPEED_DEV_SCUIO]     =  0x74C02000,
+    [ASPEED_DEV_OTP]       =  0x74C07000,
     [ASPEED_DEV_INTCIO]    =  0x74C18000,
     [ASPEED_DEV_UART0]     =  0x74C33000,
     [ASPEED_DEV_UART1]     =  0x74C33100,
@@ -147,6 +148,8 @@ static void aspeed_soc_ast27x0tsp_init(Object *obj)
     object_initialize_child(obj, "pric0", &a->pric[0],
                             TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "pric1", &a->pric[1],
+                            TYPE_UNIMPLEMENTED_DEVICE);
+    object_initialize_child(obj, "otp", &a->otp,
                             TYPE_UNIMPLEMENTED_DEVICE);
 }
 
@@ -284,6 +287,9 @@ static void aspeed_soc_ast27x0tsp_realize(DeviceState *dev_soc, Error **errp)
     aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&a->pric[1]),
                                   "aspeed.pric1",
                                   sc->memmap[ASPEED_DEV_PRIC1], 0x1000);
+    aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&a->otp),
+                                  "aspeed.otp",
+                                  sc->memmap[ASPEED_DEV_OTP], 0x800);
 }
 
 static void aspeed_soc_ast27x0tsp_class_init(ObjectClass *klass,
