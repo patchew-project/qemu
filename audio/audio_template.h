@@ -497,12 +497,6 @@ static SW *glue(audio_mixeng_backend_open_, TYPE) (
     AudioMixengBackendClass *k;
     AudiodevPerDirectionOptions *pdo;
 
-    if (!be || !name || !callback_fn || !as) {
-        audio_bug("backend=%p name=%p callback_fn=%p as=%p",
-                  be, name, callback_fn, as);
-        goto fail;
-    }
-
     k = AUDIO_MIXENG_BACKEND_GET_CLASS(s);
     pdo = glue(audio_get_pdo_, TYPE)(s->dev);
 
