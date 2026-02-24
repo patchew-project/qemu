@@ -1,0 +1,43 @@
+{
+  "customTools": {
+      "gtag_find_symbol_definition": {
+          "description": "Use GNU global tags to search for the symbol defintion. Return in ctags-x format",
+          "command": "global --result ctags-x -d {{pattern}}",
+          "schema": {
+              "properties": {
+                  "pattern": {
+                      "type": "string",
+                      "description": "an extended regex pattern or literal string to search for"
+                  }
+              },
+              "required": ["pattern"]
+          }
+      },
+      "gtag_find_symbol_completions": {
+          "description": "Use GNU global tags to list potential symbol completions for a word stem.",
+          "command": "global -c {{stem}}",
+          "schema": {
+              "properties": {
+                  "stem": {
+                      "type": "string",
+                      "description": "an string stem of a symbol"
+                  }
+              },
+              "required": ["stem"]
+          }
+      },
+      "gtag_find_symbol_references": {
+          "description": "Use GNU global tags to find references to a symbol. Returns results in ctags-x format.",
+          "command": "global --results ctags-x -r {{pattern}}",
+          "schema": {
+              "properties": {
+                  "pattern": {
+                      "type": "string",
+                      "description": "an extended regex pattern or literal string to search for."
+                  }
+              },
+              "required": ["pattern"]
+          }
+      }
+  }
+}
