@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 #include <minilib.h>
+#include "gicv3.h"
 
 #define __stringify_1(x...) #x
 #define __stringify(x...)   __stringify_1(x)
@@ -31,6 +32,9 @@
 #define wfit(reg) asm volatile("wfit %0" : : "r" (reg) : "memory")
 #define wfet(reg) asm volatile("wfet %0" : : "r" (reg) : "memory")
 
+#define enable_irq()  asm volatile("msr daifclr, #2" : : : "memory")
+#define disable_irq() asm volatile("msr daifset, #2" : : : "memory")
+
 static void wait_ticks(uint64_t ticks)
 {
     uint64_t start = read_sysreg(cntvct_el0);
@@ -43,6 +47,9 @@ int main(void)
 {
     uint64_t start, end, elapsed;
     uint64_t timeout;
+
+    gicv3_init();
+    gicv3_enable_irq(27); /* Virtual Timer PPI */
 
     ml_printf("WFX Test\n");
 
@@ -58,8 +65,13 @@ int main(void)
      * We don't have a full interrupt handler, but WFI should wake up
      * when the interrupt is pending even if we have it masked at the CPU.
      * PSTATE.I is set by boot code.
+     *
+     * We unmask interrupts here to ensure the CPU can take the minimal
+     * exception handler defined in boot.S.
      */
+    enable_irq();
     wfi();
+    disable_irq();
     end = read_sysreg(cntvct_el0);
     elapsed = end - start;
     if (elapsed < 100000) {
@@ -76,11 +88,12 @@ int main(void)
     wfe(); /* Should return immediately */
     end = read_sysreg(cntvct_el0);
     elapsed = end - start;
-    if (elapsed > 1000) { /* Should be very fast */
+    /* while this should be fast there is some overhead from TCG */
+    if (elapsed > 20000) {
         ml_printf("FAILED: WFE slept despite SEV (%ld ticks)\n", elapsed);
         return 1;
     }
-    ml_printf("PASSED\n");
+    ml_printf("PASSED (%ld ticks)\n", elapsed);
 
     /* 3. Test WFIT */
     ml_printf("Testing WFIT...");

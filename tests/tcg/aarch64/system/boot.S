@@ -60,7 +60,6 @@ curr_sp0_irq:
 curr_sp0_fiq:
 curr_sp0_serror:
 curr_spx_sync:
-curr_spx_irq:
 curr_spx_fiq:
 curr_spx_serror:
 lower_a64_sync:
@@ -248,29 +247,34 @@ at_testel:
 	msr	ttbr0_el1, x0
 
 	/*
-	 * Setup a flat address mapping page-tables. Stage one simply
-	 * maps RAM to the first Gb. The stage2 tables have two 2mb
-	 * translation block entries covering a series of adjacent
-	 * 4k pages.
+	 * Setup a flat address mapping page-tables.
+	 *
+	 * ttb (Level 1):
+	 *   - Entry 0 [0 - 1GB]: 1GB Device block (for GIC and other H/W)
+	 *   - Entry 1 [1GB - 2GB]: Table entry pointing to ttb_stage2 (for RAM)
 	 */
 
-	/* Stage 1 entry: indexed by IA[38:30] */
-	adr	x1, .				/* phys address */
-	bic	x1, x1, #(1 << 30) - 1		/* 1GB alignment*/
-	add	x2, x0, x1, lsr #(30 - 3)	/* offset in l1 page table */
+	/* Entry 0: 1GB Device block mapping at 0x0 */
+	ldr	x1, =0x401 | (1 << 2)		/* AF=1, block, AttrIndx=Attr1 (Device) */
+	str	x1, [x0]
 
-	/* point to stage 2 table [47:12] */
+	/* Entry 1: Table entry pointing to ttb_stage2 */
+	adrp	x1, ttb_stage2
+	orr 	x1, x1, #3 			/* ptr to table (type=3) */
+	str	x1, [x0, #8]
+
+	/* Stage 2 entries: indexed by IA[29:21] (within 1GB-2GB range) */
 	adrp	x0, ttb_stage2
-	orr 	x1, x0, #3 			/* ptr to stage 2 */
-	str	x1, [x2]
-
-	/* Stage 2 entries: indexed by IA[29:21] */
+	add	x0, x0, :lo12:ttb_stage2
 	ldr	x5, =(((1 << 9) - 1) << 21)
 
 	/* First block: .text/RO/execute enabled */
 	adr	x1, .				/* phys address */
 	bic	x1, x1, #(1 << 21) - 1		/* 2mb block alignment	*/
-	and	x4, x1, x5			/* IA[29:21] */
+	/* Note: we assume RAM is in the 1GB-2GB range, so IA[30] is 1 */
+	mov	x4, x1
+	bic	x4, x4, #(1 << 30)		/* remove 1GB offset for L2 index */
+	and	x4, x4, x5			/* IA[29:21] */
 	add	x2, x0, x4, lsr #(21 - 3)	/* offset in l2 page table */
 	ldr	x3, =0x401			/* attr(AF, block) */
 	orr	x1, x1, x3
@@ -280,7 +284,9 @@ at_testel:
 	adrp	x1, .data
 	add	x1, x1, :lo12:.data
 	bic	x1, x1, #(1 << 21) - 1		/* 2mb block alignment */
-	and	x4, x1, x5			/* IA[29:21] */
+	mov	x4, x1
+	bic	x4, x4, #(1 << 30)		/* remove 1GB offset for L2 index */
+	and	x4, x4, x5			/* IA[29:21] */
 	add	x2, x0, x4, lsr #(21 - 3)	/* offset in l2 page table */
 	ldr	x3, =(3 << 53) | 0x401		/* attr(AF, NX, block) */
 	orr	x1, x1, x3
@@ -290,7 +296,9 @@ at_testel:
 	adrp	x1, mte_page
 	add	x1, x1, :lo12:mte_page
 	bic	x1, x1, #(1 << 21) - 1
-	and 	x4, x1, x5
+	mov	x4, x1
+	bic	x4, x4, #(1 << 30)		/* remove 1GB offset for L2 index */
+	and 	x4, x4, x5
 	add	x2, x0, x4, lsr #(21 - 3)
 	/* attr(AF, NX, block, AttrIndx=Attr1) */
 	ldr	x3, =(3 << 53) | 0x401 | (1 << 2)
@@ -317,7 +325,7 @@ at_testel:
 	ldr	x0, = (2 << 32) | 25 | (3 << 10) | (3 << 8)
 	msr	tcr_el1, x0
 
-	mov	x0, #0xee			/* Inner/outer cacheable WB */
+	ldr	x0, =0x04ee			/* Attr1: Device-nGnRE, Attr0: Normal WB */
 	msr	mair_el1, x0
 	isb
 
@@ -369,6 +377,17 @@ _exit:
 	mov    x0, SYS_EXIT
 	semihosting_call
 	/* never returns */
+
+	/*
+	 * IRQ handler
+	 */
+	.global curr_spx_irq
+curr_spx_irq:
+	/* Minimal IRQ handler: just mask the timer and return */
+	mrs	x0, cntv_ctl_el0
+	orr	x0, x0, #2		/* IMASK=1 */
+	msr	cntv_ctl_el0, x0
+	eret
 
 	/*
 	 * Helper Functions
