@@ -32,6 +32,8 @@ static const Property aspeed_coprocessor_properties[] = {
     DEFINE_PROP_LINK("uart", AspeedCoprocessorState, uart, TYPE_SERIAL_MM,
                      SerialMM *),
     DEFINE_PROP_INT32("uart-dev", AspeedCoprocessorState, uart_dev, 0),
+    DEFINE_PROP_LINK("fmc", AspeedCoprocessorState, fmc, TYPE_ASPEED_SMC,
+                     AspeedSMCState *),
 };
 
 static void aspeed_coprocessor_class_init(ObjectClass *oc, const void *data)

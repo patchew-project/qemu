@@ -21,11 +21,13 @@ struct AspeedCoprocessorState {
     MemoryRegion sram_alias;
     MemoryRegion uart_alias;
     MemoryRegion scu_alias;
+    MemoryRegion fmc_alias;
     Clock *sysclk;
 
     AspeedSCUState *scu;
     AspeedSCUState scuio;
     AspeedTimerCtrlState timerctrl;
+    AspeedSMCState *fmc;
     SerialMM *uart;
     int uart_dev;
 };
