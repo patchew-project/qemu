@@ -389,18 +389,26 @@ Booting the ast2700fc machine
 AST2700 features four Cortex-A35 primary processors and two Cortex-M4 coprocessors.
 **ast2700-evb** machine focuses on emulating the four Cortex-A35 primary processors,
 **ast2700fc** machine extends **ast2700-evb** by adding support for the two Cortex-M4 coprocessors.
+There are two methods to boot the ast2700fc machine.
+
+Manual boot using ``-device loader``:
+
+In this approach, users manually load firmware and assign entry points via QEMU loader devices.
+By default, the PSP begins execution at address ``0x430000000``, the load address of the bl31
+firmware. The SSP and TSP start in the powered-off state and must be explicitly enabled by the
+PSP through writes to SCU registers.
 
 Steps to boot the AST2700fc machine:
 
-1. Ensure you have the following AST2700A1 binaries available in a directory
+1. Ensure you have the following AST2700 binaries available in a directory
 
  * u-boot-nodtb.bin
  * u-boot.dtb
  * bl31.bin
  * optee/tee-raw.bin
  * image-bmc
- * zephyr-aspeed-ssp.elf (for SSP firmware, CPU 5)
- * zephyr-aspeed-tsp.elf (for TSP firmware, CPU 6)
+ * zephyr-aspeed-ssp.bin (for SSP firmware, CPU 5)
+ * zephyr-aspeed-tsp.bin (for TSP firmware, CPU 6)
 
 2. Execute the following command to start ``ast2700fc`` machine:
 
@@ -410,6 +418,8 @@ Steps to boot the AST2700fc machine:
 
   $ qemu-system-aarch64 -M ast2700fc \
        -device loader,force-raw=on,addr=0x400000000,file=${IMGDIR}/u-boot.bin \
+       -device loader,force-raw=on,addr=0x42C000000,file=${IMGDIR}/zephyr-aspeed-ssp.bin \
+       -device loader,force-raw=on,addr=0x42E000000,file=${IMGDIR}/zephyr-aspeed-tsp.bin \
        -device loader,force-raw=on,addr=0x430000000,file=${IMGDIR}/bl31.bin \
        -device loader,force-raw=on,addr=0x430080000,file=${IMGDIR}/optee/tee-raw.bin \
        -device loader,cpu-num=0,addr=0x430000000 \
@@ -422,6 +432,27 @@ Steps to boot the AST2700fc machine:
        -serial pty -serial pty -serial pty \
        -snapshot \
        -S -nographic
+
+Boot using a virtual boot ROM (-bios):
+
+In this method, the virtual boot ROM (vbootrom) handles the full initialization sequence.
+It starts the PSP, which then enables the SSP and TSP by programming the appropriate SCU
+registers, following the hardware behavior.
+
+Execute the following command to start ``ast2700fc`` machine:
+
+.. code-block:: bash
+
+  IMGDIR=ast2700-default
+
+  $ qemu-system-aarch64 -M ast2700fc \
+      -bios ast27x0_bootrom.bin \
+      -drive file=${IMGDIR}/image-bmc,if=mtd,format=raw \
+      -serial pty -serial pty -serial pty \
+      -snapshot \
+      -S -nographic
+
+Serial Console Redirection:
 
 After launching QEMU, serial devices will be automatically redirected.
 Example output:
