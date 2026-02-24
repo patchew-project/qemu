@@ -393,13 +393,17 @@ void HELPER(wfi)(CPUARMState *env, uint32_t insn_len)
     }
 
     if (target_el) {
-        if (env->aarch64) {
+        int cv = 1, cond = 0xe;
+
+        if (is_a64(env)) {
             env->pc -= insn_len;
+            cv = 0;
+            cond = 0xf;
         } else {
             env->regs[15] -= insn_len;
         }
 
-        raise_exception(env, excp, syn_wfx(1, 0xe, 0, insn_len == 2),
+        raise_exception(env, excp, syn_wfx(cv, cond, 0, 0, 0, insn_len == 2),
                         target_el);
     }
 
@@ -409,7 +413,7 @@ void HELPER(wfi)(CPUARMState *env, uint32_t insn_len)
 #endif
 }
 
-void HELPER(wfit)(CPUARMState *env, uint64_t timeout)
+void HELPER(wfit)(CPUARMState *env, uint64_t timeout, uint32_t rd)
 {
 #ifdef CONFIG_USER_ONLY
     /*
@@ -448,7 +452,7 @@ void HELPER(wfit)(CPUARMState *env, uint64_t timeout)
 
     if (target_el) {
         env->pc -= 4;
-        raise_exception(env, excp, syn_wfx(1, 0xe, 2, false), target_el);
+        raise_exception(env, excp, syn_wfx(0, 0xf, rd, 1, 2, false), target_el);
     }
 
     if (uadd64_overflow(timeout, offset, &nexttick)) {
@@ -469,14 +473,50 @@ void HELPER(wfit)(CPUARMState *env, uint64_t timeout)
 #endif
 }
 
+void HELPER(wfet)(CPUARMState *env, uint64_t timeout, uint32_t rd)
+{
+#ifdef CONFIG_USER_ONLY
+    return;
+#else
+    ARMCPU *cpu = env_archcpu(env);
+    CPUState *cs = env_cpu(env);
+    uint32_t excp;
+    int target_el = check_wfx_trap(env, true, &excp);
+    uint64_t cntval = gt_get_countervalue(env);
+    uint64_t offset = gt_direct_access_timer_offset(env, GTIMER_VIRT);
+    uint64_t cntvct = cntval - offset;
+    uint64_t nexttick;
+
+    if (env->event_register || cpu_has_work(cs) || cntvct >= timeout) {
+        env->event_register = false;
+        return;
+    }
+
+    if (target_el) {
+        env->pc -= 4;
+        raise_exception(env, excp, syn_wfx(0, 0xf, rd, 1, 3, false), target_el);
+    }
+
+    if (uadd64_overflow(timeout, offset, &nexttick)) {
+        nexttick = UINT64_MAX;
+    }
+    if (nexttick > INT64_MAX / gt_cntfrq_period_ns(cpu)) {
+        timer_mod_ns(cpu->wfxt_timer, INT64_MAX);
+    } else {
+        timer_mod(cpu->wfxt_timer, nexttick);
+    }
+    cs->exception_index = EXCP_HLT;
+    cs->halted = 1;
+    cpu_loop_exit(cs);
+#endif
+}
+
 void HELPER(sev)(CPUARMState *env)
 {
     CPUState *cs = env_cpu(env);
     CPU_FOREACH(cs) {
         ARMCPU *target_cpu = ARM_CPU(cs);
-        if (arm_feature(&target_cpu->env, ARM_FEATURE_M)) {
-            target_cpu->env.event_register = true;
-        }
+        target_cpu->env.event_register = true;
         if (!qemu_cpu_is_self(cs)) {
             qemu_cpu_kick(cs);
         }
@@ -493,33 +533,34 @@ void HELPER(wfe)(CPUARMState *env)
      */
     return;
 #else
-    /*
-     * WFE (Wait For Event) is a hint instruction.
-     * For Cortex-M (M-profile), we implement the strict architectural behavior:
-     * 1. Check the Event Register (set by SEV or SEVONPEND).
-     * 2. If set, clear it and continue (consume the event).
-     */
-    if (arm_feature(env, ARM_FEATURE_M)) {
-        CPUState *cs = env_cpu(env);
+    CPUState *cs = env_cpu(env);
+    uint32_t excp;
+    int target_el = check_wfx_trap(env, true, &excp);
 
-        if (env->event_register) {
-            env->event_register = false;
-            return;
+    if (env->event_register) {
+        env->event_register = false;
+        return;
+    }
+
+    if (target_el) {
+        bool is_16bit = false;
+        if (is_a64(env)) {
+            env->pc -= 4;
+        } else {
+            is_16bit = env->thumb;
+            env->regs[15] -= (is_16bit ? 2 : 4);
         }
 
-        cs->exception_index = EXCP_HLT;
-        cs->halted = 1;
-        cpu_loop_exit(cs);
-    } else {
-        /*
-         * For A-profile and others, we rely on the existing "yield" behavior.
-         * Don't actually halt the CPU, just yield back to top
-         * level loop. This is not going into a "low power state"
-         * (ie halting until some event occurs), so we never take
-         * a configurable trap to a different exception level
-         */
-        HELPER(yield)(env);
+        raise_exception(env, excp,
+                        syn_wfx(is_a64(env) ? 0 : 1,
+                                is_a64(env) ? 0xf : 0xe,
+                                0, 0, 1, is_16bit),
+                        target_el);
     }
+
+    cs->exception_index = EXCP_HLT;
+    cs->halted = 1;
+    cpu_loop_exit(cs);
 #endif
 }
 
