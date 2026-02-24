@@ -528,6 +528,7 @@ static void process_msg_disconnect(IVShmemState *s, uint16_t posn,
 static void process_msg_connect(IVShmemState *s, uint16_t posn, int fd,
                                 Error **errp)
 {
+    ERRP_GUARD();
     Peer *peer = &s->peers[posn];
     int vector;
 
@@ -554,7 +555,9 @@ static void process_msg_connect(IVShmemState *s, uint16_t posn, int fd,
 
     if (posn == s->vm_id) {
         setup_interrupt(s, vector, errp);
-        /* TODO do we need to handle the error? */
+        if (*errp) {
+            return;
+        }
     }
 
     if (ivshmem_has_feature(s, IVSHMEM_IOEVENTFD)) {
