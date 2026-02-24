@@ -163,6 +163,9 @@
 /* Read Timing Compensation Register */
 #define R_TIMINGS         (0x94 / 4)
 
+/* Data fifo */
+#define R_DATA_FIFO       (0x200 / 4)
+
 /* SPI controller registers and bits (AST2400) */
 #define R_SPI_CONF        (0x00 / 4)
 #define   SPI_CONF_ENABLE_W0   0
@@ -212,6 +215,7 @@ static const AspeedSegments aspeed_2500_spi2_segments[];
 #define ASPEED_SMC_FEATURE_DMA_GRANT 0x2
 #define ASPEED_SMC_FEATURE_WDT_CONTROL 0x4
 #define ASPEED_SMC_FEATURE_DMA_DRAM_ADDR_HIGH 0x08
+#define ASPEED_SMC_FEATURE_DATA_FIFO 0x10
 
 static inline bool aspeed_smc_has_dma(const AspeedSMCClass *asc)
 {
@@ -226,6 +230,11 @@ static inline bool aspeed_smc_has_wdt_control(const AspeedSMCClass *asc)
 static inline bool aspeed_smc_has_dma64(const AspeedSMCClass *asc)
 {
     return !!(asc->features & ASPEED_SMC_FEATURE_DMA_DRAM_ADDR_HIGH);
+}
+
+static inline bool aspeed_smc_has_data_fifo(const AspeedSMCClass *asc)
+{
+    return !!(asc->features & ASPEED_SMC_FEATURE_DATA_FIFO);
 }
 
 #define aspeed_smc_error(fmt, ...)                                      \
@@ -758,6 +767,7 @@ static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
 {
     AspeedSMCState *s = ASPEED_SMC(opaque);
     AspeedSMCClass *asc = ASPEED_SMC_GET_CLASS(opaque);
+    int cs;
 
     addr >>= 2;
 
@@ -783,6 +793,18 @@ static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
         trace_aspeed_smc_read(addr << 2, size, s->regs[addr]);
 
         return s->regs[addr];
+    } else if (aspeed_smc_has_data_fifo(asc) && addr >= R_DATA_FIFO) {
+        cs = asc->data_fifo_offset_to_cs(s, addr << 2);
+        if (cs >= 0) {
+            /*
+             * Data fifo mode only supports SPI user mode.
+             * The flash address is provided by the SPI command/address cycles,
+             * the MMIO addr parameter is ignored.
+             */
+            return aspeed_smc_flash_read(&s->flashes[cs], 0, size);
+        }
+        aspeed_smc_error("Invalid data fifo offset %" HWADDR_PRIx, addr << 2);
+        return -1;
     } else {
         qemu_log_mask(LOG_UNIMP, "%s: not implemented: 0x%" HWADDR_PRIx "\n",
                       __func__, addr);
@@ -1156,6 +1178,17 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
     } else if (aspeed_smc_has_dma(asc) && aspeed_smc_has_dma64(asc) &&
                addr == R_DMA_DRAM_ADDR_HIGH) {
         s->regs[addr] = DMA_DRAM_ADDR_HIGH(value);
+    } else if (aspeed_smc_has_data_fifo(asc) && addr >= R_DATA_FIFO) {
+        int cs = asc->data_fifo_offset_to_cs(s, addr << 2);
+        if (cs >= 0) {
+            /*
+             * Data fifo mode only supports SPI user mode.
+             * The flash address is provided by the SPI command/address cycles,
+             * the MMIO addr parameter is ignored.
+             */
+            return aspeed_smc_flash_write(&s->flashes[cs], 0, data, size);
+        }
+        aspeed_smc_error("Invalid data fifo offset %" HWADDR_PRIx, addr << 2);
     } else {
         qemu_log_mask(LOG_UNIMP, "%s: not implemented: 0x%" HWADDR_PRIx "\n",
                       __func__, addr);
@@ -1989,6 +2022,39 @@ static void aspeed_2700_smc_reg_to_segment(const AspeedSMCState *s,
     }
 }
 
+/*
+ * Convert a data fifo offset to a chip select (CS).
+ *
+ * Data fifo access starts at 0x200. The data fifo offset index is
+ * calculated by subtracting the data fifo base offset from the MMIO address.
+ *
+ * The data fifo offset index increments by 1 for every 16MB of flash address
+ * space. Each offset step therefore represents a 16MB address decode range.
+ *
+ * The CS is determined by matching the data fifo offset index against the
+ * segment start address of each CS.
+ *
+ * Returns the CS index on success, or -1 if the offset is invalid.
+ */
+static int aspeed_2700_smc_data_fifo_offset_to_cs(const AspeedSMCState *s,
+                                                  uint32_t offset)
+{
+    AspeedSMCClass *asc = ASPEED_SMC_GET_CLASS(s);
+    uint32_t start_offset;
+    uint32_t fifo_offset;
+    int i;
+
+    for (i = 0; i < asc->cs_num_max; i++) {
+        start_offset = (s->regs[R_SEG_ADDR0 + i] & 0x0000ffff) << 16;
+        fifo_offset = start_offset / 0x1000000;
+        if (fifo_offset == offset - (R_DATA_FIFO << 2)) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
 static const uint32_t aspeed_2700_fmc_resets[ASPEED_SMC_R_MAX] = {
     [R_CONF] = (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0 |
             CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE1),
@@ -2023,6 +2089,27 @@ static const AspeedSegments aspeed_2700_fmc_segments[] = {
     { 0x0, 0 }, /* disabled */
 };
 
+/*
+ * AST2700 supports data fifo mode with a base data fifo start offset of 0x200.
+ *
+ * The data fifo start offset increments by 1 for every 16MB of flash address
+ * space. Each offset step therefore represents a 16MB address decode range.
+ *
+ * Assuming each chip select (CS) can use the maximum flash size of 256MB:
+ *   256MB / 16MB = 0x10 offset steps per CS.
+ *
+ * Data fifo start offset for CSn:
+ *   0x200 + (n * 0x10)
+ *
+ * Examples:
+ *   CS0: 0x200
+ *   CS1: 0x210
+ *   CS2: 0x220
+ *   CS3: 0x230
+ *
+ * asc->nregs should be set to: 0x200 + (asc->cs_num_max * 0x10)
+ * to cover all possible data fifo regions.
+ */
 static void aspeed_2700_fmc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -2042,14 +2129,16 @@ static void aspeed_2700_fmc_class_init(ObjectClass *klass, const void *data)
     asc->flash_window_base = 0x100000000;
     asc->flash_window_size = 1 * GiB;
     asc->features          = ASPEED_SMC_FEATURE_DMA |
-                             ASPEED_SMC_FEATURE_DMA_DRAM_ADDR_HIGH;
+                             ASPEED_SMC_FEATURE_DMA_DRAM_ADDR_HIGH |
+                             ASPEED_SMC_FEATURE_DATA_FIFO;
     asc->dma_flash_mask    = 0x2FFFFFFC;
     asc->dma_dram_mask     = 0xFFFFFFFC;
     asc->dma_start_length  = 1;
-    asc->nregs             = ASPEED_SMC_R_MAX;
+    asc->nregs             = 0x200 + (asc->cs_num_max * 0x10);
     asc->segment_to_reg    = aspeed_2700_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_2700_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
+    asc->data_fifo_offset_to_cs = aspeed_2700_smc_data_fifo_offset_to_cs;
     asc->reg_ops           = &aspeed_2700_smc_flash_ops;
 }
 
@@ -2083,14 +2172,16 @@ static void aspeed_2700_spi0_class_init(ObjectClass *klass, const void *data)
     asc->flash_window_base = 0x180000000;
     asc->flash_window_size = 1 * GiB;
     asc->features          = ASPEED_SMC_FEATURE_DMA |
-                             ASPEED_SMC_FEATURE_DMA_DRAM_ADDR_HIGH;
+                             ASPEED_SMC_FEATURE_DMA_DRAM_ADDR_HIGH |
+                             ASPEED_SMC_FEATURE_DATA_FIFO;
     asc->dma_flash_mask    = 0x2FFFFFFC;
     asc->dma_dram_mask     = 0xFFFFFFFC;
     asc->dma_start_length  = 1;
-    asc->nregs             = ASPEED_SMC_R_MAX;
+    asc->nregs             = 0x200 + (asc->cs_num_max * 0x10);
     asc->segment_to_reg    = aspeed_2700_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_2700_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
+    asc->data_fifo_offset_to_cs = aspeed_2700_smc_data_fifo_offset_to_cs;
     asc->reg_ops           = &aspeed_2700_smc_flash_ops;
 }
 
@@ -2123,14 +2214,16 @@ static void aspeed_2700_spi1_class_init(ObjectClass *klass, const void *data)
     asc->flash_window_base = 0x200000000;
     asc->flash_window_size = 1 * GiB;
     asc->features          = ASPEED_SMC_FEATURE_DMA |
-                             ASPEED_SMC_FEATURE_DMA_DRAM_ADDR_HIGH;
+                             ASPEED_SMC_FEATURE_DMA_DRAM_ADDR_HIGH |
+                             ASPEED_SMC_FEATURE_DATA_FIFO;
     asc->dma_flash_mask    = 0x2FFFFFFC;
     asc->dma_dram_mask     = 0xFFFFFFFC;
     asc->dma_start_length  = 1;
-    asc->nregs             = ASPEED_SMC_R_MAX;
+    asc->nregs             = 0x200 + (asc->cs_num_max * 0x10);
     asc->segment_to_reg    = aspeed_2700_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_2700_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
+    asc->data_fifo_offset_to_cs = aspeed_2700_smc_data_fifo_offset_to_cs;
     asc->reg_ops           = &aspeed_2700_smc_flash_ops;
 }
 
@@ -2163,14 +2256,16 @@ static void aspeed_2700_spi2_class_init(ObjectClass *klass, const void *data)
     asc->flash_window_base = 0x280000000;
     asc->flash_window_size = 1 * GiB;
     asc->features          = ASPEED_SMC_FEATURE_DMA |
-                             ASPEED_SMC_FEATURE_DMA_DRAM_ADDR_HIGH;
+                             ASPEED_SMC_FEATURE_DMA_DRAM_ADDR_HIGH |
+                             ASPEED_SMC_FEATURE_DATA_FIFO;
     asc->dma_flash_mask    = 0x0FFFFFFC;
     asc->dma_dram_mask     = 0xFFFFFFFC;
     asc->dma_start_length  = 1;
-    asc->nregs             = ASPEED_SMC_R_MAX;
+    asc->nregs             = 0x200 + (asc->cs_num_max * 0x10);
     asc->segment_to_reg    = aspeed_2700_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_2700_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
+    asc->data_fifo_offset_to_cs = aspeed_2700_smc_data_fifo_offset_to_cs;
     asc->reg_ops           = &aspeed_2700_smc_flash_ops;
 }
 
