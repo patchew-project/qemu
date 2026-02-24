@@ -32,7 +32,7 @@ void cpu_raise_exception_ra(CPUSPARCState *env, int tt, uintptr_t ra)
     cpu_loop_exit_restore(cs, ra);
 }
 
-void helper_raise_exception(CPUSPARCState *env, int tt)
+void helper_sparc_raise_exception(CPUSPARCState *env, int tt)
 {
     CPUState *cs = env_cpu(env);
 

@@ -1365,7 +1365,7 @@
         uiV = uiV; \
         tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->pkt->pc); \
         TCGv excp = tcg_constant_tl(HEX_EVENT_TRAP0); \
-        gen_helper_raise_exception(tcg_env, excp); \
+        gen_helper_hexagon_raise_exception(tcg_env, excp); \
     } while (0)
 #endif
 

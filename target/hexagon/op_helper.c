@@ -46,7 +46,7 @@ G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
     cpu_loop_exit_restore(cs, pc);
 }
 
-G_NORETURN void HELPER(raise_exception)(CPUHexagonState *env, uint32_t excp)
+G_NORETURN void HELPER(hexagon_raise_exception)(CPUHexagonState *env, uint32_t excp)
 {
     hexagon_raise_exception_err(env, excp, 0);
 }

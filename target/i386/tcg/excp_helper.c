@@ -31,7 +31,7 @@ G_NORETURN void helper_raise_interrupt(CPUX86State *env, int intno,
     raise_interrupt(env, intno, next_eip_addend);
 }
 
-G_NORETURN void helper_raise_exception(CPUX86State *env, int exception_index)
+G_NORETURN void helper_x86_raise_exception(CPUX86State *env, int exception_index)
 {
     raise_exception(env, exception_index);
 }

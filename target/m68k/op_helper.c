@@ -552,7 +552,7 @@ G_NORETURN static void raise_exception(CPUM68KState *env, int tt)
     raise_exception_ra(env, tt, 0);
 }
 
-void HELPER(raise_exception)(CPUM68KState *env, uint32_t tt)
+void HELPER(m68k_raise_exception)(CPUM68KState *env, uint32_t tt)
 {
     raise_exception(env, tt);
 }
