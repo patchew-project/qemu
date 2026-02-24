@@ -140,8 +140,9 @@ done_syscall:
                 env->active_tc.PC -= 4;
                 break;
             }
-            if (ret == -QEMU_ESIGRETURN) {
-                /* Returning from a successful sigreturn syscall.
+            if (ret == -QEMU_ESIGRETURN || ret == -QEMU_ESETPC) {
+                /* Returning from a successful sigreturn syscall or from
+                   control flow diversion in a plugin callback.
                    Avoid clobbering register state.  */
                 break;
             }
