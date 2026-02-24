@@ -165,6 +165,13 @@ static void aspeed_soc_ast27x0tsp_realize(DeviceState *dev_soc, Error **errp)
     qdev_connect_clock_in(armv7m, "cpuclk", s->sysclk);
     object_property_set_link(OBJECT(&a->armv7m), "memory",
                              OBJECT(s->memory), &error_abort);
+    /*
+     * The TSP starts in a powered-down state and can be powered up
+     * by setting the TSP Control Register through the SCU
+     * (System Control Unit)
+     */
+    object_property_set_bool(OBJECT(&a->armv7m), "start-powered-off", true,
+                             &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&a->armv7m), &error_abort);
 
     /* SDRAM */
