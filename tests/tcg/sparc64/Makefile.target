@@ -1,0 +1,16 @@
+# -*- Mode: makefile -*-
+#
+# Sparc64 - included from tests/tcg/Makefile.target
+#
+
+SPARC64_SRC=$(SRC_PATH)/tests/tcg/sparc64
+
+# Set search path for all sources
+VPATH += $(SPARC64_SRC)
+
+ifeq ($(CONFIG_PLUGIN),y)
+# The defined addresses for the binary are not aligned correctly for sparc64
+# but adjusting them breaks other architectures, so just skip it on sparc64.
+run-plugin-test-plugin-skip-syscalls-with-libsyscall.so:
+	$(call skip-test, $<, "qemu-sparc64 does not allow mapping at our given fixed address")
+endif

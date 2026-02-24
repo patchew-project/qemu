@@ -9,11 +9,15 @@ MIPS_SRC=$(SRC_PATH)/tests/tcg/mips
 VPATH 		+= $(MIPS_SRC)
 
 # hello-mips is 32 bit only
-ifeq ($(findstring 64,$(TARGET_NAME)),)
 MIPS_TESTS=hello-mips
 
 TESTS += $(MIPS_TESTS)
 
 hello-mips: CFLAGS+=-mno-abicalls -fno-PIC -fno-stack-protector -mabi=32
 hello-mips: LDFLAGS+=-nostdlib
+
+ifeq ($(CONFIG_PLUGIN),y)
+# qemu-mips(el) returns ENOSYS without triggering syscall plugin callbacks
+run-plugin-test-plugin-skip-syscalls-with-libsyscall.so:
+	$(call skip-test, $<, "qemu-mips does not execute invalid syscalls")
 endif

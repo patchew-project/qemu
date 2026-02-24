@@ -148,6 +148,12 @@ static void vcpu_syscall(qemu_plugin_id_t id, unsigned int vcpu_index,
             fprintf(stderr, "Error reading memory from vaddr %"PRIu64"\n", a2);
         }
     }
+
+    if (num == 0xc0deUL) {
+        /* Special syscall to test the control flow redirection functionality. */
+        qemu_plugin_outs("Marker syscall detected, jump to clean exit\n");
+        qemu_plugin_set_pc(0x20000);
+    }
 }
 
 static void vcpu_syscall_ret(qemu_plugin_id_t id, unsigned int vcpu_idx,

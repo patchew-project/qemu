@@ -1,0 +1,15 @@
+# -*- Mode: makefile -*-
+#
+# MIPS64EL - included from tests/tcg/Makefile.target
+#
+
+MIPS64EL_SRC=$(SRC_PATH)/tests/tcg/mips64el
+
+# Set search path for all sources
+VPATH += $(MIPS64EL_SRC)
+
+ifeq ($(CONFIG_PLUGIN),y)
+# Require no ABI calls to avoid $t9-relative .got address calculation on MIPS64
+test-plugin-skip-syscalls: CFLAGS+=-mno-abicalls -fno-pie
+test-plugin-skip-syscalls: LDFLAGS+=-no-pie
+endif
