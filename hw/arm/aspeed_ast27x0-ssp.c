@@ -198,6 +198,12 @@ static void aspeed_soc_ast27x0ssp_realize(DeviceState *dev_soc, Error **errp)
     memory_region_add_subregion(s->memory, sc->memmap[ASPEED_DEV_SCU],
                                 &s->scu_alias);
 
+    /* SDRAM remap alias used by PSP to access SSP SDRAM */
+    memory_region_add_subregion(&s->sdram, 0, &s->scu->dram_remap_alias[1]);
+    memory_region_add_subregion(&s->sdram,
+            memory_region_size(&s->scu->dram_remap_alias[1]),
+            &s->scu->dram_remap_alias[0]);
+
     /* INTC */
     if (!sysbus_realize(SYS_BUS_DEVICE(&a->intc[0]), errp)) {
         return;
