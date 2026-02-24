@@ -23,13 +23,17 @@ class AST2x00MachineSDK(QemuSystemTest):
         self.vm.add_args('-device', 'e1000e,netdev=net1,bus=pcie.2')
         self.vm.add_args('-netdev', 'user,id=net1')
         self.vm.add_args('-drive', 'file=' + image + ',if=mtd,format=raw',
-                         '-net', 'nic', '-net', 'user', '-snapshot')
+                         '-net', 'nic', '-net', 'user')
 
         self.vm.launch()
 
+    def enable_ast2700_ssp_tsp(self):
+        exec_command_and_wait_for_pattern(self,
+            'setenv bootcmd "mw 12c02204 40000000; mw 12c02120 1; '
+            'mw 12c02224 00000200; mw 12c02160 1; run bootspi"', '=>')
+        exec_command_and_wait_for_pattern(self, 'saveenv', 'OK')
+
     def enable_ast2700_pcie2(self):
-        wait_for_console_pattern(self, 'Hit any key to stop autoboot')
-        exec_command_and_wait_for_pattern(self, '\012', '=>')
         exec_command_and_wait_for_pattern(self,
             'cp 100420000 403000000 900000', '=>')
         exec_command_and_wait_for_pattern(self,
@@ -43,23 +47,15 @@ class AST2x00MachineSDK(QemuSystemTest):
 
     def verify_openbmc_boot_and_login(self, name):
         wait_for_console_pattern(self, 'U-Boot 2023.10')
+        wait_for_console_pattern(self, 'Hit any key to stop autoboot')
+        exec_command_and_wait_for_pattern(self, '\012', '=>')
+        self.enable_ast2700_ssp_tsp()
         self.enable_ast2700_pcie2()
         wait_for_console_pattern(self, 'Starting kernel ...')
 
         wait_for_console_pattern(self, f'{name} login:')
         exec_command_and_wait_for_pattern(self, 'root', 'Password:')
         exec_command_and_wait_for_pattern(self, '0penBmc', f'root@{name}:~#')
-
-    def load_ast2700fc_coprocessor(self, name):
-        load_elf_list = {
-            'ssp': self.scratch_file(name, 'zephyr-aspeed-ssp.elf'),
-            'tsp': self.scratch_file(name, 'zephyr-aspeed-tsp.elf')
-        }
-
-        for cpu_num, key in enumerate(load_elf_list, start=4):
-            file = load_elf_list[key]
-            self.vm.add_args('-device',
-                             f'loader,file={file},cpu-num={cpu_num}')
 
     ASSET_SDK_V1100_AST2700 = Asset(
             'https://github.com/AspeedTech-BMC/openbmc/releases/download/v11.00/ast2700-default-obmc.tar.gz',
@@ -119,6 +115,14 @@ class AST2x00MachineSDK(QemuSystemTest):
                 'file': self.scratch_file(name, 'u-boot.bin')
             },
             {
+                'addr': '0x42C000000',
+                'file': self.scratch_file(name, 'zephyr-aspeed-ssp.bin')
+            },
+            {
+                'addr': '0x42E000000',
+                'file': self.scratch_file(name, 'zephyr-aspeed-tsp.bin')
+            },
+            {
                 'addr': '0x430000000',
                 'file': self.scratch_file(name, 'bl31.bin')
             },
@@ -138,13 +142,11 @@ class AST2x00MachineSDK(QemuSystemTest):
             self.vm.add_args('-device',
                              f'loader,addr=0x430000000,cpu-num={i}')
 
-        self.load_ast2700fc_coprocessor(name)
         self.do_test_aarch64_aspeed_sdk_start(
                 self.scratch_file(name, 'image-bmc'))
 
     def start_ast2700fc_test_vbootrom(self, name):
         self.vm.add_args('-bios', 'ast27x0_bootrom.bin')
-        self.load_ast2700fc_coprocessor(name)
         self.do_test_aarch64_aspeed_sdk_start(
                 self.scratch_file(name, 'image-bmc'))
 
