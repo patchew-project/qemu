@@ -359,12 +359,14 @@ FIELD(WFX_ISS, RN, 15, 5)
 FIELD(WFX_ISS, COND, 20, 4)
 FIELD(WFX_ISS, CV, 24, 1)
 
-static inline uint32_t syn_wfx(int cv, int cond, int ti, bool is_16bit)
+static inline uint32_t syn_wfx(int cv, int cond, int rn, int rv, int ti, bool is_16bit)
 {
     uint32_t res = (EC_WFX_TRAP << ARM_EL_EC_SHIFT);
 
     res = FIELD_DP32(res, WFX_ISS, CV, cv);
     res = FIELD_DP32(res, WFX_ISS, COND, cond);
+    res = FIELD_DP32(res, WFX_ISS, RN, rn);
+    res = FIELD_DP32(res, WFX_ISS, RV, rv);
     res = FIELD_DP32(res, WFX_ISS, TI, ti);
 
     if (!is_16bit) {
