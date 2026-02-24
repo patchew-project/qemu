@@ -361,6 +361,20 @@ int virtio_queue_get_max_num(VirtIODevice *vdev, int n);
 int virtio_get_num_queues(VirtIODevice *vdev);
 void virtio_queue_set_rings(VirtIODevice *vdev, int n, hwaddr desc,
                             hwaddr avail, hwaddr used);
+/**
+ * virtio_queue_get_rings() - read ring addresses for a virtqueue
+ * @vdev: the virtio device
+ * @n: queue index
+ * @desc: optional pointer for the descriptor ring address
+ * @avail: optional pointer for the available ring address
+ * @used: optional pointer for the used ring address
+ *
+ * Returns the ring addresses configured for queue @n. The queue must
+ * be initialized (non-zero size); passing NULL for any output argument
+ * skips that address.
+ */
+void virtio_queue_get_rings(VirtIODevice *vdev, int n, hwaddr *desc,
+                            hwaddr *avail, hwaddr *used);
 void virtio_queue_update_rings(VirtIODevice *vdev, int n);
 void virtio_init_region_cache(VirtIODevice *vdev, int n);
 void virtio_queue_set_align(VirtIODevice *vdev, int n, int align);
