@@ -40,7 +40,6 @@ static const struct SyscallInfo arch_syscall_info[] = {
     { "loongarch64", -1 },
     { "m68k", 4 },
     { "microblaze", 4 },
-    { "microblazeel", 4 },
     { "mips", 1 },
     { "mips64", 1 },
     { "mips64el", 1 },
