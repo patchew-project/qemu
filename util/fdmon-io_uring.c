@@ -435,13 +435,16 @@ static int fdmon_io_uring_wait(AioContext *ctx, AioHandlerList *ready_list,
 
 static bool fdmon_io_uring_need_wait(AioContext *ctx)
 {
+    struct io_uring *ring = &ctx->fdmon_io_uring;
+
     /* Have io_uring events completed? */
-    if (io_uring_cq_ready(&ctx->fdmon_io_uring)) {
+    if (io_uring_cq_ready(ring) ||
+        IO_URING_READ_ONCE(*ring->sq.kflags) & IORING_SQ_TASKRUN) {
         return true;
     }
 
     /* Are there pending sqes to submit? */
-    if (io_uring_sq_ready(&ctx->fdmon_io_uring)) {
+    if (io_uring_sq_ready(ring)) {
         return true;
     }
 
@@ -471,7 +474,15 @@ static inline bool is_creating_iothread(void)
 
 bool fdmon_io_uring_setup(AioContext *ctx, Error **errp)
 {
-    unsigned flags = 0;
+    /* Enable modern flags supported by the host kernel */
+    unsigned flags =
+#ifdef IORING_SETUP_COOP_TASKRUN
+        IORING_SETUP_COOP_TASKRUN |
+#endif
+#ifdef IORING_SETUP_TASKRUN_FLAG
+        IORING_SETUP_TASKRUN_FLAG |
+#endif
+        0;
     int ret;
 
     /*
