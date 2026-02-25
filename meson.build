@@ -3725,6 +3725,13 @@ subdir('authz')
 subdir('crypto')
 subdir('ui')
 subdir('gdbstub')
+subdir('semihosting')
+subdir('audio')
+subdir('io')
+subdir('chardev')
+subdir('fsdev')
+subdir('dump')
+
 if have_system
   subdir('hw')
 else
@@ -3769,12 +3776,6 @@ if have_system or have_user
   subdir('libdecnumber')
   subdir('target')
 endif
-
-subdir('audio')
-subdir('io')
-subdir('chardev')
-subdir('fsdev')
-subdir('dump')
 
 if have_block
   block_ss.add(files(
@@ -3845,7 +3846,6 @@ subdir('migration')
 subdir('monitor')
 subdir('net')
 subdir('replay')
-subdir('semihosting')
 subdir('stats')
 subdir('tcg')
 subdir('fpu')
