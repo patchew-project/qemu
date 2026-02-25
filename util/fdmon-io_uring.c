@@ -464,13 +464,31 @@ static const FDMonOps fdmon_io_uring_ops = {
     .add_sqe = fdmon_io_uring_add_sqe,
 };
 
+static inline bool is_creating_iothread(void)
+{
+    return qemu_get_thread_id() != getpid();
+}
+
 bool fdmon_io_uring_setup(AioContext *ctx, Error **errp)
 {
+    unsigned flags = 0;
     int ret;
+
+    /*
+     * The main thread's AioContexts are created from the main loop thread but
+     * may be accessed from multiple threads (e.g. vCPUs or the migration
+     * thread). IOThread AioContexts are only accessed from the IOThread
+     * itself.
+     */
+#if IORING_SETUP_SINGLE_ISSUER
+    if (is_creating_iothread()) {
+        flags |= IORING_SETUP_SINGLE_ISSUER;
+    }
+#endif
 
     ctx->io_uring_fd_tag = NULL;
 
-    ret = io_uring_queue_init(FDMON_IO_URING_ENTRIES, &ctx->fdmon_io_uring, 0);
+    ret = io_uring_queue_init(FDMON_IO_URING_ENTRIES, &ctx->fdmon_io_uring, flags);
     if (ret != 0) {
         error_setg_errno(errp, -ret, "Failed to initialize io_uring");
         return false;
