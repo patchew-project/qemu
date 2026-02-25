@@ -685,6 +685,13 @@ static uint64_t fetch_pte(AMDVIAddressSpace *as, hwaddr address, uint64_t dte,
     assert(mode > 0 && mode < 7);
 
     /*
+     * TODO what is the actual behavior if NextLevel=0 or 7 in the root?
+     * For now, set the page_size for the root to be consistent with earlier
+     * QEMU versions,
+     */
+    *page_size = PTE_LEVEL_PAGE_SIZE(level);
+
+    /*
      * If IOVA is larger than the max supported by the current pgtable level,
      * there is nothing to do.
      */
@@ -699,9 +706,6 @@ static uint64_t fetch_pte(AMDVIAddressSpace *as, hwaddr address, uint64_t dte,
         trace_amdvi_fetch_pte_walk(level, *pte, PTE_NEXT_LEVEL(*pte), *page_size);
 
         level -= 1;
-
-        /* Update the page_size */
-        *page_size = PTE_LEVEL_PAGE_SIZE(level);
 
         /* Permission bits are ANDed at every level, including the DTE */
         perms &= amdvi_get_perms(*pte);
@@ -719,6 +723,9 @@ static uint64_t fetch_pte(AMDVIAddressSpace *as, hwaddr address, uint64_t dte,
             /* Leaf PTE found */
             break;
         }
+
+        /* Update the page_size */
+        *page_size = PTE_LEVEL_PAGE_SIZE(level);
 
         /*
          * Index the pgtable using the IOVA bits corresponding to current level
