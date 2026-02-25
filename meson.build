@@ -3869,9 +3869,6 @@ subdir('linux-user')
 subdir('tests/qtest/libqos')
 subdir('tests/qtest/fuzz')
 
-# accel modules
-target_modules += { 'accel' : { 'qtest': qtest_module_ss }}
-
 ##############################################
 # Internal static_libraries and dependencies #
 ##############################################
