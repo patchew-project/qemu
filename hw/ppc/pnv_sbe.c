@@ -233,8 +233,11 @@ static void sbe_timer(void *opaque)
 
 static void do_sbe_msg(PnvSBE *sbe)
 {
+    PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
+    MachineState *machine = MACHINE(pnv);
     struct sbe_msg msg;
     uint16_t cmd, ctrl_flags, seq_id;
+    uint64_t mbox_val;
     int i;
 
     memset(&msg, 0, sizeof(msg));
@@ -263,6 +266,40 @@ static void do_sbe_msg(PnvSBE *sbe)
         if (ctrl_flags & CONTROL_TIMER_STOP) {
             trace_pnv_sbe_cmd_timer_stop();
             timer_del(sbe->timer);
+        }
+        break;
+    case SBE_CMD_STASH_MPIPL_CONFIG:
+        /* key = sbe->mbox[1] */
+        switch (sbe->mbox[1]) {
+        case SBE_STASH_KEY_SKIBOOT_BASE:
+            mbox_val = sbe->mbox[2];
+            if (mbox_val >= machine->ram_size) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                  "SBE: skiboot_base 0x%" PRIx64 " exceeds RAM size 0x%" PRIx64 "\n",
+                  mbox_val, machine->ram_size);
+                return;
+            }
+
+            pnv->mpipl_state.skiboot_base = mbox_val;
+            qemu_log_mask(LOG_UNIMP,
+                "Stashing skiboot base: 0x%" HWADDR_PRIx "\n",
+                pnv->mpipl_state.skiboot_base);
+
+            /*
+             * Set the response register.
+             *
+             * Currently setting the same sequence number in
+             * response as we got in the request.
+             */
+            sbe->mbox[4] = sbe->mbox[0];    /* sequence number */
+            pnv_sbe_set_host_doorbell(sbe,
+                    sbe->host_doorbell | SBE_HOST_RESPONSE_WAITING);
+
+            break;
+        default:
+            qemu_log_mask(LOG_UNIMP,
+                "SBE: CMD_STASH_MPIPL_CONFIG: Unimplemented key: 0x" TARGET_FMT_lx "\n",
+                sbe->mbox[1]);
         }
         break;
     default:
