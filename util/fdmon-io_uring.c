@@ -482,6 +482,9 @@ bool fdmon_io_uring_setup(AioContext *ctx, Error **errp)
 #ifdef IORING_SETUP_TASKRUN_FLAG
         IORING_SETUP_TASKRUN_FLAG |
 #endif
+#ifdef IORING_SETUP_NO_SQARRAY
+        IORING_SETUP_NO_SQARRAY |
+#endif
         0;
     int ret;
 
