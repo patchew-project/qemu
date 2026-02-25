@@ -118,6 +118,10 @@ amdvi_ir_intctl(uint8_t val) "int_ctl 0x%"PRIx8
 amdvi_ir_target_abort(const char *str) "%s"
 amdvi_ir_delivery_mode(const char *str) "%s"
 amdvi_ir_irte_ga_val(uint64_t hi, uint64_t lo) "hi 0x%"PRIx64" lo 0x%"PRIx64
+amdvi_fetch_pte_translate(uint64_t address) "0x%016"PRIx64
+amdvi_fetch_pte_root(uint8_t level, uint64_t pte) "level=%d pte=%016"PRIx64
+amdvi_fetch_pte_walk(uint8_t level, uint64_t pte, uint8_t nextlevel, uint64_t page_size) "level=%d pte=%016"PRIx64" NextLevel=%d page_size=0x%"PRIx64
+amdvi_fetch_pte_found(uint8_t level, uint64_t pte, uint8_t nextlevel, uint64_t page_size) "level=%d pte=%016"PRIx64" NextLevel=%d page_size=0x%"PRIx64
 
 # vmport.c
 vmport_register(unsigned char command, void *func, void *opaque) "command: 0x%02x func: %p opaque: %p"

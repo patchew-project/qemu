@@ -667,6 +667,8 @@ static uint64_t fetch_pte(AMDVIAddressSpace *as, hwaddr address, uint64_t dte,
     uint8_t level, mode;
     uint64_t pte_addr;
 
+    trace_amdvi_fetch_pte_translate(address);
+
     *pte = dte;
     *page_size = 0;
 
@@ -691,7 +693,11 @@ static uint64_t fetch_pte(AMDVIAddressSpace *as, hwaddr address, uint64_t dte,
         return -AMDVI_FR_PT_ROOT_INV;
     }
 
+    trace_amdvi_fetch_pte_root(level, *pte);
+
     do {
+        trace_amdvi_fetch_pte_walk(level, *pte, PTE_NEXT_LEVEL(*pte), *page_size);
+
         level -= 1;
 
         /* Update the page_size */
@@ -749,6 +755,8 @@ static uint64_t fetch_pte(AMDVIAddressSpace *as, hwaddr address, uint64_t dte,
         /* Update page_size with the large PTE page size */
         *page_size = large_pte_page_size(*pte);
     }
+
+    trace_amdvi_fetch_pte_found(level, *pte, PTE_NEXT_LEVEL(*pte), *page_size);
 
     return 0;
 }
