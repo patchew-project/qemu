@@ -553,8 +553,10 @@ static void process_msg_connect(IVShmemState *s, uint16_t posn, int fd,
     }
 
     if (posn == s->vm_id) {
-        setup_interrupt(s, vector, errp);
-        /* TODO do we need to handle the error? */
+        if (!setup_interrupt(s, vector, errp)) {
+            close(fd);
+            return;
+        }
     }
 
     if (ivshmem_has_feature(s, IVSHMEM_IOEVENTFD)) {
