@@ -1,5 +1,6 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "trace.h"
 #include "qemu/error-report.h"
 #include "system/kvm.h"
 #include "system/tcg.h"
@@ -984,11 +985,9 @@ static int cpu_pre_save(void *opaque)
         }
     }
 
+    cpu->cpreg_vmstate_indexes = cpu->cpreg_indexes;
+    cpu->cpreg_vmstate_values = cpu->cpreg_values;
     cpu->cpreg_vmstate_array_len = cpu->cpreg_array_len;
-    memcpy(cpu->cpreg_vmstate_indexes, cpu->cpreg_indexes,
-           cpu->cpreg_array_len * sizeof(uint64_t));
-    memcpy(cpu->cpreg_vmstate_values, cpu->cpreg_values,
-           cpu->cpreg_array_len * sizeof(uint64_t));
 
     return 0;
 }
@@ -1042,6 +1041,9 @@ static int cpu_post_load(void *opaque, int version_id)
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
     int i, v;
+
+    trace_cpu_post_load(cpu->cpreg_vmstate_array_len,
+                        cpu->cpreg_array_len);
 
     /*
      * Handle migration compatibility from old QEMU which didn't
@@ -1170,13 +1172,13 @@ const VMStateDescription vmstate_arm_cpu = {
         /* The length-check must come before the arrays to avoid
          * incoming data possibly overflowing the array.
          */
-        VMSTATE_INT32_POSITIVE_LE(cpreg_vmstate_array_len, ARMCPU),
-        VMSTATE_VARRAY_INT32(cpreg_vmstate_indexes, ARMCPU,
-                             cpreg_vmstate_array_len,
-                             0, vmstate_info_uint64, uint64_t),
-        VMSTATE_VARRAY_INT32(cpreg_vmstate_values, ARMCPU,
-                             cpreg_vmstate_array_len,
-                             0, vmstate_info_uint64, uint64_t),
+        VMSTATE_INT32(cpreg_vmstate_array_len, ARMCPU),
+        VMSTATE_VARRAY_INT32_ALLOC(cpreg_vmstate_indexes, ARMCPU,
+                                   cpreg_vmstate_array_len,
+                                   0, vmstate_info_uint64, uint64_t),
+        VMSTATE_VARRAY_INT32_ALLOC(cpreg_vmstate_values, ARMCPU,
+                                   cpreg_vmstate_array_len,
+                                   0, vmstate_info_uint64, uint64_t),
         VMSTATE_UINT64(env.exclusive_addr, ARMCPU),
         VMSTATE_UINT64(env.exclusive_val, ARMCPU),
         VMSTATE_UINT64(env.exclusive_high, ARMCPU),
