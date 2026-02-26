@@ -3360,7 +3360,7 @@ static void mtree_print_mr_owner(const MemoryRegion *mr)
 }
 
 static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
-                           hwaddr base,
+                           hwaddr offset, bool detect_overflow,
                            MemoryRegionListHead *alias_print_queue,
                            bool owner, bool display_disabled)
 {
@@ -3374,7 +3374,7 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
         return;
     }
 
-    cur_start = base + mr->addr;
+    cur_start = mr->addr + offset;
     cur_end = cur_start + MR_SIZE(mr->size);
 
     /*
@@ -3382,7 +3382,7 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
      * happen normally. When it happens, we dump something to warn the
      * user who is observing this.
      */
-    if (cur_start < base || cur_end < cur_start) {
+    if (detect_overflow && (cur_start < offset || cur_end < cur_start)) {
         qemu_printf("[DETECTED OVERFLOW!] ");
     }
 
@@ -3462,7 +3462,7 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
     }
 
     QTAILQ_FOREACH(ml, &submr_print_queue, mrqueue) {
-        mtree_print_mr(ml->mr, level + 1, cur_start,
+        mtree_print_mr(ml->mr, level + 1, cur_start, true,
                        alias_print_queue, owner, display_disabled);
     }
 
@@ -3641,7 +3641,8 @@ static void mtree_print_as(gpointer key, gpointer value, gpointer user_data)
     struct AddressSpaceInfo *asi = user_data;
 
     g_slist_foreach(as_same_root_mr_list, mtree_print_as_name, NULL);
-    mtree_print_mr(mr, 1, 0, asi->ml_head, asi->owner, asi->disabled);
+    mtree_print_mr(mr, 1, -mr->addr, false,
+                   asi->ml_head, asi->owner, asi->disabled);
     qemu_printf("\n");
 }
 
@@ -3688,7 +3689,7 @@ static void mtree_info_as(bool dispatch_tree, bool owner, bool disabled)
         const MemoryRegion *mr = ml->mr;
 
         qemu_printf("memory-region: %s\n", memory_region_name(mr));
-        mtree_print_mr(mr, 1, 0, &ml_head, owner, disabled);
+        mtree_print_mr(mr, 1, 0, false, &ml_head, owner, disabled);
         qemu_printf("\n");
     }
 
