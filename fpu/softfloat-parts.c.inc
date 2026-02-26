@@ -387,6 +387,7 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
             case float_expmax_e4m3:
                 if (exp > exp_max || p->frac_hi > E4M3_NORMAL_FRAC_MAX) {
                     partsN(uncanon_e4m3_overflow)(p, s, fmt, overflow_norm);
+                    exp = p->exp;
                 }
                 break;
 
@@ -496,6 +497,7 @@ static void partsN(uncanon)(FloatPartsN *p, float_status *s,
                 break;
             case float_expmax_e4m3:
                 partsN(uncanon_e4m3_overflow)(p, s, fmt, saturate);
+                frac_shr(p, fmt->frac_shift);
                 break;
             case float_expmax_normal:
             default:
