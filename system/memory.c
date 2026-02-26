@@ -3321,6 +3321,7 @@ typedef QTAILQ_HEAD(, MemoryRegionList) MemoryRegionListHead;
 
 #define MR_SIZE(size) (int128_nz(size) ? (hwaddr)int128_get64( \
                            int128_sub((size), int128_one())) : 0)
+#define MR_ADDR_WIDTH   16
 #define MTREE_INDENT "  "
 
 static void mtree_expand_owner(const char *label, Object *obj)
@@ -3360,6 +3361,7 @@ static void mtree_print_mr_owner(const MemoryRegion *mr)
 }
 
 static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
+                           unsigned int width,
                            hwaddr offset, bool detect_overflow,
                            MemoryRegionListHead *alias_print_queue,
                            bool owner, bool display_disabled)
@@ -3405,17 +3407,17 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
             for (i = 0; i < level; i++) {
                 qemu_printf(MTREE_INDENT);
             }
-            qemu_printf(HWADDR_FMT_plx "-" HWADDR_FMT_plx
-                        " (prio %d, %s%s): alias %s @%s " HWADDR_FMT_plx
-                        "-" HWADDR_FMT_plx "%s",
-                        cur_start, cur_end,
+            qemu_printf("%0*" PRIx64 "-" "%0*" PRIx64
+                        " (prio %d, %s%s): alias %s @%s "
+                        "%0*" PRIx64"-" "%0*" PRIx64 "%s",
+                        width, cur_start, width, cur_end,
                         mr->priority,
                         mr->nonvolatile ? "nv-" : "",
                         memory_region_type((MemoryRegion *)mr),
                         memory_region_name(mr),
                         memory_region_name(mr->alias),
-                        mr->alias_offset,
-                        mr->alias_offset + MR_SIZE(mr->size),
+                        width, mr->alias_offset,
+                        width, mr->alias_offset + MR_SIZE(mr->size),
                         mr->enabled ? "" : " [disabled]");
             if (owner) {
                 mtree_print_mr_owner(mr);
@@ -3427,9 +3429,9 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
             for (i = 0; i < level; i++) {
                 qemu_printf(MTREE_INDENT);
             }
-            qemu_printf(HWADDR_FMT_plx "-" HWADDR_FMT_plx
+            qemu_printf("%0*" PRIx64 "-" "%0*" PRIx64
                         " (prio %d, %s%s): %s%s",
-                        cur_start, cur_end,
+                        width, cur_start, width, cur_end,
                         mr->priority,
                         mr->nonvolatile ? "nv-" : "",
                         memory_region_type((MemoryRegion *)mr),
@@ -3462,7 +3464,7 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
     }
 
     QTAILQ_FOREACH(ml, &submr_print_queue, mrqueue) {
-        mtree_print_mr(ml->mr, level + 1, cur_start, true,
+        mtree_print_mr(ml->mr, level + 1, width, cur_start, true,
                        alias_print_queue, owner, display_disabled);
     }
 
@@ -3485,6 +3487,7 @@ static void mtree_print_flatview(gpointer key, gpointer value,
     GArray *fv_address_spaces = value;
     struct FlatViewInfo *fvi = user_data;
     FlatRange *range = &view->ranges[0];
+    unsigned int width;
     int n = view->nr;
     int i;
     AddressSpace *as;
@@ -3510,26 +3513,27 @@ static void mtree_print_flatview(gpointer key, gpointer value,
         return;
     }
 
+    width = MR_ADDR_WIDTH;
     while (n--) {
         const MemoryRegion *mr = range->mr;
 
         if (range->offset_in_region) {
-            qemu_printf(MTREE_INDENT HWADDR_FMT_plx "-" HWADDR_FMT_plx
-                        " (prio %d, %s%s): %s @" HWADDR_FMT_plx,
-                        int128_get64(range->addr.start),
-                        int128_get64(range->addr.start)
-                        + MR_SIZE(range->addr.size),
+            qemu_printf(MTREE_INDENT "%0*" PRIx64 "-" "%0*" PRIx64
+                        " (prio %d, %s%s): %s @" "%0*" PRIx64,
+                        width, int128_get64(range->addr.start),
+                        width, int128_get64(range->addr.start)
+                                + MR_SIZE(range->addr.size),
                         mr->priority,
                         range->nonvolatile ? "nv-" : "",
                         range->readonly ? "rom" : memory_region_type(mr),
                         memory_region_name(mr),
-                        range->offset_in_region);
+                        width, range->offset_in_region);
         } else {
-            qemu_printf(MTREE_INDENT HWADDR_FMT_plx "-" HWADDR_FMT_plx
+            qemu_printf(MTREE_INDENT "%0*" PRIx64 "-" "%0*" PRIx64
                         " (prio %d, %s%s): %s",
-                        int128_get64(range->addr.start),
-                        int128_get64(range->addr.start)
-                        + MR_SIZE(range->addr.size),
+                        width, int128_get64(range->addr.start),
+                        width, int128_get64(range->addr.start)
+                               + MR_SIZE(range->addr.size),
                         mr->priority,
                         range->nonvolatile ? "nv-" : "",
                         range->readonly ? "rom" : memory_region_type(mr),
@@ -3639,9 +3643,10 @@ static void mtree_print_as(gpointer key, gpointer value, gpointer user_data)
     MemoryRegion *mr = key;
     GSList *as_same_root_mr_list = value;
     struct AddressSpaceInfo *asi = user_data;
+    const unsigned int width = MR_ADDR_WIDTH;
 
     g_slist_foreach(as_same_root_mr_list, mtree_print_as_name, NULL);
-    mtree_print_mr(mr, 1, -mr->addr, false,
+    mtree_print_mr(mr, 1, width, -mr->addr, false,
                    asi->ml_head, asi->owner, asi->disabled);
     qemu_printf("\n");
 }
@@ -3687,9 +3692,10 @@ static void mtree_info_as(bool dispatch_tree, bool owner, bool disabled)
     /* print aliased regions */
     QTAILQ_FOREACH(ml, &ml_head, mrqueue) {
         const MemoryRegion *mr = ml->mr;
+        const unsigned int width = MR_ADDR_WIDTH;
 
         qemu_printf("memory-region: %s\n", memory_region_name(mr));
-        mtree_print_mr(mr, 1, 0, false, &ml_head, owner, disabled);
+        mtree_print_mr(mr, 1, width, 0, false, &ml_head, owner, disabled);
         qemu_printf("\n");
     }
 
