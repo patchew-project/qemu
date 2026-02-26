@@ -1417,6 +1417,14 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
         mem_len = numa_info[i - 1].node_mem;
         next_base = mem_base + mem_len;
 
+        /*
+         * Skip reserved memory nodes - E820 marks them as reserved,
+         * so SRAT should not report them as enabled memory affinity.
+         */
+        if (numa_info[i - 1].memmap_type == NUMA_MEMMAP_RESERVED) {
+            continue;
+        }
+
         /* Cut out the 640K hole */
         if (mem_base <= HOLE_640K_START &&
             next_base > HOLE_640K_START) {

@@ -433,7 +433,7 @@ ERST
 
 DEF("numa", HAS_ARG, QEMU_OPTION_numa,
     "-numa node[,mem=size][,cpus=firstcpu[-lastcpu]][,nodeid=node][,initiator=node]\n"
-    "-numa node[,memdev=id][,cpus=firstcpu[-lastcpu]][,nodeid=node][,initiator=node]\n"
+    "-numa node[,memdev=id][,cpus=firstcpu[-lastcpu]][,nodeid=node][,initiator=node][,memmap-type=normal|spm|reserved]\n"
     "-numa dist,src=source,dst=destination,val=distance\n"
     "-numa cpu,node-id=node[,socket-id=x][,core-id=y][,thread-id=z]\n"
     "-numa hmat-lb,initiator=node,target=node,hierarchy=memory|first-level|second-level|third-level,data-type=access-latency|read-latency|write-latency[,latency=lat][,bandwidth=bw]\n"
@@ -442,7 +442,7 @@ DEF("numa", HAS_ARG, QEMU_OPTION_numa,
 SRST
 ``-numa node[,mem=size][,cpus=firstcpu[-lastcpu]][,nodeid=node][,initiator=initiator]``
   \ 
-``-numa node[,memdev=id][,cpus=firstcpu[-lastcpu]][,nodeid=node][,initiator=initiator]``
+``-numa node[,memdev=id][,cpus=firstcpu[-lastcpu]][,nodeid=node][,initiator=initiator][,memmap-type=type]``
   \
 ``-numa dist,src=source,dst=destination,val=distance``
   \ 
@@ -509,6 +509,16 @@ SRST
     initiator NUMA node that has best performance (the lowest latency or
     largest bandwidth) to this NUMA node. Note that this option can be
     set only when the machine property 'hmat' is set to 'on'.
+
+    '\ ``memmap-type``\ ' specifies the memory type for this NUMA node:
+
+    - ``normal`` (default): Regular system RAM (E820 type 1)
+    - ``spm``: Specific Purpose Memory (E820 type 0xEFFFFFFF). This is a
+      hint to the guest that the memory might be managed by device drivers
+      based on guest policy.
+    - ``reserved``: Reserved memory (E820 type 2), not usable as RAM.
+
+    This option is only supported on x86 platforms.
 
     Following example creates a machine with 2 NUMA nodes, node 0 has
     CPU. node 1 has only memory, and its initiator is node 0. Note that
