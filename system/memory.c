@@ -1819,9 +1819,9 @@ static void memory_region_finalize(Object *obj)
     g_free(mr->ioeventfds);
 }
 
-Object *memory_region_owner(MemoryRegion *mr)
+Object *memory_region_owner(const MemoryRegion *mr)
 {
-    Object *obj = OBJECT(mr);
+    const Object *obj = OBJECT(mr);
     return obj->parent;
 }
 
@@ -1849,7 +1849,7 @@ void memory_region_unref(MemoryRegion *mr)
     }
 }
 
-uint64_t memory_region_size(MemoryRegion *mr)
+uint64_t memory_region_size(const MemoryRegion *mr)
 {
     if (int128_eq(mr->size, int128_2_64())) {
         return UINT64_MAX;
@@ -1866,25 +1866,25 @@ const char *memory_region_name(const MemoryRegion *mr)
     return mr->name;
 }
 
-bool memory_region_is_ram_device(MemoryRegion *mr)
+bool memory_region_is_ram_device(const MemoryRegion *mr)
 {
     return mr->ram_device;
 }
 
-bool memory_region_is_protected(MemoryRegion *mr)
+bool memory_region_is_protected(const MemoryRegion *mr)
 {
     return mr->ram && (mr->ram_block->flags & RAM_PROTECTED);
 }
 
-bool memory_region_has_guest_memfd(MemoryRegion *mr)
+bool memory_region_has_guest_memfd(const MemoryRegion *mr)
 {
     return mr->ram_block && mr->ram_block->guest_memfd >= 0;
 }
 
-uint8_t memory_region_get_dirty_log_mask(MemoryRegion *mr)
+uint8_t memory_region_get_dirty_log_mask(const MemoryRegion *mr)
 {
     uint8_t mask = mr->dirty_log_mask;
-    RAMBlock *rb = mr->ram_block;
+    const RAMBlock *rb = mr->ram_block;
 
     if (global_dirty_tracking && ((rb && qemu_ram_is_migratable(rb)) ||
                              memory_region_is_iommu(mr))) {
@@ -1898,7 +1898,7 @@ uint8_t memory_region_get_dirty_log_mask(MemoryRegion *mr)
     return mask;
 }
 
-bool memory_region_is_logging(MemoryRegion *mr, uint8_t client)
+bool memory_region_is_logging(const MemoryRegion *mr, uint8_t client)
 {
     return memory_region_get_dirty_log_mask(mr) & (1 << client);
 }
@@ -2406,7 +2406,7 @@ void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
         memory_region_get_ram_addr(mr) + addr, size, client, NULL);
 }
 
-int memory_region_get_fd(MemoryRegion *mr)
+int memory_region_get_fd(const MemoryRegion *mr)
 {
     RCU_READ_LOCK_GUARD();
     while (mr->alias) {
@@ -2806,7 +2806,7 @@ static FlatRange *flatview_lookup(FlatView *view, AddrRange addr)
                    sizeof(FlatRange), cmp_flatrange_addr);
 }
 
-bool memory_region_is_mapped(MemoryRegion *mr)
+bool memory_region_is_mapped(const MemoryRegion *mr)
 {
     return !!mr->container || mr->mapped_via_alias;
 }
@@ -3290,7 +3290,7 @@ void address_space_destroy_free(AddressSpace *as)
     call_rcu(as, do_address_space_destroy_free, rcu);
 }
 
-static const char *memory_region_type(MemoryRegion *mr)
+static const char *memory_region_type(const MemoryRegion *mr)
 {
     if (mr->alias) {
         return memory_region_type(mr->alias);
@@ -3483,7 +3483,6 @@ static void mtree_print_flatview(gpointer key, gpointer value,
     GArray *fv_address_spaces = value;
     struct FlatViewInfo *fvi = user_data;
     FlatRange *range = &view->ranges[0];
-    MemoryRegion *mr;
     int n = view->nr;
     int i;
     AddressSpace *as;
@@ -3510,7 +3509,8 @@ static void mtree_print_flatview(gpointer key, gpointer value,
     }
 
     while (n--) {
-        mr = range->mr;
+        const MemoryRegion *mr = range->mr;
+
         if (range->offset_in_region) {
             qemu_printf(MTREE_INDENT HWADDR_FMT_plx "-" HWADDR_FMT_plx
                         " (prio %d, %s%s): %s @" HWADDR_FMT_plx,
@@ -3683,8 +3683,10 @@ static void mtree_info_as(bool dispatch_tree, bool owner, bool disabled)
 
     /* print aliased regions */
     QTAILQ_FOREACH(ml, &ml_head, mrqueue) {
-        qemu_printf("memory-region: %s\n", memory_region_name(ml->mr));
-        mtree_print_mr(ml->mr, 1, 0, &ml_head, owner, disabled);
+        const MemoryRegion *mr = ml->mr;
+
+        qemu_printf("memory-region: %s\n", memory_region_name(mr));
+        mtree_print_mr(mr, 1, 0, &ml_head, owner, disabled);
         qemu_printf("\n");
     }
 
