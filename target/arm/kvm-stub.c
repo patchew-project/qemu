@@ -114,3 +114,9 @@ void arm_gic_cap_kvm_probe(GICCapability *v2, GICCapability *v3)
 {
     g_assert_not_reached();
 }
+
+gchar *kvm_print_register_name(uint64_t regidx)
+{
+    g_assert_not_reached();
+    return NULL;
+}
