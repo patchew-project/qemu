@@ -622,6 +622,10 @@ static int parse_add_fd(void *opaque, QemuOpts *opts, Error **errp)
         return -1;
     }
 
+    if (!qemu_set_blocking(dupfd, true, errp)) {
+        return -1;
+    }
+
     /* add the duplicate fd, and optionally the opaque string, to the fd set */
     fdinfo = monitor_fdset_add_fd(dupfd, true, fdset_id, fd_opaque,
                                   &error_abort);
