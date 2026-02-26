@@ -3321,7 +3321,26 @@ typedef QTAILQ_HEAD(, MemoryRegionList) MemoryRegionListHead;
 
 #define MR_SIZE(size) (int128_nz(size) ? (hwaddr)int128_get64( \
                            int128_sub((size), int128_one())) : 0)
-#define MR_ADDR_WIDTH   16
+
+static unsigned mr_addr_fmt_width(const MemoryRegion *mr)
+{
+    const unsigned int bits = 127 - clz128(mr->size);
+    unsigned int width;
+
+    if (bits <= 8) {
+        width = 2;
+    } else if (bits <= 16) {
+        width = 4;
+    } else if (bits <= 32) {
+        width = 8;
+    } else if (bits <= 64) {
+        width = 16;
+    } else {
+        width = 20;
+    }
+    return width;
+}
+
 #define MTREE_INDENT "  "
 
 static void mtree_expand_owner(const char *label, Object *obj)
@@ -3513,7 +3532,7 @@ static void mtree_print_flatview(gpointer key, gpointer value,
         return;
     }
 
-    width = MR_ADDR_WIDTH;
+    width = mr_addr_fmt_width(view->root);
     while (n--) {
         const MemoryRegion *mr = range->mr;
 
@@ -3643,7 +3662,7 @@ static void mtree_print_as(gpointer key, gpointer value, gpointer user_data)
     MemoryRegion *mr = key;
     GSList *as_same_root_mr_list = value;
     struct AddressSpaceInfo *asi = user_data;
-    const unsigned int width = MR_ADDR_WIDTH;
+    const unsigned int width = mr_addr_fmt_width(mr);
 
     g_slist_foreach(as_same_root_mr_list, mtree_print_as_name, NULL);
     mtree_print_mr(mr, 1, width, -mr->addr, false,
@@ -3692,7 +3711,7 @@ static void mtree_info_as(bool dispatch_tree, bool owner, bool disabled)
     /* print aliased regions */
     QTAILQ_FOREACH(ml, &ml_head, mrqueue) {
         const MemoryRegion *mr = ml->mr;
-        const unsigned int width = MR_ADDR_WIDTH;
+        const unsigned int width = mr_addr_fmt_width(mr);
 
         qemu_printf("memory-region: %s\n", memory_region_name(mr));
         mtree_print_mr(mr, 1, width, 0, false, &ml_head, owner, disabled);
