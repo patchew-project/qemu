@@ -20,7 +20,6 @@ if have_block
   stub_ss.add(files('get-vm-name.c'))
   stub_ss.add(files('iothread-lock-block.c'))
   stub_ss.add(files('migr-blocker.c'))
-  stub_ss.add(files('physmem.c'))
   stub_ss.add(files('ram-block.c'))
   stub_ss.add(files('runstate-check.c'))
   stub_ss.add(files('uuid.c'))
