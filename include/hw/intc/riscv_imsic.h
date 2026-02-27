@@ -54,6 +54,8 @@ struct RISCVIMSICState {
     uint32_t *eidelivery;
     uint32_t *eithreshold;
     uint32_t *eistate;
+    uint64_t eip[64];
+    uint64_t eie[64];
 
     /* config */
     bool mmode;

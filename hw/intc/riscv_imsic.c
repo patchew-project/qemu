@@ -34,6 +34,7 @@
 #include "system/system.h"
 #include "system/kvm.h"
 #include "migration/vmstate.h"
+#include "kvm/kvm_riscv.h"
 
 #define IMSIC_MMIO_PAGE_LE             0x00
 #define IMSIC_MMIO_PAGE_BE             0x04
@@ -363,10 +364,11 @@ static void riscv_imsic_realize(DeviceState *dev, Error **errp)
         qdev_init_gpio_out(dev, imsic->external_irqs, imsic->num_pages);
 
         imsic->num_eistate = imsic->num_pages * imsic->num_irqs;
-        imsic->eidelivery = g_new0(uint32_t, imsic->num_pages);
-        imsic->eithreshold = g_new0(uint32_t, imsic->num_pages);
         imsic->eistate = g_new0(uint32_t, imsic->num_eistate);
     }
+
+    imsic->eidelivery = g_new0(uint32_t, imsic->num_pages);
+    imsic->eithreshold = g_new0(uint32_t, imsic->num_pages);
 
     memory_region_init_io(&imsic->mmio, OBJECT(dev), &riscv_imsic_ops,
                           imsic, TYPE_RISCV_IMSIC,
@@ -398,28 +400,169 @@ static const Property riscv_imsic_properties[] = {
     DEFINE_PROP_UINT32("num-irqs", RISCVIMSICState, num_irqs, 0),
 };
 
-static bool riscv_imsic_state_needed(void *opaque)
+static bool riscv_imsic_emul_state_needed(void *opaque)
 {
     return !kvm_irqchip_in_kernel();
 }
 
-static const VMStateDescription vmstate_riscv_imsic = {
-    .name = "riscv_imsic",
-    .version_id = 2,
-    .minimum_version_id = 2,
-    .needed = riscv_imsic_state_needed,
+static const VMStateDescription vmstate_riscv_imsic_emul = {
+    .name = "riscv_imsic_emul",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = riscv_imsic_emul_state_needed,
     .fields = (const VMStateField[]) {
-            VMSTATE_VARRAY_UINT32(eidelivery, RISCVIMSICState,
-                                  num_pages, 0,
-                                  vmstate_info_uint32, uint32_t),
-            VMSTATE_VARRAY_UINT32(eithreshold, RISCVIMSICState,
-                                  num_pages, 0,
-                                  vmstate_info_uint32, uint32_t),
             VMSTATE_VARRAY_UINT32(eistate, RISCVIMSICState,
                                   num_eistate, 0,
                                   vmstate_info_uint32, uint32_t),
             VMSTATE_END_OF_LIST()
         }
+};
+
+static bool riscv_imsic_in_kernel_state_needed(void *opaque)
+{
+    return kvm_irqchip_in_kernel();
+}
+
+static int riscv_imsic_in_kernel_pre_save(void *opaque)
+{
+    RISCVIMSICState *imsic = opaque;
+    uint64_t attr;
+
+    if (kvm_irqchip_in_kernel()) {
+        for (uint32_t i = 0; i < BITS_TO_LONGS(imsic->num_irqs); i++) {
+            attr = KVM_DEV_RISCV_AIA_IMSIC_MKATTR(imsic->hartid,
+                                                  ISELECT_IMSIC_EIE0 + i * 2);
+            kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_IMSIC, attr,
+                                     imsic->eie + i * 2 , false);
+
+            attr = KVM_DEV_RISCV_AIA_IMSIC_MKATTR(imsic->hartid,
+                                                  ISELECT_IMSIC_EIP0 + i * 2);
+            kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_IMSIC, attr,
+                                     imsic->eip + i * 2, false);
+#ifdef CONFIG_32BIT
+            attr = KVM_DEV_RISCV_AIA_IMSIC_MKATTR(imsic->hartid,
+                                                  ISELECT_IMSIC_EIE0 + i * 2 + 1);
+            kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_IMSIC, attr,
+                                     imsic->eie + i * 2 + 1, false);
+
+            attr = KVM_DEV_RISCV_AIA_IMSIC_MKATTR(imsic->hartid,
+                                                  ISELECT_IMSIC_EIP0 + i * 2 + 1);
+            kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_IMSIC, attr,
+                                     imsic->eip + i * 2 + 1, false);
+#endif
+        }
+    }
+
+    return 0;
+}
+
+static int riscv_imsic_in_kernel_post_load(void *opaque, int version_id)
+{
+    RISCVIMSICState *imsic = opaque;
+    uint64_t attr;
+
+    if (kvm_irqchip_in_kernel()) {
+        for (uint32_t i = 0; i < BITS_TO_LONGS(imsic->num_irqs); i++) {
+            attr = KVM_DEV_RISCV_AIA_IMSIC_MKATTR(imsic->hartid,
+                                                  ISELECT_IMSIC_EIE0 + i * 2);
+            kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_IMSIC, attr,
+                                     imsic->eie + i * 2, true);
+
+            attr = KVM_DEV_RISCV_AIA_IMSIC_MKATTR(imsic->hartid,
+                                                  ISELECT_IMSIC_EIP0 + i * 2);
+            kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_IMSIC, attr,
+                                     imsic->eip + i * 2, true);
+#ifdef CONFIG_32BIT
+            attr = KVM_DEV_RISCV_AIA_IMSIC_MKATTR(imsic->hartid,
+                                                  ISELECT_IMSIC_EIE0 + i * 2 + 1);
+            kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_IMSIC, attr,
+                                     imsic->eie + i * 2 + 1, true);
+
+            attr = KVM_DEV_RISCV_AIA_IMSIC_MKATTR(imsic->hartid,
+                                                  ISELECT_IMSIC_EIP0 + i * 2 + 1);
+            kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_IMSIC, attr,
+                                     imsic->eip + i * 2 + 1, true);
+#endif
+        }
+    }
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_riscv_imsic_in_kernel = {
+    .name = "riscv_imsic_in_kernel",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = riscv_imsic_in_kernel_state_needed,
+    .pre_save = riscv_imsic_in_kernel_pre_save,
+    .post_load = riscv_imsic_in_kernel_post_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT64_ARRAY(eie, RISCVIMSICState, 64),
+        VMSTATE_UINT64_ARRAY(eip, RISCVIMSICState, 64),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static int riscv_imsic_pre_save(void *opaque)
+{
+    RISCVIMSICState *imsic = opaque;
+    uint64_t attr;
+
+    if (kvm_irqchip_in_kernel()) {
+        attr = KVM_DEV_RISCV_AIA_IMSIC_MKATTR(imsic->hartid,
+                                              ISELECT_IMSIC_EIDELIVERY);
+        kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_IMSIC, attr,
+                                 imsic->eidelivery, false);
+
+        attr = KVM_DEV_RISCV_AIA_IMSIC_MKATTR(imsic->hartid,
+                                              ISELECT_IMSIC_EITHRESHOLD);
+        kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_IMSIC, attr,
+                                 imsic->eithreshold, false);
+   }
+
+    return 0;
+}
+
+static int riscv_imsic_post_load(void *opaque, int version_id)
+{
+    RISCVIMSICState *imsic = opaque;
+    uint64_t attr;
+
+    if (kvm_irqchip_in_kernel()) {
+        attr = KVM_DEV_RISCV_AIA_IMSIC_MKATTR(imsic->hartid,
+                                              ISELECT_IMSIC_EIDELIVERY);
+        kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_IMSIC, attr,
+                                 imsic->eidelivery, true);
+
+        attr = KVM_DEV_RISCV_AIA_IMSIC_MKATTR(imsic->hartid,
+                                              ISELECT_IMSIC_EITHRESHOLD);
+        kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_IMSIC, attr,
+                                 imsic->eithreshold, true);
+   }
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_riscv_imsic = {
+    .name = "riscv_imsic",
+    .version_id = 3,
+    .minimum_version_id = 3,
+    .pre_save = riscv_imsic_pre_save,
+    .post_load = riscv_imsic_post_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_VARRAY_UINT32(eidelivery, RISCVIMSICState,
+                              num_pages, 0,
+                              vmstate_info_uint32, uint32_t),
+        VMSTATE_VARRAY_UINT32(eithreshold, RISCVIMSICState,
+                              num_pages, 0,
+                              vmstate_info_uint32, uint32_t),
+        VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * const []) {
+        &vmstate_riscv_imsic_emul,
+        &vmstate_riscv_imsic_in_kernel,
+        NULL
+    }
 };
 
 static void riscv_imsic_class_init(ObjectClass *klass, const void *data)
