@@ -1038,7 +1038,7 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         s->host_data.acc[s->host_data.next] = data;
         if (s->host_data.next % ATI_HOST_DATA_FLUSH_WORDS ==
                 ATI_HOST_DATA_FLUSH_WORDS - 1) {
-            qemu_log_mask(LOG_UNIMP, "HOST_DATA flush not yet implemented\n");
+            ati_flush_host_data(s);
         }
         s->host_data.next = (s->host_data.next + 1) %
                 ARRAY_SIZE(s->host_data.acc);
@@ -1048,8 +1048,7 @@ static void ati_mm_write(void *opaque, hwaddr addr,
             break;
         }
         s->host_data.acc[s->host_data.next] = data;
-        qemu_log_mask(LOG_UNIMP,
-                      "HOST_DATA finish flush not yet implemented\n");
+        ati_finish_host_data(s);
         break;
     default:
         break;

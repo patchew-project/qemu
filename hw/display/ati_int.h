@@ -128,5 +128,7 @@ struct ATIVGAState {
 const char *ati_reg_name(int num);
 
 void ati_2d_blt(ATIVGAState *s);
+bool ati_flush_host_data(ATIVGAState *s);
+void ati_finish_host_data(ATIVGAState *s);
 
 #endif /* ATI_INT_H */
