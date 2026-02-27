@@ -610,6 +610,8 @@ void gdb_register_coprocessor(CPUState *cpu,
     guint i;
     int base_reg = cpu->gdb_num_regs;
 
+    assert(!g_pos || g_pos == feature->base_reg);
+
     for (i = 0; i < cpu->gdb_regs->len; i++) {
         /* Check for duplicates.  */
         s = &g_array_index(cpu->gdb_regs, GDBRegisterState, i);
