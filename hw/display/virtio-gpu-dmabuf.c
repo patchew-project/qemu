@@ -74,13 +74,21 @@ static int virtio_gpu_create_udmabuf(struct virtio_gpu_simple_resource *res,
 static bool virtio_gpu_remap_dmabuf(struct virtio_gpu_simple_resource *res,
                                     Error **errp)
 {
+    Error *mmap_err = NULL;
     void *map;
 
     map = mmap(NULL, res->blob_size, PROT_READ, MAP_SHARED, res->dmabuf_fd, 0);
     if (map == MAP_FAILED) {
-        error_setg_errno(errp, errno, "dmabuf mmap failed");
+        error_setg_errno(&mmap_err, errno, "dmabuf mmap failed: ");
         res->remapped = NULL;
-        return false;
+
+        if (!vfio_device_mmap_dmabuf(res->iov, res->iov_cnt, &map,
+                                     res->blob_size, errp)) {
+            error_report_err(mmap_err);
+            return false;
+        }
+        error_free(mmap_err);
+        mmap_err = NULL;
     }
     res->remapped = map;
     return true;
@@ -137,7 +145,7 @@ bool virtio_gpu_have_udmabuf(void)
 
 void virtio_gpu_init_dmabuf(struct virtio_gpu_simple_resource *res)
 {
-    Error *local_err = NULL;
+    Error *local_err = NULL, *vfio_err = NULL;
     void *pdata = NULL;
     int ret;
 
@@ -151,15 +159,28 @@ void virtio_gpu_init_dmabuf(struct virtio_gpu_simple_resource *res)
             error_prepend(&local_err, "Cannot create dmabuf: ");
 
             if (ret == VFIO_DMABUF_CREATE_GUEST_ERROR) {
-                qemu_log_mask(LOG_GUEST_ERROR,
-                              "Cannot create dmabuf: incompatible memory\n");
-                error_free(local_err);
-                return;
+                ret = vfio_device_create_dmabuf_fd(res->iov, res->iov_cnt,
+                                                   &vfio_err);
+                if (ret > 0) {
+                    error_free(local_err);
+                    local_err = NULL;
+                    goto out;
+                }
+
+                if (ret == VFIO_DMABUF_CREATE_GUEST_ERROR) {
+                    qemu_log_mask(LOG_GUEST_ERROR,
+                                  "Cannot create dmabuf: incompatible memory\n");
+                    error_free(vfio_err);
+                    error_free(local_err);
+                    return;
+                }
+                error_report_err(vfio_err);
             }
             error_report_err(local_err);
             return;
         }
 
+out:
         res->dmabuf_fd = ret;
         if (!virtio_gpu_remap_dmabuf(res, &local_err)) {
             error_report_err(local_err);
