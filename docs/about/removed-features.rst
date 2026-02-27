@@ -1232,6 +1232,17 @@ converting to using TCG plugins they should contact the qemu-devel
 mailing list.
 
 
+Firmware, ACPI, Device Tree
+---------------------------
+
+RISC-V "virt" board "riscv,delegate" DT property (removed in 11.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The "riscv,delegate" DT property was added in QEMU 7.0 as part of
+the AIA APLIC support.  The property changed name during the review
+process in Linux and the correct name ended up being "riscv,delegation".
+
+
 System emulator devices
 -----------------------
 
