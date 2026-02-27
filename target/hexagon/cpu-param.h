@@ -22,4 +22,9 @@
 
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
 
+/*
+ * Hexagon processors have a strong memory model.
+ */
+#define TCG_GUEST_DEFAULT_MO      (TCG_MO_ALL)
+
 #endif
