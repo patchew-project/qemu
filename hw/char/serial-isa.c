@@ -28,6 +28,7 @@
 #include "qemu/module.h"
 #include "system/system.h"
 #include "hw/acpi/acpi_aml_interface.h"
+#include "hw/acpi/aml-build.h"
 #include "hw/char/serial.h"
 #include "hw/char/serial-isa.h"
 #include "hw/isa/isa.h"
@@ -43,6 +44,7 @@ struct ISASerialState {
     uint32_t index;
     uint32_t iobase;
     uint32_t isairq;
+    bool acpi_shared_irq;
     SerialState state;
 };
 
@@ -92,13 +94,30 @@ static void serial_isa_build_aml(AcpiDevAmlIf *adev, Aml *scope)
 
     crs = aml_resource_template();
     aml_append(crs, aml_io(AML_DECODE16, isa->iobase, isa->iobase, 0x00, 0x08));
-    aml_append(crs, aml_irq_no_flags(isa->isairq));
+    if (isa->acpi_shared_irq) {
+        aml_append(crs, aml_irq(isa->isairq, AML_EDGE, AML_ACTIVE_LOW,
+                                AML_SHARED));
+    } else {
+        aml_append(crs, aml_irq_no_flags(isa->isairq));
+    }
 
     dev = aml_device("COM%d", isa->index + 1);
     aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0501")));
     aml_append(dev, aml_name_decl("_UID", aml_int(isa->index + 1)));
     aml_append(dev, aml_name_decl("_STA", aml_int(0xf)));
     aml_append(dev, aml_name_decl("_CRS", crs));
+
+    if (isa->acpi_shared_irq) {
+        Aml *prs = aml_resource_template();
+
+        aml_append(prs, aml_start_dependent_function(0, 0));
+        aml_append(prs, aml_io(AML_DECODE16, isa->iobase, isa->iobase, 0x00,
+                               0x08));
+        aml_append(prs, aml_irq(isa->isairq, AML_EDGE, AML_ACTIVE_LOW,
+                                AML_SHARED));
+        aml_append(prs, aml_end_dependent_function());
+        aml_append(dev, aml_name_decl("_PRS", prs));
+    }
 
     aml_append(scope, dev);
 }
@@ -117,6 +136,8 @@ static const Property serial_isa_properties[] = {
     DEFINE_PROP_UINT32("index",  ISASerialState, index,   -1),
     DEFINE_PROP_UINT32("iobase",  ISASerialState, iobase,  -1),
     DEFINE_PROP_UINT32("irq",    ISASerialState, isairq,  -1),
+    DEFINE_PROP_BOOL("x-acpi-shared-irq", ISASerialState, acpi_shared_irq,
+                     true),
 };
 
 static void serial_isa_class_initfn(ObjectClass *klass, const void *data)
