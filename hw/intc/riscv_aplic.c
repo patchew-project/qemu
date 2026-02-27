@@ -922,14 +922,7 @@ static void riscv_aplic_realize(DeviceState *dev, Error **errp)
         }
 
         aplic->bitfield_words = (aplic->num_irqs + 31) >> 5;
-        aplic->sourcecfg = g_new0(uint32_t, aplic->num_irqs);
         aplic->state = g_new0(uint32_t, aplic->num_irqs);
-        aplic->target = g_new0(uint32_t, aplic->num_irqs);
-        if (!aplic->msimode) {
-            for (i = 0; i < aplic->num_irqs; i++) {
-                aplic->target[i] = 1;
-            }
-        }
         aplic->idelivery = g_new0(uint32_t, aplic->num_harts);
         aplic->iforce = g_new0(uint32_t, aplic->num_harts);
         aplic->ithreshold = g_new0(uint32_t, aplic->num_harts);
@@ -940,6 +933,19 @@ static void riscv_aplic_realize(DeviceState *dev, Error **errp)
 
         if (kvm_enabled()) {
             aplic->kvm_splitmode = true;
+        }
+    } else {
+        aplic->nr_words = DIV_ROUND_UP(aplic->num_irqs, 32);
+        aplic->setip = g_new0(uint32_t, aplic->nr_words);
+        aplic->clrip = g_new0(uint32_t, aplic->nr_words);
+        aplic->setie = g_new0(uint32_t, aplic->nr_words);
+    }
+
+    aplic->sourcecfg = g_new0(uint32_t, aplic->num_irqs);
+    aplic->target = g_new0(uint32_t, aplic->num_irqs);
+    if (!aplic->msimode) {
+        for (i = 0; i < aplic->num_irqs; i++) {
+            aplic->target[i] = 1;
         }
     }
 
@@ -968,47 +974,179 @@ static const Property riscv_aplic_properties[] = {
     DEFINE_PROP_BOOL("mmode", RISCVAPLICState, mmode, 0),
 };
 
-static bool riscv_aplic_state_needed(void *opaque)
+static bool riscv_aplic_emul_state_needed(void *opaque)
 {
     RISCVAPLICState *aplic = opaque;
 
     return riscv_use_emulated_aplic(aplic->msimode);
 }
 
+static const VMStateDescription vmstate_riscv_aplic_emul = {
+    .name = "riscv_aplic_emul",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = riscv_aplic_emul_state_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_VARRAY_UINT32(state, RISCVAPLICState,
+                              num_irqs, 0,
+                              vmstate_info_uint32, uint32_t),
+        VMSTATE_UINT32(mmsicfgaddr, RISCVAPLICState),
+        VMSTATE_UINT32(mmsicfgaddrH, RISCVAPLICState),
+        VMSTATE_UINT32(smsicfgaddr, RISCVAPLICState),
+        VMSTATE_UINT32(smsicfgaddrH, RISCVAPLICState),
+        VMSTATE_UINT32(kvm_msicfgaddr, RISCVAPLICState),
+        VMSTATE_UINT32(kvm_msicfgaddrH, RISCVAPLICState),
+        VMSTATE_VARRAY_UINT32(idelivery, RISCVAPLICState,
+                                num_harts, 0,
+                                vmstate_info_uint32, uint32_t),
+        VMSTATE_VARRAY_UINT32(iforce, RISCVAPLICState,
+                                num_harts, 0,
+                                vmstate_info_uint32, uint32_t),
+        VMSTATE_VARRAY_UINT32(ithreshold, RISCVAPLICState,
+                                num_harts, 0,
+                                vmstate_info_uint32, uint32_t),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool riscv_aplic_in_kernel_state_needed(void *opaque)
+{
+    RISCVAPLICState *aplic = opaque;
+
+    return !riscv_use_emulated_aplic(aplic->msimode);
+}
+
+static int riscv_aplic_in_kernel_pre_save(void *opaque)
+{
+    RISCVAPLICState *aplic = opaque;
+
+    if (!riscv_use_emulated_aplic(aplic->msimode)) {
+        for (uint32_t i = 0; i < aplic->nr_words; i++) {
+            kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_APLIC,
+                                     APLIC_SETIP_BASE + i * 4,
+                                     aplic->setip + i, false);
+            kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_APLIC,
+                                     APLIC_CLRIP_BASE + i * 4,
+                                     aplic->clrip + i, false);
+            kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_APLIC,
+                                     APLIC_SETIE_BASE + i * 4,
+                                     aplic->setie + i, false);
+        }
+    }
+
+    return 0;
+}
+
+static int riscv_aplic_in_kernel_post_load(void *opaque, int version_id)
+{
+    RISCVAPLICState *aplic = opaque;
+
+    if (!riscv_use_emulated_aplic(aplic->msimode)) {
+        for (uint32_t i = 0; i < aplic->nr_words; i++) {
+            kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_APLIC,
+                                     APLIC_SETIP_BASE + i * 4,
+                                     aplic->setip + i, true);
+            kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_APLIC,
+                                     APLIC_CLRIP_BASE + i * 4,
+                                     aplic->clrip + i, true);
+            kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_APLIC,
+                                     APLIC_SETIE_BASE + i * 4,
+                                     aplic->setie + i, true);
+        }
+    }
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_riscv_aplic_in_kernel = {
+    .name = "riscv_aplic_in_kernel",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = riscv_aplic_in_kernel_state_needed,
+    .pre_save = riscv_aplic_in_kernel_pre_save,
+    .post_load = riscv_aplic_in_kernel_post_load,
+    .fields = (const VMStateField[]) {
+            VMSTATE_VARRAY_UINT32(setip, RISCVAPLICState,
+                                  nr_words, 0,
+                                  vmstate_info_uint32, uint32_t),
+            VMSTATE_VARRAY_UINT32(clrip, RISCVAPLICState,
+                                  nr_words, 0,
+                                  vmstate_info_uint32, uint32_t),
+            VMSTATE_VARRAY_UINT32(setie, RISCVAPLICState,
+                                  nr_words, 0,
+                                  vmstate_info_uint32, uint32_t),
+            VMSTATE_END_OF_LIST()
+    }
+};
+
+static int riscv_aplic_pre_save(void *opaque)
+{
+    RISCVAPLICState *aplic = opaque;
+
+    if (!riscv_use_emulated_aplic(aplic->msimode)) {
+        kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_APLIC, APLIC_DOMAINCFG,
+                                 &aplic->domaincfg, false);
+        kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_APLIC, APLIC_GENMSI,
+                                 &aplic->genmsi, false);
+
+        for (uint32_t i = 1; i < aplic->num_irqs; i++) {
+            kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_APLIC,
+                                     APLIC_SOURCECFG_BASE + (i - 1) * 4,
+                                     aplic->sourcecfg + i, false);
+            kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_APLIC,
+                                     APLIC_TARGET_BASE + (i - 1) * 4,
+                                     aplic->target + i, false);
+        }
+    }
+
+    return 0;
+}
+
+static int riscv_aplic_post_load(void *opaque, int version_id)
+{
+    RISCVAPLICState *aplic = opaque;
+
+    if (!riscv_use_emulated_aplic(aplic->msimode)) {
+        kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_APLIC, APLIC_DOMAINCFG,
+                                 &aplic->domaincfg, true);
+        kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_APLIC, APLIC_GENMSI,
+                                 &aplic->genmsi, true);
+
+        for (uint32_t i = 1; i < aplic->num_irqs; i++) {
+            kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_APLIC,
+                                     APLIC_SOURCECFG_BASE + (i - 1) * 4,
+                                     aplic->sourcecfg + i, true);
+            kvm_riscv_aia_access_reg(KVM_DEV_RISCV_AIA_GRP_APLIC,
+                                     APLIC_TARGET_BASE + (i - 1) * 4,
+                                     aplic->target + i, true);
+        }
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_riscv_aplic = {
     .name = "riscv_aplic",
-    .version_id = 3,
-    .minimum_version_id = 3,
-    .needed = riscv_aplic_state_needed,
+    .version_id = 4,
+    .minimum_version_id = 4,
+    .pre_save = riscv_aplic_pre_save,
+    .post_load = riscv_aplic_post_load,
     .fields = (const VMStateField[]) {
             VMSTATE_UINT32(domaincfg, RISCVAPLICState),
-            VMSTATE_UINT32(mmsicfgaddr, RISCVAPLICState),
-            VMSTATE_UINT32(mmsicfgaddrH, RISCVAPLICState),
-            VMSTATE_UINT32(smsicfgaddr, RISCVAPLICState),
-            VMSTATE_UINT32(smsicfgaddrH, RISCVAPLICState),
             VMSTATE_UINT32(genmsi, RISCVAPLICState),
-            VMSTATE_UINT32(kvm_msicfgaddr, RISCVAPLICState),
-            VMSTATE_UINT32(kvm_msicfgaddrH, RISCVAPLICState),
-            VMSTATE_VARRAY_UINT32(sourcecfg, RISCVAPLICState,
-                                  num_irqs, 0,
-                                  vmstate_info_uint32, uint32_t),
-            VMSTATE_VARRAY_UINT32(state, RISCVAPLICState,
+            VMSTATE_VARRAY_UINT32(sourcecfg , RISCVAPLICState,
                                   num_irqs, 0,
                                   vmstate_info_uint32, uint32_t),
             VMSTATE_VARRAY_UINT32(target, RISCVAPLICState,
                                   num_irqs, 0,
                                   vmstate_info_uint32, uint32_t),
-            VMSTATE_VARRAY_UINT32(idelivery, RISCVAPLICState,
-                                  num_harts, 0,
-                                  vmstate_info_uint32, uint32_t),
-            VMSTATE_VARRAY_UINT32(iforce, RISCVAPLICState,
-                                  num_harts, 0,
-                                  vmstate_info_uint32, uint32_t),
-            VMSTATE_VARRAY_UINT32(ithreshold, RISCVAPLICState,
-                                  num_harts, 0,
-                                  vmstate_info_uint32, uint32_t),
             VMSTATE_END_OF_LIST()
-        }
+    },
+    .subsections = (const VMStateDescription * const []) {
+        &vmstate_riscv_aplic_emul,
+        &vmstate_riscv_aplic_in_kernel,
+        NULL
+    }
 };
 
 static void riscv_aplic_class_init(ObjectClass *klass, const void *data)
