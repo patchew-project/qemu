@@ -1024,6 +1024,33 @@ static void ati_mm_write(void *opaque, hwaddr addr,
     case SRC_SC_BOTTOM:
         s->regs.src_sc_bottom = data & 0x3fff;
         break;
+    case HOST_DATA0:
+    case HOST_DATA1:
+    case HOST_DATA2:
+    case HOST_DATA3:
+    case HOST_DATA4:
+    case HOST_DATA5:
+    case HOST_DATA6:
+    case HOST_DATA7:
+        if (!s->host_data.active) {
+            break;
+        }
+        s->host_data.acc[s->host_data.next] = data;
+        if (s->host_data.next % ATI_HOST_DATA_FLUSH_WORDS ==
+                ATI_HOST_DATA_FLUSH_WORDS - 1) {
+            qemu_log_mask(LOG_UNIMP, "HOST_DATA flush not yet implemented\n");
+        }
+        s->host_data.next = (s->host_data.next + 1) %
+                ARRAY_SIZE(s->host_data.acc);
+        break;
+    case HOST_DATA_LAST:
+        if (!s->host_data.active) {
+            break;
+        }
+        s->host_data.acc[s->host_data.next] = data;
+        qemu_log_mask(LOG_UNIMP,
+                      "HOST_DATA finish flush not yet implemented\n");
+        break;
     default:
         break;
     }
@@ -1129,6 +1156,11 @@ static void ati_vga_reset(DeviceState *dev)
     /* reset vga */
     vga_common_reset(&s->vga);
     s->mode = VGA_MODE;
+
+    s->host_data.active = false;
+    s->host_data.next = 0;
+    s->host_data.row = 0;
+    s->host_data.col = 0;
 }
 
 static void ati_vga_exit(PCIDevice *dev)
