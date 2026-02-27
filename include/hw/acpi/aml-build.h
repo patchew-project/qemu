@@ -415,6 +415,8 @@ Aml *aml_derefof(Aml *arg);
 Aml *aml_sizeof(Aml *arg);
 Aml *aml_concatenate(Aml *source1, Aml *source2, Aml *target);
 Aml *aml_object_type(Aml *object);
+Aml *aml_start_dependent_function(uint8_t compat, uint8_t config);
+Aml *aml_end_dependent_function(void);
 
 void build_append_int_noprefix(GArray *table, uint64_t value, int size);
 

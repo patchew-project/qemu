@@ -1729,6 +1729,21 @@ Aml *aml_object_type(Aml *object)
     return var;
 }
 
+/* ACPI 1.0b: 6.4.2.3.1 ASL Macro for StartDependentFn */
+Aml *aml_start_dependent_function(uint8_t compat, uint8_t config)
+{
+    Aml *var = aml_opcode(0x031 /* StartDependentFn */);
+    build_append_byte(var->buf, 0); /* Good compat, Good config */
+    return var;
+}
+
+/* ACPI 1.0b: 6.4.2.4.1 ASL Macro for EndDependentFn */
+Aml *aml_end_dependent_function(void)
+{
+    Aml *var = aml_opcode(0x038 /* StartDependentFn */);
+    return var;
+}
+
 void acpi_table_begin(AcpiTable *desc, GArray *array)
 {
 

@@ -107,3 +107,13 @@ Aml *aml_buffer(int buffer_size, uint8_t *byte_list)
 {
     return NULL;
 }
+
+Aml *aml_start_dependent_function(uint8_t compat, uint8_t config)
+{
+    return NULL;
+}
+
+Aml *aml_end_dependent_function(void)
+{
+    return NULL;
+}
