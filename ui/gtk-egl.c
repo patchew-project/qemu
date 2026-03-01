@@ -218,10 +218,17 @@ QEMUGLContext gd_egl_create_context(DisplayGLCtx *dgc,
                                     QEMUGLParams *params)
 {
     VirtualConsole *vc = container_of(dgc, VirtualConsole, gfx.dgc);
+    QEMUGLContext ctx, current_context = eglGetCurrentContext();
 
     eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
                    vc->gfx.esurface, vc->gfx.ectx);
-    return qemu_egl_create_context(dgc, params);
+
+    ctx = qemu_egl_create_context(dgc, params);
+
+    eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE,
+                   current_context);
+
+    return ctx;
 }
 
 void gd_egl_scanout_disable(DisplayChangeListener *dcl)
