@@ -42,9 +42,17 @@ static void egl_gfx_switch(DisplayChangeListener *dcl,
 static QEMUGLContext egl_create_context(DisplayGLCtx *dgc,
                                         QEMUGLParams *params)
 {
+    QEMUGLContext ctx, current_context = eglGetCurrentContext();
+
     eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE,
                    qemu_egl_rn_ctx);
-    return qemu_egl_create_context(dgc, params);
+
+    ctx = qemu_egl_create_context(dgc, params);
+
+    eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE,
+                   current_context);
+
+    return ctx;
 }
 
 static void egl_scanout_disable(DisplayChangeListener *dcl)
