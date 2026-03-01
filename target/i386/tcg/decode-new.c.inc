@@ -1504,11 +1504,7 @@ static const X86OpEntry opcodes_0F[256] = {
     [0xac] = X86_OP_ENTRY4(SHRD,   E,v, 2op,v, G,v),
     [0xad] = X86_OP_ENTRY3(SHRD,   E,v, 2op,v, G,v),
     [0xae] = X86_OP_GROUP0(group15),
-    /*
-     * It's slightly more efficient to put Ev operand in T0 and allow gen_IMUL3
-     * to assume sextT0.  Multiplication is commutative anyway.
-     */
-    [0xaf] = X86_OP_ENTRY3(IMUL3,  G,v, E,v, 2op,v, sextT0),
+    [0xaf] = X86_OP_ENTRY2(IMUL3,  G,v, E,v, sextT0),
 
     [0xb8] = X86_OP_GROUP0(0FB8),
     /* decoded as modrm, which is visible as a difference between page fault and #UD */
