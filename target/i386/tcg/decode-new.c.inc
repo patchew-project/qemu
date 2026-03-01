@@ -3228,6 +3228,10 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
         accept_lock = decode.op[0].has_ea;
         break;
 
+    case X86_SPECIAL_Op0_ZU:
+        assert(decode.op[0].unit == X86_OP_INT);
+        break;
+
     case X86_SPECIAL_Op0_Rd:
         assert(decode.op[0].unit == X86_OP_INT);
         if (!decode.op[0].has_ea) {

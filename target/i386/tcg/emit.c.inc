@@ -347,6 +347,8 @@ static void gen_writeback(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv
     case X86_OP_INT:
         if (op->has_ea) {
             gen_op_st_v(s, op->ot, v, s->A0);
+        } else if (decode->e.special == X86_SPECIAL_Op0_ZU) {
+            tcg_gen_ext_tl(cpu_regs[op->n], v, op->ot);
         } else {
             gen_op_mov_reg_v(s, op->ot, op->n, v);
         }
