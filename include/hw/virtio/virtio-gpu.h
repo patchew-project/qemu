@@ -218,6 +218,8 @@ struct VirtIOGPU {
     } dmabuf;
 
     GArray *capset_ids;
+
+    int thread_id;
 };
 
 struct VirtIOGPUClass {

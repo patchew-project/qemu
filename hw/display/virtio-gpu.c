@@ -1126,7 +1126,16 @@ static void virtio_gpu_ctrl_bh(void *opaque)
     VirtIOGPU *g = opaque;
     VirtIOGPUClass *vgc = VIRTIO_GPU_GET_CLASS(g);
 
-    vgc->handle_ctrl(VIRTIO_DEVICE(g), g->ctrl_vq);
+    /*
+     * Bounce handling to main-loop thread as display UI toolkit
+     * and GL context are bounded there.
+     */
+    if (qemu_get_thread_id() == g->thread_id) {
+        vgc->handle_ctrl(VIRTIO_DEVICE(g), g->ctrl_vq);
+    } else {
+        aio_bh_schedule_oneshot(qemu_get_aio_context(),
+                                virtio_gpu_ctrl_bh, g);
+    }
 }
 
 static void virtio_gpu_handle_cursor(VirtIODevice *vdev, VirtQueue *vq)
@@ -1533,6 +1542,7 @@ void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     QTAILQ_INIT(&g->reslist);
     QTAILQ_INIT(&g->cmdq);
     QTAILQ_INIT(&g->fenceq);
+    g->thread_id = qemu_get_thread_id();
 }
 
 static void virtio_gpu_device_unrealize(DeviceState *qdev)
