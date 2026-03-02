@@ -547,4 +547,11 @@ QEMUBH *virtio_bh_new_guarded_full(DeviceState *dev,
 #define virtio_bh_new_guarded(dev, cb, opaque) \
     virtio_bh_new_guarded_full((dev), (cb), (opaque), (stringify(cb)))
 
+/*
+ * The "_io" variant runs BH only on a main-loop thread, while generic BH
+ * may run on a vCPU thread.
+ */
+#define virtio_bh_io_new(cb, opaque) \
+    aio_bh_new(iohandler_get_aio_context(), (cb), (opaque))
+
 #endif
