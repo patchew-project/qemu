@@ -272,6 +272,20 @@ struct scrub_regions {
     int fd_idx;
 };
 
+/**
+ * vhost_user_read_header:
+ * @dev: The vhost device state
+ * @msg: Pointer to the vhost-user message structure to populate
+ *
+ * Reads exactly VHOST_USER_HDR_SIZE bytes from the character device
+ * to populate the message header. Validates that the read operation
+ * succeeds entirely and that the received message flags indicate a
+ * valid reply matching the expected vhost-user protocol version.
+ *
+ * Returns: 0 on success,
+ * -EIO or -errno on read failure or short read,
+ * -EPROTO if the protocol flags are invalid.
+ */
 static int vhost_user_read_header(struct vhost_dev *dev, VhostUserMsg *msg)
 {
     struct vhost_user *u = dev->opaque;
@@ -279,15 +293,20 @@ static int vhost_user_read_header(struct vhost_dev *dev, VhostUserMsg *msg)
     uint8_t *p = (uint8_t *) msg;
     int r, size = VHOST_USER_HDR_SIZE;
 
+    /* Block and read the exact header size from the character device */
     r = qemu_chr_fe_read_all(chr, p, size);
     if (r != size) {
         int saved_errno = errno;
+        
+        /* * Note: Logging msg->hdr.request here assumes the msg struct was 
+         * pre-populated with the outgoing request prior to this read.
+         */
         error_report("Failed to read msg header. Read %d instead of %d."
                      " Original request %d.", r, size, msg->hdr.request);
         return r < 0 ? -saved_errno : -EIO;
     }
 
-    /* validate received flags */
+    /* Validate that the received message is a reply and matches our version */
     if (msg->hdr.flags != (VHOST_USER_REPLY_MASK | VHOST_USER_VERSION)) {
         error_report("Failed to read msg header."
                 " Flags 0x%x instead of 0x%x.", msg->hdr.flags,
@@ -295,6 +314,7 @@ static int vhost_user_read_header(struct vhost_dev *dev, VhostUserMsg *msg)
         return -EPROTO;
     }
 
+    /* Trace the successful header read */
     trace_vhost_user_read(msg->hdr.request, msg->hdr.flags);
 
     return 0;
