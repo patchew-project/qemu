@@ -60,6 +60,14 @@ parameters.
   the SMART / Health information extended log become available in the
   controller. We emulate version 5 of this log page.
 
+``model`` (default: ``QEMU NVMe Ctrl``)
+  Set the model name reported in the Identify Controller data structure (field
+  ``MN``). The value is visible to the guest as
+  ``/sys/class/nvme/<name>/model``. This is useful for emulating specific
+  NVMe devices; for example, setting ``model=Amazon Elastic Block Store``
+  allows guest software to distinguish emulated EBS volumes from instance
+  storage.
+
 Additional Namespaces
 ---------------------
 
