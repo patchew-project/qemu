@@ -762,6 +762,12 @@ for opt do
   ;;
   --wasm64-32bit-address-limit)
   ;;
+  --enable-asan) asan="yes"
+  ;;
+  --enable-tsan) tsan="yes"
+  ;;
+  --enable-safe-stack) safe_stack="yes"
+  ;;
   # everything else has the same name in configure and meson
   --*) meson_option_parse "$opt" "$optarg"
   ;;
@@ -770,6 +776,20 @@ for opt do
   ;;
   esac
 done
+
+if test "$asan" = "yes" || test "$tsan" = "yes" || \
+    test "$safe_stack" = "yes"
+then
+    if has clang; then
+        echo "Sanitizer requested: setting compiler suite to clang"
+        cc=clang
+        cxx=clang++
+        host_cc=clang
+    else
+        echo "Sanitizer requested: disabling Werror for non-clang compilers"
+        force_disable_werror="yes"
+    fi
+fi
 
 if ! test -e "$source_path/.git"
 then
@@ -1890,7 +1910,8 @@ if test "$skip_meson" = no; then
   echo "# environment defaults, can still be overridden on " >> $cross
   echo "# the command line" >> $cross
   if test -e "$source_path/.git" && \
-      { test "$host_os" = linux || test "$host_os" = "windows"; }; then
+      { test "$host_os" = linux || test "$host_os" = "windows"; } && \
+       test "$force_disable_werror" != "yes"; then
       echo 'werror = true' >> $cross
   fi
   echo "[project options]" >> $cross
