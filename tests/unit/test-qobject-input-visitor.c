@@ -583,7 +583,7 @@ static void test_visitor_in_list_struct(TestInputVisitorData *data,
 
     i = 0;
     for (num_list = arrs->number; num_list; num_list = num_list->next) {
-        char expected[32], actual[32];
+        char expected[318], actual[318];
 
         sprintf(expected, "%.6f", (double)i / 3);
         sprintf(actual, "%.6f", num_list->value);
