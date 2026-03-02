@@ -217,10 +217,6 @@ void gd_egl_switch(DisplayChangeListener *dcl,
 QEMUGLContext gd_egl_create_context(DisplayGLCtx *dgc,
                                     QEMUGLParams *params)
 {
-    VirtualConsole *vc = container_of(dgc, VirtualConsole, gfx.dgc);
-
-    eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
-                   vc->gfx.esurface, vc->gfx.ectx);
     return qemu_egl_create_context(dgc, params);
 }
 
