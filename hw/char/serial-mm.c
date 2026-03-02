@@ -71,17 +71,17 @@ static const MemoryRegionOps serial_mm_ops[] = {
 static void serial_mm_realize(DeviceState *dev, Error **errp)
 {
     SerialMM *smm = SERIAL_MM(dev);
-    SerialState *s = &smm->serial;
+    SysBusDevice *sbd = SYS_BUS_DEVICE(&smm->serial);
 
-    if (!qdev_realize(DEVICE(s), NULL, errp)) {
+    if (!sysbus_realize(sbd, errp)) {
         return;
     }
 
-    memory_region_init_io(&s->io, OBJECT(dev),
+    memory_region_init_io(sysbus_mmio_get_region(sbd, 0), OBJECT(dev),
                           &serial_mm_ops[smm->endianness], smm, "serial",
                           8 << smm->regshift);
-    sysbus_init_mmio(SYS_BUS_DEVICE(smm), &s->io);
-    sysbus_init_irq(SYS_BUS_DEVICE(smm), &smm->serial.irq);
+    sysbus_init_mmio(SYS_BUS_DEVICE(smm), sysbus_mmio_get_region(sbd, 0));
+    sysbus_pass_irq(SYS_BUS_DEVICE(smm), SYS_BUS_DEVICE(sbd));
 }
 
 static const VMStateDescription vmstate_serial_mm = {

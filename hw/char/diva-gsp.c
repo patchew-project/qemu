@@ -57,13 +57,13 @@ typedef struct PCIDivaSerialState {
 static void diva_pci_exit(PCIDevice *dev)
 {
     PCIDivaSerialState *pci = DO_UPCAST(PCIDivaSerialState, dev, dev);
-    SerialState *s;
     int i;
 
     for (i = 0; i < pci->ports; i++) {
-        s = pci->state + i;
-        qdev_unrealize(DEVICE(s));
-        memory_region_del_subregion(&pci->membar, &s->io);
+        SysBusDevice *sbd = SYS_BUS_DEVICE(pci->state + i);
+        qdev_unrealize(DEVICE(sbd));
+        memory_region_del_subregion(&pci->membar,
+                                    sysbus_mmio_get_region(sbd, 0));
         g_free(pci->name[i]);
     }
     qemu_free_irqs(pci->irqs, pci->ports);
@@ -118,7 +118,6 @@ static void diva_pci_realize(PCIDevice *dev, Error **errp)
 {
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     PCIDivaSerialState *pci = DO_UPCAST(PCIDivaSerialState, dev, dev);
-    SerialState *s;
     struct diva_info di = diva_get_diva_info(pc);
     size_t i, offset = 0;
     size_t portmask = di.omask;
@@ -130,22 +129,23 @@ static void diva_pci_realize(PCIDevice *dev, Error **errp)
     pci->irqs = qemu_allocate_irqs(multi_serial_irq_mux, pci, di.nports);
 
     for (i = 0; i < di.nports; i++) {
-        s = pci->state + i;
-        if (!qdev_realize(DEVICE(s), NULL, errp)) {
+        SysBusDevice *sbd = SYS_BUS_DEVICE(pci->state + i);
+        if (!sysbus_realize(sbd, errp)) {
             diva_pci_exit(dev);
             return;
         }
-        s->irq = pci->irqs[i];
+        sysbus_connect_irq(sbd, 0, pci->irqs[i]);
         pci->name[i] = g_strdup_printf("uart #%zu", i + 1);
-        memory_region_init_io(&s->io, OBJECT(pci), &serial_io_ops, s,
-                              pci->name[i], 8);
+        memory_region_init_io(sysbus_mmio_get_region(sbd, 0), OBJECT(pci),
+                              &serial_io_ops, sbd, pci->name[i], 8);
 
         /* calculate offset of given port based on bitmask */
         while ((portmask & BIT(0)) == 0) {
             offset += 8;
             portmask >>= 1;
         }
-        memory_region_add_subregion(&pci->membar, offset, &s->io);
+        memory_region_add_subregion(&pci->membar, offset,
+                                    sysbus_mmio_get_region(sbd, 0));
         offset += 8;
         portmask >>= 1;
         pci->ports++;

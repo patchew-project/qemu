@@ -51,13 +51,13 @@ typedef struct PCIMultiSerialState {
 static void multi_serial_pci_exit(PCIDevice *dev)
 {
     PCIMultiSerialState *pci = DO_UPCAST(PCIMultiSerialState, dev, dev);
-    SerialState *s;
     int i;
 
     for (i = 0; i < pci->ports; i++) {
-        s = pci->state + i;
-        qdev_unrealize(DEVICE(s));
-        memory_region_del_subregion(&pci->iobar, &s->io);
+        SysBusDevice *sbd = SYS_BUS_DEVICE(pci->state + i);
+        qdev_unrealize(DEVICE(sbd));
+        memory_region_del_subregion(&pci->iobar,
+                                    sysbus_mmio_get_region(sbd, 0));
         g_free(pci->name[i]);
     }
 }
@@ -93,7 +93,6 @@ static void multi_serial_pci_realize(PCIDevice *dev, Error **errp)
 {
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     PCIMultiSerialState *pci = DO_UPCAST(PCIMultiSerialState, dev, dev);
-    SerialState *s;
     size_t i, nports = multi_serial_get_port_count(pc);
 
     pci->dev.config[PCI_CLASS_PROG] = 2; /* 16550 compatible */
@@ -102,16 +101,17 @@ static void multi_serial_pci_realize(PCIDevice *dev, Error **errp)
     pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &pci->iobar);
 
     for (i = 0; i < nports; i++) {
-        s = pci->state + i;
-        if (!qdev_realize(DEVICE(s), NULL, errp)) {
+        SysBusDevice *sbd = SYS_BUS_DEVICE(pci->state + i);
+        if (!sysbus_realize(sbd, errp)) {
             multi_serial_pci_exit(dev);
             return;
         }
-        s->irq = &pci->irqs[i];
+        sysbus_connect_irq(sbd, 0, &pci->irqs[i]);
         pci->name[i] = g_strdup_printf("uart #%zu", i + 1);
-        memory_region_init_io(&s->io, OBJECT(pci), &serial_io_ops, s,
-                              pci->name[i], 8);
-        memory_region_add_subregion(&pci->iobar, 8 * i, &s->io);
+        memory_region_init_io(sysbus_mmio_get_region(sbd, 0), OBJECT(pci),
+                              &serial_io_ops, sbd, pci->name[i], 8);
+        memory_region_add_subregion(&pci->iobar, 8 * i,
+                                    sysbus_mmio_get_region(sbd, 0));
         pci->ports++;
     }
 }

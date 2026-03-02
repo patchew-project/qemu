@@ -26,7 +26,7 @@
 #ifndef HW_SERIAL_H
 #define HW_SERIAL_H
 
-#include "hw/core/qdev.h"
+#include "hw/core/sysbus.h"
 #include "chardev/char-fe.h"
 #include "system/memory.h"
 #include "qemu/fifo8.h"
@@ -35,7 +35,7 @@
 #define UART_FIFO_LENGTH    16      /* 16550A Fifo Length */
 
 struct SerialState {
-    DeviceState parent;
+    SysBusDevice parent;
 
     uint16_t divider;
     uint8_t rbr; /* receive register */
