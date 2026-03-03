@@ -660,6 +660,7 @@ static void dbus_cursor_dmabuf(DisplayChangeListener *dcl,
     egl_fb_setup_for_tex(&cursor_fb, width, height, texture, false);
     ds = qemu_create_displaysurface(width, height);
     egl_fb_read(ds, &cursor_fb);
+    egl_fb_destroy(&cursor_fb);
 
     v_data = g_variant_new_from_data(
         G_VARIANT_TYPE("ay"),
