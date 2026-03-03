@@ -9,7 +9,7 @@
 
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
-from test_migration import PpcMigrationTest
+from migration import MigrationTest
 
 class PseriesMachine(MigrationTest):
 
@@ -116,7 +116,7 @@ class PseriesMachine(MigrationTest):
         wait_for_console_pattern(self, console_pattern, self.panic_message,
                                  vm=source_vm)
 
-        self.do_migrate_ppc64_linux(source_vm, dest_vm);
+        self.migration_with_tcp_localhost_vms(dest_vm, source_vm);
 
         # ensure the boot proceeds after migration
         wait_for_console_pattern(self, self.good_message, self.panic_message,
