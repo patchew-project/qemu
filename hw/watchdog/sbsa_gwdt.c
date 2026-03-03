@@ -44,6 +44,7 @@ static const VMStateDescription vmstate_sbsa_gwdt = {
 typedef enum WdtRefreshType {
     EXPLICIT_REFRESH = 0,
     TIMEOUT_REFRESH = 1,
+    WCV_LOAD = 2,
 } WdtRefreshType;
 
 static uint64_t sbsa_gwdt_rread(void *opaque, hwaddr addr, unsigned int size)
@@ -118,8 +119,6 @@ static void sbsa_gwdt_update_timer(SBSA_GWDTState *s, WdtRefreshType rtype)
         /* store (now + offset)ns in WCV */
         s->wcvu = timeout >> 32;
         s->wcvl = timeout;
-    } else {
-        g_assert_not_reached();
     }
 
     timeout = (uint64_t)s->wcvu << 32 | s->wcvl;
@@ -169,10 +168,16 @@ static void sbsa_gwdt_write(void *opaque, hwaddr offset, uint64_t data,
 
     case SBSA_GWDT_WCV:
         s->wcvl = data;
+        if (s->wcs & SBSA_GWDT_WCS_EN) {
+            sbsa_gwdt_update_timer(s, WCV_LOAD);
+        }
         break;
 
     case SBSA_GWDT_WCVU:
         s->wcvu = data;
+        if (s->wcs & SBSA_GWDT_WCS_EN) {
+            sbsa_gwdt_update_timer(s, WCV_LOAD);
+        }
         break;
 
     default:
