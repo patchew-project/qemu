@@ -762,6 +762,12 @@ for opt do
   ;;
   --wasm64-32bit-address-limit)
   ;;
+  --enable-asan) use_sanitizer="yes"
+  ;;
+  --enable-tsan) use_sanitizer="yes"
+  ;;
+  --enable-safe-stack) use_sanitizer="yes"
+  ;;
   # everything else has the same name in configure and meson
   --*) meson_option_parse "$opt" "$optarg"
   ;;
@@ -770,6 +776,18 @@ for opt do
   ;;
   esac
 done
+
+if test "$use_sanitizer" = "yes"; then
+    if has clang; then
+        echo "Sanitizer requested: setting compiler suite to clang"
+        cc=clang
+        cxx=clang++
+        host_cc=clang
+    else
+        echo "Sanitizer requested: disabling Werror for non-clang compilers"
+        meson_option_add -Dwerror=false
+    fi
+fi
 
 if ! test -e "$source_path/.git"
 then
