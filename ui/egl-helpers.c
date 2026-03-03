@@ -111,15 +111,23 @@ void egl_fb_setup_default(egl_fb *fb, int width, int height, int x, int y)
 void egl_fb_setup_for_tex(egl_fb *fb, int width, int height,
                           GLuint texture, bool delete)
 {
-    egl_fb_delete_texture(fb);
+    if (fb->texture != texture) {
+        egl_fb_delete_texture(fb);
+    }
+
+    /*
+     * If fb->texture == texture, the existing fb->framebuffer is tied to
+     * a previous GL context. Since FBOs are not shared across contexts,
+     * we must create a new FBO for the current context.
+     */
+    if (!fb->framebuffer || (fb->texture == texture)) {
+        glGenFramebuffers(1, &fb->framebuffer);
+    }
 
     fb->width = width;
     fb->height = height;
     fb->texture = texture;
     fb->delete_texture = delete;
-    if (!fb->framebuffer) {
-        glGenFramebuffers(1, &fb->framebuffer);
-    }
 
     glBindFramebuffer(GL_FRAMEBUFFER_EXT, fb->framebuffer);
     glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
