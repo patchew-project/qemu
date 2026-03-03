@@ -65,6 +65,7 @@
 #include "target/arm/cpu.h"
 #include "target/arm/multiprocessing.h"
 #include "hw/watchdog/sbsa_gwdt.h"
+#include "hw/acpi/wdat-gwdt.h"
 
 #define ARM_SPI_BASE 32
 
@@ -849,12 +850,25 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     acpi_table_end(linker, &table);
 }
 
+static void virt_get_wdt_options(VirtMachineState *vms, Object *wdt,
+                                 hwaddr *rbase, hwaddr *cbase, int *irq)
+{
+    PlatformBusDevice *pbus = PLATFORM_BUS_DEVICE(vms->platform_bus_dev);
+    SysBusDevice *sd = SYS_BUS_DEVICE(wdt);
+    hwaddr mmio_base = vms->memmap[VIRT_PLATFORM_BUS].base;
+    *rbase = mmio_base + platform_bus_get_mmio_addr(pbus, sd, 0);
+    *cbase = mmio_base + platform_bus_get_mmio_addr(pbus, sd, 1);
+    *irq = ARM_SPI_BASE + vms->irqmap[VIRT_PLATFORM_BUS] +
+           platform_bus_get_irqn(pbus, sd, 0);
+}
+
 /*
  * ACPI spec, Revision 6.5
  * 5.2.25 Generic Timer Description Table (GTDT)
  */
 static void
-build_gtdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
+build_gtdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms,
+           Object *wdt, bool add_watchdog)
 {
     /*
      * Table 5-117 Flag Definitions
@@ -865,7 +879,6 @@ build_gtdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     AcpiTable table = { .sig = "GTDT", .rev = 3, .oem_id = vms->oem_id,
                         .oem_table_id = vms->oem_table_id };
     uint32_t gtdt_start = table_data->len;
-    Object *wdt = object_resolve_type_unambiguous(TYPE_WDT_SBSA, NULL);
 
     acpi_table_begin(&table, table_data);
 
@@ -898,12 +911,12 @@ build_gtdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     build_append_int_noprefix(table_data, 0xFFFFFFFFFFFFFFFF, 8);
 
     /* Platform Timer Count */
-    build_append_int_noprefix(table_data,  wdt ? 1 : 0, 4);
+    build_append_int_noprefix(table_data,  add_watchdog ? 1 : 0, 4);
     /* Platform Timer Offset */
     build_append_int_noprefix(table_data,
-        wdt ? (table_data->len - gtdt_start) +
-              4 + 4 + 4 /* len of this & following 2 fields to skip */
-            : 0, 4);
+        add_watchdog ? (table_data->len - gtdt_start) +
+                       4 + 4 + 4 /* len of this & following 2 fields to skip */
+                     : 0, 4);
 
     if (vms->ns_el2_virt_timer_irq) {
         /* Virtual EL2 Timer GSIV */
@@ -916,14 +929,10 @@ build_gtdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     }
 
     /* ACPI 6.5 spec: 5.2.25.2 ARM Generic Watchdog Structure (Table 5-124) */
-    if (wdt) {
-        PlatformBusDevice *pbus = PLATFORM_BUS_DEVICE(vms->platform_bus_dev);
-        SysBusDevice *sd = SYS_BUS_DEVICE(wdt);
-        hwaddr mmio_base = vms->memmap[VIRT_PLATFORM_BUS].base;
-        hwaddr rbase = mmio_base + platform_bus_get_mmio_addr(pbus, sd, 0);
-        hwaddr cbase = mmio_base + platform_bus_get_mmio_addr(pbus, sd, 1);
-        int irq = ARM_SPI_BASE + vms->irqmap[VIRT_PLATFORM_BUS] +
-                  platform_bus_get_irqn(pbus, sd, 0);
+    if (add_watchdog) {
+        int irq;
+        hwaddr rbase, cbase;
+        virt_get_wdt_options(vms, wdt, &rbase, &cbase, &irq);
 
         build_append_int_noprefix(table_data, 1 /* Type: Watchdog GT */, 1);
         build_append_int_noprefix(table_data, 28 /* Length */, 2);
@@ -1282,8 +1291,14 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
     VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
     GArray *table_offsets;
     unsigned dsdt, xsdt;
+    bool has_wdat = false;
     GArray *tables_blob = tables->table_data;
     MachineState *ms = MACHINE(vms);
+    Object *wdt = object_resolve_type_unambiguous(TYPE_WDT_SBSA, NULL);
+
+    if (wdt) {
+        has_wdat = object_property_get_bool(wdt, "wdat", &error_abort);
+    }
 
     table_offsets = g_array_new(false, true /* clear */,
                                         sizeof(uint32_t));
@@ -1303,6 +1318,19 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
     acpi_add_table(table_offsets, tables_blob);
     build_madt(tables_blob, tables->linker, vms);
 
+    acpi_add_table(table_offsets, tables_blob);
+    if (wdt && has_wdat) {
+        int irq;
+        hwaddr rbase, cbase;
+        uint64_t freq = object_property_get_uint(wdt, "clock-frequency",
+                                                 &error_abort);
+        virt_get_wdt_options(vms, wdt, &rbase, &cbase, &irq);
+
+        build_gwdt_wdat(tables_blob, tables->linker,
+                        vms->oem_id, vms->oem_table_id,
+                        rbase, cbase, freq);
+    }
+
     if (!vmc->no_cpu_topology) {
         acpi_add_table(table_offsets, tables_blob);
         build_pptt(tables_blob, tables->linker, ms,
@@ -1310,7 +1338,7 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
     }
 
     acpi_add_table(table_offsets, tables_blob);
-    build_gtdt(tables_blob, tables->linker, vms);
+    build_gtdt(tables_blob, tables->linker, vms, wdt, wdt && !has_wdat);
 
     acpi_add_table(table_offsets, tables_blob);
     {
