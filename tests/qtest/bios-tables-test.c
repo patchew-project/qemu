@@ -2290,6 +2290,24 @@ static void test_acpi_aarch64_virt_tcg_wdat(void)
     free_test_data(&data);
 }
 
+static void test_acpi_aarch64_virt_tcg_gtdt_wd(void)
+{
+    test_data data = {
+        .machine = "virt",
+        .arch = "aarch64",
+        .variant = ".gwdt",
+        .tcg_only = true,
+        .uefi_fl1 = "pc-bios/edk2-aarch64-code.fd",
+        .uefi_fl2 = "pc-bios/edk2-arm-vars.fd",
+        .cd = "tests/data/uefi-boot-images/bios-tables-test.aarch64.iso.qcow2",
+        .ram_start = 0x40000000ULL,
+        .scan_len = 128ULL * MiB,
+    };
+
+    test_acpi_one("-cpu cortex-a57 " "-device sbsa_gwdt", &data);
+    free_test_data(&data);
+}
+
 static void test_acpi_q35_viot(void)
 {
     test_data data = {
@@ -2910,6 +2928,8 @@ int main(int argc, char *argv[])
             }
             qtest_add_func("acpi/virt/acpi-watchdog",
                            test_acpi_aarch64_virt_tcg_wdat);
+            qtest_add_func("acpi/virt/gwdt-watchdog",
+                           test_acpi_aarch64_virt_tcg_gtdt_wd);
         }
     } else if (strcmp(arch, "riscv64") == 0) {
         if (has_tcg && qtest_has_device("virtio-blk-pci")) {
