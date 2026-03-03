@@ -36,6 +36,7 @@
 #include "hw/display/ramfb.h"
 #include "hw/uefi/var-service-api.h"
 #include "hw/arm/fdt.h"
+#include "hw/watchdog/sbsa_gwdt.h"
 
 /*
  * internal struct that contains the information to create dynamic
@@ -118,6 +119,36 @@ static int add_uefi_vars_node(SysBusDevice *sbdev, void *opaque)
     return 0;
 }
 
+static int add_sbsa_gwdt_node(SysBusDevice *sbdev, void *opaque)
+{
+    PlatformBusFDTData *data = opaque;
+    PlatformBusDevice *pbus = data->pbus;
+    const char *parent_node = data->pbus_node_name;
+    void *fdt = data->fdt;
+    uint64_t cbase, rbase;
+    char *nodename;
+    int irq;
+
+    cbase = platform_bus_get_mmio_addr(pbus, sbdev, 1);  /* control frame */
+    rbase = platform_bus_get_mmio_addr(pbus, sbdev, 0);  /* refresh frame */
+    irq = platform_bus_get_irqn(pbus, sbdev, 0);
+
+    nodename = g_strdup_printf("%s/watchdog@%" PRIx64, parent_node, cbase);
+    qemu_fdt_add_subnode(fdt, nodename);
+
+    qemu_fdt_setprop_string(fdt, nodename, "compatible", "arm,sbsa-gwdt");
+    qemu_fdt_setprop_cells(fdt, nodename, "reg",
+                           cbase, SBSA_GWDT_CMMIO_SIZE,
+                           rbase, SBSA_GWDT_RMMIO_SIZE);
+    qemu_fdt_setprop_cells(fdt, nodename, "interrupts",
+                           GIC_FDT_IRQ_TYPE_SPI, data->irq_start + irq,
+                           GIC_FDT_IRQ_FLAGS_LEVEL_HI);
+    qemu_fdt_setprop_cell(fdt, nodename, "timeout-sec", 30);
+
+    g_free(nodename);
+    return 0;
+}
+
 static int no_fdt_node(SysBusDevice *sbdev, void *opaque)
 {
     return 0;
@@ -140,6 +171,7 @@ static const BindingEntry bindings[] = {
     TYPE_BINDING(TYPE_ARM_SMMUV3, no_fdt_node),
     TYPE_BINDING(TYPE_RAMFB_DEVICE, no_fdt_node),
     TYPE_BINDING(TYPE_UEFI_VARS_SYSBUS, add_uefi_vars_node),
+    TYPE_BINDING(TYPE_WDT_SBSA, add_sbsa_gwdt_node),
     TYPE_BINDING("", NULL), /* last element */
 };
 

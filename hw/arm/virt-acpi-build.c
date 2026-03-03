@@ -64,6 +64,7 @@
 #include "hw/virtio/virtio-acpi.h"
 #include "target/arm/cpu.h"
 #include "target/arm/multiprocessing.h"
+#include "hw/watchdog/sbsa_gwdt.h"
 
 #define ARM_SPI_BASE 32
 
@@ -863,6 +864,8 @@ build_gtdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     const uint32_t irqflags = 0;  /* Interrupt is Level triggered  */
     AcpiTable table = { .sig = "GTDT", .rev = 3, .oem_id = vms->oem_id,
                         .oem_table_id = vms->oem_table_id };
+    uint32_t gtdt_start = table_data->len;
+    Object *wdt = object_resolve_type_unambiguous(TYPE_WDT_SBSA, NULL);
 
     acpi_table_begin(&table, table_data);
 
@@ -893,10 +896,15 @@ build_gtdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     build_append_int_noprefix(table_data, irqflags, 4);
     /* CntReadBase Physical address */
     build_append_int_noprefix(table_data, 0xFFFFFFFFFFFFFFFF, 8);
+
     /* Platform Timer Count */
-    build_append_int_noprefix(table_data, 0, 4);
+    build_append_int_noprefix(table_data,  wdt ? 1 : 0, 4);
     /* Platform Timer Offset */
-    build_append_int_noprefix(table_data, 0, 4);
+    build_append_int_noprefix(table_data,
+        wdt ? (table_data->len - gtdt_start) +
+              4 + 4 + 4 /* len of this & following 2 fields to skip */
+            : 0, 4);
+
     if (vms->ns_el2_virt_timer_irq) {
         /* Virtual EL2 Timer GSIV */
         build_append_int_noprefix(table_data, ARCH_TIMER_NS_EL2_VIRT_IRQ, 4);
@@ -905,6 +913,27 @@ build_gtdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     } else {
         build_append_int_noprefix(table_data, 0, 4);
         build_append_int_noprefix(table_data, 0, 4);
+    }
+
+    /* ACPI 6.5 spec: 5.2.25.2 ARM Generic Watchdog Structure (Table 5-124) */
+    if (wdt) {
+        PlatformBusDevice *pbus = PLATFORM_BUS_DEVICE(vms->platform_bus_dev);
+        SysBusDevice *sd = SYS_BUS_DEVICE(wdt);
+        hwaddr mmio_base = vms->memmap[VIRT_PLATFORM_BUS].base;
+        hwaddr rbase = mmio_base + platform_bus_get_mmio_addr(pbus, sd, 0);
+        hwaddr cbase = mmio_base + platform_bus_get_mmio_addr(pbus, sd, 1);
+        int irq = ARM_SPI_BASE + vms->irqmap[VIRT_PLATFORM_BUS] +
+                  platform_bus_get_irqn(pbus, sd, 0);
+
+        build_append_int_noprefix(table_data, 1 /* Type: Watchdog GT */, 1);
+        build_append_int_noprefix(table_data, 28 /* Length */, 2);
+        build_append_int_noprefix(table_data, 0, 1);  /* Reserved */
+        /* RefreshFrame Physical Address */
+        build_append_int_noprefix(table_data, rbase, 8);
+        /* WatchdogControlFrame Physical Address */
+        build_append_int_noprefix(table_data, cbase, 8);
+        build_append_int_noprefix(table_data, irq, 4); /* Watchdog Timer GSIV */
+        build_append_int_noprefix(table_data, 0, 4); /* Watchdog Timer Flags */
     }
     acpi_table_end(linker, &table);
 }
