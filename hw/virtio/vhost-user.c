@@ -300,6 +300,20 @@ static int vhost_user_read_header(struct vhost_dev *dev, VhostUserMsg *msg)
     return 0;
 }
 
+/**
+ * vhost_user_read:
+ * @dev: The vhost device state
+ * @msg: Pointer to the vhost-user message structure to populate
+ *
+ * Reads a complete vhost-user message (header and optional payload) from 
+ * the character device. It first reads and validates the header, checks 
+ * the advertised payload size against maximum bounds, and then reads any 
+ * attached payload directly into the message structure.
+ *
+ * Returns: 0 on success,
+ * -EIO or -errno on read failure or short read,
+ * -EPROTO if the protocol flags or payload size are invalid.
+ */
 static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
 {
     struct vhost_user *u = dev->opaque;
@@ -307,12 +321,13 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
     uint8_t *p = (uint8_t *) msg;
     int r, size;
 
+    /* 1. Read and validate the message header */
     r = vhost_user_read_header(dev, msg);
     if (r < 0) {
         return r;
     }
 
-    /* validate message size is sane */
+    /* 2. Validate that the payload size is sane to prevent buffer overflows */
     if (msg->hdr.size > VHOST_USER_PAYLOAD_SIZE) {
         error_report("Failed to read msg header."
                 " Size %d exceeds the maximum %zu.", msg->hdr.size,
@@ -320,9 +335,13 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
         return -EPROTO;
     }
 
+    /* 3. If the header indicates a payload exists, read it */
     if (msg->hdr.size) {
+        /* Advance the pointer to the start of the payload section */
         p += VHOST_USER_HDR_SIZE;
         size = msg->hdr.size;
+        
+        /* Block and read the exact payload size */
         r = qemu_chr_fe_read_all(chr, p, size);
         if (r != size) {
             int saved_errno = errno;
