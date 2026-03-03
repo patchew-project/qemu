@@ -11,7 +11,7 @@ from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
 from test_migration import PpcMigrationTest
 
-class PseriesMachine(QemuSystemTest):
+class PseriesMachine(MigrationTest):
 
     timeout = 90
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 console=hvc0 '
@@ -116,11 +116,11 @@ class PseriesMachine(QemuSystemTest):
         wait_for_console_pattern(self, console_pattern, self.panic_message,
                                  vm=source_vm)
 
-        PpcMigrationTest().do_migrate_ppc64_linux(source_vm, dest_vm);
+        self.do_migrate_ppc64_linux(source_vm, dest_vm);
 
         # ensure the boot proceeds after migration
         wait_for_console_pattern(self, self.good_message, self.panic_message,
                                  vm=dest_vm)
 
 if __name__ == '__main__':
-    QemuSystemTest.main()
+    MigrationTest.main()
