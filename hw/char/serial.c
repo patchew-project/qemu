@@ -991,6 +991,9 @@ static void serial_realize(DeviceState *dev, Error **errp)
                              serial_event, serial_be_change, s, NULL, true);
     fifo8_create(&s->recv_fifo, UART_FIFO_LENGTH);
     fifo8_create(&s->xmit_fifo, UART_FIFO_LENGTH);
+
+    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->io);
+    sysbus_init_irq(SYS_BUS_DEVICE(s), &s->irq);
 }
 
 static void serial_unrealize(DeviceState *dev)
@@ -1034,7 +1037,7 @@ static void serial_class_init(ObjectClass *klass, const void *data)
 
 static const TypeInfo serial_info = {
     .name = TYPE_SERIAL,
-    .parent = TYPE_DEVICE,
+    .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SerialState),
     .class_init = serial_class_init,
 };
