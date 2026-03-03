@@ -33,10 +33,7 @@ APICCommonClass *apic_get_class(Error **errp)
         apic_type = "kvm-apic";
     } else if (xen_enabled()) {
         apic_type = "xen-apic";
-    } else if (whpx_irqchip_in_kernel()) {
-        apic_type = "whpx-apic";
     }
-
     return APIC_COMMON_CLASS(object_class_by_name(apic_type));
 }
 

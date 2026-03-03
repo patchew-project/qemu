@@ -28,6 +28,8 @@
 #include "qemu/host-utils.h"
 #include "system/kvm.h"
 #include "system/mshv.h"
+#include "system/whpx.h"
+#include "whpx/irq.h"
 #include "trace.h"
 #include "hw/i386/apic-msidef.h"
 #include "exec/cpu-common.h"
@@ -912,6 +914,13 @@ static void apic_send_msi(MSIMessage *msi)
 #ifdef CONFIG_MSHV
     if (mshv_enabled()) {
         mshv_request_interrupt(mshv_state, delivery, vector, dest,
+                               dest_mode, trigger_mode);
+        return;
+    }
+#endif
+#ifdef CONFIG_WHPX
+    if (whpx_enabled() && whpx_irqchip_in_kernel()) {
+        whpx_request_interrupt(delivery, vector, dest,
                                dest_mode, trigger_mode);
         return;
     }

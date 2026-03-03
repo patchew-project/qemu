@@ -36,6 +36,7 @@
 #include "system/whpx-accel-ops.h"
 #include "system/whpx-all.h"
 #include "system/whpx-common.h"
+#include "whpx/irq.h"
 
 #include "emulate/x86_decode.h"
 #include "emulate/x86_emu.h"
@@ -390,6 +391,7 @@ void whpx_set_registers(CPUState *cpu, WHPXStateLevel level)
      */
     if (level >= WHPX_LEVEL_RESET_STATE) {
         whpx_set_tsc(cpu);
+        whpx_set_lint(cpu);
     }
 
     memset(&vcxt, 0, sizeof(struct whpx_register_set));
@@ -621,17 +623,6 @@ void whpx_get_registers(CPUState *cpu, WHPXStateLevel level)
                      hr);
     }
 
-    if (level > WHPX_LEVEL_FAST_RUNTIME_STATE && whpx_irqchip_in_kernel()) {
-        /*
-         * Fetch the TPR value from the emulated APIC. It may get overwritten
-         * below with the value from CR8 returned by
-         * WHvGetVirtualProcessorRegisters().
-         */
-        whpx_apic_get(x86_cpu->apic_state);
-        vcpu->tpr = whpx_apic_tpr_to_cr8(
-            cpu_get_apic_tpr(x86_cpu->apic_state));
-    }
-
     idx = 0;
 
     /* Indexes for first 16 registers match between HV and QEMU definitions */
@@ -763,10 +754,6 @@ void whpx_get_registers(CPUState *cpu, WHPXStateLevel level)
     /* Interrupt / Event Registers - Skipped */
 
     assert(idx == RTL_NUMBER_OF(whpx_register_names));
-
-    if (level > WHPX_LEVEL_FAST_RUNTIME_STATE && whpx_irqchip_in_kernel()) {
-        whpx_apic_get(x86_cpu->apic_state);
-    }
 
     x86_update_hflags(env);
 }
