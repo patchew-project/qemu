@@ -25,6 +25,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include <epoxy/gl.h>
 #include "qemu/error-report.h"
 #include "ui/console.h"
 #include "ui/shader.h"
@@ -66,6 +67,9 @@ bool console_gl_check_format(DisplayChangeListener *dcl,
 void surface_gl_create_texture(QemuGLShader *gls,
                                DisplaySurface *surface)
 {
+    GLenum glformat;
+    GLenum gltype;
+
     assert(gls);
     assert(QEMU_IS_ALIGNED(surface_stride(surface), surface_bytes_per_pixel(surface)));
 
@@ -73,7 +77,7 @@ void surface_gl_create_texture(QemuGLShader *gls,
         return;
     }
 
-    assert(map_format(surface_format(surface), &surface->glformat, &surface->gltype));
+    assert(map_format(surface_format(surface), &glformat, &gltype));
     glGenTextures(1, &surface->texture);
     glEnable(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, surface->texture);
@@ -81,16 +85,12 @@ void surface_gl_create_texture(QemuGLShader *gls,
                   surface_stride(surface) / surface_bytes_per_pixel(surface));
     if (epoxy_is_desktop_gl()) {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB,
-                     surface_width(surface),
-                     surface_height(surface),
-                     0, surface->glformat, surface->gltype,
-                     surface_data(surface));
+                     surface_width(surface), surface_height(surface), 0,
+                     glformat, gltype, surface_data(surface));
     } else {
-        glTexImage2D(GL_TEXTURE_2D, 0, surface->glformat,
-                     surface_width(surface),
-                     surface_height(surface),
-                     0, surface->glformat, surface->gltype,
-                     surface_data(surface));
+        glTexImage2D(GL_TEXTURE_2D, 0, glformat,
+                     surface_width(surface), surface_height(surface), 0,
+                     glformat, gltype, surface_data(surface));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_ONE);
     }
 
@@ -150,17 +150,18 @@ void surface_gl_update_texture(QemuGLShader *gls,
                                int x, int y, int w, int h)
 {
     uint8_t *data = (void *)surface_data(surface);
+    GLenum glformat;
+    GLenum gltype;
 
     assert(gls);
+    assert(map_format(surface_format(surface), &glformat, &gltype));
 
     if (surface->texture) {
         glBindTexture(GL_TEXTURE_2D, surface->texture);
         glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT,
                       surface_stride(surface)
                       / surface_bytes_per_pixel(surface));
-        glTexSubImage2D(GL_TEXTURE_2D, 0,
-                        x, y, w, h,
-                        surface->glformat, surface->gltype,
+        glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h, glformat, gltype,
                         data + surface_stride(surface) * y
                         + surface_bytes_per_pixel(surface) * x);
     }
