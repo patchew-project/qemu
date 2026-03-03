@@ -122,6 +122,8 @@ static void sbsa_gwdt_update_timer(SBSA_GWDTState *s, WdtRefreshType rtype)
     }
 
     timeout = (uint64_t)s->wcvu << 32 | s->wcvl;
+    /* clamp timeout to INT64_MAX to avoid timer overflow */
+    timeout &= INT64_MAX;
     timer_mod(s->timer, timeout);
 }
 
