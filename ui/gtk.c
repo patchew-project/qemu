@@ -636,6 +636,7 @@ static const DisplayGLCtxOps gl_area_ctx_ops = {
     .dpy_gl_ctx_is_compatible_dcl = gd_gl_area_is_compatible_dcl,
     .dpy_gl_ctx_create       = gd_gl_area_create_context,
     .dpy_gl_ctx_destroy      = gd_gl_area_destroy_context,
+    .dpy_gl_ctx_destroy_texture = gd_gl_area_destroy_texture,
     .dpy_gl_ctx_make_current = gd_gl_area_make_current,
 };
 
@@ -670,6 +671,7 @@ static const DisplayGLCtxOps egl_ctx_ops = {
     .dpy_gl_ctx_is_compatible_dcl = gd_egl_is_compatible_dcl,
     .dpy_gl_ctx_create       = gd_egl_create_context,
     .dpy_gl_ctx_destroy      = qemu_egl_destroy_context,
+    .dpy_gl_ctx_destroy_texture = gd_egl_destroy_texture,
     .dpy_gl_ctx_make_current = gd_egl_make_current,
 };
 #endif

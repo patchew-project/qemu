@@ -225,6 +225,16 @@ QEMUGLContext gd_egl_create_context(DisplayGLCtx *dgc,
     return qemu_egl_create_context(dgc, params);
 }
 
+void gd_egl_destroy_texture(DisplayGLCtx *dgc, DisplaySurface *surface)
+{
+    VirtualConsole *vc = container_of(dgc, VirtualConsole, gfx.dgc);
+
+    eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
+                   vc->gfx.esurface, vc->gfx.ectx);
+
+    surface_gl_destroy_texture(dgc->gls, surface);
+}
+
 void gd_egl_scanout_disable(DisplayChangeListener *dcl)
 {
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);

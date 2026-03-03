@@ -170,6 +170,8 @@ void gd_egl_switch(DisplayChangeListener *dcl,
                    DisplaySurface *surface);
 QEMUGLContext gd_egl_create_context(DisplayGLCtx *dgc,
                                     QEMUGLParams *params);
+void gd_egl_destroy_texture(DisplayGLCtx *dgc,
+                            DisplaySurface *surface);
 void gd_egl_scanout_disable(DisplayChangeListener *dcl);
 void gd_egl_scanout_texture(DisplayChangeListener *dcl,
                             uint32_t backing_id,
@@ -206,6 +208,8 @@ QEMUGLContext gd_gl_area_create_context(DisplayGLCtx *dgc,
                                         QEMUGLParams *params);
 void gd_gl_area_destroy_context(DisplayGLCtx *dgc,
                                 QEMUGLContext ctx);
+void gd_gl_area_destroy_texture(DisplayGLCtx *dgc,
+                                DisplaySurface *surface);
 void gd_gl_area_scanout_dmabuf(DisplayChangeListener *dcl,
                                QemuDmaBuf *dmabuf);
 void gd_gl_area_scanout_texture(DisplayChangeListener *dcl,

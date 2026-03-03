@@ -299,6 +299,14 @@ void gd_gl_area_destroy_context(DisplayGLCtx *dgc, QEMUGLContext ctx)
     g_clear_object(&ctx);
 }
 
+void gd_gl_area_destroy_texture(DisplayGLCtx *dgc, DisplaySurface *surface)
+{
+    VirtualConsole *vc = container_of(dgc, VirtualConsole, gfx.dgc);
+
+    gtk_gl_area_make_current(GTK_GL_AREA(vc->gfx.drawing_area));
+    surface_gl_destroy_texture(dgc->gls, surface);
+}
+
 void gd_gl_area_scanout_texture(DisplayChangeListener *dcl,
                                 uint32_t backing_id,
                                 bool backing_y_0_top,
