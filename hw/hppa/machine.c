@@ -181,12 +181,12 @@ static uint64_t linux_kernel_virt_to_phys(void *opaque, uint64_t addr)
 
 static uint64_t translate_pa10(void *dummy, uint64_t addr)
 {
-    return hppa_abs_to_phys_pa1x(addr);
+    return hppa_abs_to_phys_pa1x(cpu_env(first_cpu), addr);
 }
 
 static uint64_t translate_pa20(void *dummy, uint64_t addr)
 {
-    return hppa_abs_to_phys_pa2_w0(addr);
+    return hppa_abs_to_phys_pa2_w0(cpu_env(first_cpu), addr);
 }
 
 static HPPACPU *cpu[HPPA_MAX_CPUS];
