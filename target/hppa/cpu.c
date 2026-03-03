@@ -207,7 +207,9 @@ static void hppa_cpu_initfn(Object *obj)
 {
     CPUHPPAState *env = cpu_env(CPU(obj));
 
-    env->is_pa20 = !!object_dynamic_cast(obj, TYPE_HPPA64_CPU);
+    env->is_pa20 = !!object_dynamic_cast(obj, TYPE_HPPA_CPU_PA_8500) ||
+                   !!object_dynamic_cast(obj, TYPE_HPPA_CPU_PA_8700);
+
 }
 
 static void hppa_cpu_reset_hold(Object *obj, ResetType type)
@@ -236,9 +238,14 @@ static void hppa_cpu_reset_hold(Object *obj, ResetType type)
 
 static ObjectClass *hppa_cpu_class_by_name(const char *cpu_model)
 {
-    g_autofree char *typename = g_strconcat(cpu_model, "-cpu", NULL);
+    ObjectClass *oc;
+    char *typename;
 
-    return object_class_by_name(typename);
+    typename = g_strdup_printf(HPPA_CPU_TYPE_NAME("%s"), cpu_model);
+    oc = object_class_by_name(typename);
+    g_free(typename);
+
+    return oc;
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -314,12 +321,20 @@ static const TypeInfo hppa_cpu_type_infos[] = {
         .instance_size = sizeof(HPPACPU),
         .instance_align = __alignof(HPPACPU),
         .instance_init = hppa_cpu_initfn,
-        .abstract = false,
+        .abstract = true,
         .class_size = sizeof(HPPACPUClass),
         .class_init = hppa_cpu_class_init,
     },
     {
-        .name = TYPE_HPPA64_CPU,
+        .name = TYPE_HPPA_CPU_PA_7300LC,
+        .parent = TYPE_HPPA_CPU,
+    },
+    {
+        .name = TYPE_HPPA_CPU_PA_8500,
+        .parent = TYPE_HPPA_CPU,
+    },
+    {
+        .name = TYPE_HPPA_CPU_PA_8700,
         .parent = TYPE_HPPA_CPU,
     },
 };
