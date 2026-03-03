@@ -404,15 +404,6 @@ static void smi_features_ok_callback(void *opaque)
     guest_cpu_hotplug_features = guest_features &
                                  (BIT_ULL(ICH9_LPC_SMI_F_CPU_HOTPLUG_BIT) |
                                   BIT_ULL(ICH9_LPC_SMI_F_CPU_HOT_UNPLUG_BIT));
-    if (!(guest_features & BIT_ULL(ICH9_LPC_SMI_F_BROADCAST_BIT)) &&
-        guest_cpu_hotplug_features) {
-        /*
-         * cpu hot-[un]plug with SMI requires SMI broadcast,
-         * leave @features_ok at zero
-         */
-        return;
-    }
-
     if (guest_cpu_hotplug_features ==
         BIT_ULL(ICH9_LPC_SMI_F_CPU_HOT_UNPLUG_BIT)) {
         /* cpu hot-unplug is unsupported without cpu-hotplug */
@@ -474,14 +465,9 @@ static void ich9_apm_ctrl_changed(uint32_t val, void *arg)
 
     /* SMI_EN = PMBASE + 30. SMI control and enable register */
     if (lpc->pm.smi_en & ICH9_PMIO_SMI_EN_APMC_EN) {
-        if (lpc->smi_negotiated_features &
-            (UINT64_C(1) << ICH9_LPC_SMI_F_BROADCAST_BIT)) {
-            CPUState *cs;
-            CPU_FOREACH(cs) {
-                cpu_interrupt(cs, CPU_INTERRUPT_SMI);
-            }
-        } else {
-            cpu_interrupt(current_cpu, CPU_INTERRUPT_SMI);
+        CPUState *cs;
+        CPU_FOREACH(cs) {
+            cpu_interrupt(cs, CPU_INTERRUPT_SMI);
         }
     }
 }
@@ -685,6 +671,7 @@ static void ich9_lpc_initfn(Object *obj)
 
     static const uint8_t acpi_enable_cmd = ICH9_APM_ACPI_ENABLE;
     static const uint8_t acpi_disable_cmd = ICH9_APM_ACPI_DISABLE;
+    lpc->smi_host_features = BIT_ULL(ICH9_LPC_SMI_F_BROADCAST_BIT);
 
     object_initialize_child(obj, "rtc", &lpc->rtc, TYPE_MC146818_RTC);
 
@@ -834,8 +821,6 @@ static const Property ich9_lpc_properties[] = {
     DEFINE_PROP_BOOL("noreboot", ICH9LPCState, pin_strap.spkr_hi, false),
     DEFINE_PROP_BOOL("smm-compat", ICH9LPCState, pm.smm_compat, false),
     DEFINE_PROP_BOOL("smm-enabled", ICH9LPCState, pm.smm_enabled, false),
-    DEFINE_PROP_BIT64("x-smi-broadcast", ICH9LPCState, smi_host_features,
-                      ICH9_LPC_SMI_F_BROADCAST_BIT, true),
     DEFINE_PROP_BIT64("x-smi-cpu-hotplug", ICH9LPCState, smi_host_features,
                       ICH9_LPC_SMI_F_CPU_HOTPLUG_BIT, true),
     DEFINE_PROP_BIT64("x-smi-cpu-hotunplug", ICH9LPCState, smi_host_features,

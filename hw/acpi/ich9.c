@@ -432,7 +432,7 @@ void ich9_pm_device_pre_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
     if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
         uint64_t negotiated = lpc->smi_negotiated_features;
 
-        if (negotiated & BIT_ULL(ICH9_LPC_SMI_F_BROADCAST_BIT) &&
+        if (lpc->pm.smi_en & ICH9_PMIO_SMI_EN_APMC_EN &&
             !(negotiated & BIT_ULL(ICH9_LPC_SMI_F_CPU_HOTPLUG_BIT))) {
             error_setg(errp, "cpu hotplug with SMI wasn't enabled by firmware");
             error_append_hint(errp, "update machine type to newer than 5.1 "
@@ -476,7 +476,7 @@ void ich9_pm_device_unplug_request_cb(HotplugHandler *hotplug_dev,
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
         uint64_t negotiated = lpc->smi_negotiated_features;
 
-        if (negotiated & BIT_ULL(ICH9_LPC_SMI_F_BROADCAST_BIT) &&
+        if (lpc->pm.smi_en & ICH9_PMIO_SMI_EN_APMC_EN &&
             !(negotiated & BIT_ULL(ICH9_LPC_SMI_F_CPU_HOT_UNPLUG_BIT))) {
             error_setg(errp, "cpu hot-unplug with SMI wasn't enabled "
                              "by firmware");
