@@ -109,22 +109,20 @@ static void sbsa_gwdt_update_timer(SBSA_GWDTState *s, WdtRefreshType rtype)
         return;
     }
 
-    /*
-     * Extract the upper 16 bits from woru & 32 bits from worl
-     * registers to construct the 48 bit offset value
-     */
-    timeout = s->woru;
-    timeout <<= 32;
-    timeout |= s->worl;
-    timeout = muldiv64(timeout, NANOSECONDS_PER_SECOND, s->freq);
-    timeout += qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-
     if ((rtype == EXPLICIT_REFRESH) || ((rtype == TIMEOUT_REFRESH) &&
             (!(s->wcs & SBSA_GWDT_WCS_WS0)))) {
-        /* store the current timeout value into compare registers */
+        uint64_t offset = (uint64_t)s->woru << 32 | s->worl;
+        timeout = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                      muldiv64(offset, NANOSECONDS_PER_SECOND, s->freq);
+
+        /* store (now + offset)ns in WCV */
         s->wcvu = timeout >> 32;
         s->wcvl = timeout;
+    } else {
+        g_assert_not_reached();
     }
+
+    timeout = (uint64_t)s->wcvu << 32 | s->wcvl;
     timer_mod(s->timer, timeout);
 }
 
