@@ -42,7 +42,6 @@ typedef struct PCIMultiSerialState {
     PCIDevice    dev;
     MemoryRegion iobar;
     uint32_t     ports;
-    char         *name[PCI_SERIAL_MAX_PORTS];
     SerialState  state[PCI_SERIAL_MAX_PORTS];
     uint32_t     level[PCI_SERIAL_MAX_PORTS];
     IRQState     irqs[PCI_SERIAL_MAX_PORTS];
@@ -58,7 +57,6 @@ static void multi_serial_pci_exit(PCIDevice *dev)
         s = pci->state + i;
         qdev_unrealize(DEVICE(s));
         memory_region_del_subregion(&pci->iobar, &s->io);
-        g_free(pci->name[i]);
     }
 }
 
@@ -108,9 +106,6 @@ static void multi_serial_pci_realize(PCIDevice *dev, Error **errp)
             return;
         }
         s->irq = &pci->irqs[i];
-        pci->name[i] = g_strdup_printf("uart #%zu", i + 1);
-        memory_region_init_io(&s->io, OBJECT(pci), &serial_io_ops, s,
-                              pci->name[i], 8);
         memory_region_add_subregion(&pci->iobar, 8 * i, &s->io);
         pci->ports++;
     }

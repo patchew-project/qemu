@@ -39,9 +39,6 @@ struct SerialMM {
     SysBusDevice parent;
 
     SerialState serial;
-
-    uint8_t regshift;
-    uint8_t endianness;
 };
 
 SerialMM *serial_mm_init(MemoryRegion *address_space,

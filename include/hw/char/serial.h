@@ -62,6 +62,9 @@ struct SerialState {
     guint watch_tag;
     bool wakeup;
 
+    uint8_t regshift;
+    uint8_t endianness;
+
     /* Time when the last byte was successfully sent out of the tsr */
     uint64_t last_xmit_ts;
     Fifo8 recv_fifo;
@@ -80,7 +83,6 @@ struct SerialState {
 };
 
 extern const VMStateDescription vmstate_serial;
-extern const MemoryRegionOps serial_io_ops;
 
 #define TYPE_SERIAL "serial"
 OBJECT_DECLARE_SIMPLE_TYPE(SerialState, SERIAL)
