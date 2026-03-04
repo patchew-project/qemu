@@ -1565,7 +1565,7 @@ static const VMStateDescription vmstate_xive_source = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_EQUAL(nr_irqs, XiveSource, NULL),
+        VMSTATE_UINT32_EQUAL(nr_irqs, XiveSource),
         VMSTATE_VBUFFER_UINT32(status, XiveSource, 1, NULL, nr_irqs),
         VMSTATE_END_OF_LIST()
     },

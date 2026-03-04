@@ -182,7 +182,6 @@ typedef enum {
 
 struct VMStateField {
     const char *name;
-    const char *err_hint;
     size_t offset;
     size_t size;
     size_t start;
@@ -358,9 +357,8 @@ extern const VMStateInfo vmstate_info_qlist;
 }
 
 #define VMSTATE_SINGLE_FULL(_field, _state, _test, _version, _info,  \
-                            _type, _err_hint) {                      \
+                            _type) {                      \
     .name         = (stringify(_field)),                             \
-    .err_hint     = (_err_hint),                                     \
     .version_id   = (_version),                                      \
     .field_exists = (_test),                                         \
     .size         = sizeof(_type),                                   \
@@ -1012,35 +1010,35 @@ extern const VMStateInfo vmstate_info_qlist;
 
 #endif
 
-#define VMSTATE_UINT8_EQUAL(_f, _s, _err_hint)                        \
+#define VMSTATE_UINT8_EQUAL(_f, _s)                                   \
     VMSTATE_SINGLE_FULL(_f, _s, 0, 0,                                 \
-                        vmstate_info_uint8_equal, uint8_t, _err_hint)
+                        vmstate_info_uint8_equal, uint8_t)
 
-#define VMSTATE_UINT16_EQUAL(_f, _s, _err_hint)                       \
+#define VMSTATE_UINT16_EQUAL(_f, _s)                                  \
     VMSTATE_SINGLE_FULL(_f, _s, 0, 0,                                 \
-                        vmstate_info_uint16_equal, uint16_t, _err_hint)
+                        vmstate_info_uint16_equal, uint16_t)
 
-#define VMSTATE_UINT16_EQUAL_V(_f, _s, _v, _err_hint)                 \
+#define VMSTATE_UINT16_EQUAL_V(_f, _s, _v)                            \
     VMSTATE_SINGLE_FULL(_f, _s, 0,  _v,                               \
-                        vmstate_info_uint16_equal, uint16_t, _err_hint)
+                        vmstate_info_uint16_equal, uint16_t)
 
-#define VMSTATE_INT32_EQUAL(_f, _s, _err_hint)                        \
+#define VMSTATE_INT32_EQUAL(_f, _s)                                   \
     VMSTATE_SINGLE_FULL(_f, _s, 0, 0,                                 \
-                        vmstate_info_int32_equal, int32_t, _err_hint)
+                        vmstate_info_int32_equal, int32_t)
 
-#define VMSTATE_UINT32_EQUAL_V(_f, _s, _v, _err_hint)                 \
+#define VMSTATE_UINT32_EQUAL_V(_f, _s, _v)                            \
     VMSTATE_SINGLE_FULL(_f, _s, 0,  _v,                               \
-                        vmstate_info_uint32_equal, uint32_t, _err_hint)
+                        vmstate_info_uint32_equal, uint32_t)
 
-#define VMSTATE_UINT32_EQUAL(_f, _s, _err_hint)                       \
-    VMSTATE_UINT32_EQUAL_V(_f, _s, 0, _err_hint)
+#define VMSTATE_UINT32_EQUAL(_f, _s)                                  \
+    VMSTATE_UINT32_EQUAL_V(_f, _s, 0)
 
-#define VMSTATE_UINT64_EQUAL_V(_f, _s, _v, _err_hint)                 \
+#define VMSTATE_UINT64_EQUAL_V(_f, _s, _v)                            \
     VMSTATE_SINGLE_FULL(_f, _s, 0,  _v,                               \
-                        vmstate_info_uint64_equal, uint64_t, _err_hint)
+                        vmstate_info_uint64_equal, uint64_t)
 
-#define VMSTATE_UINT64_EQUAL(_f, _s, _err_hint)                       \
-    VMSTATE_UINT64_EQUAL_V(_f, _s, 0, _err_hint)
+#define VMSTATE_UINT64_EQUAL(_f, _s)                                  \
+    VMSTATE_UINT64_EQUAL_V(_f, _s, 0)
 
 #define VMSTATE_INT32_POSITIVE_LE(_f, _s)                             \
     VMSTATE_SINGLE(_f, _s, 0, vmstate_info_int32_le, int32_t)

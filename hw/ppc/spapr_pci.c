@@ -2051,7 +2051,7 @@ static const VMStateDescription vmstate_spapr_pci_lsi = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_EQUAL(irq, SpaprPciLsi, NULL),
+        VMSTATE_UINT32_EQUAL(irq, SpaprPciLsi),
 
         VMSTATE_END_OF_LIST()
     },
@@ -2129,7 +2129,7 @@ static const VMStateDescription vmstate_spapr_pci = {
     .post_save = spapr_pci_post_save,
     .post_load = spapr_pci_post_load,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT64_EQUAL(buid, SpaprPhbState, NULL),
+        VMSTATE_UINT64_EQUAL(buid, SpaprPhbState),
         VMSTATE_STRUCT_ARRAY(lsi_table, SpaprPhbState, PCI_NUM_PINS, 0,
                              vmstate_spapr_pci_lsi, SpaprPciLsi),
         VMSTATE_INT32(msi_devs_num, SpaprPhbState),

@@ -1211,7 +1211,7 @@ static const VMStateDescription vmstate_virtio_gpu_scanouts = {
     .fields = (const VMStateField[]) {
         VMSTATE_INT32(parent_obj.enable, struct VirtIOGPU),
         VMSTATE_UINT32_EQUAL(parent_obj.conf.max_outputs,
-                             struct VirtIOGPU, NULL),
+                             struct VirtIOGPU),
         VMSTATE_STRUCT_VARRAY_UINT32(parent_obj.scanout, struct VirtIOGPU,
                                      parent_obj.conf.max_outputs, 1,
                                      vmstate_virtio_gpu_scanout,

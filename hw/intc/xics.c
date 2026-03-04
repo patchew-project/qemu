@@ -668,7 +668,7 @@ static const VMStateDescription vmstate_ics = {
     .post_load = ics_post_load,
     .fields = (const VMStateField[]) {
         /* Sanity check */
-        VMSTATE_UINT32_EQUAL(nr_irqs, ICSState, NULL),
+        VMSTATE_UINT32_EQUAL(nr_irqs, ICSState),
 
         VMSTATE_STRUCT_VARRAY_POINTER_UINT32(irqs, ICSState, nr_irqs,
                                              vmstate_ics_irq,
