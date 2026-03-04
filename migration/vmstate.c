@@ -161,6 +161,27 @@ static bool vmstate_pre_load(const VMStateDescription *vmsd, void *opaque,
     return true;
 }
 
+static bool vmstate_load_field(QEMUFile *f, void *pv, size_t size,
+                               const VMStateField *field, Error **errp)
+{
+    if (field->flags & VMS_STRUCT) {
+        return vmstate_load_state(f, field->vmsd, pv, field->vmsd->version_id,
+                                  errp) >= 0;
+    } else if (field->flags & VMS_VSTRUCT) {
+        return vmstate_load_state(f, field->vmsd, pv, field->struct_version_id,
+                                  errp) >= 0;
+    }
+
+    if (field->info->get(f, pv, size, field) < 0) {
+        error_setg(errp,
+                   "Failed to load element of type %s for %s",
+                   field->info->name, field->name);
+        return false;
+    }
+
+    return true;
+}
+
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id, Error **errp)
 {
@@ -225,24 +246,8 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                     inner_field = field;
                 }
 
-                if (inner_field->flags & VMS_STRUCT) {
-                    ret = vmstate_load_state(f, inner_field->vmsd, curr_elem,
-                                             inner_field->vmsd->version_id,
-                                             errp);
-                } else if (inner_field->flags & VMS_VSTRUCT) {
-                    ret = vmstate_load_state(f, inner_field->vmsd, curr_elem,
-                                             inner_field->struct_version_id,
-                                             errp);
-                } else {
-                    ret = inner_field->info->get(f, curr_elem, size,
-                                                 inner_field);
-                    if (ret < 0) {
-                        error_setg(errp,
-                                   "Failed to load element of type %s for %s: "
-                                   "%d", inner_field->info->name,
-                                   inner_field->name, ret);
-                    }
-                }
+                ret = vmstate_load_field(f, curr_elem, size, inner_field,
+                                         errp) ? 0 : -EINVAL;
 
                 /* If we used a fake temp field.. free it now */
                 if (inner_field != field) {
