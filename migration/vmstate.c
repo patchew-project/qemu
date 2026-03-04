@@ -182,6 +182,33 @@ static bool vmstate_load_field(QEMUFile *f, void *pv, size_t size,
     return true;
 }
 
+static bool vmstate_post_load(const VMStateDescription *vmsd,
+                              void *opaque, int version_id, Error **errp)
+{
+    ERRP_GUARD();
+
+    if (vmsd->post_load_errp) {
+        if (!vmsd->post_load_errp(opaque, version_id, errp)) {
+            error_prepend(errp, "post load hook failed for: %s, version_id: "
+                          "%d, minimum_version: %d: ", vmsd->name,
+                          vmsd->version_id, vmsd->minimum_version_id);
+            return false;
+        }
+    } else if (vmsd->post_load) {
+        int ret = vmsd->post_load(opaque, version_id);
+        if (ret < 0) {
+            error_setg(errp,
+                       "post load hook failed for: %s, version_id: %d, "
+                       "minimum_version: %d, ret: %d",
+                       vmsd->name, vmsd->version_id, vmsd->minimum_version_id,
+                       ret);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id, Error **errp)
 {
@@ -284,25 +311,9 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
         return ret;
     }
 
-    if (vmsd->post_load_errp) {
-        if (!vmsd->post_load_errp(opaque, version_id, errp)) {
-            error_prepend(errp, "post load hook failed for: %s, version_id: "
-                          "%d, minimum_version: %d: ", vmsd->name,
-                          vmsd->version_id, vmsd->minimum_version_id);
-            trace_vmstate_load_state_fail(vmsd->name, "post-load");
-            return -EINVAL;
-        }
-    } else if (vmsd->post_load) {
-        ret = vmsd->post_load(opaque, version_id);
-        if (ret < 0) {
-            error_setg(errp,
-                       "post load hook failed for: %s, version_id: %d, "
-                       "minimum_version: %d, ret: %d",
-                       vmsd->name, vmsd->version_id, vmsd->minimum_version_id,
-                       ret);
-            trace_vmstate_load_state_fail(vmsd->name, "post-load");
-            return ret;
-        }
+    if (!vmstate_post_load(vmsd, opaque, version_id, errp)) {
+        trace_vmstate_load_state_fail(vmsd->name, "post-load");
+        return -EINVAL;
     }
 
     trace_vmstate_load_state_success(vmsd->name);
