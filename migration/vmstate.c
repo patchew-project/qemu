@@ -435,6 +435,26 @@ bool vmstate_section_needed(const VMStateDescription *vmsd, void *opaque)
     return true;
 }
 
+static bool vmstate_pre_save(const VMStateDescription *vmsd, void *opaque,
+                             Error **errp)
+{
+    ERRP_GUARD();
+
+    if (vmsd->pre_save_errp) {
+        if (!vmsd->pre_save_errp(opaque, errp)) {
+            error_prepend(errp, "pre-save for %s failed: ", vmsd->name);
+            return false;
+        }
+    } else if (vmsd->pre_save) {
+        if (vmsd->pre_save(opaque) < 0) {
+            error_setg(errp, "pre-save failed: %s", vmsd->name);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
                                 void *opaque, JSONWriter *vmdesc,
                                 int version_id, Error **errp)
@@ -445,20 +465,9 @@ static int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
 
     trace_vmstate_save_state_top(vmsd->name);
 
-    if (vmsd->pre_save_errp) {
-        ret = vmsd->pre_save_errp(opaque, errp) ? 0 : -EINVAL;
-        if (ret < 0) {
-            error_prepend(errp, "pre-save for %s failed: ", vmsd->name);
-            trace_vmstate_save_state_pre_save_fail(vmsd->name);
-            return ret;
-        }
-    } else if (vmsd->pre_save) {
-        ret = vmsd->pre_save(opaque);
-        if (ret) {
-            error_setg(errp, "pre-save failed: %s", vmsd->name);
-            trace_vmstate_save_state_pre_save_fail(vmsd->name);
-            return ret;
-        }
+    if (!vmstate_pre_save(vmsd, opaque, errp)) {
+        trace_vmstate_save_state_pre_save_fail(vmsd->name);
+        return -EINVAL;
     }
 
     trace_vmstate_save_state_pre_save_success(vmsd->name);
