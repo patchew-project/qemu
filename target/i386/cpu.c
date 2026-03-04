@@ -1900,6 +1900,10 @@ static FeatureDep feature_dependencies[] = {
         .to = { FEAT_PERF_CAPABILITIES,       ~0ull },
     },
     {
+        .from = { FEAT_1_EDX,               CPUID_DTS},
+        .to = { FEAT_1_ECX,                 CPUID_EXT_DTES64},
+    },
+    {
         .from = { FEAT_1_ECX,               CPUID_EXT_VMX },
         .to = { FEAT_VMX_PROCBASED_CTLS,    ~0ull },
     },
@@ -9510,6 +9514,7 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
             env->features[FEAT_1_ECX] &= ~CPUID_EXT_PDCM;
         }
 
+        env->features[FEAT_1_EDX] &= ~CPUID_DTS;
         env->features[FEAT_7_0_EDX] &= ~CPUID_7_0_EDX_ARCH_LBR;
     }
 
