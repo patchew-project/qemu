@@ -134,6 +134,33 @@ static void vmstate_handle_alloc(void *ptr, const VMStateField *field,
     }
 }
 
+static bool vmstate_pre_load(const VMStateDescription *vmsd, void *opaque,
+                             Error **errp)
+{
+    ERRP_GUARD();
+
+    if (vmsd->pre_load_errp) {
+        if (!vmsd->pre_load_errp(opaque, errp)) {
+            error_prepend(errp, "pre load hook failed for: '%s', "
+                          "version_id: %d, minimum version_id: %d: ",
+                          vmsd->name, vmsd->version_id,
+                          vmsd->minimum_version_id);
+            return false;
+        }
+    } else if (vmsd->pre_load) {
+        int ret = vmsd->pre_load(opaque);
+        if (ret) {
+            error_setg(errp, "pre load hook failed for: '%s', "
+                       "version_id: %d, minimum version_id: %d, ret: %d",
+                       vmsd->name, vmsd->version_id, vmsd->minimum_version_id,
+                       ret);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id, Error **errp)
 {
@@ -159,23 +186,8 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
         return -EINVAL;
     }
 
-    if (vmsd->pre_load_errp) {
-        if (!vmsd->pre_load_errp(opaque, errp)) {
-            error_prepend(errp, "pre load hook failed for: '%s', "
-                          "version_id: %d, minimum version_id: %d: ",
-                          vmsd->name, vmsd->version_id,
-                          vmsd->minimum_version_id);
-            return -EINVAL;
-        }
-    } else if (vmsd->pre_load) {
-        ret = vmsd->pre_load(opaque);
-        if (ret) {
-            error_setg(errp, "pre load hook failed for: '%s', "
-                       "version_id: %d, minimum version_id: %d, ret: %d",
-                       vmsd->name, vmsd->version_id, vmsd->minimum_version_id,
-                       ret);
-            return ret;
-        }
+    if (!vmstate_pre_load(vmsd, opaque, errp)) {
+        return -EINVAL;
     }
 
     while (field->name) {
