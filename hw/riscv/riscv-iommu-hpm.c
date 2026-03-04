@@ -228,6 +228,7 @@ static void hpm_setup_timer(RISCVIOMMUState *s, uint64_t value)
     }
 
     overflow_at = (uint64_t)qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + overflow_ns;
+    s->irq_overflow_left = 0;
 
     if (overflow_at > INT64_MAX) {
         s->irq_overflow_left = overflow_at - INT64_MAX;
