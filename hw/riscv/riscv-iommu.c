@@ -2153,6 +2153,10 @@ static void riscv_iommu_update_ipsr(RISCVIOMMUState *s, uint64_t data)
         ipsr_clr |= RISCV_IOMMU_IPSR_FIP;
     }
 
+    if (!(data & RISCV_IOMMU_IPSR_PMIP)) {
+        ipsr_clr |= RISCV_IOMMU_IPSR_PMIP;
+    }
+
     if (data & RISCV_IOMMU_IPSR_PIP) {
         pqcsr = riscv_iommu_reg_get32(s, RISCV_IOMMU_REG_PQCSR);
 
