@@ -178,7 +178,6 @@ bool cpr_is_incoming(void)
 
 bool cpr_state_save(MigrationChannel *channel, Error **errp)
 {
-    int ret;
     QEMUFile *f;
     MigMode mode = migrate_mode();
 
@@ -199,8 +198,7 @@ bool cpr_state_save(MigrationChannel *channel, Error **errp)
     qemu_put_be32(f, QEMU_CPR_FILE_MAGIC);
     qemu_put_be32(f, QEMU_CPR_FILE_VERSION);
 
-    ret = vmstate_save_state(f, &vmstate_cpr_state, &cpr_state, 0, errp);
-    if (ret) {
+    if (!vmstate_save_vmsd(f, &vmstate_cpr_state, &cpr_state, 0, errp)) {
         qemu_fclose(f);
         return false;
     }
@@ -223,9 +221,8 @@ bool cpr_state_save(MigrationChannel *channel, Error **errp)
     return true;
 }
 
-int cpr_state_load(MigrationChannel *channel, Error **errp)
+bool cpr_state_load(MigrationChannel *channel, Error **errp)
 {
-    int ret;
     uint32_t v;
     QEMUFile *f;
     MigMode mode = 0;
@@ -241,10 +238,10 @@ int cpr_state_load(MigrationChannel *channel, Error **errp)
         cpr_set_incoming_mode(mode);
         f = cpr_transfer_input(channel, errp);
     } else {
-        return 0;
+        return true;
     }
     if (!f) {
-        return -1;
+        return false;
     }
 
     trace_cpr_state_load(MigMode_str(mode));
@@ -254,19 +251,18 @@ int cpr_state_load(MigrationChannel *channel, Error **errp)
     if (v != QEMU_CPR_FILE_MAGIC) {
         error_setg(errp, "Not a migration stream (bad magic %x)", v);
         qemu_fclose(f);
-        return -EINVAL;
+        return false;
     }
     v = qemu_get_be32(f);
     if (v != QEMU_CPR_FILE_VERSION) {
         error_setg(errp, "Unsupported migration stream version %d", v);
         qemu_fclose(f);
-        return -ENOTSUP;
+        return false;
     }
 
-    ret = vmstate_load_state(f, &vmstate_cpr_state, &cpr_state, 1, errp);
-    if (ret) {
+    if (!vmstate_load_vmsd(f, &vmstate_cpr_state, &cpr_state, 1, errp)) {
         qemu_fclose(f);
-        return ret;
+        return false;
     }
 
     if (migrate_mode() == MIG_MODE_CPR_EXEC) {
@@ -280,7 +276,7 @@ int cpr_state_load(MigrationChannel *channel, Error **errp)
      */
     cpr_state_file = f;
 
-    return ret;
+    return true;
 }
 
 void cpr_state_close(void)
