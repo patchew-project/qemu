@@ -1751,12 +1751,8 @@ typedef struct {
 #define CPU_NB_REGS CPU_NB_REGS32
 #endif
 
-#define MAX_FIXED_COUNTERS 3
-/*
- * This formula is based on Intel's MSR. The current size also meets AMD's
- * needs.
- */
-#define MAX_GP_COUNTERS    (MSR_IA32_PERF_STATUS - MSR_P6_EVNTSEL0)
+#define MAX_FIXED_COUNTERS 7
+#define MAX_GP_COUNTERS    15
 
 #define NB_OPMASK_REGS 8
 
