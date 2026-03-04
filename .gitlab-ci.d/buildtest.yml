@@ -652,7 +652,9 @@ build-tci:
 
 # Check our reduced build configurations
 build-without-defaults:
-  extends: .native_build_job_template
+  extends:
+    - .native_build_job_template
+    - .native_build_artifact_template
   needs:
     - job: amd64-centos9-container
   variables:
