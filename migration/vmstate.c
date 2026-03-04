@@ -21,11 +21,11 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 
-static int vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
-                                   void *opaque, JSONWriter *vmdesc,
-                                   Error **errp);
-static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
-                                   void *opaque, Error **errp);
+static bool vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
+                                    void *opaque, JSONWriter *vmdesc,
+                                    Error **errp);
+static bool vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
+                                    void *opaque, Error **errp);
 static int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
                                 void *opaque, JSONWriter *vmdesc,
                                 int version_id, Error **errp);
@@ -305,10 +305,9 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
     }
     assert(field->flags == VMS_END);
 
-    ret = vmstate_subsection_load(f, vmsd, opaque, errp);
-    if (ret != 0) {
-        qemu_file_set_error(f, ret);
-        return ret;
+    if (!vmstate_subsection_load(f, vmsd, opaque, errp)) {
+        qemu_file_set_error(f, -EINVAL);
+        return -EINVAL;
     }
 
     if (!vmstate_post_load(vmsd, opaque, version_id, errp)) {
@@ -637,7 +636,7 @@ static int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
         json_writer_end_array(vmdesc);
     }
 
-    ret = vmstate_subsection_save(f, vmsd, opaque, vmdesc, errp);
+    ret = vmstate_subsection_save(f, vmsd, opaque, vmdesc, errp) ? 0 : -EINVAL;
 
 out:
     if (vmsd->post_save) {
@@ -667,15 +666,14 @@ int vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
                                 errp);
 }
 
-static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
-                                   void *opaque, Error **errp)
+static bool vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
+                                    void *opaque, Error **errp)
 {
     ERRP_GUARD();
     trace_vmstate_subsection_load(vmsd->name);
 
     while (qemu_peek_byte(f, 0) == QEMU_VM_SUBSECTION) {
         char idstr[256], *idstr_ret;
-        int ret;
         uint8_t version_id, len, size;
         const VMStateDescription *sub_vmsd;
 
@@ -683,12 +681,12 @@ static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
         if (len < strlen(vmsd->name) + 1) {
             /* subsection name has to be "section_name/a" */
             trace_vmstate_subsection_load_bad(vmsd->name, "(short)", "");
-            return 0;
+            return true;
         }
         size = qemu_peek_buffer(f, (uint8_t **)&idstr_ret, len, 2);
         if (size != len) {
             trace_vmstate_subsection_load_bad(vmsd->name, "(peek fail)", "");
-            return 0;
+            return true;
         }
         memcpy(idstr, idstr_ret, size);
         idstr[size] = 0;
@@ -696,41 +694,39 @@ static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
         if (strncmp(vmsd->name, idstr, strlen(vmsd->name)) != 0) {
             trace_vmstate_subsection_load_bad(vmsd->name, idstr, "(prefix)");
             /* it doesn't have a valid subsection name */
-            return 0;
+            return true;
         }
         sub_vmsd = vmstate_get_subsection(vmsd->subsections, idstr);
         if (sub_vmsd == NULL) {
             trace_vmstate_subsection_load_bad(vmsd->name, idstr, "(lookup)");
             error_setg(errp, "VM subsection '%s' in '%s' does not exist",
                        idstr, vmsd->name);
-            return -ENOENT;
+            return false;
         }
         qemu_file_skip(f, 1); /* subsection */
         qemu_file_skip(f, 1); /* len */
         qemu_file_skip(f, len); /* idstr */
         version_id = qemu_get_be32(f);
 
-        ret = vmstate_load_state(f, sub_vmsd, opaque, version_id, errp);
-        if (ret) {
+        if (vmstate_load_state(f, sub_vmsd, opaque, version_id, errp) < 0) {
             trace_vmstate_subsection_load_bad(vmsd->name, idstr, "(child)");
             error_prepend(errp,
-                          "Loading VM subsection '%s' in '%s' failed: %d: ",
-                          idstr, vmsd->name, ret);
-            return ret;
+                          "Loading VM subsection '%s' in '%s' failed: ",
+                          idstr, vmsd->name);
+            return false;
         }
     }
 
     trace_vmstate_subsection_load_good(vmsd->name);
-    return 0;
+    return true;
 }
 
-static int vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
-                                   void *opaque, JSONWriter *vmdesc,
-                                   Error **errp)
+static bool vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
+                                    void *opaque, JSONWriter *vmdesc,
+                                    Error **errp)
 {
     const VMStateDescription * const *sub = vmsd->subsections;
     bool vmdesc_has_subsections = false;
-    int ret = 0;
 
     trace_vmstate_subsection_save_top(vmsd->name);
     while (sub && *sub) {
@@ -754,9 +750,8 @@ static int vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
             qemu_put_byte(f, len);
             qemu_put_buffer(f, (uint8_t *)vmsdsub->name, len);
             qemu_put_be32(f, vmsdsub->version_id);
-            ret = vmstate_save_state(f, vmsdsub, opaque, vmdesc, errp);
-            if (ret) {
-                return ret;
+            if (vmstate_save_state(f, vmsdsub, opaque, vmdesc, errp) < 0) {
+                return false;
             }
 
             if (vmdesc) {
@@ -770,5 +765,5 @@ static int vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
         json_writer_end_array(vmdesc);
     }
 
-    return ret;
+    return true;
 }
