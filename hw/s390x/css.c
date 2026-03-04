@@ -192,10 +192,6 @@ static const VMStateDescription vmstate_schdev_orb = {
 static int subch_dev_post_load(void *opaque, int version_id);
 static int subch_dev_pre_save(void *opaque);
 
-const char err_hint_devno[] = "Devno mismatch, tried to load wrong section!"
-    " Likely reason: some sequences of plug and unplug  can break"
-    " migration for machine versions prior to  2.7 (known design flaw).";
-
 const VMStateDescription vmstate_subch_dev = {
     .name = "s390_subch_dev",
     .version_id = 1,
@@ -203,10 +199,15 @@ const VMStateDescription vmstate_subch_dev = {
     .post_load = subch_dev_post_load,
     .pre_save = subch_dev_pre_save,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_EQUAL(cssid, SubchDev, "Bug!"),
-        VMSTATE_UINT8_EQUAL(ssid, SubchDev, "Bug!"),
+        VMSTATE_UINT8_EQUAL(cssid, SubchDev, NULL),
+        VMSTATE_UINT8_EQUAL(ssid, SubchDev, NULL),
         VMSTATE_UINT16(migrated_schid, SubchDev),
-        VMSTATE_UINT16_EQUAL(devno, SubchDev, err_hint_devno),
+        /*
+         * If devno mismatch on target, it may be due to some
+         * sequences of plug and unplug breaks migration for
+         * machine versions prior to 2.7 (known design flaw).
+         */
+        VMSTATE_UINT16_EQUAL(devno, SubchDev, NULL),
         VMSTATE_BOOL(thinint_active, SubchDev),
         VMSTATE_STRUCT(curr_status, SubchDev, 0, vmstate_schib, SCHIB),
         VMSTATE_UINT8_ARRAY(sense_data, SubchDev, 32),
