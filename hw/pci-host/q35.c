@@ -444,13 +444,13 @@ static void mch_update_smbase_smram(MCHPCIState *mch)
         pd->wmask[MCH_HOST_BRIDGE_F_SMBASE] = MCH_HOST_BRIDGE_F_SMBASE_LCK;
         return;
     }
-    if (*reg & MCH_HOST_BRIDGE_F_SMBASE_LCK) {
+    lck = *reg & MCH_HOST_BRIDGE_F_SMBASE_LCK;
+    if (lck) {
         /* lock register at 0x2 and disable all writes */
         pd->wmask[MCH_HOST_BRIDGE_F_SMBASE] = 0;
         *reg = MCH_HOST_BRIDGE_F_SMBASE_LCK;
     }
 
-    lck = *reg & MCH_HOST_BRIDGE_F_SMBASE_LCK;
     memory_region_transaction_begin();
     memory_region_set_enabled(&mch->smbase_blackhole, lck);
     memory_region_set_enabled(&mch->smbase_window, lck);
