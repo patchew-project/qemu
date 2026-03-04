@@ -1247,9 +1247,18 @@ extern const VMStateInfo vmstate_info_qlist;
         .flags = VMS_END, \
     }
 
+/*
+ * vmstate_load_state() and vmstate_save_state() are
+ * depreacated, use vmstate_load_vmsd() and vmstate_save_vmsd()
+ * instead.
+ */
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id, Error **errp);
 int vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
+                       void *opaque, JSONWriter *vmdesc, Error **errp);
+bool vmstate_load_vmsd(QEMUFile *f, const VMStateDescription *vmsd,
+                       void *opaque, int version_id, Error **errp);
+bool vmstate_save_vmsd(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, JSONWriter *vmdesc, Error **errp);
 
 bool vmstate_section_needed(const VMStateDescription *vmsd, void *opaque);
