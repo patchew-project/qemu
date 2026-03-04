@@ -26,6 +26,9 @@ static int vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
                                    Error **errp);
 static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
                                    void *opaque, Error **errp);
+static int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
+                                void *opaque, JSONWriter *vmdesc,
+                                int version_id, Error **errp);
 
 /* Whether this field should exist for either save or load the VM? */
 static bool
@@ -455,6 +458,26 @@ static bool vmstate_pre_save(const VMStateDescription *vmsd, void *opaque,
     return true;
 }
 
+static bool vmstate_save_field(QEMUFile *f, void *pv, size_t size,
+                               const VMStateField *field,
+                               JSONWriter *vmdesc, Error **errp)
+{
+    if (field->flags & VMS_STRUCT) {
+        return vmstate_save_state(f, field->vmsd, pv, vmdesc, errp) >= 0;
+    } else if (field->flags & VMS_VSTRUCT) {
+        return vmstate_save_state_v(f, field->vmsd, pv, vmdesc,
+                                    field->struct_version_id,
+                                    errp) >= 0;
+    }
+
+    if (field->info->put(f, pv, size, field, vmdesc) < 0) {
+        error_setg(errp, "put failed");
+        return false;
+    }
+
+    return true;
+}
+
 static int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
                                 void *opaque, JSONWriter *vmdesc,
                                 int version_id, Error **errp)
@@ -548,21 +571,8 @@ static int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
                 vmsd_desc_field_start(vmsd, vmdesc_loop, inner_field,
                                       i, max_elems);
 
-                if (inner_field->flags & VMS_STRUCT) {
-                    ret = vmstate_save_state(f, inner_field->vmsd,
-                                             curr_elem, vmdesc_loop, errp);
-                } else if (inner_field->flags & VMS_VSTRUCT) {
-                    ret = vmstate_save_state_v(f, inner_field->vmsd,
-                                               curr_elem, vmdesc_loop,
-                                               inner_field->struct_version_id,
-                                               errp);
-                } else {
-                    ret = inner_field->info->put(f, curr_elem, size,
-                                                 inner_field, vmdesc_loop);
-                    if (ret < 0) {
-                        error_setg(errp, "put failed");
-                    }
-                }
+                ret = vmstate_save_field(f, curr_elem, size, inner_field,
+                                         vmdesc_loop, errp) ? 0 : -EINVAL;
 
                 written_bytes = qemu_file_transferred(f) - old_offset;
                 vmsd_desc_field_end(vmsd, vmdesc_loop, inner_field,
