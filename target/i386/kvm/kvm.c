@@ -4385,6 +4385,10 @@ static int kvm_put_msrs(X86CPU *cpu, KvmPutState level)
                 kvm_msr_entry_add(cpu, MSR_CORE_PERF_FIXED_CTR0 + i,
                                   env->msr_fixed_counters[i]);
             }
+            /* SDM: Write IA32_PERF_METRICS after fixed counter 3. */
+            if (env->features[FEAT_PERF_CAPABILITIES] & PERF_CAP_TOPDOWN) {
+                    kvm_msr_entry_add(cpu, MSR_PERF_METRICS, env->msr_perf_metrics);
+            }
             for (i = 0; i < num_pmu_gp_counters; i++) {
                 kvm_msr_entry_add(cpu, perf_cntr_base + i,
                                   env->msr_gp_counters[i]);
@@ -4958,6 +4962,9 @@ static int kvm_get_msrs(X86CPU *cpu)
             kvm_msr_entry_add(cpu, MSR_CORE_PERF_GLOBAL_CTRL, 0);
             kvm_msr_entry_add(cpu, MSR_CORE_PERF_GLOBAL_STATUS, 0);
         }
+        if (env->features[FEAT_PERF_CAPABILITIES] & PERF_CAP_TOPDOWN) {
+            kvm_msr_entry_add(cpu, MSR_PERF_METRICS, 0);
+        }
         for (i = 0; i < num_pmu_fixed_counters; i++) {
             kvm_msr_entry_add(cpu, MSR_CORE_PERF_FIXED_CTR0 + i, 0);
         }
@@ -5323,6 +5330,9 @@ static int kvm_get_msrs(X86CPU *cpu)
         case MSR_CORE_PERF_GLOBAL_STATUS:
         case MSR_AMD64_PERF_CNTR_GLOBAL_STATUS:
             env->msr_global_status = msrs[i].data;
+            break;
+        case MSR_PERF_METRICS:
+            env->msr_perf_metrics = msrs[i].data;
             break;
         case MSR_CORE_PERF_FIXED_CTR0 ... MSR_CORE_PERF_FIXED_CTR0 + MAX_FIXED_COUNTERS - 1:
             env->msr_fixed_counters[index - MSR_CORE_PERF_FIXED_CTR0] = msrs[i].data;

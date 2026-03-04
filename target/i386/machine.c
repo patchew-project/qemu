@@ -680,6 +680,24 @@ static const VMStateDescription vmstate_msr_ds_pebs = {
         VMSTATE_END_OF_LIST()}
 };
 
+static bool perf_metrics_enabled(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return !!env->msr_perf_metrics;
+}
+
+static const VMStateDescription vmstate_msr_perf_metrics = {
+    .name = "cpu/msr_architectural_pmu/msr_perf_metrics",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = perf_metrics_enabled,
+    .fields = (const VMStateField[]){
+        VMSTATE_UINT64(env.msr_perf_metrics, X86CPU),
+        VMSTATE_END_OF_LIST()}
+};
+
 static bool pmu_enable_needed(void *opaque)
 {
     X86CPU *cpu = opaque;
@@ -721,6 +739,7 @@ static const VMStateDescription vmstate_msr_architectural_pmu = {
     },
     .subsections = (const VMStateDescription * const []) {
         &vmstate_msr_ds_pebs,
+        &vmstate_msr_perf_metrics,
         NULL,
     },
 };

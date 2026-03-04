@@ -428,6 +428,7 @@ typedef enum X86Seg {
                                          PERF_CAP_PEBS_FMT_SHIFT)
 #define PERF_CAP_FULL_WRITE             (1U << 13)
 #define PERF_CAP_PEBS_BASELINE          (1U << 14)
+#define PERF_CAP_TOPDOWN                (1U << 15)
 
 #define MSR_IA32_TSX_CTRL		0x122
 #define MSR_IA32_TSCDEADLINE            0x6e0
@@ -514,6 +515,7 @@ typedef enum X86Seg {
 #define MSR_CORE_PERF_FIXED_CTR0        0x309
 #define MSR_CORE_PERF_FIXED_CTR1        0x30a
 #define MSR_CORE_PERF_FIXED_CTR2        0x30b
+#define MSR_PERF_METRICS                0x329
 #define MSR_CORE_PERF_FIXED_CTR_CTRL    0x38d
 #define MSR_CORE_PERF_GLOBAL_STATUS     0x38e
 #define MSR_CORE_PERF_GLOBAL_CTRL       0x38f
@@ -2113,6 +2115,7 @@ typedef struct CPUArchState {
     uint64_t msr_fixed_ctr_ctrl;
     uint64_t msr_global_ctrl;
     uint64_t msr_global_status;
+    uint64_t msr_perf_metrics;
     uint64_t msr_ds_area;
     uint64_t msr_pebs_data_cfg;
     uint64_t msr_pebs_enable;
