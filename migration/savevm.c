@@ -205,27 +205,28 @@ void timer_get(QEMUFile *f, QEMUTimer *ts)
  * Not in vmstate.c to not add qemu-timer.c as dependency to vmstate.c
  */
 
-static int get_timer(QEMUFile *f, void *pv, size_t size,
-                     const VMStateField *field)
+static bool load_timer(QEMUFile *f, void *pv, size_t size,
+                       const VMStateField *field, Error **errp)
 {
     QEMUTimer *v = pv;
     timer_get(f, v);
-    return 0;
+    return true;
 }
 
-static int put_timer(QEMUFile *f, void *pv, size_t size,
-                     const VMStateField *field, JSONWriter *vmdesc)
+static bool save_timer(QEMUFile *f, void *pv, size_t size,
+                       const VMStateField *field, JSONWriter *vmdesc,
+                       Error **errp)
 {
     QEMUTimer *v = pv;
     timer_put(f, v);
 
-    return 0;
+    return true;
 }
 
 const VMStateInfo vmstate_info_timer = {
     .name = "timer",
-    .get  = get_timer,
-    .put  = put_timer,
+    .load  = load_timer,
+    .save  = save_timer,
 };
 
 
@@ -297,7 +298,7 @@ static uint32_t get_validatable_capabilities_count(void)
     return result;
 }
 
-static int configuration_pre_save(void *opaque)
+static bool configuration_pre_save(void *opaque, Error **errp)
 {
     SaveState *state = opaque;
     const char *current_name = MACHINE_GET_CLASS(current_machine)->name;
@@ -318,7 +319,7 @@ static int configuration_pre_save(void *opaque)
     }
     state->uuid = qemu_uuid;
 
-    return 0;
+    return true;
 }
 
 static void configuration_post_save(void *opaque)
@@ -330,7 +331,7 @@ static void configuration_post_save(void *opaque)
     state->caps_count = 0;
 }
 
-static int configuration_pre_load(void *opaque)
+static bool configuration_pre_load(void *opaque, Error **errp)
 {
     SaveState *state = opaque;
 
@@ -339,7 +340,7 @@ static int configuration_pre_load(void *opaque)
      * minimum possible value for this CPU.
      */
     state->target_page_bits = migration_legacy_page_bits();
-    return 0;
+    return true;
 }
 
 static bool configuration_validate_capabilities(SaveState *state)
@@ -376,28 +377,31 @@ static bool configuration_validate_capabilities(SaveState *state)
     return ret;
 }
 
-static int configuration_post_load(void *opaque, int version_id)
+static bool configuration_post_load(void *opaque, int version_id, Error **errp)
 {
     SaveState *state = opaque;
     const char *current_name = MACHINE_GET_CLASS(current_machine)->name;
-    int ret = 0;
+    bool ok = true;
 
     if (strncmp(state->name, current_name, state->len) != 0) {
-        error_report("Machine type received is '%.*s' and local is '%s'",
-                     (int) state->len, state->name, current_name);
-        ret = -EINVAL;
+        error_setg(errp,
+                   "Machine type received is '%.*s' and local is '%s'",
+                   (int) state->len, state->name, current_name);
+        ok = false;
         goto out;
     }
 
     if (state->target_page_bits != qemu_target_page_bits()) {
-        error_report("Received TARGET_PAGE_BITS is %d but local is %d",
-                     state->target_page_bits, qemu_target_page_bits());
-        ret = -EINVAL;
+        error_setg(errp,
+                   "Received TARGET_PAGE_BITS is %d but local is %d",
+                   state->target_page_bits, qemu_target_page_bits());
+        ok = false;
         goto out;
     }
 
     if (!configuration_validate_capabilities(state)) {
-        ret = -EINVAL;
+        error_setg(errp, "Failed to validate capabilities");
+        ok = false;
         goto out;
     }
 
@@ -409,11 +413,12 @@ out:
     state->capabilities = NULL;
     state->caps_count = 0;
 
-    return ret;
+    return ok;
 }
 
-static int get_capability(QEMUFile *f, void *pv, size_t size,
-                          const VMStateField *field)
+static bool load_capability(QEMUFile *f, void *pv, size_t size,
+                            const VMStateField *field,
+                            Error **errp)
 {
     MigrationCapability *capability = pv;
     char capability_str[UINT8_MAX + 1];
@@ -426,15 +431,16 @@ static int get_capability(QEMUFile *f, void *pv, size_t size,
     for (i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
         if (!strcmp(MigrationCapability_str(i), capability_str)) {
             *capability = i;
-            return 0;
+            return true;
         }
     }
-    error_report("Received unknown capability %s", capability_str);
-    return -EINVAL;
+    error_setg(errp, "Received unknown capability %s", capability_str);
+    return false;
 }
 
-static int put_capability(QEMUFile *f, void *pv, size_t size,
-                          const VMStateField *field, JSONWriter *vmdesc)
+static bool save_capability(QEMUFile *f, void *pv, size_t size,
+                            const VMStateField *field, JSONWriter *vmdesc,
+                            Error **errp)
 {
     MigrationCapability *capability = pv;
     const char *capability_str = MigrationCapability_str(*capability);
@@ -443,13 +449,13 @@ static int put_capability(QEMUFile *f, void *pv, size_t size,
 
     qemu_put_byte(f, len);
     qemu_put_buffer(f, (uint8_t *)capability_str, len);
-    return 0;
+    return true;
 }
 
 static const VMStateInfo vmstate_info_capability = {
     .name = "capability",
-    .get  = get_capability,
-    .put  = put_capability,
+    .load = load_capability,
+    .save = save_capability,
 };
 
 /* The target-page-bits subsection is present only if the
@@ -539,9 +545,9 @@ static const VMStateDescription vmstate_uuid = {
 static const VMStateDescription vmstate_configuration = {
     .name = "configuration",
     .version_id = 1,
-    .pre_load = configuration_pre_load,
-    .post_load = configuration_post_load,
-    .pre_save = configuration_pre_save,
+    .pre_load_errp = configuration_pre_load,
+    .post_load_errp = configuration_post_load,
+    .pre_save_errp = configuration_pre_save,
     .post_save = configuration_post_save,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32(len, SaveState),
@@ -969,8 +975,13 @@ static int vmstate_load(QEMUFile *f, SaveStateEntry *se, Error **errp)
         }
         return ret;
     }
-    return vmstate_load_state(f, se->vmsd, se->opaque, se->load_version_id,
-                              errp);
+
+    if (!vmstate_load_vmsd(f, se->vmsd, se->opaque, se->load_version_id,
+                           errp)) {
+        return -EINVAL;
+    }
+
+    return 0;
 }
 
 static void vmstate_save_old_style(QEMUFile *f, SaveStateEntry *se,
@@ -1028,8 +1039,6 @@ static void save_section_footer(QEMUFile *f, SaveStateEntry *se)
 static int vmstate_save(QEMUFile *f, SaveStateEntry *se, JSONWriter *vmdesc,
                         Error **errp)
 {
-    int ret;
-
     if ((!se->ops || !se->ops->save_state) && !se->vmsd) {
         return 0;
     }
@@ -1050,10 +1059,8 @@ static int vmstate_save(QEMUFile *f, SaveStateEntry *se, JSONWriter *vmdesc,
     if (!se->vmsd) {
         vmstate_save_old_style(f, se, vmdesc);
     } else {
-        ret = vmstate_save_state(f, se->vmsd, se->opaque, vmdesc,
-                                 errp);
-        if (ret) {
-            return ret;
+        if (!vmstate_save_vmsd(f, se->vmsd, se->opaque, vmdesc, errp)) {
+            return -EINVAL;
         }
     }
 
@@ -1317,8 +1324,8 @@ static void qemu_savevm_send_configuration(MigrationState *s, QEMUFile *f)
         json_writer_start_object(vmdesc, "configuration");
     }
 
-    vmstate_save_state(f, &vmstate_configuration, &savevm_state,
-                       vmdesc, &local_err);
+    vmstate_save_vmsd(f, &vmstate_configuration, &savevm_state,
+                      vmdesc, &local_err);
     if (local_err) {
         error_report_err(local_err);
     }
@@ -2748,7 +2755,6 @@ qemu_loadvm_section_part_end(QEMUFile *f, uint8_t type, Error **errp)
 static int qemu_loadvm_state_header(QEMUFile *f, Error **errp)
 {
     unsigned int v;
-    int ret;
 
     v = qemu_get_be32(f);
     if (v != QEMU_VM_FILE_MAGIC) {
@@ -2779,10 +2785,9 @@ static int qemu_loadvm_state_header(QEMUFile *f, Error **errp)
             return -EINVAL;
         }
 
-        ret = vmstate_load_state(f, &vmstate_configuration, &savevm_state, 0,
-                                 errp);
-        if (ret) {
-            return ret;
+        if (!vmstate_load_vmsd(f, &vmstate_configuration, &savevm_state, 0,
+                               errp)) {
+            return -EINVAL;
         }
     }
     return 0;
