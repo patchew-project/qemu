@@ -26,8 +26,14 @@ endif
 t = []
 if get_option('plugins')
   foreach i : contrib_plugins
+    if i == 'cpp.cpp' and cxx.has_argument('-fcoroutines')
+      cpp_args = ['-fcoroutines']
+    else
+      cpp_args = []
+    endif
+
     t += shared_module(fs.stem(i), files(i),
-                       dependencies: plugins_deps)
+                       cpp_args: cpp_args, dependencies: plugins_deps)
   endforeach
 endif
 if t.length() > 0
