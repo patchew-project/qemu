@@ -277,7 +277,7 @@ static bool test_setup_reconnect_log(VduseDev *vdev, const char *tmpfs)
     return ok;
 }
 
-static TestServer *test_server_new(const gchar *name)
+static TestServer *test_server_new(const gchar *name, const VduseOps *ops)
 {
     TestServer *server = g_new0(TestServer, 1);
     g_autoptr(GError) err = NULL;
@@ -302,7 +302,7 @@ static TestServer *test_server_new(const gchar *name)
                                     2, /* num_queues */
                                     sizeof(config),
                                     config,
-                                    &vduse_read_guest_mem_ops,
+                                    ops,
                                     server);
 
     if (!server->vdev) {
@@ -387,7 +387,7 @@ static void vhost_vdpa_test_cleanup(void *s)
 
 static void *vhost_vdpa_test_setup_memfile(GString *cmd_line, void *arg)
 {
-    TestServer *server = test_server_new("vdpa-memfile");
+    TestServer *server = test_server_new("vdpa-memfile", &vduse_read_guest_mem_ops);
 
     if (!server->ready) {
         g_test_skip("Failed to create VDUSE device");
