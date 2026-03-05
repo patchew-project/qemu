@@ -621,9 +621,11 @@ XenBlockDataPlane *xen_block_dataplane_create(XenDevice *xendev,
     QLIST_INIT(&dataplane->freelist);
 
     if (iothread) {
+        char *path = object_get_canonical_path(OBJECT(xendev));
+
         dataplane->iothread = iothread;
-        object_ref(OBJECT(dataplane->iothread));
-        dataplane->ctx = iothread_get_aio_context(dataplane->iothread);
+        dataplane->ctx = iothread_get_aio_context(dataplane->iothread, path);
+        g_free(path);
     } else {
         dataplane->ctx = qemu_get_aio_context();
     }
@@ -652,7 +654,10 @@ void xen_block_dataplane_destroy(XenBlockDataPlane *dataplane)
 
     qemu_bh_delete(dataplane->bh);
     if (dataplane->iothread) {
-        object_unref(OBJECT(dataplane->iothread));
+        char *path = object_get_canonical_path(OBJECT(dataplane->xendev));
+
+        iothread_put_aio_context(dataplane->iothread, path);
+        g_free(path);
     }
 
     g_free(dataplane);
