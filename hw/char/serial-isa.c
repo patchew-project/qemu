@@ -58,7 +58,7 @@ static void serial_isa_realizefn(DeviceState *dev, Error **errp)
     static int index;
     ISADevice *isadev = ISA_DEVICE(dev);
     ISASerialState *isa = ISA_SERIAL(dev);
-    SerialState *s = &isa->state;
+    SysBusDevice *sbd = SYS_BUS_DEVICE(&isa->state);
 
     if (isa->index == -1) {
         isa->index = index;
@@ -76,11 +76,11 @@ static void serial_isa_realizefn(DeviceState *dev, Error **errp)
     }
     index++;
 
-    s->irq = isa_get_irq(isadev, isa->isairq);
-    qdev_realize(DEVICE(s), NULL, errp);
+    sysbus_realize(sbd, errp);
+    sysbus_connect_irq(sbd, 0, isa_get_irq(isadev, isa->isairq));
     qdev_set_legacy_instance_id(dev, isa->iobase, 3);
 
-    isa_register_ioport(isadev, &s->io, isa->iobase);
+    isa_register_ioport(isadev, sysbus_mmio_get_region(sbd, 0), isa->iobase);
 }
 
 static void serial_isa_build_aml(AcpiDevAmlIf *adev, Aml *scope)
@@ -187,13 +187,17 @@ void serial_hds_isa_init(ISABus *bus, int from, int to)
 void isa_serial_set_iobase(ISADevice *serial, hwaddr iobase)
 {
     ISASerialState *s = ISA_SERIAL(serial);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(&s->state);
 
     serial->ioport_id = iobase;
     s->iobase = iobase;
-    memory_region_set_address(&s->state.io, s->iobase);
+    memory_region_set_address(sysbus_mmio_get_region(sbd, 0), s->iobase);
 }
 
 void isa_serial_set_enabled(ISADevice *serial, bool enabled)
 {
-    memory_region_set_enabled(&ISA_SERIAL(serial)->state.io, enabled);
+    ISASerialState *s = ISA_SERIAL(serial);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(&s->state);
+
+    memory_region_set_enabled(sysbus_mmio_get_region(sbd, 0), enabled);
 }
