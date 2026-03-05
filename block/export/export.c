@@ -127,7 +127,12 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
             goto fail;
         }
 
-        new_ctx = iothread_get_aio_context(iothread);
+        /*
+         * It seems we cannot find the corresponding resources
+         * (the iothread and path) when deleting them in qmp_block_export_del.
+         * The original method will be retained for the time being.
+         */
+        new_ctx = iothread_get_aio_context(iothread, NULL);
 
         /* Ignore errors with fixed-iothread=false */
         set_context_errp = fixed_iothread ? errp : NULL;
