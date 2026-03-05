@@ -40,10 +40,15 @@
 #define QEMU_CMD_VDPA   " -netdev type=vhost-vdpa,x-svq=on,vhostdev=%s,id=hs0"
 #define VDUSE_RECONNECT_LOG "vduse_reconnect.log"
 
+static int NUM_RX_BUFS = 2;
+
 typedef struct VdpaThread {
     GThread *thread;
     GMainLoop *loop;
     GMainContext *context;
+
+    /* Guest memory that must be free at the end of the test */
+    uint64_t qemu_mem_to_free;
 } VdpaThread;
 
 static void *vhost_vdpa_thread_function(void *data)
@@ -80,6 +85,21 @@ static void vhost_vdpa_thread_add_source_fd(VdpaThread *t, int fd,
     g_source_set_callback(src, (GSourceFunc)func, data, NULL);
     g_source_attach(src, t->context);
     g_source_unref(src);
+}
+
+static void vhost_vdpa_add_rx_pkts(QGuestAllocator *alloc, QVirtioNet *net,
+                                   VdpaThread *t)
+{
+    QTestState *qts = global_qtest;
+
+    t->qemu_mem_to_free = guest_alloc(alloc, 64);
+
+    for (int i = 0; i < NUM_RX_BUFS; i++) {
+        uint32_t head = qvirtqueue_add(qts, net->queues[0],
+                                       t->qemu_mem_to_free, 64,
+                                       /* write */ false, /* next */ false);
+        qvirtqueue_kick(qts, net->vdev, net->queues[0], head);
+    }
 }
 
 /**
@@ -522,6 +542,9 @@ static void vhost_vdpa_tx_test(void *obj, void *arg, QGuestAllocator *alloc)
     TestServer *server = arg;
     QVirtioNet *net = obj;
     uint32_t free_head;
+
+    /* Add some rx packets so SVQ must clean them at the end of QEMU run */
+    vhost_vdpa_add_rx_pkts(alloc, net, &server->vdpa_thread);
 
     free_head = vhost_vdpa_add_tx_pkt_descs(alloc, net, &server->vdpa_thread);
     vhost_vdpa_kick_tx_desc(&server->vdpa_thread, net, free_head);
