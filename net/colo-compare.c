@@ -924,10 +924,8 @@ void colo_notify_compares_event(void *opaque, int event, Error **errp)
     qemu_mutex_unlock(&colo_compare_mutex);
 }
 
-static void colo_compare_timer_init(CompareState *s)
+static void colo_compare_timer_init(CompareState *s, AioContext *ctx)
 {
-    AioContext *ctx = iothread_get_aio_context(s->iothread);
-
     s->packet_check_timer = aio_timer_new(ctx, QEMU_CLOCK_HOST,
                                 SCALE_MS, check_old_packet_regular,
                                 s);
@@ -968,8 +966,9 @@ static void colo_compare_handle_event(void *opaque)
 
 static void colo_compare_iothread(CompareState *s)
 {
-    AioContext *ctx = iothread_get_aio_context(s->iothread);
-    object_ref(OBJECT(s->iothread));
+    char *path = object_get_canonical_path(OBJECT(s));
+    AioContext *ctx = iothread_get_aio_context(s->iothread, path);
+
     s->worker_context = iothread_get_g_main_context(s->iothread);
 
     qemu_chr_fe_set_handlers(&s->chr_pri_in, compare_chr_can_read,
@@ -984,8 +983,10 @@ static void colo_compare_iothread(CompareState *s)
                                  s, s->worker_context, true);
     }
 
-    colo_compare_timer_init(s);
+    colo_compare_timer_init(s, ctx);
     s->event_bh = aio_bh_new(ctx, colo_compare_handle_event, s);
+
+    g_free(path);
 }
 
 static char *compare_get_pri_indev(Object *obj, Error **errp)
@@ -1408,6 +1409,7 @@ static void colo_compare_finalize(Object *obj)
 {
     CompareState *s = COLO_COMPARE(obj);
     CompareState *tmp = NULL;
+    char *path = object_get_canonical_path(OBJECT(s));
 
     qemu_mutex_lock(&colo_compare_mutex);
     QTAILQ_FOREACH(tmp, &net_compares, next) {
@@ -1434,11 +1436,17 @@ static void colo_compare_finalize(Object *obj)
 
     qemu_bh_delete(s->event_bh);
 
-    AioContext *ctx = iothread_get_aio_context(s->iothread);
+    /*
+     * Use the device's canonical path as the holder ID to track IOThread
+     * usage and ensure the AioContext remains valid during the device's
+     * lifecycle.
+     */
+    AioContext *ctx = iothread_get_aio_context(s->iothread, NULL);
     AIO_WAIT_WHILE(ctx, !s->out_sendco.done);
     if (s->notify_dev) {
         AIO_WAIT_WHILE(ctx, !s->notify_sendco.done);
     }
+    iothread_put_aio_context(s->iothread, path);
 
     /* Release all unhandled packets after compare thead exited */
     g_queue_foreach(&s->conn_list, colo_flush_packets, s);
@@ -1456,6 +1464,7 @@ static void colo_compare_finalize(Object *obj)
 
     object_unref(OBJECT(s->iothread));
 
+    g_free(path);
     g_free(s->pri_indev);
     g_free(s->sec_indev);
     g_free(s->outdev);
