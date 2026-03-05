@@ -3683,7 +3683,14 @@ void qmp_x_blockdev_set_iothread(const char *node_name, StrOrNull *iothread,
             goto out;
         }
 
-        new_context = iothread_get_aio_context(obj);
+        char *path = object_get_canonical_path(OBJECT(bs));
+        /*
+         * For this qmp case, hard to find the point put aio context ???
+         * It looks like a pairing function is needed:
+         * qmp_x_blockdev_del_iothread()
+         */
+        new_context = iothread_get_aio_context(obj, path);
+        g_free(path);
     } else {
         new_context = qemu_get_aio_context();
     }
