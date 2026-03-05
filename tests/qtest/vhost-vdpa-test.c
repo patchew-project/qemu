@@ -17,6 +17,7 @@
 #include "libqtest-single.h"
 #include "qapi/error.h"
 #include "libqos/qgraph.h"
+#include "libqos/virtio-net.h"
 #include "hw/virtio/virtio-net.h"
 
 #include "standard-headers/linux/virtio_ids.h"
@@ -25,6 +26,7 @@
 #include "subprojects/libvduse/linux-headers/linux/vduse.h"
 #include "subprojects/libvduse/libvduse.h"
 
+#include <endian.h>
 #include <poll.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -35,7 +37,7 @@
 
 #define QEMU_CMD_MEM    " -m %d -object memory-backend-file,id=mem,size=%dM," \
                         "mem-path=%s,share=on -numa node,memdev=mem"
-#define QEMU_CMD_VDPA   " -netdev type=vhost-vdpa,vhostdev=%s,id=hs0"
+#define QEMU_CMD_VDPA   " -netdev type=vhost-vdpa,x-svq=on,vhostdev=%s,id=hs0"
 #define VDUSE_RECONNECT_LOG "vduse_reconnect.log"
 
 typedef struct VdpaThread {
@@ -78,6 +80,61 @@ static void vhost_vdpa_thread_add_source_fd(VdpaThread *t, int fd,
     g_source_set_callback(src, (GSourceFunc)func, data, NULL);
     g_source_attach(src, t->context);
     g_source_unref(src);
+}
+
+/**
+ * Send a descriptor or a chain of descriptors to the device, and optionally
+ * and / or update the avail ring and avail_idx of the driver ring.
+ *
+ * @alloc: the guest allocator to allocate memory for the descriptors
+ * @net: the virtio net device
+ * @t: the vdpa thread to push the expected chain length if kick is true
+ *
+ * Returns the kick_id you can use to kick the device in a later call to this
+ * function.
+ */
+static uint32_t vhost_vdpa_add_tx_pkt_descs(QGuestAllocator *alloc,
+                                            QVirtioNet *net, VdpaThread *t)
+{
+    QTestState *qts = global_qtest;
+    uint32_t req_addr;
+
+    /* TODO: Actually free this. RFC, is actually needed? */
+    req_addr = guest_alloc(alloc, 64);
+    g_assert_cmpint(req_addr, >, 0);
+
+    return qvirtqueue_add(qts, net->queues[1], req_addr, 64, /* write */ false,
+                          /* next */ false);
+}
+
+static void vhost_vdpa_kick_tx_desc(VdpaThread *t, QVirtioNet *net,
+                                    uint32_t kick_id)
+{
+    QTestState *qts = global_qtest;
+
+    qvirtqueue_kick(qts, net->vdev, net->queues[1], kick_id);
+}
+
+static void vhost_vdpa_get_tx_pkt(QGuestAllocator *alloc, QVirtioNet *net,
+                                  uint32_t desc_idx, VdpaThread *t)
+{
+    g_autofree struct VduseVirtqElement *elem = NULL;
+    int64_t timeout = 5 * G_TIME_SPAN_SECOND;
+    QTestState *qts = global_qtest;
+    vring_desc_t desc;
+    int64_t end_time_us;
+    uint32_t len;
+
+    end_time_us = g_get_monotonic_time() + timeout;
+    qvirtio_wait_used_elem(qts, net->vdev, net->queues[1], desc_idx, &len,
+                           timeout);
+    g_assert_cmpint(g_get_monotonic_time(), <, end_time_us);
+    g_assert_cmpint(len, ==, 0);
+
+    qtest_memread(qts, net->queues[1]->desc + sizeof(desc)*desc_idx, &desc,
+                  sizeof(desc));
+    /* We know we're version 1 so always little endian */
+    guest_free(alloc, le64toh(desc.addr));
 }
 
 typedef struct TestServer {
@@ -161,6 +218,54 @@ static void vduse_read_guest_mem_disable_queue(VduseDev *dev, VduseVirtq *vq)
 static const VduseOps vduse_read_guest_mem_ops = {
     .enable_queue = vduse_read_guest_mem_enable_queue,
     .disable_queue = vduse_read_guest_mem_disable_queue,
+};
+
+static gboolean vhost_vdpa_rxtx_handle_tx(int fd, GIOCondition condition,
+                                          void *data)
+{
+    VduseVirtq *vq = data;
+
+    eventfd_read(fd, (eventfd_t[]){0});
+    do {
+        g_autofree VduseVirtqElement *elem = NULL;
+
+        elem = vduse_queue_pop(vq, sizeof(*elem));
+        if (!elem) {
+            break;
+        }
+
+        g_test_message("Got element with %d buffers", elem->out_num);
+        g_assert_cmpint(elem->in_num, ==, 0);
+
+        vduse_queue_push(vq, elem, 0);
+        vduse_queue_notify(vq);
+    } while (true);
+
+    return G_SOURCE_CONTINUE;
+}
+
+static void vduse_rxtx_enable_queue(VduseDev *dev, VduseVirtq *vq)
+{
+    TestServer *s = vduse_dev_get_priv(dev);
+
+    g_test_message("Enabling queue %d", vq->index);
+
+    if (vq->index == 1) {
+        /* This is the tx queue, add a source to handle it */
+        vhost_vdpa_thread_add_source_fd(&s->vdpa_thread,
+                                        vduse_queue_get_fd(vq),
+                                        vhost_vdpa_rxtx_handle_tx, vq);
+    }
+}
+
+static void vduse_rxtx_disable_queue(VduseDev *dev, VduseVirtq *vq)
+{
+    /* Queue disabled */
+}
+
+static const VduseOps vduse_rxtx_ops = {
+    .enable_queue = vduse_rxtx_enable_queue,
+    .disable_queue = vduse_rxtx_disable_queue,
 };
 
 static gboolean vduse_dev_handler_source_fd(int fd, GIOCondition condition,
@@ -292,7 +397,8 @@ static TestServer *test_server_new(const gchar *name, const VduseOps *ops)
     qemu_mutex_init(&server->data_mutex);
     qemu_cond_init(&server->data_cond);
 
-    features = vduse_get_virtio_features() |
+    /* Disabling NOTIFY_ON_EMPTY as SVQ does not support it */
+    features = (vduse_get_virtio_features() & ~(1ULL << VIRTIO_F_NOTIFY_ON_EMPTY)) |
                (1ULL << VIRTIO_NET_F_MAC);
 
     server->vdev = vduse_dev_create(server->vduse_name,
@@ -376,6 +482,13 @@ static void wait_for_vqs(TestServer *s)
     }
 }
 
+static void test_wait(void *obj, void *arg, QGuestAllocator *alloc)
+{
+    TestServer *server = arg;
+
+    wait_for_vqs(server);
+}
+
 static void vhost_vdpa_test_cleanup(void *s)
 {
     TestServer *server = s;
@@ -385,9 +498,9 @@ static void vhost_vdpa_test_cleanup(void *s)
     test_server_free(server);
 }
 
-static void *vhost_vdpa_test_setup_memfile(GString *cmd_line, void *arg)
+static void *vhost_vdpa_test_setup(GString *cmd_line, void *arg)
 {
-    TestServer *server = test_server_new("vdpa-memfile", &vduse_read_guest_mem_ops);
+    TestServer *server = test_server_new("vdpa-memfile", arg);
 
     if (!server->ready) {
         g_test_skip("Failed to create VDUSE device");
@@ -404,23 +517,33 @@ static void *vhost_vdpa_test_setup_memfile(GString *cmd_line, void *arg)
     return server;
 }
 
-static void test_read_guest_mem(void *obj, void *arg, QGuestAllocator *alloc)
+static void vhost_vdpa_tx_test(void *obj, void *arg, QGuestAllocator *alloc)
 {
     TestServer *server = arg;
+    QVirtioNet *net = obj;
+    uint32_t free_head;
 
-    wait_for_vqs(server);
+    free_head = vhost_vdpa_add_tx_pkt_descs(alloc, net, &server->vdpa_thread);
+    vhost_vdpa_kick_tx_desc(&server->vdpa_thread, net, free_head);
+    vhost_vdpa_get_tx_pkt(alloc, net, free_head, &server->vdpa_thread);
 }
 
 static void register_vhost_vdpa_test(void)
 {
+    /* TODO: void * discards const qualifier */
     QOSGraphTestOptions opts = {
-        .before = vhost_vdpa_test_setup_memfile,
+        .before = vhost_vdpa_test_setup,
         .subprocess = true,
-        .arg = NULL,
+        .arg = (void *)&vduse_read_guest_mem_ops,
     };
 
     qos_add_test("vhost-vdpa/read-guest-mem/memfile",
                  "virtio-net",
-                 test_read_guest_mem, &opts);
+                 test_wait, &opts);
+
+    opts.arg = (void *)&vduse_rxtx_ops;
+    qos_add_test("vhost-vdpa/rxtx",
+                 "virtio-net",
+                 vhost_vdpa_tx_test, &opts);
 }
 libqos_init(register_vhost_vdpa_test);
