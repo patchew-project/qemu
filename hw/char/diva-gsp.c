@@ -47,7 +47,6 @@ typedef struct PCIDivaSerialState {
     MemoryRegion mailboxbar;    /* for hardware mailbox */
     uint32_t     subvendor;
     uint32_t     ports;
-    char         *name[PCI_SERIAL_MAX_PORTS];
     SerialState  state[PCI_SERIAL_MAX_PORTS];
     uint32_t     level[PCI_SERIAL_MAX_PORTS];
     qemu_irq     *irqs;
@@ -64,7 +63,6 @@ static void diva_pci_exit(PCIDevice *dev)
         s = pci->state + i;
         memory_region_del_subregion(&pci->membar, &s->io);
         qdev_unrealize(DEVICE(s));
-        g_free(pci->name[i]);
     }
     qemu_free_irqs(pci->irqs, pci->ports);
 }
@@ -136,9 +134,6 @@ static void diva_pci_realize(PCIDevice *dev, Error **errp)
             return;
         }
         s->irq = pci->irqs[i];
-        pci->name[i] = g_strdup_printf("uart #%zu", i + 1);
-        memory_region_init_io(&s->io, OBJECT(pci), &serial_io_ops, s,
-                              pci->name[i], 8);
 
         /* calculate offset of given port based on bitmask */
         while ((portmask & BIT(0)) == 0) {
