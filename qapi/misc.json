@@ -76,6 +76,15 @@
 #
 # @thread-id: ID of the underlying host thread
 #
+# @holders: The parameter is an array of QOM paths indicating how many
+#     active devices are currently associated with this iothread
+#     (e.g. virtio-blk).  In hotplug scenarios, users can
+#     pre-allocate multiple iothread objects to serve as a persistent
+#     thread pool.  When a device is hot-unplugged, the corresponding
+#     IOThread is released but remains available, allowing subsequent
+#     hot-plugged devices to attach to and reuse the existing thread.
+#     Returns empty if no devices are attached.  (since 11.0)
+#
 # @poll-max-ns: maximum polling time in ns, 0 means polling is
 #     disabled (since 2.9)
 #
@@ -93,6 +102,7 @@
 { 'struct': 'IOThreadInfo',
   'data': {'id': 'str',
            'thread-id': 'int',
+           'holders': ['str'],
            'poll-max-ns': 'int',
            'poll-grow': 'int',
            'poll-shrink': 'int',
@@ -118,6 +128,8 @@
 #              {
 #                 "id":"iothread0",
 #                 "thread-id":3134,
+#                 "holders":["/machine/peripheral/blk1/virtio-backend",
+#                            "/machine/peripheral/blk0/virtio-backend"],
 #                 "poll-max-ns":32768,
 #                 "poll-grow":0,
 #                 "poll-shrink":0,
@@ -126,6 +138,7 @@
 #              {
 #                 "id":"iothread1",
 #                 "thread-id":3135,
+#                 "holders":["/machine/peripheral/blk2/virtio-backend"],
 #                 "poll-max-ns":32768,
 #                 "poll-grow":0,
 #                 "poll-shrink":0,
