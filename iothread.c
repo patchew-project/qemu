@@ -172,7 +172,8 @@ static void iothread_init_gcontext(IOThread *iothread, const char *thread_name)
     g_autofree char *name = g_strdup_printf("%s aio-context", thread_name);
 
     iothread->worker_context = g_main_context_new();
-    source = aio_get_g_source(iothread_get_aio_context(iothread));
+    /* No need setup itself as the init holder */
+    source = aio_get_g_source(iothread_get_aio_context(iothread, NULL));
     g_source_set_name(source, name);
     g_source_attach(source, iothread->worker_context);
     g_source_unref(source);
@@ -362,9 +363,32 @@ char *iothread_get_id(IOThread *iothread)
     return g_strdup(object_get_canonical_path_component(OBJECT(iothread)));
 }
 
-AioContext *iothread_get_aio_context(IOThread *iothread)
+AioContext *iothread_get_aio_context(IOThread *iothread, const char *holder)
 {
+    /*
+     * In some cases, iothread user need the ctx to clearup other resource.
+     * When holder is empty, back to the legacy way.
+     */
+    if (holder) {
+        /*
+         * This guarantees that the IOThread and its AioContext remain alive
+         * as long as there is a holder.
+         */
+        object_ref(OBJECT(iothread));
+
+        /* Add holder device path to the list */
+        iothread_ref(iothread, holder);
+    }
+
     return iothread->ctx;
+}
+
+void iothread_put_aio_context(IOThread *iothread, const char *holder)
+{
+    object_unref(OBJECT(iothread));
+
+    /* Delete holder device path from the list */
+    iothread_unref(iothread, holder);
 }
 
 static int query_one_iothread(Object *object, void *opaque)
