@@ -44,6 +44,7 @@ static int NUM_RX_BUFS = 2;
 
 typedef struct TestParameters {
     const VduseOps *ops;
+    uint64_t features;
 } TestParameters;
 
 typedef struct VdpaThread {
@@ -56,6 +57,9 @@ typedef struct VdpaThread {
 
     /* Guest memory that must be free at the end of the test */
     uint64_t qemu_mem_to_free;
+
+    /* Expected avail_idx in in_order */
+    uint16_t expected_avail_idx;
 } VdpaThread;
 
 static void *vhost_vdpa_thread_function(void *data)
@@ -163,8 +167,19 @@ static void vhost_vdpa_kick_tx_desc(VdpaThread *t, QVirtioNet *net,
     qvirtqueue_kick(qts, net->vdev, net->queues[1], kick_id);
 }
 
+/**
+ * Get the next used element of the tx queue and check properties of it. If
+ * wait is true, wait until an element is available, otherwise just check if
+ * it's already available.
+ *
+ * Note that waiting clean the ISR, so if you call this function with
+ * wait=true, another thread must call the VQ so this call returns. If you
+ * expect to fetch many descs you need to get subsequent elements with
+ * wait=false.
+ */
 static void vhost_vdpa_get_tx_pkt(QGuestAllocator *alloc, QVirtioNet *net,
-                                  uint32_t desc_idx, VdpaThread *t)
+                                  uint32_t desc_idx, VdpaThread *t,
+                                  bool wait)
 {
     g_autofree struct VduseVirtqElement *elem = NULL;
     int64_t timeout = 5 * G_TIME_SPAN_SECOND;
@@ -174,8 +189,17 @@ static void vhost_vdpa_get_tx_pkt(QGuestAllocator *alloc, QVirtioNet *net,
     uint32_t len;
 
     end_time_us = g_get_monotonic_time() + timeout;
-    qvirtio_wait_used_elem(qts, net->vdev, net->queues[1], desc_idx, &len,
-                           timeout);
+    if (wait) {
+        qvirtio_wait_used_elem(qts, net->vdev, net->queues[1], desc_idx, &len,
+                               timeout);
+    } else {
+        uint32_t got_desc_idx;
+
+        if (!qvirtqueue_get_buf(qts, net->queues[1], &got_desc_idx, &len)) {
+            g_test_fail();
+        }
+        g_assert_cmpint(got_desc_idx, ==, desc_idx);
+    }
     g_assert_cmpint(g_get_monotonic_time(), <, end_time_us);
     g_assert_cmpint(len, ==, 0);
 
@@ -190,6 +214,7 @@ typedef struct TestServer {
     gchar *vdpa_dev_path;
     gchar *tmpfs;
     int vq_read_num;
+    size_t test_cursor;
     VduseDev *vdev;
     VdpaThread vdpa_thread;
     QemuMutex data_mutex;
@@ -330,6 +355,93 @@ static const TestParameters rxtx_params = {
     .ops = &vduse_rxtx_ops,
 };
 
+static const struct  {
+    uint16_t out_num;
+    bool push;
+} tx_packets_inorder[] = {
+    /* One buffer first */
+    { .out_num = 1, .push = true },
+
+    /* Then two buffers chained */
+    { .out_num = 2, .push = true },
+
+    /* Then one buffer, but batch it with the next one */
+    { .out_num = 1, .push = false },
+    { .out_num = 1, .push = true },
+
+    /* Finally, two buffers chained again, but batch them together */
+    { .out_num = 2, .push = false },
+    { .out_num = 2, .push = true },
+};
+
+static gboolean vhost_vdpa_rxtx_inorder_handle_tx(int fd,
+                                                  GIOCondition condition,
+                                                  void *data)
+{
+    VduseVirtq *vq = data;
+    VduseDev *dev = vduse_queue_get_dev(vq);
+    TestServer *s = vduse_dev_get_priv(dev);
+
+    eventfd_read(fd, (eventfd_t[]){0});
+    do {
+        g_autofree VduseVirtqElement *elem = NULL;
+        size_t batch_size = 1;
+        elem = vduse_queue_pop(vq, sizeof(*elem));
+        if (!elem) {
+            break;
+        }
+
+        g_assert_cmpint(s->test_cursor, <, G_N_ELEMENTS(tx_packets_inorder));
+        g_assert_cmpint(elem->out_num, ==,
+                        tx_packets_inorder[s->test_cursor].out_num);
+        g_assert_cmpint(elem->in_num, ==, 0);
+
+        if (tx_packets_inorder[s->test_cursor].push) {
+            for (ssize_t i = s->test_cursor - 1;
+                 i >= 0 && !tx_packets_inorder[i].push; i--) {
+                batch_size++;
+            }
+            vduse_queue_fill(vq, elem, /* len */ 0, /* offset */ 0);
+            vduse_queue_flush(vq, batch_size);
+            vduse_queue_notify(vq);
+        }
+        s->test_cursor++;
+    } while (true);
+
+    return G_SOURCE_CONTINUE;
+}
+
+static void vduse_rxtx_inorder_enable_queue(VduseDev *dev, VduseVirtq *vq)
+{
+    TestServer *s = vduse_dev_get_priv(dev);
+
+    g_test_message("Enabling queue %d", vq->index);
+
+    if (vq->index == 1) {
+        g_assert(dev->features & (1ULL << VIRTIO_F_IN_ORDER));
+
+        /* This is the tx queue, add a source to handle it */
+        vhost_vdpa_thread_add_source_fd(&s->vdpa_thread,
+                                        vduse_queue_get_fd(vq),
+                                        vhost_vdpa_rxtx_inorder_handle_tx, vq);
+    }
+}
+
+static void vduse_rxtx_inorder_disable_queue(VduseDev *dev, VduseVirtq *vq)
+{
+    /* Queue disabled */
+}
+
+static const VduseOps vduse_rxtx_inorder_ops = {
+    .enable_queue = vduse_rxtx_inorder_enable_queue,
+    .disable_queue = vduse_rxtx_inorder_disable_queue,
+};
+
+static const TestParameters rxtx_inorder_params = {
+    .ops = &vduse_rxtx_inorder_ops,
+    .features = (1ULL << VIRTIO_F_IN_ORDER),
+};
+
 static gboolean vduse_dev_handler_source_fd(int fd, GIOCondition condition,
                                             void *data)
 {
@@ -462,7 +574,7 @@ static TestServer *test_server_new(const gchar *name,
 
     /* Disabling NOTIFY_ON_EMPTY as SVQ does not support it */
     features = (vduse_get_virtio_features() & ~(1ULL << VIRTIO_F_NOTIFY_ON_EMPTY)) |
-               (1ULL << VIRTIO_NET_F_MAC);
+               (1ULL << VIRTIO_NET_F_MAC) | params->features;
 
     server->vdev = vduse_dev_create(server->vduse_name,
                                     VIRTIO_ID_NET,
@@ -561,7 +673,7 @@ static void vhost_vdpa_test_cleanup(void *s)
     test_server_free(server);
 }
 
-static void *vhost_vdpa_test_setup(GString *cmd_line, void *arg)
+static void *vhost_vdpa_test_setup0(GString *cmd_line, void *arg)
 {
     TestServer *server = test_server_new("vdpa-memfile", arg);
 
@@ -580,6 +692,17 @@ static void *vhost_vdpa_test_setup(GString *cmd_line, void *arg)
     return server;
 }
 
+static void *vhost_vdpa_test_setup_inorder(GString *cmd_line, void *arg)
+{
+    const char *device = g_strstr_len(cmd_line->str, -1,
+                                      "-device virtio-net-pci");
+    g_assert_nonnull(device);
+    device += strlen("-device virtio-net-pci");
+    g_string_insert(cmd_line, device - cmd_line->str, ",in_order=on");
+
+    return vhost_vdpa_test_setup0(cmd_line, arg);
+}
+
 static void vhost_vdpa_tx_test(void *obj, void *arg, QGuestAllocator *alloc)
 {
     TestServer *server = arg;
@@ -593,13 +716,13 @@ static void vhost_vdpa_tx_test(void *obj, void *arg, QGuestAllocator *alloc)
     free_head = vhost_vdpa_add_tx_pkt_descs(alloc, net, &server->vdpa_thread,
                                             1);
     vhost_vdpa_kick_tx_desc(&server->vdpa_thread, net, free_head, 1);
-    vhost_vdpa_get_tx_pkt(alloc, net, free_head, &server->vdpa_thread);
+    vhost_vdpa_get_tx_pkt(alloc, net, free_head, &server->vdpa_thread, true);
 
     /* Simple chain */
     free_head = vhost_vdpa_add_tx_pkt_descs(alloc, net, &server->vdpa_thread,
                                             2);
     vhost_vdpa_kick_tx_desc(&server->vdpa_thread, net, free_head, 2);
-    vhost_vdpa_get_tx_pkt(alloc, net, free_head, &server->vdpa_thread);
+    vhost_vdpa_get_tx_pkt(alloc, net, free_head, &server->vdpa_thread, true);
 
     /* Out of order descriptors */
     free_head = vhost_vdpa_add_tx_pkt_descs(alloc, net, &server->vdpa_thread,
@@ -609,8 +732,8 @@ static void vhost_vdpa_tx_test(void *obj, void *arg, QGuestAllocator *alloc)
     vhost_vdpa_kick_tx_desc(&server->vdpa_thread, net, free_head2, 1);
     vhost_vdpa_kick_tx_desc(&server->vdpa_thread, net, free_head, 1);
 
-    vhost_vdpa_get_tx_pkt(alloc, net, free_head2, &server->vdpa_thread);
-    vhost_vdpa_get_tx_pkt(alloc, net, free_head, &server->vdpa_thread);
+    vhost_vdpa_get_tx_pkt(alloc, net, free_head2, &server->vdpa_thread, true);
+    vhost_vdpa_get_tx_pkt(alloc, net, free_head, &server->vdpa_thread, true);
 
     /* Out of order chains */
     free_head = vhost_vdpa_add_tx_pkt_descs(alloc, net, &server->vdpa_thread,
@@ -621,11 +744,45 @@ static void vhost_vdpa_tx_test(void *obj, void *arg, QGuestAllocator *alloc)
     vhost_vdpa_kick_tx_desc(&server->vdpa_thread, net, free_head, 2);
 }
 
+static void vhost_vdpa_tx_inorder_test(void *obj, void *arg, QGuestAllocator *alloc)
+{
+    uint32_t free_head[G_N_ELEMENTS(tx_packets_inorder)];
+    TestServer *server = arg;
+    QVirtioNet *net = obj;
+    size_t free_head_idx = 0;
+
+    for (size_t i = 0; i < G_N_ELEMENTS(tx_packets_inorder); i++) {
+        uint32_t chain_len = tx_packets_inorder[i].out_num;
+        bool wait = true;
+
+        free_head[i] = vhost_vdpa_add_tx_pkt_descs(alloc, net,
+                                                   &server->vdpa_thread,
+                                                   chain_len);
+        vhost_vdpa_kick_tx_desc(&server->vdpa_thread, net, free_head[i], chain_len);
+        if (!tx_packets_inorder[i].push) {
+            continue;
+        }
+
+        /*
+         * TODO: SVQ uses the emulated VirtIO device underneath so it does not
+         * support to batch many used elements in order.  This is fragile and
+         * could change in the future, and the right solution is to add proper
+         * support in vhost_vdpa_get_tx_pkt -> qvirtio_wait_used_elem.  Let's
+         * just code the current behavior here for now.
+         */
+        for (; free_head_idx <= i; free_head_idx++) {
+            vhost_vdpa_get_tx_pkt(alloc, net, free_head[free_head_idx],
+                                  &server->vdpa_thread, wait);
+            wait = false;
+        }
+    }
+}
+
 static void register_vhost_vdpa_test(void)
 {
     /* TODO: void * discards const qualifier */
     QOSGraphTestOptions opts = {
-        .before = vhost_vdpa_test_setup,
+        .before = vhost_vdpa_test_setup0,
         .subprocess = true,
         .arg = (void *)&mem_read_params,
     };
@@ -638,5 +795,11 @@ static void register_vhost_vdpa_test(void)
     qos_add_test("vhost-vdpa/rxtx",
                  "virtio-net",
                  vhost_vdpa_tx_test, &opts);
+
+    opts.before = vhost_vdpa_test_setup_inorder;
+    opts.arg = (void *)&rxtx_inorder_params;
+    qos_add_test("vhost-vdpa/rxtx-inorder",
+                 "virtio-net",
+                 vhost_vdpa_tx_inorder_test, &opts);
 }
 libqos_init(register_vhost_vdpa_test);
