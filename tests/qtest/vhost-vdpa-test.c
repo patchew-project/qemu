@@ -42,6 +42,10 @@
 
 static int NUM_RX_BUFS = 2;
 
+typedef struct TestParameters {
+    const VduseOps *ops;
+} TestParameters;
+
 typedef struct VdpaThread {
     GThread *thread;
     GMainLoop *loop;
@@ -264,6 +268,10 @@ static const VduseOps vduse_read_guest_mem_ops = {
     .disable_queue = vduse_read_guest_mem_disable_queue,
 };
 
+static const TestParameters mem_read_params = {
+    .ops = &vduse_read_guest_mem_ops,
+};
+
 static gboolean vhost_vdpa_rxtx_handle_tx(int fd, GIOCondition condition,
                                           void *data)
 {
@@ -316,6 +324,10 @@ static void vduse_rxtx_disable_queue(VduseDev *dev, VduseVirtq *vq)
 static const VduseOps vduse_rxtx_ops = {
     .enable_queue = vduse_rxtx_enable_queue,
     .disable_queue = vduse_rxtx_disable_queue,
+};
+
+static const TestParameters rxtx_params = {
+    .ops = &vduse_rxtx_ops,
 };
 
 static gboolean vduse_dev_handler_source_fd(int fd, GIOCondition condition,
@@ -432,7 +444,8 @@ static bool test_setup_reconnect_log(VduseDev *vdev, const char *tmpfs)
     return ok;
 }
 
-static TestServer *test_server_new(const gchar *name, const VduseOps *ops)
+static TestServer *test_server_new(const gchar *name,
+                                   const TestParameters *params)
 {
     TestServer *server = g_new0(TestServer, 1);
     g_autoptr(GError) err = NULL;
@@ -458,7 +471,7 @@ static TestServer *test_server_new(const gchar *name, const VduseOps *ops)
                                     2, /* num_queues */
                                     sizeof(config),
                                     config,
-                                    ops,
+                                    params->ops,
                                     server);
 
     if (!server->vdev) {
@@ -614,14 +627,14 @@ static void register_vhost_vdpa_test(void)
     QOSGraphTestOptions opts = {
         .before = vhost_vdpa_test_setup,
         .subprocess = true,
-        .arg = (void *)&vduse_read_guest_mem_ops,
+        .arg = (void *)&mem_read_params,
     };
 
     qos_add_test("vhost-vdpa/read-guest-mem/memfile",
                  "virtio-net",
                  test_wait, &opts);
 
-    opts.arg = (void *)&vduse_rxtx_ops;
+    opts.arg = (void *)&rxtx_params;
     qos_add_test("vhost-vdpa/rxtx",
                  "virtio-net",
                  vhost_vdpa_tx_test, &opts);
