@@ -53,6 +53,9 @@ struct RISCVAPLICState {
     uint32_t *idelivery;
     uint32_t *iforce;
     uint32_t *ithreshold;
+    uint32_t *setip;
+    uint32_t *clrip;
+    uint32_t *setie;
 
     /* topology */
 #define QEMU_APLIC_MAX_CHILDREN        16
@@ -66,6 +69,7 @@ struct RISCVAPLICState {
     uint32_t num_harts;
     uint32_t iprio_mask;
     uint32_t num_irqs;
+    uint32_t nr_words;
     bool msimode;
     bool mmode;
 
