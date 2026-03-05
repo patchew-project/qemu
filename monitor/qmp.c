@@ -544,12 +544,13 @@ void monitor_init_qmp(Chardev *chr, bool pretty, Error **errp)
          * handling between the main thread and the I/O thread.
          */
         remove_listener_fd_in_watch(chr);
+
         /*
          * We can't call qemu_chr_fe_set_handlers() directly here
          * since chardev might be running in the monitor I/O
          * thread.  Schedule a bottom half.
          */
-        aio_bh_schedule_oneshot(iothread_get_aio_context(mon_iothread),
+        aio_bh_schedule_oneshot(iothread_get_aio_context(mon_iothread, NULL),
                                 monitor_qmp_setup_handlers_bh, mon);
         /* The bottom half will add @mon to @mon_list */
     } else {
