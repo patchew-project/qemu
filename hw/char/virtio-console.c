@@ -258,6 +258,7 @@ static void virtconsole_unrealize(DeviceState *dev)
 
     if (vcon->watch) {
         g_source_remove(vcon->watch);
+        vcon->watch = 0;
     }
 }
 
