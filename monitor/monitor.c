@@ -547,7 +547,7 @@ int monitor_suspend(Monitor *mon)
          * Kick I/O thread to make sure this takes effect.  It'll be
          * evaluated again in prepare() of the watch object.
          */
-        aio_notify(iothread_get_aio_context(mon_iothread));
+        aio_notify(iothread_get_aio_context(mon_iothread, NULL));
     }
 
     trace_monitor_suspend(mon, 1);
@@ -582,7 +582,7 @@ void monitor_resume(Monitor *mon)
         AioContext *ctx;
 
         if (mon->use_io_thread) {
-            ctx = iothread_get_aio_context(mon_iothread);
+            ctx = iothread_get_aio_context(mon_iothread, NULL);
         } else {
             ctx = qemu_get_aio_context();
         }
