@@ -686,6 +686,24 @@ bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     cpu_loop_exit_restore(cs, retaddr);
 }
 
+static inline uint64_t loongarch_mask_pte_ppn(CPULoongArchState *env,
+                                              uint64_t pte)
+{
+    uint64_t palen_mask = loongarch_palen_mask(env);
+
+    if (is_la64(env)) {
+        uint64_t ppn_bits = pte & MAKE_64BIT_MASK(12, 36);
+        uint64_t ppn_masked = ppn_bits & palen_mask;
+
+        return (pte & ~MAKE_64BIT_MASK(12, 36)) | ppn_masked;
+    } else {
+        uint64_t ppn_bits = pte & MAKE_64BIT_MASK(8, 24);
+        uint64_t ppn_masked = ppn_bits & palen_mask;
+
+        return (pte & ~MAKE_64BIT_MASK(8, 24)) | ppn_masked;
+    }
+}
+
 target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
                           uint32_t level, uint32_t mem_idx)
 {
@@ -721,7 +739,7 @@ target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
     get_dir_base_width(env, &dir_base, &dir_width, level);
     index = (badvaddr >> dir_base) & ((1 << dir_width) - 1);
     phys = base | index << 3;
-    return ldq_le_phys(cs->as, phys) & palen_mask;
+    return loongarch_mask_pte_ppn(env, ldq_le_phys(cs->as, phys));
 }
 
 void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
@@ -729,6 +747,7 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
 {
     CPUState *cs = env_cpu(env);
     hwaddr phys, tmp0, ptindex, ptoffset0, ptoffset1;
+    uint64_t pte_raw;
     uint64_t badv;
     uint64_t ptbase = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTBASE);
     uint64_t ptwidth = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTWIDTH);
@@ -744,7 +763,6 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
      * and the other is the huge page entry,
      * whose bit 6 should be 1.
      */
-    base = base & palen_mask;
     if (FIELD_EX64(base, TLBENTRY, HUGE)) {
         /*
          * Gets the huge page level and Gets huge page size.
@@ -768,7 +786,7 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
          * when loaded into the tlb,
          * so the tlb page size needs to be divided by 2.
          */
-        tmp0 = base;
+        tmp0 = loongarch_mask_pte_ppn(env, base);
         if (odd) {
             tmp0 += MAKE_64BIT_MASK(ps, 1);
         }
@@ -780,12 +798,15 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
     } else {
         badv = env->CSR_TLBRBADV;
 
+        base = base & palen_mask;
+
         ptindex = (badv >> ptbase) & ((1 << ptwidth) - 1);
         ptindex = ptindex & ~0x1;   /* clear bit 0 */
         ptoffset0 = ptindex << 3;
         ptoffset1 = (ptindex + 1) << 3;
         phys = base | (odd ? ptoffset1 : ptoffset0);
-        tmp0 = ldq_le_phys(cs->as, phys) & palen_mask;
+        pte_raw = ldq_le_phys(cs->as, phys);
+        tmp0 = loongarch_mask_pte_ppn(env, pte_raw);
         ps = ptbase;
     }
 
