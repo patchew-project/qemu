@@ -64,6 +64,19 @@ static void iothread_unref(IOThread *iothread, const char *holder)
     }
 }
 
+static strList *iothread_get_holders_list(IOThread *iothread)
+{
+    strList *head = NULL;
+    strList **tail = &head;
+    GList *l;
+
+    for (l = iothread->holders; l != NULL; l = l->next) {
+        QAPI_LIST_APPEND(tail, g_strdup(l->data));
+    }
+
+    return head;
+}
+
 static void *iothread_run(void *opaque)
 {
     IOThread *iothread = opaque;
@@ -405,6 +418,7 @@ static int query_one_iothread(Object *object, void *opaque)
     info = g_new0(IOThreadInfo, 1);
     info->id = iothread_get_id(iothread);
     info->thread_id = iothread->thread_id;
+    info->holders = iothread_get_holders_list(iothread);
     info->poll_max_ns = iothread->poll_max_ns;
     info->poll_grow = iothread->poll_grow;
     info->poll_shrink = iothread->poll_shrink;
