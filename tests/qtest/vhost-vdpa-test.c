@@ -571,7 +571,7 @@ static void vhost_vdpa_tx_test(void *obj, void *arg, QGuestAllocator *alloc)
 {
     TestServer *server = arg;
     QVirtioNet *net = obj;
-    uint32_t free_head;
+    uint32_t free_head, free_head2;
 
     /* Add some rx packets so SVQ must clean them at the end of QEMU run */
     vhost_vdpa_add_rx_pkts(alloc, net, &server->vdpa_thread);
@@ -588,6 +588,24 @@ static void vhost_vdpa_tx_test(void *obj, void *arg, QGuestAllocator *alloc)
     vhost_vdpa_kick_tx_desc(&server->vdpa_thread, net, free_head, 2);
     vhost_vdpa_get_tx_pkt(alloc, net, free_head, &server->vdpa_thread);
 
+    /* Out of order descriptors */
+    free_head = vhost_vdpa_add_tx_pkt_descs(alloc, net, &server->vdpa_thread,
+                                            1);
+    free_head2 = vhost_vdpa_add_tx_pkt_descs(alloc, net, &server->vdpa_thread,
+                                             1);
+    vhost_vdpa_kick_tx_desc(&server->vdpa_thread, net, free_head2, 1);
+    vhost_vdpa_kick_tx_desc(&server->vdpa_thread, net, free_head, 1);
+
+    vhost_vdpa_get_tx_pkt(alloc, net, free_head2, &server->vdpa_thread);
+    vhost_vdpa_get_tx_pkt(alloc, net, free_head, &server->vdpa_thread);
+
+    /* Out of order chains */
+    free_head = vhost_vdpa_add_tx_pkt_descs(alloc, net, &server->vdpa_thread,
+                                            2);
+    free_head2 = vhost_vdpa_add_tx_pkt_descs(alloc, net, &server->vdpa_thread,
+                                             2);
+    vhost_vdpa_kick_tx_desc(&server->vdpa_thread, net, free_head2, 2);
+    vhost_vdpa_kick_tx_desc(&server->vdpa_thread, net, free_head, 2);
 }
 
 static void register_vhost_vdpa_test(void)
