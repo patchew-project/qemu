@@ -36,6 +36,34 @@
 #define IOTHREAD_POLL_MAX_NS_DEFAULT 0ULL
 #endif
 
+/*
+ * Add holder device path to the list.
+ */
+static void iothread_ref(IOThread *iothread, const char *holder)
+{
+    iothread->holders = g_list_prepend(iothread->holders, g_strdup(holder));
+}
+
+/*
+ * Delete holder device path from the list.
+ */
+static void iothread_unref(IOThread *iothread, const char *holder)
+{
+    if (iothread->holders) {
+        GList *link = g_list_find_custom(iothread->holders, holder,
+                                         (GCompareFunc)g_strcmp0);
+
+        if (link) {
+            g_free(link->data);
+            iothread->holders = g_list_delete_link(iothread->holders, link);
+        } else {
+            error_report("iothread_unref can't find the holder %s", holder);
+        }
+    } else {
+        error_report("iohtread_unref iothread is not held by any devices");
+    }
+}
+
 static void *iothread_run(void *opaque)
 {
     IOThread *iothread = opaque;
