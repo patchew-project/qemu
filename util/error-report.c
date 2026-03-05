@@ -29,6 +29,9 @@ bool message_with_timestamp;
 bool error_with_guestname;
 const char *error_guest_name;
 
+/*
+ * Print to current HMP monitor if we have one, else to stderr.
+ */
 int error_printf(const char *fmt, ...)
 {
     va_list ap;
