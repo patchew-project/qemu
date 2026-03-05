@@ -47,6 +47,9 @@ typedef struct VdpaThread {
     GMainLoop *loop;
     GMainContext *context;
 
+    /* Expected elements queue to compare properties */
+    GAsyncQueue *elem_queue;
+
     /* Guest memory that must be free at the end of the test */
     uint64_t qemu_mem_to_free;
 } VdpaThread;
@@ -60,6 +63,7 @@ static void *vhost_vdpa_thread_function(void *data)
 
 static void vhost_vdpa_thread_init(VdpaThread *t)
 {
+    t->elem_queue = g_async_queue_new();
     t->context = g_main_context_new();
     t->loop = g_main_loop_new(t->context, FALSE);
     t->thread = g_thread_new("vdpa-thread", vhost_vdpa_thread_function, t->loop);
@@ -76,6 +80,7 @@ static void vhost_vdpa_thread_cleanup(VdpaThread *t)
 
     g_main_loop_unref(t->loop);
     g_main_context_unref(t->context);
+    g_async_queue_unref(t->elem_queue);
 }
 
 static void vhost_vdpa_thread_add_source_fd(VdpaThread *t, int fd,
@@ -109,29 +114,48 @@ static void vhost_vdpa_add_rx_pkts(QGuestAllocator *alloc, QVirtioNet *net,
  * @alloc: the guest allocator to allocate memory for the descriptors
  * @net: the virtio net device
  * @t: the vdpa thread to push the expected chain length if kick is true
+ * @chain_len: the number of descriptors in the chain to add
  *
  * Returns the kick_id you can use to kick the device in a later call to this
  * function.
  */
 static uint32_t vhost_vdpa_add_tx_pkt_descs(QGuestAllocator *alloc,
-                                            QVirtioNet *net, VdpaThread *t)
+                                            QVirtioNet *net, VdpaThread *t,
+                                            uint32_t chain_len)
 {
     QTestState *qts = global_qtest;
-    uint32_t req_addr;
+    uint32_t req_addr, kick_id = UINT32_MAX;
 
+    assert(chain_len > 0);
     /* TODO: Actually free this. RFC, is actually needed? */
     req_addr = guest_alloc(alloc, 64);
     g_assert_cmpint(req_addr, >, 0);
 
-    return qvirtqueue_add(qts, net->queues[1], req_addr, 64, /* write */ false,
-                          /* next */ false);
+    /*
+    * We set up the descriptors in a way that each of them points to the same
+    * buffer. This simplifies guest's memory management while still exercising
+    * chain traversal in SVQ.
+    */
+    for (uint32_t i = 0; i < chain_len; i++) {
+        uint32_t head;
+        bool next = i != chain_len - 1;
+
+        head = qvirtqueue_add(qts, net->queues[1], req_addr, 64,
+                              /* write */ false, next);
+        if (i == 0) {
+            kick_id = head;
+        }
+    }
+
+    return kick_id;
 }
 
 static void vhost_vdpa_kick_tx_desc(VdpaThread *t, QVirtioNet *net,
-                                    uint32_t kick_id)
+                                    uint32_t kick_id, uint32_t chain_len)
 {
     QTestState *qts = global_qtest;
 
+    g_async_queue_push(t->elem_queue, (void *)(intptr_t)chain_len);
     qvirtqueue_kick(qts, net->vdev, net->queues[1], kick_id);
 }
 
@@ -244,9 +268,12 @@ static gboolean vhost_vdpa_rxtx_handle_tx(int fd, GIOCondition condition,
                                           void *data)
 {
     VduseVirtq *vq = data;
+    VduseDev *dev = vduse_queue_get_dev(vq);
+    TestServer *s = vduse_dev_get_priv(dev);
 
     eventfd_read(fd, (eventfd_t[]){0});
     do {
+        intptr_t expected_elems;
         g_autofree VduseVirtqElement *elem = NULL;
 
         elem = vduse_queue_pop(vq, sizeof(*elem));
@@ -254,7 +281,10 @@ static gboolean vhost_vdpa_rxtx_handle_tx(int fd, GIOCondition condition,
             break;
         }
 
+        expected_elems = (intptr_t)g_async_queue_try_pop(s->vdpa_thread.elem_queue);
+        g_assert_cmpint(expected_elems, >, 0);
         g_test_message("Got element with %d buffers", elem->out_num);
+        g_assert_cmpint(elem->out_num, ==, expected_elems);
         g_assert_cmpint(elem->in_num, ==, 0);
 
         vduse_queue_push(vq, elem, 0);
@@ -546,9 +576,18 @@ static void vhost_vdpa_tx_test(void *obj, void *arg, QGuestAllocator *alloc)
     /* Add some rx packets so SVQ must clean them at the end of QEMU run */
     vhost_vdpa_add_rx_pkts(alloc, net, &server->vdpa_thread);
 
-    free_head = vhost_vdpa_add_tx_pkt_descs(alloc, net, &server->vdpa_thread);
-    vhost_vdpa_kick_tx_desc(&server->vdpa_thread, net, free_head);
+    /* Simple packet */
+    free_head = vhost_vdpa_add_tx_pkt_descs(alloc, net, &server->vdpa_thread,
+                                            1);
+    vhost_vdpa_kick_tx_desc(&server->vdpa_thread, net, free_head, 1);
     vhost_vdpa_get_tx_pkt(alloc, net, free_head, &server->vdpa_thread);
+
+    /* Simple chain */
+    free_head = vhost_vdpa_add_tx_pkt_descs(alloc, net, &server->vdpa_thread,
+                                            2);
+    vhost_vdpa_kick_tx_desc(&server->vdpa_thread, net, free_head, 2);
+    vhost_vdpa_get_tx_pkt(alloc, net, free_head, &server->vdpa_thread);
+
 }
 
 static void register_vhost_vdpa_test(void)
