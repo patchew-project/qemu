@@ -269,7 +269,7 @@ void monitor_printc(Monitor *mon, int c)
 }
 
 /*
- * Print to current monitor if we have one, else to stderr.
+ * Print to current HMP monitor if we have one, else to stderr.
  */
 int error_vprintf(const char *fmt, va_list ap)
 {
