@@ -65,13 +65,17 @@ void virtio_scsi_dataplane_setup(VirtIOSCSI *s, Error **errp)
     s->vq_aio_context[1] = qemu_get_aio_context();
 
     if (vs->conf.iothread_vq_mapping_list) {
+        char *path = object_get_canonical_path(OBJECT(vdev));
+
         if (!iothread_vq_mapping_apply(vs->conf.iothread_vq_mapping_list,
                     &s->vq_aio_context[VIRTIO_SCSI_VQ_NUM_FIXED],
-                    vs->conf.num_queues, errp)) {
+                    vs->conf.num_queues, path, errp)) {
+            g_free(path);
             g_free(s->vq_aio_context);
             s->vq_aio_context = NULL;
             return;
         }
+        g_free(path);
     } else if (vs->conf.iothread) {
         AioContext *ctx = iothread_get_aio_context(vs->conf.iothread);
         for (uint16_t i = 0; i < vs->conf.num_queues; i++) {
@@ -94,7 +98,10 @@ void virtio_scsi_dataplane_cleanup(VirtIOSCSI *s)
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
 
     if (vs->conf.iothread_vq_mapping_list) {
-        iothread_vq_mapping_cleanup(vs->conf.iothread_vq_mapping_list);
+        char *path = object_get_canonical_path(OBJECT(VIRTIO_DEVICE(s)));
+
+        iothread_vq_mapping_cleanup(vs->conf.iothread_vq_mapping_list, path);
+        g_free(path);
     }
 
     if (vs->conf.iothread) {
