@@ -2092,7 +2092,20 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
             eth_payload_data = saved_buffer + ETH_HLEN;
             eth_payload_len  = saved_size   - ETH_HLEN;
 
-            ip = (struct ip_header*)eth_payload_data;
+            /*
+             * It would be more natural to write this as
+             *   ip = (struct ip_header *)eth_payload_data;
+             * (the IP header is at the start of the ethernet payload).
+             * However, writing it that way triggers a GCC bug where an
+             * interaction between -fsanitize=address and -Wstringop-overflow
+             * results in a false-positive stringop-overflow warning that is
+             * only emitted when the address sanitizer is enabled:
+             *     https://gcc.gnu.org/bugzilla/show_bug.cgi?id=114494
+             *     https://gcc.gnu.org/bugzilla/show_bug.cgi?id=99673
+             * So we work around this by writing the expression in an equivalent
+             * way that doesn't run into this bug.
+             */
+            ip = (struct ip_header *)saved_buffer + ETH_HLEN;
 
             if (IP_HEADER_VERSION(ip) != IP_HEADER_VERSION_4) {
                 DPRINTF("+++ C+ mode packet has bad IP version %d "
