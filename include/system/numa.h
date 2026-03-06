@@ -35,12 +35,19 @@ enum {
 
 #define UINT16_BITS       16
 
+typedef enum {
+    NUMA_MEMMAP_NORMAL = 0,
+    NUMA_MEMMAP_SPM,
+    NUMA_MEMMAP_RESERVED,
+} NumaMemmapTypeInternal;
+
 typedef struct NodeInfo {
     uint64_t node_mem;
     struct HostMemoryBackend *node_memdev;
     bool present;
     bool has_cpu;
     bool has_gi;
+    NumaMemmapTypeInternal memmap_type;
     uint8_t lb_info_provided;
     uint16_t initiator;
     uint8_t distance[MAX_NODES];
