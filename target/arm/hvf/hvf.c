@@ -1163,6 +1163,9 @@ static bool hvf_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
 
     if (hvf_nested_virt_enabled()) {
         FIELD_DP64_IDREG(&host_isar, ID_AA64DFR0, PMUVER, 0x1);
+        /* SME is not implemented with nested virt on the Apple side */
+        SET_IDREG(&host_isar, ID_AA64PFR1,
+              GET_IDREG(&host_isar, ID_AA64PFR1) & ~R_ID_AA64PFR1_SME_MASK);
     }
 
     ahcf->isar = host_isar;
@@ -1370,16 +1373,22 @@ int hvf_arch_init_vcpu(CPUState *cpu)
             arm_cpu->cpreg_indexes[sregs_cnt++] = kvm_id;
         }
     }
-    if (__builtin_available(macOS 15.2, *)) {
-        for (i = 0; i < ARRAY_SIZE(hvf_sreg_list_sme2); i++) {
-            hv_sys_reg_t hvf_id = hvf_sreg_list_sme2[i].sreg;
-            uint64_t kvm_id = HVF_TO_KVMID(hvf_id);
-            uint32_t key = kvm_to_cpreg_id(kvm_id);
-            const ARMCPRegInfo *ri = get_arm_cp_reginfo(arm_cpu->cp_regs, key);
+    if (hvf_arm_sme2_supported()) {
+        /*
+         * Clang doesn't allow us to combine the two checks together.
+         * -Wunsupported-availability-guard
+         */
+        if (__builtin_available(macOS 15.2, *)) {
+            for (i = 0; i < ARRAY_SIZE(hvf_sreg_list_sme2); i++) {
+                hv_sys_reg_t hvf_id = hvf_sreg_list_sme2[i].sreg;
+                uint64_t kvm_id = HVF_TO_KVMID(hvf_id);
+                uint32_t key = kvm_to_cpreg_id(kvm_id);
+                const ARMCPRegInfo *ri = get_arm_cp_reginfo(arm_cpu->cp_regs, key);
 
-            if (ri) {
-                assert(!(ri->type & ARM_CP_NO_RAW));
-                arm_cpu->cpreg_indexes[sregs_cnt++] = kvm_id;
+                if (ri) {
+                    assert(!(ri->type & ARM_CP_NO_RAW));
+                    arm_cpu->cpreg_indexes[sregs_cnt++] = kvm_id;
+                }
             }
         }
         /*
