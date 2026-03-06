@@ -142,6 +142,21 @@ def _console_interaction(test, success_message, failure_message,
 
     return out
 
+def send_key(test, key, delay=0.2, vm=None):
+    """
+    Send a single key to the console.
+
+    :key: key to send
+    :delay: debounce delay to wait
+    :vm: the vm to send to, defaults to test.vm
+    """
+    if vm is None:
+        vm = test.vm
+
+    test.log.debug(f"Sending key: {key}")
+    vm.console_socket.sendall(key.encode())
+
+
 def interrupt_interactive_console_until_pattern(test, success_message,
                                                 failure_message=None,
                                                 interrupt_string='\r',
