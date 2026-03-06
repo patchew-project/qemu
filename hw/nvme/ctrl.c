@@ -207,6 +207,7 @@
 #include "hw/pci/msix.h"
 #include "hw/pci/pcie_sriov.h"
 #include "system/spdm-socket.h"
+#include "migration/blocker.h"
 #include "migration/vmstate.h"
 
 #include "nvme.h"
@@ -8962,6 +8963,14 @@ static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
     pcie_endpoint_cap_init(pci_dev, 0x80);
     pcie_cap_flr_init(pci_dev);
     if (n->params.sriov_max_vfs) {
+        if (n->migration_blocker == NULL) {
+            error_setg(&n->migration_blocker,
+                       "Migration is disabled when SR-IOV capability is set");
+            if (migrate_add_blocker(&n->migration_blocker, errp) < 0) {
+                return false;
+            }
+        }
+
         pcie_ari_init(pci_dev, 0x100);
     }
 
@@ -9025,6 +9034,14 @@ static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
     if (pci_dev->spdm_port) {
         uint16_t doe_offset = PCI_CONFIG_SPACE_SIZE;
 
+        if (n->migration_blocker == NULL) {
+            error_setg(&n->migration_blocker,
+                       "Migration is disabled when SPDM responder is used");
+            if (migrate_add_blocker(&n->migration_blocker, errp) < 0) {
+                return false;
+            }
+        }
+
         switch  (pci_dev->spdm_trans) {
         case SPDM_SOCKET_TRANSPORT_TYPE_PCI_DOE:
             if (n->params.sriov_max_vfs) {
@@ -9053,10 +9070,26 @@ static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
     }
 
     if (n->params.cmb_size_mb) {
+        if (n->migration_blocker == NULL) {
+            error_setg(&n->migration_blocker,
+                       "Migration is disabled when CMB feature is used");
+            if (migrate_add_blocker(&n->migration_blocker, errp) < 0) {
+                return false;
+            }
+        }
+
         nvme_init_cmb(n, pci_dev);
     }
 
     if (n->pmr.dev) {
+        if (n->migration_blocker == NULL) {
+            error_setg(&n->migration_blocker,
+                       "Migration is disabled when PMR feature is used");
+            if (migrate_add_blocker(&n->migration_blocker, errp) < 0) {
+                return false;
+            }
+        }
+
         if (!nvme_init_pmr(n, pci_dev, errp)) {
             return false;
         }
@@ -9365,6 +9398,8 @@ static void nvme_exit(PCIDevice *pci_dev)
     }
 
     memory_region_del_subregion(&n->bar0, &n->iomem);
+
+    migrate_del_blocker(&n->migration_blocker);
 }
 
 static const Property nvme_props[] = {
