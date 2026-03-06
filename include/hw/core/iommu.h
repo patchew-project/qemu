@@ -28,4 +28,6 @@ enum host_iommu_quirks {
     HOST_IOMMU_QUIRK_NESTING_PARENT_BYPASS_RO = BIT_ULL(0),
 };
 
+#define IOMMU_NO_PASID 0
+
 #endif /* HW_IOMMU_H */
