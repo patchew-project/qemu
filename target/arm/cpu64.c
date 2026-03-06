@@ -31,7 +31,9 @@
 #include "system/qtest.h"
 #include "system/tcg.h"
 #include "kvm_arm.h"
+#if defined(CONFIG_HVF)
 #include "hvf_arm.h"
+#endif
 #include "whpx_arm.h"
 #include "qapi/visitor.h"
 #include "hw/core/qdev-properties.h"
