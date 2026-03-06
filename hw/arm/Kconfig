@@ -699,3 +699,11 @@ config ARMSSE
     select UNIMP
     select SSE_COUNTER
     select SSE_TIMER
+
+config AXIADO_SOC
+    bool
+    default y
+    depends on ARM
+    select ARM_GIC
+    select CADENCE # UART
+    select SDHCI
