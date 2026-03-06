@@ -231,9 +231,9 @@ static void vtd_flush_host_piotlb(VTDACCELPASIDCacheEntry *vtd_pce,
     }
 }
 
-void vtd_flush_host_piotlb_all_locked(IntelIOMMUState *s, uint16_t domain_id,
-                                      uint32_t pasid, hwaddr addr,
-                                      uint64_t npages, bool ih)
+void vtd_flush_host_piotlb_all_accel(IntelIOMMUState *s, uint16_t domain_id,
+                                     uint32_t pasid, hwaddr addr,
+                                     uint64_t npages, bool ih)
 {
     struct iommu_hwpt_vtd_s1_invalidate cache_info = { 0 };
     VTDPIOTLBInvInfo piotlb_info;
