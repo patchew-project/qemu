@@ -2645,9 +2645,8 @@ F: include/block/ufs.h
 F: tests/qtest/ufs-test.c
 
 megasas
-M: Hannes Reinecke <hare@suse.com>
 L: qemu-block@nongnu.org
-S: Supported
+S: Orphan
 F: hw/scsi/megasas.c
 F: hw/scsi/mfi.h
 F: tests/qtest/megasas-test.c
