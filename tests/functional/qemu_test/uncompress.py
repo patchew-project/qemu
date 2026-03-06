@@ -12,6 +12,7 @@ import lzma
 import os
 import stat
 import shutil
+import zipfile
 from urllib.parse import urlparse
 from subprocess import run, CalledProcessError
 
@@ -58,6 +59,26 @@ def zstd_uncompress(zstd_path, output_path):
     os.chmod(output_path, stat.S_IRUSR | stat.S_IWUSR)
 
 
+def zip_uncompress(zip_path, output_path):
+    if os.path.exists(output_path):
+        return
+    with zipfile.ZipFile(zip_path, 'r') as zip_in:
+        try:
+            # Get the first file from the archive
+            names = zip_in.namelist()
+            if len(names) != 1:
+                raise Exception(
+                    f"Zip file {zip_path} should contain exactly one file, "
+                    f"but contains {len(names)}")
+            with zip_in.open(names[0], 'r') as archived_file:
+                with open(output_path, 'wb') as raw_out:
+                    shutil.copyfileobj(archived_file, raw_out)
+        except:
+            if os.path.exists(output_path):
+                os.remove(output_path)
+            raise
+
+
 def uncompress(compressed, uncompressed, format=None):
     '''
     @params compressed: filename, Asset, or file-like object to uncompress
@@ -81,6 +102,8 @@ def uncompress(compressed, uncompressed, format=None):
         gzip_uncompress(str(compressed), uncompressed)
     elif format == "zstd":
         zstd_uncompress(str(compressed), uncompressed)
+    elif format == "zip":
+        zip_uncompress(str(compressed), uncompressed)
     else:
         raise Exception(f"Unknown compression format {format}")
 
@@ -103,5 +126,7 @@ def guess_uncompress_format(compressed):
         return "gz"
     elif ext in [".zstd", ".zst"]:
         return 'zstd'
+    elif ext == ".zip":
+        return 'zip'
     else:
         raise Exception(f"Unknown compression format for {compressed}")
