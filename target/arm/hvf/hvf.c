@@ -481,7 +481,9 @@ static const struct hvf_reg_match hvf_sme2_preg_match[] = {
 
 #define DEF_SYSREG(HVF_ID, ...) \
   QEMU_BUILD_BUG_ON(HVF_ID != KVMID_TO_HVF(KVMID_AA64_SYS_REG64(__VA_ARGS__)));
-#define DEF_SYSREG_15_02(...)
+
+#define DEF_SYSREG_SME2(HVF_ID, ...) \
+  QEMU_BUILD_BUG_ON(HVF_ID != KVMID_TO_HVF(KVMID_AA64_SYS_REG64(__VA_ARGS__)));
 
 #define DEF_SYSREG_EL2(HVF_ID, ...) \
   QEMU_BUILD_BUG_ON(HVF_ID != KVMID_TO_HVF(KVMID_AA64_SYS_REG64(__VA_ARGS__)));
@@ -495,13 +497,13 @@ static const struct hvf_reg_match hvf_sme2_preg_match[] = {
 #include "sysreg.c.inc"
 
 #undef DEF_SYSREG
-#undef DEF_SYSREG_15_02
+#undef DEF_SYSREG_SME2
 #undef DEF_SYSREG_EL2
 #undef DEF_SYSREG_VGIC
 #undef DEF_SYSREG_VGIC_EL2
 
 #define DEF_SYSREG(HVF_ID, op0, op1, crn, crm, op2)  {HVF_ID},
-#define DEF_SYSREG_15_02(...)
+#define DEF_SYSREG_SME2(HVF_ID, op0, op1, crn, crm, op2)  {HVF_ID, .sme2 = true},
 #define DEF_SYSREG_EL2(HVF_ID, op0, op1, crn, crm, op2)  {HVF_ID, .el2 = true},
 #define DEF_SYSREG_VGIC(HVF_ID, op0, op1, crn, crm, op2)  {HVF_ID, .vgic = true},
 #define DEF_SYSREG_VGIC_EL2(HVF_ID, op0, op1, crn, crm, op2)  {HVF_ID, true, true},
@@ -510,6 +512,7 @@ struct hvf_sreg {
     hv_sys_reg_t sreg;
     bool vgic;
     bool el2;
+    bool sme2;
 };
 
 static struct hvf_sreg hvf_sreg_list[] = {
@@ -517,29 +520,12 @@ static struct hvf_sreg hvf_sreg_list[] = {
 };
 
 #undef DEF_SYSREG
-#undef DEF_SYSREG_15_02
+#undef DEF_SYSREG_SME2
 #undef DEF_SYSREG_EL2
 #undef DEF_SYSREG_VGIC
 #undef DEF_SYSREG_VGIC_EL2
 
 #pragma clang diagnostic pop
-
-#define DEF_SYSREG(...)
-#define DEF_SYSREG_15_02(HVF_ID, op0, op1, crn, crm, op2) {HVF_ID},
-#define DEF_SYSREG_EL2(...)
-#define DEF_SYSREG_VGIC(...)
-#define DEF_SYSREG_VGIC_EL2(...)
-
-API_AVAILABLE(macos(15.2))
-static struct hvf_sreg hvf_sreg_list_sme2[] = {
-#include "sysreg.c.inc"
-};
-
-#undef DEF_SYSREG
-#undef DEF_SYSREG_15_02
-#undef DEF_SYSREG_EL2
-#undef DEF_SYSREG_VGIC
-#undef DEF_SYSREG_VGIC_EL2
 
 /*
  * For FEAT_SME2 migration, we need to store PSTATE.{SM,ZA} bits which are
@@ -1357,23 +1343,11 @@ int hvf_arch_init_vcpu(CPUState *cpu)
     hv_return_t ret;
     int i;
 
-    if (__builtin_available(macOS 15.2, *)) {
-        if (hvf_arm_sme2_supported()) {
-            sregs_match_len += ARRAY_SIZE(hvf_sreg_list_sme2) + 1;
-        }
-
-#define DEF_SYSREG_15_02(HVF_ID, ...) \
-        g_assert(HVF_ID == KVMID_TO_HVF(KVMID_AA64_SYS_REG64(__VA_ARGS__)));
-#define DEF_SYSREG(...)
-#define DEF_SYSREG_EL2(...)
-#define DEF_SYSREG_VGIC(...)
-#define DEF_SYSREG_VGIC_EL2(...)
-
-#include "sysreg.c.inc"
-
-#undef DEF_SYSREG
-#undef DEF_SYSREG_15_02
+    if (hvf_arm_sme2_supported()) {
+        /* SVCR will be added at the end. */
+        sregs_match_len += 1;
     }
+
     env->aarch64 = true;
 
     /* system count frequency sanity check */
@@ -1408,31 +1382,24 @@ int hvf_arch_init_vcpu(CPUState *cpu)
             continue;
         }
 
+        if (hvf_sreg_list[i].sme2 && !hvf_arm_sme2_supported()) {
+            continue;
+        }
+
         if (ri) {
             assert(!(ri->type & ARM_CP_NO_RAW));
             arm_cpu->cpreg_indexes[sregs_cnt++] = kvm_id;
         }
     }
-    if (__builtin_available(macOS 15.2, *)) {
-        if (hvf_arm_sme2_supported()) {
-            for (i = 0; i < ARRAY_SIZE(hvf_sreg_list_sme2); i++) {
-                hv_sys_reg_t hvf_id = hvf_sreg_list_sme2[i].sreg;
-                uint64_t kvm_id = HVF_TO_KVMID(hvf_id);
-                uint32_t key = kvm_to_cpreg_id(kvm_id);
-                const ARMCPRegInfo *ri = get_arm_cp_reginfo(arm_cpu->cp_regs, key);
 
-                if (ri) {
-                    assert(!(ri->type & ARM_CP_NO_RAW));
-                    arm_cpu->cpreg_indexes[sregs_cnt++] = kvm_id;
-                }
-            }
-            /*
-             * Add SVCR last. It is elsewhere assumed its index is after
-             * hvf_sreg_list and hvf_sreg_list_sme2.
-             */
-            arm_cpu->cpreg_indexes[sregs_cnt++] = HVF_TO_KVMID(SVCR);
-        }
+    if (hvf_arm_sme2_supported()) {
+        /*
+         * Add SVCR last. It is elsewhere assumed its index is after
+         * hvf_sreg_list.
+         */
+        arm_cpu->cpreg_indexes[sregs_cnt++] = HVF_TO_KVMID(SVCR);
     }
+
     arm_cpu->cpreg_array_len = sregs_cnt;
     arm_cpu->cpreg_vmstate_array_len = sregs_cnt;
 
