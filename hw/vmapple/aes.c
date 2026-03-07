@@ -253,7 +253,7 @@ static bool cmd_iv(AESState *s)
 
 static void dump_data(const char *desc, const void *p, size_t len)
 {
-    static const size_t MAX_LEN = 0x1000;
+#define MAX_LEN  0x1000
     char hex[MAX_LEN * 2 + 1] = "";
 
     if (len > MAX_LEN) {
@@ -262,6 +262,7 @@ static void dump_data(const char *desc, const void *p, size_t len)
 
     qemu_hexdump_to_buffer(hex, sizeof(hex), p, len);
     trace_aes_dump_data(desc, hex);
+#undef MAX_LEN
 }
 
 static bool cmd_data(AESState *s)
