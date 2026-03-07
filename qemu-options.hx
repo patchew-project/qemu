@@ -137,16 +137,6 @@ SRST
         * as backend id one shall use value of 'default-ram-id', advertised by
           machine type (available via ``query-machines`` QMP command), if migration
           to/from old QEMU (<5.0) is expected.
-        * for machine types 4.0 and older, user shall
-          use ``x-use-canonical-path-for-ramblock-id=off`` backend option
-          if migration to/from old QEMU (<5.0) is expected.
-
-        For example:
-        ::
-
-            -object memory-backend-ram,id=pc.ram,size=512M,x-use-canonical-path-for-ramblock-id=off
-            -machine memory-backend=pc.ram
-            -m 512M
 
     ``cxl-fmw.0.targets.0=firsttarget,cxl-fmw.0.targets.1=secondtarget,cxl-fmw.0.size=size[,cxl-fmw.0.interleave-granularity=granularity]``
         Define a CXL Fixed Memory Window (CFMW).

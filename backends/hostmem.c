@@ -40,10 +40,6 @@ QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_INTERLEAVE != MPOL_INTERLEAVE);
 char *
 host_memory_backend_get_name(HostMemoryBackend *backend)
 {
-    if (!backend->use_canonical_path) {
-        return g_strdup(object_get_canonical_path_component(OBJECT(backend)));
-    }
-
     return object_get_canonical_path(OBJECT(backend));
 }
 
@@ -484,23 +480,6 @@ static void host_memory_backend_set_reserve(Object *o, bool value, Error **errp)
 }
 #endif /* CONFIG_LINUX */
 
-static bool
-host_memory_backend_get_use_canonical_path(Object *obj, Error **errp)
-{
-    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
-
-    return backend->use_canonical_path;
-}
-
-static void
-host_memory_backend_set_use_canonical_path(Object *obj, bool value,
-                                           Error **errp)
-{
-    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
-
-    backend->use_canonical_path = value;
-}
-
 static void
 host_memory_backend_class_init(ObjectClass *oc, const void *data)
 {
@@ -563,19 +542,6 @@ host_memory_backend_class_init(ObjectClass *oc, const void *data)
     object_class_property_set_description(oc, "reserve",
         "Reserve swap space (or huge pages) if applicable");
 #endif /* CONFIG_LINUX */
-    /*
-     * Do not delete/rename option. This option must be considered stable
-     * (as if it didn't have the 'x-' prefix including deprecation period) as
-     * long as 4.0 and older machine types exists.
-     * Option will be used by upper layers to override (disable) canonical path
-     * for ramblock-id set by compat properties on old machine types ( <= 4.0),
-     * to keep migration working when backend is used for main RAM with
-     * -machine memory-backend= option (main RAM historically used prefix-less
-     * ramblock-id).
-     */
-    object_class_property_add_bool(oc, "x-use-canonical-path-for-ramblock-id",
-        host_memory_backend_get_use_canonical_path,
-        host_memory_backend_set_use_canonical_path);
 }
 
 static const TypeInfo host_memory_backend_info = {

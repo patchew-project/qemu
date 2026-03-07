@@ -74,7 +74,7 @@ struct HostMemoryBackend {
 
     /* protected */
     uint64_t size;
-    bool merge, dump, use_canonical_path;
+    bool merge, dump;
     bool prealloc, is_mapped, share, reserve;
     bool guest_memfd, aligned;
     uint32_t prealloc_threads;

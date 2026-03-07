@@ -660,11 +660,6 @@
 #
 # @size: size of the memory region in bytes
 #
-# @x-use-canonical-path-for-ramblock-id: if true, the canonical path
-#     is used for ramblock-id.  Disable this for 4.0 machine types or
-#     older to allow migration with newer QEMU versions.
-#     (default: false generally, but true for machine types <= 4.0)
-#
 # .. note:: prealloc=true and reserve=false cannot be set at the same
 #    time.  With reserve=true, the behavior depends on the operating
 #    system: for example, Linux will not reserve swap space for shared
@@ -683,8 +678,7 @@
             '*prealloc-context': 'str',
             '*share': 'bool',
             '*reserve': 'bool',
-            'size': 'size',
-            '*x-use-canonical-path-for-ramblock-id': 'bool' } }
+            'size': 'size' } }
 
 ##
 # @MemoryBackendFileProperties:
