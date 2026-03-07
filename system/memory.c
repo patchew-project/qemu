@@ -1825,7 +1825,7 @@ Object *memory_region_owner(MemoryRegion *mr)
     return obj->parent;
 }
 
-void memory_region_ref(MemoryRegion *mr)
+void memory_region_ref(const MemoryRegion *mr)
 {
     /* MMIO callbacks most likely will access data that belongs
      * to the owner, hence the need to ref/unref the owner whenever
@@ -1866,7 +1866,7 @@ const char *memory_region_name(const MemoryRegion *mr)
     return mr->name;
 }
 
-bool memory_region_is_ram_device(MemoryRegion *mr)
+bool memory_region_is_ram_device(const MemoryRegion *mr)
 {
     return mr->ram_device;
 }
@@ -2415,7 +2415,7 @@ int memory_region_get_fd(MemoryRegion *mr)
     return mr->ram_block->fd;
 }
 
-void *memory_region_get_ram_ptr(MemoryRegion *mr)
+void *memory_region_get_ram_ptr(const MemoryRegion *mr)
 {
     uint64_t offset = 0;
 
