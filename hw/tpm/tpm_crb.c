@@ -43,7 +43,6 @@ struct CRBState {
 
     size_t be_buffer_size;
 
-    bool ppi_enabled;
     TPMPPI ppi;
 };
 typedef struct CRBState CRBState;
@@ -228,16 +227,13 @@ static const VMStateDescription vmstate_tpm_crb = {
 
 static const Property tpm_crb_properties[] = {
     DEFINE_PROP_TPMBE("tpmdev", CRBState, tpmbe),
-    DEFINE_PROP_BOOL("ppi", CRBState, ppi_enabled, true),
 };
 
 static void tpm_crb_reset(void *dev)
 {
     CRBState *s = CRB(dev);
 
-    if (s->ppi_enabled) {
-        tpm_ppi_reset(&s->ppi);
-    }
+    tpm_ppi_reset(&s->ppi);
     tpm_backend_reset(s->tpmbe);
 
     memset(s->regs, 0, sizeof(s->regs));
@@ -303,10 +299,8 @@ static void tpm_crb_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(get_system_memory(),
         TPM_CRB_ADDR_BASE + sizeof(s->regs), &s->cmdmem);
 
-    if (s->ppi_enabled) {
-        tpm_ppi_init(&s->ppi, get_system_memory(),
-                     TPM_PPI_ADDR_BASE, OBJECT(s));
-    }
+    tpm_ppi_init(&s->ppi, get_system_memory(),
+                 TPM_PPI_ADDR_BASE, OBJECT(s));
 
     if (xen_enabled()) {
         tpm_crb_reset(dev);
