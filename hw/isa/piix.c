@@ -315,12 +315,13 @@ static void pci_piix_realize(PCIDevice *dev, const char *uhci_type,
 
     /* PIC */
     if (d->has_pic) {
-        qemu_irq *i8259_out_irq = qemu_allocate_irqs(piix_request_i8259_irq, d,
-                                                     1);
-        qemu_irq *i8259 = i8259_init(isa_bus, *i8259_out_irq);
-        size_t i;
+        qemu_irq *i8259;
 
-        for (i = 0; i < ISA_NUM_IRQS; i++) {
+        qemu_init_irq_child(OBJECT(dev), "i8259-irq", &d->i8259_irq,
+                            piix_request_i8259_irq, d, 0);
+        i8259 = i8259_init(isa_bus, &d->i8259_irq);
+
+        for (size_t i = 0; i < ISA_NUM_IRQS; i++) {
             d->isa_irqs_in[i] = i8259[i];
         }
 
