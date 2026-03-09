@@ -58,6 +58,12 @@ static void smmuv3_accel_auto_finalise(SMMUv3State *s, PCIDevice *pdev,
                                FIELD_EX32(info->idr[0], IDR0, ATS));
     }
 
+    /* Update RIL if auto from info */
+    if (s->ril == ON_OFF_AUTO_AUTO) {
+        s->idr[3] = FIELD_DP32(s->idr[3], IDR3, RIL,
+                               FIELD_EX32(info->idr[3], IDR3, RIL));
+    }
+
     accel->auto_finalised = true;
 }
 
@@ -854,8 +860,15 @@ void smmuv3_accel_idr_override(SMMUv3State *s)
         return;
     }
 
-    /* By default QEMU SMMUv3 has RIL. Update IDR3 if user has disabled it */
-    s->idr[3] = FIELD_DP32(s->idr[3], IDR3, RIL, s->ril);
+    /*
+     * Only override RIL if user explicitly set ON or OFF.
+     * AUTO will be resolved later when host info is available.
+     */
+    if (s->ril == ON_OFF_AUTO_ON) {
+        s->idr[3] = FIELD_DP32(s->idr[3], IDR3, RIL, 1);
+    } else if (s->ril == ON_OFF_AUTO_OFF) {
+        s->idr[3] = FIELD_DP32(s->idr[3], IDR3, RIL, 0);
+    }
 
     /* Only override ATS if user explicitly set ON or OFF */
     if (s->ats == ON_OFF_AUTO_ON) {
@@ -941,7 +954,8 @@ void smmuv3_accel_init(SMMUv3State *s)
     bs->iommu_ops = &smmuv3_accel_ops;
     smmuv3_accel_as_init(s);
 
-    if (s->ats == ON_OFF_AUTO_AUTO) {
+    if (s->ats == ON_OFF_AUTO_AUTO ||
+        s->ril == ON_OFF_AUTO_AUTO) {
         s->s_accel->auto_mode = true;
     }
 }
