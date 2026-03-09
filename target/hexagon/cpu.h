@@ -38,6 +38,9 @@
 #error "Hexagon does not support system emulation"
 #endif
 
+#ifndef CONFIG_USER_ONLY
+#endif
+
 #define NUM_PREGS 4
 #define TOTAL_PER_THREAD_REGS 64
 
@@ -189,12 +192,14 @@ struct ArchCPU {
     bool short_circuit;
 #ifndef CONFIG_USER_ONLY
     struct HexagonTLBState *tlb;
+    uint32_t htid;
 #endif
 };
 
 #include "cpu_bits.h"
 
 FIELD(TB_FLAGS, IS_TIGHT_LOOP, 0, 1)
+FIELD(TB_FLAGS, MMU_INDEX, 1, 3)
 
 G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
                                             uint32_t exception,
