@@ -1630,6 +1630,12 @@ static inline bool mtx_check(uint32_t desc, int bit55)
     return (desc >> (R_MTEDESC_MTX_SHIFT + bit55)) & 1;
 }
 
+/* Return whether or not the second nibble of a VA matches bit 55.  */
+static inline bool tag_is_canonical(int ptr_tag, int bit55)
+{
+    return ((ptr_tag + bit55) & 0xf) == 0;
+}
+
 /* Return true if tcma bits mean that the access is unchecked.  */
 static inline bool tcma_check(uint32_t desc, int bit55, int ptr_tag)
 {
@@ -1637,9 +1643,32 @@ static inline bool tcma_check(uint32_t desc, int bit55, int ptr_tag)
      * We had extracted bit55 and ptr_tag for other reasons, so fold
      * (ptr<59:55> == 00000 || ptr<59:55> == 11111) into a single test.
      */
-    bool match = ((ptr_tag + bit55) & 0xf) == 0;
+    bool match = tag_is_canonical(ptr_tag, bit55);
     bool tcma = (desc >> (R_MTEDESC_TCMA_SHIFT + bit55)) & 1;
     return tcma && match;
+}
+
+/* Return true if Canonical Tagging is enabled. */
+static inline bool canonical_tagging_enabled(CPUARMState *env, bool selector)
+{
+    int mmu_idx;
+    uint64_t tcr, mtx_bit;
+
+    /* If mte4 is not implemented, then mtx is by definition not enabled */
+    if (!cpu_isar_feature(aa64_mte_mtx, env_archcpu(env))) {
+        return false;
+    }
+
+    mmu_idx = arm_mmu_idx_el(env, arm_current_el(env));
+    tcr = regime_tcr(env, mmu_idx);
+
+    /*
+     * In two-range regimes, mtx is governed by bit 60 or 61 of TCR, and in
+     * one-range regimes, bit 33 is used.
+     */
+    mtx_bit = regime_has_2_ranges(mmu_idx) ? 60 + selector : 33;
+
+    return extract64(tcr, mtx_bit, 1);
 }
 
 /*
