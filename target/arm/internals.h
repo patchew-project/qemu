@@ -1820,7 +1820,10 @@ static inline uint64_t pauth_ptr_mask(ARMVAParameters param)
     int bot_pac_bit = 64 - param.tsz;
     int top_pac_bit = 64 - 8 * param.tbi;
 
-    return MAKE_64BIT_MASK(bot_pac_bit, top_pac_bit - bot_pac_bit);
+    uint64_t mask = MAKE_64BIT_MASK(bot_pac_bit, top_pac_bit - bot_pac_bit);
+
+    /* If mtx is enabled, second nibble is not part of PAC */
+    return mask & ~(-(uint64_t)param.mtx & MAKE_64BIT_MASK(56, 4));
 }
 
 /* Add the cpreg definitions for debug related system registers */
