@@ -64,6 +64,21 @@ void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
     g_assert_not_reached();
 }
 
+void clear_wait_mode(CPUHexagonState *env)
+{
+    g_assert(bql_locked());
+
+    HexagonCPU *cpu = env_archcpu(env);
+    if (cpu->globalregs) {
+        const uint32_t modectl =
+            hexagon_globalreg_read(cpu->globalregs, HEX_SREG_MODECTL,
+                                   env->threadId);
+        uint32_t thread_wait_mask = GET_FIELD(MODECTL_W, modectl);
+        thread_wait_mask &= ~(0x1 << env->threadId);
+        SET_SYSTEM_FIELD(env, HEX_SREG_MODECTL, MODECTL_W, thread_wait_mask);
+    }
+}
+
 int get_exe_mode(CPUHexagonState *env)
 {
     g_assert_not_reached();
