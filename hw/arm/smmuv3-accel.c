@@ -52,6 +52,12 @@ static void smmuv3_accel_auto_finalise(SMMUv3State *s, PCIDevice *pdev,
         return;
     }
 
+    /* Update ATS if auto from info */
+    if (s->ats == ON_OFF_AUTO_AUTO) {
+        s->idr[0] = FIELD_DP32(s->idr[0], IDR0, ATS,
+                               FIELD_EX32(info->idr[0], IDR0, ATS));
+    }
+
     accel->auto_finalised = true;
 }
 
@@ -122,6 +128,13 @@ smmuv3_accel_check_hw_compatible(SMMUv3State *s,
                    "OAS implies %d-bit IPA",
                    smmuv3_oas_bits(FIELD_EX32(info->idr[5], IDR5, OAS)),
                    smmuv3_oas_bits(FIELD_EX32(s->idr[5], IDR5, OAS)));
+        return false;
+    }
+    /* Check ATS value opted is compatible with Host SMMUv3 */
+    if (FIELD_EX32(info->idr[0], IDR0, ATS) <
+                FIELD_EX32(s->idr[0], IDR0, ATS)) {
+        error_setg(errp, "Host SMMUv3 doesn't support Address Translation"
+                   " Services");
         return false;
     }
 
@@ -844,8 +857,12 @@ void smmuv3_accel_idr_override(SMMUv3State *s)
     /* By default QEMU SMMUv3 has RIL. Update IDR3 if user has disabled it */
     s->idr[3] = FIELD_DP32(s->idr[3], IDR3, RIL, s->ril);
 
-    /* QEMU SMMUv3 has no ATS. Advertise ATS if opt-in by property */
-    s->idr[0] = FIELD_DP32(s->idr[0], IDR0, ATS, s->ats);
+    /* Only override ATS if user explicitly set ON or OFF */
+    if (s->ats == ON_OFF_AUTO_ON) {
+        s->idr[0] = FIELD_DP32(s->idr[0], IDR0, ATS, 1);
+    } else if (s->ats == ON_OFF_AUTO_OFF) {
+        s->idr[0] = FIELD_DP32(s->idr[0], IDR0, ATS, 0);
+    }
 
     /* Advertise 48-bit OAS in IDR5 when requested (default is 44 bits). */
     if (s->oas == SMMU_OAS_48BIT) {
@@ -923,4 +940,8 @@ void smmuv3_accel_init(SMMUv3State *s)
     s->s_accel = g_new0(SMMUv3AccelState, 1);
     bs->iommu_ops = &smmuv3_accel_ops;
     smmuv3_accel_as_init(s);
+
+    if (s->ats == ON_OFF_AUTO_AUTO) {
+        s->s_accel->auto_mode = true;
+    }
 }
