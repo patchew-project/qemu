@@ -594,6 +594,13 @@ static bool console_compatible_with(QemuConsole *con,
         return false;
     }
 
+    if (flags & GRAPHIC_FLAGS_VK) {
+        error_setg(errp,
+                   "The console requires Vulkan scanout "
+                   "(not yet implemented).");
+        return false;
+    }
+
     return true;
 }
 

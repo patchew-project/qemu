@@ -18,6 +18,8 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "system/system.h"
+#include "system/hvf.h"
+#include "exec/target_page.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-gpu-bswap.h"
@@ -124,7 +126,18 @@ static void virtio_gpu_gl_device_realize(DeviceState *qdev, Error **errp)
         return;
     }
 
-    if (!display_opengl) {
+    if (virtio_gpu_venus_enabled(g->parent_obj.conf)) {
+        /* Venus renders via Vulkan -- no GL display needed */
+        uint64_t map_gran = hvf_get_map_granule();
+        if (map_gran > qemu_target_page_size()) {
+            error_report("Venus disabled: host map granule (%zu) > guest "
+                         "page size (%zu). Requires macOS 26+ or guest "
+                         "F_BLOB_ALIGNMENT support.",
+                         (size_t)map_gran, qemu_target_page_size());
+            g->parent_obj.conf.flags &=
+                ~(1 << VIRTIO_GPU_FLAG_VENUS_ENABLED);
+        }
+    } else if (!display_opengl) {
         error_setg(errp,
                    "The display backend does not have OpenGL support enabled");
         error_append_hint(errp,
@@ -245,4 +258,6 @@ static void virtio_register_types(void)
 type_init(virtio_register_types)
 
 module_dep("hw-display-virtio-gpu");
+#ifdef CONFIG_OPENGL
 module_dep("ui-opengl");
+#endif

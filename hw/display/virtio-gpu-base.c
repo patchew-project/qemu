@@ -18,6 +18,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/display/edid.h"
+#include "system/system.h"
 #include "trace.h"
 #include "qapi/qapi-types-virtio.h"
 
@@ -157,7 +158,11 @@ virtio_gpu_get_flags(void *opaque)
     VirtIOGPUBase *g = opaque;
     int flags = GRAPHIC_FLAGS_NONE;
 
-    if (virtio_gpu_virgl_enabled(g->conf)) {
+    if (virtio_gpu_venus_enabled(g->conf)) {
+        /* TODO: set GRAPHIC_FLAGS_VK for direct Vulkan scanout */
+    }
+
+    if (virtio_gpu_virgl_enabled(g->conf) && display_opengl) {
         flags |= GRAPHIC_FLAGS_GL;
     }
 
@@ -273,6 +278,7 @@ virtio_gpu_base_get_features(VirtIODevice *vdev, uint64_t features,
     }
     if (virtio_gpu_blob_enabled(g->conf)) {
         features |= (1 << VIRTIO_GPU_F_RESOURCE_BLOB);
+        features |= (1 << VIRTIO_GPU_F_BLOB_ALIGNMENT);
     }
     if (virtio_gpu_context_init_enabled(g->conf)) {
         features |= (1 << VIRTIO_GPU_F_CONTEXT_INIT);
