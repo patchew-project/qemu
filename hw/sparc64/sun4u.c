@@ -723,6 +723,13 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     fw_cfg_add_i16(fw_cfg, FW_CFG_SPARC64_DEPTH, graphic_depth);
 
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
+
+    /*
+     * Mark internal PCI busses as full so that the plugging of additional
+     * PCI devices happens on the right bus that still has free slots:
+     */
+    qbus_mark_full(&pci_bus->qbus);
+    qbus_mark_full(&pci_busA->qbus);
 }
 
 enum {
