@@ -64,6 +64,13 @@ static void smmuv3_accel_auto_finalise(SMMUv3State *s, PCIDevice *pdev,
                                FIELD_EX32(info->idr[3], IDR3, RIL));
     }
 
+    /* Update SSIDSIZE if auto from info */
+    if (s->ssidsize == SSID_SIZE_MODE_AUTO) {
+        /* Store for get_viommu_flags() to determine PASID support */
+        s->idr[1] = FIELD_DP32(s->idr[1], IDR1, SSIDSIZE,
+                               FIELD_EX32(info->idr[1], IDR1, SSIDSIZE));
+    }
+
     accel->auto_finalised = true;
 }
 
@@ -839,7 +846,10 @@ static uint64_t smmuv3_accel_get_viommu_flags(void *opaque)
     SMMUState *bs = opaque;
     SMMUv3State *s = ARM_SMMUV3(bs);
 
-    if (s->ssidsize) {
+    if ((s->ssidsize != SSID_SIZE_MODE_0 &&
+         s->ssidsize != SSID_SIZE_MODE_AUTO) ||
+        (s->ssidsize == SSID_SIZE_MODE_AUTO &&
+         FIELD_EX32(s->idr[1], IDR1, SSIDSIZE))) {
         flags |= VIOMMU_FLAG_PASID_SUPPORTED;
     }
     return flags;
@@ -853,6 +863,16 @@ static const PCIIOMMUOps smmuv3_accel_ops = {
     .unset_iommu_device = smmuv3_accel_unset_iommu_device,
     .get_msi_direct_gpa = smmuv3_accel_get_msi_gpa,
 };
+
+static uint8_t ssidsize_mode_to_value(SsidSizeMode mode)
+{
+    /* SSID_SIZE_MODE_0 = 1, SSID_SIZE_MODE_1 = 2, etc. */
+    /* SSID_SIZE_MODE_AUTO = 0 */
+    if (mode == SSID_SIZE_MODE_AUTO) {
+        return 0;
+    }
+    return mode - 1;  /* Enum values are offset by 1 from actual values */
+}
 
 void smmuv3_accel_idr_override(SMMUv3State *s)
 {
@@ -886,7 +906,10 @@ void smmuv3_accel_idr_override(SMMUv3State *s)
      * By default QEMU SMMUv3 has no SubstreamID support. Update IDR1 if user
      * has enabled it.
      */
-    s->idr[1] = FIELD_DP32(s->idr[1], IDR1, SSIDSIZE, s->ssidsize);
+    if (s->ssidsize != SSID_SIZE_MODE_AUTO) {
+        s->idr[1] = FIELD_DP32(s->idr[1], IDR1, SSIDSIZE,
+                               ssidsize_mode_to_value(s->ssidsize));
+    }
 }
 
 /* Based on SMUUv3 GPBA.ABORT configuration, attach a corresponding HWPT */
@@ -955,7 +978,8 @@ void smmuv3_accel_init(SMMUv3State *s)
     smmuv3_accel_as_init(s);
 
     if (s->ats == ON_OFF_AUTO_AUTO ||
-        s->ril == ON_OFF_AUTO_AUTO) {
+        s->ril == ON_OFF_AUTO_AUTO ||
+        s->ssidsize == SSID_SIZE_MODE_AUTO) {
         s->s_accel->auto_mode = true;
     }
 }
