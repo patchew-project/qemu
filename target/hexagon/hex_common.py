@@ -1075,7 +1075,9 @@ class GuestSource(GuestRegister, Single, OldSource):
             gen_read_greg({self.reg_tcg()}, {self.reg_num});
         """))
     def analyze_read(self, f, regno):
-        pass
+        f.write(code_fmt(f"""\
+            (void){self.reg_num};
+        """))
 
 class GuestPairDest(GuestRegister, Pair, Dest):
     def decl_tcg(self, f, tag, regno):
@@ -1100,7 +1102,9 @@ class GuestPairSource(GuestRegister, Pair, OldSource):
             gen_read_greg_pair({self.reg_tcg()}, {self.reg_num});
         """))
     def analyze_read(self, f, regno):
-        pass
+        f.write(code_fmt(f"""\
+            (void){self.reg_num};
+        """))
 
 class SystemDest(Register, Single, Dest):
     def decl_tcg(self, f, tag, regno):
@@ -1125,7 +1129,9 @@ class SystemSource(Register, Single, OldSource):
             gen_read_sreg({self.reg_tcg()}, {self.reg_num});
         """))
     def analyze_read(self, f, regno):
-        pass
+        f.write(code_fmt(f"""\
+            (void){self.reg_num};
+        """))
 
 class SystemPairDest(Register, Pair, Dest):
     def decl_tcg(self, f, tag, regno):
@@ -1150,7 +1156,9 @@ class SystemPairSource(Register, Pair, OldSource):
             gen_read_sreg_pair({self.reg_tcg()}, {self.reg_num});
         """))
     def analyze_read(self, f, regno):
-        pass
+        f.write(code_fmt(f"""\
+            (void){self.reg_num};
+        """))
 
 def init_registers():
     regs = {
