@@ -21,7 +21,7 @@ def _source_dir():
     return Path(__file__).parent.parent.parent.parent
 
 def _build_dir():
-    root = os.getenv('QEMU_BUILD_ROOT')
+    root = os.getenv('MESON_BUILD_ROOT')
     if root is not None:
         return Path(root)
     # Makefile.mtest only exists in build dir, so if it is available, use CWD
@@ -32,7 +32,7 @@ def _build_dir():
     if os.path.exists(root):
         return Path(root)
 
-    raise Exception("Cannot identify build dir, set QEMU_BUILD_ROOT")
+    raise Exception("Cannot identify build dir, set MESON_BUILD_ROOT")
 
 BUILD_DIR = _build_dir()
 
