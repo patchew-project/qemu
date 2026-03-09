@@ -35,11 +35,34 @@ static int smmuv3_oas_bits(uint32_t oas)
     return map[oas];
 }
 
+static void smmuv3_accel_auto_finalise(SMMUv3State *s, PCIDevice *pdev,
+                                       struct iommu_hw_info_arm_smmuv3 *info) {
+    SMMUv3AccelState *accel = s->s_accel;
+
+    /* Return if no auto for any or finalised already */
+    if (!accel->auto_mode || accel->auto_finalised) {
+        return;
+    }
+
+    /* We can't update if device is hotplugged */
+    if (DEVICE(pdev)->hotplugged) {
+        warn_report("arm-smmuv3: 'auto' feature property detected, but host "
+                    "value cannot be applied for hot-plugged device; using "
+                    "existing value");
+        return;
+    }
+
+    accel->auto_finalised = true;
+}
+
 static bool
 smmuv3_accel_check_hw_compatible(SMMUv3State *s,
                                  struct iommu_hw_info_arm_smmuv3 *info,
+                                 PCIDevice *pdev,
                                  Error **errp)
 {
+    smmuv3_accel_auto_finalise(s, pdev, info);
+
     /* QEMU SMMUv3 supports both linear and 2-level stream tables */
     if (FIELD_EX32(info->idr[0], IDR0, STLEVEL) !=
                 FIELD_EX32(s->idr[0], IDR0, STLEVEL)) {
@@ -124,7 +147,7 @@ smmuv3_accel_check_hw_compatible(SMMUv3State *s,
 
 static bool
 smmuv3_accel_hw_compatible(SMMUv3State *s, HostIOMMUDeviceIOMMUFD *idev,
-                           Error **errp)
+                           PCIDevice *pdev, Error **errp)
 {
     struct iommu_hw_info_arm_smmuv3 info;
     uint32_t data_type;
@@ -142,7 +165,7 @@ smmuv3_accel_hw_compatible(SMMUv3State *s, HostIOMMUDeviceIOMMUFD *idev,
         return false;
     }
 
-    if (!smmuv3_accel_check_hw_compatible(s, &info, errp)) {
+    if (!smmuv3_accel_check_hw_compatible(s, &info, pdev, errp)) {
         return false;
     }
     return true;
@@ -595,6 +618,7 @@ static bool smmuv3_accel_set_iommu_device(PCIBus *bus, void *opaque, int devfn,
     SMMUv3State *s = ARM_SMMUV3(bs);
     SMMUPciBus *sbus = smmu_get_sbus(bs, bus);
     SMMUv3AccelDevice *accel_dev = smmuv3_accel_get_dev(bs, sbus, bus, devfn);
+    PCIDevice *pdev = pci_find_device(bus, pci_bus_num(bus), devfn);
 
     if (!idev) {
         return true;
@@ -613,7 +637,7 @@ static bool smmuv3_accel_set_iommu_device(PCIBus *bus, void *opaque, int devfn,
      * Check the host SMMUv3 associated with the dev is compatible with the
      * QEMU SMMUv3 accel.
      */
-    if (!smmuv3_accel_hw_compatible(s, idev, errp)) {
+    if (!smmuv3_accel_hw_compatible(s, idev, pdev, errp)) {
         return false;
     }
 
@@ -867,8 +891,12 @@ bool smmuv3_accel_attach_gbpa_hwpt(SMMUv3State *s, Error **errp)
 
 void smmuv3_accel_reset(SMMUv3State *s)
 {
-     /* Attach a HWPT based on GBPA reset value */
-     smmuv3_accel_attach_gbpa_hwpt(s, NULL);
+    if (s->s_accel && s->s_accel->auto_mode && !s->s_accel->auto_finalised) {
+        error_report("AUTO mode specified but properties not finalised.");
+        exit(1);
+    }
+    /* Attach a HWPT based on GBPA reset value */
+    smmuv3_accel_attach_gbpa_hwpt(s, NULL);
 }
 
 static void smmuv3_accel_as_init(SMMUv3State *s)
