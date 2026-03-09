@@ -1229,6 +1229,20 @@ hv_return_t hvf_arch_vm_create(MachineState *ms, uint32_t pa_range)
     }
     chosen_ipa_bit_size = pa_range;
 
+#ifdef MAC_OS_VERSION_26_0
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_VERSION_26_0
+    if (__builtin_available(macOS 26, *)) {
+        ret = hv_vm_config_set_ipa_granule(config, HV_IPA_GRANULE_4KB);
+        if (ret != HV_SUCCESS) {
+            error_report("HVF: failed to set 4KB IPA granule: %s",
+                         hvf_return_string(ret));
+            goto cleanup;
+        }
+        hvf_set_map_granule(4096);
+    }
+#endif
+#endif
+
     ret = hv_vm_create(config);
 
 cleanup:
