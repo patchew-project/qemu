@@ -461,7 +461,7 @@ static uint32_t virtio_snd_pcm_prepare(VirtIOSound *s, uint32_t stream_id)
     stream->info.channels_max = as.nchannels;
     stream->info.formats = supported_formats;
     stream->info.rates = supported_rates;
-    stream->params = *params;
+    stream->period_bytes = params->period_bytes;
     stream->as = as;
 
     if (stream->info.direction == VIRTIO_SND_D_OUTPUT) {
@@ -1271,7 +1271,7 @@ static void virtio_snd_pcm_in_cb(void *data, int available)
                     return_rx_buffer(stream, buffer);
                     break;
                 }
-                to_read = stream->params.period_bytes - buffer->size;
+                to_read = stream->period_bytes - buffer->size;
                 to_read = MIN(to_read, available);
                 to_read = MIN(to_read, max_size - buffer->size);
                 size = audio_be_read(stream->s->audio_be,
@@ -1284,7 +1284,7 @@ static void virtio_snd_pcm_in_cb(void *data, int available)
                 }
                 buffer->size += size;
                 available -= size;
-                if (buffer->size >= stream->params.period_bytes) {
+                if (buffer->size >= stream->period_bytes) {
                     return_rx_buffer(stream, buffer);
                     break;
                 }
