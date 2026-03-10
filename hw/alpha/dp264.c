@@ -67,7 +67,11 @@ static void clipper_init(MachineState *machine)
     /* Create up to 4 cpus.  */
     memset(cpus, 0, sizeof(cpus));
     for (i = 0; i < smp_cpus; ++i) {
-        cpus[i] = ALPHA_CPU(cpu_create(machine->cpu_type));
+        g_autofree char *name = g_strdup_printf("cpu[%ld]", i);
+        Object *cpu = object_new(machine->cpu_type);
+        object_property_add_child(OBJECT(machine), name, cpu);
+        qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal);
+        cpus[i] = ALPHA_CPU(cpu);
     }
 
     /*
