@@ -50,7 +50,6 @@
 #include "internals.h"
 
 typedef struct GDBRegisterState {
-    int base_reg;
     gdb_get_reg_cb get_reg;
     gdb_set_reg_cb set_reg;
     const GDBFeature *feature;
@@ -511,7 +510,7 @@ GArray *gdb_get_register_list(CPUState *cpu)
         for (int i = 0; i < r->feature->num_regs; i++) {
             const char *name = r->feature->regs[i];
             GDBRegDesc desc = {
-                r->base_reg + i,
+                r->feature->base_reg + i,
                 name,
                 r->feature->name
             };
@@ -524,7 +523,8 @@ GArray *gdb_get_register_list(CPUState *cpu)
 
 int gdb_read_register(CPUState *cpu, GByteArray *buf, int reg)
 {
-    GDBRegisterState *r;
+    const GDBRegisterState *r;
+    unsigned base_reg;
 
     if (reg < cpu->cc->gdb_num_core_regs) {
         return cpu->cc->gdb_read_register(cpu, buf, reg);
@@ -532,8 +532,9 @@ int gdb_read_register(CPUState *cpu, GByteArray *buf, int reg)
 
     for (guint i = 0; i < cpu->gdb_regs->len; i++) {
         r = &g_array_index(cpu->gdb_regs, GDBRegisterState, i);
-        if (r->base_reg <= reg && reg < r->base_reg + r->feature->num_regs) {
-            return r->get_reg(cpu, buf, reg - r->base_reg);
+        base_reg = r->feature->base_reg;
+        if (base_reg <= reg && reg < base_reg + r->feature->num_regs) {
+            return r->get_reg(cpu, buf, reg - base_reg);
         }
     }
     return 0;
@@ -541,7 +542,8 @@ int gdb_read_register(CPUState *cpu, GByteArray *buf, int reg)
 
 int gdb_write_register(CPUState *cpu, uint8_t *mem_buf, int reg)
 {
-    GDBRegisterState *r;
+    const GDBRegisterState *r;
+    unsigned base_reg;
 
     if (reg < cpu->cc->gdb_num_core_regs) {
         return cpu->cc->gdb_write_register(cpu, mem_buf, reg);
@@ -549,8 +551,9 @@ int gdb_write_register(CPUState *cpu, uint8_t *mem_buf, int reg)
 
     for (guint i = 0; i < cpu->gdb_regs->len; i++) {
         r =  &g_array_index(cpu->gdb_regs, GDBRegisterState, i);
-        if (r->base_reg <= reg && reg < r->base_reg + r->feature->num_regs) {
-            return r->set_reg(cpu, mem_buf, reg - r->base_reg);
+        base_reg = r->feature->base_reg;
+        if (base_reg <= reg && reg < base_reg + r->feature->num_regs) {
+            return r->set_reg(cpu, mem_buf, reg - base_reg);
         }
     }
     return 0;
@@ -561,7 +564,6 @@ static void gdb_register_feature(CPUState *cpu,
                                  const GDBFeature *feature)
 {
     GDBRegisterState s = {
-        .base_reg = feature->base_reg,
         .get_reg = get_reg,
         .set_reg = set_reg,
         .feature = feature
