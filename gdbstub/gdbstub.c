@@ -556,19 +556,19 @@ int gdb_write_register(CPUState *cpu, uint8_t *mem_buf, int reg)
     return 0;
 }
 
-static void gdb_register_feature(CPUState *cpu, int base_reg,
+static void gdb_register_feature(CPUState *cpu,
                                  gdb_get_reg_cb get_reg, gdb_set_reg_cb set_reg,
                                  const GDBFeature *feature)
 {
     GDBRegisterState s = {
-        .base_reg = base_reg,
+        .base_reg = feature->base_reg,
         .get_reg = get_reg,
         .set_reg = set_reg,
         .feature = feature
     };
 
     trace_gdbxml_register_feature(feature->name, feature->xmlname,
-                                  base_reg, feature->num_regs);
+                                  feature->base_reg, feature->num_regs);
     g_array_append_val(cpu->gdb_regs, s);
 }
 
@@ -597,7 +597,8 @@ void gdb_init_cpu(CPUState *cpu)
     if (xmlfile) {
         assert(!cc->gdb_num_core_regs);
         feature = gdb_find_static_feature(xmlfile);
-        gdb_register_feature(cpu, 0,
+        assert(feature->base_reg == 0);
+        gdb_register_feature(cpu,
                              cc->gdb_read_register, cc->gdb_write_register,
                              feature);
         cpu->gdb_num_regs = cpu->gdb_num_g_regs = feature->num_regs;
@@ -617,7 +618,6 @@ void gdb_register_coprocessor(CPUState *cpu,
 {
     GDBRegisterState *s;
     guint i;
-    int base_reg = cpu->gdb_num_regs;
 
     for (i = 0; i < cpu->gdb_regs->len; i++) {
         /* Check for duplicates.  */
@@ -627,7 +627,11 @@ void gdb_register_coprocessor(CPUState *cpu,
         }
     }
 
-    gdb_register_feature(cpu, base_reg, get_reg, set_reg, feature);
+    if (cpu->gdb_num_regs < feature->base_reg) {
+        trace_gdbxml_register_coprocessor_gap(cpu->gdb_num_regs,
+                                              feature->base_reg);
+    }
+    gdb_register_feature(cpu, get_reg, set_reg, feature);
 
     /* Add to end of list.  */
     cpu->gdb_num_regs += feature->num_regs;
