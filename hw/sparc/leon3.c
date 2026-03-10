@@ -354,6 +354,11 @@ static void leon3_generic_hw_init(MachineState *machine)
     } else {
         bios_size = -1;
     }
+    if (bios_size < 0) {
+        error_report("could not found or failed to get file size: '%s'",
+                     filename);
+        exit(1);
+    }
 
     if (bios_size > prom_size) {
         error_report("could not load prom '%s': file too big", filename);
