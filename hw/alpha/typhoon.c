@@ -34,7 +34,7 @@ typedef struct TyphoonWindow {
     uint64_t wsm;
     uint64_t tba;
 } TyphoonWindow;
- 
+
 typedef struct TyphoonPchip {
     MemoryRegion region;
     MemoryRegion reg_iack;
@@ -84,8 +84,10 @@ static MemTxResult cchip_read(void *opaque, hwaddr addr,
     switch (addr) {
     case 0x0000:
         /* CSC: Cchip System Configuration Register.  */
-        /* All sorts of data here; probably the only thing relevant is
-           PIP<14> Pchip 1 Present = 0.  */
+        /*
+         * All sorts of data here; probably the only thing relevant is
+         * PIP<14> Pchip 1 Present = 0.
+         */
         break;
 
     case 0x0040:
@@ -188,7 +190,7 @@ static MemTxResult cchip_read(void *opaque, hwaddr addr,
     case 0x0780:
         /* PWR: Power Management Control.   */
         break;
-    
+
     case 0x0c00: /* CMONCTLA */
     case 0x0c40: /* CMONCTLB */
     case 0x0c80: /* CMONCNT01 */
@@ -440,7 +442,7 @@ static MemTxResult cchip_write(void *opaque, hwaddr addr,
     case 0x0780:
         /* PWR: Power Management Control.   */
         break;
-    
+
     case 0x0c00: /* CMONCTLA */
     case 0x0c40: /* CMONCTLB */
     case 0x0c80: /* CMONCNT01 */
@@ -605,8 +607,10 @@ static const MemoryRegionOps pchip_ops = {
     },
 };
 
-/* A subroutine of typhoon_translate_iommu that builds an IOMMUTLBEntry
-   using the given translated address and mask.  */
+/*
+ * A subroutine of typhoon_translate_iommu that builds an IOMMUTLBEntry
+ * using the given translated address and mask.
+ */
 static bool make_iommu_tlbe(hwaddr taddr, hwaddr mask, IOMMUTLBEntry *ret)
 {
     *ret = (IOMMUTLBEntry) {
@@ -618,8 +622,10 @@ static bool make_iommu_tlbe(hwaddr taddr, hwaddr mask, IOMMUTLBEntry *ret)
     return true;
 }
 
-/* A subroutine of typhoon_translate_iommu that handles scatter-gather
-   translation, given the address of the PTE.  */
+/*
+ * A subroutine of typhoon_translate_iommu that handles scatter-gather
+ * translation, given the address of the PTE.
+ */
 static bool pte_translate(hwaddr pte_addr, IOMMUTLBEntry *ret)
 {
     uint64_t pte = address_space_ldq_le(&address_space_memory, pte_addr,
@@ -633,8 +639,10 @@ static bool pte_translate(hwaddr pte_addr, IOMMUTLBEntry *ret)
     return make_iommu_tlbe((pte & 0x3ffffe) << 12, 0x1fff, ret);
 }
 
-/* A subroutine of typhoon_translate_iommu that handles one of the
-   four single-address-cycle translation windows.  */
+/*
+ * A subroutine of typhoon_translate_iommu that handles one of the
+ * four single-address-cycle translation windows.
+ */
 static bool window_translate(TyphoonWindow *win, hwaddr addr,
                              IOMMUTLBEntry *ret)
 {
@@ -668,8 +676,10 @@ static bool window_translate(TyphoonWindow *win, hwaddr addr,
 }
 
 /* Handle PCI-to-system address translation.  */
-/* TODO: A translation failure here ought to set PCI error codes on the
-   Pchip and generate a machine check interrupt.  */
+/*
+ * TODO: A translation failure here ought to set PCI error codes on the
+ * Pchip and generate a machine check interrupt.
+ */
 static IOMMUTLBEntry typhoon_translate_iommu(IOMMUMemoryRegion *iommu,
                                              hwaddr addr,
                                              IOMMUAccessFlags flag,
@@ -773,10 +783,12 @@ static void typhoon_set_timer_irq(void *opaque, int irq, int level)
     TyphoonState *s = opaque;
     int i;
 
-    /* Thankfully, the mc146818rtc code doesn't track the IRQ state,
-       and so we don't have to worry about missing interrupts just
-       because we never actually ACK the interrupt.  Just ignore any
-       case of the interrupt level going low.  */
+    /*
+     * Thankfully, the mc146818rtc code doesn't track the IRQ state,
+     * and so we don't have to worry about missing interrupts just
+     * because we never actually ACK the interrupt.  Just ignore any
+     * case of the interrupt level going low.
+     */
     if (level == 0) {
         return;
     }
@@ -787,14 +799,16 @@ static void typhoon_set_timer_irq(void *opaque, int irq, int level)
         if (cpu != NULL) {
             uint32_t iic = s->cchip.iic[i];
 
-            /* ??? The verbage in Section 10.2.2.10 isn't 100% clear.
-               Bit 24 is the OverFlow bit, RO, and set when the count
-               decrements past 0.  When is OF cleared?  My guess is that
-               OF is actually cleared when the IIC is written, and that
-               the ICNT field always decrements.  At least, that's an
-               interpretation that makes sense, and "allows the CPU to
-               determine exactly how mant interval timer ticks were
-               skipped".  At least within the next 4M ticks...  */
+            /*
+             * ??? The verbage in Section 10.2.2.10 isn't 100% clear.
+             * Bit 24 is the OverFlow bit, RO, and set when the count
+             * decrements past 0.  When is OF cleared?  My guess is that
+             * OF is actually cleared when the IIC is written, and that
+             * the ICNT field always decrements.  At least, that's an
+             * interpretation that makes sense, and "allows the CPU to
+             * determine exactly how mant interval timer ticks were
+             * skipped".  At least within the next 4M ticks...
+             */
 
             iic = ((iic - 1) & 0x1ffffff) | (iic & 0x1000000);
             s->cchip.iic[i] = iic;
@@ -852,13 +866,17 @@ PCIBus *typhoon_init(MemoryRegion *ram, qemu_irq *p_isa_irq,
     *p_isa_irq = qemu_allocate_irq(typhoon_set_isa_irq, s, 0);
     *p_rtc_irq = qemu_allocate_irq(typhoon_set_timer_irq, s, 0);
 
-    /* Main memory region, 0x00.0000.0000.  Real hardware supports 32GB,
-       but the address space hole reserved at this point is 8TB.  */
+    /*
+     * Main memory region, 0x00.0000.0000.  Real hardware supports 32GB,
+     * but the address space hole reserved at this point is 8TB.
+     */
     memory_region_add_subregion(addr_space, 0, ram);
 
     /* TIGbus, 0x801.0000.0000, 1GB.  */
-    /* ??? The TIGbus is used for delivering interrupts, and access to
-       the flash ROM.  I'm not sure that we need to implement it at all.  */
+    /*
+     * ??? The TIGbus is used for delivering interrupts, and access to
+     * the flash ROM.  I'm not sure that we need to implement it at all.
+     */
 
     /* Pchip0 CSRs, 0x801.8000.0000, 256MB.  */
     memory_region_init_io(&s->pchip.region, OBJECT(s), &pchip_ops, s, "pchip0",
@@ -916,9 +934,11 @@ PCIBus *typhoon_init(MemoryRegion *ram, qemu_irq *p_isa_irq,
     memory_region_add_subregion(addr_space, 0x801fe000000ULL,
                                 &s->pchip.reg_conf);
 
-    /* For the record, these are the mappings for the second PCI bus.
-       We can get away with not implementing them because we indicate
-       via the Cchip.CSC<PIP> bit that Pchip1 is not present.  */
+    /*
+     * For the record, these are the mappings for the second PCI bus.
+     * We can get away with not implementing them because we indicate
+     * via the Cchip.CSC<PIP> bit that Pchip1 is not present.
+     */
     /* Pchip1 PCI memory, 0x802.0000.0000, 4GB.  */
     /* Pchip1 CSRs, 0x802.8000.0000, 256MB.  */
     /* Pchip1 PCI special/interrupt acknowledge, 0x802.F800.0000, 64MB.  */
