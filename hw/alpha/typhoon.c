@@ -832,7 +832,7 @@ static void typhoon_alarm_timer(void *opaque)
 }
 
 PCIBus *typhoon_init(MemoryRegion *ram, qemu_irq *p_isa_irq,
-                     qemu_irq *p_rtc_irq, AlphaCPU *cpus[4],
+                     qemu_irq *p_rtc_irq,
                      pci_map_irq_fn sys_map_irq, uint8_t devfn_min,
                      TyphoonState *s)
 {
@@ -849,8 +849,7 @@ PCIBus *typhoon_init(MemoryRegion *ram, qemu_irq *p_isa_irq,
 
     /* Remember the CPUs so that we can deliver interrupts to them.  */
     for (i = 0; i < 4; i++) {
-        AlphaCPU *cpu = cpus[i];
-        s->cchip.cpu[i] = cpu;
+        AlphaCPU *cpu = s->cchip.cpu[i];
         if (cpu != NULL) {
             cpu->alarm_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                                  typhoon_alarm_timer,

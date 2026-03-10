@@ -85,6 +85,7 @@ static void clipper_init(MachineState *machine)
         g_autofree char *name = g_strdup_printf("cpu[%ld]", i);
         Object *cpu = object_new(machine->cpu_type);
         object_property_add_child(OBJECT(machine), name, cpu);
+        object_property_set_link(typhoon_obj, name, cpu, &error_fatal);
         qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal);
         cpus[i] = ALPHA_CPU(cpu);
     }
@@ -107,7 +108,7 @@ static void clipper_init(MachineState *machine)
      * Init the chipset.  Because we're using CLIPPER IRQ mappings,
      * the minimum PCI device IdSel is 1.
      */
-    pci_bus = typhoon_init(machine->ram, &isa_irq, &rtc_irq, cpus,
+    pci_bus = typhoon_init(machine->ram, &isa_irq, &rtc_irq,
                            clipper_pci_map_irq, PCI_DEVFN(1, 0), typhoon);
 
     /*
