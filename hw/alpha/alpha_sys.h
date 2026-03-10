@@ -20,8 +20,6 @@ typedef struct TyphoonClass {
 
 OBJECT_DECLARE_TYPE(TyphoonState, TyphoonClass, TYPHOON_PCI_HOST_BRIDGE)
 
-void typhoon_init(TyphoonState *);
-
 #define TYPHOON_PROP_RAM "ram"
 #define TYPHOON_PCI_BUS_NAME "pci"
 

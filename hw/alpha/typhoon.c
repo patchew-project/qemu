@@ -833,112 +833,6 @@ static void typhoon_alarm_timer(void *opaque)
     cpu_interrupt(CPU(s->cchip.cpu[cpu]), CPU_INTERRUPT_TIMER);
 }
 
-void typhoon_init(TyphoonState *s)
-{
-    TyphoonClass *tc = TYPHOON_PCI_HOST_BRIDGE_GET_CLASS(s);
-    MemoryRegion *addr_space = get_system_memory();
-    DeviceState *dev = DEVICE(s);
-    PCIHostState *phb;
-    PCIBus *b;
-    int i;
-
-    assert(tc->sys_map_irq != NULL);
-
-    phb = PCI_HOST_BRIDGE(dev);
-
-    s->cchip.misc = 0x800000000ull; /* Revision: Typhoon.  */
-    s->pchip.win[3].wba = 2;        /* Window 3 SG always enabled. */
-
-    /* Remember the CPUs so that we can deliver interrupts to them.  */
-    for (i = 0; i < 4; i++) {
-        AlphaCPU *cpu = s->cchip.cpu[i];
-        if (cpu != NULL) {
-            cpu->alarm_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                                 typhoon_alarm_timer,
-                                                 (void *)((uintptr_t)s + i));
-        }
-    }
-
-    /*
-     * Main memory region, 0x00.0000.0000.  Real hardware supports 32GB,
-     * but the address space hole reserved at this point is 8TB.
-     */
-    memory_region_add_subregion(addr_space, 0, s->ram);
-
-    /* TIGbus, 0x801.0000.0000, 1GB.  */
-    /*
-     * ??? The TIGbus is used for delivering interrupts, and access to
-     * the flash ROM.  I'm not sure that we need to implement it at all.
-     */
-
-    /* Pchip0 CSRs, 0x801.8000.0000, 256MB.  */
-    memory_region_init_io(&s->pchip.region, OBJECT(s), &pchip_ops, s, "pchip0",
-                          256 * MiB);
-    memory_region_add_subregion(addr_space, 0x80180000000ULL,
-                                &s->pchip.region);
-
-    /* Cchip CSRs, 0x801.A000.0000, 256MB.  */
-    memory_region_init_io(&s->cchip.region, OBJECT(s), &cchip_ops, s, "cchip0",
-                          256 * MiB);
-    memory_region_add_subregion(addr_space, 0x801a0000000ULL,
-                                &s->cchip.region);
-
-    /* Dchip CSRs, 0x801.B000.0000, 256MB.  */
-    memory_region_init_io(&s->dchip_region, OBJECT(s), &dchip_ops, s, "dchip0",
-                          256 * MiB);
-    memory_region_add_subregion(addr_space, 0x801b0000000ULL,
-                                &s->dchip_region);
-
-    /* Pchip0 PCI memory, 0x800.0000.0000, 4GB.  */
-    memory_region_init(&s->pchip.reg_mem, OBJECT(s), "pci0-mem", 4 * GiB);
-    memory_region_add_subregion(addr_space, 0x80000000000ULL,
-                                &s->pchip.reg_mem);
-
-    /* Pchip0 PCI I/O, 0x801.FC00.0000, 32MB.  */
-    memory_region_init_io(&s->pchip.reg_io, OBJECT(s), &alpha_pci_ignore_ops,
-                          NULL, "pci0-io", 32 * MiB);
-    memory_region_add_subregion(addr_space, 0x801fc000000ULL,
-                                &s->pchip.reg_io);
-
-    b = pci_register_root_bus(dev, TYPHOON_PCI_BUS_NAME,
-                              typhoon_set_irq, tc->sys_map_irq, s,
-                              &s->pchip.reg_mem, &s->pchip.reg_io,
-                              tc->devfn_min, 64, TYPE_PCI_BUS);
-    phb->bus = b;
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
-    /* Host memory as seen from the PCI side, via the IOMMU.  */
-    memory_region_init_iommu(&s->pchip.iommu, sizeof(s->pchip.iommu),
-                             TYPE_TYPHOON_IOMMU_MEMORY_REGION, OBJECT(s),
-                             "iommu-typhoon", UINT64_MAX);
-    address_space_init(&s->pchip.iommu_as, MEMORY_REGION(&s->pchip.iommu),
-                       "pchip0-pci");
-    pci_setup_iommu(b, &typhoon_iommu_ops, s);
-
-    /* Pchip0 PCI special/interrupt acknowledge, 0x801.F800.0000, 64MB.  */
-    memory_region_init_io(&s->pchip.reg_iack, OBJECT(s), &alpha_pci_iack_ops,
-                          b, "pci0-iack", 64 * MiB);
-    memory_region_add_subregion(addr_space, 0x801f8000000ULL,
-                                &s->pchip.reg_iack);
-
-    /* Pchip0 PCI configuration, 0x801.FE00.0000, 16MB.  */
-    memory_region_init_io(&s->pchip.reg_conf, OBJECT(s), &alpha_pci_conf1_ops,
-                          b, "pci0-conf", 16 * MiB);
-    memory_region_add_subregion(addr_space, 0x801fe000000ULL,
-                                &s->pchip.reg_conf);
-
-    /*
-     * For the record, these are the mappings for the second PCI bus.
-     * We can get away with not implementing them because we indicate
-     * via the Cchip.CSC<PIP> bit that Pchip1 is not present.
-     */
-    /* Pchip1 PCI memory, 0x802.0000.0000, 4GB.  */
-    /* Pchip1 CSRs, 0x802.8000.0000, 256MB.  */
-    /* Pchip1 PCI special/interrupt acknowledge, 0x802.F800.0000, 64MB.  */
-    /* Pchip1 PCI I/O, 0x802.FC00.0000, 32MB.  */
-    /* Pchip1 PCI configuration, 0x802.FE00.0000, 16MB.  */
-}
-
 static void typhoon_pcihost_init(Object *obj)
 {
     TyphoonState *s = TYPHOON_PCI_HOST_BRIDGE(obj);
@@ -955,6 +849,118 @@ static void typhoon_pcihost_init(Object *obj)
     qdev_init_gpio_in_named(dev, typhoon_set_isa_irq, TYPHOON_GPIO_ISA_IRQ, 1);
     qdev_init_gpio_in_named(dev, typhoon_set_timer_irq, TYPHOON_GPIO_RTC_IRQ,
                             1);
+
+    s->cchip.misc = 0x800000000ull; /* Revision: Typhoon.  */
+    s->pchip.win[3].wba = 2;        /* Window 3 SG always enabled. */
+
+    /* TIGbus, 0x801.0000.0000, 1GB.  */
+    /*
+     * ??? The TIGbus is used for delivering interrupts, and access to
+     * the flash ROM.  I'm not sure that we need to implement it at all.
+     */
+
+    /* Pchip0 CSRs, 0x801.8000.0000, 256MB.  */
+    memory_region_init_io(&s->pchip.region, OBJECT(s), &pchip_ops, s, "pchip0",
+                          256 * MiB);
+
+    /* Cchip CSRs, 0x801.A000.0000, 256MB.  */
+    memory_region_init_io(&s->cchip.region, OBJECT(s), &cchip_ops, s, "cchip0",
+                          256 * MiB);
+
+    /* Dchip CSRs, 0x801.B000.0000, 256MB.  */
+    memory_region_init_io(&s->dchip_region, OBJECT(s), &dchip_ops, s, "dchip0",
+                          256 * MiB);
+
+    /* Pchip0 PCI memory, 0x800.0000.0000, 4GB.  */
+    memory_region_init(&s->pchip.reg_mem, OBJECT(s), "pci0-mem", 4 * GiB);
+
+    /* Pchip0 PCI I/O, 0x801.FC00.0000, 32MB.  */
+    memory_region_init_io(&s->pchip.reg_io, OBJECT(s), &alpha_pci_ignore_ops,
+                          NULL, "pci0-io", 32 * MiB);
+
+    /* Host memory as seen from the PCI side, via the IOMMU.  */
+    memory_region_init_iommu(&s->pchip.iommu, sizeof(s->pchip.iommu),
+                             TYPE_TYPHOON_IOMMU_MEMORY_REGION, OBJECT(s),
+                             "iommu-typhoon", UINT64_MAX);
+    address_space_init(&s->pchip.iommu_as, MEMORY_REGION(&s->pchip.iommu),
+                       "pchip0-pci");
+}
+
+static void typhoon_pcihost_realize(DeviceState *dev, Error **errp)
+{
+    TyphoonClass *tc = TYPHOON_PCI_HOST_BRIDGE_GET_CLASS(dev);
+    TyphoonState *s = TYPHOON_PCI_HOST_BRIDGE(dev);
+    MemoryRegion *addr_space = get_system_memory();
+    PCIHostState *phb = PCI_HOST_BRIDGE(dev);
+    PCIBus *b;
+    int i;
+    const char *typename = object_get_typename(OBJECT(s));
+
+    if (s->cchip.cpu[0] == NULL) {
+        error_setg(errp, "%s: \"cchip.cpu[0]\" link is not set", typename);
+        return;
+    }
+
+    if (s->ram == NULL) {
+        error_setg(errp, "%s: \"ram\" link is not set.", typename);
+        return;
+    }
+
+    if (tc->sys_map_irq == NULL) {
+        error_setg(errp, "%s: \"sys_map_irq\" setter has not been called.",
+                   typename);
+        return;
+    }
+
+    b = pci_register_root_bus(dev, TYPHOON_PCI_BUS_NAME,
+                              typhoon_set_irq, tc->sys_map_irq, s,
+                              &s->pchip.reg_mem, &s->pchip.reg_io,
+                              tc->devfn_min, 64, TYPE_PCI_BUS);
+    phb->bus = b;
+
+    /* Remember the CPUs so that we can deliver interrupts to them.  */
+    for (i = 0; i < 4; i++) {
+        AlphaCPU *cpu = s->cchip.cpu[i];
+        if (cpu != NULL) {
+            cpu->alarm_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                            typhoon_alarm_timer,
+                                            (void *)((uintptr_t)s + i));
+        }
+    }
+    /*
+     * Main memory region, 0x00.0000.0000.  Real hardware supports 32GB,
+     * but the address space hole reserved at this point is 8TB.
+     */
+    memory_region_add_subregion(addr_space, 0, s->ram);
+
+    memory_region_add_subregion(addr_space, 0x80180000000ULL,
+                                &s->pchip.region);
+
+    memory_region_add_subregion(addr_space, 0x801a0000000ULL,
+                                &s->cchip.region);
+
+    memory_region_add_subregion(addr_space, 0x801b0000000ULL,
+                                &s->dchip_region);
+
+    memory_region_add_subregion(addr_space, 0x80000000000ULL,
+                                &s->pchip.reg_mem);
+
+    memory_region_add_subregion(addr_space, 0x801fc000000ULL,
+                                &s->pchip.reg_io);
+
+    pci_setup_iommu(b, &typhoon_iommu_ops, s);
+
+    /* Pchip0 PCI special/interrupt acknowledge, 0x801.F800.0000, 64MB.  */
+    memory_region_init_io(&s->pchip.reg_iack, OBJECT(s), &alpha_pci_iack_ops,
+                          b, "pci0-iack", 64 * MiB);
+    memory_region_add_subregion(addr_space, 0x801f8000000ULL,
+                                &s->pchip.reg_iack);
+
+    /* Pchip0 PCI configuration, 0x801.FE00.0000, 16MB.  */
+    memory_region_init_io(&s->pchip.reg_conf, OBJECT(s), &alpha_pci_conf1_ops,
+                          b, "pci0-conf", 16 * MiB);
+    memory_region_add_subregion(addr_space, 0x801fe000000ULL,
+                                &s->pchip.reg_conf);
 }
 
 static const Property typhoon_properties[] = {
@@ -967,6 +973,7 @@ static void typhoon_pcihost_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->user_creatable = false;
+    dc->realize = typhoon_pcihost_realize;
 
     device_class_set_props(dc, typhoon_properties);
 }

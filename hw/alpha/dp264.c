@@ -111,7 +111,7 @@ static void clipper_init(MachineState *machine)
      * Init the chipset.  Because we're using CLIPPER IRQ mappings,
      * the minimum PCI device IdSel is 1.
      */
-    typhoon_init(typhoon);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(typhoon), &error_fatal);
     pci_bus = PCI_BUS(object_resolve_path_component(typhoon_obj,
                                                     TYPHOON_PCI_BUS_NAME));
 
