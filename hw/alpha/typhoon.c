@@ -976,6 +976,7 @@ static const TypeInfo typhoon_pcihost_info = {
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(TyphoonState),
     .instance_init = typhoon_pcihost_init,
+    .class_size    = sizeof(TyphoonClass),
     .class_init    = typhoon_pcihost_class_init,
 };
 
