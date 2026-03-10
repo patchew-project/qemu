@@ -61,7 +61,7 @@ static void clipper_init(MachineState *machine)
     long size, i;
     char *palcode_filename;
     uint64_t palcode_entry;
-    uint64_t kernel_entry, kernel_low;
+    uint64_t kernel_entry, kernel_low, kernel_high;
     unsigned int smp_cpus = machine->smp.cpus;
 
     /* Create up to 4 cpus.  */
@@ -165,7 +165,7 @@ static void clipper_init(MachineState *machine)
         uint64_t param_offset;
 
         size = load_elf(kernel_filename, NULL, cpu_alpha_superpage_to_phys,
-                        NULL, &kernel_entry, &kernel_low, NULL, NULL,
+                        NULL, &kernel_entry, &kernel_low, &kernel_high, NULL,
                         ELFDATA2LSB, EM_ALPHA, 0, 0);
         if (size < 0) {
             error_report("could not load kernel '%s'", kernel_filename);
@@ -181,7 +181,7 @@ static void clipper_init(MachineState *machine)
         }
 
         if (initrd_filename) {
-            long initrd_base;
+            hwaddr initrd_base;
             int64_t initrd_size;
 
             initrd_size = get_image_size(initrd_filename, NULL);
@@ -192,7 +192,15 @@ static void clipper_init(MachineState *machine)
             }
 
             /* Put the initrd image as high in memory as possible.  */
-            initrd_base = (ram_size - initrd_size) & TARGET_PAGE_MASK;
+            if (usub64_overflow(ram_size, initrd_size, &initrd_base)) {
+                error_report("initial ram disk exceeds allotted ram size");
+                exit(1);
+            }
+            initrd_base &= TARGET_PAGE_MASK;
+            if (initrd_base <= kernel_high) {
+                warn_report("initial ram disk overlaps with kernel");
+            }
+
             load_image_targphys(initrd_filename, initrd_base,
                                 ram_size - initrd_base, NULL);
 
