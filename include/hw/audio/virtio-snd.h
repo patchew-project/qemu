@@ -71,6 +71,8 @@ typedef struct virtio_snd_pcm_status virtio_snd_pcm_status;
 
 typedef struct VirtIOSound VirtIOSound;
 
+typedef struct VirtIOPcmParams VirtIOPcmParams;
+
 typedef struct VirtIOSoundPCMStream VirtIOSoundPCMStream;
 
 typedef struct virtio_snd_ctrl_command virtio_snd_ctrl_command;
@@ -121,6 +123,15 @@ struct VirtIOSoundPCMBuffer {
     uint8_t data[];
 };
 
+struct VirtIOPcmParams {
+    uint32_t buffer_bytes;
+    uint32_t period_bytes;
+    uint32_t features;
+    uint8_t channels;
+    uint8_t format;
+    uint8_t rate;
+};
+
 struct VirtIOSoundPCM {
     /*
      * PCM parameters are a separate field instead of a VirtIOSoundPCMStream
@@ -129,7 +140,7 @@ struct VirtIOSoundPCM {
      * means that some times we get parameters without having an allocated
      * stream yet.
      */
-    virtio_snd_pcm_set_params *pcm_params;
+    VirtIOPcmParams *pcm_params;
     VirtIOSoundPCMStream **streams;
 };
 
