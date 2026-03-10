@@ -172,6 +172,10 @@ void microblaze_load_kernel(MicroBlazeCPU *cpu, bool is_little_endian,
         if (kernel_size < 0) {
             kernel_size = load_image_targphys(kernel_filename, ddr_base,
                                               ramsize, NULL);
+            if (kernel_size < 0) {
+                error_report("could not load kernel '%s'", kernel_filename);
+                exit(EXIT_FAILURE);
+            }
             boot_info.bootstrap_pc = ddr_base;
             high = (ddr_base + kernel_size + 3) & ~3;
         }

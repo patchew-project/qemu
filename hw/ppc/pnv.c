@@ -1068,14 +1068,21 @@ static void pnv_init(MachineState *machine)
         exit(1);
     }
 
-    load_image_targphys(fw_filename, pnv->fw_load_addr, FW_MAX_SIZE,
-                        &error_fatal);
+    if (load_image_targphys(fw_filename, pnv->fw_load_addr, FW_MAX_SIZE,
+                        &error_fatal) < 0) {
+        error_report("Could not load OPAL firmware '%s'", fw_filename);
+        exit(1);
+    }
     g_free(fw_filename);
 
     /* load kernel */
     if (machine->kernel_filename) {
-        load_image_targphys(machine->kernel_filename,
-                            KERNEL_LOAD_ADDR, KERNEL_MAX_SIZE, &error_fatal);
+        if (load_image_targphys(machine->kernel_filename,
+                        KERNEL_LOAD_ADDR, KERNEL_MAX_SIZE, &error_fatal) < 0) {
+            error_report("Could not load kernel '%s'",
+                         machine->kernel_filename);
+            exit(1);
+        }
     }
 
     /* load initrd */
@@ -1084,6 +1091,11 @@ static void pnv_init(MachineState *machine)
         pnv->initrd_size = load_image_targphys(machine->initrd_filename,
                                                pnv->initrd_base,
                                                INITRD_MAX_SIZE, &error_fatal);
+        if (pnv->initrd_size < 0) {
+            error_report("Could not load initrd '%s'",
+                         machine->initrd_filename);
+            exit(1);
+        }
     }
 
     /* load dtb if passed */

@@ -1221,6 +1221,11 @@ void ppce500_init(MachineState *machine)
         kernel_size = load_image_targphys(machine->kernel_filename,
                                       cur_base, machine->ram_size - cur_base,
                                       &error_fatal);
+        if (kernel_size < 0) {
+            error_report("Could not load kernel '%s'",
+                         machine->kernel_filename);
+            exit(1);
+        }
         cur_base += kernel_size;
     }
 
@@ -1230,6 +1235,11 @@ void ppce500_init(MachineState *machine)
         initrd_size = load_image_targphys(machine->initrd_filename, initrd_base,
                                           machine->ram_size - initrd_base,
                                           &error_fatal);
+        if (initrd_size < 0) {
+            error_report("Could not load initrd '%s'",
+                         machine->initrd_filename);
+            exit(1);
+        }
         cur_base = initrd_base + initrd_size;
     }
 

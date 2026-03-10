@@ -169,6 +169,11 @@ static void ppc_heathrow_init(MachineState *machine)
                                               kernel_base,
                                               machine->ram_size - kernel_base,
                                               &error_fatal);
+            if (kernel_size < 0) {
+                error_report("Could not load kernel '%s'",
+                             machine->kernel_filename);
+                exit(1);
+            }
         }
         /* load initrd */
         if (machine->initrd_filename) {
@@ -178,6 +183,11 @@ static void ppc_heathrow_init(MachineState *machine)
                                               initrd_base,
                                               machine->ram_size - initrd_base,
                                               &error_fatal);
+            if (initrd_size < 0) {
+                error_report("Could not load initrd '%s'",
+                             machine->initrd_filename);
+                exit(1);
+            }
             cmdline_base = TARGET_PAGE_ALIGN(initrd_base + initrd_size);
         } else {
             cmdline_base = TARGET_PAGE_ALIGN(kernel_base + kernel_size + KERNEL_GAP);

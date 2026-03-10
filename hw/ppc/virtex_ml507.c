@@ -255,6 +255,10 @@ static void virtex_init(MachineState *machine)
             kernel_size = load_image_targphys(kernel_filename,
                                               boot_offset,
                                               machine->ram_size, &error_fatal);
+            if (kernel_size < 0) {
+                error_report("could not load kernel '%s'", kernel_filename);
+                exit(1);
+            }
             boot_info.bootstrap_pc = boot_offset;
             high = boot_info.bootstrap_pc + kernel_size + 8192;
         }
@@ -267,6 +271,11 @@ static void virtex_init(MachineState *machine)
             initrd_size = load_image_targphys(machine->initrd_filename,
                                               high, machine->ram_size - high,
                                               &error_fatal);
+            if (initrd_size < 0) {
+                error_report("could not load initrd '%s'",
+                             machine->initrd_filename);
+                exit(1);
+            }
             high = ROUND_UP(high + initrd_size, 4);
         }
 

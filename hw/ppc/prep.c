@@ -382,6 +382,11 @@ static void ibm_40p_init(MachineState *machine)
                                           kernel_base,
                                           machine->ram_size - kernel_base,
                                           &error_fatal);
+        if (kernel_size < 0) {
+            error_report("Could not load kernel '%s'",
+                         machine->kernel_filename);
+            exit(1);
+        }
         fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ADDR, kernel_base);
         fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_SIZE, kernel_size);
         /* load initrd */
@@ -391,6 +396,11 @@ static void ibm_40p_init(MachineState *machine)
                                               initrd_base,
                                               machine->ram_size - initrd_base,
                                               &error_fatal);
+            if (initrd_size < 0) {
+                error_report("Could not load initrd '%s'",
+                             machine->initrd_filename);
+                exit(1);
+            }
             fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, initrd_base);
             fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, initrd_size);
         }

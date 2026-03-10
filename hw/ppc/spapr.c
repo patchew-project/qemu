@@ -2865,6 +2865,10 @@ static void spapr_machine_init(MachineState *machine)
         exit(1);
     }
     fw_size = load_image_targphys(filename, 0, FW_MAX_SIZE, &error_fatal);
+    if (fw_size < 0) {
+        error_report("Could not load LPAR firmware '%s'", filename);
+        exit(1);
+    }
 
     /*
      * if Secure VM (PEF) support is configured, then initialize it
@@ -3124,6 +3128,10 @@ static void spapr_machine_init(MachineState *machine)
                                                 spapr->initrd_base,
                                                 load_limit - spapr->initrd_base,
                                                 &error_fatal);
+            if (spapr->initrd_size < 0) {
+                error_report("Could not load initrd '%s'", initrd_filename);
+                exit(1);
+            }
         }
     }
 

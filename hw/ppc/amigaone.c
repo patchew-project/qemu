@@ -326,6 +326,10 @@ static void amigaone_init(MachineState *machine)
             exit(1);
         }
         sz = load_image_targphys(filename, PROM_ADDR, PROM_SIZE, &error_fatal);
+        if (sz < 0) {
+            error_report("Could not load firmware '%s'", filename);
+            exit(1);
+        }
     }
 
     /* Articia S */
@@ -411,6 +415,11 @@ static void amigaone_init(MachineState *machine)
         loadaddr = MAX(loadaddr, INITRD_MIN_ADDR);
         sz = load_image_targphys(machine->initrd_filename, loadaddr,
                                  bi->bd_info - loadaddr, &error_fatal);
+        if (sz < 0) {
+            error_report("Could not load initrd '%s'",
+                         machine->initrd_filename);
+            exit(1);
+        }
         bi->initrd_start = loadaddr;
         bi->initrd_end = loadaddr + sz;
     }

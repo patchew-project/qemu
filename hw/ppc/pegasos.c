@@ -304,6 +304,11 @@ static void pegasos_init(MachineState *machine)
         pm->initrd_addr = MAX(pm->initrd_addr, INITRD_MIN_ADDR);
         sz = load_image_targphys(machine->initrd_filename, pm->initrd_addr,
                             machine->ram_size - pm->initrd_addr, &error_fatal);
+        if (sz < 0) {
+            error_report("Could not load initrd '%s'",
+                         machine->initrd_filename);
+            exit(1);
+        }
         pm->initrd_size = sz;
     }
 

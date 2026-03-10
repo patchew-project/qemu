@@ -244,6 +244,10 @@ static void bamboo_init(MachineState *machine)
         initrd_size = load_image_targphys(initrd_filename, RAMDISK_ADDR,
                                           machine->ram_size - RAMDISK_ADDR,
                                           &error_fatal);
+        if (initrd_size < 0) {
+            error_report("Could not load initrd '%s'", initrd_filename);
+            exit(1);
+        }
     }
 
     /* If we're loading a kernel directly, we must load the device tree too. */

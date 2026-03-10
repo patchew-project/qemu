@@ -632,8 +632,11 @@ static void q800_machine_init(MachineState *machine)
             }
 
             initrd_base = (ram_size - initrd_size) & TARGET_PAGE_MASK;
-            load_image_targphys(initrd_filename, initrd_base,
-                                ram_size - initrd_base, NULL);
+            if (load_image_targphys(initrd_filename, initrd_base,
+                                ram_size - initrd_base, NULL) < 0) {
+                error_report("Could not load initrd '%s'", initrd_filename);
+                exit(1);
+            }
             BOOTINFO2(param_ptr, BI_RAMDISK, initrd_base,
                       initrd_size);
         } else {

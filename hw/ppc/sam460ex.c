@@ -493,6 +493,11 @@ static void sam460ex_init(MachineState *machine)
                                           RAMDISK_ADDR,
                                           machine->ram_size - RAMDISK_ADDR,
                                           &error_fatal);
+        if (initrd_size < 0) {
+            error_report("Could not load initrd '%s'",
+                         machine->initrd_filename);
+            exit(1);
+        }
     }
 
     /* If we're loading a kernel directly, we must load the device tree too. */

@@ -506,8 +506,11 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
                 exit(1);
             }
 
-            load_image_targphys(initrd_filename, initrd_base, initrd_size,
-                                NULL);
+            if (load_image_targphys(initrd_filename, initrd_base, initrd_size,
+                                NULL) < 0) {
+                error_report("Could not load initrd '%s'", initrd_filename);
+                exit(1);
+            }
             cpu[0]->env.initrd_base = initrd_base;
             cpu[0]->env.initrd_end  = initrd_base + initrd_size;
         }
