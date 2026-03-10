@@ -111,7 +111,7 @@ static void clipper_init(MachineState *machine)
      * Init the chipset.  Because we're using CLIPPER IRQ mappings,
      * the minimum PCI device IdSel is 1.
      */
-    pci_bus = typhoon_init(PCI_DEVFN(1, 0), typhoon);
+    pci_bus = typhoon_init(typhoon);
 
     /*
      * Init the PCI -> ISA bridge.
@@ -259,6 +259,7 @@ static void typhoon_pcihost_clipper_class_init(ObjectClass *oc,
     TyphoonClass *tc = TYPHOON_PCI_HOST_BRIDGE_CLASS(oc);
 
     tc->sys_map_irq = clipper_pci_map_irq;
+    tc->devfn_min = PCI_DEVFN(1, 0);
 }
 
 static const TypeInfo clipper_types[] = {

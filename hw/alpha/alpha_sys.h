@@ -15,11 +15,12 @@ typedef struct TyphoonClass {
     PCIHostBridgeClass parent_class;
 
     pci_map_irq_fn sys_map_irq;
+    uint8_t devfn_min;
 } TyphoonClass;
 
 OBJECT_DECLARE_TYPE(TyphoonState, TyphoonClass, TYPHOON_PCI_HOST_BRIDGE)
 
-PCIBus *typhoon_init(uint8_t devfn_min, TyphoonState *);
+PCIBus *typhoon_init(TyphoonState *);
 
 #define TYPHOON_PROP_RAM "ram"
 

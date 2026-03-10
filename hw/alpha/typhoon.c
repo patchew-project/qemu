@@ -833,7 +833,7 @@ static void typhoon_alarm_timer(void *opaque)
     cpu_interrupt(CPU(s->cchip.cpu[cpu]), CPU_INTERRUPT_TIMER);
 }
 
-PCIBus *typhoon_init(uint8_t devfn_min, TyphoonState *s)
+PCIBus *typhoon_init(TyphoonState *s)
 {
     TyphoonClass *tc = TYPHOON_PCI_HOST_BRIDGE_GET_CLASS(s);
     MemoryRegion *addr_space = get_system_memory();
@@ -903,7 +903,7 @@ PCIBus *typhoon_init(uint8_t devfn_min, TyphoonState *s)
     b = pci_register_root_bus(dev, "pci",
                               typhoon_set_irq, tc->sys_map_irq, s,
                               &s->pchip.reg_mem, &s->pchip.reg_io,
-                              devfn_min, 64, TYPE_PCI_BUS);
+                              tc->devfn_min, 64, TYPE_PCI_BUS);
     phb->bus = b;
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
