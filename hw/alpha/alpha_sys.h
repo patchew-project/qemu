@@ -20,9 +20,10 @@ typedef struct TyphoonClass {
 
 OBJECT_DECLARE_TYPE(TyphoonState, TyphoonClass, TYPHOON_PCI_HOST_BRIDGE)
 
-PCIBus *typhoon_init(TyphoonState *);
+void typhoon_init(TyphoonState *);
 
 #define TYPHOON_PROP_RAM "ram"
+#define TYPHOON_PCI_BUS_NAME "pci"
 
 #define TYPHOON_GPIO_ISA_IRQ "isa-irq"
 #define TYPHOON_GPIO_RTC_IRQ "rtc-irq"

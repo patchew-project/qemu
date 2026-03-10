@@ -833,7 +833,7 @@ static void typhoon_alarm_timer(void *opaque)
     cpu_interrupt(CPU(s->cchip.cpu[cpu]), CPU_INTERRUPT_TIMER);
 }
 
-PCIBus *typhoon_init(TyphoonState *s)
+void typhoon_init(TyphoonState *s)
 {
     TyphoonClass *tc = TYPHOON_PCI_HOST_BRIDGE_GET_CLASS(s);
     MemoryRegion *addr_space = get_system_memory();
@@ -900,7 +900,7 @@ PCIBus *typhoon_init(TyphoonState *s)
     memory_region_add_subregion(addr_space, 0x801fc000000ULL,
                                 &s->pchip.reg_io);
 
-    b = pci_register_root_bus(dev, "pci",
+    b = pci_register_root_bus(dev, TYPHOON_PCI_BUS_NAME,
                               typhoon_set_irq, tc->sys_map_irq, s,
                               &s->pchip.reg_mem, &s->pchip.reg_io,
                               tc->devfn_min, 64, TYPE_PCI_BUS);
@@ -937,8 +937,6 @@ PCIBus *typhoon_init(TyphoonState *s)
     /* Pchip1 PCI special/interrupt acknowledge, 0x802.F800.0000, 64MB.  */
     /* Pchip1 PCI I/O, 0x802.FC00.0000, 32MB.  */
     /* Pchip1 PCI configuration, 0x802.FE00.0000, 16MB.  */
-
-    return b;
 }
 
 static void typhoon_pcihost_init(Object *obj)
