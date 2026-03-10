@@ -15,6 +15,7 @@
 #include "cpu.h"
 #include "hw/core/irq.h"
 #include "alpha_sys.h"
+#include "hw/core/qdev-properties.h"
 
 
 #define TYPE_TYPHOON_PCI_HOST_BRIDGE "typhoon-pcihost"
@@ -948,10 +949,32 @@ PCIBus *typhoon_init(MemoryRegion *ram, qemu_irq *p_isa_irq,
     return b;
 }
 
+static void typhoon_pcihost_init(Object *obj)
+{
+    TyphoonState *s = TYPHOON_PCI_HOST_BRIDGE(obj);
+
+    int i;
+    for (i = 0; i < 4; ++i) {
+        g_autofree char *name = g_strdup_printf("cpu[%d]", i);
+        object_property_add_link(obj, name,  TYPE_ALPHA_CPU,
+                                 (Object **)&s->cchip.cpu[i],
+                                 qdev_prop_allow_set_link_before_realize, 0);
+    }
+}
+
+static void typhoon_pcihost_class_init(ObjectClass *klass, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->user_creatable = false;
+}
+
 static const TypeInfo typhoon_pcihost_info = {
     .name          = TYPE_TYPHOON_PCI_HOST_BRIDGE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(TyphoonState),
+    .instance_init = typhoon_pcihost_init,
+    .class_init    = typhoon_pcihost_class_init,
 };
 
 static void typhoon_iommu_memory_region_class_init(ObjectClass *klass,
