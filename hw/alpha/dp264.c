@@ -183,6 +183,7 @@ static void clipper_init(MachineState *machine)
         if (initrd_filename) {
             hwaddr initrd_base;
             int64_t initrd_size;
+            uint64_t initrd_info[2];
 
             initrd_size = get_image_size(initrd_filename, NULL);
             if (initrd_size < 0) {
@@ -204,11 +205,11 @@ static void clipper_init(MachineState *machine)
             load_image_targphys(initrd_filename, initrd_base,
                                 ram_size - initrd_base, NULL);
 
-            address_space_stq_le(&address_space_memory, param_offset + 0x100,
-                                 initrd_base + 0xfffffc0000000000ULL,
-                                 MEMTXATTRS_UNSPECIFIED, NULL);
-            address_space_stq_le(&address_space_memory, param_offset + 0x108,
-                                 initrd_size, MEMTXATTRS_UNSPECIFIED, NULL);
+            stq_le_p(&initrd_info[0], initrd_base + 0xfffffc0000000000ULL);
+            stq_le_p(&initrd_info[1], initrd_size);
+
+            rom_add_blob_fixed("initrd_info", initrd_info, sizeof(initrd_info),
+                               param_offset + 0x100);
         }
     }
 }
