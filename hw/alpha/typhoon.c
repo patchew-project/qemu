@@ -831,8 +831,7 @@ static void typhoon_alarm_timer(void *opaque)
     cpu_interrupt(CPU(s->cchip.cpu[cpu]), CPU_INTERRUPT_TIMER);
 }
 
-PCIBus *typhoon_init(MemoryRegion *ram, qemu_irq *p_isa_irq,
-                     qemu_irq *p_rtc_irq,
+PCIBus *typhoon_init(MemoryRegion *ram,
                      pci_map_irq_fn sys_map_irq, uint8_t devfn_min,
                      TyphoonState *s)
 {
@@ -856,9 +855,6 @@ PCIBus *typhoon_init(MemoryRegion *ram, qemu_irq *p_isa_irq,
                                                  (void *)((uintptr_t)s + i));
         }
     }
-
-    *p_isa_irq = qemu_allocate_irq(typhoon_set_isa_irq, s, 0);
-    *p_rtc_irq = qemu_allocate_irq(typhoon_set_timer_irq, s, 0);
 
     /*
      * Main memory region, 0x00.0000.0000.  Real hardware supports 32GB,
@@ -945,6 +941,7 @@ PCIBus *typhoon_init(MemoryRegion *ram, qemu_irq *p_isa_irq,
 static void typhoon_pcihost_init(Object *obj)
 {
     TyphoonState *s = TYPHOON_PCI_HOST_BRIDGE(obj);
+    DeviceState *dev = DEVICE(obj);
 
     int i;
     for (i = 0; i < 4; ++i) {
@@ -953,6 +950,10 @@ static void typhoon_pcihost_init(Object *obj)
                                  (Object **)&s->cchip.cpu[i],
                                  qdev_prop_allow_set_link_before_realize, 0);
     }
+
+    qdev_init_gpio_in_named(dev, typhoon_set_isa_irq, TYPHOON_GPIO_ISA_IRQ, 1);
+    qdev_init_gpio_in_named(dev, typhoon_set_timer_irq, TYPHOON_GPIO_RTC_IRQ,
+                            1);
 }
 
 static void typhoon_pcihost_class_init(ObjectClass *klass, const void *data)

@@ -66,8 +66,6 @@ static void clipper_init(MachineState *machine)
     PCIDevice *pci_dev;
     DeviceState *i82378_dev;
     ISABus *isa_bus;
-    qemu_irq rtc_irq;
-    qemu_irq isa_irq;
     long size, i;
     char *palcode_filename;
     uint64_t palcode_entry;
@@ -108,7 +106,7 @@ static void clipper_init(MachineState *machine)
      * Init the chipset.  Because we're using CLIPPER IRQ mappings,
      * the minimum PCI device IdSel is 1.
      */
-    pci_bus = typhoon_init(machine->ram, &isa_irq, &rtc_irq,
+    pci_bus = typhoon_init(machine->ram,
                            clipper_pci_map_irq, PCI_DEVFN(1, 0), typhoon);
 
     /*
@@ -136,10 +134,14 @@ static void clipper_init(MachineState *machine)
     isa_bus = ISA_BUS(qdev_get_child_bus(i82378_dev, "isa.0"));
 
     /* Connect the ISA PIC to the Typhoon IRQ used for ISA interrupts. */
-    qdev_connect_gpio_out(i82378_dev, 0, isa_irq);
+    qdev_connect_gpio_out(i82378_dev, 0,
+                          qdev_get_gpio_in_named(DEVICE(typhoon),
+                                                 TYPHOON_GPIO_ISA_IRQ, 0));
 
     /* Since we have an SRM-compatible PALcode, use the SRM epoch.  */
-    mc146818_rtc_init(isa_bus, 1900, rtc_irq);
+    mc146818_rtc_init(isa_bus, 1900,
+                      qdev_get_gpio_in_named(DEVICE(typhoon),
+                                             TYPHOON_GPIO_RTC_IRQ, 0));
 
     /* VGA setup.  Don't bother loading the bios.  */
     pci_vga_init(pci_bus);
