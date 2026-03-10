@@ -55,6 +55,8 @@ struct TyphoonState {
     TyphoonCchip cchip;
     TyphoonPchip pchip;
     MemoryRegion dchip_region;
+
+    MemoryRegion *ram;
 };
 
 /* Called when one of DRIR or DIM changes.  */
@@ -831,8 +833,7 @@ static void typhoon_alarm_timer(void *opaque)
     cpu_interrupt(CPU(s->cchip.cpu[cpu]), CPU_INTERRUPT_TIMER);
 }
 
-PCIBus *typhoon_init(MemoryRegion *ram,
-                     pci_map_irq_fn sys_map_irq, uint8_t devfn_min,
+PCIBus *typhoon_init(pci_map_irq_fn sys_map_irq, uint8_t devfn_min,
                      TyphoonState *s)
 {
     MemoryRegion *addr_space = get_system_memory();
@@ -860,7 +861,7 @@ PCIBus *typhoon_init(MemoryRegion *ram,
      * Main memory region, 0x00.0000.0000.  Real hardware supports 32GB,
      * but the address space hole reserved at this point is 8TB.
      */
-    memory_region_add_subregion(addr_space, 0, ram);
+    memory_region_add_subregion(addr_space, 0, s->ram);
 
     /* TIGbus, 0x801.0000.0000, 1GB.  */
     /*
@@ -956,11 +957,18 @@ static void typhoon_pcihost_init(Object *obj)
                             1);
 }
 
+static const Property typhoon_properties[] = {
+    DEFINE_PROP_LINK(TYPHOON_PROP_RAM, TyphoonState, ram,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
+};
+
 static void typhoon_pcihost_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->user_creatable = false;
+
+    device_class_set_props(dc, typhoon_properties);
 }
 
 static const TypeInfo typhoon_pcihost_info = {

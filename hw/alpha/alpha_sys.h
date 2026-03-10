@@ -11,8 +11,9 @@
 #define TYPE_TYPHOON_PCI_HOST_BRIDGE "typhoon-pcihost"
 OBJECT_DECLARE_SIMPLE_TYPE(TyphoonState, TYPHOON_PCI_HOST_BRIDGE)
 
-PCIBus *typhoon_init(MemoryRegion *,
-                     pci_map_irq_fn, uint8_t devfn_min, TyphoonState *);
+PCIBus *typhoon_init(pci_map_irq_fn, uint8_t devfn_min, TyphoonState *);
+
+#define TYPHOON_PROP_RAM "ram"
 
 #define TYPHOON_GPIO_ISA_IRQ "isa-irq"
 #define TYPHOON_GPIO_RTC_IRQ "rtc-irq"

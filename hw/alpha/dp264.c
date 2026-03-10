@@ -102,12 +102,14 @@ static void clipper_init(MachineState *machine)
     cpus[0]->env.trap_arg1 = 0;
     cpus[0]->env.trap_arg2 = smp_cpus | (!machine->enable_graphics << 6);
 
+    object_property_set_link(typhoon_obj, TYPHOON_PROP_RAM,
+                             OBJECT(machine->ram), &error_fatal);
+
     /*
      * Init the chipset.  Because we're using CLIPPER IRQ mappings,
      * the minimum PCI device IdSel is 1.
      */
-    pci_bus = typhoon_init(machine->ram,
-                           clipper_pci_map_irq, PCI_DEVFN(1, 0), typhoon);
+    pci_bus = typhoon_init(clipper_pci_map_irq, PCI_DEVFN(1, 0), typhoon);
 
     /*
      * Init the PCI -> ISA bridge.
@@ -245,7 +247,7 @@ static void clipper_machine_init(ObjectClass *oc, const void *data)
     mc->max_cpus = 4;
     mc->is_default = true;
     mc->default_cpu_type = ALPHA_CPU_TYPE_NAME("ev67");
-    mc->default_ram_id = "ram";
+    mc->default_ram_id = TYPHOON_PROP_RAM;
     mc->default_nic = "e1000";
 }
 
