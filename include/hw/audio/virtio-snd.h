@@ -135,8 +135,8 @@ struct VirtIOSoundPCM {
 
 struct VirtIOSoundPCMStream {
     virtio_snd_pcm_info info;
-    virtio_snd_pcm_set_params params;
     uint32_t id;
+    uint32_t period_bytes;  /* from virtio_snd_pcm_set_params */
     VirtIOSound *s;
     bool flushing;
     audsettings as;
