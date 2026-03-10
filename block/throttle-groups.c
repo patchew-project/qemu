@@ -423,6 +423,8 @@ static void throttle_group_restart_queue(ThrottleGroupMember *tgm,
 {
     Coroutine *co;
     RestartData *rd = g_new0(RestartData, 1);
+    ThrottleState *ts = tgm->throttle_state;
+    ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
 
     rd->tgm = tgm;
     rd->direction = direction;
@@ -433,6 +435,7 @@ static void throttle_group_restart_queue(ThrottleGroupMember *tgm,
     assert(!timer_pending(tgm->throttle_timers.timers[direction]));
 
     qatomic_inc(&tgm->restart_pending);
+    qemu_mutex_unlock(&tg->lock);
 
     co = qemu_coroutine_create(throttle_group_restart_queue_entry, rd);
     aio_co_enter(tgm->aio_context, co);
@@ -441,11 +444,15 @@ static void throttle_group_restart_queue(ThrottleGroupMember *tgm,
 void throttle_group_restart_tgm(ThrottleGroupMember *tgm)
 {
     ThrottleDirection dir;
+    ThrottleState *ts = tgm->throttle_state;
+    ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
 
     if (tgm->throttle_state) {
         for (dir = THROTTLE_READ; dir < THROTTLE_MAX; dir++) {
             QEMUTimer *t = tgm->throttle_timers.timers[dir];
+            qemu_mutex_lock(&tg->lock);
             if (timer_pending(t)) {
+                qemu_mutex_unlock(&tg->lock);
                 /* If there's a pending timer on this tgm, fire it now */
                 timer_del(t);
                 timer_cb(tgm, dir);
@@ -505,7 +512,6 @@ static void timer_cb(ThrottleGroupMember *tgm, ThrottleDirection direction)
     /* The timer has just been fired, so we can update the flag */
     qemu_mutex_lock(&tg->lock);
     tg->any_timer_armed[direction] = false;
-    qemu_mutex_unlock(&tg->lock);
 
     /* Run the request that was waiting for this timer */
     throttle_group_restart_queue(tgm, direction);
