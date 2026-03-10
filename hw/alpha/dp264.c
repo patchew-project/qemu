@@ -18,6 +18,15 @@
 #include "hw/isa/superio.h"
 #include "qemu/datadir.h"
 
+#define TYPE_CLIPPER_MACHINE MACHINE_TYPE_NAME("clipper")
+OBJECT_DECLARE_SIMPLE_TYPE(ClipperMachineState, CLIPPER_MACHINE)
+
+struct ClipperMachineState {
+    MachineState parent_obj;
+
+    TyphoonState *typhoon;
+};
+
 static uint64_t cpu_alpha_superpage_to_phys(void *opaque, uint64_t addr)
 {
     if (((addr >> 41) & 3) == 2) {
@@ -46,6 +55,7 @@ static int clipper_pci_map_irq(PCIDevice *d, int irq_num)
 
 static void clipper_init(MachineState *machine)
 {
+    ClipperMachineState *cms = CLIPPER_MACHINE(machine);
     ram_addr_t ram_size = machine->ram_size;
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
@@ -63,6 +73,11 @@ static void clipper_init(MachineState *machine)
     uint64_t palcode_entry;
     uint64_t kernel_entry, kernel_low, kernel_high;
     unsigned int smp_cpus = machine->smp.cpus;
+
+    Object * const typhoon_obj = object_new(TYPE_TYPHOON_PCI_HOST_BRIDGE);
+    TyphoonState * const typhoon = TYPHOON_PCI_HOST_BRIDGE(typhoon_obj);
+    cms->typhoon = typhoon;
+    object_property_add_child(OBJECT(machine), "typhoon", typhoon_obj);
 
     /* Create up to 4 cpus.  */
     memset(cpus, 0, sizeof(cpus));
@@ -93,7 +108,7 @@ static void clipper_init(MachineState *machine)
      * the minimum PCI device IdSel is 1.
      */
     pci_bus = typhoon_init(machine->ram, &isa_irq, &rtc_irq, cpus,
-                           clipper_pci_map_irq, PCI_DEVFN(1, 0));
+                           clipper_pci_map_irq, PCI_DEVFN(1, 0), typhoon);
 
     /*
      * Init the PCI -> ISA bridge.
@@ -218,8 +233,9 @@ static void clipper_init(MachineState *machine)
     }
 }
 
-static void clipper_machine_init(MachineClass *mc)
+static void clipper_machine_init(ObjectClass *oc, const void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
     mc->desc = "Alpha DP264/CLIPPER";
     mc->init = clipper_init;
     mc->block_default_type = IF_IDE;
@@ -230,4 +246,13 @@ static void clipper_machine_init(MachineClass *mc)
     mc->default_nic = "e1000";
 }
 
-DEFINE_MACHINE("clipper", clipper_machine_init)
+static const TypeInfo clipper_types[] = {
+    {
+        .name = TYPE_CLIPPER_MACHINE,
+        .parent = TYPE_MACHINE,
+        .instance_size = sizeof(ClipperMachineState),
+        .class_init = clipper_machine_init,
+    },
+};
+
+DEFINE_TYPES(clipper_types);

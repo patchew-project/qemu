@@ -18,7 +18,6 @@
 #include "hw/core/qdev-properties.h"
 
 
-#define TYPE_TYPHOON_PCI_HOST_BRIDGE "typhoon-pcihost"
 #define TYPE_TYPHOON_IOMMU_MEMORY_REGION "typhoon-iommu-memory-region"
 
 typedef struct TyphoonCchip {
@@ -49,8 +48,6 @@ typedef struct TyphoonPchip {
     uint64_t ctl;
     TyphoonWindow win[4];
 } TyphoonPchip;
-
-OBJECT_DECLARE_SIMPLE_TYPE(TyphoonState, TYPHOON_PCI_HOST_BRIDGE)
 
 struct TyphoonState {
     PCIHostState parent_obj;
@@ -836,18 +833,15 @@ static void typhoon_alarm_timer(void *opaque)
 
 PCIBus *typhoon_init(MemoryRegion *ram, qemu_irq *p_isa_irq,
                      qemu_irq *p_rtc_irq, AlphaCPU *cpus[4],
-                     pci_map_irq_fn sys_map_irq, uint8_t devfn_min)
+                     pci_map_irq_fn sys_map_irq, uint8_t devfn_min,
+                     TyphoonState *s)
 {
     MemoryRegion *addr_space = get_system_memory();
-    DeviceState *dev;
-    TyphoonState *s;
+    DeviceState *dev = DEVICE(s);
     PCIHostState *phb;
     PCIBus *b;
     int i;
 
-    dev = qdev_new(TYPE_TYPHOON_PCI_HOST_BRIDGE);
-
-    s = TYPHOON_PCI_HOST_BRIDGE(dev);
     phb = PCI_HOST_BRIDGE(dev);
 
     s->cchip.misc = 0x800000000ull; /* Revision: Typhoon.  */
