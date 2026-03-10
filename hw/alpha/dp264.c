@@ -26,12 +26,14 @@ static uint64_t cpu_alpha_superpage_to_phys(void *opaque, uint64_t addr)
     return addr;
 }
 
-/* Note that there are at least 3 viewpoints of IRQ numbers on Alpha systems.
-    (0) The dev_irq_n lines into the cpu, which we totally ignore,
-    (1) The DRIR lines in the typhoon chipset,
-    (2) The "vector" aka mangled interrupt number reported by SRM PALcode,
-    (3) The interrupt number assigned by the kernel.
-   The following function is concerned with (1) only.  */
+/*
+ * Note that there are at least 3 viewpoints of IRQ numbers on Alpha systems.
+ *  (0) The dev_irq_n lines into the cpu, which we totally ignore,
+ *  (1) The DRIR lines in the typhoon chipset,
+ *  (2) The "vector" aka mangled interrupt number reported by SRM PALcode,
+ *  (3) The interrupt number assigned by the kernel.
+ * The following function is concerned with (1) only.
+ */
 
 static int clipper_pci_map_irq(PCIDevice *d, int irq_num)
 {
@@ -132,9 +134,11 @@ static void clipper_init(MachineState *machine)
     pci_dev = pci_create_simple(pci_bus, -1, "cmd646-ide");
     pci_ide_create_devs(pci_dev);
 
-    /* Load PALcode.  Given that this is not "real" cpu palcode,
-       but one explicitly written for the emulation, we might as
-       well load it directly from and ELF image.  */
+    /*
+     * Load PALcode.  Given that this is not "real" cpu palcode,
+     * but one explicitly written for the emulation, we might as
+     * well load it directly from and ELF image.
+     */
     palcode_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS,
                                       machine->firmware ?: "palcode-clipper");
     if (palcode_filename == NULL) {
