@@ -27,6 +27,7 @@
 #include "system/system.h"
 #include "system/dma.h"
 #include "system/reset.h"
+#include "system/runstate.h"
 #include "system/address-spaces.h"
 #include "hw/core/boards.h"
 #include "hw/nvram/fw_cfg.h"
@@ -965,9 +966,8 @@ bool fw_cfg_add_file_from_generator(FWCfgState *s,
     return true;
 }
 
-static void fw_cfg_machine_reset(void *opaque)
+static void __fw_cfg_machine_reset(FWCfgState *s)
 {
-    FWCfgState *s = opaque;
     void *ptr;
     size_t len;
     char *buf;
@@ -981,10 +981,37 @@ static void fw_cfg_machine_reset(void *opaque)
     g_free(ptr);
 }
 
+static void fw_cfg_machine_reset(void *opaque)
+{
+    FWCfgState *s = opaque;
+
+    __fw_cfg_machine_reset(s);
+}
+
+static void fw_cfg_runstate_transition(Notifier *notifier, void *data)
+{
+    FWCfgState *s = container_of(notifier, FWCfgState,
+                                 runstate_transition);
+    const VMRunStateTransition *transition = data;
+
+    /*
+     * According to runstate_transitions_def[], RUN_STATE_PRELAUNCH is
+     * allowed to transition to four states. Only the transition to
+     * RUN_STATE_RUNNING requires updating "bootorder" and "bios-geometry".
+     */
+    if (transition->old_state == RUN_STATE_PRELAUNCH &&
+        transition->new_state == RUN_STATE_RUNNING) {
+        __fw_cfg_machine_reset(s);
+    }
+}
+
 static void fw_cfg_machine_ready(struct Notifier *n, void *data)
 {
     FWCfgState *s = container_of(n, FWCfgState, machine_ready);
+
     qemu_register_reset(fw_cfg_machine_reset, s);
+    s->runstate_transition.notify = fw_cfg_runstate_transition;
+    qemu_add_runstate_transition_notifier(&s->runstate_transition);
 }
 
 static const Property fw_cfg_properties[] = {

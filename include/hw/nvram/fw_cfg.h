@@ -66,6 +66,7 @@ struct FWCfgState {
     uint16_t cur_entry;
     uint32_t cur_offset;
     Notifier machine_ready;
+    Notifier runstate_transition;
 
     bool dma_enabled;
     dma_addr_t dma_addr;
