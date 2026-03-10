@@ -65,6 +65,8 @@
 
 static NotifierList exit_notifiers =
     NOTIFIER_LIST_INITIALIZER(exit_notifiers);
+static NotifierList runstate_transition_notifiers =
+    NOTIFIER_LIST_INITIALIZER(runstate_transition_notifiers);
 
 static RunState current_run_state = RUN_STATE_PRELAUNCH;
 
@@ -226,6 +228,17 @@ static void runstate_init(void)
     qemu_mutex_init(&vmstop_lock);
 }
 
+static void runstate_transition_notify(RunState old_state,
+                                       RunState new_state)
+{
+    VMRunStateTransition transition = {
+        .old_state = old_state,
+        .new_state = new_state,
+    };
+
+    notifier_list_notify(&runstate_transition_notifiers, &transition);
+}
+
 /* This function will abort() on invalid state transitions */
 void runstate_set(RunState new_state)
 {
@@ -244,6 +257,8 @@ void runstate_set(RunState new_state)
                      RunState_str(new_state));
         abort();
     }
+
+    runstate_transition_notify(current_run_state, new_state);
 
     current_run_state = new_state;
 }
@@ -401,6 +416,16 @@ int vm_state_notify(bool running, RunState state)
         }
     }
     return ret;
+}
+
+void qemu_add_runstate_transition_notifier(Notifier *notifier)
+{
+    notifier_list_add(&runstate_transition_notifiers, notifier);
+}
+
+void qemu_remove_runstate_transition_notifier(Notifier *notifier)
+{
+    notifier_remove(notifier);
 }
 
 static ShutdownCause reset_requested;

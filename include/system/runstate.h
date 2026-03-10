@@ -11,6 +11,14 @@ bool runstate_is_running(void);
 bool runstate_needs_reset(void);
 void runstate_replay_enable(void);
 
+typedef struct VMRunStateTransition {
+    RunState old_state;
+    RunState new_state;
+} VMRunStateTransition;
+
+void qemu_add_runstate_transition_notifier(Notifier *notifier);
+void qemu_remove_runstate_transition_notifier(Notifier *notifier);
+
 typedef void VMChangeStateHandler(void *opaque, bool running, RunState state);
 typedef int VMChangeStateHandlerWithRet(void *opaque, bool running, RunState state);
 
