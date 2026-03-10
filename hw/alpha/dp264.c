@@ -21,6 +21,8 @@
 #define TYPE_CLIPPER_MACHINE MACHINE_TYPE_NAME("clipper")
 OBJECT_DECLARE_SIMPLE_TYPE(ClipperMachineState, CLIPPER_MACHINE)
 
+#define TYPE_TYPHOON_PCIHOST_CLIPPER "typhoon-pcihost-clipper"
+
 struct ClipperMachineState {
     MachineState parent_obj;
 
@@ -72,7 +74,7 @@ static void clipper_init(MachineState *machine)
     uint64_t kernel_entry, kernel_low, kernel_high;
     unsigned int smp_cpus = machine->smp.cpus;
 
-    Object * const typhoon_obj = object_new(TYPE_TYPHOON_PCI_HOST_BRIDGE);
+    Object * const typhoon_obj = object_new(TYPE_TYPHOON_PCIHOST_CLIPPER);
     TyphoonState * const typhoon = TYPHOON_PCI_HOST_BRIDGE(typhoon_obj);
     cms->typhoon = typhoon;
     object_property_add_child(OBJECT(machine), "typhoon", typhoon_obj);
@@ -109,7 +111,7 @@ static void clipper_init(MachineState *machine)
      * Init the chipset.  Because we're using CLIPPER IRQ mappings,
      * the minimum PCI device IdSel is 1.
      */
-    pci_bus = typhoon_init(clipper_pci_map_irq, PCI_DEVFN(1, 0), typhoon);
+    pci_bus = typhoon_init(PCI_DEVFN(1, 0), typhoon);
 
     /*
      * Init the PCI -> ISA bridge.
@@ -251,12 +253,25 @@ static void clipper_machine_init(ObjectClass *oc, const void *data)
     mc->default_nic = "e1000";
 }
 
+static void typhoon_pcihost_clipper_class_init(ObjectClass *oc,
+                                               const void *data)
+{
+    TyphoonClass *tc = TYPHOON_PCI_HOST_BRIDGE_CLASS(oc);
+
+    tc->sys_map_irq = clipper_pci_map_irq;
+}
+
 static const TypeInfo clipper_types[] = {
     {
         .name = TYPE_CLIPPER_MACHINE,
         .parent = TYPE_MACHINE,
         .instance_size = sizeof(ClipperMachineState),
         .class_init = clipper_machine_init,
+    },
+    {
+        .name = TYPE_TYPHOON_PCIHOST_CLIPPER,
+        .parent = TYPE_TYPHOON_PCI_HOST_BRIDGE,
+        .class_init = typhoon_pcihost_clipper_class_init,
     },
 };
 

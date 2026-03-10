@@ -833,14 +833,16 @@ static void typhoon_alarm_timer(void *opaque)
     cpu_interrupt(CPU(s->cchip.cpu[cpu]), CPU_INTERRUPT_TIMER);
 }
 
-PCIBus *typhoon_init(pci_map_irq_fn sys_map_irq, uint8_t devfn_min,
-                     TyphoonState *s)
+PCIBus *typhoon_init(uint8_t devfn_min, TyphoonState *s)
 {
+    TyphoonClass *tc = TYPHOON_PCI_HOST_BRIDGE_GET_CLASS(s);
     MemoryRegion *addr_space = get_system_memory();
     DeviceState *dev = DEVICE(s);
     PCIHostState *phb;
     PCIBus *b;
     int i;
+
+    assert(tc->sys_map_irq != NULL);
 
     phb = PCI_HOST_BRIDGE(dev);
 
@@ -899,7 +901,7 @@ PCIBus *typhoon_init(pci_map_irq_fn sys_map_irq, uint8_t devfn_min,
                                 &s->pchip.reg_io);
 
     b = pci_register_root_bus(dev, "pci",
-                              typhoon_set_irq, sys_map_irq, s,
+                              typhoon_set_irq, tc->sys_map_irq, s,
                               &s->pchip.reg_mem, &s->pchip.reg_io,
                               devfn_min, 64, TYPE_PCI_BUS);
     phb->bus = b;
@@ -978,6 +980,7 @@ static const TypeInfo typhoon_pcihost_info = {
     .instance_init = typhoon_pcihost_init,
     .class_size    = sizeof(TyphoonClass),
     .class_init    = typhoon_pcihost_class_init,
+    .abstract      = true,
 };
 
 static void typhoon_iommu_memory_region_class_init(ObjectClass *klass,
