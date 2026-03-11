@@ -628,6 +628,8 @@ static void aspeed_i2c_bus_new_write(AspeedI2CBus *bus, hwaddr offset,
     AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(bus->controller);
     bool handle_rx;
     bool w1t;
+    uint32_t old_intr;
+    uint32_t cmd_intr;
 
     trace_aspeed_i2c_bus_write(bus->id, offset, size, value);
 
@@ -665,6 +667,17 @@ static void aspeed_i2c_bus_new_write(AspeedI2CBus *bus, hwaddr offset,
             break;
         }
         bus->regs[R_I2CM_INTR_STS] &= ~(value & 0xf007f07f);
+        /*
+         * Re-apply interrupts lost due to synchronous command completion.
+         * When a command completes instantly during an MMIO write, the new
+         * interrupt status bits collide with already-pending bits. After
+         * the ISR clears them, re-apply the saved bits so the ISR can
+         * process the new completion.
+         */
+        if (bus->pending_intr_sts) {
+            bus->regs[R_I2CM_INTR_STS] |= bus->pending_intr_sts;
+            bus->pending_intr_sts = 0;
+        }
         if (!bus->regs[R_I2CM_INTR_STS]) {
             bus->controller->intr_status &= ~(1 << bus->id);
             qemu_irq_lower(aic->bus_get_irq(bus));
@@ -708,7 +721,17 @@ static void aspeed_i2c_bus_new_write(AspeedI2CBus *bus, hwaddr offset,
             bus->regs[R_I2CM_CMD] = value;
         }
 
+        old_intr = bus->regs[R_I2CM_INTR_STS];
+        bus->regs[R_I2CM_INTR_STS] = 0;
         aspeed_i2c_bus_handle_cmd(bus, value);
+        /*
+         * cmd_intr has only the bits handle_cmd freshly set.
+         * Overlap with old_intr means the same bit was re-fired
+         * and would be lost when the ISR W1C-clears the old one.
+         */
+        cmd_intr = bus->regs[R_I2CM_INTR_STS];
+        bus->regs[R_I2CM_INTR_STS] = cmd_intr | old_intr;
+        bus->pending_intr_sts |= old_intr & cmd_intr;
         aspeed_i2c_bus_raise_interrupt(bus);
         break;
     case A_I2CM_DMA_TX_ADDR:
@@ -845,6 +868,8 @@ static void aspeed_i2c_bus_old_write(AspeedI2CBus *bus, hwaddr offset,
 {
     AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(bus->controller);
     bool handle_rx;
+    uint32_t old_intr;
+    uint32_t cmd_intr;
 
     trace_aspeed_i2c_bus_write(bus->id, offset, size, value);
 
@@ -868,6 +893,17 @@ static void aspeed_i2c_bus_old_write(AspeedI2CBus *bus, hwaddr offset,
         handle_rx = SHARED_ARRAY_FIELD_EX32(bus->regs, R_I2CD_INTR_STS, RX_DONE)
                     && SHARED_FIELD_EX32(value, RX_DONE);
         bus->regs[R_I2CD_INTR_STS] &= ~(value & 0x7FFF);
+        /*
+         * Re-apply interrupts lost due to synchronous command completion.
+         * When a command completes instantly during an MMIO write, the new
+         * interrupt status bits collide with already-pending bits. After
+         * the ISR clears them, re-apply the saved bits so the ISR can
+         * process the new completion.
+         */
+        if (bus->pending_intr_sts) {
+            bus->regs[R_I2CD_INTR_STS] |= bus->pending_intr_sts;
+            bus->pending_intr_sts = 0;
+        }
         if (!bus->regs[R_I2CD_INTR_STS]) {
             bus->controller->intr_status &= ~(1 << bus->id);
             qemu_irq_lower(aic->bus_get_irq(bus));
@@ -915,7 +951,17 @@ static void aspeed_i2c_bus_old_write(AspeedI2CBus *bus, hwaddr offset,
         bus->regs[R_I2CD_CMD] &= ~0xFFFF;
         bus->regs[R_I2CD_CMD] |= value & 0xFFFF;
 
+        old_intr = bus->regs[R_I2CD_INTR_STS];
+        bus->regs[R_I2CD_INTR_STS] = 0;
         aspeed_i2c_bus_handle_cmd(bus, value);
+        /*
+         * cmd_intr has only the bits handle_cmd freshly set.
+         * Overlap with old_intr means the same bit was re-fired
+         * and would be lost when the ISR W1C-clears the old one.
+         */
+        cmd_intr = bus->regs[R_I2CD_INTR_STS];
+        bus->regs[R_I2CD_INTR_STS] = cmd_intr | old_intr;
+        bus->pending_intr_sts |= old_intr & cmd_intr;
         aspeed_i2c_bus_raise_interrupt(bus);
         break;
     case A_I2CD_DMA_ADDR:
