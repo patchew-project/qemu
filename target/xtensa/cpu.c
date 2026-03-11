@@ -244,6 +244,14 @@ static void xtensa_cpu_realizefn(DeviceState *dev, Error **errp)
     Error *local_err = NULL;
 
 #ifndef CONFIG_USER_ONLY
+    CPUXtensaState *env = &XTENSA_CPU(dev)->env;
+
+    env->address_space_er = g_malloc(sizeof(*env->address_space_er));
+    env->system_er = g_malloc(sizeof(*env->system_er));
+    memory_region_init_io(env->system_er, OBJECT(dev), NULL, env, "er",
+                          UINT64_C(0x100000000));
+    address_space_init(env->address_space_er, env->system_er, "ER");
+
     xtensa_irq_init(&XTENSA_CPU(dev)->env);
 #endif
 
@@ -269,12 +277,6 @@ static void xtensa_cpu_initfn(Object *obj)
     env->config = xcc->config;
 
 #ifndef CONFIG_USER_ONLY
-    env->address_space_er = g_malloc(sizeof(*env->address_space_er));
-    env->system_er = g_malloc(sizeof(*env->system_er));
-    memory_region_init_io(env->system_er, obj, NULL, env, "er",
-                          UINT64_C(0x100000000));
-    address_space_init(env->address_space_er, env->system_er, "ER");
-
     cpu->clock = qdev_init_clock_in(DEVICE(obj), "clk-in", NULL, cpu, 0);
     clock_set_hz(cpu->clock, env->config->clock_freq_khz * 1000);
 #endif
