@@ -137,6 +137,8 @@ static void usb_ehci_pci_write_config(PCIDevice *dev, uint32_t addr,
 
 static const Property ehci_pci_properties[] = {
     DEFINE_PROP_UINT32("maxframes", EHCIPCIState, ehci.maxframes, 128),
+    DEFINE_PROP_BOOL("caps-64bit-addr", EHCIPCIState, ehci.caps_64bit_addr,
+                     false),
 };
 
 static const VMStateDescription vmstate_ehci_pci = {
