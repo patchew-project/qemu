@@ -1,0 +1,60 @@
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+#include "qemu/osdep.h"
+#include "cpu.h"
+#include "cpu_helper.h"
+#include "system/cpus.h"
+#include "hw/core/boards.h"
+#include "hw/hexagon/hexagon.h"
+#include "exec/cpu-interrupt.h"
+#include "exec/target_page.h"
+#include "accel/tcg/cpu-ldst.h"
+#include "exec/cputlb.h"
+#include "qemu/log.h"
+#include "tcg/tcg-op.h"
+#include "internal.h"
+#include "macros.h"
+#include "sys_macros.h"
+#include "arch.h"
+
+
+uint32_t hexagon_get_pmu_counter(CPUHexagonState *cur_env, int index)
+{
+    g_assert_not_reached();
+}
+
+uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
+{
+    g_assert_not_reached();
+}
+
+uint32_t hexagon_get_sys_pcycle_count_high(CPUHexagonState *env)
+{
+    g_assert_not_reached();
+}
+
+uint32_t hexagon_get_sys_pcycle_count_low(CPUHexagonState *env)
+{
+    g_assert_not_reached();
+}
+
+void hexagon_set_sys_pcycle_count_high(CPUHexagonState *env,
+        uint32_t cycles_hi)
+{
+    g_assert_not_reached();
+}
+
+void hexagon_set_sys_pcycle_count_low(CPUHexagonState *env,
+        uint32_t cycles_lo)
+{
+    g_assert_not_reached();
+}
+
+void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t cycles)
+{
+    g_assert_not_reached();
+}
