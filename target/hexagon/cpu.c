@@ -27,6 +27,13 @@
 #include "tcg/tcg.h"
 #include "exec/gdbstub.h"
 #include "accel/tcg/cpu-ops.h"
+#include "cpu_helper.h"
+#include "hex_mmu.h"
+
+#ifndef CONFIG_USER_ONLY
+#include "sys_macros.h"
+#include "accel/tcg/cpu-ldst.h"
+#endif
 
 static void hexagon_v66_cpu_init(Object *obj) { }
 static void hexagon_v67_cpu_init(Object *obj) { }
@@ -54,6 +61,7 @@ static const Property hexagon_cpu_properties[] = {
 #if !defined(CONFIG_USER_ONLY)
     DEFINE_PROP_LINK("tlb", HexagonCPU, tlb, TYPE_HEXAGON_TLB,
                      HexagonTLBState *),
+    DEFINE_PROP_UINT32("htid", HexagonCPU, htid, 0),
 #endif
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
     DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, lldb_stack_adjust, 0,
@@ -280,6 +288,13 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
         hexagon_raise_exception_err(env, HEX_CAUSE_PC_NOT_ALIGNED, 0);
     }
 
+#ifndef CONFIG_USER_ONLY
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX,
+                           cpu_mmu_index(env_cpu(env), false));
+#else
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX, MMU_USER_IDX);
+#endif
+
     return (TCGTBCPUState){ .pc = pc, .flags = hex_flags };
 }
 
@@ -296,6 +311,7 @@ static void hexagon_restore_state_to_opc(CPUState *cs,
 {
     cpu_env(cs)->gpr[HEX_REG_PC] = data[0];
 }
+
 
 static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 {
@@ -315,7 +331,15 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     memset(env->t_sreg, 0, sizeof(uint32_t) * NUM_SREGS);
     memset(env->greg, 0, sizeof(uint32_t) * NUM_GREGS);
     env->wait_next_pc = 0;
+    env->tlb_lock_state = HEX_LOCK_UNLOCKED;
+    env->k0_lock_state = HEX_LOCK_UNLOCKED;
+    env->tlb_lock_count = 0;
+    env->k0_lock_count = 0;
     env->next_PC = 0;
+
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    env->t_sreg[HEX_SREG_HTID] = cpu->htid;
+    env->threadId = cpu->htid;
 #endif
     env->cause_code = HEX_EVENT_NONE;
 }
@@ -344,6 +368,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
                              gdb_find_static_feature("hexagon-hvx.xml"), 0);
 
     qemu_init_vcpu(cs);
+
     cpu_reset(cs);
     mcc->parent_realize(dev, errp);
 }
