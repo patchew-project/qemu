@@ -36,6 +36,8 @@ static const Property ehci_sysbus_properties[] = {
                      false),
     DEFINE_PROP_BOOL("caps-64bit-addr", EHCISysBusState, ehci.caps_64bit_addr,
                      false),
+    DEFINE_PROP_UINT64("descriptor-addr-offset", EHCISysBusState,
+                       ehci.descriptor_addr_offset, 0),
 };
 
 static void usb_ehci_sysbus_realize(DeviceState *dev, Error **errp)
