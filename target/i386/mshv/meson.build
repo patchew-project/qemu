@@ -1,6 +1,7 @@
 i386_mshv_ss = ss.source_set()
 
 i386_mshv_ss.add(files(
+  'mshv-all.c',
   'mshv-cpu.c',
   'msr.c',
 ))

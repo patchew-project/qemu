@@ -9,12 +9,13 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
 
 #include "qemu/error-report.h"
 #include "qemu/memalign.h"
+#include "hw/arm/bsa.h"
+#include "hw/arm/virt.h"
 
 #include "system/cpus.h"
 #include "target/arm/cpu.h"
@@ -186,11 +187,6 @@ void mshv_arch_destroy_vcpu(CPUState *cpu)
     }
 
     state->hvcall_args = (MshvHvCallArgs){0};
-}
-
-void mshv_init_mmio_emu(void)
-{
-
 }
 
 void mshv_arch_amend_proc_features(
@@ -389,4 +385,21 @@ void mshv_arm_set_cpu_features_from_host(ARMCPU *cpu)
     cpu->env.features = arm_host_cpu_features.features;
     cpu->midr = arm_host_cpu_features.midr;
     cpu->reset_sctlr = arm_host_cpu_features.reset_sctlr;
+}
+
+int mshv_arch_accel_init(AccelState *as, MachineState *ms, int mshv_fd)
+{
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+    int pa_range;
+    uint32_t ipa_size;
+
+    if (mc->get_physical_address_range) {
+        ipa_size = mshv_arm_get_ipa_bit_size(mshv_fd);
+        pa_range = mc->get_physical_address_range(ms, ipa_size, ipa_size);
+        if (pa_range < 0) {
+            return -EINVAL;
+        }
+    }
+
+    return 0;
 }
