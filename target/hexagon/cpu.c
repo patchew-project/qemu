@@ -23,6 +23,7 @@
 #include "qapi/error.h"
 #include "hw/core/qdev-properties.h"
 #include "fpu/softfloat-helpers.h"
+#include "hw/hexagon/hexagon_tlb.h"
 #include "tcg/tcg.h"
 #include "exec/gdbstub.h"
 #include "accel/tcg/cpu-ops.h"
@@ -50,6 +51,10 @@ static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
 }
 
 static const Property hexagon_cpu_properties[] = {
+#if !defined(CONFIG_USER_ONLY)
+    DEFINE_PROP_LINK("tlb", HexagonCPU, tlb, TYPE_HEXAGON_TLB,
+                     HexagonTLBState *),
+#endif
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
     DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, lldb_stack_adjust, 0,
                          qdev_prop_uint32, target_ulong),
