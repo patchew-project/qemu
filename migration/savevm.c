@@ -1030,11 +1030,23 @@ static int vmstate_save(QEMUFile *f, SaveStateEntry *se, JSONWriter *vmdesc,
                         Error **errp)
 {
     int ret;
+    const bool has_old_style = se->ops && se->ops->save_state;
 
-    if ((!se->ops || !se->ops->save_state) && !se->vmsd) {
+    if (!has_old_style && !se->vmsd) {
+        return 0;
+    } else if (has_old_style && se->vmsd) {
+        error_report("%s: '%s' (section_id=%u): unexpected: both vmsd (%s) and"
+                     " old-style save_state are set", __func__, se->idstr,
+                     se->section_id, se->vmsd->name);
+        return -EINVAL;
+    }
+
+    if (se->vmsd && !vmstate_section_needed(se->vmsd, se->opaque)) {
+        trace_savevm_section_skip(se->idstr, se->section_id);
         return 0;
     }
-    if (se->vmsd && !vmstate_section_needed(se->vmsd, se->opaque)) {
+
+    if (has_old_style && se->ops->is_active && !se->ops->is_active(se->opaque)) {
         trace_savevm_section_skip(se->idstr, se->section_id);
         return 0;
     }
