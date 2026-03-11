@@ -47,10 +47,12 @@ extern bool mshv_allowed;
 typedef struct MshvState MshvState;
 extern MshvState *mshv_state;
 
+#if defined(__x86_64__)
 /* interrupt */
 int mshv_request_interrupt(MshvState *mshv_state, uint32_t interrupt_type, uint32_t vector,
                            uint32_t vp_index, bool logical_destination_mode,
                            bool level_triggered);
+#endif
 
 int mshv_irqchip_add_msi_route(int vector, PCIDevice *dev);
 int mshv_irqchip_update_msi_route(int virq, MSIMessage msg, PCIDevice *dev);

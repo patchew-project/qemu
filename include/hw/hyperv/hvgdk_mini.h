@@ -506,13 +506,38 @@ typedef struct hv_input_set_vp_registers {
     struct hv_register_assoc elements[];
 } hv_input_set_vp_registers;
 
+enum hv_interrupt_type {
+#if defined(__x86_64__)
+    HV_X64_INTERRUPT_TYPE_FIXED             = 0x0000,
+    HV_X64_INTERRUPT_TYPE_LOWESTPRIORITY    = 0x0001,
+    HV_X64_INTERRUPT_TYPE_SMI               = 0x0002,
+    HV_X64_INTERRUPT_TYPE_REMOTEREAD        = 0x0003,
+    HV_X64_INTERRUPT_TYPE_NMI               = 0x0004,
+    HV_X64_INTERRUPT_TYPE_INIT              = 0x0005,
+    HV_X64_INTERRUPT_TYPE_SIPI              = 0x0006,
+    HV_X64_INTERRUPT_TYPE_EXTINT            = 0x0007,
+    HV_X64_INTERRUPT_TYPE_LOCALINT0         = 0x0008,
+    HV_X64_INTERRUPT_TYPE_LOCALINT1         = 0x0009,
+    HV_X64_INTERRUPT_TYPE_MAXIMUM           = 0x000A,
+#elif defined(__aarch64__)
+    HV_ARM64_INTERRUPT_TYPE_FIXED           = 0x0000,
+    HV_ARM64_INTERRUPT_TYPE_MAXIMUM         = 0x0008,
+#endif
+};
+
 union hv_interrupt_control {
     uint64_t as_uint64;
     struct {
         uint32_t interrupt_type; /* enum hv_interrupt type */
+#if defined(__x86_64__)
         uint32_t level_triggered:1;
         uint32_t logical_dest_mode:1;
         uint32_t rsvd:30;
+#elif defined(__aarch64__)
+        uint32_t rsvd1:2;
+        uint32_t asserted:1;
+        uint32_t rsvd2:29;
+#endif
     };
 };
 
