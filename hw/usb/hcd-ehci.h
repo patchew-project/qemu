@@ -204,6 +204,7 @@ typedef struct EHCIqh {
 #define BUFPTR_FRAMETAG_MASK          0x0000001f
 #define BUFPTR_SBYTES_MASK            0x00000fe0
 #define BUFPTR_SBYTES_SH              5
+    uint32_t bufptr_hi[5];
 } EHCIqh;
 
 /*
