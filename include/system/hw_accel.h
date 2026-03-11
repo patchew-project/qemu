@@ -51,7 +51,8 @@ static inline bool hwaccel_enabled(void)
     return hvf_enabled()
         || kvm_enabled()
         || nvmm_enabled()
-        || whpx_enabled();
+        || whpx_enabled()
+        || mshv_enabled();
 }
 
 #endif /* QEMU_HW_ACCEL_H */

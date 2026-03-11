@@ -18,6 +18,16 @@ struct hv_input_set_partition_property {
     uint64_t property_value;
 };
 
+struct hv_input_get_partition_property {
+    uint64_t partition_id;
+    uint32_t property_code; /* enum hv_partition_property_code */
+    uint32_t padding;
+};
+
+struct hv_output_get_partition_property {
+    uint64_t property_value;
+};
+
 union hv_partition_synthetic_processor_features {
     uint64_t as_uint64[HV_PARTITION_SYNTHETIC_PROCESSOR_FEATURES_BANKS];
 
