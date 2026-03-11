@@ -858,6 +858,9 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < sc->ehcis_num; i++) {
         object_property_set_bool(OBJECT(&s->ehci[i]), "caps-64bit-addr", true,
                                  &error_abort);
+        object_property_set_int(OBJECT(&s->ehci[i]), "descriptor-addr-offset",
+                                sc->memmap[ASPEED_DEV_SDRAM],
+                                &error_abort);
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->ehci[i]), errp)) {
             return;
         }
