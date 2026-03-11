@@ -1106,7 +1106,14 @@ static void ehci_opreg_write(void *ptr, hwaddr addr,
               "      is enabled and HC is enabled\n");
         }
         break;
-
+    case CTRLDSSEGMENT:
+        if (!s->caps_64bit_addr) {
+            fprintf(stderr,
+                    "ehci: write to CTRLDSSEGMENT while "
+                    "64-bit addressing capability is disabled\n");
+            return;
+        }
+        break;
     case ASYNCLISTADDR:
         if (ehci_async_enabled(s)) {
             fprintf(stderr,
