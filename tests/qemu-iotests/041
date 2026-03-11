@@ -24,7 +24,7 @@ import os
 import re
 import json
 import iotests
-from iotests import qemu_img, qemu_img_map, qemu_io
+from iotests import qemu_img, qemu_img_map, qemu_io, QemuStorageDaemon
 
 backing_img = os.path.join(iotests.test_dir, 'backing.img')
 target_backing_img = os.path.join(iotests.test_dir, 'target-backing.img')
@@ -1372,6 +1372,116 @@ class TestFilters(iotests.QMPTestCase):
         assert device_info['inserted']['node-name'] == 'mirror-filter'
 
         self.complete_and_wait('mirror')
+
+# Tests for mirror where the target is a throttled NBD export.
+class TestThrottledNBDTarget(iotests.QMPTestCase):
+    image_len = 3 * 1024 * 1024
+    bps_total = 1 * 1024 * 1024
+
+    def setUp(self):
+        iotests.create_image(backing_img, self.image_len)
+        iotests.create_image(target_backing_img, self.image_len)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', f'backing_file={backing_img}', '-F', 'raw', test_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', f'backing_file={target_backing_img}', '-F', 'raw',
+                 target_img)
+        qemu_io('-c', 'write -P 23 0 3M', test_img)
+
+        self.qsd = QemuStorageDaemon('--nbd-server',
+                                     f'addr.type=unix,addr.path={nbd_sock_path}',
+                                     qmp=True)
+
+        self.qsd.cmd('object-add', {
+            'qom-type': 'throttle-group',
+            'id': 'thrgr-target',
+            'limits': {
+                'bps-total': self.bps_total,
+            }
+        })
+
+        self.qsd.cmd('blockdev-add', {
+            'node-name': 'target',
+            'driver': 'throttle',
+            'throttle-group': 'thrgr-target',
+            'file': {
+                'driver': iotests.imgfmt,
+                'file': {
+                    'driver': 'file',
+                    'filename': target_img
+                }
+            }
+        })
+
+        self.qsd.cmd('block-export-add', {
+            'id': 'exp0',
+            'type': 'nbd',
+            'node-name': 'target',
+            'writable': True
+        })
+
+        self.vm = iotests.VM().add_device('virtio-scsi,id=vio-scsi')
+        self.vm.launch()
+
+        self.vm.cmd('blockdev-add',{
+            'node-name': 'source',
+            'driver': iotests.imgfmt,
+            'file': {
+                'driver': 'file',
+                'filename': test_img
+            },
+            'backing': {
+                'node-name': 'backing',
+                'driver': 'raw',
+                'file': {
+                    'driver': 'file',
+                    'filename': backing_img
+                }
+            }
+        })
+
+        self.vm.cmd('device_add',
+                    driver='scsi-hd',
+                    id='virtio',
+                    bus='vio-scsi.0',
+                    drive='source')
+
+        self.vm.cmd('blockdev-add', {
+            'node-name': 'target',
+            'driver': 'nbd',
+            'export': 'target',
+            'server': {
+                'type': 'unix',
+                'path': nbd_sock_path
+            }
+        })
+
+    def tearDown(self):
+        os.remove(test_img)
+        os.remove(target_img)
+        os.remove(backing_img)
+        os.remove(target_backing_img)
+
+    def test_throttled(self):
+        self.vm.cmd('blockdev-mirror',
+                    job_id='mirror',
+                    device='source',
+                    target='target',
+                    sync='full')
+
+        time.sleep(1)
+        result = self.vm.qmp('query-block-jobs')
+        self.assert_qmp(result, 'return[0]/ready', False)
+        self.vm.qtest(f'clock_step {4 * 1000 * 1000 * 1000}')
+        time.sleep(1) # in real time, the rest should now comlpete fast
+        result = self.vm.qmp('query-block-jobs')
+        self.assert_qmp(result, 'return[0]/ready', True)
+
+        self.complete_and_wait('mirror')
+        self.vm.shutdown()
+        self.qsd.stop()
+        self.assertTrue(iotests.compare_images(test_img, target_img),
+                        'target image does not match source after mirroring')
 
 
 if __name__ == '__main__':
