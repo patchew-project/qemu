@@ -412,28 +412,25 @@ bool multifd_send(MultiFDSendData **send_data)
 /* Multifd send side hit an error; remember it and prepare to quit */
 static void multifd_send_error_propagate(Error *err)
 {
+    MigrationState *s = migrate_get_current();
+
     /*
-     * We don't want to exit each threads twice.  Depending on where
-     * we get the error, or if there are two independent errors in two
-     * threads at the same time, we can end calling this function
-     * twice.
+     * There may be independent errors in each thread. Propagate the
+     * first and free the subsequent ones.
      */
     if (qatomic_xchg(&multifd_send_state->exiting, 1)) {
+        error_free(err);
         return;
     }
 
-    if (err) {
-        MigrationState *s = migrate_get_current();
+    migrate_error_propagate(s, err);
 
-        migrate_error_propagate(s, err);
-
-        if (s->state == MIGRATION_STATUS_SETUP ||
-            s->state == MIGRATION_STATUS_PRE_SWITCHOVER ||
-            s->state == MIGRATION_STATUS_DEVICE ||
-            s->state == MIGRATION_STATUS_ACTIVE) {
-            migrate_set_state(&s->state, s->state,
-                              MIGRATION_STATUS_FAILING);
-        }
+    if (s->state == MIGRATION_STATUS_SETUP ||
+        s->state == MIGRATION_STATUS_PRE_SWITCHOVER ||
+        s->state == MIGRATION_STATUS_DEVICE ||
+        s->state == MIGRATION_STATUS_ACTIVE) {
+        migrate_set_state(&s->state, s->state,
+                          MIGRATION_STATUS_FAILING);
     }
 }
 
