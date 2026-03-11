@@ -986,6 +986,11 @@ static void create_uart(const VirtMachineState *vms, int uart,
 
     nodename = g_strdup_printf("/pl011@%" PRIx64, base);
     qemu_fdt_add_subnode(ms->fdt, nodename);
+    if (vms->serial_debug_level_set) {
+        qemu_fdt_setprop_cell(ms->fdt, nodename, "edk2,debug-level",
+                              vms->serial_debug_level);
+    }
+
     /* Note that we can't use setprop_string because of the embedded NUL */
     qemu_fdt_setprop(ms->fdt, nodename, "compatible",
                          compat, sizeof(compat));
@@ -2869,6 +2874,31 @@ static void virt_set_dtb_randomness(Object *obj, bool value, Error **errp)
     vms->dtb_randomness = value;
 }
 
+static char *virt_get_serial_debug_level(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+    return vms->serial_debug_level_set
+        ? g_strdup_printf("0x%" PRIx32, vms->serial_debug_level)
+        : g_strdup("");
+}
+
+static void
+virt_set_serial_debug_level(Object *obj, const char *value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+    uint64_t val;
+    int ret;
+
+    ret = qemu_strtou64(value, NULL, 0, &val);
+    if (ret < 0 || val > UINT32_MAX) {
+        error_setg(errp, "invalid serial-debug-level value '%s', "
+                   "must be a uint32 value", value);
+        return;
+    }
+    vms->serial_debug_level = (uint32_t)val;
+    vms->serial_debug_level_set = true;
+}
+
 static char *virt_get_oem_id(Object *obj, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
@@ -3643,6 +3673,12 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
                                           "in ACPI table header."
                                           "The string may be up to 8 bytes in size");
 
+    object_class_property_add_str(oc, "serial-debug-level",
+                                  virt_get_serial_debug_level,
+                                  virt_set_serial_debug_level);
+    object_class_property_set_description(oc, "serial-debug-level",
+                                          "Set the EDK2 firmware debug level bitmask for "
+                                          "serial port output");
 }
 
 static void virt_instance_init(Object *obj)
@@ -3691,6 +3727,8 @@ static void virt_instance_init(Object *obj)
     vms->irqmap = a15irqmap;
 
     vms->virtio_transports = NUM_VIRTIO_TRANSPORTS;
+
+    vms->serial_debug_level_set = false;
 
     virt_flash_create(vms);
 

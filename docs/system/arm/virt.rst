@@ -239,6 +239,12 @@ x-oem-table-id
   Set string (up to 8 bytes) to override the default value of field OEM Table ID
   in ACPI table header.
 
+serial-debug-level
+  Set the EDK2 firmware debug level for serial port output. Valid values are
+  the debug level bitmasks defined in the EDK2
+  `DebugLib.h <https://github.com/tianocore/edk2/blob/master/MdePkg/Include/Library/DebugLib.h>`_
+  header (e.g. ``0x00400000`` for ``DEBUG_INFO``).
+
 SMMU configuration
 """"""""""""""""""
 
