@@ -234,6 +234,54 @@ bool migrate_ram_is_ignored(RAMBlock *block)
                                     && qemu_ram_is_named_file(block));
 }
 
+void qmp_ram_block_set_migratable(const char *name,
+                                  bool migratable, Error **errp)
+{
+    RAMBlock *rb = qemu_ram_block_by_name(name);
+    if (!rb) {
+        error_setg(errp, "RAMBlock '%s' not found", name);
+        return;
+    }
+
+    if (migration_is_running()) {
+        error_setg(errp, "Cannot modify RAMBlock migratable state
+                   during migration");
+        return;
+    }
+
+    if (migratable) {
+        qemu_ram_set_migratable(rb);
+        info_report("RAMBlock '%s' marked as migratable", name);
+    } else {
+        qemu_ram_unset_migratable(rb);
+        info_report("RAMBlock '%s' marked as non-migratable", name);
+    }
+}
+
+/**
+ * qmp_ram_block_get_migratable:
+ * @name: Name of RAMBlock to query
+ * @errp: Error object
+ *
+ * Return: RamBlockMigratableInfo
+ */
+RamBlockMigratableInfo *qmp_ram_block_get_migratable(const char *name,
+                                                     Error **errp)
+{
+    RAMBlock *rb;
+    RamBlockMigratableInfo *info = g_new0(RamBlockMigratableInfo, 1);
+    rb = qemu_ram_block_by_name(name);
+    if (!rb) {
+        g_free(info);
+        error_setg(errp, "RAMBlock '%s' not found", name);
+        return NULL;
+    }
+    info->migratable = qemu_ram_is_migratable(rb);
+    info_report("RAMBlock '%s' migratable state: %s", name,
+                 info->migratable ? "true" : "false");
+    return info;
+}
+
 #undef RAMBLOCK_FOREACH
 
 int foreach_not_ignored_block(RAMBlockIterFunc func, void *opaque)

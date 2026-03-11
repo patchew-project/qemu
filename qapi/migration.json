@@ -2233,3 +2233,42 @@
   'data': { 'job-id': 'str',
             'tag': 'str',
             'devices': ['str'] } }
+
+##
+# @ram-block-set-migratable:
+#
+# Set the migratable state of a specific RAMBlock.
+#
+# @name: Name of the RAMBlock to modify
+# @migratable: true to enable migration for the RAMBlock,
+# false to disable
+#
+# Since: 11.1
+##
+{ 'command': 'ram-block-set-migratable',
+  'data': { 'name': 'str', 'migratable': 'bool' } }
+
+##
+# @RamBlockMigratableInfo:
+#
+# Information about a RAMBlock's migratable state
+#
+# @migratable: true if the RAMBlock is migratable, false otherwise
+#
+# Since: 11.1
+##
+{ 'struct': 'RamBlockMigratableInfo', 'data': { 'migratable': 'bool' } }
+
+##
+# @ram-block-get-migratable:
+#
+# Get the migratable state of a specific RAMBlock.
+#
+# @name: Name of the RAMBlock to query
+#
+# Returns: RamBlockMigratableInfo containing the migratable state
+#
+# Since: 11.1
+##
+{ 'command': 'ram-block-get-migratable', 'data': { 'name': 'str' },
+                                         'returns': 'RamBlockMigratableInfo' }
