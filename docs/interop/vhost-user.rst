@@ -1255,14 +1255,12 @@ Front-end message types
   *suspended*, see :ref:`Suspended device state
   <suspended_device_state>`.
 
-  The request payload's *num* field is currently reserved and must be
-  set to 0.
-
   By default, the back-end must complete all inflight I/O requests for the
   specified vring before stopping it.
 
   If the ``VHOST_USER_PROTOCOL_F_GET_VRING_BASE_INFLIGHT`` protocol
-  feature has been negotiated, the back-end may suspend in-flight I/O
+  feature has been negotiated, using request payload's *num* field,
+  when *num* is set to 1, QEMU can tell the back-end to suspend in-flight I/O
   requests and record them as described in :ref:`Inflight I/O tracking
   <inflight_io_tracking>` instead of completing them before stopping the vring.
   How to suspend an in-flight request depends on the implementation of the back-end
