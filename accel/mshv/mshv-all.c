@@ -243,6 +243,11 @@ static int create_vm(int mshv_fd, int *vm_fd)
         return -1;
     }
 
+    ret = mshv_arch_pre_init_vm(*vm_fd);
+    if (ret < 0) {
+        return -1;
+    }
+
     ret = initialize_vm(*vm_fd);
     if (ret < 0) {
         return -1;

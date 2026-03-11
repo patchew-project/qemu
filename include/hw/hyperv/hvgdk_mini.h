@@ -66,6 +66,8 @@ typedef enum hv_register_name {
     HV_ARM64_REGISTER_MIDR_EL1   = 0x00040051,
     HV_ARM64_REGISTER_MPIDR_EL1  = 0x00040001,
 
+    HV_ARM64_REGISTER_GICR_BASE_GPA       = 0x00063000,
+
 #elif defined(__x86_64__)
     /* X64 User-Mode Registers */
     HV_X64_REGISTER_RAX     = 0x00020000,

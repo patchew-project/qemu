@@ -393,6 +393,68 @@ void mshv_arch_amend_proc_features(
 
 }
 
+static int set_partition_prop(int vm_fd, uint32_t prop_code,
+                                uint64_t prop_value)
+{
+    int ret;
+    struct hv_input_set_partition_property in = {0};
+    in.property_code = prop_code;
+    in.property_value = prop_value;
+
+    struct mshv_root_hvcall args = {0};
+    args.code = HVCALL_SET_PARTITION_PROPERTY;
+    args.in_sz = sizeof(in);
+    args.in_ptr = (uint64_t)&in;
+
+    ret = mshv_hvcall(vm_fd, &args);
+    if (ret < 0) {
+        error_report("Failed to set partition property code %u", prop_code);
+        return -1;
+    }
+
+    return 0;
+}
+
+int mshv_arch_pre_init_vm(int vm_fd)
+{
+    int ret;
+    VirtMachineState *vms = VIRT_MACHINE(qdev_get_machine());
+
+    ret = set_partition_prop(vm_fd,
+                            HV_PARTITION_PROPERTY_GICD_BASE_ADDRESS,
+                            vms->memmap[VIRT_GIC_DIST].base);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = set_partition_prop(vm_fd,
+                        HV_PARTITION_PROPERTY_GITS_TRANSLATER_BASE_ADDRESS,
+                        vms->memmap[VIRT_GIC_ITS].base);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = set_partition_prop(vm_fd,
+                        HV_PARTITION_PROPERTY_GIC_LPI_INT_ID_BITS,
+                        0);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = set_partition_prop(vm_fd,
+                        HV_PARTITION_PROPERTY_GIC_PPI_OVERFLOW_INTERRUPT_FROM_CNTV,
+                        ARCH_TIMER_VIRT_IRQ);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = set_partition_prop(vm_fd,
+                        HV_PARTITION_PROPERTY_GIC_PPI_PERFORMANCE_MONITORS_INTERRUPT,
+                        VIRTUAL_PMU_IRQ);
+
+    return ret;
+}
+
 int mshv_arch_post_init_vm(int vm_fd)
 {
     return 0;
