@@ -3641,6 +3641,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     size_t cluster_size;
     int version;
     int refcount_order;
+    int blk_flags;
     uint64_t *refcount_table;
     int ret;
     uint8_t compression_type = QCOW2_COMPRESSION_TYPE_ZLIB;
@@ -3908,20 +3909,48 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
      * table)
      */
     options = qdict_new();
+    blk_flags = BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_NO_FLUSH;
     qdict_put_str(options, "driver", "qcow2");
     qdict_put_str(options, "file", bs->node_name);
     if (data_bs) {
         qdict_put_str(options, "data-file", data_bs->node_name);
+
+        /*
+         * If possible, suppress all permissions we can.  We must keep the
+         * BDRV_O_RDWR flag because the metadata child must still be written,
+         * but we can add BDRV_O_NO_IO if we know that the data file child will
+         * not receive any I/O, to suppress taking the WRITE permission on it.
+         * We can only do so as long as none of the operations on `blk` will
+         * do I/O on the data file.  Such I/O accesses can only happen during
+         * resize (which grows the image from length 0 to qcow2_opts->size) with
+         * data preallocation.  So as long as no data preallocation has been
+         * requested, BDRV_O_NO_IO will work.
+         */
+        if (qcow2_opts->preallocation == PREALLOC_MODE_METADATA ||
+            qcow2_opts->preallocation == PREALLOC_MODE_OFF) {
+            blk_flags |= BDRV_O_NO_IO;
+        }
+
+        /*
+         * Similarly for BDRV_O_RESIZE: Suppressing it means we will not take
+         * the RESIZE permission.  The data-file child is only grown if too
+         * small, never shrunk; so if it already is big enough, no need for
+         * BDRV_O_RESIZE.
+         */
+        bdrv_graph_co_rdlock();
+        if (bdrv_co_getlength(data_bs) >= (int64_t)qcow2_opts->size) {
+            blk_flags &= ~BDRV_O_RESIZE;
+        }
+        bdrv_graph_co_rdunlock();
     }
-    blk = blk_co_new_open(NULL, NULL, options,
-                          BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_NO_FLUSH,
-                          errp);
+    blk = blk_co_new_open(NULL, NULL, options, blk_flags, errp);
     if (blk == NULL) {
         ret = -EIO;
         goto out;
     }
 
     bdrv_graph_co_rdlock();
+    /* BDRV_O_NO_IO note: No data-file I/O */
     ret = qcow2_alloc_clusters(blk_bs(blk), 3 * cluster_size);
     if (ret < 0) {
         bdrv_graph_co_rdunlock();
@@ -3940,7 +3969,10 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
         s->image_data_file = g_strdup(data_bs->filename);
     }
 
-    /* Create a full header (including things like feature table) */
+    /*
+     * Create a full header (including things like feature table).
+     * BDRV_O_NO_IO note: No data-file I/O
+     */
     ret = qcow2_update_header(blk_bs(blk));
     bdrv_graph_co_rdunlock();
 
@@ -3949,7 +3981,13 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
         goto out;
     }
 
-    /* Okay, now that we have a valid image, let's give it the right size */
+    /*
+     * Okay, now that we have a valid image, let's give it the right size.
+     * BDRV_O_NO_IO note: This will only read/write from/to data-file if data
+     * preallocation has been requested.
+     * BDRV_O_RESIZE note: We pass @exact = false, so the data-file is only
+     * resized if it is smaller than qcow2_opts->size.
+     */
     bdrv_graph_co_rdlock();
     ret = qcow2_co_truncate(blk_bs(blk), qcow2_opts->size, false,
                             qcow2_opts->preallocation, 0, errp);
@@ -3968,6 +4006,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
         }
 
         bdrv_graph_co_rdlock();
+        /* BDRV_O_NO_IO note: No data-file I/O */
         ret = bdrv_co_change_backing_file(blk_bs(blk), qcow2_opts->backing_file,
                                           backing_format, false);
         bdrv_graph_co_rdunlock();
@@ -3983,6 +4022,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     /* Want encryption? There you go. */
     if (qcow2_opts->encrypt) {
         bdrv_graph_co_rdlock();
+        /* BDRV_O_NO_IO note: No data-file I/O */
         ret = qcow2_set_up_encryption(blk_bs(blk), qcow2_opts->encrypt, errp);
         bdrv_graph_co_rdunlock();
 
@@ -4481,6 +4521,15 @@ fail:
     return ret;
 }
 
+/**
+ * Resize the qcow2 image.
+ * To support BDRV_O_NO_IO and !BDRV_O_RESIZE from qcow2_co_create(), this
+ * function must:
+ * - If @exact is false, resize an external data file only if its size is less
+ *   than @offset
+ * - Only access (write to) an external data file if @prealloc prescribes data
+ *   preallocation (FALLOC/FULL).
+ */
 static int coroutine_fn GRAPH_RDLOCK
 qcow2_co_truncate(BlockDriverState *bs, int64_t offset, bool exact,
                   PreallocMode prealloc, BdrvRequestFlags flags, Error **errp)
@@ -4634,6 +4683,11 @@ qcow2_co_truncate(BlockDriverState *bs, int64_t offset, bool exact,
         break;
 
     case PREALLOC_MODE_METADATA:
+        /*
+         * Note for BDRV_O_NO_IO and !BDRV_O_RESIZE: This will not do I/O on an
+         * external data file, and will only resize it if its current length is
+         * less than `offset`.
+         */
         ret = preallocate_co(bs, old_length, offset, prealloc, errp);
         if (ret < 0) {
             goto fail;
@@ -4652,6 +4706,11 @@ qcow2_co_truncate(BlockDriverState *bs, int64_t offset, bool exact,
         /* With a data file, preallocation means just allocating the metadata
          * and forwarding the truncate request to the data file */
         if (has_data_file(bs)) {
+            /*
+             * Note for BDRV_O_NO_IO and !BDRV_O_RESIZE: This *will* write data
+             * to an external data file, but only resize it if its current
+             * length is less than `offset`.
+             */
             ret = preallocate_co(bs, old_length, offset, prealloc, errp);
             if (ret < 0) {
                 goto fail;
