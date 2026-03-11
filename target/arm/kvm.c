@@ -615,6 +615,14 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         ret = -EINVAL;
     }
 
+    if (object_property_find(OBJECT(ms), "virtualization") &&
+        object_property_get_bool(OBJECT(ms), "virtualization", NULL) &&
+        !kvm_arm_el2_supported()) {
+        error_report("Using ARM nested virtualization with KVM requires "
+                     "a host kernel with KVM_CAP_ARM_EL2");
+        ret = -EINVAL;
+    }
+
     if (kvm_check_extension(s, KVM_CAP_ARM_NISV_TO_USER)) {
         if (kvm_vm_enable_cap(s, KVM_CAP_ARM_NISV_TO_USER, 0)) {
             error_report("Failed to enable KVM_CAP_ARM_NISV_TO_USER cap");
