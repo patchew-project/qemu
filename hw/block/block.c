@@ -65,7 +65,6 @@ bool blk_check_size_and_read_all(BlockBackend *blk, DeviceState *dev,
 {
     int64_t blk_len;
     int ret;
-    g_autofree char *dev_id = NULL;
 
     if (cpr_is_incoming()) {
         return true;
@@ -78,7 +77,7 @@ bool blk_check_size_and_read_all(BlockBackend *blk, DeviceState *dev,
         return false;
     }
     if (blk_len != size) {
-        dev_id = qdev_get_human_name(dev);
+        g_autofree const char *dev_id = qdev_get_printable_name(dev);
         error_setg(errp, "%s device '%s' requires %" HWADDR_PRIu
                    " bytes, %s block backend provides %" PRIu64 " bytes",
                    object_get_typename(OBJECT(dev)), dev_id, size,
@@ -95,7 +94,7 @@ bool blk_check_size_and_read_all(BlockBackend *blk, DeviceState *dev,
     assert(size <= BDRV_REQUEST_MAX_BYTES);
     ret = blk_pread_nonzeroes(blk, size, buf);
     if (ret < 0) {
-        dev_id = qdev_get_human_name(dev);
+        g_autofree const char *dev_id = qdev_get_printable_name(dev);
         error_setg_errno(errp, -ret, "can't read %s block backend"
                          " for %s device '%s'",
                          blk_name(blk), object_get_typename(OBJECT(dev)),

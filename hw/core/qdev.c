@@ -862,14 +862,6 @@ Object *machine_get_container(const char *name)
     return container;
 }
 
-char *qdev_get_human_name(DeviceState *dev)
-{
-    g_assert(dev != NULL);
-
-    return dev->id ?
-           g_strdup(dev->id) : object_get_canonical_path(OBJECT(dev));
-}
-
 static MachineInitPhase machine_phase;
 
 bool phase_check(MachineInitPhase phase)
