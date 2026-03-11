@@ -82,6 +82,10 @@ qcow2_co_preadv_compressed(BlockDriverState *bs,
                            QEMUIOVector *qiov,
                            size_t qiov_offset);
 
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_truncate(BlockDriverState *bs, int64_t offset, bool exact,
+                  PreallocMode prealloc, BdrvRequestFlags flags, Error **errp);
+
 static int qcow2_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
     const QCowHeader *cow_header = (const void *)buf;
@@ -3657,6 +3661,13 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
         goto out;
     }
 
+    if (qcow2_opts->size > BDRV_MAX_LENGTH) {
+        error_setg(errp, "Image size must not exceed %" PRId64 " bytes",
+                   BDRV_MAX_LENGTH);
+        ret = -EINVAL;
+        goto out;
+    }
+
     if (qcow2_opts->has_version) {
         switch (qcow2_opts->version) {
         case BLOCKDEV_QCOW2_VERSION_V2:
@@ -3939,8 +3950,10 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     }
 
     /* Okay, now that we have a valid image, let's give it the right size */
-    ret = blk_co_truncate(blk, qcow2_opts->size, false,
-                          qcow2_opts->preallocation, 0, errp);
+    bdrv_graph_co_rdlock();
+    ret = qcow2_co_truncate(blk_bs(blk), qcow2_opts->size, false,
+                            qcow2_opts->preallocation, 0, errp);
+    bdrv_graph_co_rdunlock();
     if (ret < 0) {
         error_prepend(errp, "Could not resize image: ");
         goto out;
