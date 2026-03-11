@@ -38,6 +38,7 @@
 #include "linux/kvm.h"
 #endif
 
+GQueue *tests;
 
 static char *SocketAddress_to_str(SocketAddress *addr)
 {
@@ -243,6 +244,8 @@ static void migration_test_destroy(gpointer data)
 {
     MigrationTest *test = (MigrationTest *)data;
 
+    g_queue_remove(tests, test);
+
     g_free(test->data);
     g_free(test->name);
     g_free(test);
@@ -268,21 +271,27 @@ void migration_test_add(const char *path,
 
     qtest_add_data_func_full(path, test, migration_test_wrapper,
                              migration_test_destroy);
+    if (!tests) {
+        tests = g_queue_new();
+    }
+    g_queue_push_tail(tests, test);
 }
 
 void migration_test_add_suffix(const char *path, const char *suffix,
                                void (*fn)(char *name, MigrateCommon *args))
 {
-    MigrationTest *test = g_new0(MigrationTest, 1);
+    g_autofree char *name = NULL;
 
     g_assert(g_str_has_suffix(path, "/"));
     g_assert(!g_str_has_prefix(suffix, "/"));
 
-    test->func = fn;
-    test->name = g_strconcat(path, suffix, NULL);
+    name = g_strconcat(path, suffix, NULL);
+    migration_test_add(name, fn);
+}
 
-    qtest_add_data_func_full(test->name, test, migration_test_wrapper,
-                             migration_test_destroy);
+void migration_tests_free(void)
+{
+    g_queue_free_full(tests, migration_test_destroy);
 }
 
 #ifdef O_DIRECT

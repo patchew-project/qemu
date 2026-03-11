@@ -1162,5 +1162,7 @@ int migration_env_clean(MigrationTestEnv *env)
     }
     g_free(tmpfs);
 
+    migration_tests_free();
+
     return ret;
 }
