@@ -11,7 +11,9 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
+#include "qemu/units.h"
 #include "qemu/log.h"
+#include "exec/target_page.h"
 
 #include "system/runstate.h"
 #include "system/hvf.h"
@@ -1228,6 +1230,53 @@ hv_return_t hvf_arch_vm_create(MachineState *ms, uint32_t pa_range)
         goto cleanup;
     }
     chosen_ipa_bit_size = pa_range;
+
+    /*
+     * Configure IPA granule from the ipa-granule property.
+     * hvf_get_map_granule() was set by hvf_accel_init() before this call.
+     */
+    {
+        uint64_t granule = hvf_get_map_granule();
+        bool granule_set = false;
+
+#ifdef MAC_OS_VERSION_26_0
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_VERSION_26_0
+        if (__builtin_available(macOS 26, *)) {
+            hv_ipa_granule_t hv_gran = (granule <= 4 * KiB)
+                ? HV_IPA_GRANULE_4KB : HV_IPA_GRANULE_16KB;
+            ret = hv_vm_config_set_ipa_granule(config, hv_gran);
+            if (ret != HV_SUCCESS) {
+                error_report("HVF: failed to set IPA granule: %s",
+                             hvf_return_string(ret));
+                goto cleanup;
+            }
+            granule_set = true;
+        }
+#endif
+#endif
+
+        if (!granule_set && granule < qemu_real_host_page_size()) {
+            warn_report("HVF: ipa-granule=%zuKB requested but macOS < 26; "
+                        "falling back to host page size (%zuKB)",
+                        (size_t)(granule / KiB),
+                        (size_t)(qemu_real_host_page_size() / KiB));
+            hvf_set_map_granule(qemu_real_host_page_size());
+        }
+
+        /*
+         * Venus blob mapping safety: warn if the resolved map granule
+         * exceeds the guest page size, as virtio-gpu blob BAR mappings
+         * require page-aligned offsets and would hang otherwise.
+         */
+        if (hvf_get_map_granule() > qemu_target_page_size()) {
+            warn_report("HVF map granule (%zu) > guest page size (%zu); "
+                        "Venus blob BAR mappings may hang. "
+                        "Consider ipa-granule=4k (requires macOS 26+) or "
+                        "guest F_BLOB_ALIGNMENT support.",
+                        (size_t)hvf_get_map_granule(),
+                        qemu_target_page_size());
+        }
+    }
 
     ret = hv_vm_create(config);
 
