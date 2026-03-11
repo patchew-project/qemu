@@ -1456,6 +1456,8 @@ class TestThrottledNBDTarget(iotests.QMPTestCase):
             }
         })
 
+        self.drive_qdev = '/machine/peripheral/virtio'
+
     def tearDown(self):
         os.remove(test_img)
         os.remove(target_img)
@@ -1483,6 +1485,45 @@ class TestThrottledNBDTarget(iotests.QMPTestCase):
         self.assertTrue(iotests.compare_images(test_img, target_img),
                         'target image does not match source after mirroring')
 
+    def test_duplicate_complete_with_replaces(self):
+        self.qsd.cmd('qom-set', {
+            'path': 'thrgr-target',
+            'property': 'limits',
+            'value' : {},
+        })
+
+        self.vm.cmd('blockdev-mirror',
+                    job_id='mirror',
+                    device='source',
+                    target='target',
+                    replaces='source',
+                    sync='full')
+        self.wait_ready(drive='mirror')
+
+        self.qsd.cmd('qom-set', {
+            'path': 'thrgr-target',
+            'property': 'limits',
+            'value' : {
+                'bps-total': self.bps_total,
+            }
+        })
+
+        self.vm.hmp_qemu_io(self.drive_qdev, 'aio_write -P 7 0 1M', qdev=True)
+        self.vm.hmp_qemu_io(self.drive_qdev, 'aio_write -P 7 1M 1M', qdev=True)
+        self.vm.hmp_qemu_io(self.drive_qdev, 'aio_write -P 7 2M 1M', qdev=True)
+
+        self.vm.cmd('job-complete', id='mirror')
+        # The fact that the target is externally throttled ensures that the job
+        # won't be finished yet when the second command is issued.
+        self.vm.cmd('job-complete', id='mirror')
+
+        self.vm.qtest(f'clock_step {4 * 1000 * 1000 * 1000}')
+        self.wait_until_completed('mirror')
+
+        self.vm.shutdown()
+        self.qsd.stop()
+        self.assertTrue(iotests.compare_images(test_img, target_img),
+                        'target image does not match source after mirroring')
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'qed'],
