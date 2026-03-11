@@ -2361,6 +2361,11 @@ struct ArchCPU {
     bool expose_tcg;
     bool migratable;
     bool migrate_smi_count;
+    /*
+     * Compatibility bits for old machine types.
+     * If true, allow including env.error_code in migration stream.
+     */
+    bool migrate_error_code;
     uint32_t apic_id;
 
     /* Enables publishing of TSC increment and Local APIC bus frequencies to
