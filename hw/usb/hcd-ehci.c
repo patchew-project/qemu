@@ -158,6 +158,19 @@ static uint64_t ehci_get_desc_addr(EHCIState *s, uint32_t low)
     return addr;
 }
 
+static uint64_t ehci_get_buf_addr(EHCIState *s, uint32_t hi, uint32_t low,
+                                  uint32_t mask)
+{
+    uint64_t addr;
+
+    addr = (uint64_t)(low & mask);
+    if (s->caps_64bit_addr) {
+        addr |= (uint64_t)hi << 32;
+    }
+
+    return addr;
+}
+
 static void ehci_trace_usbsts(uint32_t mask, int state)
 {
     /* interrupts */
@@ -467,7 +480,8 @@ static bool ehci_verify_qtd(EHCIPacket *p, EHCIqtd *qtd)
             (p->qtd.next != qtd->next)) ||
         (!NLPTR_TBIT(p->qtd.altnext) && (p->qtd.altnext != qtd->altnext)) ||
         p->qtd.token != qtd->token ||
-        p->qtd.bufptr[0] != qtd->bufptr[0]) {
+        p->qtd.bufptr[0] != qtd->bufptr[0] ||
+        p->qtd.bufptr_hi[0] != qtd->bufptr_hi[0]) {
         return false;
     } else {
         return true;
@@ -1192,6 +1206,7 @@ static int ehci_qh_do_overlay(EHCIQueue *q)
 
     for (i = 0; i < 5; i++) {
         q->qh.bufptr[i] = p->qtd.bufptr[i];
+        q->qh.bufptr_hi[i] = p->qtd.bufptr_hi[i];
     }
 
     if (!(q->qh.epchar & QH_EPCHAR_DTC)) {
@@ -1225,7 +1240,8 @@ static int ehci_init_transfer(EHCIPacket *p)
             return -1;
         }
 
-        page  = p->qtd.bufptr[cpage] & QTD_BUFPTR_MASK;
+        page = ehci_get_buf_addr(p->queue->ehci, p->qtd.bufptr_hi[cpage],
+                                 p->qtd.bufptr[cpage], QTD_BUFPTR_MASK);
         page += offset;
         plen  = bytes;
         if (plen > 4096 - offset) {
@@ -1720,7 +1736,7 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     } else if ((q->qh.token & QTD_TOKEN_ACTIVE) &&
                (NLPTR_TBIT(q->qh.current_qtd) == 0) &&
                (q->qh.current_qtd != 0)) {
-        q->qtdaddr = q->qh.current_qtd;
+        q->qtdaddr = ehci_get_desc_addr(ehci, q->qh.current_qtd);
         ehci_set_state(ehci, async, EST_FETCHQTD);
 
     } else {
@@ -1804,14 +1820,14 @@ static int ehci_state_advqueue(EHCIQueue *q)
      */
     if (((q->qh.token & QTD_TOKEN_TBYTES_MASK) != 0) &&
         (NLPTR_TBIT(q->qh.altnext_qtd) == 0)) {
-        q->qtdaddr = q->qh.altnext_qtd;
+        q->qtdaddr = ehci_get_desc_addr(q->ehci, q->qh.altnext_qtd);
         ehci_set_state(q->ehci, q->async, EST_FETCHQTD);
 
     /*
      *  next qTD is valid
      */
     } else if (NLPTR_TBIT(q->qh.next_qtd) == 0) {
-        q->qtdaddr = q->qh.next_qtd;
+        q->qtdaddr = ehci_get_desc_addr(q->ehci, q->qh.next_qtd);
         ehci_set_state(q->ehci, q->async, EST_FETCHQTD);
 
     /*
@@ -1840,7 +1856,9 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
     if (get_dwords(q->ehci, addr +  0, &qtd.next,    1) < 0 ||
         get_dwords(q->ehci, addr +  4, &qtd.altnext, 1) < 0 ||
         get_dwords(q->ehci, addr + 12, qtd.bufptr,
-                   ARRAY_SIZE(qtd.bufptr)) < 0) {
+                   ARRAY_SIZE(qtd.bufptr)) < 0 ||
+        get_dwords(q->ehci, addr + 32, qtd.bufptr_hi,
+                   ARRAY_SIZE(qtd.bufptr_hi)) < 0) {
         return 0;
     }
     ehci_trace_qtd(q, NLPTR_GET(q->qtdaddr), &qtd);
@@ -1921,7 +1939,7 @@ static int ehci_fill_queue(EHCIPacket *p)
         if (NLPTR_TBIT(qtd.next) != 0) {
             break;
         }
-        qtdaddr = qtd.next;
+        qtdaddr = ehci_get_desc_addr(q->ehci, qtd.next);
         /*
          * Detect circular td lists, Windows creates these, counting on the
          * active bit going low after execution to make the queue stop.
