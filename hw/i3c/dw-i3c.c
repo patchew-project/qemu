@@ -1213,7 +1213,7 @@ static void dw_i3c_short_transfer(DWI3C *s, DWI3CTransferCmd cmd,
          * ignored.
          */
         if (cmd.dbp) {
-            data[len] += arg.byte0;
+            data[len] = arg.byte0;
             len++;
         }
     }
@@ -1228,10 +1228,16 @@ static void dw_i3c_short_transfer(DWI3C *s, DWI3CTransferCmd cmd,
         len++;
     }
 
-    if (dw_i3c_send(s, data, len, &bytes_sent, is_i2c)) {
-        err = DW_I3C_RESP_QUEUE_ERR_I2C_NACK;
+    if (len > 0) {
+        if (dw_i3c_send(s, data, len, &bytes_sent, is_i2c)) {
+            err = DW_I3C_RESP_QUEUE_ERR_I2C_NACK;
+        } else {
+            /* Only go to an idle state on a successful transfer. */
+            ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_ST_STATUS,
+                             DW_I3C_TRANSFER_STATE_IDLE);
+        }
     } else {
-        /* Only go to an idle state on a successful transfer. */
+        /* No payload bytes for this short transfer. */
         ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_ST_STATUS,
                          DW_I3C_TRANSFER_STATE_IDLE);
     }
