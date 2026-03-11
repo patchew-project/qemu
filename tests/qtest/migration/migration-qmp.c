@@ -173,6 +173,12 @@ void migrate_incoming_qmp(QTestState *to, const char *uri, QObject *channels,
     /* This function relies on the event to work, make sure it's enabled */
     migrate_set_capability(to, "events", true);
 
+    /*
+     * Set the incoming migration to never exit QEMU abruptly during
+     * the tests. It causes issues when running sanitizers and
+     * expecting a failure exit code can mask other issues.
+     */
+    qdict_put_bool(args, "exit-on-error", false);
     rsp = qtest_qmp(to, "{ 'execute': 'migrate-incoming', 'arguments': %p}",
                     args);
 
