@@ -1410,6 +1410,7 @@ qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
     uint64_t ext_end;
     uint64_t l1_vm_state_index;
     bool update_header = false;
+    bool suppress_data_file = false;
 
     ret = bdrv_co_pread(bs->file, 0, sizeof(header), &header, 0);
     if (ret < 0) {
@@ -1719,14 +1720,23 @@ qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    if (open_data_file && (flags & BDRV_O_NO_IO)) {
-        /*
-         * Don't open the data file for 'qemu-img info' so that it can be used
-         * to verify that an untrusted qcow2 image doesn't refer to external
-         * files.
-         *
-         * Note: This still makes has_data_file() return true.
-         */
+    /*
+     * Don't open the data file for 'qemu-img info' so that it can be used
+     * to verify that an untrusted qcow2 image doesn't refer to external
+     * files.
+     *
+     * Exception: If the data-file option is a node name, attaching that
+     * node will not open a new file, so cannot pose a security risk.
+     *
+     * Note: This still makes has_data_file() return true.
+     */
+    if (flags & BDRV_O_NO_IO) {
+        QObject *data_file = qdict_get(options, "data-file");
+        suppress_data_file =
+            !data_file || qobject_type(data_file) != QTYPE_QSTRING;
+    }
+
+    if (open_data_file && suppress_data_file) {
         if (s->incompatible_features & QCOW2_INCOMPAT_DATA_FILE) {
             s->data_file = NULL;
         } else {
