@@ -37,6 +37,7 @@ bool vhost_svq_valid_features(uint64_t features, Error **errp)
         case VIRTIO_RING_F_INDIRECT_DESC:
             continue;
 
+        case VIRTIO_F_RING_RESET:
         case VIRTIO_F_ACCESS_PLATFORM:
             /* SVQ trust in the host's IOMMU to translate addresses */
         case VIRTIO_F_VERSION_1:
