@@ -155,6 +155,7 @@ static uint64_t ehci_get_desc_addr(EHCIState *s, uint32_t low)
         addr |= (uint64_t)s->ctrldssegment << 32;
     }
 
+    addr += s->descriptor_addr_offset;
     return addr;
 }
 

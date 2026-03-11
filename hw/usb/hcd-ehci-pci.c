@@ -139,6 +139,8 @@ static const Property ehci_pci_properties[] = {
     DEFINE_PROP_UINT32("maxframes", EHCIPCIState, ehci.maxframes, 128),
     DEFINE_PROP_BOOL("caps-64bit-addr", EHCIPCIState, ehci.caps_64bit_addr,
                      false),
+    DEFINE_PROP_UINT64("descriptor-addr-offset", EHCIPCIState,
+                       ehci.descriptor_addr_offset, 0),
 };
 
 static const VMStateDescription vmstate_ehci_pci = {
