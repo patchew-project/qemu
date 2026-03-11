@@ -274,6 +274,7 @@ struct EHCIState {
 
     /* properties */
     uint32_t maxframes;
+    bool caps_64bit_addr;
 
     /*
      *  EHCI spec version 1.0 Section 2.3
