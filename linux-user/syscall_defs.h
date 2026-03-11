@@ -2595,7 +2595,6 @@ struct target_drm_i915_getparam {
 #define FUTEX_CLOCK_REALTIME    256
 #define FUTEX_CMD_MASK          ~(FUTEX_PRIVATE_FLAG | FUTEX_CLOCK_REALTIME)
 
-#ifdef CONFIG_EPOLL
 #if defined(TARGET_X86_64)
 #define TARGET_EPOLL_PACKED QEMU_PACKED
 #else
@@ -2615,8 +2614,6 @@ struct target_epoll_event {
 } TARGET_EPOLL_PACKED;
 
 #define TARGET_EP_MAX_EVENTS (INT_MAX / sizeof(struct target_epoll_event))
-
-#endif
 
 struct target_ucred {
     abi_uint pid;
