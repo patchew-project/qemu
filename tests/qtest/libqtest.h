@@ -705,6 +705,31 @@ void qtest_bufwrite(QTestState *s, uint64_t addr,
  */
 void qtest_memset(QTestState *s, uint64_t addr, uint8_t patt, size_t size);
 
+/*
+ * Memory commands with optional attrs argument.
+ */
+
+void qtest_writeb_attrs(QTestState *s, uint64_t addr, uint8_t value,
+                        const char *attrs);
+void qtest_writew_attrs(QTestState *s, uint64_t addr, uint16_t value,
+                        const char *attrs);
+void qtest_writel_attrs(QTestState *s, uint64_t addr, uint32_t value,
+                        const char *attrs);
+void qtest_writeq_attrs(QTestState *s, uint64_t addr, uint64_t value,
+                        const char *attrs);
+
+uint8_t qtest_readb_attrs(QTestState *s, uint64_t addr, const char *attrs);
+uint16_t qtest_readw_attrs(QTestState *s, uint64_t addr, const char *attrs);
+uint32_t qtest_readl_attrs(QTestState *s, uint64_t addr, const char *attrs);
+uint64_t qtest_readq_attrs(QTestState *s, uint64_t addr, const char *attrs);
+
+void qtest_memread_attrs(QTestState *s, uint64_t addr, void *data, size_t size,
+                         const char *attrs);
+void qtest_memwrite_attrs(QTestState *s, uint64_t addr, const void *data,
+                          size_t size, const char *attrs);
+void qtest_memset_attrs(QTestState *s, uint64_t addr, uint8_t patt, size_t size,
+                        const char *attrs);
+
 /**
  * qtest_clock_step_next:
  * @s: #QTestState instance to operate on.
