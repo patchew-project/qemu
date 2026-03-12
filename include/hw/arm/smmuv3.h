@@ -70,7 +70,7 @@ struct SMMUv3State {
     uint64_t msi_gpa;
     Error *migration_blocker;
     bool ril;
-    bool ats;
+    OnOffAuto ats;
     uint8_t oas;
     uint8_t ssidsize;
 };
@@ -90,6 +90,8 @@ struct SMMUv3Class {
     DeviceRealize parent_realize;
     ResettablePhases parent_phases;
 };
+
+bool smmuv3_ats_enabled(struct SMMUv3State *s);
 
 #define TYPE_ARM_SMMUV3   "arm-smmuv3"
 OBJECT_DECLARE_TYPE(SMMUv3State, SMMUv3Class, ARM_SMMUV3)
