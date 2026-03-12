@@ -208,7 +208,8 @@ static size_t curl_header_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
 {
     BDRVCURLState *s = opaque;
     size_t realsize = size * nmemb;
-    g_autofree char *header = g_strstrip(g_strndup(ptr, realsize));
+    g_autofree char *header = g_strndup(ptr, realsize);
+    g_strstrip(header);
     char *val = strchr(header, ':');
 
     if (!val) {
