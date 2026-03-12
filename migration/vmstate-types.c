@@ -599,7 +599,6 @@ const VMStateInfo vmstate_info_tmp = {
  * is an array of 'unsigned long', which may be either 32 or 64 bits.
  */
 /* This is the number of 64 bit words sent over the wire */
-#define BITS_TO_U64S(nr) DIV_ROUND_UP(nr, 64)
 static int get_bitmap(QEMUFile *f, void *pv, size_t size,
                       const VMStateField *field)
 {
