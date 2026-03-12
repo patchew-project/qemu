@@ -7,6 +7,7 @@
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
 
+#include "hw/vfio/kvm-spapr.h"
 #include "hw/vfio/vfio-device.h"
 #include "qapi/error.h"
 #include "vfio-helpers.h"
@@ -24,4 +25,11 @@ int vfio_kvm_device_add_fd(int fd, Error **errp)
 int vfio_kvm_device_del_fd(int fd, Error **errp)
 {
     return 0;
+}
+
+bool vfio_spapr_kvm_attach_tce(VFIOContainer *bcontainer,
+                               MemoryRegionSection *section,
+                               Error **errp)
+{
+    g_assert_not_reached();
 }
