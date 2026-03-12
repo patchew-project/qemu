@@ -220,14 +220,12 @@ static void get_StrOrNull(Object *obj, Visitor *v, const char *name,
     StrOrNull **ptr = object_field_prop_ptr(obj, prop);
     StrOrNull *str_or_null = *ptr;
 
-    if (!str_or_null) {
-        str_or_null = g_new0(StrOrNull, 1);
-        str_or_null->type = QTYPE_QSTRING;
-        str_or_null->u.s = g_strdup("");
-    } else {
-        /* the setter doesn't allow QNULL */
-        assert(str_or_null->type != QTYPE_QNULL);
-    }
+    /*
+     * The property should never be NULL because it's part of
+     * s->parameters and a default value is always set by qdev. It
+     * should also never be QNULL as the setter doesn't allow it.
+     */
+    assert(str_or_null && str_or_null->type != QTYPE_QNULL);
     visit_type_str(v, name, &str_or_null->u.s, errp);
 }
 
@@ -236,16 +234,25 @@ static void set_StrOrNull(Object *obj, Visitor *v, const char *name,
 {
     const Property *prop = opaque;
     StrOrNull **ptr = object_field_prop_ptr(obj, prop);
-    StrOrNull *str_or_null = g_new0(StrOrNull, 1);
+    StrOrNull *str_or_null;
+    char *str;
 
-    /*
-     * Only str to keep compatibility, QNULL was never used via
-     * command line.
-     */
-    str_or_null->type = QTYPE_QSTRING;
-    if (!visit_type_str(v, name, &str_or_null->u.s, errp)) {
+    if (!visit_type_str(v, name, &str, errp)) {
         return;
     }
+
+    /*
+     * This property only applies to the command line usage of
+     * migration's TLS options (-global migration.tls-*) where the
+     * NULL value cannot be provided as input (only strings are
+     * allowed). Therefore, this StrOrNull implementation never
+     * produces a QNULL value to avoid ever returning values outside
+     * the range of what was previously handled by consumers of the
+     * TLS options.
+     */
+    str_or_null = g_new0(StrOrNull, 1);
+    str_or_null->type = QTYPE_QSTRING;
+    str_or_null->u.s = str;
 
     qapi_free_StrOrNull(*ptr);
     *ptr = str_or_null;
