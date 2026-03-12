@@ -17,6 +17,7 @@ bsd_user_ss.add(files(
   'plugin-api.c',
   'signal.c',
   'strace.c',
+  '../common-user/thunk.c',
   'uaccess.c',
 ))
 
