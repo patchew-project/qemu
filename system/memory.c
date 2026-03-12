@@ -1578,7 +1578,6 @@ void memory_region_init_io(MemoryRegion *mr, Object *owner,
 
 static bool memory_region_set_ram_block(MemoryRegion *mr, RAMBlock *rb)
 {
-    mr->ram = true;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
     mr->ram_block = rb;
@@ -1597,6 +1596,7 @@ bool memory_region_init_ram_flags_nomigrate(MemoryRegion *mr, Object *owner,
     RAMBlock *rb;
 
     memory_region_init(mr, owner, name, size);
+    mr->ram = true;
     rb = qemu_ram_alloc(size, ram_flags, mr, errp);
     return memory_region_set_ram_block(mr, rb);
 }
@@ -1614,6 +1614,7 @@ bool memory_region_init_resizeable_ram(MemoryRegion *mr,
     RAMBlock *rb;
 
     memory_region_init(mr, owner, name, size);
+    mr->ram = true;
     rb = qemu_ram_alloc_resizeable(size, max_size, resized, mr, errp);
     return memory_region_set_ram_block(mr, rb);
 }
@@ -1628,6 +1629,7 @@ bool memory_region_init_ram_from_file(MemoryRegion *mr, Object *owner,
     RAMBlock *rb;
 
     memory_region_init(mr, owner, name, size);
+    mr->ram = true;
     mr->readonly = !!(ram_flags & RAM_READONLY);
     mr->align = align;
     rb = qemu_ram_alloc_from_file(size, mr, ram_flags, path, offset, errp);
@@ -1642,6 +1644,7 @@ bool memory_region_init_ram_from_fd(MemoryRegion *mr, Object *owner,
     RAMBlock *rb;
 
     memory_region_init(mr, owner, name, size);
+    mr->ram = true;
     mr->readonly = !!(ram_flags & RAM_READONLY);
     rb = qemu_ram_alloc_from_fd(size, size, NULL, mr, ram_flags, fd, offset,
                                 false, errp);
@@ -1663,6 +1666,7 @@ void memory_region_init_ram_ptr(MemoryRegion *mr, Object *owner,
                                 void *ptr)
 {
     memory_region_init(mr, owner, name, size);
+    mr->ram = true;
     memory_region_set_ram_ptr(mr, size, ptr);
 }
 
@@ -1671,6 +1675,7 @@ void memory_region_init_ram_device_ptr(MemoryRegion *mr, Object *owner,
                                        void *ptr)
 {
     memory_region_init_io(mr, owner, &ram_device_mem_ops, mr, name, size);
+    mr->ram = true;
     mr->ram_device = true;
     memory_region_set_ram_ptr(mr, size, ptr);
 }
@@ -3699,7 +3704,6 @@ bool memory_region_init_rom_device(MemoryRegion *mr, Object *owner,
     memory_region_init_io(mr, owner, ops, opaque, name, size);
     rb = qemu_ram_alloc(size, 0, mr, errp);
     if (memory_region_set_ram_block(mr, rb)) {
-        mr->ram = false;
         mr->rom_device = true;
         memory_region_register_ram(mr, owner);
         return true;
