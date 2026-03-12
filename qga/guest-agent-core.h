@@ -41,6 +41,8 @@ bool ga_logging_enabled(GAState *s);
 void ga_disable_logging(GAState *s);
 void ga_enable_logging(GAState *s);
 void G_GNUC_PRINTF(1, 2) slog(const gchar *fmt, ...);
+void G_GNUC_PRINTF(1, 2) slog_error(const gchar *fmt, ...);
+void G_GNUC_PRINTF(1, 2) slog_trace(const gchar *fmt, ...);
 void ga_set_response_delimited(GAState *s);
 bool ga_is_frozen(GAState *s);
 void ga_set_frozen(GAState *s);

@@ -392,6 +392,9 @@ static void ga_log(const gchar *domain, GLogLevelFlags level,
 
     level &= G_LOG_LEVEL_MASK;
     if (g_strcmp0(domain, "syslog") == 0) {
+        if (!(level & s->log_level)) {
+            return;
+        }
 #ifndef _WIN32
         syslog(glib_log_level_to_system(level), "%s: %s", level_str, msg);
 #else
@@ -1673,7 +1676,8 @@ int main(int argc, char **argv)
     GAConfig *config = g_new0(GAConfig, 1);
     int socket_activation;
 
-    config->log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
+    config->log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL
+                      | G_LOG_LEVEL_WARNING | G_LOG_LEVEL_MESSAGE;
 
     qemu_init_exec_dir(argv[0]);
     qga_qmp_init_marshal(&ga_commands);

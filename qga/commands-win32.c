@@ -361,7 +361,7 @@ void qmp_guest_shutdown(const char *mode, Error **errp)
 
     if (!ExitWindowsEx(shutdown_flag, SHTDN_REASON_FLAG_PLANNED)) {
         g_autofree gchar *emsg = g_win32_error_message(GetLastError());
-        slog("guest-shutdown failed: %s", emsg);
+        slog_error("guest-shutdown failed: %s", emsg);
         error_setg_win32(errp, GetLastError(), "guest-shutdown failed");
     }
 }
@@ -426,7 +426,7 @@ GuestFileWrite *qmp_guest_file_write(int64_t handle, const char *buf_b64,
     is_ok = WriteFile(fh, buf, count, &write_count, NULL);
     if (!is_ok) {
         error_setg_win32(errp, GetLastError(), "failed to write to file");
-        slog("guest-file-write-failed, handle: %" PRId64, handle);
+        slog_error("guest-file-write-failed, handle: %" PRId64, handle);
     } else {
         write_data = g_new0(GuestFileWrite, 1);
         write_data->count = (size_t) write_count;
@@ -1310,8 +1310,8 @@ static void guest_fsfreeze_cleanup(void)
     if (ga_is_frozen(ga_state) == GUEST_FSFREEZE_STATUS_FROZEN) {
         qmp_guest_fsfreeze_thaw(&err);
         if (err) {
-            slog("failed to clean up frozen filesystems: %s",
-                 error_get_pretty(err));
+            slog_error("failed to clean up frozen filesystems: %s",
+                   error_get_pretty(err));
             error_free(err);
         }
     }
@@ -1464,7 +1464,7 @@ static DWORD WINAPI do_suspend(LPVOID opaque)
 
     if (!SetSuspendState(*mode == GUEST_SUSPEND_MODE_DISK, TRUE, TRUE)) {
         g_autofree gchar *emsg = g_win32_error_message(GetLastError());
-        slog("failed to suspend guest: %s", emsg);
+        slog_error("failed to suspend guest: %s", emsg);
         ret = -1;
     }
     g_free(mode);
@@ -2174,8 +2174,8 @@ static char *ga_get_win_name(const OSVERSIONINFOEXW *os_version, bool id)
         }
         ++table;
     }
-    slog("failed to lookup Windows version: major=%lu, minor=%lu",
-        major, minor);
+    slog_error("failed to lookup Windows version: major=%lu, minor=%lu",
+               major, minor);
     return g_strdup("N/A");
 }
 
@@ -2244,8 +2244,8 @@ static char *ga_get_current_arch(void)
         break;
     case PROCESSOR_ARCHITECTURE_UNKNOWN:
     default:
-        slog("unknown processor architecture 0x%0x",
-            info.wProcessorArchitecture);
+        slog_error("unknown processor architecture 0x%0x",
+                   info.wProcessorArchitecture);
         result = g_strdup("unknown");
         break;
     }
@@ -2308,14 +2308,14 @@ static LPBYTE cm_get_property(DEVINST devInst, const DEVPROPKEY *propName,
         buffer, &buffer_len, 0);
     if (cr != CR_SUCCESS && cr != CR_BUFFER_SMALL) {
 
-        slog("failed to get property size, error=0x%lx", cr);
+        slog_error("failed to get property size, error=0x%lx", cr);
         return NULL;
     }
     buffer = g_new0(BYTE, buffer_len + 1);
     cr = CM_Get_DevNode_PropertyW(devInst, propName, propType,
         buffer, &buffer_len, 0);
     if (cr != CR_SUCCESS) {
-        slog("failed to get device property, error=0x%lx", cr);
+        slog_error("failed to get device property, error=0x%lx", cr);
         return NULL;
     }
     return g_steal_pointer(&buffer);
@@ -2329,7 +2329,7 @@ static GStrv ga_get_hardware_ids(DEVINST devInstance)
     g_autofree LPWSTR property = (LPWSTR)cm_get_property(devInstance,
         &qga_DEVPKEY_Device_HardwareIds, &cm_type);
     if (property == NULL) {
-        slog("failed to get hardware IDs");
+        slog_error("failed to get hardware IDs");
         return NULL;
     }
     if (*property == '\0') {
@@ -2385,7 +2385,7 @@ GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
         name = (LPWSTR)cm_get_property(dev_info_data.DevInst,
             &qga_DEVPKEY_NAME, &cm_type);
         if (name == NULL) {
-            slog("failed to get device description");
+            slog_error("failed to get device description");
             continue;
         }
         device->driver_name = g_utf16_to_utf8(name, -1, NULL, NULL, NULL);
@@ -2424,7 +2424,7 @@ GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
         version = (LPWSTR)cm_get_property(dev_info_data.DevInst,
             &qga_DEVPKEY_Device_DriverVersion, &cm_type);
         if (version == NULL) {
-            slog("failed to get driver version");
+            slog_error("failed to get driver version");
             continue;
         }
         device->driver_version = g_utf16_to_utf8(version, -1, NULL,
@@ -2437,7 +2437,7 @@ GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
         date = (LPFILETIME)cm_get_property(dev_info_data.DevInst,
             &qga_DEVPKEY_Device_DriverDate, &cm_type);
         if (date == NULL) {
-            slog("failed to get driver date");
+            slog_error("failed to get driver date");
             continue;
         }
         device->driver_date = filetime_to_ns(date);
@@ -2479,8 +2479,8 @@ static VOID CALLBACK load_avg_callback(PVOID hCounter, BOOLEAN timedOut)
         (PDH_HCOUNTER)hCounter, PDH_FMT_DOUBLE, 0, &displayValue);
     /* Skip updating the load if we can't get the value successfully */
     if (err != ERROR_SUCCESS) {
-        slog("PdhGetFormattedCounterValue failed to get load value with 0x%lx",
-             err);
+        slog_error("PdhGetFormattedCounterValue failed to get load value"
+                   " with 0x%lx", err);
         return;
     }
     currentLoad = displayValue.doubleValue;

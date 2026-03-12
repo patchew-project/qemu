@@ -44,7 +44,8 @@ static int dev_major_minor(const char *devpath,
     *devminor = 0;
 
     if (stat(devpath, &st) < 0) {
-        slog("failed to stat device file '%s': %s", devpath, strerror(errno));
+        slog_error("failed to stat device file '%s': %s",
+                   devpath, strerror(errno));
         return -1;
     }
     if (S_ISDIR(st.st_mode)) {
@@ -2072,7 +2073,8 @@ GuestCpuStatsList *qmp_guest_get_cpustats(Error **errp)
         }
 
         if (i < 5) {
-            slog("Parsing cpu stat from %s failed, see \"man proc\"", cpustats);
+            slog_error("Parsing cpu stat from %s failed, see \"man proc\"",
+                       cpustats);
             break;
         }
 

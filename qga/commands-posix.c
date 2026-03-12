@@ -645,7 +645,7 @@ GuestFileWrite *qmp_guest_file_write(int64_t handle, const char *buf_b64,
     write_count = fwrite(buf, 1, count, fh);
     if (ferror(fh)) {
         error_setg_errno(errp, errno, "failed to write to file");
-        slog("guest-file-write failed, handle: %" PRId64, handle);
+        slog_error("guest-file-write failed, handle: %" PRId64, handle);
     } else {
         write_data = g_new0(GuestFileWrite, 1);
         write_data->count = write_count;
@@ -849,8 +849,8 @@ static void guest_fsfreeze_cleanup(void)
     if (ga_is_frozen(ga_state) == GUEST_FSFREEZE_STATUS_FROZEN) {
         qmp_guest_fsfreeze_thaw(&err);
         if (err) {
-            slog("failed to clean up frozen filesystems: %s",
-                 error_get_pretty(err));
+            slog_error("failed to clean up frozen filesystems: %s",
+                       error_get_pretty(err));
             error_free(err);
         }
     }
@@ -1282,19 +1282,20 @@ static GKeyFile *ga_parse_osrelease(const char *fname)
     const char *group = "[os-release]\n";
 
     if (!g_file_get_contents(fname, &content, NULL, &err)) {
-        slog("failed to read '%s', error: %s", fname, err->message);
+        slog_error("failed to read '%s', error: %s", fname, err->message);
         goto fail;
     }
 
     if (!g_utf8_validate(content, -1, NULL)) {
-        slog("file is not utf-8 encoded: %s", fname);
+        slog_error("file is not utf-8 encoded: %s", fname);
         goto fail;
     }
     content2 = g_strdup_printf("%s%s", group, content);
 
     if (!g_key_file_load_from_data(keys, content2, -1, G_KEY_FILE_NONE,
                                    &err)) {
-        slog("failed to parse file '%s', error: %s", fname, err->message);
+        slog_error("failed to parse file '%s', error: %s", fname,
+                   err->message);
         goto fail;
     }
 

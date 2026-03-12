@@ -39,6 +39,24 @@ void slog(const gchar *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
+    g_logv("syslog", G_LOG_LEVEL_MESSAGE, fmt, ap);
+    va_end(ap);
+}
+
+void slog_error(const gchar *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    g_logv("syslog", G_LOG_LEVEL_WARNING, fmt, ap);
+    va_end(ap);
+}
+
+void slog_trace(const gchar *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
     g_logv("syslog", G_LOG_LEVEL_INFO, fmt, ap);
     va_end(ap);
 }
@@ -56,7 +74,7 @@ int64_t qmp_guest_sync(int64_t id, Error **errp)
 
 void qmp_guest_ping(Error **errp)
 {
-    slog("guest-ping called");
+    slog_trace("guest-ping called");
 }
 
 static void qmp_command_info(const QmpCommand *cmd, void *opaque)
@@ -285,8 +303,8 @@ static void guest_exec_task_setup(gpointer data)
          * inside the parent, not the child.
          */
         if (dup2(STDOUT_FILENO, STDERR_FILENO) != 0) {
-            slog("dup2() failed to merge stderr into stdout: %s",
-                 strerror(errno));
+            slog_error("dup2() failed to merge stderr into stdout: %s",
+                       strerror(errno));
         }
     }
 
@@ -295,8 +313,8 @@ static void guest_exec_task_setup(gpointer data)
     sigact.sa_handler = SIG_DFL;
 
     if (sigaction(SIGPIPE, &sigact, NULL) != 0) {
-        slog("sigaction() failed to reset child process's SIGPIPE: %s",
-             strerror(errno));
+        slog_error("sigaction() failed to reset child process's SIGPIPE: %s",
+                   strerror(errno));
     }
 #endif
 }
@@ -626,7 +644,7 @@ GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
 
     read_data = guest_file_read_unsafe(gfh, count, errp);
     if (!read_data) {
-        slog("guest-file-write failed, handle: %" PRId64, handle);
+        slog_error("guest-file-write failed, handle: %" PRId64, handle);
     }
 
     return read_data;
