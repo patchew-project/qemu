@@ -73,7 +73,6 @@ struct SiFiveUARTState {
 
     uint32_t txfifo;
     uint32_t ie;
-    uint32_t ip;
     uint32_t txctrl;
     uint32_t rxctrl;
     uint32_t div;
