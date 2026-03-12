@@ -824,8 +824,12 @@ void smmuv3_accel_idr_override(SMMUv3State *s)
         return;
     }
 
-    /* By default QEMU SMMUv3 has RIL. Update IDR3 if user has disabled it */
-    s->idr[3] = FIELD_DP32(s->idr[3], IDR3, RIL, s->ril);
+    /* Only override RIL if user explicitly set ON or OFF */
+    if (s->ril == ON_OFF_AUTO_ON) {
+        s->idr[3] = FIELD_DP32(s->idr[3], IDR3, RIL, 1);
+    } else if (s->ril == ON_OFF_AUTO_OFF) {
+        s->idr[3] = FIELD_DP32(s->idr[3], IDR3, RIL, 0);
+    }
 
     /* Only override ATS if user explicitly set ON or OFF */
     if (s->ats == ON_OFF_AUTO_ON) {
