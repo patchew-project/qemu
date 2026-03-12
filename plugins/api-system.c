@@ -105,10 +105,16 @@ static Error *migration_blocker;
 const void *qemu_plugin_request_time_control(void)
 {
     if (!has_control) {
+        Error *local_err = NULL;
         has_control = true;
         error_setg(&migration_blocker,
                    "TCG plugin time control does not support migration");
-        migrate_add_blocker(&migration_blocker, NULL);
+        if (migrate_add_blocker(&migration_blocker, &local_err) < 0) {
+            error_report_err(local_err);
+            error_free(migration_blocker);
+            migration_blocker = NULL;
+            return NULL;
+        }
         return &has_control;
     }
     return NULL;
