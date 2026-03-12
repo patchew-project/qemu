@@ -861,6 +861,8 @@ static void vmstate_check(const VMStateDescription *vmsd)
     const VMStateField *field = vmsd->fields;
     const VMStateDescription * const *subsection = vmsd->subsections;
 
+    assert(field || vmsd->unmigratable);
+
     if (field) {
         while (field->name) {
             if (field->flags & (VMS_STRUCT | VMS_VSTRUCT)) {
@@ -899,6 +901,9 @@ int vmstate_register_with_alias_id(VMStateIf *obj, uint32_t instance_id,
 
     /* If this triggers, alias support can be dropped for the vmsd. */
     assert(alias_id == -1 || required_for_version >= vmsd->minimum_version_id);
+
+    /* If vmsd is migratable it MUST have valid fields. */
+    assert(vmsd->fields || vmsd->unmigratable);
 
     se = g_new0(SaveStateEntry, 1);
     se->version_id = vmsd->version_id;
