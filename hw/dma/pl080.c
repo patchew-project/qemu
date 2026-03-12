@@ -160,26 +160,34 @@ again:
 
             /* Transfer one element.  */
             /* ??? Should transfer multiple elements for a burst request.  */
-            /* ??? Unclear what the proper behavior is when source and
-               destination widths are different.  */
             swidth = 1 << ((ch->ctrl >> 18) & 7);
             dwidth = 1 << ((ch->ctrl >> 21) & 7);
-            for (n = 0; n < dwidth; n+= swidth) {
+            xsize = (dwidth < swidth) ? swidth : dwidth;
+            xsize = (xsize < size * swidth) ? xsize : (size * swidth);
+            for (n = 0; n < xsize; n += swidth) {
                 address_space_read(&s->downstream_as, ch->src,
                                    MEMTXATTRS_UNSPECIFIED, buff + n, swidth);
-                if (ch->ctrl & PL080_CCTRL_SI)
+                if (ch->ctrl & PL080_CCTRL_SI) {
                     ch->src += swidth;
+                }
             }
-            xsize = (dwidth < swidth) ? swidth : dwidth;
-            /* ??? This may pad the value incorrectly for dwidth < 32.  */
-            for (n = 0; n < xsize; n += dwidth) {
-                address_space_write(&s->downstream_as, ch->dest + n,
-                                    MEMTXATTRS_UNSPECIFIED, buff + n, dwidth);
-                if (ch->ctrl & PL080_CCTRL_DI)
-                    ch->dest += swidth;
+            if (xsize < dwidth) {
+                address_space_write(&s->downstream_as, ch->dest,
+                                    MEMTXATTRS_UNSPECIFIED, buff, xsize);
+                if (ch->ctrl & PL080_CCTRL_DI) {
+                    ch->dest += dwidth;
+                }
+            } else {
+                for (n = 0; n < xsize; n += dwidth) {
+                    address_space_write(&s->downstream_as, ch->dest,
+                                        MEMTXATTRS_UNSPECIFIED, buff + n, dwidth);
+                    if (ch->ctrl & PL080_CCTRL_DI) {
+                        ch->dest += dwidth;
+                    }
+                }
             }
 
-            size--;
+            size -= xsize / swidth;
             ch->ctrl = (ch->ctrl & 0xfffff000) | size;
             if (size == 0) {
                 /* Transfer complete.  */
