@@ -25,7 +25,9 @@
 #include "hw/core/registerfields.h"
 #include "cpu-qom.h"
 #include "exec/cpu-common.h"
+#ifdef COMPILING_PER_TARGET
 #include "exec/cpu-defs.h"
+#endif
 #include "exec/cpu-interrupt.h"
 #include "exec/gdbstub.h"
 #include "exec/page-protection.h"
