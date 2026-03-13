@@ -35,8 +35,10 @@
 #include "hw/core/loader.h"
 #include "hw/i2c/smbus_eeprom.h"
 #include "hw/rtc/mc146818rtc.h"
+#include "hw/xen/xen-x86.h"
 #include "system/tcg.h"
 #include "system/kvm.h"
+#include "system/xen.h"
 #include "hw/i386/kvm/clock.h"
 #include "hw/pci-host/q35.h"
 #include "hw/pci/pcie_port.h"
@@ -190,6 +192,10 @@ static void pc_q35_init(MachineState *machine)
         x86ms->below_4g_mem_size = machine->ram_size;
     }
 
+    if (xen_enabled()) {
+        xen_hvm_init_pc(pcms, &machine->ram);
+    }
+
     pc_machine_init_sgx_epc(pcms);
     x86_cpus_init(x86ms, pcmc->default_cpu_version);
 
@@ -206,7 +212,11 @@ static void pc_q35_init(MachineState *machine)
 
     /* allocate ram and load rom/bios */
     memory_region_init(pci_memory, NULL, "pci", UINT64_MAX);
-    pc_memory_init(pcms, system_memory, pci_memory, pci_hole64_size);
+    if (!xen_enabled()) {
+        pc_memory_init(pcms, system_memory, pci_memory, pci_hole64_size);
+    } else {
+        pc_system_flash_cleanup_unused(pcms);
+    }
 
     object_property_add_child(OBJECT(machine), "q35", phb);
     object_property_set_link(phb, PCI_HOST_PROP_RAM_MEM,
