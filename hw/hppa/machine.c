@@ -7,7 +7,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/datadir.h"
-#include "cpu.h"
+#include "target/hppa/cpu.h"
 #include "elf.h"
 #include "hw/core/loader.h"
 #include "qemu/error-report.h"
