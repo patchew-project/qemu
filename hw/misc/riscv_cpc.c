@@ -13,7 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "cpu.h"
+#include "target/riscv/cpu.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"

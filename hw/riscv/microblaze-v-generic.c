@@ -16,7 +16,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "cpu.h"
+#include "target/riscv/cpu.h"
 #include "hw/core/sysbus.h"
 #include "system/system.h"
 #include "net/net.h"
