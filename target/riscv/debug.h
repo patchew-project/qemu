@@ -23,6 +23,7 @@
 #define RISCV_DEBUG_H
 
 #include "exec/breakpoint.h"
+#include "exec/target_long.h"
 
 #define RV_MAX_TRIGGERS         2
 

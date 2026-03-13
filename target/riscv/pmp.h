@@ -22,6 +22,7 @@
 #ifndef RISCV_PMP_H
 #define RISCV_PMP_H
 
+#include "exec/target_long.h"
 #include "cpu.h"
 
 typedef enum {
