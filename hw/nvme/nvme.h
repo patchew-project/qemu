@@ -638,6 +638,7 @@ typedef struct NvmeCtrl {
 
     NvmeNamespace   namespace;
     NvmeNamespace   *namespaces[NVME_MAX_NAMESPACES + 1];
+    uint32_t        num_queues;
     NvmeSQueue      **sq;
     NvmeCQueue      **cq;
     NvmeSQueue      admin_sq;
@@ -669,6 +670,7 @@ typedef struct NvmeCtrl {
 
     /* Migration-related stuff */
     Error *migration_blocker;
+    bool stop_processing_sq;
 } NvmeCtrl;
 
 typedef enum NvmeResetType {
@@ -748,5 +750,8 @@ void nvme_atomic_configure_max_write_size(bool dn, uint16_t awun,
                                           uint16_t awupf, NvmeAtomic *atomic);
 void nvme_ns_atomic_configure_boundary(bool dn, uint16_t nabsn,
                                        uint16_t nabspf, NvmeAtomic *atomic);
+
+extern const VMStateDescription nvme_vmstate_atomic;
+extern const VMStateDescription nvme_vmstate_ns;
 
 #endif /* HW_NVME_NVME_H */
