@@ -377,6 +377,108 @@ const VMStateInfo vmstate_info_nullptr = {
     .put  = put_nullptr,
 };
 
+static int get_maybeptr(QEMUFile *f, void *ppv, size_t unused_size,
+                        const VMStateField *field)
+{
+    Error *local_err = NULL;
+    Error **errp = &local_err;
+    int ret = 0;
+    const VMStateField *real_field = field->real_field;
+    /* size of structure pointed to by elements of array */
+    size_t size = real_field->start;
+    int marker;
+
+    assert(size);
+
+    if (ppv == NULL) {
+        error_report("vmstate: get_maybeptr must be called with ppv != NULL");
+        return -EINVAL;
+    }
+
+    /*
+     * We start from a clean array, all elements must be NULL, unless
+     * something we haven't prepared for has changed in vmstate_save_state_v().
+     * Let's check for this just in case.
+     */
+    if (*(void **)ppv != NULL) {
+        error_report("vmstate: get_maybeptr must be called with *ppv == NULL");
+        return -EINVAL;
+    }
+
+    marker = qemu_get_byte(f);
+    assert(marker == VMS_NULLPTR_MARKER || marker == VMS_NOTNULLPTR_MARKER);
+
+    if (marker == VMS_NOTNULLPTR_MARKER) {
+        void *pv;
+
+        /* allocate memory for structure */
+        pv = g_malloc0(size);
+
+        ret = vmstate_load_field(f, pv, size, real_field, errp);
+        if (ret) {
+            error_report_err(local_err);
+            g_free(pv);
+            return ret;
+        }
+
+        *(void **)ppv = pv;
+    }
+
+    return ret;
+}
+
+static int put_maybeptr(QEMUFile *f, void *ppv, size_t unused_size,
+                        const VMStateField *field, JSONWriter *vmdesc)
+{
+    const VMStateField *real_field = field->real_field;
+    int ret = 0;
+    Error *local_err = NULL;
+    Error **errp = &local_err;
+    /* size of structure pointed to by elements of array */
+    size_t size = real_field->start;
+    void *pv;
+
+    assert(size);
+
+    /*
+     * (ppv) is an address of an i-th element of a dynamic array.
+     *
+     * (ppv) can not be NULL unless we have some regression/bug in
+     * vmstate_save_state_v(), because it is result of pointer arithemic like:
+     * first_elem + size * i.
+     */
+    if (ppv == NULL) {
+        error_report("vmstate: put_maybeptr must be called with ppv != NULL");
+        return -EINVAL;
+    }
+
+    /* get a pointer to a structure */
+    pv = *(void **)ppv;
+
+    if (pv == NULL) {
+        /* write a mark telling that there was a NULL pointer */
+        qemu_put_byte(f, VMS_NULLPTR_MARKER);
+        return 0;
+    }
+
+    /* if pv is not NULL, write a marker and save field using vmstate_save_field() */
+    qemu_put_byte(f, VMS_NOTNULLPTR_MARKER);
+
+    ret = vmstate_save_field(f, pv, size, real_field, vmdesc, errp);
+    if (ret) {
+        error_report_err(local_err);
+        return ret;
+    }
+
+    return 0;
+}
+
+const VMStateInfo vmstate_info_maybeptr = {
+    .name = "maybeptr",
+    .get  = get_maybeptr,
+    .put  = put_maybeptr,
+};
+
 /* 64 bit unsigned int. See that the received value is the same than the one
    in the field */
 

@@ -151,7 +151,19 @@ enum VMStateFlags {
     VMS_VSTRUCT           = 0x8000,
 
     /* Marker for end of list */
-    VMS_END = 0x10000
+    VMS_END                         = 0x10000,
+
+    /* The field is a (fixed-size or variable-size) array of pointers
+     * (e.g. struct a { uint8_t **b; }) that can contain NULL values.
+     * This instructs vmstate engine to:
+     * - Dereference each array entry before using it.
+     * - Assume that array is initialized with NULLs on load phase
+     * - Automatically allocate memory for array entries (with size
+     *   specified in (VMStateField).start) on load phase
+     * - Produce NULL/not-NULL markers in migration stream
+     *
+     * Note: Does not imply VMS_ARRAY_OF_POINTER; it needs to be set explicitly. */
+    VMS_ARRAY_OF_POINTER_ALLOW_NULL = 0x20000,
 };
 
 typedef enum {
@@ -184,6 +196,7 @@ struct VMStateField {
     int version_id;
     int struct_version_id;
     bool (*field_exists)(void *opaque, int version_id);
+    const struct VMStateField *real_field;
 };
 
 struct VMStateDescription {
@@ -252,8 +265,10 @@ extern const VMStateInfo vmstate_info_uint64;
 extern const VMStateInfo vmstate_info_fd;
 
 /** Put this in the stream when migrating a null pointer.*/
-#define VMS_NULLPTR_MARKER (0x30U) /* '0' */
+#define VMS_NULLPTR_MARKER    (0x30U) /* '0' */
+#define VMS_NOTNULLPTR_MARKER (0x31U) /* '1' */
 extern const VMStateInfo vmstate_info_nullptr;
+extern const VMStateInfo vmstate_info_maybeptr;
 
 extern const VMStateInfo vmstate_info_cpudouble;
 
@@ -265,6 +280,7 @@ extern const VMStateInfo vmstate_info_bitmap;
 extern const VMStateInfo vmstate_info_qtailq;
 extern const VMStateInfo vmstate_info_gtree;
 extern const VMStateInfo vmstate_info_qlist;
+extern const VMStateInfo vmstate_info_ptrs_array_entry;
 
 #define type_check_2darray(t1,t2,n,m) ((t1(*)[n][m])0 - (t2*)0)
 /*
@@ -545,6 +561,63 @@ extern const VMStateInfo vmstate_info_qlist;
     .size       = sizeof(_type *),                                    \
     .flags      = VMS_ARRAY|VMS_STRUCT|VMS_ARRAY_OF_POINTER,         \
     .offset     = vmstate_offset_array(_s, _f, _type*, _n),          \
+}
+
+/*
+ * For migrating a dynamically allocated uint{8,32}-indexed array
+ * of pointers to structures (with NULL entries and with auto memory allocation).
+ *
+ * _type: type of structure pointed to
+ * _vmsd: VMSD for structure _type (when VMS_STRUCT is set)
+ * _info: VMStateInfo for _type (when VMS_STRUCT is not set)
+ * start: size of (_type) pointed to (for auto memory allocation)
+ */
+#define VMSTATE_VARRAY_OF_POINTER_TO_STRUCT_UINT8_ALLOC(_field, _state, _field_num, _version, _vmsd, _type) { \
+    .name       = (stringify(_field)),                               \
+    .version_id = (_version),                                        \
+    .num_offset = vmstate_offset_value(_state, _field_num, uint8_t), \
+    .vmsd       = &(_vmsd),                                          \
+    .start      = sizeof(_type),                                     \
+    .size       = sizeof(_type *),                                   \
+    .flags      = VMS_POINTER|VMS_VARRAY_UINT8|VMS_ARRAY_OF_POINTER| \
+                  VMS_ARRAY_OF_POINTER_ALLOW_NULL|VMS_STRUCT,        \
+    .offset     = vmstate_offset_pointer(_state, _field, _type *),   \
+}
+
+#define VMSTATE_VARRAY_OF_POINTER_UINT8_ALLOC(_field, _state, _field_num, _version, _info, _type) { \
+    .name       = (stringify(_field)),                               \
+    .version_id = (_version),                                        \
+    .num_offset = vmstate_offset_value(_state, _field_num, uint8_t), \
+    .info       = &(_info),                                          \
+    .start      = sizeof(_type),                                     \
+    .size       = sizeof(_type *),                                   \
+    .flags      = VMS_POINTER|VMS_VARRAY_UINT8|VMS_ARRAY_OF_POINTER| \
+                  VMS_ARRAY_OF_POINTER_ALLOW_NULL,                   \
+    .offset     = vmstate_offset_pointer(_state, _field, _type *),   \
+}
+
+#define VMSTATE_VARRAY_OF_POINTER_TO_STRUCT_UINT32_ALLOC(_field, _state, _field_num, _version, _vmsd, _type) { \
+    .name       = (stringify(_field)),                                \
+    .version_id = (_version),                                         \
+    .num_offset = vmstate_offset_value(_state, _field_num, uint32_t), \
+    .vmsd       = &(_vmsd),                                           \
+    .start      = sizeof(_type),                                      \
+    .size       = sizeof(_type *),                                    \
+    .flags      = VMS_POINTER|VMS_VARRAY_UINT32|VMS_ARRAY_OF_POINTER| \
+                  VMS_ARRAY_OF_POINTER_ALLOW_NULL|VMS_STRUCT,         \
+    .offset     = vmstate_offset_pointer(_state, _field, _type *),    \
+}
+
+#define VMSTATE_VARRAY_OF_POINTER_UINT32_ALLOC(_field, _state, _field_num, _version, _info, _type) { \
+    .name       = (stringify(_field)),                                \
+    .version_id = (_version),                                         \
+    .num_offset = vmstate_offset_value(_state, _field_num, uint32_t), \
+    .info       = &(_info),                                           \
+    .start      = sizeof(_type),                                      \
+    .size       = sizeof(_type *),                                    \
+    .flags      = VMS_POINTER|VMS_VARRAY_UINT32|VMS_ARRAY_OF_POINTER| \
+                  VMS_ARRAY_OF_POINTER_ALLOW_NULL,                    \
+    .offset     = vmstate_offset_pointer(_state, _field, _type *),    \
 }
 
 #define VMSTATE_VARRAY_OF_POINTER_UINT32(_field, _state, _field_num, _version, _info, _type) { \

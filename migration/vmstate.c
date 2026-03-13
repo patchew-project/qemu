@@ -71,10 +71,15 @@ vmsd_create_fake_nullptr_field(const VMStateField *field)
     /* Do not need "field_exists" check as it always exists (which is null) */
     fake->field_exists = NULL;
 
-    /* See vmstate_info_nullptr - use 1 byte to represent nullptr */
-    fake->size = 1;
-    fake->info = &vmstate_info_nullptr;
-    fake->flags = VMS_SINGLE;
+    if (!(field->flags & VMS_ARRAY_OF_POINTER_ALLOW_NULL)) {
+        /* See vmstate_info_nullptr - use 1 byte to represent nullptr */
+        fake->size = 1;
+        fake->info = &vmstate_info_nullptr;
+        fake->flags = VMS_SINGLE;
+    } else {
+        fake->real_field = field;
+        fake->info = &vmstate_info_maybeptr;
+    }
 
     /* All the rest fields shouldn't matter.. */
 
@@ -212,13 +217,28 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
             }
             for (i = 0; i < n_elems; i++) {
                 void *curr_elem = first_elem + size * i;
+                bool need_fake_field = false;
                 const VMStateField *inner_field;
 
                 if (field->flags & VMS_ARRAY_OF_POINTER) {
-                    curr_elem = *(void **)curr_elem;
+                    if (!(field->flags & VMS_ARRAY_OF_POINTER_ALLOW_NULL)) {
+                        assert(curr_elem);
+                        curr_elem = *(void **)curr_elem;
+                        need_fake_field = !curr_elem;
+                    } else {
+                        /*
+                         * We expect array of pointers to be initialized.
+                         * We don't want to overwrite curr_elem with it's
+                         * dereferenced value, because we may need to
+                         * allocate memory (depending on what is in the migration
+                         * stream) and write to it later.
+                         */
+                        assert(!*(void **)curr_elem);
+                        need_fake_field = true;
+                    }
                 }
 
-                if (!curr_elem && size) {
+                if (need_fake_field && size) {
                     /*
                      * If null pointer found (which should only happen in
                      * an array of pointers), use null placeholder and do
@@ -226,6 +246,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                      */
                     inner_field = vmsd_create_fake_nullptr_field(field);
                 } else {
+                    assert(curr_elem || !size);
                     inner_field = field;
                 }
 
@@ -507,25 +528,38 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
 
             for (i = 0; i < n_elems; i++) {
                 void *curr_elem = first_elem + size * i;
+                bool need_fake_field = false;
                 const VMStateField *inner_field;
                 bool is_null;
                 int max_elems = n_elems - i;
 
                 old_offset = qemu_file_transferred(f);
                 if (field->flags & VMS_ARRAY_OF_POINTER) {
-                    assert(curr_elem);
-                    curr_elem = *(void **)curr_elem;
+                    if (!(field->flags & VMS_ARRAY_OF_POINTER_ALLOW_NULL)) {
+                        assert(curr_elem);
+                        curr_elem = *(void **)curr_elem;
+                        need_fake_field = !curr_elem;
+                    } else {
+                        /*
+                         * We always need a fake field to properly handle
+                         * VMS_ARRAY_OF_POINTER_ALLOW_NULL case, because
+                         * even if pointer is not NULL, we still want to
+                         * write a marker in the migration stream.
+                         */
+                        need_fake_field = true;
+                    }
                 }
 
-                if (!curr_elem && size) {
+                if (need_fake_field && size) {
                     /*
                      * If null pointer found (which should only happen in
                      * an array of pointers), use null placeholder and do
                      * not follow.
                      */
                     inner_field = vmsd_create_fake_nullptr_field(field);
-                    is_null = true;
+                    is_null = !curr_elem;
                 } else {
+                    assert(curr_elem || !size);
                     inner_field = field;
                     is_null = false;
                 }

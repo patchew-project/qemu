@@ -863,6 +863,32 @@ static void vmstate_check(const VMStateDescription *vmsd)
 
     if (field) {
         while (field->name) {
+            /*
+             * VMS_ARRAY_OF_POINTER must be used only together
+             * with one of VMS_(V)ARRAY* flags.
+             */
+            assert(!(field->flags & VMS_ARRAY_OF_POINTER) ||
+                   ((field->flags & (VMS_ARRAY | VMS_VARRAY_INT32 |
+                     VMS_VARRAY_UINT16 | VMS_VARRAY_UINT8 | VMS_VARRAY_UINT32))));
+
+            /*
+             * When VMS_ARRAY_OF_POINTER_ALLOW_NULL is used, we must:
+             * 1. have VMS_ARRAY_OF_POINTER set too;
+             * 2. have ->start field set and it should tell us a size
+             *    of memory chunk we should allocate for every array member.
+             */
+            assert(!(field->flags & VMS_ARRAY_OF_POINTER_ALLOW_NULL) ||
+                   (field->flags & VMS_ARRAY_OF_POINTER));
+            assert(!(field->flags & VMS_ARRAY_OF_POINTER_ALLOW_NULL) ||
+                   field->start);
+
+            /*
+             * (VMStateField).real_field is only for internal purposes
+             * and should never be used by any user-defined VMStateField.
+             * Currently, it is only used by vmsd_create_fake_nullptr_field().
+             */
+            assert(!field->real_field);
+
             if (field->flags & (VMS_STRUCT | VMS_VSTRUCT)) {
                 /* Recurse to sub structures */
                 vmstate_check(field->vmsd);
