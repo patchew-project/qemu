@@ -114,8 +114,6 @@ typedef struct tap_win32_overlapped {
     tun_buffer_t* output_queue_back;
 } tap_win32_overlapped_t;
 
-static tap_win32_overlapped_t tap_overlapped;
-
 static tun_buffer_t* get_buffer_from_free_list(tap_win32_overlapped_t* const overlapped)
 {
     tun_buffer_t* buffer = NULL;
@@ -589,8 +587,7 @@ static void tap_win32_free_buffer(tap_win32_overlapped_t *overlapped,
     put_buffer_on_free_list(overlapped, buffer);
 }
 
-static int tap_win32_open(tap_win32_overlapped_t **phandle,
-                          const char *preferred_name)
+static HANDLE tap_win32_open(const char *preferred_name)
 {
     g_autofree char *device_path = NULL;
     char device_guid[0x100];
@@ -604,7 +601,6 @@ static int tap_win32_open(tap_win32_overlapped_t **phandle,
         unsigned long debug;
     } version;
     DWORD version_len;
-    DWORD idThread;
 
     if (preferred_name != NULL) {
         snprintf(name_buffer, sizeof(name_buffer), "%s", preferred_name);
@@ -612,7 +608,7 @@ static int tap_win32_open(tap_win32_overlapped_t **phandle,
 
     rc = get_device_guid(device_guid, sizeof(device_guid), name_buffer, sizeof(name_buffer));
     if (rc)
-        return -1;
+        return INVALID_HANDLE_VALUE;
 
     device_path = g_strdup_printf("%s%s%s",
               USERMODEDEVICEDIR,
@@ -629,7 +625,7 @@ static int tap_win32_open(tap_win32_overlapped_t **phandle,
         0 );
 
     if (handle == INVALID_HANDLE_VALUE) {
-        return -1;
+        return INVALID_HANDLE_VALUE;
     }
 
     bret = DeviceIoControl(handle, TAP_IOCTL_GET_VERSION,
@@ -638,34 +634,28 @@ static int tap_win32_open(tap_win32_overlapped_t **phandle,
 
     if (bret == FALSE) {
         CloseHandle(handle);
-        return -1;
+        return INVALID_HANDLE_VALUE;
     }
 
     if (!tap_win32_set_status(handle, TRUE)) {
-        return -1;
+        return INVALID_HANDLE_VALUE;
     }
 
-    tap_win32_overlapped_init(&tap_overlapped, handle);
-
-    *phandle = &tap_overlapped;
-
-    CreateThread(NULL, 0, tap_win32_thread_entry,
-                 (LPVOID)&tap_overlapped, 0, &idThread);
-    return 0;
+    return handle;
 }
 
 /********************************************/
 
  typedef struct TAPState {
      NetClientState nc;
-     tap_win32_overlapped_t *handle;
+     tap_win32_overlapped_t tap_overlapped;
  } TAPState;
 
 static void tap_cleanup(NetClientState *nc)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
-    qemu_del_wait_object(s->handle->tap_semaphore, NULL, NULL);
+    qemu_del_wait_object(s->tap_overlapped.tap_semaphore, NULL, NULL);
 
     /* FIXME: need to kill thread and close file handle:
        tap_win32_close(s);
@@ -676,7 +666,7 @@ static ssize_t tap_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
-    return tap_win32_write(s->handle, buf, size);
+    return tap_win32_write(&s->tap_overlapped, buf, size);
 }
 
 static void tap_win32_send(void *opaque)
@@ -688,7 +678,7 @@ static void tap_win32_send(void *opaque)
     uint8_t min_pkt[ETH_ZLEN];
     size_t min_pktsz = sizeof(min_pkt);
 
-    size = tap_win32_read(s->handle, &buf, max_size);
+    size = tap_win32_read(&s->tap_overlapped, &buf, max_size);
     if (size > 0) {
         orig_buf = buf;
 
@@ -700,7 +690,7 @@ static void tap_win32_send(void *opaque)
         }
 
         qemu_send_packet(&s->nc, buf, size);
-        tap_win32_free_buffer(s->handle, orig_buf);
+        tap_win32_free_buffer(&s->tap_overlapped, orig_buf);
     }
 }
 
@@ -716,9 +706,11 @@ static int tap_win32_init(NetClientState *peer, const char *model,
 {
     NetClientState *nc;
     TAPState *s;
-    tap_win32_overlapped_t *handle;
+    HANDLE handle;
+    DWORD idThread;
 
-    if (tap_win32_open(&handle, ifname) < 0) {
+    handle = tap_win32_open(ifname);
+    if (handle == INVALID_HANDLE_VALUE) {
         printf("tap: Could not open '%s'\n", ifname);
         return -1;
     }
@@ -727,11 +719,14 @@ static int tap_win32_init(NetClientState *peer, const char *model,
 
     s = DO_UPCAST(TAPState, nc, nc);
 
+    tap_win32_overlapped_init(&s->tap_overlapped, handle);
+
+    CreateThread(NULL, 0, tap_win32_thread_entry,
+                 (LPVOID)&s->tap_overlapped, 0, &idThread);
+
     qemu_set_info_str(&s->nc, "tap: ifname=%s", ifname);
 
-    s->handle = handle;
-
-    qemu_add_wait_object(s->handle->tap_semaphore, tap_win32_send, s);
+    qemu_add_wait_object(s->tap_overlapped.tap_semaphore, tap_win32_send, s);
 
     return 0;
 }
