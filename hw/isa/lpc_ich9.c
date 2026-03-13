@@ -46,8 +46,10 @@
 #include "hw/acpi/ich9_timer.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/core/qdev-properties.h"
+#include "hw/xen/xen.h"
 #include "system/runstate.h"
 #include "system/system.h"
+#include "system/xen.h"
 #include "hw/core/cpu.h"
 #include "hw/nvram/fw_cfg.h"
 #include "qemu/cutils.h"
@@ -569,6 +571,9 @@ static void ich9_lpc_config_write(PCIDevice *d,
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(d);
     uint32_t rcba_old = pci_get_long(d->config + ICH9_LPC_RCBA);
 
+    if (xen_enabled()){
+        xen_ich9_pci_write_config_client(d, addr, val, len);
+    }
     pci_default_write_config(d, addr, val, len);
     if (ranges_overlap(addr, len, ICH9_LPC_PMBASE, 4) ||
         ranges_overlap(addr, len, ICH9_LPC_ACPI_CTRL, 1)) {
@@ -762,9 +767,14 @@ static void ich9_lpc_realize(PCIDevice *d, Error **errp)
     irq = object_property_get_uint(OBJECT(&lpc->rtc), "irq", &error_fatal);
     isa_connect_gpio_out(ISA_DEVICE(&lpc->rtc), 0, irq);
 
-    pci_bus_irqs(pci_bus, ich9_lpc_set_irq, d, ICH9_LPC_NB_PIRQS);
-    pci_bus_map_irqs(pci_bus, ich9_lpc_map_irq);
-    pci_bus_set_route_irq_fn(pci_bus, ich9_route_intx_pin_to_irq);
+    if (xen_enabled()) {
+        pci_bus_irqs(pci_bus, xen_intx_set_irq, d, XEN_IOAPIC_NUM_PIRQS);
+        pci_bus_map_irqs(pci_bus, xen_pci_slot_get_pirq);
+    } else {
+        pci_bus_irqs(pci_bus, ich9_lpc_set_irq, d, ICH9_LPC_NB_PIRQS);
+        pci_bus_map_irqs(pci_bus, ich9_lpc_map_irq);
+        pci_bus_set_route_irq_fn(pci_bus, ich9_route_intx_pin_to_irq);
+    }
 
     ich9_lpc_pm_init(lpc);
 }

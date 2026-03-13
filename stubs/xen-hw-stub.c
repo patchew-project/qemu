@@ -24,6 +24,10 @@ int xen_set_pci_link_route(uint8_t link, uint8_t irq)
     return -1;
 }
 
+void xen_ich9_pci_write_config_client(PCIDevice *pci_dev, uint32_t address, uint32_t val, int len)
+{
+}
+
 int xen_is_pirq_msi(uint32_t msi_data)
 {
     return 0;

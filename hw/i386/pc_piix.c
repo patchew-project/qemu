@@ -66,8 +66,6 @@
 #include "hw/i386/acpi-build.h"
 #include "target/i386/cpu.h"
 
-#define XEN_IOAPIC_NUM_PIRQS 128ULL
-
 static GlobalProperty pc_piix_compat_defaults[] = {
     { TYPE_RAMFB_DEVICE, "use-legacy-x86-rom", "true" },
     { TYPE_VFIO_PCI_NOHOTPLUG, "use-legacy-x86-rom", "true" },
