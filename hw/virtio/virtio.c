@@ -4054,6 +4054,12 @@ static void virtio_device_realize(DeviceState *dev, Error **errp)
     /* Devices should either use vmsd or the load/save methods */
     assert(!vdc->vmsd || !vdc->load);
 
+    /*
+     * If a device has vmsd, it either MUST have valid fields
+     * or marked unmigratable.
+     */
+    assert(!vdc->vmsd || (vdc->vmsd->unmigratable || vdc->vmsd->fields));
+
     if (vdc->realize != NULL) {
         vdc->realize(dev, &err);
         if (err != NULL) {
