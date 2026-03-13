@@ -167,11 +167,47 @@ static int cpu_pre_save(void *opaque)
     SPARCCPU *cpu = opaque;
     CPUSPARCState *env = &cpu->env;
 
-    /* if env->cwp == env->nwindows - 1, this will set the ins of the last
-     * window as the outs of the first window
+    /*
+     * If env->cwp == env->nwindows - 1, this will set the ins of the last
+     * window as the outs of the first window. We do this because we only
+     * transfer the (nwindows * 16) entries of regbase[] that correspond
+     * to the "proper" locations of the registers; this call has the
+     * effect of copying the wrap register values from their temporary
+     * location down to their proper location ready for migration.
      */
     cpu_set_cwp(env, env->cwp);
 
+    return 0;
+}
+
+static int cpu_post_load(void *opaque, int version_id)
+{
+    /*
+     * For 32-bit SPARC we set the register window data structures
+     * up again correctly when get_psr() called cpu_put_psr_raw(),
+     * which calls cpu_set_cwp(). But for 64-bit SPARC the CWP isn't
+     * part of the PSR, so we need to handle it here.
+     *
+     * There are two things we need to have happen:
+     * 1. regwptr points into regbase[] at the location determined by CWP.
+     * 2. If CWP is (nwindows - 1) then we keep the "in" regs of this window
+     *    in a copy at a temporary location at the end of the regbase[]
+     *    array. For migration we only transferred the (nwindows * 16)
+     *    entries of regbase[] that correspond to the "proper" locations
+     *    of the registers, so now we must copy the wrap registers back to
+     *    their temporary location.
+     *
+     * We achieve both of these by setting env->cwp to 0 and then calling
+     * cpu_set_cwp(). This is the same thing get_psr() does for 32-bit.
+     */
+#if defined(TARGET_SPARC64)
+    SPARCCPU *cpu = opaque;
+    CPUSPARCState *env = &cpu->env;
+    uint32_t cwp = env->cwp;
+
+    env->cwp = 0;
+    cpu_set_cwp(env, cwp);
+#endif
     return 0;
 }
 
@@ -190,6 +226,7 @@ const VMStateDescription vmstate_sparc_cpu = {
     .version_id = SPARC_VMSTATE_VER,
     .minimum_version_id = SPARC_VMSTATE_VER,
     .pre_save = cpu_pre_save,
+    .post_load = cpu_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINTTL_ARRAY(env.gregs, SPARCCPU, 8),
         VMSTATE_UINT32(env.nwindows, SPARCCPU),
