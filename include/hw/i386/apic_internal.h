@@ -21,7 +21,7 @@
 #ifndef QEMU_APIC_INTERNAL_H
 #define QEMU_APIC_INTERNAL_H
 
-#include "cpu.h"
+#include "target/i386/cpu.h"
 #include "hw/i386/apic.h"
 #include "system/memory.h"
 #include "qemu/timer.h"

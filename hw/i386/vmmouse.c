@@ -29,7 +29,7 @@
 #include "hw/input/i8042.h"
 #include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "cpu.h"
+#include "target/i386/cpu.h"
 #include "qom/object.h"
 
 #include "trace.h"
