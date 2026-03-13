@@ -20,7 +20,7 @@
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "qemu/datadir.h"
-#include "cpu.h"
+#include "target/m68k/cpu.h"
 #include "hw/core/irq.h"
 #include "hw/m68k/mcf.h"
 #include "hw/m68k/mcf_fec.h"

@@ -9,7 +9,7 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
-#include "cpu.h"
+#include "target/m68k/cpu.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/boards.h"
 #include "hw/core/irq.h"

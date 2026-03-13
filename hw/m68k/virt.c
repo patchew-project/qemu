@@ -12,7 +12,7 @@
 #include "qemu/guest-random.h"
 #include "exec/target_page.h"
 #include "system/system.h"
-#include "cpu.h"
+#include "target/m68k/cpu.h"
 #include "hw/core/boards.h"
 #include "hw/core/qdev-properties.h"
 #include "elf.h"

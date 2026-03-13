@@ -8,7 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "cpu.h"
+#include "target/m68k/cpu.h"
 #include "hw/m68k/mcf.h"
 #include "hw/core/boards.h"
 #include "hw/core/loader.h"

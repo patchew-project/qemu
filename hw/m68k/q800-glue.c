@@ -21,7 +21,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
+#include "target/m68k/cpu.h"
 #include "hw/m68k/q800-glue.h"
 #include "hw/core/boards.h"
 #include "hw/core/irq.h"
