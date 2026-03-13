@@ -141,3 +141,11 @@ stm32f2xx_usart_receive(char *id, uint8_t chr) " %s receiving '%c'"
 # riscv_htif.c
 htif_uart_write_to_host(uint8_t device, uint8_t cmd, uint64_t payload) "device: %u cmd: %02u payload: %016" PRIx64
 htif_uart_unknown_device_command(uint8_t device, uint8_t cmd, uint64_t payload) "device: %u cmd: %02u payload: %016" PRIx64
+
+# ot_uart.c
+ot_uart_check_baudrate(const char *id, unsigned pclk, unsigned baud) "%s: @ %u Hz: %u bps"
+ot_uart_connect_input_clock(const char *id, const char * srcname) "%s: %s"
+ot_uart_debug(const char *id, const char *msg) "%s: %s"
+ot_uart_io_read_out(const char *id, uint32_t addr, const char *regname, uint32_t val, uint32_t pc) "%s: addr=0x%02x (%s), val=0x%x, pc=0x%x"
+ot_uart_io_write(const char *id, uint32_t addr, const char *regname, uint32_t val, uint32_t pc) "%s: addr=0x%02x (%s), val=0x%x, pc=0x%x"
+ot_uart_irqs(const char *id, uint32_t active, uint32_t mask, uint32_t eff) "%s: act:0x%08x msk:0x%08x eff:0x%08x"

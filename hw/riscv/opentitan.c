@@ -132,7 +132,8 @@ static void lowrisc_ibex_soc_init(Object *obj)
 
     object_initialize_child(obj, "plic", &s->plic, TYPE_SIFIVE_PLIC);
 
-    object_initialize_child(obj, "uart", &s->uart, TYPE_IBEX_UART);
+    object_initialize_child(obj, "uart", &s->uart, TYPE_OT_UART);
+    object_property_set_str(OBJECT(&s->uart), "ot-id", "uart0", &error_fatal);
 
     object_initialize_child(obj, "timer", &s->timer, TYPE_IBEX_TIMER);
 
