@@ -27,7 +27,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu/datadir.h"
-#include "cpu.h"
+#include "target/sparc/cpu.h"
 #include "exec/target_page.h"
 #include "hw/core/irq.h"
 #include "hw/pci/pci.h"

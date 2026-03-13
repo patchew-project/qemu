@@ -30,7 +30,7 @@
 #include "qapi/error.h"
 #include "qemu/datadir.h"
 #include "exec/cpu-common.h"
-#include "cpu.h"
+#include "target/sparc/cpu.h"
 #include "hw/core/irq.h"
 #include "qemu/timer.h"
 #include "hw/core/ptimer.h"

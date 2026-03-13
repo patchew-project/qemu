@@ -25,7 +25,7 @@
 #include "qemu/osdep.h"
 #include "block/block_int-common.h"
 #include "qemu/units.h"
-#include "cpu.h"
+#include "target/sparc/cpu.h"
 #include "hw/core/boards.h"
 #include "hw/char/serial-mm.h"
 #include "hw/misc/unimp.h"
