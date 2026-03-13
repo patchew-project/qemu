@@ -157,6 +157,7 @@ if have_system
     }
   endif
   tests += {'test-qdev': [qom, hwcore]}
+  tests += {'test-arm-emulate': [arm_emulate_test]}
 endif
 
 if have_ga and host_os == 'linux'
