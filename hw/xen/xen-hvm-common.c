@@ -396,6 +396,7 @@ static void cpu_ioreq_config(XenIOState *state, ioreq_t *req)
 {
     uint32_t sbdf = req->addr >> 32;
     uint32_t reg = req->addr;
+    uint32_t limit;
     XenPciDevice *xendev;
 
     if (req->size != sizeof(uint8_t) && req->size != sizeof(uint16_t) &&
@@ -412,10 +413,12 @@ static void cpu_ioreq_config(XenIOState *state, ioreq_t *req)
             continue;
         }
 
+        limit = pci_is_express(xendev->pci_dev) ?
+                    PCIE_CONFIG_SPACE_SIZE : PCI_CONFIG_SPACE_SIZE;
         if (!req->data_is_ptr) {
             if (req->dir == IOREQ_READ) {
                 req->data = pci_host_config_read_common(
-                    xendev->pci_dev, reg, PCI_CONFIG_SPACE_SIZE,
+                    xendev->pci_dev, reg, limit,
                     req->size);
                 trace_cpu_ioreq_config_read(req, xendev->sbdf, reg,
                                             req->size, req->data);
@@ -423,7 +426,7 @@ static void cpu_ioreq_config(XenIOState *state, ioreq_t *req)
                 trace_cpu_ioreq_config_write(req, xendev->sbdf, reg,
                                              req->size, req->data);
                 pci_host_config_write_common(
-                    xendev->pci_dev, reg, PCI_CONFIG_SPACE_SIZE,
+                    xendev->pci_dev, reg, limit,
                     req->data, req->size);
             }
         } else {
@@ -431,7 +434,7 @@ static void cpu_ioreq_config(XenIOState *state, ioreq_t *req)
 
             if (req->dir == IOREQ_READ) {
                 tmp = pci_host_config_read_common(
-                    xendev->pci_dev, reg, PCI_CONFIG_SPACE_SIZE,
+                    xendev->pci_dev, reg, limit,
                     req->size);
                 trace_cpu_ioreq_config_read(req, xendev->sbdf, reg,
                                             req->size, tmp);
@@ -441,7 +444,7 @@ static void cpu_ioreq_config(XenIOState *state, ioreq_t *req)
                 trace_cpu_ioreq_config_write(req, xendev->sbdf, reg,
                                              req->size, tmp);
                 pci_host_config_write_common(
-                    xendev->pci_dev, reg, PCI_CONFIG_SPACE_SIZE,
+                    xendev->pci_dev, reg, limit,
                     tmp, req->size);
             }
         }
