@@ -25,7 +25,7 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev.h"
 #include "hw/pci/pci.h"
-#include "cpu.h"
+#include "target/arm/cpu.h"
 #include "exec/target_page.h"
 #include "trace.h"
 #include "qemu/log.h"

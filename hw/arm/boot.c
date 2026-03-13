@@ -14,7 +14,7 @@
 #include <libfdt.h>
 #include "hw/arm/boot.h"
 #include "hw/arm/linux-boot-if.h"
-#include "cpu.h"
+#include "target/arm/cpu.h"
 #include "exec/tswap.h"
 #include "exec/target_page.h"
 #include "system/kvm.h"

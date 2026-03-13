@@ -9,7 +9,7 @@
 #ifndef FSL_IMX8MP_H
 #define FSL_IMX8MP_H
 
-#include "cpu.h"
+#include "target/arm/cpu.h"
 #include "hw/char/imx_serial.h"
 #include "hw/gpio/imx_gpio.h"
 #include "hw/i2c/imx_i2c.h"
