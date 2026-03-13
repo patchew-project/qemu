@@ -12,7 +12,7 @@
 #define HW_AVR_BOOT_H
 
 #include "hw/core/boards.h"
-#include "cpu.h"
+#include "target/avr/cpu.h"
 
 /**
  * avr_load_firmware:   load an image into a memory region
