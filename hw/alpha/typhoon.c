@@ -12,7 +12,7 @@
 #include "exec/cpu-interrupt.h"
 #include "qapi/error.h"
 #include "hw/pci/pci_host.h"
-#include "cpu.h"
+#include "target/alpha/cpu.h"
 #include "hw/core/irq.h"
 #include "alpha_sys.h"
 
