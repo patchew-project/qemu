@@ -37,6 +37,7 @@
 #include "whpx_arm.h"
 #include "hw/arm/bsa.h"
 #include "arm-powerctl.h"
+#include "emulate/arm_emulate.h"
 
 #include <winhvplatform.h>
 #include <winhvplatformdefs.h>
@@ -352,6 +353,53 @@ static void whpx_set_gp_reg(CPUState *cpu, int rt, uint64_t val)
     whpx_set_reg(cpu, reg, reg_val);
 }
 
+/* arm_emul_ops callbacks for WHPX */
+
+static uint64_t whpx_emul_read_gpr(CPUState *cpu, int reg)
+{
+    return ARM_CPU(cpu)->env.xregs[reg];
+}
+
+static void whpx_emul_write_gpr(CPUState *cpu, int reg, uint64_t val)
+{
+    ARM_CPU(cpu)->env.xregs[reg] = val;
+    cpu->vcpu_dirty = true;
+}
+
+static void whpx_emul_read_fpreg(CPUState *cpu, int reg, void *buf, int size)
+{
+    memcpy(buf, &ARM_CPU(cpu)->env.vfp.zregs[reg], size);
+}
+
+static void whpx_emul_write_fpreg(CPUState *cpu, int reg,
+                                  const void *buf, int size)
+{
+    CPUARMState *env = &ARM_CPU(cpu)->env;
+    memset(&env->vfp.zregs[reg], 0, sizeof(env->vfp.zregs[reg]));
+    memcpy(&env->vfp.zregs[reg], buf, size);
+    cpu->vcpu_dirty = true;
+}
+
+static int whpx_emul_read_mem(CPUState *cpu, uint64_t va, void *buf, int size)
+{
+    return cpu_memory_rw_debug(cpu, va, buf, size, false);
+}
+
+static int whpx_emul_write_mem(CPUState *cpu, uint64_t va,
+                               const void *buf, int size)
+{
+    return cpu_memory_rw_debug(cpu, va, (void *)buf, size, true);
+}
+
+static const struct arm_emul_ops whpx_arm_emul_ops = {
+    .read_gpr    = whpx_emul_read_gpr,
+    .write_gpr   = whpx_emul_write_gpr,
+    .read_fpreg  = whpx_emul_read_fpreg,
+    .write_fpreg = whpx_emul_write_fpreg,
+    .read_mem    = whpx_emul_read_mem,
+    .write_mem   = whpx_emul_write_mem,
+};
+
 static int whpx_handle_mmio(CPUState *cpu, WHV_MEMORY_ACCESS_CONTEXT *ctx)
 {
     uint64_t syndrome = ctx->Syndrome;
@@ -366,7 +414,43 @@ static int whpx_handle_mmio(CPUState *cpu, WHV_MEMORY_ACCESS_CONTEXT *ctx)
     uint64_t val = 0;
 
     assert(!cm);
-    assert(isv);
+
+    /*
+     * ISV=0: syndrome doesn't carry access size/register info.
+     * Fetch and decode the faulting instruction via the emulation library.
+     */
+    if (!isv) {
+        ARMCPU *arm_cpu = ARM_CPU(cpu);
+        CPUARMState *env = &arm_cpu->env;
+        uint32_t insn;
+        ArmEmulResult r;
+
+        cpu_synchronize_state(cpu);
+
+        if (cpu_memory_rw_debug(cpu, env->pc,
+                                (uint8_t *)&insn, 4, false) != 0) {
+            error_report("WHPX: cannot read insn at pc=0x%" PRIx64,
+                         (uint64_t)env->pc);
+            return 0;
+        }
+
+        r = arm_emul_insn(cpu, &whpx_arm_emul_ops, insn);
+        if (r == ARM_EMUL_UNHANDLED) {
+            /*
+             * TODO: Inject data abort into guest instead of
+             * advancing PC.  Requires setting ESR_EL1/FAR_EL1/
+             * ELR_EL1/SPSR_EL1 and redirecting to VBAR_EL1.
+             */
+            error_report("WHPX: ISV=0 unhandled insn 0x%08x at "
+                         "pc=0x%" PRIx64, insn, (uint64_t)env->pc);
+        } else if (r == ARM_EMUL_ERR_MEM) {
+            error_report("WHPX: ISV=0 memory error emulating "
+                         "insn 0x%08x at pc=0x%" PRIx64,
+                         insn, (uint64_t)env->pc);
+        }
+
+        return 0;
+    }
 
     if (iswrite) {
         val = whpx_get_gp_reg(cpu, srt);
