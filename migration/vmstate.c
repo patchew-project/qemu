@@ -131,6 +131,32 @@ static void vmstate_handle_alloc(void *ptr, const VMStateField *field,
     }
 }
 
+int vmstate_load_field(QEMUFile *f, void *pv, size_t size,
+                       const VMStateField *field, Error **errp)
+{
+    int ret = 0;
+
+    if (field->flags & VMS_STRUCT) {
+        ret = vmstate_load_state(f, field->vmsd, pv,
+                                 field->vmsd->version_id,
+                                 errp);
+    } else if (field->flags & VMS_VSTRUCT) {
+        ret = vmstate_load_state(f, field->vmsd, pv,
+                                 field->struct_version_id,
+                                 errp);
+    } else {
+        ret = field->info->get(f, pv, size, field);
+        if (ret < 0) {
+            error_setg(errp,
+                       "Failed to load element of type %s for %s: "
+                       "%d", field->info->name,
+                       field->name, ret);
+        }
+    }
+
+    return ret;
+}
+
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id, Error **errp)
 {
@@ -203,24 +229,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                     inner_field = field;
                 }
 
-                if (inner_field->flags & VMS_STRUCT) {
-                    ret = vmstate_load_state(f, inner_field->vmsd, curr_elem,
-                                             inner_field->vmsd->version_id,
-                                             errp);
-                } else if (inner_field->flags & VMS_VSTRUCT) {
-                    ret = vmstate_load_state(f, inner_field->vmsd, curr_elem,
-                                             inner_field->struct_version_id,
-                                             errp);
-                } else {
-                    ret = inner_field->info->get(f, curr_elem, size,
-                                                 inner_field);
-                    if (ret < 0) {
-                        error_setg(errp,
-                                   "Failed to load element of type %s for %s: "
-                                   "%d", inner_field->info->name,
-                                   inner_field->name, ret);
-                    }
-                }
+                ret = vmstate_load_field(f, curr_elem, size, inner_field, errp);
 
                 /* If we used a fake temp field.. free it now */
                 if (inner_field != field) {
@@ -427,6 +436,29 @@ int vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
     return vmstate_save_state_v(f, vmsd, opaque, vmdesc_id, vmsd->version_id, errp);
 }
 
+int vmstate_save_field(QEMUFile *f, void *pv, size_t size,
+                       const VMStateField *field, JSONWriter *vmdesc, Error **errp)
+{
+    int ret = 0;
+
+    if (field->flags & VMS_STRUCT) {
+        ret = vmstate_save_state(f, field->vmsd, pv, vmdesc, errp);
+    } else if (field->flags & VMS_VSTRUCT) {
+        ret = vmstate_save_state_v(f, field->vmsd, pv, vmdesc,
+                                   field->struct_version_id, errp);
+    } else {
+        ret = field->info->put(f, pv, size, field, vmdesc);
+        if (ret < 0) {
+            error_setg(errp,
+                       "Failed to save element of type %s for %s: "
+                       "%d", field->info->name,
+                       field->name, ret);
+        }
+    }
+
+    return ret;
+}
+
 int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
                          void *opaque, JSONWriter *vmdesc, int version_id, Error **errp)
 {
@@ -528,19 +560,7 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
                 vmsd_desc_field_start(vmsd, vmdesc_loop, inner_field,
                                       i, max_elems);
 
-                if (inner_field->flags & VMS_STRUCT) {
-                    ret = vmstate_save_state(f, inner_field->vmsd,
-                                             curr_elem, vmdesc_loop, errp);
-                } else if (inner_field->flags & VMS_VSTRUCT) {
-                    ret = vmstate_save_state_v(f, inner_field->vmsd,
-                                               curr_elem, vmdesc_loop,
-                                               inner_field->struct_version_id,
-                                               errp);
-                } else {
-                    ret = inner_field->info->put(f, curr_elem, size,
-                                                 inner_field, vmdesc_loop);
-                }
-
+                ret = vmstate_save_field(f, curr_elem, size, inner_field, vmdesc_loop, errp);
                 written_bytes = qemu_file_transferred(f) - old_offset;
                 vmsd_desc_field_end(vmsd, vmdesc_loop, inner_field,
                                     written_bytes);
@@ -551,7 +571,7 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
                 }
 
                 if (ret) {
-                    error_setg(errp, "Save of field %s/%s failed",
+                    error_prepend(errp, "Save of field %s/%s failed: ",
                                 vmsd->name, field->name);
                     if (vmsd->post_save) {
                         vmsd->post_save(opaque);
