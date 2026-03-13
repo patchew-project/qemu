@@ -22,6 +22,7 @@
 #include "cpu.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "hw/core/cpu.h"
 #include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 

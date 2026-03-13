@@ -18,6 +18,7 @@
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "qemu/bitops.h"
+#include "hw/core/cpu.h"
 #include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 
