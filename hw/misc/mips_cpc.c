@@ -19,7 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "cpu.h"
+#include "target/mips/cpu.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/core/cpu.h"

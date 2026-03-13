@@ -52,7 +52,7 @@
 #ifdef CONFIG_TCG
 #include "accel/tcg/cpu-ops.h"
 #endif /* CONFIG_TCG */
-#include "cpu.h"
+#include "target/mips/cpu.h"
 
 enum jazz_model_e {
     JAZZ_MAGNUM,

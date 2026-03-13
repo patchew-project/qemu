@@ -22,7 +22,7 @@
 #include "qemu/datadir.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "cpu.h"
+#include "target/mips/cpu.h"
 #include "hw/core/clock.h"
 #include "net/net.h"
 #include "hw/core/boards.h"

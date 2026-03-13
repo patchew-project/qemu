@@ -61,7 +61,7 @@
 #include "hw/core/qdev-clock.h"
 #include "target/mips/internal.h"
 #include "trace.h"
-#include "cpu.h"
+#include "target/mips/cpu.h"
 
 #define ENVP_PADDR          0x2000
 #define ENVP_VADDR          cpu_mips_phys_to_kseg0(NULL, ENVP_PADDR)
