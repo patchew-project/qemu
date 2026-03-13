@@ -21,6 +21,7 @@
 #include "qemu/units.h"
 #include "cpu.h"
 #include "exec/page-protection.h"
+#include "exec/target_page.h"
 #include "qemu/error-report.h"
 #include "qemu/qemu-print.h"
 #include "system/hw_accel.h"
@@ -1065,7 +1066,7 @@ bool ppc_hash64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
 
         *raddrp = raddr;
         *protp = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-        *psizep = TARGET_PAGE_BITS;
+        *psizep = qemu_target_page_bits();
         return true;
     }
 
