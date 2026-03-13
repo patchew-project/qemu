@@ -19,8 +19,10 @@
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-gpu-bswap.h"
 #include "hw/virtio/virtio-gpu-pixman.h"
-
+#include "system/system.h"
+#ifdef CONFIG_OPENGL
 #include "ui/egl-helpers.h"
+#endif
 
 #include <virglrenderer.h>
 
@@ -50,6 +52,16 @@ struct virtio_gpu_virgl_resource {
     void *map_fixed;
 };
 
+/*
+ * Venus no-GL mode: Venus is enabled but no OpenGL display is available.
+ * Display commands use software (pixman) rendering; Venus/3D commands
+ * go through the virglrenderer render server.
+ */
+static bool virtio_gpu_venus_nogl(VirtIOGPU *g)
+{
+    return virtio_gpu_venus_enabled(g->parent_obj.conf) && !display_opengl;
+}
+
 static struct virtio_gpu_virgl_resource *
 virtio_gpu_virgl_find_resource(VirtIOGPU *g, uint32_t resource_id)
 {
@@ -63,7 +75,7 @@ virtio_gpu_virgl_find_resource(VirtIOGPU *g, uint32_t resource_id)
     return container_of(res, struct virtio_gpu_virgl_resource, base);
 }
 
-#if VIRGL_RENDERER_CALLBACKS_VERSION >= 4
+#if VIRGL_RENDERER_CALLBACKS_VERSION >= 4 && defined(CONFIG_OPENGL)
 static void *
 virgl_get_egl_display(G_GNUC_UNUSED void *cookie)
 {
@@ -1032,6 +1044,45 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
 
     VIRTIO_GPU_FILL_CMD(cmd->cmd_hdr);
 
+    /*
+     * Venus no-GL mode: route 2D display commands to the base software
+     * renderer (pixman). The guest kernel always uses 2D commands for
+     * display framebuffers even with VIRGL enabled; Venus/3D commands
+     * go through the virglrenderer render server as usual.
+     */
+    if (virtio_gpu_venus_nogl(g)) {
+        switch (cmd->cmd_hdr.type) {
+        case VIRTIO_GPU_CMD_RESOURCE_CREATE_2D:
+        case VIRTIO_GPU_CMD_SET_SCANOUT:
+        case VIRTIO_GPU_CMD_RESOURCE_FLUSH:
+        case VIRTIO_GPU_CMD_TRANSFER_TO_HOST_2D:
+        case VIRTIO_GPU_CMD_GET_DISPLAY_INFO:
+        case VIRTIO_GPU_CMD_GET_EDID:
+            virtio_gpu_simple_process_cmd(g, cmd);
+            return;
+        case VIRTIO_GPU_CMD_RESOURCE_UNREF:
+        case VIRTIO_GPU_CMD_RESOURCE_ATTACH_BACKING:
+        case VIRTIO_GPU_CMD_RESOURCE_DETACH_BACKING: {
+            /*
+             * Both 2D (simple) and blob (virgl) resources share g->reslist.
+             * Check if virglrenderer owns the resource to pick
+             * the right handler.
+             */
+            struct virtio_gpu_resource_unref hdr;
+            struct virgl_renderer_resource_info info;
+            VIRTIO_GPU_FILL_CMD(hdr);
+            if (virgl_renderer_resource_get_info(hdr.resource_id, &info)) {
+                /* Not in virglrenderer — it's a 2D software resource */
+                virtio_gpu_simple_process_cmd(g, cmd);
+                return;
+            }
+            break; /* virglrenderer owns it — fall through */
+        }
+        default:
+            break;
+        }
+    }
+
     virgl_renderer_force_ctx_0();
     switch (cmd->cmd_hdr.type) {
     case VIRTIO_GPU_CMD_CTX_CREATE:
@@ -1433,6 +1484,7 @@ static int virtio_gpu_virgl_init(VirtIOGPU *g)
     uint32_t flags = 0;
     VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
 
+#ifdef CONFIG_OPENGL
 #if VIRGL_RENDERER_CALLBACKS_VERSION >= 4
     if (qemu_egl_display) {
         virtio_gpu_3d_cbs.version = 4;
@@ -1450,9 +1502,14 @@ static int virtio_gpu_virgl_init(VirtIOGPU *g)
         flags |= VIRGL_RENDERER_D3D11_SHARE_TEXTURE;
     }
 #endif
+#endif /* CONFIG_OPENGL */
 #if VIRGL_VERSION_MAJOR >= 1
     if (virtio_gpu_venus_enabled(g->parent_obj.conf)) {
-        flags |= VIRGL_RENDERER_VENUS | VIRGL_RENDERER_RENDER_SERVER;
+        flags |= VIRGL_RENDERER_VENUS
+               | VIRGL_RENDERER_RENDER_SERVER;
+        if (!display_opengl) {
+            flags |= VIRGL_RENDERER_NO_VIRGL;
+        }
     }
     if (virtio_gpu_drm_enabled(g->parent_obj.conf)) {
         flags |= VIRGL_RENDERER_DRM;
@@ -1474,6 +1531,12 @@ static int virtio_gpu_virgl_init(VirtIOGPU *g)
         }
     }
 #endif
+
+    if (!display_opengl) {
+        virtio_gpu_3d_cbs.create_gl_context = NULL;
+        virtio_gpu_3d_cbs.destroy_gl_context = NULL;
+        virtio_gpu_3d_cbs.make_current = NULL;
+    }
 
     ret = virgl_renderer_init(g, flags, &virtio_gpu_3d_cbs);
     if (ret != 0) {
@@ -1546,14 +1609,16 @@ GArray *virtio_gpu_virgl_get_capsets(VirtIOGPU *g)
 
     capset_ids = g_array_new(false, false, sizeof(uint32_t));
 
-    /* VIRGL is always supported. */
-    virtio_gpu_virgl_add_capset(capset_ids, VIRTIO_GPU_CAPSET_VIRGL);
+    /* OpenGL: VIRGL/VIRGL2 require a GL display backend */
+    if (display_opengl) {
+        virtio_gpu_virgl_add_capset(capset_ids, VIRTIO_GPU_CAPSET_VIRGL);
 
-    virgl_renderer_get_cap_set(VIRTIO_GPU_CAPSET_VIRGL2,
-                               &capset_max_ver,
-                               &capset_max_size);
-    if (capset_max_ver) {
-        virtio_gpu_virgl_add_capset(capset_ids, VIRTIO_GPU_CAPSET_VIRGL2);
+        virgl_renderer_get_cap_set(VIRTIO_GPU_CAPSET_VIRGL2,
+                                   &capset_max_ver,
+                                   &capset_max_size);
+        if (capset_max_ver) {
+            virtio_gpu_virgl_add_capset(capset_ids, VIRTIO_GPU_CAPSET_VIRGL2);
+        }
     }
 
     if (virtio_gpu_venus_enabled(g->parent_obj.conf)) {
