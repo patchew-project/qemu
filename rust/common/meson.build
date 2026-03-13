@@ -5,6 +5,7 @@ _common_cfg = run_command(rustc_args,
 _common_rs = static_library(
   'common',
   'src/lib.rs',
+  override_options: rust_default_options,
   rust_args: _common_cfg,
   dependencies: [libc_rs, qemu_macros],
 )

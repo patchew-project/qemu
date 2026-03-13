@@ -1,7 +1,6 @@
 project('qemu', ['c'], meson_version: '>=1.5.0',
         default_options: ['warning_level=1', 'c_std=gnu11', 'cpp_std=gnu++23', 'b_colorout=auto',
-                          'b_staticpic=false', 'stdsplit=false', 'optimization=2', 'b_pie=true',
-                          'rust_std=2021', 'build.rust_std=2021'],
+                          'b_staticpic=false', 'stdsplit=false', 'optimization=2', 'b_pie=true'],
         version: files('VERSION'))
 
 add_test_setup('quick', exclude_suites: ['slow', 'thorough'], is_default: true,
@@ -139,6 +138,12 @@ if have_rust
       native: false, language: 'rust')
   add_project_arguments(rustc_lint_args + ['--cfg', 'MESON'],
       native: true, language: 'rust')
+endif
+
+# move this back to projet() default_options, after meson > 1.9 required
+rust_default_options = []
+if have_rust
+  rust_default_options = ['rust_std=2021', 'build.rust_std=2021']
 endif
 
 dtrace = not_found
@@ -3919,7 +3924,8 @@ foreach d, list : modules
       module_ss.add(modulecommon)
       module_ss = module_ss.apply(config_all_devices, strict: false)
       sl = static_library(d + '-' + m, [genh, module_ss.sources()],
-                          dependencies: module_ss.dependencies(), pic: true)
+                          dependencies: module_ss.dependencies(),
+                          override_options: rust_default_options, pic: true)
       if d == 'block'
         block_mods += sl
       else
@@ -4443,6 +4449,7 @@ foreach target : target_dirs
     emulator = executable(exe_name, exe['sources'],
                install: true,
                c_args: c_args,
+               override_options: rust_default_options,
                dependencies: arch_deps + exe['dependencies'],
                objects: lib.extract_all_objects(recursive: true),
                link_depends: [block_syms, qemu_syms],

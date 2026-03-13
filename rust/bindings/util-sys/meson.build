@@ -4,7 +4,7 @@ _bindgen_util_rs = rust.bindgen(
 _util_sys_rs = static_library(
   'util_sys',
   structured_sources(['lib.rs', _bindgen_util_rs]),
-  override_options: ['rust_std=2021', 'build.rust_std=2021'],
+  override_options: rust_default_options,
   rust_abi: 'rust',
   dependencies: [glib_sys_rs],
 )

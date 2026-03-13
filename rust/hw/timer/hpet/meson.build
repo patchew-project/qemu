@@ -1,7 +1,7 @@
 _libhpet_rs = static_library(
   'hpet',
   files('src/lib.rs'),
-  override_options: ['rust_std=2021', 'build.rust_std=2021'],
+  override_options: rust_default_options,
   rust_abi: 'rust',
   link_with: [
     _util_rs,

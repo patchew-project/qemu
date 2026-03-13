@@ -1,6 +1,7 @@
 _bits_rs = static_library(
   'bits',
   'src/lib.rs',
+  override_options: rust_default_options,
   dependencies: [qemu_macros],
 )
 

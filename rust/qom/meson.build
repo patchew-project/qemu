@@ -1,6 +1,7 @@
 _qom_rs = static_library(
   'qom',
   'src/lib.rs',
+  override_options: rust_default_options,
   link_with: [_bql_rs, _migration_rs],
   dependencies: [common_rs, glib_sys_rs, qemu_macros, qom_sys_rs],
 )

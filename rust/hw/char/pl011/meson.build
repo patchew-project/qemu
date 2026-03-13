@@ -19,7 +19,7 @@ _libpl011_rs = static_library(
     ],
     {'.' : _libpl011_bindings_inc_rs},
   ),
-  override_options: ['rust_std=2021', 'build.rust_std=2021'],
+  override_options: rust_default_options,
   rust_abi: 'rust',
   link_with: [
     _util_rs,

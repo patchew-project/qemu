@@ -4,7 +4,7 @@ _bindgen_migration_rs = rust.bindgen(
 _migration_sys_rs = static_library(
   'migration_sys',
   structured_sources(['lib.rs', _bindgen_migration_rs]),
-  override_options: ['rust_std=2021', 'build.rust_std=2021'],
+  override_options: rust_default_options,
   rust_abi: 'rust',
   dependencies: [glib_sys_rs, common_rs, util_sys_rs],
 )

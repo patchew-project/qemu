@@ -1,6 +1,7 @@
 _chardev_rs = static_library(
   'chardev',
   'src/lib.rs',
+  override_options: rust_default_options,
   link_with: [_bql_rs, _migration_rs, _qom_rs, _util_rs],
   dependencies: [glib_sys_rs, common_rs, qemu_macros, chardev_sys_rs],
 )

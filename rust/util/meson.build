@@ -1,6 +1,7 @@
 _util_rs = static_library(
   'util',
   'src/lib.rs',
+  override_options: rust_default_options,
   dependencies: [anyhow_rs, libc_rs, foreign_rs, glib_sys_rs, common_rs, util_sys_rs],
 )
 

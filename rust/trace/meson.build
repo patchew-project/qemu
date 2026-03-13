@@ -11,6 +11,7 @@ _trace_rs = static_library(
   'trace',             # Library name,
   lib_rs,
   trace_rs_targets,         # List of generated `.rs` custom targets
+  override_options: rust_default_options,
   dependencies: [libc_rs, probe_rs],
 )
 

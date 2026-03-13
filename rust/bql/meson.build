@@ -9,6 +9,7 @@ endif
 _bql_rs = static_library(
   'bql',
   'src/lib.rs',
+  override_options: rust_default_options,
   rust_args: _bql_cfg,
   dependencies: [glib_sys_rs, util_sys_rs],
 )
