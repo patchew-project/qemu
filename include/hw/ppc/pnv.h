@@ -20,7 +20,7 @@
 #ifndef PPC_PNV_H
 #define PPC_PNV_H
 
-#include "cpu.h"
+#include "target/ppc/cpu.h"
 #include "hw/core/boards.h"
 #include "hw/core/sysbus.h"
 #include "hw/ipmi/ipmi.h"

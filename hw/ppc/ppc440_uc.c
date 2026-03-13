@@ -19,7 +19,7 @@
 #include "hw/pci/pci.h"
 #include "exec/cpu-common.h"
 #include "system/reset.h"
-#include "cpu.h"
+#include "target/ppc/cpu.h"
 #include "ppc440.h"
 
 /*****************************************************************************/

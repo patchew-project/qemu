@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
+#include "target/ppc/cpu.h"
 #include "hw/ppc/ppc4xx.h"
 #include "hw/core/qdev-properties.h"
 #include "qapi/error.h"

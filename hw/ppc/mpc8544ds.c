@@ -15,7 +15,7 @@
 #include "hw/ppc/openpic.h"
 #include "qemu/error-report.h"
 #include "qemu/units.h"
-#include "cpu.h"
+#include "target/ppc/cpu.h"
 
 static void mpc8544ds_fixup_devtree(void *fdt)
 {

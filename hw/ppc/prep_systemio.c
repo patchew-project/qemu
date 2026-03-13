@@ -33,7 +33,7 @@
 #include "qemu/error-report.h" /* for error_report() */
 #include "qemu/module.h"
 #include "system/runstate.h"
-#include "cpu.h"
+#include "target/ppc/cpu.h"
 #include "trace.h"
 
 #define TYPE_PREP_SYSTEMIO "prep-systemio"
