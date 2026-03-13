@@ -26,7 +26,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
+#include "target/xtensa/cpu.h"
 #include "exec/cpu-interrupt.h"
 #include "hw/core/irq.h"
 #include "qemu/log.h"

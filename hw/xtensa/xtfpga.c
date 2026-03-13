@@ -28,7 +28,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "cpu.h"
+#include "target/xtensa/cpu.h"
 #include "system/system.h"
 #include "hw/core/boards.h"
 #include "hw/core/loader.h"
