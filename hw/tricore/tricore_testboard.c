@@ -21,7 +21,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "cpu.h"
+#include "target/tricore/cpu.h"
 #include "net/net.h"
 #include "hw/core/boards.h"
 #include "hw/core/loader.h"
