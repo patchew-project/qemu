@@ -19,7 +19,7 @@
 #include "qapi/error.h"
 #include "system/address-spaces.h"
 #include "hw/core/boards.h"
-#include "cpu.h"
+#include "target/microblaze/cpu.h"
 #include "boot.h"
 
 #include "hw/intc/xlnx-zynqmp-ipi.h"

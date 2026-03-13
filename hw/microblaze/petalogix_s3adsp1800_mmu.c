@@ -27,7 +27,7 @@
 #include "qemu/target-info.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "cpu.h"
+#include "target/microblaze/cpu.h"
 #include "hw/core/sysbus.h"
 #include "net/net.h"
 #include "hw/block/flash.h"
