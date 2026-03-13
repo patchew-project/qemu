@@ -30,6 +30,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "exec/cpu-defs.h"
 #include "cpu.h"
 #include "fpu/softfloat.h"
 #include "qemu/module.h"
