@@ -18,6 +18,7 @@
 #include "hw/core/hw-error.h"
 #include "hw/i386/pc.h"
 #include "hw/core/irq.h"
+#include "hw/southbridge/ich9.h"
 #include "hw/i386/apic-msidef.h"
 #include "hw/xen/xen-x86.h"
 #include "qemu/range.h"
@@ -85,6 +86,43 @@ void xen_intx_set_irq(void *opaque, int irq_num, int level)
 int xen_set_pci_link_route(uint8_t link, uint8_t irq)
 {
     return xendevicemodel_set_pci_link_route(xen_dmod, xen_domid, link, irq);
+}
+
+void xen_ich9_pci_write_config_client(PCIDevice *pci_dev, uint32_t address, uint32_t val, int len)
+{
+    static bool pirqe_f_warned = false;
+    int i;
+
+    if (ranges_overlap(address, len, ICH9_LPC_PIRQA_ROUT, 4)) {
+        /* handle PIRQA..PIRQD routing */
+        /* Scan for updates to PCI link routes (0x60-0x63). */
+        for (i = 0; i < len; i++) {
+            uint8_t v = (val >> (8 * i)) & 0xff;
+            if (v & 0x80) {
+                v = 0;
+            }
+            v &= 0xf;
+            if (((address + i) >= ICH9_LPC_PIRQA_ROUT) &&
+                ((address + i) <= ICH9_LPC_PIRQD_ROUT)) {
+                xen_set_pci_link_route(address + i - ICH9_LPC_PIRQA_ROUT, v);
+            }
+        }
+    } else if (ranges_overlap(address, len, ICH9_LPC_PIRQE_ROUT, 4)) {
+        while (len--) {
+            if (range_covers_byte(ICH9_LPC_PIRQE_ROUT, 4, address) &&
+                (val & 0x80) == 0) {
+                /* print warning only once */
+                if (!pirqe_f_warned) {
+                    pirqe_f_warned = true;
+                    warn_report("WARNING: guest domain attempted to use PIRQ%c "
+                                "routing which is not supported for Xen/Q35 currently\n",
+                                (char)(address - ICH9_LPC_PIRQE_ROUT + 'E'));
+                    break;
+                }
+            }
+            address++, val >>= 8;
+        }
+    }
 }
 
 int xen_is_pirq_msi(uint32_t msi_data)
