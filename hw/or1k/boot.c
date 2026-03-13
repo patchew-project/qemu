@@ -7,7 +7,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
+#include "target/or1k/cpu.h"
 #include "exec/cpu-defs.h"
 #include "exec/target_page.h"
 #include "elf.h"

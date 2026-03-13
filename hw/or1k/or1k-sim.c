@@ -21,7 +21,7 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
-#include "cpu.h"
+#include "target/or1k/cpu.h"
 #include "hw/core/irq.h"
 #include "hw/core/boards.h"
 #include "hw/char/serial-mm.h"

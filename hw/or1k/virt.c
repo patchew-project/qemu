@@ -10,7 +10,7 @@
 #include "qemu/error-report.h"
 #include "qemu/guest-random.h"
 #include "qapi/error.h"
-#include "cpu.h"
+#include "target/or1k/cpu.h"
 #include "system/address-spaces.h"
 #include "hw/core/irq.h"
 #include "hw/core/boards.h"

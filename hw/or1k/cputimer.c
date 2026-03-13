@@ -19,7 +19,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
+#include "target/or1k/cpu.h"
 #include "migration/vmstate.h"
 #include "qemu/timer.h"
 #include "system/reset.h"
