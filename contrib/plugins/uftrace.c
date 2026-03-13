@@ -817,7 +817,8 @@ static void track_callstack(unsigned int cpu_index, void *udata)
     if (fp == caller.frame_pointer) {
         /* return */
         CallstackEntry e = callstack_pop(cs);
-        trace_exit_function(t, timestamp, e.pc, callstack_depth(cs));
+        /* uftrace convention is to use same depth as entry */
+        trace_exit_function(t, timestamp, e.pc, callstack_depth(cs) + 1);
         return;
     }
 
