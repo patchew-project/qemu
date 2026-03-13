@@ -1099,8 +1099,6 @@ static void riscv_cpu_init(Object *obj)
                             "riscv.cpu.rnmi", RNMI_MAX);
 #endif /* CONFIG_USER_ONLY */
 
-    general_user_opts = g_hash_table_new(g_str_hash, g_str_equal);
-
     /*
      * The timer and performance counters extensions were supported
      * in QEMU before they were added as discrete extensions in the
@@ -2751,6 +2749,7 @@ static void riscv_cpu_common_class_init(ObjectClass *c, const void *data)
     cc->tcg_ops = &riscv_tcg_ops;
 #endif /* CONFIG_TCG */
 
+    general_user_opts = g_hash_table_new(g_str_hash, g_str_equal);
     device_class_set_props(dc, riscv_cpu_properties);
 }
 
