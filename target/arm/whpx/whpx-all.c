@@ -832,6 +832,7 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     UINT32 whpx_cap_size;
     WHV_PARTITION_PROPERTY prop;
     WHV_CAPABILITY_FEATURES features;
+    WHV_SYNTHETIC_PROCESSOR_FEATURES_BANKS synthetic_features;
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     int pa_range = 0;
 
@@ -942,7 +943,6 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     }
 
     /* Enable synthetic processor features */
-    WHV_SYNTHETIC_PROCESSOR_FEATURES_BANKS synthetic_features;
     memset(&synthetic_features, 0, sizeof(WHV_SYNTHETIC_PROCESSOR_FEATURES_BANKS));
     synthetic_features.BanksCount = 1;
 
@@ -953,13 +953,15 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     synthetic_features.Bank0.AccessPartitionReferenceTsc = 1;
     synthetic_features.Bank0.AccessHypercallRegs = 1;
     synthetic_features.Bank0.AccessVpIndex = 1;
-    synthetic_features.Bank0.AccessHypercallRegs = 1;
     synthetic_features.Bank0.TbFlushHypercalls = 1;
     synthetic_features.Bank0.AccessSynicRegs = 1;
     synthetic_features.Bank0.AccessSyntheticTimerRegs = 1;
     synthetic_features.Bank0.AccessIntrCtrlRegs = 1;
     synthetic_features.Bank0.SyntheticClusterIpi = 1;
     synthetic_features.Bank0.DirectSyntheticTimers = 1;
+    synthetic_features.Bank0.FastHypercallOutput = 1;
+    synthetic_features.Bank0.AccessVpRegs = 1;
+    synthetic_features.Bank0.SyncContext = 1;
 
     /*
      * On ARM64, have enlightenments off by default
