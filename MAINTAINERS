@@ -151,6 +151,9 @@ F: target/i386/meson.build
 F: tools/i386/
 F: tests/functional/i386/
 F: tests/functional/x86_64/
+F: tests/qtest/intel-iommu-test.c
+F: tests/qtest/libqos/qos-intel-iommu*
+F: tests/qtest/iommu-intel-test.c
 
 X86 VM file descriptor change on reset test
 M: Ani Sinha <anisinha@redhat.com>
@@ -4026,6 +4029,9 @@ F: hw/i386/intel_iommu_accel.*
 F: include/hw/i386/intel_iommu.h
 F: tests/functional/x86_64/test_intel_iommu.py
 F: tests/qtest/intel-iommu-test.c
+F: tests/qtest/libqos/qos-intel-iommu*
+F: tests/qtest/iommu-intel-test.c
+
 
 AMD-Vi Emulation
 M: Alejandro Jimenez <alejandro.j.jimenez@oracle.com>
