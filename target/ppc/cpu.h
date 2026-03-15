@@ -1285,7 +1285,7 @@ struct CPUArchState {
     target_ulong ctr;
     uint32_t crf[8];       /* condition register */
 #if defined(TARGET_PPC64)
-    target_ulong cfar;
+    uint64_t cfar;
 #endif
     target_ulong xer;      /* XER (with SO, OV, CA split out) */
     target_ulong so;
