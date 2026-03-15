@@ -71,6 +71,9 @@ option('malloc_trim', type : 'feature', value : 'auto',
 option('malloc', type : 'combo', choices : ['system', 'tcmalloc', 'jemalloc'],
        value: 'system', description: 'choose memory allocator to use')
 
+option('audio', type: 'feature', value: 'auto',
+       description: 'Audio support')
+
 option('kvm', type: 'feature', value: 'auto',
        description: 'KVM acceleration support')
 option('mshv', type: 'feature', value: 'auto',
