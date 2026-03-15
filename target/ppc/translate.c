@@ -3502,7 +3502,8 @@ static void gen_rvwinkle(DisasContext *ctx)
 #endif /* defined(CONFIG_USER_ONLY) */
 }
 
-static inline TCGv gen_write_bhrb(TCGv_ptr base, TCGv offset, TCGv mask, TCGv value)
+static TCGv gen_write_bhrb(TCGv_ptr base, TCGv_i64 offset,
+                           TCGv_i64 mask, TCGv_i64 value)
 {
     TCGv_ptr tmp = tcg_temp_new_ptr();
 
@@ -3513,10 +3514,10 @@ static inline TCGv gen_write_bhrb(TCGv_ptr base, TCGv offset, TCGv mask, TCGv va
     tcg_gen_st_i64(value, tmp, 0);
 
     /* add 8 to current bhrb_offset */
-    tcg_gen_addi_tl(offset, offset, 8);
+    tcg_gen_addi_i64(offset, offset, 8);
 
     /* apply offset mask */
-    tcg_gen_and_tl(offset, offset, mask);
+    tcg_gen_and_i64(offset, offset, mask);
 
     return offset;
 }
@@ -3529,13 +3530,13 @@ static inline void gen_update_branch_history(DisasContext *ctx,
 {
 #if defined(TARGET_PPC64)
     TCGv_ptr base;
-    TCGv tmp;
-    TCGv offset;
-    TCGv mask;
+    TCGv_i64 tmp;
+    TCGv_i64 offset;
+    TCGv_i64 mask;
     TCGLabel *no_update;
 
     if (ctx->has_cfar) {
-        tcg_gen_movi_tl(cpu_cfar, nip);
+        tcg_gen_movi_i64(cpu_cfar, nip);
     }
 
     if (!ctx->has_bhrb ||
@@ -3548,22 +3549,22 @@ static inline void gen_update_branch_history(DisasContext *ctx,
     no_update = gen_new_label();
 
     /* check for bhrb filtering */
-    tcg_gen_ld_tl(tmp, tcg_env, offsetof(CPUPPCState, bhrb_filter));
-    tcg_gen_andi_tl(tmp, tmp, inst_type);
-    tcg_gen_brcondi_tl(TCG_COND_EQ, tmp, 0, no_update);
+    tcg_gen_ld_i64(tmp, tcg_env, offsetof(CPUPPCState, bhrb_filter));
+    tcg_gen_andi_i64(tmp, tmp, inst_type);
+    tcg_gen_brcondi_i64(TCG_COND_EQ, tmp, 0, no_update);
 
     base = tcg_temp_new_ptr();
-    offset = tcg_temp_new();
-    mask = tcg_temp_new();
+    offset = tcg_temp_new_i64();
+    mask = tcg_temp_new_i64();
 
     /* load bhrb base address */
     tcg_gen_ld_ptr(base, tcg_env, offsetof(CPUPPCState, bhrb_base));
 
     /* load current bhrb_offset */
-    tcg_gen_ld_tl(offset, tcg_env, offsetof(CPUPPCState, bhrb_offset));
+    tcg_gen_ld_i64(offset, tcg_env, offsetof(CPUPPCState, bhrb_offset));
 
     /* load a BHRB offset mask */
-    tcg_gen_ld_tl(mask, tcg_env, offsetof(CPUPPCState, bhrb_offset_mask));
+    tcg_gen_ld_i64(mask, tcg_env, offsetof(CPUPPCState, bhrb_offset_mask));
 
     offset = gen_write_bhrb(base, offset, mask, tcg_constant_i64(nip));
 
@@ -3571,13 +3572,13 @@ static inline void gen_update_branch_history(DisasContext *ctx,
     if (inst_type & BHRB_TYPE_XL_FORM) {
 
         /* Set the 'T' bit for target entries */
-        tcg_gen_ori_tl(tmp, target, 0x2);
+        tcg_gen_ori_i64(tmp, target, 0x2);
 
         offset = gen_write_bhrb(base, offset, mask, tmp);
     }
 
     /* save updated bhrb_offset for next time */
-    tcg_gen_st_tl(offset, tcg_env, offsetof(CPUPPCState, bhrb_offset));
+    tcg_gen_st_i64(offset, tcg_env, offsetof(CPUPPCState, bhrb_offset));
 
     gen_set_label(no_update);
 #endif
