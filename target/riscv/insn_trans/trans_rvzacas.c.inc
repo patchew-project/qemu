@@ -55,10 +55,12 @@ static void gen_set_gpr_pair(DisasContext *ctx, int reg_num, TCGv_i64 t)
         tcg_gen_sari_i64(cpu_gpr[reg_num + 1], t, 32);
 #endif
 
+#ifdef TARGET_RISCV64
         if (get_xl_max(ctx) == MXL_RV128) {
             tcg_gen_sari_tl(cpu_gprh[reg_num], cpu_gpr[reg_num], 63);
             tcg_gen_sari_tl(cpu_gprh[reg_num + 1], cpu_gpr[reg_num + 1], 63);
         }
+#endif
     }
 }
 

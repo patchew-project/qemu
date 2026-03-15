@@ -251,8 +251,12 @@ static bool reg_is_ulong_integer(CPURISCVState *env, const char *name,
     target_ulong *vals;
 
     if (is_gprh) {
+#ifdef TARGET_RISCV64
         reg_names = riscv_int_regnamesh;
         vals = env->gprh;
+#else
+        g_assert_not_reached();
+#endif
     } else {
         reg_names = riscv_int_regnames;
         vals = env->gpr;

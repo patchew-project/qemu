@@ -214,7 +214,9 @@ typedef struct PMUFixedCtrState {
 
 struct CPUArchState {
     target_ulong gpr[32];
+#if defined(TARGET_RISCV64)
     target_ulong gprh[32]; /* 64 top bits of the 128-bit registers */
+#endif
 
     /* vector coprocessor state. */
     uint64_t vreg[32 * RV_VLEN_MAX / 64] QEMU_ALIGNED(16);

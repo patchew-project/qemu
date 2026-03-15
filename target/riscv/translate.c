@@ -38,7 +38,10 @@
 #include "tcg/tcg-cpu.h"
 
 /* global register indices */
-static TCGv cpu_gpr[32], cpu_gprh[32], cpu_pc, cpu_vl, cpu_vstart;
+static TCGv cpu_gpr[32], cpu_pc, cpu_vl, cpu_vstart;
+#ifdef TARGET_RISCV64
+static TCGv cpu_gprh[32];
+#endif
 static TCGv_i64 cpu_fpr[32]; /* assume F and D extensions */
 static TCGv load_res;
 static TCGv load_val;
@@ -374,11 +377,15 @@ static TCGv get_gpr(DisasContext *ctx, int reg_num, DisasExtend ext)
 
 static TCGv get_gprh(DisasContext *ctx, int reg_num)
 {
+#ifdef TARGET_RISCV64
     assert(get_xl(ctx) == MXL_RV128);
     if (reg_num == 0) {
         return ctx->zero;
     }
     return cpu_gprh[reg_num];
+#else
+    g_assert_not_reached();
+#endif
 }
 
 static TCGv dest_gpr(DisasContext *ctx, int reg_num)
@@ -391,10 +398,14 @@ static TCGv dest_gpr(DisasContext *ctx, int reg_num)
 
 static TCGv dest_gprh(DisasContext *ctx, int reg_num)
 {
+#ifdef TARGET_RISCV64
     if (reg_num == 0) {
         return tcg_temp_new();
     }
     return cpu_gprh[reg_num];
+#else
+    g_assert_not_reached();
+#endif
 }
 
 static void gen_set_gpr(DisasContext *ctx, int reg_num, TCGv t)
@@ -404,17 +415,21 @@ static void gen_set_gpr(DisasContext *ctx, int reg_num, TCGv t)
         case MXL_RV32:
             tcg_gen_ext32s_tl(cpu_gpr[reg_num], t);
             break;
+#ifdef TARGET_RISCV64
         case MXL_RV64:
         case MXL_RV128:
             tcg_gen_mov_tl(cpu_gpr[reg_num], t);
             break;
+#endif
         default:
             g_assert_not_reached();
         }
 
+#ifdef TARGET_RISCV64
         if (get_xl_max(ctx) == MXL_RV128) {
             tcg_gen_sari_tl(cpu_gprh[reg_num], cpu_gpr[reg_num], 63);
         }
+#endif
     }
 }
 
@@ -425,27 +440,35 @@ static void gen_set_gpri(DisasContext *ctx, int reg_num, target_long imm)
         case MXL_RV32:
             tcg_gen_movi_tl(cpu_gpr[reg_num], (int32_t)imm);
             break;
+#ifdef TARGET_RISCV64
         case MXL_RV64:
         case MXL_RV128:
             tcg_gen_movi_tl(cpu_gpr[reg_num], imm);
             break;
+#endif
         default:
             g_assert_not_reached();
         }
 
+#ifdef TARGET_RISCV64
         if (get_xl_max(ctx) == MXL_RV128) {
             tcg_gen_movi_tl(cpu_gprh[reg_num], -(imm < 0));
         }
+#endif
     }
 }
 
 static void gen_set_gpr128(DisasContext *ctx, int reg_num, TCGv rl, TCGv rh)
 {
+#ifdef TARGET_RISCV64
     assert(get_ol(ctx) == MXL_RV128);
     if (reg_num != 0) {
         tcg_gen_mov_tl(cpu_gpr[reg_num], rl);
         tcg_gen_mov_tl(cpu_gprh[reg_num], rh);
     }
+#else
+    g_assert_not_reached();
+#endif
 }
 
 static TCGv_i64 get_fpr_hs(DisasContext *ctx, int reg_num)
@@ -1453,14 +1476,18 @@ void riscv_translate_init(void)
      * unless you specifically block reads/writes to reg 0.
      */
     cpu_gpr[0] = NULL;
-    cpu_gprh[0] = NULL;
 
     for (i = 1; i < 32; i++) {
         cpu_gpr[i] = tcg_global_mem_new(tcg_env,
             offsetof(CPURISCVState, gpr[i]), riscv_int_regnames[i]);
+    }
+#ifdef TARGET_RISCV64
+    cpu_gprh[0] = NULL;
+    for (i = 1; i < 32; i++) {
         cpu_gprh[i] = tcg_global_mem_new(tcg_env,
             offsetof(CPURISCVState, gprh[i]), riscv_int_regnamesh[i]);
     }
+#endif
 
     for (i = 0; i < 32; i++) {
         cpu_fpr[i] = tcg_global_mem_new_i64(tcg_env,
