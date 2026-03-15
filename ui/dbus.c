@@ -217,6 +217,7 @@ dbus_display_complete(UserCreatable *uc, Error **errp)
         return;
     }
 
+#ifdef CONFIG_AUDIO
     {
         AudioBackend *audio_be = audio_get_default_audio_be(NULL);
         if (audio_be && !audio_be_can_set_dbus_server(audio_be)) {
@@ -232,6 +233,7 @@ dbus_display_complete(UserCreatable *uc, Error **errp)
             return;
         }
     }
+#endif
 
     consoles = g_array_new(FALSE, FALSE, sizeof(guint32));
     for (idx = 0;; idx++) {
@@ -370,6 +372,7 @@ set_dbus_addr(Object *o, const char *str, Error **errp)
     dd->dbus_addr = g_strdup(str);
 }
 
+#ifdef CONFIG_AUDIO
 static char *
 get_audiodev(Object *o, Error **errp)
 {
@@ -386,6 +389,7 @@ set_audiodev(Object *o, const char *str, Error **errp)
     g_free(dd->audiodev);
     dd->audiodev = g_strdup(str);
 }
+#endif
 
 
 static int
@@ -412,7 +416,9 @@ dbus_display_class_init(ObjectClass *oc, const void *data)
     ucc->complete = dbus_display_complete;
     object_class_property_add_bool(oc, "p2p", get_dbus_p2p, set_dbus_p2p);
     object_class_property_add_str(oc, "addr", get_dbus_addr, set_dbus_addr);
+#ifdef CONFIG_AUDIO
     object_class_property_add_str(oc, "audiodev", get_audiodev, set_audiodev);
+#endif
     object_class_property_add_enum(oc, "gl-mode",
                                    "DisplayGLMode", &DisplayGLMode_lookup,
                                    get_gl_mode, set_gl_mode);
@@ -502,7 +508,9 @@ dbus_init(DisplayState *ds, DisplayOptions *opts)
                           object_get_objects_root(),
                           "dbus-display", &error_fatal,
                           "addr", opts->u.dbus.addr ?: "",
+#ifdef CONFIG_AUDIO
                           "audiodev", opts->u.dbus.audiodev ?: "",
+#endif
                           "gl-mode", DisplayGLMode_str(mode),
                           "p2p", yes_no(opts->u.dbus.p2p),
                           NULL);

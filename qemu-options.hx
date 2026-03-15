@@ -2237,6 +2237,10 @@ SRST
         If no audio backend is specified and the dbus display backend is
         specified, the dbus audio backend is used by default.
 
+        (If audio is disabled at compile time via the ``--disable-audio`` option,
+        no audio backend is used, and none of the audio-related D-Bus interfaces
+        are exported.)
+
         The connection is registered with the "org.qemu" name (and queued when
         already owned).
 
