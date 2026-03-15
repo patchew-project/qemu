@@ -793,6 +793,7 @@ SRST
 ERST
 
 
+#ifdef CONFIG_AUDIO
 DEF("audio", HAS_ARG, QEMU_OPTION_audio,
     "-audio [driver=]driver[,prop=value[,...]]\n"
     "                specifies default audio backend when `audiodev` is not\n"
@@ -1114,6 +1115,7 @@ SRST
         Write recorded audio into the specified file. Default is
         ``qemu.wav``.
 ERST
+#endif
 
 DEF("device", HAS_ARG, QEMU_OPTION_device,
     "-device driver[,prop=value[,...]]\n"
