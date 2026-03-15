@@ -98,7 +98,7 @@ config USB_STORAGE_UAS
 config USB_AUDIO
     bool
     default y
-    depends on USB
+    depends on USB && AUDIO
 
 config USB_SERIAL
     bool
