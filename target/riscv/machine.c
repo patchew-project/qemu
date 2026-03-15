@@ -168,6 +168,7 @@ static const VMStateDescription vmstate_pointermasking = {
     }
 };
 
+#ifdef TARGET_RISCV64
 static bool rv128_needed(void *opaque)
 {
     RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(opaque);
@@ -187,6 +188,7 @@ static const VMStateDescription vmstate_rv128 = {
         VMSTATE_END_OF_LIST()
     }
 };
+#endif
 
 #ifdef CONFIG_KVM
 static bool kvmtimer_needed(void *opaque)
@@ -487,7 +489,9 @@ const VMStateDescription vmstate_riscv_cpu = {
         &vmstate_hyper,
         &vmstate_vector,
         &vmstate_pointermasking,
+#ifdef TARGET_RISCV64
         &vmstate_rv128,
+#endif
 #ifdef CONFIG_KVM
         &vmstate_kvmtimer,
 #endif
