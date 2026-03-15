@@ -1385,7 +1385,7 @@
   'data'    : { '*rendernode' : 'str',
                 '*addr': 'str',
                 '*p2p': 'bool',
-                '*audiodev': 'str' } }
+                '*audiodev': { 'type': 'str', 'if': 'CONFIG_AUDIO' } } }
 
 ##
 # @DisplayGLMode:
