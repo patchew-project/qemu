@@ -364,6 +364,7 @@ SRST
 ERST
 
 /* BEGIN deprecated */
+#ifdef CONFIG_AUDIO
     {
         .name       = "capture",
         .args_type  = "",
@@ -376,6 +377,7 @@ SRST
   ``info capture``
     Show capture information (deprecated).
 ERST
+#endif
 /* END deprecated */
 
     {

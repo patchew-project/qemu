@@ -765,6 +765,7 @@ SRST
 ERST
 
 /* BEGIN deprecated */
+#ifdef CONFIG_AUDIO
     {
         .name       = "wavcapture",
         .args_type  = "path:F,audiodev:s,freq:i?,bits:i?,nchannels:i?",
@@ -802,6 +803,7 @@ SRST
 
   Deprecated.
 ERST
+#endif
 /* END deprecated */
 
     {

@@ -1035,7 +1035,9 @@ void qemu_cleanup(int status)
     /* vhost-user must be cleaned up before chardevs.  */
     tpm_cleanup();
     net_cleanup();
+#ifdef CONFIG_AUDIO
     audio_cleanup();
+#endif
     monitor_cleanup();
     qemu_chr_cleanup();
     user_creatable_cleanup();
