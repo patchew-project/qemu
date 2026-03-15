@@ -29,6 +29,9 @@ config IVSHMEM
 config TPM
     bool
 
+config AUDIO
+    bool
+
 config FDT
     bool
 
