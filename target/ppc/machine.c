@@ -723,7 +723,7 @@ static const VMStateDescription vmstate_bhrb = {
     .minimum_version_id = 1,
     .needed = bhrb_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_UINTTL(env.bhrb_offset, PowerPCCPU),
+        VMSTATE_UINT64(env.bhrb_offset, PowerPCCPU),
         VMSTATE_UINT64_ARRAY(env.bhrb, PowerPCCPU, BHRB_MAX_NUM_ENTRIES),
         VMSTATE_END_OF_LIST()
     }

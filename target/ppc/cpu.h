@@ -1373,11 +1373,11 @@ struct CPUArchState {
 
 #ifdef TARGET_PPC64
     /* Branch History Rolling Buffer (BHRB) resources */
-    target_ulong bhrb_num_entries;
-    intptr_t     bhrb_base;
-    target_ulong bhrb_filter;
-    target_ulong bhrb_offset;
-    target_ulong bhrb_offset_mask;
+    uint64_t bhrb_num_entries;
+    intptr_t bhrb_base;
+    uint64_t bhrb_filter;
+    uint64_t bhrb_offset;
+    uint64_t bhrb_offset_mask;
     uint64_t bhrb[BHRB_MAX_NUM_ENTRIES];
 #endif
 
