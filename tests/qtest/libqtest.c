@@ -464,7 +464,9 @@ gchar *qtest_qemu_args(const char *extra_args)
                       "-chardev socket,path=%s,id=char0 "
                       "-mon chardev=char0,mode=control "
                       "-display none "
+#ifdef CONFIG_AUDIO
                       "-audio none "
+#endif
                       "%s"
                       "%s"
                       " -accel qtest",
