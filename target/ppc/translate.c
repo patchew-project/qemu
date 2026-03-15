@@ -76,7 +76,7 @@ static TCGv cpu_reserve;
 static TCGv cpu_reserve_length;
 static TCGv cpu_reserve_val;
 #if defined(TARGET_PPC64)
-static TCGv cpu_reserve_val2;
+static TCGv_i64 cpu_reserve_val2;
 #endif
 static TCGv cpu_fpscr;
 static TCGv_i32 cpu_access_type;
@@ -152,7 +152,7 @@ void ppc_translate_init(void)
                                          offsetof(CPUPPCState, reserve_val),
                                          "reserve_val");
 #if defined(TARGET_PPC64)
-    cpu_reserve_val2 = tcg_global_mem_new(tcg_env,
+    cpu_reserve_val2 = tcg_global_mem_new_i64(tcg_env,
                                           offsetof(CPUPPCState, reserve_val2),
                                           "reserve_val2");
 #endif
