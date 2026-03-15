@@ -2058,10 +2058,10 @@ typedef struct CPUArchState {
     uint64_t vm_hsave;
 
 #ifdef TARGET_X86_64
-    target_ulong lstar;
-    target_ulong cstar;
-    target_ulong fmask;
-    target_ulong kernelgsbase;
+    uint64_t lstar;
+    uint64_t cstar;
+    uint64_t fmask;
+    uint64_t kernelgsbase;
 
     /* FRED MSRs */
     uint64_t fred_rsp0;
