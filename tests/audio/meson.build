@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-if not have_system
+if not have_audio
   subdir_done()
 endif
 
