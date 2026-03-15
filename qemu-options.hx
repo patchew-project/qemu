@@ -2728,6 +2728,9 @@ SRST
         must be omitted, otherwise is must be present and specify a
         valid audiodev.
 
+        If QEMU is configured with ``--disable-audio``, this parameter
+        is not present and audio is not transmitted over VNC.
+
     ``power-control=on|off``
         Permit the remote client to issue shutdown, reboot or reset power
         control requests.
