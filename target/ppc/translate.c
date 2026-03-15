@@ -69,7 +69,7 @@ static TCGv cpu_msr;
 static TCGv cpu_ctr;
 static TCGv cpu_lr;
 #if defined(TARGET_PPC64)
-static TCGv cpu_cfar;
+static TCGv_i64 cpu_cfar;
 #endif
 static TCGv cpu_xer, cpu_so, cpu_ov, cpu_ca, cpu_ov32, cpu_ca32;
 static TCGv cpu_reserve;
@@ -124,8 +124,8 @@ void ppc_translate_init(void)
                                 offsetof(CPUPPCState, lr), "lr");
 
 #if defined(TARGET_PPC64)
-    cpu_cfar = tcg_global_mem_new(tcg_env,
-                                  offsetof(CPUPPCState, cfar), "cfar");
+    cpu_cfar = tcg_global_mem_new_i64(tcg_env,
+                                    offsetof(CPUPPCState, cfar), "cfar");
 #endif
 
     cpu_xer = tcg_global_mem_new(tcg_env,
@@ -626,12 +626,12 @@ void spr_write_lr(DisasContext *ctx, int sprn, int gprn)
 /* CFAR */
 void spr_read_cfar(DisasContext *ctx, int gprn, int sprn)
 {
-    tcg_gen_mov_tl(cpu_gpr[gprn], cpu_cfar);
+    tcg_gen_mov_i64(cpu_gpr[gprn], cpu_cfar);
 }
 
 void spr_write_cfar(DisasContext *ctx, int sprn, int gprn)
 {
-    tcg_gen_mov_tl(cpu_cfar, cpu_gpr[gprn]);
+    tcg_gen_mov_i64(cpu_cfar, cpu_gpr[gprn]);
 }
 
 /* Breakpoint */
