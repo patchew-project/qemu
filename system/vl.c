@@ -2069,10 +2069,12 @@ static void qemu_create_early_backends(void)
      * setting machine properties, so they can be referred to.
      */
     configure_blockdev(&bdo_queue, machine_class, snapshot);
+#ifdef CONFIG_AUDIO
     audio_init_audiodevs();
     if (default_audio) {
         audio_create_default_audiodevs();
     }
+#endif
 }
 
 

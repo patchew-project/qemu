@@ -540,4 +540,5 @@
 # Since: 8.0
 ##
 { 'command': 'query-audiodevs',
-  'returns': ['Audiodev'] }
+  'returns': ['Audiodev'],
+  'if': 'CONFIG_AUDIO' }

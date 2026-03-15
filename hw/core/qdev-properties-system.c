@@ -484,6 +484,7 @@ const PropertyInfo qdev_prop_netdev = {
 };
 
 
+#ifdef CONFIG_AUDIO
 /* --- audiodev --- */
 static void get_audiodev(Object *obj, Visitor *v, const char* name,
                          void *opaque, Error **errp)
@@ -520,6 +521,7 @@ const PropertyInfo qdev_prop_audiodev = {
     .get = get_audiodev,
     .set = set_audiodev,
 };
+#endif
 
 bool qdev_prop_set_drive_err(DeviceState *dev, const char *name,
                              BlockBackend *value, Error **errp)
