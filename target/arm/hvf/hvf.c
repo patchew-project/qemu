@@ -2268,8 +2268,31 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
         bool ea = (syndrome >> 9) & 1;
         bool s1ptw = (syndrome >> 7) & 1;
         uint32_t ifsc = (syndrome >> 0) & 0x3f;
+        uint64_t ipa = excp->physical_address;
+        AddressSpace *as = cpu_get_address_space(cpu, ARMASIdx_NS);
+        hwaddr xlat;
+        MemoryRegion *mr;
+
+        cpu_synchronize_state(cpu);
 
         trace_hvf_insn_abort(env->pc, set, fnv, ea, s1ptw, ifsc);
+
+        /*
+         * TODO: If s1ptw, this is an error in the guest os page tables.
+         * Inject the exception into the guest.
+         */
+        assert(!s1ptw);
+
+        mr = address_space_translate(as, ipa, &xlat, NULL, false,
+                                     MEMTXATTRS_UNSPECIFIED);
+        if (unlikely(!memory_region_is_ram(mr))) {
+            uint32_t syn;
+
+            /* inject an SEA back into the guest */
+            syn = syn_insn_abort(arm_current_el(env) == 1, ea, false, 0x10);
+            hvf_raise_exception(cpu, EXCP_PREFETCH_ABORT, syn, 1);
+            break;
+        }
 
         /* fall through */
     }
