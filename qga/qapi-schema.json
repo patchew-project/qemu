@@ -1952,3 +1952,59 @@
   'returns': ['GuestNetworkRoute'],
   'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN32'] }
 }
+
+##
+# @GuestWindowsSecurityInfo:
+#
+# Windows security features status.
+#
+# @vbs-status: VirtualizationBasedSecurityStatus
+#
+# @available-security-properties: AvailableSecurityProperties
+#
+# @code-integrity-policy-enforcement-status:
+#     CodeIntegrityPolicyEnforcementStatus
+#
+# @required-security-properties: RequiredSecurityProperties
+#
+# @security-services-configured: SecurityServicesConfigured
+#
+# @security-services-running: SecurityServicesRunning
+#
+# @usr-cfg-code-integrity-policy-enforcement-status:
+#     UsermodeCodeIntegrityPolicyEnforcementStatus
+#
+# @secure-boot: Whether UEFI Secure Boot is enabled
+#
+# @tpm-present: Whether a TPM device is present
+#
+# @tpm-version: TPM specification version string (e.g. "2.0")
+#
+# Since: 10.3
+##
+{ 'struct': 'GuestWindowsSecurityInfo',
+  'data': {
+      'vbs-status': 'int',
+      '*available-security-properties': ['int'],
+      '*code-integrity-policy-enforcement-status': 'int',
+      '*required-security-properties': ['int'],
+      '*security-services-configured': ['int'],
+      '*security-services-running': ['int'],
+      '*usr-cfg-code-integrity-policy-enforcement-status': 'int',
+      'secure-boot': 'bool',
+      'tpm-present': 'bool',
+      '*tpm-version': 'str' },
+  'if': 'CONFIG_WIN32' }
+
+##
+# @guest-get-windows-security-info:
+#
+# Retrieve Windows security features status (VBS, Secure Boot, TPM).
+#
+# Returns: @GuestWindowsSecurityInfo
+#
+# Since: 10.3
+##
+{ 'command': 'guest-get-windows-security-info',
+  'returns': 'GuestWindowsSecurityInfo',
+  'if': 'CONFIG_WIN32' }
