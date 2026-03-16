@@ -87,7 +87,6 @@ RUN dnf --quiet distro-sync -y && \
                 ncurses-devel \
                 nettle-devel \
                 ninja-build \
-                nmap-ncat \
                 numactl-devel \
                 openssh-clients \
                 pam-devel \

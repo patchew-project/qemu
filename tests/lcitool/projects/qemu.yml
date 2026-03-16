@@ -83,7 +83,6 @@ packages:
  - meson
  - mtools
  - ncursesw
- - netcat
  - nettle
  - ninja
  - nsis

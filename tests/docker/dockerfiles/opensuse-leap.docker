@@ -86,7 +86,6 @@ RUN zypper update -y && \
            lzo-devel \
            make \
            mtools \
-           ncat \
            ncurses-devel \
            ninja \
            openssh \

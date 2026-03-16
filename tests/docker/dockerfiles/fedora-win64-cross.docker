@@ -42,7 +42,6 @@ exec "$@"\n' > /usr/bin/nosync && \
                        make \
                        mtools \
                        ninja-build \
-                       nmap-ncat \
                        openssh-clients \
                        python3 \
                        python3-PyYAML \

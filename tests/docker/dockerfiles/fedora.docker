@@ -96,7 +96,6 @@ exec "$@"\n' > /usr/bin/nosync && \
                        ncurses-devel \
                        nettle-devel \
                        ninja-build \
-                       nmap-ncat \
                        numactl-devel \
                        openssh-clients \
                        pam-devel \

@@ -84,6 +84,6 @@ class MigrationTest(QemuSystemTest):
             self.skipTest('ncat is not available')
         with Ports() as ports:
             free_port = self._get_free_port(ports)
-            dst_uri = 'exec:ncat -l localhost %u' % free_port
-            src_uri = 'exec:ncat localhost %u' % free_port
+            dst_uri = 'exec:socat TCP-LISTEN:%u -' % free_port
+            src_uri = 'exec:socat - TCP:localhost:%u' % free_port
             self.migrate(dst_uri, src_uri)

@@ -76,7 +76,6 @@ RUN apk update && \
         ndctl-dev \
         net-tools \
         nettle-dev \
-        nmap-ncat \
         numactl-dev \
         openssh-client \
         pcre2-dev \
