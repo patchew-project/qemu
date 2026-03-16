@@ -1633,7 +1633,7 @@
 #
 # Query replication status while the vm is running.
 #
-# TODO: This line is a hack to separate the example from the body
+# Details:
 #
 # .. qmp-example::
 #
@@ -1650,6 +1650,8 @@
 # @xen-colo-do-checkpoint:
 #
 # Xen uses this command to notify replication to trigger a checkpoint.
+#
+# Details:
 #
 # .. qmp-example::
 #
@@ -1687,7 +1689,7 @@
 #
 # Query COLO status while the vm is running.
 #
-# TODO: This line is a hack to separate the example from the body
+# Details:
 #
 # .. qmp-example::
 #
@@ -1723,6 +1725,8 @@
 # @migrate-pause:
 #
 # Pause a migration.  Currently it only supports postcopy.
+#
+# Details:
 #
 # .. qmp-example::
 #
