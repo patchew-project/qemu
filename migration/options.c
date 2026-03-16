@@ -90,6 +90,7 @@ const PropertyInfo qdev_prop_StrOrNull;
 
 #define DEFAULT_MIGRATE_VCPU_DIRTY_LIMIT_PERIOD     1000    /* milliseconds */
 #define DEFAULT_MIGRATE_VCPU_DIRTY_LIMIT            1       /* MB/s */
+#define DEFAULT_MIGRATE_X_RDMA_CHUNK_SHIFT          20      /* 1MB */
 
 const Property migration_properties[] = {
     DEFINE_PROP_BOOL("store-global-state", MigrationState,
@@ -183,6 +184,9 @@ const Property migration_properties[] = {
     DEFINE_PROP_ZERO_PAGE_DETECTION("zero-page-detection", MigrationState,
                        parameters.zero_page_detection,
                        ZERO_PAGE_DETECTION_MULTIFD),
+    DEFINE_PROP_UINT8("x-rdma-chunk-shift", MigrationState,
+                      parameters.x_rdma_chunk_shift,
+                      DEFAULT_MIGRATE_X_RDMA_CHUNK_SHIFT),
 
     /* Migration capabilities */
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
@@ -991,6 +995,15 @@ ZeroPageDetection migrate_zero_page_detection(void)
     MigrationState *s = migrate_get_current();
 
     return s->parameters.zero_page_detection;
+}
+
+uint8_t migrate_rdma_chunk_shift(void)
+{
+    MigrationState *s = migrate_get_current();
+    uint8_t chunk_shift = s->parameters.x_rdma_chunk_shift;
+
+    assert(20 <= chunk_shift && chunk_shift <= 30);
+    return chunk_shift;
 }
 
 /* parameters helpers */

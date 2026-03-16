@@ -1007,9 +1007,14 @@
 #     is @cpr-exec.  The first list element is the program's filename,
 #     the remainder its arguments.  (Since 10.2)
 #
+# @x-rdma-chunk-shift: RDMA memory registration chunk shift.
+#     The chunk size is 2^N bytes where N is the value.
+#     Defaults to 20 (1 MiB).  Only takes effect for RDMA migration.
+#     (Since 10.2)
+#
 # Features:
 #
-# @unstable: Members @x-checkpoint-delay and
+# @unstable: Members @x-rdma-chunk-shift, @x-checkpoint-delay and
 #     @x-vcpu-dirty-limit-period are experimental.
 #
 # Since: 2.4
@@ -1045,6 +1050,8 @@
             '*vcpu-dirty-limit': 'uint64',
             '*mode': 'MigMode',
             '*zero-page-detection': 'ZeroPageDetection',
+            '*x-rdma-chunk-shift': { 'type': 'uint8',
+                                     'features': [ 'unstable' ] },
             '*direct-io': 'bool',
             '*cpr-exec-command': [ 'str' ]} }
 
