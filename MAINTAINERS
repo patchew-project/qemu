@@ -553,7 +553,6 @@ F: target/arm/hvf/
 F: target/arm/hvf-stub.c
 
 X86 HVF CPUs
-M: Cameron Esfahani <dirty@apple.com>
 M: Roman Bolshakov <rbolshakov@ddn.com>
 R: Phil Dennis-Jordan <phil@philjordan.eu>
 W: https://wiki.qemu.org/Features/HVF
@@ -561,7 +560,6 @@ S: Maintained
 F: target/i386/hvf/
 
 HVF
-M: Cameron Esfahani <dirty@apple.com>
 M: Roman Bolshakov <rbolshakov@ddn.com>
 R: Phil Dennis-Jordan <phil@philjordan.eu>
 W: https://wiki.qemu.org/Features/HVF
@@ -607,7 +605,6 @@ S: Supported
 F: target/i386/mshv/
 
 X86 Instruction Emulator
-M: Cameron Esfahani <dirty@apple.com>
 M: Roman Bolshakov <rbolshakov@ddn.com>
 R: Phil Dennis-Jordan <phil@philjordan.eu>
 R: Wei Liu <wei.liu@kernel.org>
