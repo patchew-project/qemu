@@ -960,3 +960,47 @@ class QAPIDoc:
 
         check_args_section(self.args, 'member')
         check_args_section(self.features, 'feature')
+
+        # Ignore free-form documentation sections
+        if self.symbol is None:
+            return
+
+        n_intro_para = 0
+        has_intro = False
+        has_other = False
+
+        for section in self.all_sections:
+            # Ignore Since: and TODO: sections
+            if section.kind in (QAPIDoc.Kind.SINCE, QAPIDoc.Kind.TODO):
+                continue
+
+            # Ignore empty plaintext sections
+            if section.kind in (QAPIDoc.Kind.INTRO, QAPIDoc.Kind.DETAILS):
+                if not section.text:
+                    continue
+
+            if section.kind == QAPIDoc.Kind.INTRO:
+                has_intro = True
+                n_intro_para = len(section.text.split("\n\n"))
+            elif not (
+                    section.kind == QAPIDoc.Kind.MEMBER and not section.text
+            ):
+                # This section is something other than an Intro section;
+                # but we explicitly exclude stub entries for members
+                # (undocumented fields with no text) from consideration
+                # because they were auto-generated; they are not useful
+                # for identifying the case "There are multiple intro
+                # paragraphs and no other explicit source sections."
+                has_other = True
+
+        # If an intro section is only a single paragraph, we are
+        # confident it is well and truly just an introduction. If we
+        # have a single, multi-paragraph intro section and *no other*
+        # explicit sections in source code, it is potentially a semantic
+        # goof-em-up where the intro and details sections have bled
+        # together. Warn about this case.
+        if has_intro and n_intro_para > 1 and not has_other:
+            print(
+                f"Warning: paragraphs for {self.symbol} are ambiguous "
+                "and could be either intro or details paragraphs."
+            )
