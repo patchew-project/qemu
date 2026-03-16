@@ -111,7 +111,7 @@
 # Return a list of `ACPIOSTInfo` for devices that support status
 # reporting via ACPI _OST method.
 #
-# Since: 2.1
+# Details:
 #
 # .. qmp-example::
 #
@@ -121,6 +121,8 @@
 #                      { "slot": "2", "slot-type": "DIMM", "source": 0, "status": 0},
 #                      { "slot": "3", "slot-type": "DIMM", "source": 0, "status": 0}
 #        ]}
+#
+# Since: 2.1
 ##
 { 'command': 'query-acpi-ospm-status', 'returns': ['ACPIOSTInfo'] }
 
@@ -131,14 +133,14 @@
 #
 # @info: OSPM Status Indication
 #
-# Since: 2.1
-#
 # .. qmp-example::
 #
 #     <- { "event": "ACPI_DEVICE_OST",
 #          "data": { "info": { "device": "d1", "slot": "0",
 #                              "slot-type": "DIMM", "source": 1, "status": 0 } },
 #          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
+# Since: 2.1
 ##
 { 'event': 'ACPI_DEVICE_OST',
      'data': { 'info': 'ACPIOSTInfo' } }

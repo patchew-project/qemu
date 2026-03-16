@@ -118,12 +118,12 @@
 #
 # .. note:: Ejecting a device with no media results in success.
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     -> { "execute": "eject", "arguments": { "id": "ide1-0-1" } }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'eject',
   'data': { '*device': { 'type': 'str', 'features': [ 'deprecated' ] },
@@ -162,8 +162,6 @@
 #
 # @deprecated: Member @device is deprecated.  Use @id instead.
 #
-# Since: 2.5
-#
 # .. qmp-example::
 #
 #     -> { "execute": "blockdev-open-tray",
@@ -177,6 +175,8 @@
 #                    "tray-open": true } }
 #
 #     <- { "return": {} }
+#
+# Since: 2.5
 ##
 { 'command': 'blockdev-open-tray',
   'data': { '*device': { 'type': 'str', 'features': [ 'deprecated' ] },
@@ -200,8 +200,6 @@
 #
 # @deprecated: Member @device is deprecated.  Use @id instead.
 #
-# Since: 2.5
-#
 # .. qmp-example::
 #
 #     -> { "execute": "blockdev-close-tray",
@@ -215,6 +213,8 @@
 #                    "tray-open": false } }
 #
 #     <- { "return": {} }
+#
+# Since: 2.5
 ##
 { 'command': 'blockdev-close-tray',
   'data': { '*device': { 'type': 'str', 'features': [ 'deprecated' ] },
@@ -231,8 +231,6 @@
 # no-op.
 #
 # @id: The name or QOM path of the guest device
-#
-# Since: 2.12
 #
 # .. qmp-example::
 #
@@ -258,6 +256,8 @@
 #          "arguments": { "id": "ide0-1-0" } }
 #
 #     <- { "return": {} }
+#
+# Since: 2.12
 ##
 { 'command': 'blockdev-remove-medium',
   'data': { 'id': 'str' } }
@@ -272,8 +272,6 @@
 # @id: The name or QOM path of the guest device
 #
 # @node-name: name of a node in the block driver state graph
-#
-# Since: 2.12
 #
 # .. qmp-example::
 #
@@ -290,6 +288,8 @@
 #                         "node-name": "node0" } }
 #
 #     <- { "return": {} }
+#
+# Since: 2.12
 ##
 { 'command': 'blockdev-insert-medium',
   'data': { 'id': 'str',
@@ -343,8 +343,6 @@
 #
 # @deprecated: Member @device is deprecated.  Use @id instead.
 #
-# Since: 2.5
-#
 # .. qmp-example::
 #    :title: Change a removable medium
 #
@@ -374,6 +372,8 @@
 #                         "read-only-mode": "read-only" } }
 #
 #     <- { "return": {} }
+#
+# Since: 2.5
 ##
 { 'command': 'blockdev-change-medium',
   'data': { '*device': { 'type': 'str', 'features': [ 'deprecated' ] },
@@ -398,8 +398,6 @@
 # @tray-open: true if the tray has been opened or false if it has been
 #     closed
 #
-# Since: 1.1
-#
 # .. qmp-example::
 #
 #     <- { "event": "DEVICE_TRAY_MOVED",
@@ -408,6 +406,8 @@
 #                    "tray-open": true
 #          },
 #          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
+# Since: 1.1
 ##
 { 'event': 'DEVICE_TRAY_MOVED',
   'data': { 'device': 'str', 'id': 'str', 'tray-open': 'bool' } }
@@ -422,8 +422,6 @@
 #
 # @connected: true if the PR manager is connected to a backend
 #
-# Since: 3.0
-#
 # .. qmp-example::
 #
 #     <- { "event": "PR_MANAGER_STATUS_CHANGED",
@@ -431,6 +429,8 @@
 #                    "connected": true
 #          },
 #          "timestamp": { "seconds": 1519840375, "microseconds": 450486 } }
+#
+# Since: 3.0
 ##
 { 'event': 'PR_MANAGER_STATUS_CHANGED',
   'data': { 'id': 'str', 'connected': 'bool' } }
@@ -463,8 +463,6 @@
 #
 # Errors:
 #     - If @device is not a valid block device, DeviceNotFound
-#
-# Since: 1.1
 #
 # .. qmp-example::
 #
@@ -505,6 +503,8 @@
 #                         "bps_max_length": 60,
 #                         "iops_size": 0 } }
 #     <- { "return": {} }
+#
+# Since: 1.1
 ##
 { 'command': 'block_set_io_throttle', 'boxed': true,
   'data': 'BlockIOThrottle',
@@ -545,8 +545,6 @@
 #
 # Errors:
 #     - if device is not found or any boundary arrays are invalid.
-#
-# Since: 4.0
 #
 # .. qmp-example::
 #    :annotated:
@@ -594,6 +592,8 @@
 #     -> { "execute": "block-latency-histogram-set",
 #          "arguments": { "id": "drive0" } }
 #     <- { "return": {} }
+#
+# Since: 4.0
 ##
 { 'command': 'block-latency-histogram-set',
   'data': {'id': 'str',

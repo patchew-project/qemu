@@ -58,8 +58,6 @@
 #
 # @device-state: The new changed device migration state.
 #
-# Since: 9.1
-#
 # .. qmp-example::
 #
 #     <- { "timestamp": { "seconds": 1713771323, "microseconds": 212268 },
@@ -68,6 +66,8 @@
 #              "device-id": "vfio_dev1",
 #              "qom-path": "/machine/peripheral/vfio_dev1",
 #              "device-state": "stop" } }
+#
+# Since: 9.1
 ##
 { 'event': 'VFIO_MIGRATION',
   'data': {

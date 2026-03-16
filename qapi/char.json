@@ -38,8 +38,6 @@
 #
 # Return information about current character devices.
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-chardev" }
@@ -62,6 +60,8 @@
 #              }
 #           ]
 #        }
+#
+# Since: 0.14
 ##
 { 'command': 'query-chardev', 'returns': ['ChardevInfo'],
   'allow-preconfig': true }
@@ -82,8 +82,6 @@
 #
 # Return information about character device backends.
 #
-# Since: 2.0
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-chardev-backends" }
@@ -103,6 +101,8 @@
 #              }
 #           ]
 #        }
+#
+# Since: 2.0
 ##
 { 'command': 'query-chardev-backends', 'returns': ['ChardevBackendInfo'] }
 
@@ -137,8 +137,6 @@
 #     - data itself is always Unicode regardless of format, like any
 #       other string.
 #
-# Since: 1.4
-#
 # .. qmp-example::
 #
 #     -> { "execute": "ringbuf-write",
@@ -146,6 +144,8 @@
 #                         "data": "abcdefgh",
 #                         "format": "utf8" } }
 #     <- { "return": {} }
+#
+# Since: 1.4
 ##
 { 'command': 'ringbuf-write',
   'data': { 'device': 'str',
@@ -173,8 +173,6 @@
 #
 # Returns: data read from the device
 #
-# Since: 1.4
-#
 # .. qmp-example::
 #
 #     -> { "execute": "ringbuf-read",
@@ -182,6 +180,8 @@
 #                         "size": 1000,
 #                         "format": "utf8" } }
 #     <- { "return": "abcdefgh" }
+#
+# Since: 1.4
 ##
 { 'command': 'ringbuf-read',
   'data': {'device': 'str', 'size': 'int', '*format': 'DataFormat'},
@@ -761,8 +761,6 @@
 #
 # @backend: backend type and parameters
 #
-# Since: 1.4
-#
 # .. qmp-example::
 #
 #     -> { "execute" : "chardev-add",
@@ -784,6 +782,8 @@
 #          "arguments" : { "id" : "baz",
 #                          "backend" : { "type" : "pty", "data" : {} } } }
 #     <- { "return": { "pty" : "/dev/pty/42" } }
+#
+# Since: 1.4
 ##
 { 'command': 'chardev-add',
   'data': { 'id': 'str',
@@ -798,8 +798,6 @@
 # @id: the chardev's ID, must exist
 #
 # @backend: new backend type and parameters
-#
-# Since: 2.10
 #
 # .. qmp-example::
 #
@@ -825,6 +823,8 @@
 #                      "server" : true,
 #                      "wait" : false }}}}
 #     <- {"return": {}}
+#
+# Since: 2.10
 ##
 { 'command': 'chardev-change',
   'data': { 'id': 'str',
@@ -838,12 +838,12 @@
 #
 # @id: the chardev's ID, must exist and not be in use
 #
-# Since: 1.4
-#
 # .. qmp-example::
 #
 #     -> { "execute": "chardev-remove", "arguments": { "id" : "foo" } }
 #     <- { "return": {} }
+#
+# Since: 1.4
 ##
 { 'command': 'chardev-remove',
   'data': { 'id': 'str' } }
@@ -855,12 +855,12 @@
 #
 # @id: the chardev's ID, must exist
 #
-# Since: 2.10
-#
 # .. qmp-example::
 #
 #     -> { "execute": "chardev-send-break", "arguments": { "id" : "foo" } }
 #     <- { "return": {} }
+#
+# Since: 2.10
 ##
 { 'command': 'chardev-send-break',
   'data': { 'id': 'str' } }
@@ -876,13 +876,13 @@
 #
 # .. note:: This event is rate-limited.
 #
-# Since: 2.1
-#
 # .. qmp-example::
 #
 #     <- { "event": "VSERPORT_CHANGE",
 #          "data": { "id": "channel0", "open": true },
 #          "timestamp": { "seconds": 1401385907, "microseconds": 422329 } }
+#
+# Since: 2.1
 ##
 { 'event': 'VSERPORT_CHANGE',
   'data': { 'id': 'str',

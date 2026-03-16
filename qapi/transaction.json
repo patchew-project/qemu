@@ -244,8 +244,6 @@
 #    in an error condition, and subsequent actions will not have been
 #    attempted.
 #
-# Since: 1.1
-#
 # .. qmp-example::
 #
 #     -> { "execute": "transaction",
@@ -266,6 +264,8 @@
 #                                          "device": "ide-hd2",
 #                                          "name": "snapshot0" } } ] } }
 #     <- { "return": {} }
+#
+# Since: 1.1
 ##
 { 'command': 'transaction',
   'data': { 'actions': [ 'TransactionAction' ],

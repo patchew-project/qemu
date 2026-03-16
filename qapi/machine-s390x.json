@@ -79,13 +79,13 @@
 #
 # @unstable: This event is experimental.
 #
-# Since: 8.2
-#
 # .. qmp-example::
 #
 #     <- { "event": "CPU_POLARIZATION_CHANGE",
 #          "data": { "polarization": "horizontal" },
 #          "timestamp": { "seconds": 1401385907, "microseconds": 422329 } }
+#
+# Since: 8.2
 ##
 { 'event': 'CPU_POLARIZATION_CHANGE',
   'data': { 'polarization': 'S390CpuPolarization' },
@@ -130,12 +130,12 @@
 #
 # @unstable: This event is experimental.
 #
-# Since: 10.2
-#
 # .. qmp-example::
 #
 #     <- { "event": "SCLP_CPI_INFO_AVAILABLE",
 #          "timestamp": { "seconds": 1401385907, "microseconds": 422329 } }
+#
+# Since: 10.2
 ##
 { 'event': 'SCLP_CPI_INFO_AVAILABLE',
   'features': [ 'unstable' ]

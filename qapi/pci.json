@@ -182,8 +182,6 @@
 #     of all PCI devices attached to it.  Each device is represented
 #     by a json-object.
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-pci" }
@@ -314,5 +312,7 @@
 #        }
 #
 # This example has been shortened as the real response is too long.
+#
+# Since: 0.14
 ##
 { 'command': 'query-pci', 'returns': ['PciInfo'] }

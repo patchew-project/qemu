@@ -33,15 +33,17 @@
 # It will return a list of `GICCapability` objects that describe its
 # capability bits.
 #
+# Details:
+#
 # On non-ARM targets this command will report an error as the GIC
 # technology is not applicable.
-#
-# Since: 2.6
 #
 # .. qmp-example::
 #
 #     -> { "execute": "query-gic-capabilities" }
 #     <- { "return": [{ "version": 2, "emulated": true, "kernel": false },
 #                     { "version": 3, "emulated": false, "kernel": true } ] }
+#
+# Since: 2.6
 ##
 { 'command': 'query-gic-capabilities', 'returns': ['GICCapability'] }

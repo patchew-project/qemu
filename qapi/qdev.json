@@ -103,8 +103,6 @@
 #    device will not be removed and a `DEVICE_UNPLUG_GUEST_ERROR`
 #    event is sent.  Some errors cannot be detected.
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     -> { "execute": "device_del",
@@ -116,6 +114,8 @@
 #     -> { "execute": "device_del",
 #          "arguments": { "id": "/machine/peripheral-anon/device[0]" } }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'device_del', 'data': {'id': 'str'} }
 
@@ -131,14 +131,14 @@
 #
 # @path: the device's QOM path
 #
-# Since: 1.5
-#
 # .. qmp-example::
 #
 #     <- { "event": "DEVICE_DELETED",
 #          "data": { "device": "virtio-net-pci-0",
 #                    "path": "/machine/peripheral/virtio-net-pci-0" },
 #          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
+# Since: 1.5
 ##
 { 'event': 'DEVICE_DELETED',
   'data': { '*device': 'str', 'path': 'str' } }
@@ -153,14 +153,14 @@
 #
 # @path: the device's QOM path
 #
-# Since: 6.2
-#
 # .. qmp-example::
 #
 #     <- { "event": "DEVICE_UNPLUG_GUEST_ERROR",
 #          "data": { "device": "core1",
 #                    "path": "/machine/peripheral/core1" },
 #          "timestamp": { "seconds": 1615570772, "microseconds": 202844 } }
+#
+# Since: 6.2
 ##
 { 'event': 'DEVICE_UNPLUG_GUEST_ERROR',
   'data': { '*device': 'str', 'path': 'str' } }

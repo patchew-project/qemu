@@ -29,12 +29,12 @@
 #
 # Return a list of supported TPM models
 #
-# Since: 1.5
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-tpm-models" }
 #     <- { "return": [ "tpm-tis", "tpm-crb", "tpm-spapr" ] }
+#
+# Since: 1.5
 ##
 { 'command': 'query-tpm-models', 'returns': ['TpmModel'],
   'if': 'CONFIG_TPM' }
@@ -58,12 +58,12 @@
 #
 # Return a list of supported TPM types
 #
-# Since: 1.5
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-tpm-types" }
 #     <- { "return": [ "passthrough", "emulator" ] }
+#
+# Since: 1.5
 ##
 { 'command': 'query-tpm-types', 'returns': ['TpmType'],
   'if': 'CONFIG_TPM' }
@@ -164,8 +164,6 @@
 #
 # Return information about the TPM device
 #
-# Since: 1.5
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-tpm" }
@@ -183,6 +181,8 @@
 #            }
 #          ]
 #        }
+#
+# Since: 1.5
 ##
 { 'command': 'query-tpm', 'returns': ['TPMInfo'],
   'if': 'CONFIG_TPM' }

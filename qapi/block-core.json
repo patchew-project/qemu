@@ -862,8 +862,6 @@
 # Returns: a list describing each virtual block device.  Filter nodes
 #     that were created implicitly are skipped over.
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-block" }
@@ -947,6 +945,8 @@
 #              }
 #           ]
 #        }
+#
+# Since: 0.14
 ##
 { 'command': 'query-block', 'returns': ['BlockInfo'],
   'data': { '*flat': 'bool' },
@@ -1267,8 +1267,6 @@
 #
 # Returns: A list of statistics for each virtual block device.
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-blockstats" }
@@ -1370,6 +1368,8 @@
 #              }
 #           ]
 #        }
+#
+# Since: 0.14
 ##
 { 'command': 'query-blockstats',
   'data': { '*query-nodes': 'bool' },
@@ -1560,13 +1560,13 @@
 # Errors:
 #     - If @device is not a valid block device, DeviceNotFound
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     -> { "execute": "block_resize",
 #          "arguments": { "device": "scratch", "size": 1073741824 } }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'block_resize',
   'data': { '*device': 'str',
@@ -1788,8 +1788,6 @@
 # Errors:
 #     - If @device is not a valid block device, DeviceNotFound
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     -> { "execute": "blockdev-snapshot-sync",
@@ -1798,6 +1796,8 @@
 #                         "/some/place/my-image",
 #                         "format": "qcow2" } }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'blockdev-snapshot-sync',
   'data': 'BlockdevSnapshotSync',
@@ -1820,8 +1820,6 @@
 #     backing file of a destination of a `blockdev-mirror`.
 #     (since 5.0)
 #
-# Since: 2.5
-#
 # .. qmp-example::
 #
 #     -> { "execute": "blockdev-add",
@@ -1837,6 +1835,8 @@
 #          "arguments": { "node": "ide-hd0",
 #                         "overlay": "node1534" } }
 #     <- { "return": {} }
+#
+# Since: 2.5
 ##
 { 'command': 'blockdev-snapshot',
   'data': 'BlockdevSnapshot',
@@ -1963,14 +1963,14 @@
 # @deprecated: Members @base and @top are deprecated.  Use @base-node
 #     and @top-node instead.
 #
-# Since: 1.3
-#
 # .. qmp-example::
 #
 #     -> { "execute": "block-commit",
 #          "arguments": { "device": "virtio0",
 #                         "top": "/tmp/snap1.qcow2" } }
 #     <- { "return": {} }
+#
+# Since: 1.3
 ##
 { 'command': 'block-commit',
   'data': { '*job-id': 'str', 'device': 'str', '*base-node': 'str',
@@ -2001,8 +2001,6 @@
 # @deprecated: This command is deprecated.  Use `blockdev-backup`
 #     instead.
 #
-# Since: 1.6
-#
 # .. qmp-example::
 #
 #     -> { "execute": "drive-backup",
@@ -2010,6 +2008,8 @@
 #                         "sync": "full",
 #                         "target": "backup.img" } }
 #     <- { "return": {} }
+#
+# Since: 1.6
 ##
 { 'command': 'drive-backup', 'boxed': true,
   'data': 'DriveBackup', 'features': ['deprecated'],
@@ -2027,8 +2027,6 @@
 # Errors:
 #     - If @device is not a valid block device, DeviceNotFound
 #
-# Since: 2.3
-#
 # .. qmp-example::
 #
 #     -> { "execute": "blockdev-backup",
@@ -2036,6 +2034,8 @@
 #                         "sync": "full",
 #                         "target": "tgt-id" } }
 #     <- { "return": {} }
+#
+# Since: 2.3
 ##
 { 'command': 'blockdev-backup', 'boxed': true,
   'data': 'BlockdevBackup',
@@ -2048,8 +2048,6 @@
 #
 # @flat: Omit the nested data about backing image ("backing-image"
 #     key) if true.  Default is false (Since 5.0)
-#
-# Since: 2.0
 #
 # .. qmp-example::
 #
@@ -2099,6 +2097,8 @@
 #                               "virtual-size":2048000
 #                           }
 #                        } } ] }
+#
+# Since: 2.0
 ##
 { 'command': 'query-named-block-nodes',
   'returns': [ 'BlockDeviceInfo' ],
@@ -2230,8 +2230,6 @@
 # Errors:
 #     - If @device is not a valid block device, GenericError
 #
-# Since: 1.3
-#
 # .. qmp-example::
 #
 #     -> { "execute": "drive-mirror",
@@ -2240,6 +2238,8 @@
 #                         "sync": "full",
 #                         "format": "qcow2" } }
 #     <- { "return": {} }
+#
+# Since: 1.3
 ##
 { 'command': 'drive-mirror', 'boxed': true,
   'data': 'DriveMirror',
@@ -2407,13 +2407,13 @@
 #     - If @node is not a valid block device or node, DeviceNotFound
 #     - If @name is already taken, GenericError
 #
-# Since: 2.4
-#
 # .. qmp-example::
 #
 #     -> { "execute": "block-dirty-bitmap-add",
 #          "arguments": { "node": "drive0", "name": "bitmap0" } }
 #     <- { "return": {} }
+#
+# Since: 2.4
 ##
 { 'command': 'block-dirty-bitmap-add',
   'data': 'BlockDirtyBitmapAdd',
@@ -2431,13 +2431,13 @@
 #     - If @name is not found, GenericError
 #     - if @name is frozen by an operation, GenericError
 #
-# Since: 2.4
-#
 # .. qmp-example::
 #
 #     -> { "execute": "block-dirty-bitmap-remove",
 #          "arguments": { "node": "drive0", "name": "bitmap0" } }
 #     <- { "return": {} }
+#
+# Since: 2.4
 ##
 { 'command': 'block-dirty-bitmap-remove',
   'data': 'BlockDirtyBitmap',
@@ -2454,13 +2454,13 @@
 #     - If @node is not a valid block device, DeviceNotFound
 #     - If @name is not found, GenericError
 #
-# Since: 2.4
-#
 # .. qmp-example::
 #
 #     -> { "execute": "block-dirty-bitmap-clear",
 #          "arguments": { "node": "drive0", "name": "bitmap0" } }
 #     <- { "return": {} }
+#
+# Since: 2.4
 ##
 { 'command': 'block-dirty-bitmap-clear',
   'data': 'BlockDirtyBitmap',
@@ -2475,13 +2475,13 @@
 #     - If @node is not a valid block device, DeviceNotFound
 #     - If @name is not found, GenericError
 #
-# Since: 4.0
-#
 # .. qmp-example::
 #
 #     -> { "execute": "block-dirty-bitmap-enable",
 #          "arguments": { "node": "drive0", "name": "bitmap0" } }
 #     <- { "return": {} }
+#
+# Since: 4.0
 ##
 { 'command': 'block-dirty-bitmap-enable',
   'data': 'BlockDirtyBitmap',
@@ -2496,13 +2496,13 @@
 #     - If @node is not a valid block device, DeviceNotFound
 #     - If @name is not found, GenericError
 #
-# Since: 4.0
-#
 # .. qmp-example::
 #
 #     -> { "execute": "block-dirty-bitmap-disable",
 #          "arguments": { "node": "drive0", "name": "bitmap0" } }
 #     <- { "return": {} }
+#
+# Since: 4.0
 ##
 { 'command': 'block-dirty-bitmap-disable',
   'data': 'BlockDirtyBitmap',
@@ -2528,14 +2528,14 @@
 #     - If any of the bitmaps have different sizes or granularities,
 #       GenericError
 #
-# Since: 4.0
-#
 # .. qmp-example::
 #
 #     -> { "execute": "block-dirty-bitmap-merge",
 #          "arguments": { "node": "drive0", "target": "bitmap0",
 #                         "bitmaps": ["bitmap1"] } }
 #     <- { "return": {} }
+#
+# Since: 4.0
 ##
 { 'command': 'block-dirty-bitmap-merge',
   'data': 'BlockDirtyBitmapMerge',
@@ -2637,8 +2637,6 @@
 #     mirror.  Setting this to true when the destination is not
 #     actually all zero can corrupt the destination.  (Since 10.1)
 #
-# Since: 2.6
-#
 # .. qmp-example::
 #
 #     -> { "execute": "blockdev-mirror",
@@ -2646,6 +2644,8 @@
 #                         "target": "target0",
 #                         "sync": "full" } }
 #     <- { "return": {} }
+#
+# Since: 2.6
 ##
 { 'command': 'blockdev-mirror',
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
@@ -2962,14 +2962,14 @@
 # Errors:
 #     - If @device does not exist, DeviceNotFound.
 #
-# Since: 1.1
-#
 # .. qmp-example::
 #
 #     -> { "execute": "block-stream",
 #          "arguments": { "device": "virtio0",
 #                         "base": "/tmp/master.qcow2" } }
 #     <- { "return": {} }
+#
+# Since: 1.1
 ##
 { 'command': 'block-stream',
   'data': { '*job-id': 'str', 'device': 'str', '*base': 'str',
@@ -4958,7 +4958,7 @@
 #
 # Creates a new block device.
 #
-# Since: 2.9
+# Details:
 #
 # .. qmp-example::
 #
@@ -4999,6 +4999,8 @@
 #          }
 #
 #     <- { "return": {} }
+#
+# Since: 2.9
 ##
 { 'command': 'blockdev-add', 'data': 'BlockdevOptions', 'boxed': true,
   'allow-preconfig': true }
@@ -5062,8 +5064,6 @@
 #
 # @node-name: Name of the graph node to delete.
 #
-# Since: 2.9
-#
 # .. qmp-example::
 #
 #     -> { "execute": "blockdev-add",
@@ -5082,6 +5082,8 @@
 #          "arguments": { "node-name": "node0" }
 #        }
 #     <- { "return": {} }
+#
+# Since: 2.9
 ##
 { 'command': 'blockdev-del', 'data': { 'node-name': 'str' },
   'allow-preconfig': true }
@@ -5102,8 +5104,6 @@
 # @active: true if the nodes should be active when the command returns
 #     success, false if they should be inactive.
 #
-# Since: 10.0
-#
 # .. qmp-example::
 #
 #     -> { "execute": "blockdev-set-active",
@@ -5113,6 +5113,8 @@
 #          }
 #        }
 #     <- { "return": {} }
+#
+# Since: 10.0
 ##
 { 'command': 'blockdev-set-active',
   'data': { '*node-name': 'str', 'active': 'bool' },
@@ -5796,8 +5798,6 @@
 #
 # .. note:: This event is rate-limited, except if action is "stop".
 #
-# Since: 0.13
-#
 # .. qmp-example::
 #
 #     <- { "event": "BLOCK_IO_ERROR",
@@ -5808,6 +5808,8 @@
 #                    "action": "stop",
 #                    "reason": "No space left on device" },
 #          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
+# Since: 0.13
 ##
 { 'event': 'BLOCK_IO_ERROR',
   'data': { 'qom-path': 'str', 'device': 'str', '*node-name': 'str',
@@ -5837,8 +5839,6 @@
 #     other than that streaming has failed and clients should not try
 #     to interpret the error string
 #
-# Since: 1.1
-#
 # .. qmp-example::
 #
 #     <- { "event": "BLOCK_JOB_COMPLETED",
@@ -5846,6 +5846,8 @@
 #                    "len": 10737418240, "offset": 10737418240,
 #                    "speed": 0 },
 #          "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+#
+# Since: 1.1
 ##
 { 'event': 'BLOCK_JOB_COMPLETED',
   'data': { 'type'  : 'JobType',
@@ -5872,8 +5874,6 @@
 #
 # @speed: rate limit, bytes per second
 #
-# Since: 1.1
-#
 # .. qmp-example::
 #
 #     <- { "event": "BLOCK_JOB_CANCELLED",
@@ -5881,6 +5881,8 @@
 #                    "len": 10737418240, "offset": 134217728,
 #                    "speed": 0 },
 #          "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+#
+# Since: 1.1
 ##
 { 'event': 'BLOCK_JOB_CANCELLED',
   'data': { 'type'  : 'JobType',
@@ -5901,8 +5903,6 @@
 #
 # @action: action that has been taken
 #
-# Since: 1.3
-#
 # .. qmp-example::
 #
 #     <- { "event": "BLOCK_JOB_ERROR",
@@ -5910,6 +5910,8 @@
 #                    "operation": "write",
 #                    "action": "stop" },
 #          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
+# Since: 1.3
 ##
 { 'event': 'BLOCK_JOB_ERROR',
   'data': { 'device'   : 'str',
@@ -5936,14 +5938,14 @@
 # .. note:: The "ready to complete" status is always reset by a
 #    `BLOCK_JOB_ERROR` event.
 #
-# Since: 1.3
-#
 # .. qmp-example::
 #
 #     <- { "event": "BLOCK_JOB_READY",
 #          "data": { "device": "drive0", "type": "mirror", "speed": 0,
 #                    "len": 2097152, "offset": 2097152 },
 #          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
+# Since: 1.3
 ##
 { 'event': 'BLOCK_JOB_READY',
   'data': { 'type'  : 'JobType',
@@ -5964,13 +5966,13 @@
 #
 # @id: The job identifier.
 #
-# Since: 2.12
-#
 # .. qmp-example::
 #
 #     <- { "event": "BLOCK_JOB_PENDING",
 #          "data": { "type": "mirror", "id": "backup_1" },
 #          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
+# Since: 2.12
 ##
 { 'event': 'BLOCK_JOB_PENDING',
   'data': { 'type'  : 'JobType',
@@ -6038,14 +6040,14 @@
 # @write-threshold: configured threshold for the block device, bytes.
 #     Use 0 to disable the threshold.
 #
-# Since: 2.3
-#
 # .. qmp-example::
 #
 #     -> { "execute": "block-set-write-threshold",
 #          "arguments": { "node-name": "mydev",
 #                         "write-threshold": 17179869184 } }
 #     <- { "return": {} }
+#
+# Since: 2.3
 ##
 { 'command': 'block-set-write-threshold',
   'data': { 'node-name': 'str', 'write-threshold': 'uint64' },
@@ -6079,8 +6081,6 @@
 #     'children' list of `BlockdevOptionsQuorum`, as returned by
 #     .bdrv_refresh_filename().
 #
-# Since: 2.7
-#
 # .. qmp-example::
 #    :title: Add a new node to a quorum
 #
@@ -6103,6 +6103,8 @@
 #          "arguments": { "parent": "disk1",
 #                         "child": "children.1" } }
 #     <- { "return": {} }
+#
+# Since: 2.7
 ##
 { 'command': 'x-blockdev-change',
   'data' : { 'parent': 'str',
@@ -6131,8 +6133,6 @@
 # @unstable: This command is experimental and intended for test cases
 #     that need control over IOThreads only.
 #
-# Since: 2.12
-#
 # .. qmp-example::
 #    :title: Move a node into an IOThread
 #
@@ -6148,6 +6148,8 @@
 #          "arguments": { "node-name": "disk1",
 #                         "iothread": null } }
 #     <- { "return": {} }
+#
+# Since: 2.12
 ##
 { 'command': 'x-blockdev-set-iothread',
   'data' : { 'node-name': 'str',
@@ -6185,13 +6187,13 @@
 #
 # .. note:: This event is rate-limited.
 #
-# Since: 2.0
-#
 # .. qmp-example::
 #
 #     <- { "event": "QUORUM_FAILURE",
 #          "data": { "reference": "usr1", "sector-num": 345435, "sectors-count": 5 },
 #          "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
+#
+# Since: 2.0
 ##
 { 'event': 'QUORUM_FAILURE',
   'data': { 'reference': 'str', 'sector-num': 'int', 'sectors-count': 'int' } }
@@ -6216,8 +6218,6 @@
 #
 # .. note:: This event is rate-limited.
 #
-# Since: 2.0
-#
 # .. qmp-example::
 #    :title: Read operation
 #
@@ -6233,6 +6233,8 @@
 #          "data": { "node-name": "node0", "sector-num": 0, "sectors-count": 2097120,
 #                    "type": "flush", "error": "Broken pipe" },
 #          "timestamp": { "seconds": 1456406829, "microseconds": 291763 } }
+#
+# Since: 2.0
 ##
 { 'event': 'QUORUM_REPORT_BAD',
   'data': { 'type': 'QuorumOpType', '*error': 'str', 'node-name': 'str',
@@ -6269,8 +6271,6 @@
 # .. note:: Only some image formats such as qcow2 and rbd support
 #    internal snapshots.
 #
-# Since: 1.7
-#
 # .. qmp-example::
 #
 #     -> { "execute": "blockdev-snapshot-internal-sync",
@@ -6278,6 +6278,8 @@
 #                         "name": "snapshot0" }
 #        }
 #     <- { "return": {} }
+#
+# Since: 1.7
 ##
 { 'command': 'blockdev-snapshot-internal-sync',
   'data': 'BlockdevSnapshotInternal',
@@ -6305,8 +6307,6 @@
 #       GenericError
 #     - If @id and @name are both not specified, GenericError
 #
-# Since: 1.7
-#
 # .. qmp-example::
 #
 #     -> { "execute": "blockdev-snapshot-delete-internal-sync",
@@ -6324,6 +6324,8 @@
 #                        "icount": 220414
 #          }
 #        }
+#
+# Since: 1.7
 ##
 { 'command': 'blockdev-snapshot-delete-internal-sync',
   'data': { 'device': 'str', '*id': 'str', '*name': 'str'},

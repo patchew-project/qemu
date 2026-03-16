@@ -54,12 +54,12 @@
 #
 # Returns: record/replay information.
 #
-# Since: 5.2
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-replay" }
 #     <- { "return": { "mode": "play", "filename": "log.rr", "icount": 220414 } }
+#
+# Since: 5.2
 ##
 { 'command': 'query-replay',
   'returns': 'ReplayInfo' }
@@ -76,12 +76,12 @@
 #
 # @icount: instruction count to stop at
 #
-# Since: 5.2
-#
 # .. qmp-example::
 #
 #     -> { "execute": "replay-break", "arguments": { "icount": 220414 } }
 #     <- { "return": {} }
+#
+# Since: 5.2
 ##
 { 'command': 'replay-break', 'data': { 'icount': 'int' } }
 
@@ -91,12 +91,14 @@
 # Remove replay breakpoint which was set with `replay-break`.  The
 # command is ignored when there are no replay breakpoints.
 #
-# Since: 5.2
+# Details:
 #
 # .. qmp-example::
 #
 #     -> { "execute": "replay-delete-break" }
 #     <- { "return": {} }
+#
+# Since: 5.2
 ##
 { 'command': 'replay-delete-break' }
 
@@ -112,11 +114,11 @@
 #
 # @icount: target instruction count
 #
-# Since: 5.2
-#
 # .. qmp-example::
 #
 #     -> { "execute": "replay-seek", "arguments": { "icount": 220414 } }
 #     <- { "return": {} }
+#
+# Since: 5.2
 ##
 { 'command': 'replay-seek', 'data': { 'icount': 'int' } }

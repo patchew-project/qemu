@@ -51,13 +51,13 @@
 #
 # Returns: a list of info for the matching events
 #
-# Since: 2.2
-#
 # .. qmp-example::
 #
 #     -> { "execute": "trace-event-get-state",
 #          "arguments": { "name": "qemu_memalign" } }
 #     <- { "return": [ { "name": "qemu_memalign", "state": "disabled", "vcpu": false } ] }
+#
+# Since: 2.2
 ##
 { 'command': 'trace-event-get-state',
   'data': {'name': 'str' },
@@ -74,13 +74,13 @@
 #
 # @ignore-unavailable: Do not match unavailable events with @name.
 #
-# Since: 2.2
-#
 # .. qmp-example::
 #
 #     -> { "execute": "trace-event-set-state",
 #          "arguments": { "name": "qemu_memalign", "enable": true } }
 #     <- { "return": {} }
+#
+# Since: 2.2
 ##
 { 'command': 'trace-event-set-state',
   'data': {'name': 'str', 'enable': 'bool', '*ignore-unavailable': 'bool' } }

@@ -22,8 +22,6 @@
 # Errors:
 #     - If @name is not a valid network device, DeviceNotFound
 #
-# Since: 0.14
-#
 # .. note:: Not all network adapters support setting link status.
 #    This command will succeed even if the network adapter does not
 #    support link status notification.
@@ -33,6 +31,8 @@
 #     -> { "execute": "set_link",
 #          "arguments": { "name": "e1000.0", "up": false } }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'set_link', 'data': {'name': 'str', 'up': 'bool'} }
 
@@ -43,8 +43,6 @@
 #
 # Additional arguments depend on the type.
 #
-# Since: 0.14
-#
 # Errors:
 #     - If @type is not a valid network backend, DeviceNotFound
 #
@@ -54,6 +52,8 @@
 #          "arguments": { "type": "user", "id": "netdev1",
 #                         "dnssearch": [ { "str": "example.org" } ] } }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'netdev_add', 'data': 'Netdev', 'boxed': true,
   'allow-preconfig': true }
@@ -68,12 +68,12 @@
 # Errors:
 #     - If @id is not a valid network backend, DeviceNotFound
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     -> { "execute": "netdev_del", "arguments": { "id": "netdev1" } }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'netdev_del', 'data': {'id': 'str'},
   'allow-preconfig': true }
@@ -975,8 +975,6 @@
 #     - if the given NIC doesn't support rx-filter querying
 #     - if the given net client isn't a NIC
 #
-# Since: 1.6
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-rx-filter", "arguments": { "name": "vnet0" } }
@@ -1005,6 +1003,8 @@
 #             }
 #           ]
 #        }
+#
+# Since: 1.6
 ##
 { 'command': 'query-rx-filter',
   'data': { '*name': 'str' },
@@ -1020,14 +1020,14 @@
 #
 # @path: device path
 #
-# Since: 1.6
-#
 # .. qmp-example::
 #
 #     <- { "event": "NIC_RX_FILTER_CHANGED",
 #          "data": { "name": "vnet0",
 #                    "path": "/machine/peripheral/vnet0/virtio-backend" },
 #          "timestamp": { "seconds": 1368697518, "microseconds": 326866 } }
+#
+# Since: 1.6
 ##
 { 'event': 'NIC_RX_FILTER_CHANGED',
   'data': { '*name': 'str', 'path': 'str' } }
@@ -1095,13 +1095,13 @@
 #
 # @device-id: QEMU device id of the unplugged device
 #
-# Since: 4.2
-#
 # .. qmp-example::
 #
 #     <- { "event": "FAILOVER_NEGOTIATED",
 #          "data": { "device-id": "net1" },
 #          "timestamp": { "seconds": 1368697518, "microseconds": 326866 } }
+#
+# Since: 4.2
 ##
 { 'event': 'FAILOVER_NEGOTIATED',
   'data': {'device-id': 'str'} }
@@ -1114,8 +1114,6 @@
 # @netdev-id: QEMU netdev id that is connected
 #
 # @addr: The destination address
-#
-# Since: 7.2
 #
 # .. qmp-example::
 #
@@ -1131,6 +1129,8 @@
 #          "data": { "netdev-id": "netdev0",
 #                    "addr": { "path": "/tmp/qemu0", "type": "unix" } },
 #          "timestamp": { "seconds": 1666269706, "microseconds": 413651 } }
+#
+# Since: 7.2
 ##
 { 'event': 'NETDEV_STREAM_CONNECTED',
   'data': { 'netdev-id': 'str',
@@ -1143,13 +1143,13 @@
 #
 # @netdev-id: QEMU netdev id that is disconnected
 #
-# Since: 7.2
-#
 # .. qmp-example::
 #
 #     <- { "event": "NETDEV_STREAM_DISCONNECTED",
 #          "data": {"netdev-id": "netdev0"},
 #          "timestamp": {"seconds": 1663330937, "microseconds": 526695} }
+#
+# Since: 7.2
 ##
 { 'event': 'NETDEV_STREAM_DISCONNECTED',
   'data': { 'netdev-id': 'str' } }
@@ -1163,13 +1163,13 @@
 #
 # @chardev-id: The character device id used by the QEMU netdev
 #
-# Since: 10.0
-#
 # .. qmp-example::
 #
 #     <- { "timestamp": {"seconds": 1739538638, "microseconds": 354181 },
 #          "event": "NETDEV_VHOST_USER_CONNECTED",
 #          "data": { "netdev-id": "netdev0", "chardev-id": "chr0" } }
+#
+# Since: 10.0
 ##
 { 'event': 'NETDEV_VHOST_USER_CONNECTED',
   'data': { 'netdev-id': 'str', 'chardev-id': 'str' } }
@@ -1181,13 +1181,13 @@
 #
 # @netdev-id: QEMU netdev id that is disconnected
 #
-# Since: 10.0
-#
 # .. qmp-example::
 #
 #     <- { "timestamp": { "seconds": 1739538634, "microseconds": 920450 },
 #          "event": "NETDEV_VHOST_USER_DISCONNECTED",
 #          "data": { "netdev-id": "netdev0" } }
+#
+# Since: 10.0
 ##
 { 'event': 'NETDEV_VHOST_USER_DISCONNECTED',
   'data': { 'netdev-id': 'str' } }
