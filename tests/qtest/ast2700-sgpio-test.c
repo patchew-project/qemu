@@ -18,14 +18,14 @@
 static void test_output_pins(const char *machine, const uint32_t base, int idx)
 {
     QTestState *s = qtest_init(machine);
-    char name[16];
-    char qom_path[64];
     uint32_t offset = 0;
     uint32_t value = 0;
     for (int i = 0; i < ASPEED_SGPIO_MAX_PIN_PAIR; i++) {
         /* Odd index is output port */
-        sprintf(name, "sgpio%03d", i * 2 + 1);
-        sprintf(qom_path, "/machine/soc/sgpio[%d]", idx);
+        g_autofree const char *name = g_strdup_printf("sgpio%03d", i * 2 + 1);
+        g_autofree const char *qom_path
+            = g_strdup_printf("/machine/soc/sgpio[%d]", idx);
+
         offset = base + (R_SGPIO_0_CONTROL + i) * 4;
         /* set serial output */
         qtest_writel(s, offset, 0x00000001);
@@ -45,14 +45,14 @@ static void test_output_pins(const char *machine, const uint32_t base, int idx)
 static void test_input_pins(const char *machine, const uint32_t base, int idx)
 {
     QTestState *s = qtest_init(machine);
-    char name[16];
-    char qom_path[64];
     uint32_t offset = 0;
     uint32_t value = 0;
     for (int i = 0; i < ASPEED_SGPIO_MAX_PIN_PAIR; i++) {
         /* Even index is input port */
-        sprintf(name, "sgpio%03d", i * 2);
-        sprintf(qom_path, "/machine/soc/sgpio[%d]", idx);
+        g_autofree const char *name = g_strdup_printf("sgpio%03d", i * 2);
+        g_autofree const char *qom_path
+            = g_strdup_printf("/machine/soc/sgpio[%d]", idx);
+
         offset = base + (R_SGPIO_0_CONTROL + i) * 4;
         /* set serial input */
         qtest_qom_set_bool(s, qom_path, name, true);
@@ -73,8 +73,6 @@ static void test_irq_level_high(const char *machine,
                                 const uint32_t base, int idx)
 {
     QTestState *s = qtest_init(machine);
-    char name[16];
-    char qom_path[64];
     uint32_t ctrl_offset = 0;
     uint32_t int_offset = 0;
     uint32_t int_reg_idx = 0;
@@ -82,8 +80,10 @@ static void test_irq_level_high(const char *machine,
     uint32_t value = 0;
     for (int i = 0; i < ASPEED_SGPIO_MAX_PIN_PAIR; i++) {
         /* Even index is input port */
-        sprintf(name, "sgpio%03d", i * 2);
-        sprintf(qom_path, "/machine/soc/sgpio[%d]", idx);
+        g_autofree const char *name = g_strdup_printf("sgpio%03d", i * 2);
+        g_autofree const char *qom_path =
+            g_strdup_printf("/machine/soc/sgpio[%d]", idx);
+
         int_reg_idx = i / 32;
         int_bit_idx = i % 32;
         int_offset = base + (R_SGPIO_INT_STATUS_0 + int_reg_idx) * 4;
