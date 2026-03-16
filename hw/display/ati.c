@@ -513,8 +513,8 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
         val |= s->regs.default_tile << 16;
         break;
     case DEFAULT_SC_BOTTOM_RIGHT:
-        val = (s->regs.default_sc_bottom << 16) |
-              s->regs.default_sc_right;
+        val = s->regs.default_sc_right;
+        val |= s->regs.default_sc_bottom << 16;
         break;
     case SC_TOP:
         val = s->regs.sc_top;
