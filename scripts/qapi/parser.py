@@ -550,7 +550,7 @@ class QAPISchemaParser:
             def _tag_check(what: str) -> None:
                 nonlocal last_section
 
-                if what in ('TODO', 'Since'):
+                if what == 'TODO':
                     return
 
                 this_section = QAPIDoc.Kind.from_string(what)
