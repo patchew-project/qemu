@@ -545,19 +545,25 @@ class QAPISchemaParser:
             self.accept(False)
             line = self.get_doc_line()
             have_tagged = False
-            no_more_tags = False
+            last_section = QAPIDoc.Kind.INTRO
 
             def _tag_check(what: str) -> None:
+                nonlocal last_section
+
                 if what in ('TODO', 'Since'):
                     return
 
-                if no_more_tags:
+                this_section = QAPIDoc.Kind.from_string(what)
+                if this_section.value < last_section.value:
                     raise QAPIParseError(
                         self,
-                        f"'{what}' section cannot appear after plain "
-                        "paragraphs that follow other tagged sections\n"
-                        "Move this section up above the plain paragraph(s)."
+                        f"'{what}' section cannot appear after "
+                        f"'{last_section!s}' section, please re-order the "
+                        "sections and adjust phrasing as necessary to ensure "
+                        "consistent documentation flow between the source "
+                        "code and the rendered HTML manual"
                     )
+                last_section = this_section
 
             while line is not None:
                 # Blank lines
@@ -571,7 +577,7 @@ class QAPISchemaParser:
                     if doc.features:
                         raise QAPIParseError(
                             self, "duplicated 'Features:' line")
-                    _tag_check("Features")
+                    _tag_check("FEATURE")
                     self.accept(False)
                     line = self.get_doc_line()
                     while line == '':
@@ -589,7 +595,7 @@ class QAPISchemaParser:
                             self, 'feature descriptions expected')
                     have_tagged = True
                 elif line == 'Details:':
-                    _tag_check("Details")
+                    _tag_check("DETAILS")
                     self.accept(False)
                     line = self.get_doc_line()
                     while line == '':
@@ -598,6 +604,7 @@ class QAPISchemaParser:
                     have_tagged = True
                 elif match := self._match_at_name_colon(line):
                     # description
+                    _tag_check("MEMBER")
                     if have_tagged:
                         raise QAPIParseError(
                             self,
@@ -654,13 +661,10 @@ class QAPISchemaParser:
                     line = self.get_doc_indented(doc)
                     have_tagged = True
                 else:
-                    # plain paragraph
-                    if have_tagged:
-                        no_more_tags = True
-
                     # Paragraphs before tagged sections are "intro" paragraphs.
                     # Any appearing after are "detail" paragraphs.
                     intro = not have_tagged
+                    _tag_check("INTRO" if intro else "DETAILS")
                     doc.ensure_untagged_section(self.info, intro)
                     doc.append_line(line)
                     line = self.get_doc_paragraph(doc)
@@ -703,14 +707,17 @@ class QAPIDoc:
     """
 
     class Kind(enum.Enum):
+        # The order here is the order in which sections must appear in
+        # source code; with the exception of 'TODO' which may appear
+        # anywhere but is treated as a comment.
         INTRO = 0
         MEMBER = 1
-        FEATURE = 2
-        RETURNS = 3
-        ERRORS = 4
-        SINCE = 5
+        RETURNS = 2
+        ERRORS = 3
+        FEATURE = 4
+        DETAILS = 5
         TODO = 6
-        DETAILS = 7
+        SINCE = 7
 
         @staticmethod
         def from_string(kind: str) -> 'QAPIDoc.Kind':
