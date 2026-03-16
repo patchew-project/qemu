@@ -67,7 +67,6 @@ F: */
 Project policy and developer guides
 R: Alex Bennée <alex.bennee@linaro.org>
 R: Daniel P. Berrangé <berrange@redhat.com>
-R: Thomas Huth <thuth@redhat.com>
 R: Markus Armbruster <armbru@redhat.com>
 R: Philippe Mathieu-Daudé <philmd@linaro.org>
 W: https://www.qemu.org/docs/master/devel/index.html
@@ -4488,7 +4487,6 @@ Build and test automation, general continuous integration
 M: Alex Bennée <alex.bennee@linaro.org>
 T: git https://gitlab.com/stsquad/qemu testing/next
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
-M: Thomas Huth <thuth@redhat.com>
 S: Maintained
 F: .github/workflows/lockdown.yml
 F: .gitlab-ci.yml
@@ -4585,7 +4583,6 @@ F: scripts/symlink-install-tree.py
 Top Level Makefile and configure
 M: Paolo Bonzini <pbonzini@redhat.com>
 R: Alex Bennée <alex.bennee@linaro.org>
-R: Thomas Huth <thuth@redhat.com>
 S: Maintained
 F: Makefile
 F: configure
