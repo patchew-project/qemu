@@ -861,6 +861,10 @@ static void vmstate_check(const VMStateDescription *vmsd)
     const VMStateField *field = vmsd->fields;
     const VMStateDescription * const *subsection = vmsd->subsections;
 
+    if (!vmsd->name) {
+        return;
+    }
+
     if (field) {
         while (field->name) {
             if (field->flags & (VMS_STRUCT | VMS_VSTRUCT)) {
@@ -896,6 +900,11 @@ int vmstate_register_with_alias_id(VMStateIf *obj, uint32_t instance_id,
                                    Error **errp)
 {
     SaveStateEntry *se;
+
+    if (!vmsd->name) {
+        /* assume it's a stub and ignore */
+        return 0;
+    }
 
     /* If this triggers, alias support can be dropped for the vmsd. */
     assert(alias_id == -1 || required_for_version >= vmsd->minimum_version_id);
