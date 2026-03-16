@@ -209,13 +209,13 @@
 #
 # @cpu-index: The CPU to use for commands that require an implicit CPU
 #
+# Returns: the output of the command as a string
+#
 # Features:
 #
 # @savevm-monitor-nodes: If present, HMP command savevm only snapshots
 #     monitor-owned nodes if they have no parents.  This allows the
 #     use of 'savevm' with -blockdev.  (since 4.2)
-#
-# Returns: the output of the command as a string
 #
 # Since: 0.14
 #

@@ -161,13 +161,13 @@
 # @arg2: description starts on the same line
 #     remainder indented differently
 #
-# Features:
-# @cmd-feat1: a feature
-# @cmd-feat2: another feature
-#
 # Returns: @Object
 #
 # Errors: some
+#
+# Features:
+# @cmd-feat1: a feature
+# @cmd-feat2: another feature
 #
 # .. note:: @arg3 is undocumented
 #
