@@ -175,12 +175,12 @@ description starts on the same line
 a feature
     feature=cmd-feat2
 another feature
-    section=Details
-.. note:: @arg3 is undocumented
     section=Returns
 @Object
     section=Errors
 some
+    section=Details
+.. note:: @arg3 is undocumented
     section=Todo
 frobnicate
     section=Details

@@ -165,11 +165,11 @@
 # @cmd-feat1: a feature
 # @cmd-feat2: another feature
 #
-# .. note:: @arg3 is undocumented
-#
 # Returns: @Object
 #
 # Errors: some
+#
+# .. note:: @arg3 is undocumented
 #
 # TODO: frobnicate
 #

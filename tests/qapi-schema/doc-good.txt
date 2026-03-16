@@ -120,15 +120,15 @@ Command cmd (Since: 2.10)
 
       * **cmd-feat2** -- another feature
 
-   Note:
-
-     "arg3" is undocumented
-
    Return:
       "Object" -- "Object"
 
    Errors:
       some
+
+   Note:
+
+     "arg3" is undocumented
 
    Notes:
 

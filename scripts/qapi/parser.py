@@ -545,6 +545,19 @@ class QAPISchemaParser:
             self.accept(False)
             line = self.get_doc_line()
             have_tagged = False
+            no_more_tags = False
+
+            def _tag_check(what: str) -> None:
+                if what in ('TODO', 'Since'):
+                    return
+
+                if no_more_tags:
+                    raise QAPIParseError(
+                        self,
+                        f"'{what}' section cannot appear after plain "
+                        "paragraphs that follow other tagged sections\n"
+                        "Move this section up above the plain paragraph(s)."
+                    )
 
             while line is not None:
                 # Blank lines
@@ -558,6 +571,7 @@ class QAPISchemaParser:
                     if doc.features:
                         raise QAPIParseError(
                             self, "duplicated 'Features:' line")
+                    _tag_check("Features")
                     self.accept(False)
                     line = self.get_doc_line()
                     while line == '':
@@ -621,6 +635,7 @@ class QAPISchemaParser:
                         )
                         raise QAPIParseError(self, emsg)
 
+                    _tag_check(match.group(1))
                     doc.new_tagged_section(
                         self.info,
                         QAPIDoc.Kind.from_string(match.group(1))
@@ -632,6 +647,8 @@ class QAPISchemaParser:
                     have_tagged = True
                 else:
                     # plain paragraph
+                    if have_tagged:
+                        no_more_tags = True
 
                     # Paragraphs before tagged sections are "intro" paragraphs.
                     # Any appearing after are "detail" paragraphs.
