@@ -157,14 +157,13 @@ static void image_bitblt(pixman_image_t *image,
                            xs, ys, 0, 0, xd, yd, w, h);
 }
 
-static void vga_putcharxy(QemuConsole *s, int x, int y, int ch,
-                          TextAttributes *t_attrib)
+static void vt100_putcharxy(QemuVT100 *vt, int x, int y, int ch,
+                            TextAttributes *t_attrib)
 {
     static pixman_image_t *glyphs[256];
-    pixman_image_t *image = QEMU_TEXT_CONSOLE(s)->vt.image;
     pixman_color_t fgcol, bgcol;
 
-    assert(image);
+    assert(vt->image);
     if (t_attrib->invers) {
         bgcol = color_table_rgb[t_attrib->bold][t_attrib->fgcol];
         fgcol = color_table_rgb[t_attrib->bold][t_attrib->bgcol];
@@ -176,7 +175,7 @@ static void vga_putcharxy(QemuConsole *s, int x, int y, int ch,
     if (!glyphs[ch]) {
         glyphs[ch] = qemu_pixman_glyph_from_vgafont(FONT_HEIGHT, vgafont16, ch);
     }
-    qemu_pixman_glyph_render(glyphs[ch], image,
+    qemu_pixman_glyph_render(glyphs[ch], vt->image,
                              &fgcol, &bgcol, x, y, FONT_WIDTH, FONT_HEIGHT);
 }
 
@@ -216,9 +215,9 @@ static void console_show_cursor(QemuTextConsole *s, int show)
         if (show && cursor_visible_phase) {
             TextAttributes t_attrib = TEXT_ATTRIBUTES_DEFAULT;
             t_attrib.invers = !(t_attrib.invers); /* invert fg and bg */
-            vga_putcharxy(QEMU_CONSOLE(s), x, y, c->ch, &t_attrib);
+            vt100_putcharxy(&s->vt, x, y, c->ch, &t_attrib);
         } else {
-            vga_putcharxy(QEMU_CONSOLE(s), x, y, c->ch, &(c->t_attrib));
+            vt100_putcharxy(&s->vt, x, y, c->ch, &(c->t_attrib));
         }
         invalidate_xy(s, x, y);
     }
@@ -243,7 +242,7 @@ static void console_refresh(QemuTextConsole *s)
     for (y = 0; y < s->vt.height; y++) {
         c = s->vt.cells + y1 * s->vt.width;
         for (x = 0; x < s->vt.width; x++) {
-            vga_putcharxy(QEMU_CONSOLE(s), x, y, c->ch,
+            vt100_putcharxy(&s->vt, x, y, c->ch,
                           &(c->t_attrib));
             c++;
         }
@@ -584,7 +583,7 @@ static void vc_update_xy(VCChardev *vc, int x, int y)
             x = s->vt.width - 1;
         }
         c = &s->vt.cells[y1 * s->vt.width + x];
-        vga_putcharxy(QEMU_CONSOLE(s), x, y2, c->ch,
+        vt100_putcharxy(&s->vt, x, y2, c->ch,
                       &(c->t_attrib));
         invalidate_xy(s, x, y2);
     }
