@@ -49,6 +49,8 @@ enum TTYState {
 };
 
 typedef struct QemuVT100 {
+    pixman_image_t *image;
+
     int width;
     int height;
     int total_height;
@@ -136,28 +138,22 @@ qemu_text_console_get_label(QemuConsole *c)
     return tc->chr ? g_strdup(tc->chr->label) : NULL;
 }
 
-static void qemu_console_fill_rect(QemuConsole *con, int posx, int posy,
-                                   int width, int height, pixman_color_t color)
+static void image_fill_rect(pixman_image_t *image, int posx, int posy,
+                            int width, int height, pixman_color_t color)
 {
-    DisplaySurface *surface = qemu_console_surface(con);
     pixman_rectangle16_t rect = {
         .x = posx, .y = posy, .width = width, .height = height
     };
 
-    assert(surface);
-    pixman_image_fill_rectangles(PIXMAN_OP_SRC, surface->image,
-                                 &color, 1, &rect);
+    pixman_image_fill_rectangles(PIXMAN_OP_SRC, image, &color, 1, &rect);
 }
 
 /* copy from (xs, ys) to (xd, yd) a rectangle of size (w, h) */
-static void qemu_console_bitblt(QemuConsole *con,
-                                int xs, int ys, int xd, int yd, int w, int h)
+static void image_bitblt(pixman_image_t *image,
+                         int xs, int ys, int xd, int yd, int w, int h)
 {
-    DisplaySurface *surface = qemu_console_surface(con);
-
-    assert(surface);
     pixman_image_composite(PIXMAN_OP_SRC,
-                           surface->image, NULL, surface->image,
+                           image, NULL, image,
                            xs, ys, 0, 0, xd, yd, w, h);
 }
 
@@ -165,10 +161,10 @@ static void vga_putcharxy(QemuConsole *s, int x, int y, int ch,
                           TextAttributes *t_attrib)
 {
     static pixman_image_t *glyphs[256];
-    DisplaySurface *surface = qemu_console_surface(s);
+    pixman_image_t *image = QEMU_TEXT_CONSOLE(s)->vt.image;
     pixman_color_t fgcol, bgcol;
 
-    assert(surface);
+    assert(image);
     if (t_attrib->invers) {
         bgcol = color_table_rgb[t_attrib->bold][t_attrib->fgcol];
         fgcol = color_table_rgb[t_attrib->bold][t_attrib->bgcol];
@@ -180,7 +176,7 @@ static void vga_putcharxy(QemuConsole *s, int x, int y, int ch,
     if (!glyphs[ch]) {
         glyphs[ch] = qemu_pixman_glyph_from_vgafont(FONT_HEIGHT, vgafont16, ch);
     }
-    qemu_pixman_glyph_render(glyphs[ch], surface->image,
+    qemu_pixman_glyph_render(glyphs[ch], image,
                              &fgcol, &bgcol, x, y, FONT_WIDTH, FONT_HEIGHT);
 }
 
@@ -230,19 +226,19 @@ static void console_show_cursor(QemuTextConsole *s, int show)
 
 static void console_refresh(QemuTextConsole *s)
 {
-    DisplaySurface *surface = qemu_console_surface(QEMU_CONSOLE(s));
     TextCell *c;
     int x, y, y1;
+    int w = pixman_image_get_width(s->vt.image);
+    int h = pixman_image_get_height(s->vt.image);
 
-    assert(surface);
     s->vt.text_x[0] = 0;
     s->vt.text_y[0] = 0;
     s->vt.text_x[1] = s->vt.width - 1;
     s->vt.text_y[1] = s->vt.height - 1;
     s->vt.cursor_invalidate = 1;
 
-    qemu_console_fill_rect(QEMU_CONSOLE(s), 0, 0, surface_width(surface), surface_height(surface),
-                           color_table_rgb[0][QEMU_COLOR_BLACK]);
+    image_fill_rect(s->vt.image, 0, 0, w, h,
+                    color_table_rgb[0][QEMU_COLOR_BLACK]);
     y1 = s->vt.y_displayed;
     for (y = 0; y < s->vt.height; y++) {
         c = s->vt.cells + y1 * s->vt.width;
@@ -256,8 +252,7 @@ static void console_refresh(QemuTextConsole *s)
         }
     }
     console_show_cursor(s, 1);
-    dpy_gfx_update(QEMU_CONSOLE(s), 0, 0,
-                   surface_width(surface), surface_height(surface));
+    dpy_gfx_update(QEMU_CONSOLE(s), 0, 0, w, h);
 }
 
 static void console_scroll(QemuTextConsole *s, int ydelta)
@@ -394,8 +389,9 @@ static void text_console_resize(QemuTextConsole *t)
 
     assert(s->scanout.kind == SCANOUT_SURFACE);
 
-    w = surface_width(s->surface) / FONT_WIDTH;
-    h = surface_height(s->surface) / FONT_HEIGHT;
+    t->vt.image = s->surface->image;
+    w = pixman_image_get_width(t->vt.image) / FONT_WIDTH;
+    h = pixman_image_get_height(t->vt.image) / FONT_HEIGHT;
     if (w == t->vt.width && h == t->vt.height) {
         return;
     }
@@ -456,12 +452,12 @@ static void vc_put_lf(VCChardev *vc)
             s->vt.text_x[1] = s->vt.width - 1;
             s->vt.text_y[1] = s->vt.height - 1;
 
-            qemu_console_bitblt(QEMU_CONSOLE(s), 0, FONT_HEIGHT, 0, 0,
-                                s->vt.width * FONT_WIDTH,
-                                (s->vt.height - 1) * FONT_HEIGHT);
-            qemu_console_fill_rect(QEMU_CONSOLE(s), 0, (s->vt.height - 1) * FONT_HEIGHT,
-                                   s->vt.width * FONT_WIDTH, FONT_HEIGHT,
-                                   color_table_rgb[0][TEXT_ATTRIBUTES_DEFAULT.bgcol]);
+            image_bitblt(s->vt.image, 0, FONT_HEIGHT, 0, 0,
+                         s->vt.width * FONT_WIDTH,
+                         (s->vt.height - 1) * FONT_HEIGHT);
+            image_fill_rect(s->vt.image, 0, (s->vt.height - 1) * FONT_HEIGHT,
+                            s->vt.width * FONT_WIDTH, FONT_HEIGHT,
+                            color_table_rgb[0][TEXT_ATTRIBUTES_DEFAULT.bgcol]);
             s->vt.update_x0 = 0;
             s->vt.update_y0 = 0;
             s->vt.update_x1 = s->vt.width * FONT_WIDTH;
