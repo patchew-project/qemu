@@ -125,10 +125,12 @@ static const pixman_color_t color_table_rgb[2][8] = {
 static bool cursor_visible_phase;
 static QEMUTimer *cursor_timer;
 
-const char *
-qemu_text_console_get_label(QemuTextConsole *c)
+static char *
+qemu_text_console_get_label(QemuConsole *c)
 {
-    return c->chr ? c->chr->label : NULL;
+    QemuTextConsole *tc = QEMU_TEXT_CONSOLE(c);
+
+    return tc->chr ? g_strdup(tc->chr->label) : NULL;
 }
 
 static void qemu_console_fill_rect(QemuConsole *con, int posx, int posy,
@@ -1115,9 +1117,13 @@ qemu_text_console_finalize(Object *obj)
 static void
 qemu_text_console_class_init(ObjectClass *oc, const void *data)
 {
+    QemuConsoleClass *cc = QEMU_CONSOLE_CLASS(oc);
+
     if (!cursor_timer) {
         cursor_timer = timer_new_ms(QEMU_CLOCK_REALTIME, cursor_timer_cb, NULL);
     }
+
+    cc->get_label = qemu_text_console_get_label;
 }
 
 static const GraphicHwOps text_console_ops = {

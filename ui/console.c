@@ -436,9 +436,58 @@ qemu_graphic_console_prop_get_head(Object *obj, Visitor *v, const char *name,
     visit_type_uint32(v, name, &c->head, errp);
 }
 
+static bool
+qemu_graphic_console_is_multihead(QemuGraphicConsole *c)
+{
+    QemuConsole *con;
+
+    QTAILQ_FOREACH(con, &consoles, next) {
+        QemuGraphicConsole *candidate;
+
+        if (!QEMU_IS_GRAPHIC_CONSOLE(con)) {
+            continue;
+        }
+
+        candidate = QEMU_GRAPHIC_CONSOLE(con);
+        if (candidate->device != c->device) {
+            continue;
+        }
+
+        if (candidate->head != c->head) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static char *
+qemu_graphic_console_get_label(QemuConsole *con)
+{
+    QemuGraphicConsole *c = QEMU_GRAPHIC_CONSOLE(con);
+
+    if (c->device) {
+        DeviceState *dev;
+        bool multihead;
+
+        dev = DEVICE(c->device);
+        multihead = qemu_graphic_console_is_multihead(c);
+        if (multihead) {
+            return g_strdup_printf("%s.%d", dev->id ?
+                                   dev->id :
+                                   object_get_typename(c->device),
+                                   c->head);
+        } else {
+            return g_strdup(dev->id ? : object_get_typename(c->device));
+        }
+    }
+    return g_strdup("VGA");
+}
+
 static void
 qemu_graphic_console_class_init(ObjectClass *oc, const void *data)
 {
+    QemuConsoleClass *cc = QEMU_CONSOLE_CLASS(oc);
+
     object_class_property_add_link(oc, "device", TYPE_DEVICE,
                                    offsetof(QemuGraphicConsole, device),
                                    object_property_allow_set_link,
@@ -446,6 +495,8 @@ qemu_graphic_console_class_init(ObjectClass *oc, const void *data)
     object_class_property_add(oc, "head", "uint32",
                               qemu_graphic_console_prop_get_head,
                               NULL, NULL, NULL);
+
+    cc->get_label = qemu_graphic_console_get_label;
 }
 
 static void
@@ -1347,56 +1398,12 @@ bool qemu_console_is_gl_blocked(QemuConsole *con)
     return con->gl_block;
 }
 
-static bool qemu_graphic_console_is_multihead(QemuGraphicConsole *c)
-{
-    QemuConsole *con;
-
-    QTAILQ_FOREACH(con, &consoles, next) {
-        QemuGraphicConsole *candidate;
-
-        if (!QEMU_IS_GRAPHIC_CONSOLE(con)) {
-            continue;
-        }
-
-        candidate = QEMU_GRAPHIC_CONSOLE(con);
-        if (candidate->device != c->device) {
-            continue;
-        }
-
-        if (candidate->head != c->head) {
-            return true;
-        }
-    }
-    return false;
-}
-
 char *qemu_console_get_label(QemuConsole *con)
 {
-    if (QEMU_IS_GRAPHIC_CONSOLE(con)) {
-        QemuGraphicConsole *c = QEMU_GRAPHIC_CONSOLE(con);
-        if (c->device) {
-            DeviceState *dev;
-            bool multihead;
-
-            dev = DEVICE(c->device);
-            multihead = qemu_graphic_console_is_multihead(c);
-            if (multihead) {
-                return g_strdup_printf("%s.%d", dev->id ?
-                                       dev->id :
-                                       object_get_typename(c->device),
-                                       c->head);
-            } else {
-                return g_strdup(dev->id ? : object_get_typename(c->device));
-            }
-        }
-        return g_strdup("VGA");
-    } else if (QEMU_IS_TEXT_CONSOLE(con)) {
-        const char *label = qemu_text_console_get_label(QEMU_TEXT_CONSOLE(con));
-        if (label) {
-            return g_strdup(label);
-        }
+    char *label = QEMU_CONSOLE_GET_CLASS(con)->get_label(con);
+    if (label) {
+        return label;
     }
-
     return g_strdup_printf("vc%d", con->index);
 }
 
