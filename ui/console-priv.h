@@ -9,11 +9,6 @@
 #include "qemu/coroutine.h"
 #include "qemu/timer.h"
 
-#include "vgafont.h"
-
-#define FONT_HEIGHT 16
-#define FONT_WIDTH 8
-
 struct QemuConsole {
     Object parent;
 

@@ -6,6 +6,10 @@
 
 #include <stdint.h>
 
-extern const uint8_t vgafont16[256 * 16];
+/* supports only vga 8x16 */
+#define FONT_WIDTH 8
+#define FONT_HEIGHT 16
+
+extern const uint8_t vgafont16[256 * FONT_HEIGHT];
 
 #endif
