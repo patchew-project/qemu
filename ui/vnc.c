@@ -3421,6 +3421,8 @@ static void vmstate_change_handler(void *opaque, bool running, RunState state)
     update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_BASE);
 }
 
+static void vnc_display_free(VncDisplay *vd);
+
 void vnc_display_init(const char *id, Error **errp)
 {
     VncDisplay *vd;
@@ -3430,8 +3432,9 @@ void vnc_display_init(const char *id, Error **errp)
     }
     vd = g_malloc0(sizeof(*vd));
 
+    qemu_mutex_init(&vd->mutex);
     vd->id = g_strdup(id);
-    QTAILQ_INSERT_TAIL(&vnc_displays, vd, next);
+    vd->dcl.ops = &dcl_ops;
 
     QTAILQ_INIT(&vd->clients);
     vd->expires = TIME_MAX;
@@ -3445,22 +3448,22 @@ void vnc_display_init(const char *id, Error **errp)
     }
 
     if (!vd->kbd_layout) {
+        vnc_display_free(vd);
         return;
     }
 
     vd->share_policy = VNC_SHARE_POLICY_ALLOW_EXCLUSIVE;
     vd->connections_limit = 32;
 
-    qemu_mutex_init(&vd->mutex);
     vnc_start_worker_thread();
 
-    vd->dcl.ops = &dcl_ops;
     register_displaychangelistener(&vd->dcl);
     vd->kbd = qkbd_state_init(vd->dcl.con);
     vd->vmstate_handler_entry = qemu_add_vm_change_state_handler(
         &vmstate_change_handler, vd);
-}
 
+    QTAILQ_INSERT_TAIL(&vnc_displays, vd, next);
+}
 
 static void vnc_display_close(VncDisplay *vd)
 {
@@ -3503,6 +3506,25 @@ static void vnc_display_close(VncDisplay *vd)
     vd->sasl.authzid = NULL;
 #endif
 }
+
+static void vnc_display_free(VncDisplay *vd)
+{
+    if (!vd) {
+        return;
+    }
+    vnc_display_close(vd);
+    unregister_displaychangelistener(&vd->dcl);
+    qkbd_state_free(vd->kbd);
+    qemu_del_vm_change_state_handler(vd->vmstate_handler_entry);
+    kbd_layout_free(vd->kbd_layout);
+    qemu_mutex_destroy(&vd->mutex);
+    if (QTAILQ_IN_USE(vd, next)) {
+        QTAILQ_REMOVE(&vnc_displays, vd, next);
+    }
+    g_free(vd->id);
+    g_free(vd);
+}
+
 
 int vnc_display_password(const char *id, const char *password, Error **errp)
 {
