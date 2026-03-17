@@ -13,6 +13,7 @@
 #define QEMU_TPM_H
 
 #include "qapi/qapi-types-tpm.h"
+#include "qapi/error.h"
 #include "qom/object.h"
 
 #ifdef CONFIG_TPM
@@ -76,6 +77,14 @@ static inline TPMVersion tpm_get_version(TPMIf *ti)
     }
 
     return TPM_IF_GET_CLASS(ti)->get_version(ti);
+}
+
+static inline bool tpm_ppi_enabled(TPMIf *ti)
+{
+    if (!ti) {
+        return false;
+    }
+    return object_property_get_bool(OBJECT(ti), "ppi", &error_abort);
 }
 
 #else /* CONFIG_TPM */

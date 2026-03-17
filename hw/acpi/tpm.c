@@ -25,7 +25,7 @@ void tpm_build_ppi_acpi(TPMIf *tpm, Aml *dev)
     Aml *method, *field, *ifctx, *ifctx2, *ifctx3, *func_mask,
         *not_implemented, *pak, *tpm2, *tpm3, *pprm, *pprq, *zero, *one;
 
-    if (!object_property_get_bool(OBJECT(tpm), "ppi", &error_abort)) {
+    if (!tpm_ppi_enabled(tpm)) {
         return;
     }
 
