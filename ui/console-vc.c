@@ -48,8 +48,11 @@ enum TTYState {
     TTY_STATE_OSC,
 };
 
-typedef struct QemuVT100 {
+typedef struct QemuVT100 QemuVT100;
+
+struct QemuVT100 {
     pixman_image_t *image;
+    void (*image_update)(QemuVT100 *vt, int x, int y, int width, int height);
 
     int width;
     int height;
@@ -66,7 +69,7 @@ typedef struct QemuVT100 {
     int update_y0;
     int update_x1;
     int update_y1;
-} QemuVT100;
+};
 
 typedef struct QemuTextConsole {
     QemuConsole parent;
@@ -224,6 +227,11 @@ static void vt100_show_cursor(QemuVT100 *vt, int show)
     }
 }
 
+static void vt100_image_update(QemuVT100 *vt, int x, int y, int width, int height)
+{
+    vt->image_update(vt, x, y, width, height);
+}
+
 static void console_refresh(QemuTextConsole *s)
 {
     TextCell *c;
@@ -252,7 +260,7 @@ static void console_refresh(QemuTextConsole *s)
         }
     }
     vt100_show_cursor(&s->vt, 1);
-    dpy_gfx_update(QEMU_CONSOLE(s), 0, 0, w, h);
+    vt100_image_update(&s->vt, 0, 0, w, h);
 }
 
 static void console_scroll(QemuTextConsole *s, int ydelta)
@@ -1075,9 +1083,9 @@ static int vc_chr_write(Chardev *chr, const uint8_t *buf, int len)
     }
     vt100_show_cursor(&s->vt, 1);
     if (s->vt.update_x0 < s->vt.update_x1) {
-        dpy_gfx_update(QEMU_CONSOLE(s), s->vt.update_x0, s->vt.update_y0,
-                       s->vt.update_x1 - s->vt.update_x0,
-                       s->vt.update_y1 - s->vt.update_y0);
+        vt100_image_update(&s->vt, s->vt.update_x0, s->vt.update_y0,
+                           s->vt.update_x1 - s->vt.update_x0,
+                           s->vt.update_y1 - s->vt.update_y0);
     }
     return len;
 }
@@ -1175,6 +1183,13 @@ void qemu_text_console_update_size(QemuTextConsole *c)
     dpy_text_resize(QEMU_CONSOLE(c), c->vt.width, c->vt.height);
 }
 
+static void text_console_image_update(QemuVT100 *vt, int x, int y, int width, int height)
+{
+    QemuTextConsole *console = container_of(vt, QemuTextConsole, vt);
+
+    dpy_gfx_update(QEMU_CONSOLE(console), x, y, width, height);
+}
+
 static bool vc_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevVC *vc = backend->u.vc.data;
@@ -1205,6 +1220,7 @@ static bool vc_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
     }
 
     dpy_gfx_replace_surface(QEMU_CONSOLE(s), qemu_create_displaysurface(width, height));
+    s->vt.image_update = text_console_image_update;
 
     s->chr = chr;
     drv->console = s;
