@@ -269,33 +269,33 @@ static void vt100_refresh(QemuVT100 *vt)
     vt100_image_update(vt, 0, 0, w, h);
 }
 
-static void console_scroll(QemuTextConsole *s, int ydelta)
+static void vt100_scroll(QemuVT100 *vt, int ydelta)
 {
     int i, y1;
 
     if (ydelta > 0) {
         for(i = 0; i < ydelta; i++) {
-            if (s->vt.y_displayed == s->vt.y_base)
+            if (vt->y_displayed == vt->y_base)
                 break;
-            if (++s->vt.y_displayed == s->vt.total_height)
-                s->vt.y_displayed = 0;
+            if (++vt->y_displayed == vt->total_height)
+                vt->y_displayed = 0;
         }
     } else {
         ydelta = -ydelta;
-        i = s->vt.backscroll_height;
-        if (i > s->vt.total_height - s->vt.height)
-            i = s->vt.total_height - s->vt.height;
-        y1 = s->vt.y_base - i;
+        i = vt->backscroll_height;
+        if (i > vt->total_height - vt->height)
+            i = vt->total_height - vt->height;
+        y1 = vt->y_base - i;
         if (y1 < 0)
-            y1 += s->vt.total_height;
+            y1 += vt->total_height;
         for(i = 0; i < ydelta; i++) {
-            if (s->vt.y_displayed == y1)
+            if (vt->y_displayed == y1)
                 break;
-            if (--s->vt.y_displayed < 0)
-                s->vt.y_displayed = s->vt.total_height - 1;
+            if (--vt->y_displayed < 0)
+                vt->y_displayed = vt->total_height - 1;
         }
     }
-    vt100_refresh(&s->vt);
+    vt100_refresh(vt);
 }
 
 static void kbd_send_chars(QemuTextConsole *s)
@@ -324,16 +324,16 @@ void qemu_text_console_handle_keysym(QemuTextConsole *s, int keysym)
 
     switch(keysym) {
     case QEMU_KEY_CTRL_UP:
-        console_scroll(s, -1);
+        vt100_scroll(&s->vt, -1);
         break;
     case QEMU_KEY_CTRL_DOWN:
-        console_scroll(s, 1);
+        vt100_scroll(&s->vt, 1);
         break;
     case QEMU_KEY_CTRL_PAGEUP:
-        console_scroll(s, -10);
+        vt100_scroll(&s->vt, -10);
         break;
     case QEMU_KEY_CTRL_PAGEDOWN:
-        console_scroll(s, 10);
+        vt100_scroll(&s->vt, 10);
         break;
     default:
         /* convert the QEMU keysym to VT100 key string */
