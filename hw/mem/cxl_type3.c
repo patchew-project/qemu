@@ -1314,6 +1314,58 @@ MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
     return address_space_write(as, dpa_offset, attrs, &data, size);
 }
 
+bool cxl_type3_get_window_vmem_mapping(CXLType3Dev *ct3d, hwaddr host_base,
+                                       hwaddr size, MemoryRegion **mr,
+                                       hwaddr *offset, Error **errp)
+{
+    MemoryRegion *vmr;
+    uint64_t dpa_start, dpa_end;
+    uint64_t vmr_size;
+    hwaddr host_end;
+
+    if (!size) {
+        error_setg(errp, "window size must be non-zero");
+        return false;
+    }
+
+    host_end = host_base + size - 1;
+    if (host_end < host_base) {
+        error_setg(errp, "window range overflows");
+        return false;
+    }
+
+    if (!ct3d->hostvmem) {
+        error_setg(errp, "no volatile-memdev configured");
+        return false;
+    }
+    vmr = host_memory_backend_get_memory(ct3d->hostvmem);
+    if (!vmr) {
+        error_setg(errp, "volatile-memdev has no backing memory region");
+        return false;
+    }
+
+    if (!cxl_type3_dpa(ct3d, host_base, &dpa_start) ||
+        !cxl_type3_dpa(ct3d, host_end, &dpa_end)) {
+        error_setg(errp, "failed to translate HPA to DPA");
+        return false;
+    }
+
+    if (dpa_end != dpa_start + size - 1) {
+        error_setg(errp, "window is not linearly mapped to DPA");
+        return false;
+    }
+
+    vmr_size = memory_region_size(vmr);
+    if (dpa_start >= vmr_size || size > vmr_size - dpa_start) {
+        error_setg(errp, "window maps outside volatile-memdev");
+        return false;
+    }
+
+    *mr = vmr;
+    *offset = dpa_start;
+    return true;
+}
+
 static void ct3d_reset(DeviceState *dev)
 {
     CXLType3Dev *ct3d = CXL_TYPE3(dev);

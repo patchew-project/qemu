@@ -827,6 +827,9 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
                            unsigned size, MemTxAttrs attrs);
 MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
                             unsigned size, MemTxAttrs attrs);
+bool cxl_type3_get_window_vmem_mapping(CXLType3Dev *ct3d, hwaddr host_base,
+                                       hwaddr size, MemoryRegion **mr,
+                                       hwaddr *offset, Error **errp);
 
 uint64_t cxl_device_get_timestamp(CXLDeviceState *cxlds);
 
