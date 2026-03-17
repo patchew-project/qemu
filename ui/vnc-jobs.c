@@ -56,7 +56,6 @@ struct VncJobQueue {
     QemuCond cond;
     QemuMutex mutex;
     QemuThread thread;
-    bool exit;
     QTAILQ_HEAD(, VncJob) jobs;
 };
 
@@ -124,7 +123,7 @@ static void vnc_job_free(VncJob *job)
 void vnc_job_push(VncJob *job)
 {
     vnc_lock_queue(queue);
-    if (queue->exit || QLIST_EMPTY(&job->rectangles)) {
+    if (QLIST_EMPTY(&job->rectangles)) {
         vnc_job_free(job);
     } else {
         QTAILQ_INSERT_TAIL(&queue->jobs, job, next);
@@ -248,16 +247,11 @@ static int vnc_worker_thread_loop(VncJobQueue *queue)
     int saved_offset;
 
     vnc_lock_queue(queue);
-    while (QTAILQ_EMPTY(&queue->jobs) && !queue->exit) {
+    while (QTAILQ_EMPTY(&queue->jobs)) {
         qemu_cond_wait(&queue->cond, &queue->mutex);
     }
-    /* Here job can only be NULL if queue->exit is true */
     job = QTAILQ_FIRST(&queue->jobs);
     vnc_unlock_queue(queue);
-
-    if (queue->exit) {
-        return -1;
-    }
 
     assert(job->vs->magic == VNC_MAGIC);
     vc = container_of(job->vs, VncConnection, vs);
