@@ -48,6 +48,7 @@
 #include "hw/i386/e820_memory_layout.h"
 #include "qemu/queue.h"
 #include "qemu/cutils.h"
+#include "crypto/cipher.h"
 #include "crypto/hmac.h"
 #include "crypto/random.h"
 
@@ -202,6 +203,7 @@ struct SevGuestState {
 
 typedef struct SevEmulatedState {
     SevGuestState parent_obj;
+    uint8_t *tek;
     uint8_t *tik;
     QEMUIOVector ld_data;
 } SevEmulatedState;
@@ -2219,6 +2221,58 @@ sev_encrypt_flash(hwaddr gpa, uint8_t *ptr, uint64_t len, Error **errp)
     return 0;
 }
 
+static int sev_emulated_injection(void *hva, guchar *data,
+                            gsize data_sz, guchar *hdr)
+{
+
+    SevEmulatedState *sev_emulated =
+                SEV_EMULATED(MACHINE(qdev_get_machine())->cgs);
+    uint8_t iv[TEK_TIK_IV_SIZE];
+    QCryptoCipher *cipher = NULL;
+    g_autofree guchar *plaintext = g_new0(guchar, data_sz);
+    int ret = 0;
+    Error *err = NULL;
+
+    /* Prepare the cipher */
+    cipher = qcrypto_cipher_new(
+        QCRYPTO_CIPHER_ALGO_AES_128,
+        QCRYPTO_CIPHER_MODE_CTR,
+        sev_emulated->tek,
+        TEK_TIK_IV_SIZE,
+        &err
+    );
+    if (!cipher) {
+        error_report_err(err);
+        return 1;
+    }
+
+    /* Extract the IV from the header */
+    memcpy(iv, hdr + 4, TEK_TIK_IV_SIZE);
+    ret = qcrypto_cipher_setiv(cipher, iv, TEK_TIK_IV_SIZE, &err);
+    if (ret < 0) {
+        error_report_err(err);
+        qcrypto_cipher_free(cipher);
+        return 1;
+    }
+
+    /* Decrypt the payload */
+    ret = qcrypto_cipher_decrypt(cipher,
+                           data,
+                           plaintext,
+                           data_sz,
+                           &err);
+    if (ret < 0) {
+        error_report_err(err);
+        qcrypto_cipher_free(cipher);
+        return 1;
+    }
+    qcrypto_cipher_free(cipher);
+    memcpy(hva, plaintext, data_sz);
+
+    return 0;
+}
+
+
 int sev_inject_launch_secret(const char *packet_hdr, const char *secret,
                              uint64_t gpa, Error **errp)
 {
@@ -2272,6 +2326,15 @@ int sev_inject_launch_secret(const char *packet_hdr, const char *secret,
 
     trace_kvm_sev_launch_secret(gpa, input.guest_uaddr,
                                 input.trans_uaddr, input.trans_len);
+
+    /*
+     * If SEV emulation is enabled, skip the KVM ioctl (sev_fd == -1) and
+     * inject the secret directly into guest memory via
+     * sev_emulated_injection().
+     */
+    if (sev_emulated_enabled()) {
+        return sev_emulated_injection(hva, data, data_sz, hdr);
+    }
 
     ret = sev_ioctl(sev_common->sev_fd, KVM_SEV_LAUNCH_SECRET,
                     &input, &error);
@@ -3214,6 +3277,25 @@ static void sev_emulated_set_tik(
     );
 }
 
+static char *sev_emulated_get_tek(Object *obj, Error **errp)
+{
+    SevEmulatedState *sev_emulated = SEV_EMULATED(obj);
+
+    return g_memdup2(sev_emulated->tek, TEK_TIK_IV_SIZE);
+}
+
+static void sev_emulated_set_tek(
+            Object *obj, const char *key_filename, Error **errp)
+{
+    SevEmulatedState *sev_emulated = SEV_EMULATED(obj);
+
+    sev_emulated_read_key(
+        sev_emulated->tek,
+        key_filename,
+        errp
+    );
+}
+
 static void sev_emulated_class_init(ObjectClass *oc, const void *data)
 {
     SevCommonStateClass *scc = SEV_COMMON_CLASS(oc);
@@ -3223,7 +3305,14 @@ static void sev_emulated_class_init(ObjectClass *oc, const void *data)
     scc->launch_update_data = sev_emulated_launch_update_data;
     scc->launch_finish = sev_emulated_launch_finish;
 
-    /* Adding emulation specific property */
+    /* Adding emulation specific properties */
+    object_class_property_add_str(oc, "tek",
+                                sev_emulated_get_tek,
+                                sev_emulated_set_tek);
+    object_class_property_set_description(oc, "tek",
+        "Path to the binary file containing the"
+                                "SEV Transport Encryption Key (16 bytes)");
+
     object_class_property_add_str(oc, "tik",
                                 sev_emulated_get_tik,
                                 sev_emulated_set_tik);
@@ -3238,6 +3327,7 @@ static void sev_emulated_instance_init(Object *obj)
 
     /* Initialize the key for emulation */
     sev_emulated->tik = g_malloc0(TEK_TIK_IV_SIZE);
+    sev_emulated->tek = g_malloc0(TEK_TIK_IV_SIZE);
 }
 
 /* guest info specific sev/sev-es */
