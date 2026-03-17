@@ -1201,10 +1201,10 @@ static gboolean gd_touch_event(GtkWidget *widget, GdkEventTouch *touch,
         return FALSE;
     }
 
-    console_handle_touch_event(vc->gfx.dcl.con, touch_slots,
-                               num_slot, surface_width(vc->gfx.ds),
-                               surface_height(vc->gfx.ds), touch->x,
-                               touch->y, type, &err);
+    qemu_input_touch_event(vc->gfx.dcl.con, touch_slots,
+                           num_slot, surface_width(vc->gfx.ds),
+                           surface_height(vc->gfx.ds), touch->x,
+                           touch->y, type, &err);
     if (err) {
         warn_report_err(err);
     }
