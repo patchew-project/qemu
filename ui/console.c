@@ -642,9 +642,14 @@ dcl_set_graphic_cursor(DisplayChangeListener *dcl, QemuGraphicConsole *con)
     }
 }
 
-void register_displaychangelistener(DisplayChangeListener *dcl)
+void qemu_console_register_listener(QemuConsole *con,
+                                    DisplayChangeListener *dcl,
+                                    const DisplayChangeListenerOps *ops)
 {
     assert(!dcl->ds);
+
+    dcl->con = con;
+    dcl->ops = ops;
 
     trace_displaychangelistener_register(dcl, dcl->ops->dpy_name);
     dcl->ds = get_alloc_displaystate();
@@ -670,10 +675,10 @@ void update_displaychangelistener(DisplayChangeListener *dcl,
     }
 }
 
-void unregister_displaychangelistener(DisplayChangeListener *dcl)
+void qemu_console_unregister_listener(DisplayChangeListener *dcl)
 {
     DisplayState *ds = dcl->ds;
-    trace_displaychangelistener_unregister(dcl, dcl->ops->dpy_name);
+    trace_displaychangelistener_unregister(dcl, dcl->ops ? dcl->ops->dpy_name : NULL);
     if (!ds) {
         return;
     }

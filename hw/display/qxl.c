@@ -2252,9 +2252,7 @@ static void qxl_realize_primary(PCIDevice *dev, Error **errp)
         return;
     }
 
-    qxl->ssd.dcl.ops = &display_listener_ops;
-    qxl->ssd.dcl.con = vga->con;
-    register_displaychangelistener(&qxl->ssd.dcl);
+    qemu_console_register_listener(vga->con, &qxl->ssd.dcl, &display_listener_ops);
 }
 
 static void qxl_realize_secondary(PCIDevice *dev, Error **errp)

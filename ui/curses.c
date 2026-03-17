@@ -324,9 +324,8 @@ static void curses_refresh(DisplayChangeListener *dcl)
                         if (con) {
                             erase();
                             wnoutrefresh(stdscr);
-                            unregister_displaychangelistener(dcl);
-                            dcl->con = con;
-                            register_displaychangelistener(dcl);
+                            qemu_console_unregister_listener(dcl);
+                            qemu_console_register_listener(con, dcl, dcl->ops);
 
                             invalidate = 1;
                         }
@@ -805,9 +804,7 @@ static void curses_display_init(DisplayState *ds, DisplayOptions *opts)
     curses_winch_init();
 
     dcl = g_new0(DisplayChangeListener, 1);
-    dcl->con = qemu_console_lookup_default();
-    dcl->ops = &dcl_ops;
-    register_displaychangelistener(dcl);
+    qemu_console_register_listener(qemu_console_lookup_default(), dcl, &dcl_ops);
 
     invalidate = 1;
 }
