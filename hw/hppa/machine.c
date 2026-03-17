@@ -313,6 +313,22 @@ static TranslateFn *machine_HP_common_init_cpus(MachineState *machine)
         memory_region_add_subregion(addr_space,
                                     translate(NULL, CPU_HPA + i * 0x1000),
                                     cpu_region);
+
+        if (!hppa_is_pa20(&cpu[0]->env))
+            continue;
+
+        /* HP-UX 11 64-bit reads a word from address CPU_HPA + 0x500
+         * while flushing the the cache of a T600, which was the first
+         * server with a 64-bit PA-RISC 2.0 CPU.
+         * We return 0, since the value isn't used anyway. */
+        g_autofree char *cflush_name;
+        cflush_name = g_strdup_printf("cpu%u-T600-cacheflush", i);
+        MemoryRegion *cflush = g_new(MemoryRegion, 1);
+        memory_region_init_io(cflush, NULL, &hppa_pci_ignore_ops,
+                              NULL, cflush_name, 4);
+        memory_region_add_subregion(addr_space,
+                              translate(NULL, CPU_HPA + i * 0x1000 + 0x500),
+                              cflush);
     }
 
     /* RTC and DebugOutputPort on CPU #0 */
