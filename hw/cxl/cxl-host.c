@@ -10,6 +10,7 @@
 #include "qemu/bitmap.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "system/kvm.h"
 #include "system/qtest.h"
 #include "hw/core/boards.h"
 
@@ -21,6 +22,164 @@
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pcie_port.h"
 #include "hw/pci-bridge/pci_expander_bridge.h"
+
+static void cxl_fmw_disable_direct(CXLFixedWindow *fw)
+{
+    if (!fw->direct_target_mr) {
+        return;
+    }
+
+    memory_region_transaction_begin();
+    if (fw->direct_mapped) {
+        memory_region_del_subregion(&fw->mr, &fw->direct_mr);
+    }
+    object_unparent(OBJECT(&fw->direct_mr));
+    memory_region_transaction_commit();
+
+    fw->direct_mapped = false;
+    fw->direct_target_mr = NULL;
+    fw->direct_target_offset = 0;
+}
+
+static bool cxl_hdm_decoder_simple_target(uint32_t *cache_mem, hwaddr base,
+                                         hwaddr size, uint8_t *target)
+{
+    int hdm_inc = R_CXL_HDM_DECODER1_BASE_LO - R_CXL_HDM_DECODER0_BASE_LO;
+    unsigned int hdm_count;
+    uint32_t cap, global_ctrl;
+    int i;
+
+    global_ctrl = ldl_le_p(cache_mem + R_CXL_HDM_DECODER_GLOBAL_CONTROL);
+    if (!FIELD_EX32(global_ctrl, CXL_HDM_DECODER_GLOBAL_CONTROL,
+                    HDM_DECODER_ENABLE)) {
+        return false;
+    }
+
+    cap = ldl_le_p(cache_mem + R_CXL_HDM_DECODER_CAPABILITY);
+    hdm_count = cxl_decoder_count_dec(FIELD_EX32(cap,
+                                                 CXL_HDM_DECODER_CAPABILITY,
+                                                 DECODER_COUNT));
+    for (i = 0; i < hdm_count; i++) {
+        uint32_t low, high, ctrl;
+        uint64_t decoder_base, decoder_size;
+        uint32_t tlo;
+        uint8_t iw;
+
+        low = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_BASE_LO + i * hdm_inc);
+        high = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_BASE_HI + i * hdm_inc);
+        decoder_base = (low & 0xf0000000) | ((uint64_t)high << 32);
+
+        low = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_SIZE_LO + i * hdm_inc);
+        high = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_SIZE_HI + i * hdm_inc);
+        decoder_size = (low & 0xf0000000) | ((uint64_t)high << 32);
+
+        if (decoder_base != base || decoder_size != size) {
+            continue;
+        }
+
+        ctrl = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_CTRL + i * hdm_inc);
+        if (!FIELD_EX32(ctrl, CXL_HDM_DECODER0_CTRL, COMMITTED)) {
+            continue;
+        }
+
+        iw = FIELD_EX32(ctrl, CXL_HDM_DECODER0_CTRL, IW);
+        if (iw != 0) {
+            return false;
+        }
+
+        tlo = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_TARGET_LIST_LO +
+                       i * hdm_inc);
+        *target = extract32(tlo, 0, 8);
+        return true;
+    }
+
+    return false;
+}
+
+static bool cxl_fmw_enable_direct(CXLFixedWindow *fw)
+{
+    CXLComponentState *hb_cstate;
+    PCIHostState *hb;
+    PCIDevice *rp, *d;
+    CXLType3Dev *ct3d;
+    MemoryRegion *target_mr = NULL;
+    hwaddr target_offset = 0;
+    uint32_t *cache_mem;
+    uint8_t target;
+    Error *local_err = NULL;
+
+    if (!kvm_enabled()) {
+        return false;
+    }
+
+    if (fw->num_targets != 1) {
+        return false;
+    }
+
+    if (!fw->base || !fw->target_hbs[0] ||
+        !fw->target_hbs[0]->cxl_host_bridge) {
+        return false;
+    }
+
+    hb = PCI_HOST_BRIDGE(fw->target_hbs[0]->cxl_host_bridge);
+    if (!hb || !hb->bus || !pci_bus_is_cxl(hb->bus)) {
+        return false;
+    }
+
+    hb_cstate = cxl_get_hb_cstate(hb);
+    if (!hb_cstate) {
+        return false;
+    }
+
+    cache_mem = hb_cstate->crb.cache_mem_registers;
+    if (!cxl_hdm_decoder_simple_target(cache_mem, fw->base, fw->size,
+                                       &target)) {
+        return false;
+    }
+
+    rp = pcie_find_port_by_pn(hb->bus, target);
+    if (!rp) {
+        return false;
+    }
+
+    d = pci_bridge_get_sec_bus(PCI_BRIDGE(rp))->devices[0];
+    if (!d) {
+        return false;
+    }
+
+    if (!object_dynamic_cast(OBJECT(d), TYPE_CXL_TYPE3)) {
+        return false;
+    }
+    ct3d = CXL_TYPE3(d);
+
+    if (!cxl_type3_get_window_vmem_mapping(ct3d, fw->base, fw->size,
+                                           &target_mr, &target_offset,
+                                           &local_err)) {
+        error_free(local_err);
+        return false;
+    }
+    error_free(local_err);
+
+    if (fw->direct_mapped && fw->direct_target_mr == target_mr &&
+        fw->direct_target_offset == target_offset) {
+        return true;
+    }
+
+    cxl_fmw_disable_direct(fw);
+
+    memory_region_init_alias(&fw->direct_mr, OBJECT(fw),
+                             "cxl-fixed-memory-region.direct", target_mr,
+                             target_offset, fw->size);
+    memory_region_transaction_begin();
+    memory_region_add_subregion_overlap(&fw->mr, 0, &fw->direct_mr, 1);
+    memory_region_transaction_commit();
+
+    fw->direct_mapped = true;
+    fw->direct_target_mr = target_mr;
+    fw->direct_target_offset = target_offset;
+
+    return true;
+}
 
 static void cxl_fixed_memory_window_config(CXLFixedMemoryWindowOptions *object,
                                            int index, Error **errp)
@@ -432,6 +591,25 @@ void cxl_fmws_update_mmio(void)
     object_child_foreach_recursive(object_get_root(), cxl_fmws_mmio_map, NULL);
 }
 
+void cxl_fmws_update_mappings(void)
+{
+    GSList *cfmws_list, *iter;
+    CXLFixedWindow *fw;
+
+    if (!kvm_enabled()) {
+        return;
+    }
+
+    cfmws_list = cxl_fmws_get_all_sorted();
+    for (iter = cfmws_list; iter; iter = iter->next) {
+        fw = CXL_FMW(iter->data);
+        if (!cxl_fmw_enable_direct(fw)) {
+            cxl_fmw_disable_direct(fw);
+        }
+    }
+    g_slist_free(cfmws_list);
+}
+
 hwaddr cxl_fmws_set_memmap(hwaddr base, hwaddr max_addr)
 {
     GSList *cfmws_list, *iter;
@@ -454,8 +632,15 @@ static void cxl_fmw_realize(DeviceState *dev, Error **errp)
 {
     CXLFixedWindow *fw = CXL_FMW(dev);
 
-    memory_region_init_io(&fw->mr, OBJECT(dev), &cfmws_ops, fw,
-                          "cxl-fixed-memory-region", fw->size);
+    memory_region_init(&fw->mr, OBJECT(dev), "cxl-fixed-memory-region",
+                       fw->size);
+    memory_region_init_io(&fw->io_mr, OBJECT(dev), &cfmws_ops, fw,
+                          "cxl-fixed-memory-region.io", fw->size);
+    memory_region_add_subregion(&fw->mr, 0, &fw->io_mr);
+
+    fw->direct_mapped = false;
+    fw->direct_target_mr = NULL;
+    fw->direct_target_offset = 0;
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &fw->mr);
 }
 
