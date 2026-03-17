@@ -232,35 +232,35 @@ static void vt100_image_update(QemuVT100 *vt, int x, int y, int width, int heigh
     vt->image_update(vt, x, y, width, height);
 }
 
-static void console_refresh(QemuTextConsole *s)
+static void vt100_refresh(QemuVT100 *vt)
 {
     TextCell *c;
     int x, y, y1;
-    int w = pixman_image_get_width(s->vt.image);
-    int h = pixman_image_get_height(s->vt.image);
+    int w = pixman_image_get_width(vt->image);
+    int h = pixman_image_get_height(vt->image);
 
-    s->vt.text_x[0] = 0;
-    s->vt.text_y[0] = 0;
-    s->vt.text_x[1] = s->vt.width - 1;
-    s->vt.text_y[1] = s->vt.height - 1;
-    s->vt.cursor_invalidate = 1;
+    vt->text_x[0] = 0;
+    vt->text_y[0] = 0;
+    vt->text_x[1] = vt->width - 1;
+    vt->text_y[1] = vt->height - 1;
+    vt->cursor_invalidate = 1;
 
-    image_fill_rect(s->vt.image, 0, 0, w, h,
+    image_fill_rect(vt->image, 0, 0, w, h,
                     color_table_rgb[0][QEMU_COLOR_BLACK]);
-    y1 = s->vt.y_displayed;
-    for (y = 0; y < s->vt.height; y++) {
-        c = s->vt.cells + y1 * s->vt.width;
-        for (x = 0; x < s->vt.width; x++) {
-            vt100_putcharxy(&s->vt, x, y, c->ch,
+    y1 = vt->y_displayed;
+    for (y = 0; y < vt->height; y++) {
+        c = vt->cells + y1 * vt->width;
+        for (x = 0; x < vt->width; x++) {
+            vt100_putcharxy(vt, x, y, c->ch,
                           &(c->t_attrib));
             c++;
         }
-        if (++y1 == s->vt.total_height) {
+        if (++y1 == vt->total_height) {
             y1 = 0;
         }
     }
-    vt100_show_cursor(&s->vt, 1);
-    vt100_image_update(&s->vt, 0, 0, w, h);
+    vt100_show_cursor(vt, 1);
+    vt100_image_update(vt, 0, 0, w, h);
 }
 
 static void console_scroll(QemuTextConsole *s, int ydelta)
@@ -289,7 +289,7 @@ static void console_scroll(QemuTextConsole *s, int ydelta)
                 s->vt.y_displayed = s->vt.total_height - 1;
         }
     }
-    console_refresh(s);
+    vt100_refresh(&s->vt);
 }
 
 static void kbd_send_chars(QemuTextConsole *s)
@@ -1113,7 +1113,7 @@ static void text_console_invalidate(void *opaque)
     if (!QEMU_IS_FIXED_TEXT_CONSOLE(s)) {
         text_console_resize(QEMU_TEXT_CONSOLE(s));
     }
-    console_refresh(s);
+    vt100_refresh(&s->vt);
 }
 
 static void
