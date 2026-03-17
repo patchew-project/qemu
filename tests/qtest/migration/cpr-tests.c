@@ -154,15 +154,16 @@ static void set_cpr_exec_args(QTestState *who, MigrateCommon *args)
 static void wait_for_migration_event(QTestState *who, const char *waitfor)
 {
     QDict *rsp, *data;
-    char *status;
     bool done = false;
 
     while (!done) {
+        const char *status;
+
         rsp = qtest_qmp_eventwait_ref(who, "MIGRATION");
         g_assert(qdict_haskey(rsp, "data"));
         data = qdict_get_qdict(rsp, "data");
         g_assert(qdict_haskey(data, "status"));
-        status = g_strdup(qdict_get_str(data, "status"));
+        status = qdict_get_str(data, "status");
         g_assert(strcmp(status, "failed"));
         done = !strcmp(status, waitfor);
         qobject_unref(rsp);
