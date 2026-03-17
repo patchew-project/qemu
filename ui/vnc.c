@@ -1301,10 +1301,7 @@ static void vnc_disconnect_start(VncState *vs)
     }
     trace_vnc_client_disconnect_start(vs, vs->ioc);
     vnc_set_share_mode(vs, VNC_SHARE_MODE_DISCONNECTED);
-    if (vs->ioc_tag) {
-        g_source_remove(vs->ioc_tag);
-        vs->ioc_tag = 0;
-    }
+    g_clear_handle_id(&vs->ioc_tag, g_source_remove);
     qio_channel_close(vs->ioc, NULL);
     vs->disconnecting = TRUE;
 }
@@ -1462,9 +1459,7 @@ static size_t vnc_client_write_plain(VncState *vs)
     }
 
     if (vs->output.offset == 0) {
-        if (vs->ioc_tag) {
-            g_source_remove(vs->ioc_tag);
-        }
+        g_clear_handle_id(&vs->ioc_tag, g_source_remove);
         vs->ioc_tag = qio_channel_add_watch(
             vs->ioc, G_IO_IN | G_IO_HUP | G_IO_ERR,
             vnc_client_io, vs, NULL);
@@ -1500,9 +1495,7 @@ static void vnc_client_write(VncState *vs)
     if (vs->output.offset) {
         vnc_client_write_locked(vs);
     } else if (vs->ioc != NULL) {
-        if (vs->ioc_tag) {
-            g_source_remove(vs->ioc_tag);
-        }
+        g_clear_handle_id(&vs->ioc_tag, g_source_remove);
         vs->ioc_tag = qio_channel_add_watch(
             vs->ioc, G_IO_IN | G_IO_HUP | G_IO_ERR,
             vnc_client_io, vs, NULL);
@@ -1638,10 +1631,7 @@ gboolean vnc_client_io(QIOChannel *ioc G_GNUC_UNUSED,
     }
 
     if (vs->disconnecting) {
-        if (vs->ioc_tag != 0) {
-            g_source_remove(vs->ioc_tag);
-        }
-        vs->ioc_tag = 0;
+        g_clear_handle_id(&vs->ioc_tag, g_source_remove);
     }
     return TRUE;
 }
@@ -1684,9 +1674,7 @@ void vnc_write(VncState *vs, const void *data, size_t len)
     buffer_reserve(&vs->output, len);
 
     if (vs->ioc != NULL && buffer_empty(&vs->output)) {
-        if (vs->ioc_tag) {
-            g_source_remove(vs->ioc_tag);
-        }
+        g_clear_handle_id(&vs->ioc_tag, g_source_remove);
         vs->ioc_tag = qio_channel_add_watch(
             vs->ioc, G_IO_IN | G_IO_HUP | G_IO_ERR | G_IO_OUT,
             vnc_client_io, vs, NULL);
@@ -1734,10 +1722,7 @@ void vnc_flush(VncState *vs)
         vnc_client_write_locked(vs);
     }
     if (vs->disconnecting) {
-        if (vs->ioc_tag != 0) {
-            g_source_remove(vs->ioc_tag);
-        }
-        vs->ioc_tag = 0;
+        g_clear_handle_id(&vs->ioc_tag, g_source_remove);
     }
     vnc_unlock_output(vs);
 }
@@ -3342,9 +3327,7 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
     VNC_DEBUG("New client on socket %p\n", vs->sioc);
     update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_BASE);
     qio_channel_set_blocking(vs->ioc, false, &error_abort);
-    if (vs->ioc_tag) {
-        g_source_remove(vs->ioc_tag);
-    }
+    g_clear_handle_id(&vs->ioc_tag, g_source_remove);
     if (websocket) {
         vs->websocket = 1;
         if (vd->tlscreds) {

@@ -162,9 +162,7 @@ void vnc_jobs_consume_buffer(VncState *vs)
     vnc_lock_output(vs);
     if (vs->jobs_buffer.offset) {
         if (vs->ioc != NULL && buffer_empty(&vs->output)) {
-            if (vs->ioc_tag) {
-                g_source_remove(vs->ioc_tag);
-            }
+            g_clear_handle_id(&vs->ioc_tag, g_source_remove);
             if (vs->disconnecting == FALSE) {
                 vs->ioc_tag = qio_channel_add_watch(
                     vs->ioc, G_IO_IN | G_IO_HUP | G_IO_ERR | G_IO_OUT,
