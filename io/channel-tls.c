@@ -352,7 +352,9 @@ void qio_channel_tls_bye(QIOChannelTLS *ioc, Error **errp)
     task = qio_task_new(OBJECT(ioc), propagate_error, errp, NULL);
 
     trace_qio_channel_tls_bye_start(ioc);
-    qio_channel_tls_bye_task(ioc, task, NULL);
+    if (qio_channel_tls_bye_task(ioc, task, NULL)) {
+        qio_task_free(task);
+    }
 }
 
 static void qio_channel_tls_init(Object *obj G_GNUC_UNUSED)
