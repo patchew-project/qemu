@@ -950,7 +950,14 @@ static bool spice_gl_replace_fd_texture(SimpleSpiceDisplay *ssd,
     } else {
         surface_gl_destroy_texture(ssd->gls, ssd->ds);
         ssd->ds->texture = texture;
-        ssd->ds->mem_obj = mem_obj;
+
+#ifdef GL_EXT_memory_object_fd
+        if (ssd->gl_surface_mem_obj) {
+            glDeleteMemoryObjectsEXT(1, &ssd->gl_surface_mem_obj);
+        }
+
+        ssd->gl_surface_mem_obj = mem_obj;
+#endif
     }
     return ret;
 }
