@@ -12,6 +12,7 @@
 #include "ui/console.h"
 #include "ui/cp437.h"
 
+#include "pixman.h"
 #include "trace.h"
 #include "console-priv.h"
 
@@ -395,44 +396,41 @@ static void text_console_update(void *opaque, console_ch_t *chardata)
     }
 }
 
-static void text_console_resize(QemuTextConsole *t)
+static void vt100_set_image(QemuVT100 *vt, pixman_image_t *image)
 {
-    QemuConsole *s = QEMU_CONSOLE(t);
     TextCell *cells, *c, *c1;
     int w1, x, y, last_width, w, h;
 
-    assert(s->scanout.kind == SCANOUT_SURFACE);
-
-    t->vt.image = s->surface->image;
-    w = pixman_image_get_width(t->vt.image) / FONT_WIDTH;
-    h = pixman_image_get_height(t->vt.image) / FONT_HEIGHT;
-    if (w == t->vt.width && h == t->vt.height) {
+    vt->image = image;
+    w = pixman_image_get_width(image) / FONT_WIDTH;
+    h = pixman_image_get_height(image) / FONT_HEIGHT;
+    if (w == vt->width && h == vt->height) {
         return;
     }
 
-    last_width = t->vt.width;
-    t->vt.width = w;
-    t->vt.height = h;
+    last_width = vt->width;
+    vt->width = w;
+    vt->height = h;
 
-    w1 = MIN(t->vt.width, last_width);
+    w1 = MIN(vt->width, last_width);
 
-    cells = g_new(TextCell, t->vt.width * t->vt.total_height + 1);
-    for (y = 0; y < t->vt.total_height; y++) {
-        c = &cells[y * t->vt.width];
+    cells = g_new(TextCell, vt->width * vt->total_height + 1);
+    for (y = 0; y < vt->total_height; y++) {
+        c = &cells[y * vt->width];
         if (w1 > 0) {
-            c1 = &t->vt.cells[y * last_width];
+            c1 = &vt->cells[y * last_width];
             for (x = 0; x < w1; x++) {
                 *c++ = *c1++;
             }
         }
-        for (x = w1; x < t->vt.width; x++) {
+        for (x = w1; x < vt->width; x++) {
             c->ch = ' ';
             c->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
             c++;
         }
     }
-    g_free(t->vt.cells);
-    t->vt.cells = cells;
+    g_free(vt->cells);
+    vt->cells = cells;
 }
 
 static void vc_put_lf(VCChardev *vc)
@@ -1125,7 +1123,7 @@ static void text_console_invalidate(void *opaque)
     QemuTextConsole *s = QEMU_TEXT_CONSOLE(opaque);
 
     if (!QEMU_IS_FIXED_TEXT_CONSOLE(s)) {
-        text_console_resize(QEMU_TEXT_CONSOLE(s));
+        vt100_set_image(&s->vt, QEMU_CONSOLE(s)->surface->image);
     }
     vt100_refresh(&s->vt);
 }
@@ -1245,7 +1243,7 @@ static bool vc_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 
     /* set current text attributes to default */
     drv->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
-    text_console_resize(s);
+    vt100_set_image(&s->vt, QEMU_CONSOLE(s)->surface->image);
 
     if (chr->label) {
         char *msg;
