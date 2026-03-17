@@ -238,15 +238,16 @@ static void g364fb_draw_blank(G364State *s)
     s->blanked = 1;
 }
 
-static void g364fb_update_display(void *opaque)
+static bool g364fb_update_display(void *opaque)
 {
     G364State *s = opaque;
     DisplaySurface *surface = qemu_console_surface(s->con);
 
     qemu_flush_coalesced_mmio_buffer();
 
-    if (s->width == 0 || s->height == 0)
-        return;
+    if (s->width == 0 || s->height == 0) {
+        return true;
+    }
 
     if (s->width != surface_width(surface) ||
         s->height != surface_height(surface)) {
@@ -262,6 +263,8 @@ static void g364fb_update_display(void *opaque)
     }
 
     qemu_irq_raise(s->irq);
+
+    return true;
 }
 
 static inline void g364fb_invalidate_display(void *opaque)

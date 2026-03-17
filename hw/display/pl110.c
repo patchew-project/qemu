@@ -210,7 +210,7 @@ static int pl110_enabled(PL110State *s)
   return (s->cr & PL110_CR_EN) && (s->cr & PL110_CR_PWR);
 }
 
-static void pl110_update_display(void *opaque)
+static bool pl110_update_display(void *opaque)
 {
     PL110State *s = (PL110State *)opaque;
     DisplaySurface *surface = qemu_console_surface(s->con);
@@ -221,7 +221,7 @@ static void pl110_update_display(void *opaque)
     int last;
 
     if (!pl110_enabled(s)) {
-        return;
+        return true;
     }
 
     if (s->cr & PL110_CR_BGR)
@@ -306,6 +306,7 @@ static void pl110_update_display(void *opaque)
         dpy_gfx_update(s->con, 0, first, s->cols, last - first + 1);
     }
     s->invalidate = 0;
+    return true;
 }
 
 static void pl110_invalidate_display(void * opaque)

@@ -1270,7 +1270,7 @@ static void exynos4210_update_resolution(Exynos4210fimdState *s)
     }
 }
 
-static void exynos4210_fimd_update(void *opaque)
+static bool exynos4210_fimd_update(void *opaque)
 {
     Exynos4210fimdState *s = (Exynos4210fimdState *)opaque;
     DisplaySurface *surface;
@@ -1287,7 +1287,7 @@ static void exynos4210_fimd_update(void *opaque)
 
     if (!s || !s->console || !s->enabled ||
         surface_bits_per_pixel(qemu_console_surface(s->console)) == 0) {
-        return;
+        return true;
     }
 
     global_width = (s->vidtcon[2] & FIMD_VIDTCON2_SIZE_MASK) + 1;
@@ -1348,6 +1348,8 @@ static void exynos4210_fimd_update(void *opaque)
         exynos4210_fimd_enable(s, false);
     }
     exynos4210_fimd_update_irq(s);
+
+    return true;
 }
 
 static void exynos4210_fimd_reset(DeviceState *d)

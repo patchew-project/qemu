@@ -1311,7 +1311,7 @@ static void artist_draw_line(void *opaque, uint8_t *d, const uint8_t *src,
     }
 }
 
-static void artist_update_display(void *opaque)
+static bool artist_update_display(void *opaque)
 {
     ARTISTState *s = opaque;
     DisplaySurface *surface = qemu_console_surface(s->con);
@@ -1326,6 +1326,8 @@ static void artist_update_display(void *opaque)
     if (first >= 0) {
         dpy_gfx_update(s->con, 0, first, s->width, last - first + 1);
     }
+
+    return true;
 }
 
 static void artist_invalidate(void *opaque)

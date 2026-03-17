@@ -85,7 +85,7 @@ struct CG3State {
     uint8_t dac_index, dac_state;
 };
 
-static void cg3_update_display(void *opaque)
+static bool cg3_update_display(void *opaque)
 {
     CG3State *s = opaque;
     DisplaySurface *surface = qemu_console_surface(s->con);
@@ -98,7 +98,7 @@ static void cg3_update_display(void *opaque)
     DirtyBitmapSnapshot *snap = NULL;
 
     if (surface_bits_per_pixel(surface) != 32) {
-        return;
+        return true;
     }
     width = s->width;
     height = s->height;
@@ -154,6 +154,7 @@ static void cg3_update_display(void *opaque)
         qemu_irq_raise(s->irq);
     }
     g_free(snap);
+    return true;
 }
 
 static void cg3_invalidate_display(void *opaque)

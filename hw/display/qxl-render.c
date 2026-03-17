@@ -173,7 +173,7 @@ end:
  * callbacks are called by spice_server thread, deferring to bh called from the
  * io thread.
  */
-void qxl_render_update(PCIQXLDevice *qxl)
+bool qxl_render_update(PCIQXLDevice *qxl)
 {
     QXLCookie *cookie;
 
@@ -183,8 +183,7 @@ void qxl_render_update(PCIQXLDevice *qxl)
         qxl->mode == QXL_MODE_UNDEFINED) {
         qxl_render_update_area_unlocked(qxl);
         qemu_mutex_unlock(&qxl->ssd.lock);
-        graphic_hw_update_done(qxl->ssd.dcl.con);
-        return;
+        return true;
     }
 
     qxl->guest_primary.commands = 0;
@@ -195,6 +194,7 @@ void qxl_render_update(PCIQXLDevice *qxl)
     qxl_set_rect_to_surface(qxl, &cookie->u.render.area);
     qxl_spice_update_area(qxl, 0, &cookie->u.render.area, NULL,
                           0, 1 /* clear_dirty_region */, QXL_ASYNC, cookie);
+    return false;
 }
 
 void qxl_render_update_area_bh(void *opaque)

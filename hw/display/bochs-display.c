@@ -198,7 +198,7 @@ static int bochs_display_get_mode(BochsDisplayState *s,
     return 0;
 }
 
-static void bochs_display_update(void *opaque)
+static bool bochs_display_update(void *opaque)
 {
     BochsDisplayState *s = opaque;
     DirtyBitmapSnapshot *snap = NULL;
@@ -212,7 +212,7 @@ static void bochs_display_update(void *opaque)
     ret = bochs_display_get_mode(s, &mode);
     if (ret < 0) {
         /* no (valid) video mode */
-        return;
+        return true;
     }
 
     if (memcmp(&s->mode, &mode, sizeof(mode)) != 0) {
@@ -255,6 +255,8 @@ static void bochs_display_update(void *opaque)
 
         g_free(snap);
     }
+
+    return true;
 }
 
 static const GraphicHwOps bochs_display_gfx_ops = {

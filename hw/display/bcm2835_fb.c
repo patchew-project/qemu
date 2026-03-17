@@ -150,7 +150,7 @@ static bool fb_use_offsets(BCM2835FBConfig *config)
         config->yres_virtual > config->yres;
 }
 
-static void fb_update_display(void *opaque)
+static bool fb_update_display(void *opaque)
 {
     BCM2835FBState *s = opaque;
     DisplaySurface *surface = qemu_console_surface(s->con);
@@ -161,7 +161,7 @@ static void fb_update_display(void *opaque)
     uint32_t xoff = 0, yoff = 0;
 
     if (s->lock || !s->config.xres) {
-        return;
+        return true;
     }
 
     src_width = bcm2835_fb_get_pitch(&s->config);
@@ -174,7 +174,7 @@ static void fb_update_display(void *opaque)
 
     switch (surface_bits_per_pixel(surface)) {
     case 0:
-        return;
+        return true;
     case 8:
         break;
     case 15:
@@ -212,6 +212,7 @@ static void fb_update_display(void *opaque)
     }
 
     s->invalidate = false;
+    return true;
 }
 
 void bcm2835_fb_validate_config(BCM2835FBConfig *config)

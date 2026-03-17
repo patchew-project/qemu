@@ -1135,14 +1135,13 @@ static inline void vmsvga_check_size(struct vmsvga_state_s *s)
     }
 }
 
-static void vmsvga_update_display(void *opaque)
+static bool vmsvga_update_display(void *opaque)
 {
     struct vmsvga_state_s *s = opaque;
 
     if (!s->enable || !s->config) {
         /* in standard vga mode */
-        s->vga.hw_ops->gfx_update(&s->vga);
-        return;
+        return s->vga.hw_ops->gfx_update(&s->vga);
     }
 
     vmsvga_check_size(s);
@@ -1154,6 +1153,8 @@ static void vmsvga_update_display(void *opaque)
         s->invalidated = 0;
         dpy_gfx_update_full(s->vga.con);
     }
+
+    return true;
 }
 
 static void vmsvga_reset(DeviceState *dev)

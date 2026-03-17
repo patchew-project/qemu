@@ -138,15 +138,10 @@ void graphic_hw_update_done(QemuConsole *con)
 
 void graphic_hw_update(QemuConsole *con)
 {
-    bool async = false;
     if (!con) {
         return;
     }
-    if (con->hw_ops->gfx_update) {
-        con->hw_ops->gfx_update(con->hw);
-        async = con->hw_ops->gfx_update_async;
-    }
-    if (!async) {
+    if (!con->hw_ops->gfx_update || con->hw_ops->gfx_update(con->hw)) {
         graphic_hw_update_done(con);
     }
 }
