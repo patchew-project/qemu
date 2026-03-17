@@ -391,6 +391,7 @@ void coroutine_fn throttle_group_co_io_limits_intercept(ThrottleGroupMember *tgm
 typedef struct {
     ThrottleGroupMember *tgm;
     ThrottleDirection direction;
+    bool reset_timer_armed;
 } RestartData;
 
 static void coroutine_fn throttle_group_restart_queue_entry(void *opaque)
@@ -403,6 +404,9 @@ static void coroutine_fn throttle_group_restart_queue_entry(void *opaque)
     bool empty_queue;
 
     qemu_mutex_lock(&tg->lock);
+    if (data->reset_timer_armed) {
+        tg->any_timer_armed[direction] = false;
+    }
     empty_queue = !throttle_group_co_restart_queue(tgm, direction);
 
     /* If the request queue was empty then we have to take care of
@@ -419,18 +423,23 @@ static void coroutine_fn throttle_group_restart_queue_entry(void *opaque)
 }
 
 static void throttle_group_restart_queue(ThrottleGroupMember *tgm,
-                                        ThrottleDirection direction)
+                                         ThrottleDirection direction,
+                                         bool reset_timer_armed)
 {
     Coroutine *co;
     RestartData *rd = g_new0(RestartData, 1);
 
     rd->tgm = tgm;
     rd->direction = direction;
+    rd->reset_timer_armed = reset_timer_armed;
 
-    /* This function is called when a timer is fired or when
-     * throttle_group_restart_tgm() is called. Either way, there can
+    /* If reset_timer_armed is set then this means that this function
+     * was called when a timer was fired (either from timer_cb() or
+     * from throttle_group_restart_tgm()). In this case there can
      * be no timer pending on this tgm at this point */
-    assert(!timer_pending(tgm->throttle_timers.timers[direction]));
+    if (reset_timer_armed) {
+        assert(!timer_pending(tgm->throttle_timers.timers[direction]));
+    }
 
     qatomic_inc(&tgm->restart_pending);
 
@@ -444,15 +453,50 @@ void throttle_group_restart_tgm(ThrottleGroupMember *tgm)
 
     if (tgm->throttle_state) {
         for (dir = THROTTLE_READ; dir < THROTTLE_MAX; dir++) {
-            QEMUTimer *t = tgm->throttle_timers.timers[dir];
+            QEMUTimer *t;
+            ThrottleState *ts = tgm->throttle_state;
+            ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
+            bool reset_timer_armed;
+
+            /*
+             * This function restarts the tgm's queue immediately.
+             * This is used for example for callers to drain all requests.
+             * There are three different scenarios depending on whether
+             * a timer is armed for this tg and which tgm owns the timer.
+             */
+
+            qemu_mutex_lock(&tg->lock);
+
+            t = tgm->throttle_timers.timers[dir];
             if (timer_pending(t)) {
-                /* If there's a pending timer on this tgm, fire it now */
+                /*
+                 * Case 1: this tgm has a pending timer.
+                 * We can fire the timer immediately.
+                 */
                 timer_del(t);
-                timer_cb(tgm, dir);
+                reset_timer_armed = true;
+            } else if (tg->any_timer_armed[dir]) {
+                /*
+                 * Case 2: another tgm has a pending timer.
+                 * In this case we can still restart the queue but we
+                 * have to leave any_timer_armed untouched so the
+                 * other tgm's timer is not disrupted.
+                 */
+                reset_timer_armed = false;
             } else {
-                /* Else run the next request from the queue manually */
-                throttle_group_restart_queue(tgm, dir);
+                /*
+                 * Case 3: there is no timer set for this group.
+                 * Here we can simulate a timer that fires immediately,
+                 * so the queue is restarted but no other thread
+                 * can arm a timer in the meantime.
+                 */
+                tg->any_timer_armed[dir] = true;
+                reset_timer_armed = true;
             }
+
+            qemu_mutex_unlock(&tg->lock);
+
+            throttle_group_restart_queue(tgm, dir, reset_timer_armed);
         }
     }
 }
@@ -499,16 +543,13 @@ void throttle_group_get_config(ThrottleGroupMember *tgm, ThrottleConfig *cfg)
  */
 static void timer_cb(ThrottleGroupMember *tgm, ThrottleDirection direction)
 {
-    ThrottleState *ts = tgm->throttle_state;
-    ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
-
-    /* The timer has just been fired, so we can update the flag */
-    qemu_mutex_lock(&tg->lock);
-    tg->any_timer_armed[direction] = false;
-    qemu_mutex_unlock(&tg->lock);
-
-    /* Run the request that was waiting for this timer */
-    throttle_group_restart_queue(tgm, direction);
+    /*
+     * Run the request that was waiting for this timer.
+     * tg->any_timer_armed needs to be cleared, but we'll do it later
+     * when the queue is restarted in order to prevent another thread
+     * from arming the timer before that.
+     */
+    throttle_group_restart_queue(tgm, direction, true);
 }
 
 static void read_timer_cb(void *opaque)
