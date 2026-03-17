@@ -195,32 +195,32 @@ static void vt100_invalidate_xy(QemuVT100 *vt, int x, int y)
     }
 }
 
-static void console_show_cursor(QemuTextConsole *s, int show)
+static void vt100_show_cursor(QemuVT100 *vt, int show)
 {
     TextCell *c;
     int y, y1;
-    int x = s->vt.x;
+    int x = vt->x;
 
-    s->vt.cursor_invalidate = 1;
+    vt->cursor_invalidate = 1;
 
-    if (x >= s->vt.width) {
-        x = s->vt.width - 1;
+    if (x >= vt->width) {
+        x = vt->width - 1;
     }
-    y1 = (s->vt.y_base + s->vt.y) % s->vt.total_height;
-    y = y1 - s->vt.y_displayed;
+    y1 = (vt->y_base + vt->y) % vt->total_height;
+    y = y1 - vt->y_displayed;
     if (y < 0) {
-        y += s->vt.total_height;
+        y += vt->total_height;
     }
-    if (y < s->vt.height) {
-        c = &s->vt.cells[y1 * s->vt.width + x];
+    if (y < vt->height) {
+        c = &vt->cells[y1 * vt->width + x];
         if (show && cursor_visible_phase) {
             TextAttributes t_attrib = TEXT_ATTRIBUTES_DEFAULT;
             t_attrib.invers = !(t_attrib.invers); /* invert fg and bg */
-            vt100_putcharxy(&s->vt, x, y, c->ch, &t_attrib);
+            vt100_putcharxy(vt, x, y, c->ch, &t_attrib);
         } else {
-            vt100_putcharxy(&s->vt, x, y, c->ch, &(c->t_attrib));
+            vt100_putcharxy(vt, x, y, c->ch, &(c->t_attrib));
         }
-        vt100_invalidate_xy(&s->vt, x, y);
+        vt100_invalidate_xy(vt, x, y);
     }
 }
 
@@ -251,7 +251,7 @@ static void console_refresh(QemuTextConsole *s)
             y1 = 0;
         }
     }
-    console_show_cursor(s, 1);
+    vt100_show_cursor(&s->vt, 1);
     dpy_gfx_update(QEMU_CONSOLE(s), 0, 0, w, h);
 }
 
@@ -1069,11 +1069,11 @@ static int vc_chr_write(Chardev *chr, const uint8_t *buf, int len)
     s->vt.update_y0 = s->vt.height * FONT_HEIGHT;
     s->vt.update_x1 = 0;
     s->vt.update_y1 = 0;
-    console_show_cursor(s, 0);
+    vt100_show_cursor(&s->vt, 0);
     for(i = 0; i < len; i++) {
         vc_putchar(drv, buf[i]);
     }
-    console_show_cursor(s, 1);
+    vt100_show_cursor(&s->vt, 1);
     if (s->vt.update_x0 < s->vt.update_x1) {
         dpy_gfx_update(QEMU_CONSOLE(s), s->vt.update_x0, s->vt.update_y0,
                        s->vt.update_x1 - s->vt.update_x0,
