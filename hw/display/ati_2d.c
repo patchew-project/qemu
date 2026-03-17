@@ -78,8 +78,8 @@ static void ati_set_dirty(VGACommonState *vga, const ATI2DCtx *ctx)
         vga->vbe_regs[VBE_DISPI_INDEX_YRES] * vga->vbe_line_offset) {
         memory_region_set_dirty(&vga->vram,
                                 vga->vbe_start_addr + ctx->dst_offset +
-                                ctx->dst.y * surface_stride(ds),
-                                ctx->dst.height * surface_stride(ds));
+                                ctx->dst.y * ctx->dst_stride,
+                                ctx->dst.height * ctx->dst_stride);
     }
 }
 
