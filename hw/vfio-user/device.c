@@ -74,6 +74,44 @@ void vfio_user_device_reset(VFIOUserProxy *proxy)
     }
 }
 
+static int
+vfio_user_device_io_device_feature(VFIODevice *vbasedev,
+                                   struct vfio_device_feature *feature)
+{
+    g_autofree VFIOUserDeviceFeature *msgp = NULL;
+    int size = sizeof(VFIOUserHdr) + feature->argsz;
+    VFIOUserProxy *proxy = vbasedev->proxy;
+    Error *local_err = NULL;
+
+    msgp = g_malloc0(size);
+
+    vfio_user_request_msg(&msgp->hdr, VFIO_USER_DEVICE_FEATURE, size, 0);
+
+    memcpy(&msgp->argsz, &feature->argsz, feature->argsz);
+
+    if (!vfio_user_send_wait(proxy, &msgp->hdr, NULL, size, &local_err)) {
+        error_prepend(&local_err, "%s: ", __func__);
+        error_report_err(local_err);
+        return -EFAULT;
+    }
+
+    if (msgp->hdr.flags & VFIO_USER_ERROR) {
+        /*
+         * Client expects ENOTTY for "not supported", but the protocol may
+         * return EINVAL.
+         */
+        if (msgp->hdr.error_reply == EINVAL) {
+            return -ENOTTY;
+        }
+
+        return -msgp->hdr.error_reply;
+    }
+
+    memcpy(feature, &msgp->argsz, feature->argsz);
+
+    return 0;
+}
+
 static int vfio_user_get_region_info(VFIOUserProxy *proxy,
                                      struct vfio_region_info *info,
                                      VFIOUserFDs *fds)
@@ -432,6 +470,7 @@ static int vfio_user_device_io_region_write(VFIODevice *vbasedev, uint8_t index,
  * Socket-based io_ops
  */
 VFIODeviceIOOps vfio_user_device_io_ops_sock = {
+    .device_feature = vfio_user_device_io_device_feature,
     .get_region_info = vfio_user_device_io_get_region_info,
     .get_irq_info = vfio_user_device_io_get_irq_info,
     .set_irqs = vfio_user_device_io_set_irqs,
