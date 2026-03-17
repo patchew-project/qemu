@@ -271,7 +271,9 @@ static void xilinx_pcie_root_realize(PCIDevice *pci_dev, Error **errp)
 {
     BusState *bus = qdev_get_parent_bus(DEVICE(pci_dev));
     XilinxPCIEHost *s = XILINX_PCIE_HOST(bus->parent);
+    PCIBridge *br = PCI_BRIDGE(pci_dev);
 
+    br->bus_name  = "xdma-pcie";
     pci_set_word(pci_dev->config + PCI_COMMAND,
                  PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
     pci_set_word(pci_dev->config + PCI_MEMORY_BASE, s->mmio_base >> 16);
