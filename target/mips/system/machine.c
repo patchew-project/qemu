@@ -251,7 +251,7 @@ const VMStateDescription vmstate_mips_cpu = {
                        CPUMIPSFPUContext),
 
         /* MVP */
-        VMSTATE_STRUCT_POINTER(env.mvp, MIPSCPU, vmstate_mvp,
+        VMSTATE_STRUCT_POINTER(mvp, MIPSCPU, vmstate_mvp,
                                CPUMIPSMVPContext),
 
         /* TLB */

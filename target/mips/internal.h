@@ -246,10 +246,11 @@ static inline void restore_pamask(CPUMIPSState *env)
 
 static inline int mips_vpe_active(CPUMIPSState *env)
 {
+    MIPSCPU *cpu = env_archcpu(env);
     int active = 1;
 
     /* Check that the VPE is enabled.  */
-    if (!(env->mvp->CP0_MVPControl & (1 << CP0MVPCo_EVP))) {
+    if (!(cpu->mvp->CP0_MVPControl & (1 << CP0MVPCo_EVP))) {
         active = 0;
     }
     /* Check that the VPE is activated.  */
