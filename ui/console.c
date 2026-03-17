@@ -752,7 +752,7 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
     } else if (QEMU_IS_TEXT_CONSOLE(dcl->con)) {
         qemu_text_console_update_size(QEMU_TEXT_CONSOLE(dcl->con));
     }
-    qemu_text_console_update_cursor();
+    vt100_update_cursor();
 }
 
 void update_displaychangelistener(DisplayChangeListener *dcl,
@@ -1455,23 +1455,6 @@ int qemu_console_get_height(QemuConsole *con, int fallback)
     default:
         return fallback;
     }
-}
-
-int qemu_invalidate_text_consoles(void)
-{
-    QemuConsole *s;
-    int count = 0;
-
-    QTAILQ_FOREACH(s, &consoles, next) {
-        if (qemu_console_is_graphic(s) ||
-            !qemu_console_is_visible(s)) {
-            continue;
-        }
-        count++;
-        graphic_hw_invalidate(s);
-    }
-
-    return count;
 }
 
 void qemu_console_resize(QemuConsole *s, int width, int height)

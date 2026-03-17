@@ -14,7 +14,7 @@ void qemu_text_console_update_size(QemuTextConsole *c)
 {
 }
 
-void qemu_text_console_update_cursor(void)
+void vt100_update_cursor(void)
 {
 }
 
