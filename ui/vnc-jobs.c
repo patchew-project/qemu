@@ -122,14 +122,14 @@ static void vnc_job_free(VncJob *job)
 
 void vnc_job_push(VncJob *job)
 {
-    vnc_lock_queue(queue);
     if (QLIST_EMPTY(&job->rectangles)) {
         vnc_job_free(job);
     } else {
+        vnc_lock_queue(queue);
         QTAILQ_INSERT_TAIL(&queue->jobs, job, next);
         qemu_cond_broadcast(&queue->cond);
+        vnc_unlock_queue(queue);
     }
-    vnc_unlock_queue(queue);
 }
 
 static bool vnc_has_job_locked(VncState *vs)
