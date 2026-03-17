@@ -3428,6 +3428,7 @@ VncDisplay *vnc_display_new(const char *id, Error **errp)
     VncDisplay *vd;
 
     if (vnc_display_find(id) != NULL) {
+        error_setg(errp, "Display '%s' already exists", id);
         return NULL;
     }
     vd = g_malloc0(sizeof(*vd));
