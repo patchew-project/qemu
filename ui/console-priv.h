@@ -16,7 +16,6 @@ struct QemuConsole {
     DisplayState *ds;
     DisplaySurface *surface;
     DisplayScanout scanout;
-    int dcls;
     DisplayGLCtx *gl;
     int gl_block;
     QEMUTimer *gl_unblock_timer;
