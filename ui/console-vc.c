@@ -9,6 +9,7 @@
 #include "qemu/fifo8.h"
 #include "qemu/option.h"
 #include "ui/console.h"
+#include "ui/cp437.h"
 
 #include "trace.h"
 #include "console-priv.h"
@@ -89,6 +90,8 @@ struct VCChardev {
     enum TTYState state;
     int esc_params[MAX_ESC_PARAMS];
     int nb_esc_params;
+    uint32_t utf8_state;     /* UTF-8 DFA decoder state */
+    uint32_t utf8_codepoint; /* accumulated UTF-8 code point */
     TextAttributes t_attrib; /* currently active text attributes */
     TextAttributes t_attrib_saved;
     int x_saved, y_saved;
@@ -598,6 +601,47 @@ static void vc_clear_xy(VCChardev *vc, int x, int y)
     vc_update_xy(vc, x, y);
 }
 
+/*
+ * UTF-8 DFA decoder by Bjoern Hoehrmann.
+ * Copyright (c) 2008-2010 Bjoern Hoehrmann <bjoern@hoehrmann.de>
+ * See https://github.com/polijan/utf8_decode for details.
+ *
+ * SPDX-License-Identifier: MIT
+ */
+#define UTF8_ACCEPT 0
+#define UTF8_REJECT 12
+
+static const uint8_t utf8d[] = {
+    /* character class lookup */
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,
+    7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,  7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+    8,8,2,2,2,2,2,2,2,2,2,2,2,2,2,2,  2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
+   10,3,3,3,3,3,3,3,3,3,3,3,3,4,3,3, 11,6,6,6,5,8,8,8,8,8,8,8,8,8,8,8,
+
+    /* state transition lookup */
+     0,12,24,36,60,96,84,12,12,12,48,72, 12,12,12,12,12,12,12,12,12,12,12,12,
+    12, 0,12,12,12,12,12, 0,12, 0,12,12, 12,24,12,12,12,12,12,24,12,24,12,12,
+    12,12,12,12,12,12,12,24,12,12,12,12, 12,24,12,12,12,12,12,12,12,24,12,12,
+    12,12,12,12,12,12,12,36,12,36,12,12, 12,36,12,12,12,12,12,36,12,36,12,12,
+    12,36,12,12,12,12,12,12,12,12,12,12,
+};
+
+static uint32_t utf8_decode(uint32_t *state, uint32_t *codep, uint32_t byte)
+{
+    uint32_t type = utf8d[byte];
+
+    *codep = (*state != UTF8_ACCEPT) ?
+        (byte & 0x3fu) | (*codep << 6) :
+        (0xffu >> type) & (byte);
+
+    *state = utf8d[256 + *state + type];
+    return *state;
+}
+
 static void vc_put_one(VCChardev *vc, int ch)
 {
     QemuTextConsole *s = vc->console;
@@ -761,6 +805,24 @@ static void vc_putchar(VCChardev *vc, int ch)
 
     switch(vc->state) {
     case TTY_STATE_NORM:
+        /* Feed byte through the UTF-8 DFA decoder */
+        if (ch >= 0x80) {
+            switch (utf8_decode(&vc->utf8_state, &vc->utf8_codepoint, ch)) {
+            case UTF8_ACCEPT:
+                vc_put_one(vc, unicode_to_cp437(vc->utf8_codepoint));
+                break;
+            case UTF8_REJECT:
+                /* Reset state so the decoder can resync */
+                vc->utf8_state = UTF8_ACCEPT;
+                break;
+            default:
+                /* Need more bytes */
+                break;
+            }
+            break;
+        }
+        /* ASCII byte: abort any pending UTF-8 sequence */
+        vc->utf8_state = UTF8_ACCEPT;
         switch(ch) {
         case '\r':  /* carriage return */
             s->x = 0;
