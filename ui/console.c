@@ -214,7 +214,7 @@ void graphic_hw_invalidate(QemuConsole *con)
     }
 }
 
-void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata)
+void graphic_hw_text_update(QemuConsole *con, uint32_t *chardata)
 {
     if (con && con->hw_ops->text_update) {
         con->hw_ops->text_update(con->hw, chardata);

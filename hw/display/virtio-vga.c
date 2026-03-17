@@ -31,7 +31,7 @@ static void virtio_vga_base_update_display(void *opaque)
     }
 }
 
-static void virtio_vga_base_text_update(void *opaque, console_ch_t *chardata)
+static void virtio_vga_base_text_update(void *opaque, uint32_t *chardata)
 {
     VirtIOVGABase *vvga = opaque;
     VirtIOGPUBase *g = vvga->vgpu;
