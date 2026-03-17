@@ -149,6 +149,7 @@ static void add_machine_test_case(const char *mname)
 int main(int argc, char **argv)
 {
     char *v_env = getenv("V");
+    g_autofree char *machine_opts = g_strdup("none -m 2");
 
     if (v_env && atoi(v_env) >= 2) {
         verbose = true;
@@ -159,7 +160,7 @@ int main(int argc, char **argv)
     qtest_cb_for_every_machine(add_machine_test_case, g_test_quick());
 
     /* as none machine has no memory by default, add a test case with memory */
-    qtest_add_data_func("hmp/none+2MB", g_strdup("none -m 2"), test_machine);
+    qtest_add_data_func("hmp/none+2MB", machine_opts, test_machine);
 
     return g_test_run();
 }
