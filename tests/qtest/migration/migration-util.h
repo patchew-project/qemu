@@ -59,5 +59,5 @@ void migration_test_add_suffix(const char *path, const char *suffix,
                                void (*fn)(char *name, MigrateCommon *args));
 char *migrate_get_connect_uri(QTestState *who);
 void migrate_set_ports(QTestState *to, QList *channel_list);
-
+void migration_tests_free(void);
 #endif /* MIGRATION_UTIL_H */
