@@ -2823,6 +2823,11 @@ F: docs/interop/vhost-user-gpu.rst
 F: contrib/vhost-user-gpu
 F: hw/display/vhost-user-*
 
+qemu-vnc:
+M: Marc-André Lureau <marcandre.lureau@redhat.com>
+S: Maintained
+F: contrib/qemu-vnc
+
 Cirrus VGA
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Odd Fixes
