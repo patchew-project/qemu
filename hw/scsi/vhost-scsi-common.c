@@ -140,9 +140,9 @@ void vhost_scsi_common_set_config(VirtIODevice *vdev, const uint8_t *config)
 
     if ((uint32_t)virtio_ldl_p(vdev, &scsiconf->sense_size) != vs->sense_size ||
         (uint32_t)virtio_ldl_p(vdev, &scsiconf->cdb_size) != vs->cdb_size) {
-        error_report("vhost-scsi does not support changing the sense data and "
-                     "CDB sizes");
-        exit(1);
+        virtio_error(vdev, "vhost-scsi does not support changing the sense "
+                     "data and CDB sizes");
+        return;
     }
 }
 
