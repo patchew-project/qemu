@@ -66,6 +66,12 @@ OBJECT_DECLARE_TYPE(SevSnpGuestState, SevCommonStateClass, SEV_SNP_GUEST)
 #define FLAGS_SEGCACHE_TO_VMSA(flags) \
     ((((flags) & 0xff00) >> 8) | (((flags) & 0xf00000) >> 12))
 
+/* SEV-EMULATED default values */
+#define INVALID_FD -1
+#define FAKE_BUILD_ID 40
+#define FAKE_API_MAJOR 1
+#define FAKE_API_MINOR 40
+
 typedef struct QEMU_PACKED SevHashTableEntry {
     QemuUUID guid;
     uint16_t len;
@@ -191,6 +197,7 @@ struct SevGuestState {
 
 typedef struct SevEmulatedState {
     SevGuestState parent_obj;
+    QEMUIOVector ld_data;
 } SevEmulatedState;
 
 struct SevSnpGuestState {
@@ -915,6 +922,12 @@ static SevCapability *sev_get_capabilities(Error **errp)
     SevCommonState *sev_common;
     char *sev_device;
 
+    if (sev_emulated_enabled()) {
+        error_setg(errp, "SEV emulation does not support"
+                                    "returning capabilities");
+        return NULL;
+    }
+
     if (!kvm_enabled()) {
         error_setg(errp, "KVM not enabled");
         return NULL;
@@ -1021,6 +1034,12 @@ static SevAttestationReport *sev_get_attestation_report(const char *mnonce,
 
     if (!sev_enabled()) {
         error_setg(errp, "SEV is not enabled");
+        return NULL;
+    }
+
+    if (sev_emulated_enabled()) {
+        error_setg(errp, "SEV emulation does not support"
+                                    "attestation report");
         return NULL;
     }
 
@@ -1752,6 +1771,21 @@ static int sev_kvm_type(X86ConfidentialGuest *cg)
      */
     kvm_type = (sev_guest->policy & SEV_POLICY_ES) ?
                 KVM_X86_SEV_ES_VM : KVM_X86_SEV_VM;
+
+    /*
+     * If we are in emulated mode, force the legacy VM type as the only
+     * actively supported option.
+     */
+    if (sev_emulated_enabled()) {
+        if (kvm_type != KVM_X86_DEFAULT_VM) {
+            warn_report("Only legacy VM are supported in emulated mode:"
+            " using KVM_X86_DEFAULT_VM");
+            kvm_type = KVM_X86_DEFAULT_VM;
+        }
+        sev_common->kvm_type = kvm_type;
+        goto out;
+    }
+
     if (!kvm_is_vm_type_supported(kvm_type)) {
         if (sev_guest->legacy_vm_type == ON_OFF_AUTO_AUTO) {
             error_report("SEV: host kernel does not support requested %s VM type, which is required "
@@ -2973,6 +3007,10 @@ sev_guest_instance_init(Object *obj)
 static int sev_emulated_init(ConfidentialGuestSupport *cgs, Error **errp)
 {
     SevCommonState *sev_common = SEV_COMMON(cgs);
+    SevGuestState *sev_guest = SEV_GUEST(sev_common);
+    SevEmulatedState *sev_emulated = SEV_EMULATED(sev_guest);
+
+    sev_common->state = SEV_STATE_UNINIT;
 
     /*
      * The cbitpos value will be placed in bit positions 5:0 of the EBX
@@ -2999,15 +3037,53 @@ static int sev_emulated_init(ConfidentialGuestSupport *cgs, Error **errp)
                    __func__, sev_common->reduced_phys_bits);
         return -1;
     }
+    /*
+     * The device does not exist so we initialize the values as default.
+     * We can skip to SEV_STATE_LAUNCH_UPDATE as there is nothing to encrypt.
+     * This avoids the launch start call.
+     */
+    sev_set_guest_state(sev_common, SEV_STATE_LAUNCH_UPDATE);
+    sev_common->sev_fd = INVALID_FD;
+    sev_common->build_id = FAKE_BUILD_ID;
+    sev_common->api_major = FAKE_API_MAJOR;
+    sev_common->api_minor = FAKE_API_MINOR;
+
+    /* Initialize the iovec for the measurements blobs */
+    qemu_iovec_init(&sev_emulated->ld_data, 3);
+
+    qemu_add_vm_change_state_handler(sev_vm_state_change, sev_common);
+
     cgs->ready = true;
     return 0;
 }
 
+static int sev_emulated_launch_update_data(SevCommonState *sev_common,
+        hwaddr gpa, uint8_t *addr, size_t len, Error **errp)
+{
+    SevEmulatedState *sev_emulated = SEV_EMULATED(sev_common);
+
+    if (!addr || !len) {
+        return 1;
+    }
+    qemu_iovec_add(&sev_emulated->ld_data, addr, len);
+
+    return 0;
+}
+
+static void
+sev_emulated_launch_finish(SevCommonState *sev_common)
+{
+    sev_set_guest_state(sev_common, SEV_STATE_RUNNING);
+}
+
 static void sev_emulated_class_init(ObjectClass *oc, const void *data)
 {
+    SevCommonStateClass *scc = SEV_COMMON_CLASS(oc);
     ConfidentialGuestSupportClass *klass = CONFIDENTIAL_GUEST_SUPPORT_CLASS(oc);
-    /* Override the sev-common method that uses kvm */
+    /* Override the sev-common methods that use kvm */
     klass->kvm_init = sev_emulated_init;
+    scc->launch_update_data = sev_emulated_launch_update_data;
+    scc->launch_finish = sev_emulated_launch_finish;
 }
 
 /* guest info specific sev/sev-es */
