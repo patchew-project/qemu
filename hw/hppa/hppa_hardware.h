@@ -61,8 +61,8 @@
 #define ASTRO_BUS_MODULE        0x0a            /* C3700: 0x0a, others maybe 0 ? */
 
 /* ASTRO Memory and I/O regions */
-#define ASTRO_BASE_HPA            0xfffed00000
-#define ELROY0_BASE_HPA           0xfffed30000  /* ELROY0_HPA */
+#define ASTRO_BASE_HPA            0xffffed00000
+#define ELROY0_BASE_HPA           0xffffed30000  /* ELROY0_HPA */
 
 #define ROPES_PER_IOC           8       /* per Ike half or Pluto/Astro */
 
