@@ -32,6 +32,11 @@ static void iommufd_backend_init(Object *obj)
 {
     IOMMUFDBackend *be = IOMMUFD_BACKEND(obj);
 
+    if (!g_file_test("/dev/iommu", G_FILE_TEST_EXISTS)) {
+        error_setg(&error_fatal, "/dev/iommu does not exist"
+                                 " (is your kernel config missing CONFIG_IOMMUFD?)");
+    }
+
     be->fd = -1;
     be->users = 0;
     be->owned = true;
