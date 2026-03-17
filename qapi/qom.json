@@ -1064,11 +1064,12 @@
 # This object functionally emulates AMD SEV hardware via TCG, so
 # it does not require real hardware to run.
 #
+# @tik: binary file of the SEV TIK (default: all 0).
 # Since: 10.1.0
 ##
 { 'struct': 'SevEmulatedProperties',
   'base': 'SevGuestProperties',
-  'data': {}}
+  'data': {'*tik': 'str'}}
 
 ##
 # @SevSnpGuestProperties:

@@ -48,6 +48,8 @@
 #include "hw/i386/e820_memory_layout.h"
 #include "qemu/queue.h"
 #include "qemu/cutils.h"
+#include "crypto/hmac.h"
+#include "crypto/random.h"
 
 OBJECT_DECLARE_TYPE(SevCommonState, SevCommonStateClass, SEV_COMMON)
 OBJECT_DECLARE_TYPE(SevGuestState, SevCommonStateClass, SEV_GUEST)
@@ -71,6 +73,9 @@ OBJECT_DECLARE_TYPE(SevSnpGuestState, SevCommonStateClass, SEV_SNP_GUEST)
 #define FAKE_BUILD_ID 40
 #define FAKE_API_MAJOR 1
 #define FAKE_API_MINOR 40
+
+/* SEV TEK, TIK and IV size in byte for emulation */
+#define TEK_TIK_IV_SIZE 16
 
 typedef struct QEMU_PACKED SevHashTableEntry {
     QemuUUID guid;
@@ -197,6 +202,7 @@ struct SevGuestState {
 
 typedef struct SevEmulatedState {
     SevGuestState parent_obj;
+    uint8_t *tik;
     QEMUIOVector ld_data;
 } SevEmulatedState;
 
@@ -1431,6 +1437,89 @@ sev_launch_get_measure(Notifier *notifier, void *unused)
     trace_kvm_sev_launch_measurement(sev_guest->measurement);
 }
 
+static void
+sev_emulated_launch_get_measure(Notifier *notifier, void *unused)
+{
+    SevCommonState *sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
+    SevGuestState *sev_guest = SEV_GUEST(sev_common);
+    SevEmulatedState *sev_emulated = SEV_EMULATED(sev_guest);
+
+    uint8_t prefix = 0x04;
+    uint8_t concat_data[56];
+    uint8_t mnonce[16];
+    uint8_t *hmac_raw;
+    uint8_t *ld;
+    gsize hmac_len, ld_len;
+    GByteArray *measure_raw = g_byte_array_sized_new(48);
+    QCryptoHmac *hmac = NULL;
+    Error *err = NULL;
+
+    if (!sev_check_state(sev_common, SEV_STATE_LAUNCH_UPDATE)) {
+        return;
+    }
+
+    /* Generate the mnonce (16B) */
+    if (qcrypto_random_bytes(mnonce, sizeof(mnonce), &err) < 0) {
+        error_report_err(err);
+        return;
+    }
+
+    /* Compute the Launch Digest (ld) */
+    if (qcrypto_hash_bytesv(QCRYPTO_HASH_ALGO_SHA256, sev_emulated->ld_data.iov,
+                        sev_emulated->ld_data.niov, &ld, &ld_len, &err) < 0){
+        error_report_err(err);
+        return;
+    }
+    assert(ld_len == HASH_SIZE);
+
+    /*
+     * The HMAC is calculated as specified in SEV API spec in section 6.5.1:
+     * HMAC(0x04 || API_MAJOR || API_MINOR || BUILD || GCTX.POLICY
+     *           || GCTX.LD || MNONCE; GCTX.TIK)
+     */
+    concat_data[0] = prefix;
+    concat_data[1] = sev_common->api_major;
+    concat_data[2] = sev_common->api_minor;
+    concat_data[3] = sev_common->build_id;
+    memcpy(&concat_data[4],  &sev_guest->policy, 4);
+    memcpy(&concat_data[8],  ld, ld_len);
+    memcpy(&concat_data[40], mnonce, 16);
+
+    g_free(ld);
+
+    /* Initialize HMAC with TIK */
+    hmac = qcrypto_hmac_new(QCRYPTO_HASH_ALGO_SHA256,
+                            (uint8_t *)sev_emulated->tik,
+                            TEK_TIK_IV_SIZE,
+                            &err);
+    if (!hmac) {
+        error_report_err(err);
+        return;
+    }
+
+    /* Compute the HMAC */
+    if (qcrypto_hmac_bytes(hmac, (char *)concat_data, sizeof(concat_data),
+                            &hmac_raw, &hmac_len, &err) < 0) {
+        error_report_err(err);
+        qcrypto_hmac_free(hmac);
+        return;
+    }
+    qcrypto_hmac_free(hmac);
+    assert(hmac_len == HASH_SIZE);
+
+    /* Construct the measurement: HMAC(32B) + mnonce(16B) */
+    g_byte_array_append(measure_raw, hmac_raw, 32);
+    g_byte_array_append(measure_raw, mnonce, 16);
+
+    g_free(hmac_raw);
+
+    sev_guest->measurement =
+            g_base64_encode(measure_raw->data, measure_raw->len);
+    g_byte_array_free(measure_raw, TRUE);
+
+    sev_set_guest_state(sev_common, SEV_STATE_LAUNCH_SECRET);
+}
+
 static char *sev_get_launch_measurement(void)
 {
     ConfidentialGuestSupport *cgs = MACHINE(qdev_get_machine())->cgs;
@@ -1464,6 +1553,10 @@ SevLaunchMeasureInfo *qmp_query_sev_launch_measure(Error **errp)
 
 static Notifier sev_machine_done_notify = {
     .notify = sev_launch_get_measure,
+};
+
+static Notifier sev_emu_machine_done_notify = {
+    .notify = sev_emulated_launch_get_measure,
 };
 
 static void
@@ -3054,6 +3147,9 @@ static int sev_emulated_init(ConfidentialGuestSupport *cgs, Error **errp)
     qemu_add_vm_change_state_handler(sev_vm_state_change, sev_common);
 
     cgs->ready = true;
+
+    qemu_add_machine_init_done_notifier(&sev_emu_machine_done_notify);
+
     return 0;
 }
 
@@ -3076,6 +3172,48 @@ sev_emulated_launch_finish(SevCommonState *sev_common)
     sev_set_guest_state(sev_common, SEV_STATE_RUNNING);
 }
 
+static void sev_emulated_read_key(uint8_t *key,
+                                const char *key_filename, Error **errp)
+{
+    gsize len;
+    FILE *fp = fopen(key_filename, "rb");
+
+    if (!fp) {
+        error_setg(errp, "SEV-EMULATED: Failed to open %s", key_filename);
+        return;
+    }
+
+    len = fread(key, 1, TEK_TIK_IV_SIZE, fp);
+
+    fclose(fp);
+
+    if (len != TEK_TIK_IV_SIZE) {
+        error_setg(errp, "parameter length: key size %" G_GSIZE_FORMAT
+                   " is not equal to %u",
+                   len, TEK_TIK_IV_SIZE);
+        return;
+    }
+}
+
+static char *sev_emulated_get_tik(Object *obj, Error **errp)
+{
+    SevEmulatedState *sev_emulated = SEV_EMULATED(obj);
+
+    return g_memdup2(sev_emulated->tik, TEK_TIK_IV_SIZE);
+}
+
+static void sev_emulated_set_tik(
+            Object *obj, const char *key_filename, Error **errp)
+{
+    SevEmulatedState *sev_emulated = SEV_EMULATED(obj);
+
+    sev_emulated_read_key(
+        sev_emulated->tik,
+        key_filename,
+        errp
+    );
+}
+
 static void sev_emulated_class_init(ObjectClass *oc, const void *data)
 {
     SevCommonStateClass *scc = SEV_COMMON_CLASS(oc);
@@ -3084,6 +3222,22 @@ static void sev_emulated_class_init(ObjectClass *oc, const void *data)
     klass->kvm_init = sev_emulated_init;
     scc->launch_update_data = sev_emulated_launch_update_data;
     scc->launch_finish = sev_emulated_launch_finish;
+
+    /* Adding emulation specific property */
+    object_class_property_add_str(oc, "tik",
+                                sev_emulated_get_tik,
+                                sev_emulated_set_tik);
+    object_class_property_set_description(oc, "tik",
+        "Path to the binary file containing the"
+                                "SEV Transport Integrity Key (16 bytes)");
+}
+
+static void sev_emulated_instance_init(Object *obj)
+{
+    SevEmulatedState *sev_emulated = SEV_EMULATED(obj);
+
+    /* Initialize the key for emulation */
+    sev_emulated->tik = g_malloc0(TEK_TIK_IV_SIZE);
 }
 
 /* guest info specific sev/sev-es */
@@ -3100,6 +3254,7 @@ static const TypeInfo sev_emulated_info = {
     .parent = TYPE_SEV_GUEST,
     .name = TYPE_SEV_EMULATED,
     .instance_size = sizeof(SevEmulatedState),
+    .instance_init = sev_emulated_instance_init,
     .class_init = sev_emulated_class_init
 };
 
