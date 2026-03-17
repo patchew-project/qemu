@@ -26,6 +26,7 @@
 #include "exec/target_page.h"
 #include "exec/tlb-flags.h"
 #include "tcg/helper-tcg.h"
+#include "sev.h"
 
 typedef struct TranslateParams {
     target_ulong addr;
@@ -160,7 +161,13 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
     int prot;
 
  restart_all:
+#ifdef CONFIG_SEV
+    rsvd_mask = ~MAKE_64BIT_MASK(0,
+        env_archcpu(env)->phys_bits - sev_get_reduced_phys_bits());
+    rsvd_mask = sev_emulated_convert_pte(rsvd_mask);
+#else
     rsvd_mask = ~MAKE_64BIT_MASK(0, env_archcpu(env)->phys_bits);
+#endif
     rsvd_mask &= PG_ADDRESS_MASK;
     if (!(pg_mode & PG_MODE_NXE)) {
         rsvd_mask |= PG_NX_MASK;
@@ -179,6 +186,9 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
                 }
             restart_5:
                 pte = ptw_ldq(&pte_trans, ra);
+            #ifdef CONFIG_SEV
+                pte = sev_emulated_convert_pte(pte);
+            #endif
                 if (!(pte & PG_PRESENT_MASK)) {
                     goto do_fault;
                 }
@@ -203,6 +213,9 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
             }
         restart_4:
             pte = ptw_ldq(&pte_trans, ra);
+        #ifdef CONFIG_SEV
+            pte = sev_emulated_convert_pte(pte);
+        #endif
             if (!(pte & PG_PRESENT_MASK)) {
                 goto do_fault;
             }
@@ -223,6 +236,9 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
             }
         restart_3_lma:
             pte = ptw_ldq(&pte_trans, ra);
+        #ifdef CONFIG_SEV
+            pte = sev_emulated_convert_pte(pte);
+        #endif
             if (!(pte & PG_PRESENT_MASK)) {
                 goto do_fault;
             }
@@ -251,6 +267,9 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
             rsvd_mask |= PG_HI_USER_MASK;
         restart_3_nolma:
             pte = ptw_ldq(&pte_trans, ra);
+        #ifdef CONFIG_SEV
+            pte = sev_emulated_convert_pte(pte);
+        #endif
             if (!(pte & PG_PRESENT_MASK)) {
                 goto do_fault;
             }
@@ -272,6 +291,9 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
         }
     restart_2_pae:
         pte = ptw_ldq(&pte_trans, ra);
+    #ifdef CONFIG_SEV
+        pte = sev_emulated_convert_pte(pte);
+    #endif
         if (!(pte & PG_PRESENT_MASK)) {
             goto do_fault;
         }
@@ -297,6 +319,9 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
             return false;
         }
         pte = ptw_ldq(&pte_trans, ra);
+    #ifdef CONFIG_SEV
+        pte = sev_emulated_convert_pte(pte);
+    #endif
         if (!(pte & PG_PRESENT_MASK)) {
             goto do_fault;
         }
@@ -316,6 +341,9 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
         }
     restart_2_nopae:
         pte = ptw_ldl(&pte_trans, ra);
+    #ifdef CONFIG_SEV
+        pte = sev_emulated_convert_pte(pte);
+    #endif
         if (!(pte & PG_PRESENT_MASK)) {
             goto do_fault;
         }
@@ -344,6 +372,9 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
             return false;
         }
         pte = ptw_ldl(&pte_trans, ra);
+    #ifdef CONFIG_SEV
+        pte = sev_emulated_convert_pte(pte);
+    #endif
         if (!(pte & PG_PRESENT_MASK)) {
             goto do_fault;
         }

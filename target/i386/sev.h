@@ -24,10 +24,12 @@
 #define sev_enabled() 0
 #define sev_es_enabled() 0
 #define sev_snp_enabled() 0
+#define sev_emulated_enabled() 0
 #else
 bool sev_enabled(void);
 bool sev_es_enabled(void);
 bool sev_snp_enabled(void);
+bool sev_emulated_enabled(void);
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
@@ -197,5 +199,6 @@ void pc_system_parse_sev_metadata(uint8_t *flash_ptr, size_t flash_size);
 
 uint32_t sev_get_cbit_position(void);
 uint32_t sev_get_reduced_phys_bits(void);
+uint64_t sev_emulated_convert_pte(uint64_t);
 
 #endif

@@ -27,6 +27,7 @@
 #include "exec/cputlb.h"
 #include "tcg/helper-tcg.h"
 #include "hw/i386/apic.h"
+#include "target/i386/sev.h"
 
 void helper_outb(CPUX86State *env, uint32_t port, uint32_t data)
 {
@@ -89,6 +90,10 @@ void helper_write_crN(CPUX86State *env, int reg, target_ulong t0)
         cpu_x86_update_cr0(env, t0);
         break;
     case 3:
+    #ifdef CONFIG_SEV
+        /* If SEV emulation is active, reset the C-bit */
+        t0 = sev_emulated_convert_pte(t0);
+    #endif
         if ((env->efer & MSR_EFER_LMA) &&
                 (t0 & ((~0ULL) << env_archcpu(env)->phys_bits))) {
             cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
@@ -467,6 +472,14 @@ void helper_rdmsr(CPUX86State *env)
         break;
      case MSR_IA32_UCODE_REV:
         val = x86_cpu->ucode_rev;
+        break;
+    case MSR_AMD64_SEV:
+        if (sev_emulated_enabled()) {
+            val = 1;
+        } else {
+            /* XXX: exception? */
+            val = 0;
+        }
         break;
     case MSR_CORE_THREAD_COUNT: {
         val = cpu_x86_get_msr_core_thread_count(x86_cpu);

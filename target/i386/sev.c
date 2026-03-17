@@ -691,6 +691,14 @@ static int sev_set_cpu_context(uint16_t cpu_index, const void *ctx,
 }
 
 bool
+sev_emulated_enabled(void)
+{
+   ConfidentialGuestSupport *cgs = MACHINE(qdev_get_machine())->cgs;
+
+   return !!object_dynamic_cast(OBJECT(cgs), TYPE_SEV_EMULATED);
+}
+
+bool
 sev_enabled(void)
 {
     ConfidentialGuestSupport *cgs = MACHINE(qdev_get_machine())->cgs;
@@ -729,6 +737,16 @@ sev_get_reduced_phys_bits(void)
     SevCommonState *sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
 
     return sev_common ? sev_common->reduced_phys_bits : 0;
+}
+
+uint64_t
+sev_emulated_convert_pte(uint64_t pte)
+{
+    if (unlikely(sev_emulated_enabled())) {
+        pte &= ~(1ULL << sev_get_cbit_position());
+    }
+
+    return pte;
 }
 
 static SevInfo *sev_get_info(void)
