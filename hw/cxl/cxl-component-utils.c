@@ -12,6 +12,7 @@
 #include "qapi/error.h"
 #include "hw/pci/pci.h"
 #include "hw/cxl/cxl.h"
+#include "hw/cxl/cxl_host.h"
 
 /* CXL r3.1 Section 8.2.4.20.1 CXL HDM Decoder Capability Register */
 int cxl_decoder_count_enc(int count)
@@ -209,6 +210,7 @@ static void cxl_cache_mem_write_reg(void *opaque, hwaddr offset, uint64_t value,
         if (offset >= A_CXL_HDM_DECODER_CAPABILITY &&
             offset <= A_CXL_HDM_DECODER3_TARGET_LIST_HI) {
             dumb_hdm_handler(cxl_cstate, offset, value);
+            cxl_fmws_update_mappings();
         } else if (offset == A_CXL_BI_RT_CTRL ||
                    offset == A_CXL_BI_DECODER_CTRL) {
             bi_handler(cxl_cstate, offset, value);

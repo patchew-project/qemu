@@ -29,6 +29,7 @@
 #include "system/hostmem.h"
 #include "system/numa.h"
 #include "hw/cxl/cxl.h"
+#include "hw/cxl/cxl_host.h"
 #include "hw/pci/msix.h"
 
 /* type3 device private */
@@ -627,6 +628,11 @@ static void ct3d_reg_write(void *opaque, hwaddr offset, uint64_t value,
         hdm_decoder_commit(ct3d, which_hdm);
     } else if (should_uncommit) {
         hdm_decoder_uncommit(ct3d, which_hdm);
+    }
+
+    if (offset >= A_CXL_HDM_DECODER_CAPABILITY &&
+        offset <= A_CXL_HDM_DECODER3_TARGET_LIST_HI) {
+        cxl_fmws_update_mappings();
     }
 }
 
@@ -1377,6 +1383,7 @@ static void ct3d_reset(DeviceState *dev)
     cxl_component_register_init_common(reg_state, write_msk,
                                        CXL2_TYPE3_DEVICE, ct3d->hdmdb);
     cxl_device_register_init_t3(ct3d, CXL_T3_MSIX_MBOX);
+    cxl_fmws_update_mappings();
 
     /*
      * Bring up an endpoint to target with MCTP over VDM.
