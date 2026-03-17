@@ -576,6 +576,7 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
     migrate_prepare_for_dirty_mem(from);
     qtest_qmp_assert_success(to, "{ 'execute': 'migrate-incoming',"
                              "  'arguments': { "
+                             "      'exit-on-error': false,"
                              "      'channels': [ { 'channel-type': 'main',"
                              "      'addr': { 'transport': 'socket',"
                              "                'type': 'inet',"
@@ -906,10 +907,6 @@ int test_precopy_common(MigrateCommon *args)
     if (args->result != MIG_TEST_SUCCEED) {
         bool allow_active = args->result == MIG_TEST_FAIL;
         wait_for_migration_fail(from, allow_active);
-
-        if (args->result == MIG_TEST_FAIL_DEST_QUIT_ERR) {
-            qtest_set_expected_status(to, EXIT_FAILURE);
-        }
     } else {
         if (args->live) {
             /*
