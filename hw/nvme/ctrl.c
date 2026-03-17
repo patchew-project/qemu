@@ -7550,25 +7550,13 @@ static uint16_t nvme_directive_receive(NvmeCtrl *n, NvmeRequest *req)
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
-    switch (dtype) {
-    case NVME_DIRECTIVE_IDENTIFY:
-        switch (doper) {
-        case NVME_DIRECTIVE_RETURN_PARAMS:
-            if (ns->endgrp && ns->endgrp->fdp.enabled) {
-                id.supported |= 1 << NVME_DIRECTIVE_DATA_PLACEMENT;
-                id.enabled |= 1 << NVME_DIRECTIVE_DATA_PLACEMENT;
-                id.persistent |= 1 << NVME_DIRECTIVE_DATA_PLACEMENT;
-            }
-
-            return nvme_c2h(n, (uint8_t *)&id, trans_len, req);
-
-        default:
-            return NVME_INVALID_FIELD | NVME_DNR;
-        }
-
-    default:
-        return NVME_INVALID_FIELD;
+    if (ns->endgrp && ns->endgrp->fdp.enabled) {
+        id.supported |= 1 << NVME_DIRECTIVE_DATA_PLACEMENT;
+        id.enabled |= 1 << NVME_DIRECTIVE_DATA_PLACEMENT;
+        id.persistent |= 1 << NVME_DIRECTIVE_DATA_PLACEMENT;
     }
+
+    return nvme_c2h(n, (uint8_t *)&id, trans_len, req);
 }
 
 static uint16_t nvme_admin_cmd(NvmeCtrl *n, NvmeRequest *req)
