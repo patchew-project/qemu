@@ -87,7 +87,7 @@ static void tpm_tis_sysbus_reset(DeviceState *dev)
     TPMStateSysBus *sbdev = TPM_TIS_SYSBUS(dev);
     TPMState *s = &sbdev->state;
 
-    return tpm_tis_reset(s);
+    return tpm_tis_reset(s, false);
 }
 
 static const Property tpm_tis_sysbus_properties[] = {

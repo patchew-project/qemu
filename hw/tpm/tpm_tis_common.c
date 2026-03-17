@@ -813,7 +813,7 @@ enum TPMVersion tpm_tis_get_tpm_version(TPMState *s)
  * This function is called when the machine starts, resets or due to
  * S3 resume.
  */
-void tpm_tis_reset(TPMState *s)
+void tpm_tis_reset(TPMState *s, bool ppi_enabled)
 {
     int c;
 
@@ -821,7 +821,7 @@ void tpm_tis_reset(TPMState *s)
     s->be_buffer_size = MIN(tpm_backend_get_buffer_size(s->be_driver),
                             TPM_TIS_BUFFER_MAX);
 
-    if (s->ppi_enabled) {
+    if (ppi_enabled) {
         tpm_ppi_reset(&s->ppi);
     }
     tpm_backend_reset(s->be_driver);

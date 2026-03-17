@@ -523,7 +523,7 @@ static void tpm_tis_i2c_reset(DeviceState *dev)
     i2cst->csum_enable = 0;
     i2cst->loc_sel = 0x00;
 
-    return tpm_tis_reset(s);
+    return tpm_tis_reset(s, false);
 }
 
 static void tpm_tis_i2c_class_init(ObjectClass *klass, const void *data)
