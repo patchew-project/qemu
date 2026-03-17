@@ -677,6 +677,9 @@ void unregister_displaychangelistener(DisplayChangeListener *dcl)
 {
     DisplayState *ds = dcl->ds;
     trace_displaychangelistener_unregister(dcl, dcl->ops->dpy_name);
+    if (!ds) {
+        return;
+    }
     if (dcl->con) {
         dcl->con->dcls--;
     }
