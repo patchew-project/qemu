@@ -45,6 +45,7 @@ enum TTYState {
     TTY_STATE_CSI,
     TTY_STATE_G0,
     TTY_STATE_G1,
+    TTY_STATE_OSC,
 };
 
 typedef struct QemuTextConsole {
@@ -869,6 +870,10 @@ static void vc_putchar(VCChardev *vc, int ch)
             vc->state = TTY_STATE_G0;
         } else if (ch == ')') {
             vc->state = TTY_STATE_G1;
+        } else if (ch == ']' || ch == 'P' || ch == 'X'
+                   || ch == '^' || ch == '_') {
+            /* String sequences: OSC, DCS, SOS, PM, APC */
+            vc->state = TTY_STATE_OSC;
         } else if (ch == '7') {
             vc_save_cursor(vc);
             vc->state = TTY_STATE_NORM;
@@ -1026,6 +1031,16 @@ static void vc_putchar(VCChardev *vc, int ch)
             }
             break;
         }
+        break;
+    case TTY_STATE_OSC: /* Operating System Command: ESC ] ... BEL/ST */
+        if (ch == '\a') {
+            /* BEL terminates OSC */
+            vc->state = TTY_STATE_NORM;
+        } else if (ch == 27) {
+            /* ESC might start ST (ESC \) */
+            vc->state = TTY_STATE_ESC;
+        }
+        /* All other bytes are silently consumed */
         break;
     case TTY_STATE_G0: /* set character sets */
     case TTY_STATE_G1: /* set character sets */
