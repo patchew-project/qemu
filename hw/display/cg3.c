@@ -277,10 +277,13 @@ static const GraphicHwOps cg3_ops = {
     .gfx_update = cg3_update_display,
 };
 
-static void cg3_initfn(Object *obj)
+static void cg3_realizefn(DeviceState *dev, Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    CG3State *s = CG3(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    Object *obj = OBJECT(dev);
+    CG3State *s = CG3(dev);
+    int ret;
+    char *fcode_filename;
 
     memory_region_init_rom(&s->rom, obj, "cg3.prom", FCODE_MAX_ROM_SIZE,
                            &error_fatal);
@@ -289,14 +292,6 @@ static void cg3_initfn(Object *obj)
     memory_region_init_io(&s->reg, obj, &cg3_reg_ops, s, "cg3.reg",
                           CG3_REG_SIZE);
     sysbus_init_mmio(sbd, &s->reg);
-}
-
-static void cg3_realizefn(DeviceState *dev, Error **errp)
-{
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    CG3State *s = CG3(dev);
-    int ret;
-    char *fcode_filename;
 
     /* FCode ROM */
     fcode_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, CG3_ROM_FILE);
@@ -381,7 +376,6 @@ static const TypeInfo cg3_info = {
     .name          = TYPE_CG3,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(CG3State),
-    .instance_init = cg3_initfn,
     .class_init    = cg3_class_init,
 };
 
