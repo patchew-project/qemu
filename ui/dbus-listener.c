@@ -241,7 +241,7 @@ static void dbus_update_gl_cb(GObject *source_object,
     }
 #endif
 
-    graphic_hw_gl_block(ddl->dcl.con, false);
+    qemu_console_hw_gl_block(ddl->dcl.con, false);
     g_object_unref(ddl);
 }
 #endif
@@ -257,7 +257,7 @@ static void dbus_call_update_gl(DisplayChangeListener *dcl,
 
     glFlush();
 #ifdef CONFIG_GBM
-    graphic_hw_gl_block(ddl->dcl.con, true);
+    qemu_console_hw_gl_block(ddl->dcl.con, true);
     qemu_dbus_display1_listener_call_update_dmabuf(ddl->proxy,
         x, y, w, h,
         G_DBUS_CALL_FLAGS_NONE,
@@ -276,7 +276,7 @@ static void dbus_call_update_gl(DisplayChangeListener *dcl,
         Error *err = NULL;
         assert(ddl->d3d_texture);
 
-        graphic_hw_gl_block(ddl->dcl.con, true);
+        qemu_console_hw_gl_block(ddl->dcl.con, true);
         if (!d3d_texture2d_release0(ddl->d3d_texture, &err)) {
             error_report_err(err);
             return;
@@ -710,7 +710,7 @@ static void dbus_gl_refresh(DisplayChangeListener *dcl)
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
 
-    graphic_hw_update(dcl->con);
+    qemu_console_hw_update(dcl->con);
 
     if (!ddl->ds || qemu_console_is_gl_blocked(ddl->dcl.con)) {
         return;
@@ -739,7 +739,7 @@ static void dbus_gl_refresh(DisplayChangeListener *dcl)
 
 static void dbus_refresh(DisplayChangeListener *dcl)
 {
-    graphic_hw_update(dcl->con);
+    qemu_console_hw_update(dcl->con);
 }
 
 #ifdef CONFIG_OPENGL

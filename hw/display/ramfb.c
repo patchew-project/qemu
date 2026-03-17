@@ -111,12 +111,12 @@ void ramfb_display_update(QemuConsole *con, RAMFBState *s)
     }
 
     if (s->ds) {
-        dpy_gfx_replace_surface(con, s->ds);
+        qemu_console_set_surface(con, s->ds);
         s->ds = NULL;
     }
 
     /* simple full screen update */
-    dpy_gfx_update_full(con);
+    qemu_console_update_full(con);
 }
 
 static int ramfb_post_load(void *opaque, int version_id)

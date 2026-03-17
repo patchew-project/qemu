@@ -86,15 +86,15 @@ static void text_console_update(void *opaque, uint32_t *chardata)
                                           s->vt.cells[src].t_attrib.bgcol,
                                           s->vt.cells[src].t_attrib.bold);
             }
-        dpy_text_update(QEMU_CONSOLE(s), s->vt.text_x[0], s->vt.text_y[0],
-                        s->vt.text_x[1] - s->vt.text_x[0], i - s->vt.text_y[0]);
+        qemu_console_text_update(QEMU_CONSOLE(s), s->vt.text_x[0], s->vt.text_y[0],
+                                 s->vt.text_x[1] - s->vt.text_x[0], i - s->vt.text_y[0]);
         s->vt.text_x[0] = s->vt.width;
         s->vt.text_y[0] = s->vt.height;
         s->vt.text_x[1] = 0;
         s->vt.text_y[1] = 0;
     }
     if (s->vt.cursor_invalidate) {
-        dpy_text_cursor(QEMU_CONSOLE(s), s->vt.x, s->vt.y);
+        qemu_console_text_set_cursor(QEMU_CONSOLE(s), s->vt.x, s->vt.y);
         s->vt.cursor_invalidate = 0;
     }
 }
@@ -182,14 +182,14 @@ static void vc_chr_set_echo(Chardev *chr, bool echo)
 
 void qemu_text_console_update_size(QemuTextConsole *c)
 {
-    dpy_text_resize(QEMU_CONSOLE(c), c->vt.width, c->vt.height);
+    qemu_console_text_resize(QEMU_CONSOLE(c), c->vt.width, c->vt.height);
 }
 
 static void text_console_image_update(QemuVT100 *vt, int x, int y, int width, int height)
 {
     QemuTextConsole *console = container_of(vt, QemuTextConsole, vt);
 
-    dpy_gfx_update(QEMU_CONSOLE(console), x, y, width, height);
+    qemu_console_update(QEMU_CONSOLE(console), x, y, width, height);
 }
 
 static void text_console_out_flush(QemuVT100 *vt)
@@ -228,7 +228,7 @@ static bool vc_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
         s = QEMU_TEXT_CONSOLE(object_new(TYPE_QEMU_FIXED_TEXT_CONSOLE));
     }
 
-    dpy_gfx_replace_surface(QEMU_CONSOLE(s), qemu_create_displaysurface(width, height));
+    qemu_console_set_surface(QEMU_CONSOLE(s), qemu_create_displaysurface(width, height));
     vt100_init(&s->vt, QEMU_CONSOLE(s)->surface->image,
                text_console_image_update,
                text_console_out_flush);

@@ -468,7 +468,7 @@ void qemu_spice_cursor_refresh_bh(void *opaque)
         assert(ssd->dcl.con);
         cursor_ref(c);
         qemu_mutex_unlock(&ssd->lock);
-        dpy_cursor_define(ssd->dcl.con, c);
+        qemu_console_set_cursor(ssd->dcl.con, c);
         qemu_mutex_lock(&ssd->lock);
         cursor_unref(c);
     }
@@ -481,7 +481,7 @@ void qemu_spice_cursor_refresh_bh(void *opaque)
         ssd->mouse_x = -1;
         ssd->mouse_y = -1;
         qemu_mutex_unlock(&ssd->lock);
-        dpy_mouse_set(ssd->dcl.con, x, y, true);
+        qemu_console_set_mouse(ssd->dcl.con, x, y, true);
     } else {
         qemu_mutex_unlock(&ssd->lock);
     }
@@ -489,7 +489,7 @@ void qemu_spice_cursor_refresh_bh(void *opaque)
 
 void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd)
 {
-    graphic_hw_update(ssd->dcl.con);
+    qemu_console_hw_update(ssd->dcl.con);
 
     WITH_QEMU_LOCK_GUARD(&ssd->lock) {
         if (QTAILQ_EMPTY(&ssd->updates) && ssd->ds) {
@@ -668,7 +668,7 @@ static int interface_client_monitors_config(QXLInstance *sin,
     QemuUIInfo info;
     int head;
 
-    if (!dpy_ui_info_supported(ssd->dcl.con)) {
+    if (!qemu_console_ui_info_supported(ssd->dcl.con)) {
         return 0; /* == not supported by guest */
     }
 
@@ -676,7 +676,7 @@ static int interface_client_monitors_config(QXLInstance *sin,
         return 1;
     }
 
-    info = *dpy_get_ui_info(ssd->dcl.con);
+    info = *qemu_console_get_ui_info(ssd->dcl.con);
 
     head = qemu_console_get_index(ssd->dcl.con);
     if (mc->num_of_monitors > head) {
@@ -690,7 +690,7 @@ static int interface_client_monitors_config(QXLInstance *sin,
     }
 
     trace_qemu_spice_ui_info(ssd->qxl.id, info.width, info.height);
-    dpy_set_ui_info(ssd->dcl.con, &info, false);
+    qemu_console_set_ui_info(ssd->dcl.con, &info, false);
     return 1;
 }
 
@@ -817,7 +817,7 @@ static void qemu_spice_gl_block(SimpleSpiceDisplay *ssd, bool block)
     } else {
         timer_del(ssd->gl_unblock_timer);
     }
-    graphic_hw_gl_block(ssd->dcl.con, block);
+    qemu_console_hw_gl_block(ssd->dcl.con, block);
 }
 
 static void qemu_spice_gl_unblock_bh(void *opaque)
@@ -861,7 +861,7 @@ static void spice_gl_refresh(DisplayChangeListener *dcl)
         return;
     }
 
-    graphic_hw_update(dcl->con);
+    qemu_console_hw_update(dcl->con);
     if (ssd->gl_updates && ssd->have_surface) {
         qemu_spice_gl_block(ssd, true);
         glFlush();

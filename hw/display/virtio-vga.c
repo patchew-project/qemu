@@ -172,7 +172,7 @@ static void virtio_vga_base_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
                                  vvga->vga_mrs, true, false);
 
     vga->con = g->scanout[0].con;
-    graphic_console_set_hwops(vga->con, &virtio_vga_base_ops, vvga);
+    qemu_graphic_console_set_hwops(vga->con, &virtio_vga_base_ops, vvga);
 
     for (i = 0; i < g->conf.max_outputs; i++) {
         object_property_set_link(OBJECT(g->scanout[i].con), "device",

@@ -599,13 +599,11 @@ static void handle_windowevent(SDL_Event *ev)
 
     switch (ev->window.event) {
     case SDL_WINDOWEVENT_RESIZED:
-        {
-            dpy_set_ui_info(scon->dcl.con,
-                &(QemuUIInfo) {
-                    .width = ev->window.data1,
-                    .height = ev->window.data2,
-                }, true);
-        }
+        qemu_console_set_ui_info(scon->dcl.con,
+            &(QemuUIInfo) {
+                .width = ev->window.data1,
+                .height = ev->window.data2,
+            }, true);
         sdl2_redraw(scon);
         break;
     case SDL_WINDOWEVENT_EXPOSED:
@@ -632,10 +630,10 @@ static void handle_windowevent(SDL_Event *ev)
         }
         break;
     case SDL_WINDOWEVENT_RESTORED:
-        update_displaychangelistener(&scon->dcl, GUI_REFRESH_INTERVAL_DEFAULT);
+        qemu_console_listener_set_refresh(&scon->dcl, GUI_REFRESH_INTERVAL_DEFAULT);
         break;
     case SDL_WINDOWEVENT_MINIMIZED:
-        update_displaychangelistener(&scon->dcl, 500);
+        qemu_console_listener_set_refresh(&scon->dcl, 500);
         break;
     case SDL_WINDOWEVENT_CLOSE:
         if (qemu_console_is_graphic(scon->dcl.con)) {

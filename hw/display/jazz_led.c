@@ -217,7 +217,7 @@ static bool jazz_led_update_display(void *opaque)
     }
 
     s->state = REDRAW_NONE;
-    dpy_gfx_update_full(s->con);
+    qemu_console_update_full(s->con);
 
     return true;
 }
@@ -233,7 +233,7 @@ static void jazz_led_text_update(void *opaque, uint32_t *chardata)
     LedState *s = opaque;
     char buf[3];
 
-    dpy_text_cursor(s->con, -1, -1);
+    qemu_console_text_set_cursor(s->con, -1, -1);
     qemu_console_resize(s->con, 2, 1);
 
     /* TODO: draw the segments */
@@ -243,7 +243,7 @@ static void jazz_led_text_update(void *opaque, uint32_t *chardata)
     *chardata++ = ATTR2CHTYPE(buf[1], QEMU_COLOR_BLUE,
                               QEMU_COLOR_BLACK, 1);
 
-    dpy_text_update(s->con, 0, 0, 2, 1);
+    qemu_console_text_update(s->con, 0, 0, 2, 1);
 }
 
 static int jazz_led_post_load(void *opaque, int version_id)
@@ -284,7 +284,7 @@ static void jazz_led_realize(DeviceState *dev, Error **errp)
 {
     LedState *s = JAZZ_LED(dev);
 
-    s->con = graphic_console_init(dev, 0, &jazz_led_ops, s);
+    s->con = qemu_graphic_console_create(dev, 0, &jazz_led_ops, s);
 }
 
 static void jazz_led_reset(DeviceState *d)

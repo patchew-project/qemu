@@ -320,7 +320,7 @@ static bool omap_update_display(void *opaque)
                                &first, &last);
 
     if (first >= 0) {
-        dpy_gfx_update(omap_lcd->con, 0, first, width, last - first + 1);
+        qemu_console_update(omap_lcd->con, 0, first, width, last - first + 1);
     }
     omap_lcd->invalidate = 0;
 
@@ -504,7 +504,7 @@ struct omap_lcd_panel_s *omap_lcdc_init(MemoryRegion *sysmem,
     memory_region_init_io(&s->iomem, NULL, &omap_lcdc_ops, s, "omap.lcdc", 0x100);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
-    s->con = graphic_console_init(NULL, 0, &omap_ops, s);
+    s->con = qemu_graphic_console_create(NULL, 0, &omap_ops, s);
 
     return s;
 }

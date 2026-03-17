@@ -162,7 +162,7 @@ static void ati_cursor_define(ATIVGAState *s)
     }
     cursor_set_mono(s->cursor, s->regs.cur_color1, s->regs.cur_color0,
                     &data[512], 1, &data[0]);
-    dpy_cursor_define(s->vga.con, s->cursor);
+    qemu_console_set_cursor(s->vga.con, s->cursor);
 }
 
 /* Alternatively support guest rendered hardware cursor */
@@ -623,9 +623,9 @@ static void ati_mm_write(void *opaque, hwaddr addr,
                 if (s->regs.crtc_gen_cntl & CRTC2_CUR_EN) {
                     ati_cursor_define(s);
                 }
-                dpy_mouse_set(s->vga.con, s->regs.cur_hv_pos >> 16,
-                              s->regs.cur_hv_pos & 0xffff,
-                              (s->regs.crtc_gen_cntl & CRTC2_CUR_EN) != 0);
+                qemu_console_set_mouse(s->vga.con, s->regs.cur_hv_pos >> 16,
+                                       s->regs.cur_hv_pos & 0xffff,
+                                       (s->regs.crtc_gen_cntl & CRTC2_CUR_EN) != 0);
             }
         }
         if ((val & (CRTC2_EXT_DISP_EN | CRTC2_EN)) !=
@@ -772,8 +772,8 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         }
         if (!s->cursor_guest_mode &&
             (s->regs.crtc_gen_cntl & CRTC2_CUR_EN) && !(t & BIT(31))) {
-            dpy_mouse_set(s->vga.con, s->regs.cur_hv_pos >> 16,
-                          s->regs.cur_hv_pos & 0xffff, true);
+            qemu_console_set_mouse(s->vga.con, s->regs.cur_hv_pos >> 16,
+                                   s->regs.cur_hv_pos & 0xffff, true);
         }
         break;
     }
@@ -1099,7 +1099,7 @@ static void ati_vga_realize(PCIDevice *dev, Error **errp)
     }
     vga_init(vga, OBJECT(s), pci_address_space(dev),
              pci_address_space_io(dev), true);
-    vga->con = graphic_console_init(DEVICE(s), 0, s->vga.hw_ops, vga);
+    vga->con = qemu_graphic_console_create(DEVICE(s), 0, s->vga.hw_ops, vga);
     if (s->cursor_guest_mode) {
         vga->cursor_invalidate = ati_cursor_invalidate;
         vga->cursor_draw_line = ati_cursor_draw_line;
@@ -1159,7 +1159,7 @@ static void ati_vga_exit(PCIDevice *dev)
     ATIVGAState *s = ATI_VGA(dev);
 
     timer_del(&s->vblank_timer);
-    graphic_console_close(s->vga.con);
+    qemu_graphic_console_close(s->vga.con);
 }
 
 static const Property ati_vga_properties[] = {
