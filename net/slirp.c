@@ -49,12 +49,18 @@
 #include "migration/vmstate.h"
 #include "migration/qemu-file-types.h"
 
-static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
+typedef enum {
+    SEP_FIRST,
+    SEP_LAST
+} sep_type;
+
+static int get_str_sep(char *buf, int buf_size, const char **pp, int sep,
+                       sep_type which)
 {
     const char *p, *p1;
     int len;
     p = *pp;
-    p1 = strchr(p, sep);
+    p1 = which == SEP_FIRST ? strchr(p, sep) : strrchr(p, sep);
     if (!p1)
         return -1;
     len = p1 - p;
@@ -479,7 +485,7 @@ static int net_slirp_init(NetClientState *peer, const char *model,
     }
 
     if (vnetwork) {
-        if (get_str_sep(buf, sizeof(buf), &vnetwork, '/') < 0) {
+        if (get_str_sep(buf, sizeof(buf), &vnetwork, '/', SEP_FIRST) < 0) {
             if (!inet_aton(vnetwork, &net)) {
                 error_setg(errp, "Failed to parse netmask");
                 return -1;
@@ -760,7 +766,7 @@ void hmp_hostfwd_remove(Monitor *mon, const QDict *qdict)
     }
 
     p = src_str;
-    if (!p || get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+    if (!p || get_str_sep(buf, sizeof(buf), &p, ':', SEP_FIRST) < 0) {
         goto fail_syntax;
     }
 
@@ -772,7 +778,7 @@ void hmp_hostfwd_remove(Monitor *mon, const QDict *qdict)
         goto fail_syntax;
     }
 
-    if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+    if (get_str_sep(buf, sizeof(buf), &p, ':', SEP_FIRST) < 0) {
         goto fail_syntax;
     }
     if (buf[0] != '\0' && !inet_aton(buf, &host_addr.sin_addr)) {
@@ -827,7 +833,7 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
     socklen_t host_addr_size;
 
     p = redir_str;
-    if (!p || get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+    if (!p || get_str_sep(buf, sizeof(buf), &p, ':', SEP_FIRST) < 0) {
         fail_reason = "No : separators";
         goto fail_syntax;
     }
@@ -848,7 +854,7 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
 
 #if !defined(WIN32) && SLIRP_CHECK_VERSION(4, 7, 0)
     if (is_unix) {
-        if (get_str_sep(buf, sizeof(buf), &p, '-') < 0) {
+        if (get_str_sep(buf, sizeof(buf), &p, '-', SEP_LAST) < 0) {
             fail_reason = "Missing - separator";
             goto fail_syntax;
         }
@@ -888,7 +894,7 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
         host_addr.in.sin_family = AF_INET;
         host_addr.in.sin_addr.s_addr = INADDR_ANY;
 
-        if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+        if (get_str_sep(buf, sizeof(buf), &p, ':', SEP_FIRST) < 0) {
             fail_reason = "Missing : separator";
             goto fail_syntax;
         }
@@ -898,7 +904,7 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
             goto fail_syntax;
         }
 
-        if (get_str_sep(buf, sizeof(buf), &p, '-') < 0) {
+        if (get_str_sep(buf, sizeof(buf), &p, '-', SEP_FIRST) < 0) {
             fail_reason = "Bad host port separator";
             goto fail_syntax;
         }
@@ -913,7 +919,7 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
         host_addr_size = sizeof(host_addr.in);
     }
 
-    if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+    if (get_str_sep(buf, sizeof(buf), &p, ':', SEP_FIRST) < 0) {
         fail_reason = "Missing guest address";
         goto fail_syntax;
     }
@@ -1125,19 +1131,19 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str, Error **errp)
     int port;
 
     p = config_str;
-    if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+    if (get_str_sep(buf, sizeof(buf), &p, ':', SEP_FIRST) < 0) {
         goto fail_syntax;
     }
     if (strcmp(buf, "tcp") && buf[0] != '\0') {
         goto fail_syntax;
     }
-    if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+    if (get_str_sep(buf, sizeof(buf), &p, ':', SEP_FIRST) < 0) {
         goto fail_syntax;
     }
     if (buf[0] != '\0' && !inet_aton(buf, &server)) {
         goto fail_syntax;
     }
-    if (get_str_sep(buf, sizeof(buf), &p, '-') < 0) {
+    if (get_str_sep(buf, sizeof(buf), &p, '-', SEP_FIRST) < 0) {
         goto fail_syntax;
     }
     port = strtol(buf, &end, 10);
