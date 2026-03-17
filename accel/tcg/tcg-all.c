@@ -45,7 +45,7 @@
 #include "accel/accel-cpu-ops.h"
 #include "accel/tcg/cpu-ops.h"
 #include "internal-common.h"
-
+#include "system/confidential-guest-support.h"
 
 struct TCGState {
     AccelState parent_obj;
@@ -107,6 +107,9 @@ static int tcg_init_machine(AccelState *as, MachineState *ms)
     unsigned max_threads = 1;
 
 #ifndef CONFIG_USER_ONLY
+    int ret;
+    Error *local_err = NULL;
+    const char *cgs_type = NULL;
     CPUClass *cc = CPU_CLASS(object_class_by_name(target_cpu_type()));
     bool mttcg_supported = cc->tcg_ops->mttcg_supported;
 
@@ -163,6 +166,19 @@ static int tcg_init_machine(AccelState *as, MachineState *ms)
 
 #ifdef CONFIG_USER_ONLY
     qdev_create_fake_machine();
+#else
+    /* TCG SEV/Confidential Guest Support init */
+    if (ms->cgs) {
+        cgs_type = object_get_typename(OBJECT(ms->cgs));
+
+        if (g_str_has_prefix(cgs_type, "sev-emulated")) {
+            ret = confidential_guest_kvm_init(ms->cgs, &local_err);
+            if (ret < 0) {
+                error_report_err(local_err);
+                return ret;
+            }
+        }
+    }
 #endif
 
     return 0;

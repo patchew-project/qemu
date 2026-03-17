@@ -1058,6 +1058,19 @@
             '*legacy-vm-type': 'OnOffAuto' } }
 
 ##
+# @SevEmulatedProperties:
+#
+# Properties for sev-emulated objects.
+# This object functionally emulates AMD SEV hardware via TCG, so
+# it does not require real hardware to run.
+#
+# Since: 10.1.0
+##
+{ 'struct': 'SevEmulatedProperties',
+  'base': 'SevGuestProperties',
+  'data': {}}
+
+##
 # @SevSnpGuestProperties:
 #
 # Properties for sev-snp-guest objects.  Most of these are direct
@@ -1241,6 +1254,7 @@
     { 'name': 'secret_keyring',
       'if': 'CONFIG_SECRET_KEYRING' },
     'sev-guest',
+    'sev-emulated',
     'sev-snp-guest',
     'thread-context',
     's390-pv-guest',
@@ -1318,6 +1332,7 @@
       'secret_keyring':             { 'type': 'SecretKeyringProperties',
                                       'if': 'CONFIG_SECRET_KEYRING' },
       'sev-guest':                  'SevGuestProperties',
+      'sev-emulated':               'SevEmulatedProperties',
       'sev-snp-guest':              'SevSnpGuestProperties',
       'tdx-guest':                  'TdxGuestProperties',
       'thread-context':             'ThreadContextProperties',

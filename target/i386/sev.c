@@ -51,6 +51,7 @@
 
 OBJECT_DECLARE_TYPE(SevCommonState, SevCommonStateClass, SEV_COMMON)
 OBJECT_DECLARE_TYPE(SevGuestState, SevCommonStateClass, SEV_GUEST)
+OBJECT_DECLARE_TYPE(SevEmulatedState, SevCommonStateClass, SEV_EMULATED)
 OBJECT_DECLARE_TYPE(SevSnpGuestState, SevCommonStateClass, SEV_SNP_GUEST)
 
 /* hard code sha256 digest size */
@@ -176,6 +177,21 @@ struct SevGuestState {
     char *session_file;
     OnOffAuto legacy_vm_type;
 };
+
+/**
+ * SevEmulatedState:
+ *
+ * The SevEmulatedState object is used for creating and managing a SEV emulated
+ * guest.
+ *
+ * # $QEMU \
+ *         -object sev-emulated,id=sev0 \
+ *         -machine ...,memory-encryption=sev0
+ */
+
+typedef struct SevEmulatedState {
+    SevGuestState parent_obj;
+} SevEmulatedState;
 
 struct SevSnpGuestState {
     SevCommonState parent_obj;
@@ -2936,6 +2952,46 @@ sev_guest_instance_init(Object *obj)
     sev_guest->legacy_vm_type = ON_OFF_AUTO_AUTO;
 }
 
+static int sev_emulated_init(ConfidentialGuestSupport *cgs, Error **errp)
+{
+    SevCommonState *sev_common = SEV_COMMON(cgs);
+
+    /*
+     * The cbitpos value will be placed in bit positions 5:0 of the EBX
+     * register of CPUID 0x8000001F. We need to verify the range as the
+     * comparison with the host cbitpos is missing.
+     */
+    if (sev_common->cbitpos < 32 ||
+        sev_common->cbitpos > 63) {
+        error_setg(errp, "%s: cbitpos check failed, requested '%d',"
+                   "the firmware requires >=32",
+                   __func__, sev_common->cbitpos);
+        return -1;
+    }
+
+    /*
+     * The reduced-phys-bits value will be placed in bit positions 11:6 of
+     * the EBX register of CPUID 0x8000001F, so verify the supplied value
+     * is in the range of 1 to 63.
+     */
+    if (sev_common->reduced_phys_bits < 1 ||
+        sev_common->reduced_phys_bits > 63) {
+        error_setg(errp, "%s: reduced_phys_bits check failed,"
+                   " it should be in the range of 1 to 63, requested '%d'",
+                   __func__, sev_common->reduced_phys_bits);
+        return -1;
+    }
+    cgs->ready = true;
+    return 0;
+}
+
+static void sev_emulated_class_init(ObjectClass *oc, const void *data)
+{
+    ConfidentialGuestSupportClass *klass = CONFIDENTIAL_GUEST_SUPPORT_CLASS(oc);
+    /* Override the sev-common method that uses kvm */
+    klass->kvm_init = sev_emulated_init;
+}
+
 /* guest info specific sev/sev-es */
 static const TypeInfo sev_guest_info = {
     .parent = TYPE_SEV_COMMON,
@@ -2943,6 +2999,14 @@ static const TypeInfo sev_guest_info = {
     .instance_size = sizeof(SevGuestState),
     .instance_init = sev_guest_instance_init,
     .class_init = sev_guest_class_init,
+};
+
+/* emulated sev */
+static const TypeInfo sev_emulated_info = {
+    .parent = TYPE_SEV_GUEST,
+    .name = TYPE_SEV_EMULATED,
+    .instance_size = sizeof(SevEmulatedState),
+    .class_init = sev_emulated_class_init
 };
 
 static void
@@ -3207,6 +3271,7 @@ static void
 sev_register_types(void)
 {
     type_register_static(&sev_common_info);
+    type_register_static(&sev_emulated_info);
     type_register_static(&sev_guest_info);
     type_register_static(&sev_snp_guest_info);
 }

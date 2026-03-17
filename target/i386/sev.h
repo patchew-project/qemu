@@ -33,6 +33,7 @@ bool sev_snp_enabled(void);
 #if !defined(CONFIG_USER_ONLY)
 
 #define TYPE_SEV_COMMON "sev-common"
+#define TYPE_SEV_EMULATED "sev-emulated"
 #define TYPE_SEV_GUEST "sev-guest"
 #define TYPE_SEV_SNP_GUEST "sev-snp-guest"
 
