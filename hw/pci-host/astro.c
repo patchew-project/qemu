@@ -433,7 +433,7 @@ static void elroy_pcihost_realize(DeviceState *dev, Error **errp)
 
     /* Elroy config access from CPU.  */
     memory_region_init_io(&s->this_mem, obj, &elroy_chip_ops,
-                          s, "elroy", 0x2000);
+                          s, dev->id, 0x2000);
 
     /* Elroy PCI config. */
     memory_region_init_io(&phb->conf_mem, obj,
@@ -448,7 +448,9 @@ static void elroy_pcihost_realize(DeviceState *dev, Error **errp)
                                 &phb->data_mem);
 
     /* Elroy PCI bus memory.  */
-    memory_region_init(&s->pci_mmio, obj, "pci-mmio", UINT64_MAX);
+    g_autofree char *elroy_mmio_name;
+    elroy_mmio_name = g_strdup_printf("%s-pci-mmio", dev->id);
+    memory_region_init(&s->pci_mmio, obj, elroy_mmio_name, UINT64_MAX);
     memory_region_init_io(&s->pci_io, obj, &unassigned_io_ops, obj,
                             "pci-isa-mmio",
                             ((uint32_t) IOS_DIST_BASE_SIZE) / ROPES_PER_IOC);
