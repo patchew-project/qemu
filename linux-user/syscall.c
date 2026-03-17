@@ -1519,16 +1519,18 @@ static abi_long do_pselect6(abi_long arg1, abi_long arg2, abi_long arg3,
         if (efd_addr && copy_to_user_fdset(efd_addr, &efds, n)) {
             return -TARGET_EFAULT;
         }
+    }
+    if (((ret == -TARGET_EINTR) || !is_error(ret)) && ts_addr) {
         if (time64) {
-            if (ts_addr && host_to_target_timespec64(ts_addr, &ts)) {
+            if (host_to_target_timespec64(ts_addr, &ts)) {
                 return -TARGET_EFAULT;
             }
         } else {
-            if (ts_addr && host_to_target_timespec(ts_addr, &ts)) {
+            if (host_to_target_timespec(ts_addr, &ts)) {
                 return -TARGET_EFAULT;
             }
         }
-    }
+     }
     return ret;
 }
 #endif
@@ -1596,7 +1598,7 @@ static abi_long do_ppoll(abi_long arg1, abi_long arg2, abi_long arg3,
         if (set) {
             finish_sigsuspend_mask(ret);
         }
-        if (!is_error(ret) && arg3) {
+        if ((ret == -TARGET_EINTR || !is_error(ret)) && arg3) {
             if (time64) {
                 if (host_to_target_timespec64(arg3, timeout_ts)) {
                     return -TARGET_EFAULT;
