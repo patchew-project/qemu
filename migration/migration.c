@@ -3141,7 +3141,7 @@ static void migration_update_counters(MigrationState *s,
          * If the user specified a switchover bandwidth, let's trust the
          * user so that can be more accurate than what we estimated.
          */
-        expected_bw_per_ms = switchover_bw / 1000;
+        expected_bw_per_ms = (double)switchover_bw / 1000;
     } else {
         /* If the user doesn't specify bandwidth, we use the estimated */
         expected_bw_per_ms = bandwidth;
