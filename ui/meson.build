@@ -5,6 +5,7 @@ system_ss.add(files(
   'console.c',
   'cp437.c',
   'cursor.c',
+  'display-surface.c',
   'dmabuf.c',
   'input-keymap.c',
   'input-legacy.c',
