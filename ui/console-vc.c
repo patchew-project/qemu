@@ -433,47 +433,46 @@ static void vt100_set_image(QemuVT100 *vt, pixman_image_t *image)
     vt->cells = cells;
 }
 
-static void vc_put_lf(VCChardev *vc)
+static void vt100_put_lf(QemuVT100 *vt)
 {
-    QemuTextConsole *s = vc->console;
     TextCell *c;
     int x, y1;
 
-    s->vt.y++;
-    if (s->vt.y >= s->vt.height) {
-        s->vt.y = s->vt.height - 1;
+    vt->y++;
+    if (vt->y >= vt->height) {
+        vt->y = vt->height - 1;
 
-        if (s->vt.y_displayed == s->vt.y_base) {
-            if (++s->vt.y_displayed == s->vt.total_height)
-                s->vt.y_displayed = 0;
+        if (vt->y_displayed == vt->y_base) {
+            if (++vt->y_displayed == vt->total_height)
+                vt->y_displayed = 0;
         }
-        if (++s->vt.y_base == s->vt.total_height)
-            s->vt.y_base = 0;
-        if (s->vt.backscroll_height < s->vt.total_height)
-            s->vt.backscroll_height++;
-        y1 = (s->vt.y_base + s->vt.height - 1) % s->vt.total_height;
-        c = &s->vt.cells[y1 * s->vt.width];
-        for(x = 0; x < s->vt.width; x++) {
+        if (++vt->y_base == vt->total_height)
+            vt->y_base = 0;
+        if (vt->backscroll_height < vt->total_height)
+            vt->backscroll_height++;
+        y1 = (vt->y_base + vt->height - 1) % vt->total_height;
+        c = &vt->cells[y1 * vt->width];
+        for(x = 0; x < vt->width; x++) {
             c->ch = ' ';
             c->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
             c++;
         }
-        if (s->vt.y_displayed == s->vt.y_base) {
-            s->vt.text_x[0] = 0;
-            s->vt.text_y[0] = 0;
-            s->vt.text_x[1] = s->vt.width - 1;
-            s->vt.text_y[1] = s->vt.height - 1;
+        if (vt->y_displayed == vt->y_base) {
+            vt->text_x[0] = 0;
+            vt->text_y[0] = 0;
+            vt->text_x[1] = vt->width - 1;
+            vt->text_y[1] = vt->height - 1;
 
-            image_bitblt(s->vt.image, 0, FONT_HEIGHT, 0, 0,
-                         s->vt.width * FONT_WIDTH,
-                         (s->vt.height - 1) * FONT_HEIGHT);
-            image_fill_rect(s->vt.image, 0, (s->vt.height - 1) * FONT_HEIGHT,
-                            s->vt.width * FONT_WIDTH, FONT_HEIGHT,
+            image_bitblt(vt->image, 0, FONT_HEIGHT, 0, 0,
+                         vt->width * FONT_WIDTH,
+                         (vt->height - 1) * FONT_HEIGHT);
+            image_fill_rect(vt->image, 0, (vt->height - 1) * FONT_HEIGHT,
+                            vt->width * FONT_WIDTH, FONT_HEIGHT,
                             color_table_rgb[0][TEXT_ATTRIBUTES_DEFAULT.bgcol]);
-            s->vt.update_x0 = 0;
-            s->vt.update_y0 = 0;
-            s->vt.update_x1 = s->vt.width * FONT_WIDTH;
-            s->vt.update_y1 = s->vt.height * FONT_HEIGHT;
+            vt->update_x0 = 0;
+            vt->update_y0 = 0;
+            vt->update_x1 = vt->width * FONT_WIDTH;
+            vt->update_y1 = vt->height * FONT_HEIGHT;
         }
     }
 }
@@ -664,7 +663,7 @@ static void vc_put_one(VCChardev *vc, int ch)
     if (s->vt.x >= s->vt.width) {
         /* line wrap */
         s->vt.x = 0;
-        vc_put_lf(vc);
+        vt100_put_lf(&s->vt);
     }
     y1 = (s->vt.y_base + s->vt.y) % s->vt.total_height;
     c = &s->vt.cells[y1 * s->vt.width + s->vt.x];
@@ -842,7 +841,7 @@ static void vc_putchar(VCChardev *vc, int ch)
             s->vt.x = 0;
             break;
         case '\n':  /* newline */
-            vc_put_lf(vc);
+            vt100_put_lf(&s->vt);
             break;
         case '\b':  /* backspace */
             if (s->vt.x > 0)
@@ -851,7 +850,7 @@ static void vc_putchar(VCChardev *vc, int ch)
         case '\t':  /* tabspace */
             if (s->vt.x + (8 - (s->vt.x % 8)) > s->vt.width) {
                 s->vt.x = 0;
-                vc_put_lf(vc);
+                vt100_put_lf(&s->vt);
             } else {
                 s->vt.x = s->vt.x + (8 - (s->vt.x % 8));
             }
