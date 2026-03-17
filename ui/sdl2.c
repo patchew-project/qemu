@@ -600,11 +600,11 @@ static void handle_windowevent(SDL_Event *ev)
     switch (ev->window.event) {
     case SDL_WINDOWEVENT_RESIZED:
         {
-            QemuUIInfo info;
-            memset(&info, 0, sizeof(info));
-            info.width = ev->window.data1;
-            info.height = ev->window.data2;
-            dpy_set_ui_info(scon->dcl.con, &info, true);
+            dpy_set_ui_info(scon->dcl.con,
+                &(QemuUIInfo) {
+                    .width = ev->window.data1,
+                    .height = ev->window.data2,
+                }, true);
         }
         sdl2_redraw(scon);
         break;
