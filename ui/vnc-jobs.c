@@ -345,14 +345,6 @@ static VncJobQueue *vnc_queue_init(void)
     return queue;
 }
 
-static void vnc_queue_clear(VncJobQueue *q)
-{
-    qemu_cond_destroy(&queue->cond);
-    qemu_mutex_destroy(&queue->mutex);
-    g_free(q);
-    queue = NULL; /* Unset global queue */
-}
-
 static void *vnc_worker_thread(void *arg)
 {
     VncJobQueue *queue = arg;
@@ -360,7 +352,7 @@ static void *vnc_worker_thread(void *arg)
     qemu_thread_get_self(&queue->thread);
 
     while (!vnc_worker_thread_loop(queue)) ;
-    vnc_queue_clear(queue);
+    g_assert_not_reached();
     return NULL;
 }
 
