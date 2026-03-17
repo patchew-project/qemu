@@ -15,6 +15,7 @@ system_ss.add(files(
   'ui-hmp-cmds.c',
   'ui-qmp-cmds.c',
   'util.c',
+  'vgafont.c',
 ))
 system_ss.add(when: pixman, if_true: files('console-vc.c', 'cp437.c'), if_false: files('console-vc-stubs.c'))
 if dbus_display
