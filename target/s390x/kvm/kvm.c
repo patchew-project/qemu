@@ -140,7 +140,6 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };
 
-static int cap_async_pf;
 static int cap_mem_op;
 static int cap_mem_op_extension;
 static int cap_s390_irq;
@@ -333,6 +332,7 @@ int kvm_arch_get_default_type(MachineState *ms)
 int kvm_arch_init(MachineState *ms, KVMState *s)
 {
     int required_caps[] = {
+        KVM_CAP_ASYNC_PF,
         KVM_CAP_DEVICE_CTRL,
         KVM_CAP_SYNC_REGS,
     };
@@ -340,7 +340,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     for (int i = 0; i < ARRAY_SIZE(required_caps); i++) {
         if (!kvm_check_extension(s, required_caps[i])) {
             error_report("KVM is missing capability #%d - "
-                         "please use kernel 3.15 or newer", required_caps[i]);
+                         "please use kernel 4.4 or newer", required_caps[i]);
             return -1;
         }
     }
@@ -354,7 +354,6 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         return -1;
     }
 
-    cap_async_pf = kvm_check_extension(s, KVM_CAP_ASYNC_PF);
     cap_mem_op = kvm_check_extension(s, KVM_CAP_S390_MEM_OP);
     cap_mem_op_extension = kvm_check_extension(s, KVM_CAP_S390_MEM_OP_EXTENSION);
     mem_op_storage_key_support = cap_mem_op_extension > 0;
@@ -466,7 +465,8 @@ static int can_sync_regs(CPUState *cs, int regs)
 }
 
 #define KVM_SYNC_REQUIRED_REGS (KVM_SYNC_GPRS | KVM_SYNC_ACRS | \
-                                KVM_SYNC_CRS | KVM_SYNC_PREFIX)
+                                KVM_SYNC_CRS | KVM_SYNC_PREFIX | \
+                                KVM_SYNC_PFAULT)
 
 int kvm_arch_put_registers(CPUState *cs, KvmPutState level, Error **errp)
 {
@@ -550,25 +550,10 @@ int kvm_arch_put_registers(CPUState *cs, KvmPutState level, Error **errp)
     }
 
     /* pfault parameters */
-    if (can_sync_regs(cs, KVM_SYNC_PFAULT)) {
-        cs->kvm_run->s.regs.pft = env->pfault_token;
-        cs->kvm_run->s.regs.pfs = env->pfault_select;
-        cs->kvm_run->s.regs.pfc = env->pfault_compare;
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_PFAULT;
-    } else if (cap_async_pf) {
-        r = kvm_set_one_reg(cs, KVM_REG_S390_PFTOKEN, &env->pfault_token);
-        if (r < 0) {
-            return r;
-        }
-        r = kvm_set_one_reg(cs, KVM_REG_S390_PFCOMPARE, &env->pfault_compare);
-        if (r < 0) {
-            return r;
-        }
-        r = kvm_set_one_reg(cs, KVM_REG_S390_PFSELECT, &env->pfault_select);
-        if (r < 0) {
-            return r;
-        }
-    }
+    cs->kvm_run->s.regs.pft = env->pfault_token;
+    cs->kvm_run->s.regs.pfs = env->pfault_select;
+    cs->kvm_run->s.regs.pfc = env->pfault_compare;
+    cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_PFAULT;
 
     if (can_sync_regs(cs, KVM_SYNC_GSCB)) {
         memcpy(cs->kvm_run->s.regs.gscb, env->gscb, 32);
@@ -673,24 +658,9 @@ int kvm_arch_get_registers(CPUState *cs, Error **errp)
     }
 
     /* pfault parameters */
-    if (can_sync_regs(cs, KVM_SYNC_PFAULT)) {
-        env->pfault_token = cs->kvm_run->s.regs.pft;
-        env->pfault_select = cs->kvm_run->s.regs.pfs;
-        env->pfault_compare = cs->kvm_run->s.regs.pfc;
-    } else if (cap_async_pf) {
-        r = kvm_get_one_reg(cs, KVM_REG_S390_PFTOKEN, &env->pfault_token);
-        if (r < 0) {
-            return r;
-        }
-        r = kvm_get_one_reg(cs, KVM_REG_S390_PFCOMPARE, &env->pfault_compare);
-        if (r < 0) {
-            return r;
-        }
-        r = kvm_get_one_reg(cs, KVM_REG_S390_PFSELECT, &env->pfault_select);
-        if (r < 0) {
-            return r;
-        }
-    }
+    env->pfault_token = cs->kvm_run->s.regs.pft;
+    env->pfault_select = cs->kvm_run->s.regs.pfs;
+    env->pfault_compare = cs->kvm_run->s.regs.pfc;
 
     if (can_sync_regs(cs, KVM_SYNC_DIAG318)) {
         env->diag318_info = cs->kvm_run->s.regs.diag318;
