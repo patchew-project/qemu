@@ -159,6 +159,7 @@ BOOL_FIELD(ext_xlrbr)
 
 BOOL_FIELD(mmu)
 BOOL_FIELD(pmp)
+BOOL_FIELD(spmp)
 BOOL_FIELD(debug)
 BOOL_FIELD(misa_w)
 

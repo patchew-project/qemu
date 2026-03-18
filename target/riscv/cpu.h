@@ -179,8 +179,11 @@ extern RISCVCPUImpliedExtsRule *riscv_multi_ext_implied_rules[];
 #define OLD_MAX_RISCV_PMPS (16)
 #define MIN_RISCV_PMP_GRANULARITY 4
 
+#define MAX_RISCV_SPMPS (64)
+
 #if !defined(CONFIG_USER_ONLY)
 #include "pmp.h"
+#include "spmp.h"
 #include "debug.h"
 #endif
 
@@ -442,6 +445,9 @@ struct CPUArchState {
     /* physical memory protection */
     pmp_table_t pmp_state;
     target_ulong mseccfg;
+
+    /* S-mode Physical Memory Protection */
+    spmp_table_t spmp_state;
 
     /* trigger module */
     target_ulong trigger_cur;
