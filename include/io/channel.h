@@ -635,6 +635,69 @@ ssize_t qio_channel_pread(QIOChannel *ioc, void *buf, size_t buflen,
                           off_t offset, Error **errp);
 
 /**
+ * qio_channel_preadv_all_eof:
+ * @ioc: the channel object
+ * @iov: the array of memory regions to read data into
+ * @niov: the length of the @iov array
+ * @offset: the starting offset in the channel to read from
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Reads data contiguously from the channel into @iov starting at
+ * @offset, retrying on short reads until all requested bytes have
+ * been read.  The offset is advanced internally after each partial
+ * read.
+ *
+ * Returns: 1 if all bytes were read, 0 if no data could be read
+ *          before encountering end-of-file, or -1 on error
+ */
+int coroutine_mixed_fn qio_channel_preadv_all_eof(QIOChannel *ioc,
+                                                  const struct iovec *iov,
+                                                  size_t niov,
+                                                  off_t offset,
+                                                  Error **errp);
+
+/**
+ * qio_channel_preadv_all:
+ * @ioc: the channel object
+ * @iov: the array of memory regions to read data into
+ * @niov: the length of the @iov array
+ * @offset: the starting offset in the channel to read from
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Reads data contiguously from the channel into @iov starting at
+ * @offset, retrying on short reads until all requested bytes have
+ * been read.  Unlike qio_channel_preadv_all_eof(), end-of-file
+ * before all data has been read is treated as an error.
+ *
+ * Returns: 0 if all bytes were read, or -1 on error
+ */
+int coroutine_mixed_fn qio_channel_preadv_all(QIOChannel *ioc,
+                                              const struct iovec *iov,
+                                              size_t niov,
+                                              off_t offset,
+                                              Error **errp);
+
+/**
+ * qio_channel_pread_all:
+ * @ioc: the channel object
+ * @buf: the memory region to read data into
+ * @buflen: the number of bytes to read into @buf
+ * @offset: the starting offset in the channel to read from
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Reads @buflen bytes contiguously from the channel at @offset
+ * into @buf, retrying on short reads.  End-of-file before all data
+ * has been read is treated as an error.
+ *
+ * Returns: 0 if all bytes were read, or -1 on error
+ */
+int coroutine_mixed_fn qio_channel_pread_all(QIOChannel *ioc,
+                                             void *buf,
+                                             size_t buflen,
+                                             off_t offset,
+                                             Error **errp);
+
+/**
  * qio_channel_shutdown:
  * @ioc: the channel object
  * @how: the direction to shutdown
