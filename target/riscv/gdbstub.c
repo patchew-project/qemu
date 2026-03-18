@@ -84,33 +84,20 @@ int riscv_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(cs);
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
-    int length = 0;
-    uint64_t tmp;
+    const size_t regsize = mcc->def->misa_mxl_max == MXL_RV32 ? 4 : 8;
+    uint64_t tmp = ldn(env, mem_buf, regsize);
 
-    switch (mcc->def->misa_mxl_max) {
-    case MXL_RV32:
-        tmp = (int32_t)ldn(env, mem_buf, 4);
-        length = 4;
-        break;
-    case MXL_RV64:
-    case MXL_RV128:
-        if (env->xl < MXL_RV64) {
-            tmp = (int32_t)ldn(env, mem_buf, 8);
-        } else {
-            tmp = ldn(env, mem_buf, 8);
-        }
-        length = 8;
-        break;
-    default:
-        g_assert_not_reached();
+    if (env->xl < MXL_RV64) {
+        tmp = (int32_t)tmp;
     }
+
     if (n > 0 && n < 32) {
         env->gpr[n] = tmp;
     } else if (n == 32) {
         env->pc = tmp;
     }
 
-    return length;
+    return regsize;
 }
 
 static int riscv_gdb_get_fpu(CPUState *cs, GByteArray *buf, int n)
