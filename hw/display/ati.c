@@ -1059,7 +1059,6 @@ static void ati_vga_realize(PCIDevice *dev, Error **errp)
     ATIVGAState *s = ATI_VGA(dev);
     VGACommonState *vga = &s->vga;
     I2CBus *i2cbus;
-    uint64_t aper_size;
 
 #ifndef CONFIG_PIXMAN
     if (s->use_pixman != 0) {
@@ -1123,10 +1122,19 @@ static void ati_vga_realize(PCIDevice *dev, Error **errp)
      * Rage128 the upper half of the aperture is reserved for an AGP
      * window (which we do not emulate.)
      */
-    aper_size = s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF ?
-                ATI_RAGE128_LINEAR_APER_SIZE : ATI_R100_LINEAR_APER_SIZE;
+    if (!s->linear_aper_sz) {
+        if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
+            s->linear_aper_sz = ATI_RAGE128_LINEAR_APER_SIZE;
+        } else {
+            s->linear_aper_sz = ATI_R100_LINEAR_APER_SIZE;
+        }
+    }
+    if (s->linear_aper_sz < 16 * MiB) {
+        error_setg(errp, "x-linear-aper-size is too small (minimum 16 MiB");
+        return;
+    }
     memory_region_init(&s->linear_aper, OBJECT(dev), "ati-linear-aperture0",
-                       aper_size);
+                       s->linear_aper_sz);
     memory_region_add_subregion(&s->linear_aper, 0, &vga->vram);
 
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &s->linear_aper);
@@ -1171,6 +1179,7 @@ static const Property ati_vga_properties[] = {
     DEFINE_PROP_BOOL("guest_hwcursor", ATIVGAState, cursor_guest_mode, false),
     /* this is a debug option, prefer PROP_UINT over PROP_BIT for simplicity */
     DEFINE_PROP_UINT8("x-pixman", ATIVGAState, use_pixman, DEFAULT_X_PIXMAN),
+    DEFINE_PROP_UINT64("x-linear-aper-size", ATIVGAState, linear_aper_sz, 0),
     DEFINE_EDID_PROPERTIES(ATIVGAState, i2cddc.edid_info),
 };
 

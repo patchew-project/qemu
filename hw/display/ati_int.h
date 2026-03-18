@@ -119,6 +119,7 @@ struct ATIVGAState {
     QEMUTimer vblank_timer;
     bitbang_i2c_interface bbi2c;
     I2CDDCState i2cddc;
+    uint64_t linear_aper_sz;
     MemoryRegion linear_aper;
     MemoryRegion io;
     MemoryRegion mm;
