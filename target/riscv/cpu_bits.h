@@ -255,6 +255,10 @@
 #define CSR_SCTRSTATUS      0x14f
 #define CSR_SCTRDEPTH       0x15f
 
+/* S-mode Physical Memory Protection (SPMP) */
+#define CSR_SPMPEN          0x183
+#define CSR_SPMPENH         0x193
+
 /* VS-Level Control transfer records CSRs */
 #define CSR_VSCTRCTL        0x24e
 

@@ -147,7 +147,11 @@ static uint8_t spmp_is_in_range(CPURISCVState *env, int spmp_index,
 
 static bool spmp_get_spmpen_bit(CPURISCVState *env, int index)
 {
-    return true;
+    if (!riscv_cpu_cfg(env)->ext_sspmpen) {
+        return true;
+    }
+
+    return (env->spmp_state.spmpen >> index) & 0x1;
 }
 
 /*

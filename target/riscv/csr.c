@@ -786,6 +786,16 @@ static RISCVException spmp(CPURISCVState *env, int csrno)
     return smode(env, csrno);
 }
 
+static RISCVException sspmpen(CPURISCVState *env, int csrno)
+{
+    if (!riscv_cpu_cfg(env)->ext_sspmpen) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
+    /* SSPMPEN can only exist, if spmp exists */
+    return spmp(env, csrno);
+}
+
 static RISCVException have_mseccfg(CPURISCVState *env, int csrno)
 {
     if (riscv_cpu_cfg(env)->ext_smepmp) {
@@ -5490,6 +5500,61 @@ static RISCVException rmw_mpmpdeleg(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
+static RISCVException rmw_spmpen64(CPURISCVState *env, int csrno,
+                                    uint64_t *ret_val,
+                                    uint64_t new_val, uint64_t wr_mask)
+{
+    uint64_t new_spmpen = (env->spmp_state.spmpen & ~wr_mask) |
+                            (new_val & wr_mask);
+
+    if (env->spmp_state.num_deleg_rules == 0) {
+        if (ret_val) {
+            *ret_val = 0;
+        }
+
+        return RISCV_EXCP_NONE;
+    }
+
+    if (ret_val) {
+        *ret_val = env->spmp_state.spmpen;
+    }
+
+    sspmpen_csr_write(env, new_spmpen);
+
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException rmw_spmpen(CPURISCVState *env, int csrno,
+                                  target_ulong *ret_val,
+                                  target_ulong new_val, target_ulong wr_mask)
+{
+    uint64_t rval = 0;
+    RISCVException ret;
+    ret = rmw_spmpen64(env, csrno, &rval, new_val, wr_mask);
+    if (ret_val) {
+        *ret_val = rval;
+    }
+
+    return ret;
+}
+
+static RISCVException rmw_spmpenh(CPURISCVState *env, int csrno,
+                                   target_ulong *ret_val,
+                                   target_ulong new_val,
+                                   target_ulong wr_mask)
+{
+    uint64_t rval = 0;
+    RISCVException ret;
+
+    ret = rmw_spmpen64(env, csrno, &rval,
+        ((uint64_t)new_val) << 32, ((uint64_t)wr_mask) << 32);
+    if (ret_val) {
+        *ret_val = rval >> 32;
+    }
+
+    return ret;
+}
+
 static RISCVException read_tselect(CPURISCVState *env, int csrno,
                                    target_ulong *val)
 {
@@ -6489,6 +6554,8 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 
     /* S-mode Physical Memory Protection */
     [CSR_MPMPDELEG]   = { "mpmpdeleg", spmp, NULL, NULL, rmw_mpmpdeleg },
+    [CSR_SPMPEN]  = { "spmpen", sspmpen, NULL, NULL, rmw_spmpen },
+    [CSR_SPMPENH] = { "spmpenh", sspmpen, NULL, NULL, rmw_spmpenh },
 
     /* Debug CSRs */
     [CSR_TSELECT]   =  { "tselect",  debug, read_tselect,  write_tselect  },
