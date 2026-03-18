@@ -1498,6 +1498,84 @@ static const PropertyInfo prop_pmp_granularity = {
     .set = prop_pmp_granularity_set,
 };
 
+static void prop_spmp_set(Object *obj, Visitor *v, const char *name,
+                         void *opaque, Error **errp)
+{
+    RISCVCPU *cpu = RISCV_CPU(obj);
+    bool value;
+
+    visit_type_bool(v, name, &value, errp);
+
+    if (cpu->cfg.spmp != value && riscv_cpu_is_vendor(obj)) {
+        cpu_set_prop_err(cpu, name, errp);
+        return;
+    }
+
+    cpu_option_add_user_setting(name, value);
+    cpu->cfg.spmp = value;
+    cpu->cfg.ext_smpmpdeleg = value;
+
+    /* Enable necessary extensions */
+    if (value) {
+        cpu->cfg.ext_sscsrind = true;
+        cpu->cfg.ext_smcsrind = true;
+    }
+}
+
+static void prop_spmp_get(Object *obj, Visitor *v, const char *name,
+                         void *opaque, Error **errp)
+{
+    bool value = RISCV_CPU(obj)->cfg.spmp;
+
+    visit_type_bool(v, name, &value, errp);
+}
+
+static const PropertyInfo prop_spmp = {
+    .type = "bool",
+    .description = "spmp",
+    .get = prop_spmp_get,
+    .set = prop_spmp_set,
+};
+
+static void prop_sspmpen_set(Object *obj, Visitor *v, const char *name,
+                         void *opaque, Error **errp)
+{
+    RISCVCPU *cpu = RISCV_CPU(obj);
+    bool value;
+
+    visit_type_bool(v, name, &value, errp);
+
+    if (cpu->cfg.spmp != value && riscv_cpu_is_vendor(obj)) {
+        cpu_set_prop_err(cpu, name, errp);
+        return;
+    }
+
+    cpu_option_add_user_setting(name, value);
+    cpu->cfg.ext_sspmpen = value;
+
+    /* Enable necessary extensions */
+    if (value) {
+        cpu->cfg.spmp = true;
+        cpu->cfg.ext_sscsrind = true;
+        cpu->cfg.ext_smcsrind = true;
+    }
+}
+
+static void prop_sspmpen_get(Object *obj, Visitor *v, const char *name,
+                         void *opaque, Error **errp)
+{
+    bool value = RISCV_CPU(obj)->cfg.ext_sspmpen;
+
+    visit_type_bool(v, name, &value, errp);
+}
+
+static const PropertyInfo prop_ext_sspmpen = {
+    .type = "bool",
+    .description = "ext_sspmpen",
+    .get = prop_sspmpen_get,
+    .set = prop_sspmpen_set,
+};
+
 static int priv_spec_from_str(const char *priv_spec_str)
 {
     int priv_version = -1;
@@ -2529,6 +2607,8 @@ static const Property riscv_cpu_properties[] = {
     {.name = "pmp", .info = &prop_pmp},
     {.name = "num-pmp-regions", .info = &prop_num_pmp_regions},
     {.name = "pmp-granularity", .info = &prop_pmp_granularity},
+    {.name = "spmp", .info = &prop_spmp},
+    {.name = "sspmpen", .info = &prop_ext_sspmpen},
 
     {.name = "priv_spec", .info = &prop_priv_spec},
     {.name = "vext_spec", .info = &prop_vext_spec},
