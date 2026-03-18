@@ -27,10 +27,10 @@ typedef struct {
     BdrvRequestFlags flags;
 
     /*
-     * Buffered reads may require resubmission, see
-     * luring_resubmit_short_read().
+     * Short reads/writes require resubmission, see
+     * luring_resubmit_short_io().
      */
-    int total_read;
+    int total_done;
     QEMUIOVector resubmit_qiov;
 
     CqeHandler cqe_handler;
@@ -44,6 +44,10 @@ static void luring_prep_sqe(struct io_uring_sqe *sqe, void *opaque)
     int fd = req->fd;
     BdrvRequestFlags flags = req->flags;
 
+    if (req->resubmit_qiov.iov != NULL) {
+        qiov = &req->resubmit_qiov;
+    }
+
     switch (req->type) {
     case QEMU_AIO_WRITE:
     {
@@ -51,7 +55,8 @@ static void luring_prep_sqe(struct io_uring_sqe *sqe, void *opaque)
         if (luring_flags != 0 || qiov->niov > 1) {
 #ifdef HAVE_IO_URING_PREP_WRITEV2
             io_uring_prep_writev2(sqe, fd, qiov->iov,
-                                  qiov->niov, offset, luring_flags);
+                                  qiov->niov, offset + req->total_done,
+                                  luring_flags);
 #else
             /*
              * FUA should only be enabled with HAVE_IO_URING_PREP_WRITEV2, see
@@ -59,12 +64,14 @@ static void luring_prep_sqe(struct io_uring_sqe *sqe, void *opaque)
              */
             assert(luring_flags == 0);
 
-            io_uring_prep_writev(sqe, fd, qiov->iov, qiov->niov, offset);
+            io_uring_prep_writev(sqe, fd, qiov->iov, qiov->niov,
+                                 offset + req->total_done);
 #endif
         } else {
             /* The man page says non-vectored is faster than vectored */
             struct iovec *iov = qiov->iov;
-            io_uring_prep_write(sqe, fd, iov->iov_base, iov->iov_len, offset);
+            io_uring_prep_write(sqe, fd, iov->iov_base, iov->iov_len,
+                                offset + req->total_done);
         }
         break;
     }
@@ -73,17 +80,14 @@ static void luring_prep_sqe(struct io_uring_sqe *sqe, void *opaque)
         break;
     case QEMU_AIO_READ:
     {
-        if (req->resubmit_qiov.iov != NULL) {
-            qiov = &req->resubmit_qiov;
-        }
         if (qiov->niov > 1) {
             io_uring_prep_readv(sqe, fd, qiov->iov, qiov->niov,
-                                offset + req->total_read);
+                                offset + req->total_done);
         } else {
             /* The man page says non-vectored is faster than vectored */
             struct iovec *iov = qiov->iov;
             io_uring_prep_read(sqe, fd, iov->iov_base, iov->iov_len,
-                               offset + req->total_read);
+                               offset + req->total_done);
         }
         break;
     }
@@ -98,21 +102,26 @@ static void luring_prep_sqe(struct io_uring_sqe *sqe, void *opaque)
 }
 
 /**
- * luring_resubmit_short_read:
+ * luring_resubmit_short_io:
  *
- * Short reads are rare but may occur. The remaining read request needs to be
- * resubmitted.
+ * Short reads and writes are rare but may occur.  The remaining request needs
+ * to be resubmitted.
+ *
+ * For example, short reads can be reproduced by a FUSE export deliberately
+ * executing short reads.  The tail of short writes is generally resubmitted by
+ * io-uring in the kernel, but if that resubmission encounters an I/O error, the
+ * already submitted portion will be returned as a short write.
  */
-static void luring_resubmit_short_read(LuringRequest *req, int nread)
+static void luring_resubmit_short_io(LuringRequest *req, int ndone)
 {
     QEMUIOVector *resubmit_qiov;
     size_t remaining;
 
-    trace_luring_resubmit_short_read(req, nread);
+    trace_luring_resubmit_short_io(req, ndone);
 
-    /* Update read position */
-    req->total_read += nread;
-    remaining = req->qiov->size - req->total_read;
+    /* Update I/O position */
+    req->total_done += ndone;
+    remaining = req->qiov->size - req->total_done;
 
     /* Shorten qiov */
     resubmit_qiov = &req->resubmit_qiov;
@@ -121,7 +130,7 @@ static void luring_resubmit_short_read(LuringRequest *req, int nread)
     } else {
         qemu_iovec_reset(resubmit_qiov);
     }
-    qemu_iovec_concat(resubmit_qiov, req->qiov, req->total_read, remaining);
+    qemu_iovec_concat(resubmit_qiov, req->qiov, req->total_done, remaining);
 
     aio_add_sqe(luring_prep_sqe, req, &req->cqe_handler);
 }
@@ -153,26 +162,28 @@ static void luring_cqe_handler(CqeHandler *cqe_handler)
             return;
         }
     } else if (req->qiov) {
-        /* total_read is non-zero only for resubmitted read requests */
-        int total_bytes = ret + req->total_read;
+        /* total_done is non-zero only for resubmitted requests */
+        int total_bytes = ret + req->total_done;
 
         if (total_bytes == req->qiov->size) {
             ret = 0;
-        } else {
+        } else if (ret > 0 && (req->type == QEMU_AIO_READ ||
+                               req->type == QEMU_AIO_WRITE)) {
             /* Short Read/Write */
-            if (req->type == QEMU_AIO_READ) {
-                if (ret > 0) {
-                    luring_resubmit_short_read(req, ret);
-                    return;
-                }
-
-                /* Pad with zeroes */
-                qemu_iovec_memset(req->qiov, total_bytes, 0,
-                                  req->qiov->size - total_bytes);
-                ret = 0;
-            } else {
-                ret = -ENOSPC;
-            }
+            luring_resubmit_short_io(req, ret);
+            return;
+        } else if (req->type == QEMU_AIO_READ) {
+            /* Read ret == 0: EOF, pad with zeroes */
+            qemu_iovec_memset(req->qiov, total_bytes, 0,
+                              req->qiov->size - total_bytes);
+            ret = 0;
+        } else {
+            /*
+             * Normal write ret == 0 means ENOSPC.
+             * For zone-append, we treat any 0 <= ret < qiov->size as ENOSPC,
+             * too, because resubmitting the tail seems a little unsafe.
+             */
+            ret = -ENOSPC;
         }
     }
 
