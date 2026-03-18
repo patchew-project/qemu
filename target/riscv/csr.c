@@ -1599,6 +1599,7 @@ static RISCVException read_scountovf(CPURISCVState *env, int csrno,
     int mhpmevt_start = CSR_MHPMEVENT3 - CSR_MCOUNTINHIBIT;
     int i;
     *val = 0;
+    bool virt = env->virt_enabled;
 
     /* Virtualize scountovf for counter delegation */
     if (riscv_cpu_cfg(env)->ext_sscofpmf &&
@@ -1609,8 +1610,19 @@ static RISCVException read_scountovf(CPURISCVState *env, int csrno,
     }
 
     for (i = mhpmevt_start; i < RV_MAX_MHPMEVENTS; i++) {
-        if ((get_field(env->mcounteren, BIT(i))) &&
-            (env->mhpmevent_val[i] & MHPMEVENT_BIT_OF)) {
+        if (env->priv < PRV_M) {
+            if (!get_field(env->mcounteren, BIT(i))) {
+                /* no mcounteren in S/HS-mode */
+                continue;
+            }
+
+            if (virt && !get_field(env->hcounteren, BIT(i))) {
+                /* no hcounteren in VS-mode */
+                continue;
+            }
+        }
+
+        if (env->mhpmevent_val[i] & MHPMEVENT_BIT_OF) {
             *val |= BIT(i);
         }
     }
