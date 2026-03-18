@@ -114,7 +114,7 @@ Rust build dependencies
   bindgen tool, which is too big to package and distribute.  The minimum
   supported version of bindgen is 0.60.x.  For distributions that do not
   include bindgen or have an older version, it is recommended to install
-  a newer version using ``cargo install bindgen-cli``.
+  a newer version using ``cargo install --locked bindgen-cli``.
 
   QEMU requires Rust 1.83.0.  This is available on all supported platforms
   except for the ``mips64el`` architecture on Debian bookworm.  For all other

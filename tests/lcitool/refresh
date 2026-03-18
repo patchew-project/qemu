@@ -147,7 +147,7 @@ fedora_rustup_nightly_extras = [
     '  test "$RUSTDOC" = "$(/usr/local/cargo/bin/rustup +nightly which rustdoc)" && \\\n',
     '  test "$RUSTC" = "$(/usr/local/cargo/bin/rustup +nightly which rustc)"\n',
     'ENV PATH=$CARGO_HOME/bin:$PATH\n',
-    'RUN /usr/local/cargo/bin/rustup run nightly cargo install bindgen-cli\n',
+    'RUN /usr/local/cargo/bin/rustup run nightly cargo install --locked bindgen-cli\n',
     'RUN $CARGO --list\n',
 ]
 
@@ -158,7 +158,7 @@ ubuntu2204_rust_extras = [
     'ENV PATH=$CARGO_HOME/bin:$PATH\n',
     "RUN DEBIAN_FRONTEND=noninteractive eatmydata \\\n",
     "  apt install -y --no-install-recommends cargo\n",
-    'RUN cargo install bindgen-cli\n',
+    'RUN cargo install --locked bindgen-cli\n',
 ]
 
 debian_all_test_cross_compilers = [
