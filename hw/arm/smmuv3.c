@@ -27,6 +27,8 @@
 #include "hw/pci/pci.h"
 #include "cpu.h"
 #include "exec/target_page.h"
+#include "qemu/plugin.h"
+#include "qom/object.h"
 #include "trace.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"
@@ -41,6 +43,55 @@
                                         (cfg)->record_faults) || \
                                         ((ptw_info).stage == SMMU_STAGE_2 && \
                                         (cfg)->s2cfg.record_faults))
+
+static void smmuv3_trigger_irq(SMMUv3State *s, SMMUIrq irq,
+                               uint32_t gerror_mask);
+
+typedef struct {
+    uint64_t base_addr;
+    Object *found_obj;
+} SMMUSearchArgs;
+
+static int smmu_match_addr_cb(Object *obj, void *opaque)
+{
+    SMMUSearchArgs *args = (SMMUSearchArgs *)opaque;
+
+    if (object_dynamic_cast(obj, TYPE_ARM_SMMUV3)) {
+        SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+
+        if (sbd->mmio[0].addr == args->base_addr) {
+            args->found_obj = obj;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+static void smmu_inject_gerror_cmdq(void *target_data, void *fault_data)
+{
+    uint64_t base_address = *(uint64_t *)target_data;
+    SMMUCmdError cmd_error = *(SMMUCmdError*)fault_data;
+    Object *obj = NULL;
+
+    if (base_address) {
+        SMMUSearchArgs args = { .base_addr = base_address, .found_obj = NULL };
+        object_child_foreach_recursive(object_get_root(), smmu_match_addr_cb, &args);
+
+        obj = args.found_obj;
+    } else {
+        obj = object_resolve_path_type("", TYPE_ARM_SMMUV3, NULL);
+    }
+
+    if (!obj) {
+        return;
+    }
+
+    SMMUv3State *s = ARM_SMMUV3(obj);
+
+    smmu_write_cmdq_err(s, cmd_error);
+    smmuv3_trigger_irq(s, SMMU_IRQ_GERROR, R_GERROR_CMDQ_ERR_MASK);
+}
 
 /**
  * smmuv3_trigger_irq - pulse @irq if enabled and update
@@ -2152,6 +2203,9 @@ static void smmuv3_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, smmuv3_properties);
     dc->hotpluggable = false;
     dc->user_creatable = true;
+
+    plugin_register_custom_fault("smmu_gerror_cmdq",
+                              smmu_inject_gerror_cmdq);
 
     object_class_property_set_description(klass, "accel",
         "Enable SMMUv3 accelerator support. Allows host SMMUv3 to be "
