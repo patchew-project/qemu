@@ -274,7 +274,10 @@ static int iommufd_cdev_getfd(const char *sysfs_path, Error **errp)
     }
 
     if (!g_file_get_contents(vfio_dev_path, &contents, &length, NULL)) {
-        error_setg(errp, "failed to load \"%s\"", vfio_dev_path);
+        error_setg(errp,
+                   "failed to load \"%s\""
+                   " (is your kernel config missing CONFIG_VFIO_DEVICE_CDEV?)",
+                   vfio_dev_path);
         goto out_close_dir;
     }
 
