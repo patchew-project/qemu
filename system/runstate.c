@@ -531,10 +531,12 @@ void qemu_system_reset(ShutdownCause reason)
         (force_vmfd_change || !cpus_are_resettable())) {
         if (ac->rebuild_guest) {
             ret = ac->rebuild_guest(current_machine);
-            if (ret < 0) {
+            if (ret < 0 && ret != -EOPNOTSUPP) {
                 error_report("unable to rebuild guest: %s(%d)",
                              strerror(-ret), ret);
                 vm_stop(RUN_STATE_INTERNAL_ERROR);
+            } else if (ret == -EOPNOTSUPP) {
+                error_report("accelerator does not support reset!");
             } else {
                 info_report("virtual machine state has been rebuilt with new "
                             "guest file handle.");
