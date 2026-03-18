@@ -211,7 +211,15 @@ static void ide_identify(IDEState *s)
         put_le16(p + 87, (1 << 14) | 0);
     }
     put_le16(p + 88, 0x3f | (1 << 13)); /* udma5 set and supported */
-    put_le16(p + 93, 1 | (1 << 14) | 0x2000);
+    if (s->ncq_queues) {
+        /*
+         * This is SATA, which is required by the spec to return 0 for this
+         * field.
+         */
+        put_le16(p + 93, 0);
+    } else {
+        put_le16(p + 93, 1 | (1 << 14) | 0x2000);
+    }
     /* *(p + 100) := nb_sectors       -- see ide_identify_size */
     /* *(p + 101) := nb_sectors >> 16 -- see ide_identify_size */
     /* *(p + 102) := nb_sectors >> 32 -- see ide_identify_size */
@@ -2660,7 +2668,7 @@ int ide_init_drive(IDEState *s, IDEDevice *dev, IDEDriveKind kind, Error **errp)
     if (dev->version) {
         pstrcpy(s->version, sizeof(s->version), dev->version);
     } else {
-        pstrcpy(s->version, sizeof(s->version), qemu_hw_version());
+        pstrcpy(s->version, sizeof(s->version), "11.0");
     }
 
     ide_reset(s);
