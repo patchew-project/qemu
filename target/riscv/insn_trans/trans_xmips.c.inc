@@ -47,6 +47,8 @@ static bool trans_ccmov(DisasContext *ctx, arg_ccmov *a)
 /* Load Doubleword Pair. */
 static bool trans_ldp(DisasContext *ctx, arg_ldp *a)
 {
+    MemOp memop = MO_SQ | mo_endian(ctx);
+
     REQUIRE_XMIPSLSP(ctx);
     REQUIRE_64_OR_128BIT(ctx);
 
@@ -56,11 +58,11 @@ static bool trans_ldp(DisasContext *ctx, arg_ldp *a)
     TCGv addr = tcg_temp_new();
 
     tcg_gen_addi_tl(addr, src, a->imm_y);
-    tcg_gen_qemu_ld_tl(dest0, addr, ctx->mem_idx, MO_TE | MO_SQ);
+    tcg_gen_qemu_ld_tl(dest0, addr, ctx->mem_idx, memop);
     gen_set_gpr(ctx, a->rd, dest0);
 
     tcg_gen_addi_tl(addr, addr, 8);
-    tcg_gen_qemu_ld_tl(dest1, addr, ctx->mem_idx, MO_TE | MO_SQ);
+    tcg_gen_qemu_ld_tl(dest1, addr, ctx->mem_idx, memop);
     gen_set_gpr(ctx, a->rs3, dest1);
 
     return true;
@@ -69,6 +71,8 @@ static bool trans_ldp(DisasContext *ctx, arg_ldp *a)
 /* Load Word Pair. */
 static bool trans_lwp(DisasContext *ctx, arg_lwp *a)
 {
+    MemOp memop = MO_SL | mo_endian(ctx);
+
     REQUIRE_XMIPSLSP(ctx);
 
     TCGv src = get_gpr(ctx, a->rs1, EXT_NONE);
@@ -77,11 +81,11 @@ static bool trans_lwp(DisasContext *ctx, arg_lwp *a)
     TCGv addr = tcg_temp_new();
 
     tcg_gen_addi_tl(addr, src, a->imm_x);
-    tcg_gen_qemu_ld_tl(dest0, addr, ctx->mem_idx, MO_TE | MO_SL);
+    tcg_gen_qemu_ld_tl(dest0, addr, ctx->mem_idx, memop);
     gen_set_gpr(ctx, a->rd, dest0);
 
     tcg_gen_addi_tl(addr, addr, 4);
-    tcg_gen_qemu_ld_tl(dest1, addr, ctx->mem_idx, MO_TE | MO_SL);
+    tcg_gen_qemu_ld_tl(dest1, addr, ctx->mem_idx, memop);
     gen_set_gpr(ctx, a->rs3, dest1);
 
     return true;
@@ -90,6 +94,8 @@ static bool trans_lwp(DisasContext *ctx, arg_lwp *a)
 /* Store Doubleword Pair. */
 static bool trans_sdp(DisasContext *ctx, arg_sdp *a)
 {
+    MemOp memop = MO_UQ | mo_endian(ctx);
+
     REQUIRE_XMIPSLSP(ctx);
     REQUIRE_64_OR_128BIT(ctx);
 
@@ -99,10 +105,10 @@ static bool trans_sdp(DisasContext *ctx, arg_sdp *a)
     TCGv addr = tcg_temp_new();
 
     tcg_gen_addi_tl(addr, src, a->imm_w);
-    tcg_gen_qemu_st_tl(data0, addr, ctx->mem_idx, MO_TE | MO_UQ);
+    tcg_gen_qemu_st_tl(data0, addr, ctx->mem_idx, memop);
 
     tcg_gen_addi_tl(addr, addr, 8);
-    tcg_gen_qemu_st_tl(data1, addr, ctx->mem_idx, MO_TE | MO_UQ);
+    tcg_gen_qemu_st_tl(data1, addr, ctx->mem_idx, memop);
 
     return true;
 }
@@ -110,6 +116,8 @@ static bool trans_sdp(DisasContext *ctx, arg_sdp *a)
 /* Store Word Pair. */
 static bool trans_swp(DisasContext *ctx, arg_swp *a)
 {
+    MemOp memop = MO_SL | mo_endian(ctx);
+
     REQUIRE_XMIPSLSP(ctx);
 
     TCGv src = get_gpr(ctx, a->rs1, EXT_NONE);
@@ -118,10 +126,10 @@ static bool trans_swp(DisasContext *ctx, arg_swp *a)
     TCGv addr = tcg_temp_new();
 
     tcg_gen_addi_tl(addr, src, a->imm_v);
-    tcg_gen_qemu_st_tl(data0, addr, ctx->mem_idx, MO_TE | MO_SL);
+    tcg_gen_qemu_st_tl(data0, addr, ctx->mem_idx, memop);
 
     tcg_gen_addi_tl(addr, addr, 4);
-    tcg_gen_qemu_st_tl(data1, addr, ctx->mem_idx, MO_TE | MO_SL);
+    tcg_gen_qemu_st_tl(data1, addr, ctx->mem_idx, memop);
 
     return true;
 }
