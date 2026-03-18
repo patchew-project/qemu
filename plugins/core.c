@@ -21,6 +21,7 @@
 #include "qemu/rcu.h"
 #include "exec/tb-flush.h"
 #include "tcg/tcg-op-common.h"
+#include "qemu/main-loop.h"
 #include "plugin.h"
 
 struct qemu_plugin_cb {
@@ -910,5 +911,15 @@ enum qemu_plugin_cb_flags tcg_call_to_qemu_plugin_cb_flags(int flags)
         return QEMU_PLUGIN_CB_R_REGS;
     } else {
         return QEMU_PLUGIN_CB_RW_REGS_PC;
+    }
+}
+
+void plugin_flush_tb_cache(void)
+{
+    CPUState *cpu = qemu_get_cpu(0);
+    if (cpu) {
+        queue_tb_flush(cpu);
+
+        qemu_cpu_kick(cpu);
     }
 }

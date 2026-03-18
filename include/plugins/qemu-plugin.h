@@ -1351,6 +1351,9 @@ QEMU_PLUGIN_API
 uint64_t qemu_plugin_u64_sum(qemu_plugin_u64 entry);
 
 QEMU_PLUGIN_API
+void qemu_plugin_flush_tb_cache(void);
+
+QEMU_PLUGIN_API
 uint64_t qemu_plugin_get_virtual_clock_ns(void);
 
 QEMU_PLUGIN_API

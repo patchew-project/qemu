@@ -687,6 +687,12 @@ uint64_t qemu_plugin_u64_sum(qemu_plugin_u64 entry)
     return total;
 }
 
+QEMU_PLUGIN_API
+void qemu_plugin_flush_tb_cache(void)
+{
+    plugin_flush_tb_cache();
+}
+
 typedef struct {
     void (*cb)(void *opaque);
     void* opaque;

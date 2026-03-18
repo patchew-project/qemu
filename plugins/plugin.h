@@ -125,4 +125,6 @@ void plugin_scoreboard_free(struct qemu_plugin_scoreboard *score);
  */
 void qemu_plugin_fillin_mode_info(qemu_info_t *info);
 
+void plugin_flush_tb_cache(void);
+
 #endif /* PLUGIN_H */
