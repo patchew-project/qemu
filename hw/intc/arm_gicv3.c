@@ -20,6 +20,8 @@
 #include "qemu/module.h"
 #include "hw/intc/arm_gicv3.h"
 #include "gicv3_internal.h"
+#include "hw/core/irq.h"
+#include "qemu/plugin.h"
 
 static bool irqbetter(GICv3CPUState *cs, int irq, uint8_t prio, bool nmi)
 {
@@ -434,6 +436,31 @@ static const MemoryRegionOps gic_ops[] = {
     }
 };
 
+static void gicv3_plugin_irq_inject(void *opaque, int irq, int cpu, bool pulse)
+{
+    DeviceState *dev = opaque;
+    GICv3State *s = ARM_GICV3(dev);
+
+    qemu_irq gic_irq;
+
+    if (irq >= GIC_INTERNAL) {
+        assert(irq < s->num_irq);
+
+        gic_irq = qdev_get_gpio_in(dev, irq - GIC_INTERNAL);
+    } else {
+        assert(cpu < s->num_cpu);
+
+        uint32_t offset = s->num_irq - GIC_INTERNAL + (cpu * GIC_INTERNAL) + irq;
+        gic_irq = qdev_get_gpio_in(dev, offset);
+    }
+
+    if (pulse) {
+        qemu_irq_pulse(gic_irq);
+    } else {
+        qemu_irq_raise(gic_irq);
+    }
+}
+
 static void arm_gic_realize(DeviceState *dev, Error **errp)
 {
     /* Device instance realize function for the GIC sysbus device */
@@ -450,6 +477,7 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
     gicv3_init_irqs_and_mmio(s, gicv3_set_irq, gic_ops);
 
     gicv3_init_cpuif(s);
+    plugin_register_intc(dev, gicv3_plugin_irq_inject);
 }
 
 static void arm_gicv3_class_init(ObjectClass *klass, const void *data)

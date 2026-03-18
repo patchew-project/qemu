@@ -29,6 +29,8 @@
 #include "trace.h"
 #include "system/kvm.h"
 #include "system/qtest.h"
+#include "qemu/plugin.h"
+
 
 /* #define DEBUG_GIC */
 
@@ -2096,6 +2098,31 @@ static const MemoryRegionOps gic_viface_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static void gic_plugin_irq_inject(void *opaque, int irq, int cpu, bool pulse)
+{
+    DeviceState *dev = opaque;
+    GICState *s = ARM_GIC(dev);
+
+    qemu_irq gic_irq;
+
+    if (irq >= GIC_INTERNAL) {
+        assert(irq < s->num_irq);
+
+        gic_irq = qdev_get_gpio_in(dev, irq - GIC_INTERNAL);
+    } else {
+        assert(cpu < s->num_cpu);
+
+        uint32_t offset = s->num_irq - GIC_INTERNAL + (cpu * GIC_INTERNAL) + irq;
+        gic_irq = qdev_get_gpio_in(dev, offset);
+    }
+
+    if (pulse) {
+        qemu_irq_pulse(gic_irq);
+    } else {
+        qemu_irq_raise(gic_irq);
+    }
+}
+
 static void arm_gic_realize(DeviceState *dev, Error **errp)
 {
     /* Device instance realize function for the GIC sysbus device */
@@ -2160,6 +2187,7 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
         }
     }
 
+    plugin_register_intc(dev, gic_plugin_irq_inject);
 }
 
 static void arm_gic_class_init(ObjectClass *klass, const void *data)
