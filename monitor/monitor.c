@@ -330,12 +330,11 @@ monitor_qapi_event_queue_no_reenter(QAPIEvent event, QDict *qdict)
 {
     MonitorQAPIEventConf *evconf;
     MonitorQAPIEventState *evstate;
-    bool throttled;
+    int64_t rate_limit;
 
     assert(event < QAPI_EVENT__MAX);
     evconf = &monitor_qapi_event_conf[event];
-    trace_monitor_protocol_event_queue(event, qdict, evconf->rate);
-    throttled = evconf->rate;
+    rate_limit = evconf->rate;
 
     /*
      * Rate limit BLOCK_IO_ERROR only for action != "stop".
@@ -350,13 +349,15 @@ monitor_qapi_event_queue_no_reenter(QAPIEvent event, QDict *qdict)
         QDict *data = qobject_to(QDict, qdict_get(qdict, "data"));
         const char *action = qdict_get_str(data, "action");
         if (!strcmp(action, "stop")) {
-            throttled = false;
+            rate_limit = 0;
         }
     }
 
+    trace_monitor_protocol_event_queue(event, qdict, rate_limit);
+
     QEMU_LOCK_GUARD(&monitor_lock);
 
-    if (!throttled) {
+    if (!rate_limit) {
         /* Unthrottled event */
         monitor_qapi_event_emit(event, qdict);
     } else {
@@ -368,7 +369,7 @@ monitor_qapi_event_queue_no_reenter(QAPIEvent event, QDict *qdict)
 
         if (evstate) {
             /*
-             * Timer is pending for (at least) evconf->rate ns after
+             * Timer is pending for (at least) @rate_limit ns after
              * last send.  Store event for sending when timer fires,
              * replacing a prior stored event if any.
              */
@@ -376,9 +377,9 @@ monitor_qapi_event_queue_no_reenter(QAPIEvent event, QDict *qdict)
             evstate->qdict = qobject_ref(qdict);
         } else {
             /*
-             * Last send was (at least) evconf->rate ns ago.
+             * Last send was (at least) @rate_limit ns ago.
              * Send immediately, and arm the timer to call
-             * monitor_qapi_event_handler() in evconf->rate ns.  Any
+             * monitor_qapi_event_handler() in @rate_limit ns.  Any
              * events arriving before then will be delayed until then.
              */
             int64_t now = qemu_clock_get_ns(monitor_get_event_clock());
@@ -393,7 +394,7 @@ monitor_qapi_event_queue_no_reenter(QAPIEvent event, QDict *qdict)
                                           monitor_qapi_event_handler,
                                           evstate);
             g_hash_table_add(monitor_qapi_event_state, evstate);
-            timer_mod_ns(evstate->timer, now + evconf->rate);
+            timer_mod_ns(evstate->timer, now + rate_limit);
         }
     }
 }
