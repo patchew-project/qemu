@@ -46,6 +46,10 @@ struct qemu_laiocb {
     size_t nbytes;
     QEMUIOVector *qiov;
 
+    /* For handling short reads/writes */
+    size_t total_done;
+    QEMUIOVector resubmit_qiov;
+
     int type;
     BdrvRequestFlags flags;
     uint64_t dev_max_batch;
@@ -73,10 +77,31 @@ struct LinuxAioState {
 };
 
 static void ioq_submit(LinuxAioState *s);
+static int laio_do_submit(struct qemu_laiocb *laiocb);
 
 static inline ssize_t io_event_ret(struct io_event *ev)
 {
     return (ssize_t)(((uint64_t)ev->res2 << 32) | ev->res);
+}
+
+/**
+ * Retry tail of short requests.
+ */
+static int laio_resubmit_short_io(struct qemu_laiocb *laiocb, size_t done)
+{
+    QEMUIOVector *resubmit_qiov = &laiocb->resubmit_qiov;
+
+    laiocb->total_done += done;
+
+    if (!resubmit_qiov->iov) {
+        qemu_iovec_init(resubmit_qiov, laiocb->qiov->niov);
+    } else {
+        qemu_iovec_reset(resubmit_qiov);
+    }
+    qemu_iovec_concat(resubmit_qiov, laiocb->qiov,
+                      laiocb->total_done, laiocb->nbytes - laiocb->total_done);
+
+    return laio_do_submit(laiocb);
 }
 
 /*
@@ -84,17 +109,29 @@ static inline ssize_t io_event_ret(struct io_event *ev)
  */
 static void qemu_laio_process_completion(struct qemu_laiocb *laiocb)
 {
-    int ret;
+    ssize_t ret;
 
     ret = laiocb->ret;
     if (ret != -ECANCELED) {
-        if (ret == laiocb->nbytes) {
+        if (ret == laiocb->nbytes - laiocb->total_done) {
             ret = 0;
+        } else if (ret > 0 && (laiocb->type == QEMU_AIO_READ ||
+                               laiocb->type == QEMU_AIO_WRITE)) {
+            ret = laio_resubmit_short_io(laiocb, ret);
+            if (!ret) {
+                return;
+            }
         } else if (ret >= 0) {
-            /* Short reads mean EOF, pad with zeros. */
+            /*
+             * For normal reads and writes, we only get here if ret == 0, which
+             * means EOF for reads and ENOSPC for writes.
+             * For zone-append, we get here with any ret >= 0, which we just
+             * treat as ENOSPC, too (safer than resubmitting, probably, but not
+             * 100 % clear).
+             */
             if (laiocb->type == QEMU_AIO_READ) {
-                qemu_iovec_memset(laiocb->qiov, ret, 0,
-                    laiocb->qiov->size - ret);
+                qemu_iovec_memset(laiocb->qiov, laiocb->total_done, 0,
+                                  laiocb->qiov->size - laiocb->total_done);
             } else {
                 ret = -ENOSPC;
             }
@@ -102,6 +139,7 @@ static void qemu_laio_process_completion(struct qemu_laiocb *laiocb)
     }
 
     laiocb->ret = ret;
+    qemu_iovec_destroy(&laiocb->resubmit_qiov);
 
     /*
      * If the coroutine is already entered it must be in ioq_submit() and
@@ -380,23 +418,30 @@ static int laio_do_submit(struct qemu_laiocb *laiocb)
     int fd = laiocb->fd;
     off_t offset = laiocb->offset;
 
+    if (laiocb->resubmit_qiov.iov) {
+        qiov = &laiocb->resubmit_qiov;
+    }
+
     switch (laiocb->type) {
     case QEMU_AIO_WRITE:
 #ifdef HAVE_IO_PREP_PWRITEV2
     {
         int laio_flags = (laiocb->flags & BDRV_REQ_FUA) ? RWF_DSYNC : 0;
-        io_prep_pwritev2(iocbs, fd, qiov->iov, qiov->niov, offset, laio_flags);
+        io_prep_pwritev2(iocbs, fd, qiov->iov, qiov->niov,
+                         offset + laiocb->total_done, laio_flags);
     }
 #else
         assert(laiocb->flags == 0);
-        io_prep_pwritev(iocbs, fd, qiov->iov, qiov->niov, offset);
+        io_prep_pwritev(iocbs, fd, qiov->iov, qiov->niov,
+                        offset + laiocb->total_done);
 #endif
         break;
     case QEMU_AIO_ZONE_APPEND:
         io_prep_pwritev(iocbs, fd, qiov->iov, qiov->niov, offset);
         break;
     case QEMU_AIO_READ:
-        io_prep_preadv(iocbs, fd, qiov->iov, qiov->niov, offset);
+        io_prep_preadv(iocbs, fd, qiov->iov, qiov->niov,
+                       offset + laiocb->total_done);
         break;
     case QEMU_AIO_FLUSH:
         io_prep_fdsync(iocbs, fd);
