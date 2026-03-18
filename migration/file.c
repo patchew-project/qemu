@@ -254,16 +254,15 @@ int file_write_ramblock_iov(QIOChannel *ioc, const struct iovec *iov,
 
 int multifd_file_recv_data(MultiFDRecvParams *p, Error **errp)
 {
+    ERRP_GUARD();
     MultiFDRecvData *data = p->data;
-    size_t ret;
+    int ret;
 
-    ret = qio_channel_pread(p->c, (char *) data->opaque,
-                            data->size, data->file_offset, errp);
-    if (ret != data->size) {
-        error_prepend(errp,
-                      "multifd recv (%u): read 0x%zx, expected 0x%zx",
-                      p->id, ret, data->size);
-        return -1;
+    ret = qio_channel_pread_all(p->c, (char *) data->opaque,
+                                data->size, data->file_offset, errp);
+    if (ret < 0) {
+        error_prepend(errp, "multifd recv (%u): ", p->id);
+        return ret;
     }
 
     return 0;
