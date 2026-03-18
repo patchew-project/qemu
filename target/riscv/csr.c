@@ -776,6 +776,16 @@ static RISCVException pmp(CPURISCVState *env, int csrno)
     return RISCV_EXCP_ILLEGAL_INST;
 }
 
+static RISCVException spmp(CPURISCVState *env, int csrno)
+{
+    if (!riscv_cpu_cfg(env)->spmp) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
+    /* SPMP can only exist, if smode exists */
+    return smode(env, csrno);
+}
+
 static RISCVException have_mseccfg(CPURISCVState *env, int csrno)
 {
     if (riscv_cpu_cfg(env)->ext_smepmp) {
@@ -2486,6 +2496,12 @@ static bool xiselect_ctr_range(int csrno, target_ulong isel)
            csrno < CSR_MIREG;
 }
 
+static bool xiselect_spmp_range(target_ulong isel)
+{
+    return (ISELECT_SPMP_BASE <= isel &&
+            isel <= ISELECT_SPMP_BASE + MAX_RISCV_SPMPS);
+}
+
 static int rmw_iprio(target_ulong xlen,
                      target_ulong iselect, uint8_t *iprio,
                      target_ulong *val, target_ulong new_val,
@@ -2822,6 +2838,9 @@ static int rmw_xireg_ctr(CPURISCVState *env, int csrno,
     return 0;
 }
 
+static int rmw_xireg_spmp(CPURISCVState *env, int csrno,
+                        target_ulong isel, target_ulong *val,
+                        target_ulong new_val, target_ulong wr_mask);
 /*
  * rmw_xireg_csrind: Perform indirect access to xireg and xireg2-xireg6
  *
@@ -2840,6 +2859,14 @@ static int rmw_xireg_csrind(CPURISCVState *env, int csrno,
         ret = rmw_xireg_cd(env, csrno, isel, val, new_val, wr_mask);
     } else if (xiselect_ctr_range(csrno, isel)) {
         ret = rmw_xireg_ctr(env, csrno, isel, val, new_val, wr_mask);
+    } else if (xiselect_spmp_range(isel)) {
+        /* Is SPMP enabled? */
+        ret = spmp(env, csrno);
+        if (ret != RISCV_EXCP_NONE) {
+            return ret;
+        }
+
+        ret = rmw_xireg_spmp(env, csrno, isel, val, new_val, wr_mask);
     } else {
         /*
          * As per the specification, access to unimplented region is undefined
@@ -5391,6 +5418,52 @@ static RISCVException write_pmpaddr(CPURISCVState *env, int csrno,
 {
     pmpaddr_csr_write(env, csrno - CSR_PMPADDR0, val);
     return RISCV_EXCP_NONE;
+}
+
+static int rmw_xireg_spmp(CPURISCVState *env, int csrno,
+                        target_ulong isel, target_ulong *val,
+                        target_ulong new_val, target_ulong wr_mask)
+{
+    int index = 0;
+    bool m_mode_access = false;
+
+    /* Read 0 and write ignore if no rules are delegated */
+    if (env->spmp_state.num_deleg_rules == 0) {
+        *val = 0;
+        return 0;
+    }
+
+    index = isel - ISELECT_SPMP_BASE;
+
+    switch (csrno) {
+    case CSR_MIREG:
+        /* If M mode, signal it */
+        m_mode_access = true;
+        [[fallthrough]];
+    case CSR_SIREG:
+        if (val) {
+            *val = spmpaddr_csr_read(env, index);
+        }
+
+        spmpaddr_csr_write(env, index, new_val & wr_mask, m_mode_access);
+        break;
+    case CSR_MIREG2:
+        /* If M mode, signal it */
+        m_mode_access = true;
+        [[fallthrough]];
+    case CSR_SIREG2:
+        index = isel - ISELECT_SPMP_BASE;
+        if (val) {
+            *val = spmpcfg_csr_read(env, index);
+        }
+
+        spmpcfg_csr_write(env, index, new_val & wr_mask, m_mode_access);
+        break;
+    default:
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
+    return 0;
 }
 
 static RISCVException read_tselect(CPURISCVState *env, int csrno,

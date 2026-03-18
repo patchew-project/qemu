@@ -1051,6 +1051,9 @@ typedef enum CTRType {
 #define ISELECT_CD_LAST                    0x5f
 #define ISELECT_MASK_SXCSRIND              0xfff
 
+/* SPMP Values for Indirect CSR Access Extension */
+#define ISELECT_SPMP_BASE                  0x100
+
 /* Dummy [M|S|VS]ISELECT value for emulating [M|S|VS]TOPEI CSRs */
 #define ISELECT_IMSIC_TOPEI                (ISELECT_MASK_AIA + 1)
 
