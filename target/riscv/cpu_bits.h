@@ -449,6 +449,8 @@
 #define CSR_PMPADDR62       0x3ee
 #define CSR_PMPADDR63       0x3ef
 
+#define CSR_MPMPDELEG       0x316
+
 /* RNMI */
 #define CSR_MNSCRATCH       0x740
 #define CSR_MNEPC           0x741

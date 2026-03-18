@@ -186,6 +186,12 @@ static bool pmp_write_cfg(CPURISCVState *env, uint32_t pmp_index, uint8_t val)
                     return false;
             }
             env->pmp_state.pmp[pmp_index].cfg_reg = val;
+
+            if ((val & PMP_LOCK) &&
+                env->pmp_state.last_locked_rule < (signed int)pmp_index) {
+                env->pmp_state.last_locked_rule = pmp_index;
+            }
+
             pmp_update_rule_addr(env, pmp_index);
             return true;
         }
@@ -205,6 +211,8 @@ void pmp_unlock_entries(CPURISCVState *env)
     for (i = 0; i < pmp_num; i++) {
         env->pmp_state.pmp[i].cfg_reg &= ~(PMP_LOCK | PMP_AMATCH);
     }
+
+    env->pmp_state.last_locked_rule = -1;
 }
 
 static void pmp_decode_napot(hwaddr a, hwaddr *sa, hwaddr *ea)
@@ -401,11 +409,15 @@ bool pmp_hart_has_privs(CPURISCVState *env, hwaddr addr,
         pmp_size = size;
     }
 
+    /* If SPMP is enabled, use the MPMP delegation */
+    uint8_t max_pmp_index =
+        (riscv_cpu_cfg(env)->spmp) ? (env->mpmpdeleg & 0x7F) : pmp_regions;
+
     /*
      * 1.10 draft priv spec states there is an implicit order
      * from low to high
      */
-    for (i = 0; i < pmp_regions; i++) {
+    for (i = 0; i < max_pmp_index; i++) {
         s = pmp_is_in_range(env, i, addr);
         e = pmp_is_in_range(env, i, addr + pmp_size - 1);
 

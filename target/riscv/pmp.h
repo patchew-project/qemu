@@ -65,6 +65,7 @@ typedef struct {
     pmp_entry_t pmp[MAX_RISCV_PMPS];
     pmp_addr_t  addr[MAX_RISCV_PMPS];
     uint32_t num_rules;
+    signed char last_locked_rule;
 } pmp_table_t;
 
 void pmpcfg_csr_write(CPURISCVState *env, uint32_t reg_index,

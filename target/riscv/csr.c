@@ -5466,6 +5466,30 @@ static int rmw_xireg_spmp(CPURISCVState *env, int csrno,
     return 0;
 }
 
+/* S-mode Physical Memory Protection */
+static RISCVException rmw_mpmpdeleg(CPURISCVState *env, int csrno,
+                                    target_ulong *ret_val,
+                                    target_ulong new_val, target_ulong wr_mask)
+{
+    uint16_t new_mpmpdeleg = (env->mpmpdeleg & ~wr_mask) | (new_val & wr_mask);
+
+    if (ret_val) {
+        *ret_val = env->mpmpdeleg;
+    }
+
+    /*
+     * pmpnum is locked if MSECCFG_MML is set
+     * and if new_mpmpdeleg is higher than last locked rule
+     */
+    if (!(env->mseccfg & MSECCFG_MML) &&
+        (new_mpmpdeleg & 0x7F) > env->pmp_state.last_locked_rule) {
+        env->mpmpdeleg = new_mpmpdeleg & 0x7F;
+    }
+
+    env->spmp_state.num_deleg_rules = MPMP_DELEG_DEFAULT - env->mpmpdeleg;
+    return RISCV_EXCP_NONE;
+}
+
 static RISCVException read_tselect(CPURISCVState *env, int csrno,
                                    target_ulong *val)
 {
@@ -6462,6 +6486,9 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
     [CSR_PMPADDR63]  = { "pmpaddr63", pmp, read_pmpaddr, write_pmpaddr,
                          .min_priv_ver = PRIV_VERSION_1_12_0           },
+
+    /* S-mode Physical Memory Protection */
+    [CSR_MPMPDELEG]   = { "mpmpdeleg", spmp, NULL, NULL, rmw_mpmpdeleg },
 
     /* Debug CSRs */
     [CSR_TSELECT]   =  { "tselect",  debug, read_tselect,  write_tselect  },
