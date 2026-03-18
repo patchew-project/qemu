@@ -319,17 +319,9 @@ static void monitor_qapi_event_emit(QAPIEvent event, QDict *qdict)
     }
 }
 
-static void monitor_qapi_event_handler(void *opaque);
-
-/*
- * Queue a new event for emission to Monitor instances,
- * applying any rate limiting if required.
- */
-static void
-monitor_qapi_event_queue_no_reenter(QAPIEvent event, QDict *qdict)
+static int64_t monitor_event_rate_limit(QAPIEvent event, QDict *data)
 {
     MonitorQAPIEventConf *evconf;
-    MonitorQAPIEventState *evstate;
     int64_t rate_limit;
 
     assert(event < QAPI_EVENT__MAX);
@@ -346,12 +338,27 @@ monitor_qapi_event_queue_no_reenter(QAPIEvent event, QDict *qdict)
      * limited, so we can do without rate limiting.
      */
     if (event == QAPI_EVENT_BLOCK_IO_ERROR) {
-        QDict *data = qobject_to(QDict, qdict_get(qdict, "data"));
         const char *action = qdict_get_str(data, "action");
         if (!strcmp(action, "stop")) {
             rate_limit = 0;
         }
     }
+
+    return rate_limit;
+}
+
+static void monitor_qapi_event_handler(void *opaque);
+
+/*
+ * Queue a new event for emission to Monitor instances,
+ * applying any rate limiting if required.
+ */
+static void
+monitor_qapi_event_queue_no_reenter(QAPIEvent event, QDict *qdict)
+{
+    QDict *data = qobject_to(QDict, qdict_get(qdict, "data"));
+    int64_t rate_limit = monitor_event_rate_limit(event, data);
+    MonitorQAPIEventState *evstate;
 
     trace_monitor_protocol_event_queue(event, qdict, rate_limit);
 
@@ -361,7 +368,6 @@ monitor_qapi_event_queue_no_reenter(QAPIEvent event, QDict *qdict)
         /* Unthrottled event */
         monitor_qapi_event_emit(event, qdict);
     } else {
-        QDict *data = qobject_to(QDict, qdict_get(qdict, "data"));
         MonitorQAPIEventState key = { .event = event, .data = data };
 
         evstate = g_hash_table_lookup(monitor_qapi_event_state, &key);
