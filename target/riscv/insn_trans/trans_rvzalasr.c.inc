@@ -49,20 +49,20 @@ static bool trans_lb_aqrl(DisasContext *ctx, arg_lb_aqrl *a)
 static bool trans_lh_aqrl(DisasContext *ctx, arg_lh_aqrl *a)
 {
     REQUIRE_ZALASR(ctx);
-    return gen_load_acquire(ctx, a, (MO_ALIGN | MO_TESW));
+    return gen_load_acquire(ctx, a, (MO_ALIGN | MO_TE | MO_SW));
 }
 
 static bool trans_lw_aqrl(DisasContext *ctx, arg_lw_aqrl *a)
 {
     REQUIRE_ZALASR(ctx);
-    return gen_load_acquire(ctx, a, (MO_ALIGN | MO_TESL));
+    return gen_load_acquire(ctx, a, (MO_ALIGN | MO_TE | MO_SL));
 }
 
 static bool trans_ld_aqrl(DisasContext *ctx, arg_ld_aqrl *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_ZALASR(ctx);
-    return gen_load_acquire(ctx, a, (MO_ALIGN | MO_TEUQ));
+    return gen_load_acquire(ctx, a, (MO_ALIGN | MO_TE | MO_UQ));
 }
 
 static bool gen_store_release(DisasContext *ctx, arg_sb_aqrl *a, MemOp memop)
@@ -96,18 +96,18 @@ static bool trans_sb_aqrl(DisasContext *ctx, arg_sb_aqrl *a)
 static bool trans_sh_aqrl(DisasContext *ctx, arg_sh_aqrl *a)
 {
     REQUIRE_ZALASR(ctx);
-    return gen_store_release(ctx, a, (MO_ALIGN | MO_TESW));
+    return gen_store_release(ctx, a, (MO_ALIGN | MO_TE | MO_SW));
 }
 
 static bool trans_sw_aqrl(DisasContext *ctx, arg_sw_aqrl *a)
 {
     REQUIRE_ZALASR(ctx);
-    return gen_store_release(ctx, a, (MO_ALIGN | MO_TESL));
+    return gen_store_release(ctx, a, (MO_ALIGN | MO_TE | MO_SL));
 }
 
 static bool trans_sd_aqrl(DisasContext *ctx, arg_sd_aqrl *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_ZALASR(ctx);
-    return gen_store_release(ctx, a, (MO_ALIGN | MO_TEUQ));
+    return gen_store_release(ctx, a, (MO_ALIGN | MO_TE | MO_UQ));
 }

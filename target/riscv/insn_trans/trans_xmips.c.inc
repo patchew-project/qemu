@@ -56,11 +56,11 @@ static bool trans_ldp(DisasContext *ctx, arg_ldp *a)
     TCGv addr = tcg_temp_new();
 
     tcg_gen_addi_tl(addr, src, a->imm_y);
-    tcg_gen_qemu_ld_tl(dest0, addr, ctx->mem_idx, MO_TESQ);
+    tcg_gen_qemu_ld_tl(dest0, addr, ctx->mem_idx, MO_TE | MO_SQ);
     gen_set_gpr(ctx, a->rd, dest0);
 
     tcg_gen_addi_tl(addr, addr, 8);
-    tcg_gen_qemu_ld_tl(dest1, addr, ctx->mem_idx, MO_TESQ);
+    tcg_gen_qemu_ld_tl(dest1, addr, ctx->mem_idx, MO_TE | MO_SQ);
     gen_set_gpr(ctx, a->rs3, dest1);
 
     return true;
@@ -77,11 +77,11 @@ static bool trans_lwp(DisasContext *ctx, arg_lwp *a)
     TCGv addr = tcg_temp_new();
 
     tcg_gen_addi_tl(addr, src, a->imm_x);
-    tcg_gen_qemu_ld_tl(dest0, addr, ctx->mem_idx, MO_TESL);
+    tcg_gen_qemu_ld_tl(dest0, addr, ctx->mem_idx, MO_TE | MO_SL);
     gen_set_gpr(ctx, a->rd, dest0);
 
     tcg_gen_addi_tl(addr, addr, 4);
-    tcg_gen_qemu_ld_tl(dest1, addr, ctx->mem_idx, MO_TESL);
+    tcg_gen_qemu_ld_tl(dest1, addr, ctx->mem_idx, MO_TE | MO_SL);
     gen_set_gpr(ctx, a->rs3, dest1);
 
     return true;
@@ -99,10 +99,10 @@ static bool trans_sdp(DisasContext *ctx, arg_sdp *a)
     TCGv addr = tcg_temp_new();
 
     tcg_gen_addi_tl(addr, src, a->imm_w);
-    tcg_gen_qemu_st_tl(data0, addr, ctx->mem_idx, MO_TEUQ);
+    tcg_gen_qemu_st_tl(data0, addr, ctx->mem_idx, MO_TE | MO_UQ);
 
     tcg_gen_addi_tl(addr, addr, 8);
-    tcg_gen_qemu_st_tl(data1, addr, ctx->mem_idx, MO_TEUQ);
+    tcg_gen_qemu_st_tl(data1, addr, ctx->mem_idx, MO_TE | MO_UQ);
 
     return true;
 }
@@ -118,10 +118,10 @@ static bool trans_swp(DisasContext *ctx, arg_swp *a)
     TCGv addr = tcg_temp_new();
 
     tcg_gen_addi_tl(addr, src, a->imm_v);
-    tcg_gen_qemu_st_tl(data0, addr, ctx->mem_idx, MO_TESL);
+    tcg_gen_qemu_st_tl(data0, addr, ctx->mem_idx, MO_TE | MO_SL);
 
     tcg_gen_addi_tl(addr, addr, 4);
-    tcg_gen_qemu_st_tl(data1, addr, ctx->mem_idx, MO_TESL);
+    tcg_gen_qemu_st_tl(data1, addr, ctx->mem_idx, MO_TE | MO_SL);
 
     return true;
 }
