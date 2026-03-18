@@ -35,6 +35,7 @@
 #include "hw/core/boards.h"
 #include "migration/vmstate.h"
 #include "system/address-spaces.h"
+#include "qemu/plugin.h"
 
 #include "memory-internal.h"
 
@@ -1448,6 +1449,10 @@ static MemTxResult memory_region_dispatch_read1(MemoryRegion *mr,
 {
     *pval = 0;
 
+
+    if (plugin_mmio_override_cb_invoke(mr->addr + addr, size, false, pval))
+        return MEMTX_OK;
+
     if (mr->ops->read) {
         return access_with_adjusted_size(addr, pval, size,
                                          mr->ops->impl.min_access_size,
@@ -1532,6 +1537,9 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
     }
 
     adjust_endianness(mr, &data, op);
+
+    if (plugin_mmio_override_cb_invoke(mr->addr + addr, size, true, &data))
+        return MEMTX_OK;
 
     /*
      * FIXME: it's not clear why under KVM the write would be processed
