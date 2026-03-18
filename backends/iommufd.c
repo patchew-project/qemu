@@ -72,6 +72,12 @@ static bool iommufd_backend_can_be_deleted(UserCreatable *uc)
 
 static void iommufd_backend_complete(UserCreatable *uc, Error **errp)
 {
+    if (!g_file_test("/dev/iommu", G_FILE_TEST_EXISTS)) {
+        error_setg(errp, "/dev/iommu does not exist"
+                         " (is your kernel config missing CONFIG_IOMMUFD?)");
+        return;
+    }
+
     IOMMUFDBackend *be = IOMMUFD_BACKEND(uc);
     const char *name = iommufd_fd_name(be);
 
