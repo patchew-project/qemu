@@ -20,6 +20,7 @@
 #include "exec/gdbstub.h"
 #include "gdbstub/helpers.h"
 #include "cpu.h"
+#include "internals.h"
 
 struct TypeSize {
     const char *gdb_type;
@@ -49,7 +50,7 @@ static const struct TypeSize vec_lanes[] = {
 
 static uint64_t ldn(CPURISCVState *env, uint8_t *mem_buf, size_t regsz)
 {
-    return ldn_p(mem_buf, regsz);
+    return (mo_endian_env(env) == MO_LE ? ldn_le_p : ldn_be_p)(mem_buf, regsz);
 }
 
 int riscv_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
