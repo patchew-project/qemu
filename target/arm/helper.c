@@ -10239,4 +10239,59 @@ ARMSecuritySpace arm_security_space_below_el3(CPUARMState *env)
         return ARMSS_NonSecure;
     }
 }
+
+typedef struct {
+    int excp_index;
+    uint32_t syndrome;
+}  FIExcpAsync;
+
+static void fi_setup_exception(CPUState *cs, int excp_index, uint32_t syndrome)
+{
+    CPUARMState *env = cpu_env(cs);
+
+    cs->exception_index = excp_index;
+    env->exception.syndrome = syndrome;
+    env->exception.vaddress = env->pc;
+
+    if (excp_index == EXCP_VSERR) {
+        /* Serror syndrome constructed from vsesr_el2 */
+        env->cp15.vsesr_el2 = syndrome;
+    }
+
+    env->exception.target_el = arm_current_el(env);
+}
+
+static void arm_cpu_inject_exception_async(CPUState *cs, run_on_cpu_data data)
+{
+    FIExcpAsync *excp_data = (FIExcpAsync *)data.host_ptr;
+
+    fi_setup_exception(cs, excp_data->excp_index, excp_data->syndrome);
+
+    g_free(excp_data);
+}
+
+void arm_cpu_inject_exception(int excp_index, uint32_t syndrome)
+{
+    CPUState *cs = current_cpu;
+
+    if (!cs) {
+        /* If we called outside CPU thread (timer callback, etc) schedule async */
+        run_on_cpu_data async_data;
+        CPUState *cs0 = qemu_get_cpu(0);
+
+        FIExcpAsync *excp_data = g_new0(FIExcpAsync, 1);
+
+        excp_data->excp_index = excp_index;
+        excp_data->syndrome = syndrome;
+
+        async_data.host_ptr = excp_data;
+
+        async_run_on_cpu(cs0, arm_cpu_inject_exception_async, async_data);
+        return;
+    }
+
+    fi_setup_exception(cs, excp_index, syndrome);
+
+    cpu_loop_exit(cs);
+}
 #endif /* !CONFIG_USER_ONLY */

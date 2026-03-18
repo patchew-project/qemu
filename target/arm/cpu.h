@@ -2680,4 +2680,8 @@ extern const uint64_t pred_esz_masks[5];
 #define LOG2_TAG_GRANULE 4
 #define TAG_GRANULE      (1 << LOG2_TAG_GRANULE)
 
+#ifndef CONFIG_USER_ONLY
+void arm_cpu_inject_exception(int excp_index, uint32_t syndrome);
+#endif
+
 #endif
