@@ -1255,7 +1255,7 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx)
          * additional page fault.
          */
         opcode = translator_ldl_end(env, &ctx->base, ctx->base.pc_next,
-                                    mo_endian(ctx));
+                                    MO_LE);
     } else {
         /*
          * For unaligned pc, instruction preload may trigger additional
@@ -1263,7 +1263,7 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx)
          */
         opcode = (uint32_t) translator_lduw_end(env, &ctx->base,
                                                 ctx->base.pc_next,
-                                                mo_endian(ctx));
+                                                MO_LE);
     }
     ctx->ol = ctx->xl;
 
@@ -1285,7 +1285,7 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx)
             opcode = deposit32(opcode, 16, 16,
                                translator_lduw_end(env, &ctx->base,
                                                    ctx->base.pc_next + 2,
-                                                   mo_endian(ctx)));
+                                                   MO_LE));
         }
         ctx->opcode = opcode;
 
@@ -1401,7 +1401,7 @@ static void riscv_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
             if (page_ofs > TARGET_PAGE_SIZE - MAX_INSN_LEN) {
                 uint16_t next_insn =
                     translator_lduw_end(env, &ctx->base, ctx->base.pc_next,
-                                        mo_endian(ctx));
+                                        MO_LE);
                 int len = insn_len(next_insn);
 
                 if (!translator_is_same_page(&ctx->base, ctx->base.pc_next + len - 1)) {
