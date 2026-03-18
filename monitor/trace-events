@@ -6,7 +6,7 @@ handle_hmp_command(void *mon, const char *cmdline) "mon %p cmdline: %s"
 # monitor.c
 monitor_protocol_event_handler(uint32_t event, void *qdict) "event=%d data=%p"
 monitor_protocol_event_emit(uint32_t event, void *data) "event=%d data=%p"
-monitor_protocol_event_queue(uint32_t event, void *qdict, uint64_t rate) "event=%d data=%p rate=%" PRId64
+monitor_protocol_event_queue(uint32_t event, void *qdict, bool rate_limited) "event=%d data=%p rate_limited=%d"
 monitor_suspend(void *ptr, int cnt) "mon %p: %d"
 
 # qmp.c
