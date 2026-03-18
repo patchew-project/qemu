@@ -1350,6 +1350,12 @@ void qemu_plugin_u64_set(qemu_plugin_u64 entry, unsigned int vcpu_index,
 QEMU_PLUGIN_API
 uint64_t qemu_plugin_u64_sum(qemu_plugin_u64 entry);
 
+QEMU_PLUGIN_API
+uint64_t qemu_plugin_get_virtual_clock_ns(void);
+
+QEMU_PLUGIN_API
+void qemu_plugin_timer_virt_ns(uint64_t time, void (*cb)(void*), void *opaque);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

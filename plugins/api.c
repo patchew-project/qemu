@@ -39,6 +39,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/plugin.h"
 #include "qemu/log.h"
+#include "qemu/timer.h"
 #include "system/memory.h"
 #include "tcg/tcg.h"
 #include "exec/cpu-common.h"
@@ -686,3 +687,31 @@ uint64_t qemu_plugin_u64_sum(qemu_plugin_u64 entry)
     return total;
 }
 
+typedef struct {
+    void (*cb)(void *opaque);
+    void* opaque;
+    QEMUTimer *timer;
+} qemu_plugin_timer_data;
+
+static void timer_cb(void* opaque)
+{
+    qemu_plugin_timer_data *data = (qemu_plugin_timer_data*)opaque;
+
+    data->cb(data->opaque);
+
+    timer_free(data->timer);
+    g_free(data);
+}
+
+QEMU_PLUGIN_API
+void qemu_plugin_timer_virt_ns(uint64_t time, void (*cb)(void*), void *opaque)
+{
+    qemu_plugin_timer_data* data = g_new0(qemu_plugin_timer_data, 1);
+
+    data->cb = cb;
+    data->opaque = opaque;
+
+    data->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, timer_cb, data);
+
+    timer_mod(data->timer, time);
+}
