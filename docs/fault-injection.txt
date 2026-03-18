@@ -1,0 +1,111 @@
+QEMU FAULT INJECTION PLUGIN DOCUMENTATION
+=========================================
+
+OVERVIEW
+--------
+The Fault Injection (FI) plugin is a testing tool for guest operating systems running in QEMU. It allows you to test how a guest OS or driver handles hardware-level errors. Currently, only AArch64 (ARM64) guest systems are supported.
+
+Errors (faults) can be injected in two ways:
+1. Statically using a configuration file when QEMU starts.
+2. Dynamically using a UNIX socket while the system is running.
+
+
+USAGE
+-----
+To use the plugin, add the "-plugin" option to the QEMU command.
+
+Command Line Examples:
+
+1. Using a static XML config file:
+qemu-system-aarch64 -machine virt -cpu cortex-a57 -plugin ./contrib/plugins/libfault_injection.so,config=faults.xml
+
+2. Using a dynamic UNIX socket:
+qemu-system-aarch64 -machine virt -cpu cortex-a57 -plugin ./contrib/plugins/libfault_injection.so,socket=/tmp/fi_socket.sock
+
+3. Using both at the same time:
+qemu-system-aarch64 -machine virt -cpu cortex-a57 -plugin ./contrib/plugins/libfault_injection.so,config=faults.xml,socket=/tmp/fi_socket.sock
+
+To send a dynamic fault over the socket while QEMU is running, an XML string can be sent directly to the socket file.
+
+
+CORE CONCEPTS
+-------------
+A fault configuration has two main parts:
+- Trigger: When should the fault happen? (Example: when the CPU reaches a specific address).
+- Target: What should be corrupted or injected? (Example: change a CPU register).
+
+SUPPORTED TRIGGERS:
+- PC      : Triggers when the CPU executes an instruction at a specific Virtual Address.
+- SYS_REG : Triggers when the guest reads a specific System Register (like cntvct_el0).
+- RAM     : Triggers when the guest accesses a specific Virtual Address in memory.
+- MMIO    : Triggers when the guest reads from a hardware device at a Physical Address.
+- TIMER   : Triggers at a specific guest virtual time (in nanoseconds).
+
+SUPPORTED TARGETS:
+- CPU_REG : Changes a CPU register (x0 to x30).
+- RAM     : Overwrites physical memory with a fake value.
+- MMIO    : Modifies a hardware device read with a fake value.
+- IRQ     : Injects a hardware interrupt into the primary INTC.
+- EXCP    : Injects a CPU exception (like an SError).
+- CUSTOM  : Triggers a custom device error (custom handler registered by device model).
+
+
+XML CONFIGURATION FORMAT
+------------------------
+The plugin uses a simple XML format. Each fault is defined by a <Fault /> tag. Multiple fault tags can be added inside one file by wrapping them in a <Faults> block.
+
+The following attributes can be used in the tag:
+- trigger           : The event that starts the fault (PC, TIMER, etc.).
+- trigger_condition : The value needed to activate the trigger (Address, Time, or System Register Name).
+- target            : The system part to corrupt (CPU_REG, IRQ, etc.). This is optional for RAM and MMIO triggers.
+- target_data       : The specific ID or address of the target.
+- fault_data        : The corrupted value to inject.
+- size              : (Optional) Size in bytes for memory operations. Default is 8.
+- cpu               : (Optional) CPU index for IRQs. Default is 0.
+- irq_type          : (Optional) For IRQs. Can be SPI, PPI, or SGI. Default is SPI.
+- fault_name        : (Optional) Required only for CUSTOM targets (string with the name of the custom fault).
+
+
+EXAMPLES
+--------
+
+Example 1: Corrupt a CPU Register on a Specific Instruction
+This changes register x1 to 0 when the CPU executes the instruction at virtual address 0xa00002e7714.
+
+<Faults>
+    <Fault trigger="PC" trigger_condition="0xa00002e7714" target="CPU_REG" target_data="1" fault_data="0" />
+</Faults>
+
+
+Example 2: Modify an MMIO Read
+When the guest OS tries to read a hardware device at physical address 0x0800FFE8, the plugin ignores the real hardware and returns the fake value 0x0.
+
+<Faults>
+    <Fault trigger="MMIO" trigger_condition="0x0800FFE8" fault_data="0" />
+</Faults>
+
+
+Example 3: Inject a Hardware Interrupt using a Timer
+This injects SPI interrupt number 77 into CPU 0 after 10s of virtual guest time and modifies the results of MMIO reads starting at this time.
+
+<Faults>
+    <Fault trigger="TIMER" trigger_condition="10000000000" target="IRQ" target_data="77" fault_data="0" />
+    <Fault trigger="TIMER" trigger_condition="10000000000" target="MMIO" target_data="0x09050060" fault_data="0x180" />
+    <Fault trigger="TIMER" trigger_condition="10000000000" target="MMIO" target_data="0x09050064" fault_data="0x0" />
+</Faults>
+
+
+Example 4: Trigger a Custom SMMUv3 Command Queue Error
+After 10s of guest virtual time, this injects a custom SMMUv3 Command Queue error into the SMMU device located at 0x09050000.
+
+<Faults>
+    <Fault trigger="TIMER" trigger_condition="10000000000" target="CUSTOM" fault_name="smmu_gerror_cmdq" target_data="0x09050000" fault_data="1" />
+</Faults>
+
+
+Example 5: Inject a CPU Exception (SError)
+This injects a Virtual SError (Exception Index 24) when the CPU executes the instruction at 0xffff8000802dfed0. The syndrome register is set to the value 0xbf000002.
+
+<Faults>
+    <Fault trigger="PC" trigger_condition="0xffff8000802dfed0" target="EXCP" target_data="24" fault_data="0xbf000002" />
+</Faults>
