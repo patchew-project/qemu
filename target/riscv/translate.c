@@ -135,7 +135,7 @@ static inline MemOp mo_endian(DisasContext *ctx)
      *  - MSTATUS_MBE (Machine-mode)
      * but we don't implement that yet.
      */
-    return MO_TE;
+    return MO_LE;
 }
 
 #ifdef TARGET_RISCV32

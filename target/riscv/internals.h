@@ -71,7 +71,7 @@ static inline MemOp mo_endian_env(CPURISCVState *env)
      *  - MSTATUS_MBE (Machine-mode)
      * but we don't implement that yet.
      */
-    return MO_TE;
+    return MO_LE;
 }
 
 /* share data between vector helpers and decode code */
