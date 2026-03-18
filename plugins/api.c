@@ -721,3 +721,30 @@ void qemu_plugin_timer_virt_ns(uint64_t time, void (*cb)(void*), void *opaque)
 
     timer_mod(data->timer, time);
 }
+
+uint64_t qemu_plugin_get_virtual_clock_ns(void)
+{
+    return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+}
+
+void qemu_plugin_register_mmio_override_cb(qemu_plugin_id_t id,
+                                           qemu_plugin_mmio_override_cb_t cb)
+{
+    plugin_register_mmio_override_cb(id, cb);
+}
+
+void qemu_plugin_inject_irq(int irq_num, int cpu, bool pulse)
+{
+    plugin_inject_irq(irq_num, cpu, pulse);
+}
+
+void qemu_plugin_inject_exception(int excp_index, uint32_t data)
+{
+    plugin_inject_exception(excp_index, data);
+}
+
+void qemu_plugin_trigger_custom_fault(const char *fault_name,
+                                      void *target_data, void *fault_data)
+{
+    plugin_trigger_custom_fault(fault_name, target_data, fault_data);
+}

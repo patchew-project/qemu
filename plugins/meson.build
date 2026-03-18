@@ -86,3 +86,4 @@ system_ss.add(files('api.c', 'core.c'))
 
 common_ss.add(files('loader.c'))
 
+specific_ss.add(files('fault.c'))

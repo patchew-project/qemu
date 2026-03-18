@@ -43,6 +43,11 @@ get_plugin_meminfo_rw(qemu_plugin_meminfo_t i)
     return i >> 16;
 }
 
+typedef void (*plugin_irq_inject_cb) (void *opaque, int irq,
+                                      int cpu, bool pulse);
+
+typedef void (*plugin_custom_fault_cb)(void *target_data, void *fault_data);
+
 #ifdef CONFIG_PLUGIN
 extern QemuOptsList qemu_plugin_opts;
 
@@ -234,6 +239,27 @@ static inline enum qemu_plugin_cb_flags qemu_plugin_get_cb_flags(void)
     return current_cpu->neg.plugin_cb_flags;
 }
 
+void plugin_register_mmio_override_cb(qemu_plugin_id_t id,
+                                      qemu_plugin_mmio_override_cb_t cb);
+
+bool plugin_mmio_override_cb_invoke(uint64_t hwaddr,
+                                    uint64_t size,
+                                    bool is_write,
+                                    uint64_t* data);
+
+void plugin_register_intc(void *opaque, plugin_irq_inject_cb cb);
+
+void plugin_inject_irq(int irq_num, int cpu, bool pulse);
+
+void plugin_inject_exception(int excp_index, uint32_t data);
+
+void plugin_register_custom_fault(const char *fault_name,
+                                  plugin_custom_fault_cb cb);
+
+void plugin_trigger_custom_fault(const char* fault_name, void *target_data,
+                                 void *fault_data);
+
+
 #else /* !CONFIG_PLUGIN */
 
 static inline void qemu_plugin_add_opts(void)
@@ -322,6 +348,19 @@ static inline void qemu_plugin_user_prefork_lock(void)
 { }
 
 static inline void qemu_plugin_user_postfork(bool is_child)
+{ }
+
+static inline bool plugin_mmio_override_cb_invoke(uint64_t hwaddr,
+                                                  uint64_t size,
+                                                  bool is_write,
+                                                  void* data)
+{ return false; }
+
+static void plugin_register_intc(void *opaque, plugin_irq_inject_cb cb)
+{ }
+
+static void plugin_register_custom_fault(const char *fault_name,
+                                         plugin_custom_fault_cb cb)
 { }
 
 #endif /* !CONFIG_PLUGIN */

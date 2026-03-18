@@ -1359,6 +1359,25 @@ uint64_t qemu_plugin_get_virtual_clock_ns(void);
 QEMU_PLUGIN_API
 void qemu_plugin_timer_virt_ns(uint64_t time, void (*cb)(void*), void *opaque);
 
+typedef bool (*qemu_plugin_mmio_override_cb_t)(uint64_t hwaddr,
+                                               unsigned size,
+                                               bool is_write,
+                                               uint64_t *value);
+
+QEMU_PLUGIN_API
+void qemu_plugin_register_mmio_override_cb(qemu_plugin_id_t id,
+                                           qemu_plugin_mmio_override_cb_t cb);
+
+QEMU_PLUGIN_API
+void qemu_plugin_inject_irq(int irq_num, int cpu, bool pulse);
+
+QEMU_PLUGIN_API
+void qemu_plugin_inject_exception(int excp_index, uint32_t data);
+
+QEMU_PLUGIN_API
+void qemu_plugin_trigger_custom_fault(const char *fault_name, void *target_data,
+                                      void *fault_data);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
