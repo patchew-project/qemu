@@ -1761,6 +1761,27 @@ static void create_tag_ram(MemoryRegion *tag_sysmem,
     memory_region_add_subregion(tag_sysmem, base / 32, tagram);
 }
 
+static void create_mec_ram(MemoryRegion *tag_sysmem,
+                           hwaddr base, hwaddr size,
+                           const char *name)
+{
+    memory_region_init_ram(tag_sysmem, NULL, name, size / 32, &error_fatal);
+}
+
+static void create_mec_ram_fake_page(MemoryRegion *mr, uint64_t size, const char *name)
+{
+    assert(is_power_of_2(size) );
+    assert(size >= sizeof(uint32_t));
+
+    uint32_t *ptr = g_malloc(size);
+
+    for (int i = 0; i < size / sizeof(uint32_t); i++) {
+        ptr[i] = 0xDEADBEEF;
+    }
+
+    memory_region_init_ram_ptr(mr, NULL, name, size, ptr);
+}
+
 static void create_secure_ram(VirtMachineState *vms,
                               MemoryRegion *secure_sysmem,
                               MemoryRegion *secure_tag_sysmem)
@@ -2266,6 +2287,8 @@ static void machvirt_init(MachineState *machine)
     MemoryRegion *secure_sysmem = NULL;
     MemoryRegion *tag_sysmem = NULL;
     MemoryRegion *secure_tag_sysmem = NULL;
+    MemoryRegion *pseudo_encrypted_page = NULL;
+    MemoryRegion *tuple_memory = NULL;
     int n, virt_max_cpus;
     bool firmware_loaded;
     bool aarch64 = true;
@@ -2494,6 +2517,28 @@ static void machvirt_init(MachineState *machine)
             }
         }
 
+        if (vms->mec) {
+            if (tcg_enabled()) {
+                if (tuple_memory == NULL) {
+                    /* XXX(gromero): Add object_property_find(cpuobj, "tuple-memory", ...) here. */
+
+                    tuple_memory = g_new(MemoryRegion, 1);
+                    memory_region_init(tuple_memory, OBJECT(machine), "mec", UINT64_MAX / 32);
+
+                    pseudo_encrypted_page = g_new(MemoryRegion, 1);
+                    memory_region_init(pseudo_encrypted_page, OBJECT(machine), "mec-page", 4 * 1024 /* 4 KiB */);
+                }
+
+                object_property_set_link(cpuobj, "mec",  OBJECT(tuple_memory), &error_abort);
+                object_property_set_link(cpuobj, "mec-page",  OBJECT(pseudo_encrypted_page), &error_abort);
+
+                } else {
+                    /* Check for other accels here. */
+                    error_report("MEC requested, but not supported");
+                    exit(1);
+                }
+        }
+
         qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
         object_unref(cpuobj);
     }
@@ -2558,6 +2603,14 @@ static void machvirt_init(MachineState *machine)
     if (tag_sysmem) {
         create_tag_ram(tag_sysmem, vms->memmap[VIRT_MEM].base,
                        machine->ram_size, "mach-virt.tag");
+    }
+
+    if (tuple_memory) {
+        create_mec_ram(tuple_memory, vms->memmap[VIRT_MEM].base, machine->ram_size, "tuple-memory");
+    }
+
+    if(pseudo_encrypted_page) {
+       create_mec_ram_fake_page(pseudo_encrypted_page, 4 * 1024, "mec-fake-page");
     }
 
     vms->highmem_ecam &= (!firmware_loaded || aarch64);
@@ -2963,6 +3016,20 @@ static void virt_set_mte(Object *obj, bool value, Error **errp)
     VirtMachineState *vms = VIRT_MACHINE(obj);
 
     vms->mte = value;
+}
+
+static bool virt_get_mec(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    return vms->mec;
+}
+
+static void virt_set_mec(Object *obj, bool value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    vms->mec = value;
 }
 
 static char *virt_get_gic_version(Object *obj, Error **errp)
@@ -3601,6 +3668,12 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
                                           "guest CPU which implements the ARM "
                                           "Memory Tagging Extension");
 
+    object_class_property_add_bool(oc, "mec", virt_get_mec, virt_set_mec);
+    object_class_property_set_description(oc, "mec",
+		                          "Set on/off to enable/disable emulating a"
+					  "guest CPU which implements the ARM"
+					  "Memory Encryption Extention");
+
     object_class_property_add_bool(oc, "its", virt_get_its,
                                    virt_set_its);
     object_class_property_set_description(oc, "its",
@@ -3684,6 +3757,9 @@ static void virt_instance_init(Object *obj)
 
     /* MTE is disabled by default.  */
     vms->mte = false;
+
+    /* FEAT_MEC is disabled by default. */
+    vms->mec = false;
 
     /* Supply kaslr-seed and rng-seed by default */
     vms->dtb_randomness = true;
