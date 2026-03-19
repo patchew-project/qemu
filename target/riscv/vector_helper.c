@@ -151,16 +151,15 @@ static void probe_pages(CPURISCVState *env, target_ulong addr, target_ulong len,
         addr += curlen;
         curlen = len - curlen;
         if (flags != NULL) {
-            *flags = probe_access_flags(env, adjust_addr(env, addr), curlen,
-                                        access_type, mmu_index, nonfault,
-                                        host, ra);
+            *flags |= probe_access_flags(env, adjust_addr(env, addr), curlen,
+                                         access_type, mmu_index, nonfault,
+                                         host, ra);
         } else {
             probe_access(env, adjust_addr(env, addr), curlen, access_type,
                          mmu_index, ra);
         }
     }
 }
-
 
 static inline void vext_set_elem_mask(void *v0, int index,
                                       uint8_t value)
