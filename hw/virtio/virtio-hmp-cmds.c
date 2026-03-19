@@ -15,6 +15,9 @@
 static void hmp_virtio_dump_protocols(Monitor *mon,
                                       VhostDeviceProtocols *pcol)
 {
+    if (pcol == NULL) {
+        return;
+    }
     strList *pcol_list = pcol->protocols;
     while (pcol_list) {
         monitor_printf(mon, "\t%s", pcol_list->value);
