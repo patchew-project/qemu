@@ -23,6 +23,7 @@
 #include "exec/page-protection.h"
 #include "exec/target_page.h"
 #include "system/kvm.h"
+#include "system/memory.h"
 #include "kvm_ppc.h"
 #include "internal.h"
 #include "mmu-hash32.h"
@@ -205,14 +206,17 @@ static target_ulong ppc_hash32_load_hpte0(PowerPCCPU *cpu, hwaddr pte_offset)
 {
     target_ulong base = ppc_hash32_hpt_base(cpu);
 
-    return ldl_phys(CPU(cpu)->as, base + pte_offset);
+    return address_space_ldl(CPU(cpu)->as, base + pte_offset,
+                             MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 static target_ulong ppc_hash32_load_hpte1(PowerPCCPU *cpu, hwaddr pte_offset)
 {
     target_ulong base = ppc_hash32_hpt_base(cpu);
 
-    return ldl_phys(CPU(cpu)->as, base + pte_offset + HASH_PTE_SIZE_32 / 2);
+    return address_space_ldl(CPU(cpu)->as,
+                             base + pte_offset + HASH_PTE_SIZE_32 / 2,
+                             MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 static hwaddr ppc_hash32_pteg_search(PowerPCCPU *cpu, hwaddr pteg_off,
@@ -253,7 +257,8 @@ static void ppc_hash32_set_r(PowerPCCPU *cpu, hwaddr pte_offset, uint32_t pte1)
     hwaddr offset = pte_offset + 6;
 
     /* The HW performs a non-atomic byte update */
-    stb_phys(CPU(cpu)->as, base + offset, ((pte1 >> 8) & 0xff) | 0x01);
+    address_space_stb(CPU(cpu)->as, base + offset, ((pte1 >> 8) & 0xff) | 0x01,
+                      MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 static void ppc_hash32_set_c(PowerPCCPU *cpu, hwaddr pte_offset, uint64_t pte1)
@@ -262,7 +267,8 @@ static void ppc_hash32_set_c(PowerPCCPU *cpu, hwaddr pte_offset, uint64_t pte1)
     hwaddr offset = pte_offset + 7;
 
     /* The HW performs a non-atomic byte update */
-    stb_phys(CPU(cpu)->as, base + offset, (pte1 & 0xff) | 0x80);
+    address_space_stb(CPU(cpu)->as, base + offset, (pte1 & 0xff) | 0x80,
+                      MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 static hwaddr ppc_hash32_htab_lookup(PowerPCCPU *cpu,

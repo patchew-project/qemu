@@ -110,7 +110,8 @@ uint64_t ppc_load_epr(CPUPPCState *env)
 {
     CPUState *cs = env_cpu(env);
 
-    return ldl_phys(cs->as, env->mpic_iack);
+    return address_space_ldl(cs->as, env->mpic_iack,
+                             MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 #if defined(TARGET_PPC64)
