@@ -819,7 +819,7 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
     }
 }
 
-FlatView *address_space_get_flatview(AddressSpace *as)
+FlatView *address_space_get_flatview(const AddressSpace *as)
 {
     FlatView *view;
 

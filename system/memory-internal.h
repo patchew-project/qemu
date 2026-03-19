@@ -20,12 +20,13 @@ static inline AddressSpaceDispatch *flatview_to_dispatch(FlatView *fv)
     return fv->dispatch;
 }
 
-static inline AddressSpaceDispatch *address_space_to_dispatch(AddressSpace *as)
+static inline
+AddressSpaceDispatch *address_space_to_dispatch(const AddressSpace *as)
 {
     return flatview_to_dispatch(address_space_to_flatview(as));
 }
 
-FlatView *address_space_get_flatview(AddressSpace *as);
+FlatView *address_space_get_flatview(const AddressSpace *as);
 void flatview_unref(FlatView *view);
 
 extern const MemoryRegionOps unassigned_mem_ops;

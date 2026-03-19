@@ -1201,7 +1201,7 @@ struct FlatView {
     MemoryRegion *root;
 };
 
-static inline FlatView *address_space_to_flatview(AddressSpace *as)
+static inline FlatView *address_space_to_flatview(const AddressSpace *as)
 {
     return qatomic_rcu_read(&as->current_map);
 }
