@@ -21,6 +21,7 @@
 #include "hw/ide/pci.h"
 #include "hw/i2c/smbus_eeprom.h"
 #include "hw/core/qdev-properties.h"
+#include "system/memory.h"
 #include "system/reset.h"
 #include "system/runstate.h"
 #include "system/qtest.h"
@@ -593,12 +594,12 @@ enum pegasos2_rtas_tokens {
 
 static uint32_t rtas_ldl(AddressSpace *as, hwaddr addr)
 {
-    return ldl_be_phys(as, addr);
+    return address_space_ldl(as, addr, MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 static void rtas_stl(AddressSpace *as, hwaddr addr, uint32_t value)
 {
-    stl_be_phys(as, addr, value);
+    address_space_stl(as, addr, value, MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 static target_ulong pegasos2_rtas(PowerPCCPU *cpu, PegasosMachineState *pm,
