@@ -1779,28 +1779,9 @@ void qemu_savevm_query_pending(MigPendingData *pending, bool fastpath)
         }
         se->ops->save_query_pending(se->opaque, pending);
     }
-}
 
-void qemu_savevm_state_pending_estimate(uint64_t *must_precopy,
-                                        uint64_t *can_postcopy)
-{
-    MigPendingData pending;
-
-    qemu_savevm_query_pending(&pending, true);
-
-    *must_precopy = pending.precopy_bytes;
-    *can_postcopy = pending.postcopy_bytes;
-}
-
-void qemu_savevm_state_pending_exact(uint64_t *must_precopy,
-                                     uint64_t *can_postcopy)
-{
-    MigPendingData pending;
-
-    qemu_savevm_query_pending(&pending, false);
-
-    *must_precopy = pending.precopy_bytes;
-    *can_postcopy = pending.postcopy_bytes;
+    trace_qemu_savevm_query_pending(fastpath, pending->precopy_bytes,
+                                    pending->postcopy_bytes);
 }
 
 void qemu_savevm_state_cleanup(void)
