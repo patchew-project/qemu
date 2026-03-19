@@ -27,59 +27,101 @@ CprState cpr_state;
 
 /****************************************************************************/
 
-typedef struct CprFd {
+typedef struct CprFdKey {
     char *name;
     unsigned int namelen;
     int id;
-    int fd;
-    QLIST_ENTRY(CprFd) next;
-} CprFd;
+} CprFdKey;
 
-static const VMStateDescription vmstate_cpr_fd = {
-    .name = "cpr fd",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32(namelen, CprFd),
-        VMSTATE_VBUFFER_ALLOC_UINT32(name, CprFd, 0, NULL, namelen),
-        VMSTATE_INT32(id, CprFd),
-        VMSTATE_FD(fd, CprFd),
-        VMSTATE_END_OF_LIST()
-    }
+typedef struct CprFdVal {
+    int fd;
+} CprFdVal;
+
+#define VMSTATE_FDS_KEY                                                 \
+{                                                                       \
+    .name = "cpr-fd-key",                                               \
+    .version_id = 1,                                                    \
+    .minimum_version_id = 1,                                            \
+    .fields = (const VMStateField[]) {                                  \
+        VMSTATE_UINT32(namelen, CprFdKey),                              \
+        VMSTATE_VBUFFER_ALLOC_UINT32(name, CprFdKey, 0, NULL, namelen), \
+        VMSTATE_INT32(id, CprFdKey),                                    \
+        VMSTATE_END_OF_LIST()                                           \
+    }                                                                   \
+}
+
+#define VMSTATE_FDS_VAL                 \
+{                                       \
+    .name = "cpr-fd-value",             \
+    .version_id = 1,                    \
+    .minimum_version_id = 1,            \
+    .fields = (const VMStateField[]) {  \
+        VMSTATE_FD(fd, CprFdVal),       \
+        VMSTATE_END_OF_LIST()           \
+    }                                   \
+}
+
+static const VMStateDescription vmstate_fds_hashtable[2] = {
+    VMSTATE_FDS_VAL,   /* value */
+    VMSTATE_FDS_KEY   /* key */
 };
+
+static guint cpr_fd_key_hash(gconstpointer v)
+{
+    const CprFdKey *key = v;
+    return g_str_hash(key->name) ^ key->id;
+}
+
+static gboolean cpr_fd_key_equal(gconstpointer a, gconstpointer b)
+{
+    const CprFdKey *key_a = a;
+    const CprFdKey *key_b = b;
+    return !strcmp(key_a->name, key_b->name) && key_a->id == key_b->id;
+}
+
+static void cpr_destroy_fd_key(gpointer data)
+{
+    CprFdKey *k = (CprFdKey *) data;
+    g_free(k->name);
+    g_free(k);
+}
+
+void cpr_state_init(void)
+{
+    CprState *s = &cpr_state;
+
+    s->fds = g_hash_table_new_full(cpr_fd_key_hash, cpr_fd_key_equal,
+                                   cpr_destroy_fd_key, g_free);
+}
 
 void cpr_save_fd(const char *name, int id, int fd)
 {
-    CprFd *elem = g_new0(CprFd, 1);
+    CprFdKey *key = g_new0(CprFdKey, 1);
+    CprFdVal *val = g_new0(CprFdVal, 1);
 
     trace_cpr_save_fd(name, id, fd);
-    elem->name = g_strdup(name);
-    elem->namelen = strlen(name) + 1;
-    elem->id = id;
-    elem->fd = fd;
-    QLIST_INSERT_HEAD(&cpr_state.fds, elem, next);
+    key->name = g_strdup(name);
+    key->namelen = strlen(name) + 1;
+    key->id = id;
+    val->fd = fd;
+    g_hash_table_insert(cpr_state.fds, key, val);
 }
 
-static CprFd *find_fd(CprFdList *head, const char *name, int id)
+static CprFdVal *find_fd(CprFdKey *key)
 {
-    CprFd *elem;
-
-    QLIST_FOREACH(elem, head, next) {
-        if (!strcmp(elem->name, name) && elem->id == id) {
-            return elem;
-        }
-    }
-    return NULL;
+    return g_hash_table_lookup(cpr_state.fds, key);
 }
 
 void cpr_delete_fd(const char *name, int id)
 {
-    CprFd *elem = find_fd(&cpr_state.fds, name, id);
+    CprFdKey key = {
+        .name = (char *)name,
+        .id = id,
+    };
+    CprFdVal *elem = find_fd(&key);
 
     if (elem) {
-        QLIST_REMOVE(elem, next);
-        g_free(elem->name);
-        g_free(elem);
+        g_hash_table_remove(cpr_state.fds, &key);
     }
 
     trace_cpr_delete_fd(name, id);
@@ -87,7 +129,11 @@ void cpr_delete_fd(const char *name, int id)
 
 int cpr_find_fd(const char *name, int id)
 {
-    CprFd *elem = find_fd(&cpr_state.fds, name, id);
+    CprFdKey key = {
+        .name = (char *)name,
+        .id = id,
+    };
+    CprFdVal *elem = find_fd(&key);
     int fd = elem ? elem->fd : -1;
 
     trace_cpr_find_fd(name, id, fd);
@@ -96,7 +142,11 @@ int cpr_find_fd(const char *name, int id)
 
 void cpr_resave_fd(const char *name, int id, int fd)
 {
-    CprFd *elem = find_fd(&cpr_state.fds, name, id);
+    CprFdKey key = {
+        .name = (char *)name,
+        .id = id,
+    };
+    CprFdVal *elem = find_fd(&key);
     int old_fd = elem ? elem->fd : -1;
 
     if (old_fd < 0) {
@@ -125,9 +175,11 @@ int cpr_open_fd(const char *path, int flags, const char *name, int id,
 
 bool cpr_walk_fd(cpr_walk_fd_cb cb)
 {
-    CprFd *elem;
+    GHashTableIter iter;
+    CprFdVal *elem;
 
-    QLIST_FOREACH(elem, &cpr_state.fds, next) {
+    g_hash_table_iter_init(&iter, cpr_state.fds);
+    while (g_hash_table_iter_next(&iter, NULL, (gpointer *)&elem)) {
         g_assert(elem->fd >= 0);
         if (!cb(elem->fd)) {
             return false;
@@ -142,7 +194,8 @@ static const VMStateDescription vmstate_cpr_state = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_QLIST_V(fds, CprState, 1, vmstate_cpr_fd, CprFd, next),
+        VMSTATE_GHASH_V(fds, CprState, 1, vmstate_fds_hashtable,
+                        CprFdKey, CprFdVal),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription * const []) {

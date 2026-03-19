@@ -18,16 +18,16 @@
 #define QEMU_CPR_FILE_VERSION   0x00000001
 #define CPR_STATE "CprState"
 
-typedef QLIST_HEAD(CprFdList, CprFd) CprFdList;
 typedef QLIST_HEAD(CprVFIODeviceList, CprVFIODevice) CprVFIODeviceList;
 
 typedef struct CprState {
-    CprFdList fds;
+    GHashTable *fds;
     CprVFIODeviceList vfio_devices;
 } CprState;
 
 extern CprState cpr_state;
 
+void cpr_state_init(void);
 void cpr_save_fd(const char *name, int id, int fd);
 void cpr_delete_fd(const char *name, int id);
 int cpr_find_fd(const char *name, int id);

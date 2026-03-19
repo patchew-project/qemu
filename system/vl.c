@@ -2896,6 +2896,8 @@ void qemu_init(int argc, char **argv)
 
     qemu_init_subsystems();
 
+    cpr_state_init();
+
     /* first pass of option parsing */
     optind = 1;
     while (optind < argc) {
