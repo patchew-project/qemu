@@ -2698,7 +2698,7 @@ void address_space_remove_listeners(const AddressSpace *as);
  * @len: the number of bytes to read or write
  * @is_write: indicates the transfer direction
  */
-MemTxResult address_space_rw(AddressSpace *as, hwaddr addr,
+MemTxResult address_space_rw(const AddressSpace *as, hwaddr addr,
                              MemTxAttrs attrs, void *buf,
                              hwaddr len, bool is_write);
 
@@ -2715,7 +2715,7 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr,
  * @buf: buffer with the data transferred
  * @len: the number of bytes to write
  */
-MemTxResult address_space_write(AddressSpace *as, hwaddr addr,
+MemTxResult address_space_write(const AddressSpace *as, hwaddr addr,
                                 MemTxAttrs attrs,
                                 const void *buf, hwaddr len);
 
@@ -2741,7 +2741,7 @@ MemTxResult address_space_write(AddressSpace *as, hwaddr addr,
  * @buf: buffer with the data transferred
  * @len: the number of bytes to write
  */
-MemTxResult address_space_write_rom(AddressSpace *as, hwaddr addr,
+MemTxResult address_space_write_rom(const AddressSpace *as, hwaddr addr,
                                     MemTxAttrs attrs,
                                     const void *buf, hwaddr len);
 
@@ -2768,17 +2768,18 @@ MemTxResult address_space_write_rom(AddressSpace *as, hwaddr addr,
 
 #define SUFFIX
 #define ARG1         as
-#define ARG1_DECL    AddressSpace *as
+#define ARG1_DECL    const AddressSpace *as
 #include "system/memory_ldst.h.inc"
 
 #ifndef TARGET_NOT_USING_LEGACY_LDST_PHYS_API
 #define SUFFIX
 #define ARG1         as
-#define ARG1_DECL    AddressSpace *as
+#define ARG1_DECL    const AddressSpace *as
 #include "system/memory_ldst_phys.h.inc"
 #endif
 
-void address_space_flush_icache_range(AddressSpace *as, hwaddr addr, hwaddr len);
+void address_space_flush_icache_range(const AddressSpace *as,
+                                      hwaddr addr, hwaddr len);
 
 /* address_space_get_iotlb_entry: translate an address into an IOTLB
  * entry. Should be called from an RCU critical section.
@@ -2898,7 +2899,7 @@ void address_space_register_map_client(AddressSpace *as, QEMUBH *bh);
 void address_space_unregister_map_client(AddressSpace *as, QEMUBH *bh);
 
 /* Internal functions, part of the implementation of address_space_read.  */
-MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
+MemTxResult address_space_read_full(const AddressSpace *as, hwaddr addr,
                                     MemTxAttrs attrs, void *buf, hwaddr len);
 MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
                                    MemTxAttrs attrs, void *buf,
@@ -2953,7 +2954,7 @@ static inline bool memory_access_is_direct(const MemoryRegion *mr,
  * @len: length of the data transferred
  */
 static inline __attribute__((__always_inline__))
-MemTxResult address_space_read(AddressSpace *as, hwaddr addr,
+MemTxResult address_space_read(const AddressSpace *as, hwaddr addr,
                                MemTxAttrs attrs, void *buf,
                                hwaddr len)
 {
@@ -2996,7 +2997,7 @@ MemTxResult address_space_read(AddressSpace *as, hwaddr addr,
  * @len: the number of bytes to fill with the constant byte
  * @attrs: memory transaction attributes
  */
-MemTxResult address_space_set(AddressSpace *as, hwaddr addr,
+MemTxResult address_space_set(const AddressSpace *as, hwaddr addr,
                               uint8_t c, hwaddr len, MemTxAttrs attrs);
 
 /* Coalesced MMIO regions are areas where write operations can be reordered.
