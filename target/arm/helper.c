@@ -5120,6 +5120,8 @@ static CPAccessResult mecid_access(CPUARMState *env,
 static void mecid_write(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
+    tlb_flush(CPU(env_archcpu(env)));
+
     value = extract64(value, 0, MECID_WIDTH);
     raw_write(env, ri, value);
 }
