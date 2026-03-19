@@ -3122,7 +3122,7 @@
 # the device to write to the target path only.  Note that drive
 # mirroring includes `drive-mirror`, `blockdev-mirror` and
 # `block-commit` job (only in case of "active commit", when the node
-# being commited is used by the guest).  The ability to complete is
+# being committed is used by the guest).  The ability to complete is
 # signaled with a `BLOCK_JOB_READY` event.
 #
 # This command completes an active background block operation
@@ -5086,14 +5086,14 @@
 ##
 # @blockdev-set-active:
 #
-# Activate or inactivate a block device.  Use this to manage the
+# Activate or deactivate a block device.  Use this to manage the
 # handover of block devices on migration with qemu-storage-daemon.
 #
 # Activating a node automatically activates all of its child nodes
 # first.  Inactivating a node automatically inactivates any of its
 # child nodes that are not in use by a still active node.
 #
-# @node-name: Name of the graph node to activate or inactivate.  By
+# @node-name: Name of the graph node to activate or deactivate.  By
 #     default, all nodes are affected by the operation.
 #
 # @active: true if the nodes should be active when the command returns

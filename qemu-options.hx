@@ -3223,7 +3223,7 @@ SRST
         Enable/disable list in DHCP/DHCPv6/NDP
 
     ``map-host-loopback``
-        Addresse to refer to host
+        Address to refer to host
 
     ``map-guest-addr``
         Addr to translate to guest's address
@@ -3272,7 +3272,7 @@ SRST
 
     ``param=string``
          ``string`` will be passed to passt has a command line parameter,
-         we can have multiple occurences of the ``param`` parameter to
+         we can have multiple occurrences of the ``param`` parameter to
          pass multiple parameters to passt.
 
          For instance, to pass ``--trace --log=trace.log``:

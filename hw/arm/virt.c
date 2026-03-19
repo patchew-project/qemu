@@ -2784,7 +2784,7 @@ static void virt_set_msi(Object *obj, const char *value, Error **errp)
     VirtMachineState *vms = VIRT_MACHINE(obj);
 
     if (!strcmp(value, "auto")) {
-        vms->msi_controller = VIRT_MSI_CTRL_AUTO; /* Will be overriden later */
+        vms->msi_controller = VIRT_MSI_CTRL_AUTO; /* Will be overridden later */
     } else if (!strcmp(value, "its")) {
         vms->msi_controller = VIRT_MSI_CTRL_ITS;
     } else if (!strcmp(value, "gicv2m")) {
