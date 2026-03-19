@@ -570,42 +570,51 @@ static void vfio_save_cleanup(void *opaque)
     trace_vfio_save_cleanup(vbasedev->name);
 }
 
-static void vfio_state_pending_estimate(void *opaque, uint64_t *must_precopy,
-                                        uint64_t *can_postcopy)
+static void vfio_state_pending_sync(VFIODevice *vbasedev)
 {
-    VFIODevice *vbasedev = opaque;
-    VFIOMigration *migration = vbasedev->migration;
-
-    if (!vfio_device_state_is_precopy(vbasedev)) {
-        return;
-    }
-
-    *must_precopy +=
-        migration->precopy_init_size + migration->precopy_dirty_size;
-
-    trace_vfio_state_pending_estimate(vbasedev->name, *must_precopy,
-                                      *can_postcopy,
-                                      migration->precopy_init_size,
-                                      migration->precopy_dirty_size);
-}
-
-static void vfio_state_pending_exact(void *opaque, uint64_t *must_precopy,
-                                     uint64_t *can_postcopy)
-{
-    VFIODevice *vbasedev = opaque;
     VFIOMigration *migration = vbasedev->migration;
 
     vfio_query_stop_copy_size(vbasedev);
-    *must_precopy += migration->stopcopy_size;
 
     if (vfio_device_state_is_precopy(vbasedev)) {
         vfio_query_precopy_size(migration);
     }
 
-    trace_vfio_state_pending_exact(vbasedev->name, *must_precopy, *can_postcopy,
-                                   migration->stopcopy_size,
-                                   migration->precopy_init_size,
-                                   migration->precopy_dirty_size);
+    /*
+     * In all cases, all PRECOPY data should be no more than STOPCOPY data.
+     * Otherwise we have a problem.  So far, only dump some errors.
+     */
+    if (migration->precopy_init_size + migration->precopy_dirty_size <
+        migration->stopcopy_size) {
+        error_report_once("%s: wrong pending data (init=%" PRIx64
+                          ", dirty=%"PRIx64", stop=%"PRIx64")",
+                          __func__, migration->precopy_init_size,
+                          migration->precopy_dirty_size,
+                          migration->stopcopy_size);
+    }
+}
+
+static void vfio_state_pending(void *opaque, MigPendingData *pending)
+{
+    VFIODevice *vbasedev = opaque;
+    VFIOMigration *migration = vbasedev->migration;
+    uint64_t remain;
+
+    if (pending->fastpath) {
+        if (!vfio_device_state_is_precopy(vbasedev)) {
+            return;
+        }
+        remain = migration->precopy_init_size + migration->precopy_dirty_size;
+    } else {
+        vfio_state_pending_sync(vbasedev);
+        remain = migration->stopcopy_size;
+    }
+
+    pending->precopy_bytes += remain;
+
+    trace_vfio_state_pending(vbasedev->name, migration->stopcopy_size,
+                             migration->precopy_init_size,
+                             migration->precopy_dirty_size);
 }
 
 static bool vfio_is_active_iterate(void *opaque)
@@ -850,8 +859,7 @@ static const SaveVMHandlers savevm_vfio_handlers = {
     .save_prepare = vfio_save_prepare,
     .save_setup = vfio_save_setup,
     .save_cleanup = vfio_save_cleanup,
-    .state_pending_estimate = vfio_state_pending_estimate,
-    .state_pending_exact = vfio_state_pending_exact,
+    .save_query_pending = vfio_state_pending,
     .is_active_iterate = vfio_is_active_iterate,
     .save_live_iterate = vfio_save_iterate,
     .save_complete = vfio_save_complete_precopy,
