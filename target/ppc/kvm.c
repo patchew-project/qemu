@@ -1692,7 +1692,7 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
 #endif
     case KVM_EXIT_EPR:
         trace_kvm_handle_epr();
-        run->epr.epr = ldl_phys(cs->as, env->mpic_iack);
+        run->epr.epr = ppc_load_epr(env);
         ret = 0;
         break;
     case KVM_EXIT_WATCHDOG:

@@ -26,6 +26,7 @@
 #include "fpu/softfloat-helpers.h"
 #include "mmu-hash64.h"
 #include "helper_regs.h"
+#include "system/memory.h"
 #include "system/tcg.h"
 
 target_ulong cpu_read_xer(const CPUPPCState *env)
@@ -103,6 +104,13 @@ void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val)
     hreg_compute_hflags(env);
 
     ppc_maybe_interrupt(env);
+}
+
+uint64_t ppc_load_epr(CPUPPCState *env)
+{
+    CPUState *cs = env_cpu(env);
+
+    return ldl_phys(cs->as, env->mpic_iack);
 }
 
 #if defined(TARGET_PPC64)

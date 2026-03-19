@@ -2822,6 +2822,8 @@ enum {
 target_ulong cpu_read_xer(const CPUPPCState *env);
 void cpu_write_xer(CPUPPCState *env, target_ulong xer);
 
+uint64_t ppc_load_epr(CPUPPCState *env);
+
 /*
  * All 64-bit server processors compliant with arch 2.x, ie. 970 and newer,
  * have PPC_SEGMENT_64B.

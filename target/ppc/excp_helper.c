@@ -1166,9 +1166,8 @@ static void powerpc_excp_booke(PowerPCCPU *cpu, int excp)
         break;
     case POWERPC_EXCP_EXTERNAL:  /* External input                           */
         if (env->mpic_proxy) {
-            CPUState *cs = env_cpu(env);
             /* IACK the IRQ on delivery */
-            env->spr[SPR_BOOKE_EPR] = ldl_phys(cs->as, env->mpic_iack);
+            env->spr[SPR_BOOKE_EPR] = ppc_load_epr(env);
         }
         break;
     case POWERPC_EXCP_ALIGN:     /* Alignment exception                      */
