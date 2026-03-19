@@ -3946,6 +3946,9 @@ static bool mecid_check(CPUARMState *env, S1Translate *ptw, hwaddr va,
      */
     if (access_type == MMU_DATA_STORE) {
        /* Store MECID for physical address 'pa'. */
+       if (mecid != 0) {
+           // printf("MECID (in register) stored for va = %lx pa= %lx is %d | s1_mmu_idx = %d and ptw->in_mmu_idx = %d\n", va, pa, mecid, s1_mmu_idx, ptw_mmu_idx);
+       }
        set_mecid(env, pa, mecid);
        return true;
     } else {
