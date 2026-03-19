@@ -17,12 +17,24 @@
 #include "hw/core/vmstate-if.h"
 
 typedef struct MigPendingData {
+    /*
+     * Modules can only update these fields in a query request via its
+     * save_query_pending() API.
+     */
     /* How many bytes are pending for precopy / stopcopy? */
     uint64_t precopy_bytes;
     /* How many bytes are pending that can be transferred in postcopy? */
     uint64_t postcopy_bytes;
+    /* How many bytes that can only be transferred when VM stopped? */
+    uint64_t stopcopy_bytes;
+
+    /*
+     * Modules should never update these fields.
+     */
     /* Is this a fastpath query (which can be inaccurate)? */
     bool fastpath;
+    /* Total pending data */
+    uint64_t total_bytes;
 } MigPendingData ;
 
 /**
