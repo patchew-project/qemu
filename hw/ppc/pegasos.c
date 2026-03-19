@@ -591,13 +591,23 @@ enum pegasos2_rtas_tokens {
     RTAS_SYSTEM_REBOOT = 20,
 };
 
+static uint32_t rtas_ldl(AddressSpace *as, hwaddr addr)
+{
+    return ldl_be_phys(as, addr);
+}
+
+static void rtas_stl(AddressSpace *as, hwaddr addr, uint32_t value)
+{
+    stl_be_phys(as, addr, value);
+}
+
 static target_ulong pegasos2_rtas(PowerPCCPU *cpu, PegasosMachineState *pm,
                                   target_ulong args_real)
 {
     AddressSpace *as = CPU(cpu)->as;
-    uint32_t token = ldl_be_phys(as, args_real);
-    uint32_t nargs = ldl_be_phys(as, args_real + 4);
-    uint32_t nrets = ldl_be_phys(as, args_real + 8);
+    uint32_t token = rtas_ldl(as, args_real);
+    uint32_t nargs = rtas_ldl(as, args_real + 4);
+    uint32_t nrets = rtas_ldl(as, args_real + 8);
     uint32_t args = args_real + 12;
     uint32_t rets = args_real + 12 + nargs * 4;
 
@@ -613,19 +623,19 @@ static target_ulong pegasos2_rtas(PowerPCCPU *cpu, PegasosMachineState *pm,
         QDict *qd = qobject_to(QDict, qo);
 
         if (nargs != 0 || nrets != 8 || !qd) {
-            stl_be_phys(as, rets, -1);
+            rtas_stl(as, rets, -1);
             qobject_unref(qo);
             return H_PARAMETER;
         }
 
-        stl_be_phys(as, rets, 0);
-        stl_be_phys(as, rets + 4, qdict_get_int(qd, "tm_year") + 1900);
-        stl_be_phys(as, rets + 8, qdict_get_int(qd, "tm_mon") + 1);
-        stl_be_phys(as, rets + 12, qdict_get_int(qd, "tm_mday"));
-        stl_be_phys(as, rets + 16, qdict_get_int(qd, "tm_hour"));
-        stl_be_phys(as, rets + 20, qdict_get_int(qd, "tm_min"));
-        stl_be_phys(as, rets + 24, qdict_get_int(qd, "tm_sec"));
-        stl_be_phys(as, rets + 28, 0);
+        rtas_stl(as, rets, 0);
+        rtas_stl(as, rets + 4, qdict_get_int(qd, "tm_year") + 1900);
+        rtas_stl(as, rets + 8, qdict_get_int(qd, "tm_mon") + 1);
+        rtas_stl(as, rets + 12, qdict_get_int(qd, "tm_mday"));
+        rtas_stl(as, rets + 16, qdict_get_int(qd, "tm_hour"));
+        rtas_stl(as, rets + 20, qdict_get_int(qd, "tm_min"));
+        rtas_stl(as, rets + 24, qdict_get_int(qd, "tm_sec"));
+        rtas_stl(as, rets + 28, 0);
         qobject_unref(qo);
         return H_SUCCESS;
     }
@@ -634,15 +644,15 @@ static target_ulong pegasos2_rtas(PowerPCCPU *cpu, PegasosMachineState *pm,
         uint32_t addr, len, val;
 
         if (nargs != 2 || nrets != 2) {
-            stl_be_phys(as, rets, -1);
+            rtas_stl(as, rets, -1);
             return H_PARAMETER;
         }
-        addr = ldl_be_phys(as, args);
-        len = ldl_be_phys(as, args + 4);
+        addr = rtas_ldl(as, args);
+        len = rtas_ldl(as, args + 4);
         val = pegasos2_pci_config_read(pm, !(addr >> 24),
                                        addr & 0x0fffffff, len);
-        stl_be_phys(as, rets, 0);
-        stl_be_phys(as, rets + 4, val);
+        rtas_stl(as, rets, 0);
+        rtas_stl(as, rets + 4, val);
         return H_SUCCESS;
     }
     case RTAS_WRITE_PCI_CONFIG:
@@ -650,39 +660,39 @@ static target_ulong pegasos2_rtas(PowerPCCPU *cpu, PegasosMachineState *pm,
         uint32_t addr, len, val;
 
         if (nargs != 3 || nrets != 1) {
-            stl_be_phys(as, rets, -1);
+            rtas_stl(as, rets, -1);
             return H_PARAMETER;
         }
-        addr = ldl_be_phys(as, args);
-        len = ldl_be_phys(as, args + 4);
-        val = ldl_be_phys(as, args + 8);
+        addr = rtas_ldl(as, args);
+        len = rtas_ldl(as, args + 4);
+        val = rtas_ldl(as, args + 8);
         pegasos2_pci_config_write(pm, !(addr >> 24),
                                   addr & 0x0fffffff, len, val);
-        stl_be_phys(as, rets, 0);
+        rtas_stl(as, rets, 0);
         return H_SUCCESS;
     }
     case RTAS_DISPLAY_CHARACTER:
         if (nargs != 1 || nrets != 1) {
-            stl_be_phys(as, rets, -1);
+            rtas_stl(as, rets, -1);
             return H_PARAMETER;
         }
-        qemu_log_mask(LOG_UNIMP, "%c", ldl_be_phys(as, args));
-        stl_be_phys(as, rets, 0);
+        qemu_log_mask(LOG_UNIMP, "%c", rtas_ldl(as, args));
+        rtas_stl(as, rets, 0);
         return H_SUCCESS;
     case RTAS_POWER_OFF:
     {
         if (nargs != 2 || nrets != 1) {
-            stl_be_phys(as, rets, -1);
+            rtas_stl(as, rets, -1);
             return H_PARAMETER;
         }
         qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
-        stl_be_phys(as, rets, 0);
+        rtas_stl(as, rets, 0);
         return H_SUCCESS;
     }
     default:
         qemu_log_mask(LOG_UNIMP, "Unknown RTAS token %u (args=%u, rets=%u)\n",
                       token, nargs, nrets);
-        stl_be_phys(as, rets, 0);
+        rtas_stl(as, rets, 0);
         return H_SUCCESS;
     }
 }
