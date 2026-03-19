@@ -63,7 +63,7 @@ static void s390_cpu_load_normal(CPUState *s)
     uint64_t spsw;
 
     if (!s390_is_pv()) {
-        spsw = ldq_be_phys(s->as, 0);
+        spsw = address_space_ldq_be(s->as, 0, MEMTXATTRS_UNSPECIFIED, NULL);
         cpu->env.psw.mask = spsw & PSW_MASK_SHORT_CTRL;
         /*
          * Invert short psw indication, so SIE will report a specification
