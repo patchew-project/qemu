@@ -2596,7 +2596,11 @@ enum {
 /* Return the address space index to use for a memory access */
 static inline int arm_asidx_from_attrs(CPUState *cs, MemTxAttrs attrs)
 {
-    return attrs.secure ? ARMASIdx_S : ARMASIdx_NS;
+    if (attrs.encrypted) {
+        return ARMASIdx_MEC_PAGE;
+    } else {
+        return attrs.secure ? ARMASIdx_S : ARMASIdx_NS;
+    }
 }
 
 /* Return the AddressSpace to use for a memory access
