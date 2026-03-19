@@ -58,6 +58,7 @@
 #include "qapi/string-output-visitor.h"
 #include "qapi/qobject-input-visitor.h"
 #include "standard-headers/linux/virtio_net.h"
+#include "migration/vmstate.h"
 
 /* Net bridge is currently not supported for W32. */
 #if !defined(_WIN32)
@@ -2173,3 +2174,49 @@ int net_fill_rstate(SocketReadState *rs, const uint8_t *buf, int size)
     assert(size == 0);
     return 0;
 }
+
+static int get_peer_backend(QEMUFile *f, void *pv, size_t size,
+                            const VMStateField *field)
+{
+    NetClientState *nc = pv;
+    Error *local_err = NULL;
+    int ret;
+
+    if (!nc->peer) {
+        return -EINVAL;
+    }
+    nc = nc->peer;
+
+    ret = vmstate_load_state(f, nc->info->backend_vmsd, nc, 0, &local_err);
+    if (ret < 0) {
+        error_report_err(local_err);
+    }
+
+    return ret;
+}
+
+static int put_peer_backend(QEMUFile *f, void *pv, size_t size,
+                            const VMStateField *field, JSONWriter *vmdesc)
+{
+    NetClientState *nc = pv;
+    Error *local_err = NULL;
+    int ret;
+
+    if (!nc->peer) {
+        return -EINVAL;
+    }
+    nc = nc->peer;
+
+    ret = vmstate_save_state(f, nc->info->backend_vmsd, nc, 0, &local_err);
+    if (ret < 0) {
+        error_report_err(local_err);
+    }
+
+    return ret;
+}
+
+const VMStateInfo vmstate_net_peer_backend = {
+    .name = "virtio-net-nic-nc-backend",
+    .get = get_peer_backend,
+    .put = put_peer_backend,
+};
