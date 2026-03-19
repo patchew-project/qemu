@@ -41,6 +41,13 @@ enum {
     VFIO_DEVICE_TYPE_AP = 3,
 };
 
+enum {
+    /* The Guest passed addresses stored in IOV are invalid */
+    VFIO_DMABUF_CREATE_ERR_INVALID_IOV = -1,
+    /* Guest or Host may be at fault for this type of error */
+    VFIO_DMABUF_CREATE_ERR_UNSPEC = -2,
+};
+
 typedef struct VFIODeviceOps VFIODeviceOps;
 typedef struct VFIODeviceIOOps VFIODeviceIOOps;
 typedef struct VFIOMigration VFIOMigration;
@@ -308,6 +315,22 @@ bool vfio_device_has_region_cap(VFIODevice *vbasedev, int region, uint16_t cap_t
 
 int vfio_device_get_irq_info(VFIODevice *vbasedev, int index,
                                 struct vfio_irq_info *info);
+
+/**
+ * Create a dmabuf fd by first translating the addresses in the
+ * iovec array into VFIO region offsets and then invoking the
+ * VFIO_DEVICE_FEATURE_DMA_BUF feature.
+ *
+ * @iov: array of iovec entries associated with a buffer
+ * @iov_cnt: number of entries in the iovec array
+ * @total_size: total size of the dmabuf
+ * @errp: pointer to Error*, to store an error if it happens.
+ *
+ * Returns the created dmabuf fd or either VFIO_DMABUF_CREATE_ERR_UNSPEC
+ * or VFIO_DMABUF_CREATE_ERR_INVALID_IOV on error.
+ */
+int vfio_device_create_dmabuf_fd(struct iovec *iov, unsigned int iov_cnt,
+                                 size_t total_size, Error **errp);
 #endif
 
 /* Returns 0 on success, or a negative errno. */

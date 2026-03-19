@@ -21,7 +21,9 @@
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
 
+#include "system/ramblock.h"
 #include "hw/vfio/vfio-device.h"
+#include "hw/vfio/vfio-region.h"
 #include "hw/vfio/pci.h"
 #include "hw/core/iommu.h"
 #include "hw/core/hw-error.h"
@@ -644,3 +646,115 @@ static VFIODeviceIOOps vfio_device_io_ops_ioctl = {
     .region_read = vfio_device_io_region_read,
     .region_write = vfio_device_io_region_write,
 };
+
+/*
+ * This helper looks up the VFIODevice corresponding to the given iov. It
+ * can be useful to determinine if a buffer (represented by the iov) belongs
+ * to a VFIO device or not. This is mainly invoked when external components
+ * such as virtio-gpu request creation of dmabuf fds for buffers that may
+ * belong to a VFIO device.
+ */
+static bool vfio_device_lookup(struct iovec *iov, VFIODevice **vbasedevp,
+                               RAMBlock **first_rbp, Error **errp)
+{
+    VFIODevice *vbasedev;
+    RAMBlock *first_rb;
+    ram_addr_t offset;
+
+    first_rb = qemu_ram_block_from_host(iov[0].iov_base, false, &offset);
+    if (!first_rb) {
+        error_setg(errp, "Could not find first ramblock\n");
+        return false;
+    }
+
+    *first_rbp = first_rb;
+    QLIST_FOREACH(vbasedev, &vfio_device_list, next) {
+        if (vbasedev->dev == first_rb->mr->dev) {
+            *vbasedevp = vbasedev;
+            return true;
+        }
+    }
+    error_setg(errp, "No VFIO device found to create dmabuf from\n");
+    return false;
+}
+
+/*
+ * This helper looks up the VFIORegion corresponding to the given address.
+ * It also verifies that the RAMBlock associated with the address is the
+ * same as the first_rb passed in. This is to ensure that all addresses
+ * in the iov belong to the same region.
+ */
+static bool vfio_region_lookup(void *addr, VFIORegion **regionp,
+                               RAMBlock *first_rb, ram_addr_t *offsetp,
+                               Error **errp)
+{
+    VFIORegion *region;
+    RAMBlock *rb;
+
+    rb = qemu_ram_block_from_host(addr, false, offsetp);
+    if (!rb || rb != first_rb) {
+        error_setg(errp, "Dmabuf segments must belong to the same region\n");
+        return false;
+    }
+
+    region = vfio_get_region_from_mr(rb->mr);
+    if (region) {
+        *regionp = region;
+        return true;
+    }
+    error_setg(errp, "Could not find valid region for dmabuf segment\n");
+    return false;
+}
+
+int vfio_device_create_dmabuf_fd(struct iovec *iov, unsigned int iov_cnt,
+                                 size_t total_size, Error **errp)
+{
+    g_autofree struct vfio_device_feature *feature = NULL;
+    struct vfio_device_feature_dma_buf *dma_buf;
+    RAMBlock *first_rb = NULL;
+    VFIODevice *vbasedev;
+    VFIORegion *region;
+    ram_addr_t offset;
+    size_t argsz;
+    int i, ret;
+
+    if (iov_size(iov, iov_cnt) != total_size) {
+        error_setg(errp, "Total size of iov does not match dmabuf size\n");
+        return VFIO_DMABUF_CREATE_ERR_INVALID_IOV;
+    }
+
+    if (!vfio_device_lookup(iov, &vbasedev, &first_rb, errp)) {
+        return VFIO_DMABUF_CREATE_ERR_INVALID_IOV;
+    }
+
+    argsz = sizeof(*feature) + sizeof (*dma_buf) +
+            sizeof(struct vfio_region_dma_range) * iov_cnt;
+    feature = g_malloc0(argsz);
+    *feature = (struct vfio_device_feature) {
+        .argsz = argsz,
+        .flags = VFIO_DEVICE_FEATURE_GET | VFIO_DEVICE_FEATURE_DMA_BUF,
+    };
+    dma_buf = (struct vfio_device_feature_dma_buf *)feature->data;
+
+    for (i = 0; i < iov_cnt; i++) {
+        if (!vfio_region_lookup(iov[i].iov_base, &region,
+                                first_rb, &offset, errp)) {
+            return VFIO_DMABUF_CREATE_ERR_INVALID_IOV;
+        }
+
+        dma_buf->region_index = region->nr;
+        dma_buf->dma_ranges[i].offset = offset;
+        dma_buf->dma_ranges[i].length = iov[i].iov_len;
+    }
+
+    dma_buf->nr_ranges = iov_cnt;
+    dma_buf->open_flags = O_RDONLY | O_CLOEXEC;
+
+    ret = vfio_device_get_feature(vbasedev, feature);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret,
+                         "Could not create dmabuf fd via VFIO device");
+        return VFIO_DMABUF_CREATE_ERR_UNSPEC;
+    }
+    return ret;
+}
