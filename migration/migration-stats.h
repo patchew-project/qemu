@@ -31,11 +31,11 @@
  */
 typedef struct {
     /*
-     * Number of bytes that were dirty last time that we synced with
-     * the guest memory.  We use that to calculate the downtime.  As
-     * the remaining dirty amounts to what we know that is still dirty
-     * since last iteration, not counting what the guest has dirtied
-     * since we synchronized bitmaps.
+     * Number of bytes that are still dirty after the last whole-system
+     * sync on dirty information.  We use that to calculate the expected
+     * downtime.  As the remaining dirty amounts to what we know that is
+     * still dirty since last iteration, not counting what the guest has
+     * dirtied since then on either RAM or device states.
      */
     uint64_t dirty_bytes_last_sync;
     /*

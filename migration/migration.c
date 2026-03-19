@@ -3241,17 +3241,22 @@ static void migration_iteration_go_next(MigPendingData *pending)
     qemu_savevm_query_pending(pending, false);
 
     /*
+     * Update the dirty information for the whole system for this
+     * iteration.  This value is used to calculate expected downtime.
+     */
+    qatomic_set(&mig_stats.dirty_bytes_last_sync, pending->total_bytes);
+
+    /*
      * Boost dirty sync count to reflect we finished one iteration.
      *
      * NOTE: we need to make sure when this happens (together with the
      * event sent below) all modules have slow-synced the pending data
-     * above.  That means a write mem barrier, but qatomic_add() should be
-     * enough.
+     * above and updated corresponding fields (e.g. dirty_bytes_last_sync).
      *
      * It's because a mgmt could wait on the iteration event to query again
      * on pending data for policy changes (e.g. downtime adjustments).  The
      * ordering will make sure the query will fetch the latest results from
-     * all the modules.
+     * all the modules on everything.
      */
     qatomic_add(&mig_stats.dirty_sync_count, 1);
 
