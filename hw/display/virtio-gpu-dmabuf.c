@@ -147,9 +147,26 @@ void virtio_gpu_init_dmabuf(struct virtio_gpu_simple_resource *res)
         if (res->dmabuf_fd == VFIO_DMABUF_CREATE_ERR_INVALID_IOV) {
             error_free_or_abort(&local_err);
 
-            qemu_log_mask(LOG_GUEST_ERROR,
-                          "Cannot create dmabuf: incompatible memory\n");
-            return;
+            res->dmabuf_fd = vfio_device_create_dmabuf_fd(res->iov,
+                                                          res->iov_cnt,
+                                                          res->blob_size,
+                                                          &local_err);
+            if (res->dmabuf_fd == VFIO_DMABUF_CREATE_ERR_INVALID_IOV) {
+                error_free_or_abort(&local_err);
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "Cannot create dmabuf: incompatible memory\n");
+                return;
+            }
+
+            if (res->dmabuf_fd >= 0) {
+                pdata = vfio_device_mmap_dmabuf(res->iov, res->iov_cnt,
+                                                res->blob_size, &local_err);
+                if (!pdata) {
+                    virtio_gpu_destroy_dmabuf(res);
+                }
+            } else {
+                res->dmabuf_fd = -1;
+            }
         } else if (res->dmabuf_fd >= 0) {
             pdata = virtio_gpu_remap_dmabuf(res, &local_err);
             if (!pdata) {
