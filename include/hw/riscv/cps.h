@@ -27,7 +27,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(RISCVCPSState, RISCV_CPS)
 /* The global CM base for the boston-aia model. */
 #define GLOBAL_CM_BASE 0x16100000
 /* The CM block is 512 KiB. */
-#define CM_SIZE (1 << 19)
+#define CM_SIZE (1ULL << 19)
 
 /*
  * The mhartid bits has cluster at bit 16, core at bit 4, and hart at
