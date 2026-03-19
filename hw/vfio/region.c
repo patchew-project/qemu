@@ -539,3 +539,14 @@ void vfio_region_mmaps_set_enabled(VFIORegion *region, bool enabled)
     trace_vfio_region_mmaps_set_enabled(memory_region_name(region->mem),
                                         enabled);
 }
+
+void *vfio_get_region_from_mr(MemoryRegion *mr)
+{
+    while (mr->container) {
+        if (mr->ops == &vfio_region_ops) {
+            return mr->opaque;
+        }
+        mr = mr->container;
+    }
+    return NULL;
+}
