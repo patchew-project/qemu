@@ -2783,7 +2783,7 @@ void address_space_flush_icache_range(AddressSpace *as, hwaddr addr, hwaddr len)
 /* address_space_get_iotlb_entry: translate an address into an IOTLB
  * entry. Should be called from an RCU critical section.
  */
-IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
+IOMMUTLBEntry address_space_get_iotlb_entry(const AddressSpace *as, hwaddr addr,
                                             bool is_write, MemTxAttrs attrs);
 
 /* address_space_translate: translate an address range into an address space
@@ -2804,7 +2804,7 @@ MemoryRegion *flatview_translate(FlatView *fv,
                                  hwaddr *len, bool is_write,
                                  MemTxAttrs attrs);
 
-static inline MemoryRegion *address_space_translate(AddressSpace *as,
+static inline MemoryRegion *address_space_translate(const AddressSpace *as,
                                                     hwaddr addr, hwaddr *xlat,
                                                     hwaddr *len, bool is_write,
                                                     MemTxAttrs attrs)

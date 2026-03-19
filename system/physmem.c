@@ -528,19 +528,21 @@ static MemoryRegionSection flatview_do_translate(FlatView *fv,
 }
 
 /* Called from RCU critical section */
-IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
+IOMMUTLBEntry address_space_get_iotlb_entry(const AddressSpace *as, hwaddr addr,
                                             bool is_write, MemTxAttrs attrs)
 {
     MemoryRegionSection section;
     hwaddr xlat, page_mask;
+    AddressSpace target_as = *as;
+    AddressSpace *ptarget_as = &target_as;
 
     /*
      * This can never be MMIO, and we don't really care about plen,
      * but page mask.
      */
     section = flatview_do_translate(address_space_to_flatview(as), addr, &xlat,
-                                    NULL, &page_mask, is_write, false, &as,
-                                    attrs);
+                                    NULL, &page_mask, is_write, false,
+                                    &ptarget_as, attrs);
 
     /* Illegal translation */
     if (section.mr == &io_mem_unassigned) {
@@ -552,7 +554,7 @@ IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
         section.offset_within_region;
 
     return (IOMMUTLBEntry) {
-        .target_as = as,
+        .target_as = &target_as,
         .iova = addr & ~page_mask,
         .translated_addr = xlat & ~page_mask,
         .addr_mask = page_mask,
