@@ -2829,7 +2829,8 @@ static inline MemoryRegion *address_space_translate(AddressSpace *as,
  * @is_write: indicates the transfer direction
  * @attrs: memory attributes
  */
-bool address_space_access_valid(AddressSpace *as, hwaddr addr, hwaddr len,
+bool address_space_access_valid(const AddressSpace *as,
+                                hwaddr addr, hwaddr len,
                                 bool is_write, MemTxAttrs attrs);
 
 /**
@@ -2839,7 +2840,7 @@ bool address_space_access_valid(AddressSpace *as, hwaddr addr, hwaddr len,
  * @as: #AddressSpace to be accessed
  * @addr: address within that address space
  */
-bool address_space_is_io(AddressSpace *as, hwaddr addr);
+bool address_space_is_io(const AddressSpace *as, hwaddr addr);
 
 /* address_space_map: map a physical memory region into a host virtual address
  *
