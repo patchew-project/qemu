@@ -33,7 +33,7 @@
 
 #define TPM_TIS_IS_VALID_LOCTY(x)   ((x) < TPM_TIS_NUM_LOCALITIES)
 
-#define TPM_TIS_BUFFER_MAX          4096
+#define TPM_TIS_BUFFER_MAX          8192
 
 typedef enum {
     TPM_TIS_STATE_IDLE = 0,
