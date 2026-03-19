@@ -33,6 +33,17 @@
 #include "trace.h"
 #include "qom/object.h"
 
+/* command and response buffers; part of VM state when migrating */
+typedef struct TPMCRBMigState {
+    uint32_t cmd_size;
+    uint8_t *cmd_tmp;
+
+    uint32_t rsp_size;
+    uint8_t *rsp_tmp;
+
+    uint32_t rsp_offset;
+} TPMCRBMigState;
+
 struct CRBState {
     DeviceState parent_obj;
 
@@ -49,6 +60,9 @@ struct CRBState {
 
     bool ppi_enabled;
     TPMPPI ppi;
+
+    bool migrate_buffers;
+    TPMCRBMigState mig;
 };
 typedef struct CRBState CRBState;
 
@@ -347,18 +361,118 @@ static int tpm_crb_pre_save(void *opaque)
     return 0;
 }
 
+static bool tpm_crb_chunk_needed(void *opaque)
+{
+    CRBState *s = opaque;
+
+    if (!s->migrate_buffers) {
+        return false;
+    }
+
+    return ((s->command_buffer && s->command_buffer->len > 0) ||
+            (s->response_buffer && s->response_buffer->len > 0));
+}
+
+static int tpm_crb_chunk_pre_save(void *opaque)
+{
+    CRBState *s = opaque;
+
+    if (s->command_buffer) {
+        s->mig.cmd_size = s->command_buffer->len;
+        s->mig.cmd_tmp = s->command_buffer->data;
+    } else {
+        s->mig.cmd_tmp = NULL;
+        s->mig.cmd_size = 0;
+    }
+
+    if (s->response_buffer) {
+        s->mig.rsp_size = s->response_buffer->len;
+        s->mig.rsp_tmp = s->response_buffer->data;
+    } else {
+        s->mig.rsp_tmp = NULL;
+        s->mig.rsp_size = 0;
+    }
+    s->mig.rsp_offset = (uint32_t)s->response_offset;
+    return 0;
+}
+
+static bool tpm_crb_chunk_post_load(void *opaque, int version_id, Error **errp)
+{
+    CRBState *s = opaque;
+
+    if (s->mig.cmd_size > s->be_buffer_size ||
+        s->mig.rsp_size > s->be_buffer_size ||
+        s->mig.rsp_offset > s->mig.rsp_size) {
+        error_setg(errp,
+                   "tpm-crb-chunk: incoming buffer %u, exceeds limits %zu "
+                   "or offset %u exceeds size %u",
+                   s->mig.cmd_size, s->be_buffer_size,
+                   s->mig.rsp_offset, s->mig.rsp_size);
+        g_free(s->mig.cmd_tmp);
+        s->mig.cmd_tmp = NULL;
+        g_free(s->mig.rsp_tmp);
+        s->mig.rsp_tmp = NULL;
+        return false;
+    }
+
+    if (s->mig.cmd_tmp) {
+        if (s->command_buffer) {
+            g_byte_array_unref(s->command_buffer);
+        }
+        s->command_buffer = g_byte_array_new_take(s->mig.cmd_tmp,
+                                                  s->mig.cmd_size);
+        s->mig.cmd_tmp = NULL;
+    } else {
+        if (s->command_buffer) {
+            g_byte_array_set_size(s->command_buffer, 0);
+        }
+    }
+    if (s->mig.rsp_tmp) {
+        if (s->response_buffer) {
+            g_byte_array_unref(s->response_buffer);
+        }
+        s->response_buffer = g_byte_array_new_take(s->mig.rsp_tmp,
+                                                   s->mig.rsp_size);
+        s->mig.rsp_tmp = NULL;
+    }
+    return true;
+}
+
+static const VMStateDescription vmstate_tpm_crb_chunk = {
+    .name = "tpm-crb/chunk",
+    .version_id = 1,
+    .needed = tpm_crb_chunk_needed,
+    .pre_save = tpm_crb_chunk_pre_save,
+    .post_load_errp = tpm_crb_chunk_post_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(mig.cmd_size, CRBState),
+        VMSTATE_VBUFFER_ALLOC_UINT32(mig.cmd_tmp, CRBState, 0, NULL,
+                                     mig.cmd_size),
+        VMSTATE_UINT32(mig.rsp_size, CRBState),
+        VMSTATE_VBUFFER_ALLOC_UINT32(mig.rsp_tmp, CRBState, 0, NULL,
+                                     mig.rsp_size),
+        VMSTATE_UINT32(mig.rsp_offset, CRBState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_tpm_crb = {
     .name = "tpm-crb",
     .pre_save = tpm_crb_pre_save,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, CRBState, TPM_CRB_R_MAX),
         VMSTATE_END_OF_LIST(),
+    },
+    .subsections = (const VMStateDescription * const []) {
+        &vmstate_tpm_crb_chunk,
+        NULL,
     }
 };
 
 static const Property tpm_crb_properties[] = {
     DEFINE_PROP_TPMBE("tpmdev", CRBState, tpmbe),
     DEFINE_PROP_BOOL("ppi", CRBState, ppi_enabled, true),
+    DEFINE_PROP_BOOL("migrate-buffers", CRBState, migrate_buffers, true),
 };
 
 static void tpm_crb_reset(void *dev)
