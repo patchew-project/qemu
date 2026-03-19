@@ -977,6 +977,10 @@ struct ArchCPU {
     MemoryRegion *tag_memory;
     MemoryRegion *secure_tag_memory;
 
+    /* MemoryRegion use by FEAT_MEC. */
+    MemoryRegion *mec;
+    MemoryRegion *mec_page;
+
     /* For v8M, pointer to the IDAU interface provided by board/SoC */
     Object *idau;
 

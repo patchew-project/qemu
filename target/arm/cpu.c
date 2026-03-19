@@ -1542,6 +1542,21 @@ static void arm_cpu_post_init(Object *obj)
                                      OBJ_PROP_LINK_STRONG);
         }
     }
+
+    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64) &&
+        cpu_isar_feature(aa64_mec, cpu)) {
+
+        object_property_add_link(obj, "mec", TYPE_MEMORY_REGION,
+                                 (Object **)&cpu->mec,
+                                 qdev_prop_allow_set_link_before_realize,
+                                 OBJ_PROP_LINK_STRONG);
+
+        object_property_add_link(obj, "mec-page",
+                                 TYPE_MEMORY_REGION,
+                                 (Object **)&cpu->mec_page,
+                                 qdev_prop_allow_set_link_before_realize,
+                                 OBJ_PROP_LINK_STRONG);
+   }
 #endif
     qdev_property_add_static(DEVICE(obj), &arm_cpu_cfgend_property);
 }
@@ -2167,6 +2182,11 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
             cpu_address_space_init(cs, ARMASIdx_TagS, "cpu-tag-memory",
                                    cpu->secure_tag_memory);
         }
+    }
+
+    if (cpu->mec != NULL) {
+        cpu_address_space_init(cs, ARMASIdx_MEC, "cpu-tuple-memory", cpu->mec);
+        cpu_address_space_init(cs, ARMASIdx_MEC_PAGE, "cpu-pseudo-encrypted-page", cpu->mec_page);
     }
 
     /* No core_count specified, default to smp_cpus. */
