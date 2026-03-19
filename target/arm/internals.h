@@ -1473,6 +1473,8 @@ typedef struct GetPhysAddrResult {
      * with the stage1 protection.
      */
     int s2prot;
+    /* FEAT_MEC AMEC found in Block or Page descriptor. */
+    bool amec;
 } GetPhysAddrResult;
 
 /**
