@@ -751,10 +751,15 @@ static const GraphicHwOps tcx24_ops = {
     .gfx_update = tcx24_update_display,
 };
 
-static void tcx_initfn(Object *obj)
+static void tcx_realize(DeviceState *dev, Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    TCXState *s = TCX(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    TCXState *s = TCX(dev);
+    Object *obj = OBJECT(dev);
+    ram_addr_t vram_offset = 0;
+    int size, ret;
+    uint8_t *vram_base;
+    char *fcode_filename;
 
     memory_region_init_rom(&s->rom, obj, "tcx.prom", FCODE_MAX_ROM_SIZE,
                            &error_fatal);
@@ -804,16 +809,6 @@ static void tcx_initfn(Object *obj)
     memory_region_init_io(&s->alt, obj, &tcx_dummy_ops, s, "tcx.alt",
                           TCX_ALT_NREGS);
     sysbus_init_mmio(sbd, &s->alt);
-}
-
-static void tcx_realizefn(DeviceState *dev, Error **errp)
-{
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    TCXState *s = TCX(dev);
-    ram_addr_t vram_offset = 0;
-    int size, ret;
-    uint8_t *vram_base;
-    char *fcode_filename;
 
     memory_region_init_ram(&s->vram_mem, OBJECT(s), "tcx.vram",
                            s->vram_size * (1 + 4 + 4), &error_fatal);
@@ -887,7 +882,7 @@ static void tcx_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = tcx_realizefn;
+    dc->realize = tcx_realize;
     device_class_set_legacy_reset(dc, tcx_reset);
     dc->vmsd = &vmstate_tcx;
     device_class_set_props(dc, tcx_properties);
@@ -897,7 +892,6 @@ static const TypeInfo tcx_info = {
     .name          = TYPE_TCX,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(TCXState),
-    .instance_init = tcx_initfn,
     .class_init    = tcx_class_init,
 };
 
