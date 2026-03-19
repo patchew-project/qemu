@@ -2364,7 +2364,9 @@ typedef enum ARMASIdx {
     ARMASIdx_S = 1,
     ARMASIdx_TagNS = 2,
     ARMASIdx_TagS = 3,
-    ARMASIdx_MAX = ARMASIdx_TagS
+    ARMASIdx_MEC = 4,
+    ARMASIdx_MEC_PAGE = 5,
+    ARMASIdx_MAX = ARMASIdx_MEC_PAGE
 } ARMASIdx;
 
 static inline ARMMMUIdx arm_space_to_phys(ARMSecuritySpace space)
