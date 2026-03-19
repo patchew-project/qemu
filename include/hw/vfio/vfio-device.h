@@ -331,6 +331,22 @@ int vfio_device_get_irq_info(VFIODevice *vbasedev, int index,
  */
 int vfio_device_create_dmabuf_fd(struct iovec *iov, unsigned int iov_cnt,
                                  size_t total_size, Error **errp);
+
+/**
+ * Mmap a dmabuf by first translating the addresses in the iovec
+ * array into VFIO region offsets and then creating a placeholder
+ * mapping that would be replaced later with mappings that
+ * correspond to the dmabuf segments.
+ *
+ * @iov: array of iovec entries associated with the dmabuf
+ * @iov_cnt: number of entries in the iovec array
+ * @total_size: total size of the dmabuf
+ * @errp: pointer to Error*, to store an error if it happens.
+ *
+ * Returns the mapped pointer on success and NULL on error.
+ */
+void *vfio_device_mmap_dmabuf(struct iovec *iov, unsigned int iov_cnt,
+                              size_t total_size, Error **errp);
 #endif
 
 /* Returns 0 on success, or a negative errno. */

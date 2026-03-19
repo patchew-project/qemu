@@ -758,3 +758,62 @@ int vfio_device_create_dmabuf_fd(struct iovec *iov, unsigned int iov_cnt,
     }
     return ret;
 }
+
+void *vfio_device_mmap_dmabuf(struct iovec *iov, unsigned int iov_cnt,
+                              size_t total_size, Error **errp)
+{
+    struct vfio_region_info *info = NULL;
+    ram_addr_t offset, len = 0;
+    VFIODevice *vbasedev;
+    VFIORegion *region;
+    RAMBlock *first_rb;
+    void *map, *submap;
+    int i;
+
+    if (iov_size(iov, iov_cnt) != total_size) {
+        error_setg(errp, "Total size of iov does not match dmabuf size\n");
+        return NULL;
+    }
+
+    if (!vfio_device_lookup(iov, &vbasedev, &first_rb, errp)) {
+        return NULL;
+    }
+
+    /*
+     * We first reserve a contiguous chunk of address space for the entire
+     * dmabuf, then replace it with smaller mappings that correspond to the
+     * individual segments of the dmabuf.
+     */
+    map = mmap(NULL, total_size, PROT_NONE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    if (map == MAP_FAILED) {
+        error_setg_errno(errp, errno, "Could not reserve placeholder mapping");
+        return NULL;
+    }
+
+    for (i = 0; i < iov_cnt; i++) {
+        if (!vfio_region_lookup(iov[i].iov_base, &region,
+                                first_rb, &offset, errp)) {
+            goto err;
+        }
+
+        if (vfio_device_get_region_info(vbasedev, region->nr, &info)) {
+            error_setg(errp, "Cannot find region info for dmabuf segment\n");
+            goto err;
+        }
+
+        submap = mmap(map + len, iov[i].iov_len, PROT_READ,
+                      MAP_SHARED | MAP_FIXED, vbasedev->fd,
+                      info->offset + offset);
+        if (submap == MAP_FAILED) {
+            error_setg_errno(errp, errno, "Could not mmap dmabuf segment\n");
+            goto err;
+        }
+        len += iov[i].iov_len;
+    }
+    return map;
+err:
+    munmap(map, total_size);
+    error_prepend(errp, "VFIO dmabuf mmap failed: ");
+    return NULL;
+}
+
