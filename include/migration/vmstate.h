@@ -265,6 +265,7 @@ extern const VMStateInfo vmstate_info_bitmap;
 extern const VMStateInfo vmstate_info_qtailq;
 extern const VMStateInfo vmstate_info_gtree;
 extern const VMStateInfo vmstate_info_qlist;
+extern const VMStateInfo vmstate_info_ghash;
 
 #define type_check_2darray(t1,t2,n,m) ((t1(*)[n][m])0 - (t2*)0)
 /*
@@ -890,6 +891,27 @@ extern const VMStateInfo vmstate_info_qlist;
     .info         = &vmstate_info_qlist,                                 \
     .offset       = offsetof(_state, _field),                            \
     .start        = offsetof(_type, _next),                              \
+}
+
+/*
+ * For migrating a GHashTable whose key is a pointer to _key_type and the
+ * value, a pointer to _val_type
+ * The target hashtable must have been properly initialized
+ * _vmsd: Start address of the 2 element array containing the data vmsd
+ *        and the key vmsd, in that order
+ * _key_type: type of the key
+ * _val_type: type of the value
+ */
+#define VMSTATE_GHASH_V(_field, _state, _version, _vmsd,                       \
+                        _key_type, _val_type)                                  \
+{                                                                              \
+    .name         = (stringify(_field)),                                       \
+    .version_id   = (_version),                                                \
+    .vmsd         = (_vmsd),                                                   \
+    .info         = &vmstate_info_ghash,                                       \
+    .start        = sizeof(_key_type),                                         \
+    .size         = sizeof(_val_type),                                         \
+    .offset       = offsetof(_state, _field),                                  \
 }
 
 /* _f : field name

@@ -942,3 +942,150 @@ const VMStateInfo vmstate_info_qlist = {
     .get  = get_qlist,
     .put  = put_qlist,
 };
+
+struct put_ghash_data {
+    QEMUFile *f;
+    const VMStateDescription *key_vmsd;
+    const VMStateDescription *val_vmsd;
+    JSONWriter *vmdesc;
+    int ret;
+};
+
+static gboolean put_ghash_elem(gpointer key, gpointer value, gpointer data)
+{
+    struct put_ghash_data *capsule = (struct put_ghash_data *)data;
+    QEMUFile *f = capsule->f;
+    int ret;
+    Error *local_err = NULL;
+
+    qemu_put_byte(f, true);
+
+    /* put the key */
+    ret = vmstate_save_state(f, capsule->key_vmsd, key,
+                             capsule->vmdesc, &local_err);
+    if (ret) {
+        error_report_err(local_err);
+        capsule->ret = ret;
+        return false;
+    }
+
+    /* put the data */
+    ret = vmstate_save_state(f, capsule->val_vmsd, value,
+                             capsule->vmdesc, &local_err);
+    if (ret) {
+        error_report_err(local_err);
+        capsule->ret = ret;
+        return false;
+    }
+    return true;
+}
+
+static int put_ghash(QEMUFile *f, void *pv, size_t unused_size,
+                     const VMStateField *field, JSONWriter *vmdesc)
+{
+    const VMStateDescription *key_vmsd = &field->vmsd[1];
+    const VMStateDescription *val_vmsd = &field->vmsd[0];
+    struct put_ghash_data capsule = {
+        .f = f,
+        .key_vmsd = key_vmsd,
+        .val_vmsd = val_vmsd,
+        .vmdesc = vmdesc,
+        .ret = 0};
+    GHashTable **pval = pv;
+    GHashTable *hash = *pval;
+    GHashTableIter iter;
+    gpointer key, value;
+    uint32_t nnodes = g_hash_table_size(hash);
+    int ret;
+
+    trace_put_ghash(field->name, key_vmsd->name, val_vmsd->name, nnodes);
+    qemu_put_be32(f, nnodes);
+    g_hash_table_iter_init(&iter, hash);
+    while (g_hash_table_iter_next(&iter, &key, &value)) {
+        if (!put_ghash_elem(key, value, (gpointer)&capsule)) {
+            break;
+        }
+    }
+    qemu_put_byte(f, false);
+    ret = capsule.ret;
+    if (ret) {
+        error_report("%s : failed to save ghash (%d)", field->name, ret);
+    }
+    trace_put_ghash_end(field->name, key_vmsd->name, val_vmsd->name, ret);
+    return ret;
+}
+
+static int get_ghash(QEMUFile *f, void *pv, size_t unused_size,
+                     const VMStateField *field)
+{
+    const VMStateDescription *key_vmsd = &field->vmsd[1];
+    const VMStateDescription *val_vmsd = &field->vmsd[0];
+    int version_id = field->version_id;
+    size_t key_size = field->start;
+    size_t val_size = field->size;
+    int nnodes, count = 0;
+    GHashTable **pval = pv;
+    GHashTable *hash = *pval;
+    void *key, *val;
+    int ret = 0;
+    Error *local_err = NULL;
+
+    if (version_id > key_vmsd->version_id) {
+        error_report("%s %s", key_vmsd->name, "too new");
+        return -EINVAL;
+    }
+    if (version_id < key_vmsd->minimum_version_id) {
+        error_report("%s %s", key_vmsd->name, "too old");
+        return -EINVAL;
+    }
+    if (version_id > val_vmsd->version_id) {
+        error_report("%s %s", val_vmsd->name, "too new");
+        return -EINVAL;
+    }
+    if (version_id < val_vmsd->minimum_version_id) {
+        error_report("%s %s", val_vmsd->name, "too old");
+        return -EINVAL;
+    }
+
+    nnodes = qemu_get_be32(f);
+    trace_get_ghash(field->name, key_vmsd->name, val_vmsd->name, nnodes);
+
+    while (qemu_get_byte(f)) {
+        if ((++count) > nnodes) {
+            ret = -EINVAL;
+            break;
+        }
+        key = g_malloc0(key_size);
+        ret = vmstate_load_state(f, key_vmsd, key, version_id, &local_err);
+        if (ret) {
+            error_report_err(local_err);
+            goto key_error;
+        }
+        val = g_malloc0(val_size);
+        ret = vmstate_load_state(f, val_vmsd, val, version_id, &local_err);
+        if (ret) {
+            error_report_err(local_err);
+            goto val_error;
+        }
+        g_hash_table_insert(hash, key, val);
+    }
+    if (count != nnodes) {
+        error_report("%s inconsistent stream when loading the ghash",
+                     field->name);
+        return -EINVAL;
+    }
+    trace_get_ghash_end(field->name, key_vmsd->name, val_vmsd->name, ret);
+    return ret;
+val_error:
+    g_free(val);
+key_error:
+    g_free(key);
+    trace_get_ghash_end(field->name, key_vmsd->name, val_vmsd->name, ret);
+    return ret;
+}
+
+const VMStateInfo vmstate_info_ghash = {
+    .name = "ghash",
+    .get  = get_ghash,
+    .put  = put_ghash,
+};
