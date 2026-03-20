@@ -547,7 +547,7 @@ static void mmu6xx_dump_mmu(Monitor *mon, CPUPPCState *env)
     }
 }
 
-void dump_mmu(Monitor *mon, CPUPPCState *env)
+void ppc_monitor_dump_mmu(Monitor *mon, CPUPPCState *env)
 {
     switch (env->mmu_model) {
     case POWERPC_MMU_BOOKE:
