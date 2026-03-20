@@ -1198,7 +1198,7 @@ static void dump_mpu(Monitor *mon, CPUXtensaState *env,
     }
 }
 
-void dump_mmu(Monitor *mon, CPUXtensaState *env)
+void xtensa_monitor_dump_mmu(Monitor *mon, CPUXtensaState *env)
 {
     if (xtensa_option_bits_enabled(env->config,
                 XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_PROTECTION) |
