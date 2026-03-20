@@ -235,16 +235,13 @@ Regexes for git grep:
  - ``\<cpu_ld[us]\?[bwlq]\(_[bl]e\)\?_data\>``
  - ``\<cpu_st[bwlq]\(_[bl]e\)\?_data\+\>``
 
-``cpu_ld*_code``
-~~~~~~~~~~~~~~~~
+``cpu_ld*_code_mmu``
+~~~~~~~~~~~~~~~~~~~~
 
-These functions perform a read for instruction execution.  The ``mmuidx``
-parameter is taken from the current mode of the guest CPU, as determined
-by ``cpu_mmu_index(env, true)``.  The ``retaddr`` parameter is 0, and
-thus does not unwind guest CPU state, because CPU state is always
-synchronized while translating instructions.  Any guest CPU exception
-that is raised will indicate an instruction execution fault rather than
-a data read fault.
+These functions work like the ``cpu_{ld,st}*_mmu`` functions
+except that they perform a read for instruction execution.
+Any guest CPU exception that is raised will indicate an instruction
+execution fault rather than a data read fault.
 
 In general these functions should not be used directly during translation.
 There are wrapper functions that are to be used which also take care of
@@ -252,7 +249,7 @@ plugins for tracing.
 
 Function names follow the pattern:
 
-load: ``cpu_ld{sign}{size}_code(env, ptr)``
+load: ``cpu_ld{sign}{size}_code_mmu(env, addr, oi, retaddr)``
 
 ``sign``
  - (empty) : for 32 or 64 bit sizes
@@ -266,12 +263,12 @@ load: ``cpu_ld{sign}{size}_code(env, ptr)``
  - ``q`` : 64 bits
 
 Regexes for git grep:
- - ``\<cpu_ld[us]\?[bwlq]_code\>``
+ - ``\<cpu_ld[us]\?[bwlq]_code_mmu\>``
 
 ``translator_ld*``
 ~~~~~~~~~~~~~~~~~~
 
-These functions are a wrapper for ``cpu_ld*_code`` which also perform
+These functions are a wrapper for ``cpu_ld*_code_mmu`` which also perform
 any actions required by any tracing plugins.  They are only to be
 called during the translator callback ``translate_insn``.
 
