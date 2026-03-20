@@ -3864,6 +3864,37 @@ static bool failover_hide_primary_device(DeviceListener *listener,
     return qatomic_read(&n->failover_primary_hidden);
 }
 
+static int virtio_net_early_pre_load(void *opaque)
+{
+    VirtIONet *n = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+
+    vdev->migration->early_load = true;
+    return 0;
+}
+
+static int virtio_net_early_post_load(void *opaque, int version_id)
+{
+    VirtIONet *n = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+
+    vdev->migration->early_load = false;
+    return 0;
+}
+
+static const VMStateDescription vmstate_virtio_net_early = {
+    .name = "virtio-net-early",
+    .minimum_version_id = VIRTIO_NET_VM_VERSION,
+    .version_id = VIRTIO_NET_VM_VERSION,
+    .early_setup = true,
+    .pre_load = virtio_net_early_pre_load,
+    .post_load = virtio_net_early_post_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_VIRTIO_DEVICE,
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -4046,6 +4077,21 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
             n->rss_data.specified_hash_types.on_bits |
             n->rss_data.specified_hash_types.auto_bits;
     }
+
+    if (n->early_mig) {
+        if (nc->peer && nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
+            /*
+             * vhost-user backend is not currently supported for the early
+             * migration path.
+             */
+            n->early_mig = false;
+        } else {
+            vdev->migration = g_new0(VirtIODevMigration, 1);
+            vdev->migration->early_load = false;
+
+            vmstate_register_any(VMSTATE_IF(n), &vmstate_virtio_net_early, n);
+        }
+    }
 }
 
 static void virtio_net_device_unrealize(DeviceState *dev)
@@ -4090,6 +4136,13 @@ static void virtio_net_device_unrealize(DeviceState *dev)
     g_free(n->rss_data.indirections_table);
     net_rx_pkt_uninit(n->rx_pkt);
     virtio_cleanup(vdev);
+
+    if (n->early_mig) {
+        g_free(vdev->migration);
+        vdev->migration = NULL;
+
+        vmstate_unregister(VMSTATE_IF(n), &vmstate_virtio_net_early, n);
+    }
 }
 
 static void virtio_net_reset(VirtIODevice *vdev)

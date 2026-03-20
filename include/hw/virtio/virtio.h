@@ -100,6 +100,14 @@ enum virtio_device_endian {
 };
 
 /**
+ * struct VirtIODevMigration - Common VirtIODevice migration structure
+ * @early_load: Flag to indicate an early virtio_load for the device.
+ */
+typedef struct VirtIODevMigration {
+    bool early_load;
+} VirtIODevMigration;
+
+/**
  * struct VirtIODevice - common VirtIO structure
  * @name: name of the device
  * @status: VirtIO Device Status field
@@ -168,6 +176,7 @@ struct VirtIODevice
      */
     EventNotifier config_notifier;
     bool device_iotlb_enabled;
+    VirtIODevMigration *migration;
 };
 
 struct VirtioDeviceClass {

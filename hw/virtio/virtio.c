@@ -3323,6 +3323,7 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     int32_t config_len;
     uint32_t num;
     uint32_t features;
+    bool inconsistent_indices;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
@@ -3461,6 +3462,14 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
             uint16_t nheads;
 
             /*
+             * Ring indices will be inconsistent for a VMStateDescription
+             * performing an early load. This shouldn't be an issue as the
+             * final indices will get sent later once the source has been
+             * stopped.
+             */
+            inconsistent_indices = vdev->migration && vdev->migration->early_load;
+
+            /*
              * VIRTIO-1 devices migrate desc, used, and avail ring addresses so
              * only the region cache needs to be set up.  Legacy devices need
              * to calculate used and avail ring addresses based on the desc
@@ -3481,12 +3490,15 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
 
             nheads = vring_avail_idx(&vdev->vq[i]) - vdev->vq[i].last_avail_idx;
             /* Check it isn't doing strange things with descriptor numbers. */
-            if (nheads > vdev->vq[i].vring.num) {
+            if (!inconsistent_indices && nheads > vdev->vq[i].vring.num) {
                 virtio_error(vdev, "VQ %d size 0x%x Guest index 0x%x "
                              "inconsistent with Host index 0x%x: delta 0x%x",
                              i, vdev->vq[i].vring.num,
                              vring_avail_idx(&vdev->vq[i]),
                              vdev->vq[i].last_avail_idx, nheads);
+                inconsistent_indices = true;
+            }
+            if (inconsistent_indices) {
                 vdev->vq[i].used_idx = 0;
                 vdev->vq[i].shadow_avail_idx = 0;
                 vdev->vq[i].inuse = 0;
