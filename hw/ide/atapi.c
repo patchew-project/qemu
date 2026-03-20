@@ -153,6 +153,11 @@ static void cd_read_sector_cb(void *opaque, int ret)
 static int cd_read_sector(IDEState *s)
 {
     void *buf;
+    
+    //resolve core crash caused by optical drive pop-up during virtual machine startup
+    if (!blk_is_available(s->blk)) {
+        return -ENOMEDIUM;
+    }
 
     if (s->cd_sector_size != 2048 && s->cd_sector_size != 2352) {
         block_acct_invalid(blk_get_stats(s->blk), BLOCK_ACCT_READ);
