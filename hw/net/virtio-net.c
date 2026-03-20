@@ -3943,6 +3943,27 @@ static int virtio_net_early_pre_save(void *opaque)
     vnet_mig->mq_early = n->multiqueue;
     vnet_mig->queue_pairs_early = n->curr_queue_pairs;
 
+    /* RSS state snapshot */
+    vnet_mig->rss_enabled_early = n->rss_data.enabled;
+    vnet_mig->rss_redirect_early = n->rss_data.redirect;
+    vnet_mig->rss_populate_hash_early = n->rss_data.populate_hash;
+    vnet_mig->rss_runtime_hash_types_early = n->rss_data.runtime_hash_types;
+    vnet_mig->rss_indirections_len_early = n->rss_data.indirections_len;
+    vnet_mig->rss_default_queue_early = n->rss_data.default_queue;
+    memcpy(vnet_mig->rss_key_early, n->rss_data.key, VIRTIO_NET_RSS_MAX_KEY_SIZE);
+
+    /* Snapshot RSS indirections table if present */
+    g_free(vnet_mig->rss_indirections_table_early);
+    vnet_mig->rss_indirections_table_early = NULL;
+
+    if (n->rss_data.indirections_len && n->rss_data.indirections_table) {
+        /* Casting to size_t avoids implicit narrow/widen arithmetic */
+        size_t bytes = (size_t)n->rss_data.indirections_len * sizeof(uint16_t);
+
+        vnet_mig->rss_indirections_table_early =
+            g_memdup2(n->rss_data.indirections_table, bytes);
+    }
+
     return 0;
 }
 
@@ -4233,6 +4254,8 @@ static void virtio_net_device_unrealize(DeviceState *dev)
         n->migration->mtable_macs_early = NULL;
         g_free(n->migration->vlans_early);
         n->migration->vlans_early = NULL;
+        g_free(n->migration->rss_indirections_table_early);
+        n->migration->rss_indirections_table_early = NULL;
         g_free(n->migration);
         n->migration = NULL;
 
@@ -4387,6 +4410,33 @@ static bool virtio_net_has_delta(VirtIONet *n, VirtIODevice *vdev)
     }
     if (n->curr_queue_pairs != vnet_mig->queue_pairs_early) {
         return true;
+    }
+
+    /* Has the VirtIONet's RSS state changed? */
+    if (n->rss_data.enabled != vnet_mig->rss_enabled_early ||
+        n->rss_data.redirect != vnet_mig->rss_redirect_early ||
+        n->rss_data.populate_hash != vnet_mig->rss_populate_hash_early ||
+        n->rss_data.runtime_hash_types != vnet_mig->rss_runtime_hash_types_early ||
+        n->rss_data.indirections_len != vnet_mig->rss_indirections_len_early ||
+        n->rss_data.default_queue != vnet_mig->rss_default_queue_early) {
+        return true;
+    }
+    if (memcmp(n->rss_data.key, vnet_mig->rss_key_early,
+               VIRTIO_NET_RSS_MAX_KEY_SIZE) != 0) {
+        return true;
+    }
+    if (n->rss_data.indirections_len) {
+        size_t bytes = (size_t)n->rss_data.indirections_len * sizeof(uint16_t);
+
+        /* If either side lacks a buffer when len > 0, treat as changed */
+        if (!n->rss_data.indirections_table ||
+            !vnet_mig->rss_indirections_table_early) {
+            return true;
+        }
+        if (memcmp(n->rss_data.indirections_table,
+                   vnet_mig->rss_indirections_table_early, bytes) != 0) {
+            return true;
+        }
     }
 
     /*

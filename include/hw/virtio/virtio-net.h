@@ -180,6 +180,14 @@ typedef struct VirtIONetQueue {
  * @guest_offloads_early: Guest offloads snapshot.
  * @mq_early: Multiqueue state snapshot.
  * @queue_pairs_early: Queue pairs snapshot.
+ * @rss_enabled_early: RSS enabled flag.
+ * @rss_redirect_early: RSS redirect flag.
+ * @rss_populate_hash_early: RSS populate hash flag.
+ * @rss_runtime_hash_types_early: RSS runtime hash types.
+ * @rss_indirections_len_early: RSS indirections length.
+ * @rss_default_queue_early: RSS default queue.
+ * @rss_key_early: RSS key.
+ * @rss_indirections_table_early: RSS indirections table.
  */
 typedef struct VirtIONetMigration {
     uint16_t status_early;
@@ -193,6 +201,14 @@ typedef struct VirtIONetMigration {
     uint64_t guest_offloads_early;
     int mq_early;
     uint16_t queue_pairs_early;
+    bool rss_enabled_early;
+    bool rss_redirect_early;
+    bool rss_populate_hash_early;
+    uint32_t rss_runtime_hash_types_early;
+    uint16_t rss_indirections_len_early;
+    uint16_t rss_default_queue_early;
+    uint8_t rss_key_early[VIRTIO_NET_RSS_MAX_KEY_SIZE];
+    uint16_t *rss_indirections_table_early;
 } VirtIONetMigration;
 
 struct VirtIONet {
