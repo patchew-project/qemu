@@ -607,6 +607,6 @@ void m68k_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
 #define TB_FLAGS_TRACE          16
 #define TB_FLAGS_TRACE_BIT      (1 << TB_FLAGS_TRACE)
 
-void dump_mmu(Monitor *mon, CPUM68KState *env);
+void m68k_monitor_dump_mmu(Monitor *mon, CPUM68KState *env);
 
 #endif

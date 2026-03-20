@@ -20,7 +20,7 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    dump_mmu(mon, env1);
+    m68k_monitor_dump_mmu(mon, env1);
 }
 
 static const MonitorDef monitor_defs[] = {

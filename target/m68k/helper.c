@@ -611,7 +611,7 @@ static void dump_ttr(Monitor *mon, uint32_t ttr)
                                M68K_DESC_USERATTR_SHIFT);
 }
 
-void dump_mmu(Monitor *mon, CPUM68KState *env)
+void m68k_monitor_dump_mmu(Monitor *mon, CPUM68KState *env)
 {
     if ((env->mmu.tcr & M68K_TCR_ENABLED) == 0) {
         monitor_puts(mon, "Translation disabled\n");
