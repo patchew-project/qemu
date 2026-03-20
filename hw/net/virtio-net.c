@@ -3871,6 +3871,15 @@ static int virtio_net_early_pre_save(void *opaque)
     VirtIODevMigration *vdev_mig = vdev->migration;
 
     vdev_mig->status_early = vdev->status;
+
+    /* VirtIODevice config buffer snapshot */
+    g_free(vdev_mig->config_early);
+    vdev_mig->config_len_early = vdev->config_len;
+    if (vdev->config_len) {
+        vdev_mig->config_early = g_memdup2(vdev->config, vdev->config_len);
+    } else {
+        vdev_mig->config_early = NULL;
+    }
     return 0;
 }
 
@@ -4150,6 +4159,9 @@ static void virtio_net_device_unrealize(DeviceState *dev)
     virtio_cleanup(vdev);
 
     if (n->early_mig) {
+        g_free(vdev->migration->config_early);
+        vdev->migration->config_early = NULL;
+
         g_free(vdev->migration);
         vdev->migration = NULL;
 
@@ -4248,6 +4260,15 @@ static bool virtio_net_has_delta(VirtIONet *n, VirtIODevice *vdev)
 
     /* Has the VirtIODevice's status changed? */
     if (vdev->status != vdev_mig->status_early) {
+        return true;
+    }
+
+    /* Has the VirtIODevice's config buffer changed? */
+    if (vdev->config_len != vdev_mig->config_len_early) {
+        return true;
+    }
+    if (vdev->config_len && memcmp(vdev->config, vdev_mig->config_early,
+                                   vdev->config_len) != 0) {
         return true;
     }
 

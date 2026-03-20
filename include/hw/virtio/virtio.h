@@ -103,10 +103,14 @@ enum virtio_device_endian {
  * struct VirtIODevMigration - Common VirtIODevice migration structure
  * @early_load: Flag to indicate an early virtio_load for the device.
  * @status_early: Device status at the time it was sent early.
+ * @config_len_early: Length of the config buffer at the time it was sent early.
+ * @config_early: Config buffer at the time it was sent early.
  */
 typedef struct VirtIODevMigration {
     bool early_load;
     uint8_t status_early;
+    size_t config_len_early;
+    uint8_t *config_early;
 } VirtIODevMigration;
 
 /**
