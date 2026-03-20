@@ -23,7 +23,6 @@
 #include "exec/page-protection.h"
 #include "exec/target_page.h"
 #include "qemu/error-report.h"
-#include "qemu/qemu-print.h"
 #include "system/hw_accel.h"
 #include "system/memory.h"
 #include "kvm_ppc.h"
@@ -34,6 +33,7 @@
 #include "mmu-book3s-v3.h"
 #include "mmu-books.h"
 #include "helper_regs.h"
+#include "monitor/monitor.h"
 
 #ifdef CONFIG_TCG
 #include "exec/helper-proto.h"
@@ -83,7 +83,7 @@ static ppc_slb_t *slb_lookup(PowerPCCPU *cpu, target_ulong eaddr)
     return NULL;
 }
 
-void dump_slb(PowerPCCPU *cpu)
+void dump_slb(Monitor *mon, PowerPCCPU *cpu)
 {
     CPUPPCState *env = &cpu->env;
     int i;
@@ -91,15 +91,15 @@ void dump_slb(PowerPCCPU *cpu)
 
     cpu_synchronize_state(CPU(cpu));
 
-    qemu_printf("SLB\tESID\t\t\tVSID\n");
+    monitor_puts(mon, "SLB\tESID\t\t\tVSID\n");
     for (i = 0; i < cpu->hash64_opts->slb_size; i++) {
         slbe = env->slb[i].esid;
         slbv = env->slb[i].vsid;
         if (slbe == 0 && slbv == 0) {
             continue;
         }
-        qemu_printf("%d\t0x%016" PRIx64 "\t0x%016" PRIx64 "\n",
-                    i, slbe, slbv);
+        monitor_printf(mon, "%d\t0x%016" PRIx64 "\t0x%016" PRIx64 "\n",
+                       i, slbe, slbv);
     }
 }
 
