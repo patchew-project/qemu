@@ -27,7 +27,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "qemu/qemu-print.h"
 #include "qemu/units.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
@@ -38,6 +37,7 @@
 #include "exec/page-protection.h"
 #include "exec/target_page.h"
 #include "system/memory.h"
+#include "monitor/monitor.h"
 
 #define XTENSA_MPU_SEGMENT_MASK 0x0000001f
 #define XTENSA_MPU_ACC_RIGHTS_MASK 0x00000f00
@@ -1082,7 +1082,7 @@ int xtensa_get_physical_addr(CPUXtensaState *env, bool update_tlb,
     }
 }
 
-static void dump_tlb(CPUXtensaState *env, bool dtlb)
+static void dump_tlb(Monitor *mon, CPUXtensaState *env, bool dtlb)
 {
     unsigned wi, ei;
     const xtensa_tlb *conf =
@@ -1121,11 +1121,11 @@ static void dump_tlb(CPUXtensaState *env, bool dtlb)
 
                 if (print_header) {
                     print_header = false;
-                    qemu_printf("Way %u (%d %s)\n", wi, sz, sz_text);
-                    qemu_printf("\tVaddr       Paddr       ASID  Attr RWX Cache\n"
+                    monitor_printf(mon, "Way %u (%d %s)\n", wi, sz, sz_text);
+                    monitor_puts(mon, "\tVaddr       Paddr       ASID  Attr RWX Cache\n"
                                 "\t----------  ----------  ----  ---- --- -------\n");
                 }
-                qemu_printf("\t0x%08x  0x%08x  0x%02x  0x%02x %c%c%c %s\n",
+                monitor_printf(mon, "\t0x%08x  0x%08x  0x%02x  0x%02x %c%c%c %s\n",
                             entry->vaddr,
                             entry->paddr,
                             entry->asid,
@@ -1140,12 +1140,12 @@ static void dump_tlb(CPUXtensaState *env, bool dtlb)
     }
 }
 
-static void dump_mpu(CPUXtensaState *env,
+static void dump_mpu(Monitor *mon, CPUXtensaState *env,
                      const xtensa_mpu_entry *entry, unsigned n)
 {
     unsigned i;
 
-    qemu_printf("\t%s  Vaddr       Attr        Ring0  Ring1  System Type    CPU cache\n"
+    monitor_printf(mon, "\t%s  Vaddr       Attr        Ring0  Ring1  System Type    CPU cache\n"
                 "\t%s  ----------  ----------  -----  -----  -------------  ---------\n",
                 env ? "En" : "  ",
                 env ? "--" : "  ");
@@ -1157,7 +1157,7 @@ static void dump_mpu(CPUXtensaState *env,
         unsigned type = mpu_attr_to_type(attr);
         char cpu_cache = (type & XTENSA_MPU_TYPE_CPU_CACHE) ? '-' : ' ';
 
-        qemu_printf("\t %c  0x%08x  0x%08x   %c%c%c    %c%c%c   ",
+        monitor_printf(mon, "\t %c  0x%08x  0x%08x   %c%c%c    %c%c%c   ",
                     env ?
                     ((env->sregs[MPUENB] & (1u << i)) ? '+' : '-') : ' ',
                     entry[i].vaddr, attr,
@@ -1170,19 +1170,19 @@ static void dump_mpu(CPUXtensaState *env,
 
         switch (type & XTENSA_MPU_SYSTEM_TYPE_MASK) {
         case XTENSA_MPU_SYSTEM_TYPE_DEVICE:
-            qemu_printf("Device %cB %3s\n",
+            monitor_printf(mon, "Device %cB %3s\n",
                         (type & XTENSA_MPU_TYPE_B) ? ' ' : 'n',
                         (type & XTENSA_MPU_TYPE_INT) ? "int" : "");
             break;
         case XTENSA_MPU_SYSTEM_TYPE_NC:
-            qemu_printf("Sys NC %cB      %c%c%c\n",
+            monitor_printf(mon, "Sys NC %cB      %c%c%c\n",
                         (type & XTENSA_MPU_TYPE_B) ? ' ' : 'n',
                         (type & XTENSA_MPU_TYPE_CPU_R) ? 'r' : cpu_cache,
                         (type & XTENSA_MPU_TYPE_CPU_W) ? 'w' : cpu_cache,
                         (type & XTENSA_MPU_TYPE_CPU_C) ? 'c' : cpu_cache);
             break;
         case XTENSA_MPU_SYSTEM_TYPE_C:
-            qemu_printf("Sys  C %c%c%c     %c%c%c\n",
+            monitor_printf(mon, "Sys  C %c%c%c     %c%c%c\n",
                         (type & XTENSA_MPU_TYPE_SYS_R) ? 'R' : '-',
                         (type & XTENSA_MPU_TYPE_SYS_W) ? 'W' : '-',
                         (type & XTENSA_MPU_TYPE_SYS_C) ? 'C' : '-',
@@ -1191,29 +1191,29 @@ static void dump_mpu(CPUXtensaState *env,
                         (type & XTENSA_MPU_TYPE_CPU_C) ? 'c' : cpu_cache);
             break;
         default:
-            qemu_printf("Unknown\n");
+            monitor_puts(mon, "Unknown\n");
             break;
         }
     }
 }
 
-void dump_mmu(CPUXtensaState *env)
+void dump_mmu(Monitor *mon, CPUXtensaState *env)
 {
     if (xtensa_option_bits_enabled(env->config,
                 XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_PROTECTION) |
                 XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_TRANSLATION) |
                 XTENSA_OPTION_BIT(XTENSA_OPTION_MMU))) {
 
-        qemu_printf("ITLB:\n");
-        dump_tlb(env, false);
-        qemu_printf("\nDTLB:\n");
-        dump_tlb(env, true);
+        monitor_puts(mon, "ITLB:\n");
+        dump_tlb(mon, env, false);
+        monitor_puts(mon, "\nDTLB:\n");
+        dump_tlb(mon, env, true);
     } else if (xtensa_option_enabled(env->config, XTENSA_OPTION_MPU)) {
-        qemu_printf("Foreground map:\n");
-        dump_mpu(env, env->mpu_fg, env->config->n_mpu_fg_segments);
-        qemu_printf("\nBackground map:\n");
-        dump_mpu(NULL, env->config->mpu_bg, env->config->n_mpu_bg_segments);
+        monitor_puts(mon, "Foreground map:\n");
+        dump_mpu(mon, env, env->mpu_fg, env->config->n_mpu_fg_segments);
+        monitor_puts(mon, "\nBackground map:\n");
+        dump_mpu(mon, NULL, env->config->mpu_bg, env->config->n_mpu_bg_segments);
     } else {
-        qemu_printf("No TLB for this CPU core\n");
+        monitor_puts(mon, "No TLB for this CPU core\n");
     }
 }
