@@ -690,6 +690,7 @@ void arm_handle_psci_call(ARMCPU *cpu);
 static inline void arm_clear_exclusive(CPUARMState *env)
 {
     env->exclusive_addr = -1;
+    env->event_register.as_bool = true;
 }
 
 /**

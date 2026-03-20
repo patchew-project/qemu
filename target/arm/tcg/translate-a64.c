@@ -2270,6 +2270,7 @@ static bool trans_CHKFEAT(DisasContext *s, arg_CHKFEAT *a)
 static bool trans_CLREX(DisasContext *s, arg_CLREX *a)
 {
     tcg_gen_movi_i64(cpu_exclusive_addr, -1);
+    gen_event_reg();
     return true;
 }
 
@@ -3335,6 +3336,13 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
     TCGLabel *done_label = gen_new_label();
     TCGv_i64 tmp, clean_addr;
     MemOp memop;
+
+    /*
+     * All StoreExcl operations will transition the global monitor
+     * from Exclusive to Open Access and at that point generate an
+     * Event.
+     */
+    gen_event_reg();
 
     /*
      * FIXME: We are out of spec here.  We have recorded only the address
