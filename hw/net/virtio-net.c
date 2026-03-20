@@ -3872,6 +3872,7 @@ static int virtio_net_early_pre_save(void *opaque)
     VirtIONetMigration *vnet_mig = n->migration;
 
     vdev_mig->status_early = vdev->status;
+    vnet_mig->status_early = n->status;
 
     /* VirtIODevice config buffer snapshot */
     g_free(vdev_mig->config_early);
@@ -4301,6 +4302,11 @@ static bool virtio_net_has_delta(VirtIONet *n, VirtIODevice *vdev)
     }
     if (vdev->config_len && memcmp(vdev->config, vdev_mig->config_early,
                                    vdev->config_len) != 0) {
+        return true;
+    }
+
+    /* Has the VirtIONet's status changed? */
+    if (n->status != vnet_mig->status_early) {
         return true;
     }
 
