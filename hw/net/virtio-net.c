@@ -180,17 +180,9 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
                  n->rss_data.supported_hash_types);
     memcpy(config, &netcfg, n->config_size);
 
-    /*
-     * Is this VDPA? No peer means not VDPA: there's no way to
-     * disconnect/reconnect a VDPA peer.
-     */
-    if (nc->peer && nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
-        ret = vhost_net_get_config(get_vhost_net(nc->peer), (uint8_t *)&netcfg,
-                                   n->config_size);
-        if (ret == -1) {
-            return;
-        }
-
+    ret = vhost_net_get_config(get_vhost_net(nc->peer), (uint8_t *)&netcfg,
+                               n->config_size);
+    if (ret >= 0) {
         /*
          * Some NIC/kernel combinations present 0 as the mac address.  As that
          * is not a legal address, try to proceed with the address from the
@@ -223,15 +215,9 @@ static void virtio_net_set_config(VirtIODevice *vdev, const uint8_t *config)
         qemu_format_nic_info_str(qemu_get_queue(n->nic), n->mac);
     }
 
-    /*
-     * Is this VDPA? No peer means not VDPA: there's no way to
-     * disconnect/reconnect a VDPA peer.
-     */
-    if (nc->peer && nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
-        vhost_net_set_config(get_vhost_net(nc->peer),
-                             (uint8_t *)&netcfg, 0, n->config_size,
-                             VHOST_SET_CONFIG_TYPE_FRONTEND);
-      }
+    vhost_net_set_config(get_vhost_net(nc->peer),
+                         (uint8_t *)&netcfg, 0, n->config_size,
+                         VHOST_SET_CONFIG_TYPE_FRONTEND);
 }
 
 static bool virtio_net_started(VirtIONet *n, uint8_t status)
@@ -3868,6 +3854,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIONet *n = VIRTIO_NET(dev);
+    struct virtio_net_config netcfg = {};
     NetClientState *nc;
     int i;
 
@@ -4023,12 +4010,9 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     nc = qemu_get_queue(n->nic);
     nc->rxfilter_notify_enabled = 1;
 
-   if (nc->peer && nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
-        struct virtio_net_config netcfg = {};
-        memcpy(&netcfg.mac, &n->nic_conf.macaddr, ETH_ALEN);
-        vhost_net_set_config(get_vhost_net(nc->peer),
-            (uint8_t *)&netcfg, 0, ETH_ALEN, VHOST_SET_CONFIG_TYPE_FRONTEND);
-    }
+    memcpy(&netcfg.mac, &n->nic_conf.macaddr, ETH_ALEN);
+    vhost_net_set_config(get_vhost_net(nc->peer), (uint8_t *)&netcfg, 0,
+                         ETH_ALEN, VHOST_SET_CONFIG_TYPE_FRONTEND);
     QTAILQ_INIT(&n->rsc_chains);
     n->qdev = dev;
 
