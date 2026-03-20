@@ -3890,6 +3890,7 @@ static int virtio_net_early_pre_save(void *opaque)
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
     VirtIODevMigration *vdev_mig = vdev->migration;
     VirtIONetMigration *vnet_mig = n->migration;
+    size_t vlans_size = (size_t)(MAX_VLAN >> 3);
 
     vdev_mig->status_early = vdev->status;
     vnet_mig->status_early = n->status;
@@ -3928,6 +3929,12 @@ static int virtio_net_early_pre_save(void *opaque)
 
     /* Rx filter flags snapshot */
     vnet_mig->rx_flags_early = virtio_net_rx_flags_pack(n);
+
+    /* VLAN filter table snapshot */
+    if (!vnet_mig->vlans_early) {
+        vnet_mig->vlans_early = g_malloc0(vlans_size);
+    }
+    memcpy(vnet_mig->vlans_early, n->vlans, vlans_size);
 
     return 0;
 }
@@ -4217,6 +4224,8 @@ static void virtio_net_device_unrealize(DeviceState *dev)
 
         g_free(n->migration->mtable_macs_early);
         n->migration->mtable_macs_early = NULL;
+        g_free(n->migration->vlans_early);
+        n->migration->vlans_early = NULL;
         g_free(n->migration);
         n->migration = NULL;
 
@@ -4352,6 +4361,11 @@ static bool virtio_net_has_delta(VirtIONet *n, VirtIODevice *vdev)
 
     /* Has the VirtIONet's Rx filter flags changed? */
     if (virtio_net_rx_flags_pack(n) != vnet_mig->rx_flags_early) {
+        return true;
+    }
+
+    /* Has the VirtIONet's VLAN filter table changed? */
+    if (memcmp(n->vlans, vnet_mig->vlans_early, MAX_VLAN >> 3) != 0) {
         return true;
     }
 
