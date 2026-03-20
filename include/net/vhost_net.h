@@ -4,6 +4,7 @@
 #include "net/net.h"
 #include "hw/virtio/virtio-features.h"
 #include "hw/virtio/vhost-backend.h"
+#include "hw/virtio/virtio-net.h"
 
 struct vhost_net;
 typedef struct vhost_net VHostNetState;
@@ -88,4 +89,12 @@ int vhost_net_virtqueue_restart(VirtIODevice *vdev, NetClientState *nc,
                                 int vq_index);
 
 void vhost_net_save_acked_features(NetClientState *nc);
+
+int vhost_net_set_all_vring_bases(struct VirtIONet *n, VirtIODevice *vdev,
+                                  NetClientState *ncs, int queue_pairs,
+                                  int cvq, int nvhosts);
+int vhost_net_start_all_backends(struct VirtIONet *n, VirtIODevice *vdev,
+                                  NetClientState *ncs, int queue_pairs,
+                                  int cvq, int nvhosts);
+int vhost_net_post_load_migration_quickstart(struct VirtIONet *n);
 #endif

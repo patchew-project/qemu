@@ -169,6 +169,7 @@ typedef struct VirtIONetQueue {
 
 /**
  * struct VirtIONetMigration - VirtIONet migration structure
+ * @reloaded: Flag to indicate the state has been reloaded.
  * @status_early: VirtIONet status snapshot.
  * @mac_early: MAC address early migration snapshot.
  * @mtable_in_use_early: In-use MAC table entries.
@@ -191,6 +192,7 @@ typedef struct VirtIONetQueue {
  * @rss_indirections_table_early: RSS indirections table.
  */
 typedef struct VirtIONetMigration {
+    bool reloaded;
     uint16_t status_early;
     uint8_t mac_early[ETH_ALEN];
     uint32_t mtable_in_use_early;

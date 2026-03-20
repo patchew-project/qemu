@@ -3864,6 +3864,38 @@ static bool failover_hide_primary_device(DeviceListener *listener,
     return qatomic_read(&n->failover_primary_hidden);
 }
 
+static int virtio_net_vhost_early_start(VirtIONet *n, VirtIODevice *vdev)
+{
+    NetClientState *ncs = qemu_get_queue(n->nic);
+    int queue_pairs = n->multiqueue ? n->max_queue_pairs : 1;
+    int cvq = virtio_vdev_has_feature(vdev, VIRTIO_NET_F_CTRL_VQ) ?
+              n->max_ncs - n->max_queue_pairs : 0;
+    int r;
+
+    /* Return early if there's no vhost backend */
+    if (!ncs || !ncs->peer || !get_vhost_net(ncs->peer)) {
+        return 0;
+    }
+
+    if (virtio_has_feature(vdev->guest_features, VIRTIO_NET_F_MTU)) {
+        r = vhost_net_set_mtu(get_vhost_net(ncs->peer), n->net_conf.mtu);
+        if (r < 0) {
+            error_report("%u bytes MTU not supported by the backend",
+                         n->net_conf.mtu);
+            return r;
+        }
+    }
+
+    n->vhost_started = 1;
+    r = vhost_net_start(vdev, n->nic->ncs, queue_pairs, cvq);
+    if (r < 0) {
+        error_report("unable to start vhost net: %d: "
+                     "falling back on userspace virtio", -r);
+        n->vhost_started = 0;
+    }
+    return r;
+}
+
 enum VirtIONetRxFlags {
     VNET_RX_F_PROMISC  = 1u << 0,
     VNET_RX_F_ALLMULTI = 1u << 1,
@@ -3891,6 +3923,9 @@ static int virtio_net_early_pre_save(void *opaque)
     VirtIODevMigration *vdev_mig = vdev->migration;
     VirtIONetMigration *vnet_mig = n->migration;
     size_t vlans_size = (size_t)(MAX_VLAN >> 3);
+
+    /* Reset source-side delta decision for this migration iteration. */
+    n->migration->reloaded = false;
 
     vdev_mig->status_early = vdev->status;
     vnet_mig->status_early = n->status;
@@ -3989,6 +4024,14 @@ static int virtio_net_early_post_load(void *opaque, int version_id)
     VirtIONet *n = opaque;
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
 
+    /*
+     * Start the vhost backend if one is present. Note that while
+     * vdev->migration->early_load is true, not all vhost startup operations
+     * are performed. For example, we defer setting the backends (vhost-net w/
+     * TAP) until the stop-and-copy phase (see vmstate_virtio_net_vhost).
+     */
+    virtio_net_vhost_early_start(n, vdev);
+
     vdev->migration->early_load = false;
     return 0;
 }
@@ -4005,6 +4048,49 @@ static const VMStateDescription vmstate_virtio_net_early = {
         VMSTATE_VIRTIO_DEVICE,
         VMSTATE_END_OF_LIST()
     },
+};
+
+static int virtio_net_vhost_post_load(void *opaque, int version_id)
+{
+    VirtIONet *n = opaque;
+    int r;
+
+    if (!n->vhost_started) {
+        return 0;
+    }
+
+    /* Finalize vhost startup */
+    r = vhost_net_post_load_migration_quickstart(n);
+    if (r < 0) {
+        error_report("virtio-net vhost post-load quickstart failed: %d", r);
+    }
+    return 0;
+}
+
+static bool virtio_net_vhost_needed(void *opaque)
+{
+    VirtIONet *n = opaque;
+    NetClientState *nc = qemu_get_queue(n->nic);
+
+    if (!nc || !nc->peer || !get_vhost_net(nc->peer)) {
+        return false;
+    }
+
+    /* Skip vhost quickstart section when a full virtio-net reload is needed. */
+    return !n->migration->reloaded;
+}
+
+static const VMStateDescription vmstate_virtio_net_vhost = {
+    .name = "virtio-net-vhost",
+    .minimum_version_id = 1,
+    .version_id = 1,
+    /* Set prio low to run after vmstate_virtio_net */
+    .priority = MIG_PRI_LOW,
+    .needed = virtio_net_vhost_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_END_OF_LIST()
+    },
+    .post_load = virtio_net_vhost_post_load,
 };
 
 static void virtio_net_device_realize(DeviceState *dev, Error **errp)
@@ -4201,9 +4287,10 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
             vdev->migration = g_new0(VirtIODevMigration, 1);
             vdev->migration->early_load = false;
             n->migration = g_new0(VirtIONetMigration, 1);
-
             vmstate_register_any(VMSTATE_IF(n), &vmstate_virtio_net_early, n);
             virtio_delta_vmsd_register(vdev);
+            vmstate_register_any(VMSTATE_IF(n), &vmstate_virtio_net_vhost,
+                                 n);
         }
     }
 }
@@ -4271,6 +4358,7 @@ static void virtio_net_device_unrealize(DeviceState *dev)
 
         vmstate_unregister(VMSTATE_IF(n), &vmstate_virtio_net_early, n);
         virtio_delta_vmsd_unregister(vdev);
+        vmstate_unregister(VMSTATE_IF(n), &vmstate_virtio_net_vhost, n);
     }
 }
 
@@ -4333,6 +4421,37 @@ static int virtio_net_pre_save(void *opaque)
      * it might keep writing to memory. */
     assert(!n->vhost_started);
 
+    return 0;
+}
+
+static int virtio_net_pre_load(void *opaque)
+{
+    VirtIONet *n = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+
+    /*
+     * If we're migrating with a vhost device and performed an early
+     * save/load, then reaching here means that something changed and
+     * we need to reload all of the virtio-net device's state.
+     */
+    if (n->early_mig) {
+        /*
+         * Unwind vhost-net before full reload path re-runs startup. This keeps
+         * notifier/backend state handling safe.
+         */
+        if (n->vhost_started) {
+            NetClientState *nc = qemu_get_queue(n->nic);
+            int queue_pairs = n->multiqueue ? n->max_queue_pairs : 1;
+            int cvq = virtio_vdev_has_feature(vdev, VIRTIO_NET_F_CTRL_VQ) ?
+                      n->max_ncs - n->max_queue_pairs : 0;
+
+            if (nc && nc->peer && get_vhost_net(nc->peer)) {
+                vhost_net_stop(vdev, n->nic->ncs, queue_pairs, cvq);
+            }
+
+            n->vhost_started = 0;
+        }
+    }
     return 0;
 }
 
@@ -4466,12 +4585,15 @@ static bool virtio_net_needed(void *opaque)
 {
     VirtIONet *n = opaque;
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    bool delta;
 
     if (!n->early_mig) {
         return true;
     }
 
-    return virtio_net_has_delta(n, vdev);
+    delta = virtio_net_has_delta(n, vdev);
+    n->migration->reloaded = delta;
+    return delta;
 }
 
 static const VMStateDescription vmstate_virtio_net = {
@@ -4484,6 +4606,7 @@ static const VMStateDescription vmstate_virtio_net = {
         VMSTATE_END_OF_LIST()
     },
     .pre_save = virtio_net_pre_save,
+    .pre_load = virtio_net_pre_load,
     .dev_unplug_pending = dev_unplug_pending,
 };
 

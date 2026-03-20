@@ -353,6 +353,13 @@ static int vhost_net_start_one(struct vhost_net *net,
                 /* Queue might not be ready for start */
                 continue;
             }
+            if (dev->migration && dev->migration->early_load) {
+                /*
+                 * Queue isn't ready to start as we're in the middle of an
+                 * early migration. Set the backend later when we're ready.
+                 */
+                continue;
+            }
             r = vhost_net_set_backend(&net->dev, &file);
             if (r < 0) {
                 r = -errno;
@@ -693,5 +700,181 @@ err_start:
 
     vhost_dev_stop(&net->dev, vdev, false);
 
+    return r;
+}
+
+/*
+ * Helper function for vhost_net_post_load_migration_quickstart:
+ *
+ * Sets vring bases for all vhost virtqueues.
+ */
+int vhost_net_set_all_vring_bases(struct VirtIONet *n, VirtIODevice *vdev,
+                                  NetClientState *ncs, int queue_pairs,
+                                  int cvq, int nvhosts)
+{
+    NetClientState *peer;
+    struct vhost_net *vnet;
+    struct vhost_dev *hdev;
+    int queue_idx;
+    int i, j, r;
+
+    for (i = 0; i < nvhosts; i++) {
+        peer = qemu_get_peer(ncs, i < queue_pairs ? i : n->max_queue_pairs);
+        vnet = get_vhost_net(peer);
+        if (!vnet) {
+            continue;
+        }
+        hdev = &vnet->dev;
+
+        for (j = 0; j < hdev->nvqs; ++j) {
+            queue_idx = hdev->vq_index + j;
+            struct vhost_vring_state state = {
+                .index = hdev->vhost_ops->vhost_get_vq_index(hdev, queue_idx),
+                .num = virtio_queue_get_last_avail_idx(vdev, queue_idx),
+            };
+
+            r = hdev->vhost_ops->vhost_set_vring_base(hdev, &state);
+            if (r) {
+                error_report("vhost_set_vring_base failed (vq %d)", queue_idx);
+                goto fail;
+            }
+        }
+    }
+    return 0;
+
+fail:
+    vhost_net_stop_one(vnet, vdev);
+
+    while (--i >= 0) {
+        peer = qemu_get_peer(ncs, i < queue_pairs ? i : n->max_queue_pairs);
+        vhost_net_stop_one(get_vhost_net(peer), vdev);
+    }
+    return r;
+}
+
+/*
+ * Helper function for vhost_net_post_load_migration_quickstart:
+ *
+ * Binds TAP backends to all vhost-net virtqueues. All vring bases must be set
+ * before attempting to start any backends.
+ */
+int vhost_net_start_all_backends(struct VirtIONet *n, VirtIODevice *vdev,
+                                 NetClientState *ncs, int queue_pairs, int cvq,
+                                 int nvhosts)
+{
+    NetClientState *peer;
+    struct vhost_dev *hdev;
+    struct vhost_vring_file file = { };
+    struct vhost_net *vnet;
+    int i, r;
+
+    for (i = 0; i < nvhosts; i++) {
+        peer = qemu_get_peer(ncs, i < queue_pairs ? i : n->max_queue_pairs);
+        vnet = get_vhost_net(peer);
+        if (!vnet) {
+            continue;
+        }
+        hdev = &vnet->dev;
+
+        qemu_set_fd_handler(vnet->backend, NULL, NULL, NULL);
+        file.fd = vnet->backend;
+
+        for (file.index = 0; file.index < hdev->nvqs; ++file.index) {
+            if (!virtio_queue_enabled(vdev, hdev->vq_index + file.index)) {
+                /* Queue might not be ready to start */
+                continue;
+            }
+
+            r = vhost_net_set_backend(hdev, &file);
+            if (r < 0) {
+                r = -errno;
+                goto fail;
+            }
+        }
+    }
+    return 0;
+
+fail:
+    file.fd = -1;
+    while (file.index-- > 0) {
+        if (!virtio_queue_enabled(vdev, hdev->vq_index + file.index)) {
+            continue;
+        }
+        int ret = vhost_net_set_backend(hdev, &file);
+        assert(ret >= 0);
+    }
+    if (vnet->nc->info->poll) {
+        vnet->nc->info->poll(vnet->nc, true);
+    }
+    vhost_dev_stop(hdev, vdev, false);
+
+    while (--i >= 0) {
+        peer = qemu_get_peer(ncs, i < queue_pairs ? i : n->max_queue_pairs);
+        vhost_net_stop_one(get_vhost_net(peer), vdev);
+    }
+    return r;
+}
+
+/*
+ * Quickstart path for a virtio-net device using vhost acceleration:
+ *
+ * Used during migration of a virtio-net device that opted-in to early
+ * migration.
+ *
+ * The goal of this function is to perform any remaining startup work that
+ * can only be done during the stop-and-copy phase, once the source has been
+ * stopped.
+ *
+ * Note: By the time this function is called, the device has essentially been
+ * fully configured, albeit with a few last-minute configurations to be made.
+ * This means our error handling must completely unwind the device with
+ * full-stop semantics.
+ */
+int vhost_net_post_load_migration_quickstart(struct VirtIONet *n)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    NetClientState *ncs = qemu_get_queue(n->nic);
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
+
+    int queue_pairs = n->multiqueue ? n->max_queue_pairs : 1;
+    int cvq = virtio_vdev_has_feature(vdev, VIRTIO_NET_F_CTRL_VQ) ?
+              n->max_ncs - n->max_queue_pairs : 0;
+    int nvhosts = queue_pairs + cvq;
+    int total_notifiers = queue_pairs * 2 + cvq;
+    NetClientState *peer = qemu_get_peer(ncs, 0);
+
+    int r, e;
+
+    /* First peer must exist for the realized virtio-net device */
+    assert(peer);
+
+    /* Apply final vring bases for all vhosts */
+    r = vhost_net_set_all_vring_bases(n, vdev, ncs, queue_pairs, cvq, nvhosts);
+    if (r < 0) {
+        goto fail;
+    }
+
+    /* Bind backends (TAP devices only) */
+    if (peer->info->type == NET_CLIENT_DRIVER_TAP) {
+        r = vhost_net_start_all_backends(n, vdev, ncs, queue_pairs, cvq, nvhosts);
+        if (r < 0) {
+            goto fail;
+        }
+    }
+    return 0;
+
+fail:
+    e = k->set_guest_notifiers(qbus->parent, total_notifiers, false);
+    if (e < 0) {
+        fprintf(stderr, "vhost guest notifier cleanup failed: %d\n", e);
+        fflush(stderr);
+    }
+    vhost_net_disable_notifiers(vdev, ncs, queue_pairs, cvq);
+
+    error_report("unable to start vhost net: %d: "
+                 "falling back on userspace virtio", -r);
+    n->vhost_started = 0;
     return r;
 }
