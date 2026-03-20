@@ -170,9 +170,17 @@ typedef struct VirtIONetQueue {
 /**
  * struct VirtIONetMigration - VirtIONet migration structure
  * @mac_early: MAC address early migration snapshot.
+ * @mtable_in_use_early: In-use MAC table entries.
+ * @mtable_uni_overflow_early: Unicast overflow MAC table entries.
+ * @mtable_multi_overflow_early: Multicast overflow MAC table entries.
+ * @mtable_macs_early: MAC table entries.
  */
 typedef struct VirtIONetMigration {
     uint8_t mac_early[ETH_ALEN];
+    uint32_t mtable_in_use_early;
+    uint8_t mtable_uni_overflow_early;
+    uint8_t mtable_multi_overflow_early;
+    uint8_t *mtable_macs_early;
 } VirtIONetMigration;
 
 struct VirtIONet {

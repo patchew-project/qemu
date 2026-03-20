@@ -3884,6 +3884,26 @@ static int virtio_net_early_pre_save(void *opaque)
 
     /* VirtIONet MAC info snapshot */
     memcpy(vnet_mig->mac_early, n->mac, ETH_ALEN);
+    vnet_mig->mtable_in_use_early = n->mac_table.in_use;
+    vnet_mig->mtable_uni_overflow_early = n->mac_table.uni_overflow;
+    vnet_mig->mtable_multi_overflow_early = n->mac_table.multi_overflow;
+    /*
+     * Allocate baseline buffer once. Only copy the used slice each time.
+     * This avoids repeated allocations and keeps memcmp fast
+     */
+    if (!vnet_mig->mtable_macs_early) {
+        vnet_mig->mtable_macs_early =
+            g_malloc0(MAC_TABLE_ENTRIES * ETH_ALEN);
+    }
+    /*
+     * Copy used portion only. Cap byte span with MIN for safety even if
+     * a buggy config reports more than capacity.
+     */
+    if (vnet_mig->mtable_in_use_early) {
+        uint32_t used = MIN(vnet_mig->mtable_in_use_early, (uint32_t)MAC_TABLE_ENTRIES);
+        size_t bytes = (size_t)used * ETH_ALEN;
+        memcpy(vnet_mig->mtable_macs_early, n->mac_table.macs, bytes);
+    }
 
     return 0;
 }
@@ -4171,6 +4191,8 @@ static void virtio_net_device_unrealize(DeviceState *dev)
         g_free(vdev->migration);
         vdev->migration = NULL;
 
+        g_free(n->migration->mtable_macs_early);
+        n->migration->mtable_macs_early = NULL;
         g_free(n->migration);
         n->migration = NULL;
 
@@ -4285,6 +4307,18 @@ static bool virtio_net_has_delta(VirtIONet *n, VirtIODevice *vdev)
     /* Has the VirtIONet's MAC info changed? */
     if (memcmp(n->mac, vnet_mig->mac_early, ETH_ALEN) != 0) {
         return true;
+    }
+    if (n->mac_table.in_use != vnet_mig->mtable_in_use_early ||
+        n->mac_table.uni_overflow != vnet_mig->mtable_uni_overflow_early ||
+        n->mac_table.multi_overflow != vnet_mig->mtable_multi_overflow_early) {
+        return true;
+    }
+    if (n->mac_table.in_use) {
+        uint32_t used = MIN(n->mac_table.in_use, (uint32_t)MAC_TABLE_ENTRIES);
+        size_t bytes = (size_t)used * ETH_ALEN;
+        if (memcmp(n->mac_table.macs, vnet_mig->mtable_macs_early, bytes) != 0) {
+            return true;
+        }
     }
 
     /*
