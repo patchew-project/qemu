@@ -82,17 +82,7 @@ int get_monitor_def(Monitor *mon, int64_t *pval, const char *name)
             } else {
                 CPUArchState *env = mon_get_cpu_env(mon);
                 ptr = (uint8_t *)env + md->offset;
-                switch(md->type) {
-                case MD_I32:
-                    *pval = *(int32_t *)ptr;
-                    break;
-                case MD_TLONG:
-                    *pval = *(target_long *)ptr;
-                    break;
-                default:
-                    *pval = 0;
-                    break;
-                }
+                *pval = *(int32_t *)ptr;
             }
             return 0;
         }

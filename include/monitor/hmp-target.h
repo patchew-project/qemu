@@ -34,12 +34,8 @@ struct MonitorDef {
     int offset;
     target_long (*get_value)(Monitor *mon, const struct MonitorDef *md,
                              int val);
-    int type;
 };
 #endif
-
-#define MD_TLONG 0
-#define MD_I32   1
 
 const MonitorDef *target_monitor_defs(void);
 int target_get_monitor_def(CPUState *cs, const char *name, uint64_t *pval);
