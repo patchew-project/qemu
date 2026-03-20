@@ -177,6 +177,9 @@ typedef struct VirtIONetQueue {
  * @mtable_macs_early: MAC table entries.
  * @rx_flags_early: Bit-packed RX filters (promisc, allmulti, alluni, etc.).
  * @vlans_early: VLAN filter table snapshot.
+ * @guest_offloads_early: Guest offloads snapshot.
+ * @mq_early: Multiqueue state snapshot.
+ * @queue_pairs_early: Queue pairs snapshot.
  */
 typedef struct VirtIONetMigration {
     uint16_t status_early;
@@ -187,6 +190,9 @@ typedef struct VirtIONetMigration {
     uint8_t *mtable_macs_early;
     uint8_t rx_flags_early;
     uint8_t *vlans_early;
+    uint64_t guest_offloads_early;
+    int mq_early;
+    uint16_t queue_pairs_early;
 } VirtIONetMigration;
 
 struct VirtIONet {

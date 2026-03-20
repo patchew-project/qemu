@@ -3936,6 +3936,13 @@ static int virtio_net_early_pre_save(void *opaque)
     }
     memcpy(vnet_mig->vlans_early, n->vlans, vlans_size);
 
+    /* Guest offloads snapshot */
+    vnet_mig->guest_offloads_early = n->curr_guest_offloads;
+
+    /* Multiqueue state snapshot */
+    vnet_mig->mq_early = n->multiqueue;
+    vnet_mig->queue_pairs_early = n->curr_queue_pairs;
+
     return 0;
 }
 
@@ -4366,6 +4373,19 @@ static bool virtio_net_has_delta(VirtIONet *n, VirtIODevice *vdev)
 
     /* Has the VirtIONet's VLAN filter table changed? */
     if (memcmp(n->vlans, vnet_mig->vlans_early, MAX_VLAN >> 3) != 0) {
+        return true;
+    }
+
+    /* Has the VirtIONet's guest offloads changed? */
+    if (n->curr_guest_offloads != vnet_mig->guest_offloads_early) {
+        return true;
+    }
+
+    /* Has the VirtIONet's multiqueue state changed? */
+    if (n->multiqueue != vnet_mig->mq_early) {
+        return true;
+    }
+    if (n->curr_queue_pairs != vnet_mig->queue_pairs_early) {
         return true;
     }
 
