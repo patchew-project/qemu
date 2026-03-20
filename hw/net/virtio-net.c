@@ -3864,6 +3864,16 @@ static bool failover_hide_primary_device(DeviceListener *listener,
     return qatomic_read(&n->failover_primary_hidden);
 }
 
+static int virtio_net_early_pre_save(void *opaque)
+{
+    VirtIONet *n = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    VirtIODevMigration *vdev_mig = vdev->migration;
+
+    vdev_mig->status_early = vdev->status;
+    return 0;
+}
+
 static int virtio_net_early_pre_load(void *opaque)
 {
     VirtIONet *n = opaque;
@@ -3887,6 +3897,7 @@ static const VMStateDescription vmstate_virtio_net_early = {
     .minimum_version_id = VIRTIO_NET_VM_VERSION,
     .version_id = VIRTIO_NET_VM_VERSION,
     .early_setup = true,
+    .pre_save = virtio_net_early_pre_save,
     .pre_load = virtio_net_early_pre_load,
     .post_load = virtio_net_early_post_load,
     .fields = (const VMStateField[]) {
@@ -4231,10 +4242,39 @@ static bool dev_unplug_pending(void *opaque)
     return vdc->primary_unplug_pending(dev);
 }
 
+static bool virtio_net_has_delta(VirtIONet *n, VirtIODevice *vdev)
+{
+    VirtIODevMigration *vdev_mig = vdev->migration;
+
+    /* Has the VirtIODevice's status changed? */
+    if (vdev->status != vdev_mig->status_early) {
+        return true;
+    }
+
+    /*
+     * Always return true for now until we're able to detect all possible
+     * changes to a VirtIONet device.
+     */
+    return true;
+}
+
+static bool virtio_net_needed(void *opaque)
+{
+    VirtIONet *n = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+
+    if (!n->early_mig) {
+        return true;
+    }
+
+    return virtio_net_has_delta(n, vdev);
+}
+
 static const VMStateDescription vmstate_virtio_net = {
     .name = "virtio-net",
     .minimum_version_id = VIRTIO_NET_VM_VERSION,
     .version_id = VIRTIO_NET_VM_VERSION,
+    .needed = virtio_net_needed,
     .fields = (const VMStateField[]) {
         VMSTATE_VIRTIO_DEVICE,
         VMSTATE_END_OF_LIST()
