@@ -967,6 +967,8 @@ struct ArchCPU {
     QEMUTimer *pmu_timer;
     /* Timer used for WFxT timeouts */
     QEMUTimer *wfxt_timer;
+    /* Are we in a WFE */
+    bool waiting_for_event;
 
     /* GPIO outputs for generic timer */
     qemu_irq gt_timer_outputs[NUM_GTIMERS];

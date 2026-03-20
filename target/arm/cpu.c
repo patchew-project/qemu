@@ -780,6 +780,11 @@ static void arm_wfxt_timer_cb(void *opaque)
     ARMCPU *cpu = opaque;
     CPUState *cs = CPU(cpu);
 
+    if (cpu->waiting_for_event) {
+        CPUARMState *env = &cpu->env;
+        env->event_register.as_bool = true;
+    }
+
     /*
      * We expect the CPU to be halted; this will cause arm_cpu_is_work()
      * to return true (so we will come out of halt even with no other
