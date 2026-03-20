@@ -3869,6 +3869,7 @@ static int virtio_net_early_pre_save(void *opaque)
     VirtIONet *n = opaque;
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
     VirtIODevMigration *vdev_mig = vdev->migration;
+    VirtIONetMigration *vnet_mig = n->migration;
 
     vdev_mig->status_early = vdev->status;
 
@@ -3880,6 +3881,10 @@ static int virtio_net_early_pre_save(void *opaque)
     } else {
         vdev_mig->config_early = NULL;
     }
+
+    /* VirtIONet MAC info snapshot */
+    memcpy(vnet_mig->mac_early, n->mac, ETH_ALEN);
+
     return 0;
 }
 
@@ -4108,6 +4113,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
         } else {
             vdev->migration = g_new0(VirtIODevMigration, 1);
             vdev->migration->early_load = false;
+            n->migration = g_new0(VirtIONetMigration, 1);
 
             vmstate_register_any(VMSTATE_IF(n), &vmstate_virtio_net_early, n);
             virtio_delta_vmsd_register(vdev);
@@ -4164,6 +4170,9 @@ static void virtio_net_device_unrealize(DeviceState *dev)
 
         g_free(vdev->migration);
         vdev->migration = NULL;
+
+        g_free(n->migration);
+        n->migration = NULL;
 
         vmstate_unregister(VMSTATE_IF(n), &vmstate_virtio_net_early, n);
         virtio_delta_vmsd_unregister(vdev);
@@ -4257,6 +4266,7 @@ static bool dev_unplug_pending(void *opaque)
 static bool virtio_net_has_delta(VirtIONet *n, VirtIODevice *vdev)
 {
     VirtIODevMigration *vdev_mig = vdev->migration;
+    VirtIONetMigration *vnet_mig = n->migration;
 
     /* Has the VirtIODevice's status changed? */
     if (vdev->status != vdev_mig->status_early) {
@@ -4269,6 +4279,11 @@ static bool virtio_net_has_delta(VirtIONet *n, VirtIODevice *vdev)
     }
     if (vdev->config_len && memcmp(vdev->config, vdev_mig->config_early,
                                    vdev->config_len) != 0) {
+        return true;
+    }
+
+    /* Has the VirtIONet's MAC info changed? */
+    if (memcmp(n->mac, vnet_mig->mac_early, ETH_ALEN) != 0) {
         return true;
     }
 

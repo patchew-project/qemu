@@ -167,8 +167,17 @@ typedef struct VirtIONetQueue {
     struct VirtIONet *n;
 } VirtIONetQueue;
 
+/**
+ * struct VirtIONetMigration - VirtIONet migration structure
+ * @mac_early: MAC address early migration snapshot.
+ */
+typedef struct VirtIONetMigration {
+    uint8_t mac_early[ETH_ALEN];
+} VirtIONetMigration;
+
 struct VirtIONet {
     VirtIODevice parent_obj;
+    VirtIONetMigration *migration;
     uint8_t mac[ETH_ALEN];
     uint16_t status;
     VirtIONetQueue *vqs;
