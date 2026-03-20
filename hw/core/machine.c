@@ -45,6 +45,11 @@ const size_t hw_compat_10_2_len = G_N_ELEMENTS(hw_compat_10_2);
 
 GlobalProperty hw_compat_10_1[] = {
     { TYPE_ACPI_GED, "x-has-hest-addr", "false" },
+    { "virtio-net-device", "early-mig", "off" },
+    { "virtio-net-pci", "early-mig", "off" },
+    { "virtio-net-pci-transitional", "early-mig", "off" },
+    { "virtio-net-pci-non-transitional", "early-mig", "off" },
+    { "virtio-net-ccw", "early-mig", "off" },
     { TYPE_VIRTIO_NET, "host_tunnel", "off" },
     { TYPE_VIRTIO_NET, "host_tunnel_csum", "off" },
     { TYPE_VIRTIO_NET, "guest_tunnel", "off" },
