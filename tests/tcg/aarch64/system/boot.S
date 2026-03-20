@@ -60,7 +60,6 @@ curr_sp0_irq:
 curr_sp0_fiq:
 curr_sp0_serror:
 curr_spx_sync:
-curr_spx_irq:
 curr_spx_fiq:
 curr_spx_serror:
 lower_a64_sync:
@@ -378,6 +377,17 @@ _exit:
 	mov    x0, SYS_EXIT
 	semihosting_call
 	/* never returns */
+
+	/*
+	 * IRQ handler
+	 */
+	.global curr_spx_irq
+curr_spx_irq:
+	/* Minimal IRQ handler: just mask the timer and return */
+	mrs	x0, cntv_ctl_el0
+	orr	x0, x0, #2		/* IMASK=1 */
+	msr	cntv_ctl_el0, x0
+	eret
 
 	/*
 	 * Helper Functions
