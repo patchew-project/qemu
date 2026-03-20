@@ -175,6 +175,7 @@ typedef struct VirtIONetQueue {
  * @mtable_uni_overflow_early: Unicast overflow MAC table entries.
  * @mtable_multi_overflow_early: Multicast overflow MAC table entries.
  * @mtable_macs_early: MAC table entries.
+ * @rx_flags_early: Bit-packed RX filters (promisc, allmulti, alluni, etc.).
  */
 typedef struct VirtIONetMigration {
     uint16_t status_early;
@@ -183,6 +184,7 @@ typedef struct VirtIONetMigration {
     uint8_t mtable_uni_overflow_early;
     uint8_t mtable_multi_overflow_early;
     uint8_t *mtable_macs_early;
+    uint8_t rx_flags_early;
 } VirtIONetMigration;
 
 struct VirtIONet {

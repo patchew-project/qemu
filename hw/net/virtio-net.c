@@ -3864,6 +3864,26 @@ static bool failover_hide_primary_device(DeviceListener *listener,
     return qatomic_read(&n->failover_primary_hidden);
 }
 
+enum VirtIONetRxFlags {
+    VNET_RX_F_PROMISC  = 1u << 0,
+    VNET_RX_F_ALLMULTI = 1u << 1,
+    VNET_RX_F_ALLUNI   = 1u << 2,
+    VNET_RX_F_NOMULTI  = 1u << 3,
+    VNET_RX_F_NOUNI    = 1u << 4,
+    VNET_RX_F_NOBCAST  = 1u << 5,
+};
+
+/* Pack current Rx filter flags into a single uint8_t for comparison */
+static inline uint8_t virtio_net_rx_flags_pack(const VirtIONet *n)
+{
+    return (n->promisc  ? VNET_RX_F_PROMISC  : 0) |
+           (n->allmulti ? VNET_RX_F_ALLMULTI : 0) |
+           (n->alluni   ? VNET_RX_F_ALLUNI   : 0) |
+           (n->nomulti  ? VNET_RX_F_NOMULTI  : 0) |
+           (n->nouni    ? VNET_RX_F_NOUNI    : 0) |
+           (n->nobcast  ? VNET_RX_F_NOBCAST  : 0);
+}
+
 static int virtio_net_early_pre_save(void *opaque)
 {
     VirtIONet *n = opaque;
@@ -3905,6 +3925,9 @@ static int virtio_net_early_pre_save(void *opaque)
         size_t bytes = (size_t)used * ETH_ALEN;
         memcpy(vnet_mig->mtable_macs_early, n->mac_table.macs, bytes);
     }
+
+    /* Rx filter flags snapshot */
+    vnet_mig->rx_flags_early = virtio_net_rx_flags_pack(n);
 
     return 0;
 }
@@ -4325,6 +4348,11 @@ static bool virtio_net_has_delta(VirtIONet *n, VirtIODevice *vdev)
         if (memcmp(n->mac_table.macs, vnet_mig->mtable_macs_early, bytes) != 0) {
             return true;
         }
+    }
+
+    /* Has the VirtIONet's Rx filter flags changed? */
+    if (virtio_net_rx_flags_pack(n) != vnet_mig->rx_flags_early) {
+        return true;
     }
 
     /*
