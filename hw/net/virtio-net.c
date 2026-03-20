@@ -4090,6 +4090,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
             vdev->migration->early_load = false;
 
             vmstate_register_any(VMSTATE_IF(n), &vmstate_virtio_net_early, n);
+            virtio_delta_vmsd_register(vdev);
         }
     }
 }
@@ -4142,6 +4143,7 @@ static void virtio_net_device_unrealize(DeviceState *dev)
         vdev->migration = NULL;
 
         vmstate_unregister(VMSTATE_IF(n), &vmstate_virtio_net_early, n);
+        virtio_delta_vmsd_unregister(vdev);
     }
 }
 

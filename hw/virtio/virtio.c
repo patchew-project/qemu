@@ -2780,6 +2780,13 @@ static bool virtio_virtqueue_needed(void *opaque)
     return virtio_host_has_feature(vdev, VIRTIO_F_VERSION_1);
 }
 
+static bool virtio_split_virtqueue_needed(void *opaque)
+{
+    VirtIODevice *vdev = opaque;
+
+    return !virtio_host_has_feature(vdev, VIRTIO_F_RING_PACKED);
+}
+
 static bool virtio_packed_virtqueue_needed(void *opaque)
 {
     VirtIODevice *vdev = opaque;
@@ -2842,6 +2849,18 @@ static const VMStateDescription vmstate_virtqueue = {
     }
 };
 
+static const VMStateDescription vmstate_split_virtqueue = {
+    .name = "split_virtqueue_state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT16(last_avail_idx, struct VirtQueue),
+        VMSTATE_UINT16(used_idx, struct VirtQueue),
+        VMSTATE_UINT32(inuse, struct VirtQueue),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_packed_virtqueue = {
     .name = "packed_virtqueue_state",
     .version_id = 1,
@@ -2854,6 +2873,89 @@ static const VMStateDescription vmstate_packed_virtqueue = {
         VMSTATE_UINT32(inuse, struct VirtQueue),
         VMSTATE_END_OF_LIST()
     }
+};
+
+/*
+ * Temporary type used with VMSTATE_WITH_TMP to migrate
+ * active VQs only for VirtIODevices that participated
+ * in early live migration.
+ */
+typedef struct VirtIOMigVQsTmp {
+    VirtIODevice *parent;
+    VirtQueue *vqs;
+    uint16_t num_vqs;
+} VirtIOMigVQsTmp;
+
+static int virtio_delta_vqs_pre_save(void *opaque)
+{
+    VirtIOMigVQsTmp *tmp = opaque;
+    tmp->vqs = tmp->parent->vq;
+    tmp->num_vqs = virtio_get_num_queues(tmp->parent);
+    return 0;
+}
+
+static int virtio_delta_vqs_pre_load(void *opaque)
+{
+    VirtIOMigVQsTmp *tmp = opaque;
+    uint16_t num_vqs = virtio_get_num_queues(tmp->parent);
+
+    tmp->vqs = tmp->parent->vq;
+    tmp->num_vqs = num_vqs;
+
+    if (tmp->num_vqs > VIRTIO_QUEUE_MAX) {
+        return -EINVAL;
+    }
+    return 0;
+}
+
+/* Re-sync runtime shadow queue indices with final delta-loaded indices */
+static int virtio_delta_vqs_post_load(void *opaque, int version_id)
+{
+    VirtIOMigVQsTmp *tmp = opaque;
+    bool packed = virtio_vdev_has_feature(tmp->parent, VIRTIO_F_RING_PACKED);
+    int i;
+
+    for (i = 0; i < tmp->num_vqs; i++) {
+        VirtQueue *vq = &tmp->vqs[i];
+
+        if (!vq->vring.desc) {
+            continue;
+        }
+
+        vq->shadow_avail_idx = vq->last_avail_idx;
+        if (packed) {
+            vq->shadow_avail_wrap_counter = vq->last_avail_wrap_counter;
+        }
+        vq->signalled_used_valid = false;
+    }
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_virtio_delta_split_vqs_tmp = {
+    .name = "virtio-delta/split_vqs_tmp",
+    .pre_save = virtio_delta_vqs_pre_save,
+    .pre_load = virtio_delta_vqs_pre_load,
+    .post_load = virtio_delta_vqs_post_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_STRUCT_VARRAY_POINTER_UINT16(vqs, VirtIOMigVQsTmp, num_vqs,
+                                             vmstate_split_virtqueue,
+                                             VirtQueue),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static const VMStateDescription vmstate_virtio_delta_packed_vqs_tmp = {
+    .name = "virtio-delta/packed_vqs_tmp",
+    .pre_save = virtio_delta_vqs_pre_save,
+    .pre_load = virtio_delta_vqs_pre_load,
+    .post_load = virtio_delta_vqs_post_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_STRUCT_VARRAY_POINTER_UINT16(vqs, VirtIOMigVQsTmp, num_vqs,
+                                             vmstate_packed_virtqueue,
+                                             VirtQueue),
+        VMSTATE_END_OF_LIST()
+    },
 };
 
 static const VMStateDescription vmstate_virtio_virtqueues = {
@@ -3052,6 +3154,54 @@ static const VMStateDescription vmstate_virtio = {
         NULL
     }
 };
+
+static const VMStateDescription vmstate_virtio_delta_split_virtqueues = {
+    .name = "virtio-delta/split_virtqueues",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = &virtio_split_virtqueue_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_WITH_TMP(VirtIODevice, VirtIOMigVQsTmp,
+                         vmstate_virtio_delta_split_vqs_tmp),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_virtio_delta_packed_virtqueues = {
+    .name = "virtio-delta/packed_virtqueues",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = &virtio_packed_virtqueue_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_WITH_TMP(VirtIODevice, VirtIOMigVQsTmp,
+                         vmstate_virtio_delta_packed_vqs_tmp),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_virtio_delta = {
+    .name = "virtio-delta",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * const []) {
+        &vmstate_virtio_delta_split_virtqueues,
+        &vmstate_virtio_delta_packed_virtqueues,
+        NULL
+    }
+};
+
+void virtio_delta_vmsd_register(VirtIODevice *vdev)
+{
+    vmstate_register_any(VMSTATE_IF(vdev), &vmstate_virtio_delta, vdev);
+}
+
+void virtio_delta_vmsd_unregister(VirtIODevice *vdev)
+{
+    vmstate_unregister(VMSTATE_IF(vdev), &vmstate_virtio_delta, vdev);
+}
 
 int virtio_save(VirtIODevice *vdev, QEMUFile *f)
 {

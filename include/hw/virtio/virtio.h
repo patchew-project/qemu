@@ -305,6 +305,9 @@ int virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
 
 void virtio_notify(VirtIODevice *vdev, VirtQueue *vq);
 
+void virtio_delta_vmsd_register(VirtIODevice *vdev);
+void virtio_delta_vmsd_unregister(VirtIODevice *vdev);
+
 int virtio_save(VirtIODevice *vdev, QEMUFile *f);
 
 extern const VMStateInfo virtio_vmstate_info;
