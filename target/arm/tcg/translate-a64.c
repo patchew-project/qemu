@@ -563,6 +563,23 @@ static void gen_goto_tb(DisasContext *s, unsigned tb_slot_idx, int64_t diff)
 }
 
 /*
+ * Event Register signalling.
+ *
+ * A bunch of activities trigger events, we just need to latch on to
+ * true. The event eventually gets consumed by WFE/WFET.
+ *
+ * user-mode treats these as nops.
+ */
+
+static void gen_event_reg(void)
+{
+#ifndef CONFIG_USER_ONLY
+    TCGv_i32 set_event = tcg_constant_i32(-1);
+    tcg_gen_st_i32(set_event, tcg_env, offsetof(CPUARMState, event_register));
+#endif
+}
+
+/*
  * Register access functions
  *
  * These functions are used for directly accessing a register in where
@@ -2029,6 +2046,23 @@ static bool trans_YIELD(DisasContext *s, arg_YIELD *a)
 static bool trans_WFI(DisasContext *s, arg_WFI *a)
 {
     s->base.is_jmp = DISAS_WFI;
+    return true;
+}
+
+static bool trans_SEV(DisasContext *s, arg_SEV *a)
+{
+    /*
+     * SEV is a NOP for user-mode emulation.
+     */
+#ifndef CONFIG_USER_ONLY
+    gen_helper_sev(tcg_env);
+#endif
+    return true;
+}
+
+static bool trans_SEVL(DisasContext *s, arg_SEV *a)
+{
+    gen_event_reg();
     return true;
 }
 
