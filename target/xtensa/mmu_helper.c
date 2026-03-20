@@ -1091,6 +1091,7 @@ static void dump_tlb(Monitor *mon, CPUXtensaState *env, bool dtlb)
         xtensa_option_enabled(env->config, XTENSA_OPTION_MMU) ?
         mmu_attr_to_access : region_attr_to_access;
 
+    monitor_printf(mon, "\n%cTLB:\n", dtlb ? 'D' : 'I');
     for (wi = 0; wi < conf->nways; ++wi) {
         uint32_t sz = ~xtensa_tlb_get_addr_mask(env, dtlb, wi) + 1;
         const char *sz_text;
@@ -1203,10 +1204,7 @@ void dump_mmu(Monitor *mon, CPUXtensaState *env)
                 XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_PROTECTION) |
                 XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_TRANSLATION) |
                 XTENSA_OPTION_BIT(XTENSA_OPTION_MMU))) {
-
-        monitor_puts(mon, "ITLB:\n");
         dump_tlb(mon, env, false);
-        monitor_puts(mon, "\nDTLB:\n");
         dump_tlb(mon, env, true);
     } else if (xtensa_option_enabled(env->config, XTENSA_OPTION_MPU)) {
         monitor_puts(mon, "Foreground map:\n");
