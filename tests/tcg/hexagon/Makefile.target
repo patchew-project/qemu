@@ -81,6 +81,8 @@ HEX_TESTS += test_vminh
 HEX_TESTS += test_vpmpyh
 HEX_TESTS += test_vspliceb
 
+HEX_TESTS += test_pnew_jump_loads
+
 HEX_TESTS += v68_scalar
 HEX_TESTS += v68_hvx
 HEX_TESTS += v69_hvx
@@ -104,6 +106,7 @@ overflow: overflow.c hex_test.h
 preg_alias: preg_alias.c hex_test.h
 read_write_overlap: read_write_overlap.c hex_test.h
 reg_mut: reg_mut.c hex_test.h
+test_pnew_jump_loads: test_pnew_jump_loads.c hex_test.h
 unaligned_pc: unaligned_pc.c
 
 # This test has to be compiled for the -mv67t target
