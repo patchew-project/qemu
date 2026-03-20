@@ -3943,6 +3943,14 @@ static int virtio_net_early_pre_save(void *opaque)
     vnet_mig->mq_early = n->multiqueue;
     vnet_mig->queue_pairs_early = n->curr_queue_pairs;
 
+    /* Tx waiting snapshot for active queue pairs */
+    if (!vnet_mig->tx_waiting_early) {
+        vnet_mig->tx_waiting_early = g_new0(uint32_t, n->max_queue_pairs);
+    }
+    for (int i = 0; i < n->curr_queue_pairs; i++) {
+        vnet_mig->tx_waiting_early[i] = n->vqs[i].tx_waiting;
+    }
+
     /* RSS state snapshot */
     vnet_mig->rss_enabled_early = n->rss_data.enabled;
     vnet_mig->rss_redirect_early = n->rss_data.redirect;
@@ -4254,6 +4262,8 @@ static void virtio_net_device_unrealize(DeviceState *dev)
         n->migration->mtable_macs_early = NULL;
         g_free(n->migration->vlans_early);
         n->migration->vlans_early = NULL;
+        g_free(n->migration->tx_waiting_early);
+        n->migration->tx_waiting_early = NULL;
         g_free(n->migration->rss_indirections_table_early);
         n->migration->rss_indirections_table_early = NULL;
         g_free(n->migration);
@@ -4412,6 +4422,16 @@ static bool virtio_net_has_delta(VirtIONet *n, VirtIODevice *vdev)
         return true;
     }
 
+    /* Has any active queue's tx_waiting changed? */
+    if (!vnet_mig->tx_waiting_early) {
+        return true;
+    }
+    for (int i = 0; i < n->curr_queue_pairs; i++) {
+        if (n->vqs[i].tx_waiting != vnet_mig->tx_waiting_early[i]) {
+            return true;
+        }
+    }
+
     /* Has the VirtIONet's RSS state changed? */
     if (n->rss_data.enabled != vnet_mig->rss_enabled_early ||
         n->rss_data.redirect != vnet_mig->rss_redirect_early ||
@@ -4439,11 +4459,7 @@ static bool virtio_net_has_delta(VirtIONet *n, VirtIODevice *vdev)
         }
     }
 
-    /*
-     * Always return true for now until we're able to detect all possible
-     * changes to a VirtIONet device.
-     */
-    return true;
+    return false;
 }
 
 static bool virtio_net_needed(void *opaque)

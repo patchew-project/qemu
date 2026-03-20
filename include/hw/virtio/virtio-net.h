@@ -180,6 +180,7 @@ typedef struct VirtIONetQueue {
  * @guest_offloads_early: Guest offloads snapshot.
  * @mq_early: Multiqueue state snapshot.
  * @queue_pairs_early: Queue pairs snapshot.
+ * @tx_waiting_early: Per-queue pending-Tx snapshot.
  * @rss_enabled_early: RSS enabled flag.
  * @rss_redirect_early: RSS redirect flag.
  * @rss_populate_hash_early: RSS populate hash flag.
@@ -201,6 +202,7 @@ typedef struct VirtIONetMigration {
     uint64_t guest_offloads_early;
     int mq_early;
     uint16_t queue_pairs_early;
+    uint32_t *tx_waiting_early;
     bool rss_enabled_early;
     bool rss_redirect_early;
     bool rss_populate_hash_early;
