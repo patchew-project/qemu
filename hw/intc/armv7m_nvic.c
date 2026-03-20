@@ -238,7 +238,7 @@ static void nvic_update_pending_state(NVICState *s, VecInfo *vec,
         int scr_bank = exc_targets_secure(s, irq) ? M_REG_S : M_REG_NS;
         /* SEVONPEND: interrupt going to pending is a WFE wakeup event */
         if (s->cpu->env.v7m.scr[scr_bank] & R_V7M_SCR_SEVONPEND_MASK) {
-            s->cpu->env.event_register = true;
+            s->cpu->env.event_register.as_bool = true;
             qemu_cpu_kick(CPU(s->cpu));
         }
     }

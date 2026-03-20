@@ -514,7 +514,7 @@ static bool event_needed(void *opaque)
 {
     ARMCPU *cpu = opaque;
 
-    return cpu->env.event_register;
+    return cpu->env.event_register.as_bool;
 }
 
 static const VMStateDescription vmstate_event = {
@@ -523,7 +523,7 @@ static const VMStateDescription vmstate_event = {
     .minimum_version_id = 1,
     .needed = event_needed,
     .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(env.event_register, ARMCPU),
+        VMSTATE_BOOL(env.event_register.as_bool, ARMCPU),
         VMSTATE_END_OF_LIST()
     }
 };

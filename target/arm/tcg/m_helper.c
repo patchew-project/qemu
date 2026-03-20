@@ -964,7 +964,7 @@ static void v7m_exception_taken(ARMCPU *cpu, uint32_t lr, bool dotailchain,
      * take (which might now be the derived exception).
      * Exception entry sets the event register (ARM ARM R_BPBR)
      */
-    env->event_register = true;
+    env->event_register.as_bool = true;
     armv7m_nvic_acknowledge_irq(env->nvic);
 
     /* Switch to target security state -- must do this before writing SPSEL */
@@ -1910,7 +1910,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
     arm_rebuild_hflags(env);
 
     /* Exception return sets the event register (ARM ARM R_BPBR) */
-    env->event_register = true;
+    env->event_register.as_bool = true;
     qemu_log_mask(CPU_LOG_INT, "...successful exception return\n");
 }
 

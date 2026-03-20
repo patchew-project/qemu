@@ -763,9 +763,14 @@ typedef struct CPUArchState {
     /*
      * The event register is shared by all ARM profiles (A/R/M),
      * so it is stored in the top-level CPU state.
-     * WFE/SEV handling is currently implemented only for M-profile.
+     *
+     * It is treated as a boolean but we need the union so we can set
+     * it from TCG.
      */
-    bool event_register;
+    union {
+        bool as_bool;
+        uint32_t as_uint32;
+    } event_register;
 
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;

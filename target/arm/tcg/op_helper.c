@@ -476,7 +476,7 @@ void HELPER(sev)(CPUARMState *env)
     CPU_FOREACH(cs) {
         ARMCPU *target_cpu = ARM_CPU(cs);
         if (arm_feature(&target_cpu->env, ARM_FEATURE_M)) {
-            target_cpu->env.event_register = true;
+            target_cpu->env.event_register.as_bool = true;
         }
         if (!qemu_cpu_is_self(cs)) {
             qemu_cpu_kick(cs);
@@ -503,8 +503,8 @@ void HELPER(wfe)(CPUARMState *env)
     if (arm_feature(env, ARM_FEATURE_M)) {
         CPUState *cs = env_cpu(env);
 
-        if (env->event_register) {
-            env->event_register = false;
+        if (env->event_register.as_bool) {
+            env->event_register.as_bool = false;
             return;
         }
 
