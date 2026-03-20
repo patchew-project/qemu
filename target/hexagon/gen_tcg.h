@@ -951,9 +951,9 @@
 #define fGEN_TCG_J2_jumpfpt(SHORTCODE) \
     fGEN_TCG_cond_jumpf(fLSBOLD(PuV))
 #define fGEN_TCG_J2_jumptnew(SHORTCODE) \
-    gen_cond_jump(ctx, TCG_COND_EQ, PuN, riV)
+    fGEN_TCG_cond_jumpt(fLSBNEW(PuN))
 #define fGEN_TCG_J2_jumptnewpt(SHORTCODE) \
-    gen_cond_jump(ctx, TCG_COND_EQ, PuN, riV)
+    fGEN_TCG_cond_jumpt(fLSBNEW(PuN))
 #define fGEN_TCG_J2_jumpfnewpt(SHORTCODE) \
     fGEN_TCG_cond_jumpf(fLSBNEW(PuN))
 #define fGEN_TCG_J2_jumpfnew(SHORTCODE) \
