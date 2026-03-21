@@ -141,27 +141,24 @@ static void ati_vga_switch_mode(ATIVGAState *s)
 /* Used by host side hardware cursor */
 static void ati_cursor_define(ATIVGAState *s)
 {
-    uint8_t data[1024];
+    uint64_t data[128];
     uint32_t srcoff;
-    int i, j, idx = 0;
 
     if ((s->regs.cur_offset & BIT(31)) || s->cursor_guest_mode) {
         return; /* Do not update cursor if locked or rendered by guest */
     }
     /* FIXME handle cur_hv_offs correctly */
-    srcoff = s->regs.cur_offset -
-        (s->regs.cur_hv_offs >> 16) - (s->regs.cur_hv_offs & 0xffff) * 16;
-    for (i = 0; i < 64; i++) {
-        for (j = 0; j < 8; j++, idx++) {
-            data[idx] = vga_read_byte(&s->vga, srcoff + i * 16 + j);
-            data[512 + idx] = vga_read_byte(&s->vga, srcoff + i * 16 + j + 8);
-        }
+    srcoff = s->regs.cur_offset - (s->regs.cur_hv_offs >> 16) -
+             (s->regs.cur_hv_offs & 0xffff) * 16;
+    for (int i = 0; i < 64; i++, srcoff += 16) {
+        data[i] = ldq_le_p(&s->vga.vram_ptr[srcoff]);
+        data[i + 64] = ldq_le_p(&s->vga.vram_ptr[srcoff + 8]);
     }
     if (!s->cursor) {
         s->cursor = cursor_alloc(64, 64);
     }
     cursor_set_mono(s->cursor, s->regs.cur_color1, s->regs.cur_color0,
-                    &data[512], 1, &data[0]);
+                    (uint8_t *)&data[64], 1, (uint8_t *)&data[0]);
     dpy_cursor_define(s->vga.con, s->cursor);
 }
 
@@ -196,9 +193,9 @@ static void ati_cursor_invalidate(VGACommonState *vga)
 static void ati_cursor_draw_line(VGACommonState *vga, uint8_t *d, int scr_y)
 {
     ATIVGAState *s = container_of(vga, ATIVGAState, vga);
-    uint32_t srcoff;
+    uint32_t h, srcoff, color;
+    uint64_t abits, xbits, mask;
     uint32_t *dp = (uint32_t *)d;
-    int i, j, h, idx = 0;
 
     if (!(s->regs.crtc_gen_cntl & CRTC2_CUR_EN) ||
         scr_y < vga->hw_cursor_y || scr_y >= vga->hw_cursor_y + 64 ||
@@ -209,26 +206,24 @@ static void ati_cursor_draw_line(VGACommonState *vga, uint8_t *d, int scr_y)
     srcoff = s->cursor_offset + (scr_y - vga->hw_cursor_y) * 16;
     dp = &dp[vga->hw_cursor_x];
     h = ((s->regs.crtc_h_total_disp >> 16) + 1) * 8;
-    for (i = 0; i < 8; i++) {
-        uint32_t color;
-        uint8_t abits = vga_read_byte(vga, srcoff + i);
-        uint8_t xbits = vga_read_byte(vga, srcoff + i + 8);
-        for (j = 0; j < 8; j++, abits <<= 1, xbits <<= 1, idx++) {
-            if (vga->hw_cursor_x + idx >= h) {
-                return; /* end of screen, don't span to next line */
-            }
-            if (abits & BIT(7)) {
-                if (xbits & BIT(7)) {
-                    color = dp[idx] ^ 0xffffffff; /* complement */
-                } else {
-                    continue; /* transparent, no change */
-                }
-            } else {
-                color = (xbits & BIT(7) ? s->regs.cur_color1 :
-                                          s->regs.cur_color0) | 0xff000000;
-            }
-            dp[idx] = color;
+    abits = ldq_be_p(&vga->vram_ptr[srcoff]);
+    xbits = ldq_be_p(&vga->vram_ptr[srcoff + 8]);
+    mask = BIT(63);
+    for (int i = 0; i < 64; i++, mask >>= 1) {
+        if (vga->hw_cursor_x + i >= h) {
+            return; /* end of screen, don't span to next line */
         }
+        if (abits & mask) {
+            if (xbits & mask) {
+                color = dp[i] ^ 0xffffffff; /* complement */
+            } else {
+                continue; /* transparent, no change */
+            }
+        } else {
+            color = (xbits & mask ? s->regs.cur_color1 :
+                                    s->regs.cur_color0) | 0xff000000;
+        }
+        dp[i] = color;
     }
 }
 
