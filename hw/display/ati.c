@@ -150,6 +150,9 @@ static void ati_cursor_define(ATIVGAState *s)
     /* FIXME handle cur_hv_offs correctly */
     srcoff = s->regs.cur_offset - (s->regs.cur_hv_offs >> 16) -
              (s->regs.cur_hv_offs & 0xffff) * 16;
+    if (srcoff + 64 * 16 > s->vga.vram_size) {
+        return;
+    }
     for (int i = 0; i < 64; i++, srcoff += 16) {
         if (s->vga.big_endian_fb) {
             data[i] = wswap64(ldq_be_p(&s->vga.vram_ptr[srcoff]));
@@ -209,6 +212,9 @@ static void ati_cursor_draw_line(VGACommonState *vga, uint8_t *d, int scr_y)
     }
     /* FIXME handle cur_hv_offs correctly */
     srcoff = s->cursor_offset + (scr_y - vga->hw_cursor_y) * 16;
+    if (srcoff + 16 > s->vga.vram_size) {
+        return;
+    }
     dp = &dp[vga->hw_cursor_x];
     h = ((s->regs.crtc_h_total_disp >> 16) + 1) * 8;
     abits = ldq_le_p(&vga->vram_ptr[srcoff]);
