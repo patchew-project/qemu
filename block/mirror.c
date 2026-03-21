@@ -199,6 +199,22 @@ static void coroutine_fn mirror_wait_on_conflicts(MirrorOp *self,
     }
 }
 
+static bool check_iov_is_zero(struct iovec *iov, int niov)
+{
+    int i = 0;
+
+    if (niov <= 0) {
+        return false;
+    }
+
+    for (i = 0; i < niov; i++) {
+        if (!buffer_is_zero(iov->iov_base, iov->iov_len)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static void coroutine_fn mirror_iteration_done(MirrorOp *op, int ret)
 {
     MirrorBlockJob *s = op->s;
@@ -266,6 +282,12 @@ static void coroutine_fn mirror_read_complete(MirrorOp *op, int ret)
             s->ret = ret;
         }
 
+        mirror_iteration_done(op, ret);
+        return;
+    }
+
+    if (s->target_is_zero && op->qiov.size > 0 &&
+           check_iov_is_zero(op->qiov.iov, op->qiov.niov)) {
         mirror_iteration_done(op, ret);
         return;
     }
@@ -1656,8 +1678,14 @@ bdrv_mirror_top_do_write(BlockDriverState *bs, MirrorMethod method,
     MirrorOp *op = NULL;
     MirrorBDSOpaque *s = bs->opaque;
     int ret = 0;
+    bool target_force_write = false;
 
-    if (copy_to_target) {
+    if (s->job && s->job->target_is_zero && qiov->size > 0 &&
+           check_iov_is_zero(qiov->iov, qiov->niov)) {
+        target_force_write = true;
+    }
+
+    if (copy_to_target || target_force_write) {
         op = active_write_prepare(s->job, offset, bytes);
     }
 
@@ -1689,12 +1717,12 @@ bdrv_mirror_top_do_write(BlockDriverState *bs, MirrorMethod method,
         goto out;
     }
 
-    if (copy_to_target) {
+    if (copy_to_target || target_force_write) {
         do_sync_target_write(s->job, method, offset, bytes, qiov, flags);
     }
 
 out:
-    if (copy_to_target) {
+    if (copy_to_target || target_force_write) {
         active_write_settle(op);
     }
     return ret;
