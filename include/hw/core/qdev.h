@@ -1049,13 +1049,12 @@ Object *machine_get_container(const char *name);
  * qdev_get_human_name() - Return a human-readable name for a device
  * @dev: The device. Must be a valid and non-NULL pointer.
  *
- * .. note::
- *    This function is intended for user friendly error messages.
+ * Returns: A newly allocated string suitable for user-facing error
+ * messages.
  *
- * Returns: A newly allocated string containing the device id if not null,
- * else the object canonical path.
- *
- * Use g_free() to free it.
+ * Return the device's ID if it has one.  Else, return the path of a
+ * device on its bus if it has one.  Else return its canonical QOM
+ * path.
  */
 char *qdev_get_human_name(DeviceState *dev);
 
@@ -1084,21 +1083,6 @@ extern bool qdev_hot_removed;
  * If @dev is NULL or not on a bus, returns NULL.
  */
 char *qdev_get_dev_path(DeviceState *dev);
-
-/**
- * qdev_get_printable_name: Return human readable name for device
- * @dev: Device to get name of
- *
- * Returns: A newly allocated string containing some human
- * readable name for the device, suitable for printing in
- * user-facing error messages. The function will never return NULL,
- * so the name can be used without further checking or fallbacks.
- *
- * Return the device's ID if it has one.  Else, return the path of a
- * device on its bus if it has one.  Else return its canonical QOM
- * path.
- */
-const char *qdev_get_printable_name(DeviceState *dev);
 
 void qbus_set_hotplug_handler(BusState *bus, Object *handler);
 void qbus_set_bus_hotplug_handler(BusState *bus);
