@@ -418,11 +418,13 @@ const char *qdev_get_printable_name(DeviceState *dev)
     }
     /*
      * Fall back to a bus-specific device path, if the bus
-     * provides one (e.g. PCI address "0000:00:04.0").
+     * provides one (e.g. "PCI device 0000:00:04.0").
      */
-    const char *path = qdev_get_dev_path(dev);
+    g_autofree char *path = qdev_get_dev_path(dev);
     if (path) {
-        return path;
+        const char *bus_type = object_get_typename(OBJECT(dev->parent_bus));
+        char *name = g_strdup_printf("%s device %s", bus_type, path);
+        return name;
     }
 
     return object_get_canonical_path(OBJECT(dev));
