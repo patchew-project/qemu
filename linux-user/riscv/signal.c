@@ -126,6 +126,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
 
     setup_ucontext(&frame->uc, env, set);
     frame->info = *info;
+    unlock_user_struct(frame, frame_addr, 1);
 
     env->pc = ka->_sa_handler;
     env->gpr[xSP] = frame_addr;
