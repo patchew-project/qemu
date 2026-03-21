@@ -281,7 +281,7 @@ static void versatile_init(MachineState *machine, int board_id)
     }
 
     pl011_create(0x101f1000, pic[12], serial_hd(0));
-    pl011_create(0x101f2000, pic[13], serial_hd(1));
+    DeviceState *pl011_dev = pl011_create(0x101f2000, pic[13], serial_hd(1));
     pl011_create(0x101f3000, pic[14], serial_hd(2));
     pl011_create(0x10009000, sic[6], serial_hd(3));
 
@@ -292,6 +292,15 @@ static void versatile_init(MachineState *machine, int board_id)
     sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, 0x10130000);
     sysbus_connect_irq(busdev, 0, pic[17]);
+    sysbus_connect_irq(busdev, 3, qdev_get_gpio_in(pl011_dev, 0));
+    sysbus_connect_irq(busdev, 4, qdev_get_gpio_in(pl011_dev, 1));
+
+    sysbus_connect_irq(SYS_BUS_DEVICE(pl011_dev), 6, qdev_get_gpio_in(dev, 0));
+    sysbus_connect_irq(SYS_BUS_DEVICE(pl011_dev), 7, qdev_get_gpio_in(dev, 1));
+
+    sysbus_connect_irq(SYS_BUS_DEVICE(pl011_dev), 8, qdev_get_gpio_in(dev, 16));
+    sysbus_connect_irq(SYS_BUS_DEVICE(pl011_dev), 9, qdev_get_gpio_in(dev, 17));
+
 
     sysbus_create_simple("sp804", 0x101e2000, pic[4]);
     sysbus_create_simple("sp804", 0x101e3000, pic[5]);
