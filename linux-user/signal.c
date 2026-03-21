@@ -292,11 +292,10 @@ void target_save_altstack(target_stack_t *uss, CPUArchState *env)
     __put_user(ts->sigaltstack_used.ss_size, &uss->ss_size);
 }
 
-abi_long target_restore_altstack(target_stack_t *uss, CPUArchState *env)
+abi_long target_restore_altstack(target_stack_t *ss, CPUArchState *env)
 {
     TaskState *ts = get_task_state(thread_cpu);
     size_t minstacksize = TARGET_MINSIGSTKSZ;
-    target_stack_t ss;
 
 #if defined(TARGET_PPC64)
     /* ELF V2 for PPC64 has a 4K minimum stack size for signal handlers */
@@ -306,33 +305,29 @@ abi_long target_restore_altstack(target_stack_t *uss, CPUArchState *env)
     }
 #endif
 
-    __get_user(ss.ss_sp, &uss->ss_sp);
-    __get_user(ss.ss_size, &uss->ss_size);
-    __get_user(ss.ss_flags, &uss->ss_flags);
-
     if (on_sig_stack(get_sp_from_cpustate(env))) {
         return -TARGET_EPERM;
     }
 
-    switch (ss.ss_flags) {
+    switch (ss->ss_flags) {
     default:
         return -TARGET_EINVAL;
 
     case TARGET_SS_DISABLE:
-        ss.ss_size = 0;
-        ss.ss_sp = 0;
+        ss->ss_sp = 0;
+        ss->ss_size = 0;
         break;
 
     case TARGET_SS_ONSTACK:
     case 0:
-        if (ss.ss_size < minstacksize) {
+        if (ss->ss_size < minstacksize) {
             return -TARGET_ENOMEM;
         }
         break;
     }
 
-    ts->sigaltstack_used.ss_sp = ss.ss_sp;
-    ts->sigaltstack_used.ss_size = ss.ss_size;
+    ts->sigaltstack_used.ss_sp = ss->ss_sp;
+    ts->sigaltstack_used.ss_size = ss->ss_size;
     return 0;
 }
 
@@ -1140,11 +1135,17 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr,
 
     if (uss_addr) {
         target_stack_t *uss;
+        target_stack_t ss;
 
         if (!lock_user_struct(VERIFY_READ, uss, uss_addr, 1)) {
             goto out;
         }
-        ret = target_restore_altstack(uss, env);
+        __get_user(ss.ss_sp, &uss->ss_sp);
+        __get_user(ss.ss_size, &uss->ss_size);
+        __get_user(ss.ss_flags, &uss->ss_flags);
+        unlock_user_struct(uss, uss_addr, 0);
+
+        ret = target_restore_altstack(&ss, env);
         if (ret) {
             goto out;
         }
