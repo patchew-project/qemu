@@ -1094,11 +1094,9 @@ char *qdev_get_dev_path(DeviceState *dev);
  * user-facing error messages. The function will never return NULL,
  * so the name can be used without further checking or fallbacks.
  *
- * If the device has an explicitly set ID (e.g. by the user on the
- * command line via "-device thisdev,id=myid") this is preferred.
- * Otherwise we try the canonical QOM device path (which will be
- * the PCI ID for PCI devices, for example). If all else fails
- * we will return the placeholder "<unknown device">.
+ * Return the device's ID if it has one.  Else, return the path of a
+ * device on its bus if it has one.  Else return its canonical QOM
+ * path.
  */
 const char *qdev_get_printable_name(DeviceState *dev);
 
