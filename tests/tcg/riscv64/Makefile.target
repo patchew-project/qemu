@@ -18,3 +18,8 @@ TESTS += test-fcvtmod
 test-fcvtmod: CFLAGS += -march=rv64imafdc
 test-fcvtmod: LDFLAGS += -static
 run-test-fcvtmod: QEMU_OPTS += -cpu rv64,d=true,zfa=true
+
+# Test for vstart >= vl
+TESTS += test-vstart-overflow
+test-vstart-overflow: CFLAGS += -march=rv64gcv
+run-test-vstart-overflow: QEMU_OPTS += -cpu rv64,v=on
