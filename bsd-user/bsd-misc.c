@@ -95,7 +95,7 @@ abi_long host_to_target_semarray(int semid, abi_ulong target_addr,
     for (i = 0; i < nsems; i++) {
         __put_user(array[i], host_array + i);
     }
-    unlock_user(array, target_addr, 1);
+    unlock_user(array, target_addr, nsems * sizeof(unsigned short));
     return 0;
 }
 

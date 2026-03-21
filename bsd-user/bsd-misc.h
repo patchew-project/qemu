@@ -211,7 +211,7 @@ static inline abi_long do_bsd___semctl(int semid, int semnum, int target_cmd,
         break;
     }
 out:
-    unlock_user(target_un, un_ptr, 1);
+    unlock_user(target_un, un_ptr, 0);
     return ret;
 }
 
