@@ -2989,7 +2989,7 @@ get_timeout:
             if (put_user_u32(lv, optlen)) {
                 return -TARGET_EFAULT;
             }
-            unlock_user(results, optval_addr, 0);
+            unlock_user(results, optval_addr, len);
             break;
         }
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0) */
@@ -4006,7 +4006,7 @@ static inline abi_long host_to_target_semarray(int semid, abi_ulong target_addr,
         __put_user((*host_array)[i], &array[i]);
     }
     g_free(*host_array);
-    unlock_user(array, target_addr, 1);
+    unlock_user(array, target_addr, nsems * sizeof(unsigned short));
 
     return 0;
 }
@@ -7888,7 +7888,7 @@ static inline abi_long target_to_host_sigevent(struct sigevent *host_sevp,
     host_sevp->sigev_notify = tswap32(target_sevp->sigev_notify);
     host_sevp->sigev_notify_thread_id = tswap32(target_sevp->_sigev_un._tid);
 
-    unlock_user_struct(target_sevp, target_addr, 1);
+    unlock_user_struct(target_sevp, target_addr, 0);
     return 0;
 }
 

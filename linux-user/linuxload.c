@@ -19,7 +19,7 @@ abi_long memcpy_to_target(abi_ulong dest, const void *src, unsigned long len)
         return -TARGET_EFAULT;
     }
     memcpy(host_ptr, src, len);
-    unlock_user(host_ptr, dest, 1);
+    unlock_user(host_ptr, dest, len);
     return 0;
 }
 
