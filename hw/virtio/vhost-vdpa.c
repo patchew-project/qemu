@@ -1541,6 +1541,9 @@ static int vhost_vdpa_get_features(struct vhost_dev *dev,
     if (ret == 0) {
         /* Add SVQ logging capabilities */
         *features |= BIT_ULL(VHOST_F_LOG_ALL);
+
+        /* Add notification coalescing features */
+        *features |= BIT_ULL(VIRTIO_NET_F_NOTF_COAL);
     }
 
     return ret;
