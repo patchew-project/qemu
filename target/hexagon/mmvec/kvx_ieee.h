@@ -13,6 +13,9 @@
 #define FP32_DEF_NAN      0x7FFFFFFF
 #define FP16_DEF_NAN      0x7FFF
 
+#define signF32UI(a) ((bool)((uint32_t)(a) >> 31))
+#define signF16UI(a) ((bool)((uint16_t)(a) >> 15))
+
 /*
  * IEEE - FP ADD/SUB/MPY instructions
  */
