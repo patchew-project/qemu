@@ -4052,8 +4052,7 @@ F: hw/core/resetcontainer.c
 Usermode Emulation
 ------------------
 Overall usermode emulation
-M: Riku Voipio <riku.voipio@iki.fi>
-S: Odd Fixes
+S: Orphan
 F: accel/tcg/user-exec*.c
 F: hw/core/cpu-user.c
 F: include/user/
