@@ -787,6 +787,13 @@ $VM,debug-threads=on`` instead.
 
 This argument has always been ignored.
 
+``query-qmp-schema`` return value member ``values`` (removed in 11.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Member ``values`` in return value elements with meta-type ``enum`` has
+been replaced by ``members`` instead.
+
+
 QEMU Machine Protocol (QMP) events
 ----------------------------------
 

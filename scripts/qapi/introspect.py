@@ -318,8 +318,7 @@ const QLitObject %(c_name)s = %(c_string)s;
                         prefix: Optional[str]) -> None:
         self._gen_tree(
             name, 'enum',
-            {'members': [self._gen_enum_member(m) for m in members],
-             'values': [Annotated(m.name, m.ifcond) for m in members]},
+            {'members': [self._gen_enum_member(m) for m in members]},
             ifcond, features
         )
 

@@ -159,22 +159,12 @@
 # @members: the enum type's members, in no particular order.
 #     (since 6.2)
 #
-# @values: the enumeration type's member names, in no particular
-#     order.  Redundant with @members.  Just for backward
-#     compatibility.
-#
-# Features:
-#
-# @deprecated: Member @values is deprecated.  Use @members instead.
-#
 # Values of this type are JSON string on the wire.
 #
 # Since: 2.5
 ##
 { 'struct': 'SchemaInfoEnum',
-  'data': { 'members': [ 'SchemaInfoEnumMember' ],
-            'values': { 'type': [ 'str' ],
-                        'features': [ 'deprecated' ] } } }
+  'data': { 'members': [ 'SchemaInfoEnumMember' ] } }
 
 ##
 # @SchemaInfoEnumMember:
