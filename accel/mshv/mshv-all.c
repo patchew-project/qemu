@@ -39,6 +39,8 @@
 #include "system/mshv.h"
 #include "system/mshv_int.h"
 #include "system/reset.h"
+#include "migration/qemu-file-types.h"
+#include "migration/register.h"
 #include "trace.h"
 #include <err.h>
 #include <sys/ioctl.h>
@@ -46,6 +48,9 @@
 bool mshv_allowed;
 
 MshvState *mshv_state;
+
+static int pause_vm(int vm_fd);
+static int resume_vm(int vm_fd);
 
 static int init_mshv(int *mshv_fd)
 {
@@ -76,6 +81,64 @@ static int set_time_freeze(int vm_fd, int freeze)
         error_report("Failed to set time freeze");
         return -1;
     }
+
+    return 0;
+}
+
+static void mshv_save_state(QEMUFile *f, void *opaque)
+{
+    return;
+}
+
+static int mshv_load_state(QEMUFile *f, void *opaque, int version_id)
+{
+    return 0;
+}
+
+static int mshv_save_prepare(void *opaque, Error **errp)
+{
+    MshvState *s = opaque;
+    int ret;
+
+    ret = pause_vm(s->vm);
+    if (ret < 0) {
+        error_setg(errp, "Failed to pause VM for migration");
+        return -1;
+    }
+
+    return 0;
+}
+
+static void mshv_save_cleanup(void *opaque)
+{
+    MshvState *s = opaque;
+    int ret;
+
+    ret = resume_vm(s->vm);
+    if (ret < 0) {
+        error_report("Failed to resme VM after  migration");
+    }
+}
+
+static int mshv_load_setup(QEMUFile *f, void *opaque, Error **errp)
+{
+    MshvState *s = opaque;
+    int ret;
+
+    ret = pause_vm(s->vm);
+    if (ret < 0) {
+        error_setg(errp, "Failed to pause VM for migration restore");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int mshv_load_cleanup(void *opaque)
+{
+    MshvState *s = opaque;
+
+    resume_vm(s->vm);
 
     return 0;
 }
@@ -454,6 +517,15 @@ static int mshv_init_vcpu(CPUState *cpu)
     return 0;
 }
 
+static SaveVMHandlers savevm_mshv = {
+    .save_prepare = mshv_save_prepare,
+    .save_state = mshv_save_state,
+    .save_cleanup = mshv_save_cleanup,
+    .load_setup = mshv_load_setup,
+    .load_state = mshv_load_state,
+    .load_cleanup = mshv_load_cleanup,
+};
+
 static int mshv_init(AccelState *as, MachineState *ms)
 {
     MshvState *s;
@@ -508,6 +580,9 @@ static int mshv_init(AccelState *as, MachineState *ms)
     register_mshv_memory_listener(s, &s->memory_listener, &address_space_memory,
                                   0, "mshv-memory");
     memory_listener_register(&mshv_io_listener, &address_space_io);
+
+    /* register custom handlers for migration events */
+    register_savevm_live("mshv", 0, 1, &savevm_mshv, s);
 
     return 0;
 }
