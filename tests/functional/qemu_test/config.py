@@ -24,15 +24,10 @@ def _build_dir():
     root = os.getenv('MESON_BUILD_ROOT')
     if root is not None:
         return Path(root)
-    # Makefile.mtest only exists in build dir, so if it is available, use CWD
-    if os.path.exists('Makefile.mtest'):
-        return Path(os.getcwd())
 
-    root = os.path.join(_source_dir(), 'build')
-    if os.path.exists(root):
-        return Path(root)
-
-    raise Exception("Cannot identify build dir, set MESON_BUILD_ROOT")
+    raise Exception("Missing MESON_BUILD_ROOT environment variable. " +
+                    "Please use the '<BUILD-DIR>/run' script if invoking " +
+                    "directly instead of via make/meson")
 
 BUILD_DIR = _build_dir()
 
