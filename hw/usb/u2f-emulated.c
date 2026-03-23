@@ -31,7 +31,7 @@
 #include "hw/usb/usb.h"
 #include "hw/core/qdev-properties.h"
 
-#include <u2f-emu/u2f-emu.h>
+#include <u2f-emu.h>
 
 #include "u2f.h"
 
