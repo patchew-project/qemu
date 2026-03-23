@@ -206,15 +206,26 @@ bool x86_read_call_gate(CPUState *cpu, struct x86_call_gate *idt_desc,
     return true;
 }
 
-bool x86_is_protected(CPUState *cpu)
+target_ulong x86_read_cr(CPUState *cpu, int cr)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
-    uint64_t cr0 = env->cr[0];
+
+    if (emul_ops->read_cr) {
+        return emul_ops->read_cr(cpu, cr);
+    }
+    return env->cr[cr];
+}
+
+bool x86_is_protected(CPUState *cpu)
+{
+    uint64_t cr0;
+
     if (emul_ops->is_protected_mode) {
         return emul_ops->is_protected_mode(cpu);
     }
 
+    cr0 = x86_read_cr(cpu, 0);
     return cr0 & CR0_PE_MASK;
 }
 
@@ -245,9 +256,7 @@ bool x86_is_long_mode(CPUState *cpu)
 
 bool x86_is_la57(CPUState *cpu)
 {
-    X86CPU *x86_cpu = X86_CPU(cpu);
-    CPUX86State *env = &x86_cpu->env;
-    uint64_t is_la57 = env->cr[4] & CR4_LA57_MASK;
+    uint64_t is_la57 = x86_read_cr(cpu, 4) & CR4_LA57_MASK;
     return is_la57;
 }
 
@@ -259,18 +268,14 @@ bool x86_is_long64_mode(CPUState *cpu)
 
 bool x86_is_paging_mode(CPUState *cpu)
 {
-    X86CPU *x86_cpu = X86_CPU(cpu);
-    CPUX86State *env = &x86_cpu->env;
-    uint64_t cr0 = env->cr[0];
+    uint64_t cr0 = x86_read_cr(cpu, 0);
 
     return cr0 & CR0_PG_MASK;
 }
 
 bool x86_is_pae_enabled(CPUState *cpu)
 {
-    X86CPU *x86_cpu = X86_CPU(cpu);
-    CPUX86State *env = &x86_cpu->env;
-    uint64_t cr4 = env->cr[4];
+    uint64_t cr4 = x86_read_cr(cpu, 4);
 
     return cr4 & CR4_PAE_MASK;
 }

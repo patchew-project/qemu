@@ -143,6 +143,17 @@ bool x86_is_la57(CPUState *cpu)
     return false;
 }
 
+target_ulong x86_read_cr(CPUState *cpu, int cr)
+{
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+
+    if (emul_ops->read_cr) {
+        return emul_ops->read_cr(cpu, cr);
+    }
+    return env->cr[cr];
+}
+
 bool x86_is_long64_mode(CPUState *cpu)
 {
     struct vmx_segment desc;
