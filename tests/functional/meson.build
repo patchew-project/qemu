@@ -76,8 +76,10 @@ foreach speed : ['quick', 'thorough']
     endif
     test_env.set('QEMU_TEST_QEMU_BINARY', test_emulator.full_path())
     test_env.set('QEMU_BUILD_ROOT', meson.project_build_root())
-    test_env.set('PYTHONPATH', meson.project_source_root() / 'python:' +
-                               meson.current_source_dir())
+    test_env.prepend('PYTHONPATH',
+                     meson.project_source_root() / 'python',
+                     meson.current_source_dir(),
+                     separator : ':')
 
     # Define the GDB environment variable if gdb is available.
     gdb = get_option('gdb')
@@ -96,8 +98,10 @@ foreach speed : ['quick', 'thorough']
       teststamp = testname + '.tstamp'
       test_precache_env = environment()
       test_precache_env.set('QEMU_TEST_PRECACHE', meson.current_build_dir() / teststamp)
-      test_precache_env.set('PYTHONPATH', meson.project_source_root() / 'python:' +
-                                          meson.current_source_dir())
+      test_precache_env.prepend('PYTHONPATH',
+                                meson.project_source_root() / 'python',
+                                meson.current_source_dir(),
+                                separator : ':')
       precache = custom_target('func-precache-' + testname,
                                output: teststamp,
                                command: [python, testpath],
