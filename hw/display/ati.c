@@ -265,7 +265,7 @@ static void ati_vga_vblank_irq(void *opaque)
     ati_vga_update_irq(s);
 }
 
-static inline uint64_t ati_reg_read_offs(uint32_t reg, int offs,
+static inline uint32_t ati_reg_read_offs(uint32_t reg, int offs,
                                          unsigned int size)
 {
     if (offs == 0 && size == 4) {
@@ -278,7 +278,7 @@ static inline uint64_t ati_reg_read_offs(uint32_t reg, int offs,
 static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
 {
     ATIVGAState *s = opaque;
-    uint64_t val = 0;
+    uint32_t val = 0;
 
     switch (addr) {
     case MM_INDEX:
@@ -513,8 +513,8 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
         val |= s->regs.default_tile << 16;
         break;
     case DEFAULT_SC_BOTTOM_RIGHT:
-        val = (s->regs.default_sc_bottom << 16) |
-              s->regs.default_sc_right;
+        val = s->regs.default_sc_right;
+        val |= s->regs.default_sc_bottom << 16;
         break;
     case SC_TOP:
         val = s->regs.sc_top;
