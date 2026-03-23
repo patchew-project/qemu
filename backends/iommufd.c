@@ -82,6 +82,9 @@ static void iommufd_backend_complete(UserCreatable *uc, Error **errp)
         } else {
             cpr_save_fd(name, 0, be->fd);
         }
+    } else if (!g_file_test("/dev/iommu", G_FILE_TEST_EXISTS)) {
+        error_setg(errp, "/dev/iommu does not exist"
+                         " (is your kernel config missing CONFIG_IOMMUFD?)");
     }
 }
 
