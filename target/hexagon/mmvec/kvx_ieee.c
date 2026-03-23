@@ -229,3 +229,6 @@ int16_t conv_h_hf(uint16_t a, float_status *fp_status)
     }
     return float16_to_int16_round_to_zero(f1, fp_status);
 }
+
+DEF_FP_INSN_3(mult_sf_bf_acc, 32, 16, 16, 32,
+              float32_muladd(bf_to_sf(f1), bf_to_sf(f2), f3, 0, fp_status))

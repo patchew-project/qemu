@@ -80,4 +80,40 @@ int16_t conv_hf_h(int16_t a, float_status *fp_status);
 int32_t conv_w_sf(uint32_t a, float_status *fp_status);
 int16_t conv_h_hf(uint16_t a, float_status *fp_status);
 
+/* IEEE BFloat instructions */
+
+#define fp_mult_sf_bf(A, B) \
+    fp_mult_sf_sf(((uint32_t)(A)) << 16, ((uint32_t)(B)) << 16, &env->fp_status)
+#define fp_add_sf_bf(A, B) \
+    fp_add_sf_sf(((uint32_t)(A)) << 16, ((uint32_t)(B)) << 16, &env->fp_status)
+#define fp_sub_sf_bf(A, B) \
+    fp_sub_sf_sf(((uint32_t)(A)) << 16, ((uint32_t)(B)) << 16, &env->fp_status)
+
+uint32_t fp_mult_sf_bf_acc(uint16_t op1, uint16_t op2, uint32_t acc,
+                           float_status *fp_status);
+
+#define bf_to_sf(A) (((uint32_t)(A)) << 16)
+
+#define fp_min_bf(A, B) ({ \
+    uint32_t _bf_res = fp_min_sf(bf_to_sf(A), bf_to_sf(B), &env->fp_status); \
+    (uint16_t)((_bf_res >> 16) & 0xffff); \
+})
+
+#define fp_max_bf(A, B) ({ \
+    uint32_t _bf_res = fp_max_sf(bf_to_sf(A), bf_to_sf(B), &env->fp_status); \
+    (uint16_t)((_bf_res >> 16) & 0xffff); \
+})
+
+static inline uint16_t sf_to_bf(int32_t A)
+{
+    uint32_t rslt = A;
+    if ((rslt & 0x1FFFF) == 0x08000) {
+        /* do not round up if exactly .5 and even already */
+    } else if ((rslt & 0x8000) == 0x8000) {
+        rslt += 0x8000; /* rounding to nearest number */
+    }
+    rslt = float32_is_any_nan(A) ? FP32_DEF_NAN : rslt;
+    return rslt >> 16;
+}
+
 #endif

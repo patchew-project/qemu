@@ -40,6 +40,7 @@ typedef union {
     int8_t    b[MAX_VEC_SIZE_BYTES / 1];
     int32_t  sf[MAX_VEC_SIZE_BYTES / 4];   /* single float (32-bit) */
     int16_t  hf[MAX_VEC_SIZE_BYTES / 2];   /* half float (16-bit) */
+    uint16_t bf[MAX_VEC_SIZE_BYTES / 2];   /* bfloat16 */
 } MMVector;
 
 typedef union {

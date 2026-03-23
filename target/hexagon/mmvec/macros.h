@@ -25,6 +25,9 @@
 #include "accel/tcg/probe.h"
 #include "mmvec/kvx_ieee.h"
 
+#define fBFLOAT()
+#define fCVI_VX_NO_TMP_LD()
+
 #ifndef QEMU_GENERATE
 #define VdV      (*(MMVector *restrict)(VdV_void))
 #define VsV      (*(MMVector *restrict)(VsV_void))
@@ -365,5 +368,7 @@
     (float16_is_any_nan(A) || float16_is_any_nan(B) ? \
     (int16_t)(A) > (int16_t)(B) : \
     float16_compare((A), (B), &env->fp_status) == float_relation_greater)
+
+#define fCMPGT_BF(A, B) fCMPGT_SF(((int)A) << 16, ((int)B) << 16)
 
 #endif
