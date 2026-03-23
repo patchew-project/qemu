@@ -34,8 +34,10 @@ typedef union {
     uint64_t ud[MAX_VEC_SIZE_BYTES / 8];
     int64_t   d[MAX_VEC_SIZE_BYTES / 8];
     uint32_t uw[MAX_VEC_SIZE_BYTES / 4];
+    uint32_t sf[MAX_VEC_SIZE_BYTES / 4]; /* convenience alias */
     int32_t   w[MAX_VEC_SIZE_BYTES / 4];
     uint16_t uh[MAX_VEC_SIZE_BYTES / 2];
+    uint16_t hf[MAX_VEC_SIZE_BYTES / 2]; /* convenience alias */
     int16_t   h[MAX_VEC_SIZE_BYTES / 2];
     uint8_t  ub[MAX_VEC_SIZE_BYTES / 1];
     int8_t    b[MAX_VEC_SIZE_BYTES / 1];
@@ -63,7 +65,9 @@ static inline void check_output_##FIELD(int line, size_t num_vectors) \
 
 CHECK_OUTPUT_FUNC(d,  8)
 CHECK_OUTPUT_FUNC(w,  4)
+CHECK_OUTPUT_FUNC(sf, 4)
 CHECK_OUTPUT_FUNC(h,  2)
+CHECK_OUTPUT_FUNC(hf, 2)
 CHECK_OUTPUT_FUNC(b,  1)
 
 static inline void init_buffers(void)
@@ -174,5 +178,13 @@ static inline void test_##NAME(bool invert) \
     } \
     check_output_b(__LINE__, BUFSIZE); \
 }
+
+#define float_sf(x) ({ typeof(x) _x = (x); *((float *)&(_x)); })
+#define float_hf(x) ({ typeof(x) _x = (x); *((_Float16 *) &(_x)); })
+#define raw_sf(x) ({ typeof(x) _x = (x); *((uint32_t *)&(_x)); })
+#define raw_hf(x) ({ typeof(x) _x = (x); *((uint16_t *)&(_x)); })
+#define float_hf_to_sf(x) ((float)x)
+#define bytes_hf 2
+#define bytes_sf 4
 
 #endif
