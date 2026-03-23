@@ -257,7 +257,7 @@ static void virtconsole_unrealize(DeviceState *dev)
     VirtConsole *vcon = VIRTIO_CONSOLE(dev);
 
     if (vcon->watch) {
-        g_source_remove(vcon->watch);
+        g_clear_handle_id(&vcon->watch, g_source_remove);
     }
 }
 
