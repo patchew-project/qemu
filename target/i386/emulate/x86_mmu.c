@@ -49,6 +49,9 @@
 
 static bool is_user(CPUState *cpu)
 {
+    if (emul_ops->is_user_mode) {
+        return emul_ops->is_user_mode(cpu);
+    }
     return false;
 }
 
