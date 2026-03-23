@@ -103,7 +103,7 @@ static void shakti_uart_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps shakti_uart_ops = {
     .read = shakti_uart_read,
     .write = shakti_uart_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {.min_access_size = 1, .max_access_size = 4},
     .valid = {.min_access_size = 1, .max_access_size = 4},
 };

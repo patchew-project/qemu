@@ -388,7 +388,7 @@ static void sifive_pwm_reset(DeviceState *dev)
 static const MemoryRegionOps sifive_pwm_ops = {
     .read = sifive_pwm_read,
     .write = sifive_pwm_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_sifive_pwm = {

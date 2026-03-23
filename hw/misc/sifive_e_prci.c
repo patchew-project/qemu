@@ -75,7 +75,7 @@ static void sifive_e_prci_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps sifive_e_prci_ops = {
     .read = sifive_e_prci_read,
     .write = sifive_e_prci_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4

@@ -470,7 +470,7 @@ static void fifo_trigger_update(void *opaque)
 static const MemoryRegionOps ibex_uart_ops = {
     .read = ibex_uart_read,
     .write = ibex_uart_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl.min_access_size = 4,
     .impl.max_access_size = 4,
 };

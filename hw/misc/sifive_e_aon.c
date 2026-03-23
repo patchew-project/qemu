@@ -250,7 +250,7 @@ sifive_e_aon_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps sifive_e_aon_ops = {
     .read = sifive_e_aon_read,
     .write = sifive_e_aon_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 4,
         .max_access_size = 4

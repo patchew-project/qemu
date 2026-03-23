@@ -234,7 +234,7 @@ static void ibex_timer_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps ibex_timer_ops = {
     .read = ibex_timer_read,
     .write = ibex_timer_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl.min_access_size = 4,
     .impl.max_access_size = 4,
 };
