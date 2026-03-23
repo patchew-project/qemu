@@ -43,49 +43,37 @@ static CpuMode cpu_mode(CPUState *cpu)
     return m;
 }
 
-static bool segment_type_ro(const SegmentCache *seg)
+static bool segment_type_ro(const x86_segment_descriptor desc)
 {
-    uint32_t type_ = (seg->flags >> DESC_TYPE_SHIFT) & 15;
+    uint32_t type_ = desc.type;
     return (type_ & (~RWRX_SEGMENT_TYPE)) == 0;
 }
 
-static bool segment_type_code(const SegmentCache *seg)
+static bool segment_type_code(const x86_segment_descriptor desc)
 {
-    uint32_t type_ = (seg->flags >> DESC_TYPE_SHIFT) & 15;
+    uint32_t type_ = desc.type;
     return (type_ & CODE_SEGMENT_TYPE) != 0;
 }
 
-static bool segment_expands_down(const SegmentCache *seg)
+static bool segment_expands_down(const x86_segment_descriptor desc)
 {
-    uint32_t type_ = (seg->flags >> DESC_TYPE_SHIFT) & 15;
+    uint32_t type_ = desc.type;
 
-    if (segment_type_code(seg)) {
+    if (segment_type_code(desc)) {
         return false;
     }
 
     return (type_ & EXPAND_DOWN_SEGMENT_TYPE) != 0;
 }
 
-static uint32_t segment_limit(const SegmentCache *seg)
+static uint8_t segment_db(const x86_segment_descriptor desc)
 {
-    uint32_t limit = seg->limit;
-    uint32_t granularity = (seg->flags & DESC_G_MASK) != 0;
-
-    if (granularity != 0) {
-        limit = (limit << 12) | 0xFFF;
-    }
-
-    return limit;
+    return desc.db;
 }
 
-static uint8_t segment_db(const SegmentCache *seg)
+static uint32_t segment_max_limit(const x86_segment_descriptor desc)
 {
-    return (seg->flags >> DESC_B_SHIFT) & 1;
-}
-
-static uint32_t segment_max_limit(const SegmentCache *seg)
-{
-    if (segment_db(seg) != 0) {
+    if (segment_db(desc) != 0) {
         return 0xFFFFFFFF;
     }
     return 0xFFFF;
@@ -96,15 +84,15 @@ static int linearize(CPUState *cpu,
                      X86Seg seg_idx)
 {
     enum CpuMode mode;
-    X86CPU *x86_cpu = X86_CPU(cpu);
-    CPUX86State *env = &x86_cpu->env;
-    SegmentCache *seg = &env->segs[seg_idx];
-    target_ulong base = seg->base;
+    struct x86_segment_descriptor desc;
+    target_ulong base;
     target_ulong logical_addr_32b;
     uint32_t limit;
     /* TODO: the emulator will not pass us "write" indicator yet */
     bool write = false;
 
+    emul_ops->read_segment_descriptor(cpu, &desc, seg_idx);
+    base = x86_segment_base(&desc);
     mode = cpu_mode(cpu);
 
     switch (mode) {
@@ -116,21 +104,21 @@ static int linearize(CPUState *cpu,
         break;
     case PROTECTED_MODE:
     case REAL_MODE:
-        if (segment_type_ro(seg) && write) {
+        if (segment_type_ro(desc) && write) {
             error_report("Cannot write to read-only segment");
             return -1;
         }
 
         logical_addr_32b = logical_addr & 0xFFFFFFFF;
-        limit = segment_limit(seg);
+        limit = x86_segment_limit(&desc);
 
-        if (segment_expands_down(seg)) {
+        if (segment_expands_down(desc)) {
             if (logical_addr_32b >= limit) {
                 error_report("Address exceeds limit (expands down)");
                 return -1;
             }
 
-            limit = segment_max_limit(seg);
+            limit = segment_max_limit(desc);
         }
 
         if (logical_addr_32b > limit) {
