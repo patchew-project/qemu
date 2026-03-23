@@ -15,6 +15,7 @@
 #define QEMU_MSHV_INT_H
 
 #define MSHV_MSR_ENTRIES_COUNT 64
+#include "hw/hyperv/hvhdk.h"
 
 struct mshv_get_set_vp_state;
 
@@ -55,6 +56,7 @@ struct MshvState {
     int nr_allocated_irq_routes;
     unsigned long *used_gsi_bitmap;
     unsigned int gsi_count;
+    union hv_partition_processor_features processor_features;
 };
 
 typedef struct MshvMsiControl {
