@@ -356,4 +356,14 @@
                extract32(VAL, POS * 8, 8); \
     } while (0);
 
+#define fCMPGT_SF(A, B) \
+    (float32_is_any_nan(A) || float32_is_any_nan(B) ? \
+     (int32_t)(A) > (int32_t)(B) : \
+     float32_compare((A), (B), &env->fp_status) == float_relation_greater)
+
+#define fCMPGT_HF(A, B) \
+    (float16_is_any_nan(A) || float16_is_any_nan(B) ? \
+    (int16_t)(A) > (int16_t)(B) : \
+    float16_compare((A), (B), &env->fp_status) == float_relation_greater)
+
 #endif
