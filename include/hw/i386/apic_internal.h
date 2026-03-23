@@ -23,6 +23,7 @@
 
 #include "cpu.h"
 #include "hw/i386/apic.h"
+#include "hw/hyperv/hvgdk_mini.h"
 #include "system/memory.h"
 #include "qemu/timer.h"
 #include "target/i386/cpu-qom.h"
@@ -188,6 +189,10 @@ struct APICCommonState {
     DeviceState *vapic;
     hwaddr vapic_paddr; /* note: persistence via kvmvapic */
     uint32_t extended_log_dest;
+
+#ifdef CONFIG_MSHV
+    uint8_t hv_lapic_state[sizeof(struct hv_local_interrupt_controller_state)];
+#endif
 };
 
 typedef struct VAPICState {
