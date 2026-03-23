@@ -572,6 +572,11 @@ static void mch_realize(PCIDevice *d, Error **errp)
         return;
     }
 
+    if (mch->enable_smm_test_ram && !mch->has_smm_ranges) {
+        error_setg(errp, "x-smm-test-ram requires SMM support");
+        return;
+    }
+
     /* setup pci memory mapping */
     pc_pci_as_mapping_init(mch->system_memory, mch->pci_address_space);
 
@@ -653,6 +658,23 @@ static void mch_realize(PCIDevice *d, Error **errp)
     memory_region_add_subregion(&mch->smram, MCH_HOST_BRIDGE_SMBASE_ADDR,
                                 &mch->smbase_window);
 
+    if (mch->enable_smm_test_ram) {
+        /*
+         * This is a QEMU-specific, test-only region. It is mapped only into
+         * mch->smram so qtest can verify that x86 secure attrs select the SMM
+         * address space rather than the default one.
+         */
+        memory_region_init_ram(&mch->smm_test_ram, OBJECT(mch),
+                               "smm-test-ram",
+                               MCH_HOST_BRIDGE_SMM_TEST_RAM_SIZE, errp);
+        if (*errp) {
+            return;
+        }
+        memory_region_add_subregion(&mch->smram,
+                                    MCH_HOST_BRIDGE_SMM_TEST_RAM_BASE,
+                                    &mch->smm_test_ram);
+    }
+
     object_property_add_const_link(qdev_get_machine(), "smram",
                                    OBJECT(&mch->smram));
 }
@@ -661,6 +683,8 @@ static const Property mch_props[] = {
     DEFINE_PROP_UINT16("extended-tseg-mbytes", MCHPCIState, ext_tseg_mbytes,
                        64),
     DEFINE_PROP_BOOL("smbase-smram", MCHPCIState, has_smram_at_smbase, true),
+    DEFINE_PROP_BOOL("x-smm-test-ram", MCHPCIState, enable_smm_test_ram,
+                     false),
 };
 
 static void mch_class_init(ObjectClass *klass, const void *data)

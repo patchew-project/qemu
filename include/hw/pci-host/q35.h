@@ -49,8 +49,10 @@ struct MCHPCIState {
     MemoryRegion smram, low_smram, high_smram;
     MemoryRegion tseg_blackhole, tseg_window;
     MemoryRegion smbase_blackhole, smbase_window;
+    MemoryRegion smm_test_ram;
     bool has_smram_at_smbase;
     bool has_smm_ranges;
+    bool enable_smm_test_ram;
     Range pci_hole;
     uint64_t below_4g_mem_size;
     uint64_t above_4g_mem_size;
@@ -99,6 +101,12 @@ struct Q35PCIHost {
 #define MCH_HOST_BRIDGE_PCIEXBAR_SIZE          8       /* 64bit register */
 #define MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT       0xb0000000
 #define MCH_HOST_BRIDGE_PCIEXBAR_MAX           (0x10000000) /* 256M */
+/*
+ * Optional qtest-only RAM window used to expose an address that exists only
+ * in the SMM address space, so x86 secure attrs can be cross-checked.
+ */
+#define MCH_HOST_BRIDGE_SMM_TEST_RAM_BASE      0xfef00000
+#define MCH_HOST_BRIDGE_SMM_TEST_RAM_SIZE      (64 * KiB)
 #define MCH_HOST_BRIDGE_PCIEXBAR_ADMSK         Q35_MASK(64, 35, 28)
 #define MCH_HOST_BRIDGE_PCIEXBAR_128ADMSK      ((uint64_t)(1 << 26))
 #define MCH_HOST_BRIDGE_PCIEXBAR_64ADMSK       ((uint64_t)(1 << 25))

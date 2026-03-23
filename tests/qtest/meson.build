@@ -116,6 +116,7 @@ qtests_i386 = \
    'cpu-plug-test',
    'migration-test',
    'qtest-attrs-test',
+   'qtest-x86-attrs-test',
   ]
 
 if dbus_display and config_all_devices.has_key('CONFIG_VGA')
