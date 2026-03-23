@@ -29,7 +29,6 @@
 
 /* Stop userspace polling on a handler if it isn't active for some time */
 #define POLL_IDLE_INTERVAL_NS (7 * NANOSECONDS_PER_SECOND)
-#define POLL_WEIGHT_SHIFT   (3)
 
 static void adjust_block_ns(AioContext *ctx, int64_t block_ns);
 static void grow_polling_time(AioContext *ctx, int64_t block_ns);
@@ -593,10 +592,6 @@ static void shrink_polling_time(AioContext *ctx, int64_t block_ns)
     int64_t old = ctx->poll_ns;
     int64_t shrink = ctx->poll_shrink;
 
-    if (shrink == 0) {
-        shrink = 2;
-    }
-
     if (block_ns < (ctx->poll_ns / shrink)) {
         ctx->poll_ns /= shrink;
     }
@@ -609,10 +604,6 @@ static void grow_polling_time(AioContext *ctx, int64_t block_ns)
     /* There is room to grow, poll longer */
     int64_t old = ctx->poll_ns;
     int64_t grow = ctx->poll_grow;
-
-    if (grow == 0) {
-        grow = 2;
-    }
 
     if (block_ns > ctx->poll_ns * grow) {
         ctx->poll_ns = block_ns;
@@ -640,8 +631,8 @@ static void adjust_block_ns(AioContext *ctx, int64_t block_ns)
              * poll.ns to smooth out polling time adjustments.
              */
             node->poll.ns = node->poll.ns
-                ? (node->poll.ns - (node->poll.ns >> POLL_WEIGHT_SHIFT))
-                + (block_ns >> POLL_WEIGHT_SHIFT) : block_ns;
+                ? (node->poll.ns - (node->poll.ns >> ctx->poll_weight))
+                + (block_ns >> ctx->poll_weight) : block_ns;
 
             if (node->poll.ns > ctx->poll_max_ns) {
                 node->poll.ns = 0;
@@ -831,7 +822,8 @@ void aio_context_destroy(AioContext *ctx)
 }
 
 void aio_context_set_poll_params(AioContext *ctx, int64_t max_ns,
-                                 int64_t grow, int64_t shrink, Error **errp)
+                                 int64_t grow, int64_t shrink,
+                                 int64_t weight, Error **errp)
 {
     AioHandler *node;
 
@@ -848,6 +840,7 @@ void aio_context_set_poll_params(AioContext *ctx, int64_t max_ns,
     ctx->poll_max_ns = max_ns;
     ctx->poll_grow = grow;
     ctx->poll_shrink = shrink;
+    ctx->poll_weight = weight;
     ctx->poll_ns = 0;
 
     aio_notify(ctx);
