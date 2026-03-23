@@ -101,7 +101,7 @@ typedef enum VirtIOMMUType {
 
 typedef enum VirtMSIControllerType {
     VIRT_MSI_CTRL_NONE,
-    /* This value is overriden at runtime.*/
+    /* This value is overridden at runtime.*/
     VIRT_MSI_CTRL_AUTO,
     /* Legacy option: its=off provides a GICv2m when using GICv2 */
     VIRT_MSI_LEGACY_OPT_ITS_OFF,

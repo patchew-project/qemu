@@ -1125,7 +1125,7 @@ bool qemu_plugin_read_register(struct qemu_plugin_register *handle,
  * Attempting to write a register with @buf smaller than the register size
  * will result in a crash or other undesired behavior.
  *
- * Returns true on sucess, false on failure.
+ * Returns true on success, false on failure.
  */
 QEMU_PLUGIN_API
 bool qemu_plugin_write_register(struct qemu_plugin_register *handle,
