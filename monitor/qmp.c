@@ -362,6 +362,12 @@ void qmp_dispatcher_co_wake(void)
     }
 }
 
+void qmp_dispatcher_co_wake_force(void)
+{
+    qatomic_set_mb(&qmp_dispatcher_co_busy, true);
+    aio_co_wake(qmp_dispatcher_co);
+}
+
 static void handle_qmp_command(void *opaque, QObject *req, Error *err)
 {
     MonitorQMP *mon = opaque;

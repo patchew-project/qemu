@@ -653,7 +653,12 @@ void monitor_cleanup(void)
     WITH_QEMU_LOCK_GUARD(&monitor_lock) {
         qmp_dispatcher_co_shutdown = true;
     }
-    qmp_dispatcher_co_wake();
+
+    /*
+     * Force wake up the dispatcher coroutine to
+     * make sure it notices the shutdown flag.
+     */
+    qmp_dispatcher_co_wake_force();
 
     AIO_WAIT_WHILE_UNLOCKED(NULL,
                    (aio_poll(iohandler_get_aio_context(), false),
