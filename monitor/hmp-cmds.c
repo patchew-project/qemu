@@ -537,7 +537,7 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
     uint8_t buf[16];
     uint64_t v;
     CPUState *cs = mon_get_cpu(mon);
-    const unsigned int addr_width = is_physical ? 8 : (target_long_bits() * 2);
+    const unsigned int addr_width = is_physical ? 8 : (target_long_bits() / 4);
     const bool big_endian = target_big_endian();
 
     if (!cs && (format == 'i' || !is_physical)) {
