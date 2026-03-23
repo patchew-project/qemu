@@ -14,7 +14,6 @@
 #ifndef QEMU_MSHV_INT_H
 #define QEMU_MSHV_INT_H
 
-#define MSHV_MSR_ENTRIES_COUNT 64
 #include "hw/hyperv/hvhdk.h"
 
 struct mshv_get_set_vp_state;
@@ -116,18 +115,8 @@ void mshv_set_phys_mem(MshvMemoryListener *mml, MemoryRegionSection *section,
                        bool add);
 
 /* msr */
-typedef struct MshvMsrEntry {
-  uint32_t index;
-  uint32_t reserved;
-  uint64_t data;
-} MshvMsrEntry;
-
-typedef struct MshvMsrEntries {
-    MshvMsrEntry entries[MSHV_MSR_ENTRIES_COUNT];
-    uint32_t nmsrs;
-} MshvMsrEntries;
-
-int mshv_configure_msr(const CPUState *cpu, const MshvMsrEntry *msrs,
-                       size_t n_msrs);
+int mshv_init_msrs(const CPUState *cpu);
+int mshv_get_msrs(CPUState *cpu);
+int mshv_set_msrs(const CPUState *cpu);
 
 #endif
