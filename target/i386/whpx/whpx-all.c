@@ -916,6 +916,25 @@ static void read_segment_descriptor(CPUState *cpu,
     WHV_X64_SEGMENT_REGISTER reg;
     whpx_read_segment_descriptor(cpu, &reg, seg_idx);
     whpx_segment_to_x86_descriptor(cpu, &reg, desc);
+
+    /*
+     * Workaround: vcpu->exit_ctx.VpContext.Cs.Granularity is 0...
+     *
+     * OS boot triggers a Cs segment limit assertion, while
+     * Hyper-V reports that Granularity = 0 despite the
+     * limit being 0xffffffff.
+     *
+     * This particular issue is much easier to trigger with
+     * the instruction_stream logic disabled. With that enabled,
+     * plenty of guests boot just fine as they don't trigger the
+     * immediate in CS read from a trapped instruction case.
+     *
+     * However, 32-bit Linux on AMD triggers specifically in
+     * https://lore.kernel.org/20250422234830.2840784-6-superm1@kernel.org
+     */
+    if (seg_idx == R_CS) {
+        desc->g = 1;
+    }
 }
 
 static bool is_protected_mode(CPUState *cpu)
