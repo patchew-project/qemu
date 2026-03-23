@@ -696,6 +696,18 @@ static bool pkt_has_write_conflict(Packet *pkt)
     return !bitmap_empty(conflict, 32);
 }
 
+static void convert_to_nop(Insn *insn)
+{
+    bool is_endloop = insn->is_endloop;
+    memset(insn, 0, sizeof(*insn));
+    insn->opcode = A2_nop;
+    insn->new_read_idx = -1;
+    insn->dest_idx = -1;
+    insn->generate = opcode_genptr[insn->opcode];
+    insn->iclass = 0b111;
+    insn->is_endloop = is_endloop;
+}
+
 /*
  * decode_packet
  * Decodes packet with given words
@@ -746,6 +758,16 @@ int decode_packet(DisasContext *ctx, int max_words, const uint32_t *words,
         /* Ran out of words! */
         return 0;
     }
+
+    /* Disable HVX IEEE instruction if extension is disabled. */
+    if (!ctx->ieee_fp_extension) {
+        for (i = 0; i < num_insns; i++) {
+            if (GET_ATTRIB(pkt->insn[i].opcode, A_HVX_IEEE_FP)) {
+                convert_to_nop(&pkt->insn[i]);
+            }
+        }
+    }
+
     pkt->encod_pkt_size_in_bytes = words_read * 4;
     pkt->pkt_has_hvx = false;
     for (i = 0; i < num_insns; i++) {
