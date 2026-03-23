@@ -7540,13 +7540,7 @@ static uint16_t nvme_directive_receive(NvmeCtrl *n, NvmeRequest *req)
 
     trans_len = MIN(sizeof(NvmeDirectiveIdentify), numd << 2);
 
-    if (nsid == NVME_NSID_BROADCAST || dtype != NVME_DIRECTIVE_IDENTIFY ||
-        doper != NVME_DIRECTIVE_RETURN_PARAMS) {
-        return NVME_INVALID_FIELD | NVME_DNR;
-    }
-
-    ns = nvme_ns(n, nsid);
-    if (!ns) {
+    if (nsid == NVME_NSID_BROADCAST) {
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
@@ -7554,6 +7548,11 @@ static uint16_t nvme_directive_receive(NvmeCtrl *n, NvmeRequest *req)
     case NVME_DIRECTIVE_IDENTIFY:
         switch (doper) {
         case NVME_DIRECTIVE_RETURN_PARAMS:
+            ns = nvme_ns(n, nsid);
+            if (!ns) {
+                return NVME_INVALID_FIELD | NVME_DNR;
+            }
+
             if (ns->endgrp && ns->endgrp->fdp.enabled) {
                 id.supported |= 1 << NVME_DIRECTIVE_DATA_PLACEMENT;
                 id.enabled |= 1 << NVME_DIRECTIVE_DATA_PLACEMENT;
@@ -7567,7 +7566,7 @@ static uint16_t nvme_directive_receive(NvmeCtrl *n, NvmeRequest *req)
         }
 
     default:
-        return NVME_INVALID_FIELD;
+        return NVME_INVALID_FIELD | NVME_DNR;
     }
 }
 
