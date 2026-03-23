@@ -190,7 +190,7 @@ static void clipper_init(MachineState *machine)
             /* Put the initrd image as high in memory as possible.  */
             initrd_base = (ram_size - initrd_size) & TARGET_PAGE_MASK;
             load_image_targphys(initrd_filename, initrd_base,
-                                ram_size - initrd_base, NULL);
+                                ram_size - initrd_base, &error_fatal);
 
             address_space_stq_le(&address_space_memory, param_offset + 0x100,
                                  initrd_base + 0xfffffc0000000000ULL,

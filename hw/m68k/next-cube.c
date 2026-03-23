@@ -1326,9 +1326,16 @@ static void next_cube_init(MachineState *machine)
     memory_region_init_alias(&m->rom2, NULL, "next.rom2", &m->rom, 0x0,
                              0x20000);
     memory_region_add_subregion(sysmem, 0x0, &m->rom2);
-    if (load_image_targphys(bios_name, 0x01000000, 0x20000, NULL) < 8) {
+    Error *local_err = NULL;
+    if (load_image_targphys(bios_name, 0x01000000, 0x20000, &local_err) < 8) {
         if (!qtest_enabled()) {
-            error_report("Failed to load firmware '%s'.", bios_name);
+            if (local_err) {
+                error_report_err(local_err);
+            } else {
+                error_report("Firmware image '%s' is too short.", bios_name);
+            }
+        } else {
+            error_free(local_err);
         }
     } else {
         uint8_t *ptr;
