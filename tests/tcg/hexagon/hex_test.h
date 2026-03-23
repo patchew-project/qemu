@@ -124,6 +124,7 @@ const uint16_t HF_any = 0x3c00;
 const uint16_t HF_neg_two = 0xc000;
 
 const uint32_t SF_INF =              0x7f800000;
+const uint32_t SF_INF_neg =          0xff800000;
 const uint32_t SF_QNaN =             0x7fc00000;
 const uint32_t SF_QNaN_special =     0x7f800001;
 const uint32_t SF_SNaN =             0x7fb00000;
