@@ -1,4 +1,4 @@
-# Test class and utilities for functional tests
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Copyright 2018, 2024 Red Hat, Inc.
 #
@@ -10,6 +10,9 @@
 #
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
+'''
+Functions related to the configuration of the tests and of the host system
+'''
 
 import os
 from pathlib import Path
@@ -25,9 +28,9 @@ def _build_dir():
     if root is not None:
         return Path(root)
 
-    raise Exception("Missing MESON_BUILD_ROOT environment variable. " +
-                    "Please use the '<BUILD-DIR>/run' script if invoking " +
-                    "directly instead of via make/meson")
+    raise RuntimeError("Missing MESON_BUILD_ROOT environment variable. " +
+                       "Please use the '<BUILD-DIR>/run' script if invoking " +
+                       "directly instead of via make/meson")
 
 BUILD_DIR = _build_dir()
 
