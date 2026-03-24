@@ -201,9 +201,11 @@ address dynamically at device plug time. The ACPI ``_DSM`` method
 and PPI operation regions reference this dynamically resolved
 address.
 
-PPI is enabled by default and can be controlled with the ``ppi``
-property (e.g. ``-device tpm-tis-device,tpmdev=tpm0,ppi=on``).
-Without PPI support, guest operating systems such as Windows 11
+PPI is controlled by the ``ppi`` property (default ``on``)::
+
+    -device tpm-tis-device,tpmdev=tpm0,ppi=on
+
+Without PPI, guest operating systems such as Windows 11
 ARM64 will log errors when attempting to query TPM Physical
 Presence capabilities via the ACPI ``_DSM`` method.
 
