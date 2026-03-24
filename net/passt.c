@@ -331,10 +331,8 @@ static int net_passt_stream_start(NetPasstState *s, Error **errp)
     /* start passt */
     if (net_passt_start_daemon(s, sv[1], errp) == -1) {
         close(sv[0]);
-        close(sv[1]);
         return -1;
     }
-    close(sv[1]);
 
     return 0;
 }
@@ -458,6 +456,7 @@ static int net_passt_vhost_user_init(NetPasstState *s, Error **errp)
         error_setg(errp, "Failed to make socket chardev");
         goto err;
     }
+    sv[0] = -1;
 
     s->vhost_user = g_new0(struct VhostUserState, 1);
     if (!qemu_chr_fe_init(&s->vhost_chr, chr, errp) ||
@@ -467,8 +466,10 @@ static int net_passt_vhost_user_init(NetPasstState *s, Error **errp)
 
     /* start passt */
     if (net_passt_start_daemon(s, sv[1], errp) == -1) {
+        sv[1] = -1;
         goto err;
     }
+    sv[1] = -1;
 
     do {
         if (qemu_chr_fe_wait_connected(&s->vhost_chr, errp) < 0) {
@@ -482,11 +483,14 @@ static int net_passt_vhost_user_init(NetPasstState *s, Error **errp)
 
     qemu_set_info_str(&s->data.nc, "vhost-user,connected to pid %d", s->pid);
 
-    close(sv[1]);
     return 0;
 err:
-    close(sv[0]);
-    close(sv[1]);
+    if (sv[0] >= 0) {
+        close(sv[0]);
+    }
+    if (sv[1] >= 0) {
+        close(sv[1]);
+    }
 
     return -1;
 }
