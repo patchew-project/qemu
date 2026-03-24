@@ -1218,6 +1218,8 @@ void hvf_arch_vcpu_destroy(CPUState *cpu)
     assert_hvf_ok(ret);
 }
 
+hv_return_t _hv_vm_config_set_isa(hv_vm_config_t cfg, int isa);
+
 hv_return_t hvf_arch_vm_create(MachineState *ms, uint32_t pa_range)
 {
     hv_return_t ret;
@@ -1228,6 +1230,12 @@ hv_return_t hvf_arch_vm_create(MachineState *ms, uint32_t pa_range)
         goto cleanup;
     }
     chosen_ipa_bit_size = pa_range;
+
+    ret = _hv_vm_config_set_isa(config, 3);
+    if (ret != HV_SUCCESS) {
+        error_report("error setting private ISA");
+        goto cleanup;
+    }
 
     ret = hv_vm_create(config);
 
