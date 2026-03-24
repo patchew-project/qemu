@@ -847,8 +847,8 @@ static struct kvm_cpuid2 *tdx_fetch_cpuid(CPUState *cpu, int *ret)
         fetch_cpuid->nent = size;
         r = tdx_vcpu_ioctl(cpu, KVM_TDX_GET_CPUID, 0, fetch_cpuid, &local_err);
         if (r == -E2BIG) {
-            g_free(fetch_cpuid);
             size = fetch_cpuid->nent;
+            g_free(fetch_cpuid);
         }
     } while (r == -E2BIG);
 
