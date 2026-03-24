@@ -301,6 +301,7 @@ static void create_gicv2m(VMAppleMachineState *vms)
     dev = qdev_new("arm-gicv2m");
     qdev_prop_set_uint32(dev, "base-spi", irq);
     qdev_prop_set_uint32(dev, "num-spi", NUM_GICV2M_SPIS);
+    qdev_prop_set_uint32(dev, "macos-compat", 1);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, vms->memmap[VMAPPLE_GICV2M].base);
 

@@ -57,6 +57,7 @@ struct ARMGICv2mState {
 
     uint32_t base_spi;
     uint32_t num_spi;
+    uint32_t macos_compat;
 };
 
 static void gicv2m_set_irq(void *opaque, int irq)
@@ -81,6 +82,9 @@ static uint64_t gicv2m_read(void *opaque, hwaddr offset,
     case V2M_MSI_TYPER:
         val = (s->base_spi + 32) << 16;
         val |= s->num_spi;
+        if (s->macos_compat) {
+            val |= BIT(31);
+        }
         return val;
     case V2M_MSI_IIDR:
         /* We don't have any valid implementor so we leave that field as zero
@@ -173,6 +177,7 @@ static void gicv2m_init(Object *obj)
 static const Property gicv2m_properties[] = {
     DEFINE_PROP_UINT32("base-spi", ARMGICv2mState, base_spi, 0),
     DEFINE_PROP_UINT32("num-spi", ARMGICv2mState, num_spi, 64),
+    DEFINE_PROP_UINT32("macos-compat", ARMGICv2mState, macos_compat, 0),
 };
 
 static void gicv2m_class_init(ObjectClass *klass, const void *data)
