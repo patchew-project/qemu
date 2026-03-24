@@ -197,11 +197,6 @@ typedef struct {
  *    used to provide @cpu_index to socket number mapping, allowing
  *    a machine to group CPU threads belonging to the same socket/package
  *    Returns: socket number given cpu_index belongs to.
- * @hw_version:
- *    Value of QEMU_VERSION when the machine was added to QEMU.
- *    Set only by old machines because they need to keep
- *    compatibility on code that exposed QEMU_VERSION to guests in
- *    the past (and now use qemu_hw_version()).
  * @possible_cpu_arch_ids:
  *    Returns an array of @CPUArchId architecture-dependent CPU IDs
  *    which includes CPU IDs for present and possible to hotplug CPUs.
@@ -297,7 +292,6 @@ struct MachineClass {
     const char *default_display;
     const char *default_nic;
     GPtrArray *compat_props;
-    const char *hw_version;
     ram_addr_t default_ram_size;
     const char *default_cpu_type;
     bool default_kernel_irqchip_split;

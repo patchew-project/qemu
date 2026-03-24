@@ -31,8 +31,6 @@
 #include "qemu/hw-version.h"
 #include "monitor/monitor.h"
 
-static const char *hw_version = QEMU_HW_VERSION;
-
 int socket_set_cork(int fd, int v)
 {
 #if defined(SOL_TCP) && defined(TCP_CORK)
@@ -531,16 +529,6 @@ ssize_t qemu_send_full(int s, const void *buf, size_t count)
     }
 
     return total;
-}
-
-void qemu_set_hw_version(const char *version)
-{
-    hw_version = version;
-}
-
-const char *qemu_hw_version(void)
-{
-    return hw_version;
 }
 
 #ifdef _WIN32

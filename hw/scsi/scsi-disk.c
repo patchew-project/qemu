@@ -2543,7 +2543,7 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
     }
 
     if (!s->version) {
-        s->version = g_strdup(qemu_hw_version());
+        s->version = g_strdup(QEMU_HW_VERSION);
     }
     if (!s->vendor) {
         s->vendor = g_strdup("QEMU");

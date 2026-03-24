@@ -2212,10 +2212,6 @@ static void qemu_create_machine(QDict *qdict)
 
     cpu_exec_init_all();
 
-    if (machine_class->hw_version) {
-        qemu_set_hw_version(machine_class->hw_version);
-    }
-
     /*
      * Get the default machine options from the machine if it is not already
      * specified either by the configuration file or by the command line.
