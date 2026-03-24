@@ -984,6 +984,17 @@ static uint64_t pnv_chip_get_ram_size(PnvMachineState *pnv, int chip_id)
     return chip_id == 0 ? 1 * GiB : QEMU_ALIGN_DOWN(ram_per_chip, 1 * MiB);
 }
 
+static void pnv_machine_init_done(Notifier *notifier, void *data)
+{
+    PnvMachineState *pnv = container_of(notifier, PnvMachineState, machine_init_done);
+    MachineState *machine = MACHINE(pnv);
+
+    if (!machine->fdt) {
+        machine->fdt = pnv_dt_create(machine);
+        _FDT((fdt_pack(machine->fdt)));
+    }
+}
+
 static void pnv_init(MachineState *machine)
 {
     const char *bios_name = machine->firmware ?: FW_FILE_NAME;
@@ -1244,10 +1255,8 @@ static void pnv_init(MachineState *machine)
         pmc->i2c_init(pnv);
     }
 
-    if (!machine->fdt) {
-        machine->fdt = pnv_dt_create(machine);
-        _FDT((fdt_pack(machine->fdt)));
-    }
+    pnv->machine_init_done.notify = pnv_machine_init_done;
+    qemu_add_machine_init_done_notifier(&pnv->machine_init_done);
 }
 
 /*
