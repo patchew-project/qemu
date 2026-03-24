@@ -868,21 +868,70 @@ static int whpx_handle_portio(CPUState *cpu,
     return 0;
 }
 
+static void whpx_segment_to_x86_descriptor(CPUState *cpu, WHV_X64_SEGMENT_REGISTER* reg,
+                                   struct x86_segment_descriptor *desc)
+{
+    uint32_t limit;
+    desc->g = reg->Granularity;
+
+    /*
+     * Hyper-V can return reg->Granularity == 0
+     * with a higher limit than 0xfffff.
+     *
+     * Detect that case and set desc->g
+     * with shifting the limit properly.
+     */
+    if (!desc->g && reg->Limit <= 0xfffff) {
+        limit = reg->Limit;
+    } else {
+        limit = (reg->Limit >> 12);
+        desc->g = 1;
+    }
+
+    x86_set_segment_limit(desc, limit);
+    x86_set_segment_base(desc, reg->Base);
+
+    desc->type = reg->SegmentType;
+    desc->s = reg->NonSystemSegment;
+    desc->dpl = reg->DescriptorPrivilegeLevel;
+    desc->p = reg->Present;
+    desc->avl = reg->Available;
+    desc->l = reg->Long;
+    desc->db = reg->Default;
+}
+
+static void whpx_read_segment_descriptor(CPUState *cpu, WHV_X64_SEGMENT_REGISTER* reg,
+                                    X86Seg seg)
+{
+    AccelCPUState *vcpu = cpu->accel;
+    WHV_REGISTER_NAME reg_name = WHvX64RegisterEs + seg;
+    WHV_REGISTER_VALUE val;
+
+    if (seg == R_CS) {
+        *reg = vcpu->exit_ctx.VpContext.Cs;
+        return;
+    }
+    if (vcpu->exit_ctx.ExitReason == WHvRunVpExitReasonX64IoPortAccess) {
+        if (seg == R_DS) {
+            *reg = vcpu->exit_ctx.IoPortAccess.Ds;
+            return;
+        } else if (seg == R_ES) {
+            *reg = vcpu->exit_ctx.IoPortAccess.Es;
+            return;
+        }
+    }
+
+    whpx_get_reg(cpu, reg_name, &val);
+    *reg = val.Segment;
+}
+
 static void read_segment_descriptor(CPUState *cpu,
                                     struct x86_segment_descriptor *desc,
                                     enum X86Seg seg_idx)
 {
-    bool ret;
-    X86CPU *x86_cpu = X86_CPU(cpu);
-    CPUX86State *env = &x86_cpu->env;
-    SegmentCache *seg = &env->segs[seg_idx];
-    x86_segment_selector sel = { .sel = seg->selector & 0xFFFF };
-
-    ret = x86_read_segment_descriptor(cpu, desc, sel);
-    if (ret == false) {
-        error_report("failed to read segment descriptor");
-        abort();
-    }
+    WHV_X64_SEGMENT_REGISTER reg;
+    whpx_read_segment_descriptor(cpu, &reg, seg_idx);
+    whpx_segment_to_x86_descriptor(cpu, &reg, desc);
 }
 
 static bool is_protected_mode(CPUState *cpu)
