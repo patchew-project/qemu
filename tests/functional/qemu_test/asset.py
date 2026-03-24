@@ -133,24 +133,7 @@ class Asset:
         '''
         self.cache_file.with_suffix(".stamp").write_text(f"{int(time.time())}")
 
-    def fetch(self):
-        '''Download the asset from the internet'''
-        if not self.cache_dir.exists():
-            self.cache_dir.mkdir(parents=True, exist_ok=True)
-
-        if self.valid():
-            self.log.debug("Using cached asset %s for %s",
-                           self.cache_file, self.url)
-            self._save_time_stamp()
-            return str(self.cache_file)
-
-        if not self.fetchable():
-            raise AssetError(self,
-                             "Asset cache is invalid and downloads disabled")
-
-        self.log.info("Downloading %s to %s...", self.url, self.cache_file)
-        tmp_cache_file = self.cache_file.with_suffix(".download")
-
+    def _try_to_fetch(self, tmp_cache_file):
         for _retries in range(3):
             try:
                 with tmp_cache_file.open("xb") as dst:
@@ -176,7 +159,7 @@ class Asset:
                                "waiting for other thread to finish...",
                                tmp_cache_file)
                 if self._wait_for_other_download(tmp_cache_file):
-                    return str(self.cache_file)
+                    return True
                 self.log.debug("%s seems to be stale, "
                                "deleting and retrying download...",
                                tmp_cache_file)
@@ -213,6 +196,28 @@ class Asset:
                 tmp_cache_file.unlink()
                 raise AssetError(self, f"Unable to download: {e}",
                                  transient=True) from e
+        return False
+
+    def fetch(self):
+        '''Download the asset from the internet'''
+        if not self.cache_dir.exists():
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+        if self.valid():
+            self.log.debug("Using cached asset %s for %s",
+                           self.cache_file, self.url)
+            self._save_time_stamp()
+            return str(self.cache_file)
+
+        if not self.fetchable():
+            raise AssetError(self,
+                             "Asset cache is invalid and downloads disabled")
+
+        self.log.info("Downloading %s to %s...", self.url, self.cache_file)
+        tmp_cache_file = self.cache_file.with_suffix(".download")
+
+        if self._try_to_fetch(tmp_cache_file):
+            return str(self.cache_file)
 
         if not os.path.exists(tmp_cache_file):
             raise AssetError(self, "Download retries exceeded", transient=True)
