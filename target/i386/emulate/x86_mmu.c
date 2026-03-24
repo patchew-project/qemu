@@ -249,7 +249,7 @@ static int translate_res_to_error_code(MMUTranslateResult res, bool is_write, bo
     if (!(res & MMU_TRANSLATE_PAGE_NOT_MAPPED)) {
         error_code |= PG_ERROR_P_MASK;
     }
-    if (is_write && (res & MMU_TRANSLATE_PRIV_VIOLATION)) {
+    if (is_write) {
         error_code |= PG_ERROR_W_MASK;
     }
     if (res & MMU_TRANSLATE_INVALID_PT_FLAGS) {
