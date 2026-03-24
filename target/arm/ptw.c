@@ -3200,6 +3200,13 @@ static bool get_phys_addr_pmsav8(CPUARMState *env,
 
     ret = pmsav8_mpu_lookup(env, address, access_type, ptw->in_prot_check,
                             mmu_idx, secure, result, fi, NULL);
+    /*
+     * For two-stage PMSA translations, s2prot holds the stage 2
+     * permissions to be combined with stage 1 in get_phys_addr_twostage().
+     */
+    if (regime_is_stage2(mmu_idx)) {
+        result->s2prot = result->f.prot;
+    }
     if (sattrs.subpage) {
         result->f.lg_page_size = 0;
     }
