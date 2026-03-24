@@ -622,6 +622,27 @@ static void curl_attach_aio_context(BlockDriverState *bs,
     curl_multi_setopt(s->multi, CURLMOPT_TIMERFUNCTION, curl_timer_cb);
 }
 
+static void curl_cleanup(BDRVCURLState *s)
+{
+    g_free(s->cookie);
+    s->cookie = NULL;
+    g_free(s->url);
+    s->url = NULL;
+    g_free(s->username);
+    s->username = NULL;
+    g_free(s->password);
+    s->password = NULL;
+    g_free(s->proxyusername);
+    s->proxyusername = NULL;
+    g_free(s->proxypassword);
+    s->proxypassword = NULL;
+    if (s->sockets) {
+        curl_drop_all_sockets(s->sockets);
+        g_hash_table_destroy(s->sockets);
+        s->sockets = NULL;
+    }
+}
+
 static QemuOptsList runtime_opts = {
     .name = "curl",
     .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
@@ -900,15 +921,7 @@ out:
     state->curl = NULL;
 out_noclean:
     qemu_mutex_destroy(&s->mutex);
-    g_free(s->cookie);
-    g_free(s->url);
-    g_free(s->username);
-    g_free(s->proxyusername);
-    g_free(s->proxypassword);
-    if (s->sockets) {
-        curl_drop_all_sockets(s->sockets);
-        g_hash_table_destroy(s->sockets);
-    }
+    curl_cleanup(s);
     qemu_opts_del(opts);
     return -EINVAL;
 }
@@ -1010,12 +1023,7 @@ static void curl_close(BlockDriverState *bs)
     curl_detach_aio_context(bs);
     qemu_mutex_destroy(&s->mutex);
 
-    g_hash_table_destroy(s->sockets);
-    g_free(s->cookie);
-    g_free(s->url);
-    g_free(s->username);
-    g_free(s->proxyusername);
-    g_free(s->proxypassword);
+    curl_cleanup(s);
 }
 
 static int64_t coroutine_fn curl_co_getlength(BlockDriverState *bs)
