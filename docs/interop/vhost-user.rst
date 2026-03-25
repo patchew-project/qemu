@@ -1346,6 +1346,8 @@ Front-end message types
   :reply payload: N/A
 
   Signal the back-end to enable or disable corresponding vring.
+  Note that the ``num`` field contains the target vring state where 0 means
+  disabled, and any other value means enabled.
 
   This request should be sent only when
   ``VHOST_USER_F_PROTOCOL_FEATURES`` has been negotiated.
