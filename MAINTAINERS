@@ -3546,24 +3546,29 @@ M: Paolo Bonzini <pbonzini@redhat.com>
 R: Daniel P. Berrange <berrange@redhat.com>
 S: Supported
 F: docs/devel/qom.rst
+F: include/qom/
+F: qapi/qom.json
+F: scripts/coccinelle/qom-parent-type.cocci
+F: scripts/qom-cast-macro-clean-cocci-gen.py
+F: qom/
+F: tests/unit/check-qom-interface.c
+F: tests/unit/check-qom-proplist.c
+F: tests/qtest/qom-test.c
+
+QDev
+M: Paolo Bonzini <pbonzini@redhat.com>
+R: Daniel P. Berrange <berrange@redhat.com>
+S: Supported
 F: docs/qdev-device-use.txt
 F: hw/core/qdev*
 F: hw/core/bus.c
 F: hw/core/sysbus.c
 F: include/hw/qdev*
 F: include/monitor/qdev.h
-F: include/qom/
-F: qapi/qom.json
 F: qapi/qdev.json
-F: scripts/coccinelle/qom-parent-type.cocci
-F: scripts/qom-cast-macro-clean-cocci-gen.py
 F: system/qdev-monitor.c
 F: stubs/qdev.c
-F: qom/
-F: tests/unit/check-qom-interface.c
-F: tests/unit/check-qom-proplist.c
 F: tests/unit/test-qdev-global-props.c
-F: tests/qtest/qom-test.c
 
 QOM boilerplate conversion script
 S: Orphan
