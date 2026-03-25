@@ -8,8 +8,6 @@
 #include "migration/vmstate.h"
 
 #if TARGET_LONG_BITS == 64
-#define qemu_put_betl qemu_put_be64
-#define qemu_get_betl qemu_get_be64
 #define qemu_put_betls qemu_put_be64s
 #define qemu_get_betls qemu_get_be64s
 
@@ -21,8 +19,6 @@
     VMSTATE_UINT64_SUB_ARRAY(_f, _s, _start, _num)
 #define vmstate_info_uinttl vmstate_info_uint64
 #else
-#define qemu_put_betl qemu_put_be32
-#define qemu_get_betl qemu_get_be32
 #define qemu_put_betls qemu_put_be32s
 #define qemu_get_betls qemu_get_be32s
 
