@@ -36,6 +36,7 @@
 #include "system/reset.h"
 #include "trace.h"
 #include "migration/blocker.h"
+#include "qom/compat-properties.h"
 #include "qom/object.h"
 #include "monitor/monitor.h"
 #include "monitor/hmp.h"
