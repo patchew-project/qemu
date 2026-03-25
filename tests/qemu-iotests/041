@@ -1520,6 +1520,37 @@ class TestThrottledNBDTarget(iotests.QMPTestCase):
         self.assertTrue(iotests.compare_images(test_img, target_img),
                         'target image does not match source after mirroring')
 
+    def test_duplicate_complete_with_replaces(self):
+        self.vm.cmd('blockdev-mirror',
+                    job_id='mirror',
+                    device='source',
+                    target='target',
+                    replaces='source',
+                    sync='full')
+
+        self.wait_ready(drive='mirror')
+
+        self.set_throttle_limits({'iops-write': 1})
+
+        # Issue requests that will be throttled.
+        for i in range(0, self.reqs):
+            req = f'aio_write -P 7 {i}M {self.req_len}'
+            self.vm.hmp_qemu_io(self.drive_qdev, req, qdev=True)
+
+        self.vm.cmd('job-complete', id='mirror')
+        # The fact that the target is externally throttled ensures that the job
+        # won't be finished yet when the second command is issued.
+        self.vm.cmd('job-complete', id='mirror')
+
+        self.disable_throttling()
+
+        self.wait_until_completed('mirror')
+
+        self.target_vm.shutdown()
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(test_img, target_img),
+                        'target image does not match source after mirroring')
+
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'qed'],
                  supported_protocols=['file'],
