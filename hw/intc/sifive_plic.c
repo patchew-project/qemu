@@ -219,6 +219,7 @@ static void sifive_plic_write(void *opaque, hwaddr addr, uint64_t value,
 
         if (wordid < plic->bitfield_words) {
             plic->enable[addrid * plic->bitfield_words + wordid] = value;
+            sifive_plic_update(plic);
         } else {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: Invalid enable write 0x%" HWADDR_PRIx "\n",
