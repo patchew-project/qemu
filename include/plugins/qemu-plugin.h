@@ -374,7 +374,8 @@ enum qemu_plugin_mem_value_type {
  *
  * @type: the memory access size
  * @data: the value accessed during the memory operation (value after
- *        read/write)
+ *        read/write). It's directly stored following host endianness, so no
+ *        further swap is needed.
  */
 typedef struct {
     enum qemu_plugin_mem_value_type type;
@@ -682,7 +683,7 @@ bool qemu_plugin_mem_is_store(qemu_plugin_meminfo_t info);
  * qemu_plugin_mem_get_value() - return last value loaded/stored
  * @info: opaque memory transaction handle
  *
- * Returns: memory value
+ * Returns: memory value in host-endian order (no further swap is necessary).
  */
 QEMU_PLUGIN_API
 qemu_plugin_mem_value qemu_plugin_mem_get_value(qemu_plugin_meminfo_t info);
