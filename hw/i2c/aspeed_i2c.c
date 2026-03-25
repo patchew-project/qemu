@@ -1134,10 +1134,11 @@ static const MemoryRegionOps aspeed_i2c_bus_pool_ops = {
 
 static const VMStateDescription aspeed_i2c_bus_vmstate = {
     .name = TYPE_ASPEED_I2C,
-    .version_id = 6,
+    .version_id = 7,
     .minimum_version_id = 6,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, AspeedI2CBus, ASPEED_I2C_NEW_NUM_REG),
+        VMSTATE_UINT32_V(pending_intr_sts, AspeedI2CBus, 7),
         VMSTATE_UINT8_ARRAY(pool, AspeedI2CBus, ASPEED_I2C_BUS_POOL_SIZE),
         VMSTATE_UINT64(dma_dram_offset, AspeedI2CBus),
         VMSTATE_END_OF_LIST()
@@ -1510,6 +1511,7 @@ static void aspeed_i2c_bus_reset(DeviceState *dev)
     AspeedI2CBus *s = ASPEED_I2C_BUS(dev);
 
     memset(s->regs, 0, sizeof(s->regs));
+    s->pending_intr_sts = 0;
     i2c_end_transfer(s->bus);
 }
 
