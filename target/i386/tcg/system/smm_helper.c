@@ -23,24 +23,15 @@
 #include "exec/log.h"
 #include "tcg/helper-tcg.h"
 
-
-/* SMM support */
-
-#ifdef TARGET_X86_64
-#define SMM_REVISION_ID 0x00020064
-#else
-#define SMM_REVISION_ID 0x00020000
-#endif
-
-static void sm_state_init(X86CPU *cpu)
+static void sm_state_init_64(X86CPU *cpu)
 {
+#ifdef TARGET_X86_64
     CPUX86State *env = &cpu->env;
     CPUState *cs = CPU(cpu);
     SegmentCache *dt;
     int i, offset;
     target_ulong sm_state = env->smbase + 0x8000;
 
-#ifdef TARGET_X86_64
     for (i = 0; i < 6; i++) {
         dt = &env->segs[i];
         offset = 0x7e00 + i * 16;
@@ -92,9 +83,21 @@ static void sm_state_init(X86CPU *cpu)
     x86_stq_phys(cs, sm_state + 0x7f50, env->cr[3]);
     x86_stl_phys(cs, sm_state + 0x7f58, env->cr[0]);
 
-    x86_stl_phys(cs, sm_state + 0x7efc, SMM_REVISION_ID);
+    x86_stl_phys(cs, sm_state + 0x7efc, 0x00020064);    /* SMM revision ID */
     x86_stl_phys(cs, sm_state + 0x7f00, env->smbase);
 #else
+    g_assert_not_reached();
+#endif
+}
+
+static void sm_state_init_32(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
+    SegmentCache *dt;
+    int i, offset;
+    target_ulong sm_state = env->smbase + 0x8000;
+
     x86_stl_phys(cs, sm_state + 0x7ffc, env->cr[0]);
     x86_stl_phys(cs, sm_state + 0x7ff8, env->cr[3]);
     x86_stl_phys(cs, sm_state + 0x7ff4, cpu_compute_eflags(env));
@@ -140,9 +143,8 @@ static void sm_state_init(X86CPU *cpu)
     }
     x86_stl_phys(cs, sm_state + 0x7f14, env->cr[4]);
 
-    x86_stl_phys(cs, sm_state + 0x7efc, SMM_REVISION_ID);
+    x86_stl_phys(cs, sm_state + 0x7efc, 0x00020000);   /* SMM revision ID */
     x86_stl_phys(cs, sm_state + 0x7ef8, env->smbase);
-#endif
 }
 
 void do_smm_enter(X86CPU *cpu)
@@ -160,13 +162,15 @@ void do_smm_enter(X86CPU *cpu)
         env->hflags2 |= HF2_NMI_MASK;
     }
 
-    sm_state_init(cpu);
+    if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM) {
+        sm_state_init_64(cpu);
+        cpu_load_efer(env, 0);
+    } else {
+        sm_state_init_32(cpu);
+    }
 
     /* init SMM cpu state */
 
-#ifdef TARGET_X86_64
-    cpu_load_efer(env, 0);
-#endif
     cpu_load_eflags(env, 0, ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C |
                               DF_MASK));
     env->eip = 0x00008000;
@@ -197,15 +201,16 @@ void do_smm_enter(X86CPU *cpu)
                            DESC_G_MASK | DESC_A_MASK);
 }
 
-static void rsm_load_regs(CPUX86State *env)
+static void rsm_load_regs_64(CPUX86State *env)
 {
+#ifdef TARGET_X86_64
     CPUState *cs = env_cpu(env);
     target_ulong sm_state;
     int i, offset;
     uint32_t val;
 
     sm_state = env->smbase + 0x8000;
-#ifdef TARGET_X86_64
+
     cpu_load_efer(env, x86_ldq_phys(cs, sm_state + 0x7ed0));
 
     env->gdt.base = x86_ldq_phys(cs, sm_state + 0x7e68);
@@ -260,6 +265,19 @@ static void rsm_load_regs(CPUX86State *env)
         env->smbase = x86_ldl_phys(cs, sm_state + 0x7f00);
     }
 #else
+    g_assert_not_reached();
+#endif
+}
+
+static void rsm_load_regs_32(CPUX86State *env)
+{
+    CPUState *cs = env_cpu(env);
+    target_ulong sm_state;
+    int i, offset;
+    uint32_t val;
+
+    sm_state = env->smbase + 0x8000;
+
     cpu_x86_update_cr0(env, x86_ldl_phys(cs, sm_state + 0x7ffc));
     cpu_x86_update_cr3(env, x86_ldl_phys(cs, sm_state + 0x7ff8));
     cpu_load_eflags(env, x86_ldl_phys(cs, sm_state + 0x7ff4),
@@ -312,14 +330,17 @@ static void rsm_load_regs(CPUX86State *env)
     if (val & 0x20000) {
         env->smbase = x86_ldl_phys(cs, sm_state + 0x7ef8);
     }
-#endif
 }
 
 void helper_rsm(CPUX86State *env)
 {
     X86CPU *cpu = env_archcpu(env);
 
-    rsm_load_regs(env);
+    if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM) {
+        rsm_load_regs_64(env);
+    } else {
+        rsm_load_regs_32(env);
+    }
 
     if ((env->hflags2 & HF2_SMM_INSIDE_NMI_MASK) == 0) {
         env->hflags2 &= ~HF2_NMI_MASK;
