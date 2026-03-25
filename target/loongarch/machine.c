@@ -7,7 +7,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "migration/cpu.h"
+#include "migration/vmstate.h"
 #include "system/tcg.h"
 #include "vec.h"
 
