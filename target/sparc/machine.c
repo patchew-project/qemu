@@ -189,9 +189,9 @@ static int cpu_pre_save(void *opaque)
  * versions are different.
  */
 #ifndef TARGET_SPARC64
-#define SPARC_VMSTATE_VER 7
+#define SPARC_VMSTATE_VER 8
 #else
-#define SPARC_VMSTATE_VER 9
+#define SPARC_VMSTATE_VER 10
 #endif
 
 const VMStateDescription vmstate_sparc_cpu = {
@@ -202,8 +202,7 @@ const VMStateDescription vmstate_sparc_cpu = {
     .fields = (const VMStateField[]) {
         VMSTATE_UINTTL_ARRAY(env.gregs, SPARCCPU, 8),
         VMSTATE_UINT32(env.nwindows, SPARCCPU),
-        VMSTATE_VARRAY_MULTIPLY(env.regbase, SPARCCPU, env.nwindows, 16,
-                                vmstate_info_uinttl, target_ulong),
+        VMSTATE_UINTTL_ARRAY(env.regbase, SPARCCPU, MAX_NWINDOWS * 16 + 8),
         VMSTATE_CPUDOUBLE_ARRAY(env.fpr, SPARCCPU, TARGET_DPREGS),
         VMSTATE_UINTTL(env.pc, SPARCCPU),
         VMSTATE_UINTTL(env.npc, SPARCCPU),
