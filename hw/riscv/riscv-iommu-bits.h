@@ -189,6 +189,7 @@ enum riscv_iommu_ddtp_modes {
 #define RISCV_IOMMU_REG_IPSR            0x0054
 #define RISCV_IOMMU_IPSR_CIP            BIT(0)
 #define RISCV_IOMMU_IPSR_FIP            BIT(1)
+#define RISCV_IOMMU_IPSR_PMIP           BIT(2)
 #define RISCV_IOMMU_IPSR_PIP            BIT(3)
 
 enum {
