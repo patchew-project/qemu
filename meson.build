@@ -323,7 +323,7 @@ endif
 # Compiler flags #
 ##################
 
-if cc.sizeof('void *') < 8
+if not have_ga and cc.sizeof('void *') < 8
   error('QEMU requires a 64-bit CPU host architecture')
 endif
 
