@@ -6,3 +6,4 @@ TARGET_XML_FILES= power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml
 # all boards require libfdt
 TARGET_NEED_FDT=y
 TARGET_LONG_BITS=64
+TARGET_USING_LEGACY_MIGRATION_VMSTATE_UINTTL_API=y

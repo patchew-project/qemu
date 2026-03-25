@@ -12,6 +12,7 @@ exec sed -n \
   -e '/CONFIG_SOFTMMU/d' \
   -e '/TARGET_NOT_USING_LEGACY_LDST_PHYS_API/d' \
   -e '/TARGET_NOT_USING_LEGACY_NATIVE_ENDIAN_API/d' \
+  -e '/TARGET_USING_LEGACY_MIGRATION_VMSTATE_UINTTL_API/d' \
   -e '/^#define / {' \
   -e    's///' \
   -e    's/ .*//' \
