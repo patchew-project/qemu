@@ -1373,6 +1373,152 @@ class TestFilters(iotests.QMPTestCase):
 
         self.complete_and_wait('mirror')
 
+# Tests for mirror where the target is a throttled NBD export.
+class TestThrottledNBDTarget(iotests.QMPTestCase):
+    image_len = 32 * 1024 * 1024
+    reqs = 20
+    req_len = 1024
+
+    def setUp(self):
+        iotests.create_image(backing_img, self.image_len)
+        iotests.create_image(target_backing_img, self.image_len)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', f'backing_file={backing_img}', '-F', 'raw', test_img)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', f'backing_file={target_backing_img}', '-F', 'raw',
+                 target_img)
+        qemu_io('-c', f'write -P 23 0 {self.image_len}', test_img)
+
+        self.target_vm = iotests.VM()
+        self.target_vm.launch()
+
+        self.target_vm.cmd('nbd-server-start', {
+            'addr': {
+                'type': 'unix',
+                'data': {
+                    'path': nbd_sock_path
+                }
+            }
+        })
+
+        self.target_vm.cmd('object-add', {
+            'qom-type': 'throttle-group',
+            'id': 'thrgr-target',
+            'limits': {} # limits are set by the individual tests
+        })
+
+        self.target_vm.cmd('blockdev-add', {
+            'node-name': 'target',
+            'driver': 'throttle',
+            'throttle-group': 'thrgr-target',
+            'file': {
+                'driver': iotests.imgfmt,
+                'file': {
+                    'driver': 'file',
+                    'filename': target_img
+                }
+            }
+        })
+
+        self.target_vm.cmd('block-export-add', {
+            'id': 'exp0',
+            'type': 'nbd',
+            'node-name': 'target',
+            'writable': True
+        })
+
+        self.vm = iotests.VM().add_device('virtio-scsi,id=vio-scsi')
+        self.vm.launch()
+
+        self.vm.cmd('blockdev-add',{
+            'node-name': 'source',
+            'driver': iotests.imgfmt,
+            'file': {
+                'driver': 'file',
+                'filename': test_img
+            },
+            'backing': {
+                'node-name': 'backing',
+                'driver': 'raw',
+                'file': {
+                    'driver': 'file',
+                    'filename': backing_img
+                }
+            }
+        })
+
+        self.vm.cmd('device_add',
+                    driver='scsi-hd',
+                    id='virtio',
+                    bus='vio-scsi.0',
+                    drive='source')
+
+        self.vm.cmd('blockdev-add', {
+            'node-name': 'target',
+            'driver': 'nbd',
+            'export': 'target',
+            'server': {
+                'type': 'unix',
+                'path': nbd_sock_path
+            }
+        })
+
+        self.drive_qdev = '/machine/peripheral/virtio'
+
+    def set_throttle_limits(self, limits):
+        self.target_vm.cmd('qom-set', {
+            'path': 'thrgr-target',
+            'property': 'limits',
+            'value': limits
+        })
+
+    def disable_throttling(self):
+        if self.target_vm.is_running():
+            self.set_throttle_limits({})
+            for i in range(0, self.reqs):
+                self.target_vm.qtest(f'clock_step {1 * 1000 * 1000 * 1000}')
+
+    def tearDown(self):
+        if self.target_vm.is_running():
+            self.disable_throttling()
+            self.target_vm.shutdown()
+        self.vm.shutdown()
+        os.remove(test_img)
+        os.remove(target_img)
+        os.remove(backing_img)
+        os.remove(target_backing_img)
+
+    def test_throttled(self):
+        self.vm.cmd('blockdev-mirror',
+                    job_id='mirror',
+                    device='source',
+                    target='target',
+                    sync='full',
+                    copy_mode='write-blocking')
+
+        self.wait_ready('mirror')
+
+        self.set_throttle_limits({'iops-write': 1})
+
+        # Issue requests that will be throttled.
+        for i in range(0, self.reqs):
+            req = f'aio_write -P 7 {i}M {self.req_len}'
+            self.vm.hmp_qemu_io(self.drive_qdev, req, qdev=True)
+
+        # Check that requests do not complete faster than 1 per second. They
+        # might complete in batches, so do not check for exactly 1 per second.
+        for i in range(0, self.reqs):
+            result = self.vm.cmd('query-blockstats')
+            assert result[0]['stats']['wr_bytes'] <= (i + 1) * self.req_len
+
+            self.target_vm.qtest(f'clock_step {1 * 1000 * 1000 * 1000}')
+            time.sleep(0.1)
+
+        self.complete_and_wait('mirror', wait_ready=False)
+        self.target_vm.shutdown()
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(test_img, target_img),
+                        'target image does not match source after mirroring')
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'qed'],
