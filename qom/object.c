@@ -11,8 +11,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/core/qdev.h"
 #include "qapi/error.h"
+#include "qom/compat-properties.h"
 #include "qom/object.h"
 #include "qom/object_interfaces.h"
 #include "qemu/cutils.h"
