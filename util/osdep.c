@@ -223,8 +223,7 @@ static void qemu_probe_lock_ops(void)
             fcntl_op_getlk = F_GETLK;
         }
 #else
-        fcntl_op_setlk = F_SETLK;
-        fcntl_op_getlk = F_GETLK;
+        qemu_use_posix_locks();
 #endif
     }
 }
@@ -237,6 +236,12 @@ bool qemu_has_ofd_lock(void)
 #else
     return false;
 #endif
+}
+
+void qemu_use_posix_locks(void)
+{
+    fcntl_op_setlk = F_SETLK;
+    fcntl_op_getlk = F_GETLK;
 }
 
 static int qemu_lock_fcntl(int fd, int64_t start, int64_t len, int fl_type)

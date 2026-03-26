@@ -625,7 +625,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     BlockdevAioOptions aio, aio_default;
     int fd, ret;
     struct stat st;
-    OnOffAuto locking;
+    BlockdevLockingOptions locking;
 
     opts = qemu_opts_create(&raw_runtime_opts, NULL, 0, &error_abort);
     if (!qemu_opts_absorb_qdict(opts, options, errp)) {
@@ -666,16 +666,16 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 
     s->aio_max_batch = qemu_opt_get_number(opts, "aio-max-batch", 0);
 
-    locking = qapi_enum_parse(&OnOffAuto_lookup,
-                              qemu_opt_get(opts, "locking"),
-                              ON_OFF_AUTO_AUTO, &local_err);
+    locking = qapi_enum_parse(&BlockdevLockingOptions_lookup,
+                          qemu_opt_get(opts, "locking"),
+                          BLOCKDEV_LOCKING_OPTIONS_AUTO, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
         goto fail;
     }
     switch (locking) {
-    case ON_OFF_AUTO_ON:
+    case BLOCKDEV_LOCKING_OPTIONS_ON:
         s->use_lock = true;
         if (!qemu_has_ofd_lock()) {
             warn_report("File lock requested but OFD locking syscall is "
@@ -684,11 +684,15 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
                          "unexpectedly.\n");
         }
         break;
-    case ON_OFF_AUTO_OFF:
+    case BLOCKDEV_LOCKING_OPTIONS_OFF:
         s->use_lock = false;
         break;
-    case ON_OFF_AUTO_AUTO:
+    case BLOCKDEV_LOCKING_OPTIONS_AUTO:
         s->use_lock = qemu_has_ofd_lock();
+        break;
+    case BLOCKDEV_LOCKING_OPTIONS_POSIX:
+        s->use_lock = true;
+        qemu_use_posix_locks();
         break;
     default:
         abort();

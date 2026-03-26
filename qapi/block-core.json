@@ -3363,6 +3363,19 @@
             'vmdk', 'vpc', 'vvfat' ] }
 
 ##
+# @BlockdevLockingOptions:
+#
+# @off: Disable locking.
+# @on: Enable locking (prefer OFD).
+# @auto: Use locking if OFD is available.
+# @posix: Force use of traditional POSIX locks.
+#
+# Since: 10.3
+##
+{ 'enum': 'BlockdevLockingOptions',
+  'data': [ 'off', 'on', 'auto', 'posix' ] }
+
+##
 # @BlockdevOptionsFile:
 #
 # Driver specific block device options for the file backend.
@@ -3382,7 +3395,8 @@
 #     automatically.  (default: 0, since 6.2)
 #
 # @locking: whether to enable file locking.  If set to 'auto', only
-#     enable when Open File Descriptor (OFD) locking API is available
+#     enable when Open File Descriptor (OFD) locking API is available.
+#     'posix' forces use of POSIX locks.
 #     (default: auto, since 2.10)
 #
 # @drop-cache: invalidate page cache during live migration.  This
@@ -3412,7 +3426,7 @@
 { 'struct': 'BlockdevOptionsFile',
   'data': { 'filename': 'str',
             '*pr-manager': 'str',
-            '*locking': 'OnOffAuto',
+            '*locking': 'BlockdevLockingOptions',
             '*aio': 'BlockdevAioOptions',
             '*aio-max-batch': 'int',
             '*drop-cache': {'type': 'bool',
