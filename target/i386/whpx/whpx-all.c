@@ -998,6 +998,15 @@ static void read_segment_descriptor(CPUState *cpu,
     whpx_segment_to_x86_descriptor(cpu, &reg, desc);
 }
 
+static x86_segment_selector read_segment_selector(CPUState *cpu, enum X86Seg seg_idx)
+{
+    WHV_X64_SEGMENT_REGISTER reg;
+    x86_segment_selector sel;
+    whpx_read_segment_descriptor(cpu, &reg, seg_idx);
+    sel.sel = reg.Selector & 0xFFFF;
+    return sel;
+}
+
 static bool is_protected_mode(CPUState *cpu)
 {
     AccelCPUState *vcpu = cpu->accel;
@@ -1049,6 +1058,7 @@ static target_ulong read_cr(CPUState *cpu, int cr)
 
 static const struct x86_emul_ops whpx_x86_emul_ops = {
     .read_segment_descriptor = read_segment_descriptor,
+    .read_segment_selector = read_segment_selector,
     .handle_io = handle_io,
     .is_protected_mode = is_protected_mode,
     .is_long_mode = is_long_mode,

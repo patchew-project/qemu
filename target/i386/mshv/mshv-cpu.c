@@ -1565,8 +1565,19 @@ static void read_segment_descriptor(CPUState *cpu,
     }
 }
 
+static x86_segment_selector read_segment_selector(CPUState *cpu, enum X86Seg seg_idx)
+{
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+    SegmentCache *seg = &env->segs[seg_idx];
+    x86_segment_selector sel = { .sel = seg->selector & 0xFFFF };
+
+    return sel;
+}
+
 static const struct x86_emul_ops mshv_x86_emul_ops = {
     .read_segment_descriptor = read_segment_descriptor,
+    .read_segment_selector = read_segment_selector
 };
 
 void mshv_init_mmio_emu(void)

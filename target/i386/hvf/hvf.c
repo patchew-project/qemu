@@ -254,6 +254,7 @@ static void hvf_read_segment_descriptor(CPUState *s, struct x86_segment_descript
 
 static const struct x86_emul_ops hvf_x86_emul_ops = {
     .read_segment_descriptor = hvf_read_segment_descriptor,
+    .read_segment_selector = vmx_read_segment_selector,
     .handle_io = hvf_handle_io,
     .simulate_rdmsr = hvf_simulate_rdmsr,
     .simulate_wrmsr = hvf_simulate_wrmsr,
