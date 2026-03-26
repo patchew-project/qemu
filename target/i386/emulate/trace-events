@@ -1,0 +1,2 @@
+x86_unhandled_memory_read(uint64_t gpa, int bytes) "read from unmapped mmio region gpa=0x%" PRIx64 " size=%i"
+x86_unhandled_memory_write(uint64_t gpa, int bytes) "write to unmapped mmio region gpa=0x%" PRIx64 " size=%i"
