@@ -56,7 +56,6 @@ static void isa_cirrus_vga_realizefn(DeviceState *dev, Error **errp)
                    s->vram_size_mb);
         return;
     }
-    s->global_vmstate = true;
     if (!vga_common_init(s, OBJECT(dev), errp)) {
         return;
     }
@@ -74,6 +73,8 @@ static const Property isa_cirrus_vga_properties[] = {
                        cirrus_vga.vga.vram_size_mb, 4),
     DEFINE_PROP_BOOL("blitter", struct ISACirrusVGAState,
                      cirrus_vga.enable_blitter, true),
+    DEFINE_PROP_BOOL("global-vmstate", struct ISACirrusVGAState,
+                     cirrus_vga.vga.global_vmstate, false),
 };
 
 static void isa_cirrus_vga_class_init(ObjectClass *klass, const void *data)
