@@ -451,6 +451,13 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
                            params->direct_io ? "on" : "off");
         }
 
+        if (params->has_x_rdma_chunk_size) {
+            monitor_printf(mon, "%s: %" PRIu64 " bytes\n",
+                           MigrationParameter_str(
+                               MIGRATION_PARAMETER_X_RDMA_CHUNK_SIZE),
+                           params->x_rdma_chunk_size);
+        }
+
         assert(params->has_cpr_exec_command);
         monitor_print_cpr_exec_command(mon, params->cpr_exec_command);
     }
@@ -729,6 +736,16 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     case MIGRATION_PARAMETER_MODE:
         p->has_mode = true;
         visit_type_MigMode(v, param, &p->mode, &err);
+        break;
+    case MIGRATION_PARAMETER_X_RDMA_CHUNK_SIZE:
+        p->has_x_rdma_chunk_size = true;
+        ret = qemu_strtosz(valuestr, NULL, &valuebw);
+        if (ret != 0 || valuebw < (1<<20) || valuebw > (1<<30)
+            || !is_power_of_2(valuebw)) {
+            error_setg(&err, "Invalid size %s", valuestr);
+            break;
+        }
+        p->x_rdma_chunk_size = valuebw;
         break;
     case MIGRATION_PARAMETER_DIRECT_IO:
         p->has_direct_io = true;
