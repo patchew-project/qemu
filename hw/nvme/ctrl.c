@@ -6111,7 +6111,7 @@ static uint16_t nvme_abort(NvmeCtrl *n, NvmeRequest *req)
 {
     uint16_t sqid = le32_to_cpu(req->cmd.cdw10) & 0xffff;
     uint16_t cid  = (le32_to_cpu(req->cmd.cdw10) >> 16) & 0xffff;
-    NvmeSQueue *sq = n->sq[sqid];
+    NvmeSQueue *sq;
     NvmeRequest *r, *next;
     int i;
 
@@ -6119,6 +6119,8 @@ static uint16_t nvme_abort(NvmeCtrl *n, NvmeRequest *req)
     if (nvme_check_sqid(n, sqid)) {
         return NVME_INVALID_FIELD | NVME_DNR;
     }
+
+    sq = n->sq[sqid];
 
     if (sqid == 0) {
         for (i = 0; i < n->outstanding_aers; i++) {
