@@ -1133,103 +1133,103 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
 
     if (params->throttle_trigger_threshold < 1 ||
         params->throttle_trigger_threshold > 100) {
-        error_setg(errp, "Option throttle_trigger_threshold expects "
+        error_setg(errp, "Option throttle-trigger-threshold expects "
                    "an integer in the range of 1 to 100");
         return false;
     }
 
     if (params->cpu_throttle_initial < 1 ||
         params->cpu_throttle_initial > 99) {
-        error_setg(errp, "Option cpu_throttle_initial expects "
+        error_setg(errp, "Option cpu-throttle-initial expects "
                    "an integer in the range of 1 to 99");
         return false;
     }
 
     if (params->cpu_throttle_increment < 1 ||
         params->cpu_throttle_increment > 99) {
-        error_setg(errp, "Option cpu_throttle_increment expects "
+        error_setg(errp, "Option cpu-throttle-increment expects "
                    "an integer in the range of 1 to 99");
         return false;
     }
 
     if (params->max_bandwidth > SIZE_MAX) {
-        error_setg(errp, "Option max_bandwidth expects "
+        error_setg(errp, "Option max-bandwidth expects "
                    "an integer in the range of 0 to "stringify(SIZE_MAX)
                    " bytes/second");
         return false;
     }
 
     if (params->avail_switchover_bandwidth > SIZE_MAX) {
-        error_setg(errp, "Option avail_switchover_bandwidth expects "
+        error_setg(errp, "Option avail-switchover-bandwidth expects "
                    "an integer in the range of 0 to "stringify(SIZE_MAX)
                    " bytes/second");
         return false;
     }
 
     if (params->downtime_limit > MAX_MIGRATE_DOWNTIME) {
-        error_setg(errp, "Option downtime_limit expects "
+        error_setg(errp, "Option downtime-limit expects "
                    "an integer in the range of 0 to "
                     stringify(MAX_MIGRATE_DOWNTIME)" ms");
         return false;
     }
 
     if (params->multifd_channels < 1) {
-        error_setg(errp, "Option multifd_channels expects "
+        error_setg(errp, "Option multifd-channels expects "
                    "a value between 1 and 255");
         return false;
     }
 
     if (params->multifd_zlib_level > 9) {
-        error_setg(errp, "Option multifd_zlib_level expects "
+        error_setg(errp, "Option multifd-zlib-level expects "
                    "a value between 0 and 9");
         return false;
     }
 
     if (params->multifd_qatzip_level > 9 ||
         params->multifd_qatzip_level < 1) {
-        error_setg(errp, "Option multifd_qatzip_level expects "
+        error_setg(errp, "Option multifd-qatzip-level expects "
                    "a value between 1 and 9");
         return false;
     }
 
     if (params->multifd_zstd_level > 20) {
-        error_setg(errp, "Option multifd_zstd_level expects "
+        error_setg(errp, "Option multifd-zstd-level expects "
                    "a value between 0 and 20");
         return false;
     }
 
     if (params->xbzrle_cache_size < qemu_target_page_size() ||
         !is_power_of_2(params->xbzrle_cache_size)) {
-        error_setg(errp, "Option xbzrle_cache_size expects "
+        error_setg(errp, "Option xbzrle-cache-size expects "
                    "a power of two no less than the target page size");
         return false;
     }
 
     if (params->max_cpu_throttle < params->cpu_throttle_initial ||
         params->max_cpu_throttle > 99) {
-        error_setg(errp, "Option max_cpu_throttle expects "
-                   "an integer in the range of cpu_throttle_initial to 99");
+        error_setg(errp, "Option max-cpu-throttle expects "
+                   "an integer in the range of cpu-throttle-initial to 99");
         return false;
     }
 
     if (params->announce_initial > 100000) {
-        error_setg(errp, "Option announce_initial expects "
+        error_setg(errp, "Option announce-initial expects "
                    "a value between 0 and 100000");
         return false;
     }
     if (params->announce_max > 100000) {
-        error_setg(errp, "Option announce_max expects "
+        error_setg(errp, "Option announce-max expects "
                    "a value between 0 and 100000");
         return false;
     }
     if (params->announce_rounds > 1000) {
-        error_setg(errp, "Option announce_rounds expects "
+        error_setg(errp, "Option announce-rounds expects "
                    "a value between 0 and 1000");
         return false;
     }
     if (params->announce_step < 1 ||
         params->announce_step > 10000) {
-        error_setg(errp, "Option announce_step expects "
+        error_setg(errp, "Option announce-step expects "
                    "a value between 0 and 10000");
         return false;
     }
@@ -1264,7 +1264,7 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
 
     if (params->vcpu_dirty_limit < 1) {
         error_setg(errp,
-                   "Parameter 'vcpu_dirty_limit' must be greater than 1 MB/s");
+                   "Parameter 'vcpu-dirty-limit' must be greater than 1 MB/s");
         return false;
     }
 
