@@ -311,6 +311,10 @@ static void vtd_pasid_cache_invalidate_one(VTDAccelPASIDCacheEntry *vtd_pce,
          */
         QLIST_REMOVE(vtd_pce, next);
         g_free(vtd_pce);
+
+        if (pc_info->type == VTD_INV_DESC_PASIDC_G_PASID_SI) {
+            pc_info->accel_pce_deleted = true;
+        }
     }
 }
 
@@ -498,7 +502,12 @@ void vtd_pasid_cache_sync_accel(IntelIOMMUState *s, VTDPASIDCacheInfo *pc_info)
          * removed.
          */
         vtd_pasid_cache_invalidate(vtd_hiod, pc_info);
-        vtd_replay_pasid_bind_for_dev(vtd_hiod, start, end, pc_info);
+
+        if (pc_info->accel_pce_deleted) {
+            pc_info->accel_pce_deleted = false;
+        } else {
+            vtd_replay_pasid_bind_for_dev(vtd_hiod, start, end, pc_info);
+        }
     }
 }
 
