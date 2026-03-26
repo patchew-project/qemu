@@ -1540,10 +1540,12 @@ SRST
             default: threads)
 
         ``locking``
-            Specifies whether the image file is protected with Linux OFD
-            / POSIX locks. The default is to use the Linux Open File
-            Descriptor API if available, otherwise no lock is applied.
-            (auto/on/off, default: auto)
+            Specifies whether the image file is protected with locks.
+            'on' enables locking, preferring OFD (Open File Descriptor)
+            locks if available, but falling back to POSIX locks with a
+            warning. 'posix' forces the use of POSIX locks. 'auto' (the
+            default) enables locking only if OFD locks are available.
+            'off' disables locking. (on/off/auto/posix, default: auto)
 
         Example:
 

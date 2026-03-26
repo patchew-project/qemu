@@ -882,6 +882,9 @@ the POSIX locking API will be used. In this case there is a risk that the lock
 will get silently lost when doing hot plugging and block jobs, due to the
 shortcomings of the POSIX locking API.
 
+To force the use of POSIX locks even when OFD locking is available, specify
+"locking=posix". The same caveats about silent lock loss apply.
+
 QEMU transparently handles lock handover during shared storage migration.  For
 shared virtual disk images between multiple VMs, the "share-rw" device option
 should be used.
