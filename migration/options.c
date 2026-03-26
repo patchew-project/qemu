@@ -1207,7 +1207,7 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
 
     if (params->max_cpu_throttle < params->cpu_throttle_initial ||
         params->max_cpu_throttle > 99) {
-        error_setg(errp, "max_Option cpu_throttle expects "
+        error_setg(errp, "Option max_cpu_throttle expects "
                    "an integer in the range of cpu_throttle_initial to 99");
         return false;
     }
