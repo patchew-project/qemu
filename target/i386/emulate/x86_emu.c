@@ -1338,6 +1338,22 @@ static bool exec_xadd(CPUX86State *env, struct x86_decode *decode)
     return 0;
 }
 
+static bool exec_sldt(CPUX86State *env, struct x86_decode *decode)
+{
+    x86_segment_selector seg = emul_ops->read_segment_selector(env_cpu(env), R_LDTR);
+    write_val_ext(env, &decode->op[0], seg.sel, 2);
+    env->eip += decode->len;
+    return 0;
+}
+
+static bool exec_str(CPUX86State *env, struct x86_decode *decode)
+{
+    x86_segment_selector seg = emul_ops->read_segment_selector(env_cpu(env), R_TR);
+    write_val_ext(env, &decode->op[0], seg.sel, 2);
+    env->eip += decode->len;
+    return 0;
+}
+
 static struct cmd_handler {
     enum x86_decode_cmd cmd;
     bool (*handler)(CPUX86State *env, struct x86_decode *ins);
@@ -1382,6 +1398,8 @@ static struct cmd_handler {
     {X86_DECODE_CMD_MOVSX, exec_movsx},
     {X86_DECODE_CMD_XCHG, exec_xchg},
     {X86_DECODE_CMD_XADD, exec_xadd},
+    {X86_DECODE_CMD_SLDT, exec_sldt},
+    {X86_DECODE_CMD_STR, exec_str}
 };
 
 static struct cmd_handler _cmd_handler[X86_DECODE_CMD_LAST];
