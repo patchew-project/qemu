@@ -1,0 +1,7 @@
+QA output created by 315
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=33554432
+Checking that locking=posix does not warn about OFD fallback
+OK: no fallback warning
+Checking that locking=posix applies POSIX locks on the image
+OK: POSIX locks present on image
+*** done

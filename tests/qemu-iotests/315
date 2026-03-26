@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# group: rw quick
+#
+# Test image locking with locking=posix
+#
+# Unlike 'locking=on', which prefers OFD locks and falls back to POSIX
+# with a warning, 'locking=posix' explicitly forces the use of POSIX
+# locks without any warning.  This test verifies that:
+#   - locking=posix does not emit a fallback warning
+#   - locking=posix actually applies POSIX locks on the image
+#
+# The lock check uses qemu-storage-daemon opening the image via the
+# 'file' protocol driver directly (no format layer on top), because
+# POSIX locks are per-process and are silently released when any fd to
+# the same inode is closed -- which happens during qcow2 initialisation
+# inside a full QEMU instance.
+#
+# Copyright 2026 Quobyte Inc
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# creator
+owner=silvan@quobyte.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+    if [ -f "$TEST_DIR/qsd.pid" ]; then
+        kill -SIGTERM "$(cat "$TEST_DIR/qsd.pid")" 2>/dev/null
+        rm -f "$TEST_DIR/qsd.pid"
+    fi
+    rm -f "$SOCK_DIR/qsd-315.sock"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+size=32M
+
+_make_test_img $size
+
+# locking=posix is an explicit choice, not a fallback, so the
+# "falling back to POSIX file locks" warning must never appear,
+# regardless of whether OFD locking is available on this host.
+echo "Checking that locking=posix does not warn about OFD fallback"
+if $QEMU_IMG info --image-opts \
+        "driver=file,locking=posix,filename=$TEST_IMG" 2>&1 |
+    grep -q 'falling back'; then
+    _fail "FAIL: unexpected fallback warning with locking=posix"
+fi
+echo "OK: no fallback warning"
+
+# Use qemu-storage-daemon with driver=file (no format layer) to hold the
+# image open with locking=posix, then verify POSIX locks appear in
+# /proc/locks.  A format layer (e.g. qcow2) would trigger internal fd
+# reopen operations that silently release POSIX locks, so we bypass it.
+echo "Checking that locking=posix applies POSIX locks on the image"
+$QSD \
+    --blockdev "driver=file,node-name=file0,filename=$TEST_IMG,locking=posix" \
+    --nbd-server "addr.type=unix,addr.path=$SOCK_DIR/qsd-315.sock" \
+    --export "type=nbd,id=exp0,node-name=file0,writable=on" \
+    --daemonize --pidfile "$TEST_DIR/qsd.pid"
+
+INODE=$(stat -c %i "$TEST_IMG")
+if grep -q "POSIX.*:${INODE} " /proc/locks; then
+    echo "OK: POSIX locks present on image"
+else
+    _fail "FAIL: no POSIX locks found on image"
+fi
+
+kill -SIGTERM "$(cat "$TEST_DIR/qsd.pid")"
+rm -f "$TEST_DIR/qsd.pid" "$SOCK_DIR/qsd-315.sock"
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
