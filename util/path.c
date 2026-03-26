@@ -5,7 +5,6 @@
 */
 #include "qemu/osdep.h"
 #include <sys/param.h>
-#include <dirent.h>
 #include "qemu/cutils.h"
 #include "qemu/path.h"
 #include "qemu/thread.h"
