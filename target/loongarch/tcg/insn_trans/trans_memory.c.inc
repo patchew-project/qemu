@@ -137,11 +137,89 @@ static bool trans_preldx(DisasContext *ctx, arg_preldx * a)
     return true;
 }
 
+/*
+ * Decode dbar hint and emit appropriate TCG memory barrier.
+ *
+ * The hint is a 5-bit field (0-31) encoded in the instruction.
+ * For hint 0x700 (special LL/SC loop barrier), treat as full barrier.
+ *
+ * See LoongArch Reference Manual v1.10, Section 4.2.2 for details.
+ */
 static bool trans_dbar(DisasContext *ctx, arg_dbar * a)
 {
     tcg_gen_mb(TCG_BAR_SC | TCG_MO_ALL);
-    return true;
-}
+    int hint = a->imm;
+    TCGBar bar_flags = 0;
+
+    /* Reserved/no-op hints: 0xf and 0x1f */
+    if (hint == 0xf || hint == 0x1f) {
+        return true;
+    }
+
+    /* If the CPU does not support fine-grained hints,or for the special LL/SC
+     * loop barrier (0x700), emit a full barrier.
+     */
+    if (!avail_DBAR_HINT(ctx) || hint == 0x700) {
+        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
+        return true;
+    }
+
+    /*
+     * Fine-grained hint decoding:
+     * Bits 3-0 control which accesses must be ordered.
+     *   bit3: barrier previous reads?   (0 = enforce, 1 = relax)
+     *   bit2: barrier previous writes?  (0 = enforce, 1 = relax)
+     *   bit1: barrier succeeding reads? (0 = enforce, 1 = relax)
+     *   bit0: barrier succeeding writes?(0 = enforce, 1 = relax)
+     *
+     * For each combination, we set the corresponding TCG_MO_* flag if both
+     * sides of the barrier require ordering.
+     */
+    bool prev_rd = !(hint & 0x08);   /* need barrier for previous reads */
+    bool prev_wr = !(hint & 0x04);   /* need barrier for previous writes */
+    bool succ_rd = !(hint & 0x02);   /* need barrier for succeeding reads */
+    bool succ_wr = !(hint & 0x01);   /* need barrier for succeeding writes */
+
+    if (prev_rd && succ_rd) {
+        bar_flags |= TCG_MO_LD_LD;
+    }
+    if (prev_wr && succ_rd) {
+        bar_flags |= TCG_MO_ST_LD;
+    }
+    if (prev_rd && succ_wr) {
+        bar_flags |= TCG_MO_LD_ST;
+    }
+    if (prev_wr && succ_wr) {
+        bar_flags |= TCG_MO_ST_ST;
+    }
+
+    /* If no flags were set, this is a no-op barrier */
+    if (bar_flags == 0) {
+        return true;
+    }
+
+    /*
+     * Use acquire/release semantics when possible to generate more efficient
+     * code. Otherwise, fall back to a sequential consistency barrier.
+     *
+     * Acquire: order loads before loads/stores (LD_LD | LD_ST)
+     * Release: order stores before stores/loads (ST_ST | ST_LD)
+     */
+    if ((bar_flags & (TCG_MO_LD_LD | TCG_MO_LD_ST)) &&
+        !(bar_flags & (TCG_MO_ST_ST | TCG_MO_ST_LD))) {
+        /* Only acquire flags present */
+        tcg_gen_mb(bar_flags | TCG_BAR_LDAQ);
+    } else if ((bar_flags & (TCG_MO_ST_ST | TCG_MO_ST_LD)) &&
+               !(bar_flags & (TCG_MO_LD_LD | TCG_MO_LD_ST))) {
+        /* Only release flags present */
+        tcg_gen_mb(bar_flags | TCG_BAR_STRL);
+    } else {
+        /* Mixed or full barrier */
+        tcg_gen_mb(bar_flags | TCG_BAR_SC);
+    }
+
+     return true;
+ }
 
 static bool trans_ibar(DisasContext *ctx, arg_ibar *a)
 {
