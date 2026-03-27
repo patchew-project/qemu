@@ -371,7 +371,9 @@ do_check_protect_pse36:
     ptep ^= PG_NX_MASK;
 
     /* can the page can be put in the TLB?  prot will tell us */
-    if (is_user && !(ptep & PG_USER_MASK)) {
+
+    /* GMET disables checks to the U bit other than the SMEP check below.  */
+    if (is_user && !(ptep & PG_USER_MASK) && !(pg_mode & PG_MODE_SVM_GMET)) {
         goto do_fault_protect;
     }
 
@@ -384,7 +386,7 @@ do_check_protect_pse36:
     }
     if (!(ptep & PG_NX_MASK) &&
         (is_user ||
-         !((pg_mode & PG_MODE_SMEP) && (ptep & PG_USER_MASK)))) {
+         !((pg_mode & (PG_MODE_SMEP | PG_MODE_SVM_GMET)) && (ptep & PG_USER_MASK)))) {
         prot |= PAGE_EXEC;
     }
 
@@ -543,6 +545,17 @@ static G_NORETURN void raise_stage2(CPUX86State *env, TranslateFault *err,
     cpu_vmexit(env, SVM_EXIT_NPF, exit_info_1, retaddr);
 }
 
+static int cpu_mmu_index_svm(CPUX86State *env)
+{
+    unsigned pl = env->hflags & HF_CPL_MASK;
+    int mmu_index_32 = (env->nested_pg_mode & PG_MODE_LMA) ? 0 : 1;
+    int mmu_index_base =
+        pl < 3 && (env->nested_pg_mode & PG_MODE_SVM_GMET)
+        ? MMU_KNOSMAP64_IDX : MMU_USER64_IDX;
+
+    return mmu_index_base + mmu_index_32;
+}
+
 static bool get_physical_address(CPUX86State *env, vaddr addr,
                                  MMUAccessType access_type, int mmu_idx,
                                  TranslateResult *out, TranslateFault *err,
@@ -562,8 +575,7 @@ static bool get_physical_address(CPUX86State *env, vaddr addr,
         if (likely(use_stage2)) {
             in.cr3 = env->nested_cr3;
             in.pg_mode = env->nested_pg_mode;
-            in.mmu_idx =
-                env->nested_pg_mode & PG_MODE_LMA ? MMU_USER64_IDX : MMU_USER32_IDX;
+            in.mmu_idx = cpu_mmu_index_svm(env);
             in.ptw_idx = MMU_PHYS_IDX;
 
             if (!mmu_translate(env, &in, out, err, ra)) {

@@ -960,7 +960,7 @@ void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
 #else
 #define CPUID_SVM_KERNEL_FEATURES 0
 #endif
-#define TCG_SVM_FEATURES (CPUID_SVM_NPT | CPUID_SVM_VGIF | \
+#define TCG_SVM_FEATURES (CPUID_SVM_NPT | CPUID_SVM_VGIF | CPUID_SVM_GMET | \
           CPUID_SVM_SVME_ADDR_CHK | CPUID_SVM_KERNEL_FEATURES)
 
 #define TCG_KVM_FEATURES 0

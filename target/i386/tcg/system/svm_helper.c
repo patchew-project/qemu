@@ -296,6 +296,10 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
         env->hflags2 |= HF2_NPT_MASK;
 
         env->nested_pg_mode = get_pg_mode(env) & PG_MODE_SVM_MASK;
+        if ((nested_ctl & SVM_GMET_ENABLED) &&
+            (env->features[FEAT_SVM] & CPUID_SVM_GMET)) {
+            env->nested_pg_mode |= PG_MODE_SVM_GMET;
+        }
 
         tlb_flush_by_mmuidx(cs, 1 << MMU_NESTED_IDX);
     }

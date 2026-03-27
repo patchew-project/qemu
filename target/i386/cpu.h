@@ -354,6 +354,7 @@ typedef enum X86Seg {
 #define PG_MODE_NXE      (1 << 2)
 #define PG_MODE_PSE      (1 << 3)
 #define PG_MODE_LA57     (1 << 4)
+#define PG_MODE_SVM_GMET (1 << 5)
 #define PG_MODE_SVM_MASK MAKE_64BIT_MASK(0, 15)
 
 /* Bits of CR4 that do not affect the NPT page format.  */
@@ -879,6 +880,7 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 #define CPUID_SVM_AVIC            (1U << 13)
 #define CPUID_SVM_V_VMSAVE_VMLOAD (1U << 15)
 #define CPUID_SVM_VGIF            (1U << 16)
+#define CPUID_SVM_GMET            (1U << 17)
 #define CPUID_SVM_VNMI            (1U << 25)
 #define CPUID_SVM_SVME_ADDR_CHK   (1U << 28)
 

@@ -140,6 +140,7 @@
 #define SVM_CR0_SELECTIVE_MASK (1 << 3 | 1) /* TS and MP */
 
 #define SVM_NPT_ENABLED     (1 << 0)
+#define SVM_GMET_ENABLED    (1 << 3)
 
 #define SVM_NPTEXIT_GPA     (1ULL << 32)
 #define SVM_NPTEXIT_GPT     (1ULL << 33)
