@@ -303,7 +303,7 @@ static bool reg_is_vreg(const char *name)
     }
 
     for (int i = 0; i < 32; i++) {
-        if (strcasecmp(name, riscv_rvv_regnames[i]) == 0) {
+        if (g_ascii_strcasecmp(name, riscv_rvv_regnames[i]) == 0) {
             return true;
         }
     }
@@ -358,7 +358,7 @@ int target_get_monitor_def(CPUState *cs, const char *name, uint64_t *pval)
             continue;
         }
 
-        if (strcasecmp(csr_ops[csrno].name, name) != 0) {
+        if (g_ascii_strcasecmp(csr_ops[csrno].name, name) != 0) {
             continue;
         }
 
