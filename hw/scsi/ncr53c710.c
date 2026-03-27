@@ -748,7 +748,6 @@ void ncr710_request_cancelled(SCSIRequest *req)
     NCR710State *s = ncr710_from_scsi_bus(req->bus);
     NCR710Request *p = (NCR710Request *)req->hba_private;
     if (p) {
-        req->hba_private = NULL;
         ncr710_request_free(s, p);
     }
 }
@@ -791,8 +790,9 @@ void ncr710_command_complete(SCSIRequest *req, size_t resid)
     ncr710_set_phase(s, PHASE_ST);
 
     if (p) {
-        req->hba_private = NULL;
-        if (p != s->current) {
+        if (p == s->current) {
+            req->hba_private = NULL;
+        } else {
             ncr710_request_free(s, p);
         }
     }
