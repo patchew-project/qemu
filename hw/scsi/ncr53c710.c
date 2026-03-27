@@ -735,12 +735,11 @@ static void ncr710_add_msg_byte(NCR710State *s, uint8_t data)
 
 static void ncr710_request_free(NCR710State *s, NCR710Request *p)
 {
-    if (p->req && p->req->hba_private == p) {
-        p->req->hba_private = NULL;
-    }
+    p->req->hba_private = NULL;
     if (p == s->current) {
         s->current = NULL;
     }
+    scsi_req_unref(p->req);
     g_free(p);
 }
 
@@ -750,10 +749,8 @@ void ncr710_request_cancelled(SCSIRequest *req)
     NCR710Request *p = (NCR710Request *)req->hba_private;
     if (p) {
         req->hba_private = NULL;
-        p->req = NULL;
         ncr710_request_free(s, p);
     }
-    scsi_req_unref(req);
 }
 
 static int ncr710_queue_req(NCR710State *s, SCSIRequest *req, uint32_t len)
@@ -795,12 +792,9 @@ void ncr710_command_complete(SCSIRequest *req, size_t resid)
 
     if (p) {
         req->hba_private = NULL;
-        if (p == s->current) {
-            p->req = NULL;
-        } else {
+        if (p != s->current) {
             ncr710_request_free(s, p);
         }
-        scsi_req_unref(req);
     }
 
     if (s->waiting == NCR710_WAIT_RESELECT || s->waiting == NCR710_WAIT_DMA) {
