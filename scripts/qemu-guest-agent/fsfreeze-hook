@@ -47,8 +47,23 @@ for file in "$FSFREEZE_D"/* ; do
         "$file" "$@" >>"$LOGFILE" 2>&1
         STATUS=$?
     else
-        "$file" "$@" 2>&1 | logger -t qemu-ga-freeze-hook
-        STATUS=${PIPESTATUS[0]}
+        # We want to pipe the output of $file through 'logger' and also
+        # capture its exit status. Since we are a POSIX script we can't
+        # use PIPESTATUS, so instead this is a trick borrowed from
+        # https://unix.stackexchange.com/questions/14270/get-exit-status-of-process-thats-piped-to-another/70675#70675
+        # which uses command-groups and redirection to get the exit status.
+        # This is equivalent to
+        #   "$file" "$@" 2>&1 | logger -t qemu-ga-freeze-hook
+        # plus setting the exit status of the pipe to the exit
+        # status of the first command rather than the last one.
+        { { { {
+                "$file" "$@" 2>&1 3>&- 4>&-
+                echo $? >&3
+            } | logger -t qemu-ga-freeze-hook >&4
+            } 3>&1
+          } | { read -r xs ; exit "$xs"; }
+        } 4>&1
+        STATUS=$?
     fi
 
     if [ "$STATUS" -ne 0 ]; then
