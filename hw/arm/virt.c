@@ -3223,6 +3223,9 @@ static char *virt_get_gic_version(Object *obj, Error **errp)
     const char *val;
 
     switch (vms->gic_version) {
+    case VIRT_GIC_VERSION_5:
+        val = "x-5";
+        break;
     case VIRT_GIC_VERSION_4:
         val = "4";
         break;
@@ -3240,7 +3243,9 @@ static void virt_set_gic_version(Object *obj, const char *value, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
 
-    if (!strcmp(value, "4")) {
+    if (!strcmp(value, "x-5")) {
+        vms->gic_version = VIRT_GIC_VERSION_5;
+    } else if (!strcmp(value, "4")) {
         vms->gic_version = VIRT_GIC_VERSION_4;
     } else if (!strcmp(value, "3")) {
         vms->gic_version = VIRT_GIC_VERSION_3;
@@ -3252,7 +3257,7 @@ static void virt_set_gic_version(Object *obj, const char *value, Error **errp)
         vms->gic_version = VIRT_GIC_VERSION_MAX; /* Will probe later */
     } else {
         error_setg(errp, "Invalid gic-version value");
-        error_append_hint(errp, "Valid values are 2, 3, 4, host, and max.\n");
+        error_append_hint(errp, "Valid values are 2, 3, 4, x-5, host, and max.\n");
     }
 }
 
@@ -3827,7 +3832,7 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
                                   virt_set_gic_version);
     object_class_property_set_description(oc, "gic-version",
                                           "Set GIC version. "
-                                          "Valid values are 2, 3, 4, host and max");
+                                          "Valid values are 2, 3, 4, x-5, host and max");
 
     object_class_property_add_str(oc, "iommu", virt_get_iommu, virt_set_iommu);
     object_class_property_set_description(oc, "iommu",
