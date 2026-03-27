@@ -201,13 +201,13 @@ typedef struct lsi_request {
     QTAILQ_ENTRY(lsi_request) next;
 } lsi_request;
 
-enum {
+typedef enum {
     LSI_NOWAIT, /* SCRIPTS are running or stopped */
     LSI_WAIT_RESELECT, /* Wait Reselect instruction has been issued */
     LSI_DMA_SCRIPTS, /* processing DMA from lsi_execute_script */
     LSI_DMA_IN_PROGRESS, /* DMA operation is in progress */
     LSI_WAIT_SCRIPTS, /* SCRIPTS stopped because of instruction count limit */
-};
+} LSIWaitState;
 
 typedef enum {
     LSI_CMD_SENT, /* command is running */
@@ -239,7 +239,7 @@ struct LSIState {
     int msg_action;
     int msg_len;
     uint8_t msg[LSI_MAX_MSGIN_LEN];
-    int waiting;
+    LSIWaitState waiting;
     SCSIBus bus;
     int current_lun;
     /* The tag is a combination of the device ID and the SCSI tag.  */
@@ -605,7 +605,7 @@ static int lsi_bad_phase(LSIState *s, int out, int new_phase)
 /* Resume SCRIPTS execution after a DMA operation.  */
 static void lsi_resume_script(LSIState *s)
 {
-    if (s->waiting != 2) {
+    if (s->waiting != LSI_DMA_SCRIPTS) {
         s->waiting = LSI_NOWAIT;
         lsi_execute_script(s);
     } else {
@@ -822,11 +822,11 @@ static void lsi_command_complete(SCSIRequest *req, size_t resid)
     trace_lsi_command_complete(req->status);
     s->status = req->status;
     s->command_complete = LSI_CMD_COMPLETE;
-    if (s->waiting && s->dbc != 0) {
+    if (s->waiting != LSI_NOWAIT && s->dbc != 0) {
         /* Raise phase mismatch for short transfers.  */
         stop = lsi_bad_phase(s, out, PHASE_ST);
         if (stop) {
-            s->waiting = 0;
+            s->waiting = LSI_NOWAIT;
         }
     } else {
         lsi_set_phase(s, PHASE_ST);
@@ -861,7 +861,7 @@ static void lsi_transfer_data(SCSIRequest *req, uint32_t len)
     trace_lsi_transfer_data(req->tag, len);
     s->current->dma_len = len;
     s->command_complete = LSI_CMD_READY;
-    if (s->waiting) {
+    if (s->waiting != LSI_NOWAIT) {
         if (s->waiting == LSI_WAIT_RESELECT || s->dbc == 0) {
             lsi_resume_script(s);
         } else {
