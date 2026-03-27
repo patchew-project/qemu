@@ -1219,7 +1219,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         aml_append(dev, aml_name_decl("_STA", aml_int(0xf)));
         aml_append(dev, aml_name_decl("_UID", aml_int(1)));
 
-        tpm_build_ppi_acpi(tpm, dev);
+        tpm_build_ppi_acpi(tpm, dev, TPM_PPI_ADDR_BASE);
 
         aml_append(sb_scope, dev);
     }
