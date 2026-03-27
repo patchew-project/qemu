@@ -215,6 +215,49 @@ static void do_test_validate_uri_channel(MigrateCommon *args)
     migrate_end(from, to, false);
 }
 
+static void do_test_validate_capability_pair(MigrateCommon *args,
+                                             const char *first_capability,
+                                             const char *second_capability,
+                                             const char *expected_error)
+{
+    QTestState *from, *to;
+    QDict *rsp;
+    const char *error_desc;
+
+    args->start.hide_stderr = true;
+
+    if (migrate_start(&from, &to, "defer", &args->start)) {
+        return;
+    }
+
+    migrate_set_capability(from, first_capability, true);
+
+    rsp = qtest_qmp_assert_failure_ref(
+        from,
+        "{ 'execute': 'migrate-set-capabilities',"
+        "  'arguments': { 'capabilities': [ { "
+        "      'capability': %s, 'state': true } ] } }",
+        second_capability);
+
+    error_desc = qdict_get_str(rsp, "desc");
+    g_assert_cmpstr(error_desc, ==, expected_error);
+    qobject_unref(rsp);
+
+    migrate_end(from, to, false);
+}
+
+static void test_validate_caps_mapped_ram_postcopy(char *name,
+                                                   MigrateCommon *args)
+{
+    const char *error =
+        "Mapped-ram migration is incompatible with postcopy";
+
+    do_test_validate_capability_pair(args, "mapped-ram", "postcopy-ram",
+                                     error);
+    do_test_validate_capability_pair(args, "postcopy-ram", "mapped-ram",
+                                     error);
+}
+
 static void test_validate_uri_channels_both_set(char *name, MigrateCommon *args)
 {
     args->listen_uri = "defer",
@@ -276,4 +319,6 @@ void migration_test_add_misc(MigrationTestEnv *env)
                        test_validate_uri_channels_both_set);
     migration_test_add("/migration/validate_uri/channels/none_set",
                        test_validate_uri_channels_none_set);
+    migration_test_add("/migration/validate_caps/mapped_ram_postcopy",
+                       test_validate_caps_mapped_ram_postcopy);
 }
