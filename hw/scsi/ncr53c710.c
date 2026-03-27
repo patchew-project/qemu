@@ -928,10 +928,7 @@ static void ncr710_do_command(NCR710State *s)
         return;
     }
 
-    if (s->current) {
-        ncr710_request_free(s, s->current);
-        s->current = NULL;
-    }
+    ncr710_clear_pending_irq(s);
 
     s->current = g_new0(NCR710Request, 1);
     s->current->tag = s->select_tag;
