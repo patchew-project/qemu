@@ -299,7 +299,7 @@ static const char *ncr710_reg_name(int offset);
 static void ncr710_script_scsi_interrupt(NCR710State *s, int stat0);
 static void ncr710_update_irq(NCR710State *s);
 static void ncr710_script_dma_interrupt(NCR710State *s, int stat);
-static void ncr710_request_free(NCR710State *s, NCR710Request *p);
+static void ncr710_request_orphan(NCR710State *s, NCR710Request *p);
 static inline void ncr710_dma_read(NCR710State *s, uint32_t addr,
                                    void *buf, uint32_t len);
 static inline void ncr710_dma_write(NCR710State *s, uint32_t addr,
@@ -316,7 +316,7 @@ static inline int ncr710_irq_on_rsl(NCR710State *s)
 static void ncr710_clear_pending_irq(NCR710State *s)
 {
     if (s->current) {
-        ncr710_request_free(s, s->current);
+        ncr710_request_orphan(s, s->current);
     }
 }
 
@@ -683,42 +683,52 @@ static void ncr710_do_dma(NCR710State *s, int out)
     uint32_t count;
     uint32_t addr;
     SCSIDevice *dev;
+    SCSIRequest *req;
+    NCR710Request *p;
+
     assert(s->current);
     if (!s->current->dma_len) {
         /* We wait until data is available.  */
         return;
     }
 
-    dev = s->current->req->dev;
+    p = s->current;
+    req = scsi_req_ref(p->req);
+    dev = req->dev;
     assert(dev);
 
     count = s->dbc;
-    if (count > s->current->dma_len) {
-        count = s->current->dma_len;
+    if (count > p->dma_len) {
+        count = p->dma_len;
     }
 
     addr = s->dnad;
 
     s->dnad += count;
     s->dbc -= count;
-    if (s->current->dma_buf == NULL) {
-        s->current->dma_buf = scsi_req_get_buf(s->current->req);
+    if (p->dma_buf == NULL) {
+        p->dma_buf = scsi_req_get_buf(req);
     }
     /* ??? Set SFBR to first data byte.  */
     if (out) {
-        ncr710_dma_read(s, addr, s->current->dma_buf, count);
+        ncr710_dma_read(s, addr, p->dma_buf, count);
     } else {
-        ncr710_dma_write(s, addr, s->current->dma_buf, count);
+        ncr710_dma_write(s, addr, p->dma_buf, count);
     }
-    s->current->dma_len -= count;
-    if (s->current->dma_len == 0) {
-        s->current->dma_buf = NULL;
-        s->current->pending = 0;
-        s->waiting = NCR710_WAIT_DMA;
-        scsi_req_continue(s->current->req);
+    if (p->orphan) {
+        scsi_req_unref(req);
         return;
+    }
+    scsi_req_unref(req);
+
+    p->dma_len -= count;
+    if (p->dma_len == 0) {
+        p->dma_buf = NULL;
+        p->pending = 0;
+        s->waiting = NCR710_WAIT_DMA;
+        scsi_req_continue(req);
     } else {
-        s->current->dma_buf += count;
+        p->dma_buf += count;
         s->waiting = NCR710_WAIT_NONE;
         ncr710_execute_script(s);
     }
@@ -733,14 +743,18 @@ static void ncr710_add_msg_byte(NCR710State *s, uint8_t data)
     }
 }
 
-static void ncr710_request_free(NCR710State *s, NCR710Request *p)
+static void ncr710_request_orphan(NCR710State *s, NCR710Request *p)
 {
-    p->req->hba_private = NULL;
+    p->orphan = true;
     if (p == s->current) {
         s->current = NULL;
     }
     scsi_req_unref(p->req);
-    g_free(p);
+}
+
+static void ncr710_free_request(SCSIBus *bus, void *priv)
+{
+    g_free(priv);
 }
 
 void ncr710_request_cancelled(SCSIRequest *req)
@@ -748,7 +762,7 @@ void ncr710_request_cancelled(SCSIRequest *req)
     NCR710State *s = ncr710_from_scsi_bus(req->bus);
     NCR710Request *p = (NCR710Request *)req->hba_private;
     if (p) {
-        ncr710_request_free(s, p);
+        ncr710_request_orphan(s, p);
     }
 }
 
@@ -790,11 +804,7 @@ void ncr710_command_complete(SCSIRequest *req, size_t resid)
     ncr710_set_phase(s, PHASE_ST);
 
     if (p) {
-        if (p == s->current) {
-            req->hba_private = NULL;
-        } else {
-            ncr710_request_free(s, p);
-        }
+        ncr710_request_orphan(s, p);
     }
 
     if (s->waiting == NCR710_WAIT_RESELECT || s->waiting == NCR710_WAIT_DMA) {
@@ -806,11 +816,11 @@ void ncr710_command_complete(SCSIRequest *req, size_t resid)
 void ncr710_transfer_data(SCSIRequest *req, uint32_t len)
 {
     NCR710State *s = ncr710_from_scsi_bus(req->bus);
+    NCR710Request *p = (NCR710Request *)req->hba_private;
 
-    assert(req->hba_private);
+    assert(!p->orphan);
 
     if (s->waiting == NCR710_WAIT_DMA) {
-        NCR710Request *p = (NCR710Request *)req->hba_private;
         if (p) {
             p->dma_len = len;
         }
@@ -2248,6 +2258,7 @@ static const struct SCSIBusInfo ncr710_scsi_info = {
     .transfer_data = ncr710_transfer_data,
     .complete = ncr710_command_complete,
     .cancel = ncr710_request_cancelled,
+    .free_request = ncr710_free_request,
 };
 
 static const MemoryRegionOps ncr710_mmio_ops = {
