@@ -1027,12 +1027,6 @@ static void ncr710_do_msgin(NCR710State *s)
     case NCR710_MSG_ACTION_DISCONNECT:
         s->sstat2 &= ~PHASE_MASK;
         break;
-    case NCR710_MSG_ACTION_DATA_OUT:
-        ncr710_set_phase(s, PHASE_DO);
-        break;
-    case NCR710_MSG_ACTION_DATA_IN:
-        ncr710_set_phase(s, PHASE_DI);
-        break;
     default:
         abort();
     }

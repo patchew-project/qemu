@@ -108,8 +108,6 @@ typedef enum {
 typedef enum {
     NCR710_MSG_ACTION_NONE = 0,
     NCR710_MSG_ACTION_DISCONNECT = 1,
-    NCR710_MSG_ACTION_DATA_OUT = 2,
-    NCR710_MSG_ACTION_DATA_IN = 3
 } NCR710MessageAction;
 
 typedef struct NCR710State NCR710State;
