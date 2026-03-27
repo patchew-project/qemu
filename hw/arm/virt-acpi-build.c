@@ -240,7 +240,8 @@ static void acpi_dsdt_add_tpm(Aml *scope, VirtMachineState *vms)
     Aml *dev = aml_device("TPM0");
     aml_append(dev, aml_name_decl("_HID", aml_string("MSFT0101")));
     aml_append(dev, aml_name_decl("_STR", aml_string("TPM 2.0 Device")));
-    aml_append(dev, aml_name_decl("_UID", aml_int(0)));
+    aml_append(dev, aml_name_decl("_UID", aml_int(1)));
+    aml_append(dev, aml_name_decl("_STA", aml_int(0xF)));
 
     Aml *crs = aml_resource_template();
     aml_append(crs,
@@ -248,6 +249,12 @@ static void acpi_dsdt_add_tpm(Aml *scope, VirtMachineState *vms)
                                   (uint32_t)memory_region_size(sbdev_mr),
                                   AML_READ_WRITE));
     aml_append(dev, aml_name_decl("_CRS", crs));
+
+    hwaddr ppi_base = platform_bus_get_mmio_addr(pbus, sbdev, 1);
+    if (ppi_base != -1) {
+        ppi_base += pbus_base;
+        tpm_build_ppi_acpi(TPM_IF(sbdev), dev, ppi_base);
+    }
     aml_append(scope, dev);
 }
 #endif
