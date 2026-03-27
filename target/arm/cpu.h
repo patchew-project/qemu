@@ -612,6 +612,9 @@ typedef struct CPUArchState {
         uint64_t ppi_enable[GICV5_NUM_PPIS / 64];
         /* The PRIO regs have 1 byte per PPI, so 8 PPIs to a register */
         uint64_t ppi_priority[GICV5_NUM_PPIS / 8];
+
+        /* Cached highest-priority pending PPI for each domain */
+        GICv5PendingIrq ppi_hppi[NUM_GICV5_DOMAINS];
     } gicv5_cpuif;
 
     struct {
