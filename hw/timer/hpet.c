@@ -464,13 +464,14 @@ static uint64_t hpet_ram_read(void *opaque, hwaddr addr,
         }
     } else {
         uint8_t timer_id = (addr - 0x100) / 0x20;
-        HPETTimer *timer = &s->timer[timer_id];
+        HPETTimer *timer;
 
-        if (timer_id > s->num_timers) {
+        if (timer_id >= s->num_timers) {
             trace_hpet_timer_id_out_of_range(timer_id);
             return 0;
         }
 
+        timer = &s->timer[timer_id];
         switch (addr & 0x1f) {
         case HPET_TN_CFG: // including interrupt capabilities
             return timer->config >> shift;
@@ -564,13 +565,15 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
         }
     } else {
         uint8_t timer_id = (addr - 0x100) / 0x20;
-        HPETTimer *timer = &s->timer[timer_id];
+        HPETTimer *timer;
 
         trace_hpet_ram_write_timer_id(timer_id);
-        if (timer_id > s->num_timers) {
+        if (timer_id >= s->num_timers) {
             trace_hpet_timer_id_out_of_range(timer_id);
             return;
         }
+
+        timer = &s->timer[timer_id];
         switch (addr & 0x18) {
         case HPET_TN_CFG:
             trace_hpet_ram_write_tn_cfg(addr & 4);
