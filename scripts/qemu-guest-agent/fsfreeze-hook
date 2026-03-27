@@ -21,8 +21,8 @@ is_ignored_file() {
 }
 
 USE_SYSLOG=0
-# if log file is not writable, fallback to syslog
-[ ! -w "$LOGFILE" ] && USE_SYSLOG=1
+# if log file exists but is not writable, fallback to syslog
+[ -e "$LOGFILE" ] && [ ! -w "$LOGFILE" ] && USE_SYSLOG=1
 # try to update log file and fallback to syslog if it fails
 touch "$LOGFILE" >/dev/null 2>&1 || USE_SYSLOG=1
 
