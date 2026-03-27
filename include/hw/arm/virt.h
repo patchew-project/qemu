@@ -171,6 +171,7 @@ struct VirtMachineState {
     uint32_t gic_phandle;
     uint32_t msi_phandle;
     uint32_t iommu_phandle;
+    uint32_t *cpu_phandles;
     int psci_conduit;
     uint8_t virtio_transports;
     hwaddr highest_gpa;
