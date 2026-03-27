@@ -19,6 +19,7 @@ OBJECT_DECLARE_TYPE(GICv5, GICv5Class, ARM_GICV5)
 
 typedef struct GICv5ISTConfig {
     hwaddr base; /* Base address */
+    MemTxAttrs txattrs; /* TX attrs to use for this table */
     uint8_t id_bits; /* number of bits in an ID for this table */
     uint8_t l2_idx_bits; /* number of ID bits that index into L2 table */
     uint8_t istsz; /* L2 ISTE size in bytes */
