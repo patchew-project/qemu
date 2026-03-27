@@ -125,6 +125,13 @@ qga = executable('qemu-ga', qga_ss.sources() + qga_objs,
                  install: true)
 all_qga += qga
 
+if selinux.found()
+  qga_selinux_helper = executable('qemu-ga-selinux-helper', files('qemu-ga-selinux-helper.c'),
+             install: true,
+             install_dir: get_option('libexecdir'))
+  all_qga += qga_selinux_helper
+endif
+
 if host_os == 'windows'
   qemu_ga_msi_arch = {
     'x86': ['-D', 'Arch=32'],

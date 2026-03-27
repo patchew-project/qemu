@@ -30,6 +30,10 @@
  */
 #define GUEST_FILE_READ_COUNT_MAX (48 * MiB)
 
+#ifdef CONFIG_SELINUX
+#define GUEST_EXEC_SELINUX_HELPER CONFIG_QEMU_HELPERDIR "/qemu-ga-selinux-helper"
+#endif
+
 /* Note: in some situations, like with the fsfreeze, logging may be
  * temporarily disabled. if it is necessary that a command be able
  * to log for accounting purposes, check ga_logging_enabled() beforehand.
@@ -418,6 +422,9 @@ GuestExec *qmp_guest_exec(const char *path,
     GuestExecInfo *gei;
     char **argv, **envp;
     strList arglist;
+#ifdef CONFIG_SELINUX
+    strList helper_arg;
+#endif
     gboolean ret;
     GError *gerr = NULL;
     gint in_fd, out_fd, err_fd;
@@ -439,7 +446,13 @@ GuestExec *qmp_guest_exec(const char *path,
         }
     }
 
+#ifdef CONFIG_SELINUX
+    helper_arg.value = get_relocated_path(GUEST_EXEC_SELINUX_HELPER);
+    helper_arg.next = &arglist;
+    argv = guest_exec_get_args(&helper_arg, true);
+#else
     argv = guest_exec_get_args(&arglist, true);
+#endif
     envp = has_env ? guest_exec_get_args(env, false) : NULL;
 
     flags = G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD |
