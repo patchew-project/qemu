@@ -12,9 +12,23 @@
 #include "qom/object.h"
 #include "hw/core/sysbus.h"
 #include "hw/intc/arm_gicv5_types.h"
+#include "target/arm/cpu-qom.h"
 
 /*
  * QEMU interface:
+ *
+ * + QOM array property "cpus": CPUState pointers to each CPU
+ *   connected to this IRS.
+ * + QOM array property "cpu-iaffids": array of uint32_t giving the
+ *   IAFFID for each CPU in the "cpus" property array
+ * + QOM property "irsid": unique identifier for this IRS in the system
+ *   (this is IRS_IDR0.IRSID); default is 0
+ * + QOM property "spi-range": total number of SPIs in the system
+ *   IRS (this is IRS_IDR5.SPI_RANGE); must be set
+ * + QOM property "spi-base": minimum SPI INTID.ID implemented on this
+ *   IRS (this is IRS_IDR7.SPI_BASE); default is 0
+ * + QOM property "spi-irs-range": number of SPI INTID.ID managed on this
+ *   IRS (this is IRS_IDR6.SPI_IRS_RANGE); defaults to value of spi-range
  *
  * sysbus MMIO regions (in order matching IRS_IDR0.INT_DOM encoding):
  * - IRS config frame for the Secure Interrupt Domain
@@ -47,6 +61,17 @@ struct GICv5Common {
 
     /* Bits here are set for each physical interrupt domain implemented */
     uint8_t implemented_domains;
+
+    /* Properties */
+    uint32_t num_cpus;
+    ARMCPU **cpus;
+    uint32_t num_cpu_iaffids;
+    uint32_t *cpu_iaffids;
+
+    uint32_t irsid;
+    uint32_t spi_base;
+    uint32_t spi_irs_range;
+    uint32_t spi_range;
 };
 
 struct GICv5CommonClass {
