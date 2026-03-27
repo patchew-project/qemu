@@ -17,11 +17,23 @@
 
 OBJECT_DECLARE_TYPE(GICv5, GICv5Class, ARM_GICV5)
 
+typedef struct GICv5ISTConfig {
+    hwaddr base; /* Base address */
+    uint8_t id_bits; /* number of bits in an ID for this table */
+    uint8_t l2_idx_bits; /* number of ID bits that index into L2 table */
+    uint8_t istsz; /* L2 ISTE size in bytes */
+    bool structure; /* true if using 2-level table */
+    bool valid; /* true if this table is valid and usable */
+} GICv5ISTConfig;
+
 /*
  * This class is for TCG-specific state for the GICv5.
  */
 struct GICv5 {
     GICv5Common parent_obj;
+
+    /* This is the info from IRS_IST_BASER and IRS_IST_CFGR */
+    GICv5ISTConfig phys_lpi_config[NUM_GICV5_DOMAINS];
 };
 
 struct GICv5Class {
