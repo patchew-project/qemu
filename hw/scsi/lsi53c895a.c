@@ -209,6 +209,12 @@ enum {
     LSI_WAIT_SCRIPTS, /* SCRIPTS stopped because of instruction count limit */
 };
 
+typedef enum {
+    LSI_CMD_SENT, /* command is running */
+    LSI_CMD_READY, /* one round of data transfer completed */
+    LSI_CMD_COMPLETE, /* command completed */
+} LSICommandState;
+
 enum {
     LSI_MSG_ACTION_COMMAND = 0,
     LSI_MSG_ACTION_DISCONNECT = 1,
@@ -238,7 +244,7 @@ struct LSIState {
     int current_lun;
     /* The tag is a combination of the device ID and the SCSI tag.  */
     uint32_t select_tag;
-    int command_complete;
+    LSICommandState command_complete;
     QTAILQ_HEAD(, lsi_request) queue;
     lsi_request *current;
 
@@ -815,7 +821,7 @@ static void lsi_command_complete(SCSIRequest *req, size_t resid)
     out = (s->sstat1 & PHASE_MASK) == PHASE_DO;
     trace_lsi_command_complete(req->status);
     s->status = req->status;
-    s->command_complete = 2;
+    s->command_complete = LSI_CMD_COMPLETE;
     if (s->waiting && s->dbc != 0) {
         /* Raise phase mismatch for short transfers.  */
         stop = lsi_bad_phase(s, out, PHASE_ST);
@@ -854,7 +860,7 @@ static void lsi_transfer_data(SCSIRequest *req, uint32_t len)
     /* host adapter (re)connected */
     trace_lsi_transfer_data(req->tag, len);
     s->current->dma_len = len;
-    s->command_complete = 1;
+    s->command_complete = LSI_CMD_READY;
     if (s->waiting) {
         if (s->waiting == LSI_WAIT_RESELECT || s->dbc == 0) {
             lsi_resume_script(s);
@@ -876,7 +882,7 @@ static void lsi_do_command(LSIState *s)
         s->dbc = 16;
     pci_dma_read(PCI_DEVICE(s), s->dnad, buf, s->dbc);
     s->sfbr = buf[0];
-    s->command_complete = 0;
+    s->command_complete = LSI_CMD_PENDING;
 
     id = (s->select_tag >> 8) & 0xf;
     dev = scsi_device_find(&s->bus, 0, id, s->current_lun);
@@ -900,7 +906,7 @@ static void lsi_do_command(LSIState *s)
         }
         scsi_req_continue(s->current->req);
     }
-    if (!s->command_complete) {
+    if (s->command_complete == LSI_CMD_PENDING) {
         if (n) {
             /* Command did not complete immediately so disconnect.  */
             lsi_add_msg_byte(s, 2); /* SAVE DATA POINTER */

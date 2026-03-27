@@ -849,7 +849,7 @@ void ncr710_transfer_data(SCSIRequest *req, uint32_t len)
     }
 
     /* Host adapter (re)connected */
-    s->command_complete = NCR710_CMD_DATA_READY;
+    s->command_complete = NCR710_CMD_READY;
     if (!s->current) {
         return;
     }
@@ -924,7 +924,7 @@ static void ncr710_do_command(NCR710State *s)
     s->dbc -= bytes_read;
     s->sfbr = buf[0];
 
-    s->command_complete = NCR710_CMD_PENDING;
+    s->command_complete = NCR710_CMD_SENT;
     id = (s->select_tag >> 8) & 0xff;
     s->lcrc = id;
 
@@ -1279,7 +1279,7 @@ void ncr710_reselection_retry_callback(void *opaque)
     p->pending = 0;
 
     SCSIRequest *req = p->req;
-    s->command_complete = NCR710_CMD_PENDING;
+    s->command_complete = NCR710_CMD_SENT;
     p->dma_len = len;
 
     s->scntl1 |= NCR710_SCNTL1_CON;
@@ -1466,7 +1466,7 @@ again:
                 break;
             case 1: /* Disconnect */
 
-                if (s->command_complete != NCR710_CMD_PENDING) {
+                if (s->command_complete != NCR710_CMD_SENT) {
                     s->scntl1 &= ~NCR710_SCNTL1_CON;
                     s->istat &= ~NCR710_ISTAT_CON;
                     s->waiting = NCR710_WAIT_NONE;
@@ -1640,7 +1640,7 @@ again:
                                            "preserved for driver processing\n");
                             ncr710_script_dma_interrupt(s,
                                                         NCR710_DSTAT_SIR);
-                            s->command_complete = NCR710_CMD_PENDING;
+                            s->command_complete = NCR710_CMD_SENT;
                         } else {
                             ncr710_script_dma_interrupt(s, NCR710_DSTAT_SIR);
                         }

@@ -100,8 +100,8 @@ typedef enum {
 } NCR710WaitState;
 
 typedef enum {
-    NCR710_CMD_PENDING = 0,
-    NCR710_CMD_DATA_READY = 1,
+    NCR710_CMD_SENT = 0,
+    NCR710_CMD_READY = 1,
     NCR710_CMD_COMPLETE = 2
 } NCR710CommandState;
 
