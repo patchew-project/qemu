@@ -28,6 +28,7 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
+#include "system/ramblock.h"
 #include "qemu/rcu.h"
 #include "qemu/sockets.h"
 #include "qemu/bitmap.h"
@@ -3413,7 +3414,13 @@ int rdma_registration_handle(QEMUFile *f)
                              comp->value);
                 goto err;
             }
-            ram_handle_zero(host_addr, comp->length);
+            {
+                ram_addr_t ram_offset;
+                RAMBlock *rb = qemu_ram_block_from_host(host_addr, false,
+                                                        &ram_offset);
+                bool can_discard = rb && !(rb->flags & RAM_PREALLOC);
+                ram_handle_zero(host_addr, comp->length, can_discard);
+            }
             break;
 
         case RDMA_CONTROL_REGISTER_FINISHED:

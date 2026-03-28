@@ -3633,9 +3633,13 @@ static inline void *colo_cache_from_block_offset(RAMBlock *block,
  *
  * @host: host address for the zero page
  * @size: size of the zero page
+ * @can_discard: check whether RAMBlock was created with prealloc=on
  */
-void ram_handle_zero(void *host, uint64_t size)
+void ram_handle_zero(void *host, uint64_t size, bool can_discard)
 {
+    if (can_discard && qemu_madvise(host, size, QEMU_MADV_DONTNEED) == 0) {
+        return;
+    }
     if (!buffer_is_zero(host, size)) {
         memset(host, 0, size);
     }
@@ -4081,7 +4085,7 @@ static bool handle_zero_mapped_ram(RAMBlock *block, unsigned long from_bit_idx,
                    block->idstr);
         return false;
     }
-    ram_handle_zero(host, size);
+    ram_handle_zero(host, size, !(block->flags & RAM_PREALLOC));
 
     return true;
 }
@@ -4416,7 +4420,13 @@ static int ram_load_precopy(QEMUFile *f)
                 ret = -EINVAL;
                 break;
             }
-            ram_handle_zero(host, TARGET_PAGE_SIZE);
+            {
+                ram_addr_t ram_offset;
+                RAMBlock *rb = qemu_ram_block_from_host(host, false,
+                                                        &ram_offset);
+                bool can_discard = rb && !(rb->flags & RAM_PREALLOC);
+                ram_handle_zero(host, TARGET_PAGE_SIZE, can_discard);
+            }
             break;
 
         case RAM_SAVE_FLAG_PAGE:
