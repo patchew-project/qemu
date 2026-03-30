@@ -607,8 +607,12 @@ static void adjust_LMMIO_DIRECT_mapping(AstroState *s, unsigned int reg_index)
     MemoryRegion *lmmio_alias;
     unsigned int lmmio_index, map_route;
     hwaddr map_addr;
-    uint32_t map_size;
+    uint32_t map_size, map_enabled;
     struct ElroyState *elroy;
+
+    /* each LMMIO may access from 1 MB up to 64 MB */
+    const unsigned int lmmio_mask = ~(1 * MiB - 1);
+    const unsigned int lmmio_max_size = 64 * MiB;
 
     /* pointer to LMMIO_DIRECT entry */
     lmmio_index = reg_index / 3;
@@ -622,31 +626,38 @@ static void adjust_LMMIO_DIRECT_mapping(AstroState *s, unsigned int reg_index)
     map_route &= (ELROY_NUM - 1);
     elroy = s->elroy[map_route];
 
+    /* make sure the lmmio region is initially turned off */
     if (lmmio_alias->enabled) {
         memory_region_set_enabled(lmmio_alias, false);
     }
 
+    /* do sanity checks and calculate mmio size */
+    map_enabled = map_addr & 1;
+    map_addr &= lmmio_mask;
+    map_size &= lmmio_mask;
+    map_size = MIN(map_size, lmmio_max_size);
     map_addr = F_EXTEND(map_addr);
-    map_addr &= TARGET_PAGE_MASK;
-    map_size = (~map_size) + 1;
-    map_size &= TARGET_PAGE_MASK;
 
-    /* exit if disabled or zero map size */
-    if (!(map_addr & 1) || !map_size) {
+    /* exit if disabled or has zero size. */
+    if (!map_enabled || !map_size) {
         return;
     }
 
-    if (!memory_region_size(lmmio_alias)) {
+    if (!lmmio_alias->name) {
+        char lmmio_name[32];
+        snprintf(lmmio_name, sizeof(lmmio_name),
+                 "LMMIO-DIRECT-%u", lmmio_index);
         memory_region_init_alias(lmmio_alias, OBJECT(elroy),
-                        "pci-lmmmio-alias", &elroy->pci_mmio,
+                        lmmio_name, &elroy->pci_mmio,
                         (uint32_t) map_addr, map_size);
-        memory_region_add_subregion(get_system_memory(), map_addr,
-                                 lmmio_alias);
-    } else {
-        memory_region_set_alias_offset(lmmio_alias, map_addr);
-        memory_region_set_size(lmmio_alias, map_size);
-        memory_region_set_enabled(lmmio_alias, true);
+        memory_region_add_subregion_overlap(get_system_memory(),
+                        map_addr, lmmio_alias, 3);
     }
+
+    memory_region_set_address(lmmio_alias, map_addr);
+    memory_region_set_alias_offset(lmmio_alias, (uint32_t) map_addr);
+    memory_region_set_size(lmmio_alias, map_size);
+    memory_region_set_enabled(lmmio_alias, true);
 }
 
 static MemTxResult astro_chip_read_with_attrs(void *opaque, hwaddr addr,
