@@ -21,7 +21,7 @@
 
 #include "hw/riscv/riscv_hart.h"
 #include "hw/intc/sifive_plic.h"
-#include "hw/char/ibex_uart.h"
+#include "hw/char/ot_uart.h"
 #include "hw/timer/ibex_timer.h"
 #include "hw/ssi/ibex_spi_host.h"
 #include "hw/core/boards.h"
@@ -43,7 +43,7 @@ struct LowRISCIbexSoCState {
     /*< public >*/
     RISCVHartArrayState cpus;
     SiFivePLICState plic;
-    IbexUartState uart;
+    OtUARTState uart;
     IbexTimerState timer;
     IbexSPIHostState spi_host[OPENTITAN_NUM_SPI_HOSTS];
 
