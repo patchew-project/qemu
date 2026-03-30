@@ -8087,7 +8087,7 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w)
         r = hvf_get_supported_cpuid(wi->cpuid.eax,
                                     wi->cpuid.ecx,
                                     wi->cpuid.reg);
-    } else if (tcg_enabled()) {
+    } else if (tcg_enabled() || qtest_enabled()) {
         r = wi->tcg_features;
     } else {
         return ~0;
