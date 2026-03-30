@@ -1,5 +1,5 @@
 /*
- * QEMU lowRISC Ibex UART device
+ * QEMU OpenTitan UART device
  *
  * Copyright (c) 2020 Western Digital
  *
@@ -22,28 +22,28 @@
  * THE SOFTWARE.
  */
 
-#ifndef HW_IBEX_UART_H
-#define HW_IBEX_UART_H
+#ifndef HW_OT_UART_H
+#define HW_OT_UART_H
 
 #include "hw/core/sysbus.h"
 #include "chardev/char-fe.h"
 #include "qemu/timer.h"
 #include "qom/object.h"
 
-#define IBEX_UART_TX_FIFO_SIZE 16
-#define IBEX_UART_CLOCK 50000000 /* 50MHz clock */
+#define OT_UART_TX_FIFO_SIZE 16
+#define OT_UART_CLOCK 50000000 /* 50MHz clock */
 
-#define TYPE_IBEX_UART "ibex-uart"
-OBJECT_DECLARE_SIMPLE_TYPE(IbexUartState, IBEX_UART)
+#define TYPE_OT_UART "ot-uart"
+OBJECT_DECLARE_SIMPLE_TYPE(OtUARTState, OT_UART)
 
-struct IbexUartState {
+struct OtUARTState {
     /* <private> */
     SysBusDevice parent_obj;
 
     /* <public> */
     MemoryRegion mmio;
 
-    uint8_t tx_fifo[IBEX_UART_TX_FIFO_SIZE];
+    uint8_t tx_fifo[OT_UART_TX_FIFO_SIZE];
     uint32_t tx_level;
 
     uint32_t rx_level;
@@ -70,4 +70,4 @@ struct IbexUartState {
     qemu_irq tx_empty;
     qemu_irq rx_overflow;
 };
-#endif /* HW_IBEX_UART_H */
+#endif /* HW_OT_UART_H */
