@@ -19,7 +19,7 @@
 #include <igvm/igvm.h>
 
 struct IgvmCfg {
-    ObjectClass parent_class;
+    Object parent_obj;
 
     /*
      * filename: Filename that specifies a file that contains the configuration
