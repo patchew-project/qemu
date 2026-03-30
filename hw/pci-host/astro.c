@@ -14,7 +14,6 @@
  * - All user-added devices are currently attached to the first
  *   Elroy (PCI bus) only for now. To fix this additional work in
  *   SeaBIOS and this driver is needed. See "user_creatable" flag below.
- * - GMMIO (Greater than 4 GB MMIO) register
  */
 
 #define TYPE_ASTRO_IOMMU_MEMORY_REGION "astro-iommu-memory-region"
@@ -660,6 +659,73 @@ static void adjust_LMMIO_DIRECT_mapping(AstroState *s, unsigned int reg_index)
     memory_region_set_enabled(lmmio_alias, true);
 }
 
+static void adjust_GMMIO_mapping(AstroState *s)
+{
+    MemoryRegion *gmmio;
+    uint64_t map_addr, map_size, align_mask;
+    uint32_t map_route, map_enabled, i;
+
+    gmmio = &s->gmmio;
+    map_addr  = s->ioc_ranges[(0x378 - 0x300) / 8];       /* GMMIO_DIST_BASE */
+    map_enabled = map_addr & 1;
+    map_addr  &= MAKE_64BIT_MASK(32, 8);
+    s->ioc_ranges[(0x378 - 0x300) / 8] = map_addr | map_enabled;
+
+    map_route = s->ioc_ranges[(0x388 - 0x300) / 8] >> 58; /* GMMIO_DIST_ROUTE */
+    map_route = MIN(MAX(map_route, 29), 33); /* between 4-16 GB total */
+    map_size  = 1ULL << map_route;      /* size of each mapping */
+    align_mask = ~(map_size - 1);
+
+    /* make sure the lmmio region is initially turned off */
+    if (gmmio->enabled) {
+        memory_region_set_enabled(gmmio, false);
+    }
+
+    /* do sanity checks and calculate mmio size */
+    map_addr &= align_mask;
+
+    /* exit if disabled */
+    if (!map_enabled) {
+        return;
+    }
+
+    if (!gmmio->name) {
+        memory_region_init_io(gmmio, OBJECT(s), &unassigned_io_ops, s,
+                "GMMIO", ROPES_PER_IOC * map_size);
+        memory_region_add_subregion_overlap(get_system_memory(),
+                map_addr, gmmio, 1);
+    }
+
+    memory_region_set_address(gmmio, map_addr);
+    memory_region_set_size(gmmio, ROPES_PER_IOC * map_size);
+    memory_region_set_enabled(gmmio, true);
+
+    for (i = 0; i < ELROY_NUM; i++) {
+        MemoryRegion *alias;
+        ElroyState *elroy;
+        int rope;
+
+        elroy = s->elroy[i];
+        alias = &elroy->gmmio_alias;
+        rope = elroy_rope_nr[i];
+        if (alias->enabled) {
+            memory_region_set_enabled(alias, false);
+        }
+
+        if (!alias->name) {
+            memory_region_init_alias(alias, OBJECT(elroy),
+                 "gmmio-alias", &elroy->pci_mmio, 0, map_size);
+            memory_region_add_subregion_overlap(gmmio, rope * map_size,
+                 alias, 2);
+        }
+
+        memory_region_set_address(alias, rope * map_size);
+        memory_region_set_alias_offset(alias, map_addr + rope * map_size);
+        memory_region_set_size(alias, map_size);
+        memory_region_set_enabled(alias, true);
+    }
+}
+
 static MemTxResult astro_chip_read_with_attrs(void *opaque, hwaddr addr,
                                              uint64_t *data, unsigned size,
                                              MemTxAttrs attrs)
@@ -774,6 +840,9 @@ static MemTxResult astro_chip_write_with_attrs(void *opaque, hwaddr addr,
         }
         if (addr >= 0x360 && addr <= 0x370 + 7) {
             adjust_LMMIO_mapping(s);
+        }
+        if (addr >= 0x378 && addr <= 0x388 + 7) {
+            adjust_GMMIO_mapping(s);
         }
         break;
     case 0x10200:
