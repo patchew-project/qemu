@@ -26,6 +26,7 @@
 #ifndef CIRRUS_VGA_INTERNAL_H
 #define CIRRUS_VGA_INTERNAL_H
 
+#include "qapi/qapi-types-common.h"
 #include "vga_int.h"
 
 /* IDs */
@@ -94,6 +95,7 @@ typedef struct CirrusVGAState {
     int real_vram_size; /* XXX: suppress that */
     int device_id;
     int bustype;
+    OnOffAuto big_endian_fb;
 } CirrusVGAState;
 
 void cirrus_init_common(CirrusVGAState *s, Object *owner,
