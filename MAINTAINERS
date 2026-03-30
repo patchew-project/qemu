@@ -821,7 +821,6 @@ F: hw/display/dm163.c
 F: tests/qtest/dm163-test.c
 
 Exynos
-M: Igor Mitsyanko <i.mitsyanko@gmail.com>
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Odd Fixes
