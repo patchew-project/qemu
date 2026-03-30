@@ -89,6 +89,17 @@ typedef enum {
     PREEMPT_THREAD_QUIT,
 } PreemptThreadStatus;
 
+/*
+ * Callback to handle a page fault from the userfaultfd fault thread.
+ * Implementations resolve the fault by supplying the requested page,
+ * e.g., by requesting it from the migration source (postcopy) or by
+ * reading it from a snapshot file (fast snapshot load).
+ */
+typedef int (*PostcopyPageHandler)(MigrationIncomingState *mis,
+                                   RAMBlock *rb,
+                                   ram_addr_t offset,
+                                   void *fault_address);
+
 /* State for the incoming migration */
 struct MigrationIncomingState {
     QEMUFile *from_src_file;
@@ -116,6 +127,11 @@ struct MigrationIncomingState {
     QemuThread     fault_thread;
     /* Set this when we want the fault thread to quit */
     bool           fault_thread_quit;
+    /* Callback to resolve page faults; set before fault thread starts */
+    PostcopyPageHandler page_fault_handler;
+    void *page_fault_opaque;
+    /* ptid from current uffd fault msg, for postcopy blocktime tracking */
+    uint32_t fault_thread_ptid;
 
     bool           have_listen_thread;
     QemuThread     listen_thread;

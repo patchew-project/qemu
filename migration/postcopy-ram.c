@@ -977,6 +977,20 @@ static int postcopy_request_page(MigrationIncomingState *mis, RAMBlock *rb,
 }
 
 /*
+ * Default page fault handler for postcopy live migration.
+ * Requests the faulted page from the source via the return path.
+ */
+static int postcopy_page_fault_handler(MigrationIncomingState *mis,
+                                       RAMBlock *rb,
+                                       ram_addr_t offset,
+                                       void *fault_address)
+{
+    return postcopy_request_page(mis, rb, offset,
+                                 (uint64_t)(uintptr_t)fault_address,
+                                 mis->fault_thread_ptid);
+}
+
+/*
  * Callback from shared fault handlers to ask for a page,
  * the page must be specified by a RAMBlock and an offset in that rb
  * Note: Only for use by shared fault handlers (in fault thread)
@@ -1392,9 +1406,9 @@ retry:
              * Send the request to the source - we want to request one
              * of our host page sizes (which is >= TPS)
              */
-            ret = postcopy_request_page(mis, rb, rb_offset,
-                                        msg.arg.pagefault.address,
-                                        msg.arg.pagefault.feat.ptid);
+            mis->fault_thread_ptid = msg.arg.pagefault.feat.ptid;
+            ret = mis->page_fault_handler(mis, rb, rb_offset,
+                    (void *)(uintptr_t)msg.arg.pagefault.address);
             if (ret) {
                 /* May be network failure, try to wait for recovery */
                 postcopy_pause_fault_thread(mis);
@@ -1551,6 +1565,8 @@ int postcopy_ram_incoming_setup(MigrationIncomingState *mis)
         close(mis->userfault_fd);
         return -1;
     }
+
+    mis->page_fault_handler = postcopy_page_fault_handler;
 
     postcopy_thread_create(mis, &mis->fault_thread,
                            MIGRATION_THREAD_DST_FAULT,
