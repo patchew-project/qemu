@@ -15,9 +15,36 @@
 
 #include "qapi/qapi-types-migration.h"
 
+/*
+ * Callback to handle a page fault from the userfaultfd fault thread.
+ * Implementations resolve the fault by supplying the requested page,
+ * e.g., by requesting it from the migration source (postcopy) or by
+ * reading it from a snapshot file (fast snapshot load).
+ */
+typedef int (*PostcopyPageHandler)(MigrationIncomingState *mis,
+                                   RAMBlock *rb,
+                                   ram_addr_t offset,
+                                   void *fault_address);
+
 /* Return true if the host supports everything we need to do postcopy-ram */
 bool postcopy_ram_supported_by_host(MigrationIncomingState *mis,
                                     Error **errp);
+
+/*
+ * Generic userfaultfd setup for incoming migration.
+ *
+ * Opens userfaultfd, registers all RAM blocks, allocates temporary
+ * page buffers and starts the fault handler thread.  The caller
+ * supplies the page_fault_handler callback appropriate for the use
+ * case (postcopy live migration or fast snapshot load).
+ *
+ * @channels: number of temporary page channels to allocate
+ *            (1 for most cases, RAM_CHANNEL_MAX when postcopy preempt
+ *            is enabled).
+ */
+int uffd_setup_incoming(MigrationIncomingState *mis,
+                        PostcopyPageHandler handler,
+                        unsigned int channels);
 
 /*
  * Make all of RAM sensitive to accesses to areas that haven't yet been written

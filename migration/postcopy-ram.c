@@ -1478,22 +1478,15 @@ retry:
     return NULL;
 }
 
-static int postcopy_temp_pages_setup(MigrationIncomingState *mis)
+static int postcopy_temp_pages_setup(MigrationIncomingState *mis,
+                                     unsigned int channels)
 {
     PostcopyTmpPage *tmp_page;
     int err;
-    unsigned i, channels;
+    unsigned i;
     void *temp_page;
 
-    if (migrate_postcopy_preempt()) {
-        /* If preemption enabled, need extra channel for urgent requests */
-        mis->postcopy_channels = RAM_CHANNEL_MAX;
-    } else {
-        /* Both precopy/postcopy on the same channel */
-        mis->postcopy_channels = 1;
-    }
-
-    channels = mis->postcopy_channels;
+    mis->postcopy_channels = channels;
     mis->postcopy_tmp_pages = g_new0(PostcopyTmpPage, channels);
 
     for (i = 0; i < channels; i++) {
@@ -1531,7 +1524,19 @@ static int postcopy_temp_pages_setup(MigrationIncomingState *mis)
     return 0;
 }
 
-int postcopy_ram_incoming_setup(MigrationIncomingState *mis)
+/*
+ * Generic userfaultfd setup for incoming migration.
+ *
+ * Opens the userfaultfd, performs the API handshake, registers all RAM
+ * blocks for missing-page notifications, allocates temporary page buffers,
+ * and starts the fault handler thread using the given callback.
+ *
+ * Both postcopy live migration and fast snapshot load use this function;
+ * the caller supplies the appropriate page_fault_handler.
+ */
+int uffd_setup_incoming(MigrationIncomingState *mis,
+                        PostcopyPageHandler handler,
+                        unsigned int channels)
 {
     Error *local_err = NULL;
 
@@ -1549,15 +1554,11 @@ int postcopy_ram_incoming_setup(MigrationIncomingState *mis)
      */
     if (!ufd_check_and_apply(mis->userfault_fd, mis, &local_err)) {
         error_report_err(local_err);
+        close(mis->userfault_fd);
         return -1;
     }
 
-    if (migrate_postcopy_blocktime()) {
-        assert(mis->blocktime_ctx == NULL);
-        mis->blocktime_ctx = blocktime_context_new();
-    }
-
-    /* Now an eventfd we use to tell the fault-thread to quit */
+    /* An eventfd we use to tell the fault-thread to quit */
     mis->userfault_event_fd = eventfd(0, EFD_CLOEXEC);
     if (mis->userfault_event_fd == -1) {
         error_report("%s: Opening userfault_event_fd: %s", __func__,
@@ -1566,7 +1567,7 @@ int postcopy_ram_incoming_setup(MigrationIncomingState *mis)
         return -1;
     }
 
-    mis->page_fault_handler = postcopy_page_fault_handler;
+    mis->page_fault_handler = handler;
 
     postcopy_thread_create(mis, &mis->fault_thread,
                            MIGRATION_THREAD_DST_FAULT,
@@ -1579,8 +1580,26 @@ int postcopy_ram_incoming_setup(MigrationIncomingState *mis)
         return -1;
     }
 
-    if (postcopy_temp_pages_setup(mis)) {
+    if (postcopy_temp_pages_setup(mis, channels)) {
         /* Error dumped in the sub-function */
+        return -1;
+    }
+
+    return 0;
+}
+
+int postcopy_ram_incoming_setup(MigrationIncomingState *mis)
+{
+    unsigned int channels;
+
+    if (migrate_postcopy_blocktime()) {
+        assert(mis->blocktime_ctx == NULL);
+        mis->blocktime_ctx = blocktime_context_new();
+    }
+
+    channels = migrate_postcopy_preempt() ? RAM_CHANNEL_MAX : 1;
+
+    if (uffd_setup_incoming(mis, postcopy_page_fault_handler, channels)) {
         return -1;
     }
 
@@ -1741,6 +1760,13 @@ int postcopy_ram_prepare_discard(MigrationIncomingState *mis)
 
 int postcopy_request_shared_page(struct PostCopyFD *pcfd, RAMBlock *rb,
                                  uint64_t client_addr, uint64_t rb_offset)
+{
+    g_assert_not_reached();
+}
+
+int uffd_setup_incoming(MigrationIncomingState *mis,
+                        PostcopyPageHandler handler,
+                        unsigned int channels)
 {
     g_assert_not_reached();
 }
