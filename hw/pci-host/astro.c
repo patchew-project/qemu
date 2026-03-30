@@ -530,6 +530,78 @@ static ElroyState *elroy_init(int num)
  * Astro Runway chip.
  */
 
+static void adjust_LMMIO_mapping(AstroState *s)
+{
+    MemoryRegion *lmmio;
+    uint64_t map_addr, map_size, align_mask;
+    uint32_t map_route, map_enabled, i;
+
+    lmmio = &s->lmmio;
+
+    /* read LMMIO distributed route and calculate size */
+    map_route = s->ioc_ranges[(0x370 - 0x300) / 8] >> 58;
+    map_route = MIN(MAX(map_route, 20), 23);
+
+    /* calculate size of each mapping, sum of all is 8-64 MB */
+    map_size  = 1ULL << map_route;
+    align_mask = ~(map_size - 1);
+
+    /* read LMMIO_DIST_BASE for mapping address */
+    map_addr  = s->ioc_ranges[(0x360 - 0x300) / 8];
+    map_enabled = map_addr & 1;
+    map_addr  &= MAKE_64BIT_MASK(24, 5);
+    map_addr  |= MAKE_64BIT_MASK(29, 36);
+    map_addr  &= align_mask;
+    s->ioc_ranges[(0x360 - 0x300) / 8] = map_addr | map_enabled;
+
+    /* make sure the lmmio region is initially turned off */
+    if (lmmio->enabled) {
+        memory_region_set_enabled(lmmio, false);
+    }
+
+    /* exit if range is not enabled */
+    if (!map_enabled) {
+        return;
+    }
+
+    if (!lmmio->name) {
+        memory_region_init_io(lmmio, OBJECT(s), &unassigned_io_ops, s,
+                    "LMMIO", ROPES_PER_IOC * map_size);
+        memory_region_add_subregion_overlap(get_system_memory(),
+                    map_addr, lmmio, 1);
+    }
+
+    memory_region_set_address(lmmio, map_addr);
+    memory_region_set_size(lmmio, ROPES_PER_IOC * map_size);
+    memory_region_set_enabled(lmmio, true);
+
+    for (i = 0; i < ELROY_NUM; i++) {
+        MemoryRegion *alias;
+        ElroyState *elroy;
+        int rope;
+
+        elroy = s->elroy[i];
+        alias = &elroy->lmmio_alias;
+        rope = elroy_rope_nr[i];
+        if (alias->enabled) {
+            memory_region_set_enabled(alias, false);
+        }
+
+        if (!alias->name) {
+            memory_region_init_alias(alias, OBJECT(elroy),
+                 "lmmio-alias", &elroy->pci_mmio, 0, map_size);
+            memory_region_add_subregion_overlap(lmmio, rope * map_size,
+                 alias, 2);
+        }
+
+        memory_region_set_address(alias, rope * map_size);
+        memory_region_set_alias_offset(alias,
+                (uint32_t) (map_addr + rope * map_size));
+        memory_region_set_size(alias, map_size);
+        memory_region_set_enabled(alias, true);
+    }
+}
+
 static void adjust_LMMIO_DIRECT_mapping(AstroState *s, unsigned int reg_index)
 {
     MemoryRegion *lmmio_alias;
@@ -688,6 +760,9 @@ static MemTxResult astro_chip_write_with_attrs(void *opaque, hwaddr addr,
         /* check if one of the 4 LMMIO_DIRECT regs, each using 3 entries. */
         if (index < LMMIO_DIRECT_RANGES * 3) {
             adjust_LMMIO_DIRECT_mapping(s, index);
+        }
+        if (addr >= 0x360 && addr <= 0x370 + 7) {
+            adjust_LMMIO_mapping(s);
         }
         break;
     case 0x10200:
@@ -891,15 +966,6 @@ static void astro_realize(DeviceState *obj, Error **errp)
         map_size = IOS_DIST_BASE_SIZE / ROPES_PER_IOC;
         elroy->mmio_base[(0x0240 - 0x200) / 8] = rope * map_size | 0x01;
         elroy->mmio_base[(0x0248 - 0x200) / 8] = 0x0000e000;
-
-        /* map elroys mmio */
-        map_size = LMMIO_DIST_BASE_SIZE / ROPES_PER_IOC;
-        map_addr = F_EXTEND(LMMIO_DIST_BASE_ADDR + rope * map_size);
-        memory_region_init_alias(&elroy->pci_mmio_alias, OBJECT(elroy),
-                                 "pci-mmio-alias",
-                                 &elroy->pci_mmio, (uint32_t) map_addr, map_size);
-        memory_region_add_subregion(get_system_memory(), map_addr,
-                                 &elroy->pci_mmio_alias);
 
         /* map elroys io */
         map_size = IOS_DIST_BASE_SIZE / ROPES_PER_IOC;

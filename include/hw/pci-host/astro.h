@@ -61,9 +61,10 @@ struct ElroyState {
     MemoryRegion this_mem;
 
     MemoryRegion pci_mmio;
-    MemoryRegion pci_mmio_alias;
-    MemoryRegion pci_hole;
     MemoryRegion pci_io;
+
+    MemoryRegion gmmio_alias;
+    MemoryRegion lmmio_alias;
 };
 
 struct AstroState {
@@ -88,6 +89,9 @@ struct AstroState {
 
     MemoryRegion this_mem;
     MemoryRegion lmmio_direct[LMMIO_DIRECT_RANGES];
+
+    MemoryRegion lmmio;
+    MemoryRegion gmmio;
 
     IOMMUMemoryRegion iommu;
     AddressSpace iommu_as;
