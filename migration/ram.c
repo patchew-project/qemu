@@ -4152,10 +4152,15 @@ err:
     return false;
 }
 
-static void parse_ramblock_mapped_ram(QEMUFile *f, RAMBlock *block,
-                                      ram_addr_t length, Error **errp)
+/*
+ * Read the mapped-ram header and dirty bitmap for a RAM block.
+ *
+ * Populates block->pages_offset and block->file_bmap so that page
+ * data can be loaded later (either eagerly or on demand).
+ */
+static void parse_ramblock_mapped_ram_header(QEMUFile *f, RAMBlock *block,
+                                             ram_addr_t length, Error **errp)
 {
-    g_autofree unsigned long *bitmap = NULL;
     MappedRamHeader header;
     size_t bitmap_size;
     long num_pages;
@@ -4187,19 +4192,54 @@ static void parse_ramblock_mapped_ram(QEMUFile *f, RAMBlock *block,
     num_pages = length / header.page_size;
     bitmap_size = BITS_TO_LONGS(num_pages) * sizeof(unsigned long);
 
-    bitmap = g_malloc0(bitmap_size);
-    if (qemu_get_buffer_at(f, (uint8_t *)bitmap, bitmap_size,
+    block->file_bmap = g_malloc0(bitmap_size);
+    if (qemu_get_buffer_at(f, (uint8_t *)block->file_bmap, bitmap_size,
                            header.bitmap_offset) != bitmap_size) {
         error_setg(errp, "Error reading dirty bitmap");
+        g_free(block->file_bmap);
+        block->file_bmap = NULL;
+        return;
+    }
+}
+
+/*
+ * Read all page data for a mapped-ram RAM block using the bitmap
+ * and pages_offset previously populated by parse_ramblock_mapped_ram_header().
+ */
+static void parse_ramblock_mapped_ram_pages(QEMUFile *f, RAMBlock *block,
+                                            ram_addr_t length, Error **errp)
+{
+    long num_pages;
+
+    if (!block->file_bmap) {
+        /* Shared block that was skipped during header parsing */
         return;
     }
 
-    if (!read_ramblock_mapped_ram(f, block, num_pages, bitmap, errp)) {
-        return;
+    num_pages = length / TARGET_PAGE_SIZE;
+
+    if (!read_ramblock_mapped_ram(f, block, num_pages,
+                                  block->file_bmap, errp)) {
+        goto out;
     }
 
     /* Skip pages array */
     qemu_set_offset(f, block->pages_offset + length, SEEK_SET);
+
+out:
+    g_free(block->file_bmap);
+    block->file_bmap = NULL;
+}
+
+static void parse_ramblock_mapped_ram(QEMUFile *f, RAMBlock *block,
+                                      ram_addr_t length, Error **errp)
+{
+    parse_ramblock_mapped_ram_header(f, block, length, errp);
+    if (*errp) {
+        return;
+    }
+
+    parse_ramblock_mapped_ram_pages(f, block, length, errp);
 }
 
 static int parse_ramblock(QEMUFile *f, RAMBlock *block, ram_addr_t length)
