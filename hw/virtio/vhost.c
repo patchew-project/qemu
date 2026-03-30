@@ -1396,6 +1396,7 @@ static int do_vhost_virtqueue_stop(struct vhost_dev *dev,
     int vhost_vq_index = dev->vhost_ops->vhost_get_vq_index(dev, idx);
     struct vhost_vring_state state = {
         .index = vhost_vq_index,
+        .num = skip_drain,
     };
     int r = 0;
 
