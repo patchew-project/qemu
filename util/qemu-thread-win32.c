@@ -242,7 +242,7 @@ struct QemuThreadData {
     /* Only used for joinable threads. */
     bool              exited;
     void             *ret;
-    CRITICAL_SECTION  cs;
+    SRWLOCK           lock;
 };
 
 static bool atexit_registered;
@@ -295,9 +295,9 @@ void qemu_thread_exit(void *arg)
     notifier_list_notify(&data->exit, NULL);
     if (data->mode == QEMU_THREAD_JOINABLE) {
         data->ret = arg;
-        EnterCriticalSection(&data->cs);
+        AcquireSRWLockExclusive(&data->lock);
         data->exited = true;
-        LeaveCriticalSection(&data->cs);
+        ReleaseSRWLockExclusive(&data->lock);
     } else {
         g_free(data);
     }
@@ -328,7 +328,6 @@ void *qemu_thread_join(QemuThread *thread)
         CloseHandle(handle);
     }
     ret = data->ret;
-    DeleteCriticalSection(&data->cs);
     g_free(data);
     return ret;
 }
@@ -357,16 +356,13 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     struct QemuThreadData *data;
 
     data = g_malloc(sizeof *data);
+    InitializeSRWLock(&data->lock);
     data->start_routine = start_routine;
     data->arg = arg;
     data->mode = mode;
     data->exited = false;
     data->name = g_strdup(name);
     notifier_list_init(&data->exit);
-
-    if (data->mode != QEMU_THREAD_DETACHED) {
-        InitializeCriticalSection(&data->cs);
-    }
 
     hThread = (HANDLE) _beginthreadex(NULL, 0, win32_start_routine,
                                       data, 0, &thread->tid);
@@ -406,14 +402,14 @@ HANDLE qemu_thread_get_handle(QemuThread *thread)
         return NULL;
     }
 
-    EnterCriticalSection(&data->cs);
+    AcquireSRWLockExclusive(&data->lock);
     if (!data->exited) {
         handle = OpenThread(SYNCHRONIZE | THREAD_SUSPEND_RESUME |
                             THREAD_SET_CONTEXT, FALSE, thread->tid);
     } else {
         handle = NULL;
     }
-    LeaveCriticalSection(&data->cs);
+    ReleaseSRWLockExclusive(&data->lock);
     return handle;
 }
 
