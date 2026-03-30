@@ -3,12 +3,12 @@
  * with Elroy PCI bus (LBA) adapter emulation
  * Found in C3000 and similar machines
  *
- * (C) 2023 by Helge Deller <deller@gmx.de>
+ * (C) 2023-2026 by Helge Deller <deller@gmx.de>
  *
  * This work is licensed under the GNU GPL license version 2 or later.
  *
  * Chip documentation is available at:
- * https://parisc.wiki.kernel.org/index.php/Technical_Documentation
+ * https://parisc.docs.kernel.org/en/latest/technical_documentation.html
  *
  * TODO:
  * - All user-added devices are currently attached to the first
