@@ -265,8 +265,8 @@ BlockAIOCB *thread_pool_submit_aio(ThreadPoolFunc *func, void *arg,
         spawn_thread(pool);
     }
     QTAILQ_INSERT_TAIL(&pool->request_list, req, reqs);
-    qemu_mutex_unlock(&pool->lock);
     qemu_cond_signal(&pool->request_cond);
+    qemu_mutex_unlock(&pool->lock);
     return &req->common;
 }
 
