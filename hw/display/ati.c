@@ -1130,6 +1130,10 @@ static void ati_vga_realize(PCIDevice *dev, Error **errp)
             s->linear_aper_sz = ATI_R100_LINEAR_APER_SIZE;
         }
     }
+    if (s->linear_aper_sz > 256 * MiB) {
+        error_setg(errp, "x-linear-aper-size is too large (maximum 256 MiB)");
+        return;
+    }
     if (s->linear_aper_sz < 16 * MiB) {
         error_setg(errp, "x-linear-aper-size is too small (minimum 16 MiB)");
         return;
