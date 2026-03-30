@@ -1490,6 +1490,8 @@
 #     * POSIX: as defined by os-release(5)
 #     * Windows: contains string "server" or "client"
 #
+# @security: Security features status (since 10.3)
+#
 # .. note:: On POSIX systems the fields @id, @name, @pretty-name,
 #    @version, @version-id, @variant and @variant-id follow the
 #    definition specified in os-release(5).  Refer to the manual page
@@ -1508,7 +1510,8 @@
       '*kernel-release': 'str', '*kernel-version': 'str',
       '*machine': 'str', '*id': 'str', '*name': 'str',
       '*pretty-name': 'str', '*version': 'str', '*version-id': 'str',
-      '*variant': 'str', '*variant-id': 'str' } }
+      '*variant': 'str', '*variant-id': 'str',
+      '*security': 'GuestSecurityInfo' } }
 
 ##
 # @guest-get-osinfo:
@@ -1952,3 +1955,89 @@
   'returns': ['GuestNetworkRoute'],
   'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN32'] }
 }
+
+##
+# @GuestSecurityInfoWindows:
+#
+# Windows-specific security features from Win32_DeviceGuard.
+#
+# @vbs-status: VirtualizationBasedSecurityStatus
+#
+# @available-security-properties:
+#     AvailableSecurityProperties
+#
+# @code-integrity-policy-enforcement-status:
+#     CodeIntegrityPolicyEnforcementStatus
+#
+# @required-security-properties: RequiredSecurityProperties
+#
+# @security-services-configured:
+#     SecurityServicesConfigured
+#
+# @security-services-running: SecurityServicesRunning
+#
+# @usr-cfg-code-integrity-policy-enforcement-status:
+#     UsermodeCodeIntegrityPolicyEnforcementStatus
+#
+# Since: 10.3
+##
+{ 'struct': 'GuestSecurityInfoWindows',
+  'data': {
+      '*vbs-status': 'int',
+      '*available-security-properties': ['int'],
+      '*code-integrity-policy-enforcement-status': 'int',
+      '*required-security-properties': ['int'],
+      '*security-services-configured': ['int'],
+      '*security-services-running': ['int'],
+      '*usr-cfg-code-integrity-policy-enforcement-status':
+          'int' } }
+
+##
+# @GuestSecurityInfoType:
+#
+# Guest operating system type for security info.
+#
+# @windows: Microsoft Windows
+#
+# Since: 10.3
+##
+{ 'enum': 'GuestSecurityInfoType',
+  'data': ['windows'] }
+
+##
+# @GuestSecurityInfoOs:
+#
+# OS-specific security information.
+#
+# @type: guest operating system type
+#
+# Since: 10.3
+##
+{ 'union': 'GuestSecurityInfoOs',
+  'base': { 'type': 'GuestSecurityInfoType' },
+  'discriminator': 'type',
+  'data': {
+      'windows': 'GuestSecurityInfoWindows' } }
+
+##
+# @GuestSecurityInfo:
+#
+# Guest security features status.  Fields are optional; a missing
+# field means the information is not available on this platform.
+#
+# @tpm-present: Whether a TPM device is present
+#
+# @tpm-version: TPM specification version (e.g. "2.0")
+#
+# @secure-boot: Whether UEFI Secure Boot is enabled
+#
+# @os: OS-specific security information
+#
+# Since: 10.3
+##
+{ 'struct': 'GuestSecurityInfo',
+  'data': {
+      '*tpm-present': 'bool',
+      '*tpm-version': 'str',
+      '*secure-boot': 'bool',
+      '*os': 'GuestSecurityInfoOs' } }
