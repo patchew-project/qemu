@@ -2930,6 +2930,10 @@ void cirrus_init_common(CirrusVGAState *s, Object *owner,
     s->vga.cursor_invalidate = cirrus_cursor_invalidate;
     s->vga.cursor_draw_line = cirrus_cursor_draw_line;
 
+    if (s->big_endian_fb != ON_OFF_AUTO_AUTO) {
+        s->vga.big_endian_fb = (s->big_endian_fb == ON_OFF_AUTO_ON);
+    }
+
     qemu_register_reset(cirrus_reset, s);
 }
 
@@ -2987,6 +2991,8 @@ static const Property pci_vga_cirrus_properties[] = {
                        cirrus_vga.vga.vram_size_mb, 4),
     DEFINE_PROP_BOOL("blitter", struct PCICirrusVGAState,
                      cirrus_vga.enable_blitter, true),
+    DEFINE_PROP_ON_OFF_AUTO("x-big-endian-fb", struct PCICirrusVGAState,
+                            cirrus_vga.big_endian_fb, ON_OFF_AUTO_AUTO),
 };
 
 static void cirrus_vga_class_init(ObjectClass *klass, const void *data)

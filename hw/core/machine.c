@@ -41,6 +41,8 @@
 GlobalProperty hw_compat_10_2[] = {
     { "scsi-block", "migrate-pr", "off" },
     { "isa-cirrus-vga", "global-vmstate", "true" },
+    { "isa-cirrus-vga", "x-big-endian-fb", "off" },
+    { "cirrus-vga", "x-big-endian-fb", "off" },
 };
 const size_t hw_compat_10_2_len = G_N_ELEMENTS(hw_compat_10_2);
 

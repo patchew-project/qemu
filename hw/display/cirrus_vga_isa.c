@@ -75,6 +75,8 @@ static const Property isa_cirrus_vga_properties[] = {
                      cirrus_vga.enable_blitter, true),
     DEFINE_PROP_BOOL("global-vmstate", struct ISACirrusVGAState,
                      cirrus_vga.vga.global_vmstate, false),
+    DEFINE_PROP_ON_OFF_AUTO("x-big-endian-fb", struct PCICirrusVGAState,
+                            cirrus_vga.big_endian_fb, ON_OFF_AUTO_AUTO),
 };
 
 static void isa_cirrus_vga_class_init(ObjectClass *klass, const void *data)
