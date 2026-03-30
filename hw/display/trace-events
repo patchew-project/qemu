@@ -130,6 +130,17 @@ vga_std_read_io(uint32_t addr, uint32_t val) "addr 0x%x, val 0x%x"
 vga_std_write_io(uint32_t addr, uint32_t val) "addr 0x%x, val 0x%x"
 vga_vbe_read(uint32_t index, uint32_t val) "index 0x%x, val 0x%x"
 vga_vbe_write(uint32_t index, uint32_t val) "index 0x%x, val 0x%x"
+vga_vram_read(uint64_t addr, uint32_t val) "addr 0x%"PRIx64" val 0x%x"
+vga_vram_write(uint64_t addr, uint32_t val) "addr 0x%"PRIx64" val 0x%x"
+vga_vram_latch_write(uint64_t addr, uint32_t mask, uint32_t val) "addr 0x%"PRIx64" mask 0x%08x val 0x%08x"
+vga_read_sr(uint32_t index, uint32_t val) "index 0x%x, val 0x%x"
+vga_write_sr(uint32_t index, uint32_t val) "index 0x%x, val 0x%x"
+vga_read_gr(uint32_t index, uint32_t val) "index 0x%x, val 0x%x"
+vga_write_gr(uint32_t index, uint32_t val) "index 0x%x, val 0x%x"
+vga_read_cr(uint32_t index, uint32_t val) "index 0x%x, val 0x%x"
+vga_write_cr(uint32_t index, uint32_t val) "index 0x%x, val 0x%x"
+vga_draw_graphic(uint32_t w, uint32_t h, uint32_t v, uint32_t line_offset, uint32_t cr09, uint32_t cr17, uint32_t linecmp, uint32_t sr01) "w=%u h=%u v=%u line_offset=%u cr[0x09]=0x%02x cr[0x17]=0x%02x linecmp=%u sr[0x01]=0x%02x"
+vga_update_retrace_info(uint32_t htotal, uint32_t vtotal, uint32_t vretr_start, uint32_t vretr_end, uint32_t dots, uint64_t ticks_per_char) "htotal %u, vtotal %u, vretr_start %u, vretr_end %u, dots %u, ticks/char %"PRIu64
 
 # cirrus_vga.c
 vga_cirrus_read_io(uint32_t addr, uint32_t val) "addr 0x%x, val 0x%x"
