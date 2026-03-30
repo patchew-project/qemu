@@ -32,7 +32,7 @@ const HPET_REG_SPACE_LEN: u64 = 0x400; // 1024 bytes
 /// Minimum recommended hardware implementation.
 const HPET_MIN_TIMERS: usize = 3;
 /// Maximum timers in each timer block.
-const HPET_MAX_TIMERS: usize = 32;
+const HPET_MAX_TIMERS: usize = 24;
 
 /// Flags that HPETState.flags supports.
 const HPET_FLAG_MSI_SUPPORT_SHIFT: usize = 0;
