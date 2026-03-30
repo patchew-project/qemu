@@ -203,7 +203,8 @@ void hppa_cpu_do_interrupt(CPUState *cs)
 
     /* step 7 */
     if (i == EXCP_TOC) {
-        env->iaoq_f = hppa_form_gva(env, 0, FIRMWARE_START);
+        env->iaoq_f = hppa_form_gva(env, 0,
+                ((uint64_t) FIRMWARE_HIGH) << 32 | FIRMWARE_START);
         /* help SeaBIOS and provide iaoq_b and iasq_back in shadow regs */
         env->gr[24] = env->cr_back[0];
         env->gr[25] = env->cr_back[1];
