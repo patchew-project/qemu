@@ -804,13 +804,13 @@ static void astro_reset(DeviceState *dev)
      * The LBA BASE/MASK registers control IO -> System routing (in Elroy)
      */
     memset(&s->ioc_ranges, 0, sizeof(s->ioc_ranges));
-    s->ioc_ranges[(0x360 - 0x300) / 8] = LMMIO_DIST_BASE_ADDR | 0x01; /* LMMIO_DIST_BASE (SBA) */
+    s->ioc_ranges[(0x360 - 0x300) / 8] = F_EXTEND(LMMIO_DIST_BASE_ADDR) | 0x01;
     s->ioc_ranges[(0x368 - 0x300) / 8] = 0xfc000000;          /* LMMIO_DIST_MASK */
     s->ioc_ranges[(0x370 - 0x300) / 8] = 0;                   /* LMMIO_DIST_ROUTE */
-    s->ioc_ranges[(0x390 - 0x300) / 8] = IOS_DIST_BASE_ADDR | 0x01; /* IOS_DIST_BASE */
+    s->ioc_ranges[(0x390 - 0x300) / 8] = F_EXTEND(IOS_DIST_BASE_ADDR) | 0x01;
     s->ioc_ranges[(0x398 - 0x300) / 8] = 0xffffff0000;        /* IOS_DIST_MASK    */
     s->ioc_ranges[(0x3a0 - 0x300) / 8] = 0x3400000000000000ULL; /* IOS_DIST_ROUTE */
-    s->ioc_ranges[(0x3c0 - 0x300) / 8] = 0xfffee00000;        /* IOS_DIRECT_BASE  */
+    s->ioc_ranges[(0x3c0 - 0x300) / 8] = IOS_DIST_BASE_ADDR;  /* IOS_DIRECT_BASE  */
     s->ioc_ranges[(0x3c8 - 0x300) / 8] = 0xffffff0000;        /* IOS_DIRECT_MASK  */
     s->ioc_ranges[(0x3d0 - 0x300) / 8] = 0x0;                 /* IOS_DIRECT_ROUTE */
 
