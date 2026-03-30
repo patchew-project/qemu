@@ -1,5 +1,5 @@
 /*
- * QEMU lowRISC Ibex UART device
+ * QEMU OpenTitan UART device
  *
  * Copyright (c) 2020 Western Digital
  *
@@ -26,7 +26,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/char/ibex_uart.h"
+#include "hw/char/ot_uart.h"
 #include "hw/core/irq.h"
 #include "hw/core/qdev-clock.h"
 #include "hw/core/qdev-properties.h"
@@ -74,7 +74,7 @@ REG32(OVRD, 0x28)
 REG32(VAL, 0x2C)
 REG32(TIMEOUT_CTRL, 0x30)
 
-static void ibex_uart_update_irqs(IbexUartState *s)
+static void ot_uart_update_irqs(OtUARTState *s)
 {
     if (s->uart_intr_state & s->uart_intr_enable & R_INTR_STATE_TX_WATERMARK_MASK) {
         qemu_set_irq(s->tx_watermark, 1);
@@ -101,9 +101,9 @@ static void ibex_uart_update_irqs(IbexUartState *s)
     }
 }
 
-static int ibex_uart_can_receive(void *opaque)
+static int ot_uart_can_receive(void *opaque)
 {
-    IbexUartState *s = opaque;
+    OtUARTState *s = opaque;
 
     if ((s->uart_ctrl & R_CTRL_RX_ENABLE_MASK)
            && !(s->uart_status & R_STATUS_RXFULL_MASK)) {
@@ -113,9 +113,9 @@ static int ibex_uart_can_receive(void *opaque)
     return 0;
 }
 
-static void ibex_uart_receive(void *opaque, const uint8_t *buf, int size)
+static void ot_uart_receive(void *opaque, const uint8_t *buf, int size)
 {
-    IbexUartState *s = opaque;
+    OtUARTState *s = opaque;
     uint8_t rx_fifo_level = (s->uart_fifo_ctrl & R_FIFO_CTRL_RXILVL_MASK)
                             >> R_FIFO_CTRL_RXILVL_SHIFT;
 
@@ -133,13 +133,13 @@ static void ibex_uart_receive(void *opaque, const uint8_t *buf, int size)
         s->uart_intr_state |= R_INTR_STATE_RX_WATERMARK_MASK;
     }
 
-    ibex_uart_update_irqs(s);
+    ot_uart_update_irqs(s);
 }
 
-static gboolean ibex_uart_xmit(void *do_not_use, GIOCondition cond,
-                               void *opaque)
+static gboolean ot_uart_xmit(void *do_not_use, GIOCondition cond,
+                             void *opaque)
 {
-    IbexUartState *s = opaque;
+    OtUARTState *s = opaque;
     uint8_t tx_fifo_level = (s->uart_fifo_ctrl & R_FIFO_CTRL_TXILVL_MASK)
                             >> R_FIFO_CTRL_TXILVL_SHIFT;
     int ret;
@@ -155,7 +155,7 @@ static gboolean ibex_uart_xmit(void *do_not_use, GIOCondition cond,
         s->uart_status |= R_STATUS_TXEMPTY_MASK;
         s->uart_intr_state |= R_INTR_STATE_TX_EMPTY_MASK;
         s->uart_intr_state &= ~R_INTR_STATE_TX_WATERMARK_MASK;
-        ibex_uart_update_irqs(s);
+        ot_uart_update_irqs(s);
         return G_SOURCE_REMOVE;
     }
 
@@ -168,7 +168,7 @@ static gboolean ibex_uart_xmit(void *do_not_use, GIOCondition cond,
 
     if (s->tx_level) {
         guint r = qemu_chr_fe_add_watch(&s->chr, G_IO_OUT | G_IO_HUP,
-                                        ibex_uart_xmit, s);
+                                        ot_uart_xmit, s);
         if (!r) {
             s->tx_level = 0;
             return G_SOURCE_REMOVE;
@@ -176,7 +176,7 @@ static gboolean ibex_uart_xmit(void *do_not_use, GIOCondition cond,
     }
 
     /* Clear the TX Full bit */
-    if (s->tx_level != IBEX_UART_TX_FIFO_SIZE) {
+    if (s->tx_level != OT_UART_TX_FIFO_SIZE) {
         s->uart_status &= ~R_STATUS_TXFULL_MASK;
     }
 
@@ -191,20 +191,20 @@ static gboolean ibex_uart_xmit(void *do_not_use, GIOCondition cond,
         s->uart_intr_state |= R_INTR_STATE_TX_EMPTY_MASK;
     }
 
-    ibex_uart_update_irqs(s);
+    ot_uart_update_irqs(s);
     return G_SOURCE_REMOVE;
 }
 
-static void uart_write_tx_fifo(IbexUartState *s, const uint8_t *buf,
+static void uart_write_tx_fifo(OtUARTState *s, const uint8_t *buf,
                                int size)
 {
     uint64_t current_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     uint8_t tx_fifo_level = (s->uart_fifo_ctrl & R_FIFO_CTRL_TXILVL_MASK)
                             >> R_FIFO_CTRL_TXILVL_SHIFT;
 
-    if (size > IBEX_UART_TX_FIFO_SIZE - s->tx_level) {
-        size = IBEX_UART_TX_FIFO_SIZE - s->tx_level;
-        qemu_log_mask(LOG_GUEST_ERROR, "ibex_uart: TX FIFO overflow");
+    if (size > OT_UART_TX_FIFO_SIZE - s->tx_level) {
+        size = OT_UART_TX_FIFO_SIZE - s->tx_level;
+        qemu_log_mask(LOG_GUEST_ERROR, "ot_uart: TX FIFO overflow");
     }
 
     memcpy(s->tx_fifo + s->tx_level, buf, size);
@@ -216,10 +216,10 @@ static void uart_write_tx_fifo(IbexUartState *s, const uint8_t *buf,
 
     if (s->tx_level >= tx_fifo_level) {
         s->uart_intr_state |= R_INTR_STATE_TX_WATERMARK_MASK;
-        ibex_uart_update_irqs(s);
+        ot_uart_update_irqs(s);
     }
 
-    if (s->tx_level == IBEX_UART_TX_FIFO_SIZE) {
+    if (s->tx_level == OT_UART_TX_FIFO_SIZE) {
         s->uart_status |= R_STATUS_TXFULL_MASK;
     }
 
@@ -227,9 +227,9 @@ static void uart_write_tx_fifo(IbexUartState *s, const uint8_t *buf,
               (s->char_tx_time * 4));
 }
 
-static void ibex_uart_reset(DeviceState *dev)
+static void ot_uart_reset(DeviceState *dev)
 {
-    IbexUartState *s = IBEX_UART(dev);
+    OtUARTState *s = OT_UART(dev);
 
     s->uart_intr_state = 0x00000000;
     s->uart_intr_state = 0x00000000;
@@ -248,10 +248,10 @@ static void ibex_uart_reset(DeviceState *dev)
 
     s->char_tx_time = (NANOSECONDS_PER_SECOND / 230400) * 10;
 
-    ibex_uart_update_irqs(s);
+    ot_uart_update_irqs(s);
 }
 
-static uint64_t ibex_uart_get_baud(IbexUartState *s)
+static uint64_t ot_uart_get_baud(OtUARTState *s)
 {
     uint64_t baud;
 
@@ -262,10 +262,9 @@ static uint64_t ibex_uart_get_baud(IbexUartState *s)
     return baud;
 }
 
-static uint64_t ibex_uart_read(void *opaque, hwaddr addr,
-                                       unsigned int size)
+static uint64_t ot_uart_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    IbexUartState *s = opaque;
+    OtUARTState *s = opaque;
     uint64_t retvalue = 0;
 
     switch (addr >> 2) {
@@ -342,25 +341,25 @@ static uint64_t ibex_uart_read(void *opaque, hwaddr addr,
     return retvalue;
 }
 
-static void ibex_uart_write(void *opaque, hwaddr addr,
-                                  uint64_t val64, unsigned int size)
+static void ot_uart_write(void *opaque, hwaddr addr, uint64_t val64,
+                          unsigned int size)
 {
-    IbexUartState *s = opaque;
+    OtUARTState *s = opaque;
     uint32_t value = val64;
 
     switch (addr >> 2) {
     case R_INTR_STATE:
         /* Write 1 clear */
         s->uart_intr_state &= ~value;
-        ibex_uart_update_irqs(s);
+        ot_uart_update_irqs(s);
         break;
     case R_INTR_ENABLE:
         s->uart_intr_enable = value;
-        ibex_uart_update_irqs(s);
+        ot_uart_update_irqs(s);
         break;
     case R_INTR_TEST:
         s->uart_intr_state |= value;
-        ibex_uart_update_irqs(s);
+        ot_uart_update_irqs(s);
         break;
 
     case R_CTRL:
@@ -393,7 +392,7 @@ static void ibex_uart_write(void *opaque, hwaddr addr,
                           "%s: UART_CTRL_RXBLVL is not supported\n", __func__);
         }
         if (value & R_CTRL_NCO_MASK) {
-            uint64_t baud = ibex_uart_get_baud(s);
+            uint64_t baud = ot_uart_get_baud(s);
 
             s->char_tx_time = (NANOSECONDS_PER_SECOND / baud) * 10;
         }
@@ -448,122 +447,122 @@ static void ibex_uart_write(void *opaque, hwaddr addr,
     }
 }
 
-static void ibex_uart_clk_update(void *opaque, ClockEvent event)
+static void ot_uart_clk_update(void *opaque, ClockEvent event)
 {
-    IbexUartState *s = opaque;
+    OtUARTState *s = opaque;
 
     /* recompute uart's speed on clock change */
-    uint64_t baud = ibex_uart_get_baud(s);
+    uint64_t baud = ot_uart_get_baud(s);
 
     s->char_tx_time = (NANOSECONDS_PER_SECOND / baud) * 10;
 }
 
 static void fifo_trigger_update(void *opaque)
 {
-    IbexUartState *s = opaque;
+    OtUARTState *s = opaque;
 
     if (s->uart_ctrl & R_CTRL_TX_ENABLE_MASK) {
-        ibex_uart_xmit(NULL, G_IO_OUT, s);
+        ot_uart_xmit(NULL, G_IO_OUT, s);
     }
 }
 
-static const MemoryRegionOps ibex_uart_ops = {
-    .read = ibex_uart_read,
-    .write = ibex_uart_write,
+static const MemoryRegionOps ot_uart_ops = {
+    .read = ot_uart_read,
+    .write = ot_uart_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl.min_access_size = 4,
     .impl.max_access_size = 4,
 };
 
-static int ibex_uart_post_load(void *opaque, int version_id)
+static int ot_uart_post_load(void *opaque, int version_id)
 {
-    IbexUartState *s = opaque;
+    OtUARTState *s = opaque;
 
-    ibex_uart_update_irqs(s);
+    ot_uart_update_irqs(s);
     return 0;
 }
 
-static const VMStateDescription vmstate_ibex_uart = {
-    .name = TYPE_IBEX_UART,
+static const VMStateDescription vmstate_ot_uart = {
+    .name = TYPE_OT_UART,
     .version_id = 1,
     .minimum_version_id = 1,
-    .post_load = ibex_uart_post_load,
+    .post_load = ot_uart_post_load,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_ARRAY(tx_fifo, IbexUartState,
-                            IBEX_UART_TX_FIFO_SIZE),
-        VMSTATE_UINT32(tx_level, IbexUartState),
-        VMSTATE_UINT64(char_tx_time, IbexUartState),
-        VMSTATE_TIMER_PTR(fifo_trigger_handle, IbexUartState),
-        VMSTATE_UINT32(uart_intr_state, IbexUartState),
-        VMSTATE_UINT32(uart_intr_enable, IbexUartState),
-        VMSTATE_UINT32(uart_ctrl, IbexUartState),
-        VMSTATE_UINT32(uart_status, IbexUartState),
-        VMSTATE_UINT32(uart_rdata, IbexUartState),
-        VMSTATE_UINT32(uart_fifo_ctrl, IbexUartState),
-        VMSTATE_UINT32(uart_fifo_status, IbexUartState),
-        VMSTATE_UINT32(uart_ovrd, IbexUartState),
-        VMSTATE_UINT32(uart_val, IbexUartState),
-        VMSTATE_UINT32(uart_timeout_ctrl, IbexUartState),
+        VMSTATE_UINT8_ARRAY(tx_fifo, OtUARTState,
+                            OT_UART_TX_FIFO_SIZE),
+        VMSTATE_UINT32(tx_level, OtUARTState),
+        VMSTATE_UINT64(char_tx_time, OtUARTState),
+        VMSTATE_TIMER_PTR(fifo_trigger_handle, OtUARTState),
+        VMSTATE_UINT32(uart_intr_state, OtUARTState),
+        VMSTATE_UINT32(uart_intr_enable, OtUARTState),
+        VMSTATE_UINT32(uart_ctrl, OtUARTState),
+        VMSTATE_UINT32(uart_status, OtUARTState),
+        VMSTATE_UINT32(uart_rdata, OtUARTState),
+        VMSTATE_UINT32(uart_fifo_ctrl, OtUARTState),
+        VMSTATE_UINT32(uart_fifo_status, OtUARTState),
+        VMSTATE_UINT32(uart_ovrd, OtUARTState),
+        VMSTATE_UINT32(uart_val, OtUARTState),
+        VMSTATE_UINT32(uart_timeout_ctrl, OtUARTState),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static const Property ibex_uart_properties[] = {
-    DEFINE_PROP_CHR("chardev", IbexUartState, chr),
+static const Property ot_uart_properties[] = {
+    DEFINE_PROP_CHR("chardev", OtUARTState, chr),
 };
 
-static void ibex_uart_init(Object *obj)
+static void ot_uart_init(Object *obj)
 {
-    IbexUartState *s = IBEX_UART(obj);
+    OtUARTState *s = OT_UART(obj);
 
     s->f_clk = qdev_init_clock_in(DEVICE(obj), "f_clock",
-                                  ibex_uart_clk_update, s, ClockUpdate);
-    clock_set_hz(s->f_clk, IBEX_UART_CLOCK);
+                                  ot_uart_clk_update, s, ClockUpdate);
+    clock_set_hz(s->f_clk, OT_UART_CLOCK);
 
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->tx_watermark);
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->rx_watermark);
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->tx_empty);
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->rx_overflow);
 
-    memory_region_init_io(&s->mmio, obj, &ibex_uart_ops, s,
-                          TYPE_IBEX_UART, 0x400);
+    memory_region_init_io(&s->mmio, obj, &ot_uart_ops, s,
+                          TYPE_OT_UART, 0x400);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
 }
 
-static void ibex_uart_realize(DeviceState *dev, Error **errp)
+static void ot_uart_realize(DeviceState *dev, Error **errp)
 {
-    IbexUartState *s = IBEX_UART(dev);
+    OtUARTState *s = OT_UART(dev);
 
     s->fifo_trigger_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                           fifo_trigger_update, s);
 
-    qemu_chr_fe_set_handlers(&s->chr, ibex_uart_can_receive,
-                             ibex_uart_receive, NULL, NULL,
+    qemu_chr_fe_set_handlers(&s->chr, ot_uart_can_receive,
+                             ot_uart_receive, NULL, NULL,
                              s, NULL, true);
 }
 
-static void ibex_uart_class_init(ObjectClass *klass, const void *data)
+static void ot_uart_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    device_class_set_legacy_reset(dc, ibex_uart_reset);
-    dc->realize = ibex_uart_realize;
-    dc->vmsd = &vmstate_ibex_uart;
-    device_class_set_props(dc, ibex_uart_properties);
+    device_class_set_legacy_reset(dc, ot_uart_reset);
+    dc->realize = ot_uart_realize;
+    dc->vmsd = &vmstate_ot_uart;
+    device_class_set_props(dc, ot_uart_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo ibex_uart_info = {
-    .name          = TYPE_IBEX_UART,
+static const TypeInfo ot_uart_info = {
+    .name          = TYPE_OT_UART,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IbexUartState),
-    .instance_init = ibex_uart_init,
-    .class_init    = ibex_uart_class_init,
+    .instance_size = sizeof(OtUARTState),
+    .instance_init = ot_uart_init,
+    .class_init    = ot_uart_class_init,
 };
 
-static void ibex_uart_register_types(void)
+static void ot_uart_register_types(void)
 {
-    type_register_static(&ibex_uart_info);
+    type_register_static(&ot_uart_info);
 }
 
-type_init(ibex_uart_register_types)
+type_init(ot_uart_register_types)

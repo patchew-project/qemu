@@ -1719,6 +1719,7 @@ L: qemu-riscv@nongnu.org
 S: Supported
 F: hw/riscv/opentitan.c
 F: hw/*/ibex_*.c
+F: hw/*/ot_*.c
 F: include/hw/riscv/opentitan.h
 F: include/hw/*/ibex_*.h
 
