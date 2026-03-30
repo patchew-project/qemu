@@ -240,7 +240,7 @@ vu_blk_initialize_config(BlockDriverState *bs,
     config->capacity =
         cpu_to_le64(bdrv_getlength(bs) >> VIRTIO_BLK_SECTOR_BITS);
     config->blk_size = cpu_to_le32(blk_size);
-    config->size_max = cpu_to_le32(0);
+    config->size_max = cpu_to_le32(4096);
     config->seg_max = cpu_to_le32(128 - 2);
     config->min_io_size = cpu_to_le16(1);
     config->opt_io_size = cpu_to_le32(1);
