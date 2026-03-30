@@ -37,6 +37,11 @@
 #include "qom/object.h"
 #include "exec/target_page.h"
 
+static const int elroy_hpa_offsets[ELROY_NUM] = {
+            0x30000, 0x32000, 0x38000, 0x3c000 };
+static const char elroy_rope_nr[ELROY_NUM] = {
+            0, 1, 4, 6 }; /* busnum path, e.g. [10:6] */
+
 /*
  * Helper functions
  */
@@ -843,10 +848,6 @@ static void astro_realize(DeviceState *obj, Error **errp)
 
     /* Create Elroys (PCI host bus chips).  */
     for (i = 0; i < ELROY_NUM; i++) {
-        static const int elroy_hpa_offsets[ELROY_NUM] = {
-                    0x30000, 0x32000, 0x38000, 0x3c000 };
-        static const char elroy_rope_nr[ELROY_NUM] = {
-                    0, 1, 4, 6 }; /* busnum path, e.g. [10:6] */
         int addr_offset;
         ElroyState *elroy;
         hwaddr map_addr;
