@@ -738,7 +738,7 @@ static MemTxResult astro_chip_read_with_attrs(void *opaque, hwaddr addr,
     switch ((addr >> 3) << 3) {
     /* R2I registers */
     case 0x0000:        /* ID */
-        val = (0x01 << 3) | 0x01ULL;
+        val = (0x01 << 3) | 0x01ULL; /* 0=Astro 1.0, 9=Astro 2.1, 2=Astro 3.0 */
         break;
     case 0x0008:        /* IOC_CTRL */
         val = s->ioc_ctrl;
