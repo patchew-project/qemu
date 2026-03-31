@@ -1877,6 +1877,65 @@
 }
 
 ##
+# @GuestNvidiaGpu:
+#
+# Information about a single NVIDIA GPU as reported by nvidia-smi.
+#
+# @index: GPU index (0-based), stable across reboots for a given
+#         hardware slot
+#
+# @name: GPU product name (e.g. "NVIDIA A100-SXM4-80GB")
+#
+# @driver-version: version string of the installed NVIDIA driver
+#
+# @temperature: GPU die temperature in degrees Celsius
+#
+# @gpu-utilization: GPU compute engine utilization in percent (0-100)
+#
+# @memory-utilization: GPU memory controller utilization in percent
+#                      (0-100)
+#
+# @memory-total: total framebuffer memory in MiB
+#
+# @memory-free: free framebuffer memory in MiB
+#
+# @memory-used: used framebuffer memory in MiB
+#
+# Since: 10.1
+##
+{ 'struct': 'GuestNvidiaGpu',
+  'data': {
+      'index':              'int',
+      'name':               'str',
+      'driver-version':     'str',
+      'temperature':        'int',
+      'gpu-utilization':    'int',
+      'memory-utilization': 'int',
+      'memory-total':       'int',
+      'memory-free':        'int',
+      'memory-used':        'int'
+  }
+}
+
+##
+# @guest-get-nvidia-smi:
+#
+# Query NVIDIA GPU information via nvidia-smi inside the guest.
+#
+# Returns one @GuestNvidiaGpu entry per physical GPU (or MIG instance)
+# detected by the NVIDIA driver.
+#
+# Errors:
+#   - If nvidia-smi is not installed or not found in $PATH
+#   - If nvidia-smi exits with a non-zero status (e.g. no NVIDIA
+#     device)
+#
+# Since: 10.1
+##
+{ 'command': 'guest-get-nvidia-smi',
+  'returns': ['GuestNvidiaGpu'] }
+
+##
 # @GuestNetworkRoute:
 #
 # Route information.  Supported on Linux (since 9.1) and Windows

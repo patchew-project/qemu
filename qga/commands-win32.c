@@ -2764,3 +2764,67 @@ GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
     g_hash_table_destroy(interface_metric_cache);
     return head;
 }
+
+GuestNvidiaGpuList *qmp_guest_get_nvidia_smi(Error **errp)
+{
+    const gchar *argv[] = {
+        "nvidia-smi",
+        "--query-gpu=index,name,driver_version,"
+            "temperature.gpu,utilization.gpu,utilization.memory,"
+            "memory.total,memory.free,memory.used",
+        "--format=csv,noheader,nounits",
+        NULL
+    };
+    g_autofree gchar *stdout_buf = NULL;
+    g_autofree gchar *stderr_buf = NULL;
+    gint exit_status;
+    GError *gerr = NULL;
+    GuestNvidiaGpuList *head = NULL, **tail = &head;
+
+    if (!g_spawn_sync(NULL, (gchar **)argv, NULL,
+                      G_SPAWN_SEARCH_PATH,
+                      NULL, NULL,
+                      &stdout_buf, &stderr_buf,
+                      &exit_status, &gerr)) {
+        error_setg(errp, "failed to run nvidia-smi: %s", gerr->message);
+        g_error_free(gerr);
+        return NULL;
+    }
+
+    if (exit_status != 0) {
+        error_setg(errp, "nvidia-smi failed (exit %d): %s",
+                   exit_status, stderr_buf ? stderr_buf : "unknown error");
+        return NULL;
+    }
+
+    gchar **lines = g_strsplit(stdout_buf, "\n", -1);
+    for (int i = 0; lines[i] != NULL; i++) {
+        gchar *line = g_strstrip(lines[i]);
+        if (*line == '\0') {
+            continue;
+        }
+
+        gchar **f = g_strsplit(line, ", ", 9);
+        if (g_strv_length(f) < 9) {
+            g_strfreev(f);
+            continue;
+        }
+
+        GuestNvidiaGpu *gpu     = g_new0(GuestNvidiaGpu, 1);
+        gpu->index              = (int)g_ascii_strtoll(f[0], NULL, 10);
+        gpu->name               = g_strdup(g_strstrip(f[1]));
+        gpu->driver_version     = g_strdup(g_strstrip(f[2]));
+        gpu->temperature        = (int)g_ascii_strtoll(f[3], NULL, 10);
+        gpu->gpu_utilization    = (int)g_ascii_strtoll(f[4], NULL, 10);
+        gpu->memory_utilization = (int)g_ascii_strtoll(f[5], NULL, 10);
+        gpu->memory_total       = (int)g_ascii_strtoll(f[6], NULL, 10);
+        gpu->memory_free        = (int)g_ascii_strtoll(f[7], NULL, 10);
+        gpu->memory_used        = (int)g_ascii_strtoll(f[8], NULL, 10);
+
+        QAPI_LIST_APPEND(tail, gpu);
+        g_strfreev(f);
+    }
+    g_strfreev(lines);
+
+    return head;
+}
