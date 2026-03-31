@@ -19,6 +19,12 @@ if host_os != 'windows'
   contrib_plugins += 'lockstep.c'
 endif
 
+if host_os != 'windows' and host_os != 'darwin' and
+   host_machine.endian() == 'little'
+  # The zlib syscall-filter demo assumes little-endian direct-pointer access.
+  contrib_plugins += 'syscall_filter_zlib.c'
+endif
+
 if 'cpp' in all_languages
   contrib_plugins += 'cpp.cpp'
 endif
@@ -26,8 +32,12 @@ endif
 t = []
 if get_option('plugins')
   foreach i : contrib_plugins
+    deps = plugins_deps
+    if i == 'syscall_filter_zlib.c'
+      deps = [plugins_deps, zlib]
+    endif
     t += shared_module(fs.stem(i), files(i),
-                       dependencies: plugins_deps)
+                       dependencies: deps)
   endforeach
 endif
 if t.length() > 0

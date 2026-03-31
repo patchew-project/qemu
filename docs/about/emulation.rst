@@ -235,6 +235,47 @@ basic plugins that are used to test and exercise the API during the
 ``make check-tcg`` target in ``tests/tcg/plugins`` that are never the
 less useful for basic analysis.
 
+Local Library Interception
+..........................
+
+``contrib/plugins/syscall_filter_zlib.c``
+
+This linux-user example shows how to use the syscall filter callback API to
+intercept a library load and replace it with a guest thunk library. The guest
+side example lives in ``contrib/plugins/syscall_filter_zlib-example``.
+
+The plugin does two things:
+
+* It filters the guest ``openat()`` that the dynamic loader issues for
+  ``./libdemo-zlib.so`` and instead returns a file descriptor for
+  ``libdemo-zlib-thunk.so``.
+* It filters magic syscalls from the thunk library and runs the host's zlib
+  ``compressBound()``, ``compress2()``, and ``uncompress()`` implementations
+  directly on guest buffers.
+
+This makes the motivation concrete without introducing callback semantics: the
+example looks like a plausible local compression offload, and the guest-visible
+API stays small and easy to reproduce.
+The example currently supports ``x86_64`` linux-user only. To keep the example
+minimal, it currently assumes ``guest_base == 0`` on a little-endian 64-bit
+host. For this x86_64 linux-user demo, that means guest virtual addresses are
+directly usable as host pointers.
+
+To reproduce the example on ``qemu-x86_64``::
+
+  $ ninja -C build contrib-plugins
+  $ cd contrib/plugins/syscall_filter_zlib-example
+  $ make
+  $ QEMU_BUILD=/path/to/qemu/build
+  $ $QEMU_BUILD/qemu-x86_64 \
+      -plugin $QEMU_BUILD/contrib/plugins/libsyscall_filter_zlib.so \
+      -d plugin \
+      ./zcompress-demo
+
+Without the plugin, the guest program fails at startup because
+``libdemo-zlib.so`` is missing. With the plugin, QEMU's plugin log shows the
+loader redirection plus native compression and decompression handling.
+
 Empty
 .....
 
