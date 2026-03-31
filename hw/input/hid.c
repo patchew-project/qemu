@@ -365,6 +365,7 @@ void hid_pointer_activate(HIDState *hs)
 int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len)
 {
     int dx, dy, dz, pan, l;
+    int wheel_divisor, pan_divisor;
     int index;
     HIDPointerEvent *e;
 
@@ -392,6 +393,54 @@ int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len)
     e->pan -= pan;
 
 
+    if (hs->kind == HID_MOUSE && hs->protocol != 0) {
+        switch (hs->ptr.wheel_multiplier & 0x03) {
+        case 0:
+            wheel_divisor = 1;
+            break;
+        case 1:
+            wheel_divisor = 4;
+            break;
+        case 2:
+            wheel_divisor = 8;
+            break;
+        default:
+            wheel_divisor = 16;
+            break;
+        }
+
+        switch (hs->ptr.pan_multiplier & 0x03) {
+        case 0:
+            pan_divisor = 1;
+            break;
+        case 1:
+            pan_divisor = 4;
+            break;
+        case 2:
+            pan_divisor = 8;
+            break;
+        default:
+            pan_divisor = 16;
+            break;
+        }
+
+        if (wheel_divisor > 1) {
+            hs->ptr.wheel_residual += dz;
+            dz = hs->ptr.wheel_residual / wheel_divisor;
+            hs->ptr.wheel_residual -= dz * wheel_divisor;
+        } else {
+            hs->ptr.wheel_residual = 0;
+        }
+
+        if (pan_divisor > 1) {
+            hs->ptr.pan_residual += pan;
+            pan = hs->ptr.pan_residual / pan_divisor;
+            hs->ptr.pan_residual -= pan * pan_divisor;
+        } else {
+            hs->ptr.pan_residual = 0;
+        }
+    }
+
     if (hs->n &&
         !e->dz &&
         !e->pan &&
@@ -405,6 +454,7 @@ int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len)
     dz = 0 - dz;
     pan = 0 - pan;
     l = 0;
+
     switch (hs->kind) {
     case HID_MOUSE:
         if (hs->protocol == 0) {
@@ -528,6 +578,11 @@ void hid_reset(HIDState *hs)
     case HID_MOUSE:
     case HID_TABLET:
         memset(hs->ptr.queue, 0, sizeof(hs->ptr.queue));
+        hs->ptr.mouse_grabbed = 0;
+        hs->ptr.wheel_multiplier = 0;
+        hs->ptr.pan_multiplier = 0;
+        hs->ptr.wheel_residual = 0;
+        hs->ptr.pan_residual = 0;
         break;
     }
     hs->head = 0;
@@ -619,6 +674,7 @@ static const VMStateDescription vmstate_hid_ptr_queue = {
         VMSTATE_INT32(xdx, HIDPointerEvent),
         VMSTATE_INT32(ydy, HIDPointerEvent),
         VMSTATE_INT32(dz, HIDPointerEvent),
+        VMSTATE_INT32(pan, HIDPointerEvent),
         VMSTATE_INT32(buttons_state, HIDPointerEvent),
         VMSTATE_END_OF_LIST()
     }
@@ -636,6 +692,10 @@ const VMStateDescription vmstate_hid_ptr_device = {
         VMSTATE_UINT32(n, HIDState),
         VMSTATE_INT32(protocol, HIDState),
         VMSTATE_UINT8(idle, HIDState),
+        VMSTATE_UINT8(ptr.wheel_multiplier, HIDState),
+        VMSTATE_UINT8(ptr.pan_multiplier, HIDState),
+        VMSTATE_INT32(ptr.wheel_residual, HIDState),
+        VMSTATE_INT32(ptr.pan_residual, HIDState),
         VMSTATE_END_OF_LIST(),
     }
 };
