@@ -19,10 +19,14 @@ if host_os != 'windows'
   contrib_plugins += 'lockstep.c'
 endif
 
-if host_os != 'windows' and host_os != 'darwin' and
-   host_machine.endian() == 'little'
-  # The zlib syscall-filter demo assumes little-endian direct-pointer access.
-  contrib_plugins += 'syscall_filter_zlib.c'
+if host_os != 'windows' and host_os != 'darwin'
+  # The syscall-filter demos assume little-endian direct-pointer access.
+  if host_machine.endian() == 'little'
+    contrib_plugins += 'syscall_filter_zlib.c'
+    if supported_backends.contains('ucontext')
+      contrib_plugins += 'syscall_filter_callback_qsort.c'
+    endif
+  endif
 endif
 
 if 'cpp' in all_languages
