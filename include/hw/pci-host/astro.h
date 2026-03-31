@@ -26,8 +26,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(ElroyState, ELROY_PCI_HOST_BRIDGE)
 
 #define LMMIO_DIRECT_RANGES     4
 
-#define IOS_DIST_BASE_ADDR      0xfffee00000ULL
-#define IOS_DIST_BASE_SIZE           0x10000ULL
+#define IOS_DIST_BASE_ADDR      0xffffee00000ULL
+#define IOS_DIST_BASE_SIZE            0x10000ULL
 
 #define HF_ENABLE       0x40    /* enable HF mode (default is -1 mode) */
 
