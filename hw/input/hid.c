@@ -152,6 +152,10 @@ static void hid_pointer_event(DeviceState *dev, QemuConsole *src,
                 e->dz--;
             } else if (btn->button == INPUT_BUTTON_WHEEL_DOWN) {
                 e->dz++;
+            } else if (btn->button == INPUT_BUTTON_WHEEL_LEFT) {
+                e->pan--;
+            } else if (btn->button == INPUT_BUTTON_WHEEL_RIGHT) {
+                e->pan++;
             }
         } else {
             e->buttons_state &= ~bmap[btn->button];
@@ -208,6 +212,8 @@ static void hid_pointer_sync(DeviceState *dev)
         }
         prev->dz += curr->dz;
         curr->dz = 0;
+        prev->pan += curr->pan;
+        curr->pan = 0;
     } else {
         /* prepare next (clear rel, copy abs + btns) */
         if (hs->kind == HID_MOUSE) {
@@ -218,6 +224,7 @@ static void hid_pointer_sync(DeviceState *dev)
             next->ydy = curr->ydy;
         }
         next->dz = 0;
+        next->pan = 0;
         next->buttons_state = curr->buttons_state;
         /* make current guest visible, notify guest */
         hs->n++;
@@ -357,7 +364,7 @@ void hid_pointer_activate(HIDState *hs)
 
 int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len)
 {
-    int dx, dy, dz, l;
+    int dx, dy, dz, pan, l;
     int index;
     HIDPointerEvent *e;
 
@@ -381,9 +388,13 @@ int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len)
     }
     dz = int_clamp(e->dz, -127, 127);
     e->dz -= dz;
+    pan = int_clamp(e->pan, -127, 127);
+    e->pan -= pan;
+
 
     if (hs->n &&
         !e->dz &&
+        !e->pan &&
         (hs->kind == HID_TABLET || (!e->xdx && !e->ydy))) {
         /* that deals with this event */
         QUEUE_INCR(hs->head);
