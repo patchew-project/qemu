@@ -336,24 +336,25 @@ static bool can_merge(FlatRange *r1, FlatRange *r2)
 /* Attempt to simplify a view by merging adjacent ranges */
 static void flatview_simplify(FlatView *view)
 {
-    unsigned i, j, k;
+    unsigned i, j;
+
+    if (view->nr <= 1) {
+        return;
+    }
 
     i = 0;
-    while (i < view->nr) {
-        j = i + 1;
-        while (j < view->nr
-               && can_merge(&view->ranges[j-1], &view->ranges[j])) {
+    for (j = 1; j < view->nr; j++) {
+        if (can_merge(&view->ranges[i], &view->ranges[j])) {
             int128_addto(&view->ranges[i].addr.size, view->ranges[j].addr.size);
-            ++j;
+            memory_region_unref(view->ranges[j].mr);
+        } else {
+            i++;
+            if (i != j) {
+                view->ranges[i] = view->ranges[j];
+            }
         }
-        ++i;
-        for (k = i; k < j; k++) {
-            memory_region_unref(view->ranges[k].mr);
-        }
-        memmove(&view->ranges[i], &view->ranges[j],
-                (view->nr - j) * sizeof(view->ranges[j]));
-        view->nr -= j - i;
     }
+    view->nr = i + 1;
 }
 
 static void adjust_endianness(MemoryRegion *mr, uint64_t *data, MemOp op)
