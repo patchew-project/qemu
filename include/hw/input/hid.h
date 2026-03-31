@@ -25,6 +25,8 @@ typedef struct HIDMouseState {
     int mouse_grabbed;
     uint8_t wheel_multiplier;
     uint8_t pan_multiplier;
+    int32_t wheel_residual;
+    int32_t pan_residual;
 } HIDMouseState;
 
 typedef struct HIDKeyboardState {
