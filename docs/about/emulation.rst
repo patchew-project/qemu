@@ -246,9 +246,9 @@ side example lives in ``contrib/plugins/syscall_filter_zlib-example``.
 
 The plugin does two things:
 
-* It filters the guest ``openat()`` that the dynamic loader issues for
-  ``./libdemo-zlib.so`` and instead returns a file descriptor for
-  ``libdemo-zlib-thunk.so``.
+* It filters the guest ``open()``, ``openat()``, or ``openat2()`` that the
+  dynamic loader issues for ``./libdemo-zlib.so`` and instead returns a file
+  descriptor for ``libdemo-zlib-thunk.so``.
 * It filters magic syscalls from the thunk library and runs the host's zlib
   ``compressBound()``, ``compress2()``, and ``uncompress()`` implementations
   directly on guest buffers.

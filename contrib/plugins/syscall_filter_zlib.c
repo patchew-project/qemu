@@ -5,10 +5,10 @@
  * local library interception with a host zlib compression example.
  *
  * When the guest dynamic loader attempts to open "./libdemo-zlib.so", this
- * plugin intercepts openat() and instead returns a file descriptor for
- * "libdemo-zlib-thunk.so" in the same directory. The thunk library then
- * forwards compression requests through magic syscalls, which are handled by
- * this plugin and executed by the host's zlib implementation.
+ * plugin intercepts open(), openat(), or openat2() and instead returns a file
+ * descriptor for "libdemo-zlib-thunk.so" in the same directory. The thunk
+ * library then forwards compression requests through magic syscalls, which are
+ * handled by this plugin and executed by the host's zlib implementation.
  *
  * This demo intentionally assumes a linux-user run with guest_base == 0 on a
  * little-endian 64-bit host, so guest virtual addresses are directly usable
@@ -40,7 +40,14 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 #define ZLIB_COMPRESS_MAX_BUFFER (128 * 1024 * 1024)
 #define GUEST_STRING_CHUNK 64
 #define GUEST_STRING_LIMIT (1 << 20)
+#define X86_64_OPEN_NR 2
 #define X86_64_OPENAT_NR 257
+#define X86_64_OPENAT2_NR 437
+
+typedef struct GuestOpenHow {
+    uint64_t flags;
+    uint64_t mode;
+} GuestOpenHow;
 
 static char *read_guest_cstring(uint64_t addr)
 {
@@ -68,6 +75,25 @@ static char *read_guest_cstring(uint64_t addr)
     return NULL;
 }
 
+static void read_guest_buffer(uint64_t addr, void *dst, size_t len)
+{
+    g_autoptr(GByteArray) data = g_byte_array_sized_new(len);
+
+    if (len == 0) {
+        return;
+    }
+
+    g_byte_array_set_size(data, len);
+    g_assert(qemu_plugin_read_memory_vaddr(addr, data, len));
+    memcpy(dst, data->data, len);
+}
+
+static void read_guest_open_how(uint64_t addr, uint64_t guest_size,
+                                GuestOpenHow *how)
+{
+    g_assert(guest_size >= sizeof(*how));
+    read_guest_buffer(addr, how, sizeof(*how));
+}
 static bool guest_path_matches_zlib_compress(const char *path)
 {
     g_autofree char *basename = g_path_get_basename(path);
@@ -92,22 +118,47 @@ static bool handle_library_open(int64_t num, uint64_t a1, uint64_t a2,
     g_autofree char *path = NULL;
     g_autofree char *thunk_path = NULL;
     g_autofree char *out = NULL;
+    GuestOpenHow how = { 0 };
+    uint64_t path_addr;
+    int dirfd;
+    int flags;
+    mode_t mode;
     int fd;
 
-    if (num != X86_64_OPENAT_NR) {
+    if (num == X86_64_OPEN_NR) {
+        dirfd = AT_FDCWD;
+        path_addr = a1;
+        flags = (int)a2;
+        mode = (mode_t)a3;
+    } else if (num == X86_64_OPENAT_NR) {
+        dirfd = (int)a1;
+        path_addr = a2;
+        flags = (int)a3;
+        mode = (mode_t)a4;
+    } else if (num == X86_64_OPENAT2_NR) {
+        dirfd = (int)a1;
+        path_addr = a2;
+        flags = 0;
+        mode = 0;
+    } else {
         return false;
     }
 
-    path = read_guest_cstring(a2);
+    path = read_guest_cstring(path_addr);
     if (path == NULL || !guest_path_matches_zlib_compress(path)) {
         return false;
+    }
+    if (num == X86_64_OPENAT2_NR) {
+        read_guest_open_how(a3, a4, &how);
+        flags = (int)how.flags;
+        mode = (mode_t)how.mode;
     }
     thunk_path = build_thunk_path(path);
     if (access(thunk_path, F_OK) != 0) {
         return false;
     }
 
-    fd = openat((int)a1, thunk_path, (int)a3, (mode_t)a4);
+    fd = openat(dirfd, thunk_path, flags, mode);
     g_assert(fd >= 0);
 
     *sysret = fd;

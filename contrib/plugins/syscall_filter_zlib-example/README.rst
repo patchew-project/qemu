@@ -8,8 +8,9 @@ This directory contains the guest-side pieces used by
 
 * ``zcompress-demo.c`` is linked against ``libdemo-zlib.so`` and calls the
   compression helpers directly.
-* The plugin intercepts the loader's ``openat()`` call and returns a file
-  descriptor for ``./libdemo-zlib-thunk.so`` instead.
+* The plugin intercepts the loader's ``open()``, ``openat()``, or
+  ``openat2()`` call and returns a file descriptor for
+  ``./libdemo-zlib-thunk.so`` instead.
 * ``zcompress-thunk.c`` exposes a tiny compression API as thin wrappers around
   magic syscalls.
 * The plugin filters those magic syscalls and executes the host zlib

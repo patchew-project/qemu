@@ -8,8 +8,9 @@ interception on ``qemu-x86_64``.
 
 * ``callback-demo.c`` is linked against ``libdemo-callback-qsort.so`` and calls
   ``callback_qsort()`` directly.
-* The plugin intercepts the loader's ``openat()`` and returns a file
-  descriptor for ``./libdemo-callback-qsort-thunk.so`` instead.
+* The plugin intercepts the loader's ``open()``, ``openat()``, or
+  ``openat2()`` and returns a file descriptor for
+  ``./libdemo-callback-qsort-thunk.so`` instead.
 * ``callback-thunk.S`` issues a ``START`` magic syscall for ``qsort()`` and a
   ``RESUME`` magic syscall from a guest return trampoline.
 * ``contrib/plugins/syscall_filter_callback_qsort.c`` runs host ``qsort()``
