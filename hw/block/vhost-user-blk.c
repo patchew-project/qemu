@@ -65,6 +65,11 @@ static void vhost_user_blk_update_config(VirtIODevice *vdev, uint8_t *config)
     /* Our num_queues overrides the device backend */
     virtio_stw_p(vdev, &s->blkcfg.num_queues, s->num_queues);
 
+    if (s->seg_max_adjust) {
+        uint32_t seg_max = MIN(s->blkcfg.seg_max, s->queue_size - 2);
+        virtio_stl_p(vdev, &s->blkcfg.seg_max, seg_max);
+    }
+
     memcpy(config, &s->blkcfg, vdev->config_len);
 }
 
@@ -474,6 +479,10 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "queue size must be non-zero");
         return;
     }
+    if (s->queue_size < 4 && s->seg_max_adjust) {
+        error_setg(errp, "queue size must be >= 4 when seg-max-adjust is set");
+        return;
+    }
     if (s->queue_size > VIRTQUEUE_MAX_SIZE) {
         error_setg(errp, "queue size must not exceed %d",
                    VIRTQUEUE_MAX_SIZE);
@@ -608,6 +617,8 @@ static const Property vhost_user_blk_properties[] = {
     DEFINE_PROP_UINT16("num-queues", VHostUserBlk, num_queues,
                        VHOST_USER_BLK_AUTO_NUM_QUEUES),
     DEFINE_PROP_UINT32("queue-size", VHostUserBlk, queue_size, 128),
+    DEFINE_PROP_BOOL("seg-max-adjust", VHostUserBlk, seg_max_adjust,
+                      false),
     DEFINE_PROP_BIT64("config-wce", VHostUserBlk, parent_obj.host_features,
                       VIRTIO_BLK_F_CONFIG_WCE, true),
     DEFINE_PROP_BIT64("discard", VHostUserBlk, parent_obj.host_features,
