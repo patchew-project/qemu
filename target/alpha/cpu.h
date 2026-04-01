@@ -241,9 +241,6 @@ typedef struct CPUArchState {
     uint64_t scratch[24];
 #endif
 
-    /* This alarm doesn't exist in real hardware; we wish it did.  */
-    uint64_t alarm_expire;
-
     int error_code;
 
     uint32_t features;
@@ -261,9 +258,6 @@ struct ArchCPU {
     CPUState parent_obj;
 
     CPUAlphaState env;
-
-    /* This alarm doesn't exist in real hardware; we wish it did.  */
-    QEMUTimer *alarm_timer;
 };
 
 /**

@@ -27,6 +27,7 @@
 #include "exec/target_page.h"
 #include "accel/tcg/cpu-ops.h"
 #include "fpu/softfloat.h"
+#include "hw/core/cpu.h"
 
 
 static void alpha_cpu_set_pc(CPUState *cs, vaddr value)
@@ -203,10 +204,26 @@ static void ev67_cpu_initfn(Object *obj)
     cpu_env(CPU(obj))->amask |= AMASK_CIX | AMASK_PREFETCH;
 }
 
+#ifndef CONFIG_USER_ONLY
+static void alpha_cpu_irq_handler(void *opaque, int irq, int level)
+{
+    CPUState *cs = CPU(opaque);
+
+    if (level) {
+        cpu_interrupt(cs, CPU_INTERRUPT_TIMER);
+    } else {
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_TIMER);
+    }
+}
+#endif
+
 static void alpha_cpu_initfn(Object *obj)
 {
     CPUAlphaState *env = cpu_env(CPU(obj));
 
+#ifndef CONFIG_USER_ONLY
+    qdev_init_gpio_in_named(DEVICE(obj), alpha_cpu_irq_handler, "timer-irq", 1);
+#endif
     /* TODO all this should be done in reset, not init */
 
     env->lock_addr = -1;

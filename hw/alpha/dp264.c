@@ -71,6 +71,10 @@ static void clipper_init(MachineState *machine)
     memset(cpus, 0, sizeof(cpus));
     for (i = 0; i < smp_cpus; ++i) {
         cpus[i] = ALPHA_CPU(cpu_create(machine->cpu_type));
+
+        qdev_connect_gpio_out_named(DEVICE(typhoon_obj), "cpu-irq", i,
+                                    qdev_get_gpio_in_named(DEVICE(cpus[i]),
+                                                           "timer-irq", 0));
     }
 
     /*

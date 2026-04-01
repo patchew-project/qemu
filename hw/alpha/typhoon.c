@@ -26,6 +26,9 @@ typedef struct TyphoonCchip {
     uint64_t dim[4];
     uint32_t iic[4];
     AlphaCPU *cpu[4];
+    qemu_irq cpu_irq[4];
+    QEMUTimer *alarm_timer[4];
+    uint64_t alarm_expire[4];
 } TyphoonCchip;
 
 typedef struct TyphoonWindow {
@@ -187,6 +190,14 @@ static MemTxResult cchip_read(void *opaque, hwaddr addr,
         /* PWR: Power Management Control.   */
         break;
     
+    case 0x07c0: {
+        /* ALRM: QEMU-specific Timer Alarm Register */
+        uint64_t cpu_index = attrs.requester_id & 3;
+
+        ret = s->cchip.alarm_expire[cpu_index];
+
+        break;
+    }
     case 0x0c00: /* CMONCTLA */
     case 0x0c40: /* CMONCTLB */
     case 0x0c80: /* CMONCNT01 */
@@ -352,7 +363,7 @@ static MemTxResult cchip_write(void *opaque, hwaddr addr,
 
                     /* ITI can only be cleared by the write.  */
                     if ((newval & (1 << (i + 4))) == 0) {
-                        cpu_reset_interrupt(cs, CPU_INTERRUPT_TIMER);
+                        qemu_set_irq(s->cchip.cpu_irq[i], 0);
                     }
                 }
             }
@@ -439,6 +450,19 @@ static MemTxResult cchip_write(void *opaque, hwaddr addr,
         /* PWR: Power Management Control.   */
         break;
     
+    case 0x07c0: {
+        /* ALRM: QEMU-specific Timer Alarm Register */
+        uint64_t cpu_index = attrs.requester_id & 3;
+        QEMUTimer *alarm_timer = s->cchip.alarm_timer[cpu_index];
+
+        if (val) {
+            s->cchip.alarm_expire[cpu_index] = val;
+            timer_mod(alarm_timer, val);
+        } else {
+            timer_del(alarm_timer);
+        }
+        break;
+    }
     case 0x0c00: /* CMONCTLA */
     case 0x0c40: /* CMONCTLB */
     case 0x0c80: /* CMONCNT01 */
@@ -801,7 +825,7 @@ static void typhoon_set_timer_irq(void *opaque, int irq, int level)
                 /* Set the ITI bit for this cpu.  */
                 s->cchip.misc |= 1 << (i + 4);
                 /* And signal the interrupt.  */
-                cpu_interrupt(CPU(cpu), CPU_INTERRUPT_TIMER);
+                qemu_set_irq(s->cchip.cpu_irq[i], 1);
             }
         }
     }
@@ -814,7 +838,7 @@ static void typhoon_alarm_timer(void *opaque)
 
     /* Set the ITI bit for this cpu.  */
     s->cchip.misc |= 1 << (cpu + 4);
-    cpu_interrupt(CPU(s->cchip.cpu[cpu]), CPU_INTERRUPT_TIMER);
+    qemu_set_irq(s->cchip.cpu_irq[cpu], 1);
 }
 
 static void typhoon_pcihost_instance_init(Object *obj)
@@ -823,6 +847,8 @@ static void typhoon_pcihost_instance_init(Object *obj)
 
     s->cchip.misc = 0x800000000ull; /* Revision: Typhoon.  */
     s->pchip.win[3].wba = 2;        /* Window 3 SG always enabled. */
+
+    qdev_init_gpio_out_named(DEVICE(s), s->cchip.cpu_irq, "cpu-irq", 4);
 }
 
 PCIBus *typhoon_init(MemoryRegion *ram, qemu_irq *p_isa_irq,
@@ -843,9 +869,9 @@ PCIBus *typhoon_init(MemoryRegion *ram, qemu_irq *p_isa_irq,
         AlphaCPU *cpu = cpus[i];
         s->cchip.cpu[i] = cpu;
         if (cpu != NULL) {
-            cpu->alarm_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                                 typhoon_alarm_timer,
-                                                 (void *)((uintptr_t)s + i));
+            s->cchip.alarm_timer[i] = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                                   typhoon_alarm_timer,
+                                                   (void *)((uintptr_t)s + i));
         }
     }
 

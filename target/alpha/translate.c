@@ -1196,9 +1196,6 @@ static int cpu_pr_data(int pr)
 
     case 40 ... 63:
         return offsetof(CPUAlphaState, scratch[pr - 40]);
-
-    case 251:
-        return offsetof(CPUAlphaState, alarm_expire);
     }
     return 0;
 }
@@ -1279,14 +1276,6 @@ static DisasJumpType gen_mtpr(DisasContext *ctx, TCGv_i64 vb, int regno)
         /* HALT */
         gen_helper_halt(vb);
         return DISAS_PC_STALE;
-
-    case 251:
-        /* ALARM */
-        if (translator_io_start(&ctx->base)) {
-            ret = DISAS_PC_STALE;
-        }
-        gen_helper_set_alarm(tcg_env, vb);
-        break;
 
     case 7:
         /* PALBR */

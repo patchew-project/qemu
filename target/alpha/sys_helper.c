@@ -56,18 +56,6 @@ uint64_t helper_get_walltime(void)
     return qemu_clock_get_ns(rtc_clock);
 }
 
-void helper_set_alarm(CPUAlphaState *env, uint64_t expire)
-{
-    AlphaCPU *cpu = env_archcpu(env);
-
-    if (expire) {
-        env->alarm_expire = expire;
-        timer_mod(cpu->alarm_timer, expire);
-    } else {
-        timer_del(cpu->alarm_timer);
-    }
-}
-
 uint64_t HELPER(whami)(CPUAlphaState *env)
 {
     return env_cpu(env)->cpu_index;
