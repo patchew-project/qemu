@@ -216,11 +216,13 @@ static void *qigvm_prepare_memory(QIgvm *ctx, uint64_t addr, uint64_t size,
             ctx->machine_state->cgs->require_guest_memfd) {
             if (!memory_region_init_ram_guest_memfd(igvm_pages, NULL,
                                                     region_name, size, errp)) {
+                g_free(igvm_pages);
                 return NULL;
             }
         } else {
             if (!memory_region_init_ram(igvm_pages, NULL, region_name, size,
                                         errp)) {
+                g_free(igvm_pages);
                 return NULL;
             }
         }
