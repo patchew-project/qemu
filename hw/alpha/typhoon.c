@@ -17,7 +17,6 @@
 #include "alpha_sys.h"
 
 
-#define TYPE_TYPHOON_PCI_HOST_BRIDGE "typhoon-pcihost"
 #define TYPE_TYPHOON_IOMMU_MEMORY_REGION "typhoon-iommu-memory-region"
 
 typedef struct TyphoonCchip {
@@ -48,8 +47,6 @@ typedef struct TyphoonPchip {
     uint64_t ctl;
     TyphoonWindow win[4];
 } TyphoonPchip;
-
-OBJECT_DECLARE_SIMPLE_TYPE(TyphoonState, TYPHOON_PCI_HOST_BRIDGE)
 
 struct TyphoonState {
     PCIHostState parent_obj;
@@ -819,24 +816,26 @@ static void typhoon_alarm_timer(void *opaque)
     cpu_interrupt(CPU(s->cchip.cpu[cpu]), CPU_INTERRUPT_TIMER);
 }
 
+static void typhoon_pcihost_instance_init(Object *obj)
+{
+    TyphoonState *s = TYPHOON_PCI_HOST_BRIDGE(obj);
+
+    s->cchip.misc = 0x800000000ull; /* Revision: Typhoon.  */
+    s->pchip.win[3].wba = 2;        /* Window 3 SG always enabled. */
+}
+
 PCIBus *typhoon_init(MemoryRegion *ram, qemu_irq *p_isa_irq,
                      qemu_irq *p_rtc_irq, AlphaCPU *cpus[4],
-                     pci_map_irq_fn sys_map_irq, uint8_t devfn_min)
+                     pci_map_irq_fn sys_map_irq, uint8_t devfn_min,
+                     TyphoonState *s)
 {
     MemoryRegion *addr_space = get_system_memory();
-    DeviceState *dev;
-    TyphoonState *s;
+    DeviceState *dev = DEVICE(s);
     PCIHostState *phb;
     PCIBus *b;
     int i;
 
-    dev = qdev_new(TYPE_TYPHOON_PCI_HOST_BRIDGE);
-
-    s = TYPHOON_PCI_HOST_BRIDGE(dev);
     phb = PCI_HOST_BRIDGE(dev);
-
-    s->cchip.misc = 0x800000000ull; /* Revision: Typhoon.  */
-    s->pchip.win[3].wba = 2;        /* Window 3 SG always enabled. */
 
     /* Remember the CPUs so that we can deliver interrupts to them.  */
     for (i = 0; i < 4; i++) {
@@ -931,6 +930,7 @@ PCIBus *typhoon_init(MemoryRegion *ram, qemu_irq *p_isa_irq,
 static const TypeInfo typhoon_pcihost_info = {
     .name          = TYPE_TYPHOON_PCI_HOST_BRIDGE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
+    .instance_init = typhoon_pcihost_instance_init,
     .instance_size = sizeof(TyphoonState),
 };
 

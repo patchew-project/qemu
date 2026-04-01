@@ -49,6 +49,7 @@ static void clipper_init(MachineState *machine)
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
+    Object *typhoon_obj;
     AlphaCPU *cpus[4];
     PCIBus *pci_bus;
     PCIDevice *pci_dev;
@@ -61,6 +62,10 @@ static void clipper_init(MachineState *machine)
     uint64_t palcode_entry;
     uint64_t kernel_entry, kernel_low;
     unsigned int smp_cpus = machine->smp.cpus;
+
+    typhoon_obj = object_new_with_props(TYPE_TYPHOON_PCI_HOST_BRIDGE,
+                                        OBJECT(machine), "typhoon",
+                                        &error_fatal, NULL);
 
     /* Create up to 4 cpus.  */
     memset(cpus, 0, sizeof(cpus));
@@ -87,7 +92,8 @@ static void clipper_init(MachineState *machine)
      * the minimum PCI device IdSel is 1.
      */
     pci_bus = typhoon_init(machine->ram, &isa_irq, &rtc_irq, cpus,
-                           clipper_pci_map_irq, PCI_DEVFN(1, 0));
+                           clipper_pci_map_irq, PCI_DEVFN(1, 0),
+                           TYPHOON_PCI_HOST_BRIDGE(typhoon_obj));
 
     /*
      * Init the PCI -> ISA bridge.

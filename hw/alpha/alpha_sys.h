@@ -8,9 +8,11 @@
 #include "hw/core/boards.h"
 #include "hw/intc/i8259.h"
 
+#define TYPE_TYPHOON_PCI_HOST_BRIDGE "typhoon-pcihost"
+OBJECT_DECLARE_SIMPLE_TYPE(TyphoonState, TYPHOON_PCI_HOST_BRIDGE)
 
 PCIBus *typhoon_init(MemoryRegion *, qemu_irq *, qemu_irq *, AlphaCPU *[4],
-                     pci_map_irq_fn, uint8_t devfn_min);
+                     pci_map_irq_fn, uint8_t devfn_min, TyphoonState *);
 
 /* alpha_pci.c.  */
 extern const MemoryRegionOps alpha_pci_ignore_ops;
