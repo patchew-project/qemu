@@ -19,9 +19,9 @@
 #include "qemu/log.h"
 #include "accel/tcg/cpu-ldst.h"
 #include "accel/tcg/probe.h"
+#include "cpu.h"
 #include "exec/helper-proto.h"
 #include "fpu/softfloat.h"
-#include "cpu.h"
 #include "internal.h"
 #include "macros.h"
 #include "sys_macros.h"
@@ -31,6 +31,7 @@
 #include "mmvec/mmvec.h"
 #include "mmvec/macros.h"
 #include "op_helper.h"
+#include "cpu_helper.h"
 #include "translate.h"
 #ifndef CONFIG_USER_ONLY
 #include "hexswi.h"
@@ -1412,6 +1413,12 @@ uint64_t HELPER(greg_read_pair)(CPUHexagonState *env, uint32_t reg)
 {
     g_assert_not_reached();
 }
+
+void HELPER(setprio)(CPUHexagonState *env, uint32_t thread, uint32_t prio)
+{
+    g_assert_not_reached();
+}
+
 #endif
 
 
