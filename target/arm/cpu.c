@@ -685,6 +685,10 @@ void arm_emulate_firmware_reset(CPUState *cpustate, int target_el)
         }
     }
 
+    if (have_el2 && !cpu_isar_feature(aa64_e2h0, cpu)) {
+        env->cp15.hcr_el2 |= HCR_E2H;
+    }
+
     /* Set the CPU to the desired state */
     if (env->aarch64) {
         env->pstate = aarch64_pstate_mode(target_el, true);
