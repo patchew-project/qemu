@@ -2930,6 +2930,8 @@ void cirrus_init_common(CirrusVGAState *s, Object *owner,
     s->vga.cursor_invalidate = cirrus_cursor_invalidate;
     s->vga.cursor_draw_line = cirrus_cursor_draw_line;
 
+    s->vga.big_endian_fb = false;
+
     qemu_register_reset(cirrus_reset, s);
 }
 
