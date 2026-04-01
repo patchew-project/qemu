@@ -1292,7 +1292,6 @@ SRST
         vfio-pci passthrough.
 
      The following options are available when accel=on.
-     Note: 'auto' mode is not currently supported.
 
     ``ril=on|off`` (default: on)
         Support for Range Invalidation, which allows the SMMUv3 driver to
