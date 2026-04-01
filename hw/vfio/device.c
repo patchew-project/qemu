@@ -522,6 +522,17 @@ void vfio_device_unprepare(VFIODevice *vbasedev)
     vbasedev->bcontainer = NULL;
 }
 
+bool vfio_device_get_viommu_flags_want_nesting_dirty(VFIODevice *vbasedev)
+{
+    VFIOPCIDevice *vdev = vfio_pci_from_vfio_device(vbasedev);
+
+    if (vdev) {
+        return !!(pci_device_get_viommu_flags(PCI_DEVICE(vdev)) &
+                  VIOMMU_FLAG_WANT_NESTING_DIRTY_TRACKING);
+    }
+    return false;
+}
+
 bool vfio_device_get_viommu_flags_want_nesting(VFIODevice *vbasedev)
 {
     VFIOPCIDevice *vdev = vfio_pci_from_vfio_device(vbasedev);
