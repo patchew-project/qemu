@@ -37,6 +37,11 @@
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/acpi/generic_event_device.h"
 #include "qemu/audio.h"
+#include "hw/arm/smmuv3.h"
+
+GlobalProperty hw_compat_11_0[] = {
+    { TYPE_ARM_SMMUV3, "ats", "off" },
+};
 
 GlobalProperty hw_compat_10_2[] = {
     { "scsi-block", "migrate-pr", "off" },
