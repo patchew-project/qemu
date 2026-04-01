@@ -133,6 +133,16 @@ struct HostIOMMUDeviceClass {
      * Returns: true on success, false on failure.
      */
     bool (*get_pasid_info)(HostIOMMUDevice *hiod, PasidInfo *pasid_info);
+    /**
+     *  @support_ats: Return whether ATS is supported for the device
+     *  associated with @hiod host IOMMU device, checking if the
+     *  IOMMU_HW_CAP_PCI_ATS_NOT_SUPPORTED capability bit is set.
+     *
+     *  @hiod: handle to the host IOMMU device
+     *
+     *  Returns: true on success, false on failure
+     */
+    bool (*support_ats)(HostIOMMUDevice *hiod);
 };
 
 /*

@@ -49,6 +49,10 @@
 #include "system/iommufd.h"
 #include "vfio-migration-internal.h"
 #include "vfio-helpers.h"
+#ifdef CONFIG_IOMMUFD
+#include "system/host_iommu_device.h"
+#include "linux/iommufd.h"
+#endif
 
 /* Protected by BQL */
 static KVMRouteChange vfio_route_change;
@@ -2550,10 +2554,53 @@ static bool vfio_pci_synthesize_pasid_cap(VFIOPCIDevice *vdev, Error **errp)
     return true;
 }
 
+/*
+ * Determine whether ATS capability should be advertised for @vdev, based on
+ * whether it was enabled on the command line and whether it is supported
+ * according to the kernel's IOMMU_HW_CAP_PCI_ATS_NOT_SUPPORTED bit.
+ *
+ * Store whether ATS capability should be advertised in @ats_need.
+ *
+ * Return false if kernel enables IOMMU_HW_CAP_PCI_ATS_NOT_SUPPORTED
+ * and ATS is effectively unsupported.
+ */
+static bool vfio_pci_ats_requested_and_supported(VFIOPCIDevice *vdev,
+                                                 bool *ats_need, Error **errp)
+{
+    HostIOMMUDevice *hiod = vdev->vbasedev.hiod;
+    HostIOMMUDeviceClass *hiodc;
+    bool ats_supported;
+
+    if (vdev->ats == ON_OFF_AUTO_OFF) {
+        *ats_need = false;
+        return true;
+    }
+
+    *ats_need = true;
+    if (!hiod) {
+        return true;
+    }
+    hiodc = HOST_IOMMU_DEVICE_GET_CLASS(hiod);
+    if (!hiodc || !hiodc->support_ats) {
+        return true;
+    }
+
+    ats_supported = hiodc->support_ats(hiod);
+    if (vdev->ats == ON_OFF_AUTO_ON && !ats_supported) {
+        error_setg(errp, "vfio: ATS requested but not supported by kernel");
+        *ats_need = false;
+        return false;
+    }
+
+    *ats_need = ats_supported;
+    return true;
+}
+
 static void vfio_add_ext_cap(VFIOPCIDevice *vdev)
 {
     PCIDevice *pdev = PCI_DEVICE(vdev);
     bool pasid_cap_added = false;
+    bool ats_needed = false;
     Error *err = NULL;
     uint32_t header;
     uint16_t cap_id, next, size;
@@ -2603,6 +2650,11 @@ static void vfio_add_ext_cap(VFIOPCIDevice *vdev)
     pci_set_long(pdev->wmask + PCI_CONFIG_SPACE_SIZE, 0);
     pci_set_long(vdev->emulated_config_bits + PCI_CONFIG_SPACE_SIZE, ~0);
 
+    if (!vfio_pci_ats_requested_and_supported(vdev, &ats_needed, &err)) {
+        error_report_err(err);
+       err = NULL;
+    }
+
     for (next = PCI_CONFIG_SPACE_SIZE; next;
          next = PCI_EXT_CAP_NEXT(pci_get_long(config + next))) {
         header = pci_get_long(config + next);
@@ -2640,6 +2692,16 @@ static void vfio_add_ext_cap(VFIOPCIDevice *vdev)
         case PCI_EXT_CAP_ID_PASID:
             pasid_cap_added = true;
             /* fallthrough */
+        case PCI_EXT_CAP_ID_ATS:
+            /*
+             * If ATS is requested and supported according to the kernel, add
+             * the ATS capability. If not supported according to the kernel or
+             * disabled on the qemu command line, omit the ATS cap.
+             */
+            if (ats_needed) {
+                pcie_add_capability(pdev, cap_id, cap_ver, next, size);
+            }
+            break;
         default:
             pcie_add_capability(pdev, cap_id, cap_ver, next, size);
         }
@@ -3819,6 +3881,7 @@ static const Property vfio_pci_properties[] = {
 #ifdef CONFIG_IOMMUFD
     DEFINE_PROP_LINK("iommufd", VFIOPCIDevice, vbasedev.iommufd,
                      TYPE_IOMMUFD_BACKEND, IOMMUFDBackend *),
+    DEFINE_PROP_ON_OFF_AUTO("ats", VFIOPCIDevice, ats, ON_OFF_AUTO_AUTO),
 #endif
     DEFINE_PROP_BOOL("skip-vsc-check", VFIOPCIDevice, skip_vsc_check, true),
     DEFINE_PROP_UINT16("x-vpasid-cap-offset", VFIOPCIDevice,
