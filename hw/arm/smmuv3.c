@@ -37,6 +37,7 @@
 #include "smmuv3-accel.h"
 #include "smmuv3-internal.h"
 #include "smmu-internal.h"
+#include "system/system.h"
 
 #define PTW_RECORD_FAULT(ptw_info, cfg) (((ptw_info).stage == SMMU_STAGE_1 && \
                                         (cfg)->record_faults) || \
@@ -2020,6 +2021,22 @@ static bool smmu_validate_property(SMMUv3State *s, Error **errp)
     return true;
 }
 
+static void smmuv3_machine_done(Notifier *notifier, void *data)
+{
+    SMMUv3State *s = container_of(notifier, SMMUv3State, machine_done);
+    SMMUv3AccelState *accel = s->s_accel;
+
+    if (!s->accel) {
+        return;
+    }
+
+    if (accel->auto_mode && !accel->auto_finalised) {
+        error_report("arm-smmuv3 accel=on with 'auto' properties requires "
+                     "at least one cold-plugged VFIO device");
+        exit(1);
+    }
+}
+
 static void smmu_realize(DeviceState *d, Error **errp)
 {
     SMMUState *sys = ARM_SMMU(d);
@@ -2058,6 +2075,9 @@ static void smmu_realize(DeviceState *d, Error **errp)
 
     smmu_init_irq(s, dev);
     smmuv3_init_id_regs(s);
+
+    s->machine_done.notify = smmuv3_machine_done;
+    qemu_add_machine_init_done_notifier(&s->machine_done);
 }
 
 static const VMStateDescription vmstate_smmuv3_queue = {
