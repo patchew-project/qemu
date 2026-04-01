@@ -27,6 +27,13 @@
 #include "tcg/tcg.h"
 #include "exec/gdbstub.h"
 #include "accel/tcg/cpu-ops.h"
+#include "cpu_helper.h"
+#include "hex_mmu.h"
+
+#ifndef CONFIG_USER_ONLY
+#include "sys_macros.h"
+#include "accel/tcg/cpu-ldst.h"
+#endif
 
 static void hexagon_v66_cpu_init(Object *obj) { }
 static void hexagon_v67_cpu_init(Object *obj) { }
@@ -52,6 +59,7 @@ static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
 
 static const Property hexagon_cpu_properties[] = {
 #if !defined(CONFIG_USER_ONLY)
+    DEFINE_PROP_UINT32("htid", HexagonCPU, htid, 0),
 #endif
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
     DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, lldb_stack_adjust, 0,
@@ -279,7 +287,11 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
     }
 
 #ifndef CONFIG_USER_ONLY
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX,
+                           cpu_mmu_index(env_cpu(env), false));
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, PCYCLE_ENABLED, 1);
+#else
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX, MMU_USER_IDX);
 #endif
 
     return (TCGTBCPUState){ .pc = pc, .flags = hex_flags };
@@ -299,11 +311,15 @@ static void hexagon_restore_state_to_opc(CPUState *cs,
     cpu_env(cs)->gpr[HEX_REG_PC] = data[0];
 }
 
+
 static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
     HexagonCPUClass *mcc = HEXAGON_CPU_GET_CLASS(obj);
     CPUHexagonState *env = cpu_env(cs);
+#ifndef CONFIG_USER_ONLY
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+#endif
 
     if (mcc->parent_phases.hold) {
         mcc->parent_phases.hold(obj, type);
@@ -317,7 +333,14 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     memset(env->t_sreg, 0, sizeof(uint32_t) * NUM_SREGS);
     memset(env->greg, 0, sizeof(uint32_t) * NUM_GREGS);
     env->wait_next_pc = 0;
+    env->tlb_lock_state = HEX_LOCK_UNLOCKED;
+    env->k0_lock_state = HEX_LOCK_UNLOCKED;
+    env->tlb_lock_count = 0;
+    env->k0_lock_count = 0;
     env->next_PC = 0;
+
+    env->t_sreg[HEX_SREG_HTID] = cpu->htid;
+    env->threadId = cpu->htid;
 #endif
     env->cause_code = HEX_EVENT_NONE;
 }
@@ -346,6 +369,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
                              gdb_find_static_feature("hexagon-hvx.xml"));
 
     qemu_init_vcpu(cs);
+
     cpu_reset(cs);
     mcc->parent_realize(dev, errp);
 }
