@@ -981,17 +981,11 @@ uint8_t physical_memory_range_includes_clean(ram_addr_t start,
 {
     uint8_t ret = 0;
 
-    if (mask & (1 << DIRTY_MEMORY_VGA) &&
-        !physical_memory_all_dirty(start, length, DIRTY_MEMORY_VGA)) {
-        ret |= (1 << DIRTY_MEMORY_VGA);
-    }
-    if (mask & (1 << DIRTY_MEMORY_CODE) &&
-        !physical_memory_all_dirty(start, length, DIRTY_MEMORY_CODE)) {
-        ret |= (1 << DIRTY_MEMORY_CODE);
-    }
-    if (mask & (1 << DIRTY_MEMORY_MIGRATION) &&
-        !physical_memory_all_dirty(start, length, DIRTY_MEMORY_MIGRATION)) {
-        ret |= (1 << DIRTY_MEMORY_MIGRATION);
+    for (int i = 0; i < DIRTY_MEMORY_NUM; i++) {
+        if ((mask & (1 << i)) &&
+            !physical_memory_all_dirty(start, length, i)) {
+            ret |= (1 << i);
+        }
     }
     return ret;
 }
