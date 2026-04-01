@@ -164,13 +164,19 @@ void alpha_cpu_record_sigsegv(CPUState *cs, vaddr address,
     env->trap_arg2 = cause;
 }
 #else
+static inline QEMU_ALWAYS_INLINE
+MemTxAttrs alpha_cpu_get_mem_attrs(const CPUState *cs)
+{
+    return (MemTxAttrs){ .requester_id = cs->cpu_index };
+}
+
 /* Returns the OSF/1 entMM failure indication, or -1 on success.  */
 static int get_physical_address(CPUAlphaState *env, vaddr addr,
                                 int prot_need, int mmu_idx,
                                 hwaddr *pphys, int *pprot)
 {
-    const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     CPUState *cs = env_cpu(env);
+    const MemTxAttrs attrs = alpha_cpu_get_mem_attrs(cs);
     target_long saddr = addr;
     hwaddr phys = 0;
     uint64_t L1pte, L2pte, L3pte;
@@ -327,8 +333,11 @@ bool alpha_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
         cpu_loop_exit_restore(cs, retaddr);
     }
 
-    tlb_set_page(cs, addr & TARGET_PAGE_MASK, phys & TARGET_PAGE_MASK,
-                 prot, mmu_idx, TARGET_PAGE_SIZE);
+    tlb_set_page_with_attrs(cs, addr & TARGET_PAGE_MASK,
+                            phys & TARGET_PAGE_MASK,
+                            alpha_cpu_get_mem_attrs(cs),
+                            prot, mmu_idx, TARGET_PAGE_SIZE);
+
     return true;
 }
 

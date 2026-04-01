@@ -74,7 +74,6 @@ static MemTxResult cchip_read(void *opaque, hwaddr addr,
                               uint64_t *data, unsigned size,
                               MemTxAttrs attrs)
 {
-    CPUState *cpu = current_cpu;
     TyphoonState *s = opaque;
     uint64_t ret = 0;
 
@@ -90,10 +89,12 @@ static MemTxResult cchip_read(void *opaque, hwaddr addr,
         /* All sorts of stuff related to real DRAM.  */
         break;
 
-    case 0x0080:
+    case 0x0080: {
         /* MISC: Miscellaneous Register.  */
-        ret = s->cchip.misc | (cpu->cpu_index & 3);
+        uint64_t cpu_index = attrs.requester_id & 3;
+        ret = s->cchip.misc | cpu_index;
         break;
+    }
 
     case 0x00c0:
         /* MPD: Memory Presence Detect Register.  */
