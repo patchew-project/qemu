@@ -18,6 +18,13 @@ typedef struct FDTDevOpaque {
     void *opaque;
 } FDTDevOpaque;
 
+typedef struct FDTCPUCluster {
+    char *cpu_type;
+    void *cpu_cluster;
+    void *next;
+    bool user;
+} FDTCPUCluster;
+
 typedef struct FDTMachineInfo {
     /* the fdt blob */
     void *fdt;
@@ -27,6 +34,8 @@ typedef struct FDTMachineInfo {
     FDTDevOpaque *dev_opaques;
     /* recheck coroutine queue */
     CoQueue *cq;
+    /* list of all CPU clusters */
+    FDTCPUCluster *clusters;
 } FDTMachineInfo;
 
 /*
@@ -71,6 +80,10 @@ void fdt_init_set_opaque(FDTMachineInfo *fdti, const char *node_path,
                          void *opaque);
 int fdt_init_has_opaque(FDTMachineInfo *fdti, const char *node_path);
 void *fdt_init_get_opaque(FDTMachineInfo *fdti, const char *node_path);
+
+void *fdt_init_get_cpu_cluster(FDTMachineInfo *fdti, Object *parent,
+                               char *compat);
+void fdt_init_register_user_cpu_cluster(FDTMachineInfo *fdti, Object *cluster);
 
 /* statically register a FDTInitFn as being associate with a compatibility */
 
