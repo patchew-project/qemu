@@ -67,3 +67,65 @@ uint32_t fp_vdmpy_acc(uint32_t acc, uint16_t a1, uint16_t a2,
     float32 red = fp_vdmpy(a1, a2, a3, a4, fp_status);
     return fp_add_sf_sf(float32_val(red), acc, fp_status);
 }
+
+DEF_FP_INSN_2(min_sf, 32, 32, 32, float32_min(f1, f2, fp_status))
+DEF_FP_INSN_2(max_sf, 32, 32, 32, float32_max(f1, f2, fp_status))
+DEF_FP_INSN_2(min_hf, 16, 16, 16, float16_min(f1, f2, fp_status))
+DEF_FP_INSN_2(max_hf, 16, 16, 16, float16_max(f1, f2, fp_status))
+
+#define float32_is_pos_nan(X) (float32_is_any_nan(X) && !float32_is_neg(X))
+#define float32_is_neg_nan(X) (float32_is_any_nan(X) && float32_is_neg(X))
+#define float16_is_pos_nan(X) (float16_is_any_nan(X) && !float16_is_neg(X))
+#define float16_is_neg_nan(X) (float16_is_any_nan(X) && float16_is_neg(X))
+
+uint32_t qf_max_sf(uint32_t a1, uint32_t a2, float_status *fp_status)
+{
+    float32 f1 = make_float32(a1);
+    float32 f2 = make_float32(a2);
+    if (float32_is_pos_nan(f1) || float32_is_neg_nan(f2)) {
+        return a1;
+    }
+    if (float32_is_pos_nan(f2) || float32_is_neg_nan(f1)) {
+        return a2;
+    }
+    return fp_max_sf(a1, a2, fp_status);
+}
+
+uint32_t qf_min_sf(uint32_t a1, uint32_t a2, float_status *fp_status)
+{
+    float32 f1 = make_float32(a1);
+    float32 f2 = make_float32(a2);
+    if (float32_is_pos_nan(f1) || float32_is_neg_nan(f2)) {
+        return a2;
+    }
+    if (float32_is_pos_nan(f2) || float32_is_neg_nan(f1)) {
+        return a1;
+    }
+    return fp_min_sf(a1, a2, fp_status);
+}
+
+uint16_t qf_max_hf(uint16_t a1, uint16_t a2, float_status *fp_status)
+{
+    float16 f1 = make_float16(a1);
+    float16 f2 = make_float16(a2);
+    if (float16_is_pos_nan(f1) || float16_is_neg_nan(f2)) {
+        return a1;
+    }
+    if (float16_is_pos_nan(f2) || float16_is_neg_nan(f1)) {
+        return a2;
+    }
+    return fp_max_hf(a1, a2, fp_status);
+}
+
+uint16_t qf_min_hf(uint16_t a1, uint16_t a2, float_status *fp_status)
+{
+    float16 f1 = make_float16(a1);
+    float16 f2 = make_float16(a2);
+    if (float16_is_pos_nan(f1) || float16_is_neg_nan(f2)) {
+        return a2;
+    }
+    if (float16_is_pos_nan(f2) || float16_is_neg_nan(f1)) {
+        return a1;
+    }
+    return fp_min_hf(a1, a2, fp_status);
+}

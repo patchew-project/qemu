@@ -44,4 +44,16 @@ uint32_t fp_vdmpy(uint16_t a1, uint16_t a2, uint16_t a3, uint16_t a4,
 uint32_t fp_vdmpy_acc(uint32_t acc, uint16_t a1, uint16_t a2, uint16_t a3,
                       uint16_t a4, float_status *fp_status);
 
+/* IEEE - FP min/max instructions */
+uint32_t fp_min_sf(uint32_t a1, uint32_t a2, float_status *fp_status);
+uint32_t fp_max_sf(uint32_t a1, uint32_t a2, float_status *fp_status);
+uint16_t fp_min_hf(uint16_t a1, uint16_t a2, float_status *fp_status);
+uint16_t fp_max_hf(uint16_t a1, uint16_t a2, float_status *fp_status);
+
+/* Qfloat min/max treat +NaN as greater than +INF and -NaN as smaller than -INF */
+uint32_t qf_max_sf(uint32_t a1, uint32_t a2, float_status *fp_status);
+uint32_t qf_min_sf(uint32_t a1, uint32_t a2, float_status *fp_status);
+uint16_t qf_max_hf(uint16_t a1, uint16_t a2, float_status *fp_status);
+uint16_t qf_min_hf(uint16_t a1, uint16_t a2, float_status *fp_status);
+
 #endif
