@@ -181,10 +181,13 @@ void monitor_fdsets_cleanup(void);
 
 void qmp_send_response(MonitorQMP *mon, const QDict *rsp);
 void monitor_data_destroy_qmp(MonitorQMP *mon);
+void monitor_qmp_destroy(MonitorQMP *mon);
+void monitor_qmp_cleanup_queue_and_resume(MonitorQMP *mon);
 void coroutine_fn monitor_qmp_dispatcher_co(void *data);
 void qmp_dispatcher_co_wake(void);
 
 Monitor *monitor_find_by_id(const char *id);
+bool monitor_qmp_dispatcher_is_servicing(MonitorQMP *mon);
 
 int get_monitor_def(Monitor *mon, int64_t *pval, const char *name);
 void handle_hmp_command(MonitorHMP *mon, const char *cmdline);

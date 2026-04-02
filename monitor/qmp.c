@@ -71,6 +71,13 @@ typedef struct QMPRequest QMPRequest;
 
 QmpCommandList qmp_commands, qmp_cap_negotiation_commands;
 
+/*
+ * The monitor currently being serviced by the dispatcher coroutine.
+ * Both the dispatcher and QMP command handlers (monitor-remove) run
+ * under the BQL, so no additional locking is needed.
+ */
+static MonitorQMP *qmp_dispatcher_current_mon;
+
 static bool qmp_oob_enabled(MonitorQMP *mon)
 {
     return mon->capab[QMP_CAPABILITY_OOB];
@@ -98,7 +105,7 @@ static void monitor_qmp_cleanup_req_queue_locked(MonitorQMP *mon)
     }
 }
 
-static void monitor_qmp_cleanup_queue_and_resume(MonitorQMP *mon)
+void monitor_qmp_cleanup_queue_and_resume(MonitorQMP *mon)
 {
     QEMU_LOCK_GUARD(&mon->qmp_queue_lock);
 
@@ -287,6 +294,7 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
          */
 
         mon = req_obj->mon;
+        qmp_dispatcher_current_mon = mon;
 
         /*
          * We need to resume the monitor if handle_qmp_command()
@@ -347,6 +355,16 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
         }
 
         qmp_request_free(req_obj);
+
+        /*
+         * If monitor-remove was called while we were dispatching a
+         * request on this monitor, the monitor was marked dead and
+         * removed from mon_list but destruction was deferred to us.
+         */
+        if (mon->common.dead) {
+            monitor_qmp_destroy(mon);
+        }
+        qmp_dispatcher_current_mon = NULL;
     }
     qatomic_set(&qmp_dispatcher_co, NULL);
 }
@@ -497,6 +515,22 @@ void monitor_data_destroy_qmp(MonitorQMP *mon)
     qemu_mutex_destroy(&mon->qmp_queue_lock);
     monitor_qmp_cleanup_req_queue_locked(mon);
     g_queue_free(mon->qmp_requests);
+}
+
+/*
+ * Destroy a single dynamically-added QMP monitor.
+ * The monitor must already have been removed from mon_list.
+ */
+void monitor_qmp_destroy(MonitorQMP *mon)
+{
+    monitor_flush(&mon->common);
+    monitor_data_destroy(&mon->common);
+    g_free(mon);
+}
+
+bool monitor_qmp_dispatcher_is_servicing(MonitorQMP *mon)
+{
+    return qmp_dispatcher_current_mon == mon;
 }
 
 static void monitor_qmp_setup_handlers_bh(void *opaque)
