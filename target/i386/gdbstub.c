@@ -498,7 +498,7 @@ void x86_cpu_gdb_init(CPUState *cs)
 #ifdef TARGET_X86_64
     CPUX86State *env = &X86_CPU(cs)->env;
 
-    if (env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_APXF) {
+    if (target_x86_64() && (env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_APXF)) {
         gdb_register_coprocessor(cs, i386_cpu_gdb_get_egprs,
                                  i386_cpu_gdb_set_egprs,
                                  gdb_find_static_feature("i386-64bit-apx.xml"));

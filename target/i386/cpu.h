@@ -36,13 +36,8 @@
 
 #define XEN_NR_VIRQS 24
 
-#ifdef TARGET_X86_64
-#define I386_ELF_MACHINE  EM_X86_64
-#define ELF_MACHINE_UNAME "x86_64"
-#else
-#define I386_ELF_MACHINE  EM_386
-#define ELF_MACHINE_UNAME "i686"
-#endif
+#define I386_ELF_MACHINE  (target_x86_64() ? EM_X86_64 : EM_386)
+#define ELF_MACHINE_UNAME (target_x86_64() ? "x86_64" : "i686")
 
 enum {
     R_EAX = 0,
@@ -277,11 +272,7 @@ typedef enum X86Seg {
 #define CR4_PKS_MASK   (1U << 24)
 #define CR4_LAM_SUP_MASK (1U << 28)
 
-#ifdef TARGET_X86_64
-#define CR4_FRED_MASK   (1ULL << 32)
-#else
-#define CR4_FRED_MASK   0
-#endif
+#define CR4_FRED_MASK   (target_x86_64() ? (1ULL << 32) : 0)
 
 #define CR4_RESERVED_MASK \
 (~(target_ulong)(CR4_VME_MASK | CR4_PVI_MASK | CR4_TSD_MASK \

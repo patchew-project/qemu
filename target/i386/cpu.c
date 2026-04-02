@@ -8094,18 +8094,18 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w)
     }
 
     switch (w) {
-#ifndef TARGET_X86_64
     case FEAT_8000_0001_EDX:
         /*
          * 32-bit TCG can emulate 64-bit compatibility mode.  If there is no
          * way for userspace to get out of its 32-bit jail, we can leave
          * the LM bit set.
          */
-        unavail = tcg_enabled()
-            ? CPUID_EXT2_LM & ~CPUID_EXT2_KERNEL_FEATURES
-            : CPUID_EXT2_LM;
+        if (target_i386()) {
+            unavail = tcg_enabled()
+                ? CPUID_EXT2_LM & ~CPUID_EXT2_KERNEL_FEATURES
+                : CPUID_EXT2_LM;
+        }
         break;
-#endif
 
     case FEAT_8000_0007_EBX:
         if (cpu && !IS_AMD_CPU(&cpu->env)) {
@@ -8351,11 +8351,11 @@ static void x86_cpu_load_model(X86CPU *cpu, const X86CPUModel *model)
 
 static const gchar *x86_gdb_arch_name(CPUState *cs)
 {
-#ifdef TARGET_X86_64
-    return "i386:x86-64";
-#else
-    return "i386";
-#endif
+    if (target_x86_64()) {
+        return "i386:x86-64";
+    } else {
+        return "i386";
+    }
 }
 
 static void x86_cpu_cpudef_class_init(ObjectClass *oc, const void *data)
