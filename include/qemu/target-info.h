@@ -10,6 +10,13 @@
 #define QEMU_TARGET_INFO_H
 
 /**
+ * target_info_adjust:
+ *
+ * Returns: Adjust the target according to the binary name of the executable.
+ */
+void target_info_adjust(const char *argv0);
+
+/**
  * target_name:
  *
  * Returns: Canonical target name (i.e. "i386").

@@ -2884,6 +2884,7 @@ void qemu_init(int argc, char **argv)
 
     error_init(argv[0]);
     qemu_init_exec_dir(argv[0]);
+    target_info_adjust(argv[0]);
 
     os_setup_limits();
 

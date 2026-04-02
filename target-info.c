@@ -12,6 +12,21 @@
 #include "qemu/target-info-impl.h"
 #include "qapi/error.h"
 
+static bool force_32bit;
+
+void target_info_adjust(const char *argv0)
+{
+    switch (target_arch()) {
+    case SYS_EMU_TARGET_X86_64:
+        if (g_str_has_suffix(argv0, "-i386")) {
+            force_32bit = true;
+        }
+        break;
+    default:
+        break;
+    }
+}
+
 const char *target_name(void)
 {
     return target_info()->target_name;
@@ -107,10 +122,11 @@ bool target_base_x86(void)
 
 bool target_i386(void)
 {
-    return target_arch() == SYS_EMU_TARGET_I386;
+    return target_arch() == SYS_EMU_TARGET_I386 ||
+           (target_arch() == SYS_EMU_TARGET_X86_64 && force_32bit);
 }
 
 bool target_x86_64(void)
 {
-    return target_arch() == SYS_EMU_TARGET_X86_64;
+    return target_arch() == SYS_EMU_TARGET_X86_64 && !force_32bit;
 }
