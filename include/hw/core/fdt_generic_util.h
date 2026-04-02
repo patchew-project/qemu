@@ -127,6 +127,12 @@ typedef struct FDTGenericRegPropInfo {
     Object **parents;
 } FDTGenericRegPropInfo;
 
+/*
+ * Get parsed 'reg' or 'reg-extended' properties from dts node
+ */
+FDTGenericRegPropInfo*
+fdt_get_reg_info(FDTMachineInfo *fdti, char *node_path, Object *dev);
+
 typedef struct FDTGenericMMapClass {
     /*< private >*/
     InterfaceClass parent_class;

@@ -403,6 +403,22 @@ static inline uint64_t get_int_be(const void *p, int len)
     }
 }
 
+/* FIXME: use structs instead of parallel arrays */
+
+static const char *fdt_generic_reg_size_prop_names[] = {
+    "#address-cells",
+    "#size-cells",
+    "#bus-cells",
+    "#priority-cells",
+};
+
+static const int fdt_generic_reg_cells_defaults[] = {
+    1,
+    1,
+    0,
+    0,
+};
+
 static void fdt_init_qdev_link_prop(Object *obj, ObjectProperty *p,
                                     FDTMachineInfo *fdti,
                                     const char *node_path,
@@ -616,6 +632,146 @@ static void fdt_init_qdev_properties(char *node_path, FDTMachineInfo *fdti,
     }
 }
 
+FDTGenericRegPropInfo*
+fdt_get_reg_info(FDTMachineInfo *fdti, char *node_path, Object *dev)
+{
+    FDTGenericRegPropInfo *reg;
+    Object *parent = NULL;
+    char *parent_path = NULL;
+    int cell_idx = 0;
+    bool extended = true;
+    Error *errp = NULL;
+    int i;
+
+    if (!object_dynamic_cast(dev, TYPE_SYS_BUS_DEVICE) &&
+        !object_dynamic_cast(dev, TYPE_FDT_GENERIC_MMAP)) {
+        return NULL;
+    }
+
+    reg = g_new0(FDTGenericRegPropInfo, 1);
+
+    qemu_fdt_getprop_cell(fdti->fdt, node_path, "reg-extended", 0,
+                            &errp);
+    if (errp) {
+        error_free(errp);
+        errp = NULL;
+        extended = false;
+        parent_path = qemu_devtree_getparent(fdti->fdt, node_path);
+    }
+
+    if (parent_path) {
+        parent = fdt_init_get_opaque(fdti, parent_path);
+    }
+
+    for (reg->n = 0;; reg->n++) {
+        char ph_parent[DT_PATH_LENGTH];
+        const char *pnp = parent_path;
+
+        reg->parents = g_renew(Object *, reg->parents, reg->n + 1);
+        reg->parents[reg->n] = parent;
+
+        if (extended) {
+            int p_ph = qemu_fdt_getprop_cell(fdti->fdt, node_path,
+                                                "reg-extended", cell_idx++,
+                                                &errp);
+            if (errp) {
+                error_free(errp);
+                errp = NULL;
+                goto exit_reg_parse;
+            }
+            if (qemu_devtree_get_node_by_phandle(fdti->fdt, ph_parent,
+                                                    p_ph)) {
+                goto exit_reg_parse;
+            }
+
+            while (!fdt_init_has_opaque(fdti, ph_parent) &&
+                   qemu_in_coroutine()) {
+                fdt_init_yield(fdti);
+            }
+
+            if (!fdt_init_has_opaque(fdti, ph_parent)) {
+                goto exit_reg_parse;
+            }
+
+            reg->parents[reg->n] = fdt_init_get_opaque(fdti, ph_parent);
+            pnp = ph_parent;
+        }
+
+        for (i = 0; i < FDT_GENERIC_REG_TUPLE_LENGTH; ++i) {
+            const char *size_prop_name = fdt_generic_reg_size_prop_names[i];
+            int nc = qemu_fdt_getprop_cell_inherited(fdti->fdt, node_path,
+                                            size_prop_name, 0, &errp);
+            uint64_t val = 0;
+
+            if (errp) {
+                int size_default = fdt_generic_reg_cells_defaults[i];
+
+                fdt_debug_np("WARNING: no %s for %s container, assuming "
+                            "default of %d\n", size_prop_name, pnp,
+                            size_default);
+                nc = size_default;
+                error_free(errp);
+                errp = NULL;
+            }
+
+            reg->x[i] = g_renew(uint64_t, reg->x[i], reg->n + 1);
+            for (int j = 0; j < nc; ++j) {
+                val <<= 32;
+                val |= qemu_fdt_getprop_cell(fdti->fdt, node_path,
+                                            extended ? "reg-extended"
+                                                        : "reg",
+                                            cell_idx + j, &errp);
+               if (errp) {
+                    val = 0;
+                    break;
+               }
+            }
+            reg->x[i][reg->n] = val;
+            cell_idx += nc;
+            if (errp) {
+                goto exit_reg_parse;
+            }
+        }
+    }
+exit_reg_parse:
+    if (errp) {
+        error_free(errp);
+    }
+
+    g_free(parent_path);
+
+    return reg;
+}
+
+static void fdt_parse_node_reg_prop(FDTMachineInfo *fdti, char *node_path,
+                            Object *dev)
+{
+    int i;
+
+    FDTGenericRegPropInfo *reg = fdt_get_reg_info(fdti, node_path, dev);
+    if (!reg) {
+        return;
+    }
+
+    if (object_dynamic_cast(dev, TYPE_FDT_GENERIC_MMAP)) {
+        FDTGenericMMapClass *fmc = FDT_GENERIC_MMAP_GET_CLASS(dev);
+        if (fmc->parse_reg) {
+            while (fmc->parse_reg(FDT_GENERIC_MMAP(dev), *reg,
+                                  &error_abort) && qemu_in_coroutine()) {
+                fdt_init_yield(fdti);
+            }
+        }
+    }
+
+    g_free(reg->parents);
+
+    for (i = 0; i < FDT_GENERIC_REG_TUPLE_LENGTH; ++i) {
+        g_free(reg->x[i]);
+    }
+
+    g_free(reg);
+}
+
 static void fdt_init_parent_node(Object *dev, Object *parent, char *node_path)
 {
     if (dev->parent) {
@@ -743,6 +899,8 @@ static int fdt_init_qdev(char *node_path, FDTMachineInfo *fdti, char *compat)
     fdt_init_qdev_properties(node_path, fdti, dev);
 
     fdt_init_device_realize(fdti, node_path, dev);
+
+    fdt_parse_node_reg_prop(fdti, node_path, dev);
 
     g_free(parent_node_path);
 
