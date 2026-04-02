@@ -614,9 +614,11 @@ static bool fault_s1ns(ARMSecuritySpace space, ARMMMUIdx s2_mmu_idx)
      * For stage 2 faults in Secure EL22, S1NS indicates
      * whether the faulting IPA is in the Secure or NonSecure
      * IPA space. For all other kinds of fault, it is false.
+     *
+     * At this point we can't actually tell we are in SEL[012] but the
+     * actual setting of HPFAR_EL2.NS is gated by arm_is_secure_below_el3(env).
      */
-    return space == ARMSS_Secure && regime_is_stage2(s2_mmu_idx)
-        && s2_mmu_idx == ARMMMUIdx_Stage2_S;
+    return space == ARMSS_NonSecure && regime_is_stage2(s2_mmu_idx);
 }
 
 /* Translate a S1 pagetable walk through S2 if needed.  */
