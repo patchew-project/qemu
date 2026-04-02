@@ -93,3 +93,24 @@ bool target_s390x(void)
 {
     return target_arch() == SYS_EMU_TARGET_S390X;
 }
+
+bool target_base_x86(void)
+{
+    switch (target_arch()) {
+    case SYS_EMU_TARGET_I386:
+    case SYS_EMU_TARGET_X86_64:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool target_i386(void)
+{
+    return target_arch() == SYS_EMU_TARGET_I386;
+}
+
+bool target_x86_64(void)
+{
+    return target_arch() == SYS_EMU_TARGET_X86_64;
+}

@@ -99,4 +99,25 @@ bool target_ppc64(void);
  */
 bool target_s390x(void);
 
+/**
+ * target_base_x86:
+ *
+ * Returns whether the target architecture is x86 (32-bit or 64-bit).
+ */
+bool target_base_x86(void);
+
+/**
+ * target_i386:
+ *
+ * Returns whether the target architecture is x86 32-bit.
+ */
+bool target_i386(void);
+
+/**
+ * target_x86_64:
+ *
+ * Returns whether the target architecture is x86 64-bit.
+ */
+bool target_x86_64(void);
+
 #endif
