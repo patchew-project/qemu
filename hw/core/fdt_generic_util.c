@@ -41,6 +41,7 @@
 #include "qemu/config-file.h"
 #include "hw/core/boards.h"
 #include "qemu/option.h"
+#include "hw/cpu/cluster.h"
 
 #define fdt_debug(...) do { \
     qemu_log_mask(LOG_FDT, ": %s: ", __func__); \
@@ -226,8 +227,127 @@ static int simple_bus_fdt_init(const char *node_path, FDTMachineInfo *fdti)
     return 0;
 }
 
+static inline const char *trim_vendor(const char *s)
+{
+    /* FIXME: be more intelligent */
+    const char *ret = memchr(s, ',', strlen(s));
+    return ret ? ret + 1 : s;
+}
+
+static Object *fdt_create_from_compat(const char *compat)
+{
+    Object *ret = NULL;
+
+    /* Try to create the object */
+    ret = object_new(compat);
+    if (!ret) {
+        const char *no_vendor = trim_vendor(compat);
+
+        if (no_vendor != compat) {
+            return fdt_create_from_compat(no_vendor);
+        }
+    }
+    return ret;
+}
+
+static void fdt_init_parent_node(Object *dev, Object *parent, char *node_path)
+{
+    if (dev->parent) {
+        fdt_debug_np("Node already parented - skipping node\n");
+    } else if (parent) {
+        fdt_debug_np("parenting node\n");
+        object_property_add_child(OBJECT(parent),
+                              strdup(strrchr(node_path, '/') + 1),
+                              OBJECT(dev));
+        if (object_dynamic_cast(dev, TYPE_DEVICE)) {
+            Object *parent_bus = parent;
+            unsigned int depth = 0;
+
+            fdt_debug_np("bus parenting node\n");
+            /* Look for an FDT ancestor that is a Bus.  */
+            while (parent_bus && !object_dynamic_cast(parent_bus, TYPE_BUS)) {
+                /*
+                 * Assert against insanely deep hierarchies which are an
+                 * indication of loops.
+                 */
+                assert(depth < 4096);
+
+                parent_bus = parent_bus->parent;
+                depth++;
+            }
+
+            if (!parent_bus
+                && object_dynamic_cast(OBJECT(dev), TYPE_SYS_BUS_DEVICE)) {
+                /*
+                 * Didn't find any bus. Use the default sysbus one.
+                 * This allows ad-hoc busses belonging to sysbus devices to be
+                 * visible to -device bus=x.
+                 */
+                parent_bus = OBJECT(sysbus_get_default());
+            }
+
+            if (parent_bus) {
+                qdev_set_parent_bus(DEVICE(dev), BUS(parent_bus),
+                                    &error_abort);
+            }
+        }
+    } else {
+        fdt_debug_np("orphaning node\n");
+        if (object_dynamic_cast(OBJECT(dev), TYPE_SYS_BUS_DEVICE)) {
+            qdev_set_parent_bus(DEVICE(dev), BUS(sysbus_get_default()),
+                                &error_abort);
+        }
+
+        /* FIXME: Make this go away (centrally) */
+        object_property_add_child(
+                              object_get_root(),
+                              strrchr(node_path, '/') + 1,
+                              OBJECT(dev));
+    }
+}
+
 static int fdt_init_qdev(char *node_path, FDTMachineInfo *fdti, char *compat)
 {
+    Object *dev, *parent;
+    char *parent_node_path;
+
+    if (!compat) {
+        return 1;
+    }
+    dev = fdt_create_from_compat(compat);
+    if (!dev) {
+        fdt_debug_np("no match found for %s\n", compat);
+        return 1;
+    }
+    fdt_debug_np("matched compat %s\n", compat);
+
+    /* Do this super early so fdt_generic_num_cpus is correct ASAP */
+    if (object_dynamic_cast(dev, TYPE_CPU)) {
+        fdt_generic_num_cpus++;
+        fdt_debug_np("is a CPU - total so far %d\n", fdt_generic_num_cpus);
+    }
+
+    parent_node_path = qemu_devtree_getparent(fdti->fdt, node_path);
+    if (!parent_node_path) {
+        abort();
+    }
+    while (!fdt_init_has_opaque(fdti, parent_node_path) &&
+           !object_dynamic_cast(dev, TYPE_CPU)) {
+        fdt_init_yield(fdti);
+    }
+
+    parent = fdt_init_get_opaque(fdti, parent_node_path);
+
+    if (object_dynamic_cast(dev, TYPE_CPU)) {
+        parent = fdt_init_get_cpu_cluster(fdti, parent, compat);
+    }
+
+    fdt_init_parent_node(dev, parent, node_path);
+
+    fdt_init_set_opaque(fdti, node_path, dev);
+
+    g_free(parent_node_path);
+
     return 0;
 }
 
