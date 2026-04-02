@@ -18,8 +18,12 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "hw/core/cpu.h"
+#include "hw/core/boards.h"
 #include "hw/intc/arm_gicv3.h"
 #include "gicv3_internal.h"
+
+#include "hw/core/fdt_generic_util.h"
 
 static bool irqbetter(GICv3CPUState *cs, int irq, uint8_t prio, bool nmi)
 {
@@ -452,14 +456,55 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
     gicv3_init_cpuif(s);
 }
 
+static void arm_gic_fdt_auto_parent(FDTGenericIntc *obj, Error **errp)
+{
+    GICv3State *s = ARM_GICV3(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    int num_cpus = s->num_cpu;
+    CPUState *cs;
+    int i = 0;
+
+    for (cs = first_cpu; cs; cs = CPU_NEXT(cs)) {
+        if (i >= s->num_cpu) {
+            break;
+        }
+
+        sysbus_connect_irq(sbd, i,
+                           qdev_get_gpio_in(DEVICE(cs), 0));
+        sysbus_connect_irq(sbd, i + num_cpus,
+                           qdev_get_gpio_in(DEVICE(cs), 1));
+        sysbus_connect_irq(sbd, i + 2 * num_cpus,
+                           qdev_get_gpio_in(DEVICE(cs), 2));
+        sysbus_connect_irq(sbd, i + 3 * num_cpus,
+                           qdev_get_gpio_in(DEVICE(cs), 3));
+        sysbus_connect_irq(sbd, i + 4 * num_cpus,
+                           qdev_get_gpio_in(DEVICE(cs), 4));
+        sysbus_connect_irq(sbd, i + 5 * num_cpus,
+                           qdev_get_gpio_in(DEVICE(cs), 5));
+
+        if (s->maint_irq) {
+            int intbase = s->num_irq - GIC_INTERNAL + i * GIC_INTERNAL;
+            qemu_irq irq = qdev_get_gpio_in(DEVICE(sbd),
+                                intbase + s->maint_irq);
+            qdev_connect_gpio_out_named(DEVICE(cs),
+                                               "gicv3-maintenance-interrupt",
+                                                0, irq);
+        }
+
+        i++;
+    }
+}
+
 static void arm_gicv3_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ARMGICv3CommonClass *agcc = ARM_GICV3_COMMON_CLASS(klass);
     ARMGICv3Class *agc = ARM_GICV3_CLASS(klass);
+    FDTGenericIntcClass *fgic = FDT_GENERIC_INTC_CLASS(klass);
 
     agcc->post_load = arm_gicv3_post_load;
     device_class_set_parent_realize(dc, arm_gic_realize, &agc->parent_realize);
+    fgic->auto_parent = arm_gic_fdt_auto_parent;
 }
 
 static const TypeInfo arm_gicv3_info = {
