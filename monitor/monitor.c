@@ -622,6 +622,7 @@ void monitor_data_init(Monitor *mon, bool is_qmp, bool skip_flush,
 
 void monitor_data_destroy(Monitor *mon)
 {
+    g_free(mon->id);
     g_free(mon->mon_cpu_path);
     qemu_chr_fe_deinit(&mon->chr, false);
     if (monitor_is_qmp(mon)) {
@@ -631,6 +632,18 @@ void monitor_data_destroy(Monitor *mon)
     }
     g_string_free(mon->outbuf, true);
     qemu_mutex_destroy(&mon->mon_lock);
+}
+
+Monitor *monitor_find_by_id(const char *id)
+{
+    Monitor *mon;
+
+    QTAILQ_FOREACH(mon, &mon_list, entry) {
+        if (mon->id && strcmp(mon->id, id) == 0) {
+            return mon;
+        }
+    }
+    return NULL;
 }
 
 void monitor_cleanup(void)
@@ -732,7 +745,7 @@ int monitor_init(MonitorOptions *opts, bool allow_hmp, Error **errp)
 
     switch (opts->mode) {
     case MONITOR_MODE_CONTROL:
-        monitor_init_qmp(chr, opts->pretty, errp);
+        monitor_init_qmp(chr, opts->pretty, opts->id, false, errp);
         break;
     case MONITOR_MODE_READLINE:
         if (!allow_hmp) {
