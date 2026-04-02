@@ -64,6 +64,11 @@ static int fdt_generic_num_cpus;
 
 static int simple_bus_fdt_init(const char *bus_node_path, FDTMachineInfo *fdti);
 
+static void fdt_get_irq_info_from_intc(FDTMachineInfo *fdti, qemu_irq *ret,
+                                       char *intc_node_path,
+                                       uint32_t *cells, uint32_t num_cells,
+                                       uint32_t max, Error **errp);
+
 FDTMachineInfo *fdt_generic_create_machine(void *fdt, qemu_irq *cpu_irq)
 {
     FDTMachineInfo *fdti = fdt_init_new_fdti(fdt);
@@ -227,6 +232,133 @@ static int simple_bus_fdt_init(const char *node_path, FDTMachineInfo *fdti)
 
     g_free(children);
     return 0;
+}
+
+static void fdt_get_irq_info_from_intc(FDTMachineInfo *fdti, qemu_irq *ret,
+                                       char *intc_node_path,
+                                       uint32_t *cells, uint32_t num_cells,
+                                       uint32_t max, Error **errp)
+{
+    FDTGenericIntcClass *intc_fdt_class;
+    DeviceState *intc;
+
+    while (!fdt_init_has_opaque(fdti, intc_node_path) &&
+           qemu_in_coroutine()) {
+        fdt_init_yield(fdti);
+    }
+    intc = DEVICE(fdt_init_get_opaque(fdti, intc_node_path));
+
+    if (!intc) {
+        goto fail;
+    }
+
+    while (!intc->realized && qemu_in_coroutine()) {
+        fdt_init_yield(fdti);
+    }
+
+    if (!intc->realized) {
+        goto fail;
+    }
+
+    intc_fdt_class = FDT_GENERIC_INTC_GET_CLASS(intc);
+    if (!intc_fdt_class) {
+        goto fail;
+    }
+
+    intc_fdt_class->get_irq(FDT_GENERIC_INTC(intc), ret, cells, num_cells,
+                            max, errp);
+
+    return;
+fail:
+    error_setg(errp, "%s", __func__);
+}
+
+qemu_irq *fdt_get_irq_info(FDTMachineInfo *fdti, char *node_path, int irq_idx,
+                          char *info) {
+    void *fdt = fdti->fdt;
+    uint32_t intc_phandle, intc_cells, cells[32];
+    char intc_node_path[DT_PATH_LENGTH];
+    qemu_irq *ret = NULL;
+    int i;
+    Error *errp = NULL;
+
+    intc_phandle = qemu_fdt_getprop_cell_inherited(fdt, node_path,
+                                                   "interrupt-parent",
+                                                   0, &errp);
+    if (errp) {
+        goto fail;
+    } else {
+        if (qemu_devtree_get_node_by_phandle(fdt, intc_node_path,
+                                             intc_phandle)) {
+            goto fail;
+        }
+
+        /* Check if the device is using interrupt-maps */
+        qemu_fdt_getprop_cell(fdt, node_path, "interrupt-map-mask", 0,
+                              &errp);
+        if (!errp) {
+            error_report(
+                 "'interrupt-map' routing is not yet supported for node %s",
+                     node_path);
+            goto fail;
+        } else {
+            error_free(errp);
+            errp = NULL;
+            intc_cells = qemu_fdt_getprop_cell_inherited(fdt, intc_node_path,
+                                               "#interrupt-cells", 0,
+                                               &errp);
+        }
+    }
+
+    if (errp) {
+        goto fail;
+    }
+
+    fdt_debug_np("%s intc_phandle: %d\n", node_path, intc_phandle);
+
+    for (i = 0; i < intc_cells; ++i) {
+        cells[i] = qemu_fdt_getprop_cell(fdt, node_path, "interrupts",
+                                        intc_cells * irq_idx + i, &errp);
+        if (errp) {
+            goto fail;
+        }
+    }
+
+    fdt_debug_np("Getting IRQ information: %s -> %s\n",
+                node_path, intc_node_path);
+
+    ret = g_new0(qemu_irq, fdt_generic_num_cpus + 2);
+    fdt_get_irq_info_from_intc(fdti, ret, intc_node_path, cells, intc_cells,
+                               fdt_generic_num_cpus, &errp);
+
+    if (errp) {
+        goto fail;
+    }
+
+    /* FIXME: Phase out this info bussiness */
+    if (info) {
+        snprintf(info, DT_PATH_LENGTH, "%s", intc_node_path);
+    }
+
+    return ret;
+
+fail:
+    if (info) {
+        snprintf(info, DT_PATH_LENGTH, "%s",
+                 errp ? error_get_pretty(errp) : "(none)");
+
+    }
+
+    if (errp) {
+        error_free(errp);
+    }
+
+    return NULL;
+}
+
+qemu_irq *fdt_get_irq(FDTMachineInfo *fdti, char *node_path, int irq_idx)
+{
+    return fdt_get_irq_info(fdti, node_path, irq_idx, NULL);
 }
 
 static inline const char *trim_vendor(const char *s)
