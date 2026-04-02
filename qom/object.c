@@ -1904,7 +1904,7 @@ static void object_get_link_property(Object *obj, Visitor *v,
  *
  * Returns: The matched object or NULL on path lookup failures.
  */
-static Object *object_resolve_link(Object *obj, const char *name,
+Object *object_resolve_link(Object *obj, const char *name,
                                    const char *path, Error **errp)
 {
     const char *type;
