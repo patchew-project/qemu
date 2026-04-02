@@ -446,24 +446,22 @@ const void *qemu_fdt_getprop(void *fdt, const char *node_path,
 }
 
 uint32_t qemu_fdt_getprop_cell(void *fdt, const char *node_path,
-                               const char *property, int *lenp, Error **errp)
+                               const char *property, int cell_id, Error **errp)
 {
     int len;
     const uint32_t *p;
 
-    if (!lenp) {
-        lenp = &len;
-    }
-    p = qemu_fdt_getprop(fdt, node_path, property, lenp, errp);
+    p = qemu_fdt_getprop(fdt, node_path, property, &len, errp);
     if (!p) {
         return 0;
-    } else if (*lenp != 4) {
-        error_setg(errp, "%s: %s/%s not 4 bytes long (not a cell?)",
-                   __func__, node_path, property);
-        *lenp = -EINVAL;
+    }
+    if (len < (cell_id + 1) * 4) {
+        error_setg(errp,
+                   "%s: %s/%s is too short, need %d bytes for cell ind %d",
+                __func__, node_path, property, (cell_id + 1) * 4, cell_id);
         return 0;
     }
-    return be32_to_cpu(*p);
+    return be32_to_cpu(p[cell_id]);
 }
 
 uint32_t qemu_fdt_get_phandle(void *fdt, const char *path)

@@ -108,14 +108,13 @@ const void *qemu_fdt_getprop(void *fdt, const char *node_path,
  * @fdt: pointer to the device tree blob
  * @node_path: node path
  * @property: name of the property to find
- * @lenp: fdt error if any or -EINVAL if the property size is different from
- *        4 bytes, or 4 (expected length of the property) upon success.
+ * @cell_id: the index of 32bit cell to retrive
  * @errp: handle to an error object
  *
  * returns the property value on success
  */
 uint32_t qemu_fdt_getprop_cell(void *fdt, const char *node_path,
-                               const char *property, int *lenp,
+                               const char *property, int cell_id,
                                Error **errp);
 uint32_t qemu_fdt_get_phandle(void *fdt, const char *path);
 uint32_t qemu_fdt_alloc_phandle(void *fdt);
