@@ -4024,3 +4024,81 @@ static void memory_register_types(void)
 }
 
 type_init(memory_register_types)
+
+static int sysmem_fdt_init(char *node_path, FDTMachineInfo *fdti,
+                           void *priv)
+{
+    int i, ret = 0, priority = 0;
+    uint32_t container_phandle;
+    MemoryRegion *container;
+    char container_node_path[DT_PATH_LENGTH];
+    FDTGenericRegPropInfo *reg;
+    Error *errp = NULL;
+
+    fdt_init_set_opaque(fdti, node_path, OBJECT(get_system_memory()));
+
+    /* allow to set system_memory region as subregion */
+    container_phandle = qemu_fdt_getprop_cell(fdti->fdt, node_path,
+                                            "container",
+                                            0, &errp);
+    if (errp) {
+        /* container is an optional property */
+        error_free(errp);
+        return 0;
+    }
+
+    if (qemu_devtree_get_node_by_phandle(fdti->fdt, container_node_path,
+                                            container_phandle)) {
+        error_report("failed to get container node");
+        return -1;
+    }
+
+    while (!fdt_init_has_opaque(fdti, container_node_path)) {
+        fdt_init_yield(fdti);
+    }
+
+    container = MEMORY_REGION(fdt_init_get_opaque(fdti,
+                                                    container_node_path));
+    reg = fdt_get_reg_info(fdti, node_path, OBJECT(get_system_memory()));
+    if (reg && reg->n > 0) {
+        if (reg->x[0][0] || reg->x[1][0]) {
+            error_report("can't change sysmem address or size");
+            ret = -1;
+            goto out;
+        }
+        priority = reg->x[3][0];
+    }
+
+    memory_region_add_subregion_overlap(container, 0,
+                                        get_system_memory(), priority);
+
+out:
+    if (reg) {
+        g_free(reg->parents);
+
+        for (i = 0; i < FDT_GENERIC_REG_TUPLE_LENGTH; ++i) {
+            g_free(reg->x[i]);
+        }
+
+        g_free(reg);
+    }
+    return ret;
+}
+
+fdt_register_compatibility(sysmem_fdt_init, "compatible:qemu:system-memory");
+
+static const TypeInfo fdt_qom_aliases[] = {
+    {   .name = "qemu-memory-region",       .parent = "memory-region"  },
+    {   .name = "simple-bus",               .parent = "memory-region"  },
+};
+
+static void fdt_memory_types(void)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(fdt_qom_aliases); ++i) {
+        type_register_static(&fdt_qom_aliases[i]);
+    }
+}
+
+type_init(fdt_memory_types)
