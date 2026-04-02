@@ -69,6 +69,8 @@ static void fdt_get_irq_info_from_intc(FDTMachineInfo *fdti, qemu_irq *ret,
                                        char *intc_node_path,
                                        uint32_t *cells, uint32_t num_cells,
                                        uint32_t max, Error **errp);
+static bool fdt_attach_blockdev(FDTMachineInfo *fdti,
+                                const char *node_path, Object *dev);
 
 typedef struct QEMUIRQSharedState {
     qemu_irq sink;
@@ -173,6 +175,19 @@ static void fdt_init_deferred(FDTMachineInfo *fdti)
 {
     while (fdti->deferred) {
         FDTDeferredNode *dnode = fdti->deferred;
+        int length = 0;
+
+        int offset = fdt_path_offset(fdti->fdt, dnode->node_path);
+        if (offset < 0) {
+            error_report("%s Couldn't find node %s: %s", __func__,
+                         dnode->node_path, fdt_strerror(offset));
+        }
+        const char *blockdev = fdt_stringlist_get(fdti->fdt, offset,
+                                              "blockdev-node-name", 0, &length);
+
+        if (blockdev && object_property_find(OBJECT(dnode->dev), "drive")) {
+            fdt_attach_blockdev(fdti, dnode->node_path, OBJECT(dnode->dev));
+        }
 
         fdt_debug("FDT: Deferred realize node: %s\n",
                  dnode->node_path);
@@ -211,6 +226,8 @@ FDTMachineInfo *fdt_generic_create_machine(void *fdt, qemu_irq *cpu_irq)
     current_machine->smp.cores = fdt_generic_num_cpus;
     current_machine->smp.cpus = fdt_generic_num_cpus;
     current_machine->smp.max_cpus = fdt_generic_num_cpus;
+
+    bdrv_drain_all();
 
     fdt_debug("FDT: Device tree scan complete\n");
     return fdti;
@@ -707,6 +724,47 @@ static void fdt_init_qdev_array_prop(Object *obj,
     fdt_debug_np("set property %s propname to <list>\n", propname);
 }
 
+/*
+ * Try to attach by matching drive created by '-blockdev node-name=LABEL'
+ * iff the FDT node contains property 'blockdev-node-name=LABEL'.
+ *
+ * Return false unless the given node_path has the property.
+ *
+ */
+static bool fdt_attach_blockdev(FDTMachineInfo *fdti,
+                                const char *node_path, Object *dev)
+{
+    static const char propname[] = "blockdev-node-name";
+    const char *label;
+
+    /* Inspect FDT node for blockdev-only binding */
+    label = qemu_fdt_getprop(fdti->fdt, node_path, propname,
+                             NULL, NULL);
+
+    /* Skip legacy node */
+    if (!label) {
+        return false;
+    }
+
+    /*
+     * Missing matching bdev is not an error: attachment is optional.
+     *
+     * error_setg() aborts, never returns: 'return false' is just sanity.
+     */
+    if (!label[0]) {
+        error_setg(&error_abort, "FDT-node '%s': property '%s' = <empty>",
+                   node_path, propname);
+        return false;
+    }
+
+    if (!bdrv_find_node(label)) {
+        return false;
+    }
+
+    object_property_set_str(OBJECT(dev), "drive", label, NULL);
+    return true;
+}
+
 static void fdt_init_qdev_properties(char *node_path, FDTMachineInfo *fdti,
                                      Object *dev)
 {
@@ -1048,6 +1106,7 @@ static int fdt_init_qdev(char *node_path, FDTMachineInfo *fdti, char *compat)
 {
     Object *dev, *parent;
     char *parent_node_path;
+    ObjectProperty *p;
 
     if (!compat) {
         return 1;
@@ -1086,12 +1145,30 @@ static int fdt_init_qdev(char *node_path, FDTMachineInfo *fdti, char *compat)
 
     fdt_init_qdev_properties(node_path, fdti, dev);
 
+    /*
+     * In case device need to be attached to block backend,
+     * defer realize to latest stage, outside of co-routines,
+     * which are not compatible with AIO used by block subsystem
+     */
+    p = object_property_find(dev, "drive");
+    if (p && !strcmp(p->type, "str")) {
+        FDTDeferredNode *dnode = g_new0(FDTDeferredNode, 1);
+        *dnode = (FDTDeferredNode) {
+                .dev = DEVICE(dev),
+                .node_path = g_strdup(node_path),
+                .next = fdti->deferred
+        };
+        fdti->deferred = dnode;
+        goto exit;
+    }
+
     fdt_init_device_realize(fdti, node_path, dev);
 
     fdt_parse_node_reg_prop(fdti, node_path, dev);
 
     fdt_parse_node_irq_prop(fdti, node_path, dev);
 
+exit:
     g_free(parent_node_path);
 
     return 0;
