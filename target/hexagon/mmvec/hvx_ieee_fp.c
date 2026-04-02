@@ -269,3 +269,7 @@ uint16_t cmpgt_hf(uint16_t a1, uint16_t a2, float_status *fp_status)
     }
     return float16_compare(a1, a2, fp_status) == float_relation_greater;
 }
+
+DEF_FP_INSN_3(mult_sf_bf_acc, 32, 16, 16, 32,
+              float32_muladd(bf_to_sf(f1, fp_status), bf_to_sf(f2, fp_status),
+                             f3, 0, fp_status))
