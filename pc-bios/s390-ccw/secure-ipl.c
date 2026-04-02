@@ -211,6 +211,49 @@ static void init_lists(IplDeviceComponentList *comp_list,
     cert_list->ipl_info_header.len = sizeof(cert_list->ipl_info_header);
 }
 
+static bool is_comp_overlap(SecureIplCompAddrRangeList *range_list,
+                            SecureIplCompEntryInfo comp_entry_info)
+{
+    uint64_t start_addr;
+    uint64_t end_addr;
+
+    start_addr = comp_entry_info.addr;
+    end_addr = comp_entry_info.addr + comp_entry_info.len;
+
+    /*
+     * Check component's address range does not overlap with any
+     * signed component's address range.
+     */
+    for (int i = 0; i < range_list->index; i++) {
+        if ((range_list->comp_addr_range[i].start_addr < end_addr &&
+            start_addr < range_list->comp_addr_range[i].end_addr) &&
+            range_list->comp_addr_range[i].is_signed) {
+            return true;
+       }
+    }
+    return false;
+}
+
+static void comp_addr_range_add(SecureIplCompAddrRangeList *range_list,
+                                SecureIplCompEntryInfo comp_entry_info,
+                                bool is_signed)
+{
+    uint64_t start_addr;
+    uint64_t end_addr;
+
+    start_addr = comp_entry_info.addr;
+    end_addr = comp_entry_info.addr + comp_entry_info.len;
+
+    if (range_list->index >= MAX_CERTIFICATES) {
+        zipl_secure_handle("Component address range update failed due to out-of-range"
+                           " index; Overlapping validation cannot be guaranteed");
+    }
+
+    range_list->comp_addr_range[range_list->index].is_signed = is_signed;
+    range_list->comp_addr_range[range_list->index].start_addr = start_addr;
+    range_list->comp_addr_range[range_list->index].end_addr = end_addr;
+}
+
 static int zipl_load_signature(ComponentEntry *entry, uint64_t sig_sec)
 {
     if (zipl_load_segment(entry, sig_sec) < 0) {
@@ -253,6 +296,7 @@ int zipl_run_secure(ComponentEntry **entry_ptr, uint8_t *tmp_sec)
      * exists for the certificate).
      */
     int cert_list_table[MAX_CERTIFICATES] = { [0 ... MAX_CERTIFICATES - 1] = -1 };
+    SecureIplCompAddrRangeList range_list = { 0 };
     int signed_count = 0;
 
     if (!secure_ipl_supported()) {
@@ -282,13 +326,19 @@ int zipl_run_secure(ComponentEntry **entry_ptr, uint8_t *tmp_sec)
                 goto out;
             }
 
-            if (!sig_len) {
-                break;
-            }
-
             comp_entry_info = (SecureIplCompEntryInfo){ 0 };
             comp_entry_info.addr = comp_addr;
             comp_entry_info.len = (uint64_t)comp_len;
+
+            if (is_comp_overlap(&range_list, comp_entry_info)) {
+                zipl_secure_handle("Component addresses overlap");
+            }
+            comp_addr_range_add(&range_list, comp_entry_info, !!sig_len);
+            range_list.index += 1;
+
+            if (!sig_len) {
+                break;
+            }
 
             verified = verify_signature(comp_entry_info,
                                         sig_len, (uint64_t)sig,
