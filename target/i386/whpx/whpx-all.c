@@ -1082,6 +1082,8 @@ HRESULT whpx_set_exception_exit_bitmap(UINT64 exceptions)
     /* Register for MSR and CPUID exits */
     memset(&prop, 0, sizeof(WHV_PARTITION_PROPERTY));
     prop.ExtendedVmExits.X64MsrExit = 1;
+    prop.ExtendedVmExits.X64CpuidExit = 1;
+
     if (exceptions != 0) {
         prop.ExtendedVmExits.ExceptionExit = 1;
     }
@@ -1898,6 +1900,12 @@ int whpx_vcpu_run(CPUState *cpu)
             WHV_REGISTER_NAME reg_names[3];
             UINT32 reg_count;
             bool is_known_msr = 0; 
+            uint64_t val;
+
+            if (vcpu->exit_ctx.MsrAccess.AccessInfo.IsWrite) {
+                val = ((uint32_t)vcpu->exit_ctx.MsrAccess.Rax) |
+                    ((uint64_t)(vcpu->exit_ctx.MsrAccess.Rdx) << 32);
+            }
 
             reg_names[0] = WHvX64RegisterRip;
             reg_names[1] = WHvX64RegisterRax;
@@ -1911,7 +1919,47 @@ int whpx_vcpu_run(CPUState *cpu)
                 && !vcpu->exit_ctx.MsrAccess.AccessInfo.IsWrite
                 && !whpx_irqchip_in_kernel()) {
                 is_known_msr = 1;
-                reg_values[1].Reg32 = (uint32_t)X86_CPU(cpu)->env.apic_bus_freq;
+                val = X86_CPU(cpu)->env.apic_bus_freq;
+            }
+
+            if (!whpx_irqchip_in_kernel() &&
+                vcpu->exit_ctx.MsrAccess.MsrNumber == MSR_IA32_APICBASE) {
+                is_known_msr = 1;
+                if (!vcpu->exit_ctx.MsrAccess.AccessInfo.IsWrite) {
+                    /* Read path unreachable on Hyper-V */
+                    abort();
+                } else {
+                    WHV_REGISTER_VALUE reg = {.Reg64 = val};
+                    int ret = cpu_set_apic_base(X86_CPU(cpu)->apic_state, val);
+                    if (ret < 0) {
+                        x86_emul_raise_exception(&X86_CPU(cpu)->env, EXCP0D_GPF, 0);
+                    }
+                    whpx_set_reg(cpu, WHvX64RegisterApicBase, reg);
+                }
+            }
+
+            if (!whpx_irqchip_in_kernel() &&
+                vcpu->exit_ctx.MsrAccess.MsrNumber >= MSR_APIC_START &&
+                vcpu->exit_ctx.MsrAccess.MsrNumber <= MSR_APIC_END) {
+                int index = vcpu->exit_ctx.MsrAccess.MsrNumber - MSR_APIC_START;
+                int ret;
+                is_known_msr = 1;
+                if (!vcpu->exit_ctx.MsrAccess.AccessInfo.IsWrite) {
+                    bql_lock();
+                    ret = apic_msr_read(X86_CPU(cpu)->apic_state, index, &val);
+                    bql_unlock();
+                    reg_values[1].Reg64 = val;
+                    if (ret < 0) {
+                        x86_emul_raise_exception(&X86_CPU(cpu)->env, EXCP0D_GPF, 0);
+                    }
+                } else {
+                    bql_lock();
+                    ret = apic_msr_write(X86_CPU(cpu)->apic_state, index, val);
+                    bql_unlock();
+                    if (ret < 0) {
+                        x86_emul_raise_exception(&X86_CPU(cpu)->env, EXCP0D_GPF, 0);
+                    }
+                }
             }
             /*
              * For all unsupported MSR access we:
@@ -1920,6 +1968,11 @@ int whpx_vcpu_run(CPUState *cpu)
              */
             reg_count = vcpu->exit_ctx.MsrAccess.AccessInfo.IsWrite ?
                         1 : 3;
+
+            if (!vcpu->exit_ctx.MsrAccess.AccessInfo.IsWrite) {
+                reg_values[1].Reg32 = (uint32_t)val;
+                reg_values[2].Reg32 = (uint32_t)(val >> 32);
+            }
 
             if (!is_known_msr) {
                 trace_whpx_unsupported_msr_access(vcpu->exit_ctx.MsrAccess.MsrNumber,
@@ -1934,6 +1987,47 @@ int whpx_vcpu_run(CPUState *cpu)
 
             if (FAILED(hr)) {
                 error_report("WHPX: Failed to set MsrAccess state "
+                             " registers, hr=%08lx", hr);
+            }
+            ret = 0;
+            break;
+        }
+        case WHvRunVpExitReasonX64Cpuid: {
+            WHV_REGISTER_VALUE reg_values[5] = {0};
+            WHV_REGISTER_NAME reg_names[5];
+            UINT32 reg_count = 5;
+            X86CPU *x86_cpu = X86_CPU(cpu);
+            CPUX86State *env = &x86_cpu->env;
+
+            reg_names[0] = WHvX64RegisterRip;
+            reg_names[1] = WHvX64RegisterRax;
+            reg_names[2] = WHvX64RegisterRcx;
+            reg_names[3] = WHvX64RegisterRdx;
+            reg_names[4] = WHvX64RegisterRbx;
+
+            reg_values[0].Reg64 =
+                vcpu->exit_ctx.VpContext.Rip +
+                vcpu->exit_ctx.VpContext.InstructionLength;
+
+            reg_values[1].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRax;
+            reg_values[2].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRcx;
+            reg_values[3].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRdx;
+            reg_values[4].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRbx;
+
+            if (vcpu->exit_ctx.CpuidAccess.Rax == 1) {
+                if (cpu_has_x2apic_feature(env)) {
+                    reg_values[2].Reg64 |= CPUID_EXT_X2APIC;
+                }
+            }
+
+            hr = whp_dispatch.WHvSetVirtualProcessorRegisters(
+                whpx->partition,
+                cpu->cpu_index,
+                reg_names, reg_count,
+                reg_values);
+
+            if (FAILED(hr)) {
+                error_report("WHPX: Failed to set CpuidAccess state "
                              " registers, hr=%08lx", hr);
             }
             ret = 0;
@@ -2136,6 +2230,7 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     WHV_PROCESSOR_FEATURES_BANKS processor_features;
     WHV_PROCESSOR_PERFMON_FEATURES perfmon_features;
     bool is_legacy_os = false;
+    UINT32 cpuidExitList[] = {1};
 
     whpx = &whpx_global;
 
@@ -2354,6 +2449,7 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     /* Register for MSR and CPUID exits */
     memset(&prop, 0, sizeof(WHV_PARTITION_PROPERTY));
     prop.ExtendedVmExits.X64MsrExit = 1;
+    prop.ExtendedVmExits.X64CpuidExit = 1;
 
     hr = whp_dispatch.WHvSetPartitionProperty(
             whpx->partition,
@@ -2362,6 +2458,36 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
             sizeof(WHV_PARTITION_PROPERTY));
     if (FAILED(hr)) {
         error_report("WHPX: Failed to enable extended VM exits, hr=%08lx", hr);
+        ret = -EINVAL;
+        goto error;
+    }
+
+    memset(&prop, 0, sizeof(WHV_PARTITION_PROPERTY));
+    prop.X64MsrExitBitmap.UnhandledMsrs = 1;
+    if (!whpx_irqchip_in_kernel()) {
+        prop.X64MsrExitBitmap.ApicBaseMsrWrite = 1;
+    }
+
+    hr = whp_dispatch.WHvSetPartitionProperty(
+            whpx->partition,
+            WHvPartitionPropertyCodeX64MsrExitBitmap,
+            &prop,
+            sizeof(WHV_PARTITION_PROPERTY));
+    if (FAILED(hr)) {
+        error_report("WHPX: Failed to set MSR exit bitmap, hr=%08lx", hr);
+        ret = -EINVAL;
+        goto error;
+    }
+
+    hr = whp_dispatch.WHvSetPartitionProperty(
+        whpx->partition,
+        WHvPartitionPropertyCodeCpuidExitList,
+        cpuidExitList,
+        RTL_NUMBER_OF(cpuidExitList) * sizeof(UINT32));
+
+    if (FAILED(hr)) {
+        error_report("WHPX: Failed to set partition CpuidExitList hr=%08lx",
+                     hr);
         ret = -EINVAL;
         goto error;
     }
