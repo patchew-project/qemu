@@ -36,6 +36,7 @@
 #include "system/ramblock.h"
 #include "accel/accel-ops.h"
 #include "qemu/bswap.h"
+#include "exec/cpu-common.h"
 #include "exec/tswap.h"
 #include "exec/target_page.h"
 #include "system/memory.h"
