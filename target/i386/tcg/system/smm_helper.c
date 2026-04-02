@@ -32,26 +32,13 @@
 #define SMM_REVISION_ID 0x00020000
 #endif
 
-void do_smm_enter(X86CPU *cpu)
+static void sm_state_init(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
     CPUState *cs = CPU(cpu);
-    target_ulong sm_state;
     SegmentCache *dt;
     int i, offset;
-
-    qemu_log_mask(CPU_LOG_INT, "SMM: enter\n");
-    log_cpu_state_mask(CPU_LOG_INT, CPU(cpu), CPU_DUMP_CCOP);
-
-    env->msr_smi_count++;
-    env->hflags |= HF_SMM_MASK;
-    if (env->hflags2 & HF2_NMI_MASK) {
-        env->hflags2 |= HF2_SMM_INSIDE_NMI_MASK;
-    } else {
-        env->hflags2 |= HF2_NMI_MASK;
-    }
-
-    sm_state = env->smbase + 0x8000;
+    target_ulong sm_state = env->smbase + 0x8000;
 
 #ifdef TARGET_X86_64
     for (i = 0; i < 6; i++) {
@@ -156,6 +143,25 @@ void do_smm_enter(X86CPU *cpu)
     x86_stl_phys(cs, sm_state + 0x7efc, SMM_REVISION_ID);
     x86_stl_phys(cs, sm_state + 0x7ef8, env->smbase);
 #endif
+}
+
+void do_smm_enter(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+
+    qemu_log_mask(CPU_LOG_INT, "SMM: enter\n");
+    log_cpu_state_mask(CPU_LOG_INT, CPU(cpu), CPU_DUMP_CCOP);
+
+    env->msr_smi_count++;
+    env->hflags |= HF_SMM_MASK;
+    if (env->hflags2 & HF2_NMI_MASK) {
+        env->hflags2 |= HF2_SMM_INSIDE_NMI_MASK;
+    } else {
+        env->hflags2 |= HF2_NMI_MASK;
+    }
+
+    sm_state_init(cpu);
+
     /* init SMM cpu state */
 
 #ifdef TARGET_X86_64
@@ -191,9 +197,8 @@ void do_smm_enter(X86CPU *cpu)
                            DESC_G_MASK | DESC_A_MASK);
 }
 
-void helper_rsm(CPUX86State *env)
+static void rsm_load_regs(CPUX86State *env)
 {
-    X86CPU *cpu = env_archcpu(env);
     CPUState *cs = env_cpu(env);
     target_ulong sm_state;
     int i, offset;
@@ -308,6 +313,14 @@ void helper_rsm(CPUX86State *env)
         env->smbase = x86_ldl_phys(cs, sm_state + 0x7ef8);
     }
 #endif
+}
+
+void helper_rsm(CPUX86State *env)
+{
+    X86CPU *cpu = env_archcpu(env);
+
+    rsm_load_regs(env);
+
     if ((env->hflags2 & HF2_SMM_INSIDE_NMI_MASK) == 0) {
         env->hflags2 &= ~HF2_NMI_MASK;
     }
