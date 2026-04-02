@@ -540,6 +540,34 @@ static void fdt_init_parent_node(Object *dev, Object *parent, char *node_path)
     }
 }
 
+static void fdt_init_device_realize(FDTMachineInfo *fdti,  char *node_path,
+                                   Object *dev)
+{
+    if (object_dynamic_cast(dev, TYPE_DEVICE)) {
+        DeviceClass *dc = DEVICE_GET_CLASS(dev);
+        const char *short_name = strrchr(node_path, '/') + 1;
+
+        /* Regular TYPE_DEVICE houskeeping */
+        fdt_debug_np("Short naming node: %s\n", short_name);
+        (DEVICE(dev))->id = g_strdup(short_name);
+
+        if (object_dynamic_cast(dev, TYPE_CPU_CLUSTER)) {
+            /*
+             * CPU clusters must be realized at the end to make sure all child
+             * CPUs are parented.
+             */
+            fdt_init_register_user_cpu_cluster(fdti, OBJECT(dev));
+        } else {
+            object_property_set_bool(OBJECT(dev), "realized", true,
+                                     &error_fatal);
+            if (dc->legacy_reset) {
+                qemu_register_reset((void (*)(void *))dc->legacy_reset,
+                                    dev);
+            }
+        }
+    }
+}
+
 static int fdt_init_qdev(char *node_path, FDTMachineInfo *fdti, char *compat)
 {
     Object *dev, *parent;
@@ -581,6 +609,8 @@ static int fdt_init_qdev(char *node_path, FDTMachineInfo *fdti, char *compat)
     fdt_init_set_opaque(fdti, node_path, dev);
 
     fdt_init_qdev_properties(node_path, fdti, dev);
+
+    fdt_init_device_realize(fdti, node_path, dev);
 
     g_free(parent_node_path);
 
