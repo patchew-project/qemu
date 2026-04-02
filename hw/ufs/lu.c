@@ -247,6 +247,89 @@ static UfsReqResult ufs_emulate_scsi_cmd(UfsLu *lu, UfsRequest *req)
     return UFS_REQUEST_SUCCESS;
 }
 
+#define UFS_GROUP_NUMBER_MASK 0x1F
+#define UFS_WB_GROUP_NUMBER_PINNED 0x18 /* 11000b */
+static bool ufs_wb_check_write_pinned(UfsHc *u, UfsRequest *req)
+{
+    uint8_t group_number = req->req_upiu.sc.cdb[6] & UFS_GROUP_NUMBER_MASK;
+
+    if (u->attributes.wb_buffer_partial_flush_mode != UFS_WB_FLUSH_PINNED) {
+        return false;
+    }
+
+    return (group_number == UFS_WB_GROUP_NUMBER_PINNED);
+}
+
+#define UFS_WB_TOTAL_WRITTEN_SHIFT 21 /* 10MB */
+static void ufs_wb_process_write_pinned(UfsHc *u, UfsRequest *req)
+{
+    UfsWb *wb = &u->wb;
+    uint64_t remain_bytes, remain_data;
+    uint32_t total_written;
+
+    if (!wb->pinned_curr_bytes) {
+        return;
+    }
+
+    if (wb->pinned_used_bytes >= wb->pinned_curr_bytes) {
+        return;
+    }
+
+    remain_bytes = wb->pinned_curr_bytes - wb->pinned_used_bytes;
+    if (remain_bytes >= req->data_len) {
+        wb->pinned_total_written_bytes += req->data_len;
+        wb->pinned_used_bytes += req->data_len;
+        remain_data = 0;
+
+    } else {
+        wb->pinned_total_written_bytes += remain_bytes;
+        wb->pinned_used_bytes += remain_bytes;
+        remain_data = req->data_len - remain_bytes;
+    }
+
+    total_written = wb->pinned_total_written_bytes >> UFS_WB_TOTAL_WRITTEN_SHIFT;
+    u->attributes.pinned_wb_cumm_written_size = cpu_to_be32(total_written);
+
+    remain_bytes = wb->curr_bytes - wb->used_bytes;
+    wb->used_bytes += MIN(remain_bytes, remain_data);
+}
+
+static void ufs_wb_process_write_normal(UfsHc *u, UfsRequest *req)
+{
+    UfsWb *wb = &u->wb;
+    uint64_t curr_bytes, used_bytes, remain_bytes;
+
+    if (!wb->curr_bytes) {
+        return;
+    }
+
+    curr_bytes = wb->curr_bytes - wb->pinned_curr_bytes;
+    used_bytes = wb->used_bytes - wb->pinned_used_bytes;
+
+    if (used_bytes >= curr_bytes) {
+        return;
+    }
+
+    remain_bytes = curr_bytes - used_bytes;
+    wb->used_bytes += MIN(remain_bytes, req->data_len);
+}
+
+static void ufs_wb_process_write_cmd(UfsRequest *req)
+{
+    uint8_t command = req->req_upiu.sc.cdb[0];
+    UfsHc *u = req->hc;
+
+    if (command != WRITE_10 || !u->flags.wb_en) {
+        return;
+    }
+
+    if (ufs_wb_check_write_pinned(u, req)) {
+        ufs_wb_process_write_pinned(u, req);
+    } else {
+        ufs_wb_process_write_normal(u, req);
+    }
+}
+
 static UfsReqResult ufs_process_scsi_cmd(UfsLu *lu, UfsRequest *req)
 {
     uint8_t task_tag = req->req_upiu.header.task_tag;
@@ -260,6 +343,8 @@ static UfsReqResult ufs_process_scsi_cmd(UfsLu *lu, UfsRequest *req)
     if (req->req_upiu.sc.cdb[0] == REPORT_LUNS) {
         return ufs_emulate_scsi_cmd(lu, req);
     }
+
+    ufs_wb_process_write_cmd(req);
 
     SCSIRequest *scsi_req =
         scsi_req_new(lu->scsi_dev, task_tag, lu->lun, req->req_upiu.sc.cdb,
