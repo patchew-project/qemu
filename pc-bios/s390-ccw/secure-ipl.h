@@ -16,10 +16,47 @@
 VCStorageSizeBlock *zipl_secure_get_vcssb(void);
 int zipl_run_secure(ComponentEntry **entry_ptr, uint8_t *tmp_sec);
 
+#define S390_SECURE_IPL_SCLAB_FLAG_OPSW    0x8000
+#define S390_SECURE_IPL_SCLAB_FLAG_OLA     0x4000
+#define S390_SECURE_IPL_SCLAB_FLAG_NUC     0x2000
+#define S390_SECURE_IPL_SCLAB_FLAG_SC      0x1000
+
+#define S390_SECURE_IPL_SCLAB_MIN_LEN      32
+#define S390_SECURE_IPL_UNSIGNED_MIN_ADDR  0x2000
+
+struct SecureCodeLoadingAttributesBlock {
+    uint8_t  format;
+    uint8_t  reserved1;
+    uint16_t flags;
+    uint8_t  reserved2[4];
+    uint64_t load_psw;
+    uint64_t load_addr;
+    uint64_t reserved3[];
+} __attribute__ ((packed));
+typedef struct SecureCodeLoadingAttributesBlock SecureCodeLoadingAttributesBlock;
+
+struct SclabOriginLocator {
+    uint8_t reserved[2];
+    uint16_t len;
+    uint8_t magic[4];
+} __attribute__ ((packed));
+typedef struct SclabOriginLocator SclabOriginLocator;
+
+/* Custom struct used to consolidate SCLAB overhead */
+typedef struct SecureIplSclabInfo {
+    int count;
+    int global_count;
+    int signed_count;
+    int unsigned_count;
+    uint64_t global_load_psw;
+    uint16_t global_flags;
+} SecureIplSclabInfo;
+
 /* Custom struct for secure IPL component entry information */
 typedef struct SecureIplCompEntryInfo {
     uint64_t addr;
     uint64_t len;
+    uint32_t cei;
     uint16_t cert_index;
     uint8_t  flags;
 } SecureIplCompEntryInfo;
@@ -48,6 +85,18 @@ static inline void zipl_secure_handle(const char *message)
     default:
         break;
     }
+}
+
+static inline uint32_t validate_comp_condition(bool condition, uint32_t flag,
+                                               const char *message)
+
+{
+    if (condition) {
+        return 0;
+    }
+
+    zipl_secure_handle(message);
+    return flag;
 }
 
 static inline uint64_t diag320(void *data, unsigned long subcode)
