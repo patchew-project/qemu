@@ -217,3 +217,55 @@ int16_t conv_h_hf(uint16_t a, float_status *fp_status)
     }
     return float16_to_int16_round_to_zero(f1, fp_status);
 }
+
+/*
+ * Returns true if f1 > f2, where at least one of the elements is guaranteed
+ * to be NaN.
+ * Up to v73, Hexagon HVX IEEE FP follows this order:
+ * QNaN > SNaN > +Inf > numbers > -Inf > SNaN_neg > QNaN_neg
+ */
+static bool float32_nan_compare(float32 f1, float32 f2, float_status *fp_status)
+{
+    /* opposite signs case */
+    if (float32_is_neg(f1) != float32_is_neg(f2)) {
+        return !float32_is_neg(f1);
+    }
+
+    /* same sign case */
+    bool result = (float32_is_any_nan(f1) && !float32_is_any_nan(f2)) ||
+        (float32_is_quiet_nan(f1, fp_status) && !float32_is_quiet_nan(f2, fp_status));
+    return float32_is_neg(f1) ? !result : result;
+}
+
+static bool float16_nan_compare(float16 f1, float16 f2, float_status *fp_status)
+{
+    /* opposite signs case */
+    if (float16_is_neg(f1) != float16_is_neg(f2)) {
+        return !float16_is_neg(f1);
+    }
+
+    /* same sign case */
+    bool result = (float16_is_any_nan(f1) && !float16_is_any_nan(f2)) ||
+        (float16_is_quiet_nan(f1, fp_status) && !float16_is_quiet_nan(f2, fp_status));
+    return float16_is_neg(f1) ? !result : result;
+}
+
+uint32_t cmpgt_sf(uint32_t a1, uint32_t a2, float_status *fp_status)
+{
+    float32 f1 = make_float32(a1);
+    float32 f2 = make_float32(a2);
+    if (float32_is_any_nan(f1) || float32_is_any_nan(f2)) {
+        return float32_nan_compare(f1, f2, fp_status);
+    }
+    return float32_compare(a1, a2, fp_status) == float_relation_greater;
+}
+
+uint16_t cmpgt_hf(uint16_t a1, uint16_t a2, float_status *fp_status)
+{
+    float16 f1 = make_float16(a1);
+    float16 f2 = make_float16(a2);
+    if (float16_is_any_nan(f1) || float16_is_any_nan(f2)) {
+        return float16_nan_compare(f1, f2, fp_status);
+    }
+    return float16_compare(a1, a2, fp_status) == float_relation_greater;
+}

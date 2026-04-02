@@ -56,6 +56,10 @@ uint32_t qf_min_sf(uint32_t a1, uint32_t a2, float_status *fp_status);
 uint16_t qf_max_hf(uint16_t a1, uint16_t a2, float_status *fp_status);
 uint16_t qf_min_hf(uint16_t a1, uint16_t a2, float_status *fp_status);
 
+/* IEEE - FP compare instructions */
+uint32_t cmpgt_sf(uint32_t a1, uint32_t a2, float_status *fp_status);
+uint16_t cmpgt_hf(uint16_t a1, uint16_t a2, float_status *fp_status);
+
 /*
  * IEEE - FP Convert instructions
  */
