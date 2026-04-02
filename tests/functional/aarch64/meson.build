@@ -41,6 +41,8 @@ tests_aarch64_system_thorough = [
   'sbsaref',
   'sbsaref_alpine',
   'sbsaref_freebsd',
+  'arm_generic_fdt',
+  'arm_generic_fdt_alpine',
   'smmu',
   'tcg_plugins',
   'tuxrun',
