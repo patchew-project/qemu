@@ -950,6 +950,18 @@ void qdev_prop_set_array(DeviceState *dev, const char *name, QList *values)
     qobject_unref(values);
 }
 
+const char *qdev_prop_get_array_elem_type(DeviceState *dev, const char *name)
+{
+    const Property *prop;
+
+    prop = qdev_prop_find(dev, name);
+    if (!prop || prop->info != &qdev_prop_array) {
+        return NULL;
+    }
+
+    return prop->arrayinfo->type;
+}
+
 static GPtrArray *global_props(void)
 {
     static GPtrArray *gp;

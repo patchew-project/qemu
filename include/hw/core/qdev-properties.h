@@ -218,6 +218,7 @@ void qdev_prop_set_enum(DeviceState *dev, const char *name, int value);
 
 /* Takes ownership of @values */
 void qdev_prop_set_array(DeviceState *dev, const char *name, QList *values);
+const char *qdev_prop_get_array_elem_type(DeviceState *dev, const char *name);
 
 void *object_field_prop_ptr(Object *obj, const Property *prop);
 
