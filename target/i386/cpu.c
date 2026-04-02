@@ -2274,7 +2274,7 @@ void host_cpuid(uint32_t function, uint32_t count,
 /* Return type name for a given CPU model name
  * Caller is responsible for freeing the returned string.
  */
-static char *x86_cpu_type_name(const char *model_name)
+char *x86_cpu_type_name(const char *model_name)
 {
     if (target_i386()) {
         return g_strdup_printf("%s" I386_CPU_TYPE_SUFFIX, model_name);

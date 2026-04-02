@@ -2722,6 +2722,7 @@ void mark_unavailable_features(X86CPU *cpu, FeatureWord w, uint64_t mask,
                                const char *verbose_prefix);
 void mark_forced_on_features(X86CPU *cpu, FeatureWord w, uint64_t mask,
                              const char *verbose_prefix);
+char *x86_cpu_type_name(const char *model_name);
 
 static inline bool x86_has_cpuid_0x1f(X86CPU *cpu)
 {

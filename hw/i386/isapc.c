@@ -43,13 +43,13 @@ static void pc_init_isa(MachineState *machine)
 
     bool valid_cpu_type = false;
     static const char * const valid_cpu_types[] = {
-        X86_CPU_TYPE_NAME("486"),
-        X86_CPU_TYPE_NAME("athlon"),
-        X86_CPU_TYPE_NAME("kvm32"),
-        X86_CPU_TYPE_NAME("pentium"),
-        X86_CPU_TYPE_NAME("pentium2"),
-        X86_CPU_TYPE_NAME("pentium3"),
-        X86_CPU_TYPE_NAME("qemu32"),
+        "486",
+        "athlon",
+        "kvm32",
+        "pentium",
+        "pentium2",
+        "pentium3",
+        "qemu32",
     };
 
     /*
@@ -59,8 +59,10 @@ static void pc_init_isa(MachineState *machine)
      * a warning if anyone tries to use a deprecated CPU.
      */
     for (i = 0; i < ARRAY_SIZE(valid_cpu_types); i++) {
-        if (!strcmp(machine->cpu_type, valid_cpu_types[i])) {
+        g_autofree char *valid_cpu = x86_cpu_type_name(valid_cpu_types[i]);
+        if (!strcmp(machine->cpu_type, valid_cpu)) {
             valid_cpu_type = true;
+            break;
         }
     }
 
