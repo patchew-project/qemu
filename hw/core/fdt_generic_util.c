@@ -37,6 +37,7 @@
 #include "system/system.h"
 #include "system/reset.h"
 #include "qemu/cutils.h"
+#include "chardev/char.h"
 #include "qemu/log.h"
 #include "qemu/config-file.h"
 #include "hw/core/boards.h"
@@ -718,6 +719,13 @@ static void fdt_init_qdev_properties(char *node_path, FDTMachineInfo *fdti,
         }
 
         if (!strcmp(propname, "type")) {
+            continue;
+        }
+
+        /* Special case for chardevs.  */
+        if (!strcmp(propname, "chardev") && !strcmp(p->type, "str")) {
+            qdev_prop_set_chr(DEVICE(dev), "chardev",
+                              serial_hd(get_int_be(value, len)));
             continue;
         }
 
