@@ -64,6 +64,9 @@ struct GPEXHost {
     GPEXIrq *irq;
     uint8_t num_irqs;
 
+    uint32_t *gsi_irqs;
+    uint32_t gsi_irq_num;
+
     bool allow_unmapped_accesses;
 
     struct GPEXConfig gpex_cfg;

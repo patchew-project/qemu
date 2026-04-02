@@ -148,6 +148,10 @@ static void gpex_host_realize(DeviceState *dev, Error **errp)
         s->irq[i].irq_num = -1;
     }
 
+    for (i = 0; i < s->gsi_irq_num; i++) {
+        gpex_set_irq_num(s, i, s->gsi_irqs[i]);
+    }
+
     pci->bus = pci_register_root_bus(dev, "pcie.0", gpex_set_irq,
                                      gpex_swizzle_map_irq_fn,
                                      s, &s->io_mmio, &s->io_ioport, 0,
@@ -190,6 +194,8 @@ static const Property gpex_host_properties[] = {
     DEFINE_PROP_SIZE(PCI_HOST_ABOVE_4G_MMIO_SIZE, GPEXHost,
                      gpex_cfg.mmio64.size, 0),
     DEFINE_PROP_UINT8("num-irqs", GPEXHost, num_irqs, PCI_NUM_PINS),
+    DEFINE_PROP_ARRAY("gsi-irqs", GPEXHost, gsi_irq_num,
+                      gsi_irqs, qdev_prop_uint32, uint32_t),
 };
 
 static void gpex_host_class_init(ObjectClass *klass, const void *data)
