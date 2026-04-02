@@ -9,9 +9,33 @@
 #define FDT_GENERIC_H
 
 #include "qemu/help-texts.h"
+#include "hw/core/irq.h"
 #include "system/device_tree.h"
+#include "qemu/coroutine.h"
 
-typedef struct FDTMachineInfo FDTMachineInfo;
+typedef struct FDTDevOpaque {
+    char *node_path;
+    void *opaque;
+} FDTDevOpaque;
+
+typedef struct FDTMachineInfo {
+    /* the fdt blob */
+    void *fdt;
+    /* irq descriptors for top level int controller */
+    qemu_irq *irq_base;
+    /* per-device specific opaques */
+    FDTDevOpaque *dev_opaques;
+    /* recheck coroutine queue */
+    CoQueue *cq;
+} FDTMachineInfo;
+
+/*
+ * create a new FDTMachineInfo. The client is responsible for setting irq_base.
+ * Client must call fdt_init_destroy_fdti to cleanup
+ */
+
+FDTMachineInfo *fdt_init_new_fdti(void *fdt);
+void fdt_init_destroy_fdti(FDTMachineInfo *fdti);
 
 typedef int (*FDTInitFn)(char *, FDTMachineInfo *, void *);
 
@@ -31,6 +55,22 @@ int fdt_init_compat(char *, FDTMachineInfo *, const char *);
 
 void add_to_inst_bind_table(FDTInitFn, const char *, void *);
 int fdt_init_inst_bind(char *, FDTMachineInfo *, const char *);
+
+/*
+ * Called from FDTInitFn's to inform the framework that a dependency is
+ * unresolved and the calling context needs to wait for another device to
+ * instantiate first. The calling thread will suspend until a change in state
+ * in the argument fdt machine is detected.
+ */
+
+void fdt_init_yield(FDTMachineInfo *);
+
+/* set, check and get per device opaques. Keyed by fdt node_paths */
+
+void fdt_init_set_opaque(FDTMachineInfo *fdti, const char *node_path,
+                         void *opaque);
+int fdt_init_has_opaque(FDTMachineInfo *fdti, const char *node_path);
+void *fdt_init_get_opaque(FDTMachineInfo *fdti, const char *node_path);
 
 /* statically register a FDTInitFn as being associate with a compatibility */
 
