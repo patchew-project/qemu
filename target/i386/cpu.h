@@ -1632,6 +1632,13 @@ typedef struct SegmentCache {
     uint32_t flags;
 } SegmentCache;
 
+typedef struct SegmentCache32 {
+    uint32_t selector;
+    uint32_t base;
+    uint32_t limit;
+    uint32_t flags;
+} SegmentCache32;
+
 typedef union MMXReg {
     uint8_t  _b_MMXReg[64 / 8];
     uint16_t _w_MMXReg[64 / 16];
@@ -1974,10 +1981,16 @@ typedef struct CPUCaches {
 typedef struct CPUArchState {
     /* standard registers */
     target_ulong regs[CPU_NB_EREGS];
-    target_ulong eip;
-    target_ulong eflags; /* eflags register. During CPU emulation, CC
-                        flags and DF are set to zero because they are
-                        stored elsewhere */
+    union {
+        target_ulong eip;
+        uint32_t eip32;
+    };
+    union {
+        target_ulong eflags; /* eflags register. During CPU emulation, CC
+                                flags and DF are set to zero because they are
+                                stored elsewhere */
+        uint32_t eflags32;
+    };
 
     /* emulator internal eflags handling */
     target_ulong cc_dst;
@@ -2042,8 +2055,14 @@ typedef struct CPUArchState {
 
     /* sysenter registers */
     uint32_t sysenter_cs;
-    target_ulong sysenter_esp;
-    target_ulong sysenter_eip;
+    union {
+        target_ulong sysenter_esp;
+        uint32_t sysenter_esp32;
+    };
+    union {
+        target_ulong sysenter_eip;
+        uint32_t sysenter_eip32;
+    };
     uint64_t star;
 
     uint64_t vm_hsave;
@@ -2293,6 +2312,21 @@ typedef struct CPUArchState {
     uint16_t fpus_vmstate;
     uint16_t fptag_vmstate;
     uint16_t fpregs_format_vmstate;
+
+#ifdef TARGET_X86_64
+    /*
+     * These fields are only used for migrating from qemu-system-i386
+     * to qemu-system-x86_64
+     */
+    uint32_t regs32[CPU_NB_REGS32];
+    SegmentCache32 segs32[6]; /* selector values */
+    SegmentCache32 ldt32;
+    SegmentCache32 tr32;
+    SegmentCache32 gdt32; /* only base and limit are used */
+    SegmentCache32 idt32; /* only base and limit are used */
+    uint32_t cr32[5];
+    uint32_t dr32[8];
+#endif
 
     uint64_t xss;
     uint32_t umwait;
@@ -2546,6 +2580,7 @@ struct X86CPUClass {
 
 #ifndef CONFIG_USER_ONLY
 extern const VMStateDescription vmstate_x86_cpu;
+extern const VMStateDescription vmstate_i386_cpu;
 #endif
 
 int x86_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cpu,

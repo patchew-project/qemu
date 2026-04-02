@@ -10701,7 +10701,7 @@ static const Property x86_cpu_properties[] = {
 #ifndef CONFIG_USER_ONLY
 #include "hw/core/sysemu-cpu-ops.h"
 
-static const struct SysemuCPUOps i386_sysemu_ops = {
+static struct SysemuCPUOps i386_sysemu_ops = {
     .has_work = x86_cpu_has_work,
     .get_memory_mapping = x86_cpu_get_memory_mapping,
     .get_paging_enabled = x86_cpu_get_paging_enabled,
@@ -10746,8 +10746,14 @@ static void x86_cpu_common_class_init(ObjectClass *oc, const void *data)
 
 #ifndef CONFIG_USER_ONLY
     cc->max_as = X86ASIdx_MAX;
+#ifdef TARGET_X86_64
+    if (target_i386()) {
+        i386_sysemu_ops.legacy_vmsd = &vmstate_i386_cpu;
+    }
+#endif
     cc->sysemu_ops = &i386_sysemu_ops;
 #endif /* !CONFIG_USER_ONLY */
+
 #ifdef CONFIG_TCG
     cc->tcg_ops = &x86_tcg_ops;
 #endif /* CONFIG_TCG */

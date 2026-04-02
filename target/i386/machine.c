@@ -310,12 +310,54 @@ static int cpu_pre_save(void *opaque)
     return 0;
 }
 
+
+#ifdef TARGET_X86_64
+static void copy_segcache(SegmentCache32 *sc32, SegmentCache *sc64)
+{
+    sc64->selector = sc32->selector;
+    sc64->base = sc32->base;
+    sc64->limit = sc32->limit;
+    sc64->flags = sc32->flags;
+}
+#endif
+
+static void cpu_post_load_fixup32(CPUX86State *env)
+{
+#ifdef TARGET_X86_64
+    int i;
+
+    for (i = 0; i < CPU_NB_REGS32; i++) {
+        env->regs[i] = env->regs32[i];
+    }
+
+    for (i = 0; i < ARRAY_SIZE(env->segs); i++) {
+        copy_segcache(&env->segs32[i], &env->segs[i]);
+    }
+
+    copy_segcache(&env->ldt32, &env->ldt);
+    copy_segcache(&env->tr32, &env->tr);
+    copy_segcache(&env->gdt32, &env->gdt);
+    copy_segcache(&env->idt32, &env->idt);
+
+    for (i = 0; i < ARRAY_SIZE(env->cr); i++) {
+        env->cr[i] = env->cr32[i];
+    }
+    for (i = 0; i < ARRAY_SIZE(env->dr); i++) {
+        env->dr[i] = env->dr32[i];
+    }
+#endif
+}
+
 static int cpu_post_load(void *opaque, int version_id)
 {
     X86CPU *cpu = opaque;
     CPUState *cs = CPU(cpu);
     CPUX86State *env = &cpu->env;
     int i;
+
+    if (target_i386()) {
+        cpu_post_load_fixup32(env);
+    }
 
     if (env->tsc_khz && env->user_tsc_khz &&
         env->tsc_khz != env->user_tsc_khz) {
@@ -1920,3 +1962,183 @@ const VMStateDescription vmstate_x86_cpu = {
         NULL
     }
 };
+
+/* ***************** 32-bit target hacks below **************** */
+
+#ifdef TARGET_X86_64
+
+static const VMStateDescription vmstate_segment32 = {
+    .name = "segment",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(selector, SegmentCache32),
+        VMSTATE_UINT32(base, SegmentCache32),
+        VMSTATE_UINT32(limit, SegmentCache32),
+        VMSTATE_UINT32(flags, SegmentCache32),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+#define VMSTATE_SEGMENT32(_field, _state) {                          \
+    .name       = (stringify(_field)),                               \
+    .size       = sizeof(SegmentCache32),                            \
+    .vmsd       = &vmstate_segment32,                                \
+    .flags      = VMS_STRUCT,                                        \
+    .offset     = offsetof(_state, _field)                           \
+            + type_check(SegmentCache32, typeof_field(_state, _field)) \
+}
+
+#define VMSTATE_SEGMENT32_ARRAY(_field, _state, _n)                  \
+    VMSTATE_STRUCT_ARRAY(_field, _state, _n, 0, vmstate_segment32, SegmentCache32)
+
+#define VMSTATE_XMM32_REGS(_field, _state, _start)                       \
+    VMSTATE_STRUCT_SUB_ARRAY(_field, _state, _start, CPU_NB_REGS32, 0,   \
+                             vmstate_xmm_reg, ZMMReg)
+
+#define VMSTATE_YMMH32_REGS_VARS(_field, _state, _start, _v)             \
+    VMSTATE_STRUCT_SUB_ARRAY(_field, _state, _start, CPU_NB_REGS32, _v,  \
+                             vmstate_ymmh_reg, ZMMReg)
+
+const VMStateDescription vmstate_i386_cpu = {
+    .name = "cpu",
+    .version_id = 12,
+    .minimum_version_id = 11,
+    .pre_save = cpu_pre_save,
+    .post_load = cpu_post_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32_SUB_ARRAY(env.regs32, X86CPU, 0, CPU_NB_REGS32),
+        VMSTATE_UINT32(env.eip32, X86CPU),
+        VMSTATE_UINT32(env.eflags32, X86CPU),
+        VMSTATE_UINT32(env.hflags, X86CPU),
+        /* FPU */
+        VMSTATE_UINT16(env.fpuc, X86CPU),
+        VMSTATE_UINT16(env.fpus_vmstate, X86CPU),
+        VMSTATE_UINT16(env.fptag_vmstate, X86CPU),
+        VMSTATE_UINT16(env.fpregs_format_vmstate, X86CPU),
+
+        VMSTATE_STRUCT_ARRAY(env.fpregs, X86CPU, 8, 0, vmstate_fpreg, FPReg),
+
+        VMSTATE_SEGMENT32_ARRAY(env.segs32, X86CPU, 6),
+        VMSTATE_SEGMENT32(env.ldt32, X86CPU),
+        VMSTATE_SEGMENT32(env.tr32, X86CPU),
+        VMSTATE_SEGMENT32(env.gdt32, X86CPU),
+        VMSTATE_SEGMENT32(env.idt32, X86CPU),
+
+        VMSTATE_UINT32(env.sysenter_cs, X86CPU),
+        VMSTATE_UINT32(env.sysenter_esp32, X86CPU),
+        VMSTATE_UINT32(env.sysenter_eip32, X86CPU),
+
+        VMSTATE_UINT32(env.cr32[0], X86CPU),
+        VMSTATE_UINT32(env.cr32[2], X86CPU),
+        VMSTATE_UINT32(env.cr32[3], X86CPU),
+        VMSTATE_UINT32(env.cr32[4], X86CPU),
+        VMSTATE_UINT32_ARRAY(env.dr32, X86CPU, 8),
+        /* MMU */
+        VMSTATE_INT32(env.a20_mask, X86CPU),
+        /* XMM */
+        VMSTATE_UINT32(env.mxcsr, X86CPU),
+        VMSTATE_XMM32_REGS(env.xmm_regs, X86CPU, 0),
+
+        VMSTATE_UINT32(env.smbase, X86CPU),
+
+        VMSTATE_UINT64(env.pat, X86CPU),
+        VMSTATE_UINT32(env.hflags2, X86CPU),
+
+        VMSTATE_UINT64(env.vm_hsave, X86CPU),
+        VMSTATE_UINT64(env.vm_vmcb, X86CPU),
+        VMSTATE_UINT64(env.tsc_offset, X86CPU),
+        VMSTATE_UINT64(env.intercept, X86CPU),
+        VMSTATE_UINT16(env.intercept_cr_read, X86CPU),
+        VMSTATE_UINT16(env.intercept_cr_write, X86CPU),
+        VMSTATE_UINT16(env.intercept_dr_read, X86CPU),
+        VMSTATE_UINT16(env.intercept_dr_write, X86CPU),
+        VMSTATE_UINT32(env.intercept_exceptions, X86CPU),
+        VMSTATE_UINT8(env.v_tpr, X86CPU),
+        /* MTRRs */
+        VMSTATE_UINT64_ARRAY(env.mtrr_fixed, X86CPU, 11),
+        VMSTATE_UINT64(env.mtrr_deftype, X86CPU),
+        VMSTATE_MTRR_VARS(env.mtrr_var, X86CPU, MSR_MTRRcap_VCNT, 8),
+        /* KVM-related states */
+        VMSTATE_INT32(env.interrupt_injected, X86CPU),
+        VMSTATE_UINT32(env.mp_state, X86CPU),
+        VMSTATE_UINT64(env.tsc, X86CPU),
+        VMSTATE_INT32(env.exception_nr, X86CPU),
+        VMSTATE_UINT8(env.soft_interrupt, X86CPU),
+        VMSTATE_UINT8(env.nmi_injected, X86CPU),
+        VMSTATE_UINT8(env.nmi_pending, X86CPU),
+        VMSTATE_UINT8(env.has_error_code, X86CPU),
+        VMSTATE_UINT32(env.sipi_vector, X86CPU),
+        /* MCE */
+        VMSTATE_UINT64(env.mcg_cap, X86CPU),
+        VMSTATE_UINT64(env.mcg_status, X86CPU),
+        VMSTATE_UINT64(env.mcg_ctl, X86CPU),
+        VMSTATE_UINT64_ARRAY(env.mce_banks, X86CPU, MCE_BANKS_DEF * 4),
+        /* rdtscp */
+        VMSTATE_UINT64(env.tsc_aux, X86CPU),
+        /* KVM pvclock msr */
+        VMSTATE_UINT64(env.system_time_msr, X86CPU),
+        VMSTATE_UINT64(env.wall_clock_msr, X86CPU),
+        /* XSAVE related fields */
+        VMSTATE_UINT64_V(env.xcr0, X86CPU, 12),
+        VMSTATE_UINT64_V(env.xstate_bv, X86CPU, 12),
+        VMSTATE_YMMH32_REGS_VARS(env.xmm_regs, X86CPU, 0, 12),
+        VMSTATE_END_OF_LIST()
+        /* The above list is not sorted /wrt version numbers, watch out! */
+    },
+    .subsections = (const VMStateDescription * const []) {
+        &vmstate_exception_info,
+        &vmstate_error_code,
+        &vmstate_async_pf_msr,
+        &vmstate_async_pf_int_msr,
+        &vmstate_pv_eoi_msr,
+        &vmstate_steal_time_msr,
+        &vmstate_poll_control_msr,
+        &vmstate_fpop_ip_dp,
+        &vmstate_msr_tsc_adjust,
+        &vmstate_msr_tscdeadline,
+        &vmstate_msr_ia32_misc_enable,
+        &vmstate_msr_ia32_feature_control,
+        &vmstate_msr_architectural_pmu,
+        &vmstate_mpx,
+        &vmstate_msr_hyperv_hypercall,
+        &vmstate_msr_hyperv_vapic,
+        &vmstate_msr_hyperv_time,
+        &vmstate_msr_hyperv_crash,
+        &vmstate_msr_hyperv_runtime,
+        &vmstate_msr_hyperv_synic,
+        &vmstate_msr_hyperv_stimer,
+        &vmstate_msr_hyperv_reenlightenment,
+        &vmstate_avx512,
+        &vmstate_xss,
+        &vmstate_umwait,
+        &vmstate_tsc_khz,
+        &vmstate_msr_smi_count,
+        &vmstate_pkru,
+        &vmstate_pkrs,
+        &vmstate_spec_ctrl,
+        &amd_tsc_scale_msr_ctrl,
+        &vmstate_mcg_ext_ctl,
+        &vmstate_msr_intel_pt,
+        &vmstate_msr_virt_ssbd,
+        &vmstate_svm_npt,
+        &vmstate_svm_guest,
+#ifdef CONFIG_KVM
+        &vmstate_nested_state,
+        &vmstate_xen_vcpu,
+#endif
+        &vmstate_msr_tsx_ctrl,
+        &vmstate_msr_intel_sgx,
+        &vmstate_pdptrs,
+        &vmstate_msr_xfd,
+        &vmstate_msr_hwcr,
+        &vmstate_arch_lbr,
+        &vmstate_triple_fault,
+        &vmstate_pl0_ssp,
+        &vmstate_cet,
+
+        NULL
+    }
+};
+
+#endif /* TARGET_X86_64 */
