@@ -2077,14 +2077,47 @@ int whpx_vcpu_run(CPUState *cpu)
                 vcpu->exit_ctx.VpContext.Rip +
                 vcpu->exit_ctx.VpContext.InstructionLength;
 
-            reg_values[1].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRax;
-            reg_values[2].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRcx;
-            reg_values[3].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRdx;
-            reg_values[4].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRbx;
+            if (whpx_is_legacy_os()) {
+                reg_values[1].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRax;
+                reg_values[2].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRcx;
+                reg_values[3].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRdx;
+                reg_values[4].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRbx;
+            } else {
+                cpu_x86_cpuid(env, vcpu->exit_ctx.CpuidAccess.Rax, 0, 
+                    (UINT32 *)&reg_values[1].Reg32,
+                    (UINT32 *)&reg_values[4].Reg32, (UINT32 *)&reg_values[2].Reg32,
+                    (UINT32 *)&reg_values[3].Reg32);
+            }
 
-            if (vcpu->exit_ctx.CpuidAccess.Rax == 1) {
-                if (cpu_has_x2apic_feature(env)) {
-                    reg_values[2].Reg64 |= CPUID_EXT_X2APIC;
+            if (!whpx->hyperv_enlightenments_enabled) {
+                switch (vcpu->exit_ctx.CpuidAccess.Rax) {
+                case 1:
+                    if (cpu_has_x2apic_feature(env)) {
+                        reg_values[2].Reg64 |= CPUID_EXT_X2APIC;
+                    }
+                    reg_values[2].Reg64 |= CPUID_EXT_HYPERVISOR;
+                    break;
+                case 0x40000000:
+                    /* report KVM */
+                    if (x86_cpu->vmware_cpuid_freq) {
+                        reg_values[1].Reg64 = 0x40000010;
+                    } else {
+                        reg_values[1].Reg64 = 0x40000001;
+                    }
+                    reg_values[4].Reg64 = 0x4b4d564b;
+                    reg_values[2].Reg64 = 0x564b4d56;
+                    reg_values[3].Reg64 = 0x4d;
+                    break;
+                case 0x40000001:
+                    /* report X2APIC */
+                    reg_values[1].Reg64 = reg_values[4].Reg64 = reg_values[2].Reg64 = 1 << 15;
+                    break;
+                case 0x40000010:
+                    if (x86_cpu->vmware_cpuid_freq) {
+                        reg_values[1].Reg64 = env->tsc_khz;
+                        reg_values[4].Reg64 = env->apic_bus_freq / 1000; /* Hz to KHz */
+                    }
+                    break;
                 }
             }
 
@@ -2257,6 +2290,24 @@ int whpx_init_vcpu(CPUState *cpu)
     /* When not using the Hyper-V APIC, the frequency is 1 GHz */
     if (!whpx_irqchip_in_kernel()) {
         env->apic_bus_freq = 1000000000;
+    }
+
+    /* When Hyper-V enlightenments are not active, fall back to the KVM ones */
+    if (!whpx->hyperv_enlightenments_enabled) {
+         UINT32 cpuidExitList[] = {1, 0x40000000, 0x40000001, 0x40000010};
+
+         hr = whp_dispatch.WHvSetPartitionProperty(
+                 whpx->partition,
+                 WHvPartitionPropertyCodeCpuidExitList,
+                 cpuidExitList,
+                 RTL_NUMBER_OF(cpuidExitList) * sizeof(UINT32));
+
+         if (FAILED(hr)) {
+             error_report("WHPX: Failed to set partition CpuidExitList hr=%08lx",
+                         hr);
+             ret = -EINVAL;
+             goto error;
+         }
     }
 
     vcpu->interruptable = true;
@@ -2507,6 +2558,7 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     }
 
     if (!is_legacy_os && whpx->hyperv_enlightenments_allowed) {
+        whpx->hyperv_enlightenments_enabled = true;
         hr = whp_dispatch.WHvSetPartitionProperty(
                 whpx->partition,
                 WHvPartitionPropertyCodeSyntheticProcessorFeaturesBanks,
