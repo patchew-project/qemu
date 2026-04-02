@@ -41,7 +41,9 @@
 #include "qemu/config-file.h"
 #include "hw/core/boards.h"
 #include "qemu/option.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/cpu/cluster.h"
+#include "qobject/qlist.h"
 
 #define fdt_debug(...) do { \
     qemu_log_mask(LOG_FDT, ": %s: ", __func__); \
@@ -250,6 +252,238 @@ static Object *fdt_create_from_compat(const char *compat)
     return ret;
 }
 
+/*FIXME: roll into device tree functionality */
+
+static inline uint64_t get_int_be(const void *p, int len)
+{
+    switch (len) {
+    case 1:
+        return *((uint8_t *)p);
+    case 2:
+        return be16_to_cpu(*((uint16_t *)p));
+    case 4:
+        return be32_to_cpu(*((uint32_t *)p));
+    case 8:
+        return be32_to_cpu(*((uint64_t *)p));
+    default:
+        fprintf(stderr, "unsupported integer length\n");
+        abort();
+    }
+}
+
+static void fdt_init_qdev_link_prop(Object *obj, ObjectProperty *p,
+                                    FDTMachineInfo *fdti,
+                                    const char *node_path,
+                                    const char *propname, const void* val,
+                                    int len)
+{
+    Object *linked_dev;
+    char target_node_path[DT_PATH_LENGTH];
+    Error *errp = NULL;
+
+    if (qemu_devtree_get_node_by_phandle(fdti->fdt, target_node_path,
+                                         get_int_be(val, len))) {
+        error_report("FDT: Invalid phandle in property '%s' of node '%s'",
+                     propname, node_path);
+        return;
+    }
+
+    while (!fdt_init_has_opaque(fdti, target_node_path)) {
+        fdt_init_yield(fdti);
+    }
+
+    linked_dev = fdt_init_get_opaque(fdti, target_node_path);
+
+    object_property_set_link(obj, propname, linked_dev, &errp);
+    if (!errp) {
+        fdt_debug_np("set link %s\n", propname);
+        return;
+    }
+
+    error_free(errp);
+    errp = NULL;
+
+    if (object_dynamic_cast(linked_dev, TYPE_DEVICE)) {
+        BusState *child_bus;
+
+        /* Check if target has a child bus that satisfies the link type */
+        QLIST_FOREACH(child_bus, &DEVICE(linked_dev)->child_bus, sibling) {
+            object_property_set_link(obj, propname, OBJECT(child_bus), &errp);
+            if (!errp) {
+                fdt_debug_np("found matching bus link %s\n",
+                                child_bus->name);
+                return;
+            }
+
+            error_free(errp);
+            errp = NULL;
+        }
+    }
+
+    fdt_debug_np("failed to set link %s\n", propname);
+}
+
+static void fdt_init_qdev_scalar_prop(Object *obj, ObjectProperty *p,
+                                      FDTMachineInfo *fdti,
+                                      const char *node_path,
+                                      const char *propname, const void* val,
+                                      int len)
+{
+
+    /* FIXME: handle generically using accessors and stuff */
+    if (!strncmp(p->type, "link", 4)) {
+        fdt_init_qdev_link_prop(obj, p, fdti, node_path, propname, val, len);
+        return;
+    }
+
+    if (!strcmp(p->type, "uint8") || !strcmp(p->type, "uint16") ||
+        !strcmp(p->type, "uint32") || !strcmp(p->type, "uint64") ||
+        !strcmp(p->type, "int8") || !strcmp(p->type, "int16") ||
+        !strcmp(p->type, "int32") || !strcmp(p->type, "int64")) {
+        object_property_set_int(obj, propname,
+                                get_int_be(val, len), &error_abort);
+        fdt_debug_np("set property %s to 0x%llx\n", propname,
+                    (unsigned long long)get_int_be(val, len));
+        return;
+    }
+
+    if (!strcmp(p->type, "boolean") || !strcmp(p->type, "bool")) {
+        object_property_set_bool(obj, propname,
+                                 !!get_int_be(val, len), &error_abort);
+        fdt_debug_np("set property %s to %s\n", propname,
+                    get_int_be(val, len) ? "true" : "false");
+        return;
+    }
+
+    if (!strcmp(p->type, "string") || !strcmp(p->type, "str")) {
+        object_property_set_str(obj, propname,
+                                (const char *)val, &error_abort);
+        fdt_debug_np("set property %s to %s\n", propname, (const char *)val);
+        return;
+    }
+
+    fdt_debug_np("WARNING: property is of unknown type\n");
+}
+
+static size_t fdt_array_elem_len(FDTMachineInfo *fdti,
+                                 const char *node_path,
+                                 const char *propname)
+{
+    g_autofree char *elem_cells_propname = NULL;
+    Error *err = NULL;
+    uint32_t elem_cells;
+
+    /*
+     * Default element size to 1 uint32_t cell, unless it is explicitly
+     * given in the same FDT node (not inherited).
+     */
+    elem_cells_propname = g_strconcat("#", propname, "-cells", NULL);
+    elem_cells = qemu_fdt_getprop_cell(fdti->fdt, node_path,
+                                       elem_cells_propname, 0, &err);
+
+    return (err ? 1 : elem_cells) * 4;
+}
+
+static void fdt_init_qdev_array_prop(Object *obj,
+                                     FDTMachineInfo *fdti,
+                                     const char *node_path,
+                                     const char *propname,
+                                     const void *value,
+                                     int len)
+{
+    int nr = len;
+    uint32_t elem_len;
+    QList *qlist = qlist_new();
+    const char *prop_type;
+    const void *prop_value = value;
+
+    if (!value || !nr) {
+        return;
+    }
+
+    elem_len = fdt_array_elem_len(fdti, node_path, propname);
+    if (nr % elem_len) {
+        return;
+    }
+
+    nr /= elem_len;
+
+    prop_type = qdev_prop_get_array_elem_type(DEVICE(obj), propname);
+    if (!prop_type) {
+        fdt_debug_np("fail to get property array elem type\n");
+        return;
+    }
+
+    while (nr--) {
+        if (!strcmp(prop_type, "uint8") || !strcmp(prop_type, "uint16") ||
+            !strcmp(prop_type, "uint32") || !strcmp(prop_type, "uint64") ||
+            !strcmp(prop_type, "int8") || !strcmp(prop_type, "int16") ||
+            !strcmp(prop_type, "int32") || !strcmp(prop_type, "int64")) {
+                qlist_append_int(qlist, get_int_be(prop_value, elem_len));
+        } else if (!strcmp(prop_type, "boolean") ||
+                                            !strcmp(prop_type, "bool")) {
+            qlist_append_bool(qlist, !!get_int_be(prop_value, elem_len));
+        } else if (!strcmp(prop_type, "string") || !strcmp(prop_type, "str")) {
+            qlist_append_str(qlist, (const char *)prop_value);
+        }
+
+        prop_value += elem_len;
+
+        /* TBD: add link type support */
+    }
+
+    qdev_prop_set_array(DEVICE(obj), propname, qlist);
+    fdt_debug_np("set property %s propname to <list>\n", propname);
+}
+
+static void fdt_init_qdev_properties(char *node_path, FDTMachineInfo *fdti,
+                                     Object *dev)
+{
+    int node_offset, prop_offset;
+
+    node_offset = fdt_path_offset(fdti->fdt, node_path);
+    if (node_offset < 0) {
+        return;
+    }
+
+    fdt_for_each_property_offset(prop_offset, fdti->fdt, node_offset) {
+        const char *fdt_propname;
+        const void *value;
+        const char *propname;
+        int len;
+        ObjectProperty *p = NULL;
+
+        value = fdt_getprop_by_offset(fdti->fdt, prop_offset,
+                               &fdt_propname, &len);
+        if (!value) {
+            continue;
+        }
+
+        propname = trim_vendor(fdt_propname);
+
+        p = object_property_find(dev, propname);
+        if (p) {
+            fdt_debug_np("matched property: %s of type %s, len %d\n",
+                                            propname, p->type, len);
+        }
+        if (!p) {
+            continue;
+        }
+
+        if (!strcmp(p->type, "list")) {
+            fdt_init_qdev_array_prop(dev, fdti, node_path,
+                                     propname, value, len);
+        }
+
+        if (!strcmp(propname, "type")) {
+            continue;
+        }
+
+        fdt_init_qdev_scalar_prop(dev, p, fdti, node_path,
+                                  propname, value, len);
+    }
+}
+
 static void fdt_init_parent_node(Object *dev, Object *parent, char *node_path)
 {
     if (dev->parent) {
@@ -345,6 +579,8 @@ static int fdt_init_qdev(char *node_path, FDTMachineInfo *fdti, char *compat)
     fdt_init_parent_node(dev, parent, node_path);
 
     fdt_init_set_opaque(fdti, node_path, dev);
+
+    fdt_init_qdev_properties(node_path, fdti, dev);
 
     g_free(parent_node_path);
 
