@@ -211,3 +211,109 @@
       '*pretty': 'bool',
       'chardev': 'str'
   } }
+
+##
+# @monitor-add:
+#
+# Add a QMP monitor on an existing character device backend.
+#
+# The chardev must already exist (created via chardev-add or CLI) and
+# must not be in use by another frontend.  The monitor begins in
+# capability negotiation mode -- the first client to connect receives
+# the QMP greeting.
+#
+# @id: Monitor identifier, must be unique among monitors
+#
+# @chardev: Name of the character device backend to attach to
+#
+# @pretty: Enable pretty-printing of QMP responses (default: false)
+#
+# Errors:
+#     - GenericError if @id is already in use
+#     - GenericError if @chardev does not exist
+#     - GenericError if @chardev is already in use by another frontend
+#
+# Since: 11.0
+#
+# .. qmp-example::
+#
+#     -> { "execute": "monitor-add",
+#          "arguments": { "id": "extra-qmp",
+#                         "chardev": "qmp-extra" } }
+#     <- { "return": {} }
+##
+{ 'command': 'monitor-add',
+  'data': { 'id': 'str',
+            'chardev': 'str',
+            '*pretty': 'bool' } }
+
+##
+# @monitor-remove:
+#
+# Remove a dynamically added QMP monitor.
+#
+# The monitor must have been created via monitor-add.  Monitors
+# created via CLI options (-mon, -qmp) cannot be removed.  The
+# underlying chardev is NOT removed -- use chardev-remove separately
+# if desired.
+#
+# If a client is currently connected, the connection is dropped.
+#
+# @id: Monitor identifier as passed to monitor-add
+#
+# Errors:
+#     - GenericError if @id does not exist
+#     - GenericError if the monitor was not dynamically added
+#
+# Since: 11.0
+#
+# .. qmp-example::
+#
+#     -> { "execute": "monitor-remove",
+#          "arguments": { "id": "extra-qmp" } }
+#     <- { "return": {} }
+##
+{ 'command': 'monitor-remove',
+  'data': { 'id': 'str' } }
+
+##
+# @MonitorInfo:
+#
+# Information about a QMP/HMP monitor.
+#
+# @id: Monitor identifier (absent for CLI-created monitors without
+#     an explicit id)
+#
+# @mode: Monitor mode (readline or control)
+#
+# @chardev: Name of the attached character device
+#
+# @dynamic: true if created via monitor-add (removable), false if
+#     created via CLI
+#
+# Since: 11.0
+##
+{ 'struct': 'MonitorInfo',
+  'data': { '*id': 'str',
+            'mode': 'MonitorMode',
+            'chardev': 'str',
+            'dynamic': 'bool' } }
+
+##
+# @query-monitors:
+#
+# Return information about all active monitors.
+#
+# Returns: a list of @MonitorInfo for each active monitor
+#
+# Since: 11.0
+#
+# .. qmp-example::
+#
+#     -> { "execute": "query-monitors" }
+#     <- { "return": [ { "id": "mon0", "mode": "control",
+#                         "chardev": "compat_monitor0",
+#                         "dynamic": false } ] }
+##
+{ 'command': 'query-monitors',
+  'returns': ['MonitorInfo'] }

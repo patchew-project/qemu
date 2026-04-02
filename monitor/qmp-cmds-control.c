@@ -219,3 +219,97 @@ SchemaInfoList *qmp_query_qmp_schema(Error **errp)
     }
     return schema;
 }
+
+void qmp_monitor_add(const char *id, const char *chardev,
+                     bool has_pretty, bool pretty, Error **errp)
+{
+    Chardev *chr;
+
+    /* Reject duplicate monitor id */
+    if (monitor_find_by_id(id)) {
+        error_setg(errp, "monitor '%s' already exists", id);
+        return;
+    }
+
+    chr = qemu_chr_find(chardev);
+    if (!chr) {
+        error_setg(errp, "chardev '%s' not found", chardev);
+        return;
+    }
+
+    monitor_init_qmp(chr, has_pretty && pretty, id, true, errp);
+}
+
+void qmp_monitor_remove(const char *id, Error **errp)
+{
+    Monitor *mon;
+    MonitorQMP *qmp_mon;
+
+    mon = monitor_find_by_id(id);
+    if (!mon) {
+        error_setg(errp, "monitor '%s' not found", id);
+        return;
+    }
+
+    if (!mon->dynamic) {
+        error_setg(errp, "monitor '%s' was not dynamically added", id);
+        return;
+    }
+
+    qmp_mon = container_of(mon, MonitorQMP, common);
+
+    /*
+     * Step 1: Disconnect chardev handlers so no new data arrives
+     * and no new requests are enqueued.
+     */
+    qemu_chr_fe_set_handlers(&mon->chr, NULL, NULL, NULL, NULL,
+                             NULL, NULL, true);
+
+    /* Step 2: Drain pending requests from the queue */
+    monitor_qmp_cleanup_queue_and_resume(qmp_mon);
+
+    /*
+     * Step 3: Mark dead and remove from mon_list.
+     * After removal, the dispatcher will never pop new requests from
+     * this monitor, and event broadcast will skip it.
+     */
+    qemu_mutex_lock(&monitor_lock);
+    mon->dead = true;
+    QTAILQ_REMOVE(&mon_list, mon, entry);
+    qemu_mutex_unlock(&monitor_lock);
+
+    /*
+     * Step 4: Check if the dispatcher is currently mid-dispatch on
+     * this monitor (i.e. monitor-remove was sent from the monitor
+     * being removed).  If so, defer destruction -- the dispatcher
+     * will call monitor_qmp_destroy() after completing the request.
+     */
+    if (monitor_qmp_dispatcher_is_servicing(qmp_mon)) {
+        return;
+    }
+
+    /* Step 5: Safe to destroy immediately */
+    monitor_qmp_destroy(qmp_mon);
+}
+
+MonitorInfoList *qmp_query_monitors(Error **errp)
+{
+    MonitorInfoList *list = NULL;
+    Monitor *mon;
+
+    qemu_mutex_lock(&monitor_lock);
+    QTAILQ_FOREACH(mon, &mon_list, entry) {
+        MonitorInfo *info = g_new0(MonitorInfo, 1);
+        Chardev *chr = qemu_chr_fe_get_driver(&mon->chr);
+
+        info->id = g_strdup(mon->id); /* NULL if unnamed */
+        info->mode = mon->is_qmp ? MONITOR_MODE_CONTROL
+                                 : MONITOR_MODE_READLINE;
+        info->chardev = g_strdup(chr ? chr->label : "unknown");
+        info->dynamic = mon->dynamic;
+        QAPI_LIST_PREPEND(list, info);
+    }
+    qemu_mutex_unlock(&monitor_lock);
+
+    return list;
+}
