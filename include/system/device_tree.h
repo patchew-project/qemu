@@ -116,6 +116,11 @@ const void *qemu_fdt_getprop(void *fdt, const char *node_path,
 uint32_t qemu_fdt_getprop_cell(void *fdt, const char *node_path,
                                const char *property, int cell_id,
                                Error **errp);
+
+const void *qemu_fdt_getprop_inherited(void *fdt, const char *node_path,
+                             const char *property, int *lenp, Error **errp);
+uint32_t qemu_fdt_getprop_cell_inherited(void *fdt, const char *node_path,
+                               const char *property, int cell_id, Error **errp);
 uint32_t qemu_fdt_get_phandle(void *fdt, const char *path);
 uint32_t qemu_fdt_alloc_phandle(void *fdt);
 int qemu_fdt_nop_node(void *fdt, const char *node_path);
@@ -191,6 +196,23 @@ int qemu_fdt_setprop_sized_cells_from_array(void *fdt,
                                                 qdt_tmp);                 \
     })
 
+/* node queries */
+
+int qemu_devtree_get_num_children(void *fdt, const char *node_path);
+int qemu_devtree_get_children(void *fdt, const char *node_path,
+                                     int max_paths, char **returned_paths);
+int qemu_devtree_num_props(void *fdt, const char *node_path);
+
+/* node getters */
+
+int qemu_devtree_get_node_by_phandle(void *fdt, char *node_path, int phandle);
+char *qemu_devtree_getparent(void *fdt, const char *current);
+
+/* misc */
+
+int devtree_get_num_nodes(void *fdt);
+
+#define DT_PATH_LENGTH 1024
 
 /**
  * qemu_fdt_randomize_seeds:

@@ -464,6 +464,96 @@ uint32_t qemu_fdt_getprop_cell(void *fdt, const char *node_path,
     return be32_to_cpu(p[cell_id]);
 }
 
+const void *qemu_fdt_getprop_inherited(void *fdt, const char *node_path,
+                             const char *property, int *lenp, Error **errp)
+{
+    const void *found_val = NULL;
+    int found_len = 0;
+    int curr_offset = 0;
+    int temp_len;
+    char **tokens;
+    char **iter;
+
+    found_val = fdt_getprop(fdt, 0, property, &found_len);
+
+    tokens = g_strsplit(node_path + 1, "/", -1);
+
+    for (iter = tokens; *iter != NULL; iter++) {
+        if (**iter == '\0') {
+            continue;
+        }
+
+        curr_offset = fdt_subnode_offset(fdt, curr_offset, *iter);
+        if (curr_offset < 0) {
+            error_setg(errp, "%s: Path '%s' not found",
+                       __func__, *iter);
+            g_strfreev(tokens);
+            return NULL;
+        }
+
+        const void *val = fdt_getprop(fdt, curr_offset, property, &temp_len);
+        if (val) {
+            found_val = val;
+            found_len = temp_len;
+        }
+    }
+    g_strfreev(tokens);
+
+    if (!found_val) {
+        error_setg(errp, "%s: Property '%s' not found",
+                   __func__, property);
+        return NULL;
+    }
+
+    if (lenp) {
+        *lenp = found_len;
+    }
+
+    return found_val;
+}
+
+uint32_t qemu_fdt_getprop_cell_inherited(void *fdt, const char *node_path,
+                               const char *property, int cell_id, Error **errp)
+{
+    int len;
+    const uint32_t *p;
+
+    p = qemu_fdt_getprop_inherited(fdt, node_path, property, &len, errp);
+    if (!p) {
+        return 0;
+    }
+    if (len < (cell_id + 1) * 4) {
+        error_setg(errp,
+                   "%s: %s/%s is too short, need %d bytes for cell ind %d",
+                   __func__, node_path, property, (cell_id + 1) * 4, cell_id);
+        return 0;
+    }
+    return be32_to_cpu(p[cell_id]);
+}
+
+char *qemu_devtree_getparent(void *fdt, const char *current)
+{
+    const char *sep;
+    int len;
+
+    if (!current || !strcmp(current, "/")) {
+        return NULL;
+    }
+
+    sep = strrchr(current, '/');
+    if (!sep) {
+        return NULL;
+    }
+
+    if (sep == current) {
+        len = 1;
+    } else {
+        len = sep - current;
+    }
+
+    return g_strndup(current, len);
+}
+
 uint32_t qemu_fdt_get_phandle(void *fdt, const char *path)
 {
     uint32_t r;
@@ -629,6 +719,110 @@ int qemu_fdt_setprop_sized_cells_from_array(void *fdt,
 out:
     g_free(propcells);
     return ret;
+}
+
+int qemu_devtree_num_props(void *fdt, const char *node_path)
+{
+    int offset = fdt_path_offset(fdt, node_path);
+    int ret = 0;
+
+    for (offset = fdt_first_property_offset(fdt, offset);
+            offset != -FDT_ERR_NOTFOUND;
+            offset = fdt_next_property_offset(fdt, offset)) {
+        ret++;
+    }
+    return ret;
+}
+
+int qemu_devtree_get_children(void *fdt, const char *node_path,
+                                     int max_paths, char **returned_paths)
+{
+    int count = 0;
+    int subnode;
+    const char *name;
+    int offset = fdt_path_offset(fdt, node_path);
+
+    if (offset < 0) {
+        return offset;
+    }
+
+    bool is_root = (strcmp(node_path, "/") == 0);
+
+    fdt_for_each_subnode(subnode, fdt, offset) {
+        if (count >= max_paths) {
+            break;
+        }
+        name = fdt_get_name(fdt, subnode, NULL);
+        if (returned_paths) {
+            returned_paths[count] = g_strdup_printf("%s/%s",
+                                                is_root ? "" : node_path, name);
+        }
+
+        ++count;
+    }
+
+    return count;
+}
+
+int qemu_devtree_get_num_children(void *fdt, const char *node_path)
+{
+    int count = 0;
+    int subnode;
+    int offset = fdt_path_offset(fdt, node_path);
+
+    if (offset < 0) {
+        return offset;
+    }
+
+    fdt_for_each_subnode(subnode, fdt, offset) {
+        ++count;
+    }
+
+    return count;
+}
+
+int qemu_devtree_get_node_by_phandle(void *fdt, char *node_path, int phandle)
+{
+    int offset = 0, cur_depth = 0;
+    int path_lens[64] = { 0 };
+
+    for (offset = 0; offset >= 0; offset = fdt_next_node(fdt, offset,
+                                                         &cur_depth)) {
+        if (cur_depth >= 64) {
+            break;
+        }
+        const char *name = fdt_get_name(fdt, offset, NULL);
+
+        int parent_len = (cur_depth > 0) ? path_lens[cur_depth - 1] : 0;
+        int len = snprintf(node_path + parent_len,
+                             DT_PATH_LENGTH - parent_len,
+                             "%s%s",
+                             (parent_len > 1) ? "/" : "",
+                             (cur_depth == 0) ? "/" : name);
+
+        path_lens[cur_depth] = parent_len + len;
+
+        if (fdt_get_phandle(fdt, offset) == phandle) {
+            return 0;
+        }
+    }
+
+    return -FDT_ERR_NOTFOUND;
+}
+
+int devtree_get_num_nodes(void *fdt)
+{
+    int num_nodes = 0;
+    int depth = 0, offset = 0;
+
+    for (;;) {
+        offset = fdt_next_node(fdt, offset, &depth);
+        num_nodes++;
+        if (offset <= 0 || depth <= 0) {
+            break;
+        }
+    }
+    return num_nodes;
 }
 
 void qmp_dumpdtb(const char *filename, Error **errp)
