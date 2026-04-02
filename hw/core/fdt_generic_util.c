@@ -93,6 +93,13 @@ static bool qemu_irq_shared_or_handler(bool *inputs, int n)
     return false;
 }
 
+static void fdt_parse_node_reg_prop(FDTMachineInfo *fdti, char *node_path,
+                             Object *dev);
+static void fdt_parse_node_irq_prop(FDTMachineInfo *fdti, char *node_path,
+                             Object *dev);
+static void fdt_init_device_realize(FDTMachineInfo *fdti,  char *node_path,
+                                   Object *dev);
+
 static void qemu_irq_shared_handler(void *opaque, int n, int level)
 {
     QEMUIRQSharedState *s = opaque;
@@ -162,6 +169,26 @@ static void fdt_init_cpu_clusters(FDTMachineInfo *fdti)
     }
 }
 
+static void fdt_init_deferred(FDTMachineInfo *fdti)
+{
+    while (fdti->deferred) {
+        FDTDeferredNode *dnode = fdti->deferred;
+
+        fdt_debug("FDT: Deferred realize node: %s\n",
+                 dnode->node_path);
+
+        fdt_init_device_realize(fdti, dnode->node_path, OBJECT(dnode->dev));
+
+        fdt_parse_node_reg_prop(fdti, dnode->node_path, OBJECT(dnode->dev));
+
+        fdt_parse_node_irq_prop(fdti, dnode->node_path, OBJECT(dnode->dev));
+
+        fdti->deferred = dnode->next;
+        g_free(dnode->node_path);
+        g_free(dnode);
+    }
+}
+
 FDTMachineInfo *fdt_generic_create_machine(void *fdt, qemu_irq *cpu_irq)
 {
     FDTMachineInfo *fdti = fdt_init_new_fdti(fdt);
@@ -175,6 +202,7 @@ FDTMachineInfo *fdt_generic_create_machine(void *fdt, qemu_irq *cpu_irq)
     while (qemu_co_enter_next(fdti->cq, NULL)) {
         ;
     }
+    fdt_init_deferred(fdti);
     fdt_init_cpu_clusters(fdti);
     fdt_init_all_irqs(fdti);
     memory_region_transaction_commit();

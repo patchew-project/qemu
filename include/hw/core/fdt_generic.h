@@ -35,6 +35,12 @@ typedef struct FDTIRQConnection {
     void *next;
 } FDTIRQConnection;
 
+typedef struct FDTDeferredNode {
+    DeviceState *dev;
+    char *node_path;
+    void *next;
+} FDTDeferredNode;
+
 typedef struct FDTMachineInfo {
     /* the fdt blob */
     void *fdt;
@@ -48,6 +54,8 @@ typedef struct FDTMachineInfo {
     FDTIRQConnection *irqs;
     /* list of all CPU clusters */
     FDTCPUCluster *clusters;
+    /* list of devices for deferred init */
+    FDTDeferredNode *deferred;
 } FDTMachineInfo;
 
 /*
