@@ -43,6 +43,98 @@ struct ARMGenericFDTState {
 
 OBJECT_DECLARE_SIMPLE_TYPE(ARMGenericFDTState, ARM_GENERIC_FDT_MACHINE)
 
+static void map_host_memdev_node(FDTMachineInfo *fdti, const char *node_path)
+{
+    int len;
+    uint64_t mr_size, backed_size;
+    Object *mem_obj;
+    Object *backend_obj;
+    MemoryRegion *mr;
+    MemoryRegion *backend_mr;
+    MemoryRegion *container;
+    HostMemoryBackend *backend_mem;
+
+    const char *compat = qemu_fdt_getprop(fdti->fdt, node_path,
+                                          "compatible", &len, NULL);
+    const char *host_id = qemu_fdt_getprop(fdti->fdt, node_path, "qemu,host-id",
+                                           &len, NULL);
+    bool is_qemu_ram = (qemu_fdt_getprop(fdti->fdt, node_path, "qemu,ram",
+                                         &len, NULL) != NULL);
+
+    if (!compat || strcmp(compat, "qemu-memory-region")) {
+        return;
+    }
+
+    if (!is_qemu_ram || !host_id) {
+        return;
+    }
+
+    mem_obj = fdt_init_get_opaque(fdti, node_path);
+    if (!mem_obj) {
+        return;
+    }
+
+    backend_obj = object_resolve_path_type(host_id, TYPE_MEMORY_BACKEND,
+                                            NULL);
+    if (!backend_obj) {
+        warn_report("No mem backend found for FDT requested host-id %s",
+                    host_id);
+        return;
+    }
+
+    backend_mem = MEMORY_BACKEND(backend_obj);
+    backend_mr = host_memory_backend_get_memory(backend_mem);
+
+    mr = MEMORY_REGION(mem_obj);
+    container = mr->container;
+    if (!container) {
+        warn_report("No parent found for requested host-id %s",
+                    host_id);
+        return;
+    }
+
+    mr_size = memory_region_size(mr);
+    backed_size = memory_region_size(backend_mr);
+
+    if (backed_size != mr_size) {
+        error_report("Unable to map host backed memory: %s, "
+                        "dts size: 0x%" PRIx64 ", but memdev size: 0x%" PRIx64,
+                        host_id, mr_size, backed_size);
+        exit(1);
+    }
+
+    hwaddr base_addr = mr->addr;
+
+    memory_region_del_subregion(container, mr);
+    memory_region_add_subregion(container, base_addr, backend_mr);
+
+    fdt_init_set_opaque(fdti, node_path, OBJECT(backend_mr));
+    object_unparent(mem_obj);
+}
+
+/* Parse device-tree starting from 'node' and attach file-backed RAM's */
+static void map_host_memdevs(FDTMachineInfo *fdti, const char *node_path)
+{
+    int i;
+    char **children;
+    int num_children = qemu_devtree_get_num_children(fdti->fdt, node_path);
+
+    if (num_children > 0) {
+        children = g_malloc0(sizeof(*children) * num_children);
+
+        num_children = qemu_devtree_get_children(fdti->fdt, node_path,
+                                      num_children, children);
+        for (i = 0; i < num_children; ++i) {
+            map_host_memdevs(fdti, children[i]);
+            g_free(children[i]);
+        }
+
+        g_free(children);
+    }
+
+    map_host_memdev_node(fdti, node_path);
+}
+
 static void init_machine(void *fdt, ARMGenericFDTState *s)
 {
     FDTMachineInfo *fdti;
@@ -63,7 +155,9 @@ static void init_machine(void *fdt, ARMGenericFDTState *s)
     /* Instantiate peripherals from the FDT.  */
     fdti = fdt_generic_create_machine(fdt, NULL);
 
-    mem_area = MEMORY_REGION(object_resolve_path(node_path[0], NULL));
+    map_host_memdevs(fdti, "/");
+
+    mem_area = MEMORY_REGION(fdt_init_get_opaque(fdti, node_path[0]));
 
     s->bootinfo.loader_start = object_property_get_int(OBJECT(mem_area),
                                                             "addr", NULL);
