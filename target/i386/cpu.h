@@ -2775,10 +2775,11 @@ void cpu_x86_update_dr7(CPUX86State *env, uint32_t new_dr7);
 uint64_t cpu_get_tsc(CPUX86State *env);
 
 #define CPU_RESOLVING_TYPE TYPE_X86_CPU
+#define I386_CPU_TYPE_SUFFIX "-i386-cpu"
 
 #ifdef TARGET_X86_64
 #define TARGET_DEFAULT_CPU_TYPE \
-            (target_i386() ? X86_CPU_TYPE_NAME("qemu32") \
+            (target_i386() ? "qemu32" I386_CPU_TYPE_SUFFIX \
                            : X86_CPU_TYPE_NAME("qemu64"))
 #else
 #define TARGET_DEFAULT_CPU_TYPE X86_CPU_TYPE_NAME("qemu32")

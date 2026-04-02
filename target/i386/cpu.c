@@ -2276,7 +2276,11 @@ void host_cpuid(uint32_t function, uint32_t count,
  */
 static char *x86_cpu_type_name(const char *model_name)
 {
-    return g_strdup_printf(X86_CPU_TYPE_NAME("%s"), model_name);
+    if (target_i386()) {
+        return g_strdup_printf("%s" I386_CPU_TYPE_SUFFIX, model_name);
+    } else {
+        return g_strdup_printf(X86_CPU_TYPE_NAME("%s"), model_name);
+    }
 }
 
 static ObjectClass *x86_cpu_class_by_name(const char *cpu_model)
@@ -2288,7 +2292,16 @@ static ObjectClass *x86_cpu_class_by_name(const char *cpu_model)
 static char *x86_cpu_class_get_model_name(X86CPUClass *cc)
 {
     const char *class_name = object_class_get_name(OBJECT_CLASS(cc));
-    assert(g_str_has_suffix(class_name, X86_CPU_TYPE_SUFFIX));
+    const char *type_suffix;
+
+    if (target_i386()) {
+        type_suffix = I386_CPU_TYPE_SUFFIX;
+    } else {
+        type_suffix = X86_CPU_TYPE_SUFFIX;
+    }
+
+    assert(g_str_has_suffix(class_name, type_suffix));
+
     return cpu_model_from_type(class_name);
 }
 
@@ -7266,7 +7279,7 @@ static void max_x86_cpu_initfn(Object *obj)
     }
 }
 
-static const TypeInfo max_x86_cpu_type_info = {
+static TypeInfo max_x86_cpu_type_info = {
     .name = X86_CPU_TYPE_NAME("max"),
     .parent = TYPE_X86_CPU,
     .instance_init = max_x86_cpu_initfn,
@@ -7884,7 +7897,8 @@ static gint x86_cpu_list_compare(gconstpointer a, gconstpointer b, gpointer d)
 
 static GSList *get_sorted_cpu_model_list(void)
 {
-    GSList *list = object_class_get_list(TYPE_X86_CPU, false);
+    GSList *list = object_class_get_list(target_i386() ?
+                                         "i386-cpu" : TYPE_X86_CPU, false);
     list = g_slist_sort_with_data(list, x86_cpu_list_compare, NULL);
     return list;
 }
@@ -10818,7 +10832,7 @@ static void x86_cpu_base_class_init(ObjectClass *oc, const void *data)
     xcc->ordering = 8;
 }
 
-static const TypeInfo x86_base_cpu_type_info = {
+static TypeInfo x86_base_cpu_type_info = {
         .name = X86_CPU_TYPE_NAME("base"),
         .parent = TYPE_X86_CPU,
         .class_init = x86_cpu_base_class_init,
@@ -10831,6 +10845,11 @@ static void x86_cpu_register_types(void)
     type_register_static(&x86_cpu_type_info);
     for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); i++) {
         x86_register_cpudef_types(&builtin_x86_defs[i]);
+    }
+
+    if (target_i386()) {
+        x86_base_cpu_type_info.name = "base" I386_CPU_TYPE_SUFFIX;
+        max_x86_cpu_type_info.name = "max" I386_CPU_TYPE_SUFFIX;
     }
     type_register_static(&max_x86_cpu_type_info);
     type_register_static(&x86_base_cpu_type_info);
