@@ -40,3 +40,4 @@ guest hardware that is specific to QEMU.
    riscv-aia
    aspeed-intc
    iommu-testdev
+   s390x-secure-ipl
