@@ -249,7 +249,7 @@ int keysym2scancode(kbd_layout_t *k, int keysym,
          */
         for (i = 0; i < keysym2code->count; i++) {
             QKeyCode qcode = qemu_input_key_number_to_qcode
-                (keysym2code->keycodes[i]);
+                (keysym2code->keycodes[i] & SCANCODE_KEYMASK);
             if (kbd && qkbd_state_key_get(kbd, qcode)) {
                 return keysym2code->keycodes[i];
             }
