@@ -84,7 +84,8 @@ static void readline_update(ReadLineState *rs)
 
 static void readline_insert_char(ReadLineState *rs, int ch)
 {
-    if (rs->cmd_buf_index < READLINE_CMD_BUF_SIZE) {
+    if (rs->cmd_buf_index <= rs->cmd_buf_size &&
+            rs->cmd_buf_size < READLINE_CMD_BUF_SIZE) {
         memmove(rs->cmd_buf + rs->cmd_buf_index + 1,
                 rs->cmd_buf + rs->cmd_buf_index,
                 rs->cmd_buf_size - rs->cmd_buf_index);
