@@ -1,6 +1,7 @@
 #ifndef QEMU_QDEV_PROPERTIES_H
 #define QEMU_QDEV_PROPERTIES_H
 
+#include "qom/compat-properties.h"
 #include "hw/core/qdev.h"
 
 /**
