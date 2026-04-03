@@ -525,31 +525,21 @@ static int vhost_verify_ring_mappings(struct vhost_dev *dev,
             continue;
         }
 
-        j = 0;
-        r = vhost_verify_ring_part_mapping(
-                vq->desc, vq->desc_phys, vq->desc_size,
-                reg_hva, reg_gpa, reg_size);
-        if (r) {
-            break;
-        }
+        void *ring_addrs[] = {vq->desc, vq->avail, vq->used};
+        uint64_t ring_phys[] = {vq->desc_phys, vq->avail_phys, vq->used_phys};
+        uint64_t ring_sizes[] = {vq->desc_size, vq->avail_size, vq->used_size};
 
-        j++;
-        r = vhost_verify_ring_part_mapping(
-                vq->avail, vq->avail_phys, vq->avail_size,
-                reg_hva, reg_gpa, reg_size);
-        if (r) {
-            break;
-        }
-
-        j++;
-        r = vhost_verify_ring_part_mapping(
-                vq->used, vq->used_phys, vq->used_size,
-                reg_hva, reg_gpa, reg_size);
-        if (r) {
-            break;
+        for (j = 0; j < 3; j++) {
+            r = vhost_verify_ring_part_mapping(
+                    ring_addrs[j], ring_phys[j], ring_sizes[j],
+                    reg_hva, reg_gpa, reg_size);
+            if (r) {
+                goto out;
+            }
         }
     }
 
+out:
     if (r == -ENOMEM) {
         error_report("Unable to map %s for ring %d", part_name[j], i);
     } else if (r == -EBUSY) {
