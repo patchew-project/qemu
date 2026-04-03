@@ -70,15 +70,16 @@ unsigned int vhost_get_free_memslots(void)
 
     QLIST_FOREACH(hdev, &vhost_devices, entry) {
         unsigned int r = hdev->vhost_ops->vhost_backend_memslots_limit(hdev);
-        unsigned int cur_free = r - hdev->mem->nregions;
+        unsigned int cur_free;
 
         if (unlikely(r < hdev->mem->nregions)) {
             warn_report_once("used (%u) vhost backend memory slots exceed"
                              " the device limit (%u).", hdev->mem->nregions, r);
-            free = 0;
-        } else {
-            free = MIN(free, cur_free);
+            return 0;
         }
+
+        cur_free = r - hdev->mem->nregions;
+        free = MIN(free, cur_free);
     }
     return free;
 }
