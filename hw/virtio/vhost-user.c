@@ -602,7 +602,7 @@ static void scrub_shadow_regions(struct vhost_dev *dev,
                     if (fd > 0) {
                         u->region_rb_offset[j] = offset;
                         u->region_rb[j] = mr->ram_block;
-                        shadow_pcb[j] = u->postcopy_client_bases[i];
+                        shadow_pcb[j] = u->postcopy_client_bases[j];
                     } else {
                         u->region_rb_offset[j] = 0;
                         u->region_rb[j] = NULL;
