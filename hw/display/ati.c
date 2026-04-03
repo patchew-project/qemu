@@ -743,7 +743,11 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         s->regs.crtc_offset_cntl = data; /* FIXME */
         break;
     case CRTC_PITCH:
-        s->regs.crtc_pitch = data & 0x07ff07ff;
+        data &= 0x07ff07ff;
+        if (s->regs.crtc_pitch != data) {
+            s->regs.crtc_pitch = data;
+            ati_vga_switch_mode(s);
+        }
         break;
     case 0xf00 ... 0xfff:
         /* read-only copy of PCI config space so ignore writes */
