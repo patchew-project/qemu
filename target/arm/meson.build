@@ -33,6 +33,7 @@ arm_user_ss.add(files(
   'helper.c',
   'vfp_fpscr.c',
   'el2-stubs.c',
+  'cpregs-omap-stub.c',
 ))
 arm_user_ss.add(when: 'CONFIG_ARM_COMPATIBLE_SEMIHOSTING',
 		        if_true: files('common-semi-target.c'))
@@ -48,6 +49,7 @@ arm_common_system_ss.add(files(
   'arm-powerctl.c',
   'cortex-regs.c',
   'cpregs-gcs.c',
+  'cpregs-omap.c',
   'cpregs-pmu.c',
   'cpu-irq.c',
   'debug_helper.c',
