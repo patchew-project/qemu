@@ -29,4 +29,12 @@ typedef struct GlobalProperty {
     bool optional;
 } GlobalProperty;
 
+void object_set_machine_compat_props(GPtrArray *compat_props);
+void object_set_accelerator_compat_props(GPtrArray *compat_props);
+void object_register_sugar_prop(const char *driver, const char *prop,
+                                const char *value, bool optional);
+void object_apply_compat_props(Object *obj);
+bool object_apply_global_props(Object *obj, const GPtrArray *props,
+                               Error **errp);
+
 #endif
