@@ -1388,6 +1388,11 @@
 # @channels: list of migration stream channels with each stream in the
 #     list connected to a destination interface endpoint.
 #
+# @capabilities: list of migration capabilities to set before
+#     starting the migration.  Equivalent to calling
+#     `migrate-set-capabilities` before `migrate`, but more
+#     convenient.
+#
 # @resume: when set, use the new uri/channels specified to resume
 #     paused postcopy migration.  This flag should only be used if
 #     the previous postcopy migration was interrupted.  The command
@@ -1453,6 +1458,7 @@
 { 'command': 'migrate',
   'data': {'*uri': 'str',
            '*channels': [ 'MigrationChannel' ],
+           '*capabilities': ['MigrationCapabilityStatus'],
            '*resume': 'bool' } }
 
 ##
@@ -1466,6 +1472,11 @@
 #
 # @channels: list of migration stream channels with each stream in the
 #     list connected to a destination interface endpoint.
+#
+# @capabilities: list of migration capabilities to set before
+#     starting the migration.  Equivalent to calling
+#     `migrate-set-capabilities` before `migrate-incoming`, but more
+#     convenient.
 #
 # @exit-on-error: Exit on incoming migration failure.  Default true.
 #     When set to false, the failure triggers a
@@ -1525,6 +1536,7 @@
 { 'command': 'migrate-incoming',
              'data': {'*uri': 'str',
                       '*channels': [ 'MigrationChannel' ],
+                      '*capabilities': ['MigrationCapabilityStatus'],
                       '*exit-on-error': 'bool' } }
 
 ##

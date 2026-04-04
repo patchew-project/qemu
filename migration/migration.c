@@ -1752,6 +1752,8 @@ void migrate_del_blocker(Error **reasonp)
 
 void qmp_migrate_incoming(const char *uri, bool has_channels,
                           MigrationChannelList *channels,
+                          bool has_capabilities,
+                          MigrationCapabilityStatusList *capabilities,
                           bool has_exit_on_error, bool exit_on_error,
                           Error **errp)
 {
@@ -1770,6 +1772,14 @@ void qmp_migrate_incoming(const char *uri, bool has_channels,
 
     if (!yank_register_instance(MIGRATION_YANK_INSTANCE, errp)) {
         return;
+    }
+
+    if (has_capabilities) {
+        qmp_migrate_set_capabilities(capabilities, errp);
+        if (*errp) {
+            yank_unregister_instance(MIGRATION_YANK_INSTANCE);
+            return;
+        }
     }
 
     mis->exit_on_error =
@@ -2020,6 +2030,8 @@ static gboolean migration_connect_outgoing_cb(QIOChannel *channel,
 
 void qmp_migrate(const char *uri, bool has_channels,
                  MigrationChannelList *channels,
+                 bool has_capabilities,
+                 MigrationCapabilityStatusList *capabilities,
                  bool has_resume, bool resume, Error **errp)
 {
     MigrationState *s = migrate_get_current();
@@ -2034,6 +2046,13 @@ void qmp_migrate(const char *uri, bool has_channels,
     /* transport mechanism not suitable for migration? */
     if (!migration_transport_compatible(main_ch->addr, errp)) {
         return;
+    }
+
+    if (has_capabilities) {
+        qmp_migrate_set_capabilities(capabilities, errp);
+        if (*errp) {
+            return;
+        }
     }
 
     if (!migrate_prepare(s, has_resume && resume, errp)) {
