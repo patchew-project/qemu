@@ -323,8 +323,8 @@ endif
 # Compiler flags #
 ##################
 
-if cc.sizeof('void *') < 8
-  error('QEMU requires a 64-bit CPU host architecture')
+if (cc.sizeof('void *') < 8) and (have_system or have_user)
+  error('QEMU emulator requires a 64-bit CPU host architecture. Only tools may be built for 32-bit.')
 endif
 
 foreach lang : all_languages
@@ -423,8 +423,16 @@ endif
 #
 # Later checks assume we won't get atomic ops for int128 without
 # explicitly asking for -latomic, so we must disable GCC's new
-# automatic linking with the new -fno-link-libatomic flag
-qemu_isa_flags += cc.get_supported_arguments('-fno-link-libatomic')
+# automatic linking with the new -fno-link-libatomic flag.
+#
+# When not building the emulators, but qemu helper tools only
+# (e.g. on 32-bit hosts), libatomic is sometimes required and
+# thus acceptable.
+if (have_system or have_user)
+  qemu_isa_flags += cc.get_supported_arguments('-fno-link-libatomic')
+else
+  qemu_ldflags += cc.get_supported_link_arguments('-Wl,-latomic')
+endif
 
 qemu_common_flags = qemu_isa_flags + qemu_common_flags
 

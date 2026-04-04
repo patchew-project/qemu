@@ -58,11 +58,11 @@
 
 /*
  * Sanity check that the size of an atomic operation isn't "overly large".
- * Despite the fact that e.g. i686 has 64-bit atomic operations, we do not
+ * Despite the fact that e.g. x86-64 has 128-bit atomic operations, we do not
  * want to use them because we ought not need them, and this lets us do a
- * bit of sanity checking that other 32-bit hosts might build.
+ * bit of sanity checking that other 32- and 64-bit hosts might build.
  */
-#define ATOMIC_REG_SIZE  sizeof(void *)
+#define ATOMIC_REG_SIZE  sizeof(uint64_t)
 
 /* Weak atomic operations prevent the compiler moving other
  * loads/stores past the atomic operation load/store. However there is
