@@ -657,6 +657,13 @@ static int vfio_device_io_region_write(VFIODevice *vbasedev, uint8_t index,
     return ret < 0 ? -errno : ret;
 }
 
+static int vfio_device_io_device_reset(VFIODevice *vbasedev)
+{
+    int ret = ioctl(vbasedev->fd, VFIO_DEVICE_RESET);
+
+    return ret < 0 ? -errno : ret;
+}
+
 static int vfio_device_io_region_map(VFIODevice *vbasedev, VFIORegion *region)
 {
     return vfio_region_mmap_fd(region);
@@ -673,6 +680,7 @@ static VFIODeviceIOOps vfio_device_io_ops_ioctl = {
     .get_region_info = vfio_device_io_get_region_info,
     .get_irq_info = vfio_device_io_get_irq_info,
     .set_irqs = vfio_device_io_set_irqs,
+    .device_reset = vfio_device_io_device_reset,
     .region_read = vfio_device_io_region_read,
     .region_write = vfio_device_io_region_write,
     .region_map = vfio_device_io_region_map,

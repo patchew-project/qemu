@@ -290,10 +290,10 @@ static void vfio_ap_reset(DeviceState *dev)
     int ret;
     VFIOAPDevice *vapdev = VFIO_AP_DEVICE(dev);
 
-    ret = ioctl(vapdev->vdev.fd, VFIO_DEVICE_RESET);
+    ret = vapdev->vdev.io_ops->device_reset(&vapdev->vdev);
     if (ret) {
         error_report("%s: failed to reset %s device: %s", __func__,
-                     vapdev->vdev.name, strerror(errno));
+                     vapdev->vdev.name, strerror(-ret));
     }
 }
 

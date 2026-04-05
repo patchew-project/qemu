@@ -263,6 +263,17 @@ struct VFIODeviceIOOps {
                         void *data, bool post);
 
     /**
+     * @device_reset
+     *
+     * Reset the device.
+     *
+     * @vdev: #VFIODevice to reset
+     *
+     * Returns 0 on success or -errno.
+     */
+    int (*device_reset)(VFIODevice *vdev);
+
+    /**
      * @region_map
      *
      * Map a region's directly accessible subranges and register any mmap-backed

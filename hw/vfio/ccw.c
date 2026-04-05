@@ -242,7 +242,7 @@ static void vfio_ccw_reset(DeviceState *dev)
 {
     VFIOCCWDevice *vcdev = VFIO_CCW(dev);
 
-    ioctl(vcdev->vdev.fd, VFIO_DEVICE_RESET);
+    vcdev->vdev.io_ops->device_reset(&vcdev->vdev);
 }
 
 static void vfio_ccw_crw_read(VFIOCCWDevice *vcdev)
