@@ -176,6 +176,23 @@ struct MigrationIncomingState {
     /* PostCopyFD's for external userfaultfds & handlers of shared memory */
     GArray   *postcopy_remote_fds;
 
+    /*
+     * Timestamps for reporting migration duration via query-migrate on the
+     * destination. start_time is recorded when the state moves to ACTIVE;
+     * total_time is recorded when it moves to COMPLETED.
+     */
+    int64_t start_time;
+    int64_t total_time;
+
+    /*
+     * Page counters for reporting RAM statistics via query-migrate on the
+     * destination.  Incremented in ram_load_precopy() as each page type
+     * is received.
+     */
+    uint64_t received_normal_pages;
+    uint64_t received_zero_pages;
+    uint64_t received_xbzrle_pages;
+
     MigrationStatus state;
 
     /*

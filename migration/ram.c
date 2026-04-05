@@ -4417,10 +4417,12 @@ static int ram_load_precopy(QEMUFile *f)
                 break;
             }
             ram_handle_zero(host, TARGET_PAGE_SIZE);
+            mis->received_zero_pages++;
             break;
 
         case RAM_SAVE_FLAG_PAGE:
             qemu_get_buffer(f, host, TARGET_PAGE_SIZE);
+            mis->received_normal_pages++;
             break;
 
         case RAM_SAVE_FLAG_XBZRLE:
@@ -4430,6 +4432,7 @@ static int ram_load_precopy(QEMUFile *f)
                 ret = -EINVAL;
                 break;
             }
+            mis->received_xbzrle_pages++;
             break;
         case RAM_SAVE_FLAG_MULTIFD_FLUSH:
             multifd_recv_sync_main();
