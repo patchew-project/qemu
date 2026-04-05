@@ -510,10 +510,10 @@ static void monitor_qmp_setup_handlers_bh(void *opaque)
     qemu_chr_fe_set_handlers(&mon->common.chr, monitor_can_read,
                              monitor_qmp_read, monitor_qmp_event,
                              NULL, &mon->common, context, true);
-    monitor_list_append(&mon->common);
 }
 
-void monitor_init_qmp(Chardev *chr, bool pretty, Error **errp)
+void monitor_init_qmp(Chardev *chr, bool pretty, const char *id,
+                      bool dynamic, Error **errp)
 {
     MonitorQMP *mon = g_new0(MonitorQMP, 1);
 
@@ -527,12 +527,16 @@ void monitor_init_qmp(Chardev *chr, bool pretty, Error **errp)
     monitor_data_init(&mon->common, true, false,
                       qemu_chr_has_feature(chr, QEMU_CHAR_FEATURE_GCONTEXT));
 
+    mon->common.id = g_strdup(id);
+    mon->common.dynamic = dynamic;
     mon->pretty = pretty;
 
     qemu_mutex_init(&mon->qmp_queue_lock);
     mon->qmp_requests = g_queue_new();
 
     json_message_parser_init(&mon->parser, handle_qmp_command, mon, NULL);
+    /* Prevent event broadcast to an uninitialized monitor. */
+    mon->commands = &qmp_cap_negotiation_commands;
     if (mon->common.use_io_thread) {
         /*
          * Make sure the old iowatch is gone.  It's possible when
@@ -551,7 +555,8 @@ void monitor_init_qmp(Chardev *chr, bool pretty, Error **errp)
          */
         aio_bh_schedule_oneshot(iothread_get_aio_context(mon_iothread),
                                 monitor_qmp_setup_handlers_bh, mon);
-        /* The bottom half will add @mon to @mon_list */
+        /* Synchronous insert for immediate duplicate detection. */
+        monitor_list_append(&mon->common);
     } else {
         qemu_chr_fe_set_handlers(&mon->common.chr, monitor_can_read,
                                  monitor_qmp_read, monitor_qmp_event,
