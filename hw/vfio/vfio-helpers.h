@@ -9,7 +9,7 @@
 #ifndef HW_VFIO_VFIO_HELPERS_H
 #define HW_VFIO_VFIO_HELPERS_H
 
-#ifdef CONFIG_LINUX
+#if defined(CONFIG_LINUX) || defined(CONFIG_DARWIN)
 #include <linux/vfio.h>
 
 extern int vfio_kvm_device_fd;

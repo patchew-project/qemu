@@ -2,7 +2,7 @@ source tpm/Kconfig
 
 config IOMMUFD
     bool
-    depends on VFIO
+    depends on VFIO && LINUX
 
 config SPDM_SOCKET
     bool

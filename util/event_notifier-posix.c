@@ -20,10 +20,10 @@
 #include <sys/eventfd.h>
 #endif
 
-#ifdef CONFIG_EVENTFD
 /*
  * Initialize @e with existing file descriptor @fd.
- * @fd must be a genuine eventfd object, emulation with pipe won't do.
+ * On hosts without eventfd(), callers can still restore a single descriptor
+ * for cases that only need eventfd-like semantics.
  */
 void event_notifier_init_fd(EventNotifier *e, int fd)
 {
@@ -31,7 +31,6 @@ void event_notifier_init_fd(EventNotifier *e, int fd)
     e->wfd = fd;
     e->initialized = true;
 }
-#endif
 
 int event_notifier_init(EventNotifier *e, int active)
 {

@@ -2,14 +2,14 @@
 
 config VFIO
     bool
-    depends on LINUX
+    depends on LINUX || DARWIN
 
 config VFIO_PCI
     bool
     default y
     select VFIO
     select EDID
-    depends on LINUX && PCI
+    depends on (LINUX || DARWIN) && PCI
 
 config VFIO_CCW
     bool

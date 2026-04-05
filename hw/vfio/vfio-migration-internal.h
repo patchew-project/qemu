@@ -9,7 +9,7 @@
 #ifndef HW_VFIO_VFIO_MIGRATION_INTERNAL_H
 #define HW_VFIO_VFIO_MIGRATION_INTERNAL_H
 
-#ifdef CONFIG_LINUX
+#if defined(CONFIG_LINUX) || defined(CONFIG_DARWIN)
 #include <linux/vfio.h>
 #endif
 
@@ -62,7 +62,7 @@ bool vfio_device_state_is_precopy(VFIODevice *vbasedev);
 int vfio_save_device_config_state(QEMUFile *f, void *opaque, Error **errp);
 int vfio_load_device_config_state(QEMUFile *f, void *opaque);
 
-#ifdef CONFIG_LINUX
+#if defined(CONFIG_LINUX) || defined(CONFIG_DARWIN)
 int vfio_migration_set_state(VFIODevice *vbasedev,
                              enum vfio_device_mig_state new_state,
                              enum vfio_device_mig_state recover_state,

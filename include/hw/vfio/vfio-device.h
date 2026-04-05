@@ -23,7 +23,7 @@
 
 #include "system/memory.h"
 #include "qemu/queue.h"
-#ifdef CONFIG_LINUX
+#if defined(CONFIG_LINUX) || defined(CONFIG_DARWIN)
 #include <linux/vfio.h>
 #endif
 #include "system/system.h"
@@ -171,7 +171,7 @@ VFIODevice *vfio_get_vfio_device(Object *obj);
 typedef QLIST_HEAD(VFIODeviceList, VFIODevice) VFIODeviceList;
 extern VFIODeviceList vfio_device_list;
 
-#ifdef CONFIG_LINUX
+#if defined(CONFIG_LINUX) || defined(CONFIG_DARWIN)
 /*
  * How devices communicate with the server.  The default option is through
  * ioctl() to the kernel VFIO driver, but vfio-user can use a socket to a remote

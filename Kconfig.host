@@ -5,6 +5,9 @@
 config LINUX
     bool
 
+config DARWIN
+    bool
+
 config LIBCBOR
     bool
 

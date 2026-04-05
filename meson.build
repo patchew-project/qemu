@@ -772,7 +772,14 @@ if 'objc' in all_languages
   add_project_arguments(objc.get_supported_arguments(qemu_common_flags + warn_flags),
                         native: false, language: 'objc')
 endif
-if host_os == 'linux'
+if host_os == 'darwin'
+  # linux-headers/linux/vfio.h includes <linux/types.h> and <linux/ioctl.h>
+  # which are system headers on Linux but absent on macOS.  Point at the
+  # static shims in include/compat/
+  add_project_arguments('-isystem', meson.current_source_dir() / 'include/compat',
+                        language: all_languages)
+endif
+if host_os in ['linux', 'darwin']
   add_project_arguments('-isystem', meson.current_source_dir() / 'linux-headers',
                         '-isystem', 'linux-headers',
                         language: all_languages)
@@ -3290,6 +3297,7 @@ host_kconfig = \
   (have_vhost_kernel ? ['CONFIG_VHOST_KERNEL=y'] : []) + \
   (have_virtfs ? ['CONFIG_VIRTFS=y'] : []) + \
   (host_os == 'linux' ? ['CONFIG_LINUX=y'] : []) + \
+  (host_os == 'darwin' ? ['CONFIG_DARWIN=y'] : []) + \
   (multiprocess_allowed ? ['CONFIG_MULTIPROCESS_ALLOWED=y'] : []) + \
   (vfio_user_server_allowed ? ['CONFIG_VFIO_USER_SERVER_ALLOWED=y'] : []) + \
   (hv_balloon ? ['CONFIG_HV_BALLOON_POSSIBLE=y'] : []) + \

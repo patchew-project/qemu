@@ -4,9 +4,11 @@ vfio_ss = ss.source_set()
 vfio_ss.add(files(
   'listener.c',
   'container.c',
-  'container-legacy.c',
   'helpers.c',
 ))
+if host_os == 'linux'
+  vfio_ss.add(files('container-legacy.c'))
+endif
 vfio_ss.add(when: 'CONFIG_PSERIES', if_true: files('spapr.c'))
 vfio_ss.add(when: 'CONFIG_VFIO_PCI', if_true: files(
   'pci-quirks.c',

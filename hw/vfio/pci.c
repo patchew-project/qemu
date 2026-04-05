@@ -3862,6 +3862,9 @@ static void vfio_pci_class_init(ObjectClass *klass, const void *data)
 #endif
     dc->vmsd = &vfio_cpr_pci_vmstate;
     dc->desc = "VFIO-based PCI device assignment";
+#ifdef CONFIG_DARWIN
+    dc->user_creatable = false;
+#endif
     pdc->realize = vfio_pci_realize;
 
     object_class_property_set_description(klass, /* 1.3 */
