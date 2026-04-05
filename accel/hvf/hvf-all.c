@@ -114,7 +114,15 @@ static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
         return;
     }
 
-    flags = HV_MEMORY_READ | HV_MEMORY_EXEC | (writable ? HV_MEMORY_WRITE : 0);
+    flags = HV_MEMORY_READ | (writable ? HV_MEMORY_WRITE : 0);
+    /*
+     * Leave RAM-device/MMIO mappings RW-only: on macOS, accessing them through
+     * executable HVF mappings can panic the host kernel. Ordinary guest RAM
+     * still needs EXEC.
+     */
+    if (!memory_region_is_ram_device(area)) {
+        flags |= HV_MEMORY_EXEC;
+    }
     mem = memory_region_get_ram_ptr(area) + section->offset_within_region;
 
     trace_hvf_vm_map(gpa, size, mem, flags,
