@@ -23,6 +23,7 @@
 
 #include "hw/vfio/vfio-device.h"
 #include "hw/vfio/pci.h"
+#include "hw/vfio/vfio-region.h"
 #include "hw/core/iommu.h"
 #include "hw/core/hw-error.h"
 #include "trace.h"
@@ -656,6 +657,17 @@ static int vfio_device_io_region_write(VFIODevice *vbasedev, uint8_t index,
     return ret < 0 ? -errno : ret;
 }
 
+static int vfio_device_io_region_map(VFIODevice *vbasedev, VFIORegion *region)
+{
+    return vfio_region_mmap_fd(region);
+}
+
+static void vfio_device_io_region_unmap(VFIODevice *vbasedev,
+                                        VFIORegion *region)
+{
+    vfio_region_unmap_fd(region);
+}
+
 static VFIODeviceIOOps vfio_device_io_ops_ioctl = {
     .device_feature = vfio_device_io_device_feature,
     .get_region_info = vfio_device_io_get_region_info,
@@ -663,4 +675,6 @@ static VFIODeviceIOOps vfio_device_io_ops_ioctl = {
     .set_irqs = vfio_device_io_set_irqs,
     .region_read = vfio_device_io_region_read,
     .region_write = vfio_device_io_region_write,
+    .region_map = vfio_device_io_region_map,
+    .region_unmap = vfio_device_io_region_unmap,
 };

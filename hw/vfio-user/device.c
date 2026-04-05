@@ -12,6 +12,7 @@
 #include "qemu/lockable.h"
 #include "qemu/thread.h"
 
+#include "hw/vfio/vfio-region.h"
 #include "hw/vfio-user/device.h"
 #include "hw/vfio-user/trace.h"
 
@@ -428,6 +429,18 @@ static int vfio_user_device_io_region_write(VFIODevice *vbasedev, uint8_t index,
     return ret;
 }
 
+static int vfio_user_device_io_region_map(VFIODevice *vbasedev,
+                                          VFIORegion *region)
+{
+    return vfio_region_mmap_fd(region);
+}
+
+static void vfio_user_device_io_region_unmap(VFIODevice *vbasedev,
+                                             VFIORegion *region)
+{
+    vfio_region_unmap_fd(region);
+}
+
 /*
  * Socket-based io_ops
  */
@@ -437,5 +450,6 @@ VFIODeviceIOOps vfio_user_device_io_ops_sock = {
     .set_irqs = vfio_user_device_io_set_irqs,
     .region_read = vfio_user_device_io_region_read,
     .region_write = vfio_user_device_io_region_write,
-
+    .region_map = vfio_user_device_io_region_map,
+    .region_unmap = vfio_user_device_io_region_unmap,
 };

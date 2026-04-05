@@ -44,6 +44,7 @@ enum {
 typedef struct VFIODeviceOps VFIODeviceOps;
 typedef struct VFIODeviceIOOps VFIODeviceIOOps;
 typedef struct VFIOMigration VFIOMigration;
+typedef struct VFIORegion VFIORegion;
 
 typedef struct IOMMUFDBackend IOMMUFDBackend;
 typedef struct VFIOIOASHwpt VFIOIOASHwpt;
@@ -260,6 +261,30 @@ struct VFIODeviceIOOps {
      */
     int (*region_write)(VFIODevice *vdev, uint8_t nr, off_t off, uint32_t size,
                         void *data, bool post);
+
+    /**
+     * @region_map
+     *
+     * Map a region's directly accessible subranges and register any mmap-backed
+     * subregions with QEMU.
+     *
+     * @vdev: #VFIODevice to use
+     * @region: #VFIORegion to map
+     *
+     * Returns 0 on success or -errno.
+     */
+    int (*region_map)(VFIODevice *vdev, VFIORegion *region);
+
+    /**
+     * @region_unmap
+     *
+     * Unregister any mmap-backed subregions for a region and release their
+     * backend mappings.
+     *
+     * @vdev: #VFIODevice to use
+     * @region: #VFIORegion to unmap
+     */
+    void (*region_unmap)(VFIODevice *vdev, VFIORegion *region);
 };
 
 void vfio_device_prepare(VFIODevice *vbasedev, VFIOContainer *bcontainer,

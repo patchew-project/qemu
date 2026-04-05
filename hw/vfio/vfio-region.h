@@ -39,6 +39,10 @@ uint64_t vfio_region_read(void *opaque,
                           hwaddr addr, unsigned size);
 int vfio_region_setup(Object *obj, VFIODevice *vbasedev, VFIORegion *region,
                       int index, const char *name, Error **errp);
+void vfio_region_register_mmap(VFIORegion *region, int index);
+void vfio_region_unregister_mmap(VFIORegion *region, int index);
+int vfio_region_mmap_fd(VFIORegion *region);
+void vfio_region_unmap_fd(VFIORegion *region);
 int vfio_region_mmap(VFIORegion *region);
 void vfio_region_mmaps_set_enabled(VFIORegion *region, bool enabled);
 void vfio_region_unmap(VFIORegion *region);
