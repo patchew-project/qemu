@@ -1063,17 +1063,24 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     info->ram->normal = qatomic_read(&mig_stats.normal_pages);
     info->ram->normal_bytes = info->ram->normal * page_size;
     info->ram->mbps = s->mbps;
+    info->ram->has_dirty_sync_count = true;
     info->ram->dirty_sync_count =
         qatomic_read(&mig_stats.dirty_sync_count);
+    info->ram->has_dirty_sync_missed_zero_copy = true;
     info->ram->dirty_sync_missed_zero_copy =
         qatomic_read(&mig_stats.dirty_sync_missed_zero_copy);
+    info->ram->has_postcopy_requests = true;
     info->ram->postcopy_requests =
         qatomic_read(&mig_stats.postcopy_requests);
     info->ram->page_size = page_size;
+    info->ram->has_multifd_bytes = true;
     info->ram->multifd_bytes = qatomic_read(&mig_stats.multifd_bytes);
     info->ram->pages_per_second = s->pages_per_second;
+    info->ram->has_precopy_bytes = true;
     info->ram->precopy_bytes = qatomic_read(&mig_stats.precopy_bytes);
+    info->ram->has_downtime_bytes = true;
     info->ram->downtime_bytes = qatomic_read(&mig_stats.downtime_bytes);
+    info->ram->has_postcopy_bytes = true;
     info->ram->postcopy_bytes = qatomic_read(&mig_stats.postcopy_bytes);
 
     if (migrate_xbzrle()) {
@@ -1094,6 +1101,7 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
 
     if (s->state != MIGRATION_STATUS_COMPLETED) {
         info->ram->remaining = ram_bytes_remaining();
+        info->ram->has_dirty_pages_rate = true;
         info->ram->dirty_pages_rate =
            qatomic_read(&mig_stats.dirty_pages_rate);
     }
@@ -1209,6 +1217,33 @@ static void fill_destination_migration_info(MigrationInfo *info)
     case MIGRATION_STATUS_COMPLETED:
         info->has_status = true;
         fill_destination_postcopy_migration_info(info);
+        if (mis->total_time > 0) {
+            info->has_total_time = true;
+            info->total_time = mis->total_time;
+        }
+        {
+            size_t page_size = qemu_target_page_size();
+            uint64_t normal  = mis->received_normal_pages;
+            uint64_t zero    = mis->received_zero_pages;
+            uint64_t xbzrle  = mis->received_xbzrle_pages;
+
+            info->ram = g_malloc0(sizeof(*info->ram));
+            info->ram->total        = ram_bytes_total();
+            info->ram->remaining    = 0;
+            info->ram->normal       = normal + xbzrle;
+            info->ram->normal_bytes = (normal + xbzrle) * page_size;
+            info->ram->duplicate    = zero;
+            info->ram->transferred  = (normal + xbzrle) * page_size;
+            info->ram->page_size    = page_size;
+
+            if (info->has_total_time) {
+                info->ram->mbps = info->ram->transferred * 8.0
+                                  / info->total_time / 1000.0;
+                info->ram->pages_per_second = (normal + xbzrle + zero)
+                                              * 1000.0 / info->total_time;
+            }
+            /* source-only optional omitted from output */
+        }
         break;
     default:
         return;
