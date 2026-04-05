@@ -40,8 +40,7 @@ system_ss.add(when: 'CONFIG_VFIO_PCI', if_true: files(
 # Apple VFIO backend
 if host_os == 'darwin'
   system_ss.add(when: 'CONFIG_VFIO',
-                if_true: [files('apple-device.c',
-                                'container-apple.c',
-                                'apple-dext-client.c'),
+                if_true: [files('apple-device.c', 'apple-dma.c',
+                                'container-apple.c', 'apple-dext-client.c'),
                           coref, iokit])
 endif
