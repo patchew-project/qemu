@@ -2338,6 +2338,17 @@ F: qapi/vfio.json
 F: migration/vfio-stub.c
 F: tests/functional/aarch64/test_device_passthrough.py
 
+vfio-apple
+M: Scott J. Goldman <scottjgo@gmail.com>
+S: Maintained
+F: hw/vfio/apple-device.c
+F: hw/vfio/apple-dext-client.c
+F: hw/vfio/apple-dext-client.h
+F: hw/vfio/apple-dma.c
+F: hw/vfio/apple.h
+F: hw/vfio/container-apple.c
+F: include/compat/linux/
+
 vfio-igd
 M: Alex Williamson <alex@shazbot.org>
 M: Cédric Le Goater <clg@redhat.com>

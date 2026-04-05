@@ -98,4 +98,5 @@ Emulated Devices
    devices/scsi/index.rst
    devices/usb-u2f.rst
    devices/usb.rst
+   devices/vfio-apple.rst
    devices/vfio-user.rst
