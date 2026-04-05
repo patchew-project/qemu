@@ -1796,6 +1796,8 @@ void define_at_insn_regs(ARMCPU *cpu);
 void define_pm_cpregs(ARMCPU *cpu);
 /* Add the cpreg definitions for GCS cpregs */
 void define_gcs_cpregs(ARMCPU *cpu);
+/* Add the cpreg definitions for OMAP CP15 regs */
+void define_omap_cp_regs(ARMCPU *cpu);
 
 /* Effective value of MDCR_EL2 */
 static inline uint64_t arm_mdcr_el2_eff(CPUARMState *env)
