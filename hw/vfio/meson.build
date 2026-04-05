@@ -36,3 +36,10 @@ system_ss.add(when: 'CONFIG_IOMMUFD', if_false: files('iommufd-stubs.c'))
 system_ss.add(when: 'CONFIG_VFIO_PCI', if_true: files(
   'display.c',
 ))
+
+# Apple VFIO backend
+if host_os == 'darwin'
+  system_ss.add(when: 'CONFIG_VFIO',
+                if_true: [files('apple-dext-client.c'),
+                coref, iokit])
+endif
