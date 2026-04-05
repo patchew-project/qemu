@@ -3483,7 +3483,7 @@ static void vfio_pci_realize(PCIDevice *pdev, Error **errp)
     char uuid[UUID_STR_LEN];
     g_autofree char *name = NULL;
 
-    if (vbasedev->fd < 0 && !vbasedev->sysfsdev) {
+    if (vbasedev->fd < 0 && !vbasedev->sysfsdev && !vbasedev->name) {
         if (!(~vdev->host.domain || ~vdev->host.bus ||
               ~vdev->host.slot || ~vdev->host.function)) {
             error_setg(errp, "No provided host device");
@@ -3558,8 +3558,10 @@ static void vfio_pci_realize(PCIDevice *pdev, Error **errp)
         vfio_vga_quirk_setup(vdev);
     }
 
-    for (i = 0; i < PCI_ROM_SLOT; i++) {
-        vfio_bar_quirk_setup(vdev, i);
+    if (!vdev->no_bar_quirks) {
+        for (i = 0; i < PCI_ROM_SLOT; i++) {
+            vfio_bar_quirk_setup(vdev, i);
+        }
     }
 
     if (!vfio_pci_interrupt_setup(vdev, errp)) {

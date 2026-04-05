@@ -20,4 +20,6 @@
 
 #define TYPE_VFIO_PCI_NOHOTPLUG "vfio-pci-nohotplug"
 
+#define TYPE_VFIO_APPLE_PCI "vfio-apple-pci"
+
 #endif /* HW_VFIO_VFIO_TYPES_H */

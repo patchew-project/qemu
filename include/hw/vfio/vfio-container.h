@@ -117,6 +117,7 @@ vfio_container_get_page_size_mask(const VFIOContainer *bcontainer)
 #define TYPE_VFIO_IOMMU_SPAPR TYPE_VFIO_IOMMU "-spapr"
 #define TYPE_VFIO_IOMMU_IOMMUFD TYPE_VFIO_IOMMU "-iommufd"
 #define TYPE_VFIO_IOMMU_USER TYPE_VFIO_IOMMU "-user"
+#define TYPE_VFIO_IOMMU_APPLE TYPE_VFIO_IOMMU "-apple"
 
 struct VFIOIOMMUClass {
     ObjectClass parent_class;

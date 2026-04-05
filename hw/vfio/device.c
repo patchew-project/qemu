@@ -316,6 +316,13 @@ bool vfio_device_get_name(VFIODevice *vbasedev, Error **errp)
     struct stat st;
 
     if (vbasedev->fd < 0) {
+        if (!vbasedev->sysfsdev) {
+            if (vbasedev->name) {
+                return true;
+            }
+            error_setg(errp, "No provided host device");
+            return false;
+        }
         if (stat(vbasedev->sysfsdev, &st) < 0) {
             error_setg_errno(errp, errno, "no such host device");
             error_prepend(errp, VFIO_MSG_PREFIX, vbasedev->sysfsdev);
@@ -404,7 +411,16 @@ bool vfio_device_is_mdev(VFIODevice *vbasedev)
     g_autofree char *tmp = NULL;
 
     if (!vbasedev->sysfsdev) {
+#ifdef CONFIG_DARWIN
+        /*
+         * On Darwin the dext mediates all device access and manages DMA
+         * mappings explicitly, so the mdev assumptions (software-managed
+         * DMA, balloon-safe) hold.
+         */
+        return true;
+#else
         return false;
+#endif
     }
 
     tmp = g_strdup_printf("%s/subsystem", vbasedev->sysfsdev);
@@ -462,9 +478,13 @@ bool vfio_device_attach_by_iommu_type(const char *iommu_type, char *name,
 bool vfio_device_attach(char *name, VFIODevice *vbasedev,
                         AddressSpace *as, Error **errp)
 {
+#ifdef CONFIG_DARWIN
+    const char *iommu_type = TYPE_VFIO_IOMMU_APPLE;
+#else
     const char *iommu_type = vbasedev->iommufd ?
                              TYPE_VFIO_IOMMU_IOMMUFD :
                              TYPE_VFIO_IOMMU_LEGACY;
+#endif
 
     return vfio_device_attach_by_iommu_type(iommu_type, name, vbasedev,
                                             as, errp);
