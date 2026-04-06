@@ -41,7 +41,8 @@ void tpm_util_pcrread(QTestState *s, tx_func *tx,
 bool tpm_util_swtpm_has_tpm2(void);
 
 gboolean tpm_util_swtpm_start(const char *path, GPid *pid,
-                              SocketAddress **addr, GError **error);
+                              SocketAddress **addr, const char *profilename,
+                              GError **error);
 void tpm_util_swtpm_kill(GPid pid);
 
 void tpm_util_migrate(QTestState *who, const char *uri);
