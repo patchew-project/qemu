@@ -6891,5 +6891,6 @@ void arm_translate_code(CPUState *cpu, TranslationBlock *tb,
     }
 #endif
 
-    translator_loop(cpu, tb, max_insns, pc, host_pc, ops, &dc.base);
+    translator_loop(cpu, tb, max_insns, pc, host_pc, ops, &dc.base,
+                    tcg_default_addr_type());
 }
