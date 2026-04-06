@@ -166,6 +166,11 @@ static inline int tcg_type_size(TCGType t)
 
 typedef tcg_target_ulong TCGArg;
 
+static inline TCGType tcg_default_addr_type(void)
+{
+    return target_long_bits() == 32 ? TCG_TYPE_I32 : TCG_TYPE_I64;
+}
+
 /* Define type and accessor macros for TCG variables.
 
    TCG variables are the inputs and outputs of TCG ops, as described
