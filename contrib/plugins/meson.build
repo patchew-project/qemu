@@ -14,9 +14,18 @@ contrib_plugins = [
 'uftrace.c',
 ]
 
+passthrough_host_supported = (
+  host_os != 'darwin' and
+  host_machine.endian() == 'little' and
+  ['x86_64', 'aarch64', 'riscv64'].contains(host_machine.cpu_family())
+)
+
 if host_os != 'windows'
   # lockstep uses socket.h
   contrib_plugins += 'lockstep.c'
+  if passthrough_host_supported
+    contrib_plugins += 'passthrough.c'
+  endif
 endif
 
 if 'cpp' in all_languages
@@ -35,5 +44,7 @@ if t.length() > 0
 else
   run_target('contrib-plugins', command: [python, '-c', ''])
 endif
+
+subdir('passthrough-examples')
 
 plugin_modules += t

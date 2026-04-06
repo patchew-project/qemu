@@ -777,6 +777,39 @@ The plugin has a number of arguments, all of them are optional:
   * - l2assoc=A
     - L2 cache associativity (default: 16), implies ``l2=on``
 
+Passthrough
+...........
+
+``contrib/plugins/passthrough.c``
+
+This plugin demonstrates native library passthrough on top of the linux-user
+syscall filter API.
+
+This demo is currently limited to 64-bit little-endian linux-user guests:
+``x86_64``, ``aarch64``, and ``riscv64``. It also requires a
+64-bit little-endian host in the same architecture set, and assumes
+``guest_base == 0`` so guest virtual addresses are directly usable as host
+pointers.
+
+Direct execution of host callbacks back into guest translated code is not
+covered here. That requires additional target- and ABI-specific handling
+beyond this demo.
+
+Use it with a linux-user emulator and pass the HTL directory through
+``htl_dir``. For example::
+
+Here HTL means host thunk library, i.e. the host-side shared object loaded by
+the plugin from ``htl_dir``.
+
+  $ HTL_DIR=/path/to/examples
+  $ ./build/qemu-<target> \
+      -E LD_LIBRARY_PATH=$HTL_DIR \
+      -plugin ./build/contrib/plugins/libpassthrough.so,htl_dir=$HTL_DIR \
+      <guest-program>
+
+For complete runnable examples (zlib), see
+``contrib/plugins/passthrough-examples/README.rst``.
+
 Stop on Trigger
 ...............
 
