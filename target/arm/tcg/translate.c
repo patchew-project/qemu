@@ -6279,6 +6279,13 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
     }
 }
 
+static MemOp arm_memop_endian_swap(bool sctlr_b)
+{
+    MemOp t = target_big_endian() ? MO_BE : MO_LE;
+    bool do_swap = bswap_code(sctlr_b);
+    return t ^ (do_swap * MO_BSWAP);
+}
+
 /* Ditto, for a halfword (Thumb) instruction */
 static inline uint16_t arm_lduw_code(CPUARMState *env, DisasContextBase* s,
                                      target_ulong addr, bool sctlr_b)
@@ -6290,7 +6297,7 @@ static inline uint16_t arm_lduw_code(CPUARMState *env, DisasContextBase* s,
         addr ^= 2;
     }
 #endif
-    return translator_lduw_swap(env, s, addr, bswap_code(sctlr_b));
+    return translator_lduw_end(env, s, addr, arm_memop_endian_swap(sctlr_b));
 }
 
 static bool insn_crosses_page(CPUARMState *env, DisasContext *s)
@@ -6531,7 +6538,7 @@ static void arm_post_translate_insn(DisasContext *dc)
 static inline uint32_t arm_ldl_code(CPUARMState *env, DisasContextBase *s,
                                     target_ulong addr, bool sctlr_b)
 {
-    return translator_ldl_swap(env, s, addr, bswap_code(sctlr_b));
+    return translator_ldl_end(env, s, addr, arm_memop_endian_swap(sctlr_b));
 }
 
 static void arm_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
