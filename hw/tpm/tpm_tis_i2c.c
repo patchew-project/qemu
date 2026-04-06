@@ -110,13 +110,31 @@ static int tpm_tis_i2c_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static bool tpm_tis_ext_buffer_migration_needed_i2c(void *opaque)
+{
+    TPMStateI2C *i2cst = opaque;
+
+    return tpm_tis_ext_buffer_migration_needed(&i2cst->state);
+}
+
+static const VMStateDescription vmstate_tpm_tis_ext_buffer_i2c = {
+    .name = "tpm-tis/ext_buffer",
+    .version_id = 0,
+    .needed = tpm_tis_ext_buffer_migration_needed_i2c,
+    .pre_save = tpm_tis_i2c_pre_save,
+    .fields = (const VMStateField[]) {
+        VMSTATE_BUFFER_START_MIDDLE(state.buffer, TPMStateI2C, 4096),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_tpm_tis_i2c = {
     .name = "tpm-tis-i2c",
     .version_id = 0,
     .pre_save  = tpm_tis_i2c_pre_save,
     .post_load  = tpm_tis_i2c_post_load,
     .fields = (const VMStateField[]) {
-        VMSTATE_BUFFER(state.buffer, TPMStateI2C),
+        VMSTATE_PARTIAL_BUFFER(state.buffer, TPMStateI2C, 4096),
         VMSTATE_UINT16(state.rw_offset, TPMStateI2C),
         VMSTATE_UINT8(state.active_locty, TPMStateI2C),
         VMSTATE_UINT8(state.aborting_locty, TPMStateI2C),
@@ -133,6 +151,10 @@ static const VMStateDescription vmstate_tpm_tis_i2c = {
         VMSTATE_UINT8(csum_enable, TPMStateI2C),
 
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription *const[]) {
+        &vmstate_tpm_tis_ext_buffer_i2c,
+        NULL,
     }
 };
 

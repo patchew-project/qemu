@@ -49,12 +49,30 @@ static int tpm_tis_pre_save_isa(void *opaque)
     return tpm_tis_pre_save(&isadev->state);
 }
 
+static bool tpm_tis_ext_buffer_migration_needed_isa(void *opaque)
+{
+    TPMStateISA *isadev = opaque;
+
+    return tpm_tis_ext_buffer_migration_needed(&isadev->state);
+}
+
+static const VMStateDescription vmstate_tpm_tis_ext_buffer_isa = {
+    .name = "tpm-tis/ext_buffer",
+    .version_id = 0,
+    .needed = tpm_tis_ext_buffer_migration_needed_isa,
+    .pre_save = tpm_tis_pre_save_isa,
+    .fields = (const VMStateField[]) {
+        VMSTATE_BUFFER_START_MIDDLE(state.buffer, TPMStateISA, 4096),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_tpm_tis_isa = {
     .name = "tpm-tis",
     .version_id = 0,
     .pre_save  = tpm_tis_pre_save_isa,
     .fields = (const VMStateField[]) {
-        VMSTATE_BUFFER(state.buffer, TPMStateISA),
+        VMSTATE_PARTIAL_BUFFER(state.buffer, TPMStateISA, 4096),
         VMSTATE_UINT16(state.rw_offset, TPMStateISA),
         VMSTATE_UINT8(state.active_locty, TPMStateISA),
         VMSTATE_UINT8(state.aborting_locty, TPMStateISA),
@@ -64,6 +82,10 @@ static const VMStateDescription vmstate_tpm_tis_isa = {
                              vmstate_locty, TPMLocality),
 
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription *const[]) {
+        &vmstate_tpm_tis_ext_buffer_isa,
+        NULL,
     }
 };
 
