@@ -3,6 +3,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "target/arm/internals.h"
 #include "target/arm/tcg/translate.h"
 
 
@@ -14,4 +15,10 @@ void gen_a64_update_pc(DisasContext *s, int64_t diff)
 void a64_translate_init(void)
 {
     /* Don't initialize for 32 bits. Call site will be fixed later. */
+}
+
+void aarch64_translate_code(CPUState *cs, TranslationBlock *tb,
+                            int *max_insns, vaddr pc, void *host_pc)
+{
+    g_assert_not_reached();
 }
