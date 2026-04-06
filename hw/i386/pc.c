@@ -790,11 +790,35 @@ void pc_memory_init(PCMachineState *pcms,
     /*
      * Split single memory region and use aliases to address portions of it,
      * done for backwards compatibility with older qemus.
+     *
+     * Further split the below-4g region at the 1MB boundary so that PAM
+     * register updates (which only affect 0xC0000-0xFFFFF) do not cause
+     * the VFIO DMA listener to unmap/remap the entire below-4g range.
+     * This avoids a transient IOMMU mapping hole for virtqueue memory
+     * (above 1MB) when the BIOS reconfigures PAM during early boot.
      */
     ram_below_4g = g_malloc(sizeof(*ram_below_4g));
-    memory_region_init_alias(ram_below_4g, NULL, "ram-below-4g", machine->ram,
-                             0, x86ms->below_4g_mem_size);
-    memory_region_add_subregion(system_memory, 0, ram_below_4g);
+    if (x86ms->below_4g_mem_size <= 0x100000) {
+        memory_region_init_alias(ram_below_4g, NULL, "ram-below-4g",
+                                 machine->ram,
+                                 0, x86ms->below_4g_mem_size);
+        memory_region_add_subregion(system_memory, 0, ram_below_4g);
+    } else {
+        MemoryRegion *ram_above_1m = g_malloc(sizeof(*ram_above_1m));
+
+        /* 0 ~ 1MB: affected by PAM/SMRAM overlays */
+        memory_region_init_alias(ram_below_4g, NULL, "ram-below-1m",
+                                 machine->ram,
+                                 0, 0x100000);
+        memory_region_add_subregion(system_memory, 0, ram_below_4g);
+
+        /* 1MB ~ below_4g_mem_size: not affected by PAM updates */
+        memory_region_init_alias(ram_above_1m, NULL, "ram-1m-to-below-4g",
+                                 machine->ram,
+                                 0x100000,
+                                 x86ms->below_4g_mem_size - 0x100000);
+        memory_region_add_subregion(system_memory, 0x100000, ram_above_1m);
+    }
     e820_add_entry(0, x86ms->below_4g_mem_size, E820_RAM);
     if (x86ms->above_4g_mem_size > 0) {
         ram_above_4g = g_malloc(sizeof(*ram_above_4g));

@@ -321,6 +321,19 @@ void flatview_unref(FlatView *view)
 
 static bool can_merge(FlatRange *r1, FlatRange *r2)
 {
+    /*
+     * Do not merge ranges across the 1MB (0x100000) boundary.
+     * PAM/SMRAM overlays frequently change attributes below 1MB,
+     * and merging with the large RAM region above 1MB would cause
+     * VFIO to unmap/remap the entire merged range on every PAM
+     * update, creating a transient IOMMU mapping hole for device
+     * DMA (e.g. virtio-blk virtqueues) in the above-1MB region.
+     */
+    if (int128_lt(r1->addr.start, int128_make64(0x100000))
+        && int128_ge(r2->addr.start, int128_make64(0x100000))) {
+        return false;
+    }
+
     return int128_eq(addrrange_end(r1->addr), r2->addr.start)
         && r1->mr == r2->mr
         && int128_eq(int128_add(int128_make64(r1->offset_in_region),
