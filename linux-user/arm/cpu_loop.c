@@ -29,6 +29,16 @@
 #include "user/page-protection.h"
 #include "target/arm/syndrome.h"
 
+static inline bool bswap_code(bool sctlr_b)
+{
+    /*
+     * BE8 (SCTLR.B = 0, TARGET_BIG_ENDIAN = 1) is mixed endian.
+     * The invalid combination SCTLR.B=1/CPSR.E=1/TARGET_BIG_ENDIAN=0
+     * would also end up as a mixed-endian mode with BE code, LE data.
+     */
+    return TARGET_BIG_ENDIAN ^ sctlr_b;
+}
+
 #define get_user_code_u32(x, gaddr, env)                \
     ({ abi_long __r = get_user_u32((x), (gaddr));       \
         if (!__r && bswap_code(arm_sctlr_b(env))) {     \
