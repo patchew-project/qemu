@@ -42,6 +42,7 @@ struct OtUARTState {
 
     /* <public> */
     MemoryRegion mmio;
+    qemu_irq irqs[9];
 
     uint32_t tx_level;
 
@@ -59,10 +60,6 @@ struct OtUARTState {
     Clock *f_clk;
 
     CharFrontend chr;
-    qemu_irq tx_watermark;
-    qemu_irq rx_watermark;
-    qemu_irq tx_empty;
-    qemu_irq rx_overflow;
 };
 
 struct OtUARTClass {
