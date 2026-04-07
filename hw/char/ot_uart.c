@@ -107,6 +107,7 @@ REG32(TIMEOUT_CTRL, 0x30)
 #define OT_UART_NCO_BITS     16
 #define OT_UART_TX_FIFO_SIZE 128
 #define OT_UART_RX_FIFO_SIZE 128
+#define OT_UART_IRQ_NUM      9
 
 #define R32_OFF(_r_) ((_r_) / sizeof(uint32_t))
 
@@ -116,31 +117,11 @@ REG32(TIMEOUT_CTRL, 0x30)
 
 static void ot_uart_update_irqs(OtUARTState *s)
 {
-    if (s->regs[R_INTR_STATE] & s->regs[R_INTR_ENABLE]
-        & INTR_TX_WATERMARK_MASK) {
-        qemu_set_irq(s->tx_watermark, 1);
-    } else {
-        qemu_set_irq(s->tx_watermark, 0);
-    }
+    uint32_t state_masked = s->regs[R_INTR_STATE] & s->regs[R_INTR_ENABLE];
 
-    if (s->regs[R_INTR_STATE] & s->regs[R_INTR_ENABLE]
-        & INTR_RX_WATERMARK_MASK) {
-        qemu_set_irq(s->rx_watermark, 1);
-    } else {
-        qemu_set_irq(s->rx_watermark, 0);
-    }
-
-    if (s->regs[R_INTR_STATE] & s->regs[R_INTR_ENABLE] & INTR_TX_EMPTY_MASK) {
-        qemu_set_irq(s->tx_empty, 1);
-    } else {
-        qemu_set_irq(s->tx_empty, 0);
-    }
-
-    if (s->regs[R_INTR_STATE] & s->regs[R_INTR_ENABLE]
-        & INTR_RX_OVERFLOW_MASK) {
-        qemu_set_irq(s->rx_overflow, 1);
-    } else {
-        qemu_set_irq(s->rx_overflow, 0);
+    for (int index = 0; index < OT_UART_IRQ_NUM; index++) {
+        bool level = (state_masked & (1U << index)) != 0;
+        qemu_set_irq(s->irqs[index], level);
     }
 }
 
@@ -291,6 +272,9 @@ static void ot_uart_reset_enter(Object *obj, ResetType type)
     s->regs[R_STATUS] = 0x0000003c;
 
     s->tx_watermark_level = 0;
+    for (unsigned index = 0; index < ARRAY_SIZE(s->irqs); index++) {
+        qemu_set_irq(s->irqs[index], 0);
+    }
     ot_uart_reset_tx_fifo(s);
     ot_uart_reset_rx_fifo(s);
 
@@ -562,21 +546,21 @@ static void ot_uart_init(Object *obj)
                                   ot_uart_clk_update, s, ClockUpdate);
     clock_set_hz(s->f_clk, OT_UART_CLOCK);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->tx_watermark);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->rx_watermark);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->tx_empty);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->rx_overflow);
+    for (unsigned index = 0; index < OT_UART_IRQ_NUM; index++) {
+        sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irqs[index]);
+    }
 
     memory_region_init_io(&s->mmio, obj, &ot_uart_ops, s,
                           TYPE_OT_UART, 0x400);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
 
     /*
-     * This array has a fixed size in the header. This assertion is used to
-     * check that it is consistent with the definition in this file. This is
+     * These arrays have fixed sizes in the header. These assertions are used to
+     * check that they are consistent with the definitions in this file. This is
      * ostensibly a runtime check, but may be optimised away by the compiler.
      */
     assert(REGS_SIZE == sizeof(s->regs));
+    assert(OT_UART_IRQ_NUM * sizeof(qemu_irq) == sizeof(s->irqs));
 }
 
 static void ot_uart_realize(DeviceState *dev, Error **errp)
