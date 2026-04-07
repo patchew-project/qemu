@@ -20,9 +20,10 @@
 #include "qemu/osdep.h"
 #include "hw/char/ot_uart.h"
 #include "qemu/fifo8.h"
+#include "qapi/error.h"
+#include "chardev/char-fe.h"
 #include "hw/core/cpu.h"
 #include "hw/core/irq.h"
-#include "hw/core/qdev-clock.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-properties-system.h"
 #include "hw/core/registerfields.h"
@@ -150,6 +151,18 @@ static bool ot_uart_is_tx_enabled(const OtUARTState *s)
 static bool ot_uart_is_rx_enabled(const OtUARTState *s)
 {
     return FIELD_EX32(s->regs[R_CTRL], CTRL, RX);
+}
+
+static void ot_uart_check_baudrate(const OtUARTState *s)
+{
+    uint32_t nco = FIELD_EX32(s->regs[R_CTRL], CTRL, NCO);
+
+    unsigned baudrate = (unsigned)(((uint64_t)nco * (uint64_t)s->pclk) >>
+                                   (R_CTRL_NCO_LENGTH + 4));
+
+    if (baudrate) {
+        trace_ot_uart_check_baudrate(s->ot_id, s->pclk, baudrate);
+    }
 }
 
 static int ot_uart_can_receive(void *opaque)
@@ -284,7 +297,6 @@ static void ot_uart_xmit(OtUARTState *s)
 
 static void uart_write_tx_fifo(OtUARTState *s, uint8_t val)
 {
-    uint64_t current_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     if (fifo8_is_full(&s->tx_fifo)) {
         qemu_log_mask(LOG_GUEST_ERROR, "ot_uart: TX FIFO overflow");
         return;
@@ -305,9 +317,6 @@ static void uart_write_tx_fifo(OtUARTState *s, uint8_t val)
     if (ot_uart_is_tx_enabled(s)) {
         ot_uart_xmit(s);
     }
-
-    timer_mod(s->fifo_trigger_handle, current_time +
-              (s->char_tx_time * 4));
 }
 
 static void ot_uart_reset_enter(Object *obj, ResetType type)
@@ -327,11 +336,6 @@ static void ot_uart_reset_enter(Object *obj, ResetType type)
     }
     ot_uart_reset_tx_fifo(s);
     ot_uart_reset_rx_fifo(s);
-
-    s->tx_level = 0;
-    s->rx_level = 0;
-
-    s->char_tx_time = (NANOSECONDS_PER_SECOND / 230400) * 10;
 
     /*
      * do not reset `s->in_break`, as that tracks whether we are currently
@@ -399,19 +403,16 @@ static gboolean ot_uart_watch_cb(void *do_not_use, GIOCondition cond,
     return FALSE;
 }
 
-static uint64_t ot_uart_get_baud(OtUARTState *s)
+static void ot_uart_clock_input(void *opaque, int irq, int level)
 {
-    uint64_t baud;
+    OtUARTState *s = opaque;
 
-    baud = ((s->regs[R_CTRL] & R_CTRL_NCO_MASK) >> 16);
-    baud *= clock_get_hz(s->f_clk);
-    baud >>= 20;
+    g_assert(irq == 0);
 
-    if (baud) {
-        trace_ot_uart_check_baudrate(s->ot_id, baud);
-    }
+    s->pclk = (unsigned)level;
 
-    return baud;
+    /* TODO: disable UART transfer when PCLK is 0 */
+    ot_uart_check_baudrate(s);
 }
 
 static uint64_t ot_uart_read(void *opaque, hwaddr addr, unsigned int size)
@@ -553,8 +554,6 @@ static void ot_uart_write(void *opaque, hwaddr addr, uint64_t val64,
         /* This will also set an IRQ once the alert handler is added */
         break;
     case R_CTRL:
-        s->regs[R_CTRL] = value;
-
         if (value & R_CTRL_NF_MASK) {
             qemu_log_mask(LOG_UNIMP,
                           "%s: UART_CTRL_NF is not supported\n", __func__);
@@ -577,10 +576,19 @@ static void ot_uart_write(void *opaque, hwaddr addr, uint64_t val64,
             qemu_log_mask(LOG_UNIMP,
                           "%s: UART_CTRL_RXBLVL is not supported\n", __func__);
         }
-        if (value & R_CTRL_NCO_MASK) {
-            uint64_t baud = ot_uart_get_baud(s);
-
-            s->char_tx_time = (NANOSECONDS_PER_SECOND / baud) * 10;
+        uint32_t prev = s->regs[R_CTRL];
+        s->regs[R_CTRL] = value & CTRL_MASK;
+        uint32_t change = prev ^ s->regs[R_CTRL];
+        if (change & R_CTRL_NCO_MASK) {
+            ot_uart_check_baudrate(s);
+        }
+        if ((change & R_CTRL_RX_MASK) && ot_uart_is_rx_enabled(s) &&
+            !ot_uart_is_sys_loopack_enabled(s)) {
+            qemu_chr_fe_accept_input(&s->chr);
+        }
+        if ((change & R_CTRL_TX_MASK) && ot_uart_is_tx_enabled(s)) {
+            /* try sending pending data from TX FIFO if any */
+            ot_uart_xmit(s);
         }
         break;
     case R_WDATA:
@@ -628,25 +636,6 @@ static void ot_uart_write(void *opaque, hwaddr addr, uint64_t val64,
     }
 }
 
-static void ot_uart_clk_update(void *opaque, ClockEvent event)
-{
-    OtUARTState *s = opaque;
-
-    /* recompute uart's speed on clock change */
-    uint64_t baud = ot_uart_get_baud(s);
-
-    s->char_tx_time = (NANOSECONDS_PER_SECOND / baud) * 10;
-}
-
-static void fifo_trigger_update(void *opaque)
-{
-    OtUARTState *s = opaque;
-
-    if (s->regs[R_CTRL] & R_CTRL_TX_MASK) {
-        ot_uart_xmit(s);
-    }
-}
-
 static const MemoryRegionOps ot_uart_ops = {
     .read = ot_uart_read,
     .write = ot_uart_write,
@@ -665,15 +654,12 @@ static int ot_uart_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_ot_uart = {
     .name = TYPE_OT_UART,
-    .version_id = 2,
-    .minimum_version_id = 2,
+    .version_id = 3,
+    .minimum_version_id = 3,
     .post_load = ot_uart_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(tx_fifo, OtUARTState, 1, vmstate_fifo8, Fifo8),
         VMSTATE_STRUCT(rx_fifo, OtUARTState, 1, vmstate_fifo8, Fifo8),
-        VMSTATE_UINT32(tx_level, OtUARTState),
-        VMSTATE_UINT64(char_tx_time, OtUARTState),
-        VMSTATE_TIMER_PTR(fifo_trigger_handle, OtUARTState),
         VMSTATE_ARRAY(regs, OtUARTState, REGS_COUNT, 1, vmstate_info_uint32,
                       uint32_t),
         VMSTATE_END_OF_LIST()
@@ -708,10 +694,6 @@ static void ot_uart_init(Object *obj)
 {
     OtUARTState *s = OT_UART(obj);
 
-    s->f_clk = qdev_init_clock_in(DEVICE(obj), "f_clock",
-                                  ot_uart_clk_update, s, ClockUpdate);
-    clock_set_hz(s->f_clk, OT_UART_CLOCK);
-
     for (unsigned index = 0; index < OT_UART_IRQ_NUM; index++) {
         sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irqs[index]);
     }
@@ -735,8 +717,7 @@ static void ot_uart_realize(DeviceState *dev, Error **errp)
 
     g_assert(s->ot_id);
 
-    s->fifo_trigger_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                          fifo_trigger_update, s);
+    qdev_init_gpio_in_named(DEVICE(s), &ot_uart_clock_input, "clock-in", 1);
 
     fifo8_create(&s->tx_fifo, OT_UART_TX_FIFO_SIZE);
     fifo8_create(&s->rx_fifo, OT_UART_RX_FIFO_SIZE);

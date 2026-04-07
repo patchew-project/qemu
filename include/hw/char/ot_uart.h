@@ -23,10 +23,7 @@
 #include "hw/core/sysbus.h"
 #include "qemu/fifo8.h"
 #include "chardev/char-fe.h"
-#include "qemu/timer.h"
 #include "qom/object.h"
-
-#define OT_UART_CLOCK 50000000 /* 50MHz clock */
 
 #define TYPE_OT_UART "ot-uart"
 OBJECT_DECLARE_TYPE(OtUARTState, OtUARTClass, OT_UART)
@@ -39,13 +36,6 @@ struct OtUARTState {
     MemoryRegion mmio;
     qemu_irq irqs[9];
 
-    uint32_t tx_level;
-
-    uint32_t rx_level;
-
-    QEMUTimer *fifo_trigger_handle;
-    uint64_t char_tx_time;
-
     uint32_t regs[13]; /* Length must be updated if regs added or removed */
 
     Fifo8 tx_fifo;
@@ -53,10 +43,11 @@ struct OtUARTState {
     uint32_t tx_watermark_level;
     bool in_break;
     guint watch_tag;
+    unsigned pclk; /* Current input clock */
+    const char *clock_src_name; /* IRQ name once connected */
 
     char *ot_id;
-    Clock *f_clk;
-
+    DeviceState *clock_src;
     CharFrontend chr;
     bool oversample_break; /* Should mock break in the oversampled VAL reg? */
     bool toggle_break; /* Are incoming breaks temporary or toggled? */
