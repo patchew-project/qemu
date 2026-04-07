@@ -265,6 +265,10 @@ static bool ati_2d_do_blt(ATI2DCtx *ctx, uint8_t use_pixman)
     {
         uint32_t filler = 0;
 
+        if (ctx->bpp == 24) {
+            qemu_log_mask(LOG_UNIMP, "Fill blt unsupported in 24 bits\n");
+            return false;
+        }
         switch (ctx->rop3) {
         case ROP3_PATCOPY:
             filler = make_filler(ctx->bpp, ctx->frgd_clr);
@@ -362,6 +366,11 @@ bool ati_host_data_flush(ATIVGAState *s)
 
     setup_2d_blt_ctx(s, &ctx);
 
+    if (ctx.bpp == 24) {
+        qemu_log_mask(LOG_UNIMP,
+                      "host_data_blt: unsupported in 24 bits mode\n");
+        return false;
+    }
     if (!ctx.left_to_right || !ctx.top_to_bottom) {
         qemu_log_mask(LOG_UNIMP,
                       "host_data_blt: unsupported blit direction %c%c\n",
