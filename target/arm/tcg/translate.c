@@ -6889,6 +6889,6 @@ void arm_translate_code(CPUState *cpu, TranslationBlock *tb,
                         (EX_TBFLAG_AM32(tb_flags, THUMB)
                         ? &thumb_translator_ops
                         : &arm_translator_ops),
-                        &dc.base);
+                        &dc.base, TCG_TYPE_VA);
     }
 }
