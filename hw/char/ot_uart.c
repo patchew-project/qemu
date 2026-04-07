@@ -28,8 +28,10 @@
 #include "qemu/osdep.h"
 #include "hw/char/ot_uart.h"
 #include "qemu/fifo8.h"
+#include "qapi/error.h"
+#include "chardev/char-fe.h"
+#include "hw/core/cpu.h"
 #include "hw/core/irq.h"
-#include "hw/core/qdev-clock.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-properties-system.h"
 #include "hw/core/registerfields.h"
@@ -114,6 +116,28 @@ REG32(TIMEOUT_CTRL, 0x30)
 #define R_LAST_REG (R_TIMEOUT_CTRL)
 #define REGS_COUNT (R_LAST_REG + 1u)
 #define REGS_SIZE  (REGS_COUNT * sizeof(uint32_t))
+#define REG_NAME(_reg_) \
+    ((((_reg_) < REGS_COUNT) && REG_NAMES[_reg_]) ? REG_NAMES[_reg_] : "?")
+
+#define REG_NAME_ENTRY(_reg_) [R_##_reg_] = stringify(_reg_)
+static const char *REG_NAMES[REGS_COUNT] = {
+    /* clang-format off */
+    REG_NAME_ENTRY(INTR_STATE),
+    REG_NAME_ENTRY(INTR_ENABLE),
+    REG_NAME_ENTRY(INTR_TEST),
+    REG_NAME_ENTRY(ALERT_TEST),
+    REG_NAME_ENTRY(CTRL),
+    REG_NAME_ENTRY(STATUS),
+    REG_NAME_ENTRY(RDATA),
+    REG_NAME_ENTRY(WDATA),
+    REG_NAME_ENTRY(FIFO_CTRL),
+    REG_NAME_ENTRY(FIFO_STATUS),
+    REG_NAME_ENTRY(OVRD),
+    REG_NAME_ENTRY(VAL),
+    REG_NAME_ENTRY(TIMEOUT_CTRL),
+    /* clang-format on */
+};
+#undef REG_NAME_ENTRY
 
 static void ot_uart_update_irqs(OtUARTState *s)
 {
@@ -123,6 +147,21 @@ static void ot_uart_update_irqs(OtUARTState *s)
         bool level = (state_masked & (1U << index)) != 0;
         qemu_set_irq(s->irqs[index], level);
     }
+}
+
+static bool ot_uart_is_sys_loopack_enabled(const OtUARTState *s)
+{
+    return FIELD_EX32(s->regs[R_CTRL], CTRL, SLPBK);
+}
+
+static bool ot_uart_is_tx_enabled(const OtUARTState *s)
+{
+    return FIELD_EX32(s->regs[R_CTRL], CTRL, TX);
+}
+
+static bool ot_uart_is_rx_enabled(const OtUARTState *s)
+{
+    return FIELD_EX32(s->regs[R_CTRL], CTRL, RX);
 }
 
 static int ot_uart_can_receive(void *opaque)
@@ -148,6 +187,11 @@ static void ot_uart_receive(void *opaque, const uint8_t *buf, int size)
     OtUARTState *s = opaque;
     uint32_t rx_watermark_level;
     size_t count = MIN(fifo8_num_free(&s->rx_fifo), (size_t)size);
+
+    if (size && !s->toggle_break) {
+        /* no longer breaking, so emulate idle in oversampled VAL register */
+        s->in_break = false;
+    }
 
     for (int index = 0; index < size; index++) {
         fifo8_push(&s->rx_fifo, buf[index]);
@@ -203,21 +247,37 @@ static void ot_uart_xmit(OtUARTState *s)
         return;
     }
 
-    /* instant drain the fifo when there's no back-end */
-    if (!qemu_chr_fe_backend_connected(&s->chr)) {
-        ot_uart_reset_tx_fifo(s);
-        ot_uart_update_irqs(s);
-        return;
-    }
+    if (ot_uart_is_sys_loopack_enabled(s)) {
+        /* system loopback mode, just forward to RX FIFO */
+        uint32_t count = fifo8_num_used(&s->tx_fifo);
+        buf = fifo8_pop_bufptr(&s->tx_fifo, count, &size);
+        ot_uart_receive(s, buf, (int)size);
+        count -= size;
+        /*
+         * there may be more data to send if data wraps around the end of TX
+         * FIFO
+         */
+        if (count) {
+            buf = fifo8_pop_bufptr(&s->tx_fifo, count, &size);
+            ot_uart_receive(s, buf, (int)size);
+        }
+    } else {
+        /* instant drain the fifo when there's no back-end */
+        if (!qemu_chr_fe_backend_connected(&s->chr)) {
+            ot_uart_reset_tx_fifo(s);
+            ot_uart_update_irqs(s);
+            return;
+        }
 
-    /* get a continuous buffer from the FIFO */
-    buf =
-        fifo8_peek_bufptr(&s->tx_fifo, fifo8_num_used(&s->tx_fifo), &size);
-    /* send as much as possible */
-    ret = qemu_chr_fe_write(&s->chr, buf, (int)size);
-    /* if some characters where sent, remove them from the FIFO */
-    if (ret >= 0) {
-        fifo8_drop(&s->tx_fifo, ret);
+        /* get a continuous buffer from the FIFO */
+        buf =
+            fifo8_peek_bufptr(&s->tx_fifo, fifo8_num_used(&s->tx_fifo), &size);
+        /* send as much as possible */
+        ret = qemu_chr_fe_write(&s->chr, buf, (int)size);
+        /* if some characters where sent, remove them from the FIFO */
+        if (ret >= 0) {
+            fifo8_drop(&s->tx_fifo, ret);
+        }
     }
 
     /* update INTR_STATE */
@@ -253,7 +313,7 @@ static void uart_write_tx_fifo(OtUARTState *s, uint8_t val)
         s->tx_watermark_level = 0;
     }
 
-    if (FIELD_EX32(s->regs[R_CTRL], CTRL, TX)) {
+    if (ot_uart_is_tx_enabled(s)) {
         ot_uart_xmit(s);
     }
 }
@@ -269,8 +329,6 @@ static void ot_uart_reset_enter(Object *obj, ResetType type)
 
     memset(&s->regs[0], 0, sizeof(s->regs));
 
-    s->regs[R_STATUS] = 0x0000003c;
-
     s->tx_watermark_level = 0;
     for (unsigned index = 0; index < ARRAY_SIZE(s->irqs); index++) {
         qemu_set_irq(s->irqs[index], 0);
@@ -278,226 +336,265 @@ static void ot_uart_reset_enter(Object *obj, ResetType type)
     ot_uart_reset_tx_fifo(s);
     ot_uart_reset_rx_fifo(s);
 
-    s->tx_level = 0;
-    s->rx_level = 0;
-
-    s->char_tx_time = (NANOSECONDS_PER_SECOND / 230400) * 10;
+    /*
+     * do not reset `s->in_break`, as that tracks whether we are currently
+     * receiving a break condition over UART RX from some device talking
+     * to OpenTitan, which should survive resets. The QEMU CharDev only
+     * supports transient break events and not the notion of holding the
+     * UART in break, so remembering breaks like this is required to
+     * support mocking of break conditions in the oversampled `VAL` reg.
+     */
+    if (s->in_break) {
+        /* ignore CTRL.RXBLVL as we have no notion of break "time" */
+        s->regs[R_INTR_STATE] |= INTR_RX_BREAK_ERR_MASK;
+    }
 
     ot_uart_update_irqs(s);
 }
 
-static uint64_t ot_uart_get_baud(OtUARTState *s)
+static void ot_uart_event_handler(void *opaque, QEMUChrEvent event)
 {
-    uint64_t baud;
+    OtUARTState *s = opaque;
 
-    baud = ((s->regs[R_CTRL] & R_CTRL_NCO_MASK) >> 16);
-    baud *= clock_get_hz(s->f_clk);
-    baud >>= 20;
+    if (event == CHR_EVENT_BREAK) {
+        if (!s->in_break || !s->oversample_break) {
+            /* ignore CTRL.RXBLVL as we have no notion of break "time" */
+            s->regs[R_INTR_STATE] |= INTR_RX_BREAK_ERR_MASK;
+            ot_uart_update_irqs(s);
+            /* emulate break in the oversampled VAL register */
+            s->in_break = true;
+        } else if (s->toggle_break) {
+            /* emulate toggling break off in the oversampled VAL register */
+            s->in_break = false;
+        }
+    }
+}
 
-    return baud;
+static uint8_t ot_uart_read_rx_fifo(OtUARTState *s)
+{
+    uint8_t val;
+
+    if (!(s->regs[R_CTRL] & R_CTRL_RX_MASK)) {
+        return 0;
+    }
+
+    if (fifo8_is_empty(&s->rx_fifo)) {
+        return 0;
+    }
+
+    val = fifo8_pop(&s->rx_fifo);
+
+    if (ot_uart_is_rx_enabled(s) && !ot_uart_is_sys_loopack_enabled(s)) {
+        qemu_chr_fe_accept_input(&s->chr);
+    }
+
+    return val;
+}
+
+static gboolean ot_uart_watch_cb(void *do_not_use, GIOCondition cond,
+                                 void *opaque)
+{
+    OtUARTState *s = opaque;
+
+    s->watch_tag = 0;
+    ot_uart_xmit(s);
+
+    return FALSE;
+}
+
+static void ot_uart_clock_input(void *opaque, int irq, int level)
+{
+    OtUARTState *s = opaque;
+
+    g_assert(irq == 0);
+
+    s->pclk = (unsigned)level;
+
+    /* TODO: disable UART transfer when PCLK is 0 */
 }
 
 static uint64_t ot_uart_read(void *opaque, hwaddr addr, unsigned int size)
 {
     OtUARTState *s = opaque;
-    uint64_t retvalue = 0;
+    uint32_t val32;
 
-    switch (addr >> 2) {
+    hwaddr reg = R32_OFF(addr);
+    switch (reg) {
     case R_INTR_STATE:
-        retvalue = s->regs[R_INTR_STATE];
-        break;
     case R_INTR_ENABLE:
-        retvalue = s->regs[R_INTR_ENABLE];
-        break;
-    case R_INTR_TEST:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: wdata is write only\n", __func__);
-        break;
-
     case R_CTRL:
-        retvalue = s->regs[R_CTRL];
+    case R_FIFO_CTRL:
+        val32 = s->regs[reg];
         break;
     case R_STATUS:
-        retvalue = s->regs[R_STATUS];
-        break;
-
-    case R_RDATA:
-        retvalue = s->regs[R_RDATA];
-        if ((s->regs[R_CTRL] & R_CTRL_RX_MASK) && (s->rx_level > 0)) {
-            qemu_chr_fe_accept_input(&s->chr);
-
-            s->rx_level -= 1;
-            s->regs[R_STATUS] &= ~R_STATUS_RXFULL_MASK;
-            if (s->rx_level == 0) {
-                s->regs[R_STATUS] |= R_STATUS_RXIDLE_MASK;
-                s->regs[R_STATUS] |= R_STATUS_RXEMPTY_MASK;
-            }
+        /* assume that UART always report RXIDLE */
+        val32 = R_STATUS_RXIDLE_MASK;
+        /* report RXEMPTY or RXFULL */
+        switch (fifo8_num_used(&s->rx_fifo)) {
+        case 0:
+            val32 |= R_STATUS_RXEMPTY_MASK;
+            break;
+        case OT_UART_RX_FIFO_SIZE:
+            val32 |= R_STATUS_RXFULL_MASK;
+            break;
+        default:
+            break;
+        }
+        /* report TXEMPTY+TXIDLE or TXFULL */
+        switch (fifo8_num_used(&s->tx_fifo)) {
+        case 0:
+            val32 |= R_STATUS_TXEMPTY_MASK | R_STATUS_TXIDLE_MASK;
+            break;
+        case OT_UART_TX_FIFO_SIZE:
+            val32 |= R_STATUS_TXFULL_MASK;
+            break;
+        default:
+            break;
+        }
+        if (!ot_uart_is_tx_enabled(s)) {
+            val32 |= R_STATUS_TXIDLE_MASK;
+        }
+        if (!ot_uart_is_rx_enabled(s)) {
+            val32 |= R_STATUS_RXIDLE_MASK;
         }
         break;
-    case R_WDATA:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: wdata is write only\n", __func__);
-        break;
-
-    case R_FIFO_CTRL:
-        retvalue = s->regs[R_FIFO_CTRL];
+    case R_RDATA:
+        val32 = (uint32_t)ot_uart_read_rx_fifo(s);
         break;
     case R_FIFO_STATUS:
-        retvalue = s->regs[R_FIFO_STATUS];
-
-        retvalue |= (s->rx_level & 0x1F) << R_FIFO_STATUS_RXLVL_SHIFT;
-        retvalue |= (s->tx_level & 0x1F) << R_FIFO_STATUS_TXLVL_SHIFT;
-
-        qemu_log_mask(LOG_UNIMP,
-                      "%s: RX fifos are not supported\n", __func__);
-        break;
-
-    case R_OVRD:
-        retvalue = s->regs[R_OVRD];
-        qemu_log_mask(LOG_UNIMP,
-                      "%s: ovrd is not supported\n", __func__);
+        val32 =
+            (fifo8_num_used(&s->rx_fifo) & 0xffu) << R_FIFO_STATUS_RXLVL_SHIFT;
+        val32 |=
+            (fifo8_num_used(&s->tx_fifo) & 0xffu) << R_FIFO_STATUS_TXLVL_SHIFT;
         break;
     case R_VAL:
-        retvalue = s->regs[R_VAL];
-        qemu_log_mask(LOG_UNIMP,
-                      "%s: val is not supported\n", __func__);
+        /*
+         * This is not trivially implemented due to the QEMU UART
+         * interface. There is no way to reliably sample or oversample
+         * given our emulated interface, but some software might poll the
+         * value of this register to determine break conditions.
+         *
+         * As such, default to reporting 16 of the last sample received
+         * instead. This defaults to 16 idle high samples (as a stop bit is
+         * always the last received), except for when the `oversample-break`
+         * property is set and a break condition is received over UART RX,
+         * where we then show 16 low samples until the next valid UART
+         * transmission is received (or break is toggled off with the
+         * `toggle-break` property enabled). This will not be accurate, but
+         * should be sufficient to support basic software flows that
+         * essentially use UART break as a strapping mechanism.
+         */
+        val32 = (s->in_break && s->oversample_break) ? 0u : UINT16_MAX;
+        qemu_log_mask(LOG_UNIMP, "%s: VAL only shows idle%s\n", __func__,
+                      (s->oversample_break ? "/break" : ""));
         break;
+    case R_OVRD:
     case R_TIMEOUT_CTRL:
-        retvalue = s->regs[R_TIMEOUT_CTRL];
-        qemu_log_mask(LOG_UNIMP,
-                      "%s: timeout_ctrl is not supported\n", __func__);
+        val32 = s->regs[reg];
+        qemu_log_mask(LOG_UNIMP, "%s: %s is not supported\n", __func__,
+                      REG_NAME(reg));
+        break;
+    case R_ALERT_TEST:
+    case R_INTR_TEST:
+    case R_WDATA:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: W/O register 0x%02x (%s)\n",
+                      __func__, (uint32_t)addr, REG_NAME(reg));
+        val32 = 0;
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, addr);
-        return 0;
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%02x\n", __func__,
+                      (uint32_t)addr);
+        val32 = 0;
+        break;
     }
 
-    return retvalue;
+    return (uint64_t)val32;
 }
 
 static void ot_uart_write(void *opaque, hwaddr addr, uint64_t val64,
                           unsigned int size)
 {
     OtUARTState *s = opaque;
-    uint32_t value = val64;
+    uint32_t val32 = val64;
 
-    switch (addr >> 2) {
+    hwaddr reg = R32_OFF(addr);
+
+    switch (reg) {
     case R_INTR_STATE:
-        /* Write 1 clear */
-        s->regs[R_INTR_STATE] &= ~value;
+        val32 &= INTR_MASK;
+        s->regs[R_INTR_STATE] &= ~val32; /* RW1C */
         ot_uart_update_irqs(s);
         break;
     case R_INTR_ENABLE:
-        s->regs[R_INTR_ENABLE] = value;
+        val32 &= INTR_MASK;
+        s->regs[R_INTR_ENABLE] = val32;
         ot_uart_update_irqs(s);
         break;
     case R_INTR_TEST:
-        s->regs[R_INTR_STATE] |= value;
+        val32 &= INTR_MASK;
+        s->regs[R_INTR_STATE] |= val32;
         ot_uart_update_irqs(s);
         break;
-
+    case R_ALERT_TEST:
+        val32 &= R_ALERT_TEST_FATAL_FAULT_MASK;
+        s->regs[reg] = val32;
+        /* This will also set an IRQ once the alert handler is added */
+        break;
     case R_CTRL:
-        s->regs[R_CTRL] = value;
-
-        if (value & R_CTRL_NF_MASK) {
+        if (val32 & ~CTRL_SUP_MASK) {
             qemu_log_mask(LOG_UNIMP,
-                          "%s: UART_CTRL_NF is not supported\n", __func__);
+                          "%s: UART_CTRL feature not supported: 0x%08x\n",
+                          __func__, val32 & ~CTRL_SUP_MASK);
         }
-        if (value & R_CTRL_SLPBK_MASK) {
-            qemu_log_mask(LOG_UNIMP,
-                          "%s: UART_CTRL_SLPBK is not supported\n", __func__);
+        uint32_t prev = s->regs[R_CTRL];
+        s->regs[R_CTRL] = val32 & CTRL_MASK;
+        uint32_t change = prev ^ s->regs[R_CTRL];
+        if ((change & R_CTRL_RX_MASK) && ot_uart_is_rx_enabled(s) &&
+            !ot_uart_is_sys_loopack_enabled(s)) {
+            qemu_chr_fe_accept_input(&s->chr);
         }
-        if (value & R_CTRL_LLPBK_MASK) {
-            qemu_log_mask(LOG_UNIMP,
-                          "%s: UART_CTRL_LLPBK is not supported\n", __func__);
+        if ((change & R_CTRL_TX_MASK) && ot_uart_is_tx_enabled(s)) {
+            /* try sending pending data from TX FIFO if any */
+            ot_uart_xmit(s);
         }
-        if (value & R_CTRL_PARITY_EN_MASK) {
-            qemu_log_mask(LOG_UNIMP,
-                          "%s: UART_CTRL_PARITY_EN is not supported\n",
-                          __func__);
-        }
-        if (value & R_CTRL_PARITY_ODD_MASK) {
-            qemu_log_mask(LOG_UNIMP,
-                          "%s: UART_CTRL_PARITY_ODD is not supported\n",
-                          __func__);
-        }
-        if (value & R_CTRL_RXBLVL_MASK) {
-            qemu_log_mask(LOG_UNIMP,
-                          "%s: UART_CTRL_RXBLVL is not supported\n", __func__);
-        }
-        if (value & R_CTRL_NCO_MASK) {
-            uint64_t baud = ot_uart_get_baud(s);
-
-            s->char_tx_time = (NANOSECONDS_PER_SECOND / baud) * 10;
-        }
-        break;
-    case R_STATUS:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: status is read only\n", __func__);
-        break;
-
-    case R_RDATA:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: rdata is read only\n", __func__);
         break;
     case R_WDATA:
-        uart_write_tx_fifo(s, value);
+        uart_write_tx_fifo(s, (uint8_t)(val32 & R_WDATA_WDATA_MASK));
         break;
-
     case R_FIFO_CTRL:
-        s->regs[R_FIFO_CTRL] = value;
-
-        if (value & R_FIFO_CTRL_RXRST_MASK) {
-            s->rx_level = 0;
-            qemu_log_mask(LOG_UNIMP,
-                          "%s: RX fifos are not supported\n", __func__);
+        s->regs[R_FIFO_CTRL] =
+            val32 & (R_FIFO_CTRL_RXILVL_MASK | R_FIFO_CTRL_TXILVL_MASK);
+        if (val32 & R_FIFO_CTRL_RXRST_MASK) {
+            ot_uart_reset_rx_fifo(s);
+            ot_uart_update_irqs(s);
         }
-        if (value & R_FIFO_CTRL_TXRST_MASK) {
-            s->tx_level = 0;
+        if (val32 & R_FIFO_CTRL_TXRST_MASK) {
+            ot_uart_reset_tx_fifo(s);
+            ot_uart_update_irqs(s);
         }
         break;
-    case R_FIFO_STATUS:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: fifo_status is read only\n", __func__);
-        break;
-
     case R_OVRD:
-        s->regs[R_OVRD] = value;
-        qemu_log_mask(LOG_UNIMP,
-                      "%s: ovrd is not supported\n", __func__);
-        break;
-    case R_VAL:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: val is read only\n", __func__);
+        if (val32 & R_OVRD_TXEN_MASK) {
+            qemu_log_mask(LOG_UNIMP, "%s: OVRD.TXEN is not supported\n",
+                          __func__);
+        }
+        s->regs[R_OVRD] = val32 & R_OVRD_TXVAL_MASK;
         break;
     case R_TIMEOUT_CTRL:
-        s->regs[R_TIMEOUT_CTRL] = value;
-        qemu_log_mask(LOG_UNIMP,
-                      "%s: timeout_ctrl is not supported\n", __func__);
+        s->regs[R_TIMEOUT_CTRL] =
+            val32 & (R_TIMEOUT_CTRL_EN_MASK | R_TIMEOUT_CTRL_VAL_MASK);
+        break;
+    case R_STATUS:
+    case R_RDATA:
+    case R_FIFO_STATUS:
+    case R_VAL:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: R/O register 0x%02x (%s)\n",
+                      __func__, (uint32_t)addr, REG_NAME(reg));
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, addr);
-    }
-}
-
-static void ot_uart_clk_update(void *opaque, ClockEvent event)
-{
-    OtUARTState *s = opaque;
-
-    /* recompute uart's speed on clock change */
-    uint64_t baud = ot_uart_get_baud(s);
-
-    s->char_tx_time = (NANOSECONDS_PER_SECOND / baud) * 10;
-}
-
-static void fifo_trigger_update(void *opaque)
-{
-    OtUARTState *s = opaque;
-
-    if (s->regs[R_CTRL] & R_CTRL_TX_MASK) {
-        ot_uart_xmit(s);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%02x\n", __func__,
+                      (uint32_t)addr);
+        break;
     }
 }
 
@@ -519,15 +616,12 @@ static int ot_uart_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_ot_uart = {
     .name = TYPE_OT_UART,
-    .version_id = 2,
-    .minimum_version_id = 2,
+    .version_id = 3,
+    .minimum_version_id = 3,
     .post_load = ot_uart_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(tx_fifo, OtUARTState, 1, vmstate_fifo8, Fifo8),
         VMSTATE_STRUCT(rx_fifo, OtUARTState, 1, vmstate_fifo8, Fifo8),
-        VMSTATE_UINT32(tx_level, OtUARTState),
-        VMSTATE_UINT64(char_tx_time, OtUARTState),
-        VMSTATE_TIMER_PTR(fifo_trigger_handle, OtUARTState),
         VMSTATE_ARRAY(regs, OtUARTState, REGS_COUNT, 1, vmstate_info_uint32,
                       uint32_t),
         VMSTATE_END_OF_LIST()
@@ -536,22 +630,38 @@ static const VMStateDescription vmstate_ot_uart = {
 
 static const Property ot_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", OtUARTState, chr),
+    DEFINE_PROP_BOOL("oversample-break", OtUARTState, oversample_break, false),
+    DEFINE_PROP_BOOL("toggle-break", OtUARTState, toggle_break, false),
 };
+
+static int ot_uart_fe_change(void *opaque)
+{
+    OtUARTState *s = opaque;
+
+    qemu_chr_fe_set_handlers(&s->chr, ot_uart_can_receive, ot_uart_receive,
+                             ot_uart_event_handler, ot_uart_fe_change, s, NULL,
+                             true);
+
+    if (s->watch_tag > 0) {
+        g_source_remove(s->watch_tag);
+        /* NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange) */
+        s->watch_tag = qemu_chr_fe_add_watch(&s->chr, G_IO_OUT | G_IO_HUP,
+                                             ot_uart_watch_cb, s);
+    }
+
+    return 0;
+}
 
 static void ot_uart_init(Object *obj)
 {
     OtUARTState *s = OT_UART(obj);
 
-    s->f_clk = qdev_init_clock_in(DEVICE(obj), "f_clock",
-                                  ot_uart_clk_update, s, ClockUpdate);
-    clock_set_hz(s->f_clk, OT_UART_CLOCK);
-
     for (unsigned index = 0; index < OT_UART_IRQ_NUM; index++) {
         sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irqs[index]);
     }
 
-    memory_region_init_io(&s->mmio, obj, &ot_uart_ops, s,
-                          TYPE_OT_UART, 0x400);
+    memory_region_init_io(&s->mmio, obj, &ot_uart_ops, s, TYPE_OT_UART,
+                          REGS_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
 
     /*
@@ -567,15 +677,14 @@ static void ot_uart_realize(DeviceState *dev, Error **errp)
 {
     OtUARTState *s = OT_UART(dev);
 
-    s->fifo_trigger_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                          fifo_trigger_update, s);
+    qdev_init_gpio_in_named(DEVICE(s), &ot_uart_clock_input, "clock-in", 1);
 
     fifo8_create(&s->tx_fifo, OT_UART_TX_FIFO_SIZE);
     fifo8_create(&s->rx_fifo, OT_UART_RX_FIFO_SIZE);
 
-    qemu_chr_fe_set_handlers(&s->chr, ot_uart_can_receive,
-                             ot_uart_receive, NULL, NULL,
-                             s, NULL, true);
+    qemu_chr_fe_set_handlers(&s->chr, ot_uart_can_receive, ot_uart_receive,
+                             ot_uart_event_handler, ot_uart_fe_change, s, NULL,
+                             true);
 }
 
 static void ot_uart_class_init(ObjectClass *klass, const void *data)
