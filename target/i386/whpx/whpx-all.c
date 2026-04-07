@@ -2071,6 +2071,7 @@ int whpx_vcpu_run(CPUState *cpu)
             WHV_REGISTER_NAME reg_names[5];
             UINT32 reg_count = 5;
             X86CPU *x86_cpu = X86_CPU(cpu);
+            X86CPUClass *xcc = X86_CPU_GET_CLASS(cpu);
             CPUX86State *env = &x86_cpu->env;
 
             reg_names[0] = WHvX64RegisterRip;
@@ -2083,7 +2084,15 @@ int whpx_vcpu_run(CPUState *cpu)
                 vcpu->exit_ctx.VpContext.Rip +
                 vcpu->exit_ctx.VpContext.InstructionLength;
 
-            if (whpx_is_legacy_os()) {
+            /*
+             * On Windows 10 we can't query features from
+             * the Hyper-V interface.
+             *
+             * On Windows 11, if using xcc->max_features
+             * just pass through what the hypervisor
+             * provides without any QEMU filtering.
+             */
+            if (whpx_is_legacy_os() || xcc->max_features) {
                 reg_values[1].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRax;
                 reg_values[2].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRcx;
                 reg_values[3].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRdx;
@@ -2134,6 +2143,60 @@ int whpx_vcpu_run(CPUState *cpu)
                         reg_values[4].Reg64 = env->apic_bus_freq / 1000; /* Hz to KHz */
                     }
                     break;
+                }
+            } else {
+                switch (vcpu->exit_ctx.CpuidAccess.Rax) {
+                case 0x40000000:
+                case 0x40000001:
+                case 0x40000010:
+                    reg_values[1].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRax;
+                    reg_values[2].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRcx;
+                    reg_values[3].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRdx;
+                    reg_values[4].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRbx;
+                    break;
+                }
+            }
+
+            if (vcpu->exit_ctx.CpuidAccess.Rax == 0x1) {
+                if (cpu_has_x2apic_feature(env)) {
+                    reg_values[2].Reg64 |= CPUID_EXT_X2APIC;
+                } else {
+                    reg_values[2].Reg32 &= CPUID_EXT_X2APIC;
+                }
+            }
+
+            /* Dynamic depending on XCR0 and XSS, so query DefaultResult */
+            if (vcpu->exit_ctx.CpuidAccess.Rax == 0x07
+                && vcpu->exit_ctx.CpuidAccess.Rcx == 0) {
+                if (vcpu->exit_ctx.CpuidAccess.DefaultResultRdx
+                    & CPUID_7_0_EDX_CET_IBT) {
+                    reg_values[3].Reg32 |= CPUID_7_0_EDX_CET_IBT;
+                } else {
+                    reg_values[3].Reg32 &= ~CPUID_7_0_EDX_CET_IBT;
+                }
+
+                if (vcpu->exit_ctx.CpuidAccess.DefaultResultRcx
+                    & CPUID_7_0_ECX_CET_SHSTK) {
+                    reg_values[2].Reg32 |= CPUID_7_0_ECX_CET_SHSTK;
+                } else {
+                    reg_values[2].Reg32 &= ~CPUID_7_0_ECX_CET_SHSTK;
+                }
+
+                if (vcpu->exit_ctx.CpuidAccess.DefaultResultRcx
+                    & CPUID_7_0_ECX_OSPKE) {
+                    reg_values[2].Reg32 |= CPUID_7_0_ECX_OSPKE;
+                } else {
+                    reg_values[2].Reg32 &= ~CPUID_7_0_ECX_OSPKE;
+                }
+            }
+
+            /* OSXSAVE is dynamic. Do this instead of syncing CR4 */
+            if (vcpu->exit_ctx.CpuidAccess.Rax == 1) {
+                if (vcpu->exit_ctx.CpuidAccess.DefaultResultRcx
+                    & CPUID_EXT_OSXSAVE) {
+                    reg_values[2].Reg32 |= CPUID_EXT_OSXSAVE;
+                } else {
+                    reg_values[2].Reg32 &= ~CPUID_EXT_OSXSAVE;
                 }
             }
 
@@ -2324,6 +2387,45 @@ error:
     return ret;
 }
 
+static void whpx_cpu_xsave_init(void)
+{
+    static bool first = true;
+    int i;
+
+    if (!first) {
+        return;
+    }
+    first = false;
+
+    /* x87 and SSE states are in the legacy region of the XSAVE area. */
+    x86_ext_save_areas[XSTATE_FP_BIT].offset = 0;
+    x86_ext_save_areas[XSTATE_SSE_BIT].offset = 0;
+
+    for (i = XSTATE_SSE_BIT + 1; i < XSAVE_STATE_AREA_COUNT; i++) {
+        ExtSaveArea *esa = &x86_ext_save_areas[i];
+
+        if (esa->size) {
+            int sz = whpx_get_supported_cpuid(0xd, i, R_EAX);
+            if (sz != 0) {
+                assert(esa->size == sz);
+                esa->offset = whpx_get_supported_cpuid(0xd, i, R_EBX);
+            }
+        }
+    }
+}
+
+static void whpx_cpu_max_instance_init(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+
+    env->cpuid_min_level =
+        whpx_get_supported_cpuid(0x0, 0, R_EAX);
+    env->cpuid_min_xlevel =
+        whpx_get_supported_cpuid(0x80000000, 0, R_EAX);
+    env->cpuid_min_xlevel2 =
+        whpx_get_supported_cpuid(0xC0000000, 0, R_EAX);
+}
+
 static PropValue whpx_default_props[] = {
     { "x2apic", "on" },
     { NULL, NULL },
@@ -2333,9 +2435,18 @@ static PropValue whpx_default_props[] = {
 void whpx_cpu_instance_init(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);
+    X86CPUClass *xcc = X86_CPU_GET_CLASS(cpu);
 
     host_cpu_instance_init(cpu);
     x86_cpu_apply_props(cpu, whpx_default_props);
+
+    if (!whpx_is_legacy_os() && xcc->max_features) {
+        whpx_cpu_max_instance_init(cpu);
+    }
+
+    if (!whpx_is_legacy_os()) {
+        whpx_cpu_xsave_init();
+    }
 }
 
 /*
@@ -2353,8 +2464,12 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     WHV_CAPABILITY_FEATURES features = {0};
     WHV_PROCESSOR_FEATURES_BANKS processor_features;
     WHV_PROCESSOR_PERFMON_FEATURES perfmon_features;
-    UINT32 cpuidExitList[] = {1};
-    UINT32 cpuidExitList_nohyperv[] = {1, 0x40000000, 0x40000001, 0x40000010};
+
+    UINT32 cpuidExitList[] = {0x0, 0x1, 0x6, 0x7, 0x14, 0x24, 0x29, 0x1E,
+        0x40000000, 0x40000001, 0x40000010, 0x80000000, 0x80000001,
+        0x80000002, 0x80000003, 0x80000004, 0x80000007, 0x80000008,
+        0x8000000A, 0x80000021, 0x80000022, 0xC0000000, 0xC0000001};
+    UINT32 cpuidExitList_legacy_os[] = {1, 0x40000000, 0x40000001, 0x40000010};
 
     whpx = &whpx_global;
 
@@ -2610,7 +2725,7 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     hr = whp_dispatch.WHvSetPartitionProperty(
         whpx->partition,
         WHvPartitionPropertyCodeCpuidExitList,
-        whpx->hyperv_enlightenments_enabled ? cpuidExitList : cpuidExitList_nohyperv,
+        !whpx_is_legacy_os() ? cpuidExitList : cpuidExitList_legacy_os,
         RTL_NUMBER_OF(cpuidExitList) * sizeof(UINT32));
 
     if (FAILED(hr)) {
