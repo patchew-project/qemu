@@ -26,11 +26,11 @@
 #define HW_OT_UART_H
 
 #include "hw/core/sysbus.h"
+#include "qemu/fifo8.h"
 #include "chardev/char-fe.h"
 #include "qemu/timer.h"
 #include "qom/object.h"
 
-#define OT_UART_TX_FIFO_SIZE 16
 #define OT_UART_CLOCK 50000000 /* 50MHz clock */
 
 #define TYPE_OT_UART "ot-uart"
@@ -43,7 +43,6 @@ struct OtUARTState {
     /* <public> */
     MemoryRegion mmio;
 
-    uint8_t tx_fifo[OT_UART_TX_FIFO_SIZE];
     uint32_t tx_level;
 
     uint32_t rx_level;
@@ -51,16 +50,11 @@ struct OtUARTState {
     QEMUTimer *fifo_trigger_handle;
     uint64_t char_tx_time;
 
-    uint32_t uart_intr_state;
-    uint32_t uart_intr_enable;
-    uint32_t uart_ctrl;
-    uint32_t uart_status;
-    uint32_t uart_rdata;
-    uint32_t uart_fifo_ctrl;
-    uint32_t uart_fifo_status;
-    uint32_t uart_ovrd;
-    uint32_t uart_val;
-    uint32_t uart_timeout_ctrl;
+    uint32_t regs[13]; /* Length must be updated if regs added or removed */
+
+    Fifo8 tx_fifo;
+    Fifo8 rx_fifo;
+    uint32_t tx_watermark_level;
 
     Clock *f_clk;
 
