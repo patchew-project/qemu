@@ -54,6 +54,7 @@ struct OtUARTState {
     bool in_break;
     guint watch_tag;
 
+    char *ot_id;
     Clock *f_clk;
 
     CharFrontend chr;

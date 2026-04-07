@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "hw/char/ot_uart.h"
 #include "qemu/fifo8.h"
+#include "hw/core/cpu.h"
 #include "hw/core/irq.h"
 #include "hw/core/qdev-clock.h"
 #include "hw/core/qdev-properties.h"
@@ -28,6 +29,7 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "trace.h"
 
 REG32(INTR_STATE, 0x00)
     SHARED_FIELD(INTR_TX_WATERMARK, 0, 1)
@@ -125,6 +127,9 @@ static const char *REG_NAMES[REGS_COUNT] = {
 static void ot_uart_update_irqs(OtUARTState *s)
 {
     uint32_t state_masked = s->regs[R_INTR_STATE] & s->regs[R_INTR_ENABLE];
+
+    trace_ot_uart_irqs(s->ot_id, s->regs[R_INTR_STATE], s->regs[R_INTR_ENABLE],
+                       state_masked);
 
     for (int index = 0; index < OT_UART_IRQ_NUM; index++) {
         bool level = (state_masked & (1U << index)) != 0;
@@ -402,6 +407,10 @@ static uint64_t ot_uart_get_baud(OtUARTState *s)
     baud *= clock_get_hz(s->f_clk);
     baud >>= 20;
 
+    if (baud) {
+        trace_ot_uart_check_baudrate(s->ot_id, baud);
+    }
+
     return baud;
 }
 
@@ -503,6 +512,10 @@ static uint64_t ot_uart_read(void *opaque, hwaddr addr, unsigned int size)
         return 0;
     }
 
+    uint32_t pc = current_cpu->cc->get_pc(current_cpu);
+    trace_ot_uart_io_read_out(s->ot_id, (uint32_t)addr, REG_NAME(reg),
+                              retvalue, pc);
+
     return retvalue;
 }
 
@@ -513,6 +526,9 @@ static void ot_uart_write(void *opaque, hwaddr addr, uint64_t val64,
     uint32_t value = val64;
 
     hwaddr reg = R32_OFF(addr);
+
+    uint32_t pc = current_cpu->cc->get_pc(current_cpu);
+    trace_ot_uart_io_write(s->ot_id, (uint32_t)addr, REG_NAME(reg), value, pc);
 
     switch (reg) {
     case R_INTR_STATE:
@@ -665,6 +681,7 @@ static const VMStateDescription vmstate_ot_uart = {
 };
 
 static const Property ot_uart_properties[] = {
+    DEFINE_PROP_STRING("ot-id", OtUARTState, ot_id),
     DEFINE_PROP_CHR("chardev", OtUARTState, chr),
     DEFINE_PROP_BOOL("oversample-break", OtUARTState, oversample_break, false),
     DEFINE_PROP_BOOL("toggle-break", OtUARTState, toggle_break, false),
@@ -715,6 +732,8 @@ static void ot_uart_init(Object *obj)
 static void ot_uart_realize(DeviceState *dev, Error **errp)
 {
     OtUARTState *s = OT_UART(dev);
+
+    g_assert(s->ot_id);
 
     s->fifo_trigger_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                           fifo_trigger_update, s);
