@@ -30,6 +30,7 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "trace.h"
 
 /* clang-format off */
 REG32(INTR_STATE, 0x00)
@@ -135,6 +136,9 @@ static void ot_uart_update_irqs(OtUARTState *s)
 {
     uint32_t state_masked = s->regs[R_INTR_STATE] & s->regs[R_INTR_ENABLE];
 
+    trace_ot_uart_irqs(s->ot_id, s->regs[R_INTR_STATE], s->regs[R_INTR_ENABLE],
+                       state_masked);
+
     for (int index = 0; index < OT_UART_IRQ_NUM; index++) {
         bool level = (state_masked & (1U << index)) != 0;
         qemu_set_irq(s->irqs[index], level);
@@ -154,6 +158,18 @@ static bool ot_uart_is_tx_enabled(const OtUARTState *s)
 static bool ot_uart_is_rx_enabled(const OtUARTState *s)
 {
     return FIELD_EX32(s->regs[R_CTRL], CTRL, RX);
+}
+
+static void ot_uart_check_baudrate(const OtUARTState *s)
+{
+    uint32_t nco = FIELD_EX32(s->regs[R_CTRL], CTRL, NCO);
+
+    unsigned baudrate = (unsigned)(((uint64_t)nco * (uint64_t)s->pclk) >>
+                                   (R_CTRL_NCO_LENGTH + 4));
+
+    if (baudrate) {
+        trace_ot_uart_check_baudrate(s->ot_id, s->pclk, baudrate);
+    }
 }
 
 static int ot_uart_can_receive(void *opaque)
@@ -403,6 +419,7 @@ static void ot_uart_clock_input(void *opaque, int irq, int level)
     s->pclk = (unsigned)level;
 
     /* TODO: disable UART transfer when PCLK is 0 */
+    ot_uart_check_baudrate(s);
 }
 
 static uint64_t ot_uart_read(void *opaque, hwaddr addr, unsigned int size)
@@ -500,6 +517,10 @@ static uint64_t ot_uart_read(void *opaque, hwaddr addr, unsigned int size)
         break;
     }
 
+    uint32_t pc = current_cpu->cc->get_pc(current_cpu);
+    trace_ot_uart_io_read_out(s->ot_id, (uint32_t)addr, REG_NAME(reg), val32,
+                              pc);
+
     return (uint64_t)val32;
 }
 
@@ -510,6 +531,9 @@ static void ot_uart_write(void *opaque, hwaddr addr, uint64_t val64,
     uint32_t val32 = val64;
 
     hwaddr reg = R32_OFF(addr);
+
+    uint32_t pc = current_cpu->cc->get_pc(current_cpu);
+    trace_ot_uart_io_write(s->ot_id, (uint32_t)addr, REG_NAME(reg), val32, pc);
 
     switch (reg) {
     case R_INTR_STATE:
@@ -541,6 +565,9 @@ static void ot_uart_write(void *opaque, hwaddr addr, uint64_t val64,
         uint32_t prev = s->regs[R_CTRL];
         s->regs[R_CTRL] = val32 & CTRL_MASK;
         uint32_t change = prev ^ s->regs[R_CTRL];
+        if (change & R_CTRL_NCO_MASK) {
+            ot_uart_check_baudrate(s);
+        }
         if ((change & R_CTRL_RX_MASK) && ot_uart_is_rx_enabled(s) &&
             !ot_uart_is_sys_loopack_enabled(s)) {
             qemu_chr_fe_accept_input(&s->chr);
@@ -621,6 +648,7 @@ static const VMStateDescription vmstate_ot_uart = {
 };
 
 static const Property ot_uart_properties[] = {
+    DEFINE_PROP_STRING("ot-id", OtUARTState, ot_id),
     DEFINE_PROP_CHR("chardev", OtUARTState, chr),
     DEFINE_PROP_BOOL("oversample-break", OtUARTState, oversample_break, false),
     DEFINE_PROP_BOOL("toggle-break", OtUARTState, toggle_break, false),
@@ -668,6 +696,8 @@ static void ot_uart_init(Object *obj)
 static void ot_uart_realize(DeviceState *dev, Error **errp)
 {
     OtUARTState *s = OT_UART(dev);
+
+    g_assert(s->ot_id);
 
     qdev_init_gpio_in_named(DEVICE(s), &ot_uart_clock_input, "clock-in", 1);
 

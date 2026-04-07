@@ -46,6 +46,7 @@ struct OtUARTState {
     unsigned pclk; /* Current input clock */
     const char *clock_src_name; /* IRQ name once connected */
 
+    char *ot_id;
     DeviceState *clock_src;
     CharFrontend chr;
     bool oversample_break; /* Should mock break in the oversampled VAL reg? */
