@@ -48,6 +48,19 @@ static const struct {
 
 enum { VGA_MODE, EXT_MODE };
 
+static void ati_vga_set_offset(VGACommonState *vga, uint32_t offs)
+{
+    int bypp = DIV_ROUND_UP(vga->vbe_regs[VBE_DISPI_INDEX_BPP], BITS_PER_BYTE);
+
+    if (!bypp ||
+        vga->vbe_regs[VBE_DISPI_INDEX_YRES] *
+        vga->vbe_regs[VBE_DISPI_INDEX_VIRT_WIDTH] * bypp + offs >
+        vga->vbe_size) {
+        return;
+    }
+    vga->vbe_start_addr = offs / 4;
+}
+
 static void ati_vga_switch_mode(ATIVGAState *s)
 {
     DPRINTF("%d -> %d\n",
@@ -109,26 +122,12 @@ static void ati_vga_switch_mode(ATIVGAState *s)
             vbe_ioport_write_data(&s->vga, 0, VBE_DISPI_ENABLED |
                 VBE_DISPI_LFB_ENABLED | VBE_DISPI_NOCLEARMEM |
                 (s->regs.dac_cntl & DAC_8BIT_EN ? VBE_DISPI_8BIT_DAC : 0));
-            /* now set offset and stride after enable as that resets these */
+            /* now set offset and stride because enable resets these */
             if (stride) {
-                int bypp = DIV_ROUND_UP(bpp, BITS_PER_BYTE);
-
                 vbe_ioport_write_index(&s->vga, 0, VBE_DISPI_INDEX_VIRT_WIDTH);
                 vbe_ioport_write_data(&s->vga, 0, stride);
-                stride *= bypp;
-                if (offs % stride) {
-                    DPRINTF("CRTC offset is not multiple of pitch\n");
-                    vbe_ioport_write_index(&s->vga, 0,
-                                           VBE_DISPI_INDEX_X_OFFSET);
-                    vbe_ioport_write_data(&s->vga, 0, offs % stride / bypp);
-                }
-                vbe_ioport_write_index(&s->vga, 0, VBE_DISPI_INDEX_Y_OFFSET);
-                vbe_ioport_write_data(&s->vga, 0, offs / stride);
-                DPRINTF("VBE offset (%d,%d), vbe_start_addr=%x\n",
-                        s->vga.vbe_regs[VBE_DISPI_INDEX_X_OFFSET],
-                        s->vga.vbe_regs[VBE_DISPI_INDEX_Y_OFFSET],
-                        s->vga.vbe_start_addr);
             }
+            ati_vga_set_offset(&s->vga, offs);
         }
     } else {
         /* VGA mode enabled */
@@ -737,7 +736,8 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         s->regs.crtc_v_sync_strt_wid = data & 0x9f0fff;
         break;
     case CRTC_OFFSET:
-        s->regs.crtc_offset = data & 0xc7ffffff;
+        s->regs.crtc_offset = data & 0x87fffff8;
+        ati_vga_set_offset(&s->vga, s->regs.crtc_offset & 0x07ffffff);
         break;
     case CRTC_OFFSET_CNTL:
         s->regs.crtc_offset_cntl = data; /* FIXME */
