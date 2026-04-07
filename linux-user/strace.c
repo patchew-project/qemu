@@ -4309,6 +4309,20 @@ print_tgkill(CPUArchState *cpu_env, const struct syscallname *name,
 }
 #endif
 
+#if defined(TARGET_NR_read) || defined(TARGET_NR_write)
+static void
+print_read_write(CPUArchState *cpu_env, const struct syscallname *name,
+        abi_long arg0, abi_long arg1, abi_long arg2,
+        abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    print_syscall_prologue(name);
+    print_raw_param("%d", arg0, 0);
+    print_pointer(arg1, 0);
+    print_raw_param("%d", arg2, 1);
+    print_syscall_epilogue(name);
+}
+#endif
+
 #if defined(TARGET_NR_pread64) || defined(TARGET_NR_pwrite64)
 static void
 print_pread64(CPUArchState *cpu_env, const struct syscallname *name,
