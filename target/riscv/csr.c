@@ -3796,6 +3796,14 @@ static RISCVException rmw_mvip64(CPURISCVState *env, int csrno,
         /* Remove bits that are zero in both mideleg and mvien. */
         alias_mask &= (env->mideleg | env->mvien);
         nalias_mask &= (env->mideleg | env->mvien);
+    } else {
+        if (env->mvien & MIP_SEIP) {
+            /*
+             * Bit SEIP in mip is read-only and does not
+             * include the value of bit 9 of mvip
+             */
+            alias_mask &= ~MIP_SEIP;
+        }
     }
 
     /*
