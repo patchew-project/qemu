@@ -782,8 +782,8 @@ without reporting any destination threads, or non-multifd source
 threads).  For debugging purpose, please use ``-name
 $VM,debug-threads=on`` instead.
 
-``migrate`` argument ``detach`` (since 11.0)
-''''''''''''''''''''''''''''''''''''''''''''
+``migrate`` argument ``detach`` (removed in 11.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''
 
 This argument has always been ignored.
 
@@ -932,14 +932,14 @@ work around the atomicity issues in system mode by running all vCPUs
 in a single thread context; in user mode atomicity was simply broken.
 From 10.0, QEMU has disabled configuration of 64-bit guests on 32-bit hosts.
 
-32-bit MIPS (since 10.2)
-''''''''''''''''''''''''
+32-bit MIPS (removed in 10.2)
+'''''''''''''''''''''''''''''
 
 Debian 12 "Bookworm" removed support for 32-bit MIPS, making it hard to
 maintain our cross-compilation CI tests of the architecture.
 
-32-bit PPC (since 10.2)
-'''''''''''''''''''''''
+32-bit PPC (removed in 10.2)
+''''''''''''''''''''''''''''
 
 The QEMU project no longer supports 32-bit host builds.
 
@@ -1172,8 +1172,8 @@ Mips ``mipssim`` machine (removed in 10.2)
 Linux dropped support for this virtual machine type in kernel v3.7, and
 there was also no binary available online to use with that board.
 
-Arm ``ast2700a0-evb`` machine (since 11.0)
-''''''''''''''''''''''''''''''''''''''''''
+Arm ``ast2700a0-evb`` machine (removed in 11.0)
+'''''''''''''''''''''''''''''''''''''''''''''''
 
 The ``ast2700a0-evb`` machine represents the first revision of the AST2700
 and serves as the initial engineering sample rather than a production version.
@@ -1290,8 +1290,8 @@ by using ``-machine graphics=off``.
 
 The 'pvrdma' device and the whole RDMA subsystem have been removed.
 
-``-device sd-card,spec_version=1`` (since 10.2)
-'''''''''''''''''''''''''''''''''''''''''''''''
+``-device sd-card,spec_version=1`` (removed in 10.2)
+''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 SD physical layer specification v2.00 supersedes the v1.10 one.
 
@@ -1396,21 +1396,21 @@ device driver such as RBD.
 VFIO devices
 ------------
 
-``-device vfio-calxeda-xgmac`` (since 10.2)
-'''''''''''''''''''''''''''''''''''''''''''
+``-device vfio-calxeda-xgmac`` (removed in 10.2)
+''''''''''''''''''''''''''''''''''''''''''''''''
 The vfio-calxeda-xgmac device allows to assign a host Calxeda Highbank
 10Gb XGMAC Ethernet controller device ("calxeda,hb-xgmac" compatibility
 string) to a guest. Calxeda HW has been ewasted now and there is no point
 keeping that device.
 
-``-device vfio-amd-xgbe`` (since 10.2)
-''''''''''''''''''''''''''''''''''''''
+``-device vfio-amd-xgbe`` (removed in 10.2)
+'''''''''''''''''''''''''''''''''''''''''''
 The vfio-amd-xgbe device allows to assign a host AMD 10GbE controller
 to a guest ("amd,xgbe-seattle-v1a" compatibility string). AMD "Seattle"
 is not supported anymore and there is no point keeping that device.
 
-``-device vfio-platform`` (since 10.2)
-''''''''''''''''''''''''''''''''''''''
+``-device vfio-platform`` (removed in 10.2)
+'''''''''''''''''''''''''''''''''''''''''''
 The vfio-platform device allows to assign a host platform device
 to a guest in a generic manner. Integrating a new device into
 the vfio-platform infrastructure requires some adaptation at
