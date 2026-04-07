@@ -34,7 +34,7 @@
 #define OT_UART_CLOCK 50000000 /* 50MHz clock */
 
 #define TYPE_OT_UART "ot-uart"
-OBJECT_DECLARE_SIMPLE_TYPE(OtUARTState, OT_UART)
+OBJECT_DECLARE_TYPE(OtUARTState, OtUARTClass, OT_UART)
 
 struct OtUARTState {
     /* <private> */
@@ -70,4 +70,10 @@ struct OtUARTState {
     qemu_irq tx_empty;
     qemu_irq rx_overflow;
 };
+
+struct OtUARTClass {
+    SysBusDeviceClass parent_class;
+    ResettablePhases parent_phases;
+};
+
 #endif /* HW_OT_UART_H */
