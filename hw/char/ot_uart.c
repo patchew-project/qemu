@@ -227,9 +227,14 @@ static void uart_write_tx_fifo(OtUARTState *s, const uint8_t *buf,
               (s->char_tx_time * 4));
 }
 
-static void ot_uart_reset(DeviceState *dev)
+static void ot_uart_reset_enter(Object *obj, ResetType type)
 {
-    OtUARTState *s = OT_UART(dev);
+    OtUARTClass *c = OT_UART_GET_CLASS(obj);
+    OtUARTState *s = OT_UART(obj);
+
+    if (c->parent_phases.enter) {
+        c->parent_phases.enter(obj, type);
+    }
 
     s->uart_intr_state = 0x00000000;
     s->uart_intr_state = 0x00000000;
@@ -545,11 +550,15 @@ static void ot_uart_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    device_class_set_legacy_reset(dc, ot_uart_reset);
     dc->realize = ot_uart_realize;
     dc->vmsd = &vmstate_ot_uart;
     device_class_set_props(dc, ot_uart_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    OtUARTClass *uc = OT_UART_CLASS(klass);
+    resettable_class_set_parent_phases(rc, &ot_uart_reset_enter, NULL, NULL,
+                                       &uc->parent_phases);
 }
 
 static const TypeInfo ot_uart_info = {
@@ -557,6 +566,7 @@ static const TypeInfo ot_uart_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(OtUARTState),
     .instance_init = ot_uart_init,
+    .class_size    = sizeof(OtUARTClass),
     .class_init    = ot_uart_class_init,
 };
 
