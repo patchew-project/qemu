@@ -560,6 +560,9 @@ static int parse_name(void *opaque, QemuOpts *opts, Error **errp)
     }
 
     qemu_name = qemu_opt_get(opts, "guest");
+    if (!qemu_name) {
+        qemu_name = "";
+    }
 
     proc_name = qemu_opt_get(opts, "process");
     if (proc_name) {
@@ -626,7 +629,11 @@ static int parse_add_fd(void *opaque, QemuOpts *opts, Error **errp)
 
     /* add the duplicate fd, and optionally the opaque string, to the fd set */
     fdinfo = monitor_fdset_add_fd(dupfd, true, fdset_id, fd_opaque,
-                                  &error_abort);
+                                  errp);
+    if (!fdinfo) {
+        close(dupfd);
+        return -1;
+    }
     g_free(fdinfo);
 
     return 0;
