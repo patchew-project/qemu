@@ -554,7 +554,7 @@ class QAPISchemaParser:
                 if isinstance(this, str):
                     this = QAPIDoc.Kind.from_string(this)
 
-                if this in (QAPIDoc.Kind.TODO, QAPIDoc.Kind.SINCE):
+                if this == QAPIDoc.Kind.TODO:
                     return
 
                 if this.value < last_ordered_section.value:
