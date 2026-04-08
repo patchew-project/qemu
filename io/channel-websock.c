@@ -1066,10 +1066,7 @@ static gboolean qio_channel_websock_flush(QIOChannel *ioc,
 
 static void qio_channel_websock_unset_watch(QIOChannelWebsock *ioc)
 {
-    if (ioc->io_tag) {
-        g_source_remove(ioc->io_tag);
-        ioc->io_tag = 0;
-    }
+    g_clear_handle_id(&ioc->io_tag, g_source_remove);
 }
 
 static void qio_channel_websock_set_watch(QIOChannelWebsock *ioc)
@@ -1246,12 +1243,8 @@ static int qio_channel_websock_close(QIOChannel *ioc,
     buffer_free(&wioc->encinput);
     buffer_free(&wioc->encoutput);
     buffer_free(&wioc->rawinput);
-    if (wioc->hs_io_tag) {
-        g_clear_handle_id(&wioc->hs_io_tag, g_source_remove);
-    }
-    if (wioc->io_tag) {
-        g_clear_handle_id(&wioc->io_tag, g_source_remove);
-    }
+    g_clear_handle_id(&wioc->hs_io_tag, g_source_remove);
+    g_clear_handle_id(&wioc->io_tag, g_source_remove);
     if (wioc->io_err) {
         g_clear_pointer(&wioc->io_err, error_free);
     }

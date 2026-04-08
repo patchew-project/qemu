@@ -90,10 +90,7 @@ static void net_passt_cleanup(NetClientState *nc)
         g_free(s->vhost_net);
         s->vhost_net = NULL;
     }
-    if (s->vhost_watch) {
-        g_source_remove(s->vhost_watch);
-        s->vhost_watch = 0;
-    }
+    g_clear_handle_id(&s->vhost_watch, g_source_remove);
     qemu_chr_fe_deinit(&s->vhost_chr, true);
     if (s->vhost_user) {
         vhost_user_cleanup(s->vhost_user);
@@ -421,8 +418,7 @@ static void passt_vhost_user_event(void *opaque, QEMUChrEvent event)
         if (s->vhost_watch) {
             AioContext *ctx = qemu_get_current_aio_context();
 
-            g_source_remove(s->vhost_watch);
-            s->vhost_watch = 0;
+            g_clear_handle_id(&s->vhost_watch, g_source_remove);
             qemu_chr_fe_set_handlers(&s->vhost_chr, NULL, NULL,  NULL, NULL,
                                      NULL, NULL, false);
 
