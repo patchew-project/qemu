@@ -29,13 +29,34 @@
 #include "user/page-protection.h"
 #include "target/arm/syndrome.h"
 
-#define get_user_code_u32(x, gaddr, env)                \
-    ({ abi_long __r = get_user_u32((x), (gaddr));       \
-        if (!__r && bswap_code(arm_sctlr_b(env))) {     \
-            (x) = bswap32(x);                           \
-        }                                               \
-        __r;                                            \
-    })
+static bool get_user_code_u32(uint32_t *ret, uint32_t va, CPUARMState *env)
+{
+    uint32_t insn, *hptr;
+
+    hptr = lock_user(VERIFY_READ, va, sizeof(uint32_t), 1);
+    if (!hptr) {
+        *ret = 0;
+        return false;
+    }
+
+    /* Load as little-endian by default. */
+    __get_user_e(insn, hptr, le);
+    unlock_user(hptr, va, 0);
+
+    /*
+     * Adjust the little-endian load for BE32 as required.
+     * In thumb mode, bswap both halfwords by bswap of word then
+     * swapping the halfwords again to restore the original order.
+     */
+    if (arm_sctlr_b(env)) {
+        insn = bswap32(insn);
+        if (env->thumb) {
+            insn = hswap32(insn);
+        }
+    }
+    *ret = insn;
+    return true;
+}
 
 /*
  * Note that if we need to do data accesses here, they should do a
@@ -271,7 +292,8 @@ void cpu_loop(CPUARMState *env)
 {
     CPUState *cs = env_cpu(env);
     int trapnr, si_signo, si_code;
-    unsigned int n, insn;
+    unsigned int n;
+    uint32_t insn;
     abi_ulong ret;
 
     for(;;) {
@@ -284,31 +306,23 @@ void cpu_loop(CPUARMState *env)
         case EXCP_UDEF:
         case EXCP_NOCP:
         case EXCP_INVSTATE:
-            {
-                uint32_t opcode;
-
-                /* we handle the FPU emulation here, as Linux */
-                /* we get the opcode */
-                /* FIXME - what to do if get_user() fails? */
-                get_user_code_u32(opcode, env->regs[15], env);
-
+            /* we handle the FPU emulation here, as Linux */
+            if (get_user_code_u32(&insn, env->regs[15], env)) {
                 /*
                  * The Linux kernel treats some UDF patterns specially
                  * to use as breakpoints (instead of the architectural
                  * bkpt insn). These should trigger a SIGTRAP rather
                  * than SIGILL.
                  */
-                if (insn_is_linux_bkpt(opcode, env->thumb)) {
+                if (insn_is_linux_bkpt(insn, env->thumb)) {
                     goto excp_debug;
                 }
 
-                if (!env->thumb && emulate_arm_fpa11(env, opcode)) {
+                if (!env->thumb && emulate_arm_fpa11(env, insn)) {
                     break;
                 }
-
-                force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLOPN,
-                                env->regs[15]);
             }
+            force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLOPN, env->regs[15]);
             break;
         case EXCP_SWI:
             {
@@ -317,14 +331,12 @@ void cpu_loop(CPUARMState *env)
                 if (env->thumb) {
                     /* Thumb is always EABI style with syscall number in r7 */
                     n = env->regs[7];
-                } else {
+                } else if (get_user_code_u32(&insn, env->regs[15] - 4, env)) {
                     /*
                      * Equivalent of kernel CONFIG_OABI_COMPAT: read the
                      * Arm SVC insn to extract the immediate, which is the
                      * syscall number in OABI.
                      */
-                    /* FIXME - what to do if get_user() fails? */
-                    get_user_code_u32(insn, env->regs[15] - 4, env);
                     n = insn & 0xffffff;
                     if (n == 0) {
                         /* zero immediate: EABI, syscall number in r7 */
@@ -340,6 +352,10 @@ void cpu_loop(CPUARMState *env)
                         n ^= ARM_SYSCALL_BASE;
                         env->eabi = false;
                     }
+                } else {
+                    /* Failed to re-load instruction. */
+                    force_sig_fault(TARGET_SIGSEGV, 0, env->regs[15] - 4);
+                    break;
                 }
 
                 if (n > ARM_NR_BASE) {
