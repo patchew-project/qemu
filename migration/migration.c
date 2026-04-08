@@ -1283,7 +1283,7 @@ static void migration_cleanup(MigrationState *s)
     g_free(s->hostname);
     s->hostname = NULL;
 
-    qemu_savevm_state_cleanup();
+    qemu_savevm_state_cleanup(s);
     cpr_state_close();
     cpr_transfer_source_destroy(s);
 

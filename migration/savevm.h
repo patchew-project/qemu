@@ -42,7 +42,7 @@ int qemu_savevm_state_resume_prepare(MigrationState *s);
 void qemu_savevm_send_header(QEMUFile *f);
 void qemu_savevm_state_header(QEMUFile *f);
 int qemu_savevm_state_iterate(QEMUFile *f, bool postcopy);
-void qemu_savevm_state_cleanup(void);
+void qemu_savevm_state_cleanup(MigrationState *s);
 void qemu_savevm_state_complete_postcopy(QEMUFile *f);
 int qemu_savevm_state_complete_precopy(MigrationState *s);
 void qemu_savevm_query_pending(MigPendingData *pending, bool exact);

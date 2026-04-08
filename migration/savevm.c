@@ -1387,7 +1387,8 @@ int qemu_savevm_state_non_iterable_early(QEMUFile *f,
     return 0;
 }
 
-static int qemu_savevm_state_setup(QEMUFile *f, Error **errp)
+static int qemu_savevm_state_setup(MigrationState *s, QEMUFile *f,
+                                   Error **errp)
 {
     SaveStateEntry *se;
     int ret;
@@ -1409,6 +1410,13 @@ static int qemu_savevm_state_setup(QEMUFile *f, Error **errp)
         }
     }
 
+    /*
+     * Logically, it should be paired with any hook being used who needs to
+     * load_acquire() the flag first.  So far, only save_query_pending()
+     * uses it.
+     */
+    qatomic_store_release(&s->save_setup_ready, true);
+
     return 0;
 }
 
@@ -1429,7 +1437,7 @@ int qemu_savevm_state_do_setup(QEMUFile *f, Error **errp)
         return ret;
     }
 
-    ret = qemu_savevm_state_setup(f, errp);
+    ret = qemu_savevm_state_setup(ms, f, errp);
     if (ret) {
         return ret;
     }
@@ -1764,9 +1772,22 @@ int qemu_savevm_state_complete_precopy(MigrationState *s)
 
 void qemu_savevm_query_pending(MigPendingData *pending, bool exact)
 {
+    MigrationState *s = migrate_get_current();
     SaveStateEntry *se;
 
     memset(pending, 0, sizeof(*pending));
+
+    /*
+     * This API can be invoked very early before SETUP is properly done, in
+     * that case don't invoke module queries because they're not ready.
+     * Just report all zeros.
+     *
+     * This is paired with save_setup_ready updates on save_setup() and
+     * save_cleanup().
+     */
+    if (!s || !qatomic_load_acquire(&s->save_setup_ready)) {
+        return;
+    }
 
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (!se->ops || !se->ops->save_query_pending) {
@@ -1786,7 +1807,7 @@ void qemu_savevm_query_pending(MigPendingData *pending, bool exact)
                                     pending->postcopy_bytes);
 }
 
-void qemu_savevm_state_cleanup(void)
+void qemu_savevm_state_cleanup(MigrationState *s)
 {
     SaveStateEntry *se;
     Error *local_err = NULL;
@@ -1794,6 +1815,14 @@ void qemu_savevm_state_cleanup(void)
     if (precopy_notify(PRECOPY_NOTIFY_CLEANUP, &local_err)) {
         error_report_err(local_err);
     }
+
+    s->save_setup_ready = false;
+    /*
+     * Make sure we clear the flag before invoking save_cleanup(), so any
+     * racy QMP query-migrate won't try to invoke any save hooks.  Just use
+     * an explicit barrier to be simple.
+     */
+    smp_mb();
 
     trace_savevm_state_cleanup();
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
@@ -1841,7 +1870,7 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
         error_setg_errno(errp, -ret, "Error while writing VM state");
     }
 cleanup:
-    qemu_savevm_state_cleanup();
+    qemu_savevm_state_cleanup(ms);
 
     if (ret != 0) {
         status = MIGRATION_STATUS_FAILED;

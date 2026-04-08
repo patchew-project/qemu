@@ -522,6 +522,14 @@ struct MigrationState {
      * anything as input.
      */
     bool has_block_bitmap_mapping;
+
+    /*
+     * This boolean reflects if the vmstate handlers have been properly
+     * setup on source side.  It is set after vmstate save_setup() hooks
+     * are successfully invoked, and cleared after save_cleanup()s.  It
+     * reflects a general availability of vmstate hooks on the source side.
+     */
+    bool save_setup_ready;
 };
 
 void migrate_set_state(MigrationStatus *state, MigrationStatus old_state,
