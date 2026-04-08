@@ -22,6 +22,8 @@ static void ast2600_evb_i2c_init(AspeedMachineState *bmc)
 {
     AspeedSoCState *soc = bmc->soc;
     uint8_t *eeprom_buf = g_malloc0(8 * 1024);
+    I2CSlave *mctp;
+    I2CSlave *mctp_ncsi;
 
     smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 7), 0x50,
                           eeprom_buf);
@@ -29,6 +31,18 @@ static void ast2600_evb_i2c_init(AspeedMachineState *bmc)
     /* LM75 is compatible with TMP105 driver */
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 8),
                      TYPE_TMP105, 0x4d);
+
+    /* MCTP over I2C responder: bus4, addr 0x1d (7-bit) */
+    mctp = i2c_slave_new("mctp-i2c-responder", 0x1d);
+    object_property_set_uint(OBJECT(mctp), "eid", 0x00, &error_abort);
+    i2c_slave_realize_and_unref(mctp, aspeed_i2c_get_bus(&soc->i2c, 4),
+                                &error_abort);
+
+    /* MCTP over I2C responder (NCSI extension): bus5, addr 0x1d (7-bit) */
+    mctp_ncsi = i2c_slave_new("mctp-i2c-responder-ncsi", 0x1d);
+    object_property_set_uint(OBJECT(mctp_ncsi), "eid", 0x00, &error_abort);
+    i2c_slave_realize_and_unref(mctp_ncsi, aspeed_i2c_get_bus(&soc->i2c, 5),
+                                &error_abort);
 }
 
 static void aspeed_machine_ast2600_evb_class_init(ObjectClass *oc,
