@@ -21,6 +21,13 @@ typedef struct MigPendingData {
     uint64_t precopy_bytes;
     /* Amount of pending bytes can be transferred in postcopy */
     uint64_t postcopy_bytes;
+    /* Amount of pending bytes can be transferred only in stopcopy */
+    uint64_t stopcopy_bytes;
+    /*
+     * Total pending data, modules do not need to update this field, it
+     * will be automatically calculated by migration core API.
+     */
+    uint64_t total_bytes;
 } MigPendingData;
 
 /**
