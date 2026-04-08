@@ -50,13 +50,8 @@ VFIO implements the device hooks for the iterative approach as follows:
 * A ``load_setup`` function that sets the VFIO device on the destination in
   _RESUMING state.
 
-* A ``state_pending_estimate`` function that reports an estimate of the
-  remaining pre-copy data that the vendor driver has yet to save for the VFIO
-  device.
-
-* A ``state_pending_exact`` function that reads pending_bytes from the vendor
-  driver, which indicates the amount of data that the vendor driver has yet to
-  save for the VFIO device.
+* A ``save_query_pending`` function that reports the remaining pre-copy
+  data that the vendor driver has yet to save for the VFIO device.
 
 * An ``is_active_iterate`` function that indicates ``save_live_iterate`` is
   active only when the VFIO device is in pre-copy states.

@@ -1762,46 +1762,44 @@ int qemu_savevm_state_complete_precopy(MigrationState *s)
     return qemu_fflush(f);
 }
 
-/* Give an estimate of the amount left to be transferred,
- * the result is split into the amount for units that can and
- * for units that can't do postcopy.
- */
-void qemu_savevm_state_pending_estimate(uint64_t *must_precopy,
-                                        uint64_t *can_postcopy)
+void qemu_savevm_query_pending(MigPendingData *pending, bool exact)
 {
     SaveStateEntry *se;
 
-    *must_precopy = 0;
-    *can_postcopy = 0;
+    pending->precopy_bytes = 0;
+    pending->postcopy_bytes = 0;
 
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
-        if (!se->ops || !se->ops->state_pending_estimate) {
+        if (!se->ops || !se->ops->save_query_pending) {
             continue;
         }
         if (!qemu_savevm_state_active(se)) {
             continue;
         }
-        se->ops->state_pending_estimate(se->opaque, must_precopy, can_postcopy);
+        se->ops->save_query_pending(se->opaque, pending, exact);
     }
+}
+
+void qemu_savevm_state_pending_estimate(uint64_t *must_precopy,
+                                        uint64_t *can_postcopy)
+{
+    MigPendingData pending;
+
+    qemu_savevm_query_pending(&pending, false);
+
+    *must_precopy = pending.precopy_bytes;
+    *can_postcopy = pending.postcopy_bytes;
 }
 
 void qemu_savevm_state_pending_exact(uint64_t *must_precopy,
                                      uint64_t *can_postcopy)
 {
-    SaveStateEntry *se;
+    MigPendingData pending;
 
-    *must_precopy = 0;
-    *can_postcopy = 0;
+    qemu_savevm_query_pending(&pending, true);
 
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
-        if (!se->ops || !se->ops->state_pending_exact) {
-            continue;
-        }
-        if (!qemu_savevm_state_active(se)) {
-            continue;
-        }
-        se->ops->state_pending_exact(se->opaque, must_precopy, can_postcopy);
-    }
+    *must_precopy = pending.precopy_bytes;
+    *can_postcopy = pending.postcopy_bytes;
 }
 
 void qemu_savevm_state_cleanup(void)

@@ -16,6 +16,13 @@
 
 #include "hw/core/vmstate-if.h"
 
+typedef struct MigPendingData {
+    /* Amount of pending bytes can be transferred in precopy or stopcopy */
+    uint64_t precopy_bytes;
+    /* Amount of pending bytes can be transferred in postcopy */
+    uint64_t postcopy_bytes;
+} MigPendingData;
+
 /**
  * struct SaveVMHandlers: handler structure to finely control
  * migration of complex subsystems and devices, such as RAM, block and
@@ -197,46 +204,19 @@ typedef struct SaveVMHandlers {
     bool (*save_postcopy_prepare)(QEMUFile *f, void *opaque, Error **errp);
 
     /**
-     * @state_pending_estimate
+     * @save_query_pending
      *
-     * This estimates the remaining data to transfer
-     *
-     * Sum of @can_postcopy and @must_postcopy is the whole amount of
-     * pending data.
-     *
-     * @opaque: data pointer passed to register_savevm_live()
-     * @must_precopy: amount of data that must be migrated in precopy
-     *                or in stopped state, i.e. that must be migrated
-     *                before target start.
-     * @can_postcopy: amount of data that can be migrated in postcopy
-     *                or in stopped state, i.e. after target start.
-     *                Some can also be migrated during precopy (RAM).
-     *                Some must be migrated after source stops
-     *                (block-dirty-bitmap)
-     */
-    void (*state_pending_estimate)(void *opaque, uint64_t *must_precopy,
-                                   uint64_t *can_postcopy);
-
-    /**
-     * @state_pending_exact
-     *
-     * This calculates the exact remaining data to transfer
-     *
-     * Sum of @can_postcopy and @must_postcopy is the whole amount of
-     * pending data.
+     * This estimates the remaining data to transfer on the source side.
+     * It's highly suggested that the module should implement both fastpath
+     * and slowpath version of it when it can be slow (for more information
+     * please check pending->fastpath field).
      *
      * @opaque: data pointer passed to register_savevm_live()
-     * @must_precopy: amount of data that must be migrated in precopy
-     *                or in stopped state, i.e. that must be migrated
-     *                before target start.
-     * @can_postcopy: amount of data that can be migrated in postcopy
-     *                or in stopped state, i.e. after target start.
-     *                Some can also be migrated during precopy (RAM).
-     *                Some must be migrated after source stops
-     *                (block-dirty-bitmap)
+     * @pending: pointer to a MigPendingData struct
+     * @exact: set true for an accurate (slow) query
      */
-    void (*state_pending_exact)(void *opaque, uint64_t *must_precopy,
-                                uint64_t *can_postcopy);
+    void (*save_query_pending)(void *opaque, MigPendingData *pending,
+                               bool exact);
 
     /**
      * @load_state
