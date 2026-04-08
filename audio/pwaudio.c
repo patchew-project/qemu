@@ -56,7 +56,7 @@ typedef struct PWVoice {
     uint32_t highwater_mark;
     uint32_t frame_size, req;
     struct spa_ringbuffer ring;
-    uint8_t buffer[RINGBUFFER_SIZE];
+    uint8_t *buffer;
 
     pwvolume volume;
     bool muted;
@@ -532,6 +532,12 @@ qpw_init_out(HWVoiceOut *hw, struct audsettings *as)
     AudiodevPipewirePerDirectionOptions *ppdo = popts->out;
     int r;
 
+    v->buffer = g_malloc(RINGBUFFER_SIZE);
+    if (!v->buffer) {
+        error_report("pipewire: failed to allocate buffer");
+        return -1;
+    }
+
     pw_thread_loop_lock(c->thread_loop);
 
     v->info.format = audfmt_to_pw(as->fmt, as->big_endian);
@@ -551,6 +557,8 @@ qpw_init_out(HWVoiceOut *hw, struct audsettings *as)
                        ppdo->name, SPA_DIRECTION_OUTPUT);
     if (r < 0) {
         pw_thread_loop_unlock(c->thread_loop);
+        g_free(v->buffer);
+        v->buffer = NULL;
         return -1;
     }
 
@@ -579,6 +587,12 @@ qpw_init_in(HWVoiceIn *hw, struct audsettings *as)
     AudiodevPipewirePerDirectionOptions *ppdo = popts->in;
     int r;
 
+    v->buffer = g_malloc(RINGBUFFER_SIZE);
+    if (!v->buffer) {
+        error_report("pipewire: failed to allocate buffer");
+        return -1;
+    }
+
     pw_thread_loop_lock(c->thread_loop);
 
     v->info.format = audfmt_to_pw(as->fmt, as->big_endian);
@@ -595,6 +609,8 @@ qpw_init_in(HWVoiceIn *hw, struct audsettings *as)
                        ppdo->name, SPA_DIRECTION_INPUT);
     if (r < 0) {
         pw_thread_loop_unlock(c->thread_loop);
+        g_free(v->buffer);
+        v->buffer = NULL;
         return -1;
     }
 
@@ -619,6 +635,8 @@ qpw_voice_fini(AudioPw *c, PWVoice *v)
     pw_stream_destroy(v->stream);
     v->stream = NULL;
     pw_thread_loop_unlock(c->thread_loop);
+    g_free(v->buffer);
+    v->buffer = NULL;
 }
 
 static void
