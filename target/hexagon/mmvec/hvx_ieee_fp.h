@@ -15,4 +15,10 @@ float32 fp_mult_sf_hf(float16 a1, float16 a2, float_status *fp_status);
 float32 fp_vdmpy(float16 a1, float16 a2, float16 a3, float16 a4,
                  float_status *fp_status);
 
+/* Qfloat min/max treat +NaN as greater than +INF and -NaN as smaller than -INF */
+uint32_t qf_max_sf(uint32_t a1, uint32_t a2, float_status *fp_status);
+uint32_t qf_min_sf(uint32_t a1, uint32_t a2, float_status *fp_status);
+uint16_t qf_max_hf(uint16_t a1, uint16_t a2, float_status *fp_status);
+uint16_t qf_min_hf(uint16_t a1, uint16_t a2, float_status *fp_status);
+
 #endif
