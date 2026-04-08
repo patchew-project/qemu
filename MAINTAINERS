@@ -1256,6 +1256,8 @@ F: hw/*/*aspeed*
 F: include/hw/*/*aspeed*
 F: hw/net/ftgmac100.c
 F: include/hw/net/ftgmac100.h
+F: hw/misc/mctp-i2c-responder*.c
+F: include/hw/misc/mctp-i2c-responder.h
 F: docs/system/arm/aspeed.rst
 F: docs/system/arm/fby35.rst
 F: docs/specs/aspeed*
