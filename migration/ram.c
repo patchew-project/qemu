@@ -1136,8 +1136,6 @@ static void migration_bitmap_sync(RAMState *rs, bool last_stage)
     RAMBlock *block;
     int64_t end_time;
 
-    qatomic_add(&mig_stats.dirty_sync_count, 1);
-
     if (!rs->time_last_bitmap_sync) {
         rs->time_last_bitmap_sync = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     }
@@ -1171,10 +1169,6 @@ static void migration_bitmap_sync(RAMState *rs, bool last_stage)
         rs->time_last_bitmap_sync = end_time;
         rs->num_dirty_pages_period = 0;
         rs->bytes_xfer_prev = migration_transferred_bytes();
-    }
-    if (migrate_events()) {
-        uint64_t generation = qatomic_read(&mig_stats.dirty_sync_count);
-        qapi_event_send_migration_pass(generation);
     }
 }
 
