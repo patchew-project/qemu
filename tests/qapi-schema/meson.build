@@ -85,6 +85,7 @@ schemas = [
   'doc-long-line.json',
   'doc-misplaced-details.json',
   'doc-missing-colon.json',
+  'doc-missing-details.json',
   'doc-missing-expr.json',
   'doc-missing-space.json',
   'doc-missing.json',
