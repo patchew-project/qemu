@@ -36,6 +36,7 @@ static inline void cpu_clone_regs_parent(CPUMIPSState *env, unsigned flags)
 static inline void cpu_set_tls(CPUMIPSState *env, target_ulong newtls)
 {
     env->active_tc.CP0_UserLocal = newtls;
+    env->active_tc.gpr[26] = newtls;
 }
 
 static inline abi_ulong get_sp_from_cpustate(CPUMIPSState *state)
