@@ -316,7 +316,7 @@ static void input_linux_complete(UserCreatable *uc, Error **errp)
         return;
     }
     if (!qemu_set_blocking(il->fd, false, errp)) {
-        return;
+        goto err_close;
     }
 
     rc = ioctl(il->fd, EVIOCGVERSION, &ver);
