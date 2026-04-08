@@ -950,12 +950,8 @@ static void qio_channel_websock_finalize(Object *obj)
     buffer_free(&ioc->encinput);
     buffer_free(&ioc->encoutput);
     buffer_free(&ioc->rawinput);
-    if (ioc->hs_io_tag) {
-        g_source_remove(ioc->hs_io_tag);
-    }
-    if (ioc->io_tag) {
-        g_source_remove(ioc->io_tag);
-    }
+    g_clear_handle_id(&ioc->hs_io_tag, g_source_remove);
+    g_clear_handle_id(&ioc->io_tag, g_source_remove);
     error_free(ioc->io_err);
     object_unref(OBJECT(ioc->master));
 }
