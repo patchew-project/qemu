@@ -1,0 +1,3 @@
+# FIXME / TODO
+# This test should test for the error message when we misplace details
+# sections interleaved between descriptions/tagged sections.

@@ -985,10 +985,17 @@ When documentation is required (see pragma_ 'doc-required'), every
 definition must have documentation.
 
 Definition documentation starts with a line naming the definition,
-followed by an optional overview, a description of each argument (for
-commands and events), member (for structs and unions), branch (for
-alternates), or value (for enums), a description of each feature (if
-any), and finally optional tagged sections.
+followed by an optional overview (the "intro"), a description of each
+argument (for commands and events), member (for structs and unions),
+branch (for alternates), or value (for enums), a description of each
+feature (if any), most optional tagged sections, plaintext detail
+paragraphs, and finally the optional "Since" tagged section.
+
+Paragraphs following the optional overview (the "intro") may not appear
+between any description or tagged section as described above. These
+sections are "detail" sections and must appear at the end of the
+documentation block, with the exception of "Since" or "TODO" sections
+which may appear after.
 
 Descriptions start with '\@name:'.  The description text must be
 indented like this::
