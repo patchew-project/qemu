@@ -544,7 +544,7 @@ class QAPISchemaParser:
             doc = QAPIDoc(info, symbol)
             self.accept(False)
             line = self.get_doc_line()
-            no_more_args = False
+            have_tagged = False
 
             while line is not None:
                 # Blank lines
@@ -573,10 +573,10 @@ class QAPISchemaParser:
                     if not doc.features:
                         raise QAPIParseError(
                             self, 'feature descriptions expected')
-                    no_more_args = True
+                    have_tagged = True
                 elif match := self._match_at_name_colon(line):
                     # description
-                    if no_more_args:
+                    if have_tagged:
                         raise QAPIParseError(
                             self,
                             "description of '@%s:' follows a section"
@@ -588,7 +588,7 @@ class QAPISchemaParser:
                         if text:
                             doc.append_line(text)
                         line = self.get_doc_indented(doc)
-                    no_more_args = True
+                    have_tagged = True
                 elif match := re.match(
                         r'(Returns|Errors|Since|Notes?|Examples?|TODO)'
                         r'(?!::): *',
@@ -629,10 +629,14 @@ class QAPISchemaParser:
                     if text:
                         doc.append_line(text)
                     line = self.get_doc_indented(doc)
-                    no_more_args = True
+                    have_tagged = True
                 else:
                     # plain paragraph
-                    doc.ensure_untagged_section(self.info)
+
+                    # Paragraphs before tagged sections are "intro" paragraphs.
+                    # Any appearing after are "detail" paragraphs.
+                    intro = not have_tagged
+                    doc.ensure_untagged_section(self.info, intro)
                     doc.append_line(line)
                     line = self.get_doc_paragraph(doc)
         else:
@@ -674,13 +678,14 @@ class QAPIDoc:
     """
 
     class Kind(enum.Enum):
-        PLAIN = 0
+        INTRO = 0
         MEMBER = 1
         FEATURE = 2
         RETURNS = 3
         ERRORS = 4
         SINCE = 5
         TODO = 6
+        DETAILS = 7
 
         @staticmethod
         def from_string(kind: str) -> 'QAPIDoc.Kind':
@@ -730,7 +735,7 @@ class QAPIDoc:
         self.symbol: Optional[str] = symbol
         # the sections in textual order
         self.all_sections: List[QAPIDoc.Section] = [
-            QAPIDoc.Section(info, QAPIDoc.Kind.PLAIN)
+            QAPIDoc.Section(info, QAPIDoc.Kind.INTRO)
         ]
         # the body section
         self.body: Optional[QAPIDoc.Section] = self.all_sections[0]
@@ -748,12 +753,20 @@ class QAPIDoc:
     def end(self) -> None:
         for section in self.all_sections:
             section.text = section.text.strip('\n')
-            if section.kind != QAPIDoc.Kind.PLAIN and section.text == '':
+            if (
+                    section.kind not in (
+                        QAPIDoc.Kind.INTRO, QAPIDoc.Kind.DETAILS
+                    ) and section.text == ''
+            ):
                 raise QAPISemError(
                     section.info, "text required after '%s:'" % section.kind)
 
-    def ensure_untagged_section(self, info: QAPISourceInfo) -> None:
-        kind = QAPIDoc.Kind.PLAIN
+    def ensure_untagged_section(
+        self,
+        info: QAPISourceInfo,
+        intro: bool = True,
+    ) -> None:
+        kind = QAPIDoc.Kind.INTRO if intro else QAPIDoc.Kind.DETAILS
 
         if self.all_sections and self.all_sections[-1].kind == kind:
             # extend current section

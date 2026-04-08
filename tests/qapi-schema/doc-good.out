@@ -116,7 +116,7 @@ The _one_ {and only}, description on the same line
 Also _one_ {and only}
     feature=enum-member-feat
 a member feature
-    section=Plain
+    section=Details
 @two is undocumented
 doc symbol=Base
     body=
@@ -175,7 +175,7 @@ description starts on the same line
 a feature
     feature=cmd-feat2
 another feature
-    section=Plain
+    section=Details
 .. note:: @arg3 is undocumented
     section=Returns
 @Object
@@ -183,7 +183,7 @@ another feature
 some
     section=Todo
 frobnicate
-    section=Plain
+    section=Details
 .. admonition:: Notes
 
  - Lorem ipsum dolor sit amet
@@ -216,7 +216,7 @@ If you're bored enough to read this, go see a video of boxed cats
 a feature
     feature=cmd-feat2
 another feature
-    section=Plain
+    section=Details
 .. qmp-example::
 
    -> "this example"
