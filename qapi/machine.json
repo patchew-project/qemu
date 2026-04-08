@@ -108,7 +108,7 @@
 #
 # Return information about all virtual CPUs.
 #
-# Since: 2.12
+# Details:
 #
 # .. qmp-example::
 #
@@ -138,6 +138,8 @@
 #             }
 #         ]
 #     }
+#
+# Since: 2.12
 ##
 { 'command': 'query-cpus-fast', 'returns': [ 'CpuInfoFast' ] }
 
@@ -223,8 +225,6 @@
 #
 # @unstable: Argument @compat-props is experimental.
 #
-# Since: 1.2
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-machines", "arguments": { "compat-props": true } }
@@ -247,6 +247,8 @@
 #               },
 #               ...
 #        }
+#
+# Since: 1.2
 ##
 { 'command': 'query-machines',
   'data': { '*compat-props': { 'type': 'bool',
@@ -303,10 +305,10 @@
 #
 # @UUID: the UUID of the guest
 #
-# Since: 0.14
-#
 # .. note:: If no UUID was specified for the guest, the nil UUID (all
 #    zeroes) is returned.
+#
+# Since: 0.14
 ##
 { 'struct': 'UuidInfo', 'data': {'UUID': 'str'} }
 
@@ -315,12 +317,14 @@
 #
 # Query the guest UUID information.
 #
-# Since: 0.14
+# Details:
 #
 # .. qmp-example::
 #
 #     -> { "execute": "query-uuid" }
 #     <- { "return": { "UUID": "550e8400-e29b-41d4-a716-446655440000" } }
+#
+# Since: 0.14
 ##
 { 'command': 'query-uuid', 'returns': 'UuidInfo', 'allow-preconfig': true }
 
@@ -349,12 +353,14 @@
 #
 # Performs a hard reset of a guest.
 #
-# Since: 0.14
+# Details:
 #
 # .. qmp-example::
 #
 #     -> { "execute": "system_reset" }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'system_reset' }
 
@@ -363,7 +369,7 @@
 #
 # Requests that a guest perform a powerdown operation.
 #
-# Since: 0.14
+# Details:
 #
 # .. note:: A guest may or may not respond to this command.  This
 #    command returning does not indicate that a guest has accepted the
@@ -374,6 +380,8 @@
 #
 #     -> { "execute": "system_powerdown" }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'system_powerdown' }
 
@@ -385,7 +393,7 @@
 # `query-current-machine`), wake-up guest from suspend if the guest is
 # in SUSPENDED state.  Return an error otherwise.
 #
-# Since: 1.1
+# Details:
 #
 # .. note:: Prior to 4.0, this command does nothing in case the guest
 #    isn't suspended.
@@ -394,6 +402,8 @@
 #
 #     -> { "execute": "system_wakeup" }
 #     <- { "return": {} }
+#
+# Since: 1.1
 ##
 { 'command': 'system_wakeup' }
 
@@ -436,7 +446,7 @@
 # all CPUs (ppc64).  The command fails when the guest doesn't support
 # injecting.
 #
-# Since: 0.14
+# Details:
 #
 # .. note:: Prior to 2.1, this command was only supported for x86 and
 #    s390 VMs.
@@ -445,6 +455,8 @@
 #
 #     -> { "execute": "inject-nmi" }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'inject-nmi' }
 
@@ -806,8 +818,6 @@
 # @cpu-index: the index of the virtual CPU to use for translating the
 #     virtual address (defaults to CPU 0)
 #
-# Since: 0.14
-#
 # .. caution:: Errors were not reliably returned until 1.1.
 #
 # .. qmp-example::
@@ -817,6 +827,8 @@
 #                         "size": 100,
 #                         "filename": "/tmp/virtual-mem-dump" } }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'memsave',
   'data': {
@@ -836,8 +848,6 @@
 #
 # @filename: the file to save the memory to as binary data
 #
-# Since: 0.14
-#
 # .. caution:: Errors were not reliably returned until 1.1.
 #
 # .. qmp-example::
@@ -847,6 +857,8 @@
 #                         "size": 100,
 #                         "filename": "/tmp/physical-mem-dump" } }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'pmemsave',
   'data': {
@@ -900,7 +912,7 @@
 #
 # Return information for all memory backends.
 #
-# Since: 2.1
+# Details:
 #
 # .. qmp-example::
 #
@@ -927,6 +939,8 @@
 #            }
 #          ]
 #        }
+#
+# Since: 2.1
 ##
 { 'command': 'query-memdev', 'returns': ['Memdev'], 'allow-preconfig': true }
 
@@ -1015,8 +1029,6 @@
 #
 # TODO: Better documentation; currently there is none.
 #
-# Since: 2.7
-#
 # .. qmp-example::
 #    :annotated:
 #
@@ -1067,6 +1079,8 @@
 #             "props": { "core-id": 0 }
 #          }
 #        ]}
+#
+# Since: 2.7
 ##
 { 'command': 'query-hotpluggable-cpus', 'returns': ['HotpluggableCPU'],
              'allow-preconfig': true }
@@ -1105,8 +1119,6 @@
 #    returns, the balloon size may not have changed.  A guest can
 #    change the balloon size independent of this command.
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #    :annotated:
 #
@@ -1116,6 +1128,8 @@
 #      <- { "return": {} }
 #
 #    With a 2.5GiB guest this command inflated the ballon to 3GiB.
+#
+# Since: 0.14
 ##
 { 'command': 'balloon', 'data': {'value': 'int'} }
 
@@ -1141,8 +1155,6 @@
 #       the KVM kernel module cannot support it, KVMMissingCap
 #     - If no balloon device is present, DeviceNotActive
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-balloon" }
@@ -1150,6 +1162,8 @@
 #              "actual": 1073741824
 #           }
 #        }
+#
+# Since: 0.14
 ##
 { 'command': 'query-balloon', 'returns': 'BalloonInfo' }
 
@@ -1165,13 +1179,13 @@
 #
 # .. note:: This event is rate-limited.
 #
-# Since: 1.2
-#
 # .. qmp-example::
 #
 #     <- { "event": "BALLOON_CHANGE",
 #          "data": { "actual": 944766976 },
 #          "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
+#
+# Since: 1.2
 ##
 { 'event': 'BALLOON_CHANGE',
   'data': { 'actual': 'int' } }
@@ -1204,8 +1218,6 @@
 #       reporting is not enabled or no guest memory status report
 #       received yet, GenericError
 #
-# Since: 8.2
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-hv-balloon-status-report" }
@@ -1214,6 +1226,8 @@
 #              "available": 3333054464
 #           }
 #        }
+#
+# Since: 8.2
 ##
 { 'command': 'query-hv-balloon-status-report', 'returns': 'HvBalloonInfo' }
 
@@ -1227,13 +1241,13 @@
 #
 # .. note:: This event is rate-limited.
 #
-# Since: 8.2
-#
 # .. qmp-example::
 #
 #     <- { "event": "HV_BALLOON_STATUS_REPORT",
 #          "data": { "committed": 816640000, "available": 3333054464 },
 #          "timestamp": { "seconds": 1600295492, "microseconds": 661044 } }
+#
+# Since: 8.2
 ##
 { 'event': 'HV_BALLOON_STATUS_REPORT',
   'data': 'HvBalloonInfo' }
@@ -1540,7 +1554,7 @@
 #
 # Lists available memory devices and their state
 #
-# Since: 2.1
+# Details:
 #
 # .. qmp-example::
 #
@@ -1556,6 +1570,8 @@
 #                             "slot": 0},
 #                        "type": "dimm"
 #                      } ] }
+#
+# Since: 2.1
 ##
 { 'command': 'query-memory-devices', 'returns': ['MemoryDeviceInfo'] }
 
@@ -1574,14 +1590,14 @@
 #
 # .. note:: This event is rate-limited.
 #
-# Since: 5.1
-#
 # .. qmp-example::
 #
 #     <- { "event": "MEMORY_DEVICE_SIZE_CHANGE",
 #          "data": { "id": "vm0", "size": 1073741824,
 #                    "qom-path": "/machine/unattached/device[2]" },
 #          "timestamp": { "seconds": 1588168529, "microseconds": 201316 } }
+#
+# Since: 5.1
 ##
 { 'event': 'MEMORY_DEVICE_SIZE_CHANGE',
   'data': { '*id': 'str', 'size': 'size', 'qom-path' : 'str'} }
@@ -1814,13 +1830,13 @@
 #
 # @filename: name of the dtb file to be created
 #
-# Since: 7.2
-#
 # .. qmp-example::
 #
 #     -> { "execute": "dumpdtb" }
 #          "arguments": { "filename": "fdt.dtb" } }
 #     <- { "return": {} }
+#
+# Since: 7.2
 ##
 { 'command': 'dumpdtb',
   'data': { 'filename': 'str' },
@@ -1879,13 +1895,13 @@
 #
 # @filename: the path to the file to dump to
 #
-# Since: 2.5
-#
 # .. qmp-example::
 #
 #     -> { "execute": "dump-skeys",
 #          "arguments": { "filename": "/tmp/skeys" } }
 #     <- { "return": {} }
+#
+# Since: 2.5
 ##
 { 'command': 'dump-skeys',
   'data': { 'filename': 'str' } }

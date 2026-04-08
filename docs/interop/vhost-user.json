@@ -264,8 +264,6 @@
 #     development and debugging purposes only, and management software
 #     shall explicitly ignore it.
 #
-# Since: 4.0
-#
 # .. qmp-example:
 #
 # {
@@ -278,6 +276,7 @@
 #   ]
 # }
 #
+# Since: 4.0
 ##
 {
   'struct' : 'VhostUserBackend',

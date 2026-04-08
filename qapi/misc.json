@@ -30,13 +30,13 @@
 #
 # @tls: whether to perform TLS.  Only applies to the "spice" protocol
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     -> { "execute": "add_client", "arguments": { "protocol": "vnc",
 #                                                  "fdname": "myclient" } }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'add_client',
   'data': { 'protocol': 'str', 'fdname': 'str', '*skipauth': 'bool',
@@ -58,12 +58,14 @@
 #
 # Return the name information of a guest.
 #
-# Since: 0.14
+# Details:
 #
 # .. qmp-example::
 #
 #     -> { "execute": "query-name" }
 #     <- { "return": { "name": "qemu-name" } }
+#
+# Since: 0.14
 ##
 { 'command': 'query-name', 'returns': 'NameInfo', 'allow-preconfig': true }
 
@@ -109,8 +111,6 @@
 #
 # Returns: a list of info for each iothread
 #
-# Since: 2.0
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-iothreads" }
@@ -125,6 +125,8 @@
 #              }
 #           ]
 #        }
+#
+# Since: 2.0
 ##
 { 'command': 'query-iothreads', 'returns': ['IOThreadInfo'],
   'allow-preconfig': true }
@@ -134,7 +136,7 @@
 #
 # Stop guest VM execution.
 #
-# Since: 0.14
+# Details:
 #
 # .. note:: This function will succeed even if the guest is already in
 #    the stopped state.  In "inmigrate" state, it will ensure that the
@@ -148,6 +150,8 @@
 #
 #     -> { "execute": "stop" }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'stop' }
 
@@ -156,7 +160,7 @@
 #
 # Resume guest VM execution.
 #
-# Since: 0.14
+# Details:
 #
 # .. note:: This command will succeed if the guest is currently
 #    running.  It will also succeed if the guest is in the "inmigrate"
@@ -172,6 +176,8 @@
 #
 #     -> { "execute": "cont" }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'cont' }
 
@@ -190,12 +196,12 @@
 #
 # @unstable: This command is experimental.
 #
-# Since: 3.0
-#
 # .. qmp-example::
 #
 #     -> { "execute": "x-exit-preconfig" }
 #     <- { "return": {} }
+#
+# Since: 3.0
 ##
 { 'command': 'x-exit-preconfig', 'allow-preconfig': true,
   'features': [ 'unstable' ] }
@@ -217,8 +223,6 @@
 #     monitor-owned nodes if they have no parents.  This allows the
 #     use of 'savevm' with -blockdev.  (since 4.2)
 #
-# Since: 0.14
-#
 # .. note:: This command only exists as a stop-gap.  Its use is highly
 #    discouraged.  The semantics of this command are not guaranteed:
 #    this means that command names, arguments and responses can change
@@ -237,6 +241,8 @@
 #     -> { "execute": "human-monitor-command",
 #          "arguments": { "command-line": "info kvm" } }
 #     <- { "return": "kvm support: enabled\r\n" }
+#
+# Since: 0.14
 ##
 { 'command': 'human-monitor-command',
   'data': {'command-line': 'str', '*cpu-index': 'int'},
@@ -250,8 +256,6 @@
 #
 # @fdname: file descriptor name
 #
-# Since: 0.14
-#
 # .. note:: If @fdname already exists, the file descriptor assigned to
 #    it will be closed and replaced by the received file descriptor.
 #
@@ -262,6 +266,8 @@
 #
 #     -> { "execute": "getfd", "arguments": { "fdname": "fd1" } }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'getfd', 'data': {'fdname': 'str'}, 'if': 'CONFIG_POSIX' }
 
@@ -277,8 +283,6 @@
 #
 # @fdname: file descriptor name
 #
-# Since: 8.0
-#
 # .. note:: If @fdname already exists, the file descriptor assigned to
 #    it will be closed and replaced by the received file descriptor.
 #
@@ -290,6 +294,8 @@
 #     -> { "execute": "get-win32-socket",
 #          "arguments": { "info": "abcd123..", "fdname": "skclient" } }
 #     <- { "return": {} }
+#
+# Since: 8.0
 ##
 { 'command': 'get-win32-socket', 'data': {'info': 'str', 'fdname': 'str'}, 'if': 'CONFIG_WIN32' }
 
@@ -300,12 +306,12 @@
 #
 # @fdname: file descriptor name
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     -> { "execute": "closefd", "arguments": { "fdname": "fd1" } }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'closefd', 'data': {'fdname': 'str'} }
 
@@ -341,12 +347,12 @@
 # .. note:: If @fdset-id is not specified, a new fd set will be
 #    created.
 #
-# Since: 1.2
-#
 # .. qmp-example::
 #
 #     -> { "execute": "add-fd", "arguments": { "fdset-id": 1 } }
 #     <- { "return": { "fdset-id": 1, "fd": 3 } }
+#
+# Since: 1.2
 ##
 { 'command': 'add-fd',
   'data': { '*fdset-id': 'int',
@@ -365,8 +371,6 @@
 # Errors:
 #     - If @fdset-id or @fd is not found, GenericError
 #
-# Since: 1.2
-#
 # .. note:: The list of fd sets is shared by all monitor connections.
 #
 # .. note:: If @fd is not specified, all file descriptors in @fdset-id
@@ -376,6 +380,8 @@
 #
 #     -> { "execute": "remove-fd", "arguments": { "fdset-id": 1, "fd": 3 } }
 #     <- { "return": {} }
+#
+# Since: 1.2
 ##
 { 'command': 'remove-fd', 'data': {'fdset-id': 'int', '*fd': 'int'} }
 
@@ -412,7 +418,7 @@
 #
 # Return information describing all fd sets.
 #
-# Since: 1.2
+# Details:
 #
 # .. note:: The list of fd sets is shared by all monitor connections.
 #
@@ -446,6 +452,8 @@
 #            }
 #          ]
 #        }
+#
+# Since: 1.2
 ##
 { 'command': 'query-fdsets', 'returns': ['FdsetInfo'] }
 
@@ -516,8 +524,6 @@
 # Errors:
 #     - if the given @option doesn't exist
 #
-# Since: 1.5
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-command-line-options",
@@ -538,6 +544,8 @@
 #             }
 #          ]
 #        }
+#
+# Since: 1.5
 ##
 {'command': 'query-command-line-options',
  'data': {'*option': 'str'},
@@ -558,13 +566,13 @@
 #    RTC in the system implements this event, or even that the system
 #    has an RTC at all.
 #
-# Since: 0.13
-#
 # .. qmp-example::
 #
 #     <- { "event": "RTC_CHANGE",
 #          "data": { "offset": 78 },
 #          "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
+#
+# Since: 0.13
 ##
 { 'event': 'RTC_CHANGE',
   'data': { 'offset': 'int', 'qom-path': 'str' } }
@@ -585,8 +593,6 @@
 #
 # @dev-qom-path: path to attached PCI device in the QOM tree
 #
-# Since: 7.1
-#
 # .. qmp-example::
 #
 #     <- { "event": "VFU_CLIENT_HANGUP",
@@ -595,6 +601,8 @@
 #                    "dev-id": "sas1",
 #                    "dev-qom-path": "/machine/peripheral/sas1" },
 #          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
+# Since: 7.1
 ##
 { 'event': 'VFU_CLIENT_HANGUP',
   'data': { 'vfu-id': 'str', 'vfu-qom-path': 'str',

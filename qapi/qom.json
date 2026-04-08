@@ -85,8 +85,6 @@
 #
 # Returns: a list that describe the properties of the object.
 #
-# Since: 1.2
-#
 # .. qmp-example::
 #
 #     -> { "execute": "qom-list",
@@ -95,6 +93,8 @@
 #                      { "name": "parallel0", "type": "child<chardev-vc>" },
 #                      { "name": "serial0", "type": "child<chardev-vc>" },
 #                      { "name": "mon0", "type": "child<chardev-stdio>" } ] }
+#
+# Since: 1.2
 ##
 { 'command': 'qom-list',
   'data': { 'path': 'str' },
@@ -129,8 +129,6 @@
 #     child<> and link<> properties are returned as #str pathnames.
 #     All integer property types (u8, u16, etc) are returned as #int.
 #
-# Since: 1.2
-#
 # .. qmp-example::
 #    :title: Use absolute path
 #
@@ -146,6 +144,8 @@
 #          "arguments": { "path": "unattached/sysbus",
 #                         "property": "type" } }
 #     <- { "return": "System" }
+#
+# Since: 1.2
 ##
 { 'command': 'qom-get',
   'data': { 'path': 'str', 'property': 'str' },
@@ -186,8 +186,6 @@
 # @value: a value who's type is appropriate for the property type.
 #     See `qom-get` for a description of type mapping.
 #
-# Since: 1.2
-#
 # .. qmp-example::
 #
 #     -> { "execute": "qom-set",
@@ -195,6 +193,8 @@
 #                         "property": "graphics",
 #                         "value": false } }
 #     <- { "return": {} }
+#
+# Since: 1.2
 ##
 { 'command': 'qom-set',
   'data': { 'path': 'str', 'property': 'str', 'value': 'any' },
@@ -1342,14 +1342,14 @@
 # Errors:
 #     - If @qom-type is not a valid class name
 #
-# Since: 2.0
-#
 # .. qmp-example::
 #
 #     -> { "execute": "object-add",
 #          "arguments": { "qom-type": "rng-random", "id": "rng1",
 #                         "filename": "/dev/hwrng" } }
 #     <- { "return": {} }
+#
+# Since: 2.0
 ##
 { 'command': 'object-add', 'data': 'ObjectOptions', 'boxed': true,
   'allow-preconfig': true }
@@ -1364,12 +1364,12 @@
 # Errors:
 #     - If @id is not a valid id for a QOM object
 #
-# Since: 2.0
-#
 # .. qmp-example::
 #
 #     -> { "execute": "object-del", "arguments": { "id": "rng1" } }
 #     <- { "return": {} }
+#
+# Since: 2.0
 ##
 { 'command': 'object-del', 'data': {'id': 'str'},
   'allow-preconfig': true }

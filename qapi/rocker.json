@@ -30,12 +30,12 @@
 #
 # @name: switch name
 #
-# Since: 2.4
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-rocker", "arguments": { "name": "sw1" } }
 #     <- { "return": {"name": "sw1", "ports": 2, "id": 1327446905938}}
+#
+# Since: 2.4
 ##
 { 'command': 'query-rocker',
   'data': { 'name': 'str' },
@@ -98,8 +98,6 @@
 #
 # @name: port name
 #
-# Since: 2.4
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-rocker-ports", "arguments": { "name": "sw1" } }
@@ -108,6 +106,8 @@
 #                      {"duplex": "full", "enabled": true, "name": "sw1.2",
 #                       "autoneg": "off", "link-up": true, "speed": 10000}
 #        ]}
+#
+# Since: 2.4
 ##
 { 'command': 'query-rocker-ports',
   'data': { 'name': 'str' },
@@ -240,8 +240,6 @@
 #
 # Returns: rocker OF-DPA flow information
 #
-# Since: 2.4
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-rocker-of-dpa-flows",
@@ -254,6 +252,8 @@
 #                      },
 #                      ...
 #        ]}
+#
+# Since: 2.4
 ##
 { 'command': 'query-rocker-of-dpa-flows',
   'data': { 'name': 'str', '*tbl-id': 'uint32' },
@@ -315,8 +315,6 @@
 #
 # Returns: rocker OF-DPA group information
 #
-# Since: 2.4
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-rocker-of-dpa-groups",
@@ -334,6 +332,8 @@
 #                       "pport": 0, "vlan-id": 3840,
 #                       "pop-vlan": 1, "id": 251658240}
 #        ]}
+#
+# Since: 2.4
 ##
 { 'command': 'query-rocker-of-dpa-groups',
   'data': { 'name': 'str', '*type': 'uint8' },

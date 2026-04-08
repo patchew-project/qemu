@@ -97,8 +97,6 @@
 #
 # Returns: An object describing the current version of QEMU.
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-version" }
@@ -112,6 +110,8 @@
 #              "package":""
 #           }
 #        }
+#
+# Since: 0.14
 ##
 { 'command': 'query-version', 'returns': 'VersionInfo',
   'allow-preconfig': true }
@@ -134,8 +134,6 @@
 #
 # Returns: A list of all supported commands
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-commands" }
@@ -152,6 +150,8 @@
 #        }
 #
 # This example has been shortened as the real response is too long.
+#
+# Since: 0.14
 ##
 { 'command': 'query-commands', 'returns': ['CommandInfo'],
   'allow-preconfig': true }
@@ -161,16 +161,18 @@
 #
 # Request graceful QEMU process termination.
 #
+# Details:
+#
 # While every attempt is made to send the QMP response before
 # terminating, this is not guaranteed.  When using this interface, a
 # premature EOF would not be unexpected.
-#
-# Since: 0.14
 #
 # .. qmp-example::
 #
 #     -> { "execute": "quit" }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'quit',
   'allow-preconfig': true }

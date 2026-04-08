@@ -339,7 +339,7 @@
 # Return information about current migration process.  If migration is
 # active there will be another json-object with RAM migration status.
 #
-# Since: 0.14
+# Details:
 #
 # .. qmp-example::
 #    :title: Before the first migration
@@ -426,6 +426,8 @@
 #              }
 #           }
 #        }
+#
+# Since: 0.14
 ##
 { 'command': 'query-migrate', 'returns': 'MigrationInfo' }
 
@@ -562,13 +564,13 @@
 #
 # @capabilities: json array of capability modifications to make
 #
-# Since: 1.2
-#
 # .. qmp-example::
 #
 #     -> { "execute": "migrate-set-capabilities" , "arguments":
 #          { "capabilities": [ { "capability": "xbzrle", "state": true } ] } }
 #     <- { "return": {} }
+#
+# Since: 1.2
 ##
 { 'command': 'migrate-set-capabilities',
   'data': { 'capabilities': ['MigrationCapabilityStatus'] } }
@@ -578,7 +580,7 @@
 #
 # Return information about the current migration capabilities status
 #
-# Since: 1.2
+# Details:
 #
 # .. qmp-example::
 #
@@ -591,6 +593,8 @@
 #           {"state": false, "capability": "postcopy-ram"},
 #           {"state": false, "capability": "x-colo"}
 #        ]}
+#
+# Since: 1.2
 ##
 { 'command': 'query-migrate-capabilities', 'returns':   ['MigrationCapabilityStatus']}
 
@@ -838,13 +842,15 @@
 #
 # Set migration parameters.  All arguments are optional.
 #
-# Since: 2.4
+# Details:
 #
 # .. qmp-example::
 #
 #     -> { "execute": "migrate-set-parameters" ,
 #          "arguments": { "multifd-channels": 5 } }
 #     <- { "return": {} }
+#
+# Since: 2.4
 ##
 { 'command': 'migrate-set-parameters', 'boxed': true,
   'data': 'MigrationParameters' }
@@ -1056,7 +1062,7 @@
 # @block-bitmap-mapping, which is only present if it has been
 # previously set.
 #
-# Since: 2.4
+# Details:
 #
 # .. qmp-example::
 #
@@ -1069,6 +1075,8 @@
 #              "downtime-limit": 300
 #           }
 #        }
+#
+# Since: 2.4
 ##
 { 'command': 'query-migrate-parameters',
   'returns': 'MigrationParameters' }
@@ -1080,12 +1088,14 @@
 # mode.  The postcopy-ram capability must be set on both source and
 # destination before the original migration command.
 #
-# Since: 2.5
+# Details:
 #
 # .. qmp-example::
 #
 #     -> { "execute": "migrate-start-postcopy" }
 #     <- { "return": {} }
+#
+# Since: 2.5
 ##
 { 'command': 'migrate-start-postcopy' }
 
@@ -1096,13 +1106,13 @@
 #
 # @status: `MigrationStatus` describing the current migration status.
 #
-# Since: 2.4
-#
 # .. qmp-example::
 #
 #     <- {"timestamp": {"seconds": 1432121972, "microseconds": 744001},
 #         "event": "MIGRATION",
 #         "data": {"status": "completed"} }
+#
+# Since: 2.4
 ##
 { 'event': 'MIGRATION',
   'data': {'status': 'MigrationStatus'}}
@@ -1115,12 +1125,12 @@
 #
 # @pass: An incrementing count (starting at 1 on the first pass)
 #
-# Since: 2.6
-#
 # .. qmp-example::
 #
 #     <- { "timestamp": {"seconds": 1449669631, "microseconds": 239225},
 #           "event": "MIGRATION_PASS", "data": {"pass": 2} }
+#
+# Since: 2.6
 ##
 { 'event': 'MIGRATION_PASS',
   'data': { 'pass': 'int' } }
@@ -1199,12 +1209,12 @@
 #
 # @reason: describes the reason for the COLO exit.
 #
-# Since: 3.1
-#
 # .. qmp-example::
 #
 #     <- { "timestamp": {"seconds": 2032141960, "microseconds": 417172},
 #          "event": "COLO_EXIT", "data": {"mode": "primary", "reason": "request" } }
+#
+# Since: 3.1
 ##
 { 'event': 'COLO_EXIT',
   'data': {'mode': 'COLOMode', 'reason': 'COLOExitReason' } }
@@ -1242,12 +1252,12 @@
 #
 # @unstable: This command is experimental.
 #
-# Since: 2.8
-#
 # .. qmp-example::
 #
 #     -> { "execute": "x-colo-lost-heartbeat" }
 #     <- { "return": {} }
+#
+# Since: 2.8
 ##
 { 'command': 'x-colo-lost-heartbeat',
   'features': [ 'unstable' ],
@@ -1260,15 +1270,17 @@
 # migration to be started right after.  When postcopy-ram is in use,
 # cancelling is not allowed after the postcopy phase has started.
 #
+# Details:
+#
 # .. note:: This command succeeds even if there is no migration
 #    process running.
-#
-# Since: 0.14
 #
 # .. qmp-example::
 #
 #     -> { "execute": "migrate_cancel" }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'migrate_cancel' }
 
@@ -1279,13 +1291,13 @@
 #
 # @state: The state the migration is currently expected to be in
 #
-# Since: 2.11
-#
 # .. qmp-example::
 #
 #     -> { "execute": "migrate-continue" , "arguments":
 #          { "state": "pre-switchover" } }
 #     <- { "return": {} }
+#
+# Since: 2.11
 ##
 { 'command': 'migrate-continue', 'data': {'state': 'MigrationStatus'} }
 
@@ -1394,8 +1406,6 @@
 #     will fail unless migration is in "postcopy-paused" state.
 #     (default: false, since 3.0)
 #
-# Since: 0.14
-#
 # .. admonition:: Notes
 #
 #     1. The `query-migrate` command should be used to check
@@ -1449,6 +1459,8 @@
 #                                        "filename": "/tmp/migfile",
 #                                        "offset": "0x1000" } } ] } }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'migrate',
   'data': {'*uri': 'str',
@@ -1471,8 +1483,6 @@
 #     When set to false, the failure triggers a
 #     :qapi:event:`MIGRATION` event, and error details could be
 #     retrieved with `query-migrate`.  (since 9.1)
-#
-# Since: 2.3
 #
 # .. admonition:: Notes
 #
@@ -1521,6 +1531,8 @@
 #                                        "host": "10.12.34.9",
 #                                        "port": "1050" } } ] } }
 #     <- { "return": {} }
+#
+# Since: 2.3
 ##
 { 'command': 'migrate-incoming',
              'data': {'*uri': 'str',
@@ -1540,13 +1552,13 @@
 # @live: Optional argument to ask QEMU to treat this command as part
 #     of a live migration.  Default to true.  (since 2.11)
 #
-# Since: 1.1
-#
 # .. qmp-example::
 #
 #     -> { "execute": "xen-save-devices-state",
 #          "arguments": { "filename": "/tmp/save" } }
 #     <- { "return": {} }
+#
+# Since: 1.1
 ##
 { 'command': 'xen-save-devices-state',
   'data': {'filename': 'str', '*live':'bool' } }
@@ -1558,13 +1570,13 @@
 #
 # @enable: true to enable, false to disable.
 #
-# Since: 1.3
-#
 # .. qmp-example::
 #
 #     -> { "execute": "xen-set-global-dirty-log",
 #          "arguments": { "enable": true } }
 #     <- { "return": {} }
+#
+# Since: 1.3
 ##
 { 'command': 'xen-set-global-dirty-log', 'data': { 'enable': 'bool' } }
 
@@ -1578,13 +1590,13 @@
 #     data.  See `xen-save-devices-state`.txt for a description of the
 #     binary format.
 #
-# Since: 2.7
-#
 # .. qmp-example::
 #
 #     -> { "execute": "xen-load-devices-state",
 #          "arguments": { "filename": "/tmp/resume" } }
 #     <- { "return": {} }
+#
+# Since: 2.7
 ##
 { 'command': 'xen-load-devices-state', 'data': {'filename': 'str'} }
 
@@ -1747,13 +1759,13 @@
 #
 # @device-id: QEMU device id of the unplugged device
 #
-# Since: 4.2
-#
 # .. qmp-example::
 #
 #     <- { "event": "UNPLUG_PRIMARY",
 #          "data": { "device-id": "hostdev0" },
 #          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
+# Since: 4.2
 ##
 { 'event': 'UNPLUG_PRIMARY',
   'data': { 'device-id': 'str' } }
@@ -1907,8 +1919,6 @@
 #     'page-sampling'.  Others are 'dirty-bitmap' and 'dirty-ring'.
 #     (Since 6.1)
 #
-# Since: 5.2
-#
 # .. qmp-example::
 #
 #     -> {"execute": "calc-dirty-rate", "arguments": {"calc-time": 1,
@@ -1924,6 +1934,8 @@
 #         "calc-time-unit": "millisecond", "mode": "dirty-bitmap"} }
 #
 #     <- { "return": {} }
+#
+# Since: 5.2
 ##
 { 'command': 'calc-dirty-rate', 'data': {'calc-time': 'int64',
                                          '*calc-time-unit': 'TimeUnit',
@@ -1938,8 +1950,6 @@
 # @calc-time-unit: time unit in which to report calculation time.
 #     By default it is reported in seconds.  (Since 8.2)
 #
-# Since: 5.2
-#
 # .. qmp-example::
 #    :title: Measurement is in progress
 #
@@ -1953,6 +1963,8 @@
 #     <- {"status": "measured", "sample-pages": 512, "dirty-rate": 108,
 #         "mode": "page-sampling", "start-time": 1693900454, "calc-time": 10,
 #         "calc-time-unit": "second"}
+#
+# Since: 5.2
 ##
 { 'command': 'query-dirty-rate', 'data': {'*calc-time-unit': 'TimeUnit' },
                                  'returns': 'DirtyRateInfo' }
@@ -1989,14 +2001,14 @@
 #
 # @dirty-rate: upper limit of dirty page rate (MB/s) for virtual CPUs.
 #
-# Since: 7.1
-#
 # .. qmp-example::
 #
 #     -> {"execute": "set-vcpu-dirty-limit"}
 #         "arguments": { "dirty-rate": 200,
 #                        "cpu-index": 1 } }
 #     <- { "return": {} }
+#
+# Since: 7.1
 ##
 { 'command': 'set-vcpu-dirty-limit',
   'data': { '*cpu-index': 'int',
@@ -2013,13 +2025,13 @@
 #
 # @cpu-index: index of a virtual CPU, default is all.
 #
-# Since: 7.1
-#
 # .. qmp-example::
 #
 #     -> {"execute": "cancel-vcpu-dirty-limit"},
 #         "arguments": { "cpu-index": 1 } }
 #     <- { "return": {} }
+#
+# Since: 7.1
 ##
 { 'command': 'cancel-vcpu-dirty-limit',
   'data': { '*cpu-index': 'int'} }
@@ -2029,7 +2041,7 @@
 #
 # Return information about virtual CPU dirty page rate limits, if any.
 #
-# Since: 7.1
+# Details:
 #
 # .. qmp-example::
 #
@@ -2037,6 +2049,8 @@
 #     <- {"return": [
 #            { "limit-rate": 60, "current-rate": 3, "cpu-index": 0},
 #            { "limit-rate": 60, "current-rate": 3, "cpu-index": 1}]}
+#
+# Since: 7.1
 ##
 { 'command': 'query-vcpu-dirty-limit',
   'returns': [ 'DirtyLimitInfo' ] }

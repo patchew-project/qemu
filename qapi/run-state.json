@@ -121,13 +121,15 @@
 #
 # Query the run status of the VM
 #
-# Since: 0.14
+# Details:
 #
 # .. qmp-example::
 #
 #     -> { "execute": "query-status" }
 #     <- { "return": { "running": true,
 #                      "status": "running" } }
+#
+# Since: 0.14
 ##
 { 'command': 'query-status', 'returns': 'StatusInfo',
   'allow-preconfig': true }
@@ -150,13 +152,13 @@
 #    specified, QEMU will not exit, and a `STOP` event will eventually
 #    follow the `SHUTDOWN` event.
 #
-# Since: 0.12
-#
 # .. qmp-example::
 #
 #     <- { "event": "SHUTDOWN",
 #          "data": { "guest": true, "reason": "guest-shutdown" },
 #          "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
+#
+# Since: 0.12
 ##
 { 'event': 'SHUTDOWN', 'data': { 'guest': 'bool', 'reason': 'ShutdownCause' } }
 
@@ -166,12 +168,14 @@
 # Emitted when the virtual machine is powered down through the power
 # control system, such as via ACPI.
 #
-# Since: 0.12
+# Details:
 #
 # .. qmp-example::
 #
 #     <- { "event": "POWERDOWN",
 #          "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
+#
+# Since: 0.12
 ##
 { 'event': 'POWERDOWN' }
 
@@ -187,13 +191,13 @@
 #
 # @reason: The `ShutdownCause` of the `RESET`.  (since 4.0)
 #
-# Since: 0.12
-#
 # .. qmp-example::
 #
 #     <- { "event": "RESET",
 #          "data": { "guest": false, "reason": "guest-reset" },
 #          "timestamp": { "seconds": 1267041653, "microseconds": 9518 } }
+#
+# Since: 0.12
 ##
 { 'event': 'RESET', 'data': { 'guest': 'bool', 'reason': 'ShutdownCause' } }
 
@@ -202,12 +206,14 @@
 #
 # Emitted when the virtual machine is stopped
 #
-# Since: 0.12
+# Details:
 #
 # .. qmp-example::
 #
 #     <- { "event": "STOP",
 #          "timestamp": { "seconds": 1267041730, "microseconds": 281295 } }
+#
+# Since: 0.12
 ##
 { 'event': 'STOP' }
 
@@ -216,12 +222,14 @@
 #
 # Emitted when the virtual machine resumes execution
 #
-# Since: 0.12
+# Details:
 #
 # .. qmp-example::
 #
 #     <- { "event": "RESUME",
 #          "timestamp": { "seconds": 1271770767, "microseconds": 582542 } }
+#
+# Since: 0.12
 ##
 { 'event': 'RESUME' }
 
@@ -231,12 +239,14 @@
 # Emitted when guest enters a hardware suspension state, for example,
 # S3 state, which is sometimes called standby state
 #
-# Since: 1.1
+# Details:
 #
 # .. qmp-example::
 #
 #     <- { "event": "SUSPEND",
 #          "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
+#
+# Since: 1.1
 ##
 { 'event': 'SUSPEND' }
 
@@ -247,15 +257,17 @@
 # saved on disk, for example, S4 state, which is sometimes called
 # hibernate state
 #
+# Details:
+#
 # .. note:: QEMU shuts down (similar to event `SHUTDOWN`) when
 #    entering this state.
-#
-# Since: 1.2
 #
 # .. qmp-example::
 #
 #     <- { "event": "SUSPEND_DISK",
 #          "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
+#
+# Since: 1.2
 ##
 { 'event': 'SUSPEND_DISK' }
 
@@ -265,12 +277,14 @@
 # Emitted when the guest has woken up from suspend state and is
 # running
 #
-# Since: 1.1
+# Details:
 #
 # .. qmp-example::
 #
 #     <- { "event": "WAKEUP",
 #          "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
+#
+# Since: 1.1
 ##
 { 'event': 'WAKEUP' }
 
@@ -287,13 +301,13 @@
 #
 # .. note:: This event is rate-limited.
 #
-# Since: 0.13
-#
 # .. qmp-example::
 #
 #     <- { "event": "WATCHDOG",
 #          "data": { "action": "reset" },
 #          "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+#
+# Since: 0.13
 ##
 { 'event': 'WATCHDOG',
   'data': { 'action': 'WatchdogAction' } }
@@ -380,13 +394,13 @@
 #
 # @action: `WatchdogAction` action taken when watchdog timer expires.
 #
-# Since: 2.11
-#
 # .. qmp-example::
 #
 #     -> { "execute": "watchdog-set-action",
 #          "arguments": { "action": "inject-nmi" } }
 #     <- { "return": {} }
+#
+# Since: 2.11
 ##
 { 'command': 'watchdog-set-action', 'data' : {'action': 'WatchdogAction'} }
 
@@ -405,8 +419,6 @@
 # @watchdog: `WatchdogAction` action taken when watchdog timer
 #     expires.
 #
-# Since: 6.0
-#
 # .. qmp-example::
 #
 #     -> { "execute": "set-action",
@@ -415,6 +427,8 @@
 #                         "panic": "pause",
 #                         "watchdog": "inject-nmi" } }
 #     <- { "return": {} }
+#
+# Since: 6.0
 ##
 { 'command': 'set-action',
   'data': { '*reboot': 'RebootAction',
@@ -432,13 +446,13 @@
 #
 # @info: information about a panic (since 2.9)
 #
-# Since: 1.5
-#
 # .. qmp-example::
 #
 #     <- { "event": "GUEST_PANICKED",
 #          "data": { "action": "pause" },
 #          "timestamp": { "seconds": 1648245231, "microseconds": 900001 } }
+#
+# Since: 1.5
 ##
 { 'event': 'GUEST_PANICKED',
   'data': { 'action': 'GuestPanicAction', '*info': 'GuestPanicInformation' } }
@@ -452,13 +466,13 @@
 #
 # @info: information about a panic
 #
-# Since: 5.0
-#
 # .. qmp-example::
 #
 #     <- { "event": "GUEST_CRASHLOADED",
 #          "data": { "action": "run" },
 #          "timestamp": { "seconds": 1648245259, "microseconds": 893771 } }
+#
+# Since: 5.0
 ##
 { 'event': 'GUEST_CRASHLOADED',
   'data': { 'action': 'GuestPanicAction', '*info': 'GuestPanicInformation' } }
@@ -468,12 +482,14 @@
 #
 # Emitted when guest submits a shutdown request via pvpanic interface
 #
-# Since: 9.1
+# Details:
 #
 # .. qmp-example::
 #
 #     <- { "event": "GUEST_PVSHUTDOWN",
 #          "timestamp": { "seconds": 1648245259, "microseconds": 893771 } }
+#
+# Since: 9.1
 ##
 { 'event': 'GUEST_PVSHUTDOWN' }
 
@@ -655,8 +671,6 @@
 #
 # @flags: flags for `MemoryFailureAction`.
 #
-# Since: 5.2
-#
 # .. qmp-example::
 #
 #     <- { "event": "MEMORY_FAILURE",
@@ -665,6 +679,8 @@
 #                    "flags": { "action-required": false,
 #                               "recursive": false } },
 #          "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+#
+# Since: 5.2
 ##
 { 'event': 'MEMORY_FAILURE',
   'data': { 'recipient': 'MemoryFailureRecipient',

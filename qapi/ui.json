@@ -83,13 +83,13 @@
 # Errors:
 #     - If Spice is not enabled, DeviceNotFound
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     -> { "execute": "set_password", "arguments": { "protocol": "vnc",
 #                                                    "password": "secret" } }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'set_password', 'boxed': true, 'data': 'SetPasswordOptions' }
 
@@ -145,13 +145,13 @@
 #     - If @protocol is 'spice' and Spice is not active,
 #       DeviceNotFound
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     -> { "execute": "expire_password", "arguments": { "protocol": "vnc",
 #                                                       "time": "+60" } }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'expire_password', 'boxed': true, 'data': 'ExpirePasswordOptions' }
 
@@ -187,13 +187,13 @@
 #
 # @format: image format for `screendump`.  (default: ppm) (Since 7.1)
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     -> { "execute": "screendump",
 #          "arguments": { "filename": "/tmp/image" } }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'screendump',
   'data': {'filename': 'str', '*device': 'str', '*head': 'int',
@@ -328,7 +328,7 @@
 #
 # Return information about the current SPICE server
 #
-# Since: 0.14
+# Details:
 #
 # .. qmp-example::
 #
@@ -364,6 +364,8 @@
 #              ]
 #           }
 #        }
+#
+# Since: 0.14
 ##
 { 'command': 'query-spice', 'returns': 'SpiceInfo',
   'if': 'CONFIG_SPICE' }
@@ -377,8 +379,6 @@
 #
 # @client: client information
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     <- { "timestamp": {"seconds": 1290688046, "microseconds": 388707},
@@ -387,6 +387,8 @@
 #            "server": { "port": "5920", "family": "ipv4", "host": "127.0.0.1"},
 #            "client": {"port": "52873", "family": "ipv4", "host": "127.0.0.1"}
 #        }}
+#
+# Since: 0.14
 ##
 { 'event': 'SPICE_CONNECTED',
   'data': { 'server': 'SpiceBasicInfo',
@@ -403,8 +405,6 @@
 #
 # @client: client information
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     <- { "timestamp": {"seconds": 1290688046, "microseconds": 417172},
@@ -415,6 +415,8 @@
 #                              "connection-id": 1804289383, "host": "127.0.0.1",
 #                              "channel-id": 0, "tls": true}
 #        }}
+#
+# Since: 0.14
 ##
 { 'event': 'SPICE_INITIALIZED',
   'data': { 'server': 'SpiceServerInfo',
@@ -430,8 +432,6 @@
 #
 # @client: client information
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     <- { "timestamp": {"seconds": 1290688046, "microseconds": 388707},
@@ -440,6 +440,8 @@
 #            "server": { "port": "5920", "family": "ipv4", "host": "127.0.0.1"},
 #            "client": {"port": "52873", "family": "ipv4", "host": "127.0.0.1"}
 #        }}
+#
+# Since: 0.14
 ##
 { 'event': 'SPICE_DISCONNECTED',
   'data': { 'server': 'SpiceBasicInfo',
@@ -451,12 +453,14 @@
 #
 # Emitted when SPICE migration has completed
 #
-# Since: 1.3
+# Details:
 #
 # .. qmp-example::
 #
 #     <- { "timestamp": {"seconds": 1290688046, "microseconds": 417172},
 #          "event": "SPICE_MIGRATE_COMPLETED" }
+#
+# Since: 1.3
 ##
 { 'event': 'SPICE_MIGRATE_COMPLETED',
   'if': 'CONFIG_SPICE' }
@@ -658,7 +662,7 @@
 #
 # Return information about the current VNC server
 #
-# Since: 0.14
+# Details:
 #
 # .. qmp-example::
 #
@@ -679,6 +683,8 @@
 #              ]
 #           }
 #        }
+#
+# Since: 0.14
 ##
 { 'command': 'query-vnc', 'returns': 'VncInfo',
   'if': 'CONFIG_VNC' }
@@ -700,11 +706,11 @@
 #
 # @password: the new password to use with VNC authentication
 #
-# Since: 1.1
-#
 # .. note:: An empty password in this command will set the password to
 #    the empty string.  Existing clients are unaffected by executing
 #    this command.
+#
+# Since: 1.1
 ##
 { 'command': 'change-vnc-password',
   'data': { 'password': 'str' },
@@ -722,8 +728,6 @@
 # .. note:: This event is emitted before any authentication takes
 #    place, thus the authentication ID is not provided.
 #
-# Since: 0.13
-#
 # .. qmp-example::
 #
 #     <- { "event": "VNC_CONNECTED",
@@ -733,6 +737,8 @@
 #                "client": { "family": "ipv4", "service": "58425",
 #                            "host": "127.0.0.1", "websocket": false } },
 #          "timestamp": { "seconds": 1262976601, "microseconds": 975795 } }
+#
+# Since: 0.13
 ##
 { 'event': 'VNC_CONNECTED',
   'data': { 'server': 'VncServerInfo',
@@ -749,8 +755,6 @@
 #
 # @client: client information
 #
-# Since: 0.13
-#
 # .. qmp-example::
 #
 #     <-  { "event": "VNC_INITIALIZED",
@@ -760,6 +764,8 @@
 #                "client": { "family": "ipv4", "service": "46089", "websocket": false,
 #                            "host": "127.0.0.1", "sasl_username": "luiz" } },
 #           "timestamp": { "seconds": 1263475302, "microseconds": 150772 } }
+#
+# Since: 0.13
 ##
 { 'event': 'VNC_INITIALIZED',
   'data': { 'server': 'VncServerInfo',
@@ -775,8 +781,6 @@
 #
 # @client: client information
 #
-# Since: 0.13
-#
 # .. qmp-example::
 #
 #     <- { "event": "VNC_DISCONNECTED",
@@ -786,6 +790,8 @@
 #                "client": { "family": "ipv4", "service": "58425", "websocket": false,
 #                            "host": "127.0.0.1", "sasl_username": "luiz" } },
 #          "timestamp": { "seconds": 1262976601, "microseconds": 975795 } }
+#
+# Since: 0.13
 ##
 { 'event': 'VNC_DISCONNECTED',
   'data': { 'server': 'VncServerInfo',
@@ -825,8 +831,6 @@
 #
 # Returns: a list of info for each device
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-mice" }
@@ -845,6 +849,8 @@
 #              }
 #           ]
 #        }
+#
+# Since: 0.14
 ##
 { 'command': 'query-mice', 'returns': ['MouseInfo'] }
 
@@ -1035,8 +1041,6 @@
 # Errors:
 #     - If key is unknown or redundant, GenericError
 #
-# Since: 1.3
-#
 # .. qmp-example::
 #
 #     -> { "execute": "send-key",
@@ -1044,6 +1048,8 @@
 #                                   { "type": "qcode", "data": "alt" },
 #                                   { "type": "qcode", "data": "delete" } ] } }
 #     <- { "return": {} }
+#
+# Since: 1.3
 ##
 { 'command': 'send-key',
   'data': { 'keys': ['KeyValue'], '*hold-time': 'int' } }
@@ -1265,8 +1271,6 @@
 #
 # @events: List of `InputEvent` union.
 #
-# Since: 2.6
-#
 # .. note:: The consoles are visible in the qom tree, under
 #    ``/backend/console[$index]``.  They have a device link and head
 #    property, so it is possible to map which console belongs to which
@@ -1308,6 +1312,8 @@
 #                    { "type": "abs", "data" : { "axis": "x", "value" : 20000 } },
 #                    { "type": "abs", "data" : { "axis": "y", "value" : 400 } } ] } }
 #     <- { "return": {} }
+#
+# Since: 2.6
 ##
 { 'command': 'input-send-event',
   'data': { '*device': 'str',
@@ -1620,13 +1626,15 @@
 #
 # Reload display configuration.
 #
-# Since: 6.0
+# Details:
 #
 # .. qmp-example::
 #
 #     -> { "execute": "display-reload",
 #          "arguments": { "type": "vnc", "tls-certs": true  } }
 #     <- { "return": {} }
+#
+# Since: 6.0
 ##
 { 'command': 'display-reload',
   'data': 'DisplayReloadOptions',
@@ -1677,7 +1685,7 @@
 #
 # Update display configuration.
 #
-# Since: 7.1
+# Details:
 #
 # .. qmp-example::
 #
@@ -1686,6 +1694,8 @@
 #                         [ { "type": "inet", "host": "0.0.0.0",
 #                             "port": "5901" } ] } }
 #     <- { "return": {} }
+#
+# Since: 7.1
 ##
 { 'command': 'display-update',
   'data': 'DisplayUpdateOptions',
@@ -1708,8 +1718,6 @@
 #
 # @cert-subject: server certificate subject
 #
-# Since: 0.14
-#
 # .. qmp-example::
 #
 #     -> { "execute": "client_migrate_info",
@@ -1717,6 +1725,8 @@
 #                         "hostname": "virt42.lab.kraxel.org",
 #                         "port": 1234 } }
 #     <- { "return": {} }
+#
+# Since: 0.14
 ##
 { 'command': 'client_migrate_info',
   'data': { 'protocol': 'str', 'hostname': 'str', '*port': 'int',

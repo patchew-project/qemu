@@ -29,12 +29,14 @@
 #
 # Return information about KVM acceleration
 #
-# Since: 0.14
+# Details:
 #
 # .. qmp-example::
 #
 #     -> { "execute": "query-kvm" }
 #     <- { "return": { "enabled": true, "present": true } }
+#
+# Since: 0.14
 ##
 { 'command': 'query-kvm', 'returns': 'KvmInfo' }
 
@@ -101,11 +103,11 @@
 #
 # Returns: @AcceleratorInfo
 #
-# Since: 10.2.0
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-accelerators" }
 #     <- { "return": { "enabled": "mshv", "present": ["kvm", "mshv", "qtest", "tcg"] } }
+#
+# Since: 10.2.0
 ##
 { 'command': 'query-accelerators', 'returns': 'AcceleratorInfo' }
