@@ -5007,6 +5007,9 @@
 # @blockdev-reopen:
 #
 # Reopens one or more block devices using the given set of options.
+#
+# Details:
+#
 # Any option not specified will be reset to its default value
 # regardless of its previous status.  If an option cannot be changed
 # or a particular driver does not support reopening then the command

@@ -1223,6 +1223,8 @@
 # Emitted when the hv-balloon driver receives a "STATUS" message from
 # the guest.
 #
+# Details:
+#
 # .. note:: This event is rate-limited.
 #
 # Since: 8.2

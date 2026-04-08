@@ -420,6 +420,8 @@
 #
 # Get guest fsfreeze state.
 #
+# Details:
+#
 # .. note:: This may fail to properly report the current state as a
 #    result of some other guest processes having issued an fs
 #    freeze/thaw.

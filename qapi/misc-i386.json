@@ -127,6 +127,8 @@
 #
 # Return information about SEV/SEV-ES/SEV-SNP.
 #
+# Details:
+#
 # If unavailable due to an incompatible configuration the returned
 # @enabled field is set to 'false' and the state of all other fields
 # is unspecified.
