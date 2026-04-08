@@ -307,6 +307,8 @@ static void hexagon_cpu_disas_set_info(const CPUState *cs,
 {
     info->print_insn = print_insn_hexagon;
     info->endian = BFD_ENDIAN_LITTLE;
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    info->target_info = &cpu->cfg;
 }
 
 static void hexagon_cpu_realize(DeviceState *dev, Error **errp)

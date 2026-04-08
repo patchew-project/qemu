@@ -57,8 +57,9 @@ int print_insn_hexagon(bfd_vma memaddr, struct disassemble_info *info)
         return PACKET_WORDS_MAX * sizeof(uint32_t);
     }
 
+    const HexagonCPUConfig *cfg = info->target_info;
     buf = g_string_sized_new(PACKET_BUFFER_LEN);
-    len = disassemble_hexagon(words, i, memaddr, buf);
+    len = disassemble_hexagon(words, i, memaddr, buf, cfg);
     (*info->fprintf_func)(info->stream, "%s", buf->str);
     g_string_free(buf, true);
 
