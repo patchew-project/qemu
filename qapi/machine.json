@@ -1676,11 +1676,11 @@
 #
 # Query interrupt statistics
 #
+# Returns: interrupt statistics
+#
 # Features:
 #
 # @unstable: This command is meant for debugging.
-#
-# Returns: interrupt statistics
 #
 # Since: 6.2
 ##
@@ -1693,11 +1693,11 @@
 #
 # Query TCG compiler statistics
 #
+# Returns: TCG compiler statistics
+#
 # Features:
 #
 # @unstable: This command is meant for debugging.
-#
-# Returns: TCG compiler statistics
 #
 # Since: 6.2
 ##
@@ -1711,11 +1711,11 @@
 #
 # Query NUMA topology information
 #
+# Returns: topology information
+#
 # Features:
 #
 # @unstable: This command is meant for debugging.
-#
-# Returns: topology information
 #
 # Since: 6.2
 ##
@@ -1728,11 +1728,11 @@
 #
 # Query system ramblock information
 #
+# Returns: system ramblock information
+#
 # Features:
 #
 # @unstable: This command is meant for debugging.
-#
-# Returns: system ramblock information
 #
 # Since: 6.2
 ##
@@ -1745,11 +1745,11 @@
 #
 # Query information on the registered ROMS
 #
+# Returns: registered ROMs
+#
 # Features:
 #
 # @unstable: This command is meant for debugging.
-#
-# Returns: registered ROMs
 #
 # Since: 6.2
 ##
@@ -1762,11 +1762,11 @@
 #
 # Query information on the USB devices
 #
+# Returns: USB device information
+#
 # Features:
 #
 # @unstable: This command is meant for debugging.
-#
-# Returns: USB device information
 #
 # Since: 6.2
 ##
@@ -1831,11 +1831,11 @@
 #
 # Query information on interrupt controller devices
 #
+# Returns: Interrupt controller devices information
+#
 # Features:
 #
 # @unstable: This command is meant for debugging.
-#
-# Returns: Interrupt controller devices information
 #
 # Since: 9.1
 ##

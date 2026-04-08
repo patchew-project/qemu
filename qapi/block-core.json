@@ -1955,13 +1955,13 @@
 #     `job-dismiss`.  When true, this job will automatically disappear
 #     without user intervention.  Defaults to true.  (Since 3.1)
 #
+# Errors:
+#     - If @device does not exist, DeviceNotFound
+#
 # Features:
 #
 # @deprecated: Members @base and @top are deprecated.  Use @base-node
 #     and @top-node instead.
-#
-# Errors:
-#     - If @device does not exist, DeviceNotFound
 #
 # Since: 1.3
 #
@@ -1993,13 +1993,13 @@
 # 'backup'.  The operation can be stopped before it has completed
 # using the `job-cancel` or `block-job-cancel` command.
 #
+# Errors:
+#     - If @device is not a valid block device, GenericError
+#
 # Features:
 #
 # @deprecated: This command is deprecated.  Use `blockdev-backup`
 #     instead.
-#
-# Errors:
-#     - If @device is not a valid block device, GenericError
 #
 # Since: 1.6
 #
@@ -2558,13 +2558,13 @@
 #
 # Get bitmap SHA256.
 #
-# Features:
-#
-# @unstable: This command is meant for debugging.
-#
 # Errors:
 #     - If @node is not a valid block device, DeviceNotFound
 #     - If @name is not found or if hashing has failed, GenericError
+#
+# Features:
+#
+# @unstable: This command is meant for debugging.
 #
 # Since: 2.10
 ##
@@ -3068,14 +3068,14 @@
 #     the name of the parameter), but since QEMU 2.7 it can have other
 #     values.
 #
+# Errors:
+#     - If no background operation is active on this device,
+#       DeviceNotActive
+#
 # Features:
 #
 # @deprecated: This command is deprecated.  Use `job-pause`
 #     instead.
-#
-# Errors:
-#     - If no background operation is active on this device,
-#       DeviceNotActive
 #
 # Since: 1.3
 ##
@@ -3097,14 +3097,14 @@
 #     the name of the parameter), but since QEMU 2.7 it can have other
 #     values.
 #
+# Errors:
+#     - If no background operation is active on this device,
+#       DeviceNotActive
+#
 # Features:
 #
 # @deprecated: This command is deprecated.  Use `job-resume`
 #     instead.
-#
-# Errors:
-#     - If no background operation is active on this device,
-#       DeviceNotActive
 #
 # Since: 1.3
 ##
@@ -3137,14 +3137,14 @@
 #     the name of the parameter), but since QEMU 2.7 it can have other
 #     values.
 #
+# Errors:
+#     - If no background operation is active on this device,
+#       DeviceNotActive
+#
 # Features:
 #
 # @deprecated: This command is deprecated.  Use `job-complete`
 #     instead.
-#
-# Errors:
-#     - If no background operation is active on this device,
-#       DeviceNotActive
 #
 # Since: 1.3
 ##

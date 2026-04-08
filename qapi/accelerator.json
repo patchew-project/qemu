@@ -43,11 +43,11 @@
 #
 # Query accelerator statistics
 #
+# Returns: accelerator statistics
+#
 # Features:
 #
 # @unstable: This command is meant for debugging.
-#
-# Returns: accelerator statistics
 #
 # Since: 10.1
 ##

@@ -161,11 +161,11 @@
 # @paths: The absolute or partial path for each object, as described
 #     in `qom-get`.
 #
-# Errors:
-#     - If any path is not valid or is ambiguous
-#
 # Returns: A list where each element is the result for the
 #     corresponding element of @paths.
+#
+# Errors:
+#     - If any path is not valid or is ambiguous
 #
 # Since 10.1
 ##

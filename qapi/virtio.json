@@ -28,11 +28,11 @@
 #
 # Return a list of all realized VirtIODevices
 #
+# Returns: List of gathered VirtIODevices
+#
 # Features:
 #
 # @unstable: This command is meant for debugging.
-#
-# Returns: List of gathered VirtIODevices
 #
 # Since: 7.2
 #
@@ -197,11 +197,11 @@
 #
 # @path: Canonical QOM path of the VirtIODevice
 #
+# Returns: Status of the virtio device
+#
 # Features:
 #
 # @unstable: This command is meant for debugging.
-#
-# Returns: Status of the virtio device
 #
 # Since: 7.2
 #
@@ -566,11 +566,11 @@
 #
 # @queue: VirtQueue index to examine
 #
+# Returns: Status of the queue
+#
 # Features:
 #
 # @unstable: This command is meant for debugging.
-#
-# Returns: Status of the queue
 #
 # .. note:: last_avail_idx will not be displayed in the case where the
 #    selected VirtIODevice has a running vhost device and the
@@ -701,11 +701,11 @@
 #
 # @queue: vhost_virtqueue index to examine
 #
+# Returns: Status of the vhost_virtqueue
+#
 # Features:
 #
 # @unstable: This command is meant for debugging.
-#
-# Returns: Status of the vhost_virtqueue
 #
 # Since: 7.2
 #

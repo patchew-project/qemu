@@ -115,16 +115,16 @@ Command cmd (Since: 2.10)
 
       * **arg3** ("boolean") -- Not documented
 
-   Features:
-      * **cmd-feat1** -- a feature
-
-      * **cmd-feat2** -- another feature
-
    Return:
       "Object" -- "Object"
 
    Errors:
       some
+
+   Features:
+      * **cmd-feat1** -- a feature
+
+      * **cmd-feat2** -- another feature
 
    Note:
 

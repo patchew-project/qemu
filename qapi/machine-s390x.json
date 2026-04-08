@@ -108,11 +108,11 @@
 ##
 # @query-s390x-cpu-polarization:
 #
+# Returns: the machine's CPU polarization
+#
 # Features:
 #
 # @unstable: This command is experimental.
-#
-# Returns: the machine's CPU polarization
 #
 # Since: 8.2
 ##

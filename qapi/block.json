@@ -109,12 +109,12 @@
 # @force: If true, eject regardless of whether the drive is locked.
 #     If not specified, the default value is false.
 #
+# Errors:
+#     - If @device is not a valid block device, DeviceNotFound
+#
 # Features:
 #
 # @deprecated: Member @device is deprecated.  Use @id instead.
-#
-# Errors:
-#     - If @device is not a valid block device, DeviceNotFound
 #
 # .. note:: Ejecting a device with no media results in success.
 #
