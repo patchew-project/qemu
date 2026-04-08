@@ -547,21 +547,27 @@ class QAPISchemaParser:
             self.accept(False)
             line = self.get_doc_line()
             have_tagged = False
-            no_more_tags = False
+            last_ordered_section = QAPIDoc.Kind.INTRO
 
             def _tag_check(this: Union['QAPIDoc.Kind', str]) -> None:
+                nonlocal last_ordered_section
                 if isinstance(this, str):
                     this = QAPIDoc.Kind.from_string(this)
+
                 if this in (QAPIDoc.Kind.TODO, QAPIDoc.Kind.SINCE):
                     return
 
-                if no_more_tags:
+                if this.value < last_ordered_section.value:
                     raise QAPIParseError(
                         self,
-                        f"'{this}' section cannot appear after plain "
-                        "paragraphs that follow other tagged sections\n"
-                        "Move this section up above the plain paragraph(s)."
+                        f"'{this}' section cannot appear after "
+                        f"'{last_ordered_section}' section, please re-order "
+                        "the sections and adjust phrasing as necessary to "
+                        "ensure consistent documentation flow between the "
+                        "source code and the rendered HTML manual"
                     )
+
+                last_ordered_section = this
 
             while line is not None:
                 # Blank lines
@@ -593,7 +599,7 @@ class QAPISchemaParser:
                             self, 'feature descriptions expected')
                     have_tagged = True
                 elif line == 'Details:':
-                    _tag_check("Details")
+                    _tag_check(QAPIDoc.Kind.DETAILS)
                     self.accept(False)
                     line = self.get_doc_line()
                     while line == '':
@@ -602,6 +608,7 @@ class QAPISchemaParser:
                     have_tagged = True
                 elif match := self._match_at_name_colon(line):
                     # description
+                    _tag_check(QAPIDoc.Kind.MEMBER)
                     if have_tagged:
                         raise QAPIParseError(
                             self,
@@ -658,14 +665,16 @@ class QAPISchemaParser:
                     line = self.get_doc_indented(doc)
                     have_tagged = True
                 else:
-                    # plain paragraph
-                    if have_tagged:
-                        no_more_tags = True
-
-                    # Paragraphs before tagged sections are "intro" paragraphs.
-                    # Any appearing after are "detail" paragraphs.
-                    intro = not have_tagged
-                    doc.ensure_untagged_section(self.info, intro)
+                    # Paragraphs appearing before any other sections are
+                    # "intro" paragraphs. Any appearing after are
+                    # "details" paragraphs.
+                    this_section = (
+                        QAPIDoc.Kind.DETAILS
+                        if have_tagged
+                        else QAPIDoc.Kind.INTRO
+                    )
+                    _tag_check(this_section)
+                    doc.ensure_untagged_section(self.info, this_section)
                     doc.append_line(line)
                     line = self.get_doc_paragraph(doc)
         else:
@@ -707,14 +716,17 @@ class QAPIDoc:
     """
 
     class Kind(enum.Enum):
+        # The order here is the order in which sections must appear in
+        # source code; with the exception of 'TODO' which may appear
+        # anywhere but is treated as a comment.
         INTRO = 0
         MEMBER = 1
-        FEATURE = 2
-        RETURNS = 3
-        ERRORS = 4
-        SINCE = 5
+        RETURNS = 2
+        ERRORS = 3
+        FEATURE = 4
+        DETAILS = 5
         TODO = 6
-        DETAILS = 7
+        SINCE = 7
 
         @staticmethod
         def from_string(kind: str) -> 'QAPIDoc.Kind':
@@ -793,9 +805,10 @@ class QAPIDoc:
     def ensure_untagged_section(
         self,
         info: QAPISourceInfo,
-        intro: bool = True,
+        kind: Optional['QAPIDoc.Kind'] = None,
     ) -> None:
-        kind = QAPIDoc.Kind.INTRO if intro else QAPIDoc.Kind.DETAILS
+        if kind is None:
+            kind = QAPIDoc.Kind.INTRO
 
         if self.all_sections and self.all_sections[-1].kind == kind:
             # extend current section
