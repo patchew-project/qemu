@@ -1633,7 +1633,7 @@
 #
 # Query replication status while the vm is running.
 #
-# TODO: This line is a hack to separate the example from the body
+# Details:
 #
 # .. qmp-example::
 #
@@ -1687,7 +1687,7 @@
 #
 # Query COLO status while the vm is running.
 #
-# TODO: This line is a hack to separate the example from the body
+# Details:
 #
 # .. qmp-example::
 #

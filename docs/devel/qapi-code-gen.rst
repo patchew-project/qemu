@@ -1048,6 +1048,24 @@ definition.
 QMP).  In other sections, the text is formatted, and rST markup can be
 used.
 
+In cases where documentation consists of several paragraphs of text with
+no intervening sections to delineate them, it may become necessary to
+explicitly declare the start of the details section by using a
+"Details:" marker. For example::
+
+  ##
+  # @foobar
+  #
+  # foobar is an example definition.
+  #
+  # Details:
+  #
+  # Since there are no other sections in this documentation, the above
+  # "Details:" marker is required to mark this and subsequent paragraphs
+  # as the "Details" section. Any automatically generated documentation
+  # sections will be inserted above this point instead of below.
+  ##
+
 QMP Examples can be added by using the ``.. qmp-example::`` directive.
 In its simplest form, this can be used to contain a single QMP code
 block which accepts standard JSON syntax with additional server

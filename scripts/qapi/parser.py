@@ -590,6 +590,14 @@ class QAPISchemaParser:
                         raise QAPIParseError(
                             self, 'feature descriptions expected')
                     have_tagged = True
+                elif line == 'Details:':
+                    _tag_check("Details")
+                    self.accept(False)
+                    line = self.get_doc_line()
+                    while line == '':
+                        self.accept(False)
+                        line = self.get_doc_line()
+                    have_tagged = True
                 elif match := self._match_at_name_colon(line):
                     # description
                     if have_tagged:
