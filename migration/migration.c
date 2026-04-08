@@ -1041,6 +1041,17 @@ static bool migrate_show_downtime(MigrationState *s)
     return (s->state == MIGRATION_STATUS_COMPLETED) || migration_in_postcopy();
 }
 
+/* Return expected downtime (unit: milliseconds) */
+int64_t migration_downtime_calc_expected(MigrationState *s)
+{
+    if (mig_stats.dirty_sync_count <= 1) {
+        return migrate_downtime_limit();
+    }
+
+    return mig_stats.dirty_bytes_last_sync /
+        migration_get_switchover_bw(s) * 1000;
+}
+
 static void populate_time_info(MigrationInfo *info, MigrationState *s)
 {
     info->has_status = true;
@@ -1061,7 +1072,7 @@ static void populate_time_info(MigrationInfo *info, MigrationState *s)
         info->downtime = s->downtime;
     } else {
         info->has_expected_downtime = true;
-        info->expected_downtime = s->expected_downtime;
+        info->expected_downtime = migration_downtime_calc_expected(s);
     }
 }
 
@@ -1649,7 +1660,6 @@ int migrate_init(MigrationState *s, Error **errp)
     s->mbps = 0.0;
     s->pages_per_second = 0.0;
     s->downtime = 0;
-    s->expected_downtime = 0;
     s->setup_time = 0;
     s->start_postcopy = false;
     s->migration_thread_running = false;
@@ -3162,15 +3172,6 @@ static void migration_update_counters(MigrationState *s,
     s->pages_per_second = (double) transferred_pages /
                              (((double) time_spent / 1000.0));
 
-    /*
-     * if we haven't sent anything, we don't want to
-     * recalculate. 10000 is a small enough number for our purposes
-     */
-    if (mig_stats.dirty_pages_rate && transferred > 10000) {
-        s->expected_downtime =
-            mig_stats.dirty_bytes_last_sync / switchover_bw_per_ms;
-    }
-
     migration_rate_reset();
 
     update_iteration_initial_status(s);
@@ -3815,8 +3816,6 @@ void migration_start_outgoing(MigrationState *s)
     uint64_t rate_limit;
     bool resume = (s->state == MIGRATION_STATUS_POSTCOPY_RECOVER_SETUP);
     int ret;
-
-    s->expected_downtime = migrate_downtime_limit();
 
     if (resume) {
         /* This is a resumed migration */
