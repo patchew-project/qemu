@@ -1463,7 +1463,7 @@ Reply
 +=========+========+==========+
 | address | 0      | 8        |
 +---------+--------+----------+
-| count   | 8      | 4        |
+| count   | 8      | 8        |
 +---------+--------+----------+
 
 * *address* is the client DMA memory address being accessed.
