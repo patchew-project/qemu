@@ -542,7 +542,7 @@ static const void *create_fdt(BostonState *s,
     qemu_fdt_setprop_cell(fdt, "/cpus", "#address-cells", 0x1);
 
     for (cpu = 0; cpu < ms->smp.cpus; cpu++) {
-        name = g_strdup_printf("/cpus/cpu@%d", cpu);
+        name = g_strdup_printf("/cpus/cpu@%x", (unsigned)cpu);
         qemu_fdt_add_subnode(fdt, name);
         qemu_fdt_setprop_string(fdt, name, "compatible", "img,mips");
         qemu_fdt_setprop_string(fdt, name, "status", "okay");
