@@ -812,12 +812,13 @@ typedef struct CPUArchState {
     const struct arm_boot_info *boot_info;
     /* Store GICv3CPUState to access from this struct */
     void *gicv3state;
-#else /* CONFIG_USER_ONLY */
-    /* For usermode syscall translation.  */
-    bool eabi;
+#elif defined(TARGET_AARCH64)
     /* Linux syscall tagged address support */
     bool tagged_addr_enable;
-#endif /* CONFIG_USER_ONLY */
+#else
+    /* For usermode syscall translation.  */
+    bool eabi;
+#endif /* !CONFIG_USER_ONLY */
 } CPUARMState;
 
 static inline void set_feature(CPUARMState *env, int feature)
