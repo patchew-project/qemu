@@ -162,7 +162,7 @@ static void openrisc_create_fdt(OR1KVirtState *state,
     qemu_fdt_setprop_cell(fdt, "/cpus", "#address-cells", 0x1);
 
     for (cpu = 0; cpu < num_cpus; cpu++) {
-        nodename = g_strdup_printf("/cpus/cpu@%d", cpu);
+        nodename = g_strdup_printf("/cpus/cpu@%x", (unsigned)cpu);
         qemu_fdt_add_subnode(fdt, nodename);
         qemu_fdt_setprop_string(fdt, nodename, "compatible",
                                 "opencores,or1200-rtlsvn481");
