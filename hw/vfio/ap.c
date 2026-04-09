@@ -41,6 +41,16 @@ struct VFIOAPDevice {
     EventNotifier req_notifier;
     EventNotifier cfg_notifier;
 };
+OBJECT_DECLARE_SIMPLE_TYPE(VFIOAPDevice, VFIO_AP_DEVICE)
+
+static const VMStateDescription vmstate_ap_device = {
+    .name = "vfio-ap-device",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_END_OF_LIST()
+    },
+};
 
 typedef struct APConfigChgEvent {
     QTAILQ_ENTRY(APConfigChgEvent) next;
@@ -55,8 +65,6 @@ static void __attribute__((constructor)) vfio_ap_global_init(void)
 {
     qemu_mutex_init(&cfg_chg_events_lock);
 }
-
-OBJECT_DECLARE_SIMPLE_TYPE(VFIOAPDevice, VFIO_AP_DEVICE)
 
 static void vfio_ap_compute_needs_reset(VFIODevice *vdev)
 {
@@ -297,11 +305,6 @@ static void vfio_ap_reset(DeviceState *dev)
     }
 }
 
-static const VMStateDescription vfio_ap_vmstate = {
-    .name = "vfio-ap",
-    .unmigratable = 1,
-};
-
 static void vfio_ap_instance_init(Object *obj)
 {
     VFIOAPDevice *vapdev = VFIO_AP_DEVICE(obj);
@@ -335,7 +338,7 @@ static void vfio_ap_class_init(ObjectClass *klass, const void *data)
 #ifdef CONFIG_IOMMUFD
     object_class_property_add_str(klass, "fd", NULL, vfio_ap_set_fd);
 #endif
-    dc->vmsd = &vfio_ap_vmstate;
+    dc->vmsd = &vmstate_ap_device;
     dc->desc = "VFIO-based AP device assignment";
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->realize = vfio_ap_realize;
