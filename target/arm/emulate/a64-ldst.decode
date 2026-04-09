@@ -16,6 +16,16 @@
 # Load/store pair (GPR and SIMD/FP)
 &ldstpair       rt2 rt rn imm sz sign w p
 
+# Atomic memory operations
+&atomic         rs rn rt a r sz
+
+# Compare-and-swap
+&cas            rs rn rt sz a r
+
+# Load with PAC (LDRAA/LDRAB, FEAT_PAuth)
+%ldra_imm       22:s1 12:9
+&ldra           rt rn imm m w
+
 # Load/store register offset
 &ldst           rm rn rt sign ext sz opt s
 
@@ -35,6 +45,15 @@
 
 # Load/store pair: imm7 is signed, scaled by element size in handler
 @ldstpair       .. ... . ... . imm:s7 rt2:5 rn:5 rt:5          &ldstpair
+
+# Atomics
+@atomic         sz:2 ... . .. a:1 r:1 . rs:5 . ... .. rn:5 rt:5   &atomic
+
+# Compare-and-swap: sz extracted by pattern (CAS) or set constant (CASP)
+@cas            .. ...... . a:1 . rs:5 r:1 ..... rn:5 rt:5        &cas
+
+# Load with PAC
+@ldra           .. ... . .. m:1 . . ......... w:1 . rn:5 rt:5     &ldra imm=%ldra_imm
 
 # Load/store register offset
 @ldst           .. ... . .. .. . rm:5 opt:3 s:1 .. rn:5 rt:5   &ldst
@@ -240,6 +259,32 @@ STR_v           sz:2 111 1 00 00 1 ..... ... . 10 ..... .....  @ldst sign=0 ext=
 STR_v           00 111 1 00 10 1 ..... ... . 10 ..... .....    @ldst sign=0 ext=0 sz=4
 LDR_v           sz:2 111 1 00 01 1 ..... ... . 10 ..... .....  @ldst sign=0 ext=0
 LDR_v           00 111 1 00 11 1 ..... ... . 10 ..... .....    @ldst sign=0 ext=0 sz=4
+
+### Compare-and-swap
+
+# CAS / CASA / CASAL / CASL
+CAS             sz:2 001000 1 . 1 ..... . 11111 ..... .....     @cas
+
+# CASP / CASPA / CASPAL / CASPL (pair: Rt,Rt+1 and Rs,Rs+1)
+CASP            00 001000 0 . 1 ..... . 11111 ..... .....       @cas sz=2
+CASP            01 001000 0 . 1 ..... . 11111 ..... .....       @cas sz=3
+
+### Atomic memory operations
+
+LDADD           .. 111 0 00 . . 1 ..... 0000 00 ..... .....    @atomic
+LDCLR           .. 111 0 00 . . 1 ..... 0001 00 ..... .....    @atomic
+LDEOR           .. 111 0 00 . . 1 ..... 0010 00 ..... .....    @atomic
+LDSET           .. 111 0 00 . . 1 ..... 0011 00 ..... .....    @atomic
+LDSMAX          .. 111 0 00 . . 1 ..... 0100 00 ..... .....    @atomic
+LDSMIN          .. 111 0 00 . . 1 ..... 0101 00 ..... .....    @atomic
+LDUMAX          .. 111 0 00 . . 1 ..... 0110 00 ..... .....    @atomic
+LDUMIN          .. 111 0 00 . . 1 ..... 0111 00 ..... .....    @atomic
+SWP             .. 111 0 00 . . 1 ..... 1000 00 ..... .....    @atomic
+
+### Load with PAC (FEAT_PAuth)
+
+# LDRAA (M=0) / LDRAB (M=1), offset (W=0) / pre-indexed (W=1)
+LDRA            11 111 0 00 . . 1 ......... . 1 ..... .....  @ldra
 
 ### System instructions — DC cache maintenance
 

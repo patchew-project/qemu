@@ -547,6 +547,239 @@ static bool trans_LDXP(DisasContext *ctx, arg_stxr *a)
     return true;
 }
 
+/*
+ * Atomic memory operations (DDI 0487 C3.3.2)
+ *
+ * Non-atomic read-modify-write; sufficient for MMIO.
+ * Acquire/release semantics ignored (sequentially consistent by design).
+ */
+
+typedef uint64_t (*atomic_op_fn)(uint64_t old, uint64_t operand, int bits);
+
+static uint64_t atomic_add(uint64_t old, uint64_t op, int bits)
+{
+    return old + op;
+}
+
+static uint64_t atomic_clr(uint64_t old, uint64_t op, int bits)
+{
+    return old & ~op;
+}
+
+static uint64_t atomic_eor(uint64_t old, uint64_t op, int bits)
+{
+    return old ^ op;
+}
+
+static uint64_t atomic_set(uint64_t old, uint64_t op, int bits)
+{
+    return old | op;
+}
+
+static uint64_t atomic_smax(uint64_t old, uint64_t op, int bits)
+{
+    int64_t a = sextract64(old, 0, bits);
+    int64_t b = sextract64(op, 0, bits);
+    return (a >= b) ? old : op;
+}
+
+static uint64_t atomic_smin(uint64_t old, uint64_t op, int bits)
+{
+    int64_t a = sextract64(old, 0, bits);
+    int64_t b = sextract64(op, 0, bits);
+    return (a <= b) ? old : op;
+}
+
+static uint64_t atomic_umax(uint64_t old, uint64_t op, int bits)
+{
+    uint64_t mask = (bits == 64) ? UINT64_MAX : (1ULL << bits) - 1;
+    return ((old & mask) >= (op & mask)) ? old : op;
+}
+
+static uint64_t atomic_umin(uint64_t old, uint64_t op, int bits)
+{
+    uint64_t mask = (bits == 64) ? UINT64_MAX : (1ULL << bits) - 1;
+    return ((old & mask) <= (op & mask)) ? old : op;
+}
+
+static bool do_atomic(DisasContext *ctx, arg_atomic *a, atomic_op_fn fn)
+{
+    int esize = 1 << a->sz;
+    int bits = 8 * esize;
+    uint64_t va = base_read(ctx, a->rn);
+    uint8_t buf[8];
+
+    if (mem_read(ctx, va, buf, esize) != 0) {
+        return true;
+    }
+
+    uint64_t old = mem_ld(ctx, buf, esize);
+    uint64_t operand = gpr_read(ctx, a->rs);
+    uint64_t result = fn(old, operand, bits);
+
+    mem_st(ctx, buf, esize, result);
+    if (mem_write(ctx, va, buf, esize) != 0) {
+        return true;
+    }
+
+    /* Rt receives the old value (before modification) */
+    gpr_write(ctx, a->rt, old);
+    return true;
+}
+
+static bool trans_LDADD(DisasContext *ctx, arg_atomic *a)
+{
+    return do_atomic(ctx, a, atomic_add);
+}
+
+static bool trans_LDCLR(DisasContext *ctx, arg_atomic *a)
+{
+    return do_atomic(ctx, a, atomic_clr);
+}
+
+static bool trans_LDEOR(DisasContext *ctx, arg_atomic *a)
+{
+    return do_atomic(ctx, a, atomic_eor);
+}
+
+static bool trans_LDSET(DisasContext *ctx, arg_atomic *a)
+{
+    return do_atomic(ctx, a, atomic_set);
+}
+
+static bool trans_LDSMAX(DisasContext *ctx, arg_atomic *a)
+{
+    return do_atomic(ctx, a, atomic_smax);
+}
+
+static bool trans_LDSMIN(DisasContext *ctx, arg_atomic *a)
+{
+    return do_atomic(ctx, a, atomic_smin);
+}
+
+static bool trans_LDUMAX(DisasContext *ctx, arg_atomic *a)
+{
+    return do_atomic(ctx, a, atomic_umax);
+}
+
+static bool trans_LDUMIN(DisasContext *ctx, arg_atomic *a)
+{
+    return do_atomic(ctx, a, atomic_umin);
+}
+
+static bool trans_SWP(DisasContext *ctx, arg_atomic *a)
+{
+    int esize = 1 << a->sz;
+    uint64_t va = base_read(ctx, a->rn);
+    uint8_t buf[8];
+
+    if (mem_read(ctx, va, buf, esize) != 0) {
+        return true;
+    }
+
+    uint64_t old = mem_ld(ctx, buf, esize);
+    mem_st(ctx, buf, esize, gpr_read(ctx, a->rs));
+    if (mem_write(ctx, va, buf, esize) != 0) {
+        return true;
+    }
+
+    gpr_write(ctx, a->rt, old);
+    return true;
+}
+
+/* Compare-and-swap: CAS, CASP (DDI 0487 C3.3.1) */
+
+static bool trans_CAS(DisasContext *ctx, arg_cas *a)
+{
+    int esize = 1 << a->sz;
+    uint64_t va = base_read(ctx, a->rn);
+    uint8_t buf[8];
+
+    if (mem_read(ctx, va, buf, esize) != 0) {
+        return true;
+    }
+
+    uint64_t current = mem_ld(ctx, buf, esize);
+    uint64_t mask = (esize == 8) ? UINT64_MAX : (1ULL << (8 * esize)) - 1;
+    uint64_t compare = gpr_read(ctx, a->rs) & mask;
+
+    if ((current & mask) == compare) {
+        uint64_t newval = gpr_read(ctx, a->rt) & mask;
+        mem_st(ctx, buf, esize, newval);
+        if (mem_write(ctx, va, buf, esize) != 0) {
+            return true;
+        }
+    }
+
+    /* Rs receives the old memory value (whether or not swap occurred) */
+    gpr_write(ctx, a->rs, current);
+    return true;
+}
+
+/* CASP: compare-and-swap pair (Rs,Rs+1 compared; Rt,Rt+1 stored) */
+static bool trans_CASP(DisasContext *ctx, arg_cas *a)
+{
+    /* CASP requires even register pairs; odd or r31 is UNPREDICTABLE */
+    if ((a->rs & 1) || a->rs >= 31 || (a->rt & 1) || a->rt >= 31) {
+        return false;
+    }
+
+    int esize = 1 << a->sz;                   /* per-register size */
+    uint64_t va = base_read(ctx, a->rn);
+    uint8_t buf[16];
+
+    if (mem_read(ctx, va, buf, 2 * esize) != 0) {
+        return true;
+    }
+    uint64_t cur1 = mem_ld(ctx, buf, esize);
+    uint64_t cur2 = mem_ld(ctx, buf + esize, esize);
+
+    uint64_t mask = (esize == 8) ? UINT64_MAX : (1ULL << (8 * esize)) - 1;
+    uint64_t cmp1 = gpr_read(ctx, a->rs) & mask;
+    uint64_t cmp2 = gpr_read(ctx, a->rs + 1) & mask;
+
+    if ((cur1 & mask) == cmp1 && (cur2 & mask) == cmp2) {
+        uint64_t new1 = gpr_read(ctx, a->rt) & mask;
+        uint64_t new2 = gpr_read(ctx, a->rt + 1) & mask;
+        mem_st(ctx, buf, esize, new1);
+        mem_st(ctx, buf + esize, esize, new2);
+        if (mem_write(ctx, va, buf, 2 * esize) != 0) {
+            return true;
+        }
+    }
+
+    gpr_write(ctx, a->rs, cur1);
+    gpr_write(ctx, a->rs + 1, cur2);
+    return true;
+}
+
+/*
+ * Load with PAC: LDRAA / LDRAB (FEAT_PAuth)
+ * (DDI 0487 C6.2.121)
+ *
+ * Pointer authentication is not emulated -- the base register is used
+ * directly (equivalent to auth always succeeding).
+ */
+
+static bool trans_LDRA(DisasContext *ctx, arg_ldra *a)
+{
+    int64_t offset = (int64_t)a->imm << 3;  /* S:imm9, scaled by 8 */
+    uint64_t base = base_read(ctx, a->rn);
+    uint64_t va = base + offset;  /* auth not emulated */
+    uint8_t buf[8];
+
+    if (mem_read(ctx, va, buf, 8) != 0) {
+        return true;
+    }
+
+    gpr_write(ctx, a->rt, mem_ld(ctx, buf, 8));
+
+    if (a->w) {
+        base_write(ctx, a->rn, va);
+    }
+    return true;
+}
+
 /* PRFM, DC cache maintenance -- treated as NOP */
 static bool trans_NOP(DisasContext *ctx, arg_NOP *a)
 {
