@@ -466,8 +466,9 @@ static void fdt_add_cpu_nodes(const VirtMachineState *vms)
     qemu_fdt_setprop_cell(ms->fdt, "/cpus", "#size-cells", 0x0);
 
     for (cpu = smp_cpus - 1; cpu >= 0; cpu--) {
-        char *nodename = g_strdup_printf("/cpus/cpu@%d", cpu);
         ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(cpu));
+        char *nodename = g_strdup_printf("/cpus/cpu@%" PRIx64,
+                                         arm_cpu_mp_affinity(armcpu));
         CPUState *cs = CPU(armcpu);
 
         qemu_fdt_add_subnode(ms->fdt, nodename);
@@ -521,7 +522,9 @@ static void fdt_add_cpu_nodes(const VirtMachineState *vms)
         qemu_fdt_add_subnode(ms->fdt, "/cpus/cpu-map");
 
         for (cpu = smp_cpus - 1; cpu >= 0; cpu--) {
-            char *cpu_path = g_strdup_printf("/cpus/cpu@%d", cpu);
+            ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(cpu));
+            char *cpu_path = g_strdup_printf("/cpus/cpu@%" PRIx64,
+                                             arm_cpu_mp_affinity(armcpu));
             char *map_path;
 
             if (ms->smp.threads > 1) {

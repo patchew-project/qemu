@@ -259,10 +259,10 @@ static void create_fdt(SBSAMachineState *sms)
     qemu_fdt_setprop_cell(sms->fdt, "/cpus", "#size-cells", 0x0);
 
     for (cpu = sms->smp_cpus - 1; cpu >= 0; cpu--) {
-        char *nodename = g_strdup_printf("/cpus/cpu@%d", cpu);
+        uint64_t mpidr = sbsa_ref_cpu_mp_affinity(sms, cpu);
+        char *nodename = g_strdup_printf("/cpus/cpu@%" PRIx64, mpidr);
         ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(cpu));
         CPUState *cs = CPU(armcpu);
-        uint64_t mpidr = sbsa_ref_cpu_mp_affinity(sms, cpu);
 
         qemu_fdt_add_subnode(sms->fdt, nodename);
         qemu_fdt_setprop_u64(sms->fdt, nodename, "reg", mpidr);
