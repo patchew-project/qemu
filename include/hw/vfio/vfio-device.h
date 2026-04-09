@@ -173,11 +173,24 @@ extern VFIODeviceList vfio_device_list;
 
 #ifdef CONFIG_LINUX
 /*
+ * VFIO backend I/O operation capabilities
+ */
+#define VFIO_IO_CAP_DMA_BUF        (1ULL << 0)
+
+/*
  * How devices communicate with the server.  The default option is through
  * ioctl() to the kernel VFIO driver, but vfio-user can use a socket to a remote
  * process.
  */
 struct VFIODeviceIOOps {
+    /**
+     * @capabilities
+     *
+     * Bitmask of VFIO_IO_CAP_* flags indicating which features this
+     * backend supports.
+     */
+    uint64_t capabilities;
+
     /**
      * @device_feature
      *
