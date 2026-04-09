@@ -105,8 +105,8 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
         for (cpu = s->soc[socket].num_harts - 1; cpu >= 0; cpu--) {
             cpu_phandle = phandle++;
 
-            cpu_name = g_strdup_printf("/cpus/cpu@%d",
-                s->soc[socket].hartid_base + cpu);
+            cpu_name = g_strdup_printf("/cpus/cpu@%" PRIx32,
+                s->soc[socket].hartid_base + (uint32_t)cpu);
             qemu_fdt_add_subnode(fdt, cpu_name);
             if (is_32_bit) {
                 qemu_fdt_setprop_string(fdt, cpu_name, "mmu-type", "riscv,sv32");

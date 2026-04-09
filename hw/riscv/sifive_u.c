@@ -168,8 +168,9 @@ static void create_fdt(SiFiveUState *s, const MemMapEntry *memmap,
 
     for (cpu = ms->smp.cpus - 1; cpu >= 0; cpu--) {
         int cpu_phandle = phandle++;
-        nodename = g_strdup_printf("/cpus/cpu@%d", cpu);
-        char *intc = g_strdup_printf("/cpus/cpu@%d/interrupt-controller", cpu);
+        nodename = g_strdup_printf("/cpus/cpu@%x", (unsigned)cpu);
+        char *intc = g_strdup_printf("/cpus/cpu@%x/interrupt-controller",
+                                     (unsigned)cpu);
         qemu_fdt_add_subnode(fdt, nodename);
         /* cpu 0 is the management hart that does not have mmu */
         if (cpu != 0) {
@@ -198,7 +199,7 @@ static void create_fdt(SiFiveUState *s, const MemMapEntry *memmap,
     cells =  g_new0(uint32_t, ms->smp.cpus * 4);
     for (cpu = 0; cpu < ms->smp.cpus; cpu++) {
         nodename =
-            g_strdup_printf("/cpus/cpu@%d/interrupt-controller", cpu);
+            g_strdup_printf("/cpus/cpu@%x/interrupt-controller", (unsigned)cpu);
         uint32_t intc_phandle = qemu_fdt_get_phandle(fdt, nodename);
         cells[cpu * 4 + 0] = cpu_to_be32(intc_phandle);
         cells[cpu * 4 + 1] = cpu_to_be32(IRQ_M_SOFT);
@@ -249,7 +250,7 @@ static void create_fdt(SiFiveUState *s, const MemMapEntry *memmap,
     cells =  g_new0(uint32_t, ms->smp.cpus * 4 - 2);
     for (cpu = 0; cpu < ms->smp.cpus; cpu++) {
         nodename =
-            g_strdup_printf("/cpus/cpu@%d/interrupt-controller", cpu);
+            g_strdup_printf("/cpus/cpu@%x/interrupt-controller", (unsigned)cpu);
         uint32_t intc_phandle = qemu_fdt_get_phandle(fdt, nodename);
         /* cpu 0 is the management hart that does not have S-mode */
         if (cpu == 0) {

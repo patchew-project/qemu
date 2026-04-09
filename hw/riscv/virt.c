@@ -248,8 +248,8 @@ static void create_fdt_socket_cpus(RISCVVirtState *s, int socket,
 
         cpu_phandle = (*phandle)++;
 
-        cpu_name = g_strdup_printf("/cpus/cpu@%d",
-            s->soc[socket].hartid_base + cpu);
+        cpu_name = g_strdup_printf("/cpus/cpu@%" PRIx32,
+            s->soc[socket].hartid_base + (uint32_t)cpu);
         qemu_fdt_add_subnode(ms->fdt, cpu_name);
 
         if (satp_mode_max != -1) {
