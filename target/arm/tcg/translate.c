@@ -4508,6 +4508,23 @@ static bool trans_BFCI(DisasContext *s, arg_BFCI *a)
     return true;
 }
 
+static bool trans_LINUX_BKPT(DisasContext *s, arg_LINUX_BKPT *a)
+{
+#ifdef CONFIG_USER_ONLY
+# ifdef CONFIG_LINUX
+    /*
+     * The Linux kernel recognizes 3 UDF patterns as breakpoints.
+     * Recognizing these during translate is much less error prone
+     * than deferring to cpu_loop.
+     */
+    gen_exception_bkpt_insn(s, 0);
+    return true;
+# endif
+#endif
+    /* Fall through to UDF. */
+    return false;
+}
+
 static bool trans_UDF(DisasContext *s, arg_UDF *a)
 {
     unallocated_encoding(s);

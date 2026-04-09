@@ -263,6 +263,7 @@ LDM_t16         1011 110 ......... \
 %imm8_0x2       0:s8 !function=times_2
 
 {
+  LINUX_BKPT    1101 1110 0000 0001
   UDF           1101 1110 ---- ----
   SVC           1101 1111 imm:8                 &i
   B_cond_thumb  1101 cond:4 ........            &ci imm=%imm8_0x2
