@@ -98,7 +98,7 @@ struct Monitor {
     bool is_qmp;
     bool skip_flush;
     bool use_io_thread;
-
+    char *id;
     char *mon_cpu_path;
     QTAILQ_ENTRY(Monitor) entry;
 
@@ -180,6 +180,8 @@ void qmp_send_response(MonitorQMP *mon, const QDict *rsp);
 void monitor_data_destroy_qmp(MonitorQMP *mon);
 void coroutine_fn monitor_qmp_dispatcher_co(void *data);
 void qmp_dispatcher_co_wake(void);
+
+Monitor *monitor_find_by_id(const char *id);
 
 int get_monitor_def(Monitor *mon, int64_t *pval, const char *name);
 void handle_hmp_command(MonitorHMP *mon, const char *cmdline);
