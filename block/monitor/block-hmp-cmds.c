@@ -38,7 +38,9 @@
 #include "qemu/osdep.h"
 #include "hw/core/boards.h"
 #include "system/block-backend.h"
+#include "system/block-backend-global-state.h"
 #include "system/blockdev.h"
+#include "block/block-global-state.h"
 #include "qapi/qapi-commands-block.h"
 #include "qapi/qapi-commands-block-export.h"
 #include "qobject/qdict.h"
@@ -192,6 +194,63 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
 
 unlock:
     bdrv_graph_rdunlock_main_loop();
+    hmp_handle_error(mon, err);
+}
+
+void hmp_drive_insert(Monitor *mon, const QDict *qdict)
+{
+    const char *id = qdict_get_str(qdict, "id");
+    const char *filename = qdict_get_str(qdict, "filename");
+    BlockBackend *blk = NULL;
+    BlockBackend *iter;
+    BlockDriverState *bs;
+    Error *err = NULL;
+
+    GLOBAL_STATE_CODE();
+
+    /*
+     * After drive_del, the BlockBackend is removed from the monitor name
+     * registry but still attached to the device. Find it by iterating all
+     * BlockBackends and matching by the device ID shown in "info block".
+     */
+    for (iter = blk_all_next(NULL); iter; iter = blk_all_next(iter)) {
+        DeviceState *dev = blk_get_attached_dev(iter);
+        if (dev && dev->id && strcmp(dev->id, id) == 0) {
+            blk = iter;
+            break;
+        }
+    }
+
+    if (!blk) {
+        /* Fallback: try by block backend name */
+        blk = blk_by_name(id);
+    }
+
+    if (!blk) {
+        error_setg(&err, "Device '%s' not found", id);
+        goto out;
+    }
+
+    if (blk_bs(blk)) {
+        error_setg(&err, "Device '%s' already has a medium inserted", id);
+        goto out;
+    }
+
+    bs = bdrv_open(filename, NULL, NULL, BDRV_O_RDWR, &err);
+    if (!bs) {
+        goto out;
+    }
+
+    if (blk_insert_bs(blk, bs, &err) < 0) {
+        bdrv_unref(bs);
+        goto out;
+    }
+
+    bdrv_unref(bs);
+    monitor_printf(mon, "OK\n");
+    return;
+
+out:
     hmp_handle_error(mon, err);
 }
 

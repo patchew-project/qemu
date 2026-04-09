@@ -208,6 +208,24 @@ SRST
 ERST
 
     {
+        .name       = "drive_insert",
+        .args_type  = "id:B,filename:F",
+        .params     = "device filename",
+        .help       = "insert a host block device into an empty drive",
+        .cmd        = hmp_drive_insert,
+    },
+
+SRST
+``drive_insert`` *device* *filename*
+  Insert a host block device file into a drive that has been emptied by
+  ``drive_del``.  This reconnects the backing store without removing the
+  guest device, enabling transparent disk hot-swap for non-removable devices
+  such as NVMe namespaces.  Combined with PCIe AER Surprise Down error
+  injection (``pcie_aer_inject_error`` *device* ``SDN``), this enables
+  complete NVMe disk hot-swap simulation.
+ERST
+
+    {
         .name       = "change",
         .args_type  = "device:B,force:-f,target:F,arg:s?,read-only-mode:s?",
         .params     = "device [-f] filename [format [read-only-mode]]",
