@@ -817,6 +817,7 @@ typedef struct CPUArchState {
     bool tagged_addr_enable;
 #else
     /* For usermode syscall translation.  */
+    uint32_t syscall_info;
     bool eabi;
 #endif /* !CONFIG_USER_ONLY */
 } CPUARMState;

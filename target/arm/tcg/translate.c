@@ -1158,6 +1158,21 @@ void unallocated_encoding(DisasContext *s)
     gen_exception_insn(s, 0, EXCP_UDEF, syn_uncategorized());
 }
 
+static void gen_exception_swi(DisasContext *s)
+{
+#ifdef CONFIG_USER_ONLY
+# ifndef TARGET_AARCH64
+    /*
+     * Only 16-bits of the immediate are recorded in the syndrome,
+     * so store the entire 24-bit immediate for cpu_loop().
+     */
+    tcg_gen_st_i32(tcg_constant_i32(s->svc_imm), tcg_env,
+                   offsetof(CPUARMState, syscall_info));
+# endif
+#endif
+    gen_exception(EXCP_SWI, syn_aa32_svc(s->svc_imm, s->thumb));
+}
+
 /* Force a TB lookup after an instruction that changes the CPU state.  */
 void gen_lookup_tb(DisasContext *s)
 {
@@ -6781,7 +6796,7 @@ static void arm_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         switch (dc->base.is_jmp) {
         case DISAS_SWI:
             gen_ss_advance(dc);
-            gen_exception(EXCP_SWI, syn_aa32_svc(dc->svc_imm, dc->thumb));
+            gen_exception_swi(dc);
             break;
         case DISAS_HVC:
             gen_ss_advance(dc);
@@ -6854,7 +6869,7 @@ static void arm_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
             gen_helper_yield(tcg_env);
             break;
         case DISAS_SWI:
-            gen_exception(EXCP_SWI, syn_aa32_svc(dc->svc_imm, dc->thumb));
+            gen_exception_swi(dc);
             break;
         case DISAS_HVC:
             gen_exception_el(EXCP_HVC, syn_aa32_hvc(dc->svc_imm), 2);

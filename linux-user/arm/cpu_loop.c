@@ -271,7 +271,6 @@ void cpu_loop(CPUARMState *env)
 {
     CPUState *cs = env_cpu(env);
     int trapnr, si_signo, si_code;
-    unsigned int n, insn;
     abi_ulong ret;
 
     for(;;) {
@@ -312,20 +311,16 @@ void cpu_loop(CPUARMState *env)
             break;
         case EXCP_SWI:
             {
+                unsigned int n;
+
                 env->eabi = true;
                 /* system call */
                 if (env->thumb) {
                     /* Thumb is always EABI style with syscall number in r7 */
                     n = env->regs[7];
                 } else {
-                    /*
-                     * Equivalent of kernel CONFIG_OABI_COMPAT: read the
-                     * Arm SVC insn to extract the immediate, which is the
-                     * syscall number in OABI.
-                     */
-                    /* FIXME - what to do if get_user() fails? */
-                    get_user_code_u32(insn, env->regs[15] - 4, env);
-                    n = insn & 0xffffff;
+                    /* The 24-bit SVC immediate is stored during translate. */
+                    n = env->syscall_info;
                     if (n == 0) {
                         /* zero immediate: EABI, syscall number in r7 */
                         n = env->regs[7];
