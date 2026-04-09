@@ -32,6 +32,7 @@
 #include "hw/s390x/ap-bridge.h"
 #include "system/address-spaces.h"
 #include "qom/object.h"
+#include "vfio-migration-internal.h"
 
 #define TYPE_VFIO_AP_DEVICE      "vfio-ap"
 
@@ -47,6 +48,7 @@ static const VMStateDescription vmstate_ap_device = {
     .name = "vfio-ap-device",
     .version_id = 1,
     .minimum_version_id = 1,
+    .unmigratable = 0,
     .fields = (const VMStateField[]) {
         VMSTATE_END_OF_LIST()
     },
@@ -66,17 +68,44 @@ static void __attribute__((constructor)) vfio_ap_global_init(void)
     qemu_mutex_init(&cfg_chg_events_lock);
 }
 
+static int vfio_ap_save_config(VFIODevice *vdev, QEMUFile *f, Error **errp)
+{
+    VFIOAPDevice *vapdev = container_of(vdev, VFIOAPDevice, vdev);
+
+    return vmstate_save_state(f, &vmstate_ap_device, vapdev, NULL, errp);
+}
+
+static int vfio_ap_load_config(VFIODevice *vdev, QEMUFile *f)
+{
+    VFIOAPDevice *vapdev = container_of(vdev, VFIOAPDevice, vdev);
+    Error *err = NULL;
+    int ret;
+
+    ret = vmstate_load_state(f, &vmstate_ap_device, vapdev, 1, &err);
+    if (ret) {
+        error_report_err(err);
+    }
+
+    return ret;
+}
+
+static Object *vfio_ap_get_object(VFIODevice *vbasedev)
+{
+    VFIOAPDevice *vdev = container_of(vbasedev, VFIOAPDevice, vdev);
+
+    return OBJECT(vdev);
+}
+
 static void vfio_ap_compute_needs_reset(VFIODevice *vdev)
 {
     vdev->needs_reset = false;
 }
 
-/*
- * We don't need vfio_hot_reset_multi and vfio_eoi operations for
- * vfio-ap device now.
- */
 struct VFIODeviceOps vfio_ap_ops = {
     .vfio_compute_needs_reset = vfio_ap_compute_needs_reset,
+    .vfio_save_config = vfio_ap_save_config,
+    .vfio_load_config = vfio_ap_load_config,
+    .vfio_get_object = vfio_ap_get_object,
 };
 
 static void vfio_ap_req_notifier_handler(void *opaque)
@@ -251,6 +280,10 @@ static void vfio_ap_realize(DeviceState *dev, Error **errp)
         goto error;
     }
 
+    if (!vfio_migration_realize(vbasedev, errp)) {
+        goto error;
+    }
+
     if (!vfio_ap_register_irq_notifier(vapdev, VFIO_AP_REQ_IRQ_INDEX, &err)) {
         /*
          * Report this error, but do not make it a failing condition.
@@ -287,6 +320,8 @@ static void vfio_ap_unrealize(DeviceState *dev)
 
 static const Property vfio_ap_properties[] = {
     DEFINE_PROP_STRING("sysfsdev", VFIOAPDevice, vdev.sysfsdev),
+    DEFINE_PROP_ON_OFF_AUTO("enable-migration", VFIOAPDevice,
+                            vdev.enable_migration, ON_OFF_AUTO_ON),
 #ifdef CONFIG_IOMMUFD
     DEFINE_PROP_LINK("iommufd", VFIOAPDevice, vdev.iommufd,
                      TYPE_IOMMUFD_BACKEND, IOMMUFDBackend *),
