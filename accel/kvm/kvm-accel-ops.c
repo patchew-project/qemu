@@ -52,6 +52,10 @@ static void *kvm_vcpu_thread_fn(void *arg)
 
         if (cpu_can_run(cpu)) {
             r = kvm_cpu_exec(cpu);
+            if (r == EXCP_HLT) {
+                /* kvm_cpu_exec() released BQL, re-acquire for next iteration */
+                bql_lock();
+            }
             if (r == EXCP_DEBUG) {
                 cpu_handle_guest_debug(cpu);
             }

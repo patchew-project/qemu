@@ -3439,6 +3439,7 @@ int kvm_cpu_exec(CPUState *cpu)
     trace_kvm_cpu_exec();
 
     if (kvm_arch_process_async_events(cpu)) {
+        bql_unlock();
         return EXCP_HLT;
     }
 
