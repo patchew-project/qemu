@@ -219,3 +219,108 @@ SchemaInfoList *qmp_query_qmp_schema(Error **errp)
     }
     return schema;
 }
+
+void qmp_monitor_add(const char *id, const char *chardev,
+                     bool has_pretty, bool pretty, Error **errp)
+{
+    Chardev *chr;
+
+    /* Reject duplicate monitor id */
+    if (monitor_find_by_id(id)) {
+        error_setg(errp, "monitor '%s' already exists", id);
+        return;
+    }
+
+    chr = qemu_chr_find(chardev);
+    if (!chr) {
+        error_setg(errp, "chardev '%s' not found", chardev);
+        return;
+    }
+
+    monitor_init_qmp(chr, has_pretty && pretty, id, errp);
+}
+
+void qmp_monitor_remove(const char *id, Error **errp)
+{
+    Monitor *mon;
+    MonitorQMP *qmp_mon;
+    bool self_remove;
+
+    mon = monitor_find_by_id(id);
+    if (!mon) {
+        error_setg(errp, "monitor '%s' not found", id);
+        return;
+    }
+
+    if (!mon->is_qmp) {
+        error_setg(errp, "monitor '%s' is not a QMP monitor", id);
+        return;
+    }
+
+    qmp_mon = container_of(mon, MonitorQMP, common);
+
+    if (qatomic_read(&qmp_mon->setup_pending)) {
+        error_setg(errp, "monitor '%s' is still initializing", id);
+        return;
+    }
+
+    self_remove = monitor_qmp_dispatcher_is_servicing(qmp_mon);
+
+    /* Remove from mon_list before chardev disconnect. */
+    WITH_QEMU_LOCK_GUARD(&monitor_lock) {
+        mon->dead = true;
+        QTAILQ_REMOVE(&mon_list, mon, entry);
+    }
+
+    /* Cancel out_watch while gcontext still points to the right ctx. */
+    WITH_QEMU_LOCK_GUARD(&mon->mon_lock) {
+        monitor_cancel_out_watch(mon);
+    }
+
+    /*
+     * Clear chardev handlers.  Self-removal preserves gcontext so the
+     * response flush creates out_watch on the correct GMainContext.
+     */
+    if (self_remove) {
+        GMainContext *ctx = mon->use_io_thread
+            ? iothread_get_g_main_context(mon_iothread) : NULL;
+
+        qemu_chr_fe_set_handlers(&mon->chr, NULL, NULL, NULL, NULL,
+                                 NULL, ctx, false);
+    } else {
+        qemu_chr_fe_set_handlers(&mon->chr, NULL, NULL, NULL, NULL,
+                                 NULL, NULL, true);
+    }
+
+    /* Drain requests from any in-flight monitor_qmp_read(). */
+    monitor_qmp_drain_queue(qmp_mon);
+
+    /* Self-removal: defer destruction so the response is flushed first. */
+    if (self_remove) {
+        return;
+    }
+
+    monitor_qmp_destroy(qmp_mon);
+    monitor_fdsets_cleanup();
+}
+
+MonitorInfoList *qmp_query_monitors(Error **errp)
+{
+    MonitorInfoList *list = NULL;
+    Monitor *mon;
+
+    WITH_QEMU_LOCK_GUARD(&monitor_lock) {
+        QTAILQ_FOREACH(mon, &mon_list, entry) {
+            MonitorInfo *info = g_new0(MonitorInfo, 1);
+            Chardev *chr = qemu_chr_fe_get_driver(&mon->chr);
+
+            info->id = g_strdup(mon->id);
+            info->mode = mon->is_qmp ? MONITOR_MODE_CONTROL
+                                     : MONITOR_MODE_READLINE;
+            info->chardev = g_strdup(chr ? chr->label : "unknown");
+            QAPI_LIST_PREPEND(list, info);
+        }
+    }
+
+    return list;
+}
