@@ -2262,7 +2262,19 @@ static const char *arm_gdb_get_core_xml_file(CPUState *cs)
     return "arm-core.xml";
 }
 
-#ifdef CONFIG_USER_ONLY
+#ifndef CONFIG_USER_ONLY
+#include "hw/core/sysemu-cpu-ops.h"
+
+static const struct SysemuCPUOps arm_sysemu_ops = {
+    .has_work = arm_cpu_has_work,
+    .get_phys_page_attrs_debug = arm_cpu_get_phys_page_attrs_debug,
+    .asidx_from_attrs = arm_asidx_from_attrs,
+    .write_elf32_note = arm_cpu_write_elf32_note,
+    .write_elf64_note = arm_cpu_write_elf64_note,
+    .internal_is_big_endian = arm_cpu_internal_is_big_endian,
+    .legacy_vmsd = &vmstate_arm_cpu,
+};
+#elif defined(TARGET_AARCH64)
 /**
  * aarch64_untagged_addr:
  *
@@ -2286,18 +2298,6 @@ static vaddr aarch64_untagged_addr(CPUState *cs, vaddr x)
     }
     return x;
 }
-#else
-#include "hw/core/sysemu-cpu-ops.h"
-
-static const struct SysemuCPUOps arm_sysemu_ops = {
-    .has_work = arm_cpu_has_work,
-    .get_phys_page_attrs_debug = arm_cpu_get_phys_page_attrs_debug,
-    .asidx_from_attrs = arm_asidx_from_attrs,
-    .write_elf32_note = arm_cpu_write_elf32_note,
-    .write_elf64_note = arm_cpu_write_elf64_note,
-    .internal_is_big_endian = arm_cpu_internal_is_big_endian,
-    .legacy_vmsd = &vmstate_arm_cpu,
-};
 #endif
 
 #ifdef CONFIG_TCG
@@ -2340,7 +2340,9 @@ static const TCGCPUOps arm_tcg_ops = {
 #ifdef CONFIG_USER_ONLY
     .record_sigsegv = arm_cpu_record_sigsegv,
     .record_sigbus = arm_cpu_record_sigbus,
+# ifdef TARGET_AARCH64
     .untagged_addr = aarch64_untagged_addr,
+# endif
 #else
     .tlb_fill_align = arm_cpu_tlb_fill_align,
     .pointer_wrap = aprofile_pointer_wrap,
