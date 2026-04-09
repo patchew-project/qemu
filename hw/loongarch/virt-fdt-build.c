@@ -66,7 +66,7 @@ static void fdt_add_cpu_nodes(const LoongArchVirtMachineState *lvms)
             continue;
         }
 
-        nodename = g_strdup_printf("/cpus/cpu@%d", num);
+        nodename = g_strdup_printf("/cpus/cpu@%x", (unsigned)num);
         cpu = LOONGARCH_CPU(cs);
 
         qemu_fdt_add_subnode(ms->fdt, nodename);
@@ -91,7 +91,7 @@ static void fdt_add_cpu_nodes(const LoongArchVirtMachineState *lvms)
             continue;
         }
 
-        nodename = g_strdup_printf("/cpus/cpu@%d", num);
+        nodename = g_strdup_printf("/cpus/cpu@%x", (unsigned)num);
         if (ms->smp.threads > 1) {
             map_path = g_strdup_printf(
                 "/cpus/cpu-map/socket%d/core%d/thread%d",
