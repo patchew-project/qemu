@@ -275,7 +275,12 @@ static int ioeventfd(int vm_fd, int event_fd, uint64_t addr, Datamatch dm,
         }
     }
 
-    return ioctl(vm_fd, MSHV_IOEVENTFD, &args);
+    int ret = ioctl(vm_fd, MSHV_IOEVENTFD, &args);
+    if (ret < 0) {
+        return -errno;
+    }
+
+    return ret;
 }
 
 static int unregister_ioevent(int vm_fd, int event_fd, uint64_t mmio_addr,
