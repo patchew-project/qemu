@@ -33,6 +33,9 @@ static void virtio_gpu_gl_update_cursor_data(VirtIOGPU *g,
     VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
     uint32_t width, height;
     uint32_t pixels, *data;
+    bool y_0_top = true;
+    int ret;
+    struct virgl_renderer_resource_info info;
 
     if (gl->renderer_state != RS_INITED) {
         return;
@@ -49,8 +52,23 @@ static void virtio_gpu_gl_update_cursor_data(VirtIOGPU *g,
         return;
     }
 
+    memset(&info, 0, sizeof(info));
+    ret = virgl_renderer_resource_get_info(resource_id, &info);
+    if (ret == 0) {
+        y_0_top = info.flags & VIRTIO_GPU_RESOURCE_FLAG_Y_0_TOP;
+    }
+
     pixels = s->current_cursor->width * s->current_cursor->height;
-    memcpy(s->current_cursor->data, data, pixels * sizeof(uint32_t));
+    if (y_0_top) {
+        memcpy(s->current_cursor->data, data, pixels * sizeof(uint32_t));
+    } else {
+        uint32_t *dst = s->current_cursor->data;
+        for (uint32_t y = 0; y < height; y++) {
+            memcpy(dst + y * width,
+                   data + (height - 1 - y) * width,
+                   width * sizeof(uint32_t));
+        }
+    }
     free(data);
 }
 
