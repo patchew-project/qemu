@@ -29,19 +29,6 @@
 #include "user/page-protection.h"
 #include "target/arm/syndrome.h"
 
-#define get_user_code_u32(x, gaddr, env)                \
-    ({ abi_long __r = get_user_u32((x), (gaddr));       \
-        if (!__r && bswap_code(arm_sctlr_b(env))) {     \
-            (x) = bswap32(x);                           \
-        }                                               \
-        __r;                                            \
-    })
-
-/*
- * Note that if we need to do data accesses here, they should do a
- * bswap if arm_cpu_bswap_data() returns true.
- */
-
 /*
  * Similar to code in accel/tcg/user-exec.c, but outside the execution loop.
  * Must be called with mmap_lock.
@@ -262,24 +249,15 @@ void cpu_loop(CPUARMState *env)
         qemu_process_cpu_events(cs);
 
         switch(trapnr) {
+        case EXCP_NWFPE:
+            if (emulate_arm_fpa11(env, env->syscall_info)) {
+                break;
+            }
+            /* fall through */
         case EXCP_UDEF:
         case EXCP_NOCP:
         case EXCP_INVSTATE:
-            {
-                uint32_t opcode;
-
-                /* we handle the FPU emulation here, as Linux */
-                /* we get the opcode */
-                /* FIXME - what to do if get_user() fails? */
-                get_user_code_u32(opcode, env->regs[15], env);
-
-                if (!env->thumb && emulate_arm_fpa11(env, opcode)) {
-                    break;
-                }
-
-                force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLOPN,
-                                env->regs[15]);
-            }
+            force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLOPN, env->regs[15]);
             break;
         case EXCP_SWI:
             {

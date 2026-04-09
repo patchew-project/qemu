@@ -2358,8 +2358,26 @@ static bool valid_cp(DisasContext *s, int cp)
     return cp < 8 || cp >= 14;
 }
 
+static bool maybe_nwfpe(DisasContext *s, int cp)
+{
+#ifdef CONFIG_USER_ONLY
+# if defined(CONFIG_LINUX) && !defined(TARGET_AARCH64)
+    if (!s->thumb && (cp == 1 || cp == 2)) {
+        tcg_gen_st_i32(tcg_constant_i32(s->insn), tcg_env,
+                       offsetof(CPUARMState, syscall_info));
+        gen_exception_insn(s, 0, EXCP_NWFPE, syn_uncategorized());
+        return true;
+    }
+# endif
+#endif
+    return false;
+}
+
 static bool trans_MCR(DisasContext *s, arg_MCR *a)
 {
+    if (maybe_nwfpe(s, a->cp)) {
+        return true;
+    }
     if (!valid_cp(s, a->cp)) {
         return false;
     }
@@ -2370,6 +2388,9 @@ static bool trans_MCR(DisasContext *s, arg_MCR *a)
 
 static bool trans_MRC(DisasContext *s, arg_MRC *a)
 {
+    if (maybe_nwfpe(s, a->cp)) {
+        return true;
+    }
     if (!valid_cp(s, a->cp)) {
         return false;
     }
@@ -2380,6 +2401,9 @@ static bool trans_MRC(DisasContext *s, arg_MRC *a)
 
 static bool trans_MCRR(DisasContext *s, arg_MCRR *a)
 {
+    if (maybe_nwfpe(s, a->cp)) {
+        return true;
+    }
     if (!valid_cp(s, a->cp)) {
         return false;
     }
@@ -2390,6 +2414,9 @@ static bool trans_MCRR(DisasContext *s, arg_MCRR *a)
 
 static bool trans_MRRC(DisasContext *s, arg_MRRC *a)
 {
+    if (maybe_nwfpe(s, a->cp)) {
+        return true;
+    }
     if (!valid_cp(s, a->cp)) {
         return false;
     }
