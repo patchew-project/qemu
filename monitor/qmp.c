@@ -26,6 +26,7 @@
 
 #include "chardev/char-io.h"
 #include "monitor-internal.h"
+#include "qemu/aio-wait.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-control.h"
 #include "qobject/qdict.h"
@@ -71,6 +72,9 @@ typedef struct QMPRequest QMPRequest;
 
 QmpCommandList qmp_commands, qmp_cap_negotiation_commands;
 
+/* Monitor being serviced by the dispatcher.  Protected by BQL. */
+static MonitorQMP *qmp_dispatcher_current_mon;
+
 static bool qmp_oob_enabled(MonitorQMP *mon)
 {
     return mon->capab[QMP_CAPABILITY_OOB];
@@ -96,6 +100,12 @@ static void monitor_qmp_cleanup_req_queue_locked(MonitorQMP *mon)
     while (!g_queue_is_empty(mon->qmp_requests)) {
         qmp_request_free(g_queue_pop_head(mon->qmp_requests));
     }
+}
+
+void monitor_qmp_drain_queue(MonitorQMP *mon)
+{
+    QEMU_LOCK_GUARD(&mon->qmp_queue_lock);
+    monitor_qmp_cleanup_req_queue_locked(mon);
 }
 
 static void monitor_qmp_cleanup_queue_and_resume(MonitorQMP *mon)
@@ -287,6 +297,7 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
          */
 
         mon = req_obj->mon;
+        qmp_dispatcher_current_mon = mon;
 
         /*
          * We need to resume the monitor if handle_qmp_command()
@@ -342,11 +353,26 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
             qobject_unref(rsp);
         }
 
+        /*
+         * Self-removal: monitor-remove marked this monitor dead.
+         * Close chardev, destroy, skip monitor_resume().
+         */
+        if (mon->common.dead) {
+            qemu_chr_fe_set_handlers(&mon->common.chr, NULL, NULL,
+                                     NULL, NULL, NULL, NULL, true);
+            qmp_request_free(req_obj);
+            monitor_qmp_destroy(mon);
+            monitor_fdsets_cleanup();
+            qmp_dispatcher_current_mon = NULL;
+            continue;
+        }
+
         if (!oob_enabled) {
             monitor_resume(&mon->common);
         }
 
         qmp_request_free(req_obj);
+        qmp_dispatcher_current_mon = NULL;
     }
     qatomic_set(&qmp_dispatcher_co, NULL);
 }
@@ -499,6 +525,44 @@ void monitor_data_destroy_qmp(MonitorQMP *mon)
     g_queue_free(mon->qmp_requests);
 }
 
+static void monitor_qmp_iothread_quiesce(void *opaque)
+{
+    /* No-op: synchronization point only */
+}
+
+/*
+ * Destroy a single QMP monitor.
+ * The monitor must already have been removed from mon_list.
+ */
+void monitor_qmp_destroy(MonitorQMP *mon)
+{
+    qemu_bh_delete(mon->common.accept_input_bh);
+    mon->common.accept_input_bh = NULL;
+
+    WITH_QEMU_LOCK_GUARD(&mon->common.mon_lock) {
+        /* Disable flushes before cancel -- gcontext is already wrong. */
+        mon->common.skip_flush = true;
+        monitor_cancel_out_watch(&mon->common);
+    }
+
+    /* Synchronize with in-flight iothread callbacks. */
+    if (mon->common.use_io_thread) {
+        aio_wait_bh_oneshot(iothread_get_aio_context(mon_iothread),
+                            monitor_qmp_iothread_quiesce, NULL);
+    }
+
+    /* Catch requests from a racing monitor_qmp_read(). */
+    monitor_qmp_drain_queue(mon);
+
+    monitor_data_destroy(&mon->common);
+    g_free(mon);
+}
+
+bool monitor_qmp_dispatcher_is_servicing(MonitorQMP *mon)
+{
+    return qmp_dispatcher_current_mon == mon;
+}
+
 static void monitor_qmp_setup_handlers_bh(void *opaque)
 {
     MonitorQMP *mon = opaque;
@@ -510,6 +574,7 @@ static void monitor_qmp_setup_handlers_bh(void *opaque)
     qemu_chr_fe_set_handlers(&mon->common.chr, monitor_can_read,
                              monitor_qmp_read, monitor_qmp_event,
                              NULL, &mon->common, context, true);
+    qatomic_set(&mon->setup_pending, false);
 }
 
 void monitor_init_qmp(Chardev *chr, bool pretty, const char *id,
@@ -557,6 +622,7 @@ void monitor_init_qmp(Chardev *chr, bool pretty, const char *id,
          * since chardev might be running in the monitor I/O
          * thread.  Schedule a bottom half.
          */
+        mon->setup_pending = true;
         aio_bh_schedule_oneshot(iothread_get_aio_context(mon_iothread),
                                 monitor_qmp_setup_handlers_bh, mon);
         /* Synchronous insert for immediate duplicate detection. */
