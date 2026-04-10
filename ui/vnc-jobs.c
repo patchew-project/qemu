@@ -83,26 +83,26 @@ VncJob *vnc_job_new(VncState *vs)
 
     assert(vs->magic == VNC_MAGIC);
     job->vs = vs;
-    vnc_lock_queue(queue);
     QLIST_INIT(&job->rectangles);
-    vnc_unlock_queue(queue);
     return job;
 }
 
+/*
+ * Do not call this after pushing the job.
+ */
 int vnc_job_add_rect(VncJob *job, int x, int y, int w, int h)
 {
     VncRectEntry *entry = g_new0(VncRectEntry, 1);
 
     trace_vnc_job_add_rect(job->vs, job, x, y, w, h);
+    assert(!QTAILQ_IN_USE(job, next));
 
     entry->rect.x = x;
     entry->rect.y = y;
     entry->rect.w = w;
     entry->rect.h = h;
 
-    vnc_lock_queue(queue);
     QLIST_INSERT_HEAD(&job->rectangles, entry, next);
-    vnc_unlock_queue(queue);
     return 1;
 }
 
@@ -120,16 +120,21 @@ static void vnc_job_free(VncJob *job)
     g_free(job);
 }
 
+/*
+ * Push a job onto the queue. Ownership of the job is transferred.
+ */
 void vnc_job_push(VncJob *job)
 {
-    vnc_lock_queue(queue);
+    assert(!QTAILQ_IN_USE(job, next));
+
     if (QLIST_EMPTY(&job->rectangles)) {
         vnc_job_free(job);
     } else {
+        vnc_lock_queue(queue);
         QTAILQ_INSERT_TAIL(&queue->jobs, job, next);
         qemu_cond_broadcast(&queue->cond);
+        vnc_unlock_queue(queue);
     }
-    vnc_unlock_queue(queue);
 }
 
 static bool vnc_has_job_locked(VncState *vs)
