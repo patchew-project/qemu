@@ -617,7 +617,6 @@ bool vnc_display_reload_certs(const char *id, Error **errp)
 */
 
 static int vnc_update_client(VncState *vs, int has_dirty);
-static void vnc_disconnect_start(VncState *vs);
 
 static void vnc_colordepth(VncState *vs);
 static void framebuffer_update_request(VncState *vs, int incremental,
@@ -1296,7 +1295,7 @@ static void audio_del(VncState *vs)
     }
 }
 
-static void vnc_disconnect_start(VncState *vs)
+void vnc_disconnect_start(VncState *vs)
 {
     if (vs->disconnecting) {
         return;

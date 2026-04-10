@@ -560,6 +560,7 @@ void vnc_display_free(VncDisplay *vd);
  *****************************************************************************/
 
 /* Event loop functions */
+void vnc_disconnect_start(VncState *vs);
 gboolean vnc_client_io(QIOChannel *ioc,
                        GIOCondition condition,
                        void *opaque);
