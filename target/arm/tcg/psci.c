@@ -68,7 +68,7 @@ void arm_handle_psci_call(ARMCPU *cpu)
     CPUARMState *env = &cpu->env;
     uint64_t param[4];
     uint64_t context_id, mpidr;
-    uint64_t entry;
+    vaddr entry;
     int32_t ret = 0;
     int i;
 
