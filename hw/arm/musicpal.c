@@ -171,7 +171,7 @@ static bool lcd_refresh(void *opaque)
         }
     }
 
-    dpy_gfx_update(s->con, 0, 0, 128*3, 64*3);
+    qemu_console_update(s->con, 0, 0, 128*3, 64*3);
     return true;
 }
 
@@ -254,7 +254,7 @@ static const GraphicHwOps musicpal_gfx_ops = {
 static void musicpal_lcd_realize(DeviceState *dev, Error **errp)
 {
     musicpal_lcd_state *s = MUSICPAL_LCD(dev);
-    s->con = graphic_console_init(dev, 0, &musicpal_gfx_ops, s);
+    s->con = qemu_graphic_console_create(dev, 0, &musicpal_gfx_ops, s);
     qemu_console_resize(s->con, 128 * 3, 64 * 3);
 }
 

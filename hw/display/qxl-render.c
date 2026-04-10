@@ -135,7 +135,7 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
                 (width,
                  height);
         }
-        dpy_gfx_replace_surface(vga->con, surface);
+        qemu_console_set_surface(vga->con, surface);
     }
 
     if (!qxl->guest_primary.data) {
@@ -154,16 +154,16 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
             continue;
         }
         qxl_blit(qxl, qxl->dirty+i);
-        dpy_gfx_update(vga->con,
-                       qxl->dirty[i].left, qxl->dirty[i].top,
-                       qxl->dirty[i].right - qxl->dirty[i].left,
-                       qxl->dirty[i].bottom - qxl->dirty[i].top);
+        qemu_console_update(vga->con,
+                            qxl->dirty[i].left, qxl->dirty[i].top,
+                            qxl->dirty[i].right - qxl->dirty[i].left,
+                            qxl->dirty[i].bottom - qxl->dirty[i].top);
     }
     qxl->num_dirty_rects = 0;
 
 end:
     if (qxl->render_update_cookie_num == 0) {
-        graphic_hw_update_done(qxl->ssd.dcl.con);
+        qemu_console_hw_update_done(qxl->ssd.dcl.con);
     }
 }
 

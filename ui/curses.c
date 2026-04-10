@@ -1,8 +1,8 @@
 /*
  * QEMU curses/ncurses display driver
- * 
+ *
  * Copyright (c) 2005 Andrzej Zaborowski  <balrog@zabor.org>
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -275,11 +275,11 @@ static void curses_refresh(DisplayChangeListener *dcl)
         clear();
         refresh();
         curses_calc_pad();
-        graphic_hw_invalidate(dcl->con);
+        qemu_console_hw_invalidate(dcl->con);
         invalidate = 0;
     }
 
-    graphic_hw_text_update(dcl->con, screen);
+    qemu_console_hw_text_update(dcl->con, screen);
 
     while (1) {
         /* while there are any pending key strokes to process */

@@ -657,7 +657,7 @@ static void xenfb_guest_copy(struct XenFB *xenfb, int x, int y, int w, int h)
         xen_pv_printf(&xenfb->c.xendev, 0, "%s: oops: convert %d -> %d bpp?\n",
                       __func__, xenfb->depth, bpp);
 
-    dpy_gfx_update(xenfb->con, x, y, w, h);
+    qemu_console_update(xenfb->con, x, y, w, h);
 }
 
 #ifdef XENFB_TYPE_REFRESH_PERIOD
@@ -743,7 +743,7 @@ static bool xenfb_update(void *opaque)
             surface = qemu_create_displaysurface(xenfb->width, xenfb->height);
             break;
         }
-        dpy_gfx_replace_surface(xenfb->con, surface);
+        qemu_console_set_surface(xenfb->con, surface);
         xen_pv_printf(&xenfb->c.xendev, 1,
                       "update: resizing: %dx%d @ %d bpp%s\n",
                       xenfb->width, xenfb->height, xenfb->depth,
@@ -903,7 +903,7 @@ static int fb_initialise(struct XenLegacyDevice *xendev)
     if (rc != 0)
         return rc;
 
-    fb->con = graphic_console_init(NULL, 0, &xenfb_ops, fb);
+    fb->con = qemu_graphic_console_create(NULL, 0, &xenfb_ops, fb);
 
     if (xenstore_read_fe_int(xendev, "feature-update", &fb->feature_update) == -1)
         fb->feature_update = 0;

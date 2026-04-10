@@ -2324,8 +2324,8 @@ static void set_pixel_format(VncState *vs, int bits_per_pixel,
 
     set_pixel_conversion(vs);
 
-    graphic_hw_invalidate(vs->vd->dcl.con);
-    graphic_hw_update(vs->vd->dcl.con);
+    qemu_console_hw_invalidate(vs->vd->dcl.con);
+    qemu_console_hw_update(vs->vd->dcl.con);
 }
 
 static void pixel_format_message (VncState *vs) {
@@ -2383,7 +2383,7 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
     VncDisplay *vd = vs->vd;
 
     if (data[0] > 3) {
-        update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_BASE);
+        qemu_console_listener_set_refresh(&vd->dcl, VNC_REFRESH_INTERVAL_BASE);
     }
 
     switch (data[0]) {
@@ -2637,9 +2637,9 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
         h = read_u16(data, 4);
 
         trace_vnc_msg_client_set_desktop_size(vs, vs->ioc, w, h, screens);
-        if (dpy_ui_info_supported(vs->vd->dcl.con)) {
+        if (qemu_console_ui_info_supported(vs->vd->dcl.con)) {
             QemuUIInfo info = { .width = w, .height = h };
-            dpy_set_ui_info(vs->vd->dcl.con, &info, false);
+            qemu_console_set_ui_info(vs->vd->dcl.con, &info, false);
             vnc_desktop_resize_ext(vs, 4 /* Request forwarded */);
         } else {
             vnc_desktop_resize_ext(vs, 3 /* Invalid screen layout */);
@@ -3241,14 +3241,14 @@ static void vnc_refresh(DisplayChangeListener *dcl)
     int has_dirty, rects = 0;
 
     if (QTAILQ_EMPTY(&vd->clients)) {
-        update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_MAX);
+        qemu_console_listener_set_refresh(&vd->dcl, VNC_REFRESH_INTERVAL_MAX);
         return;
     }
 
-    graphic_hw_update(vd->dcl.con);
+    qemu_console_hw_update(vd->dcl.con);
 
     if (vnc_trylock_display(vd)) {
-        update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_BASE);
+        qemu_console_listener_set_refresh(&vd->dcl, VNC_REFRESH_INTERVAL_BASE);
         return;
     }
 
@@ -3322,7 +3322,7 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
               sioc, websocket, vs->auth, vs->subauth);
 
     VNC_DEBUG("New client on socket %p\n", vs->sioc);
-    update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_BASE);
+    qemu_console_listener_set_refresh(&vd->dcl, VNC_REFRESH_INTERVAL_BASE);
     qio_channel_set_blocking(vs->ioc, false, &error_abort);
     g_clear_handle_id(&vs->ioc_tag, g_source_remove);
     if (websocket) {
@@ -3362,7 +3362,7 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
         vnc_update_server_surface(vd);
     }
 
-    graphic_hw_update(vd->dcl.con);
+    qemu_console_hw_update(vd->dcl.con);
 
     if (!vs->websocket) {
         vnc_start_protocol(vs);
@@ -3418,7 +3418,7 @@ static void vmstate_change_handler(void *opaque, bool running, RunState state)
     if (state != RUN_STATE_RUNNING) {
         return;
     }
-    update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_BASE);
+    qemu_console_listener_set_refresh(&vd->dcl, VNC_REFRESH_INTERVAL_BASE);
 }
 
 static bool vnc_display_open(VncDisplay *vd, Error **errp);

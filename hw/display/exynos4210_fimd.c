@@ -1340,7 +1340,7 @@ static bool exynos4210_fimd_update(void *opaque)
             fimd_copy_line_toqemu(global_width, s->ifb + global_width * line *
                     RGBA_SIZE, d + global_width * line * bpp);
         }
-        dpy_gfx_update_full(s->console);
+        qemu_console_update_full(s->console);
     }
     s->invalidate = false;
     s->vidintcon[1] |= FIMD_VIDINT_INTFRMPEND;
@@ -1964,7 +1964,7 @@ static void exynos4210_fimd_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    s->console = graphic_console_init(dev, 0, &exynos4210_fimd_ops, s);
+    s->console = qemu_graphic_console_create(dev, 0, &exynos4210_fimd_ops, s);
 }
 
 static void exynos4210_fimd_class_init(ObjectClass *klass, const void *data)
