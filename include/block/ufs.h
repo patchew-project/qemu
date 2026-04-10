@@ -1126,9 +1126,22 @@ enum health_desc_param {
     UFS_HEALTH_DESC_PARAM_LIFE_TIME_EST_B = 0x4,
 };
 
+/* Possible values for bUFSFeaturesSupport */
 enum {
     UFS_DEV_HIGH_TEMP_NOTIF = BIT(4),
     UFS_DEV_LOW_TEMP_NOTIF = BIT(5),
+};
+
+/* Possible values for dExtendedWriteBoosterSupport */
+enum {
+    WB_RESIZE = BIT(0),
+    WB_FIFO = BIT(1),
+    WB_PINNED = BIT(2),
+};
+
+/* Possible values for dExtendedUFSFeaturesSupport */
+enum {
+    UFS_DEV_WB_SUPPORT = BIT(8),
 };
 
 /* WriteBooster buffer mode */
@@ -1205,6 +1218,44 @@ enum ufs_dev_pwr_mode {
     UFS_SLEEP_PWR_MODE = 2,
     UFS_POWERDOWN_PWR_MODE = 3,
     UFS_DEEPSLEEP_PWR_MODE = 4,
+};
+
+/* UFS Write Booster */
+enum ufs_wb_flush_status {
+    UFS_WB_FLUSH_IDLE = 0,
+    UFS_WB_FLUSH_IN_PROGRESS = 1,
+    UFS_WB_FLUSH_SUSPENDED = 2,
+    UFS_WB_FLUSH_COMPLETED = 3,
+    UFS_WB_FLUSH_FAILED = 4,
+    UFS_WB_FLUSH_STATUS_MAX,
+};
+
+enum ufs_wb_flush_mode {
+    UFS_WB_FLUSH_NONE = 0,
+    UFS_WB_FLUSH_FIFO = 1,
+    UFS_WB_FLUSH_PINNED = 2,
+    UFS_WB_FLUSH_MODE_MAX,
+};
+
+enum ufs_wb_resize_hint {
+    UFS_WB_HINT_KEEP = 0,
+    UFS_WB_HINT_DECREASE = 1,
+    UFS_WB_HINT_ENCREASE = 2,
+    UFS_WB_RESIZE_HINT_MAX,
+};
+
+enum ufs_wb_resize_op {
+    UFS_WB_DECREASE = 0,
+    UFS_WB_INCREASE = 1,
+    UFS_WB_RESIZE_OP_MAX,
+};
+
+enum ufs_wb_resize_status {
+    UFS_WB_RESIZE_IDLE = 0,
+    UFS_WB_RESIZE_IN_PROGRESS = 1,
+    UFS_WB_RESIZE_COMPLETED = 2,
+    UFS_WB_RESIZE_FAILED = 3,
+    UFS_WB_RESIZE_STATUS_MAX,
 };
 
 /*
