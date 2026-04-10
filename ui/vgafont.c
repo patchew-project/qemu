@@ -1,3 +1,6 @@
+/*
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 #include "vgafont.h"
 
 const uint8_t vgafont16[256 * 16] = {
