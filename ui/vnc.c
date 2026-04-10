@@ -1718,7 +1718,7 @@ void vnc_write_u8(VncState *vs, uint8_t value)
 void vnc_flush(VncState *vs)
 {
     vnc_lock_output(vs);
-    if (vs->ioc != NULL && vs->output.offset) {
+    if (vs->ioc != NULL && !buffer_empty(&vs->output)) {
         vnc_client_write_locked(vs);
     }
     if (vs->disconnecting) {
