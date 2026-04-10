@@ -210,7 +210,7 @@ typedef struct {
 typedef struct {
     VFIOUserHdr hdr;
     uint64_t offset;
-    uint32_t count;
+    uint64_t count;
     char data[];
 } VFIOUserDMARW;
 
