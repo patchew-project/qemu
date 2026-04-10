@@ -3431,7 +3431,7 @@ void vnc_display_init(const char *id, Error **errp)
     }
     vd = g_malloc0(sizeof(*vd));
 
-    vd->id = strdup(id);
+    vd->id = g_strdup(id);
     QTAILQ_INSERT_TAIL(&vnc_displays, vd, next);
 
     QTAILQ_INIT(&vd->clients);
