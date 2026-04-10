@@ -143,7 +143,7 @@ static inline bool monitor_uses_readline(const MonitorHMP *mon)
 
 static inline bool monitor_is_hmp_non_interactive(const Monitor *mon)
 {
-    if (monitor_is_qmp(mon)) {
+    if (!object_dynamic_cast(OBJECT(mon), TYPE_MONITOR_HMP)) {
         return false;
     }
 
