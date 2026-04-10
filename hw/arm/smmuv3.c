@@ -1965,13 +1965,6 @@ static void smmu_reset_exit(Object *obj, ResetType type)
 
 static bool smmu_validate_property(SMMUv3State *s, Error **errp)
 {
-#ifndef CONFIG_ARM_SMMUV3_ACCEL
-    if (s->accel) {
-        error_setg(errp, "accel=on support not compiled in");
-        return false;
-    }
-#endif
-
     if (s->ats == ON_OFF_AUTO_AUTO) {
         error_setg(errp, "ats auto mode is not supported");
         return false;
@@ -2033,7 +2026,9 @@ static void smmu_realize(DeviceState *d, Error **errp)
     }
 
     if (s->accel) {
-        smmuv3_accel_init(s);
+        if (!smmuv3_accel_init(s, errp)) {
+            return;
+        }
         error_setg(&s->migration_blocker, "Migration not supported with SMMUv3 "
                    "accelerator mode enabled");
         if (migrate_add_blocker(&s->migration_blocker, errp) < 0) {
