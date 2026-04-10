@@ -1516,7 +1516,7 @@ static void monitor_readline_flush(void *opaque)
     monitor_flush(&mon->parent);
 }
 
-void monitor_init_hmp(Chardev *chr, bool use_readline, Error **errp)
+void monitor_new_hmp(Chardev *chr, bool use_readline, Error **errp)
 {
     MonitorHMP *mon = g_new0(MonitorHMP, 1);
 

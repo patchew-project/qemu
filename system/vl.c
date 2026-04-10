@@ -1244,7 +1244,7 @@ static int fsdev_init_func(void *opaque, QemuOpts *opts, Error **errp)
 
 static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
-    return monitor_init_opts(opts, errp);
+    return monitor_new_opts(opts, errp);
 }
 
 static void monitor_parse(const char *str, const char *mode, bool pretty)

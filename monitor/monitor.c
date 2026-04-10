@@ -715,7 +715,7 @@ void monitor_init_globals(void)
     aio_co_schedule(iohandler_get_aio_context(), qmp_dispatcher_co);
 }
 
-int monitor_init(MonitorOptions *opts, bool allow_hmp, Error **errp)
+int monitor_new(MonitorOptions *opts, bool allow_hmp, Error **errp)
 {
     ERRP_GUARD();
     Chardev *chr;
@@ -732,7 +732,7 @@ int monitor_init(MonitorOptions *opts, bool allow_hmp, Error **errp)
 
     switch (opts->mode) {
     case MONITOR_MODE_CONTROL:
-        monitor_init_qmp(chr, opts->pretty, errp);
+        monitor_new_qmp(chr, opts->pretty, errp);
         break;
     case MONITOR_MODE_READLINE:
         if (!allow_hmp) {
@@ -743,7 +743,7 @@ int monitor_init(MonitorOptions *opts, bool allow_hmp, Error **errp)
             error_setg(errp, "'pretty' is not compatible with HMP monitors");
             return -1;
         }
-        monitor_init_hmp(chr, true, errp);
+        monitor_new_hmp(chr, true, errp);
         break;
     default:
         g_assert_not_reached();
@@ -752,7 +752,7 @@ int monitor_init(MonitorOptions *opts, bool allow_hmp, Error **errp)
     return *errp ? -1 : 0;
 }
 
-int monitor_init_opts(QemuOpts *opts, Error **errp)
+int monitor_new_opts(QemuOpts *opts, Error **errp)
 {
     Visitor *v;
     MonitorOptions *options;
@@ -765,7 +765,7 @@ int monitor_init_opts(QemuOpts *opts, Error **errp)
         return -1;
     }
 
-    ret = monitor_init(options, true, errp);
+    ret = monitor_new(options, true, errp);
     qapi_free_MonitorOptions(options);
     return ret;
 }

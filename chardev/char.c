@@ -786,7 +786,7 @@ static Chardev *qemu_chr_new_from_name(const char *label, const char *filename,
 
     if (qemu_opt_get_bool(opts, "mux", 0)) {
         assert(permit_mux_mon);
-        monitor_init_hmp(chr, true, &err);
+        monitor_new_hmp(chr, true, &err);
         if (err) {
             error_report_err(err);
             object_unparent(OBJECT(chr));
