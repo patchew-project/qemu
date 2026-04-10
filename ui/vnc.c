@@ -3493,10 +3493,6 @@ static void vnc_display_close(VncDisplay *vd)
         object_unref(OBJECT(vd->tlscreds));
         vd->tlscreds = NULL;
     }
-    if (vd->tlsauthz) {
-        object_unparent(OBJECT(vd->tlsauthz));
-        vd->tlsauthz = NULL;
-    }
     g_free(vd->tlsauthzid);
     vd->tlsauthzid = NULL;
     if (vd->lock_key_sync) {

@@ -180,7 +180,6 @@ struct VncDisplay
     bool non_adaptive;
     bool power_control;
     QCryptoTLSCreds *tlscreds;
-    QAuthZ *tlsauthz;
     char *tlsauthzid;
 #ifdef CONFIG_VNC_SASL
     VncDisplaySASL sasl;
