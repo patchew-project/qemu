@@ -75,17 +75,7 @@ static void vnc_disconnect_finish(VncState *vs);
 
 static void vnc_set_share_mode(VncState *vs, VncShareMode mode)
 {
-#ifdef _VNC_DEBUG
-    static const char *mn[] = {
-        [0]                           = "undefined",
-        [VNC_SHARE_MODE_CONNECTING]   = "connecting",
-        [VNC_SHARE_MODE_SHARED]       = "shared",
-        [VNC_SHARE_MODE_EXCLUSIVE]    = "exclusive",
-        [VNC_SHARE_MODE_DISCONNECTED] = "disconnected",
-    };
-    fprintf(stderr, "%s/%p: %s -> %s\n", __func__,
-            vs->ioc, mn[vs->share_mode], mn[mode]);
-#endif
+    trace_vnc_set_share_mode(vs, vs->ioc, vs->share_mode, mode);
 
     switch (vs->share_mode) {
     case VNC_SHARE_MODE_CONNECTING:
@@ -185,8 +175,9 @@ static void vnc_init_basic_info_from_remote_addr(QIOChannelSocket *ioc,
     qapi_free_SocketAddress(addr);
 }
 
-static const char *vnc_auth_name(VncDisplay *vd) {
-    switch (vd->auth) {
+static const char *vnc_auth_name(int auth, int subauth)
+{
+    switch (auth) {
     case VNC_AUTH_INVALID:
         return "invalid";
     case VNC_AUTH_NONE:
@@ -204,7 +195,7 @@ static const char *vnc_auth_name(VncDisplay *vd) {
     case VNC_AUTH_TLS:
         return "tls";
     case VNC_AUTH_VENCRYPT:
-        switch (vd->subauth) {
+        switch (subauth) {
         case VNC_AUTH_VENCRYPT_PLAIN:
             return "vencrypt+plain";
         case VNC_AUTH_VENCRYPT_TLSNONE:
@@ -244,7 +235,7 @@ static VncServerInfo *vnc_server_info_get(VncDisplay *vd)
     info = g_malloc0(sizeof(*info));
     vnc_init_basic_info_from_server_addr(qio_net_listener_sioc(vd->listener, 0),
                                          qapi_VncServerInfo_base(info), &err);
-    info->auth = g_strdup(vnc_auth_name(vd));
+    info->auth = g_strdup(vnc_auth_name(vd->auth, vd->subauth));
     if (err) {
         qapi_free_VncServerInfo(info);
         info = NULL;
@@ -421,7 +412,7 @@ VncInfo *qmp_query_vnc(Error **errp)
 
         info->has_family = true;
 
-        info->auth = g_strdup(vnc_auth_name(vd));
+        info->auth = g_strdup(vnc_auth_name(vd->auth, vd->subauth));
     }
 
     qapi_free_SocketAddress(addr);
@@ -1382,7 +1373,7 @@ size_t vnc_client_io_error(VncState *vs, ssize_t ret, Error *err)
 
 void vnc_client_error(VncState *vs)
 {
-    VNC_DEBUG("Closing down client sock: protocol error\n");
+    trace_vnc_client_protocol_error(vs);
     vnc_disconnect_start(vs);
 }
 
@@ -1407,7 +1398,7 @@ size_t vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen)
     Error *err = NULL;
     ssize_t ret;
     ret = qio_channel_write(vs->ioc, (const char *)data, datalen, &err);
-    VNC_DEBUG("Wrote wire %p %zd -> %ld\n", data, datalen, ret);
+    trace_vnc_client_write_wire(vs, data, datalen, ret);
     return vnc_client_io_error(vs, ret, err);
 }
 
@@ -1428,9 +1419,9 @@ static size_t vnc_client_write_plain(VncState *vs)
     size_t ret;
 
 #ifdef CONFIG_VNC_SASL
-    VNC_DEBUG("Write Plain: Pending output %p size %zd offset %zd. Wait SSF %d\n",
-              vs->output.buffer, vs->output.capacity, vs->output.offset,
-              vs->sasl.waitWriteSSF);
+    trace_vnc_client_write_plain(vs, vs->output.buffer,
+                                 vs->output.capacity, vs->output.offset,
+                                 vs->sasl.waitWriteSSF);
 
     if (vs->sasl.conn &&
         vs->sasl.runSSF &&
@@ -1531,7 +1522,7 @@ size_t vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen)
     ssize_t ret;
     Error *err = NULL;
     ret = qio_channel_read(vs->ioc, (char *)data, datalen, &err);
-    VNC_DEBUG("Read wire %p %zd -> %ld\n", data, datalen, ret);
+    trace_vnc_client_read_wire(vs, data, datalen, ret);
     return vnc_client_io_error(vs, ret, err);
 }
 
@@ -1548,8 +1539,8 @@ size_t vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen)
 static size_t vnc_client_read_plain(VncState *vs)
 {
     size_t ret;
-    VNC_DEBUG("Read plain %p size %zd offset %zd\n",
-              vs->input.buffer, vs->input.capacity, vs->input.offset);
+    trace_vnc_client_read_plain(vs, vs->input.buffer,
+                                vs->input.capacity, vs->input.offset);
     buffer_reserve(&vs->input, 4096);
     ret = vnc_client_read_buf(vs, buffer_end(&vs->input), 4096);
     if (!ret)
@@ -2212,7 +2203,7 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             }
             break;
         default:
-            VNC_DEBUG("Unknown encoding: %d (0x%.8x): %d\n", i, enc, enc);
+            trace_vnc_client_unknown_encoding(vs, i, enc);
             break;
         }
     }
@@ -2580,14 +2571,13 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
                 case 4: vs->as.fmt = AUDIO_FORMAT_U32; break;
                 case 5: vs->as.fmt = AUDIO_FORMAT_S32; break;
                 default:
-                    VNC_DEBUG("Invalid audio format %d\n", read_u8(data, 4));
+                    trace_vnc_client_invalid_audio_format(vs, read_u8(data, 4));
                     vnc_client_error(vs);
                     break;
                 }
                 vs->as.nchannels = read_u8(data, 5);
                 if (vs->as.nchannels != 1 && vs->as.nchannels != 2) {
-                    VNC_DEBUG("Invalid audio channel count %d\n",
-                              read_u8(data, 5));
+                    trace_vnc_client_invalid_audio_channels(vs, read_u8(data, 5));
                     vnc_client_error(vs);
                     break;
                 }
@@ -2597,7 +2587,7 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
                  * protects calculations involving 'vs->as.freq' later.
                  */
                 if (freq > 48000) {
-                    VNC_DEBUG("Invalid audio frequency %u > 48000", freq);
+                    trace_vnc_client_invalid_audio_freq(vs, freq);
                     vnc_client_error(vs);
                     break;
                 }
@@ -2606,14 +2596,14 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
                     vs, vs->ioc, vs->as.fmt, vs->as.nchannels, vs->as.freq);
                 break;
             default:
-                VNC_DEBUG("Invalid audio message %d\n", read_u8(data, 2));
+                trace_vnc_client_invalid_audio_msg(vs, read_u8(data, 2));
                 vnc_client_error(vs);
                 break;
             }
             break;
 
         default:
-            VNC_DEBUG("Msg: %d\n", read_u16(data, 0));
+            trace_vnc_client_unknown_qemu_msg(vs, read_u16(data, 0));
             vnc_client_error(vs);
             break;
         }
@@ -2648,7 +2638,7 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
         break;
     }
     default:
-        VNC_DEBUG("Msg: %d\n", data[0]);
+        trace_vnc_client_unknown_msg(vs, data[0]);
         vnc_client_error(vs);
         break;
     }
@@ -2928,18 +2918,18 @@ static int protocol_version(VncState *vs, uint8_t *version, size_t len)
     local[12] = 0;
 
     if (sscanf(local, "RFB %03d.%03d\n", &vs->major, &vs->minor) != 2) {
-        VNC_DEBUG("Malformed protocol version %s\n", local);
+        trace_vnc_client_protocol_version_malformed(vs, local);
         vnc_client_error(vs);
         return 0;
     }
-    VNC_DEBUG("Client request protocol version %d.%d\n", vs->major, vs->minor);
+    trace_vnc_client_protocol_version(vs, vs->major, vs->minor);
     if (vs->major != 3 ||
         (vs->minor != 3 &&
          vs->minor != 4 &&
          vs->minor != 5 &&
          vs->minor != 7 &&
          vs->minor != 8)) {
-        VNC_DEBUG("Unsupported client version\n");
+        trace_vnc_client_protocol_version_unsupported(vs);
         vnc_write_u32(vs, VNC_AUTH_INVALID);
         vnc_flush(vs);
         vnc_client_error(vs);
@@ -2959,7 +2949,7 @@ static int protocol_version(VncState *vs, uint8_t *version, size_t len)
             trace_vnc_auth_pass(vs, vs->auth);
             start_client_init(vs);
        } else if (vs->auth == VNC_AUTH_VNC) {
-            VNC_DEBUG("Tell client VNC auth\n");
+            trace_vnc_client_auth_method(vs, vs->auth);
             vnc_write_u32(vs, vs->auth);
             vnc_flush(vs);
             start_auth_vnc(vs);
@@ -3318,10 +3308,7 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
             vs->subauth = vd->subauth;
         }
     }
-    VNC_DEBUG("Client sioc=%p ws=%d auth=%d subauth=%d\n",
-              sioc, websocket, vs->auth, vs->subauth);
-
-    VNC_DEBUG("New client on socket %p\n", vs->sioc);
+    trace_vnc_client_setup(vs, sioc, websocket, vs->auth, vs->subauth);
     qemu_console_listener_set_refresh(&vd->dcl, VNC_REFRESH_INTERVAL_BASE);
     qio_channel_set_blocking(vs->ioc, false, &error_abort);
     g_clear_handle_id(&vs->ioc_tag, g_source_remove);
@@ -3722,13 +3709,10 @@ vnc_display_setup_auth(int *auth,
      */
     if (websocket || !tlscreds) {
         if (password) {
-            VNC_DEBUG("Initializing VNC server with password auth\n");
             *auth = VNC_AUTH_VNC;
         } else if (sasl) {
-            VNC_DEBUG("Initializing VNC server with SASL auth\n");
             *auth = VNC_AUTH_SASL;
         } else {
-            VNC_DEBUG("Initializing VNC server with no auth\n");
             *auth = VNC_AUTH_NONE;
         }
         *subauth = VNC_AUTH_INVALID;
@@ -3747,27 +3731,20 @@ vnc_display_setup_auth(int *auth,
         *auth = VNC_AUTH_VENCRYPT;
         if (password) {
             if (is_x509) {
-                VNC_DEBUG("Initializing VNC server with x509 password auth\n");
                 *subauth = VNC_AUTH_VENCRYPT_X509VNC;
             } else {
-                VNC_DEBUG("Initializing VNC server with TLS password auth\n");
                 *subauth = VNC_AUTH_VENCRYPT_TLSVNC;
             }
-
         } else if (sasl) {
             if (is_x509) {
-                VNC_DEBUG("Initializing VNC server with x509 SASL auth\n");
                 *subauth = VNC_AUTH_VENCRYPT_X509SASL;
             } else {
-                VNC_DEBUG("Initializing VNC server with TLS SASL auth\n");
                 *subauth = VNC_AUTH_VENCRYPT_TLSSASL;
             }
         } else {
             if (is_x509) {
-                VNC_DEBUG("Initializing VNC server with x509 no auth\n");
                 *subauth = VNC_AUTH_VENCRYPT_X509NONE;
             } else {
-                VNC_DEBUG("Initializing VNC server with TLS no auth\n");
                 *subauth = VNC_AUTH_VENCRYPT_TLSNONE;
             }
         }
@@ -4216,14 +4193,16 @@ static bool vnc_display_open(VncDisplay *vd, Error **errp)
                                sasl, false, errp) < 0) {
         return false;
     }
-    trace_vnc_auth_init(vd, 0, vd->auth, vd->subauth);
+    trace_vnc_auth_init(vd, 0, vd->auth, vd->subauth,
+                        vnc_auth_name(vd->auth, vd->subauth));
 
     if (vnc_display_setup_auth(&vd->ws_auth, &vd->ws_subauth,
                                vd->tlscreds, password,
                                sasl, true, errp) < 0) {
         return false;
     }
-    trace_vnc_auth_init(vd, 1, vd->ws_auth, vd->ws_subauth);
+    trace_vnc_auth_init(vd, 1, vd->ws_auth, vd->ws_subauth,
+                        vnc_auth_name(vd->ws_auth, vd->ws_subauth));
 
 #ifdef CONFIG_VNC_SASL
     if (sasl && !vnc_sasl_server_init(errp)) {

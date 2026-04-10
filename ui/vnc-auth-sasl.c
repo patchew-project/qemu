@@ -73,10 +73,10 @@ size_t vnc_client_write_sasl(VncState *vs)
 {
     size_t ret;
 
-    VNC_DEBUG("Write SASL: Pending output %p size %zd offset %zd "
-              "Encoded: %p size %d offset %d\n",
-              vs->output.buffer, vs->output.capacity, vs->output.offset,
-              vs->sasl.encoded, vs->sasl.encodedLength, vs->sasl.encodedOffset);
+    trace_vnc_sasl_write_pending(vs, vs->output.buffer, vs->output.capacity,
+                                 vs->output.offset, vs->sasl.encoded,
+                                 vs->sasl.encodedLength,
+                                 vs->sasl.encodedOffset);
 
     if (!vs->sasl.encoded) {
         int err;
@@ -157,8 +157,7 @@ size_t vnc_client_read_sasl(VncState *vs)
 
     if (err != SASL_OK)
         return vnc_client_io_error(vs, -1, NULL);
-    VNC_DEBUG("Read SASL Encoded %p size %ld Decoded %p size %d\n",
-              encoded, ret, decoded, decodedLen);
+    trace_vnc_sasl_read_decoded(vs, encoded, ret, decoded, decodedLen);
     buffer_reserve(&vs->input, decodedLen);
     buffer_append(&vs->input, decoded, decodedLen);
     return decodedLen;
@@ -717,5 +716,3 @@ void start_auth_sasl(VncState *vs)
     error_free(local_err);
     vnc_client_error(vs);
 }
-
-

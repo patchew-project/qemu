@@ -32,11 +32,11 @@ static void vncws_tls_handshake_done(QIOTask *task,
     Error *err = NULL;
 
     if (qio_task_propagate_error(task, &err)) {
-        VNC_DEBUG("Handshake failed %s\n", error_get_pretty(err));
+        trace_vnc_ws_tls_handshake_fail(vs, error_get_pretty(err));
         vnc_client_error(vs);
         error_free(err);
     } else {
-        VNC_DEBUG("TLS handshake complete, starting websocket handshake\n");
+        trace_vnc_ws_tls_handshake_complete(vs);
         if (vs->ioc_tag) {
             g_source_remove(vs->ioc_tag);
         }
@@ -71,7 +71,7 @@ gboolean vncws_tls_handshake_io(QIOChannel *ioc G_GNUC_UNUSED,
         vs->vd->tlsauthzid,
         &err);
     if (!tls) {
-        VNC_DEBUG("Failed to setup TLS %s\n", error_get_pretty(err));
+        trace_vnc_ws_tls_setup_fail(vs, error_get_pretty(err));
         error_free(err);
         vnc_client_error(vs);
         return TRUE;
@@ -101,11 +101,11 @@ static void vncws_handshake_done(QIOTask *task,
     Error *err = NULL;
 
     if (qio_task_propagate_error(task, &err)) {
-        VNC_DEBUG("Websock handshake failed %s\n", error_get_pretty(err));
+        trace_vnc_ws_handshake_fail(vs, error_get_pretty(err));
         vnc_client_error(vs);
         error_free(err);
     } else {
-        VNC_DEBUG("Websock handshake complete, starting VNC protocol\n");
+        trace_vnc_ws_handshake_complete(vs);
         vnc_start_protocol(vs);
         if (vs->ioc_tag) {
             g_source_remove(vs->ioc_tag);
