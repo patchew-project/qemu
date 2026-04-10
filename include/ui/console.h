@@ -455,6 +455,7 @@ void vnc_parse(const char *str);
 int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp);
 bool vnc_display_reload_certs(const char *id,  Error **errp);
 bool vnc_display_update(DisplayUpdateOptionsVNC *arg, Error **errp);
+void vnc_cleanup(void);
 
 /* input.c */
 int index_from_key(const char *key, size_t key_length);

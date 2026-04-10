@@ -61,6 +61,8 @@
 #include "system/confidential-guest-support.h"
 #include "system/system.h"
 #include "system/tpm.h"
+#include "ui/console.h"
+
 #include "trace.h"
 
 static NotifierList exit_notifiers =
@@ -1044,5 +1046,8 @@ void qemu_cleanup(int status)
     monitor_cleanup();
     qemu_chr_cleanup();
     user_creatable_cleanup();
+#ifdef CONFIG_VNC
+    vnc_cleanup();
+#endif
     /* TODO: unref root container, check all devices are ok */
 }

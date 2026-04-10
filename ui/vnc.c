@@ -4354,6 +4354,30 @@ int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp)
     return vnc_display_new(id, errp) != NULL ? 0 : -1;
 }
 
+void vnc_cleanup(void)
+{
+    VncDisplay *vd, *vd_next;
+    VncState *vs;
+
+    QTAILQ_FOREACH(vd, &vnc_displays, next) {
+        if (vd->listener) {
+            qio_net_listener_disconnect(vd->listener);
+        }
+        if (vd->wslistener) {
+            qio_net_listener_disconnect(vd->wslistener);
+        }
+        QTAILQ_FOREACH(vs, &vd->clients, next) {
+            vnc_disconnect_start(vs);
+        }
+    }
+    QTAILQ_FOREACH_SAFE(vd, &vnc_displays, next, vd_next) {
+        while (!QTAILQ_EMPTY(&vd->clients)) {
+            main_loop_wait(false);
+        }
+        vnc_display_free(vd);
+    }
+}
+
 static void vnc_register_config(void)
 {
     qemu_add_opts(&qemu_vnc_opts);
