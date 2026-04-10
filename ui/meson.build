@@ -3,6 +3,7 @@ system_ss.add(png)
 system_ss.add(files(
   'clipboard.c',
   'console.c',
+  'cp437.c',
   'cursor.c',
   'dmabuf.c',
   'input-keymap.c',
@@ -16,8 +17,9 @@ system_ss.add(files(
   'ui-qmp-cmds.c',
   'util.c',
   'vgafont.c',
+  'vt100.c',
 ))
-system_ss.add(when: pixman, if_true: files('console-vc.c', 'cp437.c'), if_false: files('console-vc-stubs.c'))
+system_ss.add(when: pixman, if_true: files('console-vc.c'), if_false: files('console-vc-stubs.c'))
 if dbus_display
   system_ss.add(files('dbus-module.c'))
 endif
