@@ -435,10 +435,8 @@ static void vt100_set_image(QemuVT100 *vt, pixman_image_t *image)
     vt->cells = cells;
 }
 
-static void vc_put_lf(VCChardev *vc)
+static void vt100_put_lf(QemuVT100 *vt)
 {
-    QemuTextConsole *s = vc->console;
-    QemuVT100 *vt = &s->vt;
     TextCell *c;
     int x, y1;
 
@@ -669,7 +667,7 @@ static void vc_put_one(VCChardev *vc, int ch)
     if (vt->x >= vt->width) {
         /* line wrap */
         vt->x = 0;
-        vc_put_lf(vc);
+        vt100_put_lf(vt);
     }
     y1 = (vt->y_base + vt->y) % vt->total_height;
     c = &vt->cells[y1 * vt->width + vt->x];
@@ -853,7 +851,7 @@ static void vc_putchar(VCChardev *vc, int ch)
             vt->x = 0;
             break;
         case '\n':  /* newline */
-            vc_put_lf(vc);
+            vt100_put_lf(&s->vt);
             break;
         case '\b':  /* backspace */
             if (vt->x > 0)
@@ -862,7 +860,7 @@ static void vc_putchar(VCChardev *vc, int ch)
         case '\t':  /* tabspace */
             if (vt->x + (8 - (vt->x % 8)) > vt->width) {
                 vt->x = 0;
-                vc_put_lf(vc);
+                vt100_put_lf(vt);
             } else {
                 vt->x = vt->x + (8 - (vt->x % 8));
             }
