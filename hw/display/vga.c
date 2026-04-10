@@ -1899,13 +1899,13 @@ static void vga_reset(void *opaque)
         ((v & 0x00000800) << 10) | ((v & 0x00007000) >> 1))
 /* relay text rendering to the display driver
  * instead of doing a full vga_update_display() */
-static void vga_update_text(void *opaque, console_ch_t *chardata)
+static void vga_update_text(void *opaque, uint32_t *chardata)
 {
     VGACommonState *s =  opaque;
     int graphic_mode, i, cursor_offset, cursor_visible;
     int cw, cheight, width, height, size, c_min, c_max;
     uint32_t *src;
-    console_ch_t *dst, val;
+    uint32_t *dst, val;
     char msg_buffer[80];
     int full_update = 0;
 
@@ -2005,14 +2005,14 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
 
         if (full_update) {
             for (i = 0; i < size; src ++, dst ++, i ++)
-                console_write_ch(dst, VMEM2CHTYPE(le32_to_cpu(*src)));
+                *dst = VMEM2CHTYPE(le32_to_cpu(*src));
 
             dpy_text_update(s->con, 0, 0, width, height);
         } else {
             c_max = 0;
 
             for (i = 0; i < size; src ++, dst ++, i ++) {
-                console_write_ch(&val, VMEM2CHTYPE(le32_to_cpu(*src)));
+                val = VMEM2CHTYPE(le32_to_cpu(*src));
                 if (*dst != val) {
                     *dst = val;
                     c_max = i;
@@ -2021,7 +2021,7 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
             }
             c_min = i;
             for (; i < size; src ++, dst ++, i ++) {
-                console_write_ch(&val, VMEM2CHTYPE(le32_to_cpu(*src)));
+                val = VMEM2CHTYPE(le32_to_cpu(*src));
                 if (*dst != val) {
                     *dst = val;
                     c_max = i;
@@ -2059,14 +2059,14 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
     dpy_text_resize(s->con, s->last_width, height);
 
     for (dst = chardata, i = 0; i < s->last_width * height; i ++)
-        console_write_ch(dst ++, ' ');
+        *dst++ = ' ';
 
     size = strlen(msg_buffer);
     width = (s->last_width - size) / 2;
     dst = chardata + s->last_width + width;
     for (i = 0; i < size; i ++)
-        console_write_ch(dst ++, ATTR2CHTYPE(msg_buffer[i], QEMU_COLOR_BLUE,
-                                             QEMU_COLOR_BLACK, 1));
+        *dst++ = ATTR2CHTYPE(msg_buffer[i], QEMU_COLOR_BLUE,
+                             QEMU_COLOR_BLACK, 1);
 
     dpy_text_update(s->con, 0, 0, s->last_width, height);
 }

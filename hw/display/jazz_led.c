@@ -226,7 +226,7 @@ static void jazz_led_invalidate_display(void *opaque)
     s->state |= REDRAW_SEGMENTS | REDRAW_BACKGROUND;
 }
 
-static void jazz_led_text_update(void *opaque, console_ch_t *chardata)
+static void jazz_led_text_update(void *opaque, uint32_t *chardata)
 {
     LedState *s = opaque;
     char buf[3];
@@ -236,10 +236,10 @@ static void jazz_led_text_update(void *opaque, console_ch_t *chardata)
 
     /* TODO: draw the segments */
     snprintf(buf, 3, "%02hhx", s->segments);
-    console_write_ch(chardata++, ATTR2CHTYPE(buf[0], QEMU_COLOR_BLUE,
-                                             QEMU_COLOR_BLACK, 1));
-    console_write_ch(chardata++, ATTR2CHTYPE(buf[1], QEMU_COLOR_BLUE,
-                                             QEMU_COLOR_BLACK, 1));
+    *chardata++ = ATTR2CHTYPE(buf[0], QEMU_COLOR_BLUE,
+                              QEMU_COLOR_BLACK, 1);
+    *chardata++ = ATTR2CHTYPE(buf[1], QEMU_COLOR_BLUE,
+                              QEMU_COLOR_BLACK, 1);
 
     dpy_text_update(s->con, 0, 0, 2, 1);
 }

@@ -381,7 +381,7 @@ void qemu_text_console_handle_keysym(QemuTextConsole *s, int keysym)
     vt100_keysym(&s->vt, keysym);
 }
 
-static void text_console_update(void *opaque, console_ch_t *chardata)
+static void text_console_update(void *opaque, uint32_t *chardata)
 {
     QemuTextConsole *s = QEMU_TEXT_CONSOLE(opaque);
     int i, j, src;
@@ -391,11 +391,10 @@ static void text_console_update(void *opaque, console_ch_t *chardata)
         chardata += s->vt.text_y[0] * s->vt.width;
         for (i = s->vt.text_y[0]; i <= s->vt.text_y[1]; i ++)
             for (j = 0; j < s->vt.width; j++, src++) {
-                console_write_ch(chardata ++,
-                                 ATTR2CHTYPE(s->vt.cells[src].ch,
-                                             s->vt.cells[src].t_attrib.fgcol,
-                                             s->vt.cells[src].t_attrib.bgcol,
-                                             s->vt.cells[src].t_attrib.bold));
+                *chardata++ = ATTR2CHTYPE(s->vt.cells[src].ch,
+                                          s->vt.cells[src].t_attrib.fgcol,
+                                          s->vt.cells[src].t_attrib.bgcol,
+                                          s->vt.cells[src].t_attrib.bold);
             }
         dpy_text_update(QEMU_CONSOLE(s), s->vt.text_x[0], s->vt.text_y[0],
                         s->vt.text_x[1] - s->vt.text_x[0], i - s->vt.text_y[0]);

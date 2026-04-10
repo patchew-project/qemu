@@ -1183,7 +1183,7 @@ static void vmsvga_invalidate_display(void *opaque)
     s->invalidated = 1;
 }
 
-static void vmsvga_text_update(void *opaque, console_ch_t *chardata)
+static void vmsvga_text_update(void *opaque, uint32_t *chardata)
 {
     struct vmsvga_state_s *s = opaque;
 

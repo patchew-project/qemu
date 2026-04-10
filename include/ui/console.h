@@ -350,13 +350,6 @@ int dpy_gl_ctx_make_current(QemuConsole *con, QEMUGLContext ctx);
 
 bool console_has_gl(QemuConsole *con);
 
-typedef uint32_t console_ch_t;
-
-static inline void console_write_ch(console_ch_t *dest, uint32_t ch)
-{
-    *dest = ch;
-}
-
 enum {
     GRAPHIC_FLAGS_NONE     = 0,
     /* require a console/display with GL callbacks */
@@ -370,7 +363,7 @@ typedef struct GraphicHwOps {
     void (*invalidate)(void *opaque);
     void (*gfx_update)(void *opaque);
     bool gfx_update_async; /* if true, calls graphic_hw_update_done() */
-    void (*text_update)(void *opaque, console_ch_t *text);
+    void (*text_update)(void *opaque, uint32_t *text);
     void (*ui_info)(void *opaque, uint32_t head, QemuUIInfo *info);
     void (*gl_block)(void *opaque, bool block);
 } GraphicHwOps;
@@ -386,7 +379,7 @@ void graphic_console_close(QemuConsole *con);
 void graphic_hw_update(QemuConsole *con);
 void graphic_hw_update_done(QemuConsole *con);
 void graphic_hw_invalidate(QemuConsole *con);
-void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata);
+void graphic_hw_text_update(QemuConsole *con, uint32_t *chardata);
 void graphic_hw_gl_block(QemuConsole *con, bool block);
 
 void qemu_console_early_init(void);
