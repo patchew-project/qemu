@@ -1,25 +1,67 @@
-system_ss.add(pixman)
+keymaps = [
+  ['atset1', 'qcode'],
+  ['linux', 'qcode'],
+  ['qcode', 'atset1'],
+  ['qcode', 'atset2'],
+  ['qcode', 'atset3'],
+  ['qcode', 'linux'],
+  ['qcode', 'qnum'],
+  ['qcode', 'sun'],
+  ['qnum', 'qcode'],
+  ['usb', 'qcode'],
+  ['win32', 'qcode'],
+  ['x11', 'qcode'],
+  ['xorgevdev', 'qcode'],
+  ['xorgkbd', 'qcode'],
+  ['xorgxquartz', 'qcode'],
+  ['xorgxwin', 'qcode'],
+  ['osx', 'qcode'],
+]
+
+if have_system or xkbcommon.found()
+  keycodemapdb_proj = subproject('keycodemapdb', required: true)
+  foreach e : keymaps
+    output = 'input-keymap-@0@-to-@1@.c.inc'.format(e[0], e[1])
+    genh += custom_target(output,
+                  output: output,
+                  capture: true,
+                  input: keycodemapdb_proj.get_variable('keymaps_csv'),
+                  command: [python, keycodemapdb_proj.get_variable('keymap_gen').full_path(),
+                            'code-map', '--lang', 'glib2',
+                            '--varname', 'qemu_input_map_@0@_to_@1@'.format(e[0], e[1]),
+                            '@INPUT0@', e[0], e[1]])
+  endforeach
+endif
+
+libui_sources = files(
+    'clipboard.c',
+    'console.c',
+    'cursor.c',
+    'dmabuf.c',
+    'display-surface.c',
+    'input-keymap.c',
+    'kbd-state.c',
+    'keymaps.c',
+    'qemu-pixman.c',
+    'vgafont.c',
+  )
+if pixman.found()
+  libui_sources += files('cp437.c', 'vt100.c')
+endif
+libui = static_library('qemuui', libui_sources + genh,
+  dependencies: [pixman],
+  build_by_default: false)
+ui = declare_dependency(objects: libui.extract_all_objects(recursive: false), dependencies: [pixman])
 system_ss.add(png)
 system_ss.add(files(
-  'clipboard.c',
-  'console.c',
-  'cp437.c',
-  'cursor.c',
-  'display-surface.c',
-  'dmabuf.c',
-  'input-keymap.c',
   'input-legacy.c',
   'input-barrier.c',
   'input.c',
-  'kbd-state.c',
-  'keymaps.c',
-  'qemu-pixman.c',
   'ui-hmp-cmds.c',
   'ui-qmp-cmds.c',
   'util.c',
-  'vgafont.c',
-  'vt100.c',
 ))
+system_ss.add(ui)
 system_ss.add(when: pixman, if_true: files('console-vc.c'), if_false: files('console-vc-stubs.c'))
 if dbus_display
   system_ss.add(files('dbus-module.c'))
@@ -149,41 +191,6 @@ if spice.found()
     spice_ss.add(spice, gio, pixman, files('spice-app.c'))
     ui_modules += {'spice-app': spice_ss}
   endif
-endif
-
-keymaps = [
-  ['atset1', 'qcode'],
-  ['linux', 'qcode'],
-  ['qcode', 'atset1'],
-  ['qcode', 'atset2'],
-  ['qcode', 'atset3'],
-  ['qcode', 'linux'],
-  ['qcode', 'qnum'],
-  ['qcode', 'sun'],
-  ['qnum', 'qcode'],
-  ['usb', 'qcode'],
-  ['win32', 'qcode'],
-  ['x11', 'qcode'],
-  ['xorgevdev', 'qcode'],
-  ['xorgkbd', 'qcode'],
-  ['xorgxquartz', 'qcode'],
-  ['xorgxwin', 'qcode'],
-  ['osx', 'qcode'],
-]
-
-if have_system or xkbcommon.found()
-  keycodemapdb_proj = subproject('keycodemapdb', required: true)
-  foreach e : keymaps
-    output = 'input-keymap-@0@-to-@1@.c.inc'.format(e[0], e[1])
-    genh += custom_target(output,
-                  output: output,
-                  capture: true,
-                  input: keycodemapdb_proj.get_variable('keymaps_csv'),
-                  command: [python, keycodemapdb_proj.get_variable('keymap_gen').full_path(),
-                            'code-map', '--lang', 'glib2',
-                            '--varname', 'qemu_input_map_@0@_to_@1@'.format(e[0], e[1]),
-                            '@INPUT0@', e[0], e[1]])
-  endforeach
 endif
 
 subdir('shader')
