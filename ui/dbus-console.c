@@ -423,9 +423,9 @@ dbus_touch_send_event(DBusDisplayConsole *ddc,
     width = qemu_console_get_width(ddc->dcl.con, 0);
     height = qemu_console_get_height(ddc->dcl.con, 0);
 
-    console_handle_touch_event(ddc->dcl.con, touch_slots,
-                               num_slot, width, height,
-                               x, y, kind, &error);
+    qemu_input_touch_event(ddc->dcl.con, touch_slots,
+                           num_slot, width, height,
+                           x, y, kind, &error);
     if (error != NULL) {
         g_dbus_method_invocation_return_error(
             invocation, DBUS_DISPLAY_ERROR,

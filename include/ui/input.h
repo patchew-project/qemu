@@ -70,6 +70,21 @@ void qemu_input_queue_mtt_abs(QemuConsole *src, InputAxis axis, int value,
                               int min_in, int max_in,
                               int slot, int tracking_id);
 
+/* Touch devices */
+typedef struct touch_slot {
+    int x;
+    int y;
+    int tracking_id;
+} touch_slot;
+
+void qemu_input_touch_event(QemuConsole *con,
+                            struct touch_slot touch_slots[INPUT_EVENT_SLOTS_MAX],
+                            uint64_t num_slot,
+                            int width, int height,
+                            double x, double y,
+                            InputMultiTouchType type,
+                            Error **errp);
+
 void qemu_input_check_mode_change(void);
 void qemu_add_mouse_mode_change_notifier(Notifier *notify);
 void qemu_remove_mouse_mode_change_notifier(Notifier *notify);
