@@ -8,6 +8,7 @@
 #include "qapi/error.h"
 #include "qemu/fifo8.h"
 #include "qemu/option.h"
+#include "qemu/queue.h"
 #include "ui/console.h"
 #include "ui/cp437.h"
 
@@ -69,7 +70,12 @@ struct QemuVT100 {
     int update_y0;
     int update_x1;
     int update_y1;
+
+    QTAILQ_ENTRY(QemuVT100) list;
 };
+
+static QTAILQ_HEAD(QemuVT100Head, QemuVT100) vt100s =
+    QTAILQ_HEAD_INITIALIZER(vt100s);
 
 typedef struct QemuTextConsole {
     QemuConsole parent;
@@ -1103,20 +1109,28 @@ static int vc_chr_write(Chardev *chr, const uint8_t *buf, int len)
     return len;
 }
 
-void qemu_text_console_update_cursor(void)
+void vt100_update_cursor(void)
 {
+    QemuVT100 *vt;
+
     cursor_visible_phase = !cursor_visible_phase;
 
-    if (qemu_invalidate_text_consoles()) {
-        timer_mod(cursor_timer,
-                  qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + CONSOLE_CURSOR_PERIOD / 2);
+    if (QTAILQ_EMPTY(&vt100s)) {
+        return;
     }
+
+    QTAILQ_FOREACH(vt, &vt100s, list) {
+        vt100_refresh(vt);
+    }
+
+    timer_mod(cursor_timer,
+        qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + CONSOLE_CURSOR_PERIOD / 2);
 }
 
 static void
 cursor_timer_cb(void *opaque)
 {
-    qemu_text_console_update_cursor();
+    vt100_update_cursor();
 }
 
 static void text_console_invalidate(void *opaque)
@@ -1132,6 +1146,9 @@ static void text_console_invalidate(void *opaque)
 static void
 qemu_text_console_finalize(Object *obj)
 {
+    QemuTextConsole *s = QEMU_TEXT_CONSOLE(obj);
+
+    QTAILQ_REMOVE(&vt100s, &s->vt, list);
 }
 
 static void
@@ -1156,6 +1173,7 @@ qemu_text_console_init(Object *obj)
 {
     QemuTextConsole *c = QEMU_TEXT_CONSOLE(obj);
 
+    QTAILQ_INSERT_HEAD(&vt100s, &c->vt, list);
     fifo8_create(&c->out_fifo, 16);
     c->vt.total_height = DEFAULT_BACKSCROLL;
     QEMU_CONSOLE(c)->hw_ops = &text_console_ops;
