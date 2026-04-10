@@ -85,13 +85,32 @@ static void monitor_qmp_finalize(Object *obj)
     g_queue_free(mon->qmp_requests);
 }
 
+static void monitor_qmp_emit_event(Monitor *mon, QAPIEvent event, QDict *qdict);
+
 static void monitor_qmp_class_init(ObjectClass *cls, const void *data)
 {
+    MonitorClass *moncls = MONITOR_CLASS(cls);
+
+    moncls->emit_event = monitor_qmp_emit_event;
 }
 
 static void monitor_qmp_init(Object *obj)
 {
 }
+
+static void monitor_qmp_emit_event(Monitor *mon, QAPIEvent event, QDict *qdict)
+{
+    MonitorQMP *qmp = MONITOR_QMP(mon);
+
+    WITH_QEMU_LOCK_GUARD(&mon->mon_lock) {
+        if (qmp->commands == &qmp_cap_negotiation_commands) {
+            return;
+        }
+    }
+
+    qmp_send_response(qmp, qdict);
+}
+
 
 static bool qmp_oob_enabled(MonitorQMP *mon)
 {

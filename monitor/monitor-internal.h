@@ -98,6 +98,7 @@ struct MonitorClass {
 
     int (*vprintf)(Monitor *mon, const char *fmt, va_list ap)
         G_GNUC_PRINTF(2, 0);
+    void (*emit_event)(Monitor *mon, QAPIEvent event, QDict *qdict);
 };
 
 struct Monitor {

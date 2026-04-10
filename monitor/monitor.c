@@ -327,22 +327,13 @@ static inline QEMUClockType monitor_get_event_clock(void)
 static void monitor_qapi_event_emit(QAPIEvent event, QDict *qdict)
 {
     Monitor *mon;
-    MonitorQMP *qmp_mon;
 
     trace_monitor_protocol_event_emit(event, qdict);
     QTAILQ_FOREACH(mon, &mon_list, entry) {
-        if (!monitor_is_qmp(mon)) {
-            continue;
+        MonitorClass *cls = MONITOR_GET_CLASS(mon);
+        if (cls->emit_event) {
+            cls->emit_event(mon, event, qdict);
         }
-
-        qmp_mon = container_of(mon, MonitorQMP, parent);
-        {
-            QEMU_LOCK_GUARD(&mon->mon_lock);
-            if (qmp_mon->commands == &qmp_cap_negotiation_commands) {
-                continue;
-            }
-        }
-        qmp_send_response(qmp_mon, qdict);
     }
 }
 
