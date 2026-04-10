@@ -353,8 +353,6 @@ main(int argc, char **argv)
         exit(1);
     }
 
-    g_setenv("DBUS_VMSTATE_TEST_TMPDIR", workdir, true);
-
     qtest_add_func("/dbus-vmstate/without-list",
                    test_dbus_vmstate_without_list);
     qtest_add_func("/dbus-vmstate/with-list",
