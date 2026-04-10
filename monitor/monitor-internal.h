@@ -119,7 +119,7 @@ struct Monitor {
 };
 
 struct MonitorHMP {
-    Monitor common;
+    Monitor parent;
     bool use_readline;
     /*
      * State used only in the thread "owning" the monitor.

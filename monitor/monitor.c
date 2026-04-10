@@ -132,7 +132,7 @@ static inline bool monitor_is_hmp_non_interactive(const Monitor *mon)
         return false;
     }
 
-    return !monitor_uses_readline(container_of(mon, MonitorHMP, common));
+    return !monitor_uses_readline(container_of(mon, MonitorHMP, parent));
 }
 
 static gboolean monitor_unblocked(void *do_not_use, GIOCondition cond,
@@ -542,7 +542,7 @@ static void monitor_accept_input(void *opaque)
 
     qemu_mutex_lock(&mon->mon_lock);
     if (!monitor_is_qmp(mon) && mon->reset_seen) {
-        MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, common);
+        MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, parent);
         assert(hmp_mon->rs);
         readline_restart(hmp_mon->rs);
         qemu_mutex_unlock(&mon->mon_lock);
@@ -627,7 +627,7 @@ void monitor_data_destroy(Monitor *mon)
     if (monitor_is_qmp(mon)) {
         monitor_data_destroy_qmp(container_of(mon, MonitorQMP, common));
     } else {
-        readline_free(container_of(mon, MonitorHMP, common)->rs);
+        readline_free(container_of(mon, MonitorHMP, parent)->rs);
     }
     g_string_free(mon->outbuf, true);
     qemu_mutex_destroy(&mon->mon_lock);

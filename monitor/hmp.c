@@ -47,9 +47,9 @@ static void monitor_command_cb(void *opaque, const char *cmdline,
 {
     MonitorHMP *mon = opaque;
 
-    monitor_suspend(&mon->common);
+    monitor_suspend(&mon->parent);
     handle_hmp_command(mon, cmdline);
-    monitor_resume(&mon->common);
+    monitor_resume(&mon->parent);
 }
 
 void monitor_read_command(MonitorHMP *mon, int show_prompt)
@@ -72,7 +72,7 @@ int monitor_read_password(MonitorHMP *mon, ReadLineFunc *readline_func,
         /* prompt is printed on return from the command handler */
         return 0;
     } else {
-        monitor_printf(&mon->common,
+        monitor_printf(&mon->parent,
                        "terminal does not support password prompting\n");
         return -ENOTTY;
     }
@@ -689,7 +689,7 @@ static const HMPCommand *monitor_parse_command(MonitorHMP *hmp_mon,
                                                const char **cmdp,
                                                HMPCommand *table)
 {
-    Monitor *mon = &hmp_mon->common;
+    Monitor *mon = &hmp_mon->parent;
     const char *p;
     const HMPCommand *cmd;
     char cmdname[256];
@@ -1182,35 +1182,35 @@ void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
 
     if (!cmd->cmd && !cmd->cmd_info_hrt) {
         /* FIXME: is it useful to try autoload modules here ??? */
-        monitor_printf(&mon->common, "Command \"%.*s\" is not available.\n",
+        monitor_printf(&mon->parent, "Command \"%.*s\" is not available.\n",
                        (int)(cmdline - cmd_start), cmd_start);
         return;
     }
 
-    qdict = monitor_parse_arguments(&mon->common, &cmdline, cmd);
+    qdict = monitor_parse_arguments(&mon->parent, &cmdline, cmd);
     if (!qdict) {
         while (cmdline > cmd_start && qemu_isspace(cmdline[-1])) {
             cmdline--;
         }
-        monitor_printf(&mon->common, "Try \"help %.*s\" for more information\n",
+        monitor_printf(&mon->parent, "Try \"help %.*s\" for more information\n",
                        (int)(cmdline - cmd_start), cmd_start);
         return;
     }
 
     if (!cmd->coroutine) {
         /* old_mon is non-NULL when called from qmp_human_monitor_command() */
-        Monitor *old_mon = monitor_set_cur(qemu_coroutine_self(), &mon->common);
-        handle_hmp_command_exec(&mon->common, cmd, qdict);
+        Monitor *old_mon = monitor_set_cur(qemu_coroutine_self(), &mon->parent);
+        handle_hmp_command_exec(&mon->parent, cmd, qdict);
         monitor_set_cur(qemu_coroutine_self(), old_mon);
     } else {
         HandleHmpCommandCo data = {
-            .mon = &mon->common,
+            .mon = &mon->parent,
             .cmd = cmd,
             .qdict = qdict,
             .done = false,
         };
         Coroutine *co = qemu_coroutine_create(handle_hmp_command_co, &data);
-        monitor_set_cur(co, &mon->common);
+        monitor_set_cur(co, &mon->parent);
         aio_co_enter(qemu_get_aio_context(), co);
         AIO_WAIT_WHILE_UNLOCKED(NULL, !data.done);
     }
@@ -1428,7 +1428,7 @@ cleanup:
 
 static void monitor_read(void *opaque, const uint8_t *buf, int size)
 {
-    MonitorHMP *mon = container_of(opaque, MonitorHMP, common);
+    MonitorHMP *mon = container_of(opaque, MonitorHMP, parent);
     int i;
 
     if (mon->rs) {
@@ -1437,7 +1437,7 @@ static void monitor_read(void *opaque, const uint8_t *buf, int size)
         }
     } else {
         if (size == 0 || buf[size - 1] != 0) {
-            monitor_printf(&mon->common, "corrupted command\n");
+            monitor_printf(&mon->parent, "corrupted command\n");
         } else {
             handle_hmp_command(mon, (char *)buf);
         }
@@ -1506,26 +1506,26 @@ static void G_GNUC_PRINTF(2, 3) monitor_readline_printf(void *opaque,
     MonitorHMP *mon = opaque;
     va_list ap;
     va_start(ap, fmt);
-    monitor_vprintf(&mon->common, fmt, ap);
+    monitor_vprintf(&mon->parent, fmt, ap);
     va_end(ap);
 }
 
 static void monitor_readline_flush(void *opaque)
 {
     MonitorHMP *mon = opaque;
-    monitor_flush(&mon->common);
+    monitor_flush(&mon->parent);
 }
 
 void monitor_init_hmp(Chardev *chr, bool use_readline, Error **errp)
 {
     MonitorHMP *mon = g_new0(MonitorHMP, 1);
 
-    if (!qemu_chr_fe_init(&mon->common.chr, chr, errp)) {
+    if (!qemu_chr_fe_init(&mon->parent.chr, chr, errp)) {
         g_free(mon);
         return;
     }
 
-    monitor_data_init(&mon->common, false, false, false);
+    monitor_data_init(&mon->parent, false, false, false);
 
     mon->use_readline = use_readline;
     if (mon->use_readline) {
@@ -1536,9 +1536,9 @@ void monitor_init_hmp(Chardev *chr, bool use_readline, Error **errp)
         monitor_read_command(mon, 0);
     }
 
-    qemu_chr_fe_set_handlers(&mon->common.chr, monitor_can_read, monitor_read,
-                             monitor_event, NULL, &mon->common, NULL, true);
-    monitor_list_append(&mon->common);
+    qemu_chr_fe_set_handlers(&mon->parent.chr, monitor_can_read, monitor_read,
+                             monitor_event, NULL, &mon->parent, NULL, true);
+    monitor_list_append(&mon->parent);
 }
 
 /**
