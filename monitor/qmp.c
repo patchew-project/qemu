@@ -538,7 +538,7 @@ void monitor_new_qmp(Chardev *chr, bool pretty, Error **errp)
     qemu_chr_fe_set_echo(&mon->parent.chr, true);
 
     /* Note: we run QMP monitor in I/O thread when @chr supports that */
-    monitor_data_init(&mon->parent, true, false,
+    monitor_data_init(&mon->parent, true,
                       qemu_chr_has_feature(chr, QEMU_CHAR_FEATURE_GCONTEXT));
 
     mon->pretty = pretty;
