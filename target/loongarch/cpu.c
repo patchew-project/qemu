@@ -455,6 +455,10 @@ static void loongarch_max_initfn(Object *obj)
         data = FIELD_DP32(data, CPUCFG2, LLACQ_SCREL, 1);
         data = FIELD_DP32(data, CPUCFG2, SCQ, 1);
         cpu->env.cpucfg[2] = data;
+
+        data = cpu->env.cpucfg[3];
+        data = FIELD_DP32(data, CPUCFG3, DBAR_HINTS, 1);
+        cpu->env.cpucfg[3] = data;
     }
 }
 
