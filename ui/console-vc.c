@@ -1127,22 +1127,25 @@ static void text_console_invalidate(void *opaque)
     vt100_refresh(&s->vt);
 }
 
+static void vt100_fini(QemuVT100 *vt)
+{
+    QTAILQ_REMOVE(&vt100s, vt, list);
+    fifo8_destroy(&vt->out_fifo);
+    g_free(vt->cells);
+}
+
 static void
 qemu_text_console_finalize(Object *obj)
 {
     QemuTextConsole *s = QEMU_TEXT_CONSOLE(obj);
 
-    QTAILQ_REMOVE(&vt100s, &s->vt, list);
+    vt100_fini(&s->vt);
 }
 
 static void
 qemu_text_console_class_init(ObjectClass *oc, const void *data)
 {
     QemuConsoleClass *cc = QEMU_CONSOLE_CLASS(oc);
-
-    if (!cursor_timer) {
-        cursor_timer = timer_new_ms(QEMU_CLOCK_REALTIME, cursor_timer_cb, NULL);
-    }
 
     cc->get_label = qemu_text_console_get_label;
 }
@@ -1209,6 +1212,25 @@ static void text_console_out_flush(QemuVT100 *vt)
     qemu_text_console_out_flush(console);
 }
 
+static void vt100_init(QemuVT100 *vt,
+                       pixman_image_t *image,
+                       void (*image_update)(QemuVT100 *vt, int x, int y, int w, int h),
+                       void (*out_flush)(QemuVT100 *vt))
+{
+    if (!cursor_timer) {
+        cursor_timer = timer_new_ms(QEMU_CLOCK_REALTIME, cursor_timer_cb, NULL);
+    }
+
+    QTAILQ_INSERT_HEAD(&vt100s, vt, list);
+    fifo8_create(&vt->out_fifo, 16);
+    vt->total_height = DEFAULT_BACKSCROLL;
+    vt->image_update = image_update;
+    vt->out_flush = out_flush;
+    /* set current text attributes to default */
+    vt->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
+    vt100_set_image(vt, image);
+}
+
 static bool vc_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevVC *vc = backend->u.vc.data;
@@ -1238,19 +1260,13 @@ static bool vc_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
         s = QEMU_TEXT_CONSOLE(object_new(TYPE_QEMU_FIXED_TEXT_CONSOLE));
     }
 
-    QTAILQ_INSERT_HEAD(&vt100s, &s->vt, list);
-    fifo8_create(&s->vt.out_fifo, 16);
-    s->vt.total_height = DEFAULT_BACKSCROLL;
     dpy_gfx_replace_surface(QEMU_CONSOLE(s), qemu_create_displaysurface(width, height));
-    s->vt.image_update = text_console_image_update;
-    s->vt.out_flush = text_console_out_flush;
+    vt100_init(&s->vt, QEMU_CONSOLE(s)->surface->image,
+               text_console_image_update,
+               text_console_out_flush);
 
     s->chr = chr;
     drv->console = s;
-
-    /* set current text attributes to default */
-    s->vt.t_attrib = TEXT_ATTRIBUTES_DEFAULT;
-    vt100_set_image(&s->vt, QEMU_CONSOLE(s)->surface->image);
 
     if (chr->label) {
         char *msg;
