@@ -3457,7 +3457,7 @@ void vnc_display_init(const char *id, Error **errp)
     vd->share_policy = VNC_SHARE_POLICY_ALLOW_EXCLUSIVE;
     vd->connections_limit = 32;
 
-    vnc_start_worker_thread();
+    vnc_start_worker_thread(vd);
 
     register_displaychangelistener(&vd->dcl);
     vd->kbd = qkbd_state_init(vd->dcl.con);
@@ -3517,6 +3517,7 @@ static void vnc_display_free(VncDisplay *vd)
 
     assert(QTAILQ_EMPTY(&vd->clients));
 
+    vnc_stop_worker_thread(vd);
     vnc_display_close(vd);
     unregister_displaychangelistener(&vd->dcl);
     qkbd_state_free(vd->kbd);
