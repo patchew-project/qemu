@@ -1783,7 +1783,7 @@ static void vga_draw_blank(VGACommonState *s, int full_update)
 #define GMODE_GRAPH    1
 #define GMODE_BLANK 2
 
-static void vga_update_display(void *opaque)
+static bool vga_update_display(void *opaque)
 {
     VGACommonState *s = opaque;
     DisplaySurface *surface = qemu_console_surface(s->con);
@@ -1818,6 +1818,8 @@ static void vga_update_display(void *opaque)
             break;
         }
     }
+
+    return true;
 }
 
 /* force a full display refresh */

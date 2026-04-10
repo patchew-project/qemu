@@ -330,25 +330,25 @@ static void apple_gfx_render_frame_completed_bh(void *opaque)
     }
 }
 
-static void apple_gfx_fb_update_display(void *opaque)
+static bool apple_gfx_fb_update_display(void *opaque)
 {
     AppleGFXState *s = opaque;
+    bool done = true;
 
     assert(bql_locked());
     if (s->new_frame_ready) {
         dpy_gfx_update_full(s->con);
         s->new_frame_ready = false;
-        graphic_hw_update_done(s->con);
     } else if (s->pending_frames > 0) {
         s->gfx_update_requested = true;
-    } else {
-        graphic_hw_update_done(s->con);
+        done = false;
     }
+
+    return done;
 }
 
 static const GraphicHwOps apple_gfx_fb_ops = {
     .gfx_update = apple_gfx_fb_update_display,
-    .gfx_update_async = true,
 };
 
 /* ------ Mouse cursor and display mode setting ------ */

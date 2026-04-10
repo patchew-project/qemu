@@ -153,7 +153,7 @@ static inline void set_lcd_pixel32(musicpal_lcd_state *s,
     }
 }
 
-static void lcd_refresh(void *opaque)
+static bool lcd_refresh(void *opaque)
 {
     musicpal_lcd_state *s = opaque;
     int x, y, col;
@@ -172,6 +172,7 @@ static void lcd_refresh(void *opaque)
     }
 
     dpy_gfx_update(s->con, 0, 0, 128*3, 64*3);
+    return true;
 }
 
 static void lcd_invalidate(void *opaque)

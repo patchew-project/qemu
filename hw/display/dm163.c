@@ -285,7 +285,7 @@ static uint32_t *update_display_of_row(DM163State *s, uint32_t *dest,
     return dest;
 }
 
-static void dm163_update_display(void *opaque)
+static bool dm163_update_display(void *opaque)
 {
     DM163State *s = (DM163State *)opaque;
     DisplaySurface *surface = qemu_console_surface(s->console);
@@ -300,6 +300,8 @@ static void dm163_update_display(void *opaque)
         }
         dest = update_display_of_row(s, dest, row);
     }
+
+    return true;
 }
 
 static const GraphicHwOps dm163_ops = {

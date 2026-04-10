@@ -209,7 +209,7 @@ static inline void tcx24_draw_line32(TCXState *s1, uint8_t *d,
 /* Fixed line length 1024 allows us to do nice tricks not possible on
    VGA... */
 
-static void tcx_update_display(void *opaque)
+static bool tcx_update_display(void *opaque)
 {
     TCXState *ts = opaque;
     DisplaySurface *surface = qemu_console_surface(ts->con);
@@ -257,9 +257,10 @@ static void tcx_update_display(void *opaque)
                        ts->width, y - y_start);
     }
     g_free(snap);
+    return true;
 }
 
-static void tcx24_update_display(void *opaque)
+static bool tcx24_update_display(void *opaque)
 {
     TCXState *ts = opaque;
     DisplaySurface *surface = qemu_console_surface(ts->con);
@@ -312,6 +313,7 @@ static void tcx24_update_display(void *opaque)
                        ts->width, y - y_start);
     }
     g_free(snap);
+    return true;
 }
 
 static void tcx_invalidate_display(void *opaque)

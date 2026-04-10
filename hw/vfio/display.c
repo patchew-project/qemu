@@ -285,7 +285,7 @@ static void vfio_display_free_dmabufs(VFIOPCIDevice *vdev)
     }
 }
 
-static void vfio_display_dmabuf_update(void *opaque)
+static bool vfio_display_dmabuf_update(void *opaque)
 {
     VFIOPCIDevice *vdev = opaque;
     VFIODisplay *dpy = vdev->dpy;
@@ -298,7 +298,7 @@ static void vfio_display_dmabuf_update(void *opaque)
         if (dpy->ramfb) {
             ramfb_display_update(dpy->con, dpy->ramfb);
         }
-        return;
+        return true;
     }
 
     width = qemu_dmabuf_get_width(primary->buf);
@@ -340,6 +340,8 @@ static void vfio_display_dmabuf_update(void *opaque)
     if (free_bufs) {
         vfio_display_free_dmabufs(vdev);
     }
+
+    return true;
 }
 
 static int vfio_display_get_flags(void *opaque)
@@ -399,7 +401,7 @@ void vfio_display_reset(VFIOPCIDevice *vdev)
     dpy_gfx_update_full(vdev->dpy->con);
 }
 
-static void vfio_display_region_update(void *opaque)
+static bool vfio_display_region_update(void *opaque)
 {
     VFIOPCIDevice *vdev = opaque;
     VFIODisplay *dpy = vdev->dpy;
@@ -414,18 +416,18 @@ static void vfio_display_region_update(void *opaque)
     if (ret < 0) {
         error_report("ioctl VFIO_DEVICE_QUERY_GFX_PLANE: %s",
                      strerror(errno));
-        return;
+        return true;
     }
     if (!plane.drm_format || !plane.size) {
         if (dpy->ramfb) {
             ramfb_display_update(dpy->con, dpy->ramfb);
             dpy->region.surface = NULL;
         }
-        return;
+        return true;
     }
     format = qemu_drm_format_to_pixman(plane.drm_format);
     if (!format) {
-        return;
+        return true;
     }
 
     if (dpy->region.buffer.size &&
@@ -476,11 +478,12 @@ static void vfio_display_region_update(void *opaque)
     dpy_gfx_update(dpy->con, 0, 0,
                    surface_width(dpy->region.surface),
                    surface_height(dpy->region.surface));
-    return;
+    return true;
 
 err:
     vfio_region_exit(&dpy->region.buffer);
     vfio_region_finalize(&dpy->region.buffer);
+    return true;
 }
 
 static const GraphicHwOps vfio_display_region_ops = {

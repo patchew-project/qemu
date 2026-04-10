@@ -363,8 +363,13 @@ enum {
 typedef struct GraphicHwOps {
     int (*get_flags)(void *opaque); /* optional, default 0 */
     void (*invalidate)(void *opaque);
-    void (*gfx_update)(void *opaque);
-    bool gfx_update_async; /* if true, calls graphic_hw_update_done() */
+    /*
+     * Returns true if the update is handled synchronously, false if deferred
+     * and graphic_hw_update_done() will be called when ready (to resume waiting
+     * tasks/coroutines).
+     * Optional.
+     */
+    bool (*gfx_update)(void *opaque);
     void (*text_update)(void *opaque, uint32_t *text);
     void (*ui_info)(void *opaque, uint32_t head, QemuUIInfo *info);
     void (*gl_block)(void *opaque, bool block);

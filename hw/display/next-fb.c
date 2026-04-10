@@ -67,7 +67,7 @@ static void nextfb_draw_line(void *opaque, uint8_t *d, const uint8_t *s,
     }
 }
 
-static void nextfb_update(void *opaque)
+static bool nextfb_update(void *opaque)
 {
     NeXTFbState *s = NEXTFB(opaque);
     int dest_width = 4;
@@ -90,6 +90,8 @@ static void nextfb_update(void *opaque)
                                s, &first, &last);
 
     dpy_gfx_update(s->con, 0, 0, s->cols, s->rows);
+
+    return true;
 }
 
 static void nextfb_invalidate(void *opaque)

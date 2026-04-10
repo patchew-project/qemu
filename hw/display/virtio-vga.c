@@ -19,15 +19,15 @@ static void virtio_vga_base_invalidate_display(void *opaque)
     }
 }
 
-static void virtio_vga_base_update_display(void *opaque)
+static bool virtio_vga_base_update_display(void *opaque)
 {
     VirtIOVGABase *vvga = opaque;
     VirtIOGPUBase *g = vvga->vgpu;
 
     if (g->enable) {
-        g->hw_ops->gfx_update(g);
+        return g->hw_ops->gfx_update(g);
     } else {
-        vvga->vga.hw_ops->gfx_update(&vvga->vga);
+        return vvga->vga.hw_ops->gfx_update(&vvga->vga);
     }
 }
 

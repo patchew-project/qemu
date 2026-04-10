@@ -454,7 +454,7 @@ static gchar *macfb_mode_list(void)
 }
 
 
-static void macfb_update_display(void *opaque)
+static bool macfb_update_display(void *opaque)
 {
     MacfbState *s = opaque;
     DisplaySurface *surface = qemu_console_surface(s->con);
@@ -462,7 +462,7 @@ static void macfb_update_display(void *opaque)
     qemu_flush_coalesced_mmio_buffer();
 
     if (s->width == 0 || s->height == 0) {
-        return;
+        return true;
     }
 
     if (s->width != surface_width(surface) ||
@@ -471,6 +471,8 @@ static void macfb_update_display(void *opaque)
     }
 
     macfb_draw_graphic(s);
+
+    return true;
 }
 
 static void macfb_update_irq(MacfbState *s)
