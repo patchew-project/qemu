@@ -1101,6 +1101,8 @@ typedef struct BdrvBlockStatusCache {
     int64_t data_end;
 } BdrvBlockStatusCache;
 
+typedef struct IOThread IOThread;
+
 struct BlockDriverState {
     /*
      * Protected by big QEMU lock or read-only after opening.  No special
@@ -1289,6 +1291,9 @@ struct BlockDriverState {
 
     /* array of write pointers' location of each zone in the zoned device. */
     BlockZoneWps *wps;
+
+    /* Track the iothread for detach aio context*/
+    IOThread *iothread;
 };
 
 struct BlockBackendRootState {
