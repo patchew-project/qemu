@@ -90,7 +90,10 @@ void hmp_info_version(Monitor *mon, const QDict *qdict)
 
 void hmp_quit(Monitor *mon, const QDict *qdict)
 {
-    monitor_suspend(mon);
+    MonitorHMP *hmp = MONITOR_HMP(mon);
+    if (hmp->rs) {
+        monitor_suspend(mon);
+    }
     qmp_quit(NULL);
 }
 

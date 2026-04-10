@@ -133,7 +133,6 @@ struct MonitorHMPClass {
 
 struct MonitorHMP {
     Monitor parent;
-    bool use_readline;
     /*
      * State used only in the thread "owning" the monitor.
      * If @use_io_thread, this is @mon_iothread. (This does not actually happen

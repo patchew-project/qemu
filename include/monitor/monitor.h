@@ -34,7 +34,7 @@ int monitor_new(MonitorOptions *opts, bool allow_hmp, Error **errp);
 int monitor_new_opts(QemuOpts *opts, Error **errp);
 void monitor_cleanup(void);
 
-int monitor_suspend(Monitor *mon);
+void monitor_suspend(Monitor *mon);
 void monitor_resume(Monitor *mon);
 
 int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp);
