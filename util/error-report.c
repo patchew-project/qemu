@@ -223,16 +223,15 @@ char *real_time_iso8601(void)
 G_GNUC_PRINTF(2, 0)
 static void vreport(report_type type, const char *fmt, va_list ap)
 {
-    Monitor *cur = monitor_cur();
-    gchar *timestr;
-
     /*
      * When current monitor is QMP, messages must go to stderr
-     * and have prefixes added
+     * and have prefixes added, so we cast to HMP, leaving 'cur'
+     * as NULL in QMP case
      */
-    if (monitor_cur_is_qmp()) {
-        cur = NULL;
-    }
+    Monitor *cur = MONITOR(
+        object_dynamic_cast(OBJECT(monitor_cur()), TYPE_MONITOR_HMP));
+    gchar *timestr;
+
     if (!cur) {
         qemu_flockfile(stderr);
     }
