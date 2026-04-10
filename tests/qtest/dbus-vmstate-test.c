@@ -3,7 +3,7 @@
 #include <gio/gio.h>
 #include "libqtest.h"
 #include "dbus-vmstate1.h"
-#include "migration-helpers.h"
+#include "migration/migration-qmp.h"
 
 static char *workdir;
 
@@ -230,7 +230,7 @@ test_dbus_vmstate(Test *test)
     thread = g_thread_new("dbus-vmstate-thread", dbus_vmstate_thread, loop);
 
     migrate_incoming_qmp(dst_qemu, uri, NULL, "{}");
-    migrate_qmp(src_qemu, uri, "{}");
+    migrate_qmp(src_qemu, dst_qemu, uri, NULL, "{}");
     test->src_qemu = src_qemu;
     if (test->migrate_fail) {
         wait_for_migration_fail(src_qemu, true);
@@ -343,14 +343,7 @@ int
 main(int argc, char **argv)
 {
     GError *err = NULL;
-    g_autofree char *dbus_daemon = NULL;
     int ret;
-
-    dbus_daemon = g_build_filename(G_STRINGIFY(SRCDIR),
-                                   "tests",
-                                   "dbus-vmstate-daemon.sh",
-                                   NULL);
-    g_setenv("G_TEST_DBUS_DAEMON", dbus_daemon, true);
 
     g_test_init(&argc, &argv, NULL);
 
