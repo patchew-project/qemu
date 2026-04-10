@@ -1387,13 +1387,13 @@ static void qemu_spice_display_init_one(QemuConsole *con)
     SimpleSpiceDisplay *ssd = g_new0(SimpleSpiceDisplay, 1);
     Error *err = NULL;
     char device_address[256] = "";
+    const DisplayChangeListenerOps *ops = &display_listener_ops;
 
     qemu_spice_display_init_common(ssd);
 
-    ssd->dcl.ops = &display_listener_ops;
 #ifdef HAVE_SPICE_GL
     if (spice_opengl) {
-        ssd->dcl.ops = &display_listener_gl_ops;
+        ops = &display_listener_gl_ops;
         ssd->dgc.ops = &gl_ctx_ops;
         ssd->gl_unblock_bh = qemu_bh_new(qemu_spice_gl_unblock_bh, ssd);
         ssd->gl_unblock_timer = timer_new_ms(QEMU_CLOCK_REALTIME,
@@ -1403,8 +1403,6 @@ static void qemu_spice_display_init_one(QemuConsole *con)
         ssd->have_scanout = false;
     }
 #endif
-    ssd->dcl.con = con;
-
     ssd->qxl.base.sif = &dpy_interface.base;
     qemu_spice_add_display_interface(&ssd->qxl, con);
 
@@ -1422,7 +1420,7 @@ static void qemu_spice_display_init_one(QemuConsole *con)
     if (spice_opengl) {
         qemu_console_set_display_gl_ctx(con, &ssd->dgc);
     }
-    register_displaychangelistener(&ssd->dcl);
+    qemu_console_register_listener(con, &ssd->dcl, ops);
 }
 
 void qemu_spice_display_init(void)

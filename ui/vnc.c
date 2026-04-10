@@ -1859,10 +1859,9 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
             qkbd_state_modifier_get(vs->vd->kbd, QKBD_MOD_ALT)) {
             QemuConsole *con = qemu_console_lookup_by_index(qcode - Q_KEY_CODE_1);
             if (con) {
-                unregister_displaychangelistener(&vs->vd->dcl);
+                qemu_console_unregister_listener(&vs->vd->dcl);
                 qkbd_state_switch_console(vs->vd->kbd, con);
-                vs->vd->dcl.con = con;
-                register_displaychangelistener(&vs->vd->dcl);
+                qemu_console_register_listener(con, &vs->vd->dcl, vs->vd->dcl.ops);
             }
             return;
         }
@@ -3436,7 +3435,6 @@ VncDisplay *vnc_display_new(const char *id, Error **errp)
 
     qemu_mutex_init(&vd->mutex);
     vd->id = g_strdup(id);
-    vd->dcl.ops = &dcl_ops;
 
     QTAILQ_INIT(&vd->clients);
     vd->expires = TIME_MAX;
@@ -3519,7 +3517,7 @@ void vnc_display_free(VncDisplay *vd)
 
     vnc_stop_worker_thread(vd);
     vnc_display_close(vd);
-    unregister_displaychangelistener(&vd->dcl);
+    qemu_console_unregister_listener(&vd->dcl);
     qkbd_state_free(vd->kbd);
     qemu_del_vm_change_state_handler(vd->vmstate_handler_entry);
     kbd_layout_free(vd->kbd_layout);
@@ -4262,8 +4260,7 @@ static bool vnc_display_open(VncDisplay *vd, Error **errp)
         con = qemu_console_lookup_default();
     }
 
-    vd->dcl.con = con;
-    register_displaychangelistener(&vd->dcl);
+    qemu_console_register_listener(con, &vd->dcl, &dcl_ops);
     vd->kbd = qkbd_state_init(vd->dcl.con);
     qkbd_state_set_delay(vd->kbd, key_delay_ms);
 

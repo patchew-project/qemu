@@ -143,7 +143,6 @@ dbus_display_console_init(DBusDisplayConsole *object)
     DBusDisplayConsole *ddc = DBUS_DISPLAY_CONSOLE(object);
 
     ddc->listeners = g_ptr_array_new_with_free_func(g_object_unref);
-    ddc->dcl.ops = &dbus_console_dcl_ops;
 }
 
 static void
@@ -151,7 +150,7 @@ dbus_display_console_dispose(GObject *object)
 {
     DBusDisplayConsole *ddc = DBUS_DISPLAY_CONSOLE(object);
 
-    unregister_displaychangelistener(&ddc->dcl);
+    qemu_console_unregister_listener(&ddc->dcl);
     g_clear_object(&ddc->iface_touch);
     g_clear_object(&ddc->iface_mouse);
     g_clear_object(&ddc->iface_kbd);
@@ -553,7 +552,6 @@ dbus_display_console_new(DBusDisplay *display, QemuConsole *con)
                         "g-object-path", path,
                         NULL);
     ddc->display = display;
-    ddc->dcl.con = con;
     /* handle errors, and skip non graphics? */
     qemu_console_fill_device_address(
         con, device_addr, sizeof(device_addr), NULL);
@@ -611,7 +609,7 @@ dbus_display_console_new(DBusDisplay *display, QemuConsole *con)
         slot->tracking_id = -1;
     }
 
-    register_displaychangelistener(&ddc->dcl);
+    qemu_console_register_listener(con, &ddc->dcl, &dbus_console_dcl_ops);
     ddc->mouse_mode_notifier.notify = dbus_mouse_mode_change;
     qemu_add_mouse_mode_change_notifier(&ddc->mouse_mode_notifier);
     dbus_mouse_update_is_absolute(ddc);
