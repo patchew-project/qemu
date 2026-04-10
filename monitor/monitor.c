@@ -529,7 +529,7 @@ int monitor_suspend(Monitor *mon)
          * Kick I/O thread to make sure this takes effect.  It'll be
          * evaluated again in prepare() of the watch object.
          */
-        aio_notify(iothread_get_aio_context(mon_iothread));
+        aio_notify(mon->ctx);
     }
 
     trace_monitor_suspend(mon, 1);
@@ -564,7 +564,7 @@ void monitor_resume(Monitor *mon)
         AioContext *ctx;
 
         if (mon->use_io_thread) {
-            ctx = iothread_get_aio_context(mon_iothread);
+            ctx = mon->ctx;
         } else {
             ctx = qemu_get_aio_context();
         }
@@ -612,6 +612,18 @@ void monitor_data_init(Monitor *mon, bool is_qmp, bool skip_flush,
 {
     if (use_io_thread && !mon_iothread) {
         monitor_iothread_init();
+        /*
+         * Because of current Monitor is not a QOM Object,
+         * so using OBJECT(mon) is undefined behavior and may crash.
+         * Try using a hard-coded future implementation of the qom path instead.
+         * (Like the name of the "mon_iothread").
+         * long-term solution would be making Monitor QOM, after that change
+         * here to:
+         * g_autofree path = object_get_canonical_path(OBJECT(mon));
+         */
+        g_autofree char *path = g_strdup(is_qmp ? "/monitor/qmp_mon0" :
+                                                  "/monitor/hmp_mon0");
+        mon->ctx = iothread_ref_and_get_aio_context(mon_iothread, path);
     }
     qemu_mutex_init(&mon->mon_lock);
     mon->is_qmp = is_qmp;
@@ -631,6 +643,14 @@ void monitor_data_destroy(Monitor *mon)
     }
     g_string_free(mon->outbuf, true);
     qemu_mutex_destroy(&mon->mon_lock);
+
+    if (mon->ctx && mon_iothread) {
+        g_autofree char *path = g_strdup(monitor_is_qmp(mon) ?
+                                        "/monitor/qmp_mon0" :
+                                        "/monitor/hmp_mon0");
+        iothread_put_aio_context(mon_iothread, path);
+        mon->ctx = NULL;
+    }
 }
 
 void monitor_cleanup(void)
