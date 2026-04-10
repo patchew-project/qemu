@@ -2341,6 +2341,17 @@ dbus_display = get_option('dbus_display') \
            error_message: gdbus_codegen_error.format('-display dbus')) \
   .allowed()
 
+have_qemu_vnc = get_option('qemu_vnc') \
+  .require(have_tools,
+           error_message: 'qemu-vnc requires tools support') \
+  .require(dbus_display,
+           error_message: 'qemu-vnc requires dbus-display support') \
+  .require(vnc.found(),
+           error_message: 'qemu-vnc requires vnc support') \
+  .require(host_os != 'windows',
+           error_message: 'qemu-vnc is not currently supported on Windows') \
+  .allowed()
+
 have_virtfs = get_option('virtfs') \
     .require(host_os == 'linux' or host_os == 'darwin' or host_os == 'freebsd',
              error_message: 'virtio-9p (virtfs) requires Linux or macOS or FreeBSD') \
@@ -3595,6 +3606,7 @@ trace_events_subdirs = [
   'monitor',
   'util',
   'gdbstub',
+  'tools/qemu-vnc',
 ]
 if have_linux_user
   trace_events_subdirs += [ 'linux-user' ]
@@ -4563,6 +4575,10 @@ if have_tools
     subdir('contrib/ivshmem-client')
     subdir('contrib/ivshmem-server')
   endif
+
+  if have_qemu_vnc
+    subdir('tools/qemu-vnc')
+  endif
 endif
 
 if stap.found()
@@ -4898,6 +4914,7 @@ if vnc.found()
   summary_info += {'VNC SASL support':  sasl}
   summary_info += {'VNC JPEG support':  jpeg}
 endif
+summary_info += {'VNC D-Bus server (qemu-vnc)': have_qemu_vnc}
 summary_info += {'spice protocol support': spice_protocol}
 if spice_protocol.found()
   summary_info += {'  spice server support': spice}

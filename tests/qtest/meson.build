@@ -411,6 +411,15 @@ if vnc.found()
   if gvnc.found()
     qtests += {'vnc-display-test': [gvnc, keymap_targets]}
     qtests_generic += [ 'vnc-display-test' ]
+    if have_qemu_vnc and dbus_display and config_all_devices.has_key('CONFIG_VGA')
+      dbus_vnc_test_deps = [dbus_display1, qemu_vnc1, gio, gvnc, keymap_targets]
+      if gnutls.found() and tasn1.found()
+        dbus_vnc_test_deps += [files('../unit/crypto-tls-x509-helpers.c'),
+                               gnutls, tasn1]
+      endif
+      qtests += {'dbus-vnc-test': dbus_vnc_test_deps}
+      qtests_x86_64 += ['dbus-vnc-test']
+    endif
   endif
 endif
 
@@ -441,6 +450,10 @@ foreach dir : target_dirs
   if have_tools and have_vhost_user_blk_server
     qtest_env.set('QTEST_QEMU_STORAGE_DAEMON_BINARY', './storage-daemon/qemu-storage-daemon')
     test_deps += [qsd]
+  endif
+  if have_qemu_vnc
+    qtest_env.set('QTEST_QEMU_VNC_BINARY', './tools/qemu-vnc/qemu-vnc')
+    test_deps += [qemu_vnc]
   endif
 
   qtest_env.set('PYTHON', python.full_path())
