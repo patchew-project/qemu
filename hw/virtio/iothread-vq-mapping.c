@@ -94,7 +94,7 @@ bool iothread_vq_mapping_apply(
 
     for (node = list; node; node = node->next) {
         IOThread *iothread = iothread_by_id(node->value->iothread);
-        AioContext *ctx = iothread_ref_and_get_aio_context(iothread, holder);
+        AioContext *ctx = iothread_get_aio_context(iothread, holder);
 
         if (node->value->vqs) {
             uint16List *vq;

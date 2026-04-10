@@ -623,7 +623,7 @@ void monitor_data_init(Monitor *mon, bool is_qmp, bool skip_flush,
          */
         g_autofree char *path = g_strdup(is_qmp ? "/monitor/qmp_mon0" :
                                                   "/monitor/hmp_mon0");
-        mon->ctx = iothread_ref_and_get_aio_context(mon_iothread, path);
+        mon->ctx = iothread_get_aio_context(mon_iothread, path);
     }
     qemu_mutex_init(&mon->mon_lock);
     mon->is_qmp = is_qmp;

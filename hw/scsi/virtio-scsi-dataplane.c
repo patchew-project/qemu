@@ -74,8 +74,7 @@ void virtio_scsi_dataplane_setup(VirtIOSCSI *s, Error **errp)
             return;
         }
     } else if (vs->conf.iothread) {
-        AioContext *ctx = iothread_ref_and_get_aio_context(vs->conf.iothread,
-                                                           path);
+        AioContext *ctx = iothread_get_aio_context(vs->conf.iothread, path);
         for (uint16_t i = 0; i < vs->conf.num_queues; i++) {
             s->vq_aio_context[VIRTIO_SCSI_VQ_NUM_FIXED + i] = ctx;
         }

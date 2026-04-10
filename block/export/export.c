@@ -141,7 +141,7 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
         }
 
         holder_name = bdrv_get_node_name(bs);
-        new_ctx = iothread_ref_and_get_aio_context(iothread, holder_name);
+        new_ctx = iothread_get_aio_context(iothread, holder_name);
         multithread_count = 1;
         local_iothreads = g_new0(IOThread *, 1);
         local_iothreads[0] = iothread;
@@ -180,8 +180,8 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
                 goto fail;
             }
             local_iothreads[i] = iothread;
-            multithread_ctxs[i++] = iothread_ref_and_get_aio_context(iothread,
-                                                                  holder_name);
+            multithread_ctxs[i++] = iothread_get_aio_context(iothread,
+                                                             holder_name);
         }
         assert(i == multithread_count);
     }

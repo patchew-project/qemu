@@ -624,8 +624,7 @@ XenBlockDataPlane *xen_block_dataplane_create(XenDevice *xendev,
         g_autofree char *path = object_get_canonical_path(OBJECT(xendev));
 
         dataplane->iothread = iothread;
-        dataplane->ctx = iothread_ref_and_get_aio_context(dataplane->iothread,
-                                                          path);
+        dataplane->ctx = iothread_get_aio_context(dataplane->iothread, path);
     } else {
         dataplane->ctx = qemu_get_aio_context();
     }

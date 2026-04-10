@@ -899,7 +899,7 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
         precopy_add_notifier(&s->free_page_hint_notify);
 
         s->free_page_bh = aio_bh_new_guarded(
-                            iothread_ref_and_get_aio_context(s->iothread, path),
+                            iothread_get_aio_context(s->iothread, path),
                             virtio_ballloon_get_free_page_hints, s,
                             &dev->mem_reentrancy_guard);
     }
