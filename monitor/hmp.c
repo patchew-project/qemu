@@ -38,6 +38,8 @@
 #include "qemu/option.h"
 #include "qemu/target-info.h"
 #include "qemu/units.h"
+#include "qapi/error.h"
+#include "qom/object_interfaces.h"
 #include "exec/gdbstub.h"
 #include "system/block-backend.h"
 #include "trace.h"
@@ -54,16 +56,47 @@ int monitor_hmp_vprintf(Monitor *mon, const char *fmt, va_list ap)
     G_GNUC_PRINTF(2, 0);
 static void monitor_hmp_accept_input(Monitor *mon);
 
+static bool monitor_hmp_get_readline(Object *obj, Error **errp)
+{
+    MonitorHMP *mon = MONITOR_HMP(obj);
+
+    return mon->readline;
+}
+
+static void monitor_hmp_set_readline(Object *obj, bool val, Error **errp)
+{
+    MonitorHMP *mon = MONITOR_HMP(obj);
+
+    mon->readline = val;
+}
+
+static void monitor_hmp_complete(UserCreatable *uc, Error **errp);
+
 static void monitor_hmp_class_init(ObjectClass *cls, const void *data)
 {
     MonitorClass *moncls = MONITOR_CLASS(cls);
+    UserCreatableClass *ucc = USER_CREATABLE_CLASS(cls);
+
+    object_class_property_add_bool(cls, "readline",
+                                   monitor_hmp_get_readline,
+                                   monitor_hmp_set_readline);
 
     moncls->vprintf = monitor_hmp_vprintf;
     moncls->accept_input = monitor_hmp_accept_input;
+
+    ucc->complete = monitor_hmp_complete;
 }
 
 static void monitor_hmp_init(Object *obj)
 {
+    MonitorHMP *hmp = MONITOR_HMP(obj);
+
+    /*
+     * Default to common case for external HMP use,
+     * as opposed to non-interactive internal use
+     * from gdbstub
+     */
+    hmp->readline = true;
 }
 
 int monitor_hmp_vprintf(Monitor *mon, const char *fmt, va_list ap)
@@ -1565,26 +1598,36 @@ static void monitor_readline_flush(void *opaque)
     monitor_flush(&mon->parent);
 }
 
-void monitor_new_hmp(Chardev *chr, bool use_readline, Error **errp)
+static void monitor_hmp_complete(UserCreatable *uc, Error **errp)
 {
-    MonitorHMP *mon = MONITOR_HMP(object_new(TYPE_MONITOR_HMP));
+    MonitorHMP *mon = MONITOR_HMP(uc);
+    UserCreatableClass *ucc_parent =
+        USER_CREATABLE_CLASS(
+            object_class_get_parent(
+                OBJECT_CLASS(MONITOR_HMP_GET_CLASS(mon))));
+    ERRP_GUARD();
 
-    if (!qemu_chr_fe_init(&mon->parent.chr, chr, errp)) {
-        object_unref(mon);
+    ucc_parent->complete(uc, errp);
+    if (*errp) {
         return;
     }
 
-    if (use_readline) {
-        mon->rs = readline_init(monitor_readline_printf,
-                                monitor_readline_flush,
-                                mon,
-                                monitor_find_completion);
-        monitor_read_command(mon, 0);
-    }
+    if (mon->parent.chrdev_id) {
+        if (mon->readline) {
+            mon->rs = readline_init(monitor_readline_printf,
+                                    monitor_readline_flush,
+                                    mon,
+                                    monitor_find_completion);
+            monitor_read_command(mon, 0);
+        }
 
-    qemu_chr_fe_set_handlers(&mon->parent.chr, monitor_can_read, monitor_read,
-                             monitor_event, NULL, &mon->parent, NULL, true);
-    monitor_list_append(&mon->parent);
+        qemu_chr_fe_set_handlers(&mon->parent.chr,
+                                 monitor_can_read,
+                                 monitor_read,
+                                 monitor_event, NULL,
+                                 &mon->parent, NULL, true);
+        monitor_list_append(&mon->parent);
+    }
 }
 
 /**

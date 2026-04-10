@@ -1180,6 +1180,45 @@
             '*node-affinity': ['uint16'] } }
 
 ##
+# @MonitorProperties:
+#
+# Properties for all monitors
+#
+# @chrdev: ID of the character device providing the monitor transport
+#
+# Since: 11.1
+##
+{ 'struct': 'MonitorProperties',
+  'data': { 'chrdev': 'str' }}
+
+##
+# @MonitorHMPProperties:
+#
+# Properties for the HMP monitor
+#
+# @readline: whether to enable readline for interactive command
+#      usage (default: enabled)
+#
+# Since: 11.1
+##
+{ 'struct': 'MonitorHMPProperties',
+  'base': 'MonitorProperties',
+  'data': { '*readline': 'bool' } }
+
+##
+# @MonitorQMPProperties:
+#
+# Properties for the QMP monitor
+#
+# @pretty: whether to pretty print JSON responses (default: disabled)
+#
+# Since: 11.1
+##
+{ 'struct': 'MonitorQMPProperties',
+  'base': 'MonitorProperties',
+  'data': { '*pretty': 'bool' } }
+
+##
 # @ObjectType:
 #
 # Features:
@@ -1229,6 +1268,8 @@
     'memory-backend-ram',
     { 'name': 'memory-backend-shm',
       'if': 'CONFIG_POSIX' },
+    'monitor-hmp',
+    'monitor-qmp',
     'pef-guest',
     { 'name': 'pr-manager-helper',
       'if': 'CONFIG_LINUX' },
@@ -1307,6 +1348,8 @@
       'memory-backend-ram':         'MemoryBackendProperties',
       'memory-backend-shm':         { 'type': 'MemoryBackendShmProperties',
                                       'if': 'CONFIG_POSIX' },
+      'monitor-hmp':                {'type': 'MonitorHMPProperties' },
+      'monitor-qmp':                {'type': 'MonitorQMPProperties' },
       'pr-manager-helper':          { 'type': 'PrManagerHelperProperties',
                                       'if': 'CONFIG_LINUX' },
       'qtest':                      'QtestProperties',

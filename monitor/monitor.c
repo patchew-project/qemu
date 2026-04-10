@@ -29,6 +29,7 @@
 #include "qapi/qapi-emit-events.h"
 #include "qapi/qapi-visit-control.h"
 #include "qobject/qdict.h"
+#include "qom/object_interfaces.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "system/qtest.h"
@@ -73,7 +74,8 @@ static GHashTable *coroutine_mon; /* Maps Coroutine* to Monitor* */
 MonitorList mon_list;
 static bool monitor_destroyed;
 
-OBJECT_DEFINE_TYPE(Monitor, monitor, MONITOR, OBJECT);
+OBJECT_DEFINE_TYPE_EXTENDED(Monitor, monitor, MONITOR, OBJECT, true,
+                            { TYPE_USER_CREATABLE }, {});
 
 static void monitor_finalize(Object *obj)
 {
@@ -85,8 +87,45 @@ static void monitor_finalize(Object *obj)
     qemu_mutex_destroy(&mon->mon_lock);
 }
 
+static void monitor_complete(UserCreatable *uc, Error **errp)
+{
+    Monitor *mon = MONITOR(uc);
+
+    if (mon->chrdev_id) {
+        Chardev *chr = qemu_chr_find(mon->chrdev_id);
+        if (chr == NULL) {
+            error_setg(errp, "chardev \"%s\" not found", mon->chrdev_id);
+            return;
+        }
+
+        if (!qemu_chr_fe_init(&mon->chr, chr, errp)) {
+            return;
+        }
+    }
+}
+
+static char *monitor_get_chrdev_id(Object *obj, Error **errp)
+{
+    Monitor *mon = MONITOR(obj);
+
+    return g_strdup(mon->chrdev_id);
+}
+
+static void monitor_set_chrdev_id(Object *obj, const char *str, Error **errp)
+{
+    Monitor *mon = MONITOR(obj);
+
+    mon->chrdev_id = g_strdup(str);
+}
+
 static void monitor_class_init(ObjectClass *cls, const void *data)
 {
+    UserCreatableClass *ucc = USER_CREATABLE_CLASS(cls);
+
+    object_class_property_add_str(cls, "chrdev",
+                                  monitor_get_chrdev_id, monitor_set_chrdev_id);
+
+    ucc->complete = monitor_complete;
 }
 
 static void monitor_init(Object *obj)
@@ -570,7 +609,7 @@ void monitor_list_append(Monitor *mon)
     qemu_mutex_unlock(&monitor_lock);
 
     if (mon) {
-        object_unref(mon);
+        object_unparent(OBJECT(mon));
     }
 }
 
@@ -628,7 +667,7 @@ void monitor_cleanup(void)
         qemu_mutex_unlock(&monitor_lock);
         monitor_flush(mon);
         qemu_mutex_lock(&monitor_lock);
-        object_unref(mon);
+        object_unparent(OBJECT(mon));
     }
     qemu_mutex_unlock(&monitor_lock);
 
@@ -666,13 +705,8 @@ void monitor_init_globals(void)
 int monitor_new(MonitorOptions *opts, bool allow_hmp, Error **errp)
 {
     ERRP_GUARD();
-    Chardev *chr;
-
-    chr = qemu_chr_find(opts->chardev);
-    if (chr == NULL) {
-        error_setg(errp, "chardev \"%s\" not found", opts->chardev);
-        return -1;
-    }
+    static int counter;
+    g_autofree char *id = g_strdup_printf("mon%d", counter++);
 
     if (!opts->has_mode) {
         opts->mode = allow_hmp ? MONITOR_MODE_READLINE : MONITOR_MODE_CONTROL;
@@ -680,7 +714,13 @@ int monitor_new(MonitorOptions *opts, bool allow_hmp, Error **errp)
 
     switch (opts->mode) {
     case MONITOR_MODE_CONTROL:
-        monitor_new_qmp(chr, opts->pretty, errp);
+        object_new_with_props(TYPE_MONITOR_QMP,
+                              object_get_objects_root(),
+                              id,
+                              errp,
+                              "chrdev", opts->chardev,
+                              "pretty", opts->pretty ? "yes" : "no",
+                              NULL);
         break;
     case MONITOR_MODE_READLINE:
         if (!allow_hmp) {
@@ -691,7 +731,13 @@ int monitor_new(MonitorOptions *opts, bool allow_hmp, Error **errp)
             error_setg(errp, "'pretty' is not compatible with HMP monitors");
             return -1;
         }
-        monitor_new_hmp(chr, true, errp);
+        object_new_with_props(TYPE_MONITOR_HMP,
+                              object_get_objects_root(),
+                              id,
+                              errp,
+                              "chrdev", opts->chardev,
+                              "readline", "yes",
+                              NULL);
         break;
     default:
         g_assert_not_reached();

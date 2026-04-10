@@ -31,6 +31,7 @@
 #include "qobject/qdict.h"
 #include "qobject/qjson.h"
 #include "qobject/qlist.h"
+#include "qom/object_interfaces.h"
 #include "trace.h"
 
 /*
@@ -85,13 +86,35 @@ static void monitor_qmp_finalize(Object *obj)
     g_queue_free(mon->qmp_requests);
 }
 
+static bool monitor_qmp_get_pretty(Object *obj, Error **errp)
+{
+    MonitorQMP *mon = MONITOR_QMP(obj);
+
+    return mon->pretty;
+}
+
+static void monitor_qmp_set_pretty(Object *obj, bool val, Error **errp)
+{
+    MonitorQMP *mon = MONITOR_QMP(obj);
+
+    mon->pretty = val;
+}
+
 static void monitor_qmp_emit_event(Monitor *mon, QAPIEvent event, QDict *qdict);
+static void monitor_qmp_complete(UserCreatable *uc, Error **errp);
 
 static void monitor_qmp_class_init(ObjectClass *cls, const void *data)
 {
     MonitorClass *moncls = MONITOR_CLASS(cls);
+    UserCreatableClass *ucc = USER_CREATABLE_CLASS(cls);
+
+    object_class_property_add_bool(cls, "pretty",
+                                   monitor_qmp_get_pretty,
+                                   monitor_qmp_set_pretty);
 
     moncls->emit_event = monitor_qmp_emit_event;
+
+    ucc->complete = monitor_qmp_complete;
 }
 
 static void monitor_qmp_init(Object *obj)
@@ -547,22 +570,26 @@ static void monitor_qmp_setup_handlers_bh(void *opaque)
     monitor_list_append(&mon->parent);
 }
 
-void monitor_new_qmp(Chardev *chr, bool pretty, Error **errp)
+static void monitor_qmp_complete(UserCreatable *uc, Error **errp)
 {
-    MonitorQMP *mon = MONITOR_QMP(object_new(TYPE_MONITOR_QMP));
+    MonitorQMP *mon = MONITOR_QMP(uc);
+    UserCreatableClass *ucc_parent =
+        USER_CREATABLE_CLASS(
+            object_class_get_parent(
+                OBJECT_CLASS(MONITOR_QMP_GET_CLASS(mon))));
+    ERRP_GUARD();
 
-    if (!qemu_chr_fe_init(&mon->parent.chr, chr, errp)) {
-        object_unref(mon);
+    ucc_parent->complete(uc, errp);
+    if (*errp) {
         return;
     }
+
     qemu_chr_fe_set_echo(&mon->parent.chr, true);
 
     /* Note: we run QMP monitor in I/O thread when @chr supports that */
-    if (qemu_chr_has_feature(chr, QEMU_CHAR_FEATURE_GCONTEXT)) {
+    if (qemu_chr_has_feature(mon->parent.chr.chr, QEMU_CHAR_FEATURE_GCONTEXT)) {
         monitor_iothread_init(&mon->parent);
     }
-
-    mon->pretty = pretty;
 
     qemu_mutex_init(&mon->qmp_queue_lock);
     mon->qmp_requests = g_queue_new();
@@ -573,12 +600,12 @@ void monitor_new_qmp(Chardev *chr, bool pretty, Error **errp)
          * Make sure the old iowatch is gone.  It's possible when
          * e.g. the chardev is in client mode, with wait=on.
          */
-        remove_fd_in_watch(chr);
+        remove_fd_in_watch(mon->parent.chr.chr);
         /*
          * Clean up listener IO sources early to prevent racy fd
          * handling between the main thread and the I/O thread.
          */
-        remove_listener_fd_in_watch(chr);
+        remove_listener_fd_in_watch(mon->parent.chr.chr);
         /*
          * We can't call qemu_chr_fe_set_handlers() directly here
          * since chardev might be running in the monitor I/O

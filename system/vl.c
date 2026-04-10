@@ -1823,6 +1823,10 @@ static void object_option_add_visitor(Visitor *v)
 {
     ObjectOption *opt = g_new0(ObjectOption, 1);
     visit_type_ObjectOptions(v, NULL, &opt->opts, &error_fatal);
+    if (opt->opts->qom_type == OBJECT_TYPE_MONITOR_HMP ||
+        opt->opts->qom_type == OBJECT_TYPE_MONITOR_QMP) {
+        default_monitor = 0;
+    }
     QTAILQ_INSERT_TAIL(&object_opts, opt, next);
 }
 
@@ -1964,7 +1968,9 @@ static bool object_create_early(const char *type)
 
     /* Reason: property "chardev" */
     if (g_str_equal(type, "rng-egd") ||
-        g_str_equal(type, "qtest")) {
+        g_str_equal(type, "qtest") ||
+        g_str_equal(type, "monitor-hmp") ||
+        g_str_equal(type, "monitor-qmp")) {
         return false;
     }
 

@@ -386,9 +386,15 @@ bool gdbserver_start(const char *device, Error **errp)
         qemu_add_vm_change_state_handler(gdb_vm_state_change, NULL);
 
         /* Initialize a monitor terminal for gdb */
-        mon_chr = qemu_chardev_new(NULL, TYPE_CHARDEV_GDB,
+        mon_chr = qemu_chardev_new("gdbchrdev0", TYPE_CHARDEV_GDB,
                                    NULL, NULL, &error_abort);
-        monitor_new_hmp(mon_chr, false, &error_abort);
+        object_new_with_props(TYPE_MONITOR_HMP,
+                              object_get_objects_root(),
+                              "gdbmon0",
+                              &error_abort,
+                              "chrdev", "gdbchrdev0",
+                              "readline", "no",
+                              NULL);
     } else {
         qemu_chr_fe_deinit(&gdbserver_system_state.chr, true);
         mon_chr = gdbserver_system_state.mon_chr;

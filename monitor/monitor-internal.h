@@ -104,6 +104,7 @@ struct MonitorClass {
 
 struct Monitor {
     Object parent;
+    char *chrdev_id;
     CharFrontend chr;
     int suspend_cnt;            /* Needs to be accessed atomically */
     bool use_io_thread;
@@ -133,6 +134,7 @@ struct MonitorHMPClass {
 
 struct MonitorHMP {
     Monitor parent;
+    bool readline;
     /*
      * State used only in the thread "owning" the monitor.
      * If @use_io_thread, this is @mon_iothread. (This does not actually happen

@@ -785,8 +785,16 @@ static Chardev *qemu_chr_new_from_name(const char *label, const char *filename,
     }
 
     if (qemu_opt_get_bool(opts, "mux", 0)) {
+        const char *cdevid = qemu_opts_id(opts);
+        const char *monid = g_strdup_printf("mon%s", cdevid);
         assert(permit_mux_mon);
-        monitor_new_hmp(chr, true, &err);
+        object_new_with_props(TYPE_MONITOR_HMP,
+                              object_get_objects_root(),
+                              monid,
+                              &err,
+                              "chrdev", cdevid,
+                              "readline", "yes",
+                              NULL);
         if (err) {
             error_report_err(err);
             object_unparent(OBJECT(chr));
