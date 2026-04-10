@@ -132,16 +132,6 @@ Monitor *monitor_set_cur(Coroutine *co, Monitor *mon)
 }
 
 /**
- * Is the current monitor, if any, a QMP monitor?
- */
-bool monitor_cur_is_qmp(void)
-{
-    Monitor *cur_mon = monitor_cur();
-
-    return cur_mon && monitor_is_qmp(cur_mon);
-}
-
-/**
  * Is @mon is using readline?
  * Note: not all HMP monitors use readline, e.g., gdbserver has a
  * non-interactive HMP monitor, so readline is not used there.
