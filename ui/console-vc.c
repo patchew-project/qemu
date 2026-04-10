@@ -232,9 +232,8 @@ static void vt100_image_update(QemuVT100 *vt, int x, int y, int width, int heigh
     vt->image_update(vt, x, y, width, height);
 }
 
-static void console_refresh(QemuTextConsole *s)
+static void vt100_refresh(QemuVT100 *vt)
 {
-    QemuVT100 *vt = &s->vt;
     TextCell *c;
     int x, y, y1;
     int w = pixman_image_get_width(vt->image);
@@ -260,8 +259,8 @@ static void console_refresh(QemuTextConsole *s)
             y1 = 0;
         }
     }
-    vt100_show_cursor(&s->vt, 1);
-    vt100_image_update(&s->vt, 0, 0, w, h);
+    vt100_show_cursor(vt, 1);
+    vt100_image_update(vt, 0, 0, w, h);
 }
 
 static void console_scroll(QemuTextConsole *s, int ydelta)
@@ -291,7 +290,7 @@ static void console_scroll(QemuTextConsole *s, int ydelta)
                 vt->y_displayed = vt->total_height - 1;
         }
     }
-    console_refresh(s);
+    vt100_refresh(&s->vt);
 }
 
 static void kbd_send_chars(QemuTextConsole *s)
@@ -1127,7 +1126,7 @@ static void text_console_invalidate(void *opaque)
     if (!QEMU_IS_FIXED_TEXT_CONSOLE(s)) {
         text_console_resize(QEMU_TEXT_CONSOLE(s));
     }
-    console_refresh(s);
+    vt100_refresh(&s->vt);
 }
 
 static void
