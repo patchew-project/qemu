@@ -94,7 +94,8 @@
 # @IoThreadHolderKind:
 #
 # @block-node: Block node name.
-# @qom-object: Standard QOM path.
+#
+# @qom-object: QOM path.
 #
 # Since: 11.0
 ##
@@ -104,7 +105,7 @@
 ##
 # @IoThreadHolder:
 #
-# @type: Current IoThread holder type support QOM path and Block node.
+# @type: Current IoThread holder type support QOM path and block node.
 #
 # Since: 11.0
 ##
@@ -124,6 +125,13 @@
 #
 # @thread-id: ID of the underlying host thread
 #
+# @holders: IoThreadHolder(QOM path or block node name) of the devices
+#     currently associated with this iothread.  Users can pre-allocate
+#     multiple iothread objects to serve as a persistent thread pool.
+#     When a device is hot-unplugged, it is detached from its
+#     iothread, but the iothread remains available, allowing future
+#     hot-plugged devices to attach to it.
+#
 # @poll-max-ns: maximum polling time in ns, 0 means polling is
 #     disabled (since 2.9)
 #
@@ -141,6 +149,7 @@
 { 'struct': 'IOThreadInfo',
   'data': {'id': 'str',
            'thread-id': 'int',
+           'holders': ['IoThreadHolder'],
            'poll-max-ns': 'int',
            'poll-grow': 'int',
            'poll-shrink': 'int',
@@ -166,6 +175,8 @@
 #              {
 #                 "id":"iothread0",
 #                 "thread-id":3134,
+#                 "holders":["/machine/peripheral/blk1/virtio-backend",
+#                            "/machine/peripheral/blk0/virtio-backend"],
 #                 "poll-max-ns":32768,
 #                 "poll-grow":0,
 #                 "poll-shrink":0,
@@ -174,6 +185,7 @@
 #              {
 #                 "id":"iothread1",
 #                 "thread-id":3135,
+#                 "holders":["/machine/peripheral/blk2/virtio-backend"],
 #                 "poll-max-ns":32768,
 #                 "poll-grow":0,
 #                 "poll-shrink":0,
