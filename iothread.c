@@ -52,6 +52,12 @@ static void iothread_ref(IOThread *iothread, const char *holder)
     }
 
     iothread->holders = g_list_prepend(iothread->holders, h);
+
+    /*
+     * This guarantees that the IOThread and its AioContext remain alive
+     * as long as there is a holder.
+     */
+    object_ref(OBJECT(iothread));
 }
 
 static int iothread_holder_compare(gconstpointer a, gconstpointer b)
@@ -83,6 +89,8 @@ static void iothread_unref(IOThread *iothread, const char *holder)
     IoThreadHolder *h = (IoThreadHolder *)link->data;
     qapi_free_IoThreadHolder(h);
     iothread->holders = g_list_delete_link(iothread->holders, link);
+
+    object_unref(OBJECT(iothread));
 }
 
 static void *iothread_run(void *opaque)
@@ -196,7 +204,7 @@ static void iothread_init_gcontext(IOThread *iothread, const char *thread_name)
     g_autofree char *name = g_strdup_printf("%s aio-context", thread_name);
 
     iothread->worker_context = g_main_context_new();
-    source = aio_get_g_source(iothread_get_aio_context(iothread));
+    source = aio_get_g_source(iothread->ctx);
     g_source_set_name(source, name);
     g_source_attach(source, iothread->worker_context);
     g_source_unref(source);
@@ -388,11 +396,28 @@ char *iothread_get_id(IOThread *iothread)
 
 AioContext *iothread_get_aio_context(IOThread *iothread)
 {
-    /* Remove in next patch for build */
-    iothread_ref(iothread, "tmp");
-    iothread_unref(iothread, "tmp");
+    return iothread->ctx;
+}
+
+AioContext *iothread_ref_and_get_aio_context(IOThread *iothread,
+                                             const char *holder)
+{
+    /*
+     * In some cases, iothread user need the ctx to clearup other resource.
+     * When holder is empty, back to the legacy way.
+     */
+    if (holder) {
+        /* Add holder device path to the list */
+        iothread_ref(iothread, holder);
+    }
 
     return iothread->ctx;
+}
+
+void iothread_put_aio_context(IOThread *iothread, const char *holder)
+{
+    /* Delete holder device path from the list */
+    iothread_unref(iothread, holder);
 }
 
 static int query_one_iothread(Object *object, void *opaque)
