@@ -11,6 +11,7 @@
 #include "qemu/queue.h"
 #include "ui/console.h"
 #include "ui/cp437.h"
+#include "ui/vgafont.h"
 
 #include "pixman.h"
 #include "trace.h"
