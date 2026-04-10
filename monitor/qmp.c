@@ -73,8 +73,16 @@ QmpCommandList qmp_commands, qmp_cap_negotiation_commands;
 
 OBJECT_DEFINE_TYPE(MonitorQMP, monitor_qmp, MONITOR_QMP, MONITOR);
 
+static void monitor_qmp_cleanup_req_queue_locked(MonitorQMP *mon);
+
 static void monitor_qmp_finalize(Object *obj)
 {
+    MonitorQMP *mon = MONITOR_QMP(obj);
+
+    json_message_parser_destroy(&mon->parser);
+    qemu_mutex_destroy(&mon->qmp_queue_lock);
+    monitor_qmp_cleanup_req_queue_locked(mon);
+    g_queue_free(mon->qmp_requests);
 }
 
 static void monitor_qmp_class_init(ObjectClass *cls, const void *data)
@@ -505,14 +513,6 @@ static void monitor_qmp_event(void *opaque, QEMUChrEvent event)
     }
 }
 
-void monitor_data_destroy_qmp(MonitorQMP *mon)
-{
-    json_message_parser_destroy(&mon->parser);
-    qemu_mutex_destroy(&mon->qmp_queue_lock);
-    monitor_qmp_cleanup_req_queue_locked(mon);
-    g_queue_free(mon->qmp_requests);
-}
-
 static void monitor_qmp_setup_handlers_bh(void *opaque)
 {
     MonitorQMP *mon = opaque;
@@ -538,8 +538,9 @@ void monitor_new_qmp(Chardev *chr, bool pretty, Error **errp)
     qemu_chr_fe_set_echo(&mon->parent.chr, true);
 
     /* Note: we run QMP monitor in I/O thread when @chr supports that */
-    monitor_data_init(&mon->parent, true,
-                      qemu_chr_has_feature(chr, QEMU_CHAR_FEATURE_GCONTEXT));
+    if (qemu_chr_has_feature(chr, QEMU_CHAR_FEATURE_GCONTEXT)) {
+        monitor_iothread_init(&mon->parent);
+    }
 
     mon->pretty = pretty;
 

@@ -182,8 +182,7 @@ extern QmpCommandList qmp_commands, qmp_cap_negotiation_commands;
 extern QemuMutex monitor_lock;
 extern MonitorList mon_list;
 
-void monitor_data_init(Monitor *mon, bool is_qmp, bool use_io_thread);
-void monitor_data_destroy(Monitor *mon);
+void monitor_iothread_init(Monitor *mon);
 int monitor_can_read(void *opaque);
 void monitor_list_append(Monitor *mon);
 void monitor_fdsets_cleanup(void);

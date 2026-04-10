@@ -168,8 +168,6 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
     char *output = NULL;
     MonitorHMP *hmp = MONITOR_HMP(object_new(TYPE_MONITOR_HMP));
 
-    monitor_data_init(&hmp->parent, false, false);
-
     if (has_cpu_index) {
         int ret = monitor_set_cpu(&hmp->parent, cpu_index);
         if (ret < 0) {
@@ -186,7 +184,6 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
     }
 
 out:
-    monitor_data_destroy(&hmp->parent);
     object_unref(hmp);
     return output;
 }
