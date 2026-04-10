@@ -76,7 +76,7 @@ void qmp_qmp_capabilities(bool has_enable, QMPCapabilityList *enable,
     MonitorQMP *mon;
 
     assert(monitor_is_qmp(cur_mon));
-    mon = container_of(cur_mon, MonitorQMP, common);
+    mon = container_of(cur_mon, MonitorQMP, parent);
 
     if (mon->commands == &qmp_commands) {
         error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
@@ -126,7 +126,7 @@ CommandInfoList *qmp_query_commands(Error **errp)
     MonitorQMP *mon;
 
     assert(monitor_is_qmp(cur_mon));
-    mon = container_of(cur_mon, MonitorQMP, common);
+    mon = container_of(cur_mon, MonitorQMP, parent);
 
     qmp_for_each_command(mon->commands, query_commands_cb, &list);
 

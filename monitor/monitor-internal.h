@@ -132,7 +132,7 @@ struct MonitorHMP {
 };
 
 typedef struct {
-    Monitor common;
+    Monitor parent;
     JSONMessageParser parser;
     bool pretty;
     /*

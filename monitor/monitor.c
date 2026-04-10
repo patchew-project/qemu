@@ -308,7 +308,7 @@ static void monitor_qapi_event_emit(QAPIEvent event, QDict *qdict)
             continue;
         }
 
-        qmp_mon = container_of(mon, MonitorQMP, common);
+        qmp_mon = container_of(mon, MonitorQMP, parent);
         {
             QEMU_LOCK_GUARD(&mon->mon_lock);
             if (qmp_mon->commands == &qmp_cap_negotiation_commands) {
@@ -625,7 +625,7 @@ void monitor_data_destroy(Monitor *mon)
     g_free(mon->mon_cpu_path);
     qemu_chr_fe_deinit(&mon->chr, false);
     if (monitor_is_qmp(mon)) {
-        monitor_data_destroy_qmp(container_of(mon, MonitorQMP, common));
+        monitor_data_destroy_qmp(container_of(mon, MonitorQMP, parent));
     } else {
         readline_free(container_of(mon, MonitorHMP, parent)->rs);
     }
