@@ -166,12 +166,12 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
                                 int64_t cpu_index, Error **errp)
 {
     char *output = NULL;
-    MonitorHMP hmp = {};
+    MonitorHMP *hmp = MONITOR_HMP(object_new(TYPE_MONITOR_HMP));
 
-    monitor_data_init(&hmp.parent, false, true, false);
+    monitor_data_init(&hmp->parent, false, true, false);
 
     if (has_cpu_index) {
-        int ret = monitor_set_cpu(&hmp.parent, cpu_index);
+        int ret = monitor_set_cpu(&hmp->parent, cpu_index);
         if (ret < 0) {
             error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
                        "a CPU number");
@@ -179,14 +179,15 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
         }
     }
 
-    handle_hmp_command(&hmp, command_line);
+    handle_hmp_command(hmp, command_line);
 
-    WITH_QEMU_LOCK_GUARD(&hmp.parent.mon_lock) {
-        output = g_strdup(hmp.parent.outbuf->str);
+    WITH_QEMU_LOCK_GUARD(&hmp->parent.mon_lock) {
+        output = g_strdup(hmp->parent.outbuf->str);
     }
 
 out:
-    monitor_data_destroy(&hmp.parent);
+    monitor_data_destroy(&hmp->parent);
+    object_unref(hmp);
     return output;
 }
 

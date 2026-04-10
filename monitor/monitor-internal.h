@@ -92,7 +92,13 @@ typedef struct HMPCommand {
     void (*command_completion)(ReadLineState *rs, int nb_args, const char *str);
 } HMPCommand;
 
+
+struct MonitorClass {
+    ObjectClass parent_class;
+};
+
 struct Monitor {
+    Object parent;
     CharFrontend chr;
     int suspend_cnt;            /* Needs to be accessed atomically */
     bool is_qmp;
@@ -118,6 +124,10 @@ struct Monitor {
     int reset_seen;
 };
 
+struct MonitorHMPClass {
+    MonitorClass parent_class;
+};
+
 struct MonitorHMP {
     Monitor parent;
     bool use_readline;
@@ -131,7 +141,11 @@ struct MonitorHMP {
     ReadLineState *rs;
 };
 
-typedef struct {
+struct MonitorQMPClass {
+    MonitorClass parent_class;
+};
+
+struct MonitorQMP {
     Monitor parent;
     JSONMessageParser parser;
     bool pretty;
@@ -151,7 +165,7 @@ typedef struct {
     QemuMutex qmp_queue_lock;
     /* Input queue that holds all the parsed QMP requests */
     GQueue *qmp_requests;
-} MonitorQMP;
+};
 
 /**
  * Is @mon a QMP monitor?

@@ -73,6 +73,20 @@ static GHashTable *coroutine_mon; /* Maps Coroutine* to Monitor* */
 MonitorList mon_list;
 static bool monitor_destroyed;
 
+OBJECT_DEFINE_TYPE(Monitor, monitor, MONITOR, OBJECT);
+
+static void monitor_finalize(Object *obj)
+{
+}
+
+static void monitor_class_init(ObjectClass *cls, const void *data)
+{
+}
+
+static void monitor_init(Object *obj)
+{
+}
+
 Monitor *monitor_cur(void)
 {
     Monitor *mon;
@@ -598,7 +612,7 @@ void monitor_list_append(Monitor *mon)
 
     if (mon) {
         monitor_data_destroy(mon);
-        g_free(mon);
+        object_unref(mon);
     }
 }
 
@@ -680,7 +694,7 @@ void monitor_cleanup(void)
         monitor_flush(mon);
         monitor_data_destroy(mon);
         qemu_mutex_lock(&monitor_lock);
-        g_free(mon);
+        object_unref(mon);
     }
     qemu_mutex_unlock(&monitor_lock);
 

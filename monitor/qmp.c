@@ -71,6 +71,20 @@ typedef struct QMPRequest QMPRequest;
 
 QmpCommandList qmp_commands, qmp_cap_negotiation_commands;
 
+OBJECT_DEFINE_TYPE(MonitorQMP, monitor_qmp, MONITOR_QMP, MONITOR);
+
+static void monitor_qmp_finalize(Object *obj)
+{
+}
+
+static void monitor_qmp_class_init(ObjectClass *cls, const void *data)
+{
+}
+
+static void monitor_qmp_init(Object *obj)
+{
+}
+
 static bool qmp_oob_enabled(MonitorQMP *mon)
 {
     return mon->capab[QMP_CAPABILITY_OOB];
@@ -515,10 +529,10 @@ static void monitor_qmp_setup_handlers_bh(void *opaque)
 
 void monitor_new_qmp(Chardev *chr, bool pretty, Error **errp)
 {
-    MonitorQMP *mon = g_new0(MonitorQMP, 1);
+    MonitorQMP *mon = MONITOR_QMP(object_new(TYPE_MONITOR_QMP));
 
     if (!qemu_chr_fe_init(&mon->parent.chr, chr, errp)) {
-        g_free(mon);
+        object_unref(mon);
         return;
     }
     qemu_chr_fe_set_echo(&mon->parent.chr, true);
