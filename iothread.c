@@ -36,6 +36,55 @@
 #define IOTHREAD_POLL_MAX_NS_DEFAULT 0ULL
 #endif
 
+/*
+ * Add holder device path to the list.
+ */
+static void iothread_ref(IOThread *iothread, const char *holder)
+{
+    IoThreadHolder *h = g_new0(IoThreadHolder, 1);
+
+    if (holder && holder[0] == '/') {
+        h->type = IO_THREAD_HOLDER_KIND_QOM_OBJECT;
+        h->u.qom_object.data = g_strdup(holder);
+    } else {
+        h->type = IO_THREAD_HOLDER_KIND_BLOCK_NODE;
+        h->u.block_node.data = g_strdup(holder ? holder : "unknown");
+    }
+
+    iothread->holders = g_list_prepend(iothread->holders, h);
+}
+
+static int iothread_holder_compare(gconstpointer a, gconstpointer b)
+{
+    const IoThreadHolder *holder_node = a;
+    const char *target_name = b;
+    const char *current_name = NULL;
+
+    if (holder_node->type == IO_THREAD_HOLDER_KIND_QOM_OBJECT) {
+        current_name = holder_node->u.qom_object.data;
+    } else if (holder_node->type == IO_THREAD_HOLDER_KIND_BLOCK_NODE) {
+        current_name = holder_node->u.block_node.data;
+    }
+
+    return g_strcmp0(current_name, target_name);
+}
+
+/*
+ * Delete holder device path from the list.
+ */
+static void iothread_unref(IOThread *iothread, const char *holder)
+{
+    GList *link = g_list_find_custom(iothread->holders, holder,
+                                     (GCompareFunc)iothread_holder_compare);
+
+    /* We don't support unref without a link */
+    assert(link);
+
+    IoThreadHolder *h = (IoThreadHolder *)link->data;
+    qapi_free_IoThreadHolder(h);
+    iothread->holders = g_list_delete_link(iothread->holders, link);
+}
+
 static void *iothread_run(void *opaque)
 {
     IOThread *iothread = opaque;
@@ -114,6 +163,9 @@ static void iothread_instance_finalize(Object *obj)
     IOThread *iothread = IOTHREAD(obj);
 
     iothread_stop(iothread);
+
+    /* We don't support finalize without holders */
+    assert(iothread->holders == NULL);
 
     /*
      * Before glib2 2.33.10, there is a glib2 bug that GSource context
@@ -336,6 +388,10 @@ char *iothread_get_id(IOThread *iothread)
 
 AioContext *iothread_get_aio_context(IOThread *iothread)
 {
+    /* Remove in next patch for build */
+    iothread_ref(iothread, "tmp");
+    iothread_unref(iothread, "tmp");
+
     return iothread->ctx;
 }
 
