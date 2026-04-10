@@ -94,7 +94,6 @@ static void monitor_init(Object *obj)
     Monitor *mon = MONITOR(obj);
 
     qemu_mutex_init(&mon->mon_lock);
-    mon->is_qmp = !!object_dynamic_cast(obj, TYPE_MONITOR_QMP);
     mon->outbuf = g_string_new(NULL);
 }
 

@@ -106,7 +106,6 @@ struct Monitor {
     Object parent;
     CharFrontend chr;
     int suspend_cnt;            /* Needs to be accessed atomically */
-    bool is_qmp;
     bool use_io_thread;
 
     char *mon_cpu_path;
@@ -170,14 +169,6 @@ struct MonitorQMP {
     /* Input queue that holds all the parsed QMP requests */
     GQueue *qmp_requests;
 };
-
-/**
- * Is @mon a QMP monitor?
- */
-static inline bool monitor_is_qmp(const Monitor *mon)
-{
-    return mon->is_qmp;
-}
 
 typedef QTAILQ_HEAD(MonitorList, Monitor) MonitorList;
 extern IOThread *mon_iothread;
