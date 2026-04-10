@@ -3425,12 +3425,12 @@ static void vmstate_change_handler(void *opaque, bool running, RunState state)
 
 static void vnc_display_free(VncDisplay *vd);
 
-void vnc_display_init(const char *id, Error **errp)
+bool vnc_display_init(const char *id, Error **errp)
 {
     VncDisplay *vd;
 
     if (vnc_display_find(id) != NULL) {
-        return;
+        return true;
     }
     vd = g_malloc0(sizeof(*vd));
 
@@ -3451,7 +3451,7 @@ void vnc_display_init(const char *id, Error **errp)
 
     if (!vd->kbd_layout) {
         vnc_display_free(vd);
-        return;
+        return false;
     }
 
     vd->share_policy = VNC_SHARE_POLICY_ALLOW_EXCLUSIVE;
@@ -3465,6 +3465,7 @@ void vnc_display_init(const char *id, Error **errp)
         &vmstate_change_handler, vd);
 
     QTAILQ_INSERT_TAIL(&vnc_displays, vd, next);
+    return true;
 }
 
 static void vnc_display_close(VncDisplay *vd)
@@ -4074,7 +4075,7 @@ bool vnc_display_update(DisplayUpdateOptionsVNC *arg, Error **errp)
     return true;
 }
 
-void vnc_display_open(const char *id, Error **errp)
+bool vnc_display_open(const char *id, Error **errp)
 {
     VncDisplay *vd = vnc_display_find(id);
     QemuOpts *opts = qemu_opts_find(&qemu_vnc_opts, id);
@@ -4277,7 +4278,7 @@ void vnc_display_open(const char *id, Error **errp)
     qkbd_state_set_delay(vd->kbd, key_delay_ms);
 
     if (saddr_list == NULL) {
-        return;
+        return true;
     }
 
     if (reverse) {
@@ -4295,10 +4296,11 @@ void vnc_display_open(const char *id, Error **errp)
     }
 
     /* Success */
-    return;
+    return true;
 
 fail:
     vnc_display_close(vd);
+    return false;
 }
 
 void vnc_display_add_client(const char *id, int csock, bool skipauth)
@@ -4354,12 +4356,10 @@ int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp)
         id = vnc_auto_assign_id(opts);
     }
 
-    vnc_display_init(id, errp);
-    if (*errp) {
+    if (!vnc_display_init(id, errp)) {
         return -1;
     }
-    vnc_display_open(id, errp);
-    if (*errp) {
+    if (!vnc_display_open(id, errp)) {
         return -1;
     }
     return 0;
