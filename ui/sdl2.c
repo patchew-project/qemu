@@ -333,6 +333,7 @@ static void sdl_send_mouse_event(struct sdl2_console *scon, int dx, int dy,
         qemu_input_queue_abs(scon->dcl.con, INPUT_AXIS_Y,
                              y, 0, surface_height(scon->surface));
     } else {
+fprintf(stderr,"%s(%d,%d,%d,%d,%d), %d %d,%d,",__func__,dx,dy,x,y,state,guest_cursor,guest_x,guest_y);
         if (guest_cursor) {
             x -= guest_x;
             y -= guest_y;
@@ -341,6 +342,7 @@ static void sdl_send_mouse_event(struct sdl2_console *scon, int dx, int dy,
             dx = x;
             dy = y;
         }
+fprintf(stderr," -> %d,%d %d,%d\n",dx,dy,guest_x,guest_y);
         qemu_input_queue_rel(scon->dcl.con, INPUT_AXIS_X, dx);
         qemu_input_queue_rel(scon->dcl.con, INPUT_AXIS_Y, dy);
     }
@@ -525,6 +527,7 @@ static void handle_mousemotion(SDL_Event *ev)
     dx = (int64_t)ev->motion.xrel * surf_w / scr_w;
     dy = (int64_t)ev->motion.yrel * surf_h / scr_h;
     if (gui_grab || qemu_input_is_absolute(scon->dcl.con) || absolute_enabled) {
+fprintf(stderr, "%s(%d,%d,%d,%d, %d,%d,%d,%d)\n",__func__,surf_w,surf_h,scr_w,scr_h,x,y,dx,dy);
         sdl_send_mouse_event(scon, dx, dy, x, y, ev->motion.state);
     }
 }
@@ -750,6 +753,7 @@ static void sdl_mouse_warp(DisplayChangeListener *dcl,
     } else if (gui_grab) {
         sdl_hide_cursor(scon);
     }
+fprintf(stderr,"%s(%d,%d,%d)\n",__func__,x,y,on);
     guest_cursor = on;
     guest_x = x, guest_y = y;
 }
