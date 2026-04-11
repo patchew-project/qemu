@@ -271,6 +271,14 @@ typedef struct S390PCIDMACount {
     QTAILQ_ENTRY(S390PCIDMACount) link;
 } S390PCIDMACount;
 
+/*
+ * This structure holds the PCI device AddressSpace that QEMU needs to link
+ * into its internal structures before the zPCI and PCI devices are fully
+ * initialized. It's a QEMU requirement to provide this "root" AddressSpace
+ * early. The AddressSpace is only actually used for I/O while the PCI
+ * device is plugged in and configured by the guest, at which time it gets
+ * additional memory subregions from zPCI device, that can do real work.
+ */
 struct S390PCIIOMMU {
     Object parent_obj;
     AddressSpace as;
