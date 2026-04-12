@@ -442,6 +442,16 @@ static void fill_rx_bd(eTSEC          *etsec,
             cpu_physical_memory_write(bufptr, padd, rem);
         }
     }
+
+    /* Strip FCS unless RCTRL[CFA] requests copy to application.
+     * Per FSL eTSEC architecture (RCTRL field descriptions):
+     * CFA=0 (reset default): FCS is checked and discarded by hardware,
+     *   bd->length should not include the 4-byte FCS.
+     * CFA=1: FCS is copied to the application buffer, bd->length includes FCS.
+     */
+    if (!(etsec->regs[RCTRL].value & RCTRL_CFA) && bd->length >= 4) {
+        bd->length -= 4;
+    }
 }
 
 static void rx_init_frame(eTSEC *etsec, const uint8_t *buf, size_t size)

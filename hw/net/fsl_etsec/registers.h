@@ -103,6 +103,7 @@ extern const eTSEC_Register_Definition eTSEC_registers_def[];
 #define RCTRL_PRSDEP_MASK   (0x3)
 #define RCTRL_PRSDEP_OFFSET (6)
 #define RCTRL_RSF           (1 << 2)
+#define RCTRL_CFA           (1 << 11)  /* Copy FCS to application */
 
 /* Index of each register */
 
