@@ -187,12 +187,6 @@ struct CPUClass {
     const TCGCPUOps *tcg_ops;
 
     /*
-     * if not NULL, this is called in order for the CPUClass to initialize
-     * class data that depends on the accelerator, see accel/accel-common.c.
-     */
-    void (*init_accel_cpu)(struct AccelCPUClass *accel_cpu, CPUClass *cc);
-
-    /*
      * Keep non-pointer data at the end to minimize holes.
      */
     int reset_dump_flags;
