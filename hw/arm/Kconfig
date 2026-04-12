@@ -633,6 +633,7 @@ config FSL_IMX6UL
     imply I2C_DEVICES
     select A15MPCORE
     select IMX
+    select IMX6UL_LCDIF
     select IMX_FEC
     select IMX_I2C
     select IMX_USBPHY
