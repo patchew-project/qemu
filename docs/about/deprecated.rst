@@ -452,6 +452,31 @@ It was implemented as a no-op instruction in TCG up to QEMU 9.0, but
 only with ``-cpu max`` (which does not guarantee migration compatibility
 across versions).
 
+linux-user mode CPUs
+--------------------
+
+OABI and NWFPE support for Arm CPUs
+'''''''''''''''''''''''''''''''''''
+
+Linux for 32-bit Arm has had two major ABIs: the original OABI and the
+more modern EABI. OABI support was marked as obsolete in GCC 4.7 and
+dropped in GCC 4.8 (released in 2013). In the Linux kernel,
+compatibility handling for OABI (OABI_COMPAT) is not generally enabled
+by default and is not compatible with building a Thumb2
+kernel. Distros dropped OABI support fifteen years or more ago.
+
+The original floating-point coprocessor for 32-bit Arm was the
+FPA11. This was not present in many CPUs but did get baked into the
+OABI for how to pass floating point arguments, and so the Linux kernel
+has support for emulating it via the config option FPE_NWFPE; QEMU
+follows that. FPA11 support was also removed from GCC in GCC 4.8.
+
+QEMU's NWFPE code is old and untested and not thread-safe; the OABI
+ABI is long-obsolete. We are therefore deprecating both OABI support
+and NWFPE emulation, and they will be removed in a future QEMU
+release.
+
+
 Backwards compatibility
 -----------------------
 
