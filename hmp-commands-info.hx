@@ -118,8 +118,7 @@ ERST
         .name       = "lapic",
         .args_type  = "apic-id:i?",
         .params     = "[apic-id]",
-        .help       = "show local apic state (apic-id: local apic to read, default is which of current CPU)",
-
+        .help       = "show local apic state (apic-id: local apic to read)",
         .cmd        = hmp_info_local_apic,
     },
 #endif

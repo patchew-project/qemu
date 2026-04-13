@@ -97,6 +97,8 @@ void hmp_info_local_apic(Monitor *mon, const QDict *qdict)
             cpu_synchronize_state(cs);
         }
     } else {
+        monitor_printf(mon, "Not specifying the local apic id is deprecated"
+                       " (using the current CPU one)\n");
         cs = mon_get_cpu(mon);
     }
 

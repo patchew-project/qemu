@@ -169,6 +169,12 @@ The ``stopcapture`` command is deprecated and will be removed in a future releas
 
 The ``info capture`` command is deprecated and will be removed in a future release.
 
+``info lapic`` without ``apic-id`` argument (since 11.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+When no APIC ID is provided, ``info lapic`` defaults to the current vCPU.
+This behavior is now deprecated, the ID will be mandatory in a future release.
+
 Host Architectures
 ------------------
 
