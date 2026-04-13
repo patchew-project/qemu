@@ -140,6 +140,21 @@ static void ot_uart_update_irqs(OtUARTState *s)
     }
 }
 
+static bool ot_uart_is_sys_loopack_enabled(const OtUARTState *s)
+{
+    return FIELD_EX32(s->regs[R_CTRL], CTRL, SLPBK);
+}
+
+static bool ot_uart_is_tx_enabled(const OtUARTState *s)
+{
+    return FIELD_EX32(s->regs[R_CTRL], CTRL, TX);
+}
+
+static bool ot_uart_is_rx_enabled(const OtUARTState *s)
+{
+    return FIELD_EX32(s->regs[R_CTRL], CTRL, RX);
+}
+
 static int ot_uart_can_receive(void *opaque)
 {
     OtUARTState *s = opaque;
@@ -196,7 +211,7 @@ static void ot_uart_reset_rx_fifo(OtUARTState *s)
     fifo8_reset(&s->rx_fifo);
     s->regs[R_INTR_STATE] &= ~INTR_RX_WATERMARK_MASK;
     s->regs[R_INTR_STATE] &= ~INTR_RX_OVERFLOW_MASK;
-    if (FIELD_EX32(s->regs[R_CTRL], CTRL, RX)) {
+    if (ot_uart_is_rx_enabled(s)) {
         qemu_chr_fe_accept_input(&s->chr);
     }
 }
@@ -218,21 +233,37 @@ static void ot_uart_xmit(OtUARTState *s)
         return;
     }
 
-    /* instant drain the fifo when there's no back-end */
-    if (!qemu_chr_fe_backend_connected(&s->chr)) {
-        ot_uart_reset_tx_fifo(s);
-        ot_uart_update_irqs(s);
-        return;
-    }
+    if (ot_uart_is_sys_loopack_enabled(s)) {
+        /* system loopback mode, just forward to RX FIFO */
+        uint32_t count = fifo8_num_used(&s->tx_fifo);
+        buf = fifo8_pop_bufptr(&s->tx_fifo, count, &size);
+        ot_uart_receive(s, buf, (int)size);
+        count -= size;
+        /*
+         * there may be more data to send if data wraps around the end of TX
+         * FIFO
+         */
+        if (count) {
+            buf = fifo8_pop_bufptr(&s->tx_fifo, count, &size);
+            ot_uart_receive(s, buf, (int)size);
+        }
+    } else {
+        /* instant drain the fifo when there's no back-end */
+        if (!qemu_chr_fe_backend_connected(&s->chr)) {
+            ot_uart_reset_tx_fifo(s);
+            ot_uart_update_irqs(s);
+            return;
+        }
 
-    /* get a continuous buffer from the FIFO */
-    buf =
-        fifo8_peek_bufptr(&s->tx_fifo, fifo8_num_used(&s->tx_fifo), &size);
-    /* send as much as possible */
-    ret = qemu_chr_fe_write(&s->chr, buf, (int)size);
-    /* if some characters where sent, remove them from the FIFO */
-    if (ret >= 0) {
-        fifo8_drop(&s->tx_fifo, ret);
+        /* get a continuous buffer from the FIFO */
+        buf =
+            fifo8_peek_bufptr(&s->tx_fifo, fifo8_num_used(&s->tx_fifo), &size);
+        /* send as much as possible */
+        ret = qemu_chr_fe_write(&s->chr, buf, (int)size);
+        /* if some characters where sent, remove them from the FIFO */
+        if (ret >= 0) {
+            fifo8_drop(&s->tx_fifo, ret);
+        }
     }
 
     /* update INTR_STATE */
@@ -269,7 +300,7 @@ static void uart_write_tx_fifo(OtUARTState *s, uint8_t val)
         s->tx_watermark_level = 0;
     }
 
-    if (FIELD_EX32(s->regs[R_CTRL], CTRL, TX)) {
+    if (ot_uart_is_tx_enabled(s)) {
         ot_uart_xmit(s);
     }
 
@@ -288,8 +319,6 @@ static void ot_uart_reset_enter(Object *obj, ResetType type)
 
     memset(&s->regs[0], 0, sizeof(s->regs));
 
-    s->regs[R_STATUS] = 0x0000003c;
-
     s->tx_watermark_level = 0;
     for (unsigned index = 0; index < ARRAY_SIZE(s->irqs); index++) {
         qemu_set_irq(s->irqs[index], 0);
@@ -303,6 +332,27 @@ static void ot_uart_reset_enter(Object *obj, ResetType type)
     s->char_tx_time = (NANOSECONDS_PER_SECOND / 230400) * 10;
 
     ot_uart_update_irqs(s);
+}
+
+static uint8_t ot_uart_read_rx_fifo(OtUARTState *s)
+{
+    uint8_t val;
+
+    if (!(s->regs[R_CTRL] & R_CTRL_RX_MASK)) {
+        return 0;
+    }
+
+    if (fifo8_is_empty(&s->rx_fifo)) {
+        return 0;
+    }
+
+    val = fifo8_pop(&s->rx_fifo);
+
+    if (ot_uart_is_rx_enabled(s) && !ot_uart_is_sys_loopack_enabled(s)) {
+        qemu_chr_fe_accept_input(&s->chr);
+    }
+
+    return val;
 }
 
 static uint64_t ot_uart_get_baud(OtUARTState *s)
@@ -327,32 +377,50 @@ static uint64_t ot_uart_read(void *opaque, hwaddr addr, unsigned int size)
     case R_INTR_ENABLE:
     case R_CTRL:
     case R_FIFO_CTRL:
-    case R_STATUS:
         retvalue = s->regs[reg];
         break;
-
-    case R_RDATA:
-        retvalue = s->regs[R_RDATA];
-        if ((s->regs[R_CTRL] & R_CTRL_RX_MASK) && (s->rx_level > 0)) {
-            qemu_chr_fe_accept_input(&s->chr);
-
-            s->rx_level -= 1;
-            s->regs[R_STATUS] &= ~R_STATUS_RXFULL_MASK;
-            if (s->rx_level == 0) {
-                s->regs[R_STATUS] |= R_STATUS_RXIDLE_MASK;
-                s->regs[R_STATUS] |= R_STATUS_RXEMPTY_MASK;
-            }
+    case R_STATUS:
+        /* assume that UART always report RXIDLE */
+        retvalue = R_STATUS_RXIDLE_MASK;
+        /* report RXEMPTY or RXFULL */
+        switch (fifo8_num_used(&s->rx_fifo)) {
+        case 0:
+            retvalue |= R_STATUS_RXEMPTY_MASK;
+            break;
+        case OT_UART_RX_FIFO_SIZE:
+            retvalue |= R_STATUS_RXFULL_MASK;
+            break;
+        default:
+            break;
+        }
+        /* report TXEMPTY+TXIDLE or TXFULL */
+        switch (fifo8_num_used(&s->tx_fifo)) {
+        case 0:
+            retvalue |= R_STATUS_TXEMPTY_MASK | R_STATUS_TXIDLE_MASK;
+            break;
+        case OT_UART_TX_FIFO_SIZE:
+            retvalue |= R_STATUS_TXFULL_MASK;
+            break;
+        default:
+            break;
+        }
+        if (!ot_uart_is_tx_enabled(s)) {
+            retvalue |= R_STATUS_TXIDLE_MASK;
+        }
+        if (!ot_uart_is_rx_enabled(s)) {
+            retvalue |= R_STATUS_RXIDLE_MASK;
         }
         break;
 
+    case R_RDATA:
+        retvalue = (uint32_t)ot_uart_read_rx_fifo(s);
+        break;
+
     case R_FIFO_STATUS:
-        retvalue = s->regs[R_FIFO_STATUS];
-
-        retvalue |= (s->rx_level & 0x1F) << R_FIFO_STATUS_RXLVL_SHIFT;
-        retvalue |= (s->tx_level & 0x1F) << R_FIFO_STATUS_TXLVL_SHIFT;
-
-        qemu_log_mask(LOG_UNIMP,
-                      "%s: RX fifos are not supported\n", __func__);
+        retvalue =
+            (fifo8_num_used(&s->rx_fifo) & 0xffu) << R_FIFO_STATUS_RXLVL_SHIFT;
+        retvalue |=
+            (fifo8_num_used(&s->tx_fifo) & 0xffu) << R_FIFO_STATUS_TXLVL_SHIFT;
         break;
 
     case R_VAL:
@@ -416,10 +484,6 @@ static void ot_uart_write(void *opaque, hwaddr addr, uint64_t val64,
             qemu_log_mask(LOG_UNIMP,
                           "%s: UART_CTRL_NF is not supported\n", __func__);
         }
-        if (value & R_CTRL_SLPBK_MASK) {
-            qemu_log_mask(LOG_UNIMP,
-                          "%s: UART_CTRL_SLPBK is not supported\n", __func__);
-        }
         if (value & R_CTRL_LLPBK_MASK) {
             qemu_log_mask(LOG_UNIMP,
                           "%s: UART_CTRL_LLPBK is not supported\n", __func__);
@@ -445,19 +509,19 @@ static void ot_uart_write(void *opaque, hwaddr addr, uint64_t val64,
         }
         break;
     case R_WDATA:
-        uart_write_tx_fifo(s, value);
+        uart_write_tx_fifo(s, (uint8_t)(value & R_WDATA_WDATA_MASK));
         break;
 
     case R_FIFO_CTRL:
-        s->regs[R_FIFO_CTRL] = value;
-
+        s->regs[R_FIFO_CTRL] =
+            value & (R_FIFO_CTRL_RXILVL_MASK | R_FIFO_CTRL_TXILVL_MASK);
         if (value & R_FIFO_CTRL_RXRST_MASK) {
-            s->rx_level = 0;
-            qemu_log_mask(LOG_UNIMP,
-                          "%s: RX fifos are not supported\n", __func__);
+            ot_uart_reset_rx_fifo(s);
+            ot_uart_update_irqs(s);
         }
         if (value & R_FIFO_CTRL_TXRST_MASK) {
-            s->tx_level = 0;
+            ot_uart_reset_tx_fifo(s);
+            ot_uart_update_irqs(s);
         }
         break;
     case R_OVRD:
