@@ -478,6 +478,54 @@ ssize_t qio_channel_pwrite(QIOChannel *ioc, void *buf, size_t buflen,
     return qio_channel_pwritev(ioc, &iov, 1, offset, errp);
 }
 
+int coroutine_mixed_fn qio_channel_pwritev_all(QIOChannel *ioc,
+                                               const struct iovec *iov,
+                                               size_t niov,
+                                               off_t offset,
+                                               Error **errp)
+{
+    int ret = -1;
+    struct iovec *local_iov = g_new(struct iovec, niov);
+    struct iovec *local_iov_head = local_iov;
+    unsigned int nlocal_iov = niov;
+
+    nlocal_iov = iov_copy(local_iov, nlocal_iov,
+                          iov, niov,
+                          0, iov_size(iov, niov));
+
+    while (nlocal_iov > 0) {
+        ssize_t len;
+
+        len = qio_channel_pwritev(ioc, local_iov, nlocal_iov, offset, errp);
+
+        if (len == QIO_CHANNEL_ERR_BLOCK) {
+            qio_channel_wait_cond(ioc, G_IO_OUT);
+            continue;
+        }
+        if (len < 0) {
+            goto cleanup;
+        }
+
+        offset += len;
+        iov_discard_front(&local_iov, &nlocal_iov, len);
+    }
+
+    ret = 0;
+ cleanup:
+    g_free(local_iov_head);
+    return ret;
+}
+
+int coroutine_mixed_fn qio_channel_pwrite_all(QIOChannel *ioc,
+                                              const void *buf,
+                                              size_t buflen,
+                                              off_t offset,
+                                              Error **errp)
+{
+    struct iovec iov = { .iov_base = (char *)buf, .iov_len = buflen };
+    return qio_channel_pwritev_all(ioc, &iov, 1, offset, errp);
+}
+
 ssize_t qio_channel_preadv(QIOChannel *ioc, const struct iovec *iov,
                            size_t niov, off_t offset, Error **errp)
 {
