@@ -157,6 +157,16 @@ static void flush_or_purge_queued_packets(NetClientState *nc)
  * - we could suppress RX interrupt if we were so inclined.
  */
 
+static void virtio_net_rx_notify(void *opaque)
+{
+    VirtIONetQueue *q = opaque;
+    VirtIONet *n = q->n;
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+
+    n->rx_pkt_cnt = 0;
+    virtio_notify(vdev, q->rx_vq);
+}
+
 static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
@@ -1080,6 +1090,53 @@ static int virtio_net_handle_offloads(VirtIONet *n, uint8_t cmd,
     }
 }
 
+static void virtio_net_tx_timer(void *opaque);
+
+static int virtio_net_handle_coal(VirtIONet *n, uint8_t cmd,
+                                  struct iovec *iov, unsigned int iov_cnt)
+{
+    struct virtio_net_ctrl_coal coal;
+    VirtIONetQueue *q;
+    size_t s;
+    int i;
+
+    s = iov_to_buf(iov, iov_cnt, 0, &coal, sizeof(coal));
+    if (s != sizeof(coal)) {
+        return VIRTIO_NET_ERR;
+    }
+
+    if (cmd == VIRTIO_NET_CTRL_NOTF_COAL_RX_SET) {
+        n->rx_coal_usecs = le32_to_cpu(coal.max_usecs);
+        n->rx_coal_packets = le32_to_cpu(coal.max_packets);
+        if (n->rx_coal_usecs > 0) {
+            for (i = 0; i < n->max_queue_pairs; i++) {
+                q = &n->vqs[i];
+                if (!q->rx_timer) {
+                    q->rx_timer = timer_new_us(QEMU_CLOCK_VIRTUAL,
+                                               virtio_net_rx_notify,
+                                               q);
+                }
+            }
+        }
+    } else if (cmd == VIRTIO_NET_CTRL_NOTF_COAL_TX_SET) {
+        n->tx_coal_usecs = le32_to_cpu(coal.max_usecs);
+        n->tx_coal_packets = le32_to_cpu(coal.max_packets);
+        n->tx_timeout = n->tx_coal_usecs * 1000;
+        if (n->tx_coal_usecs > 0) {
+            for (i = 0; i < n->max_queue_pairs; i++) {
+                q = &n->vqs[i];
+                if (!q->tx_timer && n->tx_coal_usecs > 0) {
+                    q->tx_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                               virtio_net_tx_timer,
+                                               q);
+                }
+            }
+        }
+    }
+
+    return VIRTIO_NET_OK;
+}
+
 static int virtio_net_handle_mac(VirtIONet *n, uint8_t cmd,
                                  struct iovec *iov, unsigned int iov_cnt)
 {
@@ -1581,6 +1638,8 @@ size_t virtio_net_handle_ctrl_iov(VirtIODevice *vdev,
         status = virtio_net_handle_mq(n, ctrl.cmd, iov, out_num);
     } else if (ctrl.class == VIRTIO_NET_CTRL_GUEST_OFFLOADS) {
         status = virtio_net_handle_offloads(n, ctrl.cmd, iov, out_num);
+    } else if (ctrl.class == VIRTIO_NET_CTRL_NOTF_COAL) {
+        status = virtio_net_handle_coal(n, ctrl.cmd, iov, out_num);
     }
 
     s = iov_from_buf(in_sg, in_num, 0, &status, sizeof(status));
@@ -2040,7 +2099,22 @@ static ssize_t virtio_net_receive_rcu(NetClientState *nc, const uint8_t *buf,
     }
 
     virtqueue_flush(q->rx_vq, i);
-    virtio_notify(vdev, q->rx_vq);
+
+    /* rx coalescing */
+    n->rx_pkt_cnt += i;
+    if (n->rx_coal_usecs == 0 || n->rx_pkt_cnt >= n->rx_coal_packets) {
+        if (q->rx_timer) {
+            timer_del(q->rx_timer);
+        }
+        virtio_net_rx_notify(q);
+    } else {
+        if (q->rx_timer) {
+            if (!timer_pending(q->rx_timer)) {
+                timer_mod(q->rx_timer,
+                          qemu_clock_get_us(QEMU_CLOCK_VIRTUAL) + n->rx_coal_usecs);
+            }
+        }
+    }
 
     return size;
 
@@ -2817,7 +2891,6 @@ detach:
     return -EINVAL;
 }
 
-static void virtio_net_tx_timer(void *opaque);
 
 static void virtio_net_handle_tx_timer(VirtIODevice *vdev, VirtQueue *vq)
 {
@@ -2899,6 +2972,12 @@ static void virtio_net_tx_timer(void *opaque)
     if (ret == -EBUSY || ret == -EINVAL) {
         return;
     }
+    if (n->tx_pkt_cnt < ret) {
+        n->tx_pkt_cnt = 0;
+    } else {
+        n->tx_pkt_cnt -= ret;
+    }
+
     /*
      * If we flush a full burst of packets, assume there are
      * more coming and immediately rearm
@@ -2918,6 +2997,7 @@ static void virtio_net_tx_timer(void *opaque)
     ret = virtio_net_flush_tx(q);
     if (ret > 0) {
         virtio_queue_set_notification(q->tx_vq, 0);
+        n->tx_pkt_cnt -= ret;
         q->tx_waiting = 1;
         timer_mod(q->tx_timer,
                   qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + n->tx_timeout);
@@ -2973,6 +3053,32 @@ static void virtio_net_tx_bh(void *opaque)
     }
 }
 
+static void virtio_net_handle_tx_dispatch(VirtIODevice *vdev, VirtQueue *vq)
+{
+    VirtIONet *n = VIRTIO_NET(vdev);
+    VirtIONetQueue *q = &n->vqs[vq2q(virtio_get_queue_index(vq))];
+    bool use_timer = n->tx_timer_activate || n->tx_coal_usecs > 0 ||
+                     n->tx_coal_packets > 0;
+    bool pkt_limit = (n->tx_coal_packets > 0);
+
+    if (use_timer) {
+        n->tx_pkt_cnt++;
+        if (!pkt_limit || n->tx_pkt_cnt < n->tx_coal_packets) {
+            if (q->tx_timer) {
+                virtio_net_handle_tx_timer(vdev, vq);
+                return;
+            }
+        }
+        n->tx_pkt_cnt = 0;
+        if (q->tx_timer) {
+            timer_del(q->tx_timer);
+        }
+        virtio_net_handle_tx_bh(vdev, vq);
+    } else {
+        virtio_net_handle_tx_bh(vdev, vq);
+    }
+}
+
 static void virtio_net_add_queue(VirtIONet *n, int index)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
@@ -2980,20 +3086,15 @@ static void virtio_net_add_queue(VirtIONet *n, int index)
     n->vqs[index].rx_vq = virtio_add_queue(vdev, n->net_conf.rx_queue_size,
                                            virtio_net_handle_rx);
 
-    if (n->net_conf.tx && !strcmp(n->net_conf.tx, "timer")) {
-        n->vqs[index].tx_vq =
-            virtio_add_queue(vdev, n->net_conf.tx_queue_size,
-                             virtio_net_handle_tx_timer);
-        n->vqs[index].tx_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                              virtio_net_tx_timer,
-                                              &n->vqs[index]);
-    } else {
-        n->vqs[index].tx_vq =
-            virtio_add_queue(vdev, n->net_conf.tx_queue_size,
-                             virtio_net_handle_tx_bh);
-        n->vqs[index].tx_bh = qemu_bh_new_guarded(virtio_net_tx_bh, &n->vqs[index],
-                                                  &DEVICE(vdev)->mem_reentrancy_guard);
-    }
+    n->vqs[index].tx_vq =
+        virtio_add_queue(vdev,
+                         n->net_conf.tx_queue_size,
+                         virtio_net_handle_tx_dispatch);
+
+    n->vqs[index].tx_bh =
+        qemu_bh_new_guarded(virtio_net_tx_bh,
+                            &n->vqs[index],
+                            &DEVICE(vdev)->mem_reentrancy_guard);
 
     n->vqs[index].tx_waiting = 0;
     n->vqs[index].n = n;
@@ -3242,6 +3343,36 @@ static int virtio_net_post_load_device(void *opaque, int version_id)
     }
 
     virtio_net_commit_rss_config(n);
+    if (n->tx_coal_usecs > 0 || n->rx_coal_usecs > 0) {
+        n->tx_timeout = n->tx_coal_usecs * 1000;
+
+        for (i = 0; i < n->max_queue_pairs; i++) {
+            VirtIONetQueue *q = &n->vqs[i];
+            if (!q->rx_timer && n->rx_coal_usecs > 0) {
+                q->rx_timer = timer_new_us(QEMU_CLOCK_VIRTUAL,
+                                           virtio_net_rx_notify,
+                                           q);
+            }
+
+            if (!q->tx_timer && n->tx_coal_usecs > 0) {
+                q->tx_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                           virtio_net_tx_timer,
+                                           q);
+            }
+
+            if (n->tx_coal_usecs > 0 && q->tx_timer) {
+                n->tx_pkt_cnt = 0;
+                timer_mod(q->tx_timer,
+                          qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + n->tx_timeout);
+            }
+
+            if (n->rx_coal_usecs > 0 && q->rx_timer) {
+                timer_mod(q->rx_timer,
+                          qemu_clock_get_us(QEMU_CLOCK_VIRTUAL) + n->rx_coal_usecs);
+            }
+        }
+    }
+
     return 0;
 }
 
@@ -3617,6 +3748,10 @@ static const VMStateDescription vmstate_virtio_net_device = {
                          vmstate_virtio_net_tx_waiting),
         VMSTATE_UINT64_TEST(curr_guest_offloads, VirtIONet,
                             has_ctrl_guest_offloads),
+        VMSTATE_UINT32(rx_coal_usecs, VirtIONet),
+        VMSTATE_UINT32(tx_coal_usecs, VirtIONet),
+        VMSTATE_UINT32(rx_coal_packets, VirtIONet),
+        VMSTATE_UINT32(tx_coal_packets, VirtIONet),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription * const []) {
@@ -3970,6 +4105,10 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
         error_printf("Defaulting to \"bh\"");
     }
 
+    if (n->net_conf.tx && strcmp(n->net_conf.tx, "timer")) {
+        n->tx_timer_activate = true;
+    }
+
     n->net_conf.tx_queue_size = MIN(virtio_net_max_tx_queue_size(n),
                                     n->net_conf.tx_queue_size);
 
@@ -4046,6 +4185,13 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
             n->rss_data.specified_hash_types.on_bits |
             n->rss_data.specified_hash_types.auto_bits;
     }
+    n->rx_pkt_cnt = 0;
+    n->tx_pkt_cnt = 0;
+    n->rx_coal_usecs = 0;
+    n->tx_coal_usecs = 0;
+    n->rx_coal_packets = 0;
+    n->tx_coal_packets = 0;
+    n->rx_index_timer = NULL;
 }
 
 static void virtio_net_device_unrealize(DeviceState *dev)
@@ -4258,6 +4404,8 @@ static const Property virtio_net_properties[] = {
                       VIRTIO_NET_F_GUEST_USO6, true),
     DEFINE_PROP_BIT64("host_uso", VirtIONet, host_features,
                       VIRTIO_NET_F_HOST_USO, true),
+    DEFINE_PROP_BIT64("vq_notf_coal", VirtIONet, host_features,
+                      VIRTIO_NET_F_NOTF_COAL, true),
     DEFINE_PROP_ON_OFF_AUTO_BIT64("hash-ipv4", VirtIONet,
                                   rss_data.specified_hash_types,
                                   VIRTIO_NET_HASH_REPORT_IPv4 - 1,
