@@ -212,61 +212,6 @@ static bool insn_is_linux_bkpt(uint32_t opcode, bool is_thumb)
     }
 }
 
-static bool emulate_arm_fpa11(CPUARMState *env, uint32_t opcode)
-{
-    TaskState *ts = get_task_state(env_cpu(env));
-    int rc = EmulateAll(opcode, &ts->fpa, env);
-    int raise, enabled;
-
-    if (rc == 0) {
-        /* Illegal instruction */
-        return false;
-    }
-    if (rc > 0) {
-        /* Everything ok. */
-        env->regs[15] += 4;
-        return true;
-    }
-
-    /* FP exception */
-    rc = -rc;
-    raise = 0;
-
-    /* Translate softfloat flags to FPSR flags */
-    if (rc & float_flag_invalid) {
-        raise |= BIT_IOC;
-    }
-    if (rc & float_flag_divbyzero) {
-        raise |= BIT_DZC;
-    }
-    if (rc & float_flag_overflow) {
-        raise |= BIT_OFC;
-    }
-    if (rc & float_flag_underflow) {
-        raise |= BIT_UFC;
-    }
-    if (rc & float_flag_inexact) {
-        raise |= BIT_IXC;
-    }
-
-    /* Accumulate unenabled exceptions */
-    enabled = ts->fpa.fpsr >> 16;
-    ts->fpa.fpsr |= raise & ~enabled;
-
-    if (raise & enabled) {
-        /*
-         * The kernel's nwfpe emulator does not pass a real si_code.
-         * It merely uses send_sig(SIGFPE, current, 1), which results in
-         * __send_signal() filling out SI_KERNEL with pid and uid 0 (under
-         * the "SEND_SIG_PRIV" case). That's what our force_sig() does.
-         */
-        force_sig(TARGET_SIGFPE);
-    } else {
-        env->regs[15] += 4;
-    }
-    return true;
-}
-
 void cpu_loop(CPUARMState *env)
 {
     CPUState *cs = env_cpu(env);
@@ -300,10 +245,6 @@ void cpu_loop(CPUARMState *env)
                  */
                 if (insn_is_linux_bkpt(opcode, env->thumb)) {
                     goto excp_debug;
-                }
-
-                if (!env->thumb && emulate_arm_fpa11(env, opcode)) {
-                    break;
                 }
 
                 force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLOPN,

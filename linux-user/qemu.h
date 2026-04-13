@@ -87,11 +87,6 @@ struct vm86_saved_state {
 };
 #endif
 
-#if defined(TARGET_ARM) && defined(TARGET_ABI32)
-/* FPU emulator */
-#include "nwfpe/fpa11.h"
-#endif
-
 struct emulated_sigtable {
     int pending; /* true if signal is pending */
     target_siginfo_t info;
@@ -99,12 +94,6 @@ struct emulated_sigtable {
 
 struct TaskState {
     pid_t ts_tid;     /* tid (or pid) of this task */
-#ifdef TARGET_ARM
-# ifdef TARGET_ABI32
-    /* FPA state */
-    FPA11 fpa;
-# endif
-#endif
 #if defined(TARGET_ARM) || defined(TARGET_RISCV)
     int swi_errno;
 #endif
