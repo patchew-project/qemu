@@ -372,6 +372,10 @@ static void mch_update_smram(MCHPCIState *mch)
         memory_region_set_enabled(&mch->high_smram, false);
     }
 
+    if (!mch->has_smm_ranges) {
+        goto out;
+    }
+
     if ((pd->config[MCH_HOST_BRIDGE_ESMRAMC] & MCH_HOST_BRIDGE_ESMRAMC_T_EN) &&
         (pd->config[MCH_HOST_BRIDGE_SMRAM] & SMRAM_G_SMRAME)) {
         switch (pd->config[MCH_HOST_BRIDGE_ESMRAMC] &
@@ -405,7 +409,7 @@ static void mch_update_smram(MCHPCIState *mch)
                               mch->below_4g_mem_size - tseg_size);
     memory_region_set_alias_offset(&mch->tseg_window,
                                    mch->below_4g_mem_size - tseg_size);
-
+out:
     memory_region_transaction_commit();
 }
 
@@ -474,13 +478,13 @@ static void mch_write_config(PCIDevice *d,
         mch_update_pciexbar(mch);
     }
 
-    if (!mch->has_smm_ranges) {
-        return;
-    }
-
     if (ranges_overlap(address, len, MCH_HOST_BRIDGE_SMRAM,
                        MCH_HOST_BRIDGE_SMRAM_SIZE)) {
         mch_update_smram(mch);
+    }
+
+    if (!mch->has_smm_ranges) {
+        return;
     }
 
     if (ranges_overlap(address, len, MCH_HOST_BRIDGE_EXT_TSEG_MBYTES,
@@ -585,10 +589,6 @@ static void mch_realize(PCIDevice *d, Error **errp)
                  PAM_EXPAN_BASE + i * PAM_EXPAN_SIZE, PAM_EXPAN_SIZE);
     }
 
-    if (!mch->has_smm_ranges) {
-        return;
-    }
-
     /* if *disabled* show SMRAM to all CPUs */
     memory_region_init_alias(&mch->smram_region, OBJECT(mch), "smram-region",
                              mch->pci_address_space, MCH_HOST_BRIDGE_SMRAM_C_BASE,
@@ -603,6 +603,10 @@ static void mch_realize(PCIDevice *d, Error **errp)
     memory_region_add_subregion_overlap(mch->system_memory, 0xfeda0000,
                                         &mch->open_high_smram, 1);
     memory_region_set_enabled(&mch->open_high_smram, false);
+
+    if (!mch->has_smm_ranges) {
+        return;
+    }
 
     /* smram, as seen by SMM CPUs */
     memory_region_init(&mch->smram, OBJECT(mch), "smram", 4 * GiB);
