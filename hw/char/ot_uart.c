@@ -99,9 +99,6 @@ REG32(TIMEOUT_CTRL, 0x30)
      R_CTRL_LLPBK_MASK | R_CTRL_PARITY_EN_MASK | R_CTRL_PARITY_ODD_MASK | \
      R_CTRL_RXBLVL_MASK | R_CTRL_NCO_MASK)
 
-#define CTRL_SUP_MASK \
-    (R_CTRL_RX_MASK | R_CTRL_TX_MASK | R_CTRL_SLPBK_MASK | R_CTRL_NCO_MASK)
-
 #define OT_UART_NCO_BITS     16
 #define OT_UART_TX_FIFO_SIZE 128
 #define OT_UART_RX_FIFO_SIZE 128
@@ -112,6 +109,26 @@ REG32(TIMEOUT_CTRL, 0x30)
 #define R_LAST_REG (R_TIMEOUT_CTRL)
 #define REGS_COUNT (R_LAST_REG + 1u)
 #define REGS_SIZE  (REGS_COUNT * sizeof(uint32_t))
+#define REG_NAME(_reg_) \
+    ((((_reg_) < REGS_COUNT) && REG_NAMES[_reg_]) ? REG_NAMES[_reg_] : "?")
+
+#define REG_NAME_ENTRY(_reg_) [R_##_reg_] = stringify(_reg_)
+static const char *REG_NAMES[REGS_COUNT] = {
+    REG_NAME_ENTRY(INTR_STATE),
+    REG_NAME_ENTRY(INTR_ENABLE),
+    REG_NAME_ENTRY(INTR_TEST),
+    REG_NAME_ENTRY(ALERT_TEST),
+    REG_NAME_ENTRY(CTRL),
+    REG_NAME_ENTRY(STATUS),
+    REG_NAME_ENTRY(RDATA),
+    REG_NAME_ENTRY(WDATA),
+    REG_NAME_ENTRY(FIFO_CTRL),
+    REG_NAME_ENTRY(FIFO_STATUS),
+    REG_NAME_ENTRY(OVRD),
+    REG_NAME_ENTRY(VAL),
+    REG_NAME_ENTRY(TIMEOUT_CTRL),
+};
+#undef REG_NAME_ENTRY
 
 static void ot_uart_update_irqs(OtUARTState *s)
 {
@@ -304,23 +321,14 @@ static uint64_t ot_uart_read(void *opaque, hwaddr addr, unsigned int size)
     OtUARTState *s = opaque;
     uint64_t retvalue = 0;
 
-    switch (addr >> 2) {
+    hwaddr reg = R32_OFF(addr);
+    switch (reg) {
     case R_INTR_STATE:
-        retvalue = s->regs[R_INTR_STATE];
-        break;
     case R_INTR_ENABLE:
-        retvalue = s->regs[R_INTR_ENABLE];
-        break;
-    case R_INTR_TEST:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: wdata is write only\n", __func__);
-        break;
-
     case R_CTRL:
-        retvalue = s->regs[R_CTRL];
-        break;
+    case R_FIFO_CTRL:
     case R_STATUS:
-        retvalue = s->regs[R_STATUS];
+        retvalue = s->regs[reg];
         break;
 
     case R_RDATA:
@@ -336,14 +344,7 @@ static uint64_t ot_uart_read(void *opaque, hwaddr addr, unsigned int size)
             }
         }
         break;
-    case R_WDATA:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: wdata is write only\n", __func__);
-        break;
 
-    case R_FIFO_CTRL:
-        retvalue = s->regs[R_FIFO_CTRL];
-        break;
     case R_FIFO_STATUS:
         retvalue = s->regs[R_FIFO_STATUS];
 
@@ -354,21 +355,21 @@ static uint64_t ot_uart_read(void *opaque, hwaddr addr, unsigned int size)
                       "%s: RX fifos are not supported\n", __func__);
         break;
 
-    case R_OVRD:
-        retvalue = s->regs[R_OVRD];
-        qemu_log_mask(LOG_UNIMP,
-                      "%s: ovrd is not supported\n", __func__);
-        break;
     case R_VAL:
-        retvalue = s->regs[R_VAL];
-        qemu_log_mask(LOG_UNIMP,
-                      "%s: val is not supported\n", __func__);
-        break;
+    case R_OVRD:
     case R_TIMEOUT_CTRL:
-        retvalue = s->regs[R_TIMEOUT_CTRL];
+        retvalue = s->regs[reg];
         qemu_log_mask(LOG_UNIMP,
-                      "%s: timeout_ctrl is not supported\n", __func__);
+                      "%s: %s is not supported\n", __func__, REG_NAME(reg));
         break;
+
+    case R_ALERT_TEST:
+    case R_INTR_TEST:
+    case R_WDATA:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: %s is write only\n", __func__, REG_NAME(reg));
+        break;
+
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, addr);
@@ -384,7 +385,9 @@ static void ot_uart_write(void *opaque, hwaddr addr, uint64_t val64,
     OtUARTState *s = opaque;
     uint32_t value = val64;
 
-    switch (addr >> 2) {
+    hwaddr reg = R32_OFF(addr);
+
+    switch (reg) {
     case R_INTR_STATE:
         /* Write 1 clear */
         value &= INTR_MASK;
@@ -401,7 +404,11 @@ static void ot_uart_write(void *opaque, hwaddr addr, uint64_t val64,
         s->regs[R_INTR_STATE] |= value;
         ot_uart_update_irqs(s);
         break;
-
+    case R_ALERT_TEST:
+        value &= R_ALERT_TEST_FATAL_FAULT_MASK;
+        s->regs[reg] = value;
+        /* This will also set an IRQ once the alert handler is added */
+        break;
     case R_CTRL:
         s->regs[R_CTRL] = value;
 
@@ -437,15 +444,6 @@ static void ot_uart_write(void *opaque, hwaddr addr, uint64_t val64,
             s->char_tx_time = (NANOSECONDS_PER_SECOND / baud) * 10;
         }
         break;
-    case R_STATUS:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: status is read only\n", __func__);
-        break;
-
-    case R_RDATA:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: rdata is read only\n", __func__);
-        break;
     case R_WDATA:
         uart_write_tx_fifo(s, value);
         break;
@@ -462,10 +460,6 @@ static void ot_uart_write(void *opaque, hwaddr addr, uint64_t val64,
             s->tx_level = 0;
         }
         break;
-    case R_FIFO_STATUS:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: fifo_status is read only\n", __func__);
-        break;
     case R_OVRD:
         if (value & R_OVRD_TXEN_MASK) {
             qemu_log_mask(LOG_UNIMP, "%s: OVRD.TXEN is not supported\n",
@@ -473,16 +467,22 @@ static void ot_uart_write(void *opaque, hwaddr addr, uint64_t val64,
         }
         s->regs[R_OVRD] = value & R_OVRD_TXVAL_MASK;
         break;
-    case R_VAL:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: val is read only\n", __func__);
-        break;
+
     case R_TIMEOUT_CTRL:
         s->regs[R_TIMEOUT_CTRL] =
             value & (R_TIMEOUT_CTRL_EN_MASK | R_TIMEOUT_CTRL_VAL_MASK);
         qemu_log_mask(LOG_UNIMP,
                       "%s: timeout_ctrl is not supported\n", __func__);
         break;
+
+    case R_STATUS:
+    case R_RDATA:
+    case R_FIFO_STATUS:
+    case R_VAL:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: %s is read only\n", __func__, REG_NAME(reg));
+        break;
+
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, addr);
