@@ -494,3 +494,15 @@ If the user requests a modern x86 CPU model (i.e. not one of ``486``,
 ``athlon``, ``kvm32``, ``pentium``, ``pentium2``, ``pentium3``or ``qemu32``)
 a warning will be displayed until a future QEMU version when such CPUs will
 be rejected.
+
+User emulator features
+----------------------
+
+NetWinder Floating Point Emulator (since 11.0)
+'''''''''''''''''''''''''''''''''''''''''''''''
+
+The NetWinder Floating Point Emulator (NWFPE) is a software emulation
+of the FPA11 coprocessor to the ARM3.  This emulation is no longer
+enabled in the Linux kernel by default for any kernel supporting the EABI,
+which is now standard for all distributions.  Compiler support for FPA
+was removed for GCC 4.8.0.
