@@ -113,9 +113,6 @@ static void do_hvf_get_vcpu_exec_time(CPUState *cpu, run_on_cpu_data arg)
 
 static void hvf_vcpu_destroy(CPUState *cpu)
 {
-    hv_return_t ret = hv_vcpu_destroy(cpu->accel->fd);
-    assert_hvf_ok(ret);
-
     hvf_arch_vcpu_destroy(cpu);
     g_free(cpu->accel);
     cpu->accel = NULL;
