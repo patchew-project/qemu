@@ -104,6 +104,7 @@ typedef struct tap_win32_overlapped {
     HANDLE output_queue_semaphore;
     HANDLE free_list_semaphore;
     HANDLE tap_semaphore;
+    HANDLE thread_handle;
     CRITICAL_SECTION output_queue_cs;
     CRITICAL_SECTION free_list_cs;
     OVERLAPPED read_overlapped;
@@ -589,6 +590,26 @@ static void tap_win32_free_buffer(tap_win32_overlapped_t *overlapped,
     put_buffer_on_free_list(overlapped, buffer);
 }
 
+static void tap_win32_close(tap_win32_overlapped_t *overlapped)
+{
+    TerminateThread(overlapped->thread_handle, 0);
+    CloseHandle(overlapped->thread_handle);
+
+    CloseHandle(overlapped->tap_semaphore);
+    CloseHandle(overlapped->free_list_semaphore);
+    CloseHandle(overlapped->output_queue_semaphore);
+
+    DeleteCriticalSection(&overlapped->free_list_cs);
+    DeleteCriticalSection(&overlapped->output_queue_cs);
+
+    CloseHandle(overlapped->write_event);
+    CloseHandle(overlapped->read_event);
+
+    CloseHandle(overlapped->handle);
+
+    g_free(overlapped);
+}
+
 static int tap_win32_open(tap_win32_overlapped_t **phandle,
                           const char *preferred_name)
 {
@@ -604,7 +625,6 @@ static int tap_win32_open(tap_win32_overlapped_t **phandle,
         unsigned long debug;
     } version;
     DWORD version_len;
-    DWORD idThread;
 
     if (preferred_name != NULL) {
         snprintf(name_buffer, sizeof(name_buffer), "%s", preferred_name);
@@ -642,15 +662,22 @@ static int tap_win32_open(tap_win32_overlapped_t **phandle,
     }
 
     if (!tap_win32_set_status(handle, TRUE)) {
+        CloseHandle(handle);
         return -1;
     }
 
     tap_win32_overlapped_init(&tap_overlapped, handle);
 
-    *phandle = &tap_overlapped;
+    tap_overlapped.thread_handle = CreateThread(NULL, 0,
+        tap_win32_thread_entry, (LPVOID)&tap_overlapped, 0, NULL);
 
-    CreateThread(NULL, 0, tap_win32_thread_entry,
-                 (LPVOID)&tap_overlapped, 0, &idThread);
+    if (tap_overlapped->thread_handle == NULL) {
+        tap_win32_close(tap_overlapped);
+        return -1;
+    }
+
+    *phandle = tap_overlapped;
+
     return 0;
 }
 
@@ -667,9 +694,8 @@ static void tap_cleanup(NetClientState *nc)
 
     qemu_del_wait_object(s->handle->tap_semaphore, NULL, NULL);
 
-    /* FIXME: need to kill thread and close file handle:
-       tap_win32_close(s);
-    */
+    tap_win32_close(s->handle);
+    s->handle = NULL;
 }
 
 static ssize_t tap_receive(NetClientState *nc, const uint8_t *buf, size_t size)
