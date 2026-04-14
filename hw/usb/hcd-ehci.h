@@ -109,6 +109,7 @@ typedef struct EHCIsitd {
 #define SITD_BUFPTR_TCNT_MASK         0x00000007
 
     uint32_t backptr;                 /* Standard next link pointer */
+    uint32_t bufptr_hi[2];
 } EHCIsitd;
 
 /*
