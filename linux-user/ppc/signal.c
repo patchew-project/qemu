@@ -525,7 +525,15 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     env->fpscr = 0;
 
     /* Create a stack frame for the caller of the handler.  */
+#if defined(TARGET_PPC64)
+    newsp = rt_sf_addr - SIGNAL_FRAMESIZE;
+#else
+    /*
+     * The +16 is to get the siginfo and ucontext in the same positions
+     * as in older kernels. See Linux's arch/powerpc/kernel/signal_32.c.
+     */
     newsp = rt_sf_addr - (SIGNAL_FRAMESIZE + 16);
+#endif
     err |= put_user(env->gpr[1], newsp, target_ulong);
 
     if (err)
@@ -641,7 +649,11 @@ long do_rt_sigreturn(CPUPPCState *env)
     struct target_rt_sigframe *rt_sf = NULL;
     target_ulong rt_sf_addr;
 
+#if defined(TARGET_PPC64)
+    rt_sf_addr = env->gpr[1] + SIGNAL_FRAMESIZE;
+#else
     rt_sf_addr = env->gpr[1] + SIGNAL_FRAMESIZE + 16;
+#endif
     if (!lock_user_struct(VERIFY_READ, rt_sf, rt_sf_addr, 1))
         goto sigsegv;
 
