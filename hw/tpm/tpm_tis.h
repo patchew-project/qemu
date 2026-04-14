@@ -90,4 +90,6 @@ uint32_t tpm_tis_read_data(TPMState *s, hwaddr addr, unsigned size);
 void tpm_tis_write_data(TPMState *s, hwaddr addr, uint64_t val, uint32_t size);
 uint16_t tpm_tis_get_checksum(TPMState *s);
 
+bool tpm_tis_ext_buffer_migration_needed(struct TPMState *s);
+
 #endif /* TPM_TPM_TIS_H */
