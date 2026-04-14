@@ -1490,6 +1490,10 @@
 #     * POSIX: as defined by os-release(5)
 #     * Windows: contains string "server" or "client"
 #
+# @security: Security features status.  Present if any security
+#     information (TPM, Secure Boot, etc.) could be retrieved.
+#     Currently populated on Windows guests only (since 11.1)
+#
 # .. note:: On POSIX systems the fields @id, @name, @pretty-name,
 #    @version, @version-id, @variant and @variant-id follow the
 #    definition specified in os-release(5).  Refer to the manual page
@@ -1508,7 +1512,8 @@
       '*kernel-release': 'str', '*kernel-version': 'str',
       '*machine': 'str', '*id': 'str', '*name': 'str',
       '*pretty-name': 'str', '*version': 'str', '*version-id': 'str',
-      '*variant': 'str', '*variant-id': 'str' } }
+      '*variant': 'str', '*variant-id': 'str',
+      '*security': 'GuestSecurityInfo' } }
 
 ##
 # @guest-get-osinfo:
@@ -1952,3 +1957,130 @@
   'returns': ['GuestNetworkRoute'],
   'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN32'] }
 }
+
+##
+# @GuestSecurityInfoWindows:
+#
+# Windows-specific security features from the Win32_DeviceGuard
+# WMI class.  All values are raw integers as provided by the
+# Windows API.  See
+# https://learn.microsoft.com/en-us/windows/security/hardware-security/enable-virtualization-based-protection-of-code-integrity
+# for the meaning of each value.
+#
+# @vbs-status: Whether VBS is enabled and running.
+#
+# @available-security-properties: Relevant security properties
+#     available for VBS and memory integrity.
+#
+# @code-integrity-policy-enforcement-status: Code integrity
+#     policy enforcement status.
+#
+# @required-security-properties: Required security properties
+#     to enable VBS.
+#
+# @security-services-configured: Whether Credential Guard or
+#     memory integrity is configured.
+#
+# @security-services-running: Whether Credential Guard or
+#     memory integrity is running.
+#
+# @usr-cfg-code-integrity-policy-enforcement-status: User-mode
+#     code integrity policy enforcement status.
+#
+# Since: 11.1
+##
+{ 'struct': 'GuestSecurityInfoWindows',
+  'data': {
+      '*vbs-status': 'int',
+      '*available-security-properties': ['int'],
+      '*code-integrity-policy-enforcement-status': 'int',
+      '*required-security-properties': ['int'],
+      '*security-services-configured': ['int'],
+      '*security-services-running': ['int'],
+      '*usr-cfg-code-integrity-policy-enforcement-status': 'int' } }
+
+##
+# @GuestSecurityInfoType:
+#
+# Guest operating system type for security info.
+#
+# @windows: Microsoft Windows
+#
+# Since: 11.1
+##
+{ 'enum': 'GuestSecurityInfoType',
+  'data': ['windows'] }
+
+##
+# @GuestSecurityInfoOs:
+#
+# OS-specific security information.
+#
+# @type: guest operating system type
+#
+# Since: 11.1
+##
+{ 'union': 'GuestSecurityInfoOs',
+  'base': { 'type': 'GuestSecurityInfoType' },
+  'discriminator': 'type',
+  'data': {
+      'windows': 'GuestSecurityInfoWindows' } }
+
+##
+# @GuestSecurityTPMInfo:
+#
+# TPM device information.  The presence of this struct indicates
+# that a TPM device exists on the guest.
+#
+# @major-version: TPM specification major version (e.g. 1 or 2)
+#
+# Since: 11.1
+##
+{ 'struct': 'GuestSecurityTPMInfo',
+  'data': {
+      'major-version': 'int' } }
+
+##
+# @GuestSecuritySecureBootInfo:
+#
+# UEFI Secure Boot information.  The presence of this struct
+# indicates that the guest supports UEFI Secure Boot.
+#
+# @enabled: Whether Secure Boot is currently enabled
+#
+# @audit-mode: Whether Secure Boot is in audit mode
+#
+# @deployed-mode: Whether Secure Boot is in deployed mode
+#
+# @setup-mode: Whether Secure Boot is in setup mode
+#
+# Since: 11.1
+##
+{ 'struct': 'GuestSecuritySecureBootInfo',
+  'data': {
+      'enabled': 'bool',
+      '*audit-mode': 'bool',
+      '*deployed-mode': 'bool',
+      '*setup-mode': 'bool' } }
+
+##
+# @GuestSecurityInfo:
+#
+# Guest security features status.  Fields are optional; a missing
+# field means the information is not available on this guest OS.
+#
+# @tpm: TPM device information.  Absent if no TPM is present
+#     or the information is unavailable.
+#
+# @secure-boot: UEFI Secure Boot information.  Absent on
+#     legacy BIOS systems or if unavailable.
+#
+# @os: OS-specific security information
+#
+# Since: 11.1
+##
+{ 'struct': 'GuestSecurityInfo',
+  'data': {
+      '*tpm': 'GuestSecurityTPMInfo',
+      '*secure-boot': 'GuestSecuritySecureBootInfo',
+      '*os': 'GuestSecurityInfoOs' } }

@@ -28,6 +28,7 @@
 #include <wtsapi32.h>
 #include <wininet.h>
 #include <pdh.h>
+#include <wbemidl.h>
 
 #include "guest-agent-core.h"
 #include "vss-win32.h"
@@ -2252,6 +2253,8 @@ static char *ga_get_current_arch(void)
     return result;
 }
 
+static void populate_security_info(GuestOSInfo *osinfo);
+
 GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
 {
     Error *local_err = NULL;
@@ -2288,6 +2291,8 @@ GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
     info->version_id = ga_get_win_name(&os_version, true);
     info->variant = g_strdup(server ? "server" : "client");
     info->variant_id = g_strdup(server ? "server" : "client");
+
+    populate_security_info(info);
 
     return info;
 }
@@ -2763,4 +2768,436 @@ GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
     g_free(adptr_addrs);
     g_hash_table_destroy(interface_metric_cache);
     return head;
+}
+
+/*
+ * WMI GUIDs
+ */
+static const GUID qga_CLSID_WbemLocator = {
+    0x4590f811, 0x1d3a, 0x11d0,
+    {0x89, 0x1f, 0x00, 0xaa, 0x00, 0x4b, 0x2e, 0x24}
+};
+static const GUID qga_IID_IWbemLocator = {
+    0xdc12a687, 0x737f, 0x11cf,
+    {0x88, 0x4d, 0x00, 0xaa, 0x00, 0x4b, 0x2e, 0x24}
+};
+
+static IWbemServices *wmi_connect_to_namespace(const wchar_t *namespace_path,
+                                               Error **errp)
+{
+    HRESULT hr;
+    IWbemLocator *locator = NULL;
+    IWbemServices *services = NULL;
+    BSTR bstr_ns = SysAllocString(namespace_path);
+
+    if (!bstr_ns) {
+        error_setg(errp, "failed to allocate WMI namespace string");
+        return NULL;
+    }
+
+    hr = CoCreateInstance(&qga_CLSID_WbemLocator, NULL, CLSCTX_INPROC_SERVER,
+                          &qga_IID_IWbemLocator, (LPVOID *)&locator);
+    if (FAILED(hr)) {
+        error_setg_win32(errp, hr, "failed to create IWbemLocator");
+        goto out;
+    }
+
+    hr = locator->lpVtbl->ConnectServer(locator, bstr_ns, NULL, NULL, NULL,
+                                        0, NULL, NULL, &services);
+    if (FAILED(hr)) {
+        error_setg_win32(errp, hr, "failed to connect to WMI namespace");
+        goto out;
+    }
+
+    hr = CoSetProxyBlanket((IUnknown *)services,
+                           RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, NULL,
+                           RPC_C_AUTHN_LEVEL_CALL,
+                           RPC_C_IMP_LEVEL_IMPERSONATE,
+                           NULL, EOAC_NONE);
+    if (FAILED(hr)) {
+        error_setg_win32(errp, hr, "failed to set WMI proxy blanket");
+        services->lpVtbl->Release(services);
+        services = NULL;
+    }
+
+out:
+    SysFreeString(bstr_ns);
+    if (locator) {
+        locator->lpVtbl->Release(locator);
+    }
+    return services;
+}
+
+static IEnumWbemClassObject *wmi_exec_query(IWbemServices *services,
+                                            const wchar_t *query,
+                                            Error **errp)
+{
+    HRESULT hr;
+    IEnumWbemClassObject *enumerator = NULL;
+    BSTR bstr_wql = SysAllocString(L"WQL");
+    BSTR bstr_query = SysAllocString(query);
+
+    if (!bstr_wql || !bstr_query) {
+        error_setg(errp, "failed to allocate WMI query strings");
+        goto out;
+    }
+
+    hr = services->lpVtbl->ExecQuery(services, bstr_wql, bstr_query,
+                                     WBEM_FLAG_RETURN_IMMEDIATELY |
+                                     WBEM_FLAG_FORWARD_ONLY,
+                                     NULL, &enumerator);
+    if (FAILED(hr)) {
+        error_setg_win32(errp, hr, "WMI query failed");
+    }
+
+out:
+    SysFreeString(bstr_wql);
+    SysFreeString(bstr_query);
+    return enumerator;
+}
+
+static HRESULT wmi_get_property(IWbemClassObject *obj, const wchar_t *name,
+                                VARIANT *var)
+{
+    return obj->lpVtbl->Get(obj, name, 0, var, NULL, NULL);
+}
+
+/* Read a WMI integer property (VT_I4 or VT_UI4). */
+static bool wmi_get_int_property(IWbemClassObject *obj,
+                                 const wchar_t *name,
+                                 int64_t *out)
+{
+    VARIANT var;
+    bool ret = false;
+
+    VariantInit(&var);
+    if (SUCCEEDED(wmi_get_property(obj, name, &var))) {
+        if (V_VT(&var) == VT_I4) {
+            *out = V_I4(&var);
+            ret = true;
+        } else if (V_VT(&var) == VT_UI4) {
+            *out = V_UI4(&var);
+            ret = true;
+        }
+    }
+    VariantClear(&var);
+    return ret;
+}
+
+/* Read an integer SAFEARRAY WMI property into a QAPI intList. */
+static bool wmi_safearray_to_int_list(IWbemClassObject *obj,
+                                      const wchar_t *prop_name,
+                                      intList **list)
+{
+    VARIANT var;
+    HRESULT hr;
+    LONG lb, ub, i;
+    uint32_t *data = NULL;
+
+    VariantInit(&var);
+    hr = wmi_get_property(obj, prop_name, &var);
+    if (FAILED(hr) || V_VT(&var) == VT_NULL) {
+        VariantClear(&var);
+        return false;
+    }
+
+    if (!(V_VT(&var) & VT_ARRAY)) {
+        VariantClear(&var);
+        return false;
+    }
+
+    SAFEARRAY *sa = V_ARRAY(&var);
+    if (FAILED(SafeArrayGetLBound(sa, 1, &lb)) ||
+        FAILED(SafeArrayGetUBound(sa, 1, &ub))) {
+        VariantClear(&var);
+        return false;
+    }
+
+    if (FAILED(SafeArrayAccessData(sa, (void **)&data))) {
+        VariantClear(&var);
+        return false;
+    }
+
+    intList **tail = list;
+    for (i = 0; i <= ub - lb; i++) {
+        QAPI_LIST_APPEND(tail, (int64_t)data[i]);
+    }
+
+    SafeArrayUnaccessData(sa);
+    VariantClear(&var);
+    return true;
+}
+
+/*
+ * Query Win32_DeviceGuard WMI class for VBS and related properties.
+ */
+static void get_device_guard_info(GuestSecurityInfoWindows *info,
+                                  Error **errp)
+{
+    Error *local_err = NULL;
+    IWbemServices *services = NULL;
+    IEnumWbemClassObject *enumerator = NULL;
+    IWbemClassObject *obj = NULL;
+    ULONG count = 0;
+    HRESULT hr;
+    int64_t val;
+
+    services = wmi_connect_to_namespace(
+        L"ROOT\\Microsoft\\Windows\\DeviceGuard", &local_err);
+    if (!services) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    enumerator = wmi_exec_query(services,
+        L"SELECT * FROM Win32_DeviceGuard", &local_err);
+    if (!enumerator) {
+        error_propagate(errp, local_err);
+        goto out;
+    }
+
+    hr = enumerator->lpVtbl->Next(enumerator, WBEM_INFINITE, 1,
+                                   &obj, &count);
+    if (FAILED(hr)) {
+        error_setg_win32(errp, hr, "failed to enumerate Win32_DeviceGuard");
+        goto out;
+    }
+    if (count == 0) {
+        error_setg(errp, "no Win32_DeviceGuard instance found");
+        goto out;
+    }
+
+    if (wmi_get_int_property(obj, L"VirtualizationBasedSecurityStatus",
+                             &val)) {
+        info->has_vbs_status = true;
+        info->vbs_status = val;
+    }
+
+    if (wmi_get_int_property(obj, L"CodeIntegrityPolicyEnforcementStatus",
+                             &val)) {
+        info->has_code_integrity_policy_enforcement_status = true;
+        info->code_integrity_policy_enforcement_status = val;
+    }
+
+    if (wmi_get_int_property(obj,
+                             L"UsermodeCodeIntegrityPolicyEnforcementStatus",
+                             &val)) {
+        info->has_usr_cfg_code_integrity_policy_enforcement_status = true;
+        info->usr_cfg_code_integrity_policy_enforcement_status = val;
+    }
+
+    if (wmi_safearray_to_int_list(obj, L"AvailableSecurityProperties",
+                                  &info->available_security_properties)) {
+        info->has_available_security_properties = true;
+    }
+
+    if (wmi_safearray_to_int_list(obj, L"RequiredSecurityProperties",
+                                  &info->required_security_properties)) {
+        info->has_required_security_properties = true;
+    }
+
+    if (wmi_safearray_to_int_list(obj, L"SecurityServicesConfigured",
+                                  &info->security_services_configured)) {
+        info->has_security_services_configured = true;
+    }
+
+    if (wmi_safearray_to_int_list(obj, L"SecurityServicesRunning",
+                                  &info->security_services_running)) {
+        info->has_security_services_running = true;
+    }
+
+    obj->lpVtbl->Release(obj);
+    obj = NULL;
+
+    /* Drain remaining results */
+    while (true) {
+        hr = enumerator->lpVtbl->Next(enumerator, WBEM_INFINITE, 1,
+                                      &obj, &count);
+        if (FAILED(hr) || count == 0) {
+            break;
+        }
+        obj->lpVtbl->Release(obj);
+        obj = NULL;
+    }
+
+out:
+    if (obj) {
+        obj->lpVtbl->Release(obj);
+    }
+    if (enumerator) {
+        enumerator->lpVtbl->Release(enumerator);
+    }
+    if (services) {
+        services->lpVtbl->Release(services);
+    }
+}
+
+#define EFI_GLOBAL_VARIABLE_GUID \
+    "{8be4df61-93ca-11d2-aa0d-00e098032b8c}"
+
+/*
+ * Read a single-byte UEFI variable.  Returns true on success and
+ * stores the value in *out.  Returns false on failure.
+ */
+static bool read_efi_var(const char *name, BYTE *out)
+{
+    DWORD ret = GetFirmwareEnvironmentVariableA(
+        name, EFI_GLOBAL_VARIABLE_GUID, out, sizeof(*out));
+    return ret != 0;
+}
+
+/*
+ * Read UEFI Secure Boot variables.  Returns NULL on legacy BIOS
+ * systems or when the information is unavailable.
+ */
+static GuestSecuritySecureBootInfo *get_secure_boot_info(void)
+{
+    Error *local_err = NULL;
+    GuestSecuritySecureBootInfo *sb;
+    BYTE value = 0;
+
+    acquire_privilege(SE_SYSTEM_ENVIRONMENT_NAME, &local_err);
+    if (local_err) {
+        g_warning("SecureBoot privilege failed: %s",
+                  error_get_pretty(local_err));
+        error_free(local_err);
+        return NULL;
+    }
+
+    if (!read_efi_var("SecureBoot", &value)) {
+        DWORD err = GetLastError();
+        if (err == ERROR_INVALID_FUNCTION) {
+            return NULL;
+        }
+        if (err == ERROR_ENVVAR_NOT_FOUND) {
+            sb = g_new0(GuestSecuritySecureBootInfo, 1);
+            sb->enabled = false;
+            return sb;
+        }
+        g_warning("failed to read SecureBoot UEFI variable: 0x%lx", err);
+        return NULL;
+    }
+
+    sb = g_new0(GuestSecuritySecureBootInfo, 1);
+    sb->enabled = (value == 1);
+
+    if (read_efi_var("SetupMode", &value)) {
+        sb->has_setup_mode = true;
+        sb->setup_mode = (value == 1);
+    }
+
+    if (read_efi_var("AuditMode", &value)) {
+        sb->has_audit_mode = true;
+        sb->audit_mode = (value == 1);
+    }
+
+    if (read_efi_var("DeployedMode", &value)) {
+        sb->has_deployed_mode = true;
+        sb->deployed_mode = (value == 1);
+    }
+
+    return sb;
+}
+
+/*
+ * Query Win32_Tpm WMI class for TPM presence and version.
+ * Returns a GuestSecurityTPMInfo on success, or NULL if no TPM
+ * is found or the namespace is unavailable.
+ */
+static GuestSecurityTPMInfo *get_tpm_info(void)
+{
+    Error *local_err = NULL;
+    IWbemServices *services = NULL;
+    IEnumWbemClassObject *enumerator = NULL;
+    IWbemClassObject *obj = NULL;
+    ULONG count = 0;
+    HRESULT hr;
+    VARIANT var;
+    GuestSecurityTPMInfo *tpm = NULL;
+
+    services = wmi_connect_to_namespace(
+        L"ROOT\\CIMV2\\Security\\MicrosoftTpm", &local_err);
+    if (!services) {
+        error_free(local_err);
+        return NULL;
+    }
+
+    enumerator = wmi_exec_query(services,
+        L"SELECT * FROM Win32_Tpm", &local_err);
+    if (!enumerator) {
+        error_free(local_err);
+        goto out;
+    }
+
+    hr = enumerator->lpVtbl->Next(enumerator, WBEM_INFINITE, 1,
+                                   &obj, &count);
+    if (FAILED(hr) || count == 0) {
+        goto out;
+    }
+
+    tpm = g_new0(GuestSecurityTPMInfo, 1);
+
+    /* SpecVersion is "major.minor, revision, errata" e.g. "2.0, 0, 1.59" */
+    VariantInit(&var);
+    if (SUCCEEDED(wmi_get_property(obj, L"SpecVersion", &var)) &&
+        V_VT(&var) == VT_BSTR && V_BSTR(&var)) {
+        g_autofree char *version = g_utf16_to_utf8(
+            (const gunichar2 *)V_BSTR(&var), -1, NULL, NULL, NULL);
+        if (version) {
+            char *dot = strchr(version, '.');
+            if (dot) {
+                *dot = '\0';
+            }
+            tpm->major_version = g_ascii_strtoll(version, NULL, 10);
+        }
+    }
+    VariantClear(&var);
+
+    obj->lpVtbl->Release(obj);
+    obj = NULL;
+
+    /* Drain remaining results */
+    while (true) {
+        hr = enumerator->lpVtbl->Next(enumerator, WBEM_INFINITE, 1,
+                                      &obj, &count);
+        if (FAILED(hr) || count == 0) {
+            break;
+        }
+        obj->lpVtbl->Release(obj);
+        obj = NULL;
+    }
+
+out:
+    if (obj) {
+        obj->lpVtbl->Release(obj);
+    }
+    if (enumerator) {
+        enumerator->lpVtbl->Release(enumerator);
+    }
+    if (services) {
+        services->lpVtbl->Release(services);
+    }
+    return tpm;
+}
+
+static void populate_security_info(GuestOSInfo *osinfo)
+{
+    Error *local_err = NULL;
+    GuestSecurityInfo *info = g_new0(GuestSecurityInfo, 1);
+
+    info->os = g_new0(GuestSecurityInfoOs, 1);
+    info->os->type = GUEST_SECURITY_INFO_TYPE_WINDOWS;
+
+    get_device_guard_info(&info->os->u.windows, &local_err);
+    if (local_err) {
+        g_warning("DeviceGuard query failed: %s",
+                  error_get_pretty(local_err));
+        error_free(local_err);
+        local_err = NULL;
+    }
+
+    info->secure_boot = get_secure_boot_info();
+    info->tpm = get_tpm_info();
+
+    osinfo->security = info;
 }
