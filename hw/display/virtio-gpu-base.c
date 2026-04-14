@@ -232,6 +232,7 @@ virtio_gpu_base_device_realize(DeviceState *qdev,
 
     g->req_state[0].width = g->conf.xres;
     g->req_state[0].height = g->conf.yres;
+    g->req_state[0].refresh_rate = g->conf.refresh_rate;
 
     for (output_idx = 0, node = g->conf.outputs;
          node && output_idx < g->conf.max_outputs;
