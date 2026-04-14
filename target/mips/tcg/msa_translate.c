@@ -164,7 +164,6 @@ static inline bool check_msa_enabled(DisasContext *ctx)
     return true;
 }
 
-typedef void gen_helper_piv(TCGv_ptr, TCGv_i32, TCGv);
 typedef void gen_helper_pii(TCGv_ptr, TCGv_i32, TCGv_i32);
 typedef void gen_helper_piii(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32);
 typedef void gen_helper_piiii(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32);
@@ -174,9 +173,6 @@ typedef void gen_helper_piiii(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32);
         gen_func##_b, gen_func##_h, gen_func##_w, gen_func##_d \
     }; \
     TRANS(NAME, trans_func, NAME##_tab[a->df])
-
-#define TRANS_DF_iv(NAME, trans_func, gen_func) \
-    TRANS_DF_x(iv, NAME, trans_func, gen_func)
 
 #define TRANS_DF_ii(NAME, trans_func, gen_func) \
     TRANS_DF_x(ii, NAME, trans_func, gen_func)
@@ -801,24 +797,58 @@ static bool trans_LD(DisasContext *ctx, arg_msa_i *a)
     return true;
 }
 
-static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a,
-                           gen_helper_piv *gen_msa_ldst)
+static bool trans_ST(DisasContext *ctx, arg_msa_i *a)
 {
-    TCGv taddr;
+    TCGv_va addr;
+    TCGv_i128 d16;
+    MemOp mop;
+    int d0 = a->wd << 1;
+    int d1 = d0 + 1;
 
     if (!check_msa_enabled(ctx)) {
         return true;
     }
 
-    taddr = tcg_temp_new();
+    addr = tcgv_va_temp_new();
+    gen_base_offset_addr(ctx, addr, a->ws, a->sa << a->df);
 
-    gen_base_offset_addr(ctx, taddr, a->ws, a->sa << a->df);
-    gen_msa_ldst(tcg_env, tcg_constant_i32(a->wd), taddr);
+    mop = MO_128 | MO_LE;
+    if (a->df == 0) {
+        mop |= MO_ATOM_NONE;
+    } else if (a->df == 3) {
+        mop |= MO_ATOM_IFALIGN_PAIR;
+    } else {
+        mop |= MO_ATOM_SUBALIGN; /* slightly stronger than required */
+    }
+    mop |= a->df << MO_ASHIFT; /* MO_ALIGN */
+
+    d16 = tcg_temp_new_i128();
+
+    if (mo_endian(ctx) != MO_LE) {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
+
+        if (a->df == 1) {
+            tcg_gen_hswap_i64(t0, msa_wr_d[d0]);
+            tcg_gen_hswap_i64(t1, msa_wr_d[d1]);
+            tcg_gen_concat_i64_i128(d16, t0, t1);
+        } else if (a->df == 2) {
+            tcg_gen_wswap_i64(t0, msa_wr_d[d0]);
+            tcg_gen_wswap_i64(t1, msa_wr_d[d1]);
+            tcg_gen_concat_i64_i128(d16, t0, t1);
+        } else {
+            tcg_gen_ld_i128(d16, tcg_env,
+                            offsetof(CPUMIPSState, active_fpu.fpr[d0]));
+        }
+    } else {
+        tcg_gen_ld_i128(d16, tcg_env,
+                        offsetof(CPUMIPSState, active_fpu.fpr[d0]));
+    }
+
+    tcg_gen_qemu_st_i128(d16, addr, ctx->mem_idx, mop);
 
     return true;
 }
-
-TRANS_DF_iv(ST, trans_msa_ldst, gen_helper_msa_st);
 
 static bool trans_LSA(DisasContext *ctx, arg_r *a)
 {
