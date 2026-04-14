@@ -37,8 +37,9 @@ static void tpm_crb_chunk_swtpm_test(const void *data)
 {
     const TestState *ts = data;
 
-    tpm_test_swtpm_test(ts->src_tpm_path, tpm_util_crb_chunk_transfer,
-                        "tpm-crb", NULL);
+    tpm_test_swtpm_large_tx_test(ts->src_tpm_path,
+                                 tpm_util_crb_chunk_transfer,
+                                 "tpm-crb", NULL);
 }
 
 static void tpm_crb_swtpm_migration_test(const void *data)

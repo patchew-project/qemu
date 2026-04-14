@@ -24,4 +24,8 @@ void tpm_test_swtpm_migration_test(const char *src_tpm_path,
                                    const char *ifmodel,
                                    const char *machine_options);
 
+void tpm_test_swtpm_large_tx_test(const char *src_tpm_path, tx_func *tx,
+                                  const char *ifmodel,
+                                  const char *machine_options);
+
 #endif /* TESTS_TPM_TESTS_H */

@@ -39,6 +39,8 @@ void tpm_util_pcrread(QTestState *s, tx_func *tx,
                       const unsigned char *exp_resp, size_t exp_resp_size);
 
 bool tpm_util_swtpm_has_tpm2(void);
+bool tpm_util_swtpm_has_profile(const char *profilename,
+                                const char *content);
 
 gboolean tpm_util_swtpm_start(const char *path, GPid *pid,
                               SocketAddress **addr, const char *profilename,
