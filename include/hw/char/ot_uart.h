@@ -56,10 +56,14 @@ struct OtUARTState {
     Fifo8 tx_fifo;
     Fifo8 rx_fifo;
     uint32_t tx_watermark_level;
+    bool in_break;
+    guint watch_tag;
 
     Clock *f_clk;
 
     CharFrontend chr;
+    bool oversample_break; /* Should mock break in the oversampled VAL reg? */
+    bool toggle_break; /* Are incoming breaks temporary or toggled? */
 };
 
 struct OtUARTClass {
