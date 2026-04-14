@@ -9108,6 +9108,50 @@ static int host_to_target_cpu_mask(const unsigned long *host_mask,
     return 0;
 }
 
+/*
+ * Check if a directory fd refers to /proc/<pid>/task/ for the current
+ * process.  Used to filter out QEMU-internal host threads (RCU, TCG)
+ * that are not guest threads from directory listings.
+ */
+static bool is_proc_pid_task_dir(int dirfd)
+{
+    char link_path[64];
+    char link_target[PATH_MAX];
+    ssize_t len;
+    char expected[80];
+    int expected_len;
+
+    snprintf(link_path, sizeof(link_path), "/proc/self/fd/%d", dirfd);
+    len = readlink(link_path, link_target, sizeof(link_target) - 1);
+    if (len < 0) {
+        return false;
+    }
+    link_target[len] = '\0';
+
+    expected_len = snprintf(expected, sizeof(expected),
+                            "/proc/%d/task", getpid());
+    return strncmp(link_target, expected, expected_len) == 0
+           && (link_target[expected_len] == '\0'
+               || link_target[expected_len] == '/');
+}
+
+/*
+ * Check if a given host TID belongs to a guest thread by looking it up
+ * in the CPU list.  Must be called under RCU read lock.
+ */
+static bool is_guest_tid(pid_t tid)
+{
+    CPUState *cpu;
+
+    CPU_FOREACH(cpu) {
+        TaskState *ts = get_task_state(cpu);
+        if (ts->ts_tid == tid) {
+            return true;
+        }
+    }
+    return false;
+}
+
 #ifdef TARGET_NR_getdents
 static int do_getdents(abi_long dirfd, abi_long arg2, abi_long count)
 {
@@ -9116,6 +9160,7 @@ static int do_getdents(abi_long dirfd, abi_long arg2, abi_long count)
     int hlen, hoff, toff;
     int hreclen, treclen;
     off_t prev_diroff = 0;
+    bool filter_task = is_proc_pid_task_dir(dirfd);
 
     hdirp = g_try_malloc(count);
     if (!hdirp) {
@@ -9150,6 +9195,23 @@ static int do_getdents(abi_long dirfd, abi_long arg2, abi_long count)
 
         namelen = strlen(hde->d_name);
         hreclen = hde->d_reclen;
+
+        /*
+         * Filter /proc/<pid>/task/ listings to hide QEMU-internal
+         * host threads (RCU, TCG) that have no guest CPUState.
+         */
+        if (filter_task) {
+            char *endp;
+            long tid = strtol(hde->d_name, &endp, 10);
+            if (tid > 0 && *endp == '\0') {
+                WITH_RCU_READ_LOCK_GUARD() {
+                    if (!is_guest_tid(tid)) {
+                        treclen = 0;
+                        continue;
+                    }
+                }
+            }
+        }
         treclen = offsetof(struct target_dirent, d_name) + namelen + 2;
         treclen = QEMU_ALIGN_UP(treclen, __alignof(struct target_dirent));
 
@@ -9203,6 +9265,7 @@ static int do_getdents64(abi_long dirfd, abi_long arg2, abi_long count)
     int hlen, hoff, toff;
     int hreclen, treclen;
     off_t prev_diroff = 0;
+    bool filter_task = is_proc_pid_task_dir(dirfd);
 
     hdirp = g_try_malloc(count);
     if (!hdirp) {
@@ -9226,6 +9289,23 @@ static int do_getdents64(abi_long dirfd, abi_long arg2, abi_long count)
 
         namelen = strlen(hde->d_name) + 1;
         hreclen = hde->d_reclen;
+
+        /*
+         * Filter /proc/<pid>/task/ listings to hide QEMU-internal
+         * host threads (RCU, TCG) that have no guest CPUState.
+         */
+        if (filter_task) {
+            char *endp;
+            long tid = strtol(hde->d_name, &endp, 10);
+            if (tid > 0 && *endp == '\0') {
+                WITH_RCU_READ_LOCK_GUARD() {
+                    if (!is_guest_tid(tid)) {
+                        treclen = 0;
+                        continue;
+                    }
+                }
+            }
+        }
         treclen = offsetof(struct target_dirent64, d_name) + namelen;
         treclen = QEMU_ALIGN_UP(treclen, __alignof(struct target_dirent64));
 
