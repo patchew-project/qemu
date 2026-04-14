@@ -39,6 +39,8 @@ testthread: LDFLAGS+=-lpthread
 
 threadcount: LDFLAGS+=-lpthread
 
+linux-proc-task: LDFLAGS+=-lpthread
+
 signals: LDFLAGS+=-lrt -lpthread
 
 munmap-pthread: CFLAGS+=-pthread
