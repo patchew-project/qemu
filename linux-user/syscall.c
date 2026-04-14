@@ -13449,11 +13449,41 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 #endif
 
     case TARGET_NR_tkill:
-        return get_errno(safe_tkill((int)arg1, target_to_host_signal(arg2)));
+    {
+        int tid = (int)arg1;
+        /*
+         * Reject signals to host threads that are not guest threads.
+         * QEMU-internal threads (RCU, TCG) share the host PID but have
+         * no CPUState and cannot handle guest-originated signals.
+         */
+        WITH_RCU_READ_LOCK_GUARD() {
+            if (!is_guest_tid(tid)) {
+                return -TARGET_ESRCH;
+            }
+        }
+        return get_errno(safe_tkill(tid, target_to_host_signal(arg2)));
+    }
 
     case TARGET_NR_tgkill:
-        return get_errno(safe_tgkill((int)arg1, (int)arg2,
+    {
+        int tgid = (int)arg1;
+        int tid = (int)arg2;
+        /*
+         * Validate that the target TID is a guest thread.  Also verify
+         * that the tgid matches our process, since all guest threads
+         * share the same host tgid.
+         */
+        if (tgid != getpid()) {
+            return -TARGET_ESRCH;
+        }
+        WITH_RCU_READ_LOCK_GUARD() {
+            if (!is_guest_tid(tid)) {
+                return -TARGET_ESRCH;
+            }
+        }
+        return get_errno(safe_tgkill(tgid, tid,
                          target_to_host_signal(arg3)));
+    }
 
 #ifdef TARGET_NR_set_robust_list
     case TARGET_NR_set_robust_list:
