@@ -924,6 +924,7 @@ F: hw/arm/fsl-imx8mm.c
 F: hw/arm/imx8mm-evk.c
 F: include/hw/arm/fsl-imx8mm.h
 F: docs/system/arm/imx8m.rst
+F: tests/functional/aarch64/test_imx8mm_evk.py
 
 MCIMX8MP-EVK / i.MX8MP
 M: Bernhard Beschow <shentey@gmail.com>
