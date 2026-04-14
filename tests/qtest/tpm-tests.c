@@ -43,7 +43,7 @@ void tpm_test_swtpm_test(const char *src_tpm_path, tx_func *tx,
         return;
     }
 
-    succ = tpm_util_swtpm_start(src_tpm_path, &swtpm_pid, &addr, &error);
+    succ = tpm_util_swtpm_start(src_tpm_path, &swtpm_pid, &addr, NULL, &error);
     g_assert_true(succ);
 
     args = g_strdup_printf(
@@ -91,11 +91,11 @@ void tpm_test_swtpm_migration_test(const char *src_tpm_path,
     }
 
     succ = tpm_util_swtpm_start(src_tpm_path, &src_tpm_pid,
-                                &src_tpm_addr, &error);
+                                &src_tpm_addr, NULL, &error);
     g_assert_true(succ);
 
     succ = tpm_util_swtpm_start(dst_tpm_path, &dst_tpm_pid,
-                                &dst_tpm_addr, &error);
+                                &dst_tpm_addr, NULL, &error);
     g_assert_true(succ);
 
     tpm_util_migration_start_qemu(&src_qemu, &dst_qemu,
