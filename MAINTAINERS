@@ -916,6 +916,15 @@ F: hw/pci-host/designware.c
 F: include/hw/pci-host/designware.h
 F: docs/system/arm/mcimx7d-sabre.rst
 
+MCIMX8MM-EVK / iMX8MM
+M: Gaurav Sharma <gaurav.sharma_7@nxp.com>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/fsl-imx8mm.c
+F: hw/arm/imx8mm-evk.c
+F: include/hw/arm/fsl-imx8mm.h
+F: docs/system/arm/imx8m.rst
+
 MCIMX8MP-EVK / i.MX8MP
 M: Bernhard Beschow <shentey@gmail.com>
 L: qemu-arm@nongnu.org
@@ -928,7 +937,7 @@ F: hw/rtc/rs5c372.c
 F: include/hw/arm/fsl-imx8mp.h
 F: include/hw/misc/imx8mp_*.h
 F: include/hw/pci-host/fsl_imx8m_phy.h
-F: docs/system/arm/imx8mp-evk.rst
+F: docs/system/arm/imx8m.rst
 F: tests/functional/aarch64/test_imx8mp_evk.py
 F: tests/qtest/rs5c372-test.c
 
