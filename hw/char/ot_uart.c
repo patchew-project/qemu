@@ -179,6 +179,11 @@ static void ot_uart_receive(void *opaque, const uint8_t *buf, int size)
     uint32_t rx_watermark_level;
     size_t count = MIN(fifo8_num_free(&s->rx_fifo), (size_t)size);
 
+    if (size && !s->toggle_break) {
+        /* no longer breaking, so emulate idle in oversampled VAL register */
+        s->in_break = false;
+    }
+
     for (int index = 0; index < size; index++) {
         fifo8_push(&s->rx_fifo, buf[index]);
     }
@@ -331,7 +336,38 @@ static void ot_uart_reset_enter(Object *obj, ResetType type)
 
     s->char_tx_time = (NANOSECONDS_PER_SECOND / 230400) * 10;
 
+    /*
+     * do not reset `s->in_break`, as that tracks whether we are currently
+     * receiving a break condition over UART RX from some device talking
+     * to OpenTitan, which should survive resets. The QEMU CharDev only
+     * supports transient break events and not the notion of holding the
+     * UART in break, so remembering breaks like this is required to
+     * support mocking of break conditions in the oversampled `VAL` reg.
+     */
+    if (s->in_break) {
+        /* ignore CTRL.RXBLVL as we have no notion of break "time" */
+        s->regs[R_INTR_STATE] |= INTR_RX_BREAK_ERR_MASK;
+    }
+
     ot_uart_update_irqs(s);
+}
+
+static void ot_uart_event_handler(void *opaque, QEMUChrEvent event)
+{
+    OtUARTState *s = opaque;
+
+    if (event == CHR_EVENT_BREAK) {
+        if (!s->in_break || !s->oversample_break) {
+            /* ignore CTRL.RXBLVL as we have no notion of break "time" */
+            s->regs[R_INTR_STATE] |= INTR_RX_BREAK_ERR_MASK;
+            ot_uart_update_irqs(s);
+            /* emulate break in the oversampled VAL register */
+            s->in_break = true;
+        } else if (s->toggle_break) {
+            /* emulate toggling break off in the oversampled VAL register */
+            s->in_break = false;
+        }
+    }
 }
 
 static uint8_t ot_uart_read_rx_fifo(OtUARTState *s)
@@ -353,6 +389,17 @@ static uint8_t ot_uart_read_rx_fifo(OtUARTState *s)
     }
 
     return val;
+}
+
+static gboolean ot_uart_watch_cb(void *do_not_use, GIOCondition cond,
+                                 void *opaque)
+{
+    OtUARTState *s = opaque;
+
+    s->watch_tag = 0;
+    ot_uart_xmit(s);
+
+    return FALSE;
 }
 
 static uint64_t ot_uart_get_baud(OtUARTState *s)
@@ -424,6 +471,26 @@ static uint64_t ot_uart_read(void *opaque, hwaddr addr, unsigned int size)
         break;
 
     case R_VAL:
+        /*
+         * This is not trivially implemented due to the QEMU UART
+         * interface. There is no way to reliably sample or oversample
+         * given our emulated interface, but some software might poll the
+         * value of this register to determine break conditions.
+         *
+         * As such, default to reporting 16 of the last sample received
+         * instead. This defaults to 16 idle high samples (as a stop bit is
+         * always the last received), except for when the `oversample-break`
+         * property is set and a break condition is received over UART RX,
+         * where we then show 16 low samples until the next valid UART
+         * transmission is received (or break is toggled off with the
+         * `toggle-break` property enabled). This will not be accurate, but
+         * should be sufficient to support basic software flows that
+         * essentially use UART break as a strapping mechanism.
+         */
+        retvalue = (s->in_break && s->oversample_break) ? 0u : UINT16_MAX;
+        qemu_log_mask(LOG_UNIMP, "%s: VAL only shows idle%s\n", __func__,
+                      (s->oversample_break ? "/break" : ""));
+        break;
     case R_OVRD:
     case R_TIMEOUT_CTRL:
         retvalue = s->regs[reg];
@@ -607,7 +674,26 @@ static const VMStateDescription vmstate_ot_uart = {
 
 static const Property ot_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", OtUARTState, chr),
+    DEFINE_PROP_BOOL("oversample-break", OtUARTState, oversample_break, false),
+    DEFINE_PROP_BOOL("toggle-break", OtUARTState, toggle_break, false),
 };
+
+static int ot_uart_fe_change(void *opaque)
+{
+    OtUARTState *s = opaque;
+
+    qemu_chr_fe_set_handlers(&s->chr, ot_uart_can_receive, ot_uart_receive,
+                             ot_uart_event_handler, ot_uart_fe_change, s, NULL,
+                             true);
+
+    if (s->watch_tag > 0) {
+        g_source_remove(s->watch_tag);
+        s->watch_tag = qemu_chr_fe_add_watch(&s->chr, G_IO_OUT | G_IO_HUP,
+                                             ot_uart_watch_cb, s);
+    }
+
+    return 0;
+}
 
 static void ot_uart_init(Object *obj)
 {
@@ -644,9 +730,9 @@ static void ot_uart_realize(DeviceState *dev, Error **errp)
     fifo8_create(&s->tx_fifo, OT_UART_TX_FIFO_SIZE);
     fifo8_create(&s->rx_fifo, OT_UART_RX_FIFO_SIZE);
 
-    qemu_chr_fe_set_handlers(&s->chr, ot_uart_can_receive,
-                             ot_uart_receive, NULL, NULL,
-                             s, NULL, true);
+    qemu_chr_fe_set_handlers(&s->chr, ot_uart_can_receive, ot_uart_receive,
+                             ot_uart_event_handler, ot_uart_fe_change, s, NULL,
+                             true);
 }
 
 static void ot_uart_class_init(ObjectClass *klass, const void *data)
