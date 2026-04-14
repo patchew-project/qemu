@@ -758,6 +758,49 @@ TRANS(FTINT_U,  trans_msa_2rf, gen_helper_msa_ftint_u_df);
 TRANS(FFINT_S,  trans_msa_2rf, gen_helper_msa_ffint_s_df);
 TRANS(FFINT_U,  trans_msa_2rf, gen_helper_msa_ffint_u_df);
 
+static bool trans_LD(DisasContext *ctx, arg_msa_i *a)
+{
+    TCGv_va addr;
+    TCGv_i128 d16;
+    MemOp mop;
+    int d0 = a->wd << 1;
+    int d1 = d0 + 1;
+
+    if (!check_msa_enabled(ctx)) {
+        return true;
+    }
+
+    addr = tcgv_va_temp_new();
+    gen_base_offset_addr(ctx, addr, a->ws, a->sa << a->df);
+
+    mop = MO_128 | MO_LE;
+    if (a->df == 0) {
+        mop |= MO_ATOM_NONE;
+    } else if (a->df == 3) {
+        mop |= MO_ATOM_IFALIGN_PAIR;
+    } else {
+        mop |= MO_ATOM_SUBALIGN; /* slightly stronger than required */
+    }
+    mop |= a->df << MO_ASHIFT; /* MO_ALIGN */
+
+    d16 = tcg_temp_new_i128();
+    tcg_gen_qemu_ld_i128(d16, addr, ctx->mem_idx, mop);
+
+    tcg_gen_st_i128(d16, tcg_env, offsetof(CPUMIPSState, active_fpu.fpr[d0]));
+
+    if (mo_endian(ctx) != MO_LE) {
+        if (a->df == 1) {
+            tcg_gen_hswap_i64(msa_wr_d[d0], msa_wr_d[d0]);
+            tcg_gen_hswap_i64(msa_wr_d[d1], msa_wr_d[d1]);
+        } else if (a->df == 2) {
+            tcg_gen_wswap_i64(msa_wr_d[d0], msa_wr_d[d0]);
+            tcg_gen_wswap_i64(msa_wr_d[d1], msa_wr_d[d1]);
+        }
+    }
+
+    return true;
+}
+
 static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a,
                            gen_helper_piv *gen_msa_ldst)
 {
@@ -775,7 +818,6 @@ static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a,
     return true;
 }
 
-TRANS_DF_iv(LD, trans_msa_ldst, gen_helper_msa_ld);
 TRANS_DF_iv(ST, trans_msa_ldst, gen_helper_msa_st);
 
 static bool trans_LSA(DisasContext *ctx, arg_r *a)
