@@ -98,9 +98,21 @@ target_ulong helper_csrrd_msgir(CPULoongArchState *env)
 target_ulong helper_csrwr_estat(CPULoongArchState *env, target_ulong val)
 {
     int64_t old_v = env->CSR_ESTAT;
+    CPUState *cs = env_cpu(env);
 
     /* Only IS[1:0] can be written */
     env->CSR_ESTAT = deposit64(env->CSR_ESTAT, 0, 2, val);
+
+    /*
+     * Software interrupts (SWI0/SWI1) are latched in CSR.ESTAT.IS[1:0].
+     * Make sure the CPU interrupt request state tracks the pending bits,
+     * matching the behavior of loongarch_cpu_set_irq().
+     */
+    if (FIELD_EX64(env->CSR_ESTAT, CSR_ESTAT, IS)) {
+        bql_lock();
+        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+        bql_unlock();
+    }
 
     return old_v;
 }
