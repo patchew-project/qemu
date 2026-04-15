@@ -212,7 +212,7 @@ void vfio_legacy_cpr_unregister_container(VFIOLegacyContainer *container)
 void vfio_cpr_giommu_remap(VFIOContainer *bcontainer,
                            MemoryRegionSection *section)
 {
-    VFIOGuestIOMMU *giommu = NULL;
+    VFIOGuestIOMMU *giommu;
     hwaddr as_offset = section->offset_within_address_space;
     hwaddr iommu_offset = as_offset - section->offset_within_region;
 

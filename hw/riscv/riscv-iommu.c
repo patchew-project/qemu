@@ -1681,7 +1681,7 @@ static void riscv_iommu_ats(RISCVIOMMUState *s,
     IOMMUAccessFlags perm,
     void (*trace_fn)(const char *id))
 {
-    RISCVIOMMUSpace *as = NULL;
+    RISCVIOMMUSpace *as;
     IOMMUNotifier *n;
     IOMMUTLBEvent event;
     uint32_t pid;

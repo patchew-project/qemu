@@ -337,7 +337,7 @@ static void vfio_ram_discard_unregister_listener(VFIOContainer *bcontainer,
                                                  MemoryRegionSection *section)
 {
     RamDiscardManager *rdm = memory_region_get_ram_discard_manager(section->mr);
-    VFIORamDiscardListener *vrdl = NULL;
+    VFIORamDiscardListener *vrdl;
 
     QLIST_FOREACH(vrdl, &bcontainer->vrdl_list, next) {
         if (vrdl->mr == section->mr &&
@@ -467,7 +467,7 @@ static void vfio_device_error_append(VFIODevice *vbasedev, Error **errp)
 VFIORamDiscardListener *vfio_find_ram_discard_listener(
     VFIOContainer *bcontainer, MemoryRegionSection *section)
 {
-    VFIORamDiscardListener *vrdl = NULL;
+    VFIORamDiscardListener *vrdl;
 
     QLIST_FOREACH(vrdl, &bcontainer->vrdl_list, next) {
         if (vrdl->mr == section->mr &&
