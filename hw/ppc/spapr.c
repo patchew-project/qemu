@@ -3685,7 +3685,7 @@ struct SpaprDimmState {
 static SpaprDimmState *spapr_pending_dimm_unplugs_find(SpaprMachineState *s,
                                                        PCDIMMDevice *dimm)
 {
-    SpaprDimmState *dimm_state = NULL;
+    SpaprDimmState *dimm_state;
 
     QTAILQ_FOREACH(dimm_state, &s->pending_dimm_unplugs, next) {
         if (dimm_state->dimm == dimm) {

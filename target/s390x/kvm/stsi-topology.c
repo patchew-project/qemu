@@ -285,7 +285,7 @@ static void s390_topology_fill_list_sorted(S390TopologyList *topology_list)
  */
 static void s390_topology_empty_list(S390TopologyList *topology_list)
 {
-    S390TopologyEntry *entry = NULL;
+    S390TopologyEntry *entry;
     S390TopologyEntry *tmp = NULL;
 
     QTAILQ_FOREACH_SAFE(entry, topology_list, next, tmp) {
