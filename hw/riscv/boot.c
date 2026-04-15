@@ -518,6 +518,27 @@ void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState *harts
                                  kernel_entry);
 }
 
+/* Simple payload so OpenSBI does not hang early with no output */
+void riscv_setup_halting_payload(MachineState *machine,
+                                 RISCVBootInfo *info, hwaddr addr)
+{
+    int i;
+    uint32_t payload_vec[] = {
+        0x10500073,                     /* 1: wfi           */
+        0xffdff06f,                     /* j       1b       */
+    };
+    /* copy in the payload vector in little_endian byte order */
+    for (i = 0; i < ARRAY_SIZE(payload_vec); i++) {
+        payload_vec[i] = cpu_to_le32(payload_vec[i]);
+    }
+    rom_add_blob_fixed_as("mrom.payload", payload_vec, sizeof(payload_vec),
+                          addr, &address_space_memory);
+
+    info->kernel_size = sizeof(payload_vec);
+    info->image_low_addr = addr;
+    info->image_high_addr = info->image_low_addr + info->kernel_size;
+}
+
 void riscv_setup_direct_kernel(hwaddr kernel_addr, hwaddr fdt_addr)
 {
     CPUState *cs;
