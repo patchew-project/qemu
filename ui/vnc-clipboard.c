@@ -281,8 +281,8 @@ void vnc_client_cut_text_ext(VncState *vs, int32_t len, uint32_t flags, uint8_t 
         if ((flags & VNC_CLIPBOARD_TEXT) &&
             buf && size >= 4) {
             uint32_t tsize = read_u32(buf, 0);
-            uint8_t *tbuf = buf + 4;
-            if (tsize < size) {
+            uint8_t *tbuf = buf + sizeof(tsize);
+            if (tsize <= size - sizeof(tsize)) {
                 qemu_clipboard_set_data(&vs->cbpeer, vs->cbinfo,
                                         QEMU_CLIPBOARD_TYPE_TEXT,
                                         tsize, tbuf, true);
