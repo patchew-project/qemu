@@ -304,6 +304,42 @@ void qmp_blockdev_insert_medium(const char *id, const char *node_name,
     blockdev_insert_medium(NULL, id, node_name, errp);
 }
 
+void qmp_blockdev_attach(const char *id, const char *node_name,
+                         Error **errp)
+{
+    BlockBackend *blk;
+    BlockDriverState *bs;
+    int ret;
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+    blk = qmp_get_blk(NULL, id, errp);
+    if (!blk) {
+        return;
+    }
+
+    if (blk_bs(blk)) {
+        error_setg(errp, "Device already has a medium inserted");
+        return;
+    }
+
+    bs = bdrv_find_node(node_name);
+    if (!bs) {
+        error_setg(errp, "Node '%s' not found", node_name);
+        return;
+    }
+
+    if (bdrv_has_blk(bs)) {
+        error_setg(errp, "Node '%s' is already in use", node_name);
+        return;
+    }
+
+    ret = blk_insert_bs(blk, bs, errp);
+    if (ret < 0) {
+        return;
+    }
+}
+
 void qmp_blockdev_change_medium(const char *device,
                                 const char *id,
                                 const char *filename,

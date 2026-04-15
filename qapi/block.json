@@ -296,6 +296,39 @@
             'node-name': 'str'} }
 
 ##
+# @blockdev-attach:
+#
+# Attach a block driver state tree to a device's block backend.
+# Unlike blockdev-insert-medium, this works for non-removable
+# devices such as NVMe namespaces.  The device must currently have
+# no medium inserted (e.g. after drive_del removed the backing).
+#
+# @id: The name or QOM path of the guest device
+#
+# @node-name: name of a node in the block driver state graph
+#
+# Since: 11.1
+#
+# .. qmp-example::
+#
+#     -> { "execute": "blockdev-add",
+#          "arguments": {
+#              "node-name": "node0",
+#              "driver": "qcow2",
+#              "file": { "driver": "file",
+#                        "filename": "disk.qcow2" } } }
+#     <- { "return": {} }
+#
+#     -> { "execute": "blockdev-attach",
+#          "arguments": { "id": "ns0",
+#                         "node-name": "node0" } }
+#     <- { "return": {} }
+##
+{ 'command': 'blockdev-attach',
+  'data': { 'id': 'str',
+            'node-name': 'str'} }
+
+##
 # @BlockdevChangeReadOnlyMode:
 #
 # Specifies the new read-only mode of a block device subject to the

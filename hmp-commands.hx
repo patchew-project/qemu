@@ -208,6 +208,22 @@ SRST
 ERST
 
     {
+        .name       = "blockdev-attach",
+        .args_type  = "id:s,node-name:s",
+        .params     = "id node-name",
+        .help       = "attach a block node to a device (non-removable)",
+        .cmd        = hmp_blockdev_attach,
+    },
+
+SRST
+``blockdev-attach`` *id* *node-name*
+  Attach a block driver state tree (created with ``blockdev-add``) to a
+  device's block backend. Unlike ``blockdev-insert-medium``, this works
+  for non-removable devices such as NVMe namespaces. The device must
+  have no medium inserted (e.g. after ``drive_del``).
+ERST
+
+    {
         .name       = "change",
         .args_type  = "device:B,force:-f,target:F,arg:s?,read-only-mode:s?",
         .params     = "device [-f] filename [format [read-only-mode]]",

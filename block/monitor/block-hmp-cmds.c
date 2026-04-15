@@ -195,6 +195,16 @@ unlock:
     hmp_handle_error(mon, err);
 }
 
+void hmp_blockdev_attach(Monitor *mon, const QDict *qdict)
+{
+    const char *id = qdict_get_str(qdict, "id");
+    const char *node_name = qdict_get_str(qdict, "node-name");
+    Error *err = NULL;
+
+    qmp_blockdev_attach(id, node_name, &err);
+    hmp_handle_error(mon, err);
+}
+
 void hmp_commit(Monitor *mon, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
