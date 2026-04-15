@@ -131,6 +131,7 @@ struct virtio_gpu_base_conf {
     uint32_t flags;
     uint32_t xres;
     uint32_t yres;
+    uint32_t refresh_rate;
     uint64_t hostmem;
     VirtIOGPUOutputList *outputs;
 };
@@ -176,7 +177,8 @@ struct VirtIOGPUBaseClass {
     DEFINE_PROP_BIT("edid", _state, _conf.flags, \
                     VIRTIO_GPU_FLAG_EDID_ENABLED, true), \
     DEFINE_PROP_UINT32("xres", _state, _conf.xres, 1280), \
-    DEFINE_PROP_UINT32("yres", _state, _conf.yres, 800)
+    DEFINE_PROP_UINT32("yres", _state, _conf.yres, 800), \
+    DEFINE_PROP_UINT32("refresh_rate", _state, _conf.refresh_rate, 75000)
 
 typedef struct VGPUDMABuf {
     QemuDmaBuf *buf;
