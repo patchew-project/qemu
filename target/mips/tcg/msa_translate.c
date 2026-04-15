@@ -822,6 +822,10 @@ static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a, bool is_load)
             gen_bswap32x2_i64(d0, d0);
             gen_bswap32x2_i64(d1, d1);
             break;
+        case 3:
+            tcg_gen_bswap64_i64(d0, d0);
+            tcg_gen_bswap64_i64(d1, d1);
+            break;
         }
     }
 
