@@ -785,8 +785,8 @@ static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a, bool is_load)
         MO_ATOM_NONE,
         MO_ATOM_SUBALIGN, /* Slightly stronger than required */
         MO_ATOM_SUBALIGN, /* Slightly stronger than required */
+        MO_ATOM_IFALIGN_PAIR
     };
-    TCGv_i32 wd;
     TCGv_i128 t16;
     TCGv_va addr;
     MemOp mop;
@@ -800,22 +800,6 @@ static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a, bool is_load)
 
     addr = tcgv_va_temp_new();
     gen_base_offset_addr(ctx, addr, a->ws, a->sa << a->df);
-
-    wd = tcg_constant_i32(a->wd);
-
-    if (is_load) {
-        switch (a->df) {
-        case 3:
-            gen_helper_msa_ld_d(tcg_env, wd, addr);
-            return true;
-        }
-    } else {
-        switch (a->df) {
-        case 3:
-            gen_helper_msa_st_d(tcg_env, wd, addr);
-            return true;
-        }
-    }
 
     t16 = tcg_temp_new_i128();
 
