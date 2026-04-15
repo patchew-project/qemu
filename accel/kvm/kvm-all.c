@@ -2575,6 +2575,13 @@ void kvm_irqchip_set_qemuirq_gsi(KVMState *s, qemu_irq irq, int gsi)
     g_hash_table_insert(s->gsimap, irq, GINT_TO_POINTER(gsi));
 }
 
+/**
+ * do_kvm_irqchip_create - create irqchip
+ * @s: The KVMState pointer
+ *
+ * Returns: -errno on fatal errors, 0 on success and
+ *          non-negative on non-fatal errors.
+ */
 static int do_kvm_irqchip_create(KVMState *s)
 {
     int ret;
@@ -2583,32 +2590,34 @@ static int do_kvm_irqchip_create(KVMState *s)
     } else if (kvm_check_extension(s, KVM_CAP_S390_IRQCHIP)) {
         ret = kvm_vm_enable_cap(s, KVM_CAP_S390_IRQCHIP, 0);
         if (ret < 0) {
-            fprintf(stderr, "Enable kernel irqchip failed: %s\n", strerror(-ret));
-            exit(1);
+            error_report("Enable kernel irqchip failed: %s", strerror(-ret));
+            return ret;
         }
     } else {
-        return -EOPNOTSUPP;
+        /*
+         * neither KVM_CAP_IRQCHIP nor KVM_CAP_S390_IRQCHIP capabilities are
+         * present. We can't proceed. Bail.
+         */
+        return 1;
     }
 
-    if (kvm_check_extension(s, KVM_CAP_IRQFD) <= 0) {
-        fprintf(stderr, "kvm: irqfd not implemented\n");
-        exit(1);
-    }
+    assert(kvm_check_extension(s, KVM_CAP_IRQFD));
 
     /* First probe and see if there's a arch-specific hook to create the
      * in-kernel irqchip for us */
     ret = kvm_arch_irqchip_create(s);
     if (ret == 0) {
-        if (s->kernel_irqchip_split == ON_OFF_AUTO_ON) {
-            error_report("Split IRQ chip mode not supported.");
-            exit(1);
-        } else {
-            ret = kvm_vm_ioctl(s, KVM_CREATE_IRQCHIP);
-        }
+        /*
+         * If we are here, it means we are going to do an in-kernel irqchip.
+         * Lets make sure that the kernel_irqchip_split setting is not set to
+         * split mode.
+         */
+        assert(s->kernel_irqchip_split != ON_OFF_AUTO_ON);
+        ret = kvm_vm_ioctl(s, KVM_CREATE_IRQCHIP);
     }
     if (ret < 0) {
-        fprintf(stderr, "Create kernel irqchip failed: %s\n", strerror(-ret));
-        exit(1);
+        error_report("Create kernel irqchip failed: %s", strerror(-ret));
+        return ret;
     }
 
     return 0;
@@ -2616,9 +2625,13 @@ static int do_kvm_irqchip_create(KVMState *s)
 
 static void kvm_irqchip_create(KVMState *s)
 {
+    int ret;
     assert(s->kernel_irqchip_split != ON_OFF_AUTO_AUTO);
 
-    if (do_kvm_irqchip_create(s) < 0) {
+    ret = do_kvm_irqchip_create(s);
+    assert(ret >= 0);
+    if (ret) {
+        /* required kvm capabilities missing, we can't proceed. */
         return;
     }
     kvm_kernel_irqchip = true;
@@ -2839,8 +2852,7 @@ static int kvm_reset_vmfd(MachineState *ms)
     }
 
     if (s->kernel_irqchip_allowed) {
-        /* ignore return from this function */
-        do_kvm_irqchip_create(s);
+        assert(do_kvm_irqchip_create(s) >= 0);
     }
 
     /*
