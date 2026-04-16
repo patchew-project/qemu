@@ -7,6 +7,7 @@ scsi_ss.add(files(
   'scsi-bus.c',
   'scsi-disk.c',
   'scsi-generic.c',
+  'scsi-tape.c',
 ))
 scsi_ss.add(when: 'CONFIG_ESP', if_true: files('esp.c'))
 scsi_ss.add(when: 'CONFIG_ESP_PCI', if_true: files('esp-pci.c'))
