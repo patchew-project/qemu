@@ -46,6 +46,7 @@
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/clone-visitor.h"
 #include "qapi/qapi-builtin-visit.h"
+#include "qapi/qapi-visit-migration.h"
 #include "qemu/error-report.h"
 #include "system/cpus.h"
 #include "system/memory.h"
@@ -262,6 +263,9 @@ typedef struct SaveState {
     MigrationCapability *capabilities;
     QemuUUID uuid;
 } SaveState;
+
+/* Per-device save times recorded */
+static DeviceSaveStateTimeList *savevm_device_state_times;
 
 static SaveState savevm_state = {
     .handlers = QTAILQ_HEAD_INITIALIZER(savevm_state.handlers),
@@ -1710,10 +1714,17 @@ int qemu_savevm_state_non_iterable(QEMUFile *f, Error **errp)
     int64_t start_ts_each, end_ts_each;
     JSONWriter *vmdesc = ms->vmdesc;
     SaveStateEntry *se;
+    DeviceSaveStateTimeList **tail;
+    int64_t save_time;
     int ret;
 
     /* Making sure cpu states are synchronized before saving non-iterable */
     cpu_synchronize_all_states();
+
+    /* Reset list from any previous migration run */
+    qapi_free_DeviceSaveStateTimeList(savevm_device_state_times);
+    savevm_device_state_times = NULL;
+    tail = &savevm_device_state_times;
 
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (se->vmsd && se->vmsd->early_setup) {
@@ -1731,6 +1742,14 @@ int qemu_savevm_state_non_iterable(QEMUFile *f, Error **errp)
         end_ts_each = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
         trace_vmstate_downtime_save("non-iterable", se->idstr, se->instance_id,
                                     end_ts_each - start_ts_each);
+        save_time = end_ts_each - start_ts_each;
+        if (se->vmsd && save_time > 0) {
+            DeviceSaveStateTime *dsst = g_new0(DeviceSaveStateTime, 1);
+            dsst->name = g_strdup(se->idstr);
+            dsst->instance_id = se->instance_id;
+            dsst->save_time = save_time;
+            QAPI_LIST_APPEND(tail, dsst);
+        }
     }
 
     trace_vmstate_downtime_checkpoint("src-non-iterable-saved");
@@ -3175,6 +3194,16 @@ bool qemu_loadvm_load_state_buffer(const char *idstr, uint32_t instance_id,
     }
 
     return se->ops->load_state_buffer(se->opaque, buf, len, errp);
+}
+
+void qemu_savevm_get_device_state_times(MigrationInfo *info)
+{
+    if (!savevm_device_state_times) {
+        return;
+    }
+    info->device_state_times = QAPI_CLONE(DeviceSaveStateTimeList,
+                                          savevm_device_state_times);
+    info->has_device_state_times = true;
 }
 
 bool save_snapshot(const char *name, bool overwrite, const char *vmstate,

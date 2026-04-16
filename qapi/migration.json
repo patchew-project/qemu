@@ -201,6 +201,23 @@
   'data': {'transferred': 'int' } }
 
 ##
+# @DeviceSaveStateTime:
+#
+# Save time information for a single device's state during migration.
+#
+# @name: device name as registered in the migration stream
+#
+# @instance-id: device instance ID
+#
+# @save-time: time in microseconds spent saving this device's state
+#     during the stop-and-copy phase
+#
+# Since: 10.2
+##
+{ 'struct': 'DeviceSaveStateTime',
+  'data': { 'name': 'str', 'instance-id': 'uint32', 'save-time': 'uint64' } }
+
+##
 # @MigrationInfo:
 #
 # Information about current migration process.
@@ -300,6 +317,12 @@
 #     average memory load of the virtual CPU indirectly.  Note that
 #     zero means guest doesn't dirty memory.  (Since 8.1)
 #
+# @device-state-times: list of per-device state save times recorded
+#     during the stop-and-copy phase.  Only present after a completed
+#     migration.  Entries with zero save time are omitted.  Useful for
+#     diagnosing which devices contribute most to migration downtime.
+#     (Since 10.2)
+#
 # Features:
 #
 # @unstable: Members @postcopy-latency, @postcopy-vcpu-latency,
@@ -331,7 +354,8 @@
                'type': 'uint64', 'features': [ 'unstable' ] },
            '*socket-address': ['SocketAddress'],
            '*dirty-limit-throttle-time-per-round': 'uint64',
-           '*dirty-limit-ring-full-time': 'uint64'} }
+           '*dirty-limit-ring-full-time': 'uint64',
+           '*device-state-times': ['DeviceSaveStateTime']} }
 
 ##
 # @query-migrate:

@@ -1161,6 +1161,7 @@ static void fill_source_migration_info(MigrationInfo *info)
         populate_time_info(info, s);
         populate_ram_info(info, s);
         migration_populate_vfio_info(info);
+        qemu_savevm_get_device_state_times(info);
         break;
     case MIGRATION_STATUS_FAILED:
         info->has_status = true;

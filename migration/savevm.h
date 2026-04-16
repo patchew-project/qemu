@@ -14,6 +14,8 @@
 #ifndef MIGRATION_SAVEVM_H
 #define MIGRATION_SAVEVM_H
 
+#include "qapi/qapi-types-migration.h"
+
 #define QEMU_VM_FILE_MAGIC           0x5145564d
 #define QEMU_VM_FILE_VERSION_COMPAT  0x00000002
 #define QEMU_VM_FILE_VERSION         0x00000003
@@ -78,5 +80,6 @@ int qemu_savevm_state_non_iterable_early(QEMUFile *f,
                                          Error **errp);
 bool qemu_loadvm_load_state_buffer(const char *idstr, uint32_t instance_id,
                                    char *buf, size_t len, Error **errp);
+void qemu_savevm_get_device_state_times(MigrationInfo *info);
 
 #endif
