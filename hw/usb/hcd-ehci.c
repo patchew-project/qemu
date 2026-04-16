@@ -1756,17 +1756,6 @@ static int ehci_state_fetchsitd(EHCIState *ehci, int async)
 /* Section 4.10.2 - paragraph 3 */
 static int ehci_state_advqueue(EHCIQueue *q)
 {
-#if 0
-    /* TO-DO: 4.10.2 - paragraph 2
-     * if I-bit is set to 1 and QH is not active
-     * go to horizontal QH
-     */
-    if (I-bit set) {
-        ehci_set_state(ehci, async, EST_HORIZONTALQH);
-        goto out;
-    }
-#endif
-
     /*
      * want data and alt-next qTD is valid
      */
