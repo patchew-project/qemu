@@ -690,10 +690,9 @@ static void gen_andi16(DisasContext *ctx)
 }
 
 static void gen_ldst_multiple(DisasContext *ctx, uint32_t opc, int reglist,
-                              int base, int16_t offset)
+                              int base, int16_t offset, MemOp mop)
 {
     TCGv t0, t1;
-    MemOp mop = MO_UNALN;
     MemOpIdx oi;
 
     if (ctx->hflags & MIPS_HFLAG_BMASK) {
@@ -772,7 +771,7 @@ static void gen_pool16c_insn(DisasContext *ctx)
             int offset = ZIMM(ctx->opcode, 0, 4);
 
             gen_ldst_multiple(ctx, LWM32, lwm_convert[(ctx->opcode >> 4) & 0x3],
-                              29, offset << 2);
+                              29, offset << 2, MO_ALIGN);
         }
         break;
     case SWM16 + 0:
@@ -784,7 +783,7 @@ static void gen_pool16c_insn(DisasContext *ctx)
             int offset = ZIMM(ctx->opcode, 0, 4);
 
             gen_ldst_multiple(ctx, SWM32, swm_convert[(ctx->opcode >> 4) & 0x3],
-                              29, offset << 2);
+                              29, offset << 2, MO_ALIGN);
         }
         break;
     case JR16 + 0:
@@ -887,7 +886,8 @@ static void gen_pool16c_r6_insn(DisasContext *ctx)
         {
             int lwm_converted = 0x11 + extract32(ctx->opcode, 8, 2);
             int offset = extract32(ctx->opcode, 4, 4);
-            gen_ldst_multiple(ctx, LWM32, lwm_converted, 29, offset << 2);
+            gen_ldst_multiple(ctx, LWM32, lwm_converted, 29, offset << 2,
+                              MO_UNALN);
         }
         break;
     case R6_JRC16: /* JRCADDIUSP */
@@ -927,7 +927,8 @@ static void gen_pool16c_r6_insn(DisasContext *ctx)
         {
             int swm_converted = 0x11 + extract32(ctx->opcode, 8, 2);
             int offset = extract32(ctx->opcode, 4, 4);
-            gen_ldst_multiple(ctx, SWM32, swm_converted, 29, offset << 2);
+            gen_ldst_multiple(ctx, SWM32, swm_converted, 29, offset << 2,
+                              MO_UNALN);
         }
         break;
     case JALRC16: /* BREAK16, SDBBP16 */
@@ -1861,7 +1862,8 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
             /* fall through */
         case LWM32:
         case SWM32:
-            gen_ldst_multiple(ctx, minor, rt, rs, SIMM(ctx->opcode, 0, 12));
+            gen_ldst_multiple(ctx, minor, rt, rs, SIMM(ctx->opcode, 0, 12),
+                              MO_ALIGN);
             break;
         default:
             MIPS_INVAL("pool32b");
