@@ -2716,8 +2716,7 @@ F: docs/system/guest-loader.rst
 F: tests/functional/aarch64/test_xen.py
 
 Intel Hexadecimal Object File Loader
-M: Su Hang <suhang16@mails.ucas.ac.cn>
-S: Maintained
+S: Orphan
 F: tests/qtest/hexloader-test.c
 F: tests/data/hex-loader/test.hex
 
