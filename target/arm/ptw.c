@@ -510,6 +510,11 @@ bool arm_granule_protection_check(ARMGranuleProtectionConfig config,
         break;
     case 0b1111: /* all access */
         return true;
+    case 0b0100: /* system agent only */
+    case 0b0101: /* non-secure protected */
+        /* System Agent and Non-secure Protected are GDI extensions. */
+        /* No processing element should have access to these. */
+        goto fault_walk;
     case 0b1000: /* secure */
         if (!config.support_sel2) {
             goto fault_walk;
