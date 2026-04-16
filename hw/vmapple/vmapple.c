@@ -32,7 +32,6 @@
 #include "hw/core/sysbus.h"
 #include "hw/usb/usb.h"
 #include "hw/arm/boot.h"
-#include "hw/arm/primecell.h"
 #include "hw/char/pl011.h"
 #include "hw/intc/arm_gic.h"
 #include "hw/intc/arm_gicv3_common.h"
