@@ -1,6 +1,11 @@
 config SCSI
     bool
 
+config SCSI_TAPE
+    bool
+    default y
+    depends on SCSI
+
 config LSI_SCSI_PCI
     bool
     default y if PCI_DEVICES
