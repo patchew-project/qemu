@@ -66,6 +66,9 @@ typedef struct CryptoDevBackendLKCFSession {
     size_t keylen;
     QCryptoAkCipherKeyType keytype;
     QCryptoAkCipherOptions akcipher_opts;
+    int in_use;  /* number of tasks currently using this session */
+    /* session close requested, waiting for in_use to become 0 */
+    bool pending_close;
 } CryptoDevBackendLKCFSession;
 
 typedef struct CryptoDevLKCFTask CryptoDevLKCFTask;
@@ -428,6 +431,18 @@ out:
     if (key_id >= 0) {
         keyctl_unlink(key_id, KCTL_KEY_RING);
     }
+
+    /*
+     * Decrement session in_use counter and signal if session is pending close.
+     * This allows close_session to proceed after all tasks complete.
+     */
+    qemu_mutex_lock(&task->lkcf->mutex);
+    task->sess->in_use--;
+    if (task->sess->pending_close && task->sess->in_use == 0) {
+        qemu_cond_broadcast(&task->lkcf->cond);
+    }
+    qemu_mutex_unlock(&task->lkcf->mutex);
+
     task->status = status;
 
     qemu_mutex_lock(&task->lkcf->rsp_mutex);
@@ -500,7 +515,24 @@ static int cryptodev_lkcf_operation(
     task->lkcf = lkcf;
     task->status = -VIRTIO_CRYPTO_ERR;
 
+    /*
+     * Increment session in_use counter before adding task to queue.
+     * This prevents the session from being freed while a task is pending.
+     */
     qemu_mutex_lock(&lkcf->mutex);
+    sess->in_use++;
+
+    /*
+     * Check if session is pending close - if so, reject this operation
+     * to avoid potential use-after-free.
+     */
+    if (sess->pending_close) {
+        sess->in_use--;
+        qemu_mutex_unlock(&lkcf->mutex);
+        error_report("Session %" PRIu64 " is closing", op_info->session_id);
+        g_free(task);
+        return -VIRTIO_CRYPTO_INVSESS;
+    }
     QSIMPLEQ_INSERT_TAIL(&lkcf->requests, task, queue);
     qemu_mutex_unlock(&lkcf->mutex);
     qemu_cond_signal(&lkcf->cond);
@@ -606,8 +638,30 @@ static int cryptodev_lkcf_close_session(CryptoDevBackend *backend,
     CryptoDevBackendLKCFSession *session;
 
     assert(session_id < MAX_SESSIONS && lkcf->sess[session_id]);
+
+    qemu_mutex_lock(&lkcf->mutex);
     session = lkcf->sess[session_id];
+
+    /*
+     * Mark session as pending close. New operations using this session
+     * will be rejected. We hold the mutex until in_use becomes 0 to
+     * prevent race conditions.
+     */
+    session->pending_close = true;
+
+    /*
+     * Wait for all in-flight tasks using this session to complete.
+     * The worker thread decrements in_use after task execution.
+     */
+    while (session->in_use > 0) {
+        qemu_cond_wait(&lkcf->cond, &lkcf->mutex);
+    }
+
+    /*
+     * Now safe to remove session and free resources.
+     */
     lkcf->sess[session_id] = NULL;
+    qemu_mutex_unlock(&lkcf->mutex);
 
     g_free(session->key);
     g_free(session);
