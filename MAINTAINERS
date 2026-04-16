@@ -4382,8 +4382,7 @@ F: block/export/vduse-blk.c
 F: block/export/vduse-blk.h
 
 Replication
-M: Xie Changlong <xiechanglong.d@gmail.com>
-S: Supported
+S: Orphan
 F: replication*
 F: block/replication.c
 F: tests/unit/test-replication.c
