@@ -2038,7 +2038,7 @@ F: tests/functional/generic/test_empty_cpu_model.py
 F: tests/unit/test-smp-parse.c
 
 TargetInfo API
-M: Pierrick Bouvier <pierrick.bouvier@linaro.org>
+M: Pierrick Bouvier <pierrick.bouvier@oss.qualcomm.com>
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Supported
 F: include/qemu/target-info*.h
@@ -4075,7 +4075,7 @@ T: git https://github.com/qemu-bsd-user/qemu-bsd-user bsd-user-rebase-3.1
 
 Linux user
 M: Laurent Vivier <laurent@vivier.eu>
-R: Pierrick Bouvier <pierrick.bouvier@linaro.org>
+R: Pierrick Bouvier <pierrick.bouvier@oss.qualcomm.com>
 S: Odd Fixes
 F: linux-user/
 F: configs/targets/*linux-user.mak
@@ -4094,7 +4094,7 @@ F: include/tcg/
 
 TCG Plugins
 M: Alex Bennée <alex.bennee@linaro.org>
-M: Pierrick Bouvier <pierrick.bouvier@linaro.org>
+M: Pierrick Bouvier <pierrick.bouvier@oss.qualcomm.com>
 T: git https://gitlab.com/stsquad/qemu plugins/next
 R: Alexandre Iooss <erdnaxe@crans.org>
 R: Mahmoud Mandour <ma.mandourr@gmail.com>
@@ -4556,7 +4556,7 @@ L: devel@lists.libvirt.org
 F: docs/about/deprecated.rst
 
 General Documentation
-M: Pierrick Bouvier <pierrick.bouvier@linaro.org>
+M: Pierrick Bouvier <pierrick.bouvier@oss.qualcomm.com>
 S: Maintained
 F: docs/
 
