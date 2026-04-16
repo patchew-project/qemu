@@ -162,7 +162,12 @@ static uint64_t ehci_get_buf_addr(EHCIState *s, uint32_t hi, uint32_t low,
 
 static uint64_t ehci_get_desc_addr(EHCIState *s, uint32_t low)
 {
-    return ehci_get_buf_addr(s, s->ctrldssegment, low, UINT32_MAX);
+    uint64_t addr;
+
+    addr = ehci_get_buf_addr(s, s->ctrldssegment, low, UINT32_MAX);
+    addr += s->descriptor_addr_offset;
+
+    return addr;
 }
 
 static void ehci_trace_usbsts(uint32_t mask, int state)

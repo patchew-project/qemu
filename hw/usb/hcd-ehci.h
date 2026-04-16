@@ -264,6 +264,7 @@ struct EHCIState {
     /* properties */
     uint32_t maxframes;
     bool caps_64bit_addr;
+    uint64_t descriptor_addr_offset;
 
     /*
      *  EHCI spec version 1.0 Section 2.3
