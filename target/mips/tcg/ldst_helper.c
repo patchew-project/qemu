@@ -28,23 +28,32 @@
 #include "internal.h"
 
 #ifndef CONFIG_USER_ONLY
+#include "accel/tcg/probe.h"
+#include "exec/tlb-flags.h"
 
 #define HELPER_LD_ATOMIC(name, insn, almask, do_cast)                         \
 target_ulong helper_##name(CPUMIPSState *env, target_ulong arg,               \
                            uint32_t memop_idx)                                \
 {                                                                             \
-    MemOpIdx oi = memop_idx; \
-    unsigned mem_idx = get_mmuidx(oi); \
-    if (arg & almask) {                                                       \
+    MemOpIdx oi = memop_idx;                                                  \
+    unsigned mem_idx = get_mmuidx(oi);                                        \
+    unsigned size = memop_size(get_memop(oi));                                \
+    uintptr_t ra = GETPC();                                                   \
+    CPUTLBEntryFull *full;                                                    \
+    void *host_unused;                                                        \
+    int flags;                                                                \
+                                                                              \
+    env->llval = do_cast cpu_##insn##_mmu(env, arg, oi, ra);                  \
+    flags = probe_access_full(env, arg, size, MMU_DATA_LOAD, mem_idx,         \
+                              true, &host_unused, &full, ra);                 \
+    if (unlikely(flags & TLB_INVALID_MASK)) {                                 \
         if (!(env->hflags & MIPS_HFLAG_DM)) {                                 \
             env->CP0_BadVAddr = arg;                                          \
         }                                                                     \
         do_raise_exception(env, EXCP_AdEL, GETPC());                          \
     }                                                                         \
-    env->CP0_LLAddr = cpu_mips_translate_address(env, arg, MMU_DATA_LOAD,     \
-                                                 GETPC());                    \
+    env->CP0_LLAddr = full->phys_addr;                                        \
     env->lladdr = arg;                                                        \
-    env->llval = do_cast cpu_##insn##_mmuidx_ra(env, arg, mem_idx, GETPC());  \
     return env->llval;                                                        \
 }
 HELPER_LD_ATOMIC(ll, ldl, 0x3, (target_long)(int32_t))
