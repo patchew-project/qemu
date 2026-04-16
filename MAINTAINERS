@@ -4178,9 +4178,8 @@ S: Supported
 F: block/rbd.c
 
 VHDX
-M: Jeff Cody <codyprime@gmail.com>
 L: qemu-block@nongnu.org
-S: Odd Fixes
+S: Orphan
 F: block/vhdx*
 
 VDI
