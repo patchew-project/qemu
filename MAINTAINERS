@@ -4180,7 +4180,6 @@ S: Maintained
 F: block/blkio.c
 
 iSCSI
-M: Ronnie Sahlberg <ronniesahlberg@gmail.com>
 M: Paolo Bonzini <pbonzini@redhat.com>
 M: Peter Lieven <pl@dlhnet.de>
 L: qemu-block@nongnu.org
