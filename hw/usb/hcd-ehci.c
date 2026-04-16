@@ -1108,7 +1108,14 @@ static void ehci_opreg_write(void *ptr, hwaddr addr,
               "      is enabled and HC is enabled\n");
         }
         break;
-
+    case CTRLDSSEGMENT:
+        if (!s->caps_64bit_addr) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "ehci: write to CTRLDSSEGMENT while "
+                          "      64-bit addressing capability is disabled\n");
+            return;
+        }
+        break;
     case ASYNCLISTADDR:
         if (ehci_async_enabled(s)) {
             qemu_log_mask(LOG_GUEST_ERROR,
