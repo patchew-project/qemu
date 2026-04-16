@@ -1732,9 +1732,8 @@ F: include/hw/misc/mchp_pfsoc_ioscb.h
 F: include/hw/misc/mchp_pfsoc_sysreg.h
 
 Shakti C class SoC
-M: Vijai Kumar K <vijai@behindbytes.com>
 L: qemu-riscv@nongnu.org
-S: Supported
+S: Orphan
 F: docs/system/riscv/shakti-c.rst
 F: hw/riscv/shakti_c.c
 F: hw/char/shakti_uart.c
