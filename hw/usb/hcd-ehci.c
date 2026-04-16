@@ -41,21 +41,23 @@
 #define FRAME_TIMER_NS   (NANOSECONDS_PER_SECOND / FRAME_TIMER_FREQ)
 #define UFRAME_TIMER_NS  (FRAME_TIMER_NS / 8)
 
-#define NB_MAXINTRATE    8        // Max rate at which controller issues ints
-#define BUFF_SIZE        5*4096   // Max bytes to transfer per transaction
-#define MAX_QH           100      // Max allowable queue heads in a chain
+#define NB_MAXINTRATE    8      /* Max rate at which controller issues ints */
+#define BUFF_SIZE        (5 * 4096) /* Max bytes to transfer per transaction */
+#define MAX_QH           100      /* Max allowable queue heads in a chain */
 #define MIN_UFR_PER_TICK 24       /* Min frames to process when catching up */
 #define PERIODIC_ACTIVE  512      /* Micro-frames */
 
-/*  Internal periodic / asynchronous schedule state machine states
+/*
+ * Internal periodic / asynchronous schedule state machine states
  */
 typedef enum {
     EST_INACTIVE = 1000,
     EST_ACTIVE,
     EST_EXECUTING,
     EST_SLEEPING,
-    /*  The following states are internal to the state machine function
-    */
+    /*
+     * The following states are internal to the state machine function
+     */
     EST_WAITLISTHEAD,
     EST_FETCHENTRY,
     EST_FETCHQH,
@@ -71,13 +73,13 @@ typedef enum {
 /* macros for accessing fields within next link pointer entry */
 #define NLPTR_GET(x)             ((x) & 0xffffffe0)
 #define NLPTR_TYPE_GET(x)        (((x) >> 1) & 3)
-#define NLPTR_TBIT(x)            ((x) & 1)  // 1=invalid, 0=valid
+#define NLPTR_TBIT(x)            ((x) & 1)  /* 1=invalid, 0=valid */
 
 /* link pointer types */
-#define NLPTR_TYPE_ITD           0     // isoc xfer descriptor
-#define NLPTR_TYPE_QH            1     // queue head
-#define NLPTR_TYPE_STITD         2     // split xaction, isoc xfer descriptor
-#define NLPTR_TYPE_FSTN          3     // frame span traversal node
+#define NLPTR_TYPE_ITD           0     /* isoc xfer descriptor */
+#define NLPTR_TYPE_QH            1     /* queue head */
+#define NLPTR_TYPE_STITD         2     /* split xaction, isoc xfer descriptor */
+#define NLPTR_TYPE_FSTN          3     /* frame span traversal node */
 
 #define SET_LAST_RUN_CLOCK(s) \
     (s)->last_run_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -88,10 +90,10 @@ typedef enum {
 
 #define set_field(data, newval, field) do { \
     uint32_t val = *data; \
-    val &= ~ field##_MASK; \
+    val &= ~field##_MASK; \
     val |= ((newval) << field##_SH) & field##_MASK; \
     *data = val; \
-    } while(0)
+    } while (0)
 
 static const char *ehci_state_names[] = {
     [EST_INACTIVE]     = "INACTIVE",
@@ -472,8 +474,10 @@ static bool ehci_verify_pid(EHCIQueue *q, EHCIqtd *qtd)
     }
 }
 
-/* Finish executing and writeback a packet outside of the regular
-   fetchqh -> fetchqtd -> execute -> writeback cycle */
+/*
+ * Finish executing and writeback a packet outside of the regular
+ * fetchqh -> fetchqtd -> execute -> writeback cycle
+ */
 static void ehci_writeback_async_complete_packet(EHCIPacket *p)
 {
     EHCIQueue *q = p->queue;
@@ -733,7 +737,7 @@ static void ehci_detach(USBPort *port)
     ehci_queues_rip_device(s, port->dev, 0);
     ehci_queues_rip_device(s, port->dev, 1);
 
-    *portsc &= ~(PORTSC_CONNECT|PORTSC_PED|PORTSC_SUSPEND);
+    *portsc &= ~(PORTSC_CONNECT | PORTSC_PED | PORTSC_SUSPEND);
     *portsc |= PORTSC_CSC;
 
     ehci_raise_irq(s, USBSTS_PCD);
@@ -858,7 +862,7 @@ void ehci_reset(void *opaque)
      * Do the detach before touching portsc, so that it correctly gets send to
      * us or to our companion based on PORTSC_POWNER before the reset.
      */
-    for(i = 0; i < EHCI_PORTS; i++) {
+    for (i = 0; i < EHCI_PORTS; i++) {
         devs[i] = s->ports[i].dev;
         if (devs[i] && devs[i]->attached) {
             usb_detach(&s->ports[i]);
@@ -877,7 +881,7 @@ void ehci_reset(void *opaque)
     s->astate = EST_INACTIVE;
     s->pstate = EST_INACTIVE;
 
-    for(i = 0; i < EHCI_PORTS; i++) {
+    for (i = 0; i < EHCI_PORTS; i++) {
         if (s->companion_ports[i]) {
             s->portsc[i] = PORTSC_POWNER | PORTSC_PPOWER;
         } else {
@@ -942,8 +946,9 @@ static void handle_port_owner_write(EHCIState *s, int port, uint32_t owner)
     uint32_t *portsc = &s->portsc[port];
     uint32_t orig;
 
-    if (s->companion_ports[port] == NULL)
+    if (s->companion_ports[port] == NULL) {
         return;
+    }
 
     owner = owner & PORTSC_POWNER;
     orig  = *portsc & PORTSC_POWNER;
@@ -988,7 +993,7 @@ static void ehci_port_write(void *ptr, hwaddr addr,
         trace_usb_ehci_port_reset(port, 1);
     }
 
-    if (!(val & PORTSC_PRESET) &&(*portsc & PORTSC_PRESET)) {
+    if (!(val & PORTSC_PRESET) && (*portsc & PORTSC_PRESET)) {
         trace_usb_ehci_port_reset(port, 0);
         if (dev && dev->attached) {
             usb_port_reset(&s->ports[port]);
@@ -1065,8 +1070,10 @@ static void ehci_opreg_write(void *ptr, hwaddr addr,
         break;
 
     case USBSTS:
-        val &= USBSTS_RO_MASK;              // bits 6 through 31 are RO
-        ehci_clear_usbsts(s, val);          // bits 0 through 5 are R/WC
+        /* bits 6 through 31 are RO */
+        val &= USBSTS_RO_MASK;
+        /* bits 0 through 5 are R/WC */
+        ehci_clear_usbsts(s, val);
         val = s->usbsts;
         ehci_update_irq(s);
         break;
@@ -1131,8 +1138,7 @@ static void ehci_flush_qh(EHCIQueue *q)
     put_dwords(q->ehci, addr + 3 * sizeof(uint32_t), qh + 3, dwords - 3);
 }
 
-// 4.10.2
-
+/* 4.10.2 */
 static int ehci_qh_do_overlay(EHCIQueue *q)
 {
     EHCIPacket *p = QTAILQ_FIRST(&q->packets);
@@ -1145,8 +1151,7 @@ static int ehci_qh_do_overlay(EHCIQueue *q)
     assert(p != NULL);
     assert(p->qtdaddr == q->qtdaddr);
 
-    // remember values in fields to preserve in qh after overlay
-
+    /*  remember values in fields to preserve in qh after overlay */
     dtoggle = q->qh.token & QTD_TOKEN_DTOGGLE;
     ping    = q->qh.token & QTD_TOKEN_PING;
 
@@ -1170,7 +1175,7 @@ static int ehci_qh_do_overlay(EHCIQueue *q)
     }
 
     if (!(q->qh.epchar & QH_EPCHAR_DTC)) {
-        // preserve QH DT bit
+        /* preserve QH DT bit */
         q->qh.token &= ~QTD_TOKEN_DTOGGLE;
         q->qh.token |= dtoggle;
     }
@@ -1397,9 +1402,7 @@ static int ehci_execute(EHCIPacket *p, const char *action)
     return 1;
 }
 
-/*  4.7.2
- */
-
+/* 4.7.2 */
 static int ehci_process_itd(EHCIState *ehci,
                             EHCIitd *itd,
                             uint32_t addr)
@@ -1411,13 +1414,13 @@ static int ehci_process_itd(EHCIState *ehci,
 
     ehci->periodic_sched_active = PERIODIC_ACTIVE;
 
-    dir =(itd->bufptr[1] & ITD_BUFPTR_DIRECTION);
+    dir = (itd->bufptr[1] & ITD_BUFPTR_DIRECTION);
     devaddr = get_field(itd->bufptr[0], ITD_BUFPTR_DEVADDR);
     endp = get_field(itd->bufptr[0], ITD_BUFPTR_EP);
     max = get_field(itd->bufptr[1], ITD_BUFPTR_MAXPKT);
     mult = get_field(itd->bufptr[2], ITD_BUFPTR_MULT);
 
-    for(i = 0; i < 8; i++) {
+    for (i = 0; i < 8; i++) {
         if (itd->transact[i] & ITD_XACT_ACTIVE) {
             pg   = get_field(itd->transact[i], ITD_XACT_PGSEL);
             off  = itd->transact[i] & ITD_XACT_OFFSET_MASK;
@@ -1513,8 +1516,9 @@ static int ehci_process_itd(EHCIState *ehci,
 }
 
 
-/*  This state is the entry point for asynchronous schedule
- *  processing.  Entry here constitutes a EHCI start event state (4.8.5)
+/*
+ * This state is the entry point for asynchronous schedule
+ * processing.  Entry here constitutes a EHCI start event state (4.8.5)
  */
 static int ehci_state_waitlisthead(EHCIState *ehci,  int async)
 {
@@ -1531,7 +1535,7 @@ static int ehci_state_waitlisthead(EHCIState *ehci,  int async)
     ehci_queues_rip_unused(ehci, async);
 
     /*  Find the head of the list (4.9.1.1) */
-    for(i = 0; i < MAX_QH; i++) {
+    for (i = 0; i < MAX_QH; i++) {
         if (get_dwords(ehci, NLPTR_GET(entry), (uint32_t *) &qh,
                        sizeof(EHCIqh) >> 2) < 0) {
             return 0;
@@ -1564,8 +1568,9 @@ out:
 }
 
 
-/*  This state is the entry point for periodic schedule processing as
- *  well as being a continuation state for async processing.
+/*
+ * This state is the entry point for periodic schedule processing as
+ * well as being a continuation state for async processing.
  */
 static int ehci_state_fetchentry(EHCIState *ehci, int async)
 {
@@ -1674,7 +1679,7 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
 
 #if EHCI_DEBUG
     if (q->qhaddr != q->qh.next) {
-    DPRINTF("FETCHQH:  QH 0x%08x (h %x halt %x active %x) next 0x%08x\n",
+        DPRINTF("FETCHQH:  QH 0x%08x (h %x halt %x active %x) next 0x%08x\n",
                q->qhaddr,
                q->qh.epchar & QH_EPCHAR_H,
                q->qh.token & QTD_TOKEN_HALT,
@@ -1924,8 +1929,10 @@ static int ehci_state_execute(EHCIQueue *q)
         return -1;
     }
 
-    // TODO verify enough time remains in the uframe as in 4.4.1.1
-    // TODO write back ptr to async list when done or out of time
+    /*
+     * TODO verify enough time remains in the uframe as in 4.4.1.1
+     * TODO write back ptr to async list when done or out of time
+     */
 
     /* 4.10.3, bottom of page 82, go horizontal on transaction counter == 0 */
     if (!q->async && q->transact_ctr == 0) {
@@ -2036,7 +2043,7 @@ static void ehci_advance_state(EHCIState *ehci, int async)
     int again;
 
     do {
-        switch(ehci_get_state(ehci, async)) {
+        switch (ehci_get_state(ehci, async)) {
         case EST_WAITLISTHEAD:
             again = ehci_state_waitlisthead(ehci, async);
             break;
@@ -2115,21 +2122,20 @@ static void ehci_advance_state(EHCIState *ehci, int async)
             ehci_reset(ehci);
             again = 0;
         }
-    }
-    while (again);
+    } while (again);
 }
 
 static void ehci_advance_async_state(EHCIState *ehci)
 {
     const int async = 1;
 
-    switch(ehci_get_state(ehci, async)) {
+    switch (ehci_get_state(ehci, async)) {
     case EST_INACTIVE:
         if (!ehci_async_enabled(ehci)) {
             break;
         }
         ehci_set_state(ehci, async, EST_ACTIVE);
-        // No break, fall through to ACTIVE
+        /* No break, fall through to ACTIVE */
 
     case EST_ACTIVE:
         if (!ehci_async_enabled(ehci)) {
@@ -2153,7 +2159,8 @@ static void ehci_advance_async_state(EHCIState *ehci)
         ehci_set_state(ehci, async, EST_WAITLISTHEAD);
         ehci_advance_state(ehci, async);
 
-        /* If the doorbell is set, the guest wants to make a change to the
+        /*
+         * If the doorbell is set, the guest wants to make a change to the
          * schedule. The host controller needs to release cached data.
          * (section 4.8.2)
          */
@@ -2180,13 +2187,13 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
     uint32_t list;
     const int async = 0;
 
-    // 4.6
+    /* 4.6 */
 
-    switch(ehci_get_state(ehci, async)) {
+    switch (ehci_get_state(ehci, async)) {
     case EST_INACTIVE:
         if (!(ehci->frindex & 7) && ehci_periodic_enabled(ehci)) {
             ehci_set_state(ehci, async, EST_ACTIVE);
-            // No break, fall through to ACTIVE
+            /* No break, fall through to ACTIVE */
         } else
             break;
 
@@ -2210,7 +2217,7 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
 
         DPRINTF("PERIODIC state adv fr=%d.  [%08X] -> %08X\n",
                 ehci->frindex / 8, list, entry);
-        ehci_set_fetch_addr(ehci, async,entry);
+        ehci_set_fetch_addr(ehci, async, entry);
         ehci_set_state(ehci, async, EST_FETCHENTRY);
         ehci_advance_state(ehci, async);
         ehci_queues_rip_unused(ehci, async);
@@ -2235,7 +2242,8 @@ static void ehci_update_frindex(EHCIState *ehci, int uframes)
         ehci_raise_irq(ehci, USBSTS_FLR);
     }
 
-    /* How many times will frindex roll over 0x4000 with this frame count?
+    /*
+     * How many times will frindex roll over 0x4000 with this frame count?
      * usbsts_frindex is decremented by 0x4000 on rollover until it reaches 0
      */
     int rollovers = (ehci->frindex + uframes) / 0x4000;
@@ -2315,8 +2323,9 @@ static void ehci_work_bh(void *opaque)
         ehci->async_stepdown++;
     }
 
-    /*  Async is not inside loop since it executes everything it can once
-     *  called
+    /*
+     * Async is not inside loop since it executes everything it can once
+     * called
      */
     if (ehci_async_enabled(ehci) || ehci->astate != EST_INACTIVE) {
         need_timer++;
@@ -2334,15 +2343,18 @@ static void ehci_work_bh(void *opaque)
     }
 
     if (need_timer) {
-        /* If we've raised int, we speed up the timer, so that we quickly
-         * notice any new packets queued up in response */
+        /*
+         * If we've raised int, we speed up the timer, so that we quickly
+         * notice any new packets queued up in response
+         */
         if (ehci->int_req_by_async && (ehci->usbsts & USBSTS_INT)) {
             expire_time = t_now +
                 NANOSECONDS_PER_SECOND / (FRAME_TIMER_FREQ * 4);
             ehci->int_req_by_async = false;
         } else {
-            expire_time = t_now + (NANOSECONDS_PER_SECOND
-                               * (ehci->async_stepdown+1) / FRAME_TIMER_FREQ);
+            expire_time = t_now
+                + (NANOSECONDS_PER_SECOND * (ehci->async_stepdown + 1) /
+                   FRAME_TIMER_FREQ);
         }
         timer_mod(ehci->frame_timer, expire_time);
     }
