@@ -216,13 +216,11 @@ void helper_lwm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
 {
     MemOpIdx oi = memop_idx;
     unsigned mem_idx = get_mmuidx(oi);
-    target_ulong base_reglist = reglist & 0xf;
-    target_ulong do_r31 = reglist & 0x10;
+    size_t base_reglist = reglist & 0xf;
+    bool do_r31 = reglist & 0x10;
 
     if (base_reglist > 0 && base_reglist <= ARRAY_SIZE(multiple_regs)) {
-        target_ulong i;
-
-        for (i = 0; i < base_reglist; i++) {
+        for (unsigned i = 0; i < base_reglist; i++) {
             env->active_tc.gpr[multiple_regs[i]] =
                 (target_long)cpu_ldl_mmuidx_ra(env, addr, mem_idx, GETPC());
             addr += 4;
@@ -240,13 +238,11 @@ void helper_swm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
 {
     MemOpIdx oi = memop_idx;
     unsigned mem_idx = get_mmuidx(oi);
-    target_ulong base_reglist = reglist & 0xf;
-    target_ulong do_r31 = reglist & 0x10;
+    size_t base_reglist = reglist & 0xf;
+    bool do_r31 = !!(reglist & 0x10);
 
     if (base_reglist > 0 && base_reglist <= ARRAY_SIZE(multiple_regs)) {
-        target_ulong i;
-
-        for (i = 0; i < base_reglist; i++) {
+        for (unsigned i = 0; i < base_reglist; i++) {
             cpu_stl_mmuidx_ra(env, addr, env->active_tc.gpr[multiple_regs[i]],
                               mem_idx, GETPC());
             addr += 4;
@@ -264,13 +260,11 @@ void helper_ldm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
 {
     MemOpIdx oi = memop_idx;
     unsigned mem_idx = get_mmuidx(oi);
-    target_ulong base_reglist = reglist & 0xf;
-    target_ulong do_r31 = reglist & 0x10;
+    size_t base_reglist = reglist & 0xf;
+    bool do_r31 = !!(reglist & 0x10);
 
     if (base_reglist > 0 && base_reglist <= ARRAY_SIZE(multiple_regs)) {
-        target_ulong i;
-
-        for (i = 0; i < base_reglist; i++) {
+        for (unsigned i = 0; i < base_reglist; i++) {
             env->active_tc.gpr[multiple_regs[i]] =
                 cpu_ldq_mmuidx_ra(env, addr, mem_idx, GETPC());
             addr += 8;
@@ -288,13 +282,11 @@ void helper_sdm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
 {
     MemOpIdx oi = memop_idx;
     unsigned mem_idx = get_mmuidx(oi);
-    target_ulong base_reglist = reglist & 0xf;
-    target_ulong do_r31 = reglist & 0x10;
+    size_t base_reglist = reglist & 0xf;
+    bool do_r31 = !!(reglist & 0x10);
 
     if (base_reglist > 0 && base_reglist <= ARRAY_SIZE(multiple_regs)) {
-        target_ulong i;
-
-        for (i = 0; i < base_reglist; i++) {
+        for (unsigned i = 0; i < base_reglist; i++) {
             cpu_stq_mmuidx_ra(env, addr, env->active_tc.gpr[multiple_regs[i]],
                               mem_idx, GETPC());
             addr += 8;
