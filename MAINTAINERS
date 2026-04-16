@@ -4034,7 +4034,6 @@ F: .gitlab-ci.d/opensbi/
 
 Clock framework
 M: Luc Michel <luc@lmichel.fr>
-R: Damien Hedde <damien.hedde@dahe.fr>
 S: Maintained
 F: include/hw/core/clock.h
 F: include/hw/core/qdev-clock.h
