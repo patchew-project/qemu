@@ -4115,8 +4115,7 @@ S: Maintained
 F: tcg/x86_64/
 
 LoongArch64 TCG target
-M: WANG Xuerui <git@xen0n.name>
-S: Maintained
+S: Orphan
 F: tcg/loongarch64/
 
 MIPS TCG target
