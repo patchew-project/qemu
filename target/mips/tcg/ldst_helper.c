@@ -215,21 +215,20 @@ void helper_lwm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
                 uint32_t memop_idx)
 {
     MemOpIdx oi = memop_idx;
-    unsigned mem_idx = get_mmuidx(oi);
     size_t base_reglist = reglist & 0xf;
     bool do_r31 = reglist & 0x10;
+    target_ulong *gpr = env->active_tc.gpr;
+    uintptr_t ra = GETPC();
 
     if (base_reglist > 0 && base_reglist <= ARRAY_SIZE(multiple_regs)) {
         for (unsigned i = 0; i < base_reglist; i++) {
-            env->active_tc.gpr[multiple_regs[i]] =
-                (target_long)cpu_ldl_mmuidx_ra(env, addr, mem_idx, GETPC());
+            gpr[multiple_regs[i]] = (target_long)cpu_ldl_mmu(env, addr, oi, ra);
             addr += 4;
         }
     }
 
     if (do_r31) {
-        env->active_tc.gpr[31] =
-            (target_long)cpu_ldl_mmuidx_ra(env, addr, mem_idx, GETPC());
+        gpr[31] = (target_long)cpu_ldl_mmu(env, addr, oi, ra);
     }
 }
 
@@ -237,20 +236,20 @@ void helper_swm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
                 uint32_t memop_idx)
 {
     MemOpIdx oi = memop_idx;
-    unsigned mem_idx = get_mmuidx(oi);
     size_t base_reglist = reglist & 0xf;
-    bool do_r31 = !!(reglist & 0x10);
+    bool do_r31 = reglist & 0x10;
+    target_ulong *gpr = env->active_tc.gpr;
+    uintptr_t ra = GETPC();
 
     if (base_reglist > 0 && base_reglist <= ARRAY_SIZE(multiple_regs)) {
         for (unsigned i = 0; i < base_reglist; i++) {
-            cpu_stl_mmuidx_ra(env, addr, env->active_tc.gpr[multiple_regs[i]],
-                              mem_idx, GETPC());
+            cpu_stl_mmu(env, addr, gpr[multiple_regs[i]], oi, ra);
             addr += 4;
         }
     }
 
     if (do_r31) {
-        cpu_stl_mmuidx_ra(env, addr, env->active_tc.gpr[31], mem_idx, GETPC());
+        cpu_stl_mmu(env, addr, gpr[31], oi, ra);
     }
 }
 
@@ -259,21 +258,20 @@ void helper_ldm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
                 uint32_t memop_idx)
 {
     MemOpIdx oi = memop_idx;
-    unsigned mem_idx = get_mmuidx(oi);
     size_t base_reglist = reglist & 0xf;
-    bool do_r31 = !!(reglist & 0x10);
+    bool do_r31 = reglist & 0x10;
+    target_ulong *gpr = env->active_tc.gpr;
+    uintptr_t ra = GETPC();
 
     if (base_reglist > 0 && base_reglist <= ARRAY_SIZE(multiple_regs)) {
         for (unsigned i = 0; i < base_reglist; i++) {
-            env->active_tc.gpr[multiple_regs[i]] =
-                cpu_ldq_mmuidx_ra(env, addr, mem_idx, GETPC());
+            gpr[multiple_regs[i]] = cpu_ldq_mmu(env, addr, oi, ra);
             addr += 8;
         }
     }
 
     if (do_r31) {
-        env->active_tc.gpr[31] =
-            cpu_ldq_mmuidx_ra(env, addr, mem_idx, GETPC());
+        gpr[31] = cpu_ldq_mmu(env, addr, oi, ra);
     }
 }
 
@@ -281,20 +279,20 @@ void helper_sdm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
                 uint32_t memop_idx)
 {
     MemOpIdx oi = memop_idx;
-    unsigned mem_idx = get_mmuidx(oi);
     size_t base_reglist = reglist & 0xf;
-    bool do_r31 = !!(reglist & 0x10);
+    bool do_r31 = reglist & 0x10;
+    target_ulong *gpr = env->active_tc.gpr;
+    uintptr_t ra = GETPC();
 
     if (base_reglist > 0 && base_reglist <= ARRAY_SIZE(multiple_regs)) {
         for (unsigned i = 0; i < base_reglist; i++) {
-            cpu_stq_mmuidx_ra(env, addr, env->active_tc.gpr[multiple_regs[i]],
-                              mem_idx, GETPC());
+            cpu_stq_mmu(env, addr, gpr[multiple_regs[i]], oi, ra);
             addr += 8;
         }
     }
 
     if (do_r31) {
-        cpu_stq_mmuidx_ra(env, addr, env->active_tc.gpr[31], mem_idx, GETPC());
+        cpu_stq_mmu(env, addr, gpr[31], oi, ra);
     }
 }
 
