@@ -184,6 +184,11 @@ static bool module_load_dso(const char *fname, bool export_symbols,
                 "Only modules from the same build can be loaded.\n");
         }
         g_module_close(g_module);
+        /* Clean up any dso init entries added during DSO initialization */
+        QTAILQ_FOREACH_SAFE(e, &dso_init_list, node, next) {
+            QTAILQ_REMOVE(&dso_init_list, e, node);
+            g_free(e);
+        }
         return false;
     }
 
@@ -279,29 +284,28 @@ int module_load(const char *prefix, const char *name, Error **errp)
         }
     }
 
-    for (i = 0; i < n_dirs; i++) {
+    /*
+     * Try to load module in given folders until we load it successfully or no
+     * more to look.
+     * If no module can be loaded successfully, errp is set to the last encountered error
+     */
+    rv = 0; /* module not found */
+    for (i = 0; (i < n_dirs) && (rv != 1); i++) {
         char *fname = g_strdup_printf("%s/%s%s",
                                       dirs[i], module_name, CONFIG_HOST_DSOSUF);
         int ret = access(fname, F_OK);
-        if (ret != 0 && (errno == ENOENT || errno == ENOTDIR)) {
-            /*
-             * if we don't find the module in this dir, try the next one.
-             * If we don't find it in any dir, that can be fine too: user
-             * did not install the module. We will return 0 in this case
-             * with no error set.
-             */
-            g_free(fname);
-            continue;
-        } else if (ret != 0) {
-            /* most common is EACCES here */
-            error_setg_errno(errp, errno, "error trying to access %s", fname);
-        } else if (module_load_dso(fname, export_symbols, errp)) {
+        if ((ret == 0) && module_load_dso(fname, export_symbols, errp)) {
             rv = 1; /* module successfully loaded */
         }
+
+        /* The file exists but cannot be accessed -> report an error and continue */
+        if ((ret != 0) && (errno != ENOENT) && (errno != ENOTDIR)) {
+            /* most common is EACCES here */
+            error_setg_errno(errp, errno, "error trying to access %s", fname);
+        }
+
         g_free(fname);
-        goto out;
     }
-    rv = 0; /* module not found */
 
 out:
     if (rv <= 0) {
