@@ -241,44 +241,22 @@ endif
 #
 # Step 5
 # We use Python scripts to generate the following files
-#     helper_protos_generated.h.inc
-#     helper_funcs_generated.c.inc
-#     tcg_funcs_generated.c.inc
-#
-helper_protos_generated = custom_target(
-    'helper_protos_generated.h.inc',
-    output: 'helper_protos_generated.h.inc',
-    depends: helper_dep,
-    depend_files: [hex_common_py, gen_tcg_h, gen_tcg_hvx_h],
-    command: [python, files('gen_helper_protos.py'), helper_in, '@OUTPUT@'],
-)
-hexagon_ss.add(helper_protos_generated)
 
-helper_funcs_generated = custom_target(
-    'helper_funcs_generated.c.inc',
-    output: 'helper_funcs_generated.c.inc',
-    depends: helper_dep,
-    depend_files: [hex_common_py, gen_tcg_h, gen_tcg_hvx_h],
-    command: [python, files('gen_helper_funcs.py'), helper_in, '@OUTPUT@'],
-)
-hexagon_ss.add(helper_funcs_generated)
+hexagon_gen_files = {
+  'helper_protos_generated.h.inc': 'gen_helper_protos.py',
+  'helper_funcs_generated.c.inc': 'gen_helper_funcs.py',
+  'tcg_funcs_generated.c.inc': 'gen_tcg_funcs.py',
+  'analyze_funcs_generated.c.inc': 'gen_analyze_funcs.py',
+}
 
-tcg_funcs_generated = custom_target(
-    'tcg_funcs_generated.c.inc',
-    output: 'tcg_funcs_generated.c.inc',
+foreach file, gen_script : hexagon_gen_files
+  t = custom_target(
+    file,
+    output: file,
     depends: helper_dep,
     depend_files: [hex_common_py, gen_tcg_h, gen_tcg_hvx_h],
-    command: [python, files('gen_tcg_funcs.py'), helper_in, '@OUTPUT@'],
-)
-hexagon_ss.add(tcg_funcs_generated)
-
-analyze_funcs_generated = custom_target(
-    'analyze_funcs_generated.c.inc',
-    output: 'analyze_funcs_generated.c.inc',
-    depends: helper_dep,
-    depend_files: [hex_common_py, gen_tcg_h, gen_tcg_hvx_h],
-    command: [python, files('gen_analyze_funcs.py'), helper_in, '@OUTPUT@'],
-)
-hexagon_ss.add(analyze_funcs_generated)
+    command: [python, files(gen_script), helper_in, '@OUTPUT@'])
+  hexagon_ss.add(t)
+endforeach
 
 target_arch += {'hexagon': hexagon_ss}
