@@ -67,15 +67,15 @@ static int shift_left(DisasContext *ctx, int x, int n, int immno)
 }
 
 /* Include the generated decoder for 32 bit insn */
-#include "decode_normal_generated.c.inc"
-#include "decode_hvx_generated.c.inc"
+#include "decode-normal.c.inc"
+#include "decode-ext_mmvec.c.inc"
 
 /* Include the generated decoder for 16 bit insn */
-#include "decode_subinsn_a_generated.c.inc"
-#include "decode_subinsn_l1_generated.c.inc"
-#include "decode_subinsn_l2_generated.c.inc"
-#include "decode_subinsn_s1_generated.c.inc"
-#include "decode_subinsn_s2_generated.c.inc"
+#include "decode-subinsn_a.c.inc"
+#include "decode-subinsn_l1.c.inc"
+#include "decode-subinsn_l2.c.inc"
+#include "decode-subinsn_s1.c.inc"
+#include "decode-subinsn_s2.c.inc"
 
 /* Include the generated helpers for the decoder */
 #include "decodetree_trans_funcs_generated.c.inc"

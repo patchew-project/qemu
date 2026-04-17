@@ -93,135 +93,28 @@ hexagon_ss.add(iset_py)
 # Step 4
 # Generate the input to the QEMU decodetree.py script
 #
-normal_decode_generated = custom_target(
-    'normal_decode_generated',
-    output: 'normal_decode_generated',
+insn_sets = {
+'NORMAL':     ['--static-decode=decode_normal'],
+'EXT_mmvec':  ['--static-decode=decode_hvx'],
+'SUBINSN_A':  ['--static-decode=decode_subinsn_a', '--insnwidth=16'],
+'SUBINSN_L1': ['--static-decode=decode_subinsn_l1', '--insnwidth=16'],
+'SUBINSN_L2': ['--static-decode=decode_subinsn_l2', '--insnwidth=16'],
+'SUBINSN_S1': ['--static-decode=decode_subinsn_s1', '--insnwidth=16'],
+'SUBINSN_S2': ['--static-decode=decode_subinsn_s2', '--insnwidth=16'],
+}
+
+foreach insn_set, decodetree_options : insn_sets
+  decodetree_file_name = insn_set.to_lower() + '.decode'
+  # generate decodetree file
+  decodetree_file = custom_target(
+    output: decodetree_file_name,
     depends: [iset_py, semantics_generated],
     env: {'PYTHONPATH': meson.current_build_dir()},
-    command: [python, files('gen_decodetree.py'), semantics_generated, 'NORMAL', '@OUTPUT@'],
-)
-hexagon_ss.add(normal_decode_generated)
+    command: [python, files('gen_decodetree.py'), semantics_generated, insn_set, '@OUTPUT@'])
 
-hvx_decode_generated = custom_target(
-    'hvx_decode_generated',
-    output: 'hvx_decode_generated',
-    depends: [iset_py, semantics_generated],
-    env: {'PYTHONPATH': meson.current_build_dir()},
-    command: [python, files('gen_decodetree.py'), semantics_generated, 'EXT_mmvec', '@OUTPUT@'],
-)
-hexagon_ss.add(hvx_decode_generated)
-
-subinsn_a_decode_generated = custom_target(
-    'subinsn_a_decode_generated',
-    output: 'subinsn_a_decode_generated',
-    depends: [iset_py, semantics_generated],
-    env: {'PYTHONPATH': meson.current_build_dir()},
-    command: [python, files('gen_decodetree.py'), semantics_generated, 'SUBINSN_A', '@OUTPUT@'],
-)
-hexagon_ss.add(subinsn_a_decode_generated)
-
-subinsn_l1_decode_generated = custom_target(
-    'subinsn_l1_decode_generated',
-    output: 'subinsn_l1_decode_generated',
-    depends: [iset_py, semantics_generated],
-    env: {'PYTHONPATH': meson.current_build_dir()},
-    command: [python, files('gen_decodetree.py'), semantics_generated, 'SUBINSN_L1', '@OUTPUT@'],
-)
-hexagon_ss.add(subinsn_l1_decode_generated)
-
-subinsn_l2_decode_generated = custom_target(
-    'subinsn_l2_decode_generated',
-    output: 'subinsn_l2_decode_generated',
-    depends: [iset_py, semantics_generated],
-    env: {'PYTHONPATH': meson.current_build_dir()},
-    command: [python, files('gen_decodetree.py'), semantics_generated, 'SUBINSN_L2', '@OUTPUT@'],
-)
-hexagon_ss.add(subinsn_l2_decode_generated)
-
-subinsn_s1_decode_generated = custom_target(
-    'subinsn_s1_decode_generated',
-    output: 'subinsn_s1_decode_generated',
-    depends: [iset_py, semantics_generated],
-    env: {'PYTHONPATH': meson.current_build_dir()},
-    command: [python, files('gen_decodetree.py'), semantics_generated, 'SUBINSN_S1', '@OUTPUT@'],
-)
-hexagon_ss.add(subinsn_s1_decode_generated)
-
-subinsn_s2_decode_generated = custom_target(
-    'subinsn_s2_decode_generated',
-    output: 'subinsn_s2_decode_generated',
-    depends: [iset_py, semantics_generated],
-    env: {'PYTHONPATH': meson.current_build_dir()},
-    command: [python, files('gen_decodetree.py'), semantics_generated, 'SUBINSN_S2', '@OUTPUT@'],
-)
-hexagon_ss.add(subinsn_s2_decode_generated)
-
-#
-# Run the QEMU decodetree.py script to produce the instruction decoder
-#
-decodetree_py = meson.current_source_dir() / '../../scripts/decodetree.py'
-decode_normal_generated = custom_target(
-    'decode_normal_generated.c.inc',
-    output: 'decode_normal_generated.c.inc',
-    input: normal_decode_generated,
-    env: {'PYTHONPATH': meson.current_build_dir()},
-    command: [python, files(decodetree_py), normal_decode_generated, '--static-decode=decode_normal', '-o', '@OUTPUT@'],
-)
-hexagon_ss.add(decode_normal_generated)
-
-decode_hvx_generated = custom_target(
-    'decode_hvx_generated.c.inc',
-    output: 'decode_hvx_generated.c.inc',
-    input: hvx_decode_generated,
-    env: {'PYTHONPATH': meson.current_build_dir()},
-    command: [python, files(decodetree_py), hvx_decode_generated, '--static-decode=decode_hvx', '-o', '@OUTPUT@'],
-)
-hexagon_ss.add(decode_hvx_generated)
-
-decode_subinsn_a_generated = custom_target(
-    'decode_subinsn_a_generated.c.inc',
-    output: 'decode_subinsn_a_generated.c.inc',
-    input: subinsn_a_decode_generated,
-    env: {'PYTHONPATH': meson.current_build_dir()},
-    command: [python, files(decodetree_py), subinsn_a_decode_generated, ['--static-decode=decode_subinsn_a', '--insnwidth=16'], '-o', '@OUTPUT@'],
-)
-hexagon_ss.add(decode_subinsn_a_generated)
-
-decode_subinsn_l1_generated = custom_target(
-    'decode_subinsn_l1_generated.c.inc',
-    output: 'decode_subinsn_l1_generated.c.inc',
-    input: subinsn_l1_decode_generated,
-    env: {'PYTHONPATH': meson.current_build_dir()},
-    command: [python, files(decodetree_py), subinsn_l1_decode_generated, ['--static-decode=decode_subinsn_l1', '--insnwidth=16'], '-o', '@OUTPUT@'],
-)
-hexagon_ss.add(decode_subinsn_l1_generated)
-
-decode_subinsn_l2_generated = custom_target(
-    'decode_subinsn_l2_generated.c.inc',
-    output: 'decode_subinsn_l2_generated.c.inc',
-    input: subinsn_l2_decode_generated,
-    env: {'PYTHONPATH': meson.current_build_dir()},
-    command: [python, files(decodetree_py), subinsn_l2_decode_generated, ['--static-decode=decode_subinsn_l2', '--insnwidth=16'], '-o', '@OUTPUT@'],
-)
-hexagon_ss.add(decode_subinsn_l2_generated)
-
-decode_subinsn_s1_generated = custom_target(
-    'decode_subinsn_s1_generated.c.inc',
-    output: 'decode_subinsn_s1_generated.c.inc',
-    input: subinsn_s1_decode_generated,
-    env: {'PYTHONPATH': meson.current_build_dir()},
-    command: [python, files(decodetree_py), subinsn_s1_decode_generated, ['--static-decode=decode_subinsn_s1', '--insnwidth=16'], '-o', '@OUTPUT@'],
-)
-hexagon_ss.add(decode_subinsn_s1_generated)
-
-decode_subinsn_s2_generated = custom_target(
-    'decode_subinsn_s2_generated.c.inc',
-    output: 'decode_subinsn_s2_generated.c.inc',
-    input: subinsn_s2_decode_generated,
-    env: {'PYTHONPATH': meson.current_build_dir()},
-    command: [python, files(decodetree_py), subinsn_s2_decode_generated, ['--static-decode=decode_subinsn_s2', '--insnwidth=16'], '-o', '@OUTPUT@'],
-)
-hexagon_ss.add(decode_subinsn_s2_generated)
+  # Run the QEMU decodetree.py script to produce the instruction decoder
+  hexagon_ss.add(decodetree.process(decodetree_file, extra_args: decodetree_options))
+endforeach
 
 #
 # Generate the trans_* functions that the decoder will use
