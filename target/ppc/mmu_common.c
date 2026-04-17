@@ -848,7 +848,7 @@ bool ppc_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     }
 }
 
-hwaddr ppc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
+hwaddr ppc_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     hwaddr raddr;

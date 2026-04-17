@@ -46,7 +46,7 @@ static int get_physical_address(CPUTriCoreState *env, hwaddr *physical,
     return ret;
 }
 
-hwaddr tricore_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
+hwaddr tricore_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
 {
     TriCoreCPU *cpu = TRICORE_CPU(cs);
     hwaddr phys_addr;

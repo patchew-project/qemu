@@ -435,7 +435,7 @@ static int get_physical_address(CPUSH4State *env, hwaddr* physical,
     return get_mmu_address(env, physical, prot, address, access_type);
 }
 
-hwaddr superh_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
+hwaddr superh_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
 {
     hwaddr physical;
     int prot;

@@ -535,7 +535,7 @@ static ObjectClass *mips_cpu_class_by_name(const char *cpu_model)
 
 static const struct SysemuCPUOps mips_sysemu_ops = {
     .has_work = mips_cpu_has_work,
-    .get_phys_page_debug = mips_cpu_get_phys_page_debug,
+    .get_phys_addr_debug = mips_cpu_get_phys_addr_debug,
     .legacy_vmsd = &vmstate_mips_cpu,
 };
 #endif

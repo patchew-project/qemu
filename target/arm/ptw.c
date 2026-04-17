@@ -3943,7 +3943,7 @@ static hwaddr arm_cpu_get_phys_page(CPUARMState *env, vaddr addr,
     return res.f.phys_addr;
 }
 
-hwaddr arm_cpu_get_phys_page_attrs_debug(CPUState *cs, vaddr addr,
+hwaddr arm_cpu_get_phys_addr_attrs_debug(CPUState *cs, vaddr addr,
                                          MemTxAttrs *attrs)
 {
     ARMCPU *cpu = ARM_CPU(cs);

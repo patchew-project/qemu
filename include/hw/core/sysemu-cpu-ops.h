@@ -30,17 +30,17 @@ typedef struct SysemuCPUOps {
      */
     bool (*get_paging_enabled)(const CPUState *cpu);
     /**
-     * @get_phys_page_debug: Callback for obtaining a physical address.
+     * @get_phys_addr_debug: Callback for obtaining a physical address.
      */
-    hwaddr (*get_phys_page_debug)(CPUState *cpu, vaddr addr);
+    hwaddr (*get_phys_addr_debug)(CPUState *cpu, vaddr addr);
     /**
-     * @get_phys_page_attrs_debug: Callback for obtaining a physical address
+     * @get_phys_addr_attrs_debug: Callback for obtaining a physical address
      *       and the associated memory transaction attributes to use for the
      *       access.
      * CPUs which use memory transaction attributes should implement this
-     * instead of get_phys_page_debug.
+     * instead of get_phys_addr_debug.
      */
-    hwaddr (*get_phys_page_attrs_debug)(CPUState *cpu, vaddr addr,
+    hwaddr (*get_phys_addr_attrs_debug)(CPUState *cpu, vaddr addr,
                                         MemTxAttrs *attrs);
     /**
      * @asidx_from_attrs: Callback to return the CPU AddressSpace to use for

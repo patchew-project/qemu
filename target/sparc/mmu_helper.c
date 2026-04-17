@@ -902,7 +902,7 @@ hwaddr cpu_get_phys_page_nofault(CPUSPARCState *env, target_ulong addr,
 }
 #endif
 
-hwaddr sparc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
+hwaddr sparc_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
 {
     CPUSPARCState *env = cpu_env(cs);
     hwaddr phys_addr;

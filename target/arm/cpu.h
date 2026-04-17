@@ -1231,7 +1231,7 @@ extern const VMStateDescription vmstate_arm_cpu;
 void arm_cpu_do_interrupt(CPUState *cpu);
 void arm_v7m_cpu_do_interrupt(CPUState *cpu);
 
-hwaddr arm_cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
+hwaddr arm_cpu_get_phys_addr_attrs_debug(CPUState *cpu, vaddr addr,
                                          MemTxAttrs *attrs);
 
 typedef struct ARMGranuleProtectionConfig {

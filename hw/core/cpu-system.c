@@ -60,13 +60,13 @@ hwaddr cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
 {
     hwaddr paddr;
 
-    if (cpu->cc->sysemu_ops->get_phys_page_attrs_debug) {
-        paddr = cpu->cc->sysemu_ops->get_phys_page_attrs_debug(cpu, addr,
+    if (cpu->cc->sysemu_ops->get_phys_addr_attrs_debug) {
+        paddr = cpu->cc->sysemu_ops->get_phys_addr_attrs_debug(cpu, addr,
                                                                attrs);
     } else {
         /* Fallback for CPUs which don't implement the _attrs_ hook */
         *attrs = MEMTXATTRS_UNSPECIFIED;
-        paddr = cpu->cc->sysemu_ops->get_phys_page_debug(cpu, addr);
+        paddr = cpu->cc->sysemu_ops->get_phys_addr_debug(cpu, addr);
     }
     /* Indicate that this is a debug access. */
     attrs->debug = 1;

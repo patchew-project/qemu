@@ -131,7 +131,7 @@ static bool ppc_hash32_direct_store(PowerPCCPU *cpu, target_ulong sr,
     }
 
     /*
-     * From ppc_cpu_get_phys_page_debug, env->access_type is not set.
+     * From ppc_cpu_get_phys_addr_debug, env->access_type is not set.
      * Assume ACCESS_INT for that case.
      */
     switch (guest_visible ? env->access_type : ACCESS_INT) {

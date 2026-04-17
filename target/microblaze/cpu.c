@@ -428,7 +428,7 @@ static ObjectClass *mb_cpu_class_by_name(const char *cpu_model)
 
 static const struct SysemuCPUOps mb_sysemu_ops = {
     .has_work = mb_cpu_has_work,
-    .get_phys_page_attrs_debug = mb_cpu_get_phys_page_attrs_debug,
+    .get_phys_addr_attrs_debug = mb_cpu_get_phys_addr_attrs_debug,
 };
 #endif
 

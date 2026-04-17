@@ -115,7 +115,7 @@ enum {
 int get_physical_address(CPUMIPSState *env, hwaddr *physical,
                          int *prot, target_ulong real_address,
                          MMUAccessType access_type, int mmu_idx);
-hwaddr mips_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+hwaddr mips_cpu_get_phys_addr_debug(CPUState *cpu, vaddr addr);
 
 typedef struct r4k_tlb_t r4k_tlb_t;
 struct r4k_tlb_t {

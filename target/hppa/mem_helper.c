@@ -345,7 +345,7 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
     return ret;
 }
 
-hwaddr hppa_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
+hwaddr hppa_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
 {
     HPPACPU *cpu = HPPA_CPU(cs);
     hwaddr phys;
