@@ -26,7 +26,6 @@
 #include "system/device_tree.h"
 #include "qom/object.h"
 #include "net/can_emu.h"
-#include "qemu/audio.h"
 
 struct XlnxZCU102 {
     MachineState parent_obj;

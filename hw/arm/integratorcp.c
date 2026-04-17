@@ -27,7 +27,6 @@
 #include "hw/core/irq.h"
 #include "hw/sd/sd.h"
 #include "qom/object.h"
-#include "qemu/audio.h"
 #include "target/arm/cpu-qom.h"
 
 #define TYPE_INTEGRATOR_CM "integrator_core"

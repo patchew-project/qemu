@@ -46,7 +46,6 @@
 #include "trace.h"
 #include "elf.h"
 #include "qemu/units.h"
-#include "qemu/audio.h"
 
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1
