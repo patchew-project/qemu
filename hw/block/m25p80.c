@@ -438,6 +438,11 @@ typedef enum {
      */
     WRSR2 = 0x31,
 
+    /*
+     * Winbond: 0x50 - Write Enable for Volatile Status Register
+     */
+    VSR_WREN = 0x50,
+
     RNVCR = 0xB5,
     WNVCR = 0xB1,
 
@@ -510,6 +515,7 @@ struct Flash {
     uint8_t spansion_cr4v;
     bool wp_level;
     bool write_enable;
+    bool volatile_write_enable;
     bool four_bytes_address_mode;
     bool reset_enable;
     bool quad_enable;
@@ -897,6 +903,7 @@ static void reset_memory(Flash *s)
     s->pos = 0;
     s->state = STATE_IDLE;
     s->write_enable = false;
+    s->volatile_write_enable = false;
     s->reset_enable = false;
     s->quad_enable = false;
     s->aai_enable = false;
@@ -1305,8 +1312,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
          * combinations of the two states are called "software protected mode"
          * (SPM), and status register writes are permitted.
          */
-        if ((s->wp_level == 0 && s->status_register_write_disabled)
-            || !s->write_enable) {
+        if (s->wp_level == 0 && s->status_register_write_disabled) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "M25P80: Status register 2 write is disabled!\n");
             break;
@@ -1314,6 +1320,17 @@ static void decode_new_cmd(Flash *s, uint32_t value)
 
         switch (get_man(s)) {
         case MAN_WINBOND:
+            /*
+             * Winbond requires VSR WREN (0x50) prior to updating volatile
+             * status register bits. VSR WREN does not set WEL.
+             *
+             * Accept either standard WEL (0x06) or VSR WREN (0x50).
+             */
+            if (!s->write_enable && !s->volatile_write_enable) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "M25P80: Status register 2 write is disabled!\n");
+                break;
+            }
             s->needed_bytes = 1;
             s->state = STATE_COLLECTING_DATA;
             s->pos = 0;
@@ -1330,6 +1347,16 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         break;
     case WREN:
         s->write_enable = true;
+        break;
+
+    case VSR_WREN:
+        switch (get_man(s)) {
+        case MAN_WINBOND:
+            s->volatile_write_enable = true;
+            break;
+        default:
+            break;
+        }
         break;
 
     case RDSR:
@@ -1824,8 +1851,8 @@ static const VMStateDescription vmstate_m25p80_block_protect = {
 
 static const VMStateDescription vmstate_m25p80 = {
     .name = "m25p80",
-    .version_id = 0,
-    .minimum_version_id = 0,
+    .version_id = 1,
+    .minimum_version_id = 1,
     .pre_save = m25p80_pre_save,
     .pre_load = m25p80_pre_load,
     .fields = (const VMStateField[]) {
@@ -1837,6 +1864,7 @@ static const VMStateDescription vmstate_m25p80 = {
         VMSTATE_UINT8(cmd_in_progress, Flash),
         VMSTATE_UINT32(cur_addr, Flash),
         VMSTATE_BOOL(write_enable, Flash),
+        VMSTATE_BOOL(volatile_write_enable, Flash),
         VMSTATE_BOOL(reset_enable, Flash),
         VMSTATE_UINT8(ear, Flash),
         VMSTATE_BOOL(four_bytes_address_mode, Flash),
