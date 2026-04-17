@@ -6,10 +6,10 @@ AARCH64_SRC=$(SRC_PATH)/tests/tcg/aarch64
 AARCH64_SYSTEM_SRC=$(AARCH64_SRC)/system
 AARCH64_SYSTEM_LIB=$(AARCH64_SRC)/system/lib
 
-VPATH+=$(AARCH64_SYSTEM_SRC)
+VPATH+=$(AARCH64_SYSTEM_SRC) $(AARCH64_SYSTEM_LIB)
 
 # These objects provide the basic boot code and helper functions for all tests
-CRT_OBJS=boot.o
+CRT_OBJS=boot.o pgtable.o
 
 AARCH64_TEST_C_SRCS=$(wildcard $(AARCH64_SYSTEM_SRC)/*.c)
 AARCH64_TEST_S_SRCS=$(AARCH64_SYSTEM_SRC)/mte.S
@@ -37,8 +37,11 @@ config-cc.mak: Makefile
 # building head blobs
 .PRECIOUS: $(CRT_OBJS)
 
-%.o: $(CRT_PATH)/%.S
+%.o: %.S
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -x assembler-with-cpp -Wa,--noexecstack -c $< -o $@
+
+%.o: %.c
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c $< -o $@
 
 # Build and link the tests
 %: %.c $(LINK_SCRIPT) $(CRT_OBJS) $(MINILIB_OBJS)

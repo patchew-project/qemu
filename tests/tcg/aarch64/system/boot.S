@@ -243,102 +243,7 @@ at_testel:
 	msr	vbar_el1, x0
 
 	/* Page table setup (identity mapping). */
-	adrp	x0, ttb
-	add	x0, x0, :lo12:ttb
-	msr	ttbr0_el1, x0
-
-	/*
-	 * Setup a flat address mapping page-tables. Stage one simply
-	 * maps RAM to the first Gb. The stage2 tables have two 2mb
-	 * translation block entries covering a series of adjacent
-	 * 4k pages.
-	 */
-
-	/* Stage 1 entry: indexed by IA[38:30] */
-	adr	x1, .				/* phys address */
-	bic	x1, x1, #(1 << 30) - 1		/* 1GB alignment*/
-	add	x2, x0, x1, lsr #(30 - 3)	/* offset in l1 page table */
-
-	/* point to stage 2 table [47:12] */
-	adrp	x0, ttb_stage2
-	orr 	x1, x0, #3 			/* ptr to stage 2 */
-	str	x1, [x2]
-
-	/* Stage 2 entries: indexed by IA[29:21] */
-	ldr	x5, =(((1 << 9) - 1) << 21)
-
-	/* First block: .text/RO/execute enabled */
-	adr	x1, .				/* phys address */
-	bic	x1, x1, #(1 << 21) - 1		/* 2mb block alignment	*/
-	and	x4, x1, x5			/* IA[29:21] */
-	add	x2, x0, x4, lsr #(21 - 3)	/* offset in l2 page table */
-	ldr	x3, =0x401			/* attr(AF, block) */
-	orr	x1, x1, x3
-	str	x1, [x2]			/* 1st 2mb (.text & rodata) */
-
-	/* Second block: .data/RW/no execute */
-	adrp	x1, .data
-	add	x1, x1, :lo12:.data
-	bic	x1, x1, #(1 << 21) - 1		/* 2mb block alignment */
-	and	x4, x1, x5			/* IA[29:21] */
-	add	x2, x0, x4, lsr #(21 - 3)	/* offset in l2 page table */
-	ldr	x3, =(3 << 53) | 0x401		/* attr(AF, NX, block) */
-	orr	x1, x1, x3
-	str	x1, [x2]			/* 2nd 2mb (.data & .bss)*/
-
-	/* Third block: at 'mte_page', set in kernel.ld */
-	adrp	x1, mte_page
-	add	x1, x1, :lo12:mte_page
-	bic	x1, x1, #(1 << 21) - 1
-	and 	x4, x1, x5
-	add	x2, x0, x4, lsr #(21 - 3)
-	/* attr(AF, NX, block, AttrIndx=Attr1) */
-	ldr	x3, =(3 << 53) | 0x401 | (1 << 2)
-	orr	x1, x1, x3
-	str	x1, [x2]
-
-	/* Setup/enable the MMU.  */
-
-	/*
-	 * TCR_EL1 - Translation Control Registers
-	 *
-	 * IPS[34:32] = 40-bit PA, 1TB
-	 * TG0[14:15] = b00 => 4kb granuale
-	 * ORGN0[11:10] = Outer: Normal, WB Read-Alloc No Write-Alloc Cacheable
-	 * IRGN0[9:8] = Inner: Normal, WB Read-Alloc No Write-Alloc Cacheable
-	 * T0SZ[5:0]  = 2^(64 - 25)
-	 *
-	 * The size of T0SZ controls what the initial lookup level. It
-	 * would be nice to start at level 2 but unfortunately for a
-	 * flat-mapping on the virt machine we need to handle IA's
-	 * with at least 1gb range to see RAM. So we start with a
-	 * level 1 lookup.
-	 */
-	ldr	x0, = (2 << 32) | 25 | (3 << 10) | (3 << 8)
-	msr	tcr_el1, x0
-
-	mov	x0, #0xee			/* Inner/outer cacheable WB */
-	msr	mair_el1, x0
-	isb
-
-	/*
-	 * SCTLR_EL1 - System Control Register
-	 *
-	 * WXN[19] = 0 = no effect, Write does not imply XN (execute never)
-	 * I[12] = Instruction cachability control
-	 * SA[3] = SP alignment check
-	 * C[2] = Data cachability control
-	 * M[0] = 1, enable stage 1 address translation for EL0/1
-	 */
-	mrs	x0, sctlr_el1
-	ldr	x1, =0x100d			/* bits I(12) SA(3) C(2) M(0) */
-	bic	x0, x0, #(1 << 1)		/* clear bit A(1) */
-	bic	x0, x0, #(1 << 19)		/* clear WXN */
-	orr	x0, x0, x1			/* set bits */
-
-	dsb	sy
-	msr	sctlr_el1, x0
-	isb
+	bl	setup_pgtables
 
 	/*
 	 * Enable FP/SVE registers. The standard C pre-amble will be
@@ -390,18 +295,6 @@ __sys_outc:
 	.align 8
 cmdline:
 	.space 128, 0
-
-	.align	12
-
-	/* Translation table
-	 * @4k granuale: 9 bit lookup, 512 entries
-	*/
-ttb:
-	.space	4096, 0
-
-	.align	12
-ttb_stage2:
-	.space	4096, 0
 
 	.align	12
 system_stack:

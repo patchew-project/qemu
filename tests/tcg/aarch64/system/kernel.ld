@@ -13,10 +13,12 @@ MEMORY {
 
 SECTIONS {
     .text : {
+        _text_start = .;
         *(.text)
         *(.rodata)
     } >TXT
     .data : {
+        _data_start = .;
         *(.data)
         *(.bss)
     } >DAT
@@ -25,6 +27,7 @@ SECTIONS {
          * Symbol 'mte_page' is used in boot.S to setup the PTE and in the mte.S
          * test as the address that the MTE instructions operate on.
          */
+        _tag_start = .;
         mte_page = .;
     } >TAG
     /DISCARD/ : {
