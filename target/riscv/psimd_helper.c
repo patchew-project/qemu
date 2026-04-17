@@ -2703,3 +2703,297 @@ uint64_t HELPER(shar)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
         }
     }
 }
+
+/* Exchange operations (AS/SA/AS/SA with X suffix) */
+
+/**
+ * PAS.HX - Packed add-subtract with exchange
+ * For each pair: {rd[2i] = rs1[2i] - rs2[2i+1], rd[2i+1] = rs1[2i+1] + rs2[2i]}
+ */
+target_ulong HELPER(pas_hx)(CPURISCVState *env,
+                            target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i += 2) {
+        int16_t s1_lo = (int16_t)EXTRACT16(rs1, i);
+        int16_t s1_hi = (int16_t)EXTRACT16(rs1, i + 1);
+        int16_t s2_lo = (int16_t)EXTRACT16(rs2, i);
+        int16_t s2_hi = (int16_t)EXTRACT16(rs2, i + 1);
+        int16_t res_lo = s1_lo - s2_hi;
+        int16_t res_hi = s1_hi + s2_lo;
+        rd = INSERT16(rd, res_lo, i);
+        rd = INSERT16(rd, res_hi, i + 1);
+    }
+    return rd;
+}
+
+/**
+ * PSA.HX - Packed subtract-add with exchange
+ * For each pair: {rd[2i] = rs1[2i] + rs2[2i+1], rd[2i+1] = rs1[2i+1] - rs2[2i]}
+ */
+target_ulong HELPER(psa_hx)(CPURISCVState *env,
+                            target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i += 2) {
+        int16_t s1_lo = (int16_t)EXTRACT16(rs1, i);
+        int16_t s1_hi = (int16_t)EXTRACT16(rs1, i + 1);
+        int16_t s2_lo = (int16_t)EXTRACT16(rs2, i);
+        int16_t s2_hi = (int16_t)EXTRACT16(rs2, i + 1);
+        int16_t res_lo = s1_lo + s2_hi;
+        int16_t res_hi = s1_hi - s2_lo;
+        rd = INSERT16(rd, res_lo, i);
+        rd = INSERT16(rd, res_hi, i + 1);
+    }
+    return rd;
+}
+
+/**
+ * PSAS.HX - Packed saturating add-subtract with exchange
+ */
+target_ulong HELPER(psas_hx)(CPURISCVState *env,
+                             target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+    int sat = 0;
+
+    for (int i = 0; i < elems; i += 2) {
+        int16_t s1_lo = (int16_t)EXTRACT16(rs1, i);
+        int16_t s1_hi = (int16_t)EXTRACT16(rs1, i + 1);
+        int16_t s2_lo = (int16_t)EXTRACT16(rs2, i);
+        int16_t s2_hi = (int16_t)EXTRACT16(rs2, i + 1);
+        int32_t diff = (int32_t)s1_lo - (int32_t)s2_hi;
+        int32_t sum = (int32_t)s1_hi + (int32_t)s2_lo;
+        int16_t res_lo = signed_saturate_h(diff, &sat);
+        int16_t res_hi = signed_saturate_h(sum, &sat);
+        rd = INSERT16(rd, res_lo, i);
+        rd = INSERT16(rd, res_hi, i + 1);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PSSA.HX - Packed saturating subtract-add with exchange
+ */
+target_ulong HELPER(pssa_hx)(CPURISCVState *env,
+                             target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+    int sat = 0;
+
+    for (int i = 0; i < elems; i += 2) {
+        int16_t s1_lo = (int16_t)EXTRACT16(rs1, i);
+        int16_t s1_hi = (int16_t)EXTRACT16(rs1, i + 1);
+        int16_t s2_lo = (int16_t)EXTRACT16(rs2, i);
+        int16_t s2_hi = (int16_t)EXTRACT16(rs2, i + 1);
+        int32_t sum = (int32_t)s1_lo + (int32_t)s2_hi;
+        int32_t diff = (int32_t)s1_hi - (int32_t)s2_lo;
+        int16_t res_lo = signed_saturate_h(sum, &sat);
+        int16_t res_hi = signed_saturate_h(diff, &sat);
+        rd = INSERT16(rd, res_lo, i);
+        rd = INSERT16(rd, res_hi, i + 1);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PAAS.HX - Packed averaging add-subtract with exchange
+ */
+target_ulong HELPER(paas_hx)(CPURISCVState *env,
+                             target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i += 2) {
+        int16_t s1_lo = (int16_t)EXTRACT16(rs1, i);
+        int16_t s1_hi = (int16_t)EXTRACT16(rs1, i + 1);
+        int16_t s2_lo = (int16_t)EXTRACT16(rs2, i);
+        int16_t s2_hi = (int16_t)EXTRACT16(rs2, i + 1);
+        int16_t res_lo = (s1_lo - s2_hi) >> 1;
+        int16_t res_hi = (s1_hi + s2_lo) >> 1;
+        rd = INSERT16(rd, res_lo, i);
+        rd = INSERT16(rd, res_hi, i + 1);
+    }
+    return rd;
+}
+
+/**
+ * PASA.HX - Packed averaging subtract-add with exchange
+ */
+target_ulong HELPER(pasa_hx)(CPURISCVState *env,
+                             target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i += 2) {
+        int16_t s1_lo = (int16_t)EXTRACT16(rs1, i);
+        int16_t s1_hi = (int16_t)EXTRACT16(rs1, i + 1);
+        int16_t s2_lo = (int16_t)EXTRACT16(rs2, i);
+        int16_t s2_hi = (int16_t)EXTRACT16(rs2, i + 1);
+        int16_t res_lo = (s1_lo + s2_hi) >> 1;
+        int16_t res_hi = (s1_hi - s2_lo) >> 1;
+        rd = INSERT16(rd, res_lo, i);
+        rd = INSERT16(rd, res_hi, i + 1);
+    }
+    return rd;
+}
+
+/**
+ * PAS.WX - Word version of packed add-subtract with exchange (RV64 only)
+ */
+uint64_t HELPER(pas_wx)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i += 2) {
+        int32_t s1_lo = (int32_t)EXTRACT32(rs1, i);
+        int32_t s1_hi = (int32_t)EXTRACT32(rs1, i + 1);
+        int32_t s2_lo = (int32_t)EXTRACT32(rs2, i);
+        int32_t s2_hi = (int32_t)EXTRACT32(rs2, i + 1);
+        int32_t res_lo = s1_lo - s2_hi;
+        int32_t res_hi = s1_hi + s2_lo;
+        rd = INSERT32(rd, res_lo, i);
+        rd = INSERT32(rd, res_hi, i + 1);
+    }
+    return rd;
+}
+
+/**
+ * PSA.WX - Word version of packed subtract-add with exchange (RV64 only)
+ */
+uint64_t HELPER(psa_wx)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i += 2) {
+        int32_t s1_lo = (int32_t)EXTRACT32(rs1, i);
+        int32_t s1_hi = (int32_t)EXTRACT32(rs1, i + 1);
+        int32_t s2_lo = (int32_t)EXTRACT32(rs2, i);
+        int32_t s2_hi = (int32_t)EXTRACT32(rs2, i + 1);
+        int32_t res_lo = s1_lo + s2_hi;
+        int32_t res_hi = s1_hi - s2_lo;
+        rd = INSERT32(rd, res_lo, i);
+        rd = INSERT32(rd, res_hi, i + 1);
+    }
+    return rd;
+}
+
+/**
+ * PSAS.WX - Word version of packed saturating
+ * add-subtract with exchange (RV64 only)
+ */
+uint64_t HELPER(psas_wx)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+    int sat = 0;
+
+    for (int i = 0; i < elems; i += 2) {
+        int32_t s1_lo = (int32_t)EXTRACT32(rs1, i);
+        int32_t s1_hi = (int32_t)EXTRACT32(rs1, i + 1);
+        int32_t s2_lo = (int32_t)EXTRACT32(rs2, i);
+        int32_t s2_hi = (int32_t)EXTRACT32(rs2, i + 1);
+        int64_t diff = (int64_t)s1_lo - (int64_t)s2_hi;
+        int64_t sum = (int64_t)s1_hi + (int64_t)s2_lo;
+        int32_t res_lo = signed_saturate_w(diff, &sat);
+        int32_t res_hi = signed_saturate_w(sum, &sat);
+        rd = INSERT32(rd, res_lo, i);
+        rd = INSERT32(rd, res_hi, i + 1);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PSSA.WX - Word version of packed saturating
+ * subtract-add with exchange (RV64 only)
+ */
+uint64_t HELPER(pssa_wx)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+    int sat = 0;
+
+    for (int i = 0; i < elems; i += 2) {
+        int32_t s1_lo = (int32_t)EXTRACT32(rs1, i);
+        int32_t s1_hi = (int32_t)EXTRACT32(rs1, i + 1);
+        int32_t s2_lo = (int32_t)EXTRACT32(rs2, i);
+        int32_t s2_hi = (int32_t)EXTRACT32(rs2, i + 1);
+        int64_t sum = (int64_t)s1_lo + (int64_t)s2_hi;
+        int64_t diff = (int64_t)s1_hi - (int64_t)s2_lo;
+        int32_t res_lo = signed_saturate_w(sum, &sat);
+        int32_t res_hi = signed_saturate_w(diff, &sat);
+        rd = INSERT32(rd, res_lo, i);
+        rd = INSERT32(rd, res_hi, i + 1);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PAAS.WX - Word version of packed averaging
+ * add-subtract with exchange (RV64 only)
+ */
+uint64_t HELPER(paas_wx)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i += 2) {
+        int64_t s1_lo = (int32_t)EXTRACT32(rs1, i);
+        int64_t s1_hi = (int32_t)EXTRACT32(rs1, i + 1);
+        int64_t s2_lo = (int32_t)EXTRACT32(rs2, i);
+        int64_t s2_hi = (int32_t)EXTRACT32(rs2, i + 1);
+        int32_t res_lo = (s1_lo - s2_hi) >> 1;
+        int32_t res_hi = (s1_hi + s2_lo) >> 1;
+        rd = INSERT32(rd, res_lo, i);
+        rd = INSERT32(rd, res_hi, i + 1);
+    }
+    return rd;
+}
+
+/**
+ * PASA.WX - Word version of packed averaging
+ * subtract-add with exchange (RV64 only)
+ */
+uint64_t HELPER(pasa_wx)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i += 2) {
+        int64_t s1_lo = (int32_t)EXTRACT32(rs1, i);
+        int64_t s1_hi = (int32_t)EXTRACT32(rs1, i + 1);
+        int64_t s2_lo = (int32_t)EXTRACT32(rs2, i);
+        int64_t s2_hi = (int32_t)EXTRACT32(rs2, i + 1);
+        int32_t res_lo = (s1_lo + s2_hi) >> 1;
+        int32_t res_hi = (s1_hi - s2_lo) >> 1;
+        rd = INSERT32(rd, res_lo, i);
+        rd = INSERT32(rd, res_hi, i + 1);
+    }
+    return rd;
+}
