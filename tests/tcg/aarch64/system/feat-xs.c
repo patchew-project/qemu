@@ -8,12 +8,12 @@
 
 #include <minilib.h>
 #include <stdint.h>
+#include "sysregs.h"
 
 int main(void)
 {
-    uint64_t isar1;
+    uint64_t isar1 = read_sysreg(id_aa64isar1_el1);
 
-    asm volatile ("mrs %0, id_aa64isar1_el1" : "=r"(isar1));
     if (((isar1 >> 56) & 0xf) < 1) {
         ml_printf("FEAT_XS not supported by CPU");
         return 1;
