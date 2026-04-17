@@ -2997,3 +2997,622 @@ uint64_t HELPER(pasa_wx)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
     }
     return rd;
 }
+
+/* Horizontal sum operations */
+
+/**
+ * PREDSUM.BS - Signed reduction sum of bytes
+ * rd = rs2 + sum(sign_extend(rs1[i]))
+ */
+target_ulong HELPER(predsum_bs)(CPURISCVState *env,
+                                target_ulong rs1, target_ulong rs2)
+{
+    int64_t sum = (int64_t)(int32_t)rs2;
+    int elems = ELEMS_B(rs1);
+
+    for (int i = 0; i < elems; i++) {
+        int8_t e1 = (int8_t)EXTRACT8(rs1, i);
+        sum += e1;
+    }
+
+    return (target_ulong)sum;
+}
+
+/**
+ * PREDSUMU.BS - Unsigned reduction sum of bytes
+ * rd = rs2 + sum(zero_extend(rs1[i]))
+ */
+target_ulong HELPER(predsumu_bs)(CPURISCVState *env,
+                                 target_ulong rs1, target_ulong rs2)
+{
+    uint64_t sum = rs2;
+    int elems = ELEMS_B(rs1);
+
+    for (int i = 0; i < elems; i++) {
+        uint8_t e1 = EXTRACT8(rs1, i);
+        sum += e1;
+    }
+
+    return (target_ulong)sum;
+}
+
+/**
+ * PREDSUM.HS - Signed reduction sum of halfwords
+ * rd = rs2 + sum(sign_extend(rs1[i]))
+ */
+target_ulong HELPER(predsum_hs)(CPURISCVState *env,
+                                target_ulong rs1, target_ulong rs2)
+{
+    int64_t sum = (int64_t)(int32_t)rs2;
+    int elems = ELEMS_H(rs1);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t e1 = (int16_t)EXTRACT16(rs1, i);
+        sum += e1;
+    }
+
+    return (target_ulong)sum;
+}
+
+/**
+ * PREDSUMU.HS - Unsigned reduction sum of halfwords
+ * rd = rs2 + sum(zero_extend(rs1[i]))
+ */
+target_ulong HELPER(predsumu_hs)(CPURISCVState *env,
+                                 target_ulong rs1, target_ulong rs2)
+{
+    uint64_t sum = rs2;
+    int elems = ELEMS_H(rs1);
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t e1 = EXTRACT16(rs1, i);
+        sum += e1;
+    }
+
+    return (target_ulong)sum;
+}
+
+/**
+ * PREDSUM.WS - Signed reduction sum of words (RV64 only)
+ * rd = rs2 + sum(sign_extend(rs1[i]))
+ */
+uint64_t HELPER(predsum_ws)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    int64_t sum = (int64_t)rs2;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        int32_t e1 = (int32_t)EXTRACT32(rs1, i);
+        sum += e1;
+    }
+
+    return (uint64_t)sum;
+}
+
+/**
+ * PREDSUMU.WS - Unsigned reduction sum of words (RV64 only)
+ * rd = rs2 + sum(zero_extend(rs1[i]))
+ */
+uint64_t HELPER(predsumu_ws)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t sum = rs2;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        uint32_t e1 = EXTRACT32(rs1, i);
+        sum += e1;
+    }
+
+    return sum;
+}
+
+/* Packing/unpacking operations */
+
+/**
+ * PPAIRE.B - Pair low bytes of corresponding halfwords
+ * For each halfword: rd[i] = {rs2[i][7:0], rs1[i][7:0]}
+ */
+target_ulong HELPER(ppaire_b)(CPURISCVState *env,
+                               target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t e1 = EXTRACT16(rs1, i);
+        uint16_t e2 = EXTRACT16(rs2, i);
+        uint16_t res = ((e2 & 0x00FF) << 8) | (e1 & 0x00FF);
+        rd = INSERT16(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PPAIREO.B - Pair high byte of rs2 with low byte of rs1
+ * For each halfword: rd[i] = {rs2[i][15:8], rs1[i][7:0]}
+ */
+target_ulong HELPER(ppaireo_b)(CPURISCVState *env,
+                                target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t e1 = EXTRACT16(rs1, i);
+        uint16_t e2 = EXTRACT16(rs2, i);
+        uint16_t res = ((e2 >> 8) << 8) | (e1 & 0x00FF);
+        rd = INSERT16(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PPAIROE.B - Pair low byte of rs2 with high byte of rs1
+ * For each halfword: rd[i] = {rs2[i][7:0], rs1[i][15:8]}
+ */
+target_ulong HELPER(ppairoe_b)(CPURISCVState *env,
+                                target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t e1 = EXTRACT16(rs1, i);
+        uint16_t e2 = EXTRACT16(rs2, i);
+        uint16_t res = ((e2 & 0x00FF) << 8) | ((e1 >> 8) & 0x00FF);
+        rd = INSERT16(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PPAIRO.B - Pair high bytes of corresponding halfwords
+ * For each halfword: rd[i] = {rs2[i][15:8], rs1[i][15:8]}
+ */
+target_ulong HELPER(ppairo_b)(CPURISCVState *env,
+                               target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t e1 = EXTRACT16(rs1, i);
+        uint16_t e2 = EXTRACT16(rs2, i);
+        uint16_t res = ((e2 >> 8) << 8) | ((e1 >> 8) & 0x00FF);
+        rd = INSERT16(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PPAIRE.H - Pair low halfwords of corresponding words
+ * (RV64 only)
+ * For each word: rd[i] = {rs2[i][15:0], rs1[i][15:0]}
+ */
+uint64_t HELPER(ppaire_h)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        uint32_t e1 = EXTRACT32(rs1, i);
+        uint32_t e2 = EXTRACT32(rs2, i);
+        uint32_t res = ((e2 & 0x0000FFFF) << 16) | (e1 & 0x0000FFFF);
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PPAIREO.H - Pair high halfword of rs2 with low halfword of rs1 (RV64 only)
+ */
+target_ulong HELPER(ppaireo_h)(CPURISCVState *env,
+                                target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        uint32_t e1 = EXTRACT32(rs1, i);
+        uint32_t e2 = EXTRACT32(rs2, i);
+        uint32_t res = ((e2 >> 16) << 16) | (e1 & 0x0000FFFF);
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PPAIROE.H - Pair low halfword of rs2 with high halfword of rs1 (RV64 only)
+ */
+target_ulong HELPER(ppairoe_h)(CPURISCVState *env,
+                                target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        uint32_t e1 = EXTRACT32(rs1, i);
+        uint32_t e2 = EXTRACT32(rs2, i);
+        uint32_t res = ((e2 & 0x0000FFFF) << 16) | ((e1 >> 16) & 0x0000FFFF);
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PPAIRO.H - Pair high halfwords of corresponding words (RV64 only)
+ */
+target_ulong HELPER(ppairo_h)(CPURISCVState *env,
+                               target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        uint32_t e1 = EXTRACT32(rs1, i);
+        uint32_t e2 = EXTRACT32(rs2, i);
+        uint32_t res = ((e2 >> 16) << 16) | ((e1 >> 16) & 0x0000FFFF);
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PPAIREO.W - Pair low word of rs2 with low word of rs1 (RV64 only)
+ */
+uint64_t HELPER(ppaireo_w)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    uint32_t e1 = EXTRACT32(rs1, 0);
+    uint32_t e2 = EXTRACT32(rs2, 1);
+    rd = ((uint64_t)e2 << 32) | e1;
+    return rd;
+}
+
+/**
+ * PPAIROE.W - Pair low word of rs2 with high word of rs1 (RV64 only)
+ */
+uint64_t HELPER(ppairoe_w)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    uint32_t e1 = EXTRACT32(rs1, 1);
+    uint32_t e2 = EXTRACT32(rs2, 0);
+    rd = ((uint64_t)e2 << 32) | e1;
+    return rd;
+}
+
+/**
+ * PPAIRO.W - Pair high word of rs2 with high word of rs1 (RV64 only)
+ */
+uint64_t HELPER(ppairo_w)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    uint32_t e1 = EXTRACT32(rs1, 1);
+    uint32_t e2 = EXTRACT32(rs2, 1);
+    rd = ((uint64_t)e2 << 32) | e1;
+    return rd;
+}
+
+/**
+ * PSEXT.H.B - Sign-extend bytes to halfwords within each halfword
+ */
+target_ulong HELPER(psext_h_b)(CPURISCVState *env, target_ulong rs1)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t e1 = EXTRACT16(rs1, i);
+        int8_t b0 = (int8_t)(e1 & 0xFF);
+        int16_t res = (int16_t)b0;
+        rd = INSERT16(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PSEXT.W.B - Sign-extend bytes to words (RV64 only)
+ */
+uint64_t HELPER(psext_w_b)(CPURISCVState *env, uint64_t rs1)
+{
+    uint64_t rd = 0;
+    int8_t b0 = (int8_t)EXTRACT8(rs1, 0);
+    int8_t b4 = (int8_t)EXTRACT8(rs1, 4);
+    uint32_t lo = (uint32_t)(int32_t)b0;
+    uint32_t hi = (uint32_t)(int32_t)b4;
+    rd = ((uint64_t)hi << 32) | lo;
+    return rd;
+}
+
+/**
+ * PSEXT.W.H - Sign-extend halfwords to words (RV64 only)
+ */
+uint64_t HELPER(psext_w_h)(CPURISCVState *env, uint64_t rs1)
+{
+    uint64_t rd = 0;
+    int16_t h0 = (int16_t)EXTRACT16(rs1, 0);
+    int16_t h2 = (int16_t)EXTRACT16(rs1, 2);
+    uint32_t lo = (uint32_t)(int32_t)h0;
+    uint32_t hi = (uint32_t)(int32_t)h2;
+    rd = ((uint64_t)hi << 32) | lo;
+    return rd;
+}
+
+/**
+ * REV - Reverse all bits
+ */
+target_ulong HELPER(rev)(CPURISCVState *env, target_ulong rs1)
+{
+    target_ulong rd = 0;
+
+    for (int i = 0; i < TARGET_LONG_BITS; i++) {
+        rd = (rd << 1) | (rs1 & 1);
+        rs1 >>= 1;
+    }
+
+    return rd;
+}
+
+/**
+ * REV16 - Reverse 16-bit chunks (RV64 only)
+ */
+uint64_t HELPER(rev16)(CPURISCVState *env, uint64_t rs1)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t chunk = EXTRACT16(rs1, i);
+        rd = (rd << 16) | chunk;
+    }
+
+    return rd;
+}
+
+/**
+ * ZIP8P - Interleave bytes from rs2 and rs1 (RV64 only)
+ * rd = {rs2[31:24], rs1[31:24], rs2[23:16], rs1[23:16],
+ *       rs2[15:8], rs1[15:8], rs2[7:0], rs1[7:0]}
+ */
+uint64_t HELPER(zip8p)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint8_t b1 = EXTRACT8(rs1, 3 - i);
+        uint8_t b2 = EXTRACT8(rs2, 3 - i);
+        rd = (rd << 16) | ((uint16_t)b2 << 8) | b1;
+    }
+
+    return rd;
+}
+
+/**
+ * ZIP8HP - Interleave high bytes from rs2 and rs1 (RV64 only)
+ */
+uint64_t HELPER(zip8hp)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint8_t b1 = EXTRACT8(rs1, 7 - i);
+        uint8_t b2 = EXTRACT8(rs2, 7 - i);
+        rd = (rd << 16) | ((uint16_t)b2 << 8) | b1;
+    }
+
+    return rd;
+}
+
+/**
+ * UNZIP8P - De-interleave bytes
+ * (RV64 only)
+ */
+uint64_t HELPER(unzip8p)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint64_t b1 = EXTRACT8(rs1, 2 * i) << 8 * i;
+        uint64_t b2 = EXTRACT8(rs2, 2 * i) << (32 + 8 * i);
+        rd = rd | b2 | b1;
+    }
+
+    return rd;
+}
+
+/**
+ * UNZIP8HP - De-interleave high bytes
+ * (RV64 only)
+ */
+uint64_t HELPER(unzip8hp)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint64_t b1 = EXTRACT8(rs1, 2 * i + 1) << 8 * i;
+        uint64_t b2 = EXTRACT8(rs2, 2 * i + 1) << (32 + 8 * i);
+        rd = rd | b2 | b1;
+    }
+
+    return rd;
+}
+
+/**
+ * ZIP16P - Interleave halfwords from rs2 and rs1 (RV64 only)
+ */
+uint64_t HELPER(zip16p)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        uint16_t h1 = EXTRACT16(rs1, 1 - i);
+        uint16_t h2 = EXTRACT16(rs2, 1 - i);
+        rd = (rd << 32) | ((uint32_t)h2 << 16) | h1;
+    }
+
+    return rd;
+}
+
+/**
+ * ZIP16HP - Interleave high halfwords (RV64 only)
+ */
+uint64_t HELPER(zip16hp)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        uint16_t h1 = EXTRACT16(rs1, 3 - i);
+        uint16_t h2 = EXTRACT16(rs2, 3 - i);
+        rd = (rd << 32) | ((uint32_t)h2 << 16) | h1;
+    }
+
+    return rd;
+}
+
+/**
+ * UNZIP16P - De-interleave halfwords (RV64 only)
+ */
+uint64_t HELPER(unzip16p)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        uint64_t b1 = EXTRACT16(rs1, 2 * i) << 16 * i;
+        uint64_t b2 = EXTRACT16(rs2, 2 * i) << (32 + 16 * i);
+        rd = rd | b2 | b1;
+    }
+
+    return rd;
+}
+
+/**
+ * UNZIP16HP - De-interleave high halfwords (RV64 only)
+ */
+uint64_t HELPER(unzip16hp)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        uint64_t b1 = EXTRACT16(rs1, 2 * i + 1) << 16 * i;
+        uint64_t b2 = EXTRACT16(rs2, 2 * i + 1) << (32 + 16 * i);
+        rd = rd | b2 | b1;
+    }
+
+    return rd;
+}
+
+
+/* Merge and mask operations */
+
+/**
+ * SLX - Shift left extended (concatenate rd and rs1, shift left, take upper)
+ */
+target_ulong HELPER(slx)(CPURISCVState *env, target_ulong rs1,
+                         target_ulong rs2, target_ulong rd)
+{
+    int shamt = (TARGET_LONG_BITS == 32) ? (rs2 & 0x1F) : (rs2 & 0x3F);
+    target_ulong xrs1 = 0;
+    target_ulong xrd = 0;
+
+    if (shamt <= TARGET_LONG_BITS) {
+        xrs1 = rs1 >> (TARGET_LONG_BITS - shamt);
+        xrd = (rd << shamt) + xrs1;
+    } else {
+        xrd = rs1 << (shamt - TARGET_LONG_BITS);
+    }
+
+    return xrd;
+}
+
+/**
+ * SRX - Shift right extended (concatenate rs1 and rd, shift right, take lower)
+ */
+target_ulong HELPER(srx)(CPURISCVState *env, target_ulong rs1,
+                         target_ulong rs2, target_ulong rd)
+{
+    int shamt = (TARGET_LONG_BITS == 32) ? (rs2 & 0x1F) : (rs2 & 0x3F);
+    target_ulong xrs1 = 0;
+    target_ulong xrd = 0;
+
+    if (shamt <= TARGET_LONG_BITS) {
+        xrs1 = rs1 << (TARGET_LONG_BITS - shamt);
+        xrd = (rd >> shamt) + xrs1;
+    } else {
+        xrd = rs1 >> (shamt - TARGET_LONG_BITS);
+    }
+
+    return xrd;
+}
+
+/**
+ * MVM - Move masked
+ * For each bit: rd[i] = rs2[i] ? rs1[i] : rd[i]
+ */
+target_ulong HELPER(mvm)(CPURISCVState *env, target_ulong rs1,
+                         target_ulong rs2, target_ulong rd)
+{
+    return (~rs2 & rd) | (rs2 & rs1);
+}
+
+/**
+ * MVMN - Move masked not
+ * For each bit: rd[i] = rs2[i] ? rd[i] : rs1[i]
+ */
+target_ulong HELPER(mvmn)(CPURISCVState *env, target_ulong rs1,
+                          target_ulong rs2, target_ulong rd)
+{
+    return (~rs2 & rs1) | (rs2 & rd);
+}
+
+/**
+ * MERGE - Merge
+ * For each bit: rd[i] = rd[i] ? rs2[i] : rs1[i]
+ */
+target_ulong HELPER(merge)(CPURISCVState *env, target_ulong rs1,
+                           target_ulong rs2, target_ulong rd)
+{
+    return (~rd & rs1) | (rd & rs2);
+}
+
+/* Count leading operations */
+
+/**
+ * CLS - Count leading redundant sign bits
+ */
+target_ulong HELPER(cls)(CPURISCVState *env, target_ulong rs1)
+{
+    target_long a = (target_long)rs1;
+    target_ulong cnt = 0;
+
+#if TARGET_LONG_BITS == 64
+    target_long lo_bound = 0xC000000000000000LL;
+    target_long hi_bound = 0x3FFFFFFFFFFFFFFFLL;
+#else
+    target_long lo_bound = 0xC0000000;
+    target_long hi_bound = 0x3FFFFFFF;
+#endif
+
+    while (cnt < TARGET_LONG_BITS - 1 && a >= lo_bound && a <= hi_bound) {
+        cnt++;
+        a <<= 1;
+    }
+
+    return cnt;
+}
+
+/**
+ * CLSW - Count leading redundant sign bits of low 32 bits (RV64)
+ */
+uint64_t HELPER(clsw)(CPURISCVState *env, uint64_t rs1)
+{
+    int32_t a = (int32_t)(rs1 & 0xFFFFFFFF);
+    int32_t lo_bound = 0xC0000000;
+    int32_t hi_bound = 0x3FFFFFFF;
+    int c = 0;
+
+    while (c < 31 && a >= lo_bound && a <= hi_bound) {
+        c++;
+        a <<= 1;
+    }
+
+    return c;
+}
