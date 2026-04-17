@@ -85,13 +85,81 @@ static int set_time_freeze(int vm_fd, int freeze)
     return 0;
 }
 
+static int get_reference_time(int vm_fd, uint64_t *ref_time)
+{
+    int ret;
+    struct hv_input_get_partition_property in = {0};
+    struct hv_output_get_partition_property out = {0};
+    struct mshv_root_hvcall args = {0};
+
+    in.property_code = HV_PARTITION_PROPERTY_REFERENCE_TIME;
+
+    args.code = HVCALL_GET_PARTITION_PROPERTY;
+    args.in_sz = sizeof(in);
+    args.in_ptr = (uint64_t)&in;
+    args.out_sz = sizeof(out);
+    args.out_ptr = (uint64_t)&out;
+
+    ret = mshv_hvcall(vm_fd, &args);
+    if (ret < 0) {
+        error_report("Failed to get reference time");
+        return -1;
+    }
+
+    *ref_time = out.property_value;
+    return 0;
+}
+
 static void mshv_save_state(QEMUFile *f, void *opaque)
 {
-    return;
+    MshvState *s = opaque;
+    uint64_t ref_time;
+    int ret;
+
+    ret = get_reference_time(s->vm, &ref_time);
+    if (ret < 0) {
+        error_report("Failed to get reference time for migration");
+        abort();
+    }
+
+    qemu_put_be64(f, ref_time);
+}
+
+static int set_reference_time(int vm_fd, uint64_t ref_time)
+{
+    int ret;
+    struct hv_input_set_partition_property in = {0};
+    struct mshv_root_hvcall args = {0};
+
+    in.property_code = HV_PARTITION_PROPERTY_REFERENCE_TIME;
+    in.property_value = ref_time;
+
+    args.code = HVCALL_SET_PARTITION_PROPERTY;
+    args.in_sz = sizeof(in);
+    args.in_ptr = (uint64_t)&in;
+
+    ret = mshv_hvcall(vm_fd, &args);
+    if (ret < 0) {
+        error_report("Failed to set reference time");
+        return -1;
+    }
+
+    return 0;
 }
 
 static int mshv_load_state(QEMUFile *f, void *opaque, int version_id)
 {
+    MshvState *s = opaque;
+    uint64_t ref_time;
+    int ret;
+
+    ref_time = qemu_get_be64(f);
+
+    ret = set_reference_time(s->vm, ref_time);
+    if (ret < 0) {
+        error_report("Failed to set reference time after migration");
+        return -1;
+    }
     return 0;
 }
 
