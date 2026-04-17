@@ -71,17 +71,11 @@ static void ati_set_dirty(VGACommonState *vga, const ATI2DCtx *ctx)
     DisplaySurface *ds = qemu_console_surface(vga->con);
 
     (void)ds;
-    DPRINTF("%p %u ds: %p %d %d rop: %x\n", vga->vram_ptr, vga->vbe_start_addr,
-            surface_data(ds), surface_stride(ds), surface_bits_per_pixel(ds),
-            ctx->rop3 >> 16);
-    if (ctx->dst_bits >= vga->vram_ptr + vga->vbe_start_addr &&
-        ctx->dst_bits < vga->vram_ptr + vga->vbe_start_addr +
-        vga->vbe_regs[VBE_DISPI_INDEX_YRES] * vga->vbe_line_offset) {
-        memory_region_set_dirty(&vga->vram,
-                                vga->vbe_start_addr + ctx->dst_offset +
-                                ctx->dst.y * ctx->dst_stride,
-                                ctx->dst.height * ctx->dst_stride);
-    }
+    DPRINTF("%p ds: %p %d %d rop: %x\n", vga->vram_ptr, surface_data(ds),
+            surface_stride(ds), surface_bits_per_pixel(ds), ctx->rop3 >> 16);
+    memory_region_set_dirty(&vga->vram,
+                            ctx->dst_offset + ctx->dst.y * ctx->dst_stride,
+                            ctx->dst.height * ctx->dst_stride);
 }
 
 static void setup_2d_blt_ctx(const ATIVGAState *s, ATI2DCtx *ctx)
