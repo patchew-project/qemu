@@ -6074,3 +6074,941 @@ uint64_t HELPER(pmqracc_w_h11)(CPURISCVState *env, uint64_t rs1,
     }
     return rd;
 }
+
+/* Two-Way Multiply and Accumulate Operations */
+
+/**
+ * PMQ2ADD.H - Add two Q-format products
+ */
+target_ulong HELPER(pmq2add_h)(CPURISCVState *env, target_ulong rs1,
+                               target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s1_h1 = (int16_t)EXTRACT16(rs1, i * 2 + 1);
+        int16_t s2_h0 = (int16_t)EXTRACT16(rs2, i * 2);
+        int16_t s2_h1 = (int16_t)EXTRACT16(rs2, i * 2 + 1);
+        int32_t prod0 = (int32_t)s1_h0 * (int32_t)s2_h0;
+        int64_t prod0_47 = ((int64_t)prod0) >> 15;
+        int32_t prod1 = (int32_t)s1_h1 * (int32_t)s2_h1;
+        int64_t prod1_47 = ((int64_t)prod1) >> 15;
+        uint32_t sum = (uint32_t)(prod0_47 + prod1_47);
+        rd = INSERT32(rd, sum, i);
+    }
+    return rd;
+}
+
+/**
+ * PMQR2ADD.H - Add two Q-format products with rounding
+ */
+target_ulong HELPER(pmqr2add_h)(CPURISCVState *env, target_ulong rs1,
+                                target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s1_h1 = (int16_t)EXTRACT16(rs1, i * 2 + 1);
+        int16_t s2_h0 = (int16_t)EXTRACT16(rs2, i * 2);
+        int16_t s2_h1 = (int16_t)EXTRACT16(rs2, i * 2 + 1);
+        int32_t prod0 = (int32_t)s1_h0 * (int32_t)s2_h0 + (1LL << 14);
+        int64_t prod0_47 = ((int64_t)prod0) >> 15;
+        int32_t prod1 = (int32_t)s1_h1 * (int32_t)s2_h1 + (1LL << 14);
+        int64_t prod1_47 = ((int64_t)prod1) >> 15;
+        uint32_t sum = (uint32_t)(prod0_47 + prod1_47);
+        rd = INSERT32(rd, sum, i);
+    }
+    return rd;
+}
+
+/**
+ * PMQ2ADDA.H - Add two Q-format products with accumulate
+ */
+target_ulong HELPER(pmq2adda_h)(CPURISCVState *env, target_ulong rs1,
+                                target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s1_h1 = (int16_t)EXTRACT16(rs1, i * 2 + 1);
+        int16_t s2_h0 = (int16_t)EXTRACT16(rs2, i * 2);
+        int16_t s2_h1 = (int16_t)EXTRACT16(rs2, i * 2 + 1);
+        int32_t d = (int32_t)EXTRACT32(dest, i);
+        int32_t prod0 = (int32_t)s1_h0 * (int32_t)s2_h0;
+        int64_t prod0_47 = ((int64_t)prod0) >> 15;
+        int32_t prod1 = (int32_t)s1_h1 * (int32_t)s2_h1;
+        int64_t prod1_47 = ((int64_t)prod1) >> 15;
+        uint32_t sum = (uint32_t)(d + prod0_47 + prod1_47);
+        rd = INSERT32(rd, sum, i);
+    }
+    return rd;
+}
+
+/**
+ * PMQR2ADDA.H - Add two Q-format products with rounding and accumulate
+ */
+target_ulong HELPER(pmqr2adda_h)(CPURISCVState *env, target_ulong rs1,
+                                 target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s1_h1 = (int16_t)EXTRACT16(rs1, i * 2 + 1);
+        int16_t s2_h0 = (int16_t)EXTRACT16(rs2, i * 2);
+        int16_t s2_h1 = (int16_t)EXTRACT16(rs2, i * 2 + 1);
+        int32_t d = (int32_t)EXTRACT32(dest, i);
+        int32_t prod0 = (int32_t)s1_h0 * (int32_t)s2_h0 + (1LL << 14);
+        int64_t prod0_47 = ((int64_t)prod0) >> 15;
+        int32_t prod1 = (int32_t)s1_h1 * (int32_t)s2_h1 + (1LL << 14);
+        int64_t prod1_47 = ((int64_t)prod1) >> 15;
+        uint32_t sum = (uint32_t)(d + prod0_47 + prod1_47);
+        rd = INSERT32(rd, sum, i);
+    }
+    return rd;
+}
+
+/**
+ * PMQ2ADD.W - Add two Q-format products (word, RV64 only)
+ */
+uint64_t HELPER(pmq2add_w)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    int32_t s1_w0 = (int32_t)EXTRACT32(rs1, 0);
+    int32_t s1_w1 = (int32_t)EXTRACT32(rs1, 1);
+    int32_t s2_w0 = (int32_t)EXTRACT32(rs2, 0);
+    int32_t s2_w1 = (int32_t)EXTRACT32(rs2, 1);
+    int64_t prod0 = (int64_t)s1_w0 * (int64_t)s2_w0;
+    __int128_t prod0_95 = ((__int128_t)prod0) >> 31;
+    int64_t prod1 = (int64_t)s1_w1 * (int64_t)s2_w1;
+    __int128_t prod1_95 = ((__int128_t)prod1) >> 31;
+    return (uint64_t)(prod0_95 + prod1_95);
+}
+
+/**
+ * PMQR2ADD.W - Add two Q-format products with rounding (word, RV64 only)
+ */
+uint64_t HELPER(pmqr2add_w)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    int32_t s1_w0 = (int32_t)EXTRACT32(rs1, 0);
+    int32_t s1_w1 = (int32_t)EXTRACT32(rs1, 1);
+    int32_t s2_w0 = (int32_t)EXTRACT32(rs2, 0);
+    int32_t s2_w1 = (int32_t)EXTRACT32(rs2, 1);
+    int64_t prod0 = (int64_t)s1_w0 * (int64_t)s2_w0 + (1LL << 30);
+    __int128_t prod0_95 = ((__int128_t)prod0) >> 31;
+    int64_t prod1 = (int64_t)s1_w1 * (int64_t)s2_w1 + (1LL << 30);
+    __int128_t prod1_95 = ((__int128_t)prod1) >> 31;
+    return (uint64_t)(prod0_95 + prod1_95);
+}
+
+/**
+ * PMQ2ADDA.W - Add two Q-format products with accumulate (word, RV64 only)
+ */
+uint64_t HELPER(pmq2adda_w)(CPURISCVState *env, uint64_t rs1,
+                            uint64_t rs2, uint64_t dest)
+{
+    int32_t s1_w0 = (int32_t)EXTRACT32(rs1, 0);
+    int32_t s1_w1 = (int32_t)EXTRACT32(rs1, 1);
+    int32_t s2_w0 = (int32_t)EXTRACT32(rs2, 0);
+    int32_t s2_w1 = (int32_t)EXTRACT32(rs2, 1);
+    int64_t d = (int64_t)dest;
+    int64_t prod0 = (int64_t)s1_w0 * (int64_t)s2_w0;
+    __int128_t prod0_95 = ((__int128_t)prod0) >> 31;
+    int64_t prod1 = (int64_t)s1_w1 * (int64_t)s2_w1;
+    __int128_t prod1_95 = ((__int128_t)prod1) >> 31;
+    return (uint64_t)(d + prod0_95 + prod1_95);
+}
+
+/**
+ * PMQR2ADDA.W - Add two Q-format products with rounding
+ * and accumulate (word, RV64 only)
+ */
+uint64_t HELPER(pmqr2adda_w)(CPURISCVState *env, uint64_t rs1,
+                             uint64_t rs2, uint64_t dest)
+{
+    int32_t s1_w0 = (int32_t)EXTRACT32(rs1, 0);
+    int32_t s1_w1 = (int32_t)EXTRACT32(rs1, 1);
+    int32_t s2_w0 = (int32_t)EXTRACT32(rs2, 0);
+    int32_t s2_w1 = (int32_t)EXTRACT32(rs2, 1);
+    int64_t d = (int64_t)dest;
+    int64_t prod0 = (int64_t)s1_w0 * (int64_t)s2_w0 + (1LL << 30);
+    __int128_t prod0_95 = ((__int128_t)prod0) >> 31;
+    int64_t prod1 = (int64_t)s1_w1 * (int64_t)s2_w1 + (1LL << 30);
+    __int128_t prod1_95 = ((__int128_t)prod1) >> 31;
+    return (uint64_t)(d + prod0_95 + prod1_95);
+}
+
+/**
+ * PM2ADD.H - Add two products horizontally
+ * For each word: rd[i] = rs1[2i] * rs2[2i] + rs1[2i+1] * rs2[2i+1]
+ */
+target_ulong HELPER(pm2add_h)(CPURISCVState *env, target_ulong rs1,
+                              target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s1_h1 = (int16_t)EXTRACT16(rs1, i * 2 + 1);
+        int16_t s2_h0 = (int16_t)EXTRACT16(rs2, i * 2);
+        int16_t s2_h1 = (int16_t)EXTRACT16(rs2, i * 2 + 1);
+        int32_t prod0 = (int32_t)s1_h0 * (int32_t)s2_h0;
+        int32_t prod1 = (int32_t)s1_h1 * (int32_t)s2_h1;
+        uint32_t sum = (uint32_t)(prod0 + prod1);
+        rd = INSERT32(rd, sum, i);
+    }
+    return rd;
+}
+
+/**
+ * PM2ADDSU.H - Add two products horizontally (signed x unsigned)
+ */
+target_ulong HELPER(pm2addsu_h)(CPURISCVState *env, target_ulong rs1,
+                                target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s1_h1 = (int16_t)EXTRACT16(rs1, i * 2 + 1);
+        uint16_t s2_h0 = EXTRACT16(rs2, i * 2);
+        uint16_t s2_h1 = EXTRACT16(rs2, i * 2 + 1);
+        int32_t prod0 = (int32_t)s1_h0 * (uint32_t)s2_h0;
+        int32_t prod1 = (int32_t)s1_h1 * (uint32_t)s2_h1;
+        uint32_t sum = (uint32_t)(prod0 + prod1);
+        rd = INSERT32(rd, sum, i);
+    }
+    return rd;
+}
+
+/**
+ * PM2ADDU.H - Add two products horizontally (unsigned)
+ */
+target_ulong HELPER(pm2addu_h)(CPURISCVState *env, target_ulong rs1,
+                               target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t s1_h0 = EXTRACT16(rs1, i * 2);
+        uint16_t s1_h1 = EXTRACT16(rs1, i * 2 + 1);
+        uint16_t s2_h0 = EXTRACT16(rs2, i * 2);
+        uint16_t s2_h1 = EXTRACT16(rs2, i * 2 + 1);
+        uint32_t prod0 = (uint32_t)s1_h0 * (uint32_t)s2_h0;
+        uint32_t prod1 = (uint32_t)s1_h1 * (uint32_t)s2_h1;
+        uint32_t sum = prod0 + prod1;
+        rd = INSERT32(rd, sum, i);
+    }
+    return rd;
+}
+
+/**
+ * PM2ADD.HX - Add cross products horizontally
+ * For each word: rd[i] = rs1[2i] * rs2[2i+1] + rs1[2i+1] * rs2[2i]
+ */
+target_ulong HELPER(pm2add_hx)(CPURISCVState *env, target_ulong rs1,
+                               target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s1_h1 = (int16_t)EXTRACT16(rs1, i * 2 + 1);
+        int16_t s2_h0 = (int16_t)EXTRACT16(rs2, i * 2);
+        int16_t s2_h1 = (int16_t)EXTRACT16(rs2, i * 2 + 1);
+        int32_t prod01 = (int32_t)s1_h0 * (int32_t)s2_h1;
+        int32_t prod10 = (int32_t)s1_h1 * (int32_t)s2_h0;
+        uint32_t sum = (uint32_t)(prod01 + prod10);
+        rd = INSERT32(rd, sum, i);
+    }
+    return rd;
+}
+
+/**
+ * PM2SUB.H - Subtract two products horizontally
+ * For each word: rd[i] = rs1[2i] * rs2[2i] - rs1[2i+1] * rs2[2i+1]
+ */
+target_ulong HELPER(pm2sub_h)(CPURISCVState *env, target_ulong rs1,
+                              target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s1_h1 = (int16_t)EXTRACT16(rs1, i * 2 + 1);
+        int16_t s2_h0 = (int16_t)EXTRACT16(rs2, i * 2);
+        int16_t s2_h1 = (int16_t)EXTRACT16(rs2, i * 2 + 1);
+        int32_t prod0 = (int32_t)s1_h0 * (int32_t)s2_h0;
+        int32_t prod1 = (int32_t)s1_h1 * (int32_t)s2_h1;
+        uint32_t diff = (uint32_t)(prod0 - prod1);
+        rd = INSERT32(rd, diff, i);
+    }
+    return rd;
+}
+
+/**
+ * PM2SUB.HX - Subtract cross products horizontally
+ * For each word: rd[i] = rs1[2i+1] * rs2[2i] - rs1[2i] * rs2[2i+1]
+ */
+target_ulong HELPER(pm2sub_hx)(CPURISCVState *env, target_ulong rs1,
+                               target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s1_h1 = (int16_t)EXTRACT16(rs1, i * 2 + 1);
+        int16_t s2_h0 = (int16_t)EXTRACT16(rs2, i * 2);
+        int16_t s2_h1 = (int16_t)EXTRACT16(rs2, i * 2 + 1);
+        int32_t prod10 = (int32_t)s1_h1 * (int32_t)s2_h0;
+        int32_t prod01 = (int32_t)s1_h0 * (int32_t)s2_h1;
+        uint32_t diff = (uint32_t)(prod10 - prod01);
+        rd = INSERT32(rd, diff, i);
+    }
+    return rd;
+}
+
+/**
+ * PM2ADDA.H - Add two products horizontally with accumulate
+ */
+target_ulong HELPER(pm2adda_h)(CPURISCVState *env, target_ulong rs1,
+                               target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s1_h1 = (int16_t)EXTRACT16(rs1, i * 2 + 1);
+        int16_t s2_h0 = (int16_t)EXTRACT16(rs2, i * 2);
+        int16_t s2_h1 = (int16_t)EXTRACT16(rs2, i * 2 + 1);
+        int32_t d = (int32_t)EXTRACT32(dest, i);
+        int32_t prod0 = (int32_t)s1_h0 * (int32_t)s2_h0;
+        int32_t prod1 = (int32_t)s1_h1 * (int32_t)s2_h1;
+        uint32_t sum = (uint32_t)(d + prod0 + prod1);
+        rd = INSERT32(rd, sum, i);
+    }
+    return rd;
+}
+
+/**
+ * PM2ADDASU.H - Add two products horizontally with accumulate
+ * (signed x unsigned)
+ */
+target_ulong HELPER(pm2addasu_h)(CPURISCVState *env, target_ulong rs1,
+                                 target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s1_h1 = (int16_t)EXTRACT16(rs1, i * 2 + 1);
+        uint16_t s2_h0 = EXTRACT16(rs2, i * 2);
+        uint16_t s2_h1 = EXTRACT16(rs2, i * 2 + 1);
+        int32_t d = (int32_t)EXTRACT32(dest, i);
+        int32_t prod0 = (int32_t)s1_h0 * (uint32_t)s2_h0;
+        int32_t prod1 = (int32_t)s1_h1 * (uint32_t)s2_h1;
+        uint32_t sum = (uint32_t)(d + prod0 + prod1);
+        rd = INSERT32(rd, sum, i);
+    }
+    return rd;
+}
+
+/**
+ * PM2ADDAU.H - Add two products horizontally with accumulate (unsigned)
+ */
+target_ulong HELPER(pm2addau_h)(CPURISCVState *env, target_ulong rs1,
+                                target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t s1_h0 = EXTRACT16(rs1, i * 2);
+        uint16_t s1_h1 = EXTRACT16(rs1, i * 2 + 1);
+        uint16_t s2_h0 = EXTRACT16(rs2, i * 2);
+        uint16_t s2_h1 = EXTRACT16(rs2, i * 2 + 1);
+        uint32_t d = EXTRACT32(dest, i);
+        uint32_t prod0 = (uint32_t)s1_h0 * (uint32_t)s2_h0;
+        uint32_t prod1 = (uint32_t)s1_h1 * (uint32_t)s2_h1;
+        uint32_t sum = d + prod0 + prod1;
+        rd = INSERT32(rd, sum, i);
+    }
+    return rd;
+}
+
+/**
+ * PM2ADDA.HX - Add cross products horizontally with accumulate
+ */
+target_ulong HELPER(pm2adda_hx)(CPURISCVState *env, target_ulong rs1,
+                                target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s1_h1 = (int16_t)EXTRACT16(rs1, i * 2 + 1);
+        int16_t s2_h0 = (int16_t)EXTRACT16(rs2, i * 2);
+        int16_t s2_h1 = (int16_t)EXTRACT16(rs2, i * 2 + 1);
+        int32_t d = (int32_t)EXTRACT32(dest, i);
+        int32_t prod01 = (int32_t)s1_h0 * (int32_t)s2_h1;
+        int32_t prod10 = (int32_t)s1_h1 * (int32_t)s2_h0;
+        uint32_t sum = (uint32_t)(d + prod01 + prod10);
+        rd = INSERT32(rd, sum, i);
+    }
+    return rd;
+}
+
+/**
+ * PM2SUBA.H - Subtract two products horizontally with accumulate
+ */
+target_ulong HELPER(pm2suba_h)(CPURISCVState *env, target_ulong rs1,
+                               target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s1_h1 = (int16_t)EXTRACT16(rs1, i * 2 + 1);
+        int16_t s2_h0 = (int16_t)EXTRACT16(rs2, i * 2);
+        int16_t s2_h1 = (int16_t)EXTRACT16(rs2, i * 2 + 1);
+        int32_t d = (int32_t)EXTRACT32(dest, i);
+        int32_t prod0 = (int32_t)s1_h0 * (int32_t)s2_h0;
+        int32_t prod1 = (int32_t)s1_h1 * (int32_t)s2_h1;
+        uint32_t diff = (uint32_t)(d + prod0 - prod1);
+        rd = INSERT32(rd, diff, i);
+    }
+    return rd;
+}
+
+/**
+ * PM2SUBA.HX - Subtract cross products horizontally with accumulate
+ */
+target_ulong HELPER(pm2suba_hx)(CPURISCVState *env, target_ulong rs1,
+                                target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s1_h1 = (int16_t)EXTRACT16(rs1, i * 2 + 1);
+        int16_t s2_h0 = (int16_t)EXTRACT16(rs2, i * 2);
+        int16_t s2_h1 = (int16_t)EXTRACT16(rs2, i * 2 + 1);
+        int32_t d = (int32_t)EXTRACT32(dest, i);
+        int32_t prod01 = (int32_t)s1_h0 * (int32_t)s2_h1;
+        int32_t prod10 = (int32_t)s1_h1 * (int32_t)s2_h0;
+        uint32_t diff = (uint32_t)(d + prod01 - prod10);
+        rd = INSERT32(rd, diff, i);
+    }
+    return rd;
+}
+
+/**
+ * PM2ADD.W - Add two products horizontally (word, RV64 only)
+ */
+uint64_t HELPER(pm2add_w)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    int32_t s1_w0 = (int32_t)EXTRACT32(rs1, 0);
+    int32_t s1_w1 = (int32_t)EXTRACT32(rs1, 1);
+    int32_t s2_w0 = (int32_t)EXTRACT32(rs2, 0);
+    int32_t s2_w1 = (int32_t)EXTRACT32(rs2, 1);
+    int64_t prod0 = (int64_t)s1_w0 * (int64_t)s2_w0;
+    int64_t prod1 = (int64_t)s1_w1 * (int64_t)s2_w1;
+    return (uint64_t)(prod0 + prod1);
+}
+
+/**
+ * PM2ADDSU.W - Add two products horizontally (signed x unsigned, RV64 only)
+ */
+uint64_t HELPER(pm2addsu_w)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    int32_t s1_w0 = (int32_t)EXTRACT32(rs1, 0);
+    int32_t s1_w1 = (int32_t)EXTRACT32(rs1, 1);
+    uint32_t s2_w0 = EXTRACT32(rs2, 0);
+    uint32_t s2_w1 = EXTRACT32(rs2, 1);
+    int64_t prod0 = (int64_t)s1_w0 * (uint64_t)s2_w0;
+    int64_t prod1 = (int64_t)s1_w1 * (uint64_t)s2_w1;
+    return (uint64_t)(prod0 + prod1);
+}
+
+/**
+ * PM2ADDU.W - Add two products horizontally (unsigned, RV64 only)
+ */
+uint64_t HELPER(pm2addu_w)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint32_t s1_w0 = EXTRACT32(rs1, 0);
+    uint32_t s1_w1 = EXTRACT32(rs1, 1);
+    uint32_t s2_w0 = EXTRACT32(rs2, 0);
+    uint32_t s2_w1 = EXTRACT32(rs2, 1);
+    uint64_t prod0 = (uint64_t)s1_w0 * (uint64_t)s2_w0;
+    uint64_t prod1 = (uint64_t)s1_w1 * (uint64_t)s2_w1;
+    return prod0 + prod1;
+}
+
+/**
+ * PM2ADD.WX - Add cross products horizontally (word, RV64 only)
+ */
+uint64_t HELPER(pm2add_wx)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    int32_t s1_w0 = (int32_t)EXTRACT32(rs1, 0);
+    int32_t s1_w1 = (int32_t)EXTRACT32(rs1, 1);
+    int32_t s2_w0 = (int32_t)EXTRACT32(rs2, 0);
+    int32_t s2_w1 = (int32_t)EXTRACT32(rs2, 1);
+    int64_t prod01 = (int64_t)s1_w0 * (int64_t)s2_w1;
+    int64_t prod10 = (int64_t)s1_w1 * (int64_t)s2_w0;
+    return (uint64_t)(prod01 + prod10);
+}
+
+/**
+ * PM2SUB.W - Subtract two products horizontally (word, RV64 only)
+ */
+uint64_t HELPER(pm2sub_w)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    int32_t s1_w0 = (int32_t)EXTRACT32(rs1, 0);
+    int32_t s1_w1 = (int32_t)EXTRACT32(rs1, 1);
+    int32_t s2_w0 = (int32_t)EXTRACT32(rs2, 0);
+    int32_t s2_w1 = (int32_t)EXTRACT32(rs2, 1);
+    int64_t prod0 = (int64_t)s1_w0 * (int64_t)s2_w0;
+    int64_t prod1 = (int64_t)s1_w1 * (int64_t)s2_w1;
+    return (uint64_t)(prod0 - prod1);
+}
+
+/**
+ * PM2SUB.WX - Subtract cross products horizontally (word, RV64 only)
+ */
+uint64_t HELPER(pm2sub_wx)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    int32_t s1_w0 = (int32_t)EXTRACT32(rs1, 0);
+    int32_t s1_w1 = (int32_t)EXTRACT32(rs1, 1);
+    int32_t s2_w0 = (int32_t)EXTRACT32(rs2, 0);
+    int32_t s2_w1 = (int32_t)EXTRACT32(rs2, 1);
+    int64_t prod10 = (int64_t)s1_w1 * (int64_t)s2_w0;
+    int64_t prod01 = (int64_t)s1_w0 * (int64_t)s2_w1;
+    return (uint64_t)(prod10 - prod01);
+}
+
+/**
+ * PM2ADDA.W - Add two products horizontally with accumulate (word, RV64 only)
+ */
+uint64_t HELPER(pm2adda_w)(CPURISCVState *env, uint64_t rs1,
+                           uint64_t rs2, uint64_t dest)
+{
+    int32_t s1_w0 = (int32_t)EXTRACT32(rs1, 0);
+    int32_t s1_w1 = (int32_t)EXTRACT32(rs1, 1);
+    int32_t s2_w0 = (int32_t)EXTRACT32(rs2, 0);
+    int32_t s2_w1 = (int32_t)EXTRACT32(rs2, 1);
+    int64_t d = (int64_t)dest;
+    int64_t prod0 = (int64_t)s1_w0 * (int64_t)s2_w0;
+    int64_t prod1 = (int64_t)s1_w1 * (int64_t)s2_w1;
+    return (uint64_t)(d + prod0 + prod1);
+}
+
+/**
+ * PM2ADDASU.W - Add two products horizontally with accumulate
+ * (signed x unsigned, RV64 only)
+ */
+uint64_t HELPER(pm2addasu_w)(CPURISCVState *env, uint64_t rs1,
+                             uint64_t rs2, uint64_t dest)
+{
+    int32_t s1_w0 = (int32_t)EXTRACT32(rs1, 0);
+    int32_t s1_w1 = (int32_t)EXTRACT32(rs1, 1);
+    uint32_t s2_w0 = EXTRACT32(rs2, 0);
+    uint32_t s2_w1 = EXTRACT32(rs2, 1);
+    int64_t d = (int64_t)dest;
+    int64_t prod0 = (int64_t)s1_w0 * (uint64_t)s2_w0;
+    int64_t prod1 = (int64_t)s1_w1 * (uint64_t)s2_w1;
+    return (uint64_t)(d + prod0 + prod1);
+}
+
+/**
+ * PM2ADDAU.W - Add two products horizontally with accumulate
+ * (unsigned, RV64 only)
+ */
+uint64_t HELPER(pm2addau_w)(CPURISCVState *env, uint64_t rs1,
+                            uint64_t rs2, uint64_t dest)
+{
+    uint32_t s1_w0 = EXTRACT32(rs1, 0);
+    uint32_t s1_w1 = EXTRACT32(rs1, 1);
+    uint32_t s2_w0 = EXTRACT32(rs2, 0);
+    uint32_t s2_w1 = EXTRACT32(rs2, 1);
+    uint64_t d = dest;
+    uint64_t prod0 = (uint64_t)s1_w0 * (uint64_t)s2_w0;
+    uint64_t prod1 = (uint64_t)s1_w1 * (uint64_t)s2_w1;
+    return d + prod0 + prod1;
+}
+
+/**
+ * PM2ADDA.WX - Add cross products horizontally with accumulate
+ * (word, RV64 only)
+ */
+uint64_t HELPER(pm2adda_wx)(CPURISCVState *env, uint64_t rs1,
+                            uint64_t rs2, uint64_t dest)
+{
+    int32_t s1_w0 = (int32_t)EXTRACT32(rs1, 0);
+    int32_t s1_w1 = (int32_t)EXTRACT32(rs1, 1);
+    int32_t s2_w0 = (int32_t)EXTRACT32(rs2, 0);
+    int32_t s2_w1 = (int32_t)EXTRACT32(rs2, 1);
+    int64_t d = (int64_t)dest;
+    int64_t prod01 = (int64_t)s1_w0 * (int64_t)s2_w1;
+    int64_t prod10 = (int64_t)s1_w1 * (int64_t)s2_w0;
+    return (uint64_t)(d + prod01 + prod10);
+}
+
+/**
+ * PM2SUBA.W - Subtract two products horizontally with accumulate
+ * (word, RV64 only)
+ */
+uint64_t HELPER(pm2suba_w)(CPURISCVState *env, uint64_t rs1,
+                           uint64_t rs2, uint64_t dest)
+{
+    int32_t s1_w0 = (int32_t)EXTRACT32(rs1, 0);
+    int32_t s1_w1 = (int32_t)EXTRACT32(rs1, 1);
+    int32_t s2_w0 = (int32_t)EXTRACT32(rs2, 0);
+    int32_t s2_w1 = (int32_t)EXTRACT32(rs2, 1);
+    int64_t d = (int64_t)dest;
+    int64_t prod0 = (int64_t)s1_w0 * (int64_t)s2_w0;
+    int64_t prod1 = (int64_t)s1_w1 * (int64_t)s2_w1;
+    return (uint64_t)(d + prod0 - prod1);
+}
+
+/**
+ * PM2SUBA.WX - Subtract cross products horizontally with accumulate
+ * (word, RV64 only)
+ */
+uint64_t HELPER(pm2suba_wx)(CPURISCVState *env, uint64_t rs1,
+                            uint64_t rs2, uint64_t dest)
+{
+    int32_t s1_w0 = (int32_t)EXTRACT32(rs1, 0);
+    int32_t s1_w1 = (int32_t)EXTRACT32(rs1, 1);
+    int32_t s2_w0 = (int32_t)EXTRACT32(rs2, 0);
+    int32_t s2_w1 = (int32_t)EXTRACT32(rs2, 1);
+    int64_t d = (int64_t)dest;
+    int64_t prod01 = (int64_t)s1_w0 * (int64_t)s2_w1;
+    int64_t prod10 = (int64_t)s1_w1 * (int64_t)s2_w0;
+    return (uint64_t)(d + prod01 - prod10);
+}
+
+
+/* Four-Way Multiply and Accumulate Operations */
+
+/**
+ * PM4ADD.B - Add four products horizontally (byte to word)
+ */
+target_ulong HELPER(pm4add_b)(CPURISCVState *env, target_ulong rs1,
+                              target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int8_t s1_b0 = (int8_t)EXTRACT8(rs1, i * 4);
+        int8_t s1_b1 = (int8_t)EXTRACT8(rs1, i * 4 + 1);
+        int8_t s1_b2 = (int8_t)EXTRACT8(rs1, i * 4 + 2);
+        int8_t s1_b3 = (int8_t)EXTRACT8(rs1, i * 4 + 3);
+        int8_t s2_b0 = (int8_t)EXTRACT8(rs2, i * 4);
+        int8_t s2_b1 = (int8_t)EXTRACT8(rs2, i * 4 + 1);
+        int8_t s2_b2 = (int8_t)EXTRACT8(rs2, i * 4 + 2);
+        int8_t s2_b3 = (int8_t)EXTRACT8(rs2, i * 4 + 3);
+        int32_t prod0 = (int32_t)s1_b0 * (int32_t)s2_b0;
+        int32_t prod1 = (int32_t)s1_b1 * (int32_t)s2_b1;
+        int32_t prod2 = (int32_t)s1_b2 * (int32_t)s2_b2;
+        int32_t prod3 = (int32_t)s1_b3 * (int32_t)s2_b3;
+        uint32_t sum = (uint32_t)(prod0 + prod1 + prod2 + prod3);
+        rd = INSERT32(rd, sum, i);
+    }
+    return rd;
+}
+
+/**
+ * PM4ADDSU.B - Add four products horizontally (signed x unsigned)
+ */
+target_ulong HELPER(pm4addsu_b)(CPURISCVState *env, target_ulong rs1,
+                                target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int8_t s1_b0 = (int8_t)EXTRACT8(rs1, i * 4);
+        int8_t s1_b1 = (int8_t)EXTRACT8(rs1, i * 4 + 1);
+        int8_t s1_b2 = (int8_t)EXTRACT8(rs1, i * 4 + 2);
+        int8_t s1_b3 = (int8_t)EXTRACT8(rs1, i * 4 + 3);
+        uint8_t s2_b0 = EXTRACT8(rs2, i * 4);
+        uint8_t s2_b1 = EXTRACT8(rs2, i * 4 + 1);
+        uint8_t s2_b2 = EXTRACT8(rs2, i * 4 + 2);
+        uint8_t s2_b3 = EXTRACT8(rs2, i * 4 + 3);
+        int32_t prod0 = (int32_t)s1_b0 * (uint32_t)s2_b0;
+        int32_t prod1 = (int32_t)s1_b1 * (uint32_t)s2_b1;
+        int32_t prod2 = (int32_t)s1_b2 * (uint32_t)s2_b2;
+        int32_t prod3 = (int32_t)s1_b3 * (uint32_t)s2_b3;
+        uint32_t sum = (uint32_t)(prod0 + prod1 + prod2 + prod3);
+        rd = INSERT32(rd, sum, i);
+    }
+    return rd;
+}
+
+/**
+ * PM4ADDU.B - Add four products horizontally (unsigned)
+ */
+target_ulong HELPER(pm4addu_b)(CPURISCVState *env, target_ulong rs1,
+                               target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        uint8_t s1_b0 = EXTRACT8(rs1, i * 4);
+        uint8_t s1_b1 = EXTRACT8(rs1, i * 4 + 1);
+        uint8_t s1_b2 = EXTRACT8(rs1, i * 4 + 2);
+        uint8_t s1_b3 = EXTRACT8(rs1, i * 4 + 3);
+        uint8_t s2_b0 = EXTRACT8(rs2, i * 4);
+        uint8_t s2_b1 = EXTRACT8(rs2, i * 4 + 1);
+        uint8_t s2_b2 = EXTRACT8(rs2, i * 4 + 2);
+        uint8_t s2_b3 = EXTRACT8(rs2, i * 4 + 3);
+        uint32_t prod0 = (uint32_t)s1_b0 * (uint32_t)s2_b0;
+        uint32_t prod1 = (uint32_t)s1_b1 * (uint32_t)s2_b1;
+        uint32_t prod2 = (uint32_t)s1_b2 * (uint32_t)s2_b2;
+        uint32_t prod3 = (uint32_t)s1_b3 * (uint32_t)s2_b3;
+        uint32_t sum = prod0 + prod1 + prod2 + prod3;
+        rd = INSERT32(rd, sum, i);
+    }
+    return rd;
+}
+
+/**
+ * PM4ADDA.B - Add four products horizontally with accumulate
+ */
+target_ulong HELPER(pm4adda_b)(CPURISCVState *env, target_ulong rs1,
+                               target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int8_t s1_b0 = (int8_t)EXTRACT8(rs1, i * 4);
+        int8_t s1_b1 = (int8_t)EXTRACT8(rs1, i * 4 + 1);
+        int8_t s1_b2 = (int8_t)EXTRACT8(rs1, i * 4 + 2);
+        int8_t s1_b3 = (int8_t)EXTRACT8(rs1, i * 4 + 3);
+        int8_t s2_b0 = (int8_t)EXTRACT8(rs2, i * 4);
+        int8_t s2_b1 = (int8_t)EXTRACT8(rs2, i * 4 + 1);
+        int8_t s2_b2 = (int8_t)EXTRACT8(rs2, i * 4 + 2);
+        int8_t s2_b3 = (int8_t)EXTRACT8(rs2, i * 4 + 3);
+        int32_t d = (int32_t)EXTRACT32(dest, i);
+        int32_t prod0 = (int32_t)s1_b0 * (int32_t)s2_b0;
+        int32_t prod1 = (int32_t)s1_b1 * (int32_t)s2_b1;
+        int32_t prod2 = (int32_t)s1_b2 * (int32_t)s2_b2;
+        int32_t prod3 = (int32_t)s1_b3 * (int32_t)s2_b3;
+        uint32_t sum = (uint32_t)(d + prod0 + prod1 + prod2 + prod3);
+        rd = INSERT32(rd, sum, i);
+    }
+    return rd;
+}
+
+/**
+ * PM4ADDASU.B - Add four products horizontally with accumulate
+ * (signed x unsigned)
+ */
+target_ulong HELPER(pm4addasu_b)(CPURISCVState *env, target_ulong rs1,
+                                 target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int8_t s1_b0 = (int8_t)EXTRACT8(rs1, i * 4);
+        int8_t s1_b1 = (int8_t)EXTRACT8(rs1, i * 4 + 1);
+        int8_t s1_b2 = (int8_t)EXTRACT8(rs1, i * 4 + 2);
+        int8_t s1_b3 = (int8_t)EXTRACT8(rs1, i * 4 + 3);
+        uint8_t s2_b0 = EXTRACT8(rs2, i * 4);
+        uint8_t s2_b1 = EXTRACT8(rs2, i * 4 + 1);
+        uint8_t s2_b2 = EXTRACT8(rs2, i * 4 + 2);
+        uint8_t s2_b3 = EXTRACT8(rs2, i * 4 + 3);
+        int32_t d = (int32_t)EXTRACT32(dest, i);
+        int32_t prod0 = (int32_t)s1_b0 * (uint32_t)s2_b0;
+        int32_t prod1 = (int32_t)s1_b1 * (uint32_t)s2_b1;
+        int32_t prod2 = (int32_t)s1_b2 * (uint32_t)s2_b2;
+        int32_t prod3 = (int32_t)s1_b3 * (uint32_t)s2_b3;
+        uint32_t sum = (uint32_t)(d + prod0 + prod1 + prod2 + prod3);
+        rd = INSERT32(rd, sum, i);
+    }
+    return rd;
+}
+
+/**
+ * PM4ADDAU.B - Add four products horizontally with accumulate (unsigned)
+ */
+target_ulong HELPER(pm4addau_b)(CPURISCVState *env, target_ulong rs1,
+                                target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_W(rd);
+
+    for (int i = 0; i < elems; i++) {
+        uint8_t s1_b0 = EXTRACT8(rs1, i * 4);
+        uint8_t s1_b1 = EXTRACT8(rs1, i * 4 + 1);
+        uint8_t s1_b2 = EXTRACT8(rs1, i * 4 + 2);
+        uint8_t s1_b3 = EXTRACT8(rs1, i * 4 + 3);
+        uint8_t s2_b0 = EXTRACT8(rs2, i * 4);
+        uint8_t s2_b1 = EXTRACT8(rs2, i * 4 + 1);
+        uint8_t s2_b2 = EXTRACT8(rs2, i * 4 + 2);
+        uint8_t s2_b3 = EXTRACT8(rs2, i * 4 + 3);
+        uint32_t d = EXTRACT32(dest, i);
+        uint32_t prod0 = (uint32_t)s1_b0 * (uint32_t)s2_b0;
+        uint32_t prod1 = (uint32_t)s1_b1 * (uint32_t)s2_b1;
+        uint32_t prod2 = (uint32_t)s1_b2 * (uint32_t)s2_b2;
+        uint32_t prod3 = (uint32_t)s1_b3 * (uint32_t)s2_b3;
+        uint32_t sum = d + prod0 + prod1 + prod2 + prod3;
+        rd = INSERT32(rd, sum, i);
+    }
+    return rd;
+}
+
+/**
+ * PM4ADD.H - Add four products horizontally (halfword to doubleword, RV64 only)
+ */
+uint64_t HELPER(pm4add_h)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int16_t s1_h0 = (int16_t)EXTRACT16(rs1, 0);
+    int16_t s1_h1 = (int16_t)EXTRACT16(rs1, 1);
+    int16_t s1_h2 = (int16_t)EXTRACT16(rs1, 2);
+    int16_t s1_h3 = (int16_t)EXTRACT16(rs1, 3);
+    int16_t s2_h0 = (int16_t)EXTRACT16(rs2, 0);
+    int16_t s2_h1 = (int16_t)EXTRACT16(rs2, 1);
+    int16_t s2_h2 = (int16_t)EXTRACT16(rs2, 2);
+    int16_t s2_h3 = (int16_t)EXTRACT16(rs2, 3);
+    int64_t prod0 = (int64_t)s1_h0 * (int64_t)s2_h0;
+    int64_t prod1 = (int64_t)s1_h1 * (int64_t)s2_h1;
+    int64_t prod2 = (int64_t)s1_h2 * (int64_t)s2_h2;
+    int64_t prod3 = (int64_t)s1_h3 * (int64_t)s2_h3;
+    rd = (uint64_t)(prod0 + prod1 + prod2 + prod3);
+    return rd;
+}
+
+/**
+ * PM4ADDSU.H - Add four products horizontally (signed x unsigned, RV64 only)
+ */
+uint64_t HELPER(pm4addsu_h)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int16_t s1_h0 = (int16_t)EXTRACT16(rs1, 0);
+    int16_t s1_h1 = (int16_t)EXTRACT16(rs1, 1);
+    int16_t s1_h2 = (int16_t)EXTRACT16(rs1, 2);
+    int16_t s1_h3 = (int16_t)EXTRACT16(rs1, 3);
+    uint16_t s2_h0 = EXTRACT16(rs2, 0);
+    uint16_t s2_h1 = EXTRACT16(rs2, 1);
+    uint16_t s2_h2 = EXTRACT16(rs2, 2);
+    uint16_t s2_h3 = EXTRACT16(rs2, 3);
+    int64_t prod0 = (int64_t)s1_h0 * (uint64_t)s2_h0;
+    int64_t prod1 = (int64_t)s1_h1 * (uint64_t)s2_h1;
+    int64_t prod2 = (int64_t)s1_h2 * (uint64_t)s2_h2;
+    int64_t prod3 = (int64_t)s1_h3 * (uint64_t)s2_h3;
+    rd = (uint64_t)(prod0 + prod1 + prod2 + prod3);
+    return rd;
+}
+
+/**
+ * PM4ADDU.H - Add four products horizontally (unsigned, RV64 only)
+ */
+uint64_t HELPER(pm4addu_h)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    uint16_t s1_h0 = EXTRACT16(rs1, 0);
+    uint16_t s1_h1 = EXTRACT16(rs1, 1);
+    uint16_t s1_h2 = EXTRACT16(rs1, 2);
+    uint16_t s1_h3 = EXTRACT16(rs1, 3);
+    uint16_t s2_h0 = EXTRACT16(rs2, 0);
+    uint16_t s2_h1 = EXTRACT16(rs2, 1);
+    uint16_t s2_h2 = EXTRACT16(rs2, 2);
+    uint16_t s2_h3 = EXTRACT16(rs2, 3);
+    uint64_t prod0 = (uint64_t)s1_h0 * (uint64_t)s2_h0;
+    uint64_t prod1 = (uint64_t)s1_h1 * (uint64_t)s2_h1;
+    uint64_t prod2 = (uint64_t)s1_h2 * (uint64_t)s2_h2;
+    uint64_t prod3 = (uint64_t)s1_h3 * (uint64_t)s2_h3;
+    rd = prod0 + prod1 + prod2 + prod3;
+    return rd;
+}
+
+/**
+ * PM4ADDA.H - Add four products horizontally with accumulate (RV64 only)
+ */
+uint64_t HELPER(pm4adda_h)(CPURISCVState *env, uint64_t rs1,
+                           uint64_t rs2, uint64_t dest)
+{
+    int16_t s1_h0 = (int16_t)EXTRACT16(rs1, 0);
+    int16_t s1_h1 = (int16_t)EXTRACT16(rs1, 1);
+    int16_t s1_h2 = (int16_t)EXTRACT16(rs1, 2);
+    int16_t s1_h3 = (int16_t)EXTRACT16(rs1, 3);
+    int16_t s2_h0 = (int16_t)EXTRACT16(rs2, 0);
+    int16_t s2_h1 = (int16_t)EXTRACT16(rs2, 1);
+    int16_t s2_h2 = (int16_t)EXTRACT16(rs2, 2);
+    int16_t s2_h3 = (int16_t)EXTRACT16(rs2, 3);
+    int64_t d = (int64_t)dest;
+    int64_t prod0 = (int64_t)s1_h0 * (int64_t)s2_h0;
+    int64_t prod1 = (int64_t)s1_h1 * (int64_t)s2_h1;
+    int64_t prod2 = (int64_t)s1_h2 * (int64_t)s2_h2;
+    int64_t prod3 = (int64_t)s1_h3 * (int64_t)s2_h3;
+    return (uint64_t)(d + prod0 + prod1 + prod2 + prod3);
+}
+
+/**
+ * PM4ADDASU.H - Add four products horizontally with accumulate
+ * (signed x unsigned, RV64 only)
+ */
+uint64_t HELPER(pm4addasu_h)(CPURISCVState *env, uint64_t rs1,
+                             uint64_t rs2, uint64_t dest)
+{
+    int16_t s1_h0 = (int16_t)EXTRACT16(rs1, 0);
+    int16_t s1_h1 = (int16_t)EXTRACT16(rs1, 1);
+    int16_t s1_h2 = (int16_t)EXTRACT16(rs1, 2);
+    int16_t s1_h3 = (int16_t)EXTRACT16(rs1, 3);
+    uint16_t s2_h0 = EXTRACT16(rs2, 0);
+    uint16_t s2_h1 = EXTRACT16(rs2, 1);
+    uint16_t s2_h2 = EXTRACT16(rs2, 2);
+    uint16_t s2_h3 = EXTRACT16(rs2, 3);
+    int64_t d = (int64_t)dest;
+    int64_t prod0 = (int64_t)s1_h0 * (uint64_t)s2_h0;
+    int64_t prod1 = (int64_t)s1_h1 * (uint64_t)s2_h1;
+    int64_t prod2 = (int64_t)s1_h2 * (uint64_t)s2_h2;
+    int64_t prod3 = (int64_t)s1_h3 * (uint64_t)s2_h3;
+    return (uint64_t)(d + prod0 + prod1 + prod2 + prod3);
+}
+
+/**
+ * PM4ADDAU.H - Add four products horizontally with accumulate
+ * (unsigned, RV64 only)
+ */
+uint64_t HELPER(pm4addau_h)(CPURISCVState *env, uint64_t rs1,
+                            uint64_t rs2, uint64_t dest)
+{
+    uint16_t s1_h0 = EXTRACT16(rs1, 0);
+    uint16_t s1_h1 = EXTRACT16(rs1, 1);
+    uint16_t s1_h2 = EXTRACT16(rs1, 2);
+    uint16_t s1_h3 = EXTRACT16(rs1, 3);
+    uint16_t s2_h0 = EXTRACT16(rs2, 0);
+    uint16_t s2_h1 = EXTRACT16(rs2, 1);
+    uint16_t s2_h2 = EXTRACT16(rs2, 2);
+    uint16_t s2_h3 = EXTRACT16(rs2, 3);
+    uint64_t d = dest;
+    uint64_t prod0 = (uint64_t)s1_h0 * (uint64_t)s2_h0;
+    uint64_t prod1 = (uint64_t)s1_h1 * (uint64_t)s2_h1;
+    uint64_t prod2 = (uint64_t)s1_h2 * (uint64_t)s2_h2;
+    uint64_t prod3 = (uint64_t)s1_h3 * (uint64_t)s2_h3;
+    return d + prod0 + prod1 + prod2 + prod3;
+}
