@@ -693,7 +693,7 @@ static void gen_ldst_multiple(DisasContext *ctx, uint32_t opc, int reglist,
                               int base, int16_t offset)
 {
     TCGv t0, t1;
-    MemOp mop = MO_UNALN;
+    MemOp mop = ctx->default_tcg_memop_mask;
     MemOpIdx oi;
 
     if (ctx->hflags & MIPS_HFLAG_BMASK) {
