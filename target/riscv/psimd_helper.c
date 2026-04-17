@@ -1967,3 +1967,739 @@ uint32_t HELPER(msltu)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
     return (rs1 < rs2) ? 0xFFFFFFFFU : 0x00000000U;
 }
 
+/* Shift operations (immediate and register) */
+
+/**
+ * PSLLI.B - Packed 8-bit logical shift left immediate
+ * For each byte: rd[i] = rs1[i] << imm
+ */
+target_ulong HELPER(pslli_b)(CPURISCVState *env,
+                             target_ulong rs1, target_ulong imm)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_B(rd);
+    uint8_t shamt = imm & 0x07;  /* 8-bit elements, max shift 7 */
+
+    for (int i = 0; i < elems; i++) {
+        uint8_t e1 = EXTRACT8(rs1, i);
+        uint8_t res = e1 << shamt;
+        rd = INSERT8(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PSLL.BS - Packed 8-bit logical shift left from register
+ * For each byte: rd[i] = rs1[i] << rs2[4:0]
+ */
+target_ulong HELPER(psll_bs)(CPURISCVState *env,
+                             target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_B(rd);
+    uint8_t shamt = rs2 & 0x07;  /* rs2[2:0] for 8-bit */
+
+    for (int i = 0; i < elems; i++) {
+        uint8_t e1 = EXTRACT8(rs1, i);
+        uint8_t res = e1 << shamt;
+        rd = INSERT8(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PSLLI.H - Packed 16-bit logical shift left immediate
+ * For each halfword: rd[i] = rs1[i] << imm
+ */
+target_ulong HELPER(pslli_h)(CPURISCVState *env,
+                             target_ulong rs1, target_ulong imm)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+    uint8_t shamt = imm & 0x0F;  /* 16-bit elements, max shift 15 */
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t e1 = EXTRACT16(rs1, i);
+        uint16_t res = e1 << shamt;
+        rd = INSERT16(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PSLL.HS - Packed 16-bit logical shift left from register
+ * For each halfword: rd[i] = rs1[i] << rs2[4:0]
+ */
+target_ulong HELPER(psll_hs)(CPURISCVState *env,
+                             target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+    uint8_t shamt = rs2 & 0x0F;  /* rs2[3:0] for 16-bit */
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t e1 = EXTRACT16(rs1, i);
+        uint16_t res = e1 << shamt;
+        rd = INSERT16(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PSLLI.W - Packed 32-bit logical shift left immediate (RV64 only)
+ * For each word: rd[i] = rs1[i] << imm
+ */
+uint64_t HELPER(pslli_w)(CPURISCVState *env, uint64_t rs1, uint64_t imm)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+    uint8_t shamt = imm & 0x1F;  /* 32-bit elements, max shift 31 */
+
+    for (int i = 0; i < elems; i++) {
+        uint32_t e1 = EXTRACT32(rs1, i);
+        uint32_t res = e1 << shamt;
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PSLL.WS - Packed 32-bit logical shift left from register (RV64 only)
+ * For each word: rd[i] = rs1[i] << rs2[5:0]
+ */
+uint64_t HELPER(psll_ws)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+    uint8_t shamt = rs2 & 0x1F;
+
+    for (int i = 0; i < elems; i++) {
+        uint32_t e1 = EXTRACT32(rs1, i);
+        uint32_t res = e1 << shamt;
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PSRLI.B - Packed 8-bit logical shift right immediate
+ * For each byte: rd[i] = rs1[i] >> imm
+ */
+target_ulong HELPER(psrli_b)(CPURISCVState *env,
+                             target_ulong rs1, target_ulong imm)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_B(rd);
+    uint8_t shamt = imm & 0x07;
+
+    for (int i = 0; i < elems; i++) {
+        uint8_t e1 = EXTRACT8(rs1, i);
+        uint8_t res = e1 >> shamt;
+        rd = INSERT8(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PSRL.BS - Packed 8-bit logical shift right from register
+ * For each byte: rd[i] = rs1[i] >> rs2[4:0]
+ */
+target_ulong HELPER(psrl_bs)(CPURISCVState *env,
+                             target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_B(rd);
+    uint8_t shamt = rs2 & 0x07;
+
+    for (int i = 0; i < elems; i++) {
+        uint8_t e1 = EXTRACT8(rs1, i);
+        uint8_t res = e1 >> shamt;
+        rd = INSERT8(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PSRLI.H - Packed 16-bit logical shift right immediate
+ * For each halfword: rd[i] = rs1[i] >> imm
+ */
+target_ulong HELPER(psrli_h)(CPURISCVState *env,
+                             target_ulong rs1, target_ulong imm)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+    uint8_t shamt = imm & 0x0F;
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t e1 = EXTRACT16(rs1, i);
+        uint16_t res = e1 >> shamt;
+        rd = INSERT16(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PSRL.HS - Packed 16-bit logical shift right from register
+ * For each halfword: rd[i] = rs1[i] >> rs2[4:0]
+ */
+target_ulong HELPER(psrl_hs)(CPURISCVState *env,
+                             target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+    uint8_t shamt = rs2 & 0x0F;
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t e1 = EXTRACT16(rs1, i);
+        uint16_t res = e1 >> shamt;
+        rd = INSERT16(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PSRLI.W - Packed 32-bit logical shift right immediate (RV64 only)
+ * For each word: rd[i] = rs1[i] >> imm
+ */
+uint64_t HELPER(psrli_w)(CPURISCVState *env, uint64_t rs1, uint64_t imm)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+    uint8_t shamt = imm & 0x1F;
+
+    for (int i = 0; i < elems; i++) {
+        uint32_t e1 = EXTRACT32(rs1, i);
+        uint32_t res = e1 >> shamt;
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PSRL.WS - Packed 32-bit logical shift right from register (RV64 only)
+ * For each word: rd[i] = rs1[i] >> rs2[5:0]
+ */
+uint64_t HELPER(psrl_ws)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+    uint8_t shamt = rs2 & 0x1F;
+
+    for (int i = 0; i < elems; i++) {
+        uint32_t e1 = EXTRACT32(rs1, i);
+        uint32_t res = e1 >> shamt;
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PSRAI.B - Packed 8-bit arithmetic shift right immediate
+ * For each byte: rd[i] = (int8_t)rs1[i] >> imm
+ */
+target_ulong HELPER(psrai_b)(CPURISCVState *env,
+                             target_ulong rs1, target_ulong imm)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_B(rd);
+    uint8_t shamt = imm & 0x07;
+
+    for (int i = 0; i < elems; i++) {
+        int8_t e1 = (int8_t)EXTRACT8(rs1, i);
+        int8_t res = e1 >> shamt;  /* Arithmetic right shift */
+        rd = INSERT8(rd, (uint8_t)res, i);
+    }
+    return rd;
+}
+
+/**
+ * PSRA.BS - Packed 8-bit arithmetic shift right from register
+ * For each byte: rd[i] = (int8_t)rs1[i] >> rs2[4:0]
+ */
+target_ulong HELPER(psra_bs)(CPURISCVState *env,
+                             target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_B(rd);
+    uint8_t shamt = rs2 & 0x07;
+
+    for (int i = 0; i < elems; i++) {
+        int8_t e1 = (int8_t)EXTRACT8(rs1, i);
+        int8_t res = e1 >> shamt;
+        rd = INSERT8(rd, (uint8_t)res, i);
+    }
+    return rd;
+}
+
+/**
+ * PSRAI.H - Packed 16-bit arithmetic shift right immediate
+ * For each halfword: rd[i] = (int16_t)rs1[i] >> imm
+ */
+target_ulong HELPER(psrai_h)(CPURISCVState *env,
+                             target_ulong rs1, target_ulong imm)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+    uint8_t shamt = imm & 0x0F;
+
+    for (int i = 0; i < elems; i++) {
+        int16_t e1 = (int16_t)EXTRACT16(rs1, i);
+        int16_t res = e1 >> shamt;
+        rd = INSERT16(rd, (uint16_t)res, i);
+    }
+    return rd;
+}
+
+/**
+ * PSRA.HS - Packed 16-bit arithmetic shift right from register
+ * For each halfword: rd[i] = (int16_t)rs1[i] >> rs2[4:0]
+ */
+target_ulong HELPER(psra_hs)(CPURISCVState *env,
+                             target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+    uint8_t shamt = rs2 & 0x0F;
+
+    for (int i = 0; i < elems; i++) {
+        int16_t e1 = (int16_t)EXTRACT16(rs1, i);
+        int16_t res = e1 >> shamt;
+        rd = INSERT16(rd, (uint16_t)res, i);
+    }
+    return rd;
+}
+
+/**
+ * PSRAI.W - Packed 32-bit arithmetic shift right immediate (RV64 only)
+ * For each word: rd[i] = (int32_t)rs1[i] >> imm
+ */
+uint64_t HELPER(psrai_w)(CPURISCVState *env, uint64_t rs1, uint64_t imm)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+    uint8_t shamt = imm & 0x1F;
+
+    for (int i = 0; i < elems; i++) {
+        int32_t e1 = (int32_t)EXTRACT32(rs1, i);
+        int32_t res = e1 >> shamt;
+        rd = INSERT32(rd, (uint32_t)res, i);
+    }
+    return rd;
+}
+
+/**
+ * PSRA.WS - Packed 32-bit arithmetic shift right from register (RV64 only)
+ * For each word: rd[i] = (int32_t)rs1[i] >> rs2[5:0]
+ */
+uint64_t HELPER(psra_ws)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+    uint8_t shamt = rs2 & 0x1F;
+
+    for (int i = 0; i < elems; i++) {
+        int32_t e1 = (int32_t)EXTRACT32(rs1, i);
+        int32_t res = e1 >> shamt;
+        rd = INSERT32(rd, (uint32_t)res, i);
+    }
+    return rd;
+}
+
+/* Saturating shift operations */
+
+/**
+ * PSSLAI.H - Packed 16-bit saturating shift left immediate
+ * For each halfword: rd[i] = sat16(rs1[i] << imm)
+ */
+target_ulong HELPER(psslai_h)(CPURISCVState *env,
+                              target_ulong rs1, target_ulong imm)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+    int sat = 0;
+    uint8_t shamt = imm & 0x0F;
+
+    for (int i = 0; i < elems; i++) {
+        int16_t e1 = (int16_t)EXTRACT16(rs1, i);
+        int32_t shifted = (int32_t)e1 << shamt;
+        int16_t res = signed_saturate_h(shifted, &sat);
+        rd = INSERT16(rd, res, i);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PSSLAI.W - Packed 32-bit saturating shift left immediate (RV64 only)
+ * For each word: rd[i] = sat32(rs1[i] << imm)
+ */
+uint64_t HELPER(psslai_w)(CPURISCVState *env, uint64_t rs1, uint64_t imm)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+    int sat = 0;
+    uint8_t shamt = imm & 0x1F;
+
+    for (int i = 0; i < elems; i++) {
+        int32_t e1 = (int32_t)EXTRACT32(rs1, i);
+        int64_t shifted = (int64_t)e1 << shamt;
+        int32_t res = signed_saturate_w(shifted, &sat);
+        rd = INSERT32(rd, res, i);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * SSLAL - 32-bit scalar saturating shift left immediate
+ */
+uint32_t HELPER(sslai)(CPURISCVState *env, uint32_t rs1, uint32_t imm)
+{
+    int32_t a = (int32_t)rs1;
+    uint8_t shamt = imm & 0x1F;
+    int64_t shifted = (int64_t)a << shamt;
+    int sat = 0;
+    int32_t res = signed_saturate_w(shifted, &sat);
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return (uint32_t)res;
+}
+
+/* Rounding shift operations */
+
+/**
+ * PSRARI.H - Packed 16-bit arithmetic shift right with rounding (immediate)
+ * For each halfword: rd[i] = round((int16_t)rs1[i] >> imm)
+ */
+target_ulong HELPER(psrari_h)(CPURISCVState *env,
+                              target_ulong rs1, target_ulong imm)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+    uint8_t shamt = imm & 0x0F;
+
+    if (shamt == 0) {
+        return rs1;
+    }
+
+    for (int i = 0; i < elems; i++) {
+        int16_t e1 = (int16_t)EXTRACT16(rs1, i);
+        int32_t rounded = ((e1 >> (shamt - 1)) + 1) >> 1;
+        rd = INSERT16(rd, (int16_t)rounded, i);
+    }
+    return rd;
+}
+
+/**
+ * PSRARI.W - Packed 32-bit arithmetic shift right
+ * with rounding (immediate) (RV64 only)
+ * For each word: rd[i] = round((int32_t)rs1[i] >> imm)
+ */
+uint64_t HELPER(psrari_w)(CPURISCVState *env, uint64_t rs1, uint64_t imm)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+    uint8_t shamt = imm & 0x1F;
+
+    if (shamt == 0) {
+        return rs1;
+    }
+
+    for (int i = 0; i < elems; i++) {
+        int32_t e1 = (int32_t)EXTRACT32(rs1, i);
+        int64_t rounded = ((e1 >> (shamt - 1)) + 1) >> 1;
+        rd = INSERT32(rd, (int32_t)rounded, i);
+    }
+    return rd;
+}
+
+/**
+ * SRARI_32 - 32-bit scalar arithmetic shift right with rounding
+ */
+uint32_t HELPER(srari_32)(CPURISCVState *env, uint32_t rs1, uint32_t imm)
+{
+    int32_t a = (int32_t)rs1;
+    uint8_t shamt = imm & 0x1F;
+
+    if (shamt == 0) {
+        return rs1;
+    }
+
+    return (uint32_t)(((a >> (shamt - 1)) + 1) >> 1);
+}
+
+/**
+ * SRARI_64 - 64-bit scalar arithmetic shift right with rounding
+ */
+uint64_t HELPER(srari_64)(CPURISCVState *env, uint64_t rs1, uint64_t imm)
+{
+    int64_t a = (int64_t)rs1;
+    uint8_t shamt = imm & 0x3F;
+
+    if (shamt == 0) {
+        return rs1;
+    }
+
+    return (uint64_t)(((a >> (shamt - 1)) + 1) >> 1);
+}
+
+/* Variable shift operations (with saturation and rounding) */
+
+/**
+ * PSSHA.HS - Packed 16-bit variable shift with saturation
+ * Positive shift left (saturating), negative shift right (non-saturating)
+ */
+target_ulong HELPER(pssha_hs)(CPURISCVState *env,
+                              target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+    int sat = 0;
+    int8_t shamt = (int8_t)(rs2 & 0xFF);  /* rs2[7:0] as signed */
+
+    for (int i = 0; i < elems; i++) {
+        int16_t e1 = (int16_t)EXTRACT16(rs1, i);
+        int16_t res;
+
+        if (shamt >= 0) {
+            /* Left shift with saturation */
+            int32_t shifted = (int32_t)e1 << shamt;
+            res = signed_saturate_h(shifted, &sat);
+        } else {
+            /* Right shift (no saturation) */
+            int right = -shamt;
+            if (right >= 16) {
+                res = (e1 < 0) ? -1 : 0;
+            } else {
+                res = e1 >> right;
+            }
+        }
+
+        rd = INSERT16(rd, res, i);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PSSHA.WS - Packed 32-bit variable shift with saturation (RV64 only)
+ * Positive shift left (saturating), negative shift right (non-saturating)
+ */
+uint64_t HELPER(pssha_ws)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+    int sat = 0;
+    int8_t shamt = (int8_t)(rs2 & 0xFF);
+
+    for (int i = 0; i < elems; i++) {
+        int32_t e1 = (int32_t)EXTRACT32(rs1, i);
+        int32_t res;
+
+        if (shamt >= 0) {
+            int64_t shifted = (int64_t)e1 << shamt;
+            res = signed_saturate_w(shifted, &sat);
+        } else {
+            int right = -shamt;
+            if (right >= 32) {
+                res = (e1 < 0) ? -1 : 0;
+            } else {
+                res = e1 >> right;
+            }
+        }
+
+        rd = INSERT32(rd, res, i);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PSSHAR.HS - Packed 16-bit variable shift with rounding and saturation
+ * Positive shift left (saturating), negative shift right (rounded)
+ */
+target_ulong HELPER(psshar_hs)(CPURISCVState *env,
+                               target_ulong rs1, target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+    int sat = 0;
+    int8_t shamt = (int8_t)(rs2 & 0xFF);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t e1 = (int16_t)EXTRACT16(rs1, i);
+        int16_t res;
+
+        if (shamt >= 0) {
+            /* Left shift with saturation */
+            int32_t shifted = (int32_t)e1 << shamt;
+            res = signed_saturate_h(shifted, &sat);
+        } else {
+            /* Right shift with rounding */
+            int right = -shamt;
+            if (right >= 16) {
+                res = (e1 < 0) ? -1 : 0;
+            } else {
+                int32_t rounded = ((e1 >> (right - 1)) + 1) >> 1;
+                res = (int16_t)rounded;
+            }
+        }
+
+        rd = INSERT16(rd, res, i);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PSSHAR.WS - Packed 32-bit variable shift with
+ * rounding and saturation (RV64 only)
+ * Positive shift left (saturating), negative shift right (rounded)
+ */
+uint64_t HELPER(psshar_ws)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+    int sat = 0;
+    int8_t shamt = (int8_t)(rs2 & 0xFF);
+
+    for (int i = 0; i < elems; i++) {
+        int32_t e1 = (int32_t)EXTRACT32(rs1, i);
+        int32_t res;
+
+        if (shamt >= 0) {
+            int64_t shifted = (int64_t)e1 << shamt;
+            res = signed_saturate_w(shifted, &sat);
+        } else {
+            int right = -shamt;
+            if (right >= 32) {
+                res = (e1 < 0) ? -1 : 0;
+            } else {
+                int64_t rounded = ((e1 >> (right - 1)) + 1) >> 1;
+                res = (int32_t)rounded;
+            }
+        }
+
+        rd = INSERT32(rd, res, i);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * SSHA - 32-bit scalar variable shift with saturation
+ */
+uint32_t HELPER(ssha)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    int32_t a = (int32_t)rs1;
+    int8_t shamt = (int8_t)(rs2 & 0xFF);
+    int sat = 0;
+    int32_t res;
+
+    if (shamt >= 0) {
+        int64_t shifted = (int64_t)a << shamt;
+        res = signed_saturate_w(shifted, &sat);
+    } else {
+        int right = -shamt;
+        if (right >= 32) {
+            res = (a < 0) ? -1 : 0;
+        } else {
+            res = a >> right;
+        }
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return (uint32_t)res;
+}
+
+/**
+ * SSHAR - 32-bit scalar variable shift with rounding and saturation
+ */
+uint32_t HELPER(sshar)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    int32_t a = (int32_t)rs1;
+    int8_t shamt = (int8_t)(rs2 & 0xFF);
+    int sat = 0;
+    int32_t res;
+
+    if (shamt >= 0) {
+        int64_t shifted = (int64_t)a << shamt;
+        res = signed_saturate_w(shifted, &sat);
+    } else {
+        int right = -shamt;
+        if (right >= 32) {
+            res = (a < 0) ? -1 : 0;
+        } else {
+            int64_t rounded = ((a >> (right - 1)) + 1) >> 1;
+            res = (int32_t)rounded;
+        }
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return (uint32_t)res;
+}
+
+/**
+ * SHA - 64-bit scalar variable shift
+ */
+uint64_t HELPER(sha)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    int64_t a = (int64_t)rs1;
+    int8_t shamt = (int8_t)(rs2 & 0xFF);
+
+    if (shamt >= 0) {
+        return (uint64_t)(a << shamt);
+    } else {
+        int right = -shamt;
+        if (right >= 64) {
+            return (a < 0) ? (uint64_t)-1 : 0;
+        } else {
+            return (uint64_t)(a >> right);
+        }
+    }
+}
+
+/**
+ * SHAR - 64-bit scalar variable shift with rounding
+ */
+uint64_t HELPER(shar)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    int64_t a = (int64_t)rs1;
+    int8_t shamt = (int8_t)(rs2 & 0xFF);
+
+    if (shamt >= 0) {
+        return (uint64_t)(a << shamt);
+    } else {
+        int right = -shamt;
+        if (right >= 64) {
+            return (a < 0) ? (uint64_t)-1 : 0;
+        } else {
+            __int128_t rounded = ((__int128_t)a >> (right - 1)) + 1;
+            return (uint64_t)((int64_t)(rounded >> 1));
+        }
+    }
+}
