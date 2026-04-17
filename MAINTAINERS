@@ -2701,6 +2701,8 @@ F: hw/core/generic-loader.c
 F: hw/core/uboot_image.h
 F: include/hw/core/generic-loader.h
 F: docs/system/generic-loader.rst
+F: tests/qtest/hexloader-test.c
+F: tests/data/hex-loader/test.hex
 
 Guest Loader
 M: Alex Bennée <alex.bennee@linaro.org>
@@ -2708,11 +2710,6 @@ S: Maintained
 F: hw/core/guest-loader.c
 F: docs/system/guest-loader.rst
 F: tests/functional/aarch64/test_xen.py
-
-Intel Hexadecimal Object File Loader
-S: Orphan
-F: tests/qtest/hexloader-test.c
-F: tests/data/hex-loader/test.hex
 
 CHRP NVRAM
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
