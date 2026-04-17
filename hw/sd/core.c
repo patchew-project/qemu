@@ -113,21 +113,24 @@ void sdbus_write_byte(SDBus *sdbus, uint8_t value)
     if (card) {
         SDCardClass *sc = SDMMC_COMMON_GET_CLASS(card);
 
-        sc->write_byte(card, value);
+        sc->write_data(card, &value, 1);
     }
 }
 
 void sdbus_write_data(SDBus *sdbus, const void *buf, size_t length)
 {
     SDState *card = get_card(sdbus);
-    const uint8_t *data = buf;
 
     if (card) {
         SDCardClass *sc = SDMMC_COMMON_GET_CLASS(card);
 
-        for (size_t i = 0; i < length; i++) {
-            trace_sdbus_write(sdbus_name(sdbus), data[i]);
-            sc->write_byte(card, data[i]);
+        while (length > 0) {
+            size_t written = sc->write_data(card, buf, length);
+
+            g_assert(written >= 1);
+
+            buf += written;
+            length -= written;
         }
     }
 }
@@ -140,7 +143,7 @@ uint8_t sdbus_read_byte(SDBus *sdbus)
     if (card) {
         SDCardClass *sc = SDMMC_COMMON_GET_CLASS(card);
 
-        value = sc->read_byte(card);
+        sc->read_data(card, &value, 1);
     }
     trace_sdbus_read(sdbus_name(sdbus), value);
 
@@ -150,14 +153,17 @@ uint8_t sdbus_read_byte(SDBus *sdbus)
 void sdbus_read_data(SDBus *sdbus, void *buf, size_t length)
 {
     SDState *card = get_card(sdbus);
-    uint8_t *data = buf;
 
     if (card) {
         SDCardClass *sc = SDMMC_COMMON_GET_CLASS(card);
 
-        for (size_t i = 0; i < length; i++) {
-            data[i] = sc->read_byte(card);
-            trace_sdbus_read(sdbus_name(sdbus), data[i]);
+        while (length > 0) {
+            size_t read = sc->read_data(card, buf, length);
+
+            g_assert(read >= 1);
+
+            buf += read;
+            length -= read;
         }
     }
 }
