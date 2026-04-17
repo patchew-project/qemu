@@ -1291,6 +1291,7 @@ DEF_HELPER_1(ssamoswap_disabled, void, env)
 #endif
 
 /* Packed SIMD */
+/* Packed SIMD - Arithmetic Operations(Non-Saturating and Saturating) */
 DEF_HELPER_3(padd_b, tl, env, tl, tl)
 DEF_HELPER_3(padd_h, tl, env, tl, tl)
 DEF_HELPER_3(padd_w, i64, env, i64, i64)
@@ -1329,3 +1330,22 @@ DEF_HELPER_3(sati_32, i32, env, i32, i32)
 DEF_HELPER_3(usati_32, i32, env, i32, i32)
 DEF_HELPER_3(sati_64, i64, env, i64, i64)
 DEF_HELPER_3(usati_64, i64, env, i64, i64)
+
+/* Packed SIMD - Averaging and Rounding Operations */
+DEF_HELPER_3(paadd_b, tl, env, tl, tl)
+DEF_HELPER_3(paadd_h, tl, env, tl, tl)
+DEF_HELPER_3(paadd_w, i64, env, i64, i64)
+DEF_HELPER_3(paaddu_b, tl, env, tl, tl)
+DEF_HELPER_3(paaddu_h, tl, env, tl, tl)
+DEF_HELPER_3(paaddu_w, i64, env, i64, i64)
+DEF_HELPER_3(aadd, i32, env, i32, i32)
+DEF_HELPER_3(aaddu, i32, env, i32, i32)
+DEF_HELPER_3(pasub_b, tl, env, tl, tl)
+DEF_HELPER_3(pasub_h, tl, env, tl, tl)
+DEF_HELPER_3(pasub_w, i64, env, i64, i64)
+DEF_HELPER_3(pasubu_b, tl, env, tl, tl)
+DEF_HELPER_3(pasubu_h, tl, env, tl, tl)
+DEF_HELPER_3(pasubu_w, i64, env, i64, i64)
+DEF_HELPER_3(asub, i32, env, i32, i32)
+DEF_HELPER_3(asubu, i32, env, i32, i32)
+

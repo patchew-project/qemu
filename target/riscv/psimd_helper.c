@@ -1067,3 +1067,269 @@ uint64_t HELPER(usati_64)(CPURISCVState *env,
     }
     return (uint64_t)a;
 }
+
+/* Averaging Operations (non-saturating) */
+
+/**
+ * PAADD.B - Packed 8-bit signed averaging addition
+ * For each byte: rd[i] = (rs1[i] + rs2[i]) >> 1
+ */
+target_ulong HELPER(paadd_b)(CPURISCVState *env, target_ulong rs1,
+                             target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_B(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t e1 = (int8_t)EXTRACT8(rs1, i);
+        int16_t e2 = (int8_t)EXTRACT8(rs2, i);
+        int16_t avg = (e1 + e2) >> 1;
+        rd = INSERT8(rd, (int8_t)avg, i);
+    }
+    return rd;
+}
+
+/**
+ * PAADD.H - Packed 16-bit signed averaging addition
+ * For each halfword: rd[i] = (rs1[i] + rs2[i]) >> 1
+ */
+target_ulong HELPER(paadd_h)(CPURISCVState *env, target_ulong rs1,
+                             target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int32_t e1 = (int16_t)EXTRACT16(rs1, i);
+        int32_t e2 = (int16_t)EXTRACT16(rs2, i);
+        int32_t avg = (e1 + e2) >> 1;
+        rd = INSERT16(rd, (int16_t)avg, i);
+    }
+    return rd;
+}
+
+/**
+ * PAADD.W - Packed 32-bit signed averaging addition (RV64 only)
+ * For each word: rd[i] = (rs1[i] + rs2[i]) >> 1
+ */
+uint64_t HELPER(paadd_w)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        int64_t e1 = (int32_t)EXTRACT32(rs1, i);
+        int64_t e2 = (int32_t)EXTRACT32(rs2, i);
+        int64_t avg = (e1 + e2) >> 1;
+        rd = INSERT32(rd, (int32_t)avg, i);
+    }
+    return rd;
+}
+
+/**
+ * PAADDU.B - Packed 8-bit unsigned averaging addition
+ * For each byte: rd[i] = (rs1[i] + rs2[i]) >> 1
+ */
+target_ulong HELPER(paaddu_b)(CPURISCVState *env, target_ulong rs1,
+                              target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_B(rd);
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t e1 = EXTRACT8(rs1, i);
+        uint16_t e2 = EXTRACT8(rs2, i);
+        uint16_t avg = (e1 + e2) >> 1;
+        rd = INSERT8(rd, (uint8_t)avg, i);
+    }
+    return rd;
+}
+
+/**
+ * PAADDU.H - Packed 16-bit unsigned averaging addition
+ * For each halfword: rd[i] = (rs1[i] + rs2[i]) >> 1
+ */
+target_ulong HELPER(paaddu_h)(CPURISCVState *env, target_ulong rs1,
+                              target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i++) {
+        uint32_t e1 = EXTRACT16(rs1, i);
+        uint32_t e2 = EXTRACT16(rs2, i);
+        uint32_t avg = (e1 + e2) >> 1;
+        rd = INSERT16(rd, (uint16_t)avg, i);
+    }
+    return rd;
+}
+
+/**
+ * PAADDU.W - Packed 32-bit unsigned averaging addition (RV64 only)
+ * For each word: rd[i] = (rs1[i] + rs2[i]) >> 1
+ */
+uint64_t HELPER(paaddu_w)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        uint64_t e1 = EXTRACT32(rs1, i);
+        uint64_t e2 = EXTRACT32(rs2, i);
+        uint64_t avg = (e1 + e2) >> 1;
+        rd = INSERT32(rd, (uint32_t)avg, i);
+    }
+    return rd;
+}
+
+/**
+ * AADD - 32-bit signed averaging addition
+ */
+uint32_t HELPER(aadd)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    int64_t a = (int32_t)rs1;
+    int64_t b = (int32_t)rs2;
+    return (uint32_t)((a + b) >> 1);
+}
+
+/**
+ * AADDU - 32-bit unsigned averaging addition
+ */
+uint32_t HELPER(aaddu)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t a = rs1;
+    uint64_t b = rs2;
+    return (uint32_t)((a + b) >> 1);
+}
+
+/**
+ * PASUB.B - Packed 8-bit signed averaging subtraction
+ * For each byte: rd[i] = (rs1[i] - rs2[i]) >> 1
+ */
+target_ulong HELPER(pasub_b)(CPURISCVState *env, target_ulong rs1,
+                             target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_B(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t e1 = (int8_t)EXTRACT8(rs1, i);
+        int16_t e2 = (int8_t)EXTRACT8(rs2, i);
+        int16_t avg = (e1 - e2) >> 1;
+        rd = INSERT8(rd, (int8_t)avg, i);
+    }
+    return rd;
+}
+
+/**
+ * PASUB.H - Packed 16-bit signed averaging subtraction
+ * For each halfword: rd[i] = (rs1[i] - rs2[i]) >> 1
+ */
+target_ulong HELPER(pasub_h)(CPURISCVState *env, target_ulong rs1,
+                             target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int32_t e1 = (int16_t)EXTRACT16(rs1, i);
+        int32_t e2 = (int16_t)EXTRACT16(rs2, i);
+        int32_t avg = (e1 - e2) >> 1;
+        rd = INSERT16(rd, (int16_t)avg, i);
+    }
+    return rd;
+}
+
+/**
+ * PASUB.W - Packed 32-bit signed averaging subtraction (RV64 only)
+ * For each word: rd[i] = (rs1[i] - rs2[i]) >> 1
+ */
+uint64_t HELPER(pasub_w)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        int64_t e1 = (int32_t)EXTRACT32(rs1, i);
+        int64_t e2 = (int32_t)EXTRACT32(rs2, i);
+        int64_t avg = (e1 - e2) >> 1;
+        rd = INSERT32(rd, (int32_t)avg, i);
+    }
+    return rd;
+}
+
+/**
+ * PASUBU.B - Packed 8-bit unsigned averaging subtraction
+ * For each byte: rd[i] = (rs1[i] - rs2[i]) >> 1
+ */
+target_ulong HELPER(pasubu_b)(CPURISCVState *env, target_ulong rs1,
+                              target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_B(rd);
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t e1 = EXTRACT8(rs1, i);
+        uint16_t e2 = EXTRACT8(rs2, i);
+        uint16_t avg = (e1 - e2) >> 1;
+        rd = INSERT8(rd, (uint8_t)avg, i);
+    }
+    return rd;
+}
+
+/**
+ * PASUBU.H - Packed 16-bit unsigned averaging subtraction
+ * For each halfword: rd[i] = (rs1[i] - rs2[i]) >> 1
+ */
+target_ulong HELPER(pasubu_h)(CPURISCVState *env, target_ulong rs1,
+                              target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i++) {
+        uint32_t e1 = EXTRACT16(rs1, i);
+        uint32_t e2 = EXTRACT16(rs2, i);
+        uint32_t avg = (e1 - e2) >> 1;
+        rd = INSERT16(rd, (uint16_t)avg, i);
+    }
+    return rd;
+}
+
+/**
+ * PASUBU.W - Packed 32-bit unsigned averaging subtraction (RV64 only)
+ * For each word: rd[i] = (rs1[i] - rs2[i]) >> 1
+ */
+uint64_t HELPER(pasubu_w)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        uint64_t e1 = EXTRACT32(rs1, i);
+        uint64_t e2 = EXTRACT32(rs2, i);
+        uint64_t avg = (e1 - e2) >> 1;
+        rd = INSERT32(rd, (uint32_t)avg, i);
+    }
+    return rd;
+}
+
+/**
+ * ASUB - 32-bit signed averaging subtraction
+ */
+uint32_t HELPER(asub)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    int64_t a = (int32_t)rs1;
+    int64_t b = (int32_t)rs2;
+    return (uint32_t)((a - b) >> 1);
+}
+
+/**
+ * ASUBU - 32-bit unsigned averaging subtraction
+ */
+uint32_t HELPER(asubu)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t a = rs1;
+    uint64_t b = rs2;
+    return (uint32_t)((a - b) >> 1);
+}

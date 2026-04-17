@@ -524,6 +524,7 @@ static bool trans_##NAME(DisasContext *ctx, arg_##NAME * a) \
 }
 #endif
 
+/* Packed SIMD - Arithmetic Operations(Non-Saturating and Saturating) */
 GEN_SIMD_TRANS(padd_b)
 GEN_SIMD_TRANS(padd_h)
 GEN_SIMD_TRANS_64(padd_w)
@@ -562,3 +563,22 @@ GEN_SIMD_TRANS_IMM_32(sati_32)
 GEN_SIMD_TRANS_IMM_32(usati_32)
 GEN_SIMD_TRANS_IMM_64(sati_64)
 GEN_SIMD_TRANS_IMM_64(usati_64)
+
+/* Packed SIMD - Averaging and Rounding Operations */
+GEN_SIMD_TRANS(paadd_b)
+GEN_SIMD_TRANS(paadd_h)
+GEN_SIMD_TRANS_64(paadd_w)
+GEN_SIMD_TRANS(paaddu_b)
+GEN_SIMD_TRANS(paaddu_h)
+GEN_SIMD_TRANS_64(paaddu_w)
+GEN_SIMD_TRANS_32(aadd)
+GEN_SIMD_TRANS_32(aaddu)
+GEN_SIMD_TRANS(pasub_b)
+GEN_SIMD_TRANS(pasub_h)
+GEN_SIMD_TRANS_64(pasub_w)
+GEN_SIMD_TRANS(pasubu_b)
+GEN_SIMD_TRANS(pasubu_h)
+GEN_SIMD_TRANS_64(pasubu_w)
+GEN_SIMD_TRANS_32(asub)
+GEN_SIMD_TRANS_32(asubu)
+
