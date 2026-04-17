@@ -161,6 +161,8 @@
 #define AST2700_SSP_TSP_RST_RB          BIT(8)
 #define AST2700_SSP_TSP_RST_HOLD_RB     BIT(9)
 #define AST2700_SSP_TSP_RST_SRC_RB      BIT(10)
+#define AST2700_SCU_TSP_CTRL_1          TO_REG(0x168)
+#define AST2700_SCU_TSP_REMAP_SIZE_2    TO_REG(0x194)
 #define AST2700_SCU_SYS_RST_CTRL_1      TO_REG(0x200)
 #define AST2700_SCU_SYS_RST_CLR_1       TO_REG(0x204)
 #define AST2700_SCU_SYS_RST_SSP         BIT(30)
@@ -1035,6 +1037,23 @@ static void aspeed_ast2700_scu_write(void *opaque, hwaddr offset,
         data &= 0x3fffffff;
         memory_region_set_size(mr, data);
         break;
+    case AST2700_SCU_TSP_CTRL_1:
+        mr = &a->dram_remap_alias[2];
+        if (a->tsp_cpuid < 0 || mr == NULL) {
+            return;
+        }
+        data &= 0x7fffffff;
+        memory_region_set_alias_offset(mr,
+                                       ((uint64_t) data << 4) & 0x3ffffffff);
+        break;
+    case AST2700_SCU_TSP_REMAP_SIZE_2:
+        mr = &a->dram_remap_alias[2];
+        if (a->tsp_cpuid < 0 || mr == NULL) {
+            return;
+        }
+        data &= 0x3fffffff;
+        memory_region_set_size(mr, data);
+        break;
     case AST2700_SCU_SYS_RST_CTRL_1:
         if (a->ssp_cpuid < 0) {
             return;
@@ -1114,6 +1133,8 @@ static const uint32_t ast2700_a0_resets[ASPEED_AST2700_SCU_NR_REGS] = {
     [AST2700_SCU_SSP_REMAP_ADDR_2]  = 0x00000000,
     [AST2700_SCU_SSP_REMAP_SIZE_2]  = 0x05880000,
     [AST2700_SCU_TSP_CTRL_0]        = 0x000007FE,
+    [AST2700_SCU_TSP_CTRL_1]        = 0x42E00000,
+    [AST2700_SCU_TSP_REMAP_SIZE_2]  = 0x02000000,
     [AST2700_SCU_SYS_RST_CTRL_1]    = 0xFFC37FDC,
     [AST2700_SCU_SYS_RST_CTRL_2]    = 0x00001FFF,
     [AST2700_SCU_HPLL_PARAM]        = 0x0000009f,
@@ -1155,6 +1176,8 @@ static void aspeed_ast2700_scu_reset(DeviceState *dev)
 
     if (a->tsp_cpuid > 0) {
         arm_set_cpu_off(a->tsp_cpuid);
+        memory_region_set_alias_offset(&a->dram_remap_alias[2], 0x2e000000);
+        memory_region_set_size(&a->dram_remap_alias[2], 32 * MiB);
     }
 }
 
