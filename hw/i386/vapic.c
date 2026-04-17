@@ -173,7 +173,7 @@ static int find_real_tpr_addr(VAPICROMState *s, CPUX86State *env)
      * virtual address space for the APIC mapping.
      */
     for (addr = 0xfffff000; addr >= 0x80000000; addr -= TARGET_PAGE_SIZE) {
-        paddr = cpu_get_phys_page_debug(cs, addr);
+        paddr = cpu_get_phys_addr_debug(cs, addr);
         if (paddr != APIC_DEFAULT_ADDRESS) {
             continue;
         }
@@ -305,7 +305,7 @@ static int update_rom_mapping(VAPICROMState *s, CPUX86State *env, target_ulong i
 
     /* find out virtual address of the ROM */
     rom_state_vaddr = s->rom_state_paddr + (ip & 0xf0000000);
-    paddr = cpu_get_phys_page_debug(cs, rom_state_vaddr);
+    paddr = cpu_get_phys_addr_debug(cs, rom_state_vaddr);
     if (paddr == -1) {
         return -1;
     }
