@@ -4682,3 +4682,949 @@ uint64_t HELPER(mulu_w11)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
     uint64_t mul = (uint64_t)s1_w1 * (uint64_t)s2_w1;
     return mul;
 }
+
+/* Multiply-Accumulate Operations */
+
+/**
+ * PMHACC.H - Packed signed 16-bit multiply high with accumulate
+ */
+target_ulong HELPER(pmhacc_h)(CPURISCVState *env, target_ulong rs1,
+                              target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t e1 = (int16_t)EXTRACT16(rs1, i);
+        int16_t e2 = (int16_t)EXTRACT16(rs2, i);
+        int16_t d = (int16_t)EXTRACT16(dest, i);
+        int32_t prod = (int32_t)e1 * (int32_t)e2;
+        int16_t high = (int16_t)(prod >> 16);
+        uint16_t res = (uint16_t)(high + d);
+        rd = INSERT16(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMHACCSU.H - Packed signed x unsigned 16-bit multiply high with accumulate
+ */
+target_ulong HELPER(pmhaccsu_h)(CPURISCVState *env, target_ulong rs1,
+                                target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t e1 = (int16_t)EXTRACT16(rs1, i);
+        uint16_t e2 = EXTRACT16(rs2, i);
+        int16_t d = (int16_t)EXTRACT16(dest, i);
+        int32_t prod = (int32_t)e1 * (uint32_t)e2;
+        int16_t high = (int16_t)(prod >> 16);
+        uint16_t res = (uint16_t)(high + d);
+        rd = INSERT16(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMHACCU.H - Packed unsigned 16-bit multiply high with accumulate
+ */
+target_ulong HELPER(pmhaccu_h)(CPURISCVState *env, target_ulong rs1,
+                               target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t e1 = EXTRACT16(rs1, i);
+        uint16_t e2 = EXTRACT16(rs2, i);
+        uint16_t d = (uint16_t)EXTRACT16(dest, i);
+        uint32_t prod = (uint32_t)e1 * (uint32_t)e2;
+        uint16_t high = (uint16_t)(prod >> 16);
+        uint16_t res = high + d;
+        rd = INSERT16(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMHRACC.H - Packed signed 16-bit multiply high with rounding and accumulate
+ */
+target_ulong HELPER(pmhracc_h)(CPURISCVState *env, target_ulong rs1,
+                               target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t e1 = (int16_t)EXTRACT16(rs1, i);
+        int16_t e2 = (int16_t)EXTRACT16(rs2, i);
+        int16_t d = (int16_t)EXTRACT16(dest, i);
+        int32_t prod = (int32_t)e1 * (int32_t)e2 + (1 << 15);
+        int16_t high = (int16_t)(prod >> 16);
+        uint16_t res = (uint16_t)(high + d);
+        rd = INSERT16(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMHRACCSU.H - Packed signed x unsigned 16-bit
+ * multiply high with rounding and accumulate
+ */
+target_ulong HELPER(pmhraccsu_h)(CPURISCVState *env, target_ulong rs1,
+                                 target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t e1 = (int16_t)EXTRACT16(rs1, i);
+        uint16_t e2 = EXTRACT16(rs2, i);
+        int16_t d = (int16_t)EXTRACT16(dest, i);
+        int32_t prod = (int32_t)e1 * (uint32_t)e2 + (1 << 15);
+        int16_t high = (int16_t)(prod >> 16);
+        uint16_t res = (uint16_t)(high + d);
+        rd = INSERT16(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMHRACCU.H - Packed unsigned 16-bit multiply
+ * high with rounding and accumulate
+ */
+target_ulong HELPER(pmhraccu_h)(CPURISCVState *env, target_ulong rs1,
+                                target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t e1 = EXTRACT16(rs1, i);
+        uint16_t e2 = EXTRACT16(rs2, i);
+        uint16_t d = (uint16_t)EXTRACT16(dest, i);
+        uint32_t prod = (uint32_t)e1 * (uint32_t)e2 + (1 << 15);
+        uint16_t high = (uint16_t)(prod >> 16);
+        uint16_t res = high + d;
+        rd = INSERT16(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMHACC.W - Packed signed 32-bit multiply high with accumulate (RV64 only)
+ */
+uint64_t HELPER(pmhacc_w)(CPURISCVState *env, uint64_t rs1,
+                          uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        int32_t e1 = (int32_t)EXTRACT32(rs1, i);
+        int32_t e2 = (int32_t)EXTRACT32(rs2, i);
+        int32_t d = (int32_t)EXTRACT32(dest, i);
+        int64_t prod = (int64_t)e1 * (int64_t)e2;
+        int32_t high = (int32_t)(prod >> 32);
+        uint32_t res = (uint32_t)(high + d);
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMHRACC.W - Packed signed 32-bit multiply high
+ * with rounding and accumulate (RV64 only)
+ */
+uint64_t HELPER(pmhracc_w)(CPURISCVState *env, uint64_t rs1,
+                           uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        int32_t e1 = (int32_t)EXTRACT32(rs1, i);
+        int32_t e2 = (int32_t)EXTRACT32(rs2, i);
+        int32_t d = (int32_t)EXTRACT32(dest, i);
+        int64_t prod = (int64_t)e1 * (int64_t)e2 + (1LL << 31);
+        int32_t high = (int32_t)(prod >> 32);
+        uint32_t res = (uint32_t)(high + d);
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMHACCSU.W - Packed signed x unsigned 32-bit
+ * multiply high with accumulate (RV64 only)
+ */
+uint64_t HELPER(pmhaccsu_w)(CPURISCVState *env, uint64_t rs1,
+                            uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        int32_t e1 = (int32_t)EXTRACT32(rs1, i);
+        uint32_t e2 = EXTRACT32(rs2, i);
+        int32_t d = (int32_t)EXTRACT32(dest, i);
+        int64_t prod = (int64_t)e1 * (uint64_t)e2;
+        int32_t high = (int32_t)(prod >> 32);
+        uint32_t res = (uint32_t)(high + d);
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMHRACCSU.W - Packed signed x unsigned 32-bit
+ * multiply high with rounding and accumulate
+ * (RV64 only)
+ */
+uint64_t HELPER(pmhraccsu_w)(CPURISCVState *env, uint64_t rs1,
+                             uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        int32_t e1 = (int32_t)EXTRACT32(rs1, i);
+        uint32_t e2 = EXTRACT32(rs2, i);
+        int32_t d = (int32_t)EXTRACT32(dest, i);
+        int64_t prod = (int64_t)e1 * (uint64_t)e2 + (1LL << 31);
+        int32_t high = (int32_t)(prod >> 32);
+        uint32_t res = (uint32_t)(high + d);
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMHACCU.W - Packed unsigned 32-bit multiply high with accumulate (RV64 only)
+ */
+uint64_t HELPER(pmhaccu_w)(CPURISCVState *env, uint64_t rs1,
+                           uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        uint32_t e1 = EXTRACT32(rs1, i);
+        uint32_t e2 = EXTRACT32(rs2, i);
+        uint32_t d = EXTRACT32(dest, i);
+        uint64_t prod = (uint64_t)e1 * (uint64_t)e2;
+        uint32_t high = (uint32_t)(prod >> 32);
+        uint32_t res = high + d;
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMHRACCU.W - Packed unsigned 32-bit multiply
+ * high with rounding and accumulate (RV64 only)
+ */
+uint64_t HELPER(pmhraccu_w)(CPURISCVState *env, uint64_t rs1,
+                            uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        uint32_t e1 = EXTRACT32(rs1, i);
+        uint32_t e2 = EXTRACT32(rs2, i);
+        uint32_t d = EXTRACT32(dest, i);
+        uint64_t prod = (uint64_t)e1 * (uint64_t)e2 + (1LL << 31);
+        uint32_t high = (uint32_t)(prod >> 32);
+        uint32_t res = high + d;
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * MHACC - 32-bit signed multiply high with accumulate
+ */
+uint32_t HELPER(mhacc)(CPURISCVState *env, uint32_t rs1,
+                        uint32_t rs2, uint32_t dest)
+{
+    int32_t a = (int32_t)rs1;
+    int32_t b = (int32_t)rs2;
+    int32_t d = (int32_t)dest;
+    int64_t prod = (int64_t)a * (int64_t)b;
+    return (uint32_t)(d + (prod >> 32));
+}
+
+/**
+ * MHRACC - 32-bit signed multiply high with rounding and accumulate
+ */
+uint32_t HELPER(mhracc)(CPURISCVState *env, uint32_t rs1,
+                         uint32_t rs2, uint32_t dest)
+{
+    int32_t a = (int32_t)rs1;
+    int32_t b = (int32_t)rs2;
+    int32_t d = (int32_t)dest;
+    int64_t prod = (int64_t)a * (int64_t)b + (1LL << 31);
+    return (uint32_t)(d + (prod >> 32));
+}
+
+/**
+ * MHACCSU - 32-bit signed x unsigned multiply high with accumulate
+ */
+uint32_t HELPER(mhaccsu)(CPURISCVState *env, uint32_t rs1,
+                          uint32_t rs2, uint32_t dest)
+{
+    int32_t a = (int32_t)rs1;
+    uint32_t b = rs2;
+    int32_t d = (int32_t)dest;
+    int64_t prod = (int64_t)a * (uint64_t)b;
+    return (uint32_t)(d + (prod >> 32));
+}
+
+/**
+ * MHRACCSU - 32-bit signed x unsigned multiply high
+ * with rounding and accumulate
+ */
+uint32_t HELPER(mhraccsu)(CPURISCVState *env, uint32_t rs1,
+                           uint32_t rs2, uint32_t dest)
+{
+    int32_t a = (int32_t)rs1;
+    uint32_t b = rs2;
+    int32_t d = (int32_t)dest;
+    int64_t prod = (int64_t)a * (uint64_t)b + (1LL << 31);
+    return (uint32_t)(d + (prod >> 32));
+}
+
+/**
+ * MHACCU - 32-bit unsigned multiply high with accumulate
+ */
+uint32_t HELPER(mhaccu)(CPURISCVState *env, uint32_t rs1,
+                         uint32_t rs2, uint32_t dest)
+{
+    uint32_t a = rs1;
+    uint32_t b = rs2;
+    uint32_t d = dest;
+    uint64_t prod = (uint64_t)a * (uint64_t)b;
+    return (uint32_t)(d + (prod >> 32));
+}
+
+/**
+ * MHRACCU - 32-bit unsigned multiply high with rounding and accumulate
+ */
+uint32_t HELPER(mhraccu)(CPURISCVState *env, uint32_t rs1,
+                          uint32_t rs2, uint32_t dest)
+{
+    uint32_t a = rs1;
+    uint32_t b = rs2;
+    uint32_t d = dest;
+    uint64_t prod = (uint64_t)a * (uint64_t)b + (1LL << 31);
+    return (uint32_t)(d + (prod >> 32));
+}
+
+/**
+ * PMHACC.H.B0 - Multiply halfword by low byte and accumulate (high halfword)
+ */
+target_ulong HELPER(pmhacc_h_b0)(CPURISCVState *env, target_ulong rs1,
+                                 target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t e1 = (int16_t)EXTRACT16(rs1, i);
+        int8_t e2 = (int8_t)EXTRACT8(rs2, i * 2);
+        int16_t d = (int16_t)EXTRACT16(dest, i);
+        int32_t prod = (int32_t)e1 * (int32_t)e2;
+        int16_t high = (int16_t)(prod >> 8);
+        uint16_t res = (uint16_t)(high + d);
+        rd = INSERT16(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMHACC.H.B1 - Multiply halfword by high byte and accumulate (high halfword)
+ */
+target_ulong HELPER(pmhacc_h_b1)(CPURISCVState *env, target_ulong rs1,
+                                 target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t e1 = (int16_t)EXTRACT16(rs1, i);
+        int8_t e2 = (int8_t)EXTRACT8(rs2, i * 2 + 1);
+        int16_t d = (int16_t)EXTRACT16(dest, i);
+        int32_t prod = (int32_t)e1 * (int32_t)e2;
+        int16_t high = (int16_t)(prod >> 8);
+        uint16_t res = (uint16_t)(high + d);
+        rd = INSERT16(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMHACCSU.H.B0 - Multiply signed halfword by unsigned low byte and accumulate
+ */
+target_ulong HELPER(pmhaccsu_h_b0)(CPURISCVState *env, target_ulong rs1,
+                                   target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t e1 = (int16_t)EXTRACT16(rs1, i);
+        uint8_t e2 = EXTRACT8(rs2, i * 2);
+        int16_t d = (int16_t)EXTRACT16(dest, i);
+        int32_t prod = (int32_t)e1 * (uint32_t)e2;
+        int16_t high = (int16_t)(prod >> 8);
+        uint16_t res = (uint16_t)(high + d);
+        rd = INSERT16(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMHACCSU.H.B1 - Multiply signed halfword by unsigned high byte and accumulate
+ */
+target_ulong HELPER(pmhaccsu_h_b1)(CPURISCVState *env, target_ulong rs1,
+                                   target_ulong rs2, target_ulong dest)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+
+    for (int i = 0; i < elems; i++) {
+        int16_t e1 = (int16_t)EXTRACT16(rs1, i);
+        uint8_t e2 = EXTRACT8(rs2, i * 2 + 1);
+        int16_t d = (int16_t)EXTRACT16(dest, i);
+        int32_t prod = (int32_t)e1 * (uint32_t)e2;
+        int16_t high = (int16_t)(prod >> 8);
+        uint16_t res = (uint16_t)(high + d);
+        rd = INSERT16(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * MHACC.H0 - 32-bit multiply by low halfword high accumulate
+ */
+uint32_t HELPER(mhacc_h0)(CPURISCVState *env, uint32_t rs1,
+                           uint32_t rs2, uint32_t dest)
+{
+    int32_t a = (int32_t)rs1;
+    int16_t b = (int16_t)(rs2 & 0xFFFF);
+    int32_t d = (int32_t)dest;
+    int64_t prod = (int64_t)a * (int64_t)b;
+    return (uint32_t)(d + (prod >> 16));
+}
+
+/**
+ * MHACC.H1 - 32-bit multiply by high halfword high accumulate
+ */
+uint32_t HELPER(mhacc_h1)(CPURISCVState *env, uint32_t rs1,
+                           uint32_t rs2, uint32_t dest)
+{
+    int32_t a = (int32_t)rs1;
+    int16_t b = (int16_t)((rs2 >> 16) & 0xFFFF);
+    int32_t d = (int32_t)dest;
+    int64_t prod = (int64_t)a * (int64_t)b;
+    return (uint32_t)(d + (prod >> 16));
+}
+
+/**
+ * MHACCSU.H0 - 32-bit signed multiply by unsigned low halfword high accumulate
+ */
+uint32_t HELPER(mhaccsu_h0)(CPURISCVState *env, uint32_t rs1,
+                             uint32_t rs2, uint32_t dest)
+{
+    int32_t a = (int32_t)rs1;
+    uint16_t b = (uint16_t)(rs2 & 0xFFFF);
+    int32_t d = (int32_t)dest;
+    int64_t prod = (int64_t)a * (uint64_t)b;
+    return (uint32_t)(d + (prod >> 16));
+}
+
+/**
+ * MHACCSU.H1 - 32-bit signed multiply by unsigned high halfword high accumulate
+ */
+uint32_t HELPER(mhaccsu_h1)(CPURISCVState *env, uint32_t rs1,
+                             uint32_t rs2, uint32_t dest)
+{
+    int32_t a = (int32_t)rs1;
+    uint16_t b = (uint16_t)((rs2 >> 16) & 0xFFFF);
+    int32_t d = (int32_t)dest;
+    int64_t prod = (int64_t)a * (uint64_t)b;
+    return (uint32_t)(d + (prod >> 16));
+}
+
+/**
+ * PMHACC.W.H0 - Multiply word by low halfword high accumulate (RV64 only)
+ */
+uint64_t HELPER(pmhacc_w_h0)(CPURISCVState *env, uint64_t rs1,
+                              uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int32_t e1 = (int32_t)EXTRACT32(rs1, i);
+        int16_t e2 = (int16_t)EXTRACT16(rs2, i * 2);
+        int32_t d = (int32_t)EXTRACT32(dest, i);
+        int64_t prod = (int64_t)e1 * (int64_t)e2;
+        int32_t high = (int32_t)(prod >> 16);
+        uint32_t res = (uint32_t)(high + d);
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMHACC.W.H1 - Multiply word by high halfword high accumulate (RV64 only)
+ */
+uint64_t HELPER(pmhacc_w_h1)(CPURISCVState *env, uint64_t rs1,
+                              uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int32_t e1 = (int32_t)EXTRACT32(rs1, i);
+        int16_t e2 = (int16_t)EXTRACT16(rs2, i * 2 + 1);
+        int32_t d = (int32_t)EXTRACT32(dest, i);
+        int64_t prod = (int64_t)e1 * (int64_t)e2;
+        int32_t high = (int32_t)(prod >> 16);
+        uint32_t res = (uint32_t)(high + d);
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMHACCSU.W.H0 - Multiply signed word by unsigned low halfword
+ * high accumulate (RV64 only)
+ */
+uint64_t HELPER(pmhaccsu_w_h0)(CPURISCVState *env, uint64_t rs1,
+                                uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int32_t e1 = (int32_t)EXTRACT32(rs1, i);
+        uint16_t e2 = EXTRACT16(rs2, i * 2);
+        int32_t d = (int32_t)EXTRACT32(dest, i);
+        int64_t prod = (int64_t)e1 * (uint64_t)e2;
+        int32_t high = (int32_t)(prod >> 16);
+        uint32_t res = (uint32_t)(high + d);
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMHACCSU.W.H1 - Multiply signed word by unsigned high halfword
+ * high accumulate (RV64 only)
+ */
+uint64_t HELPER(pmhaccsu_w_h1)(CPURISCVState *env, uint64_t rs1,
+                                uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int32_t e1 = (int32_t)EXTRACT32(rs1, i);
+        uint16_t e2 = EXTRACT16(rs2, i * 2 + 1);
+        int32_t d = (int32_t)EXTRACT32(dest, i);
+        int64_t prod = (int64_t)e1 * (uint64_t)e2;
+        int32_t high = (int32_t)(prod >> 16);
+        uint32_t res = (uint32_t)(high + d);
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMACC.W.H00 - Packed multiply-accumulate, low halfwords
+ * For each word: rd[i] = dest[i] + (rs1[i][15:0] * rs2[i][15:0])
+ */
+uint64_t HELPER(pmacc_w_h00)(CPURISCVState *env, uint64_t rs1,
+                              uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s2_h0 = (int16_t)EXTRACT16(rs2, i * 2);
+        int32_t d_h = (int32_t)EXTRACT32(dest, i);
+        int32_t mul = (int32_t)s1_h0 * (int32_t)s2_h0;
+        rd = INSERT32(rd, (uint32_t)(d_h + mul), i);
+    }
+    return rd;
+}
+
+/**
+ * PMACC.W.H01 - Packed multiply-accumulate, rs1 low x rs2 high
+ * For each word: rd[i] = dest[i] + (rs1[i][15:0] * rs2[i][31:16])
+ */
+uint64_t HELPER(pmacc_w_h01)(CPURISCVState *env, uint64_t rs1,
+                              uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s2_h1 = (int16_t)EXTRACT16(rs2, i * 2 + 1);
+        int32_t d_h = (int32_t)EXTRACT32(dest, i);
+        int32_t mul = (int32_t)s1_h0 * (int32_t)s2_h1;
+        rd = INSERT32(rd, (uint32_t)(d_h + mul), i);
+    }
+    return rd;
+}
+
+/**
+ * PMACC.W.H11 - Packed multiply-accumulate, high halfwords
+ * For each word: rd[i] = dest[i] + (rs1[i][31:16] * rs2[i][31:16])
+ */
+uint64_t HELPER(pmacc_w_h11)(CPURISCVState *env, uint64_t rs1,
+                              uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        int16_t s1_h1 = (int16_t)EXTRACT16(rs1, i * 2 + 1);
+        int16_t s2_h1 = (int16_t)EXTRACT16(rs2, i * 2 + 1);
+        int32_t d_h = (int32_t)EXTRACT32(dest, i);
+        int32_t mul = (int32_t)s1_h1 * (int32_t)s2_h1;
+        rd = INSERT32(rd, (uint32_t)(d_h + mul), i);
+    }
+    return rd;
+}
+
+/**
+ * PMACCSU.W.H00 - Packed signed x unsigned multiply-accumulate, low halfwords
+ * For each word: rd[i] = dest[i] +
+ * (signed)rs1[i][15:0] * (unsigned)rs2[i][15:0]
+ */
+uint64_t HELPER(pmaccsu_w_h00)(CPURISCVState *env, uint64_t rs1,
+                                uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        uint16_t s2_h0 = EXTRACT16(rs2, i * 2);
+        int32_t d_h = (int32_t)EXTRACT32(dest, i);
+        int32_t mul = (int32_t)s1_h0 * (uint32_t)s2_h0;
+        rd = INSERT32(rd, (uint32_t)(d_h + mul), i);
+    }
+    return rd;
+}
+
+/**
+ * PMACCSU.W.H11 - Packed signed x unsigned multiply-accumulate, high halfwords
+ * For each word: rd[i] = dest[i] +
+ * (signed)rs1[i][31:16] * (unsigned)rs2[i][31:16]
+ */
+uint64_t HELPER(pmaccsu_w_h11)(CPURISCVState *env, uint64_t rs1,
+                                uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        int16_t s1_h1 = (int16_t)EXTRACT16(rs1, i * 2 + 1);
+        uint16_t s2_h1 = EXTRACT16(rs2, i * 2 + 1);
+        int32_t d_h = (int32_t)EXTRACT32(dest, i);
+        int32_t mul = (int32_t)s1_h1 * (uint32_t)s2_h1;
+        rd = INSERT32(rd, (uint32_t)(d_h + mul), i);
+    }
+    return rd;
+}
+
+/**
+ * PMACCU.W.H00 - Packed unsigned multiply-accumulate, low halfwords
+ * For each word: rd[i] = dest[i] + rs1[i][15:0] * rs2[i][15:0] (unsigned)
+ */
+uint64_t HELPER(pmaccu_w_h00)(CPURISCVState *env, uint64_t rs1,
+                               uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t s1_h0 = EXTRACT16(rs1, i * 2);
+        uint16_t s2_h0 = EXTRACT16(rs2, i * 2);
+        uint32_t d_h = EXTRACT32(dest, i);
+        uint32_t mul = (uint32_t)s1_h0 * (uint32_t)s2_h0;
+        rd = INSERT32(rd, d_h + mul, i);
+    }
+    return rd;
+}
+
+/**
+ * PMACCU.W.H01 - Packed unsigned multiply-accumulate, rs1 low x rs2 high
+ * For each word: rd[i] = dest[i] + rs1[i][15:0] * rs2[i][31:16] (unsigned)
+ */
+uint64_t HELPER(pmaccu_w_h01)(CPURISCVState *env, uint64_t rs1,
+                               uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t s1_h0 = EXTRACT16(rs1, i * 2);
+        uint16_t s2_h1 = EXTRACT16(rs2, i * 2 + 1);
+        uint32_t d_h = EXTRACT32(dest, i);
+        uint32_t mul = (uint32_t)s1_h0 * (uint32_t)s2_h1;
+        rd = INSERT32(rd, d_h + mul, i);
+    }
+    return rd;
+}
+
+/**
+ * PMACCU.W.H11 - Packed unsigned multiply-accumulate, high halfwords
+ * For each word: rd[i] = dest[i] + rs1[i][31:16] * rs2[i][31:16] (unsigned)
+ */
+uint64_t HELPER(pmaccu_w_h11)(CPURISCVState *env, uint64_t rs1,
+                               uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t s1_h1 = EXTRACT16(rs1, i * 2 + 1);
+        uint16_t s2_h1 = EXTRACT16(rs2, i * 2 + 1);
+        uint32_t d_h = EXTRACT32(dest, i);
+        uint32_t mul = (uint32_t)s1_h1 * (uint32_t)s2_h1;
+        rd = INSERT32(rd, d_h + mul, i);
+    }
+    return rd;
+}
+
+/**
+ * MACC.H00 - 32-bit signed multiply-accumulate, low halfwords
+ * dest = dest + (rs1[15:0] * rs2[15:0])
+ */
+uint32_t HELPER(macc_h00)(CPURISCVState *env, uint32_t rs1,
+                          uint32_t rs2, uint32_t dest)
+{
+    int16_t s1_h0 = (int16_t)EXTRACT16(rs1, 0);
+    int16_t s2_h0 = (int16_t)EXTRACT16(rs2, 0);
+    int32_t d_h = (int32_t)dest;
+    int32_t mul = (int32_t)s1_h0 * (int32_t)s2_h0;
+    return (uint32_t)(d_h + mul);
+}
+
+/**
+ * MACC.H01 - 32-bit signed multiply-accumulate, rs1 low x rs2 high
+ * dest = dest + (rs1[15:0] * rs2[31:16])
+ */
+uint32_t HELPER(macc_h01)(CPURISCVState *env, uint32_t rs1,
+                          uint32_t rs2, uint32_t dest)
+{
+    int16_t s1_h0 = (int16_t)EXTRACT16(rs1, 0);
+    int16_t s2_h1 = (int16_t)EXTRACT16(rs2, 1);
+    int32_t d_h = (int32_t)dest;
+    int32_t mul = (int32_t)s1_h0 * (int32_t)s2_h1;
+    return (uint32_t)(d_h + mul);
+}
+
+/**
+ * MACC.H11 - 32-bit signed multiply-accumulate, high halfwords
+ * dest = dest + (rs1[31:16] * rs2[31:16])
+ */
+uint32_t HELPER(macc_h11)(CPURISCVState *env, uint32_t rs1,
+                          uint32_t rs2, uint32_t dest)
+{
+    int16_t s1_h1 = (int16_t)EXTRACT16(rs1, 1);
+    int16_t s2_h1 = (int16_t)EXTRACT16(rs2, 1);
+    int32_t d_h = (int32_t)dest;
+    int32_t mul = (int32_t)s1_h1 * (int32_t)s2_h1;
+    return (uint32_t)(d_h + mul);
+}
+
+/**
+ * MACCSU.H00 - 32-bit signed x unsigned multiply-accumulate, low halfwords
+ * dest = dest + (rs1[15:0] * rs2[15:0]) with rs2 unsigned
+ */
+uint32_t HELPER(maccsu_h00)(CPURISCVState *env, uint32_t rs1,
+                            uint32_t rs2, uint32_t dest)
+{
+    int16_t s1_h0 = (int16_t)EXTRACT16(rs1, 0);
+    uint16_t s2_h0 = EXTRACT16(rs2, 0);
+    int32_t d_h = (int32_t)dest;
+    int32_t mul = (int32_t)s1_h0 * (uint32_t)s2_h0;
+    return (uint32_t)(d_h + mul);
+}
+
+/**
+ * MACCSU.H11 - 32-bit signed x unsigned multiply-accumulate, high halfwords
+ * dest = dest + (rs1[31:16] * rs2[31:16]) with rs2 unsigned
+ */
+uint32_t HELPER(maccsu_h11)(CPURISCVState *env, uint32_t rs1,
+                            uint32_t rs2, uint32_t dest)
+{
+    int16_t s1_h1 = (int16_t)EXTRACT16(rs1, 1);
+    uint16_t s2_h1 = EXTRACT16(rs2, 1);
+    int32_t d_h = (int32_t)dest;
+    int32_t mul = (int32_t)s1_h1 * (uint32_t)s2_h1;
+    return (uint32_t)(d_h + mul);
+}
+
+/**
+ * MACCU.H00 - 32-bit unsigned multiply-accumulate, low halfwords
+ * dest = dest + (rs1[15:0] * rs2[15:0]) (unsigned)
+ */
+uint32_t HELPER(maccu_h00)(CPURISCVState *env, uint32_t rs1,
+                           uint32_t rs2, uint32_t dest)
+{
+    uint16_t s1_h0 = EXTRACT16(rs1, 0);
+    uint16_t s2_h0 = EXTRACT16(rs2, 0);
+    uint32_t d_h = dest;
+    uint32_t mul = (uint32_t)s1_h0 * (uint32_t)s2_h0;
+    return d_h + mul;
+}
+
+/**
+ * MACCU.H01 - 32-bit unsigned multiply-accumulate, rs1 low x rs2 high
+ * dest = dest + (rs1[15:0] * rs2[31:16]) (unsigned)
+ */
+uint32_t HELPER(maccu_h01)(CPURISCVState *env, uint32_t rs1,
+                           uint32_t rs2, uint32_t dest)
+{
+    uint16_t s1_h0 = EXTRACT16(rs1, 0);
+    uint16_t s2_h1 = EXTRACT16(rs2, 1);
+    uint32_t d_h = dest;
+    uint32_t mul = (uint32_t)s1_h0 * (uint32_t)s2_h1;
+    return d_h + mul;
+}
+
+/**
+ * MACCU.H11 - 32-bit unsigned multiply-accumulate, high halfwords
+ * dest = dest + (rs1[31:16] * rs2[31:16]) (unsigned)
+ */
+uint32_t HELPER(maccu_h11)(CPURISCVState *env, uint32_t rs1,
+                           uint32_t rs2, uint32_t dest)
+{
+    uint16_t s1_h1 = EXTRACT16(rs1, 1);
+    uint16_t s2_h1 = EXTRACT16(rs2, 1);
+    uint32_t d_h = dest;
+    uint32_t mul = (uint32_t)s1_h1 * (uint32_t)s2_h1;
+    return d_h + mul;
+}
+
+/**
+ * MACC.W00 - 64-bit signed multiply-accumulate, low word x low word
+ * dest = dest + (rs1[31:0] * rs2[31:0])
+ */
+uint64_t HELPER(macc_w00)(CPURISCVState *env, uint64_t rs1,
+                          uint64_t rs2, uint64_t dest)
+{
+    int32_t s1_w0 = (int32_t)EXTRACT32(rs1, 0);
+    int32_t s2_w0 = (int32_t)EXTRACT32(rs2, 0);
+    int64_t d_w = (int64_t)dest;
+    int64_t mul = (int64_t)s1_w0 * (int64_t)s2_w0;
+    return (uint64_t)(d_w + mul);
+}
+
+/**
+ * MACC.W01 - 64-bit signed multiply-accumulate, low word x high word
+ * dest = dest + (rs1[31:0] * rs2[63:32])
+ */
+uint64_t HELPER(macc_w01)(CPURISCVState *env, uint64_t rs1,
+                          uint64_t rs2, uint64_t dest)
+{
+    int32_t s1_w0 = (int32_t)EXTRACT32(rs1, 0);
+    int32_t s2_w1 = (int32_t)EXTRACT32(rs2, 1);
+    int64_t d_w = (int64_t)dest;
+    int64_t mul = (int64_t)s1_w0 * (int64_t)s2_w1;
+    return (uint64_t)(d_w + mul);
+}
+
+/**
+ * MACC.W11 - 64-bit signed multiply-accumulate, high word x high word
+ * dest = dest + (rs1[63:32] * rs2[63:32])
+ */
+uint64_t HELPER(macc_w11)(CPURISCVState *env, uint64_t rs1,
+                          uint64_t rs2, uint64_t dest)
+{
+    int32_t s1_w1 = (int32_t)EXTRACT32(rs1, 1);
+    int32_t s2_w1 = (int32_t)EXTRACT32(rs2, 1);
+    int64_t d_w = (int64_t)dest;
+    int64_t mul = (int64_t)s1_w1 * (int64_t)s2_w1;
+    return (uint64_t)(d_w + mul);
+}
+
+/**
+ * MACCSU.W00 - 64-bit signed x unsigned
+ * multiply-accumulate, low word x low word
+ * dest = dest + (rs1[31:0] * rs2[31:0]) with rs2 interpreted as unsigned
+ */
+uint64_t HELPER(maccsu_w00)(CPURISCVState *env, uint64_t rs1,
+                            uint64_t rs2, uint64_t dest)
+{
+    int32_t s1_w0 = (int32_t)EXTRACT32(rs1, 0);
+    uint32_t s2_w0 = EXTRACT32(rs2, 0);
+    int64_t d_w = (int64_t)dest;
+    int64_t mul = (int64_t)s1_w0 * (uint64_t)s2_w0;
+    return (uint64_t)(d_w + mul);
+}
+
+/**
+ * MACCSU.W11 - 64-bit signed x unsigned
+ * multiply-accumulate, high word x high word
+ * dest = dest + (rs1[63:32] * rs2[63:32]) with rs2 interpreted as unsigned
+ */
+uint64_t HELPER(maccsu_w11)(CPURISCVState *env, uint64_t rs1,
+                            uint64_t rs2, uint64_t dest)
+{
+    int32_t s1_w1 = (int32_t)EXTRACT32(rs1, 1);
+    uint32_t s2_w1 = EXTRACT32(rs2, 1);
+    int64_t d_w = (int64_t)dest;
+    int64_t mul = (int64_t)s1_w1 * (uint64_t)s2_w1;
+    return (uint64_t)(d_w + mul);
+}
+
+/**
+ * MACCU.W00 - 64-bit unsigned multiply-accumulate, low word x low word
+ * dest = dest + (rs1[31:0] * rs2[31:0]) (unsigned)
+ */
+uint64_t HELPER(maccu_w00)(CPURISCVState *env, uint64_t rs1,
+                           uint64_t rs2, uint64_t dest)
+{
+    uint32_t s1_w0 = EXTRACT32(rs1, 0);
+    uint32_t s2_w0 = EXTRACT32(rs2, 0);
+    uint64_t d_w = dest;
+    uint64_t mul = (uint64_t)s1_w0 * (uint64_t)s2_w0;
+    return d_w + mul;
+}
+
+/**
+ * MACCU.W01 - 64-bit unsigned multiply-accumulate, low word x high word
+ * dest = dest + (rs1[31:0] * rs2[63:32]) (unsigned)
+ */
+uint64_t HELPER(maccu_w01)(CPURISCVState *env, uint64_t rs1,
+                           uint64_t rs2, uint64_t dest)
+{
+    uint32_t s1_w0 = EXTRACT32(rs1, 0);
+    uint32_t s2_w1 = EXTRACT32(rs2, 1);
+    uint64_t d_w = dest;
+    uint64_t mul = (uint64_t)s1_w0 * (uint64_t)s2_w1;
+    return d_w + mul;
+}
+
+/**
+ * MACCU.W11 - 64-bit unsigned multiply-accumulate, high word x high word
+ * dest = dest + (rs1[63:32] * rs2[63:32]) (unsigned)
+ */
+uint64_t HELPER(maccu_w11)(CPURISCVState *env, uint64_t rs1,
+                           uint64_t rs2, uint64_t dest)
+{
+    uint32_t s1_w1 = EXTRACT32(rs1, 1);
+    uint32_t s2_w1 = EXTRACT32(rs2, 1);
+    uint64_t d_w = dest;
+    uint64_t mul = (uint64_t)s1_w1 * (uint64_t)s2_w1;
+    return d_w + mul;
+}
