@@ -2690,11 +2690,22 @@ static bool sd_generic_read_data(SDState *sd, void *buf, size_t *len)
     return false;
 }
 
+static void sdcard_write_data_dump(const char *proto, const char *cmd_desc,
+                                   uint8_t cmd, uint32_t offset,
+                                   const void *buf, size_t len)
+{
+    g_autoptr(GString) str = NULL;
+
+    if (trace_event_get_state_backends(TRACE_SDCARD_WRITE_DATA)) {
+        str = qemu_hexdump_line(NULL, buf, len, 8, 0);
+        trace_sdcard_write_data(proto, cmd_desc, cmd, offset, str->str);
+    }
+}
+
 static size_t sd_write_data(SDState *sd, const void *buf, size_t length)
 {
     unsigned int partition_access;
     int i;
-    const uint8_t *value = buf;
 
     if (!sd->blk || !blk_is_inserted(sd->blk)) {
         return length;
@@ -2709,9 +2720,9 @@ static size_t sd_write_data(SDState *sd, const void *buf, size_t length)
     if (sd->card_status & (ADDRESS_ERROR | WP_VIOLATION))
         return length;
 
-    trace_sdcard_write_data(sd->proto->name,
-                            sd->last_cmd_name,
-                            sd->current_cmd, sd->data_offset, value[0]);
+    sdcard_write_data_dump(sd->proto->name,
+                           sd->last_cmd_name,
+                           sd->current_cmd, sd->data_offset, buf, length);
     switch (sd->current_cmd) {
     case 24:  /* CMD24:  WRITE_SINGLE_BLOCK */
         if (sd_generic_write_data(sd, buf, &length)) {
