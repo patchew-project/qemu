@@ -400,13 +400,13 @@ static int mshv_init_vcpu(CPUState *cpu)
     int ret;
 
     cpu->accel = g_new0(AccelCPUState, 1);
-    mshv_arch_init_vcpu(cpu);
 
     ret = mshv_create_vcpu(vm_fd, vp_index, &cpu->accel->cpufd);
     if (ret < 0) {
         return -1;
     }
 
+    mshv_arch_init_vcpu(cpu);
     cpu->accel->dirty = true;
 
     return 0;
@@ -488,7 +488,7 @@ static int mshv_cpu_exec(CPUState *cpu)
 
     do {
         if (cpu->accel->dirty) {
-            ret = mshv_arch_put_registers(cpu);
+            ret = mshv_arch_store_vcpu_state(cpu);
             if (ret) {
                 error_report("Failed to put registers after init: %s",
                               strerror(-ret));
@@ -610,7 +610,7 @@ static void mshv_start_vcpu_thread(CPUState *cpu)
 static void do_mshv_cpu_synchronize_post_init(CPUState *cpu,
                                               run_on_cpu_data arg)
 {
-    int ret = mshv_arch_put_registers(cpu);
+    int ret = mshv_arch_store_vcpu_state(cpu);
     if (ret < 0) {
         error_report("Failed to put registers after init: %s", strerror(-ret));
         abort();
@@ -626,7 +626,7 @@ static void mshv_cpu_synchronize_post_init(CPUState *cpu)
 
 static void mshv_cpu_synchronize_post_reset(CPUState *cpu)
 {
-    int ret = mshv_arch_put_registers(cpu);
+    int ret = mshv_arch_store_vcpu_state(cpu);
     if (ret) {
         error_report("Failed to put registers after reset: %s",
                      strerror(-ret));
@@ -650,7 +650,7 @@ static void mshv_cpu_synchronize_pre_loadvm(CPUState *cpu)
 static void do_mshv_cpu_synchronize(CPUState *cpu, run_on_cpu_data arg)
 {
     if (!cpu->accel->dirty) {
-        int ret = mshv_arch_load_regs(cpu);
+        int ret = mshv_arch_load_vcpu_state(cpu);
         if (ret < 0) {
             error_report("Failed to load registers for vcpu %d",
                          cpu->cpu_index);
