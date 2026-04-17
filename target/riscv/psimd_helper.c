@@ -5628,3 +5628,449 @@ uint64_t HELPER(maccu_w11)(CPURISCVState *env, uint64_t rs1,
     uint64_t mul = (uint64_t)s1_w1 * (uint64_t)s2_w1;
     return d_w + mul;
 }
+
+/* Q-Format Multiplication Operations */
+
+/**
+ * PMULQ.H - Packed signed Q-format multiply (fractional)
+ */
+target_ulong HELPER(pmulq_h)(CPURISCVState *env, target_ulong rs1,
+                             target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+    int sat = 0;
+
+    for (int i = 0; i < elems; i++) {
+        int16_t e1 = (int16_t)EXTRACT16(rs1, i);
+        int16_t e2 = (int16_t)EXTRACT16(rs2, i);
+        uint16_t result;
+
+        if ((e1 == -32768) && (e2 == -32768)) {
+            sat = 1;
+            result = 0x7FFF;
+        } else {
+            int32_t prod = (int32_t)e1 * (int32_t)e2;
+            result = (prod >> 15) & 0xFFFF;
+        }
+        rd = INSERT16(rd, result, i);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PMULQR.H - Packed signed Q-format multiply with rounding
+ */
+target_ulong HELPER(pmulqr_h)(CPURISCVState *env, target_ulong rs1,
+                              target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+    int sat = 0;
+
+    for (int i = 0; i < elems; i++) {
+        int16_t e1 = (int16_t)EXTRACT16(rs1, i);
+        int16_t e2 = (int16_t)EXTRACT16(rs2, i);
+        uint16_t result;
+
+        if ((e1 == -32768) && (e2 == -32768)) {
+            sat = 1;
+            result = 0x7FFF;
+        } else {
+            int32_t prod = (int32_t)e1 * (int32_t)e2 + (1 << 14);
+            result = (prod >> 15) & 0xFFFF;
+        }
+        rd = INSERT16(rd, result, i);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PMULQ.W - Packed signed 32-bit Q-format multiply (RV64 only)
+ */
+uint64_t HELPER(pmulq_w)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+    int sat = 0;
+
+    for (int i = 0; i < elems; i++) {
+        int32_t e1 = (int32_t)EXTRACT32(rs1, i);
+        int32_t e2 = (int32_t)EXTRACT32(rs2, i);
+        uint32_t result;
+
+        if ((e1 == -2147483647 - 1) && (e2 == -2147483647 - 1)) {
+            sat = 1;
+            result = 0x7FFFFFFF;
+        } else {
+            int64_t prod = (int64_t)e1 * (int64_t)e2;
+            result = (uint32_t)(prod >> 31);
+        }
+        rd = INSERT32(rd, result, i);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PMULQR.W - Packed signed 32-bit Q-format multiply with rounding (RV64 only)
+ */
+uint64_t HELPER(pmulqr_w)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int elems = 2;
+    int sat = 0;
+
+    for (int i = 0; i < elems; i++) {
+        int32_t e1 = (int32_t)EXTRACT32(rs1, i);
+        int32_t e2 = (int32_t)EXTRACT32(rs2, i);
+        uint32_t result;
+
+        if ((e1 == -2147483647 - 1) && (e2 == -2147483647 - 1)) {
+            sat = 1;
+            result = 0x7FFFFFFF;
+        } else {
+            int64_t prod = (int64_t)e1 * (int64_t)e2 + (1LL << 30);
+            result = (uint32_t)(prod >> 31);
+        }
+        rd = INSERT32(rd, result, i);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * MULQ - 32-bit signed Q-format multiply
+ */
+uint32_t HELPER(mulq)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    int32_t a = (int32_t)rs1;
+    int32_t b = (int32_t)rs2;
+
+    if ((a == -2147483647 - 1) && (b == -2147483647 - 1)) {
+        env->vxsat = 1;
+        return 0x7FFFFFFF;
+    } else {
+        int64_t prod = (int64_t)a * (int64_t)b;
+        return (uint32_t)(prod >> 31);
+    }
+}
+
+/**
+ * MULQR - 32-bit signed Q-format multiply with rounding
+ */
+uint32_t HELPER(mulqr)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    int32_t a = (int32_t)rs1;
+    int32_t b = (int32_t)rs2;
+
+    if ((a == -2147483647 - 1) && (b == -2147483647 - 1)) {
+        env->vxsat = 1;
+        return 0x7FFFFFFF;
+    } else {
+        int64_t prod = (int64_t)a * (int64_t)b + (1LL << 30);
+        return (uint32_t)(prod >> 31);
+    }
+}
+
+
+/* Q-Format Multiply-Accumulate Operations */
+
+/**
+ * MQACC.H00 - Q-format multiply accumulate, both operands low halfword
+ */
+uint32_t HELPER(mqacc_h00)(CPURISCVState *env, uint32_t rs1,
+                           uint32_t rs2, uint32_t dest)
+{
+    int16_t s1_h0 = (int16_t)(rs1 & 0xFFFF);
+    int16_t s2_h0 = (int16_t)(rs2 & 0xFFFF);
+    int32_t d = (int32_t)dest;
+    int64_t prod = (int64_t)s1_h0 * (int64_t)s2_h0;
+    return (uint32_t)(d + (int32_t)(prod >> 15));
+}
+
+/**
+ * MQACC.H01 - Q-format multiply accumulate, rs1 low, rs2 high
+ */
+uint32_t HELPER(mqacc_h01)(CPURISCVState *env, uint32_t rs1,
+                           uint32_t rs2, uint32_t dest)
+{
+    int16_t s1_h0 = (int16_t)(rs1 & 0xFFFF);
+    int16_t s2_h1 = (int16_t)((rs2 >> 16) & 0xFFFF);
+    int32_t d = (int32_t)dest;
+    int64_t prod = (int64_t)s1_h0 * (int64_t)s2_h1;
+    return (uint32_t)(d + (int32_t)(prod >> 15));
+}
+
+/**
+ * MQACC.H11 - Q-format multiply accumulate, both operands high halfword
+ */
+uint32_t HELPER(mqacc_h11)(CPURISCVState *env, uint32_t rs1,
+                           uint32_t rs2, uint32_t dest)
+{
+    int16_t s1_h1 = (int16_t)((rs1 >> 16) & 0xFFFF);
+    int16_t s2_h1 = (int16_t)((rs2 >> 16) & 0xFFFF);
+    int32_t d = (int32_t)dest;
+    int64_t prod = (int64_t)s1_h1 * (int64_t)s2_h1;
+    return (uint32_t)(d + (int32_t)(prod >> 15));
+}
+
+/**
+ * MQRACC.H00 - Q-format multiply accumulate with rounding, both low halfword
+ */
+uint32_t HELPER(mqracc_h00)(CPURISCVState *env, uint32_t rs1,
+                            uint32_t rs2, uint32_t dest)
+{
+    int16_t s1_h0 = (int16_t)(rs1 & 0xFFFF);
+    int16_t s2_h0 = (int16_t)(rs2 & 0xFFFF);
+    int32_t d = (int32_t)dest;
+    int64_t prod = (int64_t)s1_h0 * (int64_t)s2_h0 + (1LL << 14);
+    return (uint32_t)(d + (int32_t)(prod >> 15));
+}
+
+/**
+ * MQRACC.H01 - Q-format multiply accumulate with rounding, rs1 low, rs2 high
+ */
+uint32_t HELPER(mqracc_h01)(CPURISCVState *env, uint32_t rs1,
+                            uint32_t rs2, uint32_t dest)
+{
+    int16_t s1_h0 = (int16_t)(rs1 & 0xFFFF);
+    int16_t s2_h1 = (int16_t)((rs2 >> 16) & 0xFFFF);
+    int32_t d = (int32_t)dest;
+    int64_t prod = (int64_t)s1_h0 * (int64_t)s2_h1 + (1LL << 14);
+    return (uint32_t)(d + (int32_t)(prod >> 15));
+}
+
+/**
+ * MQRACC.H11 - Q-format multiply accumulate with rounding, both high halfword
+ */
+uint32_t HELPER(mqracc_h11)(CPURISCVState *env, uint32_t rs1,
+                            uint32_t rs2, uint32_t dest)
+{
+    int16_t s1_h1 = (int16_t)((rs1 >> 16) & 0xFFFF);
+    int16_t s2_h1 = (int16_t)((rs2 >> 16) & 0xFFFF);
+    int32_t d = (int32_t)dest;
+    int64_t prod = (int64_t)s1_h1 * (int64_t)s2_h1 + (1LL << 14);
+    return (uint32_t)(d + (int32_t)(prod >> 15));
+}
+
+/**
+ * MQACC.W00 - Q-format multiply accumulate, both low word (RV64)
+ */
+uint64_t HELPER(mqacc_w00)(CPURISCVState *env, uint64_t rs1,
+                           uint64_t rs2, uint64_t dest)
+{
+    int32_t s1_w0 = (int32_t)(rs1 & 0xFFFFFFFF);
+    int32_t s2_w0 = (int32_t)(rs2 & 0xFFFFFFFF);
+    int64_t d = (int64_t)dest;
+    int64_t prod = (int64_t)s1_w0 * (int64_t)s2_w0;
+    __int128_t prod_95 = ((__int128_t)prod) >> 31;
+    return (uint64_t)(d + (int64_t)prod_95);
+}
+
+/**
+ * MQACC.W01 - Q-format multiply accumulate, rs1 low, rs2 high (RV64)
+ */
+uint64_t HELPER(mqacc_w01)(CPURISCVState *env, uint64_t rs1,
+                           uint64_t rs2, uint64_t dest)
+{
+    int32_t s1_w0 = (int32_t)(rs1 & 0xFFFFFFFF);
+    int32_t s2_w1 = (int32_t)((rs2 >> 32) & 0xFFFFFFFF);
+    int64_t d = (int64_t)dest;
+    int64_t prod = (int64_t)s1_w0 * (int64_t)s2_w1;
+    __int128_t prod_95 = ((__int128_t)prod) >> 31;
+    return (uint64_t)(d + (int64_t)prod_95);
+}
+
+/**
+ * MQACC.W11 - Q-format multiply accumulate, both high word (RV64)
+ */
+uint64_t HELPER(mqacc_w11)(CPURISCVState *env, uint64_t rs1,
+                           uint64_t rs2, uint64_t dest)
+{
+    int32_t s1_w1 = (int32_t)((rs1 >> 32) & 0xFFFFFFFF);
+    int32_t s2_w1 = (int32_t)((rs2 >> 32) & 0xFFFFFFFF);
+    int64_t d = (int64_t)dest;
+    int64_t prod = (int64_t)s1_w1 * (int64_t)s2_w1;
+    __int128_t prod_95 = ((__int128_t)prod) >> 31;
+    return (uint64_t)(d + (int64_t)prod_95);
+}
+
+/**
+ * MQRACC.W00 - Q-format multiply accumulate with rounding,
+ * both low word (RV64)
+ */
+uint64_t HELPER(mqracc_w00)(CPURISCVState *env, uint64_t rs1,
+                            uint64_t rs2, uint64_t dest)
+{
+    int32_t s1_w0 = (int32_t)(rs1 & 0xFFFFFFFF);
+    int32_t s2_w0 = (int32_t)(rs2 & 0xFFFFFFFF);
+    int64_t d = (int64_t)dest;
+    int64_t prod = (int64_t)s1_w0 * (int64_t)s2_w0 + (1LL << 30);
+    __int128_t prod_95 = ((__int128_t)prod) >> 31;
+    return (uint64_t)(d + (int64_t)prod_95);
+}
+
+/**
+ * MQRACC.W01 - Q-format multiply accumulate with rounding,
+ * rs1 low, rs2 high (RV64)
+ */
+uint64_t HELPER(mqracc_w01)(CPURISCVState *env, uint64_t rs1,
+                            uint64_t rs2, uint64_t dest)
+{
+    int32_t s1_w0 = (int32_t)(rs1 & 0xFFFFFFFF);
+    int32_t s2_w1 = (int32_t)((rs2 >> 32) & 0xFFFFFFFF);
+    int64_t d = (int64_t)dest;
+    int64_t prod = (int64_t)s1_w0 * (int64_t)s2_w1 + (1LL << 30);
+    __int128_t prod_95 = ((__int128_t)prod) >> 31;
+    return (uint64_t)(d + (int64_t)prod_95);
+}
+
+/**
+ * MQRACC.W11 - Q-format multiply accumulate with rounding,
+ * both high word (RV64)
+ */
+uint64_t HELPER(mqracc_w11)(CPURISCVState *env, uint64_t rs1,
+                            uint64_t rs2, uint64_t dest)
+{
+    int32_t s1_w1 = (int32_t)((rs1 >> 32) & 0xFFFFFFFF);
+    int32_t s2_w1 = (int32_t)((rs2 >> 32) & 0xFFFFFFFF);
+    int64_t d = (int64_t)dest;
+    int64_t prod = (int64_t)s1_w1 * (int64_t)s2_w1 + (1LL << 30);
+    __int128_t prod_95 = ((__int128_t)prod) >> 31;
+    return (uint64_t)(d + (int64_t)prod_95);
+}
+
+/**
+ * PMQACC.W.H00 - Packed Q-format multiply accumulate,
+ * low halfword (RV64)
+ */
+uint64_t HELPER(pmqacc_w_h00)(CPURISCVState *env, uint64_t rs1,
+                              uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s2_h0 = (int16_t)EXTRACT16(rs2, i * 2);
+        int32_t d_w = (int32_t)EXTRACT32(dest, i);
+        int64_t prod = (int64_t)s1_h0 * (int64_t)s2_h0;
+        uint32_t res = (uint32_t)(d_w + (int32_t)(prod >> 15));
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMQACC.W.H01 - Packed Q-format multiply accumulate,
+ * rs1 low, rs2 high (RV64)
+ */
+uint64_t HELPER(pmqacc_w_h01)(CPURISCVState *env, uint64_t rs1,
+                              uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s2_h1 = (int16_t)EXTRACT16(rs2, i * 2 + 1);
+        int32_t d_w = (int32_t)EXTRACT32(dest, i);
+        int64_t prod = (int64_t)s1_h0 * (int64_t)s2_h1;
+        uint32_t res = (uint32_t)(d_w + (int32_t)(prod >> 15));
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMQACC.W.H11 - Packed Q-format multiply accumulate,
+ * both high halfword (RV64)
+ */
+uint64_t HELPER(pmqacc_w_h11)(CPURISCVState *env, uint64_t rs1,
+                              uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int16_t s1_h1 = (int16_t)EXTRACT16(rs1, i * 2 + 1);
+        int16_t s2_h1 = (int16_t)EXTRACT16(rs2, i * 2 + 1);
+        int32_t d_w = (int32_t)EXTRACT32(dest, i);
+        int64_t prod = (int64_t)s1_h1 * (int64_t)s2_h1;
+        uint32_t res = (uint32_t)(d_w + (int32_t)(prod >> 15));
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMQRACC.W.H00 - Packed Q-format multiply accumulate
+ * with rounding, low halfword (RV64)
+ */
+uint64_t HELPER(pmqracc_w_h00)(CPURISCVState *env, uint64_t rs1,
+                               uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s2_h0 = (int16_t)EXTRACT16(rs2, i * 2);
+        int32_t d_w = (int32_t)EXTRACT32(dest, i);
+        int64_t prod = (int64_t)s1_h0 * (int64_t)s2_h0 + (1LL << 14);
+        uint32_t res = (uint32_t)(d_w + (int32_t)(prod >> 15));
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMQRACC.W.H01 - Packed Q-format multiply accumulate
+ * with rounding, rs1 low, rs2 high (RV64)
+ */
+uint64_t HELPER(pmqracc_w_h01)(CPURISCVState *env, uint64_t rs1,
+                               uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int16_t s1_h0 = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s2_h1 = (int16_t)EXTRACT16(rs2, i * 2 + 1);
+        int32_t d_w = (int32_t)EXTRACT32(dest, i);
+        int64_t prod = (int64_t)s1_h0 * (int64_t)s2_h1 + (1LL << 14);
+        uint32_t res = (uint32_t)(d_w + (int32_t)(prod >> 15));
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMQRACC.W.H11 - Packed Q-format multiply accumulate
+ * with rounding, both high halfword (RV64)
+ */
+uint64_t HELPER(pmqracc_w_h11)(CPURISCVState *env, uint64_t rs1,
+                               uint64_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int16_t s1_h1 = (int16_t)EXTRACT16(rs1, i * 2 + 1);
+        int16_t s2_h1 = (int16_t)EXTRACT16(rs2, i * 2 + 1);
+        int32_t d_w = (int32_t)EXTRACT32(dest, i);
+        int64_t prod = (int64_t)s1_h1 * (int64_t)s2_h1 + (1LL << 14);
+        uint32_t res = (uint32_t)(d_w + (int32_t)(prod >> 15));
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
