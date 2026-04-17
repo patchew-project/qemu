@@ -906,3 +906,70 @@ GEN_SIMD_TRANS_64(pm4addu_h)
 GEN_SIMD_TRANS_ACC_64(pm4adda_h)
 GEN_SIMD_TRANS_ACC_64(pm4addasu_h)
 GEN_SIMD_TRANS_ACC_64(pm4addau_h)
+
+static bool trans_pli_b(DisasContext *ctx, arg_pli_b * a)
+{
+    REQUIRE_EXT(ctx, RVP);
+    int i = 1;
+    target_long imm = a->imm;
+    while (i < TARGET_LONG_SIZE) {
+        imm = ((imm << 8) + a->imm);
+        i++;
+    }
+    gen_set_gpri(ctx, a->rd, imm);
+    return true;
+}
+
+static bool trans_pli_h(DisasContext *ctx, arg_pli_h * a)
+{
+    REQUIRE_EXT(ctx, RVP);
+    int i = 1;
+    target_long imm = a->imm;
+    while (i < TARGET_LONG_SIZE / 2) {
+        imm = (imm << 16) + (a->imm & 0xFFFF);
+        i++;
+    }
+    gen_set_gpri(ctx, a->rd, imm);
+    return true;
+}
+
+static bool trans_plui_h(DisasContext *ctx, arg_plui_h * a)
+{
+    REQUIRE_EXT(ctx, RVP);
+    int i = 1;
+    target_long imm = a->imm;
+    while (i < TARGET_LONG_SIZE / 2) {
+        imm = (imm << 16) + (a->imm & 0xFFFF);
+        i++;
+    }
+    gen_set_gpri(ctx, a->rd, imm);
+    return true;
+}
+
+static bool trans_pli_w(DisasContext *ctx, arg_pli_w * a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_EXT(ctx, RVP);
+    int i = 1;
+    int64_t imm = a->imm;
+    while (i < TARGET_LONG_SIZE / 4) {
+        imm = (imm << 32) + (a->imm & 0xFFFFFFFF);
+        i++;
+    }
+    gen_set_gpri(ctx, a->rd, imm);
+    return true;
+}
+
+static bool trans_plui_w(DisasContext *ctx, arg_plui_w * a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_EXT(ctx, RVP);
+    int i = 1;
+    int64_t imm = a->imm;
+    while (i < TARGET_LONG_SIZE / 4) {
+        imm = (imm << 32) + (a->imm & 0xFFFFFFFF);
+        i++;
+    }
+    gen_set_gpri(ctx, a->rd, imm);
+    return true;
+}
