@@ -966,7 +966,7 @@ static void aspeed_2700_scu_realize(DeviceState *dev, Error **errp)
 
     aspeed_scu_realize(dev, errp);
 
-    if (a->ssp_cpuid > 0) {
+    if (a->ssp_cpuid > 0 || a->tsp_cpuid > 0) {
         if (!a->dram) {
             error_setg(errp, TYPE_ASPEED_2700_SCU ": 'dram' link not set");
             return;
@@ -990,10 +990,24 @@ static void aspeed_2700_scu_realize(DeviceState *dev, Error **errp)
                                  "ssp.dram.remap2", a->dram,
                                  0x2c000000, 0x05880000);
     }
+
+    if (a->tsp_cpuid > 0) {
+        /*
+         * The TSP coprocessor uses one memory alias (remap) to access a shared
+         * region in the PSP DRAM:
+         *
+         * - remap maps PSP DRAM at 0x42E000000 (size: 32MB) to TSP SDRAM
+         *   offset 0x0
+         */
+        memory_region_init_alias(&a->dram_remap_alias[2], OBJECT(a),
+                                 "tsp.dram.remap", a->dram,
+                                 0x2e000000, 32 * MiB);
+    }
 }
 
 static const Property aspeed_2700_scu_properties[] = {
     DEFINE_PROP_INT32("ssp-cpuid", Aspeed2700SCUState, ssp_cpuid, -1),
+    DEFINE_PROP_INT32("tsp-cpuid", Aspeed2700SCUState, tsp_cpuid, -1),
     DEFINE_PROP_LINK("dram", Aspeed2700SCUState, dram, TYPE_MEMORY_REGION,
                      MemoryRegion *),
 };
