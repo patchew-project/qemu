@@ -1623,7 +1623,7 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
     uint32_t op, minor, minor2, mips32_op;
     uint32_t cond, fmt, cc;
 
-    insn = translator_lduw(env, &ctx->base, ctx->base.pc_next + 2);
+    insn = translator_lduw_end(env, &ctx->base, ctx->base.pc_next + 2, mo_endian(ctx));
     ctx->opcode = (ctx->opcode << 16) | insn;
 
     rt = (ctx->opcode >> 21) & 0x1f;

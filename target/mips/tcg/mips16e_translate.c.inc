@@ -453,7 +453,8 @@ static void decode_i64_mips16(DisasContext *ctx,
 
 static int decode_extended_mips16_opc(CPUMIPSState *env, DisasContext *ctx)
 {
-    int extend = translator_lduw(env, &ctx->base, ctx->base.pc_next + 2);
+    int extend = translator_lduw_end(env, &ctx->base, ctx->base.pc_next + 2,
+                                     mo_endian(ctx));
     int op, rx, ry, funct, sa;
     int16_t imm, offset;
 
@@ -686,7 +687,8 @@ static int decode_ase_mips16e(CPUMIPSState *env, DisasContext *ctx)
         /* No delay slot, so just process as a normal instruction */
         break;
     case M16_OPC_JAL:
-        offset = translator_lduw(env, &ctx->base, ctx->base.pc_next + 2);
+        offset = translator_lduw_end(env, &ctx->base, ctx->base.pc_next + 2,
+                                     mo_endian(ctx));
         offset = (((ctx->opcode & 0x1f) << 21)
                   | ((ctx->opcode >> 5) & 0x1f) << 16
                   | offset) << 2;
