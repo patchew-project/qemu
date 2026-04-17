@@ -20,6 +20,7 @@
 #include "qemu/guest-random.h"
 #include "qemu/module.h"
 #include "trace.h"
+#include "qemu/units.h"
 
 #define TO_REG(offset) ((offset) >> 2)
 
@@ -961,8 +962,41 @@ static void aspeed_ast2700_scu_reset(DeviceState *dev)
 
 static void aspeed_2700_scu_realize(DeviceState *dev, Error **errp)
 {
+    Aspeed2700SCUState *a = ASPEED_2700_SCU(dev);
+
     aspeed_scu_realize(dev, errp);
+
+    if (a->ssp_cpuid > 0) {
+        if (!a->dram) {
+            error_setg(errp, TYPE_ASPEED_2700_SCU ": 'dram' link not set");
+            return;
+        }
+    }
+
+    if (a->ssp_cpuid > 0) {
+        /*
+         * The SSP coprocessor uses two memory aliases (remap1 and remap2)
+         * to access shared memory regions in the PSP DRAM:
+         *
+         * - remap1 maps PSP DRAM at 0x400000000 (size: 0x1A77E000) to
+         *   SSP SDRAM offset 0x5880000
+         * - remap2 maps PSP DRAM at 0x42C000000 (size: 0x05880000) to
+         *   SSP SDRAM offset 0x0
+         */
+        memory_region_init_alias(&a->dram_remap_alias[0], OBJECT(a),
+                                 "ssp.dram.remap1", a->dram,
+                                 0, 0x1a77e000);
+        memory_region_init_alias(&a->dram_remap_alias[1], OBJECT(a),
+                                 "ssp.dram.remap2", a->dram,
+                                 0x2c000000, 0x05880000);
+    }
 }
+
+static const Property aspeed_2700_scu_properties[] = {
+    DEFINE_PROP_INT32("ssp-cpuid", Aspeed2700SCUState, ssp_cpuid, -1),
+    DEFINE_PROP_LINK("dram", Aspeed2700SCUState, dram, TYPE_MEMORY_REGION,
+                     MemoryRegion *),
+};
 
 static void aspeed_2700_scu_class_init(ObjectClass *klass, const void *data)
 {
@@ -972,6 +1006,8 @@ static void aspeed_2700_scu_class_init(ObjectClass *klass, const void *data)
     dc->desc = "ASPEED 2700 System Control Unit";
     device_class_set_legacy_reset(dc, aspeed_ast2700_scu_reset);
     dc->realize = aspeed_2700_scu_realize;
+    device_class_set_props(dc, aspeed_2700_scu_properties);
+
     asc->resets = ast2700_a0_resets;
     asc->calc_hpll = aspeed_2600_scu_calc_hpll;
     asc->get_apb = aspeed_2700_scu_get_apb_freq;

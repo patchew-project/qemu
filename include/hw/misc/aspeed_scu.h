@@ -44,6 +44,10 @@ struct AspeedSCUState {
 
 struct Aspeed2700SCUState {
     AspeedSCUState parent_obj;
+
+    MemoryRegion dram_remap_alias[3];
+    MemoryRegion *dram;
+    int ssp_cpuid;
 };
 
 #define AST2400_A1_SILICON_REV   0x02010303U
