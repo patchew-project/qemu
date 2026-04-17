@@ -50,7 +50,9 @@ struct Aspeed27x0CoprocessorState {
     ARMv7MState armv7m;
 
     MemoryRegion scu_alias;
+    MemoryRegion fmc_alias;
     Aspeed2700SCUState *scu;
+    AspeedSMCState *fmc;
 };
 
 #define TYPE_ASPEED27X0SSP_COPROCESSOR "aspeed27x0ssp-coprocessor"
