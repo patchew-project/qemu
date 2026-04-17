@@ -2704,6 +2704,242 @@ uint64_t HELPER(shar)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
     }
 }
 
+/**
+ * PSSHL.HS - Packed 16-bit variable shift with unsigned saturation
+ * Positive shift left (saturating), negative shift right (logical)
+ */
+target_ulong HELPER(psshl_hs)(CPURISCVState *env, target_ulong rs1,
+                              target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+    int sat = 0;
+    int8_t shamt = (int8_t)(rs2 & 0xFF);
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t e1 = (uint16_t)EXTRACT16(rs1, i);
+        uint16_t res;
+
+        if (shamt >= 0) {
+            uint32_t shifted = (shamt >= 16) ? ((uint32_t)e1 << 16)
+                                             : ((uint32_t)e1 << shamt);
+            res = unsigned_saturate_h(shifted, &sat);
+        } else {
+            int right = -shamt;
+            if (right >= 16) {
+                res = 0;
+            } else {
+                res = e1 >> right;
+            }
+        }
+
+        rd = INSERT16(rd, res, i);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PSSHLR.HS - Packed 16-bit variable shift with rounding
+ * and unsigned saturation
+ * Positive shift left (saturating), negative shift right (logical, rounded)
+ */
+target_ulong HELPER(psshlr_hs)(CPURISCVState *env, target_ulong rs1,
+                               target_ulong rs2)
+{
+    target_ulong rd = 0;
+    int elems = ELEMS_H(rd);
+    int sat = 0;
+    int8_t shamt = (int8_t)(rs2 & 0xFF);
+
+    for (int i = 0; i < elems; i++) {
+        uint16_t e1 = (uint16_t)EXTRACT16(rs1, i);
+        uint16_t res;
+
+        if (shamt >= 0) {
+            uint32_t shifted = (shamt >= 16) ? ((uint32_t)e1 << 16)
+                                             : ((uint32_t)e1 << shamt);
+            res = unsigned_saturate_h(shifted, &sat);
+        } else {
+            int right = -shamt;
+            if (right > 16) {
+                res = 0;
+            } else {
+                uint32_t rounded = ((uint32_t)e1 >> (right - 1)) + 1;
+                res = (uint16_t)(rounded >> 1);
+            }
+        }
+
+        rd = INSERT16(rd, res, i);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PSSHL.WS - Packed 32-bit variable shift with unsigned saturation (RV64 only)
+ * Positive shift left (saturating), negative shift right (logical)
+ */
+uint64_t HELPER(psshl_ws)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int sat = 0;
+    int8_t shamt = (int8_t)(rs2 & 0xFF);
+
+    for (int i = 0; i < 2; i++) {
+        uint32_t e1 = (uint32_t)EXTRACT32(rs1, i);
+        uint32_t res;
+
+        if (shamt >= 0) {
+            uint64_t shifted = (shamt >= 32) ? ((uint64_t)e1 << 32)
+                                             : ((uint64_t)e1 << shamt);
+            res = unsigned_saturate_w(shifted, &sat);
+        } else {
+            int right = -shamt;
+            if (right >= 32) {
+                res = 0;
+            } else {
+                res = e1 >> right;
+            }
+        }
+
+        rd = INSERT32(rd, res, i);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PSSHLR.WS - Packed 32-bit variable shift with rounding
+ * and unsigned saturation (RV64 only)
+ * Positive shift left (saturating), negative shift right (logical, rounded)
+ */
+uint64_t HELPER(psshlr_ws)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int sat = 0;
+    int8_t shamt = (int8_t)(rs2 & 0xFF);
+
+    for (int i = 0; i < 2; i++) {
+        uint32_t e1 = (uint32_t)EXTRACT32(rs1, i);
+        uint32_t res;
+
+        if (shamt >= 0) {
+            uint64_t shifted = (shamt >= 32) ? ((uint64_t)e1 << 32)
+                                             : ((uint64_t)e1 << shamt);
+            res = unsigned_saturate_w(shifted, &sat);
+        } else {
+            int right = -shamt;
+            if (right > 32) {
+                res = 0;
+            } else {
+                uint64_t rounded = ((uint64_t)e1 >> (right - 1)) + 1;
+                res = (uint32_t)(rounded >> 1);
+            }
+        }
+
+        rd = INSERT32(rd, res, i);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * SSHL - 32-bit scalar variable shift with unsigned saturation
+ */
+uint32_t HELPER(sshl)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    int sat = 0;
+    int8_t shamt = (int8_t)(rs2 & 0xFF);
+
+    if (shamt < 0) {
+        int right = -shamt;
+        return (right >= 32) ? 0 : (rs1 >> right);
+    } else {
+        uint64_t shifted = (shamt >= 32) ? ((uint64_t)rs1 << 32)
+                                         : ((uint64_t)rs1 << shamt);
+        uint32_t res = unsigned_saturate_w(shifted, &sat);
+        if (sat) {
+            env->vxsat = 1;
+        }
+        return res;
+    }
+}
+
+/**
+ * SSHLR - 32-bit scalar variable shift with rounding and unsigned saturation
+ */
+uint32_t HELPER(sshlr)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    int sat = 0;
+    int8_t shamt = (int8_t)(rs2 & 0xFF);
+
+    if (shamt < 0) {
+        int right = -shamt;
+        if (right > 32) {
+            return 0;
+        } else {
+            uint64_t rounded = ((uint64_t)rs1 >> (right - 1)) + 1;
+            return rounded >> 1;
+        }
+    } else {
+        uint64_t shifted = (shamt >= 32) ? ((uint64_t)rs1 << 32)
+                                         : ((uint64_t)rs1 << shamt);
+        uint32_t res = unsigned_saturate_w(shifted, &sat);
+        if (sat) {
+            env->vxsat = 1;
+        }
+        return res;
+    }
+}
+
+/**
+ * SHL - 64-bit scalar variable logical shift
+ */
+uint64_t HELPER(shl)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    int8_t shamt = (int8_t)(rs2 & 0xFF);
+
+    if (shamt < 0) {
+        int right = -shamt;
+        return (right >= 64) ? 0 : (rs1 >> right);
+    } else {
+        return (shamt >= 64) ? 0 : (rs1 << shamt);
+    }
+}
+
+/**
+ * SHLR - 64-bit scalar variable logical shift with rounding
+ */
+uint64_t HELPER(shlr)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    int8_t shamt = (int8_t)(rs2 & 0xFF);
+
+    if (shamt < 0) {
+        int right = -shamt;
+        if (right > 64) {
+            return 0;
+        } else {
+            uint64_t rounded = (rs1 >> (right - 1)) + 1;
+            return rounded >> 1;
+        }
+    } else {
+        return (shamt >= 64) ? 0 : (rs1 << shamt);
+    }
+}
+
 /* Exchange operations (AS/SA/AS/SA with X suffix) */
 
 /**
@@ -3571,6 +3807,140 @@ target_ulong HELPER(merge)(CPURISCVState *env, target_ulong rs1,
                            target_ulong rs2, target_ulong rd)
 {
     return (~rd & rs1) | (rd & rs2);
+}
+
+/**
+ * PNCLIPP.B - Pack narrow clip signed halfwords to bytes (RV64 only)
+ */
+uint64_t HELPER(pnclipp_b)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int sat = 0;
+
+    for (int i = 0; i < 4; i++) {
+        int16_t lo = (int16_t)EXTRACT16(rs1, i);
+        int16_t hi = (int16_t)EXTRACT16(rs2, i);
+        int8_t res_lo = signed_saturate_b(lo, &sat);
+        int8_t res_hi = signed_saturate_b(hi, &sat);
+
+        rd = (uint64_t)INSERT8(rd, res_lo, i);
+        rd = (uint64_t)INSERT8(rd, res_hi, i + 4);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PNCLIPUP.B - Pack narrow clip unsigned halfwords to bytes (RV64 only)
+ */
+uint64_t HELPER(pnclipup_b)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int sat = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t lo = (uint16_t)EXTRACT16(rs1, i);
+        uint16_t hi = (uint16_t)EXTRACT16(rs2, i);
+        uint8_t res_lo = unsigned_saturate_b(lo, &sat);
+        uint8_t res_hi = unsigned_saturate_b(hi, &sat);
+
+        rd = (uint64_t)INSERT8(rd, res_lo, i);
+        rd = (uint64_t)INSERT8(rd, res_hi, i + 4);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PNCLIPP.H - Pack narrow clip signed words to halfwords (RV64 only)
+ */
+uint64_t HELPER(pnclipp_h)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int sat = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int32_t lo = (int32_t)EXTRACT32(rs1, i);
+        int32_t hi = (int32_t)EXTRACT32(rs2, i);
+        int16_t res_lo = signed_saturate_h(lo, &sat);
+        int16_t res_hi = signed_saturate_h(hi, &sat);
+
+        rd = (uint64_t)INSERT16(rd, res_lo, i);
+        rd = (uint64_t)INSERT16(rd, res_hi, i + 2);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PNCLIPUP.H - Pack narrow clip unsigned words to halfwords (RV64 only)
+ */
+uint64_t HELPER(pnclipup_h)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int sat = 0;
+
+    for (int i = 0; i < 2; i++) {
+        uint32_t lo = (uint32_t)EXTRACT32(rs1, i);
+        uint32_t hi = (uint32_t)EXTRACT32(rs2, i);
+        uint16_t res_lo = unsigned_saturate_h(lo, &sat);
+        uint16_t res_hi = unsigned_saturate_h(hi, &sat);
+
+        rd = (uint64_t)INSERT16(rd, res_lo, i);
+        rd = (uint64_t)INSERT16(rd, res_hi, i + 2);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PNCLIPP.W - Pack narrow clip signed doublewords to words (RV64 only)
+ */
+uint64_t HELPER(pnclipp_w)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int sat = 0;
+    int32_t res_lo = signed_saturate_w((int64_t)rs1, &sat);
+    int32_t res_hi = signed_saturate_w((int64_t)rs2, &sat);
+
+    rd = (uint64_t)(uint32_t)res_lo;
+    rd |= (uint64_t)(uint32_t)res_hi << 32;
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PNCLIPUP.W - Pack narrow clip unsigned doublewords to words (RV64 only)
+ */
+uint64_t HELPER(pnclipup_w)(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    uint64_t rd = 0;
+    int sat = 0;
+    uint32_t res_lo = unsigned_saturate_w(rs1, &sat);
+    uint32_t res_hi = unsigned_saturate_w(rs2, &sat);
+
+    rd = (uint64_t)res_lo;
+    rd |= (uint64_t)res_hi << 32;
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
 }
 
 /* Count leading operations */
