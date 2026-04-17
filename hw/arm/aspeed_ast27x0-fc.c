@@ -161,6 +161,8 @@ static bool ast2700fc_ssp_init(MachineState *machine, Error **errp)
                              OBJECT(&psp->sram), &error_abort);
     object_property_set_link(OBJECT(&s->ssp), "scu",
                              OBJECT(&s->ca35.scu), &error_abort);
+    object_property_set_link(OBJECT(&s->ssp), "scuio",
+                             OBJECT(&psp->scuio), &error_abort);
     object_property_set_link(OBJECT(&s->ssp), "fmc",
                              OBJECT(&psp->fmc), &error_abort);
     if (!qdev_realize(DEVICE(&s->ssp), NULL, errp)) {
@@ -195,6 +197,8 @@ static bool ast2700fc_tsp_init(MachineState *machine, Error **errp)
                              OBJECT(&psp->sram), &error_abort);
     object_property_set_link(OBJECT(&s->tsp), "scu",
                              OBJECT(&s->ca35.scu), &error_abort);
+    object_property_set_link(OBJECT(&s->tsp), "scuio",
+                             OBJECT(&psp->scuio), &error_abort);
     object_property_set_link(OBJECT(&s->tsp), "fmc",
                              OBJECT(&psp->fmc), &error_abort);
     if (!qdev_realize(DEVICE(&s->tsp), NULL, errp)) {

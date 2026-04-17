@@ -143,8 +143,6 @@ static void aspeed_soc_ast27x0tsp_init(Object *obj)
                             TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "ipc1", &a->ipc[1],
                             TYPE_UNIMPLEMENTED_DEVICE);
-    object_initialize_child(obj, "scuio", &a->scuio,
-                            TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "pric0", &a->pric[0],
                             TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "pric1", &a->pric[1],
@@ -211,6 +209,13 @@ static void aspeed_soc_ast27x0tsp_realize(DeviceState *dev_soc, Error **errp)
 
     /* SDRAM remap alias used by PSP to access TSP SDRAM */
     memory_region_add_subregion(&s->sdram, 0, &a->scu->dram_remap_alias[2]);
+
+    /* SCUIO */
+    memory_region_init_alias(&a->scuio_alias, OBJECT(a), "scuio.alias",
+                             &a->scuio->iomem, 0,
+                             memory_region_size(&a->scuio->iomem));
+    memory_region_add_subregion(s->memory, sc->memmap[ASPEED_DEV_SCUIO],
+                                &a->scuio_alias);
 
     /* INTC */
     if (!sysbus_realize(SYS_BUS_DEVICE(&a->intc[0]), errp)) {
@@ -279,9 +284,6 @@ static void aspeed_soc_ast27x0tsp_realize(DeviceState *dev_soc, Error **errp)
     aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&a->ipc[1]),
                                   "aspeed.ipc1",
                                   sc->memmap[ASPEED_DEV_IPC1], 0x1000);
-    aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&a->scuio),
-                                  "aspeed.scuio",
-                                  sc->memmap[ASPEED_DEV_SCUIO], 0x1000);
     aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&a->pric[0]),
                                   "aspeed.pric0",
                                   sc->memmap[ASPEED_DEV_PRIC0], 0x1000);
@@ -296,6 +298,8 @@ static void aspeed_soc_ast27x0tsp_realize(DeviceState *dev_soc, Error **errp)
 static const Property aspeed_27x0_coprocessor_properties[] = {
     DEFINE_PROP_LINK("scu", Aspeed27x0CoprocessorState, scu,
                      TYPE_ASPEED_2700_SCU, Aspeed2700SCUState *),
+    DEFINE_PROP_LINK("scuio", Aspeed27x0CoprocessorState, scuio,
+                     TYPE_ASPEED_SCU, AspeedSCUState *),
     DEFINE_PROP_LINK("fmc", Aspeed27x0CoprocessorState, fmc, TYPE_ASPEED_SMC,
                      AspeedSMCState *),
 };
