@@ -31,6 +31,8 @@ struct mshv_get_set_vp_state;
 #define MSHV_HV_INTERRUPTION_TYPE_PRIV_SW_EXC 5
 #define MSHV_HV_INTERRUPTION_TYPE_SW_EXC      6
 
+#define MSHV_DIRTY_PAGES_BATCH_SIZE 0x10000
+
 typedef struct hyperv_message hv_message;
 
 typedef struct MshvHvCallArgs {
@@ -128,6 +130,9 @@ int mshv_guest_mem_write(uint64_t gpa, const uint8_t *data, uintptr_t size,
                          bool is_secure_mode);
 void mshv_set_phys_mem(MshvMemoryListener *mml, MemoryRegionSection *section,
                        bool add);
+void mshv_log_sync(MemoryListener *listener, MemoryRegionSection *section);
+bool mshv_log_global_start(MemoryListener *listener, Error **errp);
+void mshv_log_global_stop(MemoryListener *listener);
 
 /* msr */
 int mshv_init_msrs(const CPUState *cpu);
