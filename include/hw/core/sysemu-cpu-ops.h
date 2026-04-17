@@ -31,6 +31,8 @@ typedef struct SysemuCPUOps {
     bool (*get_paging_enabled)(const CPUState *cpu);
     /**
      * @get_phys_addr_debug: Callback for obtaining a physical address.
+     * This must be able to handle a non-page-aligned address, and will
+     * return the physical address corresponding to that address.
      */
     hwaddr (*get_phys_addr_debug)(CPUState *cpu, vaddr addr);
     /**
@@ -39,6 +41,8 @@ typedef struct SysemuCPUOps {
      *       access.
      * CPUs which use memory transaction attributes should implement this
      * instead of get_phys_addr_debug.
+     * This must be able to handle a non-page-aligned address, and will
+     * return the physical address corresponding to that address.
      */
     hwaddr (*get_phys_addr_attrs_debug)(CPUState *cpu, vaddr addr,
                                         MemTxAttrs *attrs);
