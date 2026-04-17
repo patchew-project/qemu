@@ -959,6 +959,11 @@ static void aspeed_ast2700_scu_reset(DeviceState *dev)
     s->regs[AST2700_HW_STRAP1] = s->hw_strap1;
 }
 
+static void aspeed_2700_scu_realize(DeviceState *dev, Error **errp)
+{
+    aspeed_scu_realize(dev, errp);
+}
+
 static void aspeed_2700_scu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -966,6 +971,7 @@ static void aspeed_2700_scu_class_init(ObjectClass *klass, const void *data)
 
     dc->desc = "ASPEED 2700 System Control Unit";
     device_class_set_legacy_reset(dc, aspeed_ast2700_scu_reset);
+    dc->realize = aspeed_2700_scu_realize;
     asc->resets = ast2700_a0_resets;
     asc->calc_hpll = aspeed_2600_scu_calc_hpll;
     asc->get_apb = aspeed_2700_scu_get_apb_freq;
@@ -1097,7 +1103,7 @@ static void aspeed_2700_scuio_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo aspeed_2700_scu_info = {
     .name = TYPE_ASPEED_2700_SCU,
     .parent = TYPE_ASPEED_SCU,
-    .instance_size = sizeof(AspeedSCUState),
+    .instance_size = sizeof(Aspeed2700SCUState),
     .class_init = aspeed_2700_scu_class_init,
 };
 
