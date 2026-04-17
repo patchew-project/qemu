@@ -3046,6 +3046,8 @@ static bool reduction_check(DisasContext *s, arg_rmrr *a)
 {
     return require_rvv(s) &&
            vext_check_isa_ill(s) &&
+           require_vm(a->vm, a->rs1) &&
+           require_vm(a->vm, a->rs2) &&
            vext_check_reduction(s, a->rs2);
 }
 
