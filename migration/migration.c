@@ -1477,6 +1477,7 @@ void migration_cancel(void)
                           MIGRATION_STATUS_CANCELLED);
         cpr_state_close();
         cpr_transfer_source_destroy(s);
+        yank_unregister_instance(MIGRATION_YANK_INSTANCE);
     }
 }
 
