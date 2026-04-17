@@ -7012,3 +7012,2071 @@ uint64_t HELPER(pm4addau_h)(CPURISCVState *env, uint64_t rs1,
     uint64_t prod3 = (uint64_t)s1_h3 * (uint64_t)s2_h3;
     return d + prod0 + prod1 + prod2 + prod3;
 }
+
+/* Double-Width Operations (RV32 only, register pairs) */
+
+/**
+ * PWADD.B - Packed widening byte to halfword addition (RV32)
+ * rd_pair = {rs1[31:24]+rs2[31:24], rs1[23:16]+rs2[23:16],
+ *            rs1[15:8]+rs2[15:8], rs1[7:0]+rs2[7:0]} (sign-extended)
+ */
+uint64_t HELPER(pwadd_b)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 4; i++) {
+        int16_t e1 = (int8_t)((rs1 >> (i * 8)) & 0xFF);
+        int16_t e2 = (int8_t)((rs2 >> (i * 8)) & 0xFF);
+        int16_t res = e1 + e2;
+        rd |= ((uint64_t)(uint16_t)res) << (i * 16);
+    }
+
+    return rd;
+}
+
+/**
+ * PWADDA.B - Packed widening byte to halfword addition with accumulate (RV32)
+ * rd_pair += {rs1[i] + rs2[i]}
+ */
+uint64_t HELPER(pwadda_b)(CPURISCVState *env, uint32_t rs1,
+                          uint32_t rs2, uint64_t rd)
+{
+    uint64_t result = 0;
+
+    for (int i = 0; i < 4; i++) {
+        int16_t e1 = (int8_t)((rs1 >> (i * 8)) & 0xFF);
+        int16_t e2 = (int8_t)((rs2 >> (i * 8)) & 0xFF);
+        int16_t acc = (int16_t)((rd >> (i * 16)) & 0xFFFF);
+        int16_t res = acc + e1 + e2;
+        result |= ((uint64_t)(uint16_t)res) << (i * 16);
+    }
+
+    return result;
+}
+
+/**
+ * PWADDU.B - Packed widening byte to halfword unsigned addition (RV32)
+ */
+uint64_t HELPER(pwaddu_b)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t e1 = (uint8_t)((rs1 >> (i * 8)) & 0xFF);
+        uint16_t e2 = (uint8_t)((rs2 >> (i * 8)) & 0xFF);
+        uint16_t res = e1 + e2;
+        rd |= ((uint64_t)res) << (i * 16);
+    }
+
+    return rd;
+}
+
+/**
+ * PWADDAU.B - Packed widening byte to halfword unsigned addition
+ * with accumulate (RV32)
+ */
+uint64_t HELPER(pwaddau_b)(CPURISCVState *env, uint32_t rs1,
+                           uint32_t rs2, uint64_t rd)
+{
+    uint64_t result = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t e1 = (uint8_t)((rs1 >> (i * 8)) & 0xFF);
+        uint16_t e2 = (uint8_t)((rs2 >> (i * 8)) & 0xFF);
+        uint16_t acc = (uint16_t)((rd >> (i * 16)) & 0xFFFF);
+        uint16_t res = acc + e1 + e2;
+        result |= ((uint64_t)res) << (i * 16);
+    }
+
+    return result;
+}
+
+/**
+ * PWSUB.B - Packed widening byte to halfword subtraction (RV32)
+ */
+uint64_t HELPER(pwsub_b)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 4; i++) {
+        int16_t e1 = (int8_t)((rs1 >> (i * 8)) & 0xFF);
+        int16_t e2 = (int8_t)((rs2 >> (i * 8)) & 0xFF);
+        int16_t res = e1 - e2;
+        rd |= ((uint64_t)(uint16_t)res) << (i * 16);
+    }
+
+    return rd;
+}
+
+/**
+ * PWSUBA.B - Packed widening byte to halfword subtraction
+ * with accumulate (RV32)
+ */
+uint64_t HELPER(pwsuba_b)(CPURISCVState *env, uint32_t rs1,
+                          uint32_t rs2, uint64_t rd)
+{
+    uint64_t result = 0;
+
+    for (int i = 0; i < 4; i++) {
+        int16_t e1 = (int8_t)((rs1 >> (i * 8)) & 0xFF);
+        int16_t e2 = (int8_t)((rs2 >> (i * 8)) & 0xFF);
+        int16_t acc = (int16_t)((rd >> (i * 16)) & 0xFFFF);
+        int16_t res = acc + (e1 - e2);
+        result |= ((uint64_t)(uint16_t)res) << (i * 16);
+    }
+
+    return result;
+}
+
+/**
+ * PWSUBU.B - Packed widening byte to halfword unsigned subtraction (RV32)
+ */
+uint64_t HELPER(pwsubu_b)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t e1 = (uint8_t)((rs1 >> (i * 8)) & 0xFF);
+        uint16_t e2 = (uint8_t)((rs2 >> (i * 8)) & 0xFF);
+        uint16_t res = e1 - e2;
+        rd |= ((uint64_t)res) << (i * 16);
+    }
+
+    return rd;
+}
+
+/**
+ * PWSUBAU.B - Packed widening byte to halfword unsigned subtraction
+ * with accumulate (RV32)
+ */
+uint64_t HELPER(pwsubau_b)(CPURISCVState *env, uint32_t rs1,
+                           uint32_t rs2, uint64_t rd)
+{
+    uint64_t result = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t e1 = (uint8_t)((rs1 >> (i * 8)) & 0xFF);
+        uint16_t e2 = (uint8_t)((rs2 >> (i * 8)) & 0xFF);
+        uint16_t acc = (uint16_t)((rd >> (i * 16)) & 0xFFFF);
+        uint16_t res = acc + (e1 - e2);
+        result |= ((uint64_t)res) << (i * 16);
+    }
+
+    return result;
+}
+
+/**
+ * PWSLLI.B - Packed widening shift left immediate (byte to halfword)
+ */
+uint64_t HELPER(pwslli_b)(CPURISCVState *env, uint32_t rs1, uint32_t imm)
+{
+    uint64_t rd = 0;
+    uint8_t shamt = imm & 0x0F;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t e1 = (uint8_t)((rs1 >> (i * 8)) & 0xFF);
+        uint16_t res = e1 << shamt;
+        rd |= ((uint64_t)res) << (i * 16);
+    }
+
+    return rd;
+}
+
+/**
+ * PWSLL.BS - Packed widening shift left from register (byte to halfword)
+ */
+uint64_t HELPER(pwsll_bs)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t rd = 0;
+    uint8_t shamt = rs2 & 0x1F;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t e1 = (uint8_t)((rs1 >> (i * 8)) & 0xFF);
+        uint16_t res = e1 << shamt;
+        rd |= ((uint64_t)res) << (i * 16);
+    }
+
+    return rd;
+}
+
+/**
+ * PWSLAI.B - Packed widening signed shift left immediate (byte to halfword)
+ */
+uint64_t HELPER(pwslai_b)(CPURISCVState *env, uint32_t rs1, uint32_t imm)
+{
+    uint64_t rd = 0;
+    uint8_t shamt = imm & 0x0F;
+
+    for (int i = 0; i < 4; i++) {
+        int16_t e1 = (int8_t)((rs1 >> (i * 8)) & 0xFF);
+        int16_t res = e1 << shamt;
+        rd |= ((uint64_t)(uint16_t)res) << (i * 16);
+    }
+
+    return rd;
+}
+
+/**
+ * PWSLA.BS - Packed widening signed shift left from register (byte to halfword)
+ */
+uint64_t HELPER(pwsla_bs)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t rd = 0;
+    uint8_t shamt = rs2 & 0x1F;
+
+    for (int i = 0; i < 4; i++) {
+        int16_t e1 = (int8_t)((rs1 >> (i * 8)) & 0xFF);
+        int16_t res = e1 << shamt;
+        rd |= ((uint64_t)(uint16_t)res) << (i * 16);
+    }
+
+    return rd;
+}
+
+/**
+ * PWADD.H - Packed widening halfword to word addition (RV32)
+ */
+uint64_t HELPER(pwadd_h)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int32_t e1 = (int16_t)((rs1 >> (i * 16)) & 0xFFFF);
+        int32_t e2 = (int16_t)((rs2 >> (i * 16)) & 0xFFFF);
+        int32_t res = e1 + e2;
+        rd |= ((uint64_t)(uint32_t)res) << (i * 32);
+    }
+
+    return rd;
+}
+
+/**
+ * PWADDA.H - Packed widening halfword to word addition with accumulate (RV32)
+ */
+uint64_t HELPER(pwadda_h)(CPURISCVState *env, uint32_t rs1,
+                          uint32_t rs2, uint64_t rd)
+{
+    uint64_t result = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int32_t e1 = (int16_t)((rs1 >> (i * 16)) & 0xFFFF);
+        int32_t e2 = (int16_t)((rs2 >> (i * 16)) & 0xFFFF);
+        int32_t acc = (int32_t)((rd >> (i * 32)) & 0xFFFFFFFF);
+        int32_t res = acc + e1 + e2;
+        result |= ((uint64_t)(uint32_t)res) << (i * 32);
+    }
+
+    return result;
+}
+
+/**
+ * PWADDU.H - Packed widening halfword to word unsigned addition (RV32)
+ */
+uint64_t HELPER(pwaddu_h)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        uint32_t e1 = (uint16_t)((rs1 >> (i * 16)) & 0xFFFF);
+        uint32_t e2 = (uint16_t)((rs2 >> (i * 16)) & 0xFFFF);
+        uint32_t res = e1 + e2;
+        rd |= ((uint64_t)res) << (i * 32);
+    }
+
+    return rd;
+}
+
+/**
+ * PWADDAU.H - Packed widening halfword to word unsigned addition
+ * with accumulate (RV32)
+ */
+uint64_t HELPER(pwaddau_h)(CPURISCVState *env, uint32_t rs1,
+                           uint32_t rs2, uint64_t rd)
+{
+    uint64_t result = 0;
+
+    for (int i = 0; i < 2; i++) {
+        uint32_t e1 = (uint16_t)((rs1 >> (i * 16)) & 0xFFFF);
+        uint32_t e2 = (uint16_t)((rs2 >> (i * 16)) & 0xFFFF);
+        uint32_t acc = (uint32_t)((rd >> (i * 32)) & 0xFFFFFFFF);
+        uint32_t res = acc + e1 + e2;
+        result |= ((uint64_t)res) << (i * 32);
+    }
+
+    return result;
+}
+
+/**
+ * PWSUB.H - Packed widening halfword to word subtraction (RV32)
+ */
+uint64_t HELPER(pwsub_h)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int32_t e1 = (int16_t)((rs1 >> (i * 16)) & 0xFFFF);
+        int32_t e2 = (int16_t)((rs2 >> (i * 16)) & 0xFFFF);
+        int32_t res = e1 - e2;
+        rd |= ((uint64_t)(uint32_t)res) << (i * 32);
+    }
+
+    return rd;
+}
+
+/**
+ * PWSUBA.H - Packed widening halfword to word subtraction
+ * with accumulate (RV32)
+ */
+uint64_t HELPER(pwsuba_h)(CPURISCVState *env, uint32_t rs1,
+                          uint32_t rs2, uint64_t rd)
+{
+    uint64_t result = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int32_t e1 = (int16_t)((rs1 >> (i * 16)) & 0xFFFF);
+        int32_t e2 = (int16_t)((rs2 >> (i * 16)) & 0xFFFF);
+        int32_t acc = (int32_t)((rd >> (i * 32)) & 0xFFFFFFFF);
+        int32_t res = acc + (e1 - e2);
+        result |= ((uint64_t)(uint32_t)res) << (i * 32);
+    }
+
+    return result;
+}
+
+/**
+ * PWSUBU.H - Packed widening halfword to word unsigned subtraction (RV32)
+ */
+uint64_t HELPER(pwsubu_h)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        uint32_t e1 = (uint16_t)((rs1 >> (i * 16)) & 0xFFFF);
+        uint32_t e2 = (uint16_t)((rs2 >> (i * 16)) & 0xFFFF);
+        uint32_t res = e1 - e2;
+        rd |= ((uint64_t)res) << (i * 32);
+    }
+
+    return rd;
+}
+
+/**
+ * PWSUBAU.H - Packed widening halfword to word unsigned subtraction
+ * with accumulate (RV32)
+ */
+uint64_t HELPER(pwsubau_h)(CPURISCVState *env, uint32_t rs1,
+                           uint32_t rs2, uint64_t rd)
+{
+    uint64_t result = 0;
+
+    for (int i = 0; i < 2; i++) {
+        uint32_t e1 = (uint16_t)((rs1 >> (i * 16)) & 0xFFFF);
+        uint32_t e2 = (uint16_t)((rs2 >> (i * 16)) & 0xFFFF);
+        uint32_t acc = (uint32_t)((rd >> (i * 32)) & 0xFFFFFFFF);
+        uint32_t res = acc + (e1 - e2);
+        result |= ((uint64_t)res) << (i * 32);
+    }
+
+    return result;
+}
+
+/**
+ * PWSLLI.H - Packed widening shift left immediate (halfword to word)
+ */
+uint64_t HELPER(pwslli_h)(CPURISCVState *env, uint32_t rs1, uint32_t imm)
+{
+    uint64_t rd = 0;
+    uint8_t shamt = imm & 0x1F;
+
+    for (int i = 0; i < 2; i++) {
+        uint32_t e1 = (uint16_t)((rs1 >> (i * 16)) & 0xFFFF);
+        uint32_t res = e1 << shamt;
+        rd |= ((uint64_t)res) << (i * 32);
+    }
+
+    return rd;
+}
+
+/**
+ * PWSLL.HS - Packed widening shift left from register (halfword to word)
+ */
+uint64_t HELPER(pwsll_hs)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t rd = 0;
+    uint8_t shamt = rs2 & 0x1F;
+
+    for (int i = 0; i < 2; i++) {
+        uint32_t e1 = (uint16_t)((rs1 >> (i * 16)) & 0xFFFF);
+        uint32_t res = e1 << shamt;
+        rd |= ((uint64_t)res) << (i * 32);
+    }
+
+    return rd;
+}
+
+/**
+ * PWSLAI.H - Packed widening signed shift left immediate (halfword to word)
+ */
+uint64_t HELPER(pwslai_h)(CPURISCVState *env, uint32_t rs1, uint32_t imm)
+{
+    uint64_t rd = 0;
+    uint8_t shamt = imm & 0x1F;
+
+    for (int i = 0; i < 2; i++) {
+        int32_t e1 = (int16_t)((rs1 >> (i * 16)) & 0xFFFF);
+        int32_t res = e1 << shamt;
+        rd |= ((uint64_t)(uint32_t)res) << (i * 32);
+    }
+
+    return rd;
+}
+
+/**
+ * PWSLA.HS - Packed widening signed shift left from register (halfword to word)
+ */
+uint64_t HELPER(pwsla_hs)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t rd = 0;
+    uint8_t shamt = rs2 & 0x1F;
+
+    for (int i = 0; i < 2; i++) {
+        int32_t e1 = (int16_t)((rs1 >> (i * 16)) & 0xFFFF);
+        int32_t res = e1 << shamt;
+        rd |= ((uint64_t)(uint32_t)res) << (i * 32);
+    }
+
+    return rd;
+}
+
+/**
+ * WADD - Widening signed addition (RV32)
+ */
+uint64_t HELPER(wadd)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    int64_t a = (int32_t)rs1;
+    int64_t b = (int32_t)rs2;
+    return (uint64_t)(a + b);
+}
+
+/**
+ * WADDA - Widening signed addition with accumulate (RV32)
+ */
+uint64_t HELPER(wadda)(CPURISCVState *env, uint32_t rs1,
+                       uint32_t rs2, uint64_t rd)
+{
+    int64_t a = (int32_t)rs1;
+    int64_t b = (int32_t)rs2;
+    int64_t acc = (int64_t)rd;
+    return (uint64_t)(acc + a + b);
+}
+
+/**
+ * WADDU - Widening unsigned addition (RV32)
+ */
+uint64_t HELPER(waddu)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t a = rs1;
+    uint64_t b = rs2;
+    return a + b;
+}
+
+/**
+ * WADDAU - Widening unsigned addition with accumulate (RV32)
+ */
+uint64_t HELPER(waddau)(CPURISCVState *env, uint32_t rs1,
+                        uint32_t rs2, uint64_t rd)
+{
+    uint64_t acc = rd;
+    return acc + rs1 + rs2;
+}
+
+/**
+ * WSUB - Widening signed subtraction (RV32)
+ */
+uint64_t HELPER(wsub)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    int64_t a = (int32_t)rs1;
+    int64_t b = (int32_t)rs2;
+    return (uint64_t)(a - b);
+}
+
+/**
+ * WSUBA - Widening signed subtraction with accumulate (RV32)
+ */
+uint64_t HELPER(wsuba)(CPURISCVState *env, uint32_t rs1,
+                       uint32_t rs2, uint64_t rd)
+{
+    int64_t a = (int32_t)rs1;
+    int64_t b = (int32_t)rs2;
+    int64_t acc = (int64_t)rd;
+    return (uint64_t)(acc + a - b);
+}
+
+/**
+ * WSUBU - Widening unsigned subtraction (RV32)
+ */
+uint64_t HELPER(wsubu)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t a = rs1;
+    uint64_t b = rs2;
+    return a - b;
+}
+
+/**
+ * WSUBAU - Widening unsigned subtraction with accumulate (RV32)
+ */
+uint64_t HELPER(wsubau)(CPURISCVState *env, uint32_t rs1,
+                        uint32_t rs2, uint64_t rd)
+{
+    uint64_t acc = rd;
+    return acc + rs1 - rs2;
+}
+
+/**
+ * WSLLI - Widening logical shift left immediate (RV32)
+ */
+uint64_t HELPER(wslli)(CPURISCVState *env, uint32_t rs1, uint32_t imm)
+{
+    uint64_t a = rs1;
+    uint8_t shamt = imm & 0x3F;
+    return a << shamt;
+}
+
+/**
+ * WSLL - Widening logical shift left from register (RV32)
+ */
+uint64_t HELPER(wsll)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t a = rs1;
+    uint8_t shamt = rs2 & 0x3F;
+    return a << shamt;
+}
+
+/**
+ * WSLAI - Widening signed shift left immediate (RV32)
+ */
+uint64_t HELPER(wslai)(CPURISCVState *env, uint32_t rs1, uint32_t imm)
+{
+    int64_t a = (int32_t)rs1;
+    uint8_t shamt = imm & 0x3F;
+    return (uint64_t)(a << shamt);
+}
+
+/**
+ * WSLA - Widening signed shift left from register (RV32)
+ */
+uint64_t HELPER(wsla)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    int64_t a = (int32_t)rs1;
+    uint8_t shamt = rs2 & 0x3F;
+    return (uint64_t)(a << shamt);
+}
+
+/**
+ * WZIP8P - Double-width interleave bytes (RV32)
+ */
+uint64_t HELPER(wzip8p)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint64_t b1 = (uint64_t)EXTRACT8(rs1, i) << 16 * i;
+        uint64_t b2 = (uint64_t)EXTRACT8(rs2, i) << (16 * i + 8);
+        rd = rd | b2 | b1;
+    }
+
+    return rd;
+}
+
+/**
+ * WZIP16P - Double-width interleave halfwords (RV32)
+ */
+uint64_t HELPER(wzip16p)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        uint64_t h1 = (uint64_t)EXTRACT16(rs1, i) << (32 * i);
+        uint64_t h2 = (uint64_t)EXTRACT16(rs2, i) << (32 * i + 16);
+        rd = rd | h2 | h1;
+    }
+
+    return rd;
+}
+
+/**
+ * PREDSUM.DBS - Double-width signed reduction sum of bytes (RV32)
+ */
+uint32_t HELPER(predsum_dbs)(CPURISCVState *env, uint32_t rs1_lo,
+                             uint32_t rs1_hi, uint32_t rs2)
+{
+    int64_t sum = (int32_t)rs2;
+    int64_t s1 = ((int64_t)rs1_hi << 32) | rs1_lo;
+
+    for (int i = 0; i < 8; i++) {
+        int8_t b = (int8_t)((s1 >> (i * 8)) & 0xFF);
+        sum += b;
+    }
+
+    return (uint32_t)sum;
+}
+
+/**
+ * PREDSUMU.DBS - Double-width unsigned reduction sum of bytes (RV32)
+ */
+uint32_t HELPER(predsumu_dbs)(CPURISCVState *env, uint32_t rs1_lo,
+                              uint32_t rs1_hi, uint32_t rs2)
+{
+    uint64_t sum = rs2;
+    uint64_t s1 = ((uint64_t)rs1_hi << 32) | rs1_lo;
+
+    for (int i = 0; i < 8; i++) {
+        uint8_t b = (uint8_t)((s1 >> (i * 8)) & 0xFF);
+        sum += b;
+    }
+
+    return (uint32_t)sum;
+}
+
+/**
+ * PREDSUM.DHS - Double-width signed reduction sum of halfwords (RV32)
+ */
+uint32_t HELPER(predsum_dhs)(CPURISCVState *env, uint32_t rs1_lo,
+                             uint32_t rs1_hi, uint32_t rs2)
+{
+    int64_t sum = (int32_t)rs2;
+    int64_t s1 = ((int64_t)rs1_hi << 32) | rs1_lo;
+
+    for (int i = 0; i < 4; i++) {
+        int16_t h = (int16_t)((s1 >> (i * 16)) & 0xFFFF);
+        sum += h;
+    }
+
+    return (uint32_t)sum;
+}
+
+/**
+ * PREDSUMU.DHS - Double-width unsigned reduction sum of halfwords (RV32)
+ */
+uint32_t HELPER(predsumu_dhs)(CPURISCVState *env, uint32_t rs1_lo,
+                              uint32_t rs1_hi, uint32_t rs2)
+{
+    uint64_t sum = rs2;
+    uint64_t s1 = ((uint64_t)rs1_hi << 32) | rs1_lo;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t h = (uint16_t)((s1 >> (i * 16)) & 0xFFFF);
+        sum += h;
+    }
+
+    return (uint32_t)sum;
+}
+
+
+/* Narrowing Operations (RV32 only, register pair sources) */
+
+/**
+ * PNSRLI.B - Narrowing logical shift right immediate (64-bit to 32-bit)
+ */
+uint32_t HELPER(pnsrli_b)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t s1_h = (s1 >> (i * 16)) & 0xFFFF;
+        uint8_t result = (s1_h >> (shamt & 0xF)) & 0xFF;
+        rd |= ((uint32_t)result) << (i * 8);
+    }
+
+    return rd;
+}
+
+/**
+ * PNSRL.BS - Narrowing logical shift right from register (64-bit to 32-bit)
+ */
+uint32_t HELPER(pnsrl_bs)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t s1_h = (s1 >> (i * 16)) & 0xFFFF;
+        uint32_t s1_h_z32 = (uint32_t)s1_h;
+        uint8_t result = (s1_h_z32 >> (shamt & 0x1F)) & 0xFF;
+        rd |= ((uint32_t)result) << (i * 8);
+    }
+
+    return rd;
+}
+
+/**
+ * PNSRAI.B - Narrowing arithmetic shift right immediate (64-bit to 32-bit)
+ */
+uint32_t HELPER(pnsrai_b)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t s1_h = (s1 >> (i * 16)) & 0xFFFF;
+        int32_t s1_h_s32 = (int32_t)(int16_t)s1_h;
+        int32_t s1_h_s24 = (s1_h_s32 << 8) >> 8;
+        uint8_t result = s1_h_s24 >> (shamt & 0xF) & 0xFF;
+        rd |= ((uint32_t)result) << (i * 8);
+    }
+
+    return rd;
+}
+
+/**
+ * PNSRA.BS - Narrowing arithmetic shift right from register (64-bit to 32-bit)
+ */
+uint32_t HELPER(pnsra_bs)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t s1_h = (s1 >> (i * 16)) & 0xFFFF;
+        int64_t s1_h_s64 = (int64_t)(int16_t)s1_h;
+        s1_h_s64 = (s1_h_s64 << 24) >> 24;
+        uint8_t result = s1_h_s64 >> (shamt & 0x1F) & 0xFF;
+        rd |= ((uint32_t)result) << (i * 8);
+    }
+
+    return rd;
+}
+
+/**
+ * PNSRARI.B - Narrowing arithmetic shift right with rounding
+ * immediate (64-bit to 32-bit)
+ */
+uint32_t HELPER(pnsrari_b)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t s1_h = (s1 >> (i * 16)) & 0xFFFF;
+        int32_t s1_h_s32 = (int32_t)(int16_t)s1_h;
+        int32_t s1_h_s24 = (s1_h_s32 << 8) >> 8;
+        uint32_t shx_25bit = ((uint32_t)s1_h_s24 << 1);
+        uint32_t shx = (shx_25bit >> (shamt & 0xF)) & 0x1FF;
+        uint8_t result = ((shx + 1) >> 1) & 0xFF;
+        rd |= ((uint32_t)result) << (i * 8);
+    }
+
+    return rd;
+}
+
+/**
+ * PNSRAR.BS - Narrowing arithmetic shift right with rounding
+ * from register (64-bit to 32-bit)
+ */
+uint32_t HELPER(pnsrar_bs)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t s1_h = (s1 >> (i * 16)) & 0xFFFF;
+        int64_t s1_h_s64 = (int64_t)(int16_t)s1_h;
+        int64_t s1_h_s40 = (s1_h_s64 << 24) >> 24;
+        uint64_t shx_41bit = ((uint64_t)s1_h_s40 << 1);
+        uint64_t shx = (shx_41bit >> (shamt & 0x1F)) & 0x1FF;
+        uint8_t result = ((shx + 1) >> 1) & 0xFF;
+        rd |= ((uint32_t)result) << (i * 8);
+    }
+
+    return rd;
+}
+
+/**
+ * PNCLIPI.B - Narrowing clip signed (64-bit to 32-bit) with immediate shift
+ */
+uint32_t HELPER(pnclipi_b)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+    int sat = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t s1_h = (s1 >> (i * 16)) & 0xFFFF;
+        int32_t s1_h_s32 = (int32_t)(int16_t)s1_h;
+        int16_t shx = (int16_t)(s1_h_s32 >> (shamt & 0xF));
+        uint8_t result = 0;
+
+        if (shx < -128) {
+            sat = 1;
+            result = 0x80; /* -128 */
+        } else if (shx > 127) {
+            sat = 1;
+            result = 0x7F; /* 127 */
+        } else {
+            result = (uint8_t)shx;
+        }
+        rd |= ((uint32_t)result << (i * 8));
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PNCLIPRI.B - Narrowing clip signed with rounding
+ * (64-bit to 32-bit) with immediate shift
+ */
+uint32_t HELPER(pnclipri_b)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+    int sat = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t s1_h = (s1 >> (i * 16)) & 0xFFFF;
+        int32_t s1_h_s32 = (int32_t)(int16_t)s1_h;
+        uint64_t shx_33bit = ((uint32_t)s1_h_s32 << 1);
+        uint32_t shx = (shx_33bit >> (shamt & 0xF)) & 0x1FFFF;
+        uint16_t round_shx = (uint16_t)((shx + 1) >> 1);
+        int16_t round_shx_s = (int16_t)round_shx;
+        uint8_t result = 0;
+
+        if (round_shx_s < -128) {
+            sat = 1;
+            result = 0x80;
+        } else if (round_shx_s > 127) {
+            sat = 1;
+            result = 0x7F;
+        } else {
+            result = (uint8_t)round_shx;
+        }
+
+        rd |= ((uint32_t)result) << (i * 8);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PNCLIPIU.B - Narrowing clip unsigned (64-bit to 32-bit) with immediate shift
+ */
+uint32_t HELPER(pnclipiu_b)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+    int sat = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t s1_h = (s1 >> (i * 16)) & 0xFFFF;
+        uint16_t shx = s1_h >> (shamt & 0xF);
+        uint8_t result = 0;
+
+        if (shx > 0x00FF) {
+            sat = 1;
+            result = 0xFF;
+        } else {
+            result = (uint8_t)(shx & 0xFF);
+        }
+        rd |= ((uint32_t)result) << (i * 8);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PNCLIPRIU.B - Narrowing clip unsigned with rounding
+ * (64-bit to 32-bit) with immediate shift
+ */
+uint32_t HELPER(pnclipriu_b)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+    int sat = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t s1_h = (s1 >> (i * 16)) & 0xFFFF;
+        uint32_t shx_17bit = ((uint32_t)s1_h << 1);
+        uint32_t shx = shx_17bit >> (shamt & 0xF);
+        uint16_t round_shx = (uint16_t)((shx + 1) >> 1);
+        uint8_t result = 0;
+
+        if (round_shx > 0x00FF) {
+            sat = 1;
+            result = 0xFF;
+        } else {
+            result = (uint8_t)(round_shx & 0xFF);
+        }
+        rd |= ((uint32_t)result) << (i * 8);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PNCLIP.BS - Narrowing clip signed from register (64-bit to 32-bit)
+ */
+uint32_t HELPER(pnclip_bs)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+    int sat = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t s1_h = (s1 >> (i * 16)) & 0xFFFF;
+        int64_t s1_h_s64 = (int64_t)(int16_t)s1_h;
+        int64_t s1_h_s48 = (s1_h_s64 << 16) >> 16;
+        int16_t shx = (int16_t)(s1_h_s48 >> (shamt & 0x1F));
+        uint8_t result = 0;
+
+        if (shx < -128) {
+            sat = 1;
+            result = 0x80;
+        } else if (shx > 127) {
+            sat = 1;
+            result = 0x7F;
+        } else {
+            result = (uint8_t)shx;
+        }
+        rd |= ((uint32_t)result) << (i * 8);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PNCLIPR.BS - Narrowing clip signed with rounding
+ * from register (64-bit to 32-bit)
+ */
+uint32_t HELPER(pnclipr_bs)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+    int sat = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t s1_h = (s1 >> (i * 16)) & 0xFFFF;
+        int64_t s1_h_s64 = (int64_t)(int16_t)s1_h;
+        int64_t s1_h_s48 = (s1_h_s64 << 16) >> 16;
+        uint64_t shx_49bit = ((uint64_t)s1_h_s48 << 1);
+        uint32_t shx = (shx_49bit >> (shamt & 0x1F)) & 0x1FFFF;
+        uint16_t round_shx = (uint16_t)((shx + 1) >> 1);
+        int16_t round_shx_s = (int16_t)round_shx;
+        uint8_t result = 0;
+
+        if (round_shx_s < -128) {
+            sat = 1;
+            result = 0x80;
+        } else if (round_shx_s > 127) {
+            sat = 1;
+            result = 0x7F;
+        } else {
+            result = (uint8_t)round_shx;
+        }
+        rd |= ((uint32_t)result) << (i * 8);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PNCLIPU.BS - Narrowing clip unsigned from register (64-bit to 32-bit)
+ */
+uint32_t HELPER(pnclipu_bs)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+    int sat = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t s1_h = (s1 >> (i * 16)) & 0xFFFF;
+        uint32_t s1_h_z32 = (uint32_t)s1_h;
+        uint16_t shx = (s1_h_z32 >> (shamt & 0x1F)) & 0xFFFF;
+        uint8_t result = 0;
+
+        if (shx > 0x00FF) {
+            sat = 1;
+            result = 0xFF;
+        } else {
+            result = (uint8_t)(shx & 0xFF);
+        }
+        rd |= ((uint32_t)result) << (i * 8);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PNCLIPRU.BS - Narrowing clip unsigned with rounding
+ * from register (64-bit to 32-bit)
+ */
+uint32_t HELPER(pnclipru_bs)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+    int sat = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t s1_h = (s1 >> (i * 16)) & 0xFFFF;
+        uint32_t s1_h_z32 = (uint32_t)s1_h;
+        uint64_t shx_33bit = ((uint64_t)s1_h_z32 << 1);
+        uint32_t shx = (shx_33bit >> (shamt & 0x1F)) & 0x1FFFF;
+        uint16_t round_shx = (uint16_t)((shx + 1) >> 1);
+        uint8_t result = 0;
+
+        if (round_shx > 0x00FF) {
+            sat = 1;
+            result = 0xFF;
+        } else {
+            result = (uint8_t)(round_shx & 0xFF);
+        }
+        rd |= ((uint32_t)result) << (i * 8);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PNSRLI.H - Narrowing logical shift right immediate
+ * (64-bit to 32-bit, word to halfword)
+ */
+uint32_t HELPER(pnsrli_h)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+    uint32_t s1_low  = (uint32_t)(s1 & 0xFFFFFFFF);
+    uint32_t s1_high = (uint32_t)((s1 >> 32) & 0xFFFFFFFF);
+
+    uint16_t rd_low  = (s1_low  >> (shamt & 0x1F)) & 0xFFFF;
+    uint16_t rd_high = (s1_high >> (shamt & 0x1F)) & 0xFFFF;
+
+    rd = ((uint32_t)rd_high << 16) | rd_low;
+    return rd;
+}
+
+/**
+ * PNSRAI.H - Narrowing arithmetic shift right immediate
+ * (64-bit to 32-bit, word to halfword)
+ */
+uint32_t HELPER(pnsrai_h)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+    uint32_t s1_low  = (uint32_t)(s1 & 0xFFFFFFFF);
+    int64_t s1_low_s64 = (int64_t)(int32_t)s1_low;
+    int64_t s1_low_s48 = (s1_low_s64 << 16) >> 16;
+
+    uint32_t s1_high = (uint32_t)((s1 >> 32) & 0xFFFFFFFF);
+    int64_t s1_high_s64 = (int64_t)(int32_t)s1_high;
+    int64_t s1_high_s48 = (s1_high_s64 << 16) >> 16;
+
+    uint16_t rd_low  = (s1_low_s48  >> (shamt & 0x1F)) & 0xFFFF;
+    uint16_t rd_high = (s1_high_s48 >> (shamt & 0x1F)) & 0xFFFF;
+
+    rd = ((uint32_t)rd_high << 16) | rd_low;
+    return rd;
+}
+
+/**
+ * PNSRARI.H - Narrowing arithmetic shift right with rounding
+ * immediate (64-bit to 32-bit, word to halfword)
+ */
+uint32_t HELPER(pnsrari_h)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        uint32_t s1_w = (s1 >> (i * 32)) & 0xFFFFFFFF;
+        int64_t s1_w_s64 = (int64_t)(int32_t)s1_w;
+        int64_t s1_w_s48 = (s1_w_s64 << 16) >> 16;
+        uint64_t shx_49bit = ((uint64_t)s1_w_s48 << 1);
+        uint32_t shx = (shx_49bit >> (shamt & 0x1F)) & 0x1FFFF;
+        rd |= ((uint16_t)((shx + 1) >> 1)) << (i * 16);
+    }
+
+    return rd;
+}
+
+/**
+ * PNSRL.HS - Narrowing logical shift right from register
+ * (64-bit to 32-bit, word to halfword)
+ */
+uint32_t HELPER(pnsrl_hs)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+    uint32_t s1_low  = (uint32_t)(s1 & 0xFFFFFFFF);
+    uint32_t s1_high = (uint32_t)((s1 >> 32) & 0xFFFFFFFF);
+
+    uint16_t rd_low  = (s1_low  >> (shamt & 0x1F)) & 0xFFFF;
+    uint16_t rd_high = (s1_high >> (shamt & 0x1F)) & 0xFFFF;
+
+    rd = ((uint32_t)rd_high << 16) | rd_low;
+    return rd;
+}
+
+/**
+ * PNSRA.HS - Narrowing arithmetic shift right from register
+ * (64-bit to 32-bit, word to halfword)
+ */
+uint32_t HELPER(pnsra_hs)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+    uint32_t s1_low  = (uint32_t)(s1 & 0xFFFFFFFF);
+    uint32_t s1_high = (uint32_t)((s1 >> 32) & 0xFFFFFFFF);
+
+    uint16_t rd_low  = (s1_low  >> (shamt & 0x1F)) & 0xFFFF;
+    uint16_t rd_high = (s1_high >> (shamt & 0x1F)) & 0xFFFF;
+
+    rd = ((uint32_t)rd_high << 16) | rd_low;
+    return rd;
+}
+
+/**
+ * PNSRAR.HS - Narrowing arithmetic shift right with rounding
+ * from register (64-bit to 32-bit, word to halfword)
+ */
+uint32_t HELPER(pnsrar_hs)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        uint32_t s1_w = (s1 >> (i * 32)) & 0xFFFFFFFF;
+        int64_t s1_w_s64 = (int64_t)(int32_t)s1_w;
+        int64_t s1_w_s48 = (s1_w_s64 << 16) >> 16;
+        uint64_t shx_49bit = ((uint64_t)s1_w_s48 << 1);
+        uint32_t shx = (shx_49bit >> (shamt & 0x1F)) & 0x1FFFF;
+        rd |= ((uint16_t)((shx + 1) >> 1)) << (i * 16);
+    }
+
+    return rd;
+}
+
+/**
+ * PNCLIP.HS - Narrowing signed clip from register shift (word to halfword)
+ * For each word: arithmetic right shift, clip to signed 16-bit
+ *   shx = (int32_t)rs1[i] >> shamt
+ *   result = sat16(shx)
+ */
+uint32_t HELPER(pnclip_hs)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+    int sat = 0;
+    uint8_t shift = shamt & 0x1F;
+
+    for (int i = 0; i < 2; i++) {
+        uint32_t s1_w = EXTRACT32(s1, i);
+        int64_t s1_w_s64 = (int64_t)(int32_t)s1_w;
+        int32_t shx = (int32_t)(s1_w_s64 >> shift);
+        uint16_t result;
+
+        if (shx < -32768) {
+            sat = 1;
+            result = 0x8000;
+        } else if (shx > 32767) {
+            sat = 1;
+            result = 0x7FFF;
+        } else {
+            result = (uint16_t)shx;
+        }
+
+        rd = INSERT16(rd, result, i);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PNCLIPR.HS - Narrowing signed clip with rounding
+ * from register (word to halfword)
+ * For each word: ((int32_t)rs1[i] << 1) >> shamt, round, clip to signed 16-bit
+ *   shx_65bit = ((int64_t)rs1[i] << 1)
+ *   shx = (shx_65bit >> shamt) & mask
+ *   round = (shx + 1) >> 1
+ *   result = sat16(round)
+ */
+uint32_t HELPER(pnclipr_hs)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+    int sat = 0;
+    uint8_t shift = shamt & 0x1F;
+
+    for (int i = 0; i < 2; i++) {
+        uint32_t s1_w = EXTRACT32(s1, i);
+        int64_t s1_w_s64 = (int64_t)(int32_t)s1_w;
+        __uint128_t shx_65bit = (__uint128_t)s1_w_s64 << 1;
+        uint64_t shx = (uint64_t)(shx_65bit >> shift) & 0x1FFFFFFFF;
+        int32_t round_shx = (int32_t)((shx + 1) >> 1);
+        uint16_t result;
+
+        if (round_shx < -32768) {
+            sat = 1;
+            result = 0x8000;
+        } else if (round_shx > 32767) {
+            sat = 1;
+            result = 0x7FFF;
+        } else {
+            result = (uint16_t)round_shx;
+        }
+
+        rd = INSERT16(rd, result, i);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PNCLIPI.H - Narrowing signed clip from immediate shift (word to halfword)
+ * For each word: rs1[i] >> imm, clip to signed 16-bit
+ */
+uint32_t HELPER(pnclipi_h)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    return HELPER(pnclip_hs)(env, s1, shamt);
+}
+
+/**
+ * PNCLIPRI.H - Narrowing signed clip with rounding
+ * from immediate shift (word to halfword)
+ * For each word: (rs1[i] << 1) >> imm, round, clip to signed 16-bit
+ */
+uint32_t HELPER(pnclipri_h)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    return HELPER(pnclipr_hs)(env, s1, shamt);
+}
+
+/**
+ * PNCLIPU.HS - Narrowing unsigned clip from register shift (word to halfword)
+ * For each word: shift right, clip to unsigned 16-bit
+ *   shx = rs1[i] >> shamt
+ *   result = (shx > 65535) ? 0xFFFF : shx
+ */
+uint32_t HELPER(pnclipu_hs)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+    int sat = 0;
+    uint8_t shift = shamt & 0x1F;
+
+    for (int i = 0; i < 2; i++) {
+        uint32_t s1_w = EXTRACT32(s1, i);
+        uint32_t shx = s1_w >> shift;
+        uint16_t result;
+
+        if (shx > 65535) {
+            sat = 1;
+            result = 0xFFFF;
+        } else {
+            result = (uint16_t)shx;
+        }
+
+        rd = INSERT16(rd, result, i);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PNCLIPRU.HS - Narrowing unsigned clip with rounding
+ * from register (word to halfword)
+ * For each word: (rs1[i] << 1) >> shamt, round, clip to unsigned 16-bit
+ *   shx = ((rs1[i] << 1) >> shamt)
+ *   round = (shx + 1) >> 1
+ *   result = (round > 65535) ? 0xFFFF : round
+ */
+uint32_t HELPER(pnclipru_hs)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint32_t rd = 0;
+    int sat = 0;
+    uint8_t shift = shamt & 0x1F;
+
+    for (int i = 0; i < 2; i++) {
+        uint32_t s1_w = EXTRACT32(s1, i);
+        uint64_t shx_33bit = (uint64_t)s1_w << 1;
+        uint64_t shx = shx_33bit >> shift;
+        uint32_t round_shx = (uint32_t)((shx + 1) >> 1);
+        uint16_t result;
+
+        if (round_shx > 65535) {
+            sat = 1;
+            result = 0xFFFF;
+        } else {
+            result = (uint16_t)round_shx;
+        }
+
+        rd = INSERT16(rd, result, i);
+    }
+
+    if (sat) {
+        env->vxsat = 1;
+    }
+    return rd;
+}
+
+/**
+ * PNCLIPIU.H - Narrowing unsigned clip from immediate shift (word to halfword)
+ * For each word: rs1[i] >> imm, clip to unsigned 16-bit
+ */
+uint32_t HELPER(pnclipiu_h)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    return HELPER(pnclipu_hs)(env, s1, shamt);
+}
+
+/**
+ * PNCLIPRIU.H - Narrowing unsigned clip with rounding
+ * from immediate shift (word to halfword)
+ * For each word: (rs1[i] << 1) >> imm, round, clip to unsigned 16-bit
+ */
+uint32_t HELPER(pnclipriu_h)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    return HELPER(pnclipru_hs)(env, s1, shamt);
+}
+
+/**
+ * NSRLI - Narrowing logical shift right immediate (64-bit to 32-bit)
+ */
+uint32_t HELPER(nsrli)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    return (s1 >> (shamt & 0x3F)) & 0xFFFFFFFF;
+}
+
+/**
+ * NSRAI - Narrowing arithmetic shift right immediate (64-bit to 32-bit)
+ */
+uint32_t HELPER(nsrai)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    __int128_t s1_s128 = (__int128_t)((int64_t)s1);
+    __int128_t s1_s96 = (s1_s128 << 32) >> 32;
+    return (uint32_t)(s1_s96 >> (shamt & 0x3F)) & 0xFFFFFFFF;
+}
+
+/**
+ * NSRARI - Narrowing arithmetic shift right with rounding
+ * immediate (64-bit to 32-bit)
+ */
+uint32_t HELPER(nsrari)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    __int128_t s1_s128 = (__int128_t)((int64_t)s1);
+    __int128_t s1_s96 = (s1_s128 << 32) >> 32;
+    __uint128_t shx_97bit = ((__uint128_t)s1_s96 << 1);
+    uint64_t shx = (uint64_t)(shx_97bit >> (shamt & 0x3F)) & 0x1FFFFFFFF;
+    return (uint32_t)((shx + 1) >> 1);
+}
+
+/**
+ * NSRL - Narrowing logical shift right from register (64-bit to 32-bit)
+ */
+uint32_t HELPER(nsrl)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    return (s1 >> (shamt & 0x3F)) & 0xFFFFFFFF;
+}
+
+/**
+ * NSRA - Narrowing arithmetic shift right from register (64-bit to 32-bit)
+ */
+uint32_t HELPER(nsra)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    __int128_t s1_s128 = (__int128_t)((int64_t)s1);
+    __int128_t s1_s96 = (s1_s128 << 32) >> 32;
+    return (uint32_t)(s1_s96 >> (shamt & 0x3F)) & 0xFFFFFFFF;
+}
+
+/**
+ * NSRAR - Narrowing arithmetic shift right with rounding
+ * from register (64-bit to 32-bit)
+ */
+uint32_t HELPER(nsrar)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    __int128_t s1_s128 = (__int128_t)((int64_t)s1);
+    __int128_t s1_s96 = (s1_s128 << 32) >> 32;
+    __uint128_t shx_97bit = ((__uint128_t)s1_s96 << 1);
+    uint64_t shx = (uint64_t)(shx_97bit >> (shamt & 0x3F)) & 0x1FFFFFFFF;
+    return (uint32_t)((shx + 1) >> 1);
+}
+
+/**
+ * NCLIPI - Narrowing clip signed with immediate shift (64-bit to 32-bit)
+ */
+uint32_t HELPER(nclipi)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    __int128_t s1_s128 = (__int128_t)((int64_t)s1);
+    int64_t shx = (int64_t)(s1_s128 >> (shamt & 0x3F));
+
+    if (shx < -2147483648LL) {
+        env->vxsat = 1;
+        return 0x80000000U;
+    } else if (shx > 2147483647LL) {
+        env->vxsat = 1;
+        return 0x7FFFFFFFU;
+    } else {
+        return (uint32_t)(shx & 0xFFFFFFFF);
+    }
+}
+
+/**
+ * NCLIPRI - Narrowing clip signed with rounding and immediate
+ * shift (64-bit to 32-bit)
+ */
+uint32_t HELPER(nclipri)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    typedef struct {
+        __uint128_t low;
+        uint8_t high;
+    } Uint129;
+
+    Uint129 left_shift_1(__int128_t s1_s128)
+    {
+        Uint129 result;
+        __uint128_t us1 = (__uint128_t)s1_s128;
+        result.low = us1 << 1;
+        result.high = (us1 >> 127) & 0x1;
+        return result;
+    }
+
+    Uint129 right_shift(Uint129 val, uint32_t smt)
+    {
+        Uint129 result;
+        if (smt == 0) {
+            return val;
+        } else if (smt >= 129) {
+            result.low = 0;
+            result.high = 0;
+        } else if (smt == 128) {
+            result.low = val.high;
+            result.high = 0;
+        } else {
+            result.low = (val.low >> smt) |
+                         ((__uint128_t)val.high << (128 - smt));
+            result.high = (val.high >> smt);
+        }
+        return result;
+    }
+
+    __int128_t s1_s128 = (__int128_t)((int64_t)s1);
+    Uint129 shx_129bit = left_shift_1(s1_s128);
+    Uint129 shx = right_shift(shx_129bit, shamt & 0x3F);
+    int64_t round_shx = (int64_t)((shx.low + 1) >> 1);
+
+    if (round_shx < -2147483648LL) {
+        env->vxsat = 1;
+        return 0x80000000U;
+    } else if (round_shx > 2147483647LL) {
+        env->vxsat = 1;
+        return 0x7FFFFFFFU;
+    } else {
+        return (uint32_t)round_shx;
+    }
+}
+
+/**
+ * NCLIPIU - Narrowing clip unsigned with immediate shift (64-bit to 32-bit)
+ */
+uint32_t HELPER(nclipiu)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint64_t shx = s1 >> (shamt & 0x3F);
+
+    if (shx > 4294967295ULL) {
+        env->vxsat = 1;
+        return 0xFFFFFFFFU;
+    } else {
+        return (uint32_t)(shx & 0xFFFFFFFF);
+    }
+}
+
+/**
+ * NCLIPRIU - Narrowing clip unsigned with rounding and immediate
+ * shift (64-bit to 32-bit)
+ */
+uint32_t HELPER(nclipriu)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    __uint128_t shx_65bit = (s1 << 1);
+    __uint128_t shx = shx_65bit >> (shamt & 0x3F);
+    uint64_t round_shx = (shx + 1) >> 1;
+
+    if (round_shx > 4294967295ULL) {
+        env->vxsat = 1;
+        return 0xFFFFFFFFU;
+    } else {
+        return (uint32_t)(round_shx & 0xFFFFFFFF);
+    }
+}
+
+/**
+ * NCLIP - Narrowing clip signed from register (64-bit to 32-bit)
+ */
+uint32_t HELPER(nclip)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    __int128_t s1_s128 = (__int128_t)((int64_t)s1);
+    int64_t shx = (int64_t)(s1_s128 >> (shamt & 0x3F));
+
+    if (shx < -2147483648LL) {
+        env->vxsat = 1;
+        return 0x80000000U;
+    } else if (shx > 2147483647LL) {
+        env->vxsat = 1;
+        return 0x7FFFFFFFU;
+    } else {
+        return (uint32_t)(shx & 0xFFFFFFFF);
+    }
+}
+
+/**
+ * NCLIPR - Narrowing clip signed with rounding from register (64-bit to 32-bit)
+ */
+uint32_t HELPER(nclipr)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    typedef struct {
+        __uint128_t low;
+        uint8_t high;
+    } Uint129;
+
+    Uint129 left_shift_1(__int128_t s1_s128)
+    {
+        Uint129 result;
+        __uint128_t us1 = (__uint128_t)s1_s128;
+        result.low = us1 << 1;
+        result.high = (us1 >> 127) & 0x1;
+        return result;
+    }
+
+    Uint129 right_shift(Uint129 val, uint32_t smt)
+    {
+        Uint129 result;
+        if (smt == 0) {
+            return val;
+        } else if (smt >= 129) {
+            result.low = 0;
+            result.high = 0;
+        } else if (smt == 128) {
+            result.low = val.high;
+            result.high = 0;
+        } else {
+            result.low = (val.low >> smt) |
+                         ((__uint128_t)val.high << (128 - smt));
+            result.high = (val.high >> smt);
+        }
+        return result;
+    }
+
+    __int128_t s1_s128 = (__int128_t)((int64_t)s1);
+    Uint129 shx_129bit = left_shift_1(s1_s128);
+    Uint129 shx = right_shift(shx_129bit, shamt & 0x3F);
+    int64_t round_shx = (int64_t)((shx.low + 1) >> 1);
+
+    if (round_shx < -2147483648LL) {
+        env->vxsat = 1;
+        return 0x80000000U;
+    } else if (round_shx > 2147483647LL) {
+        env->vxsat = 1;
+        return 0x7FFFFFFFU;
+    } else {
+        return (uint32_t)round_shx;
+    }
+}
+
+/**
+ * NCLIPU - Narrowing clip unsigned from register (64-bit to 32-bit)
+ */
+uint32_t HELPER(nclipu)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    uint64_t shx = s1 >> (shamt & 0x3F);
+
+    if (shx > 4294967295ULL) {
+        env->vxsat = 1;
+        return 0xFFFFFFFFU;
+    } else {
+        return (uint32_t)(shx & 0xFFFFFFFF);
+    }
+}
+
+/**
+ * NCLIPRU - Narrowing clip unsigned with rounding
+ * from register (64-bit to 32-bit)
+ */
+uint32_t HELPER(nclipru)(CPURISCVState *env, uint64_t s1, uint32_t shamt)
+{
+    __uint128_t shx_65bit = (s1 << 1);
+    __uint128_t shx = shx_65bit >> (shamt & 0x3F);
+    uint64_t round_shx = (shx + 1) >> 1;
+
+    if (round_shx > 4294967295ULL) {
+        env->vxsat = 1;
+        return 0xFFFFFFFFU;
+    } else {
+        return (uint32_t)(round_shx & 0xFFFFFFFF);
+    }
+}
+
+/* Multiplication with Even-Odd Register Pairs as Destination (RV32 only) */
+
+/**
+ * PMQWACC.H - Packed Q-format halfword to word multiply accumulate
+ */
+uint64_t HELPER(pmqwacc_h)(CPURISCVState *env, uint32_t rs1,
+                           uint32_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int16_t s1_h = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s2_h = (int16_t)EXTRACT16(rs2, i * 2);
+        int32_t d_w = (int32_t)EXTRACT32(dest, i);
+        int64_t prod = (int64_t)s1_h * (int64_t)s2_h;
+        uint32_t res = (uint32_t)(d_w + (int32_t)(prod >> 15));
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PMQRWACC.H - Packed Q-format halfword to word multiply
+ * accumulate with rounding
+ */
+uint64_t HELPER(pmqrwacc_h)(CPURISCVState *env, uint32_t rs1,
+                            uint32_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int16_t s1_h = (int16_t)EXTRACT16(rs1, i * 2);
+        int16_t s2_h = (int16_t)EXTRACT16(rs2, i * 2);
+        int32_t d_w = (int32_t)EXTRACT32(dest, i);
+        int64_t prod = (int64_t)s1_h * (int64_t)s2_h + (1LL << 14);
+        uint32_t res = (uint32_t)(d_w + (int32_t)(prod >> 15));
+        rd = INSERT32(rd, res, i);
+    }
+    return rd;
+}
+
+/**
+ * PWMUL.B - Widening byte to halfword multiplication
+ */
+uint64_t HELPER(pwmul_b)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 4; i++) {
+        int8_t s1_b = (int8_t)EXTRACT8(rs1, i);
+        int8_t s2_b = (int8_t)EXTRACT8(rs2, i);
+        int16_t prod = (int16_t)s1_b * (int16_t)s2_b;
+        rd |= ((uint64_t)(uint16_t)prod) << (i * 16);
+    }
+    return rd;
+}
+
+/**
+ * PWMULSU.B - Widening signed x unsigned byte to halfword multiplication
+ */
+uint64_t HELPER(pwmulsu_b)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 4; i++) {
+        int8_t s1_b = (int8_t)EXTRACT8(rs1, i);
+        uint8_t s2_b = EXTRACT8(rs2, i);
+        int16_t prod = (int16_t)s1_b * (uint16_t)s2_b;
+        rd |= ((uint64_t)(uint16_t)prod) << (i * 16);
+    }
+    return rd;
+}
+
+/**
+ * PWMULU.B - Widening unsigned byte to halfword multiplication
+ */
+uint64_t HELPER(pwmulu_b)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint8_t s1_b = EXTRACT8(rs1, i);
+        uint8_t s2_b = EXTRACT8(rs2, i);
+        uint16_t prod = (uint16_t)s1_b * (uint16_t)s2_b;
+        rd |= ((uint64_t)prod) << (i * 16);
+    }
+    return rd;
+}
+
+/**
+ * PWMUL.H - Widening halfword to word multiplication
+ */
+uint64_t HELPER(pwmul_h)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int16_t s1_h = (int16_t)EXTRACT16(rs1, i);
+        int16_t s2_h = (int16_t)EXTRACT16(rs2, i);
+        int32_t prod = (int32_t)s1_h * (int32_t)s2_h;
+        rd |= ((uint64_t)(uint32_t)prod) << (i * 32);
+    }
+    return rd;
+}
+
+/**
+ * PWMULSU.H - Widening signed x unsigned halfword to word multiplication
+ */
+uint64_t HELPER(pwmulsu_h)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int16_t s1_h = (int16_t)EXTRACT16(rs1, i);
+        uint16_t s2_h = EXTRACT16(rs2, i);
+        int32_t prod = (int32_t)s1_h * (uint32_t)s2_h;
+        rd |= ((uint64_t)(uint32_t)prod) << (i * 32);
+    }
+    return rd;
+}
+
+/**
+ * PWMULU.H - Widening unsigned halfword to word multiplication
+ */
+uint64_t HELPER(pwmulu_h)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        uint16_t s1_h = EXTRACT16(rs1, i);
+        uint16_t s2_h = EXTRACT16(rs2, i);
+        uint32_t prod = (uint32_t)s1_h * (uint32_t)s2_h;
+        rd |= ((uint64_t)prod) << (i * 32);
+    }
+    return rd;
+}
+
+/**
+ * PWMACC.H - Widening multiply accumulate (halfword to word)
+ */
+uint64_t HELPER(pwmacc_h)(CPURISCVState *env, uint32_t rs1,
+                          uint32_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int16_t s1_h = (int16_t)EXTRACT16(rs1, i);
+        int16_t s2_h = (int16_t)EXTRACT16(rs2, i);
+        int32_t d_w = (int32_t)EXTRACT32(dest, i);
+        int32_t prod = (int32_t)s1_h * (int32_t)s2_h;
+        uint32_t res = (uint32_t)(d_w + prod);
+        rd |= ((uint64_t)res) << (i * 32);
+    }
+    return rd;
+}
+
+/**
+ * PWMACCSU.H - Widening signed x unsigned multiply
+ * accumulate (halfword to word)
+ */
+uint64_t HELPER(pwmaccsu_h)(CPURISCVState *env, uint32_t rs1,
+                            uint32_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        int16_t s1_h = (int16_t)EXTRACT16(rs1, i);
+        uint16_t s2_h = EXTRACT16(rs2, i);
+        int32_t d_w = (int32_t)EXTRACT32(dest, i);
+        int32_t prod = (int32_t)s1_h * (uint32_t)s2_h;
+        uint32_t res = (uint32_t)(d_w + prod);
+        rd |= ((uint64_t)res) << (i * 32);
+    }
+    return rd;
+}
+
+/**
+ * PWMACCU.H - Widening unsigned multiply accumulate (halfword to word)
+ */
+uint64_t HELPER(pwmaccu_h)(CPURISCVState *env, uint32_t rs1,
+                           uint32_t rs2, uint64_t dest)
+{
+    uint64_t rd = 0;
+
+    for (int i = 0; i < 2; i++) {
+        uint16_t s1_h = EXTRACT16(rs1, i);
+        uint16_t s2_h = EXTRACT16(rs2, i);
+        uint32_t d_w = EXTRACT32(dest, i);
+        uint32_t prod = (uint32_t)s1_h * (uint32_t)s2_h;
+        uint32_t res = d_w + prod;
+        rd |= ((uint64_t)res) << (i * 32);
+    }
+    return rd;
+}
+
+/**
+ * MQWACC - Q-format word multiply accumulate
+ */
+uint64_t HELPER(mqwacc)(CPURISCVState *env, uint32_t rs1,
+                        uint32_t rs2, uint64_t dest)
+{
+    int64_t s1 = (int64_t)(int32_t)rs1;
+    int64_t s2 = (int64_t)(int32_t)rs2;
+    int64_t d = (int64_t)dest;
+    __int128_t prod = (__int128_t)s1 * (__int128_t)s2;
+    return (uint64_t)(d + (int64_t)(prod >> 31));
+}
+
+/**
+ * MQRWACC - Q-format word multiply accumulate with rounding
+ */
+uint64_t HELPER(mqrwacc)(CPURISCVState *env, uint32_t rs1,
+                         uint32_t rs2, uint64_t dest)
+{
+    int64_t s1 = (int64_t)(int32_t)rs1;
+    int64_t s2 = (int64_t)(int32_t)rs2;
+    int64_t d = (int64_t)dest;
+    __int128_t prod = (__int128_t)s1 * (__int128_t)s2 + (1LL << 30);
+    return (uint64_t)(d + (int64_t)(prod >> 31));
+}
+
+/**
+ * WMUL - Widening signed multiplication (32-bit to 64-bit, RV32)
+ */
+uint64_t HELPER(wmul)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    return (uint64_t)((int64_t)(int32_t)rs1 * (int64_t)(int32_t)rs2);
+}
+
+/**
+ * WMULSU - Widening signed x unsigned multiplication (32-bit to 64-bit, RV32)
+ */
+uint64_t HELPER(wmulsu)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    return (uint64_t)((int64_t)(int32_t)rs1 * (uint64_t)rs2);
+}
+
+/**
+ * WMULU - Widening unsigned multiplication (32-bit to 64-bit, RV32)
+ */
+uint64_t HELPER(wmulu)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    return (uint64_t)rs1 * (uint64_t)rs2;
+}
+
+/**
+ * WMACC - Widening multiply accumulate signed (32-bit to 64-bit, RV32)
+ */
+uint64_t HELPER(wmacc)(CPURISCVState *env, uint32_t rs1,
+                       uint32_t rs2, uint64_t dest)
+{
+    return (uint64_t)((int64_t)(int32_t)rs1 *
+                      (int64_t)(int32_t)rs2 + (int64_t)dest);
+}
+
+/**
+ * WMACCSU - Widening multiply accumulate signed x unsigned
+ * (32-bit to 64-bit, RV32)
+ */
+uint64_t HELPER(wmaccsu)(CPURISCVState *env, uint32_t rs1,
+                         uint32_t rs2, uint64_t dest)
+{
+    return (uint64_t)((int64_t)(int32_t)rs1 * (uint64_t)rs2 + (int64_t)dest);
+}
+
+/**
+ * WMACCU - Widening multiply accumulate unsigned (32-bit to 64-bit, RV32)
+ */
+uint64_t HELPER(wmaccu)(CPURISCVState *env, uint32_t rs1,
+                        uint32_t rs2, uint64_t dest)
+{
+    return (uint64_t)rs1 * (uint64_t)rs2 + (uint64_t)dest;
+}
+
+/**
+ * PM2WADD.H - Add two widening products (halfword to doubleword)
+ */
+uint64_t HELPER(pm2wadd_h)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    int16_t s1_h0 = (int16_t)EXTRACT16(rs1, 0);
+    int16_t s1_h1 = (int16_t)EXTRACT16(rs1, 1);
+    int16_t s2_h0 = (int16_t)EXTRACT16(rs2, 0);
+    int16_t s2_h1 = (int16_t)EXTRACT16(rs2, 1);
+    int64_t prod0 = (int64_t)s1_h0 * (int64_t)s2_h0;
+    int64_t prod1 = (int64_t)s1_h1 * (int64_t)s2_h1;
+    return (uint64_t)(prod0 + prod1);
+}
+
+/**
+ * PM2WADDSU.H - Add two widening products
+ * (signed x unsigned, halfword to doubleword)
+ */
+uint64_t HELPER(pm2waddsu_h)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    int16_t s1_h0 = (int16_t)EXTRACT16(rs1, 0);
+    int16_t s1_h1 = (int16_t)EXTRACT16(rs1, 1);
+    uint16_t s2_h0 = EXTRACT16(rs2, 0);
+    uint16_t s2_h1 = EXTRACT16(rs2, 1);
+    int64_t prod0 = (int64_t)s1_h0 * (uint64_t)s2_h0;
+    int64_t prod1 = (int64_t)s1_h1 * (uint64_t)s2_h1;
+    return (uint64_t)(prod0 + prod1);
+}
+
+/**
+ * PM2WADDU.H - Add two widening products (unsigned, halfword to doubleword)
+ */
+uint64_t HELPER(pm2waddu_h)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    uint16_t s1_h0 = EXTRACT16(rs1, 0);
+    uint16_t s1_h1 = EXTRACT16(rs1, 1);
+    uint16_t s2_h0 = EXTRACT16(rs2, 0);
+    uint16_t s2_h1 = EXTRACT16(rs2, 1);
+    uint64_t prod0 = (uint64_t)s1_h0 * (uint64_t)s2_h0;
+    uint64_t prod1 = (uint64_t)s1_h1 * (uint64_t)s2_h1;
+    return prod0 + prod1;
+}
+
+/**
+ * PM2WADDA.H - Add two widening products with accumulate
+ * (halfword to doubleword)
+ */
+uint64_t HELPER(pm2wadda_h)(CPURISCVState *env, uint32_t rs1,
+                            uint32_t rs2, uint64_t dest)
+{
+    int16_t s1_h0 = EXTRACT16(rs1, 0);
+    int16_t s1_h1 = EXTRACT16(rs1, 1);
+    int16_t s2_h0 = EXTRACT16(rs2, 0);
+    int16_t s2_h1 = EXTRACT16(rs2, 1);
+    int64_t d_h = (int64_t)dest;
+    int64_t mul_00 = (int64_t)s1_h0 * (int64_t)s2_h0;
+    int64_t mul_11 = (int64_t)s1_h1 * (int64_t)s2_h1;
+    return (uint64_t)(d_h + mul_00 + mul_11);
+}
+
+/**
+ * PM2WADDASU.H - Add two widening products with accumulate
+ * (signed x unsigned, halfword to doubleword)
+ */
+uint64_t HELPER(pm2waddasu_h)(CPURISCVState *env, uint32_t rs1,
+                              uint32_t rs2, uint64_t dest)
+{
+    int16_t s1_h0 = (int16_t)EXTRACT16(rs1, 0);
+    int16_t s1_h1 = (int16_t)EXTRACT16(rs1, 1);
+    uint16_t s2_h0 = (uint16_t)EXTRACT16(rs2, 0);
+    uint16_t s2_h1 = (uint16_t)EXTRACT16(rs2, 1);
+    int64_t d_h = (int64_t)dest;
+    int64_t mul_00 = (int64_t)s1_h0 * (uint64_t)s2_h0;
+    int64_t mul_11 = (int64_t)s1_h1 * (uint64_t)s2_h1;
+    return (uint64_t)(d_h + mul_00 + mul_11);
+}
+
+/**
+ * PM2WADDAU.H - Add two widening products with accumulate
+ * (unsigned, halfword to doubleword)
+ */
+uint64_t HELPER(pm2waddau_h)(CPURISCVState *env, uint32_t rs1,
+                             uint32_t rs2, uint64_t dest)
+{
+    uint16_t s1_h0 = (uint16_t)EXTRACT16(rs1, 0);
+    uint16_t s1_h1 = (uint16_t)EXTRACT16(rs1, 1);
+    uint16_t s2_h0 = (uint16_t)EXTRACT16(rs2, 0);
+    uint16_t s2_h1 = (uint16_t)EXTRACT16(rs2, 1);
+    uint64_t d_h = (uint64_t)dest;
+    uint64_t mul_00 = (uint64_t)s1_h0 * (uint64_t)s2_h0;
+    uint64_t mul_11 = (uint64_t)s1_h1 * (uint64_t)s2_h1;
+    return (uint64_t)(d_h + mul_00 + mul_11);
+}
+
+/**
+ * PM2WADD.HX - Add two widening cross products (halfword to doubleword)
+ */
+uint64_t HELPER(pm2wadd_hx)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    int16_t s1_h0 = (int16_t)EXTRACT16(rs1, 0);
+    int16_t s1_h1 = (int16_t)EXTRACT16(rs1, 1);
+    int16_t s2_h0 = (int16_t)EXTRACT16(rs2, 0);
+    int16_t s2_h1 = (int16_t)EXTRACT16(rs2, 1);
+    int64_t prod01 = (int64_t)s1_h0 * (int64_t)s2_h1;
+    int64_t prod10 = (int64_t)s1_h1 * (int64_t)s2_h0;
+    return (uint64_t)(prod01 + prod10);
+}
+
+/**
+ * PM2WADDA.HX - Add two widening cross products with accumulate
+ * (halfword to doubleword)
+ */
+uint64_t HELPER(pm2wadda_hx)(CPURISCVState *env, uint32_t rs1,
+                             uint32_t rs2, uint64_t dest)
+{
+    int16_t s1_h0 = (int16_t)EXTRACT16(rs1, 0);
+    int16_t s1_h1 = (int16_t)EXTRACT16(rs1, 1);
+    int16_t s2_h0 = (int16_t)EXTRACT16(rs2, 0);
+    int16_t s2_h1 = (int16_t)EXTRACT16(rs2, 1);
+    int64_t d = (int64_t)dest;
+    int64_t prod01 = (int64_t)s1_h0 * (int64_t)s2_h1;
+    int64_t prod10 = (int64_t)s1_h1 * (int64_t)s2_h0;
+    return (uint64_t)(d + prod01 + prod10);
+}
+
+/**
+ * PM2WSUB.H - Subtract two widening products (halfword to doubleword)
+ */
+uint64_t HELPER(pm2wsub_h)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    int16_t s1_h0 = (int16_t)EXTRACT16(rs1, 0);
+    int16_t s1_h1 = (int16_t)EXTRACT16(rs1, 1);
+    int16_t s2_h0 = (int16_t)EXTRACT16(rs2, 0);
+    int16_t s2_h1 = (int16_t)EXTRACT16(rs2, 1);
+    int64_t prod0 = (int64_t)s1_h0 * (int64_t)s2_h0;
+    int64_t prod1 = (int64_t)s1_h1 * (int64_t)s2_h1;
+    return (uint64_t)(prod0 - prod1);
+}
+
+/**
+ * PM2WSUB.HX - Subtract two widening cross products (halfword to doubleword)
+ */
+uint64_t HELPER(pm2wsub_hx)(CPURISCVState *env, uint32_t rs1, uint32_t rs2)
+{
+    int16_t s1_h0 = (int16_t)EXTRACT16(rs1, 0);
+    int16_t s1_h1 = (int16_t)EXTRACT16(rs1, 1);
+    int16_t s2_h0 = (int16_t)EXTRACT16(rs2, 0);
+    int16_t s2_h1 = (int16_t)EXTRACT16(rs2, 1);
+    int64_t prod01 = (int64_t)s1_h0 * (int64_t)s2_h1;
+    int64_t prod10 = (int64_t)s1_h1 * (int64_t)s2_h0;
+    return (uint64_t)(prod01 - prod10);
+}
+
+/**
+ * PM2WSUBA.H - Subtract two widening products with accumulate
+ * (halfword to doubleword)
+ */
+uint64_t HELPER(pm2wsuba_h)(CPURISCVState *env, uint32_t rs1,
+                            uint32_t rs2, uint64_t dest)
+{
+    int16_t s1_h0 = (int16_t)EXTRACT16(rs1, 0);
+    int16_t s1_h1 = (int16_t)EXTRACT16(rs1, 1);
+    int16_t s2_h0 = (int16_t)EXTRACT16(rs2, 0);
+    int16_t s2_h1 = (int16_t)EXTRACT16(rs2, 1);
+    int64_t d = (int64_t)dest;
+    int64_t prod0 = (int64_t)s1_h0 * (int64_t)s2_h0;
+    int64_t prod1 = (int64_t)s1_h1 * (int64_t)s2_h1;
+    return (uint64_t)(d + prod0 - prod1);
+}
+
+/**
+ * PM2WSUBA.HX - Subtract two widening cross products with accumulate
+ * (halfword to doubleword)
+ */
+uint64_t HELPER(pm2wsuba_hx)(CPURISCVState *env, uint32_t rs1,
+                             uint32_t rs2, uint64_t dest)
+{
+    int16_t s1_h0 = (int16_t)EXTRACT16(rs1, 0);
+    int16_t s1_h1 = (int16_t)EXTRACT16(rs1, 1);
+    int16_t s2_h0 = (int16_t)EXTRACT16(rs2, 0);
+    int16_t s2_h1 = (int16_t)EXTRACT16(rs2, 1);
+    int64_t d = (int64_t)dest;
+    int64_t prod01 = (int64_t)s1_h0 * (int64_t)s2_h1;
+    int64_t prod10 = (int64_t)s1_h1 * (int64_t)s2_h0;
+    return (uint64_t)(d + prod01 - prod10);
+}
