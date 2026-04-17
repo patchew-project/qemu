@@ -932,13 +932,6 @@ static uint64_t aspeed_ast2700_scu_read(void *opaque, hwaddr offset,
         return 0;
     }
 
-    switch (reg) {
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Unhandled read at offset 0x%" HWADDR_PRIx "\n",
-                      __func__, offset);
-    }
-
     trace_aspeed_ast2700_scu_read(offset, size, s->regs[reg]);
     return s->regs[reg];
 }
@@ -1262,13 +1255,6 @@ static uint64_t aspeed_ast2700_scuio_read(void *opaque, hwaddr offset,
                       "%s: Out-of-bounds read at offset 0x%" HWADDR_PRIx "\n",
                 __func__, offset);
         return 0;
-    }
-
-    switch (reg) {
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Unhandled read at offset 0x%" HWADDR_PRIx "\n",
-                      __func__, offset);
     }
 
     trace_aspeed_ast2700_scuio_read(offset, size, s->regs[reg]);
