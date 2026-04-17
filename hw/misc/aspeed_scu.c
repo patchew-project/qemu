@@ -147,6 +147,14 @@
 
 /* SSP TSP */
 #define AST2700_SCU_SSP_CTRL_0          TO_REG(0x120)
+#define AST2700_SCU_SSP_CTRL_1          TO_REG(0x124)
+#define AST2700_SCU_SSP_CTRL_2          TO_REG(0x128)
+#define AST2700_SCU_SSP_REMAP_ADDR_0    TO_REG(0x140)
+#define AST2700_SCU_SSP_REMAP_SIZE_0    TO_REG(0x144)
+#define AST2700_SCU_SSP_REMAP_ADDR_1    TO_REG(0x148)
+#define AST2700_SCU_SSP_REMAP_SIZE_1    TO_REG(0x14C)
+#define AST2700_SCU_SSP_REMAP_ADDR_2    TO_REG(0x150)
+#define AST2700_SCU_SSP_REMAP_SIZE_2    TO_REG(0x154)
 #define AST2700_SCU_TSP_CTRL_0          TO_REG(0x160)
 #define AST2700_SSP_TSP_ENABLE          BIT(0)
 #define AST2700_SSP_TSP_RST             BIT(1)
@@ -938,6 +946,7 @@ static void aspeed_ast2700_scu_write(void *opaque, hwaddr offset,
 {
     Aspeed2700SCUState *a = ASPEED_2700_SCU(opaque);
     AspeedSCUState *s = ASPEED_SCU(opaque);
+    MemoryRegion *mr = NULL;
     int reg = TO_REG(offset);
     /* Truncate here so bitwise operations below behave as expected */
     uint32_t data = data64;
@@ -995,6 +1004,37 @@ static void aspeed_ast2700_scu_write(void *opaque, hwaddr offset,
         data &= ~AST2700_SSP_TSP_ENABLE;
         s->regs[reg] = (s->regs[reg] & ~0xff) | (data & 0xff);
         return;
+    case AST2700_SCU_SSP_CTRL_1:
+    case AST2700_SCU_SSP_CTRL_2:
+        mr = (reg == AST2700_SCU_SSP_CTRL_1) ?
+            &a->dram_remap_alias[0] : &a->dram_remap_alias[1];
+        if (a->ssp_cpuid < 0 || mr == NULL) {
+            return;
+        }
+        data &= 0x7fffffff;
+        memory_region_set_alias_offset(mr,
+                                       ((uint64_t) data << 4) & 0x3ffffffff);
+        break;
+    case AST2700_SCU_SSP_REMAP_ADDR_1:
+    case AST2700_SCU_SSP_REMAP_ADDR_2:
+        mr = (reg == AST2700_SCU_SSP_REMAP_ADDR_1) ?
+            &a->dram_remap_alias[0] : &a->dram_remap_alias[1];
+        if (a->ssp_cpuid < 0 || mr == NULL) {
+            return;
+        }
+        data &= 0x3fffffff;
+        memory_region_set_address(mr, data);
+        break;
+    case AST2700_SCU_SSP_REMAP_SIZE_1:
+    case AST2700_SCU_SSP_REMAP_SIZE_2:
+        mr = (reg == AST2700_SCU_SSP_REMAP_SIZE_1) ?
+            &a->dram_remap_alias[0] : &a->dram_remap_alias[1];
+        if (a->ssp_cpuid < 0 || mr == NULL) {
+            return;
+        }
+        data &= 0x3fffffff;
+        memory_region_set_size(mr, data);
+        break;
     case AST2700_SCU_SYS_RST_CTRL_1:
         if (a->ssp_cpuid < 0) {
             return;
@@ -1065,6 +1105,14 @@ static const uint32_t ast2700_a0_resets[ASPEED_AST2700_SCU_NR_REGS] = {
     [AST2700_HW_STRAP1_SEC2]        = 0x00000000,
     [AST2700_HW_STRAP1_SEC3]        = 0x1000408F,
     [AST2700_SCU_SSP_CTRL_0]        = 0x000007FE,
+    [AST2700_SCU_SSP_CTRL_1]        = 0x40000000,
+    [AST2700_SCU_SSP_CTRL_2]        = 0x42C00000,
+    [AST2700_SCU_SSP_REMAP_ADDR_0]  = 0x1FFFE000,
+    [AST2700_SCU_SSP_REMAP_SIZE_0]  = 0x00002000,
+    [AST2700_SCU_SSP_REMAP_ADDR_1]  = 0x05880000,
+    [AST2700_SCU_SSP_REMAP_SIZE_1]  = 0x1A77E000,
+    [AST2700_SCU_SSP_REMAP_ADDR_2]  = 0x00000000,
+    [AST2700_SCU_SSP_REMAP_SIZE_2]  = 0x05880000,
     [AST2700_SCU_TSP_CTRL_0]        = 0x000007FE,
     [AST2700_SCU_SYS_RST_CTRL_1]    = 0xFFC37FDC,
     [AST2700_SCU_SYS_RST_CTRL_2]    = 0x00001FFF,
@@ -1097,6 +1145,12 @@ static void aspeed_ast2700_scu_reset(DeviceState *dev)
 
     if (a->ssp_cpuid > 0) {
         arm_set_cpu_off(a->ssp_cpuid);
+        memory_region_set_address(&a->dram_remap_alias[0], 0x5880000);
+        memory_region_set_alias_offset(&a->dram_remap_alias[0], 0);
+        memory_region_set_size(&a->dram_remap_alias[0], 0x1a77e000);
+        memory_region_set_address(&a->dram_remap_alias[1], 0);
+        memory_region_set_alias_offset(&a->dram_remap_alias[1], 0x2c000000);
+        memory_region_set_size(&a->dram_remap_alias[1], 0x5880000);
     }
 
     if (a->tsp_cpuid > 0) {
