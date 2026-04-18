@@ -30,6 +30,7 @@
 #include "ui/console.h"
 #include "ui/input.h"
 #include "qom/object.h"
+#include "migration/vmstate.h"
 
 #define MSMOUSE_LO6(n)  ((n) & 0x3f)
 #define MSMOUSE_HI2(n)  (((n) & 0xc0) >> 6)
@@ -69,6 +70,20 @@ typedef struct MouseChardev MouseChardev;
 #define TYPE_CHARDEV_MSMOUSE "chardev-msmouse"
 DECLARE_INSTANCE_CHECKER(MouseChardev, MOUSE_CHARDEV,
                          TYPE_CHARDEV_MSMOUSE)
+
+static const VMStateDescription vmstate_msmouse = {
+    .name = "msmouse",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_INT32(tiocm, MouseChardev),
+        VMSTATE_INT32_ARRAY(axis, MouseChardev, INPUT_AXIS__MAX),
+        VMSTATE_BOOL_ARRAY(btns, MouseChardev, INPUT_BUTTON__MAX),
+        VMSTATE_BOOL_ARRAY(btnc, MouseChardev, INPUT_BUTTON__MAX),
+        VMSTATE_FIFO8(outbuf, MouseChardev),
+        VMSTATE_END_OF_LIST()
+    },
+};
 
 static void msmouse_chr_accept_input(Chardev *chr)
 {
@@ -247,6 +262,7 @@ static void char_msmouse_finalize(Object *obj)
 {
     MouseChardev *mouse = MOUSE_CHARDEV(obj);
 
+    vmstate_unregister(NULL, &vmstate_msmouse, mouse);
     if (mouse->hs) {
         qemu_input_handler_unregister(mouse->hs);
     }
@@ -263,6 +279,7 @@ static bool msmouse_chr_open(Chardev *chr,
                                             &msmouse_handler);
     mouse->tiocm = 0;
     fifo8_create(&mouse->outbuf, MSMOUSE_BUF_SZ);
+    vmstate_register_any(NULL, &vmstate_msmouse, mouse);
 
     /* Never send CHR_EVENT_OPENED */
     return true;
