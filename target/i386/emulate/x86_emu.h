@@ -31,8 +31,8 @@ struct x86_emul_ops {
     target_ulong (*read_cr) (CPUState *cpu, int cr);
     void (*handle_io)(CPUState *cpu, uint16_t port, void *data, int direction,
                       int size, int count);
-    void (*simulate_rdmsr)(CPUState *cs);
-    void (*simulate_wrmsr)(CPUState *cs);
+    bool (*simulate_rdmsr)(CPUState *cs);
+    bool (*simulate_wrmsr)(CPUState *cs);
     bool (*is_protected_mode)(CPUState *cpu);
     bool (*is_long_mode)(CPUState *cpu);
     bool (*is_user_mode)(CPUState *cpu);
