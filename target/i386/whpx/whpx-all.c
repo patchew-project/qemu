@@ -1007,6 +1007,25 @@ static int emulate_instruction(CPUState *cpu, const uint8_t *insn_bytes, size_t 
     return 0;
 }
 
+static int emulate_msr_instruction(CPUState *cpu, const uint8_t *insn_bytes, size_t insn_len) {
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+    struct x86_decode decode = { 0 };
+    x86_insn_stream stream = { .bytes = insn_bytes, .len = insn_len };
+
+    whpx_get_registers(cpu, WHPX_LEVEL_FAST_RUNTIME_STATE);
+    decode_instruction_stream(env, &decode, &stream);
+
+    if (decode.cmd != X86_DECODE_CMD_RDMSR 
+        && decode.cmd != X86_DECODE_CMD_WRMSR) {
+        return 1;
+    }
+
+    exec_instruction(env, &decode);
+    whpx_set_registers(cpu, WHPX_LEVEL_FAST_RUNTIME_STATE);
+    return 0;
+}
+
 static int whpx_handle_mmio(CPUState *cpu, WHV_RUN_VP_EXIT_CONTEXT *exit_ctx)
 {
     WHV_MEMORY_ACCESS_CONTEXT *ctx = &exit_ctx->MemoryAccess;
@@ -1019,6 +1038,45 @@ static int whpx_handle_mmio(CPUState *cpu, WHV_RUN_VP_EXIT_CONTEXT *exit_ctx)
     }
 
     return 0;
+}
+
+static int whpx_handle_msr_from_gpf(CPUState *cpu)
+{
+    WHV_VP_EXCEPTION_CONTEXT *ctx = &cpu->accel->exit_ctx.VpException;
+    int ret;
+
+    ret = emulate_msr_instruction(cpu, ctx->InstructionBytes, ctx->InstructionByteCount);
+    if (ret == 1) {
+        /* Not an MSR instruction */
+        return 1;
+    }
+
+    return 0;
+}
+
+static void whpx_inject_back_gpf(CPUState* cpu)
+{
+    WHV_VP_EXCEPTION_CONTEXT* ctx = &cpu->accel->exit_ctx.VpException;
+    WHV_REGISTER_VALUE reg = {};
+
+    if (ctx->ExceptionInfo.SoftwareException) {
+        /* TODO */
+        warn_report("Was asked to inject software exception.");
+        return;
+    }
+
+    if (ctx->ExceptionType != EXCP0D_GPF) {
+        warn_report("Was asked to inject exception other than GPF.");
+        return;
+    }
+
+    reg.ExceptionEvent.EventPending = 1;
+    reg.ExceptionEvent.EventType = WHvX64PendingEventException;
+    reg.ExceptionEvent.DeliverErrorCode = ctx->ExceptionInfo.ErrorCodeValid;
+    reg.ExceptionEvent.Vector = ctx->ExceptionType;
+    reg.ExceptionEvent.ErrorCode = ctx->ErrorCode;
+    reg.ExceptionEvent.ExceptionParameter = ctx->ExceptionParameter;
+    whpx_set_reg(cpu, WHvRegisterPendingEvent, reg);
 }
 
 static void handle_io(CPUState *env, uint16_t port, void *buffer,
@@ -1209,13 +1267,54 @@ static target_ulong read_cr(CPUState *cpu, int cr)
     return val.Reg64;
 }
 
+static bool whpx_simulate_rdmsr(CPUState *cs)
+{
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+    uint32_t msr = ECX(env);
+    uint64_t val = 0;
+
+    switch (msr) {
+    default:
+        error_report("WHPX: unknown msr 0x%x\n", msr);
+        x86_emul_raise_exception(&X86_CPU(cpu)->env, EXCP0D_GPF, 0);
+        return 1;
+        break;
+    }
+
+    RAX(env) = (uint32_t)val;
+    RDX(env) = (uint32_t)(val >> 32);
+
+    return 0;
+}
+
+static bool whpx_simulate_wrmsr(CPUState *cs)
+{
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+    uint32_t msr = ECX(env);
+    uint64_t data = ((uint64_t)EDX(env) << 32) | EAX(env);
+
+    switch (msr) {
+    default:
+        error_report("WHPX: unknown msr 0x%x val %llx\n", msr, data);
+        x86_emul_raise_exception(&X86_CPU(cpu)->env, EXCP0D_GPF, 0);
+        return 1;
+        break;
+    }
+
+    return 0;
+}
+
 static const struct x86_emul_ops whpx_x86_emul_ops = {
     .read_segment_descriptor = read_segment_descriptor,
     .handle_io = handle_io,
     .is_protected_mode = is_protected_mode,
     .is_long_mode = is_long_mode,
     .is_user_mode = is_user_mode,
-    .read_cr = read_cr
+    .read_cr = read_cr,
+    .simulate_rdmsr = whpx_simulate_rdmsr,
+    .simulate_wrmsr = whpx_simulate_wrmsr
 };
 
 static void whpx_init_emu(void)
@@ -1294,6 +1393,18 @@ uint32_t whpx_get_supported_cpuid(uint32_t func, uint32_t idx, int reg)
     }
 }
 
+static UINT64 whpx_get_default_exceptions(void)
+{
+    struct whpx_state *whpx = &whpx_global;
+    UINT64 intercepts = 0;
+
+    if (whpx->intercept_msr_gp) {
+        intercepts |= 1UL << WHvX64ExceptionTypeGeneralProtectionFault;
+    }
+
+    return intercepts;
+}
+
 /*
  * Controls whether we should intercept various exceptions on the guest,
  * namely breakpoint/single-step events.
@@ -1316,7 +1427,7 @@ HRESULT whpx_set_exception_exit_bitmap(UINT64 exceptions)
     prop.ExtendedVmExits.X64MsrExit = 1;
     prop.ExtendedVmExits.X64CpuidExit = 1;
 
-    if (exceptions != 0) {
+    if (exceptions != 0 || whpx_get_default_exceptions() != 0) {
         prop.ExtendedVmExits.ExceptionExit = 1;
     }
 
@@ -1331,7 +1442,7 @@ HRESULT whpx_set_exception_exit_bitmap(UINT64 exceptions)
     }
 
     memset(&prop, 0, sizeof(WHV_PARTITION_PROPERTY));
-    prop.ExceptionExitBitmap = exceptions;
+    prop.ExceptionExitBitmap = exceptions | whpx_get_default_exceptions();
 
     hr = whp_dispatch.WHvSetPartitionProperty(
         whpx->partition,
@@ -1341,6 +1452,8 @@ HRESULT whpx_set_exception_exit_bitmap(UINT64 exceptions)
 
     if (SUCCEEDED(hr)) {
         whpx->exception_exit_bitmap = exceptions;
+    } else {
+        error_report("WHPX: Failed to set exception exit bitmap, hr=%08lx", hr);
     }
 
     return hr;
@@ -2476,6 +2589,15 @@ int whpx_vcpu_run(CPUState *cpu)
             break;
         }
         case WHvRunVpExitReasonException:
+            if (vcpu->exit_ctx.VpException.ExceptionType ==
+                WHvX64ExceptionTypeGeneralProtectionFault) {
+                if (whpx_handle_msr_from_gpf(cpu)) {
+                    whpx_inject_back_gpf(cpu);
+                }
+                ret = 0;
+                break;
+            }
+
             whpx_get_registers(cpu, WHPX_LEVEL_FULL_STATE);
 
             if ((vcpu->exit_ctx.VpException.ExceptionType ==
@@ -2980,22 +3102,6 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
         }
     } else if (!is_modern_os && whpx->hyperv_enlightenments_required) {
         error_report("Hyper-V enlightenments not available on legacy Windows");
-        ret = -EINVAL;
-        goto error;
-    }
-
-    /* Register for MSR and CPUID exits */
-    memset(&prop, 0, sizeof(WHV_PARTITION_PROPERTY));
-    prop.ExtendedVmExits.X64MsrExit = 1;
-    prop.ExtendedVmExits.X64CpuidExit = 1;
-
-    hr = whp_dispatch.WHvSetPartitionProperty(
-            whpx->partition,
-            WHvPartitionPropertyCodeExtendedVmExits,
-            &prop,
-            sizeof(WHV_PARTITION_PROPERTY));
-    if (FAILED(hr)) {
-        error_report("WHPX: Failed to enable extended VM exits, hr=%08lx", hr);
         ret = -EINVAL;
         goto error;
     }

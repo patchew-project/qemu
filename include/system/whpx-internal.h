@@ -48,6 +48,7 @@ struct whpx_state {
     bool hyperv_enlightenments_enabled;
 
     bool ignore_unknown_msr;
+    bool intercept_msr_gp;
 };
 
 extern struct whpx_state whpx_global;
