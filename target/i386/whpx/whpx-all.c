@@ -1818,11 +1818,11 @@ static void whpx_inject_exceptions(CPUState* cpu)
         WHV_REGISTER_VALUE reg = {};
         reg.ExceptionEvent.EventPending = 1;
         reg.ExceptionEvent.EventType = WHvX64PendingEventException;
-        reg.ExceptionEvent.DeliverErrorCode = 1;
+        reg.ExceptionEvent.DeliverErrorCode = env->has_error_code;
         reg.ExceptionEvent.Vector = env->exception_nr;
         reg.ExceptionEvent.ErrorCode = env->error_code;
-        if (env->exception_nr == EXCP0E_PAGE) {
-            reg.ExceptionEvent.ExceptionParameter = env->cr[2];
+        if (env->exception_has_payload) {
+            reg.ExceptionEvent.ExceptionParameter = env->exception_payload;
         }
         whpx_set_reg(cpu, WHvRegisterPendingEvent, reg);
     }
