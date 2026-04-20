@@ -531,6 +531,7 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
     uint64_t access_mask;
     unsigned access_size;
     unsigned i;
+    unsigned int checked_size;
     MemTxResult r = MEMTX_OK;
     bool reentrancy_guard_applied = false;
 
@@ -557,13 +558,21 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
     /* FIXME: support unaligned access? */
     access_size = MAX(MIN(size, access_size_max), access_size_min);
     access_mask = MAKE_64BIT_MASK(0, access_size * 8);
+
+    if (addr + size > mr->size) {
+        assert(addr < mr->size);
+        checked_size = mr->size - addr;
+    } else {
+        checked_size = size;
+    }
+
     if (devend_big_endian(mr->ops->endianness)) {
-        for (i = 0; i < size; i += access_size) {
+        for (i = 0; i < checked_size; i += access_size) {
             r |= access_fn(mr, addr + i, value, access_size,
                         (size - access_size - i) * 8, access_mask, attrs);
         }
     } else {
-        for (i = 0; i < size; i += access_size) {
+        for (i = 0; i < checked_size; i += access_size) {
             r |= access_fn(mr, addr + i, value, access_size, i * 8,
                         access_mask, attrs);
         }
