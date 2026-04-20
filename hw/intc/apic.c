@@ -919,6 +919,13 @@ static void apic_send_msi(MSIMessage *msi)
     apic_deliver_irq(dest, dest_mode, delivery, vector, trigger_mode);
 }
 
+static void apic_mask_lvts(APICCommonState *s)
+{
+    for (int i = 0; i < APIC_LVT_NB; i++) {
+        s->lvt[i] |= APIC_LVT_MASKED;
+    }
+}
+
 static int apic_register_write(APICCommonState *s, int index, uint64_t val)
 {
     trace_apic_register_write(index, val);
@@ -963,6 +970,11 @@ static int apic_register_write(APICCommonState *s, int index, uint64_t val)
         break;
     case 0x0f:
         s->spurious_vec = val & 0x1ff;
+
+        if (!(val & APIC_SV_ENABLE)) {
+            apic_mask_lvts(s);
+        }
+
         apic_update_irq(s);
         break;
     case 0x10 ... 0x17:
@@ -997,6 +1009,9 @@ static int apic_register_write(APICCommonState *s, int index, uint64_t val)
         {
             int n = index - 0x32;
             s->lvt[n] = val;
+            if (!(s->spurious_vec & APIC_SV_ENABLE)) {
+                s->lvt[n] |= APIC_LVT_MASKED;
+            }
             if (n == APIC_LVT_TIMER) {
                 apic_timer_update(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
             } else if (n == APIC_LVT_LINT0 && apic_check_pic(s)) {
