@@ -270,9 +270,28 @@ typedef enum WhpxStepMode {
 static uint32_t max_vcpu_index;
 static WHV_PROCESSOR_XSAVE_FEATURES whpx_xsave_cap;
 
-static bool whpx_has_xsave(void)
+bool whpx_has_xsave(void)
 {
     return whpx_xsave_cap.XsaveSupport;
+}
+
+bool whpx_has_xsaves(void)
+{
+    return whpx_xsave_cap.XsaveSupervisorSupport;
+}
+
+static bool whpx_rdtsc_cap;
+
+bool whpx_has_rdtscp(void)
+{
+    return whpx_rdtsc_cap;
+}
+
+static bool whpx_invpcid_cap;
+
+bool whpx_has_invpcid(void)
+{
+    return whpx_invpcid_cap;
 }
 
 static WHV_X64_SEGMENT_REGISTER whpx_seg_q2h(const SegmentCache *qs, int v86,
@@ -1056,6 +1075,11 @@ uint32_t whpx_get_supported_cpuid(uint32_t func, uint32_t idx, int reg)
     uint32_t cpu_index = 0;
     bool temp_cpu = true;
     HRESULT hr;
+
+    /* Legacy OSes don't have WHvGetVirtualProcessorCpuidOutput */
+    if (whpx_is_legacy_os()) {
+        return whpx_get_supported_cpuid_legacy(func, idx, reg);
+    }
 
     hr = whp_dispatch.WHvCreateVirtualProcessor(
         whpx_global.partition, cpu_index, 0);
@@ -2147,7 +2171,7 @@ int whpx_vcpu_run(CPUState *cpu)
              * just pass through what the hypervisor
              * provides without any QEMU filtering.
              */
-            if (whpx_is_legacy_os() || xcc->max_features) {
+            if (xcc->max_features) {
                 reg_values[1].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRax;
                 reg_values[2].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRcx;
                 reg_values[3].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRdx;
@@ -2507,11 +2531,11 @@ void whpx_cpu_instance_init(CPUState *cs)
     host_cpu_instance_init(cpu);
     x86_cpu_apply_props(cpu, whpx_default_props);
 
-    if (!whpx_is_legacy_os() && xcc->max_features) {
+    if (xcc->max_features) {
         whpx_cpu_max_instance_init(cpu);
     }
 
-    if (!whpx_is_legacy_os()) {
+    if (whpx_has_xsave()) {
         whpx_cpu_xsave_init();
     }
 }
@@ -2536,7 +2560,6 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
         0x40000000, 0x40000001, 0x40000010, 0x80000000, 0x80000001,
         0x80000002, 0x80000003, 0x80000004, 0x80000007, 0x80000008,
         0x8000000A, 0x80000021, 0x80000022, 0xC0000000, 0xC0000001};
-    UINT32 cpuidExitList_legacy_os[] = {1, 0x40000000, 0x40000001, 0x40000010};
 
     X86MachineState *x86ms = X86_MACHINE(ms);
     bool pic_enabled = false;
@@ -2700,6 +2723,9 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
         goto error;
     }
 
+    whpx_rdtsc_cap = processor_features.Bank0.RdtscpSupport;
+    whpx_invpcid_cap = processor_features.Bank0.InvpcidSupport;
+
     if (whpx_irqchip_in_kernel() && processor_features.Bank1.NestedVirtSupport) {
         memset(&prop, 0, sizeof(WHV_PARTITION_PROPERTY));
         prop.NestedVirtualization = 1;
@@ -2808,7 +2834,7 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     hr = whp_dispatch.WHvSetPartitionProperty(
         whpx->partition,
         WHvPartitionPropertyCodeCpuidExitList,
-        !whpx_is_legacy_os() ? cpuidExitList : cpuidExitList_legacy_os,
+        cpuidExitList,
         RTL_NUMBER_OF(cpuidExitList) * sizeof(UINT32));
 
     if (FAILED(hr)) {

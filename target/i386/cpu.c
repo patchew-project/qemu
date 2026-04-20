@@ -8092,9 +8092,6 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w)
     } else if (whpx_enabled()) {
         if (wi->type != CPUID_FEATURE_WORD) {
             return 0;
-        }
-        if (whpx_is_legacy_os()) {
-            r = wi->tcg_features;
         } else {
             r = whpx_get_supported_cpuid(wi->cpuid.eax,
                                         wi->cpuid.ecx,
@@ -8182,17 +8179,10 @@ static void x86_cpu_get_supported_cpuid(uint32_t func, uint32_t index,
         *ecx = hvf_get_supported_cpuid(func, index, R_ECX);
         *edx = hvf_get_supported_cpuid(func, index, R_EDX);
     } else if (whpx_enabled()) {
-        if (whpx_is_legacy_os()) {
-            *eax = 0;
-            *ebx = 0;
-            *ecx = 0;
-            *edx = 0;
-        } else {
-            *eax = whpx_get_supported_cpuid(func, index, R_EAX);
-            *ebx = whpx_get_supported_cpuid(func, index, R_EBX);
-            *ecx = whpx_get_supported_cpuid(func, index, R_ECX);
-            *edx = whpx_get_supported_cpuid(func, index, R_EDX);
-        }
+        *eax = whpx_get_supported_cpuid(func, index, R_EAX);
+        *ebx = whpx_get_supported_cpuid(func, index, R_EBX);
+        *ecx = whpx_get_supported_cpuid(func, index, R_ECX);
+        *edx = whpx_get_supported_cpuid(func, index, R_EDX);
     } else {
         *eax = 0;
         *ebx = 0;
