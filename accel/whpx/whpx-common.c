@@ -537,6 +537,38 @@ static void whpx_set_unknown_msr(Object *obj, Visitor *v,
     }
 }
 
+static void whpx_set_intercept_msr_gp(Object *obj, Visitor *v,
+                                   const char *name, void *opaque,
+                                   Error **errp)
+{
+    struct whpx_state *whpx = &whpx_global;
+    OnOffAuto mode;
+
+    if (!visit_type_OnOffAuto(v, name, &mode, errp)) {
+        return;
+    }
+
+    switch (mode) {
+    case ON_OFF_AUTO_ON:
+        whpx->intercept_msr_gp = true;
+        break;
+
+    case ON_OFF_AUTO_OFF:
+        whpx->intercept_msr_gp = false;
+        break;
+
+    case ON_OFF_AUTO_AUTO:
+        whpx->intercept_msr_gp = false;
+        break;
+    default:
+        /*
+         * The value was checked in visit_type_OnOffAuto() above. If
+         * we get here, then something is wrong in QEMU.
+         */
+        abort();
+    }
+}
+
 static void whpx_cpu_accel_class_init(ObjectClass *oc, const void *data)
 {
     AccelCPUClass *acc = ACCEL_CPU_CLASS(oc);
@@ -575,6 +607,11 @@ static void whpx_accel_class_init(ObjectClass *oc, const void *data)
         NULL, NULL);
     object_class_property_set_description(oc, "ignore-unknown-msr",
         "Configure unknown MSR behavior");
+    object_class_property_add(oc, "intercept-msr-gp", "OnOffAuto",
+        NULL, whpx_set_intercept_msr_gp,
+        NULL, NULL);
+    object_class_property_set_description(oc, "intercept-msr-gp",
+        "Intercept #GP to log erroring MSR accesses.");
 }
 
 static void whpx_accel_instance_init(Object *obj)
@@ -590,6 +627,7 @@ static void whpx_accel_instance_init(Object *obj)
     /* Value determined at whpx_accel_init */
     whpx->hyperv_enlightenments_enabled = false;
     whpx->ignore_unknown_msr = true;
+    whpx->intercept_msr_gp = false;
 }
 
 static const TypeInfo whpx_accel_type = {
