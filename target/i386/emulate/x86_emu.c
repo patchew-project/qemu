@@ -792,15 +792,17 @@ void x86_emul_raise_exception(CPUX86State *env, int exception_index, int error_c
 
 static bool exec_rdmsr(CPUX86State *env, struct x86_decode *decode)
 {
-    emul_ops->simulate_rdmsr(env_cpu(env));
-    env->eip += decode->len;
+    if (!emul_ops->simulate_rdmsr(env_cpu(env))) {
+        env->eip += decode->len;
+    }
     return 0;
 }
 
 static bool exec_wrmsr(CPUX86State *env, struct x86_decode *decode)
 {
-    emul_ops->simulate_wrmsr(env_cpu(env));
-    env->eip += decode->len;
+    if (!emul_ops->simulate_wrmsr(env_cpu(env))) {
+        env->eip += decode->len;
+    }
     return 0;
 }
 

@@ -536,7 +536,7 @@ void hvf_store_regs(CPUState *cs)
     macvm_set_rip(cs, env->eip);
 }
 
-void hvf_simulate_rdmsr(CPUState *cs)
+bool hvf_simulate_rdmsr(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
@@ -557,6 +557,7 @@ void hvf_simulate_rdmsr(CPUState *cs)
         ret = apic_msr_read(cpu->apic_state, index, &val);
         if (ret < 0) {
             x86_emul_raise_exception(env, EXCP0D_GPF, 0);
+            return 1;
         }
 
         break;
@@ -639,9 +640,10 @@ void hvf_simulate_rdmsr(CPUState *cs)
 
     RAX(env) = (uint32_t)val;
     RDX(env) = (uint32_t)(val >> 32);
+    return 0;
 }
 
-void hvf_simulate_wrmsr(CPUState *cs)
+bool hvf_simulate_wrmsr(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
@@ -657,6 +659,7 @@ void hvf_simulate_wrmsr(CPUState *cs)
         r = cpu_set_apic_base(cpu->apic_state, data);
         if (r < 0) {
             x86_emul_raise_exception(env, EXCP0D_GPF, 0);
+            return 1;
         }
 
         break;
@@ -668,6 +671,7 @@ void hvf_simulate_wrmsr(CPUState *cs)
         ret = apic_msr_write(cpu->apic_state, index, data);
         if (ret < 0) {
             x86_emul_raise_exception(env, EXCP0D_GPF, 0);
+            return 1;
         }
 
         break;
@@ -746,6 +750,7 @@ void hvf_simulate_wrmsr(CPUState *cs)
          g_hypervisor_iface->wrmsr_handler(cs, msr, data);
 
     printf("write msr %llx\n", RCX(cs));*/
+    return 0;
 }
 
 static int hvf_handle_vmexit(CPUState *cpu)
