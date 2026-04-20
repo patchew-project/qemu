@@ -6349,9 +6349,24 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             .fgt = FGT_CLIDR_EL1,
             .resetvalue = GET_IDREG(isar, CLIDR)
         };
+        uint64_t dbgtr_el0_kvmidx =
+            cpreg_to_kvm_id(ENCODE_CP_REG(14, 0, 1, 0, 5, 3, 0));
+
         define_one_arm_cp_reg(cpu, &clidr);
         define_arm_cp_regs(cpu, v7_cp_reginfo);
         define_debug_regs(cpu);
+        /**
+         * AArch32 DBGDTRTX has been introduced with a wrong encoding.
+         * This was fixed by commit 655659a74a36 ("target/arm: Correct
+         * encoding of Debug Communications Channel registers") by the
+         * introduction of correct separate cpreg definitions
+         * for AA64 and AA32 versions. However the old cpreg definition
+         * couldn't be removed without breaking the migration. From qemu 11.1
+         * onwards we can use the migration tolerance infrastructure to
+         * remove it.
+         */
+        arm_register_cpreg_mig_tolerance(cpu, dbgtr_el0_kvmidx,
+                                         0, 0, ToleranceNotOnBothEnds);
     } else {
         define_arm_cp_regs(cpu, not_v7_cp_reginfo);
     }
