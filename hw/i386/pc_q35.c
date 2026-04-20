@@ -367,6 +367,7 @@ static void pc_q35_machine_options(MachineClass *m)
 static void pc_q35_machine_11_0_options(MachineClass *m)
 {
     pc_q35_machine_options(m);
+    compat_props_add(m->compat_props, hw_compat_11_0, hw_compat_11_0_len);
 }
 
 DEFINE_Q35_MACHINE_AS_LATEST(11, 0);
