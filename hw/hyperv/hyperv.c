@@ -26,7 +26,6 @@
 #include "hw/hyperv/hyperv.h"
 #include "qom/object.h"
 #include "target/i386/kvm/hyperv-proto.h"
-#include "exec/target_page.h"
 
 struct SynICState {
     DeviceState parent_obj;
