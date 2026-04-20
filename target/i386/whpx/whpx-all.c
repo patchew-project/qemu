@@ -2568,6 +2568,14 @@ int whpx_vcpu_run(CPUState *cpu)
                 }
             }
 
+            /* CPUID[0xD,{1,2}].EBX are dynamic depending on guest features. */
+            if (vcpu->exit_ctx.CpuidAccess.Rax == 0xd) {
+                if (vcpu->exit_ctx.CpuidAccess.Rcx == 1
+                    || vcpu->exit_ctx.CpuidAccess.Rcx == 2) {
+                    reg_values[4].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRbx;
+                }
+            }
+
             /* OSXSAVE is dynamic. Do this instead of syncing CR4 */
             if (vcpu->exit_ctx.CpuidAccess.Rax == 1) {
                 if (vcpu->exit_ctx.CpuidAccess.DefaultResultRcx
@@ -2869,7 +2877,7 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     WHV_PROCESSOR_FEATURES_BANKS processor_features;
     WHV_PROCESSOR_PERFMON_FEATURES perfmon_features;
 
-    UINT32 cpuidExitList[] = {0x0, 0x1, 0x6, 0x7, 0xb, 0x14, 0x24, 0x29, 0x1E,
+    UINT32 cpuidExitList[] = {0x0, 0x1, 0x6, 0x7, 0xb, 0xd, 0x14, 0x24, 0x29, 0x1E,
         0x40000000, 0x40000001, 0x40000010, 0x80000000, 0x80000001,
         0x80000002, 0x80000003, 0x80000004, 0x80000007, 0x80000008,
         0x8000000A, 0x80000021, 0x80000022, 0xC0000000, 0xC0000001};
