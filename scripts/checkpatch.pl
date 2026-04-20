@@ -2441,6 +2441,7 @@ sub process {
 			if ($name =~ /^(?:
 				if|for|while|switch|return|case|
 				volatile|__volatile__|coroutine_fn|
+				coroutine_mixed_fn|no_coroutine_fn|
 				__attribute__|format|__extension__|
 				asm|__asm__)$/x)
 			{
