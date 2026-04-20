@@ -2269,10 +2269,8 @@ typedef struct CPUArchState {
     int64_t user_tsc_khz; /* for sanity check only */
     uint64_t apic_bus_freq;
     uint64_t tsc;
-#if defined(CONFIG_KVM) || defined(CONFIG_HVF)
     void *xsave_buf;
     uint32_t xsave_buf_len;
-#endif
 #if defined(CONFIG_KVM)
     struct kvm_nested_state *nested_state;
     MemoryRegion *xen_vcpu_info_mr;
