@@ -1063,25 +1063,34 @@ static void handle_cpreg_missing_in_incoming_stream(ARMCPU *cpu, uint64_t kvmidx
 {
     g_autofree gchar *name = print_register_name(kvmidx);
 
+    if (arm_cpu_match_cpreg_mig_tolerance(cpu, kvmidx,
+                                          0, 0, ToleranceNotOnBothEnds)) {
+        trace_tolerate_cpreg_missing_in_incoming_stream(name);
+        return;
+    }
     warn_report("%s: %s "
                 "expected by the destination but not in the incoming stream: "
                  "skip it", __func__, name);
 }
 
 /*
- * Handle the situation where @kvmidx is in the incoming stream
- * but not on destination. This currently fails the migration but
- * we plan to accomodate some exceptions, hence the boolean returned value.
+ * Handle the situation where @kvmidx is in the incoming
+ * stream but not on destination. This fails the migration if
+ * no cpreg mig tolerance is matched for this @kvmidx
+ * Return true if the migration should eventually fail
  */
 static bool handle_cpreg_only_in_incoming_stream(ARMCPU *cpu, uint64_t kvmidx)
 {
     g_autofree gchar *name = print_register_name(kvmidx);
-    bool fail = true;
 
+    if (arm_cpu_match_cpreg_mig_tolerance(cpu, kvmidx,
+                                          0, 0, ToleranceNotOnBothEnds)) {
+        trace_tolerate_cpreg_only_in_incoming_stream(name);
+        return false;
+    }
     error_report("%s: %s in the incoming stream but unknown on the "
                  "destination: fail migration", __func__, name);
-
-    return fail;
+    return true;
 }
 
 static int cpu_post_load(void *opaque, int version_id)
