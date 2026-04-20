@@ -95,7 +95,8 @@ static void filter_buffer_cleanup(NetFilterState *nf)
     /* flush packets */
     if (s->incoming_queue) {
         filter_buffer_flush(nf);
-        g_free(s->incoming_queue);
+        qemu_del_net_queue(s->incoming_queue);
+        s->incoming_queue = NULL;
     }
 }
 
