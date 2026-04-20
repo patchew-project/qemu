@@ -20,7 +20,6 @@
 #include "hw/isa/vt82c686.h"
 #include "hw/ide/pci.h"
 #include "hw/i2c/smbus_eeprom.h"
-#include "hw/ppc/ppc.h"
 #include "exec/cpu-common.h"
 #include "system/block-backend.h"
 #include "system/qtest.h"
