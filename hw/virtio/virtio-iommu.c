@@ -28,7 +28,6 @@
 #include "system/kvm.h"
 #include "system/reset.h"
 #include "system/system.h"
-#include "qemu/reserved-region.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
