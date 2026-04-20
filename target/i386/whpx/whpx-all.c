@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "qemu/typedefs.h"
 #include "system/address-spaces.h"
 #include "system/ioport.h"
 #include "gdbstub/helpers.h"
@@ -20,6 +21,7 @@
 #include "system/cpus.h"
 #include "system/runstate.h"
 #include "qemu/main-loop.h"
+#include "qemu/memalign.h"
 #include "hw/core/boards.h"
 #include "hw/intc/ioapic.h"
 #include "hw/intc/i8259.h"
@@ -108,34 +110,6 @@ static const WHV_REGISTER_NAME whpx_register_names[] = {
      * WHvX64RegisterDr7,
      */
 
-    /* X64 Floating Point and Vector Registers */
-    WHvX64RegisterXmm0,
-    WHvX64RegisterXmm1,
-    WHvX64RegisterXmm2,
-    WHvX64RegisterXmm3,
-    WHvX64RegisterXmm4,
-    WHvX64RegisterXmm5,
-    WHvX64RegisterXmm6,
-    WHvX64RegisterXmm7,
-    WHvX64RegisterXmm8,
-    WHvX64RegisterXmm9,
-    WHvX64RegisterXmm10,
-    WHvX64RegisterXmm11,
-    WHvX64RegisterXmm12,
-    WHvX64RegisterXmm13,
-    WHvX64RegisterXmm14,
-    WHvX64RegisterXmm15,
-    WHvX64RegisterFpMmx0,
-    WHvX64RegisterFpMmx1,
-    WHvX64RegisterFpMmx2,
-    WHvX64RegisterFpMmx3,
-    WHvX64RegisterFpMmx4,
-    WHvX64RegisterFpMmx5,
-    WHvX64RegisterFpMmx6,
-    WHvX64RegisterFpMmx7,
-    WHvX64RegisterFpControlStatus,
-    WHvX64RegisterXmmControlStatus,
-
     /* X64 MSRs */
     WHvX64RegisterEfer,
 #ifdef TARGET_X86_64
@@ -180,6 +154,36 @@ static const WHV_REGISTER_NAME whpx_register_names_for_vmexit[] = {
     WHvX64RegisterR13,
     WHvX64RegisterR14,
     WHvX64RegisterR15,
+};
+
+static const WHV_REGISTER_NAME whpx_register_names_legacy_fp[] = {
+    /* X64 Floating Point and Vector Registers (non-xsave) */
+    WHvX64RegisterXmm0,
+    WHvX64RegisterXmm1,
+    WHvX64RegisterXmm2,
+    WHvX64RegisterXmm3,
+    WHvX64RegisterXmm4,
+    WHvX64RegisterXmm5,
+    WHvX64RegisterXmm6,
+    WHvX64RegisterXmm7,
+    WHvX64RegisterXmm8,
+    WHvX64RegisterXmm9,
+    WHvX64RegisterXmm10,
+    WHvX64RegisterXmm11,
+    WHvX64RegisterXmm12,
+    WHvX64RegisterXmm13,
+    WHvX64RegisterXmm14,
+    WHvX64RegisterXmm15,
+    WHvX64RegisterFpMmx0,
+    WHvX64RegisterFpMmx1,
+    WHvX64RegisterFpMmx2,
+    WHvX64RegisterFpMmx3,
+    WHvX64RegisterFpMmx4,
+    WHvX64RegisterFpMmx5,
+    WHvX64RegisterFpMmx6,
+    WHvX64RegisterFpMmx7,
+    WHvX64RegisterFpControlStatus,
+    WHvX64RegisterXmmControlStatus,
 };
 
 struct whpx_register_set {
@@ -392,6 +396,123 @@ static int whpx_set_tsc(CPUState *cpu)
     return 0;
 }
 
+static bool whpx_is_xsave_enabled(CPUState *cpu)
+{
+    CPUX86State *env = &X86_CPU(cpu)->env;
+    return env->cr[4] & CR4_OSXSAVE_MASK;
+}
+
+static size_t whpx_get_xsave_max_len(void)
+{
+    return whpx_get_supported_cpuid(0xd, 0, R_ECX);
+}
+
+static int whpx_set_xsave_state(const CPUState *cpu)
+{
+    struct whpx_state *whpx = &whpx_global;
+    X86CPU *x86cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86cpu->env;
+    HRESULT hr;
+    void *xsavec_buf;
+    size_t page = qemu_real_host_page_size();
+    size_t xsavec_buf_len;
+
+    /* allocate and populate compacted buffer */
+    xsavec_buf_len = whpx_get_xsave_max_len();
+    xsavec_buf = qemu_memalign(page, xsavec_buf_len);
+
+    /* save registers to standard format buffer */
+    x86_cpu_xsave_all_areas(x86cpu, env->xsave_buf, env->xsave_buf_len);
+
+    /* store compacted version of xsave area in xsavec_buf */
+    compact_xsave_area(env, xsavec_buf, xsavec_buf_len);
+
+    if (!whpx_is_legacy_os()) {
+        hr = whp_dispatch.WHvSetVirtualProcessorState(
+            whpx->partition, cpu->cpu_index,
+            WHvVirtualProcessorStateTypeXsaveState,
+            xsavec_buf,
+            xsavec_buf_len);
+    } else {
+        hr = whp_dispatch.WHvSetVirtualProcessorXsaveState(
+            whpx->partition, cpu->cpu_index,
+            xsavec_buf,
+            xsavec_buf_len);
+    }
+
+    qemu_vfree(xsavec_buf);
+    if (FAILED(hr)) {
+        error_report("WHPX: Failed to get virtual processor context, hr=%08lx",
+                     hr);
+    }
+
+    return 0;
+}
+
+static void whpx_set_legacy_fp_registers(CPUState *cpu, WHPXStateLevel level)
+{
+    struct whpx_state *whpx = &whpx_global;
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+    struct whpx_register_set vcxt;
+    HRESULT hr;
+    int idx = 0;
+    int i;
+    int idx_next;
+
+    assert(cpu_is_stopped(cpu) || qemu_cpu_is_self(cpu));
+
+    /* 16 XMM registers */
+    assert(whpx_register_names_legacy_fp[idx] == WHvX64RegisterXmm0);
+    idx_next = idx + 16;
+    for (i = 0; i < sizeof(env->xmm_regs) / sizeof(ZMMReg); i += 1, idx += 1) {
+        vcxt.values[idx].Reg128.Low64 = env->xmm_regs[i].ZMM_Q(0);
+        vcxt.values[idx].Reg128.High64 = env->xmm_regs[i].ZMM_Q(1);
+    }
+    idx = idx_next;
+
+    /* 8 FP registers */
+    assert(whpx_register_names_legacy_fp[idx] == WHvX64RegisterFpMmx0);
+    for (i = 0; i < 8; i += 1, idx += 1) {
+        vcxt.values[idx].Fp.AsUINT128.Low64 = env->fpregs[i].mmx.MMX_Q(0);
+        /* vcxt.values[idx].Fp.AsUINT128.High64 =
+               env->fpregs[i].mmx.MMX_Q(1);
+        */
+    }
+
+    /* FP control status register */
+    assert(whpx_register_names_legacy_fp[idx] == WHvX64RegisterFpControlStatus);
+    vcxt.values[idx].FpControlStatus.FpControl = env->fpuc;
+    vcxt.values[idx].FpControlStatus.FpStatus =
+        (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
+    vcxt.values[idx].FpControlStatus.FpTag = 0;
+    for (i = 0; i < 8; ++i) {
+        vcxt.values[idx].FpControlStatus.FpTag |= (!env->fptags[i]) << i;
+    }
+    vcxt.values[idx].FpControlStatus.Reserved = 0;
+    vcxt.values[idx].FpControlStatus.LastFpOp = env->fpop;
+    vcxt.values[idx].FpControlStatus.LastFpRip = env->fpip;
+    idx += 1;
+
+    /* XMM control status register */
+    assert(whpx_register_names_legacy_fp[idx] == WHvX64RegisterXmmControlStatus);
+    vcxt.values[idx].XmmControlStatus.LastFpRdp = 0;
+    vcxt.values[idx].XmmControlStatus.XmmStatusControl = env->mxcsr;
+    vcxt.values[idx].XmmControlStatus.XmmStatusControlMask = 0x0000ffff;
+    idx += 1;
+
+    hr = whp_dispatch.WHvSetVirtualProcessorRegisters(
+        whpx->partition, cpu->cpu_index,
+        whpx_register_names_legacy_fp,
+        idx,
+        &vcxt.values[0]);
+
+    if (FAILED(hr)) {
+        error_report("WHPX: Failed to set virtual processor context, hr=%08lx",
+                     hr);
+    }
+}
+
 void whpx_set_registers(CPUState *cpu, WHPXStateLevel level)
 {
     struct whpx_state *whpx = &whpx_global;
@@ -491,45 +612,11 @@ void whpx_set_registers(CPUState *cpu, WHPXStateLevel level)
          */
         whpx_set_xcrs(cpu);
 
-        /* 16 XMM registers */
-        assert(whpx_register_names[idx] == WHvX64RegisterXmm0);
-        idx_next = idx + 16;
-        for (i = 0; i < sizeof(env->xmm_regs) / sizeof(ZMMReg); i += 1, idx += 1) {
-            vcxt.values[idx].Reg128.Low64 = env->xmm_regs[i].ZMM_Q(0);
-            vcxt.values[idx].Reg128.High64 = env->xmm_regs[i].ZMM_Q(1);
+        if (whpx_is_xsave_enabled(cpu)) {
+            whpx_set_xsave_state(cpu);
+        } else {
+            whpx_set_legacy_fp_registers(cpu, level);
         }
-        idx = idx_next;
-
-        /* 8 FP registers */
-        assert(whpx_register_names[idx] == WHvX64RegisterFpMmx0);
-        for (i = 0; i < 8; i += 1, idx += 1) {
-            vcxt.values[idx].Fp.AsUINT128.Low64 = env->fpregs[i].mmx.MMX_Q(0);
-            /* vcxt.values[idx].Fp.AsUINT128.High64 =
-                       env->fpregs[i].mmx.MMX_Q(1);
-            */
-        }
-
-        /* FP control status register */
-        assert(whpx_register_names[idx] == WHvX64RegisterFpControlStatus);
-        vcxt.values[idx].FpControlStatus.FpControl = env->fpuc;
-        vcxt.values[idx].FpControlStatus.FpStatus =
-            (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
-        vcxt.values[idx].FpControlStatus.FpTag = 0;
-        for (i = 0; i < 8; ++i) {
-            vcxt.values[idx].FpControlStatus.FpTag |= (!env->fptags[i]) << i;
-        }
-        vcxt.values[idx].FpControlStatus.Reserved = 0;
-        vcxt.values[idx].FpControlStatus.LastFpOp = env->fpop;
-        vcxt.values[idx].FpControlStatus.LastFpRip = env->fpip;
-        idx += 1;
-
-        /* XMM control status register */
-        assert(whpx_register_names[idx] == WHvX64RegisterXmmControlStatus);
-        vcxt.values[idx].XmmControlStatus.LastFpRdp = 0;
-        vcxt.values[idx].XmmControlStatus.XmmStatusControl = env->mxcsr;
-        vcxt.values[idx].XmmControlStatus.XmmStatusControlMask = 0x0000ffff;
-        idx += 1;
-
         /* MSRs */
         assert(whpx_register_names[idx] == WHvX64RegisterEfer);
         vcxt.values[idx++].Reg64 = env->efer;
@@ -662,6 +749,110 @@ static void whpx_get_registers_for_vmexit(CPUState *cpu, WHPXStateLevel level)
     x86_update_hflags(env);
 }
 
+static void whpx_get_legacy_fp_registers(CPUState *cpu, WHPXStateLevel level)
+{
+    struct whpx_state *whpx = &whpx_global;
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+    struct whpx_register_set vcxt;
+    HRESULT hr;
+    int i;
+    int idx;
+    int idx_next;
+
+    assert(cpu_is_stopped(cpu) || qemu_cpu_is_self(cpu));
+
+    hr = whp_dispatch.WHvGetVirtualProcessorRegisters(
+        whpx->partition, cpu->cpu_index,
+        whpx_register_names_legacy_fp,
+        RTL_NUMBER_OF(whpx_register_names_legacy_fp),
+        &vcxt.values[0]);
+
+    if (FAILED(hr)) {
+        error_report("WHPX: Failed to get virtual processor context, hr=%08lx",
+                     hr);
+    }
+
+    idx = 0;
+    /* 16 XMM registers */
+    assert(whpx_register_names_legacy_fp[idx] == WHvX64RegisterXmm0);
+    idx_next = idx + 16;
+    for (i = 0; i < sizeof(env->xmm_regs) / sizeof(ZMMReg); i += 1, idx += 1) {
+        env->xmm_regs[i].ZMM_Q(0) = vcxt.values[idx].Reg128.Low64;
+        env->xmm_regs[i].ZMM_Q(1) = vcxt.values[idx].Reg128.High64;
+    }
+    idx = idx_next;
+
+    /* 8 FP registers */
+    assert(whpx_register_names_legacy_fp[idx] == WHvX64RegisterFpMmx0);
+    for (i = 0; i < 8; i += 1, idx += 1) {
+        env->fpregs[i].mmx.MMX_Q(0) = vcxt.values[idx].Fp.AsUINT128.Low64;
+        /* env->fpregs[i].mmx.MMX_Q(1) =
+               vcxt.values[idx].Fp.AsUINT128.High64;
+        */
+    }
+
+    /* FP control status register */
+    assert(whpx_register_names_legacy_fp[idx] == WHvX64RegisterFpControlStatus);
+    env->fpuc = vcxt.values[idx].FpControlStatus.FpControl;
+    env->fpstt = (vcxt.values[idx].FpControlStatus.FpStatus >> 11) & 0x7;
+    env->fpus = vcxt.values[idx].FpControlStatus.FpStatus & ~0x3800;
+    for (i = 0; i < 8; ++i) {
+        env->fptags[i] = !((vcxt.values[idx].FpControlStatus.FpTag >> i) & 1);
+    }
+    env->fpop = vcxt.values[idx].FpControlStatus.LastFpOp;
+    env->fpip = vcxt.values[idx].FpControlStatus.LastFpRip;
+    idx += 1;
+
+    /* XMM control status register */
+    assert(whpx_register_names_legacy_fp[idx] == WHvX64RegisterXmmControlStatus);
+    env->mxcsr = vcxt.values[idx].XmmControlStatus.XmmStatusControl;
+    idx += 1;
+}
+
+static int whpx_get_xsave_state(CPUState *cpu)
+{
+    struct whpx_state *whpx = &whpx_global;
+    X86CPU *x86cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86cpu->env;
+    int ret;
+    HRESULT hr;
+    void *xsavec_buf;
+    const size_t page = qemu_real_host_page_size();
+    size_t xsavec_buf_len = whpx_get_xsave_max_len();
+    UINT32 bytes_written;
+
+    xsavec_buf = qemu_memalign(page, xsavec_buf_len);
+    memset(xsavec_buf, 0, xsavec_buf_len);
+
+    if (!whpx_is_legacy_os()) {
+        hr = whp_dispatch.WHvGetVirtualProcessorState(
+            whpx->partition, cpu->cpu_index,
+            WHvVirtualProcessorStateTypeXsaveState,
+            xsavec_buf,
+            xsavec_buf_len, &bytes_written);
+    } else {
+        hr = whp_dispatch.WHvGetVirtualProcessorXsaveState(
+            whpx->partition, cpu->cpu_index,
+            xsavec_buf,
+            xsavec_buf_len, &bytes_written);
+    }
+    if (FAILED(hr) || bytes_written == 0) {
+        error_report("failed to get xsave state: %s", strerror(errno));
+        return -errno;
+    }
+
+    ret = decompact_xsave_area(xsavec_buf, xsavec_buf_len, env);
+    qemu_vfree(xsavec_buf);
+    if (ret < 0) {
+        error_report("failed to decompact xsave area");
+        return ret;
+    }
+    x86_cpu_xrstor_all_areas(x86cpu, env->xsave_buf, env->xsave_buf_len);
+
+    return 0;
+}
+
 void whpx_get_registers(CPUState *cpu, WHPXStateLevel level)
 {
     struct whpx_state *whpx = &whpx_global;
@@ -758,40 +949,11 @@ void whpx_get_registers(CPUState *cpu, WHPXStateLevel level)
      */
     whpx_get_xcrs(cpu);
 
-    /* 16 XMM registers */
-    assert(whpx_register_names[idx] == WHvX64RegisterXmm0);
-    idx_next = idx + 16;
-    for (i = 0; i < sizeof(env->xmm_regs) / sizeof(ZMMReg); i += 1, idx += 1) {
-        env->xmm_regs[i].ZMM_Q(0) = vcxt.values[idx].Reg128.Low64;
-        env->xmm_regs[i].ZMM_Q(1) = vcxt.values[idx].Reg128.High64;
+    if (whpx_is_xsave_enabled(cpu)) {
+        whpx_get_xsave_state(cpu);
+    } else {
+        whpx_get_legacy_fp_registers(cpu, level);
     }
-    idx = idx_next;
-
-    /* 8 FP registers */
-    assert(whpx_register_names[idx] == WHvX64RegisterFpMmx0);
-    for (i = 0; i < 8; i += 1, idx += 1) {
-        env->fpregs[i].mmx.MMX_Q(0) = vcxt.values[idx].Fp.AsUINT128.Low64;
-        /* env->fpregs[i].mmx.MMX_Q(1) =
-               vcxt.values[idx].Fp.AsUINT128.High64;
-        */
-    }
-
-    /* FP control status register */
-    assert(whpx_register_names[idx] == WHvX64RegisterFpControlStatus);
-    env->fpuc = vcxt.values[idx].FpControlStatus.FpControl;
-    env->fpstt = (vcxt.values[idx].FpControlStatus.FpStatus >> 11) & 0x7;
-    env->fpus = vcxt.values[idx].FpControlStatus.FpStatus & ~0x3800;
-    for (i = 0; i < 8; ++i) {
-        env->fptags[i] = !((vcxt.values[idx].FpControlStatus.FpTag >> i) & 1);
-    }
-    env->fpop = vcxt.values[idx].FpControlStatus.LastFpOp;
-    env->fpip = vcxt.values[idx].FpControlStatus.LastFpRip;
-    idx += 1;
-
-    /* XMM control status register */
-    assert(whpx_register_names[idx] == WHvX64RegisterXmmControlStatus);
-    env->mxcsr = vcxt.values[idx].XmmControlStatus.XmmStatusControl;
-    idx += 1;
 
     /* MSRs */
     assert(whpx_register_names[idx] == WHvX64RegisterEfer);
@@ -1525,6 +1687,9 @@ void whpx_arch_destroy_vcpu(CPUState *cpu)
     X86CPU *x86cpu = X86_CPU(cpu);
     CPUX86State *env = &x86cpu->env;
     g_free(env->emu_mmio_buf);
+    qemu_vfree(env->xsave_buf);
+    env->xsave_buf = NULL;
+    env->xsave_buf_len = 0;
 }
 
 /* Returns the address of the next instruction that is about to be executed. */
@@ -2393,6 +2558,9 @@ int whpx_init_vcpu(CPUState *cpu)
     Error *local_error = NULL;
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
+    X86XSaveHeader *header;
+    size_t page_size = qemu_real_host_page_size();
+    size_t xsave_len;
     UINT64 freq = 0;
     int ret;
 
@@ -2469,6 +2637,15 @@ int whpx_init_vcpu(CPUState *cpu)
     qemu_add_vm_change_state_handler(whpx_cpu_update_state, env);
 
     env->emu_mmio_buf = g_new(char, 4096);
+    /* Initialize XSAVE buffer page-aligned */
+    xsave_len = whpx_get_xsave_max_len();
+    env->xsave_buf = qemu_memalign(page_size, xsave_len);
+    env->xsave_buf_len = xsave_len;
+    memset(env->xsave_buf, 0, env->xsave_buf_len);
+
+    /* we need to set the compacted format bit in xsave header for Hyper-V */
+    header = (X86XSaveHeader *)(env->xsave_buf + sizeof(X86LegacyXSaveArea));
+    header->xcomp_bv = header->xstate_bv | (1ULL << 63);
 
     return 0;
 
@@ -2626,10 +2803,6 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
      */
     if (FAILED(hr) && hr != WHV_E_UNKNOWN_PROPERTY) {
         error_report("WHPX: Failed to query XSAVE capability, hr=%08lx", hr);
-    }
-
-    if (!whpx_has_xsave()) {
-        printf("WHPX: Partition is not XSAVE capable\n");
     }
 
     memset(&prop, 0, sizeof(WHV_PARTITION_PROPERTY));
