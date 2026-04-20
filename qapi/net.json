@@ -355,6 +355,13 @@
 # @poll-us: maximum number of microseconds that could be spent on busy
 #     polling for tap (since 2.7)
 #
+# @incoming-fds: do not open or create any TAP devices.  Prepare for
+#     getting TAP file descriptors from incoming migration stream.
+#     The option is incompatible with any of @fd, @fds, @helper, @br,
+#     @ifname, @sndbuf and @vnet_hdr options, and requires @script and
+#     @downscript be explicitly set to nothing (empty string or "no")
+#     (Since 11.1)
+#
 # Since: 1.2
 ##
 { 'struct': 'NetdevTapOptions',
@@ -373,7 +380,8 @@
     '*vhostfds':   'str',
     '*vhostforce': 'bool',
     '*queues':     'uint32',
-    '*poll-us':    'uint32'} }
+    '*poll-us':    'uint32',
+    '*incoming-fds': 'bool' } }
 
 ##
 # @NetdevSocketOptions:
