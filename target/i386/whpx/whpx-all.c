@@ -2179,6 +2179,7 @@ int whpx_vcpu_run(CPUState *cpu)
             WHV_REGISTER_NAME reg_names[3];
             UINT32 reg_count;
             bool is_known_msr = 0; 
+            bool raises_gpf = false;
             uint64_t val;
 
             if (vcpu->exit_ctx.MsrAccess.AccessInfo.IsWrite) {
@@ -2211,6 +2212,7 @@ int whpx_vcpu_run(CPUState *cpu)
                 is_known_msr = 1;
                 if (val & MSR_IA32_APICBASE_RESERVED) {
                     x86_emul_raise_exception(&X86_CPU(cpu)->env, EXCP0D_GPF, 0);
+                    raises_gpf = true;
                 }
                 if (!vcpu->exit_ctx.MsrAccess.AccessInfo.IsWrite) {
                     /* Read path unreachable on Hyper-V */
@@ -2220,6 +2222,7 @@ int whpx_vcpu_run(CPUState *cpu)
                     int msr_ret = cpu_set_apic_base(X86_CPU(cpu)->apic_state, val);
                     if (msr_ret < 0) {
                         x86_emul_raise_exception(&X86_CPU(cpu)->env, EXCP0D_GPF, 0);
+                        raises_gpf = true;
                     } else {
                         whpx_set_reg(cpu, WHvX64RegisterApicBase, reg);
                     }
@@ -2239,6 +2242,7 @@ int whpx_vcpu_run(CPUState *cpu)
                     reg_values[1].Reg64 = val;
                     if (msr_ret < 0) {
                         x86_emul_raise_exception(&X86_CPU(cpu)->env, EXCP0D_GPF, 0);
+                        raises_gpf = true;
                     }
                 } else {
                     bql_lock();
@@ -2246,6 +2250,7 @@ int whpx_vcpu_run(CPUState *cpu)
                     bql_unlock();
                     if (msr_ret < 0) {
                         x86_emul_raise_exception(&X86_CPU(cpu)->env, EXCP0D_GPF, 0);
+                        raises_gpf = true;
                     }
                 }
             }
@@ -2295,6 +2300,13 @@ int whpx_vcpu_run(CPUState *cpu)
 
             if (!is_known_msr && !whpx->ignore_unknown_msr) {
                 x86_emul_raise_exception(&X86_CPU(cpu)->env, EXCP0D_GPF, 0);
+                raises_gpf = true;
+            }
+
+            /* When a GPF is raised, do not change Rip. */
+            if (raises_gpf) {
+                reg_values[0].Reg64 =
+                    vcpu->exit_ctx.VpContext.Rip;
             }
 
             hr = whp_dispatch.WHvSetVirtualProcessorRegisters(
