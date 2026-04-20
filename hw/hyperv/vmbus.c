@@ -21,7 +21,6 @@
 #include "hw/core/sysbus.h"
 #include "exec/cpu-common.h"
 #include "system/kvm.h"
-#include "exec/target_page.h"
 #include "trace.h"
 
 enum {
