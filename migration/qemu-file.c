@@ -550,7 +550,7 @@ void qemu_put_buffer_at(QEMUFile *f, const uint8_t *buf, size_t buflen,
 }
 
 
-size_t qemu_get_buffer_at(QEMUFile *f, const uint8_t *buf, size_t buflen,
+size_t qemu_get_buffer_at(QEMUFile *f, uint8_t *buf, size_t buflen,
                           off_t pos)
 {
     Error *err = NULL;
@@ -559,7 +559,7 @@ size_t qemu_get_buffer_at(QEMUFile *f, const uint8_t *buf, size_t buflen,
         return 0;
     }
 
-    if (qio_channel_pread_all(f->ioc, (char *)buf, buflen, pos, &err) < 0) {
+    if (qio_channel_pread_all(f->ioc, buf, buflen, pos, &err) < 0) {
         qemu_file_set_error_obj(f, -EIO, err);
         return 0;
     }
