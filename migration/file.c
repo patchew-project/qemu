@@ -200,7 +200,7 @@ void file_connect_incoming(FileMigrationArgs *file_args, Error **errp)
 int file_write_ramblock_iov(QIOChannel *ioc, const struct iovec *iov,
                             int niov, MultiFDPages_t *pages, Error **errp)
 {
-    ssize_t ret = 0;
+    int ret = 0;
     int i, slice_idx, slice_num;
     uintptr_t base, next, offset;
     size_t len;
@@ -239,8 +239,8 @@ int file_write_ramblock_iov(QIOChannel *ioc, const struct iovec *iov,
             break;
         }
 
-        ret = qio_channel_pwritev(ioc, &iov[slice_idx], slice_num,
-                                  block->pages_offset + offset, errp);
+        ret = qio_channel_pwritev_all(ioc, &iov[slice_idx], slice_num,
+                                      block->pages_offset + offset, errp);
         if (ret < 0) {
             break;
         }
@@ -249,7 +249,7 @@ int file_write_ramblock_iov(QIOChannel *ioc, const struct iovec *iov,
         slice_num = 0;
     }
 
-    return (ret < 0) ? ret : 0;
+    return ret;
 }
 
 int multifd_file_recv_data(MultiFDRecvParams *p, Error **errp)
