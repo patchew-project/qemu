@@ -36,6 +36,19 @@
 /* Maximum number of requests in a batch. (default value) */
 #define DEFAULT_MAX_BATCH 32
 
+/*
+ * Bound on how deep ioq_submit() may recurse on a single thread via the
+ * ioq_submit -> qemu_laio_process_completions -> defer_call_end ->
+ * laio_deferred_fn -> ioq_submit cycle. The cycle terminates naturally
+ * when io_submit(2) returns asynchronously (O_DIRECT), but can grow
+ * without bound when submissions complete synchronously. On overflow
+ * the caller returns without submitting; the outermost
+ * qemu_laio_process_completions() has already scheduled s->completion_bh
+ * (via qemu_bh_schedule() at the top of that function), which resumes
+ * submission from the next event-loop dispatch.
+ */
+#define IOQ_SUBMIT_MAX_DEPTH 8
+
 struct qemu_laiocb {
     Coroutine *co;
     LinuxAioState *ctx;
@@ -79,6 +92,9 @@ struct LinuxAioState {
 
 static void ioq_submit(LinuxAioState *s);
 static int laio_do_submit(struct qemu_laiocb *laiocb);
+
+/* Per-thread recursion counter for ioq_submit(). See IOQ_SUBMIT_MAX_DEPTH. */
+static __thread unsigned ioq_submit_depth;
 
 static inline ssize_t io_event_ret(struct io_event *ev)
 {
@@ -340,6 +356,11 @@ static void ioq_submit(LinuxAioState *s)
     QEMU_UNINITIALIZED struct iocb *iocbs[MAX_EVENTS];
     QSIMPLEQ_HEAD(, qemu_laiocb) completed;
 
+    if (ioq_submit_depth >= IOQ_SUBMIT_MAX_DEPTH) {
+        return;
+    }
+    ioq_submit_depth++;
+
     do {
         if (s->io_q.in_flight >= MAX_EVENTS) {
             break;
@@ -385,6 +406,8 @@ static void ioq_submit(LinuxAioState *s)
          * pended requests will be submitted from there.
          */
     }
+
+    ioq_submit_depth--;
 }
 
 static uint64_t laio_max_batch(LinuxAioState *s, uint64_t dev_max_batch)
