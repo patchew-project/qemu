@@ -1076,6 +1076,12 @@ static void populate_time_info(MigrationInfo *info, MigrationState *s)
     }
 }
 
+static void populate_global_info(MigrationInfo *info, MigrationState *s)
+{
+    info->has_remaining = true;
+    info->remaining = qatomic_read(&mig_stats.dirty_bytes_total);
+}
+
 static void populate_ram_info(MigrationInfo *info, MigrationState *s)
 {
     size_t page_size = qemu_target_page_size();
@@ -1177,6 +1183,7 @@ static void fill_source_migration_info(MigrationInfo *info)
         /* TODO add some postcopy stats */
         populate_time_info(info, s);
         populate_ram_info(info, s);
+        populate_global_info(info, s);
         migration_populate_vfio_info(info);
         break;
     case MIGRATION_STATUS_COLO:

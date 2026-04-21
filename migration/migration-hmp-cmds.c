@@ -178,6 +178,11 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
         }
     }
 
+    if (info->has_remaining) {
+        g_autofree char *remaining = size_to_str(info->remaining);
+        monitor_printf(mon, "Remaining: \t\t%s\n", remaining);
+    }
+
     if (info->has_socket_address) {
         SocketAddressList *addr;
 

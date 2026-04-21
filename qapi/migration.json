@@ -300,6 +300,9 @@
 #     average memory load of the virtual CPU indirectly.  Note that
 #     zero means guest doesn't dirty memory.  (Since 8.1)
 #
+# @remaining: amount of bytes remaining to be migrated system-wise,
+#     includes both RAM and all devices (like VFIO).  (Since 11.1)
+#
 # Features:
 #
 # @unstable: Members @postcopy-latency, @postcopy-vcpu-latency,
@@ -310,6 +313,7 @@
 ##
 { 'struct': 'MigrationInfo',
   'data': {'*status': 'MigrationStatus', '*ram': 'MigrationRAMStats',
+           '*remaining': 'uint64',
            '*vfio': 'VfioStats',
            '*xbzrle-cache': 'XBZRLECacheStats',
            '*total-time': 'int',
