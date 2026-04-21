@@ -921,15 +921,15 @@
 #     (Since 2.8)
 #
 # @avail-switchover-bandwidth: to set the available bandwidth that
-#     migration can use during switchover phase.  **Note:** this does
-#     not limit the bandwidth during switchover, but only for
-#     calculations when making decisions to switchover.  By default,
-#     this value is zero, which means QEMU will estimate the bandwidth
-#     automatically.  This can be set when the estimated value is not
-#     accurate, while the user is able to guarantee such bandwidth is
-#     available when switching over.  When specified correctly, this
-#     can make the switchover decision much more accurate.
-#     (Since 8.2)
+#     migration can use during switchover phase, in bytes per
+#     second.  **Note:** this does not limit the bandwidth during
+#     switchover, but only for calculations when making decisions to
+#     switchover.  By default, this value is zero, which means QEMU
+#     will estimate the bandwidth automatically.  This can be set
+#     when the estimated value is not accurate, while the user is
+#     able to guarantee such bandwidth is available when switching
+#     over.  When specified correctly, this can make the switchover
+#     decision much more accurate.  (Since 8.2)
 #
 # @downtime-limit: set maximum tolerated downtime for migration.
 #     maximum downtime in milliseconds (Since 2.8)
