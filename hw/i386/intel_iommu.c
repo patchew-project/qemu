@@ -4825,9 +4825,12 @@ static void vtd_dev_unset_iommu_device(PCIBus *bus, void *opaque, int devfn)
 static uint64_t vtd_get_viommu_flags(void *opaque)
 {
     IntelIOMMUState *s = opaque;
-    uint64_t flags;
+    uint64_t flags = 0;
 
-    flags = s->fsts ? VIOMMU_FLAG_WANT_NESTING_PARENT : 0;
+    if (s->fsts) {
+        flags = VIOMMU_FLAG_WANT_NESTING_PARENT |
+                VIOMMU_FLAG_WANT_NESTING_DIRTY_TRACKING;
+    }
 
     return flags;
 }

@@ -352,6 +352,7 @@ static bool iommufd_cdev_autodomains_get(VFIODevice *vbasedev,
     ERRP_GUARD();
     IOMMUFDBackend *iommufd = vbasedev->iommufd;
     VFIOContainer *bcontainer = VFIO_IOMMU(container);
+    bool viommu_nesting, viommu_nesting_dirty;
     uint32_t type, flags = 0;
     uint64_t hw_caps;
     VendorCaps caps;
@@ -405,8 +406,14 @@ static bool iommufd_cdev_autodomains_get(VFIODevice *vbasedev,
         return false;
     }
 
+    viommu_nesting = vfio_device_get_viommu_flags_want_nesting(vbasedev);
+    viommu_nesting_dirty =
+        vfio_device_get_viommu_flags_want_nesting_dirty(vbasedev);
+
     if (hw_caps & IOMMU_HW_CAP_DIRTY_TRACKING) {
-        flags = IOMMU_HWPT_ALLOC_DIRTY_TRACKING;
+        if (!viommu_nesting || viommu_nesting_dirty) {
+            flags |= IOMMU_HWPT_ALLOC_DIRTY_TRACKING;
+        }
     }
 
     /*
@@ -414,7 +421,7 @@ static bool iommufd_cdev_autodomains_get(VFIODevice *vbasedev,
      * force to create it so that it could be reused by vIOMMU to create
      * nested HWPT.
      */
-    if (vfio_device_get_viommu_flags_want_nesting(vbasedev)) {
+    if (viommu_nesting) {
         flags |= IOMMU_HWPT_ALLOC_NEST_PARENT;
 
         if (vfio_device_get_host_iommu_quirk_bypass_ro(vbasedev, type,
