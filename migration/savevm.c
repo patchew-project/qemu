@@ -1781,6 +1781,13 @@ void qemu_savevm_query_pending(MigPendingData *pending, bool exact)
     pending->total_bytes = pending->precopy_bytes +
         pending->stopcopy_bytes + pending->postcopy_bytes;
 
+    /*
+     * Update system remaining dirty bytes whenever QEMU queries.  It will
+     * make the value to be not as accurate, but should still be pretty
+     * close to reality when this got invoked frequently while iterating.
+     */
+    mig_stats.dirty_bytes_total = pending->total_bytes;
+
     trace_qemu_savevm_query_pending(exact, pending->precopy_bytes,
                                     pending->stopcopy_bytes,
                                     pending->postcopy_bytes,
