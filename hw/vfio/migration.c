@@ -329,6 +329,7 @@ static int vfio_query_stop_copy_size(VFIODevice *vbasedev)
     struct vfio_device_feature_mig_data_size *mig_data_size =
         (struct vfio_device_feature_mig_data_size *)feature->data;
     VFIOMigration *migration = vbasedev->migration;
+    int ret;
 
     feature->argsz = sizeof(buf);
     feature->flags =
@@ -340,12 +341,18 @@ static int vfio_query_stop_copy_size(VFIODevice *vbasedev)
          * is reported so downtime limit won't be violated.
          */
         migration->stopcopy_size = VFIO_MIG_STOP_COPY_SIZE;
-        return -errno;
+        ret = -errno;
+        warn_report_once("VFIO device %s ioctl(VFIO_DEVICE_FEATURE) on "
+                         "VFIO_DEVICE_FEATURE_MIG_DATA_SIZE failed (%d)",
+                         vbasedev->name, ret);
+    } else {
+        migration->stopcopy_size = mig_data_size->stop_copy_length;
+        ret = 0;
     }
 
-    migration->stopcopy_size = mig_data_size->stop_copy_length;
+    trace_vfio_query_stop_copy_size(migration->stopcopy_size, ret);
 
-    return 0;
+    return ret;
 }
 
 static int vfio_query_precopy_size(VFIOMigration *migration)
@@ -353,18 +360,24 @@ static int vfio_query_precopy_size(VFIOMigration *migration)
     struct vfio_precopy_info precopy = {
         .argsz = sizeof(precopy),
     };
-
-    migration->precopy_init_size = 0;
-    migration->precopy_dirty_size = 0;
+    int ret;
 
     if (ioctl(migration->data_fd, VFIO_MIG_GET_PRECOPY_INFO, &precopy)) {
-        return -errno;
+        migration->precopy_init_size = 0;
+        migration->precopy_dirty_size = 0;
+        ret = -errno;
+        warn_report_once("VFIO device %s ioctl(VFIO_MIG_GET_PRECOPY_INFO) "
+                         "failed (%d)", migration->vbasedev->name, ret);
+    } else {
+        migration->precopy_init_size = precopy.initial_bytes;
+        migration->precopy_dirty_size = precopy.dirty_bytes;
+        ret = 0;
     }
 
-    migration->precopy_init_size = precopy.initial_bytes;
-    migration->precopy_dirty_size = precopy.dirty_bytes;
+    trace_vfio_query_precopy_size(migration->precopy_init_size,
+                                  migration->precopy_dirty_size, ret);
 
-    return 0;
+    return ret;
 }
 
 /* Returns the size of saved data on success and -errno on error */
