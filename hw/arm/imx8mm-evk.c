@@ -79,6 +79,7 @@ static void imx8mm_evk_init(MachineState *machine)
 
     s = FSL_IMX8MM(object_new_with_props(TYPE_FSL_IMX8MM, OBJECT(machine),
                                          "soc", &error_fatal, NULL));
+    object_property_set_uint(OBJECT(s), "fec1-phy-num", 1, &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(s), &error_fatal);
 
     memory_region_add_subregion(get_system_memory(), FSL_IMX8MM_RAM_START,
