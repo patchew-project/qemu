@@ -14,13 +14,11 @@
 #include "exec/hwaddr.h"
 #include "exec/memattrs.h"
 
-MemoryRegionSection *address_space_translate_for_iotlb(CPUState *cpu,
-                                                       int asidx,
-                                                       hwaddr addr,
-                                                       hwaddr *xlat,
-                                                       hwaddr *plen,
-                                                       MemTxAttrs attrs,
-                                                       int *prot);
+MemoryRegionSection *
+address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr addr,
+                                  hwaddr *xlat, hwaddr *plen,
+                                  MemTxAttrs attrs, int *prot,
+                                  MMUAccessType access_type);
 
 #endif
 
