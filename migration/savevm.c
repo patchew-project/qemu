@@ -1766,8 +1766,7 @@ void qemu_savevm_query_pending(MigPendingData *pending, bool exact)
 {
     SaveStateEntry *se;
 
-    pending->precopy_bytes = 0;
-    pending->postcopy_bytes = 0;
+    memset(pending, 0, sizeof(*pending));
 
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (!se->ops || !se->ops->save_query_pending) {
@@ -1779,8 +1778,13 @@ void qemu_savevm_query_pending(MigPendingData *pending, bool exact)
         se->ops->save_query_pending(se->opaque, pending, exact);
     }
 
+    pending->total_bytes = pending->precopy_bytes +
+        pending->stopcopy_bytes + pending->postcopy_bytes;
+
     trace_qemu_savevm_query_pending(exact, pending->precopy_bytes,
-                                    pending->postcopy_bytes);
+                                    pending->stopcopy_bytes,
+                                    pending->postcopy_bytes,
+                                    pending->total_bytes);
 }
 
 void qemu_savevm_state_cleanup(void)
