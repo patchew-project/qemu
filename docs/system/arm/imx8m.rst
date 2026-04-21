@@ -1,13 +1,13 @@
-NXP i.MX 8M Plus Evaluation Kit (``imx8mp-evk``)
-================================================
+NXP i.MX 8M Plus and i.MX 8M Mini Evaluation Kits (``imx8mp-evk``, ``imx8mm-evk``)
+====================================================================================
 
-The ``imx8mp-evk`` machine models the i.MX 8M Plus Evaluation Kit, based on an
-i.MX 8M Plus SoC.
+The ``imx8mp-evk`` and ``imx8mm-evk`` machine models the i.MX 8M Plus and i.MX 8M Mini Evaluation Kits, based on
+i.MX 8M Plus and i.MX8M Mini SoCs.
 
 Supported devices
 -----------------
 
-The ``imx8mp-evk`` machine implements the following devices:
+The ``imx8mp-evk`` and ``imx8mm-evk`` machines implement the following devices:
 
  * Up to 4 Cortex-A53 cores
  * Generic Interrupt Controller (GICv3)
@@ -27,7 +27,7 @@ The ``imx8mp-evk`` machine implements the following devices:
 Boot options
 ------------
 
-The ``imx8mp-evk`` machine can start a Linux kernel directly using the standard
+The ``imx8mp-evk`` and ``imx8mm-evk`` machines can start a Linux kernel directly using the standard
 ``-kernel`` functionality.
 
 Direct Linux Kernel Boot
@@ -38,9 +38,18 @@ is to generate an image with Buildroot. Version 2024.11.1 is tested at the time
 of writing and involves two steps. First run the following commands in the
 toplevel directory of the Buildroot source tree:
 
+For i.MX 8M Plus EVK:
+
 .. code-block:: bash
 
   $ make freescale_imx8mpevk_defconfig
+  $ make
+
+For i.MX 8M Mini EVK:
+
+.. code-block:: bash
+
+  $ make freescale_imx8mmevk_defconfig
   $ make
 
 Once finished successfully there is an ``output/image`` subfolder. Navigate into
@@ -52,6 +61,8 @@ it and resize the SD card image to a power of two:
 
 Now that everything is prepared the machine can be started as follows:
 
+For i.MX 8M Plus EVK:
+
 .. code-block:: bash
 
   $ qemu-system-aarch64 -M imx8mp-evk \
@@ -61,6 +72,16 @@ Now that everything is prepared the machine can be started as follows:
       -append "root=/dev/mmcblk2p2" \
       -drive file=sdcard.img,if=sd,bus=2,format=raw,id=mmcblk2
 
+For i.MX 8M Mini EVK:
+
+.. code-block:: bash
+
+  $ qemu-system-aarch64 -M imx8mm-evk -smp 4 -m 2G \
+      -display none -serial null -serial stdio \
+      -kernel Image \
+      -dtb imx8mm-evk.dtb \
+      -append "root=/dev/mmcblk2p2" \
+      -drive file=sdcard.img,if=sd,bus=2,format=raw,id=mmcblk2
 
 KVM Acceleration
 ----------------
@@ -69,7 +90,7 @@ To enable hardware-assisted acceleration via KVM, append
 ``-accel kvm`` to the command line. While this speeds up performance
 significantly, be aware of the following limitations:
 
-* The ``imx8mp-evk`` machine is not included under the "virtualization use case"
+* The ``imx8mp-evk`` and ``imx8mm-evk`` machines are not included under the "virtualization use case"
   of :doc:`QEMU's security policy </system/security>`. This means that you
   should not trust that it can contain malicious guests, whether it is run
   using TCG or KVM. If you don't trust your guests and you're relying on QEMU to
