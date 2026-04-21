@@ -203,6 +203,13 @@ bool cpus_are_resettable(void)
     return true;
 }
 
+void accel_vm_reset(void)
+{
+    if (cpus_accel->vm_reset) {
+        cpus_accel->vm_reset();
+    }
+}
+
 void cpu_exec_reset_hold(CPUState *cpu)
 {
     if (cpus_accel->cpu_reset_hold) {

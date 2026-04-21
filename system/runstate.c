@@ -564,6 +564,9 @@ void qemu_system_reset(ShutdownCause reason)
         qapi_event_send_reset(shutdown_caused_by_guest(reason), reason);
     }
 
+    /* Tell the accelerator that the VM is being reset. */
+    accel_vm_reset();
+
     /*
      * Some boards use the machine reset callback to point CPUs to the firmware
      * entry point.  Assume that this is not the case for boards that support

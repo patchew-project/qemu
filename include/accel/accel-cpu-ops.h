@@ -43,6 +43,13 @@ struct AccelOpsClass {
     bool (*cpu_thread_is_idle)(CPUState *cpu);
 
     /**
+     * vm_reset
+     *
+     * Request to reset the VM to the hardware accelerator.
+     */
+    void (*vm_reset)(void);
+
+    /**
      * synchronize_post_reset:
      * synchronize_post_init:
      * @cpu: The vCPU to synchronize.

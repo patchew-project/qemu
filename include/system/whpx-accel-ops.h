@@ -12,6 +12,8 @@
 
 #include "system/cpus.h"
 
+void whpx_partition_reset(void);
+
 int whpx_init_vcpu(CPUState *cpu);
 int whpx_vcpu_exec(CPUState *cpu);
 void whpx_destroy_vcpu(CPUState *cpu);

@@ -206,6 +206,18 @@ static void do_whpx_cpu_synchronize_pre_loadvm(CPUState *cpu,
 }
 
 /*
+ * Partition support
+ */
+
+void whpx_partition_reset(void)
+{
+    struct whpx_state *whpx = &whpx_global;
+    if (whp_dispatch.WHvResetPartition) {
+        whp_dispatch.WHvResetPartition(whpx->partition);
+    }
+}
+
+/*
  * CPU support.
  */
 

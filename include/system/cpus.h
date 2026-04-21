@@ -40,4 +40,7 @@ void cpu_synchronize_all_post_reset(void);
 void cpu_synchronize_all_post_init(void);
 void cpu_synchronize_all_pre_loadvm(void);
 
+/* VM wide reset */
+void accel_vm_reset(void);
+
 #endif
