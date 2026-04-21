@@ -52,10 +52,12 @@
 #define TLB_DISCARD_WRITE    (1 << 3)
 /* Set if TLB entry is an IO callback.  */
 #define TLB_MMIO             (1 << 4)
+/* Set if TLB entry is a IOMMU region which requires lazy translation. */
+#define TLB_IOMMU            (1 << 5)
 
 #define TLB_SLOW_FLAGS_MASK \
     (TLB_BSWAP | TLB_WATCHPOINT | TLB_CHECK_ALIGNED | \
-     TLB_DISCARD_WRITE | TLB_MMIO)
+     TLB_DISCARD_WRITE | TLB_MMIO | TLB_IOMMU)
 
 /*
  * Flags stored in CPUTLBEntry.addr_idx[x].

@@ -1034,7 +1034,7 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
     hwaddr iotlb, xlat, sz, paddr_page;
     vaddr addr_page;
     int asidx, wp_flags, prot;
-    bool is_ram, is_romd;
+    bool is_ram, is_romd, is_iommu;
 
     assert_cpu_is_self(cpu);
 
@@ -1049,14 +1049,26 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
 
     prot = full->prot;
     asidx = cpu_asidx_from_attrs(cpu, full->attrs);
-    section = address_space_translate_for_iotlb_late(cpu, asidx, paddr_page,
-                                                     &xlat, &sz, full->attrs,
-                                                     &prot);
+
+    /*
+     * Use the early translation to check if it is an IOMMU region.
+     * This function stops at IOMMU regions without translating through them.
+     */
+    section = address_space_translate_for_iotlb_early(cpu, asidx, paddr_page,
+                                                      &xlat, &sz, full->attrs,
+                                                      &prot);
     assert(sz >= TARGET_PAGE_SIZE);
 
     tlb_debug("vaddr=%016" VADDR_PRIx " paddr=0x" HWADDR_FMT_plx
               " prot=%x idx=%d\n",
               addr, full->phys_addr, prot, mmu_idx);
+
+    is_iommu = memory_region_is_iommu(section->mr);
+    is_ram = memory_region_is_ram(section->mr);
+    is_romd = memory_region_is_romd(section->mr);
+
+    full->is_iommu = is_iommu;
+    full->iommu_last_at = MMU_ACCESS_COUNT;
 
     read_flags = full->tlb_fill_flags;
     if (full->lg_page_size < TARGET_PAGE_BITS) {
@@ -1064,14 +1076,11 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
         read_flags |= TLB_INVALID_MASK;
     }
 
-    is_ram = memory_region_is_ram(section->mr);
-    is_romd = memory_region_is_romd(section->mr);
-
     if (is_ram || is_romd) {
         /* RAM and ROMD both have associated host memory. */
         addend = (uintptr_t)memory_region_get_ram_ptr(section->mr) + xlat;
     } else {
-        /* I/O does not; force the host address to NULL. */
+        /* I/O and IOMMU does not; force the host address to NULL. */
         addend = 0;
     }
 
@@ -1090,6 +1099,15 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
                 write_flags |= TLB_NOTDIRTY;
             }
         }
+    } else if (is_iommu) {
+        /* IOMMU */
+        iotlb = xlat;
+        /*
+         * If IOMMU region is not translated, any access will go to
+         * the slow path and do the lazy IOMMU translation.
+         */
+        read_flags |= TLB_IOMMU;
+        write_flags |= TLB_IOMMU;
     } else {
         /* I/O or ROMD */
         iotlb = xlat;
@@ -1568,6 +1586,11 @@ static int probe_access_internal(CPUState *cpu, vaddr addr,
     flags &= tlb_addr;
 
     *pfull = full = &cpu->neg.tlb.d[mmu_idx].fulltlb[index];
+
+    if (full->is_iommu) {
+        tlb_translate_iommu(cpu, mmu_idx, addr, access_type, full);
+    }
+
     flags |= full->slow_flags[access_type];
 
     /* Fold all "mmio-like" bits into TLB_MMIO.  This is not RAM.  */
@@ -1760,6 +1783,11 @@ bool tlb_plugin_lookup(CPUState *cpu, vaddr addr, int mmu_idx,
     }
 
     full = &cpu->neg.tlb.d[mmu_idx].fulltlb[index];
+
+    if (full->is_iommu) {
+        tlb_translate_iommu(cpu, mmu_idx, addr, access_type, full);
+    }
+
     data->phys_addr = full->phys_addr | (addr & ~TARGET_PAGE_MASK);
 
     /* We must have an iotlb entry for MMIO */
@@ -1833,6 +1861,11 @@ static bool mmu_lookup1(CPUState *cpu, MMULookupPageData *data, MemOp memop,
     }
 
     full = &cpu->neg.tlb.d[mmu_idx].fulltlb[index];
+
+    if (full->is_iommu) {
+        tlb_translate_iommu(cpu, mmu_idx, addr, access_type, full);
+    }
+
     flags = tlb_addr & (TLB_FLAGS_MASK & ~TLB_FORCE_SLOW);
     flags |= full->slow_flags[access_type];
 
@@ -1944,6 +1977,11 @@ static bool mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
         if (mmu_lookup1(cpu, &l->page[1], 0, l->mmu_idx, type, ra)) {
             uintptr_t index = tlb_index(cpu, l->mmu_idx, addr);
             l->page[0].full = &cpu->neg.tlb.d[l->mmu_idx].fulltlb[index];
+
+            if (l->page[0].full->is_iommu) {
+                tlb_translate_iommu(cpu, l->mmu_idx, addr, type,
+                                    l->page[0].full);
+            }
         }
 
         flags = l->page[0].flags | l->page[1].flags;
@@ -2001,6 +2039,17 @@ static void *atomic_mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
         tlb_addr = tlb_addr_write(tlbe) & ~TLB_INVALID_MASK;
     }
 
+    full = &cpu->neg.tlb.d[mmu_idx].fulltlb[index];
+
+    if (full->is_iommu) {
+        /*
+         * Do IOMMU lazy translation before accessing addr_idx and TLB flags.
+         * Generate TLB flags for both read and write.
+         */
+        tlb_translate_iommu(cpu, mmu_idx, addr, MMU_DATA_LOAD, full);
+        tlb_translate_iommu(cpu, mmu_idx, addr, MMU_DATA_STORE, full);
+    }
+
     /*
      * Let the guest notice RMW on a write-only page.
      * We have just verified that the page is writable.
@@ -2035,7 +2084,6 @@ static void *atomic_mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
     }
 
     /* Finish collecting tlb flags for both read and write. */
-    full = &cpu->neg.tlb.d[mmu_idx].fulltlb[index];
     tlb_addr |= tlbe->addr_read;
     tlb_addr &= TLB_FLAGS_MASK & ~TLB_FORCE_SLOW;
     tlb_addr |= full->slow_flags[MMU_DATA_STORE];
