@@ -131,7 +131,7 @@ static bool trans_POP(DisasContext *ctx, arg_POP *a)
     return true;
 }
 
-static bool trans_SEQNE(DisasContext *ctx, arg_SEQNE *a)
+static bool trans_seqne(DisasContext *ctx, const arg_cmp3 *a)
 {
     TCGv t0, t1;
 
@@ -154,7 +154,17 @@ static bool trans_SEQNE(DisasContext *ctx, arg_SEQNE *a)
     return true;
 }
 
-static bool trans_SEQNEI(DisasContext *ctx, arg_SEQNEI *a)
+static bool trans_SEQ(DisasContext *ctx, arg_cmp3 *a)
+{
+    return trans_seqne(ctx, a);
+}
+
+static bool trans_SNE(DisasContext *ctx, arg_cmp3 *a)
+{
+    return trans_seqne(ctx, a);
+}
+
+static bool trans_seqnei(DisasContext *ctx, const arg_cmpi *a)
 {
     TCGv t0;
 
@@ -168,13 +178,23 @@ static bool trans_SEQNEI(DisasContext *ctx, arg_SEQNEI *a)
     gen_load_gpr(t0, a->rs);
 
     /* Sign-extend to 64 bit value */
-    target_ulong imm = a->imm;
+    int64_t imm = a->imm;
     if (a->ne) {
         tcg_gen_setcondi_tl(TCG_COND_NE, cpu_gpr[a->rt], t0, imm);
     } else {
         tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_gpr[a->rt], t0, imm);
     }
     return true;
+}
+
+static bool trans_SEQI(DisasContext *ctx, arg_cmpi *a)
+{
+    return trans_seqnei(ctx, a);
+}
+
+static bool trans_SNEI(DisasContext *ctx, arg_cmpi *a)
+{
+    return trans_seqnei(ctx, a);
 }
 
 static bool trans_lx(DisasContext *ctx, arg_lx *a, MemOp mop)
