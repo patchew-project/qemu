@@ -7,6 +7,7 @@ QEMU's TCG emulation includes support for the Armv5, Armv6, Armv7,
 Armv8 and Armv9 versions of the A-profile architecture. It also has support for
 the following architecture extensions:
 
+- FEAT_AA32 (PE Support for AArch32)
 - FEAT_AA32BF16 (AArch32 BFloat16 instructions)
 - FEAT_AA32EL0 (Support for AArch32 at EL0)
 - FEAT_AA32EL1 (Support for AArch32 at EL1)
@@ -14,6 +15,7 @@ the following architecture extensions:
 - FEAT_AA32EL3 (Support for AArch32 at EL3)
 - FEAT_AA32HPD (AArch32 hierarchical permission disables)
 - FEAT_AA32I8MM (AArch32 Int8 matrix multiplication instructions)
+- FEAT_AA64 (PE uses AArch64 after last reboot)
 - FEAT_AA64EL0 (Support for AArch64 at EL0)
 - FEAT_AA64EL1 (Support for AArch64 at EL1)
 - FEAT_AA64EL2 (Support for AArch64 at EL2)
