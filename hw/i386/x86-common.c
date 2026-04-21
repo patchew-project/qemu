@@ -650,7 +650,9 @@ void x86_load_linux(X86MachineState *x86ms,
     uint32_t initrd_max;
     uint8_t header[8192], *setup, *kernel;
     hwaddr real_addr, prot_addr, cmdline_addr, initrd_addr = 0;
+    Error *err = NULL;
     FILE *f;
+    int fd;
     const char *vmode;
     MachineState *machine = MACHINE(x86ms);
     struct setup_data *setup_data;
@@ -664,8 +666,13 @@ void x86_load_linux(X86MachineState *x86ms,
     cmdline_size = (strlen(kernel_cmdline) + 16) & ~15;
 
     /* load the kernel header */
-    f = fopen(kernel_filename, "rb");
-    if (!f) {
+    fd = qemu_open(kernel_filename, O_RDONLY, &err);
+    if (fd < 0) {
+        error_report_err(err);
+        exit(1);
+    }
+    f = fdopen(fd, "rb");
+    if (f) {
         fprintf(stderr, "qemu: could not open kernel file '%s': %s\n",
                 kernel_filename, strerror(errno));
         exit(1);
@@ -719,12 +726,18 @@ void x86_load_linux(X86MachineState *x86ms,
 
             /* load initrd */
             if (initrd_filename) {
+                int mapped_file_fd;
                 GMappedFile *mapped_file;
                 gsize initrd_size;
                 gchar *initrd_data;
                 GError *gerr = NULL;
 
-                mapped_file = g_mapped_file_new(initrd_filename, false, &gerr);
+                mapped_file_fd = qemu_open(initrd_filename, O_RDONLY, &err);
+                if (fd < 0) {
+                    error_report_err(err);
+                    exit(1);
+                }
+                mapped_file = g_mapped_file_new_from_fd(mapped_file_fd, false, &gerr);
                 if (!mapped_file) {
                     fprintf(stderr, "qemu: error reading initrd %s: %s\n",
                             initrd_filename, gerr->message);
@@ -860,6 +873,7 @@ void x86_load_linux(X86MachineState *x86ms,
 
     /* load initrd */
     if (initrd_filename) {
+        int mapped_file_fd;
         GMappedFile *mapped_file;
         gsize initrd_size;
         gchar *initrd_data;
@@ -870,7 +884,12 @@ void x86_load_linux(X86MachineState *x86ms,
             exit(1);
         }
 
-        mapped_file = g_mapped_file_new(initrd_filename, false, &gerr);
+        mapped_file_fd = qemu_open(initrd_filename, O_RDONLY, &err);
+        if (mapped_file_fd < 0) {
+            error_report_err(err);
+            exit(1);
+        }
+        mapped_file = g_mapped_file_new_from_fd(mapped_file_fd, false, &gerr);
         if (!mapped_file) {
             fprintf(stderr, "qemu: error reading initrd %s: %s\n",
                     initrd_filename, gerr->message);
