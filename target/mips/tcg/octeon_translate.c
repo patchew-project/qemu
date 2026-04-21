@@ -13,9 +13,15 @@
 /* Include the auto-generated decoder.  */
 #include "decode-octeon.c.inc"
 
+static bool octeon_check_64(DisasContext *ctx)
+{
+    check_mips_64(ctx);
+    return ctx->base.is_jmp == DISAS_NEXT;
+}
+
 static bool trans_BBIT(DisasContext *ctx, arg_BBIT *a)
 {
-    TCGv p;
+    TCGv_i64 p;
 
     if (ctx->hflags & MIPS_HFLAG_BMASK) {
         LOG_DISAS("Branch in delay / forbidden slot at PC 0x%" VADDR_PRIx "\n",
@@ -25,14 +31,14 @@ static bool trans_BBIT(DisasContext *ctx, arg_BBIT *a)
     }
 
     /* Load needed operands */
-    TCGv t0 = tcg_temp_new();
+    TCGv_i64 t0 = tcg_temp_new_i64();
     gen_load_gpr(t0, a->rs);
 
-    p = tcg_constant_tl(1ULL << a->p);
+    p = tcg_constant_i64(1ULL << a->p);
     if (a->set) {
-        tcg_gen_and_tl(bcond, p, t0);
+        tcg_gen_and_i64(bcond, p, t0);
     } else {
-        tcg_gen_andc_tl(bcond, p, t0);
+        tcg_gen_andc_i64(bcond, p, t0);
     }
 
     ctx->hflags |= MIPS_HFLAG_BC;
@@ -43,15 +49,15 @@ static bool trans_BBIT(DisasContext *ctx, arg_BBIT *a)
 
 static bool trans_BADDU(DisasContext *ctx, arg_BADDU *a)
 {
-    TCGv t0, t1;
+    TCGv_i64 t0, t1;
 
     if (a->rd == 0) {
         /* nop */
         return true;
     }
 
-    t0 = tcg_temp_new();
-    t1 = tcg_temp_new();
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
     gen_load_gpr(t0, a->rs);
     gen_load_gpr(t1, a->rt);
 
@@ -63,15 +69,19 @@ static bool trans_BADDU(DisasContext *ctx, arg_BADDU *a)
 
 static bool trans_DMUL(DisasContext *ctx, arg_DMUL *a)
 {
-    TCGv t0, t1;
+    TCGv_i64 t0, t1;
+
+    if (!octeon_check_64(ctx)) {
+        return true;
+    }
 
     if (a->rd == 0) {
         /* nop */
         return true;
     }
 
-    t0 = tcg_temp_new();
-    t1 = tcg_temp_new();
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
     gen_load_gpr(t0, a->rs);
     gen_load_gpr(t1, a->rt);
 
@@ -82,74 +92,78 @@ static bool trans_DMUL(DisasContext *ctx, arg_DMUL *a)
 
 static bool trans_EXTS(DisasContext *ctx, arg_EXTS *a)
 {
-    TCGv t0;
+    TCGv_i64 t0;
 
     if (a->rt == 0) {
         /* nop */
         return true;
     }
 
-    t0 = tcg_temp_new();
+    t0 = tcg_temp_new_i64();
     gen_load_gpr(t0, a->rs);
-    tcg_gen_sextract_tl(t0, t0, a->p, a->lenm1 + 1);
+    tcg_gen_sextract_i64(t0, t0, a->p, a->lenm1 + 1);
     gen_store_gpr(t0, a->rt);
     return true;
 }
 
 static bool trans_CINS(DisasContext *ctx, arg_CINS *a)
 {
-    TCGv t0;
+    TCGv_i64 t0;
 
     if (a->rt == 0) {
         /* nop */
         return true;
     }
 
-    t0 = tcg_temp_new();
+    t0 = tcg_temp_new_i64();
     gen_load_gpr(t0, a->rs);
-    tcg_gen_deposit_z_tl(t0, t0, a->p, a->lenm1 + 1);
+    tcg_gen_deposit_z_i64(t0, t0, a->p, a->lenm1 + 1);
     gen_store_gpr(t0, a->rt);
     return true;
 }
 
 static bool trans_POP(DisasContext *ctx, arg_POP *a)
 {
-    TCGv t0;
+    TCGv_i64 t0;
+
+    if (a->dw && !octeon_check_64(ctx)) {
+        return true;
+    }
 
     if (a->rd == 0) {
         /* nop */
         return true;
     }
 
-    t0 = tcg_temp_new();
+    t0 = tcg_temp_new_i64();
     gen_load_gpr(t0, a->rs);
     if (!a->dw) {
         tcg_gen_andi_i64(t0, t0, 0xffffffff);
     }
-    tcg_gen_ctpop_tl(t0, t0);
+    tcg_gen_ctpop_i64(t0, t0);
     gen_store_gpr(t0, a->rd);
     return true;
 }
 
 static bool trans_seqne(DisasContext *ctx, const arg_cmp3 *a)
 {
-    TCGv t0, t1;
+    TCGv_i64 t0, t1;
 
     if (a->rd == 0) {
         /* nop */
         return true;
     }
 
-    t0 = tcg_temp_new();
-    t1 = tcg_temp_new();
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
 
     gen_load_gpr(t0, a->rs);
     gen_load_gpr(t1, a->rt);
 
     if (a->ne) {
-        tcg_gen_setcond_tl(TCG_COND_NE, cpu_gpr[a->rd], t1, t0);
+        tcg_gen_setcond_i64(TCG_COND_NE, cpu_gpr[a->rd], t1, t0);
     } else {
-        tcg_gen_setcond_tl(TCG_COND_EQ, cpu_gpr[a->rd], t1, t0);
+        tcg_gen_setcond_i64(TCG_COND_EQ, cpu_gpr[a->rd], t1, t0);
     }
     return true;
 }
@@ -166,23 +180,23 @@ static bool trans_SNE(DisasContext *ctx, arg_cmp3 *a)
 
 static bool trans_seqnei(DisasContext *ctx, const arg_cmpi *a)
 {
-    TCGv t0;
+    TCGv_i64 t0;
 
     if (a->rt == 0) {
         /* nop */
         return true;
     }
 
-    t0 = tcg_temp_new();
+    t0 = tcg_temp_new_i64();
 
     gen_load_gpr(t0, a->rs);
 
     /* Sign-extend to 64 bit value */
     int64_t imm = a->imm;
     if (a->ne) {
-        tcg_gen_setcondi_tl(TCG_COND_NE, cpu_gpr[a->rt], t0, imm);
+        tcg_gen_setcondi_i64(TCG_COND_NE, cpu_gpr[a->rt], t0, imm);
     } else {
-        tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_gpr[a->rt], t0, imm);
+        tcg_gen_setcondi_i64(TCG_COND_EQ, cpu_gpr[a->rt], t0, imm);
     }
     return true;
 }
@@ -199,6 +213,10 @@ static bool trans_SNEI(DisasContext *ctx, arg_cmpi *a)
 
 static bool trans_lx(DisasContext *ctx, arg_lx *a, MemOp mop)
 {
+    if (mop == MO_UQ && !octeon_check_64(ctx)) {
+        return true;
+    }
+
     gen_lx(ctx, a->rd, a->base, a->index, mop);
 
     return true;
