@@ -1272,6 +1272,174 @@ static inline void cpu_unaligned_access(CPUState *cpu, vaddr addr,
                                           mmu_idx, retaddr);
 }
 
+/*
+ * Perform lazy IOMMU translation for a CPUTLBEntry/CPUTLBEntryFull.
+ * This is called when CPU utilize the TLB entry in the slow path.
+ * Updates both entry and full entry to IOMMU translated data for the
+ * specific access type.
+ */
+static void
+tlb_translate_iommu(CPUState *cpu, int mmu_idx,
+                    vaddr addr, MMUAccessType access_type,
+                    CPUTLBEntryFull *full)
+{
+    CPUTLB *tlb = &cpu->neg.tlb;
+    MemoryRegionSection *section;
+    unsigned int read_flags, write_flags;
+    uintptr_t addend;
+    CPUTLBEntry *te;
+    hwaddr iotlb, xlat, sz, paddr_page;
+    vaddr addr_page;
+    int asidx, wp_flags, prot;
+    bool is_ram, is_romd;
+
+    if (!full->is_iommu || (full->iommu_last_at == access_type)) {
+        return;
+    }
+
+    assert_cpu_is_self(cpu);
+
+    if (full->lg_page_size <= TARGET_PAGE_BITS) {
+        sz = TARGET_PAGE_SIZE;
+    } else {
+        sz = (hwaddr)1 << full->lg_page_size;
+        tlb_add_large_page(cpu, mmu_idx, addr, sz);
+    }
+    addr_page = addr & TARGET_PAGE_MASK;
+    paddr_page = full->phys_addr & TARGET_PAGE_MASK;
+
+    prot = full->prot;
+    asidx = cpu_asidx_from_attrs(cpu, full->attrs);
+
+    section = address_space_translate_for_iotlb_late(cpu, asidx, paddr_page,
+                                                     &xlat, &sz, full->attrs,
+                                                     &prot, access_type);
+
+    assert(sz >= TARGET_PAGE_SIZE);
+
+    tlb_debug("vaddr=%016" VADDR_PRIx " paddr=0x" HWADDR_FMT_plx
+              " prot=%x idx=%d\n",
+              addr, full->phys_addr, prot, mmu_idx);
+
+    is_ram = memory_region_is_ram(section->mr);
+    is_romd = memory_region_is_romd(section->mr);
+
+    read_flags = full->tlb_fill_flags;
+    if (full->lg_page_size < TARGET_PAGE_BITS) {
+        /* Repeat the MMU check and TLB fill on every access.  */
+        read_flags |= TLB_INVALID_MASK;
+    }
+
+    if (is_ram || is_romd) {
+        /* RAM and ROMD both have associated host memory. */
+        addend = (uintptr_t)memory_region_get_ram_ptr(section->mr) + xlat;
+    } else {
+        /* I/O and IOMMU does not; force the host address to NULL. */
+        addend = 0;
+    }
+
+    write_flags = read_flags;
+
+    if (is_ram) {
+        iotlb = memory_region_get_ram_addr(section->mr) + xlat;
+        assert(!(iotlb & ~TARGET_PAGE_MASK));
+        /*
+         * Computing is_clean is expensive; avoid all that unless
+         * the page is actually writable.
+         */
+        if (prot & PAGE_WRITE) {
+            if (section->readonly) {
+                write_flags |= TLB_DISCARD_WRITE;
+            } else if (physical_memory_is_clean(iotlb)) {
+                write_flags |= TLB_NOTDIRTY;
+            }
+        }
+    } else {
+        /* I/O or ROMD */
+        iotlb = xlat;
+        /*
+         * Writes to romd devices must go through MMIO to enable write.
+         * Reads to romd devices go through the ram_ptr found above,
+         * but of course reads to I/O must go through MMIO.
+         */
+        write_flags |= TLB_MMIO;
+        if (!is_romd) {
+            read_flags = write_flags;
+        }
+    }
+
+    wp_flags = cpu_watchpoint_address_matches(cpu, addr_page,
+                                              TARGET_PAGE_SIZE);
+
+    /* Update the CPUTLBEntryFull for this access type. */
+    full->iommu_last_at = access_type;
+    full->xlat_offset = iotlb - addr_page;
+    full->section = section;
+    full->phys_addr = paddr_page;
+
+    /* Update the CPUTLBEntry: addend and addr_idx */
+    tlb = &cpu->neg.tlb;
+    te = tlb_entry(cpu, mmu_idx, addr_page);
+
+    qemu_spin_lock(&tlb->c.lock);
+
+    /*
+     * If IOMMU region is translated to the memories (has associated
+     * host memory), it will update the 'addend' to access memories in the
+     * fast path. Otherwise, IO region do not update the 'addend' because
+     * it might be already used by memory region from the other permissions.
+     * It is fine since IO region do not use addend.
+     */
+    if (is_ram || is_romd) {
+        if (te->addend + addr_page) {
+            /* addend of untranslated IOMMU region is 0 - addr_page. */
+
+            /*
+             * CPUTLBEntry only has 1 addend across all permissions.
+             * We don't support the IOMMUMemoryRegion to be translated to
+             * 2 different host memories from the different permissions.
+             * QEMU will trigger an assertion for such case.
+             */
+            g_assert(addend == te->addend + addr_page);
+        } else {
+            te->addend = addend - addr_page;
+        }
+    }
+
+    /*
+     * In the IOMMU lazy translation, we only update TLB flags for the
+     * permissions specified in @prot. For other permissions, we still
+     * keep the original TLB flags (e.g. TLB_IOMMU if not translated).
+     */
+    if (prot & PAGE_EXEC) {
+        tlb_set_compare(full, te, addr_page, read_flags,
+                        MMU_INST_FETCH, prot & PAGE_EXEC);
+    }
+
+    if (wp_flags & BP_MEM_READ) {
+        read_flags |= TLB_WATCHPOINT;
+    }
+    if (prot & PAGE_READ) {
+        tlb_set_compare(full, te, addr_page, read_flags,
+                        MMU_DATA_LOAD, prot & PAGE_READ);
+    }
+
+    if (prot & PAGE_WRITE_INV) {
+        write_flags |= TLB_INVALID_MASK;
+    }
+    if (wp_flags & BP_MEM_WRITE) {
+        write_flags |= TLB_WATCHPOINT;
+    }
+    if (prot & PAGE_WRITE) {
+        tlb_set_compare(full, te, addr_page, write_flags,
+                        MMU_DATA_STORE, prot & PAGE_WRITE);
+    }
+
+    qemu_spin_unlock(&tlb->c.lock);
+
+    return;
+}
+
 static MemoryRegionSection *
 io_prepare(hwaddr *out_offset, CPUState *cpu, CPUTLBEntryFull *full,
            vaddr addr, uintptr_t retaddr)

@@ -255,6 +255,21 @@ struct CPUTLBEntryFull {
     uint8_t slow_flags[MMU_ACCESS_COUNT];
 
     /*
+     * @is_iommu indicates if the MemoryRegion is an IOMMU.
+     * When true, IOMMU translation is deferred until the entry is used.
+     */
+    bool is_iommu;
+
+    /*
+     * @iommu_last_at contains the access_type of last IOMMU translation.
+     * It means that this entry currently stores the translated data of
+     * IOMMU region with this access_type.
+     * When it is MMU_ACCESS_COUNT, the entry stores untranslated data of
+     * IOMMU region.
+     */
+    MMUAccessType iommu_last_at;
+
+    /*
      * Allow target-specific additions to this structure.
      * This may be used to cache items from the guest cpu
      * page tables for later use by the implementation.
