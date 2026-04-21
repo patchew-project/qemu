@@ -109,6 +109,10 @@ static void vfio_user_dma_read(VFIOPCIDevice *vdev, VFIOUserDMARW *msg)
 
     r = pci_dma_read(pdev, res->offset, &res->data, res->count);
 
+    /*
+     * pci_dma_read() doesn't support reporting short reads via the reply's
+     * count parameter; in this case, we'll reply with an error instead.
+     */
     switch (r) {
     case MEMTX_OK:
         if (res->hdr.flags & VFIO_USER_NO_REPLY) {
@@ -136,6 +140,7 @@ static void vfio_user_dma_write(VFIOPCIDevice *vdev, VFIOUserDMARW *msg)
 {
     PCIDevice *pdev = PCI_DEVICE(vdev);
     VFIOUserProxy *proxy = vdev->vbasedev.proxy;
+    VFIOUserDMARW *res;
     MemTxResult r;
 
     if (msg->hdr.size < sizeof(*msg)) {
@@ -150,26 +155,35 @@ static void vfio_user_dma_write(VFIOPCIDevice *vdev, VFIOUserDMARW *msg)
 
     r = pci_dma_write(pdev, msg->offset, &msg->data, msg->count);
 
+    res = g_malloc0(sizeof(*res));
+    memcpy(res, msg, sizeof(*res));
+    g_free(msg);
+
+    /*
+     * pci_dma_write() doesn't support reporting short writes via the reply's
+     * count parameter; in this case, we'll reply with an error instead.
+     */
     switch (r) {
     case MEMTX_OK:
-        if ((msg->hdr.flags & VFIO_USER_NO_REPLY) == 0) {
-            vfio_user_send_reply(proxy, &msg->hdr, sizeof(msg->hdr));
-        } else {
-            g_free(msg);
+        if (res->hdr.flags & VFIO_USER_NO_REPLY) {
+            g_free(res);
+            return;
         }
+
+        vfio_user_send_reply(proxy, &res->hdr, sizeof(*res));
         break;
     case MEMTX_ERROR:
-        vfio_user_send_error(proxy, &msg->hdr, EFAULT);
+        vfio_user_send_error(proxy, &res->hdr, EFAULT);
         break;
     case MEMTX_DECODE_ERROR:
-        vfio_user_send_error(proxy, &msg->hdr, ENODEV);
+        vfio_user_send_error(proxy, &res->hdr, ENODEV);
         break;
     case MEMTX_ACCESS_ERROR:
-        vfio_user_send_error(proxy, &msg->hdr, EPERM);
+        vfio_user_send_error(proxy, &res->hdr, EPERM);
         break;
     default:
         error_printf("vfio_user_dma_write unknown error %d\n", r);
-        vfio_user_send_error(vdev->vbasedev.proxy, &msg->hdr, EINVAL);
+        vfio_user_send_error(vdev->vbasedev.proxy, &res->hdr, EINVAL);
     }
 }
 
