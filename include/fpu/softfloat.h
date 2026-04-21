@@ -195,13 +195,17 @@ float128 uint128_to_float128(Int128, float_status *status);
 
 float8_e4m3 float4_e2m1_to_float8_e4m3(float4_e2m1, float_status *status);
 
-bfloat16 float8_e4m3_to_bfloat16(float8_e4m3, float_status *status);
-float8_e4m3 bfloat16_to_float8_e4m3(bfloat16, bool sat, float_status *status);
-float8_e4m3 float32_to_float8_e4m3(float32, bool sat, float_status *status);
+bfloat16 float8_e4m3_to_bfloat16(float8_e4m3, int scale, float_status *status);
+float8_e4m3 bfloat16_to_float8_e4m3(bfloat16, int scale,
+                                    bool sat, float_status *status);
+float8_e4m3 float32_to_float8_e4m3(float32, int scale,
+                                   bool sat, float_status *status);
 
-bfloat16 float8_e5m2_to_bfloat16(float8_e5m2, float_status *status);
-float8_e5m2 bfloat16_to_float8_e5m2(bfloat16, bool sat, float_status *status);
-float8_e5m2 float32_to_float8_e5m2(float32, bool sat, float_status *status);
+bfloat16 float8_e5m2_to_bfloat16(float8_e5m2, int scale, float_status *status);
+float8_e5m2 bfloat16_to_float8_e5m2(bfloat16, int scale,
+                                    bool sat, float_status *status);
+float8_e5m2 float32_to_float8_e5m2(float32, int scale,
+                                    bool sat, float_status *status);
 
 /*----------------------------------------------------------------------------
 | Software half-precision conversion routines.
