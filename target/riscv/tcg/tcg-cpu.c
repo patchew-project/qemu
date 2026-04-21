@@ -527,46 +527,6 @@ static void riscv_cpu_update_named_features(RISCVCPU *cpu)
     cpu->cfg.ext_ziccrse = cpu->cfg.has_priv_1_11;
 }
 
-static void riscv_cpu_validate_g(RISCVCPU *cpu)
-{
-    const char *warn_msg = "RVG mandates disabled extension %s";
-    uint32_t g_misa_bits[] = {RVI, RVM, RVA, RVF, RVD};
-    bool send_warn = cpu_misa_ext_is_user_set(RVG);
-
-    for (int i = 0; i < ARRAY_SIZE(g_misa_bits); i++) {
-        uint32_t bit = g_misa_bits[i];
-
-        if (riscv_has_ext(&cpu->env, bit)) {
-            continue;
-        }
-
-        if (!cpu_misa_ext_is_user_set(bit)) {
-            riscv_cpu_write_misa_bit(cpu, bit, true);
-            continue;
-        }
-
-        if (send_warn) {
-            warn_report(warn_msg, riscv_get_misa_ext_name(bit));
-        }
-    }
-
-    if (!cpu->cfg.ext_zicsr) {
-        if (!cpu_cfg_ext_is_user_set(CPU_CFG_OFFSET(ext_zicsr))) {
-            cpu->cfg.ext_zicsr = true;
-        } else if (send_warn) {
-            warn_report(warn_msg, "zicsr");
-        }
-    }
-
-    if (!cpu->cfg.ext_zifencei) {
-        if (!cpu_cfg_ext_is_user_set(CPU_CFG_OFFSET(ext_zifencei))) {
-            cpu->cfg.ext_zifencei = true;
-        } else if (send_warn) {
-            warn_report(warn_msg, "zifencei");
-        }
-    }
-}
-
 static void riscv_cpu_validate_b(RISCVCPU *cpu)
 {
     const char *warn_msg = "RVB mandates disabled extension %s";
@@ -605,10 +565,6 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
     RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(cpu);
     CPURISCVState *env = &cpu->env;
     Error *local_err = NULL;
-
-    if (riscv_has_ext(env, RVG)) {
-        riscv_cpu_validate_g(cpu);
-    }
 
     if (riscv_has_ext(env, RVB)) {
         riscv_cpu_validate_b(cpu);
