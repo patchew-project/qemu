@@ -33,6 +33,7 @@ struct AccelClass {
     /* system related hooks */
     void (*setup_post)(AccelState *as);
     void (*pre_resume_vm)(AccelState *as, bool step_pending);
+    void (*reset_vm)(AccelState *as);
     bool (*has_memory)(AccelState *accel, AddressSpace *as,
                        hwaddr start_addr, hwaddr size);
 

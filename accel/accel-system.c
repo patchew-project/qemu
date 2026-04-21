@@ -75,6 +75,15 @@ void accel_pre_resume(MachineState *ms, bool step_pending)
     }
 }
 
+void accel_reset(MachineState *ms)
+{
+    AccelState *accel = ms->accelerator;
+    AccelClass *acc = ACCEL_GET_CLASS(accel);
+    if (acc->reset_vm) {
+        acc->reset_vm(accel);
+    }
+}
+
 /* initialize the arch-independent accel operation interfaces */
 void accel_init_ops_interfaces(AccelClass *ac)
 {

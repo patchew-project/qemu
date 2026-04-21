@@ -54,6 +54,9 @@ void accel_setup_post(MachineState *ms);
 
 void accel_pre_resume(MachineState *ms, bool step_pending);
 
+/* Reset accelerator state. */
+void accel_reset(MachineState *ms);
+
 /**
  * accel_cpu_instance_init:
  * @cpu: The CPU that needs to do accel-specific object initializations.

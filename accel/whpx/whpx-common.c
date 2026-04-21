@@ -206,6 +206,18 @@ static void do_whpx_cpu_synchronize_pre_loadvm(CPUState *cpu,
 }
 
 /*
+ * Partition support
+ */
+
+static void whpx_partition_reset(AccelState* as)
+{
+    struct whpx_state *whpx = &whpx_global;
+    if (whp_dispatch.WHvResetPartition) {
+        whp_dispatch.WHvResetPartition(whpx->partition);
+    }
+}
+
+/*
  * CPU support.
  */
 
@@ -526,6 +538,7 @@ static void whpx_accel_class_init(ObjectClass *oc, const void *data)
     ac->name = "WHPX";
     ac->init_machine = whpx_accel_init;
     ac->pre_resume_vm = whpx_pre_resume_vm;
+    ac->reset_vm = whpx_partition_reset;
     ac->allowed = &whpx_allowed;
 
     object_class_property_add(oc, "kernel-irqchip", "on|off|split",
