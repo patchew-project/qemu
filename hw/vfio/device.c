@@ -648,6 +648,8 @@ static int vfio_device_io_region_write(VFIODevice *vbasedev, uint8_t index,
 }
 
 static VFIODeviceIOOps vfio_device_io_ops_ioctl = {
+    .capabilities = VFIO_IO_CAP_DMA_BUF,
+
     .device_feature = vfio_device_io_device_feature,
     .get_region_info = vfio_device_io_get_region_info,
     .get_irq_info = vfio_device_io_get_irq_info,

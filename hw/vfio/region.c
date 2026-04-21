@@ -293,6 +293,11 @@ static bool vfio_region_create_dma_buf(VFIORegion *region, Error **errp)
     size_t total_size;
     int i, ret;
 
+    /* Check if backend supports DMA-BUF creation */
+    if (!(vbasedev->io_ops->capabilities & VFIO_IO_CAP_DMA_BUF)) {
+        return true;
+    }
+
     total_size = sizeof(*feature) + sizeof(*dma_buf) +
                  sizeof(struct vfio_region_dma_range) * region->nr_mmaps;
     feature = g_malloc0(total_size);
