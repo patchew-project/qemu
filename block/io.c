@@ -2096,6 +2096,16 @@ bdrv_aligned_pwritev(BdrvChild *child, BdrvTrackedRequest *req,
     max_transfer = QEMU_ALIGN_DOWN(MIN_NON_ZERO(bs->bl.max_transfer, INT_MAX),
                                    align);
 
+    /*
+     * Zero-writes (with or without MAY_UNMAP) mutate L2 entries / refcounts
+     * in the format driver and therefore race with concurrent in-flight
+     * regular writes that have dropped their internal mutex for the data
+     * I/O.  See the comment in bdrv_co_pdiscard(). Serialise them.
+     */
+    if (flags & BDRV_REQ_ZERO_WRITE) {
+        flags |= BDRV_REQ_SERIALISING;
+    }
+
     ret = bdrv_co_write_req_prepare(child, offset, bytes, req, flags);
 
     if (!ret && bs->detect_zeroes != BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF &&
@@ -3193,7 +3203,20 @@ int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
     bdrv_inc_in_flight(bs);
     tracked_request_begin(&req, bs, offset, bytes, BDRV_TRACKED_DISCARD);
 
-    ret = bdrv_co_write_req_prepare(child, offset, bytes, &req, 0);
+    /*
+     * Discards must serialise against overlapping in-flight writes.
+     * A format driver's write path may drop its internal mutex around
+     * the data I/O while still holding a pending cluster-allocation
+     * commit (see qcow2's handle_copied / qcow2_alloc_cluster_link_l2
+     * sequence).  A concurrent discard that clears L2 and drops the
+     * refcount during that window leaves the writer pointing at a
+     * freed cluster - the root of the refcount/reference aliasing
+     * corruption family.  Marking the discard serialising makes it wait
+     * for the in-flight write's tracked_request to complete before any
+     * L2/refcount mutation happens.
+     */
+    ret = bdrv_co_write_req_prepare(child, offset, bytes, &req,
+                                    BDRV_REQ_SERIALISING);
     if (ret < 0) {
         goto out;
     }
