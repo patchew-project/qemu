@@ -45,7 +45,7 @@ static bool trans_BADDU(DisasContext *ctx, arg_BADDU *a)
 {
     TCGv t0, t1;
 
-    if (a->rt == 0) {
+    if (a->rd == 0) {
         /* nop */
         return true;
     }
@@ -55,8 +55,9 @@ static bool trans_BADDU(DisasContext *ctx, arg_BADDU *a)
     gen_load_gpr(t0, a->rs);
     gen_load_gpr(t1, a->rt);
 
-    tcg_gen_add_tl(t0, t0, t1);
-    tcg_gen_andi_i64(cpu_gpr[a->rd], t0, 0xff);
+    tcg_gen_add_i64(t0, t0, t1);
+    tcg_gen_andi_i64(t0, t0, 0xff);
+    gen_store_gpr(t0, a->rd);
     return true;
 }
 
@@ -64,7 +65,7 @@ static bool trans_DMUL(DisasContext *ctx, arg_DMUL *a)
 {
     TCGv t0, t1;
 
-    if (a->rt == 0) {
+    if (a->rd == 0) {
         /* nop */
         return true;
     }
@@ -74,7 +75,8 @@ static bool trans_DMUL(DisasContext *ctx, arg_DMUL *a)
     gen_load_gpr(t0, a->rs);
     gen_load_gpr(t1, a->rt);
 
-    tcg_gen_mul_i64(cpu_gpr[a->rd], t0, t1);
+    tcg_gen_mul_i64(t0, t0, t1);
+    gen_store_gpr(t0, a->rd);
     return true;
 }
 
