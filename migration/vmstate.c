@@ -182,7 +182,13 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
             vmstate_handle_alloc(first_elem, field, opaque);
             if (field->flags & VMS_POINTER) {
                 first_elem = *(void **)first_elem;
-                assert(first_elem || !n_elems || !size);
+                if (!first_elem && n_elems && size) {
+                    error_setg(errp,
+                               "VM load of device '%s': field '%s' is a NULL "
+                               "pointer but snapshot contains data for it.",
+                               vmsd->name, field->name);
+                    return -EINVAL;
+                }
             }
             for (i = 0; i < n_elems; i++) {
                 void *curr_elem = first_elem + size * i;
@@ -651,9 +657,6 @@ static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
         ret = vmstate_load_state(f, sub_vmsd, opaque, version_id, errp);
         if (ret) {
             trace_vmstate_subsection_load_bad(vmsd->name, idstr, "(child)");
-            error_prepend(errp,
-                          "Loading VM subsection '%s' in '%s' failed: %d: ",
-                          idstr, vmsd->name, ret);
             return ret;
         }
     }
