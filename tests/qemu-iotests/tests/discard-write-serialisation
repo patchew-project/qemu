@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+# group: rw quick auto
+#
+# Regression test for the block-layer race fixed in
+# block/io: serialise discard and write-zeroes against in-flight writes.
+#
+# A format driver's write path may drop its internal mutex around the
+# data I/O of an allocating write (qcow2 does so between
+# qcow2_alloc_host_offset and qcow2_alloc_cluster_link_l2).  A
+# concurrent discard or MAY_UNMAP write-zeroes on the same guest range,
+# running in that window, can clear the L2 entry and drop the cluster's
+# refcount to zero; the writer's subsequent link then binds the L2
+# entry to a freed cluster.  qemu-img check reports this as refcount=0
+# with a live OFLAG_COPIED reference, or refcount < reference when the
+# allocator re-hands the cluster out.
+#
+# The bug is in the generic block layer, not format-specific; qcow2 is
+# the detection vehicle because its refcount validation in qemu-img
+# check catches the fingerprint.  The test drives a single qemu-io
+# process with interleaved async aio_write and aio_write -z -u commands
+# at random cluster-aligned offsets in a small contention region, then
+# runs qemu-img check and asserts zero corruptions.  On an unpatched
+# tree the same workload reproduces the fingerprint deterministically
+# (seed is fixed).
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+import random
+import subprocess
+
+import iotests
+from iotests import qemu_img_create, qemu_img_check, qemu_io_wrap_args
+
+
+iotests.script_initialize(supported_fmts=['qcow2'],
+                          supported_platforms=['linux'])
+
+IMG_SIZE = 256 * 1024 * 1024          # 256 MiB
+REGION = 64 * 1024 * 1024             # contention region: 64 MiB
+CLUSTER = 1024 * 1024                 # 1 MiB
+SUBCLUSTER = 32 * 1024                # 32 KiB
+OPS = 5000
+SEED = 7
+
+def build_commands() -> bytes:
+    rng = random.Random(SEED)
+    max_cluster = REGION // CLUSTER - 1
+    lines = []
+    for _ in range(OPS):
+        cl = rng.randint(0, max_cluster)
+        off = cl * CLUSTER
+        if rng.random() < 0.5:
+            # Small sub-cluster write at an unaligned position inside
+            # the cluster -- exercises the handle_copied path and the
+            # s->lock drop around the data I/O.
+            sub = rng.randrange(0, CLUSTER, SUBCLUSTER)
+            lines.append(f'aio_write -q {off + sub} 32k')
+        else:
+            # MAY_UNMAP write-zeroes aligned to the cluster -- frees
+            # clusters at the format driver level and is the concurrent
+            # cluster-free source that races with the in-flight writes.
+            lines.append(f'aio_write -q -z -u {off} 1M')
+    lines.append('aio_flush')
+    return ('\n'.join(lines) + '\n').encode()
+
+
+def main() -> None:
+    with iotests.FilePath('disk.img') as img:
+        qemu_img_create('-f', 'qcow2',
+                        '-o', 'cluster_size=1M,extended_l2=on,'
+                              'lazy_refcounts=on,refcount_bits=16',
+                        img, str(IMG_SIZE))
+
+        # Run qemu-io with async AIO.  --cache=none and --aio=native ensure
+        # the writer coroutine actually yields around its data I/O (which
+        # is what opens the race window).  Swallow stdout/stderr: the
+        # result we care about is the on-disk state, checked below.
+        args = qemu_io_wrap_args(['-f', 'qcow2', '-n',
+                                  '--cache=none', '--aio=native', img])
+        subprocess.run(args, input=build_commands(),
+                       stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL,
+                       check=True)
+
+        result = qemu_img_check(img)
+        corruptions = result.get('corruptions', 0)
+        check_errors = result.get('check-errors', 0)
+        if corruptions or check_errors:
+            iotests.log(f'FAIL: qemu-img check reports '
+                        f'corruptions={corruptions} '
+                        f'check-errors={check_errors}')
+        else:
+            iotests.log('OK')
+
+
+if __name__ == '__main__':
+    main()
