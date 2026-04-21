@@ -115,6 +115,8 @@ static bool octeon_cop2_is_supported_dmtc2(uint16_t sel)
     case OCTEON_COP2_SEL_AES_DEC_CBC0:
     case OCTEON_COP2_SEL_AES_DEC0:
     case OCTEON_COP2_SEL_AES_KEYLENGTH:
+    case OCTEON_COP2_SEL_CAMELLIA_FL:
+    case OCTEON_COP2_SEL_CAMELLIA_FLINV:
     case OCTEON_COP2_SEL_CRC_WRITE_POLYNOMIAL:
     case OCTEON_COP2_SEL_CRC_IV:
     case OCTEON_COP2_SEL_CRC_WRITE_LEN:
@@ -210,6 +212,7 @@ static bool octeon_cop2_is_supported_dmtc2(uint16_t sel)
     case OCTEON_COP2_SEL_AES_ENC1:
     case OCTEON_COP2_SEL_AES_DEC_CBC1:
     case OCTEON_COP2_SEL_AES_DEC1:
+    case OCTEON_COP2_SEL_CAMELLIA_ROUND:
     case OCTEON_COP2_SEL_SMS4_ENC_CBC1:
     case OCTEON_COP2_SEL_SMS4_ENC1:
     case OCTEON_COP2_SEL_SMS4_DEC_CBC1:
