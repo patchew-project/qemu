@@ -2386,6 +2386,15 @@ out:
     if (err) {
         migrate_error_propagate(ms, err);
         trace_source_return_path_thread_bad_end();
+        if (ms->state == MIGRATION_STATUS_POSTCOPY_DEVICE) {
+            /*
+             * Kick the migration thread if it gets stuck in
+             * POSTCOPY_DEVICE state waiting for
+             * postcopy_package_loaded_event. The event will never be
+             * set as MIG_RP_MSG_PONG from the destination is lost.
+             */
+            qemu_event_set(&ms->postcopy_package_loaded_event);
+        }
     }
 
     if (ms->state == MIGRATION_STATUS_POSTCOPY_RECOVER) {
@@ -3232,6 +3241,17 @@ static MigIterateState migration_iteration_run(MigrationState *s)
              * package before actually completing.
              */
             qemu_event_wait(&s->postcopy_package_loaded_event);
+            /*
+             * Check for errors in case the migration thread was stuck in
+             * POSTCOPY_DEVICE state waiting for the
+             * postcopy_package_loaded_event which was never set.
+             * If so, fail now and break out of the iteration.
+             */
+            if (migrate_has_error(s)) {
+                migrate_set_state(&s->state, MIGRATION_STATUS_POSTCOPY_DEVICE,
+                                  MIGRATION_STATUS_FAILING);
+                return MIG_ITERATE_BREAK;
+            }
             migrate_set_state(&s->state, MIGRATION_STATUS_POSTCOPY_DEVICE,
                               MIGRATION_STATUS_POSTCOPY_ACTIVE);
         }
