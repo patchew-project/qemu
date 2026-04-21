@@ -497,6 +497,10 @@ struct TCState {
     target_ulong CP0_TCScheFBack;
     int32_t CP0_Debug_tcstatus;
     target_ulong CP0_UserLocal;
+    struct {
+        uint64_t MPL[2 * 3];
+        uint64_t P[2 * 3];
+    } octeon;
 
     int32_t msacsr;
 
