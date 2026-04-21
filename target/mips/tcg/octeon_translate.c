@@ -21,6 +21,216 @@ static bool octeon_check_64(DisasContext *ctx)
     return ctx->base.is_jmp == DISAS_NEXT;
 }
 
+static bool octeon_cop2_is_supported_dmfc2(uint16_t sel)
+{
+    switch (sel) {
+    case OCTEON_COP2_SEL_3DES_KEY0:
+    case OCTEON_COP2_SEL_3DES_KEY1:
+    case OCTEON_COP2_SEL_3DES_KEY2:
+    case OCTEON_COP2_SEL_3DES_IV:
+    case OCTEON_COP2_SEL_3DES_RESULT:
+    case OCTEON_COP2_SEL_3DES_RESULT_IN:
+    case OCTEON_COP2_SEL_AES_RESULT0:
+    case OCTEON_COP2_SEL_AES_RESULT1:
+    case OCTEON_COP2_SEL_AES_KEY0:
+    case OCTEON_COP2_SEL_AES_KEY1:
+    case OCTEON_COP2_SEL_AES_KEY2:
+    case OCTEON_COP2_SEL_AES_KEY3:
+    case OCTEON_COP2_SEL_AES_KEYLENGTH:
+    case OCTEON_COP2_SEL_CRC_POLYNOMIAL:
+    case OCTEON_COP2_SEL_AES_IV0:
+    case OCTEON_COP2_SEL_AES_IV1:
+    case OCTEON_COP2_SEL_CRC_IV:
+    case OCTEON_COP2_SEL_CRC_LEN:
+    case OCTEON_COP2_SEL_CRC_IV_REFLECT:
+    case OCTEON_COP2_SEL_HSH_DATW0:
+    case OCTEON_COP2_SEL_HSH_DATW1:
+    case OCTEON_COP2_SEL_HSH_DATW2:
+    case OCTEON_COP2_SEL_HSH_DATW3:
+    case OCTEON_COP2_SEL_HSH_DATW4:
+    case OCTEON_COP2_SEL_HSH_DATW5:
+    case OCTEON_COP2_SEL_HSH_DATW6:
+    case OCTEON_COP2_SEL_HSH_DATW7:
+    case OCTEON_COP2_SEL_HSH_DATW8:
+    case OCTEON_COP2_SEL_HSH_DATW9:
+    case OCTEON_COP2_SEL_HSH_DATW10:
+    case OCTEON_COP2_SEL_HSH_DATW11:
+    case OCTEON_COP2_SEL_HSH_DATW12:
+    case OCTEON_COP2_SEL_HSH_DATW13:
+    case OCTEON_COP2_SEL_HSH_DATW14:
+    case OCTEON_COP2_SEL_HSH_DATW15:
+    case OCTEON_COP2_SEL_HSH_IV0:
+    case OCTEON_COP2_SEL_HSH_IV1:
+    case OCTEON_COP2_SEL_HSH_IV2:
+    case OCTEON_COP2_SEL_HSH_IV3:
+    case OCTEON_COP2_SEL_HSH_IVW0:
+    case OCTEON_COP2_SEL_HSH_IVW1:
+    case OCTEON_COP2_SEL_HSH_IVW2:
+    case OCTEON_COP2_SEL_HSH_IVW3:
+    case OCTEON_COP2_SEL_HSH_IVW4:
+    case OCTEON_COP2_SEL_HSH_IVW5:
+    case OCTEON_COP2_SEL_HSH_IVW6:
+    case OCTEON_COP2_SEL_HSH_IVW7:
+    case OCTEON_COP2_SEL_AES_DAT0:
+    case OCTEON_COP2_SEL_GFM_MUL_REFLECT0:
+    case OCTEON_COP2_SEL_GFM_MUL_REFLECT1:
+    case OCTEON_COP2_SEL_GFM_RESINP_REFLECT0:
+    case OCTEON_COP2_SEL_GFM_RESINP_REFLECT1:
+    case OCTEON_COP2_SEL_GFM_MUL0:
+    case OCTEON_COP2_SEL_GFM_MUL1:
+    case OCTEON_COP2_SEL_GFM_RESINP0:
+    case OCTEON_COP2_SEL_GFM_RESINP1:
+    case OCTEON_COP2_SEL_GFM_POLY:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool octeon_cop2_is_supported_dmtc2(uint16_t sel)
+{
+    switch (sel) {
+    case OCTEON_COP2_SEL_3DES_KEY0:
+    case OCTEON_COP2_SEL_3DES_KEY1:
+    case OCTEON_COP2_SEL_3DES_KEY2:
+    case OCTEON_COP2_SEL_3DES_IV:
+    case OCTEON_COP2_SEL_3DES_RESULT_IN:
+    case OCTEON_COP2_SEL_3DES_ENC_CBC:
+    case OCTEON_COP2_SEL_KAS_ENC_CBC:
+    case OCTEON_COP2_SEL_3DES_ENC:
+    case OCTEON_COP2_SEL_KAS_ENC:
+    case OCTEON_COP2_SEL_3DES_DEC_CBC:
+    case OCTEON_COP2_SEL_3DES_DEC:
+    case OCTEON_COP2_SEL_AES_RESULT0:
+    case OCTEON_COP2_SEL_AES_RESULT1:
+    case OCTEON_COP2_SEL_AES_IV0:
+    case OCTEON_COP2_SEL_AES_IV1:
+    case OCTEON_COP2_SEL_AES_KEY0:
+    case OCTEON_COP2_SEL_AES_KEY1:
+    case OCTEON_COP2_SEL_AES_KEY2:
+    case OCTEON_COP2_SEL_AES_KEY3:
+    case OCTEON_COP2_SEL_AES_ENC_CBC0:
+    case OCTEON_COP2_SEL_AES_ENC0:
+    case OCTEON_COP2_SEL_AES_DEC_CBC0:
+    case OCTEON_COP2_SEL_AES_DEC0:
+    case OCTEON_COP2_SEL_AES_KEYLENGTH:
+    case OCTEON_COP2_SEL_CRC_WRITE_POLYNOMIAL:
+    case OCTEON_COP2_SEL_CRC_IV:
+    case OCTEON_COP2_SEL_CRC_WRITE_LEN:
+    case OCTEON_COP2_SEL_CRC_WRITE_IV_REFLECT:
+    case OCTEON_COP2_SEL_CRC_WRITE_BYTE:
+    case OCTEON_COP2_SEL_CRC_WRITE_HALF:
+    case OCTEON_COP2_SEL_CRC_WRITE_WORD:
+    case OCTEON_COP2_SEL_CRC_WRITE_DWORD:
+    case OCTEON_COP2_SEL_CRC_WRITE_VAR:
+    case OCTEON_COP2_SEL_CRC_WRITE_POLYNOMIAL_REFLECT:
+    case OCTEON_COP2_SEL_CRC_WRITE_BYTE_REFLECT:
+    case OCTEON_COP2_SEL_CRC_WRITE_HALF_REFLECT:
+    case OCTEON_COP2_SEL_CRC_WRITE_WORD_REFLECT:
+    case OCTEON_COP2_SEL_CRC_WRITE_DWORD_REFLECT:
+    case OCTEON_COP2_SEL_CRC_WRITE_VAR_REFLECT:
+    case OCTEON_COP2_SEL_HSH_DAT0:
+    case OCTEON_COP2_SEL_HSH_DAT1:
+    case OCTEON_COP2_SEL_HSH_DAT2:
+    case OCTEON_COP2_SEL_HSH_DAT3:
+    case OCTEON_COP2_SEL_HSH_DAT4:
+    case OCTEON_COP2_SEL_HSH_DAT5:
+    case OCTEON_COP2_SEL_HSH_DAT6:
+    case OCTEON_COP2_SEL_HSH_IV0:
+    case OCTEON_COP2_SEL_HSH_IV1:
+    case OCTEON_COP2_SEL_HSH_IV2:
+    case OCTEON_COP2_SEL_HSH_IV3:
+    case OCTEON_COP2_SEL_HSH_DATW0:
+    case OCTEON_COP2_SEL_HSH_DATW1:
+    case OCTEON_COP2_SEL_HSH_DATW2:
+    case OCTEON_COP2_SEL_HSH_DATW3:
+    case OCTEON_COP2_SEL_HSH_DATW4:
+    case OCTEON_COP2_SEL_HSH_DATW5:
+    case OCTEON_COP2_SEL_HSH_DATW6:
+    case OCTEON_COP2_SEL_HSH_DATW7:
+    case OCTEON_COP2_SEL_HSH_DATW8:
+    case OCTEON_COP2_SEL_HSH_DATW9:
+    case OCTEON_COP2_SEL_HSH_DATW10:
+    case OCTEON_COP2_SEL_HSH_DATW11:
+    case OCTEON_COP2_SEL_HSH_DATW12:
+    case OCTEON_COP2_SEL_HSH_DATW13:
+    case OCTEON_COP2_SEL_HSH_DATW14:
+    case OCTEON_COP2_SEL_HSH_DATW15:
+    case OCTEON_COP2_SEL_HSH_IVW0:
+    case OCTEON_COP2_SEL_HSH_IVW1:
+    case OCTEON_COP2_SEL_HSH_IVW2:
+    case OCTEON_COP2_SEL_HSH_IVW3:
+    case OCTEON_COP2_SEL_HSH_IVW4:
+    case OCTEON_COP2_SEL_HSH_IVW5:
+    case OCTEON_COP2_SEL_HSH_IVW6:
+    case OCTEON_COP2_SEL_HSH_IVW7:
+    case OCTEON_COP2_SEL_GFM_MUL_REFLECT0:
+    case OCTEON_COP2_SEL_GFM_MUL_REFLECT1:
+    case OCTEON_COP2_SEL_GFM_XOR0_REFLECT:
+    case OCTEON_COP2_SEL_GFM_MUL0:
+    case OCTEON_COP2_SEL_GFM_MUL1:
+    case OCTEON_COP2_SEL_GFM_RESINP0:
+    case OCTEON_COP2_SEL_GFM_RESINP1:
+    case OCTEON_COP2_SEL_GFM_XOR0:
+    case OCTEON_COP2_SEL_GFM_POLY:
+    case OCTEON_COP2_SEL_HSH_STARTSHA1_COMPAT:
+    case OCTEON_COP2_SEL_HSH_STARTMD5:
+    case OCTEON_COP2_SEL_SNOW3G_START:
+    case OCTEON_COP2_SEL_SNOW3G_MORE:
+    case OCTEON_COP2_SEL_HSH_STARTSHA256:
+    case OCTEON_COP2_SEL_HSH_STARTSHA1:
+    case OCTEON_COP2_SEL_GFM_XORMUL1_REFLECT:
+    case OCTEON_COP2_SEL_HSH_STARTSHA512:
+    case OCTEON_COP2_SEL_GFM_XORMUL1:
+    case OCTEON_COP2_SEL_AES_ENC_CBC1:
+    case OCTEON_COP2_SEL_AES_ENC1:
+    case OCTEON_COP2_SEL_AES_DEC_CBC1:
+    case OCTEON_COP2_SEL_AES_DEC1:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool gen_octeon_cop2(DisasContext *ctx)
+{
+    enum {
+        OCTEON_CP2_RS_DMFC2 = 0x01,
+        OCTEON_CP2_RS_DMTC2 = 0x05,
+    };
+    int rs = extract32(ctx->opcode, 21, 5);
+    int rt = extract32(ctx->opcode, 16, 5);
+    uint16_t sel = ctx->opcode;
+    TCGv_i64 t0;
+
+    switch (rs) {
+    case OCTEON_CP2_RS_DMFC2:
+        if (!octeon_check_64(ctx)) {
+            return true;
+        }
+        if (!octeon_cop2_is_supported_dmfc2(sel)) {
+            return false;
+        }
+        t0 = tcg_temp_new_i64();
+        gen_helper_octeon_cop2_dmfc2(t0, tcg_env, tcg_constant_i32(sel));
+        gen_store_gpr(t0, rt);
+        return true;
+    case OCTEON_CP2_RS_DMTC2:
+        if (!octeon_check_64(ctx)) {
+            return true;
+        }
+        if (!octeon_cop2_is_supported_dmtc2(sel)) {
+            return false;
+        }
+        t0 = tcg_temp_new_i64();
+        gen_load_gpr(t0, rt);
+        gen_helper_octeon_cop2_dmtc2(tcg_env, t0, tcg_constant_i32(sel));
+        return true;
+    default:
+        return false;
+    }
+}
+
 static bool trans_BBIT(DisasContext *ctx, arg_BBIT *a)
 {
     TCGv_i64 p;

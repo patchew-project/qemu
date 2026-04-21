@@ -232,6 +232,7 @@ bool decode_ext_loongson(DisasContext *ctx, uint32_t insn);
 bool decode_ase_lcsr(DisasContext *ctx, uint32_t insn);
 bool decode_ext_tx79(DisasContext *ctx, uint32_t insn);
 bool decode_ext_octeon(DisasContext *ctx, uint32_t insn);
+bool gen_octeon_cop2(DisasContext *ctx);
 #endif
 bool decode_ext_vr54xx(DisasContext *ctx, uint32_t insn);
 

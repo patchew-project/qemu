@@ -14860,6 +14860,15 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
         }
         break;
     case OPC_CP2:
+#if defined(TARGET_MIPS64)
+        if (ctx->insn_flags & INSN_OCTEON) {
+            if (gen_octeon_cop2(ctx)) {
+                break;
+            }
+            generate_exception_err(ctx, EXCP_CpU, 2);
+            break;
+        }
+#endif
         check_insn(ctx, ASE_LMMI);
         /* Note that these instructions use different fields.  */
         gen_loongson_multimedia(ctx, sa, rd, rt);
