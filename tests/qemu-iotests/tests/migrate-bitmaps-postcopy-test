@@ -162,7 +162,13 @@ class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
 
         self.vm_a.cmd('migrate', uri='exec:cat>' + fifo)
 
+        # Verify query-migrate working with dirty-bitmaps in precopy mode
+        self.vm_a.qmp('query-migrate')
+
         self.vm_a.cmd('migrate-start-postcopy')
+
+        # Verify query-migrate working with dirty-bitmaps in postcopy mode
+        self.vm_a.qmp('query-migrate')
 
         event_resume = self.vm_b.event_wait('RESUME')
         self.vm_b_events.append(event_resume)
