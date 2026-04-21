@@ -682,11 +682,11 @@ void tcg_iommu_init_notifier_list(CPUState *cpu)
 }
 
 /* Called from RCU critical section */
-MemoryRegionSection *
+static MemoryRegionSection *
 address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr orig_addr,
                                   hwaddr *xlat, hwaddr *plen,
                                   MemTxAttrs attrs, int *prot,
-                                  MMUAccessType access_type)
+                                  MMUAccessType access_type, bool early_trans)
 {
     MemoryRegionSection *section;
     IOMMUMemoryRegion *iommu_mr;
@@ -709,6 +709,11 @@ address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr orig_addr,
 
         iommu_idx = imrc->attrs_to_index(iommu_mr, attrs);
         tcg_register_iommu_notifier(cpu, iommu_mr, iommu_idx);
+
+        /* Defer the iommu translation */
+        if (early_trans) {
+            break;
+        }
 
         if (access_type == MMU_DATA_STORE) {
             iommu_flags = IOMMU_WO;
@@ -737,7 +742,8 @@ address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr orig_addr,
         d = flatview_to_dispatch(address_space_to_flatview(iotlb.target_as));
     }
 
-    assert(!memory_region_is_iommu(section->mr));
+    /* For late translation, IOMMU region translation should be finished */
+    assert(early_trans || !memory_region_is_iommu(section->mr));
     *xlat = addr;
     return section;
 
@@ -753,6 +759,40 @@ translate_fail:
     assert((orig_addr & ~TARGET_PAGE_MASK) == 0);
     *xlat = orig_addr;
     return &d->map.sections[PHYS_SECTION_UNASSIGNED];
+}
+
+/*
+ * address_space_translate_for_iotlb_early: translate address without
+ * performing IOMMU translation. This is used for CPU TLB setup.
+ *
+ * Called from RCU critical section.
+ */
+MemoryRegionSection *
+address_space_translate_for_iotlb_early(CPUState *cpu, int asidx,
+                                        hwaddr orig_addr,
+                                        hwaddr *xlat, hwaddr *plen,
+                                        MemTxAttrs attrs, int *prot)
+{
+    /* access_type doesn't matter for early translation */
+    return address_space_translate_for_iotlb(cpu, asidx, orig_addr, xlat, plen,
+                                             attrs, prot, MMU_DATA_LOAD, true);
+}
+
+/*
+ * address_space_translate_for_iotlb_late: translate address with
+ * performing IOMMU translation. This is used for lazy IOMMU translation.
+ *
+ * Called from RCU critical section.
+ */
+MemoryRegionSection *
+address_space_translate_for_iotlb_late(CPUState *cpu, int asidx,
+                                       hwaddr orig_addr,
+                                       hwaddr *xlat, hwaddr *plen,
+                                       MemTxAttrs attrs, int *prot,
+                                       MMUAccessType access_type)
+{
+    return address_space_translate_for_iotlb(cpu, asidx, orig_addr, xlat, plen,
+                                             attrs, prot, access_type, false);
 }
 
 #endif /* CONFIG_TCG */
