@@ -129,6 +129,8 @@ void console_handle_touch_event(QemuConsole *con,
 
 struct QemuConsoleClass {
     ObjectClass parent_class;
+
+    char * (*get_label)(const QemuConsole *con);
 };
 
 typedef struct ScanoutTexture {
