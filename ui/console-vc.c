@@ -266,9 +266,8 @@ static void vt100_refresh(QemuVT100 *vt)
     vt100_image_update(vt, 0, 0, w, h);
 }
 
-static void console_scroll(QemuTextConsole *s, int ydelta)
+static void vt100_scroll(QemuVT100 *vt, int ydelta)
 {
-    QemuVT100 *vt = &s->vt;
     int i, y1;
 
     if (ydelta > 0) {
@@ -293,7 +292,7 @@ static void console_scroll(QemuTextConsole *s, int ydelta)
                 vt->y_displayed = vt->total_height - 1;
         }
     }
-    vt100_refresh(&s->vt);
+    vt100_refresh(vt);
 }
 
 static void kbd_send_chars(QemuTextConsole *s)
@@ -323,16 +322,16 @@ void qemu_text_console_handle_keysym(QemuTextConsole *s, int keysym)
 
     switch(keysym) {
     case QEMU_KEY_CTRL_UP:
-        console_scroll(s, -1);
+        vt100_scroll(&s->vt, -1);
         break;
     case QEMU_KEY_CTRL_DOWN:
-        console_scroll(s, 1);
+        vt100_scroll(&s->vt, 1);
         break;
     case QEMU_KEY_CTRL_PAGEUP:
-        console_scroll(s, -10);
+        vt100_scroll(&s->vt, -10);
         break;
     case QEMU_KEY_CTRL_PAGEDOWN:
-        console_scroll(s, 10);
+        vt100_scroll(&s->vt, 10);
         break;
     default:
         /* convert the QEMU keysym to VT100 key string */
