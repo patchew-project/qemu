@@ -3006,6 +3006,38 @@ static void whpx_set_nested_virt(Object *obj, Visitor *v,
     }
 }
 
+static void whpx_set_ssd(Object *obj, Visitor *v,
+                                   const char *name, void *opaque,
+                                   Error **errp)
+{
+    struct whpx_state *whpx = &whpx_global;
+    OnOffAuto mode;
+
+    if (!visit_type_OnOffAuto(v, name, &mode, errp)) {
+        return;
+    }
+
+    switch (mode) {
+    case ON_OFF_AUTO_ON:
+        whpx->separate_security_domain = true;
+        break;
+
+    case ON_OFF_AUTO_OFF:
+        whpx->separate_security_domain = false;
+        break;
+
+    case ON_OFF_AUTO_AUTO:
+        whpx->separate_security_domain = true;
+        break;
+    default:
+        /*
+         * The value was checked in visit_type_OnOffAuto() above. If
+         * we get here, then something is wrong in QEMU.
+         */
+        abort();
+    }
+}
+
 
 void whpx_arch_accel_class_init(ObjectClass *oc)
 {
@@ -3024,6 +3056,11 @@ void whpx_arch_accel_class_init(ObjectClass *oc)
         NULL, NULL);
     object_class_property_set_description(oc, "intercept-msr-gp",
         "Toggle nested virtualization off/on.");
+    object_class_property_add(oc, "ssd", "OnOffAuto",
+        NULL, whpx_set_ssd,
+        NULL, NULL);
+    object_class_property_set_description(oc, "ssd",
+        "Separate security domain");
 }
 
 int whpx_accel_init(AccelState *as, MachineState *ms)
@@ -3221,6 +3258,32 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     } else if (whpx->nested_virt_enabled) {
         whpx->nested_virt_enabled = 0;
         info_report("WHPX: nested virtualisation not available");
+    }
+
+    /*
+     * The combination of separate security domain off
+     * and disabling specifically these features results
+     * in a significant vmexit performance improvement
+     * by skipping speculative execution mitigations.
+     */
+    if (!whpx->separate_security_domain) {
+        processor_features.Bank0.IbrsSupport = 0;
+        processor_features.Bank0.StibpSupport = 0;
+        processor_features.Bank0.IbpbSupport = 0;
+        processor_features.Bank0.SsbdSupport = 0;
+        processor_features.Bank0.IbrsAllSupport = 0;
+        processor_features.Bank1.PsfdSupport = 0;
+        memset(&prop, 0, sizeof(WHV_PARTITION_PROPERTY));
+        prop.SeparateSecurityDomain = 0;
+        hr = whp_dispatch.WHvSetPartitionProperty(
+            whpx->partition,
+            WHvPartitionPropertyCodeSeparateSecurityDomain,
+            &prop,
+            sizeof(WHV_PARTITION_PROPERTY));
+        if (FAILED(hr)) {
+            error_report("WHPX: failed to unset separate security domain, hr=%08lx", hr);
+            /* Some old Windows 10 releases didn't have this, so not fatal*/
+        }
     }
 
     hr = whp_dispatch.WHvSetPartitionProperty(

@@ -557,6 +557,7 @@ static void whpx_accel_instance_init(Object *obj)
     whpx->ignore_unknown_msr = true;
     whpx->intercept_msr_gp = false;
     whpx->nested_virt_enabled = true;
+    whpx->separate_security_domain = true;
 }
 
 static const TypeInfo whpx_accel_type = {
