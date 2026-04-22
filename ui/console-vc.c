@@ -176,21 +176,20 @@ static void vt100_putcharxy(QemuVT100 *vt, int x, int y, int ch,
                              &fgcol, &bgcol, x, y, FONT_WIDTH, FONT_HEIGHT);
 }
 
-static void invalidate_xy(QemuTextConsole *s, int x, int y)
+static void vt100_invalidate_xy(QemuVT100 *vt, int x, int y)
 {
-    QemuVT100 *vt = &s->vt;
-
-    if (!qemu_console_is_visible(QEMU_CONSOLE(s))) {
-        return;
-    }
-    if (vt->update_x0 > x * FONT_WIDTH)
+    if (vt->update_x0 > x * FONT_WIDTH) {
         vt->update_x0 = x * FONT_WIDTH;
-    if (vt->update_y0 > y * FONT_HEIGHT)
+    }
+    if (vt->update_y0 > y * FONT_HEIGHT) {
         vt->update_y0 = y * FONT_HEIGHT;
-    if (vt->update_x1 < (x + 1) * FONT_WIDTH)
+    }
+    if (vt->update_x1 < (x + 1) * FONT_WIDTH) {
         vt->update_x1 = (x + 1) * FONT_WIDTH;
-    if (vt->update_y1 < (y + 1) * FONT_HEIGHT)
+    }
+    if (vt->update_y1 < (y + 1) * FONT_HEIGHT) {
         vt->update_y1 = (y + 1) * FONT_HEIGHT;
+    }
 }
 
 static void console_show_cursor(QemuTextConsole *s, int show)
@@ -219,7 +218,7 @@ static void console_show_cursor(QemuTextConsole *s, int show)
         } else {
             vt100_putcharxy(&s->vt, x, y, c->ch, &(c->t_attrib));
         }
-        invalidate_xy(s, x, y);
+        vt100_invalidate_xy(&s->vt, x, y);
     }
 }
 
@@ -591,7 +590,7 @@ static void vc_update_xy(VCChardev *vc, int x, int y)
         c = &vt->cells[y1 * vt->width + x];
         vt100_putcharxy(vt, x, y2, c->ch,
                       &(c->t_attrib));
-        invalidate_xy(s, x, y2);
+        vt100_invalidate_xy(&s->vt, x, y2);
     }
 }
 
