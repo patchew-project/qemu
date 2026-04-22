@@ -326,7 +326,6 @@ static int vnc_worker_thread_loop(VncJobQueue *queue)
 
         qemu_bh_schedule(job->vs->bh);
     }  else {
-        buffer_reset(&vs.output);
         /* Copy persistent encoding data */
         vnc_async_encoding_end(job->vs, &vs);
     }
