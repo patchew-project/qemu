@@ -192,9 +192,8 @@ static void vt100_invalidate_xy(QemuVT100 *vt, int x, int y)
     }
 }
 
-static void console_show_cursor(QemuTextConsole *s, int show)
+static void vt100_show_cursor(QemuVT100 *vt, int show)
 {
-    QemuVT100 *vt = &s->vt;
     TextCell *c;
     int y, y1;
     int x = vt->x;
@@ -214,11 +213,11 @@ static void console_show_cursor(QemuTextConsole *s, int show)
         if (show && cursor_visible_phase) {
             TextAttributes t_attrib = TEXT_ATTRIBUTES_DEFAULT;
             t_attrib.invers = !(t_attrib.invers); /* invert fg and bg */
-            vt100_putcharxy(&s->vt, x, y, c->ch, &t_attrib);
+            vt100_putcharxy(vt, x, y, c->ch, &t_attrib);
         } else {
-            vt100_putcharxy(&s->vt, x, y, c->ch, &(c->t_attrib));
+            vt100_putcharxy(vt, x, y, c->ch, &(c->t_attrib));
         }
-        vt100_invalidate_xy(&s->vt, x, y);
+        vt100_invalidate_xy(vt, x, y);
     }
 }
 
@@ -250,7 +249,7 @@ static void console_refresh(QemuTextConsole *s)
             y1 = 0;
         }
     }
-    console_show_cursor(s, 1);
+    vt100_show_cursor(&s->vt, 1);
     dpy_gfx_update(QEMU_CONSOLE(s), 0, 0, w, h);
 }
 
@@ -1023,11 +1022,11 @@ static int vc_chr_write(Chardev *chr, const uint8_t *buf, int len)
     vt->update_y0 = vt->height * FONT_HEIGHT;
     vt->update_x1 = 0;
     vt->update_y1 = 0;
-    console_show_cursor(s, 0);
+    vt100_show_cursor(vt, 0);
     for(i = 0; i < len; i++) {
         vc_putchar(drv, buf[i]);
     }
-    console_show_cursor(s, 1);
+    vt100_show_cursor(vt, 1);
     if (vt->update_x0 < vt->update_x1) {
         dpy_gfx_update(QEMU_CONSOLE(s), vt->update_x0, vt->update_y0,
                        vt->update_x1 - vt->update_x0,
