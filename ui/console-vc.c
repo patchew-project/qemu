@@ -296,7 +296,7 @@ static void vt100_scroll(QemuVT100 *vt, int ydelta)
     vt100_refresh(vt);
 }
 
-static void kbd_send_chars(QemuTextConsole *s)
+static void qemu_text_console_flush(QemuTextConsole *s)
 {
     uint32_t len, avail;
 
@@ -313,13 +313,21 @@ static void kbd_send_chars(QemuTextConsole *s)
     }
 }
 
+static void qemu_text_console_write(QemuTextConsole *s, const void *buf, size_t len)
+{
+    uint32_t num_free;
+
+    num_free = fifo8_num_free(&s->out_fifo);
+    fifo8_push_all(&s->out_fifo, buf, MIN(num_free, len));
+    qemu_text_console_flush(s);
+}
+
 /* called when an ascii key is pressed */
 void qemu_text_console_handle_keysym(QemuTextConsole *s, int keysym)
 {
     QemuVT100 *vt = &s->vt;
     uint8_t buf[16], *q;
     int c;
-    uint32_t num_free;
 
     switch(keysym) {
     case QEMU_KEY_CTRL_UP:
@@ -358,9 +366,7 @@ void qemu_text_console_handle_keysym(QemuTextConsole *s, int keysym)
         if (vt->echo) {
             qemu_chr_write(s->chr, buf, q - buf, true);
         }
-        num_free = fifo8_num_free(&s->out_fifo);
-        fifo8_push_all(&s->out_fifo, buf, MIN(num_free, q - buf));
-        kbd_send_chars(s);
+        qemu_text_console_write(s, buf, q - buf);
         break;
     }
 }
@@ -632,13 +638,6 @@ static void vc_put_one(VCChardev *vc, int ch)
     c->t_attrib = vc->t_attrib;
     vc_update_xy(vc, vt->x, vt->y);
     vt->x++;
-}
-
-static void vc_respond_str(VCChardev *vc, const char *buf)
-{
-    QemuTextConsole *s = vc->console;
-
-    qemu_chr_be_write(s->chr, (const uint8_t *)buf, strlen(buf));
 }
 
 /* set cursor, checking bounds */
@@ -967,13 +966,13 @@ static void vc_putchar(VCChardev *vc, int ch)
                 switch (vc->esc_params[0]) {
                 case 5:
                     /* report console status (always succeed)*/
-                    vc_respond_str(vc, "\033[0n");
+                    qemu_text_console_write(s, "\033[0n", 4);
                     break;
                 case 6:
                     /* report cursor position */
                     response = g_strdup_printf("\033[%d;%dR",
                                                vt->y + 1, vt->x + 1);
-                    vc_respond_str(vc, response);
+                    qemu_text_console_write(s, response, strlen(response));
                     break;
                 }
                 break;
@@ -1133,7 +1132,7 @@ static void vc_chr_accept_input(Chardev *chr)
 {
     VCChardev *drv = VC_CHARDEV(chr);
 
-    kbd_send_chars(drv->console);
+    qemu_text_console_flush(drv->console);
 }
 
 static void vc_chr_set_echo(Chardev *chr, bool echo)
