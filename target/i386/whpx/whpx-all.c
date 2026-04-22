@@ -36,6 +36,7 @@
 #include "system/whpx-accel-ops.h"
 #include "system/whpx-all.h"
 #include "system/whpx-common.h"
+#include "whpx-i386.h"
 
 #include "emulate/x86_decode.h"
 #include "emulate/x86_emu.h"
@@ -48,6 +49,8 @@
 #define HYPERV_APIC_BUS_FREQUENCY      (200000000ULL)
 /* for kernel-irqchip=off */
 #define HV_X64_MSR_APIC_FREQUENCY       0x40000023
+
+static bool is_modern_os = true;
 
 static const WHV_REGISTER_NAME whpx_register_names[] = {
 
@@ -265,9 +268,28 @@ typedef enum WhpxStepMode {
 static uint32_t max_vcpu_index;
 static WHV_PROCESSOR_XSAVE_FEATURES whpx_xsave_cap;
 
-static bool whpx_has_xsave(void)
+bool whpx_has_xsave(void)
 {
     return whpx_xsave_cap.XsaveSupport;
+}
+
+bool whpx_has_xsaves(void)
+{
+    return whpx_xsave_cap.XsaveSupervisorSupport;
+}
+
+static bool whpx_rdtsc_cap;
+
+bool whpx_has_rdtscp(void)
+{
+    return whpx_rdtsc_cap;
+}
+
+static bool whpx_invpcid_cap;
+
+bool whpx_has_invpcid(void)
+{
+    return whpx_invpcid_cap;
 }
 
 static WHV_X64_SEGMENT_REGISTER whpx_seg_q2h(const SegmentCache *qs, int v86,
@@ -1060,6 +1082,137 @@ static void whpx_init_emu(void)
 {
     init_decoder();
     init_emu(&whpx_x86_emul_ops);
+}
+
+bool whpx_is_legacy_os(void)
+{
+    return !is_modern_os;
+}
+
+uint32_t whpx_get_supported_cpuid(uint32_t func, uint32_t idx, int reg)
+{
+    WHV_CPUID_OUTPUT output = {};
+    uint32_t eax, ebx, ecx, edx;
+    uint32_t cpu_index = 0;
+    bool temp_cpu = true;
+    HRESULT hr;
+
+    /* Legacy OSes don't have WHvGetVirtualProcessorCpuidOutput */
+    if (whpx_is_legacy_os()) {
+        return whpx_get_supported_cpuid_legacy(func, idx, reg);
+    }
+
+    hr = whp_dispatch.WHvCreateVirtualProcessor(
+        whpx_global.partition, cpu_index, 0);
+
+    /* This means that the CPU already exists... */
+    if (FAILED(hr)) {
+        temp_cpu = false;
+    }
+
+    hr = whp_dispatch.WHvGetVirtualProcessorCpuidOutput(whpx_global.partition,
+        cpu_index, func, idx, &output);
+
+    if (FAILED(hr)) {
+        abort();
+    }
+
+    if (temp_cpu) {
+        hr = whp_dispatch.WHvDeleteVirtualProcessor(whpx_global.partition, cpu_index);
+        if (FAILED(hr)) {
+            abort();
+        }
+    }
+
+    eax = output.Eax;
+    ebx = output.Ebx;
+    ecx = output.Ecx;
+    edx = output.Edx;
+
+    /*
+     * We can emulate X2APIC even for the kernel-irqchip=off case.
+     * CPUID_EXT_HYPERVISOR and CPUID_HT should be considered present
+     * always, so report them as unconditionally supported here.
+     */
+    if (func == 1) {
+        ecx |= CPUID_EXT_X2APIC;
+        ecx |= CPUID_EXT_HYPERVISOR;
+        edx |= CPUID_HT;
+    }
+
+    switch (reg) {
+    case R_EAX:
+        return eax;
+    case R_EBX:
+        return ebx;
+    case R_ECX:
+        return ecx;
+    case R_EDX:
+        return edx;
+    default:
+        return 0;
+    }
+}
+
+uint64_t whpx_get_supported_msr_feature(uint32_t index)
+{
+    WHV_CAPABILITY_CODE cap;
+    uint64_t val = 0;
+
+    switch (index) {
+    case MSR_IA32_VMX_BASIC:
+        cap = WHvCapabilityCodeVmxBasic;
+        break;
+    case MSR_IA32_VMX_MISC:
+        cap = WHvCapabilityCodeVmxMisc;
+        break;
+    case MSR_IA32_VMX_CR0_FIXED0:
+        cap = WHvCapabilityCodeVmxCr0Fixed0;
+        break;
+    case MSR_IA32_VMX_CR0_FIXED1:
+        cap = WHvCapabilityCodeVmxCr0Fixed1;
+        break;
+    case MSR_IA32_VMX_CR4_FIXED0:
+        cap = WHvCapabilityCodeVmxCr4Fixed0;
+        break;
+    case MSR_IA32_VMX_CR4_FIXED1:
+        cap = WHvCapabilityCodeVmxCr4Fixed1;
+        break;
+    case MSR_IA32_VMX_VMCS_ENUM:
+        cap = WHvCapabilityCodeVmxVmcsEnum;
+        break;
+    case MSR_IA32_VMX_PROCBASED_CTLS2:
+        cap = WHvCapabilityCodeVmxProcbasedCtls2;
+        break;
+    case MSR_IA32_VMX_EPT_VPID_CAP:
+        cap = WHvCapabilityCodeVmxEptVpidCap;
+        break;
+    case MSR_IA32_VMX_TRUE_PINBASED_CTLS:
+        cap = WHvCapabilityCodeVmxPinbasedCtls;
+        break;
+    case MSR_IA32_VMX_TRUE_PROCBASED_CTLS:
+        cap = WHvCapabilityCodeVmxProcbasedCtls;
+        break;
+    case MSR_IA32_VMX_TRUE_ENTRY_CTLS:
+        cap = WHvCapabilityCodeVmxTrueEntryCtls;
+        break;
+    case MSR_IA32_VMX_TRUE_EXIT_CTLS:
+        cap = WHvCapabilityCodeVmxTrueExitCtls;
+        break;
+    default:
+        cap = 0;
+    }
+
+    if (cap != 0) {
+        HRESULT hr = whp_dispatch.WHvGetCapability(
+            cap, &val, sizeof(val),
+                NULL);
+        if (FAILED(hr)) {
+            return 0;
+        }
+        return val;
+    }
+    return 0;
 }
 
 /*
@@ -2235,7 +2388,6 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     WHV_CAPABILITY_FEATURES features = {0};
     WHV_PROCESSOR_FEATURES_BANKS processor_features;
     WHV_PROCESSOR_PERFMON_FEATURES perfmon_features;
-    bool is_legacy_os = false;
     UINT32 cpuidExitList[] = {1};
 
     whpx = &whpx_global;
@@ -2355,6 +2507,9 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
         goto error;
     }
 
+    whpx_rdtsc_cap = processor_features.Bank0.RdtscpSupport;
+    whpx_invpcid_cap = processor_features.Bank0.InvpcidSupport;
+
     if (whpx_irqchip_in_kernel() && processor_features.Bank1.NestedVirtSupport) {
         memset(&prop, 0, sizeof(WHV_PARTITION_PROPERTY));
         prop.NestedVirtualization = 1;
@@ -2395,7 +2550,7 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     if (FAILED(hr)) {
         warn_report("WHPX: Failed to get performance "
                     "monitoring features, hr=%08lx", hr);
-        is_legacy_os = true;
+        is_modern_os = false;
     } else {
         hr = whp_dispatch.WHvSetPartitionProperty(
                 whpx->partition,
@@ -2435,7 +2590,7 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
         synthetic_features.Bank0.DirectSyntheticTimers = 1;
     }
 
-    if (!is_legacy_os && whpx->hyperv_enlightenments_allowed) {
+    if (is_modern_os && whpx->hyperv_enlightenments_allowed) {
         hr = whp_dispatch.WHvSetPartitionProperty(
                 whpx->partition,
                 WHvPartitionPropertyCodeSyntheticProcessorFeaturesBanks,
@@ -2446,7 +2601,7 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
             ret = -EINVAL;
             goto error;
         }
-    } else if (is_legacy_os && whpx->hyperv_enlightenments_required) {
+    } else if (!is_modern_os && whpx->hyperv_enlightenments_required) {
         error_report("Hyper-V enlightenments not available on legacy Windows");
         ret = -EINVAL;
         goto error;
