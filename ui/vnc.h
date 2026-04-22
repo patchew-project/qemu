@@ -166,7 +166,7 @@ struct VncDisplay
     pixman_image_t *server;    /* vnc server surface */
     int true_width; /* server surface width before rounding up */
 
-    const char *id;
+    char *id;
     QTAILQ_ENTRY(VncDisplay) next;
     char *password;
     time_t expires;
