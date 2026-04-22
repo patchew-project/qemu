@@ -75,6 +75,8 @@ struct {
     int exiting;
     /* multifd ops */
     const MultiFDMethods *ops;
+    /* number of channels created (fixed at setup) */
+    int channel_num;
 } *multifd_send_state;
 
 struct {
@@ -483,7 +485,7 @@ static void multifd_send_terminate_threads(void)
      * Firstly, kick all threads out; no matter whether they are just idle,
      * or blocked in an IO system call.
      */
-    for (i = 0; i < migrate_multifd_channels(); i++) {
+    for (i = 0; i < multifd_send_state->channel_num; i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
 
         qemu_sem_post(&p->sem);
@@ -495,7 +497,7 @@ static void multifd_send_terminate_threads(void)
     /*
      * Finally recycle all the threads.
      */
-    for (i = 0; i < migrate_multifd_channels(); i++) {
+    for (i = 0; i < multifd_send_state->channel_num; i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
 
         if (p->tls_thread_created) {
@@ -577,7 +579,7 @@ void multifd_send_shutdown(void)
 
     multifd_send_terminate_threads();
 
-    for (i = 0; i < migrate_multifd_channels(); i++) {
+    for (i = 0; i < multifd_send_state->channel_num; i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
         Error *local_err = NULL;
 
@@ -615,7 +617,7 @@ int multifd_send_sync_main(MultiFDSyncReq req)
 
     flush_zero_copy = migrate_zero_copy_send();
 
-    for (i = 0; i < migrate_multifd_channels(); i++) {
+    for (i = 0; i < multifd_send_state->channel_num; i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
 
         if (multifd_send_should_exit()) {
@@ -632,7 +634,7 @@ int multifd_send_sync_main(MultiFDSyncReq req)
         qatomic_set(&p->pending_sync, req);
         qemu_sem_post(&p->sem);
     }
-    for (i = 0; i < migrate_multifd_channels(); i++) {
+    for (i = 0; i < multifd_send_state->channel_num; i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
 
         if (multifd_send_should_exit()) {
@@ -926,6 +928,7 @@ bool multifd_send_setup(void)
     thread_count = migrate_multifd_channels();
     multifd_send_state = g_malloc0(sizeof(*multifd_send_state));
     multifd_send_state->params = g_new0(MultiFDSendParams, thread_count);
+    multifd_send_state->channel_num = thread_count;
     qemu_mutex_init(&multifd_send_state->multifd_send_mutex);
     qemu_sem_init(&multifd_send_state->channels_created, 0);
     qemu_sem_init(&multifd_send_state->channels_ready, 0);
