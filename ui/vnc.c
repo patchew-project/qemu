@@ -3467,9 +3467,7 @@ void vnc_display_init(const char *id, Error **errp)
 
 static void vnc_display_close(VncDisplay *vd)
 {
-    if (!vd) {
-        return;
-    }
+    assert(vd);
 
     if (vd->listener) {
         qio_net_listener_disconnect(vd->listener);
@@ -4070,15 +4068,10 @@ void vnc_display_open(const char *id, Error **errp)
     const char *audiodev;
     const char *passwordSecret;
 
-    if (!vd) {
-        error_setg(errp, "VNC display not active");
-        return;
-    }
-    vnc_display_close(vd);
+    assert(vd);
+    assert(opts);
 
-    if (!opts) {
-        return;
-    }
+    vnc_display_close(vd);
 
     reverse = qemu_opt_get_bool(opts, "reverse", false);
     if (vnc_display_get_addresses(opts, reverse, &saddr_list, &wsaddr_list,
