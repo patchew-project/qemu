@@ -211,6 +211,43 @@ bool tpm_util_swtpm_has_tpm2(void)
     return has_tpm2;
 }
 
+bool tpm_util_swtpm_has_profile(const char *profilename,
+                                const char *content)
+{
+    bool has_profile = false;
+    char *out = NULL;
+    static const char *argv[] = {
+        "swtpm", "socket", "--tpm2", "--print-profiles", NULL
+    };
+
+    if (!tpm_util_swtpm_has_tpm2()) {
+        return false;
+    }
+
+    if (!g_spawn_sync(NULL /* working_dir */,
+                      (char **)argv,
+                      NULL /* envp */,
+                      G_SPAWN_SEARCH_PATH,
+                      NULL /* child_setup */,
+                      NULL /* user_data */,
+                      &out,
+                      NULL /* err */,
+                      NULL /* exit_status */,
+                      NULL)) {
+        return false;
+    }
+
+    if (strstr(out, profilename)) {
+        has_profile = true;
+    }
+    if (has_profile && content && strstr(out, content) == NULL) {
+        has_profile = false;
+    }
+
+    g_free(out);
+    return has_profile;
+}
+
 gboolean tpm_util_swtpm_start(const char *path, GPid *pid,
                               SocketAddress **addr, const char *profilename,
                               GError **error)
