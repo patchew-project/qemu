@@ -683,6 +683,25 @@ bool arm_is_psci_call(ARMCPU *cpu, int excp_type);
 void arm_handle_psci_call(ARMCPU *cpu);
 
 /**
+ * arm_broadcast_event: set the event_register for all PEs
+ *
+ * This kicks all PEs which will up which are waiting on the event
+ * register.
+ */
+static inline void arm_broadcast_event(void)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        ARMCPU *target_cpu = ARM_CPU(cs);
+        target_cpu->env.event_register = true;
+        if (!qemu_cpu_is_self(cs)) {
+            qemu_cpu_kick(cs);
+        }
+    }
+}
+
+/**
  * arm_clear_exclusive: clear the exclusive monitor
  * @env: CPU env
  * Clear the CPU's exclusive monitor, like the guest CLREX instruction.
