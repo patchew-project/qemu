@@ -2387,7 +2387,7 @@ int whpx_vcpu_run(CPUState *cpu)
                          vcpu->exit_ctx.ExitReason);
             whpx_get_registers(cpu, WHPX_LEVEL_FULL_STATE);
             bql_lock();
-            qemu_system_guest_panicked(cpu_get_crash_info(cpu));
+            vm_stop(RUN_STATE_PAUSED);
             bql_unlock();
             break;
         }
