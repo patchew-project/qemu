@@ -785,10 +785,10 @@ static void vc_putchar(VCChardev *vc, int ch)
             /* TODO: has to be implemented */
             break;
         case 14:
-            /* SI (shift in), character set 0 (ignored) */
+            /* SO (shift out), character set 1 (ignored) */
             break;
         case 15:
-            /* SO (shift out), character set 1 (ignored) */
+            /* SI (shift in), character set 0 (ignored) */
             break;
         case 27:    /* esc (introducing an escape sequence) */
             vc->state = TTY_STATE_ESC;
