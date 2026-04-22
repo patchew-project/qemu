@@ -63,7 +63,7 @@ additional functionality compared to ``-device ramfb``, but is
 incompatible with Windows's UEFI GOP implementation, which
 expects a linear framebuffer to be available.
 
-Some tracing options
+Accelerator options
 --------------------
 
 x86_64
@@ -74,6 +74,11 @@ to undocumented MSRs.
 
 ``-d invalid_mem`` allows to trace accesses to unmapped
 GPAs.
+
+``-accel whpx,ssd=off`` disables the separate security domain feature,
+as in a BTB flush when entering/exiting the guest. This results in a
+significant MMIO performance increase at the detriment of security
+mitigations.
 
 Known issues on x86_64
 ----------------------
@@ -96,44 +101,21 @@ MMX, SSE or AVX instructions for access to MMIO memory ranges.
 Attempts to run such guests will result in an ``Unimplemented handler``
 warning for MMX and a failure to decode for newer instructions.
 
-``-M isapc``
-^^^^^^^^^^^^
-
-``-M isapc`` doesn't disable the Hyper-V LAPIC on its own yet. To
-be able to use that machine, use ``-accel whpx,hyperv=off,kernel-irqchip=off``.
-
-However, in QEMU 11.0, the guest will still be a 64-bit x86
-ISA machine with all the corresponding CPUID leaves exposed.
-
-gdbstub
-^^^^^^^
-
-As save/restore of xsave state is not currently present, state
-exposed through GDB will be incomplete.
-
-The same also applies to ``info registers``.
-
-``-cpu type`` ignored
-^^^^^^^^^^^^^^^^^^^^^
-
-In this release, -cpu is an ignored argument. 
-
 PIC interrupts on Windows 10
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 On Windows 10, a legacy PIC interrupt injected does not wake the guest
 from an HLT when using the Hyper-V provided interrupt controller.
 
-This has been addressed in QEMU 11.0 on Windows 11 platforms but
-functionality to make it available on Windows 10 isn't present.
+As such, on Windows 10, using the Hyper-V interrupt controller is
+disabled by default. You can enable it via ``-M q35,pic=off`` which
+disables the PIC. In that configuration, using a UEFI is recommended.
 
-Workaround: for affected use cases, use ``-M kernel-irqchip=off``.
+On this release, ``-M kernel-irqchip=`` is not expected to be manually
+set during normal operation. It remains as a debugging option.
 
 Known issues on Windows 11
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Nested virtualisation-specific Hyper-V enlightenments are not
-currently exposed.
 
 arm64
 -----
