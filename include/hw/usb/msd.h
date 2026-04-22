@@ -41,6 +41,8 @@ struct MSDState {
     bool commandlog;
     SCSIDevice *scsi_dev;
     bool needs_reset;
+    uint16_t vid, pid;
+    char *manufacturer, *product;
 };
 
 typedef struct MSDState MSDState;
@@ -53,3 +55,4 @@ void usb_msd_command_complete(SCSIRequest *req, size_t resid);
 void usb_msd_request_cancelled(SCSIRequest *req);
 void *usb_msd_load_request(QEMUFile *f, SCSIRequest *req);
 void usb_msd_handle_reset(USBDevice *dev);
+void usb_msd_init_desc(USBDevice *dev);

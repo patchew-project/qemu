@@ -30,6 +30,7 @@ static void usb_msd_bot_realize(USBDevice *dev, Error **errp)
     DeviceState *d = DEVICE(dev);
 
     usb_desc_create_serial(dev);
+    usb_msd_init_desc(dev);
     usb_desc_init(dev);
     dev->flags |= (1 << USB_DEV_FLAG_IS_SCSI_STORAGE);
     if (d->hotplugged) {

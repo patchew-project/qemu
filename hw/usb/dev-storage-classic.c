@@ -53,6 +53,7 @@ static void usb_msd_storage_realize(USBDevice *dev, Error **errp)
     s->conf.blk = NULL;
 
     usb_desc_create_serial(dev);
+    usb_msd_init_desc(dev);
     usb_desc_init(dev);
     dev->flags |= (1 << USB_DEV_FLAG_IS_SCSI_STORAGE);
     scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(dev),

@@ -567,6 +567,47 @@ void *usb_msd_load_request(QEMUFile *f, SCSIRequest *req)
     return NULL;
 }
 
+static void usb_msd_unrealize(USBDevice *dev)
+{
+    if (dev->usb_desc != &desc) {
+        g_free((USBDesc *)dev->usb_desc);
+    }
+}
+
+void usb_msd_init_desc(USBDevice *dev)
+{
+    MSDState *s = USB_STORAGE_DEV(dev);
+    USBDesc *d;
+
+    if (s->vid || s->pid) {
+        d = g_new0(USBDesc, 1);
+        *d = desc;
+        if (s->vid) {
+            d->id.idVendor = s->vid;
+        }
+        if (s->pid) {
+            d->id.idProduct = s->pid;
+        }
+        dev->usb_desc = d;
+    } else {
+        dev->usb_desc = &desc;
+    }
+
+    if (s->manufacturer) {
+        usb_desc_set_string(dev, STR_MANUFACTURER, s->manufacturer);
+    }
+    if (s->product) {
+        usb_desc_set_string(dev, STR_PRODUCT, s->product);
+    }
+}
+
+static const Property msd_properties_common[] = {
+    DEFINE_PROP_UINT16("vid", MSDState, vid, 0),
+    DEFINE_PROP_UINT16("pid", MSDState, pid, 0),
+    DEFINE_PROP_STRING("manufacturer", MSDState, manufacturer),
+    DEFINE_PROP_STRING("product", MSDState, product),
+};
+
 static const VMStateDescription vmstate_usb_msd = {
     .name = "usb-storage",
     .version_id = 1,
@@ -597,9 +638,11 @@ static void usb_msd_class_initfn_common(ObjectClass *klass, const void *data)
     uc->handle_reset   = usb_msd_handle_reset;
     uc->handle_control = usb_msd_handle_control;
     uc->handle_data    = usb_msd_handle_data;
+    uc->unrealize      = usb_msd_unrealize;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->fw_name = "storage";
     dc->vmsd = &vmstate_usb_msd;
+    device_class_set_props(dc, msd_properties_common);
 }
 
 static const TypeInfo usb_storage_dev_type_info = {
