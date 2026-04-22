@@ -218,23 +218,25 @@ static efi_status uefi_vars_check_auth_2_sb(uefi_vars_state *uv,
 efi_status uefi_vars_check_auth_2(uefi_vars_state *uv, uefi_variable *var,
                                   mm_variable_access *va, void *data)
 {
-    variable_auth_2 *auth = data;
+    variable_auth_2 auth;
     uint64_t data_offset;
     efi_status status;
 
-    if (va->data_size < sizeof(*auth)) {
+    if (va->data_size < sizeof(auth)) {
         return EFI_SECURITY_VIOLATION;
     }
-    if (uadd64_overflow(sizeof(efi_time), auth->hdr_length, &data_offset)) {
+    memcpy(&auth, data, sizeof(auth));
+
+    if (uadd64_overflow(sizeof(efi_time), auth.hdr_length, &data_offset)) {
         return EFI_SECURITY_VIOLATION;
     }
     if (va->data_size < data_offset) {
         return EFI_SECURITY_VIOLATION;
     }
 
-    if (auth->hdr_revision != 0x0200 ||
-        auth->hdr_cert_type != WIN_CERT_TYPE_EFI_GUID ||
-        !qemu_uuid_is_equal(&auth->guid_cert_type, &EfiCertTypePkcs7Guid)) {
+    if (auth.hdr_revision != 0x0200 ||
+        auth.hdr_cert_type != WIN_CERT_TYPE_EFI_GUID ||
+        !qemu_uuid_is_equal(&auth.guid_cert_type, &EfiCertTypePkcs7Guid)) {
         return EFI_UNSUPPORTED;
     }
 
@@ -255,7 +257,7 @@ efi_status uefi_vars_check_auth_2(uefi_vars_state *uv, uefi_variable *var,
     }
 
     /* checks passed, set variable data */
-    var->time = auth->timestamp;
+    var->time = auth.timestamp;
     if (va->data_size - data_offset > 0) {
         var->data = g_malloc(va->data_size - data_offset);
         memcpy(var->data, data + data_offset, va->data_size - data_offset);
