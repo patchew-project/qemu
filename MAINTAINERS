@@ -2255,7 +2255,6 @@ T: git https://github.com/jasowang/qemu.git net
 
 Parallel NOR Flash devices
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
-T: git https://gitlab.com/philmd/qemu.git pflash-next
 S: Maintained
 F: hw/block/pflash_cfi*.c
 F: include/hw/block/flash.h
@@ -2854,7 +2853,6 @@ F: include/hw/nvram/fw_cfg.h
 F: include/standard-headers/linux/qemu_fw_cfg.h
 F: tests/qtest/libqos/fw_cfg.c
 F: tests/qtest/fw_cfg-test.c
-T: git https://github.com/philmd/qemu.git fw_cfg-next
 
 XIVE
 R: Gautam Menghani <gautam@linux.ibm.com>
