@@ -212,7 +212,8 @@ bool tpm_util_swtpm_has_tpm2(void)
 }
 
 gboolean tpm_util_swtpm_start(const char *path, GPid *pid,
-                              SocketAddress **addr, GError **error)
+                              SocketAddress **addr, const char *profilename,
+                              GError **error)
 {
     char *swtpm_argv_tpmstate = g_strdup_printf("dir=%s", path);
     char *swtpm_argv_ctrl = g_strdup_printf("type=unixio,path=%s/sock",
@@ -222,10 +223,16 @@ gboolean tpm_util_swtpm_start(const char *path, GPid *pid,
         g_strdup("--tpmstate"), swtpm_argv_tpmstate,
         g_strdup("--ctrl"), swtpm_argv_ctrl,
         g_strdup("--tpm2"),
+        profilename ? g_strdup("--profile") : NULL,
+        profilename ? g_strdup_printf("name=%s", profilename) : NULL,
         NULL
     };
+    g_autofree char *swtpm_state_file;
     gboolean succ;
     unsigned i;
+
+    swtpm_state_file = g_strdup_printf("%s/tpm2-00.permall", path);
+    g_unlink(swtpm_state_file);
 
     *addr = g_new0(SocketAddress, 1);
     (*addr)->type = SOCKET_ADDRESS_TYPE_UNIX;
