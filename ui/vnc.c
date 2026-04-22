@@ -70,6 +70,7 @@ static QTAILQ_HEAD(, VncDisplay) vnc_displays =
 
 static int vnc_cursor_define(VncState *vs);
 static void vnc_update_throttle_offset(VncState *vs);
+static void vnc_disconnect_finish(VncState *vs);
 
 static void vnc_set_share_mode(VncState *vs, VncShareMode mode)
 {
@@ -1306,7 +1307,7 @@ static void vnc_disconnect_start(VncState *vs)
     vs->disconnecting = TRUE;
 }
 
-void vnc_disconnect_finish(VncState *vs)
+static void vnc_disconnect_finish(VncState *vs)
 {
     VncConnection *vc = container_of(vs, VncConnection, vs);
 
