@@ -3,7 +3,7 @@
 # Functional test that boots a Linux kernel on a Raspberry Pi machine
 # and checks the console
 #
-# Copyright (c) 2019 Philippe Mathieu-Daudé <f4bug@amsat.org>
+# Copyright (c) 2019 Philippe Mathieu-Daudé
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 

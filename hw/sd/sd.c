@@ -6,7 +6,7 @@
  *
  * Copyright (c) 2006 Andrzej Zaborowski  <balrog@zabor.org>
  * Copyright (c) 2007 CodeSourcery
- * Copyright (c) 2018 Philippe Mathieu-Daudé <f4bug@amsat.org>
+ * Copyright (c) 2018 Philippe Mathieu-Daudé
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

@@ -2,7 +2,7 @@
 #
 # Functional tests for the big-endian 32-bit MIPS Malta board
 #
-# Copyright (c) Philippe Mathieu-Daudé <f4bug@amsat.org>
+# Copyright (c) Philippe Mathieu-Daudé
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 

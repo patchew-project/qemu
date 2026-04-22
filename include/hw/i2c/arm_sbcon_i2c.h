@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2006-2007 CodeSourcery.
  * Copyright (c) 2012 Oskar Andero <oskar.andero@gmail.com>
- * Copyright (C) 2020 Philippe Mathieu-Daudé <f4bug@amsat.org>
+ * Copyright (C) 2020 Philippe Mathieu-Daudé
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */

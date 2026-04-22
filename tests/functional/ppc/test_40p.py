@@ -2,7 +2,7 @@
 #
 # Functional test that boots a PReP/40p machine and checks its serial console.
 #
-# Copyright (c) Philippe Mathieu-Daudé <f4bug@amsat.org>
+# Copyright (c) Philippe Mathieu-Daudé
 #
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later. See the COPYING file in the top-level directory.

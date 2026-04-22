@@ -1,7 +1,7 @@
 /*
  * QEMU USB device emulation stubs
  *
- * Copyright (C) 2021 Philippe Mathieu-Daudé <f4bug@amsat.org>
+ * Copyright (C) 2021 Philippe Mathieu-Daudé
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */

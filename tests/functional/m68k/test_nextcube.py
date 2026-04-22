@@ -2,7 +2,7 @@
 #
 # Functional test that boots a VM and run OCR on the framebuffer
 #
-# Copyright (c) 2019 Philippe Mathieu-Daudé <f4bug@amsat.org>
+# Copyright (c) 2019 Philippe Mathieu-Daudé
 #
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
