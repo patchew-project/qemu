@@ -47,6 +47,8 @@ struct whpx_state {
     bool hyperv_enlightenments_required;
     bool hyperv_enlightenments_enabled;
 
+    bool nested_virt_enabled;
+
     bool ignore_unknown_msr;
     bool intercept_msr_gp;
 };

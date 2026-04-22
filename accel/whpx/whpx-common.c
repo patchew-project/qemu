@@ -556,6 +556,7 @@ static void whpx_accel_instance_init(Object *obj)
     whpx->hyperv_enlightenments_enabled = false;
     whpx->ignore_unknown_msr = true;
     whpx->intercept_msr_gp = false;
+    whpx->nested_virt_enabled = true;
 }
 
 static const TypeInfo whpx_accel_type = {
