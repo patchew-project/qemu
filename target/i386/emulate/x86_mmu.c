@@ -277,7 +277,8 @@ static MMUTranslateResult x86_write_mem_ex(CPUState *cpu, void *data, target_ulo
         translate_res = mmu_gva_to_gpa(cpu, gva, &gpa, translate_flags);
         if (translate_res) {
             int error_code = translate_res_to_error_code(translate_res, true, is_user(cpu));
-            env->cr[2] = gva;
+            env->exception_has_payload = 1;
+            env->exception_payload = gva;
             x86_emul_raise_exception(env, EXCP0E_PAGE, error_code);
             return translate_res;
         }
