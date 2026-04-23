@@ -41,6 +41,7 @@
 #else
 #include "hw/s390x/storage-keys.h"
 #include "hw/core/boards.h"
+#include "system/memory.h"
 #endif
 
 #ifdef CONFIG_USER_ONLY
@@ -958,13 +959,14 @@ uint32_t HELPER(mvpg)(CPUS390XState *env, uint64_t r0, uint32_t r1, uint32_t r2)
 inject_exc:
 #if !defined(CONFIG_USER_ONLY)
     if (exc != PGM_ADDRESSING) {
-        stq_be_phys(env_cpu(env)->as,
-                    env->psa + offsetof(LowCore, trans_exc_code),
-                    env->tlb_fill_tec);
+        address_space_stq_be(env_cpu(env)->as,
+                             env->psa + offsetof(LowCore, trans_exc_code),
+                             env->tlb_fill_tec, MEMTXATTRS_UNSPECIFIED, NULL);
     }
     if (exc == PGM_PAGE_TRANS) {
-        stb_phys(env_cpu(env)->as, env->psa + offsetof(LowCore, op_access_id),
-                 r1 << 4 | r2);
+        address_space_stb(env_cpu(env)->as,
+                          env->psa + offsetof(LowCore, op_access_id),
+                          r1 << 4 | r2, MEMTXATTRS_UNSPECIFIED, NULL);
     }
 #endif
     tcg_s390_program_interrupt(env, exc, ra);
