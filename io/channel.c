@@ -507,6 +507,97 @@ ssize_t qio_channel_pread(QIOChannel *ioc, void *buf, size_t buflen,
     return qio_channel_preadv(ioc, &iov, 1, offset, errp);
 }
 
+int coroutine_mixed_fn qio_channel_preadv_all_eof(QIOChannel *ioc,
+                                                  const struct iovec *iov,
+                                                  size_t niov,
+                                                  off_t offset,
+                                                  Error **errp)
+{
+    int ret = -1;
+    struct iovec *local_iov = g_new(struct iovec, niov);
+    struct iovec *local_iov_head = local_iov;
+    unsigned int nlocal_iov = niov;
+    bool partial = false;
+
+    nlocal_iov = iov_copy(local_iov, nlocal_iov,
+                          iov, niov,
+                          0, iov_size(iov, niov));
+
+    while (nlocal_iov > 0) {
+        ssize_t len;
+        len = qio_channel_preadv(ioc, local_iov, nlocal_iov, offset, errp);
+
+        if (len == QIO_CHANNEL_ERR_BLOCK) {
+            qio_channel_wait_cond(ioc, G_IO_IN);
+            continue;
+        }
+
+        if (len == 0) {
+            if (!partial) {
+                ret = 0;
+                goto cleanup;
+            }
+            error_setg(errp,
+                       "Unexpected end-of-file before all data were read");
+            goto cleanup;
+        }
+
+        if (len < 0) {
+            goto cleanup;
+        }
+
+        partial = true;
+        offset += len;
+        iov_discard_front(&local_iov, &nlocal_iov, len);
+    }
+
+    ret = 1;
+
+ cleanup:
+    g_free(local_iov_head);
+    return ret;
+}
+
+int coroutine_mixed_fn qio_channel_preadv_all(QIOChannel *ioc,
+                                              const struct iovec *iov,
+                                              size_t niov,
+                                              off_t offset,
+                                              Error **errp)
+{
+    int ret = qio_channel_preadv_all_eof(ioc, iov, niov, offset, errp);
+
+    if (ret == 0) {
+        error_setg(errp,
+                   "Unexpected end-of-file before all data were read");
+        return -1;
+    }
+    if (ret == 1) {
+        return 0;
+    }
+
+    return ret;
+}
+
+int coroutine_mixed_fn qio_channel_pread_all_eof(QIOChannel *ioc,
+                                                 void *buf,
+                                                 size_t buflen,
+                                                 off_t offset,
+                                                 Error **errp)
+{
+    struct iovec iov = { .iov_base = buf, .iov_len = buflen };
+    return qio_channel_preadv_all_eof(ioc, &iov, 1, offset, errp);
+}
+
+int coroutine_mixed_fn qio_channel_pread_all(QIOChannel *ioc,
+                                             void *buf,
+                                             size_t buflen,
+                                             off_t offset,
+                                             Error **errp)
+{
+    struct iovec iov = { .iov_base = buf, .iov_len = buflen };
+    return qio_channel_preadv_all(ioc, &iov, 1, offset, errp);
+}
+
 int qio_channel_shutdown(QIOChannel *ioc,
                          QIOChannelShutdown how,
                          Error **errp)
