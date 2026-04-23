@@ -170,6 +170,8 @@ static bool vmstate_load_field(QEMUFile *f, void *pv, size_t size,
     } else if (field->flags & VMS_VSTRUCT) {
         return vmstate_load_state(f, field->vmsd, pv, field->struct_version_id,
                                   errp) >= 0;
+    } else if (field->info->load) {
+        return field->info->load(f, pv, size, field, errp);
     }
 
     if (field->info->get(f, pv, size, field) < 0) {
@@ -495,6 +497,8 @@ static bool vmstate_save_field(QEMUFile *f, void *pv, size_t size,
         return vmstate_save_state_v(f, field->vmsd, pv, vmdesc,
                                     field->struct_version_id,
                                     errp) >= 0;
+    } else if (field->info->save) {
+        return field->info->save(f, pv, size, field, vmdesc, errp);
     }
 
     if (field->info->put(f, pv, size, field, vmdesc) < 0) {
