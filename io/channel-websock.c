@@ -457,7 +457,7 @@ static void qio_channel_websock_handshake_process(QIOChannelWebsock *ioc,
     connectionv = g_strsplit(connection, ",", 0);
     for (i = 0; connectionv != NULL && connectionv[i] != NULL; i++) {
         g_strstrip(connectionv[i]);
-        if (strcasecmp(connectionv[i],
+        if (g_ascii_strcasecmp(connectionv[i],
                        QIO_CHANNEL_WEBSOCK_CONNECTION_UPGRADE) == 0) {
             upgraded = true;
         }
@@ -468,7 +468,7 @@ static void qio_channel_websock_handshake_process(QIOChannelWebsock *ioc,
         goto bad_request;
     }
 
-    if (strcasecmp(upgrade, QIO_CHANNEL_WEBSOCK_UPGRADE_WEBSOCKET) != 0) {
+    if (g_ascii_strcasecmp(upgrade, QIO_CHANNEL_WEBSOCK_UPGRADE_WEBSOCKET) != 0) {
         error_setg(errp, "Incorrect upgrade method '%s'", upgrade);
         goto bad_request;
     }
