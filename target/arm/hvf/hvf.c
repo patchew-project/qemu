@@ -2303,7 +2303,7 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
 
 static int hvf_handle_vmexit(CPUState *cpu, hv_vcpu_exit_t *exit)
 {
-    ARMCPU *arm_cpu = env_archcpu(cpu_env(cpu));
+    ARMCPU *arm_cpu = ARM_CPU(cpu);
     int ret = 0;
 
     switch (exit->reason) {
