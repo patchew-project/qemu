@@ -9161,6 +9161,27 @@ static bool is_guest_tid(pid_t tid)
     return false;
 }
 
+/*
+ * Return true iff @tid identifies a thread inside our own host process
+ * that is not one of the guest threads -- i.e. a QEMU-internal helper
+ * thread (RCU, TCG worker, ...).  Cross-process tids and unknown tids
+ * are not classified here and the caller should pass the syscall
+ * through to the kernel unchanged.
+ */
+static bool tid_is_qemu_internal(pid_t tid)
+{
+    char path[64];
+
+    WITH_RCU_READ_LOCK_GUARD() {
+        if (is_guest_tid(tid)) {
+            return false;
+        }
+    }
+
+    snprintf(path, sizeof(path), "/proc/self/task/%d", (int)tid);
+    return access(path, F_OK) == 0;
+}
+
 #ifdef TARGET_NR_getdents
 static int do_getdents(abi_long dirfd, abi_long arg2, abi_long count)
 {
@@ -13511,11 +13532,41 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 #endif
 
     case TARGET_NR_tkill:
-        return get_errno(safe_tkill((int)arg1, target_to_host_signal(arg2)));
+    {
+        pid_t tid = (pid_t)arg1;
+        if ((abi_long)tid != arg1) {
+            return -TARGET_ESRCH;
+        }
+        /*
+         * Reject signals that target one of our own QEMU-internal
+         * helper threads (RCU, TCG worker, ...) which share our
+         * host PID but have no guest CPUState.  Cross-process tids
+         * are passed through unchanged.
+         */
+        if (tid_is_qemu_internal(tid)) {
+            return -TARGET_ESRCH;
+        }
+        return get_errno(safe_tkill(tid, target_to_host_signal(arg2)));
+    }
 
     case TARGET_NR_tgkill:
-        return get_errno(safe_tgkill((int)arg1, (int)arg2,
+    {
+        pid_t tgid = (pid_t)arg1;
+        pid_t tid = (pid_t)arg2;
+        if ((abi_long)tgid != arg1 || (abi_long)tid != arg2) {
+            return -TARGET_ESRCH;
+        }
+        /*
+         * Only screen targets in our own process; for cross-process
+         * tgkill we have no way to know which TIDs are guest threads
+         * in another QEMU instance, so the call is passed through.
+         */
+        if (tgid == getpid() && tid_is_qemu_internal(tid)) {
+            return -TARGET_ESRCH;
+        }
+        return get_errno(safe_tgkill(tgid, tid,
                          target_to_host_signal(arg3)));
+    }
 
 #ifdef TARGET_NR_set_robust_list
     case TARGET_NR_set_robust_list:
