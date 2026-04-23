@@ -1661,7 +1661,6 @@ int migrate_init(MigrationState *s, Error **errp)
     migration_reset_vfio_bytes_transferred();
 
     s->postcopy_package_loaded = false;
-    qemu_event_reset(&s->postcopy_package_loaded_event);
 
     return 0;
 }
@@ -2317,7 +2316,7 @@ static void *source_return_path_thread(void *opaque)
             if (tmp32 == QEMU_VM_PING_PACKAGED_LOADED) {
                 trace_source_return_path_thread_postcopy_package_loaded();
                 ms->postcopy_package_loaded = true;
-                qemu_event_set(&ms->postcopy_package_loaded_event);
+                migration_rp_kick(ms);
             }
             break;
 
@@ -2388,16 +2387,21 @@ out:
         trace_source_return_path_thread_bad_end();
     }
 
-    if (ms->state == MIGRATION_STATUS_POSTCOPY_RECOVER) {
+    if (ms->state == MIGRATION_STATUS_POSTCOPY_RECOVER ||
+        ms->state == MIGRATION_STATUS_POSTCOPY_DEVICE) {
         /*
-         * this will be extremely unlikely: that we got yet another network
-         * issue during recovering of the 1st network failure.. during this
-         * period the main migration thread can be waiting on rp_sem for
-         * this thread to sync with the other side.
+         * The migration thread can get stuck waiting for rp_sem if the
+         * return path fails to sync with the destination. This handles
+         * two specific cases:
          *
-         * When this happens, explicitly kick the migration thread out of
-         * RECOVER stage and back to PAUSED, so the admin can try
-         * everything again.
+         * POSTCOPY_RECOVER: A failure occurs during a recovery attempt.
+         * We kick the migration thread back to PAUSED so the admin can
+         * retry.
+         *
+         * POSTCOPY_DEVICE: The MIG_RP_MSG_PONG is lost due to a
+         * network failure or destination crash. We kick the migration
+         * thread out of its wait so it can fail the migration and safely
+         * resume the VM on the source.
          */
         migration_rp_kick(ms);
     }
@@ -3226,12 +3230,24 @@ static MigIterateState migration_iteration_run(MigrationState *s)
         if (s->state == MIGRATION_STATUS_POSTCOPY_DEVICE &&
             (s->postcopy_package_loaded || complete_ready)) {
             /*
-             * If package has been loaded, the event is set and we will
-             * immediatelly transition to POSTCOPY_ACTIVE. If we are ready for
-             * completion, we need to wait for destination to load the postcopy
-             * package before actually completing.
+             * We will immediately transition to POSTCOPY_ACTIVE.
+             * If we are ready for completion, we need to wait for
+             * destination to load the postcopy package before actually
+             * completing.
              */
-            qemu_event_wait(&s->postcopy_package_loaded_event);
+            while (!s->postcopy_package_loaded) {
+                if (migration_rp_wait(s)) {
+                    /*
+                     * Error happened. Migration thread was stuck waiting in
+                     * POSTCOPY_DEVICE for rp_sem which was never set.
+                     */
+                    migrate_set_state(&s->state,
+                                    MIGRATION_STATUS_POSTCOPY_DEVICE,
+                                    MIGRATION_STATUS_FAILING);
+                    return MIG_ITERATE_BREAK;
+                }
+            }
+            /* Acknowledgement received from the destination */
             migrate_set_state(&s->state, MIGRATION_STATUS_POSTCOPY_DEVICE,
                               MIGRATION_STATUS_POSTCOPY_ACTIVE);
         }
@@ -3863,7 +3879,6 @@ static void migration_instance_finalize(Object *obj)
     qemu_sem_destroy(&ms->rp_state.rp_pong_acks);
     qemu_sem_destroy(&ms->postcopy_qemufile_src_sem);
     error_free(ms->error);
-    qemu_event_destroy(&ms->postcopy_package_loaded_event);
 }
 
 static void migration_instance_init(Object *obj)
@@ -3885,7 +3900,6 @@ static void migration_instance_init(Object *obj)
     qemu_sem_init(&ms->wait_unplug_sem, 0);
     qemu_sem_init(&ms->postcopy_qemufile_src_sem, 0);
     qemu_mutex_init(&ms->qemu_file_lock);
-    qemu_event_init(&ms->postcopy_package_loaded_event, 0);
 }
 
 /*
