@@ -406,10 +406,8 @@ impl<T: ToMigrationStateShared> Migratable<T> {
         Ok(())
     }
 
-    fn post_save(&self) -> Result<(), InvalidError> {
-        let state = unsafe { Box::from_raw(self.migration_state.replace(ptr::null_mut())) };
-        drop(state);
-        Ok(())
+    fn post_save(&self) {
+        let _ = unsafe { Box::from_raw(self.migration_state.replace(ptr::null_mut())) };
     }
 
     fn pre_load(&self) -> Result<(), InvalidError> {

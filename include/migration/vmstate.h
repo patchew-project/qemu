@@ -223,7 +223,13 @@ struct VMStateDescription {
     bool (*post_load_errp)(void *opaque, int version_id, Error **errp);
     int (*pre_save)(void *opaque);
     bool (*pre_save_errp)(void *opaque, Error **errp);
-    int (*post_save)(void *opaque);
+
+    /*
+     * Unless .pre_save() fails, .post_save() is called after saving
+     * fields and subsections. It should not fail because at this
+     * point the state has potentially already been transferred.
+     */
+    void (*post_save)(void *opaque);
     bool (*needed)(void *opaque);
     bool (*dev_unplug_pending)(void *opaque);
 

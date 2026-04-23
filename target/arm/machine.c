@@ -998,7 +998,7 @@ static int cpu_pre_save(void *opaque)
     return 0;
 }
 
-static int cpu_post_save(void *opaque)
+static void cpu_post_save(void *opaque)
 {
     ARMCPU *cpu = opaque;
 
@@ -1008,8 +1008,6 @@ static int cpu_post_save(void *opaque)
 
     cpu->cpreg_vmstate_indexes = NULL;
     cpu->cpreg_vmstate_values = NULL;
-
-    return 0;
 }
 
 static int cpu_pre_load(void *opaque)

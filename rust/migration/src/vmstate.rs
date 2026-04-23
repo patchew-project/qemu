@@ -492,6 +492,11 @@ unsafe extern "C" fn vmstate_no_version_cb<
     into_neg_errno(result)
 }
 
+unsafe extern "C" fn vmstate_post_save_cb<T, F: for<'a> FnCall<(&'a T,), ()>>(opaque: *mut c_void) {
+    // SAFETY: the function is used in T's implementation of VMState.
+    F::call((unsafe { &*(opaque.cast::<T>()) },));
+}
+
 unsafe extern "C" fn vmstate_post_load_cb<
     T,
     F: for<'a> FnCall<(&'a T, u8), Result<(), impl Into<Errno>>>,
@@ -597,12 +602,9 @@ impl<T> VMStateDescriptionBuilder<T> {
     }
 
     #[must_use]
-    pub const fn post_save<F: for<'a> FnCall<(&'a T,), Result<(), impl Into<Errno>>>>(
-        mut self,
-        _f: &F,
-    ) -> Self {
+    pub const fn post_save<F: for<'a> FnCall<(&'a T,), ()>>(mut self, _f: &F) -> Self {
         self.0.post_save = if F::IS_SOME {
-            Some(vmstate_no_version_cb::<T, F>)
+            Some(vmstate_post_save_cb::<T, F>)
         } else {
             None
         };
