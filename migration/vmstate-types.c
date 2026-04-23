@@ -359,36 +359,34 @@ const VMStateInfo vmstate_info_fd = {
     .save = save_fd,
 };
 
-static bool load_nullptr(QEMUFile *f, void *pv, size_t size,
-                         const VMStateField *field, Error **errp)
+static bool load_ptr_marker(QEMUFile *f, void *pv, size_t size,
+                            const VMStateField *field, Error **errp)
 
 {
-    if (qemu_get_byte(f) == VMS_MARKER_PTR_NULL) {
+    int byte = qemu_get_byte(f);
+
+    if (byte == VMS_MARKER_PTR_NULL || byte == VMS_MARKER_PTR_VALID) {
+        /* TODO: process PTR_VALID case */
         return true;
     }
 
-    error_setg(errp, "vmstate: load_nullptr expected VMS_NULLPTR_MARKER");
+    error_setg(errp, "%s: unexpected ptr marker: %d", __func__, byte);
     return false;
 }
 
-static bool save_nullptr(QEMUFile *f, void *pv, size_t size,
-                         const VMStateField *field, JSONWriter *vmdesc,
-                         Error **errp)
+static bool save_ptr_marker(QEMUFile *f, void *pv, size_t size,
+                            const VMStateField *field, JSONWriter *vmdesc,
+                            Error **errp)
 
 {
-    if (pv == NULL) {
-        qemu_put_byte(f, VMS_MARKER_PTR_NULL);
-        return true;
-    }
-
-    error_setg(errp, "vmstate: save_nullptr must be called with pv == NULL");
-    return false;
+    qemu_put_byte(f, pv ? VMS_MARKER_PTR_VALID : VMS_MARKER_PTR_NULL);
+    return true;
 }
 
-const VMStateInfo vmstate_info_nullptr = {
-    .name = "nullptr",
-    .load = load_nullptr,
-    .save = save_nullptr,
+const VMStateInfo vmstate_info_ptr_marker = {
+    .name = "ptr-marker",
+    .load = load_ptr_marker,
+    .save = save_ptr_marker,
 };
 
 /* 64 bit unsigned int. See that the received value is the same than the one
