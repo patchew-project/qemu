@@ -363,7 +363,7 @@ static bool load_nullptr(QEMUFile *f, void *pv, size_t size,
                          const VMStateField *field, Error **errp)
 
 {
-    if (qemu_get_byte(f) == VMS_NULLPTR_MARKER) {
+    if (qemu_get_byte(f) == VMS_MARKER_PTR_NULL) {
         return true;
     }
 
@@ -377,7 +377,7 @@ static bool save_nullptr(QEMUFile *f, void *pv, size_t size,
 
 {
     if (pv == NULL) {
-        qemu_put_byte(f, VMS_NULLPTR_MARKER);
+        qemu_put_byte(f, VMS_MARKER_PTR_NULL);
         return true;
     }
 

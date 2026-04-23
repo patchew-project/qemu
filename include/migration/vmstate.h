@@ -283,7 +283,7 @@ extern const VMStateInfo vmstate_info_uint64;
 extern const VMStateInfo vmstate_info_fd;
 
 /** Put this in the stream when migrating a null pointer.*/
-#define VMS_NULLPTR_MARKER (0x30U) /* '0' */
+#define VMS_MARKER_PTR_NULL          (0x30U)   /* '0' */
 extern const VMStateInfo vmstate_info_nullptr;
 
 extern const VMStateInfo vmstate_info_cpudouble;

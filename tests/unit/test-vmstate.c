@@ -620,7 +620,7 @@ static void test_arr_ptr_str_no0_load(void)
 
 static uint8_t wire_arr_ptr_0[] = {
     0x00, 0x00, 0x00, 0x00,
-    VMS_NULLPTR_MARKER,
+    VMS_MARKER_PTR_NULL,
     0x00, 0x00, 0x00, 0x02,
     0x00, 0x00, 0x00, 0x03,
     QEMU_VM_EOF
