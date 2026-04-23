@@ -1068,7 +1068,7 @@ endif
 
 if not cc.compiles('''
   #include <glib.h>
-  #include <unistd.h>
+  #include <stddef.h>
 
   #define QEMU_BUILD_BUG_ON(x) \
   typedef char qemu_build_bug_on[(x)?-1:1] __attribute__((unused));
