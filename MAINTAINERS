@@ -720,7 +720,6 @@ F: tests/functional/alpha/test_clipper.py
 ARM Machines
 ------------
 Allwinner-a10
-M: Beniamino Galvani <b.galvani@gmail.com>
 M: Peter Maydell <peter.maydell@linaro.org>
 R: Strahinja Jankovic <strahinja.p.jankovic@gmail.com>
 L: qemu-arm@nongnu.org
