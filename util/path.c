@@ -4,7 +4,6 @@
    The assumption is that this area does not change.
 */
 #include "qemu/osdep.h"
-#include <sys/param.h>
 #include "qemu/cutils.h"
 #include "qemu/path.h"
 #include "qemu/thread.h"
