@@ -126,6 +126,7 @@ F: docs/system/target-s390x.rst
 F: docs/system/s390x/
 F: tests/qtest/migration/s390x/
 K: ^Subject:.*(?i)s390x?
+T: git https://gitlab.com/cohuck/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
 MIPS general architecture support
@@ -501,7 +502,6 @@ F: target/s390x/kvm/
 F: target/s390x/machine.c
 F: target/s390x/sigp.c
 F: gdbstub/gdb-xml/s390*.xml
-T: git https://github.com/borntraeger/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
 X86 KVM CPUs
@@ -1855,7 +1855,6 @@ F: hw/s390x/
 F: include/hw/s390x/
 F: configs/devices/s390x-softmmu/default.mak
 F: tests/functional/s390x
-T: git https://github.com/borntraeger/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
 S390-ccw boot
@@ -1869,7 +1868,6 @@ F: pc-bios/s390-ccw/
 F: pc-bios/s390-ccw.img
 F: docs/devel/s390-dasd-ipl.rst
 F: tests/functional/s390x/test_pxelinux.py
-T: git https://github.com/borntraeger/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
 S390 PCI
@@ -2469,8 +2467,6 @@ M: Eric Farman <farman@linux.ibm.com>
 S: Supported
 F: hw/s390x/virtio-ccw*.[hc]
 F: hw/s390x/vhost-*-ccw.c
-T: git https://gitlab.com/cohuck/qemu.git s390-next
-T: git https://github.com/borntraeger/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
 virtio-dmabuf
