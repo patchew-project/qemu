@@ -2161,8 +2161,7 @@ F: docs/specs/*pci*
 F: docs/system/sriov.rst
 
 PCIE DOE
-M: Huai-Cheng Kuo <hchkuo@avery-design.com.tw>
-S: Supported
+S: Orphan
 F: include/hw/pci/pcie_doe.h
 F: hw/pci/pcie_doe.c
 
