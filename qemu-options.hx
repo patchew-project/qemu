@@ -6443,7 +6443,7 @@ SRST
 
             CN=laptop.example.com,O=Example Home,L=London,ST=London,C=GB
 
-    ``-object iothread,id=id,poll-max-ns=poll-max-ns,poll-grow=poll-grow,poll-shrink=poll-shrink,aio-max-batch=aio-max-batch``
+    ``-object iothread,id=id,poll-max-ns=poll-max-ns,poll-grow=poll-grow,poll-shrink=poll-shrink,poll-weight=poll-weight,aio-max-batch=aio-max-batch``
         Creates a dedicated event loop thread that devices can be
         assigned to. This is known as an IOThread. By default device
         emulation happens in vCPU threads or the main event loop thread.
@@ -6478,6 +6478,12 @@ SRST
         The ``poll-shrink`` parameter is the divisor used to decrease
         the polling time when the algorithm detects it is spending too
         long polling without encountering events.
+
+        The ``poll-weight`` parameter is the weight factor for adaptive
+        polling. It determines how much the most recent event interval
+        affects the next polling duration calculation. If set to 0, the
+        system default value of 3 is used. Typical values: 1 (high weight
+        on recent interval), 2-4 (moderate weight on recent interval).
 
         The ``aio-max-batch`` parameter is the maximum number of requests
         in a batch for the AIO engine, 0 means that the engine will use
