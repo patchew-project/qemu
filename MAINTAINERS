@@ -1497,8 +1497,7 @@ F: include/hw/pci-host/xilinx-pcie.h
 OpenRISC Machines
 -----------------
 or1k-sim
-M: Jia Liu <proljc@gmail.com>
-S: Maintained
+S: Orphan
 F: docs/system/or1k/or1k-sim.rst
 F: hw/intc/ompic.c
 F: hw/or1k/or1k-sim.c
