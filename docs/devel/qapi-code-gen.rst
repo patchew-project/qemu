@@ -862,7 +862,7 @@ documentation comment.
 If the documentation comment starts like ::
 
     ##
-    # @SYMBOL:
+    # @SYMBOL: [...]
 
 it documents the definition of SYMBOL, else it's free-form
 documentation.
@@ -984,17 +984,22 @@ definition it documents.
 When documentation is required (see pragma_ 'doc-required'), every
 definition must have documentation.
 
-Definition documentation starts with a line naming the definition,
-followed by an optional overview, a description of each argument (for
-commands and events), member (for structs and unions), branch (for
-alternates), or value (for enums), a description of each feature (if
-any), and finally optional tagged sections.
+Definition documentation starts with a description naming the definition
+with an optional overview, a description of each argument (for commands
+and events), member (for structs and unions), branch (for alternates),
+or value (for enums), a description of each feature (if any), and
+finally optional tagged sections.
 
 Descriptions start with '\@name:'.  The description text must be
 indented like this::
 
  # @name: Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed
  #     do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+
+Definition descriptions are special: the optional introductory overview
+describing the definition will not be inlined when referenced by other
+definitions (such as when using 'base' to include members from another
+definition), while other descriptions and tagged sections will be.
 
 .. FIXME The parser accepts these things in almost any order.
 
