@@ -2007,7 +2007,6 @@ F: docs/system/i386/nitro-enclave.rst
 
 Machine core
 R: Philippe Mathieu-Daudé <philmd@linaro.org>
-R: Yanan Wang <wangyanan55@huawei.com>
 R: Zhao Liu <zhao1.liu@intel.com>
 S: Supported
 F: hw/core/cpu-common.c
