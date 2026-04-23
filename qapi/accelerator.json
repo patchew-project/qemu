@@ -12,9 +12,7 @@
 { 'include': 'common.json' }
 
 ##
-# @KvmInfo:
-#
-# Information about support for KVM acceleration
+# @KvmInfo: Information about support for KVM acceleration
 #
 # @enabled: true if KVM acceleration is active
 #
@@ -25,9 +23,7 @@
 { 'struct': 'KvmInfo', 'data': {'enabled': 'bool', 'present': 'bool'} }
 
 ##
-# @query-kvm:
-#
-# Return information about KVM acceleration
+# @query-kvm: Return information about KVM acceleration
 #
 # Since: 0.14
 #
@@ -39,9 +35,7 @@
 { 'command': 'query-kvm', 'returns': 'KvmInfo' }
 
 ##
-# @x-accel-stats:
-#
-# Query accelerator statistics
+# @x-accel-stats: Query accelerator statistics
 #
 # Features:
 #
@@ -56,9 +50,7 @@
   'features': [ 'unstable' ] }
 
 ##
-# @Accelerator:
-#
-# Information about support for MSHV acceleration
+# @Accelerator: Information about support for MSHV acceleration
 #
 # @hvf: Apple Hypervisor.framework
 #
@@ -81,9 +73,7 @@
 { 'enum': 'Accelerator', 'data': ['hvf', 'kvm', 'mshv', 'nvmm', 'qtest', 'tcg', 'whpx', 'xen'] }
 
 ##
-# @AcceleratorInfo:
-#
-# Information about support for various accelerators
+# @AcceleratorInfo: Information about support for various accelerators
 #
 # @enabled: the accelerator that is in use
 #
@@ -95,9 +85,7 @@
 { 'struct': 'AcceleratorInfo', 'data': {'enabled': 'Accelerator', 'present': ['Accelerator']} }
 
 ##
-# @query-accelerators:
-#
-# Return information about accelerators
+# @query-accelerators: Return information about accelerators
 #
 # Returns: @AcceleratorInfo
 #
