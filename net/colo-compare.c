@@ -1416,6 +1416,15 @@ static void colo_compare_finalize(Object *obj)
             break;
         }
     }
+    /*
+     * If this object is never visible (colo_compare_complete() not invoked
+     * or failed), skip the rest.  One path to trigger this is QMP command
+     * qom-list-properties.
+     */
+    if (tmp != s) {
+        qemu_mutex_unlock(&colo_compare_mutex);
+        return;
+    }
     if (QTAILQ_EMPTY(&net_compares)) {
         colo_compare_active = false;
         qemu_mutex_destroy(&event_mtx);
