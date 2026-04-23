@@ -8870,6 +8870,7 @@ static int do_openat2(CPUArchState *cpu_env, abi_long dirfd,
     }
 
     fd_trans_unregister(ret);
+    maybe_tag_proc_pid_task(ret);
     unlock_user(pathname, guest_pathname, 0);
     return ret;
 }
@@ -9108,6 +9109,58 @@ static int host_to_target_cpu_mask(const unsigned long *host_mask,
     return 0;
 }
 
+/*
+ * If the freshly-opened host fd refers to our own /proc/<pid>/task
+ * directory, register a marker on it via fd_trans so getdents() can
+ * later filter out QEMU-internal host threads (RCU, TCG workers) that
+ * have no guest CPUState.  Tagging at open time (rather than at
+ * getdents time) avoids TOCTOU on the fd's resolved path and lets us
+ * piggy-back on the existing fd_trans infrastructure for dup/close.
+ */
+static void maybe_tag_proc_pid_task(int fd)
+{
+    char link_path[64];
+    char link_target[PATH_MAX];
+    char expected[64];
+    ssize_t len;
+    int expected_len;
+
+    if (fd < 0) {
+        return;
+    }
+
+    snprintf(link_path, sizeof(link_path), "/proc/self/fd/%d", fd);
+    len = readlink(link_path, link_target, sizeof(link_target) - 1);
+    if (len < 0) {
+        return;
+    }
+    link_target[len] = '\0';
+
+    expected_len = snprintf(expected, sizeof(expected),
+                            "/proc/%d/task", getpid());
+    if (expected_len > 0 && (ssize_t)expected_len == len
+        && memcmp(link_target, expected, expected_len) == 0) {
+        fd_trans_register(fd, &target_proc_pid_task_trans);
+    }
+}
+
+/*
+ * Check if a given host TID belongs to a guest thread by looking it up
+ * in the CPU list.  Must be called under RCU read lock.
+ */
+static bool is_guest_tid(pid_t tid)
+{
+    CPUState *cpu;
+
+    CPU_FOREACH(cpu) {
+        TaskState *ts = get_task_state(cpu);
+        if (ts->ts_tid == tid) {
+            return true;
+        }
+    }
+    return false;
+}
+
 #ifdef TARGET_NR_getdents
 static int do_getdents(abi_long dirfd, abi_long arg2, abi_long count)
 {
@@ -9116,21 +9169,12 @@ static int do_getdents(abi_long dirfd, abi_long arg2, abi_long count)
     int hlen, hoff, toff;
     int hreclen, treclen;
     off_t prev_diroff = 0;
+    bool filter_task = fd_trans_is_proc_pid_task(dirfd);
+    bool stop = false;
 
     hdirp = g_try_malloc(count);
     if (!hdirp) {
         return -TARGET_ENOMEM;
-    }
-
-#ifdef EMULATE_GETDENTS_WITH_GETDENTS
-    hlen = sys_getdents(dirfd, hdirp, count);
-#else
-    hlen = sys_getdents64(dirfd, hdirp, count);
-#endif
-
-    hlen = get_errno(hlen);
-    if (is_error(hlen)) {
-        return hlen;
     }
 
     tdirp = lock_user(VERIFY_WRITE, arg2, count, 0);
@@ -9138,56 +9182,110 @@ static int do_getdents(abi_long dirfd, abi_long arg2, abi_long count)
         return -TARGET_EFAULT;
     }
 
-    for (hoff = toff = 0; hoff < hlen; hoff += hreclen, toff += treclen) {
+    toff = 0;
+    /*
+     * Loop until we either produce a visible target entry, hit a
+     * real EOF (host returns 0), or hit an error.  Without this
+     * retry, a host batch consisting entirely of filtered entries
+     * would be reported to the guest as EOF.
+     */
+    while (!stop) {
 #ifdef EMULATE_GETDENTS_WITH_GETDENTS
-        struct linux_dirent *hde = hdirp + hoff;
+        hlen = sys_getdents(dirfd, hdirp, count);
 #else
-        struct linux_dirent64 *hde = hdirp + hoff;
+        hlen = sys_getdents64(dirfd, hdirp, count);
 #endif
-        struct target_dirent *tde = tdirp + toff;
-        int namelen;
-        uint8_t type;
-
-        namelen = strlen(hde->d_name);
-        hreclen = hde->d_reclen;
-        treclen = offsetof(struct target_dirent, d_name) + namelen + 2;
-        treclen = QEMU_ALIGN_UP(treclen, __alignof(struct target_dirent));
-
-        if (toff + treclen > count) {
-            /*
-             * If the host struct is smaller than the target struct, or
-             * requires less alignment and thus packs into less space,
-             * then the host can return more entries than we can pass
-             * on to the guest.
-             */
-            if (toff == 0) {
-                toff = -TARGET_EINVAL; /* result buffer is too small */
-                break;
-            }
-            /*
-             * Return what we have, resetting the file pointer to the
-             * location of the first record not returned.
-             */
-            lseek(dirfd, prev_diroff, SEEK_SET);
-            break;
+        hlen = get_errno(hlen);
+        if (is_error(hlen)) {
+            unlock_user(tdirp, arg2, 0);
+            return hlen;
+        }
+        if (hlen == 0) {
+            break; /* real EOF */
         }
 
-        prev_diroff = hde->d_off;
-        tde->d_ino = tswapal(hde->d_ino);
-        tde->d_off = tswapal(hde->d_off);
-        tde->d_reclen = tswap16(treclen);
-        memcpy(tde->d_name, hde->d_name, namelen + 1);
+        for (hoff = 0; hoff < hlen; hoff += hreclen, toff += treclen) {
+#ifdef EMULATE_GETDENTS_WITH_GETDENTS
+            struct linux_dirent *hde = hdirp + hoff;
+#else
+            struct linux_dirent64 *hde = hdirp + hoff;
+#endif
+            struct target_dirent *tde = tdirp + toff;
+            int namelen;
+            uint8_t type;
+
+            namelen = strlen(hde->d_name);
+            hreclen = hde->d_reclen;
+
+            /*
+             * Filter /proc/<pid>/task/ listings to hide QEMU-internal
+             * host threads (RCU, TCG) that have no guest CPUState.
+             */
+            if (filter_task) {
+                int tid_int;
+                if (qemu_strtoi(hde->d_name, NULL, 10, &tid_int) == 0
+                    && tid_int > 0) {
+                    pid_t tid = (pid_t)tid_int;
+                    bool drop;
+
+                    WITH_RCU_READ_LOCK_GUARD() {
+                        drop = !is_guest_tid(tid);
+                    }
+                    if (drop) {
+                        treclen = 0;
+                        continue;
+                    }
+                }
+            }
+            treclen = offsetof(struct target_dirent, d_name) + namelen + 2;
+            treclen = QEMU_ALIGN_UP(treclen, __alignof(struct target_dirent));
+
+            if (toff + treclen > count) {
+                /*
+                 * If the host struct is smaller than the target struct, or
+                 * requires less alignment and thus packs into less space,
+                 * then the host can return more entries than we can pass
+                 * on to the guest.
+                 */
+                if (toff == 0) {
+                    toff = -TARGET_EINVAL; /* result buffer is too small */
+                    stop = true;
+                    break;
+                }
+                /*
+                 * Return what we have, resetting the file pointer to the
+                 * location of the first record not returned.
+                 */
+                lseek(dirfd, prev_diroff, SEEK_SET);
+                stop = true;
+                break;
+            }
+
+            prev_diroff = hde->d_off;
+            tde->d_ino = tswapal(hde->d_ino);
+            tde->d_off = tswapal(hde->d_off);
+            tde->d_reclen = tswap16(treclen);
+            memcpy(tde->d_name, hde->d_name, namelen + 1);
+
+            /*
+             * The getdents type is in what was formerly a padding byte at the
+             * end of the structure.
+             */
+#ifdef EMULATE_GETDENTS_WITH_GETDENTS
+            type = *((uint8_t *)hde + hreclen - 1);
+#else
+            type = hde->d_type;
+#endif
+            *((uint8_t *)tde + treclen - 1) = type;
+        }
 
         /*
-         * The getdents type is in what was formerly a padding byte at the
-         * end of the structure.
+         * If we produced any visible target entry, return; otherwise
+         * loop again to fetch more host entries (avoid false EOF).
          */
-#ifdef EMULATE_GETDENTS_WITH_GETDENTS
-        type = *((uint8_t *)hde + hreclen - 1);
-#else
-        type = hde->d_type;
-#endif
-        *((uint8_t *)tde + treclen - 1) = type;
+        if (toff != 0) {
+            break;
+        }
     }
 
     unlock_user(tdirp, arg2, toff);
@@ -9203,15 +9301,12 @@ static int do_getdents64(abi_long dirfd, abi_long arg2, abi_long count)
     int hlen, hoff, toff;
     int hreclen, treclen;
     off_t prev_diroff = 0;
+    bool filter_task = fd_trans_is_proc_pid_task(dirfd);
+    bool stop = false;
 
     hdirp = g_try_malloc(count);
     if (!hdirp) {
         return -TARGET_ENOMEM;
-    }
-
-    hlen = get_errno(sys_getdents64(dirfd, hdirp, count));
-    if (is_error(hlen)) {
-        return hlen;
     }
 
     tdirp = lock_user(VERIFY_WRITE, arg2, count, 0);
@@ -9219,41 +9314,86 @@ static int do_getdents64(abi_long dirfd, abi_long arg2, abi_long count)
         return -TARGET_EFAULT;
     }
 
-    for (hoff = toff = 0; hoff < hlen; hoff += hreclen, toff += treclen) {
-        struct linux_dirent64 *hde = hdirp + hoff;
-        struct target_dirent64 *tde = tdirp + toff;
-        int namelen;
-
-        namelen = strlen(hde->d_name) + 1;
-        hreclen = hde->d_reclen;
-        treclen = offsetof(struct target_dirent64, d_name) + namelen;
-        treclen = QEMU_ALIGN_UP(treclen, __alignof(struct target_dirent64));
-
-        if (toff + treclen > count) {
-            /*
-             * If the host struct is smaller than the target struct, or
-             * requires less alignment and thus packs into less space,
-             * then the host can return more entries than we can pass
-             * on to the guest.
-             */
-            if (toff == 0) {
-                toff = -TARGET_EINVAL; /* result buffer is too small */
-                break;
-            }
-            /*
-             * Return what we have, resetting the file pointer to the
-             * location of the first record not returned.
-             */
-            lseek(dirfd, prev_diroff, SEEK_SET);
-            break;
+    toff = 0;
+    /*
+     * Loop until we either produce a visible target entry, hit a
+     * real EOF (host returns 0), or hit an error.  Without this
+     * retry, a host batch consisting entirely of filtered entries
+     * would be reported to the guest as EOF.
+     */
+    while (!stop) {
+        hlen = get_errno(sys_getdents64(dirfd, hdirp, count));
+        if (is_error(hlen)) {
+            unlock_user(tdirp, arg2, 0);
+            return hlen;
+        }
+        if (hlen == 0) {
+            break; /* real EOF */
         }
 
-        prev_diroff = hde->d_off;
-        tde->d_ino = tswap64(hde->d_ino);
-        tde->d_off = tswap64(hde->d_off);
-        tde->d_reclen = tswap16(treclen);
-        tde->d_type = hde->d_type;
-        memcpy(tde->d_name, hde->d_name, namelen);
+        for (hoff = 0; hoff < hlen; hoff += hreclen, toff += treclen) {
+            struct linux_dirent64 *hde = hdirp + hoff;
+            struct target_dirent64 *tde = tdirp + toff;
+            int namelen;
+
+            namelen = strlen(hde->d_name) + 1;
+            hreclen = hde->d_reclen;
+
+            /*
+             * Filter /proc/<pid>/task/ listings to hide QEMU-internal
+             * host threads (RCU, TCG) that have no guest CPUState.
+             */
+            if (filter_task) {
+                int tid_int;
+                if (qemu_strtoi(hde->d_name, NULL, 10, &tid_int) == 0
+                    && tid_int > 0) {
+                    pid_t tid = (pid_t)tid_int;
+                    bool drop;
+
+                    WITH_RCU_READ_LOCK_GUARD() {
+                        drop = !is_guest_tid(tid);
+                    }
+                    if (drop) {
+                        treclen = 0;
+                        continue;
+                    }
+                }
+            }
+            treclen = offsetof(struct target_dirent64, d_name) + namelen;
+            treclen = QEMU_ALIGN_UP(treclen, __alignof(struct target_dirent64));
+
+            if (toff + treclen > count) {
+                /*
+                 * If the host struct is smaller than the target struct, or
+                 * requires less alignment and thus packs into less space,
+                 * then the host can return more entries than we can pass
+                 * on to the guest.
+                 */
+                if (toff == 0) {
+                    toff = -TARGET_EINVAL; /* result buffer is too small */
+                    stop = true;
+                    break;
+                }
+                /*
+                 * Return what we have, resetting the file pointer to the
+                 * location of the first record not returned.
+                 */
+                lseek(dirfd, prev_diroff, SEEK_SET);
+                stop = true;
+                break;
+            }
+
+            prev_diroff = hde->d_off;
+            tde->d_ino = tswap64(hde->d_ino);
+            tde->d_off = tswap64(hde->d_off);
+            tde->d_reclen = tswap16(treclen);
+            tde->d_type = hde->d_type;
+            memcpy(tde->d_name, hde->d_name, namelen);
+        }
+
+        if (toff != 0) {
+            break;
+        }
     }
 
     unlock_user(tdirp, arg2, toff);
@@ -9732,6 +9872,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
                                   target_to_host_bitmask(arg2, fcntl_flags_tbl),
                                   arg3, true));
         fd_trans_unregister(ret);
+        maybe_tag_proc_pid_task(ret);
         unlock_user(p, arg1, 0);
         return ret;
 #endif
@@ -9742,6 +9883,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
                                   target_to_host_bitmask(arg3, fcntl_flags_tbl),
                                   arg4, true));
         fd_trans_unregister(ret);
+        maybe_tag_proc_pid_task(ret);
         unlock_user(p, arg2, 0);
         return ret;
     case TARGET_NR_openat2:

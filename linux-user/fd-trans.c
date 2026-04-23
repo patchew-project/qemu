@@ -1881,3 +1881,9 @@ static abi_long host_to_target_data_inotify(void *buf, size_t len)
 TargetFdTrans target_inotify_trans = {
     .host_to_target_data = host_to_target_data_inotify,
 };
+
+/*
+ * No callbacks: this trans entry is purely a marker to identify fds
+ * that refer to our own /proc/<pid>/task directory.  See getdents().
+ */
+TargetFdTrans target_proc_pid_task_trans;

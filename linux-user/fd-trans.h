@@ -142,4 +142,22 @@ extern TargetFdTrans target_signalfd_trans;
 extern TargetFdTrans target_eventfd_trans;
 extern TargetFdTrans target_timerfd_trans;
 extern TargetFdTrans target_inotify_trans;
+
+/*
+ * Marker (no callbacks) used to tag fds that refer to /proc/<pid>/task
+ * for our own process.  Used by getdents to filter out QEMU-internal
+ * host threads (RCU, TCG workers) that have no guest CPUState.
+ */
+extern TargetFdTrans target_proc_pid_task_trans;
+
+static inline bool fd_trans_is_proc_pid_task(int fd)
+{
+    if (fd < 0) {
+        return false;
+    }
+
+    QEMU_LOCK_GUARD(&target_fd_trans_lock);
+    return fd < target_fd_max
+           && target_fd_trans[fd] == &target_proc_pid_task_trans;
+}
 #endif
