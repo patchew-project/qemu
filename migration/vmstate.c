@@ -514,6 +514,35 @@ static bool vmstate_save_field(QEMUFile *f, void *pv, size_t size,
     return true;
 }
 
+/*
+ * Save a whole VMSD field, including its JSON blob separately when @vmdesc
+ * is specified.
+ */
+static inline bool
+vmstate_save_field_with_vmdesc(QEMUFile *f, void *pv, size_t size,
+                               const VMStateDescription *vmsd,
+                               const VMStateField *field, JSONWriter *vmdesc,
+                               int i, int max, Error **errp)
+{
+    uint64_t old_offset, written_bytes;
+    bool ok;
+
+    vmsd_desc_field_start(vmsd, vmdesc, field, i, max);
+
+    old_offset = qemu_file_transferred(f);
+    ok = vmstate_save_field(f, pv, size, field, vmdesc, errp);
+    written_bytes = qemu_file_transferred(f) - old_offset;
+
+    vmsd_desc_field_end(vmsd, vmdesc, field, written_bytes);
+
+    if (!ok) {
+        error_prepend(errp, "Save of field %s/%s failed: ",
+                      vmsd->name, field->name);
+    }
+
+    return ok;
+}
+
 static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
                                 void *opaque, JSONWriter *vmdesc,
                                 int version_id, Error **errp)
@@ -542,7 +571,6 @@ static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
             void *first_elem = opaque + field->offset;
             int i, n_elems = vmstate_n_elems(opaque, field);
             int size = vmstate_size(opaque, field);
-            uint64_t old_offset, written_bytes;
             JSONWriter *vmdesc_loop = vmdesc;
             bool is_prev_null = false;
 
@@ -559,7 +587,6 @@ static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
                 /* maximum number of elements to compress in the JSON blob */
                 int max_elems = vmsd_can_compress(field) ? (n_elems - i) : 1;
 
-                old_offset = qemu_file_transferred(f);
                 if (field->flags & VMS_ARRAY_OF_POINTER) {
                     assert(curr_elem);
                     curr_elem = *(void **)curr_elem;
@@ -606,15 +633,9 @@ static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
                     }
                 }
 
-                vmsd_desc_field_start(vmsd, vmdesc_loop, inner_field,
-                                      i, max_elems);
-
-                ok = vmstate_save_field(f, curr_elem, size, inner_field,
-                                        vmdesc_loop, errp);
-
-                written_bytes = qemu_file_transferred(f) - old_offset;
-                vmsd_desc_field_end(vmsd, vmdesc_loop, inner_field,
-                                    written_bytes);
+                ok = vmstate_save_field_with_vmdesc(f, curr_elem, size, vmsd,
+                                                    inner_field, vmdesc_loop,
+                                                    i, max_elems, errp);
 
                 /* If we used a fake temp field.. free it now */
                 if (is_null) {
@@ -622,8 +643,6 @@ static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
                 }
 
                 if (!ok) {
-                    error_prepend(errp, "Save of field %s/%s failed: ",
-                                  vmsd->name, field->name);
                     goto out;
                 }
 
