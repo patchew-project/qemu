@@ -210,6 +210,13 @@ struct MigrationIncomingState {
      */
     QemuSemaphore postcopy_pause_sem_fast_load;
 
+    /*
+     * CPUs have been synchronized during POSTCOPY_DEVICE state before
+     * responding to a special PING to source. This means, synchronization is
+     * not required later during loadvm_postcopy_handle_run_bh().
+     */
+    bool postcopy_device_cpu_synchronized;
+
     /* List of listening socket addresses  */
     SocketAddressList *socket_address_list;
 

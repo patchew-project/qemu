@@ -2143,9 +2143,10 @@ static void loadvm_postcopy_handle_run_bh(void *opaque)
     /* TODO we should move all of this lot into postcopy_ram.c or a shared code
      * in migration.c
      */
-    cpu_synchronize_all_post_init();
-
-    trace_vmstate_downtime_checkpoint("dst-postcopy-bh-cpu-synced");
+    if (!mis->postcopy_device_cpu_synchronized) {
+        cpu_synchronize_all_post_init();
+        trace_vmstate_downtime_checkpoint("dst-postcopy-bh-cpu-synced");
+    }
 
     qemu_announce_self(&mis->announce_timer, migrate_announce_params());
 
@@ -2509,6 +2510,15 @@ static int loadvm_process_command(QEMUFile *f, Error **errp)
             error_setg(errp, "CMD_PING (0x%x) received with no return path",
                        tmp32);
             return -1;
+        }
+        if (tmp32 == QEMU_VM_PING_PACKAGED_LOADED) {
+            /*
+             * Try synchronizing CPU before responding. If it fails, QEMU exits
+             * and source side can resume.
+             */
+            cpu_synchronize_all_post_init();
+            mis->postcopy_device_cpu_synchronized = true;
+            trace_vmstate_downtime_checkpoint("dst-postcopy-bh-cpu-synced");
         }
         migrate_send_rp_pong(mis, tmp32);
         return 0;
