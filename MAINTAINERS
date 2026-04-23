@@ -4381,8 +4381,7 @@ S: Supported
 F: tests/image-fuzzer/
 
 Vhost-user block device backend server
-M: Coiby Xu <Coiby.Xu@gmail.com>
-S: Maintained
+S: Orphan
 F: block/export/vhost-user-blk-server.c
 F: block/export/vhost-user-blk-server.h
 F: block/export/virtio-blk-handler.c
