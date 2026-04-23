@@ -50,7 +50,7 @@
 #define ES_16   MO_16
 #define ES_32   MO_32
 #define ES_64   MO_64
-#define ES_128  4
+#define ES_128  MO_128
 
 /* Floating-Point Format */
 #define FPF_SHORT       2
