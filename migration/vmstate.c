@@ -682,14 +682,14 @@ static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
                 const VMStateField *inner_field;
                 /* maximum number of elements to compress in the JSON blob */
                 int max_elems = vmsd_can_compress(field) ? (n_elems - i) : 1;
-                bool use_marker_field, is_null;
+                bool use_marker_field, is_null = false;
 
                 if (field->flags & VMS_ARRAY_OF_POINTER) {
                     assert(curr_elem);
                     curr_elem = *(void **)curr_elem;
+                    is_null = !curr_elem;
                 }
 
-                is_null = !curr_elem && size;
                 use_marker_field = use_dynamic_array || is_null;
 
                 if (use_marker_field) {
@@ -717,7 +717,7 @@ static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
 
                     for (int j = i + 1; j < n_elems; j++) {
                         void *elem = *(void **)(first_elem + size * j);
-                        bool elem_is_null = !elem && size;
+                        bool elem_is_null = !elem;
 
                         if (is_null != elem_is_null) {
                             max_elems = j - i;
