@@ -72,20 +72,20 @@ vmstate_subsection_save_top(const char *idstr) "%s"
 vmstate_field_exists(const char *vmsd, const char *name, int field_version, int version, int result) "%s:%s field_version %d version %d result %d"
 
 # vmstate-types.c
-get_qtailq(const char *name, int version_id) "%s v%d"
-get_qtailq_end(const char *name, const char *reason, int val) "%s %s/%d"
-put_qtailq(const char *name, int version_id) "%s v%d"
-put_qtailq_end(const char *name, const char *reason) "%s %s"
+load_qtailq(const char *name, int version_id) "%s v%d"
+load_qtailq_end(const char *name) "%s"
+save_qtailq(const char *name, int version_id) "%s v%d"
+save_qtailq_end(const char *name) "%s"
 
-get_gtree(const char *field_name, const char *key_vmsd_name, const char *val_vmsd_name, uint32_t nnodes) "%s(%s/%s) nnodes=%d"
-get_gtree_end(const char *field_name, const char *key_vmsd_name, const char *val_vmsd_name, int ret) "%s(%s/%s) %d"
-put_gtree(const char *field_name, const char *key_vmsd_name, const char *val_vmsd_name, uint32_t nnodes) "%s(%s/%s) nnodes=%d"
-put_gtree_end(const char *field_name, const char *key_vmsd_name, const char *val_vmsd_name, int ret) "%s(%s/%s) %d"
+load_gtree(const char *field_name, const char *key_vmsd_name, const char *val_vmsd_name, uint32_t nnodes) "%s(%s/%s) nnodes=%d"
+load_gtree_end(const char *field_name, const char *key_vmsd_name, const char *val_vmsd_name) "%s(%s/%s)"
+save_gtree(const char *field_name, const char *key_vmsd_name, const char *val_vmsd_name, uint32_t nnodes) "%s(%s/%s) nnodes=%d"
+save_gtree_end(const char *field_name, const char *key_vmsd_name, const char *val_vmsd_name) "%s(%s/%s)"
 
-get_qlist(const char *field_name, const char *vmsd_name, int version_id) "%s(%s v%d)"
-get_qlist_end(const char *field_name, const char *vmsd_name) "%s(%s)"
-put_qlist(const char *field_name, const char *vmsd_name, int version_id) "%s(%s v%d)"
-put_qlist_end(const char *field_name, const char *vmsd_name) "%s(%s)"
+load_qlist(const char *field_name, const char *vmsd_name, int version_id) "%s(%s v%d)"
+load_qlist_end(const char *field_name, const char *vmsd_name) "%s(%s)"
+save_qlist(const char *field_name, const char *vmsd_name, int version_id) "%s(%s v%d)"
+save_qlist_end(const char *field_name, const char *vmsd_name) "%s(%s)"
 
 # qemu-file.c
 qemu_file_fclose(void) ""
