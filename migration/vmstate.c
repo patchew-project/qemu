@@ -26,7 +26,7 @@ static bool vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
                                     Error **errp);
 static bool vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
                                     void *opaque, Error **errp);
-static int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
+static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
                                 void *opaque, JSONWriter *vmdesc,
                                 int version_id, Error **errp);
 
@@ -165,11 +165,11 @@ static bool vmstate_load_field(QEMUFile *f, void *pv, size_t size,
                                const VMStateField *field, Error **errp)
 {
     if (field->flags & VMS_STRUCT) {
-        return vmstate_load_state(f, field->vmsd, pv, field->vmsd->version_id,
-                                  errp) >= 0;
+        return vmstate_load_vmsd(f, field->vmsd, pv, field->vmsd->version_id,
+                                 errp);
     } else if (field->flags & VMS_VSTRUCT) {
-        return vmstate_load_state(f, field->vmsd, pv, field->struct_version_id,
-                                  errp) >= 0;
+        return vmstate_load_vmsd(f, field->vmsd, pv, field->struct_version_id,
+                                 errp);
     } else if (field->info->load) {
         return field->info->load(f, pv, size, field, errp);
     }
@@ -211,12 +211,11 @@ static bool vmstate_post_load(const VMStateDescription *vmsd,
     return true;
 }
 
-int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
+bool vmstate_load_vmsd(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id, Error **errp)
 {
     ERRP_GUARD();
     const VMStateField *field = vmsd->fields;
-    int ret = 0;
 
     trace_vmstate_load_state(vmsd->name, version_id);
 
@@ -225,7 +224,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                    "for local version_id %d",
                    vmsd->name, version_id, vmsd->version_id);
         trace_vmstate_load_state_fail(vmsd->name, "too new");
-        return -EINVAL;
+        return false;
     }
 
     if  (version_id < vmsd->minimum_version_id) {
@@ -233,11 +232,11 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                    "for local minimum version_id %d",
                    vmsd->name, version_id, vmsd->minimum_version_id);
         trace_vmstate_load_state_fail(vmsd->name, "too old");
-        return -EINVAL;
+        return false;
     }
 
     if (!vmstate_pre_load(vmsd, opaque, errp)) {
-        return -EINVAL;
+        return false;
     }
 
     while (field->name) {
@@ -257,6 +256,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
             }
 
             for (i = 0; i < n_elems; i++) {
+                bool ok;
                 void *curr_elem = first_elem + size * i;
                 const VMStateField *inner_field;
 
@@ -275,33 +275,32 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                     inner_field = field;
                 }
 
-                ret = vmstate_load_field(f, curr_elem, size, inner_field,
-                                         errp) ? 0 : -EINVAL;
+                ok = vmstate_load_field(f, curr_elem, size, inner_field, errp);
 
                 /* If we used a fake temp field.. free it now */
                 if (inner_field != field) {
                     g_clear_pointer((gpointer *)&inner_field, g_free);
                 }
 
-                if (ret >= 0) {
-                    ret = qemu_file_get_error(f);
+                if (ok) {
+                    int ret = qemu_file_get_error(f);
                     if (ret < 0) {
                         error_setg(errp,
                                    "Failed to load %s state: stream error: %d",
                                    vmsd->name, ret);
                         trace_vmstate_load_field_error(field->name, ret);
-                        return ret;
+                        return false;
                     }
                 } else {
-                    qemu_file_set_error(f, ret);
-                    trace_vmstate_load_field_error(field->name, ret);
-                    return ret;
+                    qemu_file_set_error(f, -EINVAL);
+                    trace_vmstate_load_field_error(field->name, -EINVAL);
+                    return false;
                 }
             }
         } else if (field->flags & VMS_MUST_EXIST) {
             error_setg(errp, "Input validation failed: %s/%s version_id: %d",
                        vmsd->name, field->name, vmsd->version_id);
-            return -1;
+            return false;
         }
         field++;
     }
@@ -309,17 +308,16 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
 
     if (!vmstate_subsection_load(f, vmsd, opaque, errp)) {
         qemu_file_set_error(f, -EINVAL);
-        return -EINVAL;
+        return false;
     }
 
     if (!vmstate_post_load(vmsd, opaque, version_id, errp)) {
         trace_vmstate_load_state_fail(vmsd->name, "post-load");
-        return -EINVAL;
+        return false;
     }
 
     trace_vmstate_load_state_success(vmsd->name);
-
-    return 0;
+    return true;
 }
 
 static int vmfield_name_num(const VMStateField *start,
@@ -492,11 +490,10 @@ static bool vmstate_save_field(QEMUFile *f, void *pv, size_t size,
                                JSONWriter *vmdesc, Error **errp)
 {
     if (field->flags & VMS_STRUCT) {
-        return vmstate_save_state(f, field->vmsd, pv, vmdesc, errp) >= 0;
+        return vmstate_save_vmsd(f, field->vmsd, pv, vmdesc, errp);
     } else if (field->flags & VMS_VSTRUCT) {
-        return vmstate_save_state_v(f, field->vmsd, pv, vmdesc,
-                                    field->struct_version_id,
-                                    errp) >= 0;
+        return vmstate_save_vmsd_v(f, field->vmsd, pv, vmdesc,
+                                   field->struct_version_id, errp);
     } else if (field->info->save) {
         return field->info->save(f, pv, size, field, vmdesc, errp);
     }
@@ -509,19 +506,19 @@ static bool vmstate_save_field(QEMUFile *f, void *pv, size_t size,
     return true;
 }
 
-static int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
+static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
                                 void *opaque, JSONWriter *vmdesc,
                                 int version_id, Error **errp)
 {
     ERRP_GUARD();
-    int ret = 0;
+    bool ok = true;
     const VMStateField *field = vmsd->fields;
 
     trace_vmstate_save_state_top(vmsd->name);
 
     if (!vmstate_pre_save(vmsd, opaque, errp)) {
         trace_vmstate_save_state_pre_save_fail(vmsd->name);
-        return -EINVAL;
+        return false;
     }
 
     trace_vmstate_save_state_pre_save_success(vmsd->name);
@@ -602,8 +599,8 @@ static int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
                 vmsd_desc_field_start(vmsd, vmdesc_loop, inner_field,
                                       i, max_elems);
 
-                ret = vmstate_save_field(f, curr_elem, size, inner_field,
-                                         vmdesc_loop, errp) ? 0 : -EINVAL;
+                ok = vmstate_save_field(f, curr_elem, size, inner_field,
+                                        vmdesc_loop, errp);
 
                 written_bytes = qemu_file_transferred(f) - old_offset;
                 vmsd_desc_field_end(vmsd, vmdesc_loop, inner_field,
@@ -614,7 +611,7 @@ static int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
                     g_clear_pointer((gpointer *)&inner_field, g_free);
                 }
 
-                if (ret) {
+                if (!ok) {
                     error_prepend(errp, "Save of field %s/%s failed: ",
                                   vmsd->name, field->name);
                     goto out;
@@ -640,13 +637,13 @@ static int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
         json_writer_end_array(vmdesc);
     }
 
-    ret = vmstate_subsection_save(f, vmsd, opaque, vmdesc, errp) ? 0 : -EINVAL;
+    ok = vmstate_subsection_save(f, vmsd, opaque, vmdesc, errp);
 
 out:
     if (vmsd->post_save) {
         vmsd->post_save(opaque);
     }
-    return ret;
+    return ok;
 }
 
 static const VMStateDescription *
@@ -663,11 +660,11 @@ vmstate_get_subsection(const VMStateDescription * const *sub,
     return NULL;
 }
 
-int vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
+bool vmstate_save_vmsd(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, JSONWriter *vmdesc_id, Error **errp)
 {
-    return vmstate_save_state_v(f, vmsd, opaque, vmdesc_id, vmsd->version_id,
-                                errp);
+    return vmstate_save_vmsd_v(f, vmsd, opaque, vmdesc_id, vmsd->version_id,
+                               errp);
 }
 
 static bool vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
@@ -712,7 +709,7 @@ static bool vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
         qemu_file_skip(f, len); /* idstr */
         version_id = qemu_get_be32(f);
 
-        if (vmstate_load_state(f, sub_vmsd, opaque, version_id, errp) < 0) {
+        if (!vmstate_load_vmsd(f, sub_vmsd, opaque, version_id, errp)) {
             trace_vmstate_subsection_load_bad(vmsd->name, idstr, "(child)");
             error_prepend(errp,
                           "Loading VM subsection '%s' in '%s' failed: ",
@@ -754,7 +751,7 @@ static bool vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
             qemu_put_byte(f, len);
             qemu_put_buffer(f, (uint8_t *)vmsdsub->name, len);
             qemu_put_be32(f, vmsdsub->version_id);
-            if (vmstate_save_state(f, vmsdsub, opaque, vmdesc, errp) < 0) {
+            if (!vmstate_save_vmsd(f, vmsdsub, opaque, vmdesc, errp)) {
                 return false;
             }
 
@@ -770,4 +767,16 @@ static bool vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
     }
 
     return true;
+}
+
+int vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
+                       void *opaque, JSONWriter *vmdesc_id, Error **errp)
+{
+    return vmstate_save_vmsd(f, vmsd, opaque, vmdesc_id, errp) ? 0 : -EINVAL;
+}
+
+int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
+                        void *opaque, int version_id, Error **errp)
+{
+    return vmstate_load_vmsd(f, vmsd, opaque, version_id, errp) ? 0 : -EINVAL;
 }
