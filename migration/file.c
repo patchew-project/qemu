@@ -112,6 +112,7 @@ QIOChannel *file_connect_outgoing(MigrationState *s,
         error_setg_errno(errp, errno,
                          "failed to truncate migration file to offset %" PRIx64,
                          offset);
+        object_unref(OBJECT(fioc));
         goto out;
     }
 
@@ -119,6 +120,7 @@ QIOChannel *file_connect_outgoing(MigrationState *s,
 
     ioc = QIO_CHANNEL(fioc);
     if (offset && qio_channel_io_seek(ioc, offset, SEEK_SET, errp) < 0) {
+        object_unref(OBJECT(fioc));
         ioc = NULL;
         goto out;
     }

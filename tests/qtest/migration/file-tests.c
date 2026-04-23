@@ -20,6 +20,51 @@
 
 static char *tmpfs;
 
+static int count_proc_fds(pid_t pid)
+{
+    g_autofree char *fddir = g_strdup_printf("/proc/%d/fd", (int)pid);
+    GDir *dir = g_dir_open(fddir, 0, NULL);
+    int count = 0;
+
+    if (!dir) {
+        return -1;
+    }
+    while (g_dir_read_name(dir)) {
+        count++;
+    }
+    g_dir_close(dir);
+    return count;
+}
+
+static void test_file_connect_outgoing_fd_leak(char *name, MigrateCommon *args)
+{
+    QTestState *from, *to;
+    int fd_before, fd_after;
+    const int retries = 5;
+    int i;
+    if (!g_file_test("/dev/full", G_FILE_TEST_EXISTS)) {
+        g_test_skip("/dev/full not available");
+        return;
+    }
+
+    args->listen_uri = "defer";
+    if (migrate_start(&from, &to, args->listen_uri, &args->start)) {
+        return;
+    }
+
+    fd_before = count_proc_fds(qtest_pid(from));
+    g_assert_cmpint(fd_before, >, 0);
+    for (i = 0; i < retries; i++) {
+        migrate_qmp_fail(from, "file:/dev/full", NULL, "{}");
+        migration_event_wait(from, "failed");
+    }
+
+    fd_after = count_proc_fds(qtest_pid(from));
+    g_assert_cmpint(fd_after, >, 0);
+    g_assert_cmpint(fd_after, ==, fd_before);
+    migrate_end(from, to, false);
+}
+
 static void test_precopy_file(char *name, MigrateCommon *args)
 {
     g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
@@ -313,6 +358,9 @@ void migration_test_add_file(MigrationTestEnv *env)
 #endif
     migration_test_add("/migration/precopy/file/offset/bad",
                        test_precopy_file_offset_bad);
+
+    migration_test_add("/migration/precopy/file/connect-outgoing-fd-leak",
+                       test_file_connect_outgoing_fd_leak);
 
     migration_test_add("/migration/precopy/file/mapped-ram",
                        test_precopy_file_mapped_ram);
