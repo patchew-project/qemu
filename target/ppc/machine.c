@@ -564,7 +564,7 @@ static const VMStateDescription vmstate_tlb6xx = {
     .minimum_version_id = 1,
     .needed = tlb6xx_needed,
     .fields = (const VMStateField[]) {
-        VMSTATE_INT32_EQUAL(env.nb_tlb, PowerPCCPU, NULL),
+        VMSTATE_INT32_EQUAL(env.nb_tlb, PowerPCCPU),
         VMSTATE_STRUCT_VARRAY_POINTER_INT32(env.tlb.tlb6, PowerPCCPU,
                                             env.nb_tlb,
                                             vmstate_tlb6xx_entry,
@@ -603,7 +603,7 @@ static const VMStateDescription vmstate_tlbemb = {
     .minimum_version_id = 1,
     .needed = tlbemb_needed,
     .fields = (const VMStateField[]) {
-        VMSTATE_INT32_EQUAL(env.nb_tlb, PowerPCCPU, NULL),
+        VMSTATE_INT32_EQUAL(env.nb_tlb, PowerPCCPU),
         VMSTATE_STRUCT_VARRAY_POINTER_INT32(env.tlb.tlbe, PowerPCCPU,
                                             env.nb_tlb,
                                             vmstate_tlbemb_entry,
@@ -639,7 +639,7 @@ static const VMStateDescription vmstate_tlbmas = {
     .minimum_version_id = 1,
     .needed = tlbmas_needed,
     .fields = (const VMStateField[]) {
-        VMSTATE_INT32_EQUAL(env.nb_tlb, PowerPCCPU, NULL),
+        VMSTATE_INT32_EQUAL(env.nb_tlb, PowerPCCPU),
         VMSTATE_STRUCT_VARRAY_POINTER_INT32(env.tlb.tlbm, PowerPCCPU,
                                             env.nb_tlb,
                                             vmstate_tlbmas_entry,

@@ -199,15 +199,15 @@ const VMStateDescription vmstate_subch_dev = {
     .post_load = subch_dev_post_load,
     .pre_save = subch_dev_pre_save,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_EQUAL(cssid, SubchDev, NULL),
-        VMSTATE_UINT8_EQUAL(ssid, SubchDev, NULL),
+        VMSTATE_UINT8_EQUAL(cssid, SubchDev),
+        VMSTATE_UINT8_EQUAL(ssid, SubchDev),
         VMSTATE_UINT16(migrated_schid, SubchDev),
         /*
          * If devno mismatch on target, it may be due to some
          * sequences of plug and unplug breaks migration for
          * machine versions prior to 2.7 (known design flaw).
          */
-        VMSTATE_UINT16_EQUAL(devno, SubchDev, NULL),
+        VMSTATE_UINT16_EQUAL(devno, SubchDev),
         VMSTATE_BOOL(thinint_active, SubchDev),
         VMSTATE_STRUCT(curr_status, SubchDev, 0, vmstate_schib, SCHIB),
         VMSTATE_UINT8_ARRAY(sense_data, SubchDev, 32),
