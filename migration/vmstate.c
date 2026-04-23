@@ -153,6 +153,12 @@ static bool vmstate_ptr_marker_load(QEMUFile *f, bool *load_field,
         return true;
     }
 
+    if (byte == VMS_MARKER_PTR_VALID) {
+        /* We need to load the field right after the marker */
+        *load_field = true;
+        return true;
+    }
+
     error_setg(errp, "Unexpected ptr marker: %d", byte);
     return false;
 }
@@ -234,6 +240,76 @@ static bool vmstate_post_load(const VMStateDescription *vmsd,
     return true;
 }
 
+/*
+ * Try to prepare loading the next element, the object pointer to be put
+ * into @next_elem.  When @next_elem is NULL, it means we should skip
+ * loading this element.
+ *
+ * Returns false for errors, in which case *errp will be set, migration
+ * must be aborted.
+ */
+static bool vmstate_load_next(QEMUFile *f, const VMStateField *field,
+                              void *first_elem, void **next_elem,
+                              int size, int i, Error **errp)
+{
+    bool auto_alloc = field->flags & VMS_ARRAY_OF_POINTER_AUTO_ALLOC;
+    void *ptr = first_elem + size * i, **pptr;
+    bool load_field;
+
+    if (!(field->flags & VMS_ARRAY_OF_POINTER)) {
+        /* Simplest case, no pointer involved */
+        *next_elem = ptr;
+        return true;
+    }
+
+    /*
+     * We're loading an array of pointers, switch to use pptr to make it
+     * easier to read later
+     */
+    pptr = (void **)ptr;
+
+    /*
+     * If auto_alloc is on, making sure the user provided an array of NULL
+     * pointers to start with
+     */
+    assert(!auto_alloc || *pptr == NULL);
+
+    /*
+     * When pointer is null, we must expect a ptr marker first.  Use cases:
+     *
+     * (1) _AUTO_ALLOC implies a ptr marker will always exist, or,
+     *
+     * (2) the element on destination is NULL, which expects the src to send a
+     *     NULL-only marker.
+     *
+     * Here, checking against a NULL pointer will work for both.
+     */
+    if (!*pptr) {
+        if (!vmstate_ptr_marker_load(f, &load_field, errp)) {
+            trace_vmstate_load_field_error(field->name, -EINVAL);
+            return false;
+        }
+
+        /*
+         * If loading is needed, do pre-allocation first (otherwise keeping
+         * *pptr==NULL to imply a skip below)
+         */
+        if (load_field) {
+            /* Only applies when auto_alloc=on on the field */
+            assert(auto_alloc);
+            /*
+             * NOTE: do not use vmstate_size() here, because we need the
+             * object size, not entry size of the array.
+             */
+            *pptr = g_malloc0(field->size);
+        }
+    }
+
+    /* Move the cursor to the next element for loading */
+    *next_elem = *pptr;
+    return true;
+}
+
 bool vmstate_load_vmsd(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id, Error **errp)
 {
@@ -279,26 +355,21 @@ bool vmstate_load_vmsd(QEMUFile *f, const VMStateDescription *vmsd,
             }
 
             for (i = 0; i < n_elems; i++) {
-                /* If we will process the load of field? */
-                bool load_field = true;
-                bool ok = true;
-                void *curr_elem = first_elem + size * i;
+                void *curr_elem;
+                bool ok;
 
-                if (field->flags & VMS_ARRAY_OF_POINTER) {
-                    curr_elem = *(void **)curr_elem;
-                    if (!curr_elem) {
-                        /* Read the marker instead of VMSD itself */
-                        if (!vmstate_ptr_marker_load(f, &load_field, errp)) {
-                            trace_vmstate_load_field_error(field->name,
-                                                           -EINVAL);
-                            return false;
-                        }
-                    }
+                ok = vmstate_load_next(f, field, first_elem, &curr_elem,
+                                       size, i, errp);
+                if (!ok) {
+                    return false;
                 }
 
-                if (load_field) {
-                    ok = vmstate_load_field(f, curr_elem, size, field, errp);
+                if (!curr_elem) {
+                    /* Implies a skip */
+                    continue;
                 }
+
+                ok = vmstate_load_field(f, curr_elem, size, field, errp);
 
                 if (ok) {
                     int ret = qemu_file_get_error(f);
@@ -394,6 +465,16 @@ static bool vmsd_can_compress(const VMStateField *field)
 {
     if (field->field_exists) {
         /* Dynamically existing fields mess up compression */
+        return false;
+    }
+
+    if (field->flags & VMS_ARRAY_OF_POINTER_AUTO_ALLOC) {
+        /*
+         * This may involve two VMSD fields to be saved, one for the
+         * marker to show if the pointer is NULL, followed by the real
+         * vmstate object.  To make it simple at least for now, skip
+         * compression for this one.
+         */
         return false;
     }
 
@@ -583,6 +664,12 @@ static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
             int size = vmstate_size(opaque, field);
             JSONWriter *vmdesc_loop = vmdesc;
             bool is_prev_null = false;
+            /*
+             * When this is enabled, it means we will always push a ptr
+             * marker first for each element saying if it's populated.
+             */
+            bool use_dynamic_array =
+                field->flags & VMS_ARRAY_OF_POINTER_AUTO_ALLOC;
 
             trace_vmstate_save_state_loop(vmsd->name, field->name, n_elems);
             if (field->flags & VMS_POINTER) {
@@ -603,14 +690,9 @@ static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
                 }
 
                 is_null = !curr_elem && size;
-                use_marker_field = is_null;
+                use_marker_field = use_dynamic_array || is_null;
 
                 if (use_marker_field) {
-                    /*
-                     * If null pointer found (which should only happen in
-                     * an array of pointers), use null placeholder and do
-                     * not follow.
-                     */
                     inner_field = vmsd_create_ptr_marker_field(field);
                 } else {
                     inner_field = field;
@@ -655,6 +737,25 @@ static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
 
                 if (!ok) {
                     goto out;
+                }
+
+                /*
+                 * If we're using dynamic array and the element is
+                 * populated, save the real object right after the marker.
+                 */
+                if (use_dynamic_array && curr_elem) {
+                    /*
+                     * NOTE: do not use vmstate_size() here because we want
+                     * to save the real VMSD object now.
+                     */
+                    ok = vmstate_save_field_with_vmdesc(f, curr_elem,
+                                                        field->size, vmsd,
+                                                        field, vmdesc_loop,
+                                                        i, max_elems, errp);
+
+                    if (!ok) {
+                        goto out;
+                    }
                 }
 
                 /* Compressed arrays only care about the first element */
