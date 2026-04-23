@@ -3088,6 +3088,12 @@ static bool mapped_ram_read_header(QEMUFile *file, MappedRamHeader *header,
     }
 
     header->page_size = be64_to_cpu(header->page_size);
+    if (header->page_size != TARGET_PAGE_SIZE) {
+        error_setg(errp, "Migration mapped-ram header has invalid "
+                   "page_size %" PRIu64 " (expected %d)",
+                   header->page_size, TARGET_PAGE_SIZE);
+        return false;
+    }
     header->bitmap_offset = be64_to_cpu(header->bitmap_offset);
     header->pages_offset = be64_to_cpu(header->pages_offset);
 
