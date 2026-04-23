@@ -1735,7 +1735,7 @@ void HELPER(cpyfe)(CPUARMState *env, uint32_t syndrome, uint32_t wdesc,
     do_cpye(env, syndrome, wdesc, rdesc, false, GETPC());
 }
 
-static bool is_guarded_page(CPUARMState *env, target_ulong addr, uintptr_t ra)
+static bool is_guarded_page(CPUARMState *env, vaddr addr, uintptr_t ra)
 {
 #ifdef CONFIG_USER_ONLY
     return page_get_flags(addr) & PAGE_BTI;
@@ -1765,7 +1765,7 @@ void HELPER(guarded_page_check)(CPUARMState *env)
     }
 }
 
-void HELPER(guarded_page_br)(CPUARMState *env, target_ulong pc)
+void HELPER(guarded_page_br)(CPUARMState *env, vaddr pc)
 {
     /*
      * We have already checked for branch via x16 and x17.
