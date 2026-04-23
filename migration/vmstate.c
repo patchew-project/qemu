@@ -144,7 +144,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
         error_setg(errp, "%s: incoming version_id %d is too new "
                    "for local version_id %d",
                    vmsd->name, version_id, vmsd->version_id);
-        trace_vmstate_load_state_end(vmsd->name, "too new", -EINVAL);
+        trace_vmstate_load_state_fail(vmsd->name, "too new");
         return -EINVAL;
     }
 
@@ -152,7 +152,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
         error_setg(errp, "%s: incoming version_id %d is too old "
                    "for local minimum version_id %d",
                    vmsd->name, version_id, vmsd->minimum_version_id);
-        trace_vmstate_load_state_end(vmsd->name, "too old", -EINVAL);
+        trace_vmstate_load_state_fail(vmsd->name, "too old");
         return -EINVAL;
     }
 
@@ -240,10 +240,10 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                         error_setg(errp,
                                    "Failed to load %s state: stream error: %d",
                                    vmsd->name, ret);
+                        trace_vmstate_load_field_error(field->name, ret);
+                        return ret;
                     }
-                }
-
-                if (ret < 0) {
+                } else {
                     qemu_file_set_error(f, ret);
                     trace_vmstate_load_field_error(field->name, ret);
                     return ret;
@@ -269,7 +269,8 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
             error_prepend(errp, "post load hook failed for: %s, version_id: "
                           "%d, minimum_version: %d: ", vmsd->name,
                           vmsd->version_id, vmsd->minimum_version_id);
-            ret = -EINVAL;
+            trace_vmstate_load_state_fail(vmsd->name, "post-load");
+            return -EINVAL;
         }
     } else if (vmsd->post_load) {
         ret = vmsd->post_load(opaque, version_id);
@@ -279,12 +280,14 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                        "minimum_version: %d, ret: %d",
                        vmsd->name, vmsd->version_id, vmsd->minimum_version_id,
                        ret);
+            trace_vmstate_load_state_fail(vmsd->name, "post-load");
+            return ret;
         }
     }
 
-    trace_vmstate_load_state_end(vmsd->name, "end", ret);
+    trace_vmstate_load_state_success(vmsd->name);
 
-    return ret;
+    return 0;
 }
 
 static int vmfield_name_num(const VMStateField *start,
@@ -444,19 +447,21 @@ static int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
 
     if (vmsd->pre_save_errp) {
         ret = vmsd->pre_save_errp(opaque, errp) ? 0 : -EINVAL;
-        trace_vmstate_save_state_pre_save_res(vmsd->name, ret);
         if (ret < 0) {
             error_prepend(errp, "pre-save for %s failed: ", vmsd->name);
+            trace_vmstate_save_state_pre_save_fail(vmsd->name);
             return ret;
         }
     } else if (vmsd->pre_save) {
         ret = vmsd->pre_save(opaque);
-        trace_vmstate_save_state_pre_save_res(vmsd->name, ret);
         if (ret) {
             error_setg(errp, "pre-save failed: %s", vmsd->name);
+            trace_vmstate_save_state_pre_save_fail(vmsd->name);
             return ret;
         }
     }
+
+    trace_vmstate_save_state_pre_save_success(vmsd->name);
 
     if (vmdesc) {
         json_writer_str(vmdesc, "vmsd_name", vmsd->name);
