@@ -183,11 +183,26 @@ typedef enum {
 struct VMStateField {
     const char *name;
     size_t offset;
+
+    /*
+     * @size or @size_offset specifies the size of the element embeded in
+     * the field.  Only one of them should be present never both.  When
+     * @size_offset is used together with VMS_VBUFFER, it means the size is
+     * dynamic calculated instead of a constant.
+     *
+     * When the field is an array of any type, this stores the size of one
+     * element of the array.
+     *
+     * NOTE: even if VMS_POINTER or VMS_ARRAY_OF_POINTER may be specified,
+     * this parameter always reflects the real size of the objects that a
+     * pointer point to.
+     */
     size_t size;
+    size_t size_offset;
+
     size_t start;
     int num;
     size_t num_offset;
-    size_t size_offset;
     const VMStateInfo *info;
     enum VMStateFlags flags;
     const VMStateDescription *vmsd;
@@ -547,7 +562,6 @@ extern const VMStateInfo vmstate_info_qlist;
     .version_id = (_version),                                        \
     .num        = (_num),                                            \
     .info       = &(_info),                                          \
-    .size       = sizeof(_type *),                                   \
     .flags      = VMS_ARRAY|VMS_ARRAY_OF_POINTER,                    \
     .offset     = vmstate_offset_array(_state, _field, _type *, _num), \
 }
@@ -557,7 +571,6 @@ extern const VMStateInfo vmstate_info_qlist;
     .version_id = (_v),                                              \
     .num        = (_n),                                              \
     .vmsd       = &(_vmsd),                                          \
-    .size       = sizeof(_type *),                                    \
     .flags      = VMS_ARRAY|VMS_STRUCT|VMS_ARRAY_OF_POINTER,         \
     .offset     = vmstate_offset_array(_s, _f, _type*, _n),          \
 }
@@ -567,7 +580,6 @@ extern const VMStateInfo vmstate_info_qlist;
     .version_id = (_version),                                             \
     .num_offset = vmstate_offset_value(_state, _field_num, uint32_t),     \
     .info       = &(_info),                                               \
-    .size       = sizeof(_type *),                                          \
     .flags      = VMS_VARRAY_UINT32 | VMS_ARRAY_OF_POINTER | VMS_POINTER, \
     .offset     = vmstate_offset_pointer(_state, _field, _type *),          \
 }

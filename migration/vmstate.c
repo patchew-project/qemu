@@ -110,13 +110,21 @@ static int vmstate_n_elems(void *opaque, const VMStateField *field)
 
 static int vmstate_size(void *opaque, const VMStateField *field)
 {
-    int size = field->size;
+    int size;
 
     if (field->flags & VMS_VBUFFER) {
         size = *(int32_t *)(opaque + field->size_offset);
         if (field->flags & VMS_MULTIPLY) {
             size *= field->size;
         }
+    } else if (field->flags & VMS_ARRAY_OF_POINTER) {
+        /*
+         * For an array of pointer, the each element is always size of a
+         * host pointer.
+         */
+        size = sizeof(void *);
+    } else {
+        size = field->size;
     }
 
     return size;

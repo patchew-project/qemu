@@ -868,6 +868,9 @@ static void vmstate_check(const VMStateDescription *vmsd)
 
     if (field) {
         while (field->name) {
+            if (field->flags & VMS_ARRAY_OF_POINTER) {
+                assert(field->size == 0);
+            }
             if (field->flags & (VMS_STRUCT | VMS_VSTRUCT)) {
                 /* Recurse to sub structures */
                 vmstate_check(field->vmsd);
