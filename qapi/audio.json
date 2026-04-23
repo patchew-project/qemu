@@ -13,10 +13,8 @@
 ##
 
 ##
-# @AudiodevPerDirectionOptions:
-#
-# General audio backend options that are used for both playback and
-# recording.
+# @AudiodevPerDirectionOptions: General audio backend options that are
+#     used for both playback and recording.
 #
 # @mixing-engine: use QEMU's mixing engine to mix all streams inside
 #     QEMU and convert audio formats when not supported by the
@@ -52,9 +50,7 @@
     '*buffer-length':  'uint32' } }
 
 ##
-# @AudiodevGenericOptions:
-#
-# Generic driver-specific options.
+# @AudiodevGenericOptions: Generic driver-specific options.
 #
 # @in: options of the capture stream
 #
@@ -68,9 +64,7 @@
     '*out': 'AudiodevPerDirectionOptions' } }
 
 ##
-# @AudiodevDBusOptions:
-#
-# Options of the D-Bus audio backend.
+# @AudiodevDBusOptions: Options of the D-Bus audio backend.
 #
 # @in: options of the capture stream
 #
@@ -88,10 +82,8 @@
     '*nsamples': 'uint32'} }
 
 ##
-# @AudiodevAlsaPerDirectionOptions:
-#
-# Options of the ALSA backend that are used for both playback and
-# recording.
+# @AudiodevAlsaPerDirectionOptions: Options of the ALSA backend that
+#     are used for both playback and recording.
 #
 # @dev: the name of the ALSA device to use (default 'default')
 #
@@ -110,9 +102,7 @@
     '*try-poll':      'bool' } }
 
 ##
-# @AudiodevAlsaOptions:
-#
-# Options of the ALSA audio backend.
+# @AudiodevAlsaOptions: Options of the ALSA audio backend.
 #
 # @in: options of the capture stream
 #
@@ -129,9 +119,7 @@
     '*threshold': 'uint32' } }
 
 ##
-# @AudiodevSndioOptions:
-#
-# Options of the sndio audio backend.
+# @AudiodevSndioOptions: Options of the sndio audio backend.
 #
 # @in: options of the capture stream
 #
@@ -151,10 +139,8 @@
     '*latency':   'uint32'} }
 
 ##
-# @AudiodevCoreaudioPerDirectionOptions:
-#
-# Options of the Core Audio backend that are used for both playback
-# and recording.
+# @AudiodevCoreaudioPerDirectionOptions: Options of the Core Audio
+#     backend that are used for both playback and recording.
 #
 # @buffer-count: number of buffers
 #
@@ -166,9 +152,7 @@
     '*buffer-count': 'uint32' } }
 
 ##
-# @AudiodevCoreaudioOptions:
-#
-# Options of the coreaudio audio backend.
+# @AudiodevCoreaudioOptions: Options of the coreaudio audio backend.
 #
 # @in: options of the capture stream
 #
@@ -182,9 +166,7 @@
     '*out': 'AudiodevCoreaudioPerDirectionOptions' } }
 
 ##
-# @AudiodevDsoundOptions:
-#
-# Options of the DirectSound audio backend.
+# @AudiodevDsoundOptions: Options of the DirectSound audio backend.
 #
 # @in: options of the capture stream
 #
@@ -202,10 +184,8 @@
     '*latency': 'uint32' } }
 
 ##
-# @AudiodevJackPerDirectionOptions:
-#
-# Options of the JACK backend that are used for both playback and
-# recording.
+# @AudiodevJackPerDirectionOptions: Options of the JACK backend that
+#     are used for both playback and recording.
 #
 # @server-name: select from among several possible concurrent server
 #     instances (default: environment variable $JACK_DEFAULT_SERVER if
@@ -236,9 +216,7 @@
     '*exact-name':    'bool' } }
 
 ##
-# @AudiodevJackOptions:
-#
-# Options of the JACK audio backend.
+# @AudiodevJackOptions: Options of the JACK audio backend.
 #
 # @in: options of the capture stream
 #
@@ -252,10 +230,8 @@
     '*out': 'AudiodevJackPerDirectionOptions' } }
 
 ##
-# @AudiodevOssPerDirectionOptions:
-#
-# Options of the OSS backend that are used for both playback and
-# recording.
+# @AudiodevOssPerDirectionOptions: Options of the OSS backend that are
+#     used for both playback and recording.
 #
 # @dev: file name of the OSS device (default '/dev/dsp')
 #
@@ -274,9 +250,7 @@
     '*try-poll':     'bool' } }
 
 ##
-# @AudiodevOssOptions:
-#
-# Options of the OSS audio backend.
+# @AudiodevOssOptions: Options of the OSS audio backend.
 #
 # @in: options of the capture stream
 #
@@ -304,10 +278,8 @@
     '*dsp-policy': 'uint32' } }
 
 ##
-# @AudiodevPaPerDirectionOptions:
-#
-# Options of the Pulseaudio backend that are used for both playback
-# and recording.
+# @AudiodevPaPerDirectionOptions: Options of the Pulseaudio backend
+#     that are used for both playback and recording.
 #
 # @name: name of the sink/source to use
 #
@@ -329,9 +301,7 @@
     '*latency': 'uint32' } }
 
 ##
-# @AudiodevPaOptions:
-#
-# Options of the PulseAudio audio backend.
+# @AudiodevPaOptions: Options of the PulseAudio audio backend.
 #
 # @in: options of the capture stream
 #
@@ -348,10 +318,8 @@
     '*server': 'str' } }
 
 ##
-# @AudiodevPipewirePerDirectionOptions:
-#
-# Options of the PipeWire backend that are used for both playback and
-# recording.
+# @AudiodevPipewirePerDirectionOptions: Options of the PipeWire
+#     backend that are used for both playback and recording.
 #
 # @name: name of the sink/source to use
 #
@@ -373,9 +341,7 @@
     '*latency': 'uint32' } }
 
 ##
-# @AudiodevPipewireOptions:
-#
-# Options of the PipeWire audio backend.
+# @AudiodevPipewireOptions: Options of the PipeWire audio backend.
 #
 # @in: options of the capture stream
 #
@@ -389,10 +355,8 @@
     '*out':    'AudiodevPipewirePerDirectionOptions' } }
 
 ##
-# @AudiodevSdlPerDirectionOptions:
-#
-# Options of the SDL audio backend that are used for both playback and
-# recording.
+# @AudiodevSdlPerDirectionOptions: Options of the SDL audio backend
+#     that are used for both playback and recording.
 #
 # @buffer-count: number of buffers (default 4)
 #
@@ -404,9 +368,7 @@
     '*buffer-count': 'uint32' } }
 
 ##
-# @AudiodevSdlOptions:
-#
-# Options of the SDL audio backend.
+# @AudiodevSdlOptions: Options of the SDL audio backend.
 #
 # @in: options of the recording stream
 #
@@ -420,9 +382,7 @@
     '*out': 'AudiodevSdlPerDirectionOptions' } }
 
 ##
-# @AudiodevWavOptions:
-#
-# Options of the wav audio backend.
+# @AudiodevWavOptions: Options of the wav audio backend.
 #
 # @in: options of the capture stream
 #
@@ -439,9 +399,7 @@
     '*path': 'str' } }
 
 ##
-# @AudioFormat:
-#
-# An enumeration of possible audio formats.
+# @AudioFormat: An enumeration of possible audio formats.
 #
 # @u8: unsigned 8 bit integer
 #
@@ -463,9 +421,7 @@
   'data': [ 'u8', 's8', 'u16', 's16', 'u32', 's32', 'f32' ] }
 
 ##
-# @AudiodevDriver:
-#
-# An enumeration of possible audio backend drivers.
+# @AudiodevDriver: An enumeration of possible audio backend drivers.
 #
 # @jack: JACK audio backend (since 5.1)
 #
@@ -487,9 +443,7 @@
             'wav' ] }
 
 ##
-# @Audiodev:
-#
-# Options of an audio backend.
+# @Audiodev: Options of an audio backend.
 #
 # @id: identifier of the backend
 #
@@ -533,9 +487,7 @@
     'wav':       'AudiodevWavOptions' } }
 
 ##
-# @query-audiodevs:
-#
-# Return information about audiodev configuration
+# @query-audiodevs: Return information about audiodev configuration
 #
 # Since: 8.0
 ##
