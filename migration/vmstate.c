@@ -142,6 +142,21 @@ static void vmstate_handle_alloc(void *ptr, const VMStateField *field,
     }
 }
 
+static bool vmstate_ptr_marker_load(QEMUFile *f, bool *load_field,
+                                    Error **errp)
+{
+    int byte = qemu_get_byte(f);
+
+    if (byte == VMS_MARKER_PTR_NULL) {
+        /* When it's a null ptr marker, do not continue the load */
+        *load_field = false;
+        return true;
+    }
+
+    error_setg(errp, "Unexpected ptr marker: %d", byte);
+    return false;
+}
+
 static bool vmstate_pre_load(const VMStateDescription *vmsd, void *opaque,
                              Error **errp)
 {
@@ -264,30 +279,25 @@ bool vmstate_load_vmsd(QEMUFile *f, const VMStateDescription *vmsd,
             }
 
             for (i = 0; i < n_elems; i++) {
-                bool ok;
+                /* If we will process the load of field? */
+                bool load_field = true;
+                bool ok = true;
                 void *curr_elem = first_elem + size * i;
-                const VMStateField *inner_field;
 
                 if (field->flags & VMS_ARRAY_OF_POINTER) {
                     curr_elem = *(void **)curr_elem;
+                    if (!curr_elem) {
+                        /* Read the marker instead of VMSD itself */
+                        if (!vmstate_ptr_marker_load(f, &load_field, errp)) {
+                            trace_vmstate_load_field_error(field->name,
+                                                           -EINVAL);
+                            return false;
+                        }
+                    }
                 }
 
-                if (!curr_elem && size) {
-                    /*
-                     * If null pointer found (which should only happen in
-                     * an array of pointers), use null placeholder and do
-                     * not follow.
-                     */
-                    inner_field = vmsd_create_ptr_marker_field(field);
-                } else {
-                    inner_field = field;
-                }
-
-                ok = vmstate_load_field(f, curr_elem, size, inner_field, errp);
-
-                /* If we used a fake temp field.. free it now */
-                if (inner_field != field) {
-                    g_clear_pointer((gpointer *)&inner_field, g_free);
+                if (load_field) {
+                    ok = vmstate_load_field(f, curr_elem, size, field, errp);
                 }
 
                 if (ok) {

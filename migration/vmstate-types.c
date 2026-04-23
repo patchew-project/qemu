@@ -363,14 +363,10 @@ static bool load_ptr_marker(QEMUFile *f, void *pv, size_t size,
                             const VMStateField *field, Error **errp)
 
 {
-    int byte = qemu_get_byte(f);
-
-    if (byte == VMS_MARKER_PTR_NULL || byte == VMS_MARKER_PTR_VALID) {
-        /* TODO: process PTR_VALID case */
-        return true;
-    }
-
-    error_setg(errp, "%s: unexpected ptr marker: %d", __func__, byte);
+    /*
+     * Load is done in vmstate core, see vmstate_ptr_marker_load().
+     */
+    g_assert_not_reached();
     return false;
 }
 
