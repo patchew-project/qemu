@@ -19,6 +19,7 @@ import sys
 from io import StringIO
 
 from qapi.error import QAPIError
+from qapi.parser import QAPIDoc
 from qapi.schema import QAPISchema, QAPISchemaVisitor
 
 
@@ -116,13 +117,13 @@ def test_frontend(fname):
             print('doc symbol=%s' % doc.symbol)
         else:
             print('doc freeform')
-        print('    body=\n%s' % doc.body.text)
-        for arg, section in doc.args.items():
-            print('    arg=%s\n%s' % (arg, section.text))
-        for feat, section in doc.features.items():
-            print('    feature=%s\n%s' % (feat, section.text))
-        for section in doc.sections:
-            print('    section=%s\n%s' % (section.kind, section.text))
+        for section in doc.all_sections:
+            if section.kind == QAPIDoc.Kind.MEMBER:
+                print('    arg=%s\n%s' % (section.name, section.text))
+            elif section.kind == QAPIDoc.Kind.FEATURE:
+                print('    feature=%s\n%s' % (section.name, section.text))
+            else:
+                print('    section=%s\n%s' % (section.kind, section.text))
 
 
 def open_test_result(dir_name, file_name, update):
