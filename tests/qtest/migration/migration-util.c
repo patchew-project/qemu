@@ -343,6 +343,7 @@ bool ufd_version_check(bool *uffd_feature_thread_id)
 {
     struct uffdio_api api_struct;
     uint64_t ioctl_mask;
+    bool ret = false;
 
     int ufd = uffd_open(O_CLOEXEC);
 
@@ -355,7 +356,7 @@ bool ufd_version_check(bool *uffd_feature_thread_id)
     api_struct.features = 0;
     if (ioctl(ufd, UFFDIO_API, &api_struct)) {
         g_test_message("Skipping test: UFFDIO_API failed");
-        return false;
+        goto release_ufd;
     }
 
     if (uffd_feature_thread_id) {
@@ -366,10 +367,13 @@ bool ufd_version_check(bool *uffd_feature_thread_id)
                   1ULL << _UFFDIO_UNREGISTER);
     if ((api_struct.ioctls & ioctl_mask) != ioctl_mask) {
         g_test_message("Skipping test: Missing userfault feature");
-        return false;
+        goto release_ufd;
     }
 
-    return true;
+    ret = true;
+release_ufd:
+    close(ufd);
+    return ret;
 }
 #else
 bool ufd_version_check(bool *uffd_feature_thread_id)
