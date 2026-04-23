@@ -174,10 +174,10 @@ static void sparc_cpu_parse_features(const char *typename, char *features,
              * TODO: remove minus-override-plus semantics after
              *       warning for a few releases
              */
-            if (!strcasecmp(val, "on") ||
-                !strcasecmp(val, "off") ||
-                !strcasecmp(val, "true") ||
-                !strcasecmp(val, "false")) {
+            if (!g_ascii_strcasecmp(val, "on") ||
+                !g_ascii_strcasecmp(val, "off") ||
+                !g_ascii_strcasecmp(val, "true") ||
+                !g_ascii_strcasecmp(val, "false")) {
                 error_setg(errp, "Boolean properties in format %s=%s"
                                  " are not supported", name, val);
                 return;
