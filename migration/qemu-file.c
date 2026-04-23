@@ -535,28 +535,13 @@ void qemu_put_buffer_at(QEMUFile *f, const uint8_t *buf, size_t buflen,
                         off_t pos)
 {
     Error *err = NULL;
-    size_t ret;
 
     if (f->last_error) {
         return;
     }
 
     qemu_fflush(f);
-    ret = qio_channel_pwrite(f->ioc, (char *)buf, buflen, pos, &err);
-
-    if (err) {
-        qemu_file_set_error_obj(f, -EIO, err);
-        return;
-    }
-
-    if ((ssize_t)ret == QIO_CHANNEL_ERR_BLOCK) {
-        qemu_file_set_error_obj(f, -EAGAIN, NULL);
-        return;
-    }
-
-    if (ret != buflen) {
-        error_setg(&err, "Partial write of size %zu, expected %zu", ret,
-                   buflen);
+    if (qio_channel_pwrite_all(f->ioc, buf, buflen, pos, &err) < 0) {
         qemu_file_set_error_obj(f, -EIO, err);
         return;
     }
@@ -569,31 +554,17 @@ size_t qemu_get_buffer_at(QEMUFile *f, const uint8_t *buf, size_t buflen,
                           off_t pos)
 {
     Error *err = NULL;
-    size_t ret;
 
     if (f->last_error) {
         return 0;
     }
 
-    ret = qio_channel_pread(f->ioc, (char *)buf, buflen, pos, &err);
-
-    if ((ssize_t)ret == -1 || err) {
+    if (qio_channel_pread_all(f->ioc, (char *)buf, buflen, pos, &err) < 0) {
         qemu_file_set_error_obj(f, -EIO, err);
         return 0;
     }
 
-    if ((ssize_t)ret == QIO_CHANNEL_ERR_BLOCK) {
-        qemu_file_set_error_obj(f, -EAGAIN, NULL);
-        return 0;
-    }
-
-    if (ret != buflen) {
-        error_setg(&err, "Partial read of size %zu, expected %zu", ret, buflen);
-        qemu_file_set_error_obj(f, -EIO, err);
-        return 0;
-    }
-
-    return ret;
+    return buflen;
 }
 
 void qemu_set_offset(QEMUFile *f, off_t off, int whence)
