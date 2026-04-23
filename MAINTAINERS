@@ -671,7 +671,6 @@ F: include/qemu/*posix*.h
 
 NETBSD
 M: Reinoud Zandijk <reinoud@netbsd.org>
-M: Ryo ONODERA <ryoon@netbsd.org>
 S: Maintained
 K: ^Subject:.*(?i)NetBSD
 
