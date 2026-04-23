@@ -788,6 +788,21 @@ static void machine_set_loadparm(Object *obj, Visitor *v,
     g_free(val);
 }
 
+ /*
+  * S390x-specific global compatibility properties.
+  *
+  * On the s390 kernel, legacy virtio-pci is not usable because I/O BARs
+  * are not supported (IO_SPACE_LIMIT is 0), and would only result in
+  * unusable BARs and firmware warnings.
+  *
+  * Therefore, starting from v11.1, disable legacy virtio-pci by default,
+  * while older machine types keep legacy behavior for compatibility.
+  */
+static GlobalProperty hw_compat_s390x[] = {
+    { TYPE_VIRTIO_PCI, "disable-legacy", "on", .optional = true},
+};
+static const size_t hw_compat_s390x_len = G_N_ELEMENTS(hw_compat_s390x);
+
 static void ccw_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -878,6 +893,9 @@ static const TypeInfo ccw_machine_info = {
         const void *data)                                                     \
     {                                                                         \
         MachineClass *mc = MACHINE_CLASS(oc);                                 \
+        /* Apply global s390x-wide default properties */                      \
+        compat_props_add(mc->compat_props, hw_compat_s390x,                   \
+                         hw_compat_s390x_len);                                \
         MACHINE_VER_SYM(class_options, ccw, __VA_ARGS__)(mc);                 \
         mc->desc = "Virtual s390x machine (version " MACHINE_VER_STR(__VA_ARGS__) ")"; \
         mc->init = MACHINE_VER_SYM(mach_init, ccw, __VA_ARGS__);              \
@@ -923,7 +941,15 @@ static void ccw_machine_11_0_instance_options(MachineState *machine)
 
 static void ccw_machine_11_0_class_options(MachineClass *mc)
 {
+    /*
+     * Preserve v11.0 and older version behavior:
+     * keep legacy virtio-pci enabled.
+     */
+    static GlobalProperty compat[] = {
+        { TYPE_VIRTIO_PCI, "disable-legacy", "off" },
+    };
     ccw_machine_11_1_class_options(mc);
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
     compat_props_add(mc->compat_props, hw_compat_11_0, hw_compat_11_0_len);
 }
 DEFINE_CCW_MACHINE(11, 0);
