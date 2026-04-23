@@ -4634,8 +4634,7 @@ F: rust/wrapper.h
 Miscellaneous
 -------------
 Performance Tools and Tests
-M: Ahmed Karaman <ahmedkhaledkaraman@gmail.com>
-S: Maintained
+S: Orphan
 F: scripts/performance/
 
 Code Coverage Tools
