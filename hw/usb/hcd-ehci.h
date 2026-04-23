@@ -307,6 +307,9 @@ struct EHCIState {
     VMChangeStateEntry *vmstate;
 };
 
+#define DEFINE_EHCI_COMMON_PROPERTIES(_state) \
+    DEFINE_PROP_UINT32("maxframes", _state, ehci.maxframes, 128)
+
 extern const VMStateDescription vmstate_ehci;
 
 void usb_ehci_init(EHCIState *s, DeviceState *dev);
