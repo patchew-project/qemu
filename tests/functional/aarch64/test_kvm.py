@@ -48,6 +48,7 @@ class Aarch64VirtKVMTests(LinuxKernelTest):
 
         self.wait_for_console_pattern('buildroot login:')
         ec_and_wait(self, 'root', '#')
+        ec_and_wait(self, 'dmesg -n 1', '#')
         ec_and_wait(self, f"export PS1='{self.PS1}'", self.OK_CMD)
 
     # this is just a smoketest, we don't run all the tests in the image
