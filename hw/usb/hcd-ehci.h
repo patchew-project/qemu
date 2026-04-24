@@ -43,7 +43,8 @@ typedef struct EHCIPacket EHCIPacket;
 typedef struct EHCIQueue EHCIQueue;
 typedef struct EHCIState EHCIState;
 
-/*  EHCI spec version 1.0 Section 3.3
+/*
+ * EHCI spec version 1.0 Section 3.3
  */
 typedef struct EHCIitd {
     uint32_t next;
@@ -74,7 +75,8 @@ typedef struct EHCIitd {
 #define ITD_BUFPTR_MULT_SH       0
 } EHCIitd;
 
-/*  EHCI spec version 1.0 Section 3.4
+/*
+ * EHCI spec version 1.0 Section 3.4
  */
 typedef struct EHCIsitd {
     uint32_t next;                  /* Standard next link pointer */
@@ -118,7 +120,8 @@ typedef struct EHCIsitd {
     uint32_t backptr;                 /* Standard next link pointer */
 } EHCIsitd;
 
-/*  EHCI spec version 1.0 Section 3.5
+/*
+ * EHCI spec version 1.0 Section 3.5
  */
 typedef struct EHCIqtd {
     uint32_t next;                    /* Standard next link pointer */
@@ -148,7 +151,8 @@ typedef struct EHCIqtd {
 #define QTD_BUFPTR_SH                 12
 } EHCIqtd;
 
-/*  EHCI spec version 1.0 Section 3.6
+/*
+ * EHCI spec version 1.0 Section 3.6
  */
 typedef struct EHCIqh {
     uint32_t next;                    /* Standard next link pointer */
@@ -230,7 +234,8 @@ struct EHCIQueue {
     int async;
     int transact_ctr;
 
-    /* cached data from guest - needs to be flushed
+    /*
+     * cached data from guest - needs to be flushed
      * when guest removes an entry (doorbell, handshake sequence)
      */
     EHCIqh qh;             /* copy of current QH (being worked on) */
@@ -268,7 +273,7 @@ struct EHCIState {
      */
     uint8_t caps[CAPA_SIZE];
     union {
-        uint32_t opreg[0x44/sizeof(uint32_t)];
+        uint32_t opreg[0x44 / sizeof(uint32_t)];
         struct {
             uint32_t usbcmd;
             uint32_t usbsts;
