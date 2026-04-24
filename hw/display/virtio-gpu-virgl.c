@@ -298,6 +298,7 @@ virtio_gpu_virgl_unmap_resource_blob(VirtIOGPU *g,
         /* memory region owns self res->mr object and frees it by itself */
         memory_region_del_subregion(&b->hostmem, mr);
         object_unparent(OBJECT(vmr));
+        force_rcu();
 
         /* Fallthrough */
     case VIRTIO_GPU_MR_UNMAP_STARTED:
