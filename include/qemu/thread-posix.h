@@ -36,4 +36,15 @@ struct QemuThread {
     pthread_t thread;
 };
 
+static inline clockid_t qemu_timedwait_clockid(void)
+{
+#ifdef CONFIG_PTHREAD_CONDATTR_SETCLOCK
+    return CLOCK_MONOTONIC;
+#else
+    return CLOCK_REALTIME;
+#endif
+}
+
+void compute_abs_deadline(struct timespec *ts, int ms);
+
 #endif
