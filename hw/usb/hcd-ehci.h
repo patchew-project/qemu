@@ -257,6 +257,7 @@ struct EHCIState {
     /* properties */
     uint32_t maxframes;
     bool migrate_fetch_addr_64bit;
+    bool caps_64bit_addr;
 
     /*
      *  EHCI spec version 1.0 Section 2.3
@@ -313,7 +314,9 @@ struct EHCIState {
 #define DEFINE_EHCI_COMMON_PROPERTIES(_state) \
     DEFINE_PROP_UINT32("maxframes", _state, ehci.maxframes, 128), \
     DEFINE_PROP_BOOL("x-migrate-fetch-addr-64bit", _state, \
-                     ehci.migrate_fetch_addr_64bit, true)
+                     ehci.migrate_fetch_addr_64bit, true), \
+    DEFINE_PROP_BOOL("caps-64bit-addr", _state, \
+                     ehci.caps_64bit_addr, false)
 
 extern const VMStateDescription vmstate_ehci;
 
