@@ -38,7 +38,10 @@
 #include "hw/acpi/generic_event_device.h"
 #include "qemu/audio.h"
 
-GlobalProperty hw_compat_11_0[] = {};
+GlobalProperty hw_compat_11_0[] = {
+    { "sysbus-ehci-usb", "x-migrate-fetch-addr-64bit", "off" },
+    { "pci-ehci-usb", "x-migrate-fetch-addr-64bit", "off" },
+};
 const size_t hw_compat_11_0_len = G_N_ELEMENTS(hw_compat_11_0);
 
 GlobalProperty hw_compat_10_2[] = {
