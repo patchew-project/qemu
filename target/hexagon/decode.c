@@ -834,15 +834,13 @@ int disassemble_hexagon(uint32_t *words, int nwords, bfd_vma pc,
         .hex_version = HEX_VER_ANY,  /* Allow decode to accept anything */
     };
     DisasContext ctx;
-    Packet pkt;
 
     memset(&ctx, 0, sizeof(DisasContext));
     ctx.hex_def = &any_def;
-    ctx.pkt = &pkt;
 
-    if (decode_packet(&ctx, nwords, words, &pkt, true) > 0) {
-        snprint_a_pkt_disas(buf, &pkt, words, pc, hex_def);
-        return pkt.encod_pkt_size_in_bytes;
+    if (decode_packet(&ctx, nwords, words, &ctx.pkt, true) > 0) {
+        snprint_a_pkt_disas(buf, &ctx.pkt, words, pc, hex_def);
+        return ctx.pkt.encod_pkt_size_in_bytes;
     } else {
         for (int i = 0; i < nwords; i++) {
             g_string_append_printf(buf, "0x" TARGET_FMT_lx "\t", words[i]);

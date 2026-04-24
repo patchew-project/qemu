@@ -1144,7 +1144,7 @@ def helper_args(tag, regs, imms):
     if need_pkt_has_multi_cof(tag):
         args.append(HelperArg(
             "i32",
-            "tcg_constant_tl(ctx->pkt->pkt_has_multi_cof)",
+            "tcg_constant_tl(ctx->pkt.pkt_has_multi_cof)",
             "uint32_t pkt_has_multi_cof"
         ))
     if need_pkt_need_commit(tag):
@@ -1156,7 +1156,7 @@ def helper_args(tag, regs, imms):
     if need_PC(tag):
         args.append(HelperArg(
             "i32",
-            "tcg_constant_tl(ctx->pkt->pc)",
+            "tcg_constant_tl(ctx->pkt.pc)",
             "target_ulong PC"
         ))
     if need_next_PC(tag):
