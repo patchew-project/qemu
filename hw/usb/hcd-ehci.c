@@ -147,6 +147,23 @@ static const char *addr2str(hwaddr addr)
     return nr2str(ehci_mmio_names, ARRAY_SIZE(ehci_mmio_names), addr);
 }
 
+static uint64_t ehci_get_buf_addr(const EHCIState *s, uint32_t hi,
+                                  uint32_t lo, uint32_t lo_mask)
+{
+    uint64_t addr = lo & lo_mask;
+
+    if (s->caps_64bit_addr) {
+        addr = deposit64(addr, 32, 32, hi);
+    }
+
+    return addr;
+}
+
+static uint64_t ehci_get_desc_addr(const EHCIState *s, uint32_t lo)
+{
+    return ehci_get_buf_addr(s, s->ctrldssegment, lo, UINT32_MAX);
+}
+
 static void ehci_trace_usbsts(uint32_t mask, int state)
 {
     /* interrupts */
@@ -440,7 +457,7 @@ static bool ehci_verify_qh(EHCIQueue *q, EHCIqh *qh)
         (qh->current_qtd != q->qh.current_qtd) ||
         (q->async && qh->next_qtd != q->qh.next_qtd) ||
         (memcmp(&qh->altnext_qtd, &q->qh.altnext_qtd,
-                                 7 * sizeof(uint32_t)) != 0) ||
+                EHCI_QH_OVERLAY_COUNT * sizeof(uint32_t)) != 0) ||
         (q->dev != NULL && q->dev->addr != devaddr)) {
         return false;
     } else {
@@ -1538,7 +1555,9 @@ static int ehci_state_waitlisthead(EHCIState *ehci,  int async)
     EHCIqh qh;
     int i = 0;
     int again = 0;
-    uint64_t entry = ehci->asynclistaddr;
+    uint64_t entry = 0;
+
+    entry = ehci_get_desc_addr(ehci, ehci->asynclistaddr);
 
     /* set reclamation flag at start event (4.8.6) */
     if (async) {
@@ -1566,8 +1585,8 @@ static int ehci_state_waitlisthead(EHCIState *ehci,  int async)
             goto out;
         }
 
-        entry = qh.next;
-        if (entry == ehci->asynclistaddr) {
+        entry = ehci_get_desc_addr(ehci, qh.next);
+        if (entry == ehci_get_desc_addr(ehci, ehci->asynclistaddr)) {
             break;
         }
     }
@@ -1693,7 +1712,7 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     }
 
     if (trace_event_get_state_backends(TRACE_USB_EHCI_FETCHQH_DBG)) {
-        if (q->qhaddr != q->qh.next) {
+        if (q->qhaddr != ehci_get_desc_addr(ehci, q->qh.next)) {
             trace_usb_ehci_fetchqh_dbg(q->qhaddr,
                                        q->qh.epchar & QH_EPCHAR_H,
                                        q->qh.token & QTD_TOKEN_HALT,
@@ -1876,10 +1895,12 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
 
 static int ehci_state_horizqh(EHCIQueue *q)
 {
+    uint64_t addr;
     int again = 0;
 
-    if (ehci_get_fetch_addr(q->ehci, q->async) != q->qh.next) {
-        ehci_set_fetch_addr(q->ehci, q->async, q->qh.next);
+    addr = ehci_get_desc_addr(q->ehci, q->qh.next);
+    if (ehci_get_fetch_addr(q->ehci, q->async) != addr) {
+        ehci_set_fetch_addr(q->ehci, q->async, addr);
         ehci_set_state(q->ehci, q->async, EST_FETCHENTRY);
         again = 1;
     } else {
@@ -2205,6 +2226,8 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
     uint32_t entry;
     uint32_t list;
     const int async = 0;
+    uint64_t entry64;
+    uint64_t list64;
 
     /* 4.6 */
 
@@ -2229,12 +2252,14 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
             break;
         }
         list |= ((ehci->frindex & 0x1ff8) >> 1);
-
-        if (get_dwords(ehci, list, &entry, 1) < 0) {
+        list64 = ehci_get_desc_addr(ehci, list);
+        if (get_dwords(ehci, list64, &entry, 1) < 0) {
             break;
         }
-        trace_usb_ehci_periodic_state_advance(ehci->frindex / 8, list, entry);
-        ehci_set_fetch_addr(ehci, async, entry);
+        entry64 = ehci_get_desc_addr(ehci, entry);
+        trace_usb_ehci_periodic_state_advance(ehci->frindex / 8,
+                                              list64, entry64);
+        ehci_set_fetch_addr(ehci, async, entry64);
         ehci_set_state(ehci, async, EST_FETCHENTRY);
         ehci_advance_state(ehci, async);
         ehci_queues_rip_unused(ehci, async);
