@@ -145,6 +145,18 @@ class TestRunner(contextlib.AbstractContextManager['TestRunner']):
 
         self._stack: contextlib.ExitStack
 
+        self.skip = {}
+        for rule in os.environ.get("QEMU_TEST_IO_SKIP", "").split(" "):
+            rule = rule.strip()
+            if rule == "":
+                continue
+            if ":" in rule:
+                fmt, name = rule.split(":")
+                if fmt in ("", env.imgfmt, env.imgproto):
+                    self.skip[name] = True
+            else:
+                self.skip[rule] = True
+
     def __enter__(self) -> 'TestRunner':
         self._stack = contextlib.ExitStack()
         self._stack.enter_context(self.env)
@@ -250,6 +262,10 @@ class TestRunner(contextlib.AbstractContextManager['TestRunner']):
             return TestResult(status='not run',
                               description='No qualified output '
                                           f'(expected {f_reference})')
+
+        if f_test.name in self.skip:
+            return TestResult(status='not run',
+                              description='Listed in QEMU_TEST_IO_SKIP')
 
         args = [str(f_test.resolve())]
         env = self.env.prepare_subprocess(args)
