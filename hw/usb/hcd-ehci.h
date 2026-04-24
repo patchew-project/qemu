@@ -202,13 +202,6 @@ typedef struct EHCIqh {
 #define BUFPTR_SBYTES_SH              5
 } EHCIqh;
 
-/*  EHCI spec version 1.0 Section 3.7
- */
-typedef struct EHCIfstn {
-    uint32_t next;                    /* Standard next link pointer */
-    uint32_t backptr;                 /* Standard next link pointer */
-} EHCIfstn;
-
 enum async_state {
     EHCI_ASYNC_NONE = 0,
     EHCI_ASYNC_INITIALIZED,
