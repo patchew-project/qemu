@@ -798,6 +798,9 @@ struct MachineState {
         } \
     } while (0)
 
+extern GlobalProperty hw_compat_11_0[];
+extern const size_t hw_compat_11_0_len;
+
 extern GlobalProperty hw_compat_10_2[];
 extern const size_t hw_compat_10_2_len;
 

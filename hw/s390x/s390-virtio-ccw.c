@@ -906,13 +906,24 @@ static const TypeInfo ccw_machine_info = {
 #define DEFINE_CCW_MACHINE(major, minor) \
     DEFINE_CCW_MACHINE_IMPL(false, major, minor)
 
+static void ccw_machine_11_1_instance_options(MachineState *machine)
+{
+}
+
+static void ccw_machine_11_1_class_options(MachineClass *mc)
+{
+}
+DEFINE_CCW_MACHINE_AS_LATEST(11, 1);
 
 static void ccw_machine_11_0_instance_options(MachineState *machine)
 {
+    ccw_machine_11_1_instance_options(machine);
 }
 
 static void ccw_machine_11_0_class_options(MachineClass *mc)
 {
+    ccw_machine_11_1_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_11_0, hw_compat_11_0_len);
 }
 DEFINE_CCW_MACHINE_AS_LATEST(11, 0);
 

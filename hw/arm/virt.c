@@ -3719,8 +3719,16 @@ static void machvirt_machine_init(void)
 }
 type_init(machvirt_machine_init);
 
+static void virt_machine_11_1_options(MachineClass *mc)
+{
+
+}
+DEFINE_VIRT_MACHINE_AS_LATEST(11, 1)
+
 static void virt_machine_11_0_options(MachineClass *mc)
 {
+     virt_machine_11_1_options(mc);
+     compat_props_add(mc->compat_props, hw_compat_11_0, hw_compat_11_0_len);
 }
 DEFINE_VIRT_MACHINE_AS_LATEST(11, 0)
 
