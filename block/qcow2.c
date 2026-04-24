@@ -838,24 +838,30 @@ static const char *overlap_bool_option_names[QCOW2_OL_MAX_BITNR] = {
 static void coroutine_fn cache_clean_timer(void *opaque)
 {
     BDRVQcow2State *s = opaque;
-    uint64_t wait_ns;
+    uint64_t remaining_ns = 0;
 
-    WITH_QEMU_LOCK_GUARD(&s->lock) {
-        wait_ns = s->cache_clean_interval * NANOSECONDS_PER_SECOND;
-    }
-
-    while (wait_ns > 0) {
-        qemu_co_sleep_ns_wakeable(&s->cache_clean_timer_wake,
-                                  QEMU_CLOCK_REALTIME, wait_ns);
+    for (;;) {
+        bool stop = false;
+        uint64_t step;
 
         WITH_QEMU_LOCK_GUARD(&s->lock) {
-            if (s->cache_clean_interval > 0) {
+            if (s->cache_clean_interval == 0) {
+                stop = true;
+            } else if (remaining_ns == 0) {
                 qcow2_cache_clean_unused(s->l2_table_cache);
                 qcow2_cache_clean_unused(s->refcount_block_cache);
+                remaining_ns = s->cache_clean_interval
+                               * (uint64_t)NANOSECONDS_PER_SECOND;
             }
-
-            wait_ns = s->cache_clean_interval * NANOSECONDS_PER_SECOND;
         }
+        if (stop) {
+            break;
+        }
+
+        step = MIN(remaining_ns, (uint64_t)NANOSECONDS_PER_SECOND);
+        qemu_co_sleep_ns_wakeable(&s->cache_clean_timer_wake,
+                                  QEMU_CLOCK_REALTIME, step);
+        remaining_ns -= step;
     }
 
     WITH_QEMU_LOCK_GUARD(&s->lock) {
