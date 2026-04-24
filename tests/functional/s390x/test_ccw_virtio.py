@@ -136,7 +136,7 @@ class S390CCWVirtioMachine(QemuSystemTest):
                     r'0x1af4')
         exec_command_and_wait_for_pattern(self,
                     r'cat /sys/bus/pci/devices/0005\:00\:00.0/subsystem_device',
-                    r'0x0001')
+                    r'0x1100')
         # check fid propagation
         exec_command_and_wait_for_pattern(self,
                     r'cat /sys/bus/pci/devices/000a\:00\:00.0/function_id',
@@ -203,7 +203,7 @@ class S390CCWVirtioMachine(QemuSystemTest):
                         'while ! (dmesg | grep enP7p0s0) ; do sleep 1 ; done',
                         'virtio_net virtio0 enP7p0s0: renamed')
         exec_command_and_wait_for_pattern(self, 'lspci',
-                             '0007:00:00.0 Class 0200: Device 1af4:1000')
+                             '0007:00:00.0 Class 0200: Device 1af4:1041')
         exec_command_and_wait_for_pattern(self,
                              'cat /sys/class/net/enP7p0s0/address',
                              '02:ca:fe:fa:ce:12')
