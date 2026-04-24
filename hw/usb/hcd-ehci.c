@@ -839,7 +839,7 @@ static USBDevice *ehci_find_device(EHCIState *ehci, uint8_t addr)
     for (i = 0; i < EHCI_PORTS; i++) {
         port = &ehci->ports[i];
         if (!(ehci->portsc[i] & PORTSC_PED)) {
-            DPRINTF("Port %d not enabled\n", i);
+            trace_usb_ehci_port_disable(i);
             continue;
         }
         dev = usb_find_device(port, addr);
@@ -1281,10 +1281,8 @@ static void ehci_execute_complete(EHCIQueue *q)
     assert(p->async == EHCI_ASYNC_INITIALIZED ||
            p->async == EHCI_ASYNC_FINISHED);
 
-    DPRINTF("execute_complete: qhaddr 0x%x, next 0x%x, qtdaddr 0x%x, "
-            "status %d, actual_length %d\n",
-            q->qhaddr, q->qh.next, q->qtdaddr,
-            p->packet.status, p->packet.actual_length);
+    trace_usb_ehci_execute_complete(q->qhaddr, q->qh.next, q->qtdaddr,
+                                    p->packet.status, p->packet.actual_length);
 
     switch (p->packet.status) {
     case USB_RET_SUCCESS:
@@ -1327,7 +1325,7 @@ static void ehci_execute_complete(EHCIQueue *q)
     } else {
         tbytes = 0;
     }
-    DPRINTF("updating tbytes to %d\n", tbytes);
+    trace_usb_ehci_qh_tbytes(tbytes);
     set_field(&q->qh.token, tbytes, QTD_TOKEN_TBYTES);
 
     ehci_finish_transfer(q, p->packet.actual_length);
@@ -1392,10 +1390,9 @@ static int ehci_execute(EHCIPacket *p, const char *action)
 
     trace_usb_ehci_packet_action(p->queue, p, action);
     usb_handle_packet(p->queue->dev, &p->packet);
-    DPRINTF("submit: qh 0x%x next 0x%x qtd 0x%x pid 0x%x len %zd endp 0x%x "
-            "status %d actual_length %d\n", p->queue->qhaddr, p->qtd.next,
-            p->qtdaddr, p->pid, p->packet.iov.size, endp, p->packet.status,
-            p->packet.actual_length);
+    trace_usb_ehci_packet_submit(p->queue->qhaddr, p->qtd.next, p->qtdaddr,
+                                 p->pid, p->packet.iov.size, endp,
+                                 p->packet.status, p->packet.actual_length);
 
     if (p->packet.actual_length > BUFF_SIZE) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -1472,7 +1469,8 @@ static int ehci_process_itd(EHCIState *ehci,
                     usb_handle_packet(dev, &ehci->ipacket);
                     usb_packet_unmap(&ehci->ipacket, &ehci->isgl);
                 } else {
-                    DPRINTF("ISOCH: attempt to address non-iso endpoint\n");
+                    trace_usb_ehci_log("ISOCH: "
+                                       "attempt to address non-iso endpoint");
                     ehci->ipacket.status = USB_RET_NAK;
                     ehci->ipacket.actual_length = 0;
                 }
@@ -1677,24 +1675,22 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
         if (ehci->usbsts & USBSTS_REC) {
             ehci_clear_usbsts(ehci, USBSTS_REC);
         } else {
-            DPRINTF("FETCHQH:  QH 0x%08x. H-bit set, reclamation status reset"
-                       " - done processing\n", q->qhaddr);
+            trace_usb_ehci_fetchqh_reclaim_done(q->qhaddr);
             ehci_set_state(ehci, async, EST_ACTIVE);
             q = NULL;
             goto out;
         }
     }
 
-#if EHCI_DEBUG
-    if (q->qhaddr != q->qh.next) {
-        DPRINTF("FETCHQH:  QH 0x%08x (h %x halt %x active %x) next 0x%08x\n",
-               q->qhaddr,
-               q->qh.epchar & QH_EPCHAR_H,
-               q->qh.token & QTD_TOKEN_HALT,
-               q->qh.token & QTD_TOKEN_ACTIVE,
-               q->qh.next);
+    if (trace_event_get_state_backends(TRACE_USB_EHCI_FETCHQH_DBG)) {
+        if (q->qhaddr != q->qh.next) {
+            trace_usb_ehci_fetchqh_dbg(q->qhaddr,
+                                       q->qh.epchar & QH_EPCHAR_H,
+                                       q->qh.token & QTD_TOKEN_HALT,
+                                       q->qh.token & QTD_TOKEN_ACTIVE,
+                                       q->qh.next);
+        }
     }
-#endif
 
     if (q->qh.token & QTD_TOKEN_HALT) {
         ehci_set_state(ehci, async, EST_HORIZONTALQH);
@@ -2161,7 +2157,7 @@ static void ehci_advance_async_state(EHCIState *ehci)
         /* make sure guest has acknowledged the doorbell interrupt */
         /* TO-DO: is this really needed? */
         if (ehci->usbsts & USBSTS_IAA) {
-            DPRINTF("IAA status bit still set.\n");
+            trace_usb_ehci_log("IAA status bit still set.");
             break;
         }
 
@@ -2226,9 +2222,7 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
         if (get_dwords(ehci, list, &entry, 1) < 0) {
             break;
         }
-
-        DPRINTF("PERIODIC state adv fr=%d.  [%08X] -> %08X\n",
-                ehci->frindex / 8, list, entry);
+        trace_usb_ehci_periodic_state_advance(ehci->frindex / 8, list, entry);
         ehci_set_fetch_addr(ehci, async, entry);
         ehci_set_state(ehci, async, EST_FETCHENTRY);
         ehci_advance_state(ehci, async);
@@ -2294,8 +2288,7 @@ static void ehci_work_bh(void *opaque)
             ehci_update_frindex(ehci, skipped_uframes);
             ehci->last_run_ns += UFRAME_TIMER_NS * skipped_uframes;
             uframes -= skipped_uframes;
-            DPRINTF("WARNING - EHCI skipped %"PRIu64" uframes\n",
-                    skipped_uframes);
+            trace_usb_ehci_skipped_uframes(skipped_uframes);
         }
 
         for (i = 0; i < uframes; i++) {
