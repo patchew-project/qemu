@@ -28,7 +28,7 @@ translate32_d = [
 ]
 
 arm_ss.add(when: 'TARGET_AARCH64', if_true: gen_a64)
-arm_ss.add(when: 'TARGET_AARCH64', if_false: files('stubs32.c'))
+arm_stubs_ss.add(files('stubs32.c'))
 
 arm_ss.add(files(
   'cpu32.c',
