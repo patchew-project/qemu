@@ -135,6 +135,7 @@ config TENSTORRENT
     select RISCV_APLIC
     select RISCV_IMSIC
     select FW_CFG_DMA
+    select DESIGNWARE_I2C
 
 config XIANGSHAN_KUNMINGHU
     bool
