@@ -27,6 +27,7 @@
 #include "hw/intc/riscv_aclint.h"
 #include "hw/intc/riscv_aplic.h"
 #include "hw/misc/pvpanic.h"
+#include "hw/pci-host/gpex.h"
 
 #include "system/system.h"
 #include "system/device_tree.h"
@@ -51,6 +52,13 @@
 #define TT_ACLINT_MTIMECMP      0x8000
 #define TT_ACLINT_TIMEBASE_FREQ 1000000000
 
+
+enum {
+    PCIE0_PIO,
+    PCIE0_MMIO_32,
+    PCIE0_MMIO_64,
+};
+
 static const MemMapEntry tt_atlantis_memmap[] = {
     /* Keep sorted with :'<,'>!sort -g -k 4 */
     [TT_ATL_DDR_LO] =           { 0x00000000,    0x80000000 },
@@ -66,12 +74,78 @@ static const MemMapEntry tt_atlantis_memmap[] = {
     [TT_ATL_MAPLIC] =           { 0xcc000000,     0x4000000 },
     [TT_ATL_SAPLIC] =           { 0xe8000000,     0x4000000 },
     [TT_ATL_DDR_HI] =          { 0x100000000,  0x1000000000 },
+    [TT_ATL_PCIE_ECAM0] =    { 0x01110000000,    0x10000000 },
+    [TT_ATL_PCIE_MMIO0] =    { 0x30000000000, 0x10000000000 },
+};
+
+static const PciMapEntry tt_atlantis_pci_map[]  = {
+    /* pcie_addr    window_offset         size   flags */
+    {           0x0,  0x11000000,       1 * MiB, FDT_PCI_RANGE_IOPORT |
+                                                  FDT_PCI_RANGE_RELOCATABLE },
+    {    0x80000000,  0x80000000,       2 * GiB, FDT_PCI_RANGE_MMIO |
+                                                  FDT_PCI_RANGE_RELOCATABLE },
+    { 0x30100000000, 0x100000000,    1018 * GiB, FDT_PCI_RANGE_MMIO_64BIT |
+                                                  FDT_PCI_RANGE_RELOCATABLE |
+                                                  FDT_PCI_RANGE_PREFETCHABLE },
 };
 
 static uint32_t next_phandle(void)
 {
     static uint32_t phandle = 1;
     return phandle++;
+}
+
+static void create_pcie_irq_map(void *fdt, char *nodename, int legacy_irq,
+                                uint32_t irqchip_phandle)
+{
+    int pin, dev;
+    uint32_t irq_map_stride = 0;
+    uint32_t full_irq_map[PCI_NUM_PINS * PCI_NUM_PINS *
+                          FDT_MAX_INT_MAP_WIDTH] = {};
+    uint32_t *irq_map = full_irq_map;
+
+    /*
+     * This code creates a standard swizzle of interrupts such that
+     * each device's first interrupt is based on it's PCI_SLOT number.
+     * (See pci_swizzle_map_irq_fn())
+     *
+     * We only need one entry per interrupt in the table (not one per
+     * possible slot) seeing the interrupt-map-mask will allow the table
+     * to wrap to any number of devices.
+     */
+    for (dev = 0; dev < PCI_NUM_PINS; dev++) {
+        int devfn = dev * 0x8;
+
+        for (pin = 0; pin < PCI_NUM_PINS; pin++) {
+            int irq_nr = legacy_irq + ((pin + PCI_SLOT(devfn)) % PCI_NUM_PINS);
+            int i = 0;
+
+            /* Fill PCI address cells */
+            irq_map[i] = cpu_to_be32(devfn << 8);
+            i += FDT_PCI_ADDR_CELLS;
+
+            /* Fill PCI Interrupt cells */
+            irq_map[i] = cpu_to_be32(pin + 1);
+            i += FDT_PCI_INT_CELLS;
+
+            /* Fill interrupt controller phandle and cells */
+            irq_map[i++] = cpu_to_be32(irqchip_phandle);
+            irq_map[i++] = cpu_to_be32(irq_nr);
+            irq_map[i++] = cpu_to_be32(0x4);
+
+            if (!irq_map_stride) {
+                irq_map_stride = i;
+            }
+            irq_map += irq_map_stride;
+        }
+    }
+
+    qemu_fdt_setprop(fdt, nodename, "interrupt-map", full_irq_map,
+                     PCI_NUM_PINS * PCI_NUM_PINS *
+                     irq_map_stride * sizeof(uint32_t));
+
+    qemu_fdt_setprop_cells(fdt, nodename, "interrupt-map-mask",
+                           0x1800, 0, 0, 0x7);
 }
 
 static void create_fdt_cpus(TTAtlantisState *s, uint32_t *intc_phandles)
@@ -314,6 +388,52 @@ static void create_fdt_cpu(TTAtlantisState *s, const MemMapEntry *memmap,
                          IRQ_S_EXT, s->soc.num_harts);
 }
 
+static void create_fdt_pcie(void *fdt,
+                            const MemMapEntry *ecam_mem,
+                            const MemMapEntry *pcie_mem,
+                            const PciMapEntry *pio,
+                            const PciMapEntry *mmio32,
+                            const PciMapEntry *mmio64,
+                            int legacy_irq,
+                            uint32_t aplic_s_phandle,
+                            uint32_t imsic_s_phandle)
+{
+    g_autofree char *name = g_strdup_printf("/soc/pci@%"HWADDR_PRIX,
+                                            ecam_mem->base);
+
+    qemu_fdt_setprop_cell(fdt, name, "#address-cells", FDT_PCI_ADDR_CELLS);
+    qemu_fdt_setprop_cell(fdt, name, "#interrupt-cells", FDT_PCI_INT_CELLS);
+    qemu_fdt_setprop_cell(fdt, name, "#size-cells", 0x2);
+    qemu_fdt_setprop_string(fdt, name, "compatible", "pci-host-ecam-generic");
+    qemu_fdt_setprop_string(fdt, name, "device_type", "pci");
+    qemu_fdt_setprop_cells(fdt, name, "bus-range", 0,
+                           ecam_mem->size / PCIE_MMCFG_SIZE_MIN - 1);
+    qemu_fdt_setprop(fdt, name, "dma-coherent", NULL, 0);
+    qemu_fdt_setprop_cell(fdt, name, "msi-parent", imsic_s_phandle);
+
+    qemu_fdt_setprop_sized_cells(fdt, name, "reg",
+                                 2, ecam_mem->base,
+                                 2, ecam_mem->size);
+
+    qemu_fdt_setprop_sized_cells(fdt, name, "ranges",
+                                 1, pio->flags,
+                                 2, pio->pcie_addr,
+                                 2, pio->window_offset + pcie_mem->base,
+                                 2, pio->size,
+
+                                 1, mmio32->flags,
+                                 2, mmio32->pcie_addr,
+                                 2, mmio32->window_offset + pcie_mem->base,
+                                 2, mmio32->size,
+
+                                 1, mmio64->flags,
+                                 2, mmio64->pcie_addr,
+                                 2, mmio64->window_offset + pcie_mem->base,
+                                 2, mmio64->size);
+
+    create_pcie_irq_map(fdt, name, legacy_irq, aplic_s_phandle);
+}
+
 static void create_fdt_reset(void *fdt, const MemMapEntry *mem)
 {
     uint32_t syscon_phandle = next_phandle();
@@ -379,6 +499,15 @@ static void finalize_fdt(TTAtlantisState *s)
      *                       aplic_s_phandle);
      */
 
+    create_fdt_pcie(fdt,
+                    &s->memmap[TT_ATL_PCIE_ECAM0],
+                    &s->memmap[TT_ATL_PCIE_MMIO0],
+                    &s->pcimap[PCIE0_PIO],
+                    &s->pcimap[PCIE0_MMIO_32],
+                    &s->pcimap[PCIE0_MMIO_64],
+                    TT_ATL_PCIE0_INTA_IRQ,
+                    aplic_s_phandle, imsic_s_phandle);
+
     create_fdt_reset(fdt, &s->memmap[TT_ATL_SYSCON]);
 
     create_fdt_uart(fdt, &s->memmap[TT_ATL_UART0], TT_ATL_UART0_IRQ,
@@ -389,7 +518,7 @@ static void create_fdt(TTAtlantisState *s)
 {
     MachineState *ms = MACHINE(s);
     uint8_t rng_seed[32];
-    g_autofree char *name = NULL;
+    char *name;
     void *fdt;
 
     fdt = create_device_tree(&s->fdt_size);
@@ -411,6 +540,15 @@ static void create_fdt(TTAtlantisState *s)
     qemu_fdt_setprop_cell(fdt, "/soc", "#size-cells", 0x2);
     qemu_fdt_setprop_cell(fdt, "/soc", "#address-cells", 0x2);
 
+    /*
+     * The "/soc/pci@..." node is needed for PCIE hotplugs
+     * that might happen before finalize_fdt().
+     */
+    name = g_strdup_printf("/soc/pci@%"HWADDR_PRIX,
+                           s->memmap[TT_ATL_PCIE_ECAM0].base);
+    qemu_fdt_add_subnode(fdt, name);
+    g_free(name);
+
     qemu_fdt_add_subnode(fdt, "/chosen");
 
     /* Pass seed to RNG */
@@ -421,6 +559,95 @@ static void create_fdt(TTAtlantisState *s)
 
     create_fdt_fw_cfg(fdt, &s->memmap[TT_ATL_FW_CFG]);
     create_fdt_pmu(s);
+}
+
+static void gpex_pcie_init_one(TTAtlantisState *s, GPEXHost *gpex_host,
+                               MemoryRegion *mr,
+                               const MemMapEntry *ecam_mem,
+                               const MemMapEntry *pcie_mem,
+                               const PciMapEntry *mem_pio,
+                               const PciMapEntry *mem_mmio32,
+                               const PciMapEntry *mem_mmio64,
+                               int legacy_irq)
+{
+    DeviceState *dev;
+    Object *obj;
+    MemoryRegion *ecam_alias, *ecam_reg;
+    MemoryRegion *mmio32_alias, *mmio64_alias, *mmio_reg;
+    hwaddr ecam_base = ecam_mem->base;
+    hwaddr ecam_size = ecam_mem->size;
+    hwaddr pio_base = mem_pio->window_offset + pcie_mem->base;
+    hwaddr pio_size = mem_pio->size;
+    hwaddr mmio32_base = mem_mmio32->window_offset + pcie_mem->base;
+    hwaddr mmio32_size = mem_mmio32->size;
+    hwaddr mmio64_base = mem_mmio64->window_offset + pcie_mem->base;
+    hwaddr mmio64_size = mem_mmio64->size;
+    qemu_irq irq;
+    char name[16];
+    int i;
+
+    snprintf(name, sizeof(name), "pcie");
+    object_initialize_child(OBJECT(s), name, gpex_host, TYPE_GPEX_HOST);
+    dev = DEVICE(gpex_host);
+    obj = OBJECT(dev);
+
+    object_property_set_uint(obj, PCI_HOST_ECAM_BASE, ecam_base, &error_abort);
+    object_property_set_int(obj, PCI_HOST_ECAM_SIZE, ecam_size, &error_abort);
+    object_property_set_uint(obj, PCI_HOST_BELOW_4G_MMIO_BASE, mmio32_base,
+                             &error_abort);
+    object_property_set_int(obj, PCI_HOST_BELOW_4G_MMIO_SIZE, mmio32_size,
+                            &error_abort);
+    object_property_set_uint(obj, PCI_HOST_ABOVE_4G_MMIO_BASE, mmio64_base,
+                             &error_abort);
+    object_property_set_int(obj, PCI_HOST_ABOVE_4G_MMIO_SIZE, mmio64_size,
+                            &error_abort);
+    object_property_set_uint(obj, PCI_HOST_PIO_BASE, pio_base, &error_abort);
+    object_property_set_int(obj, PCI_HOST_PIO_SIZE, pio_size, &error_abort);
+
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    ecam_alias = g_new0(MemoryRegion, 1);
+    ecam_reg = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
+    snprintf(name, sizeof(name), "pcie.ecam");
+    memory_region_init_alias(ecam_alias, obj, name,
+                             ecam_reg, 0, ecam_size);
+    memory_region_add_subregion(mr, ecam_base, ecam_alias);
+
+    mmio_reg = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 1);
+
+    mmio32_alias = g_new0(MemoryRegion, 1);
+    snprintf(name, sizeof(name), "pcie.mmio32");
+    memory_region_init_alias(mmio32_alias, obj, name,
+                             mmio_reg, mmio32_base & 0xffffffffUL, mmio32_size);
+    memory_region_add_subregion(mr, mmio32_base, mmio32_alias);
+
+    mmio64_alias = g_new0(MemoryRegion, 1);
+    snprintf(name, sizeof(name), "pcie.mmio64");
+    memory_region_init_alias(mmio64_alias, obj, name,
+                             mmio_reg, mmio64_base, mmio64_size);
+    memory_region_add_subregion(mr, mmio64_base, mmio64_alias);
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 2, pio_base);
+
+    for (i = 0; i < PCI_NUM_PINS; i++) {
+        irq = qdev_get_gpio_in(s->irqchip, legacy_irq + i);
+
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, irq);
+        gpex_set_irq_num(GPEX_HOST(dev), i, legacy_irq + i);
+    }
+
+    gpex_host->gpex_cfg.bus = PCI_HOST_BRIDGE(dev)->bus;
+}
+
+static void gpex_pcie_init(TTAtlantisState *s, MemoryRegion *mr)
+{
+    gpex_pcie_init_one(s, &s->gpex_host, mr,
+                       &s->memmap[TT_ATL_PCIE_ECAM0],
+                       &s->memmap[TT_ATL_PCIE_MMIO0],
+                       &s->pcimap[PCIE0_PIO],
+                       &s->pcimap[PCIE0_MMIO_32],
+                       &s->pcimap[PCIE0_MMIO_64],
+                       TT_ATL_PCIE0_INTA_IRQ);
 }
 
 static DeviceState *create_reboot_device(const MemMapEntry *mem)
@@ -517,6 +744,7 @@ static void tt_atlantis_machine_init(MachineState *machine)
     int base_hartid = 0;
 
     s->memmap = tt_atlantis_memmap;
+    s->pcimap = tt_atlantis_pci_map;
 
     object_initialize_child(OBJECT(machine), "soc", &s->soc,
                             TYPE_RISCV_HART_ARRAY);
@@ -582,6 +810,9 @@ static void tt_atlantis_machine_init(MachineState *machine)
     s->fw_cfg = create_fw_cfg(&s->memmap[TT_ATL_FW_CFG], machine->smp.cpus);
     rom_set_fw(s->fw_cfg);
 
+    /* PCIe */
+    gpex_pcie_init(s, system_memory);
+
     /* Reboot and exit */
     create_reboot_device(&s->memmap[TT_ATL_SYSCON]);
 
@@ -617,6 +848,7 @@ static void tt_atlantis_machine_class_init(ObjectClass *oc, const void *data)
     mc->default_cpu_type = TYPE_RISCV_CPU_TT_ASCALON;
     mc->block_default_type = IF_VIRTIO;
     mc->no_cdrom = 1;
+    mc->pci_allow_0_address = true;
     mc->default_ram_id = "tt_atlantis.ram";
 }
 

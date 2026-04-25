@@ -17,6 +17,13 @@
 #define TYPE_TT_ATLANTIS_MACHINE MACHINE_TYPE_NAME("tt-atlantis")
 OBJECT_DECLARE_SIMPLE_TYPE(TTAtlantisState, TT_ATLANTIS_MACHINE)
 
+typedef struct {
+    hwaddr pcie_addr; /* Device side address */
+    hwaddr window_offset; /* Host side offset */
+    hwaddr size;
+    uint32_t flags;
+} PciMapEntry;
+
 struct TTAtlantisState {
     /*< private >*/
     MachineState parent;
@@ -25,9 +32,11 @@ struct TTAtlantisState {
     Notifier machine_done;
     FWCfgState *fw_cfg;
     const MemMapEntry *memmap;
+    const PciMapEntry *pcimap;
 
     RISCVHartArrayState soc;
     DeviceState *irqchip;
+    GPEXHost gpex_host;
 
     int fdt_size;
 };
@@ -39,6 +48,7 @@ enum {
     TT_ATL_UART2_IRQ = 40,
     TT_ATL_UART3_IRQ = 41,
     TT_ATL_UART4_IRQ = 42,
+    TT_ATL_PCIE0_INTA_IRQ = 96,
 };
 
 enum {
@@ -50,6 +60,8 @@ enum {
     TT_ATL_I2C0,
     TT_ATL_MAPLIC,
     TT_ATL_MIMSIC,
+    TT_ATL_PCIE_ECAM0,
+    TT_ATL_PCIE_MMIO0,
     TT_ATL_SAPLIC,
     TT_ATL_SIMSIC,
     TT_ATL_SYSCON,
