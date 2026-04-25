@@ -70,7 +70,10 @@ def find_symbols_locations(elf_file, symbols):
         file, line = out[i].split(':')
         # addr2line may return 'line (discriminator [0-9]+)' sometimes,
         # remove this to keep only line number.
-        line = line.split(' ')[0]
+        if line == '?':
+            line = 0
+        else:
+            line = int(line.split(' ')[0])
         s.set_loc(file, line)
 
 class BinaryFile:
