@@ -633,12 +633,12 @@ static const FloatFmt floatx80_params[3] = {
 };
 
 /* Unpack a float to parts, but do not canonicalize.  */
-static void unpack_raw64(FloatParts64 *r, const FloatFmt *fmt, uint64_t raw)
+static FloatParts64 unpack_raw64(const FloatFmt *fmt, uint64_t raw)
 {
     const int f_size = fmt->frac_size;
     const int e_size = fmt->exp_size;
 
-    *r = (FloatParts64) {
+    return (FloatParts64) {
         .cls = float_class_unclassified,
         .sign = extract64(raw, f_size + e_size, 1),
         .exp = extract64(raw, f_size, e_size),
@@ -648,37 +648,37 @@ static void unpack_raw64(FloatParts64 *r, const FloatFmt *fmt, uint64_t raw)
 
 static void QEMU_FLATTEN float4_e2m1_unpack_raw(FloatParts64 *p, float4_e2m1 f)
 {
-    unpack_raw64(p, &float4_e2m1_params, f);
+    *p = unpack_raw64(&float4_e2m1_params, f);
 }
 
 static void QEMU_FLATTEN float8_e4m3_unpack_raw(FloatParts64 *p, float8_e4m3 f)
 {
-    unpack_raw64(p, &float8_e4m3_params, f);
+    *p = unpack_raw64(&float8_e4m3_params, f);
 }
 
 static void QEMU_FLATTEN float8_e5m2_unpack_raw(FloatParts64 *p, float8_e5m2 f)
 {
-    unpack_raw64(p, &float8_e5m2_params, f);
+    *p = unpack_raw64(&float8_e5m2_params, f);
 }
 
 static void QEMU_FLATTEN float16_unpack_raw(FloatParts64 *p, float16 f)
 {
-    unpack_raw64(p, &float16_params, f);
+    *p = unpack_raw64(&float16_params, f);
 }
 
 static void QEMU_FLATTEN bfloat16_unpack_raw(FloatParts64 *p, bfloat16 f)
 {
-    unpack_raw64(p, &bfloat16_params, f);
+    *p = unpack_raw64(&bfloat16_params, f);
 }
 
 static void QEMU_FLATTEN float32_unpack_raw(FloatParts64 *p, float32 f)
 {
-    unpack_raw64(p, &float32_params, f);
+    *p = unpack_raw64(&float32_params, f);
 }
 
 static void QEMU_FLATTEN float64_unpack_raw(FloatParts64 *p, float64 f)
 {
-    unpack_raw64(p, &float64_params, f);
+    *p = unpack_raw64(&float64_params, f);
 }
 
 static void QEMU_FLATTEN floatx80_unpack_raw(FloatParts128 *p, floatx80 f)
