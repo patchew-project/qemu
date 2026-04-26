@@ -677,15 +677,15 @@ static FloatPartsN *partsN(mul)(FloatPartsN *a, FloatPartsN *b,
  * Requires A and C extracted into a double-sized structure to provide the
  * extra space for the widening multiply.
  */
-static FloatPartsN *partsN(muladd_scalbn)(FloatPartsN *a, FloatPartsN *b,
-                                          FloatPartsN *c, int scale,
-                                          int flags, float_status *s)
+FloatPartsN partsN(muladd_scalbn)(const FloatPartsN *a,
+                                  const FloatPartsN *b,
+                                  const FloatPartsN *c,
+                                  int scale, int flags, float_status *s)
 {
-    int ab_mask, abc_mask;
-    FloatPartsW p_widen, c_widen;
-
-    ab_mask = float_cmask(a->cls) | float_cmask(b->cls);
-    abc_mask = float_cmask(c->cls) | ab_mask;
+    int ab_mask = float_cmask(a->cls) | float_cmask(b->cls);
+    int abc_mask = float_cmask(c->cls) | ab_mask;
+    bool c_sign = c->sign ^ !!(flags & float_muladd_negate_c);
+    bool p_sign = a->sign ^ b->sign ^ !!(flags & float_muladd_negate_product);
 
     /*
      * It is implementation-defined whether the cases of (0,inf,qnan)
@@ -694,18 +694,7 @@ static FloatPartsN *partsN(muladd_scalbn)(FloatPartsN *a, FloatPartsN *b,
      * off to the target-specific pick-a-NaN routine.
      */
     if (unlikely(abc_mask & float_cmask_anynan)) {
-        *a = partsN(pick_nan_muladd)(a, b, c, s, ab_mask, abc_mask);
-        return a;
-    }
-
-    if (flags & float_muladd_negate_c) {
-        c->sign ^= 1;
-    }
-
-    /* Compute the sign of the product into A. */
-    a->sign ^= b->sign;
-    if (flags & float_muladd_negate_product) {
-        a->sign ^= 1;
+        return partsN(pick_nan_muladd)(a, b, c, s, ab_mask, abc_mask);
     }
 
     if (unlikely(!cmask_is_only_normals(ab_mask))) {
@@ -715,86 +704,93 @@ static FloatPartsN *partsN(muladd_scalbn)(FloatPartsN *a, FloatPartsN *b,
         }
 
         if (ab_mask & float_cmask_inf) {
-            if (c->cls == float_class_inf && a->sign != c->sign) {
+            if (c->cls == float_class_inf && p_sign != c_sign) {
                 float_raise(float_flag_invalid | float_flag_invalid_isi, s);
                 goto d_nan;
             }
-            goto return_inf;
+            record_denormals_used(abc_mask, s);
+            return (FloatPartsN){ .sign = p_sign, .cls = float_class_inf };
         }
 
-        g_assert(ab_mask & float_cmask_zero);
-        if (is_anynorm(c->cls)) {
-            *a = *c;
-            goto return_normal;
-        }
-        if (c->cls == float_class_zero) {
+        record_denormals_used(abc_mask, s);
+
+        assert(ab_mask & float_cmask_zero);
+        switch (c->cls) {
+        case float_class_normal:
+        case float_class_denormal:
+            {
+                FloatPartsN r = *c;
+                r.exp += scale;
+                return r;
+            }
+
+        case float_class_zero:
             if (flags & float_muladd_suppress_add_product_zero) {
-                a->sign = c->sign;
-            } else if (a->sign != c->sign) {
+                /* return zero with new sign */
+            } else if (p_sign != c_sign) {
                 goto return_sub_zero;
             }
-            goto return_zero;
+            goto return_zero_c;
+
+        case float_class_inf:
+            goto return_inf_c;
+
+        default:
+            g_assert_not_reached();
         }
-        g_assert(c->cls == float_class_inf);
     }
 
+    record_denormals_used(abc_mask, s);
+
     if (unlikely(c->cls == float_class_inf)) {
-        a->sign = c->sign;
-        goto return_inf;
+        goto return_inf_c;
     }
 
     /* Perform the multiplication step. */
-    p_widen.sign = a->sign;
-    p_widen.exp = a->exp + b->exp + 1;
-    fracN(mulw)(&p_widen, a, b);
-    if (!(p_widen.frac_hi & DECOMPOSED_IMPLICIT_BIT)) {
-        fracW(add)(&p_widen, &p_widen, &p_widen);
-        p_widen.exp -= 1;
-    }
+    {
+        FloatPartsW p_widen = { .sign = p_sign, .exp = a->exp + b->exp + 1 };
 
-    /* Perform the addition step. */
-    if (c->cls != float_class_zero) {
-        /* Zero-extend C to less significant bits. */
-        fracN(widen)(&c_widen, c);
-        c_widen.exp = c->exp;
+        fracN(mulw)(&p_widen, a, b);
+        if (!(p_widen.frac_hi & DECOMPOSED_IMPLICIT_BIT)) {
+            fracW(add)(&p_widen, &p_widen, &p_widen);
+            p_widen.exp -= 1;
+        }
 
-        if (a->sign == c->sign) {
-            partsW(add_normal)(&p_widen, &c_widen);
-        } else if (!partsW(sub_normal)(&p_widen, &c_widen)) {
-            goto return_sub_zero;
+        /* Perform the addition step. */
+        if (c->cls != float_class_zero) {
+            /* Zero-extend C to less significant bits. */
+            FloatPartsW c_widen = { .sign = c_sign, .exp = c->exp };
+            fracN(widen)(&c_widen, c);
+
+            if (p_widen.sign == c_sign) {
+                partsW(add_normal)(&p_widen, &c_widen);
+            } else if (!partsW(sub_normal)(&p_widen, &c_widen)) {
+                goto return_sub_zero;
+            }
+        }
+
+        /* Narrow with sticky bit, for proper rounding later. */
+        {
+            FloatPartsN r = {
+                .sign = p_widen.sign,
+                .exp = p_widen.exp + scale,
+                .cls = float_class_normal,
+            };
+            fracN(truncjam)(&r, &p_widen);
+            return r;
         }
     }
 
-    /* Narrow with sticky bit, for proper rounding later. */
-    fracN(truncjam)(a, &p_widen);
-    a->sign = p_widen.sign;
-    a->exp = p_widen.exp;
-
- return_normal:
-    a->exp += scale;
- finish_sign:
-    /*
-     * All result types except for "return the default NaN
-     * because this is an Invalid Operation" go through here;
-     * this matches the set of cases where we consumed a
-     * denormal input.
-     */
-    record_denormals_used(abc_mask, s);
-    return a;
+ return_inf_c:
+    return (FloatPartsN){ .sign = c_sign, .cls = float_class_inf };
 
  return_sub_zero:
-    a->sign = s->float_rounding_mode == float_round_down;
- return_zero:
-    a->cls = float_class_zero;
-    goto finish_sign;
-
- return_inf:
-    a->cls = float_class_inf;
-    goto finish_sign;
+    c_sign = s->float_rounding_mode == float_round_down;
+ return_zero_c:
+    return (FloatPartsN){ .sign = c_sign, .cls = float_class_zero };
 
  d_nan:
-    *a = partsN(default_nan)(s);
-    return a;
+    return partsN(default_nan)(s);
 }
 
 /*
