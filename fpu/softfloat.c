@@ -779,14 +779,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
                   FloatParts128 *: parts128_##NAME, \
                   FloatParts256 *: parts256_##NAME)
 
-static FloatParts64 *parts64_modrem(FloatParts64 *a, FloatParts64 *b,
-                                    uint64_t *mod_quot, float_status *s);
-static FloatParts128 *parts128_modrem(FloatParts128 *a, FloatParts128 *b,
-                                      uint64_t *mod_quot, float_status *s);
-
-#define parts_modrem(A, B, Q, S) \
-    PARTS_GENERIC_64_128(modrem, A)(A, B, Q, S)
-
 static void parts64_sqrt(FloatParts64 *a, float_status *s, const FloatFmt *f);
 static void parts128_sqrt(FloatParts128 *a, float_status *s, const FloatFmt *f);
 
@@ -2642,7 +2634,7 @@ float32 float32_rem(float32 a, float32 b, float_status *status)
 
     float32_unpack_canonical(&pa, a, status);
     float32_unpack_canonical(&pb, b, status);
-    pr = parts_modrem(&pa, &pb, NULL, status);
+    pr = parts64_modrem(&pa, &pb, NULL, status);
 
     return float32_round_pack_canonical(pr, status);
 }
@@ -2653,7 +2645,7 @@ float64 float64_rem(float64 a, float64 b, float_status *status)
 
     float64_unpack_canonical(&pa, a, status);
     float64_unpack_canonical(&pb, b, status);
-    pr = parts_modrem(&pa, &pb, NULL, status);
+    pr = parts64_modrem(&pa, &pb, NULL, status);
 
     return float64_round_pack_canonical(pr, status);
 }
@@ -2664,7 +2656,7 @@ float128 float128_rem(float128 a, float128 b, float_status *status)
 
     float128_unpack_canonical(&pa, a, status);
     float128_unpack_canonical(&pb, b, status);
-    pr = parts_modrem(&pa, &pb, NULL, status);
+    pr = parts128_modrem(&pa, &pb, NULL, status);
 
     return float128_round_pack_canonical(pr, status);
 }
@@ -2688,7 +2680,7 @@ floatx80 floatx80_modrem(floatx80 a, floatx80 b, bool mod,
         !floatx80_unpack_canonical(&pb, b, status)) {
         return floatx80_default_nan(status);
     }
-    pr = parts_modrem(&pa, &pb, mod ? quotient : NULL, status);
+    pr = parts128_modrem(&pa, &pb, mod ? quotient : NULL, status);
 
     return floatx80_round_pack_canonical(pr, status);
 }
