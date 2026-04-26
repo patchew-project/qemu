@@ -1779,7 +1779,7 @@ static void partsN(log2)(FloatPartsN *a, float_status *s, const FloatFmt *fmt)
     r |= (a1 || a0 & ~DECOMPOSED_IMPLICIT_BIT);
 
  exact:
-    parts_sint_to_float(a, a_exp, 0, s);
+    partsN(sint_to_float)(a, a_exp, 0, s);
     if (r == 0) {
         return;
     }
