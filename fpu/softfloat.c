@@ -779,16 +779,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
                   FloatParts128 *: parts128_##NAME, \
                   FloatParts256 *: parts256_##NAME)
 
-static int64_t parts64_float_to_sint_modulo(FloatParts64 *p,
-                                            FloatRoundMode rmode,
-                                            int bitsm1, float_status *s);
-static int64_t parts128_float_to_sint_modulo(FloatParts128 *p,
-                                             FloatRoundMode rmode,
-                                             int bitsm1, float_status *s);
-
-#define parts_float_to_sint_modulo(P, R, M, S) \
-    PARTS_GENERIC_64_128(float_to_sint_modulo, P)(P, R, M, S)
-
 static void parts64_sint_to_float(FloatParts64 *p, int64_t a,
                                   int scale, float_status *s);
 static void parts128_sint_to_float(FloatParts128 *p, int64_t a,
@@ -3558,13 +3548,83 @@ int64_t bfloat16_to_int64_round_to_zero(bfloat16 a, float_status *s)
     return bfloat16_to_int64_scalbn(a, float_round_to_zero, 0, s);
 }
 
+/*
+ * Like partsN(float_to_sint), except do not saturate the result.
+ * Instead, return the rounded unbounded precision two's compliment result,
+ * modulo 2**(bitsm1 + 1).
+ */
+static int64_t parts64_float_to_sint_modulo(FloatParts64 *p,
+                                            FloatRoundMode rmode,
+                                            int bitsm1, float_status *s)
+{
+    int flags = 0;
+    uint64_t r;
+    bool overflow = false;
+
+    switch (p->cls) {
+    case float_class_snan:
+        flags |= float_flag_invalid_snan;
+        /* fall through */
+    case float_class_qnan:
+        flags |= float_flag_invalid;
+        r = 0;
+        break;
+
+    case float_class_inf:
+        overflow = true;
+        r = 0;
+        break;
+
+    case float_class_zero:
+        return 0;
+
+    case float_class_normal:
+    case float_class_denormal:
+        /* TODO: 64 - 2 is frac_size for rounding; could use input fmt. */
+        if (parts64_round_to_int_normal(p, rmode, 0, 64 - 2)) {
+            flags = float_flag_inexact;
+        }
+
+        if (p->exp <= DECOMPOSED_BINARY_POINT) {
+            r = p->frac >> (DECOMPOSED_BINARY_POINT - p->exp);
+            if (p->exp < bitsm1) {
+                /* Result in range. */
+            } else if (p->exp == bitsm1) {
+                /* The only in-range value is INT_MIN. */
+                overflow = !p->sign || p->frac != DECOMPOSED_IMPLICIT_BIT;
+            } else {
+                overflow = true;
+            }
+        } else {
+            /* Overflow, but there might still be bits to return. */
+            int shl = p->exp - DECOMPOSED_BINARY_POINT;
+            r = (shl < 64 ? p->frac << shl : 0);
+            overflow = true;
+        }
+
+        if (p->sign) {
+            r = -r;
+        }
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+
+    if (overflow) {
+        flags = float_flag_invalid | float_flag_invalid_cvti;
+    }
+    float_raise(flags, s);
+    return r;
+}
+
 int32_t float64_to_int32_modulo(float64 a, FloatRoundMode rmode,
                                 float_status *s)
 {
     FloatParts64 p;
 
     float64_unpack_canonical(&p, a, s);
-    return parts_float_to_sint_modulo(&p, rmode, 31, s);
+    return parts64_float_to_sint_modulo(&p, rmode, 31, s);
 }
 
 int64_t float64_to_int64_modulo(float64 a, FloatRoundMode rmode,
@@ -3573,7 +3633,7 @@ int64_t float64_to_int64_modulo(float64 a, FloatRoundMode rmode,
     FloatParts64 p;
 
     float64_unpack_canonical(&p, a, s);
-    return parts_float_to_sint_modulo(&p, rmode, 63, s);
+    return parts64_float_to_sint_modulo(&p, rmode, 63, s);
 }
 
 /*
