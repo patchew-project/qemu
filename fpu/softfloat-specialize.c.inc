@@ -118,7 +118,7 @@ static bool parts_is_snan_frac(uint64_t frac, float_status *status)
 | The pattern for a default generated deconstructed floating-point NaN.
 *----------------------------------------------------------------------------*/
 
-static void parts64_default_nan(FloatParts64 *p, float_status *status)
+static FloatParts64 parts64_default_nan(float_status *status)
 {
     bool sign = 0;
     uint64_t frac;
@@ -134,7 +134,7 @@ static void parts64_default_nan(FloatParts64 *p, float_status *status)
     frac = deposit64(0, DECOMPOSED_BINARY_POINT - 7, 7, dnan_pattern);
     frac = deposit64(frac, 0, DECOMPOSED_BINARY_POINT - 7, -(dnan_pattern & 1));
 
-    *p = (FloatParts64) {
+    return (FloatParts64) {
         .cls = float_class_qnan,
         .sign = sign,
         .exp = INT_MAX,
@@ -142,17 +142,16 @@ static void parts64_default_nan(FloatParts64 *p, float_status *status)
     };
 }
 
-static void parts128_default_nan(FloatParts128 *p, float_status *status)
+static FloatParts128 parts128_default_nan(float_status *status)
 {
     /*
      * Extrapolate from the choices made by parts64_default_nan to fill
      * in the quad-floating format.  If the low bit is set, assume we
      * want to set all non-snan bits.
      */
-    FloatParts64 p64;
-    parts64_default_nan(&p64, status);
+    FloatParts64 p64 = parts64_default_nan(status);
 
-    *p = (FloatParts128) {
+    return (FloatParts128) {
         .cls = float_class_qnan,
         .sign = p64.sign,
         .exp = INT_MAX,
@@ -197,19 +196,18 @@ static void parts128_silence_nan(FloatParts128 *p, float_status *status)
 *----------------------------------------------------------------------------*/
 floatx80 floatx80_default_nan(float_status *status)
 {
-    floatx80 r;
     /*
      * Extrapolate from the choices made by parts64_default_nan to fill
      * in the floatx80 format. We assume that floatx80's explicit
      * integer bit is always set (this is true for i386 and m68k,
      * which are the only real users of this format).
      */
-    FloatParts64 p64;
-    parts64_default_nan(&p64, status);
+    FloatParts64 p64 = parts64_default_nan(status);
 
-    r.high = 0x7FFF | (p64.sign << 15);
-    r.low = (1ULL << DECOMPOSED_BINARY_POINT) | p64.frac;
-    return r;
+    return (floatx80) {
+        .high = 0x7FFF | (p64.sign << 15),
+        .low = (1ULL << DECOMPOSED_BINARY_POINT) | p64.frac,
+    };
 }
 
 /*----------------------------------------------------------------------------
