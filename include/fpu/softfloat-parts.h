@@ -163,4 +163,16 @@ float64 float64_round_pack_canonical(FloatParts64 *p, float_status *s);
 float128 float128_round_pack_canonical(FloatParts128 *p, float_status *s);
 floatx80 floatx80_round_pack_canonical(FloatParts128 *p, float_status *s);
 
+/*
+ * NaN handling
+ */
+
+FloatParts64 parts64_default_nan(float_status *status);
+FloatParts128 parts128_default_nan(float_status *status);
+
+FloatParts64 parts64_pick_nan(const FloatParts64 *, const FloatParts64 *,
+                              float_status *);
+FloatParts128 parts128_pick_nan(const FloatParts128 *, const FloatParts128 *,
+                                float_status *);
+
 #endif
