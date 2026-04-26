@@ -2563,29 +2563,31 @@ static void parts128_float_to_float(FloatParts128 *a, float_status *s)
     }
 }
 
-static void parts_float_to_float_narrow(FloatParts64 *a, FloatParts128 *b,
-                                        float_status *s)
+static FloatParts64 parts128_to_parts64(FloatParts128 *b, float_status *s)
 {
-    a->cls = b->cls;
-    a->sign = b->sign;
-    a->exp = b->exp;
+    FloatParts64 r = {
+        .cls = b->cls,
+        .sign = b->sign,
+        .exp = b->exp,
+    };
 
-    switch (a->cls) {
+    switch (r.cls) {
     case float_class_denormal:
         float_raise(float_flag_input_denormal_used, s);
         /* fall through */
     case float_class_normal:
-        frac64_truncjam(a, b);
+        frac64_truncjam(&r, b);
         break;
     case float_class_snan:
     case float_class_qnan:
         /* Discard the low bits of the NaN. */
-        a->frac = b->frac_hi;
-        parts64_return_nan(a, s);
+        r.frac = b->frac_hi;
+        parts64_return_nan(&r, s);
         break;
     default:
         break;
     }
+    return r;
 }
 
 static void parts_float_to_float_widen(FloatParts128 *a, FloatParts64 *b,
@@ -2773,18 +2775,16 @@ bfloat16 float64_to_bfloat16(float64 a, float_status *s)
 float32 float128_to_float32(float128 a, float_status *s)
 {
     FloatParts128 p128 = float128_unpack_canonical(a, s);
-    FloatParts64 p64;
+    FloatParts64 p64 = parts128_to_parts64(&p128, s);
 
-    parts_float_to_float_narrow(&p64, &p128, s);
     return float32_round_pack_canonical(&p64, s);
 }
 
 float64 float128_to_float64(float128 a, float_status *s)
 {
     FloatParts128 p128 = float128_unpack_canonical(a, s);
-    FloatParts64 p64;
+    FloatParts64 p64 = parts128_to_parts64(&p128, s);
 
-    parts_float_to_float_narrow(&p64, &p128, s);
     return float64_round_pack_canonical(&p64, s);
 }
 
@@ -2812,7 +2812,7 @@ float32 floatx80_to_float32(floatx80 a, float_status *s)
     FloatParts128 p128;
 
     if (floatx80_unpack_canonical(&p128, a, s)) {
-        parts_float_to_float_narrow(&p64, &p128, s);
+        p64 = parts128_to_parts64(&p128, s);
     } else {
         parts64_default_nan(&p64, s);
     }
@@ -2825,7 +2825,7 @@ float64 floatx80_to_float64(floatx80 a, float_status *s)
     FloatParts128 p128;
 
     if (floatx80_unpack_canonical(&p128, a, s)) {
-        parts_float_to_float_narrow(&p64, &p128, s);
+        p64 = parts128_to_parts64(&p128, s);
     } else {
         parts64_default_nan(&p64, s);
     }
