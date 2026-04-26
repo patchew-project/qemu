@@ -2695,9 +2695,6 @@ static void parts128_float_to_float(FloatParts128 *a, float_status *s)
     }
 }
 
-#define parts_float_to_float(P, S) \
-    PARTS_GENERIC_64_128(float_to_float, P)(P, S)
-
 static void parts_float_to_float_narrow(FloatParts64 *a, FloatParts128 *b,
                                         float_status *s)
 {
@@ -2744,7 +2741,7 @@ float8_e4m3 float4_e2m1_to_float8_e4m3(float4_e2m1 a, float_status *s)
     FloatParts64 p;
 
     float4_e2m1_unpack_canonical(&p, a, s);
-    parts_float_to_float(&p, s);
+    parts64_float_to_float(&p, s);
     return float8_e4m3_round_pack_canonical(&p, s, false);
 }
 
@@ -2753,7 +2750,7 @@ bfloat16 float8_e4m3_to_bfloat16(float8_e4m3 a, float_status *s)
     FloatParts64 p;
 
     float8_e4m3_unpack_canonical(&p, a, s);
-    parts_float_to_float(&p, s);
+    parts64_float_to_float(&p, s);
     return bfloat16_round_pack_canonical(&p, s);
 }
 
@@ -2762,7 +2759,7 @@ bfloat16 float8_e5m2_to_bfloat16(float8_e5m2 a, float_status *s)
     FloatParts64 p;
 
     float8_e5m2_unpack_canonical(&p, a, s);
-    parts_float_to_float(&p, s);
+    parts64_float_to_float(&p, s);
     return bfloat16_round_pack_canonical(&p, s);
 }
 
@@ -2772,7 +2769,7 @@ float32 float16_to_float32(float16 a, bool ieee, float_status *s)
     FloatParts64 p;
 
     float16a_unpack_canonical(&p, a, s, fmt16);
-    parts_float_to_float(&p, s);
+    parts64_float_to_float(&p, s);
     return float32_round_pack_canonical(&p, s);
 }
 
@@ -2782,7 +2779,7 @@ float64 float16_to_float64(float16 a, bool ieee, float_status *s)
     FloatParts64 p;
 
     float16a_unpack_canonical(&p, a, s, fmt16);
-    parts_float_to_float(&p, s);
+    parts64_float_to_float(&p, s);
     return float64_round_pack_canonical(&p, s);
 }
 
@@ -2791,7 +2788,7 @@ float8_e4m3 float32_to_float8_e4m3(float32 a, bool saturate, float_status *s)
     FloatParts64 p;
 
     float32_unpack_canonical(&p, a, s);
-    parts_float_to_float(&p, s);
+    parts64_float_to_float(&p, s);
     return float8_e4m3_round_pack_canonical(&p, s, saturate);
 }
 
@@ -2811,7 +2808,7 @@ float16 float32_to_float16(float32 a, bool ieee, float_status *s)
 
     float32_unpack_canonical(&p, a, s);
     if (ieee) {
-        parts_float_to_float(&p, s);
+        parts64_float_to_float(&p, s);
         fmt = &float16_params;
     } else {
         parts_float_to_ahp(&p, s);
@@ -2826,7 +2823,7 @@ soft_float32_to_float64(float32 a, float_status *s)
     FloatParts64 p;
 
     float32_unpack_canonical(&p, a, s);
-    parts_float_to_float(&p, s);
+    parts64_float_to_float(&p, s);
     return float64_round_pack_canonical(&p, s);
 }
 
@@ -2853,7 +2850,7 @@ float16 float64_to_float16(float64 a, bool ieee, float_status *s)
 
     float64_unpack_canonical(&p, a, s);
     if (ieee) {
-        parts_float_to_float(&p, s);
+        parts64_float_to_float(&p, s);
         fmt = &float16_params;
     } else {
         parts_float_to_ahp(&p, s);
@@ -2867,7 +2864,7 @@ float32 float64_to_float32(float64 a, float_status *s)
     FloatParts64 p;
 
     float64_unpack_canonical(&p, a, s);
-    parts_float_to_float(&p, s);
+    parts64_float_to_float(&p, s);
     return float32_round_pack_canonical(&p, s);
 }
 
@@ -2876,7 +2873,7 @@ float8_e4m3 bfloat16_to_float8_e4m3(bfloat16 a, bool saturate, float_status *s)
     FloatParts64 p;
 
     bfloat16_unpack_canonical(&p, a, s);
-    parts_float_to_float(&p, s);
+    parts64_float_to_float(&p, s);
     return float8_e4m3_round_pack_canonical(&p, s, saturate);
 }
 
@@ -2894,7 +2891,7 @@ float32 bfloat16_to_float32(bfloat16 a, float_status *s)
     FloatParts64 p;
 
     bfloat16_unpack_canonical(&p, a, s);
-    parts_float_to_float(&p, s);
+    parts64_float_to_float(&p, s);
     return float32_round_pack_canonical(&p, s);
 }
 
@@ -2903,7 +2900,7 @@ float64 bfloat16_to_float64(bfloat16 a, float_status *s)
     FloatParts64 p;
 
     bfloat16_unpack_canonical(&p, a, s);
-    parts_float_to_float(&p, s);
+    parts64_float_to_float(&p, s);
     return float64_round_pack_canonical(&p, s);
 }
 
@@ -2912,7 +2909,7 @@ bfloat16 float32_to_bfloat16(float32 a, float_status *s)
     FloatParts64 p;
 
     float32_unpack_canonical(&p, a, s);
-    parts_float_to_float(&p, s);
+    parts64_float_to_float(&p, s);
     return bfloat16_round_pack_canonical(&p, s);
 }
 
@@ -2921,7 +2918,7 @@ bfloat16 float64_to_bfloat16(float64 a, float_status *s)
     FloatParts64 p;
 
     float64_unpack_canonical(&p, a, s);
-    parts_float_to_float(&p, s);
+    parts64_float_to_float(&p, s);
     return bfloat16_round_pack_canonical(&p, s);
 }
 
@@ -2996,7 +2993,7 @@ float128 floatx80_to_float128(floatx80 a, float_status *s)
     FloatParts128 p;
 
     if (floatx80_unpack_canonical(&p, a, s)) {
-        parts_float_to_float(&p, s);
+        parts128_float_to_float(&p, s);
     } else {
         parts128_default_nan(&p, s);
     }
@@ -3028,7 +3025,7 @@ floatx80 float128_to_floatx80(float128 a, float_status *s)
     FloatParts128 p;
 
     float128_unpack_canonical(&p, a, s);
-    parts_float_to_float(&p, s);
+    parts128_float_to_float(&p, s);
     return floatx80_round_pack_canonical(&p, s);
 }
 
