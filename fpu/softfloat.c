@@ -1474,17 +1474,18 @@ static FloatParts64 float8_e5m2_unpack_canonical(float8_e5m2 f, float_status *s)
     return p;
 }
 
-static void float16a_unpack_canonical(FloatParts64 *p, float16 f,
-                                      float_status *s, const FloatFmt *params)
+static FloatParts64 float16a_unpack_canonical(float16 f, float_status *s,
+                                              const FloatFmt *params)
 {
-    *p = unpack_raw64(&float16_params, f);
-    parts64_canonicalize(p, s, params);
+    FloatParts64 p = unpack_raw64(&float16_params, f);
+    parts64_canonicalize(&p, s, params);
+    return p;
 }
 
 static void float16_unpack_canonical(FloatParts64 *p, float16 f,
                                      float_status *s)
 {
-    float16a_unpack_canonical(p, f, s, &float16_params);
+    *p = float16a_unpack_canonical(f, s, &float16_params);
 }
 
 static void bfloat16_unpack_canonical(FloatParts64 *p, bfloat16 f,
@@ -2701,9 +2702,8 @@ bfloat16 float8_e5m2_to_bfloat16(float8_e5m2 a, float_status *s)
 float32 float16_to_float32(float16 a, bool ieee, float_status *s)
 {
     const FloatFmt *fmt16 = ieee ? &float16_params : &float16_params_ahp;
-    FloatParts64 p;
+    FloatParts64 p = float16a_unpack_canonical(a, s, fmt16);
 
-    float16a_unpack_canonical(&p, a, s, fmt16);
     parts64_float_to_float(&p, s);
     return float32_round_pack_canonical(&p, s);
 }
@@ -2711,9 +2711,8 @@ float32 float16_to_float32(float16 a, bool ieee, float_status *s)
 float64 float16_to_float64(float16 a, bool ieee, float_status *s)
 {
     const FloatFmt *fmt16 = ieee ? &float16_params : &float16_params_ahp;
-    FloatParts64 p;
+    FloatParts64 p = float16a_unpack_canonical(a, s, fmt16);
 
-    float16a_unpack_canonical(&p, a, s, fmt16);
     parts64_float_to_float(&p, s);
     return float64_round_pack_canonical(&p, s);
 }
