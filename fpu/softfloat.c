@@ -779,14 +779,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
                   FloatParts128 *: parts128_##NAME, \
                   FloatParts256 *: parts256_##NAME)
 
-static bool parts64_round_to_int_normal(FloatParts64 *a, FloatRoundMode rm,
-                                        int scale, int frac_size);
-static bool parts128_round_to_int_normal(FloatParts128 *a, FloatRoundMode r,
-                                         int scale, int frac_size);
-
-#define parts_round_to_int_normal(A, R, C, F) \
-    PARTS_GENERIC_64_128(round_to_int_normal, A)(A, R, C, F)
-
 static void parts64_round_to_int(FloatParts64 *a, FloatRoundMode rm,
                                  int scale, float_status *s,
                                  const FloatFmt *fmt);
@@ -3365,7 +3357,7 @@ static Int128 float128_to_int128_scalbn(float128 a, FloatRoundMode rmode,
 
     case float_class_normal:
     case float_class_denormal:
-        if (parts_round_to_int_normal(&p, rmode, scale, 128 - 2)) {
+        if (parts128_round_to_int_normal(&p, rmode, scale, 128 - 2)) {
             flags = float_flag_inexact;
         }
 
@@ -3793,7 +3785,7 @@ static Int128 float128_to_uint128_scalbn(float128 a, FloatRoundMode rmode,
 
     case float_class_normal:
     case float_class_denormal:
-        if (parts_round_to_int_normal(&p, rmode, scale, 128 - 2)) {
+        if (parts128_round_to_int_normal(&p, rmode, scale, 128 - 2)) {
             flags = float_flag_inexact;
             if (p.cls == float_class_zero) {
                 r = int128_zero();
@@ -5482,11 +5474,11 @@ static void parts_s390_divide_to_integer(FloatParts64 *a, FloatParts64 *b,
          * of distinguishing partial quotients, so ignore the exception.
          */
         *n = *q;
-        parts_round_to_int_normal(n,
-                                  is_q_smallish ?
-                                      final_quotient_rounding_mode :
-                                      float_round_to_zero,
-                                  0, fmt->frac_size);
+        parts64_round_to_int_normal(n,
+                                    is_q_smallish
+                                    ? final_quotient_rounding_mode
+                                    : float_round_to_zero,
+                                    0, fmt->frac_size);
 
         /* Compute precise remainder */
         r_precise_buf = *b;

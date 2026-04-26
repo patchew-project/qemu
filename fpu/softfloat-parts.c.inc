@@ -1127,7 +1127,7 @@ static void partsN(sqrt)(FloatPartsN *a, float_status *status,
  * according to the IEC/IEEE Standard for Binary Floating-Point
  * Arithmetic.
  *
- * parts_round_to_int_normal is an internal helper function for
+ * partsN(round_to_int_normal) is an internal helper function for
  * normal numbers only, returning true for inexact but not directly
  * raising float_flag_inexact.
  */
@@ -1270,7 +1270,7 @@ static void partsN(round_to_int)(FloatPartsN *a, FloatRoundMode rmode,
         break;
     case float_class_normal:
     case float_class_denormal:
-        if (parts_round_to_int_normal(a, rmode, scale, fmt->frac_size)) {
+        if (partsN(round_to_int_normal)(a, rmode, scale, fmt->frac_size)) {
             float_raise(float_flag_inexact, s);
         }
         break;
@@ -1316,7 +1316,7 @@ static int64_t partsN(float_to_sint)(FloatPartsN *p, FloatRoundMode rmode,
     case float_class_normal:
     case float_class_denormal:
         /* TODO: N - 2 is frac_size for rounding; could use input fmt. */
-        if (parts_round_to_int_normal(p, rmode, scale, N - 2)) {
+        if (partsN(round_to_int_normal)(p, rmode, scale, N - 2)) {
             flags = float_flag_inexact;
         }
 
@@ -1384,7 +1384,7 @@ static uint64_t partsN(float_to_uint)(FloatPartsN *p, FloatRoundMode rmode,
     case float_class_normal:
     case float_class_denormal:
         /* TODO: N - 2 is frac_size for rounding; could use input fmt. */
-        if (parts_round_to_int_normal(p, rmode, scale, N - 2)) {
+        if (partsN(round_to_int_normal)(p, rmode, scale, N - 2)) {
             flags = float_flag_inexact;
             if (p->cls == float_class_zero) {
                 r = 0;
@@ -1448,7 +1448,7 @@ static int64_t partsN(float_to_sint_modulo)(FloatPartsN *p,
     case float_class_normal:
     case float_class_denormal:
         /* TODO: N - 2 is frac_size for rounding; could use input fmt. */
-        if (parts_round_to_int_normal(p, rmode, 0, N - 2)) {
+        if (partsN(round_to_int_normal)(p, rmode, 0, N - 2)) {
             flags = float_flag_inexact;
         }
 
