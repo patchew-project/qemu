@@ -779,16 +779,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
                   FloatParts128 *: parts128_##NAME, \
                   FloatParts256 *: parts256_##NAME)
 
-static uint64_t parts64_float_to_uint(FloatParts64 *p, FloatRoundMode rmode,
-                                      int scale, uint64_t max,
-                                      float_status *s);
-static uint64_t parts128_float_to_uint(FloatParts128 *p, FloatRoundMode rmode,
-                                       int scale, uint64_t max,
-                                       float_status *s);
-
-#define parts_float_to_uint(P, R, Z, M, S) \
-    PARTS_GENERIC_64_128(float_to_uint, P)(P, R, Z, M, S)
-
 static int64_t parts64_float_to_sint_modulo(FloatParts64 *p,
                                             FloatRoundMode rmode,
                                             int bitsm1, float_status *s);
@@ -3596,7 +3586,7 @@ uint8_t float16_to_uint8_scalbn(float16 a, FloatRoundMode rmode, int scale,
     FloatParts64 p;
 
     float16_unpack_canonical(&p, a, s);
-    return parts_float_to_uint(&p, rmode, scale, UINT8_MAX, s);
+    return parts64_float_to_uint(&p, rmode, scale, UINT8_MAX, s);
 }
 
 uint16_t float16_to_uint16_scalbn(float16 a, FloatRoundMode rmode, int scale,
@@ -3605,7 +3595,7 @@ uint16_t float16_to_uint16_scalbn(float16 a, FloatRoundMode rmode, int scale,
     FloatParts64 p;
 
     float16_unpack_canonical(&p, a, s);
-    return parts_float_to_uint(&p, rmode, scale, UINT16_MAX, s);
+    return parts64_float_to_uint(&p, rmode, scale, UINT16_MAX, s);
 }
 
 uint32_t float16_to_uint32_scalbn(float16 a, FloatRoundMode rmode, int scale,
@@ -3614,7 +3604,7 @@ uint32_t float16_to_uint32_scalbn(float16 a, FloatRoundMode rmode, int scale,
     FloatParts64 p;
 
     float16_unpack_canonical(&p, a, s);
-    return parts_float_to_uint(&p, rmode, scale, UINT32_MAX, s);
+    return parts64_float_to_uint(&p, rmode, scale, UINT32_MAX, s);
 }
 
 uint64_t float16_to_uint64_scalbn(float16 a, FloatRoundMode rmode, int scale,
@@ -3623,7 +3613,7 @@ uint64_t float16_to_uint64_scalbn(float16 a, FloatRoundMode rmode, int scale,
     FloatParts64 p;
 
     float16_unpack_canonical(&p, a, s);
-    return parts_float_to_uint(&p, rmode, scale, UINT64_MAX, s);
+    return parts64_float_to_uint(&p, rmode, scale, UINT64_MAX, s);
 }
 
 uint16_t float32_to_uint16_scalbn(float32 a, FloatRoundMode rmode, int scale,
@@ -3632,7 +3622,7 @@ uint16_t float32_to_uint16_scalbn(float32 a, FloatRoundMode rmode, int scale,
     FloatParts64 p;
 
     float32_unpack_canonical(&p, a, s);
-    return parts_float_to_uint(&p, rmode, scale, UINT16_MAX, s);
+    return parts64_float_to_uint(&p, rmode, scale, UINT16_MAX, s);
 }
 
 uint32_t float32_to_uint32_scalbn(float32 a, FloatRoundMode rmode, int scale,
@@ -3641,7 +3631,7 @@ uint32_t float32_to_uint32_scalbn(float32 a, FloatRoundMode rmode, int scale,
     FloatParts64 p;
 
     float32_unpack_canonical(&p, a, s);
-    return parts_float_to_uint(&p, rmode, scale, UINT32_MAX, s);
+    return parts64_float_to_uint(&p, rmode, scale, UINT32_MAX, s);
 }
 
 uint64_t float32_to_uint64_scalbn(float32 a, FloatRoundMode rmode, int scale,
@@ -3650,7 +3640,7 @@ uint64_t float32_to_uint64_scalbn(float32 a, FloatRoundMode rmode, int scale,
     FloatParts64 p;
 
     float32_unpack_canonical(&p, a, s);
-    return parts_float_to_uint(&p, rmode, scale, UINT64_MAX, s);
+    return parts64_float_to_uint(&p, rmode, scale, UINT64_MAX, s);
 }
 
 uint16_t float64_to_uint16_scalbn(float64 a, FloatRoundMode rmode, int scale,
@@ -3659,7 +3649,7 @@ uint16_t float64_to_uint16_scalbn(float64 a, FloatRoundMode rmode, int scale,
     FloatParts64 p;
 
     float64_unpack_canonical(&p, a, s);
-    return parts_float_to_uint(&p, rmode, scale, UINT16_MAX, s);
+    return parts64_float_to_uint(&p, rmode, scale, UINT16_MAX, s);
 }
 
 uint32_t float64_to_uint32_scalbn(float64 a, FloatRoundMode rmode, int scale,
@@ -3668,7 +3658,7 @@ uint32_t float64_to_uint32_scalbn(float64 a, FloatRoundMode rmode, int scale,
     FloatParts64 p;
 
     float64_unpack_canonical(&p, a, s);
-    return parts_float_to_uint(&p, rmode, scale, UINT32_MAX, s);
+    return parts64_float_to_uint(&p, rmode, scale, UINT32_MAX, s);
 }
 
 uint64_t float64_to_uint64_scalbn(float64 a, FloatRoundMode rmode, int scale,
@@ -3677,7 +3667,7 @@ uint64_t float64_to_uint64_scalbn(float64 a, FloatRoundMode rmode, int scale,
     FloatParts64 p;
 
     float64_unpack_canonical(&p, a, s);
-    return parts_float_to_uint(&p, rmode, scale, UINT64_MAX, s);
+    return parts64_float_to_uint(&p, rmode, scale, UINT64_MAX, s);
 }
 
 uint8_t bfloat16_to_uint8_scalbn(bfloat16 a, FloatRoundMode rmode,
@@ -3686,7 +3676,7 @@ uint8_t bfloat16_to_uint8_scalbn(bfloat16 a, FloatRoundMode rmode,
     FloatParts64 p;
 
     bfloat16_unpack_canonical(&p, a, s);
-    return parts_float_to_uint(&p, rmode, scale, UINT8_MAX, s);
+    return parts64_float_to_uint(&p, rmode, scale, UINT8_MAX, s);
 }
 
 uint16_t bfloat16_to_uint16_scalbn(bfloat16 a, FloatRoundMode rmode,
@@ -3695,7 +3685,7 @@ uint16_t bfloat16_to_uint16_scalbn(bfloat16 a, FloatRoundMode rmode,
     FloatParts64 p;
 
     bfloat16_unpack_canonical(&p, a, s);
-    return parts_float_to_uint(&p, rmode, scale, UINT16_MAX, s);
+    return parts64_float_to_uint(&p, rmode, scale, UINT16_MAX, s);
 }
 
 uint32_t bfloat16_to_uint32_scalbn(bfloat16 a, FloatRoundMode rmode,
@@ -3704,7 +3694,7 @@ uint32_t bfloat16_to_uint32_scalbn(bfloat16 a, FloatRoundMode rmode,
     FloatParts64 p;
 
     bfloat16_unpack_canonical(&p, a, s);
-    return parts_float_to_uint(&p, rmode, scale, UINT32_MAX, s);
+    return parts64_float_to_uint(&p, rmode, scale, UINT32_MAX, s);
 }
 
 uint64_t bfloat16_to_uint64_scalbn(bfloat16 a, FloatRoundMode rmode,
@@ -3713,7 +3703,7 @@ uint64_t bfloat16_to_uint64_scalbn(bfloat16 a, FloatRoundMode rmode,
     FloatParts64 p;
 
     bfloat16_unpack_canonical(&p, a, s);
-    return parts_float_to_uint(&p, rmode, scale, UINT64_MAX, s);
+    return parts64_float_to_uint(&p, rmode, scale, UINT64_MAX, s);
 }
 
 static uint32_t float128_to_uint32_scalbn(float128 a, FloatRoundMode rmode,
@@ -3722,7 +3712,7 @@ static uint32_t float128_to_uint32_scalbn(float128 a, FloatRoundMode rmode,
     FloatParts128 p;
 
     float128_unpack_canonical(&p, a, s);
-    return parts_float_to_uint(&p, rmode, scale, UINT32_MAX, s);
+    return parts128_float_to_uint(&p, rmode, scale, UINT32_MAX, s);
 }
 
 static uint64_t float128_to_uint64_scalbn(float128 a, FloatRoundMode rmode,
@@ -3731,7 +3721,7 @@ static uint64_t float128_to_uint64_scalbn(float128 a, FloatRoundMode rmode,
     FloatParts128 p;
 
     float128_unpack_canonical(&p, a, s);
-    return parts_float_to_uint(&p, rmode, scale, UINT64_MAX, s);
+    return parts128_float_to_uint(&p, rmode, scale, UINT64_MAX, s);
 }
 
 static Int128 float128_to_uint128_scalbn(float128 a, FloatRoundMode rmode,
