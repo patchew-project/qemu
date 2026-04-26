@@ -98,7 +98,7 @@ static FloatPartsN *partsN(pick_nan)(FloatPartsN *a, FloatPartsN *b,
             ret = b;
             break;
         }
-        cmp = frac_cmp(a, b);
+        cmp = fracN(cmp)(a, b);
         if (cmp == 0) {
             cmp = a->sign < b->sign;
         }
@@ -215,14 +215,14 @@ static void partsN(canonicalize)(FloatPartsN *p, float_status *status,
         (status->floatx80_behaviour & floatx80_pseudo_denormal_valid);
 
     if (unlikely(p->exp == 0)) {
-        if (likely(frac_eqz(p))) {
+        if (likely(fracN(eqz)(p))) {
             p->cls = float_class_zero;
         } else if (status->flush_inputs_to_zero) {
             float_raise(float_flag_input_denormal_flushed, status);
             p->cls = float_class_zero;
-            frac_clear(p);
+            fracN(clear)(p);
         } else {
-            int shift = frac_normalize(p);
+            int shift = fracN(normalize)(p);
             p->cls = float_class_denormal;
             p->exp = fmt->frac_shift - fmt->exp_bias
                    - shift + !has_pseudo_denormals;
@@ -232,10 +232,10 @@ static void partsN(canonicalize)(FloatPartsN *p, float_status *status,
     if (unlikely(p->exp == fmt->exp_max)) {
         switch (fmt->exp_max_kind) {
         case float_expmax_ieee:
-            if (likely(frac_eqz(p))) {
+            if (likely(fracN(eqz)(p))) {
                 p->cls = float_class_inf;
             } else {
-                frac_shl(p, fmt->frac_shift);
+                fracN(shl)(p, fmt->frac_shift);
                 p->cls = (parts_is_snan_frac(p->frac_hi, status)
                           ? float_class_snan : float_class_qnan);
             }
@@ -244,7 +244,7 @@ static void partsN(canonicalize)(FloatPartsN *p, float_status *status,
             break;
         case float_expmax_e4m3:
             if (p->frac_hi == 0b111) {
-                frac_shl(p, fmt->frac_shift);
+                fracN(shl)(p, fmt->frac_shift);
                 p->cls = (parts_is_snan_frac(p->frac_hi, status)
                           ? float_class_snan : float_class_qnan);
                 return;
@@ -258,7 +258,7 @@ static void partsN(canonicalize)(FloatPartsN *p, float_status *status,
 
     p->cls = float_class_normal;
     p->exp -= fmt->exp_bias;
-    frac_shl(p, fmt->frac_shift);
+    fracN(shl)(p, fmt->frac_shift);
     p->frac_hi |= DECOMPOSED_IMPLICIT_BIT;
 }
 
@@ -344,8 +344,8 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
     if (likely(exp > 0)) {
         if (p->frac_lo & round_mask) {
             flags |= float_flag_inexact;
-            if (frac_addi(p, p, inc)) {
-                frac_shr(p, 1);
+            if (fracN(addi)(p, p, inc)) {
+                fracN(shr)(p, 1);
                 p->frac_hi |= DECOMPOSED_IMPLICIT_BIT;
                 exp++;
             }
@@ -361,13 +361,13 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
                 } else if (overflow_norm) {
                     flags |= float_flag_inexact;
                     exp = exp_max - 1;
-                    frac_allones(p);
+                    fracN(allones)(p);
                     p->frac_lo &= ~round_mask;
                 } else {
                     flags |= float_flag_inexact;
                     p->cls = float_class_inf;
                     exp = exp_max;
-                    frac_clear(p);
+                    fracN(clear)(p);
                 }
                 break;
 
@@ -378,7 +378,7 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
                              ? float_flag_invalid
                              : float_flag_overflow | float_flag_inexact);
                     exp = exp_max;
-                    frac_allones(p);
+                    fracN(allones)(p);
                     p->frac_lo &= ~round_mask;
                 }
                 break;
@@ -395,26 +395,26 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
                 g_assert_not_reached();
             }
         }
-        frac_shr(p, frac_shift);
+        fracN(shr)(p, frac_shift);
     } else if (unlikely(s->rebias_underflow)) {
         flags |= float_flag_underflow;
         exp += fmt->exp_re_bias;
         if (p->frac_lo & round_mask) {
             flags |= float_flag_inexact;
-            if (frac_addi(p, p, inc)) {
-                frac_shr(p, 1);
+            if (fracN(addi)(p, p, inc)) {
+                fracN(shr)(p, 1);
                 p->frac_hi |= DECOMPOSED_IMPLICIT_BIT;
                 exp++;
             }
             p->frac_lo &= ~round_mask;
         }
-        frac_shr(p, frac_shift);
+        fracN(shr)(p, frac_shift);
     } else if (s->flush_to_zero &&
                s->ftz_detection == float_ftz_before_rounding) {
         flags |= float_flag_output_denormal_flushed;
         p->cls = float_class_zero;
         exp = 0;
-        frac_clear(p);
+        fracN(clear)(p);
     } else {
         bool is_tiny = s->tininess_before_rounding || exp < 0;
         bool has_pseudo_denormals = fmt->has_explicit_bit &&
@@ -422,10 +422,10 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
 
         if (!is_tiny) {
             FloatPartsN discard;
-            is_tiny = !frac_addi(&discard, p, inc);
+            is_tiny = !fracN(addi)(&discard, p, inc);
         }
 
-        frac_shrjam(p, !has_pseudo_denormals - exp);
+        fracN(shrjam)(p, !has_pseudo_denormals - exp);
 
         if (p->frac_lo & round_mask) {
             /* Need to recompute round-to-even/round-to-odd. */
@@ -452,12 +452,12 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
                 break;
             }
             flags |= float_flag_inexact;
-            frac_addi(p, p, inc);
+            fracN(addi)(p, p, inc);
             p->frac_lo &= ~round_mask;
         }
 
         exp = (p->frac_hi & DECOMPOSED_IMPLICIT_BIT) && !has_pseudo_denormals;
-        frac_shr(p, frac_shift);
+        fracN(shr)(p, frac_shift);
 
         if (is_tiny) {
             if (s->flush_to_zero) {
@@ -465,11 +465,11 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
                 flags |= float_flag_output_denormal_flushed;
                 p->cls = float_class_zero;
                 exp = 0;
-                frac_clear(p);
+                fracN(clear)(p);
             } else if (flags & float_flag_inexact) {
                 flags |= float_flag_underflow;
             }
-            if (exp == 0 && frac_eqz(p)) {
+            if (exp == 0 && fracN(eqz)(p)) {
                 p->cls = float_class_zero;
             }
         }
@@ -487,17 +487,17 @@ static void partsN(uncanon)(FloatPartsN *p, float_status *s,
         switch (p->cls) {
         case float_class_zero:
             p->exp = 0;
-            frac_clear(p);
+            fracN(clear)(p);
             return;
         case float_class_inf:
             switch (fmt->exp_max_kind) {
             case float_expmax_ieee:
                 p->exp = fmt->exp_max;
-                frac_clear(p);
+                fracN(clear)(p);
                 break;
             case float_expmax_e4m3:
                 partsN(uncanon_e4m3_overflow)(p, s, fmt, saturate);
-                frac_shr(p, fmt->frac_shift);
+                fracN(shr)(p, fmt->frac_shift);
                 break;
             case float_expmax_normal:
             default:
@@ -508,7 +508,7 @@ static void partsN(uncanon)(FloatPartsN *p, float_status *s,
         case float_class_snan:
             assert(fmt->exp_max_kind != float_expmax_normal);
             p->exp = fmt->exp_max;
-            frac_shr(p, fmt->frac_shift);
+            fracN(shr)(p, fmt->frac_shift);
             return;
         default:
             break;
@@ -625,12 +625,12 @@ static FloatPartsN *partsN(mul)(FloatPartsN *a, FloatPartsN *b,
             float_raise(float_flag_input_denormal_used, s);
         }
 
-        frac_mulw(&tmp, a, b);
-        frac_truncjam(a, &tmp);
+        fracN(mulw)(&tmp, a, b);
+        fracN(truncjam)(a, &tmp);
 
         a->exp += b->exp + 1;
         if (!(a->frac_hi & DECOMPOSED_IMPLICIT_BIT)) {
-            frac_add(a, a, a);
+            fracN(add)(a, a, a);
             a->exp -= 1;
         }
 
@@ -747,16 +747,16 @@ static FloatPartsN *partsN(muladd_scalbn)(FloatPartsN *a, FloatPartsN *b,
     /* Perform the multiplication step. */
     p_widen.sign = a->sign;
     p_widen.exp = a->exp + b->exp + 1;
-    frac_mulw(&p_widen, a, b);
+    fracN(mulw)(&p_widen, a, b);
     if (!(p_widen.frac_hi & DECOMPOSED_IMPLICIT_BIT)) {
-        frac_add(&p_widen, &p_widen, &p_widen);
+        fracW(add)(&p_widen, &p_widen, &p_widen);
         p_widen.exp -= 1;
     }
 
     /* Perform the addition step. */
     if (c->cls != float_class_zero) {
         /* Zero-extend C to less significant bits. */
-        frac_widen(&c_widen, c);
+        fracN(widen)(&c_widen, c);
         c_widen.exp = c->exp;
 
         if (a->sign == c->sign) {
@@ -767,7 +767,7 @@ static FloatPartsN *partsN(muladd_scalbn)(FloatPartsN *a, FloatPartsN *b,
     }
 
     /* Narrow with sticky bit, for proper rounding later. */
-    frac_truncjam(a, &p_widen);
+    fracN(truncjam)(a, &p_widen);
     a->sign = p_widen.sign;
     a->exp = p_widen.exp;
 
@@ -816,7 +816,7 @@ static FloatPartsN *partsN(div)(FloatPartsN *a, FloatPartsN *b,
             float_raise(float_flag_input_denormal_used, s);
         }
         a->sign = sign;
-        a->exp -= b->exp + frac_div(a, b);
+        a->exp -= b->exp + fracN(div)(a, b);
         return a;
     }
 
@@ -880,7 +880,7 @@ static FloatPartsN *partsN(modrem)(FloatPartsN *a, FloatPartsN *b,
         if (ab_mask & float_cmask_denormal) {
             float_raise(float_flag_input_denormal_used, s);
         }
-        frac_modrem(a, b, mod_quot);
+        fracN(modrem)(a, b, mod_quot);
         return a;
     }
 
@@ -969,7 +969,7 @@ static void partsN(sqrt)(FloatPartsN *a, float_status *status,
     exp_odd = a->exp & 1;
     index = extract64(a->frac_hi, 57, 6) | (!exp_odd << 6);
     if (!exp_odd) {
-        frac_shr(a, 1);
+        fracN(shr)(a, 1);
     }
 
     /*
@@ -1110,7 +1110,7 @@ static void partsN(sqrt)(FloatPartsN *a, float_status *status,
     /* Convert back from base 4 to base 2. */
     a->exp >>= 1;
     if (!(a->frac_hi & DECOMPOSED_IMPLICIT_BIT)) {
-        frac_add(a, a, a);
+        fracN(add)(a, a, a);
     } else {
         a->exp += 1;
     }
@@ -1150,9 +1150,9 @@ static bool partsN(round_to_int_normal)(FloatPartsN *a, FloatRoundMode rmode,
             if (a->exp == -1) {
                 FloatPartsN tmp;
                 /* Shift left one, discarding DECOMPOSED_IMPLICIT_BIT */
-                frac_add(&tmp, a, a);
+                fracN(add)(&tmp, a, a);
                 /* Anything remaining means frac > 0.5. */
-                one = !frac_eqz(&tmp);
+                one = !fracN(eqz)(&tmp);
             }
             break;
         case float_round_ties_away:
@@ -1174,7 +1174,7 @@ static bool partsN(round_to_int_normal)(FloatPartsN *a, FloatRoundMode rmode,
             g_assert_not_reached();
         }
 
-        frac_clear(a);
+        fracN(clear)(a);
         a->exp = 0;
         if (one) {
             a->frac_hi = DECOMPOSED_IMPLICIT_BIT;
@@ -1190,7 +1190,7 @@ static bool partsN(round_to_int_normal)(FloatPartsN *a, FloatRoundMode rmode,
          * which leaves room for sticky and rounding bit.
          */
         shift_adj = (N - 1) - (a->exp + 2);
-        frac_shrjam(a, shift_adj);
+        fracN(shrjam)(a, shift_adj);
         frac_lsb = 1 << 2;
     } else {
         /*
@@ -1208,7 +1208,7 @@ static bool partsN(round_to_int_normal)(FloatPartsN *a, FloatRoundMode rmode,
 
     if (!(a->frac_lo & rnd_mask)) {
         /* Fractional bits already clear, undo the shift above. */
-        frac_shl(a, shift_adj);
+        fracN(shl)(a, shift_adj);
         return false;
     }
 
@@ -1236,21 +1236,21 @@ static bool partsN(round_to_int_normal)(FloatPartsN *a, FloatRoundMode rmode,
     }
 
     if (shift_adj == 0) {
-        if (frac_addi(a, a, inc)) {
-            frac_shr(a, 1);
+        if (fracN(addi)(a, a, inc)) {
+            fracN(shr)(a, 1);
             a->frac_hi |= DECOMPOSED_IMPLICIT_BIT;
             a->exp++;
         }
         a->frac_lo &= ~rnd_mask;
     } else {
-        frac_addi(a, a, inc);
+        fracN(addi)(a, a, inc);
         a->frac_lo &= ~rnd_mask;
         /* Be careful shifting back, not to overflow */
-        frac_shl(a, shift_adj - 1);
+        fracN(shl)(a, shift_adj - 1);
         if (a->frac_hi & DECOMPOSED_IMPLICIT_BIT) {
             a->exp++;
         } else {
-            frac_add(a, a, a);
+            fracN(add)(a, a, a);
         }
     }
     return true;
@@ -1555,7 +1555,7 @@ static FloatPartsN *partsN(minmax)(FloatPartsN *a, FloatPartsN *b,
     /* Compare magnitudes. */
     cmp = a_exp - b_exp;
     if (cmp == 0) {
-        cmp = frac_cmp(a, b);
+        cmp = fracN(cmp)(a, b);
     }
 
     /*
@@ -1597,7 +1597,7 @@ static FloatRelation partsN(compare)(FloatPartsN *a, FloatPartsN *b,
             goto a_sign;
         }
         if (a->exp == b->exp) {
-            cmp = frac_cmp(a, b);
+            cmp = fracN(cmp)(a, b);
         } else if (a->exp < b->exp) {
             cmp = float_relation_less;
         } else {
