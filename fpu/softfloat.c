@@ -646,11 +646,6 @@ static FloatParts64 unpack_raw64(const FloatFmt *fmt, uint64_t raw)
     };
 }
 
-static void QEMU_FLATTEN float8_e5m2_unpack_raw(FloatParts64 *p, float8_e5m2 f)
-{
-    *p = unpack_raw64(&float8_e5m2_params, f);
-}
-
 static void QEMU_FLATTEN float16_unpack_raw(FloatParts64 *p, float16 f)
 {
     *p = unpack_raw64(&float16_params, f);
@@ -1477,11 +1472,11 @@ static FloatParts64 float8_e4m3_unpack_canonical(float8_e4m3 f, float_status *s)
     return p;
 }
 
-static void float8_e5m2_unpack_canonical(FloatParts64 *p, float8_e5m2 f,
-                                         float_status *s)
+static FloatParts64 float8_e5m2_unpack_canonical(float8_e5m2 f, float_status *s)
 {
-    float8_e5m2_unpack_raw(p, f);
-    parts64_canonicalize(p, s, &float8_e5m2_params);
+    FloatParts64 p = unpack_raw64(&float8_e5m2_params, f);
+    parts64_canonicalize(&p, s, &float8_e5m2_params);
+    return p;
 }
 
 static void float16a_unpack_canonical(FloatParts64 *p, float16 f,
@@ -2703,9 +2698,7 @@ bfloat16 float8_e4m3_to_bfloat16(float8_e4m3 a, float_status *s)
 
 bfloat16 float8_e5m2_to_bfloat16(float8_e5m2 a, float_status *s)
 {
-    FloatParts64 p;
-
-    float8_e5m2_unpack_canonical(&p, a, s);
+    FloatParts64 p = float8_e5m2_unpack_canonical(a, s);
     parts64_float_to_float(&p, s);
     return bfloat16_round_pack_canonical(&p, s);
 }
