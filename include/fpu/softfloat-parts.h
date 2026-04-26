@@ -175,4 +175,11 @@ FloatParts64 parts64_pick_nan(const FloatParts64 *, const FloatParts64 *,
 FloatParts128 parts128_pick_nan(const FloatParts128 *, const FloatParts128 *,
                                 float_status *);
 
+/*
+ * Operations
+ */
+
+void parts64_round_canonical(FloatParts64 *p, float_status *s,
+                             const FloatFmt *fmt);
+
 #endif

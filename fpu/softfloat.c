@@ -1396,6 +1396,21 @@ float64 float64_round_pack_canonical(FloatParts64 *p, float_status *s)
     return pack_raw64(p, &float64_params);
 }
 
+/*
+ * Round to Fmt while remaining canonicalized.
+ */
+void parts64_round_canonical(FloatParts64 *p, float_status *s,
+                             const FloatFmt *fmt)
+{
+    parts64_uncanon(p, s, fmt, false);
+    /*
+     * We normally expect uncanon to be followed by pack_raw,
+     * so we don't actually crop the bits.  Do so now.
+     */
+    p->frac &= MAKE_64BIT_MASK(0, fmt->frac_size);
+    parts64_canonicalize(p, s, fmt);
+}
+
 static float64 float64r32_pack_raw(FloatParts64 *p)
 {
     /*
@@ -5175,10 +5190,8 @@ static void parts_s390_divide_to_integer(FloatParts64 *a, FloatParts64 *b,
         /* Round remainder to the target format */
         *r = *r_precise;
         status->float_exception_flags = 0;
-        parts64_uncanon(r, status, fmt, false);
+        parts64_round_canonical(r, status, fmt);
         r_flags = status->float_exception_flags;
-        r->frac &= (1ULL << fmt->frac_size) - 1;
-        parts64_canonicalize(r, status, fmt);
 
         /* POp table "Results: DIVIDE TO INTEGER (Part 2 of 2)" */
         if (is_q_smallish) {
