@@ -779,11 +779,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
                   FloatParts128 *: parts128_##NAME, \
                   FloatParts256 *: parts256_##NAME)
 
-static void parts64_return_nan(FloatParts64 *a, float_status *s);
-static void parts128_return_nan(FloatParts128 *a, float_status *s);
-
-#define parts_return_nan(P, S)     PARTS_GENERIC_64_128(return_nan, P)(P, S)
-
 static FloatParts64 *parts64_pick_nan(FloatParts64 *a, FloatParts64 *b,
                                       float_status *s);
 static FloatParts128 *parts128_pick_nan(FloatParts128 *a, FloatParts128 *b,
@@ -2831,7 +2826,7 @@ static void parts_float_to_e5m2(FloatParts64 *a, float_status *s, bool saturate)
     switch (a->cls) {
     case float_class_snan:
     case float_class_qnan:
-        parts_return_nan(a, s);
+        parts64_return_nan(a, s);
         break;
 
     case float_class_inf:
@@ -2858,7 +2853,7 @@ static void parts_float_to_e5m2(FloatParts64 *a, float_status *s, bool saturate)
 static void parts64_float_to_float(FloatParts64 *a, float_status *s)
 {
     if (is_nan(a->cls)) {
-        parts_return_nan(a, s);
+        parts64_return_nan(a, s);
     }
     if (a->cls == float_class_denormal) {
         float_raise(float_flag_input_denormal_used, s);
@@ -2868,7 +2863,7 @@ static void parts64_float_to_float(FloatParts64 *a, float_status *s)
 static void parts128_float_to_float(FloatParts128 *a, float_status *s)
 {
     if (is_nan(a->cls)) {
-        parts_return_nan(a, s);
+        parts128_return_nan(a, s);
     }
     if (a->cls == float_class_denormal) {
         float_raise(float_flag_input_denormal_used, s);
@@ -2896,7 +2891,7 @@ static void parts_float_to_float_narrow(FloatParts64 *a, FloatParts128 *b,
     case float_class_qnan:
         /* Discard the low bits of the NaN. */
         a->frac = b->frac_hi;
-        parts_return_nan(a, s);
+        parts64_return_nan(a, s);
         break;
     default:
         break;
@@ -2912,7 +2907,7 @@ static void parts_float_to_float_widen(FloatParts128 *a, FloatParts64 *b,
     frac_widen(a, b);
 
     if (is_nan(a->cls)) {
-        parts_return_nan(a, s);
+        parts128_return_nan(a, s);
     }
     if (a->cls == float_class_denormal) {
         float_raise(float_flag_input_denormal_used, s);
@@ -5474,7 +5469,7 @@ float32 float32_exp2(float32 a, float_status *status)
             break;
         case float_class_snan:
         case float_class_qnan:
-            parts_return_nan(&xp, status);
+            parts64_return_nan(&xp, status);
             return float32_round_pack_canonical(&xp, status);
         case float_class_inf:
             return xp.sign ? float32_zero : a;
