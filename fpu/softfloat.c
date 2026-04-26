@@ -779,14 +779,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
                   FloatParts128 *: parts128_##NAME, \
                   FloatParts256 *: parts256_##NAME)
 
-static FloatRelation parts64_compare(FloatParts64 *a, FloatParts64 *b,
-                                     float_status *s, bool q);
-static FloatRelation parts128_compare(FloatParts128 *a, FloatParts128 *b,
-                                      float_status *s, bool q);
-
-#define parts_compare(A, B, S, Q) \
-    PARTS_GENERIC_64_128(compare, A)(A, B, S, Q)
-
 static void parts64_scalbn(FloatParts64 *a, int n, float_status *s);
 static void parts128_scalbn(FloatParts128 *a, int n, float_status *s);
 
@@ -4494,7 +4486,7 @@ float16_do_compare(float16 a, float16 b, float_status *s, bool is_quiet)
 
     float16_unpack_canonical(&pa, a, s);
     float16_unpack_canonical(&pb, b, s);
-    return parts_compare(&pa, &pb, s, is_quiet);
+    return parts64_compare(&pa, &pb, s, is_quiet);
 }
 
 FloatRelation float16_compare(float16 a, float16 b, float_status *s)
@@ -4514,7 +4506,7 @@ float32_do_compare(float32 a, float32 b, float_status *s, bool is_quiet)
 
     float32_unpack_canonical(&pa, a, s);
     float32_unpack_canonical(&pb, b, s);
-    return parts_compare(&pa, &pb, s, is_quiet);
+    return parts64_compare(&pa, &pb, s, is_quiet);
 }
 
 static FloatRelation QEMU_FLATTEN
@@ -4568,7 +4560,7 @@ float64_do_compare(float64 a, float64 b, float_status *s, bool is_quiet)
 
     float64_unpack_canonical(&pa, a, s);
     float64_unpack_canonical(&pb, b, s);
-    return parts_compare(&pa, &pb, s, is_quiet);
+    return parts64_compare(&pa, &pb, s, is_quiet);
 }
 
 static FloatRelation QEMU_FLATTEN
@@ -4622,7 +4614,7 @@ bfloat16_do_compare(bfloat16 a, bfloat16 b, float_status *s, bool is_quiet)
 
     bfloat16_unpack_canonical(&pa, a, s);
     bfloat16_unpack_canonical(&pb, b, s);
-    return parts_compare(&pa, &pb, s, is_quiet);
+    return parts64_compare(&pa, &pb, s, is_quiet);
 }
 
 FloatRelation bfloat16_compare(bfloat16 a, bfloat16 b, float_status *s)
@@ -4642,7 +4634,7 @@ float128_do_compare(float128 a, float128 b, float_status *s, bool is_quiet)
 
     float128_unpack_canonical(&pa, a, s);
     float128_unpack_canonical(&pb, b, s);
-    return parts_compare(&pa, &pb, s, is_quiet);
+    return parts128_compare(&pa, &pb, s, is_quiet);
 }
 
 FloatRelation float128_compare(float128 a, float128 b, float_status *s)
@@ -4664,7 +4656,7 @@ floatx80_do_compare(floatx80 a, floatx80 b, float_status *s, bool is_quiet)
         !floatx80_unpack_canonical(&pb, b, s)) {
         return float_relation_unordered;
     }
-    return parts_compare(&pa, &pb, s, is_quiet);
+    return parts128_compare(&pa, &pb, s, is_quiet);
 }
 
 FloatRelation floatx80_compare(floatx80 a, floatx80 b, float_status *s)
@@ -5518,7 +5510,7 @@ static void parts_s390_divide_to_integer(FloatParts64 *a, FloatParts64 *b,
                         saved_r_precise_sign = r_precise->sign;
                         r->sign = false;
                         r_precise->sign = false;
-                        if (parts_compare(r, r_precise, status, true) <
+                        if (parts64_compare(r, r_precise, status, true) <
                             float_relation_equal) {
                             *dxc = 0x8;
                         } else {
