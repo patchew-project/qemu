@@ -779,18 +779,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
                   FloatParts128 *: parts128_##NAME, \
                   FloatParts256 *: parts256_##NAME)
 
-static FloatParts64 *parts64_pick_nan_muladd(FloatParts64 *a, FloatParts64 *b,
-                                             FloatParts64 *c, float_status *s,
-                                             int ab_mask, int abc_mask);
-static FloatParts128 *parts128_pick_nan_muladd(FloatParts128 *a,
-                                               FloatParts128 *b,
-                                               FloatParts128 *c,
-                                               float_status *s,
-                                               int ab_mask, int abc_mask);
-
-#define parts_pick_nan_muladd(A, B, C, S, ABM, ABCM) \
-    PARTS_GENERIC_64_128(pick_nan_muladd, A)(A, B, C, S, ABM, ABCM)
-
 static void parts64_add_normal(FloatParts64 *a, FloatParts64 *b);
 static void parts128_add_normal(FloatParts128 *a, FloatParts128 *b);
 static void parts256_add_normal(FloatParts256 *a, FloatParts256 *b);
