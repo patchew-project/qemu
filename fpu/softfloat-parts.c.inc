@@ -1255,10 +1255,10 @@ static bool partsN(round_to_int_normal)(FloatPartsN *a, FloatRoundMode rmode,
     return true;
 }
 
-static FloatPartsN partsN(round_to_int)(const FloatPartsN *a,
-                                        FloatRoundMode rmode,
-                                        int scale, float_status *s,
-                                        const FloatFmt *fmt)
+FloatPartsN partsN(round_to_int)(const FloatPartsN *a,
+                                 FloatRoundMode rmode,
+                                 int scale, float_status *s,
+                                 const FloatFmt *fmt)
 {
     switch (a->cls) {
     case float_class_qnan:

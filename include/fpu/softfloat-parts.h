@@ -187,4 +187,13 @@ FloatParts128 parts128_div(const FloatParts128 *a, const FloatParts128 *b,
 void parts64_round_canonical(FloatParts64 *p, float_status *s,
                              const FloatFmt *fmt);
 
+FloatParts64 parts64_round_to_int(const FloatParts64 *a,
+                                  FloatRoundMode rmode,
+                                  int scale, float_status *s,
+                                  const FloatFmt *fmt);
+FloatParts128 parts128_round_to_int(const FloatParts128 *a,
+                                    FloatRoundMode rmode,
+                                    int scale, float_status *s,
+                                    const FloatFmt *fmt);
+
 #endif
