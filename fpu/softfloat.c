@@ -779,16 +779,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
                   FloatParts128 *: parts128_##NAME, \
                   FloatParts256 *: parts256_##NAME)
 
-static FloatParts64 *parts64_muladd_scalbn(FloatParts64 *a, FloatParts64 *b,
-                                           FloatParts64 *c, int scale,
-                                           int flags, float_status *s);
-static FloatParts128 *parts128_muladd_scalbn(FloatParts128 *a, FloatParts128 *b,
-                                             FloatParts128 *c, int scale,
-                                             int flags, float_status *s);
-
-#define parts_muladd_scalbn(A, B, C, Z, Y, S) \
-    PARTS_GENERIC_64_128(muladd_scalbn, A)(A, B, C, Z, Y, S)
-
 static FloatParts64 *parts64_div(FloatParts64 *a, FloatParts64 *b,
                                  float_status *s);
 static FloatParts128 *parts128_div(FloatParts128 *a, FloatParts128 *b,
@@ -2256,7 +2246,7 @@ float16_muladd_scalbn(float16 a, float16 b, float16 c,
     float16_unpack_canonical(&pa, a, status);
     float16_unpack_canonical(&pb, b, status);
     float16_unpack_canonical(&pc, c, status);
-    pr = parts_muladd_scalbn(&pa, &pb, &pc, scale, flags, status);
+    pr = parts64_muladd_scalbn(&pa, &pb, &pc, scale, flags, status);
 
     /* Round before applying negate result. */
     parts64_uncanon(pr, status, &float16_params, false);
@@ -2281,7 +2271,7 @@ float32_muladd_scalbn(float32 a, float32 b, float32 c,
     float32_unpack_canonical(&pa, a, status);
     float32_unpack_canonical(&pb, b, status);
     float32_unpack_canonical(&pc, c, status);
-    pr = parts_muladd_scalbn(&pa, &pb, &pc, scale, flags, status);
+    pr = parts64_muladd_scalbn(&pa, &pb, &pc, scale, flags, status);
 
     /* Round before applying negate result. */
     parts64_uncanon(pr, status, &float32_params, false);
@@ -2300,7 +2290,7 @@ float64_muladd_scalbn(float64 a, float64 b, float64 c,
     float64_unpack_canonical(&pa, a, status);
     float64_unpack_canonical(&pb, b, status);
     float64_unpack_canonical(&pc, c, status);
-    pr = parts_muladd_scalbn(&pa, &pb, &pc, scale, flags, status);
+    pr = parts64_muladd_scalbn(&pa, &pb, &pc, scale, flags, status);
 
     /* Round before applying negate result. */
     parts64_uncanon(pr, status, &float64_params, false);
@@ -2459,7 +2449,7 @@ float64 float64r32_muladd(float64 a, float64 b, float64 c,
     float64_unpack_canonical(&pa, a, status);
     float64_unpack_canonical(&pb, b, status);
     float64_unpack_canonical(&pc, c, status);
-    pr = parts_muladd_scalbn(&pa, &pb, &pc, 0, flags, status);
+    pr = parts64_muladd_scalbn(&pa, &pb, &pc, 0, flags, status);
 
     /* Round before applying negate result. */
     parts64_uncanon(pr, status, &float32_params, false);
@@ -2477,7 +2467,7 @@ bfloat16 QEMU_FLATTEN bfloat16_muladd(bfloat16 a, bfloat16 b, bfloat16 c,
     bfloat16_unpack_canonical(&pa, a, status);
     bfloat16_unpack_canonical(&pb, b, status);
     bfloat16_unpack_canonical(&pc, c, status);
-    pr = parts_muladd_scalbn(&pa, &pb, &pc, 0, flags, status);
+    pr = parts64_muladd_scalbn(&pa, &pb, &pc, 0, flags, status);
 
     /* Round before applying negate result. */
     parts64_uncanon(pr, status, &bfloat16_params, false);
@@ -2495,7 +2485,7 @@ float128 QEMU_FLATTEN float128_muladd(float128 a, float128 b, float128 c,
     float128_unpack_canonical(&pa, a, status);
     float128_unpack_canonical(&pb, b, status);
     float128_unpack_canonical(&pc, c, status);
-    pr = parts_muladd_scalbn(&pa, &pb, &pc, 0, flags, status);
+    pr = parts128_muladd_scalbn(&pa, &pb, &pc, 0, flags, status);
 
     /* Round before applying negate result. */
     parts128_uncanon(pr, status, &float128_params, false);
@@ -5442,7 +5432,7 @@ float32 float32_exp2(float32 a, float_status *status)
     for (i = 0 ; i < 15 ; i++) {
 
         float64_unpack_canonical(&tp, float32_exp2_coefficients[i], status);
-        rp = *parts_muladd_scalbn(&tp, &xnp, &rp, 0, 0, status);
+        rp = *parts64_muladd_scalbn(&tp, &xnp, &rp, 0, 0, status);
         xnp = *parts64_mul(&xnp, &xp, status);
     }
 
@@ -5522,8 +5512,8 @@ static void parts_s390_divide_to_integer(FloatParts64 *a, FloatParts64 *b,
 
         /* Compute precise remainder */
         r_precise_buf = *b;
-        r_precise = parts_muladd_scalbn(&r_precise_buf, n, a, 0,
-                                        float_muladd_negate_product, status);
+        r_precise = parts64_muladd_scalbn(&r_precise_buf, n, a, 0,
+                                          float_muladd_negate_product, status);
 
         /* Round remainder to the target format */
         *r = *r_precise;
