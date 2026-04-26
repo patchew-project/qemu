@@ -774,12 +774,14 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
  * Helper functions for softfloat-parts.c.inc, per-size operations.
  */
 
-static bool frac64_add(FloatParts64 *r, FloatParts64 *a, FloatParts64 *b)
+static bool frac64_add(FloatParts64 *r,
+                       const FloatParts64 *a, const FloatParts64 *b)
 {
     return uadd64_overflow(a->frac, b->frac, &r->frac);
 }
 
-static bool frac128_add(FloatParts128 *r, FloatParts128 *a, FloatParts128 *b)
+static bool frac128_add(FloatParts128 *r,
+                        const FloatParts128 *a, const FloatParts128 *b)
 {
     bool c = 0;
     r->frac_lo = uadd64_carry(a->frac_lo, b->frac_lo, &c);
@@ -787,7 +789,8 @@ static bool frac128_add(FloatParts128 *r, FloatParts128 *a, FloatParts128 *b)
     return c;
 }
 
-static bool frac256_add(FloatParts256 *r, FloatParts256 *a, FloatParts256 *b)
+static bool frac256_add(FloatParts256 *r,
+                        const FloatParts256 *a, const FloatParts256 *b)
 {
     bool c = 0;
     r->frac_lo = uadd64_carry(a->frac_lo, b->frac_lo, &c);
@@ -797,12 +800,12 @@ static bool frac256_add(FloatParts256 *r, FloatParts256 *a, FloatParts256 *b)
     return c;
 }
 
-static bool frac64_addi(FloatParts64 *r, FloatParts64 *a, uint64_t c)
+static bool frac64_addi(FloatParts64 *r, const FloatParts64 *a, uint64_t c)
 {
     return uadd64_overflow(a->frac, c, &r->frac);
 }
 
-static bool frac128_addi(FloatParts128 *r, FloatParts128 *a, uint64_t c)
+static bool frac128_addi(FloatParts128 *r, const FloatParts128 *a, uint64_t c)
 {
     c = uadd64_overflow(a->frac_lo, c, &r->frac_lo);
     return uadd64_overflow(a->frac_hi, c, &r->frac_hi);
@@ -818,14 +821,14 @@ static void frac128_allones(FloatParts128 *a)
     a->frac_hi = a->frac_lo = -1;
 }
 
-static FloatRelation frac64_cmp(FloatParts64 *a, FloatParts64 *b)
+static FloatRelation frac64_cmp(const FloatParts64 *a, const FloatParts64 *b)
 {
     return (a->frac == b->frac ? float_relation_equal
             : a->frac < b->frac ? float_relation_less
             : float_relation_greater);
 }
 
-static FloatRelation frac128_cmp(FloatParts128 *a, FloatParts128 *b)
+static FloatRelation frac128_cmp(const FloatParts128 *a, const FloatParts128 *b)
 {
     uint64_t ta = a->frac_hi, tb = b->frac_hi;
     if (ta == tb) {
@@ -847,7 +850,7 @@ static void frac128_clear(FloatParts128 *a)
     a->frac_hi = a->frac_lo = 0;
 }
 
-static bool frac64_div(FloatParts64 *a, FloatParts64 *b)
+static bool frac64_div(FloatParts64 *a, const FloatParts64 *b)
 {
     uint64_t n1, n0, r, q;
     bool ret;
@@ -879,7 +882,7 @@ static bool frac64_div(FloatParts64 *a, FloatParts64 *b)
     return ret;
 }
 
-static bool frac128_div(FloatParts128 *a, FloatParts128 *b)
+static bool frac128_div(FloatParts128 *a, const FloatParts128 *b)
 {
     uint64_t q0, q1, a0, a1, b0, b1;
     uint64_t r0, r1, r2, r3, t0, t1, t2, t3;
@@ -926,22 +929,24 @@ static bool frac128_div(FloatParts128 *a, FloatParts128 *b)
     return ret;
 }
 
-static bool frac64_eqz(FloatParts64 *a)
+static bool frac64_eqz(const FloatParts64 *a)
 {
     return a->frac == 0;
 }
 
-static bool frac128_eqz(FloatParts128 *a)
+static bool frac128_eqz(const FloatParts128 *a)
 {
     return (a->frac_hi | a->frac_lo) == 0;
 }
 
-static void frac64_mulw(FloatParts128 *r, FloatParts64 *a, FloatParts64 *b)
+static void frac64_mulw(FloatParts128 *r,
+                        const FloatParts64 *a, const FloatParts64 *b)
 {
     mulu64(&r->frac_lo, &r->frac_hi, a->frac, b->frac);
 }
 
-static void frac128_mulw(FloatParts256 *r, FloatParts128 *a, FloatParts128 *b)
+static void frac128_mulw(FloatParts256 *r,
+                         const FloatParts128 *a, const FloatParts128 *b)
 {
     mul128To256(a->frac_hi, a->frac_lo, b->frac_hi, b->frac_lo,
                 &r->frac_hi, &r->frac_hm, &r->frac_lm, &r->frac_lo);
@@ -1041,7 +1046,8 @@ static int frac256_normalize(FloatParts256 *a)
     return ret;
 }
 
-static void frac64_modrem(FloatParts64 *a, FloatParts64 *b, uint64_t *mod_quot)
+static void frac64_modrem(FloatParts64 *a, const FloatParts64 *b,
+                          uint64_t *mod_quot)
 {
     uint64_t a0, a1, b0, t0, t1, q, quot;
     int exp_diff = a->exp - b->exp;
@@ -1124,7 +1130,7 @@ static void frac64_modrem(FloatParts64 *a, FloatParts64 *b, uint64_t *mod_quot)
     a->frac = a0 | (a1 != 0);
 }
 
-static void frac128_modrem(FloatParts128 *a, FloatParts128 *b,
+static void frac128_modrem(FloatParts128 *a, const FloatParts128 *b,
                            uint64_t *mod_quot)
 {
     uint64_t a0, a1, a2, b0, b1, t0, t1, t2, q, quot;
@@ -1353,12 +1359,14 @@ static void frac256_shrjam(FloatParts256 *a, int c)
     a->frac_hi = a0;
 }
 
-static bool frac64_sub(FloatParts64 *r, FloatParts64 *a, FloatParts64 *b)
+static bool frac64_sub(FloatParts64 *r,
+                       const FloatParts64 *a, const FloatParts64 *b)
 {
     return usub64_overflow(a->frac, b->frac, &r->frac);
 }
 
-static bool frac128_sub(FloatParts128 *r, FloatParts128 *a, FloatParts128 *b)
+static bool frac128_sub(FloatParts128 *r,
+                        const FloatParts128 *a, const FloatParts128 *b)
 {
     bool c = 0;
     r->frac_lo = usub64_borrow(a->frac_lo, b->frac_lo, &c);
@@ -1366,7 +1374,8 @@ static bool frac128_sub(FloatParts128 *r, FloatParts128 *a, FloatParts128 *b)
     return c;
 }
 
-static bool frac256_sub(FloatParts256 *r, FloatParts256 *a, FloatParts256 *b)
+static bool frac256_sub(FloatParts256 *r,
+                        const FloatParts256 *a, const FloatParts256 *b)
 {
     bool c = 0;
     r->frac_lo = usub64_borrow(a->frac_lo, b->frac_lo, &c);
@@ -1376,24 +1385,24 @@ static bool frac256_sub(FloatParts256 *r, FloatParts256 *a, FloatParts256 *b)
     return c;
 }
 
-static void frac64_truncjam(FloatParts64 *r, FloatParts128 *a)
+static void frac64_truncjam(FloatParts64 *r, const FloatParts128 *a)
 {
     r->frac = a->frac_hi | (a->frac_lo != 0);
 }
 
-static void frac128_truncjam(FloatParts128 *r, FloatParts256 *a)
+static void frac128_truncjam(FloatParts128 *r, const FloatParts256 *a)
 {
     r->frac_hi = a->frac_hi;
     r->frac_lo = a->frac_hm | ((a->frac_lm | a->frac_lo) != 0);
 }
 
-static void frac64_widen(FloatParts128 *r, FloatParts64 *a)
+static void frac64_widen(FloatParts128 *r, const FloatParts64 *a)
 {
     r->frac_hi = a->frac;
     r->frac_lo = 0;
 }
 
-static void frac128_widen(FloatParts256 *r, FloatParts128 *a)
+static void frac128_widen(FloatParts256 *r, const FloatParts128 *a)
 {
     r->frac_hi = a->frac_hi;
     r->frac_hm = a->frac_lo;
