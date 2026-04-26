@@ -646,12 +646,12 @@ static FloatParts64 unpack_raw64(const FloatFmt *fmt, uint64_t raw)
     };
 }
 
-static void QEMU_FLATTEN float128_unpack_raw(FloatParts128 *p, float128 f)
+static FloatParts128 float128_unpack_raw(float128 f)
 {
     const int f_size = float128_params.frac_size - 64;
     const int e_size = float128_params.exp_size;
 
-    *p = (FloatParts128) {
+    return (FloatParts128) {
         .cls = float_class_unclassified,
         .sign = extract64(f.high, f_size + e_size, 1),
         .exp = extract64(f.high, f_size, e_size),
@@ -1586,7 +1586,7 @@ static float64 float64r32_round_pack_canonical(FloatParts64 *p,
 static void float128_unpack_canonical(FloatParts128 *p, float128 f,
                                       float_status *s)
 {
-    float128_unpack_raw(p, f);
+    *p = float128_unpack_raw(f);
     parts128_canonicalize(p, s, &float128_params);
 }
 
@@ -4845,9 +4845,8 @@ bfloat16 bfloat16_silence_nan(bfloat16 a, float_status *status)
 
 float128 float128_silence_nan(float128 a, float_status *status)
 {
-    FloatParts128 p;
+    FloatParts128 p = float128_unpack_raw(a);
 
-    float128_unpack_raw(&p, a);
     frac128_shl(&p, float128_params.frac_shift);
     parts128_silence_nan(&p, status);
     frac128_shr(&p, float128_params.frac_shift);
