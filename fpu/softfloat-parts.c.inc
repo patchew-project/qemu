@@ -541,7 +541,7 @@ static FloatPartsN *partsN(addsub)(FloatPartsN *a, FloatPartsN *b,
     if (a->sign != b_sign) {
         /* Subtraction */
         if (likely(cmask_is_only_normals(ab_mask))) {
-            if (parts_sub_normal(a, b)) {
+            if (partsN(sub_normal)(a, b)) {
                 return a;
             }
             /* Subtract was exact, fall through to set sign. */
@@ -574,7 +574,7 @@ static FloatPartsN *partsN(addsub)(FloatPartsN *a, FloatPartsN *b,
     } else {
         /* Addition */
         if (likely(cmask_is_only_normals(ab_mask))) {
-            parts_add_normal(a, b);
+            partsN(add_normal)(a, b);
             return a;
         }
 
@@ -760,8 +760,8 @@ static FloatPartsN *partsN(muladd_scalbn)(FloatPartsN *a, FloatPartsN *b,
         c_widen.exp = c->exp;
 
         if (a->sign == c->sign) {
-            parts_add_normal(&p_widen, &c_widen);
-        } else if (!parts_sub_normal(&p_widen, &c_widen)) {
+            partsW(add_normal)(&p_widen, &c_widen);
+        } else if (!partsW(sub_normal)(&p_widen, &c_widen)) {
             goto return_sub_zero;
         }
     }
@@ -1869,9 +1869,9 @@ static void partsN(log2)(FloatPartsN *a, float_status *s, const FloatFmt *fmt)
     f.exp = f_exp - frac_normalize(&f);
 
     if (a_exp < 0) {
-        parts_sub_normal(a, &f);
+        partsN(sub_normal)(a, &f);
     } else if (a_exp > 0) {
-        parts_add_normal(a, &f);
+        partsN(add_normal)(a, &f);
     } else {
         *a = f;
     }
