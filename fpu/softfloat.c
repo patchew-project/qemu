@@ -1638,14 +1638,11 @@ static const uint16_t rsqrt_tab[128] = {
 #define FloatPartsN    glue(FloatParts,N)
 #define FloatPartsW    glue(FloatParts,W)
 
-#define N 64
-#define W 128
+#define N 256
 
 #include "softfloat-parts-addsub.c.inc"
-#include "softfloat-parts.c.inc"
 
 #undef  N
-#undef  W
 #define N 128
 #define W 256
 
@@ -1654,9 +1651,11 @@ static const uint16_t rsqrt_tab[128] = {
 
 #undef  N
 #undef  W
-#define N            256
+#define N 64
+#define W 128
 
 #include "softfloat-parts-addsub.c.inc"
+#include "softfloat-parts.c.inc"
 
 #undef  N
 #undef  W
