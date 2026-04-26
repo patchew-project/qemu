@@ -189,6 +189,11 @@ FloatRelation parts64_compare(const FloatParts64 *a, const FloatParts64 *b,
 FloatRelation parts128_compare(const FloatParts128 *a, const FloatParts128 *b,
                                float_status *s, bool quiet);
 
+FloatParts64 parts64_mul(const FloatParts64 *a, const FloatParts64 *b,
+                         float_status *s);
+FloatParts128 parts128_mul(const FloatParts128 *a, const FloatParts128 *b,
+                           float_status *s);
+
 FloatParts64 parts64_muladd_scalbn(const FloatParts64 *a,
                                    const FloatParts64 *b,
                                    const FloatParts64 *c,
