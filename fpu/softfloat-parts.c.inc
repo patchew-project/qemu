@@ -524,15 +524,14 @@ static void partsN(uncanon)(FloatPartsN *p, float_status *s,
  * according to the IEC/IEEE Standard for Binary Floating-Point
  * Arithmetic.
  */
-static FloatPartsN *partsN(addsub)(FloatPartsN *a, FloatPartsN *b,
-                                   float_status *s, bool subtract)
+FloatPartsN partsN(addsub)(const FloatPartsN *a_orig,
+                           const FloatPartsN *b_orig,
+                           float_status *s, bool subtract)
 {
-    bool b_sign = b->sign ^ subtract;
-    int ab_mask = float_cmask(a->cls) | float_cmask(b->cls);
+    int ab_mask = float_cmask(a_orig->cls) | float_cmask(b_orig->cls);
 
     if (unlikely(ab_mask & float_cmask_anynan)) {
-        *a = partsN(pick_nan)(a, b, s);
-        return a;
+        return partsN(pick_nan)(a_orig, b_orig, s);
     }
 
     /*
@@ -541,10 +540,15 @@ static FloatPartsN *partsN(addsub)(FloatPartsN *a, FloatPartsN *b,
      */
     record_denormals_used(ab_mask, s);
 
-    if (a->sign != b_sign) {
+    FloatPartsN a = *a_orig;
+    FloatPartsN b = *b_orig;
+
+    b.sign ^= subtract;
+
+    if (a.sign != b.sign) {
         /* Subtraction */
         if (likely(cmask_is_only_normals(ab_mask))) {
-            if (partsN(sub_normal)(a, b)) {
+            if (partsN(sub_normal)(&a, &b)) {
                 return a;
             }
             /* Subtract was exact, fall through to set sign. */
@@ -552,28 +556,27 @@ static FloatPartsN *partsN(addsub)(FloatPartsN *a, FloatPartsN *b,
         }
 
         if (ab_mask == float_cmask_zero) {
-            a->sign = s->float_rounding_mode == float_round_down;
+            a.sign = s->float_rounding_mode == float_round_down;
             return a;
         }
 
         if (ab_mask & float_cmask_inf) {
-            if (a->cls != float_class_inf) {
+            if (a.cls != float_class_inf) {
                 /* N - Inf */
-                goto return_b;
+                return b;
             }
-            if (b->cls != float_class_inf) {
+            if (b.cls != float_class_inf) {
                 /* Inf - N */
                 return a;
             }
             /* Inf - Inf */
             float_raise(float_flag_invalid | float_flag_invalid_isi, s);
-            *a = partsN(default_nan)(s);
-            return a;
+            return partsN(default_nan)(s);
         }
     } else {
         /* Addition */
         if (likely(cmask_is_only_normals(ab_mask))) {
-            partsN(add_normal)(a, b);
+            partsN(add_normal)(&a, &b);
             return a;
         }
 
@@ -582,20 +585,18 @@ static FloatPartsN *partsN(addsub)(FloatPartsN *a, FloatPartsN *b,
         }
 
         if (ab_mask & float_cmask_inf) {
-            a->cls = float_class_inf;
+            a.cls = float_class_inf;
             return a;
         }
     }
 
-    if (b->cls == float_class_zero) {
-        g_assert(is_anynorm(a->cls));
+    if (b.cls == float_class_zero) {
+        g_assert(is_anynorm(a.cls));
         return a;
     }
 
-    g_assert(a->cls == float_class_zero);
-    g_assert(is_anynorm(b->cls));
- return_b:
-    b->sign = b_sign;
+    g_assert(a.cls == float_class_zero);
+    g_assert(is_anynorm(b.cls));
     return b;
 }
 
