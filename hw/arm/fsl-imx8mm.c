@@ -180,6 +180,13 @@ static void fsl_imx8mm_init(Object *obj)
         object_initialize_child(obj, name, &s->uart[i], TYPE_IMX_SERIAL);
     }
 
+    for (i = 0; i < FSL_IMX8MM_NUM_GPTS; i++) {
+        g_autofree char *name = g_strdup_printf("gpt%d", i + 1);
+        object_initialize_child(obj, name, &s->gpt[i], TYPE_IMX8MM_GPT);
+    }
+    object_initialize_child(obj, "gpt5-gpt6-irq", &s->gpt5_gpt6_irq,
+                            TYPE_OR_IRQ);
+
     for (i = 0; i < FSL_IMX8MM_NUM_I2CS; i++) {
         g_autofree char *name = g_strdup_printf("i2c%d", i + 1);
         object_initialize_child(obj, name, &s->i2c[i], TYPE_IMX_I2C);
@@ -385,6 +392,52 @@ static void fsl_imx8mm_realize(DeviceState *dev, Error **errp)
                                 fsl_imx8mm_memmap[FSL_IMX8MM_OCRAM].addr,
                                 &s->ocram);
 
+    /* GPTs */
+    object_property_set_int(OBJECT(&s->gpt5_gpt6_irq), "num-lines", 2,
+                            &error_abort);
+    if (!qdev_realize(DEVICE(&s->gpt5_gpt6_irq), NULL, errp)) {
+        return;
+    }
+
+    qdev_connect_gpio_out(DEVICE(&s->gpt5_gpt6_irq), 0,
+                          qdev_get_gpio_in(gicdev, FSL_IMX8MM_GPT5_GPT6_IRQ));
+
+    for (i = 0; i < FSL_IMX8MM_NUM_GPTS; i++) {
+        hwaddr gpt_addrs[FSL_IMX8MM_NUM_GPTS] = {
+            fsl_imx8mm_memmap[FSL_IMX8MM_GPT1].addr,
+            fsl_imx8mm_memmap[FSL_IMX8MM_GPT2].addr,
+            fsl_imx8mm_memmap[FSL_IMX8MM_GPT3].addr,
+            fsl_imx8mm_memmap[FSL_IMX8MM_GPT4].addr,
+            fsl_imx8mm_memmap[FSL_IMX8MM_GPT5].addr,
+            fsl_imx8mm_memmap[FSL_IMX8MM_GPT6].addr,
+        };
+
+        s->gpt[i].ccm = IMX_CCM(&s->ccm);
+
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpt[i]), errp)) {
+            return;
+        }
+
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpt[i]), 0, gpt_addrs[i]);
+
+        if (i < FSL_IMX8MM_NUM_GPTS - 2) {
+            static const unsigned int gpt_irqs[FSL_IMX8MM_NUM_GPTS - 2] = {
+                FSL_IMX8MM_GPT1_IRQ,
+                FSL_IMX8MM_GPT2_IRQ,
+                FSL_IMX8MM_GPT3_IRQ,
+                FSL_IMX8MM_GPT4_IRQ,
+            };
+
+            sysbus_connect_irq(SYS_BUS_DEVICE(&s->gpt[i]), 0,
+                               qdev_get_gpio_in(gicdev, gpt_irqs[i]));
+        } else {
+            int irq = i - FSL_IMX8MM_NUM_GPTS + 2;
+
+            sysbus_connect_irq(SYS_BUS_DEVICE(&s->gpt[i]), 0,
+                               qdev_get_gpio_in(DEVICE(&s->gpt5_gpt6_irq), irq));
+        }
+    }
+
     /* I2Cs */
     for (i = 0; i < FSL_IMX8MM_NUM_I2CS; i++) {
         static const struct {
@@ -555,6 +608,7 @@ static void fsl_imx8mm_realize(DeviceState *dev, Error **errp)
         case FSL_IMX8MM_GIC_DIST:
         case FSL_IMX8MM_GIC_REDIST:
         case FSL_IMX8MM_GPIO1 ... FSL_IMX8MM_GPIO5:
+        case FSL_IMX8MM_GPT1 ... FSL_IMX8MM_GPT6:
         case FSL_IMX8MM_ECSPI1 ... FSL_IMX8MM_ECSPI3:
         case FSL_IMX8MM_I2C1 ... FSL_IMX8MM_I2C4:
         case FSL_IMX8MM_PCIE1:
