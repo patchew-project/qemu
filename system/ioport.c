@@ -145,6 +145,7 @@ void portio_list_destroy(PortioList *piolist)
     for (i = 0; i < piolist->nr; ++i) {
         mrpio = container_of(piolist->regions[i], MemoryRegionPortioList, mr);
         object_unparent(OBJECT(&mrpio->mr));
+        object_unref(OBJECT(&mrpio->mr));
         object_unref(mrpio);
     }
     g_free(piolist->regions);
@@ -346,7 +347,8 @@ static void memory_region_portio_list_finalize(Object *obj)
 {
     MemoryRegionPortioList *mrpio = MEMORY_REGION_PORTIO_LIST(obj);
 
-    object_unref(&mrpio->mr);
+    /* dropped by portio_list_destroy(), or never initialized */
+    assert(!mrpio->mr.parent_obj.ref);
     g_free(mrpio->ports);
 }
 
