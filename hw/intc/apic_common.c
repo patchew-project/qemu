@@ -421,7 +421,7 @@ static void apic_common_set_id(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    if (value >= 255 && !cpu_has_x2apic_feature(&s->cpu->env)) {
+    if (value >= 255 && (!s->cpu || !cpu_has_x2apic_feature(&s->cpu->env))) {
         error_setg(&local_err,
                    "APIC ID %d requires x2APIC feature in CPU",
                    value);
