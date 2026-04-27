@@ -1960,6 +1960,10 @@ static void vfio_bar_register(VFIOPCIDevice *vdev, int nr)
         return;
     }
 
+    bool cxl_comp_regs_bar = (vdev->vbasedev.flags & VFIO_DEVICE_FLAGS_CXL) &&
+                              nr == vdev->cxl.hdm_regs_bar_index &&
+                              vdev->cxl.comp_regs_region.mem;
+
     bar->mr = g_new0(MemoryRegion, 1);
     name = g_strdup_printf("%s base BAR %d", vdev->vbasedev.name, nr);
     memory_region_init_io(bar->mr, OBJECT(vdev), NULL, NULL, name, bar->size);
@@ -1972,6 +1976,21 @@ static void vfio_bar_register(VFIOPCIDevice *vdev, int nr)
             error_report("Failed to mmap %s BAR %d. Performance may be slow",
                          vdev->vbasedev.name, nr);
         }
+    }
+
+    if (cxl_comp_regs_bar) {
+        /*
+         * Overlay the COMP_REGS emulation at hdm_regs_offset with priority 1.
+         * The kernel excludes the HDM Decoder Capability block from the
+         * sparse-mmap list, so vfio_region_mmap() creates hardware-backed
+         * sub-regions only for accelerator register windows. The emulated
+         * COMP_REGS region sits above those at priority 1, ensuring guest
+         * accesses to the HDM range always dispatch through the emulated ops.
+         */
+        memory_region_add_subregion_overlap(bar->mr, vdev->cxl.hdm_regs_offset,
+                                            vdev->cxl.comp_regs_region.mem, 1);
+        trace_vfio_cxl_bar_subregion(vdev->vbasedev.name, nr,
+                                     vdev->cxl.hdm_regs_offset);
     }
 
     pci_register_bar(pdev, nr, bar->type, bar->mr);
@@ -1993,9 +2012,16 @@ void vfio_pci_bars_exit(VFIOPCIDevice *vdev)
 
     for (i = 0; i < PCI_ROM_SLOT; i++) {
         VFIOBAR *bar = &vdev->bars[i];
+        bool use_comp_regs = (vdev->vbasedev.flags & VFIO_DEVICE_FLAGS_CXL) &&
+                             i == vdev->cxl.hdm_regs_bar_index &&
+                             vdev->cxl.comp_regs_region.mem;
 
         vfio_bar_quirk_exit(vdev, i);
         vfio_region_exit(&bar->region);
+        if (use_comp_regs && bar->mr) {
+            memory_region_del_subregion(bar->mr,
+                                        vdev->cxl.comp_regs_region.mem);
+        }
         if (bar->region.size) {
             memory_region_del_subregion(bar->mr, bar->region.mem);
         }
