@@ -202,3 +202,4 @@ vfio_device_detach(const char *name, int group_id) " (%s) group %d"
 vfio_cxl_setup_params(const char *name, uint8_t bar, uint64_t hdm_off, uint64_t hdm_sz, uint64_t dpa_sz) " (%s) hdm_bar=%u hdm_regs_offset=0x%"PRIx64" hdm_regs_size=0x%"PRIx64" dpa_size=0x%"PRIx64
 vfio_cxl_put_device(const char *name) " (%s) removing DPA region from system memory"
 vfio_cxl_bar_subregion(const char *name, int nr, uint64_t off) " (%s) BAR%d comp_regs overlay at BAR offset 0x%"PRIx64
+vfio_cxl_locked_hdm(const char *name, uint64_t fmws, uint32_t blo, uint32_t bhi, uint32_t ctrl) " (%s) fmws_base=0x%"PRIx64" wrote decoder0 base_lo=0x%08x base_hi=0x%08x ctrl=0x%08x"

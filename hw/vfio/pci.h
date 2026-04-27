@@ -133,6 +133,7 @@ typedef struct VFIOCXL {
     bool     dpa_in_system_mem;
     VFIORegion region;
     VFIORegion comp_regs_region;
+    Notifier   machine_done;
 } VFIOCXL;
 
 struct VFIOPCIDevice {

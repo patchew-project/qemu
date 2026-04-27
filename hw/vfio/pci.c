@@ -25,6 +25,7 @@
 #include "hw/core/hw-error.h"
 #include "hw/core/iommu.h"
 #include "hw/cxl/cxl_component.h"
+#include "hw/cxl/cxl_host.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "hw/pci/pci_bridge.h"
@@ -3016,6 +3017,90 @@ static VFIODeviceOps vfio_pci_ops = {
 /* HDM Decoder BASE_LO: bits [31:28] hold address bits [31:28] */
 #define CXL_HDM_BASE_LO_ADDR_MASK       0xF0000000U
 
+static bool read_region(VFIORegion *region, uint32_t *val, uint64_t offset)
+{
+    VFIODevice *vbasedev = region->vbasedev;
+    uint32_t le_val;
+
+    if (pread(vbasedev->fd, &le_val, sizeof(le_val),
+              region->fd_offset + offset) != sizeof(le_val)) {
+        error_report("vfio-cxl: pread %s offset 0x%"PRIx64" failed: %m",
+                     vbasedev->name, offset);
+        return false;
+    }
+    /* CXL registers are little-endian; convert to host byte order. */
+    *val = le32_to_cpu(le_val);
+    return true;
+}
+
+static bool write_region(VFIORegion *region, uint32_t *val, uint64_t offset)
+{
+    VFIODevice *vbasedev = region->vbasedev;
+    /* CXL registers are little-endian; convert from host byte order. */
+    uint32_t le_val = cpu_to_le32(*val);
+
+    if (pwrite(vbasedev->fd, &le_val, sizeof(le_val),
+               region->fd_offset + offset) != sizeof(le_val)) {
+        error_report("vfio-cxl: pwrite %s offset 0x%"PRIx64" failed: %m",
+                     vbasedev->name, offset);
+        return false;
+    }
+    return true;
+}
+
+/*
+ * Direct pread/pwrite MemoryRegionOps for the CXL Component Register shadow.
+ *
+ * The generic vfio_region_ops routes guest MMIO through
+ * vfio_device_io_region_read() which returns EINVAL for vendor region
+ * index 10 at runtime.  The same pread() issued directly via
+ * region->fd_offset works fine, as vfio_cxl_derive_hdm_info() already does.
+ *
+ * The kernel enforces 4-byte aligned, 4-byte accesses on this region;
+ * valid and impl min/max_access_size are both set to 4 to match.
+ */
+static uint64_t vfio_cxl_comp_regs_mr_read(void *opaque, hwaddr addr,
+                                            unsigned size)
+{
+    VFIORegion *region = opaque;
+    VFIODevice *vbasedev = region->vbasedev;
+    uint32_t val = 0xFFFFFFFFU;
+
+    if (pread(vbasedev->fd, &val, size,
+              region->fd_offset + addr) != size) {
+        error_report("vfio-cxl: %s COMP_REGS read at 0x%"HWADDR_PRIx
+                     " failed: %m", vbasedev->name, addr);
+    }
+
+    val = le32_to_cpu(val);
+    trace_vfio_region_read(vbasedev->name, region->nr, addr, size, val);
+    return val;
+}
+
+static void vfio_cxl_comp_regs_mr_write(void *opaque, hwaddr addr,
+                                         uint64_t data, unsigned size)
+{
+    VFIORegion *region = opaque;
+    VFIODevice *vbasedev = region->vbasedev;
+    uint32_t val = cpu_to_le32((uint32_t)data);
+
+    if (pwrite(vbasedev->fd, &val, size,
+               region->fd_offset + addr) != size) {
+        error_report("vfio-cxl: %s COMP_REGS write at 0x%"HWADDR_PRIx
+                     " failed: %m", vbasedev->name, addr);
+    }
+
+    trace_vfio_region_write(vbasedev->name, region->nr, addr, data, size);
+}
+
+static const MemoryRegionOps vfio_cxl_comp_regs_mr_ops = {
+    .read = vfio_cxl_comp_regs_mr_read,
+    .write = vfio_cxl_comp_regs_mr_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 4, .max_access_size = 4 },
+    .impl  = { .min_access_size = 4, .max_access_size = 4 },
+};
+
 bool vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp)
 {
     VFIODevice *vbasedev = &vdev->vbasedev;
@@ -3404,6 +3489,78 @@ static bool vfio_cxl_derive_hdm_info(VFIODevice *vbasedev, VFIOCXL *cxl,
     return false;
 }
 
+/*
+ * setup_locked_hdm - machine_done notifier that programs HDM decoder 0 with
+ * the FMWS base address so the guest can access DPA through a stable GPA.
+ *
+ * Uses cxl->fmws_base (set by the optional cxl-fmws-base device property) if
+ * non-zero; otherwise falls back to the cxl_fmws_base global captured by
+ * cxl_fmws_set_memmap() during machine memory-map init.  If neither is set,
+ * the notifier warns and returns without programming anything.
+ */
+static void setup_locked_hdm(Notifier *notifier, void *data)
+{
+    VFIOCXL *cxl = container_of(notifier, VFIOCXL, machine_done);
+    VFIORegion *region = &cxl->comp_regs_region;
+    MemoryRegion *sys_mem = get_system_memory();
+    uint64_t hdm_base = cxl->hdm_decoder_offset;
+    uint32_t base_lo, base_hi, ctrl;
+
+    if (!cxl->fmws_base) {
+        cxl->fmws_base = cxl_fmws_base;
+        if (!cxl->fmws_base) {
+            warn_report("vfio-cxl %s: CXL FMWS base not available",
+                        region->vbasedev->name);
+            return;
+        }
+    }
+
+    if (!read_region(region, &ctrl,
+                     hdm_base + CXL_HDM_DECODER0_CTRL_OFFSET(0))) {
+        error_report("vfio-cxl: %s failed to read HDM decoder 0 CTRL",
+                     region->vbasedev->name);
+        return;
+    }
+
+    /*
+     * If COMMIT_LOCK (bit 8) is still set in the virtual snapshot the kernel
+     * should have cleared it during open.  Warn and clear it here so the
+     * subsequent BASE write is not blocked.
+     */
+    if (ctrl & CXL_HDM_CTRL_COMMIT_LOCK) {
+        warn_report("vfio-cxl: COMMIT_LOCK set in HDM decoder 0 CTRL at "
+                    "machine_done; clearing before programming guest GPA");
+        ctrl &= ~CXL_HDM_CTRL_COMMIT_LOCK;
+        if (!write_region(region, &ctrl,
+                          hdm_base + CXL_HDM_DECODER0_CTRL_OFFSET(0))) {
+            return;
+        }
+    }
+
+    base_lo  = (uint32_t)(cxl->fmws_base & CXL_HDM_BASE_LO_ADDR_MASK);
+    base_hi  = (uint32_t)(cxl->fmws_base >> 32);
+    ctrl    |= CXL_HDM_CTRL_COMMIT | CXL_HDM_CTRL_COMMIT_LOCK;
+
+    if (!write_region(region, &base_lo, hdm_base +
+                      CXL_HDM_DECODER0_BASE_LOW_OFFSET(0)) ||
+        !write_region(region, &base_hi, hdm_base +
+                      CXL_HDM_DECODER0_BASE_HIGH_OFFSET(0)) ||
+        !write_region(region, &ctrl, hdm_base +
+                      CXL_HDM_DECODER0_CTRL_OFFSET(0))) {
+        error_report("vfio-cxl: %s failed to program HDM decoder 0",
+                     region->vbasedev->name);
+        return;
+    }
+
+    trace_vfio_cxl_locked_hdm(/* name */ region->vbasedev->name,
+                              cxl->fmws_base, base_lo, base_hi, ctrl);
+
+    memory_region_transaction_begin();
+    memory_region_add_subregion(sys_mem, cxl->fmws_base, cxl->region.mem);
+    memory_region_transaction_commit();
+    cxl->dpa_in_system_mem = true;
+}
+
 static bool vfio_cxl_setup(VFIOPCIDevice *vdev, Error **errp)
 {
     VFIODevice *vbasedev = &vdev->vbasedev;
@@ -3471,8 +3628,11 @@ static bool vfio_cxl_setup(VFIOPCIDevice *vdev, Error **errp)
         error_setg(errp, "vfio-cxl: failed to get COMP_REGS region info");
         return false;
     }
-    ret = vfio_region_setup(OBJECT(vdev), vbasedev, &cxl->comp_regs_region,
-                            comp_info->index, "cxl-comp-regs", errp);
+
+    ret = vfio_region_setup_with_ops(OBJECT(vdev), vbasedev,
+                                     &cxl->comp_regs_region,
+                                     comp_info->index, "cxl-comp-regs",
+                                     errp, &vfio_cxl_comp_regs_mr_ops);
     if (ret) {
         error_setg(errp, "vfio-cxl: failed to set up COMP_REGS region");
         return false;
@@ -3486,6 +3646,18 @@ static bool vfio_cxl_setup(VFIOPCIDevice *vdev, Error **errp)
     trace_vfio_cxl_setup_params(vbasedev->name, cxl->hdm_regs_bar_index,
                                  cxl->hdm_regs_offset, cxl->hdm_regs_size,
                                  cxl->dpa_size);
+
+    /*
+     * Only pre-program the HDM decoder if the kernel reported the device as
+     * firmware-committed.  Non-committed devices need guest driver involvement
+     * to commit the decoder; registering the notifier for them would write an
+     * uncommitted BASE value that the hardware ignores.
+     */
+    if (cap->flags & VFIO_CXL_CAP_FIRMWARE_COMMITTED) {
+        cxl->machine_done.notify = setup_locked_hdm;
+        qemu_add_machine_init_done_notifier(&cxl->machine_done);
+    }
+
     return true;
 }
 
