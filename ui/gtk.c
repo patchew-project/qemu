@@ -2601,9 +2601,11 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
         opts->u.gtk.show_tabs) {
         gtk_menu_item_activate(GTK_MENU_ITEM(s->show_tabs_item));
     }
-#ifdef CONFIG_GTK_CLIPBOARD
-    gd_clipboard_init(s);
-#endif /* CONFIG_GTK_CLIPBOARD */
+
+    if (opts->u.gtk.has_clipboard &&
+        opts->u.gtk.clipboard) {
+        gd_clipboard_init(s);
+    }
 
     /* GTK's event polling must happen on the main thread. */
     qemu_main = NULL;
