@@ -52,6 +52,21 @@ Before running tests, it is best to build QEMU programs first. Some tests
 expect the executables to exist and will fail with obscure messages if they
 cannot find them.
 
+The timeouts for QEMU tests are set conservatively so you should not
+in general find that tests time out. However, if you are running on a
+particularly slow host or with a slow configuration (such as a build
+with the clang address-sanitizer enabled) you can globally raise all
+the timeouts, by setting the ``TIMEOUT_MULTIPLIER`` environment
+variable. For instance:
+
+.. code::
+
+ TIMEOUT_MULTIPLIER=3 make check
+
+will run with all the default timeouts multiplied by three. You can
+also disable timeouts entirely by setting the environment variable to
+``0``.
+
 .. _unit-tests:
 
 Unit tests
@@ -958,6 +973,9 @@ Python. You can run the functional tests simply by executing:
   make check-functional
 
 See :ref:`checkfunctional-ref` for more details.
+
+The harness for the functional tests also honours the
+``TIMEOUT_MULTIPLIER`` environment variable.
 
 .. _checktcg-ref:
 
