@@ -737,6 +737,7 @@ rutabaga_cmd_resource_unmap_blob(VirtIOGPU *g,
 
         MemoryRegion *mr = &(vr->memory_regions[slot].mr);
         memory_region_del_subregion(&vb->hostmem, mr);
+        object_unparent(OBJECT(mr));
 
         vr->memory_regions[slot].resource_id = 0;
         vr->memory_regions[slot].used = 0;
