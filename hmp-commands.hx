@@ -1839,7 +1839,6 @@ SRST
 ERST
 #endif
 
-#if defined(CONFIG_XEN_EMU)
     {
         .name       = "xen-event-inject",
         .args_type  = "port:i",
@@ -1866,4 +1865,3 @@ SRST
 ``xen-event-list``
   List event channels in the guest
 ERST
-#endif
