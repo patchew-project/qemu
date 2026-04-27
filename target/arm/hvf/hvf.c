@@ -2159,7 +2159,7 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
                 assert(!mr->readonly);
 
                 if (memory_region_get_dirty_log_mask(mr)) {
-                    memory_region_set_dirty(mr, ipa_page + xlat, page_size);
+                    memory_region_set_dirty(mr, xlat, page_size);
                     hvf_unprotect_dirty_range(ipa_page, page_size);
                 }
 
