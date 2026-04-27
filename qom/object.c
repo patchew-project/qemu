@@ -613,6 +613,7 @@ static void object_property_del_all(Object *obj)
     } while (released);
 
     g_hash_table_unref(obj->properties);
+    obj->properties = NULL;
 }
 
 static void object_property_del_child(Object *obj, Object *child)
@@ -670,6 +671,8 @@ static void object_finalize(void *data)
 
     g_assert(obj->ref == 0);
     g_assert(obj->parent == NULL);
+    g_assert(obj->properties == NULL);
+    obj->class = NULL;
     if (obj->free) {
         obj->free(obj);
     }
