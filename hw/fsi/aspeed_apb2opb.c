@@ -282,13 +282,6 @@ static void fsi_aspeed_apb2opb_realize(DeviceState *dev, Error **errp)
     AspeedAPB2OPBState *s = ASPEED_APB2OPB(dev);
     int i;
 
-    /*
-     * TODO: The OPBus model initializes the OPB address space in
-     * the .instance_init handler and this is problematic for test
-     * device-introspect-test. To avoid a memory corruption and a QEMU
-     * crash, qbus_init() should be called from realize(). Something to
-     * improve. Possibly, OPBus could also be removed.
-     */
     for (i = 0; i < ASPEED_FSI_NUM; i++) {
         qbus_init(&s->opb[i], sizeof(s->opb[i]), TYPE_OP_BUS, DEVICE(s),
                   NULL);
@@ -348,8 +341,29 @@ static void fsi_opb_init(Object *o)
 {
     OPBus *opb = OP_BUS(o);
 
-    memory_region_init(&opb->mr, 0, TYPE_FSI_OPB, UINT32_MAX);
+    memory_region_init(&opb->mr, o, TYPE_FSI_OPB, UINT32_MAX);
+}
+
+static void fsi_opb_realize(BusState *bus, Error **errp)
+{
+    OPBus *opb = OP_BUS(bus);
+
     address_space_init(&opb->as, &opb->mr, TYPE_FSI_OPB);
+}
+
+static void fsi_opb_unrealize(BusState *bus)
+{
+    OPBus *opb = OP_BUS(bus);
+
+    address_space_destroy(&opb->as);
+}
+
+static void fsi_opb_class_init(ObjectClass *klass, const void *data)
+{
+    BusClass *bc = BUS_CLASS(klass);
+
+    bc->realize = fsi_opb_realize;
+    bc->unrealize = fsi_opb_unrealize;
 }
 
 static const TypeInfo opb_info = {
@@ -357,6 +371,7 @@ static const TypeInfo opb_info = {
     .parent = TYPE_BUS,
     .instance_init = fsi_opb_init,
     .instance_size = sizeof(OPBus),
+    .class_init = fsi_opb_class_init,
 };
 
 static void fsi_opb_register_types(void)
