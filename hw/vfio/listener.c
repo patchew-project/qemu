@@ -608,6 +608,20 @@ void vfio_container_region_add(VFIOContainer *bcontainer,
                 pgmask + 1);
             return;
         }
+
+        /*
+         * VFIO MMAP backed regions (CXL.mem) uses VM_IO | VM_PFNMAP VMAs
+         * backed by physical device addresses. Skip vfio_container_dma_map
+         * as mapping is not needed for this region.
+         */
+        if (vfio_get_vfio_device(memory_region_owner(section->mr))) {
+            trace_vfio_listener_region_add_no_dma_map(
+                memory_region_name(section->mr),
+                section->offset_within_address_space,
+                int128_getlo(section->size),
+                pgmask + 1);
+            return;
+        }
     }
 
     ret = vfio_container_dma_map(bcontainer, iova, int128_get64(llsize),
