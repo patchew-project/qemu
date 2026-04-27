@@ -209,6 +209,11 @@ void device_listener_unregister(DeviceListener *listener)
     QTAILQ_REMOVE(&device_listeners, listener, link);
 }
 
+bool device_listener_is_registered(DeviceListener *listener)
+{
+	return QTAILQ_IN_USE(listener, link);
+}
+
 bool qdev_should_hide_device(const QDict *opts, bool from_json, Error **errp)
 {
     ERRP_GUARD();

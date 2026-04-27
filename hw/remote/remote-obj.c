@@ -154,7 +154,9 @@ static void remote_object_finalize(Object *obj)
     RemoteObjectClass *k = REMOTE_OBJECT_GET_CLASS(obj);
     RemoteObject *o = REMOTE_OBJECT(obj);
 
-    device_listener_unregister(&o->listener);
+    if (device_listener_is_registered(&o->listener)) {
+        device_listener_unregister(&o->listener);
+    }
 
     if (o->ioc) {
         qio_channel_shutdown(o->ioc, QIO_CHANNEL_SHUTDOWN_BOTH, NULL);

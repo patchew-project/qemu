@@ -1119,6 +1119,7 @@ static inline void qbus_mark_full(BusState *bus)
 
 void device_listener_register(DeviceListener *listener);
 void device_listener_unregister(DeviceListener *listener);
+bool device_listener_is_registered(DeviceListener *listener);
 
 /**
  * qdev_should_hide_device() - check if device should be hidden
