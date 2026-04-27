@@ -1079,12 +1079,15 @@ static void handle_cpreg_missing_in_incoming_stream(ARMCPU *cpu, uint64_t kvmidx
  * no cpreg mig tolerance is matched for this @kvmidx
  * Return true if the migration should eventually fail
  */
-static bool handle_cpreg_only_in_incoming_stream(ARMCPU *cpu, uint64_t kvmidx)
+static bool
+handle_cpreg_only_in_incoming_stream(ARMCPU *cpu, uint64_t kvmidx, uint64_t value)
 {
     g_autofree gchar *name = print_register_name(kvmidx);
 
     if (arm_cpu_match_cpreg_mig_tolerance(cpu, kvmidx,
-                                          0, 0, ToleranceNotOnBothEnds)) {
+                                          0, 0, ToleranceNotOnBothEnds) ||
+        arm_cpu_match_cpreg_mig_tolerance(cpu, kvmidx,
+                                          value, 0, ToleranceOnlySrcTestValue)) {
         trace_tolerate_cpreg_only_in_incoming_stream(name);
         return false;
     }
@@ -1137,7 +1140,9 @@ static int cpu_post_load(void *opaque, int version_id)
         }
         if (cpu->cpreg_vmstate_indexes[v] < cpu->cpreg_indexes[i]) {
             fail = handle_cpreg_only_in_incoming_stream(cpu,
-                                                        cpu->cpreg_vmstate_indexes[v++]);
+                                                        cpu->cpreg_vmstate_indexes[v],
+                                                        cpu->cpreg_vmstate_values[v]);
+            v++;
             continue;
         }
         /* matching register, copy the value over */
@@ -1160,7 +1165,8 @@ static int cpu_post_load(void *opaque, int version_id)
      */
     for ( ; v < cpu->cpreg_vmstate_array_len; v++) {
         fail = handle_cpreg_only_in_incoming_stream(cpu,
-                                                    cpu->cpreg_vmstate_indexes[v]);
+                                                    cpu->cpreg_vmstate_indexes[v],
+                                                    cpu->cpreg_vmstate_values[v]);
     }
     if (fail) {
         return -1;
