@@ -47,6 +47,7 @@ tests_aarch64_system_thorough = [
   'tcg_plugins',
   'tuxrun',
   'virt',
+  'virt_aarch64_off',
   'virt_gpu',
   'virt_vbsa',
   'xen',
