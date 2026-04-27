@@ -215,6 +215,7 @@ struct vfio_device_info {
 #define VFIO_DEVICE_FLAGS_FSL_MC (1 << 6)	/* vfio-fsl-mc device */
 #define VFIO_DEVICE_FLAGS_CAPS	(1 << 7)	/* Info supports caps */
 #define VFIO_DEVICE_FLAGS_CDX	(1 << 8)	/* vfio-cdx device */
+#define VFIO_DEVICE_FLAGS_CXL	(1 << 9)	/* vfio-cxl device */
 	__u32	num_regions;	/* Max region index + 1 */
 	__u32	num_irqs;	/* Max IRQ index + 1 */
 	__u32   cap_offset;	/* Offset within info struct of first cap */
@@ -255,6 +256,19 @@ struct vfio_device_info_cap_pci_atomic_comp {
 #define VFIO_PCI_ATOMIC_COMP64	(1 << 1)
 #define VFIO_PCI_ATOMIC_COMP128	(1 << 2)
 	__u32 reserved;
+};
+
+#define VFIO_DEVICE_INFO_CAP_CXL			6
+struct vfio_device_info_cap_cxl {
+	struct vfio_info_cap_header header; /* id=6, version=1 */
+	__u8  hdm_regs_bar_index; /* PCI BAR containing CXL component registers */
+	__u8  reserved[3];
+	__u32 flags;             /* VFIO_CXL_CAP_* flags */
+#define VFIO_CXL_CAP_FIRMWARE_COMMITTED (1 << 0)
+#define VFIO_CXL_CAP_CACHE_CAPABLE      (1 << 1)
+	__u64 hdm_regs_offset;   /* byte offset within BAR to CXL.mem register area */
+	__u32 dpa_region_index;  /* VFIO region index for DPA memory */
+	__u32 comp_regs_region_index; /* VFIO region index for COMP_REGS */
 };
 
 /**
@@ -372,6 +386,10 @@ struct vfio_region_info_cap_type {
 
 /* sub-types for VFIO_REGION_TYPE_GFX */
 #define VFIO_REGION_SUBTYPE_GFX_EDID            (1)
+
+/* sub-types for VFIO CXL regions */
+#define VFIO_REGION_SUBTYPE_CXL           (1) /* DPA memory region */
+#define VFIO_REGION_SUBTYPE_CXL_COMP_REGS (2) /* HDM register shadow */
 
 /**
  * struct vfio_region_gfx_edid - EDID region layout.
