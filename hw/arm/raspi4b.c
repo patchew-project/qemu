@@ -72,12 +72,14 @@ static void raspi4_modify_dtb(const struct arm_boot_info *info, void *fdt)
 
     for (int i = 0; i < ARRAY_SIZE(nodes_to_remove); i++) {
         const char *dev_str = nodes_to_remove[i];
+        int offset;
 
-        int offset = fdt_node_offset_by_compatible(fdt, -1, dev_str);
-        if (offset >= 0) {
-            if (!fdt_nop_node(fdt, offset)) {
-                warn_report("bcm2711 dtc: %s has been disabled!", dev_str);
+        offset = fdt_node_offset_by_compatible(fdt, -1, dev_str);
+        while (offset >= 0) {
+            if (fdt_nop_node(fdt, offset) == 0) {
+                warn_report("bcm2711 dtb: %s has been disabled!", dev_str);
             }
+            offset = fdt_node_offset_by_compatible(fdt, offset, dev_str);
         }
     }
 
