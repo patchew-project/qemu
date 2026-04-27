@@ -1903,10 +1903,12 @@ static void object_set_link_property(Object *obj, Visitor *v,
 
     g_free(path);
 
-    prop->check(obj, name, new_target, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
+    if (new_target) {
+        prop->check(obj, name, new_target, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
     }
 
     *targetp = new_target;
