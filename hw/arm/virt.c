@@ -212,6 +212,8 @@ static const MemMapEntry base_memmap[] = {
 #define DEFAULT_HIGH_PCIE_MMIO_SIZE_GB 512
 #define DEFAULT_HIGH_PCIE_MMIO_SIZE (DEFAULT_HIGH_PCIE_MMIO_SIZE_GB * GiB)
 
+#define DEFAULT_HIGH_CXL_MMIO_SIZE  DEFAULT_HIGH_PCIE_MMIO_SIZE
+
 /*
  * Highmem IO Regions: This memory map is floating, located after the RAM.
  * Each MemMapEntry base (GPA) will be dynamically computed, depending on the
@@ -238,6 +240,11 @@ static MemMapEntry extended_memmap[] = {
     [VIRT_HIGH_PCIE_ECAM] =     { 0x0, 256 * MiB },
     /* Second PCIe window */
     [VIRT_HIGH_PCIE_MMIO] =     { 0x0, DEFAULT_HIGH_PCIE_MMIO_SIZE },
+    /*
+     * CXL FMWS guest PA window - separate from PCIe MMIO so the two are
+     * independently sizeable. Same default size for now.
+     */
+    [VIRT_HIGH_CXL_MMIO] =      { 0x0, DEFAULT_HIGH_CXL_MMIO_SIZE },
     /* Any CXL Fixed memory windows come here */
 };
 
@@ -2051,6 +2058,7 @@ static void create_cxl_host_reg_region(VirtMachineState *vms)
                        vms->memmap[VIRT_CXL_HOST].size);
     memory_region_add_subregion(sysmem, vms->memmap[VIRT_CXL_HOST].base, mr);
     vms->highmem_cxl = true;
+    vms->highmem_cxl_mmio = true;
 }
 
 static void create_platform_bus(VirtMachineState *vms)
@@ -2224,6 +2232,7 @@ static inline bool *virt_get_high_memmap_enabled(VirtMachineState *vms,
         &vms->highmem_cxl,
         &vms->highmem_ecam,
         &vms->highmem_mmio,
+        &vms->highmem_cxl_mmio,
     };
 
     assert(ARRAY_SIZE(extended_memmap) - VIRT_LOWMEMMAP_LAST ==

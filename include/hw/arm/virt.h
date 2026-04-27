@@ -94,6 +94,7 @@ enum {
     VIRT_CXL_HOST,
     VIRT_HIGH_PCIE_ECAM,
     VIRT_HIGH_PCIE_MMIO,
+    VIRT_HIGH_CXL_MMIO,
 };
 
 typedef enum VirtIOMMUType {
@@ -150,6 +151,7 @@ struct VirtMachineState {
     bool highmem;
     bool highmem_compact;
     bool highmem_cxl;
+    bool highmem_cxl_mmio;  /* VIRT_HIGH_CXL_MMIO window; follows highmem_cxl */
     bool highmem_ecam;
     bool highmem_mmio;
     bool highmem_redists;

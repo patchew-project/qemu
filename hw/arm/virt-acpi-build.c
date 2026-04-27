@@ -176,6 +176,11 @@ static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap,
         cfg.mmio64 = memmap[VIRT_HIGH_PCIE_MMIO];
     }
 
+    if (vms->highmem_cxl) {
+        cfg.cxl_mmio.base = memmap[VIRT_HIGH_CXL_MMIO].base;
+        cfg.cxl_mmio.size = memmap[VIRT_HIGH_CXL_MMIO].size;
+    }
+
     acpi_dsdt_add_gpex(scope, &cfg);
     QLIST_FOREACH(bus, &vms->bus->child, sibling) {
         if (pci_bus_is_cxl(bus)) {
