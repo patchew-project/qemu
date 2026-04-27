@@ -1,5 +1,33 @@
 arm_ss = ss.source_set()
 arm_common_ss = ss.source_set()
+
+# RFC ONLY: this local-tree probe is for PoC discussion.  A mergeable version
+# needs an explicit configure option and a proper dependency integration.
+caliptra_cbinding_root = meson.project_source_root() / '..' / 'caliptra-sw'
+caliptra_cbinding_inc = caliptra_cbinding_root / 'hw-model/c-binding/out'
+caliptra_cbinding_header = caliptra_cbinding_inc / 'caliptra_model.h'
+caliptra_cbinding_incdir = include_directories(
+  '../../../caliptra-sw/hw-model/c-binding/out')
+caliptra_cbinding_lib = caliptra_cbinding_root / 'target' / 'debug'
+caliptra_cbinding_lib_name = 'libcaliptra_hw_model_c_binding.a'
+caliptra_cbinding_lib = caliptra_cbinding_lib / caliptra_cbinding_lib_name
+caliptra_cbinding_dep = []
+caliptra_cbinding_found = fs.exists(caliptra_cbinding_header)
+if caliptra_cbinding_found
+  caliptra_cbinding_found = fs.exists(caliptra_cbinding_lib)
+endif
+if caliptra_cbinding_found
+  caliptra_cbinding_dep = declare_dependency(
+    compile_args: ['-DCONFIG_ASPEED_CALIPTRA_CBINDING'],
+    include_directories: caliptra_cbinding_incdir,
+    link_args: [
+      caliptra_cbinding_lib,
+      '-lstdc++',
+      '-ldl',
+      '-lrt',
+      '-lm',
+    ])
+endif
 arm_common_ss.add(when: 'CONFIG_ARM_VIRT', if_true: files('virt.c'))
 arm_common_ss.add(when: 'CONFIG_ACPI', if_true: files('virt-acpi-build.c'))
 arm_common_ss.add(when: 'CONFIG_DIGIC', if_true: files('digic_boards.c'))
@@ -72,10 +100,11 @@ arm_common_ss.add(when: ['CONFIG_ASPEED_SOC', 'TARGET_AARCH64'], if_true: files(
   'aspeed_ast1700.c',
   'aspeed_ast27x0.c',
   'aspeed_ast27x0_evb.c',
+  'aspeed_caliptra_emu.c',
   'aspeed_ast27x0-fc.c',
   'aspeed_ast27x0-ssp.c',
   'aspeed_ast27x0-tsp.c',
-  'aspeed_coprocessor_common.c'))
+  'aspeed_coprocessor_common.c') + [caliptra_cbinding_dep])
 arm_common_ss.add(when: 'CONFIG_MPS2', if_true: files('mps2.c'))
 arm_common_ss.add(when: 'CONFIG_MPS2', if_true: files('mps2-tz.c'))
 arm_common_ss.add(when: 'CONFIG_MSF2', if_true: files('msf2-soc.c'))

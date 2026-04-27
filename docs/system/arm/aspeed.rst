@@ -423,6 +423,26 @@ Steps to boot the AST2700fc machine:
        -snapshot \
        -S -nographic
 
+The ``ast2700fc`` machine can also boot a Caliptra emulator through the
+``caliptra-sw`` c-binding before starting the Cortex-A35 processors.  The ROM
+and firmware bundle are configured with the ``caliptra-rom`` and
+``caliptra-firmware`` machine properties.
+
+This RFC PoC backend is built only when a local ``../caliptra-sw`` checkout
+contains the generated c-binding header and static library.
+
+For example, to run Caliptra firmware from ``caliptra-sw``:
+
+.. code-block:: bash
+
+  $ qemu-system-aarch64 \
+       -M ast2700fc,caliptra-rom=images/caliptra-rom-with-log.bin,caliptra-firmware=images/caliptra-fw.bundle \
+       ...
+
+QEMU boots the c-binding model to the Caliptra runtime-ready boot status before
+starting the Cortex-A35 CPUs.  If these properties are omitted, no Caliptra
+backend is launched.
+
 After launching QEMU, serial devices will be automatically redirected.
 Example output:
 

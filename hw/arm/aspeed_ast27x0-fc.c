@@ -22,6 +22,7 @@
 #include "hw/arm/boot.h"
 #include "hw/block/flash.h"
 #include "hw/arm/aspeed_coprocessor.h"
+#include "hw/arm/aspeed_caliptra_emu.h"
 #include "hw/arm/machines-qom.h"
 
 #define TYPE_AST2700FC MACHINE_TYPE_NAME("ast2700fc")
@@ -33,6 +34,9 @@ static struct arm_boot_info ast2700fc_board_info = {
 
 struct Ast2700FCState {
     MachineState parent_obj;
+
+    char *caliptra_rom;
+    char *caliptra_firmware;
 
     MemoryRegion ca35_memory;
     MemoryRegion ca35_dram;
@@ -198,9 +202,53 @@ static bool ast2700fc_tsp_init(MachineState *machine, Error **errp)
 
 static void ast2700fc_init(MachineState *machine)
 {
+    Ast2700FCState *s = AST2700FC(machine);
+
     ast2700fc_ca35_init(machine, &error_abort);
     ast2700fc_ssp_init(machine, &error_abort);
     ast2700fc_tsp_init(machine, &error_abort);
+    aspeed_caliptra_emu_start(serial_hd(0), s->caliptra_rom,
+                              s->caliptra_firmware);
+}
+
+static char *ast2700fc_get_caliptra_rom(Object *obj, Error **errp)
+{
+    Ast2700FCState *s = AST2700FC(obj);
+
+    return g_strdup(s->caliptra_rom ? s->caliptra_rom : "");
+}
+
+static void ast2700fc_set_caliptra_rom(Object *obj, const char *value,
+                                       Error **errp)
+{
+    Ast2700FCState *s = AST2700FC(obj);
+
+    g_free(s->caliptra_rom);
+    s->caliptra_rom = g_strdup(value);
+}
+
+static char *ast2700fc_get_caliptra_firmware(Object *obj, Error **errp)
+{
+    Ast2700FCState *s = AST2700FC(obj);
+
+    return g_strdup(s->caliptra_firmware ? s->caliptra_firmware : "");
+}
+
+static void ast2700fc_set_caliptra_firmware(Object *obj, const char *value,
+                                            Error **errp)
+{
+    Ast2700FCState *s = AST2700FC(obj);
+
+    g_free(s->caliptra_firmware);
+    s->caliptra_firmware = g_strdup(value);
+}
+
+static void ast2700fc_instance_finalize(Object *obj)
+{
+    Ast2700FCState *s = AST2700FC(obj);
+
+    g_free(s->caliptra_rom);
+    g_free(s->caliptra_firmware);
 }
 
 static void ast2700fc_class_init(ObjectClass *oc, const void *data)
@@ -212,6 +260,17 @@ static void ast2700fc_class_init(ObjectClass *oc, const void *data)
     mc->no_floppy = 1;
     mc->no_cdrom = 1;
     mc->min_cpus = mc->max_cpus = mc->default_cpus = 6;
+
+    object_class_property_add_str(oc, "caliptra-rom",
+                                  ast2700fc_get_caliptra_rom,
+                                  ast2700fc_set_caliptra_rom);
+    object_class_property_set_description(oc, "caliptra-rom",
+        "Caliptra ROM image used by the c-binding emulator backend");
+    object_class_property_add_str(oc, "caliptra-firmware",
+                                  ast2700fc_get_caliptra_firmware,
+                                  ast2700fc_set_caliptra_firmware);
+    object_class_property_set_description(oc, "caliptra-firmware",
+        "Caliptra firmware bundle used by the c-binding emulator backend");
 }
 
 static const TypeInfo ast2700fc_types[] = {
@@ -220,6 +279,7 @@ static const TypeInfo ast2700fc_types[] = {
         .parent         = TYPE_MACHINE,
         .class_init     = ast2700fc_class_init,
         .instance_size  = sizeof(Ast2700FCState),
+        .instance_finalize = ast2700fc_instance_finalize,
         .interfaces     = aarch64_machine_interfaces,
     },
 };
