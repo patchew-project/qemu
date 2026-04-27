@@ -28,6 +28,7 @@
 #include "exec/hwaddr.h"
 #include "exec/vaddr.h"
 #include "exec/breakpoint.h"
+#include "exec/memop.h"
 #include "accel/tcg/tb-cpu-state.h"
 #include "hw/core/registerfields.h"
 #include "tcg/tcg-gvec-desc.h"
@@ -45,6 +46,11 @@
 #define BANK_FIQ    5
 #define BANK_HYP    6
 #define BANK_MON    7
+
+static inline MemOp mo_endian(CPUARMState *env)
+{
+    return EX_TBFLAG_ANY(env->hflags, BE_DATA) ? MO_BE : MO_LE;
+}
 
 static inline int arm_env_mmu_index(CPUARMState *env)
 {
