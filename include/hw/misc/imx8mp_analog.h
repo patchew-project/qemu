@@ -76,6 +76,9 @@ struct IMX8MPAnalogState {
     } mmio;
 
     uint32_t analog[ANALOG_MAX];
+
+    /* Property for variant-specific reset values */
+    uint32_t arm_pll_fdiv_ctl0_reset;
 };
 
 #endif /* IMX8MP_ANALOG_H */
