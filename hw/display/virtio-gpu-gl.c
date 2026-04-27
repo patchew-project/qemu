@@ -26,6 +26,25 @@
 
 #include <virglrenderer.h>
 
+/*
+ * VIRGL_CHECK_VERSION available since libvirglrenderer 1.0.1 and was fixed
+ * in 1.1.0. Undefine bugged version of the macro and provide our own.
+ */
+#if defined(VIRGL_CHECK_VERSION) && \
+    VIRGL_VERSION_MAJOR == 1 && VIRGL_VERSION_MINOR < 1
+#undef VIRGL_CHECK_VERSION
+#endif
+
+#ifndef VIRGL_CHECK_VERSION
+#define VIRGL_CHECK_VERSION(major, minor, micro) \
+    (VIRGL_VERSION_MAJOR > (major) || \
+     VIRGL_VERSION_MAJOR == (major) && VIRGL_VERSION_MINOR > (minor) || \
+     VIRGL_VERSION_MAJOR == (major) && VIRGL_VERSION_MINOR == (minor) && \
+     VIRGL_VERSION_MICRO >= (micro))
+#endif
+
+#define VIRGL_NEEDS_CURSOR_DATA_FLIP_FIX (!VIRGL_CHECK_VERSION(1, 3, 1))
+
 static void virtio_gpu_gl_update_cursor_data(VirtIOGPU *g,
                                              struct virtio_gpu_scanout *s,
                                              uint32_t resource_id)
@@ -33,6 +52,11 @@ static void virtio_gpu_gl_update_cursor_data(VirtIOGPU *g,
     VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
     uint32_t width, height;
     uint32_t pixels, *data;
+#if VIRGL_NEEDS_CURSOR_DATA_FLIP_FIX
+    bool y_0_top = true;
+    int ret;
+    struct virgl_renderer_resource_info info;
+#endif
 
     if (gl->renderer_state != RS_INITED) {
         return;
@@ -49,8 +73,29 @@ static void virtio_gpu_gl_update_cursor_data(VirtIOGPU *g,
         return;
     }
 
+#if VIRGL_NEEDS_CURSOR_DATA_FLIP_FIX
+    memset(&info, 0, sizeof(info));
+    ret = virgl_renderer_resource_get_info(resource_id, &info);
+    if (ret == 0) {
+        y_0_top = info.flags & VIRTIO_GPU_RESOURCE_FLAG_Y_0_TOP;
+    }
+#endif
+
     pixels = s->current_cursor->width * s->current_cursor->height;
+#if VIRGL_NEEDS_CURSOR_DATA_FLIP_FIX
+    if (y_0_top) {
+        memcpy(s->current_cursor->data, data, pixels * sizeof(uint32_t));
+    } else {
+        uint32_t *dst = s->current_cursor->data;
+        for (uint32_t y = 0; y < height; y++) {
+            memcpy(dst + y * width,
+                   data + (height - 1 - y) * width,
+                   width * sizeof(uint32_t));
+        }
+    }
+#else
     memcpy(s->current_cursor->data, data, pixels * sizeof(uint32_t));
+#endif
     free(data);
 }
 
