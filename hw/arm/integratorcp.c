@@ -106,9 +106,6 @@ static uint64_t integratorcm_read(void *opaque, hwaddr offset,
         } else {
             return s->cm_lock;
         }
-    case 6: /* CM_LMBUSCNT */
-        /* ??? High frequency timer.  */
-        hw_error("integratorcm_read: CM_LMBUSCNT");
     case 7: /* CM_AUXOSC */
         return s->cm_auxosc;
     case 8: /* CM_SDRAM */
