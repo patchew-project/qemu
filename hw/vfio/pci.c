@@ -24,6 +24,7 @@
 
 #include "hw/core/hw-error.h"
 #include "hw/core/iommu.h"
+#include "hw/cxl/cxl_component.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "hw/pci/pci_bridge.h"
@@ -2957,6 +2958,38 @@ static VFIODeviceOps vfio_pci_ops = {
     .vfio_load_config = vfio_pci_load_config,
 };
 
+/*
+ * CXL Component Register Space constants (CXL 4.0 8.2.3).
+ */
+
+/* CXL Capability Array Header (dword 0 of COMP_REGS) */
+#define CXL_CM_CAP_HDR_ARRAY_ID         0x0001U /* expected ID value */
+#define CXL_CM_CAP_HDR_NUM_CAPS_SHIFT   24      /* bits [31:24] = num entries */
+#define CXL_CM_CAP_HDR_NUM_CAPS_MASK    0xffU
+#define CXL_CM_CAP_ENTRY_ID_MASK        0xffffU /* bits [15:0] = cap ID */
+#define CXL_CM_CAP_ENTRY_PTR_SHIFT      20      /* bits [31:20] = byte offset */
+#define CXL_CM_CAP_ENTRY_PTR_MASK       0xfffU
+#define CXL_CM_CAP_ID_HDM               0x0005U /* HDM Decoder cap ID */
+
+/* HDM Decoder Capability (HDMC) register at hdm_decoder_offset+0x00 */
+#define CXL_HDMC_DECODER_COUNT_MASK     0xfU    /* bits [3:0]; 0→1, N→N*2 */
+
+/*
+ * Per-decoder register offsets from hdm_decoder_offset (CXL 4.0 Table 8-119).
+ * Decoder records begin at +0x10 and are 0x20 bytes each.
+ */
+#define CXL_HDM_DECODER0_BASE_LOW_OFFSET(i)  (0x20 * (i) + 0x10)
+#define CXL_HDM_DECODER0_BASE_HIGH_OFFSET(i) (0x20 * (i) + 0x14)
+#define CXL_HDM_DECODER0_CTRL_OFFSET(i)      (0x20 * (i) + 0x20)
+
+/* HDM Decoder n Control register bits (CXL 4.0 Table 8-123) */
+#define CXL_HDM_CTRL_COMMIT_LOCK        (1U << 8)  /* decoder locked */
+#define CXL_HDM_CTRL_COMMIT             (1U << 9)  /* software trigger */
+#define CXL_HDM_CTRL_COMMITTED          (1U << 10) /* hardware status */
+
+/* HDM Decoder BASE_LO: bits [31:28] hold address bits [31:28] */
+#define CXL_HDM_BASE_LO_ADDR_MASK       0xF0000000U
+
 bool vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp)
 {
     VFIODevice *vbasedev = &vdev->vbasedev;
@@ -3102,6 +3135,25 @@ void vfio_pci_put_device(VFIOPCIDevice *vdev)
 {
     vfio_display_finalize(vdev);
     vfio_bars_finalize(vdev);
+
+    /*
+     * The DPA region is not in bars[] and must be cleaned up here.
+     * Remove it from the system address space before releasing.
+     */
+    if (vdev->cxl.dpa_in_system_mem) {
+        memory_region_del_subregion(get_system_memory(), vdev->cxl.region.mem);
+        vdev->cxl.dpa_in_system_mem = false;
+        trace_vfio_cxl_put_device(vdev->vbasedev.name);
+    }
+    if (vdev->cxl.region.mem) {
+        vfio_region_exit(&vdev->cxl.region);
+        vfio_region_finalize(&vdev->cxl.region);
+    }
+    if (vdev->cxl.comp_regs_region.mem) {
+        vfio_region_exit(&vdev->cxl.comp_regs_region);
+        vfio_region_finalize(&vdev->cxl.comp_regs_region);
+    }
+
     vfio_cpr_pci_unregister_device(vdev);
     g_free(vdev->emulated_config_bits);
     g_free(vdev->rom);
@@ -3253,6 +3305,164 @@ void vfio_pci_register_req_notifier(VFIOPCIDevice *vdev)
         vdev->req_enabled = true;
     }
 }
+
+/*
+ * vfio_cxl_derive_hdm_info - read hdm_decoder_offset and hdm_count from the
+ * COMP_REGS region by traversing the CXL Capability Array.
+ *
+ * Dword 0: CXL Capability Array Header
+ *   bits[31:24] = num_caps,
+ *   bits[15:0]  = 1.
+ * Dwords 1..N:
+ *   bits[15:0]  = cap ID;
+ *   bits[31:20] = byte offset from region start.
+ * HDM Decoder cap ID = 0x5; its offset is hdm_decoder_offset.
+ * HDMC register at hdm_decoder_offset+0:
+ *   bits[3:0] encode count (0→1, N→N*2).
+ */
+static bool vfio_cxl_derive_hdm_info(VFIODevice *vbasedev, VFIOCXL *cxl,
+                                     Error **errp)
+{
+    off_t base = cxl->comp_regs_region.fd_offset;
+    uint32_t hdr, num_caps, i;
+
+    if (pread(vbasedev->fd, &hdr, sizeof(hdr), base) != sizeof(hdr)) {
+        error_setg(errp, "vfio-cxl: failed to read CXL Capability Header");
+        return false;
+    }
+    hdr = le32_to_cpu(hdr);
+
+    if ((hdr & CXL_CM_CAP_ENTRY_ID_MASK) != CXL_CM_CAP_HDR_ARRAY_ID) {
+        error_setg(errp, "vfio-cxl: unexpected CXL Capability Array ID 0x%x",
+                   hdr & CXL_CM_CAP_ENTRY_ID_MASK);
+        return false;
+    }
+
+    num_caps = (hdr >> CXL_CM_CAP_HDR_NUM_CAPS_SHIFT) &
+        CXL_CM_CAP_HDR_NUM_CAPS_MASK;
+
+    /*
+     * Dword 0 is the CXL Capability Array Header;
+     * capability entries start at dword 1.
+     */
+    for (i = 1; i <= num_caps; i++) {
+        uint32_t entry, cap_id;
+
+        if (pread(vbasedev->fd, &entry, sizeof(entry),
+                  base + i * sizeof(entry)) != sizeof(entry)) {
+            error_setg(errp, "vfio-cxl: failed to read cap entry %u", i);
+            return false;
+        }
+        entry = le32_to_cpu(entry);
+
+        cap_id = entry & CXL_CM_CAP_ENTRY_ID_MASK;
+        if (cap_id == CXL_CM_CAP_ID_HDM) {
+            uint32_t hdmc, field;
+
+            cxl->hdm_decoder_offset = (entry >> CXL_CM_CAP_ENTRY_PTR_SHIFT) &
+                                       CXL_CM_CAP_ENTRY_PTR_MASK;
+
+            if (pread(vbasedev->fd, &hdmc, sizeof(hdmc),
+                      base + cxl->hdm_decoder_offset) != sizeof(hdmc)) {
+                error_setg(errp, "vfio-cxl: failed to read HDMC register");
+                return false;
+            }
+            hdmc = le32_to_cpu(hdmc);
+            field = hdmc & CXL_HDMC_DECODER_COUNT_MASK;
+            cxl->hdm_count = field ? (uint8_t)(field * 2) : 1;
+            return true;
+        }
+    }
+
+    error_setg(errp, "vfio-cxl: HDM Decoder capability not found in COMP_REGS");
+    return false;
+}
+
+static bool vfio_cxl_setup(VFIOPCIDevice *vdev, Error **errp)
+{
+    VFIODevice *vbasedev = &vdev->vbasedev;
+    VFIOCXL *cxl = &vdev->cxl;
+    g_autofree struct vfio_device_info *info = NULL;
+    struct vfio_info_cap_header *hdr;
+    struct vfio_device_info_cap_cxl *cap;
+    g_autofree struct vfio_region_info *region_info = NULL;
+    g_autofree struct vfio_region_info *comp_info = NULL;
+    int ret;
+
+    if (!(vbasedev->flags & VFIO_DEVICE_FLAGS_CXL)) {
+        return true;
+    }
+
+    info = vfio_get_device_info(vbasedev->fd);
+    if (!info) {
+        error_setg(errp, "vfio-cxl: failed to get device info");
+        return false;
+    }
+
+    hdr = vfio_get_device_info_cap(info, VFIO_DEVICE_INFO_CAP_CXL);
+    if (!hdr) {
+        error_setg(errp, "vfio-cxl: CXL capability not found in device info");
+        return false;
+    }
+    cap = (void *)hdr;
+
+    if (cap->dpa_region_index == (uint32_t)-1 ||
+        cap->comp_regs_region_index == (uint32_t)-1) {
+        error_setg(errp, "vfio-cxl: kernel did not provide region indices "
+                   "(dpa=%u comp=%u)",
+                   cap->dpa_region_index, cap->comp_regs_region_index);
+        return false;
+    }
+
+    cxl->hdm_regs_bar_index = cap->hdm_regs_bar_index;
+    cxl->hdm_regs_offset    = cap->hdm_regs_offset;
+
+    /* DPA region */
+    ret = vfio_device_get_region_info(vbasedev, cap->dpa_region_index,
+                                      &region_info);
+    if (ret || !region_info) {
+        error_setg(errp, "vfio-cxl: failed to get DPA region info");
+        return false;
+    }
+    ret = vfio_region_setup(OBJECT(vdev), vbasedev, &cxl->region,
+                            region_info->index, "cxl-dpa", errp);
+    if (ret) {
+        error_setg(errp, "vfio-cxl: failed to set up DPA region");
+        return false;
+    }
+    cxl->dpa_size = region_info->size;
+
+    if (vfio_region_mmap(&cxl->region)) {
+        error_setg(errp, "vfio-cxl: failed to mmap DPA region for %s",
+                   vbasedev->name);
+        return false;
+    }
+
+    /* COMP_REGS region (HDM decoder shadow) */
+    ret = vfio_device_get_region_info(vbasedev, cap->comp_regs_region_index,
+                                      &comp_info);
+    if (ret || !comp_info) {
+        error_setg(errp, "vfio-cxl: failed to get COMP_REGS region info");
+        return false;
+    }
+    ret = vfio_region_setup(OBJECT(vdev), vbasedev, &cxl->comp_regs_region,
+                            comp_info->index, "cxl-comp-regs", errp);
+    if (ret) {
+        error_setg(errp, "vfio-cxl: failed to set up COMP_REGS region");
+        return false;
+    }
+    cxl->hdm_regs_size = comp_info->size;
+
+    if (!vfio_cxl_derive_hdm_info(vbasedev, cxl, errp)) {
+        return false;
+    }
+
+    trace_vfio_cxl_setup_params(vbasedev->name, cxl->hdm_regs_bar_index,
+                                 cxl->hdm_regs_offset, cxl->hdm_regs_size,
+                                 cxl->dpa_size);
+    return true;
+}
+
 
 static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
 {
@@ -3505,6 +3715,10 @@ static void vfio_pci_realize(PCIDevice *pdev, Error **errp)
     }
 
     if (!vfio_pci_populate_device(vdev, errp)) {
+        goto error;
+    }
+
+    if (!vfio_cxl_setup(vdev, errp)) {
         goto error;
     }
 

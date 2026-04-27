@@ -122,6 +122,19 @@ typedef struct VFIOMSIXInfo {
 
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOPCIDevice, VFIO_PCI_DEVICE)
 
+typedef struct VFIOCXL {
+    uint8_t  hdm_regs_bar_index;
+    uint64_t hdm_regs_offset;
+    uint64_t hdm_regs_size;
+    uint64_t hdm_decoder_offset;
+    uint8_t  hdm_count;
+    uint64_t dpa_size;
+    hwaddr   fmws_base;         /* GPA base programmed into HDM decoder 0 */
+    bool     dpa_in_system_mem;
+    VFIORegion region;
+    VFIORegion comp_regs_region;
+} VFIOCXL;
+
 struct VFIOPCIDevice {
     PCIDevice parent_obj;
 
@@ -191,6 +204,7 @@ struct VFIOPCIDevice {
     VFIODisplay *dpy;
     Notifier irqchip_change_notifier;
     VFIOPCICPR cpr;
+    VFIOCXL    cxl;
 };
 
 /* Use uin32_t for vendor & device so PCI_ANY_ID expands and cannot match hw */

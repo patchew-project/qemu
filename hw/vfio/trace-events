@@ -197,3 +197,7 @@ vfio_device_get_region_info_type(const char *name, int index, uint32_t type, uin
 vfio_device_reset_handler(void) ""
 vfio_device_attach(const char *name, int group_id) " (%s) group %d"
 vfio_device_detach(const char *name, int group_id) " (%s) group %d"
+
+# pci.c CXL Type-2 passthrough
+vfio_cxl_setup_params(const char *name, uint8_t bar, uint64_t hdm_off, uint64_t hdm_sz, uint64_t dpa_sz) " (%s) hdm_bar=%u hdm_regs_offset=0x%"PRIx64" hdm_regs_size=0x%"PRIx64" dpa_size=0x%"PRIx64
+vfio_cxl_put_device(const char *name) " (%s) removing DPA region from system memory"
