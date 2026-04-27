@@ -6349,9 +6349,32 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             .fgt = FGT_CLIDR_EL1,
             .resetvalue = GET_IDREG(isar, CLIDR)
         };
+        uint64_t dbgtr_el0_kvmidx =
+            cpreg_to_kvm_id(ENCODE_CP_REG(14, 0, 1, 0, 5, 3, 0));
+
         define_one_arm_cp_reg(cpu, &clidr);
         define_arm_cp_regs(cpu, v7_cp_reginfo);
         define_debug_regs(cpu);
+        /*
+         * We used to incorrectly expose a non-existent AArch32 "DBGDTRTX"
+         * register with this encoding. This has been fixed by commit
+         * 655659a74a36 ("target/arm: Correct encoding of Debug
+         * Communications Channel registers") by the introduction of correct
+         * separate cpreg definitions for AA64 and AA32 versions. However,
+         * the old cpreg definition couldn't be removed without breaking
+         * migration, so commit 4f2b82f604 reinstated the bogus encoding
+         * for migration data only.
+         *
+         * Now that we have migration tolerance infrastructure, we can use
+         * this to allow forward migration from the buggy QEMU versions,
+         * accepting and ignoring the bogus register if it is in the
+         * source data. QEMU 11.0 was the last version that sent the
+         * bogus encoding, so this workaround can be removed at the point
+         * where we no longer care about migration from that version
+         * (i.e. when we remove the "virt-11.0" machine type).
+         */
+        arm_register_cpreg_mig_tolerance(cpu, dbgtr_el0_kvmidx,
+                                         0, 0, ToleranceNotOnBothEnds);
     } else {
         define_arm_cp_regs(cpu, not_v7_cp_reginfo);
     }
