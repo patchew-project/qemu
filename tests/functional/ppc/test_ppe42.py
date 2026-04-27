@@ -60,7 +60,6 @@ class Ppe42Machine(QemuSystemTest):
                     self.log.debug(f"Execution stopped: {e}")
                     self.log.debug("Exiting due to test failure")
                     self.fail("Failure detected!")
-                    break
             else:
                 self.fail("Timed out waiting for test completion.")
 
