@@ -24,7 +24,7 @@
 void cxl_build_cedt(GArray *table_offsets, GArray *table_data,
                     BIOSLinker *linker, const char *oem_id,
                     const char *oem_table_id, CXLState *cxl_state);
-void build_cxl_osc_method(Aml *dev);
+void acpi_dsdt_add_cxl_host_bridge_methods(Aml *dev, bool preserve_config);
 void build_cxl_dsm_method(Aml *dev);
 
 #endif
