@@ -181,6 +181,82 @@ void arm_register_el_change_hook(ARMCPU *cpu, ARMELChangeHookFn *hook,
     QLIST_INSERT_HEAD(&cpu->el_change_hooks, entry, node);
 }
 
+static ARMCPRegMigTolerance *find_mig_tolerance(ARMCPU *cpu, uint64_t kvmidx)
+{
+    ARMCPRegMigTolerance *t;
+    QLIST_FOREACH(t, &cpu->cpreg_mig_tolerances, node) {
+        if (t->kvmidx == kvmidx)  {
+            return t;
+        }
+    }
+    return NULL;
+}
+
+void arm_register_cpreg_mig_tolerance(ARMCPU *cpu, uint64_t kvmidx,
+                                      uint64_t mask, uint64_t value,
+                                      ARMCPRegMigToleranceType type)
+{
+    ARMCPRegMigTolerance *entry;
+
+    /* make sure the kvmidx has not tolerance already registered */
+    assert(!find_mig_tolerance(cpu, kvmidx));
+
+    assert(type == ToleranceNotOnBothEnds ||
+           type == ToleranceOnlySrcTestValue);
+
+    entry = g_new0(ARMCPRegMigTolerance, 1);
+
+    entry->kvmidx = kvmidx;
+    entry->mask = mask;
+    entry->value = value;
+    entry->type = type;
+
+    QLIST_INSERT_HEAD(&cpu->cpreg_mig_tolerances, entry, node);
+}
+
+bool arm_cpu_match_cpreg_mig_tolerance(ARMCPU *cpu, uint64_t kvmidx,
+                                       uint64_t vmstate_value, uint64_t local_value,
+                                       ARMCPRegMigToleranceType type)
+{
+    ARMCPRegMigTolerance *t = find_mig_tolerance(cpu, kvmidx);
+    uint64_t diff, diff_outside_mask, field;
+
+    if (!t || t->type != type) {
+        return false;
+    }
+
+    if (type == ToleranceNotOnBothEnds) {
+        return true;
+    }
+
+    if (type == ToleranceOnlySrcTestValue &&
+        ((vmstate_value & t->mask) == t->value)) {
+        return true;
+    }
+
+    /* Need to check the mask */
+    diff = vmstate_value ^ local_value;
+    diff_outside_mask = diff & ~t->mask;
+
+    if (diff_outside_mask) {
+        /* there are differences outside of the mask */
+        return false;
+    }
+    if (type == ToleranceDiffInMask) {
+        /* differences only in the field, tolerance matched */
+        return true;
+    }
+    /* need to compare field value against authorized ones */
+    field = vmstate_value & t->mask;
+    if (type == ToleranceFieldLT && (field < t->value)) {
+        return true;
+    }
+    if (type == ToleranceFieldGT && (field > t->value)) {
+        return true;
+    }
+    return false;
+}
+
 static void cp_reg_reset(gpointer key, gpointer value, gpointer opaque)
 {
     /* Reset a single ARMCPRegInfo register */
@@ -1102,6 +1178,7 @@ static void arm_cpu_initfn(Object *obj)
 
     QLIST_INIT(&cpu->pre_el_change_hooks);
     QLIST_INIT(&cpu->el_change_hooks);
+    QLIST_INIT(&cpu->cpreg_mig_tolerances);
 
 #ifdef CONFIG_USER_ONLY
 # ifdef TARGET_AARCH64
@@ -1574,6 +1651,7 @@ static void arm_cpu_finalizefn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
     ARMELChangeHook *hook, *next;
+    ARMCPRegMigTolerance *t, *n;
 
     g_hash_table_destroy(cpu->cp_regs);
 
@@ -1584,6 +1662,10 @@ static void arm_cpu_finalizefn(Object *obj)
     QLIST_FOREACH_SAFE(hook, &cpu->el_change_hooks, node, next) {
         QLIST_REMOVE(hook, node);
         g_free(hook);
+    }
+    QLIST_FOREACH_SAFE(t, &cpu->cpreg_mig_tolerances, node, n) {
+        QLIST_REMOVE(t, node);
+        g_free(t);
     }
 #ifndef CONFIG_USER_ONLY
     if (cpu->pmu_timer) {

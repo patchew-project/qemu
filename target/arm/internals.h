@@ -1943,4 +1943,58 @@ int compare_u64(const void *a, const void *b);
 /* Used in FEAT_MEC to set the MECIDWidthm1 field in the MECIDR_EL2 register. */
 #define MECID_WIDTH 16
 
+typedef enum {
+    ToleranceNotOnBothEnds,
+    ToleranceOnlySrcTestValue,
+    ToleranceDiffInMask,
+    ToleranceFieldLT,
+    ToleranceFieldGT,
+} ARMCPRegMigToleranceType;
+
+typedef struct ARMCPRegMigTolerance {
+    uint64_t kvmidx;
+    uint64_t mask;
+    uint64_t value;
+    ARMCPRegMigToleranceType type;
+    QLIST_ENTRY(ARMCPRegMigTolerance) node;
+} ARMCPRegMigTolerance;
+
+/**
+ * arm_register_cpreg_mig_tolerance:
+ * Register a migration tolerance wrt one given cpreg identified by its
+ * @kvmidx. Calling this function twice for the same @kvmidx is a
+ * programming error and will cause an assertion failure.
+ *
+ * @cpu: vcpu to apply the migration tolerance on
+ * @kvmidx: kvm index of the cpreg the tolerance applies to
+ * @mask: bitmask where a difference is tolerated
+ *        (relevant with ToleranceDiffInMask)
+ * @value: value the bitmask field is compared with
+ *        (relevant with ToleranceFieldLT and ToleranceFieldGT)
+ * @type: type of the migration tolerance:
+ * - ToleranceNotOnBothEnds (cpreg index is allowed to be only present
+ *   on one end)
+ * - ToleranceOnlySrcTestValue (cpreg index is allowed to be only
+ *   present in source if its value @mask field matches @value)
+ * - ToleranceDiffInMask (mismatch in cpreg values are only tolerated
+ *   if differences are within @mask)
+ * - ToleranceFieldLT (mismatch in cpreg values are only tolerated
+ *   if incoming @bitmask field value is less than @value)
+ * - ToleranceFieldGT (mismatch in cpreg values are only tolerated
+ *   if incoming @bitmask field value is greater than @value)
+ */
+void arm_register_cpreg_mig_tolerance(ARMCPU *cpu, uint64_t kvmidx,
+                                      uint64_t mask, uint64_t value,
+                                      ARMCPRegMigToleranceType type);
+
+/**
+ * arm_cpu_match_cpreg_mig_tolerance:
+ * Check whether a tolerance of type @type exists for a given @kvmidx
+ * and the tolerance criterion is satisfied
+ */
+bool arm_cpu_match_cpreg_mig_tolerance(ARMCPU *cpu, uint64_t kvmidx,
+                                       uint64_t vmstate_value, uint64_t local_value,
+                                       ARMCPRegMigToleranceType type);
+
+
 #endif
