@@ -15,11 +15,17 @@
 #include "qtest_aspeed.h"
 #include "hw/i2c/aspeed_i2c.h"
 
+static int once;
+
+void aspeed_i2c_restart(void)
+{
+    once = false;
+}
+
 static void aspeed_i2c_startup(QTestState *s, uint32_t baseaddr,
                                uint8_t slave_addr, uint8_t reg)
 {
     uint32_t v;
-    static int once;
 
     if (!once) {
         /* one time: enable master */

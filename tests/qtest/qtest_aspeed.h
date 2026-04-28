@@ -23,6 +23,8 @@ static inline uint32_t ast2600_i2c_calc_bus_addr(uint8_t bus_num)
     return AST2600_ASPEED_I2C_BASE_ADDR + 0x80 + bus_num * 0x80;
 }
 
+void aspeed_i2c_restart(void);
+
 uint8_t aspeed_i2c_readb(QTestState *s,
                          uint32_t baseaddr, uint8_t slave_addr, uint8_t reg);
 uint16_t aspeed_i2c_readw(QTestState *s,
