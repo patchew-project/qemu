@@ -1390,13 +1390,6 @@ DisplaySurface *qemu_console_surface(QemuConsole *console)
     }
 }
 
-PixelFormat qemu_default_pixelformat(int bpp)
-{
-    pixman_format_code_t fmt = qemu_default_pixman_format(bpp, true);
-    PixelFormat pf = qemu_pixelformat_from_pixman(fmt);
-    return pf;
-}
-
 static QemuDisplay *dpys[DISPLAY_TYPE__MAX];
 
 void qemu_display_register(QemuDisplay *ui)
