@@ -679,8 +679,8 @@ static void input_barrier_instance_init(Object *obj)
     /* always use generic keymaps */
     if (keyboard_layout && !kbd_layout) {
         /* We use X11 key id, so use VNC name2keysym */
-        kbd_layout = init_keyboard_layout(name2keysym, keyboard_layout,
-                                          &error_fatal);
+        kbd_layout = kbd_layout_new(name2keysym, keyboard_layout,
+                                    &error_fatal);
     }
 
     ib->saddr.type = SOCKET_ADDRESS_TYPE_INET;

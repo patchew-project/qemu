@@ -770,8 +770,8 @@ static void curses_keyboard_setup(void)
         keyboard_layout = "en-us";
 #endif
     if(keyboard_layout) {
-        kbd_layout = init_keyboard_layout(name2keysym, keyboard_layout,
-                                          &error_fatal);
+        kbd_layout = kbd_layout_new(name2keysym, keyboard_layout,
+                                    &error_fatal);
     }
 }
 
