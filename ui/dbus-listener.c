@@ -1026,9 +1026,11 @@ static bool
 dbus_display_listener_implements(DBusDisplayListener *ddl, const char *iface)
 {
     QemuDBusDisplay1Listener *l = QEMU_DBUS_DISPLAY1_LISTENER(ddl->proxy);
+    const char * const *interfaces;
     bool implements;
 
-    implements = g_strv_contains(qemu_dbus_display1_listener_get_interfaces(l), iface);
+    interfaces = qemu_dbus_display1_listener_get_interfaces(l);
+    implements = interfaces && g_strv_contains(interfaces, iface);
     if (!implements) {
         g_debug("Display listener does not implement: `%s`", iface);
     }
