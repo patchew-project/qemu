@@ -2016,6 +2016,9 @@ typedef struct CPUArchState {
     uint64_t msr_bndcfgs;
     uint64_t efer;
 
+    /* Shared register page */
+    struct hv_vp_register_page *regs_page;
+
     /* Beginning of state preserved by INIT (dummy marker).  */
     struct {} start_init_save;
 
