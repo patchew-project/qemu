@@ -1034,6 +1034,19 @@ GSList *object_class_get_list_sorted(const char *implements_type,
                               bool include_abstract);
 
 /**
+ * object_class_get_list:
+ * @name_prefix: Name prefix for type to filter for.
+ * @include_abstract: Whether to include abstract classes.
+ *
+ * To the opposite of object_class_get_list, only matching types are
+ * initialized.
+ *
+ * Returns: A singly-linked list of the classes in reverse hashtable order.
+ */
+GSList *object_class_get_list_by_name_prefix(const char *name_prefix,
+                                             bool include_abstract);
+
+/**
  * object_ref:
  * @obj: the object
  *

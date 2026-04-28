@@ -1062,6 +1062,30 @@ static void object_class_foreach_tramp(gpointer key, gpointer value,
     data->fn(k, data->opaque);
 }
 
+static void object_class_foreach_match_name_prefix(gpointer key, gpointer value,
+                                                   gpointer opaque)
+{
+    OCFData *data = opaque;
+    TypeImpl *type = value;
+    ObjectClass *k;
+
+    const char *name_prefix = data->implements_type;
+    size_t prefix_len = name_prefix ? strlen(name_prefix) : 0;
+
+    if (strncmp(type->name, name_prefix, prefix_len)) {
+        return;
+    }
+
+    type_initialize(type);
+    k = type->class;
+
+    if (!data->include_abstract && type->abstract) {
+        return;
+    }
+
+    data->fn(k, data->opaque);
+}
+
 void object_class_foreach(void (*fn)(ObjectClass *klass, void *opaque),
                           const char *implements_type, bool include_abstract,
                           void *opaque)
@@ -1128,6 +1152,22 @@ GSList *object_class_get_list(const char *implements_type,
 
     object_class_foreach(object_class_get_list_tramp,
                          implements_type, include_abstract, &list);
+    return list;
+}
+
+GSList *object_class_get_list_by_name_prefix(const char *name_prefix,
+                                             bool include_abstract)
+{
+    GSList *list = NULL;
+
+    OCFData data = { object_class_get_list_tramp,
+                     name_prefix, include_abstract, &list };
+
+    enumerating_types = true;
+    g_hash_table_foreach(type_table_get(),
+                         object_class_foreach_match_name_prefix,
+                         &data);
+    enumerating_types = false;
     return list;
 }
 
