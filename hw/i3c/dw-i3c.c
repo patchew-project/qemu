@@ -1507,9 +1507,11 @@ static void dw_i3c_addr_assign_cmd(DWI3C *s, DWI3CAddrAssignCmd cmd)
     for (i = 0; i < cmd.dev_count; i++) {
         uint8_t addr = dw_i3c_target_addr(s, cmd.dev_index + i);
         union {
-            uint64_t pid:48;
-            uint8_t bcr;
-            uint8_t dcr;
+            struct {
+                uint8_t pid[6];
+                uint8_t bcr;
+                uint8_t dcr;
+            };
             uint32_t w[2];
             uint8_t b[8];
         } target_info;
@@ -1544,9 +1546,12 @@ static void dw_i3c_addr_assign_cmd(DWI3C *s, DWI3CAddrAssignCmd cmd)
             err = DW_I3C_RESP_QUEUE_ERR_DAA_NACK;
             break;
         }
-        dw_i3c_update_char_table(s, cmd.dev_index + i,
-                                            target_info.pid, target_info.bcr,
-                                            target_info.dcr, addr);
+        uint64_t pid = 0;
+        for (int j = 0; j < 6; j++) {
+            pid |= (uint64_t)target_info.pid[j] << (j * 8);
+        }
+        dw_i3c_update_char_table(s, cmd.dev_index + i, pid, target_info.bcr,
+                                 target_info.dcr, addr);
 
         /* Push the PID, BCR, and DCR to the RX queue. */
         dw_i3c_push_rx(s, target_info.w[0]);
