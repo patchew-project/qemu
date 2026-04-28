@@ -551,7 +551,7 @@ int main(int argc, char **argv)
         }
     }
 
-    qtest_start("-machine npcm750-evb");
+    qtest_start("-machine npcm750-evb -nodefaults");
     qtest_irq_intercept_in(global_qtest, "/machine/soc/a9mpcore/gic");
     ret = g_test_run();
     qtest_end();
