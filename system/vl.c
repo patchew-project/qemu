@@ -2889,6 +2889,9 @@ void qemu_init(int argc, char **argv)
     os_setup_limits();
 
     module_init_info(qemu_modinfo);
+    /* We need to initialize QOM first to detect target */
+    module_call_init(MODULE_INIT_QOM);
+
     module_allow_arch(target_name());
 
     qemu_init_subsystems();
