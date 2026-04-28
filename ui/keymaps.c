@@ -187,8 +187,8 @@ void kbd_layout_free(kbd_layout_t *k)
     g_free(k);
 }
 
-kbd_layout_t *init_keyboard_layout(const name2keysym_t *table,
-                                   const char *language, Error **errp)
+kbd_layout_t *kbd_layout_new(const name2keysym_t *table,
+                             const char *language, Error **errp)
 {
     kbd_layout_t *k;
 

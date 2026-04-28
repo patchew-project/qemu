@@ -3443,10 +3443,10 @@ void vnc_display_init(const char *id, Error **errp)
 
     if (keyboard_layout) {
         trace_vnc_key_map_init(keyboard_layout);
-        vd->kbd_layout = init_keyboard_layout(name2keysym,
-                                              keyboard_layout, errp);
+        vd->kbd_layout = kbd_layout_new(name2keysym,
+                                        keyboard_layout, errp);
     } else {
-        vd->kbd_layout = init_keyboard_layout(name2keysym, "en-us", errp);
+        vd->kbd_layout = kbd_layout_new(name2keysym, "en-us", errp);
     }
 
     if (!vd->kbd_layout) {
