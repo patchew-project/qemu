@@ -28,6 +28,7 @@
 #include "qemu/units.h"
 #include "qemu/module.h"
 #include "qemu/target-info.h"
+#include "qemu/target-info-qom.h"
 #include "exec/cpu-common.h"
 #include "exec/page-vary.h"
 #include "hw/core/qdev-properties.h"
@@ -2891,6 +2892,7 @@ void qemu_init(int argc, char **argv)
     module_init_info(qemu_modinfo);
     /* We need to initialize QOM first to detect target */
     module_call_init(MODULE_INIT_QOM);
+    target_info_qom_set_target();
 
     module_allow_arch(target_name());
 
