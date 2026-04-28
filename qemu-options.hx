@@ -2209,9 +2209,9 @@ DEF("display", HAS_ARG, QEMU_OPTION_display,
     "            [,window-close=on|off]\n"
 #endif
 #if defined(CONFIG_GTK)
-    "-display gtk[,full-screen=on|off][,gl=on|off][,grab-on-hover=on|off]\n"
-    "            [,show-tabs=on|off][,show-cursor=on|off][,window-close=on|off]\n"
-    "            [,show-menubar=on|off][,zoom-to-fit=on|off]\n"
+    "-display gtk[,clipboard=on|off][,full-screen=on|off][,gl=on|off]\n"
+    "            [,grab-on-hover=on|off][,show-tabs=on|off][,show-cursor=on|off]\n"
+    "            [,window-close=on|off][,show-menubar=on|off][,zoom-to-fit=on|off]\n"
 #endif
 #if defined(CONFIG_VNC)
     "-display vnc=<display>[,<optargs>]\n"
@@ -2294,6 +2294,9 @@ SRST
         Display video output in a GTK window. This interface provides
         drop-down menus and other UI elements to configure and control
         the VM during runtime. Valid parameters are:
+
+        ``clipboard=on|off`` : Enable host-guest clipboard sharing,
+                               defaults to "off"
 
         ``full-screen=on|off`` : Start in fullscreen mode
 

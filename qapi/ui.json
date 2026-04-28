@@ -1319,6 +1319,9 @@
 #
 # GTK display options.
 #
+# @clipboard: Enable host-guest clipboard sharing.  Defaults to "off".
+#     (Since 11.1)
+#
 # @grab-on-hover: Grab keyboard input on mouse hover.
 #
 # @zoom-to-fit: Zoom guest display to fit into the host window.  When
@@ -1344,7 +1347,8 @@
 # Since: 2.12
 ##
 { 'struct'  : 'DisplayGTK',
-  'data'    : { '*grab-on-hover'     : 'bool',
+  'data'    : { '*clipboard'         : 'bool',
+                '*grab-on-hover'     : 'bool',
                 '*zoom-to-fit'       : 'bool',
                 '*show-tabs'         : 'bool',
                 '*show-menubar'      : 'bool',
