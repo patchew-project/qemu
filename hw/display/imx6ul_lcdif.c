@@ -152,7 +152,7 @@ static void imx6ul_lcdif_draw_line_xrgb8888(void *opaque, uint8_t *dst,
     }
 }
 
-static void imx6ul_lcdif_update_display(void *opaque)
+static bool imx6ul_lcdif_update_display(void *opaque)
 {
     IMX6ULLCDIFState *s = opaque;
     DisplaySurface *surface = qemu_console_surface(s->con);
@@ -167,7 +167,7 @@ static void imx6ul_lcdif_update_display(void *opaque)
     int src_width;
 
     if (!imx6ul_lcdif_is_running(s) || width == 0 || height == 0) {
-        return;
+        return true;
     }
 
     switch (FIELD_EX32(ctrl, CTRL, WORD_LENGTH)) {
@@ -180,7 +180,7 @@ static void imx6ul_lcdif_update_display(void *opaque)
         fn = imx6ul_lcdif_draw_line_xrgb8888;
         break;
     default:
-        return;
+        return true;
     }
 
     if (surface_width(surface) != width || surface_height(surface) != height) {
@@ -207,6 +207,7 @@ static void imx6ul_lcdif_update_display(void *opaque)
     }
 
     s->invalidate = false;
+    return true;
 }
 
 static void imx6ul_lcdif_invalidate_display(void *opaque)

@@ -1252,12 +1252,12 @@ static inline void xlnx_dp_blend_surface(XlnxDPState *s)
                            surface_height(s->g_plane.surface));
 }
 
-static void xlnx_dp_update_display(void *opaque)
+static bool xlnx_dp_update_display(void *opaque)
 {
     XlnxDPState *s = XLNX_DP(opaque);
 
     if ((s->core_registers[DP_TRANSMITTER_ENABLE] & 0x01) == 0) {
-        return;
+        return true;
     }
 
     xlnx_dpdma_trigger_vsync_irq(s->dpdma);
@@ -1272,14 +1272,14 @@ static void xlnx_dp_update_display(void *opaque)
          */
         s->core_registers[DP_INT_STATUS] |= (1 << 21);
         xlnx_dp_update_irq(s);
-        return;
+        return true;
     }
 
     if (xlnx_dp_global_alpha_enabled(s)) {
         if (!xlnx_dpdma_start_operation(s->dpdma, 0, false)) {
             s->core_registers[DP_INT_STATUS] |= (1 << 21);
             xlnx_dp_update_irq(s);
-            return;
+            return true;
         }
         xlnx_dp_blend_surface(s);
     }
@@ -1288,6 +1288,8 @@ static void xlnx_dp_update_display(void *opaque)
      * XXX: We might want to update only what changed.
      */
     dpy_gfx_update_full(s->console);
+
+    return true;
 }
 
 static const GraphicHwOps xlnx_dp_gfx_ops = {
