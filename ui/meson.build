@@ -4,6 +4,7 @@ system_ss.add(files(
   'clipboard.c',
   'console.c',
   'cursor.c',
+  'display-surface.c',
   'dmabuf.c',
   'input-keymap.c',
   'input-legacy.c',
