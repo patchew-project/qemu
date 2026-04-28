@@ -144,7 +144,7 @@ static void draw_vertical_line(DisplaySurface *ds,
     }
 }
 
-static void jazz_led_update_display(void *opaque)
+static bool jazz_led_update_display(void *opaque)
 {
     LedState *s = opaque;
     DisplaySurface *surface = qemu_console_surface(s->con);
@@ -186,7 +186,7 @@ static void jazz_led_update_display(void *opaque)
             color_led = rgb_to_pixel32(0x00, 0xff, 0x00);
             break;
         default:
-            return;
+            return true;
         }
 
         /* display segments */
@@ -218,6 +218,8 @@ static void jazz_led_update_display(void *opaque)
 
     s->state = REDRAW_NONE;
     dpy_gfx_update_full(s->con);
+
+    return true;
 }
 
 static void jazz_led_invalidate_display(void *opaque)

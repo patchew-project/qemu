@@ -20,7 +20,7 @@ struct RAMFBStandaloneState {
     bool use_legacy_x86_rom;
 };
 
-static void display_update_wrapper(void *dev)
+static bool display_update_wrapper(void *dev)
 {
     RAMFBStandaloneState *ramfb = RAMFB(dev);
 
@@ -29,6 +29,8 @@ static void display_update_wrapper(void *dev)
     } else {
         ramfb_display_update(ramfb->con, ramfb->state);
     }
+
+    return true;
 }
 
 static const GraphicHwOps wrapper_ops = {

@@ -709,14 +709,14 @@ static void xenfb_send_refresh_period(struct XenFB *xenfb, int period)
  * Our screen might be inactive.  When asked for
  * an update we know it is active.
  */
-static void xenfb_update(void *opaque)
+static bool xenfb_update(void *opaque)
 {
     struct XenFB *xenfb = opaque;
     DisplaySurface *surface;
     int i;
 
     if (xenfb->c.xendev.be_state != XenbusStateConnected)
-        return;
+        return true;
 
     if (!xenfb->feature_update) {
         /* we don't get update notifications, thus use the
@@ -770,6 +770,8 @@ static void xenfb_update(void *opaque)
     }
     xenfb->up_count = 0;
     xenfb->up_fullscreen = 0;
+
+    return true;
 }
 
 static void xenfb_ui_info(void *opaque, uint32_t idx, QemuUIInfo *info)
