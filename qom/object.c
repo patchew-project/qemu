@@ -612,7 +612,7 @@ static void object_property_del_all(Object *obj)
         }
     } while (released);
 
-    g_hash_table_unref(obj->properties);
+    g_clear_pointer(&obj->properties, g_hash_table_unref);
 }
 
 static void object_property_del_child(Object *obj, Object *child)
@@ -658,6 +658,9 @@ static void object_deinit(Object *obj, TypeImpl *type)
     if (type_has_parent(type)) {
         object_deinit(obj, type_get_parent(type));
     }
+
+    g_assert(obj->properties == NULL);
+    obj->class = NULL;
 }
 
 static void object_finalize(void *data)
@@ -670,6 +673,7 @@ static void object_finalize(void *data)
 
     g_assert(obj->ref == 0);
     g_assert(obj->parent == NULL);
+    g_assert(obj->class == NULL);
     if (obj->free) {
         obj->free(obj);
     }
