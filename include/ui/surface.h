@@ -24,8 +24,6 @@ typedef struct DisplaySurface {
     uint32_t share_handle_offset;
 } DisplaySurface;
 
-PixelFormat qemu_default_pixelformat(int bpp);
-
 DisplaySurface *qemu_create_displaysurface_from(int width, int height,
                                                 pixman_format_code_t format,
                                                 int linesize, uint8_t *data);
