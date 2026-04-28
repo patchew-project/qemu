@@ -7,10 +7,20 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qom/object.h"
+#include "qemu/target-info-impl.h"
+#include "qemu/target-info-qom.h"
 #include "hw/arm/machines-qom.h"
 
 static const TypeInfo target_info_types[] = {
+    {
+        .name = TYPE_TARGET_INFO,
+        .parent = TYPE_OBJECT,
+        .instance_size = sizeof(TargetInfoQom),
+        .class_size = sizeof(TargetInfoQomClass),
+        .abstract = true,
+    },
     {
         .name           = TYPE_TARGET_ARM_MACHINE,
         .parent         = TYPE_INTERFACE,
