@@ -25,6 +25,7 @@
 #include "exec/cpu-common.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
+#include "qemu/error-report.h"
 
 #define VAPIC_IO_PORT           0x7e
 
@@ -80,6 +81,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(VAPICROMState, VAPIC)
 
 #define TPR_INSTR_ABS_MODRM             0x1
 #define TPR_INSTR_MATCH_MODRM_REG       0x2
+#define TPR_INSTR_MAX_LENGTH            10
 
 typedef struct TPRInstruction {
     uint8_t opcode;
@@ -194,7 +196,7 @@ static bool is_abs_modrm(uint8_t modrm)
     return (modrm & 0xc7) == 0x05;
 }
 
-static bool opcode_matches(uint8_t *opcode, const TPRInstruction *instr)
+static bool opcode_matches(const uint8_t *opcode, const TPRInstruction *instr)
 {
     return opcode[0] == instr->opcode &&
         (!(instr->flags & TPR_INSTR_ABS_MODRM) || is_abs_modrm(opcode[1])) &&
@@ -203,12 +205,13 @@ static bool opcode_matches(uint8_t *opcode, const TPRInstruction *instr)
 }
 
 static int evaluate_tpr_instruction(VAPICROMState *s, X86CPU *cpu,
-                                    target_ulong *pip, TPRAccess access)
+                                    target_ulong *pip, uint8_t *instr_bytes,
+                                    size_t *pinstr_len, TPRAccess access)
 {
     CPUState *cs = CPU(cpu);
     const TPRInstruction *instr;
     target_ulong ip = *pip;
-    uint8_t opcode[2];
+    size_t instr_len = 0;
     uint32_t real_tpr_addr;
     int i;
 
@@ -239,26 +242,44 @@ static int evaluate_tpr_instruction(VAPICROMState *s, X86CPU *cpu,
          */
         for (i = 0; i < ARRAY_SIZE(tpr_instr); i++) {
             instr = &tpr_instr[i];
+            instr_len = instr->length;
+            if (instr_len > TPR_INSTR_MAX_LENGTH) {
+                warn_report_once("kvmvapic: TPR instruction length %zu "
+                                 "exceeds maximum %d",
+                                 instr_len, TPR_INSTR_MAX_LENGTH);
+                return -1;
+            }
             if (instr->access != access) {
                 continue;
             }
-            if (cpu_memory_rw_debug(cs, ip - instr->length, opcode,
-                                    sizeof(opcode), 0) < 0) {
+            if (cpu_memory_rw_debug(cs, ip - instr_len, instr_bytes,
+                                    instr_len, 0) < 0) {
                 return -1;
             }
-            if (opcode_matches(opcode, instr)) {
+            if (opcode_matches(instr_bytes, instr)) {
                 ip -= instr->length;
                 goto instruction_ok;
             }
         }
         return -1;
     } else {
-        if (cpu_memory_rw_debug(cs, ip, opcode, sizeof(opcode), 0) < 0) {
-            return -1;
-        }
         for (i = 0; i < ARRAY_SIZE(tpr_instr); i++) {
             instr = &tpr_instr[i];
-            if (opcode_matches(opcode, instr)) {
+            if (instr->length > TPR_INSTR_MAX_LENGTH) {
+                warn_report_once("kvmvapic: TPR instruction length %zu "
+                                 "exceeds maximum %d",
+                                 instr->length, TPR_INSTR_MAX_LENGTH);
+                return -1;
+            }
+            /* tpr_instr must be sorted by length with shortest first */
+            if (instr->length > instr_len) {
+                instr_len = instr->length;
+                if (cpu_memory_rw_debug(cs, ip, instr_bytes,
+                                        instr_len, 0) < 0) {
+                    return -1;
+                }
+            }
+            if (opcode_matches(instr_bytes, instr)) {
                 goto instruction_ok;
             }
         }
@@ -270,11 +291,14 @@ instruction_ok:
      * Grab the virtual TPR address from the instruction
      * and update the cached values.
      */
-    if (cpu_memory_rw_debug(cs, ip + instr->addr_offset,
-                            (void *)&real_tpr_addr,
-                            sizeof(real_tpr_addr), 0) < 0) {
+    if (instr->addr_offset + sizeof(real_tpr_addr) > instr->length) {
+        warn_report_once(
+            "kvmvapic: TPR address offset %zu exceeds instruction length %zu",
+            (size_t)instr->addr_offset, instr->length);
         return -1;
     }
+    memcpy(&real_tpr_addr, instr_bytes + instr->addr_offset,
+           sizeof(real_tpr_addr));
     real_tpr_addr = le32_to_cpu(real_tpr_addr);
     if ((real_tpr_addr & 0xfff) != 0x80) {
         return -1;
@@ -283,6 +307,7 @@ instruction_ok:
     update_guest_rom_state(s);
 
     *pip = ip;
+    *pinstr_len = instr->length;
     return 0;
 }
 
@@ -403,6 +428,8 @@ static void patch_call(X86CPU *cpu, target_ulong ip, uint32_t target)
 typedef struct PatchInfo {
     VAPICHandlers *handler;
     target_ulong ip;
+    size_t instr_len;
+    uint8_t instr[TPR_INSTR_MAX_LENGTH];
 } PatchInfo;
 
 static void do_patch_instruction(CPUState *cs, run_on_cpu_data data)
@@ -411,19 +438,33 @@ static void do_patch_instruction(CPUState *cs, run_on_cpu_data data)
     PatchInfo *info = (PatchInfo *) data.host_ptr;
     VAPICHandlers *handlers = info->handler;
     target_ulong ip = info->ip;
-    uint8_t opcode[2];
+    size_t instr_len = info->instr_len;
+    uint8_t instr[TPR_INSTR_MAX_LENGTH];
     uint32_t imm32 = 0;
 
-    cpu_memory_rw_debug(cs, ip, opcode, sizeof(opcode), 0);
+    /*
+     * The instruction may have changed before this queued work item runs.
+     * Leave it unchanged if it no longer matches the saved bytes.
+     */
+    if (instr_len == 0 || instr_len > TPR_INSTR_MAX_LENGTH) {
+        warn_report_once(
+            "kvmvapic: saved TPR instruction length %zu is invalid",
+            instr_len);
+        goto out;
+    }
+    if (cpu_memory_rw_debug(cs, ip, instr, instr_len, 0) < 0
+        || memcmp(instr, info->instr, instr_len) != 0) {
+        goto out;
+    }
 
-    switch (opcode[0]) {
+    switch (instr[0]) {
     case 0x89: /* mov r32 to r/m32 */
-        patch_byte(x86_cpu, ip, 0x50 + modrm_reg(opcode[1]));  /* push reg */
+        patch_byte(x86_cpu, ip, 0x50 + modrm_reg(instr[1]));  /* push reg */
         patch_call(x86_cpu, ip + 1, handlers->set_tpr);
         break;
     case 0x8b: /* mov r/m32 to r32 */
         patch_byte(x86_cpu, ip, 0x90);
-        patch_call(x86_cpu, ip + 1, handlers->get_tpr[modrm_reg(opcode[1])]);
+        patch_call(x86_cpu, ip + 1, handlers->get_tpr[modrm_reg(instr[1])]);
         break;
     case 0xa1: /* mov abs to eax */
         patch_call(x86_cpu, ip, handlers->get_tpr[0]);
@@ -432,8 +473,14 @@ static void do_patch_instruction(CPUState *cs, run_on_cpu_data data)
         patch_call(x86_cpu, ip, handlers->set_tpr_eax);
         break;
     case 0xc7: /* mov imm32, r/m32 (c7/0) */
+        if (sizeof(imm32) + 6 > instr_len) {
+            warn_report_once(
+                "kvmvapic: TPR mov-imm instruction length %zu is too short",
+                instr_len);
+            goto out;
+        }
         patch_byte(x86_cpu, ip, 0x68);  /* push imm32 */
-        cpu_memory_rw_debug(cs, ip + 6, (void *)&imm32, sizeof(imm32), 0);
+        memcpy(&imm32, instr + 6, sizeof(imm32));
         cpu_memory_rw_debug(cs, ip + 1, (void *)&imm32, sizeof(imm32), 1);
         patch_call(x86_cpu, ip + 5, handlers->set_tpr);
         break;
@@ -442,13 +489,18 @@ static void do_patch_instruction(CPUState *cs, run_on_cpu_data data)
         patch_call(x86_cpu, ip + 1, handlers->get_tpr_stack);
         break;
     default:
-        abort();
+        warn_report_once("kvmvapic: unexpected TPR instruction opcode 0x%02x "
+                         "while patching; leaving instruction unchanged",
+                         instr[0]);
+        break;
     }
 
+out:
     g_free(info);
 }
 
-static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
+static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip,
+                              const uint8_t *instr_bytes, size_t instr_len)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
     CPUState *cs = CPU(cpu);
@@ -461,10 +513,18 @@ static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
         handlers = &s->rom_state.mp;
     }
 
-    info  = g_new(PatchInfo, 1);
+    if (instr_len == 0 || instr_len > TPR_INSTR_MAX_LENGTH) {
+        warn_report_once(
+            "kvmvapic: not patching invalid TPR instruction length %zu",
+            instr_len);
+        return;
+    }
+
+    info = g_new(PatchInfo, 1);
     info->handler = handlers;
     info->ip = ip;
-
+    info->instr_len = instr_len;
+    memcpy(info->instr, instr_bytes, instr_len);
     async_safe_run_on_cpu(cs, do_patch_instruction, RUN_ON_CPU_HOST_PTR(info));
 }
 
@@ -474,10 +534,12 @@ void vapic_report_tpr_access(DeviceState *dev, CPUState *cs, target_ulong ip,
     VAPICROMState *s = VAPIC(dev);
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
+    size_t instr_len;
+    uint8_t instr[TPR_INSTR_MAX_LENGTH];
 
     cpu_synchronize_state(cs);
 
-    if (evaluate_tpr_instruction(s, cpu, &ip, access) < 0) {
+    if (evaluate_tpr_instruction(s, cpu, &ip, instr, &instr_len, access) < 0) {
         if (s->state == VAPIC_ACTIVE) {
             vapic_enable(s, cpu);
         }
@@ -489,7 +551,7 @@ void vapic_report_tpr_access(DeviceState *dev, CPUState *cs, target_ulong ip,
     if (vapic_enable(s, cpu) < 0) {
         return;
     }
-    patch_instruction(s, cpu, ip);
+    patch_instruction(s, cpu, ip, instr, instr_len);
 }
 
 typedef struct VAPICEnableTPRReporting {
