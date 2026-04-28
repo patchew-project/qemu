@@ -10,6 +10,7 @@
 #include "qemu/option.h"
 #include "qemu/queue.h"
 #include "ui/console.h"
+#include "ui/vgafont.h"
 
 #include "pixman.h"
 #include "trace.h"
