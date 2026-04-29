@@ -269,7 +269,7 @@ static void gen_mul(DisasContext *dc, TCGv_i32 dest,
 static void gen_mulu(DisasContext *dc, TCGv_i32 dest,
                      TCGv_i32 srca, TCGv_i32 srcb)
 {
-    tcg_gen_muls2_i32(dest, cpu_sr_cy, srca, srcb);
+    tcg_gen_mulu2_i32(dest, cpu_sr_cy, srca, srcb);
     tcg_gen_setcondi_i32(TCG_COND_NE, cpu_sr_cy, cpu_sr_cy, 0);
 
     gen_ove_cy(dc);
