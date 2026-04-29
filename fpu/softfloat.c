@@ -779,12 +779,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
                   FloatParts128 *: parts128_##NAME, \
                   FloatParts256 *: parts256_##NAME)
 
-static void parts64_scalbn(FloatParts64 *a, int n, float_status *s);
-static void parts128_scalbn(FloatParts128 *a, int n, float_status *s);
-
-#define parts_scalbn(A, N, S) \
-    PARTS_GENERIC_64_128(scalbn, A)(A, N, S)
-
 static void parts64_log2(FloatParts64 *a, float_status *s, const FloatFmt *f);
 static void parts128_log2(FloatParts128 *a, float_status *s, const FloatFmt *f);
 
@@ -4678,7 +4672,7 @@ float16 float16_scalbn(float16 a, int n, float_status *status)
     FloatParts64 p;
 
     float16_unpack_canonical(&p, a, status);
-    parts_scalbn(&p, n, status);
+    parts64_scalbn(&p, n, status);
     return float16_round_pack_canonical(&p, status);
 }
 
@@ -4687,7 +4681,7 @@ float32 float32_scalbn(float32 a, int n, float_status *status)
     FloatParts64 p;
 
     float32_unpack_canonical(&p, a, status);
-    parts_scalbn(&p, n, status);
+    parts64_scalbn(&p, n, status);
     return float32_round_pack_canonical(&p, status);
 }
 
@@ -4696,7 +4690,7 @@ float64 float64_scalbn(float64 a, int n, float_status *status)
     FloatParts64 p;
 
     float64_unpack_canonical(&p, a, status);
-    parts_scalbn(&p, n, status);
+    parts64_scalbn(&p, n, status);
     return float64_round_pack_canonical(&p, status);
 }
 
@@ -4705,7 +4699,7 @@ bfloat16 bfloat16_scalbn(bfloat16 a, int n, float_status *status)
     FloatParts64 p;
 
     bfloat16_unpack_canonical(&p, a, status);
-    parts_scalbn(&p, n, status);
+    parts64_scalbn(&p, n, status);
     return bfloat16_round_pack_canonical(&p, status);
 }
 
@@ -4714,7 +4708,7 @@ float128 float128_scalbn(float128 a, int n, float_status *status)
     FloatParts128 p;
 
     float128_unpack_canonical(&p, a, status);
-    parts_scalbn(&p, n, status);
+    parts128_scalbn(&p, n, status);
     return float128_round_pack_canonical(&p, status);
 }
 
@@ -4725,7 +4719,7 @@ floatx80 floatx80_scalbn(floatx80 a, int n, float_status *status)
     if (!floatx80_unpack_canonical(&p, a, status)) {
         return floatx80_default_nan(status);
     }
-    parts_scalbn(&p, n, status);
+    parts128_scalbn(&p, n, status);
     return floatx80_round_pack_canonical(&p, status);
 }
 
