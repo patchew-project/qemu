@@ -806,14 +806,6 @@ static FloatParts128 *parts128_pick_nan_muladd(FloatParts128 *a,
 #define parts_pick_nan_muladd(A, B, C, S, ABM, ABCM) \
     PARTS_GENERIC_64_128(pick_nan_muladd, A)(A, B, C, S, ABM, ABCM)
 
-static void parts64_canonicalize(FloatParts64 *p, float_status *status,
-                                 const FloatFmt *fmt);
-static void parts128_canonicalize(FloatParts128 *p, float_status *status,
-                                  const FloatFmt *fmt);
-
-#define parts_canonicalize(A, S, F) \
-    PARTS_GENERIC_64_128(canonicalize, A)(A, S, F)
-
 static void parts64_uncanon_normal(FloatParts64 *p, float_status *status,
                                    const FloatFmt *fmt, bool saturate);
 static void parts128_uncanon_normal(FloatParts128 *p, float_status *status,
@@ -1723,28 +1715,28 @@ static void float4_e2m1_unpack_canonical(FloatParts64 *p, float4_e2m1 f,
                                          float_status *s)
 {
     float4_e2m1_unpack_raw(p, f);
-    parts_canonicalize(p, s, &float4_e2m1_params);
+    parts64_canonicalize(p, s, &float4_e2m1_params);
 }
 
 static void float8_e4m3_unpack_canonical(FloatParts64 *p, float8_e4m3 f,
                                          float_status *s)
 {
     float8_e4m3_unpack_raw(p, f);
-    parts_canonicalize(p, s, &float8_e4m3_params);
+    parts64_canonicalize(p, s, &float8_e4m3_params);
 }
 
 static void float8_e5m2_unpack_canonical(FloatParts64 *p, float8_e5m2 f,
                                          float_status *s)
 {
     float8_e5m2_unpack_raw(p, f);
-    parts_canonicalize(p, s, &float8_e5m2_params);
+    parts64_canonicalize(p, s, &float8_e5m2_params);
 }
 
 static void float16a_unpack_canonical(FloatParts64 *p, float16 f,
                                       float_status *s, const FloatFmt *params)
 {
     float16_unpack_raw(p, f);
-    parts_canonicalize(p, s, params);
+    parts64_canonicalize(p, s, params);
 }
 
 static void float16_unpack_canonical(FloatParts64 *p, float16 f,
@@ -1757,7 +1749,7 @@ static void bfloat16_unpack_canonical(FloatParts64 *p, bfloat16 f,
                                       float_status *s)
 {
     bfloat16_unpack_raw(p, f);
-    parts_canonicalize(p, s, &bfloat16_params);
+    parts64_canonicalize(p, s, &bfloat16_params);
 }
 
 static float8_e4m3 float8_e4m3_round_pack_canonical(FloatParts64 *p,
@@ -1801,7 +1793,7 @@ static void float32_unpack_canonical(FloatParts64 *p, float32 f,
                                      float_status *s)
 {
     float32_unpack_raw(p, f);
-    parts_canonicalize(p, s, &float32_params);
+    parts64_canonicalize(p, s, &float32_params);
 }
 
 static float32 float32_round_pack_canonical(FloatParts64 *p,
@@ -1815,7 +1807,7 @@ static void float64_unpack_canonical(FloatParts64 *p, float64 f,
                                      float_status *s)
 {
     float64_unpack_raw(p, f);
-    parts_canonicalize(p, s, &float64_params);
+    parts64_canonicalize(p, s, &float64_params);
 }
 
 static float64 float64_round_pack_canonical(FloatParts64 *p,
@@ -1878,7 +1870,7 @@ static void float128_unpack_canonical(FloatParts128 *p, float128 f,
                                       float_status *s)
 {
     float128_unpack_raw(p, f);
-    parts_canonicalize(p, s, &float128_params);
+    parts128_canonicalize(p, s, &float128_params);
 }
 
 static float128 float128_round_pack_canonical(FloatParts128 *p,
@@ -1910,7 +1902,7 @@ static bool floatx80_unpack_canonical(FloatParts128 *p, floatx80 f,
     floatx80_unpack_raw(p, f);
 
     if (likely(p->exp != floatx80_params[floatx80_precision_x].exp_max)) {
-        parts_canonicalize(p, s, &floatx80_params[floatx80_precision_x]);
+        parts128_canonicalize(p, s, &floatx80_params[floatx80_precision_x]);
     } else {
         /* The explicit integer bit is ignored, after invalid checks. */
         p->frac_hi &= MAKE_64BIT_MASK(0, 63);
@@ -5611,7 +5603,7 @@ static void parts_s390_divide_to_integer(FloatParts64 *a, FloatParts64 *b,
         parts_uncanon(r, status, fmt, false);
         r_flags = status->float_exception_flags;
         r->frac &= (1ULL << fmt->frac_size) - 1;
-        parts_canonicalize(r, status, fmt);
+        parts64_canonicalize(r, status, fmt);
 
         /* POp table "Results: DIVIDE TO INTEGER (Part 2 of 2)" */
         if (is_q_smallish) {
