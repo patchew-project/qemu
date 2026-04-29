@@ -176,8 +176,11 @@ static int tpm_emulator_unix_tx_bufs(TPMEmulator *tpm_emu,
                                      bool *selftest_done,
                                      Error **errp)
 {
-    ssize_t ret;
     bool is_selftest = false;
+    uint8_t buffer[1024];
+    size_t to_drain = 0;
+    size_t to_read;
+    ssize_t ret;
 
     if (selftest_done) {
         *selftest_done = false;
@@ -195,11 +198,25 @@ static int tpm_emulator_unix_tx_bufs(TPMEmulator *tpm_emu,
         return -1;
     }
 
+    to_read = tpm_cmd_get_size(out) - sizeof(struct tpm_resp_hdr);
+    if (to_read > out_len) {
+        to_drain = to_read - out_len;
+        to_read = out_len;
+    }
+
     ret = qio_channel_read_all(tpm_emu->data_ioc,
-              (char *)out + sizeof(struct tpm_resp_hdr),
-              tpm_cmd_get_size(out) - sizeof(struct tpm_resp_hdr), errp);
+              (char *)out + sizeof(struct tpm_resp_hdr), to_read, errp);
     if (ret != 0) {
         return -1;
+    }
+
+    while (to_drain) {
+        to_read = MIN(to_drain, sizeof(buffer));
+        ret = qio_channel_read_all(tpm_emu->data_ioc, buffer, to_read, errp);
+        if (ret != 0) {
+            return -1;
+        }
+        to_drain -= to_read;
     }
 
     if (is_selftest) {
