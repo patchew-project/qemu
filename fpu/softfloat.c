@@ -770,15 +770,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
 *----------------------------------------------------------------------------*/
 #include "softfloat-specialize.c.inc"
 
-#define PARTS_GENERIC_64_128(NAME, P) \
-    _Generic((P), FloatParts64 *: parts64_##NAME, \
-                  FloatParts128 *: parts128_##NAME)
-
-#define PARTS_GENERIC_64_128_256(NAME, P) \
-    _Generic((P), FloatParts64 *: parts64_##NAME, \
-                  FloatParts128 *: parts128_##NAME, \
-                  FloatParts256 *: parts256_##NAME)
-
 /*
  * Helper functions for softfloat-parts.c.inc, per-size operations.
  */
