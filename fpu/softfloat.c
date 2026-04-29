@@ -774,15 +774,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
  * Helper functions for softfloat-parts.c.inc, per-size operations.
  */
 
-#define FRAC_GENERIC_64_128(NAME, P) \
-    _Generic((P), FloatParts64 *: frac64_##NAME, \
-                  FloatParts128 *: frac128_##NAME)
-
-#define FRAC_GENERIC_64_128_256(NAME, P) \
-    _Generic((P), FloatParts64 *: frac64_##NAME, \
-                  FloatParts128 *: frac128_##NAME, \
-                  FloatParts256 *: frac256_##NAME)
-
 static bool frac64_add(FloatParts64 *r, FloatParts64 *a, FloatParts64 *b)
 {
     return uadd64_overflow(a->frac, b->frac, &r->frac);
@@ -806,8 +797,6 @@ static bool frac256_add(FloatParts256 *r, FloatParts256 *a, FloatParts256 *b)
     return c;
 }
 
-#define frac_add(R, A, B)  FRAC_GENERIC_64_128_256(add, R)(R, A, B)
-
 static bool frac64_addi(FloatParts64 *r, FloatParts64 *a, uint64_t c)
 {
     return uadd64_overflow(a->frac, c, &r->frac);
@@ -819,8 +808,6 @@ static bool frac128_addi(FloatParts128 *r, FloatParts128 *a, uint64_t c)
     return uadd64_overflow(a->frac_hi, c, &r->frac_hi);
 }
 
-#define frac_addi(R, A, C)  FRAC_GENERIC_64_128(addi, R)(R, A, C)
-
 static void frac64_allones(FloatParts64 *a)
 {
     a->frac = -1;
@@ -830,8 +817,6 @@ static void frac128_allones(FloatParts128 *a)
 {
     a->frac_hi = a->frac_lo = -1;
 }
-
-#define frac_allones(A)  FRAC_GENERIC_64_128(allones, A)(A)
 
 static FloatRelation frac64_cmp(FloatParts64 *a, FloatParts64 *b)
 {
@@ -852,8 +837,6 @@ static FloatRelation frac128_cmp(FloatParts128 *a, FloatParts128 *b)
     return ta < tb ? float_relation_less : float_relation_greater;
 }
 
-#define frac_cmp(A, B)  FRAC_GENERIC_64_128(cmp, A)(A, B)
-
 static void frac64_clear(FloatParts64 *a)
 {
     a->frac = 0;
@@ -863,8 +846,6 @@ static void frac128_clear(FloatParts128 *a)
 {
     a->frac_hi = a->frac_lo = 0;
 }
-
-#define frac_clear(A)  FRAC_GENERIC_64_128(clear, A)(A)
 
 static bool frac64_div(FloatParts64 *a, FloatParts64 *b)
 {
@@ -945,8 +926,6 @@ static bool frac128_div(FloatParts128 *a, FloatParts128 *b)
     return ret;
 }
 
-#define frac_div(A, B)  FRAC_GENERIC_64_128(div, A)(A, B)
-
 static bool frac64_eqz(FloatParts64 *a)
 {
     return a->frac == 0;
@@ -956,8 +935,6 @@ static bool frac128_eqz(FloatParts128 *a)
 {
     return (a->frac_hi | a->frac_lo) == 0;
 }
-
-#define frac_eqz(A)  FRAC_GENERIC_64_128(eqz, A)(A)
 
 static void frac64_mulw(FloatParts128 *r, FloatParts64 *a, FloatParts64 *b)
 {
@@ -969,8 +946,6 @@ static void frac128_mulw(FloatParts256 *r, FloatParts128 *a, FloatParts128 *b)
     mul128To256(a->frac_hi, a->frac_lo, b->frac_hi, b->frac_lo,
                 &r->frac_hi, &r->frac_hm, &r->frac_lm, &r->frac_lo);
 }
-
-#define frac_mulw(R, A, B)  FRAC_GENERIC_64_128(mulw, A)(R, A, B)
 
 static void frac64_neg(FloatParts64 *a)
 {
@@ -992,8 +967,6 @@ static void frac256_neg(FloatParts256 *a)
     a->frac_hm = usub64_borrow(0, a->frac_hm, &c);
     a->frac_hi = usub64_borrow(0, a->frac_hi, &c);
 }
-
-#define frac_neg(A)  FRAC_GENERIC_64_128_256(neg, A)(A)
 
 static int frac64_normalize(FloatParts64 *a)
 {
@@ -1067,8 +1040,6 @@ static int frac256_normalize(FloatParts256 *a)
     a->frac_lo = a3;
     return ret;
 }
-
-#define frac_normalize(A)  FRAC_GENERIC_64_128_256(normalize, A)(A)
 
 static void frac64_modrem(FloatParts64 *a, FloatParts64 *b, uint64_t *mod_quot)
 {
@@ -1248,8 +1219,6 @@ static void frac128_modrem(FloatParts128 *a, FloatParts128 *b,
     a->frac_lo = a1 | (a2 != 0);
 }
 
-#define frac_modrem(A, B, Q)  FRAC_GENERIC_64_128(modrem, A)(A, B, Q)
-
 static void frac64_shl(FloatParts64 *a, int c)
 {
     a->frac <<= c;
@@ -1273,8 +1242,6 @@ static void frac128_shl(FloatParts128 *a, int c)
     a->frac_lo = a1;
 }
 
-#define frac_shl(A, C)  FRAC_GENERIC_64_128(shl, A)(A, C)
-
 static void frac64_shr(FloatParts64 *a, int c)
 {
     a->frac >>= c;
@@ -1297,8 +1264,6 @@ static void frac128_shr(FloatParts128 *a, int c)
     a->frac_hi = a0;
     a->frac_lo = a1;
 }
-
-#define frac_shr(A, C)  FRAC_GENERIC_64_128(shr, A)(A, C)
 
 static void frac64_shrjam(FloatParts64 *a, int c)
 {
@@ -1388,8 +1353,6 @@ static void frac256_shrjam(FloatParts256 *a, int c)
     a->frac_hi = a0;
 }
 
-#define frac_shrjam(A, C)  FRAC_GENERIC_64_128_256(shrjam, A)(A, C)
-
 static bool frac64_sub(FloatParts64 *r, FloatParts64 *a, FloatParts64 *b)
 {
     return usub64_overflow(a->frac, b->frac, &r->frac);
@@ -1413,8 +1376,6 @@ static bool frac256_sub(FloatParts256 *r, FloatParts256 *a, FloatParts256 *b)
     return c;
 }
 
-#define frac_sub(R, A, B)  FRAC_GENERIC_64_128_256(sub, R)(R, A, B)
-
 static void frac64_truncjam(FloatParts64 *r, FloatParts128 *a)
 {
     r->frac = a->frac_hi | (a->frac_lo != 0);
@@ -1425,8 +1386,6 @@ static void frac128_truncjam(FloatParts128 *r, FloatParts256 *a)
     r->frac_hi = a->frac_hi;
     r->frac_lo = a->frac_hm | ((a->frac_lm | a->frac_lo) != 0);
 }
-
-#define frac_truncjam(R, A)  FRAC_GENERIC_64_128(truncjam, R)(R, A)
 
 static void frac64_widen(FloatParts128 *r, FloatParts64 *a)
 {
@@ -1441,8 +1400,6 @@ static void frac128_widen(FloatParts256 *r, FloatParts128 *a)
     r->frac_lm = 0;
     r->frac_lo = 0;
 }
-
-#define frac_widen(A, B)  FRAC_GENERIC_64_128(widen, B)(A, B)
 
 /*
  * Reciprocal sqrt table.  1 bit of exponent, 6-bits of mantessa.
@@ -1468,6 +1425,8 @@ static const uint16_t rsqrt_tab[128] = {
     0xba91, 0xb9cc, 0xb90a, 0xb84a, 0xb78c, 0xb6d0, 0xb617, 0xb560,
 };
 
+#define fracN(NAME)    glue(glue(glue(frac,N),_),NAME)
+#define fracW(NAME)    glue(glue(glue(frac,W),_),NAME)
 #define partsN(NAME)   glue(glue(glue(parts,N),_),NAME)
 #define partsW(NAME)   glue(glue(glue(parts,W),_),NAME)
 #define FloatPartsN    glue(FloatParts,N)
@@ -1494,6 +1453,8 @@ static const uint16_t rsqrt_tab[128] = {
 
 #undef  N
 #undef  W
+#undef  fracN
+#undef  fracW
 #undef  partsN
 #undef  partsW
 #undef  FloatPartsN
@@ -1624,19 +1585,19 @@ static float64 float64r32_pack_raw(FloatParts64 *p)
              * The result is denormal for float32, but can be represented
              * in normalized form for float64.  Adjust, per canonicalize.
              */
-            int shift = frac_normalize(p);
+            int shift = frac64_normalize(p);
             p->exp = (float32_params.frac_shift -
                       float32_params.exp_bias - shift + 1 +
                       float64_params.exp_bias);
-            frac_shr(p, float64_params.frac_shift);
+            frac64_shr(p, float64_params.frac_shift);
         } else {
-            frac_shl(p, float32_params.frac_shift - float64_params.frac_shift);
+            frac64_shl(p, float32_params.frac_shift - float64_params.frac_shift);
             p->exp += float64_params.exp_bias - float32_params.exp_bias;
         }
         break;
     case float_class_snan:
     case float_class_qnan:
-        frac_shl(p, float32_params.frac_shift - float64_params.frac_shift);
+        frac64_shl(p, float32_params.frac_shift - float64_params.frac_shift);
         p->exp = float64_params.exp_max;
         break;
     case float_class_inf:
@@ -1724,7 +1685,7 @@ static floatx80 floatx80_round_pack_canonical(FloatParts128 *p,
 
             p64.sign = p->sign;
             p64.exp = p->exp;
-            frac_truncjam(&p64, p);
+            frac64_truncjam(&p64, p);
             parts64_uncanon_normal(&p64, s, fmt, false);
             frac = p64.frac;
             exp = p64.exp;
@@ -2698,7 +2659,7 @@ static void parts_float_to_float_narrow(FloatParts64 *a, FloatParts128 *b,
         float_raise(float_flag_input_denormal_used, s);
         /* fall through */
     case float_class_normal:
-        frac_truncjam(a, b);
+        frac64_truncjam(a, b);
         break;
     case float_class_snan:
     case float_class_qnan:
@@ -2717,7 +2678,7 @@ static void parts_float_to_float_widen(FloatParts128 *a, FloatParts64 *b,
     a->cls = b->cls;
     a->sign = b->sign;
     a->exp = b->exp;
-    frac_widen(a, b);
+    frac64_widen(a, b);
 
     if (is_nan(a->cls)) {
         parts128_return_nan(a, s);
@@ -4939,7 +4900,7 @@ static void parts64_log2(FloatParts64 *a, float_status *s, const FloatFmt *fmt)
         FloatParts64 f = {
             .cls = float_class_normal, .frac = r
         };
-        f.exp = f_exp - frac_normalize(&f);
+        f.exp = f_exp - frac64_normalize(&f);
 
         if (a_exp < 0) {
             parts64_sub_normal(a, &f);
@@ -5010,7 +4971,7 @@ float128 float128_default_nan(float_status *status)
     FloatParts128 p;
 
     parts128_default_nan(&p, status);
-    frac_shr(&p, float128_params.frac_shift);
+    frac128_shr(&p, float128_params.frac_shift);
     return float128_pack_raw(&p);
 }
 
@@ -5076,9 +5037,9 @@ float128 float128_silence_nan(float128 a, float_status *status)
     FloatParts128 p;
 
     float128_unpack_raw(&p, a);
-    frac_shl(&p, float128_params.frac_shift);
+    frac128_shl(&p, float128_params.frac_shift);
     parts128_silence_nan(&p, status);
-    frac_shr(&p, float128_params.frac_shift);
+    frac128_shr(&p, float128_params.frac_shift);
     return float128_pack_raw(&p);
 }
 
