@@ -779,12 +779,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
                   FloatParts128 *: parts128_##NAME, \
                   FloatParts256 *: parts256_##NAME)
 
-static void parts64_sqrt(FloatParts64 *a, float_status *s, const FloatFmt *f);
-static void parts128_sqrt(FloatParts128 *a, float_status *s, const FloatFmt *f);
-
-#define parts_sqrt(A, S, F) \
-    PARTS_GENERIC_64_128(sqrt, A)(A, S, F)
-
 static bool parts64_round_to_int_normal(FloatParts64 *a, FloatRoundMode rm,
                                         int scale, int frac_size);
 static bool parts128_round_to_int_normal(FloatParts128 *a, FloatRoundMode r,
@@ -4757,7 +4751,7 @@ float16 QEMU_FLATTEN float16_sqrt(float16 a, float_status *status)
     FloatParts64 p;
 
     float16_unpack_canonical(&p, a, status);
-    parts_sqrt(&p, status, &float16_params);
+    parts64_sqrt(&p, status, &float16_params);
     return float16_round_pack_canonical(&p, status);
 }
 
@@ -4767,7 +4761,7 @@ soft_f32_sqrt(float32 a, float_status *status)
     FloatParts64 p;
 
     float32_unpack_canonical(&p, a, status);
-    parts_sqrt(&p, status, &float32_params);
+    parts64_sqrt(&p, status, &float32_params);
     return float32_round_pack_canonical(&p, status);
 }
 
@@ -4777,7 +4771,7 @@ soft_f64_sqrt(float64 a, float_status *status)
     FloatParts64 p;
 
     float64_unpack_canonical(&p, a, status);
-    parts_sqrt(&p, status, &float64_params);
+    parts64_sqrt(&p, status, &float64_params);
     return float64_round_pack_canonical(&p, status);
 }
 
@@ -4840,7 +4834,7 @@ float64 float64r32_sqrt(float64 a, float_status *status)
     FloatParts64 p;
 
     float64_unpack_canonical(&p, a, status);
-    parts_sqrt(&p, status, &float64_params);
+    parts64_sqrt(&p, status, &float64_params);
     return float64r32_round_pack_canonical(&p, status);
 }
 
@@ -4849,7 +4843,7 @@ bfloat16 QEMU_FLATTEN bfloat16_sqrt(bfloat16 a, float_status *status)
     FloatParts64 p;
 
     bfloat16_unpack_canonical(&p, a, status);
-    parts_sqrt(&p, status, &bfloat16_params);
+    parts64_sqrt(&p, status, &bfloat16_params);
     return bfloat16_round_pack_canonical(&p, status);
 }
 
@@ -4858,7 +4852,7 @@ float128 QEMU_FLATTEN float128_sqrt(float128 a, float_status *status)
     FloatParts128 p;
 
     float128_unpack_canonical(&p, a, status);
-    parts_sqrt(&p, status, &float128_params);
+    parts128_sqrt(&p, status, &float128_params);
     return float128_round_pack_canonical(&p, status);
 }
 
@@ -4869,7 +4863,7 @@ floatx80 floatx80_sqrt(floatx80 a, float_status *s)
     if (!floatx80_unpack_canonical(&p, a, s)) {
         return floatx80_default_nan(s);
     }
-    parts_sqrt(&p, s, &floatx80_params[s->floatx80_rounding_precision]);
+    parts128_sqrt(&p, s, &floatx80_params[s->floatx80_rounding_precision]);
     return floatx80_round_pack_canonical(&p, s);
 }
 
