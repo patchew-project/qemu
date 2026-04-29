@@ -629,13 +629,6 @@ static void object_property_del_child(Object *obj, Object *child)
                 prop->release(obj, prop->name, prop->opaque);
                 prop->release = NULL;
             }
-            break;
-        }
-    }
-    g_hash_table_iter_init(&iter, obj->properties);
-    while (g_hash_table_iter_next(&iter, &key, &value)) {
-        prop = value;
-        if (object_property_is_child(prop) && prop->opaque == child) {
             g_hash_table_iter_remove(&iter);
             break;
         }
