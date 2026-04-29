@@ -502,6 +502,15 @@ static RISCVException mstateen(CPURISCVState *env, int csrno)
     return any(env, csrno);
 }
 
+static RISCVException mstateen_32(CPURISCVState *env, int csrno)
+{
+    if (riscv_cpu_mxl(env) != MXL_RV32) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
+    return mstateen(env, csrno);
+}
+
 static RISCVException hstateen_pred(CPURISCVState *env, int csrno, int base)
 {
     if (!riscv_cpu_cfg(env)->ext_smstateen) {
@@ -533,6 +542,10 @@ static RISCVException hstateen(CPURISCVState *env, int csrno)
 
 static RISCVException hstateenh(CPURISCVState *env, int csrno)
 {
+    if (riscv_cpu_mxl(env) != MXL_RV32) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
     return hstateen_pred(env, csrno, CSR_HSTATEEN0H);
 }
 
@@ -3447,25 +3460,29 @@ static RISCVException write_mstateen0(CPURISCVState *env, int csrno,
         wr_mask |= SMSTATEEN0_FCSR;
     }
 
-    if (env->priv_ver >= PRIV_VERSION_1_13_0) {
-        wr_mask |= SMSTATEEN0_P1P13;
-    }
+    if (riscv_cpu_mxl(env) == MXL_RV64) {
+        if (env->priv_ver >= PRIV_VERSION_1_13_0) {
+            wr_mask |= SMSTATEEN0_P1P13;
+        }
 
-    if (riscv_cpu_cfg(env)->ext_smaia || riscv_cpu_cfg(env)->ext_smcsrind) {
-        wr_mask |= SMSTATEEN0_SVSLCT;
-    }
+        if (riscv_cpu_cfg(env)->ext_smaia ||
+            riscv_cpu_cfg(env)->ext_smcsrind) {
+            wr_mask |= SMSTATEEN0_SVSLCT;
+        }
 
-    /*
-     * As per the AIA specification, SMSTATEEN0_IMSIC is valid only if IMSIC is
-     * implemented. However, that information is with MachineState and we can't
-     * figure that out in csr.c. Just enable if Smaia is available.
-     */
-    if (riscv_cpu_cfg(env)->ext_smaia) {
-        wr_mask |= (SMSTATEEN0_AIA | SMSTATEEN0_IMSIC);
-    }
+        /*
+         * As per the AIA specification, SMSTATEEN0_IMSIC is valid
+         * only if IMSIC is implemented. However, that information is
+         * with MachineState and we can't figure that out in csr.c.
+         * Just enable if Smaia is available.
+         */
+        if (riscv_cpu_cfg(env)->ext_smaia) {
+            wr_mask |= (SMSTATEEN0_AIA | SMSTATEEN0_IMSIC);
+        }
 
-    if (riscv_cpu_cfg(env)->ext_ssctr) {
-        wr_mask |= SMSTATEEN0_CTR;
+        if (riscv_cpu_cfg(env)->ext_ssctr) {
+            wr_mask |= SMSTATEEN0_CTR;
+        }
     }
 
     return write_mstateen(env, csrno, wr_mask, new_val);
@@ -3505,6 +3522,20 @@ static RISCVException write_mstateen0h(CPURISCVState *env, int csrno,
 
     if (env->priv_ver >= PRIV_VERSION_1_13_0) {
         wr_mask |= SMSTATEEN0_P1P13;
+    }
+
+    if (riscv_cpu_cfg(env)->ext_smaia || riscv_cpu_cfg(env)->ext_smcsrind) {
+        wr_mask |= SMSTATEEN0_SVSLCT;
+    }
+
+    /*
+     * As per the AIA specification, SMSTATEEN0_IMSIC is valid only if
+     * IMSIC is implemented. However, that information is with
+     * MachineState and we can't figure that out in csr.c. Just enable
+     * if Smaia is available.
+     */
+    if (riscv_cpu_cfg(env)->ext_smaia) {
+        wr_mask |= (SMSTATEEN0_AIA | SMSTATEEN0_IMSIC);
     }
 
     if (riscv_cpu_cfg(env)->ext_ssctr) {
@@ -3552,21 +3583,25 @@ static RISCVException write_hstateen0(CPURISCVState *env, int csrno,
         wr_mask |= SMSTATEEN0_FCSR;
     }
 
-    if (riscv_cpu_cfg(env)->ext_ssaia || riscv_cpu_cfg(env)->ext_sscsrind) {
-        wr_mask |= SMSTATEEN0_SVSLCT;
-    }
+    if (riscv_cpu_mxl(env) == MXL_RV64) {
+        if (riscv_cpu_cfg(env)->ext_ssaia ||
+            riscv_cpu_cfg(env)->ext_sscsrind) {
+            wr_mask |= SMSTATEEN0_SVSLCT;
+        }
 
-    /*
-     * As per the AIA specification, SMSTATEEN0_IMSIC is valid only if IMSIC is
-     * implemented. However, that information is with MachineState and we can't
-     * figure that out in csr.c. Just enable if Ssaia is available.
-     */
-    if (riscv_cpu_cfg(env)->ext_ssaia) {
-        wr_mask |= (SMSTATEEN0_AIA | SMSTATEEN0_IMSIC);
-    }
+        /*
+         * As per the AIA specification, SMSTATEEN0_IMSIC is valid
+         * only if IMSIC is implemented. However, that information is
+         * with MachineState and we can't figure that out in csr.c.
+         * Just enable if Ssaia is available.
+         */
+        if (riscv_cpu_cfg(env)->ext_ssaia) {
+            wr_mask |= (SMSTATEEN0_AIA | SMSTATEEN0_IMSIC);
+        }
 
-    if (riscv_cpu_cfg(env)->ext_ssctr) {
-        wr_mask |= SMSTATEEN0_CTR;
+        if (riscv_cpu_cfg(env)->ext_ssctr) {
+            wr_mask |= SMSTATEEN0_CTR;
+        }
     }
 
     return write_hstateen(env, csrno, wr_mask, new_val);
@@ -3607,6 +3642,20 @@ static RISCVException write_hstateen0h(CPURISCVState *env, int csrno,
                                        target_ulong new_val, uintptr_t ra)
 {
     uint64_t wr_mask = SMSTATEEN_STATEEN | SMSTATEEN0_HSENVCFG;
+
+    if (riscv_cpu_cfg(env)->ext_ssaia || riscv_cpu_cfg(env)->ext_sscsrind) {
+        wr_mask |= SMSTATEEN0_SVSLCT;
+    }
+
+    /*
+     * As per the AIA specification, SMSTATEEN0_IMSIC is valid only if
+     * IMSIC is implemented. However, that information is with
+     * MachineState and we can't figure that out in csr.c. Just enable
+     * if Ssaia is available.
+     */
+    if (riscv_cpu_cfg(env)->ext_ssaia) {
+        wr_mask |= (SMSTATEEN0_AIA | SMSTATEEN0_IMSIC);
+    }
 
     if (riscv_cpu_cfg(env)->ext_ssctr) {
         wr_mask |= SMSTATEEN0_CTR;
@@ -3657,7 +3706,7 @@ static RISCVException write_sstateen(CPURISCVState *env, int csrno,
 static RISCVException write_sstateen0(CPURISCVState *env, int csrno,
                                       target_ulong new_val, uintptr_t ra)
 {
-    uint64_t wr_mask = SMSTATEEN_STATEEN | SMSTATEEN0_HSENVCFG;
+    uint64_t wr_mask = 0;
 
     if (!riscv_has_ext(env, RVF)) {
         wr_mask |= SMSTATEEN0_FCSR;
@@ -5937,25 +5986,25 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     /* Smstateen extension CSRs */
     [CSR_MSTATEEN0] = { "mstateen0", mstateen, read_mstateen, write_mstateen0,
                         .min_priv_ver = PRIV_VERSION_1_12_0 },
-    [CSR_MSTATEEN0H] = { "mstateen0h", mstateen, read_mstateenh,
+    [CSR_MSTATEEN0H] = { "mstateen0h", mstateen_32, read_mstateenh,
                           write_mstateen0h,
                          .min_priv_ver = PRIV_VERSION_1_12_0 },
     [CSR_MSTATEEN1] = { "mstateen1", mstateen, read_mstateen,
                         write_mstateen_1_3,
                         .min_priv_ver = PRIV_VERSION_1_12_0 },
-    [CSR_MSTATEEN1H] = { "mstateen1h", mstateen, read_mstateenh,
+    [CSR_MSTATEEN1H] = { "mstateen1h", mstateen_32, read_mstateenh,
                          write_mstateenh_1_3,
                          .min_priv_ver = PRIV_VERSION_1_12_0 },
     [CSR_MSTATEEN2] = { "mstateen2", mstateen, read_mstateen,
                         write_mstateen_1_3,
                         .min_priv_ver = PRIV_VERSION_1_12_0 },
-    [CSR_MSTATEEN2H] = { "mstateen2h", mstateen, read_mstateenh,
+    [CSR_MSTATEEN2H] = { "mstateen2h", mstateen_32, read_mstateenh,
                          write_mstateenh_1_3,
                          .min_priv_ver = PRIV_VERSION_1_12_0 },
     [CSR_MSTATEEN3] = { "mstateen3", mstateen, read_mstateen,
                         write_mstateen_1_3,
                         .min_priv_ver = PRIV_VERSION_1_12_0 },
-    [CSR_MSTATEEN3H] = { "mstateen3h", mstateen, read_mstateenh,
+    [CSR_MSTATEEN3H] = { "mstateen3h", mstateen_32, read_mstateenh,
                          write_mstateenh_1_3,
                          .min_priv_ver = PRIV_VERSION_1_12_0 },
     [CSR_HSTATEEN0] = { "hstateen0", hstateen, read_hstateen, write_hstateen0,
