@@ -54,15 +54,15 @@ event EVT_BOXED Object
     boxed=True
     feature feat3
 doc freeform
-    body=
+    section=Plain
 *******
 Section
 *******
 doc freeform
-    body=
+    section=Plain
 Just text, no heading.
 doc freeform
-    body=
+    section=Plain
 Subsection
 ==========
 
@@ -106,7 +106,7 @@ Examples:
 - *verbatim*
 - {braces}
 doc symbol=Enum
-    body=
+    section=Plain
 
     arg=one
 The _one_ {and only}, description on the same line
@@ -119,13 +119,13 @@ a member feature
     section=Plain
 @two is undocumented
 doc symbol=Base
-    body=
+    section=Plain
 
     arg=base1
  description starts on a new line,
  minimally indented
 doc symbol=Variant1
-    body=
+    section=Plain
 A paragraph
 
 Another paragraph
@@ -138,15 +138,15 @@ a feature
     feature=member-feat
 a member feature
 doc symbol=Variant2
-    body=
+    section=Plain
 
 doc symbol=Object
-    body=
+    section=Plain
 
     feature=union-feat1
 a feature
 doc symbol=Alternate
-    body=
+    section=Plain
 
     arg=i
 description starts on the same line
@@ -157,11 +157,11 @@ description starts on the same line
     feature=alt-feat
 a feature
 doc freeform
-    body=
+    section=Plain
 Another subsection
 ==================
 doc symbol=cmd
-    body=
+    section=Plain
 
     arg=arg1
     description starts on a new line,
@@ -210,7 +210,7 @@ Note::
     section=Since
 2.10
 doc symbol=cmd-boxed
-    body=
+    section=Plain
 If you're bored enough to read this, go see a video of boxed cats
     feature=cmd-feat1
 a feature
@@ -223,7 +223,7 @@ another feature
 
    <- ... has no title ...
 doc symbol=EVT_BOXED
-    body=
+    section=Plain
 
     feature=feat3
 a feature
