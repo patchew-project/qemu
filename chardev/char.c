@@ -639,6 +639,18 @@ ChardevBackend *qemu_chr_parse_opts(QemuOpts *opts, Error **errp)
         return NULL;
     }
 
+    if (!cc->supports_size_opts) {
+        const char * const invalid_opts[] = {
+            "width", "height", "cols", "rows", NULL
+        };
+
+        if (qemu_opt_has_any(opts, invalid_opts)) {
+            error_setg(errp, "chardev '%s' does not support size options",
+                       qemu_opts_id(opts));
+            return NULL;
+        }
+    }
+
     backend = g_new0(ChardevBackend, 1);
     backend->type = CHARDEV_BACKEND_KIND_NULL;
 
