@@ -462,12 +462,24 @@ Rings have two independent states: started/stopped, and enabled/disabled.
 * started and enabled: The back-end must process the ring normally, i.e.
   process all requests and execute them.
 
-Each ring is initialized in a stopped and disabled state.  The back-end
-must start a ring upon receiving a kick (that is, detecting that file
-descriptor is readable) on the descriptor specified by
-``VHOST_USER_SET_VRING_KICK`` or receiving the in-band message
-``VHOST_USER_VRING_KICK`` if negotiated, and stop a ring upon receiving
-``VHOST_USER_GET_VRING_BASE``.
+Each ring is initialized in a stopped and disabled state.  Rings are started
+with ``VHOST_USER_SET_VRING_KICK`` and stopped with
+``VHOST_USER_GET_VRING_BASE``. A stopped ring enters the started state again
+with ``VHOST_USER_SET_VRING_KICK`` and the back-end resumes processing
+requests.
+
+Note that previous versions of this specification stated that rings start when
+the back-end receives a kick (that is, detecting that file descriptor is
+readable) on the descriptor specified by ``VHOST_USER_SET_VRING_KICK`` or
+receiving the in-band message ``VHOST_USER_VRING_KICK`` if negotiated.
+Widely-used front-ends and back-ends did not implement this behavior and it
+complicates poll mode back-ends that do not rely on the kick file descriptor.
+
+For compatibility with back-ends that implemented the start on kick behavior,
+front-ends SHOULD inject a kick after ``VHOST_USER_SET_VRING_KICK``.  This
+ensures that the back-end processes any available requests in the ring.
+Back-ends SHOULD NOT rely on receiving a kick after
+``VHOST_USER_SET_VRING_KICK``.
 
 Rings can be enabled or disabled by ``VHOST_USER_SET_VRING_ENABLE``.
 
