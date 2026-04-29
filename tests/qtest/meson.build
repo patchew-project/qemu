@@ -128,10 +128,12 @@ if dbus_daemon.found() and gdbus_codegen.found()
   # Temporarily disabled due to Patchew failures:
   #qtests_i386 += ['dbus-vmstate-test']
   dbus_vmstate1 = custom_target('dbus-vmstate description',
-                                output: ['dbus-vmstate1.h', 'dbus-vmstate1.c'],
+                                build_by_default: true,
+                                output: [ 'dbus-vmstate1.h', 'dbus-vmstate1.c'],
                                 input: meson.project_source_root() / 'backends/dbus-vmstate1.xml',
                                 command: [gdbus_codegen, '@INPUT@',
                                           '--interface-prefix', 'org.qemu',
+                                          '--output-directory', meson.current_build_dir(),
                                           '--generate-c-code', '@BASENAME@']).to_list()
 else
   dbus_vmstate1 = []
@@ -387,7 +389,8 @@ qtests = {
   'bios-tables-test': [io, 'boot-sector.c', 'acpi-utils.c', 'tpm-emu.c'],
   'cdrom-test': files('boot-sector.c'),
   'dbus-vmstate-test': files('migration/migration-qmp.c',
-                             'migration/migration-util.c') + dbus_vmstate1,
+                             'migration/migration-util.c') + dbus_vmstate1 +
+                       [gio],
   'erst-test': files('erst-test.c'),
   'ivshmem-test': [rt, '../../contrib/ivshmem-server/ivshmem-server.c'],
   'migration-test': test_migration_files + migration_tls_files + migration_colo_files,
