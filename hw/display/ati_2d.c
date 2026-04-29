@@ -69,19 +69,31 @@ typedef struct {
 static void ati_set_dirty(VGACommonState *vga, const ATI2DCtx *ctx)
 {
     DisplaySurface *ds = qemu_console_surface(vga->con);
+    unsigned int bypp = ctx->bpp / 8;
+    unsigned long dirty_size = ((ctx->dst.height - 1) * ctx->dst_stride) +
+                               (ctx->dst.width * bypp);
+    uint8_t *dirty_start = ctx->dst_bits + (ctx->dst.y * ctx->dst_stride) +
+                           (ctx->dst.x * bypp);
+    uint8_t *dirty_end = dirty_start + dirty_size;
+    /*
+     * The blit may be outside of the visible screen (e.g. virtual desktops.)
+     * Dirty only the intersection of the visible screen and the blit.
+     */
+    uint8_t *vis_start = vga->vram_ptr + (vga->vbe_start_addr * 4);
+    uint8_t *vis_end = vis_start + vga->vbe_regs[VBE_DISPI_INDEX_YRES] *
+                       vga->vbe_line_offset;
+    uint8_t *start = MAX(vis_start, dirty_start);
+    uint8_t *end = MIN(vis_end, dirty_end);
 
     (void)ds;
     DPRINTF("%p %u ds: %p %d %d rop: %x\n", vga->vram_ptr, vga->vbe_start_addr,
             surface_data(ds), surface_stride(ds), surface_bits_per_pixel(ds),
             ctx->rop3 >> 16);
-    if (ctx->dst_bits >= vga->vram_ptr + vga->vbe_start_addr &&
-        ctx->dst_bits < vga->vram_ptr + vga->vbe_start_addr +
-        vga->vbe_regs[VBE_DISPI_INDEX_YRES] * vga->vbe_line_offset) {
-        memory_region_set_dirty(&vga->vram,
-                                vga->vbe_start_addr + ctx->dst_offset +
-                                ctx->dst.y * ctx->dst_stride,
-                                ctx->dst.height * ctx->dst_stride);
+
+    if (start >= end) {
+        return;
     }
+    memory_region_set_dirty(&vga->vram, start - vga->vram_ptr, end - start);
 }
 
 static void setup_2d_blt_ctx(const ATIVGAState *s, ATI2DCtx *ctx)
