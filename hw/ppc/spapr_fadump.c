@@ -310,6 +310,30 @@ static bool do_preserve_region(FadumpSection *region)
 }
 
 /*
+ * Populate placeholder register entries for an unrealized CPU
+ *
+ * For CPUs that are not realized (cpu_index < maxcpus), we need to
+ * create minimal register entries containing only CPUSTRT and CPUEND
+ * markers to maintain the expected buffer structure.
+ *
+ * Returns pointer just past the placeholder entries, which can be used
+ * as the start address for the next CPU's register entries
+ */
+static FadumpRegEntry *populate_cpu_reg_entries_placeholder(int cpu_id,
+                                                             FadumpRegEntry *curr_reg_entry)
+{
+    curr_reg_entry->reg_id = cpu_to_be64(fadump_str_to_u64("CPUSTRT"));
+    curr_reg_entry->reg_value = cpu_to_be64(cpu_id & FADUMP_CPU_ID_MASK);
+    ++curr_reg_entry;
+
+    curr_reg_entry->reg_id = cpu_to_be64(fadump_str_to_u64("CPUEND"));
+    curr_reg_entry->reg_value = cpu_to_be64(cpu_id & FADUMP_CPU_ID_MASK);
+    ++curr_reg_entry;
+
+    return curr_reg_entry;
+}
+
+/*
  * Populate the passed CPUs register entries, in the buffer starting at
  * the argument 'curr_reg_entry'
  *
@@ -450,7 +474,7 @@ static FadumpRegEntry *populate_cpu_reg_entries(CPUState *cpu,
  * callers), and sets the size of this buffer in the argument
  * 'cpu_state_len'
  */
-static void *get_cpu_state_data(uint64_t *cpu_state_len)
+static void *get_cpu_state_data(uint64_t *cpu_state_len, MachineState *ms)
 {
     FadumpRegSaveAreaHeader reg_save_hdr;
     g_autofree FadumpRegEntry *reg_entries = NULL;
@@ -459,14 +483,10 @@ static void *get_cpu_state_data(uint64_t *cpu_state_len)
 
     uint32_t num_reg_entries;
     uint32_t reg_entries_size;
-    uint32_t num_cpus = 0;
+    uint32_t num_cpus = ms->smp.max_cpus;
 
     void *cpu_state_buffer = NULL;
     uint64_t offset = 0;
-
-    CPU_FOREACH(cpu) {
-        ++num_cpus;
-    }
 
     reg_save_hdr.version = cpu_to_be32(0);
     reg_save_hdr.magic_number =
@@ -484,10 +504,20 @@ static void *get_cpu_state_data(uint64_t *cpu_state_len)
     /* Pointer to current CPU's registers */
     curr_reg_entry = reg_entries;
 
-    /* Populate register entries for all CPUs */
-    CPU_FOREACH(cpu) {
-        cpu_synchronize_state(cpu);
-        curr_reg_entry = populate_cpu_reg_entries(cpu, curr_reg_entry);
+    /*
+     * Populate register entries for all CPU slots (0 to maxcpus-1)
+     */
+    for (int i = 0; i < num_cpus; i++) {
+        cpu = qemu_get_cpu(i);
+        if (cpu) {
+            /* CPU is realized - populate full register entries */
+            cpu_synchronize_state(cpu);
+            curr_reg_entry = populate_cpu_reg_entries(cpu, curr_reg_entry);
+        } else {
+            /* CPU slot is empty - populate placeholder entries */
+            curr_reg_entry = populate_cpu_reg_entries_placeholder(i,
+                                                                   curr_reg_entry);
+        }
     }
 
     *cpu_state_len = 0;
@@ -526,7 +556,7 @@ static void *get_cpu_state_data(uint64_t *cpu_state_len)
  * such as invalid destination address or non-fatal error errors likely
  * caused due to invalid parameters, return true and set region->error_flags
  */
-static bool do_populate_cpu_state(FadumpSection *region)
+static bool do_populate_cpu_state(FadumpSection *region, MachineState *ms)
 {
     uint64_t dest_addr = be64_to_cpu(region->destination_address);
     uint64_t cpu_state_len = 0;
@@ -541,7 +571,7 @@ static bool do_populate_cpu_state(FadumpSection *region)
     attrs.user = 0;
     attrs.memory = 1;
 
-    cpu_state_buffer  = get_cpu_state_data(&cpu_state_len);
+    cpu_state_buffer  = get_cpu_state_data(&cpu_state_len, ms);
 
     io_result = address_space_write(default_as, dest_addr, attrs,
             cpu_state_buffer, cpu_state_len);
@@ -597,6 +627,7 @@ static bool do_populate_cpu_state(FadumpSection *region)
 static bool fadump_preserve_mem(SpaprMachineState *spapr)
 {
     FadumpMemStruct *fdm = &spapr->registered_fdm;
+    MachineState *ms = MACHINE(spapr);
     uint16_t dump_num_sections, data_type;
 
     assert(spapr->fadump_registered);
@@ -627,7 +658,7 @@ static bool fadump_preserve_mem(SpaprMachineState *spapr)
 
         switch (data_type) {
         case FADUMP_CPU_STATE_DATA:
-            if (!do_populate_cpu_state(&fdm->rgn[i])) {
+            if (!do_populate_cpu_state(&fdm->rgn[i], ms)) {
                 qemu_log_mask(LOG_GUEST_ERROR,
                     "FADump: Failed to store CPU State Data");
                 fdm->header.dump_status_flag |=
