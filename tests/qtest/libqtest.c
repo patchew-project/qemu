@@ -454,11 +454,9 @@ gchar *qtest_qemu_args(const char *extra_args)
 {
     g_autofree gchar *socket_path = qtest_socket_path("sock");
     g_autofree gchar *qmp_socket_path = qtest_socket_path("qmp");
-    const char *trace = g_getenv("QTEST_TRACE");
-    g_autofree char *tracearg = trace ? g_strdup_printf("-trace %s ", trace) :
-                                        g_strdup("");
+    const char *args_from_env = g_getenv("QTEST_QEMU_ARGS");
+
     gchar *args = g_strdup_printf(
-                      "%s"
                       "-qtest unix:%s "
                       "-qtest-log %s "
                       "-chardev socket,path=%s,id=char0 "
@@ -466,16 +464,17 @@ gchar *qtest_qemu_args(const char *extra_args)
                       "-display none "
                       "-audio none "
                       "%s"
+                      "%s "
                       "%s"
                       " -accel qtest",
 
-                      tracearg,
                       socket_path,
                       getenv("QTEST_LOG") ? DEV_STDERR : DEV_NULL,
                       qmp_socket_path,
                       can_exit_with_parent() ?
                       "-run-with exit-with-parent=on " : "",
-                      extra_args ?: "");
+                      extra_args ?: "",
+                      args_from_env ?: "");
 
     return args;
 }
