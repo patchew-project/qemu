@@ -324,17 +324,18 @@ test_dbus_vmstate_missing_src(char *name, MigrateCommon *args)
 {
     Test test = { .id_list = "idA,idC",
         .result = MIG_TEST_FAIL };
+    bool silent = !getenv("QTEST_LOG");
 
     /* run in subprocess to silence QEMU error reporting */
-    if (g_test_subprocess()) {
-        test_dbus_vmstate(&test);
-        check_not_migrated(&test.srcA, &test.dstA);
-        check_not_migrated(&test.srcB, &test.dstB);
+    if (silent && !g_test_subprocess()) {
+        g_test_trap_subprocess(NULL, 0, 0);
+        g_test_trap_assert_passed();
         return;
     }
 
-    g_test_trap_subprocess(NULL, 0, 0);
-    g_test_trap_assert_passed();
+    test_dbus_vmstate(&test);
+    check_not_migrated(&test.srcA, &test.dstA);
+    check_not_migrated(&test.srcB, &test.dstB);
 }
 
 static void
@@ -343,18 +344,19 @@ test_dbus_vmstate_missing_dst(char *name, MigrateCommon *args)
     Test test = { .id_list = "idA,idB",
                   .without_dst_b = true,
                   .result = MIG_TEST_FAIL };
+    bool silent = !getenv("QTEST_LOG");
 
     /* run in subprocess to silence QEMU error reporting */
-    if (g_test_subprocess()) {
-        test_dbus_vmstate(&test);
-        assert(test.srcA.save_called);
-        assert(test.srcB.save_called);
-        assert(!test.dstB.save_called);
+    if (silent && !g_test_subprocess()) {
+        g_test_trap_subprocess(NULL, 0, 0);
+        g_test_trap_assert_passed();
         return;
     }
 
-    g_test_trap_subprocess(NULL, 0, 0);
-    g_test_trap_assert_passed();
+    test_dbus_vmstate(&test);
+    assert(test.srcA.save_called);
+    assert(test.srcB.save_called);
+    assert(!test.dstB.save_called);
 }
 
 static void log_func(const gchar *log_domain, GLogLevelFlags log_level,
