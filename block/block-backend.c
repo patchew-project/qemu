@@ -1376,14 +1376,8 @@ int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
                                int64_t bytes, QEMUIOVector *qiov,
                                BdrvRequestFlags flags)
 {
-    int ret;
     IO_OR_GS_CODE();
-
-    blk_inc_in_flight(blk);
-    ret = blk_co_do_preadv_part(blk, offset, bytes, qiov, 0, flags);
-    blk_dec_in_flight(blk);
-
-    return ret;
+    return blk_co_preadv_part(blk, offset, bytes, qiov, 0, flags);
 }
 
 int coroutine_fn blk_co_preadv_part(BlockBackend *blk, int64_t offset,
