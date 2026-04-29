@@ -28,20 +28,6 @@
 #include "exec/tlb-flags.h"
 #include "trace.h"
 
-#ifndef CONFIG_USER_ONLY
-static inline MemOp mo_endian_env(CPURISCVState *env)
-{
-    /*
-     * A couple of bits in MSTATUS set the endianness:
-     *  - MSTATUS_UBE (User-mode),
-     *  - MSTATUS_SBE (Supervisor-mode),
-     *  - MSTATUS_MBE (Machine-mode)
-     * but we don't implement that yet.
-     */
-    return MO_TE;
-}
-#endif
-
 /* Exceptions processing helpers */
 G_NORETURN void riscv_raise_exception(CPURISCVState *env,
                                       RISCVException exception,
