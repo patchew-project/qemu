@@ -3769,6 +3769,16 @@ static int virt_get_physical_address_range(MachineState *ms,
     return requested_ipa_size;
 }
 
+static bool get_kernel_irqchip_default(const MachineState *ms) {
+    VirtMachineState *vms = VIRT_MACHINE(ms);
+    VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
+    if (hvf_allowed) {
+        return !vmc->hvf_no_kernel_irqchip_default;
+    } else {
+        return true;
+    }
+}
+
 static const char *virt_get_default_cpu_type(const MachineState *ms)
 {
     return tcg_enabled() ? ARM_CPU_TYPE_NAME("cortex-a15")
@@ -3835,6 +3845,7 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
     mc->get_default_cpu_node_id = virt_get_default_cpu_node_id;
     mc->kvm_type = virt_kvm_type;
     mc->get_physical_address_range = virt_get_physical_address_range;
+    mc->get_kernel_irqchip_default = get_kernel_irqchip_default;
     assert(!mc->get_hotplug_handler);
     mc->get_hotplug_handler = virt_machine_get_hotplug_handler;
     hc->pre_plug = virt_machine_device_pre_plug_cb;
@@ -4079,8 +4090,11 @@ DEFINE_VIRT_MACHINE_AS_LATEST(11, 1)
 
 static void virt_machine_11_0_options(MachineClass *mc)
 {
+    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
+
     virt_machine_11_1_options(mc);
     compat_props_add(mc->compat_props, hw_compat_11_0, hw_compat_11_0_len);
+    vmc->hvf_no_kernel_irqchip_default = true;
 }
 DEFINE_VIRT_MACHINE(11, 0)
 
