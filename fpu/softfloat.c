@@ -646,11 +646,6 @@ static FloatParts64 unpack_raw64(const FloatFmt *fmt, uint64_t raw)
     };
 }
 
-static void QEMU_FLATTEN float4_e2m1_unpack_raw(FloatParts64 *p, float4_e2m1 f)
-{
-    *p = unpack_raw64(&float4_e2m1_params, f);
-}
-
 static void QEMU_FLATTEN float8_e4m3_unpack_raw(FloatParts64 *p, float8_e4m3 f)
 {
     *p = unpack_raw64(&float8_e4m3_params, f);
@@ -1473,11 +1468,11 @@ static const uint16_t rsqrt_tab[128] = {
  * Pack/unpack routines with a specific FloatFmt.
  */
 
-static void float4_e2m1_unpack_canonical(FloatParts64 *p, float4_e2m1 f,
-                                         float_status *s)
+static FloatParts64 float4_e2m1_unpack_canonical(float4_e2m1 f, float_status *s)
 {
-    float4_e2m1_unpack_raw(p, f);
-    parts64_canonicalize(p, s, &float4_e2m1_params);
+    FloatParts64 p = unpack_raw64(&float4_e2m1_params, f);
+    parts64_canonicalize(&p, s, &float4_e2m1_params);
+    return p;
 }
 
 static void float8_e4m3_unpack_canonical(FloatParts64 *p, float8_e4m3 f,
@@ -2699,9 +2694,7 @@ static void parts_float_to_float_widen(FloatParts128 *a, FloatParts64 *b,
 
 float8_e4m3 float4_e2m1_to_float8_e4m3(float4_e2m1 a, float_status *s)
 {
-    FloatParts64 p;
-
-    float4_e2m1_unpack_canonical(&p, a, s);
+    FloatParts64 p = float4_e2m1_unpack_canonical(a, s);
     parts64_float_to_float(&p, s);
     return float8_e4m3_round_pack_canonical(&p, s, false);
 }
