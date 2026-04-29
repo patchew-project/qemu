@@ -25,28 +25,12 @@
 
 #include "errno_defs.h"
 
-#include "freebsd/syscall_nr.h"
+#include "os-syscalls.h"
 
 /*
  * machine/_types.h
  * or x86/_types.h
  */
-
-/*
- * time_t seems to be very inconsistly defined for the different *BSD's...
- *
- * FreeBSD uses a 64bits time_t except on i386
- * so we have to add a special case here.
- *
- * On NetBSD time_t is always defined as an int64_t.  On OpenBSD time_t
- * is always defined as an int.
- *
- */
-#if (!defined(TARGET_I386))
-typedef int64_t target_time_t;
-#else
-typedef int32_t target_time_t;
-#endif
 
 struct target_iovec {
     abi_long iov_base;   /* Starting address */
