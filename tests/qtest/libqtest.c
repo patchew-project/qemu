@@ -1015,22 +1015,39 @@ char *qtest_hmp(QTestState *s, const char *fmt, ...)
 
 const char *qtest_get_arch(void)
 {
-    const char *qemu = qtest_qemu_binary(NULL);
-    const char *end = strrchr(qemu, '-');
+    /*
+     * We find and cache the architecture name once, because we need to
+     * allocate memory to hold it. This memory will stay around for
+     * the lifetime of this test process.
+     */
+    static const char *arch;
 
-    if (!end) {
-        fprintf(stderr, "Can't determine architecture from binary name.\n");
-        exit(1);
+    if (!arch) {
+        /*
+         * Find the rightmost occurrence of "-system-"; the architecture
+         * name runs from there to the next whitespace.
+         */
+        const char *qemu = qtest_qemu_binary(NULL);
+        const char *sysstr = g_strrstr(qemu, "-system-");
+
+        if (sysstr) {
+            g_auto(GStrv) tokens = g_strsplit_set(sysstr + strlen("-system-"),
+                                                  " \t", 2);
+            if (tokens && tokens[0]) {
+                arch = g_steal_pointer(&tokens[0]);
+            }
+        }
+
+        if (!arch) {
+            fprintf(stderr, "Can't determine architecture from binary name.\n"
+                    "QTEST_QEMU_BINARY must include *-system-<arch> where "
+                    "'arch' is the target architecture "
+                    "(x86_64, aarch64, etc).\n");
+            exit(1);
+        }
     }
 
-    if (!strstr(qemu, "-system-")) {
-        fprintf(stderr, "QTEST_QEMU_BINARY must end with *-system-<arch> "
-                "where 'arch' is the target\narchitecture (x86_64, aarch64, "
-                "etc).\n");
-        exit(1);
-    }
-
-    return end + 1;
+    return arch;
 }
 
 static bool qtest_qom_has_concrete_type(const char *parent_typename,
