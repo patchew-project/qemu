@@ -156,8 +156,9 @@ class Transmogrifier:
         lines = content.splitlines(True)
 
         if dedent:
-            txt = "".join(lines[1:])
-            lines[1:] = textwrap.dedent(txt).splitlines(True)
+            lines = textwrap.dedent(content).splitlines(True)
+        else:
+            lines = content.splitlines(True)
 
         for i, line in enumerate(lines):
             self.add_line_raw(line, info.fname, info.line + i)

@@ -530,23 +530,17 @@ class QAPISchemaParser:
         line: str,
         info: QAPISourceInfo
     ) -> Tuple['QAPIDoc', Optional[str]]:
-        match = self._match_at_name_colon(line)
-        if not match:
-            raise QAPIParseError(self, "@name must end with ':'")
+        if not line.endswith(':'):
+            raise QAPIParseError(self, "line should end with ':'")
 
         # Invalid names are not checked here, but the name
         # provided *must* match the following definition,
         # which *is* validated in expr.py.
-        symbol = match.group(1)
+        symbol = line[1:-1]
         if not symbol:
             raise QAPIParseError(self, "name required after '@'")
         doc = QAPIDoc(info, symbol)
-
         doc.ensure_untagged_section(info, QAPIDoc.Kind.INTRO)
-        text = line[match.end():]
-        if text:
-            doc.append_line(text)
-
         return doc, self.get_doc_indented(doc)
 
     def get_doc(self) -> 'QAPIDoc':
