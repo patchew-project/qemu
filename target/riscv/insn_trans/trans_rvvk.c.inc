@@ -426,8 +426,7 @@ static bool vsha_check(DisasContext *s, arg_rmrr *a)
            vsha_check_sew(s) &&
            MAXSZ(s) >= egw_bytes &&
            !is_overlapped(a->rd, mult, a->rs1, mult) &&
-           !is_overlapped(a->rd, mult, a->rs2, mult) &&
-           s->lmul >= 0;
+           !is_overlapped(a->rd, mult, a->rs2, mult);
 }
 
 GEN_VV_UNMASKED_TRANS(vsha2ms_vv, vsha_check, ZVKNH_EGS)
