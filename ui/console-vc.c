@@ -13,6 +13,7 @@
 #include "ui/console.h"
 #include "ui/vgafont.h"
 #include "ui/cp437.h"
+#include "ui/vgafont.h"
 
 #include "pixman.h"
 #include "trace.h"
