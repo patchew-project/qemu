@@ -779,14 +779,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
                   FloatParts128 *: parts128_##NAME, \
                   FloatParts256 *: parts256_##NAME)
 
-static void parts64_sint_to_float(FloatParts64 *p, int64_t a,
-                                  int scale, float_status *s);
-static void parts128_sint_to_float(FloatParts128 *p, int64_t a,
-                                   int scale, float_status *s);
-
-#define parts_sint_to_float(P, I, Z, S) \
-    PARTS_GENERIC_64_128(sint_to_float, P)(P, I, Z, S)
-
 static void parts64_uint_to_float(FloatParts64 *p, uint64_t a,
                                   int scale, float_status *s);
 static void parts128_uint_to_float(FloatParts128 *p, uint64_t a,
@@ -4013,7 +4005,7 @@ float16 int64_to_float16_scalbn(int64_t a, int scale, float_status *status)
 {
     FloatParts64 p;
 
-    parts_sint_to_float(&p, a, scale, status);
+    parts64_sint_to_float(&p, a, scale, status);
     return float16_round_pack_canonical(&p, status);
 }
 
@@ -4098,7 +4090,7 @@ float64 int64_to_float64_scalbn(int64_t a, int scale, float_status *status)
         return ur.s;
     }
 
-    parts_sint_to_float(&p, a, scale, status);
+    parts64_sint_to_float(&p, a, scale, status);
     return float64_round_pack_canonical(&p, status);
 }
 
@@ -4131,7 +4123,7 @@ bfloat16 int64_to_bfloat16_scalbn(int64_t a, int scale, float_status *status)
 {
     FloatParts64 p;
 
-    parts_sint_to_float(&p, a, scale, status);
+    parts64_sint_to_float(&p, a, scale, status);
     return bfloat16_round_pack_canonical(&p, status);
 }
 
@@ -4203,7 +4195,7 @@ float128 int64_to_float128(int64_t a, float_status *status)
 {
     FloatParts128 p;
 
-    parts_sint_to_float(&p, a, 0, status);
+    parts128_sint_to_float(&p, a, 0, status);
     return float128_round_pack_canonical(&p, status);
 }
 
@@ -4216,7 +4208,7 @@ floatx80 int64_to_floatx80(int64_t a, float_status *status)
 {
     FloatParts128 p;
 
-    parts_sint_to_float(&p, a, 0, status);
+    parts128_sint_to_float(&p, a, 0, status);
     return floatx80_round_pack_canonical(&p, status);
 }
 
