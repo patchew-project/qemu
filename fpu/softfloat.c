@@ -779,14 +779,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
                   FloatParts128 *: parts128_##NAME, \
                   FloatParts256 *: parts256_##NAME)
 
-static FloatParts64 *parts64_minmax(FloatParts64 *a, FloatParts64 *b,
-                                    float_status *s, int flags);
-static FloatParts128 *parts128_minmax(FloatParts128 *a, FloatParts128 *b,
-                                      float_status *s, int flags);
-
-#define parts_minmax(A, B, S, F) \
-    PARTS_GENERIC_64_128(minmax, A)(A, B, S, F)
-
 static FloatRelation parts64_compare(FloatParts64 *a, FloatParts64 *b,
                                      float_status *s, bool q);
 static FloatRelation parts128_compare(FloatParts128 *a, FloatParts128 *b,
@@ -4417,7 +4409,7 @@ static float16 float16_minmax(float16 a, float16 b, float_status *s, int flags)
 
     float16_unpack_canonical(&pa, a, s);
     float16_unpack_canonical(&pb, b, s);
-    pr = parts_minmax(&pa, &pb, s, flags);
+    pr = parts64_minmax(&pa, &pb, s, flags);
 
     return float16_round_pack_canonical(pr, s);
 }
@@ -4429,7 +4421,7 @@ static bfloat16 bfloat16_minmax(bfloat16 a, bfloat16 b,
 
     bfloat16_unpack_canonical(&pa, a, s);
     bfloat16_unpack_canonical(&pb, b, s);
-    pr = parts_minmax(&pa, &pb, s, flags);
+    pr = parts64_minmax(&pa, &pb, s, flags);
 
     return bfloat16_round_pack_canonical(pr, s);
 }
@@ -4440,7 +4432,7 @@ static float32 float32_minmax(float32 a, float32 b, float_status *s, int flags)
 
     float32_unpack_canonical(&pa, a, s);
     float32_unpack_canonical(&pb, b, s);
-    pr = parts_minmax(&pa, &pb, s, flags);
+    pr = parts64_minmax(&pa, &pb, s, flags);
 
     return float32_round_pack_canonical(pr, s);
 }
@@ -4451,7 +4443,7 @@ static float64 float64_minmax(float64 a, float64 b, float_status *s, int flags)
 
     float64_unpack_canonical(&pa, a, s);
     float64_unpack_canonical(&pb, b, s);
-    pr = parts_minmax(&pa, &pb, s, flags);
+    pr = parts64_minmax(&pa, &pb, s, flags);
 
     return float64_round_pack_canonical(pr, s);
 }
@@ -4463,7 +4455,7 @@ static float128 float128_minmax(float128 a, float128 b,
 
     float128_unpack_canonical(&pa, a, s);
     float128_unpack_canonical(&pb, b, s);
-    pr = parts_minmax(&pa, &pb, s, flags);
+    pr = parts128_minmax(&pa, &pb, s, flags);
 
     return float128_round_pack_canonical(pr, s);
 }
