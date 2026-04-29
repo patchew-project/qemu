@@ -941,7 +941,7 @@ static void partsN(sqrt)(FloatPartsN *a, float_status *status,
             break;
         case float_class_snan:
         case float_class_qnan:
-            parts_return_nan(a, status);
+            partsN(return_nan)(a, status);
             return;
         case float_class_zero:
             return;
@@ -1263,7 +1263,7 @@ static void partsN(round_to_int)(FloatPartsN *a, FloatRoundMode rmode,
     switch (a->cls) {
     case float_class_qnan:
     case float_class_snan:
-        parts_return_nan(a, s);
+        partsN(return_nan)(a, s);
         break;
     case float_class_zero:
     case float_class_inf:
@@ -1735,7 +1735,7 @@ static void partsN(scalbn)(FloatPartsN *a, int n, float_status *s)
     switch (a->cls) {
     case float_class_snan:
     case float_class_qnan:
-        parts_return_nan(a, s);
+        partsN(return_nan)(a, s);
         break;
     case float_class_zero:
     case float_class_inf:
@@ -1770,7 +1770,7 @@ static void partsN(log2)(FloatPartsN *a, float_status *s, const FloatFmt *fmt)
             break;
         case float_class_snan:
         case float_class_qnan:
-            parts_return_nan(a, s);
+            partsN(return_nan)(a, s);
             return;
         case float_class_zero:
             float_raise(float_flag_divbyzero, s);
