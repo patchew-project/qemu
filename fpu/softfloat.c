@@ -779,14 +779,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
                   FloatParts128 *: parts128_##NAME, \
                   FloatParts256 *: parts256_##NAME)
 
-static FloatParts64 *parts64_mul(FloatParts64 *a, FloatParts64 *b,
-                                 float_status *s);
-static FloatParts128 *parts128_mul(FloatParts128 *a, FloatParts128 *b,
-                                   float_status *s);
-
-#define parts_mul(A, B, S) \
-    PARTS_GENERIC_64_128(mul, A)(A, B, S)
-
 static FloatParts64 *parts64_muladd_scalbn(FloatParts64 *a, FloatParts64 *b,
                                            FloatParts64 *c, int scale,
                                            int flags, float_status *s);
@@ -2149,7 +2141,7 @@ float16 QEMU_FLATTEN float16_mul(float16 a, float16 b, float_status *status)
 
     float16_unpack_canonical(&pa, a, status);
     float16_unpack_canonical(&pb, b, status);
-    pr = parts_mul(&pa, &pb, status);
+    pr = parts64_mul(&pa, &pb, status);
 
     return float16_round_pack_canonical(pr, status);
 }
@@ -2161,7 +2153,7 @@ soft_f32_mul(float32 a, float32 b, float_status *status)
 
     float32_unpack_canonical(&pa, a, status);
     float32_unpack_canonical(&pb, b, status);
-    pr = parts_mul(&pa, &pb, status);
+    pr = parts64_mul(&pa, &pb, status);
 
     return float32_round_pack_canonical(pr, status);
 }
@@ -2173,7 +2165,7 @@ soft_f64_mul(float64 a, float64 b, float_status *status)
 
     float64_unpack_canonical(&pa, a, status);
     float64_unpack_canonical(&pb, b, status);
-    pr = parts_mul(&pa, &pb, status);
+    pr = parts64_mul(&pa, &pb, status);
 
     return float64_round_pack_canonical(pr, status);
 }
@@ -2208,7 +2200,7 @@ float64 float64r32_mul(float64 a, float64 b, float_status *status)
 
     float64_unpack_canonical(&pa, a, status);
     float64_unpack_canonical(&pb, b, status);
-    pr = parts_mul(&pa, &pb, status);
+    pr = parts64_mul(&pa, &pb, status);
 
     return float64r32_round_pack_canonical(pr, status);
 }
@@ -2220,7 +2212,7 @@ bfloat16_mul(bfloat16 a, bfloat16 b, float_status *status)
 
     bfloat16_unpack_canonical(&pa, a, status);
     bfloat16_unpack_canonical(&pb, b, status);
-    pr = parts_mul(&pa, &pb, status);
+    pr = parts64_mul(&pa, &pb, status);
 
     return bfloat16_round_pack_canonical(pr, status);
 }
@@ -2232,7 +2224,7 @@ float128_mul(float128 a, float128 b, float_status *status)
 
     float128_unpack_canonical(&pa, a, status);
     float128_unpack_canonical(&pb, b, status);
-    pr = parts_mul(&pa, &pb, status);
+    pr = parts128_mul(&pa, &pb, status);
 
     return float128_round_pack_canonical(pr, status);
 }
@@ -2247,7 +2239,7 @@ floatx80_mul(floatx80 a, floatx80 b, float_status *status)
         return floatx80_default_nan(status);
     }
 
-    pr = parts_mul(&pa, &pb, status);
+    pr = parts128_mul(&pa, &pb, status);
     return floatx80_round_pack_canonical(pr, status);
 }
 
@@ -5443,7 +5435,7 @@ float32 float32_exp2(float32 a, float_status *status)
     float_raise(float_flag_inexact, status);
 
     float64_unpack_canonical(&tp, float64_ln2, status);
-    xp = *parts_mul(&xp, &tp, status);
+    xp = *parts64_mul(&xp, &tp, status);
     xnp = xp;
 
     float64_unpack_canonical(&rp, float64_one, status);
@@ -5451,7 +5443,7 @@ float32 float32_exp2(float32 a, float_status *status)
 
         float64_unpack_canonical(&tp, float32_exp2_coefficients[i], status);
         rp = *parts_muladd_scalbn(&tp, &xnp, &rp, 0, 0, status);
-        xnp = *parts_mul(&xnp, &xp, status);
+        xnp = *parts64_mul(&xnp, &xp, status);
     }
 
     return float32_round_pack_canonical(&rp, status);
