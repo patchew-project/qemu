@@ -1145,6 +1145,25 @@ static bool hvf_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
 
     clamp_id_aa64mmfr0_parange_to_ipa_size(&host_isar);
 
+    /*
+     * Windows wants at least the PMU's cycles counter to be available.
+     *
+     * With kernel-irqchip=off, we "emulate" the cycles counter
+     * in reference to time in QEMU. Having that, even with
+     * ID_AA64DFR0_EL1.PMUVer = 0 is enough to make Windows happy.
+     *
+     * As it's a very inaccurate implementation with its only purpose
+     * being making Windows boot, expose ID_AA64DFR0_EL1.PMUVer = 0
+     * when kernel-irqchip=off.
+     *
+     * When kernel-irqchip=on *and* ID_AA64DFR0_EL1.PMUVer = 1,
+     * the OS provides its own PMU emulation, which is currently
+     * a cycles counter only emulation.
+     */
+    if (hvf_irqchip_in_kernel()) {
+        FIELD_DP64_IDREG(&host_isar, ID_AA64DFR0, PMUVER, 0x1);
+    }
+
     ahcf->isar = host_isar;
 
     /*
