@@ -118,8 +118,9 @@ typedef void (*TestMigrateEndHook)(QTestState *from,
  */
 typedef struct {
     /*
-     * QTEST_LOG=1 may override this.  When QTEST_LOG=1, we always dump errors
-     * unconditionally, because it means the user would like to be verbose.
+     * QTEST_LOG=test may override this in which case we dump errors
+     * unconditionally, because it means the user would like to be
+     * verbose.
      */
     bool hide_stderr;
     MemType mem_type;

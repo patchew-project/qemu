@@ -365,7 +365,7 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
         g_assert_not_reached();
     }
 
-    if (!getenv("QTEST_LOG") && args->hide_stderr) {
+    if (!qtest_verbose("test") && args->hide_stderr) {
 #ifndef _WIN32
         ignore_stderr = "2>/dev/null";
 #else
