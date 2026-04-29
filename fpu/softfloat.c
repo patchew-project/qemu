@@ -779,7 +779,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
                   FloatParts128 *: parts128_##NAME, \
                   FloatParts256 *: parts256_##NAME)
 
-#define parts_default_nan(P, S)    PARTS_GENERIC_64_128(default_nan, P)(P, S)
 #define parts_silence_nan(P, S)    PARTS_GENERIC_64_128(silence_nan, P)(P, S)
 
 static void parts64_return_nan(FloatParts64 *a, float_status *s);
@@ -3156,7 +3155,7 @@ float32 floatx80_to_float32(floatx80 a, float_status *s)
     if (floatx80_unpack_canonical(&p128, a, s)) {
         parts_float_to_float_narrow(&p64, &p128, s);
     } else {
-        parts_default_nan(&p64, s);
+        parts64_default_nan(&p64, s);
     }
     return float32_round_pack_canonical(&p64, s);
 }
@@ -3169,7 +3168,7 @@ float64 floatx80_to_float64(floatx80 a, float_status *s)
     if (floatx80_unpack_canonical(&p128, a, s)) {
         parts_float_to_float_narrow(&p64, &p128, s);
     } else {
-        parts_default_nan(&p64, s);
+        parts64_default_nan(&p64, s);
     }
     return float64_round_pack_canonical(&p64, s);
 }
@@ -3181,7 +3180,7 @@ float128 floatx80_to_float128(floatx80 a, float_status *s)
     if (floatx80_unpack_canonical(&p, a, s)) {
         parts_float_to_float(&p, s);
     } else {
-        parts_default_nan(&p, s);
+        parts128_default_nan(&p, s);
     }
     return float128_round_pack_canonical(&p, s);
 }
@@ -3486,7 +3485,7 @@ static int32_t floatx80_to_int32_scalbn(floatx80 a, FloatRoundMode rmode,
     FloatParts128 p;
 
     if (!floatx80_unpack_canonical(&p, a, s)) {
-        parts_default_nan(&p, s);
+        parts128_default_nan(&p, s);
     }
     return parts_float_to_sint(&p, rmode, scale, INT32_MIN, INT32_MAX, s);
 }
@@ -3497,7 +3496,7 @@ static int64_t floatx80_to_int64_scalbn(floatx80 a, FloatRoundMode rmode,
     FloatParts128 p;
 
     if (!floatx80_unpack_canonical(&p, a, s)) {
-        parts_default_nan(&p, s);
+        parts128_default_nan(&p, s);
     }
     return parts_float_to_sint(&p, rmode, scale, INT64_MIN, INT64_MAX, s);
 }
@@ -4984,7 +4983,7 @@ float16 float16_default_nan(float_status *status)
 {
     FloatParts64 p;
 
-    parts_default_nan(&p, status);
+    parts64_default_nan(&p, status);
     p.frac >>= float16_params.frac_shift;
     return float16_pack_raw(&p);
 }
@@ -4993,7 +4992,7 @@ float32 float32_default_nan(float_status *status)
 {
     FloatParts64 p;
 
-    parts_default_nan(&p, status);
+    parts64_default_nan(&p, status);
     p.frac >>= float32_params.frac_shift;
     return float32_pack_raw(&p);
 }
@@ -5002,7 +5001,7 @@ float64 float64_default_nan(float_status *status)
 {
     FloatParts64 p;
 
-    parts_default_nan(&p, status);
+    parts64_default_nan(&p, status);
     p.frac >>= float64_params.frac_shift;
     return float64_pack_raw(&p);
 }
@@ -5011,7 +5010,7 @@ float128 float128_default_nan(float_status *status)
 {
     FloatParts128 p;
 
-    parts_default_nan(&p, status);
+    parts128_default_nan(&p, status);
     frac_shr(&p, float128_params.frac_shift);
     return float128_pack_raw(&p);
 }
@@ -5020,7 +5019,7 @@ bfloat16 bfloat16_default_nan(float_status *status)
 {
     FloatParts64 p;
 
-    parts_default_nan(&p, status);
+    parts64_default_nan(&p, status);
     p.frac >>= bfloat16_params.frac_shift;
     return bfloat16_pack_raw(&p);
 }
@@ -5537,7 +5536,7 @@ static void parts_s390_divide_to_integer(FloatParts64 *a, FloatParts64 *b,
         *n = *r;
         *cc = 1;
     } else if (a->cls == float_class_inf || b->cls == float_class_zero) {
-        parts_default_nan(r, status);
+        parts64_default_nan(r, status);
         *n = *r;
         *cc = 1;
         status->float_exception_flags |= float_flag_invalid;
