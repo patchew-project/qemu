@@ -779,13 +779,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
                   FloatParts128 *: parts128_##NAME, \
                   FloatParts256 *: parts256_##NAME)
 
-static FloatParts64 *parts64_pick_nan(FloatParts64 *a, FloatParts64 *b,
-                                      float_status *s);
-static FloatParts128 *parts128_pick_nan(FloatParts128 *a, FloatParts128 *b,
-                                        float_status *s);
-
-#define parts_pick_nan(A, B, S)    PARTS_GENERIC_64_128(pick_nan, A)(A, B, S)
-
 static FloatParts64 *parts64_pick_nan_muladd(FloatParts64 *a, FloatParts64 *b,
                                              FloatParts64 *c, float_status *s,
                                              int ab_mask, int abc_mask);
@@ -5175,7 +5168,7 @@ floatx80 propagateFloatx80NaN(floatx80 a, floatx80 b, float_status *status)
         return floatx80_default_nan(status);
     }
 
-    pr = parts_pick_nan(&pa, &pb, status);
+    pr = parts128_pick_nan(&pa, &pb, status);
     return floatx80_round_pack_canonical(pr, status);
 }
 
@@ -5525,7 +5518,7 @@ static void parts_s390_divide_to_integer(FloatParts64 *a, FloatParts64 *b,
 {
     /* POp table "Results: DIVIDE TO INTEGER (Part 1 of 2)" */
     if ((float_cmask(a->cls) | float_cmask(b->cls)) & float_cmask_anynan) {
-        *r = *parts_pick_nan(a, b, status);
+        *r = *parts64_pick_nan(a, b, status);
         *n = *r;
         *cc = 1;
     } else if (a->cls == float_class_inf || b->cls == float_class_zero) {
