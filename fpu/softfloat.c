@@ -646,11 +646,6 @@ static FloatParts64 unpack_raw64(const FloatFmt *fmt, uint64_t raw)
     };
 }
 
-static void QEMU_FLATTEN float64_unpack_raw(FloatParts64 *p, float64 f)
-{
-    *p = unpack_raw64(&float64_params, f);
-}
-
 static void QEMU_FLATTEN floatx80_unpack_raw(FloatParts128 *p, floatx80 f)
 {
     *p = (FloatParts128) {
@@ -1538,7 +1533,7 @@ static float32 float32_round_pack_canonical(FloatParts64 *p,
 static void float64_unpack_canonical(FloatParts64 *p, float64 f,
                                      float_status *s)
 {
-    float64_unpack_raw(p, f);
+    *p = unpack_raw64(&float64_params, f);
     parts64_canonicalize(p, s, &float64_params);
 }
 
@@ -4918,9 +4913,8 @@ float32 float32_silence_nan(float32 a, float_status *status)
 
 float64 float64_silence_nan(float64 a, float_status *status)
 {
-    FloatParts64 p;
+    FloatParts64 p = unpack_raw64(&float64_params, a);
 
-    float64_unpack_raw(&p, a);
     p.frac <<= float64_params.frac_shift;
     parts64_silence_nan(&p, status);
     p.frac >>= float64_params.frac_shift;
@@ -4990,9 +4984,8 @@ float32 float32_squash_input_denormal(float32 a, float_status *status)
 float64 float64_squash_input_denormal(float64 a, float_status *status)
 {
     if (status->flush_inputs_to_zero) {
-        FloatParts64 p;
+        FloatParts64 p = unpack_raw64(&float64_params, a);
 
-        float64_unpack_raw(&p, a);
         if (parts_squash_denormal(p, status)) {
             return float64_set_sign(float64_zero, p.sign);
         }
