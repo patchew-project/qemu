@@ -646,16 +646,6 @@ static FloatParts64 unpack_raw64(const FloatFmt *fmt, uint64_t raw)
     };
 }
 
-static void QEMU_FLATTEN floatx80_unpack_raw(FloatParts128 *p, floatx80 f)
-{
-    *p = (FloatParts128) {
-        .cls = float_class_unclassified,
-        .sign = extract32(f.high, 15, 1),
-        .exp = extract32(f.high, 0, 15),
-        .frac_hi = f.low
-    };
-}
-
 static void QEMU_FLATTEN float128_unpack_raw(FloatParts128 *p, float128 f)
 {
     const int f_size = float128_params.frac_size - 64;
@@ -1626,7 +1616,12 @@ static bool floatx80_unpack_canonical(FloatParts128 *p, floatx80 f,
         return false;
     }
 
-    floatx80_unpack_raw(p, f);
+    *p = (FloatParts128) {
+        .cls = float_class_unclassified,
+        .sign = extract32(f.high, 15, 1),
+        .exp = extract32(f.high, 0, 15),
+        .frac_hi = f.low
+    };
 
     if (likely(p->exp != floatx80_params[floatx80_precision_x].exp_max)) {
         parts128_canonicalize(p, s, &floatx80_params[floatx80_precision_x]);
