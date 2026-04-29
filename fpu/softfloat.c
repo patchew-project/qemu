@@ -779,20 +779,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
                   FloatParts128 *: parts128_##NAME, \
                   FloatParts256 *: parts256_##NAME)
 
-static void parts64_add_normal(FloatParts64 *a, FloatParts64 *b);
-static void parts128_add_normal(FloatParts128 *a, FloatParts128 *b);
-static void parts256_add_normal(FloatParts256 *a, FloatParts256 *b);
-
-#define parts_add_normal(A, B) \
-    PARTS_GENERIC_64_128_256(add_normal, A)(A, B)
-
-static bool parts64_sub_normal(FloatParts64 *a, FloatParts64 *b);
-static bool parts128_sub_normal(FloatParts128 *a, FloatParts128 *b);
-static bool parts256_sub_normal(FloatParts256 *a, FloatParts256 *b);
-
-#define parts_sub_normal(A, B) \
-    PARTS_GENERIC_64_128_256(sub_normal, A)(A, B)
-
 static FloatParts64 *parts64_addsub(FloatParts64 *a, FloatParts64 *b,
                                     float_status *s, bool subtract);
 static FloatParts128 *parts128_addsub(FloatParts128 *a, FloatParts128 *b,
@@ -1635,6 +1621,7 @@ static const uint16_t rsqrt_tab[128] = {
 };
 
 #define partsN(NAME)   glue(glue(glue(parts,N),_),NAME)
+#define partsW(NAME)   glue(glue(glue(parts,W),_),NAME)
 #define FloatPartsN    glue(FloatParts,N)
 #define FloatPartsW    glue(FloatParts,W)
 
@@ -1660,6 +1647,7 @@ static const uint16_t rsqrt_tab[128] = {
 #undef  N
 #undef  W
 #undef  partsN
+#undef  partsW
 #undef  FloatPartsN
 #undef  FloatPartsW
 
