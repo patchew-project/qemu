@@ -779,14 +779,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
                   FloatParts128 *: parts128_##NAME, \
                   FloatParts256 *: parts256_##NAME)
 
-static void parts64_uint_to_float(FloatParts64 *p, uint64_t a,
-                                  int scale, float_status *s);
-static void parts128_uint_to_float(FloatParts128 *p, uint64_t a,
-                                   int scale, float_status *s);
-
-#define parts_uint_to_float(P, I, Z, S) \
-    PARTS_GENERIC_64_128(uint_to_float, P)(P, I, Z, S)
-
 static FloatParts64 *parts64_minmax(FloatParts64 *a, FloatParts64 *b,
                                     float_status *s, int flags);
 static FloatParts128 *parts128_minmax(FloatParts128 *a, FloatParts128 *b,
@@ -4225,7 +4217,7 @@ float16 uint64_to_float16_scalbn(uint64_t a, int scale, float_status *status)
 {
     FloatParts64 p;
 
-    parts_uint_to_float(&p, a, scale, status);
+    parts64_uint_to_float(&p, a, scale, status);
     return float16_round_pack_canonical(&p, status);
 }
 
@@ -4270,7 +4262,7 @@ float32 uint64_to_float32_scalbn(uint64_t a, int scale, float_status *status)
         return ur.s;
     }
 
-    parts_uint_to_float(&p, a, scale, status);
+    parts64_uint_to_float(&p, a, scale, status);
     return float32_round_pack_canonical(&p, status);
 }
 
@@ -4310,7 +4302,7 @@ float64 uint64_to_float64_scalbn(uint64_t a, int scale, float_status *status)
         return ur.s;
     }
 
-    parts_uint_to_float(&p, a, scale, status);
+    parts64_uint_to_float(&p, a, scale, status);
     return float64_round_pack_canonical(&p, status);
 }
 
@@ -4343,7 +4335,7 @@ bfloat16 uint64_to_bfloat16_scalbn(uint64_t a, int scale, float_status *status)
 {
     FloatParts64 p;
 
-    parts_uint_to_float(&p, a, scale, status);
+    parts64_uint_to_float(&p, a, scale, status);
     return bfloat16_round_pack_canonical(&p, status);
 }
 
@@ -4386,7 +4378,7 @@ float128 uint64_to_float128(uint64_t a, float_status *status)
 {
     FloatParts128 p;
 
-    parts_uint_to_float(&p, a, 0, status);
+    parts128_uint_to_float(&p, a, 0, status);
     return float128_round_pack_canonical(&p, status);
 }
 
