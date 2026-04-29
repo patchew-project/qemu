@@ -750,6 +750,8 @@ Object *object_new_with_props(const char *typename,
     va_list vargs;
     Object *obj;
 
+    assert(parent != NULL);
+    assert(id != NULL);
     va_start(vargs, errp);
     obj = object_new_with_propv(typename, parent, id, vargs, errp);
     va_end(vargs);
@@ -767,9 +769,13 @@ object_new_with_props_helper(const char *typename,
                                               Error **errp),
                              Error **errp)
 {
+    ERRP_GUARD();
     Object *obj;
     ObjectClass *klass;
     UserCreatable *uc;
+
+    assert((id != NULL && parent != NULL) ||
+           (id == NULL && parent == NULL));
 
     if (id != NULL && !id_wellformed(id)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "id", "an identifier");
@@ -795,7 +801,10 @@ object_new_with_props_helper(const char *typename,
     }
 
     if (id != NULL) {
-        object_property_add_child(parent, id, obj);
+        object_property_try_add_child(parent, id, obj, errp);
+        if (*errp) {
+            goto error;
+        }
     }
 
     uc = (UserCreatable *)object_dynamic_cast(obj, TYPE_USER_CREATABLE);
@@ -808,7 +817,6 @@ object_new_with_props_helper(const char *typename,
         }
     }
 
-    object_unref(obj);
     return obj;
 
  error:
@@ -836,7 +844,8 @@ Object *object_new_with_propv(const char *typename,
 {
     Object *obj;
     struct ObjectNewVargsData data;
-
+    assert(parent != NULL);
+    assert(id != NULL);
     va_copy(data.vargs, vargs);
     obj = object_new_with_props_helper(typename,
                                        parent,
@@ -845,6 +854,9 @@ Object *object_new_with_propv(const char *typename,
                                        object_new_with_propv_setter,
                                        errp);
     va_end(data.vargs);
+    if (obj) {
+        object_unref(obj);
+    }
     return obj;
 }
 
@@ -869,12 +881,56 @@ Object *object_new_with_props_from_qdict(const char *typename,
                                          Error **errp)
 {
     struct ObjectNewQDictData data = { props, v };
-    return object_new_with_props_helper(typename,
-                                        parent,
-                                        id,
-                                        &data,
-                                        object_new_with_qdict_setter,
-                                        errp);
+    Object *obj;
+    assert(parent != NULL);
+    assert(id != NULL);
+    obj = object_new_with_props_helper(typename,
+                                       parent,
+                                       id,
+                                       &data,
+                                       object_new_with_qdict_setter,
+                                       errp);
+    if (obj) {
+        object_unref(obj);
+    }
+    return obj;
+}
+
+Object *object_new_with_props_parentless(const char *typename,
+                                         Error **errp,
+                                         ...)
+{
+    va_list vargs;
+    Object *obj;
+
+    va_start(vargs, errp);
+    obj = object_new_with_propv_parentless(typename, vargs, errp);
+    va_end(vargs);
+
+    return obj;
+}
+
+Object *object_new_with_propv_parentless(const char *typename,
+                                         va_list vargs,
+                                         Error **errp)
+{
+    Object *ret;
+    struct ObjectNewVargsData data;
+    va_copy(data.vargs, vargs);
+    ret = object_new_with_props_helper(typename, NULL, NULL, &data,
+                                       object_new_with_propv_setter, errp);
+    va_end(vargs);
+    return ret;
+}
+
+Object *object_new_with_props_from_qdict_parentless(const char *typename,
+                                                    QDict *props,
+                                                    Visitor *v,
+                                                    Error **errp)
+{
+    struct ObjectNewQDictData data = { props, v };
+    return object_new_with_props_helper(typename, NULL, NULL, &data,
+                                        object_new_with_qdict_setter, errp);
 }
 
 bool object_set_props(Object *obj,
