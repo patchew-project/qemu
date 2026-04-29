@@ -1,1 +1,1 @@
-doc-missing-colon.json:4:1: line should end with ':'
+doc-missing-colon.json:4:1: @name must end with ':'

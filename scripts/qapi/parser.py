@@ -24,6 +24,7 @@ from typing import (
     Match,
     Optional,
     Set,
+    Tuple,
     Union,
 )
 
@@ -524,6 +525,30 @@ class QAPISchemaParser:
                 return line
             doc.append_line(line)
 
+    def _get_doc_intro(
+        self,
+        line: str,
+        info: QAPISourceInfo
+    ) -> Tuple['QAPIDoc', Optional[str]]:
+        match = self._match_at_name_colon(line)
+        if not match:
+            raise QAPIParseError(self, "@name must end with ':'")
+
+        # Invalid names are not checked here, but the name
+        # provided *must* match the following definition,
+        # which *is* validated in expr.py.
+        symbol = match.group(1)
+        if not symbol:
+            raise QAPIParseError(self, "name required after '@'")
+        doc = QAPIDoc(info, symbol)
+
+        doc.ensure_untagged_section(info, QAPIDoc.Kind.INTRO)
+        text = line[match.end():]
+        if text:
+            doc.append_line(text)
+
+        return doc, self.get_doc_indented(doc)
+
     def get_doc(self) -> 'QAPIDoc':
         if self.val != '##':
             raise QAPIParseError(
@@ -532,18 +557,9 @@ class QAPISchemaParser:
         self.accept(False)
         line = self.get_doc_line()
         if line is not None and line.startswith('@'):
+
             # Definition documentation
-            if not line.endswith(':'):
-                raise QAPIParseError(self, "line should end with ':'")
-            # Invalid names are not checked here, but the name
-            # provided *must* match the following definition,
-            # which *is* validated in expr.py.
-            symbol = line[1:-1]
-            if not symbol:
-                raise QAPIParseError(self, "name required after '@'")
-            doc = QAPIDoc(info, symbol)
-            self.accept(False)
-            line = self.get_doc_line()
+            doc, line = self._get_doc_intro(line, info)
             no_more_args = False
 
             while line is not None:
@@ -751,8 +767,13 @@ class QAPIDoc:
                 raise QAPISemError(
                     section.info, "text required after '%s:'" % section.kind)
 
-    def ensure_untagged_section(self, info: QAPISourceInfo) -> None:
-        kind = QAPIDoc.Kind.PLAIN
+    def ensure_untagged_section(
+        self,
+        info: QAPISourceInfo,
+        kind: Optional['QAPIDoc.Kind'] = None,
+    ) -> None:
+        if kind is None:
+            kind = QAPIDoc.Kind.PLAIN
 
         if self.all_sections and self.all_sections[-1].kind == kind:
             # extend current section
