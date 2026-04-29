@@ -15,6 +15,8 @@ machine types are emulated:
 -  A MIPS Magnum R4000 machine \"magnum\". This machine needs the
    64-bit emulator.
 
+-  The Microchip PIC32MK GPK/MCM microcontroller family \"pic32mk\"
+
 The Malta emulation supports the following devices:
 
 -  Core board with MIPS 24Kf CPU and Galileo system controller
@@ -77,6 +79,56 @@ The Loongson-3 virtual platform emulation supports:
 -  GPEX and virtio as peripheral devices
 
 -  Both KVM and TCG supported
+
+The PIC32MK GPK/MCM emulation supports the following devices:
+
+-  MIPS32 microAptiv MCU core (74Kf, little-endian, 120 MHz)
+
+-  256 KB SRAM, 1 MB program flash, 256 KB boot flash
+
+-  EVIC — 216-source vectored interrupt controller
+
+-  UART × 6 (UART1 connected to the first serial port by default)
+
+-  Timer × 9 with prescaler and period-match interrupts
+
+-  GPIO ports A–G with TRIS/LAT/PORT/ANSEL/CNPU/CNPD registers
+
+-  SPI × 6 (master and slave modes)
+
+-  I2C × 4
+
+-  DMA × 8 channels
+
+-  CAN FD × 4 (via QEMU ``can-bus`` objects, SocketCAN-compatible)
+
+-  USB Full-Speed OTG × 2 (chardev PTY)
+
+-  ADCHS — 12-bit high-speed ADC with 7 cores
+
+-  NVM flash controller with optional host-file backing
+
+-  Data EEPROM emulation over program flash
+
+-  Output Compare (OC) × 16 and Input Capture (IC) × 16
+
+-  CRU (Clock and Reset Unit), WDT (Watchdog), CFG (configuration)
+
+Running a firmware image::
+
+   qemu-system-mipsel -M pic32mk -bios firmware.bin \
+       -serial stdio -nographic -monitor none
+
+Connecting to a SocketCAN interface (e.g. ``vcan0``)::
+
+   qemu-system-mipsel -M pic32mk -bios firmware.bin \
+       -object can-bus,id=canbus0 \
+       -object can-host-socketcan,id=canhost0,if=vcan0,canbus=canbus0 \
+       -serial stdio -nographic
+
+Firmware must be a raw binary linked to start at 0xBFC40000
+(Boot Flash 1). The reset vector at 0xBFC00000 contains a trampoline
+that jumps to 0xBFC40000.
 
 .. include:: cpu-models-mips.rst.inc
 
