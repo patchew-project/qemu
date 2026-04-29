@@ -8,4 +8,6 @@
 #define VEYRON_V1_MIMPID        0x111
 #define VEYRON_V1_MVENDORID     0x61f
 
+#define TENSTORRENT_VENDOR_ID   0x7a1
+
 #endif /*  TARGET_RISCV_CPU_VENDORID_H */
