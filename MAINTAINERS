@@ -1506,6 +1506,15 @@ F: hw/mips/boston.c
 F: hw/pci-host/xilinx-pcie.c
 F: include/hw/pci-host/xilinx-pcie.h
 
+Microchip PIC32MK GPK/MCM
+M: Ericson Joseph <ericsonjoseph@gmail.com>
+S: Maintained
+F: hw/mips/pic32mk*.c
+F: hw/mips/pic32mk*.h
+F: include/hw/mips/pic32mk*.h
+F: tests/functional/mipsel/test_pic32mk.py
+F: tests/qtest/pic32mk*.c
+
 OpenRISC Machines
 -----------------
 or1k-sim

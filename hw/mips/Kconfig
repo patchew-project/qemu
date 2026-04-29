@@ -84,5 +84,13 @@ config MIPS_BOSTON
     select AHCI_ICH9
     select SERIAL_MM
 
+config PIC32MK
+    bool
+    default y
+    depends on MIPS && !TARGET_BIG_ENDIAN
+    select UNIMP
+    select PTIMER
+    select CAN_BUS
+
 config FW_CFG_MIPS
     bool

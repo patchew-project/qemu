@@ -12,4 +12,25 @@ mips_ss.add(when: 'CONFIG_FULOONG', if_true: files('fuloong2e.c'))
 mips_ss.add(when: 'CONFIG_MIPS_BOSTON', if_true: files('boston.c'))
 endif
 
+mips_ss.add(when: 'CONFIG_PIC32MK', if_true: files(
+  'pic32mk.c',
+  'pic32mk_evic.c',
+  'pic32mk_uart.c',
+  'pic32mk_timer.c',
+  'pic32mk_gpio.c',
+  'pic32mk_spi.c',
+  'pic32mk_i2c.c',
+  'pic32mk_dma.c',
+  'pic32mk_canfd.c',
+  'pic32mk_usb.c',
+  'pic32mk_wdt.c',
+  'pic32mk_cru.c',
+  'pic32mk_cfg.c',
+  'pic32mk_adchs.c',
+  'pic32mk_dataee.c',
+  'pic32mk_nvm.c',
+  'pic32mk_oc.c',
+  'pic32mk_ic.c',
+))
+
 hw_arch += {'mips': mips_ss}
