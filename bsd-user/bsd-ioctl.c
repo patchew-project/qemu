@@ -1,0 +1,221 @@
+/*
+ * BSD ioctl(2) emulation
+ *
+ * Copyright (c) 2013-2015 Stacey D. Son
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#include "qemu/osdep.h"
+
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/disk.h>
+#include <sys/ioccom.h>
+#include <sys/ioctl.h>
+#include <sys/sockio.h>
+#include <sys/_termios.h>
+#include <sys/ttycom.h>
+#include <sys/filio.h>
+
+#include <crypto/cryptodev.h>
+
+#include <net/ethernet.h>
+#include <net/if.h>
+#include <net/if_var.h>
+#include <net/if_types.h>
+#include <net/route.h>
+#include <net/if_dl.h>
+#include <net/if_gif.h>
+#include <net/if_gre.h>
+#include <net/if_lagg.h>
+#include <net/if_media.h>
+#include <net/pfvar.h>
+#include <net/if_pfsync.h>
+#include <net/ethernet.h>
+#include <netinet/icmp6.h>
+#include <netinet/in.h>
+#include <netinet/ip_carp.h>
+#include <netinet6/in6_var.h>
+#include <netinet6/nd6.h>
+#include <net80211/ieee80211_ioctl.h>
+
+#include <stdio.h>
+
+#include "qemu.h"
+
+#include "syscall_defs.h"
+#include "bsd-ioctl.h"
+#include "os-ioctl-cryptodev.h"
+#include "os-ioctl-disk.h"
+#include "os-ioctl-filio.h"
+#include "os-ioctl-in6_var.h"
+#include "os-ioctl-sockio.h"
+#include "os-ioctl-ttycom.h"
+
+static void target_to_host_termios(void *dst, const void *src)
+{
+    struct termios *host = dst;
+    const struct target_termios *target = src;
+
+    host->c_iflag = target_to_host_bitmask(tswap32(target->c_iflag), iflag_tbl);
+    host->c_oflag = target_to_host_bitmask(tswap32(target->c_oflag), oflag_tbl);
+    host->c_cflag = target_to_host_bitmask(tswap32(target->c_cflag), cflag_tbl);
+    host->c_lflag = target_to_host_bitmask(tswap32(target->c_lflag), lflag_tbl);
+
+    memset(host->c_cc, 0, sizeof(host->c_cc));
+    host->c_cc[VEOF] = target->c_cc[TARGET_VEOF];
+    host->c_cc[VEOL] = target->c_cc[TARGET_VEOL];
+#ifdef VEOL2
+    host->c_cc[VEOL2] = target->c_cc[TARGET_VEOL2];
+#endif
+    host->c_cc[VERASE] = target->c_cc[TARGET_VERASE];
+#ifdef VWERASE
+    host->c_cc[VWERASE] = target->c_cc[TARGET_VWERASE];
+#endif
+    host->c_cc[VKILL] = target->c_cc[TARGET_VKILL];
+#ifdef VREPRINT
+    host->c_cc[VREPRINT] = target->c_cc[TARGET_VREPRINT];
+#endif
+#ifdef VERASE2
+    host->c_cc[VERASE2] = target->c_cc[TARGET_VERASE2];
+#endif
+    host->c_cc[VINTR] = target->c_cc[TARGET_VINTR];
+    host->c_cc[VQUIT] = target->c_cc[TARGET_VQUIT];
+    host->c_cc[VSUSP] = target->c_cc[TARGET_VSUSP];
+#ifdef VDSUSP
+    host->c_cc[VDSUSP] = target->c_cc[TARGET_VDSUSP];
+#endif
+    host->c_cc[VSTART] = target->c_cc[TARGET_VSTART];
+    host->c_cc[VSTOP] = target->c_cc[TARGET_VSTOP];
+#ifdef VLNEXT
+    host->c_cc[VLNEXT] = target->c_cc[TARGET_VLNEXT];
+#endif
+#ifdef VDISCARD
+    host->c_cc[VDISCARD] = target->c_cc[TARGET_VDISCARD];
+#endif
+    host->c_cc[VMIN] = target->c_cc[TARGET_VMIN];
+    host->c_cc[VTIME] = target->c_cc[TARGET_VTIME];
+#ifdef VSTATUS
+    host->c_cc[VSTATUS] = target->c_cc[TARGET_VSTATUS];
+#endif
+
+    host->c_ispeed = tswap32(target->c_ispeed);
+    host->c_ospeed = tswap32(target->c_ospeed);
+}
+
+static void host_to_target_termios(void *dst, const void *src)
+{
+    struct target_termios *target = dst;
+    const struct termios *host = src;
+
+    target->c_iflag = tswap32(host_to_target_bitmask(host->c_iflag, iflag_tbl));
+    target->c_oflag = tswap32(host_to_target_bitmask(host->c_oflag, oflag_tbl));
+    target->c_cflag = tswap32(host_to_target_bitmask(host->c_cflag, cflag_tbl));
+    target->c_lflag = tswap32(host_to_target_bitmask(host->c_lflag, lflag_tbl));
+
+    memset(target->c_cc, 0, sizeof(target->c_cc));
+    target->c_cc[TARGET_VEOF] = host->c_cc[VEOF];
+    target->c_cc[TARGET_VEOL] = host->c_cc[VEOL];
+#ifdef VEOL2
+    target->c_cc[TARGET_VEOL2] = host->c_cc[VEOL2];
+#endif
+    target->c_cc[TARGET_VERASE] = host->c_cc[VERASE];
+#ifdef VWERASE
+    target->c_cc[TARGET_VWERASE] = host->c_cc[VWERASE];
+#endif
+    target->c_cc[TARGET_VKILL] = host->c_cc[VKILL];
+#ifdef VREPRINT
+    target->c_cc[TARGET_VREPRINT] = host->c_cc[VREPRINT];
+#endif
+#ifdef VERASE2
+    target->c_cc[TARGET_VERASE2] = host->c_cc[VERASE2];
+#endif
+    target->c_cc[TARGET_VINTR] = host->c_cc[VINTR];
+    target->c_cc[TARGET_VQUIT] = host->c_cc[VQUIT];
+    target->c_cc[TARGET_VSUSP] = host->c_cc[VSUSP];
+#ifdef VDSUSP
+    target->c_cc[TARGET_VDSUSP] = host->c_cc[VDSUSP];
+#endif
+    target->c_cc[TARGET_VSTART] = host->c_cc[VSTART];
+    target->c_cc[TARGET_VSTOP] = host->c_cc[VSTOP];
+#ifdef VLNEXT
+    target->c_cc[TARGET_VLNEXT] = host->c_cc[VLNEXT];
+#endif
+#ifdef VDISCARD
+    target->c_cc[TARGET_VDISCARD] = host->c_cc[VDISCARD];
+#endif
+    target->c_cc[TARGET_VMIN] = host->c_cc[VMIN];
+    target->c_cc[TARGET_VTIME] = host->c_cc[VTIME];
+#ifdef VSTATUS
+    target->c_cc[TARGET_VSTATUS] = host->c_cc[VSTATUS];
+#endif
+
+    target->c_ispeed = tswap32(host->c_ispeed);
+    target->c_ospeed = tswap32(host->c_ospeed);
+}
+
+static const StructEntry struct_termios_def = {
+    .convert = { host_to_target_termios, target_to_host_termios },
+    .size = { sizeof(struct target_termios), sizeof(struct termios) },
+    .align = { __alignof__(struct target_termios),
+        __alignof__(struct termios) },
+};
+
+
+/* ioctl structure type definitions */
+#define STRUCT(name, ...) STRUCT_ ## name,
+#define STRUCT_SPECIAL(name) STRUCT_ ## name,
+enum {
+#include "os-ioctl-types.h"
+STRUCT_MAX
+};
+#undef STRUCT
+#undef STRUCT_SPECIAL
+
+#define STRUCT(name, ...) \
+    static const argtype struct_ ## name ## _def[] = { __VA_ARGS__, TYPE_NULL };
+#define STRUCT_SPECIAL(name)
+#include "os-ioctl-types.h"
+#undef STRUCT
+#undef STRUCT_SPECIAL
+
+
+struct IOCTLEntry;
+
+typedef abi_long do_ioctl_fn(const struct IOCTLEntry *ie, uint8_t *buf_temp,
+                int fd, abi_long cmd, abi_long arg);
+
+struct IOCTLEntry {
+    unsigned int target_cmd;
+    unsigned int host_cmd;
+    const char *name;
+    int access;
+    do_ioctl_fn *do_ioctl;
+    const argtype arg_type[5];
+};
+typedef struct IOCTLEntry IOCTLEntry;
+
+#define MAX_STRUCT_SIZE 4096
+
+static abi_long do_ioctl_unsupported(__unused const IOCTLEntry *ie,
+                                     __unused uint8_t *buf_temp,
+                                     __unused int fd, __unused abi_long cmd,
+                                     __unused abi_long arg);
+
+static abi_long do_ioctl_in6_ifreq_sockaddr_int(const IOCTLEntry *ie,
+        uint8_t *buf_temp, int fd, abi_long cmd, abi_long arg);
+
+static IOCTLEntry ioctl_entries[] = {
+#define IOC_    0x0000
+#define IOC_R   0x0001
+#define IOC_W   0x0002
+#define IOC_RW  (IOC_R | IOC_W)
+#define IOCTL(cmd, access, ...) \
+    { TARGET_ ## cmd, cmd, #cmd, access, 0, { __VA_ARGS__ } },
+#define IOCTL_SPECIAL(cmd, access, dofn, ...) \
+    { TARGET_ ## cmd, cmd, #cmd, access, dofn, { __VA_ARGS__ } },
+#define IOCTL_SPECIAL_UNIMPL(cmd, access, dofn, ...) \
+    { TARGET_ ## cmd, 0, #cmd, access, dofn, { __VA_ARGS__ } },
+#include "os-ioctl-cmds.h"
+    { 0, 0 },
+};
