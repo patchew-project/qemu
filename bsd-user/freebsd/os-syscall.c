@@ -918,14 +918,6 @@ static abi_long freebsd_syscall(void *cpu_env, int num, abi_long arg1,
         ret = do_bsd_vadvise();
         break;
 
-    case TARGET_FREEBSD_NR_sbrk:
-        ret = do_bsd_sbrk();
-        break;
-
-    case TARGET_FREEBSD_NR_sstk:
-        ret = do_bsd_sstk();
-        break;
-
         /*
          * Misc
          */
