@@ -279,13 +279,27 @@ static void gen_div(DisasContext *dc, TCGv_i32 dest,
                     TCGv_i32 srca, TCGv_i32 srcb)
 {
     TCGv_i32 t0 = tcg_temp_new_i32();
+    TCGv_i32 ov = tcg_temp_new_i32();
 
-    tcg_gen_setcondi_i32(TCG_COND_EQ, cpu_sr_ov, srcb, 0);
-    /* The result of divide-by-zero is undefined.
-       Suppress the host-side exception by dividing by 1. */
-    tcg_gen_or_i32(t0, srcb, cpu_sr_ov);
+    /* Check for divide-by-zero. */
+    tcg_gen_setcondi_i32(TCG_COND_EQ, ov, srcb, 0);
+
+    /* Check for INT_MIN / -1 overflow (0x80000000 / -1). */
+    TCGv_i32 t_is_min = tcg_temp_new_i32();
+    TCGv_i32 t_is_neg1 = tcg_temp_new_i32();
+    TCGv_i32 t_intmin_ov = tcg_temp_new_i32();
+
+    tcg_gen_setcondi_i32(TCG_COND_EQ, t_is_min, srca, (int32_t)0x80000000);
+    tcg_gen_setcondi_i32(TCG_COND_EQ, t_is_neg1, srcb, -1);
+    tcg_gen_and_i32(t_intmin_ov, t_is_min, t_is_neg1);
+    tcg_gen_or_i32(ov, ov, t_intmin_ov);
+
+    /* Suppress the host-side exception by dividing by 1 on overflow. */
+    tcg_gen_movcond_i32(TCG_COND_NE, t0, ov, tcg_constant_i32(0),
+                        tcg_constant_i32(1), srcb);
     tcg_gen_div_i32(dest, srca, t0);
 
+    tcg_gen_mov_i32(cpu_sr_ov, ov);
     tcg_gen_neg_i32(cpu_sr_ov, cpu_sr_ov);
     gen_ove_ov(dc);
 }
