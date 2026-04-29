@@ -126,6 +126,7 @@ typedef struct DBusChardev {
 
     bool exported;
     QemuDBusDisplay1Chardev *iface;
+    QemuDBusDisplay1ChardevVCEncoding *iface_vc_encoding;
 } DBusChardev;
 
 DECLARE_INSTANCE_CHECKER(DBusChardev, DBUS_CHARDEV, TYPE_CHARDEV_DBUS)
