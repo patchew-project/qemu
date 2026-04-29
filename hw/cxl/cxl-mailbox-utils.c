@@ -1713,6 +1713,7 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
     CXLSetFeatureInHeader *hdr = (void *)payload_in;
     CXLSetFeatureInfo *set_feat_info;
     uint16_t bytes_to_copy = 0;
+    uint32_t end_offset;
     uint8_t data_transfer_flag;
     CXLType3Dev *ct3d;
     uint16_t count;
@@ -1746,6 +1747,7 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
     set_feat_info->data_transfer_flag = data_transfer_flag;
     set_feat_info->data_offset = hdr->offset;
     bytes_to_copy = len_in - sizeof(CXLSetFeatureInHeader);
+    end_offset = (uint32_t)hdr->offset + bytes_to_copy;
 
     if (bytes_to_copy == 0) {
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
@@ -1813,6 +1815,9 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
             return CXL_MBOX_UNSUPPORTED;
         }
 
+        if (end_offset > sizeof(ct3d->soft_ppr_wr_attrs)) {
+            return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+        }
         memcpy((uint8_t *)&ct3d->soft_ppr_wr_attrs + hdr->offset,
                sppr_write_attrs, bytes_to_copy);
         set_feat_info->data_size += bytes_to_copy;
@@ -1832,6 +1837,9 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
             return CXL_MBOX_UNSUPPORTED;
         }
 
+        if (end_offset > sizeof(ct3d->hard_ppr_wr_attrs)) {
+            return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+        }
         memcpy((uint8_t *)&ct3d->hard_ppr_wr_attrs + hdr->offset,
                hppr_write_attrs, bytes_to_copy);
         set_feat_info->data_size += bytes_to_copy;
@@ -1851,6 +1859,9 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
             return CXL_MBOX_UNSUPPORTED;
         }
 
+        if (end_offset > sizeof(ct3d->cacheline_sparing_wr_attrs)) {
+            return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+        }
         memcpy((uint8_t *)&ct3d->cacheline_sparing_wr_attrs + hdr->offset,
                mem_sparing_write_attrs, bytes_to_copy);
         set_feat_info->data_size += bytes_to_copy;
@@ -1869,6 +1880,9 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
             return CXL_MBOX_UNSUPPORTED;
         }
 
+        if (end_offset > sizeof(ct3d->row_sparing_wr_attrs)) {
+            return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+        }
         memcpy((uint8_t *)&ct3d->row_sparing_wr_attrs + hdr->offset,
                mem_sparing_write_attrs, bytes_to_copy);
         set_feat_info->data_size += bytes_to_copy;
@@ -1887,6 +1901,9 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
             return CXL_MBOX_UNSUPPORTED;
         }
 
+        if (end_offset > sizeof(ct3d->bank_sparing_wr_attrs)) {
+            return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+        }
         memcpy((uint8_t *)&ct3d->bank_sparing_wr_attrs + hdr->offset,
                mem_sparing_write_attrs, bytes_to_copy);
         set_feat_info->data_size += bytes_to_copy;
@@ -1905,6 +1922,9 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
             return CXL_MBOX_UNSUPPORTED;
         }
 
+        if (end_offset > sizeof(ct3d->rank_sparing_wr_attrs)) {
+            return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+        }
         memcpy((uint8_t *)&ct3d->rank_sparing_wr_attrs + hdr->offset,
                mem_sparing_write_attrs, bytes_to_copy);
         set_feat_info->data_size += bytes_to_copy;
