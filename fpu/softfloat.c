@@ -779,14 +779,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
                   FloatParts128 *: parts128_##NAME, \
                   FloatParts256 *: parts256_##NAME)
 
-static FloatParts64 *parts64_div(FloatParts64 *a, FloatParts64 *b,
-                                 float_status *s);
-static FloatParts128 *parts128_div(FloatParts128 *a, FloatParts128 *b,
-                                   float_status *s);
-
-#define parts_div(A, B, S) \
-    PARTS_GENERIC_64_128(div, A)(A, B, S)
-
 static FloatParts64 *parts64_modrem(FloatParts64 *a, FloatParts64 *b,
                                     uint64_t *mod_quot, float_status *s);
 static FloatParts128 *parts128_modrem(FloatParts128 *a, FloatParts128 *b,
@@ -2505,7 +2497,7 @@ float16 float16_div(float16 a, float16 b, float_status *status)
 
     float16_unpack_canonical(&pa, a, status);
     float16_unpack_canonical(&pb, b, status);
-    pr = parts_div(&pa, &pb, status);
+    pr = parts64_div(&pa, &pb, status);
 
     return float16_round_pack_canonical(pr, status);
 }
@@ -2517,7 +2509,7 @@ soft_f32_div(float32 a, float32 b, float_status *status)
 
     float32_unpack_canonical(&pa, a, status);
     float32_unpack_canonical(&pb, b, status);
-    pr = parts_div(&pa, &pb, status);
+    pr = parts64_div(&pa, &pb, status);
 
     return float32_round_pack_canonical(pr, status);
 }
@@ -2529,7 +2521,7 @@ soft_f64_div(float64 a, float64 b, float_status *status)
 
     float64_unpack_canonical(&pa, a, status);
     float64_unpack_canonical(&pb, b, status);
-    pr = parts_div(&pa, &pb, status);
+    pr = parts64_div(&pa, &pb, status);
 
     return float64_round_pack_canonical(pr, status);
 }
@@ -2598,7 +2590,7 @@ float64 float64r32_div(float64 a, float64 b, float_status *status)
 
     float64_unpack_canonical(&pa, a, status);
     float64_unpack_canonical(&pb, b, status);
-    pr = parts_div(&pa, &pb, status);
+    pr = parts64_div(&pa, &pb, status);
 
     return float64r32_round_pack_canonical(pr, status);
 }
@@ -2610,7 +2602,7 @@ bfloat16_div(bfloat16 a, bfloat16 b, float_status *status)
 
     bfloat16_unpack_canonical(&pa, a, status);
     bfloat16_unpack_canonical(&pb, b, status);
-    pr = parts_div(&pa, &pb, status);
+    pr = parts64_div(&pa, &pb, status);
 
     return bfloat16_round_pack_canonical(pr, status);
 }
@@ -2622,7 +2614,7 @@ float128_div(float128 a, float128 b, float_status *status)
 
     float128_unpack_canonical(&pa, a, status);
     float128_unpack_canonical(&pb, b, status);
-    pr = parts_div(&pa, &pb, status);
+    pr = parts128_div(&pa, &pb, status);
 
     return float128_round_pack_canonical(pr, status);
 }
@@ -2636,7 +2628,7 @@ floatx80 floatx80_div(floatx80 a, floatx80 b, float_status *status)
         return floatx80_default_nan(status);
     }
 
-    pr = parts_div(&pa, &pb, status);
+    pr = parts128_div(&pa, &pb, status);
     return floatx80_round_pack_canonical(pr, status);
 }
 
@@ -5488,7 +5480,7 @@ static void parts_s390_divide_to_integer(FloatParts64 *a, FloatParts64 *b,
 
         /* Compute precise quotient */
         q_buf = *a;
-        q = parts_div(&q_buf, b, status);
+        q = parts64_div(&q_buf, b, status);
 
         /*
          * Check whether two closest integers can be precisely represented,
