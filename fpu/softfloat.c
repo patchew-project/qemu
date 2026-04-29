@@ -779,14 +779,6 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
                   FloatParts128 *: parts128_##NAME, \
                   FloatParts256 *: parts256_##NAME)
 
-static FloatParts64 *parts64_addsub(FloatParts64 *a, FloatParts64 *b,
-                                    float_status *s, bool subtract);
-static FloatParts128 *parts128_addsub(FloatParts128 *a, FloatParts128 *b,
-                                      float_status *s, bool subtract);
-
-#define parts_addsub(A, B, S, Z) \
-    PARTS_GENERIC_64_128(addsub, A)(A, B, S, Z)
-
 static FloatParts64 *parts64_mul(FloatParts64 *a, FloatParts64 *b,
                                  float_status *s);
 static FloatParts128 *parts128_mul(FloatParts128 *a, FloatParts128 *b,
@@ -1923,7 +1915,7 @@ float16_addsub(float16 a, float16 b, float_status *status, bool subtract)
 
     float16_unpack_canonical(&pa, a, status);
     float16_unpack_canonical(&pb, b, status);
-    pr = parts_addsub(&pa, &pb, status, subtract);
+    pr = parts64_addsub(&pa, &pb, status, subtract);
 
     return float16_round_pack_canonical(pr, status);
 }
@@ -1945,7 +1937,7 @@ soft_f32_addsub(float32 a, float32 b, float_status *status, bool subtract)
 
     float32_unpack_canonical(&pa, a, status);
     float32_unpack_canonical(&pb, b, status);
-    pr = parts_addsub(&pa, &pb, status, subtract);
+    pr = parts64_addsub(&pa, &pb, status, subtract);
 
     return float32_round_pack_canonical(pr, status);
 }
@@ -1967,7 +1959,7 @@ soft_f64_addsub(float64 a, float64 b, float_status *status, bool subtract)
 
     float64_unpack_canonical(&pa, a, status);
     float64_unpack_canonical(&pb, b, status);
-    pr = parts_addsub(&pa, &pb, status, subtract);
+    pr = parts64_addsub(&pa, &pb, status, subtract);
 
     return float64_round_pack_canonical(pr, status);
 }
@@ -2064,7 +2056,7 @@ static float64 float64r32_addsub(float64 a, float64 b, float_status *status,
 
     float64_unpack_canonical(&pa, a, status);
     float64_unpack_canonical(&pb, b, status);
-    pr = parts_addsub(&pa, &pb, status, subtract);
+    pr = parts64_addsub(&pa, &pb, status, subtract);
 
     return float64r32_round_pack_canonical(pr, status);
 }
@@ -2086,7 +2078,7 @@ bfloat16_addsub(bfloat16 a, bfloat16 b, float_status *status, bool subtract)
 
     bfloat16_unpack_canonical(&pa, a, status);
     bfloat16_unpack_canonical(&pb, b, status);
-    pr = parts_addsub(&pa, &pb, status, subtract);
+    pr = parts64_addsub(&pa, &pb, status, subtract);
 
     return bfloat16_round_pack_canonical(pr, status);
 }
@@ -2108,7 +2100,7 @@ float128_addsub(float128 a, float128 b, float_status *status, bool subtract)
 
     float128_unpack_canonical(&pa, a, status);
     float128_unpack_canonical(&pb, b, status);
-    pr = parts_addsub(&pa, &pb, status, subtract);
+    pr = parts128_addsub(&pa, &pb, status, subtract);
 
     return float128_round_pack_canonical(pr, status);
 }
@@ -2133,7 +2125,7 @@ floatx80_addsub(floatx80 a, floatx80 b, float_status *status, bool subtract)
         return floatx80_default_nan(status);
     }
 
-    pr = parts_addsub(&pa, &pb, status, subtract);
+    pr = parts128_addsub(&pa, &pb, status, subtract);
     return floatx80_round_pack_canonical(pr, status);
 }
 
