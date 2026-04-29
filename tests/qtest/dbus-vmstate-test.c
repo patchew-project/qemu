@@ -357,11 +357,32 @@ test_dbus_vmstate_missing_dst(char *name, MigrateCommon *args)
     g_test_trap_assert_passed();
 }
 
+static void log_func(const gchar *log_domain, GLogLevelFlags log_level,
+                     const gchar *message, gpointer user_data)
+{
+    const gchar *domains;
+
+    assert(log_level & G_LOG_LEVEL_DEBUG);
+
+    domains = getenv("G_MESSAGES_DEBUG");
+    if (!domains || (!strstr(domains, "GLib") && !strstr(domains, "all"))) {
+        return;
+    }
+    g_log_default_handler("GLib", G_LOG_LEVEL_DEBUG, message, NULL);
+}
+
 int
 main(int argc, char **argv)
 {
     GError *err = NULL;
     int ret;
+
+    /*
+     * GLib currently emits debug messages that ignore
+     * G_MESSAGES_DEBUG. Set a custom log handler to work around the
+     * issue.
+     */
+    g_log_set_handler("GLib", G_LOG_LEVEL_DEBUG, log_func, NULL);
 
     g_test_init(&argc, &argv, NULL);
 
