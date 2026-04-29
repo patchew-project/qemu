@@ -3353,7 +3353,15 @@ static RISCVException write_henvcfg(CPURISCVState *env, int csrno,
         }
     }
 
-    env->henvcfg = val & mask;
+    if (riscv_cpu_mxl(env) == MXL_RV32) {
+        /*
+         * RV32 stores STCE/ADUE/PBMTE/DTE in henvcfgh, so a low-half henvcfg
+         * write must not clobber the upper 32 bits.
+         */
+        env->henvcfg = (env->henvcfg & ~0xFFFFFFFFULL) | (val & mask);
+    } else {
+        env->henvcfg = val & mask;
+    }
     if ((env->henvcfg & HENVCFG_DTE) == 0) {
         env->vsstatus &= ~MSTATUS_SDT;
     }
