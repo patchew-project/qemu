@@ -57,7 +57,7 @@ enum maybe_keycode {
 };
 
 static DisplayChangeListener *dcl;
-static console_ch_t *screen;
+static uint32_t *screen;
 static WINDOW *screenpad = NULL;
 static int width, height, gwidth, gheight, invalidate;
 static int px, py, sminx, sminy, smaxx, smaxy;
@@ -68,7 +68,7 @@ static cchar_t *vga_to_curses;
 static void curses_update(DisplayChangeListener *dcl,
                           int x, int y, int w, int h)
 {
-    console_ch_t *line;
+    uint32_t *line;
     g_autofree cchar_t *curses_line = g_new(cchar_t, width);
     wchar_t wch[CCHARW_MAX];
     attr_t attrs;
@@ -796,7 +796,7 @@ static void curses_display_init(DisplayState *ds, DisplayOptions *opts)
     if (opts->u.curses.charset) {
         font_charset = opts->u.curses.charset;
     }
-    screen = g_new0(console_ch_t, 160 * 100);
+    screen = g_new0(uint32_t, 160 * 100);
     vga_to_curses = g_new0(cchar_t, 256);
     curses_setup();
     curses_keyboard_setup();

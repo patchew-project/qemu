@@ -88,7 +88,7 @@ static bool virtio_gpu_update_display(void *opaque)
     return true;
 }
 
-static void virtio_gpu_text_update(void *opaque, console_ch_t *chardata)
+static void virtio_gpu_text_update(void *opaque, uint32_t *chardata)
 {
 }
 
