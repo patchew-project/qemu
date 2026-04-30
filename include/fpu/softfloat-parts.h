@@ -196,4 +196,7 @@ FloatParts128 parts128_round_to_int(const FloatParts128 *a,
                                     int scale, float_status *s,
                                     const FloatFmt *fmt);
 
+FloatParts64 parts64_round_to_fmt(const FloatParts64 *p, float_status *s,
+                                  const FloatFmt *fmt);
+
 #endif
