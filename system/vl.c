@@ -2888,6 +2888,9 @@ void qemu_init(int argc, char **argv)
 
     os_setup_limits();
 
+    /* ensure target-info types are registered before selecting target */
+    module_call_init(MODULE_INIT_TARGET_INFO);
+
     module_init_info(qemu_modinfo);
     module_allow_arch(target_name());
 

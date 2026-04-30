@@ -12,6 +12,14 @@
 #ifndef TARGET_INFO_DEF_H
 #define TARGET_INFO_DEF_H
 
+#define DEFINE_TARGET_INFO_TYPE(info)                                       \
+static void do_qemu_init_target_info(void)                                  \
+{                                                                           \
+    type_register_static(&info);                                            \
+}                                                                           \
+module_init(do_qemu_init_target_info, MODULE_INIT_TARGET_INFO)
+
+#ifdef COMPILING_PER_TARGET
 #ifdef CONFIG_USER_ONLY
 
 /*
@@ -53,17 +61,18 @@ static void target_info_qom_class_init(ObjectClass *oc, const void * data)  \
     klass->parent_class.target_info = &ti_var;                              \
 }                                                                           \
                                                                             \
-static const TypeInfo target_info_qom_target_type_info[] = {                \
-{                                                                           \
+static const TypeInfo target_info_qom_target_type_info = {                  \
     .name = TYPE_TARGET_INFO_TARGET,                                        \
     .parent = TYPE_TARGET_INFO,                                             \
     .instance_size = sizeof(TargetInfoQomTarget),                           \
     .class_size = sizeof(TargetInfoQomTargetClass),                         \
     .class_init = target_info_qom_class_init,                               \
     .abstract = false,                                                      \
-} };                                                                        \
-DEFINE_TYPES(target_info_qom_target_type_info)
+};                                                                          \
+                                                                            \
+DEFINE_TARGET_INFO_TYPE(target_info_qom_target_type_info)
 
 #endif /* CONFIG_USER_ONLY */
+#endif /* COMPILING_PER_TARGET */
 
 #endif /* TARGET_INFO_DEF_H */
