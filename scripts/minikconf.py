@@ -15,10 +15,29 @@ import os
 import random
 import re
 import sys
+from dataclasses import dataclass
 
 __all__ = [ 'KconfigDataError', 'KconfigParserError',
             'KconfigData', 'KconfigParser' ,
             'defconfig', 'allyesconfig', 'allnoconfig', 'randconfig' ]
+
+@dataclass
+class IncludeInfo:
+    file: str
+    line: int
+    parent: IncludeInfo | None
+
+    def __iter__(self):
+        inf = self
+        while inf is not None:
+            yield "%s:%d" % (inf.file, inf.line)
+            inf = inf.parent
+
+    def error_path(self):
+        res = ""
+        for loc in self:
+            res = "In file included from %s:\n" % loc + res
+        return res
 
 def debug_print(*args):
     #print('# ' + (' '.join(str(x) for x in args)))
@@ -202,7 +221,6 @@ class KconfigData:
     def __init__(self, value_mangler=defconfig):
         self.value_mangler = value_mangler
         self.previously_included = []
-        self.incl_info = None
         self.defined_vars = set()
         self.referenced_vars = dict()
         self.clauses = list()
@@ -342,13 +360,12 @@ class KconfigParserError(Exception):
 class KconfigParser:
 
     @classmethod
-    def parse(cls, fp, data):
-        cls(data).parse_file(fp)
+    def parse(cls, fp, data, incl_info=None):
+        cls(fp, data, incl_info).parse_config()
 
-    def __init__(self, data):
+    def __init__(self, fp, data, incl_info):
         self.data = data
-
-    def parse_file(self, fp):
+        self.incl_info = incl_info
         self.abs_fname = os.path.abspath(fp.name)
         self.fname = fp.name
         self.data.previously_included.append(self.abs_fname)
@@ -360,18 +377,8 @@ class KconfigParser:
         self.line = 1
         self.line_pos = 0
         self.get_token()
-        self.parse_config()
 
     # file management -----
-
-    def error_path(self):
-        inf = self.data.incl_info
-        res = ""
-        while inf:
-            res = ("In file included from %s:%d:\n" % (inf['file'],
-                                                       inf['line'])) + res
-            inf = inf['parent']
-        return res
 
     def location(self):
         col = 1
@@ -380,33 +387,34 @@ class KconfigParser:
                 col += 8 - ((col - 1) % 8)
             else:
                 col += 1
-        return '%s%s:%d:%d' %(self.error_path(), self.fname, self.line, col)
+        inf = self.incl_info
+        incl_chain = inf.error_path() if inf is not None else ""
+        return '%s%s:%d:%d' % (incl_chain, self.fname, self.line, col)
 
     def do_include(self, include):
         incl_abs_fname = os.path.join(os.path.dirname(self.abs_fname),
                                       include)
         # catch inclusion cycle
-        inf = self.data.incl_info
+        inf = self.incl_info
         while inf:
-            if incl_abs_fname == os.path.abspath(inf['file']):
+            if incl_abs_fname == os.path.abspath(inf.file):
                 raise KconfigParserError(self, "Inclusion loop for %s"
                                     % include)
-            inf = inf['parent']
+            inf = inf.parent
 
         # skip multiple include of the same file
         if incl_abs_fname in self.data.previously_included:
             return
         try:
-            fp = open(incl_abs_fname, 'rt', encoding='utf-8')
-        except IOError as e:
-            raise KconfigParserError(self,
-                                '%s: %s' % (e.strerror, include))
+            try:
+                fp = open(incl_abs_fname, 'rt', encoding='utf-8')
+            except IOError as e:
+                raise KconfigParserError(self, '%s: %s' % (e.strerror, include))
 
-        inf = self.data.incl_info
-        self.data.incl_info = { 'file': self.fname, 'line': self.line,
-                'parent': inf }
-        KconfigParser(self.data).parse_file(fp)
-        self.data.incl_info = inf
+            inner = IncludeInfo(file=self.fname, line=self.line, parent=self.incl_info)
+            type(self).parse(fp, self.data, inner)
+        finally:
+            fp.close()
 
     # recursive descent parser -----
 
