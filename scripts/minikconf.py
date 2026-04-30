@@ -330,9 +330,9 @@ TOK_EOF = 18;     TOKENS[TOK_EOF] = 'end of file';
 class KconfigParserError(Exception):
     def __init__(self, parser, msg, tok=None):
         self.loc = parser.location()
-        tok = tok or parser.tok
+        tok = tok if tok is not None else parser.tok
         if tok != TOK_NONE:
-            location = TOKENS.get(tok, None) or ('"%s"' % tok)
+            location = TOKENS[tok] if isinstance(tok, int) else '"%s"' % tok
             msg = '%s before %s' % (msg, location)
         self.msg = msg
 
@@ -573,13 +573,14 @@ class KconfigParser:
 
     def get_token(self):
         while True:
-            self.tok = self.src[self.cursor]
+            ch = self.src[self.cursor]
             self.pos = self.cursor
             self.cursor += 1
 
             self.val = None
-            self.tok = self.scan_token()
-            if self.tok is not None:
+            tok = self.scan_token(ch)
+            if tok is not None:
+                self.tok = tok
                 return
 
     def check_keyword(self, rest):
@@ -591,46 +592,46 @@ class KconfigParser:
         self.cursor += length
         return True
 
-    def scan_token(self):
-        if self.tok == '#':
+    def scan_token(self, ch):
+        if ch == '#':
             self.cursor = self.src.find('\n', self.cursor)
             return None
-        elif self.tok == '=':
+        elif ch == '=':
             return TOK_EQUAL
-        elif self.tok == '(':
+        elif ch == '(':
             return TOK_LPAREN
-        elif self.tok == ')':
+        elif ch == ')':
             return TOK_RPAREN
-        elif self.tok == '&' and self.src[self.pos+1] == '&':
+        elif ch == '&' and self.src[self.pos+1] == '&':
             self.cursor += 1
             return TOK_AND
-        elif self.tok == '|' and self.src[self.pos+1] == '|':
+        elif ch == '|' and self.src[self.pos+1] == '|':
             self.cursor += 1
             return TOK_OR
-        elif self.tok == '!':
+        elif ch == '!':
             return TOK_NOT
-        elif self.tok == 'd' and self.check_keyword("epends"):
+        elif ch == 'd' and self.check_keyword("epends"):
             return TOK_DEPENDS
-        elif self.tok == 'o' and self.check_keyword("n"):
+        elif ch == 'o' and self.check_keyword("n"):
             return TOK_ON
-        elif self.tok == 's' and self.check_keyword("elect"):
+        elif ch == 's' and self.check_keyword("elect"):
             return TOK_SELECT
-        elif self.tok == 'i' and self.check_keyword("mply"):
+        elif ch == 'i' and self.check_keyword("mply"):
             return TOK_IMPLY
-        elif self.tok == 'c' and self.check_keyword("onfig"):
+        elif ch == 'c' and self.check_keyword("onfig"):
             return TOK_CONFIG
-        elif self.tok == 'd' and self.check_keyword("efault"):
+        elif ch == 'd' and self.check_keyword("efault"):
             return TOK_DEFAULT
-        elif self.tok == 'b' and self.check_keyword("ool"):
+        elif ch == 'b' and self.check_keyword("ool"):
             return TOK_BOOL
-        elif self.tok == 'i' and self.check_keyword("f"):
+        elif ch == 'i' and self.check_keyword("f"):
             return TOK_IF
-        elif self.tok == 'y' and self.check_keyword(""):
+        elif ch == 'y' and self.check_keyword(""):
             return TOK_Y
-        elif self.tok == 'n' and self.check_keyword(""):
+        elif ch == 'n' and self.check_keyword(""):
             return TOK_N
-        elif (self.tok == 's' and self.check_keyword("ource")) or \
-              self.tok == 'i' and self.check_keyword("nclude"):
+        elif (ch == 's' and self.check_keyword("ource")) or \
+              ch == 'i' and self.check_keyword("nclude"):
             # source FILENAME
             # include FILENAME
             while self.src[self.cursor].isspace():
@@ -639,19 +640,19 @@ class KconfigParser:
             self.cursor = self.src.find('\n', self.cursor)
             self.val = self.src[start:self.cursor]
             return TOK_SOURCE
-        elif self.tok.isalnum():
+        elif ch.isalnum():
             # identifier
             while self.src[self.cursor].isalnum() or self.src[self.cursor] == '_':
                 self.cursor += 1
             self.val = self.src[self.pos:self.cursor]
             return TOK_ID
-        elif self.tok == '\n':
+        elif ch == '\n':
             if self.cursor == len(self.src):
                 return TOK_EOF
             self.line += 1
             self.line_pos = self.cursor
-        elif not self.tok.isspace():
-            raise KconfigParserError(self, 'invalid input')
+        elif not ch.isspace():
+            raise KconfigParserError(self, 'invalid input', ch)
 
         return None
 
