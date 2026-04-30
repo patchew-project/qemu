@@ -92,6 +92,34 @@ static void vtd_pasid_cache_reset_locked(IntelIOMMUState *s)
     }
 }
 
+/*
+ * Converts VT-d PASID to PCI PASID representation
+ *
+ * This function handles the semantic difference between how Intel VT-d IOMMU
+ * and the PCI subsystem represent "no PASID" scenarios:
+ *
+ * Requests-without-PASID:
+ *   - PCI subsystem: Uses PCI_NO_PASID (-1) to indicate no PASID present
+ *   - VT-d IOMMU:    Uses PASID_0 (0) to index the PASID table for translation
+ *
+ * Requests-with-PASID:
+ *   - Both subsystems use identical PASID values (1-0xFFFFF)
+ *
+ * Since PCI PASID values are cached in vtd_as->pasid, this conversion is
+ * required when mapping from VT-d PASID space back to the corresponding
+ * vtd_as (address space) structure.
+ *
+ * @pasid: VT-d PASID value to convert
+ * @return: Corresponding PCI PASID value
+ */
+static uint32_t vtd_pasid_to_pci_pasid(uint32_t pasid)
+{
+    if (pasid == PASID_0) {
+        pasid = PCI_NO_PASID;
+    }
+    return pasid;
+}
+
 static void vtd_define_quad(IntelIOMMUState *s, hwaddr addr, uint64_t val,
                             uint64_t wmask, uint64_t w1cmask)
 {
@@ -2487,9 +2515,10 @@ static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
 }
 
 /*
- * There is no pasid field in iotlb invalidation descriptor, so PCI_NO_PASID
+ * There is no pasid field in iotlb invalidation descriptor, so PASID_0
  * is passed as parameter. Piotlb invalidation supports pasid, pasid in its
- * descriptor is passed which should not be PCI_NO_PASID.
+ * descriptor is passed. In both cases, pasid is converted to PCI pasid
+ * before checking with vtd_as->pasid.
  */
 static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
                                              uint16_t domain_id, hwaddr addr,
@@ -2500,51 +2529,45 @@ static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
     int ret;
     hwaddr size = (1 << am) * VTD_PAGE_SIZE;
 
+    pasid = vtd_pasid_to_pci_pasid(pasid);
+
     QLIST_FOREACH(vtd_as, &(s->vtd_as_with_notifiers), next) {
         ret = vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
                                        vtd_as->devfn, &ce);
-        if (!ret && domain_id == vtd_get_domain_id(s, &ce, vtd_as->pasid)) {
-            /*
-             * In legacy mode, vtd_as->pasid == pasid is always true.
-             * In scalable mode, for vtd address space backing a PCI
-             * device without pasid, needs to compare pasid with
-             * PASID_0 of this device.
-             */
-            if (!(vtd_as->pasid == pasid ||
-                  (vtd_as->pasid == PCI_NO_PASID && pasid == PASID_0))) {
-                continue;
-            }
+        if (ret || vtd_as->pasid != pasid ||
+            domain_id != vtd_get_domain_id(s, &ce, vtd_as->pasid)) {
+            continue;
+        }
 
-            if (vtd_as_has_map_notifier(vtd_as)) {
-                /*
-                 * When first stage translation is off, as long as we have MAP
-                 * notifications registered in any of our IOMMU notifiers,
-                 * we need to sync the shadow page table. Otherwise VFIO
-                 * device attaches to nested page table instead of shadow
-                 * page table, so no need to sync.
-                 */
-                if (!s->fsts || !s->root_scalable) {
-                    vtd_sync_shadow_page_table_range(vtd_as, &ce, addr, size);
-                }
-            } else {
-                /*
-                 * For UNMAP-only notifiers, we don't need to walk the
-                 * page tables.  We just deliver the PSI down to
-                 * invalidate caches.
-                 */
-                const IOMMUTLBEvent event = {
-                    .type = IOMMU_NOTIFIER_UNMAP,
-                    .entry = {
-                        .target_as = &address_space_memory,
-                        .iova = addr,
-                        .translated_addr = 0,
-                        .addr_mask = size - 1,
-                        .perm = IOMMU_NONE,
-                        .pasid = vtd_as->pasid,
-                    },
-                };
-                memory_region_notify_iommu(&vtd_as->iommu, 0, event);
+        if (vtd_as_has_map_notifier(vtd_as)) {
+            /*
+             * When first stage translation is off, as long as we have MAP
+             * notifications registered in any of our IOMMU notifiers,
+             * we need to sync the shadow page table. Otherwise VFIO
+             * device attaches to nested page table instead of shadow
+             * page table, so no need to sync.
+             */
+            if (!s->fsts || !s->root_scalable) {
+                vtd_sync_shadow_page_table_range(vtd_as, &ce, addr, size);
             }
+        } else {
+            /*
+             * For UNMAP-only notifiers, we don't need to walk the
+             * page tables.  We just deliver the PSI down to
+             * invalidate caches.
+             */
+            const IOMMUTLBEvent event = {
+                .type = IOMMU_NOTIFIER_UNMAP,
+                .entry = {
+                    .target_as = &address_space_memory,
+                    .iova = addr,
+                    .translated_addr = 0,
+                    .addr_mask = size - 1,
+                    .perm = IOMMU_NONE,
+                    .pasid = vtd_as->pasid,
+                },
+            };
+            memory_region_notify_iommu(&vtd_as->iommu, 0, event);
         }
     }
 }
@@ -2563,7 +2586,7 @@ static void vtd_iotlb_page_invalidate(IntelIOMMUState *s, uint16_t domain_id,
     vtd_iommu_lock(s);
     g_hash_table_foreach_remove(s->iotlb, vtd_hash_remove_by_page, &info);
     vtd_iommu_unlock(s);
-    vtd_iotlb_page_invalidate_notify(s, domain_id, addr, am, PCI_NO_PASID);
+    vtd_iotlb_page_invalidate_notify(s, domain_id, addr, am, PASID_0);
 }
 
 /* Flush IOTLB
@@ -3001,12 +3024,17 @@ static gboolean vtd_hash_remove_by_pasid(gpointer key, gpointer value,
             (entry->pasid == info->pasid));
 }
 
+/*
+ * Piotlb invalidation supports pasid, pasid in its descriptor is passed and
+ * is converted to PCI pasid before checking with vtd_as->pasid.
+ */
 static void vtd_piotlb_pasid_invalidate(IntelIOMMUState *s,
                                         uint16_t domain_id, uint32_t pasid)
 {
     VTDIOTLBPageInvInfo info;
     VTDAddressSpace *vtd_as;
     VTDContextEntry ce;
+    int ret;
 
     info.domain_id = domain_id;
     info.pasid = pasid;
@@ -3018,18 +3046,18 @@ static void vtd_piotlb_pasid_invalidate(IntelIOMMUState *s,
                                      false);
     vtd_iommu_unlock(s);
 
-    QLIST_FOREACH(vtd_as, &s->vtd_as_with_notifiers, next) {
-        if (!vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
-                                      vtd_as->devfn, &ce) &&
-            domain_id == vtd_get_domain_id(s, &ce, vtd_as->pasid)) {
-            if ((vtd_as->pasid != PCI_NO_PASID || pasid != PASID_0) &&
-                vtd_as->pasid != pasid) {
-                continue;
-            }
+    pasid = vtd_pasid_to_pci_pasid(pasid);
 
-            if (!s->fsts || !vtd_as_has_map_notifier(vtd_as)) {
-                vtd_address_space_sync(vtd_as);
-            }
+    QLIST_FOREACH(vtd_as, &s->vtd_as_with_notifiers, next) {
+        ret = vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
+                                       vtd_as->devfn, &ce);
+        if (ret || vtd_as->pasid != pasid ||
+            domain_id != vtd_get_domain_id(s, &ce, vtd_as->pasid)) {
+            continue;
+        }
+
+        if (!s->fsts || !vtd_as_has_map_notifier(vtd_as)) {
+            vtd_address_space_sync(vtd_as);
         }
     }
 }
