@@ -2475,6 +2475,11 @@ int whpx_init_vcpu(CPUState *cpu)
         goto error;
     }
 
+    if (!whpx_irqchip_in_kernel()) {
+        WHV_REGISTER_VALUE apic_id = {.Reg64 = x86_cpu->apic_state->initial_apic_id};
+        whpx_set_reg(cpu, WHvX64RegisterInitialApicId, apic_id);
+    }
+
     /*
      * vcpu's TSC frequency is either specified by user, or use the value
      * provided by Hyper-V if the former is not present. In the latter case, we
