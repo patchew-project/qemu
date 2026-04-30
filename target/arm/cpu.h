@@ -257,6 +257,19 @@ typedef enum ARMFPStatusFlavour {
 } ARMFPStatusFlavour;
 #define FPST_COUNT  10
 
+/**
+ * ARMHaltReason - the reason we have entered halt state
+ *
+ * To be able to correctly wake up via arm_cpu_has_work() we need to
+ * track the reason we went to sleep.
+ */
+typedef enum {
+    NOT_HALTED = 0,
+    HALT_PSCI,
+    HALT_WFI,
+    HALT_WFE
+} ARMHaltReason;
+
 typedef struct CPUArchState {
     /* Regs for current mode.  */
     uint32_t regs[16];
@@ -759,6 +772,9 @@ typedef struct CPUArchState {
 
     /* Optional fault info across tlb lookup. */
     ARMMMUFaultInfo *tlb_fi;
+
+    /* Reason the CPU is halted */
+    ARMHaltReason halt_reason;
 
     /*
      * The event register is shared by all ARM profiles (A/R/M),
