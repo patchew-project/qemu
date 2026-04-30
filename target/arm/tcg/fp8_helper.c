@@ -848,3 +848,108 @@ void HELPER(sme2_fcvtn_bs)(void *vd, void *vn, CPUARMState *env, uint32_t desc)
 
     fp8_finish(env, &ctx);
 }
+
+static FloatParts64 unpack_fp8(uint8_t x, FPMRType type, float_status *s)
+{
+    switch (type) {
+    case OFP8_E5M2:
+        return float8_e5m2_unpack_canonical(x, s);
+    case OFP8_E4M3:
+        return float8_e4m3_unpack_canonical(x, s);
+    default:
+        return parts64_default_nan(s);
+    }
+}
+
+static void f8muladd(FloatParts64 *a, const FloatParts64 *b,
+                     const FloatParts64 *c, int scale, float_status *s)
+{
+    /*
+     * Because of default_nan_mode, NaNs need no special handling.
+     * We'll simply get the default NaN out at the end of the sequence.
+     */
+    *a = parts64_mul(a, b, s);
+    *a = parts64_scalbn(a, scale, s);
+    *a = parts64_addsub(a, c, s, false);
+}
+
+void HELPER(gvec_fmla_hb)(void *vd, void *vn, void *vm,
+                          CPUARMState *env, uint32_t desc)
+{
+    float_status stat = env->vfp.fp_status[FPST_A64];
+    bool high = extract32(desc, SIMD_DATA_SHIFT, 1);
+    size_t oprsz = simd_oprsz(desc);
+    size_t nelem = oprsz / 2;
+    uint8_t *n = vn;
+    uint8_t *m = vm;
+    float16 *d = vd;
+
+    uint64_t fpmr = env->vfp.fpmr;
+    FPMRType fmt_n = FIELD_EX64(fpmr, FPMR, F8S1);
+    FPMRType fmt_m = FIELD_EX64(fpmr, FPMR, F8S2);
+    int scale = -((fpmr >> R_FPMR_LSCALE_SHIFT) & 0xf);
+
+    set_flush_to_zero(0, &stat);
+    set_flush_inputs_to_zero(0, &stat);
+    set_default_nan_mode(true, &stat);
+    set_float_rounding_mode(FIELD_EX64(fpmr, FPMR, OSM)
+                            ? float_round_nearest_even_max
+                            : float_round_nearest_even, &stat);
+
+    for (size_t i = 0; i < nelem; i++) {
+        FloatParts64 p0 = unpack_fp8(n[H1(2 * i + high)], fmt_n, &stat);
+        FloatParts64 p1 = unpack_fp8(m[H1(2 * i + high)], fmt_m, &stat);
+        FloatParts64 p2 = float16_unpack_canonical(d[H2(i)], &stat);
+
+        f8muladd(&p0, &p1, &p2, scale, &stat);
+        d[H2(i)] = float16_round_pack_canonical(&p0, &stat);
+    }
+
+    float_raise(get_float_exception_flags(&stat)
+                & ~float_flag_input_denormal_used,
+                &env->vfp.fp_status[FPST_A64]);
+    clear_tail(vd, oprsz, simd_maxsz(desc));
+}
+
+void HELPER(gvec_fmla_idx_hb)(void *vd, void *vn, void *vm,
+                              CPUARMState *env, uint32_t desc)
+{
+    float_status stat = env->vfp.fp_status[FPST_A64];
+    bool idx_n = extract32(desc, SIMD_DATA_SHIFT, 1);
+    size_t idx_m = extract32(desc, SIMD_DATA_SHIFT + 2, 4);
+    size_t oprsz = simd_oprsz(desc);
+    size_t nelem = oprsz / 2;
+    uint8_t *n = vn;
+    uint8_t *m = vm;
+    float16 *d = vd;
+
+    uint64_t fpmr = env->vfp.fpmr;
+    FPMRType fmt_n = FIELD_EX64(fpmr, FPMR, F8S1);
+    FPMRType fmt_m = FIELD_EX64(fpmr, FPMR, F8S2);
+    int scale = -((fpmr >> R_FPMR_LSCALE_SHIFT) & 0xf);
+
+    set_flush_to_zero(0, &stat);
+    set_flush_inputs_to_zero(0, &stat);
+    set_default_nan_mode(true, &stat);
+    set_float_rounding_mode(FIELD_EX64(fpmr, FPMR, OSM)
+                            ? float_round_nearest_even_max
+                            : float_round_nearest_even, &stat);
+
+    for (size_t seg = 0; seg < nelem; seg += 8) {
+        FloatParts64 p1 = unpack_fp8(m[H1(2 * seg + idx_m)], fmt_m, &stat);
+
+        for (size_t j = 0; j < 8; j++) {
+            size_t i = seg + j;
+            FloatParts64 p0 = unpack_fp8(n[H1(2 * i + idx_n)], fmt_n, &stat);
+            FloatParts64 p2 = float16_unpack_canonical(d[H2(i)], &stat);
+
+            f8muladd(&p0, &p1, &p2, scale, &stat);
+            d[H2(i)] = float16_round_pack_canonical(&p0, &stat);
+        }
+    }
+
+    float_raise(get_float_exception_flags(&stat)
+                & ~float_flag_input_denormal_used,
+                &env->vfp.fp_status[FPST_A64]);
+    clear_tail(vd, oprsz, simd_maxsz(desc));
+}
