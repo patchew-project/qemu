@@ -278,6 +278,10 @@ class KconfigData:
     def do_assignment(self, var, val):
         self.clauses.append(KconfigData.AssignmentClause(var, val))
 
+    def do_cmdline_assignment(self, var, val):
+        assert var.startswith("CONFIG_")
+        self.do_assignment(self.do_var(var[7:]), val)
+
     def do_default(self, var, val, cond=None):
         val = self.value_mangler(val)
         self.clauses.append(KconfigData.DefaultClause(var, val, cond))
@@ -338,11 +342,8 @@ class KconfigParserError(Exception):
 class KconfigParser:
 
     @classmethod
-    def parse(cls, fp, mode=None):
-        data = KconfigData(mode or defconfig)
-        parser = cls(data)
-        parser.parse_file(fp)
-        return data
+    def parse(cls, fp, data):
+        cls(data).parse_file(fp)
 
     def __init__(self, data):
         self.data = data
@@ -360,14 +361,6 @@ class KconfigParser:
         self.line_pos = 0
         self.get_token()
         self.parse_config()
-
-    def do_assignment(self, var, val):
-        if not var.startswith("CONFIG_"):
-            raise KconfigParserError(
-                self, "assigned variable should start with CONFIG_"
-            )
-        var = self.data.do_var(var[7:])
-        self.data.do_assignment(var, val)
 
     # file management -----
 
@@ -688,18 +681,16 @@ if __name__ == '__main__':
         sys.exit(1)
 
     data = KconfigData(mode)
-    parser = KconfigParser(data)
     external_vars = set()
     for arg in argv[3:]:
         m = re.match(r'^(CONFIG_[A-Z0-9_]+)=([yn]?)$', arg)
         if m is not None:
             name, value = m.groups()
-            parser.do_assignment(name, value == 'y')
+            data.do_cmdline_assignment(name, value == 'y')
             external_vars.add(name[7:])
         else:
-            fp = open(arg, 'rt', encoding='utf-8')
-            parser.parse_file(fp)
-            fp.close()
+            with open(arg, 'rt', encoding='utf-8') as fp:
+                KconfigParser.parse(fp, data)
 
     config = data.compute_config()
     for key in sorted(config.keys()):
