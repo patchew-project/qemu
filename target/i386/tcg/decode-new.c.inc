@@ -873,8 +873,8 @@ static const X86OpEntry opcodes_0F38_00toEF[240] = {
     [0xef] = X86_OP_ENTRY3(CMPccXADD,   M,y, G,y, B,y,  vex13 xchg chk(o64) cpuid(CMPCCXADD) p_66),
 };
 
-/* five rows for no prefix, 66, F3, F2, 66+F2  */
-static const X86OpEntry opcodes_0F38_F0toFF[16][5] = {
+/* four rows for no prefix, 66, F3, F2 (including 66+F2 operand size override) */
+static const X86OpEntry opcodes_0F38_F0toFF[16][4] = {
     /*
      * MOVBE and CRC32 are incorrectly listed as always doing 32-bit operation
      * without prefix and 16-bit operation with 0x66.
@@ -884,18 +884,15 @@ static const X86OpEntry opcodes_0F38_F0toFF[16][5] = {
         X86_OP_ENTRYwr(MOVBE, G,v, M,v, cpuid(MOVBE)),
         {},
         X86_OP_ENTRY2(CRC32, G,d, E,b, cpuid(SSE42)),
-        X86_OP_ENTRY2(CRC32, G,d, E,b, cpuid(SSE42)),
     },
     [1] = {
         X86_OP_ENTRYwr(MOVBE, M,v, G,v, cpuid(MOVBE)),
         X86_OP_ENTRYwr(MOVBE, M,v, G,v, cpuid(MOVBE)),
         {},
         X86_OP_ENTRY2(CRC32, G,d, E,v, cpuid(SSE42)),
-        X86_OP_ENTRY2(CRC32, G,d, E,v, cpuid(SSE42)),
     },
     [2] = {
         X86_OP_ENTRY3(ANDN, G,y, B,y, E,y, vex13 cpuid(BMI1)),
-        {},
         {},
         {},
         {},
@@ -905,28 +902,24 @@ static const X86OpEntry opcodes_0F38_F0toFF[16][5] = {
         {},
         {},
         {},
-        {},
     },
     [5] = {
         X86_OP_ENTRY3(BZHI, G,y, E,y, B,y, vex13 cpuid(BMI1)),
         {},
         X86_OP_ENTRY3(PEXT, G,y, B,y, E,y, vex13 zextT0 cpuid(BMI2)),
         X86_OP_ENTRY3(PDEP, G,y, B,y, E,y, vex13 zextT0 cpuid(BMI2)),
-        {},
     },
     [6] = {
         {},
         X86_OP_ENTRY2(ADCX, G,y, E,y, cpuid(ADX)),
         X86_OP_ENTRY2(ADOX, G,y, E,y, cpuid(ADX)),
         X86_OP_ENTRY3(MULX, /* B,y, */ G,y, E,y, 2,y, vex13 cpuid(BMI2)),
-        {},
     },
     [7] = {
         X86_OP_ENTRY3(BEXTR, G,y, E,y, B,y, vex13 zextT0 cpuid(BMI1)),
         X86_OP_ENTRY3(SHLX, G,y, E,y, B,y, vex13 cpuid(BMI1)),
         X86_OP_ENTRY3(SARX, G,y, E,y, B,y, vex13 sextT0 cpuid(BMI1)),
         X86_OP_ENTRY3(SHRX, G,y, E,y, B,y, vex13 zextT0 cpuid(BMI1)),
-        {},
     },
 };
 
@@ -936,15 +929,7 @@ static void decode_0F38(DisasContext *s, CPUX86State *env, X86OpEntry *entry, ui
     if (*b < 0xf0) {
         *entry = opcodes_0F38_00toEF[*b];
     } else {
-        int row = 0;
-        if (s->prefix & PREFIX_REPZ) {
-            /* The REPZ (F3) prefix has priority over 66 */
-            row = 2;
-        } else {
-            row += s->prefix & PREFIX_REPNZ ? 3 : 0;
-            row += s->prefix & PREFIX_DATA ? 1 : 0;
-        }
-        *entry = opcodes_0F38_F0toFF[*b & 15][row];
+        *entry = *decode_by_prefix(s, opcodes_0F38_F0toFF[*b & 15]);
     }
 }
 
