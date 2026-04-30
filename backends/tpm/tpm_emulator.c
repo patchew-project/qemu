@@ -176,8 +176,9 @@ static int tpm_emulator_unix_tx_bufs(TPMEmulator *tpm_emu,
                                      bool *selftest_done,
                                      Error **errp)
 {
-    ssize_t ret;
     bool is_selftest = false;
+    size_t to_read;
+    ssize_t ret;
 
     if (selftest_done) {
         *selftest_done = false;
@@ -195,9 +196,13 @@ static int tpm_emulator_unix_tx_bufs(TPMEmulator *tpm_emu,
         return -1;
     }
 
+    /*
+     * Size of response from swtpm must be <= out_len (= negotiated buffer size)
+     */
+    to_read = MIN(tpm_cmd_get_size(out), out_len) - sizeof(struct tpm_resp_hdr);
+
     ret = qio_channel_read_all(tpm_emu->data_ioc,
-              (char *)out + sizeof(struct tpm_resp_hdr),
-              tpm_cmd_get_size(out) - sizeof(struct tpm_resp_hdr), errp);
+              (char *)out + sizeof(struct tpm_resp_hdr), to_read, errp);
     if (ret != 0) {
         return -1;
     }
