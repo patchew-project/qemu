@@ -146,7 +146,7 @@ static bool ept_emulation_fault(CPUState *cs, uint64_t gpa, uint64_t ept_qual)
     if (write && memory_region_get_dirty_log_mask(mr)) {
         uintptr_t page_size = qemu_real_host_page_size();
 
-        memory_region_set_dirty(mr, gpa_page + xlat, page_size);
+        memory_region_set_dirty(mr, xlat, page_size);
         hvf_unprotect_dirty_range(gpa_page, page_size);
     }
 
