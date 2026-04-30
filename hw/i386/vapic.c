@@ -161,7 +161,6 @@ static void update_guest_rom_state(VAPICROMState *s)
 static int find_real_tpr_addr(VAPICROMState *s, CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
-    hwaddr paddr;
     target_ulong addr;
 
     if (s->state == VAPIC_ACTIVE) {
@@ -173,8 +172,10 @@ static int find_real_tpr_addr(VAPICROMState *s, CPUX86State *env)
      * virtual address space for the APIC mapping.
      */
     for (addr = 0xfffff000; addr >= 0x80000000; addr -= TARGET_PAGE_SIZE) {
-        paddr = cpu_get_phys_addr_debug(cs, addr);
-        if (paddr != APIC_DEFAULT_ADDRESS) {
+        TranslateForDebugResult tres;
+
+        if (!cpu_translate_for_debug(cs, addr, &tres) ||
+            tres.physaddr != APIC_DEFAULT_ADDRESS) {
             continue;
         }
         s->real_tpr_addr = addr + 0x80;
@@ -292,6 +293,7 @@ static int update_rom_mapping(VAPICROMState *s, CPUX86State *env, target_ulong i
     hwaddr paddr;
     uint32_t rom_state_vaddr;
     uint32_t pos, patch, offset;
+    TranslateForDebugResult tres;
 
     /* nothing to do if already activated */
     if (s->state == VAPIC_ACTIVE) {
@@ -305,11 +307,10 @@ static int update_rom_mapping(VAPICROMState *s, CPUX86State *env, target_ulong i
 
     /* find out virtual address of the ROM */
     rom_state_vaddr = s->rom_state_paddr + (ip & 0xf0000000);
-    paddr = cpu_get_phys_addr_debug(cs, rom_state_vaddr);
-    if (paddr == -1) {
+    if (!cpu_translate_for_debug(cs, rom_state_vaddr, &tres)) {
         return -1;
     }
-    paddr |= rom_state_vaddr & ~TARGET_PAGE_MASK;
+    paddr = tres.physaddr;
     if (paddr != s->rom_state_paddr) {
         return -1;
     }
