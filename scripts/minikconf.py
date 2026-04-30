@@ -430,24 +430,24 @@ class KconfigParser:
 
     # var: ID
     def parse_var(self):
-        if self.tok == TOK_ID:
-            val = self.val
-            self.get_token()
-            return self.data.do_var(val)
-        else:
+        if self.tok != TOK_ID:
             raise KconfigParserError(self, 'Expected identifier')
+        val = self.val
+        assert val is not None
+        self.get_token()
+        return self.data.do_var(val)
 
     # assignment_var: ID (starting with "CONFIG_")
     def parse_assignment_var(self):
-        if self.tok == TOK_ID:
-            val = self.val
-            if not val.startswith("CONFIG_"):
-                raise KconfigParserError(self,
-                           'Expected identifier starting with "CONFIG_"', TOK_NONE)
-            self.get_token()
-            return self.data.do_var(val[7:])
-        else:
+        if self.tok != TOK_ID:
             raise KconfigParserError(self, 'Expected identifier')
+        val = self.val
+        assert val is not None
+        if not val.startswith("CONFIG_"):
+            raise KconfigParserError(self,
+                       'Expected identifier starting with "CONFIG_"', TOK_NONE)
+        self.get_token()
+        return self.data.do_var(val[7:])
 
     # assignment: var EQUAL y_or_n
     def parse_assignment(self):
@@ -495,11 +495,10 @@ class KconfigParser:
     # condition: IF expr
     #       | empty
     def parse_condition(self):
-        if self.tok == TOK_IF:
-            self.get_token()
-            return self.parse_expr()
-        else:
+        if self.tok != TOK_IF:
             return None
+        self.get_token()
+        return self.parse_expr()
 
     # property: DEFAULT y_or_n condition
     #       | DEPENDS ON expr
@@ -604,41 +603,41 @@ class KconfigParser:
         if ch == '#':
             self.cursor = self.src.find('\n', self.cursor)
             return None
-        elif ch == '=':
+        if ch == '=':
             return TOK_EQUAL
-        elif ch == '(':
+        if ch == '(':
             return TOK_LPAREN
-        elif ch == ')':
+        if ch == ')':
             return TOK_RPAREN
-        elif ch == '&' and self.src[self.pos+1] == '&':
+        if ch == '&' and self.src[self.pos+1] == '&':
             self.cursor += 1
             return TOK_AND
-        elif ch == '|' and self.src[self.pos+1] == '|':
+        if ch == '|' and self.src[self.pos+1] == '|':
             self.cursor += 1
             return TOK_OR
-        elif ch == '!':
+        if ch == '!':
             return TOK_NOT
-        elif ch == 'd' and self.check_keyword("epends"):
+        if ch == 'd' and self.check_keyword("epends"):
             return TOK_DEPENDS
-        elif ch == 'o' and self.check_keyword("n"):
+        if ch == 'o' and self.check_keyword("n"):
             return TOK_ON
-        elif ch == 's' and self.check_keyword("elect"):
+        if ch == 's' and self.check_keyword("elect"):
             return TOK_SELECT
-        elif ch == 'i' and self.check_keyword("mply"):
+        if ch == 'i' and self.check_keyword("mply"):
             return TOK_IMPLY
-        elif ch == 'c' and self.check_keyword("onfig"):
+        if ch == 'c' and self.check_keyword("onfig"):
             return TOK_CONFIG
-        elif ch == 'd' and self.check_keyword("efault"):
+        if ch == 'd' and self.check_keyword("efault"):
             return TOK_DEFAULT
-        elif ch == 'b' and self.check_keyword("ool"):
+        if ch == 'b' and self.check_keyword("ool"):
             return TOK_BOOL
-        elif ch == 'i' and self.check_keyword("f"):
+        if ch == 'i' and self.check_keyword("f"):
             return TOK_IF
-        elif ch == 'y' and self.check_keyword(""):
+        if ch == 'y' and self.check_keyword(""):
             return TOK_Y
-        elif ch == 'n' and self.check_keyword(""):
+        if ch == 'n' and self.check_keyword(""):
             return TOK_N
-        elif (ch == 's' and self.check_keyword("ource")) or \
+        if (ch == 's' and self.check_keyword("ource")) or \
               ch == 'i' and self.check_keyword("nclude"):
             # source FILENAME
             # include FILENAME
@@ -648,21 +647,23 @@ class KconfigParser:
             self.cursor = self.src.find('\n', self.cursor)
             self.val = self.src[start:self.cursor]
             return TOK_SOURCE
-        elif ch.isalnum():
+        if ch.isalnum():
             # identifier
             while self.src[self.cursor].isalnum() or self.src[self.cursor] == '_':
                 self.cursor += 1
             self.val = self.src[self.pos:self.cursor]
             return TOK_ID
-        elif ch == '\n':
+        if ch == '\n':
             if self.cursor == len(self.src):
                 return TOK_EOF
             self.line += 1
             self.line_pos = self.cursor
-        elif not ch.isspace():
-            raise KconfigParserError(self, 'invalid input', ch)
+            return None
+        if ch.isspace():
+            return None
 
-        return None
+        raise KconfigParserError(self, 'invalid input', ch)
+
 
 def main():
     argv = sys.argv
