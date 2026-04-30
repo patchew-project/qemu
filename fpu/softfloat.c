@@ -601,6 +601,23 @@ static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
 *----------------------------------------------------------------------------*/
 #include "softfloat-specialize.c.inc"
 
+static int32_t exp_scalbn(int32_t exp, int32_t scale)
+{
+    /*
+     * Catch chains of scaling which lose information.
+     * In particular, if the exponent has been saturated,
+     * do not allow it to become unsaturated.
+     */
+    if (unlikely(exp == INT32_MAX)) {
+        assert(scale >= 0);
+    } else if (unlikely(exp == INT32_MIN)) {
+        assert(scale <= 0);
+    } else {
+        exp = sadd32_saturate(exp, scale);
+    }
+    return exp;
+}
+
 /*
  * Helper functions for softfloat-parts.c.inc, per-size operations.
  */
