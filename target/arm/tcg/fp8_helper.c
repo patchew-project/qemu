@@ -205,6 +205,24 @@ static float8_e5m2 fcvt_f16_to_fp8e5m2(float16 x, int scale,
     return float8_e5m2_round_pack_canonical(&p, s, saturate);
 }
 
+static float8_e4m3 fcvt_f32_to_fp8e4m3(float32 x, int scale,
+                                       bool saturate, float_status *s)
+{
+    FloatParts64 p = float32_unpack_canonical(x, s);
+
+    p = parts64_scalbn(&p, scale, s);
+    return float8_e4m3_round_pack_canonical(&p, s, saturate);
+}
+
+static float8_e5m2 fcvt_f32_to_fp8e5m2(float32 x, int scale,
+                                       bool saturate, float_status *s)
+{
+    FloatParts64 p = float32_unpack_canonical(x, s);
+
+    scalbn_to_fp8e5m2(&p, scale, saturate, s);
+    return float8_e5m2_round_pack_canonical(&p, s, saturate);
+}
+
 void HELPER(advsimd_bfcvtl)(void *vd, void *vn, CPUARMState *env, uint32_t desc)
 {
     FP8Context ctx = fp8_src_start(env, desc, 0x3f);
@@ -567,4 +585,46 @@ void HELPER(gvec_fcvt_bh)(void *vd, void *vn, void *vm,
 
     fp8_finish(env, &ctx);
     clear_tail(vd, oprsz, simd_maxsz(desc));
+}
+
+void HELPER(advsimd_fcvt_bs)(void *vd, void *vn, void *vm,
+                             CPUARMState *env, uint32_t desc)
+{
+    FP8Context ctx = fp8_dst_start(env, desc);
+    uint32_t *n = vn, *m = vm, scratch[4];
+    uint8_t *d = vd + 8 * ctx.high;
+    bool osc = FIELD_EX64(env->vfp.fpmr, FPMR, OSC);
+
+    if (vd == vm) {
+        m = memcpy(scratch, vm, 16);
+    }
+
+    switch (ctx.f8fmt) {
+    case OFP8_E5M2:
+        for (size_t i = 0; i < 4; ++i) {
+            float32 e = n[H4(i)];
+            d[H1(i + 0)] = fcvt_f32_to_fp8e5m2(e, ctx.scale, osc, &ctx.stat);
+        }
+        for (size_t i = 0; i < 4; ++i) {
+            float32 e = m[H4(i)];
+            d[H1(i + 4)] = fcvt_f32_to_fp8e5m2(e, ctx.scale, osc, &ctx.stat);
+        }
+        break;
+    case OFP8_E4M3:
+        for (size_t i = 0; i < 4; ++i) {
+            float32 e = n[H4(i)];
+            d[H1(i + 0)] = fcvt_f32_to_fp8e4m3(e, ctx.scale, osc, &ctx.stat);
+        }
+        for (size_t i = 0; i < 4; ++i) {
+            float32 e = m[H4(i)];
+            d[H1(i + 4)] = fcvt_f32_to_fp8e4m3(e, ctx.scale, osc, &ctx.stat);
+        }
+        break;
+    default:
+        float8_invalid_output(d, 8, &ctx.stat);
+        break;
+    }
+
+    fp8_finish(env, &ctx);
+    clear_tail(vd, ctx.high ? 16 : 8, simd_maxsz(desc));
 }
