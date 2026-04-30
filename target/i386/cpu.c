@@ -4767,6 +4767,14 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                     { /* end of list */ }
                 }
             },
+            {
+                .version = 6,
+                .note = "with MBEC enabled",
+                .props = (PropValue[]) {
+                    { "vmx-mbec", "on" },
+                    { /* end of list */ }
+                }
+            },
             { /* end of list */ }
         }
     },
@@ -4909,6 +4917,13 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                   { "psdp-no", "on" },
                   { "rfds-no", "on" },
                   { "sbdr-ssdp-no", "on" },
+                  { /* end of list */ }
+              },
+            },
+            { .version = 7,
+              .note = "with MBEC enabled",
+              .props = (PropValue[]) {
+                  { "vmx-mbec", "on" },
                   { /* end of list */ }
               },
             },
@@ -5206,6 +5221,14 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                     { /* end of list */ }
                 },
             },
+            {
+                .version = 9,
+                .note = "with MBEC enabled",
+                .props = (PropValue[]) {
+                    { "vmx-mbec", "on" },
+                    { /* end of list */ }
+                }
+            },
             { /* end of list */ }
         }
     },
@@ -5389,6 +5412,14 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                 .props = (PropValue[]) {
                     { "gds-no", "on" },
                     { "rfds-no", "on" },
+                    { /* end of list */ },
+                }
+            },
+            {
+                .version = 8,
+                .note = "with MBEC enabled",
+                .props = (PropValue[]) {
+                    { "vmx-mbec", "on" },
                     { /* end of list */ },
                 }
             },
@@ -5579,6 +5610,14 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                 .props = (PropValue[]) {
                     { "gds-no", "on" },
                     { "rfds-no", "on" },
+                    { /* end of list */ },
+                }
+            },
+            {
+                .version = 7,
+                .note = "with MBEC enabled",
+                .props = (PropValue[]) {
+                    { "vmx-mbec", "on" },
                     { /* end of list */ },
                 }
             },
@@ -5776,6 +5815,18 @@ static const X86CPUDefinition builtin_x86_defs[] = {
         .features[FEAT_VMX_VMFUNC] = MSR_VMX_VMFUNC_EPT_SWITCHING,
         .xlevel = 0x80000008,
         .model_id = "Intel Xeon Processor (DiamondRapids)",
+        .versions = (X86CPUVersionDefinition[]) {
+            { .version = 1 },
+            {
+                .version = 2,
+                .note = "with MBEC enabled",
+                .props = (PropValue[]) {
+                    { "vmx-mbec", "on" },
+                    { /* end of list */ },
+                }
+            },
+            { /* end of list */ },
+        },
     },
     {
         .name = "SierraForest",
@@ -5947,6 +5998,14 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                     { /* end of list */ },
                 }
             },
+            {
+                .version = 6,
+                .note = "with MBEC enabled",
+                .props = (PropValue[]) {
+                    { "vmx-mbec", "on" },
+                    { /* end of list */ },
+                }
+            },
             { /* end of list */ },
         },
     },
@@ -6100,6 +6159,14 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                 .props = (PropValue[]) {
                     { "its-no", "on" },
                     { "x-force-cpuid-0x1f", "on" },
+                    { /* end of list */ },
+                }
+            },
+            {
+                .version = 4,
+                .note = "with MBEC enabled",
+                .props = (PropValue[]) {
+                    { "vmx-mbec", "on" },
                     { /* end of list */ },
                 }
             },
