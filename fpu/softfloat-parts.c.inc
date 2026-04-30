@@ -669,17 +669,19 @@ static FloatPartsN *partsN(mul)(FloatPartsN *a, FloatPartsN *b,
  * `b' then adding 'c', with no intermediate rounding step after the
  * multiplication. The operation is performed according to the
  * IEC/IEEE Standard for Binary Floating-Point Arithmetic 754-2008.
- * The flags argument allows the caller to select negation of the
- * addend, the intermediate product, or the final result. (The
- * difference between this and having the caller do a separate
- * negation is that negating externally will flip the sign bit on NaNs.)
+ * The flags argument allows the caller to select negation of the addend
+ * or the intermediate product. (The difference between this and having
+ * the caller do a separate negation is that negating externally will
+ * flip the sign bit on NaNs.) Note that float_muladd_negate_result
+ * is not applied here, and should be handled separately after rounding
+ * chooses the final sign of 0.0.
  *
  * Requires A and C extracted into a double-sized structure to provide the
  * extra space for the widening multiply.
  */
-static FloatPartsN *partsN(muladd_scalbn)(FloatPartsN *a, FloatPartsN *b,
-                                          FloatPartsN *c, int scale,
-                                          int flags, float_status *s)
+static FloatPartsN *partsN(muladd)(FloatPartsN *a, FloatPartsN *b,
+                                   FloatPartsN *c,
+                                   int flags, float_status *s)
 {
     int ab_mask, abc_mask;
     FloatPartsW p_widen, c_widen;
@@ -725,7 +727,7 @@ static FloatPartsN *partsN(muladd_scalbn)(FloatPartsN *a, FloatPartsN *b,
         g_assert(ab_mask & float_cmask_zero);
         if (is_anynorm(c->cls)) {
             *a = *c;
-            goto return_normal;
+            goto finish_sign;
         }
         if (c->cls == float_class_zero) {
             if (flags & float_muladd_suppress_add_product_zero) {
@@ -770,8 +772,6 @@ static FloatPartsN *partsN(muladd_scalbn)(FloatPartsN *a, FloatPartsN *b,
     a->sign = p_widen.sign;
     a->exp = p_widen.exp;
 
- return_normal:
-    a->exp += scale;
  finish_sign:
     /*
      * All result types except for "return the default NaN
