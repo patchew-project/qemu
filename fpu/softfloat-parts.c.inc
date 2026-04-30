@@ -341,7 +341,17 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
         g_assert_not_reached();
     }
 
-    exp = p->exp + fmt->exp_bias;
+    /* Because exp_bias is positive, we can only overflow past INT_MAX. */
+    if (sadd32_overflow(p->exp, fmt->exp_bias, &exp)) {
+        /*
+         * rebias_overflow wants to compute a modulo exponent, which
+         * conflicts with saturation.  That said, saturation can only
+         * happen with scalbn, which is not a PowerPC operation.
+         */
+        assert(!s->rebias_overflow);
+        exp = INT32_MAX;
+    }
+
     if (likely(exp > 0)) {
         if (p->frac_lo & round_mask) {
             flags |= float_flag_inexact;
