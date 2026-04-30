@@ -108,7 +108,7 @@ class KconfigData:
             return self.name
 
         def has_value(self):
-            return not (self.value is None)
+            return self.value is not None
         def set_value(self, val, clause):
             self.clauses_for_var.append(clause)
             if self.has_value() and self.value != val:
@@ -158,7 +158,7 @@ class KconfigData:
             KconfigData.Clause.__init__(self, dest)
             self.value = value
             self.cond = cond
-            if not (self.cond is None):
+            if self.cond is not None:
                 self.cond.add_edges_to(self.dest)
         def __str__(self):
             value = 'y' if self.value else 'n'
@@ -212,7 +212,7 @@ class KconfigData:
     def check_undefined(self):
         undef = False
         for i in self.referenced_vars:
-            if not (i in self.defined_vars):
+            if i not in self.defined_vars:
                 print("undefined symbol %s" % (i), file=sys.stderr)
                 undef = True
         return undef
@@ -220,7 +220,6 @@ class KconfigData:
     def compute_config(self):
         if self.check_undefined():
             raise KconfigDataError("there were undefined symbols")
-            return None
 
         debug_print("Input:")
         for clause in self.clauses:
@@ -270,7 +269,7 @@ class KconfigData:
 
     # var is a string with the variable's name.
     def do_var(self, var):
-        if (var in self.referenced_vars):
+        if var in self.referenced_vars:
             return self.referenced_vars[var]
 
         var_obj = self.referenced_vars[var] = KconfigData.Var(var)
@@ -339,9 +338,9 @@ class KconfigParserError(Exception):
 class KconfigParser:
 
     @classmethod
-    def parse(self, fp, mode=None):
+    def parse(cls, fp, mode=None):
         data = KconfigData(mode or defconfig)
-        parser = KconfigParser(data)
+        parser = cls(data)
         parser.parse_file(fp)
         return data
 
@@ -352,9 +351,10 @@ class KconfigParser:
         self.abs_fname = os.path.abspath(fp.name)
         self.fname = fp.name
         self.data.previously_included.append(self.abs_fname)
-        self.src = fp.read()
-        if self.src == '' or self.src[-1] != '\n':
-            self.src += '\n'
+        src = fp.read()
+        if src == '' or src[-1] != '\n':
+            src += '\n'
+        self.src = src
         self.cursor = 0
         self.line = 1
         self.line_pos = 0
@@ -534,7 +534,6 @@ class KconfigParser:
     # properties: properties property
     #       | /* empty */
     def parse_properties(self, var):
-        had_default = False
         while self.tok == TOK_DEFAULT or self.tok == TOK_DEPENDS or \
               self.tok == TOK_SELECT or self.tok == TOK_BOOL or \
               self.tok == TOK_IMPLY:
