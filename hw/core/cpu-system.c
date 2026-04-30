@@ -87,26 +87,6 @@ bool cpu_translate_for_debug(CPUState *cpu, vaddr addr,
     }
 }
 
-hwaddr cpu_get_phys_addr_attrs_debug(CPUState *cpu, vaddr addr,
-                                     MemTxAttrs *attrs)
-{
-    TranslateForDebugResult result;
-
-    if (!cpu_translate_for_debug(cpu, addr, &result)) {
-        return -1;
-    }
-
-    *attrs = result.attrs;
-    return result.physaddr;
-}
-
-hwaddr cpu_get_phys_addr_debug(CPUState *cpu, vaddr addr)
-{
-    MemTxAttrs attrs = {};
-
-    return cpu_get_phys_addr_attrs_debug(cpu, addr, &attrs);
-}
-
 int cpu_asidx_from_attrs(CPUState *cpu, MemTxAttrs attrs)
 {
     int ret = 0;
