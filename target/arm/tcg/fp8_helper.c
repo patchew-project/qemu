@@ -78,6 +78,15 @@ static FP8Context fp8_src_start(CPUARMState *env, uint32_t desc, int scale_mask)
     return fp8_start(env, desc, f8fmt, scale);
 }
 
+static FP8Context fp8_dst_start(CPUARMState *env, uint32_t desc)
+{
+    uint64_t fpmr = env->vfp.fpmr;
+    FPMRType f8fmt = FIELD_EX64(fpmr, FPMR, F8D);
+    int scale = FIELD_SEX64(fpmr, FPMR, NSCALE);
+
+    return fp8_start(env, desc, f8fmt, scale);
+}
+
 /*
  * Invalid input format is treated as snan, then the conversion operation
  * converts to default nan and raises invalid.
@@ -100,6 +109,13 @@ static void float16_invalid_input(float16 *d, size_t nelem, float_status *s)
         d[i] = dnan;
     }
     float_raise(float_flag_invalid | float_flag_invalid_snan, s);
+}
+
+/* Invalid output format writes -1 and raises invalid.  */
+static void float8_invalid_output(uint8_t *d, size_t nelem, float_status *s)
+{
+    memset(d, -1, nelem);
+    float_raise(float_flag_invalid, s);
 }
 
 static bfloat16 fcvt_fp8e4m3_to_b16(float8_e4m3 x, int scale, float_status *s)
@@ -128,6 +144,47 @@ static float16 fcvt_fp8e5m2_to_f16(float8_e5m2 x, int scale, float_status *s)
     FloatParts64 p = float8_e5m2_unpack_canonical(x, s);
     p = parts64_scalbn(&p, scale, s);
     return float16_round_pack_canonical(&p, s);
+}
+
+static float8_e4m3 fcvt_b16_to_fp8e4m3(bfloat16 x, int scale,
+                                       bool saturate, float_status *s)
+{
+    FloatParts64 p = bfloat16_unpack_canonical(x, s);
+
+    p = parts64_scalbn(&p, scale, s);
+    /*
+     * Saturating Inf -> Max handled in uncanon_e4m3_overflow
+     * because there is no infinity encoding.
+     */
+    return float8_e4m3_round_pack_canonical(&p, s, saturate);
+}
+
+/*
+ * Because e5m2 has an infinity encoding, we need to handle
+ * conversion of Inf -> Max manually.  This will be converted
+ * to the actual maximum value during rounding.
+ */
+static void scalbn_to_fp8e5m2(FloatParts64 *p, int scale,
+                              bool saturate, float_status *s)
+{
+    if (unlikely(p->cls == float_class_inf)) {
+        if (saturate) {
+            p->cls = float_class_normal;
+            p->exp = INT_MAX;
+            p->frac = -1;
+        }
+    } else {
+        *p = parts64_scalbn(p, scale, s);
+    }
+}
+
+static float8_e5m2 fcvt_b16_to_fp8e5m2(bfloat16 x, int scale,
+                                       bool saturate, float_status *s)
+{
+    FloatParts64 p = bfloat16_unpack_canonical(x, s);
+
+    scalbn_to_fp8e5m2(&p, scale, saturate, s);
+    return float8_e5m2_round_pack_canonical(&p, s, saturate);
 }
 
 void HELPER(advsimd_bfcvtl)(void *vd, void *vn, CPUARMState *env, uint32_t desc)
@@ -401,6 +458,45 @@ void HELPER(sme2_fcvtl_hb)(void *vd, void *vn, CPUARMState *env, uint32_t desc)
     default:
         float16_invalid_input(d0, nelem, &ctx.stat);
         memcpy(d1, d0, oprsz);
+        break;
+    }
+
+    fp8_finish(env, &ctx);
+}
+
+void HELPER(sve2_bfcvtn_bh)(void *vd, void *vn, CPUARMState *env, uint32_t desc)
+{
+    FP8Context ctx = fp8_dst_start(env, desc);
+    uint16_t *n0 = vn;
+    uint16_t *n1 = vn + sizeof(ARMVectorReg);
+    uint8_t *d = vd;
+    size_t oprsz = simd_oprsz(desc);
+    size_t nelem = oprsz / 2;
+    bool osc = FIELD_EX64(env->vfp.fpmr, FPMR, OSC);
+
+    switch (ctx.f8fmt) {
+    case OFP8_E5M2:
+        for (size_t i = 0; i < nelem; ++i) {
+            bfloat16 e0 = n0[H2(i)];
+            bfloat16 e1 = n1[H2(i)];
+            d[H1(2 * i + 0)] =
+                fcvt_b16_to_fp8e5m2(e0, ctx.scale, osc, &ctx.stat);
+            d[H1(2 * i + 1)] =
+                fcvt_b16_to_fp8e5m2(e1, ctx.scale, osc, &ctx.stat);
+        }
+        break;
+    case OFP8_E4M3:
+        for (size_t i = 0; i < nelem; ++i) {
+            bfloat16 e0 = n0[H2(i)];
+            bfloat16 e1 = n1[H2(i)];
+            d[H1(2 * i + 0)] =
+                fcvt_b16_to_fp8e4m3(e0, ctx.scale, osc, &ctx.stat);
+            d[H1(2 * i + 1)] =
+                fcvt_b16_to_fp8e4m3(e1, ctx.scale, osc, &ctx.stat);
+        }
+        break;
+    default:
+        float8_invalid_output(d, oprsz, &ctx.stat);
         break;
     }
 
