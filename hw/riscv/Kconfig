@@ -132,5 +132,9 @@ config XIANGSHAN_KUNMINGHU
 config MIPS_BOSTON_AIA
     bool
     default y
+    depends on RISCV64
     select PCI_EXPRESS
     select PCI_EXPRESS_XILINX
+    select RISCV_MIPS_CMGCR
+    select RISCV_MIPS_CPC
+    select RISCV_MIPS_CPS
