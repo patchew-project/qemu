@@ -4634,7 +4634,7 @@ float16 float16_silence_nan(float16 a, float_status *status)
     FloatParts64 p = unpack_raw64(&float16_params, a);
 
     p.frac <<= float16_params.frac_shift;
-    parts64_silence_nan(&p, status);
+    p = parts64_silence_nan(&p, status);
     p.frac >>= float16_params.frac_shift;
     return pack_raw64(&p, &float16_params);
 }
@@ -4644,7 +4644,7 @@ float32 float32_silence_nan(float32 a, float_status *status)
     FloatParts64 p = unpack_raw64(&float32_params, a);
 
     p.frac <<= float32_params.frac_shift;
-    parts64_silence_nan(&p, status);
+    p = parts64_silence_nan(&p, status);
     p.frac >>= float32_params.frac_shift;
     return pack_raw64(&p, &float32_params);
 }
@@ -4654,7 +4654,7 @@ float64 float64_silence_nan(float64 a, float_status *status)
     FloatParts64 p = unpack_raw64(&float64_params, a);
 
     p.frac <<= float64_params.frac_shift;
-    parts64_silence_nan(&p, status);
+    p = parts64_silence_nan(&p, status);
     p.frac >>= float64_params.frac_shift;
     return pack_raw64(&p, &float64_params);
 }
@@ -4664,7 +4664,7 @@ bfloat16 bfloat16_silence_nan(bfloat16 a, float_status *status)
     FloatParts64 p = unpack_raw64(&bfloat16_params, a);
 
     p.frac <<= bfloat16_params.frac_shift;
-    parts64_silence_nan(&p, status);
+    p = parts64_silence_nan(&p, status);
     p.frac >>= bfloat16_params.frac_shift;
     return pack_raw64(&p, &bfloat16_params);
 }
@@ -4674,7 +4674,7 @@ float128 float128_silence_nan(float128 a, float_status *status)
     FloatParts128 p = float128_unpack_raw(a);
 
     frac128_shl(&p, float128_params.frac_shift);
-    parts128_silence_nan(&p, status);
+    p = parts128_silence_nan(&p, status);
     frac128_shr(&p, float128_params.frac_shift);
     return float128_pack_raw(&p);
 }
