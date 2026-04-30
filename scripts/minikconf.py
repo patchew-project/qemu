@@ -244,8 +244,8 @@ class KconfigData:
             debug_print(clause)
 
         debug_print("\nDependency graph:")
-        for i in self.referenced_vars:
-            debug_print(i, "->", [str(x) for x in self.referenced_vars[i].outgoing])
+        for source, edges in self.referenced_vars.items():
+            debug_print(source, "->", [str(x) for x in edges.outgoing])
 
         # The reverse of the depth-first order is the topological sort
         dfo = dict()
