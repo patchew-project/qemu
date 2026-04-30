@@ -281,7 +281,7 @@ void virtio_init_region_cache(VirtIODevice *vdev, int n)
     len = address_space_cache_init(&new->desc, vdev->dma_as,
                                    addr, size, packed);
     if (len < size) {
-        g_autofree const char *devname = qdev_get_printable_name(DEVICE(vdev));
+        g_autofree char *devname = qdev_get_human_name(DEVICE(vdev));
 
         virtio_error(vdev,
                 "Failed to map descriptor ring for device %s: "
@@ -294,7 +294,7 @@ void virtio_init_region_cache(VirtIODevice *vdev, int n)
     len = address_space_cache_init(&new->used, vdev->dma_as,
                                    vq->vring.used, size, true);
     if (len < size) {
-        g_autofree const char *devname = qdev_get_printable_name(DEVICE(vdev));
+        g_autofree char *devname = qdev_get_human_name(DEVICE(vdev));
 
         virtio_error(vdev,
                 "Failed to map used ring for device %s: "
@@ -307,7 +307,7 @@ void virtio_init_region_cache(VirtIODevice *vdev, int n)
     len = address_space_cache_init(&new->avail, vdev->dma_as,
                                    vq->vring.avail, size, false);
     if (len < size) {
-        g_autofree const char *devname = qdev_get_printable_name(DEVICE(vdev));
+        g_autofree char *devname = qdev_get_human_name(DEVICE(vdev));
 
         virtio_error(vdev,
                 "Failed to map avalaible ring for device %s: "

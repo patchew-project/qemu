@@ -412,7 +412,7 @@ char *qdev_get_dev_path(DeviceState *dev)
     return NULL;
 }
 
-const char *qdev_get_printable_name(DeviceState *dev)
+char *qdev_get_human_name(DeviceState *dev)
 {
     if (dev->id) {
         return g_strdup(dev->id);
@@ -856,14 +856,6 @@ Object *machine_get_container(const char *name)
     assert(object_dynamic_cast(container, TYPE_CONTAINER));
 
     return container;
-}
-
-char *qdev_get_human_name(DeviceState *dev)
-{
-    g_assert(dev != NULL);
-
-    return dev->id ?
-           g_strdup(dev->id) : object_get_canonical_path(OBJECT(dev));
 }
 
 static MachineInitPhase machine_phase;
