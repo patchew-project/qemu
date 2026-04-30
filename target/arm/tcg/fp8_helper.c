@@ -187,6 +187,24 @@ static float8_e5m2 fcvt_b16_to_fp8e5m2(bfloat16 x, int scale,
     return float8_e5m2_round_pack_canonical(&p, s, saturate);
 }
 
+static float8_e4m3 fcvt_f16_to_fp8e4m3(float16 x, int scale,
+                                       bool saturate, float_status *s)
+{
+    FloatParts64 p = float16_unpack_canonical(x, s);
+
+    p = parts64_scalbn(&p, scale, s);
+    return float8_e4m3_round_pack_canonical(&p, s, saturate);
+}
+
+static float8_e5m2 fcvt_f16_to_fp8e5m2(float16 x, int scale,
+                                       bool saturate, float_status *s)
+{
+    FloatParts64 p = float16_unpack_canonical(x, s);
+
+    scalbn_to_fp8e5m2(&p, scale, saturate, s);
+    return float8_e5m2_round_pack_canonical(&p, s, saturate);
+}
+
 void HELPER(advsimd_bfcvtl)(void *vd, void *vn, CPUARMState *env, uint32_t desc)
 {
     FP8Context ctx = fp8_src_start(env, desc, 0x3f);
@@ -501,4 +519,52 @@ void HELPER(sve2_bfcvtn_bh)(void *vd, void *vn, CPUARMState *env, uint32_t desc)
     }
 
     fp8_finish(env, &ctx);
+}
+
+void HELPER(gvec_fcvt_bh)(void *vd, void *vn, void *vm,
+                          CPUARMState *env, uint32_t desc)
+{
+    FP8Context ctx = fp8_dst_start(env, desc);
+    uint16_t *n = vn;
+    uint16_t *m = vm;
+    uint8_t *d = vd;
+    bool osc = FIELD_EX64(env->vfp.fpmr, FPMR, OSC);
+    size_t oprsz = simd_oprsz(desc);
+    size_t nelem = oprsz / 2;
+    ARMVectorReg scratch;
+
+    if (vd == vm) {
+        m = memcpy(&scratch, vm, oprsz);
+    }
+
+    switch (ctx.f8fmt) {
+    case OFP8_E5M2:
+        for (size_t i = 0; i < nelem; ++i) {
+            float16 e = n[H2(i)];
+            d[H1(i)] = fcvt_f16_to_fp8e5m2(e, ctx.scale, osc, &ctx.stat);
+        }
+        for (size_t i = 0; i < nelem; ++i) {
+            float16 e = m[H2(i)];
+            d[H1(i) + nelem] =
+                fcvt_f16_to_fp8e5m2(e, ctx.scale, osc, &ctx.stat);
+        }
+        break;
+    case OFP8_E4M3:
+        for (size_t i = 0; i < nelem; ++i) {
+            float16 e = n[H2(i)];
+            d[H1(i)] = fcvt_f16_to_fp8e4m3(e, ctx.scale, osc, &ctx.stat);
+        }
+        for (size_t i = 0; i < nelem; ++i) {
+            float16 e = m[H2(i)];
+            d[H1(i) + nelem] =
+                fcvt_f16_to_fp8e4m3(e, ctx.scale, osc, &ctx.stat);
+        }
+        break;
+    default:
+        float8_invalid_output(d, oprsz, &ctx.stat);
+        break;
+    }
+
+    fp8_finish(env, &ctx);
+    clear_tail(vd, oprsz, simd_maxsz(desc));
 }
