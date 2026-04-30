@@ -25,6 +25,9 @@ class TestLinters:
             ]
         )
 
+    def test_isort_minikconf(self):
+        check_call([sys.executable, "-m", "isort", "-c", "../scripts/minikconf.py"])
+
     def test_isort_pkg(self):
         check_call([sys.executable, "-m", "isort", "-c", "qemu/"])
 

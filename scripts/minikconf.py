@@ -12,9 +12,9 @@
 # the top-level directory.
 
 import os
-import sys
-import re
 import random
+import re
+import sys
 
 __all__ = [ 'KconfigDataError', 'KconfigParserError',
             'KconfigData', 'KconfigParser' ,
