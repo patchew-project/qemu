@@ -65,6 +65,9 @@ class TestLinters:
             ]
         )
 
+    def test_mypy_minikconf(self):
+        check_call([sys.executable, "-m", "mypy", "../scripts/minikconf.py"])
+
     def test_mypy_pkg(self):
         check_call([sys.executable, "-m", "mypy", "-p", "qemu"])
 
