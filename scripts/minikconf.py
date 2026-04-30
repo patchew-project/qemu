@@ -262,8 +262,8 @@ class KconfigData:
     # semantic actions -------------
 
     def do_declaration(self, var):
-        if (var in self.defined_vars):
-            raise KconfigDataError('variable "' + var + '" defined twice')
+        if var.name in self.defined_vars:
+            raise KconfigDataError('variable "%s" defined twice' % var.name)
 
         self.defined_vars.add(var.name)
 
