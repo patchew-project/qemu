@@ -619,7 +619,7 @@ bool qemu_plugin_translate_vaddr(uint64_t vaddr, uint64_t *hwaddr)
 #ifdef CONFIG_SOFTMMU
     g_assert(current_cpu);
 
-    uint64_t res = cpu_get_phys_page_debug(current_cpu, vaddr);
+    uint64_t res = cpu_get_phys_addr_debug(current_cpu, vaddr);
 
     if (res == (uint64_t)-1) {
         return false;

@@ -745,7 +745,7 @@ enum CPUDumpFlags {
 void cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 
 /**
- * cpu_get_phys_page_attrs_debug:
+ * cpu_get_phys_addr_attrs_debug:
  * @cpu: The CPU to obtain the physical page address for.
  * @addr: The virtual address.
  * @attrs: Updated on return with the memory transaction attributes to use
@@ -757,11 +757,11 @@ void cpu_dump_state(CPUState *cpu, FILE *f, int flags);
  *
  * Returns: Corresponding physical page address or -1 if no page found.
  */
-hwaddr cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
+hwaddr cpu_get_phys_addr_attrs_debug(CPUState *cpu, vaddr addr,
                                      MemTxAttrs *attrs);
 
 /**
- * cpu_get_phys_page_debug:
+ * cpu_get_phys_addr_debug:
  * @cpu: The CPU to obtain the physical page address for.
  * @addr: The virtual address.
  *
@@ -770,7 +770,7 @@ hwaddr cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
  *
  * Returns: Corresponding physical page address or -1 if no page found.
  */
-hwaddr cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+hwaddr cpu_get_phys_addr_debug(CPUState *cpu, vaddr addr);
 
 /** cpu_asidx_from_attrs:
  * @cpu: CPU
