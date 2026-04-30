@@ -44,12 +44,10 @@ extern char **environ;
 #include "accel/tcg/vcpu-state.h"
 
 #include "qemu-os.h"
-/*
- * TODO: Remove these and rely only on qemu_real_host_page_size().
- */
-extern uintptr_t qemu_host_page_size;
-extern intptr_t qemu_host_page_mask;
-#define HOST_PAGE_ALIGN(addr) ROUND_UP((addr), qemu_host_page_size)
+
+#define HOST_PAGE_SIZE        qemu_real_host_page_size()
+#define HOST_PAGE_MASK        (~(HOST_PAGE_SIZE - 1))
+#define HOST_PAGE_MASK  ((intptr_t)~(HOST_PAGE_SIZE - 1))
 
 /*
  * This struct is used to hold certain information about the image.  Basically,

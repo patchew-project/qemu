@@ -192,14 +192,14 @@ static void setup_arg_pages(struct bsd_binprm *bprm, struct image_info *info,
      */
     size = target_dflssiz;
     stack_base = TARGET_USRSTACK - size;
-    addr = target_mmap(stack_base , size + qemu_host_page_size,
+    addr = target_mmap(stack_base , size + HOST_PAGE_SIZE,
             PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
     if (addr == -1) {
         perror("stk mmap");
         exit(-1);
     }
     /* we reserve one extra page at the top of the stack as guard */
-    target_mprotect(addr + size, qemu_host_page_size, PROT_NONE);
+    target_mprotect(addr + size, HOST_PAGE_SIZE, PROT_NONE);
 
     target_stksiz = size;
     target_stkbas = addr;
@@ -239,27 +239,10 @@ static void padzero(abi_ulong elf_bss, abi_ulong last_bss)
         return;
     }
 
-    /*
-     * XXX: this is really a hack : if the real host page size is
-     * smaller than the target page size, some pages after the end
-     * of the file may not be mapped. A better fix would be to
-     * patch target_mmap(), but it is more complicated as the file
-     * size must be known.
-     */
-    if (qemu_real_host_page_size() < qemu_host_page_size) {
-        abi_ulong end_addr, end_addr1;
-        end_addr1 = REAL_HOST_PAGE_ALIGN(elf_bss);
-        end_addr = HOST_PAGE_ALIGN(elf_bss);
-        if (end_addr1 < end_addr) {
-            mmap((void *)g2h_untagged(end_addr1), end_addr - end_addr1,
-                 PROT_READ | PROT_WRITE | PROT_EXEC,
-                 MAP_FIXED | MAP_PRIVATE | MAP_ANON, -1, 0);
-        }
-    }
 
-    nbyte = elf_bss & (qemu_host_page_size - 1);
+    nbyte = elf_bss & (HOST_PAGE_SIZE - 1);
     if (nbyte) {
-        nbyte = qemu_host_page_size - nbyte;
+        nbyte = HOST_PAGE_SIZE - nbyte;
         do {
             /* FIXME - what to do if put_user() fails? */
             put_user_u8(0, elf_bss);

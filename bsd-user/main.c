@@ -54,11 +54,6 @@
 #include "target_arch_cpu.h"
 
 
-/*
- * TODO: Remove these and rely only on qemu_real_host_page_size().
- */
-uintptr_t qemu_host_page_size;
-intptr_t qemu_host_page_mask;
 
 static bool opt_one_insn_per_tb;
 static unsigned long opt_tb_size;
@@ -302,8 +297,6 @@ int main(int argc, char **argv)
         (void) envlist_setenv(envlist, *wrk);
     }
 
-    qemu_host_page_size = getpagesize();
-    qemu_host_page_size = MAX(qemu_host_page_size, TARGET_PAGE_SIZE);
 
     cpu_model = NULL;
 
@@ -405,7 +398,6 @@ int main(int argc, char **argv)
         }
     }
 
-    qemu_host_page_mask = -qemu_host_page_size;
 
     /* init debug */
     {
@@ -452,7 +444,7 @@ int main(int argc, char **argv)
 
     cpu_type = parse_cpu_option(cpu_model);
 
-    /* init tcg before creating CPUs and to get qemu_host_page_size */
+    /* init tcg before creating CPUs */
     {
         AccelState *accel = current_accel();
         AccelClass *ac = ACCEL_GET_CLASS(accel);
@@ -534,7 +526,7 @@ int main(int argc, char **argv)
      * proper page alignment for guest_base.
      */
     if (have_guest_base) {
-        if (guest_base & ~qemu_host_page_mask) {
+        if (guest_base & ~HOST_PAGE_MASK) {
             error_report("Selected guest base not host page aligned");
             exit(1);
         }
@@ -573,7 +565,7 @@ int main(int argc, char **argv)
         /* Ensure that mmap_next_start is within range. */
         if (reserved_va <= mmap_next_start) {
             mmap_next_start = (reserved_va / 4 * 3)
-                              & TARGET_PAGE_MASK & qemu_host_page_mask;
+                              & TARGET_PAGE_MASK & HOST_PAGE_MASK;
         }
     }
 
