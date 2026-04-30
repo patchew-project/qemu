@@ -10,7 +10,7 @@ i386_ss.add(when: 'CONFIG_SEV', if_true: files('host-cpu.c', 'confidential-guest
 # x86 cpu type
 i386_ss.add(when: 'CONFIG_KVM', if_true: files('xsave_helper.c', 'host-cpu.c'))
 i386_ss.add(when: 'CONFIG_HVF', if_true: files('xsave_helper.c', 'host-cpu.c'))
-i386_ss.add(when: 'CONFIG_WHPX', if_true: files('host-cpu.c'))
+i386_ss.add(when: 'CONFIG_WHPX', if_true: files('xsave_helper.c', 'host-cpu.c'))
 i386_ss.add(when: 'CONFIG_NVMM', if_true: files('host-cpu.c'))
 i386_ss.add(when: 'CONFIG_MSHV', if_true: files('host-cpu.c'))
 
