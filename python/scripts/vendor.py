@@ -41,8 +41,8 @@ def main() -> int:
     parser.parse_args()
 
     packages = {
-        "meson==1.10.0":
-        "4b27aafce281e652dcb437b28007457411245d975c48b5db3a797d3e93ae1585",
+        "meson==1.11.1":
+        "9b3a023657e393dbc5335b95c561337d49b7a458f5541e47ec44f2cc566e0d80",
         "qemu.qmp==0.0.5":
         "e05782d6df5844b34e0d2f7c68693525da074deef7b641c1401dda6e4e3d6303",
         "pycotap==1.3.1":
