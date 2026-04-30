@@ -343,6 +343,7 @@ int main(int argc, char **argv, char** envp)
         qos_printf("}\n");
     }
     qos_graph_init();
+    module_call_init(MODULE_INIT_QOM_EARLY);
     module_call_init(MODULE_INIT_QOM);
     module_call_init(MODULE_INIT_LIBQOS);
     qos_set_machines_devices_available();

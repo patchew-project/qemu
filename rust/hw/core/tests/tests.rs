@@ -91,6 +91,7 @@ fn init_qom() {
     bql::start_test();
     if !ONCE.get() {
         unsafe {
+            module_call_init(module_init_type::MODULE_INIT_QOM_EARLY);
             module_call_init(module_init_type::MODULE_INIT_QOM);
         }
         ONCE.set(true);

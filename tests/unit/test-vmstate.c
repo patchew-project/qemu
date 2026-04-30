@@ -1626,6 +1626,7 @@ int main(int argc, char **argv)
     temp_fd = mkstemp(temp_file);
     g_assert(temp_fd >= 0);
 
+    module_call_init(MODULE_INIT_QOM_EARLY);
     module_call_init(MODULE_INIT_QOM);
 
     g_setenv("QTEST_SILENT_ERRORS", "1", 1);

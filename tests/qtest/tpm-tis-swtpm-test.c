@@ -53,6 +53,7 @@ int main(int argc, char **argv)
     ts.dst_tpm_path = g_dir_make_tmp("qemu-tpm-tis-swtpm-test.XXXXXX", NULL);
     ts.uri = g_strdup_printf("unix:%s/migsocket", ts.src_tpm_path);
 
+    module_call_init(MODULE_INIT_QOM_EARLY);
     module_call_init(MODULE_INIT_QOM);
     g_test_init(&argc, &argv, NULL);
 

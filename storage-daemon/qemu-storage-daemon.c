@@ -406,6 +406,7 @@ int main(int argc, char *argv[])
 
     os_daemonize();
 
+    module_call_init(MODULE_INIT_QOM_EARLY);
     module_call_init(MODULE_INIT_QOM);
     module_call_init(MODULE_INIT_TRACE);
     qemu_add_opts(&qemu_trace_opts);

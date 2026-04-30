@@ -123,6 +123,7 @@ int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
+    module_call_init(MODULE_INIT_QOM_EARLY);
     module_call_init(MODULE_INIT_QOM);
 
     g_test_add_func("/auth/pam/unknown-service", test_authz_unknown_service);

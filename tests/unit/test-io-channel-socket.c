@@ -566,6 +566,7 @@ int main(int argc, char **argv)
 {
     bool has_ipv4, has_ipv6, has_afunix;
 
+    module_call_init(MODULE_INIT_QOM_EARLY);
     module_call_init(MODULE_INIT_QOM);
     qemu_init_main_loop(&error_abort);
     socket_init();

@@ -90,6 +90,7 @@ int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
+    module_call_init(MODULE_INIT_QOM_EARLY);
     module_call_init(MODULE_INIT_QOM);
     type_register_static(&test_if_info);
     type_register_static(&direct_impl_info);

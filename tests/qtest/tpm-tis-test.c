@@ -31,6 +31,7 @@ int main(int argc, char **argv)
     GThread *thread;
     TPMTestState test;
 
+    module_call_init(MODULE_INIT_QOM_EARLY);
     module_call_init(MODULE_INIT_QOM);
     g_test_init(&argc, &argv, NULL);
 

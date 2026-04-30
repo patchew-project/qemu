@@ -1898,6 +1898,7 @@ int main(int argc, char **argv)
         goto end;
     }
 
+    module_call_init(MODULE_INIT_QOM_EARLY);
     module_call_init(MODULE_INIT_QOM);
     qemu_add_opts(&qemu_chardev_opts);
 

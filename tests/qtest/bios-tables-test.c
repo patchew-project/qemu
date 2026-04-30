@@ -1527,6 +1527,7 @@ static void test_acpi_tcg_tpm(const char *machine, const char *arch,
 
     tpm_tis_base_addr = base;
 
+    module_call_init(MODULE_INIT_QOM_EARLY);
     module_call_init(MODULE_INIT_QOM);
 
     test.addr = g_new0(SocketAddress, 1);

@@ -629,6 +629,7 @@ int main(int argc, char **argv)
     module_call_init(MODULE_INIT_TRACE);
     qcrypto_init(&error_fatal);
 
+    module_call_init(MODULE_INIT_QOM_EARLY);
     module_call_init(MODULE_INIT_QOM);
     qemu_add_opts(&qemu_trace_opts);
     qemu_init_exec_dir(argv[0]);

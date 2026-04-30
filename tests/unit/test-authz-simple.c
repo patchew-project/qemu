@@ -43,6 +43,7 @@ static void test_authz_simple(void)
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
+    module_call_init(MODULE_INIT_QOM_EARLY);
     module_call_init(MODULE_INIT_QOM);
 
     g_test_add_func("/authz/simple", test_authz_simple);
