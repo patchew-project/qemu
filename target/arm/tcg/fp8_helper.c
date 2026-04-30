@@ -92,6 +92,16 @@ static void bfloat16_invalid_input(bfloat16 *d, size_t nelem, float_status *s)
     float_raise(float_flag_invalid | float_flag_invalid_snan, s);
 }
 
+static void float16_invalid_input(float16 *d, size_t nelem, float_status *s)
+{
+    float16 dnan = float16_default_nan(s);
+
+    for (size_t i = 0; i < nelem; ++i) {
+        d[i] = dnan;
+    }
+    float_raise(float_flag_invalid | float_flag_invalid_snan, s);
+}
+
 static bfloat16 fcvt_fp8e4m3_to_b16(float8_e4m3 x, int scale, float_status *s)
 {
     FloatParts64 p = float8_e4m3_unpack_canonical(x, s);
@@ -104,6 +114,20 @@ static bfloat16 fcvt_fp8e5m2_to_b16(float8_e5m2 x, int scale, float_status *s)
     FloatParts64 p = float8_e5m2_unpack_canonical(x, s);
     p = parts64_scalbn(&p, scale, s);
     return bfloat16_round_pack_canonical(&p, s);
+}
+
+static float16 fcvt_fp8e4m3_to_f16(float8_e4m3 x, int scale, float_status *s)
+{
+    FloatParts64 p = float8_e4m3_unpack_canonical(x, s);
+    p = parts64_scalbn(&p, scale, s);
+    return float16_round_pack_canonical(&p, s);
+}
+
+static float16 fcvt_fp8e5m2_to_f16(float8_e5m2 x, int scale, float_status *s)
+{
+    FloatParts64 p = float8_e5m2_unpack_canonical(x, s);
+    p = parts64_scalbn(&p, scale, s);
+    return float16_round_pack_canonical(&p, s);
 }
 
 void HELPER(advsimd_bfcvtl)(void *vd, void *vn, CPUARMState *env, uint32_t desc)
@@ -130,6 +154,38 @@ void HELPER(advsimd_bfcvtl)(void *vd, void *vn, CPUARMState *env, uint32_t desc)
         break;
     default:
         bfloat16_invalid_input(d, 8, &ctx.stat);
+        break;
+    }
+
+    fp8_finish(env, &ctx);
+    clear_tail(vd, 16, simd_maxsz(desc));
+}
+
+void HELPER(advsimd_fcvtl_hb)(void *vd, void *vn,
+                              CPUARMState *env, uint32_t desc)
+{
+    FP8Context ctx = fp8_src_start(env, desc, 0xf);
+    uint8_t *n = vn, scratch[16];
+    float16 *d = vd;
+
+    if (vd == vn) {
+        n = memcpy(scratch, vn, 16);
+    }
+    n += ctx.high * 8;
+
+    switch (ctx.f8fmt) {
+    case OFP8_E5M2:
+        for (int i = 0; i < 8; ++i) {
+            d[H2(i)] = fcvt_fp8e5m2_to_f16(n[H1(i)], ctx.scale, &ctx.stat);
+        }
+        break;
+    case OFP8_E4M3:
+        for (int i = 0; i < 8; ++i) {
+            d[H2(i)] = fcvt_fp8e4m3_to_f16(n[H1(i)], ctx.scale, &ctx.stat);
+        }
+        break;
+    default:
+        float16_invalid_input(d, 8, &ctx.stat);
         break;
     }
 
