@@ -354,7 +354,7 @@ TLBRet get_physical_address(CPULoongArchState *env, MMUContext *context,
     return loongarch_map_address(env, context, access_type, mmu_idx, is_debug);
 }
 
-hwaddr loongarch_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
+hwaddr loongarch_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
 {
     CPULoongArchState *env = cpu_env(cs);
     MMUContext context;

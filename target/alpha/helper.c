@@ -295,7 +295,7 @@ static int get_physical_address(CPUAlphaState *env, vaddr addr,
     return ret;
 }
 
-hwaddr alpha_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
+hwaddr alpha_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
 {
     hwaddr phys;
     int prot, fail;

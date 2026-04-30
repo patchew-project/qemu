@@ -252,7 +252,7 @@ void sh4_translate_code(CPUState *cs, TranslationBlock *tb,
                         int *max_insns, vaddr pc, void *host_pc);
 
 #if !defined(CONFIG_USER_ONLY)
-hwaddr superh_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+hwaddr superh_cpu_get_phys_addr_debug(CPUState *cpu, vaddr addr);
 bool superh_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                          MMUAccessType access_type, int mmu_idx,
                          bool probe, uintptr_t retaddr);

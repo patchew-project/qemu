@@ -997,7 +997,7 @@ static const Property sparc_cpu_properties[] = {
 
 static const struct SysemuCPUOps sparc_sysemu_ops = {
     .has_work = sparc_cpu_has_work,
-    .get_phys_page_debug = sparc_cpu_get_phys_page_debug,
+    .get_phys_addr_debug = sparc_cpu_get_phys_addr_debug,
     .legacy_vmsd = &vmstate_sparc_cpu,
 };
 #endif

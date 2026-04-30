@@ -252,7 +252,7 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-hwaddr x86_cpu_get_phys_page_attrs_debug(CPUState *cs, vaddr addr,
+hwaddr x86_cpu_get_phys_addr_attrs_debug(CPUState *cs, vaddr addr,
                                          MemTxAttrs *attrs)
 {
     X86CPU *cpu = X86_CPU(cs);

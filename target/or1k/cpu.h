@@ -297,7 +297,7 @@ void openrisc_translate_code(CPUState *cs, TranslationBlock *tb,
 int print_insn_or1k(bfd_vma addr, disassemble_info *info);
 
 #ifndef CONFIG_USER_ONLY
-hwaddr openrisc_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+hwaddr openrisc_cpu_get_phys_addr_debug(CPUState *cpu, vaddr addr);
 
 bool openrisc_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                            MMUAccessType access_type, int mmu_idx,

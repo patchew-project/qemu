@@ -7477,7 +7477,7 @@ static void ppc_disas_set_info(const CPUState *cs, disassemble_info *info)
 
 static const struct SysemuCPUOps ppc_sysemu_ops = {
     .has_work = ppc_cpu_has_work,
-    .get_phys_page_debug = ppc_cpu_get_phys_page_debug,
+    .get_phys_addr_debug = ppc_cpu_get_phys_addr_debug,
     .write_elf32_note = ppc32_cpu_write_elf32_note,
     .write_elf64_note = ppc64_cpu_write_elf64_note,
     .internal_is_big_endian = ppc_cpu_is_big_endian,
