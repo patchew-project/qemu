@@ -2858,4 +2858,4 @@ static void register_types(void)
     type_register_internal(&object_info);
 }
 
-type_init(register_types)
+type_init_early(register_types)
