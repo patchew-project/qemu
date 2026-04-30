@@ -981,7 +981,6 @@ void qemu_init_subsystems(void)
 
     atexit(qemu_run_exit_notifiers);
 
-    module_call_init(MODULE_INIT_QOM_EARLY);
     module_call_init(MODULE_INIT_QOM);
     module_call_init(MODULE_INIT_MIGRATION);
 

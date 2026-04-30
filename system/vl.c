@@ -2888,6 +2888,9 @@ void qemu_init(int argc, char **argv)
 
     os_setup_limits();
 
+    /* We initialize early QOM types, which include target-info types. */
+    module_call_init(MODULE_INIT_QOM_EARLY);
+
     module_init_info(qemu_modinfo);
     module_allow_arch(target_name());
 
