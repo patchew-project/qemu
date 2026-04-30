@@ -282,6 +282,14 @@ firmware is available to boot it. It can be replaced by the
 ``ast2700fc``, another multi-SoC machine based on the newer AST2700
 SoCs which are excepted to receive better support in the future.
 
+
+RISC-V Shakti machine (since 11.1)
+''''''''''''''''''''''''''''''''''''''''''
+
+The RISC-V ``shakti_c`` machine hasn't had meaningful contributions since 2021
+and is currently unmaintained. The machine is scheduled to be removed as it
+appears to have no users.
+
 Backend options
 ---------------
 
