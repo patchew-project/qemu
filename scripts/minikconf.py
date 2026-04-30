@@ -325,25 +325,25 @@ class KconfigData:
 # tokens table
 TOKENS = {}
 TOK_NONE = -1
-TOK_LPAREN = 0;   TOKENS[TOK_LPAREN] = '"("';
-TOK_RPAREN = 1;   TOKENS[TOK_RPAREN] = '")"';
-TOK_EQUAL = 2;    TOKENS[TOK_EQUAL] = '"="';
-TOK_AND = 3;      TOKENS[TOK_AND] = '"&&"';
-TOK_OR = 4;       TOKENS[TOK_OR] = '"||"';
-TOK_NOT = 5;      TOKENS[TOK_NOT] = '"!"';
-TOK_DEPENDS = 6;  TOKENS[TOK_DEPENDS] = '"depends"';
-TOK_ON = 7;       TOKENS[TOK_ON] = '"on"';
-TOK_SELECT = 8;   TOKENS[TOK_SELECT] = '"select"';
-TOK_IMPLY = 9;    TOKENS[TOK_IMPLY] = '"imply"';
-TOK_CONFIG = 10;  TOKENS[TOK_CONFIG] = '"config"';
-TOK_DEFAULT = 11; TOKENS[TOK_DEFAULT] = '"default"';
-TOK_Y = 12;       TOKENS[TOK_Y] = '"y"';
-TOK_N = 13;       TOKENS[TOK_N] = '"n"';
-TOK_SOURCE = 14;  TOKENS[TOK_SOURCE] = '"source"';
-TOK_BOOL = 15;    TOKENS[TOK_BOOL] = '"bool"';
-TOK_IF = 16;      TOKENS[TOK_IF] = '"if"';
-TOK_ID = 17;      TOKENS[TOK_ID] = 'identifier';
-TOK_EOF = 18;     TOKENS[TOK_EOF] = 'end of file';
+TOK_LPAREN = 0;   TOKENS[TOK_LPAREN] = '"("'
+TOK_RPAREN = 1;   TOKENS[TOK_RPAREN] = '")"'
+TOK_EQUAL = 2;    TOKENS[TOK_EQUAL] = '"="'
+TOK_AND = 3;      TOKENS[TOK_AND] = '"&&"'
+TOK_OR = 4;       TOKENS[TOK_OR] = '"||"'
+TOK_NOT = 5;      TOKENS[TOK_NOT] = '"!"'
+TOK_DEPENDS = 6;  TOKENS[TOK_DEPENDS] = '"depends"'
+TOK_ON = 7;       TOKENS[TOK_ON] = '"on"'
+TOK_SELECT = 8;   TOKENS[TOK_SELECT] = '"select"'
+TOK_IMPLY = 9;    TOKENS[TOK_IMPLY] = '"imply"'
+TOK_CONFIG = 10;  TOKENS[TOK_CONFIG] = '"config"'
+TOK_DEFAULT = 11; TOKENS[TOK_DEFAULT] = '"default"'
+TOK_Y = 12;       TOKENS[TOK_Y] = '"y"'
+TOK_N = 13;       TOKENS[TOK_N] = '"n"'
+TOK_SOURCE = 14;  TOKENS[TOK_SOURCE] = '"source"'
+TOK_BOOL = 15;    TOKENS[TOK_BOOL] = '"bool"'
+TOK_IF = 16;      TOKENS[TOK_IF] = '"if"'
+TOK_ID = 17;      TOKENS[TOK_ID] = 'identifier'
+TOK_EOF = 18;     TOKENS[TOK_EOF] = 'end of file'
 
 class KconfigParserError(Exception):
     def __init__(self, parser, msg, tok=None):
