@@ -530,13 +530,16 @@ static FloatPartsN *partsN(addsub)(FloatPartsN *a, FloatPartsN *b,
     bool b_sign = b->sign ^ subtract;
     int ab_mask = float_cmask(a->cls) | float_cmask(b->cls);
 
+    if (unlikely(ab_mask & float_cmask_anynan)) {
+        *a = partsN(pick_nan)(a, b, s);
+        return a;
+    }
+
     /*
      * For addition and subtraction, we will consume an
      * input denormal unless the other input is a NaN.
      */
-    if (!(ab_mask & float_cmask_anynan)) {
-        record_denormals_used(ab_mask, s);
-    }
+    record_denormals_used(ab_mask, s);
 
     if (a->sign != b_sign) {
         /* Subtraction */
@@ -551,10 +554,6 @@ static FloatPartsN *partsN(addsub)(FloatPartsN *a, FloatPartsN *b,
         if (ab_mask == float_cmask_zero) {
             a->sign = s->float_rounding_mode == float_round_down;
             return a;
-        }
-
-        if (unlikely(ab_mask & float_cmask_anynan)) {
-            goto p_nan;
         }
 
         if (ab_mask & float_cmask_inf) {
@@ -582,10 +581,6 @@ static FloatPartsN *partsN(addsub)(FloatPartsN *a, FloatPartsN *b,
             return a;
         }
 
-        if (unlikely(ab_mask & float_cmask_anynan)) {
-            goto p_nan;
-        }
-
         if (ab_mask & float_cmask_inf) {
             a->cls = float_class_inf;
             return a;
@@ -602,10 +597,6 @@ static FloatPartsN *partsN(addsub)(FloatPartsN *a, FloatPartsN *b,
  return_b:
     b->sign = b_sign;
     return b;
-
- p_nan:
-    *a = partsN(pick_nan)(a, b, s);
-    return a;
 }
 
 /*
