@@ -133,4 +133,34 @@ typedef struct {
     uint64_t frac_lo;
 } FloatParts128;
 
+/*
+ * Unpack routines from a specific floating-point format.
+ */
+
+FloatParts64 float4_e2m1_unpack_canonical(float4_e2m1 f, float_status *s);
+FloatParts64 float8_e4m3_unpack_canonical(float8_e4m3 f, float_status *s);
+FloatParts64 float8_e5m2_unpack_canonical(float8_e5m2 f, float_status *s);
+FloatParts64 float16_unpack_canonical(float16 f, float_status *s);
+FloatParts64 bfloat16_unpack_canonical(bfloat16 f, float_status *s);
+FloatParts64 float32_unpack_canonical(float32 f, float_status *s);
+FloatParts64 float64_unpack_canonical(float64 f, float_status *s);
+FloatParts128 float128_unpack_canonical(float128 f, float_status *s);
+/* Returns false if the encoding is invalid. */
+bool floatx80_unpack_canonical(FloatParts128 *p, floatx80 f, float_status *s);
+
+/*
+ * Pack routines to a specific floating-point format.
+ */
+
+float8_e4m3 float8_e4m3_round_pack_canonical(FloatParts64 *p, float_status *s,
+                                             bool saturate);
+float8_e5m2 float8_e5m2_round_pack_canonical(FloatParts64 *p, float_status *s,
+                                             bool saturate);
+float16 float16_round_pack_canonical(FloatParts64 *p, float_status *s);
+bfloat16 bfloat16_round_pack_canonical(FloatParts64 *p, float_status *s);
+float32 float32_round_pack_canonical(FloatParts64 *p, float_status *s);
+float64 float64_round_pack_canonical(FloatParts64 *p, float_status *s);
+float128 float128_round_pack_canonical(FloatParts128 *p, float_status *s);
+floatx80 floatx80_round_pack_canonical(FloatParts128 *p, float_status *s);
+
 #endif
