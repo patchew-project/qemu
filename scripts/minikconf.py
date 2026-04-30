@@ -666,7 +666,7 @@ class KconfigParser:
 
         return None
 
-if __name__ == '__main__':
+def main() -> None:
     argv = sys.argv
     mode = defconfig
     if len(sys.argv) > 1:
@@ -712,3 +712,6 @@ if __name__ == '__main__':
     for fname in data.previously_included:
         print ('%s: %s' % (argv[1], fname), file=deps)
     deps.close()
+
+if __name__ == '__main__':
+    main()
