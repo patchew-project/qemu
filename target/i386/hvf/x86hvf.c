@@ -405,9 +405,9 @@ bool hvf_inject_interrupts(CPUState *cs)
         }
     }
 
-    if (!(env->hflags & HF_INHIBIT_IRQ_MASK) &&
+    if (x86_cpu_interrupts_enabled(env) &&
         cpu_test_interrupt(cs, CPU_INTERRUPT_HARD) &&
-        (env->eflags & IF_MASK) && !(info & VMCS_INTR_VALID)) {
+        !(info & VMCS_INTR_VALID)) {
         int line = cpu_get_pic_interrupt(env);
         cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
         if (line >= 0) {

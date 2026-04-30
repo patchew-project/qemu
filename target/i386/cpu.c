@@ -10617,14 +10617,12 @@ int x86_cpu_pending_interrupt(CPUState *cs, int interrupt_request)
                    (((env->hflags2 & HF2_VINTR_MASK) &&
                      (env->hflags2 & HF2_HIF_MASK)) ||
                     (!(env->hflags2 & HF2_VINTR_MASK) &&
-                     (env->eflags & IF_MASK &&
-                      !(env->hflags & HF_INHIBIT_IRQ_MASK))))) {
+                     x86_cpu_interrupts_enabled(env)))) {
             return CPU_INTERRUPT_HARD;
         } else if (env->hflags2 & HF2_VGIF_MASK) {
-            if((interrupt_request & CPU_INTERRUPT_VIRQ) &&
-                   (env->eflags & IF_MASK) &&
-                   !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
-                        return CPU_INTERRUPT_VIRQ;
+            if ((interrupt_request & CPU_INTERRUPT_VIRQ) &&
+                x86_cpu_interrupts_enabled(env)) {
+                return CPU_INTERRUPT_VIRQ;
             }
         }
     }

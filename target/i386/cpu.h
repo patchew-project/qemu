@@ -225,6 +225,7 @@ typedef enum X86Seg {
 #define HF2_NPT_SHIFT            6 /* Nested Paging enabled */
 #define HF2_IGNNE_SHIFT          7 /* Ignore CR0.NE=0 */
 #define HF2_VGIF_SHIFT           8 /* Can take VIRQ*/
+#define HF2_HYPERV_HLT_SHIFT     9 /* Hyper-V HV_X64_MSR_GUEST_IDLE */
 
 #define HF2_GIF_MASK            (1 << HF2_GIF_SHIFT)
 #define HF2_HIF_MASK            (1 << HF2_HIF_SHIFT)
@@ -235,6 +236,7 @@ typedef enum X86Seg {
 #define HF2_NPT_MASK            (1 << HF2_NPT_SHIFT)
 #define HF2_IGNNE_MASK          (1 << HF2_IGNNE_SHIFT)
 #define HF2_VGIF_MASK           (1 << HF2_VGIF_SHIFT)
+#define HF2_HYPERV_HLT_MASK     (1 << HF2_HYPERV_HLT_SHIFT)
 
 #define CR0_PE_SHIFT 0
 #define CR0_MP_SHIFT 1
@@ -3083,6 +3085,13 @@ static inline bool ctl_has_irq(CPUX86State *env)
     }
 
     return (env->int_ctl & V_IRQ_MASK) && (int_prio >= tpr);
+}
+
+static inline bool x86_cpu_interrupts_enabled(CPUX86State *env)
+{
+    return ((env->eflags & IF_MASK) &&
+            !(env->hflags & HF_INHIBIT_IRQ_MASK)) ||
+           (env->hflags2 & HF2_HYPERV_HLT_MASK);
 }
 
 #if defined(TARGET_X86_64) && \
