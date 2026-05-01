@@ -462,6 +462,15 @@ static const struct hvf_reg_match hvf_sme2_preg_match[] = {
     (CP_REG_ARM64 | CP_REG_SIZE_U64 | CP_REG_ARM64_SYSREG | (HVF))
 
 /*
+ * In older SDKs, MDCR_EL2 was defined incorrectly.
+ * As such, override it with a #define if compiling with an older macOS SDK.
+ * https://lore.kernel.org/qemu-devel/BCCED674-EAEF-4755-9BE1-116FB36FB5C9@apple.com/
+ */
+#if !defined(MAC_OS_VERSION_26_0)
+#define HV_SYS_REG_MDCR_EL2 0xe089
+#endif
+
+/*
  * Verify this at compile-time.
  *
  * SME2 registers are guarded by a runtime availability attribute instead of a
