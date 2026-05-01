@@ -175,7 +175,7 @@ static void gd_clipboard_owner_change_targets_received_callback(
 {
     QemuClipboardInfo *info = (QemuClipboardInfo *)data;
 
-    if (n_targets) {
+    if (targets && n_targets > 0) {
         if (gtk_targets_include_text(targets, n_targets)) {
             info->types[QEMU_CLIPBOARD_TYPE_TEXT].available = true;
         }
