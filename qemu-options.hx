@@ -3415,7 +3415,7 @@ SRST
 
     ``smb=dir[,smbserver=addr]``
         When using the user mode network stack, activate a built-in SMB
-        server so that Windows OSes can access to the host files in
+        server so that Windows OSes can access the host files in
         ``dir`` transparently. The IP address of the SMB server can be
         set to addr. By default the 4th IP in the guest network is used,
         i.e. x.x.x.4.
@@ -3424,11 +3424,20 @@ SRST
 
         ::
 
-            10.0.2.4 smbserver
+            10.0.2.4 smbserver #PRE #NOFNR
 
-        must be added in the file ``C:\WINDOWS\LMHOSTS`` (for windows
-        9x/Me) or ``C:\WINNT\SYSTEM32\DRIVERS\ETC\LMHOSTS`` (Windows
-        NT/2000).
+        must be added in the ``LMHOSTS`` file. In this line, ``#PRE``
+        requests pre-caching of the mapping, which speeds up the initial
+        connection on some Windows versions. ``#NOFNR`` is necessary for
+        Windows NT 3.1 to tell it not to send QEMU NBNS query packets that
+        QEMU does not handle, and is harmlessly ignored on other versions.
+
+        The ``LMHOSTS`` file may be in different locations depending on
+        the Windows version:
+
+        -  ``C:\WINDOWS\LMHOSTS`` for Windows 3x/9x/Me
+        -  ``C:\WINNT\SYSTEM32\DRIVERS\ETC\LMHOSTS`` for Windows NT/2000
+        -  ``C:\WINDOWS\SYSTEM32\DRIVERS\ETC\LMHOSTS`` for Windows XP and newer
 
         Then ``dir`` can be accessed in ``\\smbserver\qemu``.
 
