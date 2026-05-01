@@ -84,7 +84,7 @@ int target_mprotect(abi_ulong start, abi_ulong len, int prot)
         return 0;
 
     mmap_lock();
-    host_start = start & qemu_host_page_mask;
+    host_start = start & HOST_PAGE_MASK;
     host_end = HOST_PAGE_ALIGN(end);
     if (start > host_start) {
         /* handle host page containing start */
@@ -92,28 +92,28 @@ int target_mprotect(abi_ulong start, abi_ulong len, int prot)
         for (addr = host_start; addr < start; addr += TARGET_PAGE_SIZE) {
             prot1 |= page_get_flags(addr);
         }
-        if (host_end == host_start + qemu_host_page_size) {
+        if (host_end == host_start + HOST_PAGE_SIZE) {
             for (addr = end; addr < host_end; addr += TARGET_PAGE_SIZE) {
                 prot1 |= page_get_flags(addr);
             }
             end = host_end;
         }
         ret = mprotect(g2h_untagged(host_start),
-                       qemu_host_page_size, prot1 & PAGE_RWX);
+                       HOST_PAGE_SIZE, prot1 & PAGE_RWX);
         if (ret != 0)
             goto error;
-        host_start += qemu_host_page_size;
+        host_start += HOST_PAGE_SIZE;
     }
     if (end < host_end) {
         prot1 = prot;
         for (addr = end; addr < host_end; addr += TARGET_PAGE_SIZE) {
             prot1 |= page_get_flags(addr);
         }
-        ret = mprotect(g2h_untagged(host_end - qemu_host_page_size),
-                       qemu_host_page_size, prot1 & PAGE_RWX);
+        ret = mprotect(g2h_untagged(host_end - HOST_PAGE_SIZE),
+                       HOST_PAGE_SIZE, prot1 & PAGE_RWX);
         if (ret != 0)
             goto error;
-        host_end -= qemu_host_page_size;
+        host_end -= HOST_PAGE_SIZE;
     }
 
     /* handle the pages in the middle */
@@ -193,7 +193,7 @@ static int mmap_frag(abi_ulong real_start,
     void *host_start;
     int prot1, prot_new;
 
-    real_end = real_start + qemu_host_page_size;
+    real_end = real_start + HOST_PAGE_SIZE;
     host_start = g2h_untagged(real_start);
 
     /* get the protection of the target pages outside the mapping */
@@ -205,7 +205,7 @@ static int mmap_frag(abi_ulong real_start,
 
     if (prot1 == 0) {
         /* no page was there, so we allocate one. See also above. */
-        void *p = mmap(host_start, qemu_host_page_size, prot,
+        void *p = mmap(host_start, HOST_PAGE_SIZE, prot,
                        flags | ((fd != -1) ? MAP_ANON : 0), -1, 0);
         if (p == MAP_FAILED)
             return -1;
@@ -223,7 +223,7 @@ static int mmap_frag(abi_ulong real_start,
 
         /* adjust protection to be able to read */
         if (!(prot1 & PROT_WRITE))
-            mprotect(host_start, qemu_host_page_size, prot1 | PROT_WRITE);
+            mprotect(host_start, HOST_PAGE_SIZE, prot1 | PROT_WRITE);
 
         /* read the corresponding file data */
         if (!mmap_pread(fd, g2h_untagged(start), end - start, offset, true)) {
@@ -232,10 +232,10 @@ static int mmap_frag(abi_ulong real_start,
 
         /* put final protection */
         if (prot_new != (prot1 | PROT_WRITE))
-            mprotect(host_start, qemu_host_page_size, prot_new);
+            mprotect(host_start, HOST_PAGE_SIZE, prot_new);
     } else {
         if (prot_new != prot1) {
-            mprotect(host_start, qemu_host_page_size, prot_new);
+            mprotect(host_start, HOST_PAGE_SIZE, prot_new);
         }
         if (prot_new & PROT_WRITE) {
             memset(g2h_untagged(start), 0, end - start);
@@ -289,7 +289,7 @@ abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size, abi_ulong alignment)
     if (start == 0) {
         start = mmap_next_start;
     } else {
-        start &= qemu_host_page_mask;
+        start &= HOST_PAGE_MASK;
     }
 
     size = HOST_PAGE_ALIGN(size);
@@ -297,7 +297,7 @@ abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size, abi_ulong alignment)
     if (reserved_va) {
         return mmap_find_vma_reserved(start, size,
             (alignment != 0 ? 1 << alignment :
-             MAX(qemu_host_page_size, TARGET_PAGE_SIZE)));
+             MAX(HOST_PAGE_SIZE, TARGET_PAGE_SIZE)));
     }
 
     addr = start;
@@ -478,8 +478,8 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
         goto fail;
     }
 
-    real_start = start & qemu_host_page_mask;
-    host_offset = offset & qemu_host_page_mask;
+    real_start = start & HOST_PAGE_MASK;
+    host_offset = offset & HOST_PAGE_MASK;
 
     /*
      * If the user is asking for the kernel to find a location, do that
@@ -498,38 +498,6 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
         }
     }
 
-    /*
-     * When mapping files into a memory area larger than the file, accesses
-     * to pages beyond the file size will cause a SIGBUS.
-     *
-     * For example, if mmaping a file of 100 bytes on a host with 4K pages
-     * emulating a target with 8K pages, the target expects to be able to
-     * access the first 8K. But the host will trap us on any access beyond
-     * 4K.
-     *
-     * When emulating a target with a larger page-size than the hosts, we
-     * may need to truncate file maps at EOF and add extra anonymous pages
-     * up to the targets page boundary.
-     */
-
-    if ((qemu_real_host_page_size() < qemu_host_page_size) && fd != -1) {
-        struct stat sb;
-
-        if (fstat(fd, &sb) == -1) {
-            goto fail;
-        }
-
-        /* Are we trying to create a map beyond EOF?.  */
-        if (offset + len > sb.st_size) {
-            /*
-             * If so, truncate the file map at eof aligned with
-             * the hosts real pagesize. Additional anonymous maps
-             * will be created beyond EOF.
-             */
-            len = REAL_HOST_PAGE_ALIGN(sb.st_size - offset);
-        }
-    }
-
     if (!(flags & MAP_FIXED)) {
         unsigned long host_start;
         void *p;
@@ -539,8 +507,8 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
 
         /*
          * Note: we prefer to control the mapping address. It is
-         * especially important if qemu_host_page_size >
-         * qemu_real_host_page_size
+         * especially important if HOST_PAGE_SIZE >
+         * TARGET_PAGE_SIZE
          */
         p = mmap(g2h_untagged(start), host_len, prot,
                  flags | MAP_FIXED | ((fd != -1) ? MAP_ANON : 0), -1, 0);
@@ -581,7 +549,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
          * aligned, so we read it
          */
         if (fd != -1 &&
-            (offset & ~qemu_host_page_mask) != (start & ~qemu_host_page_mask)) {
+            (offset & ~HOST_PAGE_MASK) != (start & ~HOST_PAGE_MASK)) {
             /*
              * msync() won't work here, so we return an error if write is
              * possible while it is a shared mapping
@@ -614,7 +582,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
 
         /* handle the start of the mapping */
         if (start > real_start) {
-            if (real_end == real_start + qemu_host_page_size) {
+            if (real_end == real_start + HOST_PAGE_SIZE) {
                 /* one single host page */
                 ret = mmap_frag(real_start, start, end,
                                 prot, flags, fd, offset);
@@ -622,21 +590,21 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
                     goto fail;
                 goto the_end1;
             }
-            ret = mmap_frag(real_start, start, real_start + qemu_host_page_size,
+            ret = mmap_frag(real_start, start, real_start + HOST_PAGE_SIZE,
                             prot, flags, fd, offset);
             if (ret == -1)
                 goto fail;
-            real_start += qemu_host_page_size;
+            real_start += HOST_PAGE_SIZE;
         }
         /* handle the end of the mapping */
         if (end < real_end) {
-            ret = mmap_frag(real_end - qemu_host_page_size,
-                            real_end - qemu_host_page_size, end,
+            ret = mmap_frag(real_end - HOST_PAGE_SIZE,
+                            real_end - HOST_PAGE_SIZE, end,
                             prot, flags, fd,
-                            offset + real_end - qemu_host_page_size - start);
+                            offset + real_end - HOST_PAGE_SIZE - start);
             if (ret == -1)
                 goto fail;
-            real_end -= qemu_host_page_size;
+            real_end -= HOST_PAGE_SIZE;
         }
 
         /* map the middle (easier) */
@@ -676,7 +644,7 @@ void mmap_reserve(abi_ulong start, abi_ulong size)
     abi_ulong end;
     int prot;
 
-    real_start = start & qemu_host_page_mask;
+    real_start = start & HOST_PAGE_MASK;
     real_end = HOST_PAGE_ALIGN(start + size);
     end = start + size;
     if (start > real_start) {
@@ -685,14 +653,14 @@ void mmap_reserve(abi_ulong start, abi_ulong size)
         for (addr = real_start; addr < start; addr += TARGET_PAGE_SIZE) {
             prot |= page_get_flags(addr);
         }
-        if (real_end == real_start + qemu_host_page_size) {
+        if (real_end == real_start + HOST_PAGE_SIZE) {
             for (addr = end; addr < real_end; addr += TARGET_PAGE_SIZE) {
                 prot |= page_get_flags(addr);
             }
             end = real_end;
         }
         if (prot != 0) {
-            real_start += qemu_host_page_size;
+            real_start += HOST_PAGE_SIZE;
         }
     }
     if (end < real_end) {
@@ -701,7 +669,7 @@ void mmap_reserve(abi_ulong start, abi_ulong size)
             prot |= page_get_flags(addr);
         }
         if (prot != 0) {
-            real_end -= qemu_host_page_size;
+            real_end -= HOST_PAGE_SIZE;
         }
     }
     if (real_start != real_end) {
@@ -727,7 +695,7 @@ int target_munmap(abi_ulong start, abi_ulong len)
         return -EINVAL;
     mmap_lock();
     end = start + len;
-    real_start = start & qemu_host_page_mask;
+    real_start = start & HOST_PAGE_MASK;
     real_end = HOST_PAGE_ALIGN(end);
 
     if (start > real_start) {
@@ -736,14 +704,14 @@ int target_munmap(abi_ulong start, abi_ulong len)
         for (addr = real_start; addr < start; addr += TARGET_PAGE_SIZE) {
             prot |= page_get_flags(addr);
         }
-        if (real_end == real_start + qemu_host_page_size) {
+        if (real_end == real_start + HOST_PAGE_SIZE) {
             for (addr = end; addr < real_end; addr += TARGET_PAGE_SIZE) {
                 prot |= page_get_flags(addr);
             }
             end = real_end;
         }
         if (prot != 0)
-            real_start += qemu_host_page_size;
+            real_start += HOST_PAGE_SIZE;
     }
     if (end < real_end) {
         prot = 0;
@@ -751,7 +719,7 @@ int target_munmap(abi_ulong start, abi_ulong len)
             prot |= page_get_flags(addr);
         }
         if (prot != 0)
-            real_end -= qemu_host_page_size;
+            real_end -= HOST_PAGE_SIZE;
     }
 
     ret = 0;
@@ -784,6 +752,6 @@ int target_msync(abi_ulong start, abi_ulong len, int flags)
     if (end == start)
         return 0;
 
-    start &= qemu_host_page_mask;
+    start &= HOST_PAGE_MASK;
     return msync(g2h_untagged(start), end - start, flags);
 }
