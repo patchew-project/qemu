@@ -98,6 +98,10 @@ struct PCIDevice {
     MemoryRegion bus_master_container_region;
     MemoryRegion bus_master_enable_region;
 
+    /* DMA statistics */
+    uint64_t dma_rbytes;
+    uint64_t dma_wbytes;
+
     /* do not access the following fields */
     PCIConfigReadFunc *config_read;
     PCIConfigWriteFunc *config_write;

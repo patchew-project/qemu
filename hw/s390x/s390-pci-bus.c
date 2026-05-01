@@ -20,6 +20,7 @@
 #include "hw/s390x/s390-pci-kvm.h"
 #include "hw/s390x/s390-pci-vfio.h"
 #include "hw/s390x/s390-virtio-ccw.h"
+#include "hw/virtio/virtio-pci.h"
 #include "hw/core/boards.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/core/qdev-properties.h"
@@ -1190,6 +1191,12 @@ static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
             pbdev->interp = false;
             pbdev->forwarding_assist = false;
             pbdev->rtr_avail = false;
+        }
+
+        if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_PCI)) {
+            VirtIOPCIProxy *virtio_proxy = VIRTIO_PCI(pbdev->pdev);
+            VirtIODevice *vdev = virtio_bus_get_device(&virtio_proxy->bus);
+            vdev->dma_owner = OBJECT(virtio_proxy);
         }
 
         if (s390_pci_msix_init(pbdev) && !pbdev->interp) {

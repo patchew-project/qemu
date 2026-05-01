@@ -24,6 +24,7 @@
 #include "qom/object_interfaces.h"
 #include "hw/core/cpu.h"
 #include "hw/virtio/virtio.h"
+#include "hw/virtio/virtio-pci.h"
 #include "hw/virtio/vhost.h"
 #include "migration/qemu-file-types.h"
 #include "qemu/atomic.h"
@@ -1617,8 +1618,15 @@ static bool virtqueue_map_desc(VirtIODevice *vdev, unsigned int *p_num_sg,
                                hwaddr pa, size_t sz)
 {
     bool ok = false;
+    PCIDevice *pdev = NULL;
     unsigned num_sg = *p_num_sg;
     assert(num_sg <= max_num_sg);
+
+    if (vdev->dma_owner &&
+        object_dynamic_cast(vdev->dma_owner, TYPE_VIRTIO_PCI)) {
+        VirtIOPCIProxy *proxy = VIRTIO_PCI(vdev->dma_owner);
+        pdev = &proxy->pci_dev;
+    }
 
     if (!sz) {
         virtio_error(vdev, "virtio: zero sized buffers are not allowed");
@@ -1650,6 +1658,14 @@ static bool virtqueue_map_desc(VirtIODevice *vdev, unsigned int *p_num_sg,
         sz -= len;
         pa += len;
         num_sg++;
+
+        if (pdev) {
+            if (is_write) {
+                pdev->dma_wbytes += len;
+            } else {
+                pdev->dma_rbytes += len;
+            }
+        }
     }
     ok = true;
 
