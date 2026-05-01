@@ -308,7 +308,7 @@ typedef struct ZpciFmbFmt0 {
 #define ZPCI_FMB_CNT_RPCIT 3
 #define ZPCI_FMB_CNT_MAX   4
 
-#define ZPCI_FMB_FORMAT    0
+#define ZPCI_FMB_DEFAULT_FORMAT     0
 
 typedef struct ZpciFmb {
     uint32_t format;

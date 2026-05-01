@@ -1486,7 +1486,13 @@ static void s390_pci_device_realize(DeviceState *dev, Error **errp)
     }
 
     zpci->state = ZPCI_FS_RESERVED;
-    zpci->fmb.format = ZPCI_FMB_FORMAT;
+
+    /*
+     * For emulated devices, we use FMB format-0. For PCI passthrough
+     * devices paired with a compatible kernel, this will get overwritten
+     * by the VFIO-provided FMB.
+     */
+    zpci->fmb.format = ZPCI_FMB_DEFAULT_FORMAT;
 }
 
 static void s390_pci_device_reset(DeviceState *dev)
