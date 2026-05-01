@@ -302,6 +302,22 @@ typedef struct ZpciFmbFmt0 {
     uint64_t dma_wbytes;
 } ZpciFmbFmt0;
 
+typedef struct ZpciFmbFmt1 {
+    uint64_t rx_bytes;
+    uint64_t rx_packets;
+    uint64_t tx_bytes;
+    uint64_t tx_packets;
+} ZpciFmbFmt1;
+
+typedef struct ZpciFmbFmt2 {
+    uint64_t consumed_work_units;
+    uint64_t max_work_units;
+} ZpciFmbFmt2;
+
+typedef struct ZpciFmbFmt3 {
+    uint64_t tx_bytes;
+} ZpciFmbFmt3;
+
 #define ZPCI_FMB_CNT_LD    0
 #define ZPCI_FMB_CNT_ST    1
 #define ZPCI_FMB_CNT_STB   2
@@ -309,13 +325,21 @@ typedef struct ZpciFmbFmt0 {
 #define ZPCI_FMB_CNT_MAX   4
 
 #define ZPCI_FMB_DEFAULT_FORMAT     0
+#define ZPCI_FMB_COMMON_SIZE        48
+#define ZPCI_FMB_FORMAT(f)          ((f >> 24) & 0xFF)
+#define ZPCI_FMB_DMA_COUNTER_VALID  (1 << 23)
 
 typedef struct ZpciFmb {
     uint32_t format;
     uint32_t sample;
     uint64_t last_update;
     uint64_t counter[ZPCI_FMB_CNT_MAX];
-    ZpciFmbFmt0 fmt0;
+    union {
+        ZpciFmbFmt0 fmt0;
+        ZpciFmbFmt1 fmt1;
+        ZpciFmbFmt2 fmt2;
+        ZpciFmbFmt3 fmt3;
+    };
 } ZpciFmb;
 QEMU_BUILD_BUG_MSG(offsetof(ZpciFmb, fmt0) != 48, "padding in ZpciFmb");
 
@@ -364,6 +388,7 @@ struct S390PCIBusDevice {
     bool forwarding_assist;
     bool aif;
     bool rtr_avail;
+    bool has_vfio_fmb;
     QTAILQ_ENTRY(S390PCIBusDevice) link;
 };
 

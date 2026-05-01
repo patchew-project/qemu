@@ -20,5 +20,9 @@ S390PCIDMACount *s390_pci_start_dma_count(S390pciState *s,
 void s390_pci_end_dma_count(S390pciState *s, S390PCIDMACount *cnt);
 bool s390_pci_get_host_fh(S390PCIBusDevice *pbdev, uint32_t *fh);
 void s390_pci_get_clp_info(S390PCIBusDevice *pbdev);
+void s390_pci_get_fmb_info(S390PCIBusDevice *pbdev);
+void s390_pci_update_vfio_fmb(S390PCIBusDevice *pbdev);
+void s390_pci_disable_vfio_fmb(S390PCIBusDevice *pbdev);
+void s390_pci_enable_vfio_fmb(S390PCIBusDevice *pbdev);
 
 #endif

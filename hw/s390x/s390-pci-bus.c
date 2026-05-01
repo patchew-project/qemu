@@ -1185,6 +1185,8 @@ static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
                 pbdev->shutdown_notifier.notify = s390_pci_shutdown_notifier;
                 qemu_register_shutdown_notifier(&pbdev->shutdown_notifier);
             }
+            /* Detect VFIO FMB passthrough */
+            s390_pci_get_fmb_info(pbdev);
         } else {
             pbdev->fh |= FH_SHM_EMUL;
             /* Always intercept emulated devices */

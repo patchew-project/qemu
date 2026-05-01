@@ -1313,7 +1313,14 @@ int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar,
         if (!fmb_addr) {
             /* Stop updating FMB. */
             fmb_timer_free(pbdev);
+            if (pbdev->has_vfio_fmb) {
+                s390_pci_disable_vfio_fmb(pbdev);
+            }
             break;
+        }
+
+        if (pbdev->has_vfio_fmb) {
+            s390_pci_enable_vfio_fmb(pbdev);
         }
 
         if (!pbdev->fmb_timer) {

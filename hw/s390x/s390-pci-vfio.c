@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 
 #include <sys/ioctl.h>
 #include <linux/vfio.h>
@@ -110,7 +111,6 @@ static void s390_pci_read_base(S390PCIBusDevice *pbdev,
     struct vfio_info_cap_header *hdr;
     struct vfio_device_info_cap_zpci_base *cap;
     VFIOPCIDevice *vpci = VFIO_PCI_DEVICE(pbdev->pdev);
-    uint64_t vfio_size;
 
     hdr = vfio_get_device_info_cap(info, VFIO_DEVICE_INFO_CAP_ZPCI_BASE);
 
@@ -139,22 +139,6 @@ static void s390_pci_read_base(S390PCIBusDevice *pbdev,
      */
     if (pbdev->pft == ZPCI_PFT_ISM) {
         pbdev->rtr_avail = false;
-    }
-
-    /*
-     * If appropriate, reduce the size of the supported DMA aperture reported
-     * to the guest based upon the vfio DMA limit.  This is applicable for
-     * devices that are guaranteed to not use relaxed translation.  If the
-     * device is capable of relaxed translation then we must advertise the
-     * full aperture.  In this case, if translation is used then we will
-     * rely on the vfio DMA limit counting and use RPCIT CC1 / status 16
-     * to request that the guest free DMA mappings as necessary.
-     */
-    if (!pbdev->rtr_avail) {
-        vfio_size = pbdev->iommu->max_dma_limit << qemu_target_page_bits();
-        if (vfio_size > 0 && vfio_size < cap->end_dma - cap->start_dma + 1) {
-            pbdev->zpci_fn.edma = cap->start_dma + vfio_size - 1;
-        }
     }
 }
 
@@ -248,7 +232,7 @@ static void s390_pci_read_group(S390PCIBusDevice *pbdev,
         }
         resgrp->dasm = cap->dasm;
         resgrp->msia = cap->msi_addr;
-        resgrp->mui = cap->mui;
+        resgrp->mui = cap->mui > DEFAULT_MUI ? cap->mui : DEFAULT_MUI;
         resgrp->i = cap->noi;
         if (pbdev->interp && hdr->version >= 2) {
             resgrp->maxstbl = cap->imaxstbl;
@@ -369,4 +353,112 @@ void s390_pci_get_clp_info(S390PCIBusDevice *pbdev)
     s390_pci_read_group(pbdev, info);
     s390_pci_read_util(pbdev, info);
     s390_pci_read_pfip(pbdev, info);
+}
+
+void s390_pci_get_fmb_info(S390PCIBusDevice *pbdev)
+{
+    VFIOPCIDevice *vpdev = VFIO_PCI_DEVICE(pbdev->pdev);
+    int fd = vpdev->vbasedev.fd;
+    int ret;
+    struct vfio_device_feature probe = {
+        .argsz = sizeof(probe),
+        .flags = VFIO_DEVICE_FEATURE_PROBE | VFIO_DEVICE_FEATURE_ZPCI_FMB
+    };
+
+    ret = ioctl(fd, VFIO_DEVICE_FEATURE, &probe);
+    pbdev->has_vfio_fmb = !ret;
+}
+
+static void s390_pci_set_vfio_fmb(S390PCIBusDevice *pbdev, int enabled)
+{
+    VFIOPCIDevice *vpdev = VFIO_PCI_DEVICE(pbdev->pdev);
+    size_t size = sizeof(struct vfio_device_feature_zpci_fmb)
+        + sizeof(struct vfio_device_feature);
+    g_autofree struct vfio_device_feature *set = g_malloc(size);
+    struct vfio_device_feature_zpci_fmb *set_fmb;
+
+    set->argsz = size;
+    set->flags = VFIO_DEVICE_FEATURE_SET | VFIO_DEVICE_FEATURE_ZPCI_FMB;
+    set_fmb = (struct vfio_device_feature_zpci_fmb *) set->data;
+    if (enabled) {
+        set_fmb->flags |= VFIO_DEVICE_FEATURE_ZPCI_FMB_FLAGS_ENABLED;
+    } else {
+        set_fmb->flags &= ~VFIO_DEVICE_FEATURE_ZPCI_FMB_FLAGS_ENABLED;
+    }
+    ioctl(vpdev->vbasedev.fd, VFIO_DEVICE_FEATURE, set);
+}
+
+void s390_pci_enable_vfio_fmb(S390PCIBusDevice *pbdev)
+{
+    s390_pci_set_vfio_fmb(pbdev, 1);
+}
+
+void s390_pci_disable_vfio_fmb(S390PCIBusDevice *pbdev)
+{
+    s390_pci_set_vfio_fmb(pbdev, 0);
+}
+
+void s390_pci_update_vfio_fmb(S390PCIBusDevice *pbdev)
+{
+    VFIOPCIDevice *vpdev = VFIO_PCI_DEVICE(pbdev->pdev);
+    size_t size = sizeof(struct vfio_device_feature_zpci_fmb)
+        + sizeof(struct vfio_device_feature);
+    g_autofree struct vfio_device_feature *get = g_malloc(size);
+    struct vfio_device_feature_zpci_fmb *get_fmb;
+    ZpciFmb fmb;
+    int ret;
+    MemTxResult memtx_ret;
+
+    get->argsz = size;
+    get->flags = VFIO_DEVICE_FEATURE_GET | VFIO_DEVICE_FEATURE_ZPCI_FMB;
+    ret = ioctl(vpdev->vbasedev.fd, VFIO_DEVICE_FEATURE, get);
+    if (ret < 0) {
+        return;
+    }
+
+    get_fmb = (struct vfio_device_feature_zpci_fmb *) get->data;
+    if (!get_fmb->flags & VFIO_DEVICE_FEATURE_ZPCI_FMB_FLAGS_ENABLED) {
+        error_report_once("s390-pci-vfio: FMB is disabled on the host device.");
+        return;
+    }
+    fmb.format = (get_fmb->format << 24) | get_fmb->fmt_ind;
+    fmb.sample = get_fmb->samples;
+    fmb.last_update = get_fmb->last_update;
+    fmb.counter[ZPCI_FMB_CNT_LD] = get_fmb->ld_ops;
+    fmb.counter[ZPCI_FMB_CNT_ST] = get_fmb->st_ops;
+    fmb.counter[ZPCI_FMB_CNT_STB] = get_fmb->stb_ops;
+    fmb.counter[ZPCI_FMB_CNT_RPCIT] = get_fmb->rpcit_ops;
+
+    switch (get_fmb->format) {
+    case 0:
+        fmb.fmt0.dma_rbytes = get_fmb->fmt0.dma_rbytes;
+        fmb.fmt0.dma_wbytes = get_fmb->fmt0.dma_wbytes;
+        break;
+    case 1:
+        fmb.fmt1.rx_bytes = get_fmb->fmt1.rx_bytes;
+        fmb.fmt1.rx_packets = get_fmb->fmt1.rx_packets;
+        fmb.fmt1.tx_bytes = get_fmb->fmt1.tx_bytes;
+        fmb.fmt1.tx_packets = get_fmb->fmt1.tx_packets;
+        break;
+    case 2:
+        fmb.fmt2.consumed_work_units = get_fmb->fmt2.consumed_work_units;
+        fmb.fmt2.max_work_units = get_fmb->fmt2.max_work_units;
+        break;
+    case 3:
+        fmb.fmt3.tx_bytes = get_fmb->fmt3.tx_bytes;
+        break;
+    }
+
+    for (int i = 0; i < ZPCI_FMB_CNT_MAX; i++) {
+        fmb.counter[i] += pbdev->fmb.counter[i];
+    }
+
+    for (int i = 0; i < pbdev->zpci_fn.fmbl >> 2; i++) {
+        address_space_stl_be(&address_space_memory, pbdev->fmb_addr + (i << 2),
+            ((uint32_t *) &fmb)[i], MEMTXATTRS_UNSPECIFIED, &memtx_ret);
+
+        if (memtx_ret != MEMTX_OK) {
+            break;
+        }
+    }
 }
