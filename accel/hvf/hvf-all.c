@@ -25,6 +25,7 @@
 bool hvf_allowed;
 bool hvf_kernel_irqchip;
 bool hvf_nested_virt;
+bool hvf_kernel_irqchip_override;
 
 void hvf_nested_virt_enable(bool nested_virt)
 {
@@ -204,6 +205,13 @@ static int hvf_accel_init(AccelState *as, MachineState *ms)
         }
     }
 
+    if (mc->get_kernel_irqchip_default) {
+        bool kernel_irqchip_default = mc->get_kernel_irqchip_default(ms);
+        if (!hvf_kernel_irqchip_override) {
+            hvf_kernel_irqchip = kernel_irqchip_default;
+        }
+    }
+
     ret = hvf_arch_vm_create(ms, (uint32_t)pa_range);
     if (ret == HV_DENIED) {
         error_report("Could not access HVF. Is the executable signed"
@@ -230,6 +238,8 @@ static void hvf_set_kernel_irqchip(Object *obj, Visitor *v,
                                    Error **errp)
 {
     OnOffSplit mode;
+
+    hvf_kernel_irqchip_override = true;
     if (!visit_type_OnOffSplit(v, name, &mode, errp)) {
         return;
     }
@@ -269,6 +279,7 @@ static void hvf_accel_class_init(ObjectClass *oc, const void *data)
     ac->init_machine = hvf_accel_init;
     ac->allowed = &hvf_allowed;
     ac->gdbstub_supported_sstep_flags = hvf_gdbstub_sstep_flags;
+    hvf_kernel_irqchip_override = false;
     hvf_kernel_irqchip = false;
     object_class_property_add(oc, "kernel-irqchip", "on|off|split",
         NULL, hvf_set_kernel_irqchip,
