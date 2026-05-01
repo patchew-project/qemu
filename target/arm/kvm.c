@@ -273,7 +273,7 @@ static uint32_t kvm_arm_sve_get_vls(int fd)
     return vls[0] & MAKE_64BIT_MASK(0, ARM_MAX_VQ);
 }
 
-static bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
+static void kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
 {
     /* Identify the feature bits corresponding to the host CPU, and
      * fill out the ARMHostCPUClass fields accordingly. To do this
@@ -286,6 +286,13 @@ static bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
     bool pmu_supported = false;
     uint64_t features = 0;
     int err;
+
+    ahcf->target = QEMU_KVM_ARM_TARGET_NONE;
+    ahcf->dtb_compatible = "arm,armv8";
+
+    if (!kvm_enabled()) {
+        return;
+    }
 
     /*
      * target = -1 informs kvm_arm_create_scratch_host_vcpu()
@@ -326,11 +333,9 @@ static bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
     }
 
     if (!kvm_arm_create_scratch_host_vcpu(fdarray, &init)) {
-        return false;
+        return;
     }
 
-    ahcf->target = init.target;
-    ahcf->dtb_compatible = "arm,armv8";
     int fd = fdarray[2];
 
     err = get_host_cpu_reg(fd, ahcf, ID_AA64PFR0_EL1_IDX);
@@ -454,7 +459,7 @@ static bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
     kvm_arm_destroy_scratch_host_vcpu(fdarray);
 
     if (err < 0) {
-        return false;
+        return;
     }
 
     /*
@@ -471,9 +476,8 @@ static bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
         features |= 1ULL << ARM_FEATURE_EL2;
     }
 
+    ahcf->target = init.target;
     ahcf->features = features;
-
-    return true;
 }
 
 void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu)
@@ -481,18 +485,20 @@ void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu)
     CPUARMState *env = &cpu->env;
 
     if (!arm_host_cpu_features.dtb_compatible) {
-        if (!kvm_enabled() ||
-            !kvm_arm_get_host_cpu_features(&arm_host_cpu_features)) {
-            /* We can't report this error yet, so flag that we need to
-             * in arm_cpu_realizefn().
-             */
-            cpu->kvm_target = QEMU_KVM_ARM_TARGET_NONE;
-            cpu->host_cpu_probe_failed = true;
-            return;
-        }
+        kvm_arm_get_host_cpu_features(&arm_host_cpu_features);
     }
 
     cpu->kvm_target = arm_host_cpu_features.target;
+
+    if (cpu->kvm_target == QEMU_KVM_ARM_TARGET_NONE) {
+        /*
+         * We can't report this error yet, so flag that we need to
+         * in arm_cpu_realizefn().
+         */
+        cpu->host_cpu_probe_failed = true;
+        return;
+    }
+
     cpu->dtb_compatible = arm_host_cpu_features.dtb_compatible;
     cpu->isar = arm_host_cpu_features.isar;
     cpu->sve_vq.supported = arm_host_cpu_features.sve_vq_supported;
