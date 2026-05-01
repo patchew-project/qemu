@@ -127,9 +127,8 @@ static void s390_pci_read_base(S390PCIBusDevice *pbdev,
     pbdev->zpci_fn.pchid = cap->pchid;
     pbdev->zpci_fn.vfn = cap->vfn;
     pbdev->zpci_fn.pfgid = cap->gid;
-    /* The following values remain 0 until we support other FMB formats */
-    pbdev->zpci_fn.fmbl = 0;
-    pbdev->zpci_fn.pft = 0;
+    pbdev->zpci_fn.fmbl = cap->fmb_length;
+    pbdev->zpci_fn.pft = cap->pft;
     /* Store function type separately for type-specific behavior */
     pbdev->pft = cap->pft;
 

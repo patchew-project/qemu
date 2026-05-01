@@ -20,6 +20,7 @@
 #include "system/hw_accel.h"
 #include "hw/core/boards.h"
 #include "hw/pci/pci_device.h"
+#include "hw/vfio/pci.h"
 #include "hw/s390x/s390-pci-inst.h"
 #include "hw/s390x/s390-pci-bus.h"
 #include "hw/s390x/s390-pci-kvm.h"
@@ -296,8 +297,13 @@ int clp_service_call(S390CPU *cpu, uint8_t r2, uintptr_t ra)
         stw_be_p(&resquery->vfn, pbdev->zpci_fn.vfn);
         resquery->flags = pbdev->zpci_fn.flags;
         resquery->pfgid = pbdev->zpci_fn.pfgid;
-        resquery->pft = pbdev->zpci_fn.pft;
-        resquery->fmbl = pbdev->zpci_fn.fmbl;
+        if (pbdev->has_vfio_fmb) {
+            resquery->pft = pbdev->zpci_fn.pft;
+            resquery->fmbl = pbdev->zpci_fn.fmbl >> 2;
+        } else {
+            resquery->pft = 0;
+            resquery->fmbl = 0;
+        }
         stl_be_p(&resquery->fid, pbdev->zpci_fn.fid);
         stl_be_p(&resquery->uid, pbdev->zpci_fn.uid);
         memcpy(resquery->pfip, pbdev->zpci_fn.pfip, CLP_PFIP_NR_SEGMENTS);
@@ -1096,6 +1102,9 @@ static void fmb_update(void *opaque)
 {
     S390PCIBusDevice *pbdev = opaque;
     int64_t t = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
+    VFIOPCIDevice *vpdev;
+    PCIDevice *pci = pbdev->pdev;
+    uint8_t format = ZPCI_FMB_FORMAT(pbdev->fmb.format);
     int i;
 
     /* Update U bit */
@@ -1107,6 +1116,48 @@ static void fmb_update(void *opaque)
         return;
     }
 
+    /* Check for VFIO device */
+    vpdev = (VFIOPCIDevice *) object_dynamic_cast(OBJECT(pbdev->pdev),
+        TYPE_VFIO_PCI_DEVICE);
+
+    if (vpdev && pbdev->has_vfio_fmb) {
+        s390_pci_update_vfio_fmb(pbdev);
+        goto update_timer;
+    }
+
+    /* Update FMB format-specific counters */
+    switch (format) {
+    case 0:
+        if (pci->dma_rbytes || pci->dma_wbytes) {
+            pbdev->fmb.fmt0.dma_rbytes = pci->dma_rbytes;
+            pbdev->fmb.fmt0.dma_wbytes = pci->dma_wbytes;
+            pbdev->fmb.format |= ZPCI_FMB_DMA_COUNTER_VALID;
+        }
+
+        if (fmb_do_update(pbdev,
+            offsetof(ZpciFmbFmt0, dma_rbytes) + offsetof(ZpciFmb, fmt0),
+            pbdev->fmb.fmt0.dma_rbytes,
+            sizeof(pbdev->fmb.fmt0.dma_rbytes))) {
+            return;
+        }
+
+        if (fmb_do_update(pbdev,
+            offsetof(ZpciFmbFmt0, dma_wbytes) + offsetof(ZpciFmb, fmt0),
+            pbdev->fmb.fmt0.dma_wbytes,
+            sizeof(pbdev->fmb.fmt0.dma_wbytes))) {
+            return;
+        }
+    default:
+        break;
+    }
+
+    /* Update format and DMA validity bit */
+    if (fmb_do_update(pbdev, offsetof(ZpciFmb, format),
+                      pbdev->fmb.format,
+                      sizeof(pbdev->fmb.format))) {
+        return;
+    }
+
     /* Update FMB sample count */
     if (fmb_do_update(pbdev, offsetof(ZpciFmb, sample),
                       pbdev->fmb.sample++,
@@ -1114,7 +1165,7 @@ static void fmb_update(void *opaque)
         return;
     }
 
-    /* Update FMB counters */
+    /* Update FMB generic counters */
     for (i = 0; i < ZPCI_FMB_CNT_MAX; i++) {
         if (fmb_do_update(pbdev, offsetof(ZpciFmb, counter[i]),
                           pbdev->fmb.counter[i],
@@ -1123,6 +1174,7 @@ static void fmb_update(void *opaque)
         }
     }
 
+update_timer:
     /* Clear U bit and update the time */
     pbdev->fmb.last_update = time2tod(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
     pbdev->fmb.last_update *= 2;
