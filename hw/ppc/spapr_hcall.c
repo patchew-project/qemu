@@ -1204,6 +1204,15 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
         Error *local_err = NULL;
 
         if (ppc_set_compat_all(cas_pvr, &local_err) < 0) {
+            /*
+             * If KVM rejected the compat mode, do not fallback. This indicates
+             * the host cannot support the requested level.
+             */
+            if (kvm_enabled()) {
+                error_report_err(local_err);
+                return H_HARDWARE;
+            }
+
             /* We fail to set compat mode (likely because running with KVM PR),
              * but maybe we can fallback to raw mode if the guest supports it.
              */
