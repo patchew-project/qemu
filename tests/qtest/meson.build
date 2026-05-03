@@ -156,6 +156,7 @@ qtests_loongarch64 = qtests_filter + \
    'cpu-plug-test']
 
 qtests_m68k = ['boot-serial-test'] + \
+  ['sun3-test'] + \
   qtests_filter
 
 qtests_microblaze = ['boot-serial-test'] + \
