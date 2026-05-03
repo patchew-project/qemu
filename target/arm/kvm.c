@@ -430,10 +430,13 @@ decode_idreg_writemap(Object *obj, int index, uint64_t map, ARM64SysReg *reg)
         char *prop_name;
 
         if (!field) {
-            warn_report("%s bit %d of %s is writable but no named field "
-                        "in target/arm/cpu-sysreg-properties.c",
-                        __func__, i, reg->name);
-            warn_report("%s is target/arm/cpu-sysreg-properties.c up to date?", __func__);
+            if (strcmp(reg->name, "ID_AA64ISAR0_EL1") || i < 24 || i > 27) {
+                warn_report("%s bit %d of %s is writable but no named field "
+                            "in target/arm/cpu-sysreg-properties.c",
+                            __func__, i, reg->name);
+                warn_report("%s is target/arm/cpu-sysreg-properties.c up to date?",
+                            __func__);
+            }
             map =  map & ~BIT_ULL(i);
             i = ctz64(map);
             continue;
