@@ -207,22 +207,22 @@ static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
         break;
     case INPUT_EVENT_KIND_BTN:
         btn = evt->u.btn.data;
-        name = InputButton_str(btn->button);
+        name = btn->button < INPUT_BUTTON__MAX ? InputButton_str(btn->button) : "invalid";
         trace_input_event_btn(idx, name, btn->down);
         break;
     case INPUT_EVENT_KIND_REL:
         move = evt->u.rel.data;
-        name = InputAxis_str(move->axis);
+        name = move->axis < INPUT_AXIS__MAX ? InputAxis_str(move->axis) : "invalid";
         trace_input_event_rel(idx, name, move->value);
         break;
     case INPUT_EVENT_KIND_ABS:
         move = evt->u.abs.data;
-        name = InputAxis_str(move->axis);
+        name = move->axis < INPUT_AXIS__MAX ? InputAxis_str(move->axis) : "invalid";
         trace_input_event_abs(idx, name, move->value);
         break;
     case INPUT_EVENT_KIND_MTT:
         mtt = evt->u.mtt.data;
-        name = InputAxis_str(mtt->axis);
+        name = mtt->axis < INPUT_AXIS__MAX ? InputAxis_str(mtt->axis) : "invalid";
         trace_input_event_mtt(idx, name, mtt->value);
         break;
     case INPUT_EVENT_KIND__MAX:
