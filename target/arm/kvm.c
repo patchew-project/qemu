@@ -472,7 +472,15 @@ void kvm_arm_expose_idreg_properties(ARMCPU *cpu, ARM64SysReg *regs)
                 warn_report("%s: reg %d writable, but not in list of idregs?",
                             __func__, i);
             } else {
-                decode_idreg_writemap(obj, i, mask, &regs[idx]);
+                /*
+                 * special case REVIDR_EL1 and AIDR_EL1 which are writable but
+                 * does not expose named fields. They will need to be handled
+                 * separately
+                 */
+                if (strcmp(regs[idx].name, "REVIDR_EL1") &&
+                    strcmp(regs[idx].name, "AIDR_EL1")) {
+                    decode_idreg_writemap(obj, i, mask, &regs[idx]);
+                }
             }
         }
     }
