@@ -313,7 +313,8 @@ static void escc_soft_reset_chn(ESCCChannelState *s)
 
     s->rregs[R_STATUS] &= STATUS_DCD | STATUS_SYNC | STATUS_CTS | STATUS_BRK;
     s->rregs[R_STATUS] |= STATUS_TXEMPTY | STATUS_TXUNDRN;
-    if (s->disabled) {
+    if (s->disabled || s->parent->force_hw_ready) {
+        /* Force assert to satisfy Sun-3 PROM Flow Control */
         s->rregs[R_STATUS] |= STATUS_DCD | STATUS_SYNC | STATUS_CTS;
     }
     s->rregs[R_SPEC] &= SPEC_ALLSENT;
@@ -653,7 +654,8 @@ static void escc_mem_write(void *opaque, hwaddr addr,
         s->txint = 0;
         escc_update_irq(s);
         s->tx = val;
-        if (s->wregs[W_TXCTRL2] & TXCTRL2_TXEN) { /* tx enabled */
+        if (s->parent->force_hw_ready || (s->wregs[W_TXCTRL2] & TXCTRL2_TXEN)) {
+            /* tx consistently forced enabled for Sun-3 boot PROM hooks */
             if (s->wregs[W_MISC2] & MISC2_LCL_LOOP) {
                 serial_receive_byte(s, s->tx);
             } else if (qemu_chr_fe_backend_connected(&s->chr)) {
@@ -691,6 +693,12 @@ static uint64_t escc_mem_read(void *opaque, hwaddr addr,
     case SERIAL_CTRL:
         trace_escc_mem_readb_ctrl(CHN_C(s), s->reg, s->rregs[s->reg]);
         ret = s->rregs[s->reg];
+        if (s->reg == R_STATUS) {
+            if (serial->force_hw_ready) {
+                ret |= STATUS_DCD | STATUS_SYNC | STATUS_CTS;
+                /* Force Flow Control PINs */
+            }
+        }
         s->reg = 0;
         return ret;
     case SERIAL_DATA:
@@ -715,6 +723,10 @@ static const MemoryRegionOps escc_mem_ops = {
     .write = escc_mem_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
+            .min_access_size = 1,
+            .max_access_size = 4,
+        },
+    .impl = {
         .min_access_size = 1,
         .max_access_size = 1,
     },
@@ -1067,16 +1079,17 @@ static void escc_realize(DeviceState *dev, Error **errp)
     s->chn[0].disabled = s->disabled;
     s->chn[1].disabled = s->disabled;
 
+    uint32_t escc_size = s->mmio_size ? s->mmio_size :\
+                         (ESCC_SIZE << s->it_shift);
     memory_region_init_io(&s->mmio, OBJECT(dev), &escc_mem_ops, s, "escc",
-                          ESCC_SIZE << s->it_shift);
+                        escc_size);
 
     for (i = 0; i < 2; i++) {
-        if (qemu_chr_fe_backend_connected(&s->chn[i].chr)) {
-            s->chn[i].clock = s->frequency / 2;
-            qemu_chr_fe_set_handlers(&s->chn[i].chr, serial_can_receive,
-                                     serial_receive1, serial_event, NULL,
-                                     &s->chn[i], NULL, true);
-        }
+        s->chn[i].parent = s;
+        s->chn[i].clock = s->frequency / 2;
+        qemu_chr_fe_set_handlers(&s->chn[i].chr, serial_can_receive,
+                                 serial_receive1, serial_event, NULL,
+                                 &s->chn[i], NULL, true);
     }
 
     if (s->chn[0].type == escc_mouse) {
@@ -1093,7 +1106,9 @@ static const Property escc_properties[] = {
     DEFINE_PROP_UINT32("frequency", ESCCState, frequency,   0),
     DEFINE_PROP_UINT32("it_shift",  ESCCState, it_shift,    0),
     DEFINE_PROP_BOOL("bit_swap",    ESCCState, bit_swap,    false),
+    DEFINE_PROP_BOOL("force-hw-ready", ESCCState, force_hw_ready, false),
     DEFINE_PROP_UINT32("disabled",  ESCCState, disabled,    0),
+    DEFINE_PROP_UINT32("mmio_size", ESCCState, mmio_size,   0),
     DEFINE_PROP_UINT32("chnBtype",  ESCCState, chn[0].type, 0),
     DEFINE_PROP_UINT32("chnAtype",  ESCCState, chn[1].type, 0),
     DEFINE_PROP_CHR("chrB", ESCCState, chn[0].chr),

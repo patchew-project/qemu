@@ -49,6 +49,7 @@ typedef struct ESCCChannelState {
     int sunmouse_dx;
     int sunmouse_dy;
     int sunmouse_buttons;
+    ESCCState *parent;
 } ESCCChannelState;
 
 struct ESCCState {
@@ -57,9 +58,11 @@ struct ESCCState {
     struct ESCCChannelState chn[2];
     uint32_t it_shift;
     bool bit_swap;
+    bool force_hw_ready;
     MemoryRegion mmio;
     uint32_t disabled;
     uint32_t frequency;
+    uint32_t mmio_size;
 };
 
 #endif
