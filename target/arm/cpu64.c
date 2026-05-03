@@ -37,6 +37,7 @@
 #include "hw/core/qdev-properties.h"
 #include "internals.h"
 #include "cpu-features.h"
+#include "cpu-idregs.h"
 
 /* convert between <register>_IDX and SYS_<register> */
 #define DEF(NAME, OP0, OP1, CRN, CRM, OP2)      \
@@ -905,6 +906,8 @@ static const ARMCPUInfo aarch64_cpus[] = {
 static void aarch64_cpu_register_types(void)
 {
     size_t i;
+
+    initialize_cpu_sysreg_properties();
 
     for (i = 0; i < ARRAY_SIZE(aarch64_cpus); ++i) {
         arm_cpu_register(&aarch64_cpus[i]);

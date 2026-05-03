@@ -9,7 +9,8 @@ arm_user_ss.add(files('gdbstub.c'))
 
 arm_ss.add(when: 'TARGET_AARCH64', if_true: files(
   'cpu64.c',
-  'gdbstub64.c'
+  'gdbstub64.c',
+  'cpu-sysreg-properties.c',
 ))
 
 arm_common_ss.add(files(
