@@ -9,5 +9,6 @@ tests_m68k_system_thorough = [
   'nextcube',
   'replay',
   'q800',
+  'sun3',
   'tuxrun',
 ]
