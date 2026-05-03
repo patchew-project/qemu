@@ -127,11 +127,15 @@ void kvm_arm_destroy_scratch_host_vcpu(int *fdarray);
 /**
  * kvm_arm_set_cpu_features_from_host:
  * @cpu: ARMCPU to set the features for
+ * @get_all_writable_id_regs: if true, get the contents of all writable ID
+ *                            registers as well
  *
  * Set up the ARMCPU struct fields up to match the information probed
  * from the host CPU.
+ *
  */
-void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu);
+void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu,
+                                        bool get_all_writable_id_regs);
 
 /**
  * kvm_arm_add_vcpu_properties:

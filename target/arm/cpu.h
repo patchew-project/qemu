@@ -1087,6 +1087,9 @@ struct ArchCPU {
      */
     ARMIdRegsState writable_id_regs_status;
 
+    /* ID reg writable bitmask (KVM only) */
+    IdRegMap *writable_map;
+
     /* QOM property to indicate we should use the back-compat CNTFRQ default */
     bool backcompat_cntfrq;
 

@@ -45,7 +45,8 @@ bool kvm_arm_el2_supported(void)
 /*
  * These functions should never actually be called without KVM support.
  */
-void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu)
+void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu,
+                                        bool get_all_writable_id_regs)
 {
     g_assert_not_reached();
 }
