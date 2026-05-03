@@ -46,3 +46,11 @@ config M68K_VIRT
     select GOLDFISH_TTY
     select GOLDFISH_RTC
     select VIRTIO_MMIO
+
+config SUN3
+    bool
+    default y
+    depends on M68K
+    select ESCC
+    select LANCE
+    select INTERSIL7170
