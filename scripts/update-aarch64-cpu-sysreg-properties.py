@@ -92,7 +92,7 @@ def collect_fields(item, bit_offset=0):
         fields.append(field_copy)
         return fields
 
-    # Go down the hierarchy for other cases
+    # Traverse the hierarchy for other cases
     for key in ['fields', 'values', 'fieldsets']:
         for nested in item.get(key, []):
             fields.extend(collect_fields(nested, bit_offset))
@@ -118,8 +118,7 @@ def generate_sysreg_properties_from_registers_json(id_reg_names, raw_json_path):
                          f"arm64_sysreg_get({reg_name}_IDX);\n")
         final_output += f"    {reg_name}->name = \"{reg_name}\";\n"
 
-        # Collect all fields
-        field_entries = []
+        unique_fields = {}
         for fieldset in register.get('fieldsets', []):
             candidates = collect_fields(fieldset)
             for val in candidates:
@@ -129,20 +128,19 @@ def generate_sysreg_properties_from_registers_json(id_reg_names, raw_json_path):
                 for r in val.get('rangeset', []):
                     lsb = int(r.get('start'))
                     msb = lsb + int(r.get('width')) - 1
-                    field_entries.append({'name': name, 'lsb': lsb, 'msb': msb})
 
-        # Sort fields by lsb (decreasing order)
-        field_entries.sort(key=lambda x: x['lsb'], reverse=True)
+                    # Only keep the fields with the highest MSB
+                    # needed fir CCSIDR_EL1
+                    if name not in unique_fields or msb > unique_fields[name]['msb']:
+                        unique_fields[name] = {'lsb': lsb, 'msb': msb}
 
-        seen_fields = set()
-        for entry in field_entries:
-            f_id = f"{entry['name']}_{entry['lsb']}_{entry['msb']}"
-            if f_id in seen_fields:
-                continue
-            seen_fields.add(f_id)
+        # Sort decreasing lsbs
+        sorted_fields = sorted(unique_fields.items(),
+                               key=lambda x: x[1]['lsb'], reverse=True)
 
+        for name, bits in sorted_fields:
             line = (f"    arm64_sysreg_add_field({reg_name}, "
-                    f"\"{entry['name']}\", {entry['lsb']}, {entry['msb']});\n")
+                    f"\"{name}\", {bits['lsb']}, {bits['msb']});\n")
             final_output += line
         final_output += "\n"
 
