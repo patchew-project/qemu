@@ -28,6 +28,7 @@
 #include "system/memory.h"
 #include "gdbstub/helpers.h"
 #include "fpu/softfloat.h"
+#include "qemu/log.h"
 #include "qemu/qemu-print.h"
 
 #define SIGNBIT (1u << 31)
@@ -280,8 +281,10 @@ void HELPER(m68k_movec_to)(CPUM68KState *env, uint32_t reg, uint32_t val)
             return;
         }
         break;
-    /* Unimplemented Registers */
+    /* Dummy implementation for CAAR */
     case M68K_CR_CAAR:
+        return;
+    /* Unimplemented Registers */
     case M68K_CR_PCR:
     case M68K_CR_BUSCR:
         cpu_abort(env_cpu(env),
@@ -384,8 +387,10 @@ uint32_t HELPER(m68k_movec_from)(CPUM68KState *env, uint32_t reg)
             return env->mmu.ttr[M68K_DTTR1];
         }
         break;
-    /* Unimplemented Registers */
+    /* Dummy implementation for CAAR */
     case M68K_CR_CAAR:
+        return 0;
+    /* Unimplemented Registers */
     case M68K_CR_PCR:
     case M68K_CR_BUSCR:
         cpu_abort(env_cpu(env), "Unimplemented control register read 0x%x\n",
@@ -915,6 +920,21 @@ hwaddr m68k_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     int access_type;
     target_ulong page_size;
 
+    access_type = ACCESS_DATA | ACCESS_DEBUG;
+    if (env->sr & SR_S) {
+        access_type |= ACCESS_SUPER;
+    }
+
+    if (env->custom_mmu_get_physical_address) {
+        hwaddr custom_page_size;
+        if (env->custom_mmu_get_physical_address(env, &phys_addr, &prot, addr,
+                                                 access_type,
+                                                 &custom_page_size) == 0) {
+            return phys_addr;
+        }
+        return -1;
+    }
+
     if ((env->mmu.tcr & M68K_TCR_ENABLED) == 0) {
         /* MMU disabled */
         return addr;
@@ -944,6 +964,12 @@ void m68k_set_irq_level(M68kCPU *cpu, int level, uint8_t vector)
     CPUState *cs = CPU(cpu);
     CPUM68KState *env = &cpu->env;
 
+    if (level == 7 && env->pending_level != 7) {
+        env->nmi_pending = true;
+    } else if (level != 7) {
+        env->nmi_pending = false;
+    }
+
     env->pending_level = level;
     env->pending_vector = vector;
     if (level) {
@@ -963,6 +989,106 @@ bool m68k_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     int access_type;
     int ret;
     target_ulong page_size;
+
+    if (qemu_access_type == MMU_INST_FETCH) {
+        access_type = ACCESS_CODE;
+    } else {
+        access_type = ACCESS_DATA;
+        if (qemu_access_type == MMU_DATA_STORE) {
+            access_type |= ACCESS_STORE;
+        }
+    }
+
+    /* Decode explicit Function Codes from moves instructions */
+    if (mmu_idx >= MMU_MOVES_FC_BASE) {
+        uint8_t fc = mmu_idx - MMU_MOVES_FC_BASE;
+        access_type |= (fc << 8); /* Pack explicit FC into access type */
+        if (fc != 1 && fc != 2) {
+            access_type |= ACCESS_SUPER;
+        }
+    } else {
+        /* Standard memory accesses map logically to normal M68K FCs */
+        if (mmu_idx == MMU_KERNEL_IDX) {
+            access_type |= ACCESS_SUPER;
+            access_type |= ((qemu_access_type == MMU_INST_FETCH ? 6 : 5) << 8);
+        } else {
+            access_type |= ((qemu_access_type == MMU_INST_FETCH ? 2 : 1) << 8);
+        }
+    }
+
+    if (env->custom_mmu_get_physical_address) {
+        hwaddr custom_page_size;
+
+        /* Delegate translation to external board-specific MMU if registered */
+        ret = env->custom_mmu_get_physical_address(env, &physical, &prot,
+                                                   address, access_type,
+                                                   &custom_page_size);
+
+        if (likely(ret == 0)) {
+            tlb_set_page(cs, address & TARGET_PAGE_MASK,
+                         physical & TARGET_PAGE_MASK, prot,
+                         mmu_idx, custom_page_size);
+            return true;
+        }
+
+        if (probe) {
+            return false;
+        }
+
+        /* page fault */
+        cs->exception_index = EXCP_ACCESS;
+        env->mmu.ar = address;
+
+        if (m68k_feature(env, M68K_FEATURE_M68040)) {
+            env->mmu.ssw = M68K_ATC_040;
+            switch (size) {
+            case 1:
+                env->mmu.ssw |= M68K_BA_SIZE_BYTE;
+                break;
+            case 2:
+                env->mmu.ssw |= M68K_BA_SIZE_WORD;
+                break;
+            case 4:
+                env->mmu.ssw |= M68K_BA_SIZE_LONG;
+                break;
+            }
+            env->mmu.ssw |= M68K_TM_040_DATA;
+        } else {
+            /* M68020/030 Special Status Word (SSW) */
+            uint16_t ssw = 0x0100; /* DF - Data Fault */
+            switch (size) {
+            case 1:
+                ssw |= 0x0010;
+                break;
+            case 2:
+                ssw |= 0x0020;
+                break;
+            case 3:
+                ssw |= 0x0030;
+                break;
+            case 4:
+                ssw |= 0x0000;
+                break;
+            }
+            if (qemu_access_type != MMU_DATA_STORE) {
+                ssw |= 0x0040; /* RW - Read */
+            }
+            /* Function Code */
+            uint8_t fc;
+            if (mmu_idx >= MMU_MOVES_FC_BASE) {
+                fc = mmu_idx - MMU_MOVES_FC_BASE;
+            } else {
+                if (mmu_idx == MMU_KERNEL_IDX) {
+                    fc = (qemu_access_type == MMU_INST_FETCH) ? 6 : 5;
+                } else {
+                    fc = (qemu_access_type == MMU_INST_FETCH) ? 2 : 1;
+                }
+            }
+            ssw |= (fc & 7);
+            env->mmu.ssw = ssw;
+        }
+        cpu_loop_exit_restore(cs, retaddr);
+    }
 
     if ((env->mmu.tcr & M68K_TCR_ENABLED) == 0) {
         /* MMU disabled */

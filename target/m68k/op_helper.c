@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  M68K helper routines
  *
@@ -25,6 +26,7 @@
 #include "qemu/plugin.h"
 
 #if !defined(CONFIG_USER_ONLY)
+#include "system/runstate.h"
 
 static void cf_rte(CPUM68KState *env)
 {
@@ -72,6 +74,12 @@ throwaway:
             break;
         case 7:
             sp += 52;
+            break;
+        case 0xa: /* Short Bus Cycle Fault (Format 0xA) */
+            sp += 32 - 8; /* 32 bytes total - 8 bytes header = 24 bytes */
+            break;
+        case 0xb: /* Long Bus Cycle Fault (Format 0xB) */
+            sp += 92 - 8; /* 92 bytes total - 8 bytes header = 84 bytes */
             break;
         }
     }
@@ -342,56 +350,80 @@ static void m68k_interrupt_all(CPUM68KState *env, int is_hw)
     switch (cs->exception_index) {
     case EXCP_ACCESS:
         if (env->mmu.fault) {
-            cpu_abort(cs, "DOUBLE MMU FAULT\n");
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "M68K: Double MMU Fault. Halting CPU and requesting reset.\n");
+            qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+            cs->halted = 1;
+            cs->exception_index = EXCP_HLT;
+            cpu_loop_exit(cs);
         }
         env->mmu.fault = true;
-        /* push data 3 */
-        sp -= 4;
-        cpu_stl_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
-        /* push data 2 */
-        sp -= 4;
-        cpu_stl_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
-        /* push data 1 */
-        sp -= 4;
-        cpu_stl_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
-        /* write back 1 / push data 0 */
-        sp -= 4;
-        cpu_stl_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
-        /* write back 1 address */
-        sp -= 4;
-        cpu_stl_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
-        /* write back 2 data */
-        sp -= 4;
-        cpu_stl_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
-        /* write back 2 address */
-        sp -= 4;
-        cpu_stl_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
-        /* write back 3 data */
-        sp -= 4;
-        cpu_stl_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
-        /* write back 3 address */
-        sp -= 4;
-        cpu_stl_be_mmuidx_ra(env, sp, env->mmu.ar, MMU_KERNEL_IDX, 0);
-        /* fault address */
-        sp -= 4;
-        cpu_stl_be_mmuidx_ra(env, sp, env->mmu.ar, MMU_KERNEL_IDX, 0);
-        /* write back 1 status */
-        sp -= 2;
-        cpu_stw_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
-        /* write back 2 status */
-        sp -= 2;
-        cpu_stw_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
-        /* write back 3 status */
-        sp -= 2;
-        cpu_stw_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
-        /* special status word */
-        sp -= 2;
-        cpu_stw_be_mmuidx_ra(env, sp, env->mmu.ssw, MMU_KERNEL_IDX, 0);
-        /* effective address */
-        sp -= 4;
-        cpu_stl_be_mmuidx_ra(env, sp, env->mmu.ar, MMU_KERNEL_IDX, 0);
 
-        do_stack_frame(env, &sp, 7, oldsr, 0, env->pc);
+        if (m68k_feature(env, M68K_FEATURE_M68040)) {
+            /* push data 3 */
+            sp -= 4;
+            cpu_stl_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
+            /* push data 2 */
+            sp -= 4;
+            cpu_stl_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
+            /* push data 1 */
+            sp -= 4;
+            cpu_stl_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
+            /* write back 1 / push data 0 */
+            sp -= 4;
+            cpu_stl_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
+            /* write back 1 address */
+            sp -= 4;
+            cpu_stl_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
+            /* write back 2 data */
+            sp -= 4;
+            cpu_stl_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
+            /* write back 2 address */
+            sp -= 4;
+            cpu_stl_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
+            /* write back 3 data */
+            sp -= 4;
+            cpu_stl_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
+            /* write back 3 address */
+            sp -= 4;
+            cpu_stl_be_mmuidx_ra(env, sp, env->mmu.ar, MMU_KERNEL_IDX, 0);
+            /* fault address */
+            sp -= 4;
+            cpu_stl_be_mmuidx_ra(env, sp, env->mmu.ar, MMU_KERNEL_IDX, 0);
+            /* write back 1 status */
+            sp -= 2;
+            cpu_stw_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
+            /* write back 2 status */
+            sp -= 2;
+            cpu_stw_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
+            /* write back 3 status */
+            sp -= 2;
+            cpu_stw_be_mmuidx_ra(env, sp, 0, MMU_KERNEL_IDX, 0);
+            /* special status word */
+            sp -= 2;
+            cpu_stw_be_mmuidx_ra(env, sp, env->mmu.ssw, MMU_KERNEL_IDX, 0);
+            /* effective address */
+            sp -= 4;
+            cpu_stl_be_mmuidx_ra(env, sp, env->mmu.ar, MMU_KERNEL_IDX, 0);
+
+            do_stack_frame(env, &sp, 7, oldsr, 0, env->pc);
+        } else {
+            /* M68020 Long Bus Cycle Fault (Format 0xB) */
+            /*
+             * 84 bytes of internal state are pushed before the generic
+             * 8-byte header
+             */
+            sp -= 84;
+            for (int i = 0; i < 84; i += 4) {
+                cpu_stl_be_mmuidx_ra(env, sp + i, 0, MMU_KERNEL_IDX, 0);
+            }
+            /* Offset 0x02 from internal frame: SSW */
+            cpu_stw_be_mmuidx_ra(env, sp + 2, env->mmu.ssw, MMU_KERNEL_IDX, 0);
+            /* Offset 0x08 from internal frame: Fault Address */
+            cpu_stl_be_mmuidx_ra(env, sp + 8, env->mmu.ar, MMU_KERNEL_IDX, 0);
+
+            do_stack_frame(env, &sp, 0xb, oldsr, 0, env->pc);
+        }
         env->mmu.fault = false;
         if (qemu_loglevel_mask(CPU_LOG_INT)) {
             qemu_log("            "
@@ -437,7 +469,9 @@ static void m68k_interrupt_all(CPUM68KState *env, int is_hw)
 
     env->aregs[7] = sp;
     /* Jump to vector.  */
+    env->mmu.fault = true;
     env->pc = cpu_ldl_be_mmuidx_ra(env, env->vbr + vector, MMU_KERNEL_IDX, 0);
+    env->mmu.fault = false;
 
     do_plugin_vcpu_interrupt_cb(cs, last_pc);
 }
@@ -509,26 +543,46 @@ void m68k_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
         if (access_type != MMU_DATA_STORE) {
             env->mmu.ssw |= M68K_RW_040;
         }
-
-        env->mmu.ar = addr;
-
-        cs->exception_index = EXCP_ACCESS;
-        cpu_loop_exit(cs);
+    } else if (m68k_feature(env, M68K_FEATURE_M68020)) {
+        /*
+         * M68020 Long Bus Cycle Fault (Format 0xB).
+         * The Motorola 68020 hardware intrinsically generates a physical
+         * Bus Error exception whenever the system bus flags a transaction
+         * timeout or failure (e.g., attempting to read an unpopulated bus
+         * address). This natively injects the EXCP_ACCESS cycle to build
+         * the generic 84-byte exception stack frame.
+         */
+        env->mmu.ssw = 0;
+        if (access_type == MMU_INST_FETCH) {
+            env->mmu.ssw |= 0x1000;
+        } else if (access_type == MMU_DATA_STORE) {
+            env->mmu.ssw |= 0x0040;
+        } else {
+            env->mmu.ssw |= 0x0080;
+        }
+    } else {
+        /*
+         * Older architectures (e.g. 68000) do not currently support
+         * hardware-injected transaction failures in QEMU.
+         */
+        return;
     }
+
+    env->mmu.ar = addr;
+    cs->exception_index = EXCP_ACCESS;
+    cpu_loop_exit(cs);
 }
 
 bool m68k_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     CPUM68KState *env = cpu_env(cs);
 
-    if (interrupt_request & CPU_INTERRUPT_HARD
-        && ((env->sr & SR_I) >> SR_I_SHIFT) < env->pending_level) {
-        /*
-         * Real hardware gets the interrupt vector via an IACK cycle
-         * at this point.  Current emulated hardware doesn't rely on
-         * this, so we provide/save the vector when the interrupt is
-         * first signalled.
-         */
+    if (env->nmi_pending) {
+        env->nmi_pending = false;
+        cs->exception_index = env->pending_vector;
+        do_interrupt_m68k_hardirq(env);
+        return true;
+    } else if (((env->sr & SR_I) >> SR_I_SHIFT) < env->pending_level) {
         cs->exception_index = env->pending_vector;
         do_interrupt_m68k_hardirq(env);
         return true;

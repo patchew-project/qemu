@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  m68k translation
  *
@@ -163,10 +164,12 @@ static void do_writebacks(DisasContext *s)
 #define IS_USER(s) 1
 #else
 #define IS_USER(s)   (!(s->base.tb->flags & TB_FLAGS_MSR_S))
-#define SFC_INDEX(s) ((s->base.tb->flags & TB_FLAGS_SFC_S) ? \
-                      MMU_KERNEL_IDX : MMU_USER_IDX)
-#define DFC_INDEX(s) ((s->base.tb->flags & TB_FLAGS_DFC_S) ? \
-                      MMU_KERNEL_IDX : MMU_USER_IDX)
+#define SFC_INDEX(s) (MMU_MOVES_FC_BASE + \
+                     (((s)->base.tb->flags & TB_FLAGS_SFC_S) >> \
+                      TB_FLAGS_SFC_S_BIT))
+#define DFC_INDEX(s) (MMU_MOVES_FC_BASE + \
+                     (((s)->base.tb->flags & TB_FLAGS_DFC_S) >> \
+                      TB_FLAGS_DFC_S_BIT))
 #endif
 
 typedef void (*disas_proc)(CPUM68KState *env, DisasContext *s, uint16_t insn);
@@ -5364,11 +5367,19 @@ DISAS_INSN(frestore)
         gen_exception(s, s->base.pc_next, EXCP_PRIVILEGE);
         return;
     }
-    if (m68k_feature(s->env, M68K_FEATURE_M68040)) {
+    if (m68k_feature(s->env, M68K_FEATURE_M68040) ||
+        m68k_feature(s->env, M68K_FEATURE_FPU)) {
         SRC_EA(env, addr, OS_LONG, 0, NULL);
-        /* FIXME: check the state frame */
+        if (m68k_feature(s->env, M68K_FEATURE_M68040)) {
+            /* FIXME: check the state frame */
+        } else {
+            /*
+             * 68881/68882 FRESTORE: read the state frame
+             * (NULL frame is 4 bytes)
+             */
+        }
     } else {
-        disas_undef(env, s, insn);
+        disas_undef_fpu(env, s, insn);
     }
 }
 
@@ -5383,8 +5394,12 @@ DISAS_INSN(fsave)
         /* always write IDLE */
         TCGv idle = tcg_constant_i32(0x41000000);
         DEST_EA(env, insn, OS_LONG, idle, NULL);
+    } else if (m68k_feature(s->env, M68K_FEATURE_FPU)) {
+        /* 68881/68882 FSAVE: always write NULL frame */
+        TCGv null_frame = tcg_constant_i32(0x00000000);
+        DEST_EA(env, insn, OS_LONG, null_frame, NULL);
     } else {
-        disas_undef(env, s, insn);
+        disas_undef_fpu(env, s, insn);
     }
 }
 #endif

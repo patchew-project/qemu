@@ -149,9 +149,17 @@ typedef struct CPUArchState {
 
     int pending_vector;
     int pending_level;
+    bool nmi_pending;
 
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
+
+    /* Custom MMU intercept logic, if any (e.g. for Sun-3) */
+    void *custom_mmu_opaque;
+    int (*custom_mmu_get_physical_address)(void *env, hwaddr *physical,
+                                           int *prot, vaddr address,
+                                           int access_type,
+                                           hwaddr *page_size);
 
     /* Fields from here on are preserved across CPU reset. */
     uint64_t features;
@@ -601,11 +609,13 @@ void m68k_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
 #define TB_FLAGS_MSR_S_BIT      13
 #define TB_FLAGS_MSR_S          (1 << TB_FLAGS_MSR_S_BIT)
 #define TB_FLAGS_SFC_S_BIT      14
-#define TB_FLAGS_SFC_S          (1 << TB_FLAGS_SFC_S_BIT)
-#define TB_FLAGS_DFC_S_BIT      15
-#define TB_FLAGS_DFC_S          (1 << TB_FLAGS_DFC_S_BIT)
-#define TB_FLAGS_TRACE          16
+#define TB_FLAGS_SFC_S          (7 << TB_FLAGS_SFC_S_BIT) /* 3 Bits reserved */
+#define TB_FLAGS_DFC_S_BIT      17
+#define TB_FLAGS_DFC_S          (7 << TB_FLAGS_DFC_S_BIT) /* 3 Bits reserved */
+#define TB_FLAGS_TRACE          20
 #define TB_FLAGS_TRACE_BIT      (1 << TB_FLAGS_TRACE)
+
+#define MMU_MOVES_FC_BASE       2 /* mmu_idx 2-9 correspond to FC 0-7 */
 
 void dump_mmu(CPUM68KState *env);
 
