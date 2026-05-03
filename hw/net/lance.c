@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * QEMU AMD PC-Net II (Am79C970A) emulation
  *
@@ -22,7 +23,8 @@
  * THE SOFTWARE.
  */
 
-/* This software was written to be compatible with the specification:
+/*
+ * This software was written to be compatible with the specification:
  * AMD Am79C970A PCnet-PCI II Ethernet Controller Data-Sheet
  * AMD Publication# 19436  Rev:E  Amendment/0  Issue Date: June 2000
  */
@@ -44,8 +46,73 @@
 #include "hw/core/qdev-properties.h"
 #include "trace.h"
 #include "system/system.h"
+#include "system/address-spaces.h"
+#include "system/dma.h"
 
+/*
+ * LANCE Native DMA Read Hook
+ *
+ * Sun-3 Hardware intrinsically byte-swaps the D0-D7 and D8-D15 DMA lanes
+ * between the Little-Endian LANCE controller and the Big-Endian Sun-3 memory.
+ * We MUST model this manually. pcnet.c passes CSR_BSWP(s) for payloads
+ * (correctly bypassing the swap if LANCE internally neutralizes it).
+ * However, pcnet.c hardcodes do_bswap=1 for the `initblk` structure
+ * (len 24/28).
+ * We dynamically intercept the `initblk` fetch by cross-referencing CSR_IADR to
+ * enforce the hardware swap reliably. Because this branch is only taken when
+ * `dma_mr` is explicitly provided by the machine, this quirk is safely isolated
+ * to the Sun-3 and does not impact SPARC (which uses `ledma`).
+ */
+static void lance_dma_read(void *dma_opaque, hwaddr addr,
+                           uint8_t *buf, int len, int do_bswap)
+{
+    SysBusPCNetState *d = SYSBUS_PCNET(dma_opaque);
+    PCNetState *s = &d->state;
 
+    dma_memory_read(&d->dma_as, addr, buf, len, MEMTXATTRS_UNSPECIFIED);
+
+    uint32_t bcr_ssize32 = (s->bcr[20] & 0x0100);
+    hwaddr iadr = (s->csr[1] | ((uint32_t)s->csr[2] << 16));
+    if (!bcr_ssize32) {
+        iadr |= ((0xff00 & (uint32_t)s->csr[2]) << 16);
+    }
+
+    int internal_bswap = do_bswap;
+    if (addr == iadr && (len == 24 || len == 28)) {
+        internal_bswap = 0; /* Force hardware swap natively for initblk */
+    }
+
+    if (!internal_bswap) {
+        for (int i = 0; i < (len & ~1); i += 2) {
+            uint8_t tmp = buf[i];
+            buf[i] = buf[i + 1];
+            buf[i + 1] = tmp;
+        }
+    }
+}
+
+/* LANCE Native DMA Write Hook */
+static void lance_dma_write(void *dma_opaque, hwaddr addr,
+                            uint8_t *buf, int len, int do_bswap)
+{
+    SysBusPCNetState *s = SYSBUS_PCNET(dma_opaque);
+
+    if (!do_bswap) {
+        uint8_t *swapped_buf = g_malloc(len);
+        for (int i = 0; i < (len & ~1); i += 2) {
+            swapped_buf[i] = buf[i + 1];
+            swapped_buf[i + 1] = buf[i];
+        }
+        if (len & 1) {
+            swapped_buf[len - 1] = buf[len - 1];
+        }
+        dma_memory_write(&s->dma_as, addr, swapped_buf, len,
+                         MEMTXATTRS_UNSPECIFIED);
+        g_free(swapped_buf);
+    } else {
+        dma_memory_write(&s->dma_as, addr, buf, len, MEMTXATTRS_UNSPECIFIED);
+    }
+}
 static void parent_lance_reset(void *opaque, int irq, int level)
 {
     SysBusPCNetState *d = opaque;
@@ -59,7 +126,15 @@ static void lance_mem_write(void *opaque, hwaddr addr,
     SysBusPCNetState *d = opaque;
 
     trace_lance_mem_writew(addr, val & 0xffff);
-    pcnet_ioport_writew(&d->state, addr, val & 0xffff);
+    if (size == 1) {
+        uint16_t orig = pcnet_ioport_readw(&d->state, addr & ~1);
+        if (addr & 1) { /* LSB in Big Endian */
+            val = (orig & 0xff00) | (val & 0xff);
+        } else { /* MSB in Big Endian */
+            val = (orig & 0x00ff) | ((val & 0xff) << 8);
+        }
+    }
+    pcnet_ioport_writew(&d->state, addr & ~1, val & 0xffff);
 }
 
 static uint64_t lance_mem_read(void *opaque, hwaddr addr,
@@ -68,18 +143,28 @@ static uint64_t lance_mem_read(void *opaque, hwaddr addr,
     SysBusPCNetState *d = opaque;
     uint32_t val;
 
-    val = pcnet_ioport_readw(&d->state, addr);
-    trace_lance_mem_readw(addr, val & 0xffff);
+    val = pcnet_ioport_readw(&d->state, addr & ~1);
+    if (size == 1) {
+        if (addr & 1) {
+            val = val & 0xff;
+        } else {
+            val = (val >> 8) & 0xff;
+        }
+    }
     return val & 0xffff;
 }
 
 static const MemoryRegionOps lance_mem_ops = {
     .read = lance_mem_read,
     .write = lance_mem_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
-        .min_access_size = 2,
-        .max_access_size = 2,
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 4,
     },
 };
 
@@ -115,8 +200,18 @@ static void lance_realize(DeviceState *dev, Error **errp)
 
     sysbus_init_irq(sbd, &s->irq);
 
+    if (d->dma_mr) {
+        address_space_init(&d->dma_as, d->dma_mr, "lance-dma");
+        s->phys_mem_read = lance_dma_read;
+        s->phys_mem_write = lance_dma_write;
+        s->dma_opaque = DEVICE(d);
+    } else {
+#if defined(TARGET_SPARC)
     s->phys_mem_read = ledma_memory_read;
     s->phys_mem_write = ledma_memory_write;
+#endif
+    }
+
     pcnet_common_init(dev, s, &net_lance_info);
 }
 
@@ -140,6 +235,8 @@ static void lance_instance_init(Object *obj)
 static const Property lance_properties[] = {
     DEFINE_PROP_LINK("dma", SysBusPCNetState, state.dma_opaque,
                      TYPE_DEVICE, DeviceState *),
+    DEFINE_PROP_LINK("dma_mr", SysBusPCNetState, dma_mr,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_NIC_PROPERTIES(SysBusPCNetState, state.conf),
 };
 

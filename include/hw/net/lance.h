@@ -31,6 +31,7 @@
 
 #include "net/net.h"
 #include "hw/net/pcnet.h"
+#include "system/memory.h"
 #include "hw/core/sysbus.h"
 #include "qom/object.h"
 
@@ -43,6 +44,8 @@ struct SysBusPCNetState {
     SysBusDevice parent_obj;
 
     PCNetState state;
+    MemoryRegion *dma_mr;
+    AddressSpace dma_as;
 };
 
 #endif
