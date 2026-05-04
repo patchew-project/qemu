@@ -1328,18 +1328,19 @@ static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOSCSI *s = VIRTIO_SCSI(dev);
-    Error *err = NULL;
 
     qemu_mutex_init(&s->ctrl_lock);
     qemu_mutex_init(&s->event_lock);
 
+    ERRP_GUARD();
     virtio_scsi_common_realize(dev,
                                virtio_scsi_handle_ctrl,
                                virtio_scsi_handle_event,
                                virtio_scsi_handle_cmd,
-                               &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+                               errp);
+
+    if (*errp) {
+        /* don't initialize the bus, terminate early */
         return;
     }
 
