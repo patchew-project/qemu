@@ -158,6 +158,7 @@ typedef struct VirtioNetRssData {
 typedef struct VirtIONetQueue {
     VirtQueue *rx_vq;
     VirtQueue *tx_vq;
+    QEMUTimer *rx_timer;
     QEMUTimer *tx_timer;
     QEMUBH *tx_bh;
     uint32_t tx_waiting;
@@ -177,7 +178,6 @@ struct VirtIONet {
     /* RSC Chains - temporary storage of coalesced data,
        all these data are lost in case of migration */
     QTAILQ_HEAD(, VirtioNetRscChain) rsc_chains;
-    uint32_t tx_timeout;
     int32_t tx_burst;
     uint32_t has_vnet_hdr;
     size_t host_hdr_len;
@@ -230,6 +230,14 @@ struct VirtIONet {
     struct EBPFRSSContext ebpf_rss;
     uint32_t nr_ebpf_rss_fds;
     char **ebpf_rss_fds;
+    QEMUTimer *rx_index_timer;
+    uint32_t rx_coal_usecs;
+    uint32_t rx_coal_packets;
+    uint32_t rx_pkt_cnt;
+    uint32_t tx_coal_usecs;
+    uint32_t tx_coal_packets;
+    uint32_t tx_pkt_cnt;
+    bool tx_timer_activate;
 };
 
 size_t virtio_net_handle_ctrl_iov(VirtIODevice *vdev,
