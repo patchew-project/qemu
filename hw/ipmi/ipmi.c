@@ -95,7 +95,14 @@ static const TypeInfo ipmi_interface_type_info = {
 static void isa_ipmi_bmc_check(const Object *obj, const char *name,
                                Object *val, Error **errp)
 {
-    IPMIBmc *bmc = IPMI_BMC(val);
+    IPMIBmc *bmc;
+
+    if (!val) {
+        error_setg(errp, "%s cannot be set to NULL", name);
+        return;
+    }
+
+    bmc = IPMI_BMC(val);
 
     if (bmc->intf)
         error_setg(errp, "BMC object is already in use");
