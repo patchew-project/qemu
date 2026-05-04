@@ -460,6 +460,10 @@ static CPUARMTBFlags rebuild_hflags_a64(CPUARMState *env, int el, int fp_el,
         }
         /* Cache TCMA as well as TBI. */
         DP_TBFLAG_A64(flags, TCMA, aa64_va_parameter_tcma(tcr, mmu_idx));
+        /* Cache MTX. */
+        if (cpu_isar_feature(aa64_mte_mtx, env_archcpu(env))) {
+            DP_TBFLAG_A64(flags, MTX, mtx);
+        }
     }
 
     if (cpu_isar_feature(aa64_gcs, env_archcpu(env))) {
