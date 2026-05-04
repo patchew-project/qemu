@@ -437,10 +437,11 @@ Misc
          for consistency with the other bswap opcodes. For future
          compatibility, the flags should be zero.
 
-   * - discard_i32/i64 *t0*
+   * - discard *t0*
 
-     - | Indicate that the value of *t0* won't be used later. It is useful to
-         force dead code elimination.
+     - | Indicate that the value of *t0* won't be used later. This is used to
+         force dead code elimination, particularly for condition code
+         optimizations where TCG might otherwise assume a global is still live.
 
    * - deposit *dest*, *t1*, *t2*, *pos*, *len*
 
