@@ -546,6 +546,7 @@ struct ArchCPU {
     uint32_t pmu_avail_ctrs;
     /* Mapping of events to counters */
     GHashTable *pmu_event_ctr_map;
+    GHashTable *user_options;
     const GPtrArray *decoders;
 };
 
@@ -619,7 +620,7 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                         bool probe, uintptr_t retaddr);
 char *riscv_isa_string(RISCVCPU *cpu);
 int riscv_cpu_max_xlen(RISCVCPUClass *mcc);
-bool riscv_cpu_option_set(const char *optname);
+bool riscv_cpu_option_set(RISCVCPU *cpu, const char *optname);
 
 #ifndef CONFIG_USER_ONLY
 void riscv_cpu_do_interrupt(CPUState *cpu);
