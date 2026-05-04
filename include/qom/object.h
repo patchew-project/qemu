@@ -1714,10 +1714,10 @@ void object_property_allow_set_link(const Object *obj, const char *name,
  *
  * Links form the graph in the object model.
  *
- * The @check() callback is invoked when
- * object_property_set_link() is called and can raise an error to prevent the
- * link being set.  If @check is NULL, the property is read-only
- * and cannot be set.
+ * The @check() callback is invoked when object_property_set_link() is called
+ * and can raise an error to prevent the link being set. If @check is NULL, the
+ * property is read-only and cannot be set. Care must be taken to handle NULL
+ * values for @val.
  *
  * Ownership of the pointer that @child points to is transferred to the
  * link property.  The reference count for *@child is
