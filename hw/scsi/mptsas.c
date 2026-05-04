@@ -1238,7 +1238,7 @@ static void *mptsas_load_request(QEMUFile *f, SCSIRequest *sreq)
     qemu_get_buffer(f, (unsigned char *)&req->scsi_io, sizeof(req->scsi_io));
 
     n = qemu_get_be32(f);
-    /* TODO: add a way for SCSIBusInfo's load_request to fail,
+    /* TODO: add a way for SCSIBusOps's load_request to fail,
      * and fail migration instead of asserting here.
      * This is just one thing (there are probably more) that must be
      * fixed before we can allow NDEBUG compilation.
@@ -1265,7 +1265,7 @@ static const struct SCSIBusConfig mptsas_scsi_config = {
     .max_lun = 1,
 };
 
-static const struct SCSIBusInfo mptsas_scsi_info = {
+static const struct SCSIBusOps mptsas_scsi_ops = {
     .get_sg_list = mptsas_get_sg_list,
     .complete = mptsas_command_complete,
     .cancel = mptsas_request_cancelled,
@@ -1328,7 +1328,7 @@ static void mptsas_scsi_realize(PCIDevice *dev, Error **errp)
                                         &DEVICE(dev)->mem_reentrancy_guard);
 
     scsi_bus_init(&s->bus, sizeof(s->bus), &dev->qdev,
-                  &mptsas_scsi_info, &mptsas_scsi_config);
+                  &mptsas_scsi_ops, &mptsas_scsi_config);
 }
 
 static void mptsas_scsi_uninit(PCIDevice *dev)

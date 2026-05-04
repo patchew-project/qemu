@@ -1564,7 +1564,7 @@ static const struct SCSIBusConfig esp_scsi_config = {
     .max_lun = 7,
 };
 
-static const struct SCSIBusInfo esp_scsi_info = {
+static const struct SCSIBusOps esp_scsi_ops = {
     .load_request = esp_load_request,
     .transfer_data = esp_transfer_data,
     .complete = esp_command_complete,
@@ -1610,7 +1610,7 @@ static void sysbus_esp_realize(DeviceState *dev, Error **errp)
 
     qdev_init_gpio_in(dev, sysbus_esp_gpio_demux, 2);
 
-    scsi_bus_init(&s->bus, sizeof(s->bus), dev, &esp_scsi_info,
+    scsi_bus_init(&s->bus, sizeof(s->bus), dev, &esp_scsi_ops,
                   &esp_scsi_config);
 }
 

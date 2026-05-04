@@ -1271,7 +1271,7 @@ static struct SCSIBusConfig virtio_scsi_scsi_config = {
     .max_lun = VIRTIO_SCSI_MAX_LUN,
 };
 
-static const struct SCSIBusInfo virtio_scsi_scsi_info = {
+static const struct SCSIBusOps virtio_scsi_scsi_ops = {
     .complete = virtio_scsi_command_complete,
     .fail = virtio_scsi_command_failed,
     .cancel = virtio_scsi_request_cancelled,
@@ -1344,7 +1344,7 @@ static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
     }
 
     scsi_bus_init_named(&s->bus, sizeof(s->bus), dev,
-                        &virtio_scsi_scsi_info, &virtio_scsi_scsi_config,
+                        &virtio_scsi_scsi_ops, &virtio_scsi_scsi_config,
                         vdev->bus_name);
     /* override default SCSI bus hotplug-handler, with virtio-scsi's one */
     qbus_set_hotplug_handler(BUS(&s->bus), OBJECT(dev));

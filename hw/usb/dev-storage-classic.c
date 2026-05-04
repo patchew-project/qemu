@@ -22,7 +22,7 @@ static const struct SCSIBusConfig usb_msd_scsi_config_storage = {
     .max_lun = 0,
 };
 
-static const struct SCSIBusInfo usb_msd_scsi_info_storage = {
+static const struct SCSIBusOps usb_msd_scsi_ops_storage = {
     .transfer_data = usb_msd_transfer_data,
     .complete = usb_msd_command_complete,
     .cancel = usb_msd_request_cancelled,
@@ -58,7 +58,7 @@ static void usb_msd_storage_realize(USBDevice *dev, Error **errp)
     usb_desc_init(dev);
     dev->flags |= (1 << USB_DEV_FLAG_IS_SCSI_STORAGE);
     scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(dev),
-                  &usb_msd_scsi_info_storage, &usb_msd_scsi_config_storage);
+                  &usb_msd_scsi_ops_storage, &usb_msd_scsi_config_storage);
     scsi_dev = scsi_bus_legacy_add_drive(&s->bus, blk, 0, !!s->removable,
                                          &s->conf, dev->serial, errp);
     blk_unref(blk);

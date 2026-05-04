@@ -1202,7 +1202,7 @@ static const struct SCSIBusConfig vscsi_scsi_config = {
     .max_lun = 31,
 };
 
-static const struct SCSIBusInfo vscsi_scsi_info = {
+static const struct SCSIBusOps vscsi_scsi_ops = {
     .transfer_data = vscsi_transfer_data,
     .complete = vscsi_command_complete,
     .cancel = vscsi_request_cancelled,
@@ -1228,7 +1228,7 @@ static void spapr_vscsi_realize(SpaprVioDevice *dev, Error **errp)
     dev->crq.SendFunc = vscsi_do_crq;
 
     scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(dev),
-                  &vscsi_scsi_info, &vscsi_scsi_config);
+                  &vscsi_scsi_ops, &vscsi_scsi_config);
 
     /* ibmvscsi SCSI bus does not allow hotplug. */
     qbus_set_hotplug_handler(BUS(&s->bus), NULL);

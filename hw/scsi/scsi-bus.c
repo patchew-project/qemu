@@ -238,8 +238,8 @@ int scsi_bus_parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
 
     assert(cmd->len == 0);
     rc = scsi_req_parse_cdb(dev, cmd, buf, buf_len);
-    if (bus->info->parse_cdb) {
-        rc = bus->info->parse_cdb(dev, cmd, buf, buf_len, hba_private);
+    if (bus->ops->parse_cdb) {
+        rc = bus->ops->parse_cdb(dev, cmd, buf, buf_len, hba_private);
     }
     return rc;
 }
@@ -265,12 +265,12 @@ void scsi_device_unit_attention_reported(SCSIDevice *s)
 
 /* Create a scsi bus, and attach devices to it.  */
 void scsi_bus_init_named(SCSIBus *bus, size_t bus_size, DeviceState *host,
-                         const SCSIBusInfo *info, const SCSIBusConfig *config,
+                         const SCSIBusOps *ops, const SCSIBusConfig *config,
                          const char *bus_name)
 {
     qbus_init(bus, bus_size, TYPE_SCSI_BUS, host, bus_name);
     bus->busnr = next_scsi_bus++;
-    bus->info = info;
+    bus->ops = ops;
     bus->config = config;
     qbus_set_bus_hotplug_handler(BUS(bus));
 }
@@ -1002,8 +1002,8 @@ static void scsi_req_enqueue_internal(SCSIRequest *req)
 {
     assert(!req->enqueued);
     scsi_req_ref(req);
-    if (req->bus->info->get_sg_list) {
-        req->sg = req->bus->info->get_sg_list(req);
+    if (req->bus->ops->get_sg_list) {
+        req->sg = req->bus->ops->get_sg_list(req);
     } else {
         req->sg = NULL;
     }
@@ -1486,8 +1486,8 @@ void scsi_device_report_change(SCSIDevice *dev, SCSISense sense)
     SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
 
     scsi_device_set_ua(dev, sense);
-    if (bus->info->change) {
-        bus->info->change(bus, dev, sense);
+    if (bus->ops->change) {
+        bus->ops->change(bus, dev, sense);
     }
 }
 
@@ -1505,8 +1505,8 @@ void scsi_req_unref(SCSIRequest *req)
         BusState *qbus = req->dev->qdev.parent_bus;
         SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, qbus);
 
-        if (bus->info->free_request && req->hba_private) {
-            bus->info->free_request(bus, req->hba_private);
+        if (bus->ops->free_request && req->hba_private) {
+            bus->ops->free_request(bus, req->hba_private);
         }
         if (req->ops->free_req) {
             req->ops->free_req(req);
@@ -1545,7 +1545,7 @@ void scsi_req_data(SCSIRequest *req, int len)
     assert(req->cmd.mode != SCSI_XFER_NONE);
     if (!req->sg) {
         req->residual -= len;
-        req->bus->info->transfer_data(req, len);
+        req->bus->ops->transfer_data(req, len);
         return;
     }
 
@@ -1602,7 +1602,7 @@ void scsi_req_complete_failed(SCSIRequest *req, int host_status)
     assert(req->status == -1 && req->host_status == -1);
     assert(req->ops != &reqops_unit_attention);
 
-    if (!req->bus->info->fail) {
+    if (!req->bus->ops->fail) {
         status = scsi_sense_from_host_status(req->host_status, &sense);
         if (status == CHECK_CONDITION) {
             scsi_req_build_sense(req, sense);
@@ -1614,7 +1614,7 @@ void scsi_req_complete_failed(SCSIRequest *req, int host_status)
     req->host_status = host_status;
     scsi_req_ref(req);
     scsi_req_dequeue(req);
-    req->bus->info->fail(req);
+    req->bus->ops->fail(req);
 
     /* Cancelled requests might end up being completed instead of cancelled */
     notifier_list_notify(&req->cancel_notifiers, req);
@@ -1643,7 +1643,7 @@ void scsi_req_complete(SCSIRequest *req, int status)
 
     scsi_req_ref(req);
     scsi_req_dequeue(req);
-    req->bus->info->complete(req, req->residual);
+    req->bus->ops->complete(req, req->residual);
 
     /* Cancelled requests might end up being completed instead of cancelled */
     notifier_list_notify(&req->cancel_notifiers, req);
@@ -1654,8 +1654,8 @@ void scsi_req_complete(SCSIRequest *req, int status)
 void scsi_req_cancel_complete(SCSIRequest *req)
 {
     assert(req->io_canceled);
-    if (req->bus->info->cancel) {
-        req->bus->info->cancel(req);
+    if (req->bus->ops->cancel) {
+        req->bus->ops->cancel(req);
     }
     notifier_list_notify(&req->cancel_notifiers, req);
     scsi_req_unref(req);
@@ -1813,8 +1813,8 @@ void scsi_device_drained_begin(SCSIDevice *sdev)
      */
     if (bus->drain_count++ == 0) {
         trace_scsi_bus_drained_begin(bus, sdev);
-        if (bus->info->drained_begin) {
-            bus->info->drained_begin(bus);
+        if (bus->ops->drained_begin) {
+            bus->ops->drained_begin(bus);
         }
     }
 }
@@ -1831,8 +1831,8 @@ void scsi_device_drained_end(SCSIDevice *sdev)
 
     if (bus->drain_count-- == 1) {
         trace_scsi_bus_drained_end(bus, sdev);
-        if (bus->info->drained_end) {
-            bus->info->drained_end(bus);
+        if (bus->ops->drained_end) {
+            bus->ops->drained_end(bus);
         }
     }
 }
@@ -1875,8 +1875,8 @@ static void put_scsi_req(SCSIRequest *req, void *opaque)
     qemu_put_buffer(f, req->cmd.buf, sizeof(req->cmd.buf));
     qemu_put_be32s(f, &req->tag);
     qemu_put_be32s(f, &req->lun);
-    if (req->bus->info->save_request) {
-        req->bus->info->save_request(f, req);
+    if (req->bus->ops->save_request) {
+        req->bus->ops->save_request(f, req);
     }
     if (req->ops->save_request) {
         req->ops->save_request(f, req);
@@ -1915,8 +1915,8 @@ static int get_scsi_requests(QEMUFile *f, void *pv, size_t size,
          */
         req = scsi_req_new(s, tag, lun, buf, sizeof(buf), NULL);
         req->retry = (sbyte == 1);
-        if (bus->info->load_request) {
-            req->hba_private = bus->info->load_request(f, req);
+        if (bus->ops->load_request) {
+            req->hba_private = bus->ops->load_request(f, req);
         }
         if (req->ops->load_request) {
             req->ops->load_request(f, req);

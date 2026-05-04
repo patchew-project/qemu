@@ -15,7 +15,7 @@
 OBJECT_DECLARE_SIMPLE_TYPE(SCSIBus, SCSI_BUS)
 
 typedef struct SCSIBusConfig SCSIBusConfig;
-typedef struct SCSIBusInfo SCSIBusInfo;
+typedef struct SCSIBusOps SCSIBusOps;
 typedef struct SCSIDevice SCSIDevice;
 typedef struct SCSIRequest SCSIRequest;
 typedef struct SCSIReqOps SCSIReqOps;
@@ -143,7 +143,7 @@ struct SCSIBusConfig {
     int max_channel, max_target, max_lun;
 };
 
-struct SCSIBusInfo {
+struct SCSIBusOps {
     int (*parse_cdb)(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
                      size_t buf_len, void *hba_private);
     void (*transfer_data)(SCSIRequest *req, uint32_t arg);
@@ -173,7 +173,7 @@ struct SCSIBus {
     int busnr;
 
     SCSISense unit_attention;
-    const SCSIBusInfo *info;
+    const SCSIBusOps *ops;
     const SCSIBusConfig *config;
 
     int drain_count; /* protected by BQL */
@@ -184,7 +184,7 @@ struct SCSIBus {
  * @bus: SCSIBus object to initialize
  * @bus_size: size of @bus object
  * @host: Device which owns the bus (generally the SCSI controller)
- * @info: structure defining callbacks for the controller
+ * @ops: structure defining callbacks for the controller
  * @config: structure defining bus params
  * @bus_name: Name to use for this bus
  *
@@ -195,7 +195,7 @@ struct SCSIBus {
  * should use scsi_bus_init() instead.
  */
 void scsi_bus_init_named(SCSIBus *bus, size_t bus_size, DeviceState *host,
-                         const SCSIBusInfo *info, const SCSIBusConfig *config,
+                         const SCSIBusOps *ops, const SCSIBusConfig *config,
                          const char *bus_name);
 
 /**
@@ -205,10 +205,10 @@ void scsi_bus_init_named(SCSIBus *bus, size_t bus_size, DeviceState *host,
  * an automatically generated unique name.
  */
 static inline void scsi_bus_init(SCSIBus *bus, size_t bus_size,
-                                 DeviceState *host, const SCSIBusInfo *info,
+                                 DeviceState *host, const SCSIBusOps *ops,
                                  const SCSIBusConfig *config)
 {
-    scsi_bus_init_named(bus, bus_size, host, info, config, NULL);
+    scsi_bus_init_named(bus, bus_size, host, ops, config, NULL);
 }
 
 static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)

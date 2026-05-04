@@ -141,7 +141,7 @@ static const struct SCSIBusConfig lasi_ncr710_scsi_config = {
     .max_lun = 8,  /* full LUN support */
 };
 
-static const struct SCSIBusInfo lasi_ncr710_scsi_info = {
+static const struct SCSIBusOps lasi_ncr710_scsi_ops = {
     .transfer_data = lasi_ncr710_transfer_data,
     .complete = lasi_ncr710_command_complete,
     .cancel = lasi_ncr710_request_cancelled,
@@ -178,7 +178,7 @@ static void lasi_ncr710_realize(DeviceState *dev, Error **errp)
     trace_lasi_ncr710_device_realize();
 
     scsi_bus_init(&s->ncr710.bus, sizeof(s->ncr710.bus), dev,
-                  &lasi_ncr710_scsi_info, &lasi_ncr710_scsi_config);
+                  &lasi_ncr710_scsi_ops, &lasi_ncr710_scsi_config);
     s->ncr710.as = &address_space_memory;
     s->ncr710.irq = s->lasi_irq;
 

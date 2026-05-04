@@ -1133,7 +1133,7 @@ static const struct SCSIBusConfig pvscsi_scsi_config = {
         .max_lun = 0,
 };
 
-static const struct SCSIBusInfo pvscsi_scsi_info = {
+static const struct SCSIBusOps pvscsi_scsi_ops = {
         .get_sg_list = pvscsi_get_sg_list,
         .complete = pvscsi_command_complete,
         .cancel = pvscsi_request_cancelled,
@@ -1174,7 +1174,7 @@ pvscsi_realizefn(PCIDevice *pci_dev, Error **errp)
                                                &DEVICE(pci_dev)->mem_reentrancy_guard);
 
     scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(pci_dev),
-                  &pvscsi_scsi_info, &pvscsi_scsi_config);
+                  &pvscsi_scsi_ops, &pvscsi_scsi_config);
     /* override default SCSI bus hotplug-handler, with pvscsi's one */
     qbus_set_hotplug_handler(BUS(&s->bus), OBJECT(s));
     pvscsi_reset_state(s);

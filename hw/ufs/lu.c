@@ -186,7 +186,7 @@ static const struct SCSIBusConfig ufs_scsi_config = {
     .max_channel = 0,
 };
 
-static const struct SCSIBusInfo ufs_scsi_info = {
+static const struct SCSIBusOps ufs_scsi_ops = {
     .get_sg_list = ufs_get_sg_list,
     .complete = ufs_scsi_command_complete,
 };
@@ -450,7 +450,7 @@ static void ufs_init_scsi_device(UfsLu *lu, BlockBackend *blk, Error **errp)
     DeviceState *scsi_dev;
 
     scsi_bus_init(&lu->bus, sizeof(lu->bus), DEVICE(lu),
-                  &ufs_scsi_info, &ufs_scsi_config);
+                  &ufs_scsi_ops, &ufs_scsi_config);
 
     blk_ref(blk);
     blk_detach_dev(blk, DEVICE(lu));

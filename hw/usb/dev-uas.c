@@ -624,7 +624,7 @@ static const struct SCSIBusConfig usb_uas_scsi_config = {
     .max_lun = 255,
 };
 
-static const struct SCSIBusInfo usb_uas_scsi_info = {
+static const struct SCSIBusOps usb_uas_scsi_ops = {
     .transfer_data = usb_uas_scsi_transfer_data,
     .complete = usb_uas_scsi_command_complete,
     .cancel = usb_uas_scsi_request_cancelled,
@@ -942,7 +942,7 @@ static void usb_uas_realize(USBDevice *dev, Error **errp)
 
     dev->flags |= (1 << USB_DEV_FLAG_IS_SCSI_STORAGE);
     scsi_bus_init(&uas->bus, sizeof(uas->bus), DEVICE(dev),
-                  &usb_uas_scsi_info, &usb_uas_scsi_config);
+                  &usb_uas_scsi_ops, &usb_uas_scsi_config);
 }
 
 static const VMStateDescription vmstate_usb_uas = {

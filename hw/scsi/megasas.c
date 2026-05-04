@@ -2333,7 +2333,7 @@ static const struct SCSIBusConfig megasas_scsi_config = {
     .max_lun = 255,
 };
 
-static const struct SCSIBusInfo megasas_scsi_info = {
+static const struct SCSIBusOps megasas_scsi_ops = {
     .transfer_data = megasas_xfer_complete,
     .get_sg_list = megasas_get_sg_list,
     .complete = megasas_command_complete,
@@ -2450,7 +2450,7 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
     }
 
     scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(dev),
-                  &megasas_scsi_info, &megasas_scsi_config);
+                  &megasas_scsi_ops, &megasas_scsi_config);
 }
 
 static const Property megasas_properties_gen1[] = {
