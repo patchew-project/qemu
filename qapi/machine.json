@@ -1739,6 +1739,61 @@
   'features': [ 'unstable' ] }
 
 ##
+# @RamBlockAttributeRange:
+#
+# A contiguous range within a ram block with uniform attributes.
+#
+# @start: start offset in bytes within the ram block
+#
+# @length: length in bytes of the range
+#
+# @shared: true if the range is shared, false if private
+#
+# @populated: true if the range is populated (only present when a
+#     RamDiscardManager is managing the block)
+#
+# Since: 11.1
+##
+{ 'struct': 'RamBlockAttributeRange',
+  'data': { 'start': 'uint64',
+            'length': 'uint64',
+            'shared': 'bool',
+            '*populated': 'bool' } }
+
+##
+# @RamBlockAttributesInfo:
+#
+# Shared/private memory attributes for a ram block.
+#
+# @name: the ram block identifier
+#
+# @ranges: list of attribute ranges
+#
+# Since: 11.1
+##
+{ 'struct': 'RamBlockAttributesInfo',
+  'data': { 'name': 'str',
+            'ranges': [ 'RamBlockAttributeRange' ] } }
+
+##
+# @x-query-ramblock-attributes:
+#
+# Query ram block shared/private attributes.  This is useful
+# to debug confidential guests.
+#
+# Features:
+#
+# @unstable: This command is meant for debugging.
+#
+# Returns: list of ram block attributes
+#
+# Since: 11.1
+##
+{ 'command': 'x-query-ramblock-attributes',
+  'returns': [ 'RamBlockAttributesInfo' ],
+  'features': [ 'unstable' ] }
+
+##
 # @x-query-roms:
 #
 # Query information on the registered ROMS

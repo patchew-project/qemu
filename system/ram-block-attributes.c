@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
+#include "qapi/qapi-commands-machine.h"
 #include "system/ramblock.h"
 #include "trace.h"
 
@@ -220,4 +221,75 @@ static void ram_block_attributes_class_init(ObjectClass *klass,
 
     rdsc->get_min_granularity = ram_block_attributes_rds_get_min_granularity;
     rdsc->is_populated = ram_block_attributes_rds_is_populated;
+}
+
+RamBlockAttributesInfoList *qmp_x_query_ramblock_attributes(Error **errp)
+{
+    RamBlockAttributesInfoList *head = NULL, **tail = &head;
+    RAMBlock *block;
+    size_t rba_block_size = ram_block_attributes_get_block_size();
+
+    RCU_READ_LOCK_GUARD();
+
+    RAMBLOCK_FOREACH(block) {
+        RamBlockAttributesInfo *rba;
+        RamBlockAttributeRangeList **range_tail;
+        RamBlockAttributes *attr = block->attributes;
+        RamDiscardManager *rdm;
+        bool has_rdm;
+        unsigned long pos;
+
+        if (!attr) {
+            continue;
+        }
+
+        rdm = memory_region_get_ram_discard_manager(block->mr);
+        has_rdm = rdm != NULL;
+
+        rba = g_new0(RamBlockAttributesInfo, 1);
+        rba->name = g_strdup(block->idstr);
+        range_tail = &rba->ranges;
+
+        pos = 0;
+        while (pos < attr->bitmap_size) {
+            bool is_shared = test_bit(pos, attr->bitmap);
+            unsigned long next;
+            uint64_t start_offset, length;
+            RamBlockAttributeRange *range;
+
+            if (is_shared) {
+                next = find_next_zero_bit(attr->bitmap,
+                                          attr->bitmap_size, pos);
+            } else {
+                next = find_next_bit(attr->bitmap,
+                                     attr->bitmap_size, pos);
+            }
+
+            start_offset = (uint64_t)pos * rba_block_size;
+            length = (uint64_t)(next - pos) * rba_block_size;
+
+            range = g_new0(RamBlockAttributeRange, 1);
+            range->start = start_offset;
+            range->length = length;
+            range->shared = is_shared;
+
+            if (has_rdm) {
+                MemoryRegionSection section = {
+                    .mr = block->mr,
+                    .offset_within_region = start_offset,
+                    .size = int128_make64(length),
+                };
+                range->has_populated = true;
+                range->populated =
+                    ram_discard_manager_is_populated(rdm, &section);
+            }
+
+            QAPI_LIST_APPEND(range_tail, range);
+            pos = next;
+        }
+
+        QAPI_LIST_APPEND(tail, rba);
+    }
+
+    return head;
 }

@@ -762,6 +762,19 @@ SRST
 ERST
 
     {
+        .name       = "ramblock-attributes",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Display ramblock shared/private attributes",
+        .cmd        = hmp_info_ramblock_attributes,
+    },
+
+SRST
+  ``info ramblock-attributes``
+    Display the shared/private memory attributes for ram blocks.
+ERST
+
+    {
         .name       = "hotpluggable-cpus",
         .args_type  = "",
         .params     = "",
