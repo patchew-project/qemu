@@ -265,11 +265,13 @@ void scsi_device_unit_attention_reported(SCSIDevice *s)
 
 /* Create a scsi bus, and attach devices to it.  */
 void scsi_bus_init_named(SCSIBus *bus, size_t bus_size, DeviceState *host,
-                         const SCSIBusInfo *info, const char *bus_name)
+                         const SCSIBusInfo *info, const SCSIBusConfig *config,
+                         const char *bus_name)
 {
     qbus_init(bus, bus_size, TYPE_SCSI_BUS, host, bus_name);
     bus->busnr = next_scsi_bus++;
     bus->info = info;
+    bus->config = config;
     qbus_set_bus_hotplug_handler(BUS(bus));
 }
 
@@ -336,15 +338,15 @@ static bool scsi_bus_check_address(BusState *qbus, DeviceState *qdev, Error **er
     SCSIDevice *dev = SCSI_DEVICE(qdev);
     SCSIBus *bus = SCSI_BUS(qbus);
 
-    if (dev->channel > bus->info->max_channel) {
+    if (dev->channel > bus->config->max_channel) {
         error_setg(errp, "bad scsi channel id: %d", dev->channel);
         return false;
     }
-    if (dev->id != -1 && dev->id > bus->info->max_target) {
+    if (dev->id != -1 && dev->id > bus->config->max_target) {
         error_setg(errp, "bad scsi device id: %d", dev->id);
         return false;
     }
-    if (dev->lun != -1 && dev->lun > bus->info->max_lun) {
+    if (dev->lun != -1 && dev->lun > bus->config->max_lun) {
         error_setg(errp, "bad scsi device lun: %d", dev->lun);
         return false;
     }
@@ -374,7 +376,7 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
         }
         do {
             is_free = scsi_bus_is_address_free(bus, dev->channel, ++id, dev->lun, NULL);
-        } while (!is_free && id < bus->info->max_target);
+        } while (!is_free && id < bus->config->max_target);
         if (!is_free) {
             error_setg(errp, "no free target");
             return;
@@ -384,7 +386,7 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
         int lun = -1;
         do {
             is_free = scsi_bus_is_address_free(bus, dev->channel, dev->id, ++lun, NULL);
-        } while (!is_free && lun < bus->info->max_lun);
+        } while (!is_free && lun < bus->config->max_lun);
         if (!is_free) {
             error_setg(errp, "no free lun");
             return;
@@ -488,7 +490,7 @@ void scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
     BlockConf conf = DEFAULT_BLOCK_CONF;
 
     loc_push_none(&loc);
-    for (unit = 0; unit <= bus->info->max_target; unit++) {
+    for (unit = 0; unit <= bus->config->max_target; unit++) {
         dinfo = drive_get(IF_SCSI, bus->busnr, unit);
         if (dinfo == NULL) {
             continue;
@@ -695,7 +697,7 @@ static bool scsi_target_emulate_inquiry(SCSITargetReq *r)
         r->buf[2] = 5; /* Version */
         r->buf[3] = 2 | 0x10; /* HiSup, response data format */
         r->buf[4] = r->len - 5; /* Additional Length = (Len - 1) - 4 */
-        r->buf[7] = 0x10 | (r->req.bus->info->tcq ? 0x02 : 0); /* Sync, TCQ.  */
+        r->buf[7] = 0x10 | (r->req.bus->config->tcq ? 0x02 : 0); /* Sync, TCQ.  */
         memcpy(&r->buf[8], "QEMU    ", 8);
         memcpy(&r->buf[16], "QEMU TARGET     ", 16);
         pstrcpy((char *) &r->buf[32], 4, QEMU_HW_VERSION);

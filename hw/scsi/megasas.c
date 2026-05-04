@@ -2327,11 +2327,13 @@ static void megasas_scsi_uninit(PCIDevice *d)
     msi_uninit(d);
 }
 
-static const struct SCSIBusInfo megasas_scsi_info = {
+static const struct SCSIBusConfig megasas_scsi_config = {
     .tcq = true,
     .max_target = MFI_MAX_LD,
     .max_lun = 255,
+};
 
+static const struct SCSIBusInfo megasas_scsi_info = {
     .transfer_data = megasas_xfer_complete,
     .get_sg_list = megasas_get_sg_list,
     .complete = megasas_command_complete,
@@ -2447,7 +2449,8 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
         s->frames[i].state = s;
     }
 
-    scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(dev), &megasas_scsi_info);
+    scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(dev),
+                  &megasas_scsi_info, &megasas_scsi_config);
 }
 
 static const Property megasas_properties_gen1[] = {

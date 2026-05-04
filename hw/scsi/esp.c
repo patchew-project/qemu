@@ -1558,11 +1558,13 @@ static const MemoryRegionOps sysbus_esp_pdma_ops = {
     .impl.max_access_size = 2,
 };
 
-static const struct SCSIBusInfo esp_scsi_info = {
+static const struct SCSIBusConfig esp_scsi_config = {
     .tcq = false,
     .max_target = ESP_MAX_DEVS,
     .max_lun = 7,
+};
 
+static const struct SCSIBusInfo esp_scsi_info = {
     .load_request = esp_load_request,
     .transfer_data = esp_transfer_data,
     .complete = esp_command_complete,
@@ -1608,7 +1610,8 @@ static void sysbus_esp_realize(DeviceState *dev, Error **errp)
 
     qdev_init_gpio_in(dev, sysbus_esp_gpio_demux, 2);
 
-    scsi_bus_init(&s->bus, sizeof(s->bus), dev, &esp_scsi_info);
+    scsi_bus_init(&s->bus, sizeof(s->bus), dev, &esp_scsi_info,
+                  &esp_scsi_config);
 }
 
 static void sysbus_esp_hard_reset(DeviceState *dev)

@@ -2265,11 +2265,13 @@ static void ncr710_device_reset(DeviceState *dev)
     ncr710_soft_reset(s);
 }
 
-static const struct SCSIBusInfo ncr710_scsi_info = {
+static const struct SCSIBusConfig ncr710_scsi_config = {
     .tcq = true,
     .max_target = 8,
     .max_lun = 8,  /* Full LUN support */
+};
 
+static const struct SCSIBusInfo ncr710_scsi_info = {
     .transfer_data = ncr710_transfer_data,
     .complete = ncr710_command_complete,
     .cancel = ncr710_request_cancelled,
@@ -2415,7 +2417,7 @@ static void sysbus_ncr710_realize(DeviceState *dev, Error **errp)
 
     trace_ncr710_device_realize();
     scsi_bus_init(&s->ncr710.bus, sizeof(s->ncr710.bus), dev,
-                  &ncr710_scsi_info);
+                  &ncr710_scsi_info, &ncr710_scsi_config);
     s->ncr710.as = &address_space_memory;
 
     ncr710_scsi_fifo_init(&s->ncr710.scsi_fifo);

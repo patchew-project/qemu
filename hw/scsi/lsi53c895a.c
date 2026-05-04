@@ -2327,11 +2327,13 @@ static const VMStateDescription vmstate_lsi_scsi = {
     }
 };
 
-static const struct SCSIBusInfo lsi_scsi_info = {
+static const struct SCSIBusConfig lsi_scsi_config = {
     .tcq = true,
     .max_target = LSI_MAX_DEVS,
     .max_lun = 0,  /* LUN support is buggy */
+};
 
+static const struct SCSIBusInfo lsi_scsi_info = {
     .transfer_data = lsi_transfer_data,
     .complete = lsi_command_complete,
     .cancel = lsi_request_cancelled,
@@ -2383,7 +2385,7 @@ static void lsi_scsi_realize(PCIDevice *dev, Error **errp)
     pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->ram_io);
     QTAILQ_INIT(&s->queue);
 
-    scsi_bus_init(&s->bus, sizeof(s->bus), d, &lsi_scsi_info);
+    scsi_bus_init(&s->bus, sizeof(s->bus), d, &lsi_scsi_info, &lsi_scsi_config);
 }
 
 static void lsi_scsi_exit(PCIDevice *dev)

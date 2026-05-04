@@ -179,13 +179,14 @@ static QEMUSGList *ufs_get_sg_list(SCSIRequest *scsi_req)
     UfsRequest *req = scsi_req->hba_private;
     return req->sg;
 }
-
-static const struct SCSIBusInfo ufs_scsi_info = {
+static const struct SCSIBusConfig ufs_scsi_config = {
     .tcq = true,
     .max_target = 0,
     .max_lun = UFS_MAX_LUS,
     .max_channel = 0,
+};
 
+static const struct SCSIBusInfo ufs_scsi_info = {
     .get_sg_list = ufs_get_sg_list,
     .complete = ufs_scsi_command_complete,
 };
@@ -448,7 +449,8 @@ static void ufs_init_scsi_device(UfsLu *lu, BlockBackend *blk, Error **errp)
 {
     DeviceState *scsi_dev;
 
-    scsi_bus_init(&lu->bus, sizeof(lu->bus), DEVICE(lu), &ufs_scsi_info);
+    scsi_bus_init(&lu->bus, sizeof(lu->bus), DEVICE(lu),
+                  &ufs_scsi_info, &ufs_scsi_config);
 
     blk_ref(blk);
     blk_detach_dev(blk, DEVICE(lu));

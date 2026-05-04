@@ -1195,12 +1195,14 @@ static int vscsi_do_crq(struct SpaprVioDevice *dev, uint8_t *crq_data)
     return 0;
 }
 
-static const struct SCSIBusInfo vscsi_scsi_info = {
+static const struct SCSIBusConfig vscsi_scsi_config = {
     .tcq = true,
     .max_channel = 7, /* logical unit addressing format */
     .max_target = 63,
     .max_lun = 31,
+};
 
+static const struct SCSIBusInfo vscsi_scsi_info = {
     .transfer_data = vscsi_transfer_data,
     .complete = vscsi_command_complete,
     .cancel = vscsi_request_cancelled,
@@ -1225,7 +1227,8 @@ static void spapr_vscsi_realize(SpaprVioDevice *dev, Error **errp)
 
     dev->crq.SendFunc = vscsi_do_crq;
 
-    scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(dev), &vscsi_scsi_info);
+    scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(dev),
+                  &vscsi_scsi_info, &vscsi_scsi_config);
 
     /* ibmvscsi SCSI bus does not allow hotplug. */
     qbus_set_hotplug_handler(BUS(&s->bus), NULL);

@@ -1259,11 +1259,13 @@ static void *mptsas_load_request(QEMUFile *f, SCSIRequest *sreq)
     return req;
 }
 
-static const struct SCSIBusInfo mptsas_scsi_info = {
+static const struct SCSIBusConfig mptsas_scsi_config = {
     .tcq = true,
     .max_target = MPTSAS_NUM_PORTS,
     .max_lun = 1,
+};
 
+static const struct SCSIBusInfo mptsas_scsi_info = {
     .get_sg_list = mptsas_get_sg_list,
     .complete = mptsas_command_complete,
     .cancel = mptsas_request_cancelled,
@@ -1325,7 +1327,8 @@ static void mptsas_scsi_realize(PCIDevice *dev, Error **errp)
     s->request_bh = qemu_bh_new_guarded(mptsas_fetch_requests, s,
                                         &DEVICE(dev)->mem_reentrancy_guard);
 
-    scsi_bus_init(&s->bus, sizeof(s->bus), &dev->qdev, &mptsas_scsi_info);
+    scsi_bus_init(&s->bus, sizeof(s->bus), &dev->qdev,
+                  &mptsas_scsi_info, &mptsas_scsi_config);
 }
 
 static void mptsas_scsi_uninit(PCIDevice *dev)

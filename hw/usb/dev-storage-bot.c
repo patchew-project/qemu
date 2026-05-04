@@ -13,11 +13,13 @@
 #include "hw/usb/desc.h"
 #include "hw/usb/msd.h"
 
-static const struct SCSIBusInfo usb_msd_scsi_info_bot = {
+static const struct SCSIBusConfig usb_msd_scsi_config_bot = {
     .tcq = false,
     .max_target = 0,
     .max_lun = 15,
+};
 
+static const struct SCSIBusInfo usb_msd_scsi_info_bot = {
     .transfer_data = usb_msd_transfer_data,
     .complete = usb_msd_command_complete,
     .cancel = usb_msd_request_cancelled,
@@ -36,7 +38,8 @@ static void usb_msd_bot_realize(USBDevice *dev, Error **errp)
         s->dev.auto_attach = 0;
     }
 
-    scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(dev), &usb_msd_scsi_info_bot);
+    scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(dev),
+                  &usb_msd_scsi_info_bot, &usb_msd_scsi_config_bot);
     usb_msd_handle_reset(dev);
 }
 

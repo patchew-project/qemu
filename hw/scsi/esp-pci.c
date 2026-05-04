@@ -373,11 +373,13 @@ static const VMStateDescription vmstate_esp_pci_scsi = {
     }
 };
 
-static const struct SCSIBusInfo esp_pci_scsi_info = {
+static const struct SCSIBusConfig esp_pci_scsi_config = {
     .tcq = false,
     .max_target = ESP_MAX_DEVS,
     .max_lun = 7,
+};
 
+static const struct SCSIBusInfo esp_pci_scsi_info = {
     .transfer_data = esp_transfer_data,
     .complete = esp_command_complete,
     .cancel = esp_request_cancelled,
@@ -409,7 +411,8 @@ static void esp_pci_scsi_realize(PCIDevice *dev, Error **errp)
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &pci->io);
     s->irq = qemu_allocate_irq(esp_irq_handler, pci, 0);
 
-    scsi_bus_init(&s->bus, sizeof(s->bus), d, &esp_pci_scsi_info);
+    scsi_bus_init(&s->bus, sizeof(s->bus), d, &esp_pci_scsi_info,
+                  &esp_pci_scsi_config);
 }
 
 static void esp_pci_scsi_exit(PCIDevice *d)
