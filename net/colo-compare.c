@@ -1416,7 +1416,7 @@ static void colo_compare_finalize(Object *obj)
             break;
         }
     }
-    if (QTAILQ_EMPTY(&net_compares)) {
+    if (colo_compare_active && QTAILQ_EMPTY(&net_compares)) {
         colo_compare_active = false;
         qemu_mutex_destroy(&event_mtx);
         qemu_cond_destroy(&event_complete_cond);
@@ -1431,30 +1431,29 @@ static void colo_compare_finalize(Object *obj)
     }
 
     colo_compare_timer_del(s);
+    g_clear_pointer(&s->event_bh, qemu_bh_delete);
 
-    qemu_bh_delete(s->event_bh);
+    if (s->iothread) {
+        AioContext *ctx = iothread_get_aio_context(s->iothread);
 
-    AioContext *ctx = iothread_get_aio_context(s->iothread);
-    AIO_WAIT_WHILE(ctx, !s->out_sendco.done);
-    if (s->notify_dev) {
-        AIO_WAIT_WHILE(ctx, !s->notify_sendco.done);
+        AIO_WAIT_WHILE(ctx, !s->out_sendco.done);
+        if (s->notify_dev) {
+            AIO_WAIT_WHILE(ctx, !s->notify_sendco.done);
+        }
+
+        /* Release all unhandled packets after compare thread exited */
+        g_queue_foreach(&s->conn_list, colo_flush_packets, s);
+        AIO_WAIT_WHILE(NULL, !s->out_sendco.done);
+
+        object_unref(OBJECT(s->iothread));
     }
-
-    /* Release all unhandled packets after compare thead exited */
-    g_queue_foreach(&s->conn_list, colo_flush_packets, s);
-    AIO_WAIT_WHILE(NULL, !s->out_sendco.done);
 
     g_queue_clear(&s->conn_list);
     g_queue_clear(&s->out_sendco.send_list);
     if (s->notify_dev) {
         g_queue_clear(&s->notify_sendco.send_list);
     }
-
-    if (s->connection_track_table) {
-        g_hash_table_destroy(s->connection_track_table);
-    }
-
-    object_unref(OBJECT(s->iothread));
+    g_clear_pointer(&s->connection_track_table, g_hash_table_destroy);
 
     g_free(s->pri_indev);
     g_free(s->sec_indev);
