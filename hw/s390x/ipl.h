@@ -182,7 +182,7 @@ static inline bool iplb_valid(IplParameterBlock *iplb)
         return len >= S390_IPLB_MIN_CCW_LEN;
     case S390_IPL_TYPE_PCI:
         return len >= S390_IPLB_MIN_PCI_LEN;
-    case S390_IPL_TYPE_QEMU_SCSI:
+    case S390_IPL_TYPE_CCW_SCSI:
     default:
         return false;
     }

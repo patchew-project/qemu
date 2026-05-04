@@ -183,7 +183,7 @@ static void menu_setup(VDev *vdev)
 
     switch (vdev->ipl_type) {
     case S390_IPL_TYPE_CCW:
-    case S390_IPL_TYPE_QEMU_SCSI:
+    case S390_IPL_TYPE_CCW_SCSI:
         menu_set_parms(qipl.qipl_flags & BOOT_MENU_FLAG_MASK,
                        qipl.boot_menu_timeout);
         /* fall through */
@@ -249,13 +249,13 @@ static bool find_boot_device(void)
         debug_print_int("ssid ", blk_schid.ssid);
         found = find_subch(iplb.ccw.devno);
         break;
-    case S390_IPL_TYPE_QEMU_SCSI:
+    case S390_IPL_TYPE_CCW_SCSI:
         vdev->scsi_device_selected = true;
-        vdev->selected_scsi_device.channel = iplb.scsi.channel;
-        vdev->selected_scsi_device.target = iplb.scsi.target;
-        vdev->selected_scsi_device.lun = iplb.scsi.lun;
-        blk_schid.ssid = iplb.scsi.ssid & 0x3;
-        found = find_subch(iplb.scsi.devno);
+        vdev->selected_scsi_device.channel = iplb.ccw_scsi.channel;
+        vdev->selected_scsi_device.target = iplb.ccw_scsi.target;
+        vdev->selected_scsi_device.lun = iplb.ccw_scsi.lun;
+        blk_schid.ssid = iplb.ccw_scsi.ssid & 0x3;
+        found = find_subch(iplb.ccw_scsi.devno);
         break;
      case S390_IPL_TYPE_PCI:
         found = find_fid(iplb.pci.fid);
@@ -339,7 +339,7 @@ static void ipl_pci_device(void)
 static void ipl_boot_device(void)
 {
     switch (virtio_get_device()->ipl_type) {
-    case S390_IPL_TYPE_QEMU_SCSI:
+    case S390_IPL_TYPE_CCW_SCSI:
     case S390_IPL_TYPE_CCW:
         ipl_ccw_device();
         break;

@@ -315,7 +315,7 @@ static void s390_ipl_set_boot_menu(S390IPLState *ipl)
             return;
         }
         break;
-    case S390_IPL_TYPE_QEMU_SCSI:
+    case S390_IPL_TYPE_CCW_SCSI:
         break;
     default:
         if (current_machine->boot_config.has_menu && current_machine->boot_config.menu) {
@@ -477,12 +477,12 @@ static bool s390_build_iplb(DeviceState *dev_st, IplParameterBlock *iplb)
             iplb->len = cpu_to_be32(S390_IPLB_MIN_QEMU_SCSI_LEN);
             iplb->blk0_len =
                 cpu_to_be32(S390_IPLB_MIN_QEMU_SCSI_LEN - S390_IPLB_HEADER_LEN);
-            iplb->pbt = S390_IPL_TYPE_QEMU_SCSI;
-            iplb->scsi.lun = cpu_to_be32(sd->lun);
-            iplb->scsi.target = cpu_to_be16(sd->id);
-            iplb->scsi.channel = cpu_to_be16(sd->channel);
-            iplb->scsi.devno = cpu_to_be16(ccw_dev->sch->devno);
-            iplb->scsi.ssid = ccw_dev->sch->ssid & 3;
+            iplb->pbt = S390_IPL_TYPE_CCW_SCSI;
+            iplb->ccw_scsi.lun = cpu_to_be32(sd->lun);
+            iplb->ccw_scsi.target = cpu_to_be16(sd->id);
+            iplb->ccw_scsi.channel = cpu_to_be16(sd->channel);
+            iplb->ccw_scsi.devno = cpu_to_be16(ccw_dev->sch->devno);
+            iplb->ccw_scsi.ssid = ccw_dev->sch->ssid & 3;
             break;
         case CCW_DEVTYPE_VFIO:
             iplb->len = cpu_to_be32(S390_IPLB_MIN_CCW_LEN);
