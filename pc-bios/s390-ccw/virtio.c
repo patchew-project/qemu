@@ -114,7 +114,8 @@ bool vring_notify(VRing *vr)
         vr->cookie = virtio_ccw_notify(vdev.schid, vr->id, vr->cookie);
         break;
     case S390_IPL_TYPE_PCI:
-        vr->cookie = virtio_pci_notify(vr->id);
+        vr->cookie = virtio_pci_notify(vr);
+        break;
     default:
         return 1;
     }
@@ -154,6 +155,7 @@ static void vr_bswap_descriptor(VRingDesc *desc)
 void vring_send_buf(VRing *vr, void *p, int len, int flags)
 {
     if (!be_ipl()) {
+        vpci_set_selected_vq(vr->id);
         vr->avail->idx = bswap16(vr->avail->idx);
     }
 
