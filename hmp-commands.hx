@@ -21,6 +21,20 @@ SRST
 ERST
 
     {
+        .name       = "clear",
+        .args_type  = "",
+        .params     = "",
+        .help       = "clear the monitor screen",
+        .cmd        = hmp_clear,
+        .flags      = "p",
+    },
+
+SRST
+``clear``
+  Clear the monitor screen.
+ERST
+
+    {
         .name       = "commit",
         .args_type  = "device:B",
         .params     = "device|all",
