@@ -53,6 +53,10 @@ void virtio_pci_id2type(VDev *vdev, uint16_t device_id)
     case 0x1001:
         vdev->dev_type = VIRTIO_ID_BLOCK;
         break;
+    case 0x1048:
+    case 0x1004:
+        vdev->dev_type = VIRTIO_ID_SCSI;
+        break;
     default:
         vdev->dev_type = 0;
     }
@@ -196,6 +200,26 @@ static int virtio_pci_get_blk_config(void)
     cfg->blk_size = bswap32(cfg->blk_size);
     cfg->min_io_size = bswap16(cfg->min_io_size);
     cfg->opt_io_size = bswap32(cfg->opt_io_size);
+
+    return rc;
+}
+
+static int virtio_pci_get_scsi_config(void)
+{
+    VirtioScsiConfig *cfg = &virtio_get_device()->config.scsi;
+    int rc = vpci_read_flex(d_cap.off, d_cap.bar, cfg, sizeof(VirtioScsiConfig));
+
+    /* all fields of scsi config must be byte swapped */
+    cfg->num_queues = bswap32(cfg->num_queues);
+    cfg->seg_max = bswap32(cfg->seg_max);
+    cfg->max_sectors = bswap32(cfg->max_sectors);
+    cfg->cmd_per_lun = bswap32(cfg->cmd_per_lun);
+    cfg->event_info_size = bswap32(cfg->event_info_size);
+    cfg->sense_size = bswap32(cfg->sense_size);
+    cfg->cdb_size = bswap32(cfg->cdb_size);
+    cfg->max_channel = bswap16(cfg->max_channel);
+    cfg->max_target = bswap16(cfg->max_target);
+    cfg->max_lun = bswap32(cfg->max_lun);
 
     return rc;
 }
@@ -366,6 +390,11 @@ int virtio_pci_setup(VDev *vdev)
         vdev->nr_vqs = 1;
         vdev->cmd_vr_idx = 0;
         virtio_pci_get_blk_config();
+        break;
+    case VIRTIO_ID_SCSI:
+        vdev->nr_vqs = 3;
+        vdev->cmd_vr_idx = 2;
+        virtio_pci_get_scsi_config();
         break;
     default:
         puts("Unsupported virtio device");

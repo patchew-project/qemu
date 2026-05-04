@@ -257,7 +257,15 @@ static bool find_boot_device(void)
         blk_schid.ssid = iplb.ccw_scsi.ssid & 0x3;
         found = find_subch(iplb.ccw_scsi.devno);
         break;
+     case S390_IPL_TYPE_PCI_SCSI:
+        vdev->scsi_device_selected = true;
+        vdev->selected_scsi_device.channel = iplb.pci_scsi.channel;
+        vdev->selected_scsi_device.target = iplb.pci_scsi.target;
+        vdev->selected_scsi_device.lun = iplb.pci_scsi.lun;
+        found = find_fid(iplb.pci_scsi.fid);
+        break;
      case S390_IPL_TYPE_PCI:
+        vdev->scsi_device_selected = false;
         found = find_fid(iplb.pci.fid);
         break;
     default:
@@ -318,13 +326,13 @@ static void ipl_pci_device(void)
 {
     VDev *vdev = virtio_get_device();
     vdev->is_cdrom = false;
-    vdev->scsi_device_selected = false;
 
     if (virtio_pci_setup_device()) {
         return;
     }
 
     switch (vdev->dev_type) {
+    case VIRTIO_ID_SCSI:
     case VIRTIO_ID_BLOCK:
         if (virtio_setup() == 0) {
             zipl_load(); /* only return on error */
@@ -343,6 +351,7 @@ static void ipl_boot_device(void)
     case S390_IPL_TYPE_CCW:
         ipl_ccw_device();
         break;
+    case S390_IPL_TYPE_PCI_SCSI:
     case S390_IPL_TYPE_PCI:
         ipl_pci_device();
         break;

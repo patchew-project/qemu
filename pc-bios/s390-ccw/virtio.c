@@ -89,6 +89,8 @@ static int virtio_do_run(VDev *vdev, int vqid, VirtioCmd *cmd)
 int virtio_run(VDev *vdev, int vqid, VirtioCmd *cmd)
 {
     switch (vdev->ipl_type) {
+    case S390_IPL_TYPE_PCI_SCSI:
+    case S390_IPL_TYPE_PCI:
     case S390_IPL_TYPE_CCW_SCSI:
     case S390_IPL_TYPE_CCW:
         return virtio_do_run(vdev, vqid, cmd);
@@ -130,6 +132,7 @@ bool vring_notify(VRing *vr)
     case S390_IPL_TYPE_CCW:
         vr->cookie = virtio_ccw_notify(vdev.schid, vr->id, vr->cookie);
         break;
+    case S390_IPL_TYPE_PCI_SCSI:
     case S390_IPL_TYPE_PCI:
         vr->cookie = virtio_pci_notify(vr);
         break;
@@ -150,6 +153,7 @@ bool be_ipl(void)
     case S390_IPL_TYPE_CCW_SCSI:
     case S390_IPL_TYPE_CCW:
         return true;
+    case S390_IPL_TYPE_PCI_SCSI:
     case S390_IPL_TYPE_PCI:
         return false;
     default:
@@ -252,6 +256,7 @@ int virtio_reset(VDev *vdev)
     case S390_IPL_TYPE_CCW_SCSI:
     case S390_IPL_TYPE_CCW:
         return virtio_ccw_reset(vdev);
+    case S390_IPL_TYPE_PCI_SCSI:
     case S390_IPL_TYPE_PCI:
         return virtio_pci_reset(vdev);
     default:
