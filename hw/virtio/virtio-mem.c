@@ -19,6 +19,7 @@
 #include "system/memory.h"
 #include "system/numa.h"
 #include "system/system.h"
+#include "system/kvm.h"
 #include "system/ramblock.h"
 #include "system/reset.h"
 #include "system/runstate.h"
@@ -479,6 +480,11 @@ static int virtio_mem_set_block_state(VirtIOMEM *vmem, uint64_t start_gpa,
         if (vmem->dynamic_memslots) {
             virtio_mem_deactivate_unplugged_memslots(vmem, offset, size);
         }
+        if (rb->flags & RAM_GUEST_MEMFD_START_SHARED) {
+            kvm_set_memory_attributes_shared(start_gpa, size);
+            ram_block_attributes_state_change(rb->attributes,
+                                              offset, size, false);
+        }
         return 0;
     }
 
@@ -606,10 +612,12 @@ static int virtio_mem_unplug_all(VirtIOMEM *vmem)
     RAMBlock *rb = vmem->memdev->mr.ram_block;
 
     if (vmem->size) {
+        uint64_t used = qemu_ram_get_used_length(rb);
+
         if (virtio_mem_is_busy()) {
             return -EBUSY;
         }
-        if (ram_block_discard_range(rb, 0, qemu_ram_get_used_length(rb))) {
+        if (ram_block_discard_range(rb, 0, used)) {
             return -EBUSY;
         }
         virtio_mem_notify_unplug_all(vmem);
@@ -621,6 +629,11 @@ static int virtio_mem_unplug_all(VirtIOMEM *vmem)
         /* Deactivate all memslots after updating the state. */
         if (vmem->dynamic_memslots) {
             virtio_mem_deactivate_unplugged_memslots(vmem, 0, region_size);
+        }
+        if (rb->flags & RAM_GUEST_MEMFD_START_SHARED) {
+            kvm_set_memory_attributes_shared(vmem->addr, used);
+            ram_block_attributes_state_change(rb->attributes,
+                                              0, used, false);
         }
     }
 
@@ -858,6 +871,18 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
 
     rb = vmem->memdev->mr.ram_block;
     page_size = qemu_ram_pagesize(rb);
+
+    /*
+     * For CoCo VMs with guest_memfd, use the "start-shared" model:
+     * memory starts as shared and the guest converts to private on
+     * plug.
+     */
+    if (rb->flags & RAM_GUEST_MEMFD) {
+        rb->flags |= RAM_GUEST_MEMFD_START_SHARED;
+        ram_block_attributes_state_change(rb->attributes, 0,
+                                          qemu_ram_get_used_length(rb),
+                                          false);
+    }
 
     if (virtio_mem_has_legacy_guests()) {
         switch (vmem->unplugged_inaccessible) {

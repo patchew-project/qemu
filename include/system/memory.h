@@ -277,6 +277,12 @@ typedef struct IOMMUTLBEvent {
  */
 #define RAM_PRIVATE (1 << 13)
 
+/*
+ * RAM with guest_memfd that should start with shared KVM memory
+ * attributes. The guest converts to private on use.
+ */
+#define RAM_GUEST_MEMFD_START_SHARED (1 << 14)
+
 static inline void iommu_notifier_init(IOMMUNotifier *n, IOMMUNotify fn,
                                        IOMMUNotifierFlag flags,
                                        hwaddr start, hwaddr end,
