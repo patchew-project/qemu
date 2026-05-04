@@ -54,6 +54,7 @@ struct VirtIOSCSIConf {
     uint32_t virtqueue_size;
     bool worker_per_virtqueue;
     bool seg_max_adjust;
+    uint8_t max_target;
     uint32_t max_sectors;
     uint32_t cmd_per_lun;
     char *vhostfd;
@@ -83,6 +84,8 @@ struct VirtIOSCSI {
     VirtIOSCSICommon parent_obj;
 
     SCSIBus bus;
+    SCSIBusConfig *bus_config;
+
     int resetting; /* written from main loop thread, read from any thread */
 
     QemuMutex event_lock; /* protects event_vq and events_dropped */

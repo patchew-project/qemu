@@ -352,6 +352,8 @@ static const Property vhost_user_scsi_properties[] = {
                        VIRTIO_SCSI_AUTO_NUM_QUEUES),
     DEFINE_PROP_UINT32("virtqueue_size", VirtIOSCSICommon, conf.virtqueue_size,
                        128),
+    DEFINE_PROP_UINT8("max_target", VirtIOSCSICommon, conf.max_target,
+                      VIRTIO_SCSI_MAX_TARGET),
     DEFINE_PROP_UINT32("max_sectors", VirtIOSCSICommon, conf.max_sectors,
                        0xFFFF),
     DEFINE_PROP_UINT32("cmd_per_lun", VirtIOSCSICommon, conf.cmd_per_lun, 128),

@@ -975,7 +975,7 @@ static void virtio_scsi_get_config(VirtIODevice *vdev,
     virtio_stl_p(vdev, &scsiconf->sense_size, s->sense_size);
     virtio_stl_p(vdev, &scsiconf->cdb_size, s->cdb_size);
     virtio_stw_p(vdev, &scsiconf->max_channel, VIRTIO_SCSI_MAX_CHANNEL);
-    virtio_stw_p(vdev, &scsiconf->max_target, VIRTIO_SCSI_MAX_TARGET);
+    virtio_stw_p(vdev, &scsiconf->max_target, s->conf.max_target);
     virtio_stl_p(vdev, &scsiconf->max_lun, VIRTIO_SCSI_MAX_LUN);
 }
 
@@ -1264,13 +1264,6 @@ static void virtio_scsi_drained_end(SCSIBus *bus)
     }
 }
 
-static struct SCSIBusConfig virtio_scsi_scsi_config = {
-    .tcq = true,
-    .max_channel = VIRTIO_SCSI_MAX_CHANNEL,
-    .max_target = VIRTIO_SCSI_MAX_TARGET,
-    .max_lun = VIRTIO_SCSI_MAX_LUN,
-};
-
 static const struct SCSIBusOps virtio_scsi_scsi_ops = {
     .complete = virtio_scsi_command_complete,
     .fail = virtio_scsi_command_failed,
@@ -1324,6 +1317,23 @@ void virtio_scsi_common_realize(DeviceState *dev,
     }
 }
 
+static void virtio_scsi_scsi_config_init(VirtIOSCSI *s)
+{
+    s->bus_config = g_malloc(sizeof(SCSIBusConfig));
+
+    s->bus_config->tcq = true;
+    s->bus_config->max_channel = VIRTIO_SCSI_MAX_CHANNEL;
+    s->bus_config->max_target = s->parent_obj.conf.max_target;
+    s->bus_config->max_lun = VIRTIO_SCSI_MAX_LUN;
+}
+
+static void virtio_scsi_scsi_bus_cleanup(VirtIOSCSI *s)
+{
+    qbus_set_hotplug_handler(BUS(&s->bus), NULL);
+    g_free(s->bus_config);
+    s->bus.config = NULL;
+}
+
 static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -1344,13 +1354,18 @@ static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    virtio_scsi_scsi_config_init(s);
     scsi_bus_init_named(&s->bus, sizeof(s->bus), dev,
-                        &virtio_scsi_scsi_ops, &virtio_scsi_scsi_config,
+                        &virtio_scsi_scsi_ops, s->bus_config,
                         vdev->bus_name);
     /* override default SCSI bus hotplug-handler, with virtio-scsi's one */
     qbus_set_hotplug_handler(BUS(&s->bus), OBJECT(dev));
 
     virtio_scsi_dataplane_setup(s, errp);
+
+    if (*errp) {
+        virtio_scsi_scsi_bus_cleanup(s);
+    }
 }
 
 void virtio_scsi_common_unrealize(DeviceState *dev)
@@ -1374,7 +1389,7 @@ static void virtio_scsi_device_unrealize(DeviceState *dev)
     VirtIOSCSI *s = VIRTIO_SCSI(dev);
 
     virtio_scsi_dataplane_cleanup(s);
-    qbus_set_hotplug_handler(BUS(&s->bus), NULL);
+    virtio_scsi_scsi_bus_cleanup(s);
     virtio_scsi_common_unrealize(dev);
     qemu_mutex_destroy(&s->event_lock);
     qemu_mutex_destroy(&s->ctrl_lock);
@@ -1387,6 +1402,8 @@ static const Property virtio_scsi_properties[] = {
                                          parent_obj.conf.virtqueue_size, 256),
     DEFINE_PROP_BOOL("seg_max_adjust", VirtIOSCSI,
                       parent_obj.conf.seg_max_adjust, true),
+    DEFINE_PROP_UINT8("max_target", VirtIOSCSICommon, conf.max_target,
+                      VIRTIO_SCSI_MAX_TARGET),
     DEFINE_PROP_UINT32("max_sectors", VirtIOSCSI, parent_obj.conf.max_sectors,
                                                   0xFFFF),
     DEFINE_PROP_UINT32("cmd_per_lun", VirtIOSCSI, parent_obj.conf.cmd_per_lun,
