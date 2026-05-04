@@ -133,7 +133,8 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3, uintptr_t ra)
 
         valid = subcode == DIAG308_PV_SET ? iplb_valid_pv(iplb) : iplb_valid(iplb);
         if (!valid) {
-            if (subcode == DIAG308_SET && iplb->pbt == S390_IPL_TYPE_CCW_SCSI) {
+            if (subcode == DIAG308_SET && (iplb->pbt == S390_IPL_TYPE_CCW_SCSI ||
+                                           iplb->pbt == S390_IPL_TYPE_PCI_SCSI)) {
                 s390_rebuild_iplb(iplb->devno, iplb);
                 s390_ipl_update_diag308(iplb);
                 env->regs[r1 + 1] = DIAG_308_RC_OK;
