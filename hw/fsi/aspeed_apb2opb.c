@@ -348,8 +348,29 @@ static void fsi_opb_init(Object *o)
 {
     OPBus *opb = OP_BUS(o);
 
-    memory_region_init(&opb->mr, 0, TYPE_FSI_OPB, UINT32_MAX);
+    memory_region_init(&opb->mr, o, TYPE_FSI_OPB, UINT32_MAX);
+}
+
+static void fsi_opb_realize(BusState *bus, Error **errp)
+{
+    OPBus *opb = OP_BUS(bus);
+
     address_space_init(&opb->as, &opb->mr, TYPE_FSI_OPB);
+}
+
+static void fsi_opb_unrealize(BusState *bus)
+{
+    OPBus *opb = OP_BUS(bus);
+
+    address_space_destroy(&opb->as);
+}
+
+static void fsi_opb_class_init(ObjectClass *klass, const void *data)
+{
+    BusClass *bc = BUS_CLASS(klass);
+
+    bc->realize = fsi_opb_realize;
+    bc->unrealize = fsi_opb_unrealize;
 }
 
 static const TypeInfo opb_info = {
@@ -357,6 +378,7 @@ static const TypeInfo opb_info = {
     .parent = TYPE_BUS,
     .instance_init = fsi_opb_init,
     .instance_size = sizeof(OPBus),
+    .class_init = fsi_opb_class_init,
 };
 
 static void fsi_opb_register_types(void)
