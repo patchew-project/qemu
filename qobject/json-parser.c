@@ -656,6 +656,10 @@ QObject *json_parser_feed(JSONParserContext *ctxt, const JSONToken *token,
 
     assert(!ctxt->err);
     switch (token->type) {
+    case JSON_ERROR:
+        parse_error(ctxt, token, "JSON parse error, stray '%s'", token->str);
+        break;
+
     case JSON_END_OF_INPUT:
         /* Check for premature end of input */
         if (!g_queue_is_empty(ctxt->stack)) {
