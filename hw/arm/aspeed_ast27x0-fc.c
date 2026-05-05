@@ -22,6 +22,8 @@
 #include "hw/arm/boot.h"
 #include "hw/block/flash.h"
 #include "hw/arm/aspeed_coprocessor.h"
+#include "hw/arm/aspeed_caliptra_emu.h"
+#include "hw/core/sysbus.h"
 #include "hw/arm/machines-qom.h"
 
 #define TYPE_AST2700FC MACHINE_TYPE_NAME("ast2700fc")
@@ -33,6 +35,8 @@ static struct arm_boot_info ast2700fc_board_info = {
 
 struct Ast2700FCState {
     MachineState parent_obj;
+
+    char *caliptra_socket;
 
     MemoryRegion ca35_memory;
     MemoryRegion ca35_dram;
@@ -198,9 +202,51 @@ static bool ast2700fc_tsp_init(MachineState *machine, Error **errp)
 
 static void ast2700fc_init(MachineState *machine)
 {
+    Ast2700FCState *s = AST2700FC(machine);
+
     ast2700fc_ca35_init(machine, &error_abort);
     ast2700fc_ssp_init(machine, &error_abort);
     ast2700fc_tsp_init(machine, &error_abort);
+
+    if (s->caliptra_socket) {
+        SysBusDevice *sbd;
+        DeviceState *dev = qdev_new(TYPE_ASPEED_CALIPTRA_EMU);
+
+        qdev_prop_set_string(dev, "socket-path", s->caliptra_socket);
+        sbd = SYS_BUS_DEVICE(dev);
+        sysbus_realize_and_unref(sbd, &error_abort);
+        /*
+         * Map the Caliptra APB MMIO region into the CA35 address space.
+         * 0x14000000..0x14FFFFFF.
+         */
+        memory_region_add_subregion_overlap(&s->ca35_memory,
+                                            ASPEED_CALIPTRA_MMIO_BASE,
+                                            sysbus_mmio_get_region(sbd, 0),
+                                            1);
+    }
+}
+
+static char *ast2700fc_get_caliptra_socket(Object *obj, Error **errp)
+{
+    Ast2700FCState *s = AST2700FC(obj);
+
+    return g_strdup(s->caliptra_socket ? s->caliptra_socket : "");
+}
+
+static void ast2700fc_set_caliptra_socket(Object *obj, const char *value,
+                                          Error **errp)
+{
+    Ast2700FCState *s = AST2700FC(obj);
+
+    g_free(s->caliptra_socket);
+    s->caliptra_socket = g_strdup(value);
+}
+
+static void ast2700fc_instance_finalize(Object *obj)
+{
+    Ast2700FCState *s = AST2700FC(obj);
+
+    g_free(s->caliptra_socket);
 }
 
 static void ast2700fc_class_init(ObjectClass *oc, const void *data)
@@ -212,6 +258,14 @@ static void ast2700fc_class_init(ObjectClass *oc, const void *data)
     mc->no_floppy = 1;
     mc->no_cdrom = 1;
     mc->min_cpus = mc->max_cpus = mc->default_cpus = 6;
+
+    object_class_property_add_str(oc, "caliptra-socket",
+                                  ast2700fc_get_caliptra_socket,
+                                  ast2700fc_set_caliptra_socket);
+    object_class_property_set_description(oc, "caliptra-socket",
+        "Unix socket path for the external Caliptra backend (caliptra-server). "
+        "caliptra-server is launched independently with the ROM/firmware images "
+        "and must be listening before QEMU is started.");
 }
 
 static const TypeInfo ast2700fc_types[] = {
@@ -220,6 +274,7 @@ static const TypeInfo ast2700fc_types[] = {
         .parent         = TYPE_MACHINE,
         .class_init     = ast2700fc_class_init,
         .instance_size  = sizeof(Ast2700FCState),
+        .instance_finalize = ast2700fc_instance_finalize,
         .interfaces     = aarch64_machine_interfaces,
     },
 };

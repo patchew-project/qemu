@@ -1263,6 +1263,8 @@ L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/*aspeed*
 F: include/hw/*/*aspeed*
+F: hw/arm/aspeed_caliptra_emu.c
+F: include/hw/arm/aspeed_caliptra_emu.h
 F: hw/net/ftgmac100.c
 F: include/hw/net/ftgmac100.h
 F: docs/system/arm/aspeed.rst

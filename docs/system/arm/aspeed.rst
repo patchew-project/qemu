@@ -423,6 +423,41 @@ Steps to boot the AST2700fc machine:
        -snapshot \
        -S -nographic
 
+The ``ast2700fc`` machine can also forward CA35 accesses to the on-die
+Caliptra Root-of-Trust core to an external Caliptra backend over a Unix
+socket.  The backend (``caliptra-server``) is launched independently with
+the Caliptra ROM and firmware bundle, boots the Caliptra emulated model
+to runtime-ready, then listens on a Unix socket.  QEMU connects to that
+socket from the device's ``realize()`` and forwards every CA35 read/write
+in the Caliptra MMIO window as an APB transaction on the socket.
+
+The socket path is configured with the ``caliptra-socket`` machine
+property.  If the property is not set, no Caliptra backend is attached
+and the Caliptra MMIO window is left unmapped.
+
+For example, to run Caliptra firmware from ``caliptra-sw``:
+
+.. code-block:: bash
+
+  # Terminal 1: start caliptra-server with the ROM/firmware images.
+  # It boots the model to runtime-ready before opening the socket.
+  $ caliptra-server \
+       --socket /tmp/caliptra.sock \
+       --rom    images/caliptra-rom-with-log.bin \
+       --firmware images/caliptra-fw.bundle
+
+  # Terminal 2: launch QEMU; the CA35 starts running immediately.
+  $ qemu-system-aarch64 \
+       -M ast2700fc,caliptra-socket=/tmp/caliptra.sock \
+       ...
+
+There is no boot handshake between QEMU and the backend: by the time the
+device's ``realize()`` runs, ``caliptra-server`` is already at
+runtime-ready, so the CA35 is not held in reset.  The wire protocol
+between QEMU and the backend is APB-level: ``APB_READ`` / ``APB_WRITE``
+requests from QEMU are answered by ``APB_RDATA`` / ``APB_WACK`` from the
+backend.  This protocol is RFC-stage and may change.
+
 After launching QEMU, serial devices will be automatically redirected.
 Example output:
 
