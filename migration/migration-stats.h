@@ -37,6 +37,13 @@ typedef struct {
      */
     uint64_t dirty_bytes_last_sync;
     /*
+     * Number of bytes that were reported dirty now.  This is an estimate
+     * value and will be updated every time migration thread queries from
+     * modules in an iteration loop.  It is used to provide best-effort
+     * estimation on total remaining data.
+     */
+    uint64_t dirty_bytes_total;
+    /*
      * Number of pages dirtied per second.
      */
     uint64_t dirty_pages_rate;
