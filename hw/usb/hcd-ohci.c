@@ -748,6 +748,7 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed)
     usb_handle_packet(dev, pkt);
     if (pkt->status == USB_RET_ASYNC) {
         usb_device_flush_ep_queue(dev, ep);
+        usb_packet_cleanup(pkt);
         g_free(pkt);
         return 1;
     }
@@ -756,6 +757,7 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed)
     } else {
         ret = pkt->status;
     }
+    usb_packet_cleanup(pkt);
     g_free(pkt);
 
     trace_usb_ohci_iso_td_so(start_offset, end_offset, start_addr, end_addr,
