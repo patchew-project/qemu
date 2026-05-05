@@ -394,7 +394,15 @@ void main(void)
         probe_boot_device();
     }
 
-    boot_mode = ZIPL_BOOT_MODE_NORMAL;
+    boot_mode = get_boot_mode(iplb->hdr_flags);
+    switch (boot_mode) {
+    case ZIPL_BOOT_MODE_SECURE_AUDIT:
+        if (!secure_ipl_supported()) {
+            panic("Unable to boot in audit mode");
+        }
+    default:
+        break;
+    }
 
     while (have_iplb) {
         boot_setup();
