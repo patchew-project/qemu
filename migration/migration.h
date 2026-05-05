@@ -512,7 +512,6 @@ struct MigrationState {
     bool rdma_migration;
 
     bool postcopy_package_loaded;
-    QemuEvent postcopy_package_loaded_event;
 
     GSource *hup_source;
 
