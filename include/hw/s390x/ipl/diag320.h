@@ -83,6 +83,9 @@ struct VCEntry {
 };
 typedef struct VCEntry VCEntry;
 
+#define MAX_ENTRY_SIZE      (8 * 1024)
+#define CERT_BUF_MAX_LEN    (MAX_ENTRY_SIZE - sizeof(VCEntryHeader))
+
 struct VCBlockHeader {
     uint32_t in_len;
     uint32_t reserved0;

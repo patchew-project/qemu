@@ -73,7 +73,7 @@ static S390IPLCertificate *init_cert(char *path, Error **errp)
     return cert;
 }
 
-static void update_cert_store(S390IPLCertificateStore *cert_store,
+static int update_cert_store(S390IPLCertificateStore *cert_store,
                               S390IPLCertificate *cert)
 {
     size_t data_buf_size;
@@ -87,6 +87,12 @@ static void update_cert_store(S390IPLCertificateStore *cert_store,
     cert_buf_size = ROUND_UP(cert->der_size, 4);
     data_buf_size = keyid_buf_size + hash_buf_size + cert_buf_size;
 
+    if (data_buf_size > CERT_BUF_MAX_LEN) {
+        error_report("Certificate data size %zu exceeds maximum buffer size %ld",
+                     data_buf_size, CERT_BUF_MAX_LEN);
+        return -1;
+    }
+
     if (cert_store->largest_cert_size < data_buf_size) {
         cert_store->largest_cert_size = data_buf_size;
     }
@@ -96,6 +102,8 @@ static void update_cert_store(S390IPLCertificateStore *cert_store,
     cert_store->certs[cert_store->count] = *cert;
     cert_store->total_bytes += data_buf_size;
     cert_store->count++;
+
+    return 0;
 }
 
 static GPtrArray *get_cert_paths(Error **errp)
@@ -214,7 +222,10 @@ void s390_ipl_create_cert_store(S390IPLCertificateStore *cert_store)
             exit(1);
         }
 
-        update_cert_store(cert_store, cert);
+        if (update_cert_store(cert_store, cert)) {
+            g_ptr_array_free(cert_path_builder, TRUE);
+            exit(1);
+        }
     }
 
     g_ptr_array_free(cert_path_builder, TRUE);
