@@ -11,6 +11,7 @@ of AI-generated content.
 - **Multiple Builds**: Developers might create a `builds` directory with different configurations in subdirs (e.g. `builds/debug`, `builds/asan`).
 - **Documentation**: Developer docs live in `docs/devel`.
 - **Plan Files**: Plan files should be placed in `.plan`, they are not included in commits. Use them to track complex multi-step tasks.
+- **Agent Skills**: These can be found in `.agents/skills`
 
 ## Agent Skills (see `.agents/skills`)
 You should use the following specialized skills for common tasks:
