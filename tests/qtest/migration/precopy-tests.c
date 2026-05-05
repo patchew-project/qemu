@@ -379,17 +379,9 @@ static void test_auto_converge(char *name, MigrateCommon *args)
 }
 
 static void *
-migrate_hook_start_precopy_tcp_multifd(QTestState *from,
-                                       QTestState *to)
-{
-    return migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
-}
-
-static void *
 migrate_hook_start_precopy_tcp_multifd_zero_page_legacy(QTestState *from,
                                                         QTestState *to)
 {
-    migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
     migrate_set_parameter_str(from, "zero-page-detection", "legacy");
     return NULL;
 }
@@ -398,14 +390,12 @@ static void *
 migrate_hook_start_precopy_tcp_multifd_no_zero_page(QTestState *from,
                                                     QTestState *to)
 {
-    migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
     migrate_set_parameter_str(from, "zero-page-detection", "none");
     return NULL;
 }
 
 static void test_multifd_tcp_uri_none(char *name, MigrateCommon *args)
 {
-    args->start_hook = migrate_hook_start_precopy_tcp_multifd;
     /*
      * Multifd is more complicated than most of the features, it
      * directly takes guest page buffers when sending, make sure
@@ -450,7 +440,6 @@ static void test_multifd_tcp_no_zero_page(char *name, MigrateCommon *args)
 
 static void test_multifd_tcp_channels_none(char *name, MigrateCommon *args)
 {
-    args->start_hook = migrate_hook_start_precopy_tcp_multifd;
     args->live = true;
     args->connect_channels = ("[ { 'channel-type': 'main',"
                              "    'addr': { 'transport': 'socket',"
