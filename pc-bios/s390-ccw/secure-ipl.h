@@ -24,6 +24,21 @@ typedef struct SecureIplCompEntryInfo {
     uint8_t  flags;
 } SecureIplCompEntryInfo;
 
+typedef struct SecureIplCompAddrRange {
+    bool is_signed;
+    uint64_t start_addr;
+    uint64_t end_addr;
+} SecureIplCompAddrRange;
+
+/*
+ * Custom struct for managing a list of secure IPL component address ranges.
+ * Tracks up to MAX_COMP_ENTRIES address ranges with an num counter.
+ */
+typedef struct SecureIplCompAddrRangeList {
+    SecureIplCompAddrRange comp_addr_range[MAX_COMP_ENTRIES];
+    int num;
+} SecureIplCompAddrRangeList;
+
 static inline void zipl_secure_error(const char *message)
 {
     switch (boot_mode) {

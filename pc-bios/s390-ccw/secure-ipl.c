@@ -220,6 +220,51 @@ static void init_lists(IplDeviceComponentList *comp_list,
     cert_list->ipl_info_header.len = sizeof(IplInfoBlockHeader);
 }
 
+static void check_comp_overlap(SecureIplCompAddrRangeList *range_list,
+                               SecureIplCompEntryInfo comp_entry_info)
+{
+    uint64_t start_addr;
+    uint64_t end_addr;
+
+    start_addr = comp_entry_info.addr;
+    end_addr = comp_entry_info.addr + comp_entry_info.len;
+
+    /*
+     * Check component's address range does not overlap with any
+     * signed component's address range.
+     */
+    for (int i = 0; i < range_list->num; i++) {
+        if (range_list->comp_addr_range[i].is_signed &&
+            (range_list->comp_addr_range[i].start_addr < end_addr &&
+            start_addr < range_list->comp_addr_range[i].end_addr)) {
+            zipl_secure_error("Component addresses overlap");
+       }
+    }
+}
+
+static void comp_addr_range_add(SecureIplCompAddrRangeList *range_list,
+                                SecureIplCompEntryInfo comp_entry_info,
+                                bool is_signed)
+{
+    uint64_t start_addr;
+    uint64_t end_addr;
+
+    start_addr = comp_entry_info.addr;
+    end_addr = comp_entry_info.addr + comp_entry_info.len;
+
+    if (range_list->num >= MAX_COMP_ENTRIES) {
+        zipl_secure_error("Component address range update failed due to out-of-range"
+                          " index; Overlapping validation cannot be guaranteed");
+        return;
+    }
+
+    range_list->comp_addr_range[range_list->num].is_signed = is_signed;
+    range_list->comp_addr_range[range_list->num].start_addr = start_addr;
+    range_list->comp_addr_range[range_list->num].end_addr = end_addr;
+
+    range_list->num += 1;
+}
+
 static int zipl_load_signature(ComponentEntry *entry, uint64_t sig)
 {
     if (entry->compdat.sig_info.format != DER_SIGNATURE_FORMAT) {
@@ -261,6 +306,7 @@ int zipl_run_secure(ComponentEntry **entry_ptr, uint8_t *tmp_sec)
      * exists for the certificate).
      */
     int cert_list_table[MAX_CERTIFICATES] = { [0 ... MAX_CERTIFICATES - 1] = -1 };
+    SecureIplCompAddrRangeList range_list = { 0 };
     int signed_count = 0;
 
     init_lists(&comp_list, &cert_list);
@@ -291,6 +337,9 @@ int zipl_run_secure(ComponentEntry **entry_ptr, uint8_t *tmp_sec)
             comp_entry_info = (SecureIplCompEntryInfo){ 0 };
             comp_entry_info.addr = comp_addr;
             comp_entry_info.len = (uint64_t)comp_len;
+
+            check_comp_overlap(&range_list, comp_entry_info);
+            comp_addr_range_add(&range_list, comp_entry_info, !!sig_len);
 
             /* no signature present (unsigned component) */
             if (!sig_entry_info.len) {
