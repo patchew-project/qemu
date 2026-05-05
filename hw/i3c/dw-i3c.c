@@ -1459,11 +1459,10 @@ static void dw_i3c_update_char_table(DWI3C *s, uint8_t offset, uint64_t pid,
                                           P_DEV_CHAR_TABLE_START_ADDR) /
                                           sizeof(uint32_t)) +
                                           (offset * sizeof(uint32_t));
-    s->regs[dev_index] = pid & 0xffffffff;
-    pid >>= 32;
+    s->regs[dev_index] = (pid >> 16) & 0xffffffff;
     s->regs[dev_index + 1] = FIELD_DP32(s->regs[dev_index + 1],
                                         DEVICE_CHARACTERISTIC_TABLE_LOC2,
-                                        MSB_PID, pid);
+                                        MSB_PID, pid & 0xffff);
     s->regs[dev_index + 2] = FIELD_DP32(s->regs[dev_index + 2],
                                         DEVICE_CHARACTERISTIC_TABLE_LOC3, DCR,
                                         dcr);
@@ -1507,10 +1506,9 @@ static void dw_i3c_addr_assign_cmd(DWI3C *s, DWI3CAddrAssignCmd cmd)
     for (i = 0; i < cmd.dev_count; i++) {
         uint8_t addr = dw_i3c_target_addr(s, cmd.dev_index + i);
         union {
-            uint64_t pid:48;
-            uint8_t bcr;
-            uint8_t dcr;
+            uint64_t d;
             uint32_t w[2];
+            /* Per I3C spec: b[0]=PID MSB, b[5]=PID LSB, b[6]=BCR, b[7]=DCR */
             uint8_t b[8];
         } target_info;
 
@@ -1544,9 +1542,9 @@ static void dw_i3c_addr_assign_cmd(DWI3C *s, DWI3CAddrAssignCmd cmd)
             err = DW_I3C_RESP_QUEUE_ERR_DAA_NACK;
             break;
         }
-        dw_i3c_update_char_table(s, cmd.dev_index + i,
-                                            target_info.pid, target_info.bcr,
-                                            target_info.dcr, addr);
+        uint64_t pid = be64_to_cpu(target_info.d) >> 16;
+        dw_i3c_update_char_table(s, cmd.dev_index + i, pid, target_info.b[6],
+                                 target_info.b[7], addr);
 
         /* Push the PID, BCR, and DCR to the RX queue. */
         dw_i3c_push_rx(s, target_info.w[0]);
