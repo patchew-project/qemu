@@ -1,6 +1,7 @@
 ---
 name: qemu-code-explorer
 description: Comprehensive guide for exploring the QEMU codebase using tagging systems (gtags, ctags, cscope), git grep, and build-directory grep for generated files. Use this skill when the user asks to find where something is defined, how it's used, or wants to understand a specific subsystem.
+license: GPL-2.0-or-later
 ---
 
 # QEMU Code Base Explorer
@@ -26,7 +27,7 @@ make gtags  # or make ctags, make cscope, make TAGS
 
 `git grep` is the preferred tool for general text searches within the source tree.
 
-- **Best for**: 
+- **Best for**:
   - Searching for local variables within a function.
   - Searching for string literals or comments.
   - Finding occurrences of symbols defined in system headers (e.g., `optarg`).
