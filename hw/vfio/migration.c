@@ -587,19 +587,23 @@ static void vfio_state_pending(void *opaque, MigPendingData *pending,
 {
     VFIODevice *vbasedev = opaque;
     VFIOMigration *migration = vbasedev->migration;
-    uint64_t remain;
+    uint64_t precopy_size, stopcopy_size;
 
     if (exact) {
         vfio_state_pending_sync(vbasedev);
-        remain = migration->stopcopy_size;
-    } else {
-        if (!vfio_device_state_is_precopy(vbasedev)) {
-            return;
-        }
-        remain = migration->precopy_init_size + migration->precopy_dirty_size;
     }
 
-    pending->precopy_bytes += remain;
+    precopy_size =
+        migration->precopy_init_size + migration->precopy_dirty_size;
+
+    if (migration->stopcopy_size > precopy_size) {
+        stopcopy_size = migration->stopcopy_size - precopy_size;
+    } else {
+        stopcopy_size = 0;
+    }
+
+    pending->precopy_bytes += precopy_size;
+    pending->stopcopy_bytes += stopcopy_size;
 
     trace_vfio_state_pending(vbasedev->name, migration->stopcopy_size,
                              migration->precopy_init_size,
