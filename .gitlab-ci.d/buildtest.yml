@@ -434,6 +434,32 @@ clang-system:
     TARGETS: alpha-softmmu arm-softmmu m68k-softmmu mips64-softmmu s390x-softmmu
     MAKE_CHECK_ARGS: check-qtest check-tcg
 
+# We split "build" and "check" here to keep the job times down
+# below the timeout
+build-clang-sanitizer:
+  extends:
+    - .native_build_job_template
+    - .native_build_artifact_template
+  needs:
+    - job: amd64-fedora-container
+  variables:
+    IMAGE: fedora
+    CONFIGURE_ARGS: --cc=clang --cxx=clang++ --enable-ubsan --enable-asan
+      --extra-cflags=-fno-sanitize-recover=undefined
+    MAKE_CHECK_ARGS: check-build
+
+check-clang-sanitizer:
+  extends: .native_test_job_template
+  needs:
+    - job: build-clang-sanitizer
+      artifacts: true
+  variables:
+    IMAGE: fedora
+    MAKE_CHECK_ARGS: check-qtest check-tcg
+    LSAN_OPTIONS: suppressions=../scripts/lsan_suppressions.txt
+    ASAN_OPTIONS: fast_unwind_on_malloc=0
+    TIMEOUT_MULTIPLIER: 3
+
 clang-user:
   extends: .native_build_job_template
   needs:
