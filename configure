@@ -1800,7 +1800,11 @@ for target in $target_list; do
       ;;
     *-softmmu)
       test -f "$source_path/tests/tcg/$arch/Makefile.softmmu-target" || continue
-      qemu="qemu-system-$arch"
+      if test "$host_os" == "darwin"; then
+          qemu="qemu-system-$arch-unsigned"
+      else
+          qemu="qemu-system-$arch"
+      fi
       ;;
     *-linux-user|*-bsd-user)
       qemu="qemu-$arch"
