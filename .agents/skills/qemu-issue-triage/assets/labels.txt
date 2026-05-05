@@ -1,0 +1,133 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+ACPI                       Power Management related (ACPI / SMBIOS / HEST / GHES)
+Audio                      Audio devices; both backend (host audio) and frontend (guest audio)
+Audit Tooling              A group for bugs and issues found via automated tooling such as fuzzing, sanitizers or AI
+Audit Tooling::AI          For bugs found with AI assisted tools such as Mythos and other similar things
+Audit Tooling::Fuzzer      Issues found via fuzzing. For security issues, please consult https://www.qemu.org/contribute/security-process/
+Audit Tooling::Sanitizer   For issues found using sanitizers such as asan, lsan and tsan
+Bite Sized                 Candidates for first contributions; see also https://wiki.qemu.org/Contribute/BiteSizedTasks
+Build System               configure, make, Meson, ninja, gcc, clang, ccache, etc.
+CI                         Continuous Integration; gitlab, travis, patchew, etc.
+CLI                        Command Line Interface
+Chardev                    Character device backends and related issues
+Closed::Duplicate          There is already another ticket that is about the same issue
+Closed::Fixed              The issue was fixed. Yay!
+Closed::Invalid            This issue was not really a problem
+Closed::NotOurBug          This is a bug, but not a bug in QEMU. Please report it and/or include a link to the report.
+Closed::NotReproducible    This issue was not reproducible
+Closed::UnbackedFeature    Nobody was willing to work on this feature request
+Closed::WontFix            The issue was acknowledged, but the fix would be too complex, too expensive, or would introduce other problems.
+Cryptography
+Documentation              Sphinx documentation, man pages, the wiki, --help output, etc.
+GDB                        Issues relating to using GDB via the gdbstub
+GUI                        Graphical User Interface (gtk, SDL, curses, VNC, spice, ...)
+GUI::Cocoa                 Cocoa
+GUI::DBus                  DBus
+GUI::GTK
+GUI::SDL                   SDL
+GUI::SPICE                 SPICE
+GUI::VNC
+Guest Agent                Issues related to the qemu-guest-agent binary. https://wiki.qemu.org/Features/GuestAgent
+Hard
+Launchpad                  Issues migrated from Launchpad
+Migration
+Modules
+Networking
+Python                     Python library issues (./python/)
+QAPI/QMP                   QEMU API / QEMU Machine Protocol, HMP and CLI, etc.
+QOM                        QEMU Object Model
+Regression
+Security
+Semihosting                Semihosting calls provide a simple ABI for early bring-up of embedded devices and provide a way to output to the console and do basic file i/o while being debugged
+Softfloat                  QEMU's FPU emulation code (TCG only)
+Stable::can't fix          The bug was reported on a stable branch but the fix is too invasive for backporting
+Stable::obsolete           The bug was reported on a stable branch that is not maintained anymore
+Stable::to backport        The bug was reported on a stable branch and needs to be backported on the next release from the branch
+Storage                    Block subsystem, Storage devices, etc.
+TCG plugins                Anything related to the TCG plugins feature
+TestCase                   The report includes a testcase
+Tests                      qtests, iotests, acceptance tests, VM tests, docker tests, and more.
+USB
+VFIO
+accel: HAX                 Intel's Hardware Accelerated Execution Manager (HAXM)
+accel: HVF                 Apple Hypervisor Framework
+accel: KVM                 Linux Kernel-based Virtual Machine
+accel: TCG                 QEMU Tiny Code Generator
+accel: WHPX                Microsoft Windows Hypervisor Platform (WHPX)
+accel: Xen                 Xen Hypervisor
+block:9p                   The 9p network file system
+block:NVMe
+block:curl
+block:nbd
+block:nfs                  Issues related to the NFS backend
+block:qcow2
+block:ssh
+block:vmdk
+bsd-user
+device: PCI
+device: TPM                Trusted Platform Module (TPM) devices
+device:graphics            Issues relating to display device emulation, or rendering in general. See also "GUI".
+device:input               Keyboards, Mice, Touchscreens, HIDs, etc.
+device:iommu               IOMMU and SMMU
+device:pflash              Parallel NOR flashes emulation
+device:sdmmc               SD or (e)MMC cards emulation
+device:virtio              virtio-related issues. https://www.linux-kvm.org/page/Virtio
+device:watchdog
+efi                        EFI firmware related issues
+flaky-ci                   For test cases that are flaky when run under our CI
+gitlab
+guest: AIX
+guest: BSD                 Guest OS is BSD (NetBSD/FreeBSD/OpenBSD/etc)
+guest: Linux               Guest OS is Linux/Linux-based
+guest: Windows             Microsoft Windows guest
+guest: macOS               Apple macOS / Darwin as  guest OS
+guest: os2
+host: aarch64              Bugs reproducible on AArch64 hosts
+host: arm                  Bugs reproducible on ARM hosts
+host: loongarch64          Bugs reproducible on LoongArch64 hosts.
+host: mips                 Bugs reproducible on MIPS hosts
+host: ppc                  Bugs reproducible on Power hosts
+host: riscv                Bugs reproducible on RISC-V hosts
+host: s390                 Bugs reproducible on s390 hosts
+host: sparc64              Bugs specific to Sparc64 hosts
+host: x86                  Bugs reproducible on x86 hosts
+host:32bit                 These are mostly TCG related bugs where we sometimes struggle with emulating larger guests, especially atomic and address space issues.
+hostos: BSD                FreeBSD, OpenBSD, NetBSD, and derivatives as host OSes
+hostos: Linux              Linux-based host operating systems (Fedora, RHEL/CentOS, Debian, Ubuntu, openSuSE et al)
+hostos: Windows            Microsoft Windows host OS
+hostos: macOS              Apple macOS / Darwin as a host OS
+icount                     issues relating to icount, deterministic execution and record/replay functionality
+kind: Not user visible
+kind::Bug                  Bug or defect in functionality.
+kind::Feature Request      Feature request or new functionality.
+kind::Task                 Research, investigations, and miscellaneous issues.
+libvfio-user
+linux-user
+qemu-img
+spice
+sysadmin
+target: alpha              DEC Alpha [alpha]
+target: arm                Arm AArch32 or AArch64 [arm, aarch64]
+target: avr                Atmel AVR [avr]
+target: hexagon            Qualcomm Hexagon [hexagon]
+target: hppa               Hewlett-Packard Precision Architecture; HP/HP, PA-RISC [hppa]
+target: i386               Intel/AMD x86 [i386, x86_64]
+target: loongarch          loongarch64 target architecture
+target: m68k               Motorola 68000 [m68k]
+target: microblaze         Xilinx MicroBlaze [microblaze, microblazeel]
+target: mips               MIPS [mips, mipsel, mips64, mips64el]
+target: nios2              Altera Nios II [nios2]
+target: openrisc           OpenRISC [or1k]
+target: ppc                IBM Power Architecture, PowerPC [ppc, ppc64, ppc64le]
+target: riscv              RISC-V [riscv32, riscv64]
+target: rx                 Renesas RX [rx]
+target: s390x              IBM Z, SystemZ, zSeries [s390x]
+target: sh4                Renesas SuperH [sh4, sh4eb]
+target: sparc              Sun Microsystems SPARC [sparc, sparc64]
+target: tricore            Infineon TriCore [tricore]
+target: xtensa             Tensilica Xtensa [xtensa, xtensaeb]
+workflow::Confirmed        Bugs that have been confirmed and reproduced.
+workflow::In Progress      Someone is working on this issue.
+workflow::Needs Info       Issue has insufficient information to verify.
+workflow::Patch available  A patch is available
+workflow::Triaged          Issue has been triaged and given a topic label.
