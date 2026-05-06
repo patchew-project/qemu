@@ -911,6 +911,7 @@ static void s390_pcihost_unrealize(DeviceState *dev)
     while (!QTAILQ_EMPTY(&s->zpci_groups)) {
         group = QTAILQ_FIRST(&s->zpci_groups);
         QTAILQ_REMOVE(&s->zpci_groups, group, link);
+        g_free(group);
     }
 }
 
