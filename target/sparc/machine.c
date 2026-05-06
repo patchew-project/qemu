@@ -1,8 +1,10 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "qemu/target-info.h"
 #include "qemu/timer.h"
 
 #include "migration/cpu.h"
+#include "migration/qemu-file-types.h"
 
 #ifdef TARGET_SPARC64
 static const VMStateDescription vmstate_cpu_timer = {
@@ -86,9 +88,13 @@ static int get_fsr(QEMUFile *f, void *opaque, size_t size,
                    const VMStateField *field)
 {
     SPARCCPU *cpu = opaque;
-    target_ulong val = qemu_get_betl(f);
 
-    cpu_put_fsr(&cpu->env, val);
+    if (target_long_bits() == 64) {
+        cpu_put_fsr(&cpu->env, qemu_get_be64(f));
+    } else {
+        cpu_put_fsr(&cpu->env, qemu_get_be32(f));
+    }
+
     return 0;
 }
 
@@ -96,9 +102,12 @@ static int put_fsr(QEMUFile *f, void *opaque, size_t size,
                    const VMStateField *field, JSONWriter *vmdesc)
 {
     SPARCCPU *cpu = opaque;
-    target_ulong val = cpu_get_fsr(&cpu->env);
 
-    qemu_put_betl(f, val);
+    if (target_long_bits() == 64) {
+        qemu_put_be64(f, cpu_get_fsr(&cpu->env));
+    } else {
+        qemu_put_be32(f, cpu_get_fsr(&cpu->env));
+    }
     return 0;
 }
 
