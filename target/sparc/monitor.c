@@ -41,13 +41,13 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 
 const MonitorDef monitor_defs[] = {
 #ifdef TARGET_SPARC64
-    { "asi", offsetof(CPUSPARCState, asi), NULL, MD_I32 },
-    { "pstate", offsetof(CPUSPARCState, pstate), NULL, MD_I32 },
-    { "cansave", offsetof(CPUSPARCState, cansave), NULL, MD_I32 },
-    { "canrestore", offsetof(CPUSPARCState, canrestore), NULL, MD_I32 },
-    { "otherwin", offsetof(CPUSPARCState, otherwin), NULL, MD_I32 },
-    { "wstate", offsetof(CPUSPARCState, wstate), NULL, MD_I32 },
-    { "cleanwin", offsetof(CPUSPARCState, cleanwin), NULL, MD_I32 },
+    { "asi", offsetof(CPUSPARCState, asi) },
+    { "pstate", offsetof(CPUSPARCState, pstate) },
+    { "cansave", offsetof(CPUSPARCState, cansave) },
+    { "canrestore", offsetof(CPUSPARCState, canrestore) },
+    { "otherwin", offsetof(CPUSPARCState, otherwin) },
+    { "wstate", offsetof(CPUSPARCState, wstate) },
+    { "cleanwin", offsetof(CPUSPARCState, cleanwin) },
 #endif
     { NULL },
 };
