@@ -1,5 +1,10 @@
 gen = decodetree.process('insns.decode')
 
+microblaze_common_ss = ss.source_set()
+microblaze_common_ss.add(files(
+  'gdbstub.c',
+))
+
 microblaze_ss = ss.source_set()
 microblaze_ss.add(gen)
 microblaze_ss.add(files(
@@ -10,10 +15,10 @@ microblaze_ss.add(files(
 ))
 
 microblaze_user_ss = ss.source_set()
-microblaze_user_ss.add(files('gdbstub.c'))
+microblaze_user_ss.add_all(microblaze_common_ss)
 
 microblaze_common_system_ss = ss.source_set()
-microblaze_common_system_ss.add(files('gdbstub.c'))
+microblaze_common_system_ss.add_all(microblaze_common_ss)
 
 microblaze_system_ss = ss.source_set()
 microblaze_system_ss.add(files(
