@@ -339,7 +339,7 @@ static void mips_cpu_reset_hold(Object *obj, ResetType type)
 
         if (cs->cpu_index == 0) {
             /* VPE0 starts up enabled.  */
-            env->mvp->CP0_MVPControl |= (1 << CP0MVPCo_EVP);
+            cpu->mvp->CP0_MVPControl |= (1 << CP0MVPCo_EVP);
             env->CP0_VPEConf0 |= (1 << CP0VPEC0_MVP) | (1 << CP0VPEC0_VPA);
 
             /* TC0 starts up unhalted.  */
