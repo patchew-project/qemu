@@ -54,11 +54,7 @@ gboolean vncws_tls_handshake_io(QIOChannel *ioc G_GNUC_UNUSED,
     VncState *vs = opaque;
     QIOChannelTLS *tls;
     Error *err = NULL;
-
-    if (vs->ioc_tag) {
-        g_source_remove(vs->ioc_tag);
-        vs->ioc_tag = 0;
-    }
+    g_clear_handle_id(&vs->ioc_tag, g_source_remove);
 
     if (condition & (G_IO_HUP | G_IO_ERR)) {
         vnc_client_error(vs);
@@ -123,11 +119,7 @@ gboolean vncws_handshake_io(QIOChannel *ioc G_GNUC_UNUSED,
 {
     VncState *vs = opaque;
     QIOChannelWebsock *wioc;
-
-    if (vs->ioc_tag) {
-        g_source_remove(vs->ioc_tag);
-        vs->ioc_tag = 0;
-    }
+    g_clear_handle_id(&vs->ioc_tag, g_source_remove);
 
     if (condition & (G_IO_HUP | G_IO_ERR)) {
         vnc_client_error(vs);
