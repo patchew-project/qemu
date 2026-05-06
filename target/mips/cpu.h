@@ -1225,6 +1225,7 @@ struct MIPSCPUClass {
     CPUClass parent_class;
 
     DeviceRealize parent_realize;
+    DeviceUnrealize parent_unrealize;
     ResettablePhases parent_phases;
     const struct mips_def_t *cpu_def;
 
