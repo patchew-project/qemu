@@ -212,8 +212,10 @@ void helper_sdr(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
 static const int multiple_regs[] = { 16, 17, 18, 19, 20, 21, 22, 23, 30 };
 
 void helper_lwm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
-                uint32_t mem_idx)
+                uint32_t memop_idx)
 {
+    MemOpIdx oi = memop_idx;
+    unsigned mem_idx = get_mmuidx(oi);
     target_ulong base_reglist = reglist & 0xf;
     target_ulong do_r31 = reglist & 0x10;
 
@@ -234,8 +236,10 @@ void helper_lwm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
 }
 
 void helper_swm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
-                uint32_t mem_idx)
+                uint32_t memop_idx)
 {
+    MemOpIdx oi = memop_idx;
+    unsigned mem_idx = get_mmuidx(oi);
     target_ulong base_reglist = reglist & 0xf;
     target_ulong do_r31 = reglist & 0x10;
 
@@ -256,8 +260,10 @@ void helper_swm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
 
 #if defined(TARGET_MIPS64)
 void helper_ldm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
-                uint32_t mem_idx)
+                uint32_t memop_idx)
 {
+    MemOpIdx oi = memop_idx;
+    unsigned mem_idx = get_mmuidx(oi);
     target_ulong base_reglist = reglist & 0xf;
     target_ulong do_r31 = reglist & 0x10;
 
@@ -278,8 +284,10 @@ void helper_ldm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
 }
 
 void helper_sdm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
-                uint32_t mem_idx)
+                uint32_t memop_idx)
 {
+    MemOpIdx oi = memop_idx;
+    unsigned mem_idx = get_mmuidx(oi);
     target_ulong base_reglist = reglist & 0xf;
     target_ulong do_r31 = reglist & 0x10;
 
