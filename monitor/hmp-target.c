@@ -35,6 +35,7 @@
 #include "qapi/qapi-commands-control.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/qapi-commands-machine.h"
+#include "hw/core/sysemu-cpu-ops.h"
 
 /* Make devices configuration available for use in hmp-commands*.hx templates */
 #include CONFIG_DEVICES
@@ -85,9 +86,13 @@ int get_monitor_def(Monitor *mon, int64_t *pval, const char *name)
         }
     }
 
-    ret = target_get_monitor_def(cs, name, &tmp);
-    if (!ret) {
-        *pval = (target_long) tmp;
+    if (cs->cc->sysemu_ops->monitor_get_register) {
+        ret = cs->cc->sysemu_ops->monitor_get_register(cs, name, pval);
+    } else {
+        ret = target_get_monitor_def(cs, name, &tmp);
+        if (!ret) {
+            *pval = (target_long) tmp;
+        }
     }
 
     return ret;
