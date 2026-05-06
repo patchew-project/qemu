@@ -11,6 +11,7 @@
 #include "qemu/target-info-impl.h"
 #include "hw/core/boards.h"
 #include "cpu.h"
+#include "exec/cpu-defs.h"
 #include "exec/page-vary.h"
 
 /* Validate correct placement of CPUArchState. */
