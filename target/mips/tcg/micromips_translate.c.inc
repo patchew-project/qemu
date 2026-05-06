@@ -701,6 +701,8 @@ static void gen_ldst_multiple(DisasContext *ctx, uint32_t opc, int reglist,
         return;
     }
 
+    mop |= mo_endian(ctx);
+
     t0 = tcg_temp_new();
 
     gen_base_offset_addr(ctx, t0, base, offset);
