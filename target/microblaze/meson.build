@@ -4,13 +4,13 @@ microblaze_common_ss = ss.source_set()
 microblaze_common_ss.add(files(
   'gdbstub.c',
   'helper.c',
+  'op_helper.c',
 ))
 
 microblaze_ss = ss.source_set()
 microblaze_ss.add(gen)
 microblaze_ss.add(files(
   'cpu.c',
-  'op_helper.c',
   'translate.c',
 ))
 
