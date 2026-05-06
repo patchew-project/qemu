@@ -25,6 +25,7 @@
 #include "exec/cpu-common.h"
 #include "exec/cpu-defs.h"
 #include "exec/cpu-interrupt.h"
+#include "exec/target_long.h"
 #include "cpu-qom.h"
 #include "qom/object.h"
 #include "hw/core/registerfields.h"
