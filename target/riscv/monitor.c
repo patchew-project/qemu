@@ -27,6 +27,7 @@
 #include "monitor/hmp.h"
 #include "monitor/hmp-target.h"
 #include "system/memory.h"
+#include "internals.h"
 
 #ifdef TARGET_RISCV64
 #define PTE_HEADER_FIELDS       "vaddr            paddr            "\
@@ -311,16 +312,18 @@ static bool reg_is_vreg(const char *name)
     return false;
 }
 
-int target_get_monitor_def(CPUState *cs, const char *name, uint64_t *pval)
+int riscv_monitor_get_register_legacy(CPUState *cs, const char *name,
+                                      int64_t *pval)
 {
-    CPURISCVState *env = &RISCV_CPU(cs)->env;
+    RISCVCPU *hart = RISCV_CPU(cs);
+    CPURISCVState *env = cpu_env(cs);
     target_ulong val = 0;
     uint64_t val64 = 0;
     int i;
 
     if (reg_is_ulong_integer(env, name, &val, false) ||
         reg_is_ulong_integer(env, name, &val, true)) {
-        *pval = val;
+        *pval = riscv_cpu_is_32bit(hart) ? (int32_t)val : val;
         return 0;
     }
 
@@ -369,7 +372,7 @@ int target_get_monitor_def(CPUState *cs, const char *name, uint64_t *pval)
          * to do the filtering of the registers that are present.
          */
         if (res == RISCV_EXCP_NONE) {
-            *pval = val;
+            *pval = riscv_cpu_is_32bit(hart) ? (int32_t)val : val;
             return 0;
         }
     }
