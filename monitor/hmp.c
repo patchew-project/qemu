@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include <dirent.h>
 #include "hw/core/qdev.h"
+#include "hw/core/sysemu-cpu-ops.h"
 #include "monitor-internal.h"
 #include "monitor/hmp.h"
 #include "monitor/hmp-target.h"
@@ -358,6 +359,8 @@ static bool gdb_get_register(Monitor *mon, int64_t *pval, const char *name)
 
 static const char *pch;
 static sigjmp_buf expr_env;
+
+static int get_monitor_def(Monitor *mon, int64_t *pval, const char *name);
 
 static G_NORETURN G_GNUC_PRINTF(2, 3)
 void expr_error(Monitor *mon, const char *fmt, ...)
@@ -1598,4 +1601,37 @@ void monitor_register_hmp_info_hrt(const char *name,
         table++;
     }
     g_assert_not_reached();
+}
+
+/*
+ * Set @pval to the value in the register identified by @name.
+ * return 0 if OK, -1 if not found
+ */
+static int get_monitor_def(Monitor *mon, int64_t *pval, const char *name)
+{
+    const MonitorDef *md = target_monitor_defs();
+    CPUState *cs = mon_get_cpu(mon);
+    void *ptr;
+
+    if (cs == NULL || md == NULL) {
+        return -1;
+    }
+
+    for (; md->name != NULL; md++) {
+        if (hmp_compare_cmd(name, md->name)) {
+            if (md->get_value) {
+                *pval = md->get_value(mon, md, md->offset);
+            } else {
+                CPUArchState *env = mon_get_cpu_env(mon);
+                ptr = (uint8_t *)env + md->offset;
+                *pval = *(int32_t *)ptr;
+            }
+            return 0;
+        }
+    }
+
+    if (!cs->cc->sysemu_ops->monitor_get_register) {
+        return -1;
+    }
+    return cs->cc->sysemu_ops->monitor_get_register(cs, name, pval);
 }
