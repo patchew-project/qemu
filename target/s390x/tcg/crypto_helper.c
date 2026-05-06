@@ -17,7 +17,7 @@
 #include "s390x-internal.h"
 #include "tcg_s390x.h"
 #include "exec/helper-proto.h"
-#include "accel/tcg/cpu-ldst.h"
+#include "accel/tcg/cpu-ldst-common.h"
 #include "accel/tcg/cpu-mmu-index.h"
 
 static uint64_t R(uint64_t x, int c)
@@ -123,44 +123,44 @@ static void sha512_bda_be64(uint64_t a[8], uint64_t w[16])
 static void sha512_read_icv(CPUS390XState *env, const int mmu_idx,
                             uint64_t addr, uint64_t a[8], uintptr_t ra)
 {
-    int i;
+    const MemOpIdx oi = make_memop_idx(MO_BE | MO_64 | MO_UNALN, mmu_idx);
 
-    for (i = 0; i < 8; i++, addr += 8) {
+    for (int i = 0; i < 8; i++, addr += 8) {
         addr = wrap_address(env, addr);
-        a[i] = cpu_ldq_be_data_ra(env, addr, ra);
+        a[i] = cpu_ldq_mmu(env, addr, oi, ra);
     }
 }
 
 static void sha512_write_ocv(CPUS390XState *env, const int mmu_idx,
                              uint64_t addr, uint64_t a[8], uintptr_t ra)
 {
-    int i;
+    const MemOpIdx oi = make_memop_idx(MO_BE | MO_64 | MO_UNALN, mmu_idx);
 
-    for (i = 0; i < 8; i++, addr += 8) {
+    for (int i = 0; i < 8; i++, addr += 8) {
         addr = wrap_address(env, addr);
-        cpu_stq_be_data_ra(env, addr, a[i], ra);
+        cpu_stq_mmu(env, addr, a[i], oi, ra);
     }
 }
 
 static void sha512_read_block(CPUS390XState *env, const int mmu_idx,
                               uint64_t addr, uint64_t a[16], uintptr_t ra)
 {
-    int i;
+    const MemOpIdx oi = make_memop_idx(MO_BE | MO_64 | MO_UNALN, mmu_idx);
 
-    for (i = 0; i < 16; i++, addr += 8) {
+    for (int i = 0; i < 16; i++, addr += 8) {
         addr = wrap_address(env, addr);
-        a[i] = cpu_ldq_be_data_ra(env, addr, ra);
+        a[i] = cpu_ldq_mmu(env, addr, oi, ra);
     }
 }
 
 static void sha512_read_mbl_be64(CPUS390XState *env, const int mmu_idx,
                                  uint64_t addr, uint8_t a[16], uintptr_t ra)
 {
-    int i;
+    const MemOpIdx oi = make_memop_idx(MO_8, mmu_idx);
 
-    for (i = 0; i < 16; i++, addr += 1) {
+    for (int i = 0; i < 16; i++, addr += 1) {
         addr = wrap_address(env, addr);
-        a[i] = cpu_ldub_data_ra(env, addr, ra);
+        a[i] = cpu_ldb_mmu(env, addr, oi, ra);
     }
 }
 
@@ -200,13 +200,14 @@ static int cpacf_sha512(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 
     /* KLMD: Process partial/empty block last. */
     if (type == S390_FEAT_TYPE_KLMD && len < 128) {
+        const MemOpIdx oi = make_memop_idx(MO_8, mmu_idx);
         uint8_t x[128];
 
         /* Read the remainder of the message byte-per-byte. */
         for (i = 0; i < len; i++) {
             uint64_t addr = wrap_address(env, *message_reg + processed + i);
 
-            x[i] = cpu_ldub_data_ra(env, addr, ra);
+            x[i] = cpu_ldb_mmu(env, addr, oi, ra);
         }
         /* Pad the remainder with zero and set the top bit. */
         memset(x + len, 0, 128 - len);
@@ -248,6 +249,7 @@ static int cpacf_sha512(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 static void fill_buf_random(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
                             uint64_t *buf_reg, uint64_t *len_reg)
 {
+    const MemOpIdx oi = make_memop_idx(MO_8, mmu_idx);
     uint8_t tmp[256];
     uint64_t len = *len_reg;
     int buf_reg_len = 64;
@@ -262,7 +264,7 @@ static void fill_buf_random(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 
         qemu_guest_getrandom_nofail(tmp, block);
         for (size_t i = 0; i < block; ++i) {
-            cpu_stb_data_ra(env, wrap_address(env, *buf_reg), tmp[i], ra);
+            cpu_stb_mmu(env, wrap_address(env, *buf_reg), tmp[i], oi, ra);
             *buf_reg = deposit64(*buf_reg, 0, buf_reg_len, *buf_reg + 1);
             --*len_reg;
         }
@@ -279,7 +281,7 @@ uint32_t HELPER(msa)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t r3,
     const uint8_t fc = env->regs[0] & 0x7fULL;
     uint8_t subfunc[16] = { 0 };
     uint64_t param_addr;
-    int i;
+    MemOpIdx oi;
 
     switch (type) {
     case S390_FEAT_TYPE_KMAC:
@@ -300,9 +302,10 @@ uint32_t HELPER(msa)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t r3,
 
     switch (fc) {
     case 0: /* query subfunction */
-        for (i = 0; i < 16; i++) {
+        oi = make_memop_idx(MO_8, mmu_idx);
+        for (int i = 0; i < 16; i++) {
             param_addr = wrap_address(env, env->regs[1] + i);
-            cpu_stb_data_ra(env, param_addr, subfunc[i], ra);
+            cpu_stb_mmu(env, param_addr, subfunc[i], oi, ra);
         }
         break;
     case 3: /* CPACF_*_SHA_512 */
