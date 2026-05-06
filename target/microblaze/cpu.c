@@ -27,7 +27,7 @@
 #include "cpu.h"
 #include "qemu/module.h"
 #include "hw/core/qdev-properties.h"
-#include "accel/tcg/cpu-ldst.h"
+#include "accel/tcg/cpu-ldst-common.h"
 #include "exec/gdbstub.h"
 #include "exec/translation-block.h"
 #include "fpu/softfloat-helpers.h"
