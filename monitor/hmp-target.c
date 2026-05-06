@@ -66,8 +66,6 @@ int get_monitor_def(Monitor *mon, int64_t *pval, const char *name)
     const MonitorDef *md = target_monitor_defs();
     CPUState *cs = mon_get_cpu(mon);
     void *ptr;
-    uint64_t tmp = 0;
-    int ret;
 
     if (cs == NULL || md == NULL) {
         return -1;
@@ -86,16 +84,10 @@ int get_monitor_def(Monitor *mon, int64_t *pval, const char *name)
         }
     }
 
-    if (cs->cc->sysemu_ops->monitor_get_register) {
-        ret = cs->cc->sysemu_ops->monitor_get_register(cs, name, pval);
-    } else {
-        ret = target_get_monitor_def(cs, name, &tmp);
-        if (!ret) {
-            *pval = (target_long) tmp;
-        }
+    if (!cs->cc->sysemu_ops->monitor_get_register) {
+        return -1;
     }
-
-    return ret;
+    return cs->cc->sysemu_ops->monitor_get_register(cs, name, pval);
 }
 
 static int
