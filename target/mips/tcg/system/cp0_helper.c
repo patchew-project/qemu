@@ -1566,13 +1566,14 @@ target_ulong helper_emt(void)
 
 target_ulong helper_dvpe(CPUMIPSState *env)
 {
-    CPUState *other_cs = first_cpu;
     MIPSCPU *cpu = env_archcpu(env);
     target_ulong prev = cpu->mvp->CP0_MVPControl;
 
     if (env->CP0_VPEConf0 & (1 << CP0VPEC0_MVP)) {
-        CPU_FOREACH(other_cs) {
-            MIPSCPU *other_cpu = MIPS_CPU(other_cs);
+        CPUState *cs = first_cpu;
+
+        CPU_FOREACH(cs) {
+            MIPSCPU *other_cpu = MIPS_CPU(cs);
             /* Turn off all VPEs except the one executing the dvpe.  */
             if (&other_cpu->env != env) {
                 other_cpu->mvp->CP0_MVPControl &= ~(1 << CP0MVPCo_EVP);
@@ -1585,13 +1586,14 @@ target_ulong helper_dvpe(CPUMIPSState *env)
 
 target_ulong helper_evpe(CPUMIPSState *env)
 {
-    CPUState *other_cs = first_cpu;
     MIPSCPU *cpu = env_archcpu(env);
     target_ulong prev = cpu->mvp->CP0_MVPControl;
 
     if (env->CP0_VPEConf0 & (1 << CP0VPEC0_MVP)) {
-        CPU_FOREACH(other_cs) {
-            MIPSCPU *other_cpu = MIPS_CPU(other_cs);
+        CPUState *cs = first_cpu;
+
+        CPU_FOREACH(cs) {
+            MIPSCPU *other_cpu = MIPS_CPU(cs);
 
             if (&other_cpu->env != env
                 /* If the VPE is WFI, don't disturb its sleep.  */
@@ -1608,12 +1610,13 @@ target_ulong helper_evpe(CPUMIPSState *env)
 /* R6 Multi-threading */
 target_ulong helper_dvp(CPUMIPSState *env)
 {
-    CPUState *other_cs = first_cpu;
     target_ulong prev = env->CP0_VPControl;
 
     if (!((env->CP0_VPControl >> CP0VPCtl_DIS) & 1)) {
-        CPU_FOREACH(other_cs) {
-            MIPSCPU *other_cpu = MIPS_CPU(other_cs);
+        CPUState *cpu = first_cpu;
+
+        CPU_FOREACH(cpu) {
+            MIPSCPU *other_cpu = MIPS_CPU(cpu);
             /* Turn off all VPs except the one executing the dvp. */
             if (&other_cpu->env != env) {
                 mips_vpe_sleep(other_cpu);
@@ -1626,12 +1629,13 @@ target_ulong helper_dvp(CPUMIPSState *env)
 
 target_ulong helper_evp(CPUMIPSState *env)
 {
-    CPUState *other_cs = first_cpu;
     target_ulong prev = env->CP0_VPControl;
 
     if ((env->CP0_VPControl >> CP0VPCtl_DIS) & 1) {
-        CPU_FOREACH(other_cs) {
-            MIPSCPU *other_cpu = MIPS_CPU(other_cs);
+        CPUState *cpu = first_cpu;
+
+        CPU_FOREACH(cpu) {
+            MIPSCPU *other_cpu = MIPS_CPU(cpu);
             if ((&other_cpu->env != env) && !mips_vp_is_wfi(other_cpu)) {
                 /*
                  * If the VP is WFI, don't disturb its sleep.
