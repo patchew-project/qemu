@@ -28,7 +28,7 @@
 typedef struct MonitorDef MonitorDef;
 
 #ifdef COMPILING_PER_TARGET
-#include "cpu.h"
+#include "exec/target_long.h"
 struct MonitorDef {
     const char *name;
     int offset;
