@@ -1570,7 +1570,7 @@ target_ulong helper_dvpe(CPUMIPSState *env)
     target_ulong prev = cpu->mvp->CP0_MVPControl;
 
     if (env->CP0_VPEConf0 & (1 << CP0VPEC0_MVP)) {
-        CPUState *cs = first_cpu;
+        CPUState *cs;
 
         CPU_FOREACH(cs) {
             MIPSCPU *other_cpu = MIPS_CPU(cs);
@@ -1590,7 +1590,7 @@ target_ulong helper_evpe(CPUMIPSState *env)
     target_ulong prev = cpu->mvp->CP0_MVPControl;
 
     if (env->CP0_VPEConf0 & (1 << CP0VPEC0_MVP)) {
-        CPUState *cs = first_cpu;
+        CPUState *cs;
 
         CPU_FOREACH(cs) {
             MIPSCPU *other_cpu = MIPS_CPU(cs);
@@ -1613,7 +1613,7 @@ target_ulong helper_dvp(CPUMIPSState *env)
     target_ulong prev = env->CP0_VPControl;
 
     if (!((env->CP0_VPControl >> CP0VPCtl_DIS) & 1)) {
-        CPUState *cpu = first_cpu;
+        CPUState *cpu;
 
         CPU_FOREACH(cpu) {
             MIPSCPU *other_cpu = MIPS_CPU(cpu);
@@ -1632,7 +1632,7 @@ target_ulong helper_evp(CPUMIPSState *env)
     target_ulong prev = env->CP0_VPControl;
 
     if ((env->CP0_VPControl >> CP0VPCtl_DIS) & 1) {
-        CPUState *cpu = first_cpu;
+        CPUState *cpu;
 
         CPU_FOREACH(cpu) {
             MIPSCPU *other_cpu = MIPS_CPU(cpu);
