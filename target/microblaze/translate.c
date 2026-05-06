@@ -1646,8 +1646,8 @@ static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
 
     dc->tb_flags_to_set = 0;
 
-    ir = translator_ldl_swap(cpu_env(cs), &dc->base, dc->base.pc_next,
-                             mb_cpu_is_big_endian(cs) != TARGET_BIG_ENDIAN);
+    ir = translator_ldl_end(cpu_env(cs), &dc->base, dc->base.pc_next,
+                            mo_endian(dc));
     if (!decode(dc, ir)) {
         trap_illegal(dc, true);
     }
