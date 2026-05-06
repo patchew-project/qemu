@@ -146,7 +146,7 @@ static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap,
 {
     int ecam_id = VIRT_ECAM_ID(vms->highmem_ecam);
     bool cxl_present = false;
-    PCIBus *bus = vms->bus;
+    PCIBus *bus;
     bool acpi_pcihp = false;
 
     if (vms->acpi_dev) {

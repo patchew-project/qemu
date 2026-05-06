@@ -251,7 +251,7 @@ static void glfs_set_preopened(const char *volume, glfs_t *fs)
 
 static glfs_t *glfs_find_preopened(const char *volume)
 {
-    ListElement *entry = NULL;
+    ListElement *entry;
 
      QLIST_FOREACH(entry, &glfs_list, list) {
         if (strcmp(entry->saved.volume, volume) == 0) {
@@ -265,7 +265,7 @@ static glfs_t *glfs_find_preopened(const char *volume)
 
 static void glfs_clear_preopened(glfs_t *fs)
 {
-    ListElement *entry = NULL;
+    ListElement *entry;
     ListElement *next;
 
     if (fs == NULL) {
