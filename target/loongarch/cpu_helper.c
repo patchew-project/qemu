@@ -7,6 +7,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "system/memory.h"
 #include "system/tcg.h"
 #include "cpu.h"
 #include "accel/tcg/cpu-mmu-index.h"
@@ -145,6 +146,7 @@ static MemTxResult loongarch_cmpxchg_phys(CPUState *cs, hwaddr phys,
 TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
                      int access_type, int mmu_idx, int debug)
 {
+    const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     CPUState *cs = env_cpu(env);
     hwaddr index = 0, phys = 0;
     uint64_t palen_mask = loongarch_palen_mask(env);
@@ -174,7 +176,7 @@ TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
         /* get next level page directory */
         index = (address >> dir_base) & ((1 << dir_width) - 1);
         phys = base | index << 3;
-        base = ldq_le_phys(cs->as, phys);
+        base = address_space_ldq_le(cs->as, phys, attrs, NULL);
         if (level) {
             if (FIELD_EX64(base, TLBENTRY, HUGE)) {
                 /* base is a huge pte */
@@ -204,10 +206,13 @@ restart:
         context->pte_buddy[1 - index] = base + BIT_ULL(dir_base);
         base += (BIT_ULL(dir_base) & address);
     } else if (cpu_has_ptw(env)) {
+        uint64_t val;
+
         index &= 1;
         context->pte_buddy[index] = base;
-        context->pte_buddy[1 - index] = ldq_le_phys(cs->as,
-                                                    phys + 8 * (1 - 2 * index));
+        val = address_space_ldq_le(cs->as, phys + 8 * (1 - 2 * index),
+                                   attrs, NULL);
+        context->pte_buddy[1 - index] = val;
     }
 
     context->ps = dir_base;
@@ -239,7 +244,7 @@ restart:
         ret1 = loongarch_cmpxchg_phys(cs, phys, pte, base);
         /* PTE updated by other CPU, reload PTE entry */
         if (ret1 == MEMTX_DECODE_ERROR) {
-            base = ldq_le_phys(cs->as, phys);
+            base = address_space_ldq_le(cs->as, phys, attrs, NULL);
             goto restart;
         }
 
