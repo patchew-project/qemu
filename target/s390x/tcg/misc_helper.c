@@ -27,7 +27,8 @@
 #include "exec/helper-proto.h"
 #include "qemu/timer.h"
 #include "exec/cputlb.h"
-#include "accel/tcg/cpu-ldst.h"
+#include "accel/tcg/cpu-ldst-common.h"
+#include "accel/tcg/cpu-mmu-index.h"
 #include "exec/target_page.h"
 #include "qapi/error.h"
 #include "tcg_s390x.h"
@@ -710,6 +711,8 @@ void HELPER(stfl)(CPUS390XState *env)
 
 uint32_t HELPER(stfle)(CPUS390XState *env, uint64_t addr)
 {
+    const int mmu_idx = cpu_mmu_index(env_cpu(env), false);
+    const MemOpIdx oi = make_memop_idx(MO_8, mmu_idx);
     const uintptr_t ra = GETPC();
     const int count_bytes = ((env->regs[0] & 0xff) + 1) * 8;
     int max_bytes;
@@ -728,7 +731,7 @@ uint32_t HELPER(stfle)(CPUS390XState *env, uint64_t addr)
      * not store the words, and existing software depend on that.
      */
     for (i = 0; i < MIN(count_bytes, max_bytes); ++i) {
-        cpu_stb_data_ra(env, addr + i, stfl_bytes[i], ra);
+        cpu_stb_mmu(env, addr + i, stfl_bytes[i], oi, ra);
     }
 
     env->regs[0] = deposit64(env->regs[0], 0, 8, (max_bytes / 8) - 1);
