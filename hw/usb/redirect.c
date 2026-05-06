@@ -1494,9 +1494,7 @@ static void usbredir_unrealize(USBDevice *udev)
     if (dev->parser) {
         usbredirparser_destroy(dev->parser);
     }
-    if (dev->watch) {
-        g_source_remove(dev->watch);
-    }
+    g_clear_handle_id(&dev->watch, g_source_remove);
 
     free(dev->filter_rules);
     qemu_del_vm_change_state_handler(dev->vmstate);
