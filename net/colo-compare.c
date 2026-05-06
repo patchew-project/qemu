@@ -1396,7 +1396,7 @@ static void colo_compare_init(Object *obj)
 
 void colo_compare_cleanup(void)
 {
-    CompareState *tmp = NULL;
+    CompareState *tmp;
     CompareState *n = NULL;
 
     QTAILQ_FOREACH_SAFE(tmp, &net_compares, next, n) {
@@ -1407,7 +1407,7 @@ void colo_compare_cleanup(void)
 static void colo_compare_finalize(Object *obj)
 {
     CompareState *s = COLO_COMPARE(obj);
-    CompareState *tmp = NULL;
+    CompareState *tmp;
 
     qemu_mutex_lock(&colo_compare_mutex);
     QTAILQ_FOREACH(tmp, &net_compares, next) {
