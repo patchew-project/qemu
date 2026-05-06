@@ -114,27 +114,6 @@ void hmp_vhost_queue_status(Monitor *mon, const QDict *qdict);
 void hmp_virtio_queue_element(Monitor *mon, const QDict *qdict);
 void hmp_xen_event_inject(Monitor *mon, const QDict *qdict);
 void hmp_xen_event_list(Monitor *mon, const QDict *qdict);
-void object_add_completion(ReadLineState *rs, int nb_args, const char *str);
-void object_del_completion(ReadLineState *rs, int nb_args, const char *str);
-void device_add_completion(ReadLineState *rs, int nb_args, const char *str);
-void device_del_completion(ReadLineState *rs, int nb_args, const char *str);
-void sendkey_completion(ReadLineState *rs, int nb_args, const char *str);
-void chardev_remove_completion(ReadLineState *rs, int nb_args, const char *str);
-void chardev_add_completion(ReadLineState *rs, int nb_args, const char *str);
-void set_link_completion(ReadLineState *rs, int nb_args, const char *str);
-void netdev_add_completion(ReadLineState *rs, int nb_args, const char *str);
-void netdev_del_completion(ReadLineState *rs, int nb_args, const char *str);
-void ringbuf_write_completion(ReadLineState *rs, int nb_args, const char *str);
-void info_trace_events_completion(ReadLineState *rs, int nb_args, const char *str);
-void trace_event_completion(ReadLineState *rs, int nb_args, const char *str);
-void watchdog_action_completion(ReadLineState *rs, int nb_args,
-                                const char *str);
-void migrate_set_capability_completion(ReadLineState *rs, int nb_args,
-                                       const char *str);
-void migrate_set_parameter_completion(ReadLineState *rs, int nb_args,
-                                      const char *str);
-void delvm_completion(ReadLineState *rs, int nb_args, const char *str);
-void loadvm_completion(ReadLineState *rs, int nb_args, const char *str);
 void hmp_rocker(Monitor *mon, const QDict *qdict);
 void hmp_rocker_ports(Monitor *mon, const QDict *qdict);
 void hmp_rocker_of_dpa_flows(Monitor *mon, const QDict *qdict);

@@ -17,6 +17,7 @@
 #include "block/qapi.h"
 #include "migration/snapshot.h"
 #include "monitor/hmp.h"
+#include "monitor/hmp-completion.h"
 #include "monitor/monitor.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-migration.h"

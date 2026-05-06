@@ -29,6 +29,7 @@
 #include "system/device_tree.h"
 #include "monitor/hmp-target.h"
 #include "monitor/hmp.h"
+#include "monitor/hmp-completion.h"
 #include "block/block-hmp-cmds.h"
 #include "qapi/qapi-commands-control.h"
 #include "qapi/qapi-commands-misc.h"

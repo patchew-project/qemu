@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "hw/core/sysbus.h"
 #include "monitor/hmp.h"
+#include "monitor/hmp-completion.h"
 #include "monitor/monitor.h"
 #include "monitor/qdev.h"
 #include "system/arch_init.h"
