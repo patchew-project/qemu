@@ -182,6 +182,11 @@ FloatParts128 parts128_return_nan(const FloatParts128 *a, float_status *s);
  * Operations
  */
 
+FloatParts64 parts64_addsub(const FloatParts64 *a, const FloatParts64 *b,
+                            float_status *s, bool subtract);
+FloatParts128 parts128_addsub(const FloatParts128 *a, const FloatParts128 *b,
+                              float_status *s, bool subtract);
+
 FloatRelation parts64_compare(const FloatParts64 *a, const FloatParts64 *b,
                               float_status *s, bool quiet);
 FloatRelation parts128_compare(const FloatParts128 *a, const FloatParts128 *b,
