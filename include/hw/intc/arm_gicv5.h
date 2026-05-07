@@ -37,6 +37,9 @@ struct GICv5 {
 
     /* This is the info from IRS_IST_BASER and IRS_IST_CFGR */
     GICv5ISTConfig phys_lpi_config[NUM_GICV5_DOMAINS];
+
+    /* We cache the HPPI for each CPU for each domain here */
+    GICv5PendingIrq *hppi[NUM_GICV5_DOMAINS];
 };
 
 struct GICv5Class {

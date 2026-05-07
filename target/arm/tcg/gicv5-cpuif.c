@@ -157,6 +157,15 @@ static void gic_recalc_ppi_hppi(CPUARMState *env)
     }
 }
 
+void gicv5_forward_interrupt(ARMCPU *cpu, GICv5Domain domain)
+{
+    /*
+     * For now, we do nothing. Later we will recalculate the overall
+     * HPPI by combining the IRS HPPI with the PPI HPPI, and possibly
+     * signal IRQ/FIQ.
+     */
+}
+
 static void gic_cddis_write(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t value)
 {
