@@ -142,6 +142,7 @@ REG32(DW_IC_ENABLE_STATUS,      0x9c) /* I2C enable status */
     FIELD(DW_IC_ENABLE_STATUS, IC_EN,                   0, 1)
 REG32(DW_IC_FS_SPKLEN,          0xa0) /* I2C SS, FS or FM+ spike suppression limit */
 REG32(DW_IC_CLR_RESTART_DET,    0xa8)
+REG32(DW_IC_SMBUS_INTR_MASK,    0xcc) /* SMBus Interrupt Mask */
 REG32(DW_IC_COMP_PARAM_1,       0xf4) /* Component parameter */
     FIELD(DW_IC_COMP_PARAM_1, TX_FIFO_SIZE,       16, 8)
     FIELD(DW_IC_COMP_PARAM_1, RX_FIFO_SIZE,        8, 8)
@@ -610,6 +611,10 @@ static const RegisterAccessInfo designware_i2c_regs_info[] = {
     },{ .name  = "DW_IC_CLR_RESTART_DET", .addr = A_DW_IC_CLR_RESTART_DET,
         .ro    = 0xffffffff,
         .post_read = dw_ic_clr_intr_reg_post_read,
+    },{ .name  = "DW_IC_SMBUS_INTR_MASK", .addr = A_DW_IC_SMBUS_INTR_MASK,
+        /* No SMBus interrupts are implemented, Linux updates the mask */
+        .reset =      0x7ff,
+        .unimp = 0xfffff800,
     },{ .name  = "DW_IC_COMP_PARAM_1", .addr = A_DW_IC_COMP_PARAM_1,
         .reset = /* HAS_DMA and HC_COUNT_VAL are disabled */
             ((2 << R_DW_IC_COMP_PARAM_1_APB_DATA_WIDTH_32_SHIFT) |
