@@ -15,7 +15,7 @@
  * indicated otherwise.
  */
 
-static FloatPartsN partsN(return_nan)(const FloatPartsN *a, float_status *s)
+FloatPartsN partsN(return_nan)(const FloatPartsN *a, float_status *s)
 {
     switch (a->cls) {
     case float_class_snan:
@@ -37,8 +37,8 @@ static FloatPartsN partsN(return_nan)(const FloatPartsN *a, float_status *s)
     return *a;
 }
 
-static FloatPartsN partsN(pick_nan)(const FloatPartsN *a, const FloatPartsN *b,
-                                    float_status *s)
+FloatPartsN partsN(pick_nan)(const FloatPartsN *a, const FloatPartsN *b,
+                             float_status *s)
 {
     bool have_snan = false;
     const FloatPartsN *ret;
