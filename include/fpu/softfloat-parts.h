@@ -18,6 +18,54 @@
 #ifndef SOFTFLOAT_PARTS_H
 #define SOFTFLOAT_PARTS_H
 
+/* Format-specific handling of exp == exp_max */
+typedef enum __attribute__((__packed__)) {
+    /* exp==max, frac==0 ? infinity : nan; this is ieee standard. */
+    float_expmax_ieee,
+    /* exp==max is a normal number; no infinity or nan representation. */
+    float_expmax_normal,
+    /* exp==max, frac==max ? nan : normal; no infinity representation. */
+    float_expmax_e4m3,
+} FloatFmtExpMaxKind;
+
+/*
+ * Structure holding all of the relevant parameters for a format.
+ *   exp_size: the size of the exponent field
+ *   exp_bias: the offset applied to the exponent field
+ *   exp_max: the maximum normalised exponent
+ *   frac_size: the size of the fraction field
+ *   frac_shift: shift to normalise the fraction with DECOMPOSED_BINARY_POINT
+ * The following are computed based the size of fraction
+ *   round_mask: bits below lsb which must be rounded
+ * The following optional modifiers are available:
+ *   exp_max_kind: affects how exp == exp_max is interpreted
+ *   has_explicit_bit: has an explicit integer bit; this affects whether
+ *       the float_status floatx80_behaviour handling applies
+ *   overflow_raises_invalid: for float_expmax_normal, raise invalid
+ *       instead of overflow.
+ */
+typedef struct {
+    int exp_size;
+    int exp_bias;
+    int exp_re_bias;
+    int exp_max;
+    int frac_size;
+    int frac_shift;
+    FloatFmtExpMaxKind exp_max_kind;
+    bool has_explicit_bit;
+    bool overflow_raises_invalid;
+    uint64_t round_mask;
+} FloatFmt;
+
+extern const FloatFmt float4_e2m1_params;
+extern const FloatFmt float8_e4m3_params;
+extern const FloatFmt float8_e5m2_params;
+extern const FloatFmt float16_params;
+extern const FloatFmt bfloat16_params;
+extern const FloatFmt float32_params;
+extern const FloatFmt float64_params;
+extern const FloatFmt float128_params;
+
 /*
  * Classify a floating point number. Everything above float_class_qnan
  * is a NaN so cls >= float_class_qnan is any NaN.
