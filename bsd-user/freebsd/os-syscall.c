@@ -34,6 +34,7 @@
 
 /* BSD independent syscall shims */
 #include "bsd-file.h"
+#include "bsd-ioctl.h"
 #include "bsd-mem.h"
 #include "bsd-proc.h"
 #include "bsd-misc.h"
@@ -690,6 +691,13 @@ static abi_long freebsd_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 
         /*
+         * ioctl(2)
+         */
+    case TARGET_FREEBSD_NR_ioctl: /* ioctl(2) */
+        ret = do_bsd_ioctl(arg1, arg2, arg3);
+        break;
+
+        /*
          * stat system calls
          */
     case TARGET_FREEBSD_NR_freebsd11_stat: /* stat(2) */
@@ -993,4 +1001,5 @@ abi_long do_freebsd_syscall(void *cpu_env, int num, abi_long arg1,
 
 void syscall_init(void)
 {
+    init_bsd_ioctl();
 }
