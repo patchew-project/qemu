@@ -2877,8 +2877,8 @@ F: tests/qtest/libqos/fw_cfg.c
 F: tests/qtest/fw_cfg-test.c
 
 XIVE
+M: Glenn Miles <milesg@linux.ibm.com>
 R: Gautam Menghani <gautam@linux.ibm.com>
-R: Glenn Miles <milesg@linux.ibm.com>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/*/*xive*
