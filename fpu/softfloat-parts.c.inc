@@ -534,9 +534,8 @@ static FloatPartsN *partsN(addsub)(FloatPartsN *a, FloatPartsN *b,
      * For addition and subtraction, we will consume an
      * input denormal unless the other input is a NaN.
      */
-    if ((ab_mask & (float_cmask_denormal | float_cmask_anynan)) ==
-        float_cmask_denormal) {
-        float_raise(float_flag_input_denormal_used, s);
+    if (!(ab_mask & float_cmask_anynan)) {
+        record_denormals_used(ab_mask, s);
     }
 
     if (a->sign != b_sign) {
@@ -623,9 +622,7 @@ static FloatPartsN *partsN(mul)(FloatPartsN *a, FloatPartsN *b,
     if (likely(cmask_is_only_normals(ab_mask))) {
         FloatPartsW tmp;
 
-        if (ab_mask & float_cmask_denormal) {
-            float_raise(float_flag_input_denormal_used, s);
-        }
+        record_denormals_used(ab_mask, s);
 
         fracN(mulw)(&tmp, a, b);
         fracN(truncjam)(a, &tmp);
@@ -653,9 +650,7 @@ static FloatPartsN *partsN(mul)(FloatPartsN *a, FloatPartsN *b,
     }
 
     /* Multiply by 0 or Inf */
-    if (ab_mask & float_cmask_denormal) {
-        float_raise(float_flag_input_denormal_used, s);
-    }
+    record_denormals_used(ab_mask, s);
 
     if (ab_mask & float_cmask_inf) {
         a->cls = float_class_inf;
@@ -784,9 +779,7 @@ static FloatPartsN *partsN(muladd_scalbn)(FloatPartsN *a, FloatPartsN *b,
      * this matches the set of cases where we consumed a
      * denormal input.
      */
-    if (abc_mask & float_cmask_denormal) {
-        float_raise(float_flag_input_denormal_used, s);
-    }
+    record_denormals_used(abc_mask, s);
     return a;
 
  return_sub_zero:
@@ -819,9 +812,7 @@ FloatPartsN partsN(div)(const FloatPartsN *a, const FloatPartsN *b,
     r.exp -= b->exp;
 
     if (likely(cmask_is_only_normals(ab_mask))) {
-        if (ab_mask & float_cmask_denormal) {
-            float_raise(float_flag_input_denormal_used, s);
-        }
+        record_denormals_used(ab_mask, s);
         r.exp -= fracN(div)(&r, b);
         return r;
     }
@@ -841,8 +832,8 @@ FloatPartsN partsN(div)(const FloatPartsN *a, const FloatPartsN *b,
         return partsN(pick_nan)(a, b, s);
     }
 
-    if ((ab_mask & float_cmask_denormal) && b->cls != float_class_zero) {
-        float_raise(float_flag_input_denormal_used, s);
+    if (b->cls != float_class_zero) {
+        record_denormals_used(ab_mask, s);
     }
 
     /* Inf / X */
@@ -877,9 +868,7 @@ static FloatPartsN *partsN(modrem)(FloatPartsN *a, FloatPartsN *b,
     int ab_mask = float_cmask(a->cls) | float_cmask(b->cls);
 
     if (likely(cmask_is_only_normals(ab_mask))) {
-        if (ab_mask & float_cmask_denormal) {
-            float_raise(float_flag_input_denormal_used, s);
-        }
+        record_denormals_used(ab_mask, s);
         fracN(modrem)(a, b, mod_quot);
         return a;
     }
@@ -901,9 +890,7 @@ static FloatPartsN *partsN(modrem)(FloatPartsN *a, FloatPartsN *b,
         return a;
     }
 
-    if (ab_mask & float_cmask_denormal) {
-        float_raise(float_flag_input_denormal_used, s);
-    }
+    record_denormals_used(ab_mask, s);
 
     /* N % Inf; 0 % N */
     g_assert(b->cls == float_class_inf || a->cls == float_class_zero);
@@ -1493,9 +1480,7 @@ static FloatPartsN *partsN(minmax)(FloatPartsN *a, FloatPartsN *b,
         if ((flags & (minmax_isnum | minmax_isnumber))
             && !(ab_mask & float_cmask_snan)
             && (ab_mask & ~float_cmask_qnan)) {
-            if (ab_mask & float_cmask_denormal) {
-                float_raise(float_flag_input_denormal_used, s);
-            }
+            record_denormals_used(ab_mask, s);
             return is_nan(a->cls) ? b : a;
         }
 
@@ -1521,9 +1506,7 @@ static FloatPartsN *partsN(minmax)(FloatPartsN *a, FloatPartsN *b,
         return a;
     }
 
-    if (ab_mask & float_cmask_denormal) {
-        float_raise(float_flag_input_denormal_used, s);
-    }
+    record_denormals_used(ab_mask, s);
 
     a_exp = a->exp;
     b_exp = b->exp;
@@ -1594,9 +1577,7 @@ static FloatRelation partsN(compare)(FloatPartsN *a, FloatPartsN *b,
     if (likely(cmask_is_only_normals(ab_mask))) {
         FloatRelation cmp;
 
-        if (ab_mask & float_cmask_denormal) {
-            float_raise(float_flag_input_denormal_used, s);
-        }
+        record_denormals_used(ab_mask, s);
 
         if (a->sign != b->sign) {
             goto a_sign;
@@ -1623,9 +1604,7 @@ static FloatRelation partsN(compare)(FloatPartsN *a, FloatPartsN *b,
         return float_relation_unordered;
     }
 
-    if (ab_mask & float_cmask_denormal) {
-        float_raise(float_flag_input_denormal_used, s);
-    }
+    record_denormals_used(ab_mask, s);
 
     if (ab_mask & float_cmask_zero) {
         if (ab_mask == float_cmask_zero) {
