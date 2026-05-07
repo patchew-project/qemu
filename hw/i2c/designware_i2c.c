@@ -208,10 +208,8 @@ static void dw_i2c_update_irq(DesignWareI2CState *s)
     qemu_set_irq(s->irq, level);
 }
 
-static uint32_t dw_i2c_read_ic_data_cmd(DesignWareI2CState *s)
+static uint8_t dw_i2c_read_ic_data_cmd(DesignWareI2CState *s)
 {
-    uint32_t value = s->rx_fifo[s->rx_cur];
-
     if (s->status != DW_I2C_STATUS_RECEIVING) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Attempted to read from RX fifo when not in receive "
@@ -223,22 +221,21 @@ static uint32_t dw_i2c_read_ic_data_cmd(DesignWareI2CState *s)
         return 0;
     }
 
-    s->rx_cur = (s->rx_cur + 1) % DESIGNWARE_I2C_RX_FIFO_SIZE;
+    g_assert(s->ic_rxflr == fifo8_num_used(&s->rx_fifo));
 
-    if (s->ic_rxflr > 0) {
-        s->ic_rxflr--;
-    } else {
+    if (fifo8_is_empty(&s->rx_fifo)) {
         s->ic_raw_intr_stat |= DW_IC_INTR_RX_UNDER;
         dw_i2c_update_irq(s);
         return 0;
     }
 
+    s->ic_rxflr--;
     if (s->ic_rxflr <= s->ic_rx_tl) {
         s->ic_raw_intr_stat &= ~DW_IC_INTR_RX_FULL;
         dw_i2c_update_irq(s);
     }
 
-    return value;
+    return fifo8_pop(&s->rx_fifo);
 }
 
 static uint64_t dw_i2c_read(void *opaque, hwaddr offset, unsigned size)
@@ -445,6 +442,7 @@ static void dw_i2c_reset_to_idle(DesignWareI2CState *s)
         s->ic_raw_intr_stat &= ~DW_IC_INTR_RX_UNDER;
         s->ic_raw_intr_stat &= ~DW_IC_INTR_RX_OVER;
         s->ic_rxflr = 0;
+        fifo8_reset(&s->rx_fifo);
         s->ic_status &= ~DW_IC_STATUS_ACTIVITY;
         s->status = DW_I2C_STATUS_IDLE;
         dw_i2c_update_irq(s);
@@ -509,10 +507,10 @@ static void dw_i2c_write_ic_data_cmd(DesignWareI2CState *s, uint32_t value)
 
     /* Receive data */
     if (recv) {
-        uint8_t pos = (s->rx_cur + s->ic_rxflr) % DESIGNWARE_I2C_RX_FIFO_SIZE;
+        g_assert(s->ic_rxflr == fifo8_num_used(&s->rx_fifo));
 
-        if (s->ic_rxflr < DESIGNWARE_I2C_RX_FIFO_SIZE) {
-            s->rx_fifo[pos] = i2c_recv(s->bus);
+        if (!fifo8_is_full(&s->rx_fifo)) {
+            fifo8_push(&s->rx_fifo, i2c_recv(s->bus));
             s->ic_rxflr++;
         } else {
             s->ic_raw_intr_stat |= DW_IC_INTR_RX_OVER;
@@ -738,7 +736,8 @@ static void designware_i2c_enter_reset(Object *obj, ResetType type)
     s->ic_comp_version = DW_IC_COMP_VERSION_INIT_VAL;
     s->ic_comp_type = DW_IC_COMP_TYPE_INIT_VAL;
 
-    s->rx_cur = 0;
+    fifo8_reset(&s->rx_fifo);
+
     s->status = DW_I2C_STATUS_IDLE;
 }
 
@@ -777,10 +776,8 @@ static const VMStateDescription vmstate_designware_i2c = {
         VMSTATE_UINT32(ic_comp_param_1, DesignWareI2CState),
         VMSTATE_UINT32(ic_comp_version, DesignWareI2CState),
         VMSTATE_UINT32(ic_comp_type, DesignWareI2CState),
+        VMSTATE_FIFO8(rx_fifo, DesignWareI2CState),
         VMSTATE_UINT32(status, DesignWareI2CState),
-        VMSTATE_UINT8_ARRAY(rx_fifo, DesignWareI2CState,
-                        DESIGNWARE_I2C_RX_FIFO_SIZE),
-        VMSTATE_UINT8(rx_cur, DesignWareI2CState),
         VMSTATE_END_OF_LIST(),
     },
 };
@@ -790,6 +787,8 @@ static void designware_i2c_smbus_init(Object *obj)
     DesignWareI2CState *s = DESIGNWARE_I2C(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
+    fifo8_create(&s->rx_fifo, DESIGNWARE_I2C_RX_FIFO_SIZE);
+
     sysbus_init_irq(sbd, &s->irq);
 
     memory_region_init_io(&s->iomem, obj, &designware_i2c_ops, s,
@@ -797,6 +796,13 @@ static void designware_i2c_smbus_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 
     s->bus = i2c_init_bus(DEVICE(s), "i2c-bus");
+}
+
+static void designware_i2c_finalize(Object *obj)
+{
+    DesignWareI2CState *s = DESIGNWARE_I2C(obj);
+
+    fifo8_destroy(&s->rx_fifo);
 }
 
 static void designware_i2c_class_init(ObjectClass *klass, const void *data)
@@ -819,6 +825,7 @@ static const TypeInfo designware_i2c_types[] = {
         .instance_size = sizeof(DesignWareI2CState),
         .class_init = designware_i2c_class_init,
         .instance_init = designware_i2c_smbus_init,
+	.instance_finalize = designware_i2c_finalize,
     },
 };
 DEFINE_TYPES(designware_i2c_types);

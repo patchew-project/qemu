@@ -8,6 +8,7 @@
 #ifndef DESIGNWARE_I2C_H
 #define DESIGNWARE_I2C_H
 
+#include "qemu/fifo8.h"
 #include "hw/i2c/i2c.h"
 #include "hw/core/irq.h"
 #include "hw/core/sysbus.h"
@@ -53,8 +54,6 @@ typedef enum DesignWareI2CStatus {
  * @ic_comp_version: I2C component version register
  * @ic_comp_type: I2C component type register
  * @rx_fifo: The FIFO buffer for receiving in FIFO mode.
- * @rx_cur: The current position of rx_fifo.
- * @status: The current status of the SMBus.
  */
 typedef struct DesignWareI2CState {
     SysBusDevice parent_obj;
@@ -88,8 +87,8 @@ typedef struct DesignWareI2CState {
     uint32_t ic_comp_version;
     uint32_t ic_comp_type;
 
-    uint8_t      rx_fifo[DESIGNWARE_I2C_RX_FIFO_SIZE];
-    uint8_t      rx_cur;
+    /* fifo8_num_used(rx_fifo) should always equal ic_rxflr */
+    Fifo8    rx_fifo;
 
     DesignWareI2CStatus status;
 } DesignWareI2CState;
