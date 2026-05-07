@@ -179,16 +179,24 @@ static uint64_t parts_silence_nan_frac(uint64_t frac, float_status *status)
     return frac;
 }
 
-static void parts64_silence_nan(FloatParts64 *p, float_status *status)
+static FloatParts64 parts64_silence_nan(const FloatParts64 *p,
+                                        float_status *status)
 {
-    p->frac = parts_silence_nan_frac(p->frac, status);
-    p->cls = float_class_qnan;
+    FloatParts64 r = *p;
+
+    r.frac = parts_silence_nan_frac(r.frac, status);
+    r.cls = float_class_qnan;
+    return r;
 }
 
-static void parts128_silence_nan(FloatParts128 *p, float_status *status)
+static FloatParts128 parts128_silence_nan(const FloatParts128 *p,
+                                          float_status *status)
 {
-    p->frac_hi = parts_silence_nan_frac(p->frac_hi, status);
-    p->cls = float_class_qnan;
+    FloatParts128 r = *p;
+
+    r.frac_hi = parts_silence_nan_frac(r.frac_hi, status);
+    r.cls = float_class_qnan;
+    return r;
 }
 
 /*----------------------------------------------------------------------------
