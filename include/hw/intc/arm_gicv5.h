@@ -26,6 +26,7 @@ struct GICv5 {
 
 struct GICv5Class {
     GICv5CommonClass parent_class;
+    DeviceRealize parent_realize;
     ResettablePhases parent_phases;
 };
 
