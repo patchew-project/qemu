@@ -55,4 +55,19 @@ typedef enum GICv5IntType {
     GICV5_SPI = 3,
 } GICv5IntType;
 
+/* Interrupt handling mode (same encoding as L2_ISTE.HM) */
+typedef enum GICv5HandlingMode {
+    GICV5_EDGE = 0,
+    GICV5_LEVEL = 1,
+} GICv5HandlingMode;
+
+/*
+ * Interrupt routing mode (same encoding as L2_ISTE.IRM).
+ * Note that 1-of-N support is option and QEMU does not implement it.
+ */
+typedef enum GICv5RoutingMode {
+    GICV5_TARGETED = 0,
+    GICV5_1OFN = 1,
+} GICv5RoutingMode;
+
 #endif
