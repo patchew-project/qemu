@@ -3223,8 +3223,9 @@ int virtio_set_features_ex(VirtIODevice *vdev, const uint64_t *features)
     }
 
     ret = virtio_set_features_nocheck(vdev, features);
-    if (virtio_vdev_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX)) {
+    if (virtio_vdev_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX) || virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
         /* VIRTIO_RING_F_EVENT_IDX changes the size of the caches.  */
+        /* VIRTIO_F_RING_PACKED changes the cache->is_write value. */
         int i;
         for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
             if (vdev->vq[i].vring.num != 0) {
