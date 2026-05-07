@@ -35,6 +35,7 @@
 #include "hw/core/qdev-properties.h"
 #include "ui/console.h"
 #include "qemu/error-report.h"
+#include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "qom/object.h"
@@ -126,7 +127,14 @@ static void applesmc_io_cmd_write(void *opaque, hwaddr addr, uint64_t val,
     smc_debug("CMD received: 0x%02x\n", (uint8_t)val);
     switch (val) {
     case APPLESMC_READ_CMD:
-        /* did last command run through OK? */
+    case APPLESMC_WRITE_CMD:
+    case APPLESMC_GET_KEY_BY_INDEX_CMD:
+    case APPLESMC_GET_KEY_TYPE_CMD:
+        /*
+         * Accept all standard SMC commands. Pre-existing code only handled
+         * READ_CMD; macOS boots hang if WRITE/TYPE/GET_KEY_BY_INDEX commands
+         * return BAD_CMD during early AppleSMC driver init.
+         */
         if (status == APPLESMC_ST_CMD_DONE || status == APPLESMC_ST_NEW_CMD) {
             s->cmd = val;
             s->status = APPLESMC_ST_NEW_CMD | APPLESMC_ST_ACK;
@@ -137,7 +145,8 @@ static void applesmc_io_cmd_write(void *opaque, hwaddr addr, uint64_t val,
         }
         break;
     default:
-        smc_debug("UNEXPECTED CMD 0x%02x\n", (uint8_t)val);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "applesmc: unexpected CMD 0x%02x\n", (uint8_t)val);
         s->status = APPLESMC_ST_NEW_CMD;
         s->status_1e = APPLESMC_ST_1E_BAD_CMD;
     }
@@ -179,17 +188,170 @@ static void applesmc_io_data_write(void *opaque, hwaddr addr, uint64_t val,
                 s->data_len = d->len;
                 s->data_pos = 0;
                 s->status = APPLESMC_ST_ACK | APPLESMC_ST_DATA_READY;
-                s->status_1e = APPLESMC_ST_CMD_DONE;  /* clear on valid key */
+                s->status_1e = APPLESMC_ST_CMD_DONE;
             } else {
-                smc_debug("READ_CMD: key '%c%c%c%c' not found!\n",
-                          s->key[0], s->key[1], s->key[2], s->key[3]);
-                s->status = APPLESMC_ST_CMD_DONE;
-                s->status_1e = APPLESMC_ST_1E_NOEXIST;
+                /*
+                 * Return zeros for unknown keys instead of NOEXIST. Early
+                 * macOS boot probes many undocumented keys; responding
+                 * NOEXIST triggers retry storms. A zeroed payload satisfies
+                 * the probe without asserting a particular value.
+                 */
+                qemu_log_mask(LOG_UNIMP,
+                              "applesmc: READ unknown key '%c%c%c%c' len=%d\n",
+                              s->key[0], s->key[1], s->key[2], s->key[3],
+                              (uint8_t)val);
+                memset(s->data, 0, APPLESMC_MAX_DATA_LENGTH);
+                s->data_len = (uint8_t)val;
+                s->data_pos = 0;
+                s->status = APPLESMC_ST_ACK | APPLESMC_ST_DATA_READY;
+                s->status_1e = APPLESMC_ST_CMD_DONE;
             }
         }
         s->read_pos++;
         break;
+    case APPLESMC_WRITE_CMD:
+        /*
+         * Accept writes silently. macOS writes SMC keys during power
+         * management, fan control, etc. Log at LOG_UNIMP for visibility
+         * without treating the write as an error.
+         */
+        if ((s->status & 0x0f) == APPLESMC_ST_CMD_DONE) {
+            break;
+        }
+        if (s->read_pos < 4) {
+            s->key[s->read_pos] = val;
+            s->status = APPLESMC_ST_ACK;
+        } else if (s->read_pos == 4) {
+            s->data_len = (uint8_t)val;
+            s->data_pos = 0;
+            s->status = APPLESMC_ST_ACK;
+        } else {
+            if (s->data_pos < s->data_len) {
+                s->data[s->data_pos] = (uint8_t)val;
+                s->data_pos++;
+                if (s->data_pos == s->data_len) {
+                    qemu_log_mask(LOG_UNIMP,
+                                  "applesmc: WRITE key '%c%c%c%c' len=%d\n",
+                                  s->key[0], s->key[1], s->key[2], s->key[3],
+                                  s->data_len);
+                    s->status = APPLESMC_ST_CMD_DONE;
+                    s->status_1e = APPLESMC_ST_CMD_DONE;
+                } else {
+                    s->status = APPLESMC_ST_ACK;
+                }
+            }
+        }
+        s->read_pos++;
+        break;
+    case APPLESMC_GET_KEY_TYPE_CMD:
+        /*
+         * Return key type info. Protocol (matches VirtualSMC):
+         * - Receive 4 bytes of key name.
+         * - After the 4th byte, immediately set DATA_READY with response.
+         * - Response is 6 bytes: type[4] + size[1] + attr[1].
+         * Unlike READ_CMD there is no length byte between key name and
+         * response.
+         */
+        if ((s->status & 0x0f) == APPLESMC_ST_CMD_DONE) {
+            break;
+        }
+        if (s->read_pos < 3) {
+            s->key[s->read_pos] = val;
+            s->status = APPLESMC_ST_ACK;
+        } else if (s->read_pos == 3) {
+            /* 4th and final key byte. Unlike READ_CMD which has a 5th byte
+             * for data length, GET_KEY_TYPE responds immediately after the
+             * 4-byte key name (matching VirtualSMC kern_pmio.cpp behavior). */
+            s->key[3] = val;
+            d = applesmc_find_key(s);
+            if (d != NULL) {
+                switch (d->len) {
+                case 1:
+                    s->data[0] = 'u'; s->data[1] = 'i';
+                    s->data[2] = '8'; s->data[3] = ' ';
+                    break;
+                case 2:
+                    s->data[0] = 'u'; s->data[1] = 'i';
+                    s->data[2] = '1'; s->data[3] = '6';
+                    break;
+                case 4:
+                    s->data[0] = 'u'; s->data[1] = 'i';
+                    s->data[2] = '3'; s->data[3] = '2';
+                    break;
+                default:
+                    s->data[0] = 'c'; s->data[1] = 'h';
+                    s->data[2] = '8'; s->data[3] = '*';
+                    break;
+                }
+                s->data[4] = d->len;
+                s->data[5] = 0xD0;
+            } else {
+                qemu_log_mask(LOG_UNIMP,
+                              "applesmc: GET_KEY_TYPE unknown '%c%c%c%c'\n",
+                              s->key[0], s->key[1], s->key[2], s->key[3]);
+                s->data[0] = 'u'; s->data[1] = 'i';
+                s->data[2] = '8'; s->data[3] = ' ';
+                s->data[4] = 1;
+                s->data[5] = 0xD0;
+            }
+            s->data_len = 6;
+            s->data_pos = 0;
+            s->status = APPLESMC_ST_ACK | APPLESMC_ST_DATA_READY;
+            s->status_1e = APPLESMC_ST_CMD_DONE;
+        }
+        s->read_pos++;
+        break;
+    case APPLESMC_GET_KEY_BY_INDEX_CMD:
+        /*
+         * Return key name by index. macOS sends a 4-byte big-endian index
+         * and expects the 4-byte ASCII key name at that position. The
+         * previous implementation returned 4 zero bytes, which macOS
+         * treated as kSMCSpuriousData (0x81) and retried indefinitely,
+         * flooding the kernel log at ~1800 errors/sec. Walk the keys list
+         * to return the actual key name, or APPLESMC_ST_1E_BAD_INDEX
+         * (0xb8) once the index is past the end of the list so the guest
+         * stops iterating.
+         */
+        if ((s->status & 0x0f) == APPLESMC_ST_CMD_DONE) {
+            break;
+        }
+        if (s->read_pos < 3) {
+            s->key[s->read_pos] = val;
+            s->status = APPLESMC_ST_ACK;
+        } else if (s->read_pos == 3) {
+            s->key[3] = val;
+            uint32_t idx = ((uint8_t)s->key[0] << 24)
+                         | ((uint8_t)s->key[1] << 16)
+                         | ((uint8_t)s->key[2] << 8)
+                         |  (uint8_t)s->key[3];
+            struct AppleSMCData *def;
+            uint32_t i = 0;
+            bool found = false;
+            QLIST_FOREACH(def, &s->data_def, node) {
+                if (i == idx) {
+                    memcpy(s->data, def->key, 4);
+                    s->data_len = 4;
+                    s->data_pos = 0;
+                    found = true;
+                    break;
+                }
+                i++;
+            }
+            if (!found) {
+                s->data_len = 0;
+                s->status_1e = APPLESMC_ST_1E_BAD_INDEX;
+                s->status = APPLESMC_ST_CMD_DONE;
+                s->read_pos++;
+                break;
+            }
+            s->status = APPLESMC_ST_ACK | APPLESMC_ST_DATA_READY;
+            s->status_1e = APPLESMC_ST_CMD_DONE;
+        }
+        s->read_pos++;
+        break;
     default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "applesmc: unhandled data for cmd 0x%02x\n", s->cmd);
         s->status = APPLESMC_ST_CMD_DONE;
         s->status_1e = APPLESMC_ST_1E_STILL_BAD_CMD;
     }
@@ -330,12 +492,13 @@ static void applesmc_isa_realize(DeviceState *dev, Error **errp)
     }
 
     QLIST_INIT(&s->data_def);
+
     applesmc_add_key(s, "REV ", 6, "\x01\x13\x0f\x00\x00\x03");
     applesmc_add_key(s, "OSK0", 32, s->osk);
     applesmc_add_key(s, "OSK1", 32, s->osk + 32);
     applesmc_add_key(s, "NATJ", 1, "\0");
     applesmc_add_key(s, "MSSP", 1, "\0");
-    applesmc_add_key(s, "MSSD", 1, "\0x3");
+    applesmc_add_key(s, "MSSD", 1, "\x03");
 }
 
 static void applesmc_unrealize(DeviceState *dev)
