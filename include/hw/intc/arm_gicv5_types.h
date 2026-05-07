@@ -45,4 +45,14 @@ typedef enum GICv5Domain {
 #define GICV5_PPI_CNTP 30
 #define GICV5_PPI_TRBIRQ 31
 
+/*
+ * Type of the interrupt; these values match the 3-bit format
+ * specified in the GICv5 spec R_GYVWB.
+ */
+typedef enum GICv5IntType {
+    GICV5_PPI = 1,
+    GICV5_LPI = 2,
+    GICV5_SPI = 3,
+} GICv5IntType;
+
 #endif
