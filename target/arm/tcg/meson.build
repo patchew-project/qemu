@@ -67,6 +67,7 @@ arm_common_system_ss.add(
   files(
   'cpregs-at.c',
   'debug.c',
+  'gicv5-cpuif.c',
   'hflags.c',
   'gengvec.c',
   'm_helper.c',
