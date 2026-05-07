@@ -202,14 +202,19 @@ static void mailbox_reg_write(void *opaque, hwaddr offset, uint64_t value,
         bool bg_started = false;
         int rc;
 
-        pl_in_copy = g_memdup2(pl, len_in);
-        if (len_in == 0 || pl_in_copy) {
-            /* Avoid stale data  - including from earlier cmds */
-            memset(pl, 0, CXL_MAILBOX_MAX_PAYLOAD_SIZE);
-            rc = cxl_process_cci_message(cci, cmd_set, cmd, len_in, pl_in_copy,
-                                         &len_out, pl, &bg_started);
+        if (len_in > cci->payload_max) {
+            rc = CXL_MBOX_INVALID_PAYLOAD_LENGTH;
         } else {
-            rc = CXL_MBOX_INTERNAL_ERROR;
+            pl_in_copy = g_memdup2(pl, len_in);
+            if (len_in == 0 || pl_in_copy) {
+                /* Avoid stale data  - including from earlier cmds */
+                memset(pl, 0, CXL_MAILBOX_MAX_PAYLOAD_SIZE);
+                rc = cxl_process_cci_message(cci, cmd_set, cmd, len_in,
+                                             pl_in_copy, &len_out, pl,
+                                             &bg_started);
+            } else {
+                rc = CXL_MBOX_INTERNAL_ERROR;
+            }
         }
 
         /* Set bg and the return code */
