@@ -3205,7 +3205,6 @@ static const TypeInfo riscv_cpu_type_infos[] = {
         .cfg.ext_ssaia = true,
         .cfg.ext_sscofpmf = true,
         .cfg.ext_sstc = true,
-        .cfg.ext_svade = true,
         .cfg.ext_svinval = true,
         .cfg.ext_svnapot = true,
         .cfg.ext_svpbmt = true,
