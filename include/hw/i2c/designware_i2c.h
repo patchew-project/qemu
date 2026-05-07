@@ -11,9 +11,11 @@
 #include "qemu/fifo8.h"
 #include "hw/i2c/i2c.h"
 #include "hw/core/irq.h"
+#include "hw/core/register.h"
 #include "hw/core/sysbus.h"
 
-/* Size of the FIFO buffers. */
+#define DESIGNWARE_I2C_R_MAX (0x100 / 4)
+
 #define DESIGNWARE_I2C_RX_FIFO_SIZE 16
 #define DESIGNWARE_I2C_TX_FIFO_SIZE 16
 
@@ -28,31 +30,6 @@ typedef enum DesignWareI2CStatus {
  * struct DesignWareI2CState - DesignWare I2C device state.
  * @bus: The underlying I2C Bus
  * @irq: GIC interrupt line to fire on events
- * @ic_con: : I2C control register
- * @ic_tar: I2C target address register
- * @ic_sar: I2C slave address register
- * @ic_ss_scl_hcnt: Standard speed i2c clock scl high count register
- * @ic_ss_scl_lcnt: Standard speed i2c clock scl low count register
- * @ic_fs_scl_hcnt: Fast mode or fast mode plus i2c clock scl high count
- *                  register
- * @ic_fs_scl_lcnt:Fast mode or fast mode plus i2c clock scl low count
- *                  register
- * @ic_intr_mask: I2C Interrupt Mask Register
- * @ic_raw_intr_stat: I2C raw interrupt status register
- * @ic_rx_tl: I2C receive FIFO threshold register
- * @ic_tx_tl: I2C transmit FIFO threshold register
- * @ic_enable: I2C enable register
- * @ic_status: I2C status register
- * @ic_txflr: I2C transmit fifo level register
- * @ic_rxflr: I2C receive fifo level register
- * @ic_sda_hold: I2C SDA hold time length register
- * @ic_tx_abrt_source: The I2C transmit abort source register
- * @ic_sda_setup: I2C SDA setup register
- * @ic_enable_status: I2C enable status register
- * @ic_fs_spklen: I2C SS, FS or FM+ spike suppression limit
- * @ic_comp_param_1: Component parameter register
- * @ic_comp_version: I2C component version register
- * @ic_comp_type: I2C component type register
  * @rx_fifo: The FIFO buffer for receiving in FIFO mode.
  */
 typedef struct DesignWareI2CState {
@@ -63,31 +40,10 @@ typedef struct DesignWareI2CState {
     I2CBus      *bus;
     qemu_irq     irq;
 
-    uint32_t ic_con;
-    uint32_t ic_tar;
-    uint32_t ic_sar;
-    uint32_t ic_ss_scl_hcnt;
-    uint32_t ic_ss_scl_lcnt;
-    uint32_t ic_fs_scl_hcnt;
-    uint32_t ic_fs_scl_lcnt;
-    uint32_t ic_intr_mask;
-    uint32_t ic_raw_intr_stat;
-    uint32_t ic_rx_tl;
-    uint32_t ic_tx_tl;
-    uint32_t ic_enable;
-    uint32_t ic_status;
-    uint32_t ic_txflr;
-    uint32_t ic_rxflr;
-    uint32_t ic_sda_hold;
-    uint32_t ic_tx_abrt_source;
-    uint32_t ic_sda_setup;
-    uint32_t ic_enable_status;
-    uint32_t ic_fs_spklen;
-    uint32_t ic_comp_param_1;
-    uint32_t ic_comp_version;
-    uint32_t ic_comp_type;
+    uint32_t regs[DESIGNWARE_I2C_R_MAX];
+    RegisterInfo regs_info[DESIGNWARE_I2C_R_MAX];
 
-    /* fifo8_num_used(rx_fifo) should always equal ic_rxflr */
+    /* fifo8_num_used(rx_fifo) should always equal DW_IC_RXFLR */
     Fifo8    rx_fifo;
 
     DesignWareI2CStatus status;

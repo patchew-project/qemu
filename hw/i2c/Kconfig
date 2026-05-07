@@ -20,6 +20,7 @@ config ARM_SBCON_I2C
 
 config DESIGNWARE_I2C
     bool
+    select REGISTER
     select I2C
 
 config ACPI_SMBUS
