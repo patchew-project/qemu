@@ -47,38 +47,15 @@ cd ..
 _supported_fmt qcow2  # Hardcoded to qcow2 command line and QMP below
 _supported_proto file
 
-# pick_unused_port
-#
-# Picks and returns an "unused" port, setting the global variable
-# $port.
-#
-# This is inherently racy, but we need it because qemu does not currently
-# permit NBD+TLS over a Unix domain socket
-pick_unused_port ()
-{
-    if ! (ss --version) >/dev/null 2>&1; then
-        _notrun "ss utility required, skipped this test"
-    fi
-
-    # Start at a random port to make it less likely that two parallel
-    # tests will conflict.
-    port=$(( 50000 + (RANDOM%15000) ))
-    while ss -ltn | grep -sqE ":$port\b"; do
-        ((port++))
-        if [ $port -eq 65000 ]; then port=50000; fi
-    done
-    echo picked unused port
-}
-
 tls_x509_init
 
 size=1G
 DST_IMG="$TEST_DIR/dst.qcow2"
+nbd_sock="$SOCK_DIR/nbd-tls-iothread.sock"
 
 echo
-echo "== preparing TLS creds and spare port =="
+echo "== preparing TLS creds =="
 
-pick_unused_port
 tls_x509_create_root_ca "ca1"
 tls_x509_create_server "ca1" "server1"
 tls_x509_create_client "ca1" "client1"
@@ -136,8 +113,8 @@ echo === Dst VM: Enable NBD server for incoming storage migration ===
 echo
 
 _send_qemu_cmd $h2 '{"execute": "nbd-server-start", "arguments":
-    {"addr": {"type": "inet", "data": {"host": "127.0.0.1", "port": "'$port'"}},
-              "tls-creds": "tls0"}}' '{"return": {}}' | sed "s/\"$port\"/PORT/g"
+    {"addr": {"type": "unix", "data": {"path": "'$nbd_sock'"}},
+              "tls-creds": "tls0"}}' '{"return": {}}'
 _send_qemu_cmd $h2 '{"execute": "block-export-add", "arguments":
     {"node-name": "drive_image1", "type": "nbd", "writable": true,
       "id": "drive_image1"}}' '{"return": {}}'
@@ -148,9 +125,9 @@ echo
 
 _send_qemu_cmd $h1 '{"execute": "blockdev-add", "arguments":
     {"node-name": "mirror", "driver": "nbd",
-     "server": {"type": "inet", "host": "127.0.0.1", "port": "'$port'"},
+     "server": {"type": "unix", "path": "'$nbd_sock'"},
      "export": "drive_image1", "tls-creds": "tls0",
-     "tls-hostname": "127.0.0.1"}}' '{"return": {}}' | sed "s/\"$port\"/PORT/g"
+     "tls-hostname": "127.0.0.1"}}' '{"return": {}}'
 _send_qemu_cmd $h1 '{"execute": "blockdev-mirror", "arguments":
     {"sync": "full", "device": "drive_image1", "target": "mirror",
      "job-id": "drive_image1_53"}}' '{"return": {}}'

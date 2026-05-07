@@ -1,7 +1,6 @@
 QA output created by nbd-tls-iothread
 
-== preparing TLS creds and spare port ==
-picked unused port
+== preparing TLS creds ==
 Generating a self signed certificate...
 Generating a signed certificate...
 Generating a signed certificate...
@@ -23,7 +22,7 @@ Formatting 'TEST_DIR/dst.IMGFMT', fmt=IMGFMT size=1073741824
 === Dst VM: Enable NBD server for incoming storage migration ===
 
 {"execute": "nbd-server-start", "arguments":
-    {"addr": {"type": "inet", "data": {"host": "127.0.0.1", "port": PORT}},
+    {"addr": {"type": "unix", "data": {"path": "SOCK_DIR/nbd-tls-iothread.sock"}},
               "tls-creds": "tls0"}}
 {"return": {}}
 {"execute": "block-export-add", "arguments":
@@ -35,7 +34,7 @@ Formatting 'TEST_DIR/dst.IMGFMT', fmt=IMGFMT size=1073741824
 
 {"execute": "blockdev-add", "arguments":
     {"node-name": "mirror", "driver": "nbd",
-     "server": {"type": "inet", "host": "127.0.0.1", "port": PORT},
+     "server": {"type": "unix", "path": "SOCK_DIR/nbd-tls-iothread.sock"},
      "export": "drive_image1", "tls-creds": "tls0",
      "tls-hostname": "127.0.0.1"}}
 {"return": {}}
