@@ -807,68 +807,63 @@ static FloatPartsN *partsN(muladd_scalbn)(FloatPartsN *a, FloatPartsN *b,
  * corresponding value `b'. The operation is performed according to
  * the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
  */
-static FloatPartsN *partsN(div)(FloatPartsN *a, FloatPartsN *b,
-                                float_status *s)
+FloatPartsN partsN(div)(const FloatPartsN *a, const FloatPartsN *b,
+                        float_status *s)
 {
     int ab_mask = float_cmask(a->cls) | float_cmask(b->cls);
-    bool sign = a->sign ^ b->sign;
+    FloatPartsN r = *a;
+
+    r.sign ^= b->sign;
+    r.exp -= b->exp;
 
     if (likely(cmask_is_only_normals(ab_mask))) {
         if (ab_mask & float_cmask_denormal) {
             float_raise(float_flag_input_denormal_used, s);
         }
-        a->sign = sign;
-        a->exp -= b->exp + fracN(div)(a, b);
-        return a;
+        r.exp -= fracN(div)(&r, b);
+        return r;
     }
 
     /* 0/0 or Inf/Inf => NaN */
     if (unlikely(ab_mask == float_cmask_zero)) {
         float_raise(float_flag_invalid | float_flag_invalid_zdz, s);
-        goto d_nan;
+        return partsN(default_nan)(s);
     }
     if (unlikely(ab_mask == float_cmask_inf)) {
         float_raise(float_flag_invalid | float_flag_invalid_idi, s);
-        goto d_nan;
+        return partsN(default_nan)(s);
     }
 
     /* All the NaN cases */
     if (unlikely(ab_mask & float_cmask_anynan)) {
-        *a = partsN(pick_nan)(a, b, s);
-	return a;
+        return partsN(pick_nan)(a, b, s);
     }
 
     if ((ab_mask & float_cmask_denormal) && b->cls != float_class_zero) {
         float_raise(float_flag_input_denormal_used, s);
     }
 
-    a->sign = sign;
-
     /* Inf / X */
-    if (a->cls == float_class_inf) {
-        return a;
+    if (r.cls == float_class_inf) {
+        return r;
     }
 
     /* 0 / X */
-    if (a->cls == float_class_zero) {
-        return a;
+    if (r.cls == float_class_zero) {
+        return r;
     }
 
     /* X / Inf */
     if (b->cls == float_class_inf) {
-        a->cls = float_class_zero;
-        return a;
+        r.cls = float_class_zero;
+        return r;
     }
 
     /* X / 0 => Inf */
-    g_assert(b->cls == float_class_zero);
+    assert(b->cls == float_class_zero);
     float_raise(float_flag_divbyzero, s);
-    a->cls = float_class_inf;
-    return a;
-
- d_nan:
-    *a = partsN(default_nan)(s);
-    return a;
+    r.cls = float_class_inf;
+    return r;
 }
 
 /*
