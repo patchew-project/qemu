@@ -8,8 +8,14 @@
 
 #include "qemu/osdep.h"
 #include "hw/intc/arm_gicv5_common.h"
+#include "hw/core/qdev-properties.h"
+#include "qapi/error.h"
+#include "trace.h"
 
 OBJECT_DEFINE_ABSTRACT_TYPE(GICv5Common, gicv5_common, ARM_GICV5_COMMON, SYS_BUS_DEVICE)
+
+/* Any value > 2^24 is out of the valid range for this property */
+#define GICV5_SPI_IRS_RANGE_NOT_SET 0xffffffff
 
 static bool bad_frame_accepts(void *opaque, hwaddr addr, unsigned size,
                               bool is_write, MemTxAttrs attrs)
@@ -58,9 +64,83 @@ static void gicv5_common_finalize(Object *obj)
 {
 }
 
+static void gicv5_common_realize(DeviceState *dev, Error **errp)
+{
+    GICv5Common *cs = ARM_GICV5_COMMON(dev);
+
+    if (cs->num_cpus == 0) {
+        error_setg(errp, "The cpus array property must have at least one CPU");
+        return;
+    }
+    if (cs->num_cpus >= (1 << 16)) {
+        /* We'll hit other QEMU limits long before this one :-) */
+        error_setg(errp, "Number of CPUs exceeds GICv5 architectural maximum");
+        return;
+    }
+    if (cs->num_cpus != cs->num_cpu_iaffids) {
+        error_setg(errp, "The cpu-iaffids array property must be the same size "
+                   "as the cpus array property");
+        return;
+    }
+    if (cs->irsid >= (1 << 16)) {
+        error_setg(errp, "irsid (%u) is more than 2^16-1", cs->irsid);
+        return;
+    }
+    if (cs->spi_range > (1 << 24)) {
+        /*
+         * Note that IRS_IDR5.SPI_RANGE is a 25 bit field but the largest
+         * architecturally permitted value is 2^24 (not 2^25-1), hence
+         * use of > in the range check.
+         */
+        error_setg(errp, "spi-range (%u) is more than 2^24", cs->spi_range);
+        return;
+    }
+    if (cs->spi_irs_range == GICV5_SPI_IRS_RANGE_NOT_SET) {
+        /* spi-irs-range defaults to same as spi-range */
+        cs->spi_irs_range = cs->spi_range;
+    }
+    if (cs->spi_irs_range > (1 << 24)) {
+        /* Similarly IRS_IDR6.SPI_IRS_RANGE */
+        error_setg(errp, "spi-irs-range (%u) is more than 2^24",
+                   cs->spi_irs_range);
+        return;
+    }
+    if (cs->spi_base >= (1 << 24)) {
+        /* IRS_IDR7.SPI_BASE is a 24-bit field, so range check is >= */
+        error_setg(errp, "spi-base (%u) is more than 2^24-1", cs->spi_base);
+        return;
+    }
+    /* range checks above mean we know this addition won't overflow */
+    if (cs->spi_base + cs->spi_irs_range > cs->spi_range) {
+        error_setg(errp, "spi-base (%u) + spi-irs-range (%u) is "
+                   "more than spi-range (%u)",
+                   cs->spi_base, cs->spi_irs_range, cs->spi_range);
+        return;
+    }
+
+    trace_gicv5_common_realize(cs->irsid, cs->num_cpus,
+                               cs->spi_base, cs->spi_irs_range, cs->spi_range);
+}
+
+static const Property arm_gicv5_common_properties[] = {
+    DEFINE_PROP_LINK_ARRAY("cpus", GICv5Common, num_cpus,
+                           cpus, TYPE_ARM_CPU, ARMCPU *),
+    DEFINE_PROP_ARRAY("cpu-iaffids", GICv5Common, num_cpu_iaffids,
+                      cpu_iaffids, qdev_prop_uint32, uint32_t),
+    DEFINE_PROP_UINT32("irsid", GICv5Common, irsid, 0),
+    DEFINE_PROP_UINT32("spi-range", GICv5Common, spi_range, 0),
+    DEFINE_PROP_UINT32("spi-base", GICv5Common, spi_base, 0),
+    DEFINE_PROP_UINT32("spi-irs-range", GICv5Common, spi_irs_range,
+                       GICV5_SPI_IRS_RANGE_NOT_SET),
+};
+
 static void gicv5_common_class_init(ObjectClass *oc, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(oc);
+    DeviceClass *dc = DEVICE_CLASS(oc);
 
     rc->phases.hold = gicv5_common_reset_hold;
+
+    dc->realize = gicv5_common_realize;
+    device_class_set_props(dc, arm_gicv5_common_properties);
 }
