@@ -13,6 +13,8 @@
 #include "hw/core/sysbus.h"
 #include "hw/intc/arm_gicv5_types.h"
 #include "target/arm/cpu-qom.h"
+#include "qemu/error-report.h"
+#include "system/kvm.h"
 
 /*
  * QEMU interface:
@@ -148,6 +150,24 @@ void gicv5_common_init_irqs_and_mmio(GICv5Common *cs,
 static inline bool gicv5_domain_implemented(GICv5Common *cs, GICv5Domain domain)
 {
     return cs->implemented_domains & (1 << domain);
+}
+
+/**
+ * gicv5_class_name
+ *
+ * Return name of GICv5 class to use depending on whether KVM acceleration is
+ * in use. May throw an error if the chosen implementation is not available.
+ *
+ * Returns: class name to use
+ */
+static inline const char *gicv5_class_name(void)
+{
+    /* When we implement KVM GICv5 we might return "kvm-arm-gicv5" here. */
+    if (kvm_enabled()) {
+        error_report("Userspace GICv5 is not supported with KVM");
+        exit(1);
+    }
+    return "arm-gicv5";
 }
 
 #endif
