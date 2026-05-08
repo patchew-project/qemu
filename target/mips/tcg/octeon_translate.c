@@ -189,6 +189,112 @@ static bool trans_saa(DisasContext *ctx, arg_saa *a, MemOp mop)
     return true;
 }
 
+static bool trans_la_common(DisasContext *ctx, int base, int add_reg, int rd,
+                            int64_t imm, bool dw)
+{
+    TCGv_i64 addr = tcg_temp_new_i64();
+
+    gen_base_offset_addr(ctx, addr, base, 0);
+
+    if (dw) {
+        TCGv_i64 value = tcg_temp_new_i64();
+        TCGv_i64 old = tcg_temp_new_i64();
+        MemOp amo = mo_endian(ctx) | MO_UQ | MO_ALIGN;
+
+        if (add_reg >= 0) {
+            gen_load_gpr(value, add_reg);
+        } else {
+            tcg_gen_movi_i64(value, imm);
+        }
+
+        tcg_gen_atomic_fetch_add_i64(old, addr, value, ctx->mem_idx, amo);
+        gen_store_gpr(old, rd);
+    } else {
+        TCGv_i64 old = tcg_temp_new_i64();
+        TCGv_i32 value32 = tcg_temp_new_i32();
+        TCGv_i32 old32 = tcg_temp_new_i32();
+        MemOp amo = mo_endian(ctx) | MO_UL | MO_ALIGN;
+
+        if (add_reg < 0) {
+            tcg_gen_movi_i32(value32, imm);
+        } else {
+            TCGv_i64 value = tcg_temp_new_i64();
+
+            gen_load_gpr(value, add_reg);
+            tcg_gen_extrl_i64_i32(value32, value);
+        }
+
+        tcg_gen_atomic_fetch_add_i32(old32, addr, value32, ctx->mem_idx, amo);
+        tcg_gen_ext_i32_i64(old, old32);
+        gen_store_gpr(old, rd);
+    }
+
+    return true;
+}
+
+static bool trans_law_common(DisasContext *ctx, int base, int add_reg, int rd,
+                             int64_t imm, bool dw)
+{
+    TCGv_i64 addr = tcg_temp_new_i64();
+
+    gen_base_offset_addr(ctx, addr, base, 0);
+
+    if (dw) {
+        TCGv_i64 value = tcg_temp_new_i64();
+        TCGv_i64 old = tcg_temp_new_i64();
+        MemOp amo = mo_endian(ctx) | MO_UQ | MO_ALIGN;
+
+        if (add_reg >= 0) {
+            gen_load_gpr(value, add_reg);
+        } else {
+            tcg_gen_movi_i64(value, imm);
+        }
+
+        tcg_gen_atomic_xchg_i64(old, addr, value, ctx->mem_idx, amo);
+        gen_store_gpr(old, rd);
+    } else {
+        TCGv_i64 old = tcg_temp_new_i64();
+        TCGv_i32 value32 = tcg_temp_new_i32();
+        TCGv_i32 old32 = tcg_temp_new_i32();
+        MemOp amo = mo_endian(ctx) | MO_UL | MO_ALIGN;
+
+        if (add_reg >= 0) {
+            TCGv_i64 value = tcg_temp_new_i64();
+
+            gen_load_gpr(value, add_reg);
+            tcg_gen_extrl_i64_i32(value32, value);
+        } else {
+            tcg_gen_movi_i32(value32, imm);
+        }
+
+        tcg_gen_atomic_xchg_i32(old32, addr, value32, ctx->mem_idx, amo);
+        tcg_gen_ext_i32_i64(old, old32);
+        gen_store_gpr(old, rd);
+    }
+
+    return true;
+}
+
+static bool do_lai(DisasContext *ctx, arg_la *a, int64_t imm, bool dw)
+{
+    return trans_la_common(ctx, a->base, -1, a->rd, imm, dw);
+}
+
+static bool do_laa(DisasContext *ctx, arg_laa *a, bool dw)
+{
+    return trans_la_common(ctx, a->base, a->add, a->rd, 0, dw);
+}
+
+static bool do_las(DisasContext *ctx, arg_la *a, int64_t imm, bool dw)
+{
+    return trans_law_common(ctx, a->base, -1, a->rd, imm, dw);
+}
+
+static bool do_law(DisasContext *ctx, arg_laa *a, bool dw)
+{
+    return trans_law_common(ctx, a->base, a->add, a->rd, 0, dw);
+}
+
 static bool trans_ZCB(DisasContext *ctx, arg_zcb *a)
 {
     TCGv_i64 addr = tcg_temp_new_i64();
@@ -299,6 +405,18 @@ static bool trans_vmul(DisasContext *ctx, arg_decode_ext_octeon1 *a,
 
 TRANS(SAA,  trans_saa, MO_UL);
 TRANS(SAAD, trans_saa, MO_UQ);
+TRANS(LAI,  do_lai, 1, false);
+TRANS(LAID, do_lai, 1, true);
+TRANS(LAD,  do_lai, -1, false);
+TRANS(LADD, do_lai, -1, true);
+TRANS(LAA,  do_laa, false);
+TRANS(LAAD, do_laa, true);
+TRANS(LAS,  do_las, -1, false);
+TRANS(LASD, do_las, -1, true);
+TRANS(LAC,  do_las, 0, false);
+TRANS(LACD, do_las, 0, true);
+TRANS(LAW,  do_law, false);
+TRANS(LAWD, do_law, true);
 TRANS(LBX,  trans_lx, MO_SB);
 TRANS(LBUX, trans_lx, MO_UB);
 TRANS(LHX,  trans_lx, MO_SW);
