@@ -153,7 +153,8 @@ F: stubs/hmp-cmds-target-i386.c
 F: target/i386/*.[ch]
 F: target/i386/Kconfig
 F: target/i386/meson.build
-F: tools/i386/
+F: tools/qemu-vmsr-helper.c
+F: docs/tools/qemu-vmsr-helper.rst
 F: tests/functional/i386/
 F: tests/functional/x86_64/
 

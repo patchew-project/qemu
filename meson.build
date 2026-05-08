@@ -4540,7 +4540,7 @@ if have_tools
                install: true)
 
     if cpu == 'x86_64'
-      executable('qemu-vmsr-helper', files('tools/i386/qemu-vmsr-helper.c'),
+      executable('qemu-vmsr-helper', files('tools/qemu-vmsr-helper.c'),
                dependencies: [authz, crypto, io, qom, qemuutil,
                               libcap_ng, mpathpersist],
                install: true)
