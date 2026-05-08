@@ -3115,7 +3115,7 @@ F: qapi/block*.json
 F: qapi/transaction.json
 F: include/block/
 F: include/system/block-*.h
-F: qemu-img*
+F: tools/qemu-img*
 F: docs/tools/qemu-img.rst
 F: qemu-io*
 F: tests/qemu-iotests/

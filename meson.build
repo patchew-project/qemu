@@ -3530,7 +3530,7 @@ genh += qemu_version
 hxdep = []
 hx_headers = [
   ['qemu-options.hx', 'qemu-options.def'],
-  ['qemu-img-cmds.hx', 'qemu-img-cmds.h'],
+  ['tools/qemu-img-cmds.hx', 'qemu-img-cmds.h'],
 ]
 if have_system
   hx_headers += [
@@ -4494,7 +4494,7 @@ endif
 
 if have_tools
   tools_link_args = enable_modules ? ['@block.syms'] : []
-  qemu_img = executable('qemu-img', [files('qemu-img.c'), hxdep],
+  qemu_img = executable('qemu-img', [files('tools/qemu-img.c'), hxdep],
              link_args: tools_link_args, link_depends: block_syms,
              dependencies: [authz, block, crypto, io, qom, qemuutil], install: true)
   qemu_io = executable('qemu-io', files('qemu-io.c'),

@@ -39,7 +39,7 @@ Standard options:
 
 The following commands are supported:
 
-.. hxtool-doc:: qemu-img-cmds.hx
+.. hxtool-doc:: tools/qemu-img-cmds.hx
 
 Command parameters:
 
