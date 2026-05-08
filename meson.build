@@ -3781,7 +3781,7 @@ if have_block
     'block.c',
     'blockjob.c',
     'job.c',
-    'qemu-io-cmds.c',
+    'tools/qemu-io-cmds.c',
   ))
   if config_host_data.get('CONFIG_REPLICATION')
     block_ss.add(files('replication.c'))
@@ -4497,7 +4497,7 @@ if have_tools
   qemu_img = executable('qemu-img', [files('tools/qemu-img.c'), hxdep],
              link_args: tools_link_args, link_depends: block_syms,
              dependencies: [authz, block, crypto, io, qom, qemuutil], install: true)
-  qemu_io = executable('qemu-io', files('qemu-io.c'),
+  qemu_io = executable('qemu-io', files('tools/qemu-io.c'),
              link_args: tools_link_args, link_depends: block_syms,
              dependencies: [block, qemuutil], install: true)
   qemu_nbd = executable('qemu-nbd', files('qemu-nbd.c'),
