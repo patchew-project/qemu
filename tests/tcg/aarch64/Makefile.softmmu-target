@@ -8,7 +8,7 @@ AARCH64_SYSTEM_SRC=$(AARCH64_SRC)/system
 VPATH+=$(AARCH64_SYSTEM_SRC)
 
 # These objects provide the basic boot code and helper functions for all tests
-CRT_OBJS=boot.o
+CRT_OBJS=boot.o altvec.o
 
 AARCH64_TEST_C_SRCS=$(wildcard $(AARCH64_SYSTEM_SRC)/*.c)
 AARCH64_TEST_S_SRCS=$(AARCH64_SYSTEM_SRC)/mte.S
