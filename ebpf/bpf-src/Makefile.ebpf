@@ -21,4 +21,4 @@ clean:
 
 %.skeleton.h: %.o
 	bpftool gen skeleton $< > $@
-	cp $@ ../../ebpf/
+	cp $@ ..
