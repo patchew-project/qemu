@@ -190,6 +190,76 @@ static void pci_update_prefetch_window(PCIBus *bus, uint64_t base, uint64_t limi
                                  4);
 }
 
+static void pci_get_bridge_window(PCIBus *bus, void *opaque)
+{
+    PCIDevice *bridge = pci_bridge_get_device(bus);
+    PciAllocCfg *pci_res = (PciAllocCfg *)opaque;
+
+    if (!bridge) {
+        pci_res->wbase = pci_res->mmio32_base;
+        pci_res->wlimit = pci_res->mmio32_base + pci_res->mmio32_size - 1;
+        pci_res->wbase64 = pci_res->mmio64_base;
+        pci_res->wlimit64 = pci_res->mmio64_base + pci_res->mmio64_size - 1;
+    } else {
+        pci_res->wbase = pci_bridge_get_base(bridge, PCI_BASE_ADDRESS_MEM_TYPE_32);
+        pci_res->wlimit = pci_bridge_get_limit(bridge, PCI_BASE_ADDRESS_MEM_TYPE_32);
+        pci_res->wbase64 = pci_bridge_get_base(bridge, PCI_BASE_ADDRESS_MEM_PREFETCH);
+        pci_res->wlimit64 = pci_bridge_get_limit(bridge, PCI_BASE_ADDRESS_MEM_PREFETCH);
+    }
+}
+
+static void pci_collect_mmio64_window(PCIBus *bus, PCIDevice *dev, void *opaque)
+{
+    PciAllocCfg *pci_res = (PciAllocCfg *)opaque;
+    uint64_t rbase, rlimit;
+    uint32_t idx;
+
+    for (idx = 0; idx < PCI_ROM_SLOT; idx++) {
+        PCIIORegion *res = &dev->io_regions[idx];
+
+        if (!res->size) {
+            continue;
+        }
+        rbase = res->addr;
+        rlimit = res->addr + res->size - 1;
+        /* Entire BAR must lie in the window; do not count partial overlap. */
+        if (rbase < pci_res->wbase64 || rlimit > pci_res->wlimit64) {
+            continue;
+        }
+        pci_res->rbase = MIN(pci_res->rbase, rbase);
+        pci_res->rlimit = MAX(pci_res->rlimit, rlimit);
+    }
+
+    if (IS_PCI_BRIDGE(dev)) {
+        rbase = pci_bridge_get_base(dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
+        rlimit = pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
+
+        if ((rbase < pci_res->wbase64) ||
+            (rbase > pci_res->wlimit64) ||
+            (rlimit < pci_res->wbase64) ||
+            (rlimit > pci_res->wlimit64)) {
+            return;
+        }
+
+        pci_res->rbase = MIN(pci_res->rbase, rbase);
+        pci_res->rlimit = MAX(pci_res->rlimit, rlimit);
+    }
+}
+
+static void pci_bus_update_prefetch_window(PCIBus *bus, void *opaque)
+{
+    PciAllocCfg *pci_res = (PciAllocCfg *)opaque;
+    pci_res->rbase = ~0;
+    pci_res->rlimit = 0;
+
+    assert(pci_bridge_get_device(bus));
+    pci_for_each_device_under_bus(bus, pci_collect_mmio64_window, pci_res);
+
+    if (pci_res->rlimit > pci_res->rbase) {
+        pci_update_prefetch_window(bus, pci_res->rbase, pci_res->rlimit);
+    }
+}
+
 static inline bool is_64bit_pref_bar(PCIIORegion *r)
 {
     if (!r->size) {
@@ -1003,6 +1073,25 @@ void pci_fixed_bar_allocator(PCIBus *root, const PciFixedBarMmioParams *mmio)
 
     /* Phase 3: allocate BARs for buses that have no fixed-BAR devices */
     pci_for_each_bus(bus, pci_bus_phase3_allocate_no_fixed_bars, &pctx);
+
+    memset(pci_res, 0, sizeof(PciAllocCfg));
+    pci_resource_init_from_mmio(pci_res, mmio);
+
+    /* TODO: 32-bit MMIO/ROM adjustment */
+    /* TODO: PIO assignment */
+    /* TODO: 64-bit non-prefetchable */
+
+    /* Align bridge prefetch window with assigned BAR ranges */
+    pci_get_bridge_window(bus, pci_res);
+
+    QLIST_FOREACH(bus, &bus->child, sibling) {
+        pci_res->bus = bus;
+        /* Use the full mmio64 window */
+        pci_res->wbase64 = pci_res->mmio64_base;
+        pci_res->wlimit64 = pci_res->mmio64_base + pci_res->mmio64_size - 1;
+
+        pci_for_each_bus(bus, pci_bus_update_prefetch_window, pci_res);
+    }
 
     /* Cleanup */
     g_hash_table_destroy(pctx.had_fixed);
