@@ -216,6 +216,60 @@ static bool trans_ZCBT(DisasContext *ctx, arg_zcb *a)
     return trans_ZCB(ctx, a);
 }
 
+static ptrdiff_t octeon_tc_mpl_offset(unsigned int index)
+{
+    return offsetof(CPUMIPSState, active_tc.octeon.MPL[index]);
+}
+
+static ptrdiff_t octeon_tc_p_offset(unsigned int index)
+{
+    return offsetof(CPUMIPSState, active_tc.octeon.P[index]);
+}
+
+static void octeon_store_tc_field(ptrdiff_t offset, TCGv_i64 value)
+{
+    tcg_gen_st_i64(value, tcg_env, offset);
+}
+
+static void octeon_zero_partial_product_state(void)
+{
+    TCGv_i64 zero = tcg_constant_i64(0);
+
+    for (int i = 0; i < 2 * 3; i++) {
+        octeon_store_tc_field(octeon_tc_p_offset(i), zero);
+    }
+}
+
+static void octeon_clear_upper_multiplier_state(void)
+{
+    TCGv_i64 zero = tcg_constant_i64(0);
+
+    /*
+     * MTM0 starts a new multiplier chain.  Guest code relies on a single
+     * MTM0 load making the remaining multiplier limbs zero unless later
+     * MTM1/MTM2 instructions explicitly populate them.
+     */
+    octeon_store_tc_field(octeon_tc_mpl_offset(1), zero);
+    octeon_store_tc_field(octeon_tc_mpl_offset(2), zero);
+    octeon_store_tc_field(octeon_tc_mpl_offset(4), zero);
+    octeon_store_tc_field(octeon_tc_mpl_offset(5), zero);
+}
+
+static bool trans_mtm(DisasContext *ctx, arg_r2 *a, unsigned int index)
+{
+    TCGv_i64 value = tcg_temp_new_i64();
+
+    gen_load_gpr(value, a->rs);
+    octeon_store_tc_field(octeon_tc_mpl_offset(index), value);
+    gen_load_gpr(value, a->rt);
+    octeon_store_tc_field(octeon_tc_mpl_offset(index + 3), value);
+    if (index == 0) {
+        octeon_clear_upper_multiplier_state();
+    }
+    octeon_zero_partial_product_state();
+    return true;
+}
+
 TRANS(SAA,  trans_saa, MO_UL);
 TRANS(SAAD, trans_saa, MO_UQ);
 TRANS(LBX,  trans_lx, MO_SB);
@@ -225,3 +279,4 @@ TRANS(LHUX, trans_lx, MO_UW);
 TRANS(LWX,  trans_lx, MO_SL);
 TRANS(LWUX, trans_lx, MO_UL);
 TRANS(LDX,  trans_lx, MO_UQ);
+TRANS(MTM0, trans_mtm, 0);
