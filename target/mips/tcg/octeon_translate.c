@@ -161,6 +161,33 @@ static bool trans_lx(DisasContext *ctx, arg_lx *a, MemOp mop)
     return true;
 }
 
+static bool trans_saa(DisasContext *ctx, arg_saa *a, MemOp mop)
+{
+    TCGv_i64 addr = tcg_temp_new_i64();
+    MemOp amo = mo_endian(ctx) | mop | MO_ALIGN;
+
+    gen_base_offset_addr(ctx, addr, a->base, 0);
+
+    if (mop == MO_UQ) {
+        TCGv_i64 value = tcg_temp_new_i64();
+        TCGv_i64 old = tcg_temp_new_i64();
+
+        gen_load_gpr(value, a->rt);
+        tcg_gen_atomic_fetch_add_i64(old, addr, value, ctx->mem_idx, amo);
+    } else {
+        TCGv_i64 value = tcg_temp_new_i64();
+        TCGv_i32 value32 = tcg_temp_new_i32();
+        TCGv_i32 old = tcg_temp_new_i32();
+
+        gen_load_gpr(value, a->rt);
+        tcg_gen_extrl_i64_i32(value32, value);
+        tcg_gen_atomic_fetch_add_i32(old, addr, value32, ctx->mem_idx, amo);
+    }
+
+    return true;
+}
+
+TRANS(SAA,  trans_saa, MO_UL);
 TRANS(LBX,  trans_lx, MO_SB);
 TRANS(LBUX, trans_lx, MO_UB);
 TRANS(LHX,  trans_lx, MO_SW);
