@@ -4529,7 +4529,7 @@ if have_tools
   endif
 
   if host_os == 'linux'
-    executable('qemu-bridge-helper', files('qemu-bridge-helper.c'),
+    executable('qemu-bridge-helper', files('tools/qemu-bridge-helper.c'),
                dependencies: [qemuutil, libcap_ng],
                install: true,
                install_dir: get_option('libexecdir'))
