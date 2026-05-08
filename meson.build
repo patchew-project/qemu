@@ -4514,7 +4514,7 @@ if have_tools
     }]
   endforeach
 
-  subdir('contrib/elf2dmp')
+  subdir('tools/elf2dmp')
 
   executable('qemu-edid', files('tools/qemu-edid.c', 'hw/display/edid-generate.c'),
              dependencies: [qemuutil, rt],

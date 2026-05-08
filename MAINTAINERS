@@ -3949,7 +3949,7 @@ elf2dmp
 M: Viktor Prutyanov <viktor.prutyanov@phystech.edu>
 R: Akihiko Odaki <odaki@rsg.ci.i.u-tokyo.ac.jp>
 S: Maintained
-F: contrib/elf2dmp/
+F: tools/elf2dmp/
 
 Overall sensors
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
