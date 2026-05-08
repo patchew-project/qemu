@@ -50,6 +50,7 @@
 #include "hw/core/boards.h"
 #include "hw/nvram/fw_cfg.h"
 #include "qapi/error.h"
+#include "qapi/util.h"
 #include "qemu/cutils.h"
 #include "pci-internal.h"
 
@@ -81,6 +82,7 @@ static const Property pci_props[] = {
     DEFINE_PROP_STRING("romfile", PCIDevice, romfile),
     DEFINE_PROP_UINT32("romsize", PCIDevice, romsize, UINT32_MAX),
     DEFINE_PROP_INT32("rombar",  PCIDevice, rom_bar, -1),
+    DEFINE_PROP_STRING("fixed-bars", PCIDevice, fixed_bars),
     DEFINE_PROP_BIT("multifunction", PCIDevice, cap_present,
                     QEMU_PCI_CAP_MULTIFUNCTION_BITNR, false),
     DEFINE_PROP_BIT("x-pcie-lnksta-dllla", PCIDevice, cap_present,
@@ -216,6 +218,103 @@ static void pci_bus_unrealize(BusState *qbus)
     qemu_remove_machine_init_done_notifier(&bus->machine_done);
 
     vmstate_unregister(NULL, &vmstate_pcibus, bus);
+}
+
+#define FIXED_BARS_ERR "fixed-bars: expected barN@<addr>[,barM@<addr>]*; "
+
+static int pci_parse_bar_token(const char *tok, Error **errp)
+{
+    int v = qapi_enum_parse(&OffAutoPCIBAR_lookup, tok, -1, errp);
+
+    if (v < 0) {
+        return -1;
+    }
+    if (v < OFF_AUTO_PCIBAR_BAR0) {
+        error_setg(errp, FIXED_BARS_ERR "invalid BAR '%s', expected bar0..bar5", tok);
+        return -1;
+    }
+    return v - OFF_AUTO_PCIBAR_BAR0;
+}
+
+/*
+ * Parse fixed-bars=barN@<addr>[,barM@<addr>]*
+ * BAR type, size, and alignment validation is deferred to the allocator,
+ * which has the full device context needed to perform those checks.
+ * On error, sets *@errp.
+ */
+static void pci_parse_fixed_bars(PCIDevice *pci_dev, Error **errp)
+{
+    Error *local_err = NULL;
+    char **entries = NULL;
+    char **parts = NULL;
+    const char *endp;
+    char **e;
+    uint64_t bar_addr;
+    int index;
+    int i, ret;
+
+    if (!pci_dev->fixed_bars || !*pci_dev->fixed_bars) {
+        return;
+    }
+    if (DEVICE(pci_dev)->hotplugged) {
+        error_setg(&local_err,
+                   "fixed-bars is not supported on hot-plugged PCI devices");
+        goto out;
+    }
+
+    entries = g_strsplit(pci_dev->fixed_bars, ",", -1);
+    for (e = entries; e && *e; e++) {
+        const char *entry = g_strstrip(*e);
+        if (*entry == '\0') {
+            error_setg(&local_err, FIXED_BARS_ERR "empty field in list");
+            goto out;
+        }
+
+        parts = g_strsplit(entry, "@", 2);
+        if (!parts[0] || !parts[1]) {
+            error_setg(&local_err, FIXED_BARS_ERR "not '%s'", entry);
+            goto out;
+        }
+
+        index = pci_parse_bar_token(parts[0], &local_err);
+        if (index < 0) {
+            goto out;
+        }
+
+        ret = qemu_strtou64(parts[1], &endp, 0, &bar_addr);
+        if (ret) {
+            error_setg(&local_err, FIXED_BARS_ERR "unparseable address in '%s'",
+                       entry);
+            goto out;
+        }
+        if (*endp != '\0') {
+            error_setg(&local_err, FIXED_BARS_ERR "trailing data after address in '%s'",
+                       entry);
+            goto out;
+        }
+        g_clear_pointer(&parts, g_strfreev);
+
+        if (!pci_dev->fixed_bar_addrs) {
+            pci_dev->fixed_bar_addrs = g_new(pcibus_t, PCI_NUM_REGIONS - 1);
+            for (i = 0; i < PCI_NUM_REGIONS - 1; i++) {
+                pci_dev->fixed_bar_addrs[i] = PCI_BAR_UNMAPPED;
+            }
+        }
+        if (pci_dev->fixed_bar_addrs[index] != PCI_BAR_UNMAPPED) {
+            error_setg(&local_err, FIXED_BARS_ERR "bar%d specified more than once",
+                       index);
+            goto out;
+        }
+        pci_dev->fixed_bar_addrs[index] = (pcibus_t)bar_addr;
+    }
+
+out:
+    g_clear_pointer(&parts, g_strfreev);
+    g_strfreev(entries);
+    if (local_err) {
+        g_clear_pointer(&pci_dev->fixed_bar_addrs, g_free);
+        error_propagate(errp, local_err);
+    }
 }
 
 static int pcibus_num(PCIBus *bus)
@@ -1473,6 +1572,8 @@ static void pci_qdev_unrealize(DeviceState *dev)
     pci_del_option_rom(pci_dev);
     pcie_sriov_unregister_device(pci_dev);
 
+    g_clear_pointer(&pci_dev->fixed_bar_addrs, g_free);
+
     if (pc->exit) {
         pc->exit(pci_dev);
     }
@@ -2367,6 +2468,13 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
     if (pci_dev->romfile == NULL && pc->romfile != NULL) {
         pci_dev->romfile = g_strdup(pc->romfile);
         is_default_rom = true;
+    }
+
+    pci_parse_fixed_bars(pci_dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        pci_qdev_unrealize(DEVICE(pci_dev));
+        return;
     }
 
     pci_add_option_rom(pci_dev, is_default_rom, &local_err);
