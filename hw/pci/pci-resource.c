@@ -371,6 +371,358 @@ static void finalize_bridge_window(PCIBus *bus, uint64_t min_addr, uint64_t max_
     }
 }
 
+/* Returns true if this 64-bit pref BAR is already assigned */
+static bool bar_is_assigned(PCIDevice *dev, int bar_idx, GHashTable *had_fixed)
+{
+    PCIIORegion *r = &dev->io_regions[bar_idx];
+    uint32_t lo;
+    uint32_t hi;
+
+    if (!is_64bit_pref_bar(r)) {
+        return false;
+    }
+    if (dev->fixed_bar_addrs &&
+        dev->fixed_bar_addrs[bar_idx] != PCI_BAR_UNMAPPED) {
+        return true;
+    }
+    if (bar_idx >= PCI_ROM_SLOT - 1) {
+        return false; /* 64-bit BAR uses two slots */
+    }
+    lo = pci_get_long(dev->config + PCI_BASE_ADDRESS_0 + bar_idx * 4);
+    if (!(lo & PCI_BASE_ADDRESS_MEM_TYPE_64)) {
+        return (lo & PCI_BASE_ADDRESS_MEM_MASK) != 0;
+    }
+    hi = pci_get_long(dev->config + PCI_BASE_ADDRESS_0 + bar_idx * 4 + 4);
+    return (((uint64_t)hi << 32) | (lo & PCI_BASE_ADDRESS_MEM_MASK)) != 0;
+}
+
+/* Return BAR address from config, or 0 if unassigned. */
+static uint64_t get_bar_addr_from_config(PCIDevice *dev, int bar_idx)
+{
+    PCIIORegion *r = &dev->io_regions[bar_idx];
+    uint32_t lo;
+    uint32_t hi;
+
+    if (!r->size || bar_idx >= PCI_ROM_SLOT - 1) {
+        return 0;
+    }
+    lo = pci_get_long(dev->config + PCI_BASE_ADDRESS_0 + bar_idx * 4);
+    if (lo & PCI_BASE_ADDRESS_MEM_TYPE_64) {
+        hi = pci_get_long(dev->config + PCI_BASE_ADDRESS_0 + bar_idx * 4 + 4);
+        return ((uint64_t)hi << 32) | (lo & PCI_BASE_ADDRESS_MEM_MASK);
+    }
+    return lo & PCI_BASE_ADDRESS_MEM_MASK;
+}
+
+/* Total size of unassigned 64-bit pref BARs in this bus and its subtree. */
+static uint64_t size_entire_subtree(PCIBus *bus, GHashTable *had_fixed)
+{
+    uint64_t total = 0;
+
+    for (int devfn = 0; devfn < ARRAY_SIZE(bus->devices); devfn++) {
+        PCIDevice *d = bus->devices[devfn];
+        if (!d) {
+            continue;
+        }
+        for (int i = 0; i < PCI_ROM_SLOT; i++) {
+            PCIIORegion *r = &d->io_regions[i];
+            if (!is_64bit_pref_bar(r)) {
+                continue;
+            }
+            if (bar_is_assigned(d, i, had_fixed)) {
+                continue;
+            }
+            total += r->size;
+        }
+        if (IS_PCI_BRIDGE(d)) {
+            total += size_entire_subtree(pci_bridge_get_sec_bus(PCI_BRIDGE(d)), had_fixed);
+        }
+    }
+    return total;
+}
+
+/* Highest end address of any assigned BAR or bridge window in this bus and subtree. */
+static uint64_t find_highest_assigned_in_bus(PCIBus *bus)
+{
+    uint64_t highest = 0;
+    uint64_t base;
+    uint64_t limit;
+    uint64_t addr;
+
+    for (int devfn = 0; devfn < ARRAY_SIZE(bus->devices); devfn++) {
+        PCIDevice *d = bus->devices[devfn];
+        if (!d) {
+            continue;
+        }
+        if (IS_PCI_BRIDGE(d)) {
+            PCIBus *sec = pci_bridge_get_sec_bus(PCI_BRIDGE(d));
+            PCIDevice *bridge_dev = pci_bridge_get_device(sec);
+            if (bridge_dev) {
+                base = pci_bridge_get_base(bridge_dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
+                limit = pci_bridge_get_limit(bridge_dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
+                if (limit > base) {
+                    highest = MAX(highest, limit);
+                }
+                highest = MAX(highest, find_highest_assigned_in_bus(sec));
+            }
+            continue;
+        }
+        for (int i = 0; i < PCI_ROM_SLOT; i++) {
+            PCIIORegion *r = &d->io_regions[i];
+            if (!is_64bit_pref_bar(r)) {
+                continue;
+            }
+            addr = 0;
+            if (d->fixed_bar_addrs &&
+                d->fixed_bar_addrs[i] != PCI_BAR_UNMAPPED) {
+                addr = d->fixed_bar_addrs[i];
+            } else {
+                addr = get_bar_addr_from_config(d, i);
+            }
+            if (addr != 0 && r->size) {
+                highest = MAX(highest, addr + r->size - 1);
+            }
+        }
+    }
+    return highest;
+}
+
+/* Next free address in root MMIO64. */
+static uint64_t next_free_from_root(hwaddr mmio64_base, hwaddr mmio64_size)
+{
+    uint64_t mmio_start = mmio64_base;
+    uint64_t mmio_end = mmio64_base + mmio64_size - 1;
+    uint64_t highest;
+
+    highest = mmio_start - 1;
+    if (fixed_claim_regions) {
+        for (guint i = 0; i < fixed_claim_regions->len; i++) {
+            FixedClaim *c = &g_array_index(fixed_claim_regions, FixedClaim, i);
+            if (c->end >= mmio_start && c->start <= mmio_end) {
+                highest = MAX(highest, c->end);
+            }
+        }
+    }
+    return ROUND_UP(highest + 1, 0x1000); /* 4K align for new window */
+}
+
+static bool
+pci_bus_phase3_ensure_parent_prefetch_window(PCIBus *bus, PciProgramCtx *pctx,
+                                             PCIDevice *parent_bridge, uint64_t mmio_end)
+{
+    PCIBus *parent_bus;
+    PCIDevice *grandparent;
+    uint64_t parent_win_base, parent_win_limit, next_in_subtree;
+    uint64_t required, window_base, window_limit;
+    bool window_not_programmed;
+    bool parent_in_mmio64;
+
+    window_base = pci_bridge_get_base(parent_bridge, PCI_BASE_ADDRESS_MEM_PREFETCH);
+    window_limit = pci_bridge_get_limit(parent_bridge, PCI_BASE_ADDRESS_MEM_PREFETCH);
+    window_not_programmed = (window_base >= window_limit) ||
+                            (window_base < pctx->mmio64_base) || (window_limit > mmio_end);
+    if (!window_not_programmed) {
+        return true;
+    }
+
+    required = size_entire_subtree(bus, pctx->had_fixed);
+    if (required == 0) {
+        return false;
+    }
+    required = ROUND_UP(required, 0x1000);
+
+    parent_bus = pci_get_bus(parent_bridge);
+    grandparent = parent_bus ? pci_bridge_get_device(parent_bus) : NULL;
+    if (!grandparent) {
+        window_base = next_free_from_root(pctx->mmio64_base, pctx->mmio64_size);
+        window_limit = window_base + required - 1;
+        if (window_limit > mmio_end) {
+            error_report("bus [%02x] out of root MMIO64 space", pci_bus_num(bus));
+            exit(1);
+        }
+    } else {
+        parent_win_base = pci_bridge_get_base(grandparent, PCI_BASE_ADDRESS_MEM_PREFETCH);
+        parent_win_limit = pci_bridge_get_limit(grandparent, PCI_BASE_ADDRESS_MEM_PREFETCH);
+        parent_in_mmio64 = (parent_win_limit > parent_win_base) &&
+                           (parent_win_base >= pctx->mmio64_base) && (parent_win_limit <= mmio_end);
+        if (!parent_in_mmio64) {
+            window_base = next_free_from_root(pctx->mmio64_base, pctx->mmio64_size);
+            window_limit = window_base + required - 1;
+            if (window_limit > mmio_end) {
+                error_report("bus [%02x] out of root MMIO64 space", pci_bus_num(bus));
+                exit(1);
+            }
+        } else {
+            next_in_subtree = ROUND_UP(
+                find_highest_assigned_in_bus(parent_bus) + 1, 0x1000);
+            window_base = MAX(parent_win_base, next_in_subtree);
+            window_limit = window_base + required - 1;
+            if (window_limit > parent_win_limit) {
+                error_report("bus [%02x] no room in parent bridge window", pci_bus_num(bus));
+                exit(1);
+            }
+        }
+    }
+    finalize_bridge_window(bus, window_base, window_limit);
+    return true;
+}
+
+static GArray *pci_bus_phase3_collect_unassigned_bars(PCIBus *bus, PciProgramCtx *pctx,
+                                                      uint64_t *out_total_size)
+{
+    PCIDevice *d;
+    PCIIORegion *r;
+    GArray *bars;
+    uint64_t required;
+    int devfn, i;
+
+    required = 0;
+    bars = g_array_new(false, false, sizeof(BarEntry));
+    for (devfn = 0; devfn < ARRAY_SIZE(bus->devices); devfn++) {
+        d = bus->devices[devfn];
+        if (!d) {
+            continue;
+        }
+        for (i = 0; i < PCI_ROM_SLOT; i++) {
+            r = &d->io_regions[i];
+            if (!is_64bit_pref_bar(r) || bar_is_assigned(d, i, pctx->had_fixed)) {
+                continue;
+            }
+            required += r->size;
+            g_array_append_val(
+                bars, ((BarEntry){ .dev = d, .bar_idx = i, .size = r->size }));
+        }
+    }
+    *out_total_size = required;
+    return bars;
+}
+
+static void
+pci_bus_phase3_extend_window_for_bars(PCIBus *bus, PciProgramCtx *pctx,
+                                      PCIDevice *parent_bridge, uint64_t mmio_end,
+                                      uint64_t current, uint64_t required,
+                                      uint64_t window_base, uint64_t *window_limit,
+                                      GArray *bars_this_bus)
+{
+    uint64_t parent_limit, gp_base, gp_limit, new_limit;
+    PCIBus *parent_bus;
+    PCIDevice *grandparent;
+
+    if (current + required <= *window_limit) {
+        return;
+    }
+
+    parent_bus = pci_get_bus(parent_bridge);
+    grandparent = parent_bus ? pci_bridge_get_device(parent_bus) : NULL;
+    parent_limit = mmio_end;
+    if (grandparent) {
+        gp_base = pci_bridge_get_base(grandparent, PCI_BASE_ADDRESS_MEM_PREFETCH);
+        gp_limit = pci_bridge_get_limit(grandparent, PCI_BASE_ADDRESS_MEM_PREFETCH);
+        if (gp_limit > gp_base && gp_base >= pctx->mmio64_base) {
+            parent_limit = gp_limit;
+        }
+    }
+    new_limit = current + required - 1;
+    if (new_limit > parent_limit) {
+        error_report("bus [%02x] out of MMIO space (required 0x%" PRIx64 ")", pci_bus_num(bus),
+                    required);
+        g_array_free(bars_this_bus, true);
+        exit(1);
+    }
+    if (new_limit > *window_limit) {
+        pci_update_prefetch_window(bus, window_base, new_limit);
+        fixed_claim_regions_add(*window_limit + 1, new_limit, parent_bridge, -1);
+        *window_limit = new_limit;
+    }
+}
+
+static void
+pci_bus_phase3_program_bars_and_update_bridge(PCIBus *bus, PCIDevice *parent_bridge,
+                                              uint64_t window_base, uint64_t window_limit,
+                                              uint64_t start_addr, GArray *bars)
+{
+    guint b;
+    BarEntry *be;
+    PCIIORegion *r;
+    uint64_t addr, bar_end, high;
+    PhysBAR pbars_array[PCI_ROM_SLOT];
+
+    g_array_sort(bars, compare_bar_size_desc);
+    addr = start_addr;
+    for (b = 0; b < bars->len; b++) {
+        be = &g_array_index(bars, BarEntry, b);
+        r = &be->dev->io_regions[be->bar_idx];
+        addr = ROUND_UP(addr, r->size);
+        bar_end = addr + r->size - 1;
+        memset(pbars_array, 0, sizeof(pbars_array));
+        pbars_array[be->bar_idx].addr = addr;
+        pbars_array[be->bar_idx].end = bar_end;
+        pbars_array[be->bar_idx].flags = IORESOURCE_PREFETCH;
+        pci_program_prefetch_bars(be->dev, pbars_array);
+        addr = bar_end + 1;
+    }
+    high = find_highest_assigned_in_bus(bus);
+    if (high > window_limit) {
+        pci_update_prefetch_window(bus, window_base, high);
+        fixed_claim_regions_add(window_limit + 1, high, parent_bridge, -1);
+    }
+    g_array_free(bars, true);
+}
+
+/* Allocate and program 64-bit pref BARs for a bus with no fixed-BAR devices. */
+static void pci_bus_phase3_allocate_bars(PCIBus *bus, PciProgramCtx *pctx)
+{
+    uint64_t mmio_end, window_base, window_limit, current, required;
+    PCIDevice *parent_bridge;
+    GArray *bars;
+
+    parent_bridge = pci_bridge_get_device(bus);
+    if (!parent_bridge) {
+        return; /* Root bus has no bridge; skip */
+    }
+
+    mmio_end = pctx->mmio64_base + pctx->mmio64_size - 1;
+    if (!pci_bus_phase3_ensure_parent_prefetch_window(bus, pctx, parent_bridge, mmio_end)) {
+        return;
+    }
+    window_base = pci_bridge_get_base(parent_bridge, PCI_BASE_ADDRESS_MEM_PREFETCH);
+    window_limit = pci_bridge_get_limit(parent_bridge, PCI_BASE_ADDRESS_MEM_PREFETCH);
+    current = ROUND_UP(find_highest_assigned_in_bus(bus) + 1, 0x1000);
+    if (current < window_base) {
+        current = window_base;
+    }
+
+    bars = pci_bus_phase3_collect_unassigned_bars(bus, pctx, &required);
+    if (bars->len == 0) {
+        g_array_free(bars, true);
+        return;
+    }
+    pci_bus_phase3_extend_window_for_bars(bus, pctx, parent_bridge, mmio_end, current,
+                                              required, window_base, &window_limit, bars);
+    pci_bus_phase3_program_bars_and_update_bridge(
+        bus, parent_bridge, window_base, window_limit, current, bars);
+}
+
+/* Run once per bus; act only when the bus has no fixed-BAR devices. */
+static void pci_bus_phase3_allocate_no_fixed_bars(PCIBus *bus, void *opaque)
+{
+    PciProgramCtx *pctx = (PciProgramCtx *)opaque;
+    bool bus_has_fixed = false;
+
+    for (int devfn = 0; devfn < ARRAY_SIZE(bus->devices); devfn++) {
+        PCIDevice *d = bus->devices[devfn];
+        if (d && g_hash_table_contains(pctx->had_fixed, d)) {
+            bus_has_fixed = true;
+            break;
+        }
+    }
+
+    if (bus_has_fixed) {
+        return;
+    }
+    pci_bus_phase3_allocate_bars(bus, pctx);
+}
+
 static bool pci_bus_phase2_fill_bar_lists(PCIBus *bus, PciProgramCtx *pctx,
                                           GArray *fixed_bars, GArray *remaining_bars)
 {
@@ -649,7 +1001,8 @@ void pci_fixed_bar_allocator(PCIBus *root, const PciFixedBarMmioParams *mmio)
     /* Phase 2: pack remaining 64-bit prefetchable BARs and size parent bridge window */
     pci_for_each_bus(bus, pci_bus_phase2_pack_remaining_bars, &pctx);
 
-    /* Phase 3: buses with no fixed-BAR devices; final bridge pass: follow-up */
+    /* Phase 3: allocate BARs for buses that have no fixed-BAR devices */
+    pci_for_each_bus(bus, pci_bus_phase3_allocate_no_fixed_bars, &pctx);
 
     /* Cleanup */
     g_hash_table_destroy(pctx.had_fixed);
