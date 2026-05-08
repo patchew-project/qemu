@@ -2242,8 +2242,31 @@ static void virt_set_high_memmap(VirtMachineState *vms,
 
     for (i = VIRT_LOWMEMMAP_LAST; i < ARRAY_SIZE(extended_memmap); i++) {
         region_enabled = virt_get_high_memmap_enabled(vms, i);
-        region_base = ROUND_UP(base, extended_memmap[i].size);
-        region_size = extended_memmap[i].size;
+
+        if (i == VIRT_HIGH_PCIE_MMIO && vms->override_pcie_mmio_size) {
+            region_base = vms->override_pcie_mmio_base;
+            region_size = vms->override_pcie_mmio_size;
+
+            /* Check for overlap with prior high regions */
+            if (region_base < base) {
+                error_report("pcie-mmio-window base 0x%" PRIx64 " overlaps "
+                            "high memory layout (must be >= 0x%" PRIx64 ")",
+                            (uint64_t)region_base, (uint64_t)base);
+                exit(1);
+            }
+            /* Must not exceed the PA space */
+            if (region_base + region_size > BIT_ULL(pa_bits)) {
+                error_report("pcie-mmio-window [0x%" PRIx64 ", 0x%" PRIx64 ") "
+                            "exceeds %d-bit PA space",
+                            (uint64_t)region_base,
+                            (uint64_t)(region_base + region_size),
+                            pa_bits);
+                exit(1);
+            }
+        } else {
+            region_base = ROUND_UP(base, extended_memmap[i].size);
+            region_size = extended_memmap[i].size;
+        }
 
         vms->memmap[i].base = region_base;
         vms->memmap[i].size = region_size;
@@ -3351,6 +3374,60 @@ static void virt_set_gic_version(Object *obj, const char *value, Error **errp)
     }
 }
 
+static char *virt_get_pcie_mmio_window(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    if (!vms->override_pcie_mmio_size) {
+        return g_strdup("");
+    }
+    return g_strdup_printf("0x%" PRIx64 ":0x%" PRIx64,
+                           (uint64_t)vms->override_pcie_mmio_base,
+                           (uint64_t)vms->override_pcie_mmio_size);
+}
+
+static void virt_set_pcie_mmio_window(Object *obj, const char *value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+    uint64_t base = 0, size = 0;
+    const char *endptr;
+    int ret;
+
+    if (!value || !*value) {
+        return;
+    }
+
+    ret = qemu_strtou64(value, &endptr, 0, &base);
+    if (ret || base == 0) {
+        error_setg(errp, "pcie-mmio-window base must be a positive number");
+        return;
+    }
+    if (*endptr != ':' || !*(endptr + 1)) {
+        error_setg(errp, "pcie-mmio-window expects BASE:SIZE");
+        return;
+    }
+
+    ret = qemu_strtou64(endptr + 1, NULL, 0, &size);
+    if (ret || size == 0) {
+        error_setg(errp, "pcie-mmio-window size must be a positive number");
+        return;
+    }
+
+    if (!is_power_of_2(size)) {
+        error_setg(errp, "pcie-mmio-window size 0x%" PRIx64 " must be a power of 2",
+                   (uint64_t)size);
+        return;
+    }
+    if (base % size != 0) {
+        error_setg(errp, "pcie-mmio-window base 0x%" PRIx64 " must be aligned to size 0x%" PRIx64,
+                  (uint64_t)base, (uint64_t)size);
+        return;
+    }
+
+    vms->override_pcie_mmio_base = base;
+    vms->override_pcie_mmio_size = size;
+}
+
 static char *virt_get_iommu(Object *obj, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
@@ -3946,6 +4023,12 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
     object_class_property_set_description(oc, "iommu",
                                           "Set the IOMMU type. "
                                           "Valid values are none and smmuv3");
+
+    object_class_property_add_str(oc, "pcie-mmio-window",
+                                  virt_get_pcie_mmio_window,
+                                  virt_set_pcie_mmio_window);
+    object_class_property_set_description(oc, "pcie-mmio-window",
+                                          "Override the high PCIe MMIO window as BASE:SIZE");
 
     object_class_property_add_bool(oc, "default-bus-bypass-iommu",
                                    virt_get_default_bus_bypass_iommu,
