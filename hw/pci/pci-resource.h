@@ -48,6 +48,23 @@ typedef struct FixedClaim {
 } FixedClaim;
 
 typedef struct {
+    uint64_t start;
+    uint64_t end;
+} AddressInterval;
+
+typedef struct {
+    PCIDevice *dev;
+    int bar_idx;
+    uint64_t size;
+} BarEntry;
+
+typedef struct {
+    int leftmost_hole;      /* Index of hole before first anchor, or -1 */
+    GArray *middle_holes;   /* Array of hole indices between anchors */
+    int rightmost_hole;     /* Index of hole after last anchor, or -1 */
+} CategorizedHoles;
+
+typedef struct {
     hwaddr mmio64_base;
     hwaddr mmio64_size;
     GHashTable *had_fixed; /* set of PCIDevice* that had at least one fixed BAR */
