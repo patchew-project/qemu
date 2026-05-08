@@ -533,6 +533,7 @@ typedef enum MIPSOcteonSharedMode {
     OCTEON_SHARED_MODE_NONE = 0,
     OCTEON_SHARED_MODE_SHA512,
     OCTEON_SHARED_MODE_SNOW3G,
+    OCTEON_SHARED_MODE_ZUC,
     OCTEON_SHARED_MODE_SHA3,
 } MIPSOcteonSharedMode;
 
@@ -696,6 +697,8 @@ typedef enum MIPSOcteonCop2Sel {
     OCTEON_COP2_SEL_SNOW3G_MORE = 0x404e,
     OCTEON_COP2_SEL_HSH_STARTSHA256 = 0x404f,
     OCTEON_COP2_SEL_SHA3_STARTOP = 0x4052,
+    OCTEON_COP2_SEL_ZUC_START = 0x4055,
+    OCTEON_COP2_SEL_ZUC_MORE = 0x4056,
     OCTEON_COP2_SEL_GFM_XORMUL1_REFLECT = 0x405d,
     OCTEON_COP2_SEL_HSH_STARTSHA1 = 0x4057,
     OCTEON_COP2_SEL_HSH_STARTSHA512 = 0x424f,
@@ -730,6 +733,10 @@ typedef struct MIPSOcteonCryptoState {
     uint32_t snow3g_fsm[3];
     uint32_t snow3g_lfsr[16];
     uint64_t snow3g_result;
+    uint32_t zuc_fsm[2];
+    uint32_t zuc_lfsr[16];
+    uint32_t zuc_window[3];
+    uint32_t zuc_tresult;
 } MIPSOcteonCryptoState;
 
 typedef struct CPUArchState {
