@@ -17,6 +17,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "cpu_bits.h"
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/timer.h"
@@ -395,6 +396,10 @@ static RISCVException scountinhibit_pred(CPURISCVState *env, int csrno)
     RISCVCPU *cpu = env_archcpu(env);
 
     if (!cpu->cfg.ext_ssccfg || !cpu->cfg.ext_smcdeleg) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
+    if (!get_field(env->menvcfg, MENVCFG_CDE)) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
