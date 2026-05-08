@@ -4488,7 +4488,7 @@ subdir('qga')
 # when we don't build tools or system
 if xkbcommon.found()
   # used for the update-keymaps target, so include rules even if !have_tools
-  qemu_keymap = executable('qemu-keymap', files('qemu-keymap.c', 'ui/input-keymap.c') + genh,
+  qemu_keymap = executable('qemu-keymap', files('tools/qemu-keymap.c', 'ui/input-keymap.c') + genh,
                            dependencies: [qemuutil, xkbcommon], install: have_tools)
 endif
 
