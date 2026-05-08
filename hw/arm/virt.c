@@ -51,6 +51,7 @@
 #include "system/whpx.h"
 #include "system/qtest.h"
 #include "system/system.h"
+#include "system/reset.h"
 #include "hw/core/loader.h"
 #include "qapi/error.h"
 #include "qemu/bitops.h"
@@ -94,6 +95,8 @@
 #include "hw/cxl/cxl.h"
 #include "hw/cxl/cxl_host.h"
 #include "qemu/guest-random.h"
+#include "hw/pci/pci-resource.h"
+#include "hw/pci/pci-enumerate.h"
 
 static GlobalProperty arm_virt_compat_defaults[] = {
     { TYPE_VIRTIO_IOMMU_PCI, "aw-bits", "48" },
@@ -2024,6 +2027,10 @@ static void create_pcie(VirtMachineState *vms)
     qemu_fdt_setprop_cell(ms->fdt, nodename, "#interrupt-cells", 1);
     create_pcie_irq_map(ms, vms->gic_phandle, irq, nodename);
 
+    if (vms->pci_pre_enum) {
+        qemu_fdt_setprop_cell(ms->fdt, nodename, "pci-enum-done", 1);
+    }
+
     if (vms->iommu) {
         vms->iommu_phandle = qemu_fdt_alloc_phandle(ms->fdt);
 
@@ -2159,6 +2166,20 @@ static void virt_build_smbios(VirtMachineState *vms)
     }
 }
 
+static void virt_pci_apply_fix_bar_after_reset(void *opaque)
+{
+    VirtMachineState *vms = opaque;
+    PciFixedBarMmioParams mmio = {
+      .mmio32_base = vms->memmap[VIRT_PCIE_MMIO].base,
+      .mmio32_size = vms->memmap[VIRT_PCIE_MMIO].size,
+      .mmio64_base = vms->memmap[VIRT_HIGH_PCIE_MMIO].base,
+      .mmio64_size = vms->memmap[VIRT_HIGH_PCIE_MMIO].size,
+    };
+
+    pci_enumerate_bus(vms->bus);
+    pci_fixed_bar_allocator(vms->bus, &mmio);
+}
+
 static
 void virt_machine_done(Notifier *notifier, void *data)
 {
@@ -2191,11 +2212,30 @@ void virt_machine_done(Notifier *notifier, void *data)
     if (arm_load_dtb(info->dtb_start, info, info->dtb_limit, as, ms, cpu) < 0) {
         exit(1);
     }
-
-    pci_bus_add_fw_cfg_extra_pci_roots(vms->fw_cfg, vms->bus,
-                                       &error_abort);
+    /*
+     * In pci-pre-enum mode, EDK2 does not perform PCI enumeration or
+     * resource assignment (PcdPciDisableBusEnumeration = TRUE). All root
+     * bridges are marked ResourceAssigned, meaning the topology and
+     * MMIO/MMIO64 apertures provided by QEMU are treated as final.
+     *
+     * In this mode, each root bridge is consumed as an independent resource
+     * domain. Exposing additional root bridges (e.g. PXB extra roots) that
+     * share identical MMIO/MMIO64 apertures creates duplicate resource domains
+     * with overlapping address spaces, which is invalid in this mode.
+     *
+     * Therefore, extra root bridges are not exposed in pre-enumeration mode.
+     */
+    if (!vms->pci_pre_enum) {
+        pci_bus_add_fw_cfg_extra_pci_roots(vms->fw_cfg, vms->bus,
+                                           &error_abort);
+    }
 
     virt_acpi_setup(vms);
+
+    if (vms->pci_pre_enum) {
+        qemu_register_reset(virt_pci_apply_fix_bar_after_reset, vms);
+    }
+
     virt_build_smbios(vms);
 }
 
@@ -3335,6 +3375,20 @@ static void virt_set_mte(Object *obj, bool value, Error **errp)
     vms->mte = value;
 }
 
+static bool virt_get_pci_pre_enum(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    return vms->pci_pre_enum;
+}
+
+static void virt_set_pci_pre_enum(Object *obj, bool value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    vms->pci_pre_enum = value;
+}
+
 static char *virt_get_gic_version(Object *obj, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
@@ -4091,6 +4145,13 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
                                           "in ACPI table header."
                                           "The string may be up to 8 bytes in size");
 
+    object_class_property_add_bool(oc, "pci-pre-enum",
+                                   virt_get_pci_pre_enum,
+                                   virt_set_pci_pre_enum);
+    object_class_property_set_description(oc, "pci-pre-enum",
+                                          "Set on/off to enable/disable PCI enumeration and resource assignment"
+                                          " in QEMU. When enabled, QEMU programs BARs (including fixed-bars"
+                                          " addresses) before handing control to firmware.");
 }
 
 static void virt_instance_init(Object *obj)
@@ -4132,6 +4193,9 @@ static void virt_instance_init(Object *obj)
 
     /* MTE is disabled by default.  */
     vms->mte = false;
+
+    /* PCI pre-enumeration disabled by default */
+    vms->pci_pre_enum = false;
 
     /* Supply kaslr-seed and rng-seed by default */
     vms->dtb_randomness = true;
