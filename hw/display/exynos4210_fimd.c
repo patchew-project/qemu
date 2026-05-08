@@ -24,7 +24,6 @@
 
 #include "qemu/osdep.h"
 #include "hw/core/qdev-properties.h"
-#include "hw/core/hw-error.h"
 #include "hw/core/irq.h"
 #include "hw/core/sysbus.h"
 #include "exec/cpu-common.h"
@@ -867,68 +866,11 @@ static void draw_line_mapcolor(Exynos4210fimdWindow *w, uint8_t *src,
 }
 
 /* Write RGB to QEMU's GraphicConsole framebuffer */
-
-static int put_to_qemufb_pixel8(const rgba p, uint8_t *d)
-{
-    uint32_t pixel = rgb_to_pixel8(p.r, p.g, p.b);
-    *(uint8_t *)d = pixel;
-    return 1;
-}
-
-static int put_to_qemufb_pixel15(const rgba p, uint8_t *d)
-{
-    uint32_t pixel = rgb_to_pixel15(p.r, p.g, p.b);
-    *(uint16_t *)d = pixel;
-    return 2;
-}
-
-static int put_to_qemufb_pixel16(const rgba p, uint8_t *d)
-{
-    uint32_t pixel = rgb_to_pixel16(p.r, p.g, p.b);
-    *(uint16_t *)d = pixel;
-    return 2;
-}
-
-static int put_to_qemufb_pixel24(const rgba p, uint8_t *d)
-{
-    uint32_t pixel = rgb_to_pixel24(p.r, p.g, p.b);
-    *(uint8_t *)d++ = (pixel >>  0) & 0xFF;
-    *(uint8_t *)d++ = (pixel >>  8) & 0xFF;
-    *(uint8_t *)d++ = (pixel >> 16) & 0xFF;
-    return 3;
-}
-
 static int put_to_qemufb_pixel32(const rgba p, uint8_t *d)
 {
     uint32_t pixel = rgb_to_pixel24(p.r, p.g, p.b);
     *(uint32_t *)d = pixel;
     return 4;
-}
-
-/* Routine to copy pixel from internal buffer to QEMU buffer */
-static int (*put_pixel_toqemu)(const rgba p, uint8_t *pixel);
-static inline void fimd_update_putpix_qemu(int bpp)
-{
-    switch (bpp) {
-    case 8:
-        put_pixel_toqemu = put_to_qemufb_pixel8;
-        break;
-    case 15:
-        put_pixel_toqemu = put_to_qemufb_pixel15;
-        break;
-    case 16:
-        put_pixel_toqemu = put_to_qemufb_pixel16;
-        break;
-    case 24:
-        put_pixel_toqemu = put_to_qemufb_pixel24;
-        break;
-    case 32:
-        put_pixel_toqemu = put_to_qemufb_pixel32;
-        break;
-    default:
-        hw_error("exynos4210.fimd: unsupported BPP (%d)", bpp);
-        break;
-    }
 }
 
 /* Routine to copy a line from internal frame buffer to QEMU display */
@@ -938,7 +880,7 @@ static void fimd_copy_line_toqemu(int width, uint8_t *src, uint8_t *dst)
 
     do {
         src += get_pixel_ifb(src, &p);
-        dst += put_pixel_toqemu(p, dst);
+        dst += put_to_qemufb_pixel32(p, dst);
     } while (--width);
 }
 
@@ -1336,7 +1278,7 @@ static bool exynos4210_fimd_update(void *opaque)
         int bpp;
 
         bpp = surface_bits_per_pixel(surface);
-        fimd_update_putpix_qemu(bpp);
+        assert(bpp == 32);
         bpp = (bpp + 1) >> 3;
         d = surface_data(surface);
         for (line = first_line; line <= last_line; line++) {
