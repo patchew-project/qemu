@@ -4231,7 +4231,7 @@ S: Maintained
 F: block/nbd*
 F: nbd/
 F: include/block/nbd*
-F: qemu-nbd.*
+F: tools/qemu-nbd.*
 F: blockdev-nbd.c
 F: docs/interop/nbd.rst
 F: docs/tools/qemu-nbd.rst

@@ -4500,7 +4500,7 @@ if have_tools
   qemu_io = executable('qemu-io', files('tools/qemu-io.c'),
              link_args: tools_link_args, link_depends: block_syms,
              dependencies: [block, qemuutil], install: true)
-  qemu_nbd = executable('qemu-nbd', files('qemu-nbd.c'),
+  qemu_nbd = executable('qemu-nbd', files('tools/qemu-nbd.c'),
                link_args: tools_link_args, link_depends: block_syms,
                dependencies: [blockdev, qemuutil, selinux],
                install: true)
