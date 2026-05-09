@@ -1251,6 +1251,7 @@ static void char_vc_class_init(ObjectClass *oc, const void *data)
     cc->chr_write = vc_chr_write;
     cc->chr_accept_input = vc_chr_accept_input;
     cc->chr_set_echo = vc_chr_set_echo;
+    cc->supports_size_opts = true;
 }
 
 static const TypeInfo char_vc_type_info = {
