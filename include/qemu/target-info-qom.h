@@ -25,6 +25,7 @@ typedef struct TargetInfoQomClass {
 
 OBJECT_DECLARE_TYPE(TargetInfoQom, TargetInfoQomClass, TARGET_INFO)
 
+void target_info_qom_class_init(ObjectClass *oc, const void * data);
 void target_info_qom_set_target(void);
 
 #endif /* QEMU_TARGET_INFO_QOM_H */

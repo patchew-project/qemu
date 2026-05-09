@@ -37,8 +37,6 @@ const TargetInfo *target_info(void)     \
 #include "qemu/target-info-qom.h"
 #include "qom/object.h"
 
-#define TYPE_TARGET_INFO_TARGET TYPE_TARGET_INFO"-"TARGET_NAME
-
 typedef struct TargetInfoQomTarget {
     TargetInfoQom parent;
 } TargetInfoQomTarget;
@@ -47,24 +45,16 @@ typedef struct TargetInfoQomTargetClass {
     TargetInfoQomClass parent_class;
 } TargetInfoQomTargetClass;
 
-OBJECT_DECLARE_TYPE(TargetInfoQomTarget, TargetInfoQomTargetClass, TARGET_INFO_TARGET)
-
 #define target_info_init(ti_var)                                            \
-static void target_info_qom_class_init(ObjectClass *oc, const void * data)  \
-{                                                                           \
-    TargetInfoQomTargetClass *klass = TARGET_INFO_TARGET_CLASS(oc);         \
-    klass->parent_class.target_info = &ti_var;                              \
-}                                                                           \
-                                                                            \
 static const TypeInfo target_info_qom_target_type_info = {                  \
-    .name = TYPE_TARGET_INFO_TARGET,                                        \
+    .name =  TYPE_TARGET_INFO"-"TARGET_NAME,                                \
     .parent = TYPE_TARGET_INFO,                                             \
     .instance_size = sizeof(TargetInfoQomTarget),                           \
     .class_size = sizeof(TargetInfoQomTargetClass),                         \
     .class_init = target_info_qom_class_init,                               \
+    .class_data = &ti_var,                                                  \
     .abstract = false,                                                      \
 };                                                                          \
-                                                                            \
 DEFINE_TARGET_INFO_TYPE(target_info_qom_target_type_info)
 
 #endif /* CONFIG_USER_ONLY */

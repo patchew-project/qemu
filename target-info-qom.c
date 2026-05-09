@@ -37,6 +37,12 @@ static const TypeInfo target_info_parent_type = {
 
 DEFINE_TARGET_INFO_TYPE(target_info_parent_type)
 
+void target_info_qom_class_init(ObjectClass *oc, const void * data)
+{
+    TargetInfoQomClass *klass = TARGET_INFO_CLASS(oc);
+    klass->target_info = data;
+}
+
 static const TargetInfo *target_info_ptr;
 
 const TargetInfo *target_info(void)
