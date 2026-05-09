@@ -229,13 +229,11 @@ static void egl_headless_init(DisplayState *ds, DisplayOptions *opts)
         }
 
         edpy = g_new0(egl_dpy, 1);
-        edpy->dcl.con = con;
-        edpy->dcl.ops = &egl_ops;
         edpy->gls = qemu_gl_init_shader();
         ctx = g_new0(DisplayGLCtx, 1);
         ctx->ops = &eglctx_ops;
         qemu_console_set_display_gl_ctx(con, ctx);
-        register_displaychangelistener(&edpy->dcl);
+        qemu_console_register_listener(con, &edpy->dcl, &egl_ops);
     }
 }
 
