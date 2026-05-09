@@ -2278,6 +2278,7 @@ void kvm_irqchip_release_virq(KVMState *s, int virq)
         if (e->gsi == virq) {
             s->irq_routes->nr--;
             *e = s->irq_routes->entries[s->irq_routes->nr];
+            i--;
         }
     }
     clear_gsi(s, virq);
