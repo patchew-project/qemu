@@ -28,6 +28,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/option.h"
 #include "qom/object_interfaces.h"
+#include "qapi-types-char.h"
 #include "system/system.h"
 #include "ui/dbus-module.h"
 #ifdef CONFIG_OPENGL
@@ -455,12 +456,20 @@ dbus_display_class_init(ObjectClass *oc, const void *data)
 
 #define TYPE_CHARDEV_VC "chardev-vc"
 
+typedef struct DBusVCChardev {
+    DBusChardev parent;
+
+    ChardevVCEncoding encoding;
+} DBusVCChardev;
+
 typedef struct DBusVCClass {
     DBusChardevClass parent_class;
 
     void (*parent_parse)(QemuOpts *opts, ChardevBackend *b, Error **errp);
 } DBusVCClass;
 
+DECLARE_INSTANCE_CHECKER(DBusVCChardev, DBUS_VC_CHARDEV,
+                         TYPE_CHARDEV_VC)
 DECLARE_CLASS_CHECKERS(DBusVCClass, DBUS_VC,
                        TYPE_CHARDEV_VC)
 
@@ -500,6 +509,23 @@ dbus_vc_parse(QemuOpts *opts, ChardevBackend *backend,
     }
 }
 
+CHARDEV_VC_ENCODING_PROPERTY_DEFINE(DBUS_VC_CHARDEV)
+
+static bool
+dbus_vc_open(Chardev *chr, ChardevBackend *backend, Error **errp)
+{
+    DBusVCChardev *vc = DBUS_VC_CHARDEV(chr);
+    ChardevClass *parent =
+        CHARDEV_CLASS(object_class_by_name(TYPE_CHARDEV_DBUS));
+    ChardevDBus *be = backend->u.dbus.data;
+
+    if (be->has_encoding) {
+        vc->encoding = be->encoding;
+    }
+
+    return parent->chr_open(chr, backend, errp);
+}
+
 static void
 dbus_vc_class_init(ObjectClass *oc, const void *data)
 {
@@ -508,12 +534,26 @@ dbus_vc_class_init(ObjectClass *oc, const void *data)
 
     klass->parent_parse = cc->chr_parse;
     cc->chr_parse = dbus_vc_parse;
+    cc->chr_open = dbus_vc_open;
     cc->supports_encoding_opts = true;
+
+    chardev_vc_add_encoding_prop(oc, get_encoding, set_encoding);
+}
+
+static void
+dbus_vc_init(Object *obj)
+{
+    DBusVCChardev *vc = DBUS_VC_CHARDEV(obj);
+
+    vc->encoding = CHARDEV_VC_ENCODING_UTF8;
 }
 
 static const TypeInfo dbus_vc_type_info = {
     .name = TYPE_CHARDEV_VC,
     .parent = TYPE_CHARDEV_DBUS,
+    .instance_size = sizeof(DBusVCChardev),
+    .instance_init = dbus_vc_init,
+    .instance_post_init = object_apply_compat_props,
     .class_size = sizeof(DBusVCClass),
     .class_init = dbus_vc_class_init,
 };

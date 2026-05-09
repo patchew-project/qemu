@@ -9,6 +9,7 @@
 #include "qemu/fifo8.h"
 #include "qemu/option.h"
 #include "qemu/queue.h"
+#include "qom/compat-properties.h"
 #include "ui/console.h"
 #include "ui/vgafont.h"
 
@@ -109,6 +110,7 @@ struct VCChardev {
     TextAttributes t_attrib; /* currently active text attributes */
     TextAttributes t_attrib_saved;
     int x_saved, y_saved;
+    ChardevVCEncoding encoding;
 };
 typedef struct VCChardev VCChardev;
 
@@ -1189,6 +1191,9 @@ static bool vc_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 
     s->chr = chr;
     drv->console = s;
+    if (vc->has_encoding) {
+        drv->encoding = vc->encoding;
+    }
 
     /* set current text attributes to default */
     drv->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
@@ -1253,6 +1258,8 @@ static void vc_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)
     }
 }
 
+CHARDEV_VC_ENCODING_PROPERTY_DEFINE(VC_CHARDEV)
+
 static void char_vc_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
@@ -1264,12 +1271,23 @@ static void char_vc_class_init(ObjectClass *oc, const void *data)
     cc->chr_set_echo = vc_chr_set_echo;
     cc->supports_size_opts = true;
     cc->supports_encoding_opts = true;
+
+    chardev_vc_add_encoding_prop(oc, get_encoding, set_encoding);
+}
+
+static void char_vc_init(Object *obj)
+{
+    VCChardev *vc = VC_CHARDEV(obj);
+
+    vc->encoding = CHARDEV_VC_ENCODING_UTF8;
 }
 
 static const TypeInfo char_vc_type_info = {
     .name = TYPE_CHARDEV_VC,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(VCChardev),
+    .instance_init = char_vc_init,
+    .instance_post_init = object_apply_compat_props,
     .class_init = char_vc_class_init,
 };
 
