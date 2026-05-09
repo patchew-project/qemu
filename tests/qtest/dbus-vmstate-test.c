@@ -260,11 +260,12 @@ test_dbus_vmstate(Test *test)
     qtest_quit(src_qemu);
     g_bus_unown_name(ownsrcA);
     g_bus_unown_name(ownsrcB);
+    g_test_dbus_down(srcbus);
     g_bus_unown_name(owndstA);
     if (!test->without_dst_b) {
         g_bus_unown_name(owndstB);
     }
-
+    g_test_dbus_down(dstbus);
     g_main_loop_quit(test->loop);
 }
 
