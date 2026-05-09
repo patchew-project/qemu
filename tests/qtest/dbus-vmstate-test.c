@@ -395,8 +395,6 @@ main(int argc, char **argv)
         exit(1);
     }
 
-    g_setenv("DBUS_VMSTATE_TEST_TMPDIR", workdir, true);
-
     migration_test_add("/dbus-vmstate/without-list",
                        test_dbus_vmstate_without_list);
     migration_test_add("/dbus-vmstate/with-list",
