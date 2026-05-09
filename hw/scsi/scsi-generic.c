@@ -513,6 +513,16 @@ bool scsi_generic_pr_state_preempt(SCSIDevice *s, Error **errp)
         if (!scsi_generic_pr_preempt(s, key, resv_type, errp)) {
             return false;
         }
+
+        /*
+         * Some SCSI targets, like the Linux LIO target, remove our
+         * registration when preempting without a reservation (resv_type is 0).
+         * Try to register again but ignore the error since a RESERVATION
+         * CONFLICT is expected if our registration remained in place.
+         */
+        if (resv_type == 0) {
+            scsi_generic_pr_register(s, key, NULL);
+        }
     }
     return true;
 }
