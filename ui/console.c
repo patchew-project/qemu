@@ -39,6 +39,8 @@
 #include "system/memory.h"
 #include "qom/object.h"
 #include "qemu/memfd.h"
+#include "ui/vt100.h"
+#include "vgafont.h"
 
 #include "console-priv.h"
 
