@@ -650,6 +650,13 @@ ChardevBackend *qemu_chr_parse_opts(QemuOpts *opts, Error **errp)
             return NULL;
         }
     }
+    if (!cc->supports_encoding_opts) {
+        if (qemu_opt_get(opts, "encoding")) {
+            error_setg(errp, "chardev '%s' does not support encoding option",
+                       qemu_opts_id(opts));
+            return NULL;
+        }
+    }
 
     backend = g_new0(ChardevBackend, 1);
     backend->type = CHARDEV_BACKEND_KIND_NULL;
@@ -972,6 +979,9 @@ QemuOptsList qemu_chardev_opts = {
         },{
             .name = "rows",
             .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "encoding",
+            .type = QEMU_OPT_STRING,
         },{
             .name = "mux",
             .type = QEMU_OPT_BOOL,

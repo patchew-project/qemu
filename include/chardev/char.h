@@ -255,6 +255,7 @@ struct ChardevClass {
     bool internal; /* TODO: eventually use TYPE_USER_CREATABLE */
     bool supports_yank;
     bool supports_size_opts;
+    bool supports_encoding_opts;
 
     /* parse command line options and populate QAPI @backend */
     void (*chr_parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp);
