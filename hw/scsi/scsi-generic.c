@@ -774,7 +774,7 @@ static int read_naa_id(const uint8_t *p, uint64_t *p_wwn)
 }
 
 int scsi_SG_IO(BlockBackend *blk, int direction, uint8_t *cmd,
-               uint8_t cmd_size, uint8_t *buf, uint8_t buf_size,
+               uint8_t cmd_size, uint8_t *buf, unsigned int buf_size,
                uint32_t timeout, Error **errp)
 {
     sg_io_hdr_t io_header;
