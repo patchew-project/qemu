@@ -93,9 +93,7 @@ static const DisplayChangeListenerOps dcl_ops = {
     .dpy_mouse_set = cocoa_mouse_set,
     .dpy_cursor_define = cocoa_cursor_define,
 };
-static DisplayChangeListener dcl = {
-    .ops = &dcl_ops,
-};
+static DisplayChangeListener dcl;
 static QKbdState *kbd;
 static int cursor_hide = 1;
 static int left_command_key_enabled = 1;
@@ -425,8 +423,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 
     unregister_displaychangelistener(&dcl);
     qkbd_state_switch_console(kbd, con);
-    dcl.con = con;
-    register_displaychangelistener(&dcl);
+    qemu_console_register_listener(con, &dcl, &dcl_ops);
     [self notifyMouseModeChange];
     [self updateUIInfo];
 }
@@ -2145,11 +2142,9 @@ static void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
     add_console_menu_entries();
     addRemovableDevicesMenuItems();
 
-    dcl.con = qemu_console_lookup_default();
+    qemu_console_register_listener(qemu_console_lookup_default(),
+                                   &dcl, &dcl_ops);
     kbd = qkbd_state_init(dcl.con);
-
-    // register vga output callbacks
-    register_displaychangelistener(&dcl);
     qemu_add_mouse_mode_change_notifier(&mouse_mode_change_notifier);
     [cocoaView notifyMouseModeChange];
     [cocoaView updateUIInfo];
