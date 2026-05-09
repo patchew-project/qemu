@@ -62,6 +62,7 @@
 
 typedef struct VncState VncState;
 typedef struct VncJob VncJob;
+typedef struct VncJobQueue VncJobQueue;
 typedef struct VncRect VncRect;
 typedef struct VncRectEntry VncRectEntry;
 
@@ -158,6 +159,7 @@ struct VncDisplay
     int ledstate;
     QKbdState *kbd;
     QemuMutex mutex;
+    VncJobQueue *queue;
 
     int cursor_msize;
     uint8_t *cursor_mask;
