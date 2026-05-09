@@ -4078,6 +4078,9 @@ DEF("chardev", HAS_ARG, QEMU_OPTION_chardev,
     "-chardev spicevmc,id=id,name=name[,debug=debug][,logfile=PATH][,logappend=on|off]\n"
     "-chardev spiceport,id=id,name=name[,debug=debug][,logfile=PATH][,logappend=on|off]\n"
 #endif
+#if defined(CONFIG_DBUS_DISPLAY)
+    "-chardev dbus,id=id,name=name[,mux=on|off][,logfile=PATH][,logappend=on|off]\n"
+#endif
     , QEMU_ARCH_ALL
 )
 
@@ -4088,8 +4091,8 @@ The general form of a character device option is:
     Backend is one of: ``null``, ``socket``, ``udp``, ``msmouse``, ``hub``,
     ``vc``, ``ringbuf``, ``file``, ``pipe``, ``console``, ``serial``,
     ``pty``, ``stdio``, ``braille``, ``parallel``,
-    ``spicevmc``, ``spiceport``. The specific backend will determine the
-    applicable options.
+    ``spicevmc``, ``spiceport``, ``dbus``. The specific backend will
+    determine the applicable options.
 
     Use ``-chardev help`` to print all available chardev backend types.
 
@@ -4408,6 +4411,15 @@ The available backends are:
 
     Connect to a spice port, allowing a Spice client to handle the
     traffic identified by a name (preferably a fqdn).
+
+``-chardev dbus,id=id,name=name``
+    ``dbus`` is only available when D-Bus display support is built in.
+
+    ``name`` name of the chardev as exported on the D-Bus display
+    interface
+
+    Export the character device on the D-Bus display interface, so that
+    a D-Bus client can connect to it.
 ERST
 
 DEFHEADING()
