@@ -3473,8 +3473,13 @@ VncDisplay *vnc_display_new(const char *id, Error **errp)
 
 static void vnc_display_close(VncDisplay *vd)
 {
+    VncState *vs;
+
     assert(vd);
 
+    QTAILQ_FOREACH(vs, &vd->clients, next) {
+        vnc_disconnect_start(vs);
+    }
     if (vd->listener) {
         qio_net_listener_disconnect(vd->listener);
         object_unref(OBJECT(vd->listener));
@@ -3515,10 +3520,12 @@ void vnc_display_free(VncDisplay *vd)
         return;
     }
 
-    assert(QTAILQ_EMPTY(&vd->clients));
+    vnc_display_close(vd);
+    while (!QTAILQ_EMPTY(&vd->clients)) {
+        main_loop_wait(false);
+    }
 
     vnc_stop_worker_thread(vd);
-    vnc_display_close(vd);
     unregister_displaychangelistener(&vd->dcl);
     qkbd_state_free(vd->kbd);
     qemu_del_vm_change_state_handler(vd->vmstate_handler_entry);
@@ -4346,6 +4353,15 @@ int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp)
     }
 
     return vnc_display_new(id, errp) != NULL ? 0 : -1;
+}
+
+void vnc_cleanup(void)
+{
+    VncDisplay *vd, *vd_next;
+
+    QTAILQ_FOREACH_SAFE(vd, &vnc_displays, next, vd_next) {
+        vnc_display_free(vd);
+    }
 }
 
 static void vnc_register_config(void)
