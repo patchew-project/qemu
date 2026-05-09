@@ -1211,6 +1211,7 @@ static bool vc_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 static void vc_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)
 {
     int val;
+    const char *str;
     ChardevVC *vc;
 
     backend->type = CHARDEV_BACKEND_KIND_VC;
@@ -1240,6 +1241,16 @@ static void vc_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)
         vc->has_rows = true;
         vc->rows = val;
     }
+
+    str = qemu_opt_get(opts, "encoding");
+    if (str) {
+        int cs = qapi_enum_parse(&ChardevVCEncoding_lookup, str, -1, errp);
+        if (cs < 0) {
+            return;
+        }
+        vc->has_encoding = true;
+        vc->encoding = cs;
+    }
 }
 
 static void char_vc_class_init(ObjectClass *oc, const void *data)
@@ -1252,6 +1263,7 @@ static void char_vc_class_init(ObjectClass *oc, const void *data)
     cc->chr_accept_input = vc_chr_accept_input;
     cc->chr_set_echo = vc_chr_set_echo;
     cc->supports_size_opts = true;
+    cc->supports_encoding_opts = true;
 }
 
 static const TypeInfo char_vc_type_info = {

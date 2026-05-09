@@ -471,6 +471,8 @@ dbus_vc_parse(QemuOpts *opts, ChardevBackend *backend,
     DBusVCClass *klass = DBUS_VC_CLASS(object_class_by_name(TYPE_CHARDEV_VC));
     const char *name = qemu_opt_get(opts, "name");
     const char *id = qemu_opts_id(opts);
+    const char *str;
+    ChardevDBus *dbus;
 
     if (name == NULL) {
         if (g_str_has_prefix(id, "compat_monitor")) {
@@ -486,6 +488,16 @@ dbus_vc_parse(QemuOpts *opts, ChardevBackend *backend,
     }
 
     klass->parent_parse(opts, backend, errp);
+    dbus = backend->u.dbus.data;
+    str = qemu_opt_get(opts, "encoding");
+    if (str) {
+        int cs = qapi_enum_parse(&ChardevVCEncoding_lookup, str, -1, errp);
+        if (cs < 0) {
+            return;
+        }
+        dbus->has_encoding = true;
+        dbus->encoding = cs;
+    }
 }
 
 static void
@@ -496,6 +508,7 @@ dbus_vc_class_init(ObjectClass *oc, const void *data)
 
     klass->parent_parse = cc->chr_parse;
     cc->chr_parse = dbus_vc_parse;
+    cc->supports_encoding_opts = true;
 }
 
 static const TypeInfo dbus_vc_type_info = {
