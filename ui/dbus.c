@@ -514,6 +514,7 @@ CHARDEV_VC_ENCODING_PROPERTY_DEFINE(DBUS_VC_CHARDEV)
 static bool
 dbus_vc_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
+    DBusChardev *dc = DBUS_CHARDEV(chr);
     DBusVCChardev *vc = DBUS_VC_CHARDEV(chr);
     ChardevClass *parent =
         CHARDEV_CLASS(object_class_by_name(TYPE_CHARDEV_DBUS));
@@ -522,6 +523,11 @@ dbus_vc_open(Chardev *chr, ChardevBackend *backend, Error **errp)
     if (be->has_encoding) {
         vc->encoding = be->encoding;
     }
+    dc->iface_vc_encoding =
+        qemu_dbus_display1_chardev_vcencoding_skeleton_new();
+    qemu_dbus_display1_chardev_vcencoding_set_encoding(
+        dc->iface_vc_encoding,
+        qapi_enum_lookup(&ChardevVCEncoding_lookup, vc->encoding));
 
     return parent->chr_open(chr, backend, errp);
 }
