@@ -7363,14 +7363,14 @@ static uint16_t nvme_sec_prot_spdm_send(NvmeCtrl *n, NvmeRequest *req)
     }
 
     spdm_res = spdm_socket_send(n->spdm_socket, SPDM_SOCKET_STORAGE_CMD_IF_SEND,
-                                SPDM_SOCKET_TRANSPORT_TYPE_NVME, sec_buf,
+                                SPDM_TRANSPORT_TYPE_NVME, sec_buf,
                                 transport_transfer_len);
     if (!spdm_res) {
         return NVME_DATA_TRAS_ERROR | NVME_DNR;
     }
 
     /* The responder shall ack with message status */
-    recvd = spdm_socket_receive(n->spdm_socket, SPDM_SOCKET_TRANSPORT_TYPE_NVME,
+    recvd = spdm_socket_receive(n->spdm_socket, SPDM_TRANSPORT_TYPE_NVME,
                                 &nvme_cmd_status,
                                 SPDM_SOCKET_MAX_MSG_STATUS_LEN);
 
@@ -7426,14 +7426,14 @@ static uint16_t nvme_sec_prot_spdm_receive(NvmeCtrl *n, NvmeRequest *req)
 
     /* Forward if_recv to the SPDM Server with SPSP0 */
     spdm_res = spdm_socket_send(n->spdm_socket, SPDM_SOCKET_STORAGE_CMD_IF_RECV,
-                                SPDM_SOCKET_TRANSPORT_TYPE_NVME,
+                                SPDM_TRANSPORT_TYPE_NVME,
                                 &hdr, sizeof(hdr));
     if (!spdm_res) {
         return NVME_DATA_TRAS_ERROR | NVME_DNR;
     }
 
     /* The responder shall ack with message status */
-    recvd = spdm_socket_receive(n->spdm_socket, SPDM_SOCKET_TRANSPORT_TYPE_NVME,
+    recvd = spdm_socket_receive(n->spdm_socket, SPDM_TRANSPORT_TYPE_NVME,
                                 &nvme_cmd_status,
                                 SPDM_SOCKET_MAX_MSG_STATUS_LEN);
     if (recvd < SPDM_SOCKET_MAX_MSG_STATUS_LEN) {
@@ -7453,7 +7453,7 @@ static uint16_t nvme_sec_prot_spdm_receive(NvmeCtrl *n, NvmeRequest *req)
     }
 
     recvd = spdm_socket_receive(n->spdm_socket,
-                                SPDM_SOCKET_TRANSPORT_TYPE_NVME,
+                                SPDM_TRANSPORT_TYPE_NVME,
                                 rsp_spdm_buf, alloc_len);
     if (!recvd) {
         return NVME_DATA_TRAS_ERROR | NVME_DNR;
@@ -8927,7 +8927,7 @@ static bool pcie_doe_spdm_rsp(DOECap *doe_cap)
     uint32_t rsp_len = SPDM_SOCKET_MAX_MESSAGE_BUFFER_SIZE;
 
     uint32_t recvd = spdm_socket_rsp(doe_cap->spdm_socket,
-                             SPDM_SOCKET_TRANSPORT_TYPE_PCI_DOE,
+                             SPDM_TRANSPORT_TYPE_DOE,
                              req, req_len, rsp, rsp_len);
     doe_cap->read_mbox_len += DIV_ROUND_UP(recvd, 4);
 
@@ -9029,7 +9029,7 @@ static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
         uint16_t doe_offset = PCI_CONFIG_SPACE_SIZE;
 
         switch  (pci_dev->spdm_trans) {
-        case SPDM_SOCKET_TRANSPORT_TYPE_PCI_DOE:
+        case SPDM_TRANSPORT_TYPE_DOE:
             if (n->params.sriov_max_vfs) {
                 doe_offset += PCI_ARI_SIZEOF;
             }
@@ -9044,7 +9044,7 @@ static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
                 return false;
             }
             break;
-        case SPDM_SOCKET_TRANSPORT_TYPE_NVME:
+        case SPDM_TRANSPORT_TYPE_NVME:
             n->spdm_socket = spdm_socket_connect(pci_dev->spdm_port, errp);
             if (n->spdm_socket < 0) {
                 return false;
@@ -9347,10 +9347,10 @@ static void nvme_exit(PCIDevice *pci_dev)
     assert(!(pci_dev->doe_spdm.spdm_socket > 0 && n->spdm_socket >= 0));
     if (pci_dev->doe_spdm.spdm_socket > 0) {
         spdm_socket_close(pci_dev->doe_spdm.spdm_socket,
-                          SPDM_SOCKET_TRANSPORT_TYPE_PCI_DOE);
+                          SPDM_TRANSPORT_TYPE_DOE);
     } else if (n->spdm_socket >= 0) {
         spdm_socket_close(pci_dev->doe_spdm.spdm_socket,
-                          SPDM_SOCKET_TRANSPORT_TYPE_NVME);
+                          SPDM_TRANSPORT_TYPE_NVME);
     }
 
     if (n->pmr.dev) {
@@ -9406,7 +9406,7 @@ static const Property nvme_props[] = {
     DEFINE_PROP_UINT16("mqes", NvmeCtrl, params.mqes, 0x7ff),
     DEFINE_PROP_UINT16("spdm_port", PCIDevice, spdm_port, 0),
     DEFINE_PROP_SPDM_TRANS("spdm_trans", PCIDevice, spdm_trans,
-                           SPDM_SOCKET_TRANSPORT_TYPE_PCI_DOE),
+                           SPDM_TRANSPORT_TYPE_DOE),
     DEFINE_PROP_BOOL("ctratt.mem", NvmeCtrl, params.ctratt.mem, false),
     DEFINE_PROP_BOOL("atomic.dn", NvmeCtrl, params.atomic_dn, 0),
     DEFINE_PROP_UINT16("atomic.awun", NvmeCtrl, params.atomic_awun, 0),
@@ -9484,7 +9484,7 @@ static void nvme_pci_write_config(PCIDevice *dev, uint32_t address,
 
     /* DOE is only initialised if SPDM over DOE is used */
     if (pcie_find_capability(dev, PCI_EXT_CAP_ID_DOE) &&
-        dev->spdm_trans == SPDM_SOCKET_TRANSPORT_TYPE_PCI_DOE) {
+        dev->spdm_trans == SPDM_TRANSPORT_TYPE_DOE) {
         pcie_doe_write_config(&dev->doe_spdm, address, val, len);
     }
     pci_default_write_config(dev, address, val, len);
@@ -9497,7 +9497,7 @@ static uint32_t nvme_pci_read_config(PCIDevice *dev, uint32_t address, int len)
     uint32_t val;
 
     if (dev->spdm_port && pcie_find_capability(dev, PCI_EXT_CAP_ID_DOE) &&
-        (dev->spdm_trans == SPDM_SOCKET_TRANSPORT_TYPE_PCI_DOE)) {
+        (dev->spdm_trans == SPDM_TRANSPORT_TYPE_DOE)) {
         if (pcie_doe_read_config(&dev->doe_spdm, address, len, &val)) {
             return val;
         }

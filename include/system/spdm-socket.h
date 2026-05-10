@@ -23,6 +23,8 @@
 #ifndef SPDM_REQUESTER_H
 #define SPDM_REQUESTER_H
 
+#include "qapi/qapi-types-sockets.h"
+
 /**
  * spdm_socket_connect: connect to an external SPDM socket
  * @port: port to connect to
@@ -37,7 +39,7 @@ int spdm_socket_connect(uint16_t port, Error **errp);
 /**
  * spdm_socket_rsp: send and receive a message to a SPDM server
  * @socket: socket returned from spdm_socket_connect()
- * @transport_type: SPDM_SOCKET_TRANSPORT_TYPE_* macro
+ * @transport_type: the SPDM transport type
  * @req: request buffer
  * @req_len: request buffer length
  * @rsp: response buffer
@@ -46,14 +48,14 @@ int spdm_socket_connect(uint16_t port, Error **errp);
  * Send platform data to a SPDM server on socket and then receive
  * a response.
  */
-uint32_t spdm_socket_rsp(const int socket, uint32_t transport_type,
+uint32_t spdm_socket_rsp(const int socket, SpdmTransportType transport_type,
                          void *req, uint32_t req_len,
                          void *rsp, uint32_t rsp_len);
 
 /**
  * spdm_socket_rsp: Receive a message from an SPDM server
  * @socket: socket returned from spdm_socket_connect()
- * @transport_type: SPDM_SOCKET_TRANSPORT_TYPE_* macro
+ * @transport_type: the SPDM transport type
  * @rsp: response buffer
  * @rsp_len: response buffer length
  *
@@ -61,14 +63,14 @@ uint32_t spdm_socket_rsp(const int socket, uint32_t transport_type,
  * received or 0 on failure. This can be used to receive a message from the SPDM
  * server without sending anything first.
  */
-uint32_t spdm_socket_receive(const int socket, uint32_t transport_type,
+uint32_t spdm_socket_receive(const int socket, SpdmTransportType transport_type,
                              void *rsp, uint32_t rsp_len);
 
 /**
  * spdm_socket_rsp: Sends a message to an SPDM server
  * @socket: socket returned from spdm_socket_connect()
  * @socket_cmd: socket command type (normal/if_recv/if_send etc...)
- * @transport_type: SPDM_SOCKET_TRANSPORT_TYPE_* macro
+ * @transport_type: the SPDM transport type
  * @req: request buffer
  * @req_len: request buffer length
  *
@@ -77,16 +79,17 @@ uint32_t spdm_socket_receive(const int socket, uint32_t transport_type,
  * spdm_socket_receive().
  */
 bool spdm_socket_send(const int socket, uint32_t socket_cmd,
-                      uint32_t transport_type, void *req, uint32_t req_len);
+                      SpdmTransportType transport_type, void *req,
+                      uint32_t req_len);
 
 /**
  * spdm_socket_close: send a shutdown command to the server
  * @socket: socket returned from spdm_socket_connect()
- * @transport_type: SPDM_SOCKET_TRANSPORT_TYPE_* macro
+ * @transport_type: the SPDM transport type
  *
  * This will issue a shutdown command to the server.
  */
-void spdm_socket_close(const int socket, uint32_t transport_type);
+void spdm_socket_close(const int socket, SpdmTransportType transport_type);
 
 /*
  * Defines the transport encoding for SPDM, this information shall be passed
@@ -114,15 +117,6 @@ typedef struct {
 
 #define SPDM_SOCKET_MAX_MESSAGE_BUFFER_SIZE       0x1200
 #define SPDM_SOCKET_MAX_MSG_STATUS_LEN            0x02
-
-typedef enum SpdmTransportType {
-    SPDM_SOCKET_TRANSPORT_TYPE_UNSPEC = 0,
-    SPDM_SOCKET_TRANSPORT_TYPE_MCTP,
-    SPDM_SOCKET_TRANSPORT_TYPE_PCI_DOE,
-    SPDM_SOCKET_TRANSPORT_TYPE_SCSI,
-    SPDM_SOCKET_TRANSPORT_TYPE_NVME,
-    SPDM_SOCKET_TRANSPORT_TYPE_MAX
-} SpdmTransportType;
 
 extern const PropertyInfo qdev_prop_spdm_trans;
 
