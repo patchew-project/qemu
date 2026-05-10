@@ -176,6 +176,68 @@ static bool trans_saa(DisasContext *ctx, arg_saa *a, MemOp mop)
     return true;
 }
 
+static bool trans_la_common(DisasContext *ctx, int base, int add_reg,
+                            int rd, int64_t imm, MemOp mop)
+{
+    TCGv_i64 addr = tcg_temp_new_i64();
+    TCGv_i64 value = tcg_temp_new_i64();
+    TCGv_i64 old = tcg_temp_new_i64();
+    MemOp amo = mo_endian(ctx) | mop | MO_ALIGN;
+
+    gen_base_offset_addr(ctx, addr, base, 0);
+
+    if (add_reg >= 0) {
+        gen_load_gpr(value, add_reg);
+    } else {
+        tcg_gen_movi_i64(value, imm);
+    }
+
+    tcg_gen_atomic_fetch_add_i64(old, addr, value, ctx->mem_idx, amo);
+    gen_store_gpr(old, rd);
+    return true;
+}
+
+static bool trans_law_common(DisasContext *ctx, int base, int add_reg, int rd,
+                             int64_t imm, MemOp mop)
+{
+    TCGv_i64 addr = tcg_temp_new_i64();
+    TCGv_i64 value = tcg_temp_new_i64();
+    TCGv_i64 old = tcg_temp_new_i64();
+    MemOp amo = mo_endian(ctx) | mop | MO_ALIGN;
+
+    gen_base_offset_addr(ctx, addr, base, 0);
+
+    if (add_reg >= 0) {
+        gen_load_gpr(value, add_reg);
+    } else {
+        tcg_gen_movi_i64(value, imm);
+    }
+
+    tcg_gen_atomic_xchg_i64(old, addr, value, ctx->mem_idx, amo);
+    gen_store_gpr(old, rd);
+    return true;
+}
+
+static bool do_lai(DisasContext *ctx, arg_la *a, int64_t imm, MemOp mop)
+{
+    return trans_la_common(ctx, a->base, -1, a->rd, imm, mop);
+}
+
+static bool do_laa(DisasContext *ctx, arg_laa *a, MemOp mop)
+{
+    return trans_la_common(ctx, a->base, a->add, a->rd, 0, mop);
+}
+
+static bool do_las(DisasContext *ctx, arg_la *a, int64_t imm, MemOp mop)
+{
+    return trans_law_common(ctx, a->base, -1, a->rd, imm, mop);
+}
+
+static bool do_law(DisasContext *ctx, arg_laa *a, MemOp mop)
+{
+    return trans_law_common(ctx, a->base, a->add, a->rd, 0, mop);
+}
+
 static bool trans_ZCB(DisasContext *ctx, arg_zcb *a)
 {
     TCGv_i64 addr = tcg_temp_new_i64();
@@ -283,6 +345,18 @@ static bool trans_vmul(DisasContext *ctx, arg_decode_ext_octeon1 *a,
 
 TRANS(SAA,  trans_saa, MO_UL);
 TRANS(SAAD, trans_saa, MO_UQ);
+TRANS(LAI,  do_lai, 1, MO_SL);
+TRANS(LAID, do_lai, 1, MO_UQ);
+TRANS(LAD,  do_lai, -1, MO_SL);
+TRANS(LADD, do_lai, -1, MO_UQ);
+TRANS(LAA,  do_laa, MO_SL);
+TRANS(LAAD, do_laa, MO_UQ);
+TRANS(LAS,  do_las, -1, MO_SL);
+TRANS(LASD, do_las, -1, MO_UQ);
+TRANS(LAC,  do_las, 0, MO_SL);
+TRANS(LACD, do_las, 0, MO_UQ);
+TRANS(LAW,  do_law, MO_SL);
+TRANS(LAWD, do_law, MO_UQ);
 TRANS(LBX,  trans_lx, MO_SB);
 TRANS(LBUX, trans_lx, MO_UB);
 TRANS(LHX,  trans_lx, MO_SW);
