@@ -873,14 +873,6 @@ void default_prop_array(ObjectProperty *op, const Property *prop)
     object_property_set_default_list(op);
 }
 
-const PropertyInfo qdev_prop_array = {
-    .type = "list",
-    .get = get_prop_array,
-    .set = set_prop_array,
-    .release = release_prop_array,
-    .set_default_value = default_prop_array,
-};
-
 const PropertyInfo qdev_prop_uint8_list =
     DEFINE_PROP_ARRAY_INFO(qdev_prop_uint8, uint8_t);
 const PropertyInfo qdev_prop_uint16_list =
