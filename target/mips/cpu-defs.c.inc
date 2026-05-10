@@ -1014,7 +1014,7 @@ const mips_def_t mips_defs[] =
         .CP0_Status_rw_bitmask = 0x12F8FFFF,
         .SEGBITS = 42,
         .PABITS = 49,
-        .insn_flags = CPU_MIPS64R2 | INSN_OCTEON,
+        .insn_flags = CPU_MIPS64R2 | INSN_OCTEON | INSN_OCTEONP,
         .mmu_type = MMU_TYPE_R4000,
     },
 
