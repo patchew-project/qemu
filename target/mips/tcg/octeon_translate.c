@@ -203,6 +203,11 @@ static bool trans_ZCB(DisasContext *ctx, arg_zcb *a)
     return true;
 }
 
+static bool trans_ZCBT(DisasContext *ctx, arg_zcb *a)
+{
+    return trans_ZCB(ctx, a);
+}
+
 TRANS(SAA,  trans_saa, MO_UL);
 TRANS(SAAD, trans_saa, MO_UQ);
 TRANS(LBX,  trans_lx, MO_SB);
