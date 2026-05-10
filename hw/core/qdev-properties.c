@@ -665,6 +665,22 @@ struct ArrayElementList {
     void *value;
 };
 
+static const PropertyInfo *prop_array_info(const Property *prop)
+{
+    if (prop->info->element_info) {
+        return prop->info->element_info;
+    }
+    return prop->arrayinfo;
+}
+
+static int prop_array_elem_size(const Property *prop)
+{
+    if (prop->info->element_size) {
+        return prop->info->element_size;
+    }
+    return prop->arrayfieldsize;
+}
+
 /*
  * Given an array property @parent_prop in @obj, return a Property for a
  * specific element of the array. Arrays are backed by an uint32_t length field
@@ -674,7 +690,7 @@ static Property array_elem_prop(Object *obj, const Property *parent_prop,
                                 const char *name, char *elem)
 {
     return (Property) {
-        .info = parent_prop->arrayinfo,
+        .info = prop_array_info(parent_prop),
         .name = name,
         /*
          * This ugly piece of pointer arithmetic sets up the offset so
@@ -691,19 +707,21 @@ static Property array_elem_prop(Object *obj, const Property *parent_prop,
  * underlying element's property release hook for each element and free the
  * property array.
  */
-static void release_prop_array(Object *obj, const char *name, void *opaque)
+void release_prop_array(Object *obj, const char *name, void *opaque)
 {
     const Property *prop = opaque;
     uint32_t *alenptr = object_field_prop_ptr(obj, prop);
     void **arrayptr = (void *)obj + prop->arrayoffset;
     char *elem = *arrayptr;
     int i;
+    const PropertyInfo *elem_info = prop_array_info(prop);
+    int elem_size = prop_array_elem_size(prop);
 
-    if (prop->arrayinfo->release) {
+    if (elem_info->release) {
         for (i = 0; i < *alenptr; i++) {
             Property elem_prop = array_elem_prop(obj, prop, name, elem);
-            prop->arrayinfo->release(obj, NULL, &elem_prop);
-            elem += prop->arrayfieldsize;
+            elem_info->release(obj, NULL, &elem_prop);
+            elem += elem_size;
         }
     }
 
@@ -717,8 +735,8 @@ static void release_prop_array(Object *obj, const char *name, void *opaque)
  * (a pointer to which is stored in the additional field described by
  * prop->arrayoffset).
  */
-static void set_prop_array(Object *obj, Visitor *v, const char *name,
-                           void *opaque, Error **errp)
+void set_prop_array(Object *obj, Visitor *v, const char *name,
+                    void *opaque, Error **errp)
 {
     ERRP_GUARD();
     const Property *prop = opaque;
@@ -726,6 +744,8 @@ static void set_prop_array(Object *obj, Visitor *v, const char *name,
     void **arrayptr = (void *)obj + prop->arrayoffset;
     ArrayElementList *list, *elem, *next;
     const size_t size = sizeof(*list);
+    const PropertyInfo *elem_info = prop_array_info(prop);
+    int elem_size = prop_array_elem_size(prop);
     char *elemptr;
     bool ok = true;
 
@@ -744,9 +764,9 @@ static void set_prop_array(Object *obj, Visitor *v, const char *name,
     while (elem) {
         Property elem_prop;
 
-        elem->value = g_malloc0(prop->arrayfieldsize);
+        elem->value = g_malloc0(elem_size);
         elem_prop = array_elem_prop(obj, prop, name, elem->value);
-        prop->arrayinfo->set(obj, v, NULL, &elem_prop, errp);
+        elem_info->set(obj, v, NULL, &elem_prop, errp);
         if (*errp) {
             ok = false;
             goto out_obj;
@@ -768,8 +788,8 @@ out_obj:
         for (elem = list; elem; elem = next) {
             Property elem_prop = array_elem_prop(obj, prop, name,
                                                  elem->value);
-            if (prop->arrayinfo->release) {
-                prop->arrayinfo->release(obj, NULL, &elem_prop);
+            if (elem_info->release) {
+                elem_info->release(obj, NULL, &elem_prop);
             }
             next = elem->next;
             g_free(elem->value);
@@ -782,19 +802,19 @@ out_obj:
      * Now that we know how big the array has to be, move the data over to a
      * linear array and free the temporary list.
      */
-    *arrayptr = g_malloc_n(*alenptr, prop->arrayfieldsize);
+    *arrayptr = g_malloc_n(*alenptr, elem_size);
     elemptr = *arrayptr;
     for (elem = list; elem; elem = next) {
-        memcpy(elemptr, elem->value, prop->arrayfieldsize);
-        elemptr += prop->arrayfieldsize;
+        memcpy(elemptr, elem->value, elem_size);
+        elemptr += elem_size;
         next = elem->next;
         g_free(elem->value);
         g_free(elem);
     }
 }
 
-static void get_prop_array(Object *obj, Visitor *v, const char *name,
-                           void *opaque, Error **errp)
+void get_prop_array(Object *obj, Visitor *v, const char *name,
+                    void *opaque, Error **errp)
 {
     ERRP_GUARD();
     const Property *prop = opaque;
@@ -804,6 +824,8 @@ static void get_prop_array(Object *obj, Visitor *v, const char *name,
     ArrayElementList *list = NULL, *elem;
     ArrayElementList **tail = &list;
     const size_t size = sizeof(*list);
+    const PropertyInfo *elem_info = prop_array_info(prop);
+    int elem_size = prop_array_elem_size(prop);
     int i;
     bool ok;
 
@@ -811,7 +833,7 @@ static void get_prop_array(Object *obj, Visitor *v, const char *name,
     for (i = 0; i < *alenptr; i++) {
         elem = g_new0(ArrayElementList, 1);
         elem->value = elemptr;
-        elemptr += prop->arrayfieldsize;
+        elemptr += elem_size;
 
         *tail = elem;
         tail = &elem->next;
@@ -824,7 +846,7 @@ static void get_prop_array(Object *obj, Visitor *v, const char *name,
     elem = list;
     while (elem) {
         Property elem_prop = array_elem_prop(obj, prop, name, elem->value);
-        prop->arrayinfo->get(obj, v, NULL, &elem_prop, errp);
+        elem_info->get(obj, v, NULL, &elem_prop, errp);
         if (*errp) {
             goto out_obj;
         }
@@ -846,7 +868,7 @@ out_obj:
     }
 }
 
-static void default_prop_array(ObjectProperty *op, const Property *prop)
+void default_prop_array(ObjectProperty *op, const Property *prop)
 {
     object_property_set_default_list(op);
 }
@@ -858,6 +880,17 @@ const PropertyInfo qdev_prop_array = {
     .release = release_prop_array,
     .set_default_value = default_prop_array,
 };
+
+const PropertyInfo qdev_prop_uint8_list =
+    DEFINE_PROP_ARRAY_INFO(qdev_prop_uint8, uint8_t);
+const PropertyInfo qdev_prop_uint16_list =
+    DEFINE_PROP_ARRAY_INFO(qdev_prop_uint16, uint16_t);
+const PropertyInfo qdev_prop_uint32_list =
+    DEFINE_PROP_ARRAY_INFO(qdev_prop_uint32, uint32_t);
+const PropertyInfo qdev_prop_uint64_list =
+    DEFINE_PROP_ARRAY_INFO(qdev_prop_uint64, uint64_t);
+const PropertyInfo qdev_prop_string_list =
+    DEFINE_PROP_ARRAY_INFO(qdev_prop_string, char *);
 
 /* --- public helpers --- */
 
@@ -1080,8 +1113,15 @@ const PropertyInfo qdev_prop_link = {
 
 static const QAPITypeInfo *qdev_prop_qapi_type(const Property *prop)
 {
-    /* this will be later extended to cope with QAPI array properties */
-    return prop->info->qapi_type;
+    if (prop->info->qapi_type) {
+        return prop->info->qapi_type;
+    }
+    if (prop->info->element_info) {
+        assert(prop->info->element_info->qapi_type);
+        assert(prop->info->element_info->qapi_type->list);
+        return prop->info->element_info->qapi_type->list;
+    }
+    return NULL;
 }
 
 void qdev_property_add_static(DeviceState *dev, const Property *prop)

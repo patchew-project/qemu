@@ -35,6 +35,8 @@ struct PropertyInfo {
     const char *description;
     const QEnumLookup *enum_table;
     const QAPITypeInfo *qapi_type;
+    const struct PropertyInfo *element_info;
+    int element_size;
     bool realized_set_allowed; /* allow setting property on realized device */
     char *(*print)(Object *obj, const Property *prop);
     void (*set_default_value)(ObjectProperty *op, const Property *prop);
@@ -75,6 +77,11 @@ extern const PropertyInfo qdev_prop_string;
 extern const PropertyInfo qdev_prop_on_off_auto;
 extern const PropertyInfo qdev_prop_size32;
 extern const PropertyInfo qdev_prop_array;
+extern const PropertyInfo qdev_prop_uint8_list;
+extern const PropertyInfo qdev_prop_uint16_list;
+extern const PropertyInfo qdev_prop_uint32_list;
+extern const PropertyInfo qdev_prop_uint64_list;
+extern const PropertyInfo qdev_prop_string_list;
 extern const PropertyInfo qdev_prop_link;
 
 #define DEFINE_PROP(_name, _state, _field, _prop, _type, ...) {  \
