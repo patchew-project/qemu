@@ -16,6 +16,7 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "net/net.h"
 #include "net/eth.h"
 #include "qom/object_interfaces.h"
@@ -1377,15 +1378,15 @@ static void colo_compare_init(Object *obj)
     object_property_add_str(obj, "notify_dev",
                             compare_get_notify_dev, compare_set_notify_dev);
 
-    object_property_add(obj, "compare_timeout", "uint64",
+    object_property_add_qapi(obj, "compare_timeout", &uint64_type_info,
                         compare_get_timeout,
                         compare_set_timeout, NULL, NULL);
 
-    object_property_add(obj, "expired_scan_cycle", "uint32",
+    object_property_add_qapi(obj, "expired_scan_cycle", &uint32_type_info,
                         compare_get_expired_scan_cycle,
                         compare_set_expired_scan_cycle, NULL, NULL);
 
-    object_property_add(obj, "max_queue_size", "uint32",
+    object_property_add_qapi(obj, "max_queue_size", &uint32_type_info,
                         get_max_queue_size,
                         set_max_queue_size, NULL, NULL);
 

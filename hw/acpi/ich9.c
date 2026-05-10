@@ -26,6 +26,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"
@@ -405,7 +406,7 @@ void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm)
                              (Object **)&pm->acpi_pci_hotplug.root,
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_STRONG);
-    object_property_add(obj, ACPI_PM_PROP_GPE0_BLK, "uint32",
+    object_property_add_qapi(obj, ACPI_PM_PROP_GPE0_BLK, &uint32_type_info,
                         ich9_pm_get_gpe0_blk,
                         NULL, NULL, pm);
     object_property_add_uint32_ptr(obj, ACPI_PM_PROP_GPE0_BLK_LEN,

@@ -16,6 +16,7 @@
 #include "hw/core/irq.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "trace.h"
 #include "qom/object.h"
@@ -253,8 +254,9 @@ static void pca9554_initfn(Object *obj)
         char *name;
 
         name = g_strdup_printf("pin%d", pin);
-        object_property_add(obj, name, "bool", pca9554_get_pin, pca9554_set_pin,
-                            NULL, NULL);
+        object_property_add_qapi(obj, name, &bool_type_info,
+                                 pca9554_get_pin, pca9554_set_pin,
+                                 NULL, NULL);
         g_free(name);
     }
 }
