@@ -250,16 +250,6 @@ deprecated; use the new name ``dtb-randomness`` instead. The new name
 better reflects the way this property affects all random data within
 the device tree blob, not just the ``kaslr-seed`` node.
 
-Arm ``qcom-dc-scm-v1-bmc`` and ``qcom-firework-bmc`` machine (since 10.2)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``qcom-dc-scm-v1-bmc`` and ``qcom-firework-bmc`` represent lab
-servers that never entered production. Since they do not rely on any
-specific device models, they can be replaced by the ``ast2600-evb``
-machine using the ``fmc-model`` option to specify the flash type. The
-I2C devices connected to the board can be defined via the QEMU command
-line.
-
 Arm ``fp5280g2-bmc`` machine (since 10.2)
 '''''''''''''''''''''''''''''''''''''''''
 
