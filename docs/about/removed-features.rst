@@ -1205,6 +1205,14 @@ machine using the ``fmc-model`` option to specify the flash type. The
 I2C devices connected to the board can be defined via the QEMU command
 line.
 
+Arm ``fp5280g2-bmc`` machine (removed in 11.1)
+''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``fp5280g2-bmc`` machine does not rely on any specific device
+models, it can be replaced by the ``ast2500-evb`` machine using the
+``fmc-model`` option to specify the flash type. The I2C devices
+connected to the board can be defined via the QEMU command line.
+
 linux-user mode CPUs
 --------------------
 
