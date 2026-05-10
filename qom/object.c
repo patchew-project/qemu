@@ -1225,7 +1225,7 @@ object_property_try_add(Object *obj, const char *name, const char *type,
     return prop;
 }
 
-ObjectProperty *
+static ObjectProperty *
 object_property_add(Object *obj, const char *name, const char *type,
                     ObjectPropertyAccessor *get,
                     ObjectPropertyAccessor *set,
@@ -1236,7 +1236,7 @@ object_property_add(Object *obj, const char *name, const char *type,
                                    opaque, &error_abort);
 }
 
-ObjectProperty *
+static ObjectProperty *
 object_class_property_add(ObjectClass *klass,
                           const char *name,
                           const char *type,
