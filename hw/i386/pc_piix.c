@@ -47,6 +47,7 @@
 #include "hw/acpi/acpi.h"
 #include "hw/vfio/types.h"
 #include "qapi/error.h"
+#include "qapi/qapi-type-info.h"
 #include "qemu/error-report.h"
 #include "system/xen.h"
 #ifdef CONFIG_XEN
@@ -336,6 +337,11 @@ static const QEnumLookup PCSouthBridgeOption_lookup = {
     .size = PC_SOUTH_BRIDGE_OPTION_MAX
 };
 
+static const QAPITypeInfo PCSouthBridgeOption_type_info = {
+    .name = "PCSouthBridgeOption",
+    .lookup = &PCSouthBridgeOption_lookup,
+};
+
 static int pc_get_south_bridge(Object *obj, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
@@ -418,12 +424,13 @@ static void pc_i440fx_machine_options(MachineClass *m)
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_VMBUS_BRIDGE);
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_UEFI_VARS_X64);
 
-    object_class_property_add_enum(oc, "x-south-bridge", "PCSouthBridgeOption",
-                                   &PCSouthBridgeOption_lookup,
-                                   pc_get_south_bridge,
-                                   pc_set_south_bridge);
-    object_class_property_set_description(oc, "x-south-bridge",
-                                     "Use a different south bridge than PIIX3");
+    object_class_property_add_qapi_enum(oc, QAPI_ENUM_PROP(
+        .name = "x-south-bridge",
+        .description = "Use a different south bridge than PIIX3",
+        .qapi_type = &PCSouthBridgeOption_type_info,
+        .get = pc_get_south_bridge,
+        .set = pc_set_south_bridge,
+    ));
     compat_props_add(m->compat_props,
                      pc_piix_compat_defaults, pc_piix_compat_defaults_len);
 }
