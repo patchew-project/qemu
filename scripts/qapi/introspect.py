@@ -178,6 +178,7 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
         self._trees: List[Annotated[SchemaInfo]] = []
         self._used_types: List[QAPISchemaType] = []
         self._name_map: Dict[str, str] = {}
+        self._final_name_map: Dict[str, str] = {}
         self._genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "%(prefix)sqapi-introspect.h"
@@ -208,7 +209,16 @@ const QLitObject %(c_name)s = %(c_string)s;
         self._schema = None
         self._trees = []
         self._used_types = []
+        self._final_name_map = dict(self._name_map)
         self._name_map = {}
+
+    def name_map(self) -> Dict[str, str]:
+        """Return the QAPI-name-to-schema-name map.
+
+        Must be called after visit() has completed; the map is
+        populated during visit_end().
+        """
+        return self._final_name_map
 
     def visit_needed(self, entity: QAPISchemaEntity) -> bool:
         # Ignore types on first pass; visit_end() will pick up used types
@@ -387,7 +397,8 @@ const QLitObject %(c_name)s = %(c_string)s;
 
 
 def gen_introspect(schema: QAPISchema, output_dir: str, prefix: str,
-                   opt_unmask: bool) -> None:
+                   opt_unmask: bool) -> Dict[str, str]:
     vis = QAPISchemaGenIntrospectVisitor(prefix, opt_unmask)
     schema.visit(vis)
     vis.write(output_dir)
+    return vis.name_map()
