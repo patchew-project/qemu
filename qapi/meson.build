@@ -80,6 +80,7 @@ endif
 qapi_nonmodule_outputs = [
   'qapi-introspect.c', 'qapi-introspect.h',
   'qapi-types.c', 'qapi-types.h',
+  'qapi-type-infos.c', 'qapi-type-infos.h',
   'qapi-visit.h', 'qapi-visit.c',
   'qapi-commands.h', 'qapi-commands.c',
   'qapi-init-commands.h', 'qapi-init-commands.c',
@@ -90,6 +91,7 @@ qapi_nonmodule_outputs = [
 qapi_outputs = qapi_nonmodule_outputs + [
   'qapi-builtin-types.c', 'qapi-builtin-visit.c',
   'qapi-builtin-types.h', 'qapi-builtin-visit.h',
+  'qapi-builtin-type-infos.c', 'qapi-builtin-type-infos.h',
 ]
 
 qapi_inputs = []
@@ -100,6 +102,8 @@ foreach module : qapi_all_modules
     'qapi-types-@0@.h'.format(module),
     'qapi-visit-@0@.c'.format(module),
     'qapi-visit-@0@.h'.format(module),
+    'qapi-type-infos-@0@.c'.format(module),
+    'qapi-type-infos-@0@.h'.format(module),
   ]
   if have_system or have_tools
     qapi_module_outputs += [
