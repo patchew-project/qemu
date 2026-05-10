@@ -1773,6 +1773,23 @@
   'features': [ 'unstable' ] }
 
 ##
+# @x-query-nvme:
+#
+# Query state of emulated NVMe controllers.
+#
+# Features:
+#
+# @unstable: This command is meant for debugging.
+#
+# Returns: NVMe controller state as human-readable text
+#
+# Since: 11.1
+##
+{ 'command': 'x-query-nvme',
+  'returns': 'HumanReadableText',
+  'features': [ 'unstable' ] }
+
+##
 # @SmbiosEntryPointType:
 #
 # @32: SMBIOS version 2.1 (32-bit) Entry Point
