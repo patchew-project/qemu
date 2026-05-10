@@ -16,6 +16,8 @@
 #ifndef QEMU_UUID_H
 #define QEMU_UUID_H
 
+#include "qapi/qapi-type-info.h"
+
 
 /* Version 4 UUID (pseudo random numbers), RFC4122 4.4. */
 
@@ -98,5 +100,7 @@ int qemu_uuid_parse(const char *str, QemuUUID *uuid);
 QemuUUID qemu_uuid_bswap(QemuUUID uuid);
 
 uint32_t qemu_uuid_hash(const void *uuid);
+
+extern const QAPITypeInfo QemuUUID_type_info;
 
 #endif
