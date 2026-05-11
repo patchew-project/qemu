@@ -14,6 +14,8 @@
 #include "decode-octeon.c.inc"
 
 typedef void gen_helper_octeon_vmul(TCGv_i64, TCGv_ptr, TCGv_i64, TCGv_i64);
+typedef void gen_helper_octeon_qmac_fn(TCGv_ptr, TCGv_i64, TCGv_i64,
+                                       TCGv_i32);
 
 static bool trans_BBIT(DisasContext *ctx, arg_BBIT *a)
 {
@@ -154,6 +156,18 @@ static bool trans_SEQI(DisasContext *ctx, arg_SEQI *a)
 static bool trans_SNEI(DisasContext *ctx, arg_SNEI *a)
 {
     return do_seqi_snei(ctx, a, TCG_COND_NE);
+}
+
+static bool trans_qmac(DisasContext *ctx, arg_qmac *a,
+                       gen_helper_octeon_qmac_fn *helper)
+{
+    TCGv_i64 rs = tcg_temp_new_i64();
+    TCGv_i64 rt = tcg_temp_new_i64();
+
+    gen_load_gpr(rs, a->rs);
+    gen_load_gpr(rt, a->rt);
+    helper(tcg_env, rs, rt, tcg_constant_i32(a->lane));
+    return true;
 }
 
 static bool trans_lx(DisasContext *ctx, arg_lx *a, MemOp mop)
@@ -299,6 +313,8 @@ static bool trans_vmul(DisasContext *ctx, arg_decode_ext_octeon1 *a,
 
 TRANS(SAA,  trans_saa, MO_UL);
 TRANS(SAAD, trans_saa, MO_UQ);
+TRANS(QMAC,  trans_qmac, gen_helper_octeon_qmac);
+TRANS(QMACS, trans_qmac, gen_helper_octeon_qmacs);
 TRANS(LBX,  trans_lx, MO_SB);
 TRANS(LBUX, trans_lx, MO_UB);
 TRANS(LHX,  trans_lx, MO_SW);

@@ -144,6 +144,65 @@ target_ulong helper_rotx(target_ulong rs, uint32_t shift, uint32_t shiftx,
     return (int64_t)(int32_t)(uint32_t)tmp5;
 }
 
+static int32_t octeon_mul_q15_q15(int16_t a, int16_t b, bool *overflow)
+{
+    if (a == INT16_MIN && b == INT16_MIN) {
+        *overflow = true;
+        return INT32_MAX;
+    }
+    return (int32_t)a * b * 2;
+}
+
+static int32_t octeon_sat32_acc_q31(int32_t acc, int32_t value,
+                                    bool *overflow)
+{
+    int64_t sum = (int64_t)acc + value;
+
+    if (sum > INT32_MAX) {
+        *overflow = true;
+        return INT32_MAX;
+    }
+    if (sum < INT32_MIN) {
+        *overflow = true;
+        return INT32_MIN;
+    }
+    return sum;
+}
+
+static int16_t octeon_qmac_lane(uint64_t rs, uint32_t lane)
+{
+    return (int16_t)(uint16_t)extract64(rs, lane * 16, 16);
+}
+
+void helper_octeon_qmac(CPUMIPSState *env, uint64_t rs, uint64_t rt,
+                        uint32_t lane)
+{
+    bool overflow = false;
+    int32_t product;
+    int64_t acc;
+
+    product = octeon_mul_q15_q15((int16_t)(uint16_t)rt,
+                                 octeon_qmac_lane(rs, lane), &overflow);
+    acc = deposit64(env->active_tc.LO[0], 32, 32, env->active_tc.HI[0]);
+    acc += product;
+
+    env->active_tc.LO[0] = (int64_t)(int32_t)acc;
+    env->active_tc.HI[0] = (int64_t)(int32_t)((uint64_t)acc >> 32);
+}
+
+void helper_octeon_qmacs(CPUMIPSState *env, uint64_t rs, uint64_t rt,
+                         uint32_t lane)
+{
+    bool overflow = env->active_tc.HI[0] & 1;
+    int32_t product;
+
+    product = octeon_mul_q15_q15((int16_t)(uint16_t)rt,
+                                 octeon_qmac_lane(rs, lane), &overflow);
+    env->active_tc.LO[0] = octeon_sat32_acc_q31(
+        (int32_t)(uint32_t)env->active_tc.LO[0], product, &overflow);
+    env->active_tc.HI[0] = overflow;
+}
+
 static void octeon_add_limb(uint64_t *sum, int limb_count,
                             uint64_t value, int limb)
 {
