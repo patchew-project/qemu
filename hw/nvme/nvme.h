@@ -444,6 +444,11 @@ typedef struct NvmeRequest {
     NvmeSg                  sg;
     bool                    atomic_write;
     QTAILQ_ENTRY(NvmeRequest)entry;
+    /*
+     * If you add a new field here, please make sure to update
+     * nvme_vmstate_request, pre_save_validate_aer_req() and
+     * pre_save_validate_cq_req().
+     */
 } NvmeRequest;
 
 typedef struct NvmeBounceContext {
@@ -638,6 +643,7 @@ typedef struct NvmeCtrl {
 
     NvmeNamespace   namespace;
     NvmeNamespace   *namespaces[NVME_MAX_NAMESPACES + 1];
+    uint32_t        num_queues;
     NvmeSQueue      **sq;
     NvmeCQueue      **cq;
     NvmeSQueue      admin_sq;
@@ -748,5 +754,8 @@ void nvme_atomic_configure_max_write_size(bool dn, uint16_t awun,
                                           uint16_t awupf, NvmeAtomic *atomic);
 void nvme_ns_atomic_configure_boundary(bool dn, uint16_t nabsn,
                                        uint16_t nabspf, NvmeAtomic *atomic);
+
+extern const VMStateDescription nvme_vmstate_atomic;
+extern const VMStateDescription nvme_vmstate_ns;
 
 #endif /* HW_NVME_NVME_H */
