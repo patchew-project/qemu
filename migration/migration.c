@@ -1044,12 +1044,18 @@ static bool migrate_show_downtime(MigrationState *s)
 /* Return expected downtime (unit: milliseconds) */
 int64_t migration_downtime_calc_expected(MigrationState *s)
 {
+    double bw;
+
     if (mig_stats.dirty_sync_count <= 1) {
         return migrate_downtime_limit();
     }
 
-    return mig_stats.dirty_bytes_last_sync /
-        migration_get_switchover_bw(s) * 1000;
+    bw = migration_get_switchover_bw(s) * 1000;
+    if (!bw) {
+        return INT64_MAX;
+    }
+
+    return mig_stats.dirty_bytes_last_sync / bw;
 }
 
 static void populate_time_info(MigrationInfo *info, MigrationState *s)
