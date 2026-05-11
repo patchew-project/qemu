@@ -321,7 +321,7 @@ static void mips_cpu_reset_hold(Object *obj, ResetType type)
      */
     env->CP0_HWREna |= 0x0000000F;
     if (env->insn_flags & INSN_OCTEON) {
-        env->CP0_HWREna |= 0x40000000u;
+        env->CP0_HWREna |= 0xc0000000u;
     }
     if (env->CP0_Config1 & (1 << CP0C1_FP)) {
         env->CP0_Status |= (1 << CP0St_CU1);
