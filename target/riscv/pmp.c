@@ -253,12 +253,12 @@ void pmp_update_rule_addr(CPURISCVState *env, uint32_t pmp_index)
             sa = ea = 0u;
             break;
         }
-        sa = prev_addr << 2; /* shift up from [xx:0] to [xx+2:2] */
-        ea = (this_addr << 2) - 1u;
+        sa = (hwaddr)prev_addr << 2; /* shift up from [xx:0] to [xx+2:2] */
+        ea = ((hwaddr)this_addr << 2) - 1u;
         break;
 
     case PMP_AMATCH_NA4:
-        sa = this_addr << 2; /* shift up from [xx:0] to [xx+2:2] */
+        sa = (hwaddr)this_addr << 2; /* shift up from [xx:0] to [xx+2:2] */
         ea = (sa + 4u) - 1u;
         break;
 
