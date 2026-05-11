@@ -968,7 +968,7 @@ static void colo_compare_handle_event(void *opaque)
 static void colo_compare_iothread(CompareState *s)
 {
     g_autofree char *path = object_get_canonical_path(OBJECT(s));
-    AioContext *ctx = iothread_ref_and_get_aio_context(s->iothread, path);
+    AioContext *ctx = iothread_get_aio_context(s->iothread, path);
 
     s->iothread_ctx = ctx;
     s->worker_context = iothread_get_g_main_context(s->iothread);

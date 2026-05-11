@@ -3683,7 +3683,7 @@ void qmp_x_blockdev_set_iothread(const char *node_name, StrOrNull *iothread,
             goto out;
         }
 
-        new_context = iothread_ref_and_get_aio_context(obj, node_name);
+        new_context = iothread_get_aio_context(obj, node_name);
         bs->iothread = obj;
     } else {
         if (bs->iothread) {
