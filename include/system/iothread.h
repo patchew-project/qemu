@@ -50,6 +50,11 @@ struct IOThread {
     bool stopping;              /* has iothread_stop() been called? */
     bool running;               /* should iothread_run() continue? */
     int thread_id;
+    /*
+     * The list elements are of type IoThreadHolder, which can
+     * represent either a QOM path or a block node name.
+     */
+    GList *holders;
 
     /* AioContext poll parameters */
     int64_t poll_max_ns;

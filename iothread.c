@@ -25,6 +25,66 @@
 #include "qemu/rcu.h"
 #include "qemu/main-loop.h"
 
+/*
+ * Add the @holder path to the iothread's tracking list.
+ * The @holder is a QOM path if it starts with '/', else a block node name.
+ */
+static void iothread_ref(IOThread *iothread, const char *holder)
+{
+    IoThreadHolder *h = g_new0(IoThreadHolder, 1);
+
+    assert(holder);
+
+    if (holder[0] == '/') {
+        h->type = IO_THREAD_HOLDER_KIND_QOM_OBJECT;
+        h->u.qom_object.data = g_strdup(holder);
+    } else {
+        h->type = IO_THREAD_HOLDER_KIND_BLOCK_NODE;
+        h->u.block_node.data = g_strdup(holder);
+    }
+
+    iothread->holders = g_list_prepend(iothread->holders, h);
+}
+
+static int iothread_holder_compare(gconstpointer a, gconstpointer b)
+{
+    const IoThreadHolder *holder_node = a;
+    const char *target_name = b;
+    const char *current_name;
+
+    if (holder_node->type == IO_THREAD_HOLDER_KIND_QOM_OBJECT) {
+        current_name = holder_node->u.qom_object.data;
+    } else if (holder_node->type == IO_THREAD_HOLDER_KIND_BLOCK_NODE) {
+        current_name = holder_node->u.block_node.data;
+    } else {
+        /*
+         * This should not happen. If it does, current_name remains
+         * NULL and g_strcmp0 will handle it safely.
+         */
+        current_name = NULL;
+    }
+
+    return g_strcmp0(current_name, target_name);
+}
+
+/*
+ * This function removes the @holder from the @iothread's tracking list.
+ * The @holder string must match the one used previously in iothread_ref().
+ * It is a programming error to call this with a @holder that is not
+ * currently associated with the @iothread.
+ */
+static void iothread_unref(IOThread *iothread, const char *holder)
+{
+    GList *link = g_list_find_custom(iothread->holders, holder,
+                                     (GCompareFunc)iothread_holder_compare);
+
+    assert(link);
+
+    IoThreadHolder *h = (IoThreadHolder *)link->data;
+    qapi_free_IoThreadHolder(h);
+    iothread->holders = g_list_delete_link(iothread->holders, link);
+}
+
 static void *iothread_run(void *opaque)
 {
     IOThread *iothread = opaque;
@@ -107,6 +167,9 @@ static void iothread_instance_finalize(Object *obj)
     IOThread *iothread = IOTHREAD(obj);
 
     iothread_stop(iothread);
+
+    /* We don't support finalize without holders */
+    assert(iothread->holders == NULL);
 
     /*
      * Before glib2 2.33.10, there is a glib2 bug that GSource context
@@ -356,6 +419,10 @@ char *iothread_get_id(IOThread *iothread)
 
 AioContext *iothread_get_aio_context(IOThread *iothread)
 {
+    /* Remove in next patch for build */
+    iothread_ref(iothread, "tmp");
+    iothread_unref(iothread, "tmp");
+
     return iothread->ctx;
 }
 

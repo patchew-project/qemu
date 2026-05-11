@@ -67,6 +67,54 @@
 ##
 { 'command': 'query-name', 'returns': 'NameInfo', 'allow-preconfig': true }
 
+
+##
+# @IoThreadHolderBlockNode:
+#
+# @data: Block node name.
+#
+# Since: 11.1
+#
+##
+{ 'struct': 'IoThreadHolderBlockNode',
+  'data': { 'data': 'str' } }
+
+##
+# @IoThreadHolderQomObject:
+#
+# @data: Absolute @qom-path.
+#
+# Since: 11.1
+#
+##
+{ 'struct': 'IoThreadHolderQomObject',
+  'data': { 'data': 'str' } }
+
+##
+# @IoThreadHolderKind:
+#
+# @block-node: Block node name.
+# @qom-object: Absolute @qom-path.
+#
+# Since: 11.1
+##
+{ 'enum': 'IoThreadHolderKind',
+  'data': [ 'block-node', 'qom-object' ] }
+
+##
+# @IoThreadHolder:
+#
+# @type: the kind of I/O thread holder.
+#
+# Since: 11.1
+##
+{ 'union': 'IoThreadHolder',
+  'base': { 'type': 'IoThreadHolderKind' },
+  'discriminator': 'type',
+  'data': {
+    'block-node': 'IoThreadHolderBlockNode',
+    'qom-object': 'IoThreadHolderQomObject' } }
+
 ##
 # @IOThreadInfo:
 #
