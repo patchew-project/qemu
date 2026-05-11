@@ -273,6 +273,7 @@ static void fsi_aspeed_apb2opb_init(Object *o)
     for (i = 0; i < ASPEED_FSI_NUM; i++) {
         object_initialize_child(o, "fsi-master[*]", &s->fsi[i],
                                 TYPE_FSI_MASTER);
+        qbus_init(&s->opb[i], sizeof(s->opb[i]), TYPE_OP_BUS, DEVICE(s), NULL);
     }
 }
 
@@ -281,18 +282,6 @@ static void fsi_aspeed_apb2opb_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     AspeedAPB2OPBState *s = ASPEED_APB2OPB(dev);
     int i;
-
-    /*
-     * TODO: The OPBus model initializes the OPB address space in
-     * the .instance_init handler and this is problematic for test
-     * device-introspect-test. To avoid a memory corruption and a QEMU
-     * crash, qbus_init() should be called from realize(). Something to
-     * improve. Possibly, OPBus could also be removed.
-     */
-    for (i = 0; i < ASPEED_FSI_NUM; i++) {
-        qbus_init(&s->opb[i], sizeof(s->opb[i]), TYPE_OP_BUS, DEVICE(s),
-                  NULL);
-    }
 
     sysbus_init_irq(sbd, &s->irq);
 
