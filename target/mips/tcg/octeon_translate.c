@@ -198,6 +198,62 @@ static bool trans_ZCB(DisasContext *ctx, arg_ZCB *a)
     return true;
 }
 
+static void octeon_store_mpl(unsigned int index, TCGv_i64 value)
+{
+    tcg_gen_st_i64(value, tcg_env,
+                   offsetof(CPUMIPSState, active_tc.octeon.MPL) +
+                   index * sizeof(uint64_t));
+}
+
+static void octeon_store_p(unsigned int index, TCGv_i64 value)
+{
+    tcg_gen_st_i64(value, tcg_env,
+                   offsetof(CPUMIPSState, active_tc.octeon.P) +
+                   index * sizeof(uint64_t));
+}
+
+static void octeon_zero_partial_product_state(void)
+{
+    TCGv_i64 zero = tcg_constant_i64(0);
+
+    for (int i = 0; i < OCTEON_MULTIPLIER_REGS; i++) {
+        octeon_store_p(i, zero);
+    }
+}
+
+static void octeon_reset_mtm0_mpl_state(void)
+{
+    TCGv_i64 zero = tcg_constant_i64(0);
+
+    /*
+     * MTM0 defines MPL1 as zero; model the architecturally unpredictable
+     * MPL2/MPL4/MPL5 lanes as zero for deterministic emulation.
+     */
+    octeon_store_mpl(1, zero);
+    octeon_store_mpl(2, zero);
+    octeon_store_mpl(4, zero);
+    octeon_store_mpl(5, zero);
+}
+
+static bool trans_mtm(DisasContext *ctx, arg_r2 *a, unsigned int index)
+{
+    TCGv_i64 value = tcg_temp_new_i64();
+
+    /*
+     * Octeon3 two-source MTM forms load lane index from rs and lane index + 3
+     * from rt.  Legacy one-source forms encode rt as $zero.
+     */
+    gen_load_gpr(value, a->rs);
+    octeon_store_mpl(index, value);
+    gen_load_gpr(value, a->rt);
+    octeon_store_mpl(index + 3, value);
+    if (index == 0) {
+        octeon_reset_mtm0_mpl_state();
+    }
+    octeon_zero_partial_product_state();
+    return true;
+}
+
 TRANS(SAA,  trans_saa, MO_UL);
 TRANS(SAAD, trans_saa, MO_UQ);
 TRANS(LBX,  trans_lx, MO_SB);
@@ -207,3 +263,4 @@ TRANS(LHUX, trans_lx, MO_UW);
 TRANS(LWX,  trans_lx, MO_SL);
 TRANS(LWUX, trans_lx, MO_UL);
 TRANS(LDX,  trans_lx, MO_UQ);
+TRANS(MTM0, trans_mtm, 0);
