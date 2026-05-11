@@ -1044,12 +1044,28 @@ static bool migrate_show_downtime(MigrationState *s)
 /* Return expected downtime (unit: milliseconds) */
 int64_t migration_downtime_calc_expected(MigrationState *s)
 {
+    double expected_ms;
+
     if (mig_stats.dirty_sync_count <= 1) {
         return migrate_downtime_limit();
     }
 
-    return mig_stats.dirty_bytes_last_sync /
+    expected_ms = mig_stats.dirty_bytes_last_sync /
         migration_get_switchover_bw(s) * 1000;
+
+    /*
+     * This "<" check covers two cases where we want to fallback to
+     * INT64_MAX, the 1st case is obvious, but the 2nd is not:
+     *
+     * (1) when expected_ms is Inf, or anything too big for int64_t
+     * (2) when expected_ms is Nan (division by zero), evaluation of this
+     *     if clause will be FALSE
+     */
+    if (expected_ms < (double)INT64_MAX) {
+        return (int64_t) expected_ms;
+    }
+
+    return INT64_MAX;
 }
 
 static void populate_time_info(MigrationInfo *info, MigrationState *s)
