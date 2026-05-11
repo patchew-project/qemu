@@ -39,6 +39,7 @@ typedef struct RISCVBootInfo {
 } RISCVBootInfo;
 
 bool riscv_is_32bit(RISCVHartArrayState *harts);
+bool riscv_is_big_endian(RISCVHartArrayState *harts);
 
 char *riscv_plic_hart_config_string(int hart_count);
 
