@@ -17,6 +17,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "cpu_bits.h"
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/timer.h"
@@ -781,6 +782,9 @@ static RISCVException have_mseccfg(CPURISCVState *env, int csrno)
         return RISCV_EXCP_NONE;
     }
     if (riscv_cpu_cfg(env)->ext_smmpm) {
+        return RISCV_EXCP_NONE;
+    }
+    if (riscv_cpu_cfg(env)->ext_zicfilp) {
         return RISCV_EXCP_NONE;
     }
 
