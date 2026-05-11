@@ -4321,6 +4321,19 @@ static void virt_instance_init(Object *obj)
     cxl_machine_init(obj, &vms->cxl_devices_state);
 }
 
+static void virt_instance_finalize(Object *obj)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    for (int i = 0; i < ARRAY_SIZE(vms->flash); i++) {
+        if (vms->flash[i] && !qdev_is_realized(DEVICE(vms->flash[i]))) {
+            object_unref(OBJECT(vms->flash[i]));
+        }
+    }
+    g_free(vms->oem_id);
+    g_free(vms->oem_table_id);
+}
+
 static const TypeInfo virt_machine_info = {
     .name          = TYPE_VIRT_MACHINE,
     .parent        = TYPE_MACHINE,
@@ -4329,6 +4342,7 @@ static const TypeInfo virt_machine_info = {
     .class_size    = sizeof(VirtMachineClass),
     .class_init    = virt_machine_class_init,
     .instance_init = virt_instance_init,
+    .instance_finalize = virt_instance_finalize,
     .interfaces = (const InterfaceInfo[]) {
          { TYPE_HOTPLUG_HANDLER },
          { }
