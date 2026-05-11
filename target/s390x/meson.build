@@ -26,6 +26,7 @@ s390x_common_ss.add(files(
   'gdbstub.c',
 ))
 
+s390x_system_ss.add(gen_features_h)
 s390x_system_ss.add(files(
   'ioinst.c',
 ))
