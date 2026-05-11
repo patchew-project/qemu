@@ -170,9 +170,8 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
 
     cap_rpt_invalidate = kvm_vm_check_extension(s, KVM_CAP_PPC_RPT_INVALIDATE);
     cap_ail_mode_3 = kvm_vm_check_extension(s, KVM_CAP_PPC_AIL_MODE_3);
-    kvm_ppc_register_host_cpu_type();
 
-    return 0;
+    return kvm_ppc_register_host_cpu_type();
 }
 
 int kvm_arch_irqchip_create(KVMState *s)
@@ -2654,14 +2653,17 @@ static int kvm_ppc_register_host_cpu_type(void)
     dc = DEVICE_CLASS(ppc_cpu_get_family_class(pvr_pcc));
     for (i = 0; ppc_cpu_aliases[i].alias != NULL; i++) {
         if (g_ascii_strcasecmp(ppc_cpu_aliases[i].alias, dc->desc) == 0) {
-            char *suffix;
+            const gchar *suffix, *cname = object_class_get_name(oc);
 
-            ppc_cpu_aliases[i].model = g_strdup(object_class_get_name(oc));
-            suffix = strstr(ppc_cpu_aliases[i].model, POWERPC_CPU_TYPE_SUFFIX);
-            if (suffix) {
-                *suffix = 0;
+            suffix = g_strstr_len(cname, -1, POWERPC_CPU_TYPE_SUFFIX);
+            ppc_cpu_aliases[i].model = unlikely(suffix) ?
+                g_strndup(cname, suffix - cname) : g_strdup(cname);
+
+            if (!ppc_cpu_aliases[i].model) {
+                return -ENOMEM;
+            } else {
+                return 0;
             }
-            break;
         }
     }
 
