@@ -148,7 +148,9 @@ void sysbus_mmio_map(SysBusDevice *dev, int n, hwaddr addr)
 int sysbus_mmio_map_name(SysBusDevice *dev, const char *name, hwaddr addr)
 {
     for (int i = 0; i < dev->num_mmio; i++) {
-        if (!strcmp(dev->mmio[i].memory->name, name)) {
+        const char *mr_name = dev->mmio[i].memory->name;
+
+        if (mr_name && !strcmp(mr_name, name)) {
             sysbus_mmio_map(dev, i, addr);
             return i;
         }
