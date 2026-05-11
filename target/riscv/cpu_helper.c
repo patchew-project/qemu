@@ -1604,6 +1604,14 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
             return TRANSLATE_FAIL;
         }
 
+        int pmp_prot;
+        int pmp_ret = get_physical_address_pmp(env, &pmp_prot, pte_addr,
+                                               sxlen_bytes,
+                                               MMU_DATA_STORE, PRV_S);
+        if (pmp_ret != TRANSLATE_SUCCESS) {
+            return TRANSLATE_PMP_FAIL;
+        }
+
         /*
          * - if accessed or dirty bits need updating, and the PTE is
          *   in RAM, then we do so atomically with a compare and swap.
