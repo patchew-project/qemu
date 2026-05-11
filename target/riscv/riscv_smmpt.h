@@ -9,6 +9,9 @@
 #ifndef RISCV_SMMPT_H
 #define RISCV_SMMPT_H
 
+#include "cpu.h"
+#include "exec/mmu-access-type.h"
+
 typedef enum {
     SMMPTBARE = 0,
     SMMPT34   = 1,
@@ -18,4 +21,6 @@ typedef enum {
     SMMPTMAX
 } mpt_mode_t;
 
+bool smmpt_check_access(CPURISCVState *env, hwaddr addr,
+                        int *prot, MMUAccessType access_type);
 #endif
