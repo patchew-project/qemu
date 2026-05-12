@@ -97,6 +97,8 @@ typedef enum GICv5TriggerMode {
  *
  * In this struct the intid includes the interrupt type in bits
  * [31:29] (i.e. it is in the form defined by R_TJPHS).
+ *
+ * "No pending interrupt" is represented by @prio == PRIO_IDLE.
  */
 typedef struct GICv5PendingIrq {
     uint32_t intid;
