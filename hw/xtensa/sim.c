@@ -41,7 +41,7 @@ static uint64_t translate_phys_addr(void *opaque, uint64_t addr)
 {
     XtensaCPU *cpu = opaque;
 
-    return cpu_get_phys_page_debug(CPU(cpu), addr);
+    return cpu_get_phys_addr_debug(CPU(cpu), addr);
 }
 
 static void sim_reset(void *opaque)

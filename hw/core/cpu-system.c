@@ -55,7 +55,7 @@ bool cpu_get_memory_mapping(CPUState *cpu, MemoryMappingList *list,
     return false;
 }
 
-hwaddr cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
+hwaddr cpu_get_phys_addr_attrs_debug(CPUState *cpu, vaddr addr,
                                      MemTxAttrs *attrs)
 {
     hwaddr paddr;
@@ -73,11 +73,11 @@ hwaddr cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
     return paddr;
 }
 
-hwaddr cpu_get_phys_page_debug(CPUState *cpu, vaddr addr)
+hwaddr cpu_get_phys_addr_debug(CPUState *cpu, vaddr addr)
 {
     MemTxAttrs attrs = {};
 
-    return cpu_get_phys_page_attrs_debug(cpu, addr, &attrs);
+    return cpu_get_phys_addr_attrs_debug(cpu, addr, &attrs);
 }
 
 int cpu_asidx_from_attrs(CPUState *cpu, MemTxAttrs attrs)
