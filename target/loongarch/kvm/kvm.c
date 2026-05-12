@@ -6,6 +6,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "exec/cpu-defs.h"
 #include <sys/ioctl.h>
 #include <linux/kvm.h>
 #include "asm-loongarch/kvm_para.h"
