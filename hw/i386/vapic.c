@@ -309,7 +309,7 @@ static int update_rom_mapping(VAPICROMState *s, CPUX86State *env, target_ulong i
     if (paddr == -1) {
         return -1;
     }
-    paddr += rom_state_vaddr & ~TARGET_PAGE_MASK;
+    paddr |= rom_state_vaddr & ~TARGET_PAGE_MASK;
     if (paddr != s->rom_state_paddr) {
         return -1;
     }
