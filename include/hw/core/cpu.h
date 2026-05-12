@@ -739,40 +739,6 @@ enum CPUDumpFlags {
 void cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 
 /**
- * cpu_get_phys_addr_attrs_debug:
- * @cpu: The CPU to use for the virtual-to-physical translation
- * @addr: The virtual address.
- * @attrs: Updated on return with the memory transaction attributes to use
- *         for this access.
- *
- * Obtains the physical address corresponding to a virtual one, together
- * with the corresponding memory transaction attributes to use for the access.
- * Use it only for debugging because no protection checks are done.
- *
- * The address need not be page-aligned; the returned address will
- * be the physical address corresponding to that virtual address.
- *
- * Returns: Corresponding physical page address or -1 if no page found.
- */
-hwaddr cpu_get_phys_addr_attrs_debug(CPUState *cpu, vaddr addr,
-                                     MemTxAttrs *attrs);
-
-/**
- * cpu_get_phys_addr_debug:
- * @cpu: The CPU to use for the virtual-to-physical translation
- * @addr: The virtual address.
- *
- * Obtains the physical address corresponding to a virtual one.
- * Use it only for debugging because no protection checks are done.
- *
- * The address need not be page-aligned; the returned address will
- * be the physical address corresponding to that virtual address.
- *
- * Returns: Corresponding physical address, or -1 if no page found.
- */
-hwaddr cpu_get_phys_addr_debug(CPUState *cpu, vaddr addr);
-
-/**
  * TranslateForDebugResult: gives result of cpu_translate_for_debug()
  *
  * @physaddr: the physical address corresponding to the virtual address
