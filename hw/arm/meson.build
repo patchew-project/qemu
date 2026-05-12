@@ -47,7 +47,6 @@ arm_ss.add(when: 'CONFIG_ASPEED_SOC', if_true: files(
   'aspeed_ast2400_quanta-q71l.c',
   'aspeed_ast2400_supermicrox11.c',
   'aspeed_ast2500_evb.c',
-  'aspeed_ast2500_fp5280g2.c',
   'aspeed_ast2500_g220a.c',
   'aspeed_ast2500_romulus.c',
   'aspeed_ast2500_supermicro-x11spi.c',
