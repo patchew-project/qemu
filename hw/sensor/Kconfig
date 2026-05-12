@@ -47,3 +47,7 @@ config MAX31785
 config MAX31790
     bool
     depends on PMBUS
+
+config MAX11615
+    bool
+    depends on I2C
