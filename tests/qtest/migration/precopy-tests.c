@@ -130,7 +130,7 @@ static bool mlock_check(void)
 static int new_rdma_link(char *buffer, bool ipv6)
 {
     char cmd[256];
-    bool verbose = g_getenv("QTEST_LOG");
+    bool verbose = qtest_verbose("test");
 
     snprintf(cmd, sizeof(cmd), "IP_FAMILY=%s %s detect %s",
              ipv6 ? "ipv6" : "ipv4", RDMA_MIGRATION_HELPER,

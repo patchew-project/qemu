@@ -105,7 +105,7 @@ static void usage(char *path)
            "Set the environment variable FUZZ_SERIALIZE_QTEST=1 to serialize\n"
            "QTest commands into an ASCII protocol. Useful for building crash\n"
            "reproducers, but slows down execution.\n\n"
-           "Set the environment variable QTEST_LOG=1 to log all qtest commands"
+           "Set the environment variable QTEST_LOG=fuzz to log all qtest commands"
            "\n");
     exit(0);
 }
@@ -168,6 +168,7 @@ int LLVMFuzzerInitialize(int *argc, char ***argv, char ***envp)
     GString *cmd_line;
     gchar *pretty_cmd_line;
     bool serialize = false;
+    bool verbose = qtest_verbose("fuzz");
 
     /* Initialize qgraph and modules */
     qos_graph_init();
@@ -211,14 +212,14 @@ int LLVMFuzzerInitialize(int *argc, char ***argv, char ***envp)
     /* Run QEMU's system main with the fuzz-target dependent arguments */
     cmd_line = fuzz_target->get_init_cmdline(fuzz_target);
     g_string_append_printf(cmd_line, " %s -qtest /dev/null ",
-                           getenv("QTEST_LOG") ? "" : "-qtest-log none");
+                           verbose ? "" : "-qtest-log none");
 
     /* Split the runcmd into an argv and argc */
     wordexp_t result;
     wordexp(cmd_line->str, &result, 0);
     g_string_free(cmd_line, true);
 
-    if (getenv("QTEST_LOG")) {
+    if (verbose) {
         pretty_cmd_line  = g_strjoinv(" ", result.we_wordv + 1);
         printf("Starting %s with Arguments: %s\n",
                 result.we_wordv[0], pretty_cmd_line);

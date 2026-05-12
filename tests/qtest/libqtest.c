@@ -469,7 +469,7 @@ gchar *qtest_qemu_args(const char *extra_args)
                       "-accel qtest",
 
                       socket_path,
-                      getenv("QTEST_LOG") ? DEV_STDERR : DEV_NULL,
+                      qtest_verbose("qtest") ? DEV_STDERR : DEV_NULL,
                       qmp_socket_path,
                       can_exit_with_parent() ?
                       "-run-with exit-with-parent=on" : "",
@@ -2141,4 +2141,58 @@ bool mkimg(const char *file, const char *fmt, unsigned size_mb)
     free(qemu_img_abs_path);
 
     return ret && !err;
+}
+
+bool qtest_verbose(const char *domain)
+{
+    const char *log = getenv("QTEST_LOG");
+    char *found;
+
+    assert(domain);
+
+    if (log) {
+        /*
+         * verbose=true for all domains if:
+         *  QTEST_LOG=
+         *  QTEST_LOG=1
+         *  other one-character variations
+         */
+        if (log[0] == '\0' || log[1] == '\0') {
+            return true;
+        }
+
+        /*
+         * verbose=true for specified domains if:
+         *  QTEST_LOG=<domain>
+         *  QTEST_LOG=<domain1>,<domain2>
+         *  allows other separators, except - and +
+         *
+         * verbose=false for specified domains if:
+         *  QTEST_LOG=-<domain>
+         *  QTEST_LOG=<domain1>,-<domain2> (only false for domain2)
+         *  allows other separators, except - and +
+         */
+        found = strstr(log, domain);
+
+        if (found) {
+            /* reject options given twice */
+            assert(!strstr(found + strlen(domain), domain));
+
+            if (found > log) {
+                ptrdiff_t i = found - log - 1;
+                if (log[i] == '-') {
+                    return false;
+                }
+            }
+            return true;
+        } else {
+            /*
+             * If filtering out a specific domain, all others are
+             * enabled.
+             */
+            return !!strstr(log, "-");
+        }
+    }
+
+    return false;
 }
