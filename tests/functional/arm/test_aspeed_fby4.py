@@ -7,6 +7,8 @@
 from qemu_test import Asset
 from aspeed import AspeedTest
 
+from qemu_test import wait_for_console_pattern, exec_command
+from qemu_test import exec_command_and_wait_for_pattern
 
 class YosemiteV4Machine(AspeedTest):
 
@@ -32,6 +34,22 @@ class YosemiteV4Machine(AspeedTest):
         # yosemite v4 does not emit the hostname log which is
         # different from the other machines.
         self.wait_for_console_pattern('yosemite4 login:')
+
+        # perform login
+        exec_command_and_wait_for_pattern(self,
+                                          "root", "Password:");
+
+        exec_command_and_wait_for_pattern(self, "0penBmc", "#");
+
+        # MAX31790 test
+        exec_command_and_wait_for_pattern(self,
+            "cat /sys/class/hwmon/hwmon2/name", "max31790");
+        exec_command_and_wait_for_pattern(self,
+            "cat /sys/class/hwmon/hwmon2/fan1_input", "4530");
+        exec_command_and_wait_for_pattern(self,
+            "cat /sys/class/hwmon/hwmon2/fan1_enable", "1");
+        exec_command_and_wait_for_pattern(self,
+            "cat /sys/class/hwmon/hwmon2/fan1_fault", "0");
 
     def test_arm_ast2600_yosemitev4_openbmc(self):
         image_path = self.uncompress(self.ASSET_YOSEMITE_V4_FLASH)
