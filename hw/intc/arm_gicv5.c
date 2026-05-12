@@ -1643,8 +1643,8 @@ static bool config_writel(GICv5 *s, GICv5Domain domain, hwaddr offset,
         if (spi) {
             spi_sample(spi);
             irs_recalc_hppi(s, spi->domain, spi->iaffid);
+            trace_gicv5_spi_state(id, spi->level, spi->pending, spi->active);
         }
-        trace_gicv5_spi_state(id, spi->level, spi->pending, spi->active);
         return true;
     }
     case A_IRS_CR0:
