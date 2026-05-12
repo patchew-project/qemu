@@ -321,7 +321,7 @@ void migration_object_init(void)
 
     current_incoming->exit_on_error = INMIGRATE_DEFAULT_EXIT_ON_ERROR;
 
-    migration_object_check(current_migration, &error_fatal);
+    migration_object_check(migrate_get_current(), &error_fatal);
 
     ram_mig_init();
     dirty_bitmap_mig_init();
@@ -385,7 +385,7 @@ void migration_shutdown(void)
      * stop the migration using this structure
      */
     migration_cancel();
-    object_unref(OBJECT(current_migration));
+    object_unref(OBJECT(migrate_get_current()));
 
     /*
      * Cancel outgoing migration of dirty bitmaps. It should
@@ -1029,7 +1029,7 @@ bool migration_is_running(void)
 
 static bool migration_is_active(void)
 {
-    MigrationState *s = current_migration;
+    MigrationState *s = migrate_get_current();
 
     return (s->state == MIGRATION_STATUS_ACTIVE ||
             s->state == MIGRATION_STATUS_POSTCOPY_DEVICE ||
@@ -1634,7 +1634,7 @@ bool migration_in_bg_snapshot(void)
 
 bool migration_thread_is_self(void)
 {
-    MigrationState *s = current_migration;
+    MigrationState *s = migrate_get_current();
 
     return qemu_thread_is_self(&s->thread);
 }
@@ -3062,7 +3062,7 @@ static MigThrError postcopy_pause(MigrationState *s)
 
 void migration_file_set_error(int ret, Error *err)
 {
-    MigrationState *s = current_migration;
+    MigrationState *s = migrate_get_current();
 
     WITH_QEMU_LOCK_GUARD(&s->qemu_file_lock) {
         if (s->to_dst_file) {
