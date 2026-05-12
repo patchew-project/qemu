@@ -317,6 +317,55 @@ int spapr_phb_vfio_eeh_configure(SpaprPhbState *sphb)
     return RTAS_OUT_SUCCESS;
 }
 
+int spapr_phb_vfio_errinjct(SpaprPhbState *sphb,
+                            uint32_t func, uint64_t addr,
+                            uint64_t mask, uint32_t type)
+{
+    VFIOLegacyContainer *container = vfio_eeh_as_container(&sphb->iommu_as);
+    struct vfio_eeh_pe_op op = {
+        .op = VFIO_EEH_PE_INJECT_ERR,
+        .argsz = sizeof(op),
+    };
+
+    /* Set error type, address, and mask */
+    op.err.type = type;
+    op.err.addr = addr;
+    op.err.mask = mask;
+
+    /* Validate and set function code */
+    switch (func) {
+    case EEH_ERR_FUNC_LD_MEM_ADDR:
+    case EEH_ERR_FUNC_LD_MEM_DATA:
+    case EEH_ERR_FUNC_LD_IO_ADDR:
+    case EEH_ERR_FUNC_LD_IO_DATA:
+    case EEH_ERR_FUNC_LD_CFG_ADDR:
+    case EEH_ERR_FUNC_LD_CFG_DATA:
+    case EEH_ERR_FUNC_ST_MEM_ADDR:
+    case EEH_ERR_FUNC_ST_MEM_DATA:
+    case EEH_ERR_FUNC_ST_IO_ADDR:
+    case EEH_ERR_FUNC_ST_IO_DATA:
+    case EEH_ERR_FUNC_ST_CFG_ADDR:
+    case EEH_ERR_FUNC_ST_CFG_DATA:
+    case EEH_ERR_FUNC_DMA_RD_ADDR:
+    case EEH_ERR_FUNC_DMA_RD_DATA:
+    case EEH_ERR_FUNC_DMA_RD_MASTER:
+    case EEH_ERR_FUNC_DMA_RD_TARGET:
+    case EEH_ERR_FUNC_DMA_WR_ADDR:
+    case EEH_ERR_FUNC_DMA_WR_DATA:
+    case EEH_ERR_FUNC_DMA_WR_MASTER:
+        op.err.func = func;
+        break;
+    default:
+        return RTAS_OUT_PARAM_ERROR;
+    }
+
+    /* Perform the ioctl to inject the error */
+    if (ioctl(container->fd, VFIO_EEH_PE_OP, &op) < 0) {
+        return RTAS_OUT_HW_ERROR;
+    }
+
+    return RTAS_OUT_SUCCESS;
+}
 #else
 
 bool spapr_phb_eeh_available(SpaprPhbState *sphb)
@@ -349,4 +398,8 @@ int spapr_phb_vfio_eeh_configure(SpaprPhbState *sphb)
     return RTAS_OUT_NOT_SUPPORTED;
 }
 
+int spapr_phb_vfio_errinjct(SpaprPhbState *sphb, int option)
+{
+    return RTAS_OUT_NOT_SUPPORTED;
+}
 #endif /* CONFIG_VFIO_PCI */
