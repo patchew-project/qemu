@@ -205,6 +205,7 @@ struct SDState {
     QEMUTimer *ocr_power_timer;
     uint8_t dat_lines;
     bool cmd_line;
+    char *preset_auth_key;
 };
 
 static void sd_realize(DeviceState *dev, Error **errp);
@@ -3132,6 +3133,27 @@ static void sd_realize(DeviceState *dev, Error **errp)
                           "The RPMB partition size must be multiples of 128K"
                           "and not larger than 16384K.\n");
     }
+    if (sd_is_emmc(sd) && sd->preset_auth_key) {
+        if (strlen(sd->preset_auth_key) != 64) {
+            error_setg(errp,
+                       "Authentication key must be 32 bytes long, "
+                       "encoded hexadecimally");
+            return;
+        }
+
+        char *pos = sd->preset_auth_key;
+        unsigned int n;
+        for (n = 0; n < RPMB_KEY_MAC_LEN; n++, pos += 2) {
+            int chrs;
+            if (sscanf(pos, "%02hhx%n", &sd->rpmb.key[n], &chrs) != 1 ||
+                chrs != 2) {
+                error_setg(errp,
+                           "Authentication key contains invalid characters");
+                return;
+            }
+        }
+        sd->rpmb.key_set = 1;
+    }
 }
 
 static void emmc_realize(DeviceState *dev, Error **errp)
@@ -3156,6 +3178,7 @@ static const Property emmc_properties[] = {
     DEFINE_PROP_UINT64("boot-partition-size", SDState, boot_part_size, 0),
     DEFINE_PROP_UINT8("boot-config", SDState, boot_config, 0x0),
     DEFINE_PROP_UINT64("rpmb-partition-size", SDState, rpmb_part_size, 0),
+    DEFINE_PROP_STRING("auth-key", SDState, preset_auth_key),
 };
 
 static void sdmmc_common_class_init(ObjectClass *klass, const void *data)
