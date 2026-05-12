@@ -131,21 +131,11 @@ bool spapr_phb_eeh_available(SpaprPhbState *sphb)
     return vfio_eeh_as_ok(&sphb->iommu_as);
 }
 
-static void spapr_phb_vfio_eeh_reenable(SpaprPhbState *sphb)
+void spapr_phb_vfio_eeh_reenable(SpaprPhbState *sphb)
 {
     vfio_eeh_as_op(&sphb->iommu_as, VFIO_EEH_PE_ENABLE);
 }
 
-void spapr_phb_vfio_reset(DeviceState *qdev)
-{
-    /*
-     * The PE might be in frozen state. To reenable the EEH
-     * functionality on it will clean the frozen state, which
-     * ensures that the contained PCI devices will work properly
-     * after reboot.
-     */
-    spapr_phb_vfio_eeh_reenable(SPAPR_PCI_HOST_BRIDGE(qdev));
-}
 
 static void spapr_eeh_pci_find_device(PCIBus *bus, PCIDevice *pdev,
                                       void *opaque)

@@ -2215,6 +2215,20 @@ void spapr_phb_dma_reset(SpaprPhbState *sphb)
     tcet->def_win = true;
 }
 
+void spapr_phb_vfio_reset(DeviceState *qdev)
+{
+    /*
+     * The PE might be in frozen state. To reenable the EEH
+     * functionality on it will clean the frozen state, which
+     * ensures that the contained PCI devices will work properly
+     * after reboot.
+     */
+    spapr_phb_vfio_eeh_reenable(SPAPR_PCI_HOST_BRIDGE(qdev));
+}
+
+
+
+
 static void spapr_phb_reset(DeviceState *qdev)
 {
     SpaprPhbState *sphb = SPAPR_PCI_HOST_BRIDGE(qdev);
