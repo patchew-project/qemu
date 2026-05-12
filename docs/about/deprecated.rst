@@ -250,15 +250,6 @@ deprecated; use the new name ``dtb-randomness`` instead. The new name
 better reflects the way this property affects all random data within
 the device tree blob, not just the ``kaslr-seed`` node.
 
-Arm ``sonorapass-bmc`` machine (since 10.2)
-'''''''''''''''''''''''''''''''''''''''''''
-
-The ``sonorapass-bmc`` machine represents a lab server that never
-entered production. Since it does not rely on any specific device
-models, it can be replaced by the ``ast2500-evb`` machine using the
-``fmc-model`` option to specify the flash type. The I2C devices
-connected to the board can be defined via the QEMU command line.
-
 Arm ``qcom-dc-scm-v1-bmc`` and ``qcom-firework-bmc`` machine (since 10.2)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
