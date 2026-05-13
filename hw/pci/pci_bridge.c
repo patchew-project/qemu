@@ -33,6 +33,7 @@
 #include "qemu/units.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
+#include "hw/pci/pcie.h"
 #include "qemu/module.h"
 #include "qemu/range.h"
 #include "qapi/error.h"
@@ -274,8 +275,21 @@ void pci_bridge_write_config(PCIDevice *d,
 
     newctl = pci_get_word(d->config + PCI_BRIDGE_CONTROL);
     if (~oldctl & newctl & PCI_BRIDGE_CTL_BUS_RESET) {
-        /* Trigger hot reset on 0->1 transition. */
+        /*
+         * SBR asserted: drop the data link on PCIe.  Real hardware
+         * brings the link down for as long as Secondary Bus Reset is
+         * held, which clears DLLLA in the port's LNKSTA.
+         */
         bus_cold_reset(BUS(&s->sec_bus));
+        pcie_cap_set_dllla(d, false);
+    } else if (oldctl & ~newctl & PCI_BRIDGE_CTL_BUS_RESET) {
+        /*
+         * SBR de-asserted: the link retrains and DLLLA goes back to 1.
+         * Software polling LNKSTA (e.g. Linux's
+         * pci_bridge_wait_for_secondary_bus) relies on this transition
+         * to declare the reset complete.
+         */
+        pcie_cap_set_dllla(d, true);
     }
 }
 

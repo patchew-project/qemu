@@ -105,6 +105,7 @@ void pcie_cap_deverr_reset(PCIDevice *dev);
 
 void pcie_cap_lnkctl_init(PCIDevice *dev);
 void pcie_cap_lnkctl_reset(PCIDevice *dev);
+void pcie_cap_set_dllla(PCIDevice *dev, bool active);
 
 void pcie_cap_slot_init(PCIDevice *dev, PCIESlot *s);
 void pcie_cap_slot_reset(PCIDevice *dev);

@@ -396,6 +396,37 @@ void pcie_cap_lnkctl_reset(PCIDevice *dev)
                                  PCI_EXP_LNKCTL_CCC | PCI_EXP_LNKCTL_ES);
 }
 
+/*
+ * Toggle the Data Link Layer Link Active bit in LNKSTA.  Used to model
+ * the link-state transitions a real PCIe port exhibits around events
+ * such as Secondary Bus Reset.  No-op on devices that do not advertise
+ * DLLLA reporting.
+ */
+void pcie_cap_set_dllla(PCIDevice *dev, bool active)
+{
+    uint8_t *exp_cap;
+    uint32_t lnkcap;
+
+    if (!pci_is_express(dev) || !dev->exp.exp_cap) {
+        return;
+    }
+    exp_cap = dev->config + dev->exp.exp_cap;
+    lnkcap = pci_get_long(exp_cap + PCI_EXP_LNKCAP);
+
+    if (!(dev->cap_present & QEMU_PCIE_LNKSTA_DLLLA) &&
+        !(lnkcap & PCI_EXP_LNKCAP_DLLLARC)) {
+        return;
+    }
+
+    if (active) {
+        pci_word_test_and_set_mask(exp_cap + PCI_EXP_LNKSTA,
+                                   PCI_EXP_LNKSTA_DLLLA);
+    } else {
+        pci_word_test_and_clear_mask(exp_cap + PCI_EXP_LNKSTA,
+                                     PCI_EXP_LNKSTA_DLLLA);
+    }
+}
+
 static void hotplug_event_update_event_status(PCIDevice *dev)
 {
     uint32_t pos = dev->exp.exp_cap;
