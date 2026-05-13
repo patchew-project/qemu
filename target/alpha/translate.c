@@ -46,9 +46,7 @@ typedef struct DisasContext DisasContext;
 struct DisasContext {
     DisasContextBase base;
 
-#ifdef CONFIG_USER_ONLY
-    MemOp unalign;
-#endif
+    MemOp mo_align;
     uint32_t tbflags;
     int mem_idx;
 
@@ -73,9 +71,9 @@ struct DisasContext {
 };
 
 #ifdef CONFIG_USER_ONLY
-#define UNALIGN(C)  (C)->unalign
+#define UNALIGN(C)  (C)->mo_align
 #else
-#define UNALIGN(C)  MO_ALIGN
+#define UNALIGN(C)  (C)->mo_align
 #endif
 
 /* Target-specific return values from translate_one, indicating the
@@ -2867,9 +2865,10 @@ static void alpha_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
 
 #ifdef CONFIG_USER_ONLY
     ctx->ir = cpu_std_ir;
-    ctx->unalign = (ctx->tbflags & TB_FLAG_UNALIGN ? MO_UNALN : MO_ALIGN);
+    ctx->mo_align = (ctx->tbflags & TB_FLAG_UNALIGN) ? MO_UNALN : MO_ALIGN;
 #else
     ctx->ir = (ctx->tbflags & ENV_FLAG_PAL_MODE ? cpu_pal_ir : cpu_std_ir);
+    ctx->mo_align = MO_ALIGN;
 #endif
 
     /* ??? Every TB begins with unset rounding mode, to be initialized on
