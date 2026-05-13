@@ -18,6 +18,7 @@ arm_common_ss.add(files(
 ))
 
 arm_common_system_ss.add(files(
+  'arm-cpu-props.c',
   'arm-qmp-cmds.c',
   'cpu-idregs.c',
 ))
