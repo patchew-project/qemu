@@ -256,6 +256,13 @@ Existing enlightenments
 
   Recommended: ``hv-evmcs`` (Intel)
 
+``hv-ext-query-caps``
+  Certain "extended hypercalls" are not signaled to the guest directly via
+  CPUID bits, but use a separate hypercall that returns a bitfield to signal
+  support for them. This enables this hypercall. On its own, it does not
+  provide any useful new functionality, but it's it's required to be enabled
+  to use any extended hypercalls.
+
 Supplementary features
 ----------------------
 
