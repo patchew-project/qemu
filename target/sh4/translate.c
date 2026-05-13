@@ -39,6 +39,7 @@ typedef struct DisasContext {
     uint32_t tbflags;  /* should stay unmodified during the TB translation */
     uint32_t envflags; /* should stay in sync with env->flags using TCG ops */
     int memidx;
+    MemOp mo_align;
     int gbank;
     int fbank;
     uint32_t delayed_pc;
@@ -51,10 +52,10 @@ typedef struct DisasContext {
 
 #if defined(CONFIG_USER_ONLY)
 #define IS_USER(ctx) 1
-#define UNALIGN(C)   (ctx->tbflags & TB_FLAG_UNALIGN ? MO_UNALN : MO_ALIGN)
+#define UNALIGN(C)   ctx->mo_align
 #else
 #define IS_USER(ctx) (!(ctx->tbflags & (1u << SR_MD)))
-#define UNALIGN(C)   MO_UNALN
+#define UNALIGN(C)   ctx->mo_align
 #endif
 
 /* Target-specific values for ctx->base.is_jmp.  */
@@ -2225,6 +2226,9 @@ static void sh4_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
             return;
         }
     }
+    ctx->mo_align = (ctx->tbflags & TB_FLAG_UNALIGN) ? MO_UNALN : MO_ALIGN;
+#else /* !CONFIG_USER_ONLY */
+    ctx->mo_align = MO_UNALN;
 #endif
 
     /* Since the ISA is fixed-width, we can bound by the number
