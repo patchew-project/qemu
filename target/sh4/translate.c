@@ -52,10 +52,8 @@ typedef struct DisasContext {
 
 #if defined(CONFIG_USER_ONLY)
 #define IS_USER(ctx) 1
-#define UNALIGN(C)   ctx->mo_align
 #else
 #define IS_USER(ctx) (!(ctx->tbflags & (1u << SR_MD)))
-#define UNALIGN(C)   ctx->mo_align
 #endif
 
 /* Target-specific values for ctx->base.is_jmp.  */
@@ -496,7 +494,7 @@ static void _decode_opc(DisasContext * ctx)
             TCGv addr = tcg_temp_new();
             tcg_gen_addi_i32(addr, REG(B11_8), B3_0 * 4);
             tcg_gen_qemu_st_i32(REG(B7_4), addr, ctx->memidx,
-                                MO_TEUL | UNALIGN(ctx));
+                                MO_TEUL | ctx->mo_align);
         }
         return;
     case 0x5000: /* mov.l @(disp,Rm),Rn */
@@ -504,7 +502,7 @@ static void _decode_opc(DisasContext * ctx)
             TCGv addr = tcg_temp_new();
             tcg_gen_addi_i32(addr, REG(B7_4), B3_0 * 4);
             tcg_gen_qemu_ld_i32(REG(B11_8), addr, ctx->memidx,
-                                MO_TESL | UNALIGN(ctx));
+                                MO_TESL | ctx->mo_align);
         }
         return;
     case 0xe000: /* mov #imm,Rn */
@@ -564,22 +562,22 @@ static void _decode_opc(DisasContext * ctx)
         return;
     case 0x2001: /* mov.w Rm,@Rn */
         tcg_gen_qemu_st_i32(REG(B7_4), REG(B11_8), ctx->memidx,
-                            MO_TEUW | UNALIGN(ctx));
+                            MO_TEUW | ctx->mo_align);
         return;
     case 0x2002: /* mov.l Rm,@Rn */
         tcg_gen_qemu_st_i32(REG(B7_4), REG(B11_8), ctx->memidx,
-                            MO_TEUL | UNALIGN(ctx));
+                            MO_TEUL | ctx->mo_align);
         return;
     case 0x6000: /* mov.b @Rm,Rn */
         tcg_gen_qemu_ld_i32(REG(B11_8), REG(B7_4), ctx->memidx, MO_SB);
         return;
     case 0x6001: /* mov.w @Rm,Rn */
         tcg_gen_qemu_ld_i32(REG(B11_8), REG(B7_4), ctx->memidx,
-                            MO_TESW | UNALIGN(ctx));
+                            MO_TESW | ctx->mo_align);
         return;
     case 0x6002: /* mov.l @Rm,Rn */
         tcg_gen_qemu_ld_i32(REG(B11_8), REG(B7_4), ctx->memidx,
-                            MO_TESL | UNALIGN(ctx));
+                            MO_TESL | ctx->mo_align);
         return;
     case 0x2004: /* mov.b Rm,@-Rn */
         {
@@ -595,7 +593,7 @@ static void _decode_opc(DisasContext * ctx)
             TCGv addr = tcg_temp_new();
             tcg_gen_subi_i32(addr, REG(B11_8), 2);
             tcg_gen_qemu_st_i32(REG(B7_4), addr, ctx->memidx,
-                                MO_TEUW | UNALIGN(ctx));
+                                MO_TEUW | ctx->mo_align);
             tcg_gen_mov_i32(REG(B11_8), addr);
         }
         return;
@@ -604,7 +602,7 @@ static void _decode_opc(DisasContext * ctx)
             TCGv addr = tcg_temp_new();
             tcg_gen_subi_i32(addr, REG(B11_8), 4);
             tcg_gen_qemu_st_i32(REG(B7_4), addr, ctx->memidx,
-                                MO_TEUL | UNALIGN(ctx));
+                                MO_TEUL | ctx->mo_align);
             tcg_gen_mov_i32(REG(B11_8), addr);
         }
         return;
@@ -615,13 +613,13 @@ static void _decode_opc(DisasContext * ctx)
         return;
     case 0x6005: /* mov.w @Rm+,Rn */
         tcg_gen_qemu_ld_i32(REG(B11_8), REG(B7_4), ctx->memidx,
-                            MO_TESW | UNALIGN(ctx));
+                            MO_TESW | ctx->mo_align);
         if ( B11_8 != B7_4 )
                 tcg_gen_addi_i32(REG(B7_4), REG(B7_4), 2);
         return;
     case 0x6006: /* mov.l @Rm+,Rn */
         tcg_gen_qemu_ld_i32(REG(B11_8), REG(B7_4), ctx->memidx,
-                            MO_TESL | UNALIGN(ctx));
+                            MO_TESL | ctx->mo_align);
         if ( B11_8 != B7_4 )
                 tcg_gen_addi_i32(REG(B7_4), REG(B7_4), 4);
         return;
@@ -637,7 +635,7 @@ static void _decode_opc(DisasContext * ctx)
             TCGv addr = tcg_temp_new();
             tcg_gen_add_i32(addr, REG(B11_8), REG(0));
             tcg_gen_qemu_st_i32(REG(B7_4), addr, ctx->memidx,
-                                MO_TEUW | UNALIGN(ctx));
+                                MO_TEUW | ctx->mo_align);
         }
         return;
     case 0x0006: /* mov.l Rm,@(R0,Rn) */
@@ -645,7 +643,7 @@ static void _decode_opc(DisasContext * ctx)
             TCGv addr = tcg_temp_new();
             tcg_gen_add_i32(addr, REG(B11_8), REG(0));
             tcg_gen_qemu_st_i32(REG(B7_4), addr, ctx->memidx,
-                                MO_TEUL | UNALIGN(ctx));
+                                MO_TEUL | ctx->mo_align);
         }
         return;
     case 0x000c: /* mov.b @(R0,Rm),Rn */
@@ -660,7 +658,7 @@ static void _decode_opc(DisasContext * ctx)
             TCGv addr = tcg_temp_new();
             tcg_gen_add_i32(addr, REG(B7_4), REG(0));
             tcg_gen_qemu_ld_i32(REG(B11_8), addr, ctx->memidx,
-                                MO_TESW | UNALIGN(ctx));
+                                MO_TESW | ctx->mo_align);
         }
         return;
     case 0x000e: /* mov.l @(R0,Rm),Rn */
@@ -668,7 +666,7 @@ static void _decode_opc(DisasContext * ctx)
             TCGv addr = tcg_temp_new();
             tcg_gen_add_i32(addr, REG(B7_4), REG(0));
             tcg_gen_qemu_ld_i32(REG(B11_8), addr, ctx->memidx,
-                                MO_TESL | UNALIGN(ctx));
+                                MO_TESL | ctx->mo_align);
         }
         return;
     case 0x6008: /* swap.b Rm,Rn */
@@ -1222,7 +1220,7 @@ static void _decode_opc(DisasContext * ctx)
             TCGv addr = tcg_temp_new();
             tcg_gen_addi_i32(addr, REG(B7_4), B3_0 * 2);
             tcg_gen_qemu_st_i32(REG(0), addr, ctx->memidx,
-                                MO_TEUW | UNALIGN(ctx));
+                                MO_TEUW | ctx->mo_align);
         }
         return;
     case 0x8400: /* mov.b @(disp,Rn),R0 */
@@ -1237,7 +1235,7 @@ static void _decode_opc(DisasContext * ctx)
             TCGv addr = tcg_temp_new();
             tcg_gen_addi_i32(addr, REG(B7_4), B3_0 * 2);
             tcg_gen_qemu_ld_i32(REG(0), addr, ctx->memidx,
-                                MO_TESW | UNALIGN(ctx));
+                                MO_TESW | ctx->mo_align);
         }
         return;
     case 0xc700: /* mova @(disp,PC),R0 */
