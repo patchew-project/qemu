@@ -53,4 +53,12 @@ bool physical_memory_snapshot_get_dirty(DirtyBitmapSnapshot *snap,
                                         ram_addr_t length);
 int ram_block_rebind(Error **errp);
 
+void physical_memory_init_mapped_tracker(unsigned long num_pages,
+                                         unsigned int order);
+
+void physical_memory_set_mapped_range(ram_addr_t addr, ram_addr_t length);
+
+const unsigned long *physical_memory_get_mapped_ranges(unsigned long *len,
+                                                       unsigned int *order);
+
 #endif

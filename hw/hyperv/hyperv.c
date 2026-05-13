@@ -13,6 +13,8 @@
 #include "qapi/error.h"
 #include "system/address-spaces.h"
 #include "system/memory.h"
+#include "system/physmem.h"
+#include "system/runstate.h"
 #include "exec/target_page.h"
 #include "exec/cpu-common.h"
 #include "linux/kvm.h"
@@ -23,9 +25,12 @@
 #include "qemu/queue.h"
 #include "qemu/rcu.h"
 #include "qemu/rcu_queue.h"
+#include "hw/core/boards.h"
 #include "hw/hyperv/hyperv.h"
 #include "qom/object.h"
 #include "target/i386/kvm/hyperv-proto.h"
+
+#define HV_BOOT_ZEROED_PAGE_SHIFT 9
 
 struct SynICState {
     DeviceState parent_obj;
@@ -731,6 +736,98 @@ cleanup:
     return ret;
 }
 
+struct boot_zero_opaque {
+    struct hyperv_get_boot_zeroed_memory_output *zr;
+    const unsigned long *zero_blocks;
+    unsigned long num;
+    unsigned int order;
+    unsigned int count;
+};
+
+static bool bootzero_mem_cb(Int128 istart, Int128 ilen, const MemoryRegion *mr,
+                            hwaddr offset_in_region, void *opaque)
+{
+    struct boot_zero_opaque *p = opaque;
+    ram_addr_t r_start, r_pfn_start, r_pfn_end;
+    hwaddr ram_gpa_pfn_offset;
+    unsigned long b_start, b_end;
+    unsigned long begin, end, idx;
+    uint64_t pfn_start, pfn_end;
+
+    if (!memory_region_is_ram(mr)
+        || memory_region_is_rom(mr)
+        || memory_region_is_ram_device(mr)
+        || (int128_get64(ilen) == 0)) {
+        return false;
+    }
+
+    r_start = memory_region_get_ram_addr(mr) + offset_in_region;
+    r_pfn_start = r_start >> TARGET_PAGE_BITS;
+    r_pfn_end = (r_start + int128_get64(ilen) - 1) >> TARGET_PAGE_BITS;
+    ram_gpa_pfn_offset = (int128_get64(istart) - r_start) >> TARGET_PAGE_BITS;
+    b_start = r_pfn_start >> p->order;
+    b_end = MIN((r_pfn_end >> p->order) + 1, p->num);
+
+    idx = b_start;
+    while (idx < b_end && p->count < ARRAY_SIZE(p->zr->ranges)) {
+        begin = find_next_zero_bit(p->zero_blocks, b_end, idx);
+        if (begin == b_end) {
+            break;
+        }
+        end = find_next_bit(p->zero_blocks, b_end, begin);
+
+        pfn_start = MAX(begin << p->order, r_pfn_start);
+        pfn_end = MIN((end << p->order) - 1, r_pfn_end);
+
+        p->zr->ranges[p->count].start_pfn = pfn_start + ram_gpa_pfn_offset;
+        p->zr->ranges[p->count].page_count = pfn_end - pfn_start + 1;
+        p->count++;
+        idx = end;
+    }
+
+    return p->count == ARRAY_SIZE(p->zr->ranges);
+}
+
+uint16_t hyperv_ext_hcall_get_boot_zeroed_memory(uint64_t outgpa, bool fast)
+{
+    uint16_t ret;
+    hwaddr len;
+    struct boot_zero_opaque priv = { 0 };
+    hwaddr write_len = 0;
+
+    if (fast) {
+        ret = HV_STATUS_INVALID_HYPERCALL_CODE;
+        goto cleanup;
+    }
+
+    len = sizeof(*priv.zr);
+    priv.zr = cpu_physical_memory_map(outgpa, &len, 1);
+    if (!priv.zr || len < sizeof(*priv.zr)) {
+        ret = HV_STATUS_INSUFFICIENT_MEMORY;
+        goto cleanup;
+    }
+
+    priv.zero_blocks = physical_memory_get_mapped_ranges(&priv.num, &priv.order);
+    priv.num *= BITS_PER_LONG;
+
+    priv.zr->range_count = 0;
+    if (priv.zero_blocks) {
+        RCU_READ_LOCK_GUARD();
+        flatview_for_each_range(address_space_to_flatview(&address_space_memory),
+                                bootzero_mem_cb, &priv);
+        priv.zr->range_count = priv.count;
+    }
+    write_len = sizeof(priv.zr->range_count)
+                + priv.count * sizeof(priv.zr->ranges[0]);
+    ret = HV_STATUS_SUCCESS;
+
+cleanup:
+    if (priv.zr) {
+        cpu_physical_memory_unmap(priv.zr, len, 1, write_len);
+    }
+    return ret;
+}
+
 uint16_t hyperv_hcall_signal_event(uint64_t param, bool fast)
 {
     EventFlagHandler *handler;
@@ -1012,6 +1109,30 @@ uint64_t hyperv_syndbg_query_options(void)
     }
 
     return msg.u.query_options.options;
+}
+
+void hyperv_boot_zeroed_setup(void)
+{
+    static bool initialized;
+
+    if (initialized) {
+        return;
+    }
+
+    initialized = true;
+
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        /*
+         * We do not track zeroed memory across migrations.
+         * The hypercall is only issues early during boot, so we don't lose
+         * much by not dealing with the complication of moving the zeroed
+         * state of guest memory to the migrated instance.
+         */
+        return;
+    }
+
+    physical_memory_init_mapped_tracker(current_machine->ram_size >> TARGET_PAGE_BITS,
+                                        HV_BOOT_ZEROED_PAGE_SHIFT);
 }
 
 static bool vmbus_recommended_features_enabled;

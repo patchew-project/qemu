@@ -102,10 +102,17 @@ uint16_t hyperv_hcall_post_dbg_data(uint64_t ingpa, uint64_t outgpa, bool fast);
  */
 uint16_t hyperv_ext_hcall_query_caps(uint64_t sup, uint64_t outgpa, bool fast);
 
+/*
+ * Process HVCALL_EXT_GET_BOOT_ZEROED_MEMORY hypercall.
+ */
+uint16_t hyperv_ext_hcall_get_boot_zeroed_memory(uint64_t outgpa, bool fast);
+
 uint32_t hyperv_syndbg_send(uint64_t ingpa, uint32_t count);
 uint32_t hyperv_syndbg_recv(uint64_t ingpa, uint32_t count);
 void hyperv_syndbg_set_pending_page(uint64_t ingpa);
 uint64_t hyperv_syndbg_query_options(void);
+
+void hyperv_boot_zeroed_setup(void);
 
 typedef enum HvSynthDbgMsgType {
     HV_SYNDBG_MSG_CONNECTION_INFO,

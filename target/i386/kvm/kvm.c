@@ -1143,6 +1143,14 @@ static struct {
              .bits = HV_ENABLE_EXT_HYPERCALLS}
         }
     },
+    [HYPERV_FEAT_BOOT_ZEROED_MEMORY] = {
+        .desc = "enlighten guest about pre-zeroed memory (hv-boot-zeroed-mem)",
+        .flags = {
+            {.func = HV_EXT_CALL_QUERY_CAPABILITIES, .reg = 0,
+             .bits = HV_EXT_CAP_GET_BOOT_ZEROED_MEMORY}
+        },
+        .dependencies = BIT(HYPERV_FEAT_EXT_CALLS)
+    },
 };
 
 static struct kvm_cpuid2 *try_get_hv_cpuid(CPUState *cs, int max,
@@ -1376,6 +1384,11 @@ static bool hyperv_feature_supported(CPUState *cs, int feature)
 
         if (!func) {
             continue;
+        }
+
+        if (func == HV_EXT_CALL_QUERY_CAPABILITIES) {
+            /* These do not correspond to host CPUID feature bits. */
+            return true;
         }
 
         if ((hv_cpuid_get_host(cs, func, reg) & bits) != bits) {
@@ -1817,6 +1830,10 @@ static int hyperv_init_vcpu(X86CPU *cpu)
         hyperv_feat_enabled(cpu, HYPERV_FEAT_VAPIC) &&
         hyperv_feat_enabled(cpu, HYPERV_FEAT_RUNTIME)) {
         hyperv_x86_set_vmbus_recommended_features_enabled();
+    }
+
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_BOOT_ZEROED_MEMORY)) {
+        hyperv_boot_zeroed_setup();
     }
 
     return 0;

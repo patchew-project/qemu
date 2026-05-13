@@ -180,6 +180,56 @@ struct DirtyBitmapSnapshot {
     unsigned long dirty[];
 };
 
+/**
+ * TODO: Or as part of RAMBlock, but we don't intend to extend once set up at
+ * init time.
+ * @mapped_blocks: pointer to the the bitmap itself, maybe NULL if no tracking.
+ * @mapped_blocks_num: the length of the bitmap, in sizeof(*mapped_blocks)
+ * @mapped_blocks_order: the order, in pages, i.e., 0 = 1 bit per page.
+ */
+static unsigned long *mapped_blocks;
+static unsigned long mapped_blocks_num;
+static unsigned int mapped_blocks_order;
+
+void physical_memory_init_mapped_tracker(unsigned long num_pages,
+                                         unsigned int order)
+{
+    mapped_blocks_order = order;
+    mapped_blocks_num = DIV_ROUND_UP(DIV_ROUND_UP(num_pages, 1ULL << order),
+                                                  BITS_PER_LONG);
+    mapped_blocks = g_malloc0(sizeof(*mapped_blocks) * mapped_blocks_num);
+}
+
+void physical_memory_set_mapped_range(ram_addr_t addr, ram_addr_t length)
+{
+    unsigned long first_bit, last_bit;
+    unsigned long max_bits = mapped_blocks_num * BITS_PER_LONG;
+
+    if (mapped_blocks == NULL || length == 0) {
+        return;
+    }
+
+    /*
+     * Since we don't track hotplugged memory, we may get requests to
+     * (partially or fully) set a region we don't track.
+     */
+    first_bit = addr >> (TARGET_PAGE_BITS + mapped_blocks_order);
+    if (first_bit >= max_bits) {
+        return;
+    }
+    last_bit = MIN((addr + length - 1) >> (TARGET_PAGE_BITS + mapped_blocks_order),
+                   max_bits - 1);
+    bitmap_set_atomic(mapped_blocks, first_bit, last_bit - first_bit + 1);
+}
+
+const unsigned long *physical_memory_get_mapped_ranges(unsigned long *len,
+                                                        unsigned int *order)
+{
+    *len = mapped_blocks_num;
+    *order = mapped_blocks_order;
+    return mapped_blocks;
+}
+
 static void phys_map_node_reserve(PhysPageMap *map, unsigned nodes)
 {
     static unsigned alloc_hint = 16;
@@ -3130,6 +3180,8 @@ static void invalidate_and_set_dirty(MemoryRegion *mr, hwaddr addr,
     /* We know we're only called for RAM MemoryRegions */
     assert(ramaddr != RAM_ADDR_INVALID);
     addr += ramaddr;
+
+    physical_memory_set_mapped_range(addr, length);
 
     /* No early return if dirty_log_mask is or becomes 0, because
      * physical_memory_set_dirty_range will still call

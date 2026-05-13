@@ -123,6 +123,14 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
                 hyperv_ext_hcall_query_caps(hv_build_ext_call_caps(CPU(cpu)),
                                             out_param, fast);
             break;
+        case HV_EXT_CALL_GET_BOOT_ZEROED_MEMORY:
+            if (!hyperv_feat_enabled(cpu, HYPERV_FEAT_BOOT_ZEROED_MEMORY)) {
+                exit->u.hcall.result = HV_STATUS_INVALID_HYPERCALL_CODE;
+            } else {
+                exit->u.hcall.result =
+                    hyperv_ext_hcall_get_boot_zeroed_memory(out_param, fast);
+            }
+            break;
         default:
             exit->u.hcall.result = HV_STATUS_INVALID_HYPERCALL_CODE;
         }

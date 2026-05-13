@@ -2188,9 +2188,12 @@ void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
 void memory_region_set_dirty(MemoryRegion *mr, hwaddr addr,
                              hwaddr size)
 {
+    ram_addr_t ramaddr;
+
     assert(mr->ram_block);
-    physical_memory_set_dirty_range(memory_region_get_ram_addr(mr) + addr,
-                                        size,
+    ramaddr = memory_region_get_ram_addr(mr);
+    physical_memory_set_mapped_range(ramaddr + addr, size);
+    physical_memory_set_dirty_range(ramaddr + addr, size,
                                         memory_region_get_dirty_log_mask(mr));
 }
 
