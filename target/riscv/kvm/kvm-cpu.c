@@ -1373,7 +1373,7 @@ int kvm_riscv_sync_mpstate_to_kvm(RISCVCPU *cpu, int state)
 
 int kvm_arch_put_registers(CPUState *cs, KvmPutState level, Error **errp)
 {
-    int ret = 0;
+    int ret;
 
     ret = kvm_riscv_put_regs_core(cs);
     if (ret) {
@@ -1383,6 +1383,17 @@ int kvm_arch_put_registers(CPUState *cs, KvmPutState level, Error **errp)
     ret = kvm_riscv_put_regs_csr(cs);
     if (ret) {
         return ret;
+    }
+
+    /*
+     * For RUNTIME_STATE, KVM already has the correct FP and Vector state
+     * from the preceding KVM_RUN exit. QEMU never modifies these registers
+     * during exit handling, so re-syncing is unnecessary.  This saves ~68
+     * KVM_SET_ONE_REG ioctls per vCPU exit.  See also s390x which uses
+     * the same pattern.
+     */
+    if (level == KVM_PUT_RUNTIME_STATE) {
+        return 0;
     }
 
     ret = kvm_riscv_put_regs_fp(cs);
@@ -1395,19 +1406,17 @@ int kvm_arch_put_registers(CPUState *cs, KvmPutState level, Error **errp)
         return ret;
     }
 
-    if (KVM_PUT_RESET_STATE == level) {
+    if (level == KVM_PUT_RESET_STATE) {
         RISCVCPU *cpu = RISCV_CPU(cs);
-        if (cs->cpu_index == 0) {
-            ret = kvm_riscv_sync_mpstate_to_kvm(cpu, KVM_MP_STATE_RUNNABLE);
-        } else {
-            ret = kvm_riscv_sync_mpstate_to_kvm(cpu, KVM_MP_STATE_STOPPED);
-        }
+        int state = cs->cpu_index == 0 ? KVM_MP_STATE_RUNNABLE
+                                       : KVM_MP_STATE_STOPPED;
+        ret = kvm_riscv_sync_mpstate_to_kvm(cpu, state);
         if (ret) {
             return ret;
         }
     }
 
-    return ret;
+    return 0;
 }
 
 int kvm_arch_release_virq_post(int virq)
