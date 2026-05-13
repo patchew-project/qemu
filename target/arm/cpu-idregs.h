@@ -119,4 +119,13 @@ extern const ArmIdRegFieldLoc arm_field_locs[ARM_FIELD__MAX];
 #define ARM_FIELD_IDX(reg, field) ARM_FIELD_##reg##_##field
 
 extern ArmIdReg arm_idregs[NUM_ID_IDX];
+
+void arm_idreg_field_read(ARMCPU *cpu, ArmFieldIdx field, uint64_t *value);
+bool arm_idreg_field_write(ARMCPU *cpu, ArmFieldIdx field,
+                           uint64_t value, Error **errp);
+const char *arm_arch_val_name(ArmFieldIdx field, uint64_t val);
+bool arm_arch_val_from_name(ArmFieldIdx field, const char *name,
+                            uint64_t *val);
+bool arm_field_is_idreg_any(ArmFieldIdx field);
+void arm_idregs_reset_to_defaults(ARMCPU *cpu);
 #endif /* CPU_IDREGS_H */
