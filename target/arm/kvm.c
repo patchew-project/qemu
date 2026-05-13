@@ -28,6 +28,7 @@
 #include "kvm_arm.h"
 #include "cpu.h"
 #include "cpu-sysregs.h"
+#include "cpu-idregs.h"
 #include "trace.h"
 #include "internals.h"
 #include "hw/pci/pci.h"
@@ -65,6 +66,12 @@ typedef struct ARMHostCPUFeatures {
 } ARMHostCPUFeatures;
 
 static ARMHostCPUFeatures arm_host_cpu_features;
+
+#define DEF(NAME, OP0, OP1, CRN, CRM, OP2) [NAME##_IDX] = #NAME,
+const char * const sysreg_names[NUM_ID_IDX] = {
+#include "cpu-sysregs.h.inc"
+};
+#undef DEF
 
 /**
  * kvm_arm_vcpu_init:
@@ -242,6 +249,63 @@ static int get_host_cpu_reg(int fd, ARMHostCPUFeatures *ahcf,
     ret = read_sys_reg64(fd, reg,
                          idregs_sysreg_to_kvm_reg(id_register_sysreg[index]));
     return ret;
+}
+
+static int get_host_cpu_idregs_all(int fd, ARMHostCPUFeatures *ahcf)
+{
+    int err = 0, i;
+    for (i = 0; i < NUM_ID_IDX; i++) {
+        /* Skip registers whose plumbing is not yet added. */
+        if (!arm_idregs[i].name) {
+            continue;
+        }
+
+        err |= get_host_cpu_reg(fd, ahcf, i);
+    }
+    return err;
+}
+
+static int idregs_idx_to_kvm_idx(ARMIDRegisterIdx idx)
+{
+    ARMSysRegs sysreg = id_register_sysreg[idx];
+
+    return KVM_ARM_FEATURE_ID_RANGE_IDX(
+        (sysreg >> CP_REG_ARM64_SYSREG_OP0_SHIFT) & 0x3,
+        (sysreg >> CP_REG_ARM64_SYSREG_OP1_SHIFT) & 0x7,
+        (sysreg >> CP_REG_ARM64_SYSREG_CRN_SHIFT) & 0xf,
+        (sysreg >> CP_REG_ARM64_SYSREG_CRM_SHIFT) & 0xf,
+        (sysreg >> CP_REG_ARM64_SYSREG_OP2_SHIFT) & 0x7);
+}
+
+static int get_writable_id_regs(int vmfd)
+{
+    int cap, ret, i;
+    uint64_t regs[KVM_ARM_FEATURE_ID_RANGE_SIZE] = { 0 };
+    struct reg_mask_range range = {
+        .addr  = (uint64_t)(uintptr_t)regs,
+        .range = KVM_ARM_FEATURE_ID_RANGE,
+    };
+
+    cap = ioctl(vmfd, KVM_CHECK_EXTENSION,
+                KVM_CAP_ARM_SUPPORTED_REG_MASK_RANGES);
+    if (cap <= 0 || !(cap & (1 << KVM_ARM_FEATURE_ID_RANGE))) {
+        return -ENOSYS;
+    }
+
+    ret = ioctl(vmfd, KVM_ARM_GET_REG_WRITABLE_MASKS, &range);
+    if (ret) {
+        return -errno;
+    }
+
+    for (i = 0; i < NUM_ID_IDX; i++) {
+        int kidx = idregs_idx_to_kvm_idx(i);
+
+        if (kidx < 0 || kidx >= KVM_ARM_FEATURE_ID_RANGE_SIZE) {
+            continue;
+        }
+        arm_idregs[i].writable_mask = regs[kidx];
+    }
+    return 0;
 }
 
 static uint32_t kvm_arm_sve_get_vls(int fd)
@@ -453,6 +517,22 @@ static void kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
 
             /* Read the set of supported vector lengths. */
             arm_host_cpu_features.sve_vq_supported = kvm_arm_sve_get_vls(fd);
+        }
+    }
+    /*
+     * Try to read all the ID registers. KVM does not yet support it
+     * for all registers, hence ignore the errors.
+     */
+    get_host_cpu_idregs_all(fd, ahcf);
+
+    {
+        int wret = get_writable_id_regs(fdarray[1]);
+        if (wret) {
+            warn_report("KVM_ARM_GET_REG_WRITABLE_MASKS"
+                        "%s: %s",
+                        wret == -ENOSYS ? " unsupported"
+                                        : " failed",
+                        strerror(-wret));
         }
     }
 
@@ -1080,6 +1160,71 @@ void kvm_arm_cpu_pre_save(ARMCPU *cpu)
     }
 }
 
+/* same as kvm_arm_get_cpreg_ptr() but can return NULL. */
+static uint64_t *kvm_arm_find_cpreg_ptr(ARMCPU *cpu, uint64_t regidx)
+{
+    uint64_t *res;
+
+    res = bsearch(&regidx, cpu->cpreg_indexes, cpu->cpreg_array_len,
+                  sizeof(uint64_t), compare_u64);
+    if (!res) {
+        return NULL;
+    }
+    return &cpu->cpreg_values[res - cpu->cpreg_indexes];
+}
+
+static void kvm_arm_writeback_idregs(ARMCPU *cpu)
+{
+    for (int i = 0; i < NUM_ID_IDX; i++) {
+        uint64_t kvm_reg = idregs_sysreg_to_kvm_reg(id_register_sysreg[i]);
+        uint64_t *cpreg = kvm_arm_find_cpreg_ptr(cpu, kvm_reg);
+        const char *name = arm_idregs[i].name;
+        uint64_t writable_mask, previous, desired, diff;
+
+        if (!cpreg) {
+            warn_report("KVM does not expose ID register slot %d "
+                        "(kvm_reg=0x%" PRIx64 "), %s; skipping writeback",
+                        i, kvm_reg, sysreg_names[i]);
+            continue;
+        }
+
+        if (!name) {
+            /* No field table, don't push back. */
+            warn_report("ID register slot %d "
+                        "(kvm_reg=0x%" PRIx64 "), %s: "
+                        "no field table in cpu-idregs.inc.h",
+                        i, kvm_reg, sysreg_names[i]);
+            continue;
+        }
+
+        writable_mask = arm_idregs[i].writable_mask;
+        previous = *cpreg;
+        desired = cpu->isar.idregs[i];
+        diff = previous ^ desired;
+
+        if (!diff) {
+            continue;
+        }
+
+        if (diff & ~writable_mask) {
+            warn_report("%s: non-writable bits differ: "
+                        "kvm=0x%016" PRIx64
+                        " desired=0x%016" PRIx64
+                        " diff=0x%016" PRIx64
+                        " writable=0x%016" PRIx64,
+                        name, previous, desired,
+                        diff & ~writable_mask,
+                        writable_mask);
+        }
+
+        if (diff & writable_mask) {
+            *cpreg = (previous & ~writable_mask) |
+                     (desired & writable_mask);
+            trace_kvm_arm_writeback_idreg(name, previous, *cpreg);
+        }
+    }
+}
+
 bool kvm_arm_cpu_post_load(ARMCPU *cpu)
 {
     if (!write_list_to_kvmstate(cpu, KVM_PUT_FULL_STATE)) {
@@ -1116,6 +1261,10 @@ void kvm_arm_reset_vcpu(ARMCPU *cpu)
         fprintf(stderr, "write_kvmstate_to_list failed\n");
         abort();
     }
+
+    /* Re-apply named-model ID register overrides after KVM_ARM_VCPU_INIT. */
+    kvm_arm_writeback_idregs(cpu);
+
     /*
      * Sync the reset values also into the CPUState. This is necessary
      * because the next thing we do will be a kvm_arch_put_registers()
@@ -2051,7 +2200,16 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
     cpu->mp_affinity = mpidr & ARM64_AFFINITY_MASK;
 
-    return kvm_arm_init_cpreg_list(cpu);
+    ret = kvm_arm_init_cpreg_list(cpu);
+    if (ret) {
+        return ret;
+    }
+
+    /* Apply named-model ID register overrides on top of KVM's defaults. */
+    kvm_arm_writeback_idregs(cpu);
+    write_list_to_kvmstate(cpu, KVM_PUT_FULL_STATE);
+
+    return 0;
 }
 
 int kvm_arch_destroy_vcpu(CPUState *cs)

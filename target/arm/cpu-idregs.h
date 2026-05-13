@@ -37,6 +37,7 @@ typedef struct ArmIdReg {
     const char *name;
     struct ArmIdRegField *fields;
     uint32_t fields_count;
+    uint64_t writable_mask;
 } ArmIdReg;
 
 /* Map short register names to canonical _EL1/_EL0 IDX values */

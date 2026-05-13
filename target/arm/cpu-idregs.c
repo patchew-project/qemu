@@ -68,6 +68,7 @@
         .name = #reg, \
         .fields = reg##_fields, \
         .fields_count = ARRAY_SIZE(reg##_fields), \
+        .writable_mask = 0, \
     },
 
 ArmIdReg arm_idregs[NUM_ID_IDX] = {
