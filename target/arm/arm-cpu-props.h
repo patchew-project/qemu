@@ -32,5 +32,5 @@ typedef struct ArmCpuPropDesc {
     ArmFieldIdx frac_field;
     const ArmFracVal *vals;
 } ArmCpuPropDesc;
-
+void arm_add_cpu_props(Object *obj);
 #endif
