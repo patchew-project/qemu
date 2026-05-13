@@ -70,12 +70,6 @@ struct DisasContext {
     TCGv_i64 sink;
 };
 
-#ifdef CONFIG_USER_ONLY
-#define UNALIGN(C)  (C)->mo_align
-#else
-#define UNALIGN(C)  (C)->mo_align
-#endif
-
 /* Target-specific return values from translate_one, indicating the
    state of the TB.  Note that DISAS_NEXT indicates that we are not
    exiting the TB.  */
@@ -285,27 +279,27 @@ static inline DisasJumpType gen_invalid(DisasContext *ctx)
 static void gen_ldf(DisasContext *ctx, TCGv_i64 dest, TCGv_i64 addr)
 {
     TCGv_i32 tmp32 = tcg_temp_new_i32();
-    tcg_gen_qemu_ld_i32(tmp32, addr, ctx->mem_idx, MO_LEUL | UNALIGN(ctx));
+    tcg_gen_qemu_ld_i32(tmp32, addr, ctx->mem_idx, MO_LEUL | ctx->mo_align);
     gen_helper_memory_to_f(dest, tmp32);
 }
 
 static void gen_ldg(DisasContext *ctx, TCGv_i64 dest, TCGv_i64 addr)
 {
     TCGv_i64 tmp = tcg_temp_new_i64();
-    tcg_gen_qemu_ld_i64(tmp, addr, ctx->mem_idx, MO_LEUQ | UNALIGN(ctx));
+    tcg_gen_qemu_ld_i64(tmp, addr, ctx->mem_idx, MO_LEUQ | ctx->mo_align);
     gen_helper_memory_to_g(dest, tmp);
 }
 
 static void gen_lds(DisasContext *ctx, TCGv_i64 dest, TCGv_i64 addr)
 {
     TCGv_i32 tmp32 = tcg_temp_new_i32();
-    tcg_gen_qemu_ld_i32(tmp32, addr, ctx->mem_idx, MO_LEUL | UNALIGN(ctx));
+    tcg_gen_qemu_ld_i32(tmp32, addr, ctx->mem_idx, MO_LEUL | ctx->mo_align);
     gen_helper_memory_to_s(dest, tmp32);
 }
 
 static void gen_ldt(DisasContext *ctx, TCGv_i64 dest, TCGv_i64 addr)
 {
-    tcg_gen_qemu_ld_i64(dest, addr, ctx->mem_idx, MO_LEUQ | UNALIGN(ctx));
+    tcg_gen_qemu_ld_i64(dest, addr, ctx->mem_idx, MO_LEUQ | ctx->mo_align);
 }
 
 static void gen_load_fp(DisasContext *ctx, int ra, int rb, int32_t disp16,
@@ -336,7 +330,7 @@ static void gen_load_int(DisasContext *ctx, int ra, int rb, int32_t disp16,
     if (clear) {
         tcg_gen_andi_i64(addr, addr, ~0x7);
     } else if (!locked) {
-        op |= UNALIGN(ctx);
+        op |= ctx->mo_align;
     }
 
     dest = ctx->ir[ra];
@@ -352,26 +346,26 @@ static void gen_stf(DisasContext *ctx, TCGv_i64 src, TCGv_i64 addr)
 {
     TCGv_i32 tmp32 = tcg_temp_new_i32();
     gen_helper_f_to_memory(tmp32, addr);
-    tcg_gen_qemu_st_i32(tmp32, addr, ctx->mem_idx, MO_LEUL | UNALIGN(ctx));
+    tcg_gen_qemu_st_i32(tmp32, addr, ctx->mem_idx, MO_LEUL | ctx->mo_align);
 }
 
 static void gen_stg(DisasContext *ctx, TCGv_i64 src, TCGv_i64 addr)
 {
     TCGv_i64 tmp = tcg_temp_new_i64();
     gen_helper_g_to_memory(tmp, src);
-    tcg_gen_qemu_st_i64(tmp, addr, ctx->mem_idx, MO_LEUQ | UNALIGN(ctx));
+    tcg_gen_qemu_st_i64(tmp, addr, ctx->mem_idx, MO_LEUQ | ctx->mo_align);
 }
 
 static void gen_sts(DisasContext *ctx, TCGv_i64 src, TCGv_i64 addr)
 {
     TCGv_i32 tmp32 = tcg_temp_new_i32();
     gen_helper_s_to_memory(tmp32, src);
-    tcg_gen_qemu_st_i32(tmp32, addr, ctx->mem_idx, MO_LEUL | UNALIGN(ctx));
+    tcg_gen_qemu_st_i32(tmp32, addr, ctx->mem_idx, MO_LEUL | ctx->mo_align);
 }
 
 static void gen_stt(DisasContext *ctx, TCGv_i64 src, TCGv_i64 addr)
 {
-    tcg_gen_qemu_st_i64(src, addr, ctx->mem_idx, MO_LEUQ | UNALIGN(ctx));
+    tcg_gen_qemu_st_i64(src, addr, ctx->mem_idx, MO_LEUQ | ctx->mo_align);
 }
 
 static void gen_store_fp(DisasContext *ctx, int ra, int rb, int32_t disp16,
@@ -392,7 +386,7 @@ static void gen_store_int(DisasContext *ctx, int ra, int rb, int32_t disp16,
     if (clear) {
         tcg_gen_andi_i64(addr, addr, ~0x7);
     } else {
-        op |= UNALIGN(ctx);
+        op |= ctx->mo_align;
     }
 
     src = load_gpr(ctx, ra);
