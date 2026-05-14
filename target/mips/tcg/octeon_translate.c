@@ -297,3 +297,4 @@ TRANS(LDX,  trans_lx, MO_UQ);
 TRANS(MTM0, trans_mtm, 0);
 TRANS(MTP0, trans_mtp, 0);
 TRANS(MTP1, trans_mtp, 1);
+TRANS(MTP2, trans_mtp, 2);
