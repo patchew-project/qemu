@@ -138,3 +138,11 @@ config MIPS_BOSTON_AIA
     select RISCV_MIPS_CMGCR
     select RISCV_MIPS_CPC
     select RISCV_MIPS_CPS
+
+config SOPHGO_CV1800B
+    bool
+    depends on RISCV64
+    select RISCV_ACLINT
+    select SIFIVE_PLIC
+    select SOPHGO_CV1800B_CLK
+    select DW8250
