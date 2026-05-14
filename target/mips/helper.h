@@ -29,6 +29,8 @@ DEF_HELPER_3(octeon_vmm0, i64, env, i64, i64)
 DEF_HELPER_3(octeon_v3mulu, i64, env, i64, i64)
 DEF_HELPER_4(octeon_qmac, void, env, i64, i64, i32)
 DEF_HELPER_4(octeon_qmacs, void, env, i64, i64, i32)
+DEF_HELPER_2(octeon_cop2_dmfc2, i64, env, i32)
+DEF_HELPER_3(octeon_cop2_dmtc2, void, env, i64, i32)
 
 /* microMIPS functions */
 DEF_HELPER_4(lwm, void, env, tl, tl, i32)
