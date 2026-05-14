@@ -254,4 +254,7 @@ config IOSB
 config XLNX_VERSAL_TRNG
     bool
 
+config SOPHGO_CV1800B_CLK
+    bool
+
 source macio/Kconfig
