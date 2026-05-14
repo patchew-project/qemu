@@ -91,7 +91,7 @@ const PropertyInfo qdev_prop_StrOrNull;
 
 #define DEFAULT_MIGRATE_VCPU_DIRTY_LIMIT_PERIOD     1000    /* milliseconds */
 #define DEFAULT_MIGRATE_VCPU_DIRTY_LIMIT            1       /* MB/s */
-#define DEFAULT_MIGRATE_X_RDMA_CHUNK_SIZE           MiB
+#define DEFAULT_MIGRATE_X_RDMA_CHUNK_SIZE           (64 * MiB)
 
 const Property migration_properties[] = {
     DEFINE_PROP_BOOL("store-global-state", MigrationState,
