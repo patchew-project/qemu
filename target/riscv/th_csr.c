@@ -21,11 +21,18 @@
 #include "cpu_vendorid.h"
 
 #define CSR_TH_SXSTATUS 0x5c0
+#define CSR_TH_MCOUNTERINTEN 0x7ca
+#define CSR_TH_MCOUNTEROF    0x7cb
 
 /* TH_SXSTATUS bits */
 #define TH_SXSTATUS_UCME        BIT(16)
 #define TH_SXSTATUS_MAEE        BIT(21)
 #define TH_SXSTATUS_THEADISAEE  BIT(22)
+
+static RISCVException mmode(CPURISCVState *env, int csrno)
+{
+    return RISCV_EXCP_NONE;
+}
 
 static RISCVException smode(CPURISCVState *env, int csrno)
 {
@@ -49,11 +56,34 @@ static RISCVException read_th_sxstatus(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
+static RISCVException read_th_pmu(CPURISCVState *env, int csrno,
+                                  target_ulong *val)
+{
+    *val = 0;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_th_pmu(CPURISCVState *env, int csrno,
+                                   target_ulong val, uintptr_t retaddr)
+{
+    return RISCV_EXCP_NONE;
+}
+
 const RISCVCSR th_csr_list[] = {
     {
         .csrno = CSR_TH_SXSTATUS,
         .insertion_test = test_thead_mvendorid,
         .csr_ops = { "th.sxstatus", smode, read_th_sxstatus }
+    },
+    {
+        .csrno = CSR_TH_MCOUNTERINTEN,
+        .insertion_test = test_thead_mvendorid,
+        .csr_ops = { "th.mcounterinten", mmode, read_th_pmu, write_th_pmu }
+    },
+    {
+        .csrno = CSR_TH_MCOUNTEROF,
+        .insertion_test = test_thead_mvendorid,
+        .csr_ops = { "th.mcounterof", mmode, read_th_pmu, write_th_pmu }
     },
     { }
 };
