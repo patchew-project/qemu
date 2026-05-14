@@ -1330,12 +1330,12 @@ static void *postcopy_ram_fault_thread(void *opaque)
         }
 
         if (pfd[1].revents) {
-            uint64_t tmp64 = 0;
+            eventfd_t tmp_event = 0;
 
             /* Consume the signal */
-            if (read(mis->userfault_event_fd, &tmp64, 8) != 8) {
+            if (eventfd_read(mis->userfault_event_fd, &tmp_event)) {
                 /* Nothing obviously nicer than posting this error. */
-                error_report("%s: read() failed", __func__);
+                error_report("%s: eventfd_read() failed", __func__);
             }
 
             if (qatomic_read(&mis->fault_thread_quit)) {
@@ -1773,13 +1773,11 @@ void postcopy_temp_page_reset(PostcopyTmpPage *tmp_page)
 
 void postcopy_fault_thread_notify(MigrationIncomingState *mis)
 {
-    uint64_t tmp64 = 1;
-
     /*
      * Wakeup the fault_thread.  It's an eventfd that should currently
      * be at 0, we're going to increment it to 1
      */
-    if (write(mis->userfault_event_fd, &tmp64, 8) != 8) {
+    if (eventfd_write(mis->userfault_event_fd, 1)) {
         /* Not much we can do here, but may as well report it */
         error_report("%s: incrementing failed: %s", __func__,
                      strerror(errno));
