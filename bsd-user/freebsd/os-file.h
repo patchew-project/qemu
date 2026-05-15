@@ -110,7 +110,7 @@ static inline abi_long do_freebsd___specialfd(int type, abi_ulong req,
         struct specialfd_eventfd evfd;
         struct target_specialfd_eventfd *target_eventfd;
 
-        if (!lock_user_struct(VERIFY_READ, target_eventfd, req, 0)) {
+        if (!lock_user_struct(VERIFY_READ, target_eventfd, req, 1)) {
             return -TARGET_EFAULT;
         }
 
