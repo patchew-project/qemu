@@ -24,12 +24,12 @@ abi_long t2h_freebsd_timeval(struct timeval *tv, abi_ulong target_tv_addr)
 {
     struct target_freebsd_timeval *target_tv;
 
-    if (!lock_user_struct(VERIFY_READ, target_tv, target_tv_addr, 0)) {
+    if (!lock_user_struct(VERIFY_READ, target_tv, target_tv_addr, 1)) {
         return -TARGET_EFAULT;
     }
     __get_user(tv->tv_sec, &target_tv->tv_sec);
     __get_user(tv->tv_usec, &target_tv->tv_usec);
-    unlock_user_struct(target_tv, target_tv_addr, 1);
+    unlock_user_struct(target_tv, target_tv_addr, 0);
 
     return 0;
 }
@@ -52,12 +52,12 @@ abi_long t2h_freebsd_timespec(struct timespec *ts, abi_ulong target_ts_addr)
 {
     struct target_freebsd_timespec *target_ts;
 
-    if (!lock_user_struct(VERIFY_READ, target_ts, target_ts_addr, 0)) {
+    if (!lock_user_struct(VERIFY_READ, target_ts, target_ts_addr, 1)) {
         return -TARGET_EFAULT;
     }
     __get_user(ts->tv_sec, &target_ts->tv_sec);
     __get_user(ts->tv_nsec, &target_ts->tv_nsec);
-    unlock_user_struct(target_ts, target_ts_addr, 1);
+    unlock_user_struct(target_ts, target_ts_addr, 0);
 
     return 0;
 }
@@ -91,7 +91,7 @@ abi_long t2h_freebsd_umtx_time(abi_ulong target_ut_addr,
         struct target_freebsd__umtx_time *target_ut;
         struct _umtx_time *ut = (struct _umtx_time *)host_t;
 
-        if (!lock_user_struct(VERIFY_READ, target_ut, target_ut_addr, 0)) {
+        if (!lock_user_struct(VERIFY_READ, target_ut, target_ut_addr, 1)) {
             return -TARGET_EFAULT;
         }
         if (t2h_freebsd_timespec(&ut->_timeout, h2g(&target_ut->_timeout))) {
@@ -99,7 +99,7 @@ abi_long t2h_freebsd_umtx_time(abi_ulong target_ut_addr,
         }
         __get_user(ut->_flags, &target_ut->_flags);
         __get_user(ut->_clockid, &target_ut->_clockid);
-        unlock_user_struct(target_ut, target_ut_addr, 1);
+        unlock_user_struct(target_ut, target_ut_addr, 0);
 
         if (target_ut_size > sizeof(struct target_freebsd__umtx_time)) {
             *host_tsz = sizeof(struct _umtx_time) + sizeof(struct timespec);
@@ -115,7 +115,7 @@ abi_long t2h_freebsd_timex(struct timex *host_tx, abi_ulong target_tx_addr)
 {
     struct target_freebsd_timex *target_tx;
 
-    if (!lock_user_struct(VERIFY_READ, target_tx, target_tx_addr, 0)) {
+    if (!lock_user_struct(VERIFY_READ, target_tx, target_tx_addr, 1)) {
         return -TARGET_EFAULT;
     }
     __get_user(host_tx->modes, &target_tx->modes);
@@ -134,7 +134,7 @@ abi_long t2h_freebsd_timex(struct timex *host_tx, abi_ulong target_tx_addr)
     __get_user(host_tx->calcnt, &target_tx->calcnt);
     __get_user(host_tx->errcnt, &target_tx->errcnt);
     __get_user(host_tx->stbcnt, &target_tx->stbcnt);
-    unlock_user_struct(target_tx, target_tx_addr, 1);
+    unlock_user_struct(target_tx, target_tx_addr, 0);
 
     return 0;
 }
@@ -274,7 +274,7 @@ abi_long target_to_host_itimerspec(struct itimerspec *host_itspec,
     host_itspec->it_value.tv_sec = tswapal(target_itspec->it_value.tv_sec);
     host_itspec->it_value.tv_nsec = tswapal(target_itspec->it_value.tv_nsec);
 
-    unlock_user_struct(target_itspec, target_addr, 1);
+    unlock_user_struct(target_itspec, target_addr, 0);
     return 0;
 }
 
@@ -293,7 +293,7 @@ abi_long host_to_target_itimerspec(abi_ulong target_addr,
     target_itspec->it_value.tv_sec = tswapal(host_its->it_value.tv_sec);
     target_itspec->it_value.tv_nsec = tswapal(host_its->it_value.tv_nsec);
 
-    unlock_user_struct(target_itspec, target_addr, 0);
+    unlock_user_struct(target_itspec, target_addr, 1);
     return 0;
 }
 
