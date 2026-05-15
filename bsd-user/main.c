@@ -245,7 +245,7 @@ CPUArchState *cpu_copy(CPUArchState *env)
      * Note: Once we support ptrace with hw-debug register access, make sure
      * BP_CPU break/watchpoints are handled correctly on clone.
      */
-    QTAILQ_INIT(&cpu->breakpoints);
+    QTAILQ_INIT(&new_cpu->breakpoints);
     QTAILQ_FOREACH(bp, &cpu->breakpoints, entry) {
         cpu_breakpoint_insert(new_cpu, bp->pc, bp->flags, NULL);
     }
