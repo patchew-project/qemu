@@ -11,6 +11,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "accel/tcg/cpu-ops.h"
+#include "target/arm/tcg/idau.h"
 #include "internals.h"
 
 #if !defined(CONFIG_USER_ONLY)
@@ -39,6 +40,16 @@ static bool arm_v7m_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     }
     return ret;
 }
+
+static const TypeInfo arm_v8m_types[] = {
+    {
+        .name = TYPE_IDAU_INTERFACE,
+        .parent = TYPE_INTERFACE,
+        .class_size = sizeof(IDAUInterfaceClass),
+    }
+};
+
+DEFINE_TYPES(arm_v8m_types)
 
 #endif /* !CONFIG_USER_ONLY */
 
