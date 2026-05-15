@@ -26,6 +26,7 @@
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <utime.h>
+#include <poll.h>
 
 #include "include/gdbstub/syscalls.h"
 
