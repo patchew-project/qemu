@@ -275,7 +275,7 @@ static void gic_recalc_ppi_hppi(CPUARMState *env)
             int ppi;
             int bit = ctz64(en_pend_nact);
 
-            en_pend_nact &= ~(1 << bit);
+            en_pend_nact &= ~(1ULL << bit);
 
             ppi = i * 64 + bit;
             prio = extract64(env->gicv5_cpuif.ppi_priority[ppi / 8],
@@ -631,7 +631,7 @@ static uint64_t gicr_cdia_read(CPUARMState *env, const ARMCPRegInfo *ri)
      * gicv5_activate() cause a re-evaluation of HPPIs they use the
      * right (new) running priority.
      */
-    env->gicv5_cpuif.icc_apr[domain] |= (1 << hppi.prio);
+    env->gicv5_cpuif.icc_apr[domain] |= (1ULL << hppi.prio);
     switch (type) {
     case GICV5_PPI:
     {
@@ -639,7 +639,7 @@ static uint64_t gicr_cdia_read(CPUARMState *env, const ARMCPRegInfo *ri)
 
         assert(id < GICV5_NUM_PPIS);
         ppireg = id / 64;
-        ppibit = 1 << (id % 64);
+        ppibit = 1ULL << (id % 64);
 
         env->gicv5_cpuif.ppi_active[ppireg] |= ppibit;
         if (!(env->gicv5_cpuif.ppi_hm[ppireg] & ppibit)) {
@@ -707,7 +707,7 @@ static void gic_cddi_write(CPUARMState *env, const ARMCPRegInfo *ri,
         }
 
         ppireg = id / 64;
-        ppibit = 1 << (id % 64);
+        ppibit = 1ULL << (id % 64);
 
         env->gicv5_cpuif.ppi_active[ppireg] &= ~ppibit;
         gic_recalc_ppi_hppi(env);
