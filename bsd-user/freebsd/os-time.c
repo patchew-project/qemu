@@ -153,6 +153,7 @@ abi_long h2t_freebsd_ntptimeval(abi_ulong target_ntv_addr,
     __put_user(ntv->esterror, &target_ntv->esterror);
     __put_user(ntv->tai, &target_ntv->tai);
     __put_user(ntv->time_state, &target_ntv->time_state);
+    unlock_user_struct(target_ntv, target_ntv_addr, 1);
 
     return 0;
 }
