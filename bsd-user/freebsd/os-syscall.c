@@ -1589,19 +1589,18 @@ static abi_long freebsd_syscall(CPUArchState *env, int num, abi_long arg1,
         break;
 #endif
     case TARGET_FREEBSD_NR_kenv:
-    ret = do_freebsd_kenv(arg1, arg2, arg3, arg4);
-    break;
+        ret = do_freebsd_kenv(arg1, arg2, arg3, arg4);
+        break;
 
     /* XXX */
     case TARGET_FREEBSD_NR_cap_rights_limit:
     case TARGET_FREEBSD_NR_cap_ioctls_limit:
     case TARGET_FREEBSD_NR_cap_fcntls_limit:
-    ret = EINVAL;
-    break;
+        ret = -TARGET_EINVAL;
+        break;
     case TARGET_FREEBSD_NR_cap_enter:
-    ret = 0;
-    break;
-
+        ret = 0;
+        break;
 
     default:
         qemu_log_mask(LOG_UNIMP, "Unsupported syscall: %d\n", num);
