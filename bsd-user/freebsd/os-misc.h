@@ -495,6 +495,8 @@ static inline abi_long do_freebsd_kenv(abi_long action, abi_ulong name,
             break;
         }
         ret = kenv(action, gname, gvalue, len);
+        unlock_user(gvalue, value, 0);
+        gvalue = NULL;
         break;
     case KENV_UNSET:
         gname = lock_user_string(name);
