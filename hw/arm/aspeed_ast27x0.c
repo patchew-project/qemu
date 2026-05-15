@@ -418,11 +418,6 @@ static void aspeed_soc_ast2700_init(Object *obj)
         g_assert_not_reached();
     }
 
-    for (i = 0; i < sc->num_cpus; i++) {
-        object_initialize_child(obj, "cpu[*]", &a->cpu[i],
-                                aspeed_soc_cpu_type(sc->valid_cpu_types));
-    }
-
     object_initialize_child(obj, "gic", &a->gic, gicv3_class_name());
 
     object_initialize_child(obj, "scu", &s->scu, TYPE_ASPEED_2700_SCU);
@@ -701,6 +696,8 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
 
     /* CPU */
     for (i = 0; i < sc->num_cpus; i++) {
+        object_initialize_child(OBJECT(dev), "cpu[*]", &a->cpu[i],
+                                aspeed_soc_cpu_type(sc->valid_cpu_types));
         object_property_set_int(OBJECT(&a->cpu[i]), "mp-affinity",
                                 aspeed_calc_affinity(i), &error_abort);
 
