@@ -36,6 +36,7 @@ You should use the following specialized skills for common tasks:
 - `qemu-code-reviewer`: For pulling and applying patch series from mailing lists.
 - `qemu-mail-thread`: For analyzing and parsing mailing list threads.
 - `qemu-issue-helper`: For fetching and summarising issue details from the bug tracker.
+- `qemu-issue-triage`: For helping triage issues in the bug tracker.
 
 ## Source Code Layout (see `docs/devel/codebase.rst`)
 - **`accel/`**: Hardware accelerators (KVM, TCG, HVF, Xen, etc.) and architecture-agnostic acceleration code.
