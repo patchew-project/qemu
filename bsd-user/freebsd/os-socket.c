@@ -91,7 +91,7 @@ abi_long t2h_freebsd_cmsg(struct msghdr *msgh,
         target_cmsg = TARGET_CMSG_NXTHDR(target_msgh, target_cmsg,
                                          target_cmsg_start);
     }
-    unlock_user(target_cmsg, target_cmsg_addr, 0);
+    unlock_user(target_cmsg_start, target_cmsg_addr, 0);
 the_end:
     msgh->msg_controllen = space;
     return 0;
@@ -227,9 +227,8 @@ abi_long h2t_freebsd_cmsg(struct target_msghdr *target_msgh,
         target_cmsg = TARGET_CMSG_NXTHDR(target_msgh, target_cmsg,
                                          target_cmsg_start);
     }
-    unlock_user(target_cmsg, target_cmsg_addr, space);
+    unlock_user(target_cmsg_start, target_cmsg_addr, space);
 the_end:
     target_msgh->msg_controllen = tswap32(space);
     return 0;
 }
-
