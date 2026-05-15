@@ -533,7 +533,8 @@ exynos4210_fimd_palette_format(Exynos4210fimdState *s, int window)
             ((s->wpalcon[1] >> FIMD_WPAL_W4PAL_L_SHT) & FIMD_WPAL_W4PAL_L);
         break;
     default:
-        hw_error("exynos4210.fimd: incorrect window number %d\n", window);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "exynos4210.fimd: incorrect window number %d\n", window);
         ret = 0;
         break;
     }
@@ -757,7 +758,9 @@ exynos4210_fimd_blend_pixel(Exynos4210fimdWindow *w, rgba p_bg, rgba *ret)
             blend_param[i] = FIMD_1_MINUS_COLOR(bg_color);
             break;
         default:
-            hw_error("exynos4210.fimd: blend equation coef illegal value\n");
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "exynos4210.fimd: blend equation coef illegal value\n");
+            blend_param[i] = 0;
             break;
         }
     }
