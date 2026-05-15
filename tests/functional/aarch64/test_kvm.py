@@ -38,7 +38,7 @@ class Aarch64VirtKVMTests(LinuxKernelTest):
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
                                f"console=ttyAMA0 kvm-arm.mode={kvm_mode}")
 
-        self.vm.add_args("-cpu", "cortex-a72")
+        self.vm.add_args("-cpu", "max")
         self.vm.add_args("-machine", "virt,gic-version=3,virtualization=on",
                          '-kernel', kernel_path,
                          '-append', kernel_command_line)
