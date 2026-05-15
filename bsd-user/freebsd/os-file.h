@@ -34,6 +34,8 @@ static abi_long do_bsd_pipe2(CPUArchState *env, abi_ulong pipedes, int flags)
      */
     if (put_user_s32(host_pipe[0], pipedes) ||
         put_user_s32(host_pipe[1], pipedes + sizeof(host_pipe[0]))) {
+        close(host_pipe[0]);
+        close(host_pipe[1]);
         return -TARGET_EFAULT;
     }
     return 0;
