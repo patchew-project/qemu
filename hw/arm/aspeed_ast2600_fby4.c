@@ -11,6 +11,7 @@
 #include "hw/arm/aspeed.h"
 #include "hw/arm/aspeed_soc.h"
 #include "hw/nvram/eeprom_at24c.h"
+#include "hw/sensor/max11615.h"
 #include "hw/i2c/i2c_mux_pca954x.h"
 #include "hw/gpio/pca9552.h"
 
@@ -185,7 +186,12 @@ static void fby4_i2c_init_fanboard(I2CSlave *fan_mux, size_t eepromSize)
         i2c_slave_create_simple(bus, "max31790", 0x2f);
 
         /* maxim,max11615 @ 0x33   (adc) */
-        /* TODO */
+        static const uint16_t adc_values[8] = {
+            0b011110000010, 0b010100011000,
+            0b001000110100, 0b100000101001,
+            0b011110000010, 0b010100011000,
+            0b001000110100, 0b100000101001};
+        max11615_init_with_values(bus, 0x33, adc_values, 8);
 
         at24c_eeprom_init_rom(
             bus, 0x52, eepromSize,
