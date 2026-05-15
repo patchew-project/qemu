@@ -1317,11 +1317,11 @@ static abi_long freebsd_syscall(CPUArchState *env, int num, abi_long arg1,
         break;
 
     case TARGET_FREEBSD_NR_extattr_set_file: /* extattr_set_file(2) */
-        ret = do_freebsd_extattr_set_file(arg1, arg2, arg3, arg4, arg4);
+        ret = do_freebsd_extattr_set_file(arg1, arg2, arg3, arg4, arg5);
         break;
 
     case TARGET_FREEBSD_NR_extattr_get_file: /* extattr_get_file(2) */
-        ret = do_freebsd_extattr_get_file(arg1, arg2, arg3, arg4, arg4);
+        ret = do_freebsd_extattr_get_file(arg1, arg2, arg3, arg4, arg5);
         break;
 
     case TARGET_FREEBSD_NR_extattr_delete_file: /* extattr_delete_file(2) */
@@ -1341,11 +1341,11 @@ static abi_long freebsd_syscall(CPUArchState *env, int num, abi_long arg1,
         break;
 
     case TARGET_FREEBSD_NR_extattr_get_link: /* extattr_get_link(2) */
-        ret = do_freebsd_extattr_get_link(arg1, arg2, arg3, arg4, arg4);
+        ret = do_freebsd_extattr_get_link(arg1, arg2, arg3, arg4, arg5);
         break;
 
     case TARGET_FREEBSD_NR_extattr_set_link: /* extattr_set_link(2) */
-        ret = do_freebsd_extattr_set_link(arg1, arg2, arg3, arg4, arg4);
+        ret = do_freebsd_extattr_set_link(arg1, arg2, arg3, arg4, arg5);
         break;
 
     case TARGET_FREEBSD_NR_extattr_delete_link: /* extattr_delete_link(2) */
@@ -1357,7 +1357,7 @@ static abi_long freebsd_syscall(CPUArchState *env, int num, abi_long arg1,
         break;
 
     case TARGET_FREEBSD_NR_extattr_list_file: /* extattr_list_file(2) */
-        ret = do_freebsd_extattr_list_file(arg1, arg2, arg3,  arg4);
+        ret = do_freebsd_extattr_list_file(arg1, arg2, arg3, arg4);
         break;
 
     case TARGET_FREEBSD_NR_extattr_list_link: /* extattr_list_link(2) */
