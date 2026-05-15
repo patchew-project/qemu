@@ -198,7 +198,7 @@ static inline abi_long do_bsd_sendto(int fd, abi_ulong msg, size_t len,
         host_msg = NULL;
     }
     if (target_addr) {
-        saddr = alloca(addrlen);
+        saddr = alloca(addrlen + 1);
         ret = target_to_host_sockaddr(saddr, target_addr, addrlen);
         if (is_error(ret)) {
             unlock_user(host_msg, msg, 0);
@@ -235,7 +235,7 @@ static inline abi_long do_bsd_recvfrom(int fd, abi_ulong msg, size_t len,
             ret = -TARGET_EINVAL;
             goto fail;
         }
-        saddr = alloca(addrlen);
+        saddr = alloca(addrlen + 1);
         ret = get_errno(safe_recvfrom(fd, host_msg, len, flags, saddr,
                     &addrlen));
     } else {
