@@ -623,10 +623,16 @@ static inline abi_long do_freebsd_fcntl(abi_long arg1, abi_long arg2,
 }
 
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 1300080
+#if __FreeBSD_version < 1500032
 extern int __realpathat(int fd, const char *path, char *buf, size_t size,
         int flags);
 /* https://svnweb.freebsd.org/base?view=revision&revision=358172 */
+/* Removed in cdb24fbb0a75209043efd3b5e94faa57dfc44bd1 in favor of sys */
 /* no man page */
+#else
+int __sys___realpathat(int fd, const char *path, char *buf, size_t size,
+        int flags);
+#endif
 static inline abi_long do_freebsd_realpathat(abi_long arg1, abi_long arg2,
         abi_long arg3, abi_long arg4, abi_long arg5)
 {
@@ -640,7 +646,11 @@ static inline abi_long do_freebsd_realpathat(abi_long arg1, abi_long arg2,
         return -TARGET_EFAULT;
     }
 
+#if __FreeBSD_version < 1500032
     ret = get_errno(__realpathat(arg1, p, b, arg4, arg5));
+#else
+    ret = get_errno(__sys___realpathat(arg1, p, b, arg4, arg5));
+#endif
     UNLOCK_PATH(p, arg2);
     unlock_user(b, arg3, ret);
 
