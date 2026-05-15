@@ -413,7 +413,7 @@ static inline abi_long do_freebsd__acl_aclcheck_file(abi_ulong arg1,
     }
     ret = t2h_freebsd_acl(&host_acl, arg3);
     if (!is_error(ret)) {
-        ret = get_errno(__acl_aclcheck_file(path(p) , arg2, &host_acl));
+        ret = get_errno(__acl_aclcheck_file(path(p), type, &host_acl));
     }
     unlock_user(p, arg1, 0);
 
