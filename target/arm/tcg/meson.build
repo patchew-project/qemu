@@ -56,6 +56,7 @@ arm_common_ss.add(zlib)
 arm_common_ss.add(files(
   'arith_helper.c',
   'crypto_helper.c',
+  'idau.c',
 ))
 
 arm_common_system_ss.add(
