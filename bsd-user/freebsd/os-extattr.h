@@ -407,6 +407,9 @@ static inline abi_long do_freebsd__acl_aclcheck_file(abi_ulong arg1,
     acl_type_t type;
 
     ret = t2h_freebsd_acl_type(&type, arg2);
+    if (is_error(ret)) {
+        return ret;
+    }
     p = lock_user_string(arg1);
     if (p == NULL) {
         return -TARGET_EFAULT;
