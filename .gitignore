@@ -8,6 +8,7 @@
 .git-submodule-status
 .clang-format
 .gdb_history
+.plan
 cscope.*
 tags
 TAGS
