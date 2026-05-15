@@ -978,7 +978,7 @@ abi_long freebsd_lock_umutex(abi_ulong target_addr, uint32_t id,
 
                 break;
             } else {
-                __get_user(owner, &target_umutex->m_count);
+                __get_user(owner, &target_umutex->m_owner);
             }
         }
 
