@@ -1350,6 +1350,7 @@ abi_long freebsd_rw_wrlock(abi_ulong target_addr, long fflag, size_t tsz,
                 tswap32(state));
             ret = get_errno(safe__umtx_op(&target_urwlock->rw_state,
                 UMTX_OP_WAKE, INT_MAX, NULL, NULL));
+            unlock_user_struct(target_urwlock, target_addr, ret == 0);
             return ret;
         }
         /* re-read the state */
