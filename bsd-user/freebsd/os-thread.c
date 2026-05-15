@@ -474,7 +474,7 @@ abi_long freebsd_umtx_mutex_wake2(abi_ulong target_addr, uint32_t flags)
     }
     pthread_mutex_unlock(&umtx_wait_lck);
     addr = g2h_untagged((uintptr_t)&target_umutex->m_owner);
-    unlock_user(target_umutex, target_addr, 0);
+    unlock_user_struct(target_umutex, target_addr, 0);
 
     return get_errno(safe__umtx_op(addr, UMTX_OP_WAKE_PRIVATE, 1, NULL,
         NULL));
