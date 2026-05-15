@@ -72,7 +72,7 @@ abi_long t2h_freebsd_cmsg(struct msghdr *msgh,
             for (i = 0; i < numfds; i++) {
                 __get_user(fd[i], target_fd + i);
             }
-        } else if ((cmsg->cmsg_level == TARGET_SOL_SOCKET) &&
+        } else if ((cmsg->cmsg_level == SOL_SOCKET) &&
             (cmsg->cmsg_type == SCM_TIMESTAMP) &&
             (len == sizeof(struct target_freebsd_timeval)))  {
             /* copy struct timeval to host */
