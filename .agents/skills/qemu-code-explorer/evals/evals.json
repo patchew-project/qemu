@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+{
+  "skill_name": "qemu-code-explorer",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Where is the function 'qemu_mutex_lock' defined and where is it used in the block layer (block/)?",
+      "expected_output": "The definition should be found (likely in util/qemu-thread-posix.c or similar) and usages in block/ should be listed using gtags."
+    },
+    {
+      "id": 1,
+      "prompt": "I'm seeing a reference to 'qmp_marshal_query_status' in some docs but I can't find it in the source tree. Can you find where it is defined?",
+      "expected_output": "The agent should identify this as QAPI generated code and look in the build directory (e.g., build/qapi/qapi-commands-control.c)."
+    },
+    {
+      "id": 2,
+      "prompt": "Find all implementations of trace points for 'virtio_net' in the generated code.",
+      "expected_output": "The agent should search for 'trace_virtio_net_*' in the build directory, specifically in generated trace headers/sources."
+    },
+    {
+      "id": 3,
+      "prompt": "Find all occurrences of the string 'Could not open' in the 'hw/' directory.",
+      "expected_output": "The agent should use git grep scoped to hw/ to find the string literals."
+    }
+  ]
+}

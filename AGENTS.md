@@ -30,6 +30,7 @@ If unsure read the linked document for guidance.
 
 ## Agent Skills (see `.agents/skills`)
 You should use the following specialized skills for common tasks:
+- `qemu-code-explorer`: For finding where things are defined, how they're used, or understanding a specific subsystem.
 
 ## Source Code Layout (see `docs/devel/codebase.rst`)
 - **`accel/`**: Hardware accelerators (KVM, TCG, HVF, Xen, etc.) and architecture-agnostic acceleration code.
