@@ -331,7 +331,7 @@ static inline abi_long do_bsd_setsockopt(int sockfd, int level, int optname,
             break;
 
         case TARGET_SO_SNDLOWAT:
-            optname = SO_RCVLOWAT;
+            optname = SO_SNDLOWAT;
             break;
 
         case TARGET_SO_RCVLOWAT:
