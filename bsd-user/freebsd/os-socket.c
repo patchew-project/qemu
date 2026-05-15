@@ -186,7 +186,7 @@ abi_long h2t_freebsd_cmsg(struct target_msghdr *target_msgh,
                 }
                 break;
             }
-            case SO_TIMESTAMP:
+            case SCM_TIMESTAMP:
             {
                 struct timeval *tv = (struct timeval *)data;
                 struct target_freebsd_timeval *target_tv =
