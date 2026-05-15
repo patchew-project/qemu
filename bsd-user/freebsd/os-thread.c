@@ -1033,8 +1033,7 @@ abi_long freebsd_unlock_umutex(abi_ulong target_addr, uint32_t id)
     return optimized_umtx_op(target_addr, UMTX_OP_MUTEX_UNLOCK, 0, NULL, NULL);
 #else
     struct target_umutex *target_umutex;
-    uint32_t count, owner, *addr;
-    uint16_t flags;
+    uint32_t count, owner, *addr, flags;
 
     if (!lock_user_struct(VERIFY_WRITE, target_umutex, target_addr, 0)) {
         return -TARGET_EFAULT;
