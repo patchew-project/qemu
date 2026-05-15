@@ -1567,7 +1567,7 @@ abi_long do_freebsd_thr_new(CPUArchState *env,
     info.param.parent_tid = tswapal(target_param->parent_tid);
     info.param.flags = tswap32(target_param->flags);
     target_rtp_addr = info.param.rtp = tswapal(target_param->rtp);
-    unlock_user(target_param, target_param_addr, 0);
+    unlock_user_struct(target_param, target_param_addr, 0);
 
     thr_self(&info.parent_tid);
 
@@ -1577,7 +1577,7 @@ abi_long do_freebsd_thr_new(CPUArchState *env,
         }
         rtp.type = tswap16(target_rtp->type);
         rtp.prio = tswap16(target_rtp->prio);
-        unlock_user(target_rtp, target_rtp_addr, 0);
+        unlock_user_struct(target_rtp, target_rtp_addr, 0);
         rtp_ptr = &rtp;
     } else {
         rtp_ptr = NULL;
