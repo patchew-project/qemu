@@ -1264,6 +1264,7 @@ abi_long freebsd_rw_rdlock(abi_ulong target_addr, long fflag, size_t tsz,
             __get_user(blocked_readers, &target_urwlock->rw_blocked_readers);
         }
 
+        ret = 0;
         while (state & wrflags) {
             /* sleep/wait */
             unlock_user_struct(target_urwlock, target_addr, 1);
@@ -1274,7 +1275,11 @@ abi_long freebsd_rw_rdlock(abi_ulong target_addr, long fflag, size_t tsz,
             ret = _umtx_wait_uint(&target_urwlock->rw_state, tswap32(state),
                     tsz, t, __func__);
             if (is_error(ret)) {
-                return ret;
+                if (!lock_user_struct(VERIFY_WRITE, target_urwlock,
+                                      target_addr, 0)) {
+                    return ret;
+                }
+                goto rdlock_decrement;
             }
             if (!lock_user_struct(VERIFY_WRITE, target_urwlock, target_addr,
                         0)) {
@@ -1284,6 +1289,7 @@ abi_long freebsd_rw_rdlock(abi_ulong target_addr, long fflag, size_t tsz,
         }
 
         /* decrease read waiter count */
+rdlock_decrement:
         __get_user(blocked_readers, &target_urwlock->rw_blocked_readers);
         while (!tcmpset_32(&target_urwlock->rw_blocked_readers,
                     blocked_readers, (blocked_readers - 1))) {
@@ -1296,6 +1302,9 @@ abi_long freebsd_rw_rdlock(abi_ulong target_addr, long fflag, size_t tsz,
                 state & ~TARGET_URWLOCK_READ_WAITERS)) {
                 __get_user(state, &target_urwlock->rw_state);
             }
+        }
+        if (is_error(ret)) {
+            return ret;
         }
     }
 #endif /* _UMTX_OPTIMIZED */
@@ -1365,6 +1374,7 @@ abi_long freebsd_rw_wrlock(abi_ulong target_addr, long fflag, size_t tsz,
         }
 
         /* sleep */
+        ret = 0;
         while ((state & TARGET_URWLOCK_WRITE_OWNER) ||
                 (TARGET_URWLOCK_READER_COUNT(state) != 0)) {
             unlock_user_struct(target_urwlock, target_addr, 1);
@@ -1375,7 +1385,11 @@ abi_long freebsd_rw_wrlock(abi_ulong target_addr, long fflag, size_t tsz,
             ret = _umtx_wait_uint(&target_urwlock->rw_state,
                         tswap32(state), tsz, t, __func__);
             if (is_error(ret)) {
-                return ret;
+                if (!lock_user_struct(VERIFY_WRITE, target_urwlock,
+                                      target_addr, 0)) {
+                    return ret;
+                }
+                goto wrlock_decrement;
             }
             if (!lock_user_struct(VERIFY_WRITE, target_urwlock, target_addr,
                         0)) {
@@ -1385,6 +1399,7 @@ abi_long freebsd_rw_wrlock(abi_ulong target_addr, long fflag, size_t tsz,
         }
 
         /* decrease the write waiter count */
+wrlock_decrement:
         __get_user(blocked_writers, &target_urwlock->rw_blocked_writers);
         while (!tcmpset_32(&target_urwlock->rw_blocked_writers,
                     blocked_writers, (blocked_writers - 1))) {
@@ -1400,6 +1415,9 @@ abi_long freebsd_rw_wrlock(abi_ulong target_addr, long fflag, size_t tsz,
             __get_user(blocked_readers, &target_urwlock->rw_blocked_readers);
         } else {
             blocked_readers = 0;
+        }
+        if (is_error(ret)) {
+            return ret;
         }
     }
 #endif /* _UMTX_OPTIMIZED */
