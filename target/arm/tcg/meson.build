@@ -27,15 +27,13 @@ translate32_d = [
   decodetree.process('t16.decode', extra_args: ['-w', '16', '--static-decode=disas_t16']),
 ]
 
-arm_ss.add(when: 'TARGET_AARCH64', if_true: gen_a64)
 arm_stubs_ss.add(files('stubs32.c'))
 
 arm_ss.add(files(
   'cpu32.c',
 ))
 
-arm_ss.add(when: 'TARGET_AARCH64', if_true: files(
-  'cpu64.c',
+arm_ss.add(when: 'TARGET_AARCH64', if_true: gen_a64 + files(
   'gengvec64.c',
   'translate-a64.c',
   'translate-sve.c',
@@ -78,6 +76,9 @@ arm_common_user_system_ss.add(
   'translate-vfp.c',
   'vec_helper.c',
   'vfp_helper.c',
+))
+arm_common_user_system_ss.add(when: 'TARGET_AARCH64', if_true: files(
+  'cpu64.c',
 ))
 
 arm_common_system_ss.add(files(
