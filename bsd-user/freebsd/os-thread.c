@@ -1633,7 +1633,6 @@ abi_long do_freebsd_thr_new(CPUArchState *env,
     sigprocmask(SIG_BLOCK, &sigmask, &info.sigmask);
 
     ret = pthread_create(&info.thread, &attr, new_freebsd_thread_start, &info);
-    /* XXX Free new CPU state if thread creation fails. */
 
     sigprocmask(SIG_SETMASK, &info.sigmask, NULL);
     pthread_attr_destroy(&attr);
@@ -1642,6 +1641,9 @@ abi_long do_freebsd_thr_new(CPUArchState *env,
         pthread_cond_wait(&info.cond, &info.mutex);
     } else {
         /* Creation of new thread failed. */
+        object_unparent(OBJECT(new_cpu));
+        object_unref(OBJECT(new_cpu));
+        g_free(ts);
         ret = -host_to_target_errno(errno);
     }
 
