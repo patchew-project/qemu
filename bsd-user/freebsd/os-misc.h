@@ -480,7 +480,9 @@ static inline abi_long do_freebsd_kenv(abi_long action, abi_ulong name,
         }
         ret = kenv(action, gname, gvalue, len);
         if (ret > 0) {
-                len = ret;
+            len = ret;
+        } else {
+            len = 0;
         }
         break;
     case KENV_SET:
@@ -522,7 +524,9 @@ static inline abi_long do_freebsd_kenv(abi_long action, abi_ulong name,
         /* name is ignored, per kenv(2) */
         ret = kenv(action, NULL, gvalue, len);
         if (ret > 0) {
-                len = ret;
+            len = ret;
+        } else {
+            len = 0;
         }
         break;
     default:
