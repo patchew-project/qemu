@@ -440,7 +440,7 @@ static void multifd_send_error_propagate(Error *err)
  *
  * A successful migration also guarantees multifd sender threads are
  * properly flushed and halted.  It is only safe to send BYE in the
- * migration thread here when we know there's no other thread writting to
+ * migration thread here when we know there's no other thread writing to
  * the channel, because GnuTLS doesn't support concurrent writers.
  */
 static void migration_ioc_shutdown_gracefully(QIOChannel *ioc)

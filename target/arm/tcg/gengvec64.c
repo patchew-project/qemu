@@ -191,7 +191,7 @@ void gen_gvec_bcax(unsigned vece, uint32_t d, uint32_t n, uint32_t m,
 
 /*
  * Set @res to the correctly saturated result.
- * Set @qc non-zero if saturation occured.
+ * Set @qc non-zero if saturation occurred.
  */
 void gen_suqadd_bhs(TCGv_i64 res, TCGv_i64 qc,
                     TCGv_i64 a, TCGv_i64 b, MemOp esz)

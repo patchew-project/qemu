@@ -278,7 +278,7 @@ static int gmac_rx_transfer_frame_to_buffer(uint32_t rx_buf_len,
 {
     uint32_t to_transfer;
     /*
-     * Check that buffer is bigger than the frame being transfered
+     * Check that buffer is bigger than the frame being transferred
      * If bigger then transfer only whats left of frame
      * Else, fill frame with all the content possible
      */

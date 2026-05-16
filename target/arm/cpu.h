@@ -1281,7 +1281,7 @@ typedef struct ARMGranuleProtectionConfig {
  * @ss: security state for access
  * @fi: fault information in case a fault is detected
  *
- * Checks if @paddress can be accessed in physical adress space @pspace
+ * Checks if @paddress can be accessed in physical address space @pspace
  * for @ss secure state, following granule protection setup with @config.
  * If a fault is detected, @fi is set accordingly.
  * See GranuleProtectionCheck() in A-profile manual.

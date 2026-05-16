@@ -443,7 +443,7 @@ do {                                                                      \
 
     /*
      * We provide memmap properties to allow Xen to move things to other
-     * addresses for example when users need to accomodate the memory-map
+     * addresses for example when users need to accommodate the memory-map
      * for 1:1 mapped devices/memory.
      */
     OC_MEMMAP_PROP(oc, "ram-low", ram_low);

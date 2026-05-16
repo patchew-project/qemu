@@ -100,7 +100,7 @@ static void pnv_i2c_send(PnvI2cDev *dev, const uint8_t *buf, uint16_t len)
                     I2C_STAT_CMD_COMP);
 }
 
-/* Recieve len bytes into buf from i2c device with given addr and port */
+/* Receive len bytes into buf from i2c device with given addr and port */
 static void pnv_i2c_recv(PnvI2cDev *dev, uint8_t *buf, uint16_t len)
 {
     int byte_num;

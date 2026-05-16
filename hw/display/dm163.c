@@ -152,7 +152,7 @@ static void dm163_en_b_gpio_handler(void *opaque, int line, int new_state)
 static uint8_t dm163_bank0(const DM163State *s, uint8_t led)
 {
     /*
-     * Bank 0 uses 6 bits per led, so a value may be stored accross
+     * Bank 0 uses 6 bits per led, so a value may be stored across
      * two uint64_t entries.
      */
     const uint8_t low_bit = 6 * led;
