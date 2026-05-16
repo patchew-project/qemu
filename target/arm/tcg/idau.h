@@ -25,8 +25,8 @@
  * connected to the CPU using a link property.
  */
 
-#ifndef TARGET_ARM_IDAU_H
-#define TARGET_ARM_IDAU_H
+#ifndef TARGET_ARM_TCG_IDAU_H
+#define TARGET_ARM_TCG_IDAU_H
 
 #include "qom/object.h"
 
