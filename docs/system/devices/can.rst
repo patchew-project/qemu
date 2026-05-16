@@ -10,7 +10,7 @@ The concept of buses is generic and different CAN controllers
 can be implemented.
 
 The initial submission implemented SJA1000 controller which
-is common and well supported by by drivers for the most operating
+is common and well supported by drivers for the most operating
 systems.
 
 The PCI addon card hardware has been selected as the first CAN

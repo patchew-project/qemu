@@ -341,7 +341,7 @@ but only for RAM, it may not cover whole guest address space.
 If it's file-size related, use off_t.
 If it's file-offset related (i.e., signed), use off_t.
 If it's just counting small numbers use "unsigned int";
-(on all but oddball embedded systems, you can assume that that
+(on all but oddball embedded systems, you can assume that
 type is at least four bytes wide).
 
 In the event that you require a specific width, use a standard type

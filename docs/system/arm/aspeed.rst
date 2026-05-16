@@ -195,7 +195,7 @@ boot mode of machine: SPI or eMMC. This can be useful to boot the
 boot the ``rainier-bmc`` machine from a flash device (default being
 eMMC).
 
-As an example, here is how to to boot the ``rainier-bmc`` machine from
+As an example, here is how to boot the ``rainier-bmc`` machine from
 the flash device with ``boot-emmc=false`` and let the machine use an
 eMMC image :
 
