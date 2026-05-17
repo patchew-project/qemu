@@ -26,6 +26,7 @@
 #include "internals.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include "qapi/util.h"
 #include "qemu/error-report.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-prop-internal.h"
@@ -1655,51 +1656,25 @@ static const PropertyInfo prop_pmp_granularity = {
     .set = prop_pmp_granularity_set,
 };
 
-static int priv_spec_from_str(const char *priv_spec_str)
-{
-    int priv_version = -1;
+static const char *const priv_spec_str[] = {
+    [PRIV_VERSION_1_10_0] = PRIV_VER_1_10_0_STR,
+    [PRIV_VERSION_1_11_0] = PRIV_VER_1_11_0_STR,
+    [PRIV_VERSION_1_12_0] = PRIV_VER_1_12_0_STR,
+    [PRIV_VERSION_1_13_0] = PRIV_VER_1_13_0_STR,
+};
 
-    if (!g_strcmp0(priv_spec_str, PRIV_VER_1_13_0_STR)) {
-        priv_version = PRIV_VERSION_1_13_0;
-    } else if (!g_strcmp0(priv_spec_str, PRIV_VER_1_12_0_STR)) {
-        priv_version = PRIV_VERSION_1_12_0;
-    } else if (!g_strcmp0(priv_spec_str, PRIV_VER_1_11_0_STR)) {
-        priv_version = PRIV_VERSION_1_11_0;
-    } else if (!g_strcmp0(priv_spec_str, PRIV_VER_1_10_0_STR)) {
-        priv_version = PRIV_VERSION_1_10_0;
-    }
-
-    return priv_version;
-}
-
-const char *priv_spec_to_str(int priv_version)
-{
-    switch (priv_version) {
-    case PRIV_VERSION_1_10_0:
-        return PRIV_VER_1_10_0_STR;
-    case PRIV_VERSION_1_11_0:
-        return PRIV_VER_1_11_0_STR;
-    case PRIV_VERSION_1_12_0:
-        return PRIV_VER_1_12_0_STR;
-    case PRIV_VERSION_1_13_0:
-        return PRIV_VER_1_13_0_STR;
-    default:
-        return NULL;
-    }
-}
+const QEnumLookup priv_spec_lookup = {
+    .array = priv_spec_str,
+    .size = ARRAY_SIZE(priv_spec_str),
+};
 
 static void prop_priv_spec_set(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
     RISCVCPU *cpu = RISCV_CPU(obj);
-    g_autofree char *value = NULL;
-    int priv_version = -1;
+    int priv_version;
 
-    visit_type_str(v, name, &value, errp);
-
-    priv_version = priv_spec_from_str(value);
-    if (priv_version < 0) {
-        error_setg(errp, "Unsupported privilege spec version '%s'", value);
+    if (!visit_type_enum(v, name, &priv_version, &priv_spec_lookup, errp)) {
         return;
     }
 
@@ -1718,15 +1693,15 @@ static void prop_priv_spec_get(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
     RISCVCPU *cpu = RISCV_CPU(obj);
-    const char *value = priv_spec_to_str(cpu->env.priv_ver);
+    int value = cpu->env.priv_ver;
 
-    visit_type_str(v, name, (char **)&value, errp);
+    visit_type_enum(v, name, &value, &priv_spec_lookup, errp);
 }
 
 static const PropertyInfo prop_priv_spec = {
-    .type = "str",
+    .type = "RISCVPrivSpec",
     .description = "priv_spec",
-    /* FIXME enum? */
+    .enum_table = &priv_spec_lookup,
     .get = prop_priv_spec_get,
     .set = prop_priv_spec_set,
 };

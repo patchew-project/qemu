@@ -70,6 +70,7 @@ typedef struct CPUArchState CPURISCVState;
 #define RVG RV('G')
 #define RVB RV('B')
 
+extern const QEnumLookup priv_spec_lookup;
 extern const uint32_t misa_bits[];
 const char *riscv_get_misa_ext_name(uint32_t bit);
 const char *riscv_get_misa_ext_description(uint32_t bit);

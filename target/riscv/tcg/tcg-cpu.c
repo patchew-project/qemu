@@ -27,6 +27,7 @@
 #include "time_helper.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include "qapi/util.h"
 #include "qemu/accel.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
@@ -86,7 +87,7 @@ static void riscv_cpu_write_misa_bit(RISCVCPU *cpu, uint32_t bit,
 
 static const char *cpu_priv_ver_to_str(int priv_ver)
 {
-    const char *priv_spec_str = priv_spec_to_str(priv_ver);
+    const char *priv_spec_str = qapi_enum_lookup(&priv_spec_lookup, priv_ver);
 
     g_assert(priv_spec_str);
 
