@@ -2658,6 +2658,15 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
                 env->v7m.control[M_REG_S] &= ~R_V7M_CONTROL_FPCA_MASK;
                 env->v7m.control[M_REG_S] |= val & R_V7M_CONTROL_FPCA_MASK;
             }
+
+            /* Only update PAC_EN / UPAC_EN if PACBTI is implemented. */
+            if (cpu_isar_feature(aa32_m_pacbti, env_archcpu(env))) {
+                uint32_t enable_mask =
+                    R_V7M_CONTROL_PAC_EN_MASK | R_V7M_CONTROL_UPAC_EN_MASK;
+                env->v7m.control[M_REG_NS] &= ~enable_mask;
+                env->v7m.control[M_REG_NS] |= val & enable_mask;
+            }
+
             return;
         case 0x98: /* SP_NS */
         {
@@ -2783,6 +2792,14 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
                 env->v7m.control[M_REG_S] &= ~R_V7M_CONTROL_FPCA_MASK;
                 env->v7m.control[M_REG_S] |= val & R_V7M_CONTROL_FPCA_MASK;
             }
+        }
+
+        /* Only update PAC_EN / UPAC_EN if PACBTI is implemented. */
+        if (cpu_isar_feature(aa32_m_pacbti, env_archcpu(env))) {
+            uint32_t enable_mask =
+                R_V7M_CONTROL_PAC_EN_MASK | R_V7M_CONTROL_UPAC_EN_MASK;
+            env->v7m.control[env->v7m.secure] &= ~enable_mask;
+            env->v7m.control[env->v7m.secure] |= val & enable_mask;
         }
         break;
     default:

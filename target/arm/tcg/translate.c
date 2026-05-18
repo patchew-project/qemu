@@ -5012,26 +5012,80 @@ static bool trans_SMMLSR(DisasContext *s, arg_rrrr *a)
     return op_smmla(s, a, true, true);
 }
 
+static void arm_gen_test_pac_enabled(DisasContext *s, TCGLabel *label)
+{
+    int bank = s->v8m_secure ? M_REG_S : M_REG_NS;
+    int mask = IS_USER(s)
+        ?  R_V7M_CONTROL_UPAC_EN_MASK
+        : R_V7M_CONTROL_PAC_EN_MASK;
+    TCGv_i32 temp = load_cpu_field(v7m.control[bank]);
+    tcg_gen_brcondi_i32(TCG_COND_TSTEQ, temp, mask, label);
+}
+
+static TCGv_i32 op_create_pac_hash(DisasContext *s, int rn, int rm)
+{
+    TCGv_i32 res = tcg_temp_new_i32();
+    TCGv_i64 ext_ptr = tcg_temp_new_i64();
+    TCGv_i64 modifier = tcg_temp_new_i64();
+    TCGv_i64 temp = tcg_temp_new_i64();
+
+    tcg_gen_extu_i32_i64(ext_ptr, load_reg(s, rn));
+    tcg_gen_extu_i32_i64(modifier, load_reg(s, rm));
+
+    /*
+     * This a very simple implementation that just xor the two
+     * inputs. The goal is not to replicate any of the predefined
+     * hashing functions, but use a simple check.
+     */
+    tcg_gen_xor_i64(temp, ext_ptr, modifier);
+
+    /* Return the lower word */
+    tcg_gen_extrl_i64_i32(res, temp);
+    return res;
+}
+
+static bool op_pacg(DisasContext *s, arg_rrr *a)
+{
+    TCGv_i32 temp;
+    TCGLabel *done = gen_new_label();
+
+    arm_gen_test_pac_enabled(s, done);
+
+    temp = op_create_pac_hash(s, a->rn, a->rm);
+    store_reg(s, a->rd, temp);
+
+    gen_set_label(done);
+    return true;
+}
+
 static bool trans_PAC(DisasContext *s, arg_empty *a)
 {
+    arg_rrr arg;
+
     if (!arm_dc_feature(s, ARM_FEATURE_V8_1M)) {
         return false;
     }
 
-    /* Handle as if PACBTI is disabled. */
-    return true;
+    arg.rd = 0xc; /* R12 */
+    arg.rn = 0xe; /* LR */
+    arg.rm = 0xd; /* SP */
+    return op_pacg(s, &arg);
 }
 
 static bool trans_PACBTI(DisasContext *s, arg_empty *a)
 {
+    arg_rrr arg;
+
     if (!arm_dc_feature(s, ARM_FEATURE_V8_1M)) {
         return false;
     }
 
     /* todo: reset EPSR.B to 0 */
 
-    /* Handle as if PACBTI is disabled. */
-    return true;
+    arg.rd = 0xc; /* R12 */
+    arg.rn = 0xe; /* LR */
+    arg.rm = 0xd; /* SP */
+    return op_pacg(s, &arg);
 }
 
 static bool trans_PACG(DisasContext *s, arg_rrr *a)
@@ -5040,7 +5094,26 @@ static bool trans_PACG(DisasContext *s, arg_rrr *a)
         return false;
     }
 
-    /* Handle as if PACBTI is disabled. */
+    return op_pacg(s, a);
+}
+
+static bool op_autg(DisasContext *s, arg_rrrr *a, int set_pc_from_reg)
+{
+    TCGv_i32 expected_pac_hash, actual_pac_hash;
+    TCGLabel *done = gen_new_label();
+    TCGLabel *fail = delay_exception(s, EXCP_INVSTATE, syn_uncategorized());
+
+    arm_gen_test_pac_enabled(s, done);
+
+    expected_pac_hash = load_reg(s, a->ra);
+    actual_pac_hash = op_create_pac_hash(s, a->rn, a->rm);
+    tcg_gen_brcond_i32(TCG_COND_NE, expected_pac_hash, actual_pac_hash, fail);
+
+    gen_set_label(done);
+    if (set_pc_from_reg >= 0) {
+        gen_bx_excret(s, load_reg(s, set_pc_from_reg));
+    }
+
     return true;
 }
 
@@ -5050,18 +5123,22 @@ static bool trans_BXAUT(DisasContext *s, arg_rrrr *a)
         return false;
     }
 
-    /* Handle as if PACBTI is disabled. */
-    return true;
+    return op_autg(s, a, a->rn);
 }
 
 static bool trans_AUT(DisasContext *s, arg_empty *a)
 {
+    arg_rrrr arg;
+
     if (!arm_dc_feature(s, ARM_FEATURE_V8_1M)) {
         return false;
     }
 
-    /* Handle as if PACBTI is disabled. */
-    return true;
+    arg.rd = 0; /* unused */
+    arg.ra = 0xc; /* R12 */
+    arg.rn = 0xe; /* LR */
+    arg.rm = 0xd; /* SP */
+    return op_autg(s, &arg, -1);
 }
 
 static bool trans_AUTG(DisasContext *s, arg_rrrr *a)
@@ -5070,8 +5147,7 @@ static bool trans_AUTG(DisasContext *s, arg_rrrr *a)
         return false;
     }
 
-    /* Handle as if PACBTI is disabled. */
-    return true;
+    return op_autg(s, a, -1);
 }
 
 static bool op_div(DisasContext *s, arg_rrr *a, bool u)

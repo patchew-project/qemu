@@ -114,6 +114,7 @@ FIELD(ID_ISAR5, AES, 4, 4)
 FIELD(ID_ISAR5, SHA1, 8, 4)
 FIELD(ID_ISAR5, SHA2, 12, 4)
 FIELD(ID_ISAR5, CRC32, 16, 4)
+FIELD(ID_ISAR5, PACBTI, 20, 4)
 FIELD(ID_ISAR5, RDM, 24, 4)
 FIELD(ID_ISAR5, VCMA, 28, 4)
 
@@ -581,6 +582,11 @@ static inline bool isar_feature_aa32_m_sec_state(const ARMISARegisters *id)
      * (VSCCLRM, CLRM, FPCTX access insns) are implemented
      */
     return FIELD_EX32_IDREG(id, ID_PFR1, SECURITY) >= 3;
+}
+
+static inline bool isar_feature_aa32_m_pacbti(const ARMISARegisters *id)
+{
+    return FIELD_EX32_IDREG(id, ID_ISAR5, PACBTI) != 0;
 }
 
 static inline bool isar_feature_aa32_fp16_arith(const ARMISARegisters *id)
