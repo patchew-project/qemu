@@ -12,7 +12,7 @@
 
 /* TODO: model power only and disabled slot states. */
 /* TODO: handle SERR and wakeups */
-/* TODO: consider enabling 66MHz support */
+
 
 /* TODO: remove fully only on state DISABLED and LED off.
  * track state to properly record this. */
@@ -30,7 +30,7 @@
 #define SHPC_PHYS_BUTTON  0x8000
 #define SHPC_SEC_BUS      0x10 /* 2 bytes */
 #define SHPC_SEC_BUS_33   0x0
-#define SHPC_SEC_BUS_66   0x1 /* Unused */
+#define SHPC_SEC_BUS_66   0x1
 #define SHPC_SEC_BUS_MASK 0x7
 #define SHPC_MSI_CTL      0x12 /* 1 byte */
 #define SHPC_PROG_IFC     0x13 /* 1 byte */
@@ -169,6 +169,17 @@ static void shpc_set_status(SHPCDevice *shpc,
     pci_word_test_and_set_mask(status, value << ctz32(msk));
 }
 
+static bool shpc_device_is_66mhz_capable(SHPCDevice *shpc, int slot)
+{
+    int pci_slot = SHPC_IDX_TO_PCI(slot);
+    PCIDevice *dev = shpc->sec_bus->devices[PCI_DEVFN(pci_slot, 0)];
+
+    if (!dev) {
+        return false;
+    }
+    return pci_get_word(dev->config + PCI_STATUS) & PCI_STATUS_66MHZ;
+}
+
 static void shpc_interrupt_update(PCIDevice *d)
 {
     SHPCDevice *shpc = d->shpc;
@@ -203,6 +214,7 @@ static void shpc_set_sec_bus_speed(SHPCDevice *shpc, uint8_t speed)
 {
     switch (speed) {
     case SHPC_SEC_BUS_33:
+    case SHPC_SEC_BUS_66:
         shpc->config[SHPC_SEC_BUS] &= ~SHPC_SEC_BUS_MASK;
         shpc->config[SHPC_SEC_BUS] |= speed;
         break;
@@ -220,7 +232,7 @@ void shpc_reset(PCIDevice *d)
     memset(shpc->config, 0, SHPC_SIZEOF(d));
     pci_set_byte(shpc->config + SHPC_NSLOTS, nslots);
     pci_set_long(shpc->config + SHPC_SLOTS_33, nslots);
-    pci_set_long(shpc->config + SHPC_SLOTS_66, 0);
+    pci_set_long(shpc->config + SHPC_SLOTS_66, nslots);
     pci_set_byte(shpc->config + SHPC_FIRST_DEV, SHPC_IDX_TO_PCI(0));
     pci_set_word(shpc->config + SHPC_PHYS_SLOT,
                  SHPC_IDX_TO_PHYSICAL(0) |
@@ -256,7 +268,9 @@ void shpc_reset(PCIDevice *d)
             shpc_set_status(shpc, i, SHPC_LED_OFF, SHPC_SLOT_PWR_LED_MASK);
         }
         shpc_set_status(shpc, i, SHPC_LED_OFF, SHPC_SLOT_ATTN_LED_MASK);
-        shpc_set_status(shpc, i, 0, SHPC_SLOT_STATUS_66);
+        shpc_set_status(shpc, i,
+                        shpc_device_is_66mhz_capable(shpc, i) ? 1 : 0,
+                        SHPC_SLOT_STATUS_66);
     }
     shpc_set_sec_bus_speed(shpc, SHPC_SEC_BUS_33);
     shpc->msi_requested = 0;
@@ -578,6 +592,9 @@ void shpc_device_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
         shpc_set_status(shpc, slot, 0, SHPC_SLOT_STATUS_MRL_OPEN);
         shpc_set_status(shpc, slot, SHPC_SLOT_STATUS_PRSNT_7_5W,
                         SHPC_SLOT_STATUS_PRSNT_MASK);
+        shpc_set_status(shpc, slot,
+                        shpc_device_is_66mhz_capable(shpc, slot) ? 1 : 0,
+                        SHPC_SLOT_STATUS_66);
         return;
     }
 
@@ -596,7 +613,9 @@ void shpc_device_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
         shpc->config[SHPC_SLOT_EVENT_LATCH(slot)] |=
             SHPC_SLOT_EVENT_BUTTON;
     }
-    shpc_set_status(shpc, slot, 0, SHPC_SLOT_STATUS_66);
+    shpc_set_status(shpc, slot,
+                    shpc_device_is_66mhz_capable(shpc, slot) ? 1 : 0,
+                    SHPC_SLOT_STATUS_66);
     shpc_interrupt_update(pci_hotplug_dev);
 }
 
