@@ -1153,6 +1153,15 @@ F: include/hw/adc/zynq-xadc.h
 X: hw/ssi/xilinx_*
 F: docs/system/arm/xlnx-zynq.rst
 
+Beckhoff CX7200
+M: Yannick Vossen <Y.Vossen@beckhoff.com>
+M: Corvin Koehne <C.Koehne@beckhoff.com>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/beckhoff_CX7200.c
+F: hw/misc/beckhoff_ccat.c
+F: include/hw/misc/beckhoff_ccat.h
+
 Xilinx ZynqMP and Versal
 M: Alistair Francis <alistair@alistair23.me>
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
