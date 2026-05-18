@@ -24,6 +24,7 @@ OBJECT_DECLARE_TYPE(ZynqMachineState, ZynqMachineClass, ZYNQ_MACHINE)
 struct ZynqMachineState {
     MachineState parent;
     Clock *ps_clk;
+    Clock *mpcore_clk;
     ARMCPU *cpu[ZYNQ_MAX_CPUS];
     uint8_t boot_mode;
 };
@@ -31,6 +32,7 @@ struct ZynqMachineState {
 struct ZynqMachineClass {
     MachineClass parent_class;
     const char *qspi_flash_type;
+    uint64_t ps_clk_freq;
 };
 
 #endif /* QEMU_ARM_ZYNQ_H */

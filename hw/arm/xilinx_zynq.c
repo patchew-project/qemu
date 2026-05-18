@@ -259,7 +259,7 @@ static void zynq_init(MachineState *machine)
     object_property_add_child(OBJECT(zynq_machine), "ps_clk",
                               OBJECT(zynq_machine->ps_clk));
     object_unref(OBJECT(zynq_machine->ps_clk));
-    clock_set_hz(zynq_machine->ps_clk, PS_CLK_FREQUENCY);
+    clock_set_hz(zynq_machine->ps_clk, zmc->ps_clk_freq);
 
     /* Create slcr, keep a pointer to connect clocks */
     slcr = qdev_new("xilinx-zynq_slcr");
@@ -485,6 +485,7 @@ static void zynq_machine_class_init(ObjectClass *oc, const void *data)
                                           " jtag qspi sd nor");
     object_property_set_default_str(prop, "qspi");
     zmc->qspi_flash_type = "n25q128";
+    zmc->ps_clk_freq = PS_CLK_FREQUENCY;
 }
 
 static const TypeInfo zynq_machine_type = {
