@@ -39,15 +39,7 @@ static bool fd_is_pipe(int fd)
 
 static bool migration_fd_valid(int fd)
 {
-    if (fd_is_socket(fd)) {
-        return true;
-    }
-
-    if (fd_is_pipe(fd)) {
-        return true;
-    }
-
-    return false;
+    return fd_is_socket(fd) || fd_is_pipe(fd);
 }
 
 QIOChannel *fd_connect_outgoing(MigrationState *s, const char *fdname,
