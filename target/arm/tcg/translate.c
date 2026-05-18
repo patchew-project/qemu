@@ -5012,6 +5012,68 @@ static bool trans_SMMLSR(DisasContext *s, arg_rrrr *a)
     return op_smmla(s, a, true, true);
 }
 
+static bool trans_PAC(DisasContext *s, arg_empty *a)
+{
+    if (!arm_dc_feature(s, ARM_FEATURE_V8_1M)) {
+        return false;
+    }
+
+    /* Handle as if PACBTI is disabled. */
+    return true;
+}
+
+static bool trans_PACBTI(DisasContext *s, arg_empty *a)
+{
+    if (!arm_dc_feature(s, ARM_FEATURE_V8_1M)) {
+        return false;
+    }
+
+    /* todo: reset EPSR.B to 0 */
+
+    /* Handle as if PACBTI is disabled. */
+    return true;
+}
+
+static bool trans_PACG(DisasContext *s, arg_rrr *a)
+{
+    if (!arm_dc_feature(s, ARM_FEATURE_V8_1M)) {
+        return false;
+    }
+
+    /* Handle as if PACBTI is disabled. */
+    return true;
+}
+
+static bool trans_BXAUT(DisasContext *s, arg_rrrr *a)
+{
+    if (!arm_dc_feature(s, ARM_FEATURE_V8_1M)) {
+        return false;
+    }
+
+    /* Handle as if PACBTI is disabled. */
+    return true;
+}
+
+static bool trans_AUT(DisasContext *s, arg_empty *a)
+{
+    if (!arm_dc_feature(s, ARM_FEATURE_V8_1M)) {
+        return false;
+    }
+
+    /* Handle as if PACBTI is disabled. */
+    return true;
+}
+
+static bool trans_AUTG(DisasContext *s, arg_rrrr *a)
+{
+    if (!arm_dc_feature(s, ARM_FEATURE_V8_1M)) {
+        return false;
+    }
+
+    /* Handle as if PACBTI is disabled. */
+    return true;
+}
+
 static bool op_div(DisasContext *s, arg_rrr *a, bool u)
 {
     TCGv_i32 t1, t2;
