@@ -67,6 +67,11 @@ void loongarch_cpu_set_irq(void *opaque, int irq, int level)
         return;
     }
 
+    if (FIELD_EX64(env->CSR_GINTC, CSR_GINTC, HWIP) & BIT(irq)) {
+        loongarch_cpu_set_irq_guest(opaque, irq, level);
+        return;
+    }
+
     if (kvm_enabled()) {
         kvm_loongarch_set_interrupt(cpu, irq, level);
     } else if (tcg_enabled()) {
@@ -75,6 +80,26 @@ void loongarch_cpu_set_irq(void *opaque, int irq, int level)
             cpu_interrupt(cs, CPU_INTERRUPT_HARD);
         } else {
             cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
+        }
+    }
+}
+
+void loongarch_cpu_set_irq_guest(void *opaque, int irq, int level)
+{
+    LoongArchCPU *cpu = opaque;
+    CPULoongArchState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
+
+    if (irq < 0 || irq >= N_IRQS) {
+        return;
+    }
+
+    env->GCSR_ESTAT = deposit64(env->GCSR_ESTAT, irq, 1, level != 0);
+    if (env->guest) {
+        if (FIELD_EX64(env->GCSR_ESTAT, CSR_ESTAT, IS)) {
+            cpu_interrupt(cs, CPU_INTERRUPT_GUEST);
+        } else {
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_GUEST);
         }
     }
 }
@@ -90,6 +115,30 @@ bool cpu_loongarch_hw_interrupts_pending(CPULoongArchState *env)
 
     return (pending & status) != 0;
 }
+
+static inline bool
+cpu_loongarch_hw_interrupts_enabled_guest(CPULoongArchState *env)
+{
+    return FIELD_EX64(env->GCSR_CRMD, CSR_CRMD, IE);
+}
+
+static inline bool
+cpu_loongarch_hw_interrupts_pending_guest(CPULoongArchState *env)
+{
+    uint32_t pending;
+    uint32_t status;
+
+    pending = FIELD_EX64(env->GCSR_ESTAT, CSR_ESTAT, IS);
+    status = FIELD_EX64(env->GCSR_ECFG, CSR_ECFG, LIE);
+
+    return (pending & status) != 0;
+}
+
+bool loongarch_guest_has_interrupt(CPULoongArchState *env)
+{
+    return env->guest && cpu_loongarch_hw_interrupts_enabled_guest(env) &&
+           cpu_loongarch_hw_interrupts_pending_guest(env);
+}
 #endif
 
 #ifndef CONFIG_USER_ONLY
@@ -102,9 +151,53 @@ bool loongarch_cpu_has_work(CPUState *cs)
         has_work = true;
     }
 
+    if (cpu_test_interrupt(cs, CPU_INTERRUPT_GUEST) &&
+        loongarch_guest_has_interrupt(cpu_env(cs))) {
+        has_work = true;
+    }
+
     return has_work;
 }
 #endif /* !CONFIG_USER_ONLY */
+
+uint8_t get_tgid(CPULoongArchState *env)
+{
+    if (env->guest) {
+        return get_gid(env);
+    }
+
+    if (FIELD_EX64(env->CSR_GTLBC, CSR_GTLBC, USETGID)) {
+        return FIELD_EX64(env->CSR_GTLBC, CSR_GTLBC, TGID);
+    } else if (will_return_to_guest(env)) {
+        return get_gid(env);
+    }
+    return 0;
+}
+
+bool will_return_to_guest(CPULoongArchState *env)
+{
+    if (!has_lvz_capability(env) || env->guest) {
+        return false;
+    }
+    return FIELD_EX64(env->CSR_GSTAT, CSR_GSTAT, PVM);
+}
+
+bool has_lvz_capability(CPULoongArchState *env)
+{
+    return FIELD_EX32(env->cpucfg[2], CPUCFG2, LVZ);
+}
+
+uint8_t get_gid(CPULoongArchState *env)
+{
+    return FIELD_EX64(env->CSR_GSTAT, CSR_GSTAT, GID);
+}
+
+void trigger_vm_exit(CPULoongArchState *env)
+{
+    cpu_loongarch_set_guest_timer(env_archcpu(env), false);
+    env->CSR_GSTAT = FIELD_DP64(env->CSR_GSTAT, CSR_GSTAT, PVM, 1);
+    env->vm_exit = true;
+}
 
 static void loongarch_la464_init_csr(DeviceState *dev)
 {
@@ -248,12 +341,33 @@ static void loongarch_set_ptw(Object *obj, bool value, Error **errp)
     cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, HPTW, value);
 }
 
+static bool loongarch_get_lvz(Object *obj, Error **errp)
+{
+    return LOONGARCH_CPU(obj)->lvz != ON_OFF_AUTO_OFF;
+}
+
+static void loongarch_set_lvz(Object *obj, bool value, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+
+    cpu->lvz = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
+
+    if (kvm_enabled()) {
+        return;
+    }
+
+    cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LVZ, value);
+    cpu->env.cpucfg[2] =
+        FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LVZ_VER, value ? 1 : 0);
+}
+
 static void loongarch_cpu_post_init(Object *obj)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
 
     cpu->lbt = ON_OFF_AUTO_OFF;
     cpu->pmu = ON_OFF_AUTO_OFF;
+    cpu->lvz = ON_OFF_AUTO_AUTO;
     cpu->lsx = ON_OFF_AUTO_AUTO;
     cpu->lasx = ON_OFF_AUTO_AUTO;
     object_property_add_bool(obj, "lsx", loongarch_get_lsx,
@@ -264,6 +378,8 @@ static void loongarch_cpu_post_init(Object *obj)
                              loongarch_set_msgint);
     object_property_add_bool(obj, "ptw", loongarch_get_ptw,
                              loongarch_set_ptw);
+    object_property_add_bool(obj, "lvz", loongarch_get_lvz,
+                             loongarch_set_lvz);
     /* lbt is enabled only in kvm mode, not supported in tcg mode */
 
     if (kvm_enabled()) {
@@ -317,6 +433,8 @@ static void loongarch_la464_initfn(Object *obj)
     data = FIELD_DP32(data, CPUCFG2, FP_VER, 1);
     data = FIELD_DP32(data, CPUCFG2, LSX, 1),
     data = FIELD_DP32(data, CPUCFG2, LASX, 1),
+    data = FIELD_DP32(data, CPUCFG2, LVZ, 1);
+    data = FIELD_DP32(data, CPUCFG2, LVZ_VER, 1);
     data = FIELD_DP32(data, CPUCFG2, LLFTP, 1);
     data = FIELD_DP32(data, CPUCFG2, LLFTP_VER, 1);
     data = FIELD_DP32(data, CPUCFG2, LSPW, 1);
@@ -395,6 +513,7 @@ static void loongarch_la464_initfn(Object *obj)
     env->CSR_PRCFG3 = FIELD_DP64(env->CSR_PRCFG3, CSR_PRCFG3, STLB_SETS, 8);
 
     cpu->msgint = ON_OFF_AUTO_OFF;
+    cpu->lvz = ON_OFF_AUTO_AUTO;
     cpu->ptw = ON_OFF_AUTO_OFF;
     loongarch_cpu_post_init(obj);
 }
@@ -432,6 +551,7 @@ static void loongarch_la132_initfn(Object *obj)
     data = FIELD_DP32(data, CPUCFG1, CRC, 1);
     env->cpucfg[1] = data;
     cpu->msgint = ON_OFF_AUTO_OFF;
+    cpu->lvz = ON_OFF_AUTO_OFF;
     cpu->ptw = ON_OFF_AUTO_OFF;
 }
 
@@ -637,6 +757,7 @@ static void loongarch_cpu_reset_hold(Object *obj, ResetType type)
     env->CSR_RVACFG = FIELD_DP64(env->CSR_RVACFG, CSR_RVACFG, RBITS, 0);
     env->CSR_CPUID = cs->cpu_index;
     env->CSR_TCFG = FIELD_DP64(env->CSR_TCFG, CSR_TCFG, EN, 0);
+    env->GCSR_TCFG = FIELD_DP64(env->GCSR_TCFG, CSR_TCFG, EN, 0);
     env->CSR_LLBCTL = FIELD_DP64(env->CSR_LLBCTL, CSR_LLBCTL, KLO, 0);
     env->CSR_TLBRERA = FIELD_DP64(env->CSR_TLBRERA, CSR_TLBRERA, ISTLBR, 0);
     env->CSR_MERRCTL = FIELD_DP64(env->CSR_MERRCTL, CSR_MERRCTL, ISMERR, 0);
@@ -671,6 +792,15 @@ static void loongarch_cpu_reset_hold(Object *obj, ResetType type)
     env->pc = 0x1c000000;
 #ifdef CONFIG_TCG
     memset(env->tlb, 0, sizeof(env->tlb));
+    env->guest = false;
+    env->vm_exit = false;
+    env->CSR_GSTAT = FIELD_DP64(0, CSR_GSTAT, GIDBIT, 8);
+    env->CSR_GCFG = 0;
+    env->CSR_GINTC = 0;
+    env->CSR_GCNTC = 0;
+    env->CSR_GTLBC = 0;
+    env->CSR_TRGP = 0;
+    env->GCSR_ASID = FIELD_DP64(0, CSR_ASID, ASIDBITS, 0xa);
 #endif
     if (kvm_enabled()) {
         kvm_arch_reset_vcpu(cs);
@@ -731,6 +861,8 @@ static void loongarch_cpu_init(Object *obj)
 #ifdef CONFIG_TCG
     timer_init_ns(&cpu->timer, QEMU_CLOCK_VIRTUAL,
                   &loongarch_constant_timer_cb, cpu);
+    timer_init_ns(&cpu->guest_timer, QEMU_CLOCK_VIRTUAL,
+                  &loongarch_constant_timer_cb_guest, cpu);
 #endif
 #endif
 }

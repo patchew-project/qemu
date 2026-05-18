@@ -39,6 +39,16 @@ GEN_FALSE_TRANS(lddir)
 GEN_FALSE_TRANS(ertn)
 GEN_FALSE_TRANS(dbcl)
 GEN_FALSE_TRANS(idle)
+GEN_FALSE_TRANS(gcsrrd)
+GEN_FALSE_TRANS(gcsrwr)
+GEN_FALSE_TRANS(gcsrxchg)
+GEN_FALSE_TRANS(gtlbclr)
+GEN_FALSE_TRANS(gtlbflush)
+GEN_FALSE_TRANS(gtlbsrch)
+GEN_FALSE_TRANS(gtlbrd)
+GEN_FALSE_TRANS(gtlbwr)
+GEN_FALSE_TRANS(gtlbfill)
+GEN_FALSE_TRANS(hvcl)
 
 #else
 
@@ -69,8 +79,25 @@ static bool set_csr_trans_func(unsigned int csr_num, GenCSRRead readfn,
     return true;
 }
 
+static bool set_gcsr_trans_func(unsigned int csr_num, GenCSRRead readfn,
+                                GenCSRWrite writefn)
+{
+    CSRInfo *csr;
+
+    csr = get_gcsr(csr_num);
+    if (!csr) {
+        return false;
+    }
+
+    csr->readfn = (GenCSRFunc)readfn;
+    csr->writefn = (GenCSRFunc)writefn;
+    return true;
+}
+
 #define SET_CSR_FUNC(NAME, read, write)                 \
         set_csr_trans_func(LOONGARCH_CSR_##NAME, read, write)
+#define SET_GCSR_FUNC(NAME, read, write)                \
+        set_gcsr_trans_func(LOONGARCH_CSR_##NAME, read, write)
 
 void loongarch_csr_translate_init(void)
 {
@@ -85,12 +112,26 @@ void loongarch_csr_translate_init(void)
     SET_CSR_FUNC(TVAL,  gen_helper_csrrd_tval, NULL);
     SET_CSR_FUNC(TICLR, NULL, gen_helper_csrwr_ticlr);
     SET_CSR_FUNC(MSGIR, gen_helper_csrrd_msgir, NULL);
+    SET_CSR_FUNC(GSTAT, NULL, gen_helper_csrwr_gstat);
+    SET_CSR_FUNC(GTLBC, NULL, gen_helper_csrwr_gtlbc);
+    SET_CSR_FUNC(GINTC, NULL, gen_helper_csrwr_gintc);
+
+    SET_GCSR_FUNC(ESTAT, NULL, gen_helper_gcsrwr_estat);
+    SET_GCSR_FUNC(ASID, NULL, gen_helper_gcsrwr_asid);
+    SET_GCSR_FUNC(PGD, gen_helper_gcsrrd_pgd, NULL);
+    SET_GCSR_FUNC(TCFG, NULL, gen_helper_gcsrwr_tcfg);
+    SET_GCSR_FUNC(TVAL, gen_helper_gcsrrd_tval, NULL);
+    SET_GCSR_FUNC(TICLR, NULL, gen_helper_gcsrwr_ticlr);
 }
 #undef SET_CSR_FUNC
+#undef SET_GCSR_FUNC
 
 static bool check_csr_flags(DisasContext *ctx, const CSRInfo *csr, bool write)
 {
     if ((csr->flags & CSRFL_READONLY) && write) {
+        return false;
+    }
+    if ((csr->flags & CSRFL_GUEST_READONLY) && ctx->guest_mode && write) {
         return false;
     }
     if ((csr->flags & CSRFL_IO) && translator_io_start(&ctx->base)) {
@@ -110,12 +151,17 @@ static bool trans_csrrd(DisasContext *ctx, arg_csrrd *a)
     if (check_plv(ctx)) {
         return false;
     }
-    csr = get_csr(a->csr);
+    csr = ctx->guest_mode ? get_gcsr(a->csr) : get_csr(a->csr);
     if (csr == NULL) {
         /* CSR is undefined: read as 0. */
         dest = tcg_constant_tl(0);
     } else {
         check_csr_flags(ctx, csr, false);
+        if (ctx->guest_mode && (csr->flags & CSRFL_GSPR)) {
+            gen_helper_gspr(tcg_env);
+            gen_set_gpr(a->rd, tcg_constant_tl(0), EXT_NONE);
+            return true;
+        }
         dest = gpr_dst(ctx, a->rd, EXT_NONE);
         readfn = (GenCSRRead)csr->readfn;
         if (readfn) {
@@ -137,9 +183,14 @@ static bool trans_csrwr(DisasContext *ctx, arg_csrwr *a)
     if (check_plv(ctx)) {
         return false;
     }
-    csr = get_csr(a->csr);
+    csr = ctx->guest_mode ? get_gcsr(a->csr) : get_csr(a->csr);
     if (csr == NULL) {
         /* CSR is undefined: write ignored, read old_value as 0. */
+        gen_set_gpr(a->rd, tcg_constant_tl(0), EXT_NONE);
+        return true;
+    }
+    if (ctx->guest_mode && (csr->flags & CSRFL_GSPR)) {
+        gen_helper_gspr(tcg_env);
         gen_set_gpr(a->rd, tcg_constant_tl(0), EXT_NONE);
         return true;
     }
@@ -170,9 +221,14 @@ static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
     if (check_plv(ctx)) {
         return false;
     }
-    csr = get_csr(a->csr);
+    csr = ctx->guest_mode ? get_gcsr(a->csr) : get_csr(a->csr);
     if (csr == NULL) {
         /* CSR is undefined: write ignored, read old_value as 0. */
+        gen_set_gpr(a->rd, tcg_constant_tl(0), EXT_NONE);
+        return true;
+    }
+    if (ctx->guest_mode && (csr->flags & CSRFL_GSPR)) {
+        gen_helper_gspr(tcg_env);
         gen_set_gpr(a->rd, tcg_constant_tl(0), EXT_NONE);
         return true;
     }
@@ -182,16 +238,18 @@ static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
         return false;
     }
 
-    /* So far only readonly csrs have readfn. */
-    assert(csr->readfn == NULL);
-
     src1 = gpr_src(ctx, a->rd, EXT_NONE);
     mask = gpr_src(ctx, a->rj, EXT_NONE);
     oldv = tcg_temp_new();
     newv = tcg_temp_new();
     temp = tcg_temp_new();
 
-    tcg_gen_ld_tl(oldv, tcg_env, csr->offset);
+    if (csr->readfn) {
+        GenCSRRead readfn = (GenCSRRead)csr->readfn;
+        readfn(oldv, tcg_env);
+    } else {
+        tcg_gen_ld_tl(oldv, tcg_env, csr->offset);
+    }
     tcg_gen_and_tl(newv, src1, mask);
     tcg_gen_andc_tl(temp, oldv, mask);
     tcg_gen_or_tl(newv, newv, temp);
@@ -212,6 +270,11 @@ static bool gen_iocsrrd(DisasContext *ctx, arg_rr *a,
     TCGv dest = gpr_dst(ctx, a->rd, EXT_NONE);
     TCGv src1 = gpr_src(ctx, a->rj, EXT_NONE);
 
+    if (ctx->guest_mode) {
+        gen_helper_gspr(tcg_env);
+        return true;
+    }
+
     if (check_plv(ctx)) {
         return false;
     }
@@ -224,6 +287,11 @@ static bool gen_iocsrwr(DisasContext *ctx, arg_rr *a,
 {
     TCGv val = gpr_src(ctx, a->rd, EXT_NONE);
     TCGv addr = gpr_src(ctx, a->rj, EXT_NONE);
+
+    if (ctx->guest_mode) {
+        gen_helper_gspr(tcg_env);
+        return true;
+    }
 
     if (check_plv(ctx)) {
         return false;
@@ -243,7 +311,7 @@ TRANS64(iocsrwr_d, IOCSR, gen_iocsrwr, gen_helper_iocsrwr_d)
 
 static void check_mmu_idx(DisasContext *ctx)
 {
-    if (ctx->mem_idx != MMU_DA_IDX) {
+    if (ctx->mem_idx != MMU_DA_IDX && ctx->mem_idx != MMU_GUEST_DA_IDX) {
         tcg_gen_movi_tl(cpu_pc, ctx->base.pc_next + 4);
         ctx->base.is_jmp = DISAS_EXIT;
     }
@@ -316,25 +384,61 @@ static bool trans_invtlb(DisasContext *ctx, arg_invtlb *a)
         return false;
     }
 
+    if (!avail_LVZ(ctx) && a->imm > 0x6) {
+        return false;
+    }
+
+    //TODO: futher refinement of op 0x9 and 0x10-0x16
     switch (a->imm) {
-    case 0:
-    case 1:
-        gen_helper_invtlb_all(tcg_env);
+    case 0x0:
+    case 0x1:
+        gen_helper_invtlb_all(tcg_env, rj, tcg_constant_i32(a->imm),
+                              tcg_constant_i32(0));
         break;
-    case 2:
-        gen_helper_invtlb_all_g(tcg_env, tcg_constant_i32(1));
+    case 0x2:
+        gen_helper_invtlb_all_g(tcg_env, rj, tcg_constant_i32(1),
+                                tcg_constant_i32(0));
         break;
-    case 3:
-        gen_helper_invtlb_all_g(tcg_env, tcg_constant_i32(0));
+    case 0x3:
+        gen_helper_invtlb_all_g(tcg_env, rj, tcg_constant_i32(0),
+                                tcg_constant_i32(0));
         break;
-    case 4:
-        gen_helper_invtlb_all_asid(tcg_env, rj);
+    case 0x4:
+        gen_helper_invtlb_all_asid(tcg_env, rj, tcg_constant_i32(0));
         break;
-    case 5:
-        gen_helper_invtlb_page_asid(tcg_env, rj, rk);
+    case 0x5:
+        gen_helper_invtlb_page_asid(tcg_env, rj, rk, tcg_constant_i32(0));
         break;
-    case 6:
-        gen_helper_invtlb_page_asid_or_g(tcg_env, rj, rk);
+    case 0x6:
+        gen_helper_invtlb_page_asid_or_g(tcg_env, rj, rk, tcg_constant_i32(0));
+        break;
+    case 0x9:
+    case 0x10:
+    case 0x11:
+    case 0x12:
+    case 0x13:
+    case 0x14:
+    case 0x15:
+    case 0x16:
+        gen_helper_invtlb_all(tcg_env, rj, tcg_constant_i32(0),
+                              tcg_constant_i32(0));
+        break;
+    case 0xa:
+        gen_helper_invtlb_all_g(tcg_env, rj, tcg_constant_i32(1),
+                                tcg_constant_i32(1));
+        break;
+    case 0xb:
+        gen_helper_invtlb_all_g(tcg_env, rj, tcg_constant_i32(0),
+                                tcg_constant_i32(1));
+        break;
+    case 0xc:
+        gen_helper_invtlb_all_asid(tcg_env, rj, tcg_constant_i32(1));
+        break;
+    case 0xd:
+        gen_helper_invtlb_page_asid(tcg_env, rj, rk, tcg_constant_i32(1));
+        break;
+    case 0xe:
+        gen_helper_invtlb_page_asid_or_g(tcg_env, rj, rk, tcg_constant_i32(1));
         break;
     default:
         return false;
@@ -400,6 +504,10 @@ static bool trans_dbcl(DisasContext *ctx, arg_dbcl *a)
     if (check_plv(ctx)) {
         return false;
     }
+    if (ctx->guest_mode) {
+        gen_helper_gspr(tcg_env);
+        return true;
+    }
     generate_exception(ctx, EXCCODE_DBP);
     return true;
 }
@@ -410,8 +518,211 @@ static bool trans_idle(DisasContext *ctx, arg_idle *a)
         return false;
     }
 
+    if (ctx->guest_mode) {
+        gen_helper_gspr(tcg_env);
+        return true;
+    }
+
     tcg_gen_movi_tl(cpu_pc, ctx->base.pc_next + 4);
     gen_helper_idle(tcg_env);
+    ctx->base.is_jmp = DISAS_NORETURN;
+    return true;
+}
+
+static bool trans_gcsrrd(DisasContext *ctx, arg_gcsrrd *a)
+{
+    TCGv dest;
+    const CSRInfo *csr;
+    GenCSRRead readfn;
+
+    if (check_plv(ctx)) {
+        return false;
+    }
+    if (!avail_LVZ(ctx) || ctx->guest_mode) {
+        return false;
+    }
+
+    csr = get_gcsr(a->csr);
+    if (csr == NULL) {
+        dest = tcg_constant_tl(0);
+    } else {
+        dest = gpr_dst(ctx, a->rd, EXT_NONE);
+        if (csr->flags & CSRFL_GSPR) {
+            tcg_gen_movi_tl(dest, 0);
+        } else {
+            readfn = (GenCSRRead)csr->readfn;
+            if (readfn) {
+                readfn(dest, tcg_env);
+            } else {
+                tcg_gen_ld_tl(dest, tcg_env, csr->offset);
+            }
+        }
+    }
+    gen_set_gpr(a->rd, dest, EXT_NONE);
+    return true;
+}
+
+static bool trans_gcsrwr(DisasContext *ctx, arg_gcsrwr *a)
+{
+    TCGv dest, src1;
+    const CSRInfo *csr;
+    GenCSRWrite writefn;
+
+    if (check_plv(ctx)) {
+        return false;
+    }
+    if (!avail_LVZ(ctx) || ctx->guest_mode) {
+        return false;
+    }
+
+    csr = get_gcsr(a->csr);
+    if (csr == NULL) {
+        gen_set_gpr(a->rd, tcg_constant_tl(0), EXT_NONE);
+        return true;
+    }
+    if (!check_csr_flags(ctx, csr, true)) {
+        return false;
+    }
+    if (csr->flags & CSRFL_GSPR) {
+        gen_set_gpr(a->rd, tcg_constant_tl(0), EXT_NONE);
+        return true;
+    }
+
+    src1 = gpr_src(ctx, a->rd, EXT_NONE);
+    writefn = (GenCSRWrite)csr->writefn;
+    if (writefn) {
+        dest = gpr_dst(ctx, a->rd, EXT_NONE);
+        writefn(dest, tcg_env, src1);
+    } else {
+        dest = tcg_temp_new();
+        tcg_gen_ld_tl(dest, tcg_env, csr->offset);
+        tcg_gen_st_tl(src1, tcg_env, csr->offset);
+    }
+    gen_set_gpr(a->rd, dest, EXT_NONE);
+    return true;
+}
+
+static bool trans_gcsrxchg(DisasContext *ctx, arg_gcsrxchg *a)
+{
+    TCGv src1, mask, oldv, newv, temp;
+    const CSRInfo *csr;
+    GenCSRRead readfn;
+    GenCSRWrite writefn;
+
+    if (check_plv(ctx)) {
+        return false;
+    }
+    if (!avail_LVZ(ctx) || ctx->guest_mode) {
+        return false;
+    }
+
+    csr = get_gcsr(a->csr);
+    if (csr == NULL) {
+        gen_set_gpr(a->rd, tcg_constant_tl(0), EXT_NONE);
+        return true;
+    }
+    if (!check_csr_flags(ctx, csr, true)) {
+        return false;
+    }
+    if (csr->flags & CSRFL_GSPR) {
+        gen_set_gpr(a->rd, tcg_constant_tl(0), EXT_NONE);
+        return true;
+    }
+
+    src1 = gpr_src(ctx, a->rd, EXT_NONE);
+    mask = gpr_src(ctx, a->rj, EXT_NONE);
+    oldv = tcg_temp_new();
+    newv = tcg_temp_new();
+    temp = tcg_temp_new();
+
+    readfn = (GenCSRRead)csr->readfn;
+    if (readfn) {
+        readfn(oldv, tcg_env);
+    } else {
+        tcg_gen_ld_tl(oldv, tcg_env, csr->offset);
+    }
+    tcg_gen_and_tl(newv, src1, mask);
+    tcg_gen_andc_tl(temp, oldv, mask);
+    tcg_gen_or_tl(newv, newv, temp);
+
+    writefn = (GenCSRWrite)csr->writefn;
+    if (writefn) {
+        writefn(oldv, tcg_env, newv);
+    } else {
+        tcg_gen_st_tl(newv, tcg_env, csr->offset);
+    }
+    gen_set_gpr(a->rd, oldv, EXT_NONE);
+    return true;
+}
+
+static bool trans_gtlbsrch(DisasContext *ctx, arg_gtlbsrch *a)
+{
+    if (check_plv(ctx) || !avail_LVZ(ctx) || ctx->guest_mode) {
+        return false;
+    }
+    gen_helper_gtlbsrch(tcg_env);
+    return true;
+}
+
+static bool trans_gtlbrd(DisasContext *ctx, arg_gtlbrd *a)
+{
+    if (check_plv(ctx) || !avail_LVZ(ctx) || ctx->guest_mode) {
+        return false;
+    }
+    gen_helper_gtlbrd(tcg_env);
+    return true;
+}
+
+static bool trans_gtlbwr(DisasContext *ctx, arg_gtlbwr *a)
+{
+    if (check_plv(ctx) || !avail_LVZ(ctx) || ctx->guest_mode) {
+        return false;
+    }
+    gen_helper_gtlbwr(tcg_env);
+    check_mmu_idx(ctx);
+    return true;
+}
+
+static bool trans_gtlbfill(DisasContext *ctx, arg_gtlbfill *a)
+{
+    if (check_plv(ctx) || !avail_LVZ(ctx) || ctx->guest_mode) {
+        return false;
+    }
+    gen_helper_gtlbfill(tcg_env);
+    check_mmu_idx(ctx);
+    return true;
+}
+
+static bool trans_gtlbclr(DisasContext *ctx, arg_gtlbclr *a)
+{
+    if (check_plv(ctx) || !avail_LVZ(ctx) || ctx->guest_mode) {
+        return false;
+    }
+    gen_helper_gtlbclr(tcg_env);
+    check_mmu_idx(ctx);
+    return true;
+}
+
+static bool trans_gtlbflush(DisasContext *ctx, arg_gtlbflush *a)
+{
+    if (check_plv(ctx) || !avail_LVZ(ctx) || ctx->guest_mode) {
+        return false;
+    }
+    gen_helper_gtlbflush(tcg_env);
+    check_mmu_idx(ctx);
+    return true;
+}
+
+static bool trans_hvcl(DisasContext *ctx, arg_hvcl *a)
+{
+    if (!avail_LVZ(ctx)) {
+        return false;
+    }
+    if (!ctx->guest_mode) {
+        return false;
+    }
+    tcg_gen_movi_tl(cpu_pc, ctx->base.pc_next);
+    gen_helper_hvcl(tcg_env, tcg_constant_i32(a->imm));
     ctx->base.is_jmp = DISAS_NORETURN;
     return true;
 }

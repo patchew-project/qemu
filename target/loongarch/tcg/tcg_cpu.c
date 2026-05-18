@@ -43,6 +43,10 @@ static const struct TypeExcp excp_names[] = {
     {EXCCODE_BCE, "Bound Check Exception"},
     {EXCCODE_SXD, "128 bit vector instructions Disable exception"},
     {EXCCODE_ASXD, "256 bit vector instructions Disable exception"},
+    {EXCCODE_GSPR, "Guest Sensitive and Privileged Resources"},
+    {EXCCODE_HVC, "Hypervisor call"},
+    {EXCCODE_GCSC, "Guest CSR visited by Software"},
+    {EXCCODE_GCHC, "Guest CSR visited by Hardware"},
     {EXCP_HLT, "EXCP_HLT"},
 };
 
@@ -79,9 +83,12 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
     CPULoongArchState *env = cpu_env(cs);
     bool update_badinstr = 1;
     int cause = -1;
-    bool tlbfill = FIELD_EX64(env->CSR_TLBRERA, CSR_TLBRERA, ISTLBR);
-    uint32_t vec_size = FIELD_EX64(env->CSR_ECFG, CSR_ECFG, VS);
+    bool real_guest = !env->vm_exit && env->guest;
+    bool tlbfill =
+        FIELD_EX64(GET_CSR_IF(real_guest, TLBRERA), CSR_TLBRERA, ISTLBR);
+    uint32_t vec_size = FIELD_EX64(GET_CSR_IF(real_guest, ECFG), CSR_ECFG, VS);
     uint64_t last_pc = env->pc;
+    uint32_t badinstr;
 
     if (cs->exception_index != EXCCODE_INT) {
         qemu_log_mask(CPU_LOG_INT,
@@ -115,7 +122,11 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
         update_badinstr = 0;
         break;
     case EXCCODE_BCE:
-        env->CSR_BADV = env->pc;
+    case EXCCODE_GSPR:
+    case EXCCODE_GCHC:
+    case EXCCODE_GCSC:
+    case EXCCODE_HVC:
+        SET_CSR_IF(real_guest, BADV, env->pc);
         QEMU_FALLTHROUGH;
     case EXCCODE_SYS:
     case EXCCODE_BRK:
@@ -142,35 +153,51 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
     if (update_badinstr) {
         MemOpIdx oi = make_memop_idx(MO_LEUL, cpu_mmu_index(cs, true));
 
-        env->CSR_BADI = cpu_ldl_code_mmu(env, env->pc, oi, 0);
+        badinstr = cpu_ldl_code_mmu(env, env->pc, oi, 0);
+        SET_CSR_IF(real_guest, BADI, badinstr);
     }
 
     /* Save PLV and IE */
     if (tlbfill) {
-        env->CSR_TLBRPRMD = FIELD_DP64(env->CSR_TLBRPRMD, CSR_TLBRPRMD, PPLV,
-                                       FIELD_EX64(env->CSR_CRMD,
-                                       CSR_CRMD, PLV));
-        env->CSR_TLBRPRMD = FIELD_DP64(env->CSR_TLBRPRMD, CSR_TLBRPRMD, PIE,
-                                       FIELD_EX64(env->CSR_CRMD, CSR_CRMD, IE));
+        SET_CSR_IF(real_guest, TLBRPRMD,
+                   FIELD_DP64(GET_CSR_IF(real_guest, TLBRPRMD), CSR_TLBRPRMD,
+                              PPLV,
+                              FIELD_EX64(GET_CSR_IF(real_guest, CRMD), CSR_CRMD,
+                                         PLV)));
+        SET_CSR_IF(
+            real_guest, TLBRPRMD,
+            FIELD_DP64(GET_CSR_IF(real_guest, TLBRPRMD), CSR_TLBRPRMD, PIE,
+                       FIELD_EX64(GET_CSR_IF(real_guest, CRMD), CSR_CRMD, IE)));
         /* set the DA mode */
-        env->CSR_CRMD = FIELD_DP64(env->CSR_CRMD, CSR_CRMD, DA, 1);
-        env->CSR_CRMD = FIELD_DP64(env->CSR_CRMD, CSR_CRMD, PG, 0);
-        env->CSR_TLBRERA = FIELD_DP64(env->CSR_TLBRERA, CSR_TLBRERA,
-                                      PC, (env->pc >> 2));
+        SET_CSR_IF(real_guest, CRMD,
+                   FIELD_DP64(GET_CSR_IF(real_guest, CRMD), CSR_CRMD, DA, 1));
+        SET_CSR_IF(real_guest, CRMD,
+                   FIELD_DP64(GET_CSR_IF(real_guest, CRMD), CSR_CRMD, PG, 0));
+        SET_CSR_IF(real_guest, TLBRERA,
+                   FIELD_DP64(GET_CSR_IF(real_guest, TLBRERA), CSR_TLBRERA, PC,
+                              (env->pc >> 2)));
     } else {
-        env->CSR_ESTAT = FIELD_DP64(env->CSR_ESTAT, CSR_ESTAT, ECODE,
-                                    EXCODE_MCODE(cause));
-        env->CSR_ESTAT = FIELD_DP64(env->CSR_ESTAT, CSR_ESTAT, ESUBCODE,
-                                    EXCODE_SUBCODE(cause));
-        env->CSR_PRMD = FIELD_DP64(env->CSR_PRMD, CSR_PRMD, PPLV,
-                                   FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PLV));
-        env->CSR_PRMD = FIELD_DP64(env->CSR_PRMD, CSR_PRMD, PIE,
-                                   FIELD_EX64(env->CSR_CRMD, CSR_CRMD, IE));
-        env->CSR_ERA = env->pc;
+        SET_CSR_IF(real_guest, ESTAT,
+                   FIELD_DP64(GET_CSR_IF(real_guest, ESTAT), CSR_ESTAT, ECODE,
+                              EXCODE_MCODE(cause)));
+        SET_CSR_IF(real_guest, ESTAT,
+                   FIELD_DP64(GET_CSR_IF(real_guest, ESTAT), CSR_ESTAT,
+                              ESUBCODE, EXCODE_SUBCODE(cause)));
+        SET_CSR_IF(real_guest, PRMD,
+                   FIELD_DP64(GET_CSR_IF(real_guest, PRMD), CSR_PRMD, PPLV,
+                              FIELD_EX64(GET_CSR_IF(real_guest, CRMD), CSR_CRMD,
+                                         PLV)));
+        SET_CSR_IF(
+            real_guest, PRMD,
+            FIELD_DP64(GET_CSR_IF(real_guest, PRMD), CSR_PRMD, PIE,
+                       FIELD_EX64(GET_CSR_IF(real_guest, CRMD), CSR_CRMD, IE)));
+        SET_CSR_IF(real_guest, ERA, env->pc);
     }
 
-    env->CSR_CRMD = FIELD_DP64(env->CSR_CRMD, CSR_CRMD, PLV, 0);
-    env->CSR_CRMD = FIELD_DP64(env->CSR_CRMD, CSR_CRMD, IE, 0);
+    SET_CSR_IF(real_guest, CRMD,
+               FIELD_DP64(GET_CSR_IF(real_guest, CRMD), CSR_CRMD, PLV, 0));
+    SET_CSR_IF(real_guest, CRMD,
+               FIELD_DP64(GET_CSR_IF(real_guest, CRMD), CSR_CRMD, IE, 0));
 
     if (vec_size) {
         vec_size = (1 << vec_size) * 4;
@@ -179,43 +206,54 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
     if  (cs->exception_index == EXCCODE_INT) {
         /* Interrupt */
         uint32_t vector = 0;
-        uint32_t pending = FIELD_EX64(env->CSR_ESTAT, CSR_ESTAT, IS);
-        pending &= FIELD_EX64(env->CSR_ECFG, CSR_ECFG, LIE);
+        uint32_t pending =
+            FIELD_EX64(GET_CSR_IF(real_guest, ESTAT), CSR_ESTAT, IS);
+        pending &= FIELD_EX64(GET_CSR_IF(real_guest, ECFG), CSR_ECFG, LIE);
 
         /* Find the highest-priority interrupt. */
         vector = 31 - clz32(pending);
-        set_pc(env, env->CSR_EENTRY + \
-               (EXCCODE_EXTERNAL_INT + vector) * vec_size);
-        qemu_log_mask(CPU_LOG_INT,
-                      "%s: PC " TARGET_FMT_lx " ERA " TARGET_FMT_lx
-                      " cause %d\n" "    A " TARGET_FMT_lx " D "
-                      TARGET_FMT_lx " vector = %d ExC " TARGET_FMT_lx "ExS"
-                      TARGET_FMT_lx "\n",
-                      __func__, env->pc, env->CSR_ERA,
-                      cause, env->CSR_BADV, env->CSR_DERA, vector,
-                      env->CSR_ECFG, env->CSR_ESTAT);
+        set_pc(env, GET_CSR_IF(real_guest, EENTRY) +
+                        (EXCCODE_EXTERNAL_INT + vector) * vec_size);
+        qemu_log_mask(
+            CPU_LOG_INT,
+            "%s: PC " TARGET_FMT_lx " ERA " TARGET_FMT_lx " cause %d\n"
+            "    A " TARGET_FMT_lx " D " TARGET_FMT_lx
+            " vector = %d ExC " TARGET_FMT_lx "ExS" TARGET_FMT_lx "\n",
+            __func__, env->pc, GET_CSR_IF(real_guest, ERA), cause,
+            GET_CSR_IF(real_guest, BADV), GET_CSR_IF(real_guest, DERA), vector,
+            GET_CSR_IF(real_guest, ECFG), GET_CSR_IF(real_guest, ESTAT));
         qemu_plugin_vcpu_interrupt_cb(cs, last_pc);
     } else {
         if (tlbfill) {
-            set_pc(env, env->CSR_TLBRENTRY);
+            set_pc(env, GET_CSR_IF(real_guest, TLBRENTRY));
         } else {
-            set_pc(env, env->CSR_EENTRY + EXCODE_MCODE(cause) * vec_size);
+            set_pc(env, GET_CSR_IF(real_guest, EENTRY) +
+                            EXCODE_MCODE(cause) * vec_size);
         }
-        qemu_log_mask(CPU_LOG_INT,
-                      "%s: PC " TARGET_FMT_lx " ERA " TARGET_FMT_lx
-                      " cause %d%s\n, ESTAT " TARGET_FMT_lx
-                      " EXCFG " TARGET_FMT_lx " BADVA " TARGET_FMT_lx
-                      "BADI " TARGET_FMT_lx " SYS_NUM " TARGET_FMT_lu
-                      " cpu %d asid " TARGET_FMT_lx "\n", __func__, env->pc,
-                      tlbfill ? env->CSR_TLBRERA : env->CSR_ERA,
-                      cause, tlbfill ? "(refill)" : "", env->CSR_ESTAT,
-                      env->CSR_ECFG,
-                      tlbfill ? env->CSR_TLBRBADV : env->CSR_BADV,
-                      env->CSR_BADI, env->gpr[11], cs->cpu_index,
-                      env->CSR_ASID);
+        qemu_log_mask(
+            CPU_LOG_INT,
+            "%s: PC " TARGET_FMT_lx " ERA " TARGET_FMT_lx
+            " cause %d%s\n, ESTAT " TARGET_FMT_lx " EXCFG " TARGET_FMT_lx
+            " BADVA " TARGET_FMT_lx "BADI " TARGET_FMT_lx
+            " SYS_NUM " TARGET_FMT_lu " cpu %d asid " TARGET_FMT_lx "\n",
+            __func__, env->pc,
+            tlbfill ? GET_CSR_IF(real_guest, TLBRERA) :
+                      GET_CSR_IF(real_guest, ERA),
+            cause, tlbfill ? "(refill)" : "", GET_CSR_IF(real_guest, ESTAT),
+            GET_CSR_IF(real_guest, ECFG),
+            tlbfill ? GET_CSR_IF(real_guest, TLBRBADV) :
+                      GET_CSR_IF(real_guest, BADV),
+            GET_CSR_IF(real_guest, BADI), env->gpr[11], cs->cpu_index,
+            GET_CSR_IF(real_guest, ASID));
         qemu_plugin_vcpu_exception_cb(cs, last_pc);
     }
     cs->exception_index = -1;
+    if (env->vm_exit) {
+        env->CSR_GSTAT = FIELD_DP64(env->CSR_GSTAT, CSR_GSTAT, VM, 0);
+        env->guest = false;
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_GUEST);
+    }
+    env->vm_exit = false;
 }
 
 static void loongarch_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
@@ -247,16 +285,25 @@ static inline bool cpu_loongarch_hw_interrupts_enabled(CPULoongArchState *env)
 
 static bool loongarch_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
-    if (interrupt_request & CPU_INTERRUPT_HARD) {
-        CPULoongArchState *env = cpu_env(cs);
+    CPULoongArchState *env = cpu_env(cs);
+    bool has_interrupt = false;
 
+    if (interrupt_request & CPU_INTERRUPT_HARD) {
         if (cpu_loongarch_hw_interrupts_enabled(env) &&
             cpu_loongarch_hw_interrupts_pending(env)) {
-            /* Raise it */
-            cs->exception_index = EXCCODE_INT;
-            loongarch_cpu_do_interrupt(cs);
-            return true;
+            if (env->guest) {
+                trigger_vm_exit(env);
+            }
+            has_interrupt = true;
         }
+    } else if (interrupt_request & CPU_INTERRUPT_GUEST) {
+        has_interrupt = loongarch_guest_has_interrupt(env);
+    }
+
+    if (has_interrupt) {
+        cs->exception_index = EXCCODE_INT;
+        loongarch_cpu_do_interrupt(cs);
+        return true;
     }
     return false;
 }
@@ -273,10 +320,18 @@ static TCGTBCPUState loongarch_get_tb_cpu_state(CPUState *cs)
     CPULoongArchState *env = cpu_env(cs);
     uint32_t flags;
 
-    flags = env->CSR_CRMD & (R_CSR_CRMD_PLV_MASK | R_CSR_CRMD_PG_MASK);
-    flags |= FIELD_EX64(env->CSR_EUEN, CSR_EUEN, FPE) * HW_FLAGS_EUEN_FPE;
-    flags |= FIELD_EX64(env->CSR_EUEN, CSR_EUEN, SXE) * HW_FLAGS_EUEN_SXE;
-    flags |= FIELD_EX64(env->CSR_EUEN, CSR_EUEN, ASXE) * HW_FLAGS_EUEN_ASXE;
+    if (env->guest) {
+        flags = env->GCSR_CRMD & (R_CSR_CRMD_PLV_MASK | R_CSR_CRMD_PG_MASK);
+        flags |= HW_FLAGS_GUEST_MODE;
+    } else {
+        flags = env->CSR_CRMD & (R_CSR_CRMD_PLV_MASK | R_CSR_CRMD_PG_MASK);
+    }
+    flags |= FIELD_EX64(GET_CSR_IF(env->guest, EUEN), CSR_EUEN, FPE) *
+             HW_FLAGS_EUEN_FPE;
+    flags |= FIELD_EX64(GET_CSR_IF(env->guest, EUEN), CSR_EUEN, SXE) *
+             HW_FLAGS_EUEN_SXE;
+    flags |= FIELD_EX64(GET_CSR_IF(env->guest, EUEN), CSR_EUEN, ASXE) *
+             HW_FLAGS_EUEN_ASXE;
     flags |= is_va32(env) * HW_FLAGS_VA32;
 
     return (TCGTBCPUState){ .pc = env->pc, .flags = flags };
@@ -299,6 +354,13 @@ static void loongarch_restore_state_to_opc(CPUState *cs,
 static int loongarch_cpu_mmu_index(CPUState *cs, bool ifetch)
 {
     CPULoongArchState *env = cpu_env(cs);
+
+    if (env->guest) {
+        if (FIELD_EX64(env->GCSR_CRMD, CSR_CRMD, PG)) {
+            return MMU_GUEST_IDX + FIELD_EX64(env->GCSR_CRMD, CSR_CRMD, PLV);
+        }
+        return MMU_GUEST_DA_IDX;
+    }
 
     if (FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PG)) {
         return FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PLV);
