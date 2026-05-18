@@ -238,19 +238,23 @@ static int arm_gdb_get_sysreg(CPUState *cs, GByteArray *buf, int reg)
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
     const ARMCPRegInfo *ri;
-    uint32_t key;
 
-    key = cpu->dyn_sysreg_feature.data.cpregs.keys[reg];
-    ri = get_arm_cp_reginfo(cpu->cp_regs, key);
+    ri = g_ptr_array_index(cpu->dyn_sysreg_feature.data.cpregs.regs, reg);
     if (ri) {
         switch (cpreg_field_type(ri)) {
         case MO_64:
             if (ri->vhe_redir_to_el2 &&
                 (arm_hcr_el2_eff(env) & HCR_E2H) &&
                 arm_current_el(env) == 2) {
-                ri = get_arm_cp_reginfo(cpu->cp_regs, ri->vhe_redir_to_el2);
+                ri = g_ptr_array_index(
+                    cpu->dyn_sysreg_feature.data.cpregs.regs,
+                    ri->vhe_redir_to_el2
+                );
             } else if (ri->vhe_redir_to_el01) {
-                ri = get_arm_cp_reginfo(cpu->cp_regs, ri->vhe_redir_to_el01);
+                ri = g_ptr_array_index(
+                    cpu->dyn_sysreg_feature.data.cpregs.regs,
+                    ri->vhe_redir_to_el01
+                );
             }
             return gdb_get_reg64(buf, (uint64_t)read_raw_cp_reg(env, ri));
         case MO_32:
@@ -269,19 +273,18 @@ static int arm_gdb_set_sysreg(CPUState *cs, uint8_t *buf, int reg)
 
 static void arm_gen_one_feature_sysreg(GDBFeatureBuilder *builder,
                                        DynamicGDBFeatureInfo *dyn_feature,
-                                       ARMCPRegInfo *ri, uint32_t ri_key,
+                                       ARMCPRegInfo *ri,
                                        int bitsize, int n)
 {
     gdb_feature_builder_append_reg(builder, ri->name, bitsize, n,
                                    "int", "cp_regs");
 
-    dyn_feature->data.cpregs.keys[n] = ri_key;
+    g_ptr_array_index(dyn_feature->data.cpregs.regs, n) = ri;
 }
 
 static void arm_register_sysreg_for_feature(gpointer key, gpointer value,
                                             gpointer p)
 {
-    uint32_t ri_key = (uintptr_t)key;
     ARMCPRegInfo *ri = value;
     RegisterSysregFeatureParam *param = p;
     ARMCPU *cpu = ARM_CPU(param->cs);
@@ -292,7 +295,7 @@ static void arm_register_sysreg_for_feature(gpointer key, gpointer value,
         if (arm_feature(env, ARM_FEATURE_AARCH64)) {
             if (ri->state == ARM_CP_STATE_AA64) {
                 arm_gen_one_feature_sysreg(&param->builder, dyn_feature,
-                                           ri, ri_key, 64, param->n++);
+                                           ri, 64, param->n++);
             }
         } else {
             if (ri->state == ARM_CP_STATE_AA32) {
@@ -302,10 +305,10 @@ static void arm_register_sysreg_for_feature(gpointer key, gpointer value,
                 }
                 if (ri->type & ARM_CP_64BIT) {
                     arm_gen_one_feature_sysreg(&param->builder, dyn_feature,
-                                               ri, ri_key, 64, param->n++);
+                                               ri, 64, param->n++);
                 } else {
                     arm_gen_one_feature_sysreg(&param->builder, dyn_feature,
-                                               ri, ri_key, 32, param->n++);
+                                               ri, 32, param->n++);
                 }
             }
         }
@@ -323,7 +326,8 @@ static GDBFeature *arm_gen_dynamic_sysreg_feature(CPUState *cs, int base_reg)
                              "org.qemu.gdb.arm.sys.regs",
                              "system-registers.xml",
                              base_reg);
-    cpu->dyn_sysreg_feature.data.cpregs.keys = g_new(uint32_t, num_regs);
+    cpu->dyn_sysreg_feature.data.cpregs.regs = g_ptr_array_new();
+    g_ptr_array_set_size(cpu->dyn_sysreg_feature.data.cpregs.regs, num_regs);
     g_hash_table_foreach(cpu->cp_regs, arm_register_sysreg_for_feature, &param);
     gdb_feature_builder_end(&param.builder);
     return &cpu->dyn_sysreg_feature.desc;

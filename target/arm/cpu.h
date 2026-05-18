@@ -122,15 +122,15 @@
  * DynamicGDBFeatureInfo:
  * @desc: Contains the feature descriptions.
  * @data: A union with data specific to the set of registers
- *    @cpregs_keys: Array that contains the corresponding Key of
- *                  a given cpreg with the same order of the cpreg
+ *    @cpregs_regs: Array that contains the corresponding Register info pointer
+ *                  of a given cpreg with the same order of the cpreg
  *                  in the XML description.
  */
 typedef struct DynamicGDBFeatureInfo {
     GDBFeature desc;
     union {
         struct {
-            uint32_t *keys;
+            GPtrArray *regs;
         } cpregs;
     } data;
 } DynamicGDBFeatureInfo;
