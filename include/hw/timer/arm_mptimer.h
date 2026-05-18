@@ -33,6 +33,7 @@ typedef struct {
     struct ptimer_state *timer;
     qemu_irq irq;
     MemoryRegion iomem;
+    Clock *clk;
 } TimerBlock;
 
 #define TYPE_ARM_MPTIMER "arm_mptimer"
@@ -44,6 +45,7 @@ struct ARMMPTimerState {
     /*< public >*/
 
     uint32_t num_cpu;
+    Clock *clk;
     TimerBlock timerblock[ARM_MPTIMER_MAX_CPUS];
     MemoryRegion iomem;
 };

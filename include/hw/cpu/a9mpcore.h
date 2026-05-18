@@ -34,6 +34,7 @@ struct A9MPPrivState {
     A9GTimerState gtimer;
     ARMMPTimerState mptimer;
     ARMMPTimerState wdt;
+    Clock *clk;
 };
 
 #endif

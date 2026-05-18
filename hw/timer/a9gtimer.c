@@ -24,6 +24,9 @@
 #include "hw/core/hw-error.h"
 #include "hw/core/irq.h"
 #include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-properties-system.h"
+#include "hw/core/qdev-clock.h"
+#include "hw/core/clock.h"
 #include "hw/timer/a9gtimer.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
@@ -63,9 +66,10 @@ static inline int a9_gtimer_get_current_cpu(A9GTimerState *s)
 static inline uint64_t a9_gtimer_get_conv(A9GTimerState *s)
 {
     uint64_t prescale = extract32(s->control, R_CONTROL_PRESCALER_SHIFT,
-                                  R_CONTROL_PRESCALER_LEN);
-
-    return (prescale + 1) * 10;
+                                  R_CONTROL_PRESCALER_LEN) + 1;
+    uint64_t clk_hz = clock_get_hz(s->clk);
+    assert(clk_hz != 0);
+    return muldiv64(prescale, NANOSECONDS_PER_SECOND, clk_hz);
 }
 
 static A9GTimerUpdate a9_gtimer_get_update(A9GTimerState *s)
@@ -295,6 +299,13 @@ static void a9_gtimer_reset(DeviceState *dev)
     a9_gtimer_update(s, false);
 }
 
+static void a9_gtimer_init(Object *obj)
+{
+    A9GTimerState *s = A9_GTIMER(obj);
+
+    s->clk = qdev_init_clock_in(DEVICE(obj), "clk", NULL, NULL, 0);
+}
+
 static void a9_gtimer_realize(DeviceState *dev, Error **errp)
 {
     A9GTimerState *s = A9_GTIMER(dev);
@@ -391,6 +402,7 @@ static const TypeInfo a9_gtimer_info = {
     .name          = TYPE_A9_GTIMER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(A9GTimerState),
+    .instance_init = a9_gtimer_init,
     .class_init    = a9_gtimer_class_init,
 };
 

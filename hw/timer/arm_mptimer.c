@@ -24,9 +24,13 @@
 #include "hw/core/irq.h"
 #include "hw/core/ptimer.h"
 #include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-properties-system.h"
+#include "hw/core/qdev-clock.h"
+#include "hw/core/clock.h"
 #include "hw/timer/arm_mptimer.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "hw/core/cpu.h"
 
@@ -58,10 +62,12 @@ static inline void timerblock_update_irq(TimerBlock *tb)
     qemu_set_irq(tb->irq, tb->status && (tb->control & 4));
 }
 
-/* Return conversion factor from mpcore timer ticks to qemu timer ticks.  */
-static inline uint32_t timerblock_scale(uint32_t control)
+static inline uint32_t timerblock_scale(TimerBlock *tb, uint32_t control)
 {
-    return (((control >> 8) & 0xff) + 1) * 10;
+    uint64_t prescale = (((control >> 8) & 0xff) + 1);
+    uint64_t clk_hz = clock_get_hz(tb->clk);
+    assert(clk_hz != 0);
+    return muldiv64(prescale, NANOSECONDS_PER_SECOND, clk_hz);
 }
 
 /* Must be called within a ptimer transaction block */
@@ -155,7 +161,7 @@ static void timerblock_write(void *opaque, hwaddr addr,
             ptimer_stop(tb->timer);
         }
         if ((control & 0xff00) != (value & 0xff00)) {
-            ptimer_set_period(tb->timer, timerblock_scale(value));
+            ptimer_set_period(tb->timer, timerblock_scale(tb, value));
         }
         if (value & 1) {
             uint64_t count = ptimer_get_count(tb->timer);
@@ -222,7 +228,8 @@ static void timerblock_reset(TimerBlock *tb)
         ptimer_transaction_begin(tb->timer);
         ptimer_stop(tb->timer);
         ptimer_set_limit(tb->timer, 0, 1);
-        ptimer_set_period(tb->timer, timerblock_scale(0));
+        ptimer_set_period(tb->timer,
+            timerblock_scale(tb, 0));
         ptimer_transaction_commit(tb->timer);
     }
 }
@@ -244,6 +251,8 @@ static void arm_mptimer_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &arm_thistimer_ops, s,
                           "arm_mptimer_timer", 0x20);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
+
+    s->clk = qdev_init_clock_in(DEVICE(obj), "clk", NULL, NULL, 0);
 }
 
 static void arm_mptimer_realize(DeviceState *dev, Error **errp)
@@ -269,6 +278,7 @@ static void arm_mptimer_realize(DeviceState *dev, Error **errp)
      */
     for (i = 0; i < s->num_cpu; i++) {
         TimerBlock *tb = &s->timerblock[i];
+        tb->clk = s->clk;
         tb->timer = ptimer_init(timerblock_tick, tb, PTIMER_POLICY);
         sysbus_init_irq(sbd, &tb->irq);
         memory_region_init_io(&tb->iomem, OBJECT(s), &timerblock_ops, tb,
