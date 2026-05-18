@@ -61,6 +61,13 @@ REG32(DDR_PLL_CFG, 0x114)
 REG32(IO_PLL_CFG, 0x118)
 
 REG32(ARM_CLK_CTRL, 0x120)
+    FIELD(ARM_CLK_CTRL, CPU_PERI_CLKACT, 28, 1);
+    FIELD(ARM_CLK_CTRL, CPU_1XCLKACT, 27, 1);
+    FIELD(ARM_CLK_CTRL, CPU_2XCLKACT, 26, 1);
+    FIELD(ARM_CLK_CTRL, CPU_3OR2XCLKACT, 25, 1);
+    FIELD(ARM_CLK_CTRL, CPU_6OR4XCLKACT, 24, 1);
+    FIELD(ARM_CLK_CTRL, DIVISOR, 8, 6);
+    FIELD(ARM_CLK_CTRL, SRCSEL, 4, 2);
 REG32(DDR_CLK_CTRL, 0x124)
 REG32(DCI_CLK_CTRL, 0x128)
 REG32(APER_CLK_CTRL, 0x12c)
@@ -98,6 +105,7 @@ FPGA_CTRL_REGS(3, 0x1a0)
 REG32(BANDGAP_TRIP, 0x1b8)
 REG32(PLL_PREDIVISOR, 0x1c0)
 REG32(CLK_621_TRUE, 0x1c4)
+    FIELD(CLK_621_TRUE, CLK_621_TRUE, 0, 1)
 
 REG32(PSS_RST_CTRL, 0x200)
     FIELD(PSS_RST_CTRL, SOFT_RST, 0, 1)
@@ -206,6 +214,10 @@ struct ZynqSLCRState {
     Clock *ps_clk;
     Clock *uart0_ref_clk;
     Clock *uart1_ref_clk;
+    Clock *cpu_1x;
+    Clock *cpu_2x;
+    Clock *cpu_3x2x;
+    Clock *cpu_6x4x;
     uint8_t boot_mode;
 };
 
@@ -286,14 +298,31 @@ static void zynq_slcr_compute_clocks_internal(ZynqSLCRState *s, uint64_t ps_clk)
     uint64_t io_pll = zynq_slcr_compute_pll(ps_clk, s->regs[R_IO_PLL_CTRL]);
     uint64_t arm_pll = zynq_slcr_compute_pll(ps_clk, s->regs[R_ARM_PLL_CTRL]);
     uint64_t ddr_pll = zynq_slcr_compute_pll(ps_clk, s->regs[R_DDR_PLL_CTRL]);
+    uint64_t cpu_base;
 
     uint64_t uart_mux[4] = {io_pll, io_pll, arm_pll, ddr_pll};
+    uint64_t cpu_mux[4] = {arm_pll, arm_pll, ddr_pll, io_pll};
+
+    bool use_621 = FIELD_EX32(s->regs[R_CLK_621_TRUE], CLK_621_TRUE,
+                              CLK_621_TRUE);
+    /* Select 6:2:1 (true) or 4:2:1 (false) CPU clock ratios. */
+    uint32_t ratio_6x4x = use_621 ? 6 : 4;
+    uint32_t ratio_3x2x = use_621 ? 3 : 2;
+
 
     /* compute uartX reference clocks */
     clock_set(s->uart0_ref_clk,
               ZYNQ_COMPUTE_CLK(s, uart_mux, R_UART_CLK_CTRL, CLKACT0));
     clock_set(s->uart1_ref_clk,
               ZYNQ_COMPUTE_CLK(s, uart_mux, R_UART_CLK_CTRL, CLKACT1));
+
+    /* Base is CPU clock (6x/4x domain). Derive other CPU domains via ratios. */
+    cpu_base = ZYNQ_COMPUTE_CLK(s, cpu_mux, R_ARM_CLK_CTRL, CPU_6OR4XCLKACT);
+
+    clock_set(s->cpu_6x4x, cpu_base);
+    clock_set(s->cpu_3x2x, cpu_base * ratio_6x4x / ratio_3x2x);
+    clock_set(s->cpu_2x,   cpu_base * ratio_6x4x / 2);
+    clock_set(s->cpu_1x,   cpu_base * ratio_6x4x);
 }
 
 /**
@@ -322,6 +351,10 @@ static void zynq_slcr_propagate_clocks(ZynqSLCRState *s)
 {
     clock_propagate(s->uart0_ref_clk);
     clock_propagate(s->uart1_ref_clk);
+    clock_propagate(s->cpu_1x);
+    clock_propagate(s->cpu_2x);
+    clock_propagate(s->cpu_3x2x);
+    clock_propagate(s->cpu_6x4x);
 }
 
 static void zynq_slcr_ps_clk_callback(void *opaque, ClockEvent event)
@@ -620,6 +653,10 @@ static const ClockPortInitArray zynq_slcr_clocks = {
     QDEV_CLOCK_IN(ZynqSLCRState, ps_clk, zynq_slcr_ps_clk_callback, ClockUpdate),
     QDEV_CLOCK_OUT(ZynqSLCRState, uart0_ref_clk),
     QDEV_CLOCK_OUT(ZynqSLCRState, uart1_ref_clk),
+    QDEV_CLOCK_OUT(ZynqSLCRState, cpu_1x),
+    QDEV_CLOCK_OUT(ZynqSLCRState, cpu_2x),
+    QDEV_CLOCK_OUT(ZynqSLCRState, cpu_3x2x),
+    QDEV_CLOCK_OUT(ZynqSLCRState, cpu_6x4x),
     QDEV_CLOCK_END
 };
 
@@ -630,6 +667,9 @@ static void zynq_slcr_realize(DeviceState *dev, Error **errp)
     if (s->boot_mode > 0xF) {
         error_setg(errp, "Invalid boot mode %d specified", s->boot_mode);
     }
+
+    zynq_slcr_reset_init(OBJECT(s), 0);
+    zynq_slcr_compute_clocks_internal(s, clock_get(s->ps_clk));
 }
 
 static void zynq_slcr_init(Object *obj)
