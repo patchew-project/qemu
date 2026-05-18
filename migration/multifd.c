@@ -1153,15 +1153,14 @@ void multifd_recv_cleanup(void)
         return;
     }
     multifd_recv_terminate_threads(NULL);
+
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
 
         if (p->thread_created) {
             qemu_thread_join(&p->thread);
         }
-    }
-    for (i = 0; i < migrate_multifd_channels(); i++) {
-        multifd_recv_cleanup_channel(&multifd_recv_state->params[i]);
+        multifd_recv_cleanup_channel(p);
     }
     multifd_recv_cleanup_state();
 }
