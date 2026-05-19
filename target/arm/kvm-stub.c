@@ -119,3 +119,8 @@ char *kvm_print_register_name(uint64_t regidx)
 {
     g_assert_not_reached();
 }
+
+int kvm_arm_get_writable_id_regs(uint64_t *idregmap)
+{
+    g_assert_not_reached();
+}
