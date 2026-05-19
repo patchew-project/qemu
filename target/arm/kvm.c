@@ -405,6 +405,19 @@ static void get_sysreg_prop(Object *obj, Visitor *v,
     trace_get_sysreg_prop(name, value);
 }
 
+static bool ignore_unnamed_writable_field(ARM64SysReg *reg, int i)
+{
+    if ((!strcmp(reg->name, "ID_ISAR0_EL1") && i >= 28 && i <= 31) || /* RES0 */
+        (!strcmp(reg->name, "ID_ISAR5_EL1") && i >= 20 && i <= 23) || /* RES0 */
+        (!strcmp(reg->name, "MVFR2_EL1") && i >= 8 && i <= 31) || /* RES0 */
+        (!strcmp(reg->name, "ID_PFR2_EL1") && i >= 12 && i <= 31) || /* RES0 */
+        (!strcmp(reg->name, "ID_MMFR5_EL1") && i >= 8 && i <= 31) || /* RES0 */
+        (!strcmp(reg->name, "ID_AA64FPFR0_EL1") && i >= 2 && i <= 7)) { /* RAZ */
+        return true;
+    }
+    return false;
+}
+
 /*
  * decode_idreg_writemap: Generate props for writable fields
  *
@@ -426,10 +439,12 @@ decode_idreg_writemap(Object *obj, int index, uint64_t map, ARM64SysReg *reg)
         uint64_t mask;
 
         if (!field) {
-            warn_report("%s bit %d of %s is writable but no named field "
-                        "in target/arm/cpu-idregs.h.inc",
-                        __func__, i, reg->name);
-            warn_report("%s is target/arm/cpu-idregs.h.inc?", __func__);
+            if (!ignore_unnamed_writable_field(reg, i)) {
+                warn_report("%s bit %d of %s is writable but no named field "
+                            "in target/arm/cpu-idregs.h.inc",
+                            __func__, i, reg->name);
+                warn_report("%s is target/arm/cpu-idregs.h.inc?", __func__);
+            }
             map =  map & ~BIT_ULL(i);
             i = ctz64(map);
             continue;
