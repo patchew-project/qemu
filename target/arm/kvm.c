@@ -274,6 +274,21 @@ static uint32_t kvm_arm_sve_get_vls(int fd)
     return vls[0] & MAKE_64BIT_MASK(0, ARM_MAX_VQ);
 }
 
+static int kvm_feature_idx_to_idregs_idx(int kidx)
+{
+    int op1, crm, op2;
+    ARMSysRegs sysreg;
+
+    op1 = kidx / 64;
+    if (op1 == 2) {
+        op1 = 3;
+    }
+    crm = (kidx % 64) / 8;
+    op2 = kidx % 8;
+    sysreg = ENCODE_ID_REG(3, op1, 0, crm, op2);
+    return get_sysreg_idx(sysreg);
+}
+
 static int idregs_idx_to_kvm_feature_idx(ARMIDRegisterIdx idx)
 {
     ARMSysRegs sysreg = id_register_sysreg[idx];
@@ -1187,6 +1202,40 @@ bool kvm_arm_cpu_post_load(ARMCPU *cpu)
     }
 
     return true;
+}
+
+/*
+ * Copy writable ID regs from isar.idregs[] to cpreg_list
+ * in case their value differs from the original init cpreg value
+ */
+static void kvm_arm_writable_idregs_to_cpreg_list(ARMCPU *cpu)
+{
+    for (int i = 0; i < KVM_ARM_FEATURE_ID_RANGE_SIZE; i++) {
+        uint64_t writable_mask = cpu->writable_map[i];
+
+        if (writable_mask) {
+            int idx = kvm_feature_idx_to_idregs_idx(i);
+            ARM64SysReg *sysregdesc;
+            uint64_t previous, new;
+            uint64_t *cpreg;
+            uint32_t sysreg;
+
+            if (idx == -1) {
+                /* sysreg writable, but we don't know it */
+                continue;
+            }
+            sysregdesc = &arm64_id_regs[idx];
+            sysreg = id_register_sysreg[idx];
+            cpreg = kvm_arm_get_cpreg_ptr(cpu, idregs_sysreg_to_kvm_reg(sysreg));
+            previous = *cpreg;
+            new = cpu->isar.idregs[idx];
+            if (previous != new) {
+                *cpreg = new;
+                trace_kvm_arm_writable_idregs_to_cpreg_list(sysregdesc->name,
+                                                            previous, new);
+            }
+        }
+    }
 }
 
 void kvm_arm_reset_vcpu(ARMCPU *cpu)
@@ -2140,7 +2189,25 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
     cpu->mp_affinity = mpidr & ARM64_AFFINITY_MASK;
 
-    return kvm_arm_init_cpreg_list(cpu);
+    ret = kvm_arm_init_cpreg_list(cpu);
+    if (ret) {
+        return ret;
+    }
+    /* overwrite writable ID regs with their updated property values */
+    if (cpu->writable_map) {
+        kvm_arm_writable_idregs_to_cpreg_list(cpu);
+        ret = write_list_to_kvmstate(cpu, KVM_PUT_FULL_STATE);
+        if (!ret) {
+            return -1;
+        }
+        /*
+         * modified values may have changed the visibility of some regs,
+         * reinitialize the cpreg_list accordingly
+         */
+         ret = kvm_arm_init_cpreg_list(cpu);
+    }
+
+    return ret;
 }
 
 int kvm_arch_destroy_vcpu(CPUState *cs)
