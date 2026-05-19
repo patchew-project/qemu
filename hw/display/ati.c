@@ -1034,8 +1034,10 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         s->host_data.acc[s->host_data.next++] = data;
         if (addr == HOST_DATA_LAST) {
             ati_host_data_finish(s);
+            s->host_data.next = 0;
         } else if (s->host_data.next >= 4) {
             ati_host_data_flush(s);
+            s->host_data.next = 0;
         }
         break;
     default:
