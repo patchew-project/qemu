@@ -116,49 +116,7 @@ void spapr_phb_remove_pci_device_cb(DeviceState *dev);
 int spapr_pci_dt_populate(SpaprDrc *drc, SpaprMachineState *spapr,
                           void *fdt, int *fdt_start_offset, Error **errp);
 
-/* VFIO EEH hooks */
-#ifdef CONFIG_LINUX
-bool spapr_phb_eeh_available(SpaprPhbState *sphb);
-int spapr_phb_vfio_eeh_set_option(SpaprPhbState *sphb,
-                                  unsigned int addr, int option);
-int spapr_phb_vfio_eeh_get_state(SpaprPhbState *sphb, int *state);
-int spapr_phb_vfio_eeh_reset(SpaprPhbState *sphb, int option);
-int spapr_phb_vfio_eeh_configure(SpaprPhbState *sphb);
-void spapr_phb_vfio_reset(DeviceState *qdev);
-int spapr_phb_vfio_errinjct(SpaprPhbState *sphb, uint32_t func,
-                            uint64_t addr, uint64_t mask, uint32_t type);
-#else
-static inline bool spapr_phb_eeh_available(SpaprPhbState *sphb)
-{
-    return false;
-}
-static inline int spapr_phb_vfio_eeh_set_option(SpaprPhbState *sphb,
-                                                unsigned int addr, int option)
-{
-    return RTAS_OUT_HW_ERROR;
-}
-static inline int spapr_phb_vfio_eeh_get_state(SpaprPhbState *sphb,
-                                               int *state)
-{
-    return RTAS_OUT_HW_ERROR;
-}
-static inline int spapr_phb_vfio_eeh_reset(SpaprPhbState *sphb, int option)
-{
-    return RTAS_OUT_HW_ERROR;
-}
-static inline int spapr_phb_vfio_eeh_configure(SpaprPhbState *sphb)
-{
-    return RTAS_OUT_HW_ERROR;
-}
-static inline void spapr_phb_vfio_reset(DeviceState *qdev)
-{
-}
-static inline int spapr_phb_vfio_errinjct(SpaprPhbState *sphb, uint32_t func,
-                                   uint64_t addr, uint64_t mask, uint32_t type)
-{
-    return RTAS_OUT_HW_ERROR;
-}
-#endif
+/* VFIO EEH hooks - see hw/ppc/spapr_vfio.h for declarations */
 
 void spapr_phb_dma_reset(SpaprPhbState *sphb);
 

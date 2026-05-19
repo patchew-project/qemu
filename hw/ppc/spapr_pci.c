@@ -33,6 +33,7 @@
 #include "hw/pci/msix.h"
 #include "hw/pci/pci_host.h"
 #include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_vfio.h"
 #include "hw/pci-host/spapr.h"
 #include <libfdt.h>
 #include "trace.h"
@@ -718,7 +719,7 @@ static int parse_and_verify_recovered_special_event(target_ulong param_buf,
 static int parse_and_verify_corrupted_page(target_ulong param_buf,
                                            uint64_t *addr) {
     *addr = ((uint64_t)rtas_ld(param_buf, 0) << 32) | rtas_ld(param_buf, 1);
-    qemu_log("RTAS: corrupted-page: addr=0x%lx\n", *addr);
+    qemu_log("RTAS: corrupted-page: addr=0x%llx\n", *addr);
     return (*addr) ? RTAS_OUT_SUCCESS : RTAS_OUT_PARAM_ERROR;
 }
 
