@@ -104,6 +104,9 @@ config FSL_IMX8MP_CCM
 config FSL_IMX8MP_GPC
     bool
 
+config FSL_IMX8MP_GPR
+    bool
+
 config STM32_RCC
     bool
 

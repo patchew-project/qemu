@@ -206,6 +206,8 @@ static void fsl_imx8mp_init(Object *obj)
 
     object_initialize_child(obj, "gpc", &s->gpc, TYPE_IMX8MP_GPC);
 
+    object_initialize_child(obj, "gpr", &s->gpr, TYPE_IMX8MP_GPR);
+
     for (i = 0; i < FSL_IMX8MP_NUM_UARTS; i++) {
         g_autofree char *name = g_strdup_printf("uart%d", i + 1);
         object_initialize_child(obj, name, &s->uart[i], TYPE_IMX_SERIAL);
@@ -430,6 +432,13 @@ static void fsl_imx8mp_realize(DeviceState *dev, Error **errp)
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpc), 0,
                     fsl_imx8mp_memmap[FSL_IMX8MP_GPC].addr);
+
+    /* GPR */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpr), errp)) {
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpr), 0,
+                    fsl_imx8mp_memmap[FSL_IMX8MP_IOMUXC_GPR].addr);
 
     /* GPTs */
     object_property_set_int(OBJECT(&s->gpt5_gpt6_irq), "num-lines", 2,
@@ -701,6 +710,7 @@ static void fsl_imx8mp_realize(DeviceState *dev, Error **errp)
         case FSL_IMX8MP_ECSPI1 ... FSL_IMX8MP_ECSPI3:
         case FSL_IMX8MP_ENET1:
         case FSL_IMX8MP_I2C1 ... FSL_IMX8MP_I2C6:
+        case FSL_IMX8MP_IOMUXC_GPR:
         case FSL_IMX8MP_OCRAM:
         case FSL_IMX8MP_PCIE1:
         case FSL_IMX8MP_PCIE_PHY1:
