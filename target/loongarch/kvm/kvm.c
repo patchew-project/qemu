@@ -28,6 +28,7 @@
 #include "cpu-csr.h"
 #include "kvm_loongarch.h"
 #include "trace.h"
+#include "exec/target_long.h"
 
 static bool cap_has_mp_state;
 static unsigned int brk_insn;
