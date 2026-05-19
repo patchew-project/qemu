@@ -34,6 +34,13 @@ static bool tlb_match_asid(bool global, int asid, int tlb_asid)
     return !global && tlb_asid == asid;
 }
 
+static inline bool tlb_entry_matches_gid(LoongArchTLB *tlb, uint8_t gid)
+{
+    uint8_t entry_gid = FIELD_EX64(tlb->tlb_misc, TLB_MISC, GID);
+
+    return entry_gid == gid;
+}
+
 bool check_ps(CPULoongArchState *env, uint8_t tlb_ps)
 {
     if (tlb_ps >= 64) {
@@ -46,14 +53,22 @@ static void raise_mmu_exception(CPULoongArchState *env, vaddr address,
                                 MMUAccessType access_type, TLBRet tlb_error)
 {
     CPUState *cs = env_cpu(env);
+    bool real_guest;
+
+    if (env->guest && tlb_error > TLBRET_HOST_MATCH) {
+        trigger_vm_exit(env);
+    }
+    real_guest = !env->vm_exit && env->guest;
 
     switch (tlb_error) {
     default:
     case TLBRET_BADADDR:
+    case TLBRET_HOST_BADADDR:
         cs->exception_index = access_type == MMU_INST_FETCH
                               ? EXCCODE_ADEF : EXCCODE_ADEM;
         break;
     case TLBRET_NOMATCH:
+    case TLBRET_HOST_NOMATCH:
         /* No TLB match for a mapped address */
         if (access_type == MMU_DATA_LOAD) {
             cs->exception_index = EXCCODE_PIL;
@@ -62,9 +77,12 @@ static void raise_mmu_exception(CPULoongArchState *env, vaddr address,
         } else if (access_type == MMU_INST_FETCH) {
             cs->exception_index = EXCCODE_PIF;
         }
-        env->CSR_TLBRERA = FIELD_DP64(env->CSR_TLBRERA, CSR_TLBRERA, ISTLBR, 1);
+        SET_CSR_IF(real_guest, TLBRERA,
+                   FIELD_DP64(GET_CSR_IF(real_guest, TLBRERA), CSR_TLBRERA,
+                              ISTLBR, 1));
         break;
     case TLBRET_INVALID:
+    case TLBRET_HOST_INVALID:
         /* TLB match with no valid bit */
         if (access_type == MMU_DATA_LOAD) {
             cs->exception_index = EXCCODE_PIL;
@@ -75,46 +93,58 @@ static void raise_mmu_exception(CPULoongArchState *env, vaddr address,
         }
         break;
     case TLBRET_DIRTY:
+    case TLBRET_HOST_DIRTY:
         /* TLB match but 'D' bit is cleared */
         cs->exception_index = EXCCODE_PME;
         break;
     case TLBRET_XI:
+    case TLBRET_HOST_XI:
         /* Execute-Inhibit Exception */
         cs->exception_index = EXCCODE_PNX;
         break;
     case TLBRET_RI:
+    case TLBRET_HOST_RI:
         /* Read-Inhibit Exception */
         cs->exception_index = EXCCODE_PNR;
         break;
     case TLBRET_PE:
+    case TLBRET_HOST_PE:
         /* Privileged Exception */
         cs->exception_index = EXCCODE_PPI;
         break;
     }
 
-    if (tlb_error == TLBRET_NOMATCH) {
-        env->CSR_TLBRBADV = address;
+    if (tlb_error == TLBRET_NOMATCH || tlb_error == TLBRET_HOST_NOMATCH) {
+        SET_CSR_IF(real_guest, TLBRBADV, address);
         if (is_la64(env)) {
-            env->CSR_TLBREHI = FIELD_DP64(env->CSR_TLBREHI, CSR_TLBREHI_64,
-                                        VPPN, extract64(address, 13, 35));
+            SET_CSR_IF(real_guest, TLBREHI,
+                       FIELD_DP64(GET_CSR_IF(real_guest, TLBREHI),
+                                  CSR_TLBREHI_64, VPPN,
+                                  extract64(address, 13, 35)));
         } else {
-            env->CSR_TLBREHI = FIELD_DP64(env->CSR_TLBREHI, CSR_TLBREHI_32,
-                                        VPPN, extract64(address, 13, 19));
+            SET_CSR_IF(real_guest, TLBREHI,
+                       FIELD_DP64(GET_CSR_IF(real_guest, TLBREHI),
+                                  CSR_TLBREHI_32, VPPN,
+                                  extract64(address, 13, 19)));
         }
     } else {
         if (!FIELD_EX64(env->CSR_DBG, CSR_DBG, DST)) {
-            env->CSR_BADV = address;
+            SET_CSR_IF(real_guest, BADV, address);
         }
-        env->CSR_TLBEHI = address & (TARGET_PAGE_MASK << 1);
-   }
+        SET_CSR_IF(real_guest, TLBEHI, address & (TARGET_PAGE_MASK << 1));
+    }
 }
 
-static void invalidate_tlb_entry(CPULoongArchState *env, int index)
+static void invalidate_tlb_entry(CPULoongArchState *env, int index, bool guest)
 {
     target_ulong addr, mask, pagesize;
     uint8_t tlb_ps;
-    LoongArchTLB *tlb = &env->tlb[index];
-    int idxmap = BIT(MMU_KERNEL_IDX) | BIT(MMU_USER_IDX);
+    LoongArchTLB *tlb = guest ? &env->gtlb[index] : &env->tlb[index];
+    int idxmap =
+        guest ? (BIT(MMU_GUEST_IDX) | BIT(MMU_GUEST_IDX + 1) |
+                 BIT(MMU_GUEST_IDX + 2) | BIT(MMU_GUEST_IDX + 3) |
+                 BIT(MMU_GUEST_DA_IDX)) :
+                (BIT(MMU_KERNEL_IDX) | BIT(MMU_USER_IDX) | BIT(MMU_DA_IDX));
     uint64_t tlb_vppn = FIELD_EX64(tlb->tlb_misc, TLB_MISC, VPPN);
     bool tlb_v;
 
@@ -124,27 +154,27 @@ static void invalidate_tlb_entry(CPULoongArchState *env, int index)
     addr = (tlb_vppn << R_TLB_MISC_VPPN_SHIFT) & ~mask;
     addr = sextract64(addr, 0, TARGET_VIRT_ADDR_SPACE_BITS);
 
-    tlb_v = pte_present(env, tlb->tlb_entry0);
+    tlb_v = pte_present(env, tlb->tlb_entry0, guest);
     if (tlb_v) {
         tlb_flush_range_by_mmuidx(env_cpu(env), addr, pagesize,
                                   idxmap, TARGET_LONG_BITS);
     }
 
-    tlb_v = pte_present(env, tlb->tlb_entry1);
+    tlb_v = pte_present(env, tlb->tlb_entry1, guest);
     if (tlb_v) {
         tlb_flush_range_by_mmuidx(env_cpu(env), addr + pagesize, pagesize,
                                   idxmap, TARGET_LONG_BITS);
     }
 }
 
-static void invalidate_tlb(CPULoongArchState *env, int index)
+static void invalidate_tlb(CPULoongArchState *env, int index, bool guest)
 {
     LoongArchTLB *tlb;
     uint16_t csr_asid, tlb_asid, tlb_g;
     uint8_t tlb_e;
 
-    csr_asid = FIELD_EX64(env->CSR_ASID, CSR_ASID, ASID);
-    tlb = &env->tlb[index];
+    csr_asid = FIELD_EX64(GET_CSR_IF(guest, ASID), CSR_ASID, ASID);
+    tlb = guest ? &env->gtlb[index] : &env->tlb[index];
     tlb_e = FIELD_EX64(tlb->tlb_misc, TLB_MISC, E);
     if (!tlb_e) {
         return;
@@ -157,33 +187,38 @@ static void invalidate_tlb(CPULoongArchState *env, int index)
     if (tlb_g == 0 && tlb_asid != csr_asid) {
         return;
     }
-    invalidate_tlb_entry(env, index);
+    invalidate_tlb_entry(env, index, guest);
 }
 
 /* Prepare tlb entry information in software PTW mode */
-static void sptw_prepare_context(CPULoongArchState *env, MMUContext *context)
+static void sptw_prepare_context(CPULoongArchState *env, MMUContext *context,
+                                 bool guest)
 {
     uint64_t lo0, lo1, csr_vppn;
     uint8_t csr_ps;
 
-    if (FIELD_EX64(env->CSR_TLBRERA, CSR_TLBRERA, ISTLBR)) {
-        csr_ps = FIELD_EX64(env->CSR_TLBREHI, CSR_TLBREHI, PS);
+    if (FIELD_EX64(GET_CSR_IF(guest, TLBRERA), CSR_TLBRERA, ISTLBR)) {
+        csr_ps = FIELD_EX64(GET_CSR_IF(guest, TLBREHI), CSR_TLBREHI, PS);
         if (is_la64(env)) {
-            csr_vppn = FIELD_EX64(env->CSR_TLBREHI, CSR_TLBREHI_64, VPPN);
+            csr_vppn =
+                FIELD_EX64(GET_CSR_IF(guest, TLBREHI), CSR_TLBREHI_64, VPPN);
         } else {
-            csr_vppn = FIELD_EX64(env->CSR_TLBREHI, CSR_TLBREHI_32, VPPN);
+            csr_vppn =
+                FIELD_EX64(GET_CSR_IF(guest, TLBREHI), CSR_TLBREHI_32, VPPN);
         }
-        lo0 = env->CSR_TLBRELO0;
-        lo1 = env->CSR_TLBRELO1;
+        lo0 = GET_CSR_IF(guest, TLBRELO0);
+        lo1 = GET_CSR_IF(guest, TLBRELO1);
     } else {
-        csr_ps = FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, PS);
+        csr_ps = FIELD_EX64(GET_CSR_IF(guest, TLBIDX), CSR_TLBIDX, PS);
         if (is_la64(env)) {
-            csr_vppn = FIELD_EX64(env->CSR_TLBEHI, CSR_TLBEHI_64, VPPN);
+            csr_vppn =
+                FIELD_EX64(GET_CSR_IF(guest, TLBEHI), CSR_TLBEHI_64, VPPN);
         } else {
-            csr_vppn = FIELD_EX64(env->CSR_TLBEHI, CSR_TLBEHI_32, VPPN);
+            csr_vppn =
+                FIELD_EX64(GET_CSR_IF(guest, TLBEHI), CSR_TLBEHI_32, VPPN);
         }
-        lo0 = env->CSR_TLBELO0;
-        lo1 = env->CSR_TLBELO1;
+        lo0 = GET_CSR_IF(guest, TLBELO0);
+        lo1 = GET_CSR_IF(guest, TLBELO1);
     }
 
     context->ps = csr_ps;
@@ -193,7 +228,7 @@ static void sptw_prepare_context(CPULoongArchState *env, MMUContext *context)
 }
 
 static void fill_tlb_entry(CPULoongArchState *env, LoongArchTLB *tlb,
-                           MMUContext *context)
+                           MMUContext *context, bool guest)
 {
     uint64_t lo0, lo1, csr_vppn;
     uint16_t csr_asid;
@@ -208,8 +243,9 @@ static void fill_tlb_entry(CPULoongArchState *env, LoongArchTLB *tlb,
     tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, PS, csr_ps);
     tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, VPPN, csr_vppn);
     tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 1);
-    csr_asid = FIELD_EX64(env->CSR_ASID, CSR_ASID, ASID);
+    csr_asid = FIELD_EX64(GET_CSR_IF(guest, ASID), CSR_ASID, ASID);
     tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, ASID, csr_asid);
+    tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, GID, get_tgid(env));
 
     tlb->tlb_entry0 = lo0;
     tlb->tlb_entry1 = lo1;
@@ -233,7 +269,8 @@ static uint32_t get_random_tlb(uint32_t low, uint32_t high)
  */
 static LoongArchTLB *loongarch_tlb_search_cb(CPULoongArchState *env,
                                              vaddr vaddr, int csr_asid,
-                                             tlb_match func)
+                                             tlb_match func, bool guest,
+                                             uint8_t gid)
 {
     LoongArchTLB *tlb;
     uint16_t tlb_asid, stlb_idx;
@@ -242,14 +279,15 @@ static LoongArchTLB *loongarch_tlb_search_cb(CPULoongArchState *env,
     int i, compare_shift;
     uint64_t vpn, tlb_vppn;
 
-    stlb_ps = FIELD_EX64(env->CSR_STLBPS, CSR_STLBPS, PS);
+    stlb_ps = FIELD_EX64(GET_CSR_IF(guest, STLBPS), CSR_STLBPS, PS);
     vpn = (vaddr & TARGET_VIRT_MASK) >> (stlb_ps + 1);
     stlb_idx = vpn & 0xff; /* VA[25:15] <==> TLBIDX.index for 16KiB Page */
     compare_shift = stlb_ps + 1 - R_TLB_MISC_VPPN_SHIFT;
 
     /* Search STLB */
     for (i = 0; i < 8; ++i) {
-        tlb = &env->tlb[i * 256 + stlb_idx];
+        tlb = guest ? &env->gtlb[i * 256 + stlb_idx] :
+                      &env->tlb[i * 256 + stlb_idx];
         tlb_e = FIELD_EX64(tlb->tlb_misc, TLB_MISC, E);
         if (tlb_e) {
             tlb_vppn = FIELD_EX64(tlb->tlb_misc, TLB_MISC, VPPN);
@@ -257,6 +295,7 @@ static LoongArchTLB *loongarch_tlb_search_cb(CPULoongArchState *env,
             tlb_g = !!FIELD_EX64(tlb->tlb_entry0, TLBENTRY, G);
 
             if (func(tlb_g, csr_asid, tlb_asid) &&
+                tlb_entry_matches_gid(tlb, gid) &&
                 (vpn == (tlb_vppn >> compare_shift))) {
                 return tlb;
             }
@@ -265,7 +304,7 @@ static LoongArchTLB *loongarch_tlb_search_cb(CPULoongArchState *env,
 
     /* Search MTLB */
     for (i = LOONGARCH_STLB; i < LOONGARCH_TLB_MAX; ++i) {
-        tlb = &env->tlb[i];
+        tlb = guest ? &env->gtlb[i] : &env->tlb[i];
         tlb_e = FIELD_EX64(tlb->tlb_misc, TLB_MISC, E);
         if (tlb_e) {
             tlb_vppn = FIELD_EX64(tlb->tlb_misc, TLB_MISC, VPPN);
@@ -275,6 +314,7 @@ static LoongArchTLB *loongarch_tlb_search_cb(CPULoongArchState *env,
             compare_shift = tlb_ps + 1 - R_TLB_MISC_VPPN_SHIFT;
             vpn = (vaddr & TARGET_VIRT_MASK) >> (tlb_ps + 1);
             if (func(tlb_g, csr_asid, tlb_asid) &&
+                tlb_entry_matches_gid(tlb, gid) &&
                 (vpn == (tlb_vppn >> compare_shift))) {
                 return tlb;
             }
@@ -284,17 +324,17 @@ static LoongArchTLB *loongarch_tlb_search_cb(CPULoongArchState *env,
 }
 
 static bool loongarch_tlb_search(CPULoongArchState *env, vaddr vaddr,
-                                 int *index)
+                                 int *index, bool guest, uint8_t gid)
 {
     int csr_asid;
     tlb_match func;
     LoongArchTLB *tlb;
 
     func = tlb_match_any;
-    csr_asid = FIELD_EX64(env->CSR_ASID, CSR_ASID, ASID);
-    tlb = loongarch_tlb_search_cb(env, vaddr, csr_asid, func);
+    csr_asid = FIELD_EX64(GET_CSR_IF(guest, ASID), CSR_ASID, ASID);
+    tlb = loongarch_tlb_search_cb(env, vaddr, csr_asid, func, guest, gid);
     if (tlb) {
-        *index = tlb - env->tlb;
+        *index = guest ? (tlb - env->gtlb) : (tlb - env->tlb);
         return true;
     }
 
@@ -304,66 +344,112 @@ static bool loongarch_tlb_search(CPULoongArchState *env, vaddr vaddr,
 void helper_tlbsrch(CPULoongArchState *env)
 {
     int index, match;
+    vaddr search_ehi;
 
-    if (FIELD_EX64(env->CSR_TLBRERA, CSR_TLBRERA, ISTLBR)) {
-        match = loongarch_tlb_search(env, env->CSR_TLBREHI, &index);
+    if (FIELD_EX64(GET_CSR_IF(env->guest, TLBRERA), CSR_TLBRERA, ISTLBR)) {
+        search_ehi = GET_CSR_IF(env->guest, TLBREHI);
     } else {
-        match = loongarch_tlb_search(env, env->CSR_TLBEHI, &index);
+        search_ehi = GET_CSR_IF(env->guest, TLBEHI);
     }
 
+    match = loongarch_tlb_search(env, search_ehi, &index, env->guest,
+                                 get_tgid(env));
+
     if (match) {
-        env->CSR_TLBIDX = FIELD_DP64(env->CSR_TLBIDX, CSR_TLBIDX, INDEX, index);
-        env->CSR_TLBIDX = FIELD_DP64(env->CSR_TLBIDX, CSR_TLBIDX, NE, 0);
+        SET_CSR_IF(env->guest, TLBIDX,
+                   FIELD_DP64(GET_CSR_IF(env->guest, TLBIDX), CSR_TLBIDX, INDEX,
+                              index));
+        SET_CSR_IF(
+            env->guest, TLBIDX,
+            FIELD_DP64(GET_CSR_IF(env->guest, TLBIDX), CSR_TLBIDX, NE, 0));
         return;
     }
 
-    env->CSR_TLBIDX = FIELD_DP64(env->CSR_TLBIDX, CSR_TLBIDX, NE, 1);
+    SET_CSR_IF(env->guest, TLBIDX,
+               FIELD_DP64(GET_CSR_IF(env->guest, TLBIDX), CSR_TLBIDX, NE, 1));
 }
 
-void helper_tlbrd(CPULoongArchState *env)
+static void read_tlb(CPULoongArchState *env, bool guest)
 {
     LoongArchTLB *tlb;
     int index;
     uint8_t tlb_ps, tlb_e;
 
-    index = FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, INDEX);
-    tlb = &env->tlb[index];
+    index = FIELD_EX64(GET_CSR_IF(guest, TLBIDX), CSR_TLBIDX, INDEX);
+    tlb = guest ? &env->gtlb[index] : &env->tlb[index];
     tlb_ps = FIELD_EX64(tlb->tlb_misc, TLB_MISC, PS);
     tlb_e = FIELD_EX64(tlb->tlb_misc, TLB_MISC, E);
 
     if (!tlb_e) {
         /* Invalid TLB entry */
-        env->CSR_TLBIDX = FIELD_DP64(env->CSR_TLBIDX, CSR_TLBIDX, NE, 1);
-        env->CSR_ASID  = FIELD_DP64(env->CSR_ASID, CSR_ASID, ASID, 0);
-        env->CSR_TLBEHI = 0;
-        env->CSR_TLBELO0 = 0;
-        env->CSR_TLBELO1 = 0;
-        env->CSR_TLBIDX = FIELD_DP64(env->CSR_TLBIDX, CSR_TLBIDX, PS, 0);
+        SET_CSR_IF(guest, TLBIDX,
+                   FIELD_DP64(GET_CSR_IF(guest, TLBIDX), CSR_TLBIDX, NE, 1));
+        SET_CSR_IF(guest, ASID,
+                   FIELD_DP64(GET_CSR_IF(guest, ASID), CSR_ASID, ASID, 0));
+        SET_CSR_IF(guest, TLBEHI, 0);
+        SET_CSR_IF(guest, TLBELO0, 0);
+        SET_CSR_IF(guest, TLBELO1, 0);
+        SET_CSR_IF(guest, TLBIDX,
+                   FIELD_DP64(GET_CSR_IF(guest, TLBIDX), CSR_TLBIDX, PS, 0));
     } else {
         /* Valid TLB entry */
-        env->CSR_TLBIDX = FIELD_DP64(env->CSR_TLBIDX, CSR_TLBIDX, NE, 0);
-        env->CSR_TLBIDX = FIELD_DP64(env->CSR_TLBIDX, CSR_TLBIDX,
-                                     PS, (tlb_ps & 0x3f));
-        env->CSR_TLBEHI = FIELD_EX64(tlb->tlb_misc, TLB_MISC, VPPN) <<
-                                     R_TLB_MISC_VPPN_SHIFT;
-        env->CSR_TLBELO0 = tlb->tlb_entry0;
-        env->CSR_TLBELO1 = tlb->tlb_entry1;
+        SET_CSR_IF(guest, TLBIDX,
+                   FIELD_DP64(GET_CSR_IF(guest, TLBIDX), CSR_TLBIDX, NE, 0));
+        SET_CSR_IF(guest, TLBIDX,
+                   FIELD_DP64(GET_CSR_IF(guest, TLBIDX), CSR_TLBIDX, PS,
+                              tlb_ps & 0x3f));
+        SET_CSR_IF(guest, TLBEHI,
+                   FIELD_EX64(tlb->tlb_misc, TLB_MISC, VPPN)
+                       << R_TLB_MISC_VPPN_SHIFT);
+        SET_CSR_IF(guest, TLBELO0, tlb->tlb_entry0);
+        SET_CSR_IF(guest, TLBELO1, tlb->tlb_entry1);
     }
 }
 
+void helper_tlbrd(CPULoongArchState *env)
+{
+    read_tlb(env, env->guest);
+}
+
+void helper_gtlbsrch(CPULoongArchState *env)
+{
+    int index, match;
+    vaddr search_ehi;
+
+    if (FIELD_EX64(env->GCSR_TLBRERA, CSR_TLBRERA, ISTLBR)) {
+        search_ehi = env->GCSR_TLBREHI;
+    } else {
+        search_ehi = env->GCSR_TLBEHI;
+    }
+
+    match = loongarch_tlb_search(env, search_ehi, &index, true, get_tgid(env));
+    if (match) {
+        env->GCSR_TLBIDX =
+            FIELD_DP64(env->GCSR_TLBIDX, CSR_TLBIDX, INDEX, index);
+        env->GCSR_TLBIDX = FIELD_DP64(env->GCSR_TLBIDX, CSR_TLBIDX, NE, 0);
+        return;
+    }
+    env->GCSR_TLBIDX = FIELD_DP64(env->GCSR_TLBIDX, CSR_TLBIDX, NE, 1);
+}
+
+void helper_gtlbrd(CPULoongArchState *env)
+{
+    read_tlb(env, true);
+}
+
 static void update_tlb_index(CPULoongArchState *env, MMUContext *context,
-                             int index)
+                             int index, bool guest)
 {
     LoongArchTLB *old, new = {};
     bool skip_inv = false, tlb_v0, tlb_v1;
 
-    old = env->tlb + index;
-    fill_tlb_entry(env, &new, context);
+    old = guest ? env->gtlb + index : env->tlb + index;
+    fill_tlb_entry(env, &new, context, guest);
     /* Check whether ASID/VPPN is the same */
     if (old->tlb_misc == new.tlb_misc) {
         /* Check whether both even/odd pages is the same or invalid */
-        tlb_v0 = pte_present(env, old->tlb_entry0);
-        tlb_v1 = pte_present(env, old->tlb_entry1);
+        tlb_v0 = pte_present(env, old->tlb_entry0, guest);
+        tlb_v1 = pte_present(env, old->tlb_entry1, guest);
         if ((!tlb_v0 || new.tlb_entry0 == old->tlb_entry0) &&
             (!tlb_v1 || new.tlb_entry1 == old->tlb_entry1)) {
             skip_inv = true;
@@ -372,7 +458,7 @@ static void update_tlb_index(CPULoongArchState *env, MMUContext *context,
 
     /* flush tlb before updating the entry */
     if (!skip_inv) {
-        invalidate_tlb(env, index);
+        invalidate_tlb(env, index, guest);
     }
 
     *old = new;
@@ -380,20 +466,34 @@ static void update_tlb_index(CPULoongArchState *env, MMUContext *context,
 
 void helper_tlbwr(CPULoongArchState *env)
 {
-    int index = FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, INDEX);
+    int index = FIELD_EX64(GET_CSR_IF(env->guest, TLBIDX), CSR_TLBIDX, INDEX);
     MMUContext context;
 
-    if (FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, NE)) {
-        invalidate_tlb(env, index);
+    if (FIELD_EX64(GET_CSR_IF(env->guest, TLBIDX), CSR_TLBIDX, NE)) {
+        invalidate_tlb(env, index, env->guest);
         return;
     }
 
-    sptw_prepare_context(env, &context);
-    update_tlb_index(env, &context, index);
+    sptw_prepare_context(env, &context, env->guest);
+    update_tlb_index(env, &context, index, env->guest);
+}
+
+void helper_gtlbwr(CPULoongArchState *env)
+{
+    int index = FIELD_EX64(env->GCSR_TLBIDX, CSR_TLBIDX, INDEX);
+    MMUContext context;
+
+    if (FIELD_EX64(env->GCSR_TLBIDX, CSR_TLBIDX, NE)) {
+        invalidate_tlb(env, index, true);
+        return;
+    }
+
+    sptw_prepare_context(env, &context, true);
+    update_tlb_index(env, &context, index, true);
 }
 
 static int get_tlb_random_index(CPULoongArchState *env, vaddr addr,
-                                int pagesize)
+                                int pagesize, bool guest)
 {
     uint64_t address;
     int index, set, i, stlb_idx;
@@ -402,15 +502,16 @@ static int get_tlb_random_index(CPULoongArchState *env, vaddr addr,
     uint8_t tlb_e, tlb_g;
 
     /* Validity of stlb_ps is checked in helper_csrwr_stlbps() */
-    stlb_ps = FIELD_EX64(env->CSR_STLBPS, CSR_STLBPS, PS);
-    asid = FIELD_EX64(env->CSR_ASID, CSR_ASID, ASID);
+    stlb_ps = FIELD_EX64(GET_CSR_IF(guest, STLBPS), CSR_STLBPS, PS);
+    asid = FIELD_EX64(GET_CSR_IF(guest, ASID), CSR_ASID, ASID);
     if (pagesize == stlb_ps) {
         /* Only write into STLB bits [47:13] */
         address = addr & ~MAKE_64BIT_MASK(0, R_CSR_TLBEHI_64_VPPN_SHIFT);
         set = -1;
         stlb_idx = (address >> (stlb_ps + 1)) & 0xff; /* [0,255] */
         for (i = 0; i < 8; ++i) {
-            tlb = &env->tlb[i * 256 + stlb_idx];
+            tlb = guest ? &env->gtlb[i * 256 + stlb_idx] :
+                          &env->tlb[i * 256 + stlb_idx];
             tlb_e = FIELD_EX64(tlb->tlb_misc, TLB_MISC, E);
             if (!tlb_e) {
                 set = i;
@@ -419,7 +520,8 @@ static int get_tlb_random_index(CPULoongArchState *env, vaddr addr,
 
             tlb_asid = FIELD_EX64(tlb->tlb_misc, TLB_MISC, ASID);
             tlb_g = FIELD_EX64(tlb->tlb_entry0, TLBENTRY, G);
-            if (tlb_g == 0 && asid != tlb_asid) {
+            if (tlb_g == 0 && asid != tlb_asid &&
+                tlb_entry_matches_gid(tlb, get_tgid(env))) {
                 set = i;
             }
         }
@@ -433,7 +535,7 @@ static int get_tlb_random_index(CPULoongArchState *env, vaddr addr,
         /* Only write into MTLB */
         index = -1;
         for (i = LOONGARCH_STLB; i < LOONGARCH_TLB_MAX; i++) {
-            tlb = &env->tlb[i];
+            tlb = guest ? &env->gtlb[i] : &env->tlb[i];
             tlb_e = FIELD_EX64(tlb->tlb_misc, TLB_MISC, E);
 
             if (!tlb_e) {
@@ -443,7 +545,8 @@ static int get_tlb_random_index(CPULoongArchState *env, vaddr addr,
 
             tlb_asid = FIELD_EX64(tlb->tlb_misc, TLB_MISC, ASID);
             tlb_g = FIELD_EX64(tlb->tlb_entry0, TLBENTRY, G);
-            if (tlb_g == 0 && asid != tlb_asid) {
+            if (tlb_g == 0 && asid != tlb_asid &&
+                tlb_entry_matches_gid(tlb, get_tgid(env))) {
                 index = i;
             }
         }
@@ -462,50 +565,106 @@ void helper_tlbfill(CPULoongArchState *env)
     int index, pagesize;
     MMUContext context;
 
-    if (FIELD_EX64(env->CSR_TLBRERA, CSR_TLBRERA, ISTLBR)) {
-        entryhi = env->CSR_TLBREHI;
+    if (FIELD_EX64(GET_CSR_IF(env->guest, TLBRERA), CSR_TLBRERA, ISTLBR)) {
+        entryhi = GET_CSR_IF(env->guest, TLBREHI);
         /* Validity of pagesize is checked in helper_ldpte() */
-        pagesize = FIELD_EX64(env->CSR_TLBREHI, CSR_TLBREHI, PS);
+        pagesize = FIELD_EX64(GET_CSR_IF(env->guest, TLBREHI), CSR_TLBREHI, PS);
     } else {
-        entryhi = env->CSR_TLBEHI;
+        entryhi = GET_CSR_IF(env->guest, TLBEHI);
         /* Validity of pagesize is checked in helper_tlbrd() */
-        pagesize = FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, PS);
+        pagesize = FIELD_EX64(GET_CSR_IF(env->guest, TLBIDX), CSR_TLBIDX, PS);
     }
 
-    sptw_prepare_context(env, &context);
-    index = get_tlb_random_index(env, entryhi, pagesize);
-    invalidate_tlb(env, index);
-    fill_tlb_entry(env, env->tlb + index, &context);
+    sptw_prepare_context(env, &context, env->guest);
+    index = get_tlb_random_index(env, entryhi, pagesize, env->guest);
+    invalidate_tlb(env, index, env->guest);
+    fill_tlb_entry(env, env->guest ? env->gtlb + index : env->tlb + index,
+                   &context, env->guest);
 }
 
-void helper_tlbclr(CPULoongArchState *env)
+void helper_gtlbfill(CPULoongArchState *env)
+{
+    vaddr entryhi;
+    int index, pagesize;
+    MMUContext context;
+
+    if (FIELD_EX64(env->GCSR_TLBRERA, CSR_TLBRERA, ISTLBR)) {
+        entryhi = env->GCSR_TLBREHI;
+        pagesize = FIELD_EX64(env->GCSR_TLBREHI, CSR_TLBREHI, PS);
+    } else {
+        entryhi = env->GCSR_TLBEHI;
+        pagesize = FIELD_EX64(env->GCSR_TLBIDX, CSR_TLBIDX, PS);
+    }
+
+    sptw_prepare_context(env, &context, true);
+    index = get_tlb_random_index(env, entryhi, pagesize, true);
+    invalidate_tlb(env, index, true);
+    fill_tlb_entry(env, env->gtlb + index, &context, true);
+}
+
+static void clear_tlb_by_index(CPULoongArchState *env, bool guest)
 {
     LoongArchTLB *tlb;
     int i, index;
     uint16_t csr_asid, tlb_asid, tlb_g;
 
-    csr_asid = FIELD_EX64(env->CSR_ASID, CSR_ASID, ASID);
-    index = FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, INDEX);
+    csr_asid = FIELD_EX64(GET_CSR_IF(guest, ASID), CSR_ASID, ASID);
+    index = FIELD_EX64(GET_CSR_IF(guest, TLBIDX), CSR_TLBIDX, INDEX);
 
     if (index < LOONGARCH_STLB) {
-        /* STLB. One line per operation */
         for (i = 0; i < 8; i++) {
-            tlb = &env->tlb[i * 256 + (index % 256)];
+            tlb = guest ? &env->gtlb[i * 256 + (index % 256)] :
+                          &env->tlb[i * 256 + (index % 256)];
             tlb_asid = FIELD_EX64(tlb->tlb_misc, TLB_MISC, ASID);
             tlb_g = FIELD_EX64(tlb->tlb_entry0, TLBENTRY, G);
-            if (!tlb_g && tlb_asid == csr_asid) {
+            if (!tlb_g && tlb_asid == csr_asid &&
+                tlb_entry_matches_gid(tlb, get_tgid(env))) {
                 tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 0);
             }
         }
     } else if (index < LOONGARCH_TLB_MAX) {
-        /* All MTLB entries */
         for (i = LOONGARCH_STLB; i < LOONGARCH_TLB_MAX; i++) {
-            tlb = &env->tlb[i];
+            tlb = guest ? &env->gtlb[i] : &env->tlb[i];
             tlb_asid = FIELD_EX64(tlb->tlb_misc, TLB_MISC, ASID);
             tlb_g = FIELD_EX64(tlb->tlb_entry0, TLBENTRY, G);
-            if (!tlb_g && tlb_asid == csr_asid) {
+            if (!tlb_g && tlb_asid == csr_asid &&
+                tlb_entry_matches_gid(tlb, get_tgid(env))) {
                 tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 0);
             }
+        }
+    }
+
+    tlb_flush(env_cpu(env));
+}
+
+void helper_tlbclr(CPULoongArchState *env)
+{
+    clear_tlb_by_index(env, env->guest);
+}
+
+void helper_gtlbclr(CPULoongArchState *env)
+{
+    clear_tlb_by_index(env, true);
+}
+
+static void flush_tlb_by_index(CPULoongArchState *env, bool guest)
+{
+    int i, index;
+
+    index = FIELD_EX64(GET_CSR_IF(guest, TLBIDX), CSR_TLBIDX, INDEX);
+
+    if (index < LOONGARCH_STLB) {
+        for (i = 0; i < 8; i++) {
+            int s_idx = i * 256 + (index % 256);
+            LoongArchTLB *tlb = guest ? &env->gtlb[s_idx] : &env->tlb[s_idx];
+
+            tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 0);
+        }
+    } else if (index < LOONGARCH_TLB_MAX) {
+        for (i = LOONGARCH_STLB; i < LOONGARCH_TLB_MAX; i++) {
+            LoongArchTLB *tlb = guest ? &env->gtlb[i] : &env->tlb[i];
+
+            tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 0);
         }
     }
 
@@ -514,60 +673,80 @@ void helper_tlbclr(CPULoongArchState *env)
 
 void helper_tlbflush(CPULoongArchState *env)
 {
-    int i, index;
-
-    index = FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, INDEX);
-
-    if (index < LOONGARCH_STLB) {
-        /* STLB. One line per operation */
-        for (i = 0; i < 8; i++) {
-            int s_idx = i * 256 + (index % 256);
-            env->tlb[s_idx].tlb_misc = FIELD_DP64(env->tlb[s_idx].tlb_misc,
-                                                  TLB_MISC, E, 0);
-        }
-    } else if (index < LOONGARCH_TLB_MAX) {
-        /* All MTLB entries */
-        for (i = LOONGARCH_STLB; i < LOONGARCH_TLB_MAX; i++) {
-            env->tlb[i].tlb_misc = FIELD_DP64(env->tlb[i].tlb_misc,
-                                              TLB_MISC, E, 0);
-        }
-    }
-
-    tlb_flush(env_cpu(env));
+    flush_tlb_by_index(env, env->guest);
 }
 
-void helper_invtlb_all(CPULoongArchState *env)
+void helper_gtlbflush(CPULoongArchState *env)
 {
-    for (int i = 0; i < LOONGARCH_TLB_MAX; i++) {
-        env->tlb[i].tlb_misc = FIELD_DP64(env->tlb[i].tlb_misc,
-                                          TLB_MISC, E, 0);
-    }
-    tlb_flush(env_cpu(env));
+    flush_tlb_by_index(env, true);
 }
 
-void helper_invtlb_all_g(CPULoongArchState *env, uint32_t g)
+void helper_invtlb_all(CPULoongArchState *env, target_ulong info, uint32_t op,
+                       uint32_t to_guest)
 {
+    uint16_t gid = to_guest ? (info & 0xff) : get_tgid(env);
+
+    if (to_guest && env->guest) {
+        do_raise_exception(env, EXCCODE_IPE, GETPC());
+    }
+
+    to_guest |= env->guest;
+
     for (int i = 0; i < LOONGARCH_TLB_MAX; i++) {
         LoongArchTLB *tlb = &env->tlb[i];
+        LoongArchTLB *gtlb = &env->gtlb[i];
+
+        if (!to_guest && (op == 0 || tlb_entry_matches_gid(tlb, 0))) {
+            tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 0);
+        }
+        if ((!to_guest && op == 0) ||
+            (to_guest && tlb_entry_matches_gid(gtlb, gid))) {
+            gtlb->tlb_misc = FIELD_DP64(gtlb->tlb_misc, TLB_MISC, E, 0);
+        }
+    }
+    tlb_flush(env_cpu(env));
+}
+
+void helper_invtlb_all_g(CPULoongArchState *env, target_ulong info, uint32_t g,
+                         uint32_t to_guest)
+{
+    uint16_t gid = to_guest ? (info & 0xff) : get_tgid(env);
+
+    if (to_guest && env->guest) {
+        do_raise_exception(env, EXCCODE_IPE, GETPC());
+    }
+
+    to_guest |= env->guest;
+
+    for (int i = 0; i < LOONGARCH_TLB_MAX; i++) {
+        LoongArchTLB *tlb = to_guest ? &env->gtlb[i] : &env->tlb[i];
         uint8_t tlb_g = FIELD_EX64(tlb->tlb_entry0, TLBENTRY, G);
 
-        if (tlb_g == g) {
+        if (tlb_g == g && tlb_entry_matches_gid(tlb, gid)) {
             tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 0);
         }
     }
     tlb_flush(env_cpu(env));
 }
 
-void helper_invtlb_all_asid(CPULoongArchState *env, target_ulong info)
+void helper_invtlb_all_asid(CPULoongArchState *env, target_ulong info,
+                            uint32_t to_guest)
 {
     uint16_t asid = info & R_CSR_ASID_ASID_MASK;
+    uint16_t gid = to_guest ? ((info >> 16) & 0xff) : get_tgid(env);
+
+    if (to_guest && env->guest) {
+        do_raise_exception(env, EXCCODE_IPE, GETPC());
+    }
+
+    to_guest |= env->guest;
 
     for (int i = 0; i < LOONGARCH_TLB_MAX; i++) {
-        LoongArchTLB *tlb = &env->tlb[i];
+        LoongArchTLB *tlb = to_guest ? &env->gtlb[i] : &env->tlb[i];
         uint8_t tlb_g = FIELD_EX64(tlb->tlb_entry0, TLBENTRY, G);
         uint16_t tlb_asid = FIELD_EX64(tlb->tlb_misc, TLB_MISC, ASID);
 
-        if (!tlb_g && (tlb_asid == asid)) {
+        if (!tlb_g && tlb_asid == asid && tlb_entry_matches_gid(tlb, gid)) {
             tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 0);
         }
     }
@@ -575,66 +754,82 @@ void helper_invtlb_all_asid(CPULoongArchState *env, target_ulong info)
 }
 
 void helper_invtlb_page_asid(CPULoongArchState *env, target_ulong info,
-                             target_ulong addr)
+                             target_ulong addr, uint32_t to_guest)
 {
-    int asid = info & 0x3ff;
+    uint16_t asid = info & R_CSR_ASID_ASID_MASK;
+    uint16_t gid = to_guest ? ((info >> 16) & 0xff) : get_tgid(env);
     LoongArchTLB *tlb;
-    tlb_match func;
+    int index;
 
-    func = tlb_match_asid;
-    tlb = loongarch_tlb_search_cb(env, addr, asid, func);
+    if (to_guest && env->guest) {
+        do_raise_exception(env, EXCCODE_IPE, GETPC());
+    }
+    to_guest |= env->guest;
+
+    tlb =
+        loongarch_tlb_search_cb(env, addr, asid, tlb_match_asid, to_guest, gid);
     if (tlb) {
-        invalidate_tlb(env, tlb - env->tlb);
+        index = to_guest ? (tlb - env->gtlb) : (tlb - env->tlb);
+        invalidate_tlb(env, index, to_guest);
     }
 }
 
-void helper_invtlb_page_asid_or_g(CPULoongArchState *env,
-                                  target_ulong info, target_ulong addr)
+void helper_invtlb_page_asid_or_g(CPULoongArchState *env, target_ulong info,
+                                  target_ulong addr, uint32_t to_guest)
 {
-    int asid = info & 0x3ff;
+    uint16_t asid = info & R_CSR_ASID_ASID_MASK;
+    uint16_t gid = to_guest ? ((info >> 16) & 0xff) : get_tgid(env);
     LoongArchTLB *tlb;
-    tlb_match func;
+    int index;
 
-    func = tlb_match_any;
-    tlb = loongarch_tlb_search_cb(env, addr, asid, func);
+    if (to_guest && env->guest) {
+        do_raise_exception(env, EXCCODE_IPE, GETPC());
+    }
+
+    to_guest |= env->guest;
+
+    tlb =
+        loongarch_tlb_search_cb(env, addr, asid, tlb_match_any, to_guest, gid);
     if (tlb) {
-        invalidate_tlb(env, tlb - env->tlb);
+        index = to_guest ? (tlb - env->gtlb) : (tlb - env->tlb);
+        invalidate_tlb(env, index, to_guest);
     }
 }
 
-static void ptw_update_tlb(CPULoongArchState *env, MMUContext *context)
+static void ptw_update_tlb(CPULoongArchState *env, MMUContext *context,
+                           bool guest)
 {
     int index;
 
     index = context->tlb_index;
     if (index < 0) {
-        index = get_tlb_random_index(env, context->addr, context->ps);
+        index = get_tlb_random_index(env, context->addr, context->ps, guest);
     }
 
-    update_tlb_index(env, context, index);
+    update_tlb_index(env, context, index, guest);
 }
 
-bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
-                            MMUAccessType access_type, int mmu_idx,
-                            bool probe, uintptr_t retaddr)
+TLBRet loongarch_map_host_address(CPULoongArchState *env, MMUContext *context,
+                                  MMUAccessType access_type, uintptr_t retaddr)
 {
-    CPULoongArchState *env = cpu_env(cs);
-    hwaddr physical;
-    int prot;
-    MMUContext context;
     TLBRet ret;
+    ret = loongarch_map_address(env, context, access_type, MMU_KERNEL_IDX,
+                                false, false, retaddr);
+    return TLBRET_HOST_MATCH + ret;
+}
 
-    /* Data access */
-    context.addr = address;
-    context.tlb_index = -1;
-    ret = get_physical_address(env, &context, access_type, mmu_idx, 0);
-    if (ret == TLBRET_MATCH && context.mmu_index != MMU_DA_IDX
-        && cpu_has_ptw(env)) {
+static void loongarch_try_ptw(CPULoongArchState *env, MMUContext *context,
+                              MMUAccessType access_type, int mmu_index,
+                              TLBRet *status, bool guest, uintptr_t retaddr)
+{
+    if ((*status == TLBRET_MATCH || *status == TLBRET_HOST_MATCH) &&
+        context->mmu_index != MMU_DA_IDX &&
+        context->mmu_index != MMU_GUEST_DA_IDX && cpu_has_ptw(env, guest)) {
         bool need_update = true;
 
-        if (access_type == MMU_DATA_STORE && pte_dirty(context.pte)) {
+        if (access_type == MMU_DATA_STORE && pte_dirty(context->pte)) {
             need_update = false;
-        } else if (access_type != MMU_DATA_STORE && pte_access(context.pte)) {
+        } else if (access_type != MMU_DATA_STORE && pte_access(context->pte)) {
             need_update = false;
 
             /*
@@ -649,31 +844,77 @@ bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 
         if (need_update) {
             /* Need update bit A/D in PTE entry, take PTW again */
-            ret = TLBRET_NOMATCH;
+            *status =
+                (env->guest && !guest) ? TLBRET_HOST_NOMATCH : TLBRET_NOMATCH;
         }
     }
 
-    if (ret != TLBRET_MATCH && cpu_has_ptw(env)) {
+    if (*status != TLBRET_MATCH && *status != TLBRET_HOST_MATCH &&
+        cpu_has_ptw(env, guest)) {
         /* Take HW PTW if TLB missed or bit P is zero */
-        if (ret == TLBRET_NOMATCH || ret == TLBRET_INVALID) {
-            ret = loongarch_ptw(env, &context, access_type, mmu_idx, 0);
-            if (ret == TLBRET_MATCH) {
-                ptw_update_tlb(env, &context);
+        if (*status == TLBRET_NOMATCH || *status == TLBRET_INVALID ||
+            *status == TLBRET_HOST_NOMATCH || *status == TLBRET_HOST_INVALID) {
+            *status =
+                ((env->guest && !guest) ? TLBRET_HOST_MATCH : TLBRET_MATCH) +
+                loongarch_ptw(env, context, access_type, mmu_index, 0, guest,
+                              retaddr);
+            if (*status == TLBRET_MATCH || *status == TLBRET_HOST_MATCH) {
+                ptw_update_tlb(env, context, guest);
             }
-        } else if (context.tlb_index >= 0) {
-            invalidate_tlb(env, context.tlb_index);
+        } else if (context->tlb_index >= 0) {
+            invalidate_tlb(env, context->tlb_index, guest);
         }
     }
+}
+
+bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
+                            MMUAccessType access_type, int mmu_idx, bool probe,
+                            uintptr_t retaddr)
+{
+    CPULoongArchState *env = cpu_env(cs);
+    MMUContext host_context;
+    hwaddr physical;
+    int prot, host_prot;
+    MMUContext context;
+    TLBRet ret;
+
+    /* Data access */
+    context.addr = address;
+    context.tlb_index = -1;
+    ret = get_physical_address(env, &context, access_type, mmu_idx, 0, retaddr);
+    loongarch_try_ptw(env, &context, access_type, mmu_idx, &ret, env->guest,
+                      retaddr);
 
     if (ret == TLBRET_MATCH) {
         physical = context.physical;
         prot = context.prot;
+        if (env->guest) {
+            host_context.addr = physical;
+            host_context.tlb_index = -1;
+            ret = loongarch_map_host_address(env, &host_context, access_type,
+                                             retaddr);
+            loongarch_try_ptw(env, &host_context, access_type, MMU_KERNEL_IDX,
+                              &ret, false, retaddr);
+            if (ret != TLBRET_HOST_MATCH) {
+                if (probe) {
+                    return false;
+                }
+                raise_mmu_exception(env, physical, access_type, ret);
+                cpu_loop_exit_restore(cs, retaddr);
+                return false;
+            }
+            physical = host_context.physical;
+            host_prot = host_context.prot;
+            prot &= host_prot;
+        }
         tlb_set_page(cs, address & TARGET_PAGE_MASK,
                      physical & TARGET_PAGE_MASK, prot,
                      mmu_idx, TARGET_PAGE_SIZE);
         qemu_log_mask(CPU_LOG_MMU,
                       "%s address=%" VADDR_PRIx " physical " HWADDR_FMT_plx
-                      " prot %d\n", __func__, address, physical, prot);
+                      " prot %d guest %d\n",
+                      __func__, address, physical, prot,
+                      is_guest_mmu_idx(mmu_idx));
         return true;
     } else {
         qemu_log_mask(CPU_LOG_MMU,
@@ -700,6 +941,31 @@ static inline uint64_t loongarch_sanitize_hw_pte(CPULoongArchState *env,
     pte &= env->hw_pte_mask;
 
     return (pte & ~ppn_mask) | ((pte & ppn_mask) & palen_mask);
+}
+
+hwaddr loongarch_get_host_address(CPULoongArchState *env, hwaddr gpa,
+                                  uintptr_t retaddr)
+{
+    MMUContext host_context;
+    TLBRet ret;
+
+    if (!env->guest) {
+        return gpa;
+    }
+
+    host_context.addr = gpa;
+    host_context.tlb_index = -1;
+    ret =
+        loongarch_map_host_address(env, &host_context, MMU_DATA_LOAD, retaddr);
+    loongarch_try_ptw(env, &host_context, MMU_DATA_LOAD, MMU_KERNEL_IDX, &ret,
+                      false, retaddr);
+
+    if (ret != TLBRET_HOST_MATCH) {
+        raise_mmu_exception(env, gpa, MMU_DATA_LOAD, ret);
+        cpu_loop_exit_restore(env_cpu(env), retaddr);
+    }
+
+    return host_context.physical;
 }
 
 target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
@@ -732,12 +998,15 @@ target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
         }
     }
 
-    badvaddr = env->CSR_TLBRBADV;
+    badvaddr = GET_CSR_IF(env->guest, TLBRBADV);
     base = base & palen_mask;
-    get_dir_base_width(env, &dir_base, &dir_width, level);
+    get_dir_base_width(env, &dir_base, &dir_width, level, env->guest);
     index = (badvaddr >> dir_base) & ((1 << dir_width) - 1);
     phys = base | index << 3;
-    val = address_space_ldq_le(cs->as, phys, MEMTXATTRS_UNSPECIFIED, NULL);
+    val = address_space_ldq_le(
+        cs->as,
+        (env->guest ? loongarch_get_host_address(env, phys, GETPC()) : phys),
+        MEMTXATTRS_UNSPECIFIED, NULL);
 
     return val & palen_mask;
 }
@@ -749,8 +1018,10 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
     hwaddr phys, tmp0, ptindex, ptoffset0, ptoffset1;
     uint64_t pte_raw;
     uint64_t badv;
-    uint64_t ptbase = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTBASE);
-    uint64_t ptwidth = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTWIDTH);
+    uint64_t ptbase =
+        FIELD_EX64(GET_CSR_IF(env->guest, PWCL), CSR_PWCL, PTBASE);
+    uint64_t ptwidth =
+        FIELD_EX64(GET_CSR_IF(env->guest, PWCL), CSR_PWCL, PTWIDTH);
     uint64_t palen_mask = loongarch_palen_mask(env);
     uint64_t dir_base, dir_width;
     uint8_t  ps;
@@ -771,7 +1042,7 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
          * Move HGLOBAL bit to GLOBAL bit.
          */
         get_dir_base_width(env, &dir_base, &dir_width,
-                           FIELD_EX64(base, TLBENTRY, LEVEL));
+                           FIELD_EX64(base, TLBENTRY, LEVEL), env->guest);
 
         base = FIELD_DP64(base, TLBENTRY, LEVEL, 0);
         base = FIELD_DP64(base, TLBENTRY, HUGE, 0);
@@ -796,7 +1067,7 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
             return;
         }
     } else {
-        badv = env->CSR_TLBRBADV;
+        badv = GET_CSR_IF(env->guest, TLBRBADV);
 
         base = base & palen_mask;
 
@@ -805,26 +1076,31 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
         ptoffset0 = ptindex << 3;
         ptoffset1 = (ptindex + 1) << 3;
         phys = base | (odd ? ptoffset1 : ptoffset0);
-        pte_raw = address_space_ldq_le(cs->as, phys,
-                                       MEMTXATTRS_UNSPECIFIED, NULL);
+        pte_raw = address_space_ldq_le(
+            cs->as,
+            (env->guest ? loongarch_get_host_address(env, phys, GETPC()) :
+                          phys),
+            MEMTXATTRS_UNSPECIFIED, NULL);
         tmp0 = loongarch_sanitize_hw_pte(env, pte_raw);
         ps = ptbase;
     }
 
     if (odd) {
-        env->CSR_TLBRELO1 = tmp0;
+        SET_CSR_IF(env->guest, TLBRELO1, tmp0);
     } else {
-        env->CSR_TLBRELO0 = tmp0;
+        SET_CSR_IF(env->guest, TLBRELO0, tmp0);
     }
-    env->CSR_TLBREHI = FIELD_DP64(env->CSR_TLBREHI, CSR_TLBREHI, PS, ps);
+    SET_CSR_IF(
+        env->guest, TLBREHI,
+        FIELD_DP64(GET_CSR_IF(env->guest, TLBREHI), CSR_TLBREHI, PS, ps));
 }
 
 static TLBRet loongarch_map_tlb_entry(CPULoongArchState *env,
                                       MMUContext *context,
                                       MMUAccessType access_type, int index,
-                                      int mmu_idx)
+                                      int mmu_idx, bool guest)
 {
-    LoongArchTLB *tlb = &env->tlb[index];
+    LoongArchTLB *tlb = guest ? &env->gtlb[index] : &env->tlb[index];
     uint8_t tlb_ps, n;
 
     tlb_ps = FIELD_EX64(tlb->tlb_misc, TLB_MISC, PS);
@@ -832,19 +1108,20 @@ static TLBRet loongarch_map_tlb_entry(CPULoongArchState *env,
     context->pte = n ? tlb->tlb_entry1 : tlb->tlb_entry0;
     context->ps = tlb_ps;
     context->tlb_index = index;
-    return loongarch_check_pte(env, context, access_type, mmu_idx);
+    return loongarch_check_pte(env, context, access_type, mmu_idx, guest);
 }
 
-TLBRet loongarch_get_addr_from_tlb(CPULoongArchState *env,
-                                   MMUContext *context,
-                                   MMUAccessType access_type, int mmu_idx)
+TLBRet loongarch_get_addr_from_tlb(CPULoongArchState *env, MMUContext *context,
+                                   MMUAccessType access_type, int mmu_idx,
+                                   bool guest)
 {
     int index, match;
 
-    match = loongarch_tlb_search(env, context->addr, &index);
+    match =
+        loongarch_tlb_search(env, context->addr, &index, guest, get_tgid(env));
     if (match) {
         return loongarch_map_tlb_entry(env, context, access_type, index,
-                                       mmu_idx);
+                                       mmu_idx, guest);
     }
 
     return TLBRET_NOMATCH;
