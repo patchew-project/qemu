@@ -787,6 +787,9 @@ static void scr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
         if (cpu_isar_feature(aa64_mec, cpu)) {
             valid_mask |= SCR_MECEN;
         }
+        if (cpu_isar_feature(aa64_rng_trap, cpu)) {
+            valid_mask |= SCR_TRNDR;
+        }
     } else {
         valid_mask &= ~(SCR_RW | SCR_ST);
         if (cpu_isar_feature(aa32_ras, cpu)) {
@@ -5294,6 +5297,15 @@ static const ARMCPRegInfo pauth_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, keys.apib.hi) },
 };
 
+static CPAccessResult access_rndr(CPUARMState *env, const ARMCPRegInfo *ri,
+                                  bool isread)
+{
+    if (env->cp15.scr_el3 & SCR_TRNDR) {
+        return CP_ACCESS_TRAP_EL3;
+    }
+    return CP_ACCESS_OK;
+}
+
 static uint64_t rndr_readfn(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     Error *err = NULL;
@@ -5325,11 +5337,11 @@ static const ARMCPRegInfo rndr_reginfo[] = {
     { .name = "RNDR", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_NO_RAW | ARM_CP_SUPPRESS_TB_END | ARM_CP_IO,
       .opc0 = 3, .opc1 = 3, .crn = 2, .crm = 4, .opc2 = 0,
-      .access = PL0_R, .readfn = rndr_readfn },
+      .access = PL0_R, .accessfn = access_rndr, .readfn = rndr_readfn },
     { .name = "RNDRRS", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_NO_RAW | ARM_CP_SUPPRESS_TB_END | ARM_CP_IO,
       .opc0 = 3, .opc1 = 3, .crn = 2, .crm = 4, .opc2 = 1,
-      .access = PL0_R, .readfn = rndr_readfn },
+      .access = PL0_R, .accessfn = access_rndr, .readfn = rndr_readfn },
 };
 
 static void dccvap_writefn(CPUARMState *env, const ARMCPRegInfo *ri,
