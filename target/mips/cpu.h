@@ -541,6 +541,7 @@ typedef enum MIPSOcteonSharedMode {
     OCTEON_SHARED_MODE_NONE = 0,
     OCTEON_SHARED_MODE_SHA512,
     OCTEON_SHARED_MODE_SNOW3G,
+    OCTEON_SHARED_MODE_SHA3,
 } MIPSOcteonSharedMode;
 
 typedef struct MIPSOcteonCryptoState {
@@ -551,6 +552,7 @@ typedef struct MIPSOcteonCryptoState {
     uint64_t hsh_dat[8];
     uint64_t hsh_ivw[8];
     uint64_t hsh_datw[16];
+    uint64_t sha3_state[25];
     uint64_t aes_iv[2];
     uint64_t aes_key[4];
     uint64_t aes_result[2];
