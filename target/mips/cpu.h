@@ -556,6 +556,11 @@ typedef struct MIPSOcteonCryptoState {
     uint64_t sha3_state[25];
     uint64_t aes_iv[2];
     uint64_t aes_key[4];
+    /*
+     * AESRESINP is one architectural selector bank.  Keep a separate input
+     * latch so operation selectors can consume a pending block while DMFC2
+     * reads expose the latest result/readback value.
+     */
     uint64_t aes_result[2];
     uint64_t aes_input[2];
     uint64_t gfm_mul[2];
