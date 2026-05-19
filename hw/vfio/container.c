@@ -82,7 +82,7 @@ int vfio_container_dma_map(VFIOContainer *bcontainer,
     RAMBlock *rb = mr->ram_block;
     int mfd = rb ? qemu_ram_get_fd(rb) : -1;
 
-    if (mfd >= 0 && vioc->dma_map_file) {
+    if (mfd >= 0 && vioc->dma_map_file && qemu_ram_is_shared(rb)) {
         unsigned long start = vaddr - qemu_ram_get_host_addr(rb);
         unsigned long offset = qemu_ram_get_fd_offset(rb);
 
