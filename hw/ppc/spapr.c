@@ -115,6 +115,8 @@
 
 #define PHANDLE_INTC            0x00001111
 
+#define ERR_BLOB_MAX            512
+
 /* These two functions implement the VCPU id numbering: one to compute them
  * all and one to identify thread 0 of a VCORE. Any change to the first one
  * is likely to have an impact on the second one, so let's keep them close.
@@ -968,10 +970,104 @@ static void spapr_dt_rtas_fadump(SpaprMachineState *spapr, void *fdt, int rtas)
     }
 }
 
+/*
+ * spapr_get_errinject_tokens:
+ * ---------------------------
+ * Retrieve or construct a binary blob representing supported RTAS error
+ * injection tokens. If the host device-tree path
+ * "/proc/device-tree/rtas/ibm,errinjct-tokens" exists, it is read directly.
+ * Otherwise, a static fallback list of tokens is generated.
+ *
+ * The caller receives a dynamically allocated buffer in @out_buf and
+ * its size in @out_size, both of which must be freed by the caller
+ * once used.
+ *
+ * Returns:
+ *   0 (EXIT_SUCCESS)  - on success
+ *  -EIO, -ENOMEM      - on failure
+ */
+static int spapr_get_errinject_tokens(char **out_buf, size_t *out_size)
+{
+    char *path = NULL, *buf = NULL;
+    gsize len = 0;
+    uint8_t errinjct_blob[ERR_BLOB_MAX];
+
+    static const struct {
+        const char *name;
+        enum rtas_err_type token;
+    } errinjct_tokens[] = {
+        { "recovered-special-event", RTAS_ERR_TYPE_RECOVERED_SPECIAL_EVENT },
+        { "corrupted-page",          RTAS_ERR_TYPE_CORRUPTED_PAGE },
+        { "ioa-bus-error",           RTAS_ERR_TYPE_IOA_BUS_ERROR },
+        { "corrupted-dcache-start",  RTAS_ERR_TYPE_CORRUPTED_DCACHE_START },
+        { "corrupted-dcache-end",    RTAS_ERR_TYPE_CORRUPTED_DCACHE_END },
+        { "corrupted-icache-start",  RTAS_ERR_TYPE_CORRUPTED_ICACHE_START },
+        { "corrupted-icache-end",    RTAS_ERR_TYPE_CORRUPTED_ICACHE_END },
+        { "corrupted-tlb-start",     RTAS_ERR_TYPE_CORRUPTED_TLB_START },
+        { "corrupted-tlb-end",       RTAS_ERR_TYPE_CORRUPTED_TLB_END },
+        { "ioa-bus-error-64",        RTAS_ERR_TYPE_IOA_BUS_ERROR_64 },
+    };
+
+    path = g_strdup("/proc/device-tree/rtas/ibm,errinjct-tokens");
+
+    if (g_file_test(path, G_FILE_TEST_EXISTS)) {
+        qemu_log("RTAS: Found %s\n", path);
+
+        if (!g_file_get_contents(path, &buf, &len, NULL)) {
+            error_report("RTAS: Failed to read %s", path);
+            g_free(path);
+            return -EIO;
+        }
+
+        qemu_log("RTAS: Read %zu bytes from device-tree\n", len);
+        *out_buf = buf;
+        *out_size = len;
+        g_free(path);
+        return EXIT_SUCCESS;
+    }
+
+    qemu_log("RTAS: %s not found, building fallback blob\n", path);
+    g_free(path);
+    len = 0;
+
+    for (int i = 0; i < G_N_ELEMENTS(errinjct_tokens); i++) {
+        const char *name = errinjct_tokens[i].name;
+        size_t str_len = strlen(name) + 1;
+
+        if (len + str_len + sizeof(uint32_t) > sizeof(errinjct_blob)) {
+            error_report("RTAS: Too many tokens for static buffer");
+            return -ENOMEM;
+        }
+
+        memcpy(&errinjct_blob[len], name, str_len);
+        len += str_len;
+
+        uint32_t be_token = cpu_to_be32(errinjct_tokens[i].token);
+        memcpy(&errinjct_blob[len], &be_token, sizeof(be_token));
+        len += sizeof(be_token);
+    }
+
+    buf = g_malloc(len);
+    if (!buf) {
+        error_report("RTAS: Failed to allocate %zu bytes for blob", len);
+        return -ENOMEM;
+    }
+
+    memcpy(buf, errinjct_blob, len);
+    *out_buf = buf;
+    *out_size = len;
+
+    qemu_log("RTAS: Fallback blob built (%zu bytes)\n", len);
+    return EXIT_SUCCESS;
+}
+
+
 static void spapr_dt_rtas(SpaprMachineState *spapr, void *fdt)
 {
     MachineState *ms = MACHINE(spapr);
     int rtas;
+    size_t size_tokens = 0;
+    g_autofree char *errinject_tokens;
     GString *hypertas = g_string_sized_new(256);
     GString *qemu_hypertas = g_string_sized_new(256);
     uint64_t max_device_addr = 0;
@@ -1079,6 +1175,16 @@ static void spapr_dt_rtas(SpaprMachineState *spapr, void *fdt)
      * that rtas call return will always occur. Set this property.
      */
     _FDT(fdt_setprop(fdt, rtas, "ibm,extended-os-term", NULL, 0));
+
+    if (!spapr_get_errinject_tokens(&errinject_tokens, &size_tokens)) {
+        _FDT(fdt_setprop(fdt, rtas, "ibm,errinjct-tokens",
+                         errinject_tokens, size_tokens));
+
+        _FDT(fdt_setprop_string(fdt, rtas, "ibm,open-errinjct",
+                                "ibm,open-errinjct"));
+        _FDT(fdt_setprop_string(fdt, rtas, "ibm,close-errinjct",
+                                "ibm,close-errinjct"));
+    }
 
     _FDT(fdt_setprop(fdt, rtas, "ibm,lrdr-capacity",
                      lrdr_capacity, sizeof(lrdr_capacity)));
