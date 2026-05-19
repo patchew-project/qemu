@@ -1807,3 +1807,81 @@ uint64_t qcow2_get_persistent_dirty_bitmap_size(BlockDriverState *in_bs,
 
     return bitmaps_size;
 }
+
+/*
+ * qcow2_check_bitmaps - Check and optionally fix bitmap directory and bitmaps
+ * This function is called during image check to detect bitmap corruption.
+ * It attempts to load the bitmap directory and validates the structures.
+ * If BDRV_FIX_ERRORS is set, it removes corrupted bitmaps.
+ */
+int coroutine_fn GRAPH_RDLOCK
+qcow2_check_bitmaps(BlockDriverState *bs, BdrvCheckResult *result,
+                    BdrvCheckMode fix)
+{
+    BDRVQcow2State *s = bs->opaque;
+    Qcow2BitmapList *bm_list;
+    Qcow2BitmapList *fixed_list = NULL;
+    Qcow2Bitmap *bm;
+    int valid_bitmaps = 0;
+    int ret = 0;
+
+    if (s->nb_bitmaps == 0) {
+        /* No bitmaps - nothing to check */
+        return 0;
+    }
+
+    /* Try to load the bitmap directory */
+    bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
+                               s->bitmap_directory_size, NULL);
+    if (bm_list == NULL) {
+        /* Bitmap directory is corrupted */
+        result->corruptions++;
+
+        if (fix & BDRV_FIX_ERRORS) {
+            ret = update_ext_header_and_dir(bs, bitmap_list_new());
+            if (ret < 0) {
+                return ret;
+            }
+            result->corruptions_fixed++;
+        }
+
+        return 0;
+    }
+
+    if (fix & BDRV_FIX_ERRORS) {
+        fixed_list = bitmap_list_new();
+    }
+
+    /* Validate each bitmap */
+    QSIMPLEQ_FOREACH(bm, bm_list, entry) {
+        uint64_t *bitmap_table = NULL;
+
+        /* Try to load the bitmap table */
+        ret = bitmap_table_load(bs, &bm->table, &bitmap_table);
+        g_free(bitmap_table);
+        if (ret < 0) {
+            /* Bitmap table is corrupted */
+            result->corruptions++;
+            continue;
+        }
+
+        if (fix & BDRV_FIX_ERRORS) {
+            valid_bitmaps++;
+            QSIMPLEQ_INSERT_TAIL(fixed_list, bm, entry);
+        }
+    }
+
+    bitmap_list_free(bm_list);
+
+    /* If fixing, update the bitmap directory with the repaired list */
+    if ((fix & BDRV_FIX_ERRORS) && s->nb_bitmaps != valid_bitmaps) {
+        ret = update_ext_header_and_dir(bs, fixed_list);
+        bitmap_list_free(fixed_list);
+        if (ret < 0) {
+            return ret;
+        }
+        result->corruptions_fixed += s->nb_bitmaps - valid_bitmaps;
+    }
+
+    return 0;
+}

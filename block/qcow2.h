@@ -1036,6 +1036,10 @@ qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                               void **refcount_table,
                               int64_t *refcount_table_size);
 
+int coroutine_fn GRAPH_RDLOCK
+qcow2_check_bitmaps(BlockDriverState *bs, BdrvCheckResult *result,
+                    BdrvCheckMode fix);
+
 bool coroutine_fn GRAPH_RDLOCK
 qcow2_load_dirty_bitmaps(BlockDriverState *bs, bool *header_updated,
                          Error **errp);
