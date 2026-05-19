@@ -537,6 +537,41 @@ struct TCState {
 };
 
 struct MIPSITUState;
+typedef enum MIPSOcteonSharedMode {
+    OCTEON_SHARED_MODE_NONE = 0,
+    OCTEON_SHARED_MODE_SHA512,
+    OCTEON_SHARED_MODE_SNOW3G,
+} MIPSOcteonSharedMode;
+
+typedef struct MIPSOcteonCryptoState {
+    uint64_t des3_key[3];
+    uint64_t des3_iv;
+    uint64_t des3_result;
+    uint64_t hsh_iv[4];
+    uint64_t hsh_dat[8];
+    uint64_t hsh_ivw[8];
+    uint64_t hsh_datw[16];
+    uint64_t aes_iv[2];
+    uint64_t aes_key[4];
+    uint64_t aes_result[2];
+    uint64_t aes_input[2];
+    uint64_t gfm_mul[2];
+    uint64_t gfm_resinp[2];
+    uint64_t gfm_xor0;
+    uint64_t gfm_reflect_mul[2];
+    uint64_t gfm_reflect_resinp[2];
+    uint64_t gfm_reflect_xor0;
+    uint16_t gfm_poly;
+    uint8_t aes_keylen;
+    uint32_t shared_mode;
+    uint32_t crc_poly;
+    uint32_t crc_iv;
+    uint32_t crc_len;
+    uint32_t snow3g_fsm[3];
+    uint32_t snow3g_lfsr[16];
+    uint64_t snow3g_result;
+} MIPSOcteonCryptoState;
+
 typedef struct CPUArchState {
     TCState active_tc;
     CPUMIPSFPUContext active_fpu;
@@ -557,6 +592,8 @@ typedef struct CPUArchState {
     int32_t msair;
 #define MSAIR_ProcID    8
 #define MSAIR_Rev       0
+
+    MIPSOcteonCryptoState octeon_crypto;
 
 /*
  * CP0 Register 0
