@@ -12,17 +12,24 @@
 #include "qemu/log.h"
 
 #include "hw/misc/imx8mp_ccm.h"
+#include "hw/core/qdev-clock.h"
 #include "migration/vmstate.h"
 
 #include "trace.h"
 
 #define CKIH_FREQ 16000000 /* 16MHz crystal input */
 
+#define IMX8MP_CM7_CPUCLK_HZ 24000000ULL   /* osc_24m */
+#define IMX8MP_CM7_REFCLK_HZ 32768ULL      /* osc_32k */
+
 static void imx8mp_ccm_reset(DeviceState *dev)
 {
     IMX8MPCCMState *s = IMX8MP_CCM(dev);
 
     memset(s->ccm, 0, sizeof(s->ccm));
+
+    clock_set_hz(s->cm7_cpuclk, IMX8MP_CM7_CPUCLK_HZ);
+    clock_set_hz(s->cm7_refclk, IMX8MP_CM7_REFCLK_HZ);
 }
 
 #define CCM_INDEX(offset)   (((offset) & ~(hwaddr)0xF) / sizeof(uint32_t))
@@ -88,6 +95,8 @@ static void imx8mp_ccm_init(Object *obj)
     SysBusDevice *sd = SYS_BUS_DEVICE(obj);
     IMX8MPCCMState *s = IMX8MP_CCM(obj);
 
+    s->cm7_cpuclk = qdev_init_clock_out(DEVICE(obj), "cm7_cpuclk");
+    s->cm7_refclk = qdev_init_clock_out(DEVICE(obj), "cm7_refclk");
     memory_region_init_io(&s->iomem,
                           obj,
                           &imx8mp_set_clr_tog_ops,

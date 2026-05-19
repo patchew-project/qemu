@@ -9,6 +9,7 @@
 #ifndef IMX8MP_CCM_H
 #define IMX8MP_CCM_H
 
+#include "hw/core/clock.h"
 #include "hw/misc/imx_ccm.h"
 #include "qom/object.h"
 
@@ -25,6 +26,8 @@ struct IMX8MPCCMState {
     MemoryRegion iomem;
 
     uint32_t ccm[CCM_MAX];
+    Clock *cm7_cpuclk;
+    Clock *cm7_refclk;
 };
 
 #endif /* IMX8MP_CCM_H */
