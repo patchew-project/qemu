@@ -851,6 +851,7 @@ static void kvm_arm_set_cpreg_mig_tolerances(ARMCPU *cpu)
 static void aarch64_host_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+    int ret;
 
 #if defined(CONFIG_NITRO)
     if (nitro_enabled()) {
@@ -861,6 +862,14 @@ static void aarch64_host_initfn(Object *obj)
 
 #if defined(CONFIG_KVM)
     kvm_arm_set_cpreg_mig_tolerances(cpu);
+
+    cpu->writable_map = g_new(uint64_t, KVM_ARM_FEATURE_ID_RANGE_SIZE);
+
+    ret = kvm_arm_get_writable_id_regs(cpu->writable_map);
+    if (ret) {
+        g_free(cpu->writable_map);
+        cpu->writable_map = NULL;
+    }
     kvm_arm_set_cpu_features_from_host(cpu);
     aarch64_add_sve_properties(obj);
 #elif defined(CONFIG_HVF)

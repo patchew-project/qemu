@@ -1073,6 +1073,9 @@ struct ArchCPU {
     /* KVM steal time */
     OnOffAuto kvm_steal_time;
 
+    /* ID reg writable bitmask */
+    uint64_t *writable_map;
+
     /* Uniprocessor system with MP extensions */
     bool mp_is_up;
 
