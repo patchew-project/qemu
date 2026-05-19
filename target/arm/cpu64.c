@@ -37,6 +37,7 @@
 #include "hw/core/qdev-properties.h"
 #include "internals.h"
 #include "cpu-features.h"
+#include "cpu-idregs.h"
 
 /* convert between <register>_IDX and SYS_<register> */
 #define DEF(NAME, OP0, OP1, CRN, CRM, OP2)      \
@@ -851,7 +852,6 @@ static void kvm_arm_set_cpreg_mig_tolerances(ARMCPU *cpu)
 static void aarch64_host_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
-    int ret;
 
 #if defined(CONFIG_NITRO)
     if (nitro_enabled()) {
@@ -865,13 +865,18 @@ static void aarch64_host_initfn(Object *obj)
 
     cpu->writable_map = g_new(uint64_t, KVM_ARM_FEATURE_ID_RANGE_SIZE);
 
-    ret = kvm_arm_get_writable_id_regs(cpu->writable_map);
-    if (ret) {
+    if (kvm_arm_get_writable_id_regs(cpu->writable_map)) {
         g_free(cpu->writable_map);
         cpu->writable_map = NULL;
     }
     kvm_arm_set_cpu_features_from_host(cpu);
     aarch64_add_sve_properties(obj);
+
+    if (cpu->writable_map) {
+        /* generate SYSREG properties according to writable masks */
+        kvm_arm_expose_idreg_properties(cpu, arm64_id_regs);
+    }
+
 #elif defined(CONFIG_HVF)
     hvf_arm_set_cpu_features_from_host(cpu);
 #elif defined(CONFIG_WHPX)
