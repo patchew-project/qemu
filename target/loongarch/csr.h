@@ -14,6 +14,8 @@ enum {
     CSRFL_EXITTB   = (1 << 1),
     CSRFL_IO       = (1 << 2),
     CSRFL_UNUSED   = (1 << 3),
+    CSRFL_GUEST_READONLY = (1 << 4),
+    CSRFL_GSPR     = (1 << 5),
 };
 
 typedef struct {
@@ -25,5 +27,6 @@ typedef struct {
 } CSRInfo;
 
 CSRInfo *get_csr(unsigned int csr_num);
+CSRInfo *get_gcsr(unsigned int csr_num);
 bool set_csr_flag(unsigned int csr_num, int flag);
 #endif /* TARGET_LOONGARCH_CSR_H */

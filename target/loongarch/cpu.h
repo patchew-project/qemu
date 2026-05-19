@@ -20,6 +20,20 @@
 #include "cpu-csr.h"
 #include "cpu-qom.h"
 
+#define GET_CSR_IF(guest_mode, csr_name) \
+    ((guest_mode) ? (env->GCSR_##csr_name) : (env->CSR_##csr_name))
+
+#define SET_CSR_IF(guest_mode, csr_name, value) \
+    do {                                        \
+        if (guest_mode) {                       \
+            env->GCSR_##csr_name = (value);     \
+        } else {                                \
+            env->CSR_##csr_name = (value);      \
+        }                                       \
+    } while (0)
+
+#define CPU_INTERRUPT_GUEST CPU_INTERRUPT_TGT_EXT_0
+
 #define FCSR0_M1    0x1f         /* FCSR1 mask, Enables */
 #define FCSR0_M2    0x1f1f0000   /* FCSR2 mask, Cause and Flags */
 #define FCSR0_M3    0x300        /* FCSR3 mask, Round Mode */
@@ -93,6 +107,10 @@ FIELD(FCSR0, CAUSE, 24, 5)
 #define  EXCCODE_WPEM                EXCODE(19, 1)
 #define  EXCCODE_BTD                 EXCODE(20, 0)
 #define  EXCCODE_BTE                 EXCODE(21, 0)
+#define  EXCCODE_GSPR                EXCODE(22, 0)
+#define  EXCCODE_HVC                 EXCODE(23, 0)
+#define  EXCCODE_GCSC                EXCODE(24, 0)
+#define  EXCCODE_GCHC                EXCODE(25, 0)
 #define  EXCCODE_DBP                 EXCODE(26, 0) /* Reserved subcode used for debug */
 
 /* cpucfg[0] bits */
@@ -255,6 +273,7 @@ FIELD(TLB_MISC, E, 0, 1)
 FIELD(TLB_MISC, ASID, 1, 10)
 FIELD(TLB_MISC, VPPN, 13, 35)
 FIELD(TLB_MISC, PS, 48, 6)
+FIELD(TLB_MISC, GID, 54, 8)
 
 /*Msg interrupt registers */
 #define N_MSGIS                4
@@ -389,6 +408,79 @@ typedef struct CPUArchState {
     uint64_t CSR_DBG;
     uint64_t CSR_DERA;
     uint64_t CSR_DSAVE;
+
+    /* LVZ (LoongArch Virtualization) CSRs */
+    uint64_t CSR_GSTAT;
+    uint64_t CSR_GCFG;
+    uint64_t CSR_GINTC;
+    uint64_t CSR_GCNTC;
+    uint64_t CSR_GTLBC;
+    uint64_t CSR_TRGP;
+
+    /* Guest CSR registers (GCSR) */
+    uint64_t GCSR_CRMD;
+    uint64_t GCSR_PRMD;
+    uint64_t GCSR_EUEN;
+    uint64_t GCSR_MISC;
+    uint64_t GCSR_ECFG;
+    uint64_t GCSR_ESTAT;
+    uint64_t GCSR_ERA;
+    uint64_t GCSR_BADV;
+    uint64_t GCSR_BADI;
+    uint64_t GCSR_EENTRY;
+    uint64_t GCSR_TLBIDX;
+    uint64_t GCSR_TLBEHI;
+    uint64_t GCSR_TLBELO0;
+    uint64_t GCSR_TLBELO1;
+    uint64_t GCSR_ASID;
+    uint64_t GCSR_PGDL;
+    uint64_t GCSR_PGDH;
+    uint64_t GCSR_PGD;
+    uint64_t GCSR_PWCL;
+    uint64_t GCSR_PWCH;
+    uint64_t GCSR_STLBPS;
+    uint64_t GCSR_RVACFG;
+    uint64_t GCSR_CPUID;
+    uint64_t GCSR_PRCFG1;
+    uint64_t GCSR_PRCFG2;
+    uint64_t GCSR_PRCFG3;
+    uint64_t GCSR_SAVE[16];
+    uint64_t GCSR_TID;
+    uint64_t GCSR_TCFG;
+    uint64_t GCSR_TVAL;
+    uint64_t GCSR_CNTC;
+    uint64_t GCSR_TICLR;
+    uint64_t GCSR_LLBCTL;
+    uint64_t GCSR_IMPCTL1;
+    uint64_t GCSR_IMPCTL2;
+    uint64_t GCSR_TLBRENTRY;
+    uint64_t GCSR_TLBRBADV;
+    uint64_t GCSR_TLBRERA;
+    uint64_t GCSR_TLBRSAVE;
+    uint64_t GCSR_TLBRELO0;
+    uint64_t GCSR_TLBRELO1;
+    uint64_t GCSR_TLBREHI;
+    uint64_t GCSR_TLBRPRMD;
+    uint64_t GCSR_MERRCTL;
+    uint64_t GCSR_MERRINFO1;
+    uint64_t GCSR_MERRINFO2;
+    uint64_t GCSR_MERRENTRY;
+    uint64_t GCSR_MERRERA;
+    uint64_t GCSR_MERRSAVE;
+    uint64_t GCSR_CTAG;
+    uint64_t GCSR_DMW[4];
+    uint64_t GCSR_DBG;
+    uint64_t GCSR_DERA;
+    uint64_t GCSR_DSAVE;
+    uint64_t GCSR_GSTAT;
+    uint64_t GCSR_GCFG;
+    uint64_t GCSR_GINTC;
+    uint64_t GCSR_GCNTC;
+    uint64_t GCSR_GTLBC;
+    uint64_t GCSR_TRGP;
+
+    bool guest;
+    bool vm_exit;
     /* Msg interrupt registers */
     uint64_t CSR_MSGIS[N_MSGIS];
     uint64_t CSR_MSGIR;
@@ -410,6 +502,7 @@ typedef struct CPUArchState {
 #ifndef CONFIG_USER_ONLY
 #ifdef CONFIG_TCG
     LoongArchTLB  tlb[LOONGARCH_TLB_MAX];
+    LoongArchTLB gtlb[LOONGARCH_TLB_MAX];
 #endif
 
     AddressSpace *address_space_iocsr;
@@ -434,9 +527,11 @@ struct ArchCPU {
 
     CPULoongArchState env;
     QEMUTimer timer;
+    QEMUTimer guest_timer;
     uint32_t  phy_id;
     OnOffAuto lbt;
     OnOffAuto pmu;
+    OnOffAuto lvz;
     OnOffAuto ptw;
     OnOffAuto lsx;
     OnOffAuto lasx;
@@ -480,6 +575,24 @@ struct LoongArchCPUClass {
 #define MMU_KERNEL_IDX   MMU_PLV_KERNEL
 #define MMU_USER_IDX     MMU_PLV_USER
 #define MMU_DA_IDX       4
+#define MMU_GUEST_IDX    5
+#define MMU_GUEST_DA_IDX 9
+
+static inline bool is_guest_mmu_idx(int mmu_idx)
+{
+    return mmu_idx >= MMU_GUEST_IDX;
+}
+
+static inline int mmu_idx_to_plv(int mmu_idx)
+{
+    if (mmu_idx == MMU_DA_IDX || mmu_idx == MMU_GUEST_DA_IDX) {
+        return 0;
+    }
+    if (is_guest_mmu_idx(mmu_idx)) {
+        return mmu_idx - MMU_GUEST_IDX;
+    }
+    return mmu_idx;
+}
 
 static inline bool is_la64(CPULoongArchState *env)
 {
@@ -490,8 +603,9 @@ static inline bool is_va32(CPULoongArchState *env)
 {
     /* VA32 if !LA64 or VA32L[1-3] */
     bool va32 = !is_la64(env);
-    uint64_t plv = FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PLV);
-    if (plv >= 1 && (FIELD_EX64(env->CSR_MISC, CSR_MISC, VA32) & (1 << plv))) {
+    uint64_t plv = FIELD_EX64(GET_CSR_IF(env->guest, CRMD), CSR_CRMD, PLV);
+    if (plv >= 1 &&
+        (FIELD_EX64(GET_CSR_IF(env->guest, MISC), CSR_MISC, VA32) & BIT(plv))) {
         va32 = true;
     }
     return va32;
@@ -515,6 +629,13 @@ static inline void set_pc(CPULoongArchState *env, uint64_t value)
 #define HW_FLAGS_CRMD_PG    R_CSR_CRMD_PG_MASK   /* 0x10 */
 #define HW_FLAGS_VA32       0x20
 #define HW_FLAGS_EUEN_ASXE  0x40
+#define HW_FLAGS_GUEST_MODE 0x80
+
+bool has_lvz_capability(CPULoongArchState *env);
+bool will_return_to_guest(CPULoongArchState *env);
+uint8_t get_gid(CPULoongArchState *env);
+uint8_t get_tgid(CPULoongArchState *env);
+void trigger_vm_exit(CPULoongArchState *env);
 
 #define CPU_RESOLVING_TYPE TYPE_LOONGARCH_CPU
 
