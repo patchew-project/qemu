@@ -210,6 +210,16 @@ static void fsl_imx8mp_init(Object *obj)
 
     object_initialize_child(obj, "src", &s->src, TYPE_IMX8MP_SRC);
 
+    /*
+     * MU instances: MU_1..MU_3, each with A/B endpoints
+     */
+    for (i = 0; i < FSL_IMX8MP_NUM_MU; i++) {
+        g_autofree char *name_a = g_strdup_printf("mu%d_a", i + 1);
+        g_autofree char *name_b = g_strdup_printf("mu%d_b", i + 1);
+        object_initialize_child(obj, name_a, &s->mu[i].a, TYPE_IMX8MP_MU);
+        object_initialize_child(obj, name_b, &s->mu[i].b, TYPE_IMX8MP_MU);
+    }
+
     for (i = 0; i < FSL_IMX8MP_NUM_UARTS; i++) {
         g_autofree char *name = g_strdup_printf("uart%d", i + 1);
         object_initialize_child(obj, name, &s->uart[i], TYPE_IMX_SERIAL);
@@ -495,6 +505,34 @@ static void fsl_imx8mp_realize(DeviceState *dev, Error **errp)
         }
     }
 
+    /* MU */
+    static const int mu_mmio_map[FSL_IMX8MP_NUM_MU][2] = {
+    [0] = { FSL_IMX8MP_MU_1_A, FSL_IMX8MP_MU_1_B },
+    [1] = { FSL_IMX8MP_MU_2_A, FSL_IMX8MP_MU_2_B },
+    [2] = { FSL_IMX8MP_MU_3_A, FSL_IMX8MP_MU_3_B },
+    };
+
+    for (i = 0; i < FSL_IMX8MP_NUM_MU; i++) {
+        hwaddr addr_a = fsl_imx8mp_memmap[mu_mmio_map[i][0]].addr;
+        hwaddr addr_b = fsl_imx8mp_memmap[mu_mmio_map[i][1]].addr;
+
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->mu[i].a), errp)) {
+            return;
+        }
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->mu[i].a), 0, addr_a);
+
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->mu[i].b), errp)) {
+            return;
+        }
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->mu[i].b), 0, addr_b);
+
+        s->mu[i].a.peer = &s->mu[i].b;
+        s->mu[i].b.peer = &s->mu[i].a;
+    }
+
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->mu[0].a), 0,
+                       qdev_get_gpio_in(gicdev, FSL_IMX8MP_MU1_A_IRQ));
+
     /* I2Cs */
     for (i = 0; i < FSL_IMX8MP_NUM_I2CS; i++) {
         struct {
@@ -720,6 +758,7 @@ static void fsl_imx8mp_realize(DeviceState *dev, Error **errp)
         case FSL_IMX8MP_ENET1:
         case FSL_IMX8MP_I2C1 ... FSL_IMX8MP_I2C6:
         case FSL_IMX8MP_IOMUXC_GPR:
+        case FSL_IMX8MP_MU_1_A ... FSL_IMX8MP_MU_3_B:
         case FSL_IMX8MP_OCRAM:
         case FSL_IMX8MP_PCIE1:
         case FSL_IMX8MP_PCIE_PHY1:
