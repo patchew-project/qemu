@@ -13,6 +13,348 @@
 /* Include the auto-generated decoder.  */
 #include "decode-octeon.c.inc"
 
+#define OCTEON_CRYPTO_OFFSET(FIELD) \
+    offsetof(CPUMIPSState, octeon_crypto.FIELD)
+
+#define CP2_MF_I64(NAME, FIELD) \
+    TRANS(NAME, trans_octeon_cp2_mf_i64, OCTEON_CRYPTO_OFFSET(FIELD))
+#define CP2_MF_S32(NAME, FIELD) \
+    TRANS(NAME, trans_octeon_cp2_mf_s32, OCTEON_CRYPTO_OFFSET(FIELD))
+#define CP2_MF_U16(NAME, FIELD) \
+    TRANS(NAME, trans_octeon_cp2_mf_u16, OCTEON_CRYPTO_OFFSET(FIELD))
+#define CP2_MF_U8(NAME, FIELD) \
+    TRANS(NAME, trans_octeon_cp2_mf_u8, OCTEON_CRYPTO_OFFSET(FIELD))
+#define CP2_MF_HELPER(NAME, SUFFIX) \
+    TRANS(NAME, trans_octeon_cp2_mf_helper, \
+          gen_helper_octeon_cp2_mf_ ## SUFFIX)
+#define CP2_MT_I64(NAME, FIELD) \
+    TRANS(NAME, trans_octeon_cp2_mt_i64, OCTEON_CRYPTO_OFFSET(FIELD))
+#define CP2_MT_U32(NAME, FIELD) \
+    TRANS(NAME, trans_octeon_cp2_mt_u32, OCTEON_CRYPTO_OFFSET(FIELD))
+#define CP2_MT_U16(NAME, FIELD) \
+    TRANS(NAME, trans_octeon_cp2_mt_u16, OCTEON_CRYPTO_OFFSET(FIELD))
+#define CP2_MT_U8(NAME, FIELD) \
+    TRANS(NAME, trans_octeon_cp2_mt_u8, OCTEON_CRYPTO_OFFSET(FIELD))
+#define CP2_MT_HELPER(NAME, SUFFIX) \
+    TRANS(NAME, trans_octeon_cp2_mt_helper, \
+          gen_helper_octeon_cp2_mt_ ## SUFFIX)
+
+static bool trans_CP2_Undef(DisasContext *ctx, arg_CP2_Undef *a)
+{
+    generate_exception_err(ctx, EXCP_CpU, 2);
+    return true;
+}
+
+static bool trans_octeon_cp2_mf_i64(DisasContext *ctx, arg_cp2 *a, int offset)
+{
+    TCGv_i64 value = tcg_temp_new_i64();
+
+    tcg_gen_ld_i64(value, tcg_env, offset);
+    gen_store_gpr(value, a->rt);
+    return true;
+}
+
+static bool trans_octeon_cp2_mf_s32(DisasContext *ctx, arg_cp2 *a, int offset)
+{
+    TCGv_i64 value = tcg_temp_new_i64();
+
+    tcg_gen_ld32s_i64(value, tcg_env, offset);
+    gen_store_gpr(value, a->rt);
+    return true;
+}
+
+static bool trans_octeon_cp2_mf_u16(DisasContext *ctx, arg_cp2 *a, int offset)
+{
+    TCGv_i64 value = tcg_temp_new_i64();
+
+    tcg_gen_ld16u_i64(value, tcg_env, offset);
+    gen_store_gpr(value, a->rt);
+    return true;
+}
+
+static bool trans_octeon_cp2_mf_u8(DisasContext *ctx, arg_cp2 *a, int offset)
+{
+    TCGv_i64 value = tcg_temp_new_i64();
+
+    tcg_gen_ld8u_i64(value, tcg_env, offset);
+    gen_store_gpr(value, a->rt);
+    return true;
+}
+
+static bool trans_octeon_cp2_mf_helper(DisasContext *ctx, arg_cp2 *a,
+                                       void (*gen_helper)(TCGv_i64, TCGv_env))
+{
+    TCGv_i64 value = tcg_temp_new_i64();
+
+    gen_helper(value, tcg_env);
+    gen_store_gpr(value, a->rt);
+    return true;
+}
+
+static bool trans_octeon_cp2_mt_i64(DisasContext *ctx, arg_cp2 *a, int offset)
+{
+    TCGv_i64 value = tcg_temp_new_i64();
+
+    gen_load_gpr(value, a->rt);
+    tcg_gen_st_i64(value, tcg_env, offset);
+    return true;
+}
+
+static bool trans_octeon_cp2_mt_u32(DisasContext *ctx, arg_cp2 *a, int offset)
+{
+    TCGv_i64 value = tcg_temp_new_i64();
+
+    gen_load_gpr(value, a->rt);
+    tcg_gen_st32_i64(value, tcg_env, offset);
+    return true;
+}
+
+static bool trans_octeon_cp2_mt_u16(DisasContext *ctx, arg_cp2 *a, int offset)
+{
+    TCGv_i64 value = tcg_temp_new_i64();
+
+    gen_load_gpr(value, a->rt);
+    tcg_gen_st16_i64(value, tcg_env, offset);
+    return true;
+}
+
+static bool trans_octeon_cp2_mt_u8(DisasContext *ctx, arg_cp2 *a, int offset)
+{
+    TCGv_i64 value = tcg_temp_new_i64();
+
+    gen_load_gpr(value, a->rt);
+    tcg_gen_st8_i64(value, tcg_env, offset);
+    return true;
+}
+
+static bool trans_octeon_cp2_mt_resinp(DisasContext *ctx, arg_cp2 *a,
+                                       unsigned int index)
+{
+    TCGv_i64 value = tcg_temp_new_i64();
+
+    /*
+     * Writes to AESRESINP update both QEMU views: the operation input latch
+     * and the DMFC2 readback/result register bank.
+     */
+    gen_load_gpr(value, a->rt);
+    tcg_gen_st_i64(value, tcg_env,
+                   OCTEON_CRYPTO_OFFSET(aes_input[index]));
+    tcg_gen_st_i64(value, tcg_env,
+                   OCTEON_CRYPTO_OFFSET(aes_result[index]));
+    return true;
+}
+
+static bool trans_octeon_cp2_mt_helper(DisasContext *ctx, arg_cp2 *a,
+                                       void (*gen_helper)(TCGv_env, TCGv_i64))
+{
+    TCGv_i64 value = tcg_temp_new_i64();
+
+    gen_load_gpr(value, a->rt);
+    gen_helper(tcg_env, value);
+    return true;
+}
+
+CP2_MF_I64(CVM_MF_HSH_IV0, hsh_iv[0]);
+CP2_MF_I64(CVM_MF_HSH_IV1, hsh_iv[1]);
+CP2_MF_I64(CVM_MF_HSH_IV2, hsh_iv[2]);
+CP2_MF_I64(CVM_MF_HSH_IV3, hsh_iv[3]);
+CP2_MF_I64(CVM_MF_GFM_MUL_REFLECT0, gfm_reflect_mul[0]);
+CP2_MF_I64(CVM_MF_GFM_MUL_REFLECT1, gfm_reflect_mul[1]);
+CP2_MF_I64(CVM_MF_GFM_RESINP_REFLECT0, gfm_reflect_resinp[0]);
+CP2_MF_I64(CVM_MF_GFM_RESINP_REFLECT1, gfm_reflect_resinp[1]);
+CP2_MF_I64(CVM_MF_3DES_KEY0, des3_key[0]);
+CP2_MF_I64(CVM_MF_3DES_KEY1, des3_key[1]);
+CP2_MF_I64(CVM_MF_3DES_KEY2, des3_key[2]);
+CP2_MF_I64(CVM_MF_3DES_IV, des3_iv);
+CP2_MF_I64(CVM_MF_3DES_RESULT, des3_result);
+CP2_MF_I64(CVM_MF_3DES_RESULT_MT, des3_result);
+CP2_MF_I64(CVM_MF_AES_RESINP0, aes_result[0]);
+CP2_MF_I64(CVM_MF_AES_RESINP1, aes_result[1]);
+CP2_MF_I64(CVM_MF_AES_IV0, aes_iv[0]);
+CP2_MF_I64(CVM_MF_AES_IV1, aes_iv[1]);
+CP2_MF_I64(CVM_MF_AES_KEY0, aes_key[0]);
+CP2_MF_I64(CVM_MF_AES_KEY1, aes_key[1]);
+CP2_MF_I64(CVM_MF_AES_KEY2, aes_key[2]);
+CP2_MF_I64(CVM_MF_AES_KEY3, aes_key[3]);
+CP2_MF_U8(CVM_MF_AES_KEYLENGTH, aes_keylen);
+CP2_MF_I64(CVM_MF_AES_INP0, aes_input[0]);
+CP2_MF_S32(CVM_MF_CRC_POLYNOMIAL, crc_poly);
+CP2_MF_S32(CVM_MF_CRC_IV, crc_iv);
+CP2_MF_S32(CVM_MF_CRC_LEN, crc_len);
+CP2_MF_I64(CVM_MF_GFM_MUL0, gfm_mul[0]);
+CP2_MF_I64(CVM_MF_GFM_MUL1, gfm_mul[1]);
+CP2_MF_I64(CVM_MF_GFM_RESINP0, gfm_resinp[0]);
+CP2_MF_I64(CVM_MF_GFM_RESINP1, gfm_resinp[1]);
+CP2_MF_U16(CVM_MF_GFM_POLY, gfm_poly);
+CP2_MF_I64(CVM_MF_CHORD, chord);
+CP2_MF_I64(CVM_MF_LLM_DATA0, llm_data[0]);
+CP2_MF_I64(CVM_MF_LLM_DATA1, llm_data[1]);
+
+CP2_MF_HELPER(CVM_MF_CRC_IV_REFLECT, crc_iv_reflect);
+CP2_MF_HELPER(CVM_MF_SHA3_DAT24, sha3_dat24);
+CP2_MF_HELPER(CVM_MF_HSH_DATW0, hsh_datw0);
+CP2_MF_HELPER(CVM_MF_HSH_DATW1, hsh_datw1);
+CP2_MF_HELPER(CVM_MF_HSH_DATW2, hsh_datw2);
+CP2_MF_HELPER(CVM_MF_HSH_DATW3, hsh_datw3);
+CP2_MF_HELPER(CVM_MF_HSH_DATW4, hsh_datw4);
+CP2_MF_HELPER(CVM_MF_HSH_DATW5, hsh_datw5);
+CP2_MF_HELPER(CVM_MF_HSH_DATW6, hsh_datw6);
+CP2_MF_HELPER(CVM_MF_HSH_DATW7, hsh_datw7);
+CP2_MF_HELPER(CVM_MF_HSH_DATW8, hsh_datw8);
+CP2_MF_HELPER(CVM_MF_HSH_DATW9, hsh_datw9);
+CP2_MF_HELPER(CVM_MF_HSH_DATW10, hsh_datw10);
+CP2_MF_HELPER(CVM_MF_HSH_DATW11, hsh_datw11);
+CP2_MF_HELPER(CVM_MF_HSH_DATW12, hsh_datw12);
+CP2_MF_HELPER(CVM_MF_HSH_DATW13, hsh_datw13);
+CP2_MF_HELPER(CVM_MF_HSH_DATW14, hsh_datw14);
+CP2_MF_HELPER(CVM_MF_HSH_DATW15, hsh_datw15);
+CP2_MF_HELPER(CVM_MF_HSH_IVW0, hsh_ivw0);
+CP2_MF_HELPER(CVM_MF_HSH_IVW1, hsh_ivw1);
+CP2_MF_HELPER(CVM_MF_HSH_IVW2, hsh_ivw2);
+CP2_MF_HELPER(CVM_MF_HSH_IVW3, hsh_ivw3);
+CP2_MF_HELPER(CVM_MF_HSH_IVW4, hsh_ivw4);
+CP2_MF_HELPER(CVM_MF_HSH_IVW5, hsh_ivw5);
+CP2_MF_HELPER(CVM_MF_HSH_IVW6, hsh_ivw6);
+CP2_MF_HELPER(CVM_MF_HSH_IVW7, hsh_ivw7);
+
+CP2_MT_I64(CVM_MT_HSH_DAT0, hsh_dat[0]);
+CP2_MT_I64(CVM_MT_HSH_DAT1, hsh_dat[1]);
+CP2_MT_I64(CVM_MT_HSH_DAT2, hsh_dat[2]);
+CP2_MT_I64(CVM_MT_HSH_DAT3, hsh_dat[3]);
+CP2_MT_I64(CVM_MT_HSH_DAT4, hsh_dat[4]);
+CP2_MT_I64(CVM_MT_HSH_DAT5, hsh_dat[5]);
+CP2_MT_I64(CVM_MT_HSH_DAT6, hsh_dat[6]);
+CP2_MT_I64(CVM_MT_HSH_IV0, hsh_iv[0]);
+CP2_MT_I64(CVM_MT_HSH_IV1, hsh_iv[1]);
+CP2_MT_I64(CVM_MT_HSH_IV2, hsh_iv[2]);
+CP2_MT_I64(CVM_MT_HSH_IV3, hsh_iv[3]);
+CP2_MT_I64(CVM_MT_GFM_MUL_REFLECT0, gfm_reflect_mul[0]);
+CP2_MT_I64(CVM_MT_GFM_MUL_REFLECT1, gfm_reflect_mul[1]);
+CP2_MT_I64(CVM_MT_GFM_XOR0_REFLECT, gfm_reflect_xor0);
+CP2_MT_I64(CVM_MT_3DES_KEY0, des3_key[0]);
+CP2_MT_I64(CVM_MT_3DES_KEY1, des3_key[1]);
+CP2_MT_I64(CVM_MT_3DES_KEY2, des3_key[2]);
+CP2_MT_I64(CVM_MT_3DES_IV, des3_iv);
+CP2_MT_I64(CVM_MT_3DES_RESULT, des3_result);
+TRANS(CVM_MT_AES_RESINP0, trans_octeon_cp2_mt_resinp, 0);
+TRANS(CVM_MT_AES_RESINP1, trans_octeon_cp2_mt_resinp, 1);
+CP2_MT_I64(CVM_MT_AES_IV0, aes_iv[0]);
+CP2_MT_I64(CVM_MT_AES_IV1, aes_iv[1]);
+CP2_MT_I64(CVM_MT_AES_KEY0, aes_key[0]);
+CP2_MT_I64(CVM_MT_AES_KEY1, aes_key[1]);
+CP2_MT_I64(CVM_MT_AES_KEY2, aes_key[2]);
+CP2_MT_I64(CVM_MT_AES_KEY3, aes_key[3]);
+CP2_MT_I64(CVM_MT_AES_ENC_CBC0, aes_input[0]);
+CP2_MT_I64(CVM_MT_AES_ENC0, aes_input[0]);
+CP2_MT_I64(CVM_MT_AES_DEC_CBC0, aes_input[0]);
+CP2_MT_I64(CVM_MT_AES_DEC0, aes_input[0]);
+CP2_MT_U8(CVM_MT_AES_KEYLENGTH, aes_keylen);
+CP2_MT_U32(CVM_MT_CRC_IV, crc_iv);
+CP2_MT_I64(CVM_MT_GFM_MUL0, gfm_mul[0]);
+CP2_MT_I64(CVM_MT_GFM_MUL1, gfm_mul[1]);
+CP2_MT_I64(CVM_MT_GFM_RESINP0, gfm_resinp[0]);
+CP2_MT_I64(CVM_MT_GFM_RESINP1, gfm_resinp[1]);
+CP2_MT_I64(CVM_MT_GFM_XOR0, gfm_xor0);
+CP2_MT_U16(CVM_MT_GFM_POLY, gfm_poly);
+CP2_MT_I64(CVM_MT_LLM_DATA0, llm_data[0]);
+CP2_MT_I64(CVM_MT_LLM_DATA1, llm_data[1]);
+CP2_MT_U32(CVM_MT_CRC_WRITE_LEN, crc_len);
+CP2_MT_U32(CVM_MT_CRC_WRITE_POLYNOMIAL, crc_poly);
+CP2_MT_U32(CVM_MT_CRC_WRITE_POLYNOMIAL_REFLECT, crc_poly);
+
+CP2_MT_HELPER(CVM_MT_CRC_WRITE_IV_REFLECT, crc_write_iv_reflect);
+CP2_MT_HELPER(CVM_MT_CRC_WRITE_BYTE, crc_write_byte);
+CP2_MT_HELPER(CVM_MT_CRC_WRITE_HALF, crc_write_half);
+CP2_MT_HELPER(CVM_MT_CRC_WRITE_WORD, crc_write_word);
+CP2_MT_HELPER(CVM_MT_CRC_WRITE_BYTE_REFLECT, crc_write_byte_reflect);
+CP2_MT_HELPER(CVM_MT_CRC_WRITE_HALF_REFLECT, crc_write_half_reflect);
+CP2_MT_HELPER(CVM_MT_CRC_WRITE_WORD_REFLECT, crc_write_word_reflect);
+CP2_MT_HELPER(CVM_MT_CRC_WRITE_DWORD, crc_write_dword);
+CP2_MT_HELPER(CVM_MT_CRC_WRITE_VAR, crc_write_var);
+CP2_MT_HELPER(CVM_MT_CRC_WRITE_DWORD_REFLECT, crc_write_dword_reflect);
+CP2_MT_HELPER(CVM_MT_CRC_WRITE_VAR_REFLECT, crc_write_var_reflect);
+CP2_MT_HELPER(CVM_MT_GFM_XORMUL1_REFLECT, gfm_xormul1_reflect);
+CP2_MT_HELPER(CVM_MT_GFM_XORMUL1, gfm_xormul1);
+CP2_MT_HELPER(CVM_MT_SHA3_DAT24, sha3_dat24);
+CP2_MT_HELPER(CVM_MT_SHA3_DAT15, sha3_dat15);
+CP2_MT_HELPER(CVM_MT_SHA3_XORDAT0, sha3_xordat0);
+CP2_MT_HELPER(CVM_MT_SHA3_XORDAT1, sha3_xordat1);
+CP2_MT_HELPER(CVM_MT_SHA3_XORDAT2, sha3_xordat2);
+CP2_MT_HELPER(CVM_MT_SHA3_XORDAT3, sha3_xordat3);
+CP2_MT_HELPER(CVM_MT_SHA3_XORDAT4, sha3_xordat4);
+CP2_MT_HELPER(CVM_MT_SHA3_XORDAT5, sha3_xordat5);
+CP2_MT_HELPER(CVM_MT_SHA3_XORDAT6, sha3_xordat6);
+CP2_MT_HELPER(CVM_MT_SHA3_XORDAT7, sha3_xordat7);
+CP2_MT_HELPER(CVM_MT_SHA3_XORDAT8, sha3_xordat8);
+CP2_MT_HELPER(CVM_MT_SHA3_XORDAT9, sha3_xordat9);
+CP2_MT_HELPER(CVM_MT_SHA3_XORDAT10, sha3_xordat10);
+CP2_MT_HELPER(CVM_MT_SHA3_XORDAT11, sha3_xordat11);
+CP2_MT_HELPER(CVM_MT_SHA3_XORDAT12, sha3_xordat12);
+CP2_MT_HELPER(CVM_MT_SHA3_XORDAT13, sha3_xordat13);
+CP2_MT_HELPER(CVM_MT_SHA3_XORDAT14, sha3_xordat14);
+CP2_MT_HELPER(CVM_MT_SHA3_XORDAT15, sha3_xordat15);
+CP2_MT_HELPER(CVM_MT_SHA3_XORDAT16, sha3_xordat16);
+CP2_MT_HELPER(CVM_MT_SHA3_XORDAT17, sha3_xordat17);
+CP2_MT_HELPER(CVM_MT_SHA3_STARTOP, sha3_startop);
+CP2_MT_HELPER(CVM_MT_ZUC_START, zuc_start);
+CP2_MT_HELPER(CVM_MT_ZUC_MORE, zuc_more);
+CP2_MT_HELPER(CVM_MT_SNOW3G_START, snow3g_start);
+CP2_MT_HELPER(CVM_MT_SNOW3G_MORE, snow3g_more);
+CP2_MT_HELPER(CVM_MT_AES_ENC_CBC1, aes_enc_cbc1);
+CP2_MT_HELPER(CVM_MT_AES_ENC1, aes_enc1);
+CP2_MT_HELPER(CVM_MT_AES_DEC_CBC1, aes_dec_cbc1);
+CP2_MT_HELPER(CVM_MT_AES_DEC1, aes_dec1);
+CP2_MT_HELPER(CVM_MT_SMS4_ENC_CBC1, sms4_enc_cbc1);
+CP2_MT_HELPER(CVM_MT_SMS4_ENC1, sms4_enc1);
+CP2_MT_HELPER(CVM_MT_SMS4_DEC_CBC1, sms4_dec_cbc1);
+CP2_MT_HELPER(CVM_MT_SMS4_DEC1, sms4_dec1);
+CP2_MT_HELPER(CVM_MT_3DES_ENC_CBC, des3_enc_cbc);
+CP2_MT_HELPER(CVM_MT_KAS_ENC_CBC, kas_enc_cbc);
+CP2_MT_HELPER(CVM_MT_3DES_ENC, des3_enc);
+CP2_MT_HELPER(CVM_MT_KAS_ENC, kas_enc);
+CP2_MT_HELPER(CVM_MT_3DES_DEC_CBC, des3_dec_cbc);
+CP2_MT_HELPER(CVM_MT_3DES_DEC, des3_dec);
+CP2_MT_HELPER(CVM_MT_CAMELLIA_FL, camellia_fl);
+CP2_MT_HELPER(CVM_MT_CAMELLIA_FLINV, camellia_flinv);
+CP2_MT_HELPER(CVM_MT_CAMELLIA_ROUND, camellia_round);
+CP2_MT_HELPER(CVM_MT_HSH_STARTSHA_COMPAT, hsh_startsha_compat);
+CP2_MT_HELPER(CVM_MT_HSH_DATW0, hsh_datw0);
+CP2_MT_HELPER(CVM_MT_HSH_DATW1, hsh_datw1);
+CP2_MT_HELPER(CVM_MT_HSH_DATW2, hsh_datw2);
+CP2_MT_HELPER(CVM_MT_HSH_DATW3, hsh_datw3);
+CP2_MT_HELPER(CVM_MT_HSH_DATW4, hsh_datw4);
+CP2_MT_HELPER(CVM_MT_HSH_DATW5, hsh_datw5);
+CP2_MT_HELPER(CVM_MT_HSH_DATW6, hsh_datw6);
+CP2_MT_HELPER(CVM_MT_HSH_DATW7, hsh_datw7);
+CP2_MT_HELPER(CVM_MT_HSH_DATW8, hsh_datw8);
+CP2_MT_HELPER(CVM_MT_HSH_DATW9, hsh_datw9);
+CP2_MT_HELPER(CVM_MT_HSH_DATW10, hsh_datw10);
+CP2_MT_HELPER(CVM_MT_HSH_DATW11, hsh_datw11);
+CP2_MT_HELPER(CVM_MT_HSH_DATW12, hsh_datw12);
+CP2_MT_HELPER(CVM_MT_HSH_DATW13, hsh_datw13);
+CP2_MT_HELPER(CVM_MT_HSH_DATW14, hsh_datw14);
+CP2_MT_HELPER(CVM_MT_HSH_DATW15, hsh_datw15);
+CP2_MT_HELPER(CVM_MT_HSH_IVW0, hsh_ivw0);
+CP2_MT_HELPER(CVM_MT_HSH_IVW1, hsh_ivw1);
+CP2_MT_HELPER(CVM_MT_HSH_IVW2, hsh_ivw2);
+CP2_MT_HELPER(CVM_MT_HSH_IVW3, hsh_ivw3);
+CP2_MT_HELPER(CVM_MT_HSH_IVW4, hsh_ivw4);
+CP2_MT_HELPER(CVM_MT_HSH_IVW5, hsh_ivw5);
+CP2_MT_HELPER(CVM_MT_HSH_IVW6, hsh_ivw6);
+CP2_MT_HELPER(CVM_MT_HSH_IVW7, hsh_ivw7);
+CP2_MT_HELPER(CVM_MT_HSH_STARTMD5, hsh_startmd5);
+CP2_MT_HELPER(CVM_MT_HSH_STARTSHA256, hsh_startsha256);
+CP2_MT_HELPER(CVM_MT_HSH_STARTSHA, hsh_startsha);
+CP2_MT_HELPER(CVM_MT_HSH_STARTSHA512, hsh_startsha512);
+CP2_MT_HELPER(CVM_MT_LLM_READ_ADDR0, llm_read_addr0);
+CP2_MT_HELPER(CVM_MT_LLM_WRITE_ADDR0, llm_write_addr0);
+CP2_MT_HELPER(CVM_MT_LLM_READ64_ADDR0, llm_read64_addr0);
+CP2_MT_HELPER(CVM_MT_LLM_WRITE64_ADDR0, llm_write64_addr0);
+CP2_MT_HELPER(CVM_MT_LLM_READ_ADDR1, llm_read_addr1);
+CP2_MT_HELPER(CVM_MT_LLM_WRITE_ADDR1, llm_write_addr1);
+CP2_MT_HELPER(CVM_MT_LLM_READ64_ADDR1, llm_read64_addr1);
+CP2_MT_HELPER(CVM_MT_LLM_WRITE64_ADDR1, llm_write64_addr1);
+
 static bool trans_BBIT(DisasContext *ctx, arg_BBIT *a)
 {
     TCGv_i64 p;
