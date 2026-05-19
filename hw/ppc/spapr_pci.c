@@ -704,6 +704,156 @@ param_error_exit:
     rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
 }
 
+static int parse_and_verify_recovered_special_event(target_ulong param_buf,
+                                                    uint64_t *addr) {
+    uint32_t mode = rtas_ld(param_buf, 0);
+    if (mode != EEH_ERR_EVENT_MODE_MIN && mode != EEH_ERR_EVENT_MODE_MAX) {
+        return RTAS_OUT_PARAM_ERROR;
+    }
+    *addr = ((uint64_t)mode) << 32;
+    qemu_log("RTAS: recovered-special-event: mode=%u\n", mode);
+    return RTAS_OUT_SUCCESS;
+}
+
+static int parse_and_verify_corrupted_page(target_ulong param_buf,
+                                           uint64_t *addr) {
+    *addr = ((uint64_t)rtas_ld(param_buf, 0) << 32) | rtas_ld(param_buf, 1);
+    qemu_log("RTAS: corrupted-page: addr=0x%lx\n", *addr);
+    return (*addr) ? RTAS_OUT_SUCCESS : RTAS_OUT_PARAM_ERROR;
+}
+
+static int parse_and_verify_ioa_bus_error(target_ulong param_buf,
+                                          bool is_64bit,
+                                          uint64_t *addr, uint64_t *mask,
+                                          uint64_t *buid, uint32_t *func)
+{
+    if (is_64bit) {
+        *addr = ((uint64_t)rtas_ld(param_buf, 0) << 32) | rtas_ld(param_buf, 1);
+        *mask = ((uint64_t)rtas_ld(param_buf, 2) << 32) | rtas_ld(param_buf, 3);
+        *buid = ((uint64_t)rtas_ld(param_buf, 5) << 32) | rtas_ld(param_buf, 6);
+        *func = rtas_ld(param_buf, 7);
+    } else {
+        *addr = rtas_ld(param_buf, 0);
+        *mask = rtas_ld(param_buf, 1);
+        *buid = ((uint64_t)rtas_ld(param_buf, 3) << 32) | rtas_ld(param_buf, 4);
+        *func = rtas_ld(param_buf, 5);
+    }
+
+    return RTAS_OUT_SUCCESS;
+}
+
+static int parse_and_verify_corrupted_dcache(target_ulong param_buf,
+                                             uint64_t *addr)
+{
+    uint32_t action = rtas_ld(param_buf, 0);
+    uint32_t nature = rtas_ld(param_buf, 1);
+    *addr = ((uint64_t)action << 32) | nature;
+
+    return (action <= 2 && nature <= 2) ? RTAS_OUT_SUCCESS
+            : RTAS_OUT_PARAM_ERROR;
+}
+
+static int parse_and_verify_corrupted_icache(target_ulong param_buf,
+                                             uint64_t *addr)
+{
+    uint32_t action = rtas_ld(param_buf, 0);
+    uint32_t nature = rtas_ld(param_buf, 1);
+    *addr = ((uint64_t)action << 32) | nature;
+
+    return (action <= 3 && nature <= 2) ? RTAS_OUT_SUCCESS
+            : RTAS_OUT_PARAM_ERROR;
+}
+
+static int parse_and_verify_corrupted_tlb(target_ulong param_buf,
+                                          uint64_t *addr)
+{
+    uint32_t nature = rtas_ld(param_buf, 0);
+    *addr = ((uint64_t)nature << 32);
+
+    return (nature <= 2) ? RTAS_OUT_SUCCESS : RTAS_OUT_PARAM_ERROR;
+}
+
+static void rtas_ibm_errinjct(PowerPCCPU *cpu, SpaprMachineState *spapr,
+                              uint32_t token, uint32_t nargs,
+                              target_ulong args, uint32_t nret,
+                              target_ulong rets)
+{
+    SpaprPhbState *sphb;
+    target_ulong param_buf;
+    uint64_t addr = 0, mask = 0, buid = 0;
+    uint32_t func = 0;
+    uint32_t type, o_token;
+    int ret = -1;
+
+    if ((nargs != 3) || (nret != 1)) {
+        goto param_error_exit;
+    }
+
+    type = rtas_ld(args, 0);
+    o_token = rtas_ld(args, 1);
+    param_buf = rtas_ld(args, 2);
+
+    if (o_token != spapr->errinjct_token) {
+        goto param_error_exit;
+    }
+
+    sphb = QLIST_FIRST(&spapr->phbs);
+    if (!sphb) {
+        goto param_error_exit;
+    }
+
+    switch (type) {
+    case RTAS_ERR_TYPE_IOA_BUS_ERROR:
+        ret = parse_and_verify_ioa_bus_error(param_buf, false, &addr,
+                                             &mask, &buid, &func);
+        break;
+    case RTAS_ERR_TYPE_IOA_BUS_ERROR_64:
+        ret = parse_and_verify_ioa_bus_error(param_buf, true, &addr,
+                                             &mask, &buid, &func);
+        break;
+    case RTAS_ERR_TYPE_CORRUPTED_PAGE:
+        ret = parse_and_verify_corrupted_page(param_buf, &addr);
+        break;
+    case RTAS_ERR_TYPE_RECOVERED_SPECIAL_EVENT:
+        ret = parse_and_verify_recovered_special_event(param_buf, &addr);
+        break;
+    case RTAS_ERR_TYPE_CORRUPTED_DCACHE_START:
+    case RTAS_ERR_TYPE_CORRUPTED_DCACHE_END:
+        ret = parse_and_verify_corrupted_dcache(param_buf, &addr);
+        mask = 0;
+        break;
+    case RTAS_ERR_TYPE_CORRUPTED_ICACHE_START:
+    case RTAS_ERR_TYPE_CORRUPTED_ICACHE_END:
+        ret = parse_and_verify_corrupted_icache(param_buf, &addr);
+        mask = 0;
+        break;
+    case RTAS_ERR_TYPE_CORRUPTED_TLB_START:
+    case RTAS_ERR_TYPE_CORRUPTED_TLB_END:
+        ret = parse_and_verify_corrupted_tlb(param_buf, &addr);
+        mask = 0;
+        break;
+    default:
+        ret = RTAS_OUT_PARAM_ERROR;
+        break;
+    }
+
+    if (ret != RTAS_OUT_SUCCESS) {
+        goto param_error_exit;
+    }
+
+    ret = spapr_phb_vfio_errinjct(sphb, func, addr, mask, type);
+    if (ret < 0) {
+        rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
+        return;
+    }
+
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
+    return;
+
+param_error_exit:
+    rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+}
+
 static void pci_spapr_set_irq(void *opaque, int irq_num, int level)
 {
     /*
@@ -2380,6 +2530,9 @@ void spapr_pci_rtas_init(void)
     spapr_rtas_register(RTAS_IBM_SLOT_ERROR_DETAIL,
                         "ibm,slot-error-detail",
                         rtas_ibm_slot_error_detail);
+    spapr_rtas_register(RTAS_IBM_ERRINJCT,
+                        "ibm,errinjct",
+                        rtas_ibm_errinjct);
 }
 
 static void spapr_pci_register_types(void)

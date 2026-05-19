@@ -706,6 +706,9 @@ void push_sregs_to_kvm_pr(SpaprMachineState *spapr);
 #define EEH_ERR_FUNC_DMA_WR_TARGET      19
 #define EEH_ERR_FUNC_MAX                EEH_ERR_FUNC_DMA_WR_TARGET
 
+#define EEH_ERR_EVENT_MODE_MIN     1
+#define EEH_ERR_EVENT_MODE_MAX     2
+
 /* RTAS PCI Error Injection Token Types */
 enum rtas_err_type {
     RTAS_ERR_TYPE_FATAL                   = 0x1,
@@ -808,8 +811,9 @@ enum rtas_err_type {
 #define RTAS_IBM_NMI_REGISTER                   (RTAS_TOKEN_BASE + 0x2B)
 #define RTAS_IBM_NMI_INTERLOCK                  (RTAS_TOKEN_BASE + 0x2C)
 #define RTAS_CONFIGURE_KERNEL_DUMP              (RTAS_TOKEN_BASE + 0x2D)
+#define RTAS_IBM_ERRINJCT                       (RTAS_TOKEN_BASE + 0x2E)
 
-#define RTAS_TOKEN_MAX                          (RTAS_TOKEN_BASE + 0x2E)
+#define RTAS_TOKEN_MAX                          (RTAS_TOKEN_BASE + 0x2F)
 
 /* RTAS ibm,get-system-parameter token values */
 #define RTAS_SYSPARM_SPLPAR_CHARACTERISTICS      20
