@@ -53,7 +53,8 @@ class Imx8mpEvkMachine(LinuxKernelTest):
         self.set_machine('imx8mp-evk')
         self.vm.set_console(console_index=1)
         self.vm.add_args('-m', '2G',
-                         '-smp', '4',
+                         '-smp', '4,maxcpus=5',
+                         '-global', 'fsl-imx8mp.enable-cm7=on',
                          '-kernel', self.kernel_path,
                          '-initrd', self.initrd_path,
                          '-dtb', self.dtb_path,
