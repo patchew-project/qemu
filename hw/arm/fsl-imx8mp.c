@@ -196,6 +196,10 @@ static void fsl_imx8mp_init(Object *obj)
     FslImx8mpState *s = FSL_IMX8MP(obj);
     int i;
 
+    s->cm7_booted = false;
+
+    object_initialize_child(obj, "cm7", &s->cm7, TYPE_ARMV7M);
+
     object_initialize_child(obj, "gic", &s->gic, gicv3_class_name());
 
     object_initialize_child(obj, "ccm", &s->ccm, TYPE_IMX8MP_CCM);
@@ -269,6 +273,93 @@ static void fsl_imx8mp_init(Object *obj)
                             TYPE_FSL_IMX8M_PCIE_PHY);
 }
 
+static inline void imx8mp_cm7_halt(CPUState *m7cs)
+{
+    cpu_interrupt(m7cs, CPU_INTERRUPT_HALT);
+    m7cs->halted = 1;
+    qemu_cpu_kick(m7cs);
+}
+
+static inline void imx8mp_cm7_resume(CPUState *m7cs)
+{
+    /* Clear HALT interrupt (from STOP) and resume */
+    cpu_reset_interrupt(m7cs, CPU_INTERRUPT_HALT);
+    m7cs->halted = 0;
+    m7cs->stopped = 0;
+    cpu_resume(m7cs);
+    cpu_interrupt(m7cs, CPU_INTERRUPT_EXITTB);
+    qemu_cpu_kick(m7cs);
+}
+
+static void imx8mp_cm7_ctrl_apply(CPUState *cpu, run_on_cpu_data data)
+{
+    struct CM7CtlReq *r = data.host_ptr;
+    FslImx8mpState *s = r->s;
+    ARMCPU *m7 = s->cm7.cpu;
+    CPUState *m7cs = CPU(m7);
+
+    if (!r->run) {
+        /* STOP: halt the M7 */
+    imx8mp_cm7_halt(m7cs);
+        goto out;
+    }
+
+    /*
+     * RUN:
+     * CPUWAIT is modeled as a run/stop gate. On first RUN, boot from vector
+     * table. Subsequent RUN resumes execution without resetting CM7 state.
+     */
+    if (s->cm7_booted) {
+        imx8mp_cm7_resume(m7cs);
+        goto out;
+    }
+
+    uint32_t msp_le = 0, pc_le = 0;
+    uint32_t msp, pc;
+    hwaddr vbase = s->cm7_vector_base;
+
+    address_space_read(&address_space_memory, vbase,
+                       MEMTXATTRS_UNSPECIFIED, &msp_le, sizeof(msp_le));
+    address_space_read(&address_space_memory, vbase + 4,
+                       MEMTXATTRS_UNSPECIFIED, &pc_le, sizeof(pc_le));
+    msp = le32_to_cpu(msp_le);
+    pc  = le32_to_cpu(pc_le);
+
+
+    /* Clear Thumb indicator bit (bit0) */
+    pc &= ~1u;
+
+    cpu_reset(m7cs);
+
+    /* Set SP (R13) and PC (R15). Cortex-M uses Thumb */
+    m7->env.regs[13] = msp;
+    m7->env.regs[15] = pc;
+    m7->env.thumb = 1;
+
+    imx8mp_cm7_resume(m7cs);
+
+    s->cm7_booted = true;
+out:
+    g_free(r);
+};
+
+static void imx8mp_cm7_cpuwait_handler(void *opaque, int n, int level)
+{
+    FslImx8mpState *s = opaque;
+    (void)n;
+
+    if (!s->cm7.cpu) {
+        return;
+    }
+
+    struct CM7CtlReq *r = g_new0(struct CM7CtlReq, 1);
+    r->s = s;
+    r->run = !!level;
+
+    async_run_on_cpu(CPU(s->cm7.cpu), imx8mp_cm7_ctrl_apply,
+                     RUN_ON_CPU_HOST_PTR(r));
+}
+
 static void fsl_imx8mp_realize(DeviceState *dev, Error **errp)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
@@ -276,6 +367,23 @@ static void fsl_imx8mp_realize(DeviceState *dev, Error **errp)
     DeviceState *gicdev = DEVICE(&s->gic);
     const char *cpu_type = ms->cpu_type ?: ARM_CPU_TYPE_NAME("cortex-a53");
     int i;
+
+    if (!s->enable_cm7) {
+        object_unparent(OBJECT(&s->cm7));
+    } else {
+        /*
+         * When CM7 is enabled we need one additional vCPU
+         * slot. If the user does not specify maxcpus=,
+         * QEMU defaults maxcpus to the current -smp count.
+         */
+        unsigned int need = ms->smp.cpus + 1;
+        if (ms->smp.max_cpus < need) {
+            error_setg(errp,
+                       "CM7 enabled requires -smp %u,maxcpus=%u (one extra vCPU slot for CM7)",
+                       ms->smp.cpus, need);
+            return;
+        }
+    }
 
     if (ms->smp.cpus > FSL_IMX8MP_NUM_CPUS) {
         error_setg(errp, "%s: Only %d CPUs are supported (%d requested)",
@@ -458,6 +566,38 @@ static void fsl_imx8mp_realize(DeviceState *dev, Error **errp)
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpr), 0,
                     fsl_imx8mp_memmap[FSL_IMX8MP_IOMUXC_GPR].addr);
+
+    if (s->enable_cm7) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->gpr), 0,
+                   qemu_allocate_irq(imx8mp_cm7_cpuwait_handler, s, 0));
+
+    /* Realize Cortex-M7 subsystem */
+        DeviceState *cm7dev = DEVICE(&s->cm7);
+        DeviceState *ccmdev = DEVICE(&s->ccm);
+        qdev_prop_set_string(cm7dev, "cpu-type",
+                             ARM_CPU_TYPE_NAME("cortex-m7"));
+        qdev_prop_set_uint32(cm7dev, "num-irq", 64);
+        qdev_prop_set_bit(cm7dev, "enable-bitband", true);
+
+        /* CM7 vector table base (configurable) */
+        qdev_prop_set_uint32(cm7dev, "init-nsvtor", s->cm7_vector_base);
+
+        /* Connect CM7 clocks from CCM exported outputs */
+        qdev_connect_clock_in(cm7dev, "cpuclk",
+                              qdev_get_clock_out(ccmdev, "cm7_cpuclk"));
+        qdev_connect_clock_in(cm7dev, "refclk",
+                              qdev_get_clock_out(ccmdev, "cm7_refclk"));
+        object_property_set_link(OBJECT(&s->cm7), "memory",
+                                 OBJECT(get_system_memory()), &error_abort);
+
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->cm7), errp)) {
+            return;
+    }
+
+        CPUState *m7cs = CPU(s->cm7.cpu);
+        cpu_interrupt(m7cs, CPU_INTERRUPT_HALT);
+        m7cs->halted = 1;
+    }
 
     /* GPTs */
     object_property_set_int(OBJECT(&s->gpt5_gpt6_irq), "num-lines", 2,
@@ -784,6 +924,9 @@ static void fsl_imx8mp_realize(DeviceState *dev, Error **errp)
 static const Property fsl_imx8mp_properties[] = {
     DEFINE_PROP_UINT32("fec1-phy-num", FslImx8mpState, phy_num, 0),
     DEFINE_PROP_BOOL("fec1-phy-connected", FslImx8mpState, phy_connected, true),
+    DEFINE_PROP_BOOL("enable-cm7", FslImx8mpState, enable_cm7, false),
+    DEFINE_PROP_UINT32("cm7-vector-base", FslImx8mpState,
+                       cm7_vector_base, 0x80000000),
 };
 
 static void fsl_imx8mp_class_init(ObjectClass *oc, const void *data)
