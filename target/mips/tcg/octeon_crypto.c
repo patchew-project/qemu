@@ -94,9 +94,107 @@ static void octeon_crc_update_reflect(MIPSOcteonCryptoState *crypto,
 
     octeon_crc_set_state_reflect(crypto, crc);
 }
+static uint64_t octeon_gfm_reduce64(Int128 product, uint8_t poly)
+{
+    uint64_t lo = int128_getlo(product);
+    uint64_t hi = int128_gethi(product);
+
+    while (hi) {
+        int bit = 63 - clz64(hi);
+        uint64_t shifted_poly = (uint64_t)poly << bit;
+
+        hi ^= 1ULL << bit;
+        lo ^= shifted_poly;
+        if (bit > 56) {
+            hi ^= (uint64_t)poly >> (64 - bit);
+        }
+    }
+
+    return lo;
+}
+
+static void octeon_gfm_mul64_uia2(const uint64_t x[2], const uint64_t y[2],
+                                  uint8_t poly, uint64_t out[2])
+{
+    uint64_t vx = revbit64(x[1]);
+    uint64_t vy = revbit64(y[0]);
+    Int128 product = clmul_64(vx, vy);
+    uint64_t res = octeon_gfm_reduce64(product, revbit32(poly) >> 24);
+
+    out[0] = 0;
+    out[1] = revbit64(res);
+}
+
+static void octeon_gfm_mul_reflect(MIPSOcteonCryptoState *crypto, uint64_t data)
+{
+    uint64_t in[2] = {
+        crypto->gfm_reflect_resinp[0] ^ crypto->gfm_reflect_xor0,
+        crypto->gfm_reflect_resinp[1] ^ data,
+    };
+
+    octeon_gfm_mul64_uia2(in, crypto->gfm_reflect_mul,
+                          crypto->gfm_poly, crypto->gfm_reflect_resinp);
+    crypto->gfm_reflect_xor0 = 0;
+}
+static void octeon_gfm_mul(const uint64_t x[2], const uint64_t y[2],
+                           uint16_t poly, uint64_t out[2])
+{
+    uint64_t zh = 0, zl = 0;
+    uint64_t vh = y[0], vl = y[1];
+    uint64_t rh = (uint64_t)poly << 48;
+    int i;
+
+    for (i = 0; i < 128; i++) {
+        bool bit;
+        bool lsb;
+
+        if (i < 64) {
+            bit = (x[0] >> (63 - i)) & 1;
+        } else {
+            bit = (x[1] >> (127 - i)) & 1;
+        }
+        if (bit) {
+            zh ^= vh;
+            zl ^= vl;
+        }
+
+        lsb = vl & 1;
+        vl = (vh << 63) | (vl >> 1);
+        vh >>= 1;
+        if (lsb) {
+            vh ^= rh;
+        }
+    }
+
+    out[0] = zh;
+    out[1] = zl;
+}
 uint64_t helper_octeon_cp2_mf_crc_iv_reflect(CPUMIPSState *env)
 {
     return octeon_crc_reflect32_by_byte(env->octeon_crypto.crc_iv);
+}
+void helper_octeon_cp2_mt_gfm_xormul1_reflect(CPUMIPSState *env,
+                                              uint64_t value)
+{
+    octeon_gfm_mul_reflect(&env->octeon_crypto, value);
+}
+
+void helper_octeon_cp2_mt_gfm_xormul1(CPUMIPSState *env, uint64_t value)
+{
+    MIPSOcteonCryptoState *crypto = &env->octeon_crypto;
+    uint64_t in[2] = {
+        crypto->gfm_resinp[0] ^ crypto->gfm_xor0,
+        crypto->gfm_resinp[1] ^ value,
+    };
+
+    if (crypto->gfm_poly <= 0xff && crypto->gfm_mul[1] == 0 && in[0] == 0) {
+        octeon_gfm_mul64_uia2(in, crypto->gfm_mul,
+                              crypto->gfm_poly, crypto->gfm_resinp);
+    } else {
+        octeon_gfm_mul(in, crypto->gfm_mul, crypto->gfm_poly,
+                       crypto->gfm_resinp);
+    }
+    crypto->gfm_xor0 = 0;
 }
 void helper_octeon_cp2_mt_crc_write_iv_reflect(CPUMIPSState *env,
                                                uint64_t value)
