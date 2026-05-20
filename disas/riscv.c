@@ -5057,26 +5057,48 @@ static bool check_constraints(rv_decode *dec, const rvc_constraint *c)
     return true;
 }
 
-/* instruction length */
-
+/*
+ * Note: basically a carbon copy of insn_len() from
+ * target/riscv/internals.h.
+ */
 static size_t inst_length(rv_inst inst)
 {
-    /* NOTE: supports maximum instruction size of 64-bits */
+    /*
+     * "Expanded Instruction-Length Encoding" as in
+     * unpriv isa section 1.5.1.
+     *
+     *               aa - 16 bit aa != 11
+     *            bbb11 - 32 bit bbb != 111
+     *           011111 - 48 bit
+     *          0111111 - 64 bit
+     * xnnnxxxxx1111111 - (80 + 16*nnn) bits, if nnn != 111
+     * x111xxxxx1111111 - 192 bits
+     */
+    if ((inst & 0b11) != 0b11) {
+        return 2;
+    } else if ((inst & 0b11100) != 0b11100) {
+        return 4;
+    } else if ((inst & 0b111111) == 0b011111) {
+        return 6;
+    } else if ((inst & 0b1111111) == 0b0111111) {
+        return 8;
+    } else if ((inst & 0b1111111) == 0b1111111) {
+        uint32_t nnn = (inst >> 12) & 0b0111;
+
+        if (nnn == 0b111) {
+            return 24;
+        }
+        return (16 * nnn + 80) / 8;
+    }
 
     /*
-     * instruction length coding
-     *
-     *      aa - 16 bit aa != 11
-     *   bbb11 - 32 bit bbb != 111
-     *  011111 - 48 bit
-     * 0111111 - 64 bit
+     * Returning 0 if we don't find the right insn length will
+     * cause an infinite loop in target_disas().  Return an
+     * unrealistic length value instead, making target_disas()
+     * trigger the "Disassembler disagrees with translator over
+     * instruction" error path.
      */
-
-    return (inst &      0b11) != 0b11      ? 2
-         : (inst &   0b11100) != 0b11100   ? 4
-         : (inst &  0b111111) == 0b011111  ? 6
-         : (inst & 0b1111111) == 0b0111111 ? 8
-         : 0;
+    return 1024;
 }
 
 /* format instruction */

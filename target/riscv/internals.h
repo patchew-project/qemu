@@ -245,9 +245,38 @@ static inline target_ulong adjust_addr_virt(CPURISCVState *env,
     return adjust_addr_body(env, addr, true);
 }
 
-static inline int insn_len(uint16_t first_word)
+static inline int insn_len(uint32_t opcode)
 {
-    return (first_word & 3) == 3 ? 4 : 2;
+    /*
+     * "Expanded Instruction-Length Encoding" as in
+     * unpriv isa section 1.5.1.
+     *
+     *               aa - 16 bit aa != 11
+     *            bbb11 - 32 bit bbb != 111
+     *           011111 - 48 bit
+     *          0111111 - 64 bit
+     * xnnnxxxxx1111111 - (80 + 16*nnn) bits, if nnn != 111
+     * x111xxxxx1111111 - 192 bits
+     */
+    if ((opcode & 0b11) != 0b11) {
+        return 2;
+    } else if ((opcode & 0b11100) != 0b11100) {
+        return 4;
+    } else if ((opcode & 0b111111) == 0b011111) {
+        return 6;
+    } else if ((opcode & 0b1111111) == 0b0111111) {
+        return 8;
+    } else if ((opcode & 0b1111111) == 0b1111111) {
+        uint32_t nnn = (opcode >> 12) & 0b0111;
+
+        if (nnn == 0b111) {
+            return 24;
+        }
+        return (16 * nnn + 80) / 8;
+    }
+
+    /* Shouldn't happen, but ... */
+    return -1;
 }
 
 int riscv_monitor_get_register_legacy(CPUState *cs, const char *name,

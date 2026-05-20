@@ -1255,6 +1255,7 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx)
 {
     uint32_t opcode;
     bool pc_is_4byte_align = ((ctx->base.pc_next % 4) == 0);
+    int insn_length;
 
     ctx->virt_inst_excp = false;
     if (pc_is_4byte_align) {
@@ -1279,7 +1280,11 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx)
     }
     ctx->ol = ctx->xl;
 
-    ctx->cur_insn_len = insn_len((uint16_t)opcode);
+    insn_length = insn_len(opcode);
+    if (insn_length < 0) {
+        gen_exception_illegal(ctx);
+    }
+    ctx->cur_insn_len = insn_length;
     /* Check for compressed insn */
     if (ctx->cur_insn_len == 2) {
         ctx->opcode = (uint16_t)opcode;
