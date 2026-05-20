@@ -22,7 +22,7 @@
 #include "system/kvm.h"
 #include "migration/cpu.h"
 #include "exec/icount.h"
-#include "debug.h"
+#include "target/riscv/debug.h"
 
 static bool pmp_needed(void *opaque)
 {
