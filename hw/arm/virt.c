@@ -229,8 +229,7 @@ static const MemMapEntry base_memmap[] = {
  * Highmem IO Regions: This memory map is floating, located after the RAM.
  * Each MemMapEntry base (GPA) will be dynamically computed, depending on the
  * top of the RAM, so that its base get the same alignment as the size,
- * ie. a 512GiB entry will be aligned on a 512GiB boundary. If there is
- * less than 256GiB of RAM, the floating area starts at the 256GiB mark.
+ * ie. a 512GiB entry will be aligned on a 512GiB boundary.
  * Note the extended_memmap is sized so that it eventually also includes the
  * base_memmap entries (VIRT_HIGH_GIC_REDIST2 index is greater than the last
  * index of base_memmap).
@@ -2479,6 +2478,7 @@ static void virt_set_high_memmap(VirtMachineState *vms,
 static void virt_set_memmap(VirtMachineState *vms, int pa_bits)
 {
     MachineState *ms = MACHINE(vms);
+    VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
     hwaddr base, device_memory_base, device_memory_size, memtop;
     int i;
 
@@ -2505,8 +2505,7 @@ static void virt_set_memmap(VirtMachineState *vms, int pa_bits)
     /*
      * We compute the base of the high IO region depending on the
      * amount of initial and device memory. The device memory start/size
-     * is aligned on 1GiB. We never put the high IO region below 256GiB
-     * so that if maxram_size is < 255GiB we keep the legacy memory map.
+     * is aligned on 1GiB.
      * The device region size assumes 1GiB page max alignment per slot.
      */
     device_memory_base =
@@ -2524,8 +2523,8 @@ static void virt_set_memmap(VirtMachineState *vms, int pa_bits)
         error_report("maxmem/slots too huge");
         exit(EXIT_FAILURE);
     }
-    if (base < vms->memmap[VIRT_MEM].base + LEGACY_RAMLIMIT_BYTES) {
-        base = vms->memmap[VIRT_MEM].base + LEGACY_RAMLIMIT_BYTES;
+    if (base < vmc->min_highmem_base) {
+        base = vmc->min_highmem_base;
     }
 
     /* We know for sure that at least the memory fits in the PA space */
@@ -4367,6 +4366,12 @@ static void virt_machine_11_0_options(MachineClass *mc)
     virt_machine_11_1_options(mc);
     compat_props_add(mc->compat_props, hw_compat_11_0, hw_compat_11_0_len);
     vmc->hvf_no_kernel_irqchip_default = true;
+
+    /*
+     * Do not put the high IO region below 256GiB so that if maxram_size is
+     * < 255GiB we keep the legacy memory map.
+     */
+    vmc->min_highmem_base = base_memmap[VIRT_MEM].base + LEGACY_RAMLIMIT_BYTES;
 }
 DEFINE_VIRT_MACHINE(11, 0)
 

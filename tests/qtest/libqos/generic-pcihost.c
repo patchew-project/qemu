@@ -210,7 +210,7 @@ void qpci_init_generic(QGenericPCIBus *qpci, QTestState *qts,
     qpci->bus.pio_limit = 0x10000;
     qpci->bus.mmio_alloc_ptr = 0x10000000;
     qpci->bus.mmio_limit = 0x2eff0000;
-    qpci->ecam_alloc_ptr = 0x4010000000;
+    qpci->ecam_alloc_ptr = 0x90000000;
 
     qpci->obj.get_driver = qpci_generic_get_driver;
 }
