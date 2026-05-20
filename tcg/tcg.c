@@ -2265,6 +2265,16 @@ TCGv_i64 tcg_constant_i64(int64_t val)
     return temp_tcgv_i64(tcg_constant_internal(TCG_TYPE_I64, val));
 }
 
+TCGv_i128 tcg_zero_i128(void)
+{
+    TCGv_i64 zero64 = tcg_constant_i64(0);
+    TCGv_i128 zero128 = tcg_temp_new_i128();
+
+    tcg_gen_concat_i64_i128(zero128, zero64, zero64);
+
+    return zero128;
+}
+
 TCGv_vaddr tcg_constant_vaddr(uintptr_t val)
 {
     return temp_tcgv_vaddr(tcg_constant_internal(TCG_TYPE_PTR, val));
