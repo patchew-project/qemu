@@ -46,6 +46,7 @@ void arm_set_default_fp_behaviours(float_status *s)
     set_float_3nan_prop_rule(float_3nan_prop_s_cab, s);
     set_float_infzeronan_rule(float_infzeronan_dnan_if_qnan, s);
     set_float_default_nan_pattern(0b01000000, s);
+    set_float_e4m3_nan_is_snan(true, s);
 }
 
 /*
@@ -67,6 +68,7 @@ void arm_set_ah_fp_behaviours(float_status *s)
     set_float_infzeronan_rule(float_infzeronan_dnan_never |
                               float_infzeronan_suppress_invalid, s);
     set_float_default_nan_pattern(0b11000000, s);
+    set_float_e4m3_nan_is_snan(true, s);
 }
 
 /* Convert host exception flags to vfp form.  */
