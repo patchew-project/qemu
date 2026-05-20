@@ -11,6 +11,7 @@
 #include "fpu/softfloat-types.h"
 #include "hw/core/clock.h"
 #include "mips-defs.h"
+#include "qemu/qtree.h"
 
 typedef struct CPUMIPSTLBContext CPUMIPSTLBContext;
 
@@ -549,13 +550,17 @@ typedef struct MIPSOcteonCryptoState {
     uint64_t aes_resinp[2];
     uint64_t aes_iv[2];
     uint64_t aes_key[4];
+    uint8_t aes_keylen;
     uint32_t crc_poly;
     uint32_t crc_iv;
+    uint8_t crc_len;
     uint64_t gfm_mul[2];
     uint64_t gfm_resinp[2];
     uint16_t gfm_poly;
-    uint8_t aes_keylen;
-    uint8_t crc_len;
+    uint64_t chord;
+    uint64_t llm_data[2];
+    QTree *llm36;
+    QTree *llm64;
 } MIPSOcteonCryptoState;
 
 typedef struct CPUArchState {
