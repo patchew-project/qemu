@@ -36,6 +36,7 @@ ppc_ss.add(when: 'CONFIG_SPAPR_RNG', if_true: files('spapr_rng.c'))
 if host_os == 'linux'
   ppc_ss.add(when: 'CONFIG_PSERIES', if_true: files(
     'spapr_pci_vfio.c',
+    'spapr_pci_vfio_eeh.c',
   ))
 endif
 

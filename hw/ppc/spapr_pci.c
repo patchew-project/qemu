@@ -33,6 +33,7 @@
 #include "hw/pci/msix.h"
 #include "hw/pci/pci_host.h"
 #include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_vfio.h"
 #include "hw/pci-host/spapr.h"
 #include <libfdt.h>
 #include "trace.h"
