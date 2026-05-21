@@ -285,17 +285,56 @@ static int set_standard_regs(const CPUState *cpu)
     return 0;
 }
 
-int mshv_store_regs(CPUState *cpu)
+static void mshv_set_standard_regs_vp_page(CPUState *cpu)
 {
-    int ret;
+    X86CPU *x86cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86cpu->env;
 
-    ret = set_standard_regs(cpu);
-    if (ret < 0) {
-        error_report("Failed to store standard registers");
-        return -1;
+    env->regs_page->rax = env->regs[R_EAX];
+    env->regs_page->rbx = env->regs[R_EBX];
+    env->regs_page->rcx = env->regs[R_ECX];
+    env->regs_page->rdx = env->regs[R_EDX];
+    env->regs_page->rsi = env->regs[R_ESI];
+    env->regs_page->rdi = env->regs[R_EDI];
+    env->regs_page->rsp = env->regs[R_ESP];
+    env->regs_page->rbp = env->regs[R_EBP];
+    env->regs_page->r8  = env->regs[R_R8];
+    env->regs_page->r9  = env->regs[R_R9];
+    env->regs_page->r10 = env->regs[R_R10];
+    env->regs_page->r11 = env->regs[R_R11];
+    env->regs_page->r12 = env->regs[R_R12];
+    env->regs_page->r13 = env->regs[R_R13];
+    env->regs_page->r14 = env->regs[R_R14];
+    env->regs_page->r15 = env->regs[R_R15];
+    env->regs_page->rip = env->eip;
+    lflags_to_rflags(env);
+    env->regs_page->rflags = env->eflags;
+
+    env->regs_page->dirty |= (1u << HV_X64_REGISTER_CLASS_GENERAL)
+                                | (1u << HV_X64_REGISTER_CLASS_IP)
+                                | (1u << HV_X64_REGISTER_CLASS_FLAGS);
+}
+
+void mshv_store_regs(CPUState *cpu)
+{
+    X86CPU *x86cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86cpu->env;
+
+    /* Check register page pointer and abort if in unexpected state */
+    if (!env->regs_page) {
+        error_report(
+                "store regs: register page not set for vcpu %d",
+                cpu->cpu_index);
+        abort();
+    }
+    if (env->regs_page->isvalid == 0) {
+        error_report(
+                "store regs: register page invalid for vcpu %d",
+                cpu->cpu_index);
+        abort();
     }
 
-    return 0;
+    mshv_set_standard_regs_vp_page(cpu);
 }
 
 static void populate_standard_regs(const hv_register_assoc *assocs,
@@ -1170,14 +1209,13 @@ static int set_memory_info(const struct hyperv_message *msg,
     return 0;
 }
 
-static int emulate_instruction(CPUState *cpu,
+static void emulate_instruction(CPUState *cpu,
                                const uint8_t *insn_bytes, size_t insn_len,
                                uint64_t gva, uint64_t gpa)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
     struct x86_decode decode = { 0 };
-    int ret;
     x86_insn_stream stream = { .bytes = insn_bytes, .len = insn_len };
 
     mshv_load_regs(cpu);
@@ -1185,13 +1223,7 @@ static int emulate_instruction(CPUState *cpu,
     decode_instruction_stream(env, &decode, &stream);
     exec_instruction(env, &decode);
 
-    ret = mshv_store_regs(cpu);
-    if (ret < 0) {
-        error_report("failed to store registers");
-        return -1;
-    }
-
-    return 0;
+    mshv_store_regs(cpu);
 }
 
 static int handle_mmio(CPUState *cpu, const struct hyperv_message *msg,
@@ -1227,13 +1259,9 @@ static int handle_mmio(CPUState *cpu, const struct hyperv_message *msg,
 
     instruction_bytes = info.instruction_bytes;
 
-    ret = emulate_instruction(cpu, instruction_bytes, insn_len,
+    emulate_instruction(cpu, instruction_bytes, insn_len,
                               info.guest_virtual_address,
                               info.guest_physical_address);
-    if (ret < 0) {
-        error_report("failed to emulate mmio");
-        return -1;
-    }
 
     *exit_reason = MshvVmExitIgnore;
 
