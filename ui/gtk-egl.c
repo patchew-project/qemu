@@ -163,6 +163,12 @@ void gd_egl_refresh(DisplayChangeListener *dcl)
             surface_gl_create_texture(vc->gfx.gls, vc->gfx.ds);
         }
 #ifdef CONFIG_GBM
+
+        /* resetting old ids to 0 for new egl context */
+        egl_fb_destroy(&vc->gfx.guest_fb);
+        egl_fb_destroy(&vc->gfx.cursor_fb);
+        egl_fb_destroy(&vc->gfx.win_fb);
+
         if (vc->gfx.guest_fb.dmabuf) {
             egl_dmabuf_release_texture(vc->gfx.guest_fb.dmabuf);
             gd_egl_scanout_dmabuf(dcl, vc->gfx.guest_fb.dmabuf);
