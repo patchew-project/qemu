@@ -502,6 +502,18 @@ static int mshv_cpu_exec(CPUState *cpu)
     cpu_exec_start(cpu);
 
     do {
+        /*
+         * We consider a pending exit_request before re-entering the guest.
+         * This condition is set by mshv_kick_vcpu_thread(), so we unset
+         * thread_kicked to allow future kicks to interrupt the guest.
+         */
+        if (qatomic_load_acquire(&cpu->exit_request)) {
+            qatomic_set(&cpu->exit_request, false);
+            qatomic_set_mb(&cpu->thread_kicked, false);
+            ret = EXCP_INTERRUPT;
+            break;
+        }
+
         if (cpu->accel->dirty) {
             ret = mshv_arch_put_registers(cpu);
             if (ret) {
@@ -540,17 +552,17 @@ static int mshv_cpu_exec(CPUState *cpu)
 }
 
 /*
- * The signal handler is triggered when QEMU's main thread receives a SIG_IPI
- * (SIGUSR1). This signal causes the current CPU thread to be kicked, forcing a
- * VM exit on the CPU. The VM exit generates an exit reason that breaks the loop
- * (see mshv_cpu_exec). If the exit is due to a Ctrl+A+x command, the system
- * will shut down. For other cases, the system will continue running.
+ * SIG_IPI handler for the vCPU thread. It's a noop currently. A decision to
+ * leave the guest is communicated via cpu->exit_request, which is set by
+ * mshv_kick_vcpu_thread() before it raises a SIG_IPI.
+ *
+ * Note: MSHV currently lacks an immediate_exit equivalent to KVM, there
+ * remains a theoretical race window between userspace check and ioctl entry
+ * in the vcpu loop. Once MSHV supports immediate_exit semantics, we should
+ * invoke it here.
  */
 static void sa_ipi_handler(int sig)
 {
-    /* TODO: call IOCTL to set_immediate_exit, once implemented. */
-
-    qemu_cpu_kick_self();
 }
 
 static void init_signal(CPUState *cpu)
@@ -603,6 +615,19 @@ cleanup:
     bql_unlock();
     rcu_unregister_thread();
     return NULL;
+}
+
+/*
+ * mshv-custom kick implementation:
+ *
+ * We set cpu->exit_request before the SIG_IPI is delivered to the vcpu
+ * thread (as part of cpus_kick_thread()). It is consumed in the
+ * mshv_cpu_exec loop.
+ */
+static void mshv_kick_vcpu_thread(CPUState *cpu)
+{
+    qatomic_set_mb(&cpu->exit_request, true);
+    cpus_kick_thread(cpu);
 }
 
 static void mshv_start_vcpu_thread(CPUState *cpu)
@@ -719,6 +744,7 @@ static void mshv_accel_ops_class_init(ObjectClass *oc, const void *data)
     AccelOpsClass *ops = ACCEL_OPS_CLASS(oc);
 
     ops->create_vcpu_thread = mshv_start_vcpu_thread;
+    ops->kick_vcpu_thread = mshv_kick_vcpu_thread;
     ops->synchronize_post_init = mshv_cpu_synchronize_post_init;
     ops->synchronize_post_reset = mshv_cpu_synchronize_post_reset;
     ops->synchronize_state = mshv_cpu_synchronize;
