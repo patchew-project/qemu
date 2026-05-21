@@ -2214,6 +2214,10 @@ typedef struct CPUArchState {
     struct {} end_reset_fields;
 
     /* Fields after this point are preserved across CPU reset. */
+#ifdef CONFIG_MSHV
+    /* Shared register page */
+    struct hv_vp_register_page *regs_page;
+#endif
 
     /* processor features (e.g. for CPUID insn) */
     /* Minimum cpuid leaf 7 value */
