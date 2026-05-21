@@ -264,6 +264,375 @@ static void octeon_sha3_permute(MIPSOcteonCryptoState *crypto)
     }
 }
 
+static inline uint32_t octeon_crypto_hi32(uint64_t value)
+{
+    return value >> 32;
+}
+
+static inline uint32_t octeon_crypto_lo32(uint64_t value)
+{
+    return value;
+}
+
+static inline uint64_t octeon_crypto_pack32(uint32_t hi, uint32_t lo)
+{
+    return ((uint64_t)hi << 32) | lo;
+}
+
+static const uint8_t octeon_zuc_s0[256] = {
+    0x3e, 0x72, 0x5b, 0x47, 0xca, 0xe0, 0x00, 0x33,
+    0x04, 0xd1, 0x54, 0x98, 0x09, 0xb9, 0x6d, 0xcb,
+    0x7b, 0x1b, 0xf9, 0x32, 0xaf, 0x9d, 0x6a, 0xa5,
+    0xb8, 0x2d, 0xfc, 0x1d, 0x08, 0x53, 0x03, 0x90,
+    0x4d, 0x4e, 0x84, 0x99, 0xe4, 0xce, 0xd9, 0x91,
+    0xdd, 0xb6, 0x85, 0x48, 0x8b, 0x29, 0x6e, 0xac,
+    0xcd, 0xc1, 0xf8, 0x1e, 0x73, 0x43, 0x69, 0xc6,
+    0xb5, 0xbd, 0xfd, 0x39, 0x63, 0x20, 0xd4, 0x38,
+    0x76, 0x7d, 0xb2, 0xa7, 0xcf, 0xed, 0x57, 0xc5,
+    0xf3, 0x2c, 0xbb, 0x14, 0x21, 0x06, 0x55, 0x9b,
+    0xe3, 0xef, 0x5e, 0x31, 0x4f, 0x7f, 0x5a, 0xa4,
+    0x0d, 0x82, 0x51, 0x49, 0x5f, 0xba, 0x58, 0x1c,
+    0x4a, 0x16, 0xd5, 0x17, 0xa8, 0x92, 0x24, 0x1f,
+    0x8c, 0xff, 0xd8, 0xae, 0x2e, 0x01, 0xd3, 0xad,
+    0x3b, 0x4b, 0xda, 0x46, 0xeb, 0xc9, 0xde, 0x9a,
+    0x8f, 0x87, 0xd7, 0x3a, 0x80, 0x6f, 0x2f, 0xc8,
+    0xb1, 0xb4, 0x37, 0xf7, 0x0a, 0x22, 0x13, 0x28,
+    0x7c, 0xcc, 0x3c, 0x89, 0xc7, 0xc3, 0x96, 0x56,
+    0x07, 0xbf, 0x7e, 0xf0, 0x0b, 0x2b, 0x97, 0x52,
+    0x35, 0x41, 0x79, 0x61, 0xa6, 0x4c, 0x10, 0xfe,
+    0xbc, 0x26, 0x95, 0x88, 0x8a, 0xb0, 0xa3, 0xfb,
+    0xc0, 0x18, 0x94, 0xf2, 0xe1, 0xe5, 0xe9, 0x5d,
+    0xd0, 0xdc, 0x11, 0x66, 0x64, 0x5c, 0xec, 0x59,
+    0x42, 0x75, 0x12, 0xf5, 0x74, 0x9c, 0xaa, 0x23,
+    0x0e, 0x86, 0xab, 0xbe, 0x2a, 0x02, 0xe7, 0x67,
+    0xe6, 0x44, 0xa2, 0x6c, 0xc2, 0x93, 0x9f, 0xf1,
+    0xf6, 0xfa, 0x36, 0xd2, 0x50, 0x68, 0x9e, 0x62,
+    0x71, 0x15, 0x3d, 0xd6, 0x40, 0xc4, 0xe2, 0x0f,
+    0x8e, 0x83, 0x77, 0x6b, 0x25, 0x05, 0x3f, 0x0c,
+    0x30, 0xea, 0x70, 0xb7, 0xa1, 0xe8, 0xa9, 0x65,
+    0x8d, 0x27, 0x1a, 0xdb, 0x81, 0xb3, 0xa0, 0xf4,
+    0x45, 0x7a, 0x19, 0xdf, 0xee, 0x78, 0x34, 0x60,
+};
+
+static const uint8_t octeon_zuc_s1[256] = {
+    0x55, 0xc2, 0x63, 0x71, 0x3b, 0xc8, 0x47, 0x86,
+    0x9f, 0x3c, 0xda, 0x5b, 0x29, 0xaa, 0xfd, 0x77,
+    0x8c, 0xc5, 0x94, 0x0c, 0xa6, 0x1a, 0x13, 0x00,
+    0xe3, 0xa8, 0x16, 0x72, 0x40, 0xf9, 0xf8, 0x42,
+    0x44, 0x26, 0x68, 0x96, 0x81, 0xd9, 0x45, 0x3e,
+    0x10, 0x76, 0xc6, 0xa7, 0x8b, 0x39, 0x43, 0xe1,
+    0x3a, 0xb5, 0x56, 0x2a, 0xc0, 0x6d, 0xb3, 0x05,
+    0x22, 0x66, 0xbf, 0xdc, 0x0b, 0xfa, 0x62, 0x48,
+    0xdd, 0x20, 0x11, 0x06, 0x36, 0xc9, 0xc1, 0xcf,
+    0xf6, 0x27, 0x52, 0xbb, 0x69, 0xf5, 0xd4, 0x87,
+    0x7f, 0x84, 0x4c, 0xd2, 0x9c, 0x57, 0xa4, 0xbc,
+    0x4f, 0x9a, 0xdf, 0xfe, 0xd6, 0x8d, 0x7a, 0xeb,
+    0x2b, 0x53, 0xd8, 0x5c, 0xa1, 0x14, 0x17, 0xfb,
+    0x23, 0xd5, 0x7d, 0x30, 0x67, 0x73, 0x08, 0x09,
+    0xee, 0xb7, 0x70, 0x3f, 0x61, 0xb2, 0x19, 0x8e,
+    0x4e, 0xe5, 0x4b, 0x93, 0x8f, 0x5d, 0xdb, 0xa9,
+    0xad, 0xf1, 0xae, 0x2e, 0xcb, 0x0d, 0xfc, 0xf4,
+    0x2d, 0x46, 0x6e, 0x1d, 0x97, 0xe8, 0xd1, 0xe9,
+    0x4d, 0x37, 0xa5, 0x75, 0x5e, 0x83, 0x9e, 0xab,
+    0x82, 0x9d, 0xb9, 0x1c, 0xe0, 0xcd, 0x49, 0x89,
+    0x01, 0xb6, 0xbd, 0x58, 0x24, 0xa2, 0x5f, 0x38,
+    0x78, 0x99, 0x15, 0x90, 0x50, 0xb8, 0x95, 0xe4,
+    0xd0, 0x91, 0xc7, 0xce, 0xed, 0x0f, 0xb4, 0x6f,
+    0xa0, 0xcc, 0xf0, 0x02, 0x4a, 0x79, 0xc3, 0xde,
+    0xa3, 0xef, 0xea, 0x51, 0xe6, 0x6b, 0x18, 0xec,
+    0x1b, 0x2c, 0x80, 0xf7, 0x74, 0xe7, 0xff, 0x21,
+    0x5a, 0x6a, 0x54, 0x1e, 0x41, 0x31, 0x92, 0x35,
+    0xc4, 0x33, 0x07, 0x0a, 0xba, 0x7e, 0x0e, 0x34,
+    0x88, 0xb1, 0x98, 0x7c, 0xf3, 0x3d, 0x60, 0x6c,
+    0x7b, 0xca, 0xd3, 0x1f, 0x32, 0x65, 0x04, 0x28,
+    0x64, 0xbe, 0x85, 0x9b, 0x2f, 0x59, 0x8a, 0xd7,
+    0xb0, 0x25, 0xac, 0xaf, 0x12, 0x03, 0xe2, 0xf2,
+};
+
+static inline uint32_t octeon_zuc_addm(uint32_t a, uint32_t b)
+{
+    uint32_t c = a + b;
+
+    c = (c & 0x7fffffffU) + (c >> 31);
+    return c ? c : 0x7fffffffU;
+}
+
+static inline uint32_t octeon_zuc_mul_by_pow2(uint32_t v, unsigned int shift)
+{
+    return ((v << shift) | (v >> (31 - shift))) & 0x7fffffffU;
+}
+
+static inline uint32_t octeon_zuc_make_u32(uint8_t a, uint8_t b,
+                                           uint8_t c, uint8_t d)
+{
+    return ((uint32_t)a << 24) | ((uint32_t)b << 16) |
+           ((uint32_t)c << 8) | d;
+}
+
+static inline uint64_t octeon_zuc_pack_pair(uint32_t hi, uint32_t lo)
+{
+    return ((uint64_t)hi << 32) | lo;
+}
+
+static uint32_t octeon_zuc_lfsr(const MIPSOcteonCryptoState *crypto,
+                                unsigned int index)
+{
+    uint64_t pair = crypto->hsh_dat[index / 2];
+
+    return index & 1 ? octeon_crypto_lo32(pair) : octeon_crypto_hi32(pair);
+}
+
+static void octeon_zuc_set_lfsr(MIPSOcteonCryptoState *crypto,
+                                unsigned int index, uint32_t value)
+{
+    uint32_t hi = octeon_crypto_hi32(crypto->hsh_dat[index / 2]);
+    uint32_t lo = octeon_crypto_lo32(crypto->hsh_dat[index / 2]);
+
+    value &= 0x7fffffffU;
+    if (index & 1) {
+        lo = value;
+    } else {
+        hi = value;
+    }
+    crypto->hsh_dat[index / 2] = octeon_zuc_pack_pair(hi, lo);
+}
+
+static uint32_t octeon_zuc_fsm(const MIPSOcteonCryptoState *crypto,
+                               unsigned int index)
+{
+    uint64_t pair = crypto->hsh_dat[8];
+
+    return index ? octeon_crypto_lo32(pair) : octeon_crypto_hi32(pair);
+}
+
+static void octeon_zuc_set_fsm(MIPSOcteonCryptoState *crypto,
+                               unsigned int index, uint32_t value)
+{
+    uint32_t hi = octeon_crypto_hi32(crypto->hsh_dat[8]);
+    uint32_t lo = octeon_crypto_lo32(crypto->hsh_dat[8]);
+
+    if (index) {
+        lo = value;
+        crypto->hsh_iv[2] = value;
+    } else {
+        hi = value;
+        crypto->hsh_iv[1] = value;
+    }
+    crypto->hsh_dat[8] = octeon_zuc_pack_pair(hi, lo);
+}
+
+static uint32_t octeon_zuc_window(const MIPSOcteonCryptoState *crypto,
+                                  unsigned int index)
+{
+    switch (index) {
+    case 0:
+        return octeon_crypto_hi32(crypto->hsh_dat[9]);
+    case 1:
+        return octeon_crypto_lo32(crypto->hsh_dat[9]);
+    case 2:
+        return crypto->hsh_dat[10];
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void octeon_zuc_set_window(MIPSOcteonCryptoState *crypto,
+                                  unsigned int index, uint32_t value)
+{
+    switch (index) {
+    case 0:
+        crypto->hsh_dat[9] =
+            octeon_zuc_pack_pair(value, octeon_crypto_lo32(crypto->hsh_dat[9]));
+        crypto->hsh_iv[0] = crypto->hsh_dat[9];
+        return;
+    case 1:
+        crypto->hsh_dat[9] =
+            octeon_zuc_pack_pair(octeon_crypto_hi32(crypto->hsh_dat[9]), value);
+        crypto->hsh_iv[0] = crypto->hsh_dat[9];
+        return;
+    case 2:
+        crypto->hsh_dat[10] = value;
+        return;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static uint32_t octeon_zuc_tresult(const MIPSOcteonCryptoState *crypto)
+{
+    return crypto->hsh_dat[11];
+}
+
+static void octeon_zuc_set_tresult(MIPSOcteonCryptoState *crypto,
+                                   uint32_t value)
+{
+    crypto->hsh_dat[11] = value;
+    crypto->hsh_iv[3] = value;
+}
+
+static void octeon_zuc_bit_reorganization(const MIPSOcteonCryptoState *crypto,
+                                          uint32_t x[4])
+{
+    x[0] = ((octeon_zuc_lfsr(crypto, 15) & 0x7fff8000U) << 1) |
+           (octeon_zuc_lfsr(crypto, 14) & 0xffffU);
+    x[1] = ((octeon_zuc_lfsr(crypto, 11) & 0xffffU) << 16) |
+           (octeon_zuc_lfsr(crypto, 9) >> 15);
+    x[2] = ((octeon_zuc_lfsr(crypto, 7) & 0xffffU) << 16) |
+           (octeon_zuc_lfsr(crypto, 5) >> 15);
+    x[3] = ((octeon_zuc_lfsr(crypto, 2) & 0xffffU) << 16) |
+           (octeon_zuc_lfsr(crypto, 0) >> 15);
+}
+
+static inline uint32_t octeon_zuc_l1(uint32_t x)
+{
+    return x ^ rol32(x, 2) ^ rol32(x, 10) ^
+           rol32(x, 18) ^ rol32(x, 24);
+}
+
+static inline uint32_t octeon_zuc_l2(uint32_t x)
+{
+    return x ^ rol32(x, 8) ^ rol32(x, 14) ^
+           rol32(x, 22) ^ rol32(x, 30);
+}
+
+static uint32_t octeon_zuc_f(MIPSOcteonCryptoState *crypto, const uint32_t x[4])
+{
+    uint32_t fsm0 = octeon_zuc_fsm(crypto, 0);
+    uint32_t fsm1 = octeon_zuc_fsm(crypto, 1);
+    uint32_t w = (x[0] ^ fsm0) + fsm1;
+    uint32_t w1 = fsm0 + x[1];
+    uint32_t w2 = fsm1 ^ x[2];
+    uint32_t u = octeon_zuc_l1((w1 << 16) | (w2 >> 16));
+    uint32_t v = octeon_zuc_l2((w2 << 16) | (w1 >> 16));
+
+    octeon_zuc_set_fsm(crypto, 0,
+                       octeon_zuc_make_u32(octeon_zuc_s0[u >> 24],
+                                           octeon_zuc_s1[(uint8_t)(u >> 16)],
+                                           octeon_zuc_s0[(uint8_t)(u >> 8)],
+                                           octeon_zuc_s1[(uint8_t)u]));
+    octeon_zuc_set_fsm(crypto, 1,
+                       octeon_zuc_make_u32(octeon_zuc_s0[v >> 24],
+                                           octeon_zuc_s1[(uint8_t)(v >> 16)],
+                                           octeon_zuc_s0[(uint8_t)(v >> 8)],
+                                           octeon_zuc_s1[(uint8_t)v]));
+    return w;
+}
+
+static void octeon_zuc_lfsr_step(MIPSOcteonCryptoState *crypto,
+                                 bool init_mode, uint32_t u)
+{
+    uint32_t lfsr[16];
+    uint32_t f;
+
+    for (int i = 0; i < 16; i++) {
+        lfsr[i] = octeon_zuc_lfsr(crypto, i);
+    }
+
+    f = lfsr[0];
+    f = octeon_zuc_addm(f, octeon_zuc_mul_by_pow2(lfsr[0], 8));
+    f = octeon_zuc_addm(f, octeon_zuc_mul_by_pow2(lfsr[4], 20));
+    f = octeon_zuc_addm(f, octeon_zuc_mul_by_pow2(lfsr[10], 21));
+    f = octeon_zuc_addm(f, octeon_zuc_mul_by_pow2(lfsr[13], 17));
+    f = octeon_zuc_addm(f, octeon_zuc_mul_by_pow2(lfsr[15], 15));
+    if (init_mode) {
+        f = octeon_zuc_addm(f, u);
+    }
+
+    for (int i = 0; i < 15; i++) {
+        octeon_zuc_set_lfsr(crypto, i, lfsr[i + 1]);
+    }
+    octeon_zuc_set_lfsr(crypto, 15, f);
+}
+
+static uint32_t octeon_zuc_generate_word(MIPSOcteonCryptoState *crypto)
+{
+    uint32_t x[4];
+    uint32_t z;
+
+    octeon_zuc_bit_reorganization(crypto, x);
+    z = octeon_zuc_f(crypto, x) ^ x[3];
+    octeon_zuc_lfsr_step(crypto, false, 0);
+    return z;
+}
+
+static void octeon_zuc_fill_window(MIPSOcteonCryptoState *crypto)
+{
+    octeon_zuc_set_window(crypto, 0, octeon_zuc_generate_word(crypto));
+    octeon_zuc_set_window(crypto, 1, octeon_zuc_generate_word(crypto));
+    octeon_zuc_set_window(crypto, 2, octeon_zuc_generate_word(crypto));
+}
+
+static inline uint32_t
+octeon_zuc_window_word(const MIPSOcteonCryptoState *crypto, unsigned int bit)
+{
+    if (bit == 0) {
+        return octeon_zuc_window(crypto, 0);
+    }
+    if (bit < 32) {
+        return (octeon_zuc_window(crypto, 0) << bit) |
+               (octeon_zuc_window(crypto, 1) >> (32 - bit));
+    }
+    if (bit == 32) {
+        return octeon_zuc_window(crypto, 1);
+    }
+    return (octeon_zuc_window(crypto, 1) << (bit - 32)) |
+           (octeon_zuc_window(crypto, 2) >> (64 - bit));
+}
+
+static void octeon_zuc_advance_window(MIPSOcteonCryptoState *crypto)
+{
+    octeon_zuc_set_window(crypto, 0, octeon_zuc_window(crypto, 2));
+    octeon_zuc_set_window(crypto, 1, octeon_zuc_generate_word(crypto));
+    octeon_zuc_set_window(crypto, 2, octeon_zuc_generate_word(crypto));
+}
+
+static void octeon_zuc_start(MIPSOcteonCryptoState *crypto, uint64_t data)
+{
+    uint32_t x[4];
+
+    for (int i = 0; i < 14; i++) {
+        octeon_zuc_set_lfsr(crypto, i, octeon_zuc_lfsr(crypto, i));
+    }
+    octeon_zuc_set_lfsr(crypto, 14, data >> 32);
+    octeon_zuc_set_lfsr(crypto, 15, data);
+    octeon_zuc_set_fsm(crypto, 0, 0);
+    octeon_zuc_set_fsm(crypto, 1, 0);
+    octeon_zuc_set_tresult(crypto, 0);
+
+    for (int i = 0; i < 32; i++) {
+        octeon_zuc_bit_reorganization(crypto, x);
+        octeon_zuc_lfsr_step(crypto, true, octeon_zuc_f(crypto, x) >> 1);
+    }
+
+    octeon_zuc_bit_reorganization(crypto, x);
+    (void)octeon_zuc_f(crypto, x);
+    octeon_zuc_lfsr_step(crypto, false, 0);
+    octeon_zuc_fill_window(crypto);
+}
+
+static void octeon_zuc_more(MIPSOcteonCryptoState *crypto, uint64_t data)
+{
+    uint32_t t = octeon_zuc_tresult(crypto);
+
+    for (unsigned int bit = 0; bit < 64; bit++) {
+        if ((data >> (63 - bit)) & 1) {
+            t ^= octeon_zuc_window_word(crypto, bit);
+        }
+    }
+    octeon_zuc_set_tresult(crypto, t);
+    octeon_zuc_advance_window(crypto);
+}
+
+void helper_octeon_cp2_mt_zuc_start(CPUMIPSState *env, uint64_t value)
+{
+    octeon_zuc_start(&env->octeon_crypto, value);
+}
+
+void helper_octeon_cp2_mt_zuc_more(CPUMIPSState *env, uint64_t value)
+{
+    octeon_zuc_more(&env->octeon_crypto, value);
+}
+
 uint64_t helper_octeon_cp2_mf_crc_iv_reflect(CPUMIPSState *env)
 {
     return octeon_crc_reflect32_by_byte(env->octeon_crypto.crc_iv);
