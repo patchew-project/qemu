@@ -401,6 +401,80 @@ static void populate_special_regs(const hv_register_assoc *assocs,
     cpu_set_apic_base(x86cpu->apic_state, assocs[16].value.reg64);
 }
 
+static void mshv_get_standard_regs_vp_page(CPUState *cpu)
+{
+    X86CPU *x86cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86cpu->env;
+
+    /* General Purpose Registers  */
+    env->regs[R_EAX] = env->regs_page->rax;
+    env->regs[R_EBX] = env->regs_page->rbx;
+    env->regs[R_ECX] = env->regs_page->rcx;
+    env->regs[R_EDX] = env->regs_page->rdx;
+    env->regs[R_ESI] = env->regs_page->rsi;
+    env->regs[R_EDI] = env->regs_page->rdi;
+    env->regs[R_ESP] = env->regs_page->rsp;
+    env->regs[R_EBP] = env->regs_page->rbp;
+    env->regs[R_R8]  = env->regs_page->r8;
+    env->regs[R_R9]  = env->regs_page->r9;
+    env->regs[R_R10] = env->regs_page->r10;
+    env->regs[R_R11] = env->regs_page->r11;
+    env->regs[R_R12] = env->regs_page->r12;
+    env->regs[R_R13] = env->regs_page->r13;
+    env->regs[R_R14] = env->regs_page->r14;
+    env->regs[R_R15] = env->regs_page->r15;
+
+    env->eip = env->regs_page->rip;
+    env->eflags = env->regs_page->rflags;
+    rflags_to_lflags(env);
+}
+
+/*
+ * This function synchronizes the special registers present in the
+ * register vp page, which are not all the special registers.
+ * The rest of the special registers (LD, TR, GDT, IDT, CR2, APIC_BASE)
+ * are not synchronized to avoid the overhead of a hypercall.
+ *
+ * These special registers are not normally used by the guest,
+ * and are only used in some specific cases.
+ */
+static void mshv_get_special_regs_vp_page(CPUState *cpu)
+{
+    X86CPU *x86cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86cpu->env;
+    hv_x64_segment_register seg;
+
+    /* Populate special registers that are in the VP register page */
+    env->cr[0] = env->regs_page->cr0;
+    env->cr[3] = env->regs_page->cr3;
+    env->cr[4] = env->regs_page->cr4;
+    env->efer = env->regs_page->efer;
+    cpu_set_apic_tpr(x86cpu->apic_state, env->regs_page->cr8);
+
+    /* Segment Registers - copy from packed struct to avoid unaligned access */
+    memcpy(&seg, &env->regs_page->es, sizeof(hv_x64_segment_register));
+    populate_segment_reg(&seg, &env->segs[R_ES]);
+    memcpy(&seg, &env->regs_page->cs, sizeof(hv_x64_segment_register));
+    populate_segment_reg(&seg, &env->segs[R_CS]);
+    memcpy(&seg, &env->regs_page->ss, sizeof(hv_x64_segment_register));
+    populate_segment_reg(&seg, &env->segs[R_SS]);
+    memcpy(&seg, &env->regs_page->ds, sizeof(hv_x64_segment_register));
+    populate_segment_reg(&seg, &env->segs[R_DS]);
+    memcpy(&seg, &env->regs_page->fs, sizeof(hv_x64_segment_register));
+    populate_segment_reg(&seg, &env->segs[R_FS]);
+    memcpy(&seg, &env->regs_page->gs, sizeof(hv_x64_segment_register));
+    populate_segment_reg(&seg, &env->segs[R_GS]);
+}
+
+static void mshv_get_registers_vp_page(CPUState *cpu)
+{
+    /* General Purpose Registers  */
+    mshv_get_standard_regs_vp_page(cpu);
+
+    /* Special Registers */
+    mshv_get_special_regs_vp_page(cpu);
+}
+
 
 int mshv_get_special_regs(CPUState *cpu)
 {
@@ -422,23 +496,26 @@ int mshv_get_special_regs(CPUState *cpu)
     return 0;
 }
 
-int mshv_load_regs(CPUState *cpu)
+void mshv_load_regs(CPUState *cpu)
 {
-    int ret;
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
 
-    ret = mshv_get_standard_regs(cpu);
-    if (ret < 0) {
-        error_report("Failed to load standard registers");
-        return -1;
+    /* Check register page pointer and abort if in unexpected state */
+    if (!env->regs_page) {
+        error_report(
+                "load regs: register page not set for vcpu %d",
+                cpu->cpu_index);
+        abort();
+    }
+    if (env->regs_page->isvalid == 0) {
+        error_report(
+                "load regs: register page invalid for vcpu %d",
+                cpu->cpu_index);
+        abort();
     }
 
-    ret = mshv_get_special_regs(cpu);
-    if (ret < 0) {
-        error_report("Failed to load special registers");
-        return -1;
-    }
-
-    return 0;
+    mshv_get_registers_vp_page(cpu);
 }
 
 static void add_cpuid_entry(GList *cpuid_entries,
@@ -1103,11 +1180,7 @@ static int emulate_instruction(CPUState *cpu,
     int ret;
     x86_insn_stream stream = { .bytes = insn_bytes, .len = insn_len };
 
-    ret = mshv_load_regs(cpu);
-    if (ret < 0) {
-        error_report("failed to load registers");
-        return -1;
-    }
+    mshv_load_regs(cpu);
 
     decode_instruction_stream(env, &decode, &stream);
     exec_instruction(env, &decode);
@@ -1410,11 +1483,7 @@ static int handle_pio_str(CPUState *cpu, hv_x64_io_port_intercept_message *info)
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
 
-    ret = mshv_load_regs(cpu);
-    if (ret < 0) {
-        error_report("Failed to fetch guest state");
-        return -1;
-    }
+    mshv_load_regs(cpu);
 
     direction_flag = (env->eflags & DESC_E_MASK) != 0;
 
