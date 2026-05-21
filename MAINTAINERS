@@ -1625,7 +1625,6 @@ F: hw/*/xics*
 F: include/hw/*/xics*
 F: include/hw/ppc/fdt.h
 F: hw/ppc/fdt.c
-F: include/hw/ppc/pef.h
 F: hw/ppc/pef.c
 F: pc-bios/slof.bin
 F: docs/system/ppc/pseries.rst
