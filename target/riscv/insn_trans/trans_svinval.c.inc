@@ -39,6 +39,10 @@ static bool trans_sfence_w_inval(DisasContext *ctx, arg_sfence_w_inval *a)
 {
     REQUIRE_SVINVAL(ctx);
     REQUIRE_EXT(ctx, RVS);
+
+    if (ctx->priv == PRV_U) {
+        return false;
+    }
     /* Do nothing currently */
     return true;
 }
@@ -47,6 +51,10 @@ static bool trans_sfence_inval_ir(DisasContext *ctx, arg_sfence_inval_ir *a)
 {
     REQUIRE_SVINVAL(ctx);
     REQUIRE_EXT(ctx, RVS);
+
+    if (ctx->priv == PRV_U) {
+        return false;
+    }
     /* Do nothing currently */
     return true;
 }
