@@ -67,6 +67,7 @@ struct AspeedSoCState {
     MemoryRegion *memory;
     MemoryRegion *dram_mr;
     MemoryRegion dram_container;
+    MemoryRegion sdram;
     MemoryRegion sram;
     MemoryRegion spi_boot_container;
     MemoryRegion spi_boot;
@@ -171,6 +172,7 @@ struct AspeedSoCClass {
     /** valid_cpu_types: NULL terminated array of a single CPU type. */
     const char * const *valid_cpu_types;
     uint32_t silicon_rev;
+    uint64_t sdram_size;
     uint64_t sram_size;
     uint64_t secsram_size;
     int pcie_num;
