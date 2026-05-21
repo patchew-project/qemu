@@ -652,83 +652,6 @@ fail:
     return NULL;
 }
 
-int coroutine_fn
-qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
-                              void **refcount_table,
-                              int64_t *refcount_table_size)
-{
-    int ret;
-    BDRVQcow2State *s = bs->opaque;
-    Qcow2BitmapList *bm_list;
-    Qcow2Bitmap *bm;
-
-    if (s->nb_bitmaps == 0) {
-        return 0;
-    }
-
-    ret = qcow2_inc_refcounts_imrt(bs, res, refcount_table, refcount_table_size,
-                                   s->bitmap_directory_offset,
-                                   s->bitmap_directory_size);
-    if (ret < 0) {
-        return ret;
-    }
-
-    bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
-                               s->bitmap_directory_size, NULL);
-    if (bm_list == NULL) {
-        res->corruptions++;
-        return -EINVAL;
-    }
-
-    QSIMPLEQ_FOREACH(bm, bm_list, entry) {
-        uint64_t *bitmap_table = NULL;
-        int i;
-
-        ret = qcow2_inc_refcounts_imrt(bs, res,
-                                       refcount_table, refcount_table_size,
-                                       bm->table.offset,
-                                       bm->table.size * BME_TABLE_ENTRY_SIZE);
-        if (ret < 0) {
-            goto out;
-        }
-
-        ret = bitmap_table_load(bs, &bm->table, &bitmap_table);
-        if (ret < 0) {
-            res->corruptions++;
-            goto out;
-        }
-
-        for (i = 0; i < bm->table.size; ++i) {
-            uint64_t entry = bitmap_table[i];
-            uint64_t offset = entry & BME_TABLE_ENTRY_OFFSET_MASK;
-
-            if (check_table_entry(entry, s->cluster_size) < 0) {
-                res->corruptions++;
-                continue;
-            }
-
-            if (offset == 0) {
-                continue;
-            }
-
-            ret = qcow2_inc_refcounts_imrt(bs, res,
-                                           refcount_table, refcount_table_size,
-                                           offset, s->cluster_size);
-            if (ret < 0) {
-                g_free(bitmap_table);
-                goto out;
-            }
-        }
-
-        g_free(bitmap_table);
-    }
-
-out:
-    bitmap_list_free(bm_list);
-
-    return ret;
-}
-
 /* bitmap_list_store
  * Store bitmap list to qcow2 image as a bitmap directory.
  * Everything is checked.
@@ -1806,4 +1729,81 @@ uint64_t qcow2_get_persistent_dirty_bitmap_size(BlockDriverState *in_bs,
     bitmaps_size += ROUND_UP(bitmap_dir_size, cluster_size);
 
     return bitmaps_size;
+}
+
+int coroutine_fn
+qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
+                              void **refcount_table,
+                              int64_t *refcount_table_size)
+{
+    int ret;
+    BDRVQcow2State *s = bs->opaque;
+    Qcow2BitmapList *bm_list;
+    Qcow2Bitmap *bm;
+
+    if (s->nb_bitmaps == 0) {
+        return 0;
+    }
+
+    ret = qcow2_inc_refcounts_imrt(bs, res, refcount_table, refcount_table_size,
+                                   s->bitmap_directory_offset,
+                                   s->bitmap_directory_size);
+    if (ret < 0) {
+        return ret;
+    }
+
+    bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
+                               s->bitmap_directory_size, NULL);
+    if (bm_list == NULL) {
+        res->corruptions++;
+        return -EINVAL;
+    }
+
+    QSIMPLEQ_FOREACH(bm, bm_list, entry) {
+        uint64_t *bitmap_table = NULL;
+        int i;
+
+        ret = qcow2_inc_refcounts_imrt(bs, res,
+                                       refcount_table, refcount_table_size,
+                                       bm->table.offset,
+                                       bm->table.size * BME_TABLE_ENTRY_SIZE);
+        if (ret < 0) {
+            goto out;
+        }
+
+        ret = bitmap_table_load(bs, &bm->table, &bitmap_table);
+        if (ret < 0) {
+            res->corruptions++;
+            goto out;
+        }
+
+        for (i = 0; i < bm->table.size; ++i) {
+            uint64_t entry = bitmap_table[i];
+            uint64_t offset = entry & BME_TABLE_ENTRY_OFFSET_MASK;
+
+            if (check_table_entry(entry, s->cluster_size) < 0) {
+                res->corruptions++;
+                continue;
+            }
+
+            if (offset == 0) {
+                continue;
+            }
+
+            ret = qcow2_inc_refcounts_imrt(bs, res,
+                                           refcount_table, refcount_table_size,
+                                           offset, s->cluster_size);
+            if (ret < 0) {
+                g_free(bitmap_table);
+                goto out;
+            }
+        }
+
+        g_free(bitmap_table);
+    }
+
+out:
+    bitmap_list_free(bm_list);
+
+    return ret;
 }
