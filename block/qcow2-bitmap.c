@@ -100,6 +100,9 @@ typedef enum BitmapType {
     BT_DIRTY_TRACKING_BITMAP = 1
 } BitmapType;
 
+static int GRAPH_RDLOCK
+update_ext_header_and_dir(BlockDriverState *bs, Qcow2BitmapList *bm_list);
+
 static inline bool can_write(BlockDriverState *bs)
 {
     return !bdrv_is_read_only(bs) && !(bdrv_get_flags(bs) & BDRV_O_INACTIVE);
@@ -655,11 +658,14 @@ fail:
 int coroutine_fn
 qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                               void **refcount_table,
-                              int64_t *refcount_table_size)
+                              int64_t *refcount_table_size,
+                              BdrvCheckMode fix)
 {
     int ret;
     BDRVQcow2State *s = bs->opaque;
     Qcow2BitmapList *bm_list;
+    Qcow2BitmapList *fixed_list = NULL;
+    int valid_bitmaps = 0;
     Qcow2Bitmap *bm;
 
     if (s->nb_bitmaps == 0) {
@@ -673,16 +679,29 @@ qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
         return ret;
     }
 
+    if (fix & BDRV_FIX_ERRORS) {
+        fixed_list = bitmap_list_new();
+    }
+
     bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
                                s->bitmap_directory_size, NULL);
     if (bm_list == NULL) {
         res->corruptions++;
+
+        if (fix & BDRV_FIX_ERRORS) {
+            ret = update_ext_header_and_dir(bs, fixed_list);
+            if (ret >= 0) {
+                res->corruptions_fixed++;
+            }
+            goto out;
+        }
         return -EINVAL;
     }
 
     QSIMPLEQ_FOREACH(bm, bm_list, entry) {
         uint64_t *bitmap_table = NULL;
         int i;
+        bool bitmap_valid = true;
 
         ret = qcow2_inc_refcounts_imrt(bs, res,
                                        refcount_table, refcount_table_size,
@@ -695,6 +714,9 @@ qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
         ret = bitmap_table_load(bs, &bm->table, &bitmap_table);
         if (ret < 0) {
             res->corruptions++;
+            if (fix & BDRV_FIX_ERRORS) {
+                continue;
+            }
             goto out;
         }
 
@@ -704,6 +726,7 @@ qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
 
             if (check_table_entry(entry, s->cluster_size) < 0) {
                 res->corruptions++;
+                bitmap_valid = false;
                 continue;
             }
 
@@ -720,10 +743,28 @@ qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
             }
         }
 
+        if ((fix & BDRV_FIX_ERRORS) && bitmap_valid) {
+            valid_bitmaps++;
+            Qcow2Bitmap *bm_copy = g_new0(Qcow2Bitmap, 1);
+            *bm_copy = *bm;
+            bm_copy->name = g_strdup(bm->name);
+            QSIMPLEQ_INSERT_TAIL(fixed_list, bm_copy, entry);
+        }
+
         g_free(bitmap_table);
     }
 
+    /* If fixing, update the bitmap directory with the repaired list */
+    if ((fix & BDRV_FIX_ERRORS) && s->nb_bitmaps != valid_bitmaps) {
+        uint32_t initial_bitmaps = s->nb_bitmaps;
+        ret = update_ext_header_and_dir(bs, fixed_list);
+        if (ret >= 0) {
+            res->corruptions_fixed += initial_bitmaps - valid_bitmaps;
+        }
+    }
+
 out:
+    bitmap_list_free(fixed_list);
     bitmap_list_free(bm_list);
 
     return ret;
