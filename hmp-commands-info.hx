@@ -354,6 +354,21 @@ SRST
 ERST
 
     {
+        .name       = "nvme-queues",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show active NVMe queues and their doorbells",
+        .cmd_info_hrt = qmp_x_query_nvme_queues,
+    },
+
+SRST
+  ``info nvme-queues``
+    Show all active NVMe submission and completion queues, including
+    head/tail, DMA address of the ring and BAR0-relative doorbell
+    offset.
+ERST
+
+    {
         .name       = "usbhost",
         .args_type  = "",
         .params     = "",
