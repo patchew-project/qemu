@@ -313,6 +313,7 @@ static void arm_init_fp_status(float_status *s, bool ah, bool fz, bool dn)
     } else {
         arm_set_default_fp_behaviours(s);
     }
+    set_float_e4m3_nan_is_snan(true, s);
     set_flush_to_zero(fz, s);
     set_flush_inputs_to_zero(fz, s);
     set_default_nan_mode(dn, s);
