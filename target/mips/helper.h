@@ -82,6 +82,12 @@ DEF_HELPER_2(octeon_cp2_mt_sms4_enc_cbc1, void, env, i64)
 DEF_HELPER_2(octeon_cp2_mt_sms4_enc1, void, env, i64)
 DEF_HELPER_2(octeon_cp2_mt_sms4_dec_cbc1, void, env, i64)
 DEF_HELPER_2(octeon_cp2_mt_sms4_dec1, void, env, i64)
+DEF_HELPER_2(octeon_cp2_mt_des3_enc_cbc, void, env, i64)
+DEF_HELPER_2(octeon_cp2_mt_kas_enc_cbc, void, env, i64)
+DEF_HELPER_2(octeon_cp2_mt_des3_enc, void, env, i64)
+DEF_HELPER_2(octeon_cp2_mt_kas_enc, void, env, i64)
+DEF_HELPER_2(octeon_cp2_mt_des3_dec_cbc, void, env, i64)
+DEF_HELPER_2(octeon_cp2_mt_des3_dec, void, env, i64)
 
 /* microMIPS functions */
 DEF_HELPER_4(lwm, void, env, tl, tl, i32)
