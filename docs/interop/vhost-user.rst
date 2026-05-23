@@ -204,6 +204,18 @@ fields at the end.
 
 :domid: a 32-bit Xen hypervisor specific domain id.
 
+For all memory regions active at a given time:
+
+- ``[guest address, guest address + size)`` of one memory region never overlaps
+  the ``[guest address, guest address + size)`` of another memory region.
+
+- ``[user address, user address + size)`` of one memory region never overlaps
+  the ``[user address, user address + size)`` of another memory region.
+
+Violating any of these is a bug in the front-end. This ensures that a guest
+address or user address always refers to at most one location in memory.
+The front-end must remove a region before it can add an overlapping one.
+
 Single memory region description
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -671,6 +683,15 @@ Memory access
 The front-end sends a list of vhost memory regions to the back-end using the
 ``VHOST_USER_SET_MEM_TABLE`` message.  Each region has two base
 addresses: a guest address and a user address.
+
+Memory regions can be added via the ``VHOST_USER_ADD_MEM_REG`` message.  They
+can be removed via the ``VHOST_USER_REM_MEM_REG`` message. These messages can
+only be used if the ``VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS`` protocol
+feature has been successfully negotiated.
+
+Guest addresses are physical addresses in the guest.  User addresses are
+arbitrary opaque values, though they typically refer to userspace addresses in
+the client process.
 
 Messages contain guest addresses and/or user addresses to reference locations
 within the shared memory.  The mapping of these addresses works as follows.
