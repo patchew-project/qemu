@@ -99,6 +99,7 @@ typedef struct {
     uint16_t smbios_core_count2;
     uint8_t smbios_thread_count;
     uint16_t smbios_thread_count2;
+    bool smbios_type8_t8_base;
     uint8_t *required_struct_types;
     int required_struct_types_len;
     int type4_count;
@@ -720,12 +721,22 @@ static void smbios_type4_count_test(test_data *data, int type4_count)
     }
 }
 
+static void smbios_type8_test(test_data *data, uint32_t addr,
+                              int instance)
+{
+    uint16_t handle = qtest_readw(data->qts,
+        addr + offsetof(struct smbios_structure_header, handle));
+    uint16_t expected_base = data->smbios_type8_t8_base ? 0x800 : 0x0;
+
+    g_assert_cmpuint(handle, ==, expected_base + instance);
+}
+
 static void test_smbios_structs(test_data *data, SmbiosEntryPointType ep_type)
 {
     DECLARE_BITMAP(struct_bitmap, SMBIOS_MAX_TYPE+1) = { 0 };
 
     SmbiosEntryPoint *ep_table = &data->smbios_ep_table;
-    int i = 0, len, max_len = 0, type4_count = 0;
+    int i = 0, len, max_len = 0, type4_count = 0, type8_count = 0;
     uint8_t type, prv, crt;
     uint64_t addr;
 
@@ -752,6 +763,11 @@ static void test_smbios_structs(test_data *data, SmbiosEntryPointType ep_type)
         if (type == 4) {
             smbios_cpu_test(data, addr, ep_type);
             type4_count++;
+        }
+
+        if (type == 8) {
+            smbios_type8_test(data, addr, type8_count);
+            type8_count++;
         }
 
         /* seek to end of unformatted string area of this struct ("\0\0") */
@@ -2534,6 +2550,50 @@ static void test_acpi_isapc_smbios_legacy(void)
     free_test_data(&data);
 }
 
+static void test_smbios_type8_common(const char *machine,
+                                     const char *variant, bool t8_base)
+{
+    uint8_t req_type8[] = { 8 };
+    test_data data = {
+        .machine = machine,
+        .arch    = "x86",
+        .variant = variant,
+        .required_struct_types = req_type8,
+        .required_struct_types_len = ARRAY_SIZE(req_type8),
+        .smbios_type8_t8_base = t8_base,
+    };
+
+    test_smbios("-smbios type=8,connector_type=7,port_type=8,"
+                "external_reference=USB1 "
+                "-smbios type=8,connector_type=8,port_type=9,"
+                "external_reference=USB2", &data);
+    free_test_data(&data);
+}
+
+static void test_acpi_q35_smbios_type8(void)
+{
+    test_smbios_type8_common(MACHINE_Q35,
+        ".q35_smbios_type8", true);
+}
+
+static void test_acpi_q35_smbios_type8_compat(void)
+{
+    test_smbios_type8_common("pc-q35-11.1",
+        ".q35_smbios_type8_compat", false);
+}
+
+static void test_acpi_pc_smbios_type8(void)
+{
+    test_smbios_type8_common(MACHINE_PC,
+        ".pc_smbios_type8", true);
+}
+
+static void test_acpi_pc_smbios_type8_compat(void)
+{
+    test_smbios_type8_common("pc-i440fx-11.1",
+        ".pc_smbios_type8_compat", false);
+}
+
 static void test_oem_fields(test_data *data)
 {
     int i;
@@ -2760,6 +2820,10 @@ int main(int argc, char *argv[])
                            test_acpi_pc_smbios_options);
             qtest_add_func("acpi/piix4/smbios-blob",
                            test_acpi_pc_smbios_blob);
+            qtest_add_func("acpi/piix4/smbios-type8",
+                           test_acpi_pc_smbios_type8);
+            qtest_add_func("acpi/piix4/smbios-type8-compat",
+                           test_acpi_pc_smbios_type8_compat);
             qtest_add_func("acpi/piix4/smbios-legacy",
                            test_acpi_isapc_smbios_legacy);
         }
@@ -2828,6 +2892,10 @@ int main(int argc, char *argv[])
             qtest_add_func("acpi/q35/cxl", test_acpi_q35_cxl);
 #endif
             qtest_add_func("acpi/q35/slic", test_acpi_q35_slic);
+            qtest_add_func("acpi/q35/smbios-type8",
+                test_acpi_q35_smbios_type8);
+            qtest_add_func("acpi/q35/smbios-type8-compat",
+                test_acpi_q35_smbios_type8_compat);
         }
         if (qtest_has_machine("microvm")) {
             qtest_add_func("acpi/microvm", test_acpi_microvm_tcg);
