@@ -49,6 +49,7 @@ static SmbiosEntryPoint ep;
 static int smbios_type4_count = 0;
 static bool smbios_have_defaults;
 static uint32_t smbios_cpuid_version, smbios_cpuid_features;
+static bool smbios_type8_t8_base;
 
 DECLARE_BITMAP(smbios_have_binfile_bitmap, SMBIOS_MAX_TYPE + 1);
 DECLARE_BITMAP(smbios_have_fields_bitmap, SMBIOS_MAX_TYPE + 1);
@@ -553,6 +554,7 @@ bool smbios_skip_table(uint8_t type, bool required_table)
 #define T2_BASE 0x200
 #define T3_BASE 0x300
 #define T4_BASE 0x400
+#define T8_BASE 0x800
 #define T9_BASE 0x900
 #define T11_BASE 0xe00
 
@@ -742,13 +744,19 @@ static void smbios_build_type_4_table(MachineState *ms, unsigned instance,
     smbios_type4_count++;
 }
 
+void smbios_set_type8_handle_t8_base(bool t8_base)
+{
+    smbios_type8_t8_base = t8_base;
+}
+
 static void smbios_build_type_8_table(void)
 {
     unsigned instance = 0;
     struct type8_instance *t8;
+    uint16_t base = smbios_type8_t8_base ? T8_BASE : T0_BASE;
 
     QTAILQ_FOREACH(t8, &type8, next) {
-        SMBIOS_BUILD_TABLE_PRE(8, T0_BASE + instance, true);
+        SMBIOS_BUILD_TABLE_PRE(8, base + instance, true);
 
         SMBIOS_TABLE_SET_STR(8, internal_reference_str, t8->internal_reference);
         SMBIOS_TABLE_SET_STR(8, external_reference_str, t8->external_reference);
