@@ -188,17 +188,19 @@ ERST
 
     {
         .name       = "tlb",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show virtual to physical memory mappings",
+        .args_type  = "file:s?",
+        .params     = "[file]",
+        .help       = "show virtual to physical memory mappings (optionally save to file)",
         .cmd        = hmp_info_tlb,
         .arch_bitmask = QEMU_ARCH_I386 | QEMU_ARCH_SH4 | QEMU_ARCH_SPARC \
                         | QEMU_ARCH_PPC | QEMU_ARCH_XTENSA | QEMU_ARCH_M68K,
     },
 
 SRST
-  ``info tlb``
+  ``info tlb`` [*file*]
     Show virtual to physical memory mappings.
+    If *file* is specified, the output is saved to the given file
+    instead of being printed to the monitor.
 ERST
 
     {

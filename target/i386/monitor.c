@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "qemu/qemu-print.h"
 #include "monitor/monitor.h"
 #include "monitor/hmp.h"
 #include "qobject/qdict.h"
@@ -48,31 +49,48 @@ static hwaddr addr_canonical(CPUArchState *env, hwaddr addr)
     return addr;
 }
 
-static void print_pte(Monitor *mon, CPUArchState *env, hwaddr addr,
+static void G_GNUC_PRINTF(3, 4)
+do_print_pte(Monitor *mon, FILE *fp, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    if (fp) {
+        qemu_vfprintf(fp, fmt, ap);
+    } else {
+        monitor_vprintf(mon, fmt, ap);
+    }
+    va_end(ap);
+}
+
+static void print_pte(Monitor *mon, FILE *fp, CPUArchState *env, hwaddr addr,
                       hwaddr pte, hwaddr mask)
 {
     addr = addr_canonical(env, addr);
 
-    monitor_printf(mon, HWADDR_FMT_plx ": " HWADDR_FMT_plx
-                   " %c%c%c%c%c%c%c%c%c\n",
-                   addr,
-                   pte & mask,
-                   pte & PG_NX_MASK ? 'X' : '-',
-                   pte & PG_GLOBAL_MASK ? 'G' : '-',
-                   pte & PG_PSE_MASK ? 'P' : '-',
-                   pte & PG_DIRTY_MASK ? 'D' : '-',
-                   pte & PG_ACCESSED_MASK ? 'A' : '-',
-                   pte & PG_PCD_MASK ? 'C' : '-',
-                   pte & PG_PWT_MASK ? 'T' : '-',
-                   pte & PG_USER_MASK ? 'U' : '-',
-                   pte & PG_RW_MASK ? 'W' : '-');
+    do_print_pte(mon, fp, HWADDR_FMT_plx ": " HWADDR_FMT_plx
+                 " %c%c%c%c%c%c%c%c%c\n",
+                 addr,
+                 pte & mask,
+                 pte & PG_NX_MASK ? 'X' : '-',
+                 pte & PG_GLOBAL_MASK ? 'G' : '-',
+                 pte & PG_PSE_MASK ? 'P' : '-',
+                 pte & PG_DIRTY_MASK ? 'D' : '-',
+                 pte & PG_ACCESSED_MASK ? 'A' : '-',
+                 pte & PG_PCD_MASK ? 'C' : '-',
+                 pte & PG_PWT_MASK ? 'T' : '-',
+                 pte & PG_USER_MASK ? 'U' : '-',
+                 pte & PG_RW_MASK ? 'W' : '-');
 }
 
-static void tlb_info_32(Monitor *mon, CPUArchState *env, AddressSpace *as)
+static void tlb_info_32(Monitor *mon, FILE *fp, CPUArchState *env,
+                        AddressSpace *as)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     unsigned int l1, l2;
     uint32_t pgd, pde, pte;
+    uint64_t count = 0;
+    hwaddr tmp_addr = (hwaddr)-1, tmp_pte = (hwaddr)-1, tmp_mask = 0;
 
     pgd = env->cr[3] & ~0xfff;
     for(l1 = 0; l1 < 1024; l1++) {
@@ -80,28 +98,53 @@ static void tlb_info_32(Monitor *mon, CPUArchState *env, AddressSpace *as)
         if (pde & PG_PRESENT_MASK) {
             if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
                 /* 4M pages */
-                print_pte(mon, env, (l1 << 22), pde, ~((1 << 21) - 1));
+                tmp_addr = (l1 << 22);
+                tmp_pte = pde;
+                tmp_mask = ~((1 << 21) - 1);
+                if (fp || count++ < 32) {
+                    print_pte(mon, fp, env, tmp_addr, tmp_pte, tmp_mask);
+                }
             } else {
                 for(l2 = 0; l2 < 1024; l2++) {
                     pte = address_space_ldl_le(as, (pde & ~0xfff) + l2 * 4,
                                                attrs, NULL);
                     if (pte & PG_PRESENT_MASK) {
-                        print_pte(mon, env, (l1 << 22) + (l2 << 12),
-                                  pte & ~PG_PSE_MASK,
-                                  ~0xfff);
+                        tmp_addr = (l1 << 22) + (l2 << 12);
+                        tmp_pte = pte & ~PG_PSE_MASK;
+                        tmp_mask = ~0xfff;
+                        if (fp || count++ < 32) {
+                            print_pte(mon, fp, env, tmp_addr, tmp_pte,
+                                      tmp_mask);
+                        }
                     }
                 }
             }
         }
     }
+
+    /*
+     * No need to print the last entry:
+     * 1) we already print all the entries into file.
+     * 2) entries number <= 32, and have been printed above.
+     */
+    if (!fp && count > 32) {
+        if (count > 33) {
+            do_print_pte(mon, fp, "... (%lu entries skipped) ...\n",
+                         (count - 33));
+        }
+        print_pte(mon, fp, env, tmp_addr, tmp_pte, tmp_mask);
+    }
 }
 
-static void tlb_info_pae32(Monitor *mon, CPUArchState *env, AddressSpace *as)
+static void tlb_info_pae32(Monitor *mon, FILE *fp, CPUArchState *env,
+                           AddressSpace *as)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     unsigned int l1, l2, l3;
     uint64_t pdpe, pde, pte;
     uint64_t pdp_addr, pd_addr, pt_addr;
+    uint64_t count = 0;
+    hwaddr tmp_addr = (hwaddr)-1, tmp_pte = (hwaddr)-1, tmp_mask = 0;
 
     pdp_addr = env->cr[3] & ~0x1f;
     for (l1 = 0; l1 < 4; l1++) {
@@ -113,18 +156,27 @@ static void tlb_info_pae32(Monitor *mon, CPUArchState *env, AddressSpace *as)
                 if (pde & PG_PRESENT_MASK) {
                     if (pde & PG_PSE_MASK) {
                         /* 2M pages with PAE, CR4.PSE is ignored */
-                        print_pte(mon, env, (l1 << 30) + (l2 << 21), pde,
-                                  ~((hwaddr)(1 << 20) - 1));
+                        tmp_addr = (l1 << 30) + (l2 << 21);
+                        tmp_pte = pde;
+                        tmp_mask = ~((hwaddr)(1 << 20) - 1);
+                        if (fp || count++ < 32) {
+                            print_pte(mon, fp, env, tmp_addr, tmp_pte,
+                                      tmp_mask);
+                        }
                     } else {
                         pt_addr = pde & 0x3fffffffff000ULL;
                         for (l3 = 0; l3 < 512; l3++) {
                             pte = address_space_ldq_le(as, pt_addr + l3 * 8,
                                                        attrs, NULL);
                             if (pte & PG_PRESENT_MASK) {
-                                print_pte(mon, env, (l1 << 30) + (l2 << 21)
-                                          + (l3 << 12),
-                                          pte & ~PG_PSE_MASK,
-                                          ~(hwaddr)0xfff);
+                                tmp_addr = (l1 << 30) + (l2 << 21) +
+                                           (l3 << 12);
+                                tmp_pte = pte & ~PG_PSE_MASK;
+                                tmp_mask = ~(hwaddr)0xfff;
+                                if (fp || count++ < 32) {
+                                    print_pte(mon, fp, env, tmp_addr, tmp_pte,
+                                              tmp_mask);
+                                }
                             }
                         }
                     }
@@ -132,16 +184,37 @@ static void tlb_info_pae32(Monitor *mon, CPUArchState *env, AddressSpace *as)
             }
         }
     }
+
+    /*
+     * No need to print the last entry:
+     * 1) we already print all the entries into file.
+     * 2) entries number <= 32, and have been printed above.
+     */
+    if (!fp && count > 32) {
+        if (count > 33) {
+            monitor_printf(mon, "... (%lu entries skipped) ...\n",
+                           (count - 33));
+        }
+        print_pte(mon, fp, env, tmp_addr, tmp_pte, tmp_mask);
+    }
 }
 
 #ifdef TARGET_X86_64
-static void tlb_info_la48(Monitor *mon, CPUArchState *env, AddressSpace *as,
-        uint64_t l0, uint64_t pml4_addr)
+static void tlb_info_la48(Monitor *mon, FILE *fp, CPUArchState *env,
+                          AddressSpace *as, uint64_t l0, uint64_t pml4_addr,
+                          uint64_t *init_count, hwaddr *last_addr,
+                          hwaddr *last_pte, hwaddr *last_mask)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     uint64_t l1, l2, l3, l4;
     uint64_t pml4e, pdpe, pde, pte;
     uint64_t pdp_addr, pd_addr, pt_addr;
+    uint64_t count = 0;
+    hwaddr tmp_addr = (hwaddr)-1, tmp_pte=(hwaddr)-1, tmp_mask = 0;
+
+    if (init_count) {
+        count = *init_count;
+    }
 
     for (l1 = 0; l1 < 512; l1++) {
         pml4e = address_space_ldq_le(as, pml4_addr + l1 * 8, attrs, NULL);
@@ -158,8 +231,12 @@ static void tlb_info_la48(Monitor *mon, CPUArchState *env, AddressSpace *as,
 
             if (pdpe & PG_PSE_MASK) {
                 /* 1G pages, CR4.PSE is ignored */
-                print_pte(mon, env, (l0 << 48) + (l1 << 39) + (l2 << 30),
-                        pdpe, 0x3ffffc0000000ULL);
+                tmp_addr = (l0 << 48) + (l1 << 39) + (l2 << 30);
+                tmp_pte = pdpe;
+                tmp_mask = 0x3ffffc0000000ULL;
+                if (fp || count++ < 32) {
+                    print_pte(mon, fp, env, tmp_addr, tmp_pte, tmp_mask);
+                }
                 continue;
             }
 
@@ -172,8 +249,13 @@ static void tlb_info_la48(Monitor *mon, CPUArchState *env, AddressSpace *as,
 
                 if (pde & PG_PSE_MASK) {
                     /* 2M pages, CR4.PSE is ignored */
-                    print_pte(mon, env, (l0 << 48) + (l1 << 39) + (l2 << 30) +
-                            (l3 << 21), pde, 0x3ffffffe00000ULL);
+                    tmp_addr = (l0 << 48) + (l1 << 39) +
+                               (l2 << 30) + (l3 << 21);
+                    tmp_pte = pde;
+                    tmp_mask = 0x3ffffffe00000ULL;
+                    if (fp || count++ < 32) {
+                        print_pte(mon, fp, env, tmp_addr, tmp_pte, tmp_mask);
+                    }
                     continue;
                 }
 
@@ -182,29 +264,76 @@ static void tlb_info_la48(Monitor *mon, CPUArchState *env, AddressSpace *as,
                     pte = address_space_ldq_le(as, pt_addr + l4 * 8,
                                                attrs, NULL);
                     if (pte & PG_PRESENT_MASK) {
-                        print_pte(mon, env, (l0 << 48) + (l1 << 39) +
-                                (l2 << 30) + (l3 << 21) + (l4 << 12),
-                                pte & ~PG_PSE_MASK, 0x3fffffffff000ULL);
+                        tmp_addr = (l0 << 48) + (l1 << 39) + (l2 << 30) +
+                                   (l3 << 21) + (l4 << 12);
+                        tmp_pte = pte & ~PG_PSE_MASK;
+                        tmp_mask = 0x3fffffffff000ULL;
+                        if (fp || count++ < 32) {
+                            print_pte(mon, fp, env, tmp_addr, tmp_pte,
+                                      tmp_mask);
+                        }
                     }
                 }
             }
         }
     }
+
+    /*
+     * No need to print the current last entry:
+     * 1) we already print all the entries into file.
+     * 2) other function call this function, and only the caller
+     *    know if reach the end, let caller print the last one.
+     * 3) entries number <= 32, and have been printed above.
+     */
+    if (!fp && !init_count && count > 32) {
+        if (count > 33) {
+            do_print_pte(mon, fp, "... (%lu entries skipped) ...\n",
+                         (count - 33));
+        }
+        print_pte(mon, fp, env, tmp_addr, tmp_pte, tmp_mask);
+    }
+
+    if (init_count) {
+        *init_count = count;
+    }
+
+    if (last_addr && last_pte && last_mask) {
+        *last_addr = tmp_addr;
+        *last_pte = tmp_pte;
+        *last_mask = tmp_mask;
+    }
 }
 
-static void tlb_info_la57(Monitor *mon, CPUArchState *env, AddressSpace *as)
+static void tlb_info_la57(Monitor *mon, FILE *fp, CPUArchState *env,
+                          AddressSpace *as)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     uint64_t l0;
     uint64_t pml5e;
     uint64_t pml5_addr;
+    uint64_t count = 0;
+    hwaddr last_addr = (hwaddr)-1, last_pte=(hwaddr)-1, last_mask = 0;
 
     pml5_addr = env->cr[3] & 0x3fffffffff000ULL;
     for (l0 = 0; l0 < 512; l0++) {
         pml5e = address_space_ldq_le(as, pml5_addr + l0 * 8, attrs, NULL);
         if (pml5e & PG_PRESENT_MASK) {
-            tlb_info_la48(mon, env, as, l0, pml5e & 0x3fffffffff000ULL);
+            tlb_info_la48(mon, fp, env, as, l0, pml5e & 0x3fffffffff000ULL,
+                          &count, &last_addr, &last_pte, &last_mask);
         }
+    }
+
+    /*
+     * No need to print the last entry:
+     * 1) we already print all the entries into file.
+     * 2) entries number <= 32, and have been printed above.
+     */
+    if (!fp && count > 32) {
+        if (count > 33) {
+            monitor_printf(mon, "... (%lu entries skipped) ...\n",
+                           (count - 33));
+        }
+        print_pte(mon, fp, env, last_addr, last_pte, last_mask);
     }
 }
 #endif /* TARGET_X86_64 */
@@ -213,6 +342,8 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env;
     AddressSpace *as;
+    const char *filename;
+    FILE *fp = NULL;
 
     env = mon_get_cpu_env(mon);
     if (!env) {
@@ -224,22 +355,39 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "PG disabled\n");
         return;
     }
+
+    filename = qdict_get_try_str(qdict, "file");
+    if (filename) {
+        fp = fopen(filename, "w");
+        if (!fp) {
+            monitor_printf(mon, "Cannot open file '%s': %s\n",
+                           filename, strerror(errno));
+            return;
+        }
+    }
+
     as = cpu_get_address_space(env_cpu(env), X86ASIdx_MEM);
     if (env->cr[4] & CR4_PAE_MASK) {
 #ifdef TARGET_X86_64
         if (env->hflags & HF_LMA_MASK) {
             if (env->cr[4] & CR4_LA57_MASK) {
-                tlb_info_la57(mon, env, as);
+                tlb_info_la57(mon, fp, env, as);
             } else {
-                tlb_info_la48(mon, env, as, 0, env->cr[3] & 0x3fffffffff000ULL);
+                tlb_info_la48(mon, fp, env, as, 0,
+                              env->cr[3] & 0x3fffffffff000ULL,
+                              NULL, NULL, NULL, NULL);
             }
         } else
 #endif
         {
-            tlb_info_pae32(mon, env, as);
+            tlb_info_pae32(mon, fp, env, as);
         }
     } else {
-        tlb_info_32(mon, env, as);
+        tlb_info_32(mon, fp, env, as);
+    }
+
+    if (fp) {
+        fclose(fp);
     }
 }
 
