@@ -3034,8 +3034,8 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "-netdev socket,id=str[,fd=h][,udp=host:port][,localaddr=host:port]\n"
     "                configure a network backend to connect to another network\n"
     "                using an UDP tunnel\n"
-    "-netdev stream,id=str[,server=on|off],addr.type=inet,addr.host=host,addr.port=port[,to=maxport][,numeric=on|off][,keep-alive=on|off][,mptcp=on|off][,addr.ipv4=on|off][,addr.ipv6=on|off][,reconnect-ms=milliseconds]\n"
-    "-netdev stream,id=str[,server=on|off],addr.type=unix,addr.path=path[,abstract=on|off][,tight=on|off][,reconnect-ms=milliseconds]\n"
+    "-netdev stream,id=str[,server=on|off],addr.type=inet,addr.host=host,addr.port=port[,addr.to=maxport][,addr.numeric=on|off][,addr.keep-alive=on|off][,addr.mptcp=on|off][,addr.ipv4=on|off][,addr.ipv6=on|off][,reconnect-ms=milliseconds]\n"
+    "-netdev stream,id=str[,server=on|off],addr.type=unix,addr.path=path[,addr.abstract=on|off][,addr.tight=on|off][,reconnect-ms=milliseconds]\n"
     "-netdev stream,id=str[,server=on|off],addr.type=fd,addr.str=file-descriptor[,reconnect-ms=milliseconds]\n"
     "                configure a network backend to connect to another network\n"
     "                using a socket connection in stream mode.\n"
@@ -3640,7 +3640,7 @@ SRST
                          -device e1000,netdev=n1,mac=52:54:00:12:34:56 \\
                          -netdev socket,id=n1,mcast=239.192.168.1:1102,localaddr=1.2.3.4
 
-``-netdev stream,id=str[,server=on|off],addr.type=inet,addr.host=host,addr.port=port[,to=maxport][,numeric=on|off][,keep-alive=on|off][,mptcp=on|off][,addr.ipv4=on|off][,addr.ipv6=on|off][,reconnect-ms=milliseconds]``
+``-netdev stream,id=str[,server=on|off],addr.type=inet,addr.host=host,addr.port=port[,addr.to=maxport][,addr.numeric=on|off][,addr.keep-alive=on|off][,addr.mptcp=on|off][,addr.ipv4=on|off][,addr.ipv6=on|off][,reconnect-ms=milliseconds]``
     Configure a network backend to connect to another QEMU virtual machine or a proxy using a TCP/IP socket.
 
     ``server=on|off``
@@ -3649,22 +3649,22 @@ SRST
     ``addr.host=host,addr.port=port``
         socket address to listen on (server=on) or connect to (server=off)
 
-    ``to=maxport``
+    ``addr.to=maxport``
         if present, this is range of possible addresses, with port between ``port`` and ``maxport``.
 
-    ``numeric=on|off``
+    ``addr.numeric=on|off``
         if ``on`` ``host`` and ``port`` are guaranteed to be numeric, otherwise a name resolution should be attempted (default: ``off``)
 
-    ``keep-alive=on|off``
+    ``addr.keep-alive=on|off``
         enable keep-alive when connecting to this socket.  Not supported for passive sockets.
 
-    ``mptcp=on|off``
+    ``addr.mptcp=on|off``
         enable multipath TCP
 
-    ``ipv4=on|off``
+    ``addr.ipv4=on|off``
         whether to accept IPv4 addresses, default to try both IPv4 and IPv6
 
-    ``ipv6=on|off``
+    ``addr.ipv6=on|off``
         whether to accept IPv6 addresses, default to try both IPv4 and IPv6
 
     ``reconnect-ms=milliseconds``
@@ -3684,7 +3684,7 @@ SRST
                       -device virtio-net,netdev=net0,mac=52:54:00:12:34:57 \\
                       -netdev stream,id=net0,server=off,addr.type=inet,addr.host=localhost,addr.port=1234,reconnect-ms=5000
 
-``-netdev stream,id=str[,server=on|off],addr.type=unix,addr.path=path[,abstract=on|off][,tight=on|off][,reconnect-ms=milliseconds]``
+``-netdev stream,id=str[,server=on|off],addr.type=unix,addr.path=path[,addr.abstract=on|off][,addr.tight=on|off][,reconnect-ms=milliseconds]``
     Configure a network backend to connect to another QEMU virtual machine or a proxy using a stream oriented unix domain socket.
 
     ``server=on|off``
@@ -3693,10 +3693,10 @@ SRST
     ``addr.path=path``
         filesystem path to use
 
-    ``abstract=on|off``
+    ``addr.abstract=on|off``
         if ``on``, this is a Linux abstract socket address.
 
-    ``tight=on|off``
+    ``addr.tight=on|off``
         if false, pad an abstract socket address with enough null bytes to make it fill struct sockaddr_un member sun_path.
 
     ``reconnect-ms=milliseconds``
