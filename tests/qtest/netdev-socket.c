@@ -146,6 +146,76 @@ static void test_stream_inet_ipv4(void)
     qtest_quit(qts0);
 }
 
+/*
+ * Smoke test that -netdev stream accepts all optional InetSocketAddress
+ * members (numeric, to, keep-alive*, user-timeout, mptcp).  Catches
+ * regressions in the QAPI schema, the keyval parsing path, and the
+ * synopsis spelling in qemu-options.hx.
+ */
+static void test_stream_inet_options(void)
+{
+    QTestState *qts0, *qts1;
+    char *expect;
+    int port;
+
+    port = inet_get_free_port(false);
+    qts0 = qtest_initf("-nodefaults -M none "
+                       "-netdev stream,id=st0,server=true,addr.type=inet,"
+                       "addr.ipv4=on,addr.ipv6=off,addr.numeric=on,"
+                       "addr.host=127.0.0.1,addr.port=%d,addr.to=%d,"
+                       "addr.keep-alive=on"
+#ifdef HAVE_TCP_KEEPCNT
+                       ",addr.keep-alive-count=3"
+#endif
+#ifdef HAVE_TCP_KEEPIDLE
+                       ",addr.keep-alive-idle=10"
+#endif
+#ifdef HAVE_TCP_KEEPINTVL
+                       ",addr.keep-alive-interval=5"
+#endif
+#ifdef HAVE_TCP_USER_TIMEOUT
+                       ",addr.user-timeout=10000"
+#endif
+#ifdef HAVE_IPPROTO_MPTCP
+                       ",addr.mptcp=off"
+#endif
+                       , port, port);
+
+    EXPECT_STATE(qts0, "st0: index=0,type=stream,listening\r\n", 0);
+
+    qts1 = qtest_initf("-nodefaults -M none "
+                       "-netdev stream,server=false,id=st0,addr.type=inet,"
+                       "addr.ipv4=on,addr.ipv6=off,addr.numeric=on,"
+                       "addr.host=127.0.0.1,addr.port=%d,"
+                       "addr.keep-alive=on"
+#ifdef HAVE_TCP_KEEPCNT
+                       ",addr.keep-alive-count=3"
+#endif
+#ifdef HAVE_TCP_KEEPIDLE
+                       ",addr.keep-alive-idle=10"
+#endif
+#ifdef HAVE_TCP_KEEPINTVL
+                       ",addr.keep-alive-interval=5"
+#endif
+#ifdef HAVE_TCP_USER_TIMEOUT
+                       ",addr.user-timeout=10000"
+#endif
+#ifdef HAVE_IPPROTO_MPTCP
+                       ",addr.mptcp=off"
+#endif
+                       , port);
+
+    expect = g_strdup_printf("st0: index=0,type=stream,tcp:127.0.0.1:%d\r\n",
+                             port);
+    EXPECT_STATE(qts1, expect, 0);
+    g_free(expect);
+
+    EXPECT_STATE(qts0, "st0: index=0,type=stream,tcp:127.0.0.1", ':');
+
+    qtest_quit(qts1);
+    qtest_quit(qts0);
+}
+
 static void wait_stream_connected(QTestState *qts, const char *id,
                                   SocketAddress **addr)
 {
@@ -512,6 +582,7 @@ int main(int argc, char **argv)
 
     if (has_ipv4) {
         qtest_add_func("/netdev/stream/inet/ipv4", test_stream_inet_ipv4);
+        qtest_add_func("/netdev/stream/inet/options", test_stream_inet_options);
         qtest_add_func("/netdev/dgram/inet", test_dgram_inet);
 #if !defined(_WIN32) && !defined(CONFIG_DARWIN)
         qtest_add_func("/netdev/dgram/mcast", test_dgram_mcast);
