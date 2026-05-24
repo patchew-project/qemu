@@ -3034,7 +3034,7 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "-netdev socket,id=str[,fd=h][,udp=host:port][,localaddr=host:port]\n"
     "                configure a network backend to connect to another network\n"
     "                using an UDP tunnel\n"
-    "-netdev stream,id=str[,server=on|off],addr.type=inet,addr.host=host,addr.port=port[,addr.to=maxport][,addr.numeric=on|off][,addr.keep-alive=on|off][,addr.keep-alive-count=count][,addr.keep-alive-idle=idle][,addr.keep-alive-interval=interval][,addr.mptcp=on|off][,addr.ipv4=on|off][,addr.ipv6=on|off][,reconnect-ms=milliseconds]\n"
+    "-netdev stream,id=str[,server=on|off],addr.type=inet,addr.host=host,addr.port=port[,addr.to=maxport][,addr.numeric=on|off][,addr.keep-alive=on|off][,addr.keep-alive-count=count][,addr.keep-alive-idle=idle][,addr.keep-alive-interval=interval][,addr.user-timeout=timeout][,addr.mptcp=on|off][,addr.ipv4=on|off][,addr.ipv6=on|off][,reconnect-ms=milliseconds]\n"
     "-netdev stream,id=str[,server=on|off],addr.type=unix,addr.path=path[,addr.abstract=on|off][,addr.tight=on|off][,reconnect-ms=milliseconds]\n"
     "-netdev stream,id=str[,server=on|off],addr.type=fd,addr.str=file-descriptor[,reconnect-ms=milliseconds]\n"
     "                configure a network backend to connect to another network\n"
@@ -3640,7 +3640,7 @@ SRST
                          -device e1000,netdev=n1,mac=52:54:00:12:34:56 \\
                          -netdev socket,id=n1,mcast=239.192.168.1:1102,localaddr=1.2.3.4
 
-``-netdev stream,id=str[,server=on|off],addr.type=inet,addr.host=host,addr.port=port[,addr.to=maxport][,addr.numeric=on|off][,addr.keep-alive=on|off][,addr.keep-alive-count=count][,addr.keep-alive-idle=idle][,addr.keep-alive-interval=interval][,addr.mptcp=on|off][,addr.ipv4=on|off][,addr.ipv6=on|off][,reconnect-ms=milliseconds]``
+``-netdev stream,id=str[,server=on|off],addr.type=inet,addr.host=host,addr.port=port[,addr.to=maxport][,addr.numeric=on|off][,addr.keep-alive=on|off][,addr.keep-alive-count=count][,addr.keep-alive-idle=idle][,addr.keep-alive-interval=interval][,addr.user-timeout=timeout][,addr.mptcp=on|off][,addr.ipv4=on|off][,addr.ipv6=on|off][,reconnect-ms=milliseconds]``
     Configure a network backend to connect to another QEMU virtual machine or a proxy using a TCP/IP socket.
 
     ``server=on|off``
@@ -3668,6 +3668,11 @@ SRST
 
     ``addr.keep-alive-interval=interval``
         time in seconds between individual keep-alive packets.
+        Set to 0 to use the system default.  (default: 0)
+
+    ``addr.user-timeout=timeout``
+        time in milliseconds that transmitted data may remain unacknowledged
+        before the connection is forcibly closed.
         Set to 0 to use the system default.  (default: 0)
 
     ``addr.mptcp=on|off``
@@ -5365,7 +5370,7 @@ SRST
 ERST
 
 DEF("incoming", HAS_ARG, QEMU_OPTION_incoming, \
-    "-incoming tcp:[host]:port[,to=maxport][,numeric=on|off][,keep-alive=on|off][,keep-alive-count=count][,keep-alive-idle=idle][,keep-alive-interval=interval][,mptcp=on|off][,ipv4=on|off][,ipv6=on|off]\n" \
+    "-incoming tcp:[host]:port[,to=maxport][,numeric=on|off][,keep-alive=on|off][,keep-alive-count=count][,keep-alive-idle=idle][,keep-alive-interval=interval][,user-timeout=timeout][,mptcp=on|off][,ipv4=on|off][,ipv6=on|off]\n" \
     "-incoming rdma:host:port[,ipv4=on|off][,ipv6=on|off]\n" \
     "-incoming unix:socketpath\n" \
     "                prepare for incoming migration, listen on\n" \
@@ -5387,7 +5392,7 @@ migration channel types.  The channel type is specified in <channel>,
 or is 'main' for all other forms of -incoming.  If multiple -incoming
 options are specified for a channel type, the last one takes precedence.
 
-``-incoming tcp:[host]:port[,to=maxport][,numeric=on|off][,keep-alive=on|off][,keep-alive-count=count][,keep-alive-idle=idle][,keep-alive-interval=interval][,mptcp=on|off][,ipv4=on|off][,ipv6=on|off]``
+``-incoming tcp:[host]:port[,to=maxport][,numeric=on|off][,keep-alive=on|off][,keep-alive-count=count][,keep-alive-idle=idle][,keep-alive-interval=interval][,user-timeout=timeout][,mptcp=on|off][,ipv4=on|off][,ipv6=on|off]``
   \ 
 ``-incoming rdma:host:port[,ipv4=on|off][,ipv6=on|off]``
     Prepare for incoming migration, listen on a given tcp port.

@@ -263,6 +263,18 @@ static int inet_set_sockopts(int sock, InetSocketAddress *saddr, Error **errp)
         }
 #endif
     }
+#ifdef HAVE_TCP_USER_TIMEOUT
+    if (saddr->has_user_timeout && saddr->user_timeout) {
+        int user_timeout = saddr->user_timeout;
+        int ret = setsockopt(sock, IPPROTO_TCP, TCP_USER_TIMEOUT, &user_timeout,
+                             sizeof(user_timeout));
+        if (ret < 0) {
+            error_setg_errno(errp, errno,
+                             "Unable to set TCP user timeout option on socket");
+            return -1;
+        }
+    }
+#endif
     return 0;
 }
 
@@ -692,6 +704,12 @@ static QemuOptsList inet_opts = {
             .type = QEMU_OPT_NUMBER,
         },
 #endif
+#ifdef HAVE_TCP_USER_TIMEOUT
+        {
+            .name = "user-timeout",
+            .type = QEMU_OPT_NUMBER,
+        },
+#endif
 #ifdef HAVE_IPPROTO_MPTCP
         {
             .name = "mptcp",
@@ -773,6 +791,12 @@ int inet_parse(InetSocketAddress *addr, const char *str, Error **errp)
     if (qemu_opt_find(opts, "keep-alive-interval")) {
         addr->has_keep_alive_interval = true;
         addr->keep_alive_interval = qemu_opt_get_number(opts, "keep-alive-interval", 0);
+    }
+#endif
+#ifdef HAVE_TCP_USER_TIMEOUT
+    if (qemu_opt_find(opts, "user-timeout")) {
+        addr->has_user_timeout = true;
+        addr->user_timeout = qemu_opt_get_number(opts, "user-timeout", 0);
     }
 #endif
 #ifdef HAVE_IPPROTO_MPTCP

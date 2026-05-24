@@ -382,6 +382,12 @@ static void inet_parse_test_helper(const char *str,
         g_assert_cmpint(addr.keep_alive_interval, ==,
                         exp_addr->keep_alive_interval);
 #endif
+#ifdef HAVE_TCP_USER_TIMEOUT
+        g_assert_cmpint(addr.has_user_timeout, ==,
+                        exp_addr->has_user_timeout);
+        g_assert_cmpint(addr.user_timeout, ==,
+                        exp_addr->user_timeout);
+#endif
 #ifdef HAVE_IPPROTO_MPTCP
         g_assert_cmpint(addr.has_mptcp, ==, exp_addr->has_mptcp);
         g_assert_cmpint(addr.mptcp, ==, exp_addr->mptcp);
@@ -495,6 +501,10 @@ static void test_inet_parse_all_options_good(void)
         .has_keep_alive_interval = true,
         .keep_alive_interval = 30,
 #endif
+#ifdef HAVE_TCP_USER_TIMEOUT
+        .has_user_timeout = true,
+        .user_timeout = 10000,
+#endif
 #ifdef HAVE_IPPROTO_MPTCP
         .has_mptcp = true,
         .mptcp = false,
@@ -510,6 +520,9 @@ static void test_inet_parse_all_options_good(void)
 #endif
 #ifdef HAVE_TCP_KEEPINTVL
         ",keep-alive-interval=30"
+#endif
+#ifdef HAVE_TCP_USER_TIMEOUT
+        ",user-timeout=10000"
 #endif
 #ifdef HAVE_IPPROTO_MPTCP
         ",mptcp=off"

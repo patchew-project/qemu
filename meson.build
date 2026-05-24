@@ -2726,6 +2726,8 @@ config_host_data.set('HAVE_TCP_KEEPINTVL',
                      #endif
                      int main(void) { return 0; }''',
                      name: 'Win32 TCP_KEEPINTVL'))
+config_host_data.set('HAVE_TCP_USER_TIMEOUT',
+                     cc.has_header_symbol('netinet/tcp.h', 'TCP_USER_TIMEOUT'))
 
 # has_member
 config_host_data.set('HAVE_SIGEV_NOTIFY_THREAD_ID',
