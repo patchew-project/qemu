@@ -26,6 +26,7 @@
 #include <igvm/igvm.h>
 #include <igvm/igvm_defs.h>
 
+#define IGVM_VHT_OPTIONAL_BIT (1U << 31)
 
 /*
  * Some directives are specific to particular confidential computing platforms.
@@ -139,8 +140,16 @@ static int qigvm_handler(QIgvm *ctx, uint32_t type, Error **errp)
     const uint8_t *header_data;
     int result;
 
+    /*
+     * Bit 31 of the variable header type indicates that the header is
+     * optional and can be safely ignored by a loader that does not
+     * support it. If the bit is clear, the file cannot be loaded.
+     * https://docs.rs/igvm_defs/0.4.0/igvm_defs/struct.IgvmVariableHeaderType.html
+     */
+    IgvmVariableHeaderType base_type = type & ~IGVM_VHT_OPTIONAL_BIT;
+
     for (handler = 0; handler < G_N_ELEMENTS(handlers); handler++) {
-        if (handlers[handler].type != type) {
+        if (handlers[handler].type != base_type) {
             continue;
         }
         header_handle = igvm_get_header(ctx->file, handlers[handler].section,
@@ -166,6 +175,13 @@ static int qigvm_handler(QIgvm *ctx, uint32_t type, Error **errp)
         igvm_free_buffer(ctx->file, header_handle);
         return result;
     }
+
+    if (type & IGVM_VHT_OPTIONAL_BIT) {
+        warn_report("IGVM: Skipping unsupported optional header type 0x%"
+                    PRIX32, type);
+        return 0;
+    }
+
     error_setg(errp,
                "IGVM: Unknown header type encountered when processing file: "
                "(type 0x%X)",
@@ -787,7 +803,8 @@ static int qigvm_supported_platform_compat_mask(QIgvm *ctx, Error **errp)
          header_index++) {
         IgvmVariableHeaderType typ = igvm_get_header_type(
             ctx->file, IGVM_HEADER_SECTION_PLATFORM, header_index);
-        if (typ == IGVM_VHT_SUPPORTED_PLATFORM) {
+        IgvmVariableHeaderType base_type = typ & ~IGVM_VHT_OPTIONAL_BIT;
+        if (base_type == IGVM_VHT_SUPPORTED_PLATFORM) {
             header_handle = igvm_get_header(
                 ctx->file, IGVM_HEADER_SECTION_PLATFORM, header_index);
             if (header_handle < 0) {
@@ -947,7 +964,8 @@ int qigvm_process_file(IgvmCfg *cfg, MachineState *machine_state,
          ctx.current_header_index++) {
         IgvmVariableHeaderType type = igvm_get_header_type(
             ctx.file, IGVM_HEADER_SECTION_DIRECTIVE, ctx.current_header_index);
-        if (!onlyVpContext || (type == IGVM_VHT_VP_CONTEXT)) {
+        IgvmVariableHeaderType base_type = type & ~IGVM_VHT_OPTIONAL_BIT;
+        if (!onlyVpContext || base_type == IGVM_VHT_VP_CONTEXT) {
             if (qigvm_handler(&ctx, type, errp) < 0) {
                 goto cleanup_parameters;
             }
