@@ -41,12 +41,18 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
         parser->brace_count++;
         break;
     case JSON_RCURLY:
+        if (parser->brace_count <= 0) {
+            goto end_error_recovery;
+        }
         parser->brace_count--;
         break;
     case JSON_LSQUARE:
         parser->bracket_count++;
         break;
     case JSON_RSQUARE:
+        if (parser->bracket_count <= 0) {
+            goto end_error_recovery;
+        }
         parser->bracket_count--;
         break;
     case JSON_ERROR:
@@ -56,6 +62,15 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
         if (g_queue_is_empty(&parser->tokens)) {
             return;
         }
+    end_error_recovery:
+        /*
+         * Cause error recovery to end immediately.
+         * If not in error recovery, the parser will raise an error
+         * (due to JSON_ERROR or unexpected JSON_R{CURLY,SQUARE})
+         * but error recovery won't be entered at all.
+         */
+        parser->brace_count = 0;
+        parser->bracket_count = 0;
         break;
     default:
         break;
@@ -83,9 +98,7 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
 
     g_queue_push_tail(&parser->tokens, token);
 
-    if ((parser->brace_count > 0 || parser->bracket_count > 0)
-        && parser->brace_count >= 0 && parser->bracket_count >= 0
-        && type != JSON_END_OF_INPUT) {
+    if (parser->brace_count > 0 || parser->bracket_count > 0) {
         return;
     }
 

@@ -31,8 +31,8 @@ typedef struct JSONMessageParser {
     void *opaque;
     JSONLexer lexer;
     JSONParserContext parser;
-    int brace_count;
-    int bracket_count;
+    unsigned int brace_count;
+    unsigned int bracket_count;
     GQueue tokens;
     uint64_t token_size;
 } JSONMessageParser;
