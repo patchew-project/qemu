@@ -347,3 +347,22 @@ requirements for contribution.  In particular, the "Signed-off-by"
 label in a patch submission is a statement that the author takes
 responsibility for the entire contents of the patch, including any parts
 that were generated or assisted by AI tools or other tools.
+
+1. When AI generated part of the contribution is not creative in nature
+   (so not even copyrighteable).
+
+2. When the creative part of the contribution is clearly QEMU-specific
+   (so derived from the prompt).
+
+
+Attribution
+^^^^^^^^^^
+
+AI agents must not add Signed-off-by tags. Instead,
+contributions should include an Assisted-by tag, like this:
+
+  Assisted-by: AGENT_NAME:MODEL_VERSION
+
+For example:
+
+  Assisted-by: Claude:claude-opus-4-6
