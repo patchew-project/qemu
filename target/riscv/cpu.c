@@ -819,6 +819,10 @@ static void riscv_cpu_reset_hold(Object *obj, ResetType type)
     if (kvm_enabled()) {
         kvm_riscv_reset_vcpu(cpu);
     }
+
+    if (env->custom_arch_state_reset) {
+        env->custom_arch_state_reset(env);
+    }
 #endif
 }
 
@@ -1166,6 +1170,12 @@ static void riscv_cpu_init(Object *obj)
 #ifndef CONFIG_USER_ONLY
     if (mcc->def->custom_csrs) {
         riscv_register_custom_csrs(cpu, mcc->def->custom_csrs);
+    }
+    if (mcc->def->custom_arch_state_init) {
+        mcc->def->custom_arch_state_init(&cpu->env);
+    }
+    if (mcc->def->custom_arch_state_reset) {
+        cpu->env.custom_arch_state_reset = mcc->def->custom_arch_state_reset;
     }
 #endif
 
@@ -2705,6 +2715,14 @@ static void riscv_cpu_class_base_init(ObjectClass *c, const void *data)
         if (def->custom_csrs) {
             assert(!mcc->def->custom_csrs);
             mcc->def->custom_csrs = def->custom_csrs;
+        }
+        if (def->custom_arch_state_init) {
+            assert(!mcc->def->custom_arch_state_init);
+            mcc->def->custom_arch_state_init = def->custom_arch_state_init;
+        }
+        if (def->custom_arch_state_reset) {
+            assert(!mcc->def->custom_arch_state_reset);
+            mcc->def->custom_arch_state_reset = def->custom_arch_state_reset;
         }
     }
 
