@@ -62,6 +62,7 @@ void loongarch_cpu_set_irq(void *opaque, int irq, int level)
     LoongArchCPU *cpu = opaque;
     CPULoongArchState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
+    CPUSysState *cur = get_current_state(env);
 
     if (irq < 0 || irq >= N_IRQS) {
         return;
@@ -70,8 +71,8 @@ void loongarch_cpu_set_irq(void *opaque, int irq, int level)
     if (kvm_enabled()) {
         kvm_loongarch_set_interrupt(cpu, irq, level);
     } else if (tcg_enabled()) {
-        env->CSR_ESTAT = deposit64(env->CSR_ESTAT, irq, 1, level != 0);
-        if (FIELD_EX64(env->CSR_ESTAT, CSR_ESTAT, IS)) {
+        cur->CSR_ESTAT = deposit64(cur->CSR_ESTAT, irq, 1, level != 0);
+        if (FIELD_EX64(cur->CSR_ESTAT, CSR_ESTAT, IS)) {
             cpu_interrupt(cs, CPU_INTERRUPT_HARD);
         } else {
             cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
@@ -84,9 +85,10 @@ bool cpu_loongarch_hw_interrupts_pending(CPULoongArchState *env)
 {
     uint32_t pending;
     uint32_t status;
+    CPUSysState *cur = get_current_state(env);
 
-    pending = FIELD_EX64(env->CSR_ESTAT, CSR_ESTAT, IS);
-    status  = FIELD_EX64(env->CSR_ECFG, CSR_ECFG, LIE);
+    pending = FIELD_EX64(cur->CSR_ESTAT, CSR_ESTAT, IS);
+    status  = FIELD_EX64(cur->CSR_ECFG, CSR_ECFG, LIE);
 
     return (pending & status) != 0;
 }
@@ -112,11 +114,12 @@ static void loongarch_la464_init_csr(DeviceState *dev)
     static bool initialized;
     LoongArchCPU *cpu = LOONGARCH_CPU(dev);
     CPULoongArchState *env = &cpu->env;
+    CPUSysState *cur = get_current_state(env);
     int i, num;
 
     if (!initialized) {
         initialized = true;
-        num = FIELD_EX64(env->CSR_PRCFG1, CSR_PRCFG1, SAVE_NUM);
+        num = FIELD_EX64(cur->CSR_PRCFG1, CSR_PRCFG1, SAVE_NUM);
         for (i = num; i < 16; i++) {
             set_csr_flag(LOONGARCH_CSR_SAVE(i), CSRFL_UNUSED);
         }
@@ -275,6 +278,7 @@ static void loongarch_la464_initfn(Object *obj)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
     CPULoongArchState *env = &cpu->env;
+    CPUSysState *cur;
     uint32_t data = 0, field;
     int i;
 
@@ -382,18 +386,19 @@ static void loongarch_la464_initfn(Object *obj)
     data = FIELD_DP32(data, CPUCFG20, L3IU_SIZE, 6);
     env->cpucfg[20] = data;
 
-    env->CSR_ASID = FIELD_DP64(0, CSR_ASID, ASIDBITS, 0xa);
+    cur = get_current_state(env);
+    cur->CSR_ASID = FIELD_DP64(0, CSR_ASID, ASIDBITS, 0xa);
 
-    env->CSR_PRCFG1 = FIELD_DP64(env->CSR_PRCFG1, CSR_PRCFG1, SAVE_NUM, 8);
-    env->CSR_PRCFG1 = FIELD_DP64(env->CSR_PRCFG1, CSR_PRCFG1, TIMER_BITS, 0x2f);
-    env->CSR_PRCFG1 = FIELD_DP64(env->CSR_PRCFG1, CSR_PRCFG1, VSMAX, 7);
+    cur->CSR_PRCFG1 = FIELD_DP64(cur->CSR_PRCFG1, CSR_PRCFG1, SAVE_NUM, 8);
+    cur->CSR_PRCFG1 = FIELD_DP64(cur->CSR_PRCFG1, CSR_PRCFG1, TIMER_BITS, 0x2f);
+    cur->CSR_PRCFG1 = FIELD_DP64(cur->CSR_PRCFG1, CSR_PRCFG1, VSMAX, 7);
 
-    env->CSR_PRCFG2 = 0x3ffff000;
+    cur->CSR_PRCFG2 = 0x3ffff000;
 
-    env->CSR_PRCFG3 = FIELD_DP64(env->CSR_PRCFG3, CSR_PRCFG3, TLB_TYPE, 2);
-    env->CSR_PRCFG3 = FIELD_DP64(env->CSR_PRCFG3, CSR_PRCFG3, MTLB_ENTRY, 63);
-    env->CSR_PRCFG3 = FIELD_DP64(env->CSR_PRCFG3, CSR_PRCFG3, STLB_WAYS, 7);
-    env->CSR_PRCFG3 = FIELD_DP64(env->CSR_PRCFG3, CSR_PRCFG3, STLB_SETS, 8);
+    cur->CSR_PRCFG3 = FIELD_DP64(cur->CSR_PRCFG3, CSR_PRCFG3, TLB_TYPE, 2);
+    cur->CSR_PRCFG3 = FIELD_DP64(cur->CSR_PRCFG3, CSR_PRCFG3, MTLB_ENTRY, 63);
+    cur->CSR_PRCFG3 = FIELD_DP64(cur->CSR_PRCFG3, CSR_PRCFG3, STLB_WAYS, 7);
+    cur->CSR_PRCFG3 = FIELD_DP64(cur->CSR_PRCFG3, CSR_PRCFG3, STLB_SETS, 8);
 
     cpu->msgint = ON_OFF_AUTO_OFF;
     cpu->ptw = ON_OFF_AUTO_OFF;
@@ -595,6 +600,7 @@ static void loongarch_cpu_reset_hold(Object *obj, ResetType type)
     CPUState *cs = CPU(obj);
     LoongArchCPUClass *lacc = LOONGARCH_CPU_GET_CLASS(obj);
     CPULoongArchState *env = cpu_env(cs);
+    CPUSysState *cur = get_current_state(env);
 
     if (lacc->parent_phases.hold) {
         lacc->parent_phases.hold(obj, type);
@@ -618,55 +624,55 @@ static void loongarch_cpu_reset_hold(Object *obj, ResetType type)
 
     int n;
     /* Set csr registers value after reset, see the manual 6.4. */
-    env->CSR_CRMD = FIELD_DP64(env->CSR_CRMD, CSR_CRMD, PLV, 0);
-    env->CSR_CRMD = FIELD_DP64(env->CSR_CRMD, CSR_CRMD, IE, 0);
-    env->CSR_CRMD = FIELD_DP64(env->CSR_CRMD, CSR_CRMD, DA, 1);
-    env->CSR_CRMD = FIELD_DP64(env->CSR_CRMD, CSR_CRMD, PG, 0);
-    env->CSR_CRMD = FIELD_DP64(env->CSR_CRMD, CSR_CRMD, DATF, 0);
-    env->CSR_CRMD = FIELD_DP64(env->CSR_CRMD, CSR_CRMD, DATM, 0);
+    cur->CSR_CRMD = FIELD_DP64(cur->CSR_CRMD, CSR_CRMD, PLV, 0);
+    cur->CSR_CRMD = FIELD_DP64(cur->CSR_CRMD, CSR_CRMD, IE, 0);
+    cur->CSR_CRMD = FIELD_DP64(cur->CSR_CRMD, CSR_CRMD, DA, 1);
+    cur->CSR_CRMD = FIELD_DP64(cur->CSR_CRMD, CSR_CRMD, PG, 0);
+    cur->CSR_CRMD = FIELD_DP64(cur->CSR_CRMD, CSR_CRMD, DATF, 0);
+    cur->CSR_CRMD = FIELD_DP64(cur->CSR_CRMD, CSR_CRMD, DATM, 0);
 
-    env->CSR_EUEN = FIELD_DP64(env->CSR_EUEN, CSR_EUEN, FPE, 0);
-    env->CSR_EUEN = FIELD_DP64(env->CSR_EUEN, CSR_EUEN, SXE, 0);
-    env->CSR_EUEN = FIELD_DP64(env->CSR_EUEN, CSR_EUEN, ASXE, 0);
-    env->CSR_EUEN = FIELD_DP64(env->CSR_EUEN, CSR_EUEN, BTE, 0);
+    cur->CSR_EUEN = FIELD_DP64(cur->CSR_EUEN, CSR_EUEN, FPE, 0);
+    cur->CSR_EUEN = FIELD_DP64(cur->CSR_EUEN, CSR_EUEN, SXE, 0);
+    cur->CSR_EUEN = FIELD_DP64(cur->CSR_EUEN, CSR_EUEN, ASXE, 0);
+    cur->CSR_EUEN = FIELD_DP64(cur->CSR_EUEN, CSR_EUEN, BTE, 0);
 
-    env->CSR_MISC = 0;
+    cur->CSR_MISC = 0;
 
-    env->CSR_ECFG = FIELD_DP64(env->CSR_ECFG, CSR_ECFG, VS, 0);
-    env->CSR_ECFG = FIELD_DP64(env->CSR_ECFG, CSR_ECFG, LIE, 0);
+    cur->CSR_ECFG = FIELD_DP64(cur->CSR_ECFG, CSR_ECFG, VS, 0);
+    cur->CSR_ECFG = FIELD_DP64(cur->CSR_ECFG, CSR_ECFG, LIE, 0);
 
-    env->CSR_ESTAT = env->CSR_ESTAT & (~MAKE_64BIT_MASK(0, 2));
-    env->CSR_RVACFG = FIELD_DP64(env->CSR_RVACFG, CSR_RVACFG, RBITS, 0);
-    env->CSR_CPUID = cs->cpu_index;
-    env->CSR_TCFG = FIELD_DP64(env->CSR_TCFG, CSR_TCFG, EN, 0);
-    env->CSR_LLBCTL = FIELD_DP64(env->CSR_LLBCTL, CSR_LLBCTL, KLO, 0);
-    env->CSR_TLBRERA = FIELD_DP64(env->CSR_TLBRERA, CSR_TLBRERA, ISTLBR, 0);
-    env->CSR_MERRCTL = FIELD_DP64(env->CSR_MERRCTL, CSR_MERRCTL, ISMERR, 0);
-    env->CSR_TID = cs->cpu_index;
+    cur->CSR_ESTAT = cur->CSR_ESTAT & (~MAKE_64BIT_MASK(0, 2));
+    cur->CSR_RVACFG = FIELD_DP64(cur->CSR_RVACFG, CSR_RVACFG, RBITS, 0);
+    cur->CSR_CPUID = cs->cpu_index;
+    cur->CSR_TCFG = FIELD_DP64(cur->CSR_TCFG, CSR_TCFG, EN, 0);
+    cur->CSR_LLBCTL = FIELD_DP64(cur->CSR_LLBCTL, CSR_LLBCTL, KLO, 0);
+    cur->CSR_TLBRERA = FIELD_DP64(cur->CSR_TLBRERA, CSR_TLBRERA, ISTLBR, 0);
+    cur->CSR_MERRCTL = FIELD_DP64(cur->CSR_MERRCTL, CSR_MERRCTL, ISMERR, 0);
+    cur->CSR_TID = cs->cpu_index;
     /*
      * Workaround for edk2-stable202408, CSR PGD register is set only if
      * its value is equal to zero for boot cpu, it causes reboot issue.
      *
      * Here clear CSR registers relative with TLB.
      */
-    env->CSR_PGDH = 0;
-    env->CSR_PGDL = 0;
-    env->CSR_PWCH = 0;
-    env->CSR_EENTRY = 0;
-    env->CSR_TLBRENTRY = 0;
-    env->CSR_MERRENTRY = 0;
+    cur->CSR_PGDH = 0;
+    cur->CSR_PGDL = 0;
+    cur->CSR_PWCH = 0;
+    cur->CSR_EENTRY = 0;
+    cur->CSR_TLBRENTRY = 0;
+    cur->CSR_MERRENTRY = 0;
     /* set CSR_PWCL.PTBASE and CSR_STLBPS.PS bits from CSR_PRCFG2 */
-    if (env->CSR_PRCFG2 == 0) {
-        env->CSR_PRCFG2 = 0x3fffff000;
+    if (cur->CSR_PRCFG2 == 0) {
+        cur->CSR_PRCFG2 = 0x3fffff000;
     }
-    tlb_ps = ctz32(env->CSR_PRCFG2);
-    env->CSR_STLBPS = FIELD_DP64(env->CSR_STLBPS, CSR_STLBPS, PS, tlb_ps);
-    env->CSR_PWCL = FIELD_DP64(env->CSR_PWCL, CSR_PWCL, PTBASE, tlb_ps);
+    tlb_ps = ctz32(cur->CSR_PRCFG2);
+    cur->CSR_STLBPS = FIELD_DP64(cur->CSR_STLBPS, CSR_STLBPS, PS, tlb_ps);
+    cur->CSR_PWCL = FIELD_DP64(cur->CSR_PWCL, CSR_PWCL, PTBASE, tlb_ps);
     for (n = 0; n < 4; n++) {
-        env->CSR_DMW[n] = FIELD_DP64(env->CSR_DMW[n], CSR_DMW, PLV0, 0);
-        env->CSR_DMW[n] = FIELD_DP64(env->CSR_DMW[n], CSR_DMW, PLV1, 0);
-        env->CSR_DMW[n] = FIELD_DP64(env->CSR_DMW[n], CSR_DMW, PLV2, 0);
-        env->CSR_DMW[n] = FIELD_DP64(env->CSR_DMW[n], CSR_DMW, PLV3, 0);
+        cur->CSR_DMW[n] = FIELD_DP64(cur->CSR_DMW[n], CSR_DMW, PLV0, 0);
+        cur->CSR_DMW[n] = FIELD_DP64(cur->CSR_DMW[n], CSR_DMW, PLV1, 0);
+        cur->CSR_DMW[n] = FIELD_DP64(cur->CSR_DMW[n], CSR_DMW, PLV2, 0);
+        cur->CSR_DMW[n] = FIELD_DP64(cur->CSR_DMW[n], CSR_DMW, PLV3, 0);
     }
 
 #ifndef CONFIG_USER_ONLY
