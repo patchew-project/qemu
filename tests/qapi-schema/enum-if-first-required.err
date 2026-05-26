@@ -1,0 +1,2 @@
+enum-if-first-required.json: In struct 'TestStruct':
+enum-if-first-required.json:5: enum type 'TestEnum' of member 'field' has a conditional first value and must be optional

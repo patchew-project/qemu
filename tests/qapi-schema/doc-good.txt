@@ -43,14 +43,14 @@ Enum Enum
    Values:
       * **one** -- The _one_ {and only}, description on the same line
 
-      * **two** -- Not documented
+      * **zero** -- Not documented
 
    Features:
       * **enum-feat** -- Also _one_ {and only}
 
       * **enum-member-feat** -- a member feature
 
-   "two" is undocumented
+   "zero" is undocumented
 
 Object Base
     *Availability*: "IFALL1 and IFALL2"
@@ -75,7 +75,7 @@ Object Variant1
 
       * **member-feat** -- a member feature
 
-Object Variant2
+Object Variant0
 
 Object Object
 
@@ -84,7 +84,7 @@ Object Object
 
       * When "base1" is "one": The members of "Variant1".
 
-      * When "base1" is "two": The members of "Variant2".
+      * When "base1" is "zero": The members of "Variant0".
 
    Features:
       * **union-feat1** -- a feature
