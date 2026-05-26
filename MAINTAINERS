@@ -3054,6 +3054,8 @@ Button
 M: Leonid Bloch <lb.workbox@gmail.com>
 S: Maintained
 F: docs/specs/button.rst
+F: hw/acpi/button*
+F: include/hw/acpi/button.h
 
 Subsystems
 ----------
