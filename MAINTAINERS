@@ -3043,6 +3043,11 @@ F: docs/specs/battery.rst
 F: hw/acpi/battery*
 F: include/hw/acpi/battery.h
 
+AC Adapter
+M: Leonid Bloch <lb.workbox@gmail.com>
+S: Maintained
+F: docs/specs/acad.rst
+
 Subsystems
 ----------
 Overall Audio backends
