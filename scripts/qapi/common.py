@@ -172,10 +172,24 @@ def cgen(code: str, **kwds: object) -> str:
     return re.sub(re.escape(EATSPACE) + r' *', '', raw)
 
 
-def mcgen(code: str, **kwds: object) -> str:
-    if code[0] == '\n':
-        code = code[1:]
-    return cgen(code, **kwds)
+def mcgen(*code: str, **kwds: object) -> str:
+    '''
+    Generate ``code`` with ``kwds`` interpolated.  Separate
+    positional arguments represent separate segments that could
+    expand to empty strings; empty segments are omitted and no
+    blank lines are introduced at their boundaries.
+    '''
+    last = len(code) - 1
+    result = []
+    for i, s in enumerate(code):
+        if s.startswith('\n'):
+            s = s[1:]
+        if i != last:
+            s = s.rstrip()
+        s = cgen(s, **kwds)
+        if s:
+            result.append(s)
+    return '\n'.join(result)
 
 
 def c_fname(filename: str) -> str:
