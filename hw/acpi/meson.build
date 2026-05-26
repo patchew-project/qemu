@@ -35,6 +35,8 @@ if have_tpm
 endif
 stub_ss.add(files('acpi-stub.c', 'aml-build-stub.c', 'ghes-stub.c'))
 stub_ss.add(files('pci-bridge-stub.c'))
+acpi_ss.add(when: 'CONFIG_BATTERY', if_true: files('battery.c'))
+stub_ss.add(files('battery-stub.c'))
 system_ss.add_all(when: 'CONFIG_ACPI', if_true: acpi_ss)
 system_ss.add(when: 'CONFIG_GHES_CPER', if_true: files('ghes_cper.c'))
 stub_ss.add(files('ghes_cper_stub.c'))
