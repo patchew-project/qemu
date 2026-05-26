@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/target-info.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "target/riscv/cpu.h"
@@ -182,7 +183,8 @@ static void mb_v_generic_machine_init(MachineClass *mc)
     mc->init = mb_v_generic_init;
     mc->min_cpus = 1;
     mc->max_cpus = 1;
-    mc->default_cpu_type = TYPE_RISCV_CPU_BASE;
+    mc->default_cpu_type = target_riscv64() ? TYPE_RISCV_CPU_RV64I
+                                            : TYPE_RISCV_CPU_RV32I;
     mc->default_cpus = 1;
 }
 
