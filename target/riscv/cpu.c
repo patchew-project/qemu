@@ -955,6 +955,13 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
+#ifndef CONFIG_TCG
+    if (cpu->cfg.misa_w) {
+        error_setg(errp, "x-misa-w requires TCG");
+        return;
+    }
+#endif
+
     cpu_exec_realizefn(cs, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);

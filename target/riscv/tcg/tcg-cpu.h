@@ -22,7 +22,17 @@
 
 #include "cpu.h"
 
+#ifdef CONFIG_TCG
 void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp);
+#else
+static inline void riscv_cpu_validate_set_extensions(RISCVCPU *cpu,
+                                                     Error **errp)
+{
+    (void)cpu;
+    (void)errp;
+    qemu_build_not_reached();
+}
+#endif
 void riscv_tcg_cpu_finalize_features(RISCVCPU *cpu, Error **errp);
 bool riscv_cpu_tcg_compatible(RISCVCPU *cpu);
 
