@@ -64,6 +64,13 @@ def camel_to_upper(value: str) -> str:
     return ret.upper()
 
 
+def camel_to_lower(value: str) -> str:
+    """
+    Converts CamelCase to camel_case.
+    """
+    return camel_to_upper(value).lower()
+
+
 def c_enum_const(type_name: str,
                  const_name: str,
                  prefix: Optional[str] = None) -> str:
@@ -127,6 +134,48 @@ def c_name(name: str, protect: bool = True) -> str:
                     or name[0].isdigit()):
         return 'q_' + name
     return name
+
+
+def rs_name(name: str) -> str:
+    """
+    Map @name to a valid, possibly raw Rust identifier.
+    """
+    name = re.sub(r'[^A-Za-z0-9_]', '_', name)
+    if name[0].isnumeric():
+        name = '_' + name
+    # based from the list:
+    # https://doc.rust-lang.org/reference/keywords.html
+    if name in ('Self', 'abstract', 'as', 'async',
+                'await', 'become', 'box', 'break',
+                'const', 'continue', 'crate', 'do',
+                'dyn', 'else', 'enum', 'extern',
+                'false', 'final', 'fn', 'for',
+                'if', 'impl', 'in', 'let',
+                'loop', 'macro', 'match', 'mod',
+                'move', 'mut', 'override', 'priv',
+                'pub', 'ref', 'return', 'self',
+                'static', 'struct', 'super', 'trait',
+                'true', 'try', 'type', 'typeof',
+                'union', 'unsafe', 'unsized', 'use',
+                'virtual', 'where', 'while', 'yield'):
+        name = 'r#' + name
+
+    return name
+
+
+def to_camel_case(value: str) -> str:
+    result = ''
+    for p in re.split(r'[-_]+', value):
+        if not p:
+            pass
+        elif p[0].isalpha():
+            result += p[0].upper() + p[1:]
+        elif result and result[-1].isalpha():
+            result += p
+        else:
+            # digit_digit, or digit at start of value
+            result += '_' + p
+    return result
 
 
 class Indentation:
