@@ -514,6 +514,7 @@ dependencies = [
  "glib-sys",
  "libc",
  "serde",
+ "serde_derive",
  "util-sys",
 ]
 
