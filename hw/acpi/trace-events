@@ -91,3 +91,7 @@ acpi_nvdimm_invalid_revision(uint32_t revision) "Revision 0x%" PRIx32 " is not s
 # battery.c
 battery_realize(void) "Battery device realize entry"
 battery_get_dynamic_status(uint32_t state, uint32_t rate, uint32_t charge) "Battery read state: 0x%"PRIx32", rate: %"PRIu32", charge: %"PRIu32
+
+# acad.c
+acad_realize(void) "AC adapter device realize entry"
+acad_get_dynamic_status(uint8_t state) "AC adapter read state: %"PRIu8

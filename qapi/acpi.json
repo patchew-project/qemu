@@ -213,3 +213,50 @@
 ##
 { 'command': 'query-battery',
   'returns': 'BatteryInfo' }
+
+##
+# @ac-adapter-set-state:
+#
+# Set the state of the emulated AC adapter device
+#
+# @connected: whether the AC adapter is connected
+#
+# Since: 11.1
+#
+# .. qmp-example::
+#
+#     -> { "execute": "ac-adapter-set-state",
+#          "arguments": { "connected": true } }
+#     <- { "return": {} }
+##
+{ 'command': 'ac-adapter-set-state',
+  'data': { 'connected': 'bool' } }
+
+##
+# @AcAdapterInfo:
+#
+# AC adapter state information
+#
+# @connected: whether the AC adapter is connected
+#
+# Since: 11.1
+##
+{ 'struct': 'AcAdapterInfo',
+  'data': { 'connected': 'bool' } }
+
+##
+# @query-ac-adapter:
+#
+# Query the current state of the emulated AC adapter device
+#
+# Returns: AC adapter connection state
+#
+# Since: 11.1
+#
+# .. qmp-example::
+#
+#     -> { "execute": "query-ac-adapter" }
+#     <- { "return": { "connected": true } }
+##
+{ 'command': 'query-ac-adapter',
+  'returns': 'AcAdapterInfo' }

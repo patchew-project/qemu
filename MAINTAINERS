@@ -3047,6 +3047,8 @@ AC Adapter
 M: Leonid Bloch <lb.workbox@gmail.com>
 S: Maintained
 F: docs/specs/acad.rst
+F: hw/acpi/acad*
+F: include/hw/acpi/acad.h
 
 Subsystems
 ----------

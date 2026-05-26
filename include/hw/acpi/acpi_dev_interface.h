@@ -15,6 +15,7 @@ typedef enum {
     ACPI_POWER_DOWN_STATUS = 64,
     ACPI_GENERIC_ERROR = 128,
     ACPI_BATTERY_CHANGE_STATUS = 256,
+    ACPI_AC_ADAPTER_CHANGE_STATUS = 2048,
 } AcpiEventStatusBits;
 
 #define TYPE_ACPI_DEVICE_IF "acpi-device-interface"
