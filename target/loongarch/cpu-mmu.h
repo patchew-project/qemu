@@ -32,7 +32,9 @@ typedef struct MMUContext {
 
 static inline bool cpu_has_ptw(CPULoongArchState *env)
 {
-    return !!FIELD_EX64(env->CSR_PWCH, CSR_PWCH, HPTW_EN);
+    CPUSysState *cur = get_current_state(env);
+
+    return !!FIELD_EX64(cur->CSR_PWCH, CSR_PWCH, HPTW_EN);
 }
 
 static inline bool pte_present(CPULoongArchState *env, uint64_t entry)
