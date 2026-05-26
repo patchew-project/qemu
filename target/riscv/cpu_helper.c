@@ -21,6 +21,7 @@
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
 #include "cpu.h"
+#include "fpu/softfloat.h"
 #include "internals.h"
 #include "pmu.h"
 #include "exec/cputlb.h"
@@ -28,8 +29,10 @@
 #include "exec/target_page.h"
 #include "system/memory.h"
 #include "instmap.h"
+#ifdef CONFIG_TCG
 #include "tcg/tcg-op.h"
 #include "accel/tcg/cpu-ops.h"
+#endif
 #include "trace.h"
 #include "semihosting/common-semi.h"
 #include "exec/icount.h"
@@ -37,6 +40,52 @@
 #include "debug.h"
 #include "pmp.h"
 #include "qemu/plugin.h"
+
+/* Exceptions processing helpers */
+G_NORETURN void riscv_raise_exception(CPURISCVState *env,
+                                      RISCVException exception,
+                                      uintptr_t pc)
+{
+    CPUState *cs = env_cpu(env);
+
+    trace_riscv_exception(exception,
+                          riscv_cpu_get_trap_name(exception, false),
+                          env->pc);
+
+    cs->exception_index = exception;
+#ifdef CONFIG_TCG
+    cpu_loop_exit_restore(cs, pc);
+#else
+    qemu_build_not_reached();
+#endif
+}
+
+target_ulong riscv_cpu_get_fflags(CPURISCVState *env)
+{
+    int soft = get_float_exception_flags(&env->fp_status);
+    target_ulong hard = 0;
+
+    hard |= (soft & float_flag_inexact) ? FPEXC_NX : 0;
+    hard |= (soft & float_flag_underflow) ? FPEXC_UF : 0;
+    hard |= (soft & float_flag_overflow) ? FPEXC_OF : 0;
+    hard |= (soft & float_flag_divbyzero) ? FPEXC_DZ : 0;
+    hard |= (soft & float_flag_invalid) ? FPEXC_NV : 0;
+
+    return hard;
+}
+
+void riscv_cpu_set_fflags(CPURISCVState *env, target_ulong hard)
+{
+    int soft = 0;
+
+    soft |= (hard & FPEXC_NX) ? float_flag_inexact : 0;
+    soft |= (hard & FPEXC_UF) ? float_flag_underflow : 0;
+    soft |= (hard & FPEXC_OF) ? float_flag_overflow : 0;
+    soft |= (hard & FPEXC_DZ) ? float_flag_divbyzero : 0;
+    soft |= (hard & FPEXC_NV) ? float_flag_invalid : 0;
+
+    set_float_exception_flags(soft, &env->fp_status);
+}
 
 int riscv_env_mmu_index(CPURISCVState *env, bool ifetch)
 {
@@ -1667,6 +1716,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     return TRANSLATE_SUCCESS;
 }
 
+#ifdef CONFIG_TCG
 static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
                                 MMUAccessType access_type, bool pmp_violation,
                                 bool first_stage, bool two_stage,
@@ -1709,6 +1759,7 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
     env->two_stage_lookup = two_stage;
     env->two_stage_indirect_lookup = two_stage_indirect;
 }
+#endif
 
 hwaddr riscv_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
 {
@@ -1733,6 +1784,7 @@ hwaddr riscv_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
     return phys_addr;
 }
 
+#ifdef CONFIG_TCG
 void riscv_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
                                      vaddr addr, unsigned size,
                                      MMUAccessType access_type,
@@ -1957,6 +2009,7 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 
     return true;
 }
+#endif
 
 static target_ulong riscv_transformed_insn(CPURISCVState *env,
                                            target_ulong insn,

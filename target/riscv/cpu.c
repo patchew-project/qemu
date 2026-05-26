@@ -36,7 +36,9 @@
 #include "system/tcg.h"
 #include "kvm/kvm_riscv.h"
 #include "tcg/tcg-cpu.h"
+#ifdef CONFIG_TCG
 #include "tcg/tcg.h"
+#endif
 
 /* RISC-V CPU definitions */
 static const char riscv_single_letter_exts[] = "IEMAFDQCBPVH";
@@ -955,6 +957,13 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     RISCVCPU *cpu = RISCV_CPU(dev);
     RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
+
+#ifndef CONFIG_TCG
+    if (cpu->cfg.misa_w) {
+        error_setg(errp, "x-misa-w requires TCG");
+        return;
+    }
+#endif
 
     cpu_exec_realizefn(cs, &local_err);
     if (local_err != NULL) {

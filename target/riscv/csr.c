@@ -2135,21 +2135,31 @@ static RISCVException read_misa(CPURISCVState *env, int csrno,
 
 static target_ulong get_next_pc(CPURISCVState *env, uintptr_t ra)
 {
+    /* Outside of a running cpu, env contains the next pc. */
+    if (ra == 0) {
+        return env->pc;
+    }
+
+#ifdef CONFIG_TCG
     uint64_t data[INSN_START_WORDS];
 
-    /* Outside of a running cpu, env contains the next pc. */
-    if (ra == 0 || !cpu_unwind_state_data(env_cpu(env), ra, data)) {
+    if (!cpu_unwind_state_data(env_cpu(env), ra, data)) {
         return env->pc;
     }
 
     /* Within unwind data, [0] is pc and [1] is the opcode. */
     return data[0] + insn_len(data[1]);
+#else
+    qemu_build_not_reached();
+#endif
 }
 
 static RISCVException write_misa(CPURISCVState *env, int csrno,
                                  target_ulong val, uintptr_t ra)
 {
+#ifdef CONFIG_TCG
     RISCVCPU *cpu = env_archcpu(env);
+#endif
     uint32_t orig_misa_ext = env->misa_ext;
     Error *local_err = NULL;
 
@@ -2178,7 +2188,11 @@ static RISCVException write_misa(CPURISCVState *env, int csrno,
     }
 
     env->misa_ext = val;
+#ifdef CONFIG_TCG
     riscv_cpu_validate_set_extensions(cpu, &local_err);
+#else
+    qemu_build_not_reached();
+#endif
     if (local_err != NULL) {
         /* Rollback on validation error */
         qemu_log_mask(LOG_GUEST_ERROR, "Unable to write MISA ext value "
