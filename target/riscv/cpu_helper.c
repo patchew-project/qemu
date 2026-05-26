@@ -39,6 +39,25 @@
 #include "pmp.h"
 #include "qemu/plugin.h"
 
+/* Exceptions processing helpers */
+G_NORETURN void riscv_raise_exception(CPURISCVState *env,
+                                      RISCVException exception,
+                                      uintptr_t pc)
+{
+    CPUState *cs = env_cpu(env);
+
+    trace_riscv_exception(exception,
+                          riscv_cpu_get_trap_name(exception, false),
+                          env->pc);
+
+    cs->exception_index = exception;
+#ifdef CONFIG_TCG
+    cpu_loop_exit_restore(cs, pc);
+#else
+    qemu_build_not_reached();
+#endif
+}
+
 target_ulong riscv_cpu_get_fflags(CPURISCVState *env)
 {
     int soft = get_float_exception_flags(&env->fp_status);
