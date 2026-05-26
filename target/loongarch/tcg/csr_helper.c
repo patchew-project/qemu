@@ -20,7 +20,8 @@
 
 target_ulong helper_csrwr_stlbps(CPULoongArchState *env, target_ulong val)
 {
-    int64_t old_v = env->CSR_STLBPS;
+    CPUSysState *cur = get_current_state(env);
+    int64_t old_v = cur->CSR_STLBPS;
 
     /*
      * The real hardware only supports the min tlb_ps is 12
@@ -33,7 +34,7 @@ target_ulong helper_csrwr_stlbps(CPULoongArchState *env, target_ulong val)
     } else {
         /* Only update PS field, reserved bit keeps zero */
         val = FIELD_DP64(val, CSR_STLBPS, RESERVE, 0);
-        env->CSR_STLBPS = val;
+        cur->CSR_STLBPS = val;
     }
 
     return old_v;
@@ -42,17 +43,18 @@ target_ulong helper_csrwr_stlbps(CPULoongArchState *env, target_ulong val)
 target_ulong helper_csrrd_pgd(CPULoongArchState *env)
 {
     int64_t v;
+    CPUSysState *cur = get_current_state(env);
 
-    if (env->CSR_TLBRERA & 0x1) {
-        v = env->CSR_TLBRBADV;
+    if (cur->CSR_TLBRERA & 0x1) {
+        v = cur->CSR_TLBRBADV;
     } else {
-        v = env->CSR_BADV;
+        v = cur->CSR_BADV;
     }
 
     if ((v >> 63) & 0x1) {
-        v = env->CSR_PGDH;
+        v = cur->CSR_PGDH;
     } else {
-        v = env->CSR_PGDL;
+        v = cur->CSR_PGDL;
     }
 
     return v;
@@ -61,10 +63,11 @@ target_ulong helper_csrrd_pgd(CPULoongArchState *env)
 target_ulong helper_csrrd_cpuid(CPULoongArchState *env)
 {
     LoongArchCPU *lac = env_archcpu(env);
+    CPUSysState *cur = get_current_state(env);
 
-    env->CSR_CPUID = CPU(lac)->cpu_index;
+    cur->CSR_CPUID = CPU(lac)->cpu_index;
 
-    return env->CSR_CPUID;
+    return cur->CSR_CPUID;
 }
 
 target_ulong helper_csrrd_tval(CPULoongArchState *env)
@@ -77,16 +80,17 @@ target_ulong helper_csrrd_tval(CPULoongArchState *env)
 target_ulong helper_csrrd_msgir(CPULoongArchState *env)
 {
     int irq, new;
+    CPUSysState *cur = get_current_state(env);
 
-    irq = find_first_bit((unsigned long *)env->CSR_MSGIS, 256);
+    irq = find_first_bit((unsigned long *)cur->CSR_MSGIS, 256);
     if (irq < 256) {
-        clear_bit(irq, (unsigned long *)env->CSR_MSGIS);
-        new = find_first_bit((unsigned long *)env->CSR_MSGIS, 256);
+        clear_bit(irq, (unsigned long *)cur->CSR_MSGIS);
+        new = find_first_bit((unsigned long *)cur->CSR_MSGIS, 256);
         if (new < 256) {
             return irq;
         }
 
-        env->CSR_ESTAT = FIELD_DP64(env->CSR_ESTAT, CSR_ESTAT, MSGINT, 0);
+        cur->CSR_ESTAT = FIELD_DP64(cur->CSR_ESTAT, CSR_ESTAT, MSGINT, 0);
     } else {
         /* bit 31 set 1 for no invalid irq */
         irq = BIT(31);
@@ -97,21 +101,23 @@ target_ulong helper_csrrd_msgir(CPULoongArchState *env)
 
 target_ulong helper_csrwr_estat(CPULoongArchState *env, target_ulong val)
 {
-    int64_t old_v = env->CSR_ESTAT;
+    CPUSysState *cur = get_current_state(env);
+    int64_t old_v = cur->CSR_ESTAT;
 
     /* Only IS[1:0] can be written */
-    env->CSR_ESTAT = deposit64(env->CSR_ESTAT, 0, 2, val);
+    cur->CSR_ESTAT = deposit64(cur->CSR_ESTAT, 0, 2, val);
 
     return old_v;
 }
 
 target_ulong helper_csrwr_asid(CPULoongArchState *env, target_ulong val)
 {
-    int64_t old_v = env->CSR_ASID;
+    CPUSysState *cur = get_current_state(env);
+    int64_t old_v = cur->CSR_ASID;
 
     /* Only ASID filed of CSR_ASID can be written */
-    env->CSR_ASID = deposit64(env->CSR_ASID, 0, 10, val);
-    if (old_v != env->CSR_ASID) {
+    cur->CSR_ASID = deposit64(cur->CSR_ASID, 0, 10, val);
+    if (old_v != cur->CSR_ASID) {
         tlb_flush(env_cpu(env));
     }
     return old_v;
@@ -120,7 +126,8 @@ target_ulong helper_csrwr_asid(CPULoongArchState *env, target_ulong val)
 target_ulong helper_csrwr_tcfg(CPULoongArchState *env, target_ulong val)
 {
     LoongArchCPU *cpu = env_archcpu(env);
-    int64_t old_v = env->CSR_TCFG;
+    CPUSysState *cur = get_current_state(env);
+    int64_t old_v = cur->CSR_TCFG;
 
     cpu_loongarch_store_constant_timer_config(cpu, val);
 
@@ -143,7 +150,8 @@ target_ulong helper_csrwr_ticlr(CPULoongArchState *env, target_ulong val)
 target_ulong helper_csrwr_pwcl(CPULoongArchState *env, target_ulong val)
 {
     uint8_t shift, ptbase;
-    int64_t old_v = env->CSR_PWCL;
+    CPUSysState *cur = get_current_state(env);
+    int64_t old_v = cur->CSR_PWCL;
 
     /*
      * The real hardware only supports 64bit PTE width now, 128bit or others
@@ -160,14 +168,15 @@ target_ulong helper_csrwr_pwcl(CPULoongArchState *env, target_ulong val)
          qemu_log_mask(LOG_GUEST_ERROR,
                       "Attempted set ptbase 2^%d\n", ptbase);
     }
-    env->CSR_PWCL = val;
+    cur->CSR_PWCL = val;
     return old_v;
 }
 
 target_ulong helper_csrwr_pwch(CPULoongArchState *env, target_ulong val)
 {
     uint8_t has_ptw;
-    int64_t old_v = env->CSR_PWCH;
+    CPUSysState *cur = get_current_state(env);
+    int64_t old_v = cur->CSR_PWCH;
 
     val = FIELD_DP64(val, CSR_PWCH, RESERVE, 0);
     has_ptw = FIELD_EX32(env->cpucfg[2], CPUCFG2, HPTW);
@@ -175,6 +184,6 @@ target_ulong helper_csrwr_pwch(CPULoongArchState *env, target_ulong val)
         val = FIELD_DP64(val, CSR_PWCH, HPTW_EN, 0);
     }
 
-    env->CSR_PWCH = val;
+    cur->CSR_PWCH = val;
     return old_v;
  }
