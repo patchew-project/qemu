@@ -17,3 +17,4 @@ command line utilities and other standalone programs.
    qemu-trace-stap
    qemu-vmsr-helper
    qemu-vnc
+   laptop-mirror

@@ -3057,6 +3057,12 @@ F: docs/specs/button.rst
 F: hw/acpi/button*
 F: include/hw/acpi/button.h
 
+Laptop mirror
+M: Leonid Bloch <lb.workbox@gmail.com>
+S: Maintained
+F: docs/tools/laptop-mirror.rst
+F: scripts/laptop-mirror.py
+
 Subsystems
 ----------
 Overall Audio backends
