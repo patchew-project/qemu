@@ -428,6 +428,10 @@ class QAPISchemaEnumType(QAPISchemaType):
 
     def check(self, schema: QAPISchema) -> None:
         super().check(schema)
+        if not self.members:
+            raise QAPISemError(
+                self.info,
+                "enum '%s' must have at least one value" % self.name)
         seen: Dict[str, QAPISchemaMember] = {}
         for m in self.members:
             m.check_clash(self.info, seen)

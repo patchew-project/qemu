@@ -18,7 +18,6 @@ object NestedEnumsOne
     member enum2: EnumOne optional=True
     member enum3: EnumOne optional=False
     member enum4: EnumOne optional=True
-enum MyEnum
 object Empty1
 object Empty2
     base Empty1
