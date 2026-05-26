@@ -46,16 +46,20 @@ target_ulong helper_bitswap(target_ulong v)
 /* loongarch assert op */
 void helper_asrtle_d(CPULoongArchState *env, target_ulong rj, target_ulong rk)
 {
+    CPUSysState *cur = get_current_state(env);
+
     if (rj > rk) {
-        env->CSR_BADV = rj;
+        cur->CSR_BADV = rj;
         do_raise_exception(env, EXCCODE_BCE, GETPC());
     }
 }
 
 void helper_asrtgt_d(CPULoongArchState *env, target_ulong rj, target_ulong rk)
 {
+    CPUSysState *cur = get_current_state(env);
+
     if (rj <= rk) {
-        env->CSR_BADV = rj;
+        cur->CSR_BADV = rj;
         do_raise_exception(env, EXCCODE_BCE, GETPC());
     }
 }
@@ -91,9 +95,10 @@ uint64_t helper_rdtime_d(CPULoongArchState *env)
 #else
     uint64_t plv;
     LoongArchCPU *cpu = env_archcpu(env);
+    CPUSysState *cur = get_current_state(env);
 
-    plv = FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PLV);
-    if (extract64(env->CSR_MISC, R_CSR_MISC_DRDTL_SHIFT + plv, 1)) {
+    plv = FIELD_EX64(cur->CSR_CRMD, CSR_CRMD, PLV);
+    if (extract64(cur->CSR_MISC, R_CSR_MISC_DRDTL_SHIFT + plv, 1)) {
         do_raise_exception(env, EXCCODE_IPE, GETPC());
     }
 
@@ -105,26 +110,28 @@ uint64_t helper_rdtime_d(CPULoongArchState *env)
 void helper_ertn(CPULoongArchState *env)
 {
     uint64_t csr_pplv, csr_pie;
-    if (FIELD_EX64(env->CSR_TLBRERA, CSR_TLBRERA, ISTLBR)) {
-        csr_pplv = FIELD_EX64(env->CSR_TLBRPRMD, CSR_TLBRPRMD, PPLV);
-        csr_pie = FIELD_EX64(env->CSR_TLBRPRMD, CSR_TLBRPRMD, PIE);
+    CPUSysState *cur = get_current_state(env);
 
-        env->CSR_TLBRERA = FIELD_DP64(env->CSR_TLBRERA, CSR_TLBRERA, ISTLBR, 0);
-        env->CSR_CRMD = FIELD_DP64(env->CSR_CRMD, CSR_CRMD, DA, 0);
-        env->CSR_CRMD = FIELD_DP64(env->CSR_CRMD, CSR_CRMD, PG, 1);
-        set_pc(env, env->CSR_TLBRERA);
+    if (FIELD_EX64(cur->CSR_TLBRERA, CSR_TLBRERA, ISTLBR)) {
+        csr_pplv = FIELD_EX64(cur->CSR_TLBRPRMD, CSR_TLBRPRMD, PPLV);
+        csr_pie = FIELD_EX64(cur->CSR_TLBRPRMD, CSR_TLBRPRMD, PIE);
+
+        cur->CSR_TLBRERA = FIELD_DP64(cur->CSR_TLBRERA, CSR_TLBRERA, ISTLBR, 0);
+        cur->CSR_CRMD = FIELD_DP64(cur->CSR_CRMD, CSR_CRMD, DA, 0);
+        cur->CSR_CRMD = FIELD_DP64(cur->CSR_CRMD, CSR_CRMD, PG, 1);
+        set_pc(env, cur->CSR_TLBRERA);
         qemu_log_mask(CPU_LOG_INT, "%s: TLBRERA " TARGET_FMT_lx "\n",
-                      __func__, env->CSR_TLBRERA);
+                      __func__, cur->CSR_TLBRERA);
     } else {
-        csr_pplv = FIELD_EX64(env->CSR_PRMD, CSR_PRMD, PPLV);
-        csr_pie = FIELD_EX64(env->CSR_PRMD, CSR_PRMD, PIE);
+        csr_pplv = FIELD_EX64(cur->CSR_PRMD, CSR_PRMD, PPLV);
+        csr_pie = FIELD_EX64(cur->CSR_PRMD, CSR_PRMD, PIE);
 
-        set_pc(env, env->CSR_ERA);
+        set_pc(env, cur->CSR_ERA);
         qemu_log_mask(CPU_LOG_INT, "%s: ERA " TARGET_FMT_lx "\n",
-                      __func__, env->CSR_ERA);
+                      __func__, cur->CSR_ERA);
     }
-    env->CSR_CRMD = FIELD_DP64(env->CSR_CRMD, CSR_CRMD, PLV, csr_pplv);
-    env->CSR_CRMD = FIELD_DP64(env->CSR_CRMD, CSR_CRMD, IE, csr_pie);
+    cur->CSR_CRMD = FIELD_DP64(cur->CSR_CRMD, CSR_CRMD, PLV, csr_pplv);
+    cur->CSR_CRMD = FIELD_DP64(cur->CSR_CRMD, CSR_CRMD, IE, csr_pie);
 
     env->lladdr = 1;
 }
