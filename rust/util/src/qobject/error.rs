@@ -6,7 +6,7 @@ use std::{
     str::Utf8Error,
 };
 
-use serde::ser;
+use serde::{de, ser};
 
 #[derive(Debug)]
 pub enum Error {
@@ -18,6 +18,12 @@ pub enum Error {
 }
 
 impl ser::Error for Error {
+    fn custom<T: Display>(msg: T) -> Self {
+        Error::Custom(msg.to_string())
+    }
+}
+
+impl de::Error for Error {
     fn custom<T: Display>(msg: T) -> Self {
         Error::Custom(msg.to_string())
     }
