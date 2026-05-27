@@ -1490,6 +1490,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
         return TRANSLATE_FAIL;
     }
     if (!pbmte && (pte & PTE_PBMT)) {
+        assert(riscv_cpu_sxl(env) != MXL_RV32);
         /* Reserved without Svpbmt. */
         qemu_log_mask(LOG_GUEST_ERROR, "%s: PBMT bits set in PTE, "
                       "and Svpbmt extension is disabled: "
@@ -1643,6 +1644,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     target_ulong vpn = addr >> PGSHIFT;
 
     if (riscv_cpu_cfg(env)->ext_svnapot && (pte & PTE_N)) {
+        assert(riscv_cpu_sxl(env) != MXL_RV32);
         napot_bits = ctzl(ppn) + 1;
         if ((i != (levels - 1)) || (napot_bits != 4)) {
             return TRANSLATE_FAIL;
