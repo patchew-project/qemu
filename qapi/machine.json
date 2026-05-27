@@ -1414,6 +1414,32 @@
 }
 
 ##
+# @SpmMemoryDeviceInfo:
+#
+# spm-memory device state information
+#
+# @id: device's ID
+#
+# @memaddr: physical address in memory, where device is mapped
+#
+# @size: size of memory that the device provides
+#
+# @node: NUMA proximity domain to which the device is assigned
+#
+# @memdev: memory backend linked with device
+#
+# Since: 11.1
+##
+{ 'struct': 'SpmMemoryDeviceInfo',
+  'data': { '*id': 'str',
+            'memaddr': 'size',
+            'size': 'size',
+            'node': 'int',
+            'memdev': 'str'
+          }
+}
+
+##
 # @MemoryDeviceInfoKind:
 #
 # @nvdimm: since 2.12
@@ -1426,11 +1452,13 @@
 #
 # @hv-balloon: since 8.2.
 #
+# @spm-memory: since 11.1.
+#
 # Since: 2.1
 ##
 { 'enum': 'MemoryDeviceInfoKind',
   'data': [ 'dimm', 'nvdimm', 'virtio-pmem', 'virtio-mem', 'sgx-epc',
-            'hv-balloon' ] }
+            'hv-balloon', 'spm-memory' ] }
 
 ##
 # @PCDIMMDeviceInfoWrapper:
@@ -1483,6 +1511,16 @@
   'data': { 'data': 'HvBalloonDeviceInfo' } }
 
 ##
+# @SpmMemoryDeviceInfoWrapper:
+#
+# @data: spm-memory device state information
+#
+# Since: 11.1
+##
+{ 'struct': 'SpmMemoryDeviceInfoWrapper',
+  'data': { 'data': 'SpmMemoryDeviceInfo' } }
+
+##
 # @MemoryDeviceInfo:
 #
 # Union containing information about a memory device
@@ -1499,7 +1537,8 @@
             'virtio-pmem': 'VirtioPMEMDeviceInfoWrapper',
             'virtio-mem': 'VirtioMEMDeviceInfoWrapper',
             'sgx-epc': 'SgxEPCDeviceInfoWrapper',
-            'hv-balloon': 'HvBalloonDeviceInfoWrapper'
+            'hv-balloon': 'HvBalloonDeviceInfoWrapper',
+            'spm-memory': 'SpmMemoryDeviceInfoWrapper'
           }
 }
 
