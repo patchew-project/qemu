@@ -149,7 +149,7 @@ highmem-mmio
 
 highmem-mmio-size
   Set the high memory region size for PCI MMIO. Must be a power of 2 and
-  greater than or equal to the default size (512G).
+  greater than or equal to 64 KiB.
 
 gic-version
   Specify the version of the Generic Interrupt Controller (GIC) to provide.

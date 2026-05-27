@@ -222,8 +222,7 @@ static const MemMapEntry base_memmap[] = {
 };
 
 /* Update the docs for highmem-mmio-size when changing this default */
-#define DEFAULT_HIGH_PCIE_MMIO_SIZE_GB 512
-#define DEFAULT_HIGH_PCIE_MMIO_SIZE (DEFAULT_HIGH_PCIE_MMIO_SIZE_GB * GiB)
+#define MAX_DEFAULT_HIGH_PCIE_MMIO_SIZE (512 * GiB)
 
 /*
  * Highmem IO Regions: This memory map is floating, located after the RAM.
@@ -249,7 +248,7 @@ static MemMapEntry extended_memmap[] = {
     [VIRT_CXL_HOST] =           { 0x0, 64 * KiB * 16 }, /* 16 UID */
     [VIRT_HIGH_PCIE_ECAM] =     { 0x0, 256 * MiB },
     /* Second PCIe window */
-    [VIRT_HIGH_PCIE_MMIO] =     { 0x0, DEFAULT_HIGH_PCIE_MMIO_SIZE },
+    [VIRT_HIGH_PCIE_MMIO] =     { 0x0, 0 },
     /* Any CXL Fixed memory windows come here */
 };
 
@@ -2448,9 +2447,14 @@ static void virt_set_high_memmap(VirtMachineState *vms,
 
     for (i = VIRT_LOWMEMMAP_LAST; i < ARRAY_SIZE(extended_memmap); i++) {
         region_enabled = virt_get_high_memmap_enabled(vms, i);
-        region_base = ROUND_UP(base, extended_memmap[i].size);
         region_size = extended_memmap[i].size;
 
+        if (i == VIRT_HIGH_PCIE_MMIO && !region_size) {
+            region_size = CLAMP(pow2floor(BIT_ULL(pa_bits) - base),
+                                64 * KiB, MAX_DEFAULT_HIGH_PCIE_MMIO_SIZE);
+        }
+
+        region_base = ROUND_UP(base, region_size);
         vms->memmap[i].base = region_base;
         vms->memmap[i].size = region_size;
 
@@ -3340,11 +3344,9 @@ static void virt_set_highmem_mmio_size(Object *obj, Visitor *v,
         return;
     }
 
-    if (size < DEFAULT_HIGH_PCIE_MMIO_SIZE) {
-        char *sz = size_to_str(DEFAULT_HIGH_PCIE_MMIO_SIZE);
+    if (size < 64 * KiB) {
         error_setg(errp, "highmem-mmio-size cannot be set to a lower value "
-                         "than the default (%s)", sz);
-        g_free(sz);
+                         "than 64 KiB");
         return;
     }
 
@@ -4271,6 +4273,8 @@ static void virt_instance_init(Object *obj)
     VirtMachineState *vms = VIRT_MACHINE(obj);
     VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
 
+    extended_memmap[VIRT_HIGH_PCIE_MMIO].size = vmc->high_pcie_mmio_size;
+
     /* EL3 is disabled by default on virt: this makes us consistent
      * between KVM and TCG for this board, and it also allows us to
      * boot UEFI blobs which assume no TrustZone support.
@@ -4372,6 +4376,8 @@ static void virt_machine_11_0_options(MachineClass *mc)
      * < 255GiB we keep the legacy memory map.
      */
     vmc->min_highmem_base = base_memmap[VIRT_MEM].base + LEGACY_RAMLIMIT_BYTES;
+
+    vmc->high_pcie_mmio_size = MAX_DEFAULT_HIGH_PCIE_MMIO_SIZE;
 }
 DEFINE_VIRT_MACHINE(11, 0)
 
