@@ -197,6 +197,12 @@ static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
         goto fail;
     }
 
+    if (elem->in_sg[elem->in_num - 2].iov_len <
+        sizeof(struct virtio_scsi_inhdr)) {
+        status = VIRTIO_BLK_S_IOERR;
+        goto fail;
+    }
+
     /*
      * The scsi inhdr is placed in the second-to-last input segment, just
      * before the regular inhdr.
