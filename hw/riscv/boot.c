@@ -40,6 +40,28 @@ bool riscv_is_32bit(RISCVHartArrayState *harts)
     return mcc->def->misa_mxl_max == MXL_RV32;
 }
 
+bool riscv_is_big_endian(RISCVHartArrayState *harts)
+{
+    return harts->harts[0].cfg.big_endian;
+}
+
+/*
+ * Convert a pair of 32-bit words forming a 64-bit dword to target data
+ * endianness. For big-endian, the hi/lo word order is swapped since LD
+ * interprets bytes as BE.
+ */
+static void riscv_boot_data_dword(uint32_t *data, bool big_endian)
+{
+    if (big_endian) {
+        uint32_t tmp = data[0];
+        data[0] = cpu_to_be32(data[1]);
+        data[1] = cpu_to_be32(tmp);
+    } else {
+        data[0] = cpu_to_le32(data[0]);
+        data[1] = cpu_to_le32(data[1]);
+    }
+}
+
 /*
  * Return the per-socket PLIC hart topology configuration string
  * (caller must free with g_free())
@@ -262,8 +284,9 @@ void riscv_load_kernel(MachineState *machine,
      */
     kernel_size = load_elf_ram_sym(kernel_filename, NULL, NULL, NULL, NULL,
                                    &info->image_low_addr, &info->image_high_addr,
-                                   NULL, ELFDATA2LSB, EM_RISCV,
-                                   1, 0, NULL, true, sym_cb);
+                                   NULL,
+                                   ELFDATA2LSB,
+                                   EM_RISCV, 1, 0, NULL, true, sym_cb);
     if (kernel_size > 0) {
         info->kernel_size = kernel_size;
         goto out;
@@ -406,21 +429,32 @@ void riscv_rom_copy_firmware_info(MachineState *machine,
     struct fw_dynamic_info64 dinfo64;
     void *dinfo_ptr = NULL;
     size_t dinfo_len;
+    bool big_endian = riscv_is_big_endian(harts);
 
     if (riscv_is_32bit(harts)) {
-        dinfo32.magic = cpu_to_le32(FW_DYNAMIC_INFO_MAGIC_VALUE);
-        dinfo32.version = cpu_to_le32(FW_DYNAMIC_INFO_VERSION);
-        dinfo32.next_mode = cpu_to_le32(FW_DYNAMIC_INFO_NEXT_MODE_S);
-        dinfo32.next_addr = cpu_to_le32(kernel_entry);
+        dinfo32.magic = big_endian ? cpu_to_be32(FW_DYNAMIC_INFO_MAGIC_VALUE)
+                                   : cpu_to_le32(FW_DYNAMIC_INFO_MAGIC_VALUE);
+        dinfo32.version = big_endian ? cpu_to_be32(FW_DYNAMIC_INFO_VERSION)
+                                     : cpu_to_le32(FW_DYNAMIC_INFO_VERSION);
+        dinfo32.next_mode = big_endian
+                          ? cpu_to_be32(FW_DYNAMIC_INFO_NEXT_MODE_S)
+                          : cpu_to_le32(FW_DYNAMIC_INFO_NEXT_MODE_S);
+        dinfo32.next_addr = big_endian ? cpu_to_be32(kernel_entry)
+                                       : cpu_to_le32(kernel_entry);
         dinfo32.options = 0;
         dinfo32.boot_hart = 0;
         dinfo_ptr = &dinfo32;
         dinfo_len = sizeof(dinfo32);
     } else {
-        dinfo64.magic = cpu_to_le64(FW_DYNAMIC_INFO_MAGIC_VALUE);
-        dinfo64.version = cpu_to_le64(FW_DYNAMIC_INFO_VERSION);
-        dinfo64.next_mode = cpu_to_le64(FW_DYNAMIC_INFO_NEXT_MODE_S);
-        dinfo64.next_addr = cpu_to_le64(kernel_entry);
+        dinfo64.magic = big_endian ? cpu_to_be64(FW_DYNAMIC_INFO_MAGIC_VALUE)
+                                   : cpu_to_le64(FW_DYNAMIC_INFO_MAGIC_VALUE);
+        dinfo64.version = big_endian ? cpu_to_be64(FW_DYNAMIC_INFO_VERSION)
+                                     : cpu_to_le64(FW_DYNAMIC_INFO_VERSION);
+        dinfo64.next_mode = big_endian
+                          ? cpu_to_be64(FW_DYNAMIC_INFO_NEXT_MODE_S)
+                          : cpu_to_le64(FW_DYNAMIC_INFO_NEXT_MODE_S);
+        dinfo64.next_addr = big_endian ? cpu_to_be64(kernel_entry)
+                                       : cpu_to_le64(kernel_entry);
         dinfo64.options = 0;
         dinfo64.boot_hart = 0;
         dinfo_ptr = &dinfo64;
@@ -489,9 +523,32 @@ void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState *harts
         reset_vec[2] = 0x00000013;   /*     addi   x0, x0, 0 */
     }
 
-    /* copy in the reset vector in little_endian byte order */
-    for (i = 0; i < ARRAY_SIZE(reset_vec); i++) {
+    /* RISC-V instructions are always little-endian */
+    for (i = 0; i < 6; i++) {
         reset_vec[i] = cpu_to_le32(reset_vec[i]);
+    }
+
+    /*
+     * Data words (addresses at entries 6-9) must match the firmware's data
+     * endianness.
+     */
+    if (riscv_is_32bit(harts)) {
+        for (i = 6; i < ARRAY_SIZE(reset_vec); i++) {
+            if (riscv_is_big_endian(harts)) {
+                reset_vec[i] = cpu_to_be32(reset_vec[i]);
+            } else {
+                reset_vec[i] = cpu_to_le32(reset_vec[i]);
+            }
+        }
+    } else {
+        /*
+         * For RV64, each pair of 32-bit words forms a dword. For big-endian,
+         * the hi/lo word order within each dword must be swapped since LD
+         * interprets bytes as BE.
+         */
+        for (i = 6; i < ARRAY_SIZE(reset_vec); i += 2) {
+            riscv_boot_data_dword(reset_vec + i, riscv_is_big_endian(harts));
+        }
     }
     rom_add_blob_fixed_as("mrom.reset", reset_vec, sizeof(reset_vec),
                           rom_base, &address_space_memory);
