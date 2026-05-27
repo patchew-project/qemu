@@ -213,6 +213,9 @@ typedef struct PMUFixedCtrState {
         uint64_t counter_virt_prev[2];
 } PMUFixedCtrState;
 
+typedef void (*riscv_csr_custom_init_fn)(CPURISCVState *env);
+typedef void (*riscv_csr_custom_reset_fn)(CPURISCVState *env);
+
 struct CPUArchState {
     target_ulong gpr[32];
     target_ulong gprh[32]; /* 64 top bits of the 128-bit registers */
@@ -509,6 +512,8 @@ struct CPUArchState {
     uint64_t rnmip;
     uint64_t rnmi_irqvec;
     uint64_t rnmi_excpvec;
+
+    const void *custom_arch_state;
 };
 
 /*
@@ -561,6 +566,8 @@ typedef struct RISCVCPUDef {
     RISCVCPUConfig cfg;
     bool bare;
     const RISCVCSR *custom_csrs;
+    riscv_csr_custom_init_fn custom_arch_state_init;
+    riscv_csr_custom_reset_fn custom_arch_state_reset;
 } RISCVCPUDef;
 
 /**
