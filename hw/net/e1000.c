@@ -869,6 +869,14 @@ e1000_receiver_overrun(E1000State *s, size_t size)
     set_ics(s, 0, E1000_ICS_RXO);
 }
 
+static inline void
+e1000_dma_write_byte(PCIDevice *d, dma_addr_t addr, uint8_t val)
+{
+    AddressSpace *as = pci_get_address_space(d);
+    dma_barrier(as, DMA_DIRECTION_FROM_DEVICE);
+    address_space_stb(as, addr, val, MEMTXATTRS_UNSPECIFIED, NULL);
+}
+
 static ssize_t
 e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
 {
@@ -980,8 +988,8 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
         }
         pci_dma_write(d, base, &desc, sizeof(desc));
         desc.status |= (vlan_status | E1000_RXD_STAT_DD);
-        pci_dma_write(d, base + offsetof(struct e1000_rx_desc, status),
-                      &desc.status, sizeof(desc.status));
+        e1000_dma_write_byte(d, base + offsetof(struct e1000_rx_desc, status),
+                             desc.status);
 
         if (++s->mac_reg[RDH] * sizeof(desc) >= s->mac_reg[RDLEN])
             s->mac_reg[RDH] = 0;
