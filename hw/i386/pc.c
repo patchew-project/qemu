@@ -747,7 +747,7 @@ void pc_memory_init(PCMachineState *pcms,
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
     X86MachineState *x86ms = X86_MACHINE(pcms);
     hwaddr maxphysaddr, maxusedaddr;
-    hwaddr cxl_base, cxl_resv_end = 0;
+    hwaddr cxl_cursor = 0;
     X86CPU *cpu = X86_CPU(first_cpu);
     uint64_t res_mem_end;
 
@@ -857,11 +857,11 @@ void pc_memory_init(PCMachineState *pcms,
         MemoryRegion *mr = &pcms->cxl_devices_state.host_mr;
         hwaddr cxl_size = MiB;
 
-        cxl_base = pc_get_cxl_range_start(pcms);
+        cxl_cursor = pc_get_cxl_range_start(pcms);
         memory_region_init(mr, OBJECT(machine), "cxl_host_reg", cxl_size);
-        memory_region_add_subregion(system_memory, cxl_base, mr);
-        cxl_base = ROUND_UP(cxl_base + cxl_size, 256 * MiB);
-        cxl_resv_end = cxl_fmws_set_memmap(cxl_base, maxphysaddr);
+        memory_region_add_subregion(system_memory, cxl_cursor, mr);
+        cxl_cursor = ROUND_UP(cxl_cursor + cxl_size, 256 * MiB);
+        cxl_fmws_set_memmap(&cxl_cursor, maxphysaddr + 1, &error_fatal);
         cxl_fmws_update_mmio();
     }
 
@@ -892,7 +892,7 @@ void pc_memory_init(PCMachineState *pcms,
     rom_set_fw(fw_cfg);
 
     if (pcms->cxl_devices_state.is_enabled) {
-        res_mem_end = cxl_resv_end;
+        res_mem_end = cxl_cursor;
     } else if (machine->device_memory) {
         res_mem_end = machine->device_memory->base
                       + memory_region_size(&machine->device_memory->mr);

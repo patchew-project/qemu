@@ -429,7 +429,7 @@ void cxl_fmws_update_mmio(void)
     object_child_foreach_recursive(object_get_root(), cxl_fmws_mmio_map, NULL);
 }
 
-hwaddr cxl_fmws_set_memmap(hwaddr base, hwaddr max_addr)
+bool cxl_fmws_set_memmap(hwaddr *cursor, hwaddr end, Error **errp)
 {
     GSList *cfmws_list, *iter;
     CXLFixedWindow *fw;
@@ -437,14 +437,16 @@ hwaddr cxl_fmws_set_memmap(hwaddr base, hwaddr max_addr)
     cfmws_list = cxl_fmws_get_all_sorted();
     for (iter = cfmws_list; iter; iter = iter->next) {
         fw = CXL_FMW(iter->data);
-        if (base + fw->size <= max_addr) {
-            fw->base = base;
-            base += fw->size;
+        if (end - *cursor < fw->size) {
+            error_setg(errp, "A CXL fixed memory window does not fit in the memory map");
+            return false;
         }
+        fw->base = *cursor;
+        *cursor += fw->size;
     }
     g_slist_free(cfmws_list);
 
-    return base;
+    return true;
 }
 
 static void cxl_fmw_realize(DeviceState *dev, Error **errp)

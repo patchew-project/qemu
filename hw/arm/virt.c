@@ -2536,9 +2536,9 @@ static void virt_set_memmap(VirtMachineState *vms, int pa_bits)
     if (device_memory_size > 0) {
         machine_memory_devices_init(ms, device_memory_base, device_memory_size);
     }
-    vms->highest_gpa = cxl_fmws_set_memmap(ROUND_UP(vms->highest_gpa + 1,
-                                                    256 * MiB),
-                                           BIT_ULL(pa_bits)) - 1;
+    vms->highest_gpa = ROUND_UP(vms->highest_gpa + 1, 256 * MiB);
+    cxl_fmws_set_memmap(&vms->highest_gpa, BIT_ULL(pa_bits), &error_fatal);
+    vms->highest_gpa--;
 }
 
 static VirtGICType finalize_gic_version_do(const char *accel_name,
