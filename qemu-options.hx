@@ -5366,11 +5366,15 @@ DEF("incoming", HAS_ARG, QEMU_OPTION_incoming, \
     "-incoming <channel>\n" \
     "                accept incoming migration on the migration channel\n" \
     "-incoming defer\n" \
-    "                wait for the URI to be specified via migrate_incoming\n",
+    "                wait for the URI to be specified via migrate_incoming\n"
+    "-incoming config:key1=value1,key2=value2,...\n" \
+    "                specify migration parameters valid even during boot\n",
     QEMU_ARCH_ALL)
 SRST
+
 The -incoming option specifies the migration channel for an incoming
-migration.  It may be used multiple times to specify multiple
+migration, or can also be used to setup migration parameters for the
+incoming migration.  It may be used multiple times to specify multiple
 migration channel types.  The channel type is specified in <channel>,
 or is 'main' for all other forms of -incoming.  If multiple -incoming
 options are specified for a channel type, the last one takes precedence.
@@ -5411,6 +5415,16 @@ options are specified for a channel type, the last one takes precedence.
     Wait for the URI to be specified via migrate\_incoming. The monitor
     can be used to change settings (such as migration parameters) prior
     to issuing the migrate\_incoming to allow the migration to begin.
+
+``-incoming config:key1=value1[,key2=value2,...]``
+
+    Specify migration parameters in QEMU commandlines, so that these
+    parameters will be available even during very early boot of QEMU.
+    They will be applied properly after QEMU boots and when the migration
+    core is initialized.  From that POV, it has similar effect as setting
+    these parameters using QMP command ``migrate-set-parameters`` or HMP
+    command ``migrate_set_parameter``.
+
 ERST
 
 DEF("only-migratable", 0, QEMU_OPTION_only_migratable, \

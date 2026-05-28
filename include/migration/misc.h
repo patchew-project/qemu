@@ -133,6 +133,11 @@ bool migrate_is_uri(const char *uri);
 /* Parse @uri and return @channel, returning true on success */
 bool migrate_uri_parse(const char *uri, MigrationChannel **channel,
                        Error **errp);
+/*
+ * Parse @config_str in form of "config:key1=value1,..." to initialize
+ * migration parameters.
+ */
+bool migration_parameters_boot_parse(const char *config_str, Error **errp);
 
 /* migration/multifd-device-state.c */
 typedef struct SaveCompletePrecopyThreadData {

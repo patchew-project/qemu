@@ -1838,6 +1838,13 @@ static void incoming_option_parse(const char *str)
 
     if (!strcmp(str, "defer")) {
         channel = NULL;
+    } else if (!strncmp(str, "config:", 7)) {
+        /*
+         * This is not a channel setup, but configuration to incoming
+         * migration parameters to make them available during early boot.
+         */
+        migration_parameters_boot_parse(str + 7, &error_fatal);
+        return;
     } else if (migrate_is_uri(str)) {
         migrate_uri_parse(str, &channel, &error_fatal);
     } else {
