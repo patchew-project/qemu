@@ -417,6 +417,25 @@ ABI is long-obsolete. We are therefore deprecating both OABI support
 and NWFPE emulation, and they will be removed in a future QEMU
 release.
 
+``debug=true|false`` on RISC-V CPUs (since 11.1)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When first introduced this flag enabled/disabled support for the RISC-V
+Debug spec version 0.13.  Then, since QEMU 10.1, it became instead an
+alias to the ``sdtrig`` extension that still adheres to Debug 0.13.
+
+We're moving to the new ratified 1.0 Debug spec that will be maintained
+long term by RISC-V International, but this new ratified version is not
+backward compatible with 0.13.  This means that keeping both implementations
+is a maintainership hurdle that impacts the development of new Debug 1.0
+extensions like ``sdext``.  And most of the RISC-V ecosystem already
+moved on to Debug 1.0.
+
+For all these reasons, starting on 11.1, QEMU is moving away from Debug
+0.13 by deprecating the ``debug`` flag.  Setting it, from now on, will be
+be the same as setting ``sdtrig`` version 1.0.  Users that are still using
+Debug 0.13 will need to update their software to use Debug 1.0 or use QEMU
+11.0 and older.
 
 Backwards compatibility
 -----------------------
