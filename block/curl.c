@@ -110,7 +110,8 @@ typedef struct BDRVCURLState {
     QEMUTimer timer;
     uint64_t len;
     CURLState states[CURL_NUM_STATES];
-    GHashTable *sockets; /* GINT_TO_POINTER(fd) -> socket */
+    /* GSIZE_TO_POINTER(raw_sock) on Win32, GINT_TO_POINTER(fd) elsewhere. */
+    GHashTable *sockets;
     char *url;
     size_t readahead_size;
     bool sslverify;
@@ -136,6 +137,10 @@ static gboolean curl_drop_socket(void *key, void *value, void *opaque)
 
     aio_set_fd_handler(s->aio_context, socket->fd,
                        NULL, NULL, NULL, NULL, NULL);
+#ifdef _WIN32
+    /* Close CRT fd wrapper; libcurl owns the underlying SOCKET.  */
+    qemu_close_socket_osfhandle(socket->fd);
+#endif
     return true;
 }
 
@@ -167,13 +172,29 @@ static int curl_sock_cb(CURL *curl, curl_socket_t fd, int action,
     BDRVCURLState *s = userp;
     CURLSocket *socket;
 
+#ifdef _WIN32
+    /*
+     * libcurl passes raw SOCKET (UINT_PTR, 64-bit on x64) which doesn't
+     * fit in GINT_TO_POINTER; wrap in a CRT fd and use GSIZE_TO_POINTER
+     * for the hash key.
+     */
+    socket = g_hash_table_lookup(s->sockets, GSIZE_TO_POINTER((gsize)fd));
+#else
     socket = g_hash_table_lookup(s->sockets, GINT_TO_POINTER(fd));
+#endif
     if (!socket) {
         socket = g_new0(CURLSocket, 1);
-        socket->fd = fd;
         socket->s = s;
+#ifdef _WIN32
+        socket->fd = _open_osfhandle(fd, _O_BINARY);
+        g_hash_table_insert(s->sockets, GSIZE_TO_POINTER((gsize)fd), socket);
+#else
+        socket->fd = fd;
         g_hash_table_insert(s->sockets, GINT_TO_POINTER(fd), socket);
+#endif
     }
+    /* Switch to the CRT fd so the rest of the function stays unchanged. */
+    fd = (curl_socket_t)(intptr_t)socket->fd;
 
     trace_curl_sock_cb(action, (int)fd);
     switch (action) {
@@ -197,7 +218,17 @@ static int curl_sock_cb(CURL *curl, curl_socket_t fd, int action,
     }
 
     if (action == CURL_POLL_REMOVE) {
+#ifdef _WIN32
+        {
+            /* _get_osfhandle recovers the raw SOCKET for the hash key. */
+            curl_socket_t raw_sock = _get_osfhandle(socket->fd);
+            qemu_close_socket_osfhandle(socket->fd);
+            g_hash_table_remove(s->sockets,
+                                GSIZE_TO_POINTER((gsize)raw_sock));
+        }
+#else
         g_hash_table_remove(s->sockets, GINT_TO_POINTER(fd));
+#endif
     }
 
     return 0;
@@ -409,13 +440,20 @@ static void curl_multi_do_locked(CURLSocket *socket)
     BDRVCURLState *s = socket->s;
     int running;
     int r;
+    curl_socket_t sockfd;
+#ifdef _WIN32
+    /* socket->fd is a CRT fd; _get_osfhandle gets the raw SOCKET.  */
+    sockfd = _get_osfhandle(socket->fd);
+#else
+    sockfd = socket->fd;
+#endif
 
     if (!s->multi) {
         return;
     }
 
     do {
-        r = curl_multi_socket_action(s->multi, socket->fd, 0, &running);
+        r = curl_multi_socket_action(s->multi, sockfd, 0, &running);
     } while (r == CURLM_CALL_MULTI_PERFORM);
 }
 
