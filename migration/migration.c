@@ -145,6 +145,42 @@ static void migration_parameters_boot_apply(void)
     }
 }
 
+static void migration_parameters_boot_init(void)
+{
+    if (!mig_boot_params) {
+        mig_boot_params = g_new0(MigrationParameters, 1);
+    }
+}
+
+/*
+ * This should only be used during boot by CPR.  NOTE: This is only needed
+ * to be compatible with old CPR use case, if we decide to have users
+ * switch to -incoming config:mode=cpr-* then this can be removed.
+ */
+void migration_parameters_boot_set_mode(MigMode mode)
+{
+    assert(!current_migration);
+    migration_parameters_boot_init();
+    mig_boot_params->has_mode = true;
+    mig_boot_params->mode = mode;
+}
+
+/*
+ * Get the effective migration parameter object.
+ *
+ * Three possibilities:
+ * - Migration object has been initialized, always use it, or,
+ * - Migration boot parameters are initialized, then use it, or,
+ * - return NULL
+ *
+ * Callers should always check non-NULL pointer first before use.
+ */
+MigrationParameters *migration_get_parameters(void)
+{
+    return current_migration ?
+        &current_migration->parameters : mig_boot_params;
+}
+
 static void migration_downtime_start(MigrationState *s)
 {
     trace_vmstate_downtime_checkpoint("src-downtime-start");
@@ -546,7 +582,6 @@ void migration_incoming_state_destroy(void)
         mis->postcopy_qemufile_dst = NULL;
     }
 
-    cpr_set_incoming_mode(MIG_MODE_NONE);
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
 }
 
