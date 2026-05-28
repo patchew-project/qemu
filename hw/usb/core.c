@@ -345,6 +345,7 @@ void usb_generic_async_ctrl_complete(USBDevice *s, USBPacket *p)
             p->actual_length = 0;
             usb_packet_copy(p, s->data_buf, s->setup_len);
         }
+        usb_pcap_ctrl(p, false);
         break;
 
     default:
