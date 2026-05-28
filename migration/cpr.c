@@ -16,6 +16,7 @@
 #include "migration/qemu-file.h"
 #include "migration/savevm.h"
 #include "migration/vmstate.h"
+#include "migration/migration.h"
 #include "monitor/monitor.h"
 #include "system/runstate.h"
 #include "trace.h"
@@ -239,21 +240,20 @@ QIOChannel *cpr_state_ioc(void)
     return qemu_file_get_ioc(cpr_state_file);
 }
 
-static MigMode incoming_mode = MIG_MODE_NONE;
-
-MigMode cpr_get_incoming_mode(void)
-{
-    return incoming_mode;
-}
-
 void cpr_set_incoming_mode(MigMode mode)
 {
-    incoming_mode = mode;
+    migration_parameters_boot_set_mode(mode);
 }
 
 bool cpr_is_incoming(void)
 {
-    return incoming_mode != MIG_MODE_NONE;
+    MigMode mode = migrate_mode();
+
+    if (!runstate_check(RUN_STATE_INMIGRATE)) {
+        return false;
+    }
+
+    return mode == MIG_MODE_CPR_EXEC || mode == MIG_MODE_CPR_TRANSFER;
 }
 
 bool cpr_state_save(MigrationChannel *channel, Error **errp)

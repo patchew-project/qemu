@@ -12,8 +12,6 @@
 #include "io/channel.h"
 #include "qemu/queue.h"
 
-#define MIG_MODE_NONE           -1
-
 #define QEMU_CPR_FILE_MAGIC     0x51435052
 #define QEMU_CPR_FILE_VERSION   0x00000001
 #define CPR_STATE "CprState"
@@ -38,7 +36,6 @@ int cpr_open_fd(const char *path, int flags, const char *name, int id,
 typedef bool (*cpr_walk_fd_cb)(int fd);
 bool cpr_walk_fd(cpr_walk_fd_cb cb);
 
-MigMode cpr_get_incoming_mode(void);
 void cpr_set_incoming_mode(MigMode mode);
 bool cpr_is_incoming(void);
 

@@ -609,4 +609,7 @@ void migration_bitmap_sync_precopy(bool last_stage);
 void dirty_bitmap_mig_init(void);
 bool should_send_vmdesc(void);
 
+void migration_parameters_boot_set_mode(MigMode mode);
+MigrationParameters *migration_get_parameters(void);
+
 #endif

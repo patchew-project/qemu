@@ -886,16 +886,12 @@ uint64_t migrate_max_postcopy_bandwidth(void)
     return s->parameters.max_postcopy_bandwidth;
 }
 
+/* Opt-in "mode" parameter to be available even during boot */
 MigMode migrate_mode(void)
 {
-    MigMode mode = cpr_get_incoming_mode();
+    MigrationParameters *params = migration_get_parameters();
 
-    if (mode == MIG_MODE_NONE) {
-        mode = migrate_get_current()->parameters.mode;
-    }
-
-    assert(mode >= 0 && mode < MIG_MODE__MAX);
-    return mode;
+    return params ? params->mode : MIG_MODE_NORMAL;
 }
 
 int migrate_multifd_channels(void)
