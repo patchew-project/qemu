@@ -41,6 +41,7 @@
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-events-migration.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qobject/qnull.h"
 #include "qemu/rcu.h"
 #include "postcopy-ram.h"
@@ -94,6 +95,9 @@ enum mig_rp_message_type {
 static MigrationState *current_migration;
 static MigrationIncomingState *current_incoming;
 
+/* Only used during boot, destroyed after migration object initialized */
+static MigrationParameters *mig_boot_params;
+
 static GSList *migration_blockers[MIG_MODE__MAX];
 
 static bool migration_object_check(MigrationState *ms, Error **errp);
@@ -101,6 +105,45 @@ static bool migration_switchover_start(MigrationState *s, Error **errp);
 static bool stop_return_path_thread_on_source(MigrationState *s);
 static void migration_release_dst_files(MigrationState *ms);
 static void migration_completion_end(MigrationState *s);
+
+bool migration_parameters_boot_parse(const char *config_str, Error **errp)
+{
+    Visitor *v;
+
+    if (mig_boot_params) {
+        error_setg(errp, "Only one -incoming config:* is allowed.");
+        return false;
+    }
+
+    v = qobject_input_visitor_new_str(config_str, NULL, errp);
+    if (!v) {
+        goto fail;
+    }
+
+    if (!visit_type_MigrationParameters(v, NULL, &mig_boot_params, errp)) {
+        goto fail;
+    }
+
+    visit_free(v);
+    return true;
+
+fail:
+    visit_free(v);
+    return false;
+}
+
+static void migration_parameters_boot_apply(void)
+{
+    if (mig_boot_params) {
+        /*
+         * This can fail, because qobject visitor doesn't do sanity check
+         * on values while parsing.  It's not too late; we're still in boot
+         * phase.
+         */
+        qmp_migrate_set_parameters(mig_boot_params, &error_abort);
+        g_clear_pointer(&mig_boot_params, qapi_free_MigrationParameters);
+    }
+}
 
 static void migration_downtime_start(MigrationState *s)
 {
@@ -322,6 +365,17 @@ void migration_object_init(void)
 
     current_incoming->exit_on_error = INMIGRATE_DEFAULT_EXIT_ON_ERROR;
 
+    /*
+     * Apply boot migration parameters in case the user specified some via
+     * command line "-incoming config:*". NOTE: this will overwrite machine
+     * type compat properties and -global settings!
+     */
+    migration_parameters_boot_apply();
+
+    /*
+     * The boot parameters should have been verified already, but leave it
+     * after applying boot parameters to do one check for everything.
+     */
     migration_object_check(current_migration, &error_fatal);
 
     ram_mig_init();
