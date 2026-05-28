@@ -3452,6 +3452,7 @@ static void gen_RCL(DisasContext *s, X86DecodedInsn *decode)
     low_count = tcg_temp_new();
 
     gen_rotc_mod(ot, count);
+    can_be_zero = (ot == MO_8 || ot == MO_16);
     have_1bit_cin = gen_eflags_adcox(s, decode, true, can_be_zero);
     if (can_be_zero) {
         zero_label = gen_new_label();
@@ -3504,6 +3505,7 @@ static void gen_RCR(DisasContext *s, X86DecodedInsn *decode)
     high_count = tcg_temp_new();
 
     gen_rotc_mod(ot, count);
+    can_be_zero = (ot == MO_8 || ot == MO_16);
     have_1bit_cin = gen_eflags_adcox(s, decode, true, can_be_zero);
     if (can_be_zero) {
         zero_label = gen_new_label();
