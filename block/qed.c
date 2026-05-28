@@ -21,6 +21,7 @@
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/memalign.h"
+#include "system/runstate.h"
 #include "trace.h"
 #include "qed.h"
 #include "system/block-backend.h"
@@ -372,6 +373,11 @@ static void bdrv_qed_attach_aio_context(BlockDriverState *bs,
 static void bdrv_qed_drain_begin(BlockDriverState *bs)
 {
     BDRVQEDState *s = bs->opaque;
+
+    /* Nodes are inactive while waiting for an incoming migration. */
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        return;
+    }
 
     /* Fire the timer immediately in order to start doing I/O as soon as the
      * header is flushed.
