@@ -1,7 +1,9 @@
 mips_user_ss = ss.source_set()
 mips_system_ss = ss.source_set()
 mips_ss = ss.source_set()
-mips_ss.add(files(
+mips_ss.add(
+  accel_target_c,
+  files(
   'cpu.c',
   'fpu.c',
   'gdbstub.c',

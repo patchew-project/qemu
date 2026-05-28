@@ -387,5 +387,6 @@ analyze_funcs_generated = custom_target(
     command: [python, files('gen_analyze_funcs.py'), helper_in, '@OUTPUT@'],
 )
 hexagon_ss.add(analyze_funcs_generated)
+hexagon_ss.add(accel_target_c)
 
 target_arch += {'hexagon': hexagon_ss}

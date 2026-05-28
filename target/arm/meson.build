@@ -13,6 +13,8 @@ arm_ss.add(when: 'TARGET_AARCH64', if_true: files(
   'cpu64.c',
 ))
 
+arm_ss.add(accel_target_c)
+
 arm_common_ss.add(files(
   'mmuidx.c',
 ))

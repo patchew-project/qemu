@@ -1,7 +1,9 @@
 gen = decodetree.process('insns.decode')
 
 loongarch_ss = ss.source_set()
-loongarch_ss.add(files(
+loongarch_ss.add(
+  accel_target_c,
+  files(
   'cpu.c',
 ))
 

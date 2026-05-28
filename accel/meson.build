@@ -1,5 +1,6 @@
 common_ss.add(files('accel-common.c'))
-specific_ss.add(files('accel-target.c'))
+# file below is compiled by each target
+accel_target_c = files('accel-target.c')
 system_ss.add(files('accel-system.c', 'accel-blocker.c', 'accel-qmp.c', 'accel-irq.c'))
 user_ss.add(files('accel-user.c'))
 

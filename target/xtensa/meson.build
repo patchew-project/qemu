@@ -3,7 +3,9 @@ xtensa_ss = ss.source_set()
 xtensa_cores = fs.read('cores.list')
 xtensa_ss.add(files(xtensa_cores.strip().split('\n')))
 
-xtensa_ss.add(files(
+xtensa_ss.add(
+  accel_target_c,
+  files(
   'cpu.c',
   'exc_helper.c',
   'fpu_helper.c',

@@ -1,5 +1,7 @@
 tricore_ss = ss.source_set()
-tricore_ss.add(files(
+tricore_ss.add(
+  accel_target_c,
+  files(
   'cpu.c',
   'fpu_helper.c',
   'helper.c',

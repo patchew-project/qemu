@@ -4,7 +4,9 @@ s390x_common_system_ss = ss.source_set()
 s390x_system_ss = ss.source_set()
 s390x_user_ss = ss.source_set()
 
-s390x_ss.add(files(
+s390x_ss.add(
+  accel_target_c,
+  files(
   'cpu.c',
   'cpu_features.c',
   'cpu_models.c',

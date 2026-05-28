@@ -2,7 +2,9 @@ gen = decodetree.process('insns.decode')
 
 microblaze_common_ss = ss.source_set()
 microblaze_common_ss.add(gen)
-microblaze_common_ss.add(files(
+microblaze_common_ss.add(
+  accel_target_c,
+  files(
   'cpu.c',
   'gdbstub.c',
   'helper.c',

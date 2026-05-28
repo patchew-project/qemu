@@ -7,7 +7,9 @@ avr_ss = ss.source_set()
 avr_system_ss = ss.source_set()
 
 avr_ss.add(gen)
-avr_ss.add(files(
+avr_ss.add(
+  accel_target_c,
+  files(
   'translate.c',
   'helper.c',
   'cpu.c',

@@ -4,7 +4,9 @@ gen = [
 
 rx_ss = ss.source_set()
 rx_ss.add(gen)
-rx_ss.add(files(
+rx_ss.add(
+  accel_target_c,
+  files(
   'translate.c',
   'op_helper.c',
   'helper.c',

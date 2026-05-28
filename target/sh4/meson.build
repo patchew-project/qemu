@@ -1,5 +1,7 @@
 sh4_ss = ss.source_set()
-sh4_ss.add(files(
+sh4_ss.add(
+  accel_target_c,
+  files(
   'cpu.c',
   'helper.c',
   'op_helper.c',

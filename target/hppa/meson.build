@@ -2,7 +2,9 @@ gen = decodetree.process('insns.decode')
 
 hppa_ss = ss.source_set()
 hppa_ss.add(gen)
-hppa_ss.add(files(
+hppa_ss.add(
+  accel_target_c,
+  files(
   'cpu.c',
   'fpu_helper.c',
   'gdbstub.c',

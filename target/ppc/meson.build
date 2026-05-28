@@ -1,5 +1,7 @@
 ppc_ss = ss.source_set()
-ppc_ss.add(files(
+ppc_ss.add(
+  accel_target_c,
+  files(
   'cpu-models.c',
   'cpu.c',
   'cpu_init.c',

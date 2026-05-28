@@ -2,7 +2,9 @@ gen = decodetree.process('insns.decode')
 
 sparc_ss = ss.source_set()
 sparc_ss.add(gen)
-sparc_ss.add(files(
+sparc_ss.add(
+  accel_target_c,
+  files(
   'cpu.c',
   'fop_helper.c',
   'gdbstub.c',

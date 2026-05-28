@@ -1,5 +1,7 @@
 i386_ss = ss.source_set()
-i386_ss.add(files(
+i386_ss.add(
+  accel_target_c,
+  files(
   'cpu.c',
   'gdbstub.c',
   'helper.c',
