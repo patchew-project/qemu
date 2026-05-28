@@ -13,6 +13,16 @@ performances.
 QEMU's dynamic translation backend is called TCG, for "Tiny Code
 Generator". For more information, please take a look at :ref:`tcg-ops-ref`.
 
+The translation process occurs in several distinct passes:
+
+1. **Front-end**: Guest instructions are parsed (often using the
+   `decodetree <Instruction Decoding (decodetree)_>`_ tool) and converted
+   into target-independent TCG Intermediate Representation (IR) opcodes.
+2. **Optimization**: TCG performs passes such as constant folding, liveness
+   analysis, and dead code elimination on the IR.
+3. **Back-end**: The optimized IR is converted by a host-specific code
+   generator into native instructions for the host CPU.
+
 The following sections outline some notable features and implementation
 details of QEMU's dynamic translator.
 
@@ -43,6 +53,12 @@ main loop. That’s where QEMU looks for the next TB to execute,
 translating it from the guest architecture if it isn’t already available
 in memory. Then QEMU proceeds to execute this next TB, starting at the
 prologue and then moving on to the translated instructions.
+
+In :ref:`MTTCG` mode, each guest CPU is emulated by a separate host thread.
+TCG ensures memory consistency by inserting memory barrier (``mb``) opcodes
+for guest instructions with ordering side effects. Direct block chaining
+across page boundaries is restricted to ensure that changes to memory
+mappings in one thread are correctly handled by others.
 
 Exiting from the TB this way will cause the ``cpu_exec_interrupt()``
 callback to be re-evaluated before executing additional instructions.
@@ -175,6 +191,12 @@ virtual to physical address translation is done at every memory
 access.
 
 QEMU uses an address translation cache (TLB) to speed up the translation.
+The software MMU partitions accesses into a **TLB fast-path** and a
+**TLB slow-path**. The fast-path handles RAM and ROM areas, where the TLB
+provides the direct offset between guest virtual addresses and host memory.
+If an access does not match a fast-path entry, it falls through to the
+slow-path, which calls C helper functions to handle MMIO device emulation.
+
 In order to avoid flushing the translated code each time the MMU
 mappings change, all caches in QEMU are physically indexed.  This
 means that each basic block is indexed with its physical address.
@@ -189,6 +211,73 @@ hosts the offset between guest address and host memory.  Accessing MMIO
 memory areas instead calls out to C code for device emulation.
 Finally, the MMU helps tracking dirty pages and pages pointed to by
 translation blocks.
+
+Register Allocation and Liveness
+--------------------------------
+
+During the translation phase, guest instructions are converted into TCG IR
+using an **unlimited number of temporaries (TEMPs)**.
+This allows guest translators to express logic without being constrained
+by the finite register set of the host CPU.
+
+To resolve these TEMPs into physical registers, TCG performs two passes:
+
+1. **Liveness Analysis**: This pass determines the "live range" of each
+   temporary within a basic block. By identifying when a variable
+   becomes "dead" (i.e., its value is no longer needed), TCG can suppress
+   redundant moves and remove instructions that compute unused results.
+2. **Register Allocation**: The Global Register Allocator maps live TEMPs
+   to host physical registers. Fixed globals, such as the pointer
+   to the CPU architecture state (``cpu_env``), are often permanently
+   held in host registers to minimize memory traffic during execution.
+
+Vector/SIMD Internal Strategy
+-----------------------------
+
+TCG supports SIMD operations through a set of generic vector instructions
+(e.g., ``add_vec``, ``shli_vec``) parameterized by vector length and element
+size. The length is specified as a ``TCGType`` (V64, V128, or V256), and the
+element size is given in log2 8-bit units.
+
+The internal strategy relies on the backend mapping these generic opcodes
+to native host SIMD instructions, such as x86 AVX or ARM NEON. If the host
+backend does not support a specific vector operation  or length, TCG's
+expansion layer automatically decomposes the opcode into smaller supported
+vector sizes or standard integer operations.
+
+Deterministic Execution (icount)
+--------------------------------
+
+The :ref:`icount` mechanism provides deterministic execution by ensuring
+that each Translation Block executes a fixed number of instructions. This
+is essential for features like record/replay and deterministic virtual time,
+where instruction counts serve as the system clock.
+
+Instrumentation and Plugins
+---------------------------
+
+:ref:`TCG Plugins` provide a mechanism for runtime instrumentation. Opcodes
+like ``plugin_cb`` and ``plugin_mem_cb`` are inserted during translation to
+trigger callbacks in external modules, allowing analysis of instruction
+execution or memory access.
+
+Instruction Decoding (decodetree)
+---------------------------------
+
+The first step of the translation process is converting a raw bitstream of
+guest instructions into a structured format that the translator can process.
+QEMU simplifies this using the ``decodetree.py`` script, which generates C
+code decoders from a domain-specific language defined in ``.decode`` files.
+
+The decodetree tool allows developers to define instruction **patterns**
+based on a bitmask and fixed bits. When a match is found, the generated
+decoder automatically  extracts defined **fields** (such as registers or
+immediates) and passes  them to a manually written translation function.
+
+This declarative approach drastically reduces the amount of error-prone
+manual bit-shifting and nested "if-else" logic required in guest translators.
+
+For detailled implementation see :ref:`decodetree`.
 
 Profiling JITted code
 ---------------------

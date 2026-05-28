@@ -2,6 +2,7 @@
    Copyright (c) 2020, Linaro Limited
    Written by Alex Bennée
 
+.. _icount:
 
 ========================
 TCG Instruction Counting
