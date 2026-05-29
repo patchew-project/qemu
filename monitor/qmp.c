@@ -56,6 +56,7 @@
  * Access must be atomic for thread safety.
  */
 static bool qmp_dispatcher_co_busy = true;
+static int mon_qmp_id_counter;
 
 struct QMPRequest {
     /* Owner of the request */
@@ -74,6 +75,14 @@ QmpCommandList qmp_commands, qmp_cap_negotiation_commands;
 static bool qmp_oob_enabled(MonitorQMP *mon)
 {
     return mon->capab[QMP_CAPABILITY_OOB];
+}
+
+static char *monitor_qmp_get_id(void)
+{
+    int id = qatomic_fetch_inc(&mon_qmp_id_counter);
+    char *name = g_strdup_printf("mon_default_qmp_%d", id);
+
+    return name;
 }
 
 static void monitor_qmp_caps_reset(MonitorQMP *mon)
@@ -513,9 +522,16 @@ static void monitor_qmp_setup_handlers_bh(void *opaque)
     monitor_list_append(&mon->common);
 }
 
-void monitor_init_qmp(Chardev *chr, bool pretty, Error **errp)
+void monitor_init_qmp(Chardev *chr, bool pretty, const char *id, Error **errp)
 {
     MonitorQMP *mon = g_new0(MonitorQMP, 1);
+
+    if (!id) {
+        g_autofree char *mon_id =  monitor_qmp_get_id();
+        mon->common.id = g_strdup(mon_id);
+    } else {
+        mon->common.id = g_strdup(id);
+    }
 
     if (!qemu_chr_fe_init(&mon->common.chr, chr, errp)) {
         g_free(mon);

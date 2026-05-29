@@ -108,6 +108,8 @@ struct Monitor {
     bool skip_flush;
     bool use_io_thread;
 
+    char *id;
+
     char *mon_cpu_path;
     QTAILQ_ENTRY(Monitor) entry;
 

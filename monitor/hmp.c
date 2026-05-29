@@ -43,6 +43,8 @@
 #include "system/block-backend.h"
 #include "trace.h"
 
+static int mon_hmp_id_counter;
+
 static void monitor_command_cb(void *opaque, const char *cmdline,
                                void *readline_opaque)
 {
@@ -63,6 +65,14 @@ void monitor_read_command(MonitorHMP *mon, int show_prompt)
     if (show_prompt) {
         readline_show_prompt(mon->rs);
     }
+}
+
+static char *monitor_hmp_get_id(void)
+{
+    int id = qatomic_fetch_inc(&mon_hmp_id_counter);
+    char *name = g_strdup_printf("mon_default_hmp_%d", id);
+
+    return name;
 }
 
 int monitor_read_password(MonitorHMP *mon, ReadLineFunc *readline_func,
@@ -1522,9 +1532,17 @@ static void monitor_readline_flush(void *opaque)
     monitor_flush(&mon->common);
 }
 
-void monitor_init_hmp(Chardev *chr, bool use_readline, Error **errp)
+void monitor_init_hmp(Chardev *chr, bool use_readline, const char *id,
+                      Error **errp)
 {
     MonitorHMP *mon = g_new0(MonitorHMP, 1);
+
+    if (!id) {
+        g_autofree char *mon_id =  monitor_hmp_get_id();
+        mon->common.id = g_strdup(mon_id);
+    } else {
+        mon->common.id = g_strdup(id);
+    }
 
     if (!qemu_chr_fe_init(&mon->common.chr, chr, errp)) {
         g_free(mon);
