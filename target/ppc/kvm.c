@@ -2352,6 +2352,10 @@ static void alter_insns(uint64_t *word, uint64_t flags, bool on)
     }
 }
 
+void kvm_arch_cpu_instance_init(CPUState *cpu)
+{
+}
+
 bool kvm_arch_cpu_realize(CPUState *cs, Error **errp)
 {
     int ret;
