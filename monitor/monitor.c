@@ -617,7 +617,7 @@ void monitor_data_init(Monitor *mon, bool is_qmp, bool skip_flush,
             .type = IO_THREAD_HOLDER_KIND_MONITOR_NAME,
             .u.monitor_name.monitor_name = (char *)mon->id,
         };
-        mon->ctx = iothread_ref_and_get_aio_context(mon_iothread, &holder);
+        mon->ctx = iothread_get_aio_context(mon_iothread, &holder);
     }
     qemu_mutex_init(&mon->mon_lock);
     mon->is_qmp = is_qmp;

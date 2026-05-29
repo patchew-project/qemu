@@ -99,8 +99,7 @@ bool iothread_vq_mapping_apply(
             .u.qom_object.qom_path = (char *)holder,
         };
 
-        AioContext *ctx = iothread_ref_and_get_aio_context(iothread,
-                                                           &io_holder);
+        AioContext *ctx = iothread_get_aio_context(iothread, &io_holder);
 
         if (node->value->vqs) {
             uint16List *vq;
