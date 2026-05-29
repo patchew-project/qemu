@@ -67,6 +67,67 @@
 ##
 { 'command': 'query-name', 'returns': 'NameInfo', 'allow-preconfig': true }
 
+
+##
+# @IOThreadHolderBlockNode:
+#
+# @node-name: A block node.
+#
+# Since: 11.1
+#
+##
+{ 'struct': 'IOThreadHolderBlockNode',
+  'data': { 'node-name': 'str' } }
+
+##
+# @IOThreadHolderQomObject:
+#
+# @qom-path: A QOM Object.
+#
+# Since: 11.1
+#
+##
+{ 'struct': 'IOThreadHolderQomObject',
+  'data': { 'qom-path': 'str' } }
+
+##
+# @IOThreadHolderMonitor:
+#
+# @monitor-name: A HMP/QMP monitor.
+#
+# Since: 11.1
+#
+##
+{ 'struct': 'IOThreadHolderMonitor',
+  'data': { 'monitor-name': 'str' } }
+
+##
+# @IOThreadHolderKind:
+#
+# @block-node: A block node.
+# @qom-object: A QOM Object.
+# @monitor-name: A HMP/QMP monitor.
+#
+# Since: 11.1
+##
+{ 'enum': 'IOThreadHolderKind',
+  'data': [ 'block-node', 'qom-object', 'monitor-name' ] }
+
+##
+# @IOThreadHolder:
+#
+# @type: the kind of I/O thread holder.
+#
+# Since: 11.1
+##
+{ 'union': 'IOThreadHolder',
+  'base': { 'type': 'IOThreadHolderKind' },
+  'discriminator': 'type',
+  'data': {
+    'block-node': 'IOThreadHolderBlockNode',
+    'qom-object': 'IOThreadHolderQomObject',
+    'monitor-name': 'IOThreadHolderMonitor' } }
+
 ##
 # @IOThreadInfo:
 #

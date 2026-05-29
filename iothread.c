@@ -25,6 +25,92 @@
 #include "qemu/rcu.h"
 #include "qemu/main-loop.h"
 
+/*
+ * iothread_ref:
+ * @iothread: the iothread to track
+ * @holder: the IOThreadHolder object initialized by the caller
+ *
+ * Add the @holder to the iothread's tracking list.
+ */
+static void iothread_ref(IOThread *iothread, const IOThreadHolder *holder)
+{
+    assert(holder);
+    IOThreadHolder *h = g_new0(IOThreadHolder, 1);
+
+    h->type = holder->type;
+    switch (holder->type) {
+    case IO_THREAD_HOLDER_KIND_QOM_OBJECT:
+        h->u.qom_object.qom_path = g_strdup(holder->u.qom_object.qom_path);
+        break;
+    case IO_THREAD_HOLDER_KIND_BLOCK_NODE:
+        h->u.block_node.node_name =
+            g_strdup(holder->u.block_node.node_name);
+        break;
+    case IO_THREAD_HOLDER_KIND_MONITOR_NAME:
+        h->u.monitor_name.monitor_name =
+            g_strdup(holder->u.monitor_name.monitor_name);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    iothread->holders = g_list_prepend(iothread->holders, h);
+}
+
+static int iothread_holder_compare(gconstpointer a, gconstpointer b)
+{
+    const IOThreadHolder *holder_a = a;
+    const IOThreadHolder *holder_b = b;
+    const char *name_a, *name_b;
+
+    if (holder_a->type != holder_b->type) {
+        return -1;
+    }
+
+    switch (holder_a->type) {
+    case IO_THREAD_HOLDER_KIND_QOM_OBJECT:
+        name_a = holder_a->u.qom_object.qom_path;
+        name_b = holder_b->u.qom_object.qom_path;
+        break;
+    case IO_THREAD_HOLDER_KIND_BLOCK_NODE:
+        name_a = holder_a->u.block_node.node_name;
+        name_b = holder_b->u.block_node.node_name;
+        break;
+    case IO_THREAD_HOLDER_KIND_MONITOR_NAME:
+        name_a = holder_a->u.monitor_name.monitor_name;
+        name_b = holder_b->u.monitor_name.monitor_name;
+        break;
+    default:
+       /*
+        * This should not happen. If it does, name_a/b remains
+        * NULL and g_strcmp0 will handle it safely.
+        */
+        name_a = NULL;
+        name_b = NULL;
+    }
+
+    return g_strcmp0(name_a, name_b);
+}
+
+/*
+ * This function removes the @holder from the @iothread's tracking list.
+ * The @holder must match the one used previously in iothread_ref().
+ * It is a programming error to call this with a @holder that is not
+ * currently associated with the @iothread.
+ */
+static void iothread_unref(IOThread *iothread, const IOThreadHolder *holder)
+{
+    assert(holder);
+    GList *link = g_list_find_custom(iothread->holders, holder,
+                                     (GCompareFunc)iothread_holder_compare);
+
+    assert(link);
+
+    IOThreadHolder *h = (IOThreadHolder *)link->data;
+    qapi_free_IOThreadHolder(h);
+    iothread->holders = g_list_delete_link(iothread->holders, link);
+}
+
 static void *iothread_run(void *opaque)
 {
     IOThread *iothread = opaque;
@@ -356,6 +442,14 @@ char *iothread_get_id(IOThread *iothread)
 
 AioContext *iothread_get_aio_context(IOThread *iothread)
 {
+    /* Remove in next patch for build */
+    IOThreadHolder holder = {
+        .type = IO_THREAD_HOLDER_KIND_QOM_OBJECT,
+        .u.qom_object.qom_path = (char *)"tmp_path",
+    };
+    iothread_ref(iothread, &holder);
+    iothread_unref(iothread, &holder);
+
     return iothread->ctx;
 }
 
