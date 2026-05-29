@@ -118,17 +118,9 @@ int stristart(const char *str, const char *val, const char **ptr)
     return 1;
 }
 
-/* XXX: use host strnlen if available ? */
 int qemu_strnlen(const char *s, int max_len)
 {
-    int i;
-
-    for(i = 0; i < max_len; i++) {
-        if (s[i] == '\0') {
-            break;
-        }
-    }
-    return i;
+    return (int)strnlen(s, max_len);
 }
 
 char *qemu_strsep(char **input, const char *delim)
