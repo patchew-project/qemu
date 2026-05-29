@@ -529,7 +529,7 @@ int monitor_suspend(Monitor *mon)
          * Kick I/O thread to make sure this takes effect.  It'll be
          * evaluated again in prepare() of the watch object.
          */
-        aio_notify(iothread_get_aio_context(mon_iothread));
+        aio_notify(mon->ctx);
     }
 
     trace_monitor_suspend(mon, 1);
@@ -564,7 +564,7 @@ void monitor_resume(Monitor *mon)
         AioContext *ctx;
 
         if (mon->use_io_thread) {
-            ctx = iothread_get_aio_context(mon_iothread);
+            ctx = mon->ctx;
         } else {
             ctx = qemu_get_aio_context();
         }
@@ -612,6 +612,12 @@ void monitor_data_init(Monitor *mon, bool is_qmp, bool skip_flush,
 {
     if (use_io_thread && !mon_iothread) {
         monitor_iothread_init();
+
+        IOThreadHolder holder = {
+            .type = IO_THREAD_HOLDER_KIND_MONITOR_NAME,
+            .u.monitor_name.monitor_name = (char *)mon->id,
+        };
+        mon->ctx = iothread_ref_and_get_aio_context(mon_iothread, &holder);
     }
     qemu_mutex_init(&mon->mon_lock);
     mon->is_qmp = is_qmp;
@@ -631,6 +637,16 @@ void monitor_data_destroy(Monitor *mon)
     }
     g_string_free(mon->outbuf, true);
     qemu_mutex_destroy(&mon->mon_lock);
+
+    if (mon->ctx && mon_iothread) {
+        IOThreadHolder holder = {
+            .type = IO_THREAD_HOLDER_KIND_MONITOR_NAME,
+            .u.monitor_name.monitor_name = (char *)mon->id,
+        };
+
+        iothread_put_aio_context(mon_iothread, &holder);
+        mon->ctx = NULL;
+    }
 }
 
 void monitor_cleanup(void)
