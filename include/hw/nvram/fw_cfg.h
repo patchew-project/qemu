@@ -320,6 +320,24 @@ bool fw_cfg_add_file_from_generator(FWCfgState *s,
  * Returns the device object.
  */
 FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, AddressSpace *dma_as);
+
+/**
+ * fw_cfg_init_mem_nodma:
+ *
+ * @ctl_addr: address of the selector register
+ * @data_addr: address of the data address
+ * @data_width: width of the data register in bytes
+ *
+ * Create a fw_cfg device without DMA support, and map its
+ * registers at the specified addresses.
+ *
+ * Do not use this function in code for a board type that didn't
+ * already support the fw_cfg device. All new board types should
+ * include DMA support and use the standard register layout -- use
+ * fw_cfg_init_mem_dma() instead.
+ *
+ * Returns the device object.
+ */
 FWCfgState *fw_cfg_init_mem_nodma(hwaddr ctl_addr, hwaddr data_addr,
                                   unsigned data_width);
 /**
