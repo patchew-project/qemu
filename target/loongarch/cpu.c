@@ -622,6 +622,7 @@ static void loongarch_cpu_reset_hold(Object *obj, ResetType type)
     env->CSR_CRMD = FIELD_DP64(env->CSR_CRMD, CSR_CRMD, PG, 0);
     env->CSR_CRMD = FIELD_DP64(env->CSR_CRMD, CSR_CRMD, DATF, 0);
     env->CSR_CRMD = FIELD_DP64(env->CSR_CRMD, CSR_CRMD, DATM, 0);
+    env->CSR_CRMD = FIELD_DP64(env->CSR_CRMD, CSR_CRMD, WE, 0);
 
     env->CSR_EUEN = FIELD_DP64(env->CSR_EUEN, CSR_EUEN, FPE, 0);
     env->CSR_EUEN = FIELD_DP64(env->CSR_EUEN, CSR_EUEN, SXE, 0);
@@ -633,7 +634,7 @@ static void loongarch_cpu_reset_hold(Object *obj, ResetType type)
     env->CSR_ECFG = FIELD_DP64(env->CSR_ECFG, CSR_ECFG, VS, 0);
     env->CSR_ECFG = FIELD_DP64(env->CSR_ECFG, CSR_ECFG, LIE, 0);
 
-    env->CSR_ESTAT = env->CSR_ESTAT & (~MAKE_64BIT_MASK(0, 2));
+    env->CSR_ESTAT = 0;
     env->CSR_RVACFG = FIELD_DP64(env->CSR_RVACFG, CSR_RVACFG, RBITS, 0);
     env->CSR_CPUID = cs->cpu_index;
     env->CSR_TCFG = FIELD_DP64(env->CSR_TCFG, CSR_TCFG, EN, 0);
@@ -641,6 +642,22 @@ static void loongarch_cpu_reset_hold(Object *obj, ResetType type)
     env->CSR_TLBRERA = FIELD_DP64(env->CSR_TLBRERA, CSR_TLBRERA, ISTLBR, 0);
     env->CSR_MERRCTL = FIELD_DP64(env->CSR_MERRCTL, CSR_MERRCTL, ISMERR, 0);
     env->CSR_TID = cs->cpu_index;
+
+    memset(env->CSR_MSGIS, 0, sizeof(env->CSR_MSGIS));
+    env->CSR_DBG = FIELD_DP64(env->CSR_DBG, CSR_DBG, DST, 0);
+    for (n = 0; n < MAX_PERF_EVENTS; n++) {
+        env->CSR_PERFCTRL[n] = FIELD_DP64(env->CSR_PERFCTRL[n], CSR_PERFCTRL,
+                                          PLV0, 0);
+        env->CSR_PERFCTRL[n] = FIELD_DP64(env->CSR_PERFCTRL[n], CSR_PERFCTRL,
+                                          PLV1, 0);
+        env->CSR_PERFCTRL[n] = FIELD_DP64(env->CSR_PERFCTRL[n], CSR_PERFCTRL,
+                                          PLV2, 0);
+        env->CSR_PERFCTRL[n] = FIELD_DP64(env->CSR_PERFCTRL[n], CSR_PERFCTRL,
+                                          PLV3, 0);
+        env->CSR_PERFCTRL[n] = FIELD_DP64(env->CSR_PERFCTRL[n], CSR_PERFCTRL,
+                                          PMIE, 0);
+    }
+
     /*
      * Workaround for edk2-stable202408, CSR PGD register is set only if
      * its value is equal to zero for boot cpu, it causes reboot issue.
