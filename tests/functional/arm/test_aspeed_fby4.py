@@ -60,6 +60,14 @@ class YosemiteV4Machine(AspeedTest):
         exec_command_and_wait_for_pattern(self,
             "cat /sys/class/hwmon/hwmon2/fan1_input", "10685");
 
+        # MAX11615 test
+        exec_command_and_wait_for_pattern(self,
+            "cat /sys/bus/i2c/devices/30-0033/iio:device*/name", "max11615");
+        exec_command_and_wait_for_pattern(self,
+            "cat /sys/bus/i2c/devices/30-0033/iio:device*/in_voltage0_raw", "4095");
+        exec_command_and_wait_for_pattern(self,
+            "cat /sys/bus/i2c/devices/30-0033/iio:device*/in_voltage_scale", "0.500000000");
+
     def test_arm_ast2600_yosemitev4_openbmc(self):
         image_path = self.uncompress(self.ASSET_YOSEMITE_V4_FLASH)
 
