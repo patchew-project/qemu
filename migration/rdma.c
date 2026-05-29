@@ -1930,15 +1930,15 @@ retry:
                 }
 
                 /*
-                 * TODO: Here we are sending something, but we are not
-                 * accounting for anything transferred.  The following is wrong:
-                 *
-                 * stat64_add(&mig_stats.rdma_bytes, sge.length);
-                 *
-                 * because we are using some kind of compression.  I
-                 * would think that head.len would be the more similar
-                 * thing to a correct value.
+                 * Account for the control message we just sent.
+                 * The actual bytes on the wire are the control header
+                 * plus the RDMACompress payload, not the original page
+                 * size (which was never transferred).
                  */
+                qatomic_add(&mig_stats.rdma_bytes,
+                            sizeof(RDMAControlHeader) + sizeof(RDMACompress));
+                ram_transferred_add(sizeof(RDMAControlHeader) +
+                                    sizeof(RDMACompress));
                 qatomic_add(&mig_stats.zero_pages,
                             sge.length / qemu_target_page_size());
                 return 1;
