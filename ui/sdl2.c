@@ -788,9 +788,25 @@ static void sdl_mouse_define(DisplayChangeListener *dcl,
 
 static void sdl_cleanup(void)
 {
-    if (guest_sprite) {
-        SDL_FreeCursor(guest_sprite);
+    int i;
+
+    if (!sdl2_console) {
+        return;
     }
+
+    qemu_remove_mouse_mode_change_notifier(&mouse_mode_notifier);
+
+    for (i = 0; i < sdl2_num_outputs; i++) {
+        qemu_console_unregister_listener(&sdl2_console[i].dcl);
+        qkbd_state_free(sdl2_console[i].kbd);
+        sdl2_window_destroy(&sdl2_console[i]);
+    }
+    g_clear_pointer(&sdl2_console, g_free);
+    sdl2_num_outputs = 0;
+
+    g_clear_pointer(&guest_sprite, SDL_FreeCursor);
+    g_clear_pointer(&guest_sprite_surface, SDL_FreeSurface);
+    g_clear_pointer(&sdl_cursor_hidden, SDL_FreeCursor);
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
 }
 
@@ -995,8 +1011,6 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
         sdl_grab_start(&sdl2_console[0]);
     }
 
-    atexit(sdl_cleanup);
-
     /* SDL's event polling (in dpy_refresh) must happen on the main thread. */
     qemu_main = NULL;
 }
@@ -1005,6 +1019,7 @@ static QemuDisplay qemu_display_sdl2 = {
     .type       = DISPLAY_TYPE_SDL,
     .early_init = sdl2_display_early_init,
     .init       = sdl2_display_init,
+    .cleanup    = sdl_cleanup,
 };
 
 static void register_sdl1(void)
