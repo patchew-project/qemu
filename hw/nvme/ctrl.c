@@ -106,6 +106,9 @@
  *   as a power of two (2^n) and is in units of the minimum memory page size
  *   (CAP.MPSMIN). The default value is 7 (i.e. 512 KiB).
  *
+ *   NOTE: A value of 0 means "that there is no maximum data transfer size" per
+ *   spec, but here it is coerced to 11 (i.e. 8 MiB).
+ *
  * - `vsl`
  *   Indicates the maximum data size limit for the Verify command. Like `mdts`,
  *   this value is specified as a power of two (2^n) and is in units of the
@@ -228,6 +231,7 @@
 #define NVME_VF_RES_GRANULARITY 1
 #define NVME_VF_OFFSET 0x1
 #define NVME_VF_STRIDE 1
+#define NVME_MDTS_MAX 11
 
 #define NVME_GUEST_ERR(trace, fmt, ...) \
     do { \
@@ -8645,9 +8649,12 @@ static bool nvme_check_params(NvmeCtrl *n, Error **errp)
         host_memory_backend_set_mapped(n->pmr.dev, true);
     }
 
-    if (!n->params.mdts || ((1 << n->params.mdts) + 1) > IOV_MAX) {
-        error_setg(errp, "mdts exceeds IOV_MAX");
+    if (n->params.mdts > NVME_MDTS_MAX) {
+        error_setg(errp, "mdts must be in [0, %u]", NVME_MDTS_MAX);
         return false;
+    }
+    if (n->params.mdts == 0) {
+        n->params.mdts = NVME_MDTS_MAX;
     }
 
     if (n->params.zasl > n->params.mdts) {
