@@ -1702,6 +1702,34 @@ static const TypeInfo aspeed_1030_i2c_info = {
     .class_init = aspeed_1030_i2c_class_init,
 };
 
+static void aspeed_1040_i2c_class_init(ObjectClass *klass, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedI2CClass *aic = ASPEED_I2C_CLASS(klass);
+
+    dc->desc = "ASPEED 1040 I2C Controller";
+
+    aic->num_busses = 16;
+    aic->reg_size = 0xa0;
+    aic->reg_gap_size = 0x60;
+    aic->gap = -1; /* no gap */
+    aic->bus_get_irq = aspeed_2600_i2c_bus_get_irq;
+    aic->pool_size = 0x40;
+    aic->pool_gap_size = 0xc0;
+    aic->pool_base = 0x1c0;
+    aic->bus_pool_base = aspeed_2500_i2c_bus_pool_base;
+    aic->has_dma = true;
+    aic->mem_size = 0x2000;
+    aic->has_dma64 = true;
+    aic->dma_addr_lo_mask = 0x00ffffff;
+}
+
+static const TypeInfo aspeed_1040_i2c_info = {
+    .name = TYPE_ASPEED_1040_I2C,
+    .parent = TYPE_ASPEED_I2C,
+    .class_init = aspeed_1040_i2c_class_init,
+};
+
 static void aspeed_2700_i2c_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1739,6 +1767,7 @@ static void aspeed_i2c_register_types(void)
     type_register_static(&aspeed_2500_i2c_info);
     type_register_static(&aspeed_2600_i2c_info);
     type_register_static(&aspeed_1030_i2c_info);
+    type_register_static(&aspeed_1040_i2c_info);
     type_register_static(&aspeed_2700_i2c_info);
 }
 
