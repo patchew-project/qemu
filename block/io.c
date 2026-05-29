@@ -649,6 +649,15 @@ bdrv_find_conflicting_request(BdrvTrackedRequest *self)
 {
     BdrvTrackedRequest *req;
 
+    /*
+     * Fast path: if there are no serialising requests in flight, there
+     * can be no conflicts.  This mirrors the check in
+     * bdrv_wait_serialising_requests().
+     */
+    if (!qatomic_read(&self->bs->serialising_in_flight)) {
+        return NULL;
+    }
+
     QLIST_FOREACH(req, &self->bs->tracked_requests, list) {
         if (req == self || (!req->serialising && !self->serialising)) {
             continue;
