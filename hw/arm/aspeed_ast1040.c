@@ -94,7 +94,14 @@ static void aspeed_soc_ast1040_init(Object *obj)
     Aspeed10x0SoCState *a = ASPEED10X0_SOC(obj);
     AspeedSoCState *s = ASPEED_SOC(obj);
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
+    char typename[64];
+    char socname[8];
     int i;
+
+    if (sscanf(object_get_typename(obj), "%7s", socname) != 1) {
+        g_assert_not_reached();
+    }
+
     object_initialize_child(obj, "armv7m", &a->armv7m, TYPE_ARMV7M);
 
     s->sysclk = qdev_init_clock_in(DEVICE(s), "sysclk", NULL, NULL, 0);
@@ -117,6 +124,8 @@ static void aspeed_soc_ast1040_init(Object *obj)
         object_initialize_child(obj, "sgpio[*]", &s->sgpiom[i],
                                 "aspeed.sgpio-ast2700");
     }
+    snprintf(typename, sizeof(typename), "aspeed.i2c-%s", socname);
+    object_initialize_child(obj, "i2c", &s->i2c, typename);
 
     object_initialize_child(obj, "pwm", &s->pwm, TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "espi", &s->espi, TYPE_UNIMPLEMENTED_DEVICE);
@@ -231,6 +240,21 @@ static void aspeed_soc_ast1040_realize(DeviceState *dev_soc, Error **errp)
                         sc->memmap[ASPEED_DEV_SGPIOM0 + i]);
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->sgpiom[i]), 0,
                        aspeed_soc_ast1040_get_irq(s, ASPEED_DEV_SGPIOM0 + i));
+    }
+
+    /* I2C */
+    object_property_set_link(OBJECT(&s->i2c), "dram", OBJECT(&s->sram[1]),
+                             &error_abort);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->i2c), errp)) {
+        return;
+    }
+    aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&s->i2c), 0,
+                    sc->memmap[ASPEED_DEV_I2C]);
+    for (i = 0; i < ASPEED_I2C_GET_CLASS(&s->i2c)->num_busses; i++) {
+        qemu_irq irq = qdev_get_gpio_in(DEVICE(&a->armv7m),
+                                        sc->irqmap[ASPEED_DEV_I2C] + i);
+        /* The AST1040 I2C controller has one IRQ per bus. */
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c.busses[i]), 0, irq);
     }
 
     /* Unimplemented peripherals */
