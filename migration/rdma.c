@@ -388,7 +388,7 @@ struct QIOChannelRDMA {
     QIOChannel parent;
     RDMAContext *rdmain;
     RDMAContext *rdmaout;
-    bool blocking; /* XXX we don't actually honour this yet */
+    bool blocking;
 };
 
 /*
@@ -2710,32 +2710,29 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
             break;
         }
 
-
-        /* We've got nothing at all, so lets wait for
-         * more to arrive
-         */
-        ret = qemu_rdma_exchange_recv(rdma, &head, RDMA_CONTROL_QEMU_FILE,
-                                      errp);
-
-        if (ret < 0) {
-            rdma->errored = true;
-            return -1;
-        }
-
         /*
-         * SEND was received with new bytes, now try again.
+         * We've got nothing at all, so lets wait for
+         * more to arrive.
          */
-        len = qemu_rdma_fill(rdma, data, want, 0);
-        done += len;
-        want -= len;
-
-        /* Still didn't get enough, so lets just return */
-        if (want) {
-            if (done == 0) {
-                return QIO_CHANNEL_ERR_BLOCK;
-            } else {
-                break;
+        do {
+            ret = qemu_rdma_exchange_recv(rdma, &head,
+                                          RDMA_CONTROL_QEMU_FILE, errp);
+            if (ret < 0) {
+                rdma->errored = true;
+                return -1;
             }
+
+            /*
+             * SEND was received with new bytes, now try again.
+             */
+            len = qemu_rdma_fill(rdma, data, want, 0);
+            done += len;
+            want -= len;
+            data += len;
+        } while (want && rioc->blocking);
+
+        if (want && done == 0) {
+            return QIO_CHANNEL_ERR_BLOCK;
         }
     }
     return done;
@@ -2771,7 +2768,6 @@ static int qio_channel_rdma_set_blocking(QIOChannel *ioc,
                                          Error **errp)
 {
     QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(ioc);
-    /* XXX we should make readv/writev actually honour this :-) */
     rioc->blocking = blocking;
     return 0;
 }
