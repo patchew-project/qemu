@@ -309,9 +309,26 @@ FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, uint32_t dma_iobase,
                                 AddressSpace *dma_as);
 FWCfgState *fw_cfg_init_mem_nodma(hwaddr ctl_addr, hwaddr data_addr,
                                   unsigned data_width);
-FWCfgState *fw_cfg_init_mem_dma(hwaddr ctl_addr,
-                                hwaddr data_addr, uint32_t data_width,
-                                hwaddr dma_addr, AddressSpace *dma_as);
+/**
+ * fw_cfg_init_mem_dma:
+ * @base_addr: address to map the device at
+ * @as: the device will do DMA to/from this AddressSpace
+ *
+ * Create and map a fw_cfg device at the specified base address.
+ *
+ * This always creates a device with DMA support, and the "standard"
+ * register layout:
+ *  - offset 0 : data, 64 bits
+ *  - offset 8 : selector, 16 bits
+ *  - offset 16 : DMA address, 64 bits
+ *
+ * The device will be created, configured and realized, and its
+ * memory regions for the registers will be mapped at the specified
+ * address.
+ *
+ * Returns the device object.
+ */
+FWCfgState *fw_cfg_init_mem_dma(hwaddr base_addr, AddressSpace *dma_as);
 
 FWCfgState *fw_cfg_find(void);
 bool fw_cfg_dma_enabled(void *opaque);
