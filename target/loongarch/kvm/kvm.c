@@ -1496,3 +1496,8 @@ int kvm_loongarch_set_interrupt(LoongArchCPU *cpu, int irq, int level)
 void kvm_arch_accel_class_init(ObjectClass *oc)
 {
 }
+
+bool kvm_arch_cpu_realize(CPUState *cpu, Error **errp)
+{
+    return true;
+}

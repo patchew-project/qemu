@@ -2611,3 +2611,8 @@ int kvm_s390_topology_set_mtcr(uint64_t attr)
 void kvm_arch_accel_class_init(ObjectClass *oc)
 {
 }
+
+bool kvm_arch_cpu_realize(CPUState *cpu, Error **errp)
+{
+    return true;
+}

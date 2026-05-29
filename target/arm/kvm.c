@@ -1783,6 +1783,11 @@ void kvm_arch_accel_class_init(ObjectClass *oc)
         "Eager Page Split chunk size for hugepages. (default: 0, disabled)");
 }
 
+bool kvm_arch_cpu_realize(CPUState *cpu, Error **errp)
+{
+    return true;
+}
+
 int kvm_arch_insert_hw_breakpoint(vaddr addr, vaddr len, int type)
 {
     switch (type) {
