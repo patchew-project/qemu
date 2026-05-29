@@ -138,6 +138,15 @@ static void coroutine_pool_refill_local(void)
     CoroutinePool *local_pool = get_ptr_local_pool();
     CoroutinePoolBatch *batch = NULL;
 
+    /*
+     * Fast path: skip the lock when the global pool is obviously empty.
+     * The read is racy but harmless -- worst case we miss a concurrent
+     * put and retry on the next allocation.
+     */
+    if (qatomic_read(&global_pool_size) == 0) {
+        return;
+    }
+
     WITH_QEMU_LOCK_GUARD(&global_pool_lock) {
         batch = QSLIST_FIRST(&global_pool);
 
