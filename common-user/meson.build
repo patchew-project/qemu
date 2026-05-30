@@ -10,3 +10,8 @@ user_ss.add(files(
   'safe-syscall-error.c',
   'selfmap.c',
 ))
+
+if host_os == 'freebsd'
+  libutil = cc.find_library('util', required: true)
+  user_ss.add(libutil)
+endif

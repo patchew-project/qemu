@@ -9,6 +9,10 @@
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 #include "user/selfmap.h"
+#ifdef __FreeBSD__
+#include <libutil.h>
+#include <sys/user.h>
+#endif
 
 IntervalTreeRoot *read_self_maps(void)
 {
@@ -81,8 +85,43 @@ IntervalTreeRoot *read_self_maps(void)
     g_free(maps);
 
     return root;
+#elif defined(__FreeBSD__)
+    int n = 0;
+    struct kinfo_vmentry *entries = kinfo_getvmmap(getpid(), &n);
+    IntervalTreeRoot *root;
+
+    if (!entries) {
+        return NULL;
+    }
+    root = g_new0(IntervalTreeRoot, 1);
+
+    for (int i = 0; i < n; ++i) {
+        struct kinfo_vmentry *k = &entries[i];
+        size_t path_len = strnlen(k->kve_path, sizeof(k->kve_path)) + 1;
+        MapInfo *e = g_malloc0(sizeof(*e) + path_len);
+
+        e->itree.start = k->kve_start;
+        e->itree.last = k->kve_end - 1;
+
+        /* ??? The rest of these fields are only used in linux-user. */
+        e->dev = k->kve_vn_fsid_freebsd11;
+        e->inode = k->kve_vn_fileid;
+        e->offset = k->kve_offset;
+        e->is_read = k->kve_protection & KVME_PROT_READ;
+        e->is_write = k->kve_protection & KVME_PROT_WRITE;
+        e->is_exec = k->kve_protection & KVME_PROT_EXEC;
+        e->is_priv = k->kve_flags & KVME_FLAG_COW;
+        if (path_len) {
+            e->path = memcpy(e + 1, k->kve_path, path_len);
+        }
+
+        interval_tree_insert(&e->itree, root);
+    }
+
+    free(entries);
+    return root;
 #else
-    return NULL;
+# error
 #endif
 }
 
