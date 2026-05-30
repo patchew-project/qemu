@@ -757,16 +757,8 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     return sp;
 }
 
-#if defined(HI_COMMPAGE)
-#define LO_COMMPAGE -1
-#elif defined(LO_COMMPAGE)
-#define HI_COMMPAGE 0
-#else
-#define HI_COMMPAGE 0
-#define LO_COMMPAGE -1
-#ifndef HAVE_GUEST_COMMPAGE
+#if !defined(COMMPAGE) && !defined(HAVE_GUEST_COMMPAGE)
 bool init_guest_commpage(void) { return true; }
-#endif
 #endif
 
 /**
@@ -853,7 +845,7 @@ static bool pgb_try_mmap_set(const PGBAddrs *ga, uintptr_t base, uintptr_t brk)
  * Fill in @ga with the image, COMMPAGE and NULL page.
  */
 static bool pgb_addr_set(PGBAddrs *ga, const PGBRange *image_range,
-                         bool try_identity)
+                         const PGBRange *commpage_range, bool try_identity)
 {
     int n;
 
@@ -862,7 +854,7 @@ static bool pgb_addr_set(PGBAddrs *ga, const PGBRange *image_range,
      * we may not be able to use the identity map.
      */
     if (try_identity) {
-        if (LO_COMMPAGE != -1 && LO_COMMPAGE < mmap_min_addr) {
+        if (commpage_range && commpage_range->lo < mmap_min_addr) {
             return false;
         }
         if (image_range && image_range->lo < mmap_min_addr) {
@@ -877,14 +869,10 @@ static bool pgb_addr_set(PGBAddrs *ga, const PGBRange *image_range,
         ga->bounds[n].lo = try_identity ? mmap_min_addr : 0;
         ga->bounds[n].hi = reserved_va;
         n++;
-        /* LO_COMMPAGE and NULL handled by reserving from 0. */
+        /* Low COMMPAGE and NULL handled by reserving from 0. */
     } else {
-        /* Add any LO_COMMPAGE or NULL page. */
-        if (LO_COMMPAGE != -1) {
-            ga->bounds[n].lo = 0;
-            ga->bounds[n].hi = LO_COMMPAGE + TARGET_PAGE_SIZE - 1;
-            n++;
-        } else if (!try_identity) {
+        /* Add any low COMMPAGE or NULL page. */
+        if (!try_identity || (commpage_range && commpage_range->lo == 0)) {
             ga->bounds[n].lo = 0;
             ga->bounds[n].hi = TARGET_PAGE_SIZE - 1;
             n++;
@@ -896,22 +884,12 @@ static bool pgb_addr_set(PGBAddrs *ga, const PGBRange *image_range,
         }
     }
 
-    /*
-     * Temporarily disable
-     *   "comparison is always false due to limited range of data type"
-     * due to comparison between unsigned and (possible) 0.
-     */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wtype-limits"
-
-    /* Add any HI_COMMPAGE not covered by reserved_va. */
-    if (reserved_va < HI_COMMPAGE) {
-        ga->bounds[n].lo = HI_COMMPAGE & qemu_real_host_page_mask();
-        ga->bounds[n].hi = HI_COMMPAGE + TARGET_PAGE_SIZE - 1;
+    /* Add any high COMMPAGE not covered by reserved_va. */
+    if (commpage_range && reserved_va < commpage_range->hi) {
+        ga->bounds[n].lo = commpage_range->lo & qemu_real_host_page_mask();
+        ga->bounds[n].hi = commpage_range->hi;
         n++;
     }
-
-#pragma GCC diagnostic pop
 
     ga->nbounds = n;
     return true;
@@ -926,7 +904,7 @@ static void pgb_fail_in_use(const char *image_name)
 }
 
 static void pgb_fixed(const char *image_name, const PGBRange *image_range,
-                      uintptr_t align)
+                      const PGBRange *commpage_range, uintptr_t align)
 {
     PGBAddrs ga;
     uintptr_t brk = (uintptr_t)sbrk(0);
@@ -938,7 +916,7 @@ static void pgb_fixed(const char *image_name, const PGBRange *image_range,
         exit(EXIT_FAILURE);
     }
 
-    if (!pgb_addr_set(&ga, image_range, !guest_base)
+    if (!pgb_addr_set(&ga, image_range, commpage_range, !guest_base)
         || !pgb_try_mmap_set(&ga, guest_base, brk)) {
         pgb_fail_in_use(image_name);
     }
@@ -1024,14 +1002,14 @@ static uintptr_t pgb_find_itree(const PGBAddrs *ga, IntervalTreeRoot *root,
 }
 
 static void pgb_dynamic(const char *image_name, const PGBRange *image_range,
-                        uintptr_t align)
+                        const PGBRange *commpage_range, uintptr_t align)
 {
     IntervalTreeRoot *root;
     uintptr_t brk, ret;
     PGBAddrs ga;
 
     /* Try the identity map first. */
-    if (pgb_addr_set(&ga, image_range, true)) {
+    if (pgb_addr_set(&ga, image_range, commpage_range, true)) {
         brk = (uintptr_t)sbrk(0);
         if (pgb_try_mmap_set(&ga, 0, brk)) {
             guest_base = 0;
@@ -1043,7 +1021,7 @@ static void pgb_dynamic(const char *image_name, const PGBRange *image_range,
      * Rebuild the address set for non-identity map.
      * This differs in the mapping of the guest NULL page.
      */
-    pgb_addr_set(&ga, image_range, false);
+    pgb_addr_set(&ga, image_range, commpage_range, false);
 
     root = read_self_maps();
 
@@ -1084,6 +1062,14 @@ static void pgb_dynamic(const char *image_name, const PGBRange *image_range,
 
 void probe_guest_base(const char *image_name, const PGBRange *image_range)
 {
+#ifdef COMMPAGE
+    const PGBRange * const commpage_range = &(PGBRange){
+        COMMPAGE, COMMPAGE + TARGET_PAGE_SIZE - 1
+    };
+#else
+    const PGBRange * const commpage_range = NULL;
+#endif
+
     /* In order to use host shmat, we must be able to honor SHMLBA.  */
     uintptr_t align = MAX(SHMLBA, TARGET_PAGE_SIZE);
 
@@ -1096,9 +1082,9 @@ void probe_guest_base(const char *image_name, const PGBRange *image_range)
     }
 
     if (have_guest_base) {
-        pgb_fixed(image_name, image_range, align);
+        pgb_fixed(image_name, image_range, commpage_range, align);
     } else {
-        pgb_dynamic(image_name, image_range, align);
+        pgb_dynamic(image_name, image_range, commpage_range, align);
     }
 
     /* Reserve and initialize the commpage. */
