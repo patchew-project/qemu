@@ -24,6 +24,7 @@
 #include "exec/mmap-lock.h"
 #include "qemu.h"
 #include "user/page-protection.h"
+#include "user/mmap-min-addr.h"
 #include "user-internals.h"
 #include "user-mmap.h"
 #include "target_mman.h"
