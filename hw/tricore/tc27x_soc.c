@@ -20,10 +20,13 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "hw/core/clock.h"
+#include "hw/core/qdev-clock.h"
 #include "hw/core/sysbus.h"
 #include "hw/core/loader.h"
 #include "qemu/units.h"
 #include "hw/misc/unimp.h"
+#include "system/system.h"
 
 #include "hw/tricore/tc27x_soc.h"
 #include "hw/tricore/triboard.h"
@@ -61,6 +64,11 @@ const MemmapEntry tc27x_soc_memmap[] = {
     [TC27XD_EMEM_U]    = { 0xBF000000,                  0x0 },
     [TC27XD_PSPRX]     = { 0xC0000000,                  0x0 },
     [TC27XD_DSPRX]     = { 0xD0000000,                  0x0 },
+    [TC27XD_IR_INT]    = { 0xF0037000,                  0x0 },
+    [TC27XD_IR_SRC]    = { 0xF0038000,                  0x0 },
+    [TC27XD_STM0]      = { 0xF0001000,                  0x0 },
+    [TC27XD_ASCLIN0]   = { 0xF0000600,                  0x0 },
+    [TC27XD_SCU]       = { 0xF0036000,                  0x0 },
 };
 
 /*
@@ -179,9 +187,17 @@ static void tc27x_soc_init_memory_mapping(DeviceState *dev_soc)
         sc->memmap[TC27XD_EMEM_U].base);
 }
 
+/* TC27x interrupt source indices (SRC register numbers) */
+#define TC27X_SRC_STM0_SR0      0xC0
+#define TC27X_SRC_ASCLIN0_TX    0x14
+#define TC27X_SRC_ASCLIN0_RX    0x15
+#define TC27X_SRC_ASCLIN0_ERR   0x16
+
 static void tc27x_soc_realize(DeviceState *dev_soc, Error **errp)
 {
     TC27XSoCState *s = TC27X_SOC(dev_soc);
+    TC27XSoCClass *sc = TC27X_SOC_GET_CLASS(s);
+    Clock *fstm;
     Error *err = NULL;
 
     qdev_realize(DEVICE(&s->cpu), NULL, &err);
@@ -191,6 +207,48 @@ static void tc27x_soc_realize(DeviceState *dev_soc, Error **errp)
     }
 
     tc27x_soc_init_memory_mapping(dev_soc);
+
+    /* STM clock: 50 MHz (fSTM derived from fSPB) */
+    fstm = clock_new(OBJECT(dev_soc), "fstm");
+    clock_set_hz(fstm, 50000000);
+    qdev_connect_clock_in(DEVICE(&s->stm), "fstm", fstm);
+
+    /* Connect ASCLIN to first serial device */
+    qdev_prop_set_chr(DEVICE(&s->asclin), "chardev", serial_hd(0));
+
+    /* Realize peripherals */
+    sysbus_realize(SYS_BUS_DEVICE(&s->ir), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(&s->stm), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(&s->asclin), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(&s->scu), &error_fatal);
+
+    /* Map peripheral MMIO regions */
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->ir), 0,
+                    sc->memmap[TC27XD_IR_INT].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->ir), 1,
+                    sc->memmap[TC27XD_IR_SRC].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->stm), 0,
+                    sc->memmap[TC27XD_STM0].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->asclin), 0,
+                    sc->memmap[TC27XD_ASCLIN0].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->scu), 0,
+                    sc->memmap[TC27XD_SCU].base);
+
+    /* Connect ASCLIN IRQs to interrupt router */
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->asclin), 0,
+        qdev_get_gpio_in_named(DEVICE(&s->ir), "irq",
+                               TC27X_SRC_ASCLIN0_RX));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->asclin), 1,
+        qdev_get_gpio_in_named(DEVICE(&s->ir), "irq",
+                               TC27X_SRC_ASCLIN0_TX));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->asclin), 2,
+        qdev_get_gpio_in_named(DEVICE(&s->ir), "irq",
+                               TC27X_SRC_ASCLIN0_ERR));
+
+    /* Connect STM compare match IRQ to interrupt router */
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->stm), 0,
+        qdev_get_gpio_in_named(DEVICE(&s->ir), "irq",
+                               TC27X_SRC_STM0_SR0));
 }
 
 static void tc27x_soc_init(Object *obj)
@@ -199,6 +257,10 @@ static void tc27x_soc_init(Object *obj)
     TC27XSoCClass *sc = TC27X_SOC_GET_CLASS(s);
 
     object_initialize_child(obj, "tc27x", &s->cpu, sc->cpu_type);
+    object_initialize_child(obj, "ir", &s->ir, TYPE_TRICORE_IR);
+    object_initialize_child(obj, "stm", &s->stm, TYPE_TRICORE_STM);
+    object_initialize_child(obj, "asclin", &s->asclin, TYPE_TRICORE_ASCLIN);
+    object_initialize_child(obj, "scu", &s->scu, TYPE_TRICORE_SCU);
 }
 
 static void tc27x_soc_class_init(ObjectClass *klass, const void *data)
