@@ -27,12 +27,216 @@
 #include "qemu/qemu-print.h"
 
 enum {
+    TLBRET_MPX = -12,
+    TLBRET_MPW = -11,
+    TLBRET_MPR = -10,
     TLBRET_DIRTY = -4,
     TLBRET_INVALID = -3,
     TLBRET_NOMATCH = -2,
     TLBRET_BADADDR = -1,
     TLBRET_MATCH = 0
 };
+
+static uint32_t tricore_mpu_dpr_lower(CPUTriCoreState *env, int idx)
+{
+    switch (idx) {
+    case 0:  return env->DPR0_0L;
+    case 1:  return env->DPR0_1L;
+    case 2:  return env->DPR0_2L;
+    case 3:  return env->DPR0_3L;
+    case 4:  return env->DPR1_0L;
+    case 5:  return env->DPR1_1L;
+    case 6:  return env->DPR1_2L;
+    case 7:  return env->DPR1_3L;
+    case 8:  return env->DPR2_0L;
+    case 9:  return env->DPR2_1L;
+    case 10: return env->DPR2_2L;
+    case 11: return env->DPR2_3L;
+    case 12: return env->DPR3_0L;
+    case 13: return env->DPR3_1L;
+    case 14: return env->DPR3_2L;
+    case 15: return env->DPR3_3L;
+    default: return 0;
+    }
+}
+
+static uint32_t tricore_mpu_dpr_upper(CPUTriCoreState *env, int idx)
+{
+    switch (idx) {
+    case 0:  return env->DPR0_0U;
+    case 1:  return env->DPR0_1U;
+    case 2:  return env->DPR0_2U;
+    case 3:  return env->DPR0_3U;
+    case 4:  return env->DPR1_0U;
+    case 5:  return env->DPR1_1U;
+    case 6:  return env->DPR1_2U;
+    case 7:  return env->DPR1_3U;
+    case 8:  return env->DPR2_0U;
+    case 9:  return env->DPR2_1U;
+    case 10: return env->DPR2_2U;
+    case 11: return env->DPR2_3U;
+    case 12: return env->DPR3_0U;
+    case 13: return env->DPR3_1U;
+    case 14: return env->DPR3_2U;
+    case 15: return env->DPR3_3U;
+    default: return 0;
+    }
+}
+
+static uint32_t tricore_mpu_cpr_lower(CPUTriCoreState *env, int idx)
+{
+    switch (idx) {
+    case 0:  return env->CPR0_0L;
+    case 1:  return env->CPR0_1L;
+    case 2:  return env->CPR0_2L;
+    case 3:  return env->CPR0_3L;
+    case 4:  return env->CPR1_0L;
+    case 5:  return env->CPR1_1L;
+    case 6:  return env->CPR1_2L;
+    case 7:  return env->CPR1_3L;
+    case 8:  return env->CPR2_0L;
+    case 9:  return env->CPR2_1L;
+    case 10: return env->CPR2_2L;
+    case 11: return env->CPR2_3L;
+    case 12: return env->CPR3_0L;
+    case 13: return env->CPR3_1L;
+    case 14: return env->CPR3_2L;
+    case 15: return env->CPR3_3L;
+    default: return 0;
+    }
+}
+
+static uint32_t tricore_mpu_cpr_upper(CPUTriCoreState *env, int idx)
+{
+    switch (idx) {
+    case 0:  return env->CPR0_0U;
+    case 1:  return env->CPR0_1U;
+    case 2:  return env->CPR0_2U;
+    case 3:  return env->CPR0_3U;
+    case 4:  return env->CPR1_0U;
+    case 5:  return env->CPR1_1U;
+    case 6:  return env->CPR1_2U;
+    case 7:  return env->CPR1_3U;
+    case 8:  return env->CPR2_0U;
+    case 9:  return env->CPR2_1U;
+    case 10: return env->CPR2_2U;
+    case 11: return env->CPR2_3U;
+    case 12: return env->CPR3_0U;
+    case 13: return env->CPR3_1U;
+    case 14: return env->CPR3_2U;
+    case 15: return env->CPR3_3U;
+    default: return 0;
+    }
+}
+
+static uint32_t tricore_mpu_dpre(CPUTriCoreState *env, int prs)
+{
+    switch (prs) {
+    case 0: return env->DPRE_0;
+    case 1: return env->DPRE_1;
+    case 2: return env->DPRE_2;
+    case 3: return env->DPRE_3;
+    default: return 0;
+    }
+}
+
+static uint32_t tricore_mpu_dpwe(CPUTriCoreState *env, int prs)
+{
+    switch (prs) {
+    case 0: return env->DPWE_0;
+    case 1: return env->DPWE_1;
+    case 2: return env->DPWE_2;
+    case 3: return env->DPWE_3;
+    default: return 0;
+    }
+}
+
+static uint32_t tricore_mpu_cpxe(CPUTriCoreState *env, int prs)
+{
+    switch (prs) {
+    case 0: return env->CPXE_0;
+    case 1: return env->CPXE_1;
+    case 2: return env->CPXE_2;
+    case 3: return env->CPXE_3;
+    default: return 0;
+    }
+}
+
+static bool tricore_mpu_enabled(CPUTriCoreState *env)
+{
+    /*
+     * The MPU is enabled when SYSCON.MPEN (bit 1) is set.
+     * As a pragmatic fallback, also treat the MPU as enabled
+     * when any enable bitmap is nonzero, since some RTOS ports
+     * program the range/enable registers without setting SYSCON.MPEN.
+     */
+    if (env->SYSCON & MASK_SYSCON_PRO_TEN) {
+        return true;
+    }
+    return (env->DPRE_0 | env->DPRE_1 | env->DPRE_2 | env->DPRE_3 |
+            env->DPWE_0 | env->DPWE_1 | env->DPWE_2 | env->DPWE_3 |
+            env->CPXE_0 | env->CPXE_1 | env->CPXE_2 | env->CPXE_3) != 0;
+}
+
+static int tricore_mpu_check(CPUTriCoreState *env, vaddr address,
+                             MMUAccessType access_type, int *prot)
+{
+    int prs = (env->PSW & MASK_PSW_PRS) >> 12;
+    uint32_t dpre = tricore_mpu_dpre(env, prs);
+    uint32_t dpwe = tricore_mpu_dpwe(env, prs);
+    uint32_t cpxe = tricore_mpu_cpxe(env, prs);
+    int i;
+
+    *prot = 0;
+
+    /* Walk the 16 data protection ranges */
+    for (i = 0; i < 16; i++) {
+        uint32_t lower = tricore_mpu_dpr_lower(env, i);
+        uint32_t upper = tricore_mpu_dpr_upper(env, i);
+
+        if (address >= lower && address < upper) {
+            if (dpre & (1u << i)) {
+                *prot |= PAGE_READ;
+            }
+            if (dpwe & (1u << i)) {
+                *prot |= PAGE_WRITE;
+            }
+        }
+    }
+
+    /* Walk the 16 code protection ranges */
+    for (i = 0; i < 16; i++) {
+        uint32_t lower = tricore_mpu_cpr_lower(env, i);
+        uint32_t upper = tricore_mpu_cpr_upper(env, i);
+
+        if (address >= lower && address < upper) {
+            if (cpxe & (1u << i)) {
+                *prot |= PAGE_EXEC;
+            }
+        }
+    }
+
+    /* Check the requested access against accumulated permissions */
+    switch (access_type) {
+    case MMU_DATA_LOAD:
+        if (!(*prot & PAGE_READ)) {
+            return TLBRET_MPR;
+        }
+        break;
+    case MMU_DATA_STORE:
+        if (!(*prot & PAGE_WRITE)) {
+            return TLBRET_MPW;
+        }
+        break;
+    case MMU_INST_FETCH:
+        if (!(*prot & PAGE_EXEC)) {
+            return TLBRET_MPX;
+        }
+        break;
+    }
+
+    return TLBRET_MATCH;
+}
 
 static int get_physical_address(CPUTriCoreState *env, hwaddr *physical,
                                 int *prot, vaddr address,
@@ -42,6 +246,19 @@ static int get_physical_address(CPUTriCoreState *env, hwaddr *physical,
 
     *physical = address & 0xFFFFFFFF;
     *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+
+    /*
+     * Block instruction fetch from peripheral space
+     * (segments 0xE and 0xF).
+     */
+    if (access_type == MMU_INST_FETCH &&
+        (address & 0xE0000000) == 0xE0000000) {
+        return TLBRET_MPX;
+    }
+
+    if (tricore_mpu_enabled(env)) {
+        ret = tricore_mpu_check(env, address, access_type, prot);
+    }
 
     return ret;
 }
@@ -60,10 +277,25 @@ hwaddr tricore_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
     return phys_addr;
 }
 
-/* TODO: Add exception support */
 static void raise_mmu_exception(CPUTriCoreState *env, vaddr address,
                                 int rw, int tlb_error)
 {
+    CPUState *cs = env_cpu(env);
+
+    switch (tlb_error) {
+    case TLBRET_MPR:
+        cs->exception_index = TRAPC_PROT;
+        break;
+    case TLBRET_MPW:
+        cs->exception_index = TRAPC_PROT;
+        break;
+    case TLBRET_MPX:
+        cs->exception_index = TRAPC_PROT;
+        break;
+    default:
+        cs->exception_index = TRAPC_SYSBUS;
+        break;
+    }
 }
 
 bool tricore_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
@@ -73,9 +305,8 @@ bool tricore_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     CPUTriCoreState *env = cpu_env(cs);
     hwaddr physical;
     int prot;
-    int ret = 0;
+    int ret;
 
-    rw &= 1;
     ret = get_physical_address(env, &physical, &prot,
                                address, rw, mmu_idx);
 
@@ -85,7 +316,7 @@ bool tricore_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 
     if (ret == TLBRET_MATCH) {
         tlb_set_page(cs, address & TARGET_PAGE_MASK,
-                     physical & TARGET_PAGE_MASK, prot | PAGE_EXEC,
+                     physical & TARGET_PAGE_MASK, prot,
                      mmu_idx, TARGET_PAGE_SIZE);
         return true;
     } else {
@@ -170,8 +401,9 @@ void NAME(CPUTriCoreState *env, uint32_t val)                            \
 {                                                                         \
     if (tricore_has_feature(env, TRICORE_FEATURE_##FEATURE)) {            \
         env->REG = FIELD_DP32(env->REG, REG, FIELD ## _ ## FEATURE, val); \
+    } else {                                                              \
+        env->REG = FIELD_DP32(env->REG, REG, FIELD ## _13, val);          \
     }                                                                     \
-    env->REG = FIELD_DP32(env->REG, REG, FIELD ## _13, val);              \
 }
 
 #define FIELD_SETTER(NAME, REG, FIELD)                \
