@@ -128,7 +128,26 @@ the next fields through ``header_length``.
                                 allows subcluster-based allocation. See the
                                 Extended L2 Entries section for more details.
 
-                    Bits 5-63:  Reserved (set to 0)
+                    Bit 5:      Zoned extension bit. If this bit is set then
+                                the file is an emulated zoned device. The
+                                zoned extension must be present.
+                                Implementations that do not support zoned
+                                emulation cannot open this file because it
+                                generally only make sense to interpret the
+                                data along with the zone information and
+                                write pointers.
+
+                                It is unsafe when any qcow2 user without
+                                knowing the zoned extension reads or edits
+                                a file with the zoned extension. The write
+                                pointer tracking can be corrupted when a
+                                writer edits a file, like overwriting beyond
+                                the write pointer locations. Or a reader tries
+                                to access a file without knowing write
+                                pointers where the software setup will cause
+                                invalid reads.
+
+                    Bits 6-63:  Reserved (set to 0)
 
          80 -  87:  compatible_features
                     Bitmask of compatible features. An implementation can
@@ -259,6 +278,7 @@ be stored. Each extension has a structure like the following::
                         0x23852875 - Bitmaps extension
                         0x0537be77 - Full disk encryption header pointer
                         0x44415441 - External data file name string
+                        0x007a6264 - Zoned extension
                         other      - Unknown header extension, can be safely
                                      ignored
 
@@ -343,6 +363,101 @@ The fields of the bitmaps extension are::
          16 - 23:  bitmap_directory_offset
                    Offset into the image file at which the bitmap directory
                    starts. Must be aligned to a cluster boundary.
+
+Zoned extension
+---------------
+
+The zoned extension must be present if the incompatible_features bit 5 is set,
+and omitted when it is clear. It contains fields for emulating the zoned
+storage model (https://zonedstorage.io/). Currently only the host-managed zone
+model is supported.
+
+The fields of the zoned extension are::
+
+    Byte       0:  zoned
+                   The byte represents the zoned model of the device. 0 is for
+                   a non-zoned device (all other information in this header
+                   is ignored). 1 is for a host-managed device, which only
+                   allows for sequential writes within each zone. Other
+                   values may be added later, the implementation must refuse
+                   to open a device containing an unknown zone model.
+
+          1 -  3:  Reserved, must be zero.
+
+          4 -  7:  nr_zones
+                   The number of zones. It is the sum of conventional zones
+                   and sequential zones. The maximum value for nr_zones is
+                   (2^32 - 1)/8 = 536870911.
+
+          8 - 15:  zone_size
+                   Total size of each zone, in bytes. The 64-bit field is to
+                   satisfy the virtio-blk zone_size range and emulate a read
+                   zoned device, whose maximum zone size can be as large as
+                   2TB.
+
+                   The value must be power of 2. Linux currently requires
+                   the zone size to be a power of 2 number of LBAs. Qcow2
+                   following this is mainly to allow emulating a real
+                   ZNS drive configuration. It is not relevant to the cluster
+                   size.
+
+         16 - 23:  zone_capacity
+                   The number of writable bytes within the zones. The bytes
+                   between zone capacity and zone size are unusable: reads
+                   will return 0s and writes will fail.
+
+                   A zone capacity is always smaller or equal to the zone
+                   size. It is for emulating a real ZNS drive configuration,
+                   which has the constraint of aligning to some hardware erase
+                   block size.
+
+         24 - 27:  conventional_zones
+                   The number of conventional zones. The conventional zones
+                   allow sequential writes and random writes. While the
+                   sequential zones only allow sequential writes.
+
+         28 - 31:  max_active_zones
+                   The number of the zones that can be in the implicit open,
+                   explicit open or closed state. It cannot be larger than
+                   nr_zones.
+
+         32 - 35:  max_open_zones
+                   The maximal number of open (implicitly open or explicitly
+                   open) zones. It cannot be larger than the number of SWR
+                   zones of the device, nor larger than max_active_zones.
+
+                   If the limits of open zones or active zones are equal to
+                   the total number of SWR zones, then it's the same as having
+                   no limits therefore max open zones and max active zones are
+                   set to 0.
+
+         36 - 39:  max_append_bytes
+                   The number of bytes of a zone append request that can be
+                   issued to the device. It must be 512-byte aligned and less
+                   than the zone capacity.
+
+         40 - 47:  zonedmeta_offset
+                   The offset of zoned metadata structure in the contained
+                   image, in bytes.
+
+The zonedmeta clusters contain a table of the zone write pointers. Each entry
+is a 64-bit value encoding both the zone type and the zone's write pointer::
+
+    Bit   0 - 58:  Write pointer offset, in bytes, indicates the starting
+                   point of the next write position in that zone.
+                   For conventional zones the value is the zone's starting
+                   offset.
+
+              59:  Zone type. 0 = SWR; 1 = conventional.
+
+         60 - 63:  Reserved, must be zero.
+
+
+Each zone's write pointer in the zonedmeta area is durable on disk only after
+the data it covers is durable. For a write to a SWR zone, the data is written
+back to disk first, then the non-zoned qcow2 L1/L2/refcount metadata is written,
+and finally the write pointers are written. This ordering ensures that after
+a power failure the on-disk write pointer never leads data being written.
 
 Full disk encryption header pointer
 -----------------------------------
