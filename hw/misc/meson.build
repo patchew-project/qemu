@@ -137,6 +137,7 @@ system_ss.add(when: 'CONFIG_PVPANIC_MMIO', if_true: files('pvpanic-mmio.c'))
 system_ss.add(when: 'CONFIG_AUX', if_true: files('auxbus.c'))
 system_ss.add(when: 'CONFIG_ASPEED_SOC', if_true: files(
   'aspeed_cptra_mbox.c',
+  'cptra_mbox_peer_extern.c',
   'aspeed_hace.c',
   'aspeed_lpc.c',
   'aspeed_ltpi.c',
