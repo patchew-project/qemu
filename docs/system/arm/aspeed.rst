@@ -483,6 +483,7 @@ Supported devices
  * ADC
  * Secure Boot Controller
  * PECI Controller (minimal)
+ * Caliptra MCI mailbox (AST1040 only)
 
 
 Missing devices
@@ -512,3 +513,34 @@ To boot a kernel directly from a Zephyr build tree:
 
   $ qemu-system-arm -M ast1030-evb -nographic \
         -kernel zephyr.bin
+
+Caliptra MCI mailbox (ast1040-evb)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The AST1040 chip provides a mechanism to map the Caliptra MCI mailbox
+register space into the Cortex-M4F address space. The Caliptra MCI mailbox
+SRAM and CSR are accessible at fixed addresses:
+
+- Mailbox SRAM at ``0x21400000`` (2 MiB, command/response payload)
+- Mailbox CSR  at ``0x21600000`` (4 KiB, LOCK/CMD/DLEN/EXECUTE/STATUS)
+
+The SCU ``CPTRA_PAGE_REG0`` register (at ``0x74C02120``) selects which
+Caliptra MCI page (SRAM or CSR) is exposed through the 4 KiB aperture at
+``0x74200000``, allowing firmware to access either window through a single
+address.
+
+By default the mailbox has no Caliptra peer, so writing ``EXECUTE`` reports
+``CMD_FAILURE``. To service commands with an external Caliptra simulator (for
+example caliptra-server) over a UNIX socket, start the simulator first, then
+create an external peer device and link it with the machine's ``cptra-peer``
+option:
+
+.. code-block:: bash
+
+  $ qemu-system-arm -M ast1040-evb,cptra-peer=peer0 -nographic \
+        -chardev socket,id=cptra0,path=/tmp/mcu_mbox.sock \
+        -device cptra-mbox-peer-extern,id=peer0,chardev=cptra0 \
+        -kernel zephyr.elf
+
+Writing ``EXECUTE`` bridges the command and the mailbox SRAM payload to the
+peer over the socket, and writes the response back into the mailbox SRAM.
