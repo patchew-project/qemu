@@ -7,6 +7,7 @@
 
 use strict;
 use warnings;
+use Encode qw(decode);
 use Term::ANSIColor qw(:constants);
 
 my $P = $0;
@@ -596,7 +597,11 @@ sub line_stats {
 	# Pick the indent from the front of the line.
 	my ($white) = ($line =~ /^(\s*)/);
 
-	return (length($line), length($white));
+	# Use character count (not byte count) so multi-byte UTF-8 characters
+	# are counted as single characters.
+	my $line_chars  = length(decode('UTF-8', $line,  Encode::FB_DEFAULT));
+	my $white_chars = length(decode('UTF-8', $white, Encode::FB_DEFAULT));
+	return ($line_chars, $white_chars);
 }
 
 my $sanitise_quote = '';
