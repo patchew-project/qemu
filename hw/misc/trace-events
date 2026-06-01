@@ -106,6 +106,10 @@ aspeed_ast2700_scuio_read(uint64_t offset, unsigned size, uint32_t data) "To 0x%
 aspeed_ast1040_scu_write(uint64_t offset, unsigned size, uint32_t data) "To 0x%" PRIx64 " of size %u: 0x%" PRIx32
 aspeed_ast1040_scu_read(uint64_t offset, unsigned size, uint32_t data) "To 0x%" PRIx64 " of size %u: 0x%" PRIx32
 
+# aspeed_cptra_mbox.c
+cptra_mbox_execute(uint32_t cmd, uint32_t dlen) "EXECUTE cmd 0x%" PRIx32 " dlen 0x%" PRIx32
+cptra_mbox_complete(uint32_t status, uint32_t dlen) "complete status %u dlen 0x%" PRIx32
+
 # mps2-scc.c
 mps2_scc_read(uint64_t offset, uint64_t data, unsigned size) "MPS2 SCC read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
 mps2_scc_write(uint64_t offset, uint64_t data, unsigned size) "MPS2 SCC write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
