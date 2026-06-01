@@ -8,11 +8,16 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "system/address-spaces.h"
 #include "system/system.h"
 #include "hw/core/qdev-clock.h"
 #include "hw/misc/unimp.h"
+#include "hw/misc/aspeed_cptra_mbox.h"
 #include "hw/arm/aspeed_soc.h"
+
+#define AST1040_CPTRA_MCI_WINDOW_BASE 0x74200000
+#define AST1040_CPTRA_MCI_WINDOW_SIZE 0x1000
+#define AST1040_CPTRA_MBOX_SRAM_BASE  0x21400000
+#define AST1040_CPTRA_MBOX_CSR_BASE   0x21600000
 
 static const hwaddr aspeed_soc_ast1040_memmap[] = {
     [ASPEED_DEV_SRAM1]     = 0x00000000, /* Hyper RAM */
@@ -88,6 +93,7 @@ static qemu_irq aspeed_soc_ast1040_get_irq(AspeedSoCState *s, int dev)
 
 static void aspeed_soc_ast1040_init(Object *obj)
 {
+    Aspeed1040SoCState *a1040 = ASPEED1040_SOC(obj);
     Aspeed10x0SoCState *a = ASPEED10X0_SOC(obj);
     AspeedSoCState *s = ASPEED_SOC(obj);
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
@@ -96,12 +102,13 @@ static void aspeed_soc_ast1040_init(Object *obj)
 
     s->sysclk = qdev_init_clock_in(DEVICE(s), "sysclk", NULL, NULL, 0);
 
-    /* AST1040 uses the AST2700 SCUIO model */
-    object_initialize_child(obj, "scu", &s->scu, TYPE_ASPEED_2700_SCUIO);
+    object_initialize_child(obj, "scu", &s->scu, TYPE_ASPEED_1040_SCU);
     qdev_prop_set_uint32(DEVICE(&s->scu), "silicon-rev", sc->silicon_rev);
 
     object_property_add_alias(obj, "hw-strap1", OBJECT(&s->scu), "hw-strap1");
     object_property_add_alias(obj, "hw-strap2", OBJECT(&s->scu), "hw-strap2");
+    object_initialize_child(obj, "cptra-mbox", &a1040->cptra_mbox,
+                            TYPE_ASPEED_CPTRA_MBOX);
 
     for (i = 0; i < sc->uarts_num; i++) {
         object_initialize_child(obj, "uart[*]", &s->uart[i], TYPE_SERIAL_MM);
@@ -120,8 +127,31 @@ static void aspeed_soc_ast1040_init(Object *obj)
                             TYPE_UNIMPLEMENTED_DEVICE);
 }
 
+static bool aspeed_soc_ast1040_realize_cptra_mbox(Aspeed1040SoCState *a1040,
+                                                  Error **errp)
+{
+    AspeedSoCState *s = ASPEED_SOC(a1040);
+    DeviceState *mbox = DEVICE(&a1040->cptra_mbox);
+
+    /*
+     * Caliptra is an AST1040 integrated RoT IP. The external peer is
+     * optional; without a peer, the mailbox registers remain present and
+     * EXECUTE completes with CMD_FAILURE.
+     */
+    if (!sysbus_realize(SYS_BUS_DEVICE(mbox), errp)) {
+        return false;
+    }
+
+    aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(mbox), 0,
+                    AST1040_CPTRA_MBOX_SRAM_BASE);
+    aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(mbox), 1,
+                    AST1040_CPTRA_MBOX_CSR_BASE);
+    return true;
+}
+
 static void aspeed_soc_ast1040_realize(DeviceState *dev_soc, Error **errp)
 {
+    Aspeed1040SoCState *a1040 = ASPEED1040_SOC(dev_soc);
     Aspeed10x0SoCState *a = ASPEED10X0_SOC(dev_soc);
     AspeedSoCState *s = ASPEED_SOC(dev_soc);
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
@@ -170,6 +200,27 @@ static void aspeed_soc_ast1040_realize(DeviceState *dev_soc, Error **errp)
     }
     memory_region_add_subregion(s->memory, sc->memmap[ASPEED_DEV_SRAM1],
                                 &s->sram[1]);
+
+    if (!aspeed_soc_ast1040_realize_cptra_mbox(a1040, errp)) {
+        return;
+    }
+
+    /*
+     * The Caliptra MCI aperture is a 4 KiB alias whose target is selected by
+     * AST1040_SCU_CPTRA_PAGE_REG0. Firmware commonly switches it between
+     * mailbox SRAM (0x21400000) and mailbox CSR (0x21600000), then accesses
+     * the selected page through 0x74200000.
+     */
+    memory_region_init_alias(&a1040->cptra_mci_window, OBJECT(s),
+                             "aspeed.ast1040.cptra-mci-window", s->memory,
+                             0, AST1040_CPTRA_MCI_WINDOW_SIZE);
+    memory_region_add_subregion(s->memory, AST1040_CPTRA_MCI_WINDOW_BASE,
+                                &a1040->cptra_mci_window);
+    /* The SCU drives the aperture's target offset via SCU_CPTRA_PAGE_REG0. */
+    object_property_set_link(OBJECT(&s->scu), "cptra-page-window",
+                             OBJECT(&a1040->cptra_mci_window), &error_abort);
+    object_property_set_uint(OBJECT(&s->scu), "cptra-page-window-base",
+                             AST1040_CPTRA_MCI_WINDOW_BASE, &error_abort);
 
     /* SCU */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->scu), errp)) {
@@ -244,8 +295,9 @@ static void aspeed_soc_ast1040_class_init(ObjectClass *klass, const void *data)
 
 static const TypeInfo aspeed_soc_ast1040_types[] = {
     {
-        .name           = "ast1040-a0",
+        .name           = TYPE_ASPEED1040_SOC,
         .parent         = TYPE_ASPEED10X0_SOC,
+        .instance_size  = sizeof(Aspeed1040SoCState),
         .instance_init  = aspeed_soc_ast1040_init,
         .class_init     = aspeed_soc_ast1040_class_init,
     }
