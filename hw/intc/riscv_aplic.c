@@ -910,35 +910,37 @@ static void riscv_aplic_reset_enter(Object *obj, ResetType type)
     RISCVAPLICState *aplic = RISCV_APLIC(obj);
     int i;
 
-    aplic->domaincfg = 0;
-    memset(aplic->sourcecfg, 0, sizeof(uint32_t) * aplic->num_irqs);
-    memset(aplic->target, 0, sizeof(uint32_t) * aplic->num_irqs);
-    if (!aplic->msimode) {
-        for (i = 0; i < aplic->num_irqs; i++) {
-            aplic->target[i] = 1;
-        }
-    }
-
-    for (i = 0; i < aplic->num_irqs ; i++) {
-        riscv_aplic_set_enabled_raw(aplic, i, false);
-    }
-
-    /* Need to unlock [ms]msicfgaddrh.L */
-    aplic->mmsicfgaddr = 0;
-    aplic->mmsicfgaddrH = 0;
-    aplic->smsicfgaddr = 0;
-    aplic->smsicfgaddrH = 0;
-
-    if (!aplic->msimode) {
-        /* Reset IDC registers only in non-MSI mode */
-        for (i = 0; i < aplic->num_harts; i++) {
-            aplic->idelivery[i] = 0;
-            aplic->iforce[i] = 0;
-            aplic->ithreshold[i] = 0;
+    if (riscv_use_emulated_aplic(aplic->msimode)) {
+        aplic->domaincfg = 0;
+        memset(aplic->sourcecfg, 0, sizeof(uint32_t) * aplic->num_irqs);
+        memset(aplic->target, 0, sizeof(uint32_t) * aplic->num_irqs);
+        if (!aplic->msimode) {
+            for (i = 0; i < aplic->num_irqs; i++) {
+                aplic->target[i] = 1;
+            }
         }
 
-        for (i = 0; i < aplic->num_harts; i++) {
-            qemu_irq_lower(aplic->external_irqs[i]);
+        for (i = 0; i < aplic->num_irqs ; i++) {
+            riscv_aplic_set_enabled_raw(aplic, i, false);
+        }
+
+        /* Need to unlock [ms]msicfgaddrh.L */
+        aplic->mmsicfgaddr = 0;
+        aplic->mmsicfgaddrH = 0;
+        aplic->smsicfgaddr = 0;
+        aplic->smsicfgaddrH = 0;
+
+        if (!aplic->msimode) {
+            /* Reset IDC registers only in non-MSI mode */
+            for (i = 0; i < aplic->num_harts; i++) {
+                aplic->idelivery[i] = 0;
+                aplic->iforce[i] = 0;
+                aplic->ithreshold[i] = 0;
+            }
+
+            for (i = 0; i < aplic->num_harts; i++) {
+                qemu_irq_lower(aplic->external_irqs[i]);
+            }
         }
     }
 }

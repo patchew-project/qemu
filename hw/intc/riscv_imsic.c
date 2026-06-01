@@ -347,15 +347,17 @@ static void riscv_imsic_reset_enter(Object *obj, ResetType type)
     RISCVIMSICState *imsic = RISCV_IMSIC(obj);
     int i;
 
-    memset(imsic->eidelivery, 0, sizeof(uint32_t) * imsic->num_pages);
-    memset(imsic->eithreshold, 0, sizeof(uint32_t) * imsic->num_pages);
+    if (!kvm_irqchip_in_kernel()) {
+        memset(imsic->eidelivery, 0, sizeof(uint32_t) * imsic->num_pages);
+        memset(imsic->eithreshold, 0, sizeof(uint32_t) * imsic->num_pages);
 
-    for (i = 0; i < imsic->num_eistate; i++) {
-        imsic->eistate[i] &= ~IMSIC_EISTATE_ENABLED;
-    }
+        for (i = 0; i < imsic->num_eistate; i++) {
+            imsic->eistate[i] &= ~IMSIC_EISTATE_ENABLED;
+        }
 
-    for (i = 0; i < imsic->num_pages; i++) {
-        qemu_irq_lower(imsic->external_irqs[i]);
+        for (i = 0; i < imsic->num_pages; i++) {
+            qemu_irq_lower(imsic->external_irqs[i]);
+        }
     }
 }
 
