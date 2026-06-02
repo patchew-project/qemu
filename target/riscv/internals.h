@@ -193,6 +193,9 @@ static inline target_ulong get_xepc_mask(CPURISCVState *env)
 bool riscv_cpu_has_work(CPUState *cs);
 #endif
 
+target_ulong riscv_cpu_get_fflags(CPURISCVState *env);
+void riscv_cpu_set_fflags(CPURISCVState *env, target_ulong val);
+
 void riscv_cpu_ext_user_opts_init(void);
 void riscv_cpu_cfg_ext_add_user_opt(uint32_t ext_offset, bool value);
 void riscv_cpu_misa_ext_add_user_opt(uint32_t bit, bool value);

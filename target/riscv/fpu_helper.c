@@ -23,33 +23,6 @@
 #include "fpu/softfloat.h"
 #include "internals.h"
 
-target_ulong riscv_cpu_get_fflags(CPURISCVState *env)
-{
-    int soft = get_float_exception_flags(&env->fp_status);
-    target_ulong hard = 0;
-
-    hard |= (soft & float_flag_inexact) ? FPEXC_NX : 0;
-    hard |= (soft & float_flag_underflow) ? FPEXC_UF : 0;
-    hard |= (soft & float_flag_overflow) ? FPEXC_OF : 0;
-    hard |= (soft & float_flag_divbyzero) ? FPEXC_DZ : 0;
-    hard |= (soft & float_flag_invalid) ? FPEXC_NV : 0;
-
-    return hard;
-}
-
-void riscv_cpu_set_fflags(CPURISCVState *env, target_ulong hard)
-{
-    int soft = 0;
-
-    soft |= (hard & FPEXC_NX) ? float_flag_inexact : 0;
-    soft |= (hard & FPEXC_UF) ? float_flag_underflow : 0;
-    soft |= (hard & FPEXC_OF) ? float_flag_overflow : 0;
-    soft |= (hard & FPEXC_DZ) ? float_flag_divbyzero : 0;
-    soft |= (hard & FPEXC_NV) ? float_flag_invalid : 0;
-
-    set_float_exception_flags(soft, &env->fp_status);
-}
-
 void helper_set_rounding_mode(CPURISCVState *env, uint32_t rm)
 {
     int softrm;
