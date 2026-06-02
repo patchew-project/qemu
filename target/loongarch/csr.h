@@ -29,6 +29,6 @@ CSRInfo *get_csr(unsigned int csr_num);
 bool set_csr_flag(unsigned int csr_num, int flag);
 static inline int get_csr_offset(const CSRInfo *csr, int vm_level)
 {
-    return csr->offset;
+    return csr->offset + offsetof(CPULoongArchState, sys_states[vm_level]);
 }
 #endif /* TARGET_LOONGARCH_CSR_H */
