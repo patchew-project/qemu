@@ -551,8 +551,31 @@
 #     accesses will go to a given interleave target.  Accepted values
 #     [256, 512, 1k, 2k, 4k, 8k, 16k]
 #
+# @device-coherent: Window permits device-coherent (minimally HDM-D)
+#     accesses.  (since 11.0)
+#
+# @host-only: Window permits host-only coherent (HDM-H) accesses.
+#     (since 11.0)
+#
+# @volatile: Window permits volatile memory.  (since 11.0)
+#
+# @persistent: Window permits persistent memory.  (since 11.0)
+#
+# @fixed-config: Window has a fixed device configuration.  Advertised
+#     in the CEDT only; not otherwise emulated.  (since 11.0)
+#
+# @back-invalidate: Window permits Back-Invalidate (HDM-DB).  Implies
+#     @device-coherent.  (since 11.0)
+#
 # @targets: Target root bridge IDs from -device ...,id=<ID> for each
 #     root bridge.
+#
+# Coherency defaults to host-only coherent; request a device model
+# with @device-coherent or @back-invalidate instead.  @volatile and
+# @persistent are permitted unless set to false, and at least one is
+# required.  Clearing @host-only with no device model is rejected, as
+# are host-only coherent + back-invalidate and device-coherent +
+# host-only coherent.
 #
 # Since: 7.1
 ##
@@ -560,6 +583,12 @@
   'data': {
       'size': 'size',
       '*interleave-granularity': 'size',
+      '*device-coherent': 'bool',
+      '*host-only': 'bool',
+      '*volatile': 'bool',
+      '*persistent': 'bool',
+      '*fixed-config': 'bool',
+      '*back-invalidate': 'bool',
       'targets': ['str'] }}
 
 ##
