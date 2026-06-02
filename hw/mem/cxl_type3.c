@@ -24,6 +24,7 @@
 #include "qemu/module.h"
 #include "qemu/pmem.h"
 #include "qemu/range.h"
+#include "system/address-spaces.h"
 #include "qemu/rcu.h"
 #include "qemu/guest-random.h"
 #include "system/hostmem.h"
@@ -420,6 +421,11 @@ static void hdm_decoder_commit(CXLType3Dev *ct3d, int which)
     ComponentRegisters *cregs = &ct3d->cxl_cstate.crb;
     uint32_t *cache_mem = cregs->cache_mem_registers;
     uint32_t ctrl;
+    uint32_t low, high;
+    uint64_t decoder_base, decoder_size;
+    MemoryRegion *mr = NULL;
+    uint64_t dpa_offset = 0;
+    char *alias_name;
 
     ctrl = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_CTRL + which * hdm_inc);
     /* TODO: Sanity checks that the decoder is possible */
@@ -427,6 +433,73 @@ static void hdm_decoder_commit(CXLType3Dev *ct3d, int which)
     ctrl = FIELD_DP32(ctrl, CXL_HDM_DECODER0_CTRL, COMMITTED, 1);
 
     stl_le_p(cache_mem + R_CXL_HDM_DECODER0_CTRL + which * hdm_inc, ctrl);
+
+    /*
+     * Create a RAM alias in system memory for the committed decoder range.
+     * This enables direct DMA mapping (address_space_map) for devices like
+     * virtio that need to DMA to/from CXL memory.  Without this, the CFMW
+     * I/O region would require bounce buffering which is limited to 4KB.
+     */
+    low = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_BASE_LO + which * hdm_inc);
+    high = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_BASE_HI + which * hdm_inc);
+    decoder_base = ((uint64_t)high << 32) | (low & 0xf0000000);
+
+    low = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_SIZE_LO + which * hdm_inc);
+    high = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_SIZE_HI + which * hdm_inc);
+    decoder_size = ((uint64_t)high << 32) | (low & 0xf0000000);
+
+    if (!decoder_base || !decoder_size) {
+        return;
+    }
+
+    /* Calculate DPA offset by summing sizes of preceding decoders */
+    for (int i = 0; i < which; i++) {
+        uint32_t prev_low, prev_high;
+        uint64_t prev_size;
+        uint32_t prev_ctrl;
+
+        prev_ctrl = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_CTRL +
+                             i * hdm_inc);
+        if (!FIELD_EX32(prev_ctrl, CXL_HDM_DECODER0_CTRL, COMMITTED)) {
+            continue;
+        }
+        prev_low = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_SIZE_LO +
+                            i * hdm_inc);
+        prev_high = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_SIZE_HI +
+                             i * hdm_inc);
+        prev_size = ((uint64_t)prev_high << 32) | (prev_low & 0xf0000000);
+        dpa_offset += prev_size;
+    }
+
+    /* Determine which memory backend to alias */
+    if (ct3d->hostvmem) {
+        MemoryRegion *vmr = host_memory_backend_get_memory(ct3d->hostvmem);
+        uint64_t vmr_size = memory_region_size(vmr);
+
+        if (dpa_offset < vmr_size) {
+            mr = vmr;
+        }
+    }
+    if (!mr && ct3d->hostpmem) {
+        MemoryRegion *pmr = host_memory_backend_get_memory(ct3d->hostpmem);
+        uint64_t vmr_size = ct3d->hostvmem ?
+            memory_region_size(
+                host_memory_backend_get_memory(ct3d->hostvmem)) : 0;
+        mr = pmr;
+        dpa_offset -= vmr_size;
+    }
+
+    if (!mr) {
+        return;
+    }
+
+    alias_name = g_strdup_printf("cxl-hdm%d-ram-alias", which);
+    memory_region_init_alias(&ct3d->hdm_ram_alias[which], OBJECT(ct3d),
+                             alias_name, mr, dpa_offset, decoder_size);
+    memory_region_add_subregion_overlap(get_system_memory(), decoder_base,
+                                        &ct3d->hdm_ram_alias[which], 1);
+    ct3d->hdm_ram_alias_valid[which] = true;
+    g_free(alias_name);
 }
 
 static void hdm_decoder_uncommit(CXLType3Dev *ct3d, int which)
@@ -442,6 +515,14 @@ static void hdm_decoder_uncommit(CXLType3Dev *ct3d, int which)
     ctrl = FIELD_DP32(ctrl, CXL_HDM_DECODER0_CTRL, COMMITTED, 0);
 
     stl_le_p(cache_mem + R_CXL_HDM_DECODER0_CTRL + which * hdm_inc, ctrl);
+
+    /* Remove the RAM alias if it was added during commit */
+    if (ct3d->hdm_ram_alias_valid[which]) {
+        memory_region_del_subregion(get_system_memory(),
+                                    &ct3d->hdm_ram_alias[which]);
+        object_unparent(OBJECT(&ct3d->hdm_ram_alias[which]));
+        ct3d->hdm_ram_alias_valid[which] = false;
+    }
 }
 
 static int ct3d_qmp_uncor_err_to_cxl(CxlUncorErrorType qmp_err)

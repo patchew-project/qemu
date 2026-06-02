@@ -714,6 +714,10 @@ struct CXLType3Dev {
     /* State */
     AddressSpace hostvmem_as;
     AddressSpace hostpmem_as;
+
+    /* RAM aliases for HDM decoders - enables direct DMA mapping */
+    MemoryRegion hdm_ram_alias[CXL_HDM_DECODER_COUNT];
+    bool hdm_ram_alias_valid[CXL_HDM_DECODER_COUNT];
     CXLComponentState cxl_cstate;
     CXLDeviceState cxl_dstate;
     CXLCCI cci; /* Primary PCI mailbox CCI */
