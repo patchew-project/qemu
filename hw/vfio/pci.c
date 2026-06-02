@@ -1141,7 +1141,7 @@ static uint64_t vfio_rom_read(void *opaque, hwaddr addr, unsigned size)
         uint16_t word;
         uint32_t dword;
         uint64_t qword;
-    } val;
+    } val = { .qword = ~0ULL };
     uint64_t data = 0;
 
     /* Load the ROM lazily when the guest tries to read it */
