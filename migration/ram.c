@@ -3376,10 +3376,6 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
     rs->last_stage = !migration_in_colo_state();
 
     WITH_RCU_READ_LOCK_GUARD() {
-        if (!migration_in_postcopy()) {
-            migration_bitmap_sync_precopy(true);
-        }
-
         ret = rdma_registration_start(f, RAM_CONTROL_FINISH);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
@@ -3442,25 +3438,38 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
     return qemu_fflush(f);
 }
 
+static void ram_state_pending_sync(bool exact, bool final)
+{
+    /*
+     * Sync is not needed either with: (1) a fast query, or (2) after
+     * postcopy has started (no new dirty will generate anymore).
+     */
+    if (!exact || migration_in_postcopy()) {
+        return;
+    }
+
+    /* Final pending query is called with BQL locked */
+    if (!final) {
+        bql_lock();
+    }
+
+    WITH_RCU_READ_LOCK_GUARD() {
+        migration_bitmap_sync_precopy(final);
+    }
+
+    if (!final) {
+        bql_unlock();
+    }
+}
+
 static void ram_state_pending(void *opaque, MigPendingData *pending,
-                              bool exact)
+                              bool exact, bool final)
 {
     RAMState **temp = opaque;
     RAMState *rs = *temp;
     uint64_t remaining_size;
 
-    /*
-     * Sync is not needed either with: (1) a fast query, or (2) after
-     * postcopy has started (no new dirty will generate anymore).
-     */
-    if (exact && !migration_in_postcopy()) {
-        bql_lock();
-        WITH_RCU_READ_LOCK_GUARD() {
-            migration_bitmap_sync_precopy(false);
-        }
-        bql_unlock();
-    }
-
+    ram_state_pending_sync(exact, final);
     remaining_size = rs->migration_dirty_pages * TARGET_PAGE_SIZE;
 
     if (migrate_postcopy_ram()) {

@@ -622,11 +622,15 @@ static void vfio_state_pending_sync(VFIODevice *vbasedev)
 }
 
 static void vfio_state_pending(void *opaque, MigPendingData *pending,
-                               bool exact)
+                               bool exact, bool final)
 {
     VFIODevice *vbasedev = opaque;
     VFIOMigration *migration = vbasedev->migration;
     uint64_t precopy_size, stopcopy_size;
+
+    if (final) {
+        return;
+    }
 
     if (exact) {
         vfio_state_pending_sync(vbasedev);

@@ -2787,11 +2787,14 @@ static bool migration_switchover_prepare(MigrationState *s)
 static bool migration_switchover_start(MigrationState *s, Error **errp)
 {
     ERRP_GUARD();
+    MigPendingData pending = {};
 
     if (!migration_switchover_prepare(s)) {
         error_setg(errp, "Switchover is interrupted");
         return false;
     }
+
+    qemu_savevm_query_pending_final(&pending);
 
     /* Inactivate disks except in COLO */
     if (!migrate_colo()) {
@@ -3285,7 +3288,7 @@ static void migration_iteration_go_next(MigPendingData *pending)
     /*
      * Do a slow sync first before boosting the iteration count.
      */
-    qemu_savevm_query_pending(pending, true);
+    qemu_savevm_query_pending_iter(pending, true);
 
     /*
      * Update the dirty information for the whole system for this
@@ -3336,7 +3339,7 @@ static MigIterateState migration_iteration_run(MigrationState *s)
     bool complete_ready;
 
     /* Fast path - get the estimated amount of pending data */
-    qemu_savevm_query_pending(&pending, false);
+    qemu_savevm_query_pending_iter(&pending, false);
 
     if (in_postcopy) {
         /*
