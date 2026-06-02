@@ -2810,6 +2810,27 @@ static bool migration_switchover_prepare(MigrationState *s)
     return s->state == MIGRATION_STATUS_DEVICE;
 }
 
+static bool migration_switchover_check_switchover_ack_pending(MigrationState *s,
+                                                              Error **errp)
+{
+    uint32_t pending_num;
+
+    if (!migrate_switchover_ack() || migrate_switchover_ack_legacy()) {
+        return true;
+    }
+
+    pending_num = qatomic_read(&s->switchover_ack_pending_num);
+    if (pending_num > 0) {
+        error_setg(errp,
+                   "Switchover ACK was requested by %" PRIu32
+                   " devices during switchover",
+                   pending_num);
+        return false;
+    }
+
+    return true;
+}
+
 static bool migration_switchover_start(MigrationState *s, Error **errp)
 {
     ERRP_GUARD();
@@ -2821,6 +2842,15 @@ static bool migration_switchover_start(MigrationState *s, Error **errp)
     }
 
     qemu_savevm_query_pending_final(s, &pending);
+
+    /*
+     * Switchover-ack requests done after switchover decision, are not allowed.
+     * Fail the migration in this case since we currently don't support going
+     * back to precopy.
+     */
+    if (!migration_switchover_check_switchover_ack_pending(s, errp)) {
+        return false;
+    }
 
     /* Inactivate disks except in COLO */
     if (!migrate_colo()) {
