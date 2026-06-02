@@ -498,6 +498,8 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
         }
     } else if (function == 6 && reg == R_EAX) {
         ret |= CPUID_6_EAX_ARAT; /* safe to allow because of emulated APIC */
+    } else if (function == 6 && reg == R_ECX) {
+        ret |= CPUID_6_ECX_APERFMPERF;
     } else if (function == 7 && index == 0 && reg == R_EBX) {
         /* Not new instructions, just an optimization.  */
         uint32_t ebx;
@@ -3291,7 +3293,8 @@ static int kvm_vm_enable_disable_exits(KVMState *s)
         disable_exits &= (KVM_X86_DISABLE_EXITS_MWAIT |
                           KVM_X86_DISABLE_EXITS_HLT |
                           KVM_X86_DISABLE_EXITS_PAUSE |
-                          KVM_X86_DISABLE_EXITS_CSTATE);
+                          KVM_X86_DISABLE_EXITS_CSTATE |
+                          KVM_X86_DISABLE_EXITS_APERFMPERF);
     }
 
     return kvm_vm_enable_cap(s, KVM_CAP_X86_DISABLE_EXITS, 0,
