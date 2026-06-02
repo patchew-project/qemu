@@ -507,15 +507,13 @@
 #     and should not affect the correctness of postcopy migration.
 #     (since 7.1)
 #
-# @switchover-ack: If enabled, migration will not stop the source VM
-#     and complete the migration until an ACK is received from the
-#     destination that it's OK to do so.  Exactly when this ACK is
-#     sent depends on the migrated devices that use this feature.  For
-#     example, a device can use it to make sure some of its data is
-#     sent and loaded in the destination before doing switchover.
-#     This can reduce downtime if devices that support this capability
-#     are present.  'return-path' capability must be enabled to use
-#     it.  (since 8.1)
+# @switchover-ack: If enabled, migration will rely on destination side
+#     to acknowledge the source's switchover decision.  The
+#     acknowledgement may depend, for example, on some device's data
+#     being loaded in the destination before doing switchover.  This
+#     can reduce downtime if devices that support this capability are
+#     present.  'return-path' capability must be enabled to use it.
+#     (since 8.1)
 #
 # @dirty-limit: If enabled, migration will throttle vCPUs as needed to
 #     keep their dirty page rate within @vcpu-dirty-limit.  This can
