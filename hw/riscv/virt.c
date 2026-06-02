@@ -55,6 +55,8 @@
 #include "hw/pci/pci.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/display/ramfb.h"
+#include "hw/cxl/cxl.h"
+#include "hw/cxl/cxl_host.h"
 #include "hw/acpi/aml-build.h"
 #include "qapi/qapi-visit-common.h"
 #include "hw/virtio/virtio-iommu.h"
@@ -1259,7 +1261,25 @@ static inline DeviceState *gpex_pcie_init(MemoryRegion *sys_mem,
     }
 
     GPEX_HOST(dev)->gpex_cfg.bus = PCI_HOST_BRIDGE(dev)->bus;
+    s->bus = PCI_HOST_BRIDGE(dev)->bus;
     return dev;
+}
+
+static void create_cxl_host_reg_region(RISCVVirtState *s)
+{
+    MemoryRegion *sysmem = get_system_memory();
+    MemoryRegion *mr = &s->cxl_devices_state.host_mr;
+    hwaddr base;
+
+    if (!s->cxl_devices_state.is_enabled) {
+        return;
+    }
+
+    base = virt_high_pcie_memmap.base + virt_high_pcie_memmap.size;
+    base = ROUND_UP(base, 64 * KiB);
+
+    memory_region_init(mr, OBJECT(s), "cxl_host_reg", 64 * KiB * 16);
+    memory_region_add_subregion(sysmem, base, mr);
 }
 
 static FWCfgState *create_fw_cfg(const MachineState *ms, hwaddr base)
@@ -1426,6 +1446,15 @@ static void virt_machine_done(Notifier *notifier, void *data)
                                      machine_done);
     MachineState *machine = MACHINE(s);
     hwaddr start_addr = s->memmap[VIRT_DRAM].base;
+
+    if (s->bus) {
+        cxl_hook_up_pxb_registers(s->bus, &s->cxl_devices_state,
+                                  &error_fatal);
+    }
+
+    if (s->cxl_devices_state.is_enabled) {
+        cxl_fmws_link_targets(&error_fatal);
+    }
     hwaddr firmware_end_addr;
     vaddr kernel_start_addr;
     const char *firmware_name = riscv_default_firmware_name(&s->soc[0]);
@@ -1663,6 +1692,17 @@ static void virt_machine_init(MachineState *machine)
             ROUND_UP(virt_high_pcie_memmap.base, virt_high_pcie_memmap.size);
     }
 
+    create_cxl_host_reg_region(s);
+
+    if (s->cxl_devices_state.is_enabled) {
+        hwaddr cxl_base = virt_high_pcie_memmap.base +
+                          virt_high_pcie_memmap.size;
+        cxl_base += memory_region_size(&s->cxl_devices_state.host_mr);
+        cxl_base = ROUND_UP(cxl_base, 256 * MiB);
+        cxl_fmws_set_memmap(cxl_base, UINT64_MAX);
+        cxl_fmws_update_mmio();
+    }
+
     /* register system main memory (actual RAM) */
     memory_region_add_subregion(system_memory, s->memmap[VIRT_DRAM].base,
                                 machine->ram);
@@ -1769,6 +1809,8 @@ static void virt_machine_instance_init(Object *obj)
     s->oem_table_id = g_strndup(ACPI_BUILD_APPNAME8, 8);
     s->acpi = ON_OFF_AUTO_AUTO;
     s->iommu_sys = ON_OFF_AUTO_AUTO;
+
+    cxl_machine_init(obj, &s->cxl_devices_state);
 }
 
 static char *virt_get_aia_guests(Object *obj, Error **errp)
