@@ -904,7 +904,7 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
 
     for (i = 0; i < len; i += 8) {
         if (!memory_region_access_valid(mr, offset + i, 8, true,
-                                        MEMTXATTRS_UNSPECIFIED)) {
+                                        MEMTXATTRS_UNSPECIFIED, NULL)) {
             s390_program_interrupt(env, PGM_OPERAND, ra);
             return 0;
         }

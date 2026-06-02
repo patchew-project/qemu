@@ -1403,14 +1403,22 @@ bool memory_region_access_valid(MemoryRegion *mr,
                                 hwaddr addr,
                                 unsigned size,
                                 bool is_write,
-                                MemTxAttrs attrs)
+                                MemTxAttrs attrs,
+                                MemTxResult *result)
 {
+    if (result) {
+        *result = MEMTX_OK;
+    }
+
     if (mr->ops->valid.accepts
         && !mr->ops->valid.accepts(mr->opaque, addr, size, is_write, attrs)) {
         qemu_log_mask(LOG_INVALID_MEM, "Invalid %s at addr 0x%" HWADDR_PRIX
                       ", size %u, region '%s', reason: rejected\n",
                       is_write ? "write" : "read",
                       addr, size, memory_region_name(mr));
+        if (result) {
+            *result = MEMTX_ACCESS_ERROR;
+        }
         return false;
     }
 
@@ -1419,6 +1427,9 @@ bool memory_region_access_valid(MemoryRegion *mr,
                       ", size %u, region '%s', reason: unaligned\n",
                       is_write ? "write" : "read",
                       addr, size, memory_region_name(mr));
+        if (result) {
+            *result = MEMTX_DECODE_ERROR;
+        }
         return false;
     }
 
@@ -1436,6 +1447,9 @@ bool memory_region_access_valid(MemoryRegion *mr,
                       addr, size, memory_region_name(mr),
                       mr->ops->valid.min_access_size,
                       mr->ops->valid.max_access_size);
+        if (result) {
+            *result = MEMTX_DECODE_ERROR;
+        }
         return false;
     }
     return true;
@@ -1478,7 +1492,7 @@ MemTxResult memory_region_dispatch_read(MemoryRegion *mr,
                                            mr->alias_offset + addr,
                                            pval, op, attrs);
     }
-    if (!memory_region_access_valid(mr, addr, size, false, attrs)) {
+    if (!memory_region_access_valid(mr, addr, size, false, attrs, NULL)) {
         *pval = unassigned_mem_read(mr, addr, size);
         return MEMTX_DECODE_ERROR;
     }
@@ -1527,7 +1541,7 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
                                             mr->alias_offset + addr,
                                             data, op, attrs);
     }
-    if (!memory_region_access_valid(mr, addr, size, true, attrs)) {
+    if (!memory_region_access_valid(mr, addr, size, true, attrs, NULL)) {
         unassigned_mem_write(mr, addr, data, size);
         return MEMTX_DECODE_ERROR;
     }
