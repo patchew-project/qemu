@@ -54,12 +54,15 @@ struct RISCVIMSICState {
     uint32_t *eidelivery;
     uint32_t *eithreshold;
     uint32_t *eistate;
+    uint32_t *eip;
+    uint32_t *eie;
 
     /* config */
     bool mmode;
     uint32_t hartid;
     uint32_t num_pages;
     uint32_t num_irqs;
+    uint32_t nr_eix;
 };
 
 DeviceState *riscv_imsic_create(hwaddr addr, uint32_t hartid, bool mmode,
