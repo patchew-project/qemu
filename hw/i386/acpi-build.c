@@ -52,6 +52,7 @@
 #include "migration/vmstate.h"
 #include "hw/mem/memory-device.h"
 #include "hw/mem/nvdimm.h"
+#include "hw/mem/spm-memory.h"
 #include "system/numa.h"
 #include "system/reset.h"
 #include "hw/hyperv/vmbus-bridge.h"
@@ -1346,6 +1347,96 @@ build_tpm_tcpa(GArray *table_data, BIOSLinker *linker, GArray *tcpalog,
 }
 #endif
 
+typedef struct {
+    uint64_t addr;
+    uint64_t size;
+    uint32_t node;
+} SpmRange;
+
+static int collect_spm_ranges_cb(Object *obj, void *opaque)
+{
+    GArray *ranges = opaque;
+    SpmMemoryDevice *spm;
+    MemoryDeviceClass *mdc;
+    SpmRange r;
+
+    if (!object_dynamic_cast(obj, TYPE_SPM_MEMORY)) {
+        return 0;
+    }
+    spm = SPM_MEMORY(obj);
+    mdc = MEMORY_DEVICE_GET_CLASS(MEMORY_DEVICE(spm));
+    r.addr = mdc->get_addr(MEMORY_DEVICE(spm));
+    r.size = memory_region_size(
+                 host_memory_backend_get_memory(spm->hostmem));
+    r.node = spm->node;
+    g_array_append_val(ranges, r);
+    return 0;
+}
+
+static gint spm_range_compare(gconstpointer a, gconstpointer b)
+{
+    const SpmRange *range_a = a;
+    const SpmRange *range_b = b;
+
+    if (range_a->addr < range_b->addr) {
+        return -1;
+    }
+    if (range_a->addr > range_b->addr) {
+        return 1;
+    }
+    return 0;
+}
+
+/*
+ * Emit SRAT memory-affinity entries covering the device_memory region.
+ *
+ * For each plugged TYPE_SPM_MEMORY device, emit an ENABLED entry at the
+ * device's own proximity_domain.  All remaining sub-ranges (gaps between
+ * SPM devices, leading and trailing padding, ranges occupied by non-SPM
+ * memory devices) are covered by HOTPLUGGABLE|ENABLED placeholder entries
+ * at PXM = nb_numa_nodes - 1.
+ */
+static void build_srat_device_memory(GArray *table_data, MachineState *ms)
+{
+    g_autoptr(GArray) ranges = g_array_new(FALSE, TRUE, sizeof(SpmRange));
+    uint64_t cursor, end;
+    int nb_nodes = ms->numa_state ? ms->numa_state->num_nodes : 0;
+    uint32_t hotplug_pxm = nb_nodes > 0 ? nb_nodes - 1 : 0;
+    guint i;
+
+    if (!ms->device_memory) {
+        return;
+    }
+
+    cursor = ms->device_memory->base;
+    end = cursor + memory_region_size(&ms->device_memory->mr);
+
+    object_child_foreach_recursive(qdev_get_machine(),
+                                   collect_spm_ranges_cb, ranges);
+    g_array_sort(ranges, spm_range_compare);
+
+    for (i = 0; i < ranges->len; i++) {
+        SpmRange *r = &g_array_index(ranges, SpmRange, i);
+
+        if (cursor < r->addr) {
+            build_srat_memory(table_data, cursor, r->addr - cursor,
+                              hotplug_pxm,
+                              MEM_AFFINITY_HOTPLUGGABLE |
+                              MEM_AFFINITY_ENABLED);
+        }
+        build_srat_memory(table_data, r->addr, r->size, r->node,
+                          MEM_AFFINITY_ENABLED);
+        cursor = r->addr + r->size;
+    }
+
+    if (cursor < end) {
+        build_srat_memory(table_data, cursor, end - cursor,
+                          hotplug_pxm,
+                          MEM_AFFINITY_HOTPLUGGABLE |
+                          MEM_AFFINITY_ENABLED);
+    }
+}
+
 #define HOLE_640K_START  (640 * KiB)
 #define HOLE_640K_END   (1 * MiB)
 
@@ -1481,12 +1572,7 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
      * Memory devices may override proximity set by this entry,
      * providing _PXM method if necessary.
      */
-    if (machine->device_memory) {
-        build_srat_memory(table_data, machine->device_memory->base,
-                          memory_region_size(&machine->device_memory->mr),
-                          nb_numa_nodes - 1,
-                          MEM_AFFINITY_HOTPLUGGABLE | MEM_AFFINITY_ENABLED);
-    }
+    build_srat_device_memory(table_data, machine);
 
     acpi_table_end(linker, &table);
 }
