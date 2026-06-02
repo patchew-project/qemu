@@ -9,7 +9,7 @@ gen = [
 ]
 
 riscv_ss = ss.source_set()
-riscv_ss.add(gen)
+riscv_ss.add(when: 'CONFIG_TCG', if_true: gen)
 
 riscv_ss.add(when: 'CONFIG_ARM_COMPATIBLE_SEMIHOSTING',
 		     if_true: files('common-semi-target.c'))
@@ -19,11 +19,14 @@ riscv_ss.add(files(
   'cpu-validate.c',
   'cpu_helper.c',
   'csr.c',
-  'fpu_helper.c',
   'gdbstub.c',
+  'vector_internals.c',
+))
+
+riscv_ss.add(when: 'CONFIG_TCG', if_true: files(
+  'fpu_helper.c',
   'op_helper.c',
   'vector_helper.c',
-  'vector_internals.c',
   'bitmanip_helper.c',
   'translate.c',
   'm128_helper.c',
