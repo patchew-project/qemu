@@ -193,6 +193,10 @@ static inline target_ulong get_xepc_mask(CPURISCVState *env)
 bool riscv_cpu_has_work(CPUState *cs);
 #endif
 
+G_NORETURN void riscv_raise_exception(CPURISCVState *env,
+                                      RISCVException exception,
+                                      uintptr_t pc);
+
 target_ulong riscv_cpu_get_fflags(CPURISCVState *env);
 void riscv_cpu_set_fflags(CPURISCVState *env, target_ulong val);
 

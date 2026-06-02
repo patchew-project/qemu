@@ -28,21 +28,6 @@
 #include "exec/tlb-flags.h"
 #include "trace.h"
 
-/* Exceptions processing helpers */
-G_NORETURN void riscv_raise_exception(CPURISCVState *env,
-                                      RISCVException exception,
-                                      uintptr_t pc)
-{
-    CPUState *cs = env_cpu(env);
-
-    trace_riscv_exception(exception,
-                          riscv_cpu_get_trap_name(exception, false),
-                          env->pc);
-
-    cs->exception_index = exception;
-    cpu_loop_exit_restore(cs, pc);
-}
-
 void helper_raise_exception(CPURISCVState *env, uint32_t exception)
 {
     riscv_raise_exception(env, exception, 0);
