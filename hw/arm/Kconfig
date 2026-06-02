@@ -723,6 +723,7 @@ config AXIADO_SOC
     depends on ARM
     select ARM_GIC
     select CADENCE # UART
+    select CADENCE_GPIO
     select AXIADO_SDHCI
     select UNIMP
 
