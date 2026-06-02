@@ -113,6 +113,9 @@ static const MemMapEntry virt_memmap[] = {
 /* PCIe high mmio for RV64, size is fixed but base depends on top of RAM */
 #define VIRT64_HIGH_PCIE_MMIO_SIZE  (16 * GiB)
 
+/* 32-bit MMIO range carved out of VIRT_PCIE_MMIO for CXL host bridges */
+#define VIRT_CXL_MMIO32_SIZE        (256 * MiB)
+
 static MemMapEntry virt_high_pcie_memmap;
 
 #define VIRT_FLASH_SECTOR_SIZE (256 * KiB)
@@ -890,15 +893,28 @@ static void create_fdt_pcie(RISCVVirtState *s,
     }
     qemu_fdt_setprop_sized_cells(ms->fdt, name, "reg", 2,
         s->memmap[VIRT_PCIE_ECAM].base, 2, s->memmap[VIRT_PCIE_ECAM].size);
-    qemu_fdt_setprop_sized_cells(ms->fdt, name, "ranges",
-        1, FDT_PCI_RANGE_IOPORT, 2, 0,
-        2, s->memmap[VIRT_PCIE_PIO].base, 2, s->memmap[VIRT_PCIE_PIO].size,
-        1, FDT_PCI_RANGE_MMIO,
-        2, s->memmap[VIRT_PCIE_MMIO].base,
-        2, s->memmap[VIRT_PCIE_MMIO].base, 2, s->memmap[VIRT_PCIE_MMIO].size,
-        1, FDT_PCI_RANGE_MMIO_64BIT,
-        2, virt_high_pcie_memmap.base,
-        2, virt_high_pcie_memmap.base, 2, virt_high_pcie_memmap.size);
+    {
+        /*
+         * When CXL is enabled, reserve the last 256 MiB of the 32-bit
+         * MMIO window for CXL host bridges and exclude it from the main
+         * PCIe host bridge's FDT 'ranges' so UEFI's PciHostBridgeDxe
+         * does not allocate that range to PCI0.  The CXL host bridge
+         * _CRS declares this range independently.
+         */
+        hwaddr mmio32_size = s->memmap[VIRT_PCIE_MMIO].size;
+        if (s->cxl_devices_state.is_enabled) {
+            mmio32_size -= VIRT_CXL_MMIO32_SIZE;
+        }
+        qemu_fdt_setprop_sized_cells(ms->fdt, name, "ranges",
+            1, FDT_PCI_RANGE_IOPORT, 2, 0,
+            2, s->memmap[VIRT_PCIE_PIO].base, 2, s->memmap[VIRT_PCIE_PIO].size,
+            1, FDT_PCI_RANGE_MMIO,
+            2, s->memmap[VIRT_PCIE_MMIO].base,
+            2, s->memmap[VIRT_PCIE_MMIO].base, 2, mmio32_size,
+            1, FDT_PCI_RANGE_MMIO_64BIT,
+            2, virt_high_pcie_memmap.base,
+            2, virt_high_pcie_memmap.base, 2, virt_high_pcie_memmap.size);
+    }
 
     if (virt_is_iommu_sys_enabled(s)) {
         qemu_fdt_setprop_cells(ms->fdt, name, "iommu-map",
@@ -1730,7 +1746,29 @@ static void virt_machine_init(MachineState *machine)
             qdev_get_gpio_in(virtio_irqchip, VIRTIO_IRQ + i));
     }
 
-    gpex_pcie_init(system_memory, pcie_irqchip, s);
+    DeviceState *pcie_dev = gpex_pcie_init(system_memory, pcie_irqchip, s);
+
+    /*
+     * If CXL is enabled, reserve the last 256 MiB of the 32-bit MMIO
+     * window for CXL host bridges so the bridge non-prefetchable window
+     * can hold CXL device BARs (component registers and similar 64-bit
+     * non-prefetchable BARs that need a < 4 GiB address).
+     *
+     * - Shrink PCI0's mmio32 advertised in the ACPI _CRS by the same
+     *   256 MiB so the two ranges do not overlap (the FDT 'ranges'
+     *   shrink happens in create_fdt_pcie()).
+     * - Store the reserved range in cxl_mmio32 so gpex-acpi.c can emit
+     *   a correct _CRS for the CXL host bridge (ACPI0016).
+     */
+    if (s->cxl_devices_state.is_enabled) {
+        GPEXHost *gpex = GPEX_HOST(pcie_dev);
+        gpex->gpex_cfg.cxl_mmio32.size = VIRT_CXL_MMIO32_SIZE;
+        gpex->gpex_cfg.cxl_mmio32.base =
+            s->memmap[VIRT_PCIE_MMIO].base +
+            s->memmap[VIRT_PCIE_MMIO].size - VIRT_CXL_MMIO32_SIZE;
+        /* Shrink PCI0's advertised 32-bit MMIO window to exclude CXL range */
+        gpex->gpex_cfg.mmio32.size -= VIRT_CXL_MMIO32_SIZE;
+    }
 
     create_platform_bus(s, mmio_irqchip);
 
