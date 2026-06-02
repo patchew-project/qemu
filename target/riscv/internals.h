@@ -193,6 +193,25 @@ static inline target_ulong get_xepc_mask(CPURISCVState *env)
 bool riscv_cpu_has_work(CPUState *cs);
 #endif
 
+void riscv_cpu_ext_user_opts_init(void);
+void riscv_cpu_cfg_ext_add_user_opt(uint32_t ext_offset, bool value);
+void riscv_cpu_misa_ext_add_user_opt(uint32_t bit, bool value);
+bool riscv_cpu_misa_ext_is_user_set(uint32_t bit);
+
+void riscv_cpu_write_misa_bit(RISCVCPU *cpu, uint32_t bit, bool enabled);
+
+void riscv_cpu_validate_misa_priv(CPURISCVState *env, Error **errp);
+void riscv_cpu_update_cfg(RISCVCPU *cpu);
+
+void riscv_cpu_bump_multi_ext_priv_ver(CPURISCVState *env,
+                                       uint32_t ext_offset);
+void riscv_cpu_cfg_ext_auto_update(RISCVCPU *cpu,
+                                   uint32_t ext_offset,
+                                   bool value);
+const char *riscv_cpu_cfg_ext_get_name(uint32_t ext_offset);
+
+void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp);
+
 /* Zjpm addr masking routine */
 static inline target_ulong adjust_addr_body(CPURISCVState *env,
                                             target_ulong addr,

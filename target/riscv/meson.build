@@ -16,6 +16,7 @@ riscv_ss.add(when: 'CONFIG_ARM_COMPATIBLE_SEMIHOSTING',
 
 riscv_ss.add(files(
   'cpu.c',
+  'cpu-validate.c',
   'cpu_helper.c',
   'csr.c',
   'fpu_helper.c',
