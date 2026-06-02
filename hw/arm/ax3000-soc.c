@@ -63,6 +63,8 @@ static void ax3000_init(Object *obj)
         g_autofree char *name = g_strdup_printf("uart%d", i);
         object_initialize_child(obj, name, &s->uart[i], TYPE_CADENCE_UART);
     }
+
+    object_initialize_child(obj, "sdhci0", &s->sdhci0, TYPE_AXIADO_SDHCI);
 }
 
 static void ax3000_realize(DeviceState *dev, Error **errp)
@@ -193,6 +195,23 @@ static void ax3000_realize(DeviceState *dev, Error **errp)
                           "ax3000.pllctrl", 32);
     memory_region_add_subregion(get_system_memory(), AX3000_PLL_BASE,
                                 &s->pll_ctrl);
+
+    /* SDHCI */
+    sdhci0_sbd = SYS_BUS_DEVICE(&s->sdhci0);
+    if (!sysbus_realize(sdhci0_sbd, errp)) {
+        return;
+    }
+
+    sysbus_mmio_map(sdhci0_sbd, 0, AX3000_SDHCI0_BASE);
+    sysbus_mmio_map(sdhci0_sbd, 1, AX3000_EMMC_PHY_BASE);
+    sysbus_connect_irq(sdhci0_sbd, 0,
+                       qdev_get_gpio_in(gic_dev, AX3000_SDHCI0_IRQ));
+
+    card = qdev_new(TYPE_SD_CARD);
+    qdev_prop_set_drive_err(card, "drive",
+                            blk_by_legacy_dinfo((drive_get(IF_SD, 0, 0))),
+                            &error_fatal);
+    qdev_realize_and_unref(card, s->sdhci0.sd_bus, &error_fatal);
 }
 
 static void ax3000_class_init(ObjectClass *oc, const void *data)
