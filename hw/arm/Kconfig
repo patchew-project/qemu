@@ -725,3 +725,8 @@ config AXIADO_SOC
     select CADENCE # UART
     select AXIADO_SDHCI
     select UNIMP
+
+config AXIADO_EVK
+    bool
+    default y
+    select AXIADO_SOC
