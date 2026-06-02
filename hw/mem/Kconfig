@@ -16,3 +16,7 @@ config CXL_MEM_DEVICE
     bool
     default y if CXL
     select MEM_DEVICE
+
+config SPM_MEMORY
+    bool
+    select MEM_DEVICE
