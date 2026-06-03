@@ -112,7 +112,7 @@ const void *tcg_splitwx_to_rx(void *rw)
     /* Pass NULL pointers unchanged. */
     if (rw) {
         g_assert(in_code_gen_buffer(rw));
-        rw += tcg_splitwx_diff;
+        rw = (void *)((uintptr_t)rw + tcg_splitwx_diff);
     }
     return rw;
 }
@@ -121,7 +121,7 @@ void *tcg_splitwx_to_rw(const void *rx)
 {
     /* Pass NULL pointers unchanged. */
     if (rx) {
-        rx -= tcg_splitwx_diff;
+        rx = (void *)((uintptr_t)rx - tcg_splitwx_diff);
         /* Assert that we end with a pointer in the rw region. */
         g_assert(in_code_gen_buffer(rx));
     }
@@ -200,7 +200,7 @@ static struct tcg_region_tree *tc_ptr_to_region_tree(const void *p)
      * a signal handler over which the caller has no control.
      */
     if (!in_code_gen_buffer(p)) {
-        p -= tcg_splitwx_diff;
+        p = (void *)((uintptr_t)p - tcg_splitwx_diff);
         if (!in_code_gen_buffer(p)) {
             return NULL;
         }
@@ -763,8 +763,9 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_threads)
     /* Request large pages for the buffer and the splitwx.  */
     qemu_madvise(region.start_aligned, region.total_size, QEMU_MADV_HUGEPAGE);
     if (tcg_splitwx_diff) {
-        qemu_madvise(region.start_aligned + tcg_splitwx_diff,
-                     region.total_size, QEMU_MADV_HUGEPAGE);
+        uintptr_t buf_rx = (uintptr_t)region.start_aligned + tcg_splitwx_diff;
+
+        qemu_madvise((void *)buf_rx, region.total_size, QEMU_MADV_HUGEPAGE);
     }
 
     /*
