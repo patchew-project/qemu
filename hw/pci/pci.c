@@ -2472,6 +2472,21 @@ static uint8_t pci_find_capability_at_offset(PCIDevice *pdev, uint8_t offset)
     return found;
 }
 
+uint8_t pci_rom_calculate_checksum(uint8_t *ptr, uint32_t size)
+{
+    uint8_t checksum = 0;
+    uint8_t orig_checksum = ptr[6];
+    uint32_t i;
+
+    ptr[6] = 0;
+    for (i = 0; i < size; i++) {
+        checksum += ptr[i];
+    }
+    ptr[6] = orig_checksum;
+
+    return -checksum;
+}
+
 /* Patch the PCI vendor and device ids in a PCI rom image if necessary.
    This is needed for an option rom which is used for more than one device. */
 static void pci_patch_ids(PCIDevice *pdev, uint8_t *ptr, uint32_t size)
@@ -2507,7 +2522,12 @@ static void pci_patch_ids(PCIDevice *pdev, uint8_t *ptr, uint32_t size)
     trace_pci_rom_and_pci_ids(pdev->romfile, vendor_id, device_id,
                               rom_vendor_id, rom_device_id);
 
-    checksum = ptr[6];
+    /* In case the checksum is bogus */
+    checksum = pci_rom_calculate_checksum(ptr, size);
+    if (ptr[6] != checksum) {
+        trace_pci_rom_checksum_change(ptr[6], checksum);
+        ptr[6] = checksum;
+    }
 
     if (vendor_id != rom_vendor_id) {
         /* Patch vendor id and checksum (at offset 6 for etherboot roms). */
