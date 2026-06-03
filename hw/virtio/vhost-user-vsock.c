@@ -154,6 +154,7 @@ static void vuv_device_unrealize(DeviceState *dev)
 
 static const Property vuv_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserVSock, conf.chardev),
+    DEFINE_PROP_BOOL("memory-isolation", VHostUserVSock, conf.memoryIsolation, false),
 };
 
 static void vuv_class_init(ObjectClass *klass, const void *data)

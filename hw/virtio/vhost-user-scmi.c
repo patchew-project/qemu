@@ -282,6 +282,7 @@ static const VMStateDescription vu_scmi_vmstate = {
 
 static const Property vu_scmi_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserSCMI, chardev),
+    DEFINE_PROP_BOOL("memory-isolation", VHostUserSCMI, memoryIsolation, false),
 };
 
 static void vu_scmi_class_init(ObjectClass *klass, const void *data)

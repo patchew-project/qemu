@@ -28,6 +28,7 @@ typedef struct {
     char *tag;
     uint16_t num_request_queues;
     uint16_t queue_size;
+    bool memoryIsolation;
 } VHostUserFSConf;
 
 struct VHostUserFS {
