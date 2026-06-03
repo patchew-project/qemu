@@ -1088,6 +1088,8 @@ static void vfio_pci_load_rom(VFIOPCIDevice *vdev)
     if (pdev->rom_need_patch_id) {
         pci_rom_patch_ids(pdev, vdev->rom, vdev->rom_size);
     }
+
+    vfio_rom_quirk_setup(vdev);
 }
 
 /* "Raw" read of underlying config space. */
