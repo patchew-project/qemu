@@ -10,3 +10,12 @@ cxl_mailbox_handler_return(uint16_t opcode, int ret, size_t len_out) "opcode=0x%
 # cxl-cdat.c
 cxl_cdat_init(const char *source) "source=%s"
 cxl_cdat_loaded(const char *filename, size_t length, int num_entries) "filename=%s length=%zu entries=%d"
+
+# cxl-events.c
+cxl_event_insert(int log_type, int depth) "log_type=%d depth=%d"
+cxl_event_overflow(int log_type, uint16_t overflow_err_count) "log_type=%d overflow_err_count=%u"
+cxl_event_clear(int log_type, int nr_recs) "log_type=%d nr_recs=%d"
+
+# cxl-host.c
+cxl_cfmws_lookup(uint64_t addr, int fw_index) "addr=0x%"PRIx64" fw=%d"
+cxl_cfmws_target_resolved(uint64_t addr, uint8_t target) "addr=0x%"PRIx64" target=0x%02x"
