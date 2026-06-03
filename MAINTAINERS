@@ -1275,6 +1275,7 @@ L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/*aspeed*
 F: include/hw/*/*aspeed*
+F: hw/misc/cptra_mbox_peer_extern.c
 F: hw/net/ftgmac100.c
 F: include/hw/net/ftgmac100.h
 F: docs/system/arm/aspeed.rst
