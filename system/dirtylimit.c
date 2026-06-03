@@ -367,6 +367,12 @@ void dirtylimit_change(bool start)
         qatomic_set(&dirtylimit_quit, 0);
     } else {
         qatomic_set(&dirtylimit_quit, 1);
+        /*
+         * The reaper has been short-circuiting via the
+         * dirtylimit_in_service() branch.  Kick it so it picks up the
+         * policy change immediately instead of after the next 1s tick.
+         */
+        kvm_dirty_ring_reaper_kick();
     }
 }
 

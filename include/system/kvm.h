@@ -553,6 +553,15 @@ bool kvm_dirty_ring_enabled(void);
 
 uint32_t kvm_dirty_ring_size(void);
 
+/**
+ * kvm_dirty_ring_reaper_kick - wake the background dirty ring reaper.
+ *
+ * Hint that an immediate reap is desirable (e.g. ring-full pressure
+ * detected, dirtylimit disabled).  Coalesced via eventfd.  No-op when
+ * the dirty ring feature is not in use.
+ */
+void kvm_dirty_ring_reaper_kick(void);
+
 void kvm_mark_guest_state_protected(void);
 
 /**

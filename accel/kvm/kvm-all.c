@@ -1754,6 +1754,9 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
     } while (size);
 }
 
+/* Fallback liveness timeout for the dirty ring reaper, in nanoseconds. */
+#define KVM_DIRTY_RING_REAPER_FALLBACK_NS  (1 * NANOSECONDS_PER_SECOND)
+
 static void *kvm_dirty_ring_reaper_thread(void *data)
 {
     KVMState *s = data;
@@ -1764,12 +1767,30 @@ static void *kvm_dirty_ring_reaper_thread(void *data)
     trace_kvm_dirty_ring_reaper("init");
 
     while (true) {
+        GPollFD pfd = {
+            .fd = event_notifier_get_fd(&r->reaper_notifier),
+            .events = G_IO_IN,
+        };
+
         r->reaper_state = KVM_DIRTY_RING_REAPER_WAIT;
         trace_kvm_dirty_ring_reaper("wait");
+
         /*
-         * TODO: provide a smarter timeout rather than a constant?
+         * Event-driven wait: sleep until something kicks the reaper
+         * (vCPU ring-full exit, dirtylimit disabled, ...) or until the
+         * fallback timeout fires.  The fallback preserves the original
+         * sleep(1) worst-case behaviour as a liveness backstop in case
+         * a kick site is ever missed.
          */
-        sleep(1);
+        qemu_poll_ns(&pfd, 1, KVM_DIRTY_RING_REAPER_FALLBACK_NS);
+
+        /*
+         * Drain the notifier whether or not the wakeup came from it --
+         * any pending kick is satisfied by the reap we are about to
+         * perform, so we must not leave a stale event behind that would
+         * cause the next iteration to spin without sleeping.
+         */
+        event_notifier_test_and_clear(&r->reaper_notifier);
 
         /* keep sleeping so that dirtylimit not be interfered by reaper */
         if (dirtylimit_in_service()) {
@@ -1789,13 +1810,39 @@ static void *kvm_dirty_ring_reaper_thread(void *data)
     g_assert_not_reached();
 }
 
-static void kvm_dirty_ring_reaper_init(KVMState *s)
+static int kvm_dirty_ring_reaper_init(KVMState *s, Error **errp)
 {
     struct KVMDirtyRingReaper *r = &s->reaper;
+    int ret;
+
+    ret = event_notifier_init(&r->reaper_notifier, 0);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret,
+                         "Failed to initialize dirty ring reaper notifier");
+        return ret;
+    }
 
     qemu_thread_create(&r->reaper_thr, "kvm-reaper",
                        kvm_dirty_ring_reaper_thread,
                        s, QEMU_THREAD_JOINABLE);
+    return 0;
+}
+
+/*
+ * Wake the dirty ring reaper thread so it performs a reap as soon as
+ * possible.  Safe to call from any thread; safe to call even when the
+ * dirty ring is not enabled (no-op in that case).  Coalescing is
+ * provided by the eventfd counter -- multiple kicks before the reaper
+ * runs collapse into a single wakeup.
+ */
+void kvm_dirty_ring_reaper_kick(void)
+{
+    KVMState *s = kvm_state;
+
+    if (!s || !s->kvm_dirty_ring_size) {
+        return;
+    }
+    event_notifier_set(&s->reaper.reaper_notifier);
 }
 
 static int kvm_dirty_ring_init(KVMState *s)
@@ -3097,7 +3144,9 @@ static int kvm_init(AccelState *as, MachineState *ms)
     }
 
     if (s->kvm_dirty_ring_size) {
-        kvm_dirty_ring_reaper_init(s);
+        if (kvm_dirty_ring_reaper_init(s, errp) < 0) {
+            goto err;
+        }
     }
 
     if (kvm_check_extension(kvm_state, KVM_CAP_BINARY_STATS_FD)) {
@@ -3571,6 +3620,11 @@ int kvm_cpu_exec(CPUState *cpu)
                 kvm_dirty_ring_reap(kvm_state, NULL);
             }
             bql_unlock();
+            /*
+             * Ring-full pressure is the strongest signal that background
+             * reaping should stay hot; wake the reaper unconditionally.
+             */
+            kvm_dirty_ring_reaper_kick();
             dirtylimit_vcpu_execute(cpu);
             ret = 0;
             break;
