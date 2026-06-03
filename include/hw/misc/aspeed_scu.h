@@ -22,6 +22,7 @@ OBJECT_DECLARE_TYPE(AspeedSCUState, AspeedSCUClass, ASPEED_SCU)
 #define TYPE_ASPEED_2700_SCU TYPE_ASPEED_SCU "-ast2700"
 #define TYPE_ASPEED_2700_SCUIO TYPE_ASPEED_SCU "io" "-ast2700"
 #define TYPE_ASPEED_1030_SCU TYPE_ASPEED_SCU "-ast1030"
+#define TYPE_ASPEED_1040_SCU TYPE_ASPEED_SCU "-ast1040"
 
 #define ASPEED_SCU_NR_REGS (0x1A8 >> 2)
 #define ASPEED_AST2600_SCU_NR_REGS (0xE20 >> 2)
@@ -39,6 +40,15 @@ struct AspeedSCUState {
     uint32_t hw_strap1;
     uint32_t hw_strap2;
     uint32_t hw_prot_key;
+
+    /*
+     * AST1040 only: alias region (the Caliptra MCI page aperture) whose
+     * target offset is selected by SCU_CPTRA_PAGE_REG0, linked in by the SoC.
+     * cptra_page_window_base is its base in the address map, used to reject a
+     * self-referential remap.
+     */
+    MemoryRegion *cptra_page_window;
+    uint64_t cptra_page_window_base;
 };
 
 #define AST2400_A1_SILICON_REV   0x02010303U
