@@ -2621,6 +2621,23 @@ sub process {
 						if ($op eq '::') {
 							$ok = 1;
 						}
+
+						# Ignore * in C++
+						if ($op eq '*') {
+							$ok = 1;
+						}
+
+						# Ignore & in C++
+						if ($op eq '&') {
+							$ok = 1;
+						}
+
+						# Ignore >> in C++
+						# checkpatch is confused by
+						# >> closing templates
+						if ($op eq '>>') {
+							$ok = 1;
+						}
 					}
 
 					# Ignore email addresses <foo@bar>
