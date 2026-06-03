@@ -509,11 +509,22 @@ void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr)
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, bdsm_quirk, next);
 }
 
+static bool vfio_pci_igd_has_rom_bar(VFIOPCIDevice *vdev)
+{
+    struct vfio_region_info *rom = NULL;
+    int ret;
+
+    ret = vfio_device_get_region_info(&vdev->vbasedev,
+                                      VFIO_PCI_ROM_REGION_INDEX, &rom);
+
+    return !ret && rom->size;
+}
+
 static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
 {
     struct vfio_region_info *opregion = NULL;
     PCIDevice *pdev = PCI_DEVICE(vdev);
-    int ret, gen;
+    int gen;
     uint64_t gms_size = 0;
     uint64_t *bdsm_size;
     uint32_t gmch;
@@ -556,8 +567,6 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
          * - OpRegion
          * - Same LPC bridge and Host bridge VID/DID/SVID/SSID as host
          */
-        struct vfio_region_info *rom = NULL;
-
         legacy_mode_enabled = true;
         info_report("IGD legacy mode enabled, "
                     "use x-igd-legacy-mode=off to disable it if unwanted.");
@@ -567,9 +576,7 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
          * there's no ROM, there's no point in setting up this quirk.
          * NB. We only seem to get BIOS ROMs, so UEFI VM would need CSM support.
          */
-        ret = vfio_device_get_region_info(&vdev->vbasedev,
-                                          VFIO_PCI_ROM_REGION_INDEX, &rom);
-        if ((ret || !rom->size) && !pdev->romfile) {
+        if (!vfio_pci_igd_has_rom_bar(vdev) && !pdev->romfile) {
             error_setg(&err, "Device has no ROM");
             goto error;
         }
@@ -608,6 +615,14 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
     if ((vdev->features & VFIO_FEATURE_ENABLE_IGD_LPC) &&
         !vfio_pci_igd_setup_lpc_bridge(vdev, errp)) {
         goto error;
+    }
+
+    /*
+     * IGD are known to have bad checksums and wrong device ID in its rom,
+     * request to patch it.
+     */
+    if (pdev->romfile || vfio_pci_igd_has_rom_bar(vdev)) {
+        pdev->rom_need_patch_id = true;
     }
 
     /*
