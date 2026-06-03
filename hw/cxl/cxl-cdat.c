@@ -12,6 +12,7 @@
 #include "hw/cxl/cxl.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "trace.h"
 
 static void cdat_len_check(CDATSubHeader *hdr, Error **errp)
 {
@@ -186,6 +187,7 @@ static bool ct3_load_cdat(CDATObject *cdat, Error **errp)
     cdat->entry_len = num_ent;
     cdat->entry = g_steal_pointer(&cdat_st);
     cdat->buf = g_steal_pointer(&buf);
+    trace_cxl_cdat_loaded(cdat->filename, file_size, num_ent);
     return true;
 }
 
@@ -193,6 +195,7 @@ bool cxl_doe_cdat_init(CXLComponentState *cxl_cstate, Error **errp)
 {
     CDATObject *cdat = &cxl_cstate->cdat;
 
+    trace_cxl_cdat_init(cdat->filename ?: "<built-in>");
     if (cdat->filename) {
         return ct3_load_cdat(cdat, errp);
     } else {

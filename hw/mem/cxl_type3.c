@@ -30,6 +30,7 @@
 #include "system/numa.h"
 #include "hw/cxl/cxl.h"
 #include "hw/pci/msix.h"
+#include "trace.h"
 
 /* type3 device private */
 enum CXL_T3_MSIX_VECTOR {
@@ -419,9 +420,20 @@ static void hdm_decoder_commit(CXLType3Dev *ct3d, int which)
     int hdm_inc = R_CXL_HDM_DECODER1_BASE_LO - R_CXL_HDM_DECODER0_BASE_LO;
     ComponentRegisters *cregs = &ct3d->cxl_cstate.crb;
     uint32_t *cache_mem = cregs->cache_mem_registers;
-    uint32_t ctrl;
+    uint32_t ctrl, low, high;
+    uint64_t base, size;
 
     ctrl = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_CTRL + which * hdm_inc);
+    low = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_BASE_LO + which * hdm_inc);
+    high = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_BASE_HI + which * hdm_inc);
+    base = (low & 0xf0000000) | ((uint64_t)high << 32);
+    low = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_SIZE_LO + which * hdm_inc);
+    high = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_SIZE_HI + which * hdm_inc);
+    size = (low & 0xf0000000) | ((uint64_t)high << 32);
+    trace_cxl_hdm_decoder_commit(which, base, size,
+                                 FIELD_EX32(ctrl, CXL_HDM_DECODER0_CTRL, IW),
+                                 FIELD_EX32(ctrl, CXL_HDM_DECODER0_CTRL, IG));
+
     /* TODO: Sanity checks that the decoder is possible */
     ctrl = FIELD_DP32(ctrl, CXL_HDM_DECODER0_CTRL, ERR, 0);
     ctrl = FIELD_DP32(ctrl, CXL_HDM_DECODER0_CTRL, COMMITTED, 1);
@@ -623,6 +635,9 @@ static void ct3d_reg_write(void *opaque, hwaddr offset, uint64_t value,
     }
 
     stl_le_p((uint8_t *)cache_mem + offset, value);
+    if (which_hdm >= 0) {
+        trace_cxl_hdm_decoder_write(which_hdm, value, should_commit);
+    }
     if (should_commit) {
         hdm_decoder_commit(ct3d, which_hdm);
     } else if (should_uncommit) {
