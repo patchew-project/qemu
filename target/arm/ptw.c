@@ -341,10 +341,21 @@ bool arm_granule_protection_check(ARMGranuleProtectionConfig config,
         .space = ARMSS_Root,
     };
     const uint64_t gpccr = config.gpccr;
+    const uint64_t gpcbw = config.gpcbw;
     unsigned pps, pgs, l0gptsz, level = 0;
     uint64_t tableaddr, pps_mask, align, entry, index;
     MemTxResult result;
     int gpi;
+
+    const uint64_t BW_ADDR_SHIFT = 30;
+    const uint64_t BW_SIZE_SHIFT = 30;
+    const uint64_t BW_STRIDE_SHIFT = 40;
+
+    uint64_t bw_size_field = FIELD_EX64(gpcbw, GPCBW, BWSIZE);
+    uint64_t bw_stride_field = FIELD_EX64(gpcbw, GPCBW, BWSTRIDE);
+    uint64_t bw_addr = FIELD_EX64(gpcbw, GPCBW, BWADDR) << BW_ADDR_SHIFT;
+    uint64_t bw_size = 0;
+    uint64_t bw_stride = 0;
 
     /*
      * We assume Granule Protection Check is enabled when
@@ -397,6 +408,58 @@ bool arm_granule_protection_check(ARMGranuleProtectionConfig config,
         goto fault_walk;
     }
 
+    /* At this point, GPCCR_EL3 is valid */
+
+    /*
+     * GPC Priority 1 (R_GMGRR):
+     * If GPCCR_EL3.GPCBW is 1 and the configuration GPCBW
+     * is invalid, the access fails as GPT walk fault at level 0.
+     */
+    if (FIELD_EX64(gpccr, GPCCR, GPCBW)) {
+        /* BWSIZE, BWSTRIDE have a limited number of acceptable values. */
+        switch (bw_size_field) {
+        case 0b000:
+        case 0b001:
+        case 0b010:
+        case 0b100:
+        case 0b110:
+            bw_size = 1ULL << (bw_size_field + BW_SIZE_SHIFT);
+            break;
+        default: /* Reserved value */
+            goto fault_walk;
+        }
+        switch (bw_stride_field) {
+        case 0b00000:
+        case 0b00010:
+        case 0b00100:
+        case 0b00110:
+        case 0b00111:
+        case 0b01000:
+        case 0b01001:
+        case 0b01010:
+        case 0b10000:
+            bw_stride = 1ULL << (bw_stride_field + BW_STRIDE_SHIFT);
+            break;
+        default: /* Reserved value */
+            goto fault_walk;
+        }
+        /*
+         * GPCBW is invalid if the base address is:
+         * not aligned to the size programmed in BWSIZE, or
+         * greater than or equal to the stride value configured by BWSTRIDE.
+         */
+        uint64_t bw_size_mask = MAKE_64BIT_MASK(0, bw_size_field +
+                                                BW_SIZE_SHIFT);
+
+        if (bw_addr & bw_size_mask) {
+            goto fault_walk;
+        }
+
+        if (bw_addr >= bw_stride) {
+            goto fault_walk;
+        }
+    }
+
     /* Note this field is read-only and fixed at reset. */
     l0gptsz = 30 + FIELD_EX64(gpccr, GPCCR, L0GPTSZ);
 
@@ -429,6 +492,23 @@ bool arm_granule_protection_check(ARMGranuleProtectionConfig config,
             return true;
         }
         goto fault_fail;
+    }
+
+    /*
+     * Bypass window check.
+     * I_JJLRM: Granule Protection Table (GPT) lookups can be skipped
+     * in portions of the memory map by using GPC bypass windows.
+     * I_XNHTX: The GPC bypass window check (...) is performed
+     * immediately after priority 3.
+     */
+    if (FIELD_EX64(gpccr, GPCCR, GPCBW)) {
+        uint64_t bw_stride_mask = MAKE_64BIT_MASK(0, bw_stride);
+        uint64_t effective_address = paddress & bw_stride_mask;
+
+        if (effective_address >= bw_addr &&
+            effective_address < bw_addr + bw_size) {
+            return true;
+        }
     }
 
     /* GPC Priority 4: the base address of GPTBR_EL3 exceeds PPS. */
@@ -3817,6 +3897,7 @@ static bool get_phys_addr_gpc(CPUARMState *env, S1Translate *ptw,
         };
         struct ARMGranuleProtectionConfig config = {
             .gpccr = env->cp15.gpccr_el3,
+            .gpcbw = env->cp15.gpcbw_el3,
             .gptbr = env->cp15.gptbr_el3,
             .parange = FIELD_EX64_IDREG(&cpu->isar, ID_AA64MMFR0, PARANGE),
             .support_sel2 = cpu_isar_feature(aa64_sel2, cpu),
