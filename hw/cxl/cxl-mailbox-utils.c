@@ -27,6 +27,7 @@
 #include "system/hostmem.h"
 #include "qemu/range.h"
 #include "qapi/qapi-types-cxl.h"
+#include "trace.h"
 
 #define CXL_CAPACITY_MULTIPLIER   (256 * MiB)
 #define CXL_DC_EVENT_LOG_SIZE 8
@@ -4580,6 +4581,7 @@ int cxl_process_cci_message(CXLCCI *cci, uint8_t set, uint8_t cmd,
     CXLDeviceState *cxl_dstate;
 
     *len_out = 0;
+    trace_cxl_mailbox_command((set << 8) | cmd, len_in);
     cxl_cmd = &cci->cxl_cmd_set[set][cmd];
     h = cxl_cmd->handler;
     if (!h) {
@@ -4589,6 +4591,8 @@ int cxl_process_cci_message(CXLCCI *cci, uint8_t set, uint8_t cmd,
     }
 
     if (len_in != cxl_cmd->in && cxl_cmd->in != ~0) {
+        trace_cxl_mailbox_invalid_payload((set << 8) | cmd, len_in,
+                                          cxl_cmd->in);
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
 
@@ -4642,6 +4646,7 @@ int cxl_process_cci_message(CXLCCI *cci, uint8_t set, uint8_t cmd,
         timer_mod(cci->bg.timer, now + CXL_MBOX_BG_UPDATE_FREQ);
     }
 
+    trace_cxl_mailbox_handler_return((set << 8) | cmd, ret, *len_out);
     return ret;
 }
 
