@@ -46,6 +46,7 @@
 #include "hw/intc/arm_gicv3.h"
 #include "hw/misc/aspeed_ltpi.h"
 #include "hw/arm/aspeed_ast1700.h"
+#include "hw/misc/aspeed_cptra_mbox.h"
 
 #define VBOOTROM_FILE_NAME  "ast27x0_bootrom.bin"
 
@@ -164,6 +165,16 @@ struct Aspeed10x0SoCState {
 
 #define TYPE_ASPEED10X0_SOC "aspeed10x0-soc"
 OBJECT_DECLARE_SIMPLE_TYPE(Aspeed10x0SoCState, ASPEED10X0_SOC)
+
+struct Aspeed1040SoCState {
+    Aspeed10x0SoCState parent;
+
+    AspeedCptraMboxState cptra_mbox;
+    MemoryRegion cptra_mci_window;
+};
+
+#define TYPE_ASPEED1040_SOC "ast1040-a0"
+OBJECT_DECLARE_SIMPLE_TYPE(Aspeed1040SoCState, ASPEED1040_SOC)
 
 struct AspeedSoCClass {
     DeviceClass parent_class;
