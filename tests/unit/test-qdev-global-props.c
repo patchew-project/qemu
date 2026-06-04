@@ -275,8 +275,12 @@ static void test_dynamic_globalprop(void)
     g_test_trap_assert_stderr_unmatched("*prop4*");
     g_test_trap_assert_stderr(
         "*warning: global nohotplug-type.prop5=105 not used*");
+    /*
+     * TYPE_OBJECT can opt-in for global properties, so the error is "not
+     * used" too for nondevice-type.
+     */
     g_test_trap_assert_stderr(
-        "*warning: global nondevice-type.prop6 has invalid class name*");
+        "*warning: global nondevice-type.prop6=106 not used*");
     g_test_trap_assert_stdout("");
 }
 
