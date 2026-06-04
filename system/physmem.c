@@ -39,6 +39,7 @@
 #include "hw/core/qdev.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/boards.h"
+#include "migration/misc.h"
 #include "system/xen.h"
 #include "system/kvm.h"
 #include "system/tcg.h"
@@ -1911,11 +1912,13 @@ bool qemu_ram_is_migratable(const RAMBlock *rb)
 
 void qemu_ram_set_migratable(RAMBlock *rb)
 {
+    assert(!migration_is_running());
     rb->flags |= RAM_MIGRATABLE;
 }
 
 void qemu_ram_unset_migratable(RAMBlock *rb)
 {
+    assert(!migration_is_running());
     rb->flags &= ~RAM_MIGRATABLE;
 }
 
@@ -2598,6 +2601,8 @@ void qemu_ram_free(RAMBlock *block)
     if (!block) {
         return;
     }
+
+    assert(!migration_is_running() || !qemu_ram_is_migratable(block));
 
     if (block->host) {
         ram_block_notify_remove(block->host, block->used_length,
