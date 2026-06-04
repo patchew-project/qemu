@@ -1188,10 +1188,9 @@ void qdev_property_add_static(DeviceState *dev, const Property *prop)
     }
 }
 
-static void qdev_class_add_property(DeviceClass *klass, const char *name,
-                                    const Property *prop)
+void object_class_add_property(ObjectClass *oc, const Property *prop)
 {
-    ObjectClass *oc = OBJECT_CLASS(klass);
+    const char *name = prop->name;
     ObjectProperty *op;
 
     if (prop->info->create) {
@@ -1222,7 +1221,7 @@ void device_class_set_props_n(DeviceClass *dc, const Property *props, size_t n)
     for (size_t i = 0; i < n; ++i) {
         const Property *prop = &props[i];
         assert(prop->name);
-        qdev_class_add_property(dc, prop->name, prop);
+        object_class_add_property(OBJECT_CLASS(dc), prop);
     }
 }
 
