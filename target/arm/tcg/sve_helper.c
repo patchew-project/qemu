@@ -8669,3 +8669,31 @@ void HELPER(pext)(void *vd, uint32_t png, uint32_t desc)
         do_whilel(vd, mask, MIN(b_count, vl), vl);
     }
 }
+
+#define DO_EXPAND(NAME, TYPE, H)                                      \
+void HELPER(NAME)(void *vd, void *vn, void *vg, uint32_t desc)        \
+{                                                                     \
+    intptr_t oprsz = simd_oprsz(desc);                                \
+    ARMVectorReg tn = *(ARMVectorReg *)vn;                            \
+    intptr_t i = 0, j = 0;                                            \
+    do {                                                              \
+        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));               \
+        do {                                                          \
+            TYPE nn = 0;                                              \
+            if (pg & 1) {                                             \
+                nn = *(TYPE *)((void *)&tn + H(j));                   \
+                j += sizeof(TYPE);                                    \
+            }                                                         \
+            *(TYPE *)(vd + H(i)) = nn;                                \
+            i += sizeof(TYPE);                                        \
+            pg >>= sizeof(TYPE);                                      \
+        } while (i & 15);                                             \
+    } while (i < oprsz);                                              \
+}
+
+DO_EXPAND(sve2p2_expand_b, uint8_t, H1)
+DO_EXPAND(sve2p2_expand_h, uint16_t, H1_2)
+DO_EXPAND(sve2p2_expand_s, uint32_t, H1_4)
+DO_EXPAND(sve2p2_expand_d, uint64_t, H1_8)
+
+#undef DO_EXPAND
