@@ -24,6 +24,7 @@
 #include "qapi/string-output-visitor.h"
 #include "qemu/error-report.h"
 #include "system/numa.h"
+#include "system/ramblock.h"
 #include "hw/core/boards.h"
 
 void hmp_info_cpus(Monitor *mon, const QDict *qdict)
@@ -387,4 +388,35 @@ void hmp_info_memory_size_summary(Monitor *mon, const QDict *qdict)
         qapi_free_MemoryInfo(info);
     }
     hmp_handle_error(mon, err);
+}
+
+void hmp_info_ramblock_attributes(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    g_autoptr(RamBlockAttributesInfoList) list = NULL;
+    RamBlockAttributesInfoList *it;
+
+    list = qmp_x_query_ramblock_attributes(&err);
+    if (hmp_handle_error(mon, err)) {
+        return;
+    }
+
+    for (it = list; it; it = it->next) {
+        RamBlockAttributesInfo *rba = it->value;
+        RamBlockAttributeRangeList *r;
+
+        monitor_printf(mon, "%s:\n", rba->name);
+        for (r = rba->ranges; r; r = r->next) {
+            RamBlockAttributeRange *range = r->value;
+            const char *shared = range->shared ? "shared" : "private";
+            const char *pop = range->has_populated ?
+                (range->populated ? "+populated" : "-populated") : "";
+
+            monitor_printf(mon,
+                           "  0x%016" PRIx64 "-0x%016" PRIx64 " %s%s\n",
+                           range->start,
+                           range->start + range->length - 1,
+                           shared, pop);
+        }
+    }
 }
