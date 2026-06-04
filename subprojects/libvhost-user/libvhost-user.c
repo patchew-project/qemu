@@ -1390,11 +1390,6 @@ vu_check_queue_inflights(VuDev *dev, VuVirtq *vq)
         vq->counter = vq->resubmit_list[0].counter + 1;
     }
 
-    /* in case of I/O hang after reconnecting */
-    if (eventfd_write(vq->kick_fd, 1)) {
-        return -1;
-    }
-
     return 0;
 }
 
@@ -1434,6 +1429,20 @@ vu_set_vring_kick_exec(VuDev *dev, VhostUserMsg *vmsg)
 
     if (vu_check_queue_inflights(dev, &dev->vq[index])) {
         vu_panic(dev, "Failed to check inflights for vq: %d\n", index);
+    }
+
+    /* Inject a kick to look for available vq buffers */
+    if (dev->vq[index].kick_fd != -1) {
+        int ret;
+
+        do {
+            ret = eventfd_write(dev->vq[index].kick_fd, 1);
+        } while (ret != 0 && errno == EINTR);
+
+        if (ret != 0 && errno != EAGAIN /* already readable */) {
+            vu_panic(dev, "Failed to inject kick during SET_VRING_KICK "
+                     "on vq: %d with error: %m\n", index);
+        }
     }
 
     return false;
