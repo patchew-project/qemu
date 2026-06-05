@@ -2665,11 +2665,24 @@ static bool get_phys_addr_pmsav7(CPUARMState *env,
             rmask = (1ull << rsize) - 1;
 
             if (base & rmask) {
+                /*
+                 * The region base is not aligned to the region size. The
+                 * architecture calls this UNPREDICTABLE, but real Cortex-M
+                 * hardware ignores the sub-size low bits of RBAR.ADDR (the
+                 * field is only [31:log2(size)]) and matches against the
+                 * aligned-down base rather than disabling the region. NXP's
+                 * i.MX95 M7 firmware relies on this for its peripheral
+                 * region (e.g. DRBAR 0x4c800000 with a 512MB size, intended
+                 * as 0x40000000), so align down to match silicon instead of
+                 * dropping the region (which would leave the access to fall
+                 * through to a lower-priority deny-all background region).
+                 */
                 qemu_log_mask(LOG_GUEST_ERROR,
-                              "DRBAR[%d]: 0x%" PRIx32 " misaligned "
-                              "to DRSR region size, mask = 0x%" PRIx32 "\n",
-                              n, base, rmask);
-                continue;
+                              "DRBAR[%d]: 0x%" PRIx32 " not aligned to DRSR "
+                              "region size (mask 0x%" PRIx32 "); aligning down "
+                              "to 0x%" PRIx32 " to match Cortex-M behaviour\n",
+                              n, base, rmask, base & ~rmask);
+                base &= ~rmask;
             }
 
             if (address < base || address > base + rmask) {
