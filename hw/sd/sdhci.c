@@ -992,9 +992,26 @@ static void sdhci_data_transfer(void *opaque)
     }
 }
 
+static bool sdhci_clock_is_on(SDHCIState *s)
+{
+    /*
+     * The i.MX (u)SDHC has no software SD-clock-enable bit (the card clock
+     * is auto-gated by hardware), so its driver never sets
+     * SDHC_CLOCK_SDCLK_EN. For such a controller, treat the clock as
+     * running once the internal clock is enabled and stable; otherwise
+     * every command would be silently dropped (no completion/timeout IRQ),
+     * stalling the guest on 10s host-side timeouts.
+     */
+    if (s->quirks & SDHCI_QUIRK_SDCLK_AUTO_GATE) {
+        return (s->clkcon & (SDHC_CLOCK_INT_EN | SDHC_CLOCK_INT_STABLE)) ==
+               (SDHC_CLOCK_INT_EN | SDHC_CLOCK_INT_STABLE);
+    }
+    return SDHC_CLOCK_IS_ON(s->clkcon);
+}
+
 static bool sdhci_can_issue_command(SDHCIState *s)
 {
-    if (!SDHC_CLOCK_IS_ON(s->clkcon) ||
+    if (!sdhci_clock_is_on(s) ||
         (((s->prnsts & SDHC_DATA_INHIBIT) || s->stopped_state) &&
         ((s->cmdreg & SDHC_CMD_DATA_PRESENT) ||
         ((s->cmdreg & SDHC_CMD_RESPONSE) == SDHC_CMD_RSP_WITH_BUSY &&
@@ -1862,7 +1879,7 @@ static void fsl_esdhc_be_init(Object *obj)
     DeviceState *dev = DEVICE(obj);
 
     s->io_ops = &esdhc_mmio_be_ops;
-    s->quirks = SDHCI_QUIRK_NO_BUSY_IRQ;
+    s->quirks = SDHCI_QUIRK_NO_BUSY_IRQ | SDHCI_QUIRK_SDCLK_AUTO_GATE;
     qdev_prop_set_uint8(dev, "sd-spec-version", 2);
 }
 
@@ -1887,7 +1904,7 @@ static void fsl_esdhc_le_init(Object *obj)
     DeviceState *dev = DEVICE(obj);
 
     s->io_ops = &esdhc_mmio_le_ops;
-    s->quirks = SDHCI_QUIRK_NO_BUSY_IRQ;
+    s->quirks = SDHCI_QUIRK_NO_BUSY_IRQ | SDHCI_QUIRK_SDCLK_AUTO_GATE;
     qdev_prop_set_uint8(dev, "sd-spec-version", 2);
 }
 
@@ -1908,7 +1925,7 @@ static void imx_usdhc_init(Object *obj)
     DeviceState *dev = DEVICE(obj);
 
     s->io_ops = &usdhc_mmio_ops;
-    s->quirks = SDHCI_QUIRK_NO_BUSY_IRQ;
+    s->quirks = SDHCI_QUIRK_NO_BUSY_IRQ | SDHCI_QUIRK_SDCLK_AUTO_GATE;
     qdev_prop_set_uint8(dev, "sd-spec-version", 3);
 }
 

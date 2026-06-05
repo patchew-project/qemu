@@ -115,6 +115,17 @@ typedef struct SDHCIState SDHCIState;
  */
 #define SDHCI_QUIRK_NO_BUSY_IRQ    BIT(14)
 
+/*
+ * The i.MX (u)SDHC gates the SD card clock automatically and has no
+ * software-visible "SD Clock Enable" bit: its driver programs only the
+ * divider and the internal-clock enable, never SDHC_CLOCK_SDCLK_EN. With
+ * this quirk the controller is considered ready to issue commands once the
+ * internal clock is enabled and stable, instead of also requiring
+ * SDHC_CLOCK_SDCLK_EN (which such a driver never sets). QEMU-internal bit,
+ * not mirrored from Linux.
+ */
+#define SDHCI_QUIRK_SDCLK_AUTO_GATE    BIT(16)
+
 #define TYPE_PCI_SDHCI "sdhci-pci"
 DECLARE_INSTANCE_CHECKER(SDHCIState, PCI_SDHCI,
                          TYPE_PCI_SDHCI)
