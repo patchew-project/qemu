@@ -1477,10 +1477,16 @@
 # @grab-mod: Modifier keys that should be pressed together with the
 #     "G" key to release the mouse grab.
 #
+# @grab-on-tablet: When enabled, the mouse grab is required even for
+#     tablet (absolute) input devices.  This is useful when the guest
+#     OS uses a tablet device but you still want click-to-grab
+#     semantics (e.g. NuttX touchscreen emulation).
+#
 # Since: 7.1
 ##
 { 'struct'  : 'DisplaySDL',
-  'data'    : { '*grab-mod'   : 'HotKeyMod' } }
+  'data'    : { '*grab-mod'   : 'HotKeyMod',
+                '*grab-on-tablet' : 'bool' } }
 
 ##
 # @DisplayType:

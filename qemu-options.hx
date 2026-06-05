@@ -2205,8 +2205,8 @@ DEF("display", HAS_ARG, QEMU_OPTION_display,
     "-display spice-app[,gl=on|off]\n"
 #endif
 #if defined(CONFIG_SDL)
-    "-display sdl[,gl=on|core|es|off][,grab-mod=<mod>][,show-cursor=on|off]\n"
-    "            [,window-close=on|off]\n"
+    "-display sdl[,gl=on|core|es|off][,grab-mod=<mod>][,grab-on-tablet=on|off]\n"
+    "            [,show-cursor=on|off][,window-close=on|off]\n"
 #endif
 #if defined(CONFIG_GTK)
     "-display gtk[,clipboard=on|off][,full-screen=on|off][,gl=on|off]\n"
@@ -2283,6 +2283,11 @@ SRST
         ``grab-mod=<mods>`` : Used to select the modifier keys for toggling
         the mouse grabbing in conjunction with the "g" key. ``<mods>`` can be
         either ``lshift-lctrl-lalt`` or ``rctrl``.
+
+        ``grab-on-tablet=on|off`` : When enabled, the mouse grab is required
+        even for tablet (absolute) input devices.  This is useful when the
+        guest OS uses a tablet device but you still want click-to-grab
+        semantics.
 
         ``gl=on|off|core|es`` : Use OpenGL for displaying
 

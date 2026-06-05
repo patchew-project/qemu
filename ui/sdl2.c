@@ -46,6 +46,7 @@ static SDL_Surface *guest_sprite_surface;
 static int gui_grab; /* if true, all keyboard/mouse events are grabbed */
 static bool alt_grab;
 static bool ctrl_grab;
+static bool grab_on_tablet;
 
 static int gui_saved_grab;
 static int gui_fullscreen;
@@ -504,7 +505,8 @@ static void handle_mousemotion(SDL_Event *ev)
     }
 
     SDL_GetWindowSize(scon->real_window, &scr_w, &scr_h);
-    if (qemu_input_is_absolute(scon->dcl.con) || absolute_enabled) {
+    if ((qemu_input_is_absolute(scon->dcl.con) || absolute_enabled) &&
+        !grab_on_tablet) {
         max_x = scr_w - 1;
         max_y = scr_h - 1;
         if (gui_grab && !gui_fullscreen
@@ -545,7 +547,8 @@ static void handle_mousebutton(SDL_Event *ev)
     x = (int64_t)bev->x * surface_width(scon->surface) / scr_w;
     y = (int64_t)bev->y * surface_height(scon->surface) / scr_h;
 
-    if (!gui_grab && !qemu_input_is_absolute(scon->dcl.con)) {
+    if (!gui_grab &&
+        (!qemu_input_is_absolute(scon->dcl.con) || grab_on_tablet)) {
         if (ev->type == SDL_MOUSEBUTTONUP && bev->button == SDL_BUTTON_LEFT) {
             /* start grabbing all events */
             sdl_grab_start(scon);
@@ -614,7 +617,10 @@ static void handle_windowevent(SDL_Event *ev)
     case SDL_WINDOWEVENT_FOCUS_GAINED:
         /* fall through */
     case SDL_WINDOWEVENT_ENTER:
-        if (!gui_grab && (qemu_input_is_absolute(scon->dcl.con) || absolute_enabled)) {
+        if (!gui_grab &&
+            (qemu_input_is_absolute(scon->dcl.con) ||
+             absolute_enabled) &&
+            !grab_on_tablet) {
             absolute_mouse_grab(scon);
         }
         /* If a new console window opened using a hotkey receives the
@@ -919,6 +925,10 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
         } else if (o->u.sdl.grab_mod == HOT_KEY_MOD_RCTRL) {
             ctrl_grab = true;
         }
+    }
+
+    if (o->u.sdl.has_grab_on_tablet) {
+        grab_on_tablet = o->u.sdl.grab_on_tablet;
     }
 
     for (i = 0;; i++) {
