@@ -233,7 +233,7 @@ static void scsi_device_unrealize(SCSIDevice *s)
 int scsi_bus_parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
                        size_t buf_len, void *hba_private)
 {
-    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
+    SCSIBus *bus = scsi_bus_from_device(dev);
     int rc;
 
     assert(cmd->len == 0);
@@ -363,7 +363,7 @@ static bool scsi_bus_check_address(BusState *qbus, DeviceState *qdev, Error **er
 static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
 {
     SCSIDevice *dev = SCSI_DEVICE(qdev);
-    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
+    SCSIBus *bus = scsi_bus_from_device(dev);
     bool is_free;
     Error *local_err = NULL;
 
@@ -848,7 +848,7 @@ SCSIRequest *scsi_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
 SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
                           uint8_t *buf, size_t buf_len, void *hba_private)
 {
-    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, d->qdev.parent_bus);
+    SCSIBus *bus = scsi_bus_from_device(d);
     const SCSIReqOps *ops;
     SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(d);
     SCSIRequest *req;
@@ -1481,7 +1481,7 @@ int scsi_req_parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
 
 void scsi_device_report_change(SCSIDevice *dev, SCSISense sense)
 {
-    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
+    SCSIBus *bus = scsi_bus_from_device(dev);
 
     scsi_device_set_ua(dev, sense);
     if (bus->info->change) {
@@ -1500,8 +1500,7 @@ void scsi_req_unref(SCSIRequest *req)
 {
     assert(qatomic_read(&req->refcount) > 0);
     if (qatomic_fetch_dec(&req->refcount) == 1) {
-        BusState *qbus = req->dev->qdev.parent_bus;
-        SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, qbus);
+        SCSIBus *bus = scsi_bus_from_device(req->dev);
 
         if (bus->info->free_request && req->hba_private) {
             bus->info->free_request(bus, req->hba_private);
@@ -1797,7 +1796,7 @@ void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense)
 
 void scsi_device_drained_begin(SCSIDevice *sdev)
 {
-    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, sdev->qdev.parent_bus);
+    SCSIBus *bus = scsi_bus_from_device(sdev);
     if (!bus) {
         return;
     }
@@ -1819,7 +1818,7 @@ void scsi_device_drained_begin(SCSIDevice *sdev)
 
 void scsi_device_drained_end(SCSIDevice *sdev)
 {
-    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, sdev->qdev.parent_bus);
+    SCSIBus *bus = scsi_bus_from_device(sdev);
     if (!bus) {
         return;
     }
@@ -1895,7 +1894,7 @@ static int get_scsi_requests(QEMUFile *f, void *pv, size_t size,
                              const VMStateField *field)
 {
     SCSIDevice *s = pv;
-    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, s->qdev.parent_bus);
+    SCSIBus *bus = scsi_bus_from_device(s);
     int8_t sbyte;
 
     while ((sbyte = qemu_get_sbyte(f)) > 0) {
