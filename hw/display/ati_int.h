@@ -113,6 +113,12 @@ typedef struct ATIMicrocodeState {
 
 typedef struct ATICCEState {
     ATIMicrocodeState microcode;
+    /* MicroCntl */
+    bool freerun;
+    /* BufferCntl */
+    uint32_t buffer_size_l2qw;
+    bool no_update;
+    uint8_t buffer_mode;
 } ATICCEState;
 
 struct ATIVGAState {

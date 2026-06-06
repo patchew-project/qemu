@@ -299,6 +299,14 @@ static bool ati_r128_mm_read(ATIVGAState *s, hwaddr addr, unsigned int size,
     case DEFAULT_OFFSET:
         *val = s->regs.default_offset;
         break;
+    case PM4_BUFFER_CNTL:
+        *val = ((s->cce.buffer_mode & 0xf) << 28) |
+               (s->cce.no_update << 27) |
+               (s->cce.buffer_size_l2qw & 0x7ffffff);
+        break;
+    case PM4_MICRO_CNTL:
+        *val = s->cce.freerun ? PM4_MICRO_FREERUN : 0;
+        break;
     default:
         return false;
     }
@@ -681,6 +689,14 @@ static bool ati_r128_reg_write(ATIVGAState *s, hwaddr addr, uint64_t data,
     case DEFAULT_PITCH:
         s->regs.default_pitch = data & 0x3fff;
         s->regs.default_tile = (data >> 16) & 1;
+        break;
+    case PM4_BUFFER_CNTL:
+        s->cce.buffer_size_l2qw = data & 0x7ffffff;
+        s->cce.no_update = (data >> 27) & 1;
+        s->cce.buffer_mode = (data >> 28) & 0xf;
+        break;
+    case PM4_MICRO_CNTL:
+        s->cce.freerun = !!(data & PM4_MICRO_FREERUN);
         break;
     default:
         return false;
