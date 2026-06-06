@@ -1183,6 +1183,15 @@ static void ati_mm_write(void *opaque, hwaddr addr,
     if (addr < CUR_OFFSET || addr > CUR_CLR1 || ATI_DEBUG_HW_CURSOR) {
         trace_ati_mm_write(size, addr, ati_reg_name(addr & ~3ULL), data);
     }
+    if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF &&
+        s->cce.buffer_mode && addr >= 0x1400 && addr <= 0x1fff) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+            "ati_mm_write: wrote 0x%"PRIx64" to gui register "
+            "0x%"PRIx64" while cce engine enabled, ignored.\n",
+            data, addr);
+        return;
+    }
+
     switch (addr) {
     case MM_INDEX:
         s->regs.mm_index = data & ~3;
