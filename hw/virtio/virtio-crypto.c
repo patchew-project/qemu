@@ -25,6 +25,13 @@
 #include "system/cryptodev-vhost.h"
 
 #define VIRTIO_CRYPTO_VM_VERSION 1
+/*
+ * The virtio-crypto spec does not limit akcipher key lengths. To prevent
+ * guest-introduced OOM attacks via excessive host memory allocation, we
+ * enforce a 1MB limit. This aligns with the linux kernel's internal max
+ * payload limit for the add_key syscall.
+ */
+#define VIRTIO_CRYPTO_MAX_AKCIPHER_KEY_LEN ((1024 * 1024) - 1)
 
 typedef struct VirtIOCryptoSessionReq {
     VirtIODevice *vdev;
@@ -214,6 +221,12 @@ virtio_crypto_create_asym_session(VirtIOCrypto *vcrypto,
          && (keytype != VIRTIO_CRYPTO_AKCIPHER_KEY_TYPE_PRIVATE)) {
         error_report("unsupported asym keytype: %d", keytype);
         return -VIRTIO_CRYPTO_NOTSUPP;
+    }
+
+    if (keylen > VIRTIO_CRYPTO_MAX_AKCIPHER_KEY_LEN) {
+        error_report("virtio-crypto length of akcipher key is too large: %u",
+                     keylen);
+        return -VIRTIO_CRYPTO_ERR;
     }
 
     if (keylen) {
