@@ -579,6 +579,36 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
         qemu_log_mask(LOG_GUEST_ERROR,
                       "Read from write-only register 0x%x\n", (unsigned)addr);
         break;
+    /* r100: CP_ME_RAM_ADDR */
+    case PM4_MICROCODE_ADDR:
+        val = s->cce.microcode.addr;
+        break;
+    /* r100: CP_ME_RAM_RADDR */
+    case PM4_MICROCODE_RADDR:
+        /* Always returns 0. Tested on hardware. */
+        val = 0;
+        break;
+    /* r100: CP_ME_RAM_DATAH */
+    case PM4_MICROCODE_DATAH:
+        val = (s->cce.microcode.microcode[s->cce.microcode.raddr] >> 32) &
+              0xffffffff;
+        break;
+    /* r100: CP_ME_RAM_DATAL */
+    case PM4_MICROCODE_DATAL:
+        val = s->cce.microcode.microcode[s->cce.microcode.raddr] & 0xffffffff;
+        s->cce.microcode.addr += 1;
+        /*
+         * The write address (addr) is always copied into the
+         * read address (raddr) after a DATAL read. This leads
+         * to surprising behavior when the PM4_MICROCODE_ADDR
+         * instead of the PM4_MICROCODE_RADDR register is set to
+         * a value just before a read. The first read after this
+         * will reflect the previous raddr before incrementing and
+         * re-syncing with addr. This is expected and observed on
+         * the hardware.
+         */
+        s->cce.microcode.raddr = s->cce.microcode.addr;
+        break;
     default:
         break;
     }
@@ -1087,6 +1117,37 @@ void ati_reg_write(ATIVGAState *s, hwaddr addr,
             ati_host_data_flush(s);
         }
         break;
+    /* r100: CP_ME_RAM_ADDR */
+    case PM4_MICROCODE_ADDR:
+        s->cce.microcode.addr = data;
+        break;
+    /* r100: CP_ME_RAM_RADDR */
+    case PM4_MICROCODE_RADDR:
+        s->cce.microcode.raddr = data;
+        s->cce.microcode.addr = data;
+        break;
+    /* r100: CP_ME_RAM_DATAH */
+    case PM4_MICROCODE_DATAH: {
+        uint64_t curr = s->cce.microcode.microcode[s->cce.microcode.addr];
+        uint64_t low = curr & 0xffffffff;
+        /*
+         * DATAH mask is one bit wider on r100. Avoid duplicating otherwise
+         * identical handlers for r128 and r100
+         */
+        uint64_t high = (data & (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF ?
+                        0x1f : 0x3f)) << 32;
+        s->cce.microcode.microcode[s->cce.microcode.addr] = high | low;
+        break;
+    }
+    /* r100: CP_ME_RAM_DATAL */
+    case PM4_MICROCODE_DATAL: {
+        uint64_t curr = s->cce.microcode.microcode[s->cce.microcode.addr];
+        uint64_t low = data & 0xffffffff;
+        uint64_t high = curr & (0xffffffffull << 32);
+        s->cce.microcode.microcode[s->cce.microcode.addr] = high | low;
+        s->cce.microcode.addr += 1;
+        break;
+    }
     default:
         break;
     }

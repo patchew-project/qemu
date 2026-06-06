@@ -105,6 +105,16 @@ typedef struct ATIHostDataState {
     uint32_t acc[4];
 } ATIHostDataState;
 
+typedef struct ATIMicrocodeState {
+    uint8_t addr;
+    uint8_t raddr;
+    uint64_t microcode[256];
+} ATIMicrocodeState;
+
+typedef struct ATICCEState {
+    ATIMicrocodeState microcode;
+} ATICCEState;
+
 struct ATIVGAState {
     PCIDevice dev;
     VGACommonState vga;
@@ -125,6 +135,7 @@ struct ATIVGAState {
     MemoryRegion mm;
     ATIVGARegs regs;
     ATIHostDataState host_data;
+    ATICCEState cce;
 };
 
 const char *ati_reg_name(int num);
