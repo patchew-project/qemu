@@ -342,6 +342,9 @@ static bool ati_r100_mm_read(ATIVGAState *s, hwaddr addr, unsigned int size,
         *val |= s->regs.default_pitch << 16;
         *val |= s->regs.default_tile << 30;
         break;
+    case CP_CSQ_CNTL:
+        *val = s->cce.buffer_mode << 28;
+        break;
     default:
         return false;
     }
@@ -766,6 +769,9 @@ static bool ati_r100_reg_write(ATIVGAState *s, hwaddr addr, uint64_t data,
         s->regs.default_offset = (data & 0x3fffff) << 10;
         s->regs.default_pitch = (data & 0x3fc00000) >> 16;
         s->regs.default_tile = data >> 30;
+        break;
+    case CP_CSQ_CNTL:
+        s->cce.buffer_mode = (data >> 28) & 0xf;
         break;
     default:
         return false;
@@ -1318,6 +1324,8 @@ static void ati_vga_reset(DeviceState *dev)
     s->host_data.next = 0;
     s->host_data.row = 0;
     s->host_data.col = 0;
+    memset(&s->cce, 0, sizeof(s->cce));
+    s->cce.freerun = s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF ? 0 : 1;
 }
 
 static void ati_vga_exit(PCIDevice *dev)

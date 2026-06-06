@@ -128,6 +128,7 @@
 #define PM4_IW_INDOFF                           0x0738
 #define PM4_IW_INDSIZE                          0x073c
 #define PM4_FPU_FPX0                            0x0740
+#define CP_CSQ_CNTL                             0x0740
 #define PM4_FPU_FPY0                            0x0744
 #define PM4_FPU_FPX1                            0x0748
 #define PM4_FPU_FPY1                            0x074c
