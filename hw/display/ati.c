@@ -277,11 +277,86 @@ static inline uint32_t ati_reg_read_offs(uint32_t reg, int offs,
     }
 }
 
+static bool ati_r128_mm_read(ATIVGAState *s, hwaddr addr, unsigned int size,
+                             uint32_t *val)
+{
+    switch (addr) {
+    case BIOS_0_SCRATCH ... BUS_CNTL - 1:
+    {
+        int i = (addr - BIOS_0_SCRATCH) / 4;
+        if (i <= 3) {
+            *val = ati_reg_read_offs(s->regs.bios_scratch[i],
+                                     addr - (BIOS_0_SCRATCH + i * 4), size);
+        }
+        break;
+    }
+    case DST_PITCH:
+        *val = s->regs.dst_pitch | s->regs.dst_tile << 16;
+        break;
+    case SRC_PITCH:
+        *val = s->regs.src_pitch | s->regs.src_tile << 16;
+        break;
+    case DEFAULT_OFFSET:
+        *val = s->regs.default_offset;
+        break;
+    default:
+        return false;
+    }
+
+    return true;
+}
+
+static bool ati_r100_mm_read(ATIVGAState *s, hwaddr addr, unsigned int size,
+                             uint32_t *val)
+{
+    switch (addr) {
+    case BIOS_0_SCRATCH ... BUS_CNTL - 1:
+    {
+        int i = (addr - BIOS_0_SCRATCH) / 4;
+        *val = ati_reg_read_offs(s->regs.bios_scratch[i],
+                                 addr - (BIOS_0_SCRATCH + i * 4), size);
+        break;
+    }
+    case HOST_PATH_CNTL:
+        *val = BIT(23); /* Radeon HDP_APER_CNTL */
+        break;
+    case MEM_SDRAM_MODE_REG:
+        *val = BIT(28) | BIT(20);
+        break;
+    case DST_PITCH:
+        *val = s->regs.dst_pitch;
+        break;
+    case SRC_PITCH:
+        *val = s->regs.src_pitch;
+        break;
+    case DEFAULT_OFFSET:
+        *val = s->regs.default_offset >> 10;
+        *val |= s->regs.default_pitch << 16;
+        *val |= s->regs.default_tile << 30;
+        break;
+    default:
+        return false;
+    }
+
+    return true;
+}
+
 static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
 {
     ATIVGAState *s = opaque;
     uint32_t val = 0;
 
+    if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
+        if (ati_r128_mm_read(s, addr, size, &val)) {
+            return val;
+        }
+    } else {
+        if (ati_r100_mm_read(s, addr, size, &val)) {
+            return val;
+        }
+    }
+
+    /* Shared Registers */
     switch (addr) {
     case MM_INDEX:
         val = s->regs.mm_index;
@@ -300,16 +375,6 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
                 "ati_mm_read: mm_index too small: %u\n", s->regs.mm_index);
         }
         break;
-    case BIOS_0_SCRATCH ... BUS_CNTL - 1:
-    {
-        int i = (addr - BIOS_0_SCRATCH) / 4;
-        if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF && i > 3) {
-            break;
-        }
-        val = ati_reg_read_offs(s->regs.bios_scratch[i],
-                                addr - (BIOS_0_SCRATCH + i * 4), size);
-        break;
-    }
     case GEN_INT_CNTL:
         val = s->regs.gen_int_cntl;
         break;
@@ -371,16 +436,8 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case CONFIG_REG_APER_SIZE:
         val = memory_region_size(&s->mm) / 2;
         break;
-    case HOST_PATH_CNTL:
-        val = BIT(23); /* Radeon HDP_APER_CNTL */
-        break;
     case MC_STATUS:
         val = 5;
-        break;
-    case MEM_SDRAM_MODE_REG:
-        if (s->dev_id != PCI_DEVICE_ID_ATI_RAGE128_PF) {
-            val = BIT(28) | BIT(20);
-        }
         break;
     case RBBM_STATUS:
     case GUI_STAT:
@@ -436,12 +493,6 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case DST_OFFSET:
         val = s->regs.dst_offset;
         break;
-    case DST_PITCH:
-        val = s->regs.dst_pitch;
-        if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
-            val |= s->regs.dst_tile << 16;
-        }
-        break;
     case DST_WIDTH:
         val = s->regs.dst_width;
         break;
@@ -472,12 +523,6 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case SRC_OFFSET:
         val = s->regs.src_offset;
         break;
-    case SRC_PITCH:
-        val = s->regs.src_pitch;
-        if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
-            val |= s->regs.src_tile << 16;
-        }
-        break;
     case DP_BRUSH_BKGD_CLR:
         val = s->regs.dp_brush_bkgd_clr;
         break;
@@ -501,14 +546,6 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
         break;
     case DP_WRITE_MASK:
         val = s->regs.dp_write_mask;
-        break;
-    case DEFAULT_OFFSET:
-        val = s->regs.default_offset;
-        if (s->dev_id != PCI_DEVICE_ID_ATI_RAGE128_PF) {
-            val >>= 10;
-            val |= s->regs.default_pitch << 16;
-            val |= s->regs.default_tile << 30;
-        }
         break;
     case DEFAULT_PITCH:
         val = s->regs.default_pitch;
@@ -562,20 +599,150 @@ static inline void ati_reg_write_offs(uint32_t *reg, int offs,
     }
 }
 
-void ati_reg_write(ATIVGAState *s, hwaddr addr,
-                   uint64_t data, unsigned int size)
+static bool ati_r128_reg_write(ATIVGAState *s, hwaddr addr, uint64_t data,
+                               unsigned int size)
 {
     switch (addr) {
     case BIOS_0_SCRATCH ... BUS_CNTL - 1:
     {
         int i = (addr - BIOS_0_SCRATCH) / 4;
-        if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF && i > 3) {
-            break;
+        if (i <= 3) {
+            ati_reg_write_offs(&s->regs.bios_scratch[i],
+                               addr - (BIOS_0_SCRATCH + i * 4), data, size);
         }
+        break;
+    }
+    case GEN_INT_STATUS:
+        data &= 0x000f040fUL;
+        s->regs.gen_int_status &= ~data;
+        ati_vga_update_irq(s);
+        break;
+    case GPIO_MONID ... GPIO_MONID + 3:
+        /* Rage128p accesses DDC via MONID(1-2) with additional mask bit */
+        ati_reg_write_offs(&s->regs.gpio_monid,
+                           addr - GPIO_MONID, data, size);
+        if ((s->regs.gpio_monid & BIT(25)) &&
+            ((addr <= GPIO_MONID + 2 && addr + size > GPIO_MONID + 2) ||
+             (addr == GPIO_MONID && (s->regs.gpio_monid & 0x60000)))) {
+            s->regs.gpio_monid = ati_i2c(&s->bbi2c, s->regs.gpio_monid, 1);
+        }
+        break;
+    case DST_PITCH:
+        s->regs.dst_pitch = data & 0x3fff;
+        s->regs.dst_tile = (data >> 16) & 1;
+        break;
+    case SRC_PITCH_OFFSET:
+        s->regs.src_offset = (data & 0x1fffff) << 5;
+        s->regs.src_pitch = (data & 0x7fe00000) >> 21;
+        s->regs.src_tile = data >> 31;
+        break;
+    case DST_PITCH_OFFSET:
+        s->regs.dst_offset = (data & 0x1fffff) << 5;
+        s->regs.dst_pitch = (data & 0x7fe00000) >> 21;
+        s->regs.dst_tile = data >> 31;
+        break;
+    case SRC_PITCH:
+        s->regs.src_pitch = data & 0x3fff;
+        s->regs.src_tile = (data >> 16) & 1;
+        break;
+    case DEFAULT_OFFSET:
+        s->regs.default_offset = data & 0xfffffff0;
+        break;
+    case DEFAULT_PITCH:
+        s->regs.default_pitch = data & 0x3fff;
+        s->regs.default_tile = (data >> 16) & 1;
+        break;
+    default:
+        return false;
+    }
+
+    return true;
+}
+
+static bool ati_r100_reg_write(ATIVGAState *s, hwaddr addr, uint64_t data,
+                               unsigned int size)
+{
+    switch (addr) {
+    case BIOS_0_SCRATCH ... BUS_CNTL - 1:
+    {
+        int i = (addr - BIOS_0_SCRATCH) / 4;
         ati_reg_write_offs(&s->regs.bios_scratch[i],
                            addr - (BIOS_0_SCRATCH + i * 4), data, size);
         break;
     }
+    case GEN_INT_STATUS:
+        data &= 0xfc080effUL;
+        s->regs.gen_int_status &= ~data;
+        ati_vga_update_irq(s);
+        break;
+    /*
+     * GPIO regs for DDC access. Because some drivers access these via
+     * multiple byte writes we have to be careful when we send bits to
+     * avoid spurious changes in bitbang_i2c state. Only do it when either
+     * the enable bits are changed or output bits changed while enabled.
+     */
+    case GPIO_VGA_DDC ... GPIO_VGA_DDC + 3:
+        /* FIXME: Maybe add a property to select VGA or DVI port? */
+        break;
+    case GPIO_DVI_DDC ... GPIO_DVI_DDC + 3:
+        ati_reg_write_offs(&s->regs.gpio_dvi_ddc,
+                           addr - GPIO_DVI_DDC, data, size);
+        if ((addr <= GPIO_DVI_DDC + 2 && addr + size > GPIO_DVI_DDC + 2) ||
+            (addr == GPIO_DVI_DDC && (s->regs.gpio_dvi_ddc & 0x30000))) {
+            s->regs.gpio_dvi_ddc = ati_i2c(&s->bbi2c,
+                                           s->regs.gpio_dvi_ddc, 0);
+        }
+        break;
+    case GPIO_MONID ... GPIO_MONID + 3:
+        /* FIXME What does Radeon have here? */
+        break;
+    case DST_TILE:
+        s->regs.dst_tile = data & 3;
+        break;
+    case DST_PITCH:
+        s->regs.dst_pitch = data & 0x3fff;
+        break;
+    case SRC_PITCH_OFFSET:
+        s->regs.src_offset = (data & 0x3fffff) << 10;
+        s->regs.src_pitch = (data & 0x3fc00000) >> 16;
+        s->regs.src_tile = (data >> 30) & 1;
+        break;
+    case DST_PITCH_OFFSET:
+        s->regs.dst_offset = (data & 0x3fffff) << 10;
+        s->regs.dst_pitch = (data & 0x3fc00000) >> 16;
+        s->regs.dst_tile = data >> 30;
+        break;
+    case SRC_PITCH:
+        s->regs.src_pitch = data & 0x3fff;
+        break;
+    case DEFAULT_OFFSET:
+        /* Radeon has DEFAULT_PITCH_OFFSET here like DST_PITCH_OFFSET */
+        s->regs.default_offset = (data & 0x3fffff) << 10;
+        s->regs.default_pitch = (data & 0x3fc00000) >> 16;
+        s->regs.default_tile = data >> 30;
+        break;
+    default:
+        return false;
+    }
+
+    return true;
+}
+
+void ati_reg_write(ATIVGAState *s, hwaddr addr,
+                   uint64_t data, unsigned int size)
+{
+    if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
+        if (ati_r128_reg_write(s, addr, data, size)) {
+            return;
+        }
+    } else {
+        if (ati_r100_reg_write(s, addr, data, size)) {
+            return;
+        }
+    }
+
+    /* Shared Registers */
+    switch (addr) {
     case GEN_INT_CNTL:
         s->regs.gen_int_cntl = data;
         if (data & CRTC_VBLANK_INT) {
@@ -584,12 +751,6 @@ void ati_reg_write(ATIVGAState *s, hwaddr addr,
             timer_del(&s->vblank_timer);
             ati_vga_update_irq(s);
         }
-        break;
-    case GEN_INT_STATUS:
-        data &= (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF ?
-                 0x000f040fUL : 0xfc080effUL);
-        s->regs.gen_int_status &= ~data;
-        ati_vga_update_irq(s);
         break;
     case CRTC_GEN_CNTL ... CRTC_GEN_CNTL + 3:
     {
@@ -637,41 +798,6 @@ void ati_reg_write(ATIVGAState *s, hwaddr addr,
     case DAC_CNTL:
         s->regs.dac_cntl = data & 0xffffe3ff;
         s->vga.dac_8bit = !!(data & DAC_8BIT_EN);
-        break;
-    /*
-     * GPIO regs for DDC access. Because some drivers access these via
-     * multiple byte writes we have to be careful when we send bits to
-     * avoid spurious changes in bitbang_i2c state. Only do it when either
-     * the enable bits are changed or output bits changed while enabled.
-     */
-    case GPIO_VGA_DDC ... GPIO_VGA_DDC + 3:
-        if (s->dev_id != PCI_DEVICE_ID_ATI_RAGE128_PF) {
-            /* FIXME: Maybe add a property to select VGA or DVI port? */
-        }
-        break;
-    case GPIO_DVI_DDC ... GPIO_DVI_DDC + 3:
-        if (s->dev_id != PCI_DEVICE_ID_ATI_RAGE128_PF) {
-            ati_reg_write_offs(&s->regs.gpio_dvi_ddc,
-                               addr - GPIO_DVI_DDC, data, size);
-            if ((addr <= GPIO_DVI_DDC + 2 && addr + size > GPIO_DVI_DDC + 2) ||
-                (addr == GPIO_DVI_DDC && (s->regs.gpio_dvi_ddc & 0x30000))) {
-                s->regs.gpio_dvi_ddc = ati_i2c(&s->bbi2c,
-                                               s->regs.gpio_dvi_ddc, 0);
-            }
-        }
-        break;
-    case GPIO_MONID ... GPIO_MONID + 3:
-        /* FIXME What does Radeon have here? */
-        if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
-            /* Rage128p accesses DDC via MONID(1-2) with additional mask bit */
-            ati_reg_write_offs(&s->regs.gpio_monid,
-                               addr - GPIO_MONID, data, size);
-            if ((s->regs.gpio_monid & BIT(25)) &&
-                ((addr <= GPIO_MONID + 2 && addr + size > GPIO_MONID + 2) ||
-                 (addr == GPIO_MONID && (s->regs.gpio_monid & 0x60000)))) {
-                s->regs.gpio_monid = ati_i2c(&s->bbi2c, s->regs.gpio_monid, 1);
-            }
-        }
         break;
     case PALETTE_INDEX ... PALETTE_INDEX + 3:
         if (size == 4) {
@@ -800,18 +926,7 @@ void ati_reg_write(ATIVGAState *s, hwaddr addr,
         ati_cursor_define(s);
         break;
     case DST_OFFSET:
-            s->regs.dst_offset = data & 0xfffffff0;
-        break;
-    case DST_PITCH:
-            s->regs.dst_pitch = data & 0x3fff;
-        if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
-            s->regs.dst_tile = (data >> 16) & 1;
-        }
-        break;
-    case DST_TILE:
-        if (s->dev_id == PCI_DEVICE_ID_ATI_RADEON_QY) {
-            s->regs.dst_tile = data & 3;
-        }
+        s->regs.dst_offset = data & 0xfffffff0;
         break;
     case DST_WIDTH:
         s->regs.dst_width = data & 0x3fff;
@@ -831,28 +946,6 @@ void ati_reg_write(ATIVGAState *s, hwaddr addr,
         break;
     case DST_Y:
         s->regs.dst_y = data & 0x3fff;
-        break;
-    case SRC_PITCH_OFFSET:
-        if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
-            s->regs.src_offset = (data & 0x1fffff) << 5;
-            s->regs.src_pitch = (data & 0x7fe00000) >> 21;
-            s->regs.src_tile = data >> 31;
-        } else {
-            s->regs.src_offset = (data & 0x3fffff) << 10;
-            s->regs.src_pitch = (data & 0x3fc00000) >> 16;
-            s->regs.src_tile = (data >> 30) & 1;
-        }
-        break;
-    case DST_PITCH_OFFSET:
-        if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
-            s->regs.dst_offset = (data & 0x1fffff) << 5;
-            s->regs.dst_pitch = (data & 0x7fe00000) >> 21;
-            s->regs.dst_tile = data >> 31;
-        } else {
-            s->regs.dst_offset = (data & 0x3fffff) << 10;
-            s->regs.dst_pitch = (data & 0x3fc00000) >> 16;
-            s->regs.dst_tile = data >> 30;
-        }
         break;
     case SRC_Y_X:
         s->regs.src_x = data & 0x3fff;
@@ -915,13 +1008,7 @@ void ati_reg_write(ATIVGAState *s, hwaddr addr,
         s->regs.dst_height = (data >> 16) & 0x3fff;
         break;
     case SRC_OFFSET:
-            s->regs.src_offset = data & 0xfffffff0;
-        break;
-    case SRC_PITCH:
-            s->regs.src_pitch = data & 0x3fff;
-        if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
-            s->regs.src_tile = (data >> 16) & 1;
-        }
+        s->regs.src_offset = data & 0xfffffff0;
         break;
     case DP_BRUSH_BKGD_CLR:
         s->regs.dp_brush_bkgd_clr = data;
@@ -946,22 +1033,6 @@ void ati_reg_write(ATIVGAState *s, hwaddr addr,
         break;
     case DP_WRITE_MASK:
         s->regs.dp_write_mask = data;
-        break;
-    case DEFAULT_OFFSET:
-        if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
-            s->regs.default_offset = data & 0xfffffff0;
-        } else {
-            /* Radeon has DEFAULT_PITCH_OFFSET here like DST_PITCH_OFFSET */
-            s->regs.default_offset = (data & 0x3fffff) << 10;
-            s->regs.default_pitch = (data & 0x3fc00000) >> 16;
-            s->regs.default_tile = data >> 30;
-        }
-        break;
-    case DEFAULT_PITCH:
-        if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
-            s->regs.default_pitch = data & 0x3fff;
-            s->regs.default_tile = (data >> 16) & 1;
-        }
         break;
     case DEFAULT_SC_BOTTOM_RIGHT:
         s->regs.default_sc_right = data & 0x3fff;
