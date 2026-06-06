@@ -562,32 +562,10 @@ static inline void ati_reg_write_offs(uint32_t *reg, int offs,
     }
 }
 
-static void ati_mm_write(void *opaque, hwaddr addr,
-                           uint64_t data, unsigned int size)
+void ati_reg_write(ATIVGAState *s, hwaddr addr,
+                   uint64_t data, unsigned int size)
 {
-    ATIVGAState *s = opaque;
-
-    if (addr < CUR_OFFSET || addr > CUR_CLR1 || ATI_DEBUG_HW_CURSOR) {
-        trace_ati_mm_write(size, addr, ati_reg_name(addr & ~3ULL), data);
-    }
     switch (addr) {
-    case MM_INDEX:
-        s->regs.mm_index = data & ~3;
-        break;
-    case MM_DATA ... MM_DATA + 3:
-        /* indexed access to regs or memory */
-        if (s->regs.mm_index & BIT(31)) {
-            uint32_t idx = s->regs.mm_index & ~BIT(31);
-            if (idx <= s->vga.vram_size - size) {
-                stn_le_p(s->vga.vram_ptr + idx, size, data);
-            }
-        } else if (s->regs.mm_index > MM_DATA + 3) {
-            ati_mm_write(s, s->regs.mm_index + addr - MM_DATA, data, size);
-        } else {
-            qemu_log_mask(LOG_GUEST_ERROR,
-                "ati_mm_write: mm_index too small: %u\n", s->regs.mm_index);
-        }
-        break;
     case BIOS_0_SCRATCH ... BUS_CNTL - 1:
     {
         int i = (addr - BIOS_0_SCRATCH) / 4;
@@ -1039,6 +1017,38 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         }
         break;
     default:
+        break;
+    }
+}
+
+static void ati_mm_write(void *opaque, hwaddr addr,
+                         uint64_t data, unsigned int size)
+{
+    ATIVGAState *s = opaque;
+
+    if (addr < CUR_OFFSET || addr > CUR_CLR1 || ATI_DEBUG_HW_CURSOR) {
+        trace_ati_mm_write(size, addr, ati_reg_name(addr & ~3ULL), data);
+    }
+    switch (addr) {
+    case MM_INDEX:
+        s->regs.mm_index = data & ~3;
+        break;
+    case MM_DATA ... MM_DATA + 3:
+        /* indexed access to regs or memory */
+        if (s->regs.mm_index & BIT(31)) {
+            uint32_t idx = s->regs.mm_index & ~BIT(31);
+            if (idx <= s->vga.vram_size - size) {
+                stn_le_p(s->vga.vram_ptr + idx, size, data);
+            }
+        } else if (s->regs.mm_index > MM_DATA + 3) {
+            ati_reg_write(s, s->regs.mm_index + addr - MM_DATA, data, size);
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                "ati_mm_write: mm_index too small: %u\n", s->regs.mm_index);
+        }
+        break;
+    default:
+        ati_reg_write(s, addr, data, size);
         break;
     }
 }

@@ -128,6 +128,8 @@ struct ATIVGAState {
 };
 
 const char *ati_reg_name(int num);
+void ati_reg_write(ATIVGAState *s, hwaddr addr,
+                   uint64_t data, unsigned int size);
 
 void ati_2d_blt(ATIVGAState *s);
 bool ati_host_data_flush(ATIVGAState *s);
