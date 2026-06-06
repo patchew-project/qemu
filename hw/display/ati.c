@@ -1170,6 +1170,16 @@ void ati_reg_write(ATIVGAState *s, hwaddr addr,
         s->cce.microcode.addr += 1;
         break;
     }
+    /* R100: CP_CSQ_APER_PRIMARY */
+    case PM4_FIFO_DATA_EVEN:
+    case PM4_FIFO_DATA_ODD:
+        /*
+         * R128 does seem to behave differently when the even/odd
+         * sequence is not strictly adhered to but it's difficult to determine
+         * exactly what is happening. So for now we treat them the same.
+         */
+        ati_cce_receive_data(s, data);
+        break;
     default:
         break;
     }

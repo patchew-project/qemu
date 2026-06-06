@@ -38,6 +38,30 @@
 #define TYPE_ATI_VGA "ati-vga"
 OBJECT_DECLARE_SIMPLE_TYPE(ATIVGAState, ATI_VGA)
 
+#define ATI_CCE_TYPE_MASK            0xc0000000
+#define ATI_CCE_TYPE_SHIFT           30
+
+#define ATI_CCE_TYPE0                0
+#define ATI_CCE_TYPE0_BASE_REG_MASK  0x00007fff
+#define ATI_CCE_TYPE0_BASE_REG_SHIFT 0
+#define ATI_CCE_TYPE0_ONE_REG_WR     0x00008000
+#define ATI_CCE_TYPE0_COUNT_MASK     0x3fff0000
+#define ATI_CCE_TYPE0_COUNT_SHIFT    16
+
+#define ATI_CCE_TYPE1                1
+#define ATI_CCE_TYPE1_REG0_MASK      0x000007ff
+#define ATI_CCE_TYPE1_REG0_SHIFT     0
+#define ATI_CCE_TYPE1_REG1_MASK      0x003ff800
+#define ATI_CCE_TYPE1_REG1_SHIFT     11
+
+#define ATI_CCE_TYPE2                2
+
+#define ATI_CCE_TYPE3                3
+#define ATI_CCE_TYPE3_OPCODE_MASK    0x0000ff00
+#define ATI_CCE_TYPE3_OPCODE_SHIFT   8
+#define ATI_CCE_TYPE3_COUNT_MASK     0x3fff0000
+#define ATI_CCE_TYPE3_COUNT_SHIFT    16
+
 typedef struct ATIVGARegs {
     uint32_t mm_index;
     uint32_t bios_scratch[8];
@@ -105,6 +129,34 @@ typedef struct ATIHostDataState {
     uint32_t acc[4];
 } ATIHostDataState;
 
+typedef struct ATIType0Header {
+    uint32_t base_reg;
+    uint16_t count;
+    bool one_reg_wr;
+} ATIType0Header;
+
+typedef struct ATIType1Header {
+    uint32_t reg0;
+    uint32_t reg1;
+} ATIType1Header;
+
+/* Type-2 headers are a no-op and have no state */
+
+typedef struct ATIType3Header {
+    uint8_t opcode;
+    uint16_t count;
+} ATIType3Header;
+
+typedef struct ATIPacketState {
+    uint8_t type;
+    uint16_t dwords_processed;
+    union {
+        ATIType0Header t0;
+        ATIType1Header t1;
+        ATIType3Header t3;
+    };
+} ATIPacketState;
+
 typedef struct ATIMicrocodeState {
     uint8_t addr;
     uint8_t raddr;
@@ -115,6 +167,7 @@ typedef struct ATICCEState {
     ATIMicrocodeState microcode;
     /* MicroCntl */
     bool freerun;
+    ATIPacketState cur_packet;
     /* BufferCntl */
     uint32_t buffer_size_l2qw;
     bool no_update;
@@ -152,4 +205,5 @@ void ati_2d_blt(ATIVGAState *s);
 bool ati_host_data_flush(ATIVGAState *s);
 void ati_host_data_finish(ATIVGAState *s);
 
+void ati_cce_receive_data(ATIVGAState *s, uint32_t data);
 #endif /* ATI_INT_H */
