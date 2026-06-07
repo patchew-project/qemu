@@ -64,6 +64,48 @@ void xtensa_use_first_nan(CPUXtensaState *env, bool use_first)
                              &env->fp_status);
 }
 
+uint32_t cpu_get_fsr(CPUXtensaState *env)
+{
+    uint32_t flags = 0;
+    int fef = get_float_exception_flags(&env->fp_status);
+    unsigned i;
+
+    for (i = 0; i < ARRAY_SIZE(xtensa_fp_flag_map); ++i) {
+        if (fef & xtensa_fp_flag_map[i].softfloat_fp_flag) {
+            flags |= xtensa_fp_flag_map[i].xtensa_fp_flag;
+        }
+    }
+    return flags << XTENSA_FSR_FLAGS_SHIFT;
+}
+
+void cpu_set_fcr(CPUXtensaState *env, uint32_t v)
+{
+    static const FloatRoundMode rounding_mode[] = {
+        float_round_nearest_even,
+        float_round_to_zero,
+        float_round_up,
+        float_round_down,
+    };
+
+    env->uregs[FCR] = v & 0xfffff07f;
+    set_float_rounding_mode(rounding_mode[v & 3], &env->fp_status);
+}
+
+void cpu_set_fsr(CPUXtensaState *env, uint32_t v)
+{
+    uint32_t flags = v >> XTENSA_FSR_FLAGS_SHIFT;
+    int fef = 0;
+    unsigned i;
+
+    env->uregs[FSR] = v & 0x00000f80;
+    for (i = 0; i < ARRAY_SIZE(xtensa_fp_flag_map); ++i) {
+        if (flags & xtensa_fp_flag_map[i].xtensa_fp_flag) {
+            fef |= xtensa_fp_flag_map[i].softfloat_fp_flag;
+        }
+    }
+    set_float_exception_flags(fef, &env->fp_status);
+}
+
 void HELPER(wur_fpu2k_fcr)(CPUXtensaState *env, uint32_t v)
 {
     static const int rounding_mode[] = {
