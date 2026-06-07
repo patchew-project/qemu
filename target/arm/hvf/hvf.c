@@ -1485,6 +1485,10 @@ int hvf_arch_init_vcpu(CPUState *cpu)
     ret = hv_vcpu_set_sys_reg(cpu->accel->fd, HV_SYS_REG_ID_AA64PFR0_EL1, pfr);
     assert_hvf_ok(ret);
 
+    ret = hv_vcpu_set_sys_reg(cpu->accel->fd, HV_SYS_REG_ID_AA64ISAR0_EL1,
+                              GET_IDREG(&arm_cpu->isar, ID_AA64ISAR0));
+    assert_hvf_ok(ret);
+
     /* We're limited to underlying hardware caps, override internal versions */
     ret = hv_vcpu_get_sys_reg(cpu->accel->fd, HV_SYS_REG_ID_AA64MMFR0_EL1,
                               &arm_cpu->isar.idregs[ID_AA64MMFR0_EL1_IDX]);
