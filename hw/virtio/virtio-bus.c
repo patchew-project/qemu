@@ -42,6 +42,7 @@ do { printf("virtio_bus: " fmt , ## __VA_ARGS__); } while (0)
 /* A VirtIODevice is being plugged */
 void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp)
 {
+    AddressSpace *as;
     DeviceState *qdev = DEVICE(vdev);
     BusState *qbus = BUS(qdev_get_parent_bus(qdev));
     VirtioBusState *bus = VIRTIO_BUS(qbus);
@@ -99,6 +100,19 @@ void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp)
                        "iommu_platform=true is not supported by the device");
                 return;
             }
+        }
+    } else {
+        /*
+         * The maximal bounce buffer size of the virtio bus's parent may
+         * have been customized by property 'x-max-bounce-buffer-size'.
+         * Lets inherit the customized size if it's larger than the
+         * current one.
+         */
+        as = klass->get_dma_as ? klass->get_dma_as(qbus->parent) : NULL;
+        if (as) {
+            vdev->dma_as->max_bounce_buffer_size = MAX(
+                    vdev->dma_as->max_bounce_buffer_size,
+                    as->max_bounce_buffer_size);
         }
     }
 }
