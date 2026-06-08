@@ -5231,6 +5231,8 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
     bool has_backing_file;
     bool has_luks;
     bool extended_l2;
+    BlockDriverState *base_bs = NULL;
+    bool base_discard_no_unref = false;
     size_t l2e_size;
 
     /* Parse image creation options */
@@ -5311,6 +5313,21 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
             goto err;
         }
 
+        base_bs = bdrv_find_base(in_bs);
+        /*
+         * bdrv_find_base() returns in_bs itself when the image has no backing
+         * chain. Then this can stay NULL.
+         */
+        if (base_bs == in_bs) {
+            base_bs = NULL;
+        }
+        if (base_bs && base_bs->drv &&
+            !strcmp(base_bs->drv->format_name, "qcow2")) {
+            BDRVQcow2State *base_s = base_bs->opaque;
+
+            base_discard_no_unref = base_s->discard_no_unref;
+        }
+
         virtual_size = ROUND_UP(ssize, cluster_size);
 
         if (has_backing_file) {
@@ -5326,8 +5343,10 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
 
             for (offset = 0; offset < ssize; offset += pnum) {
                 int ret;
+                int retp = 0;
+                bool count = false;
 
-                ret = bdrv_block_status_above(in_bs, NULL, offset,
+                ret = bdrv_block_status_above(in_bs, base_bs, offset,
                                               ssize - offset, &pnum, NULL,
                                               NULL);
                 if (ret < 0) {
@@ -5336,15 +5355,68 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
                     goto err;
                 }
 
-                if (ret & BDRV_BLOCK_ZERO) {
+                if (ret & BDRV_BLOCK_ZERO && !base_bs &&
+                    !base_discard_no_unref) {
                     /* Skip zero regions (safe with no backing file) */
-                } else if ((ret & (BDRV_BLOCK_DATA | BDRV_BLOCK_ALLOCATED)) ==
-                           (BDRV_BLOCK_DATA | BDRV_BLOCK_ALLOCATED)) {
-                    /* Extend pnum to end of cluster for next iteration */
-                    pnum = ROUND_UP(offset + pnum, cluster_size) - offset;
+                } else {
+                    /*
+                     * If there is a base image in the chain, query its
+                     * allocation status for this region so we can decide
+                     * whether the cluster survives a commit into the base.
+                     */
+                    if (base_bs) {
+                        int64_t pnum_base = 0;
+                        retp = bdrv_block_status_above(base_bs, NULL, offset,
+                                            ssize - offset, &pnum_base, NULL,
+                                            NULL);
+                        if (retp < 0) {
+                            error_setg_errno(&local_err, -retp,
+                                    "Unable to get block status of the base");
+                            goto err;
+                        }
+                        /*
+                         * If the base contiguous block is smaller,
+                         * use that pnum, so the next iteration starts with
+                         * the smallest offset.
+                         */
+                        if (pnum_base > 0 && pnum_base < pnum) {
+                            pnum = pnum_base;
+                        }
+                    }
 
-                    /* Count clusters we've seen */
-                    required += offset % cluster_size + pnum;
+                    if ((ret & (BDRV_BLOCK_DATA | BDRV_BLOCK_ALLOCATED)) ==
+                        (BDRV_BLOCK_DATA | BDRV_BLOCK_ALLOCATED)) {
+                        /* The overlay has its own data here; it is written. */
+                        count = true;
+                    } else if (base_discard_no_unref) {
+                        /*
+                         * With discard-no-unref enabled on the base, clusters
+                         * allocated in the base keep their reference when the
+                         * overlay is committed (discarded clusters are only
+                         * marked zero), so count any cluster that has a valid
+                         * offset in the base.
+                         */
+                        count = retp & BDRV_BLOCK_OFFSET_VALID;
+                    } else {
+                        /*
+                         * Without discard-no-unref, committing the overlay
+                         * frees the base clusters that the overlay discards
+                         * (the overlay marks them zero). Every other cluster
+                         * that is allocated in the base is retained, so count
+                         * it unless the overlay zeroes it out.
+                         */
+                        count = (retp & BDRV_BLOCK_ALLOCATED) &&
+                                !((ret & BDRV_BLOCK_ALLOCATED) &&
+                                  (ret & BDRV_BLOCK_ZERO));
+                    }
+
+                    if (count) {
+                        /* Extend pnum to end of cluster for next iteration */
+                        pnum = ROUND_UP(offset + pnum, cluster_size) - offset;
+
+                        /* Count clusters we've seen */
+                        required += offset % cluster_size + pnum;
+                    }
                 }
             }
         }
