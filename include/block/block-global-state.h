@@ -110,7 +110,12 @@ bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
                     Error **errp);
 
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
-                           const char *bdref_key, Error **errp);
+                           bool open_backing, const char *bdref_key,
+                           Error **errp);
+
+int bdrv_open_backing_chain_until(BlockDriverState *top_bs,
+                                  const char *base_filename,
+                                  Error **errp);
 
 BlockDriverState * no_coroutine_fn
 bdrv_open(const char *filename, const char *reference, QDict *options,

@@ -83,6 +83,7 @@ static QLIST_HEAD(, BlockDriver) bdrv_drivers =
 static BlockDriverState *bdrv_open_inherit(const char *filename,
                                            const char *reference,
                                            QDict *options, int flags,
+                                           bool open_backing,
                                            BlockDriverState *parent,
                                            const BdrvChildClass *child_class,
                                            BdrvChildRole child_role,
@@ -3617,6 +3618,7 @@ out:
  * TODO Can this be unified with bdrv_open_image()?
  */
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
+                           bool open_backing,
                            const char *bdref_key, Error **errp)
 {
     ERRP_GUARD();
@@ -3695,9 +3697,9 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
         qdict_put_str(options, "driver", bs->backing_format);
     }
 
-    backing_hd = bdrv_open_inherit(backing_filename, reference, options, 0, bs,
-                                   &child_of_bds, bdrv_backing_role(bs), true,
-                                   errp);
+    backing_hd = bdrv_open_inherit(backing_filename, reference, options, 0,
+                                   open_backing, bs, &child_of_bds,
+                                   bdrv_backing_role(bs), true, errp);
     if (!backing_hd) {
         bs->open_flags |= BDRV_O_NO_BACKING;
         error_prepend(errp, "Could not open backing file: ");
@@ -3731,6 +3733,48 @@ free_exit:
     qobject_unref(tmp_parent_options);
     bdrv_graph_rdunlock_main_loop();
     return ret;
+}
+
+int
+bdrv_open_backing_chain_until(BlockDriverState *top_bs,
+                              const char *base_filename,
+                              Error **errp)
+{
+    BlockDriverState *base_bs = NULL;
+    BlockDriverState *curr = top_bs;
+    int ret;
+
+    GLOBAL_STATE_CODE();
+
+    if (!base_filename) {
+        return 0;
+    }
+
+    while (!(base_bs = bdrv_find_backing_image(top_bs, base_filename))) {
+        QDict *options;
+
+        options = qdict_clone_shallow(curr->options);
+        ret = bdrv_open_backing_file(curr, options, false, "backing", errp);
+        qobject_unref(options);
+        if (ret < 0) {
+            return ret;
+        }
+
+        bdrv_graph_rdlock_main_loop();
+        if (!curr->backing) {
+            bdrv_graph_rdunlock_main_loop();
+            error_setg(errp,
+                       "Did not find '%s' in the backing chain of '%s'",
+                       base_filename, top_bs->filename);
+            return -ENOENT;
+        }
+
+        /* Switch to the next layer */
+        curr = curr->backing->bs;
+        bdrv_graph_rdunlock_main_loop();
+    }
+
+    return 0;
 }
 
 static BlockDriverState *
@@ -3767,7 +3811,7 @@ bdrv_open_child_bs(const char *filename, QDict *options, const char *bdref_key,
         goto done;
     }
 
-    bs = bdrv_open_inherit(filename, reference, image_options, 0,
+    bs = bdrv_open_inherit(filename, reference, image_options, 0, true,
                            parent, child_class, child_role, parse_filename,
                            errp);
     if (!bs) {
@@ -3897,8 +3941,8 @@ BlockDriverState *bdrv_open_blockdev_ref(BlockdevRef *ref, Error **errp)
 
     }
 
-    bs = bdrv_open_inherit(NULL, reference, qdict, 0, NULL, NULL, 0, false,
-                           errp);
+    bs = bdrv_open_inherit(NULL, reference, qdict, 0, true, NULL, NULL, 0,
+                           false, errp);
     obj = NULL;
     qobject_unref(obj);
     visit_free(v);
@@ -3986,7 +4030,7 @@ out:
  */
 static BlockDriverState * no_coroutine_fn
 bdrv_open_inherit(const char *filename, const char *reference, QDict *options,
-                  int flags, BlockDriverState *parent,
+                  int flags, bool open_backing, BlockDriverState *parent,
                   const BdrvChildClass *child_class, BdrvChildRole child_role,
                   bool parse_filename, Error **errp)
 {
@@ -4199,8 +4243,9 @@ bdrv_open_inherit(const char *filename, const char *reference, QDict *options,
     }
 
     /* If there is a backing file, use it */
-    if ((flags & BDRV_O_NO_BACKING) == 0) {
-        ret = bdrv_open_backing_file(bs, options, "backing", &local_err);
+    if ((flags & BDRV_O_NO_BACKING) == 0 && open_backing) {
+        ret = bdrv_open_backing_file(bs, options, open_backing, "backing",
+                                     &local_err);
         if (ret < 0) {
             goto close_and_fail;
         }
@@ -4283,7 +4328,7 @@ BlockDriverState *bdrv_open(const char *filename, const char *reference,
 {
     GLOBAL_STATE_CODE();
 
-    return bdrv_open_inherit(filename, reference, options, flags, NULL,
+    return bdrv_open_inherit(filename, reference, options, flags, true, NULL,
                              NULL, 0, true, errp);
 }
 
