@@ -904,6 +904,13 @@ static void create_fdt_pcie(RISCVVirtState *s,
                                iommu_sys_phandle, 0, 0xffff);
     }
 
+    if (s->pci_iommu_bdf) {
+        qemu_fdt_setprop_cells(ms->fdt, name, "iommu-map",
+                               0, s->pci_iommu_phandle, 0, s->pci_iommu_bdf,
+                               s->pci_iommu_bdf + 1, s->pci_iommu_phandle,
+                               s->pci_iommu_bdf + 1, 0xffff - s->pci_iommu_bdf);
+    }
+
     create_pcie_irq_map(s, ms->fdt, name, irq_pcie_phandle);
 }
 
@@ -1117,6 +1124,7 @@ static void create_fdt_iommu(RISCVVirtState *s, uint16_t bdf)
                            0, iommu_phandle, 0, bdf,
                            bdf + 1, iommu_phandle, bdf + 1, 0xffff - bdf);
     s->pci_iommu_bdf = bdf;
+    s->pci_iommu_phandle = iommu_phandle;
 }
 
 static void finalize_fdt(RISCVVirtState *s)
