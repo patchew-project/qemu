@@ -512,12 +512,14 @@ void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr)
 static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
 {
     struct vfio_region_info *opregion = NULL;
+    struct vfio_region_info *rom = NULL;
     PCIDevice *pdev = PCI_DEVICE(vdev);
-    int ret, gen;
+    int gen;
     uint64_t gms_size = 0;
     uint64_t *bdsm_size;
     uint32_t gmch;
     bool legacy_mode_enabled = false;
+    bool has_rombar = false;
     Error *err = NULL;
 
     if (!vfio_pci_is(vdev, PCI_VENDOR_ID_INTEL, PCI_ANY_ID) ||
@@ -533,6 +535,10 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
 
     gen = igd_gen(vdev);
     gmch = vfio_pci_read_config(pdev, IGD_GMCH, 4);
+
+    has_rombar = !vfio_device_get_region_info(&vdev->vbasedev,
+                                              VFIO_PCI_ROM_REGION_INDEX,
+                                              &rom) && rom->size;
 
     /*
      * For backward compatibility, enable legacy mode when
@@ -556,8 +562,6 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
          * - OpRegion
          * - Same LPC bridge and Host bridge VID/DID/SVID/SSID as host
          */
-        struct vfio_region_info *rom = NULL;
-
         legacy_mode_enabled = true;
         info_report("IGD legacy mode enabled, "
                     "use x-igd-legacy-mode=off to disable it if unwanted.");
@@ -567,9 +571,7 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
          * there's no ROM, there's no point in setting up this quirk.
          * NB. We only seem to get BIOS ROMs, so UEFI VM would need CSM support.
          */
-        ret = vfio_device_get_region_info(&vdev->vbasedev,
-                                          VFIO_PCI_ROM_REGION_INDEX, &rom);
-        if ((ret || !rom->size) && !pdev->romfile) {
+        if (!has_rombar && !pdev->romfile) {
             error_setg(&err, "Device has no ROM");
             goto error;
         }
@@ -608,6 +610,14 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
     if ((vdev->features & VFIO_FEATURE_ENABLE_IGD_LPC) &&
         !vfio_pci_igd_setup_lpc_bridge(vdev, errp)) {
         goto error;
+    }
+
+    /*
+     * IGD are known to have bad checksums and wrong device ID in its rom,
+     * request to patch it.
+     */
+    if (has_rombar || pdev->romfile) {
+        pdev->rom_need_patch_id = true;
     }
 
     /*
