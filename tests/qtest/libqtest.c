@@ -1033,6 +1033,12 @@ const char *qtest_get_arch(void)
             g_auto(GStrv) tokens = g_strsplit_set(sysstr + strlen("-system-"),
                                                   " \t", 2);
             if (tokens && tokens[0]) {
+#ifdef __APPLE__
+                if (g_str_has_suffix(tokens[0], "-unsigned")) {
+                    tokens[0][strlen(tokens[0])
+                              - strlen("-unsigned")] = '\0';
+                }
+#endif
                 arch = g_steal_pointer(&tokens[0]);
             }
         }

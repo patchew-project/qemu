@@ -204,6 +204,8 @@ class QemuBaseTest(unittest.TestCase):
         self.qemu_bin = os.getenv('QEMU_TEST_QEMU_BINARY')
         self.assertIsNotNone(self.qemu_bin, 'QEMU_TEST_QEMU_BINARY must be set')
         self.arch = self.qemu_bin.split('-')[-1]
+        if sys.platform == 'darwin' and self.arch == "unsigned":
+            self.arch = self.qemu_bin.split('-')[-2]
         self.socketdir = None
 
         self.outputdir = self.build_file('tests', 'functional',
