@@ -1104,5 +1104,6 @@ void pci_set_power(PCIDevice *pci_dev, bool state);
 int pci_pm_init(PCIDevice *pci_dev, uint8_t offset, Error **errp);
 
 uint8_t pci_rom_calculate_checksum(const uint8_t *ptr, uint32_t size);
+void pci_rom_patch_ids(PCIDevice *pdev, uint8_t *ptr, uint32_t size);
 
 #endif

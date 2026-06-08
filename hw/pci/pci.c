@@ -2495,7 +2495,7 @@ uint8_t pci_rom_calculate_checksum(const uint8_t *ptr, uint32_t size)
 
 /* Patch the PCI vendor and device ids in a PCI rom image if necessary.
    This is needed for an option rom which is used for more than one device. */
-static void pci_patch_ids(PCIDevice *pdev, uint8_t *ptr, uint32_t size)
+void pci_rom_patch_ids(PCIDevice *pdev, uint8_t *ptr, uint32_t size)
 {
     uint16_t vendor_id;
     uint16_t device_id;
@@ -2657,7 +2657,7 @@ static void pci_add_option_rom(PCIDevice *pdev, Error **errp)
 
         if (pdev->rom_need_patch_id) {
             /* Only the default rom images will be patched (if needed). */
-            pci_patch_ids(pdev, ptr, size);
+            pci_rom_patch_ids(pdev, ptr, size);
         }
     }
 
