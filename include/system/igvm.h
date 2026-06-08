@@ -32,5 +32,7 @@ int qigvm_x86_set_vp_context(void *data, int index,
  *  IGVM parameter handlers
  */
 int qigvm_directive_madt(QIgvm *ctx, const uint8_t *header_data, Error **errp);
+int qigvm_directive_device_tree(QIgvm *ctx, const uint8_t *header_data,
+                                Error **errp);
 
 #endif

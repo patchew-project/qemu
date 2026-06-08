@@ -11,6 +11,8 @@
 
 #include "qemu/osdep.h"
 
+#include <libfdt.h>
+
 #include "cpu.h"
 #include "hw/i386/e820_memory_layout.h"
 #include "hw/i386/acpi-build.h"
@@ -209,4 +211,38 @@ int qigvm_directive_madt(QIgvm *ctx, const uint8_t *header_data, Error **errp)
 
     g_array_free(madt, true);
     return result;
+}
+
+/*
+ * Process device tree IGVM parameter
+ */
+int qigvm_directive_device_tree(QIgvm *ctx, const uint8_t *header_data,
+                                Error **errp)
+{
+    const IGVM_VHS_PARAMETER *param = (const IGVM_VHS_PARAMETER *)header_data;
+    QIgvmParameterData *param_entry;
+    uint32_t fdt_size;
+
+    /* Find the parameter area that should hold the device tree data */
+    param_entry = qigvm_find_param_entry(ctx, param->parameter_area_index);
+    if (param_entry == NULL) {
+        return 0;
+    }
+
+    if (ctx->machine_state->fdt == NULL) {
+        error_setg(errp, "IGVM: device tree not available");
+        return -1;
+    }
+
+    fdt_size = fdt_totalsize(ctx->machine_state->fdt);
+    if (fdt_size > param_entry->size) {
+        error_setg(errp,
+                   "IGVM: device tree size exceeds parameter area"
+                   " defined in IGVM file");
+        return -1;
+    }
+
+    memcpy(param_entry->data, ctx->machine_state->fdt, fdt_size);
+
+    return 0;
 }
