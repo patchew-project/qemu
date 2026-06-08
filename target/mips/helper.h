@@ -47,6 +47,7 @@ DEF_HELPER_2(octeon_cp2_mt_gfm_mul_reflect1, void, env, i64)
 DEF_HELPER_2(octeon_cp2_mt_gfm_xor0_reflect, void, env, i64)
 DEF_HELPER_2(octeon_cp2_mt_gfm_xormul1_reflect, void, env, i64)
 DEF_HELPER_2(octeon_cp2_mt_gfm_xormul1, void, env, i64)
+DEF_HELPER_1(octeon_cp2_mt_sha3_startop, void, env)
 
 /* microMIPS functions */
 DEF_HELPER_4(lwm, void, env, tl, tl, i32)
