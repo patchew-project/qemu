@@ -43,6 +43,8 @@
 
 #include "microvm-dt.h"
 
+#include <libfdt.h>
+
 static bool debug;
 
 static void dt_add_microvm_irq(MicrovmMachineState *mms,
@@ -326,6 +328,7 @@ void dt_setup_microvm(MicrovmMachineState *mms)
     X86MachineState *x86ms = X86_MACHINE(mms);
     MachineState *ms = MACHINE(mms);
     int size = 0;
+    int ret;
 
     ms->fdt = create_device_tree(&size);
 
@@ -336,6 +339,12 @@ void dt_setup_microvm(MicrovmMachineState *mms)
 
     qemu_fdt_add_subnode(ms->fdt, "/chosen");
     dt_setup_sys_bus(mms);
+
+    ret = fdt_pack(ms->fdt);
+    /* Should only fail if we've built a corrupted tree */
+    g_assert(ret == 0);
+
+    size = fdt_totalsize(ms->fdt);
 
     /* add to fw_cfg */
     if (debug) {
