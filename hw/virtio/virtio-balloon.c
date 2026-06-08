@@ -80,21 +80,15 @@ static void balloon_inflate_page(VirtIOBalloon *balloon,
                                  MemoryRegion *mr, hwaddr mr_offset,
                                  PartiallyBalloonedPage *pbp)
 {
-    void *addr = memory_region_get_ram_ptr(mr) + mr_offset;
-    ram_addr_t rb_offset, rb_aligned_offset, base_gpa;
-    RAMBlock *rb;
+    RAMBlock *rb = mr->ram_block;
+    ram_addr_t rb_aligned_offset, base_gpa;
     size_t rb_page_size;
     int subpages;
 
-    /* XXX is there a better way to get to the RAMBlock than via a
-     * host address? */
-    rb = qemu_ram_block_from_host(addr, false, &rb_offset);
     rb_page_size = qemu_ram_pagesize(rb);
 
     if (rb_page_size == BALLOON_PAGE_SIZE) {
-        /* Easy case */
-
-        ram_block_discard_range(rb, rb_offset, rb_page_size);
+        ram_block_discard_range(rb, mr_offset, rb_page_size);
         /* We ignore errors from ram_block_discard_range(), because it
          * has already reported them, and failing to discard a balloon
          * page is not fatal */
@@ -110,10 +104,9 @@ static void balloon_inflate_page(VirtIOBalloon *balloon,
     warn_report_once(
 "Balloon used with backing page size > 4kiB, this may not be reliable");
 
-    rb_aligned_offset = QEMU_ALIGN_DOWN(rb_offset, rb_page_size);
+    rb_aligned_offset = QEMU_ALIGN_DOWN(mr_offset, rb_page_size);
     subpages = rb_page_size / BALLOON_PAGE_SIZE;
-    base_gpa = memory_region_get_ram_addr(mr) + mr_offset -
-               (rb_offset - rb_aligned_offset);
+    base_gpa = memory_region_get_ram_addr(mr) + rb_aligned_offset;
 
     if (pbp->bitmap && !virtio_balloon_pbp_matches(pbp, base_gpa)) {
         /* We've partially ballooned part of a host page, but now
@@ -126,7 +119,7 @@ static void balloon_inflate_page(VirtIOBalloon *balloon,
         virtio_balloon_pbp_alloc(pbp, base_gpa, subpages);
     }
 
-    set_bit((rb_offset - rb_aligned_offset) / BALLOON_PAGE_SIZE,
+    set_bit((mr_offset - rb_aligned_offset) / BALLOON_PAGE_SIZE,
             pbp->bitmap);
 
     if (bitmap_full(pbp->bitmap, subpages)) {
@@ -144,19 +137,14 @@ static void balloon_inflate_page(VirtIOBalloon *balloon,
 static void balloon_deflate_page(VirtIOBalloon *balloon,
                                  MemoryRegion *mr, hwaddr mr_offset)
 {
-    void *addr = memory_region_get_ram_ptr(mr) + mr_offset;
-    ram_addr_t rb_offset;
-    RAMBlock *rb;
+    RAMBlock *rb = mr->ram_block;
     size_t rb_page_size;
     void *host_addr;
     int ret;
 
-    /* XXX is there a better way to get to the RAMBlock than via a
-     * host address? */
-    rb = qemu_ram_block_from_host(addr, false, &rb_offset);
     rb_page_size = qemu_ram_pagesize(rb);
-
-    host_addr = (void *)((uintptr_t)addr & ~(rb_page_size - 1));
+    host_addr = qemu_ram_get_host_addr(rb) +
+                QEMU_ALIGN_DOWN(mr_offset, rb_page_size);
 
     /* When a page is deflated, we hint the whole host page it lives
      * on, since we can't do anything smaller */
