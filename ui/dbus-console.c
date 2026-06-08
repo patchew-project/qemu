@@ -53,6 +53,7 @@ struct _DBusDisplayConsole {
     guint last_x;
     guint last_y;
     Notifier mouse_mode_notifier;
+    QEMUPutLEDEntry *kbd_leds_updated;
 };
 
 G_DEFINE_TYPE(DBusDisplayConsole,
@@ -152,6 +153,7 @@ dbus_display_console_dispose(GObject *object)
 
     qemu_console_unregister_listener(&ddc->dcl);
     qemu_remove_mouse_mode_change_notifier(&ddc->mouse_mode_notifier);
+    qemu_remove_led_event_handler(ddc->kbd_leds_updated);
     g_clear_object(&ddc->iface_touch);
     g_clear_object(&ddc->iface_mouse);
     g_clear_object(&ddc->iface_kbd);
@@ -578,7 +580,8 @@ dbus_display_console_new(DBusDisplay *display, QemuConsole *con)
 
     ddc->kbd = qkbd_state_init(con);
     ddc->iface_kbd = qemu_dbus_display1_keyboard_skeleton_new();
-    qemu_add_led_event_handler(dbus_kbd_qemu_leds_updated, ddc);
+    ddc->kbd_leds_updated = qemu_add_led_event_handler(
+        dbus_kbd_qemu_leds_updated, ddc);
     g_object_connect(ddc->iface_kbd,
         "swapped-signal::handle-press", dbus_kbd_press, ddc,
         "swapped-signal::handle-release", dbus_kbd_release, ddc,
