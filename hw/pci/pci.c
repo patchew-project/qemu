@@ -2521,6 +2521,11 @@ static void pci_patch_ids(PCIDevice *pdev, uint8_t *ptr, uint32_t size)
         return;
     }
 
+    /* OVMF won't check IDs in PCIR header, skip EFI roms */
+    if (pci_get_byte(ptr + pcir_offset + 0x14) == 0x03) {
+        return;
+    }
+
     vendor_id = pci_get_word(pdev->config + PCI_VENDOR_ID);
     device_id = pci_get_word(pdev->config + PCI_DEVICE_ID);
     rom_vendor_id = pci_get_word(ptr + pcir_offset + 4);
