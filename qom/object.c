@@ -487,6 +487,20 @@ static void object_class_property_init_all(Object *obj)
     }
 }
 
+static void object_property_init_all(Object *obj)
+{
+    GHashTableIter iter;
+    gpointer key, val;
+
+    g_hash_table_iter_init(&iter, obj->properties);
+    while (g_hash_table_iter_next(&iter, &key, &val)) {
+        ObjectProperty *prop = val;
+        if (prop->init) {
+            prop->init(obj, prop);
+        }
+    }
+}
+
 static void object_initialize_with_type(Object *obj, size_t size, TypeImpl *type)
 {
     type_initialize(type);
@@ -498,10 +512,22 @@ static void object_initialize_with_type(Object *obj, size_t size, TypeImpl *type
     memset(obj, 0, type->instance_size);
     obj->class = type->class;
     object_ref(obj);
+    /*
+     * A few steps to initialize properties for the objects:
+     *
+     * (1) apply default values from class properties when available
+     * (2) invoke instance_init(), which may add per-instance properties,
+     *     which may further contain default values
+     * (3) apply default values from instance properties when available
+     *
+     * instance_post_init() should happen at last, after the instance is
+     * fully initialized.
+     */
     object_class_property_init_all(obj);
     obj->properties = g_hash_table_new_full(g_str_hash, g_str_equal,
                                             NULL, object_property_free);
     object_init_with_type(obj, type);
+    object_property_init_all(obj);
     object_post_init_with_type(obj, type);
 }
 
