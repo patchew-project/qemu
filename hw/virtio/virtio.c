@@ -1877,6 +1877,8 @@ err_undo_map:
     goto done;
 }
 
+bool testsys_debug = false;
+
 static void *virtqueue_packed_pop(VirtQueue *vq, size_t sz)
 {
     unsigned int i, max;
@@ -1950,6 +1952,13 @@ static void *virtqueue_packed_pop(VirtQueue *vq, size_t sz)
     /* Collect all the descriptors */
     do {
         bool map_ok;
+
+        if (testsys_debug && (desc.addr & 0xff000000) == 0xff000000) {
+            testsys_debug = false;
+            printf("fault: virtqueue_packed_pop() desc.addr=0x%lx\n", desc.addr);
+            desc.addr = 0xc0000000;
+            desc.len = 1;
+        }
 
         if (desc.flags & VRING_DESC_F_WRITE) {
             map_ok = virtqueue_map_desc(vdev, &in_num, addr + out_num,
