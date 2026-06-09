@@ -635,7 +635,7 @@ void aarch64_cpu_pauth_finalize(ARMCPU *cpu, Error **errp)
 }
 
 static const Property arm_cpu_pauth_property =
-    DEFINE_PROP_BOOL("pauth", ARMCPU, prop_pauth, true);
+    DEFINE_PROP_BOOL_NODEFAULT("pauth", ARMCPU, prop_pauth);
 static const Property arm_cpu_pauth_impdef_property =
     DEFINE_PROP_BOOL("pauth-impdef", ARMCPU, prop_pauth_impdef, false);
 static const Property arm_cpu_pauth_qarma3_property =
@@ -660,6 +660,7 @@ void aarch64_add_pauth_properties(Object *obj)
          */
         cpu->prop_pauth = cpu_isar_feature(aa64_pauth, cpu);
     } else {
+        cpu->prop_pauth = true;
         qdev_property_add_static(DEVICE(obj), &arm_cpu_pauth_impdef_property);
         qdev_property_add_static(DEVICE(obj), &arm_cpu_pauth_qarma3_property);
         qdev_property_add_static(DEVICE(obj), &arm_cpu_pauth_qarma5_property);
