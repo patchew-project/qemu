@@ -325,3 +325,70 @@ object_property_add_size_ptr(Object *obj, const char *name,
     return object_property_add(obj, name, "size",
                                getter, setter, NULL, (void *)v);
 }
+
+void
+object_property_add_bool_ptr_def(Object *obj, const char *name,
+                                 const bool *v, bool def)
+{
+    ObjectProperty *prop;
+
+    prop = object_property_add_bool_ptr(obj, name, v,
+                                        OBJ_PROP_FLAG_READWRITE);
+    object_property_set_default_bool(prop, def);
+}
+
+
+void
+object_property_add_uint8_ptr_def(Object *obj, const char *name,
+                                  const uint8_t *v, uint8_t def)
+{
+    ObjectProperty *prop;
+
+    prop = object_property_add_uint8_ptr(obj, name, v,
+                                         OBJ_PROP_FLAG_READWRITE);
+    object_property_set_default_uint(prop, def);
+}
+
+void
+object_property_add_uint16_ptr_def(Object *obj, const char *name,
+                                   const uint16_t *v, uint16_t def)
+{
+    ObjectProperty *prop;
+
+    prop = object_property_add_uint16_ptr(obj, name, v,
+                                          OBJ_PROP_FLAG_READWRITE);
+    object_property_set_default_uint(prop, def);
+}
+
+void
+object_property_add_uint32_ptr_def(Object *obj, const char *name,
+                                   const uint32_t *v, uint32_t def)
+{
+    ObjectProperty *prop;
+
+    prop = object_property_add_uint32_ptr(obj, name, v,
+                                          OBJ_PROP_FLAG_READWRITE);
+    object_property_set_default_uint(prop, def);
+}
+
+void
+object_property_add_uint64_ptr_def(Object *obj, const char *name,
+                                   const uint64_t *v, uint64_t def)
+{
+    ObjectProperty *prop;
+
+    prop = object_property_add_uint64_ptr(obj, name, v,
+                                          OBJ_PROP_FLAG_READWRITE);
+    object_property_set_default_uint(prop, def);
+}
+
+void
+object_property_add_size_ptr_def(Object *obj, const char *name,
+                                 const uint64_t *v, uint64_t def)
+{
+    ObjectProperty *prop;
+
+    prop = object_property_add_size_ptr(obj, name, v,
+                                        OBJ_PROP_FLAG_READWRITE);
+    object_property_set_default_uint(prop, def);
+}

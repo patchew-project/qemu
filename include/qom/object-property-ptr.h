@@ -131,4 +131,32 @@ object_property_add_size_ptr(Object *obj, const char *name,
                              const uint64_t *v,
                              ObjectPropertyFlags flags);
 
+/*
+ * Below are sister helpers of above, except that:
+ *
+ * (1) nothing is returned
+ * (2) always make the property to be both readable and writeable
+ * (3) allow setting default value
+ *
+ * Please refer to the sister functions for the documentation.
+ */
+void
+object_property_add_bool_ptr_def(Object *obj, const char *name,
+                                 const bool *v, bool def);
+void
+object_property_add_uint8_ptr_def(Object *obj, const char *name,
+                                  const uint8_t *v, uint8_t def);
+void
+object_property_add_uint16_ptr_def(Object *obj, const char *name,
+                                   const uint16_t *v, uint16_t def);
+void
+object_property_add_uint32_ptr_def(Object *obj, const char *name,
+                                   const uint32_t *v, uint32_t def);
+void
+object_property_add_uint64_ptr_def(Object *obj, const char *name,
+                                   const uint64_t *v, uint64_t def);
+void
+object_property_add_size_ptr_def(Object *obj, const char *name,
+                                 const uint64_t *v, uint64_t def);
+
 #endif
