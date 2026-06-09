@@ -3799,6 +3799,11 @@ static void do_hcr_write(CPUARMState *env, uint64_t value, uint64_t valid_mask)
         (HCR_VM | HCR_PTW | HCR_DC | HCR_DCT | HCR_FWB | HCR_NV | HCR_NV1)) {
         tlb_flush(CPU(cpu));
     }
+#ifndef CONFIG_USER_ONLY
+    if ((env->cp15.hcr_el2 ^ value) & (HCR_E2H | HCR_TGE)) {
+        gt_recalc_timer(cpu, GTIMER_PHYS);
+    }
+#endif
     env->cp15.hcr_el2 = value;
 
     /*
