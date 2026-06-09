@@ -321,4 +321,6 @@ void qdev_prop_allow_set_link_before_realize(const Object *obj,
                                              const char *name,
                                              Object *val, Error **errp);
 
+GPtrArray *global_props(void);
+
 #endif

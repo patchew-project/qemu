@@ -20,7 +20,7 @@
 
 use chardev_sys::Chardev;
 use common::Zeroable;
-use glib_sys::GSList;
+use glib_sys::{GPtrArray, GSList};
 use migration_sys::VMStateDescription;
 use qom_sys::{
     InterfaceClass, Object, ObjectClass, ObjectProperty, ObjectPropertyAccessor,

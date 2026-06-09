@@ -958,7 +958,7 @@ void qlist_append_link(QList *qlist, Object *obj)
     qlist_append_str(qlist, path);
 }
 
-static GPtrArray *global_props(void)
+GPtrArray *global_props(void)
 {
     static GPtrArray *gp;
 
