@@ -16,6 +16,10 @@ tcg_tests = {}
 #           'cflags': ['cflags to compile test', ...],
 #           'qemu_args': ['qemu command line flags', ...],
 #           'env_var': ['VAR=value', ...],
+#           'plugin_test': {
+#             'plugin': 'plugin_name',
+#             'args': ['plugin_args', ...],
+#           },
 #         }
 #       },
 #       ...
@@ -57,11 +61,24 @@ foreach target, plan: tcg_tests
       # return a clear error if user mispell a setup entry
       foreach key, _ : setup
         if key not in ['cflags', 'qemu_args',
-                       'exe_name', 'test_name', 'env_var',
+                       'exe_name', 'test_name', 'env_var', 'plugin_test',
                        ]
           error('unknown tcg setup entry \'' + key + '\' for test ' + src)
         endif
       endforeach
+
+      # return a clear error if user mispell a plugin entry
+      if 'plugin_test' in setup
+        foreach key, _ : setup['plugin_test']
+          if key not in ['plugin', 'args']
+            error('unknown tcg plugin entry \'' + key + '\' for test ' + src)
+          endif
+        endforeach
+      endif
+
+      if 'plugin_test' in setup and not get_option('plugins')
+        continue
+      endif
 
       # meson '/' operator drops left operand if right is an absolute path
       src = folder / src
@@ -75,6 +92,12 @@ foreach target, plan: tcg_tests
       test_name = exe_name
       if 'test_name' in setup
         test_name = setup['test_name']
+      endif
+      if 'plugin_test' in setup
+        # remove lib prefix
+        plugin = test_plugins[setup['plugin_test']['plugin']]
+        plugin_name = fs.stem(plugin).substring(3)
+        test_name = 'plugin-' + plugin_name + '-with-' + test_name
       endif
 
       exe_name = target + '-' + exe_name
@@ -114,6 +137,21 @@ foreach target, plan: tcg_tests
       qemu_args = []
       if 'qemu_args' in setup
         qemu_args = setup['qemu_args']
+      endif
+
+      if 'plugin_test' in setup
+        plugin_setup = setup['plugin_test']
+        plugin = test_plugins[plugin_setup['plugin']]
+        plugin_args = []
+        if 'args' in plugin_setup
+          # add empty arg to generate an additional comma
+          plugin_args = ['', plugin_setup['args']]
+        endif
+        plugin_args = ','.join(plugin_args)
+
+        # since we turn plugin into a string, add dependency explicitly
+        depends += plugin
+        qemu_args = ['-plugin', plugin.full_path() + plugin_args, qemu_args]
       endif
 
       exe = built_tests[exe_name]
