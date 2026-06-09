@@ -114,6 +114,8 @@ void hmp_info_name(Monitor *mon, const QDict *qdict)
     qapi_free_NameInfo(info);
 }
 
+extern bool testsys_debug;
+
 void hmp_info_version(Monitor *mon, const QDict *qdict)
 {
     VersionInfo *info;
@@ -125,6 +127,9 @@ void hmp_info_version(Monitor *mon, const QDict *qdict)
                    info->package);
 
     qapi_free_VersionInfo(info);
+
+    printf("fault: enable one-time debug\n");
+    testsys_debug = true;
 }
 
 void hmp_quit(Monitor *mon, const QDict *qdict)
