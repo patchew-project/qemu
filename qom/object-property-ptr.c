@@ -107,6 +107,26 @@ static void property_set_uint64_ptr(Object *obj, Visitor *v, const char *name,
     *field = value;
 }
 
+static void property_get_size_ptr(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
+{
+    uint64_t value = *(uint64_t *)opaque;
+    visit_type_size(v, name, &value, errp);
+}
+
+static void property_set_size_ptr(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
+{
+    uint64_t *field = opaque;
+    uint64_t value;
+
+    if (!visit_type_size(v, name, &value, errp)) {
+        return;
+    }
+
+    *field = value;
+}
+
 ObjectProperty *
 object_property_add_bool_ptr(Object *obj, const char *name,
                              const bool *v, ObjectPropertyFlags flags)
@@ -284,4 +304,24 @@ object_class_property_add_uint64_ptr(ObjectClass *klass, const char *name,
 
     return object_class_property_add(klass, name, "uint64",
                                      getter, setter, NULL, (void *)v);
+}
+
+ObjectProperty *
+object_property_add_size_ptr(Object *obj, const char *name,
+                             const uint64_t *v,
+                             ObjectPropertyFlags flags)
+{
+    ObjectPropertyAccessor *getter = NULL;
+    ObjectPropertyAccessor *setter = NULL;
+
+    if ((flags & OBJ_PROP_FLAG_READ) == OBJ_PROP_FLAG_READ) {
+        getter = property_get_size_ptr;
+    }
+
+    if ((flags & OBJ_PROP_FLAG_WRITE) == OBJ_PROP_FLAG_WRITE) {
+        setter = property_set_size_ptr;
+    }
+
+    return object_property_add(obj, name, "size",
+                               getter, setter, NULL, (void *)v);
 }

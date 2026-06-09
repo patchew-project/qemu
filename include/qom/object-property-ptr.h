@@ -115,4 +115,20 @@ ObjectProperty *object_class_property_add_uint64_ptr(ObjectClass *klass,
                                           const uint64_t *v,
                                           ObjectPropertyFlags flags);
 
+/**
+ * object_property_add_size_ptr:
+ * @obj: the object to add a property to
+ * @name: the name of the property
+ * @v: pointer to value
+ * @flags: bitwise-or'd ObjectPropertyFlags
+ *
+ * Add a property of type 'size' to the object.
+ *
+ * Returns: The newly added property on success, or %NULL on failure.
+ */
+ObjectProperty *
+object_property_add_size_ptr(Object *obj, const char *name,
+                             const uint64_t *v,
+                             ObjectPropertyFlags flags);
+
 #endif
