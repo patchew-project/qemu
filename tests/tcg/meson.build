@@ -15,6 +15,7 @@ tcg_tests = {}
 #           'test_name': ['provide an alternative test name'],
 #           'cflags': ['cflags to compile test', ...],
 #           'qemu_args': ['qemu command line flags', ...],
+#           'env_var': ['VAR=value', ...],
 #         }
 #       },
 #       ...
@@ -55,7 +56,7 @@ foreach target, plan: tcg_tests
       # return a clear error if user mispell a setup entry
       foreach key, _ : setup
         if key not in ['cflags', 'qemu_args',
-                       'exe_name', 'test_name',
+                       'exe_name', 'test_name', 'env_var',
                        ]
           error('unknown tcg setup entry \'' + key + '\' for test ' + src)
         endif
@@ -119,6 +120,10 @@ foreach target, plan: tcg_tests
 
       # some tests expect QEMU env var to be set
       cmd = ['QEMU=' + qemu.full_path(), cmd]
+
+      if 'env_var' in setup
+        cmd = [setup['env_var'], cmd]
+      endif
 
       test(test_name, env, args: cmd,
            depends: depends,
