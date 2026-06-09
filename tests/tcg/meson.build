@@ -7,6 +7,7 @@ if config_host.has_key('GDB')
 endif
 gdb = find_program(gdb_progs, required: false)
 prog_gdb_test = find_program('../guest-debug/run-test.py')
+prog_run_and_diff = find_program('./scripts/run_and_diff.sh')
 
 tcg_tests = {}
 # tcg_tests is a dictionary with following structure:
@@ -24,6 +25,7 @@ tcg_tests = {}
 #           'test_name': ['provide an alternative test name'],
 #           'cflags': ['cflags to compile test', ...],
 #           'qemu_args': ['qemu command line flags', ...],
+#           'expected_output': 'file_to_compare_output',
 #           'gdb_test': ['gdb test args'],
 #           'env_var': ['VAR=value', ...],
 #           'wrapper': [program_to_launch_test, 'args'...],
@@ -84,7 +86,7 @@ foreach target, plan: tcg_tests
     foreach src, setup: t
       # return a clear error if user mispell a setup entry
       foreach key, _ : setup
-        if key not in ['cflags', 'qemu_args', 'gdb_test',
+        if key not in ['cflags', 'qemu_args', 'expected_output', 'gdb_test',
                        'exe_name', 'test_name', 'env_var', 'plugin_test',
                        'wrapper']
           error('unknown tcg setup entry \'' + key + '\' for test ' + src)
@@ -195,6 +197,11 @@ foreach target, plan: tcg_tests
                '--bin', exe,
                setup['gdb_test'],
               ]
+      endif
+
+      if 'expected_output' in setup
+        expected = files(folder / setup['expected_output'])
+        cmd = [prog_run_and_diff, expected, cmd]
       endif
 
       if 'wrapper' in setup
