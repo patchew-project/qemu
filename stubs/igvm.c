@@ -17,15 +17,18 @@ int qigvm_x86_get_mem_map_entry(int index,
                                 ConfidentialGuestMemoryMapEntry *entry,
                                 Error **errp)
 {
+    error_setg(errp, "IGVM not supported on this platform");
     return -1;
 }
 
 int qigvm_x86_set_vp_context(void *data, int index, Error **errp)
 {
+    error_setg(errp, "IGVM not supported on this platform");
     return -1;
 }
 
 int qigvm_directive_madt(QIgvm *ctx, const uint8_t *header_data, Error **errp)
 {
+    error_setg(errp, "IGVM not supported on this platform");
     return -1;
 }
