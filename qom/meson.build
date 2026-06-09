@@ -3,6 +3,7 @@ qom_ss.add(files(
   'container.c',
   'object.c',
   'object_interfaces.c',
+  'object-property-ptr.c',
   'qom-qobject.c',
 ))
 if have_system
