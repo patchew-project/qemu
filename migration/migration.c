@@ -3964,15 +3964,6 @@ fail:
     }
 }
 
-static void migration_class_init(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->user_creatable = false;
-    device_class_set_props_n(dc, migration_properties,
-                             migration_properties_count);
-}
-
 static void migration_instance_finalize(Object *obj)
 {
     MigrationState *ms = MIGRATION(obj);
@@ -4001,7 +3992,7 @@ static void migration_instance_init(Object *obj)
     qemu_event_init(&ms->pause_event, false);
     qemu_mutex_init(&ms->error_mutex);
 
-    migrate_params_init(&ms->parameters);
+    migrate_params_init(ms);
 
     qemu_sem_init(&ms->postcopy_pause_sem, 0);
     qemu_sem_init(&ms->rp_state.rp_sem, 0);
@@ -4028,20 +4019,26 @@ static bool migration_object_check(MigrationState *ms, Error **errp)
     return migrate_caps_check(old_caps, ms->capabilities, errp);
 }
 
+static void migration_instance_post_init(Object *obj)
+{
+    /*
+     * Apply these properties on top of default values:
+     *
+     * (1) machine compat properties
+     * (2) -global settings in cmdlines
+     *
+     * Need to be applied in order so (2) takes precedence over (1).
+     */
+    object_apply_compat_props(obj);
+    object_apply_global_props(obj, global_props(), &error_fatal);
+}
+
 static const TypeInfo migration_type = {
     .name = TYPE_MIGRATION,
-    /*
-     * NOTE: TYPE_MIGRATION is not really a device, as the object is
-     * not created using qdev_new(), it is not attached to the qdev
-     * device tree, and it is never realized.
-     *
-     * TODO: Make this TYPE_OBJECT once QOM provides something like
-     * TYPE_DEVICE's "-global" properties.
-     */
-    .parent = TYPE_DEVICE,
-    .class_init = migration_class_init,
+    .parent = TYPE_OBJECT,
     .instance_size = sizeof(MigrationState),
     .instance_init = migration_instance_init,
+    .instance_post_init = migration_instance_post_init,
     .instance_finalize = migration_instance_finalize,
 };
 

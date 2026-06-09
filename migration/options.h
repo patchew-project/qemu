@@ -18,11 +18,6 @@
 #include "hw/core/qdev-properties-system.h"
 #include "migration/client-options.h"
 
-/* migration properties */
-
-extern const Property migration_properties[];
-extern const size_t migration_properties_count;
-
 /* capabilities */
 
 bool migrate_auto_converge(void);
@@ -92,6 +87,7 @@ uint64_t migrate_rdma_chunk_size(void);
 /* parameters helpers */
 
 bool migrate_params_check(MigrationParameters *params, Error **errp);
-void migrate_params_init(MigrationParameters *params);
+void migrate_params_init(MigrationState *s);
 void migrate_tls_opts_free(MigrationParameters *params);
+
 #endif
