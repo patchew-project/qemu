@@ -7,6 +7,26 @@
 #include "qom/object.h"
 #include "qapi/visitor.h"
 
+static void property_get_bool_ptr(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
+{
+    bool value = *(bool *)opaque;
+    visit_type_bool(v, name, &value, errp);
+}
+
+static void property_set_bool_ptr(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
+{
+    bool *field = opaque;
+    bool value;
+
+    if (!visit_type_bool(v, name, &value, errp)) {
+        return;
+    }
+
+    *field = value;
+}
+
 static void property_get_uint8_ptr(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
@@ -85,6 +105,25 @@ static void property_set_uint64_ptr(Object *obj, Visitor *v, const char *name,
     }
 
     *field = value;
+}
+
+ObjectProperty *
+object_property_add_bool_ptr(Object *obj, const char *name,
+                             const bool *v, ObjectPropertyFlags flags)
+{
+    ObjectPropertyAccessor *getter = NULL;
+    ObjectPropertyAccessor *setter = NULL;
+
+    if ((flags & OBJ_PROP_FLAG_READ) == OBJ_PROP_FLAG_READ) {
+        getter = property_get_bool_ptr;
+    }
+
+    if ((flags & OBJ_PROP_FLAG_WRITE) == OBJ_PROP_FLAG_WRITE) {
+        setter = property_set_bool_ptr;
+    }
+
+    return object_property_add(obj, name, "bool",
+                               getter, setter, NULL, (void *)v);
 }
 
 ObjectProperty *

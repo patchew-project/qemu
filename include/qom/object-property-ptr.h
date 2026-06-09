@@ -17,6 +17,21 @@ typedef enum {
 } ObjectPropertyFlags;
 
 /**
+ * object_property_add_bool_ptr:
+ * @obj: the object to add a property to
+ * @name: the name of the property
+ * @v: pointer to value
+ * @flags: bitwise-or'd ObjectPropertyFlags
+ *
+ * Add a property of type 'bool' to the object.
+ *
+ * Returns: The newly added property on success, or %NULL on failure.
+ */
+ObjectProperty *
+object_property_add_bool_ptr(Object *obj, const char *name, const bool *v,
+                             ObjectPropertyFlags flags);
+
+/**
  * object_property_add_uint8_ptr:
  * @obj: the object to add a property to
  * @name: the name of the property
