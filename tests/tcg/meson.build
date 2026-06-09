@@ -70,6 +70,42 @@ subdir('plugins')
 # multiarch comes second, so it can be referenced by other arch after
 subdir('multiarch')
 
+# Generic Plugin tests - add plugin for every user/system multiarch test
+plugin_tests_exclude = ['patch']
+foreach target: ['multiarch-linux-user', 'multiarch-softmmu']
+  plugin_tests = []
+  tests = tcg_tests[target]['tests']
+
+  foreach plugin_name, _: test_plugins
+    if plugin_name in plugin_tests_exclude
+      continue
+    endif
+
+    foreach t: tests
+      foreach src, setup: t
+        if 'plugin_test' in setup or 'gdb_test' in setup
+          continue
+        endif
+
+        # copy existing setup and remove existing cflags
+        new_setup = {}
+        foreach key, val: setup
+          if key == 'cflags'
+            continue
+          endif
+          new_setup += {key: val}
+        endforeach
+
+        new_setup += {'plugin_test': {'plugin': plugin_name}}
+        plugin_tests += {src: new_setup}
+      endforeach
+    endforeach
+  endforeach
+
+  # replace list of tests with old and new ones
+  tcg_tests += {target: {'tests': tests + plugin_tests}}
+endforeach
+
 # Now let's go through all architectures
 subdir('aarch64')
 
