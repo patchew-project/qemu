@@ -104,7 +104,12 @@ void pmbus_send_string(PMBusDevice *pmdev, const char *data)
     }
 
     size_t len = strlen(data);
-    g_assert(len + pmdev->out_buf_len < SMBUS_DATA_MAX_LEN);
+    if (len + pmdev->out_buf_len >= SMBUS_DATA_MAX_LEN) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: requested too much data from PMBus device\n",
+                      __func__);
+        return;
+    }
     pmdev->out_buf[len + pmdev->out_buf_len] = len;
 
     for (int i = len - 1; i >= 0; i--) {
