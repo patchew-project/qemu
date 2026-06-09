@@ -43,6 +43,8 @@ foreach feat, min_ver : gdb_feat_version
   endif
 endforeach
 
+subdir('system')
+
 if 'qemu-aarch64' not in emulators
   subdir_done()
 endif
