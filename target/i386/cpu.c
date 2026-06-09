@@ -427,7 +427,14 @@ static void encode_topo_cpuid1f(CPUX86State *env, uint32_t count,
     unsigned long level, base_level, next_level;
     uint32_t num_threads_next_level, offset_next_level;
 
-    assert(count <= CPU_TOPOLOGY_LEVEL_SOCKET);
+    /* Out-of-range subleaf: SDM mandates the invalid encoding, no fault. */
+    if (count > CPU_TOPOLOGY_LEVEL_SOCKET) {
+        *eax = 0;
+        *ebx = 0;
+        *ecx = count & 0xff;
+        *edx = cpu->apic_id;
+        return;
+    }
 
     /*
      * Find the No.(count + 1) topology level in avail_cpu_topo bitmap.
