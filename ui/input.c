@@ -14,6 +14,7 @@ struct QemuInputHandlerState {
     int               id;
     int               events;
     QemuConsole       *con;
+    int               ledstate;
     QTAILQ_ENTRY(QemuInputHandlerState) node;
 };
 
@@ -38,12 +39,22 @@ static QTAILQ_HEAD(, QemuInputHandlerState) handlers =
     QTAILQ_HEAD_INITIALIZER(handlers);
 static NotifierList mouse_mode_notifiers =
     NOTIFIER_LIST_INITIALIZER(mouse_mode_notifiers);
+static NotifierList led_notifiers =
+    NOTIFIER_LIST_INITIALIZER(led_notifiers);
 
 static QemuInputEventQueueHead kbd_queue = QTAILQ_HEAD_INITIALIZER(kbd_queue);
 static QEMUTimer *kbd_timer;
 static uint32_t kbd_default_delay_ms = 10;
 static uint32_t queue_count;
 static uint32_t queue_limit = 1024;
+
+static void notify_input_changed(uint32_t mask)
+{
+    notifier_list_notify(&mouse_mode_notifiers, NULL);
+    if (mask & INPUT_EVENT_MASK_KEY) {
+        notifier_list_notify(&led_notifiers, NULL);
+    }
+}
 
 QemuInputHandlerState *qemu_input_handler_register(DeviceState *dev,
                                             const QemuInputHandler *handler)
@@ -55,8 +66,8 @@ QemuInputHandlerState *qemu_input_handler_register(DeviceState *dev,
     s->handler = handler;
     s->id = id++;
     QTAILQ_INSERT_TAIL(&handlers, s, node);
+    notify_input_changed(handler->mask);
 
-    notifier_list_notify(&mouse_mode_notifiers, NULL);
     return s;
 }
 
@@ -64,21 +75,23 @@ void qemu_input_handler_activate(QemuInputHandlerState *s)
 {
     QTAILQ_REMOVE(&handlers, s, node);
     QTAILQ_INSERT_HEAD(&handlers, s, node);
-    notifier_list_notify(&mouse_mode_notifiers, NULL);
+    notify_input_changed(s->handler->mask);
 }
 
 void qemu_input_handler_deactivate(QemuInputHandlerState *s)
 {
     QTAILQ_REMOVE(&handlers, s, node);
     QTAILQ_INSERT_TAIL(&handlers, s, node);
-    notifier_list_notify(&mouse_mode_notifiers, NULL);
+    notify_input_changed(s->handler->mask);
 }
 
 void qemu_input_handler_unregister(QemuInputHandlerState *s)
 {
+    uint32_t mask = s->handler->mask;
+
     QTAILQ_REMOVE(&handlers, s, node);
     g_free(s);
-    notifier_list_notify(&mouse_mode_notifiers, NULL);
+    notify_input_changed(mask);
 }
 
 void qemu_input_handler_bind(QemuInputHandlerState *s,
@@ -120,6 +133,23 @@ qemu_input_find_handler(uint32_t mask, QemuConsole *con)
         }
     }
     return NULL;
+}
+
+void qemu_input_handler_set_led(QemuInputHandlerState *s, int ledstate)
+{
+    assert(s->handler->mask & INPUT_EVENT_MASK_KEY);
+    s->ledstate = ledstate;
+    notifier_list_notify(&led_notifiers, NULL);
+}
+
+void qemu_input_led_notifier_add(Notifier *n)
+{
+    notifier_list_add(&led_notifiers, n);
+}
+
+void qemu_input_led_notifier_remove(Notifier *n)
+{
+    notifier_remove(n);
 }
 
 void qmp_input_send_event(const char *device,
@@ -443,6 +473,17 @@ bool qemu_input_is_absolute(QemuConsole *con)
     s = qemu_input_find_handler(INPUT_EVENT_MASK_REL | INPUT_EVENT_MASK_ABS,
                                 con);
     return (s != NULL) && (s->handler->mask & INPUT_EVENT_MASK_ABS);
+}
+
+int qemu_input_get_led(QemuConsole *con)
+{
+    QemuInputHandlerState *s;
+
+    s = qemu_input_find_handler(INPUT_EVENT_MASK_KEY, con);
+    if (s) {
+        return s->ledstate;
+    }
+    return 0;
 }
 
 int qemu_input_scale_axis(int value,
