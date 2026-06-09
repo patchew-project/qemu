@@ -68,6 +68,9 @@ endif
 test_plugins = {}
 subdir('plugins')
 
+# Now let's go through all architectures
+subdir('aarch64')
+
 # Finally, we can create all test executables and test targets
 foreach target, plan: tcg_tests
   # Detect duplicated executables/tests, and report an error to force user to
