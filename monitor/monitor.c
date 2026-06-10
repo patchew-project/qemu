@@ -559,11 +559,7 @@ static void monitor_accept_input(void *opaque)
     Monitor *mon = opaque;
     MonitorClass *cls = MONITOR_GET_CLASS(mon);
 
-    if (cls->accept_input) {
-        cls->accept_input(mon);
-    }
-
-    qemu_chr_fe_accept_input(&mon->chr);
+    cls->accept_input(mon);
 }
 
 void monitor_resume(Monitor *mon)
