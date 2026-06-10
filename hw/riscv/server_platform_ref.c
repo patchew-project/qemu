@@ -14,6 +14,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-visit-common.h"
 #include "hw/core/boards.h"
+#include "hw/core/platform-bus.h"
 #include "hw/core/loader.h"
 #include "hw/core/sysbus.h"
 #include "hw/core/qdev-properties.h"
@@ -39,6 +40,7 @@
 #include "system/runstate.h"
 #include "system/system.h"
 #include "system/tcg.h"
+#include "system/tpm.h"
 #include "system/qtest.h"
 #include "target/riscv/cpu.h"
 #include "target/riscv/pmu.h"
@@ -72,6 +74,8 @@
 #define SYSCON_RESET     0x1
 #define SYSCON_POWEROFF  0x2
 
+#define RVSERVER_PLATFORM_BUS_NUM_IRQS 8
+
 #define TYPE_RISCV_SERVER_REF_MACHINE MACHINE_TYPE_NAME("riscv-server-ref")
 OBJECT_DECLARE_SIMPLE_TYPE(RISCVServerRefMachineState, RISCV_SERVER_REF_MACHINE)
 
@@ -88,6 +92,8 @@ struct RISCVServerRefMachineState {
     int fdt_size;
     int aia_guests;
     const MemMapEntry *memmap;
+
+    DeviceState *platform_bus_dev;
 };
 
 enum {
@@ -106,6 +112,7 @@ enum {
     RVSERVER_DRAM,
     RVSERVER_PCIE_MMIO,
     RVSERVER_PCIE_PIO,
+    RVSERVER_PLATFORM_BUS,
     RVSERVER_PCIE_ECAM,
     RVSERVER_PCIE_MMIO_HIGH
 };
@@ -114,7 +121,8 @@ enum {
     RVSERVER_UART0_IRQ = 10,
     RVSERVER_RTC_IRQ = 11,
     RVSERVER_PCIE_IRQ = 0x20, /* 32 to 35 */
-    IOMMU_SYS_IRQ = 0x24 /* 36 to 39 */
+    IOMMU_SYS_IRQ = 0x24, /* 36 to 39 */
+    RVSERVER_PLATFORM_BUS_IRQ = 40, /* 40 to 48 */
 };
 
 /*
@@ -147,6 +155,7 @@ static const MemMapEntry rvserver_ref_memmap[] = {
     [RVSERVER_IOMMU_SYS] =      {   0x102000,        0x1000 },
     [RVSERVER_ACLINT] =         {  0x2000000,       0x10000 },
     [RVSERVER_PCIE_PIO] =       {  0x3000000,       0x10000 },
+    [RVSERVER_PLATFORM_BUS] =   {  0x4000000,     0x2000000 },
     [RVSERVER_APLIC_M] =        {  0xc000000, APLIC_SIZE(RVSERVER_CPUS_MAX) },
     [RVSERVER_APLIC_S] =        {  0xd000000, APLIC_SIZE(RVSERVER_CPUS_MAX) },
     [RVSERVER_UART0] =          { 0x10000000,         0x100 },
@@ -212,6 +221,34 @@ static void rvserver_flash_maps(RISCVServerRefMachineState *s,
 
     rvserver_flash_map(s->flash[0], flashbase, flashsize, sysmem);
     rvserver_flash_map(s->flash[1], flashbase + flashsize, flashsize, sysmem);
+}
+
+static void create_platform_bus(RISCVServerRefMachineState *s,
+                                DeviceState *irqchip)
+{
+    DeviceState *dev;
+    SysBusDevice *sysbus;
+    int i;
+    MemoryRegion *sysmem = get_system_memory();
+
+    dev = qdev_new(TYPE_PLATFORM_BUS_DEVICE);
+    dev->id = g_strdup(TYPE_PLATFORM_BUS_DEVICE);
+    qdev_prop_set_uint32(dev, "num_irqs", RVSERVER_PLATFORM_BUS_NUM_IRQS);
+    qdev_prop_set_uint32(dev, "mmio_size",
+                         s->memmap[RVSERVER_PLATFORM_BUS].size);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    s->platform_bus_dev = dev;
+
+    sysbus = SYS_BUS_DEVICE(dev);
+    for (i = 0; i < RVSERVER_PLATFORM_BUS_NUM_IRQS; i++) {
+        int irq = RVSERVER_PLATFORM_BUS_IRQ + i;
+        sysbus_connect_irq(sysbus, i, qdev_get_gpio_in(irqchip, irq));
+    }
+
+    memory_region_add_subregion(sysmem,
+                                s->memmap[RVSERVER_PLATFORM_BUS].base,
+                                sysbus_mmio_get_region(sysbus, 0));
 }
 
 static void create_pcie_irq_map(RISCVServerRefMachineState *s,
@@ -584,6 +621,16 @@ static void create_fdt_socket_aplic(RISCVServerRefMachineState *s,
                          msi_s_phandle, intc_phandles,
                          aplic_s_phandle, 0,
                          false, num_harts);
+
+    if (socket == 0) {
+        g_autofree char *aplic_name = fdt_get_aplic_nodename(aplic_addr);
+        MachineState *ms = MACHINE(s);
+
+        platform_bus_add_all_fdt_nodes(ms->fdt, aplic_name,
+                                       s->memmap[RVSERVER_PLATFORM_BUS].base,
+                                       s->memmap[RVSERVER_PLATFORM_BUS].size,
+                                       RVSERVER_PLATFORM_BUS_IRQ);
+    }
 
     aplic_phandles[socket] = aplic_s_phandle;
 }
@@ -1265,6 +1312,8 @@ static void rvserver_ref_machine_init(MachineState *machine)
 
     gpex_pcie_init(system_memory, pcie_irqchip, s);
 
+    create_platform_bus(s, mmio_irqchip);
+
     serial_mm_init(system_memory, memmap[RVSERVER_UART0].base,
         0, qdev_get_gpio_in(mmio_irqchip, RVSERVER_UART0_IRQ), 399193,
         serial_hd(0), DEVICE_LITTLE_ENDIAN);
@@ -1341,10 +1390,38 @@ static void rvserver_ref_set_aia_guests(Object *obj, const char *val,
     }
 }
 
+static HotplugHandler *rvserver_machine_get_hotplug_handler(MachineState *ms,
+                                                            DeviceState *dev)
+{
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+
+    if (device_is_dynamic_sysbus(mc, dev)) {
+        return HOTPLUG_HANDLER(ms);
+    }
+
+    return NULL;
+}
+
+static void rvserver_machine_device_plug_cb(HotplugHandler *hotplug_dev,
+                                            DeviceState *dev, Error **errp)
+{
+    RISCVServerRefMachineState *s = RISCV_SERVER_REF_MACHINE(hotplug_dev);
+
+    if (s->platform_bus_dev) {
+        MachineClass *mc = MACHINE_GET_CLASS(s);
+
+        if (device_is_dynamic_sysbus(mc, dev)) {
+            platform_bus_link_device(PLATFORM_BUS_DEVICE(s->platform_bus_dev),
+                                     SYS_BUS_DEVICE(dev));
+        }
+    }
+}
+
 static void rvserver_ref_machine_class_init(ObjectClass *oc, const void *data)
 {
     char str[128];
     MachineClass *mc = MACHINE_CLASS(oc);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
     static const char * const valid_cpu_types[] = {
         TYPE_RISCV_CPU_RVSERVER_REF,
     };
@@ -1370,6 +1447,13 @@ static void rvserver_ref_machine_class_init(ObjectClass *oc, const void *data)
     sprintf(str, "Set number of guest MMIO pages for AIA IMSIC. Valid value "
                  "should be between 0 and %d.", RVSERVER_IRQCHIP_MAX_GUESTS);
     object_class_property_set_description(oc, "aia-guests", str);
+
+    assert(!mc->get_hotplug_handler);
+    mc->get_hotplug_handler = rvserver_machine_get_hotplug_handler;
+    hc->plug = rvserver_machine_device_plug_cb;
+#ifdef CONFIG_TPM
+    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_TPM_TIS_SYSBUS);
+#endif
 }
 
 static const TypeInfo rvserver_ref_typeinfo = {
@@ -1378,7 +1462,11 @@ static const TypeInfo rvserver_ref_typeinfo = {
     .class_init = rvserver_ref_machine_class_init,
     .instance_init = rvserver_ref_machine_instance_init,
     .instance_size = sizeof(RISCVServerRefMachineState),
-    .interfaces = riscv64_machine_interfaces,
+    .interfaces = (const InterfaceInfo[]) {
+         { TYPE_HOTPLUG_HANDLER },
+         { TYPE_TARGET_RISCV64_MACHINE },
+         { }
+    },
 };
 
 static void rvserver_ref_init_register_types(void)
