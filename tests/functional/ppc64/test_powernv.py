@@ -9,6 +9,7 @@
 
 from qemu_test import LinuxKernelTest, Asset
 from qemu_test import wait_for_console_pattern
+from qemu_test import exec_command_and_wait_for_pattern
 
 class PowernvMachine(LinuxKernelTest):
 
@@ -70,6 +71,70 @@ class PowernvMachine(LinuxKernelTest):
         console_pattern = 'smp: Brought up 1 node, 4 CPUs'
         wait_for_console_pattern(self, console_pattern, self.panic_message)
         wait_for_console_pattern(self, self.good_message, self.panic_message)
+
+    def test_linux_remote_interrupts(self):
+        self.require_accelerator("tcg")
+        self.set_machine('powernv')
+
+        # have more sockets with as few CPUs as possible, increasing the
+        # probability to have remote interrupts from one chip to another
+        # also have e1000e network device to generate interrupts
+        self.vm.add_args('-smp', '4,sockets=4,threads=1')
+        self.vm.add_args('-device', 'e1000e,netdev=net0')
+        self.vm.add_args('-netdev', 'user,id=net0')
+
+        kernel_path = self.ASSET_KERNEL.fetch()
+        rootfs_path = self.ASSET_INITRD.fetch()
+        self.vm.set_console()
+        self.vm.add_args('-kernel', kernel_path,
+            '-drive',
+            f'file={rootfs_path},format=raw,if=none,id=drive0,readonly=on',
+            '-append', 'root=/dev/nvme0n1 console=hvc0',
+            '-device', 'nvme,drive=drive0,bus=pcie.2,addr=0x0,serial=1234')
+        self.vm.launch()
+
+        # Wait for boot to complete
+        console_pattern = 'CPU maps initialized for 1 thread per core'
+        wait_for_console_pattern(self, console_pattern, self.panic_message)
+        console_pattern = 'smp: Brought up 4 nodes, 4 CPUs'
+        wait_for_console_pattern(self, console_pattern, self.panic_message)
+        wait_for_console_pattern(self, 'Run /sbin/init as init process',
+                                 self.panic_message)
+
+        # Wait for login prompt and login as root (no password in buildroot)
+        wait_for_console_pattern(self, 'login:', self.panic_message)
+        exec_command_and_wait_for_pattern(self, 'root', '#', self.panic_message)
+
+        # RX, TX, Control interrupts to chip 2, 3, 4 respectively
+        exec_command_and_wait_for_pattern(self,
+            "RX_IRQ=$(grep eth0-rx /proc/interrupts | awk '{print $1}' | tr -d ':')",
+            '#', self.panic_message)
+        exec_command_and_wait_for_pattern(self,
+            "TX_IRQ=$(grep eth0-tx /proc/interrupts | awk '{print $1}' | tr -d ':')",
+            '#', self.panic_message)
+        exec_command_and_wait_for_pattern(self,
+             "CTL_IRQ=$(grep 'eth0$' /proc/interrupts | awk '{print $1}' | tr -d ':')",
+            '#', self.panic_message)
+        exec_command_and_wait_for_pattern(self,
+            "echo 1 > /proc/irq/$RX_IRQ/smp_affinity_list",
+            '#', self.panic_message)
+        exec_command_and_wait_for_pattern(self,
+            "echo 2 > /proc/irq/$TX_IRQ/smp_affinity_list",
+            '#', self.panic_message)
+        exec_command_and_wait_for_pattern(self,
+            "echo 3 > /proc/irq/$CTL_IRQ/smp_affinity_list",
+            '#', self.panic_message)
+
+        # Generate network traffic to trigger remote interrupts
+        # Ping QEMU's user-mode network gateway (10.0.2.2)
+        exec_command_and_wait_for_pattern(self,
+            "ping -W2 -c5 10.0.2.2",
+            '#', self.panic_message)
+
+        # Show final interrupt counts to verify remote interrupts occurred
+        exec_command_and_wait_for_pattern(self,
+            "cat /proc/interrupts | grep eth0",
+            '#', self.panic_message)
 
     def test_linux_big_boot(self):
         self.set_machine('powernv')
