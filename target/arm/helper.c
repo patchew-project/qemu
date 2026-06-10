@@ -1413,6 +1413,10 @@ void gt_rme_post_el_change(ARMCPU *cpu, void *ignored)
 
 static uint64_t gt_phys_raw_cnt_offset(CPUARMState *env)
 {
+    if (!arm_feature(env, ARM_FEATURE_EL3)) {
+        return 0;
+    }
+
     if ((env->cp15.scr_el3 & SCR_ECVEN) &&
         FIELD_EX64(env->cp15.cnthctl_el2, CNTHCTL, ECV) &&
         arm_is_el2_enabled(env) &&
