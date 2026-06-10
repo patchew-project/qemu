@@ -75,6 +75,7 @@ undocumented; you can get a complete list by running
    riscv/tt_atlantis
    riscv/virt
    riscv/xiangshan-kunminghu
+   riscv/riscv-server-ref
 
 RISC-V CPU firmware
 -------------------
