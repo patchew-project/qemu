@@ -28,6 +28,7 @@
 #include "monitor-internal.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-control.h"
+#include "qapi/qapi-commands-char.h"
 #include "qobject/qdict.h"
 #include "qobject/qjson.h"
 #include "qobject/qlist.h"
@@ -103,6 +104,20 @@ static void monitor_qmp_set_pretty(Object *obj, bool val, Error **errp)
     mon->pretty = val;
 }
 
+static int monitor_qmp_get_close_action(Object *obj, Error **errp)
+{
+    MonitorQMP *mon = MONITOR_QMP(obj);
+
+    return mon->close_action;
+}
+
+static void monitor_qmp_set_close_action(Object *obj, int val, Error **errp)
+{
+    MonitorQMP *mon = MONITOR_QMP(obj);
+
+    mon->close_action = val;
+}
+
 static void monitor_qmp_emit_event(Monitor *mon, QAPIEvent event, QDict *qdict);
 static bool monitor_qmp_requires_iothread(const Monitor *mon);
 static void monitor_qmp_complete(UserCreatable *uc, Error **errp);
@@ -117,6 +132,11 @@ static void monitor_qmp_class_init(ObjectClass *cls, const void *data)
     object_class_property_add_bool(cls, "pretty",
                                    monitor_qmp_get_pretty,
                                    monitor_qmp_set_pretty);
+    object_class_property_add_enum(cls, "close-action",
+                                   "MonitorQMPCloseAction",
+                                   &MonitorQMPCloseAction_lookup,
+                                   monitor_qmp_get_close_action,
+                                   monitor_qmp_set_close_action);
 
     moncls->emit_event = monitor_qmp_emit_event;
     moncls->requires_iothread = monitor_qmp_requires_iothread;
@@ -550,10 +570,32 @@ static QDict *qmp_greeting(MonitorQMP *mon)
         ver, cap_list);
 }
 
+static void monitor_qmp_self_delete_bh(void *opaque)
+{
+    MonitorQMP *mon = opaque;
+    g_autofree char *mon_id = object_property_get_child_name(
+        object_get_objects_root(), OBJECT(mon));
+    g_autofree char *chardev_id = g_strdup(mon->parent_obj.chardev_id);
+    Error *local_error = NULL;
+
+    g_assert(mon_id);
+
+    user_creatable_del(mon_id, &local_error);
+    if (local_error != NULL) {
+        error_report_err(local_error);
+    } else {
+        qmp_chardev_remove(chardev_id, NULL);
+    }
+}
+
 static void monitor_qmp_event(void *opaque, QEMUChrEvent event)
 {
     QDict *data;
     MonitorQMP *mon = opaque;
+
+    if (mon->delete_pending) {
+        return;
+    }
 
     switch (event) {
     case CHR_EVENT_OPENED:
@@ -577,6 +619,23 @@ static void monitor_qmp_event(void *opaque, QEMUChrEvent event)
         json_message_parser_init(&mon->parser, handle_qmp_command,
                                  mon, NULL);
         monitor_fdsets_cleanup();
+        switch (mon->close_action) {
+        case MONITOR_QMP_CLOSE_ACTION_NONE:
+            break; /* nada */
+        case MONITOR_QMP_CLOSE_ACTION_DELETE:
+            mon->delete_pending = true;
+            /*
+             * Do NOT run in the AIO context associated with the
+             * monitor. We need to run in the default AIO context
+             * which is the same context in which 'qmp_object_del'
+             * will execute
+             */
+            aio_bh_schedule_oneshot(qemu_get_aio_context(),
+                                    monitor_qmp_self_delete_bh, mon);
+            break;
+        default:
+            g_assert_not_reached();
+        }
         break;
     case CHR_EVENT_BREAK:
     case CHR_EVENT_MUX_IN:

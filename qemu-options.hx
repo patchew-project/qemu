@@ -5730,7 +5730,7 @@ SRST
         controls whether the monitor provides interactive
         prompts
 
-    ``-object monitor-qmp,id=id,chardev=chardev_id,pretty=on|off``
+    ``-object monitor-qmp,id=id,chardev=chardev_id,pretty=on|off,close-action=none|delete``
         Set up a monitor running the QEMU Monitor Protocol,
         connected to the chardev ``chrid``.
 
@@ -5746,6 +5746,14 @@ SRST
         printed as multi-line indented JSON, as opposed to
         constrained to a single line without extraneous
         whitespace.
+
+        The ``close-action`` parameter, which defaults to ``none``,
+        controls what happens when the connection to the monitor
+        is terminated by the user. If set to ``delete``, then the
+        ``monitor-qmp`` object and its associated character
+        device are both immediately deleted. This can be useful
+        if an extra monitor was hotplugged for a specific task
+        and should be unplugged when completed.
 
     ``-object memory-backend-file,id=id,size=size,mem-path=dir,share=on|off,discard-data=on|off,merge=on|off,dump=on|off,prealloc=on|off,host-nodes=host-nodes,policy=default|preferred|bind|interleave,align=align,offset=offset,readonly=on|off,rom=on|off|auto``
         Creates a memory file backend object, which can be used to back
