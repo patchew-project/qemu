@@ -35,6 +35,8 @@ static void test_cfam_id(const void *data)
         machine = "powernv9";
     } else if (chip->chip_type == PNV_CHIP_POWER10) {
         machine = "powernv10";
+    } else if (chip->chip_type == PNV_CHIP_POWER11) {
+        machine = "powernv11";
     }
 
     qts = qtest_initf("-M %s -accel tcg -cpu %s",
@@ -57,7 +59,8 @@ static void test_cfam_id(const void *data)
 
 static void test_xscom_core(QTestState *qts, const PnvChip *chip)
 {
-    if (chip->chip_type == PNV_CHIP_POWER10) {
+    if ((chip->chip_type == PNV_CHIP_POWER10) ||
+        (chip->chip_type == PNV_CHIP_POWER11)) {
         uint32_t first_core_thread_state =
                  PNV_XSCOM_P10_EC_BASE(chip->first_core) + 0x412;
         uint64_t thread_state;
@@ -91,6 +94,8 @@ static void test_core(const void *data)
         machine = "powernv9";
     } else if (chip->chip_type == PNV_CHIP_POWER10) {
         machine = "powernv10";
+    } else if (chip->chip_type == PNV_CHIP_POWER11) {
+        machine = "powernv11";
     }
 
     qts = qtest_initf("-M %s -accel tcg -cpu %s",
