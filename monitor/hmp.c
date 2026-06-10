@@ -40,6 +40,7 @@
 #include "qemu/base-arch-defs.h"
 #include "qemu/target-info.h"
 #include "qemu/units.h"
+#include "qom/object_interfaces.h"
 #include "exec/gdbstub.h"
 #include "system/block-backend.h"
 #include "trace.h"
@@ -71,10 +72,13 @@ static void monitor_hmp_set_readline(Object *obj, bool val, Error **errp)
 int monitor_hmp_vprintf(Monitor *mon, const char *fmt, va_list ap)
     G_GNUC_PRINTF(2, 0);
 static void monitor_hmp_accept_input(Monitor *mon);
+static void monitor_hmp_complete(UserCreatable *uc, Error **errp);
+static bool monitor_hmp_prepare_delete(UserCreatable *uc, Error **errp);
 
 static void monitor_hmp_class_init(ObjectClass *cls, const void *data)
 {
     MonitorClass *moncls = MONITOR_CLASS(cls);
+    UserCreatableClass *ucc = USER_CREATABLE_CLASS(cls);
 
     object_class_property_add_bool(cls, "readline",
                                    monitor_hmp_get_readline,
@@ -82,6 +86,9 @@ static void monitor_hmp_class_init(ObjectClass *cls, const void *data)
 
     moncls->vprintf = monitor_hmp_vprintf;
     moncls->accept_input = monitor_hmp_accept_input;
+
+    ucc->complete = monitor_hmp_complete;
+    ucc->prepare_delete = monitor_hmp_prepare_delete;
 }
 
 static void monitor_hmp_init(Object *obj)
@@ -1604,42 +1611,53 @@ static void monitor_readline_flush(void *opaque)
 
 void monitor_new_hmp(const char *chardev_id, bool use_readline, Error **errp)
 {
-    ERRP_GUARD();
-    MonitorHMP *mon;
     static int counter;
     g_autofree char *id = g_strdup_printf("hmpcompat%d", counter++);
-    Object *obj = object_new_with_props(TYPE_MONITOR_HMP,
-                                        object_get_objects_root(),
-                                        id,
-                                        errp,
-                                        "chardev", chardev_id,
-                                        "readline", use_readline ? "yes" : "no",
-                                        NULL);
+    object_new_with_props(TYPE_MONITOR_HMP,
+                          object_get_objects_root(),
+                          id,
+                          errp,
+                          "chardev", chardev_id,
+                          "readline", use_readline ? "yes" : "no",
+                          NULL);
+}
 
-    if (!obj) {
-        return;
-    }
+static void monitor_hmp_complete(UserCreatable *uc, Error **errp)
+{
+    MonitorHMP *mon = MONITOR_HMP(uc);
+    UserCreatableClass *ucc_parent =
+        USER_CREATABLE_CLASS(
+            object_class_get_parent(
+                OBJECT_CLASS(MONITOR_HMP_GET_CLASS(mon))));
+    ERRP_GUARD();
 
-    mon = MONITOR_HMP(obj);
-
-    monitor_complete(MONITOR(mon), errp);
+    ucc_parent->complete(uc, errp);
     if (*errp) {
-        object_unparent(OBJECT(mon));
         return;
     }
 
-    if (mon->use_readline) {
-        mon->rs = readline_init(monitor_readline_printf,
-                                monitor_readline_flush,
-                                mon,
-                                monitor_find_completion);
-        monitor_read_command(mon, 0);
-    }
+    if (mon->parent_obj.chardev_id) {
+        if (mon->use_readline) {
+            mon->rs = readline_init(monitor_readline_printf,
+                                    monitor_readline_flush,
+                                    mon,
+                                    monitor_find_completion);
+            monitor_read_command(mon, 0);
+        }
 
-    qemu_chr_fe_set_handlers(&mon->parent_obj.chr,
-                             monitor_can_read, monitor_read, monitor_event,
-                             NULL, &mon->parent_obj, NULL, true);
-    monitor_list_append(&mon->parent_obj);
+        qemu_chr_fe_set_handlers(&mon->parent_obj.chr,
+                                 monitor_can_read,
+                                 monitor_read,
+                                 monitor_event, NULL,
+                                 &mon->parent_obj, NULL, true);
+        monitor_list_append(&mon->parent_obj);
+    }
+}
+
+static bool monitor_hmp_prepare_delete(UserCreatable *uc, Error **errp)
+{
+    error_setg(errp, "Deleting HMP monitors is not supported");
+    return false;
 }
 
 /**
