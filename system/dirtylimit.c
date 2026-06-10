@@ -222,6 +222,8 @@ void dirtylimit_state_finalize(void)
     g_free(dirtylimit_state);
     dirtylimit_state = NULL;
 
+    kvm_dirty_ring_reaper_kick();
+
     trace_dirtylimit_state_finalize();
 }
 
