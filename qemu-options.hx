@@ -4116,7 +4116,7 @@ The general form of a character device option is:
     ::
 
         -chardev stdio,mux=on,id=char0 \
-        -mon chardev=char0,mode=readline \
+        -object monitor-hmp,id=hmp0,chardev=char0 \
         -serial chardev:char0 \
         -serial chardev:char0
 
@@ -4128,7 +4128,7 @@ The general form of a character device option is:
     ::
 
         -chardev stdio,mux=on,id=char0 \
-        -mon chardev=char0,mode=readline \
+        -object monitor-hmp,id=hmp0,chardev=char0 \
         -parallel chardev:char0 \
         -chardev tcp,...,mux=on,id=char1 \
         -serial chardev:char1 \
@@ -4929,7 +4929,8 @@ SRST
         -qmp tcp:localhost:4444,server=on,wait=off
 
     Not all options are configurable via this syntax; for maximum
-    flexibility use the ``-mon`` option and an accompanying ``-chardev``.
+    flexibility use ``-object monitor-qmp`` and an accompanying
+    ``-chardev``.
 
 ERST
 DEF("qmp-pretty", HAS_ARG, QEMU_OPTION_qmp_pretty, \
@@ -4960,12 +4961,12 @@ SRST
 
     enables the QMP monitor on localhost port 4444 with pretty-printing.
 
-    The use of ``-mon mode=readline`` is historical syntax sugar
+    The use of ``-mon mode=readline`` is deprecated syntax sugar
     for the new ``-object monitor-hmp`` option, each use of which
     creates an object with the ID ``hmpcompatNNN`` where ``NNN`` is
     a counter starting from 0.
 
-    The use of ``-mon mode=control`` is historical syntax sugar
+    The use of ``-mon mode=control`` is deprecated syntax sugar
     for the new ``-object monitor-qmp`` option, each use of which
     creates an object with the ID ``qmpcompatNNN`` where ``NNN`` is
     a counter starting from 0.
