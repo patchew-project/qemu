@@ -737,10 +737,12 @@ static int GRAPH_RDLOCK
 bitmap_list_store(BlockDriverState *bs, Qcow2BitmapList *bm_list,
                   uint64_t *offset, uint64_t *size, bool in_place)
 {
+    BDRVQcow2State *s = bs->opaque;
     int ret;
     uint8_t *dir;
     int64_t dir_offset = 0;
     uint64_t dir_size = 0;
+    uint64_t tail_size;
     Qcow2Bitmap *bm;
     Qcow2BitmapDirEntry *e;
 
@@ -808,6 +810,14 @@ bitmap_list_store(BlockDriverState *bs, Qcow2BitmapList *bm_list,
     ret = bdrv_pwrite(bs->file, dir_offset, dir_size, dir, 0);
     if (ret < 0) {
         goto fail;
+    }
+
+    tail_size = ROUND_UP(dir_size, s->cluster_size) - dir_size;
+    if (tail_size > 0) {
+        ret = bdrv_pwrite_zeroes(bs->file, dir_offset + dir_size, tail_size, 0);
+        if (ret < 0) {
+            goto fail;
+        }
     }
 
     g_free(dir);
@@ -882,6 +892,19 @@ update_ext_header_and_dir_in_place(BlockDriverState *bs,
      */
 }
 
+static void rollback_ext_header_and_dir_helper(BlockDriverState *bs,
+					       uint64_t old_offset,
+					       uint64_t old_size,
+					       uint32_t old_nb_bitmaps,
+					       uint64_t old_autocl)
+{
+    BDRVQcow2State *s = bs->opaque;
+    s->bitmap_directory_offset = old_offset;
+    s->bitmap_directory_size = old_size;
+    s->nb_bitmaps = old_nb_bitmaps;
+    s->autoclear_features = old_autocl;
+}
+
 static int GRAPH_RDLOCK
 update_ext_header_and_dir(BlockDriverState *bs, Qcow2BitmapList *bm_list)
 {
@@ -937,10 +960,7 @@ fail:
         qcow2_free_clusters(bs, new_offset, new_size, QCOW2_DISCARD_OTHER);
     }
 
-    s->bitmap_directory_offset = old_offset;
-    s->bitmap_directory_size = old_size;
-    s->nb_bitmaps = old_nb_bitmaps;
-    s->autoclear_features = old_autocl;
+    rollback_ext_header_and_dir_helper(bs, old_offset, old_size, old_nb_bitmaps, old_autocl);
 
     return ret;
 }
@@ -1460,6 +1480,10 @@ int coroutine_fn qcow2_co_remove_persistent_dirty_bitmap(BlockDriverState *bs,
 {
     int ret;
     BDRVQcow2State *s = bs->opaque;
+    uint64_t old_offset = s->bitmap_directory_offset;
+    uint64_t old_size = s->bitmap_directory_size;
+    uint32_t old_nb_bitmaps = s->nb_bitmaps;
+    uint64_t old_autocl = s->autoclear_features;
     Qcow2Bitmap *bm = NULL;
     Qcow2BitmapList *bm_list;
 
@@ -1495,7 +1519,10 @@ int coroutine_fn qcow2_co_remove_persistent_dirty_bitmap(BlockDriverState *bs,
         goto out;
     }
 
-    free_bitmap_clusters(bs, &bm->table);
+    ret = free_bitmap_clusters(bs, &bm->table);
+    if (ret < 0){
+	rollback_ext_header_and_dir_helper(bs, old_offset, old_size, old_nb_bitmaps, old_autocl);
+    }
 
 out:
     qemu_co_mutex_unlock(&s->lock);
