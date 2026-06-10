@@ -151,4 +151,9 @@ extern const guint16 qemu_input_map_xorgxwin_to_linux[];
 extern const guint qemu_input_map_osx_to_linux_len;
 extern const guint16 qemu_input_map_osx_to_linux[];
 
+void qemu_input_handler_set_led(QemuInputHandlerState *s, int ledstate);
+void qemu_input_led_notifier_add(Notifier *n);
+void qemu_input_led_notifier_remove(Notifier *n);
+int qemu_input_get_led(QemuConsole *con);
+
 #endif /* INPUT_H */
