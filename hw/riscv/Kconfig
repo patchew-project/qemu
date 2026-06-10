@@ -73,6 +73,7 @@ config RISCV_SERVER_PLATFORM_REF
     bool
     default y
     depends on RISCV64
+    imply TPM_TIS_SYSBUS
     select RISCV_NUMA
     select GOLDFISH_RTC
     select PCI
