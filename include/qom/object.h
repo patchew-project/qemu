@@ -1759,6 +1759,16 @@ ObjectProperty *object_property_try_add_child(Object *obj, const char *name,
 ObjectProperty *object_property_add_child(Object *obj, const char *name,
                                           Object *child);
 
+/**
+ * object_property_get_child_name:
+ * @obj: the object that owns the property
+ * @child: the object referenced by the child property
+ *
+ * Return the property name against which @child is registered
+ * with @obj, or NULL if non is present
+ */
+char *object_property_get_child_name(Object *obj, Object *child);
+
 typedef enum {
     /* Unref the link pointer when the property is deleted */
     OBJ_PROP_LINK_STRONG = 0x1,
