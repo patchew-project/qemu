@@ -6,11 +6,16 @@
 #
 # Copyright (c) 2026 Christian Brauner
 
+import asyncio
 import os
+import random
+import threading
+import time
 
 from qemu_test import QemuSystemTest
 
 from qemu.qmp.legacy import QEMUMonitorProtocol
+from qemu.qmp import QMPClient
 
 
 class MonitorHotplug(QemuSystemTest):
@@ -162,6 +167,63 @@ class MonitorHotplug(QemuSystemTest):
 
         qmp.close()
         self._remove_monitor()
+
+    def stress_mon(self, sock):
+        async def main():
+            qmp = QMPClient('testvm')
+            await qmp.connect(sock)
+            # Run query-version in a tight loop so that the
+            # monitor thread/dispatcher is very busy at the
+            # time we try to delete the monitor
+            while True:
+                try:
+                    # A command which returns alot of data to make
+                    # it more likely we're in the I/O reply path
+                    # when deleting the monitor
+                    res = await qmp.execute('query-qmp-schema')
+                    # Some commands which generate async events
+                    # as those can trigger different code paths
+                    res = await qmp.execute('stop')
+                    res = await qmp.execute('cont')
+                except:
+                    # we'll get here if the monitor is terminated
+                    # by QEMU in which case we must disconnect
+                    # out side, but....
+                    try:
+                        await qmp.disconnect()
+                    except (ConnectionResetError, EOFError, BrokenPipeError):
+                        # ... disconnect() will probably see
+                        # errors too, but we must try to call it
+                        # regardless to cleanup asyncio state
+                        # and prevent python warnings at GC time
+                        pass
+                    return
+        asyncio.run(main())
+
+    def test_hotplug_stress(self):
+        """
+        Repeatedly hotplug and unplug a monitor, while another thread
+        concurrently issues commands on that monitor. This stresses
+        the synchronization with the monitor thread during cleanup
+        """
+        self.set_machine('none')
+        self.vm.add_args('-nodefaults')
+        self.vm.launch()
+
+        # Each loop sleeps at most 0.5 seconds, so this should
+        # give an upper bound of approx 5 seconds execution
+        # time which is reasonable to run by default
+        repeat = 10
+        for i in range(repeat):
+            # First cycle
+            sock = self._add_monitor()
+            print ("# stress cycle %02d/%02d" % (i, repeat))
+            stress = threading.Thread(target=self.stress_mon, args=[sock])
+            stress.start()
+            # Sleep upto 1/2 second to vary the races
+            time.sleep(random.random() / 0.5)
+            self._remove_monitor()
+            stress.join()
 
 
 if __name__ == '__main__':
