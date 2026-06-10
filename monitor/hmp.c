@@ -43,6 +43,20 @@
 #include "system/block-backend.h"
 #include "trace.h"
 
+OBJECT_DEFINE_TYPE(MonitorHMP, monitor_hmp, MONITOR_HMP, MONITOR);
+
+static void monitor_hmp_finalize(Object *obj)
+{
+}
+
+static void monitor_hmp_class_init(ObjectClass *cls, const void *data)
+{
+}
+
+static void monitor_hmp_init(Object *obj)
+{
+}
+
 static void monitor_command_cb(void *opaque, const char *cmdline,
                                void *readline_opaque)
 {
@@ -1526,10 +1540,21 @@ static void monitor_readline_flush(void *opaque)
 
 void monitor_new_hmp(Chardev *chr, bool use_readline, Error **errp)
 {
-    MonitorHMP *mon = g_new0(MonitorHMP, 1);
+    MonitorHMP *mon;
+    static int counter;
+    g_autofree char *id = g_strdup_printf("hmpcompat%d", counter++);
+    Object *obj = object_new_with_props(TYPE_MONITOR_HMP,
+                                        object_get_objects_root(),
+                                        id,
+                                        errp,
+                                        NULL);
+    if (!obj) {
+        return;
+    }
+    mon = MONITOR_HMP(obj);
 
     if (!qemu_chr_fe_init(&mon->parent_obj.chr, chr, errp)) {
-        g_free(mon);
+        object_unparent(OBJECT(mon));
         return;
     }
 
