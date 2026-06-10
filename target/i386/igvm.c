@@ -193,7 +193,9 @@ int qigvm_directive_madt(QIgvm *ctx, const uint8_t *header_data, Error **errp)
     /* Find the parameter area that should hold the MADT data */
     param_entry = qigvm_find_param_entry(ctx, param->parameter_area_index);
     if (param_entry == NULL) {
-        return 0;
+        error_setg(errp, "IGVM: parameter area index %u not found",
+                   param->parameter_area_index);
+        return -1;
     }
 
     GArray *madt = acpi_build_madt_standalone(ctx->machine_state);

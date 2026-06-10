@@ -71,7 +71,6 @@ qigvm_find_param_entry(QIgvm *igvm, uint32_t parameter_area_index)
             return param_entry;
         }
     }
-    warn_report("IGVM: No parameter area for index %u", parameter_area_index);
     return NULL;
 }
 
@@ -502,7 +501,9 @@ static int qigvm_directive_parameter_insert(QIgvm *ctx,
 
     param_entry = qigvm_find_param_entry(ctx, param->parameter_area_index);
     if (param_entry == NULL) {
-        return 0;
+        error_setg(errp, "IGVM: parameter area index %u not found",
+                   param->parameter_area_index);
+        return -1;
     }
 
     region = qigvm_prepare_memory(ctx, param->gpa, param_entry->size,
@@ -575,7 +576,9 @@ static int qigvm_directive_memory_map(QIgvm *ctx, const uint8_t *header_data,
     /* Find the parameter area that should hold the memory map */
     param_entry = qigvm_find_param_entry(ctx, param->parameter_area_index);
     if (param_entry == NULL) {
-        return 0;
+        error_setg(errp, "IGVM: parameter area index %u not found",
+                   param->parameter_area_index);
+        return -1;
     }
 
     max_entry_count = param_entry->size / sizeof(IGVM_VHS_MEMORY_MAP_ENTRY);
@@ -634,7 +637,9 @@ static int qigvm_directive_vp_count(QIgvm *ctx, const uint8_t *header_data,
 
     param_entry = qigvm_find_param_entry(ctx, param->parameter_area_index);
     if (param_entry == NULL) {
-        return 0;
+        error_setg(errp, "IGVM: parameter area index %u not found",
+                   param->parameter_area_index);
+        return -1;
     }
 
     vp_count = (uint32_t *)(param_entry->data + param->byte_offset);
@@ -657,7 +662,9 @@ static int qigvm_directive_environment_info(QIgvm *ctx,
 
     param_entry = qigvm_find_param_entry(ctx, param->parameter_area_index);
     if (param_entry == NULL) {
-        return 0;
+        error_setg(errp, "IGVM: parameter area index %u not found",
+                   param->parameter_area_index);
+        return -1;
     }
 
     environmental_state =
