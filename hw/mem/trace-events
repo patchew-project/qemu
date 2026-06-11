@@ -6,3 +6,8 @@ mhp_pc_dimm_assigned_slot(int slot) "%d"
 memory_device_pre_plug(const char *id, uint64_t addr) "id=%s addr=0x%"PRIx64
 memory_device_plug(const char *id, uint64_t addr) "id=%s addr=0x%"PRIx64
 memory_device_unplug(const char *id, uint64_t addr) "id=%s addr=0x%"PRIx64
+
+# cxl_type3.c
+cxl_hdm_decoder_write(int which, uint32_t value, bool commit) "decoder=%d ctrl=0x%08x commit=%d"
+cxl_hdm_decoder_commit(int which, uint64_t base, uint64_t size, int iw, int ig) "decoder=%d base=0x%"PRIx64" size=0x%"PRIx64" iw=%d ig=%d"
+cxl_hdm_decoder_uncommit(int which) "decoder=%d"
