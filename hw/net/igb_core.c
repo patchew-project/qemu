@@ -875,6 +875,14 @@ igb_tx_enabled(IGBCore *core, const E1000ERingInfo *txi)
         (core->mac[TXDCTL0 + (qn * 16)] & E1000_TXDCTL_QUEUE_ENABLE);
 }
 
+static uint64_t igb_trl_calculate_delay(IGBCore *core, int qidx,
+                                        size_t bytes_sent)
+{
+    uint64_t ns_per_sec = 1000000000ULL;
+
+    return (uint64_t)bytes_sent * ns_per_sec / core->trl[qidx].target_rate;
+}
+
 static void
 igb_start_xmit(IGBCore *core, const IGB_TxRing *txr)
 {
@@ -883,9 +891,14 @@ igb_start_xmit(IGBCore *core, const IGB_TxRing *txr)
     union e1000_adv_tx_desc desc;
     const E1000ERingInfo *txi = txr->i;
     uint32_t eic = 0;
+    size_t bytes_sent;
 
     if (!igb_tx_enabled(core, txi)) {
         trace_e1000e_tx_disabled();
+        return;
+    }
+
+    if (timer_pending(core->trl[txi->idx].timer)) {
         return;
     }
 
@@ -894,6 +907,7 @@ igb_start_xmit(IGBCore *core, const IGB_TxRing *txr)
         d = core->owner;
     }
 
+    bytes_sent = 0;
     while (!igb_ring_empty(core, txi)) {
         base = igb_ring_head_descr(core, txi);
 
@@ -902,9 +916,19 @@ igb_start_xmit(IGBCore *core, const IGB_TxRing *txr)
         trace_e1000e_tx_descr((void *)(intptr_t)desc.read.buffer_addr,
                               desc.read.cmd_type_len, desc.wb.status);
 
-        igb_process_tx_desc(core, d, txr->tx, &desc, txi->idx);
+        bytes_sent += igb_process_tx_desc(core, d, txr->tx, &desc, txi->idx);
         igb_ring_advance(core, txi, 1);
         eic |= igb_txdesc_writeback(core, base, &desc, txi);
+
+        if (core->trl[txi->idx].target_rate > 0) {
+            uint64_t delay_ns =
+                igb_trl_calculate_delay(core, txi->idx, bytes_sent);
+            if (delay_ns > 0) {
+                timer_mod(core->trl[txi->idx].timer,
+                          qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + delay_ns);
+                break;
+            }
+        }
     }
 
     if (eic) {
@@ -4365,7 +4389,13 @@ igb_autoneg_resume(IGBCore *core)
 
 static void igb_trl_timer_cb(void *opaque)
 {
-    /* Stub */
+    IGBTrlQueue *trl = opaque;
+    IGBCore *core = trl->core;
+    int qidx = trl->queue_idx;
+    IGB_TxRing txr;
+
+    igb_tx_ring_init(core, &txr, qidx);
+    igb_start_xmit(core, &txr);
 }
 
 void
