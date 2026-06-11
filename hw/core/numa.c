@@ -824,7 +824,7 @@ static int ram_block_notify_add_single(RAMBlock *rb, void *opaque)
     RAMBlockNotifier *notifier = opaque;
 
     if (host) {
-        notifier->ram_block_added(notifier, host, size, max_size);
+        notifier->ram_block_added(notifier, rb, host, size, max_size);
     }
     return 0;
 }
@@ -837,7 +837,7 @@ static int ram_block_notify_remove_single(RAMBlock *rb, void *opaque)
     RAMBlockNotifier *notifier = opaque;
 
     if (host) {
-        notifier->ram_block_removed(notifier, host, size, max_size);
+        notifier->ram_block_removed(notifier, rb, host, size, max_size);
     }
     return 0;
 }
@@ -861,38 +861,40 @@ void ram_block_notifier_remove(RAMBlockNotifier *n)
     }
 }
 
-void ram_block_notify_add(void *host, size_t size, size_t max_size)
+void ram_block_notify_add(const RAMBlock *rb,
+                          void *host, size_t size, size_t max_size)
 {
     RAMBlockNotifier *notifier;
     RAMBlockNotifier *next;
 
     QLIST_FOREACH_SAFE(notifier, &ram_list.ramblock_notifiers, next, next) {
         if (notifier->ram_block_added) {
-            notifier->ram_block_added(notifier, host, size, max_size);
+            notifier->ram_block_added(notifier, rb, host, size, max_size);
         }
     }
 }
 
-void ram_block_notify_remove(void *host, size_t size, size_t max_size)
+void ram_block_notify_remove(const RAMBlock *rb,
+                             void *host, size_t size, size_t max_size)
 {
     RAMBlockNotifier *notifier;
     RAMBlockNotifier *next;
 
     QLIST_FOREACH_SAFE(notifier, &ram_list.ramblock_notifiers, next, next) {
         if (notifier->ram_block_removed) {
-            notifier->ram_block_removed(notifier, host, size, max_size);
+            notifier->ram_block_removed(notifier, rb, host, size, max_size);
         }
     }
 }
 
-void ram_block_notify_resize(void *host, size_t old_size, size_t new_size)
+void ram_block_notify_resize(RAMBlock *rb, size_t new_size)
 {
     RAMBlockNotifier *notifier;
     RAMBlockNotifier *next;
 
     QLIST_FOREACH_SAFE(notifier, &ram_list.ramblock_notifiers, next, next) {
         if (notifier->ram_block_resized) {
-            notifier->ram_block_resized(notifier, host, old_size, new_size);
+            notifier->ram_block_resized(notifier, rb, new_size);
         }
     }
 }

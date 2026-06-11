@@ -465,8 +465,8 @@ fail_container:
     return ret;
 }
 
-static void qemu_vfio_ram_block_added(RAMBlockNotifier *n, void *host,
-                                      size_t size, size_t max_size)
+static void qemu_vfio_ram_block_added(RAMBlockNotifier *n, const RAMBlock *rb,
+                                      void *host, size_t size, size_t max_size)
 {
     QEMUVFIOState *s = container_of(n, QEMUVFIOState, ram_notifier);
     Error *local_err = NULL;
@@ -481,7 +481,8 @@ static void qemu_vfio_ram_block_added(RAMBlockNotifier *n, void *host,
     }
 }
 
-static void qemu_vfio_ram_block_removed(RAMBlockNotifier *n, void *host,
+static void qemu_vfio_ram_block_removed(RAMBlockNotifier *n, const RAMBlock *rb,
+                                        void *host,
                                         size_t size, size_t max_size)
 {
     QEMUVFIOState *s = container_of(n, QEMUVFIOState, ram_notifier);

@@ -329,8 +329,8 @@ sev_set_guest_state(SevCommonState *sev_common, SevState new_state)
 }
 
 static void
-sev_ram_block_added(RAMBlockNotifier *n, void *host, size_t size,
-                    size_t max_size)
+sev_ram_block_added(RAMBlockNotifier *n, const RAMBlock *rb,
+                    void *host, size_t size, size_t max_size)
 {
     int r;
     struct kvm_enc_region range;
@@ -359,8 +359,8 @@ sev_ram_block_added(RAMBlockNotifier *n, void *host, size_t size,
 }
 
 static void
-sev_ram_block_removed(RAMBlockNotifier *n, void *host, size_t size,
-                      size_t max_size)
+sev_ram_block_removed(RAMBlockNotifier *n, const RAMBlock *rb,
+                      void *host, size_t size, size_t max_size)
 {
     int r;
     struct kvm_enc_region range;

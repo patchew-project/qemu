@@ -1134,8 +1134,8 @@ static MemoryListener nvmm_memory_listener = {
 };
 
 static void
-nvmm_ram_block_added(RAMBlockNotifier *n, void *host, size_t size,
-                     size_t max_size)
+nvmm_ram_block_added(RAMBlockNotifier *n, const RAMBlock *rb,
+                     void *host, size_t size, size_t max_size)
 {
     struct nvmm_machine *mach = get_nvmm_mach();
     uintptr_t hva = (uintptr_t)host;

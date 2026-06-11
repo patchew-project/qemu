@@ -2019,7 +2019,6 @@ static int memory_try_enable_merging(void *addr, size_t len)
  */
 int qemu_ram_resize(RAMBlock *block, ram_addr_t newsize, Error **errp)
 {
-    const ram_addr_t oldsize = block->used_length;
     const ram_addr_t unaligned_size = newsize;
 
     newsize = TARGET_PAGE_ALIGN(newsize);
@@ -2057,7 +2056,7 @@ int qemu_ram_resize(RAMBlock *block, ram_addr_t newsize, Error **errp)
 
     /* Notify before modifying the ram block and touching the bitmaps. */
     if (block->host) {
-        ram_block_notify_resize(block->host, oldsize, newsize);
+        ram_block_notify_resize(block, newsize);
     }
 
     physical_memory_clear_dirty_range(block->offset, block->used_length);
@@ -2283,7 +2282,7 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
             qemu_madvise(new_block->host, new_block->max_length,
                          QEMU_MADV_DONTFORK);
         }
-        ram_block_notify_add(new_block->host, new_block->used_length,
+        ram_block_notify_add(new_block, new_block->host, new_block->used_length,
                              new_block->max_length);
     }
     return;
@@ -2600,7 +2599,7 @@ void qemu_ram_free(RAMBlock *block)
     }
 
     if (block->host) {
-        ram_block_notify_remove(block->host, block->used_length,
+        ram_block_notify_remove(block, block->host, block->used_length,
                                 block->max_length);
     }
 

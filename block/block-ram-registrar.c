@@ -9,8 +9,8 @@
 #include "system/block-ram-registrar.h"
 #include "qapi/error.h"
 
-static void ram_block_added(RAMBlockNotifier *n, void *host, size_t size,
-                            size_t max_size)
+static void ram_block_added(RAMBlockNotifier *n, const RAMBlock *rb,
+                            void *host, size_t size, size_t max_size)
 {
     BlockRAMRegistrar *r = container_of(n, BlockRAMRegistrar, notifier);
     Error *err = NULL;
@@ -26,8 +26,8 @@ static void ram_block_added(RAMBlockNotifier *n, void *host, size_t size,
     }
 }
 
-static void ram_block_removed(RAMBlockNotifier *n, void *host, size_t size,
-                              size_t max_size)
+static void ram_block_removed(RAMBlockNotifier *n, const RAMBlock *rb,
+                              void *host, size_t size, size_t max_size)
 {
     BlockRAMRegistrar *r = container_of(n, BlockRAMRegistrar, notifier);
     blk_unregister_buf(r->blk, host, max_size);
