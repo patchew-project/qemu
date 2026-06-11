@@ -152,6 +152,9 @@ dbus_display_console_dispose(GObject *object)
     DBusDisplayConsole *ddc = DBUS_DISPLAY_CONSOLE(object);
 
     qemu_console_unregister_listener(&ddc->dcl);
+    if (ddc->dcl.con) {
+        qemu_console_set_display_gl_ctx(ddc->dcl.con, NULL);
+    }
     qemu_remove_mouse_mode_change_notifier(&ddc->mouse_mode_notifier);
     g_clear_pointer(&ddc->kbd_leds_updated, qemu_remove_led_event_handler);
     g_clear_object(&ddc->iface_touch);
