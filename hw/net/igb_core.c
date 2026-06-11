@@ -2136,10 +2136,30 @@ igb_set_phy_ctrl(IGBCore *core, uint16_t val)
     }
 }
 
+static void igb_trl_disable_queue(IGBCore *core, int qidx)
+{
+    core->trl_target_rate[qidx] = 0;
+
+    if (core->trl_throttled[qidx]) {
+        timer_del(core->trl_timer[qidx].timer);
+        core->trl_throttled[qidx] = false;
+    }
+}
+
+static void igb_trl_disable(IGBCore *core)
+{
+    for (int i = 0; i < IGB_NUM_QUEUES; i++) {
+        igb_trl_disable_queue(core, i);
+    }
+    core->mac[TRLRC] &= ~E1000_TRLRC_RS_ENA;
+}
+
 void igb_core_set_link_status(IGBCore *core)
 {
     NetClientState *nc = qemu_get_queue(core->owner_nic);
     uint32_t old_status = core->mac[STATUS];
+
+    igb_trl_disable(core);
 
     trace_e1000e_link_status_changed(nc->link_down ? false : true);
 
@@ -2621,6 +2641,54 @@ static void igb_set_vtivar(IGBCore *core, int index, uint32_t val)
     /*
      * Ignoring assigned vectors associated with queues Rx#1 and Tx#1 for now.
      */
+}
+
+static void igb_set_trldqsel(IGBCore *core, int index, uint32_t val)
+{
+    core->mac[index] = val & 0xF;
+}
+
+static void igb_set_trlrc(IGBCore *core, int index, uint32_t val)
+{
+    uint64_t rf_scaled;
+    int qidx;
+
+    core->mac[index] = val;
+
+    qidx = core->mac[TRLDQSEL];
+
+    if (!(val & E1000_TRLRC_RS_ENA)) {
+        goto disable;
+    }
+
+    /*
+     * The TRLRC register stores the Rate Factor in 10.14 fixed-point format:
+     * - Bits 13:0: Fractional part
+     * - Bits 23:14: Integer part
+     *
+     * Combined, the lower 24 bits of the register (23:0) represent the
+     * concatenated 24-bit scaled Rate Factor directly.
+     */
+    rf_scaled = val & 0xFFFFFF;
+
+    /* Zero is not a valid rate factor, treat as disabled */
+    if (rf_scaled == 0) {
+        goto disable;
+    }
+    /*
+     * The rate factor is a fixed-point number with a 14-bit fractional part:
+     * Rate Factor = rf_scaled / 2^14
+     *
+     * The target rate is:
+     * Target Rate = Link Rate / Rate Factor
+     *             = Link Rate / (rf_scaled / 2^14)
+     *             = (Link Rate * 2^14) / rf_scaled
+     */
+    core->trl_target_rate[qidx] = (E1000_LINK_RATE_1GBPS << 14) / rf_scaled;
+    return;
+
+disable:
+    igb_trl_disable_queue(core, qidx);
 }
 
 static inline void
@@ -4126,7 +4194,9 @@ static const writeops igb_macreg_writeops[] = {
     [PVTEICR6] = igb_set_vteicr,
     [PVTEICR7] = igb_set_vteicr,
     [VTIVAR ... VTIVAR + 7] = igb_set_vtivar,
-    [VTIVAR_MISC ... VTIVAR_MISC + 7] = igb_mac_writereg
+    [VTIVAR_MISC ... VTIVAR_MISC + 7] = igb_mac_writereg,
+    [TRLDQSEL] = igb_set_trldqsel,
+    [TRLRC]    = igb_set_trlrc
 };
 enum { IGB_NWRITEOPS = ARRAY_SIZE(igb_macreg_writeops) };
 
