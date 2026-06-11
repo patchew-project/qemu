@@ -1911,11 +1911,17 @@ bool qemu_ram_is_migratable(const RAMBlock *rb)
 
 void qemu_ram_set_migratable(RAMBlock *rb)
 {
+    /* Notify before modifying the ram block. */
+    ram_block_notify_set_migratable(rb);
+
     rb->flags |= RAM_MIGRATABLE;
 }
 
 void qemu_ram_unset_migratable(RAMBlock *rb)
 {
+    /* Notify before modifying the ram block. */
+    ram_block_notify_unset_migratable(rb);
+
     rb->flags &= ~RAM_MIGRATABLE;
 }
 
@@ -1936,6 +1942,9 @@ void qemu_ram_set_idstr(RAMBlock *new_block, const char *name, DeviceState *dev)
 
     assert(new_block);
     assert(!new_block->idstr[0]);
+
+    /* Notify before modifying the ram block. */
+    ram_block_notify_set_idstr(new_block);
 
     if (dev) {
         char *id = qdev_get_dev_path(dev);

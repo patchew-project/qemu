@@ -887,6 +887,42 @@ void ram_block_notify_remove(const RAMBlock *rb,
     }
 }
 
+void ram_block_notify_set_migratable(const RAMBlock *rb)
+{
+    RAMBlockNotifier *notifier;
+    RAMBlockNotifier *next;
+
+    QLIST_FOREACH_SAFE(notifier, &ram_list.ramblock_notifiers, next, next) {
+        if (notifier->ram_block_set_migratable) {
+            notifier->ram_block_set_migratable(notifier, rb);
+        }
+    }
+}
+
+void ram_block_notify_unset_migratable(const RAMBlock *rb)
+{
+    RAMBlockNotifier *notifier;
+    RAMBlockNotifier *next;
+
+    QLIST_FOREACH_SAFE(notifier, &ram_list.ramblock_notifiers, next, next) {
+        if (notifier->ram_block_unset_migratable) {
+            notifier->ram_block_unset_migratable(notifier, rb);
+        }
+    }
+}
+
+void ram_block_notify_set_idstr(const RAMBlock *rb)
+{
+    RAMBlockNotifier *notifier;
+    RAMBlockNotifier *next;
+
+    QLIST_FOREACH_SAFE(notifier, &ram_list.ramblock_notifiers, next, next) {
+        if (notifier->ram_block_set_idstr) {
+            notifier->ram_block_set_idstr(notifier, rb);
+        }
+    }
+}
+
 void ram_block_notify_resize(RAMBlock *rb, size_t new_size)
 {
     RAMBlockNotifier *notifier;
