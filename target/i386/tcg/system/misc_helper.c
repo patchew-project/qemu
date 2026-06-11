@@ -318,8 +318,7 @@ void helper_wrmsr(CPUX86State *env)
             }
             break;
         }
-        /* XXX: exception? */
-        break;
+        goto error;
     }
     return;
 error:
@@ -442,8 +441,7 @@ void helper_rdmsr(CPUX86State *env)
             val = MSR_MTRRcap_VCNT | MSR_MTRRcap_FIXRANGE_SUPPORT |
                 MSR_MTRRcap_WC_SUPPORTED;
         } else {
-            /* XXX: exception? */
-            val = 0;
+            raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
         }
         break;
     case MSR_MCG_CAP:
@@ -493,9 +491,7 @@ void helper_rdmsr(CPUX86State *env)
             val = env->mce_banks[offset];
             break;
         }
-        /* XXX: exception? */
-        val = 0;
-        break;
+        raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
     }
     env->regs[R_EAX] = (uint32_t)(val);
     env->regs[R_EDX] = (uint32_t)(val >> 32);
