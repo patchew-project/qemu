@@ -893,7 +893,7 @@ perform_cow(BlockDriverState *bs, QCowL2Meta *m)
     unsigned buffer_size;
     unsigned data_bytes = end->offset - (start->offset + start->nb_bytes);
     bool merge_reads;
-    uint8_t *start_buffer, *end_buffer;
+    uint8_t *start_buffer, *end_buffer, *write_buffer = NULL;
     QEMUIOVector qiov;
     int ret;
 
@@ -982,12 +982,45 @@ perform_cow(BlockDriverState *bs, QCowL2Meta *m)
      * can write everything in one single operation */
     if (m->data_qiov) {
         qemu_iovec_reset(&qiov);
-        if (start->nb_bytes) {
-            qemu_iovec_add(&qiov, start_buffer, start->nb_bytes);
-        }
-        qemu_iovec_concat(&qiov, m->data_qiov, m->data_qiov_offset, data_bytes);
-        if (end->nb_bytes) {
-            qemu_iovec_add(&qiov, end_buffer, end->nb_bytes);
+        /*
+         * Direct I/O through the raw file backend can still hit host DMA
+         * alignment restrictions when we splice guest buffers between the
+         * COW head/tail regions. For those writes, assemble a single aligned
+         * buffer before submitting the COW write.
+         */
+        if (s->data_file->bs->open_flags & BDRV_O_NOCACHE) {
+            uint64_t write_size = start->nb_bytes + data_bytes + end->nb_bytes;
+
+            if (merge_reads) {
+                write_buffer = start_buffer;
+            } else {
+                write_buffer = qemu_try_blockalign(bs, write_size);
+                if (write_buffer == NULL) {
+                    ret = -ENOMEM;
+                    goto fail;
+                }
+
+                if (start->nb_bytes) {
+                    memcpy(write_buffer, start_buffer, start->nb_bytes);
+                }
+                if (end->nb_bytes) {
+                    memcpy(write_buffer + start->nb_bytes + data_bytes,
+                           end_buffer, end->nb_bytes);
+                }
+            }
+
+            qemu_iovec_to_buf(m->data_qiov, m->data_qiov_offset,
+                              write_buffer + start->nb_bytes, data_bytes);
+            qemu_iovec_add(&qiov, write_buffer, write_size);
+        } else {
+            if (start->nb_bytes) {
+                qemu_iovec_add(&qiov, start_buffer, start->nb_bytes);
+            }
+            qemu_iovec_concat(&qiov, m->data_qiov, m->data_qiov_offset,
+                              data_bytes);
+            if (end->nb_bytes) {
+                qemu_iovec_add(&qiov, end_buffer, end->nb_bytes);
+            }
         }
         /* NOTE: we have a write_aio blkdebug event here followed by
          * a cow_write one in do_perform_cow_write(), but there's only
@@ -1020,6 +1053,9 @@ fail:
         qcow2_cache_depends_on_flush(s->l2_table_cache);
     }
 
+    if (write_buffer != start_buffer) {
+        qemu_vfree(write_buffer);
+    }
     qemu_vfree(start_buffer);
     qemu_iovec_destroy(&qiov);
     return ret;
