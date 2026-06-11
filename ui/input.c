@@ -98,7 +98,7 @@ void qemu_input_handler_bind(QemuInputHandlerState *s,
 }
 
 static QemuInputHandlerState*
-qemu_input_find_handler(uint32_t mask, QemuConsole *con)
+qemu_input_find_handler(uint32_t mask, const QemuConsole *con)
 {
     QemuInputHandlerState *s;
 
@@ -436,7 +436,7 @@ void qemu_input_update_buttons(QemuConsole *src, uint32_t *button_map,
     }
 }
 
-bool qemu_input_is_absolute(QemuConsole *con)
+bool qemu_input_is_absolute(const QemuConsole *con)
 {
     QemuInputHandlerState *s;
 
