@@ -4,3 +4,8 @@
 cxl_mailbox_cmd(uint8_t set, uint8_t cmd, const char *name, size_t len_in) "set=0x%02x cmd=0x%02x [%s] len_in=%zu"
 cxl_mailbox_cmd_done(uint8_t set, uint8_t cmd, int ret, size_t len_out) "set=0x%02x cmd=0x%02x ret=%d len_out=%zu"
 cxl_mailbox_payload_error(uint8_t set, uint8_t cmd, const char *name, size_t len_in) "set=0x%02x cmd=0x%02x [%s] len_in=%zu"
+
+# cxl-events.c
+cxl_event_insert(int log_type, int occupancy) "log_type=%d occupancy=%d"
+cxl_event_overflow(int log_type, uint16_t overflow_count) "log_type=%d overflow_count=%u"
+cxl_event_clear(int log_type, int nr_recs) "log_type=%d nr_recs=%d"

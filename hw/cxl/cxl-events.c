@@ -13,6 +13,7 @@
 #include "hw/pci/msix.h"
 #include "hw/cxl/cxl.h"
 #include "hw/cxl/cxl_events.h"
+#include "trace.h"
 
 /* Artificial limit on the number of events a log can hold */
 #define CXL_TEST_EVENT_OVERFLOW 8
@@ -98,6 +99,7 @@ bool cxl_event_insert(CXLDeviceState *cxlds, CXLEventLogType log_type,
     uint64_t time;
     CXLEventLog *log;
     CXLEvent *entry;
+    int occupancy;
 
     if (log_type >= CXL_EVENT_TYPE_MAX) {
         return false;
@@ -109,12 +111,15 @@ bool cxl_event_insert(CXLDeviceState *cxlds, CXLEventLogType log_type,
 
     QEMU_LOCK_GUARD(&log->lock);
 
-    if (cxl_event_count(log) >= CXL_TEST_EVENT_OVERFLOW) {
+    occupancy = cxl_event_count(log);
+
+    if (occupancy >= CXL_TEST_EVENT_OVERFLOW) {
         if (log->overflow_err_count == 0) {
             log->first_overflow_timestamp = time;
         }
         log->overflow_err_count++;
         log->last_overflow_timestamp = time;
+        trace_cxl_event_overflow(log_type, log->overflow_err_count);
         return false;
     }
 
@@ -133,8 +138,10 @@ bool cxl_event_insert(CXLDeviceState *cxlds, CXLEventLogType log_type,
     QSIMPLEQ_INSERT_TAIL(&log->events, entry, node);
     cxl_event_set_status(cxlds, log_type, true);
 
+    trace_cxl_event_insert(log_type, occupancy + 1);
+
     /* Count went from 0 to 1 */
-    return cxl_event_count(log) == 1;
+    return occupancy == 0;
 }
 
 void cxl_discard_all_event_records(CXLDeviceState *cxlds)
@@ -233,6 +240,8 @@ CXLRetCode cxl_event_clear_records(CXLDeviceState *cxlds,
         cxl_event_delete_head(cxlds, log_type, log);
         entry = cxl_event_get_head(log);
     }
+
+    trace_cxl_event_clear(log_type, nr);
 
     return CXL_MBOX_SUCCESS;
 }
