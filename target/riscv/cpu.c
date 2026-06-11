@@ -503,21 +503,6 @@ static bool get_satp_mode_supported(RISCVCPU *cpu, uint16_t *supported)
     }
     return true;
 }
-
-/* Set the satp mode to the max supported */
-static void set_satp_mode_default_map(RISCVCPU *cpu)
-{
-    /*
-     * Bare CPUs do not default to the max available.
-     * Users must set a valid satp_mode in the command
-     * line.  Otherwise, leave the existing max_satp_mode
-     * in place.
-     */
-    if (object_dynamic_cast(OBJECT(cpu), TYPE_RISCV_BARE_CPU) != NULL) {
-        warn_report("No satp mode set. Defaulting to 'bare'");
-        cpu->cfg.max_satp_mode = VM_1_10_MBARE;
-    }
-}
 #endif
 
 #ifndef CONFIG_USER_ONLY
@@ -863,10 +848,7 @@ static void riscv_cpu_satp_mode_finalize(RISCVCPU *cpu, Error **errp)
     }
 
     if (cpu->satp_modes.map == 0) {
-        if (cpu->satp_modes.init == 0) {
-            /* If unset by the user, we fallback to the default satp mode. */
-            set_satp_mode_default_map(cpu);
-        } else {
+        if (cpu->satp_modes.init != 0) {
             /*
              * Find the lowest level that was disabled and then enable the
              * first valid level below which can be found in
