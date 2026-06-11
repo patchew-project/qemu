@@ -27,6 +27,7 @@
 #include "system/hostmem.h"
 #include "qemu/range.h"
 #include "qapi/qapi-types-cxl.h"
+#include "trace.h"
 
 #define CXL_CAPACITY_MULTIPLIER   (256 * MiB)
 #define CXL_DC_EVENT_LOG_SIZE 8
@@ -179,14 +180,23 @@ static CXLRetCode cmd_tunnel_management_cmd(const struct cxl_cmd *cmd,
     out = (void *)payload_out;
 
     if (len_in < sizeof(*in)) {
+        trace_cxl_mailbox_payload_error(cci->current_opcode >> 8,
+                                        cci->current_opcode & 0xff,
+                                        cmd->name, len_in);
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
     /* Enough room for minimum sized message - no payload */
     if (in->size < sizeof(in->ccimessage)) {
+        trace_cxl_mailbox_payload_error(cci->current_opcode >> 8,
+                                        cci->current_opcode & 0xff,
+                                        cmd->name, len_in);
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
     /* Length of input payload should be in->size + a wrapping tunnel header */
     if (in->size != len_in - offsetof(typeof(*out), ccimessage)) {
+        trace_cxl_mailbox_payload_error(cci->current_opcode >> 8,
+                                        cci->current_opcode & 0xff,
+                                        cmd->name, len_in);
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
     if (in->ccimessage.category != CXL_CCI_CAT_REQ) {
@@ -299,6 +309,9 @@ static CXLRetCode cmd_events_clear_records(const struct cxl_cmd *cmd,
 
     if (len_in < sizeof(*pl) ||
         len_in < sizeof(*pl) + sizeof(*pl->handle) * pl->nr_recs) {
+        trace_cxl_mailbox_payload_error(cci->current_opcode >> 8,
+                                        cci->current_opcode & 0xff,
+                                        cmd->name, len_in);
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
 
@@ -361,6 +374,9 @@ static CXLRetCode cmd_events_set_interrupt_policy(const struct cxl_cmd *cmd,
     CXLEventLog *log;
 
     if (len_in < CXL_EVENT_INT_SETTING_MIN_LEN) {
+        trace_cxl_mailbox_payload_error(cci->current_opcode >> 8,
+                                        cci->current_opcode & 0xff,
+                                        cmd->name, len_in);
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
 
@@ -604,6 +620,9 @@ static CXLRetCode cmd_get_physical_port_state(const struct cxl_cmd *cmd,
     out = (struct cxl_fmapi_get_phys_port_state_resp_pl *)payload_out;
 
     if (len_in < sizeof(*in)) {
+        trace_cxl_mailbox_payload_error(cci->current_opcode >> 8,
+                                        cci->current_opcode & 0xff,
+                                        cmd->name, len_in);
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
     /* Check if what was requested can fit */
@@ -782,6 +801,9 @@ static CXLRetCode cmd_physical_port_control(const struct cxl_cmd *cmd,
     } QEMU_PACKED *in = (void *)payload_in;
 
     if (len_in < sizeof(*in)) {
+        trace_cxl_mailbox_payload_error(cci->current_opcode >> 8,
+                                        cci->current_opcode & 0xff,
+                                        cmd->name, len_in);
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
 
@@ -961,6 +983,9 @@ static CXLRetCode cmd_firmware_update_transfer(const struct cxl_cmd *cmd,
     size_t offset, length;
 
     if (len < sizeof(*fw_transfer)) {
+        trace_cxl_mailbox_payload_error(cci->current_opcode >> 8,
+                                        cci->current_opcode & 0xff,
+                                        cmd->name, len);
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
 
@@ -1718,6 +1743,9 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
     uint16_t count;
 
     if (len_in < sizeof(*hdr)) {
+        trace_cxl_mailbox_payload_error(cci->current_opcode >> 8,
+                                        cci->current_opcode & 0xff,
+                                        cmd->name, len_in);
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
 
@@ -1748,6 +1776,9 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
     bytes_to_copy = len_in - sizeof(CXLSetFeatureInHeader);
 
     if (bytes_to_copy == 0) {
+        trace_cxl_mailbox_payload_error(cci->current_opcode >> 8,
+                                        cci->current_opcode & 0xff,
+                                        cmd->name, len_in);
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
 
@@ -1762,6 +1793,9 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
 
         if ((uint32_t)hdr->offset + bytes_to_copy >
             sizeof(ct3d->patrol_scrub_wr_attrs)) {
+            trace_cxl_mailbox_payload_error(cci->current_opcode >> 8,
+                                            cci->current_opcode & 0xff,
+                                            cmd->name, len_in);
             return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
         }
         memcpy((uint8_t *)&ct3d->patrol_scrub_wr_attrs + hdr->offset,
@@ -1789,6 +1823,9 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
 
         if ((uint32_t)hdr->offset + bytes_to_copy >
             sizeof(ct3d->ecs_wr_attrs)) {
+            trace_cxl_mailbox_payload_error(cci->current_opcode >> 8,
+                                            cci->current_opcode & 0xff,
+                                            cmd->name, len_in);
             return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
         }
         memcpy((uint8_t *)&ct3d->ecs_wr_attrs + hdr->offset,
@@ -2294,6 +2331,9 @@ static CXLRetCode cmd_ccls_set_lsa(const struct cxl_cmd *cmd,
 
     *len_out = 0;
     if (len_in < hdr_len) {
+        trace_cxl_mailbox_payload_error(cci->current_opcode >> 8,
+                                        cci->current_opcode & 0xff,
+                                        cmd->name, len_in);
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
 
@@ -2661,7 +2701,8 @@ static const struct media_op_supported_list_entry media_op_matrix[] = {
 static CXLRetCode media_operations_discovery(uint8_t *payload_in,
                                              size_t len_in,
                                              uint8_t *payload_out,
-                                             size_t *len_out)
+                                             size_t *len_out,
+                                             CXLCCI *cci)
 {
     struct {
         uint8_t media_operation_class;
@@ -2680,6 +2721,9 @@ static CXLRetCode media_operations_discovery(uint8_t *payload_in,
     int count = 0;
 
     if (len_in < sizeof(*media_op_in_disc_pl)) {
+        trace_cxl_mailbox_payload_error(cci->current_opcode >> 8,
+                                        cci->current_opcode & 0xff,
+                                        "MEDIA_OPERATIONS", len_in);
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
 
@@ -2741,6 +2785,9 @@ static CXLRetCode media_operations_sanitize(CXLType3Dev *ct3d,
 
     dpa_range_list_size = dpa_range_count * sizeof(struct dpa_range_list_entry);
     if (len_in < (sizeof(*media_op_in_sanitize_pl) + dpa_range_list_size)) {
+        trace_cxl_mailbox_payload_error(cci->current_opcode >> 8,
+                                        cci->current_opcode & 0xff,
+                                        "MEDIA_OPERATIONS", len_in);
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
 
@@ -2792,6 +2839,9 @@ static CXLRetCode cmd_media_operations(const struct cxl_cmd *cmd,
     uint8_t media_op_subclass = 0;
 
     if (len_in < sizeof(*media_op_in_common_pl)) {
+        trace_cxl_mailbox_payload_error(cci->current_opcode >> 8,
+                                        cci->current_opcode & 0xff,
+                                        cmd->name, len_in);
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
 
@@ -2805,7 +2855,7 @@ static CXLRetCode cmd_media_operations(const struct cxl_cmd *cmd,
         }
 
         return media_operations_discovery(payload_in, len_in, payload_out,
-                                             len_out);
+                                             len_out, cci);
     case MEDIA_OP_CLASS_SANITIZE:
         switch (media_op_subclass) {
         case MEDIA_OP_SAN_SUBC_SANITIZE:
@@ -3712,6 +3762,9 @@ static CXLRetCode cmd_dcd_add_dyn_cap_rsp(const struct cxl_cmd *cmd,
     CXLRetCode ret;
 
     if (len_in < sizeof(*in)) {
+        trace_cxl_mailbox_payload_error(cci->current_opcode >> 8,
+                                        cci->current_opcode & 0xff,
+                                        cmd->name, len_in);
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
 
@@ -3723,6 +3776,9 @@ static CXLRetCode cmd_dcd_add_dyn_cap_rsp(const struct cxl_cmd *cmd,
 
     if (len_in <
         sizeof(*in) + sizeof(*in->updated_entries) * in->num_entries_updated) {
+        trace_cxl_mailbox_payload_error(cci->current_opcode >> 8,
+                                        cci->current_opcode & 0xff,
+                                        cmd->name, len_in);
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
 
@@ -3883,6 +3939,9 @@ static CXLRetCode cmd_dcd_release_dyn_cap(const struct cxl_cmd *cmd,
     CXLRetCode ret;
 
     if (len_in < sizeof(*in)) {
+        trace_cxl_mailbox_payload_error(cci->current_opcode >> 8,
+                                        cci->current_opcode & 0xff,
+                                        cmd->name, len_in);
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
 
@@ -3892,6 +3951,9 @@ static CXLRetCode cmd_dcd_release_dyn_cap(const struct cxl_cmd *cmd,
 
     if (len_in <
         sizeof(*in) + sizeof(*in->updated_entries) * in->num_entries_updated) {
+        trace_cxl_mailbox_payload_error(cci->current_opcode >> 8,
+                                        cci->current_opcode & 0xff,
+                                        cmd->name, len_in);
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
 
@@ -4588,7 +4650,11 @@ int cxl_process_cci_message(CXLCCI *cci, uint8_t set, uint8_t cmd,
         return CXL_MBOX_UNSUPPORTED;
     }
 
+    cci->current_opcode = (set << 8) | cmd;
+    trace_cxl_mailbox_cmd(set, cmd, cxl_cmd->name, len_in);
+
     if (len_in != cxl_cmd->in && cxl_cmd->in != ~0) {
+        trace_cxl_mailbox_payload_error(set, cmd, cxl_cmd->name, len_in);
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
 
@@ -4620,6 +4686,7 @@ int cxl_process_cci_message(CXLCCI *cci, uint8_t set, uint8_t cmd,
     }
 
     ret = (*h)(cxl_cmd, pl_in, len_in, pl_out, len_out, cci);
+    trace_cxl_mailbox_cmd_done(set, cmd, ret, *len_out);
     if ((cxl_cmd->effect & CXL_MBOX_BACKGROUND_OPERATION) &&
         ret == CXL_MBOX_BG_STARTED) {
         *bg_started = true;

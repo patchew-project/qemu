@@ -207,6 +207,7 @@ typedef struct CXLCCI {
         time_t last_partxfer;
     } fw;
 
+    uint16_t current_opcode;
     size_t payload_max;
     /* Pointer to device hosting the CCI */
     DeviceState *d;
