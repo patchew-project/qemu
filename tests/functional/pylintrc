@@ -82,3 +82,5 @@ disable=bad-inline-option,
 
 # Minimum lines number of a similarity.
 min-similarity-lines=20
+
+extension-pkg-allow-list = cv2
