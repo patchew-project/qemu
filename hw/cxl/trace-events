@@ -9,3 +9,7 @@ cxl_mailbox_payload_error(uint8_t set, uint8_t cmd, const char *name, size_t len
 cxl_event_insert(int log_type, int occupancy) "log_type=%d occupancy=%d"
 cxl_event_overflow(int log_type, uint16_t overflow_count) "log_type=%d overflow_count=%u"
 cxl_event_clear(int log_type, int nr_recs) "log_type=%d nr_recs=%d"
+
+# cxl-host.c
+cxl_cfmws_lookup(uint64_t addr, int rb_index) "addr=0x%"PRIx64" rb_index=%d"
+cxl_cfmws_target_resolved(uint64_t addr, uint8_t target) "addr=0x%"PRIx64" target=0x%02x"

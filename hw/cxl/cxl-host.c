@@ -21,6 +21,7 @@
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pcie_port.h"
 #include "hw/pci-bridge/pci_expander_bridge.h"
+#include "trace.h"
 
 static void cxl_fixed_memory_window_config(CXLFixedMemoryWindowOptions *object,
                                            int index, Error **errp)
@@ -169,6 +170,7 @@ static PCIDevice *cxl_cfmws_find_device(CXLFixedWindow *fw, hwaddr addr)
     PCIDevice *rp, *d;
 
     rb_index = (addr / cxl_decode_ig(fw->enc_int_gran)) % fw->num_targets;
+    trace_cxl_cfmws_lookup(addr, rb_index);
     hb = PCI_HOST_BRIDGE(fw->target_hbs[rb_index]->cxl_host_bridge);
     if (!hb || !hb->bus || !pci_bus_is_cxl(hb->bus)) {
         return NULL;
@@ -191,6 +193,7 @@ static PCIDevice *cxl_cfmws_find_device(CXLFixedWindow *fw, hwaddr addr)
         if (!target_found) {
             return NULL;
         }
+        trace_cxl_cfmws_target_resolved(addr, target);
 
         rp = pcie_find_port_by_pn(hb->bus, target);
         if (!rp) {
@@ -227,6 +230,7 @@ static PCIDevice *cxl_cfmws_find_device(CXLFixedWindow *fw, hwaddr addr)
     if (!target_found) {
         return NULL;
     }
+    trace_cxl_cfmws_target_resolved(addr, target);
 
     d = pcie_find_port_by_pn(&PCI_BRIDGE(d)->sec_bus, target);
     if (!d) {
