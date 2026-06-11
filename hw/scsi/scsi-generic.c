@@ -522,6 +522,13 @@ static bool scsi_generic_pr_key_registered(SCSIDevice *s, uint64_t key,
         memcpy(&additional_length, &buf[4], sizeof(additional_length));
         be32_to_cpus(&additional_length);
 
+        /* The reservation key list consists of 8-byte elements */
+        if (additional_length % sizeof(key_be)) {
+            error_setg(errp, "got misaligned ADDITIONAL LENGTH %" PRIu32
+                       " from READ KEYS", additional_length);
+            return false;
+        }
+
         /*
          * The parameter data's ADDITIONAL LENGTH must not overflow the CDB's
          * 16-bit ALLOCATION LENGTH field since the next loop iteration will
