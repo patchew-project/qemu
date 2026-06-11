@@ -224,7 +224,7 @@ static bool postcopy_preempt_active(void)
     return migrate_postcopy_preempt() && migration_in_postcopy();
 }
 
-bool migrate_ram_is_ignored(RAMBlock *block)
+bool migrate_ram_is_ignored(const RAMBlock *block)
 {
     MigMode mode = migrate_mode();
     return !qemu_ram_is_migratable(block) ||
@@ -364,6 +364,12 @@ struct RAMSrcPageRequest {
     QSIMPLEQ_ENTRY(RAMSrcPageRequest) next_req;
 };
 
+typedef enum RAMStateStage {
+    RAM_STATE_STAGE_ITERATING,
+    RAM_STATE_STAGE_COMPLETING,
+    RAM_STATE_STAGE_COMPLETED,
+} RAMStateStage;
+
 /* State of RAM for migration */
 struct RAMState {
     /*
@@ -398,8 +404,8 @@ struct RAMState {
     uint64_t xbzrle_bytes_prev;
     /* Are we really using XBZRLE (e.g., after the first round). */
     bool xbzrle_started;
-    /* Are we on the last stage of migration */
-    bool last_stage;
+    /* Migration stage */
+    RAMStateStage stage;
 
     /* total handled target pages at the beginning of period */
     uint64_t target_page_count_prev;
@@ -635,7 +641,7 @@ static int save_xbzrle_page(RAMState *rs, PageSearchStatus *pss,
 
     if (!cache_is_cached(XBZRLE.cache, current_addr, generation)) {
         xbzrle_counters.cache_miss++;
-        if (!rs->last_stage) {
+        if (rs->stage == RAM_STATE_STAGE_ITERATING) {
             if (cache_insert(XBZRLE.cache, current_addr, *current_data,
                              generation) == -1) {
                 return -1;
@@ -674,7 +680,7 @@ static int save_xbzrle_page(RAMState *rs, PageSearchStatus *pss,
      * Update the cache contents, so that it corresponds to the data
      * sent, in all cases except where we skip the page.
      */
-    if (!rs->last_stage && encoded_len != 0) {
+    if (rs->stage == RAM_STATE_STAGE_ITERATING && encoded_len != 0) {
         memcpy(prev_cached_page, XBZRLE.current_buf, TARGET_PAGE_SIZE);
         /*
          * In the case where we couldn't compress, ensure that the caller
@@ -840,7 +846,8 @@ static inline bool migration_bitmap_clear_dirty(RAMState *rs,
      *
      * Do the same for postcopy due to the same reason.
      */
-    if (!rs->last_stage && !migration_in_postcopy()) {
+    if (rs->stage == RAM_STATE_STAGE_ITERATING &&
+        !migration_in_postcopy()) {
         /*
          * Clear dirty bitmap if needed.  This _must_ be called before we
          * send any of the page in the chunk because we need to make sure
@@ -1316,7 +1323,7 @@ static int ram_save_page(RAMState *rs, PageSearchStatus *pss)
     if (rs->xbzrle_started && !migration_in_postcopy()) {
         pages = save_xbzrle_page(rs, pss, &p, current_addr,
                                  block, offset);
-        if (!rs->last_stage) {
+        if (rs->stage == RAM_STATE_STAGE_ITERATING) {
             /* Can't send this cached data async, since the cache page
              * might get updated before it gets to the wire
              */
@@ -2920,6 +2927,8 @@ static void ram_state_resume_prepare(RAMState *rs, QEMUFile *out)
     RAMBlock *block;
     uint64_t pages = 0;
 
+    rs->stage = RAM_STATE_STAGE_ITERATING;
+
     /*
      * Postcopy is not using xbzrle/compression, so no need for that.
      * Also, since source are already halted, we don't need to care
@@ -3373,7 +3382,9 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
 
     trace_ram_save_complete(rs->migration_dirty_pages, 0);
 
-    rs->last_stage = !migration_in_colo_state();
+    if (!migration_in_colo_state()) {
+        rs->stage = RAM_STATE_STAGE_COMPLETING;
+    }
 
     WITH_RCU_READ_LOCK_GUARD() {
         if (!migration_in_postcopy()) {
@@ -3383,7 +3394,7 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
         ret = rdma_registration_start(f, RAM_CONTROL_FINISH);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
-            return ret;
+            goto err;
         }
 
         /* try transferring iterative blocks of memory */
@@ -3400,7 +3411,8 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
             }
             if (pages < 0) {
                 qemu_mutex_unlock(&rs->bitmap_mutex);
-                return pages;
+                ret = pages;
+                goto err;
             }
         }
         qemu_mutex_unlock(&rs->bitmap_mutex);
@@ -3408,7 +3420,7 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
         ret = rdma_registration_stop(f, RAM_CONTROL_FINISH);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
-            return ret;
+            goto err;
         }
     }
 
@@ -3419,7 +3431,7 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
          */
         ret = multifd_ram_flush_and_sync(f);
         if (ret < 0) {
-            return ret;
+            goto err;
         }
     }
 
@@ -3428,10 +3440,10 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
 
         if (qemu_file_get_error(f)) {
             Error *local_err = NULL;
-            int err = qemu_file_get_error_obj(f, &local_err);
+            ret = -qemu_file_get_error_obj(f, &local_err);
 
             error_reportf_err(local_err, "Failed to write bitmap to file: ");
-            return -err;
+            goto err;
         }
     }
 
@@ -3439,7 +3451,14 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
 
     trace_ram_save_complete(rs->migration_dirty_pages, 1);
 
-    return qemu_fflush(f);
+    ret = qemu_fflush(f);
+
+err:
+    if (!migration_in_colo_state()) {
+        rs->stage = RAM_STATE_STAGE_COMPLETED;
+    }
+
+    return ret;
 }
 
 static void ram_state_pending(void *opaque, MigPendingData *pending,
@@ -4699,6 +4718,68 @@ static SaveVMHandlers savevm_ram_handlers = {
     .save_postcopy_prepare = ram_save_postcopy_prepare,
 };
 
+static bool ram_migration_is_running(void)
+{
+    return ram_state && ram_state->stage != RAM_STATE_STAGE_COMPLETED;
+}
+
+static void ram_mig_ram_block_set_migratable(RAMBlockNotifier *n,
+                                             const RAMBlock *rb)
+{
+    Error *err = NULL;
+
+    if (!ram_migration_is_running()) {
+        return;
+    }
+
+    error_setg(&err, "RAM block '%s' set migratable during precopy.",
+               rb->idstr);
+    migrate_error_propagate(migrate_get_current(), err);
+    migration_cancel();
+}
+
+static void ram_mig_ram_block_unset_migratable(RAMBlockNotifier *n,
+                                               const RAMBlock *rb)
+{
+    Error *err = NULL;
+
+    if (!ram_migration_is_running()) {
+        return;
+    }
+
+    error_setg(&err, "RAM block '%s' unset migratable during precopy.",
+               rb->idstr);
+    migrate_error_propagate(migrate_get_current(), err);
+    migration_cancel();
+}
+
+static void ram_mig_ram_block_set_idstr(RAMBlockNotifier *n, const RAMBlock *rb)
+{
+    Error *err = NULL;
+
+    if (!ram_migration_is_running() || migrate_ram_is_ignored(rb)) {
+        return;
+    }
+
+    error_setg(&err, "RAM block idstr set during precopy.");
+    migrate_error_propagate(migrate_get_current(), err);
+    migration_cancel();
+}
+
+static void ram_mig_ram_block_removed(RAMBlockNotifier *n, const RAMBlock *rb,
+                                      void *host, size_t size, size_t max_size)
+{
+    Error *err = NULL;
+
+    if (!rb || !ram_migration_is_running() || migrate_ram_is_ignored(rb)) {
+        return;
+    }
+
+    error_setg(&err, "RAM block '%s' removed during precopy.", rb->idstr);
+    migrate_error_propagate(migrate_get_current(), err);
+    migration_cancel();
+}
+
 static void ram_mig_ram_block_resized(RAMBlockNotifier *n, RAMBlock *rb,
                                       size_t new_size)
 {
@@ -4710,7 +4791,7 @@ static void ram_mig_ram_block_resized(RAMBlockNotifier *n, RAMBlock *rb,
         return;
     }
 
-    if (migration_is_running()) {
+    if (ram_migration_is_running()) {
         /*
          * Precopy code on the source cannot deal with the size of RAM blocks
          * changing at random points in time - especially after sending the
@@ -4754,6 +4835,10 @@ static void ram_mig_ram_block_resized(RAMBlockNotifier *n, RAMBlock *rb,
 }
 
 static RAMBlockNotifier ram_mig_ram_notifier = {
+    .ram_block_removed = ram_mig_ram_block_removed,
+    .ram_block_set_migratable = ram_mig_ram_block_set_migratable,
+    .ram_block_unset_migratable = ram_mig_ram_block_unset_migratable,
+    .ram_block_set_idstr = ram_mig_ram_block_set_idstr,
     .ram_block_resized = ram_mig_ram_block_resized,
 };
 

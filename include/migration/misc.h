@@ -40,7 +40,7 @@ void precopy_remove_notifier(NotifierWithReturn *n);
 int precopy_notify(PrecopyNotifyReason reason, Error **errp);
 
 void qemu_guest_free_page_hint(void *addr, size_t len);
-bool migrate_ram_is_ignored(RAMBlock *block);
+bool migrate_ram_is_ignored(const RAMBlock *block);
 
 /* migration/block.c */
 
