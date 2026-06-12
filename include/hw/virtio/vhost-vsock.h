@@ -15,6 +15,7 @@
 #define QEMU_VHOST_VSOCK_H
 
 #include "hw/virtio/vhost-vsock-common.h"
+#include "hw/virtio/virtio-pci.h"
 #include "qom/object.h"
 
 #define TYPE_VHOST_VSOCK "vhost-vsock-device"
@@ -31,6 +32,11 @@ struct VHostVSock {
     VHostVSockConf conf;
 
     /*< public >*/
+};
+
+struct VHostVSockPCI {
+    VirtIOPCIProxy parent_obj;
+    VHostVSock vdev;
 };
 
 #endif /* QEMU_VHOST_VSOCK_H */

@@ -28,11 +28,6 @@ typedef struct VHostVSockPCI VHostVSockPCI;
 DECLARE_INSTANCE_CHECKER(VHostVSockPCI, VHOST_VSOCK_PCI,
                          TYPE_VHOST_VSOCK_PCI)
 
-struct VHostVSockPCI {
-    VirtIOPCIProxy parent_obj;
-    VHostVSock vdev;
-};
-
 /* vhost-vsock-pci */
 
 static const Property vhost_vsock_pci_properties[] = {
