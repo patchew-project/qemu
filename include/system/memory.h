@@ -2938,6 +2938,46 @@ static inline bool memory_access_is_direct(const MemoryRegion *mr,
     return true;
 }
 
+static inline void address_space_memcpy(void *dest, const void *src, size_t n)
+{
+    switch (n) {
+    case 1:
+        __builtin_memcpy(dest, src, 1);
+        break;
+    case 2:
+        __builtin_memcpy(dest, src, 2);
+        break;
+    case 4:
+        __builtin_memcpy(dest, src, 4);
+        break;
+    case 8:
+        __builtin_memcpy(dest, src, 8);
+        break;
+    default:
+        __builtin_memcpy(dest, src, n);
+    }
+}
+
+static inline void address_space_memmove(void *dest, const void *src, size_t n)
+{
+    switch (n) {
+    case 1:
+        __builtin_memmove(dest, src, 1);
+        break;
+    case 2:
+        __builtin_memmove(dest, src, 2);
+        break;
+    case 4:
+        __builtin_memmove(dest, src, 4);
+        break;
+    case 8:
+        __builtin_memmove(dest, src, 8);
+        break;
+    default:
+        __builtin_memmove(dest, src, n);
+    }
+}
+
 /**
  * address_space_read: read from an address space.
  *
@@ -2970,7 +3010,7 @@ MemTxResult address_space_read(AddressSpace *as, hwaddr addr,
             mr = flatview_translate(fv, addr, &addr1, &l, false, attrs);
             if (len == l && memory_access_is_direct(mr, false, attrs)) {
                 ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
-                memcpy(buf, ptr, len);
+                __builtin_memcpy(buf, ptr, len);
             } else {
                 result = flatview_read_continue(fv, addr, attrs, buf, len,
                                                 addr1, l, mr);

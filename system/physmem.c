@@ -3272,7 +3272,7 @@ static MemTxResult flatview_write_continue_step(MemTxAttrs attrs,
         uint8_t *ram_ptr = qemu_ram_ptr_length(mr->ram_block, mr_addr, l,
                                                false, true);
 
-        memmove(ram_ptr, buf, *l);
+        address_space_memmove(ram_ptr, buf, *l);
         invalidate_and_set_dirty(mr, mr_addr, *l);
 
         return MEMTX_OK;
@@ -3365,7 +3365,7 @@ static MemTxResult flatview_read_continue_step(MemTxAttrs attrs, uint8_t *buf,
         uint8_t *ram_ptr = qemu_ram_ptr_length(mr->ram_block, mr_addr, l,
                                                false, false);
 
-        memcpy(buf, ram_ptr, *l);
+        address_space_memcpy(buf, ram_ptr, *l);
 
         return MEMTX_OK;
     }
@@ -3503,8 +3503,8 @@ MemTxResult address_space_write_rom(AddressSpace *as, hwaddr addr,
             l = memory_access_size(mr, l, addr1);
         } else {
             /* ROM/RAM case */
-            void *ram_ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
-            memcpy(ram_ptr, buf, l);
+            address_space_memcpy(qemu_map_ram_ptr(mr->ram_block, addr1),
+                                 buf, l);
             invalidate_and_set_dirty(mr, addr1, l);
         }
         len -= l;
