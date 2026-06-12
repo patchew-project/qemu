@@ -27,7 +27,7 @@ static bool vcpu_syscall_filter(qemu_plugin_id_t id, unsigned int vcpu_index,
                                 int64_t num, uint64_t a1, uint64_t a2,
                                 uint64_t a3, uint64_t a4, uint64_t a5,
                                 uint64_t a6, uint64_t a7, uint64_t a8,
-                                uint64_t *sysret)
+                                int64_t *sysret)
 {
     if (num == MAGIC_SYSCALL) {
         if (a1 == SETPC) {
