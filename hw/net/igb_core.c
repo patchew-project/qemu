@@ -2136,10 +2136,26 @@ igb_set_phy_ctrl(IGBCore *core, uint16_t val)
     }
 }
 
+static void igb_trl_disable_queue(IGBCore *core, int qidx)
+{
+    core->trl[qidx].trlrc = 0;
+
+    timer_del(core->trl[qidx].timer);
+}
+
+static void igb_trl_disable(IGBCore *core)
+{
+    for (int i = 0; i < IGB_NUM_QUEUES; i++) {
+        igb_trl_disable_queue(core, i);
+    }
+}
+
 void igb_core_set_link_status(IGBCore *core)
 {
     NetClientState *nc = qemu_get_queue(core->owner_nic);
     uint32_t old_status = core->mac[STATUS];
+
+    igb_trl_disable(core);
 
     trace_e1000e_link_status_changed(nc->link_down ? false : true);
 
@@ -2621,6 +2637,50 @@ static void igb_set_vtivar(IGBCore *core, int index, uint32_t val)
     /*
      * Ignoring assigned vectors associated with queues Rx#1 and Tx#1 for now.
      */
+}
+
+static uint32_t igb_get_trlrc(IGBCore *core, int index)
+{
+    int qidx = core->mac[TRLDQSEL];
+
+    return core->trl[qidx].trlrc;
+}
+
+static void igb_set_trldqsel(IGBCore *core, int index, uint32_t val)
+{
+    core->mac[index] = val & 0xF;
+}
+
+static void igb_set_trlrc(IGBCore *core, int index, uint32_t val)
+{
+    uint64_t rf_scaled;
+    int qidx;
+
+    qidx = core->mac[TRLDQSEL];
+    core->trl[qidx].trlrc = val;
+
+    if (!(val & E1000_TRLRC_RS_ENA)) {
+        goto disable;
+    }
+
+    /*
+     * The TRLRC register stores the Rate Factor in 10.14 fixed-point format:
+     * - Bits 13:0: Fractional part
+     * - Bits 23:14: Integer part
+     *
+     * Combined, the lower 24 bits of the register (23:0) represent the
+     * concatenated 24-bit scaled Rate Factor directly.
+     */
+    rf_scaled = val & 0xFFFFFF;
+
+    /* Zero is not a valid rate factor, treat as disabled */
+    if (rf_scaled == 0) {
+        goto disable;
+    }
+    return;
+
+disable:
+    igb_trl_disable_queue(core, qidx);
 }
 
 static inline void
@@ -3678,6 +3738,7 @@ static const readops igb_macreg_readops[] = {
     [RQDPC15] = igb_mac_read_clr4,
     [VTIVAR ... VTIVAR + 7] = igb_mac_readreg,
     [VTIVAR_MISC ... VTIVAR_MISC + 7] = igb_mac_readreg,
+    [TRLRC] = igb_get_trlrc,
 };
 enum { IGB_NREADOPS = ARRAY_SIZE(igb_macreg_readops) };
 
@@ -4126,7 +4187,9 @@ static const writeops igb_macreg_writeops[] = {
     [PVTEICR6] = igb_set_vteicr,
     [PVTEICR7] = igb_set_vteicr,
     [VTIVAR ... VTIVAR + 7] = igb_set_vtivar,
-    [VTIVAR_MISC ... VTIVAR_MISC + 7] = igb_mac_writereg
+    [VTIVAR_MISC ... VTIVAR_MISC + 7] = igb_mac_writereg,
+    [TRLDQSEL] = igb_set_trldqsel,
+    [TRLRC]    = igb_set_trlrc
 };
 enum { IGB_NWRITEOPS = ARRAY_SIZE(igb_macreg_writeops) };
 
