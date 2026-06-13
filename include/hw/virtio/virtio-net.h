@@ -159,6 +159,7 @@ typedef struct VirtIONetQueue {
     VirtQueue *rx_vq;
     VirtQueue *tx_vq;
     QEMUTimer *tx_timer;
+    QEMUTimer *rx_timer;
     QEMUBH *tx_bh;
     uint32_t tx_waiting;
     struct {
@@ -230,6 +231,12 @@ struct VirtIONet {
     struct EBPFRSSContext ebpf_rss;
     uint32_t nr_ebpf_rss_fds;
     char **ebpf_rss_fds;
+    uint32_t rx_coal_usecs; /* RX interrupt coalescing timeout (microseconds) */
+    uint32_t rx_coal_packets; /* RX packet count threshold for coalescing */
+    uint32_t rx_pkt_cnt; /* Current RX packet count since last notification */
+    uint32_t tx_coal_usecs; /* TX interrupt coalescing timeout (microseconds) */
+    uint32_t tx_coal_packets; /* TX packet count threshold for coalescing */
+    uint32_t tx_pkt_cnt; /* Current TX packet count since last notification */
     bool tx_timer_activate;
 };
 
