@@ -551,24 +551,13 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
             0, //interpolate
             kCGRenderingIntentDefault //intent
         );
-        // selective drawing code (draws only dirty rectangles) (OS X >= 10.4)
-        const NSRect *rectList;
-        NSInteger rectCount;
-        int i;
-        CGImageRef clipImageRef;
-        CGRect clipRect;
+        NSRect imageRect = NSMakeRect(0, 0, w, h);
 
-        [self getRectsBeingDrawn:&rectList count:&rectCount];
-        for (i = 0; i < rectCount; i++) {
-            clipRect = rectList[i];
-            clipRect.origin.y = (float)h - (clipRect.origin.y + clipRect.size.height);
-            clipImageRef = CGImageCreateWithImageInRect(
-                                                        imageRef,
-                                                        clipRect
-                                                        );
-            CGContextDrawImage (viewContextRef, cgrect(rectList[i]), clipImageRef);
-            CGImageRelease (clipImageRef);
-        }
+        /*
+         * AppKit already clips drawing to the dirty region. Draw the full
+         * guest image so scaled partial updates use a stable source transform.
+         */
+        CGContextDrawImage(viewContextRef, cgrect(imageRect), imageRef);
         CGImageRelease (imageRef);
         CGDataProviderRelease(dataProviderRef);
     }
