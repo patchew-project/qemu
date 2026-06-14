@@ -142,6 +142,19 @@ uint8_t pmbus_receive_block(PMBusDevice *pmdev, uint8_t *dest, size_t len)
     return len;
 }
 
+uint8_t pmbus_receive_string(PMBusDevice *pmdev, char *dest, size_t len)
+{
+    uint8_t rv;
+
+    if (len == 0) {
+        return 0;
+    }
+
+    rv = pmbus_receive_block(pmdev, (uint8_t *)dest, len - 1);
+    dest[len - 1] = '\0';
+    return rv;
+}
+
 
 static uint64_t pmbus_receive_uint(PMBusDevice *pmdev)
 {

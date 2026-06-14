@@ -142,16 +142,15 @@ static int adm1266_write_data(PMBusDevice *pmdev, const uint8_t *buf,
 
     switch (pmdev->code) {
     case PMBUS_MFR_ID:                    /* R/W block */
-        pmbus_receive_block(pmdev, (uint8_t *)s->mfr_id, sizeof(s->mfr_id));
+        pmbus_receive_string(pmdev, s->mfr_id, sizeof(s->mfr_id));
         break;
 
     case PMBUS_MFR_MODEL:                 /* R/W block */
-        pmbus_receive_block(pmdev, (uint8_t *)s->mfr_model,
-                            sizeof(s->mfr_model));
+        pmbus_receive_string(pmdev, s->mfr_model, sizeof(s->mfr_model));
         break;
 
     case PMBUS_MFR_REVISION:               /* R/W block*/
-        pmbus_receive_block(pmdev, (uint8_t *)s->mfr_rev, sizeof(s->mfr_rev));
+        pmbus_receive_string(pmdev, s->mfr_rev, sizeof(s->mfr_rev));
         break;
 
     case ADM1266_SET_RTC:   /* do nothing */

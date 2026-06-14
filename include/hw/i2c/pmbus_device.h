@@ -519,6 +519,16 @@ void pmbus_send_string(PMBusDevice *state, const char *data);
 uint8_t pmbus_receive_block(PMBusDevice *pmdev, uint8_t *dest, size_t len);
 
 /**
+ * @brief Receive a Block Write and store it as a NUL-terminated string.
+ * Write-side mirror of pmbus_send_string(): guarantees dest is always a valid
+ * C string so later reads cannot run past the field. Use for string registers
+ * (e.g. MFR_ID, MFR_MODEL); use pmbus_receive_block() for binary blocks.
+ * @param dest - string buffer with enough capacity to receive the write
+ * @param len - the capacity of dest (the last byte is reserved for the NUL)
+ */
+uint8_t pmbus_receive_string(PMBusDevice *pmdev, char *dest, size_t len);
+
+/**
  * @brief Receive data over PMBus
  * These methods help track how much data is being received over PMBus
  * Log to GUEST_ERROR if too much or too little is sent.
