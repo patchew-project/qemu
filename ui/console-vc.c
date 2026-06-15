@@ -6,6 +6,7 @@
 
 #include "chardev/char.h"
 #include "qapi/error.h"
+#include "qapi/qapi-type-infos-char.h"
 #include "qemu/option.h"
 #include "qemu/queue.h"
 #include "qom/compat-properties.h"
@@ -317,7 +318,12 @@ static void char_vc_class_init(ObjectClass *oc, const void *data)
     cc->supports_size_opts = true;
     cc->supports_encoding_opts = true;
 
-    chardev_vc_add_encoding_prop(oc, get_encoding, set_encoding);
+    object_class_property_add_qapi_enum(oc, QAPI_ENUM_PROP(
+        .name = "encoding",
+        .qapi_type = &ChardevVCEncoding_type_info,
+        .get = get_encoding,
+        .set = set_encoding,
+    ));
 }
 
 static void char_vc_init(Object *obj)

@@ -14,6 +14,8 @@
 
 #include "qemu/osdep.h"
 #include "qapi/qapi-events-run-state.h"
+#include "qapi/qapi-type-infos-common.h"
+#include "qapi/qapi-type-infos-run-state.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include <math.h>
@@ -7086,12 +7088,13 @@ static void kvm_arch_set_honor_guest_pat(Object *obj, int value, Error **errp)
 
 void kvm_arch_accel_class_init(ObjectClass *oc)
 {
-    object_class_property_add_enum(oc, "notify-vmexit", "NotifyVMexitOption",
-                                   &NotifyVmexitOption_lookup,
-                                   kvm_arch_get_notify_vmexit,
-                                   kvm_arch_set_notify_vmexit);
-    object_class_property_set_description(oc, "notify-vmexit",
-                                          "Enable notify VM exit");
+    object_class_property_add_qapi_enum(oc, QAPI_ENUM_PROP(
+        .name = "notify-vmexit",
+        .description = "Enable notify VM exit",
+        .qapi_type = &NotifyVmexitOption_type_info,
+        .get = kvm_arch_get_notify_vmexit,
+        .set = kvm_arch_set_notify_vmexit,
+    ));
 
     object_class_property_add(oc, "notify-window", "uint32",
                               kvm_arch_get_notify_window,
@@ -7124,13 +7127,14 @@ void kvm_arch_accel_class_init(ObjectClass *oc)
     object_class_property_set_description(oc, "xen-evtchn-max-pirq",
                                           "Maximum number of Xen PIRQs");
 
-    object_class_property_add_enum(oc, "honor-guest-pat", "OnOffAuto",
-                                   &OnOffAuto_lookup,
-                                   kvm_arch_get_honor_guest_pat,
-                                   kvm_arch_set_honor_guest_pat);
-    object_class_property_set_description(oc, "honor-guest-pat",
-                                          "Disable KVM quirk that ignores guest PAT "
-                                          "memory type settings (default: auto)");
+    object_class_property_add_qapi_enum(oc, QAPI_ENUM_PROP(
+        .name = "honor-guest-pat",
+        .description = "Disable KVM quirk that ignores guest PAT "
+                       "memory type settings (default: auto)",
+        .qapi_type = &OnOffAuto_type_info,
+        .get = kvm_arch_get_honor_guest_pat,
+        .set = kvm_arch_set_honor_guest_pat,
+    ));
 }
 
 void kvm_set_max_apic_id(uint32_t max_apic_id)
