@@ -35,6 +35,11 @@
 #        qdev device type name.  Link properties form the device model
 #        graph.
 #
+# @qapi-type: if the property was registered with a QAPI type
+#     association, the type name as it appears in the output of
+#     ``query-qmp-schema``.  Absent for properties without a QAPI
+#     type association.  (since 11.1)
+#
 # @description: if specified, the description of the property.
 #
 # @default-value: the default value, if any (since 5.0)
@@ -44,6 +49,7 @@
 { 'struct': 'ObjectPropertyInfo',
   'data': { 'name': 'str',
             'type': 'str',
+            '*qapi-type': 'str',
             '*description': 'str',
             '*default-value': 'any' } }
 
@@ -55,6 +61,11 @@
 # @type: the type of the property, as described in
 #     `ObjectPropertyInfo`.
 #
+# @qapi-type: if the property was registered with a QAPI type
+#     association, the type name as it appears in the output of
+#     ``query-qmp-schema``.  Absent for properties without a QAPI
+#     type association.  (since 11.1)
+#
 # @value: the value of the property.  Absent when the property cannot
 #     be read.
 #
@@ -63,6 +74,7 @@
 { 'struct': 'ObjectPropertyValue',
   'data': { 'name': 'str',
             'type': 'str',
+            '*qapi-type': 'str',
             '*value': 'any' } }
 
 ##
