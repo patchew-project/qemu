@@ -2592,6 +2592,7 @@ static void vfio_add_ext_cap(VFIOPCIDevice *vdev, bool ats_needed)
 {
     PCIDevice *pdev = PCI_DEVICE(vdev);
     bool pasid_cap_added = false;
+    bool ats_cap_present = false;
     Error *err = NULL;
     uint32_t header;
     uint16_t cap_id, next, size;
@@ -2680,6 +2681,7 @@ static void vfio_add_ext_cap(VFIOPCIDevice *vdev, bool ats_needed)
             pcie_add_capability(pdev, cap_id, cap_ver, next, size);
             break;
         case PCI_EXT_CAP_ID_ATS:
+            ats_cap_present = true;
             /*
              * If ATS is requested and supported according to the kernel, add
              * the ATS capability. If not supported according to the kernel or
@@ -2697,6 +2699,11 @@ static void vfio_add_ext_cap(VFIOPCIDevice *vdev, bool ats_needed)
 
     if (!pasid_cap_added && !vfio_pci_synthesize_pasid_cap(vdev, &err)) {
         error_report_err(err);
+    }
+
+    if (vdev->ats == ON_OFF_AUTO_ON && !ats_cap_present) {
+        warn_report("vfio-pci: ats=on requested, but host device has no "
+                    "ATS extended capability");
     }
 
     /* Cleanup chain head ID if necessary */
