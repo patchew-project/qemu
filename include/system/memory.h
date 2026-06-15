@@ -1324,6 +1324,13 @@ void memory_region_init(MemoryRegion *mr,
                         const char *name,
                         uint64_t size);
 
+/**
+ * memory_region_new: Allocate and initialize a memory region
+ *
+ * Like memory_region_init() but @mr is allocated and managed by QOM.
+ *
+ * Return: Pointer to allocated #MemoryRegion.
+ */
 MemoryRegion *memory_region_new(Object *owner,
                                 const char *name,
                                 uint64_t size);
@@ -1378,6 +1385,13 @@ void memory_region_init_io(MemoryRegion *mr,
                            const char *name,
                            uint64_t size);
 
+/**
+ * memory_region_new_io: Allocate and initialize an I/O memory region.
+ *
+ * Like memory_region_init_io() but @mr is allocated and managed by QOM.
+ *
+ * Return: Pointer to allocated #MemoryRegion.
+ */
 MemoryRegion *memory_region_new_io(Object *owner,
                                    const MemoryRegionOps *ops,
                                    void *opaque,
@@ -1410,6 +1424,15 @@ bool memory_region_init_ram_flags_nomigrate(MemoryRegion *mr,
                                             uint32_t ram_flags,
                                             Error **errp);
 
+/**
+ * memory_region_new_ram_flags_nomigrate:  Allocate and initialize RAM memory
+ *                                         region with flags.
+ *
+ * Like memory_region_init_ram_flags_nomigrate() but @mr is allocated and
+ * managed by QOM.
+ *
+ * Return: Pointer to allocated #MemoryRegion.
+ */
 MemoryRegion *memory_region_new_ram_flags_nomigrate(Object *owner,
                                                     const char *name,
                                                     uint64_t size,
@@ -1449,6 +1472,15 @@ bool memory_region_init_resizeable_ram(MemoryRegion *mr,
                                                        void *host),
                                        Error **errp);
 
+/**
+ * memory_region_new_resizeable_ram:  Allocate and initialize memory region
+ *                                    with resizable RAM.
+ *
+ * Like memory_region_init_resizeable_ram() but @mr is allocated and managed
+ * by QOM.
+ *
+ * Return: Pointer to allocated #MemoryRegion.
+ */
 MemoryRegion *memory_region_new_resizeable_ram(Object *owner,
                                                const char *name,
                                                uint64_t size,
@@ -1493,6 +1525,15 @@ bool memory_region_init_ram_from_file(MemoryRegion *mr,
                                       ram_addr_t offset,
                                       Error **errp);
 
+/**
+ * memory_region_new_ram_from_file:  Allocate and initialize RAM memory region
+ *                                   with a mmap-ed backend.
+ *
+ * Like memory_region_init_ram_from_file() but @mr is allocated and managed
+ * by QOM.
+ *
+ * Return: Pointer to allocated #MemoryRegion.
+ */
 MemoryRegion *memory_region_new_ram_from_file(Object *owner,
                                               const char *name,
                                               uint64_t size,
@@ -1531,6 +1572,15 @@ bool memory_region_init_ram_from_fd(MemoryRegion *mr,
                                     ram_addr_t offset,
                                     Error **errp);
 
+/**
+ * memory_region_new_ram_from_fd:  Allocate and initialize RAM memory region
+ *                                 with a mmap-ed backend.
+ *
+ * Like memory_region_init_ram_from_fd() but @mr is allocated and managed
+ * by QOM.
+ *
+ * Return: Pointer to allocated #MemoryRegion.
+ */
 MemoryRegion *memory_region_new_ram_from_fd(Object *owner,
                                             const char *name,
                                             uint64_t size,
@@ -1562,6 +1612,14 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
                                 uint64_t size,
                                 void *ptr);
 
+/**
+ * memory_region_new_ram_ptr:  Allocate and initialize RAM memory region from a
+ *                             user-provided pointer.
+ *
+ * Like memory_region_init_ram_ptr() but @mr is allocated and managed by QOM.
+ *
+ * Return: Pointer to allocated #MemoryRegion.
+ */
 MemoryRegion *memory_region_new_ram_ptr(Object *owner,
                                         const char *name,
                                         uint64_t size,
@@ -1595,6 +1653,15 @@ void memory_region_init_ram_device_ptr(MemoryRegion *mr,
                                        uint64_t size,
                                        void *ptr);
 
+/**
+ * memory_region_new_ram_device_ptr:  Allocate and initialize RAM device memory
+ *                                    region from a user-provided pointer.
+ *
+ * Like memory_region_init_ram_device_ptr() but @mr is allocated and managed
+ * by QOM.
+ *
+ * Return: Pointer to allocated #MemoryRegion.
+ */
 MemoryRegion *memory_region_new_ram_device_ptr(Object *owner,
                                                const char *name,
                                                uint64_t size,
@@ -1619,6 +1686,14 @@ void memory_region_init_alias(MemoryRegion *mr,
                               hwaddr offset,
                               uint64_t size);
 
+/**
+ * memory_region_new_alias: Allocate and initialize a memory region that
+ *                          aliases all or a part of another memory region.
+ *
+ * Like memory_region_init_alias() but @mr is allocated and managed by QOM.
+ *
+ * Return: Pointer to allocated #MemoryRegion.
+ */
 MemoryRegion *memory_region_new_alias(Object *owner,
                                       const char *name,
                                       MemoryRegion *orig,
@@ -1690,6 +1765,13 @@ bool memory_region_init_ram_guest_memfd(MemoryRegion *mr,
                                         uint64_t size,
                                         Error **errp);
 
+/**
+ * memory_region_new_ram: Allocate and initialize a RAM memory region.
+ *
+ * Like memory_region_init_ram() but @mr is allocated and managed by QOM.
+ *
+ * Return: Pointer to allocated #MemoryRegion.
+ */
 MemoryRegion *memory_region_new_ram(Object *owner,
                                     const char *name,
                                     uint64_t size,
@@ -1729,6 +1811,13 @@ bool memory_region_init_rom(MemoryRegion *mr,
                             uint64_t size,
                             Error **errp);
 
+/**
+ * memory_region_new_rom: Allocate and initialize a ROM memory region.
+ *
+ * Like memory_region_init_rom() but @mr is allocated and managed by QOM.
+ *
+ * Return: Pointer to allocated #MemoryRegion.
+ */
 MemoryRegion *memory_region_new_rom(Object *owner,
                                     const char *name,
                                     uint64_t size,
@@ -1769,6 +1858,15 @@ bool memory_region_init_rom_device(MemoryRegion *mr,
                                    uint64_t size,
                                    Error **errp);
 
+/**
+ * memory_region_new_rom_device:  Allocate and initialize a ROM memory region.
+ *                                Writes are handled via callbacks.
+ *
+ * Like memory_region_init_rom_device() but @mr is allocated and managed
+ * by QOM.
+ *
+ * Return: Pointer to allocated #MemoryRegion.
+ */
 MemoryRegion *memory_region_new_rom_device(Object *owner,
                                            const MemoryRegionOps *ops,
                                            void *opaque,
