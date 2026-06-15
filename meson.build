@@ -17,6 +17,11 @@ add_test_setup('thorough',
 
 meson.add_postconf_script(find_program('scripts/symlink-install-tree.py'))
 
+# check our MAINTAINERS file is consistent
+check_maintainers = find_program('scripts/check-maintainers-file.py')
+maintainers_file = files('MAINTAINERS')
+run_command([check_maintainers, maintainers_file], check: true)
+
 ####################
 # Global variables #
 ####################
