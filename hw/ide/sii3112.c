@@ -31,7 +31,7 @@ typedef struct SiI3112Regs {
 
 struct SiI3112PCIState {
     PCIIDEState i;
-    MemoryRegion mmio;
+
     SiI3112Regs regs[2];
 };
 
@@ -249,39 +249,33 @@ static void sii3112_reset(DeviceState *dev)
 
 static void sii3112_pci_realize(PCIDevice *dev, Error **errp)
 {
-    SiI3112PCIState *d = SII3112_PCI(dev);
     PCIIDEState *s = PCI_IDE(dev);
     DeviceState *ds = DEVICE(dev);
-    MemoryRegion *mr;
-    int i;
+    Object *o = OBJECT(dev);
+    MemoryRegion *mmio, *mr;
 
     pci_config_set_interrupt_pin(dev->config, 1);
     pci_set_byte(dev->config + PCI_CACHE_LINE_SIZE, 8);
 
     /* BAR5 is in PCI memory space */
-    memory_region_init_io(&d->mmio, OBJECT(d), &sii3112_reg_ops, d,
-                         "sii3112.bar5", 0x200);
-    pci_register_bar(dev, 5, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
+    mmio = memory_region_new_io(o, &sii3112_reg_ops, SII3112_PCI(dev),
+                                "sii3112.bar5", 0x200);
+    pci_register_bar(dev, 5, PCI_BASE_ADDRESS_SPACE_MEMORY, mmio);
 
     /* BAR0-BAR4 are PCI I/O space aliases into BAR5 */
-    mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(d), "sii3112.bar0", &d->mmio, 0x80, 8);
+    mr = memory_region_new_alias(o, "sii3112.bar0", mmio, 0x80, 8);
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, mr);
-    mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(d), "sii3112.bar1", &d->mmio, 0x88, 4);
+    mr = memory_region_new_alias(o, "sii3112.bar1", mmio, 0x88, 4);
     pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_IO, mr);
-    mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(d), "sii3112.bar2", &d->mmio, 0xc0, 8);
+    mr = memory_region_new_alias(o, "sii3112.bar2", mmio, 0xc0, 8);
     pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_IO, mr);
-    mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(d), "sii3112.bar3", &d->mmio, 0xc8, 4);
+    mr = memory_region_new_alias(o, "sii3112.bar3", mmio, 0xc8, 4);
     pci_register_bar(dev, 3, PCI_BASE_ADDRESS_SPACE_IO, mr);
-    mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(d), "sii3112.bar4", &d->mmio, 0, 16);
+    mr = memory_region_new_alias(o, "sii3112.bar4", mmio, 0, 16);
     pci_register_bar(dev, 4, PCI_BASE_ADDRESS_SPACE_IO, mr);
 
     qdev_init_gpio_in(ds, sii3112_set_irq, 2);
-    for (i = 0; i < 2; i++) {
+    for (int i = 0; i < 2; i++) {
         ide_bus_init(&s->bus[i], sizeof(s->bus[i]), ds, i, 1);
         ide_bus_init_output_irq(&s->bus[i], qdev_get_gpio_in(ds, i));
 
