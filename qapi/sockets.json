@@ -252,3 +252,23 @@
             'unix': 'UnixSocketAddress',
             'vsock': 'VsockSocketAddress',
             'fd': 'FdSocketAddress' } }
+
+##
+# @SpdmTransportType:
+#
+# SPDM transport type
+#
+# @unspecified: Unspecified transport
+#
+# @mctp: MCTP transport
+#
+# @doe: PCI Data Object Exchange (DOE) transport
+#
+# @scsi: SCSI transport
+#
+# @nvme: NVMe transport
+#
+# Since: 11.1
+##
+{ 'enum': 'SpdmTransportType',
+  'data': [ 'unspecified', 'mctp', 'doe', 'scsi', 'nvme' ] }
