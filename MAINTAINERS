@@ -3472,7 +3472,9 @@ M: John Snow <jsnow@redhat.com>
 M: Cleber Rosa <crosa@redhat.com>
 S: Odd Fixes
 F: scripts/*.py
-F: tests/*.py
+F: tests/*/*.py
+F: tests/*/*/*.py
+F: tests/*/*/*/*.py
 
 Benchmark util
 M: Vladimir Sementsov-Ogievskiy <vsementsov@yandex-team.ru>
