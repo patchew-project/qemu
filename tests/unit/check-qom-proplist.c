@@ -351,7 +351,7 @@ static void test_dummy_createv_tree(void)
                               NULL));
 
     g_assert(err == NULL);
-    g_assert_cmpint(dobj->parent_obj.ref, ==, 1);
+    g_assert_cmpint(dobj->parent_obj.ref, ==, 0);
     g_assert_cmpstr(dobj->sv, ==, "Hiss hiss hiss");
     g_assert(dobj->bv == true);
     g_assert(dobj->av == DUMMY_PLATYPUS);
@@ -375,7 +375,7 @@ static void test_dummy_createv_parentless(void)
                                          NULL));
 
     g_assert(err == NULL);
-    g_assert_cmpint(dobj->parent_obj.ref, ==, 1);
+    g_assert_cmpint(dobj->parent_obj.ref, ==, 0);
     g_assert_cmpstr(dobj->sv, ==, "Hiss hiss hiss");
     g_assert(dobj->bv == true);
     g_assert(dobj->av == DUMMY_PLATYPUS);
@@ -414,7 +414,7 @@ static void test_dummy_createlist_tree(void)
                         NULL));
 
     g_assert(err == NULL);
-    g_assert_cmpint(dobj->parent_obj.ref, ==, 1);
+    g_assert_cmpint(dobj->parent_obj.ref, ==, 0);
     g_assert_cmpstr(dobj->sv, ==, "Hiss hiss hiss");
     g_assert(dobj->bv == true);
     g_assert(dobj->av == DUMMY_PLATYPUS);
@@ -450,7 +450,7 @@ static void test_dummy_createlist_parentless(void)
                               NULL));
 
     g_assert(err == NULL);
-    g_assert_cmpint(dobj->parent_obj.ref, ==, 1);
+    g_assert_cmpint(dobj->parent_obj.ref, ==, 0);
     g_assert_cmpstr(dobj->sv, ==, "Hiss hiss hiss");
     g_assert(dobj->bv == true);
     g_assert(dobj->av == DUMMY_PLATYPUS);

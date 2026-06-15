@@ -962,7 +962,7 @@ static void throttle_group_get_limits(Object *obj, Visitor *v,
 
 static bool throttle_group_can_be_deleted(UserCreatable *uc)
 {
-    return OBJECT(uc)->ref == 1;
+    return OBJECT(uc)->ref == 0;
 }
 
 static void throttle_group_obj_class_init(ObjectClass *klass,

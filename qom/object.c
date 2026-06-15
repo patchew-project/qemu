@@ -497,7 +497,6 @@ static void object_initialize_with_type(Object *obj, size_t size, TypeImpl *type
 
     memset(obj, 0, type->instance_size);
     obj->class = type->class;
-    object_ref(obj);
     object_class_property_init_all(obj);
     obj->properties = g_hash_table_new_full(g_str_hash, g_str_equal,
                                             NULL, object_property_free);
@@ -560,11 +559,10 @@ bool object_initialize_child_with_propsv(Object *parentobj,
 
 out:
     /*
-     * We want @obj's reference to be 1 on success, 0 on failure.
-     * On success, it's 2: one taken by object_initialize(), and one
-     * by object_property_add_child().
-     * On failure in object_initialize() or earlier, it's 1.
-     * On failure afterwards, it's also 1: object_unparent() releases
+     * We want @obj's reference to be 0 on success, UINT32_MAX on failure.
+     * On success, it's 1: one taken by object_property_add_child().
+     * On failure in object_initialize() or earlier, it's 0.
+     * On failure afterwards, it's also 0: object_unparent() releases
      * the reference taken by object_property_add_child().
      */
     object_unref(obj);
@@ -668,7 +666,6 @@ static void object_finalize(void *data)
     object_property_del_all(obj);
     object_deinit(obj, ti);
 
-    g_assert(obj->ref == 0);
     g_assert(obj->parent == NULL);
     if (obj->free) {
         obj->free(obj);
@@ -1329,10 +1326,10 @@ void object_unref(void *objptr)
     if (!obj) {
         return;
     }
-    g_assert(obj->ref > 0);
+    g_assert(obj->ref < INT_MAX);
 
     /* parent always holds a reference to its children */
-    if (qatomic_fetch_dec(&obj->ref) == 1) {
+    if (qatomic_fetch_dec(&obj->ref) == 0) {
         object_finalize(obj);
     }
 }
