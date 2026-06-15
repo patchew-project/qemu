@@ -1563,6 +1563,7 @@ static void memory_region_set_ops(MemoryRegion *mr,
                                   const MemoryRegionOps *ops,
                                   void *opaque)
 {
+    g_assert(!ops || !(ops->impl.unaligned && !ops->valid.unaligned));
     mr->ops = ops ?: &unassigned_mem_ops;
     mr->opaque = opaque;
     mr->terminates = true;
