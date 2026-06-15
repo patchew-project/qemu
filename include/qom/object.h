@@ -155,8 +155,12 @@ struct Object
 {
     /* private: */
     ObjectClass *class;
-    ObjectFree *free;
+    union {
+        ObjectFree *free;
+        Object *storage;
+    };
     GHashTable *properties;
+    uint32_t storage_ref;
     uint32_t ref;
     Object *parent;
 };
@@ -613,7 +617,7 @@ struct InterfaceClass
  * @klass: The class to instantiate.
  *
  * This function will initialize a new object using heap allocated memory.
- * The returned object has a reference count of 1, and will be freed when
+ * The returned object has a reference count of 1, and will be finalized when
  * the last reference is dropped.
  *
  * Returns: The newly allocated and instantiated object.
@@ -625,7 +629,7 @@ Object *object_new_with_class(ObjectClass *klass);
  * @typename: The name of the type of the object to instantiate.
  *
  * This function will initialize a new object using heap allocated memory.
- * The returned object has a reference count of 1, and will be freed when
+ * The returned object has a reference count of 1, and will be finalized when
  * the last reference is dropped.
  *
  * Returns: The newly allocated and instantiated object.
@@ -641,7 +645,7 @@ Object *object_new(const char *typename);
  * @...: list of property names and values
  *
  * This function will initialize a new object using heap allocated memory.
- * The returned object has a reference count of 1, and will be freed when
+ * The returned object has a reference count of 1, and will be finalized when
  * the last reference is dropped.
  *
  * The @id parameter will be used when registering the object as a
@@ -1120,8 +1124,8 @@ GSList *object_class_get_list_sorted(const char *implements_type,
  * object_ref:
  * @obj: the object
  *
- * Increase the reference count of a object.  A object cannot be freed as long
- * as a reference remains.
+ * Increase the reference count of a object.  A object cannot be finalized as
+ * long as a reference remains.
  * Returns: @obj
  */
 Object *object_ref(void *obj);
@@ -1130,10 +1134,29 @@ Object *object_ref(void *obj);
  * object_unref:
  * @obj: the object
  *
- * Decrease the reference count of a object.  A object cannot be freed as long
- * as a reference remains.
+ * Decrease the reference count of a object.  A object cannot be finalized as
+ * long as a reference remains.
  */
 void object_unref(void *obj);
+
+/**
+ * object_storage_ref:
+ * @obj: the object
+ *
+ * Increase the reference count of a object's storage.  A object cannot be
+ * freed as long as its storage is referenced.
+ * Returns: the object that provides the storage
+ */
+Object *object_storage_ref(void *obj);
+
+/**
+ * object_storage_unref:
+ * @obj: the object
+ *
+ * Decrease the reference count of a object's storage.  A object cannot be
+ * freed as long as its storage is referenced.
+ */
+void object_storage_unref(void *obj);
 
 /**
  * object_property_try_add:

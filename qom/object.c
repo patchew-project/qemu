@@ -487,7 +487,8 @@ static void object_class_property_init_all(Object *obj)
     }
 }
 
-static void object_initialize_with_type(Object *obj, size_t size, TypeImpl *type)
+static void object_initialize_with_type(Object *obj, size_t size,
+                                        TypeImpl *type, Object *storage)
 {
     type_initialize(type);
 
@@ -496,6 +497,10 @@ static void object_initialize_with_type(Object *obj, size_t size, TypeImpl *type
     g_assert(size >= type->instance_size);
 
     memset(obj, 0, type->instance_size);
+    if (storage) {
+        obj->storage_ref = UINT32_MAX;
+        obj->storage = object_storage_ref(storage);
+    }
     obj->class = type->class;
     object_class_property_init_all(obj);
     obj->properties = g_hash_table_new_full(g_str_hash, g_str_equal,
@@ -508,7 +513,7 @@ void object_initialize(void *data, size_t size, const char *typename)
 {
     TypeImpl *type = type_get_or_load_by_name(typename, &error_fatal);
 
-    object_initialize_with_type(data, size, type);
+    object_initialize_with_type(data, size, type, NULL);
 }
 
 bool object_initialize_child_with_props(Object *parentobj,
@@ -531,14 +536,15 @@ bool object_initialize_child_with_props(Object *parentobj,
 bool object_initialize_child_with_propsv(Object *parentobj,
                                          const char *propname,
                                          void *childobj, size_t size,
-                                         const char *type,
+                                         const char *typename,
                                          Error **errp, va_list vargs)
 {
+    TypeImpl *type = type_get_or_load_by_name(typename, &error_fatal);
     bool ok = false;
     Object *obj;
     UserCreatable *uc;
 
-    object_initialize(childobj, size, type);
+    object_initialize_with_type(childobj, size, type, parentobj);
     obj = OBJECT(childobj);
 
     if (!object_set_propv(obj, vargs, errp)) {
@@ -667,9 +673,7 @@ static void object_finalize(void *data)
     object_deinit(obj, ti);
 
     g_assert(obj->parent == NULL);
-    if (obj->free) {
-        obj->free(obj);
-    }
+    object_storage_unref(obj);
 }
 
 /* Find the minimum alignment guaranteed by the system malloc. */
@@ -708,7 +712,7 @@ static Object *object_new_with_type(Type type)
         obj_free = qemu_vfree;
     }
 
-    object_initialize_with_type(obj, size, type);
+    object_initialize_with_type(obj, size, type, NULL);
     obj->free = obj_free;
 
     trace_object_new(obj, obj->class->type->name);
@@ -1331,6 +1335,46 @@ void object_unref(void *objptr)
     /* parent always holds a reference to its children */
     if (qatomic_fetch_dec(&obj->ref) == 0) {
         object_finalize(obj);
+    }
+}
+
+Object *object_storage_ref(void *objptr)
+{
+    Object *obj = OBJECT(objptr);
+    uint32_t ref;
+
+    if (!obj) {
+        return NULL;
+    }
+
+    while (qatomic_read(&obj->storage_ref) == UINT32_MAX) {
+        obj = obj->storage;
+    }
+
+    ref = qatomic_fetch_inc(&obj->storage_ref);
+    /* Assert waaay before the integer overflows */
+    g_assert(ref < INT_MAX);
+    return obj;
+}
+
+void object_storage_unref(void *objptr)
+{
+    Object *obj = OBJECT(objptr);
+    uint32_t ref;
+
+    if (!obj) {
+        return;
+    }
+
+    while (qatomic_read(&obj->storage_ref) == UINT32_MAX) {
+        obj = obj->storage;
+    }
+
+    ref = qatomic_fetch_dec(&obj->storage_ref);
+    g_assert(ref < INT_MAX);
+
+    if (ref == 0 && obj->free) {
+        obj->free(obj);
     }
 }
 

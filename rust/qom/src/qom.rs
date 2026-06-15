@@ -809,8 +809,8 @@ impl<T: ObjectType> Owned<T> {
     /// # Safety
     ///
     /// The caller must indeed own a reference to the QOM object.
-    /// The object must not be embedded in another unless the outer
-    /// object is guaranteed to have a longer lifetime.
+    /// The object's implementation must guarantee functionality as long as it
+    /// is referenced.
     ///
     /// A raw pointer obtained via [`Owned::into_raw()`] can always be passed
     /// back to `from_raw()` (assuming the original `Owned` was valid!),
@@ -836,8 +836,8 @@ impl<T: ObjectType> Owned<T> {
     ///
     /// # Safety
     ///
-    /// The object must not be embedded in another, unless the outer
-    /// object is guaranteed to have a longer lifetime.
+    /// The object's implementation must guarantee functionality as long as it
+    /// is referenced.
     pub unsafe fn from(obj: &T) -> Self {
         unsafe {
             object_ref(obj.as_object_mut_ptr().cast::<c_void>());
