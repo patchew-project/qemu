@@ -2086,6 +2086,18 @@ static bool v7m_read_sg_stack_word(ARMCPU *cpu, ARMMMUIdx mmu_idx,
         env->v7m.cfsr[M_REG_NS] |=
             (R_V7M_CFSR_PRECISERR_MASK | R_V7M_CFSR_BFARVALID_MASK);
         env->v7m.bfar = addr;
+        /*
+         * The SG instruction's stack-word load is an AccType_NORMAL data
+         * access, so CCR.BFHFNMIGN applies: at negative execution priority
+         * with BFHFNMIGN set, the BusFault is suppressed -- the access
+         * completes returning UNKNOWN data (status recorded above), with no
+         * BusFault exception pended.
+         */
+        if ((env->v7m.ccr[M_REG_NS] & R_V7M_CCR_BFHFNMIGN_MASK) &&
+            armv7m_nvic_neg_prio_requested(env->nvic, env->v7m.secure)) {
+            *spdata = value;
+            return true;
+        }
         armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_BUS, false);
         return false;
     }
