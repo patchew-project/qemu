@@ -3160,6 +3160,90 @@ void memory_region_flush_rom_device(MemoryRegion *mr, hwaddr addr, hwaddr size)
     invalidate_and_set_dirty(mr, addr, size);
 }
 
+#if defined(__i386__) || defined(__x86_64__)
+#define HOST_UNALIGNED_MMIO_OK 1
+#else
+#define HOST_UNALIGNED_MMIO_OK 0
+#endif
+
+void qemu_ram_copy(void *dest, const void *src, size_t n)
+{
+    if (HOST_UNALIGNED_MMIO_OK) {
+        switch (n) {
+        case 1:
+            __builtin_memcpy(dest, src, 1);
+            break;
+        case 2:
+            __builtin_memcpy(dest, src, 2);
+            break;
+        case 4:
+            __builtin_memcpy(dest, src, 4);
+            break;
+        case 8:
+            __builtin_memcpy(dest, src, 8);
+            break;
+        default:
+            memcpy(dest, src, n);
+        }
+    } else {
+        uintptr_t test, lsb;
+
+        do {
+            test = (uintptr_t)dest | n;
+            lsb = test & -test;
+            switch (lsb) {
+            case 1:
+                *(uint8_t *)dest = *(uint8_t *)src;
+                src += 1;
+                dest += 1;
+                n -= 1;
+                break;
+            case 2:
+                *(uint16_t *)dest = *(uint16_t *)src;
+                src += 2;
+                dest += 2;
+                n -= 2;
+                break;
+            case 4:
+                *(uint32_t *)dest = *(uint32_t *)src;
+                src += 4;
+                dest += 4;
+                n -= 4;
+                break;
+            default:
+                *(uint64_t *)dest = *(uint64_t *)src;
+                src += 8;
+                dest += 8;
+                n -= 8;
+            }
+        } while (n != 0);
+    }
+}
+
+void qemu_ram_move(void *dest, const void *src, size_t n)
+{
+    if (HOST_UNALIGNED_MMIO_OK) {
+        switch (n) {
+        case 1:
+            __builtin_memmove(dest, src, 1);
+            break;
+        case 2:
+            __builtin_memmove(dest, src, 2);
+            break;
+        case 4:
+            __builtin_memmove(dest, src, 4);
+            break;
+        case 8:
+            __builtin_memmove(dest, src, 8);
+            break;
+        default:
+            memmove(dest, src, n);
+        }
+    } else {
+        qemu_ram_copy(dest, src, n);
+    }
+}
+
 int memory_access_size(MemoryRegion *mr, unsigned l, hwaddr addr)
 {
     unsigned access_size_max = mr->ops->valid.max_access_size;
@@ -3272,7 +3356,7 @@ static MemTxResult flatview_write_continue_step(MemTxAttrs attrs,
         uint8_t *ram_ptr = qemu_ram_ptr_length(mr->ram_block, mr_addr, l,
                                                false, true);
 
-        memmove(ram_ptr, buf, *l);
+        qemu_ram_move(ram_ptr, buf, *l);
         invalidate_and_set_dirty(mr, mr_addr, *l);
 
         return MEMTX_OK;
@@ -3365,7 +3449,7 @@ static MemTxResult flatview_read_continue_step(MemTxAttrs attrs, uint8_t *buf,
         uint8_t *ram_ptr = qemu_ram_ptr_length(mr->ram_block, mr_addr, l,
                                                false, false);
 
-        memcpy(buf, ram_ptr, *l);
+        qemu_ram_copy(buf, ram_ptr, *l);
 
         return MEMTX_OK;
     }
@@ -3503,8 +3587,7 @@ MemTxResult address_space_write_rom(AddressSpace *as, hwaddr addr,
             l = memory_access_size(mr, l, addr1);
         } else {
             /* ROM/RAM case */
-            void *ram_ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
-            memcpy(ram_ptr, buf, l);
+            qemu_ram_copy(qemu_map_ram_ptr(mr->ram_block, addr1), buf, l);
             invalidate_and_set_dirty(mr, addr1, l);
         }
         len -= l;
