@@ -96,6 +96,7 @@ igb_receive_internal(IGBCore *core, const struct iovec *iov, int iovcnt,
 
 static void igb_raise_interrupts(IGBCore *core, size_t index, uint32_t causes);
 static void igb_reset(IGBCore *core, bool sw);
+static uint32_t igb_trl_get_scaled_rate_factor(uint32_t trlrc);
 
 static inline void
 igb_raise_legacy_irq(IGBCore *core)
@@ -4282,6 +4283,53 @@ igb_autoneg_resume(IGBCore *core)
     }
 }
 
+static uint32_t igb_trl_get_scaled_rate_factor(uint32_t trlrc)
+{
+    /*
+     * The TRLRC register stores the Rate Factor in 10.14 fixed-point format:
+     * - Bits 13:0: Fractional part
+     * - Bits 23:14: Integer part
+     *
+     * Combined, the lower 24 bits of the register (23:0) represent the
+     * concatenated 24-bit scaled Rate Factor directly.
+     */
+    return trlrc & 0xFFFFFF;
+}
+
+bool igb_trl_enabled(uint32_t trlrc)
+{
+    return trlrc & E1000_TRLRC_RS_ENA;
+}
+
+uint64_t igb_trl_get_target_rate(const IGBTrlQueue *q)
+{
+    const uint64_t rf_scaled = igb_trl_get_scaled_rate_factor(q->trlrc);
+
+    if (!igb_trl_enabled(q->trlrc)) {
+        return 0;
+    }
+
+    if (rf_scaled == 0) {
+        return 0;
+    }
+
+    /*
+     * The rate factor is a fixed-point number with a 14-bit fractional part:
+     * Rate Factor = rf_scaled / 2^14
+     *
+     * The target rate is:
+     * Target Rate = Link Rate / Rate Factor
+     *             = Link Rate / (rf_scaled / 2^14)
+     *             = (Link Rate * 2^14) / rf_scaled
+     */
+    return (E1000_LINK_RATE_1GBPS << 14) / rf_scaled;
+}
+
+static void igb_trl_timer_cb(void *opaque)
+{
+    /* Stub */
+}
+
 void
 igb_core_pci_realize(IGBCore        *core,
                      const uint16_t *eeprom_templ,
@@ -4296,6 +4344,11 @@ igb_core_pci_realize(IGBCore        *core,
 
     for (i = 0; i < IGB_NUM_QUEUES; i++) {
         net_tx_pkt_init(&core->tx[i].tx_pkt, E1000E_MAX_TX_FRAGS);
+        core->trl[i].timer =
+            timer_new_ns(QEMU_CLOCK_VIRTUAL, igb_trl_timer_cb,
+                         &core->trl[i]);
+        core->trl[i].core = core;
+        core->trl[i].queue_idx = i;
     }
 
     net_rx_pkt_init(&core->rx_pkt);
@@ -4319,6 +4372,7 @@ igb_core_pci_uninit(IGBCore *core)
 
     for (i = 0; i < IGB_NUM_QUEUES; i++) {
         net_tx_pkt_uninit(core->tx[i].tx_pkt);
+        timer_free(core->trl[i].timer);
     }
 
     net_rx_pkt_uninit(core->rx_pkt);
@@ -4468,6 +4522,11 @@ static void igb_reset(IGBCore *core, bool sw)
     timer_del(core->autoneg_timer);
 
     igb_intrmgr_reset(core);
+
+    for (i = 0; i < IGB_NUM_QUEUES; i++) {
+        timer_del(core->trl[i].timer);
+        core->trl[i].trlrc = 0;
+    }
 
     memset(core->phy, 0, sizeof core->phy);
     memcpy(core->phy, igb_phy_reg_init, sizeof igb_phy_reg_init);
