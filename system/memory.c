@@ -1251,6 +1251,15 @@ void memory_region_init(MemoryRegion *mr,
     memory_region_do_init(mr, owner, name, size);
 }
 
+MemoryRegion *memory_region_new(Object *owner, const char *name, uint64_t size)
+{
+    MemoryRegion *mr = MEMORY_REGION(object_new(TYPE_MEMORY_REGION));
+
+    g_assert(name); /* mr is attached to owner by name */
+    memory_region_do_init(mr, owner, name, size);
+    return mr;
+}
+
 static void memory_region_get_container(Object *obj, Visitor *v,
                                         const char *name, void *opaque,
                                         Error **errp)
@@ -1577,6 +1586,16 @@ void memory_region_init_io(MemoryRegion *mr, Object *owner,
     memory_region_set_ops(mr, ops, opaque);
 }
 
+MemoryRegion *memory_region_new_io(Object *owner,
+                                   const MemoryRegionOps *ops, void *opaque,
+                                   const char *name, uint64_t size)
+{
+    MemoryRegion *mr = memory_region_new(owner, name, size);
+
+    memory_region_set_ops(mr, ops, opaque);
+    return mr;
+}
+
 static bool memory_region_set_ram_block(MemoryRegion *mr, RAMBlock *rb)
 {
     mr->ram = true;
@@ -1602,6 +1621,20 @@ bool memory_region_init_ram_flags_nomigrate(MemoryRegion *mr, Object *owner,
     return memory_region_set_ram_block(mr, rb);
 }
 
+MemoryRegion *memory_region_new_ram_flags_nomigrate(Object *owner,
+                                                    const char *name,
+                                                    uint64_t size,
+                                                    uint32_t ram_flags,
+                                                    Error **errp)
+{
+    MemoryRegion *mr = memory_region_new(owner, name, size);
+    RAMBlock *rb;
+
+    mr->ram = true;
+    rb = qemu_ram_alloc(size, ram_flags, mr, errp);
+    return memory_region_set_ram_block(mr, rb) ? mr : NULL;
+}
+
 bool memory_region_init_resizeable_ram(MemoryRegion *mr,
                                        Object *owner,
                                        const char *name,
@@ -1617,6 +1650,23 @@ bool memory_region_init_resizeable_ram(MemoryRegion *mr,
     memory_region_init(mr, owner, name, size);
     rb = qemu_ram_alloc_resizeable(size, max_size, resized, mr, errp);
     return memory_region_set_ram_block(mr, rb);
+}
+
+MemoryRegion *memory_region_new_resizeable_ram(Object *owner,
+                                               const char *name,
+                                               uint64_t size,
+                                               uint64_t max_size,
+                                               void (*resized)(const char*,
+                                                               uint64_t length,
+                                                               void *host),
+                                               Error **errp)
+{
+    MemoryRegion *mr = memory_region_new(owner, name, size);
+    RAMBlock *rb;
+
+    mr->ram = true;
+    rb = qemu_ram_alloc_resizeable(size, max_size, resized, mr, errp);
+    return memory_region_set_ram_block(mr, rb) ? mr : NULL;
 }
 
 #if defined(CONFIG_POSIX) && !defined(EMSCRIPTEN)
@@ -1635,6 +1685,25 @@ bool memory_region_init_ram_from_file(MemoryRegion *mr, Object *owner,
     return memory_region_set_ram_block(mr, rb);
 }
 
+MemoryRegion *memory_region_new_ram_from_file(Object *owner,
+                                              const char *name,
+                                              uint64_t size,
+                                              uint64_t align,
+                                              uint32_t ram_flags,
+                                              const char *path,
+                                              ram_addr_t offset,
+                                              Error **errp)
+{
+    MemoryRegion *mr = memory_region_new(owner, name, size);
+    RAMBlock *rb;
+
+    mr->ram = true;
+    mr->readonly = !!(ram_flags & RAM_READONLY);
+    mr->align = align;
+    rb = qemu_ram_alloc_from_file(size, mr, ram_flags, path, offset, errp);
+    return memory_region_set_ram_block(mr, rb) ? mr : NULL;
+}
+
 bool memory_region_init_ram_from_fd(MemoryRegion *mr, Object *owner,
                                     const char *name, uint64_t size,
                                     uint32_t ram_flags, int fd,
@@ -1647,6 +1716,21 @@ bool memory_region_init_ram_from_fd(MemoryRegion *mr, Object *owner,
     rb = qemu_ram_alloc_from_fd(size, size, NULL, mr, ram_flags, fd, offset,
                                 false, errp);
     return memory_region_set_ram_block(mr, rb);
+}
+
+MemoryRegion *memory_region_new_ram_from_fd(Object *owner,
+                                            const char *name, uint64_t size,
+                                            uint32_t ram_flags, int fd,
+                                            ram_addr_t offset, Error **errp)
+{
+    MemoryRegion *mr = memory_region_new(owner, name, size);
+    RAMBlock *rb;
+
+    mr->ram = true;
+    mr->readonly = !!(ram_flags & RAM_READONLY);
+    rb = qemu_ram_alloc_from_fd(size, size, NULL, mr, ram_flags, fd, offset,
+                                false, errp);
+    return memory_region_set_ram_block(mr, rb) ? mr : NULL;
 }
 #endif
 
@@ -1667,6 +1751,16 @@ void memory_region_init_ram_ptr(MemoryRegion *mr, Object *owner,
     memory_region_set_ram_ptr(mr, size, ptr);
 }
 
+MemoryRegion *memory_region_new_ram_ptr(Object *owner, const char *name,
+                                        uint64_t size, void *ptr)
+{
+    MemoryRegion *mr = memory_region_new(owner, name, size);
+
+    mr->ram = true;
+    memory_region_set_ram_ptr(mr, size, ptr);
+    return mr;
+}
+
 void memory_region_init_ram_device_ptr(MemoryRegion *mr, Object *owner,
                                        const char *name, uint64_t size,
                                        void *ptr)
@@ -1676,6 +1770,18 @@ void memory_region_init_ram_device_ptr(MemoryRegion *mr, Object *owner,
     memory_region_set_ram_ptr(mr, size, ptr);
 }
 
+MemoryRegion *memory_region_new_ram_device_ptr(Object *owner, const char *name,
+                                               uint64_t size, void *ptr)
+{
+    MemoryRegion *mr = memory_region_new(owner, name, size);
+
+    memory_region_set_ops(mr, &ram_device_mem_ops, mr);
+    mr->ram = true;
+    mr->ram_device = true;
+    memory_region_set_ram_ptr(mr, size, ptr);
+    return mr;
+}
+
 void memory_region_init_alias(MemoryRegion *mr, Object *owner,
                               const char *name, MemoryRegion *orig,
                               hwaddr offset, uint64_t size)
@@ -1683,6 +1789,17 @@ void memory_region_init_alias(MemoryRegion *mr, Object *owner,
     memory_region_init(mr, owner, name, size);
     mr->alias = orig;
     mr->alias_offset = offset;
+}
+
+MemoryRegion *memory_region_new_alias(Object *owner,
+                                      const char *name, MemoryRegion *orig,
+                                      hwaddr offset, uint64_t size)
+{
+    MemoryRegion *mr = memory_region_new(owner, name, size);
+
+    mr->alias = orig;
+    mr->alias_offset = offset;
+    return mr;
 }
 
 void memory_region_init_iommu(void *_iommu_mr,
@@ -3660,6 +3777,19 @@ bool memory_region_init_ram(MemoryRegion *mr, Object *owner,
     return true;
 }
 
+MemoryRegion *memory_region_new_ram(Object *owner,
+                                    const char *name, uint64_t size,
+                                    Error **errp)
+{
+    MemoryRegion *mr;
+
+    mr = memory_region_new_ram_flags_nomigrate(owner, name, size, 0, errp);
+    if (mr) {
+        memory_region_register_ram(mr, owner);
+    }
+    return mr;
+}
+
 bool memory_region_init_ram_guest_memfd(MemoryRegion *mr, Object *owner,
                                         const char *name, uint64_t size,
                                         Error **errp)
@@ -3670,6 +3800,21 @@ bool memory_region_init_ram_guest_memfd(MemoryRegion *mr, Object *owner,
     }
     memory_region_register_ram(mr, owner);
     return true;
+}
+
+MemoryRegion *memory_region_new_ram_guest_memfd(Object *owner,
+                                                const char *name,
+                                                uint64_t size,
+                                                Error **errp)
+{
+    MemoryRegion *mr;
+
+    mr = memory_region_new_ram_flags_nomigrate(owner, name, size,
+                                               RAM_GUEST_MEMFD, errp);
+    if (mr) {
+        memory_region_register_ram(mr, owner);
+    }
+    return mr;
 }
 
 bool memory_region_init_rom(MemoryRegion *mr, Object *owner,
@@ -3683,6 +3828,20 @@ bool memory_region_init_rom(MemoryRegion *mr, Object *owner,
     mr->readonly = true;
     memory_region_register_ram(mr, owner);
     return true;
+}
+
+MemoryRegion *memory_region_new_rom(Object *owner,
+                                    const char *name, uint64_t size,
+                                    Error **errp)
+{
+    MemoryRegion *mr;
+
+    mr = memory_region_new_ram_flags_nomigrate(owner, name, size, 0, errp);
+    if (mr) {
+        mr->readonly = true;
+        memory_region_register_ram(mr, owner);
+    }
+    return mr;
 }
 
 bool memory_region_init_rom_device(MemoryRegion *mr, Object *owner,
@@ -3702,6 +3861,26 @@ bool memory_region_init_rom_device(MemoryRegion *mr, Object *owner,
         return true;
     }
     return false;
+}
+
+MemoryRegion *memory_region_new_rom_device(Object *owner,
+                                           const MemoryRegionOps *ops,
+                                           void *opaque,
+                                           const char *name, uint64_t size,
+                                           Error **errp)
+{
+    MemoryRegion *mr;
+    RAMBlock *rb;
+
+    assert(ops);
+    mr = memory_region_new_io(owner, ops, opaque, name, size);
+    rb = qemu_ram_alloc(size, 0, mr, errp);
+    if (memory_region_set_ram_block(mr, rb)) {
+        mr->rom_device = true;
+        memory_region_register_ram(mr, owner);
+        return mr;
+    }
+    return NULL;
 }
 
 /*

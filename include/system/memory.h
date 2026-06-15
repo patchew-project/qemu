@@ -1324,6 +1324,10 @@ void memory_region_init(MemoryRegion *mr,
                         const char *name,
                         uint64_t size);
 
+MemoryRegion *memory_region_new(Object *owner,
+                                const char *name,
+                                uint64_t size);
+
 /**
  * memory_region_ref: Add 1 to a memory region's reference count
  *
@@ -1374,6 +1378,12 @@ void memory_region_init_io(MemoryRegion *mr,
                            const char *name,
                            uint64_t size);
 
+MemoryRegion *memory_region_new_io(Object *owner,
+                                   const MemoryRegionOps *ops,
+                                   void *opaque,
+                                   const char *name,
+                                   uint64_t size);
+
 /**
  * memory_region_init_ram_flags_nomigrate:  Initialize RAM memory region.
  *                                          Accesses into the region will
@@ -1399,6 +1409,12 @@ bool memory_region_init_ram_flags_nomigrate(MemoryRegion *mr,
                                             uint64_t size,
                                             uint32_t ram_flags,
                                             Error **errp);
+
+MemoryRegion *memory_region_new_ram_flags_nomigrate(Object *owner,
+                                                    const char *name,
+                                                    uint64_t size,
+                                                    uint32_t ram_flags,
+                                                    Error **errp);
 
 /**
  * memory_region_init_resizeable_ram:  Initialize memory region with resizable
@@ -1432,6 +1448,16 @@ bool memory_region_init_resizeable_ram(MemoryRegion *mr,
                                                        uint64_t length,
                                                        void *host),
                                        Error **errp);
+
+MemoryRegion *memory_region_new_resizeable_ram(Object *owner,
+                                               const char *name,
+                                               uint64_t size,
+                                               uint64_t max_size,
+                                               void (*resized)(const char*,
+                                                               uint64_t length,
+                                                               void *host),
+                                               Error **errp);
+
 #ifdef CONFIG_POSIX
 
 /**
@@ -1467,6 +1493,15 @@ bool memory_region_init_ram_from_file(MemoryRegion *mr,
                                       ram_addr_t offset,
                                       Error **errp);
 
+MemoryRegion *memory_region_new_ram_from_file(Object *owner,
+                                              const char *name,
+                                              uint64_t size,
+                                              uint64_t align,
+                                              uint32_t ram_flags,
+                                              const char *path,
+                                              ram_addr_t offset,
+                                              Error **errp);
+
 /**
  * memory_region_init_ram_from_fd:  Initialize RAM memory region with a
  *                                  mmap-ed backend.
@@ -1495,6 +1530,15 @@ bool memory_region_init_ram_from_fd(MemoryRegion *mr,
                                     int fd,
                                     ram_addr_t offset,
                                     Error **errp);
+
+MemoryRegion *memory_region_new_ram_from_fd(Object *owner,
+                                            const char *name,
+                                            uint64_t size,
+                                            uint32_t ram_flags,
+                                            int fd,
+                                            ram_addr_t offset,
+                                            Error **errp);
+
 #endif
 
 /**
@@ -1517,6 +1561,11 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
                                 const char *name,
                                 uint64_t size,
                                 void *ptr);
+
+MemoryRegion *memory_region_new_ram_ptr(Object *owner,
+                                        const char *name,
+                                        uint64_t size,
+                                        void *ptr);
 
 /**
  * memory_region_init_ram_device_ptr:  Initialize RAM device memory region from
@@ -1546,6 +1595,11 @@ void memory_region_init_ram_device_ptr(MemoryRegion *mr,
                                        uint64_t size,
                                        void *ptr);
 
+MemoryRegion *memory_region_new_ram_device_ptr(Object *owner,
+                                               const char *name,
+                                               uint64_t size,
+                                               void *ptr);
+
 /**
  * memory_region_init_alias: Initialize a memory region that aliases all or a
  *                           part of another memory region.
@@ -1564,6 +1618,12 @@ void memory_region_init_alias(MemoryRegion *mr,
                               MemoryRegion *orig,
                               hwaddr offset,
                               uint64_t size);
+
+MemoryRegion *memory_region_new_alias(Object *owner,
+                                      const char *name,
+                                      MemoryRegion *orig,
+                                      hwaddr offset,
+                                      uint64_t size);
 
 /**
  * memory_region_init_iommu: Initialize a memory region of a custom type
@@ -1630,6 +1690,16 @@ bool memory_region_init_ram_guest_memfd(MemoryRegion *mr,
                                         uint64_t size,
                                         Error **errp);
 
+MemoryRegion *memory_region_new_ram(Object *owner,
+                                    const char *name,
+                                    uint64_t size,
+                                    Error **errp);
+
+MemoryRegion *memory_region_new_ram_guest_memfd(Object *owner,
+                                                const char *name,
+                                                uint64_t size,
+                                                Error **errp);
+
 /**
  * memory_region_init_rom: Initialize a ROM memory region.
  *
@@ -1658,6 +1728,11 @@ bool memory_region_init_rom(MemoryRegion *mr,
                             const char *name,
                             uint64_t size,
                             Error **errp);
+
+MemoryRegion *memory_region_new_rom(Object *owner,
+                                    const char *name,
+                                    uint64_t size,
+                                    Error **errp);
 
 /**
  * memory_region_init_rom_device:  Initialize a ROM memory region.
@@ -1694,6 +1769,12 @@ bool memory_region_init_rom_device(MemoryRegion *mr,
                                    uint64_t size,
                                    Error **errp);
 
+MemoryRegion *memory_region_new_rom_device(Object *owner,
+                                           const MemoryRegionOps *ops,
+                                           void *opaque,
+                                           const char *name,
+                                           uint64_t size,
+                                           Error **errp);
 
 /**
  * memory_region_owner: get a memory region's owner.
