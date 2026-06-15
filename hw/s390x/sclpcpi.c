@@ -53,6 +53,7 @@
 #include "qemu/timer.h"
 #include "hw/s390x/event-facility.h"
 #include "hw/s390x/ebcdic.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/qapi-visit-machine.h"
 #include "qapi/qapi-events-machine-s390x.h"
 #include "migration/vmstate.h"
@@ -190,12 +191,13 @@ static void cpi_class_init(ObjectClass *klass, const void *data)
             "name of the cluster which the VM belongs to, if any"
             " e.g. \"PLEX    \"");
 
-    object_class_property_add(klass, "system_level", "uint64", get_system_level,
-                              NULL, NULL, NULL);
+    object_class_property_add_qapi(klass, "system_level",
+                                   &uint64_type_info, get_system_level,
+                                   NULL, NULL, NULL);
     object_class_property_set_description(klass, "system_level",
             "distribution and kernel version in Linux e.g. 74872343805430528");
 
-    object_class_property_add(klass, "timestamp", "uint64", get_timestamp,
+    object_class_property_add_qapi(klass, "timestamp", &uint64_type_info, get_timestamp,
                               NULL, NULL, NULL);
     object_class_property_set_description(klass, "timestamp",
             "latest update of CPI data in nanoseconds since the UNIX EPOCH");

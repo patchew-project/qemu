@@ -26,6 +26,7 @@
 #include "pmu.h"
 #include "time_helper.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "qemu/accel.h"
 #include "qemu/error-report.h"
@@ -1438,7 +1439,7 @@ static void riscv_cpu_add_misa_properties(Object *cpu_obj)
             continue;
         }
 
-        object_property_add(cpu_obj, name, "bool",
+        object_property_add_qapi(cpu_obj, name, &bool_type_info,
                             cpu_get_misa_ext_cfg,
                             cpu_set_misa_ext_cfg,
                             NULL, (void *)misa_cfg);
@@ -1492,7 +1493,7 @@ static void riscv_cpu_add_profiles(Object *cpu_obj)
     for (int i = 0; riscv_profiles[i] != NULL; i++) {
         RISCVCPUProfile *profile = riscv_profiles[i];
 
-        object_property_add(cpu_obj, profile->name, "bool",
+        object_property_add_qapi(cpu_obj, profile->name, &bool_type_info,
                             cpu_get_profile, cpu_set_profile,
                             NULL, (void *)profile);
 
