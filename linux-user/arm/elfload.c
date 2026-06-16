@@ -219,7 +219,7 @@ bool init_guest_commpage(void)
         return true;
     }
 
-    commpage = HI_COMMPAGE & -host_page_size;
+    commpage = COMMPAGE & -host_page_size;
     want = g2h_untagged(commpage);
     addr = mmap(want, host_page_size, PROT_READ | PROT_WRITE,
                 MAP_ANONYMOUS | MAP_PRIVATE |

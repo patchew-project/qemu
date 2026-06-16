@@ -34,7 +34,7 @@ typedef struct target_elf_gregset_t {
     abi_ulong pad[16];     /* pad to 80 elements                 [64..79] */
 } target_elf_gregset_t;
 
-#define LO_COMMPAGE             0
+#define COMMPAGE                0
 #define STACK_GROWS_DOWN        0
 #define STACK_ALIGNMENT         64
 #define VDSO_HEADER             "vdso.c.inc"
