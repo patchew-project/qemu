@@ -21,6 +21,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu/target-info.h"
 #include "hw/core/boards.h"
 #include "kvm_arm.h"
@@ -84,6 +85,8 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
                                                      Error **errp)
 {
     CpuModelExpansionInfo *expansion_info;
+    ObjectPropertyIterator iter;
+    ObjectProperty *idregprop;
     const QDict *qdict_in;
     QDict *qdict_out;
     ObjectClass *oc;
@@ -145,6 +148,20 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
         }
 
         qdict_in = qobject_to(QDict, model->props);
+
+        object_property_iter_init(&iter, obj);
+
+        while ((idregprop = object_property_iter_next(&iter))) {
+            if (!g_str_has_prefix(idregprop->name, "SYSREG_")) {
+                continue;
+            }
+            if (qdict_get(qdict_in, idregprop->name)) {
+                if (!object_property_set(obj, idregprop->name, visitor, &err)) {
+                    break;
+                }
+            }
+        }
+
         i = 0;
         while ((name = cpu_model_advertised_features[i++]) != NULL) {
             if (qdict_get(qdict_in, name)) {
@@ -188,6 +205,18 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
 
             qdict_put_obj(qdict_out, name, value);
         }
+    }
+
+    object_property_iter_init(&iter, obj);
+
+    while ((idregprop = object_property_iter_next(&iter))) {
+        QObject *value;
+
+        if (!g_str_has_prefix(idregprop->name, "SYSREG_")) {
+            continue;
+        }
+        value = object_property_get_qobject(obj, idregprop->name, &error_abort);
+        qdict_put_obj(qdict_out, idregprop->name, value);
     }
 
     if (!qdict_size(qdict_out)) {
