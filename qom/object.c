@@ -1362,8 +1362,10 @@ object_property_try_add(Object *obj, const char *name, const char *type,
         for (i = 0; i < INT16_MAX; ++i) {
             char *full_name = g_strdup_printf("%s[%d]", name_no_array, i);
 
+            QEMU_DEPRECATIONS_OFF;
             ret = object_property_try_add(obj, full_name, type, get, set,
                                           release, opaque, NULL);
+            QEMU_DEPRECATIONS_ON;
             g_free(full_name);
             if (ret) {
                 break;
@@ -1403,8 +1405,10 @@ object_property_add(Object *obj, const char *name, const char *type,
                     ObjectPropertyRelease *release,
                     void *opaque)
 {
+    QEMU_DEPRECATIONS_OFF;
     return object_property_try_add(obj, name, type, get, set, release,
                                    opaque, &error_abort);
+    QEMU_DEPRECATIONS_ON;
 }
 
 ObjectProperty *
@@ -1951,9 +1955,11 @@ object_property_try_add_child(Object *obj, const char *name,
 
     type = g_strdup_printf("child<%s>", object_get_typename(child));
 
+    QEMU_DEPRECATIONS_OFF;
     op = object_property_try_add(obj, name, type, object_get_child_property,
                                  NULL, object_finalize_child_property,
                                  child, errp);
+    QEMU_DEPRECATIONS_ON;
     if (!op) {
         return NULL;
     }
@@ -1967,7 +1973,9 @@ ObjectProperty *
 object_property_add_child(Object *obj, const char *name,
                           Object *child)
 {
+    QEMU_DEPRECATIONS_OFF;
     return object_property_try_add_child(obj, name, child, &error_abort);
+    QEMU_DEPRECATIONS_ON;
 }
 
 void object_property_allow_set_link(const Object *obj, const char *name,
@@ -2145,11 +2153,13 @@ object_add_link_prop(Object *obj, const char *name,
 
     full_type = g_strdup_printf("link<%s>", type);
 
+    QEMU_DEPRECATIONS_OFF;
     op = object_property_add(obj, name, full_type,
                              object_get_link_property,
                              check ? object_set_link_property : NULL,
                              object_release_link_property,
                              prop);
+    QEMU_DEPRECATIONS_ON;
     op->resolve = object_resolve_link_property;
     return op;
 }
@@ -2442,11 +2452,13 @@ object_property_add_str(Object *obj, const char *name,
     prop->get = get;
     prop->set = set;
 
+    QEMU_DEPRECATIONS_OFF;
     return object_property_add(obj, name, "string",
                                get ? property_get_str : NULL,
                                set ? property_set_str : NULL,
                                property_release_data,
                                prop);
+    QEMU_DEPRECATIONS_ON;
 }
 
 ObjectProperty *
@@ -2512,11 +2524,13 @@ object_property_add_bool(Object *obj, const char *name,
     prop->get = get;
     prop->set = set;
 
+    QEMU_DEPRECATIONS_OFF;
     return object_property_add(obj, name, "bool",
                                get ? property_get_bool : NULL,
                                set ? property_set_bool : NULL,
                                property_release_data,
                                prop);
+    QEMU_DEPRECATIONS_ON;
 }
 
 ObjectProperty *
@@ -2577,11 +2591,13 @@ object_property_add_enum(Object *obj, const char *name,
     prop->get = get;
     prop->set = set;
 
+    QEMU_DEPRECATIONS_OFF;
     return object_property_add(obj, name, typename,
                                get ? property_get_enum : NULL,
                                set ? property_set_enum : NULL,
                                property_release_data,
                                prop);
+    QEMU_DEPRECATIONS_ON;
 }
 
 ObjectProperty *
@@ -2655,10 +2671,12 @@ object_property_add_tm(Object *obj, const char *name,
 
     prop->get = get;
 
+    QEMU_DEPRECATIONS_OFF;
     return object_property_add(obj, name, "struct tm",
                                get ? property_get_tm : NULL, NULL,
                                property_release_data,
                                prop);
+    QEMU_DEPRECATIONS_ON;
 }
 
 ObjectProperty *
@@ -2775,8 +2793,10 @@ object_property_add_uint8_ptr(Object *obj, const char *name,
         setter = property_set_uint8_ptr;
     }
 
+    QEMU_DEPRECATIONS_OFF;
     return object_property_add(obj, name, "uint8",
                                getter, setter, NULL, (void *)v);
+    QEMU_DEPRECATIONS_ON;
 }
 
 ObjectProperty *
@@ -2815,8 +2835,10 @@ object_property_add_uint16_ptr(Object *obj, const char *name,
         setter = property_set_uint16_ptr;
     }
 
+    QEMU_DEPRECATIONS_OFF;
     return object_property_add(obj, name, "uint16",
                                getter, setter, NULL, (void *)v);
+    QEMU_DEPRECATIONS_ON;
 }
 
 ObjectProperty *
@@ -2855,8 +2877,10 @@ object_property_add_uint32_ptr(Object *obj, const char *name,
         setter = property_set_uint32_ptr;
     }
 
+    QEMU_DEPRECATIONS_OFF;
     return object_property_add(obj, name, "uint32",
                                getter, setter, NULL, (void *)v);
+    QEMU_DEPRECATIONS_ON;
 }
 
 ObjectProperty *
@@ -2895,8 +2919,10 @@ object_property_add_uint64_ptr(Object *obj, const char *name,
         setter = property_set_uint64_ptr;
     }
 
+    QEMU_DEPRECATIONS_OFF;
     return object_property_add(obj, name, "uint64",
                                getter, setter, NULL, (void *)v);
+    QEMU_DEPRECATIONS_ON;
 }
 
 ObjectProperty *
@@ -2983,11 +3009,13 @@ object_property_add_alias(Object *obj, const char *name,
     prop->target_obj = target_obj;
     prop->target_name = g_strdup(target_name);
 
+    QEMU_DEPRECATIONS_OFF;
     op = object_property_add(obj, name, prop_type,
                              property_get_alias,
                              property_set_alias,
                              property_release_alias,
                              prop);
+    QEMU_DEPRECATIONS_ON;
     op->resolve = property_resolve_alias;
     if (target_prop->defval) {
         op->defval = qobject_ref(target_prop->defval);

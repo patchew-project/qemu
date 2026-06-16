@@ -1175,6 +1175,10 @@ void object_unref(void *obj);
  * @opaque: an opaque pointer to pass to the callbacks for the property
  * @errp: pointer to error object
  *
+ * Use of this function is now deprecated. All properties must be
+ * registered against the class, using the object_class_property_add()
+ * function and not registered against instances.
+ *
  * Returns: The #ObjectProperty; this can be used to set the @resolve
  * callback for child and link properties.
  */
@@ -1183,7 +1187,8 @@ ObjectProperty *object_property_try_add(Object *obj, const char *name,
                                         ObjectPropertyAccessor *get,
                                         ObjectPropertyAccessor *set,
                                         ObjectPropertyRelease *release,
-                                        void *opaque, Error **errp);
+                                        void *opaque, Error **errp)
+    QEMU_DEPRECATED;
 
 /**
  * object_property_add:
@@ -1206,13 +1211,18 @@ ObjectProperty *object_property_try_add(Object *obj, const char *name,
  *   meant to allow a property to free its opaque upon object
  *   destruction.  This may be NULL.
  * @opaque: an opaque pointer to pass to the callbacks for the property
+ *
+ * Use of this function is now deprecated. All properties must be
+ * registered against the class, using the object_class_property_add()
+ * function and not registered against instances.
  */
 ObjectProperty *object_property_add(Object *obj, const char *name,
                                     const char *type,
                                     ObjectPropertyAccessor *get,
                                     ObjectPropertyAccessor *set,
                                     ObjectPropertyRelease *release,
-                                    void *opaque);
+                                    void *opaque)
+    QEMU_DEPRECATED;
 
 void object_property_del(Object *obj, const char *name);
 
@@ -1873,11 +1883,16 @@ Object *object_resolve_and_typecheck(const char *path, const char *name,
  * Add a string property using getters/setters.  This function will add a
  * property of type 'string'.
  *
+ * Use of this function is now deprecated. All properties must be
+ * registered against the class, using the object_class_property_add_str()
+ * function and not registered against instances.
+ *
  * Returns: The newly added property on success, or %NULL on failure.
  */
 ObjectProperty *object_property_add_str(Object *obj, const char *name,
                              char *(*get)(Object *, Error **),
-                             void (*set)(Object *, const char *, Error **));
+                             void (*set)(Object *, const char *, Error **))
+    QEMU_DEPRECATED;
 
 ObjectProperty *object_class_property_add_str(ObjectClass *klass,
                                    const char *name,
@@ -1895,11 +1910,16 @@ ObjectProperty *object_class_property_add_str(ObjectClass *klass,
  * Add a bool property using getters/setters.  This function will add a
  * property of type 'bool'.
  *
+ * Use of this function is now deprecated. All properties must be
+ * registered against the class, using the object_class_property_add_bool()
+ * function and not registered against instances.
+ *
  * Returns: The newly added property on success, or %NULL on failure.
  */
 ObjectProperty *object_property_add_bool(Object *obj, const char *name,
                               bool (*get)(Object *, Error **),
-                              void (*set)(Object *, bool, Error **));
+                              void (*set)(Object *, bool, Error **))
+    QEMU_DEPRECATED;
 
 ObjectProperty *object_class_property_add_bool(ObjectClass *klass,
                                     const char *name,
@@ -1918,13 +1938,18 @@ ObjectProperty *object_class_property_add_bool(ObjectClass *klass,
  * Add an enum property using getters/setters.  This function will add a
  * property of type '@typename'.
  *
+ * Use of this function is now deprecated. All properties must be
+ * registered against the class, using the object_class_property_add_enum()
+ * function and not registered against instances.
+ *
  * Returns: The newly added property on success, or %NULL on failure.
  */
 ObjectProperty *object_property_add_enum(Object *obj, const char *name,
                               const char *typename,
                               const QEnumLookup *lookup,
                               int (*get)(Object *, Error **),
-                              void (*set)(Object *, int, Error **));
+                              void (*set)(Object *, int, Error **))
+    QEMU_DEPRECATED;
 
 ObjectProperty *object_class_property_add_enum(ObjectClass *klass,
                                     const char *name,
@@ -1942,10 +1967,15 @@ ObjectProperty *object_class_property_add_enum(ObjectClass *klass,
  * Add a read-only struct tm valued property using a getter function.
  * This function will add a property of type 'struct tm'.
  *
+ * Use of this function is now deprecated. All properties must be
+ * registered against the class, using the object_class_property_add_tm()
+ * function and not registered against instances.
+ *
  * Returns: The newly added property on success, or %NULL on failure.
  */
 ObjectProperty *object_property_add_tm(Object *obj, const char *name,
-                            void (*get)(Object *, struct tm *, Error **));
+                            void (*get)(Object *, struct tm *, Error **))
+    QEMU_DEPRECATED;
 
 ObjectProperty *object_class_property_add_tm(ObjectClass *klass,
                             const char *name,
@@ -1970,11 +2000,16 @@ typedef enum {
  * Add an integer property in memory.  This function will add a
  * property of type 'uint8'.
  *
+ * Use of this function is now deprecated. All properties must be
+ * registered against the class, using the object_class_property_add_uint8_ptr()
+ * function and not registered against instances.
+ *
  * Returns: The newly added property on success, or %NULL on failure.
  */
 ObjectProperty *object_property_add_uint8_ptr(Object *obj, const char *name,
                                               const uint8_t *v,
-                                              ObjectPropertyFlags flags);
+                                              ObjectPropertyFlags flags)
+    QEMU_DEPRECATED;
 
 ObjectProperty *object_class_property_add_uint8_ptr(ObjectClass *klass,
                                          const char *name,
@@ -1991,11 +2026,16 @@ ObjectProperty *object_class_property_add_uint8_ptr(ObjectClass *klass,
  * Add an integer property in memory.  This function will add a
  * property of type 'uint16'.
  *
+ * Use of this function is now deprecated. All properties must be
+ * registered against the class, using the object_class_property_add_uint16_ptr()
+ * function and not registered against instances.
+ *
  * Returns: The newly added property on success, or %NULL on failure.
  */
 ObjectProperty *object_property_add_uint16_ptr(Object *obj, const char *name,
                                     const uint16_t *v,
-                                    ObjectPropertyFlags flags);
+                                    ObjectPropertyFlags flags)
+    QEMU_DEPRECATED;
 
 ObjectProperty *object_class_property_add_uint16_ptr(ObjectClass *klass,
                                           const char *name,
@@ -2012,11 +2052,16 @@ ObjectProperty *object_class_property_add_uint16_ptr(ObjectClass *klass,
  * Add an integer property in memory.  This function will add a
  * property of type 'uint32'.
  *
+ * Use of this function is now deprecated. All properties must be
+ * registered against the class, using the object_class_property_add_uint32_ptr()
+ * function and not registered against instances.
+ *
  * Returns: The newly added property on success, or %NULL on failure.
  */
 ObjectProperty *object_property_add_uint32_ptr(Object *obj, const char *name,
                                     const uint32_t *v,
-                                    ObjectPropertyFlags flags);
+                                    ObjectPropertyFlags flags)
+    QEMU_DEPRECATED;
 
 ObjectProperty *object_class_property_add_uint32_ptr(ObjectClass *klass,
                                           const char *name,
@@ -2033,11 +2078,16 @@ ObjectProperty *object_class_property_add_uint32_ptr(ObjectClass *klass,
  * Add an integer property in memory.  This function will add a
  * property of type 'uint64'.
  *
+ * Use of this function is now deprecated. All properties must be
+ * registered against the class, using the object_class_property_add_uint64_ptr()
+ * function and not registered against instances.
+ *
  * Returns: The newly added property on success, or %NULL on failure.
  */
 ObjectProperty *object_property_add_uint64_ptr(Object *obj, const char *name,
                                     const uint64_t *v,
-                                    ObjectPropertyFlags flags);
+                                    ObjectPropertyFlags flags)
+    QEMU_DEPRECATED;
 
 ObjectProperty *object_class_property_add_uint64_ptr(ObjectClass *klass,
                                           const char *name,
