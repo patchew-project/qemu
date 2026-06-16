@@ -1300,19 +1300,44 @@ static inline bool memory_region_section_intersect_range(MemoryRegionSection *s,
 
 /**
  * memory_region_init: Initialize a memory region
- *
- * The region typically acts as a container for other memory regions.  Use
- * memory_region_add_subregion() to add subregions.
- *
  * @mr: the #MemoryRegion to be initialized
  * @owner: the object that tracks the region's reference count
  * @name: used for debugging; not visible to the user or ABI
  * @size: size of the region; any subregions beyond this size will be clipped
+ *
+ * The region typically acts as a container for other memory regions.  Use
+ * memory_region_add_subregion() to add subregions.
+ *
+ * Use of this function is now deprecated. All memory regions must be
+ * allocated using the memory_region_new() family of functions and not
+ * statically embedded in a larger struct.
  */
 void memory_region_init(MemoryRegion *mr,
                         Object *owner,
                         const char *name,
-                        uint64_t size);
+                        uint64_t size)
+    QEMU_DEPRECATED;
+
+
+/**
+ * memory_region_new: Allocate a memory region.
+ * @owner: the object that owns the memory region in the composition tree
+ * @name: used for debugging; not visible to the user or ABI
+ * @size: size of the region; any subregions beyond this size will be clipped
+ *
+ * The region typically acts as a container for other memory regions.  Use
+ * memory_region_add_subregion() to add subregions.
+ *
+ * The returned memory region will have a single reference, which is
+ * held by the @owner object in the QOM composition tree. Thus in the
+ * absence of any further references being acquired, the memory region
+ * will be freed when @owner is freed
+ *
+ * Returns: the newly allocated memory region
+ */
+MemoryRegion *memory_region_new(Object *owner,
+                                const char *name,
+                                uint64_t size);
 
 /**
  * memory_region_ref: Add 1 to a memory region's reference count
@@ -1344,11 +1369,7 @@ void memory_region_ref(MemoryRegion *mr);
 void memory_region_unref(MemoryRegion *mr);
 
 /**
- * memory_region_init_io: Initialize an I/O memory region.
- *
- * Accesses into the region will cause the callbacks in @ops to be called.
- * if @size is nonzero, subregions will be clipped to @size.
- *
+ * memory_region_init_io: Initialize an I/O memory region
  * @mr: the #MemoryRegion to be initialized.
  * @owner: the object that tracks the region's reference count
  * @ops: a structure containing read and write callbacks to be used when
@@ -1356,13 +1377,46 @@ void memory_region_unref(MemoryRegion *mr);
  * @opaque: passed to the read and write callbacks of the @ops structure.
  * @name: used for debugging; not visible to the user or ABI
  * @size: size of the region.
+ *
+ * Accesses into the region will cause the callbacks in @ops to be called.
+ * if @size is nonzero, subregions will be clipped to @size.
+ *
+ * Use of this function is now deprecated. All memory regions must be
+ * allocated using the memory_region_new() family of functions and not
+ * statically embedded in a larger struct.
  */
 void memory_region_init_io(MemoryRegion *mr,
                            Object *owner,
                            const MemoryRegionOps *ops,
                            void *opaque,
                            const char *name,
-                           uint64_t size);
+                           uint64_t size)
+    QEMU_DEPRECATED;
+
+/**
+ * memory_region_new_io: Allocates an I/O memory region
+ * @owner: the object that tracks the region's reference count
+ * @ops: a structure containing read and write callbacks to be used when
+ *       I/O is performed on the region.
+ * @opaque: passed to the read and write callbacks of the @ops structure.
+ * @name: used for debugging; not visible to the user or ABI
+ * @size: size of the region.
+ *
+ * Accesses into the region will cause the callbacks in @ops to be called.
+ * if @size is nonzero, subregions will be clipped to @size.
+ *
+ * The returned memory region will have a single reference, which is
+ * held by the @owner object in the QOM composition tree. Thus in the
+ * absence of any further references being acquired, the memory region
+ * will be freed when @owner is freed
+ *
+ * Returns: the newly allocated memory region
+ */
+MemoryRegion *memory_region_new_io(Object *owner,
+                                   const MemoryRegionOps *ops,
+                                   void *opaque,
+                                   const char *name,
+                                   uint64_t size);
 
 /**
  * memory_region_init_ram_flags_nomigrate:  Initialize RAM memory region.
