@@ -149,3 +149,11 @@ config K230
     select SERIAL_MM
     select UNIMP
     select K230_WDT
+
+config SOPHGO_CV1800B
+    bool
+    depends on RISCV64
+    select RISCV_ACLINT
+    select SIFIVE_PLIC
+    select SOPHGO_CV1800B_CLK
+    select DW8250
