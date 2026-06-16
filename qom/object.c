@@ -522,9 +522,11 @@ bool object_initialize_child_with_props(Object *parentobj,
     bool ok;
 
     va_start(vargs, errp);
+QEMU_DEPRECATIONS_OFF;
     ok = object_initialize_child_with_propsv(parentobj, propname,
                                              childobj, size, type, errp,
                                              vargs);
+QEMU_DEPRECATIONS_ON;
     va_end(vargs);
     return ok;
 }
@@ -539,7 +541,9 @@ bool object_initialize_child_with_propsv(Object *parentobj,
     Object *obj;
     UserCreatable *uc;
 
+QEMU_DEPRECATIONS_OFF;
     object_initialize(childobj, size, type);
+QEMU_DEPRECATIONS_ON;
     obj = OBJECT(childobj);
 
     if (!object_set_propv(obj, vargs, errp)) {
@@ -576,8 +580,10 @@ void object_initialize_child_internal(Object *parent,
                                       void *child, size_t size,
                                       const char *type)
 {
+QEMU_DEPRECATIONS_OFF;
     object_initialize_child_with_props(parent, propname, child, size, type,
                                        &error_abort, NULL);
+QEMU_DEPRECATIONS_ON;
 }
 
 static inline bool object_property_is_child(ObjectProperty *prop)

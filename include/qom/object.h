@@ -854,8 +854,13 @@ bool object_set_props_from_keyval(Object *obj, const QDict *qdict,
  * This function will initialize an object.  The memory for the object should
  * have already been allocated.  The returned object has a reference count of 1,
  * and will be finalized when the last reference is dropped.
+ *
+ * Use of this function is now deprecated. All objects must be
+ * allocated using the object_new() family of functions and not
+ * statically embedded in a larger struct.
  */
-void object_initialize(void *obj, size_t size, const char *typename);
+void object_initialize(void *obj, size_t size, const char *typename)
+    QEMU_DEPRECATED;
 
 /**
  * object_initialize_child_with_props:
@@ -873,6 +878,10 @@ void object_initialize(void *obj, size_t size, const char *typename);
  * has a reference count of 1 (for the "child<...>" property from the parent),
  * so the object will be finalized automatically when the parent gets removed.
  *
+ * Use of this function is now deprecated. All objects must be
+ * allocated using the object_new() family of functions and not
+ * statically embedded in a larger struct.
+ *
  * The variadic parameters are a list of pairs of (propname, propvalue)
  * strings. The propname of %NULL indicates the end of the property list.
  * If the object implements the user creatable interface, the object will
@@ -883,7 +892,8 @@ void object_initialize(void *obj, size_t size, const char *typename);
 bool object_initialize_child_with_props(Object *parentobj,
                              const char *propname,
                              void *childobj, size_t size, const char *type,
-                             Error **errp, ...) G_GNUC_NULL_TERMINATED;
+                             Error **errp, ...) G_GNUC_NULL_TERMINATED
+    QEMU_DEPRECATED;
 
 /**
  * object_initialize_child_with_propsv:
@@ -897,12 +907,17 @@ bool object_initialize_child_with_props(Object *parentobj,
  *
  * See object_initialize_child() for documentation.
  *
+ * Use of this function is now deprecated. All objects must be
+ * allocated using the object_new() family of functions and not
+ * statically embedded in a larger struct.
+ *
  * Returns: %true on success, %false on failure.
  */
 bool object_initialize_child_with_propsv(Object *parentobj,
                               const char *propname,
                               void *childobj, size_t size, const char *type,
-                              Error **errp, va_list vargs);
+                              Error **errp, va_list vargs)
+    QEMU_DEPRECATED;
 
 /**
  * object_initialize_child:
@@ -917,13 +932,18 @@ bool object_initialize_child_with_propsv(Object *parentobj,
  *   object_initialize_child_with_props(parent, propname,
  *                                      child, sizeof(*child), type,
  *                                      &error_abort, NULL)
+ *
+ * Use of this function is now deprecated. All objects must be
+ * allocated using the object_new() family of functions and not
+ * statically embedded in a larger struct.
  */
 #define object_initialize_child(parent, propname, child, type)          \
     object_initialize_child_internal((parent), (propname),              \
                                      (child), sizeof(*(child)), (type))
 void object_initialize_child_internal(Object *parent, const char *propname,
                                       void *child, size_t size,
-                                      const char *type);
+                                      const char *type)
+    QEMU_DEPRECATED;
 
 /**
  * object_dynamic_cast:
