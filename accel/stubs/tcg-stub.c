@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "system/tcg.h"
 #include "exec/cpu-common.h"
 
 G_NORETURN void cpu_loop_exit(CPUState *cpu)

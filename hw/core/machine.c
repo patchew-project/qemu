@@ -29,6 +29,7 @@
 #include "system/runstate.h"
 #include "system/xen.h"
 #include "system/qtest.h"
+#include "system/tcg.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/mem/nvdimm.h"
 #include "migration/global_state.h"
@@ -1212,6 +1213,10 @@ static void machine_class_base_init(ObjectClass *oc, const void *data)
         mc->name = g_strndup(cname,
                             strlen(cname) - strlen(TYPE_MACHINE_SUFFIX));
         mc->compat_props = g_ptr_array_new();
+    }
+    if (tcg_enabled()) {
+        tcg_ignore_memory_transaction_failures
+            = mc->ignore_memory_transaction_failures;
     }
 }
 

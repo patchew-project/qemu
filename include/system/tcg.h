@@ -25,4 +25,6 @@ extern bool tcg_allowed;
  */
 bool qemu_tcg_mttcg_enabled(void);
 
+extern bool tcg_ignore_memory_transaction_failures;
+
 #endif

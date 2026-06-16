@@ -26,6 +26,7 @@
 #include "exec/page-protection.h"
 #include "system/memory.h"
 #include "system/physmem.h"
+#include "system/tcg.h"
 #include "accel/tcg/cpu-ldst-common.h"
 #include "accel/tcg/cpu-mmu-index.h"
 #include "exec/cputlb.h"
@@ -89,6 +90,8 @@
  * vaddr even on 32 bit builds
  */
 QEMU_BUILD_BUG_ON(sizeof(vaddr) > sizeof(run_on_cpu_data));
+
+bool tcg_ignore_memory_transaction_failures;
 
 #define ALL_MMUIDX_BITS ((1 << NB_MMU_MODES) - 1)
 
@@ -1291,8 +1294,10 @@ static void io_failed(CPUState *cpu, CPUTLBEntryFull *full, vaddr addr,
                       unsigned size, MMUAccessType access_type, int mmu_idx,
                       MemTxResult response, uintptr_t retaddr)
 {
-    if (!cpu->ignore_memory_transaction_failures
-        && cpu->cc->tcg_ops->do_transaction_failed) {
+    if (unlikely(tcg_ignore_memory_transaction_failures)) {
+        return;
+    }
+    if (cpu->cc->tcg_ops->do_transaction_failed) {
         hwaddr physaddr = full->phys_addr | (addr & ~TARGET_PAGE_MASK);
 
         cpu->cc->tcg_ops->do_transaction_failed(cpu, physaddr, addr, size,
