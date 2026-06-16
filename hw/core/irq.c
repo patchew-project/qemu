@@ -49,6 +49,13 @@ void qemu_init_irq(IRQState *irq, qemu_irq_handler handler, void *opaque,
     init_irq_fields(irq, handler, opaque, n);
 }
 
+IRQState *qemu_irq_new(qemu_irq_handler handler, void *opaque, int n)
+{
+    IRQState *irq = IRQ(object_new(TYPE_IRQ));
+    init_irq_fields(irq, handler, opaque, n);
+    return irq;
+}
+
 void qemu_init_irq_child(Object *parent, const char *propname,
                          IRQState *irq, qemu_irq_handler handler,
                          void *opaque, int n)
@@ -57,13 +64,41 @@ void qemu_init_irq_child(Object *parent, const char *propname,
     init_irq_fields(irq, handler, opaque, n);
 }
 
+IRQState *qemu_irq_new_child(Object *parent, const char *propname,
+                             qemu_irq_handler handler,
+                             void *opaque, int n,
+                             Error **errp)
+{
+    IRQState *irq = IRQ(object_new_with_props(TYPE_IRQ, parent, propname,
+                                              errp, NULL));
+    if (!irq) {
+        return NULL;
+    }
+    init_irq_fields(irq, handler, opaque, n);
+    return irq;
+}
+
+
 void qemu_init_irqs(IRQState irq[], size_t count,
                     qemu_irq_handler handler, void *opaque)
 {
     for (size_t i = 0; i < count; i++) {
+        QEMU_DEPRECATIONS_OFF;
         qemu_init_irq(&irq[i], handler, opaque, i);
+        QEMU_DEPRECATIONS_ON;
     }
 }
+
+IRQState **qemu_irq_new_array(size_t count,
+                              qemu_irq_handler handler, void *opaque)
+{
+    IRQState **irqs = g_new0(IRQState *, count);
+    for (size_t i = 0; i < count; i++) {
+        irqs[i] = qemu_irq_new(handler, opaque, i);
+    }
+    return irqs;
+}
+
 
 qemu_irq *qemu_extend_irqs(qemu_irq *old, int n_old, qemu_irq_handler handler,
                            void *opaque, int n)

@@ -34,7 +34,12 @@ static inline void qemu_irq_pulse(qemu_irq irq)
     qemu_set_irq(irq, 0);
 }
 
-/*
+/**
+ * qemu_init_irq: Initialize IRQ
+ * @handler: handler function for incoming interrupts
+ * @opaque: opaque data to pass to @handler
+ * @n: interrupt number to pass to @handler
+ *
  * Init a single IRQ. The irq is assigned with a handler, an opaque data
  * and the interrupt number. The caller must free this with qemu_free_irq().
  * If you are using this inside a device's init or realize method, then
@@ -42,7 +47,21 @@ static inline void qemu_irq_pulse(qemu_irq irq)
  * to manually clean up the IRQ.
  */
 void qemu_init_irq(IRQState *irq, qemu_irq_handler handler, void *opaque,
-                   int n);
+                   int n)
+    QEMU_DEPRECATED;
+/**
+ * qemu_new_irq: Allocate IRQ
+ * @handler: handler function for incoming interrupts
+ * @opaque: opaque data to pass to @handler
+ * @n: interrupt number to pass to @handler
+ *
+ * The returned IRQ will have a single reference, which is held by the
+ * caller and must be released to free the returned IRQ object when
+ * no longer required.
+ *
+ * Returns: the newly allocated IRQ
+ */
+IRQState *qemu_irq_new(qemu_irq_handler handler, void *opaque, int n);
 
 /**
  * qemu_init_irq_child: Initialize IRQ and make it a QOM child
@@ -56,10 +75,38 @@ void qemu_init_irq(IRQState *irq, qemu_irq_handler handler, void *opaque,
  * Init a single IRQ and make the IRQ object a child of @parent with
  * the child-property name @propname. The IRQ object will thus be
  * automatically freed when @parent is destroyed.
+ *
+ * Use of this function is now deprecated. All IRQs must be
+ * allocated using the qemu_irq_new() family of functions and not
+ * statically embedded in a larger struct.
  */
 void qemu_init_irq_child(Object *parent, const char *propname,
                          IRQState *irq, qemu_irq_handler handler,
-                         void *opaque, int n);
+                         void *opaque, int n)
+    QEMU_DEPRECATED;
+
+/**
+ * qemu_init_irq_child: Allocate IRQ and make it a QOM child
+ * @parent: QOM object which owns this IRQ
+ * @propname: child property name
+ * @handler: handler function for incoming interrupts
+ * @opaque: opaque data to pass to @handler
+ * @n: interrupt number to pass to @handler
+ *
+ * Allocate a single IRQ and make the IRQ object a child of @parent with
+ * the child-property name @propname.
+ *
+ * The returned IRQ will have a single reference, which is held by the
+ * @owner object in the QOM composition tree. Thus in the absence of
+ * any further references being acquired, the IRQ will be freed when
+ * @owner is freed
+ *
+ * Returns: the newly allocated IRQ
+ */
+IRQState *qemu_irq_new_child(Object *parent, const char *propname,
+                             qemu_irq_handler handler,
+                             void *opaque, int n,
+                             Error **errp);
 
 
 /**
@@ -69,9 +116,29 @@ void qemu_init_irq_child(Object *parent, const char *propname,
  * @count: number of IRQs to initialize
  * @handler: handler to assign to each IRQ
  * @opaque: opaque data to pass to @handler
+ *
+ * Use of this function is now deprecated. All IRQs must be
+ * allocated using the qemu_irq_new() family of functions and not
+ * statically embedded in a larger struct.
  */
 void qemu_init_irqs(IRQState irq[], size_t count,
-                    qemu_irq_handler handler, void *opaque);
+                    qemu_irq_handler handler, void *opaque)
+    QEMU_DEPRECATED;
+/**
+ * qemu_irq_new_array: Allocate an array of IRQs.
+ * @count: number of IRQs to initialize
+ * @handler: handler to assign to each IRQ
+ * @opaque: opaque data to pass to @handler
+ *
+ * The returned IRQs will have a single reference, which is held by the
+ * caller and must be released to free the returned IRQs object when
+ * no longer required. The return array memory must also be freed by
+ * the caller.
+ *
+ * Returns: an array of IRQ objects
+ */
+IRQState **qemu_irq_new_array(size_t count,
+                              qemu_irq_handler handler, void *opaque);
 
 /* Returns an array of N IRQs. Each IRQ is assigned the argument handler and
  * opaque data.
