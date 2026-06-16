@@ -3160,6 +3160,177 @@ void memory_region_flush_rom_device(MemoryRegion *mr, hwaddr addr, hwaddr size)
     invalidate_and_set_dirty(mr, addr, size);
 }
 
+static void qemu_ram_copy_aligned(void *dst, const void *src, size_t n)
+{
+    switch (n) {
+    case 1:
+        __builtin_memcpy(dst, src, 1);
+        break;
+    case 2:
+        __builtin_memcpy(dst, src, 2);
+        break;
+    case 4:
+        __builtin_memcpy(dst, src, 4);
+        break;
+    case 8:
+        __builtin_memcpy(dst, src, 8);
+        break;
+    default:
+        memcpy(dst, src, n);
+    }
+}
+
+static void qemu_ram_move_aligned(void *dst, const void *src, size_t n)
+{
+    switch (n) {
+    case 1:
+        __builtin_memmove(dst, src, 1);
+        break;
+    case 2:
+        __builtin_memmove(dst, src, 2);
+        break;
+    case 4:
+        __builtin_memmove(dst, src, 4);
+        break;
+    case 8:
+        __builtin_memmove(dst, src, 8);
+        break;
+    default:
+        memmove(dst, src, n);
+    }
+}
+
+static void qemu_ram_copy_unaligned(void *dst, const void *src,
+                                    size_t n, size_t max_step)
+{
+    uintptr_t test, step;
+
+    /* Aligned maximal step */
+    max_step = pow2floor(max_step);
+
+    while (n) {
+        test = (uintptr_t)src | (uintptr_t)dst | n | max_step;
+        step = test & -test;
+
+        switch (step) {
+        case 1:
+            qatomic_set((uint8_t *)dst, qatomic_read((uint8_t *)src));
+            src += 1;
+            dst += 1;
+            n -= 1;
+            break;
+        case 2:
+            qatomic_set((uint16_t *)dst, qatomic_read((uint16_t *)src));
+            src += 2;
+            dst += 2;
+            n -= 2;
+            break;
+        case 4:
+            qatomic_set((uint32_t *)dst, qatomic_read((uint32_t *)src));
+            src += 4;
+            dst += 4;
+            n -= 4;
+            break;
+        case 8:
+            qatomic_set((uint64_t *)dst, qatomic_read((uint64_t *)src));
+            src += 8;
+            dst += 8;
+            n -= 8;
+            break;
+        default:
+            memcpy(dst, src, step);
+            src += step;
+            dst += step;
+            n -= step;
+        }
+    }
+}
+
+static void qemu_ram_backwards_copy_unaligned(void *dst, const void *src,
+                                              size_t n, size_t max_step)
+{
+    uintptr_t test, step;
+
+    /* Aligned maximal step */
+    max_step = pow2floor(max_step);
+
+    /* End of the blocks */
+    src += n;
+    dst += n;
+
+    while (n) {
+        test = (uintptr_t)src | (uintptr_t)dst | n | max_step;
+        step = test & -test;
+
+        switch (step) {
+        case 1:
+            src -= 1;
+            dst -= 1;
+            n -= 1;
+            qatomic_set((uint8_t *)dst, qatomic_read((uint8_t *)src));
+            break;
+        case 2:
+            src -= 2;
+            dst -= 2;
+            n -= 2;
+            qatomic_set((uint16_t *)dst, qatomic_read((uint16_t *)src));
+            break;
+        case 4:
+            src -= 4;
+            dst -= 4;
+            n -= 4;
+            qatomic_set((uint32_t *)dst, qatomic_read((uint32_t *)src));
+            break;
+        case 8:
+            src -= 8;
+            dst -= 8;
+            n -= 8;
+            qatomic_set((uint64_t *)dst, qatomic_read((uint64_t *)src));
+            break;
+        default:
+            src -= step;
+            dst -= step;
+            n -= step;
+            memmove(dst, src, step);
+        }
+    }
+}
+
+/* x86 should work with __builtin_{memcpy, memmove}() for IO access */
+#if defined(__i386__) || defined(__x86_64__)
+#define HOST_UNALIGNED_MMIO_OK 1
+#else
+#define HOST_UNALIGNED_MMIO_OK 0
+#endif
+
+void qemu_ram_copy(void *dst, const void *src, size_t n)
+{
+    if (dst == src || n == 0) {
+        return;
+    }
+
+    if (HOST_UNALIGNED_MMIO_OK) {
+        qemu_ram_copy_aligned(dst, src, n);
+    } else {
+        qemu_ram_copy_unaligned(dst, src, n, 8);
+    }
+}
+
+void qemu_ram_move(void *dst, const void *src, size_t n)
+{
+    if (src == dst || n == 0) {
+        return;
+    }
+
+    if (HOST_UNALIGNED_MMIO_OK) {
+        qemu_ram_move_aligned(dst, src, n);
+    } else if (dst < src) {
+        qemu_ram_copy_unaligned(dst, src, n, src - dst);
+    } else {
+        qemu_ram_backwards_copy_unaligned(dst, src, n, dst - src);
+    }
+}
+
 int memory_access_size(MemoryRegion *mr, unsigned l, hwaddr addr)
 {
     unsigned access_size_max = mr->ops->valid.max_access_size;
@@ -3272,7 +3443,7 @@ static MemTxResult flatview_write_continue_step(MemTxAttrs attrs,
         uint8_t *ram_ptr = qemu_ram_ptr_length(mr->ram_block, mr_addr, l,
                                                false, true);
 
-        memmove(ram_ptr, buf, *l);
+        qemu_ram_move(ram_ptr, buf, *l);
         invalidate_and_set_dirty(mr, mr_addr, *l);
 
         return MEMTX_OK;
@@ -3365,7 +3536,7 @@ static MemTxResult flatview_read_continue_step(MemTxAttrs attrs, uint8_t *buf,
         uint8_t *ram_ptr = qemu_ram_ptr_length(mr->ram_block, mr_addr, l,
                                                false, false);
 
-        memcpy(buf, ram_ptr, *l);
+        qemu_ram_copy(buf, ram_ptr, *l);
 
         return MEMTX_OK;
     }
@@ -3503,8 +3674,7 @@ MemTxResult address_space_write_rom(AddressSpace *as, hwaddr addr,
             l = memory_access_size(mr, l, addr1);
         } else {
             /* ROM/RAM case */
-            void *ram_ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
-            memcpy(ram_ptr, buf, l);
+            qemu_ram_copy(qemu_map_ram_ptr(mr->ram_block, addr1), buf, l);
             invalidate_and_set_dirty(mr, addr1, l);
         }
         len -= l;
