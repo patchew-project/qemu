@@ -308,18 +308,22 @@ static void pci_piix_realize(PCIDevice *dev, const char *uhci_type,
         return;
     }
 
-    memory_region_init_io(&d->rcr_mem, OBJECT(dev), &rcr_ops, d,
-                          "piix-reset-control", 1);
+    d->rcr_mem = memory_region_new_io(OBJECT(dev), &rcr_ops, d,
+                                      "piix-reset-control", 1);
     memory_region_add_subregion_overlap(pci_address_space_io(dev),
-                                        PIIX_RCR_IOPORT, &d->rcr_mem, 1);
+                                        PIIX_RCR_IOPORT, d->rcr_mem, 1);
 
     /* PIC */
     if (d->has_pic) {
         qemu_irq *i8259;
 
-        qemu_init_irq_child(OBJECT(dev), "i8259-irq", &d->i8259_irq,
-                            piix_request_i8259_irq, d, 0);
-        i8259 = i8259_init(isa_bus, &d->i8259_irq);
+        d->i8259_irq = qemu_irq_new_child(OBJECT(dev), "i8259-irq",
+                                          piix_request_i8259_irq, d, 0,
+                                          errp);
+        if (!d->i8259_irq) {
+            return;
+        }
+        i8259 = i8259_init(isa_bus, d->i8259_irq);
 
         for (size_t i = 0; i < ISA_NUM_IRQS; i++) {
             d->isa_irqs_in[i] = i8259[i];
@@ -340,38 +344,45 @@ static void pci_piix_realize(PCIDevice *dev, const char *uhci_type,
     i8257_dma_init(OBJECT(dev), isa_bus, 0);
 
     /* RTC */
-    qdev_prop_set_int32(DEVICE(&d->rtc), "base_year", 2000);
-    if (!qdev_realize(DEVICE(&d->rtc), BUS(isa_bus), errp)) {
+    qdev_prop_set_int32(DEVICE(d->rtc), "base_year", 2000);
+    if (!qdev_realize(DEVICE(d->rtc), BUS(isa_bus), errp)) {
         return;
     }
-    irq = object_property_get_uint(OBJECT(&d->rtc), "irq", &error_fatal);
-    isa_connect_gpio_out(ISA_DEVICE(&d->rtc), 0, irq);
+    irq = object_property_get_uint(OBJECT(d->rtc), "irq", &error_fatal);
+    isa_connect_gpio_out(ISA_DEVICE(d->rtc), 0, irq);
 
     /* IDE */
-    qdev_prop_set_int32(DEVICE(&d->ide), "addr", dev->devfn + 1);
-    if (!qdev_realize(DEVICE(&d->ide), BUS(pci_bus), errp)) {
+    qdev_prop_set_int32(DEVICE(d->ide), "addr", dev->devfn + 1);
+    if (!qdev_realize(DEVICE(d->ide), BUS(pci_bus), errp)) {
         return;
     }
 
     /* USB */
     if (d->has_usb) {
-        object_initialize_child(OBJECT(dev), "uhci", &d->uhci, uhci_type);
-        qdev_prop_set_int32(DEVICE(&d->uhci), "addr", dev->devfn + 2);
-        if (!qdev_realize(DEVICE(&d->uhci), BUS(pci_bus), errp)) {
+        d->uhci = UHCI(object_new_with_props(
+                           uhci_type, OBJECT(d), "uhci", errp, NULL));
+        if (!d->uhci) {
+            return;
+        }
+        qdev_prop_set_int32(DEVICE(d->uhci), "addr", dev->devfn + 2);
+        if (!qdev_realize(DEVICE(d->uhci), BUS(pci_bus), errp)) {
             return;
         }
     }
 
     /* Power Management */
     if (d->has_acpi) {
-        object_initialize_child(OBJECT(d), "pm", &d->pm, TYPE_PIIX4_PM);
-        qdev_prop_set_int32(DEVICE(&d->pm), "addr", dev->devfn + 3);
-        qdev_prop_set_uint32(DEVICE(&d->pm), "smb_io_base", d->smb_io_base);
-        qdev_prop_set_bit(DEVICE(&d->pm), "smm-enabled", d->smm_enabled);
-        if (!qdev_realize(DEVICE(&d->pm), BUS(pci_bus), errp)) {
+        d->pm = PIIX4_PM(object_new_with_props(
+                             TYPE_PIIX4_PM, OBJECT(d), "pm", errp, NULL));
+        if (!d->pm) {
+        }
+        qdev_prop_set_int32(DEVICE(d->pm), "addr", dev->devfn + 3);
+        qdev_prop_set_uint32(DEVICE(d->pm), "smb_io_base", d->smb_io_base);
+        qdev_prop_set_bit(DEVICE(d->pm), "smm-enabled", d->smm_enabled);
+        if (!qdev_realize(DEVICE(d->pm), BUS(pci_bus), errp)) {
             return;
         }
-        qdev_connect_gpio_out(DEVICE(&d->pm), 0, d->isa_irqs_in[9]);
+        qdev_connect_gpio_out(DEVICE(d->pm), 0, d->isa_irqs_in[9]);
     }
 
     pci_bus_irqs(pci_bus, piix_set_pci_irq, d, PIIX_NUM_PIRQS);
@@ -406,7 +417,9 @@ static void pci_piix_init(Object *obj)
     qdev_init_gpio_out_named(DEVICE(obj), d->isa_irqs_in, "isa-irqs",
                              ISA_NUM_IRQS);
 
-    object_initialize_child(obj, "rtc", &d->rtc, TYPE_MC146818_RTC);
+    d->rtc = MC146818_RTC(
+        object_new_with_props(TYPE_MC146818_RTC, obj, "rtc",
+                              &error_abort, NULL));
 }
 
 static const Property pci_piix_props[] = {
@@ -462,7 +475,9 @@ static void piix3_init(Object *obj)
 {
     PIIXState *d = PIIX_PCI_DEVICE(obj);
 
-    object_initialize_child(obj, "ide", &d->ide, TYPE_PIIX3_IDE);
+    d->ide = PCI_IDE(
+        object_new_with_props(TYPE_PIIX3_IDE, obj, "ide",
+                              &error_abort, NULL));
 }
 
 static void piix3_class_init(ObjectClass *klass, const void *data)
@@ -492,7 +507,9 @@ static void piix4_init(Object *obj)
 {
     PIIXState *s = PIIX_PCI_DEVICE(obj);
 
-    object_initialize_child(obj, "ide", &s->ide, TYPE_PIIX4_IDE);
+    s->ide = PCI_IDE(
+        object_new_with_props(TYPE_PIIX4_IDE, obj, "ide",
+                              &error_abort, NULL));
 }
 
 static void piix4_class_init(ObjectClass *klass, const void *data)

@@ -53,15 +53,15 @@ struct PIIXState {
     qemu_irq cpu_intr;
     qemu_irq isa_irqs_in[ISA_NUM_IRQS];
 
-    IRQState i8259_irq;
+    IRQState *i8259_irq;
 
     /* This member isn't used. Just for save/load compatibility */
     int32_t pci_irq_levels_vmstate[PIIX_NUM_PIRQS];
 
-    MC146818RtcState rtc;
-    PCIIDEState ide;
-    UHCIState uhci;
-    PIIX4PMState pm;
+    MC146818RtcState *rtc;
+    PCIIDEState *ide;
+    UHCIState *uhci;
+    PIIX4PMState *pm;
 
     uint32_t smb_io_base;
 
@@ -69,7 +69,7 @@ struct PIIXState {
     uint8_t rcr;
 
     /* IO memory region for Reset Control Register (PIIX_RCR_IOPORT) */
-    MemoryRegion rcr_mem;
+    MemoryRegion *rcr_mem;
 
     bool has_acpi;
     bool has_pic;
