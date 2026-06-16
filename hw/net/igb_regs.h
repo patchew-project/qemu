@@ -718,4 +718,10 @@ static inline uint8_t igb_ivar_entry_tx(uint8_t i)
     return i < 8 ? i * 4 + 1 : (i - 8) * 4 + 3;
 }
 
+/* Transmit Rate Limiting */
+#define E1000_TRLDQSEL 0x03604
+#define E1000_TRLRC 0x036B0
+#define E1000_TRLRC_RS_ENA BIT(31)
+#define E1000_LINK_RATE_1GBPS (1000000000ULL / BITS_PER_BYTE)
+
 #endif
