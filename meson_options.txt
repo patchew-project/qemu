@@ -367,6 +367,8 @@ option('qom_cast_debug', type: 'boolean', value: true,
        description: 'cast debugging support')
 option('slirp_smbd', type : 'feature', value : 'auto',
        description: 'use smbd (at path --smbd=*) in slirp networking')
+option('deprecations', type: 'boolean', value: true,
+       description: 'enable internal API deprecation warnings')
 
 option('qemu_ga_manufacturer', type: 'string', value: 'QEMU',
        description: '"manufacturer" name for qemu-ga registry entries')

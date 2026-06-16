@@ -448,6 +448,25 @@ void QEMU_ERROR("code path is reachable")
 #endif
 
 /*
+ * Tag an internal APIs which should no longer be used
+ * to emit a warning during build if --enable-deprecations
+ * is used with configure. Use of -Werror will trigger
+ * immediate build failure if this is used.
+ */
+#ifdef CONFIG_DEPRECATIONS
+# define QEMU_DEPRECATED G_GNUC_DEPRECATED
+# define QEMU_DEPRECATIONS_OFF \
+    _Pragma("GCC diagnostic push") \
+    _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+# define QEMU_DEPRECATIONS_ON \
+    _Pragma("GCC diagnostic pop")
+#else
+# define QEMU_DEPRECATED
+# define QEMU_DEPRECATIONS_OFF
+# define QEMU_DEPRECATIONS_ON
+#endif
+
+/*
  * Minimum function that returns zero only if both values are zero.
  * Intended for use with unsigned values only.
  *
