@@ -774,7 +774,7 @@ object_new_with_props_helper(const char *typename,
            (id == NULL && parent == NULL));
 
     if (id != NULL && !id_wellformed(id)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "id", "an identifier");
+        error_setg(errp, "QOM ID value '%s' is not valid", id);
         error_append_hint(errp, "Identifiers consist of letters, digits, "
                           "'-', '.', '_', starting with a letter.\n");
         return NULL;
