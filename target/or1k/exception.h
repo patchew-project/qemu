@@ -20,7 +20,7 @@
 #ifndef TARGET_OPENRISC_EXCEPTION_H
 #define TARGET_OPENRISC_EXCEPTION_H
 
-#include "cpu.h"
+#include "target/or1k/cpu-qom.h"
 
 G_NORETURN void raise_exception(OpenRISCCPU *cpu, uint32_t excp);
 

@@ -18,9 +18,18 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
 #include "exec/helper-proto.h"
-#include "exception.h"
+
+#include "target/or1k/cpu.h"
+#include "target/or1k/exception.h"
+
+G_NORETURN void raise_exception(OpenRISCCPU *cpu, uint32_t excp)
+{
+    CPUState *cs = CPU(cpu);
+
+    cs->exception_index = excp;
+    cpu_loop_exit(cs);
+}
 
 void HELPER(exception)(CPUOpenRISCState *env, uint32_t excp)
 {
