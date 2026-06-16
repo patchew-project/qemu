@@ -81,6 +81,17 @@ bool kvmppc_supports_ail_3(void);
 int kvmppc_enable_hwrng(void);
 int kvmppc_put_books_sregs(PowerPCCPU *cpu);
 PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void);
+
+/*
+ * Bit position indices for KVM_PPC_COMPAT_CAP_* capabilities.
+ * These represent the result of (63 - bit_number) for each capability bit.
+ * Used for identifying which compatibility mode is supported by the host.
+ */
+#define KVM_PPC_COMPAT_CAP_P9_IDX   1  /* 63 - 62 */
+#define KVM_PPC_COMPAT_CAP_P10_IDX  2  /* 63 - 61 */
+#define KVM_PPC_COMPAT_CAP_P11_IDX  3  /* 63 - 60 */
+
+uint32_t kvm_ppc_host_compat_pvr(void);
 void kvmppc_check_papr_resize_hpt(Error **errp);
 int kvmppc_resize_hpt_prepare(PowerPCCPU *cpu, target_ulong flags, int shift);
 int kvmppc_resize_hpt_commit(PowerPCCPU *cpu, target_ulong flags, int shift);
@@ -438,6 +449,11 @@ static inline int kvmppc_put_books_sregs(PowerPCCPU *cpu)
 static inline PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void)
 {
     return NULL;
+}
+
+static inline uint32_t kvm_ppc_host_compat_pvr(void)
+{
+    return 0;
 }
 
 static inline void kvmppc_check_papr_resize_hpt(Error **errp)
