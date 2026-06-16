@@ -847,14 +847,13 @@ static bool pgb_try_mmap_set(const PGBAddrs *ga, uintptr_t base, uintptr_t brk)
 /**
  * pgb_addr_set:
  * @ga: output set of guest addrs
- * @guest_loaddr: guest image low address
- * @guest_hiaddr: guest image high address
+ * @image_range: fixed guest image addresses
  * @identity: create for identity mapping
  *
  * Fill in @ga with the image, COMMPAGE and NULL page.
  */
-static bool pgb_addr_set(PGBAddrs *ga, abi_ulong guest_loaddr,
-                         abi_ulong guest_hiaddr, bool try_identity)
+static bool pgb_addr_set(PGBAddrs *ga, const PGBRange *image_range,
+                         bool try_identity)
 {
     int n;
 
@@ -866,7 +865,7 @@ static bool pgb_addr_set(PGBAddrs *ga, abi_ulong guest_loaddr,
         if (LO_COMMPAGE != -1 && LO_COMMPAGE < mmap_min_addr) {
             return false;
         }
-        if (guest_loaddr != 0 && guest_loaddr < mmap_min_addr) {
+        if (image_range && image_range->lo < mmap_min_addr) {
             return false;
         }
     }
@@ -892,10 +891,8 @@ static bool pgb_addr_set(PGBAddrs *ga, abi_ulong guest_loaddr,
         }
 
         /* Add the guest image for ET_EXEC. */
-        if (guest_loaddr) {
-            ga->bounds[n].lo = guest_loaddr;
-            ga->bounds[n].hi = guest_hiaddr;
-            n++;
+        if (image_range) {
+            ga->bounds[n++] = *image_range;
         }
     }
 
@@ -928,8 +925,8 @@ static void pgb_fail_in_use(const char *image_name)
     exit(EXIT_FAILURE);
 }
 
-static void pgb_fixed(const char *image_name, uintptr_t guest_loaddr,
-                      uintptr_t guest_hiaddr, uintptr_t align)
+static void pgb_fixed(const char *image_name, const PGBRange *image_range,
+                      uintptr_t align)
 {
     PGBAddrs ga;
     uintptr_t brk = (uintptr_t)sbrk(0);
@@ -941,7 +938,7 @@ static void pgb_fixed(const char *image_name, uintptr_t guest_loaddr,
         exit(EXIT_FAILURE);
     }
 
-    if (!pgb_addr_set(&ga, guest_loaddr, guest_hiaddr, !guest_base)
+    if (!pgb_addr_set(&ga, image_range, !guest_base)
         || !pgb_try_mmap_set(&ga, guest_base, brk)) {
         pgb_fail_in_use(image_name);
     }
@@ -1026,15 +1023,15 @@ static uintptr_t pgb_find_itree(const PGBAddrs *ga, IntervalTreeRoot *root,
     return pgb_try_mmap_set(ga, base, brk) ? base : -1;
 }
 
-static void pgb_dynamic(const char *image_name, uintptr_t guest_loaddr,
-                        uintptr_t guest_hiaddr, uintptr_t align)
+static void pgb_dynamic(const char *image_name, const PGBRange *image_range,
+                        uintptr_t align)
 {
     IntervalTreeRoot *root;
     uintptr_t brk, ret;
     PGBAddrs ga;
 
     /* Try the identity map first. */
-    if (pgb_addr_set(&ga, guest_loaddr, guest_hiaddr, true)) {
+    if (pgb_addr_set(&ga, image_range, true)) {
         brk = (uintptr_t)sbrk(0);
         if (pgb_try_mmap_set(&ga, 0, brk)) {
             guest_base = 0;
@@ -1046,7 +1043,7 @@ static void pgb_dynamic(const char *image_name, uintptr_t guest_loaddr,
      * Rebuild the address set for non-identity map.
      * This differs in the mapping of the guest NULL page.
      */
-    pgb_addr_set(&ga, guest_loaddr, guest_hiaddr, false);
+    pgb_addr_set(&ga, image_range, false);
 
     root = read_self_maps();
 
@@ -1085,24 +1082,23 @@ static void pgb_dynamic(const char *image_name, uintptr_t guest_loaddr,
     guest_base = ret;
 }
 
-void probe_guest_base(const char *image_name, abi_ulong guest_loaddr,
-                      abi_ulong guest_hiaddr)
+void probe_guest_base(const char *image_name, const PGBRange *image_range)
 {
     /* In order to use host shmat, we must be able to honor SHMLBA.  */
     uintptr_t align = MAX(SHMLBA, TARGET_PAGE_SIZE);
 
     /* Sanity check the guest binary. */
-    if (reserved_va && guest_hiaddr > reserved_va) {
+    if (reserved_va && image_range && image_range->hi > reserved_va) {
         error_report("%s: requires more than reserved virtual "
-                     "address space (0x%" PRIx64 " > 0x%lx)",
-                     image_name, (uint64_t)guest_hiaddr, reserved_va);
+                     "address space (0x%" VADDR_PRIx " > 0x%lx)",
+                     image_name, image_range->hi, reserved_va);
         exit(EXIT_FAILURE);
     }
 
     if (have_guest_base) {
-        pgb_fixed(image_name, guest_loaddr, guest_hiaddr, align);
+        pgb_fixed(image_name, image_range, align);
     } else {
-        pgb_dynamic(image_name, guest_loaddr, guest_hiaddr, align);
+        pgb_dynamic(image_name, image_range, align);
     }
 
     /* Reserve and initialize the commpage. */
@@ -1362,10 +1358,10 @@ static void load_elf_image(const char *image_name, const ImageSource *src,
              * Make sure that the low address does not conflict with
              * MMAP_MIN_ADDR or the QEMU application itself.
              */
-            probe_guest_base(image_name, range.lo, range.hi);
+            probe_guest_base(image_name, &range);
         } else {
             /* The binary is dynamic; we still need to select guest_base. */
-            probe_guest_base(image_name, 0, 0);
+            probe_guest_base(image_name, NULL);
 
             /*
              * Avoid collision with the loader by providing a different
