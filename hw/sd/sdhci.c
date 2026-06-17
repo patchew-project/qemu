@@ -644,6 +644,7 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
                 s->data_count = 0;
             }
             if (page_aligned && boundary_count == 0) {
+                s->prnsts &= ~SDHC_DOING_READ;
                 break;
             }
         }
@@ -669,6 +670,7 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
                 }
             }
             if (page_aligned && boundary_count == 0) {
+                s->prnsts &= ~SDHC_DOING_WRITE;
                 break;
             }
         }
