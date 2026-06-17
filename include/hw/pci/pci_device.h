@@ -157,6 +157,7 @@ struct PCIDevice {
     char *romfile;
     uint32_t romsize;
     bool has_rom;
+    bool rom_need_patch_id;
     MemoryRegion rom;
     int32_t rom_bar;
 

@@ -352,7 +352,7 @@ static const TypeInfo cxl_bus_info = {
 
 static void pci_update_mappings(PCIDevice *d);
 static void pci_irq_handler(void *opaque, int irq_num, int level);
-static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom, Error **);
+static void pci_add_option_rom(PCIDevice *pdev, Error **);
 static void pci_del_option_rom(PCIDevice *pdev);
 
 static uint16_t pci_default_sub_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET;
@@ -2257,7 +2257,6 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
     ObjectClass *klass = OBJECT_CLASS(pc);
     Error *local_err = NULL;
-    bool is_default_rom;
     uint16_t class_id;
 
     /*
@@ -2370,13 +2369,13 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
     }
 
     /* rom loading */
-    is_default_rom = false;
     if (pci_dev->romfile == NULL && pc->romfile != NULL) {
+        /* using a built-in default rom */
         pci_dev->romfile = g_strdup(pc->romfile);
-        is_default_rom = true;
+        pci_dev->rom_need_patch_id = true;
     }
 
-    pci_add_option_rom(pci_dev, is_default_rom, &local_err);
+    pci_add_option_rom(pci_dev, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         pci_qdev_unrealize(DEVICE(pci_dev));
@@ -2555,8 +2554,7 @@ static void pci_patch_ids(PCIDevice *pdev, uint8_t *ptr, uint32_t size)
 }
 
 /* Add an option rom for the device */
-static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
-                               Error **errp)
+static void pci_add_option_rom(PCIDevice *pdev, Error **errp)
 {
     int64_t size = 0;
     g_autofree char *path = NULL;
@@ -2654,7 +2652,7 @@ static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
             return;
         }
 
-        if (is_default_rom) {
+        if (pdev->rom_need_patch_id) {
             /* Only the default rom images will be patched (if needed). */
             pci_patch_ids(pdev, ptr, size);
         }
