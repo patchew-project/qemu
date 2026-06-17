@@ -176,13 +176,15 @@ static void probe_pages(CPURISCVState *env, target_ulong addr, target_ulong len,
                      mmu_index, ra);
     }
 
-    if (len > curlen) {
+    while (len > curlen) {
         addr += curlen;
-        curlen = len - curlen;
+        len -= curlen;
+        curlen = MIN(-(addr | TARGET_PAGE_MASK), len);
         if (flags != NULL) {
+            void *page_host;
             *flags |= probe_access_flags(env, adjust_addr(env, addr), curlen,
                                          access_type, mmu_index, nonfault,
-                                         host, ra);
+                                         &page_host, ra);
         } else {
             probe_access(env, adjust_addr(env, addr), curlen, access_type,
                          mmu_index, ra);

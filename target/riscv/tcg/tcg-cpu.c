@@ -33,6 +33,7 @@
 #include "accel/accel-cpu-target.h"
 #include "accel/tcg/cpu-ops.h"
 #include "tcg/tcg.h"
+#include "tcg/tcg-gvec-desc.h"
 #ifndef CONFIG_USER_ONLY
 #include "hw/core/boards.h"
 #include "system/tcg.h"
@@ -125,7 +126,8 @@ static TCGTBCPUState riscv_get_tb_cpu_state(CPUState *cs)
         uint32_t vlmax = vext_get_vlmax(cpu->cfg.vlenb, vsew, lmul);
         uint32_t maxsz = vlmax << vsew;
         bool vl_eq_vlmax = (env->vstart == 0) && (vlmax == env->vl) &&
-                           (maxsz >= 8);
+                           (maxsz >= 8) &&
+                           (maxsz <= (8 << SIMD_MAXSZ_BITS));
         flags = FIELD_DP32(flags, TB_FLAGS, VILL, env->vill);
         flags = FIELD_DP32(flags, TB_FLAGS, SEW, vsew);
         flags = FIELD_DP32(flags, TB_FLAGS, LMUL,

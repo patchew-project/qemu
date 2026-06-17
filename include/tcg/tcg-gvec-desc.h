@@ -21,7 +21,7 @@
 #define TCG_TCG_GVEC_DESC_H
 
 /*
- * This configuration allows MAXSZ to represent 2048 bytes, and
+ * This configuration allows MAXSZ to represent up to 8200 bytes, and
  * OPRSZ to match MAXSZ, or represent the smaller values 8, 16, or 32.
  *
  * Encode this with:
@@ -29,9 +29,12 @@
  *   2       -> maxsz
  *
  * This steals the input that would otherwise map to 24 to match maxsz.
+ *
+ * MAXSZ uses 10 bits to support RISC-V VLEN up to 65536 bits
+ * (vlenb = 8192 bytes).  This leaves 20 DATA bits (was 22).
  */
 #define SIMD_MAXSZ_SHIFT   0
-#define SIMD_MAXSZ_BITS    8
+#define SIMD_MAXSZ_BITS    10
 
 #define SIMD_OPRSZ_SHIFT   (SIMD_MAXSZ_SHIFT + SIMD_MAXSZ_BITS)
 #define SIMD_OPRSZ_BITS    2

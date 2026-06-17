@@ -186,7 +186,7 @@ extern RISCVCPUImpliedExtsRule *riscv_multi_ext_implied_rules[];
 #include "pmp.h"
 #endif
 
-#define RV_VLEN_MAX 1024
+#define RV_VLEN_MAX 65536
 #define RV_MAX_MHPMEVENTS 32
 #define RV_MAX_MHPMCOUNTERS 32
 #define RV_MAX_TRIGGERS 2

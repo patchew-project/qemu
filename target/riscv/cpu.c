@@ -1637,10 +1637,10 @@ static void prop_vlen_set(Object *obj, Visitor *v, const char *name,
                          void *opaque, Error **errp)
 {
     RISCVCPU *cpu = RISCV_CPU(obj);
-    uint16_t cpu_vlen = cpu->cfg.vlenb << 3;
-    uint16_t value;
+    uint32_t cpu_vlen = cpu->cfg.vlenb << 3;
+    uint32_t value;
 
-    if (!visit_type_uint16(v, name, &value, errp)) {
+    if (!visit_type_uint32(v, name, &value, errp)) {
         return;
     }
 
@@ -1663,13 +1663,13 @@ static void prop_vlen_set(Object *obj, Visitor *v, const char *name,
 static void prop_vlen_get(Object *obj, Visitor *v, const char *name,
                          void *opaque, Error **errp)
 {
-    uint16_t value = RISCV_CPU(obj)->cfg.vlenb << 3;
+    uint32_t value = RISCV_CPU(obj)->cfg.vlenb << 3;
 
-    visit_type_uint16(v, name, &value, errp);
+    visit_type_uint32(v, name, &value, errp);
 }
 
 static const PropertyInfo prop_vlen = {
-    .type = "uint16",
+    .type = "uint32",
     .description = "vlen",
     .get = prop_vlen_get,
     .set = prop_vlen_set,
