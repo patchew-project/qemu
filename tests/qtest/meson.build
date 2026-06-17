@@ -298,6 +298,7 @@ qtests_riscv64 = ['riscv-csr-test'] + \
 qos_test_ss = ss.source_set()
 qos_test_ss.add(
   'ac97-test.c',
+  'adc128d818-test.c',
   'adm1272-test.c',
   'adm1266-test.c',
   'ds1338-test.c',
