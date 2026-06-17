@@ -9,6 +9,7 @@ contrib_plugins = [
 'howvec.c',
 'hwprofile.c',
 'ips.c',
+'passthrough.c',
 'stoptrigger.c',
 'traps.c',
 'uftrace.c',
