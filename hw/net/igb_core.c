@@ -97,6 +97,7 @@ igb_receive_internal(IGBCore *core, const struct iovec *iov, int iovcnt,
 static void igb_raise_interrupts(IGBCore *core, size_t index, uint32_t causes);
 static void igb_reset(IGBCore *core, bool sw);
 
+
 static inline void
 igb_raise_legacy_irq(IGBCore *core)
 {
@@ -875,6 +876,42 @@ igb_tx_enabled(IGBCore *core, const E1000ERingInfo *txi)
         (core->mac[TXDCTL0 + (qn * 16)] & E1000_TXDCTL_QUEUE_ENABLE);
 }
 
+static uint64_t igb_trl_calculate_delay(const IGBTrlQueue *q,
+                                        size_t bytes_sent)
+{
+    uint32_t target_rate;
+    uint32_t rf_scaled;
+
+    if (!igb_trl_enabled(q)) {
+        return 0;
+    }
+
+    /*
+     * The TRLRC register stores the Rate Factor in 10.14 fixed-point format:
+     * - Bits 13:0: Fractional part
+     * - Bits 23:14: Integer part
+     *
+     * Combined, the lower 24 bits of the register (23:0) represent the
+     * concatenated 24-bit scaled Rate Factor directly.
+     */
+    rf_scaled = extract32(q->trlrc, 0, 24);
+    if (rf_scaled == 0) {
+        return 0;
+    }
+
+    /*
+     * Rate Factor = rf_scaled / 2^14
+     * Target Rate = Link Rate / Rate Factor
+     *             = (Link Rate * 2^14) / rf_scaled
+     *
+     * Clamp target rate to link speed.
+     */
+    target_rate = MIN(E1000_LINK_RATE_1GBPS,
+                      (E1000_LINK_RATE_1GBPS << 14) / rf_scaled);
+
+    return muldiv64(bytes_sent, NANOSECONDS_PER_SECOND, target_rate);
+}
+
 static void
 igb_start_xmit(IGBCore *core, const IGB_TxRing *txr)
 {
@@ -883,9 +920,16 @@ igb_start_xmit(IGBCore *core, const IGB_TxRing *txr)
     union e1000_adv_tx_desc desc;
     const E1000ERingInfo *txi = txr->i;
     uint32_t eic = 0;
+    size_t bytes_sent = 0;
+    uint64_t delay_ns;
 
     if (!igb_tx_enabled(core, txi)) {
         trace_e1000e_tx_disabled();
+        return;
+    }
+
+    if (igb_trl_enabled(&core->trl[txi->idx]) &&
+        timer_pending(core->trl[txi->idx].timer)) {
         return;
     }
 
@@ -902,9 +946,16 @@ igb_start_xmit(IGBCore *core, const IGB_TxRing *txr)
         trace_e1000e_tx_descr((void *)(intptr_t)desc.read.buffer_addr,
                               desc.read.cmd_type_len, desc.wb.status);
 
-        igb_process_tx_desc(core, d, txr->tx, &desc, txi->idx);
+        bytes_sent += igb_process_tx_desc(core, d, txr->tx, &desc, txi->idx);
         igb_ring_advance(core, txi, 1);
         eic |= igb_txdesc_writeback(core, base, &desc, txi);
+
+        delay_ns = igb_trl_calculate_delay(&core->trl[txi->idx], bytes_sent);
+        if (delay_ns > 0) {
+            timer_mod(core->trl[txi->idx].timer,
+                      qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + delay_ns);
+            break;
+        }
     }
 
     if (eic) {
@@ -4329,7 +4380,6 @@ igb_autoneg_resume(IGBCore *core)
                   qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 500);
     }
 }
-
 bool igb_trl_enabled(const IGBTrlQueue *q)
 {
     return q->trlrc & E1000_TRLRC_RS_ENA;
@@ -4337,7 +4387,11 @@ bool igb_trl_enabled(const IGBTrlQueue *q)
 
 static void igb_trl_timer_cb(void *opaque)
 {
-    /* Stub */
+    IGBTrlQueue *trl = opaque;
+    IGB_TxRing txr;
+
+    igb_tx_ring_init(trl->core, &txr, trl->qidx);
+    igb_start_xmit(trl->core, &txr);
 }
 
 static void igb_trl_init(IGBCore *core)
