@@ -35,6 +35,8 @@
 #define TYPE_MOS6522_Q800_VIA1 "mos6522-q800-via1"
 OBJECT_DECLARE_SIMPLE_TYPE(MOS6522Q800VIA1State, MOS6522_Q800_VIA1)
 
+struct SWIM2State;
+
 struct MOS6522Q800VIA1State {
     /*< private >*/
     MOS6522State parent_obj;
@@ -77,6 +79,8 @@ struct MOS6522Q800VIA1State {
 
     /* SETUPTIMEK hack */
     int timer_hack_state;
+
+    struct SWIM2State *swim;
 };
 
 

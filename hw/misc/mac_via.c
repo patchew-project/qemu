@@ -31,6 +31,7 @@
 #include "hw/core/qdev-properties-system.h"
 #include "system/block-backend.h"
 #include "system/rtc.h"
+#include "hw/block/swim2.h"
 #include "trace.h"
 #include "qemu/log.h"
 
@@ -1080,6 +1081,17 @@ static void mos6522_q800_via1_write(void *opaque, hwaddr addr, uint64_t val,
     mos6522_write(ms, addr, val, size);
 
     switch (addr) {
+    case VIA_REG_A:
+    case VIA_REG_ANH: {
+        const bool sel = (ms->a & VIA1A_vHeadSel) != 0;
+
+        if (v1s->swim) {
+            swim2_set_sel(v1s->swim, sel);
+        }
+
+        break;
+    }
+
     case VIA_REG_B:
         via1_rtc_update(v1s);
         via1_adb_update(v1s);
@@ -1224,6 +1236,10 @@ static void mos6522_q800_via1_reset_hold(Object *obj, ResetType type)
 
     /* Timer calibration hack */
     v1s->timer_hack_state = 0;
+
+    if (v1s->swim) {
+        swim2_set_sel(v1s->swim, false);
+    }
 }
 
 static void mos6522_q800_via1_realize(DeviceState *dev, Error **errp)
