@@ -768,8 +768,8 @@ static void virtio_blk_zone_append_complete(void *opaque, int ret)
         goto out;
     }
 
-    virtio_stq_p(vdev, &append_sector,
-                 data->zone_append_data.offset >> BDRV_SECTOR_BITS);
+    stq_le_p(&append_sector,
+             data->zone_append_data.offset >> BDRV_SECTOR_BITS);
     n = iov_from_buf(data->in_iov, data->in_num, 0, &append_sector,
                      sizeof(append_sector));
     if (n != sizeof(append_sector)) {
