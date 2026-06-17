@@ -2479,6 +2479,18 @@ static uint8_t pci_find_capability_at_offset(PCIDevice *pdev, uint8_t offset)
     return found;
 }
 
+uint8_t pci_rom_calculate_checksum(const uint8_t *ptr, uint32_t size)
+{
+    uint8_t checksum = 0;
+    uint32_t i;
+
+    for (i = 0; i < size; i++) {
+        checksum += ptr[i];
+    }
+
+    return checksum;
+}
+
 /* Patch the PCI vendor and device ids in a PCI rom image if necessary.
    This is needed for an option rom which is used for more than one device. */
 static void pci_patch_ids(PCIDevice *pdev, uint8_t *ptr, uint32_t size)
@@ -2514,24 +2526,26 @@ static void pci_patch_ids(PCIDevice *pdev, uint8_t *ptr, uint32_t size)
     trace_pci_rom_and_pci_ids(pdev->romfile, vendor_id, device_id,
                               rom_vendor_id, rom_device_id);
 
-    checksum = ptr[6];
+    /* In case the checksum is bogus */
+    checksum = pci_rom_calculate_checksum(ptr, size);
 
     if (vendor_id != rom_vendor_id) {
         /* Patch vendor id and checksum (at offset 6 for etherboot roms). */
-        checksum += (uint8_t)rom_vendor_id + (uint8_t)(rom_vendor_id >> 8);
-        checksum -= (uint8_t)vendor_id + (uint8_t)(vendor_id >> 8);
-        trace_pci_rom_checksum_change(ptr[6], checksum);
-        ptr[6] = checksum;
+        checksum += (uint8_t)vendor_id + (uint8_t)(vendor_id >> 8);
+        checksum -= (uint8_t)rom_vendor_id + (uint8_t)(rom_vendor_id >> 8);
         pci_set_word(ptr + pcir_offset + 4, vendor_id);
     }
 
     if (device_id != rom_device_id) {
         /* Patch device id and checksum (at offset 6 for etherboot roms). */
-        checksum += (uint8_t)rom_device_id + (uint8_t)(rom_device_id >> 8);
-        checksum -= (uint8_t)device_id + (uint8_t)(device_id >> 8);
-        trace_pci_rom_checksum_change(ptr[6], checksum);
-        ptr[6] = checksum;
+        checksum += (uint8_t)device_id + (uint8_t)(device_id >> 8);
+        checksum -= (uint8_t)rom_device_id + (uint8_t)(rom_device_id >> 8);
         pci_set_word(ptr + pcir_offset + 6, device_id);
+    }
+
+    if (checksum) {
+        trace_pci_rom_checksum_change(ptr[6], ptr[6] - checksum);
+        ptr[6] -= checksum;
     }
 }
 
