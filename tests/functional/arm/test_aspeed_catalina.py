@@ -5,10 +5,10 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from qemu_test import Asset
-from aspeed import FacebookAspeedTest
+from aspeed import AspeedTest
 
 
-class CatalinaMachine(FacebookAspeedTest):
+class CatalinaMachine(AspeedTest):
 
     ASSET_CATALINA_FLASH = Asset(
         'https://github.com/legoater/qemu-aspeed-boot/raw/a866feb5ef81245b4827a214584bf6bcc72939f6/images/catalina-bmc/obmc-phosphor-image-catalina-20250619123021.static.mtd.xz',
@@ -22,4 +22,4 @@ class CatalinaMachine(FacebookAspeedTest):
                                         soc='AST2600 rev A3')
 
 if __name__ == '__main__':
-    FacebookAspeedTest.main()
+    AspeedTest.main()

@@ -5,10 +5,10 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from qemu_test import Asset
-from aspeed import FacebookAspeedTest
+from aspeed import AspeedTest
 
 
-class AnacapaMachine(FacebookAspeedTest):
+class AnacapaMachine(AspeedTest):
 
     ASSET_ANACAPA_FLASH = Asset(
         'https://github.com/legoater/qemu-aspeed-boot/raw/3fa3212827b04be4034d43b5adeef57c27d6ab18/images/anacapa-bmc/openbmc-20260512025228/obmc-phosphor-image-anacapa-20260512025228.static.mtd.xz',
@@ -22,4 +22,4 @@ class AnacapaMachine(FacebookAspeedTest):
                                         soc='AST2600 rev A3')
 
 if __name__ == '__main__':
-    FacebookAspeedTest.main()
+    AspeedTest.main()
