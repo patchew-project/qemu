@@ -2136,6 +2136,15 @@ igb_set_phy_ctrl(IGBCore *core, uint16_t val)
     }
 }
 
+
+static void igb_trl_reset(IGBCore *core)
+{
+    for (int i = 0; i < IGB_NUM_QUEUES; i++) {
+        core->trl[i].trlrc = 0;
+        timer_del(core->trl[i].timer);
+    }
+}
+
 void igb_core_set_link_status(IGBCore *core)
 {
     NetClientState *nc = qemu_get_queue(core->owner_nic);
@@ -4282,6 +4291,33 @@ igb_autoneg_resume(IGBCore *core)
     }
 }
 
+bool igb_trl_enabled(const IGBTrlQueue *q)
+{
+    return q->trlrc & E1000_TRLRC_RS_ENA;
+}
+
+static void igb_trl_timer_cb(void *opaque)
+{
+    /* Stub */
+}
+
+static void igb_trl_init(IGBCore *core)
+{
+    for (int i = 0; i < IGB_NUM_QUEUES; i++) {
+        IGBTrlQueue *q = &core->trl[i];
+        q->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, igb_trl_timer_cb, q);
+        q->core = core;
+        q->qidx = i;
+    }
+}
+
+static void igb_trl_uninit(IGBCore *core)
+{
+    for (int i = 0; i < IGB_NUM_QUEUES; i++) {
+        timer_free(core->trl[i].timer);
+    }
+}
+
 void
 igb_core_pci_realize(IGBCore        *core,
                      const uint16_t *eeprom_templ,
@@ -4297,6 +4333,7 @@ igb_core_pci_realize(IGBCore        *core,
     for (i = 0; i < IGB_NUM_QUEUES; i++) {
         net_tx_pkt_init(&core->tx[i].tx_pkt, E1000E_MAX_TX_FRAGS);
     }
+    igb_trl_init(core);
 
     net_rx_pkt_init(&core->rx_pkt);
 
@@ -4320,6 +4357,8 @@ igb_core_pci_uninit(IGBCore *core)
     for (i = 0; i < IGB_NUM_QUEUES; i++) {
         net_tx_pkt_uninit(core->tx[i].tx_pkt);
     }
+
+    igb_trl_uninit(core);
 
     net_rx_pkt_uninit(core->rx_pkt);
 }
@@ -4468,6 +4507,8 @@ static void igb_reset(IGBCore *core, bool sw)
     timer_del(core->autoneg_timer);
 
     igb_intrmgr_reset(core);
+
+    igb_trl_reset(core);
 
     memset(core->phy, 0, sizeof core->phy);
     memcpy(core->phy, igb_phy_reg_init, sizeof igb_phy_reg_init);
