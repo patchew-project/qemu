@@ -118,6 +118,31 @@ static inline void fifo32_push_all(Fifo32 *fifo, const uint32_t *data,
 }
 
 /**
+ * fifo32_peek:
+ * @fifo: fifo to peek from
+ *
+ * Peek the data word at the current head of the FIFO. Clients are responsible
+ * for checking for emptiness using fifo32_is_empty().
+ *
+ * Returns: The peeked 32 bits data word.
+ */
+
+static inline uint32_t fifo32_peek(Fifo32 *fifo)
+{
+    uint8_t bytes[sizeof(uint32_t)];
+    uint32_t ret = 0;
+    int i;
+
+    fifo8_peek_buf(&fifo->fifo, bytes, sizeof bytes);
+
+    for (i = 0; i < sizeof(uint32_t); i++) {
+        ret |= (uint32_t)bytes[i] << (i * 8);
+    }
+
+    return ret;
+}
+
+/**
  * fifo32_pop:
  * @fifo: fifo to pop from
  *
