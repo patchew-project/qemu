@@ -18,3 +18,8 @@ bool vfio_probe_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
 {
     return true;
 }
+
+void vfio_probe_igd_legacy_rom_quirk(VFIOPCIDevice *vdev)
+{
+    return;
+}
