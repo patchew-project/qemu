@@ -2513,8 +2513,13 @@ static void pci_patch_ids(PCIDevice *pdev, uint8_t *ptr, uint32_t size)
         return;
     }
     pcir_offset = pci_get_word(ptr + 0x18);
-    if (pcir_offset + 8 >= size || memcmp(ptr + pcir_offset, "PCIR", 4)) {
+    if (pcir_offset + 0x14 >= size || memcmp(ptr + pcir_offset, "PCIR", 4)) {
         trace_pci_bad_pcir_offset(pcir_offset);
+        return;
+    }
+
+    /* OVMF won't check IDs in PCIR header, skip EFI roms */
+    if (pci_get_byte(ptr + pcir_offset + 0x14) == 0x03) {
         return;
     }
 
