@@ -158,9 +158,41 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
              * Resources defined for PXBs are composed of the following parts:
              * 1. The resources the pci-bridge/pcie-root-port need.
              * 2. The resources the devices behind pxb need.
+             *
+             * For CXL host bridges on platforms where UEFI (driven by
+             * FDT 'ranges') does not assign PCI resources for the CXL
+             * root bridge before ACPI table construction, build_crs()
+             * would return an empty resource set.  When the platform
+             * has reserved a dedicated MMIO window for CXL host bridges
+             * (cfg->cxl_mmio32), emit that window as a static _CRS
+             * instead.  The platform is responsible for shrinking PCI0's
+             * mmio32 window so the two do not overlap.
              */
-            crs = build_crs(PCI_HOST_BRIDGE(BUS(bus)->parent), &crs_range_set,
-                            cfg->pio.base, 0, 0, 0);
+            if (is_cxl && cfg->cxl_mmio32.size) {
+                uint64_t cxl_base = cfg->cxl_mmio32.base;
+                uint64_t cxl_size = cfg->cxl_mmio32.size;
+
+                crs = aml_resource_template();
+
+                /* 32-bit MMIO range for CXL devices */
+                aml_append(crs,
+                    aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
+                                     AML_MAX_FIXED, AML_NON_CACHEABLE,
+                                     AML_READ_WRITE, 0,
+                                     cxl_base,
+                                     cxl_base + cxl_size - 1,
+                                     0, cxl_size));
+
+                /* Bus number range */
+                aml_append(crs,
+                    aml_word_bus_number(AML_MIN_FIXED, AML_MAX_FIXED,
+                                       AML_POS_DECODE, 0,
+                                       bus_num, bus_num + 15,
+                                       0, 16));
+            } else {
+                crs = build_crs(PCI_HOST_BRIDGE(BUS(bus)->parent),
+                                &crs_range_set, cfg->pio.base, 0, 0, 0);
+            }
             aml_append(dev, aml_name_decl("_CRS", crs));
 
             if (is_cxl) {
