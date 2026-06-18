@@ -94,6 +94,7 @@ static void tpm_tis_sysbus_reset(DeviceState *dev)
 static const Property tpm_tis_sysbus_properties[] = {
     DEFINE_PROP_UINT32("irq", TPMStateSysBus, state.irq_num, TPM_TIS_IRQ),
     DEFINE_PROP_TPMBE("tpmdev", TPMStateSysBus, state.be_driver),
+    DEFINE_PROP_BOOL("ppi", TPMStateSysBus, state.ppi_enabled, true),
 };
 
 static void tpm_tis_sysbus_initfn(Object *obj)
@@ -122,14 +123,19 @@ static void tpm_tis_sysbus_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    s->ppi.buf = qemu_memalign(host_page_size,
-                               ROUND_UP(TPM_PPI_ADDR_SIZE, host_page_size));
     memory_region_init_io(&s->mmio, OBJECT(dev), &tpm_tis_memory_ops,
                           s, "tpm-tis-mmio",
                           TPM_TIS_NUM_LOCALITIES << TPM_TIS_LOCALITY_SHIFT);
-    memory_region_init_ram_device_ptr(&s->ppi.ram, OBJECT(dev), "tpm-ppi",
-                                      TPM_PPI_ADDR_SIZE, s->ppi.buf);
-    vmstate_register_ram(&s->ppi.ram, dev);
+
+    if (s->ppi_enabled) {
+        s->ppi.buf = qemu_memalign(host_page_size,
+                                   ROUND_UP(TPM_PPI_ADDR_SIZE, host_page_size));
+        memory_region_init_ram_device_ptr(&s->ppi.ram, OBJECT(dev), "tpm-ppi",
+                                          TPM_PPI_ADDR_SIZE, s->ppi.buf);
+        vmstate_register_ram(&s->ppi.ram, dev);
+    } else {
+        memory_region_init(&s->ppi.ram, OBJECT(dev), "tpm-ppi", 0);
+    }
 }
 
 static void tpm_tis_sysbus_class_init(ObjectClass *klass, const void *data)
