@@ -219,6 +219,7 @@ static void check_zicbom_access(CPURISCVState *env,
     void *phost;
     int ret;
 
+    target_ulong fault_addr = address;
     /* Mask off low-bits to align-down to the cache-block. */
     address &= ~(cbomlen - 1);
 
@@ -236,6 +237,10 @@ static void check_zicbom_access(CPURISCVState *env,
      */
     ret = probe_access_flags(env, address, cbomlen, MMU_DATA_LOAD,
                              mmu_idx, true, &phost, ra);
+    if (ret & TLB_MMIO) {
+        env->badaddr = fault_addr;
+        riscv_raise_exception(env, RISCV_EXCP_STORE_AMO_ACCESS_FAULT, ra);
+    }
     if (ret != TLB_INVALID_MASK) {
         /* Success: readable */
         return;
