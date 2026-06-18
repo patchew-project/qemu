@@ -184,6 +184,12 @@ static void monitor_qmp_cleanup_req_queue_locked(MonitorQMP *mon)
     }
 }
 
+static void monitor_qmp_drain_queue(MonitorQMP *mon)
+{
+    QEMU_LOCK_GUARD(&mon->qmp_queue_lock);
+    monitor_qmp_cleanup_req_queue_locked(mon);
+}
+
 static void monitor_qmp_cleanup_queue_and_resume(MonitorQMP *mon)
 {
     QEMU_LOCK_GUARD(&mon->qmp_queue_lock);
@@ -597,6 +603,7 @@ static void monitor_qmp_setup_handlers_bh(void *opaque)
                              monitor_qmp_read, monitor_qmp_event,
                              NULL, &mon->parent_obj, context, true);
     monitor_list_append(&mon->parent_obj);
+    qatomic_set(&mon->setup_pending, false);
 }
 
 void monitor_new_qmp(const char *chardev_id, bool pretty, Error **errp)
@@ -645,6 +652,7 @@ static void monitor_qmp_complete(UserCreatable *uc, Error **errp)
          * since chardev might be running in the monitor I/O
          * thread.  Schedule a bottom half.
          */
+        mon->setup_pending = true;
         aio_bh_schedule_oneshot(iothread_get_aio_context(mon_iothread),
                                 monitor_qmp_setup_handlers_bh, mon);
         /* The bottom half will add @mon to @mon_list */
@@ -656,8 +664,14 @@ static void monitor_qmp_complete(UserCreatable *uc, Error **errp)
     }
 }
 
+static void monitor_qmp_iothread_quiesce(void *opaque)
+{
+    /* No-op: synchronization point only */
+}
+
 static bool monitor_qmp_prepare_delete(UserCreatable *uc, Error **errp)
 {
+    Monitor *mon = MONITOR(uc);
     MonitorQMP *qmp = MONITOR_QMP(uc);
 
     if (monitor_qmp_dispatcher_is_servicing(qmp)) {
@@ -665,8 +679,44 @@ static bool monitor_qmp_prepare_delete(UserCreatable *uc, Error **errp)
         return false;
     }
 
-    error_setg(errp, "Deleting QMP monitors is not supported");
-    return false;
+    if (qatomic_read(&qmp->setup_pending)) {
+        error_setg(errp, "monitor is still initializing");
+        return false;
+    }
+
+    /* Remove from mon_list before chardev disconnect. */
+    WITH_QEMU_LOCK_GUARD(&monitor_lock) {
+        QTAILQ_REMOVE(&mon_list, mon, entry);
+    }
+
+    /* Cancel out_watch while gcontext still points to the right ctx. */
+    WITH_QEMU_LOCK_GUARD(&mon->mon_lock) {
+        monitor_cancel_out_watch(mon);
+    }
+
+    qemu_chr_fe_set_handlers(&mon->chr, NULL, NULL, NULL, NULL,
+                             NULL, NULL, true);
+
+    /* Drain requests from any in-flight monitor_qmp_read(). */
+    monitor_qmp_drain_queue(qmp);
+
+    WITH_QEMU_LOCK_GUARD(&mon->mon_lock) {
+        /* Disable flushes before cancel -- gcontext is already wrong. */
+        qemu_chr_fe_set_open(&mon->chr, false);
+        monitor_cancel_out_watch(mon);
+    }
+
+    /* Synchronize with in-flight iothread callbacks. */
+    if (monitor_requires_iothread(mon)) {
+        aio_wait_bh_oneshot(iothread_get_aio_context(mon_iothread),
+                            monitor_qmp_iothread_quiesce, NULL);
+    }
+
+    /* Catch requests from a racing monitor_qmp_read(). */
+    monitor_qmp_drain_queue(qmp);
+    monitor_fdsets_cleanup();
+
+    return true;
 }
 
 static void monitor_qmp_accept_input(Monitor *mon)
