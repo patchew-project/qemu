@@ -950,6 +950,53 @@ int postcopy_wake_shared(struct PostCopyFD *pcfd,
 }
 
 /*
+ * Load a page from RAMBlock at offset at given host address.
+ * Used by postcopy ram fault thread and eager thread in fast snapshot load
+ * case. rb_offset: Offset of page in RAMBlock haddr: Base of page where to load
+ * in page Channel: Used to identify between threads and use corresponding temp
+ * pages Returns 0 on success
+ */
+static int postcopy_mapped_ram_load_page(MigrationIncomingState *mis,
+                                         RAMBlock *rb, ram_addr_t rb_offset,
+                                         uint64_t haddr, int channel)
+{
+    int ret = 0;
+    unsigned long page;
+    void *host = (void *)haddr;
+    void *place_source = mis->postcopy_tmp_pages[channel].tmp_huge_page;
+    size_t read;
+
+    page = rb_offset >> TARGET_PAGE_BITS;
+
+    if (bitmap_test_and_clear_atomic(rb->pending_bmap, page, 1)) {
+        if (test_bit(page, rb->nonzeropages)) {
+            /*
+             * qemu_get_buffer_at uses preadv which is thread safe we do not
+             * need different channels
+             */
+            read = qemu_get_buffer_at(mis->from_src_file, place_source,
+                                      TARGET_PAGE_SIZE,
+                                      rb->pages_offset + rb_offset);
+
+            g_assert(read == TARGET_PAGE_SIZE);
+
+            ret = postcopy_place_page(mis, host, place_source, rb);
+            if (ret) {
+                return ret;
+            }
+
+        } else {
+            /* zero page */
+            ret = postcopy_place_page_zero(mis, host, rb);
+            if (ret) {
+                return ret;
+            }
+        }
+    }
+    return ret;
+}
+
+/*
  * NOTE: @tid is only used when postcopy-blocktime feature is enabled, and
  * also optional: when zero is provided, the fault accounting will be ignored.
  */
@@ -1320,11 +1367,11 @@ static void *postcopy_ram_fault_thread(void *opaque)
             break;
         }
 
-        if (!mis->to_src_file) {
+        if (!migrate_fast_snapshot_load() && !mis->to_src_file) {
             /*
-             * Possibly someone tells us that the return path is
-             * broken already using the event. We should hold until
-             * the channel is rebuilt.
+             * Fast snapshot load has no to src file or in other case someone
+             * possibly tells us that the return path is broken already using
+             * the event. We should hold until the channel is rebuilt.
              */
             postcopy_pause_fault_thread(mis);
         }
@@ -1387,18 +1434,26 @@ static void *postcopy_ram_fault_thread(void *opaque)
                                                 qemu_ram_get_idstr(rb),
                                                 rb_offset,
                                                 msg.arg.pagefault.feat.ptid);
+
+            if (migrate_fast_snapshot_load()) {
+                if (postcopy_mapped_ram_load_page(
+                        mis, rb, rb_offset, msg.arg.pagefault.address, 1)) {
+                    break;
+                }
+            } else {
 retry:
-            /*
-             * Send the request to the source - we want to request one
-             * of our host page sizes (which is >= TPS)
-             */
-            ret = postcopy_request_page(mis, rb, rb_offset,
-                                        msg.arg.pagefault.address,
-                                        msg.arg.pagefault.feat.ptid);
-            if (ret) {
-                /* May be network failure, try to wait for recovery */
-                postcopy_pause_fault_thread(mis);
-                goto retry;
+                /*
+                 * Send the request to the source - we want to request one
+                 * of our host page sizes (which is >= TPS)
+                 */
+                ret = postcopy_request_page(mis, rb, rb_offset,
+                                            msg.arg.pagefault.address,
+                                            msg.arg.pagefault.feat.ptid);
+                if (ret) {
+                    /* May be network failure, try to wait for recovery */
+                    postcopy_pause_fault_thread(mis);
+                    goto retry;
+                }
             }
         }
 
@@ -1471,8 +1526,11 @@ static int postcopy_temp_pages_setup(MigrationIncomingState *mis)
     unsigned i, channels;
     void *temp_page;
 
-    if (migrate_postcopy_preempt()) {
-        /* If preemption enabled, need extra channel for urgent requests */
+    if (migrate_postcopy_preempt() || migrate_fast_snapshot_load()) {
+        /*
+         * If preemption enabled or it is fast snapshot load, need extra channel
+         * for urgent requests/faults
+         */
         mis->postcopy_channels = RAM_CHANNEL_MAX;
     } else {
         /* Both precopy/postcopy on the same channel */
