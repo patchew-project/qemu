@@ -2289,9 +2289,84 @@ int postcopy_incoming_cleanup(MigrationIncomingState *mis)
         mis->have_listen_thread = false;
     }
 
+    if (mis->have_eager_load_thread) {
+        qemu_thread_join(&mis->eager_load_thread);
+        mis->have_eager_load_thread = false;
+    }
+
     if (migrate_postcopy_ram()) {
         rc = postcopy_ram_incoming_cleanup(mis);
     }
 
     return rc;
+}
+
+/*
+ * Called by postcopy_ram_eager_load_thread over all blocks to load in all the
+ * pending pages of given ram block
+ */
+static int ram_block_load_eager(RAMBlock *rb, void *opaque)
+{
+    MigrationIncomingState *mis = opaque;
+    void *host = qemu_ram_get_host_addr(rb);
+    void *target;
+    int ret = 0;
+
+    for (ram_addr_t page_loc = 0; page_loc < rb->used_length;
+         page_loc += TARGET_PAGE_SIZE) {
+        target = (uint8_t *)host + page_loc;
+        ret = postcopy_mapped_ram_load_page(mis, rb, page_loc, (uint64_t)target,
+                                            0);
+        if (ret) {
+            break;
+        }
+    }
+    return ret;
+}
+
+/*
+ * Bottom half for fast snapshot load, scheduled by eager load thread
+ */
+static void postcopy_ram_eager_load_bh(void *opaque)
+{
+    MigrationIncomingState *mis = opaque;
+    postcopy_state_set(POSTCOPY_INCOMING_END);
+    migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
+                      MIGRATION_STATUS_COMPLETED);
+    migration_incoming_state_destroy();
+}
+
+/*
+ * Used by fast snapshot load to eagerly load in all pages of RAM and schedule
+ * cleanup after entire RAM is loaded
+ */
+static void *postcopy_ram_eager_load_thread(void *opaque)
+{
+    MigrationIncomingState *mis = opaque;
+
+    trace_postcopy_ram_eager_load_thread_entry();
+    rcu_register_thread();
+    qemu_event_set(&mis->thread_sync_event);
+
+    if (foreach_not_ignored_block(ram_block_load_eager, mis)) {
+        error_report("ram_block_load_eager failed");
+    }
+
+    migration_bh_schedule(postcopy_ram_eager_load_bh, mis);
+
+    rcu_unregister_thread();
+    trace_postcopy_ram_eager_load_thread_exit();
+    return NULL;
+}
+
+/*
+ * Create thread for eager loading in fast snapshot load case
+ */
+int postcopy_ram_eager_load_setup(MigrationIncomingState *mis)
+{
+    postcopy_thread_create(
+        mis, &mis->eager_load_thread, MIGRATION_THREAD_DST_EAGER,
+        postcopy_ram_eager_load_thread, QEMU_THREAD_JOINABLE);
+    mis->have_eager_load_thread = true;
+    return 0;
 }
