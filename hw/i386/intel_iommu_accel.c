@@ -80,6 +80,57 @@ VTDHostIOMMUDevice *vtd_find_hiod_iommufd(VTDAddressSpace *as)
     return NULL;
 }
 
+static void vtd_prq_response_notify(VTDAccelPASIDCacheEntry *vtd_pce,
+                                    IOMMUPRIResponse *response)
+{
+    struct iommu_hwpt_page_response resp;
+    uint32_t id = vtd_pce->fault_id;
+    int fd = vtd_pce->fault_fd;
+    VTDPRQEntry *prqe, *tmp;
+    ssize_t bytes;
+
+    QLIST_FOREACH_SAFE(prqe, &vtd_pce->vtd_prq_list, next, tmp) {
+        if (prqe->grpid != response->prgi) {
+            continue;
+        }
+
+        resp.cookie = prqe->cookie;
+        resp.code = response->response_code;
+        bytes = write(fd, &resp, sizeof(resp));
+        trace_vtd_prq_response_notify(id, fd, resp.cookie, resp.code, bytes);
+        if (bytes < 0) {
+            error_report_once("FAULTQ(id %u): write failed "
+                              "[cookie 0x%x code 0x%x] (%m)",
+                              id, resp.cookie, resp.code);
+        }
+
+        QLIST_REMOVE(prqe, next);
+        g_free(prqe);
+    }
+}
+
+bool vtd_accel_propagate_page_group_response(IntelIOMMUState *s,
+                                             uint16_t rid, uint32_t pasid,
+                                             IOMMUPRIResponse *response)
+{
+    VTDAddressSpace *vtd_as = vtd_get_as_by_sid(s, rid);
+    VTDAccelPASIDCacheEntry *vtd_pce;
+    VTDHostIOMMUDevice *vtd_hiod = vtd_find_hiod_iommufd(vtd_as);
+
+    if (!vtd_hiod) {
+        return false;
+    }
+
+    QLIST_FOREACH(vtd_pce, &vtd_hiod->pasid_cache_list, next) {
+        if (vtd_pce->pasid == pasid) {
+            vtd_prq_response_notify(vtd_pce, response);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static void vtd_prq_report_fault(VTDAccelPASIDCacheEntry *vtd_pce,
                                  struct iommu_hwpt_pgfault *fault, int cnt)
 {
@@ -95,6 +146,13 @@ static void vtd_prq_report_fault(VTDAccelPASIDCacheEntry *vtd_pce,
                                     fault->addr, last_page, fault->grpid,
                                     fault->perm & IOMMU_PGFAULT_PERM_READ,
                                     fault->perm & IOMMU_PGFAULT_PERM_WRITE);
+        if (last_page) {
+            VTDPRQEntry *prqe = g_malloc0(sizeof(*prqe));
+
+            prqe->grpid = fault->grpid;
+            prqe->cookie = fault->cookie;
+            QLIST_INSERT_HEAD(&vtd_pce->vtd_prq_list, prqe, next);
+        }
     }
 }
 
@@ -424,6 +482,7 @@ static void vtd_accel_fill_pc(VTDHostIOMMUDevice *vtd_hiod, uint32_t pasid,
     vtd_pce->pasid = pasid;
     vtd_pce->pasid_entry = *pe;
     vtd_pce->fault_fd = -1;
+    QLIST_INIT(&vtd_pce->vtd_prq_list);
     QLIST_INSERT_HEAD(&vtd_hiod->pasid_cache_list, vtd_pce, next);
 
     if (!vtd_device_attach_iommufd(vtd_pce, &local_err)) {
