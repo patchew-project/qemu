@@ -29,12 +29,16 @@
 #include "hw/acpi/aml-build.h"
 #include "hw/acpi/pci.h"
 #include "hw/acpi/utils.h"
+#include "hw/acpi/cxl.h"
 #include "hw/intc/riscv_aclint.h"
 #include "hw/nvram/fw_cfg_acpi.h"
 #include "hw/pci-host/gpex.h"
+#include "hw/pci/pci_bus.h"
 #include "hw/riscv/virt.h"
 #include "hw/riscv/numa.h"
 #include "hw/virtio/virtio-acpi.h"
+#include "hw/cxl/cxl.h"
+#include "hw/cxl/cxl_host.h"
 #include "kvm/kvm_riscv.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
@@ -503,6 +507,17 @@ static void build_dsdt(GArray *table_data,
         acpi_dsdt_add_gpex_host(scope, PCIE_IRQ + VIRT_IRQCHIP_NUM_SOURCES * 2);
     }
 
+    if (s->cxl_devices_state.is_enabled) {
+        Aml *cxl_dev = aml_device("CXLM");
+        aml_append(cxl_dev, aml_name_decl("_HID", aml_string("ACPI0017")));
+        Aml *method = aml_method("_STA", 0, AML_NOTSERIALIZED);
+        aml_append(method, aml_return(aml_int(0x0B)));
+        aml_append(cxl_dev, method);
+        build_cxl_dsm_method(cxl_dev);
+
+        aml_append(scope, cxl_dev);
+    }
+
     aml_append(dsdt, scope);
 
     /* copy AML table into ACPI tables blob and patch header there */
@@ -908,6 +923,11 @@ static void virt_acpi_build(RISCVVirtState *s, AcpiBuildTables *tables)
         };
         build_mcfg(tables_blob, tables->linker, &mcfg, s->oem_id,
                    s->oem_table_id);
+    }
+
+    if (s->cxl_devices_state.is_enabled) {
+        cxl_build_cedt(table_offsets, tables_blob, tables->linker,
+                       s->oem_id, s->oem_table_id, &s->cxl_devices_state);
     }
 
     if (ms->numa_state->num_nodes > 0) {
