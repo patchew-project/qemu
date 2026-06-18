@@ -178,6 +178,28 @@ static void convert_single_to_integer(void)
     }
 }
 
+#ifdef FPRCVT
+static void convert_single_to_integer_simd(void)
+{
+    int i;
+
+    printf("Converting single-precision to integer (via SIMD)\n");
+
+    for (i = 0; i < ARRAY_SIZE(single_numbers); ++i) {
+        float input = single_numbers[i];
+        int64_t output;
+
+        feclearexcept(FE_ALL_EXCEPT);
+
+        print_single_number(i, input);
+        asm("fcvtzs d0, %s1\r\n"
+            "fmov %0, d0" :
+            "=r" (output) : "w" (input));
+        print_int64(i, output);
+    }
+}
+#endif
+
 /* This allows us to initialise some doubles as pure hex */
 typedef union {
     double d;
@@ -424,6 +446,10 @@ int main(int argc, char *argv[argc])
     convert_single_to_integer();
     convert_double_to_integer();
     convert_half_to_integer();
+
+#ifdef FPRCVT
+    convert_single_to_integer_simd();
+#endif
 
     /* And now with ARM alternative FP16 */
 #if defined(__arm__)
