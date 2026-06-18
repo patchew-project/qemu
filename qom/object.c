@@ -1964,6 +1964,23 @@ object_property_add_child(Object *obj, const char *name,
     return object_property_try_add_child(obj, name, child, &error_abort);
 }
 
+char *object_property_get_child_name(Object *obj, Object *child)
+{
+    ObjectProperty *prop;
+    GHashTableIter iter;
+    gpointer key, value;
+
+    g_hash_table_iter_init(&iter, obj->properties);
+    while (g_hash_table_iter_next(&iter, &key, &value)) {
+        prop = value;
+        if (object_property_is_child(prop) && prop->opaque == child) {
+            return g_strdup(prop->name);
+        }
+    }
+    return NULL;
+}
+
+
 void object_property_allow_set_link(const Object *obj, const char *name,
                                     Object *val, Error **errp)
 {
