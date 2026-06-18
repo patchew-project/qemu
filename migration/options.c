@@ -467,6 +467,11 @@ bool migrate_rdma(void)
     return s->rdma_migration;
 }
 
+bool migrate_fast_snapshot_load(void)
+{
+    return migrate_mapped_ram() && migrate_postcopy_ram();
+}
+
 typedef enum WriteTrackingSupport {
     WT_SUPPORT_UNKNOWN = 0,
     WT_SUPPORT_ABSENT,

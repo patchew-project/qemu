@@ -54,6 +54,7 @@ bool migrate_multifd_flush_after_each_section(void);
 bool migrate_postcopy(void);
 bool migrate_rdma(void);
 bool migrate_tls(void);
+bool migrate_fast_snapshot_load(void);
 
 /* capabilities helpers */
 

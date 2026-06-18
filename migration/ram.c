@@ -252,6 +252,31 @@ int foreach_not_ignored_block(RAMBlockIterFunc func, void *opaque)
     return ret;
 }
 
+static void ramblock_non_zero_map_init(void)
+{
+    RAMBlock *rb;
+
+    RAMBLOCK_FOREACH_NOT_IGNORED(rb)
+    {
+        assert(!rb->nonzeropages);
+        size_t size = rb->max_length >> qemu_target_page_bits();
+        rb->nonzeropages = bitmap_new(size);
+    }
+}
+
+static void ramblock_pending_bmap_init(void)
+{
+    RAMBlock *rb;
+
+    RAMBLOCK_FOREACH_NOT_IGNORED(rb)
+    {
+        assert(!rb->pending_bmap);
+        size_t size = rb->max_length >> qemu_target_page_bits();
+        rb->pending_bmap = bitmap_new(size);
+        bitmap_set(rb->pending_bmap, 0, size);
+    }
+}
+
 static void ramblock_recv_map_init(void)
 {
     RAMBlock *rb;
@@ -3749,6 +3774,12 @@ static int ram_load_setup(QEMUFile *f, void *opaque, Error **errp)
 {
     xbzrle_load_setup();
     ramblock_recv_map_init();
+    if (migrate_mapped_ram()) {
+        ramblock_non_zero_map_init();
+    }
+    if (migrate_fast_snapshot_load()) {
+        ramblock_pending_bmap_init();
+    }
 
     return 0;
 }
@@ -3768,6 +3799,10 @@ static int ram_load_cleanup(void *opaque)
     RAMBLOCK_FOREACH_NOT_IGNORED(rb) {
         g_free(rb->receivedmap);
         rb->receivedmap = NULL;
+        g_free(rb->pending_bmap);
+        rb->pending_bmap = NULL;
+        g_free(rb->nonzeropages);
+        rb->nonzeropages = NULL;
     }
 
     return 0;
@@ -4102,7 +4137,7 @@ static bool read_ramblock_mapped_ram(QEMUFile *f, RAMBlock *block,
             host = host_from_ram_block_offset(block, offset);
             if (!host) {
                 error_setg(errp, "page outside of ramblock %s range",
-                           block->idstr);
+                            block->idstr);
                 return false;
             }
 
@@ -4110,10 +4145,10 @@ static bool read_ramblock_mapped_ram(QEMUFile *f, RAMBlock *block,
 
             if (migrate_multifd()) {
                 read = ram_load_multifd_pages(host, size,
-                                              block->pages_offset + offset);
+                                                block->pages_offset + offset);
             } else {
                 read = qemu_get_buffer_at(f, host, size,
-                                          block->pages_offset + offset);
+                                            block->pages_offset + offset);
             }
 
             if (!read) {
@@ -4142,7 +4177,6 @@ err:
 static void parse_ramblock_mapped_ram(QEMUFile *f, RAMBlock *block,
                                       ram_addr_t length, Error **errp)
 {
-    g_autofree unsigned long *bitmap = NULL;
     MappedRamHeader header;
     size_t bitmap_size;
     long num_pages;
@@ -4174,15 +4208,18 @@ static void parse_ramblock_mapped_ram(QEMUFile *f, RAMBlock *block,
     num_pages = length / header.page_size;
     bitmap_size = BITS_TO_LONGS(num_pages) * sizeof(unsigned long);
 
-    bitmap = g_malloc0(bitmap_size);
-    if (qemu_get_buffer_at(f, (uint8_t *)bitmap, bitmap_size,
+    if (qemu_get_buffer_at(f, (uint8_t *)block->nonzeropages, bitmap_size,
                            header.bitmap_offset) != bitmap_size) {
         error_setg(errp, "Error reading dirty bitmap");
         return;
     }
 
-    if (!read_ramblock_mapped_ram(f, block, num_pages, bitmap, errp)) {
-        return;
+    if (!migrate_fast_snapshot_load()) {
+        /* Do not load RAM during setup for fast snapshot load */
+        if (!read_ramblock_mapped_ram(f, block, num_pages, block->nonzeropages,
+                                      errp)) {
+            return;
+        }
     }
 
     /* Skip pages array */
@@ -4460,9 +4497,11 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
     static uint64_t seq_iter;
     /*
      * If system is running in postcopy mode, page inserts to host memory must
-     * be atomic
+     * be atomic. However, fast snapshot load uses the mapped ram precopy like
+     * path to read block headers and populating bitmaps.
      */
-    bool postcopy_running = postcopy_is_running();
+    bool load_using_postcopy =
+        postcopy_is_running() && !migrate_fast_snapshot_load();
 
     seq_iter++;
 
@@ -4478,7 +4517,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
      */
     trace_ram_load_start();
     WITH_RCU_READ_LOCK_GUARD() {
-        if (postcopy_running) {
+        if (load_using_postcopy) {
             /*
              * Note!  Here RAM_CHANNEL_PRECOPY is the precopy channel of
              * postcopy migration, we have another RAM_CHANNEL_POSTCOPY to
