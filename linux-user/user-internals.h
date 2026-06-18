@@ -75,6 +75,11 @@ void clone_fork_end(bool child);
 void fork_start(void);
 void fork_end(pid_t pid);
 
+typedef struct PGBRange {
+    vaddr lo;
+    vaddr hi;
+} PGBRange;
+
 /**
  * probe_guest_base:
  * @image_name: the executable being loaded
