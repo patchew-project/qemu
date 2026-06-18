@@ -756,8 +756,10 @@ process_incoming_migration_co(void *opaque)
 
     mis->largest_page_size = qemu_ram_pagesize_largest();
     postcopy_state_set(POSTCOPY_INCOMING_NONE);
-    migrate_set_state(&mis->state, MIGRATION_STATUS_SETUP,
-                      MIGRATION_STATUS_ACTIVE);
+    if (!migrate_fast_snapshot_load()) {
+        migrate_set_state(&mis->state, MIGRATION_STATUS_SETUP,
+                          MIGRATION_STATUS_ACTIVE);
+    }
 
     mis->loadvm_co = qemu_coroutine_self();
     ret = qemu_loadvm_state(mis->from_src_file, &local_err);
@@ -786,7 +788,9 @@ process_incoming_migration_co(void *opaque)
         colo_incoming_co();
     }
 
-    migration_bh_schedule(process_incoming_migration_bh, mis);
+    if (!migrate_fast_snapshot_load()) {
+        migration_bh_schedule(process_incoming_migration_bh, mis);
+    }
     goto out;
 
 fail:

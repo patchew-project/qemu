@@ -732,12 +732,6 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
                        "Mapped-ram migration is incompatible with xbzrle");
             return false;
         }
-
-        if (new_caps[MIGRATION_CAPABILITY_POSTCOPY_RAM]) {
-            error_setg(errp,
-                       "Mapped-ram migration is incompatible with postcopy");
-            return false;
-        }
     }
 
     /*

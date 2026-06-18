@@ -2959,6 +2959,32 @@ static bool postcopy_pause_incoming(MigrationIncomingState *mis)
     return true;
 }
 
+/*
+ * Starts the VM and launches the eager thread for fast snapshot load
+ */
+int qemu_loadvm_state_postcopy(QEMUFile *f, MigrationIncomingState *mis,
+                               Error **errp)
+{
+    ERRP_GUARD();
+    int ret = 0;
+
+    postcopy_state_set(POSTCOPY_INCOMING_RUNNING);
+
+    migration_bh_schedule(loadvm_postcopy_handle_run_bh, mis);
+
+    migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_DEVICE,
+                      MIGRATION_STATUS_POSTCOPY_ACTIVE);
+
+    ret = postcopy_ram_eager_load_setup(mis);
+    if (ret) {
+        error_prepend(errp,
+                      "Failed to setup eager load for fast snapshot load: ");
+        return ret;
+    }
+
+    return ret;
+}
+
 int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis,
                            Error **errp)
 {
@@ -3067,8 +3093,30 @@ int qemu_loadvm_state(QEMUFile *f, Error **errp)
 
     cpu_synchronize_all_pre_loadvm();
 
-    ret = qemu_loadvm_state_main(f, mis, errp);
-    qemu_event_set(&mis->main_thread_load_event);
+    if (migrate_fast_snapshot_load()) {
+        migrate_set_state(&mis->state, MIGRATION_STATUS_SETUP,
+                          MIGRATION_STATUS_POSTCOPY_DEVICE);
+
+        if (ram_postcopy_incoming_init(mis, errp)) {
+            return -EINVAL;
+        }
+
+        postcopy_state_set(POSTCOPY_INCOMING_LISTENING);
+        if (postcopy_ram_incoming_setup(mis)) {
+            return -EINVAL;
+        }
+
+        ret = qemu_loadvm_state_main(f, mis, errp);
+
+        qemu_event_set(&mis->main_thread_load_event);
+
+        if (ret == 0) {
+            ret = qemu_loadvm_state_postcopy(f, mis, errp);
+        }
+    } else {
+        ret = qemu_loadvm_state_main(f, mis, errp);
+        qemu_event_set(&mis->main_thread_load_event);
+    }
 
     trace_qemu_loadvm_state_post_main(ret);
 
