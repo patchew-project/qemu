@@ -7906,10 +7906,40 @@ static void nvme_ctrl_reset(NvmeCtrl *n, NvmeResetType rst)
     }
 
     for (i = 0; i < n->params.max_ioqpairs + 1; i++) {
-        if (n->sq[i] != NULL) {
-            nvme_free_sq(n->sq[i], n);
+        NvmeRequest *req, *next;
+
+        NvmeSQueue *sq = n->sq[i];
+        NvmeCQueue *cq;
+
+        if (!sq) {
+            continue;
         }
+
+        /* cancel any outstanding requests */
+        while (!QTAILQ_EMPTY(&sq->out_req_list)) {
+            req = QTAILQ_FIRST(&sq->out_req_list);
+            assert(req->aiocb);
+            req->status = NVME_NO_COMPLETE;
+            blk_aio_cancel(req->aiocb);
+        }
+
+        assert(QTAILQ_EMPTY(&sq->out_req_list));
+
+        cq = n->cq[sq->cqid];
+
+        /* blk_aio_cancel may enqueue completions on the cq; drop them */
+        QTAILQ_FOREACH_SAFE(req, &cq->req_list, entry, next) {
+            if (req->sq != sq) {
+                continue;
+            }
+
+            QTAILQ_REMOVE(&cq->req_list, req, entry);
+            QTAILQ_INSERT_TAIL(&sq->req_list, req, entry);
+        }
+
+        nvme_free_sq(n->sq[i], n);
     }
+
     for (i = 0; i < n->params.max_ioqpairs + 1; i++) {
         if (n->cq[i] != NULL) {
             nvme_free_cq(n->cq[i], n);
