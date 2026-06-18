@@ -25,7 +25,7 @@ class MonitorHotplug(QemuSystemTest):
         sock_dir = self.socket_dir()
         self._sock_path = os.path.join(sock_dir.name, 'hotplug.sock')
 
-    def _add_monitor(self):
+    def _add_monitor(self, autodelete=False):
         """Create a chardev + monitor and return the socket path."""
         sock = self._sock_path
         self.vm.cmd('chardev-add', id='hotplug-chr', backend={
@@ -39,9 +39,15 @@ class MonitorHotplug(QemuSystemTest):
                 'wait': False,
             }
         })
-        self.vm.cmd('object-add', id='hotplug-mon',
-                    qom_type='monitor-qmp',
-                    chardev='hotplug-chr')
+        if autodelete:
+            self.vm.cmd('object-add', id='hotplug-mon',
+                        qom_type='monitor-qmp',
+                        chardev='hotplug-chr',
+                        close_action='delete')
+        else:
+            self.vm.cmd('object-add', id='hotplug-mon',
+                        qom_type='monitor-qmp',
+                        chardev='hotplug-chr')
         return sock
 
     def _remove_monitor(self):
@@ -117,6 +123,47 @@ class MonitorHotplug(QemuSystemTest):
 
         # Clean up the chardev
         self.vm.cmd('chardev-remove', id='hotplug-chr')
+
+    def test_auto_delete(self):
+        """
+        A dynamically-added monitor is configured with 'close-action=delete'
+        should see itself deleted when the client is closed.
+        """
+        self.set_machine('none')
+        self.vm.add_args('-nodefaults')
+        self.vm.launch()
+
+        sock = self._add_monitor(autodelete=True)
+
+        cdevs = [c["label"] for c in self.vm.cmd('query-chardev')]
+        objs = [o["name"] for o in self.vm.cmd('qom-list', path='/objects')]
+        assert ('hotplug-chr' in cdevs)
+        assert ('hotplug-mon' in objs)
+
+        qmp = QEMUMonitorProtocol(sock)
+        greeting = qmp.connect(negotiate=True)
+        self.assertIn('QMP', greeting)
+
+        cdevs = [c["label"] for c in self.vm.cmd('query-chardev')]
+        objs = [o["name"] for o in self.vm.cmd('qom-list', path='/objects')]
+        assert ('hotplug-chr' in cdevs)
+        assert ('hotplug-mon' in objs)
+
+        qmp.close()
+
+        # Wait upto 10 seconds max for chardev to auto-delete, which
+        # is hopefully enough for reliability under high load
+        for i in range(int(10 / 0.2)):
+            cdevs = [c["label"] for c in self.vm.cmd('query-chardev')]
+            if 'hotplug-chr' not in cdevs:
+                break
+            # Wait a little more then try again
+            time.sleep(0.2)
+
+        cdevs = [c["label"] for c in self.vm.cmd('query-chardev')]
+        objs = [o["name"] for o in self.vm.cmd('qom-list', path='/objects')]
+        assert ('hotplug-chr' not in cdevs)
+        assert ('hotplug-mon' not in objs)
 
     def test_large_response(self):
         """
