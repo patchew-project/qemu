@@ -48,11 +48,9 @@ static hwaddr addr_canonical(CPUArchState *env, hwaddr addr)
     return addr;
 }
 
-static void print_pte(Monitor *mon, CPUArchState *env, hwaddr addr,
-                      hwaddr pte, hwaddr mask)
+static void do_print_pte(Monitor *mon, CPUArchState *env, hwaddr addr,
+                         hwaddr pte, hwaddr mask)
 {
-    addr = addr_canonical(env, addr);
-
     monitor_printf(mon, HWADDR_FMT_plx ": " HWADDR_FMT_plx
                    " %c%c%c%c%c%c%c%c%c\n",
                    addr,
@@ -68,7 +66,20 @@ static void print_pte(Monitor *mon, CPUArchState *env, hwaddr addr,
                    pte & PG_RW_MASK ? 'W' : '-');
 }
 
-static void tlb_info_32(Monitor *mon, CPUArchState *env, AddressSpace *as)
+static void print_pte(Monitor *mon, CPUArchState *env, hwaddr addr,
+                      hwaddr pte, hwaddr mask,
+                      hwaddr start, hwaddr end)
+{
+    addr = addr_canonical(env, addr);
+    if (addr < start || addr > end) {
+        return;
+    }
+
+    do_print_pte(mon, env, addr, pte, mask);
+}
+
+static void tlb_info_32(Monitor *mon, CPUArchState *env, AddressSpace *as,
+                        hwaddr start, hwaddr end)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     unsigned int l1, l2;
@@ -80,15 +91,15 @@ static void tlb_info_32(Monitor *mon, CPUArchState *env, AddressSpace *as)
         if (pde & PG_PRESENT_MASK) {
             if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
                 /* 4M pages */
-                print_pte(mon, env, (l1 << 22), pde, ~((1 << 21) - 1));
+                print_pte(mon, env, (l1 << 22), pde, ~((1 << 21) - 1),
+                          start, end);
             } else {
                 for(l2 = 0; l2 < 1024; l2++) {
                     pte = address_space_ldl_le(as, (pde & ~0xfff) + l2 * 4,
                                                attrs, NULL);
                     if (pte & PG_PRESENT_MASK) {
                         print_pte(mon, env, (l1 << 22) + (l2 << 12),
-                                  pte & ~PG_PSE_MASK,
-                                  ~0xfff);
+                                  pte & ~PG_PSE_MASK, ~0xfff, start, end);
                     }
                 }
             }
@@ -96,7 +107,8 @@ static void tlb_info_32(Monitor *mon, CPUArchState *env, AddressSpace *as)
     }
 }
 
-static void tlb_info_pae32(Monitor *mon, CPUArchState *env, AddressSpace *as)
+static void tlb_info_pae32(Monitor *mon, CPUArchState *env, AddressSpace *as,
+                           hwaddr start, hwaddr end)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     unsigned int l1, l2, l3;
@@ -114,17 +126,19 @@ static void tlb_info_pae32(Monitor *mon, CPUArchState *env, AddressSpace *as)
                     if (pde & PG_PSE_MASK) {
                         /* 2M pages with PAE, CR4.PSE is ignored */
                         print_pte(mon, env, (l1 << 30) + (l2 << 21), pde,
-                                  ~((hwaddr)(1 << 20) - 1));
+                                  ~((hwaddr)(1 << 20) - 1),
+                                  start, end);
                     } else {
                         pt_addr = pde & 0x3fffffffff000ULL;
                         for (l3 = 0; l3 < 512; l3++) {
                             pte = address_space_ldq_le(as, pt_addr + l3 * 8,
                                                        attrs, NULL);
                             if (pte & PG_PRESENT_MASK) {
-                                print_pte(mon, env, (l1 << 30) + (l2 << 21)
-                                          + (l3 << 12),
+                                print_pte(mon, env,
+                                          (l1 << 30) + (l2 << 21) + (l3 << 12),
                                           pte & ~PG_PSE_MASK,
-                                          ~(hwaddr)0xfff);
+                                          ~(hwaddr)0xfff,
+                                          start, end);
                             }
                         }
                     }
@@ -136,7 +150,8 @@ static void tlb_info_pae32(Monitor *mon, CPUArchState *env, AddressSpace *as)
 
 #ifdef TARGET_X86_64
 static void tlb_info_la48(Monitor *mon, CPUArchState *env, AddressSpace *as,
-        uint64_t l0, uint64_t pml4_addr)
+                          uint64_t l0, uint64_t pml4_addr, hwaddr start,
+                          hwaddr end)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     uint64_t l1, l2, l3, l4;
@@ -159,7 +174,7 @@ static void tlb_info_la48(Monitor *mon, CPUArchState *env, AddressSpace *as,
             if (pdpe & PG_PSE_MASK) {
                 /* 1G pages, CR4.PSE is ignored */
                 print_pte(mon, env, (l0 << 48) + (l1 << 39) + (l2 << 30),
-                        pdpe, 0x3ffffc0000000ULL);
+                          pdpe, 0x3ffffc0000000ULL, start, end);
                 continue;
             }
 
@@ -172,8 +187,9 @@ static void tlb_info_la48(Monitor *mon, CPUArchState *env, AddressSpace *as,
 
                 if (pde & PG_PSE_MASK) {
                     /* 2M pages, CR4.PSE is ignored */
-                    print_pte(mon, env, (l0 << 48) + (l1 << 39) + (l2 << 30) +
-                            (l3 << 21), pde, 0x3ffffffe00000ULL);
+                    print_pte(mon, env,
+                              (l0 << 48) + (l1 << 39) + (l2 << 30) + (l3 << 21),
+                              pde, 0x3ffffffe00000ULL, start, end);
                     continue;
                 }
 
@@ -182,9 +198,11 @@ static void tlb_info_la48(Monitor *mon, CPUArchState *env, AddressSpace *as,
                     pte = address_space_ldq_le(as, pt_addr + l4 * 8,
                                                attrs, NULL);
                     if (pte & PG_PRESENT_MASK) {
-                        print_pte(mon, env, (l0 << 48) + (l1 << 39) +
-                                (l2 << 30) + (l3 << 21) + (l4 << 12),
-                                pte & ~PG_PSE_MASK, 0x3fffffffff000ULL);
+                        print_pte(mon, env,
+                                  (l0 << 48) + (l1 << 39) + (l2 << 30) +
+                                  (l3 << 21) + (l4 << 12),
+                                  pte & ~PG_PSE_MASK,
+                                  0x3fffffffff000ULL, start, end);
                     }
                 }
             }
@@ -192,7 +210,8 @@ static void tlb_info_la48(Monitor *mon, CPUArchState *env, AddressSpace *as,
     }
 }
 
-static void tlb_info_la57(Monitor *mon, CPUArchState *env, AddressSpace *as)
+static void tlb_info_la57(Monitor *mon, CPUArchState *env, AddressSpace *as,
+                           hwaddr start, hwaddr end)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     uint64_t l0;
@@ -203,7 +222,8 @@ static void tlb_info_la57(Monitor *mon, CPUArchState *env, AddressSpace *as)
     for (l0 = 0; l0 < 512; l0++) {
         pml5e = address_space_ldq_le(as, pml5_addr + l0 * 8, attrs, NULL);
         if (pml5e & PG_PRESENT_MASK) {
-            tlb_info_la48(mon, env, as, l0, pml5e & 0x3fffffffff000ULL);
+            tlb_info_la48(mon, env, as, l0, pml5e & 0x3fffffffff000ULL,
+                          start, end);
         }
     }
 }
@@ -213,6 +233,14 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env;
     AddressSpace *as;
+    hwaddr start = 0, end = HWADDR_MAX;
+
+    if (qdict_haskey(qdict, "start")) {
+        start = (hwaddr)qdict_get_int(qdict, "start");
+    }
+    if (qdict_haskey(qdict, "end")) {
+        end = (hwaddr)qdict_get_int(qdict, "end");
+    }
 
     env = mon_get_cpu_env(mon);
     if (!env) {
@@ -229,17 +257,19 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 #ifdef TARGET_X86_64
         if (env->hflags & HF_LMA_MASK) {
             if (env->cr[4] & CR4_LA57_MASK) {
-                tlb_info_la57(mon, env, as);
+                tlb_info_la57(mon, env, as, start, end);
             } else {
-                tlb_info_la48(mon, env, as, 0, env->cr[3] & 0x3fffffffff000ULL);
+                tlb_info_la48(mon, env, as, 0,
+                              env->cr[3] & 0x3fffffffff000ULL,
+                              start, end);
             }
         } else
 #endif
         {
-            tlb_info_pae32(mon, env, as);
+            tlb_info_pae32(mon, env, as, start, end);
         }
     } else {
-        tlb_info_32(mon, env, as);
+        tlb_info_32(mon, env, as, start, end);
     }
 }
 

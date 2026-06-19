@@ -188,17 +188,21 @@ ERST
 
     {
         .name       = "tlb",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show virtual to physical memory mappings",
+        .args_type  = "start:l?,end:l?",
+        .params     = "[start [end]]",
+        .help       = "show virtual to physical memory mappings. "
+                      "output can be extremely large for i386 target. "
+                      "use 'info tlb [start] [end]' to show a range of entries.",
         .cmd        = hmp_info_tlb,
         .arch_bitmask = QEMU_ARCH_I386 | QEMU_ARCH_SH4 | QEMU_ARCH_SPARC \
                         | QEMU_ARCH_PPC | QEMU_ARCH_XTENSA | QEMU_ARCH_M68K,
     },
 
 SRST
-  ``info tlb``
+  ``info tlb`` [*start* [*end*]]
     Show virtual to physical memory mappings.
+    The output can be extremely large for i386 target.
+    Use *start* and *end* to print entries located in address range [start, end].
 ERST
 
     {
