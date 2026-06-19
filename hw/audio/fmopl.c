@@ -607,24 +607,24 @@ static int OPLOpenTable( void )
 	double pom;
 
 	/* allocate dynamic tables */
-	if( (TL_TABLE = malloc(TL_MAX*2*sizeof(int32_t))) == NULL)
+	if( (TL_TABLE = g_new(int32_t, TL_MAX * 2)) == NULL)
 		return 0;
-	if( (SIN_TABLE = malloc(SIN_ENT*4 *sizeof(int32_t *))) == NULL)
+	if( (SIN_TABLE = g_new(int32_t *, SIN_ENT * 4)) == NULL)
 	{
-		free(TL_TABLE);
-		return 0;
-	}
-	if( (AMS_TABLE = malloc(AMS_ENT*2 *sizeof(int32_t))) == NULL)
-	{
-		free(TL_TABLE);
-		free(SIN_TABLE);
+		g_free(TL_TABLE);
 		return 0;
 	}
-	if( (VIB_TABLE = malloc(VIB_ENT*2 *sizeof(int32_t))) == NULL)
+	if( (AMS_TABLE = g_new(int32_t, AMS_ENT * 2)) == NULL)
 	{
-		free(TL_TABLE);
-		free(SIN_TABLE);
-		free(AMS_TABLE);
+		g_free(TL_TABLE);
+		g_free(SIN_TABLE);
+		return 0;
+	}
+	if( (VIB_TABLE = g_new(int32_t, VIB_ENT * 2)) == NULL)
+	{
+		g_free(TL_TABLE);
+		g_free(SIN_TABLE);
+		g_free(AMS_TABLE);
 		return 0;
 	}
     ENV_CURVE = g_new(int32_t, 2 * EG_ENT + 1);
