@@ -1323,6 +1323,24 @@ static void migration_cleanup_json_writer(MigrationState *s)
     g_clear_pointer(&s->vmdesc, json_writer_free);
 }
 
+static bool migration_check_block_active(void)
+{
+    BlockDriverState *bs;
+    BdrvNextIterator it;
+
+    assert(bql_locked());
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
+        if (bdrv_is_inactive(bs)) {
+            bdrv_next_cleanup(&it);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static void migration_cleanup(MigrationState *s)
 {
     QEMUFile *tmp = NULL;
@@ -1381,9 +1399,16 @@ static void migration_cleanup(MigrationState *s)
     /*
      * FAILED notification should have already happened.  Notify DONE if
      * migration completed successfully.
+     *
+     * In case of a failed CPR migration, we want to resume VM.  However,
+     * for a non-CPR migration resume is done in migration_iteration_finish()
+     * and is gated by a successful migration_block_activate().  So in the
+     * failed CPR case we only resume if that prior activation was successful.
      */
     if (!migration_has_failed(s)) {
         migration_call_notifiers(MIG_EVENT_DONE, NULL);
+    } else if (migrate_mode_is_cpr() && migration_check_block_active()) {
+        vm_resume(s->vm_old_state);
     }
 
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
@@ -2129,6 +2154,26 @@ void qmp_migrate(const char *uri, bool has_channels,
      * eventually result in a call to migration_cleanup().
      */
     Error *local_err = NULL;
+
+    /*
+     * For CPR migration the hand-off happens at cpr_state_save() below, which
+     * (for cpr-transfer case) transfers the device FDs to the target.  The
+     * target starts claiming them as soon as they arrive.  Everything the
+     * source must do to release the devices therefore has to happen before
+     * that cut-over - stop the vCPUs and run the SETUP notifiers (which
+     * release device ownership).
+     *
+     * So for CPR case stop the VM here, ahead of the SETUP notifiers and
+     * cpr_state_save().  Since we aren't copying any RAM (it stays in place)
+     * stopping early is cheap.
+     */
+    if (migrate_mode_is_cpr()) {
+        int ret = migration_stop_vm(s, RUN_STATE_FINISH_MIGRATE);
+        if (ret < 0) {
+            error_setg(&local_err, "migration_stop_vm failed, error %d", -ret);
+            goto out;
+        }
+    }
 
     /* Notify before starting migration thread and before starting CPR */
     if (!(has_resume && resume) &&
@@ -3483,13 +3528,19 @@ static void migration_iteration_finish(MigrationState *s)
          */
         migration_call_notifiers(MIG_EVENT_FAILED, NULL);
 
-        if (runstate_is_live(s->vm_old_state)) {
-            if (!runstate_check(RUN_STATE_SHUTDOWN)) {
-                vm_start();
-            }
-        } else {
-            if (runstate_check(RUN_STATE_FINISH_MIGRATE)) {
-                runstate_set(s->vm_old_state);
+        /*
+         * For cpr the VM resume on failure is centralized in
+         * migration_cleanup(), so don't resume here as well.
+         */
+        if (!migrate_mode_is_cpr()) {
+            if (runstate_is_live(s->vm_old_state)) {
+                if (!runstate_check(RUN_STATE_SHUTDOWN)) {
+                    vm_start();
+                }
+            } else {
+                if (runstate_check(RUN_STATE_FINISH_MIGRATE)) {
+                    runstate_set(s->vm_old_state);
+                }
             }
         }
         break;
@@ -3904,7 +3955,6 @@ void migration_start_outgoing(MigrationState *s)
     Error *local_err = NULL;
     uint64_t rate_limit;
     bool resume = (s->state == MIGRATION_STATUS_POSTCOPY_RECOVER_SETUP);
-    int ret;
 
     if (resume) {
         /* This is a resumed migration */
@@ -3943,14 +3993,6 @@ void migration_start_outgoing(MigrationState *s)
                           MIGRATION_STATUS_POSTCOPY_RECOVER);
         qemu_sem_post(&s->postcopy_pause_sem);
         return;
-    }
-
-    if (migrate_mode_is_cpr()) {
-        ret = migration_stop_vm(s, RUN_STATE_FINISH_MIGRATE);
-        if (ret < 0) {
-            error_setg(&local_err, "migration_stop_vm failed, error %d", -ret);
-            goto fail;
-        }
     }
 
     /*
