@@ -1416,6 +1416,26 @@ static void test_acpi_q35_tcg_numamem(void)
     free_test_data(&data);
 }
 
+static void test_acpi_q35_tcg_sp_mem(void)
+{
+    test_data data = {};
+
+    data.machine = MACHINE_Q35;
+    data.arch    = "x86",
+    data.variant = ".spmem";
+    test_acpi_one(" -m 128M,slots=4,maxmem=1G"
+                  " -object memory-backend-ram,id=ram0,size=128M"
+                  " -numa node,nodeid=0,memdev=ram0"
+                  " -numa node,nodeid=1"
+                  " -numa node,nodeid=2"
+                  " -object memory-backend-ram,id=spm0,size=128M"
+                  " -object memory-backend-ram,id=spm1,size=128M"
+                  " -device sp-mem,id=sp0,memdev=spm0,node=1"
+                  " -device sp-mem,id=sp1,memdev=spm1,node=2",
+                  &data);
+    free_test_data(&data);
+}
+
 static void test_acpi_q35_kvm_xapic(void)
 {
     test_data data = {};
@@ -2807,6 +2827,7 @@ int main(int argc, char *argv[])
             if (strcmp(arch, "i386")) {
                 qtest_add_func("acpi/q35/memhp", test_acpi_q35_tcg_memhp);
                 qtest_add_func("acpi/q35/dimmpxm", test_acpi_q35_tcg_dimm_pxm);
+                qtest_add_func("acpi/q35/sp-mem", test_acpi_q35_tcg_sp_mem);
                 qtest_add_func("acpi/q35/acpihmat",
                                test_acpi_q35_tcg_acpi_hmat);
                 qtest_add_func("acpi/q35/mmio64", test_acpi_q35_tcg_mmio64);
