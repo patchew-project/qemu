@@ -1405,7 +1405,7 @@ probe_target_compiler() {
     mips) container_hosts=x86_64 ;;
     ppc) container_hosts=x86_64 ;;
     ppc64|ppc64le) container_hosts=x86_64 ;;
-    riscv64) container_hosts=x86_64 ;;
+    riscv32|riscv64) container_hosts=x86_64 ;;
     s390x) container_hosts=x86_64 ;;
     sh4) container_hosts=x86_64 ;;
     sparc64) container_hosts=x86_64 ;;
@@ -1423,6 +1423,10 @@ probe_target_compiler() {
       aarch64_be)
         container_image=debian-all-test-cross
         container_cross_prefix=aarch64-linux-gnu-
+        ;;
+      riscv32)
+        container_image=debian-all-test-cross
+        container_cross_prefix=riscv64-linux-gnu-
         ;;
       alpha|hppa|m68k|mips|mipsel|riscv64|sh4|sparc64)
         container_image=debian-all-test-cross
