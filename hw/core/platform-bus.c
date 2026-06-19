@@ -59,8 +59,7 @@ hwaddr platform_bus_get_mmio_addr(PlatformBusDevice *pbus, SysBusDevice *sbdev,
     Object *pbus_mr_obj = OBJECT(pbus_mr);
     Object *parent_mr;
 
-    if (!memory_region_is_mapped(sbdev_mr)) {
-        /* Region is not mapped? */
+    if (!sbdev_mr || !memory_region_is_mapped(sbdev_mr)) {
         return -1;
     }
 
