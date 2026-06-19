@@ -66,7 +66,8 @@ qga_ss.add(files(
   'guest-agent-command-state.c',
   'main.c',
   'cutils.c',
-  'commands-common-ssh.c'
+  'commands-common-ssh.c',
+  'channel-common.c'
 ))
 if host_os == 'windows'
   qga_ss.add(files(

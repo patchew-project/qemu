@@ -2,7 +2,7 @@
 #include <windows.h>
 #include <io.h>
 #include "guest-agent-core.h"
-#include "channel.h"
+#include "channel-common.h"
 
 typedef struct GAChannelReadState {
     guint thread_id;
@@ -15,9 +15,9 @@ typedef struct GAChannelReadState {
 } GAChannelReadState;
 
 struct GAChannel {
+    GAChannelCommon common;
+
     HANDLE handle;
-    GAChannelCallback cb;
-    gpointer user_data;
     GAChannelReadState rstate;
     GIOCondition pending_events; /* TODO: use GAWatch.pollfd.revents */
     GSource *source;
@@ -157,7 +157,7 @@ static gboolean ga_channel_dispatch(GSource *source, GSourceFunc unused,
     gboolean success;
 
     g_debug("dispatch");
-    success = c->cb(watch->pollfd.revents, c->user_data);
+    success = c->common.event_cb(watch->pollfd.revents, c->common.user_data);
 
     if (c->pending_events & G_IO_ERR) {
         g_critical("channel error, removing source");
@@ -330,8 +330,8 @@ GAChannel *ga_channel_new(GAChannelMethod method, const gchar *path,
         return NULL;
     }
 
-    c->cb = cb;
-    c->user_data = opaque;
+    c->common.event_cb = cb;
+    c->common.user_data = opaque;
 
     sec_attrs.nLength = sizeof(SECURITY_ATTRIBUTES);
     sec_attrs.lpSecurityDescriptor = NULL;
@@ -354,6 +354,8 @@ void ga_channel_free(GAChannel *c)
     if (c->rstate.ov.hEvent) {
         CloseHandle(c->rstate.ov.hEvent);
     }
+
+    ga_channel_common_free(&c->common);
     g_free(c->rstate.buf);
     g_free(c);
 }
