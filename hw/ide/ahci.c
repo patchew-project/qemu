@@ -740,6 +740,9 @@ static bool ahci_map_clb_address(AHCIDevice *ad)
 
 static void ahci_unmap_clb_address(AHCIDevice *ad)
 {
+    /* Cancel in-flight reads that would complete against a cleared cur_cmd. */
+    ide_cancel_dma_sync(&ad->port.ifs[0]);
+
     if (ad->lst == NULL) {
         trace_ahci_unmap_clb_address_null(ad->hba, ad->port_no);
         return;
