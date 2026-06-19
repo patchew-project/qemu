@@ -1675,6 +1675,12 @@ int main(int argc, char **argv)
 
     config->log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
 
+    /* Required for Windows, harmless otherwise. */
+    if (socket_init() < 0) {
+        g_critical("failed to initialize sockets");
+        goto end;
+    }
+
     qemu_init_exec_dir(argv[0]);
     qga_qmp_init_marshal(&ga_commands);
 

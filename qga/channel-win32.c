@@ -1,6 +1,8 @@
 #include "qemu/osdep.h"
 #include <windows.h>
 #include <io.h>
+#include "qapi/error.h"
+#include "qemu/sockets.h"
 #include "guest-agent-core.h"
 #include "channel-common.h"
 
@@ -16,6 +18,9 @@ typedef struct GAChannelReadState {
 
 struct GAChannel {
     GAChannelCommon common;
+
+    int listen_fd;
+    int client_fd;
 
     HANDLE handle;
     GAChannelReadState rstate;
@@ -198,7 +203,116 @@ static GSource *ga_channel_create_watch(GAChannel *c)
     return source;
 }
 
-GIOStatus ga_channel_read(GAChannel *c, char *buf, size_t size, gsize *count)
+/*
+ * Socket mode: GIOChannel-based listen/accept/client helpers
+ */
+
+static gboolean ga_channel_socket_client_event(GIOChannel *channel,
+                                               GIOCondition condition,
+                                               gpointer data);
+static gboolean ga_channel_socket_listen_accept(GIOChannel *channel,
+                                                GIOCondition condition,
+                                                gpointer data);
+
+static void ga_channel_socket_listen_add(GAChannel *c, bool create)
+{
+    if (create) {
+        c->common.listen_channel =
+            g_io_channel_win32_new_socket(_get_osfhandle(c->listen_fd));
+        g_assert(c->common.listen_channel);
+    }
+    g_io_add_watch(c->common.listen_channel, G_IO_IN,
+                   ga_channel_socket_listen_accept, c);
+}
+
+static gboolean ga_channel_socket_client_close(GAChannel *c)
+{
+    /* Free the CRT fd wrapper while the SOCKET is still valid. */
+    if (c->client_fd >= 0) {
+        qemu_close_socket_osfhandle(c->client_fd);
+        c->client_fd = -1;
+    }
+    ga_channel_common_client_close(&c->common);
+    if (c->common.listen_channel) {
+        ga_channel_socket_listen_add(c, false);
+    }
+    return false;
+}
+
+static gboolean ga_channel_socket_listen_accept(GIOChannel *channel,
+                                                GIOCondition condition,
+                                                gpointer data)
+{
+    GAChannel *c = data;
+    int client_fd;
+    GIOChannel *client_ch;
+    bool accepted = false;
+
+    client_fd = qemu_accept(c->listen_fd, NULL, NULL);
+    if (client_fd < 0) {
+        g_warning("error accepting connection: %s", strerror(errno));
+        goto out;
+    }
+
+    /*
+     * g_io_channel_win32_new_socket() makes the socket nonblocking via
+     * WSAEventSelect.
+     */
+    client_ch = g_io_channel_win32_new_socket(_get_osfhandle(client_fd));
+    g_assert(client_ch);
+
+    if (ga_channel_common_client_add(&c->common, client_ch,
+                                     ga_channel_socket_client_event, c)) {
+        g_warning("error setting up connection");
+        /*
+         * Release the CRT fd wrapper while its SOCKET is still open - only
+         * then qemu_close_socket_osfhandle() can detach the fd and let the
+         * channel teardown perform the single closesocket().
+         */
+        qemu_close_socket_osfhandle(client_fd);
+        ga_channel_common_gio_destroy(client_ch);
+        goto out;
+    }
+    c->client_fd = client_fd;
+    accepted = true;
+
+out:
+    /* only accept 1 connection at a time */
+    return !accepted;
+}
+
+static gboolean ga_channel_socket_client_event(GIOChannel *channel,
+                                               GIOCondition condition,
+                                               gpointer data)
+{
+    GAChannel *c = data;
+
+    g_assert(c);
+    if (!c->common.event_cb(condition, c->common.user_data)) {
+        return ga_channel_socket_client_close(c);
+    }
+    /*
+     * A peer that sends data and disconnects at once is never reported:
+     * GLib turns the coalesced FD_READ|FD_CLOSE into a plain G_IO_IN,
+     * and Winsock records FD_CLOSE only once, so no later event follows.
+     * Peek after each event to detect the disconnect.
+     */
+    if (c->client_fd >= 0) {
+        char peek;
+        ssize_t r = recv(c->client_fd, &peek, 1, MSG_PEEK);
+        if (r == 0 || (r < 0 && errno != EAGAIN)) {
+            return ga_channel_socket_client_close(c);
+        }
+    }
+    return true;
+}
+
+/*
+ * Handle mode: overlapped I/O read/write
+ */
+
+static GIOStatus ga_channel_handle_read(GAChannel *c, char *buf, size_t size,
+                                        gsize *count)
 {
     GAChannelReadState *rs = &c->rstate;
     GIOStatus status;
@@ -221,8 +335,8 @@ GIOStatus ga_channel_read(GAChannel *c, char *buf, size_t size, gsize *count)
     return status;
 }
 
-static GIOStatus ga_channel_write(GAChannel *c, const char *buf, size_t size,
-                                  size_t *count)
+static GIOStatus ga_channel_handle_write(GAChannel *c, const char *buf,
+                                         size_t size, size_t *count)
 {
     GIOStatus status;
     OVERLAPPED ov = {0};
@@ -262,13 +376,25 @@ static GIOStatus ga_channel_write(GAChannel *c, const char *buf, size_t size,
     return status;
 }
 
+GIOStatus ga_channel_read(GAChannel *c, char *buf, size_t size, gsize *count)
+{
+    if (c->common.method == GA_CHANNEL_VSOCK_LISTEN) {
+        return ga_channel_common_read(&c->common, buf, size, count);
+    }
+    return ga_channel_handle_read(c, buf, size, count);
+}
+
 GIOStatus ga_channel_write_all(GAChannel *c, const char *buf, size_t size)
 {
     GIOStatus status = G_IO_STATUS_NORMAL;
     size_t count = 0;
 
+    if (c->common.method == GA_CHANNEL_VSOCK_LISTEN) {
+        return ga_channel_common_write_all(&c->common, buf, size);
+    }
+
     while (size) {
-        status = ga_channel_write(c, buf, size, &count);
+        status = ga_channel_handle_write(c, buf, size, &count);
         if (status == G_IO_STATUS_NORMAL) {
             size -= count;
             buf += count;
@@ -276,86 +402,127 @@ GIOStatus ga_channel_write_all(GAChannel *c, const char *buf, size_t size)
             break;
         }
     }
-
     return status;
 }
 
 static gboolean ga_channel_open(GAChannel *c, GAChannelMethod method,
-                                const gchar *path)
+                                const gchar *path, Error **errp)
 {
     COMMTIMEOUTS comTimeOut = {0};
     gchar newpath[MAXPATHLEN] = {0};
     comTimeOut.ReadIntervalTimeout = 1;
 
-    if (method != GA_CHANNEL_VIRTIO_SERIAL && method != GA_CHANNEL_ISA_SERIAL) {
-        g_critical("unsupported communication method");
+    c->common.method = method;
+
+    switch (method) {
+    case GA_CHANNEL_VIRTIO_SERIAL:
+    case GA_CHANNEL_ISA_SERIAL:
+        if (method == GA_CHANNEL_ISA_SERIAL) {
+            snprintf(newpath, sizeof(newpath), "\\\\.\\%s", path);
+        } else {
+            g_strlcpy(newpath, path, sizeof(newpath));
+        }
+
+        c->handle = CreateFile(newpath, GENERIC_READ | GENERIC_WRITE, 0, NULL,
+                               OPEN_EXISTING,
+                               FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED,
+                               NULL);
+        if (c->handle == INVALID_HANDLE_VALUE) {
+            g_autofree gchar *emsg = g_win32_error_message(GetLastError());
+            error_setg(errp, "error opening path %s: %s", newpath, emsg);
+            c->handle = NULL;
+            return false;
+        }
+
+        if (method == GA_CHANNEL_ISA_SERIAL
+                && !SetCommTimeouts(c->handle, &comTimeOut)) {
+            g_autofree gchar *emsg = g_win32_error_message(GetLastError());
+            error_setg(errp, "error setting timeout for com port: %s", emsg);
+            CloseHandle(c->handle);
+            c->handle = NULL;
+            return false;
+        }
+        return true;
+
+#ifdef CONFIG_AF_VSOCK
+    case GA_CHANNEL_VSOCK_LISTEN: {
+        int fd = ga_channel_common_vsock_listen(path, errp);
+        if (fd < 0) {
+            return false;
+        }
+
+        c->listen_fd = fd;
+        ga_channel_socket_listen_add(c, true);
+        return true;
+    }
+#endif
+
+    default:
+        error_setg(errp, "unsupported communication method");
         return false;
     }
-
-    if (method == GA_CHANNEL_ISA_SERIAL) {
-        snprintf(newpath, sizeof(newpath), "\\\\.\\%s", path);
-    } else {
-        g_strlcpy(newpath, path, sizeof(newpath));
-    }
-
-    c->handle = CreateFile(newpath, GENERIC_READ | GENERIC_WRITE, 0, NULL,
-                           OPEN_EXISTING,
-                           FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED, NULL);
-    if (c->handle == INVALID_HANDLE_VALUE) {
-        g_autofree gchar *emsg = g_win32_error_message(GetLastError());
-        g_critical("error opening path %s: %s", newpath, emsg);
-        return false;
-    }
-
-    if (method == GA_CHANNEL_ISA_SERIAL
-            && !SetCommTimeouts(c->handle, &comTimeOut)) {
-        g_autofree gchar *emsg = g_win32_error_message(GetLastError());
-        g_critical("error setting timeout for com port: %s", emsg);
-        CloseHandle(c->handle);
-        return false;
-    }
-
-    return true;
 }
 
 GAChannel *ga_channel_new(GAChannelMethod method, const gchar *path,
                           int listen_fd, GAChannelCallback cb, gpointer opaque)
 {
+    Error *err = NULL;
     GAChannel *c = g_new0(GAChannel, 1);
-    SECURITY_ATTRIBUTES sec_attrs;
 
-    if (!ga_channel_open(c, method, path)) {
-        g_critical("error opening channel");
-        g_free(c);
-        return NULL;
-    }
-
+    /* listen_fd is for systemd socket activation; not applicable on Windows. */
+    (void)listen_fd;
+    c->listen_fd = -1;
+    c->client_fd = -1;
     c->common.event_cb = cb;
     c->common.user_data = opaque;
 
-    sec_attrs.nLength = sizeof(SECURITY_ATTRIBUTES);
-    sec_attrs.lpSecurityDescriptor = NULL;
-    sec_attrs.bInheritHandle = false;
+    if (!ga_channel_open(c, method, path, &err)) {
+        g_critical("%s", error_get_pretty(err));
+        error_free(err);
+        ga_channel_free(c);
+        return NULL;
+    }
 
-    c->rstate.buf_size = QGA_READ_COUNT_DEFAULT;
-    c->rstate.buf = g_malloc(QGA_READ_COUNT_DEFAULT);
-    c->rstate.ov.hEvent = CreateEvent(&sec_attrs, FALSE, FALSE, NULL);
+    if (c->common.method != GA_CHANNEL_VSOCK_LISTEN) {
+        SECURITY_ATTRIBUTES sec_attrs;
 
-    c->source = ga_channel_create_watch(c);
-    g_source_attach(c->source, NULL);
+        sec_attrs.nLength = sizeof(SECURITY_ATTRIBUTES);
+        sec_attrs.lpSecurityDescriptor = NULL;
+        sec_attrs.bInheritHandle = false;
+
+        c->rstate.buf_size = QGA_READ_COUNT_DEFAULT;
+        c->rstate.buf = g_malloc(QGA_READ_COUNT_DEFAULT);
+        c->rstate.ov.hEvent = CreateEvent(&sec_attrs, FALSE, FALSE, NULL);
+
+        c->source = ga_channel_create_watch(c);
+        g_source_attach(c->source, NULL);
+    }
+
     return c;
 }
 
 void ga_channel_free(GAChannel *c)
 {
+    if (c->common.method == GA_CHANNEL_VSOCK_LISTEN) {
+        /* Free the CRT fd wrappers before the GIOChannels close the SOCKETs. */
+        if (c->listen_fd >= 0) {
+            qemu_close_socket_osfhandle(c->listen_fd);
+        }
+        if (c->client_fd >= 0) {
+            qemu_close_socket_osfhandle(c->client_fd);
+        }
+        ga_channel_common_free(&c->common);
+        g_free(c);
+        return;
+    }
+
+    /* Handle mode */
     if (c->source) {
         g_source_destroy(c->source);
     }
     if (c->rstate.ov.hEvent) {
         CloseHandle(c->rstate.ov.hEvent);
     }
-
-    ga_channel_common_free(&c->common);
     g_free(c->rstate.buf);
     g_free(c);
 }

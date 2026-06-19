@@ -59,6 +59,10 @@ Options
   Transport method: one of ``unix-listen``, ``virtio-serial``, or
   ``isa-serial``, or ``vsock-listen`` (``virtio-serial`` is the default).
 
+  .. note::
+     On Windows, ``vsock-listen`` requires the viosock driver from
+     kvm-guest-drivers-windows recent enough to include commit ``687c776``.
+
 .. option:: -p, --path=PATH
 
   Device/socket path (the default for virtio-serial is
