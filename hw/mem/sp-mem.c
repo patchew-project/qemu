@@ -53,6 +53,24 @@ static MemoryRegion *sp_mem_get_memory_region(MemoryDeviceState *md,
     return host_memory_backend_get_memory(spm->hostmem);
 }
 
+static void sp_mem_fill_device_info(const MemoryDeviceState *md,
+                                    MemoryDeviceInfo *info)
+{
+    SpMemDeviceInfo *di = g_new0(SpMemDeviceInfo, 1);
+    SpMemDevice *spm = SP_MEM(md);
+    DeviceState *dev = DEVICE(md);
+
+    di->id = dev->id ? g_strdup(dev->id) : NULL;
+    di->addr = spm->addr;
+    di->size = memory_region_size(
+                   host_memory_backend_get_memory(spm->hostmem));
+    di->node = spm->node;
+    di->memdev = object_get_canonical_path(OBJECT(spm->hostmem));
+
+    info->u.sp_mem.data = di;
+    info->type = MEMORY_DEVICE_INFO_KIND_SP_MEM;
+}
+
 static void sp_mem_realize(DeviceState *dev, Error **errp)
 {
     SpMemDevice *spm = SP_MEM(dev);
@@ -91,6 +109,7 @@ static void sp_mem_class_init(ObjectClass *oc, const void *data)
     mdc->set_addr            = sp_mem_set_addr;
     mdc->get_memory_region   = sp_mem_get_memory_region;
     mdc->get_plugged_size    = memory_device_get_region_size;
+    mdc->fill_device_info    = sp_mem_fill_device_info;
 }
 
 static const TypeInfo sp_mem_types[] = {
