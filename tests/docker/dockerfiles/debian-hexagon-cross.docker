@@ -49,7 +49,12 @@ ENV TOOLCHAIN_BASENAME=clang+llvm-${TOOLCHAIN_RELEASE}-cross-hexagon-unknown-lin
 ENV TOOLCHAIN_URL=https://artifacts.codelinaro.org/artifactory/codelinaro-toolchain-for-hexagon/${TOOLCHAIN_RELEASE}_/${TOOLCHAIN_BASENAME}.tar.zst
 ENV CCACHE_WRAPPERSDIR=/usr/libexec/ccache-wrappers
 
-RUN curl -#SL "$TOOLCHAIN_URL" | tar --zstd -xC "$TOOLCHAIN_INSTALL"
+# Ignore tar's chmod/lchmod EPERM on the toolchain symlinks and directories,
+# which rootless podman's overlay storage rejects (harmless mode metadata).
+RUN curl -#SLo /tmp/toolchain.tar.zst "$TOOLCHAIN_URL" && \
+    { tar --zstd --no-same-owner --no-same-permissions \
+          -xf /tmp/toolchain.tar.zst -C "$TOOLCHAIN_INSTALL" || true; } && \
+    rm -f /tmp/toolchain.tar.zst
 ENV PATH=$PATH:${TOOLCHAIN_INSTALL}/${TOOLCHAIN_BASENAME}/x86_64-linux-gnu/bin
 ENV MAKE=/usr/bin/make
 # As a final step configure the user (if env is defined)
