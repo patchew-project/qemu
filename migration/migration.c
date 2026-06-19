@@ -1471,6 +1471,13 @@ void migration_connect_error_propagate(MigrationState *s, Error *error)
     migrate_error_propagate(s, error);
 
     if (!resume) {
+        /*
+         * Emit FAILED for every pre-thread failure/cancel that ends up here,
+         * to balance the SETUP sent in qmp_migrate().
+         */
+        if (migration_has_failed(s)) {
+            migration_call_notifiers(MIG_EVENT_FAILED, NULL);
+        }
         migration_cleanup(s);
     }
 }
@@ -1530,6 +1537,12 @@ void migration_cancel(void)
     if (cpr_transfer_source_active(s)) {
         assert(migrate_mode() == MIG_MODE_CPR_TRANSFER);
         assert(setup && !s->to_dst_file);
+        /*
+         * This path bypasses both migration_iteration_finish() and
+         * migration_connect_error_propagate(), so emit FAILED here to balance
+         * the SETUP sent in qmp_migrate(), before the VM is resumed.
+         */
+        migration_call_notifiers(MIG_EVENT_FAILED, NULL);
         migration_cleanup(s);
         /* Now all things should have been released */
         assert(!cpr_transfer_source_active(s));
@@ -2116,6 +2129,12 @@ void qmp_migrate(const char *uri, bool has_channels,
      * eventually result in a call to migration_cleanup().
      */
     Error *local_err = NULL;
+
+    /* Notify before starting migration thread and before starting CPR */
+    if (!(has_resume && resume) &&
+        migration_call_notifiers(MIG_EVENT_SETUP, &local_err)) {
+        goto out;
+    }
 
     if (!cpr_state_save(cpr_ch, &local_err)) {
         goto out;
@@ -3893,11 +3912,6 @@ void migration_start_outgoing(MigrationState *s)
     } else {
         /* This is a fresh new migration */
         rate_limit = migrate_max_bandwidth();
-
-        /* Notify before starting migration thread */
-        if (migration_call_notifiers(MIG_EVENT_SETUP, &local_err)) {
-            goto fail;
-        }
     }
 
     migration_rate_set(rate_limit);
