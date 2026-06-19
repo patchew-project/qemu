@@ -7,6 +7,7 @@
 from qemu_test import Asset
 from qemu_test import wait_for_console_pattern
 from aspeed import AspeedTest
+from qemu_test import exec_command_and_wait_for_pattern
 
 
 class YosemiteV4Machine(AspeedTest):
@@ -33,6 +34,52 @@ class YosemiteV4Machine(AspeedTest):
         # yosemite v4 does not emit the hostname log which is
         # different from the other machines.
         self.wait_for_console_pattern('yosemite4 login:')
+
+        # perform login
+        exec_command_and_wait_for_pattern(self,
+                                          "root", "Password:");
+
+        exec_command_and_wait_for_pattern(self, "0penBmc", "#");
+
+        # MAX31790 test
+        exec_command_and_wait_for_pattern(self,
+            "cat /sys/class/hwmon/hwmon2/name", "max31790");
+
+        # this initial fan reading value is caused by services
+        # inside the image writing the pwm
+        exec_command_and_wait_for_pattern(self,
+            "cat /sys/class/hwmon/hwmon2/fan1_input", "7281");
+        exec_command_and_wait_for_pattern(self,
+            "cat /sys/class/hwmon/hwmon2/fan1_enable", "1");
+        exec_command_and_wait_for_pattern(self,
+            "cat /sys/class/hwmon/hwmon2/fan1_fault", "0");
+
+        exec_command_and_wait_for_pattern(self,
+            "echo 1 > /sys/class/hwmon/hwmon2/pwm1", "root@yosemite4");
+        exec_command_and_wait_for_pattern(self,
+            "cat /sys/class/hwmon/hwmon2/fan1_input", "0");
+
+        # linux driver pwm write:
+        # >>> hex(int((11 * 511) / 255) << 7)
+        # '0xb00'
+        exec_command_and_wait_for_pattern(self,
+            "echo 11 > /sys/class/hwmon/hwmon2/pwm1", "root@yosemite4");
+        # device emulation logic:
+        # >>> hex(100 + (0xb00 >> 7) * 20)
+        # '0x21c'
+        # register reading value:
+        # >>> hex(int((245760 * 4) / 0x21c) << 5)
+        # '0xe380'
+        # linux driver calculation:
+        # >>> int((60 * 4 * 8192) / (0xe380 >> 4))
+        # 540
+        exec_command_and_wait_for_pattern(self,
+            "cat /sys/class/hwmon/hwmon2/fan1_input", "540");
+
+        exec_command_and_wait_for_pattern(self,
+            "echo 255 > /sys/class/hwmon/hwmon2/pwm1", "root@yosemite4");
+        exec_command_and_wait_for_pattern(self,
+            "cat /sys/class/hwmon/hwmon2/fan1_input", "10347");
 
     def test_arm_ast2600_yosemitev4_openbmc(self):
         image_path = self.uncompress(self.ASSET_YOSEMITE_V4_FLASH)
