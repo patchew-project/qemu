@@ -18,7 +18,11 @@
 #include "qemu/osdep.h"
 
 #ifdef CONFIG_AF_VSOCK
+#ifndef _WIN32
 #include <linux/vm_sockets.h>
+#else
+#include "system/vio_sockets.h"
+#endif
 #endif /* CONFIG_AF_VSOCK */
 
 #include "monitor/monitor.h"
