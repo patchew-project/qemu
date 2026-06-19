@@ -442,6 +442,17 @@ void do_common_semihosting(CPUState *cs)
             }
         } else {
             unlock_user(s, arg0, 0);
+            /*
+             * Due to the switch from target_ulong to uint64_t, passing -1
+             * as arg2 is no longer possible.
+             * For 32‑bit targets, if arg2 == 0xffffffff, set it
+             * to 0xffffffffffffffff to trigger overflow so zero strlen
+             * is passed to validate_strlen().
+             */
+            if (!is_64bit_semihosting(env) && arg2 == (uint32_t)-1) {
+                arg2 = -1;
+            }
+
             semihost_sys_open(cs, common_semi_cb, arg0, arg2 + 1,
                               gdb_open_modeflags[arg1], 0644);
             break;
