@@ -3868,6 +3868,7 @@ Sockets
 M: Daniel P. Berrange <berrange@redhat.com>
 S: Maintained
 F: include/qemu/sockets.h
+F: include/system/vio_sockets.h
 F: util/qemu-sockets.c
 F: qapi/sockets.json
 
