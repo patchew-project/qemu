@@ -163,6 +163,16 @@ static inline enum soc_dma_port_type soc_dma_ch_update_type(
 
 void soc_dma_ch_update(struct soc_dma_ch_s *ch)
 {
+    static const soc_dma_transfer_t transfer_fn[2][2] = {
+        [soc_dma_port_mem] = {
+            [soc_dma_port_mem] = transfer_mem2mem,
+            [soc_dma_port_fifo] = transfer_mem2fifo,
+        },
+        [soc_dma_port_fifo] = {
+            [soc_dma_port_mem] = transfer_fifo2mem,
+            [soc_dma_port_fifo] = transfer_fifo2fifo,
+        },
+    };
     enum soc_dma_port_type src, dst;
 
     src = soc_dma_ch_update_type(ch, 0);
@@ -171,21 +181,16 @@ void soc_dma_ch_update(struct soc_dma_ch_s *ch)
         ch->transfer_fn = ch->dma->transfer_fn;
         return;
     }
+
     dst = soc_dma_ch_update_type(ch, 1);
-
-    /* TODO: use src and dst as array indices.  */
-    if (src == soc_dma_port_mem && dst == soc_dma_port_mem)
-        ch->transfer_fn = transfer_mem2mem;
-    else if (src == soc_dma_port_mem && dst == soc_dma_port_fifo)
-        ch->transfer_fn = transfer_mem2fifo;
-    else if (src == soc_dma_port_fifo && dst == soc_dma_port_mem)
-        ch->transfer_fn = transfer_fifo2mem;
-    else if (src == soc_dma_port_fifo && dst == soc_dma_port_fifo)
-        ch->transfer_fn = transfer_fifo2fifo;
-    else
+    if (dst == soc_dma_port_other) {
+        ch->update = 0;
         ch->transfer_fn = ch->dma->transfer_fn;
+        return;
+    }
 
-    ch->update = (dst != soc_dma_port_other);
+    ch->update = 1;
+    ch->transfer_fn = transfer_fn[src][dst];
 }
 
 static void soc_dma_ch_freq_update(struct dma_s *s)
