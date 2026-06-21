@@ -542,9 +542,6 @@ int main(int argc, char **argv)
         do_strace = 1;
     }
 
-    target_environ = envlist_to_environ(envlist, NULL);
-    envlist_free(envlist);
-
     {
         Error *err = NULL;
         if (seed_optarg != NULL) {
@@ -557,6 +554,9 @@ int main(int argc, char **argv)
             exit(1);
         }
     }
+
+    target_environ = envlist_to_environ(envlist, NULL);
+    envlist_free(envlist);
 
     /*
      * Now that page sizes are configured we can do
