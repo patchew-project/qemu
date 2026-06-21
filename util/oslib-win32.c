@@ -287,8 +287,23 @@ bool qemu_finish_async_prealloc_mem(Error **errp)
 
 char *qemu_get_pid_name(pid_t pid)
 {
-    /* XXX Implement me */
-    abort();
+    HANDLE hProcess;
+    WCHAR path[4096];
+    DWORD size = G_N_ELEMENTS(path);
+    char *name = NULL;
+
+    hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, (DWORD)pid);
+    if (!hProcess) {
+        return NULL;
+    }
+
+    if (QueryFullProcessImageNameW(hProcess, 0, path, &size)) {
+        const WCHAR *base = wcsrchr(path, L'\\');
+        name = g_utf16_to_utf8(base ? base + 1 : path, -1, NULL, NULL, NULL);
+    }
+
+    CloseHandle(hProcess);
+    return name;
 }
 
 
