@@ -689,7 +689,6 @@ static void ich9_lpc_initfn(Object *obj)
                              IOAPIC_NUM_PINS);
 
     ich9_pm_reset_properties(&lpc->pm);
-    ich9_pm_add_properties(obj, &lpc->pm);
 }
 
 static void ich9_lpc_realize(PCIDevice *d, Error **errp)
@@ -950,6 +949,8 @@ static void ich9_lpc_class_init(ObjectClass *klass, const void *data)
                               ich9_lpc_get_smi_negotiated_feat,
                               ich9_lpc_set_smi_negotiated_feat,
                               NULL, NULL);
+
+    ich9_pm_add_class_properties(klass);
 }
 
 static const TypeInfo ich9_lpc_info = {
