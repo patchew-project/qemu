@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "qemu/datadir.h"
 #include "qemu/units.h"
+#include "hw/acpi/pcihp.h"
 #include "hw/core/irq.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bridge.h"
@@ -187,6 +188,8 @@ static void pci_bus_realize(BusState *qbus, Error **errp)
     bus->machine_done.notify = pcibus_machine_done;
     qemu_add_machine_init_done_notifier(&bus->machine_done);
 
+    bus->acpi_pcihp_bsel_val = -1;
+
     vmstate_register_any(NULL, &vmstate_pcibus, bus);
 }
 
@@ -283,6 +286,30 @@ static GByteArray *pci_bus_fw_cfg_gen_data(Object *obj, Error **errp)
     return byte_array;
 }
 
+static void pci_bus_get_acpi_pcihp_bsel_val(Object *obj, Visitor *v,
+                                            const char *name, void *opaque,
+                                            Error **errp)
+{
+    PCIBus *bus = PCI_BUS(obj);
+    int32_t bsel_val = bus->acpi_pcihp_bsel_val;
+
+    visit_type_int32(v, name, &bsel_val, errp);
+}
+
+static void pci_bus_set_acpi_pcihp_bsel_val(Object *obj, Visitor *v,
+                                            const char *name, void *opaque,
+                                            Error **errp)
+{
+    PCIBus *bus = PCI_BUS(obj);
+    int32_t bsel_val = bus->acpi_pcihp_bsel_val;
+
+    if (!visit_type_int32(v, name,  &bsel_val, errp)) {
+        return;
+    }
+
+    bus->acpi_pcihp_bsel_val = bsel_val;
+}
+
 static void pci_bus_class_init(ObjectClass *klass, const void *data)
 {
     BusClass *k = BUS_CLASS(klass);
@@ -302,6 +329,11 @@ static void pci_bus_class_init(ObjectClass *klass, const void *data)
     pbc->numa_node = pcibus_numa_node;
 
     fwgc->get_data = pci_bus_fw_cfg_gen_data;
+
+    object_class_property_add(klass, ACPI_PCIHP_PROP_BSEL, "int32",
+                              pci_bus_get_acpi_pcihp_bsel_val,
+                              pci_bus_set_acpi_pcihp_bsel_val,
+                              NULL, NULL);
 }
 
 static const TypeInfo pci_bus_info = {
