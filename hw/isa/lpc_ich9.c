@@ -683,23 +683,10 @@ static void ich9_lpc_initfn(Object *obj)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(obj);
 
-    static const uint8_t acpi_enable_cmd = ICH9_APM_ACPI_ENABLE;
-    static const uint8_t acpi_disable_cmd = ICH9_APM_ACPI_DISABLE;
-
     object_initialize_child(obj, "rtc", &lpc->rtc, TYPE_MC146818_RTC);
 
     qdev_init_gpio_out_named(DEVICE(lpc), lpc->gsi, ICH9_GPIO_GSI,
                              IOAPIC_NUM_PINS);
-
-    object_property_add_uint8_ptr(obj, ACPI_PM_PROP_SCI_INT,
-                                  &lpc->sci_gsi, OBJ_PROP_FLAG_READ);
-    object_property_add_uint8_ptr(OBJECT(lpc), ACPI_PM_PROP_ACPI_ENABLE_CMD,
-                                  &acpi_enable_cmd, OBJ_PROP_FLAG_READ);
-    object_property_add_uint8_ptr(OBJECT(lpc), ACPI_PM_PROP_ACPI_DISABLE_CMD,
-                                  &acpi_disable_cmd, OBJ_PROP_FLAG_READ);
-    object_property_add_uint64_ptr(obj, ICH9_LPC_SMI_NEGOTIATED_FEAT_PROP,
-                                   &lpc->smi_negotiated_features,
-                                   OBJ_PROP_FLAG_READ);
 
     ich9_pm_reset_properties(&lpc->pm);
     ich9_pm_add_properties(obj, &lpc->pm);
@@ -880,6 +867,40 @@ static void build_ich9_isa_aml(AcpiDevAmlIf *adev, Aml *scope)
     qbus_build_aml(bus, scope);
 }
 
+static void ich9_lpc_get_sci_int(Object *obj, Visitor *v,
+                                 const char *name, void *opaque,
+                                 Error **errp)
+{
+    ICH9LPCState *lpc = ICH9_LPC_DEVICE(obj);
+    uint8_t sci_gsi = lpc->sci_gsi;
+
+    visit_type_uint8(v, name, &sci_gsi, errp);
+}
+
+static void ich9_lpc_get_smi_negotiated_feat(Object *obj, Visitor *v,
+                                             const char *name, void *opaque,
+                                             Error **errp)
+{
+    ICH9LPCState *lpc = ICH9_LPC_DEVICE(obj);
+    uint64_t smi_negotiated_features = lpc->smi_negotiated_features;
+
+    visit_type_uint64(v, name, &smi_negotiated_features, errp);
+}
+
+static void ich9_lpc_set_smi_negotiated_feat(Object *obj, Visitor *v,
+                                             const char *name, void *opaque,
+                                             Error **errp)
+{
+    ICH9LPCState *lpc = ICH9_LPC_DEVICE(obj);
+    uint64_t smi_negotiated_features = lpc->smi_negotiated_features;
+
+    if (!visit_type_uint64(v, name,  &smi_negotiated_features, errp)) {
+        return;
+    }
+
+    lpc->smi_negotiated_features = smi_negotiated_features;
+}
+
 static void ich9_lpc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -887,6 +908,9 @@ static void ich9_lpc_class_init(ObjectClass *klass, const void *data)
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
     AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_CLASS(klass);
     AcpiDevAmlIfClass *amldevc = ACPI_DEV_AML_IF_CLASS(klass);
+
+    static const uint8_t acpi_enable_cmd = ICH9_APM_ACPI_ENABLE;
+    static const uint8_t acpi_disable_cmd = ICH9_APM_ACPI_DISABLE;
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     device_class_set_legacy_reset(dc, ich9_lpc_reset);
@@ -912,6 +936,20 @@ static void ich9_lpc_class_init(ObjectClass *klass, const void *data)
     adevc->ospm_status = ich9_pm_ospm_status;
     adevc->send_event = ich9_send_gpe;
     amldevc->build_dev_aml = build_ich9_isa_aml;
+
+    object_class_property_add(klass, ACPI_PM_PROP_SCI_INT, "uint8",
+                              ich9_lpc_get_sci_int,
+                              NULL,
+                              NULL, NULL);
+    object_class_property_add_uint8_ptr(klass, ACPI_PM_PROP_ACPI_ENABLE_CMD,
+                                        &acpi_enable_cmd, OBJ_PROP_FLAG_READ);
+    object_class_property_add_uint8_ptr(klass, ACPI_PM_PROP_ACPI_DISABLE_CMD,
+                                        &acpi_disable_cmd, OBJ_PROP_FLAG_READ);
+    object_class_property_add(klass, ICH9_LPC_SMI_NEGOTIATED_FEAT_PROP,
+                              "uint64",
+                              ich9_lpc_get_smi_negotiated_feat,
+                              ich9_lpc_set_smi_negotiated_feat,
+                              NULL, NULL);
 }
 
 static const TypeInfo ich9_lpc_info = {
