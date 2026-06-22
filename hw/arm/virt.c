@@ -307,21 +307,22 @@ void set_cpu_cache(CPUCoreCaches *cpu_cache, enum CacheType cache_type,
 
     if (ccidx) {
         *cpu_cache = (CPUCoreCaches){
-            .linesize = 1 << (FIELD_EX64(armcpu->ccsidr[bank_index], CCSIDR_EL1,
-                                         CCIDX_LINESIZE) + 4),
-            .associativity = FIELD_EX64(armcpu->ccsidr[bank_index], CCSIDR_EL1,
-                                        CCIDX_ASSOCIATIVITY) + 1,
-            .sets = FIELD_EX64(armcpu->ccsidr[bank_index], CCSIDR_EL1,
-                               CCIDX_NUMSETS) + 1,
+            .linesize = 1 << (FIELD_EX64(GET_IDREG_DEMUX(&armcpu->isar, CCSIDR_EL1, bank_index),
+                                         CCSIDR_EL1, CCIDX_LINESIZE) + 4),
+            .associativity = FIELD_EX64(GET_IDREG_DEMUX(&armcpu->isar, CCSIDR_EL1, bank_index),
+                                        CCSIDR_EL1, CCIDX_ASSOCIATIVITY) + 1,
+            .sets = FIELD_EX64(GET_IDREG_DEMUX(&armcpu->isar, CCSIDR_EL1, bank_index),
+                               CCSIDR_EL1, CCIDX_NUMSETS) + 1,
         };
     } else {
         *cpu_cache = (CPUCoreCaches){
-            .linesize = 1 << (FIELD_EX64(armcpu->ccsidr[bank_index], CCSIDR_EL1,
-                                         LINESIZE) + 4),
-            .associativity = FIELD_EX64(armcpu->ccsidr[bank_index], CCSIDR_EL1,
-                                        ASSOCIATIVITY) + 1,
+            .linesize = 1 << (FIELD_EX64(GET_IDREG_DEMUX(&armcpu->isar, CCSIDR_EL1, bank_index),
+                                         CCSIDR_EL1, LINESIZE) + 4),
+            .associativity = FIELD_EX64(GET_IDREG_DEMUX(&armcpu->isar, CCSIDR_EL1, bank_index),
+                                        CCSIDR_EL1, ASSOCIATIVITY) + 1,
             .sets =
-                FIELD_EX64(armcpu->ccsidr[bank_index], CCSIDR_EL1, NUMSETS) + 1,
+                FIELD_EX64(GET_IDREG_DEMUX(&armcpu->isar, CCSIDR_EL1, bank_index),
+                           CCSIDR_EL1, NUMSETS) + 1,
         };
     }
     cpu_cache->type = cache_type;
