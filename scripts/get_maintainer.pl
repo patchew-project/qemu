@@ -35,6 +35,7 @@ my $email_git_max_maintainers = 5;
 my $email_git_min_percent = 5;
 my $email_git_since = "1-year-ago";
 my $email_hg_since = "-365";
+my $gitlab = 0;
 my $interactive = 0;
 my $email_remove_duplicates = 1;
 my $email_use_mailmap = 1;
@@ -186,6 +187,7 @@ if (!GetOptions(
 		'n!' => \$email_usename,
 		'l!' => \$email_list,
 		's!' => \$email_subscriber_list,
+		'gitlab!' => \$gitlab,
 		'multiline!' => \$output_multiline,
 		'roles!' => \$output_roles,
 		'rolestats!' => \$output_rolestats,
@@ -227,6 +229,7 @@ $output_roles = 1 if ($output_rolestats);
 if ($sections) {
     $email = 0;
     $email_list = 0;
+    $gitlab = 0;
     $scm = 0;
     $status = 0;
     $subsystem = 0;
@@ -234,9 +237,9 @@ if ($sections) {
     $keywords = 0;
     $interactive = 0;
 } else {
-    my $selections = $email + $scm + $status + $subsystem + $web;
+    my $selections = $email + $scm + $status + $subsystem + $web + $gitlab;
     if ($selections == 0) {
-	die "$P:  Missing required option: email, scm, status, subsystem or web\n";
+	die "$P:  Missing required option: email, gitlab, scm, status, subsystem or web\n";
     }
 }
 
@@ -457,6 +460,7 @@ my %email_hash_address;
 my @email_to = ();
 my %hash_list_to;
 my @list_to = ();
+my @gitlab = ();
 my @scm = ();
 my @web = ();
 my @subsystem = ();
@@ -469,6 +473,11 @@ my @maintainers = get_maintainers();
 if (@maintainers) {
     @maintainers = merge_email(@maintainers);
     output(@maintainers);
+}
+
+if ($gitlab) {
+    @gitlab = uniq(@gitlab);
+    output(@gitlab);
 }
 
 if ($scm) {
@@ -536,6 +545,7 @@ sub get_maintainers {
     %hash_list_to = ();
     @list_to = ();
     @scm = ();
+    @gitlab = ();
     @web = ();
     @subsystem = ();
     @status = ();
@@ -731,6 +741,7 @@ MAINTAINER field selection options:
     --roles => show roles (status:subsystem, git-signer, list, etc...)
     --rolestats => show roles and statistics (commits/total_commits, %)
     --file-emails => add email addresses found in -f file (default: 0 (off))
+  --gitlab => print GitLab handle(s) if any
   --scm => print SCM tree(s) if any
   --status => print status if any
   --subsystem => print subsystem name if any
@@ -1049,6 +1060,8 @@ sub add_categories {
 		}
 	    } elsif ($ptype eq "T") {
 		push(@scm, $pvalue);
+	    } elsif ($ptype eq "G") {
+		push(@gitlab, $pvalue);
 	    } elsif ($ptype eq "W") {
 		push(@web, $pvalue);
 	    } elsif ($ptype eq "S") {
