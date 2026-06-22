@@ -477,6 +477,28 @@ static void ich9_pm_set_keep_pci_slot_hpc(Object *obj, bool value, Error **errp)
     s->pm.keep_pci_slot_hpc = value;
 }
 
+static void ich9_pm_get_pcihp_io_base(Object *obj, Visitor *v,
+                                      const char *name, void *opaque,
+                                      Error **errp)
+{
+    ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
+    ICH9LPCPMRegs *pm = &s->pm;
+    uint16_t io_base = pm->acpi_pci_hotplug.io_base;
+
+    visit_type_uint16(v, name, &io_base, errp);
+}
+
+static void ich9_pm_get_pcihp_io_len(Object *obj, Visitor *v,
+                                     const char *name, void *opaque,
+                                     Error **errp)
+{
+    ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
+    ICH9LPCPMRegs *pm = &s->pm;
+    uint16_t io_len = pm->acpi_pci_hotplug.io_len;
+
+    visit_type_uint16(v, name, &io_len, errp);
+}
+
 void ich9_pm_reset_properties(ICH9LPCPMRegs *pm)
 {
     pm->acpi_memory_hotplug.is_enabled = true;
@@ -529,6 +551,14 @@ void ich9_pm_add_class_properties(ObjectClass *oc)
     object_class_property_add_bool(oc, "x-keep-pci-slot-hpc",
                                    ich9_pm_get_keep_pci_slot_hpc,
                                    ich9_pm_set_keep_pci_slot_hpc);
+    object_class_property_add(oc, ACPI_PCIHP_IO_BASE_PROP, "uint16",
+                              ich9_pm_get_pcihp_io_base,
+                              NULL,
+                              NULL, NULL);
+    object_class_property_add(oc, ACPI_PCIHP_IO_LEN_PROP, "uint16",
+                              ich9_pm_get_pcihp_io_len,
+                              NULL,
+                              NULL, NULL);
 }
 
 void ich9_pm_device_pre_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,

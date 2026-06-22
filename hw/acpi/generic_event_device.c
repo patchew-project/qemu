@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/pcihp.h"
 #include "hw/acpi/cpu.h"
@@ -357,6 +358,26 @@ static void acpi_ged_send_event(AcpiDeviceIf *adev, AcpiEventStatusBits ev)
     qemu_irq_pulse(s->irq);
 }
 
+static void acpi_ged_get_pcihp_io_base(Object *obj, Visitor *v,
+                                       const char *name, void *opaque,
+                                       Error **errp)
+{
+    AcpiGedState *s = ACPI_GED(obj);
+    uint16_t io_base = s->pcihp_state.io_base;
+
+    visit_type_uint16(v, name, &io_base, errp);
+}
+
+static void acpi_ged_get_pcihp_io_len(Object *obj, Visitor *v,
+                                      const char *name, void *opaque,
+                                      Error **errp)
+{
+    AcpiGedState *s = ACPI_GED(obj);
+    uint16_t io_len = s->pcihp_state.io_len;
+
+    visit_type_uint16(v, name, &io_len, errp);
+}
+
 static const Property acpi_ged_properties[] = {
     DEFINE_PROP_UINT32("ged-event", AcpiGedState, ged_event_bitmap, 0),
     DEFINE_PROP_BOOL(ACPI_PM_PROP_ACPI_PCIHP_BRIDGE, AcpiGedState,
@@ -608,6 +629,15 @@ static void acpi_ged_class_init(ObjectClass *class, const void *data)
 
     adevc->ospm_status = acpi_ged_ospm_status;
     adevc->send_event = acpi_ged_send_event;
+
+    object_class_property_add(class, ACPI_PCIHP_IO_BASE_PROP, "uint16",
+                              acpi_ged_get_pcihp_io_base,
+                              NULL,
+                              NULL, NULL);
+    object_class_property_add(class, ACPI_PCIHP_IO_LEN_PROP, "uint16",
+                              acpi_ged_get_pcihp_io_len,
+                              NULL,
+                              NULL, NULL);
 }
 
 static const TypeInfo acpi_ged_info = {

@@ -32,6 +32,7 @@
 #include "system/system.h"
 #include "system/xen.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "qemu/range.h"
 #include "hw/acpi/cpu.h"
 #include "hw/core/hotplug.h"
@@ -405,6 +406,26 @@ static void piix4_pm_machine_ready(Notifier *n, void *opaque)
         (memory_region_present(io_as, 0x2f8) ? 0x90 : 0);
 }
 
+static void piix4_pm_get_pcihp_io_base(Object *obj, Visitor *v,
+                                       const char *name, void *opaque,
+                                       Error **errp)
+{
+    PIIX4PMState *s = PIIX4_PM(obj);
+    uint16_t io_base = s->acpi_pci_hotplug.io_base;
+
+    visit_type_uint16(v, name, &io_base, errp);
+}
+
+static void piix4_pm_get_pcihp_io_len(Object *obj, Visitor *v,
+                                      const char *name, void *opaque,
+                                      Error **errp)
+{
+    PIIX4PMState *s = PIIX4_PM(obj);
+    uint16_t io_len = s->acpi_pci_hotplug.io_len;
+
+    visit_type_uint16(v, name, &io_len, errp);
+}
+
 static void piix4_pm_add_properties(PIIX4PMState *s)
 {
     static const uint8_t acpi_enable_cmd = ACPI_ENABLE;
@@ -607,6 +628,15 @@ static void piix4_pm_class_init(ObjectClass *klass, const void *data)
     hc->is_hotpluggable_bus = piix4_is_hotpluggable_bus;
     adevc->ospm_status = piix4_ospm_status;
     adevc->send_event = piix4_send_gpe;
+
+    object_class_property_add(klass, ACPI_PCIHP_IO_BASE_PROP, "uint16",
+                              piix4_pm_get_pcihp_io_base,
+                              NULL,
+                              NULL, NULL);
+    object_class_property_add(klass, ACPI_PCIHP_IO_LEN_PROP, "uint16",
+                              piix4_pm_get_pcihp_io_len,
+                              NULL,
+                              NULL, NULL);
 }
 
 static const TypeInfo piix4_pm_info = {
