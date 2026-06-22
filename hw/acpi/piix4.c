@@ -406,6 +406,16 @@ static void piix4_pm_machine_ready(Notifier *n, void *opaque)
         (memory_region_present(io_as, 0x2f8) ? 0x90 : 0);
 }
 
+static void piix4_pm_get_io_base(Object *obj, Visitor *v,
+                                 const char *name, void *opaque,
+                                 Error **errp)
+{
+    PIIX4PMState *s = PIIX4_PM(obj);
+    uint32_t io_base = s->io_base;
+
+    visit_type_uint32(v, name, &io_base, errp);
+}
+
 static void piix4_pm_get_pcihp_io_base(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
                                        Error **errp)
@@ -426,7 +436,7 @@ static void piix4_pm_get_pcihp_io_len(Object *obj, Visitor *v,
     visit_type_uint16(v, name, &io_len, errp);
 }
 
-static void piix4_pm_add_properties(PIIX4PMState *s)
+static void piix4_pm_add_class_properties(ObjectClass *oc)
 {
     static const uint8_t acpi_enable_cmd = ACPI_ENABLE;
     static const uint8_t acpi_disable_cmd = ACPI_DISABLE;
@@ -434,18 +444,20 @@ static void piix4_pm_add_properties(PIIX4PMState *s)
     static const uint32_t gpe0_blk_len = GPE_LEN;
     static const uint16_t sci_int = 9;
 
-    object_property_add_uint8_ptr(OBJECT(s), ACPI_PM_PROP_ACPI_ENABLE_CMD,
-                                  &acpi_enable_cmd, OBJ_PROP_FLAG_READ);
-    object_property_add_uint8_ptr(OBJECT(s), ACPI_PM_PROP_ACPI_DISABLE_CMD,
-                                  &acpi_disable_cmd, OBJ_PROP_FLAG_READ);
-    object_property_add_uint32_ptr(OBJECT(s), ACPI_PM_PROP_GPE0_BLK,
-                                  &gpe0_blk, OBJ_PROP_FLAG_READ);
-    object_property_add_uint32_ptr(OBJECT(s), ACPI_PM_PROP_GPE0_BLK_LEN,
-                                  &gpe0_blk_len, OBJ_PROP_FLAG_READ);
-    object_property_add_uint16_ptr(OBJECT(s), ACPI_PM_PROP_SCI_INT,
-                                  &sci_int, OBJ_PROP_FLAG_READ);
-    object_property_add_uint32_ptr(OBJECT(s), ACPI_PM_PROP_PM_IO_BASE,
-                                  &s->io_base, OBJ_PROP_FLAG_READ);
+    object_class_property_add_uint8_ptr(oc, ACPI_PM_PROP_ACPI_ENABLE_CMD,
+                                        &acpi_enable_cmd, OBJ_PROP_FLAG_READ);
+    object_class_property_add_uint8_ptr(oc, ACPI_PM_PROP_ACPI_DISABLE_CMD,
+                                        &acpi_disable_cmd, OBJ_PROP_FLAG_READ);
+    object_class_property_add_uint32_ptr(oc, ACPI_PM_PROP_GPE0_BLK,
+                                         &gpe0_blk, OBJ_PROP_FLAG_READ);
+    object_class_property_add_uint32_ptr(oc, ACPI_PM_PROP_GPE0_BLK_LEN,
+                                         &gpe0_blk_len, OBJ_PROP_FLAG_READ);
+    object_class_property_add_uint16_ptr(oc, ACPI_PM_PROP_SCI_INT,
+                                         &sci_int, OBJ_PROP_FLAG_READ);
+    object_class_property_add(oc, ACPI_PM_PROP_PM_IO_BASE, "uint32",
+                              piix4_pm_get_io_base,
+                              NULL,
+                              NULL, NULL);
 }
 
 static void piix4_pm_realize(PCIDevice *dev, Error **errp)
@@ -501,8 +513,6 @@ static void piix4_pm_realize(PCIDevice *dev, Error **errp)
 
     piix4_acpi_system_hot_add_init(pci_address_space_io(dev),
                                    pci_get_bus(dev), s);
-
-    piix4_pm_add_properties(s);
 }
 
 static void piix4_pm_init(Object *obj)
@@ -637,6 +647,8 @@ static void piix4_pm_class_init(ObjectClass *klass, const void *data)
                               piix4_pm_get_pcihp_io_len,
                               NULL,
                               NULL, NULL);
+
+    piix4_pm_add_class_properties(klass);
 }
 
 static const TypeInfo piix4_pm_info = {
