@@ -2150,6 +2150,11 @@ void igb_core_set_link_status(IGBCore *core)
     NetClientState *nc = qemu_get_queue(core->owner_nic);
     uint32_t old_status = core->mac[STATUS];
 
+    /* Disable TRL for all queues (section 4.5.12.1) */
+    for (int i = 0; i < IGB_NUM_QUEUES; i++) {
+        core->trl[i].trlrc &= ~E1000_TRLRC_RS_ENA;
+    }
+
     trace_e1000e_link_status_changed(nc->link_down ? false : true);
 
     if (nc->link_down) {
@@ -2630,6 +2635,25 @@ static void igb_set_vtivar(IGBCore *core, int index, uint32_t val)
     /*
      * Ignoring assigned vectors associated with queues Rx#1 and Tx#1 for now.
      */
+}
+
+static uint32_t igb_get_trlrc(IGBCore *core, int index)
+{
+    const uint32_t qidx = core->mac[TRLDQSEL];
+
+    return core->trl[qidx].trlrc;
+}
+
+static void igb_set_trldqsel(IGBCore *core, int index, uint32_t val)
+{
+    core->mac[index] = extract32(val, 0, 4);
+}
+
+static void igb_set_trlrc(IGBCore *core, int index, uint32_t val)
+{
+    const uint32_t qidx = core->mac[TRLDQSEL];
+
+    core->trl[qidx].trlrc = val;
 }
 
 static inline void
@@ -3687,6 +3711,7 @@ static const readops igb_macreg_readops[] = {
     [RQDPC15] = igb_mac_read_clr4,
     [VTIVAR ... VTIVAR + 7] = igb_mac_readreg,
     [VTIVAR_MISC ... VTIVAR_MISC + 7] = igb_mac_readreg,
+    [TRLRC] = igb_get_trlrc,
 };
 enum { IGB_NREADOPS = ARRAY_SIZE(igb_macreg_readops) };
 
@@ -4135,7 +4160,9 @@ static const writeops igb_macreg_writeops[] = {
     [PVTEICR6] = igb_set_vteicr,
     [PVTEICR7] = igb_set_vteicr,
     [VTIVAR ... VTIVAR + 7] = igb_set_vtivar,
-    [VTIVAR_MISC ... VTIVAR_MISC + 7] = igb_mac_writereg
+    [VTIVAR_MISC ... VTIVAR_MISC + 7] = igb_mac_writereg,
+    [TRLDQSEL] = igb_set_trldqsel,
+    [TRLRC]    = igb_set_trlrc,
 };
 enum { IGB_NWRITEOPS = ARRAY_SIZE(igb_macreg_writeops) };
 
