@@ -31,6 +31,7 @@
 #include "qobject/qdict.h"
 #include "qobject/qjson.h"
 #include "qobject/qlist.h"
+#include "qom/object_interfaces.h"
 #include "trace.h"
 
 /*
@@ -101,10 +102,13 @@ static void monitor_qmp_set_pretty(Object *obj, bool val, Error **errp)
 
 static void monitor_qmp_emit_event(Monitor *mon, QAPIEvent event, QDict *qdict);
 static bool monitor_qmp_requires_iothread(const Monitor *mon);
+static void monitor_qmp_complete(UserCreatable *uc, Error **errp);
+static bool monitor_qmp_prepare_delete(UserCreatable *uc, Error **errp);
 
 static void monitor_qmp_class_init(ObjectClass *cls, const void *data)
 {
     MonitorClass *moncls = MONITOR_CLASS(cls);
+    UserCreatableClass *ucc = USER_CREATABLE_CLASS(cls);
 
     object_class_property_add_bool(cls, "pretty",
                                    monitor_qmp_get_pretty,
@@ -112,6 +116,9 @@ static void monitor_qmp_class_init(ObjectClass *cls, const void *data)
 
     moncls->emit_event = monitor_qmp_emit_event;
     moncls->requires_iothread = monitor_qmp_requires_iothread;
+
+    ucc->complete = monitor_qmp_complete;
+    ucc->prepare_delete = monitor_qmp_prepare_delete;
 }
 
 static void handle_qmp_command(void *opaque, QObject *req, Error *err);
@@ -583,25 +590,28 @@ static void monitor_qmp_setup_handlers_bh(void *opaque)
 void monitor_new_qmp(const char *chardev_id, bool pretty, Error **errp)
 {
     ERRP_GUARD();
-    MonitorQMP *mon;
     static int counter;
     g_autofree char *id = g_strdup_printf("qmpcompat%d", counter++);
-    Object *obj = object_new_with_props(TYPE_MONITOR_QMP,
-                                        object_get_objects_root(),
-                                        id,
-                                        errp,
-                                        "chardev", chardev_id,
-                                        "pretty", pretty ? "yes" : "no",
-                                        NULL);
+    object_new_with_props(TYPE_MONITOR_QMP,
+                          object_get_objects_root(),
+                          id,
+                          errp,
+                          "chardev", chardev_id,
+                          "pretty", pretty ? "yes" : "no",
+                          NULL);
+}
 
-    if (!obj) {
-        return;
-    }
+static void monitor_qmp_complete(UserCreatable *uc, Error **errp)
+{
+    MonitorQMP *mon = MONITOR_QMP(uc);
+    UserCreatableClass *ucc_parent =
+        USER_CREATABLE_CLASS(
+            object_class_get_parent(
+                OBJECT_CLASS(MONITOR_QMP_GET_CLASS(mon))));
+    ERRP_GUARD();
 
-    mon = MONITOR_QMP(obj);
-    monitor_complete(MONITOR(mon), errp);
+    ucc_parent->complete(uc, errp);
     if (*errp) {
-        object_unparent(OBJECT(mon));
         return;
     }
 
@@ -632,4 +642,10 @@ void monitor_new_qmp(const char *chardev_id, bool pretty, Error **errp)
                                  NULL, &mon->parent_obj, NULL, true);
         monitor_list_append(&mon->parent_obj);
     }
+}
+
+static bool monitor_qmp_prepare_delete(UserCreatable *uc, Error **errp)
+{
+    error_setg(errp, "Deleting QMP monitors is not supported");
+    return false;
 }
