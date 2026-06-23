@@ -9,14 +9,14 @@
 #define CSR_OFF_FUNCS(NAME, FL, RD, WR)                    \
     [LOONGARCH_CSR_##NAME] = {                             \
         .name   = (stringify(NAME)),                       \
-        .offset = CSR_OFFSET(CSR_##NAME),                  \
+        .offset = CSR_OFFSET(CSR_##NAME, 0),               \
         .flags = FL, .readfn = RD, .writefn = WR           \
     }
 
 #define CSR_OFF_ARRAY(NAME, N)                                \
     [LOONGARCH_CSR_##NAME(N)] = {                             \
         .name   = (stringify(NAME##N)),                       \
-        .offset = CSR_OFFSET(CSR_##NAME[N]),                  \
+        .offset = CSR_OFFSET(CSR_##NAME[N], 0),               \
         .flags = CSRFL_BASIC, .readfn = NULL, .writefn = NULL \
     }
 
@@ -25,13 +25,13 @@
 #define GCSR_OFF_FUNCS(NAME, FL, RD, WR)                  \
     [LOONGARCH_CSR_##NAME] = {                            \
         .name   = (stringify(GCSR_##NAME)),               \
-        .offset = CPU_CSR_OFFSET(CSR_##NAME, 1),          \
+        .offset = CSR_OFFSET(CSR_##NAME, 1),              \
         .flags = FL, .readfn = RD, .writefn = WR          \
     }
 #define GCSR_OFF_ARRAY(NAME, N)                               \
     [LOONGARCH_CSR_##NAME(N)] = {                             \
         .name   = (stringify(GCSR_##NAME##N)),                \
-        .offset = CPU_CSR_OFFSET(CSR_##NAME[N], 1),           \
+        .offset = CSR_OFFSET(CSR_##NAME[N], 1),               \
         .flags = CSRFL_BASIC, .readfn = NULL, .writefn = NULL \
     }
 #define GCSR_OFF_FLAGS(NAME, FL) GCSR_OFF_FUNCS(NAME, FL, NULL, NULL)
