@@ -803,8 +803,14 @@ static void pnv_reset(MachineState *machine, ResetType type)
         mpipl_write_succeeded = do_mpipl_write(pnv);
     }
 
-    /* Regenerate device tree */
-    fdt = pnv_dt_create(machine);
+    if (machine->dtb) {
+        int file_size; /* discard */
+        fdt = load_device_tree(machine->dtb, &file_size);
+    } else {
+        /* Regenerate device tree */
+        fdt = pnv_dt_create(machine);
+    }
+
     _FDT((fdt_pack(fdt)));
 
     /*
