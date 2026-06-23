@@ -147,7 +147,7 @@ if have_system
   # Some tests: test-char, test-qdev-global-props, and test-qga,
   # are not runnable under TSan due to a known issue.
   # https://github.com/google/sanitizers/issues/1116
-  if not get_option('tsan')
+  if not sanitize.contains('thread')
     if host_os != 'windows'
         tests += {
           'test-char': ['socket-helpers.c', qom, io, chardev]

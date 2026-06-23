@@ -541,43 +541,35 @@ if get_option('safe_stack') and coroutine_backend != 'ucontext'
   error('SafeStack is only supported with the ucontext coroutine backend')
 endif
 
-if get_option('asan')
-  if cc.has_argument('-fsanitize=address')
-    qemu_cflags = ['-fsanitize=address'] + qemu_cflags
-    qemu_ldflags = ['-fsanitize=address'] + qemu_ldflags
-  else
-    error('Your compiler does not support -fsanitize=address')
-  endif
+sanitize = get_option('b_sanitize')
+
+if sanitize.contains('address')
+  # Meson handles -fsanitize=address automatically
 endif
 
-if get_option('ubsan')
+if sanitize.contains('undefined')
   # Detect static linking issue with ubsan:
   # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=84285
-  if cc.links('int main(int argc, char **argv) { return argc + 1; }',
-              args: [qemu_ldflags, '-fsanitize=undefined'])
-    qemu_cflags += ['-fsanitize=undefined']
-    qemu_ldflags += ['-fsanitize=undefined']
-
-    # Suppress undefined behaviour from function call to mismatched type.
-    # In addition, tcg prologue does not emit function type prefix
-    # required by function call sanitizer.
-    if cc.has_argument('-fno-sanitize=function')
-      qemu_cflags += ['-fno-sanitize=function']
-    endif
-  else
+  if not cc.links('int main(int argc, char **argv) { return argc + 1; }',
+                  args: [qemu_ldflags, '-fsanitize=undefined'])
     error('Your compiler does not support -fsanitize=undefined')
+  endif
+
+  # Suppress undefined behaviour from function call to mismatched type.
+  # In addition, tcg prologue does not emit function type prefix
+  # required by function call sanitizer.
+  if cc.has_argument('-fno-sanitize=function')
+    qemu_cflags += ['-fno-sanitize=function']
   endif
 endif
 
-# Thread sanitizer is, for now, much noisier than the other sanitizers;
-# keep it separate until that is not the case.
-if get_option('tsan')
-  if get_option('asan') or get_option('ubsan')
+if sanitize.contains('thread')
+  if sanitize.contains('address') or sanitize.contains('undefined')
     error('TSAN is not supported with other sanitizers')
   endif
   if not cc.has_function('__tsan_create_fiber',
-                         args: '-fsanitize=thread',
-                         prefix: '#include <sanitizer/tsan_interface.h>')
+                          args: '-fsanitize=thread',
+                          prefix: '#include <sanitizer/tsan_interface.h>')
     error('Cannot enable TSAN due to missing fiber annotation interface')
   endif
   tsan_warn_suppress = []
@@ -588,8 +580,7 @@ if get_option('tsan')
   if cc.has_argument('-Wno-tsan')
     tsan_warn_suppress = ['-Wno-tsan']
   endif
-  qemu_cflags = ['-fsanitize=thread'] + tsan_warn_suppress + qemu_cflags
-  qemu_ldflags = ['-fsanitize=thread'] + qemu_ldflags
+  qemu_cflags += tsan_warn_suppress
 endif
 
 # Detect support for PT_GNU_RELRO + DT_BIND_NOW.
@@ -2482,7 +2473,7 @@ if have_tcg
   config_host_data.set('CONFIG_TCG_INTERPRETER', tcg_arch == 'tci')
 endif
 config_host_data.set('CONFIG_TPM', have_tpm)
-config_host_data.set('CONFIG_TSAN', get_option('tsan'))
+config_host_data.set('CONFIG_TSAN', sanitize.contains('thread'))
 config_host_data.set('CONFIG_USB_LIBUSB', libusb.found())
 config_host_data.set('CONFIG_VDE', vde.found())
 config_host_data.set('CONFIG_VHOST', have_vhost)
@@ -2639,7 +2630,7 @@ if rdma.found()
 endif
 
 have_asan_fiber = false
-if get_option('asan') and \
+if sanitize.contains('address') and \
    not cc.has_function('__sanitizer_start_switch_fiber',
                          args: '-fsanitize=address',
                          prefix: '#include <sanitizer/asan_interface.h>')
@@ -4768,7 +4759,9 @@ summary_info += {'memory allocator':  get_option('malloc')}
 summary_info += {'avx2 optimization': config_host_data.get('CONFIG_AVX2_OPT')}
 summary_info += {'avx512bw optimization': config_host_data.get('CONFIG_AVX512BW_OPT')}
 summary_info += {'gcov':              get_option('b_coverage')}
-summary_info += {'thread sanitizer':  get_option('tsan')}
+summary_info += {'address sanitizer': sanitize.contains('address')}
+summary_info += {'undefined behavior sanitizer': sanitize.contains('undefined')}
+summary_info += {'thread sanitizer':  sanitize.contains('thread')}
 summary_info += {'CFI support':       get_option('cfi')}
 if get_option('cfi')
   summary_info += {'CFI debug support': get_option('cfi_debug')}

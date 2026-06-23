@@ -24,7 +24,7 @@ tests_x86_64_system_quick = [
 # interacts badly with the sanitizer; this means the memlock
 # test (which checks via /proc for whether pages were locked)
 # will always fail on a sanitizer build, so don't run it.
-if not get_option('asan')
+if not sanitize.contains('address')
   tests_x86_64_system_quick += [ 'memlock' ]
 endif
 
