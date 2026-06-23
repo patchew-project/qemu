@@ -20,6 +20,8 @@
 #include "cpu-csr.h"
 #include "cpu-qom.h"
 
+#define CPU_INTERRUPT_GUEST CPU_INTERRUPT_TGT_EXT_0
+
 #define FCSR0_M1    0x1f         /* FCSR1 mask, Enables */
 #define FCSR0_M2    0x1f1f0000   /* FCSR2 mask, Cause and Flags */
 #define FCSR0_M3    0x300        /* FCSR3 mask, Round Mode */
@@ -93,6 +95,10 @@ FIELD(FCSR0, CAUSE, 24, 5)
 #define  EXCCODE_WPEM                EXCODE(19, 1)
 #define  EXCCODE_BTD                 EXCODE(20, 0)
 #define  EXCCODE_BTE                 EXCODE(21, 0)
+#define  EXCCODE_GSPR                EXCODE(22, 0)
+#define  EXCCODE_HVC                 EXCODE(23, 0)
+#define  EXCCODE_GCSC                EXCODE(24, 0)
+#define  EXCCODE_GCHC                EXCODE(25, 0)
 #define  EXCCODE_DBP                 EXCODE(26, 0) /* Reserved subcode used for debug */
 
 /* cpucfg[0] bits */
@@ -255,6 +261,7 @@ FIELD(TLB_MISC, E, 0, 1)
 FIELD(TLB_MISC, ASID, 1, 10)
 FIELD(TLB_MISC, VPPN, 13, 35)
 FIELD(TLB_MISC, PS, 48, 6)
+FIELD(TLB_MISC, GID, 54, 8)
 
 /*Msg interrupt registers */
 #define N_MSGIS                4
@@ -313,6 +320,10 @@ typedef struct  LoongArchBT {
     uint32_t eflags;
     uint32_t ftop;
 } lbt_t;
+
+#define LOONGARCH_VM_LEVEL_HOST      0
+#define LOONGARCH_VM_LEVEL_GUEST     1
+#define LOONGARCH_VM_LEVELS          2
 
 #define CPU_VENDOR_LOONGSON   "Loongson"
 #define CPU_MODEL_3A5000      "3A5000"
@@ -375,10 +386,19 @@ typedef struct CPUSysState {
     uint64_t CSR_DBG;
     uint64_t CSR_DERA;
     uint64_t CSR_DSAVE;
+    uint64_t CSR_GSTAT;
+    uint64_t CSR_GCFG;
+    uint64_t CSR_GINTC;
+    uint64_t CSR_GCNTC;
+    uint64_t CSR_GTLBC;
+    uint64_t CSR_TRGP;
     /* Msg interrupt registers */
     uint64_t CSR_MSGIS[N_MSGIS];
     uint64_t CSR_MSGIR;
     uint64_t CSR_MSGIE;
+#if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
+    LoongArchTLB tlb[LOONGARCH_TLB_MAX];
+#endif
 } CPUSysState;
 
 typedef struct CPUArchState {
@@ -394,7 +414,7 @@ typedef struct CPUArchState {
     uint32_t pv_features;
     uint64_t vendor_id;
     uint64_t cpu_id;
-    CPUSysState sys_states[1];
+    CPUSysState sys_states[LOONGARCH_VM_LEVELS];
 
     struct {
         uint64_t guest_addr;
@@ -419,6 +439,7 @@ typedef struct CPUArchState {
     uint32_t mp_state;
 #endif
     CPUSysState *sys_state;
+    bool vm_exit;
 } CPULoongArchState;
 
 typedef struct LoongArchCPUTopo {
@@ -438,8 +459,10 @@ struct ArchCPU {
 
     CPULoongArchState env;
     QEMUTimer timer;
+    QEMUTimer guest_timer;
     uint32_t  phy_id;
     OnOffAuto lbt;
+    OnOffAuto lvz;
     OnOffAuto pmu;
     OnOffAuto ptw;
     OnOffAuto lsx;
@@ -484,6 +507,24 @@ struct LoongArchCPUClass {
 #define MMU_KERNEL_IDX   MMU_PLV_KERNEL
 #define MMU_USER_IDX     MMU_PLV_USER
 #define MMU_DA_IDX       4
+#define MMU_GUEST_IDX    5
+#define MMU_GUEST_DA_IDX 9
+
+static inline bool is_guest_mmu_idx(int mmu_idx)
+{
+    return mmu_idx >= MMU_GUEST_IDX;
+}
+
+static inline int mmu_idx_to_plv(int mmu_idx)
+{
+    if (mmu_idx == MMU_DA_IDX || mmu_idx == MMU_GUEST_DA_IDX) {
+        return 0;
+    }
+    if (is_guest_mmu_idx(mmu_idx)) {
+        return mmu_idx - MMU_GUEST_IDX;
+    }
+    return mmu_idx;
+}
 
 static inline CPUSysState *env_sys(CPULoongArchState *env)
 {
@@ -493,6 +534,18 @@ static inline CPUSysState *env_sys(CPULoongArchState *env)
 static inline void set_sys_state(CPULoongArchState *env, CPUSysState *sys)
 {
     env->sys_state = sys;
+}
+
+static inline CPUSysState *sys_state_if(CPULoongArchState *env, bool guest)
+{
+    return &env->sys_states[guest ? LOONGARCH_VM_LEVEL_GUEST :
+                                     LOONGARCH_VM_LEVEL_HOST];
+}
+
+static inline int env_vm_level(CPULoongArchState *env)
+{
+    return env_sys(env) == &env->sys_states[LOONGARCH_VM_LEVEL_GUEST] ?
+           LOONGARCH_VM_LEVEL_GUEST : LOONGARCH_VM_LEVEL_HOST;
 }
 
 static inline bool is_la64(CPULoongArchState *env)
@@ -530,6 +583,13 @@ static inline void set_pc(CPULoongArchState *env, uint64_t value)
 #define HW_FLAGS_CRMD_PG    R_CSR_CRMD_PG_MASK   /* 0x10 */
 #define HW_FLAGS_VA32       0x20
 #define HW_FLAGS_EUEN_ASXE  0x40
+#define HW_FLAGS_GUEST_MODE 0x80
+
+bool has_lvz_capability(CPULoongArchState *env);
+bool will_return_to_guest(CPULoongArchState *env);
+uint8_t get_gid(CPULoongArchState *env);
+uint8_t get_tgid(CPULoongArchState *env);
+void trigger_vm_exit(CPULoongArchState *env);
 
 #define CPU_RESOLVING_TYPE TYPE_LOONGARCH_CPU
 
