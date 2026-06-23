@@ -48,6 +48,10 @@ OBJECT_DEFINE_TYPE(MonitorHMP, monitor_hmp, MONITOR_HMP, MONITOR);
 
 static void monitor_hmp_finalize(Object *obj)
 {
+    MonitorHMP *mon = MONITOR_HMP(obj);
+    if (mon->rs) {
+        readline_free(mon->rs);
+    }
 }
 
 static bool monitor_hmp_get_readline(Object *obj, Error **errp)
@@ -1589,8 +1593,6 @@ void monitor_new_hmp(const char *chardev_id, bool use_readline, Error **errp)
         object_unparent(OBJECT(mon));
         return;
     }
-
-    monitor_data_init(&mon->parent_obj, false, false);
 
     if (mon->use_readline) {
         mon->rs = readline_init(monitor_readline_printf,
