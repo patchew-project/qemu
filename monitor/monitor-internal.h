@@ -121,6 +121,12 @@ struct MonitorClass {
      * the monitor to accept further client input
      */
     void (*accept_input)(Monitor *mon);
+
+    /*
+     * If non-NULL and returns true, then an I/O thread
+     * is required for processing the monitor
+     */
+    bool (*requires_iothread)(const Monitor *mon);
 };
 
 struct Monitor {
@@ -129,7 +135,6 @@ struct Monitor {
     CharFrontend chr;
     int suspend_cnt;            /* Needs to be accessed atomically */
     bool is_qmp;
-    bool use_io_thread;
 
     char *mon_cpu_path;
     QTAILQ_ENTRY(Monitor) entry;
@@ -159,9 +164,8 @@ struct MonitorHMP {
     bool use_readline;
     /*
      * State used only in the thread "owning" the monitor.
-     * If @use_io_thread, this is @mon_iothread. (This does not actually happen
-     * in the current state of the code.)
-     * Else, it's the main thread.
+     * This is currently always the main thread, since
+     * HMP does not allow use of the I/O thread at this time.
      * These members can be safely accessed without locks.
      */
     ReadLineState *rs;
@@ -210,7 +214,7 @@ extern QemuMutex monitor_lock;
 extern MonitorList mon_list;
 
 void monitor_complete(Monitor *mon, Error **errp);
-void monitor_iothread_init(Monitor *mon);
+bool monitor_requires_iothread(const Monitor *mon);
 int monitor_can_read(void *opaque);
 void monitor_list_append(Monitor *mon);
 void monitor_fdsets_cleanup(void);
