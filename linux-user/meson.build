@@ -34,8 +34,12 @@ endif
 
 syscall_nr_generators = {}
 
+# gen-vdso doesn't play well with sanitizers. It originally didn't get them due
+# to the way we passed sanitizer flags. Now that they're being passed through
+# meson wen need to override it.
 gen_vdso_exe = executable('gen-vdso', 'gen-vdso.c',
-                          native: true, build_by_default: false)
+                          native: true, build_by_default: false,
+                          override_options: ['b_sanitize=none'])
 gen_vdso = generator(gen_vdso_exe, output: '@BASENAME@.c.inc',
                      arguments: ['-o', '@OUTPUT@', '@EXTRA_ARGS@', '@INPUT@'])
 

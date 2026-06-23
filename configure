@@ -281,6 +281,9 @@ cfi="false"
 # which requires knowing whether --static is enabled.
 pie=""
 static="no"
+ubsan="false"
+asan="false"
+tsan="false"
 
 # Preferred compiler:
 #  ${CC} (if set)
@@ -745,6 +748,18 @@ for opt do
   --disable-rust) rust=disabled
   ;;
   --wasm64-32bit-address-limit)
+  ;;
+  --enable-ubsan) ubsan="true"
+  ;;
+  --disable-ubsan) ubsan="false"
+  ;;
+  --enable-asan) asan="true"
+  ;;
+  --disable-asan) asan="false"
+  ;;
+  --enable-tsan) tsan="true"
+  ;;
+  --disable-tsan) tsan="false"
   ;;
   # everything else has the same name in configure and meson
   --*) meson_option_parse "$opt" "$optarg"
@@ -1939,6 +1954,26 @@ if test "$skip_meson" = no; then
 
   # QEMU options
   test "$rust" != "disabled" && meson_option_add "-Drust=$rust"
+
+  # Translate asan/ubsan/tsan to b_sanitize
+  sanitizers=""
+  if test "$ubsan" = "true" && test "$asan" = "true"; then
+    sanitizers="undefined,address"
+  elif test "$ubsan" = "true"; then
+    sanitizers="undefined"
+  elif test "$asan" = "true"; then
+    sanitizers="address"
+  fi
+  if test "$tsan" = "true"; then
+    if test -n "$sanitizers"; then
+      error_exit "TSAN is not supported with other sanitizers"
+    fi
+    sanitizers="thread"
+  fi
+  if test -n "$sanitizers"; then
+    meson_option_add "-Db_sanitize=$sanitizers"
+  fi
+
   test "$cfi" != false && meson_option_add "-Dcfi=$cfi" "-Db_lto=$cfi"
   test "$docs" != auto && meson_option_add "-Ddocs=$docs"
   test -n "${LIB_FUZZING_ENGINE+xxx}" && meson_option_add "-Dfuzzing_engine=$LIB_FUZZING_ENGINE"
