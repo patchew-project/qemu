@@ -845,7 +845,9 @@ static void tegra241_cmdqv_event_read(void *opaque)
     if (!smmuv3_accel_event_read_validate(veventq,
                                           IOMMU_VEVENTQ_TYPE_TEGRA241_CMDQV,
                                           &buf, sizeof(buf), &local_err)) {
-        warn_report_err_once(local_err);
+        if (local_err) {
+            warn_report_err_once(local_err);
+        }
         return;
     }
 

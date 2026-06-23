@@ -452,7 +452,7 @@ bool smmuv3_accel_event_read_validate(IOMMUFDVeventq *veventq, uint32_t type,
     bytes = read(veventq->veventq_fd, buf, size);
     if (bytes <= 0) {
         if (errno == EAGAIN || errno == EINTR) {
-            return true;
+            return false;
         }
         error_setg(errp, "vEVENTQ(type %u id %u): read failed (%m)", type, id);
         return false;
@@ -492,7 +492,9 @@ static void smmuv3_accel_event_read(void *opaque)
     if (!smmuv3_accel_event_read_validate(veventq,
                                           IOMMU_VEVENTQ_TYPE_ARM_SMMUV3, &buf,
                                           sizeof(buf), &local_err)) {
-        warn_report_err_once(local_err);
+        if (local_err) {
+            warn_report_err_once(local_err);
+        }
         return;
     }
     smmuv3_propagate_event(s, (Evt *)&buf.vevent);
