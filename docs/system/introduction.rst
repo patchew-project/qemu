@@ -158,6 +158,12 @@ virtualisation so we can use KVM inside the emulated guest. As the
 ``virt`` machine comes with some built in pflash devices we give them
 names so we can override the defaults later.
 
+.. note::
+   The ``pflash0`` and ``pflash1`` machine options are specific to the
+   ``virt`` machine type on Arm, RISC-V, and LoongArch architectures.
+   They are not available on x86 machines, which use ``-bios`` or
+   ``-pflash`` for firmware instead.
+
 .. code::
 
  $ qemu-system-aarch64 \
