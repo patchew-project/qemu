@@ -69,9 +69,39 @@ virtio_gpu_base_generate_edid(VirtIOGPUBase *g, int scanout,
 
     for (output_idx = 0, node = g->conf.outputs;
          output_idx <= scanout && node; output_idx++, node = node->next) {
-        if (output_idx == scanout && node->value && node->value->name) {
+        if (output_idx != scanout || !node->value) {
+            continue;
+        }
+
+        if (node->value->vendor) {
+            info.vendor = node->value->vendor;
+        }
+        if (node->value->name) {
             info.name = node->value->name;
-            break;
+        }
+        if (node->value->serial) {
+            info.serial = node->value->serial;
+        }
+        if (node->value->has_widthmm) {
+            info.width_mm = node->value->widthmm;
+        }
+        if (node->value->has_heightmm) {
+            info.height_mm = node->value->heightmm;
+        }
+        if (node->value->has_xres) {
+            info.prefx = node->value->xres;
+        }
+        if (node->value->has_yres) {
+            info.prefy = node->value->yres;
+        }
+        if (node->value->has_xmax) {
+            info.maxx = node->value->xmax;
+        }
+        if (node->value->has_ymax) {
+            info.maxy = node->value->ymax;
+        }
+        if (node->value->has_refreshrate) {
+            info.refresh_rate = node->value->refreshrate;
         }
     }
 
@@ -237,6 +267,10 @@ virtio_gpu_base_device_realize(DeviceState *qdev,
     for (output_idx = 0, node = g->conf.outputs;
          node && output_idx < g->conf.max_outputs;
          output_idx++, node = node->next) {
+        if (node->value->has_widthmm && node->value->has_heightmm) {
+            g->req_state[output_idx].width_mm = node->value->widthmm;
+            g->req_state[output_idx].height_mm = node->value->heightmm;
+        }
         if (node->value->has_xres != node->value->has_yres) {
             error_setg(errp,
                        "must set both outputs[%zd].xres and outputs[%zd].yres",
@@ -247,6 +281,9 @@ virtio_gpu_base_device_realize(DeviceState *qdev,
             g->enabled_output_bitmask |= (1 << output_idx);
             g->req_state[output_idx].width = node->value->xres;
             g->req_state[output_idx].height = node->value->yres;
+        }
+        if (node->value->has_refreshrate) {
+            g->req_state[output_idx].refresh_rate = node->value->refreshrate;
         }
     }
 

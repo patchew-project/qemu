@@ -952,24 +952,54 @@
 ##
 # @VirtIOGPUOutput:
 #
-# Describes configuration of a VirtIO GPU output.  If both @xres and
-# @yres are set, they take precedence over root virtio-gpu resolution
-# configuration and enable the corresponding output.  If none of @xres
-# and @yres are set, root virtio-gpu resolution configuration takes
-# precedence and only the first output is enabled.  Only setting one
-# of @xres or @yres is an error.
+# Describes configuration of a VirtIO GPU output.  Matches the fields
+# of struct @qemu_edid_info.
+# If both @xres and @yres are set, they take precedence over root
+# virtio-gpu resolution configuration and enable the corresponding
+# output.  If none of @xres and @yres are set, root
+# virtio-gpu resolution configuration takes precedence and only the
+# first output is enabled.  Only setting one of @xres or @yres is
+# an error.
+#
+# @vendor: a 3 letter code for the vendor (since xx.x TODO)
 #
 # @name: the name of the output
+#
+# @serial: the serial number (since xx.x TODO)
+#          must be numerical
+#
+# @widthmm: width of the display in mm (since xx.x TODO)
+#           If @widthmm is set, @heightmm must be set too
+#
+# @heightmm: height of the display in mm (since xx.x TODO)
+#           If @heightmm is set, @widthmm must be set too
 #
 # @xres: horizontal resolution of the output in pixels (since 11.0)
 #
 # @yres: vertical resolution of the output in pixels (since 11.0)
 #
+# @xmax: maximum horizontal resolution of the output in pixels
+#        (since xx.x TODO)
+#
+# @ymax: maximum vertical resolution of the output in pixels
+#        (since xx.x TODO)
+#
+# @refreshrate: refreshrate in mHz (since xx.x TODO)
+#
 # Since: 10.1
 ##
 
 { 'struct': 'VirtIOGPUOutput',
-  'data': { 'name': 'str', '*xres': 'uint16', '*yres': 'uint16' } }
+  'data': { '*vendor': 'str',
+            'name': 'str',
+            '*serial': 'str',
+            '*widthmm': 'uint16',
+            '*heightmm': 'uint16',
+            '*xres': 'uint32',
+            '*yres': 'uint32',
+            '*xmax': 'uint32',
+            '*ymax': 'uint32',
+            '*refreshrate': 'uint32' } }
 
 ##
 # @DummyVirtioForceArrays:
