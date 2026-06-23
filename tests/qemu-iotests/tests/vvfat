@@ -148,6 +148,9 @@ class TestVVFatDriver(QMPTestCase):
 
         os.remove(temp_file)
 
+    def flush(self) -> None:
+        self.qio.cmd("flush")
+
     def init_fat16(self):
         mbr = MBR(self.read_sectors(0))
         return Fat16(
@@ -260,6 +263,7 @@ class TestVVFatDriver(QMPTestCase):
         data = fat16.read_cluster(file.cluster)
         fat16.write_cluster(file.cluster, data)
 
+        self.flush()
         with open(os.path.join(filesystem, "file0.txt"), "rb") as f:
             self.assertEqual(fat16.read_file(file), f.read())
 
@@ -277,6 +281,7 @@ class TestVVFatDriver(QMPTestCase):
         fat16.write_file(file, b"Hello, world! 0\n")
         self.assertEqual(fat16.read_file(file), b"Hello, world! 0\n")
 
+        self.flush()
         with open(os.path.join(filesystem, "file0.txt"), "rb") as f:
             self.assertEqual(f.read(), b"Hello, world! 0\n")
 
@@ -296,6 +301,7 @@ class TestVVFatDriver(QMPTestCase):
         fat16.write_file(file, new_content)
         self.assertEqual(fat16.read_file(file), new_content)
 
+        self.flush()
         with open(os.path.join(filesystem, "file0.txt"), "rb") as f:
             self.assertEqual(f.read(), new_content)
 
@@ -315,6 +321,7 @@ class TestVVFatDriver(QMPTestCase):
         new_content = fat16.read_file(file)
         self.assertEqual(new_content, b"Hello")
 
+        self.flush()
         with open(os.path.join(filesystem, "file0.txt"), "rb") as f:
             self.assertEqual(f.read(), new_content)
 
@@ -339,6 +346,7 @@ class TestVVFatDriver(QMPTestCase):
         self.assertEqual(new_content[:16], b"Hello, world! 0\n")
         self.assertEqual(len(new_content), 20)
 
+        self.flush()
         with open(os.path.join(filesystem, "file0.txt"), "rb") as f:
             self.assertEqual(f.read(), new_content)
 
@@ -358,6 +366,7 @@ class TestVVFatDriver(QMPTestCase):
         fat16.write_file(file, new_content)
         self.assertEqual(fat16.read_file(file), new_content)
 
+        self.flush()
         with open(os.path.join(filesystem, "large1.txt"), "rb") as f:
             self.assertEqual(f.read(), new_content)
 
@@ -373,6 +382,7 @@ class TestVVFatDriver(QMPTestCase):
         fat16.truncate_file(file, 1)
         self.assertEqual(fat16.read_file(file), b"A")
 
+        self.flush()
         with open(os.path.join(filesystem, "large1.txt"), "rb") as f:
             self.assertEqual(f.read(), b"A")
 
@@ -389,6 +399,7 @@ class TestVVFatDriver(QMPTestCase):
         fat16.write_file(file, new_content)
         self.assertEqual(fat16.read_file(file), new_content)
 
+        self.flush()
         with open(os.path.join(filesystem, "large2.txt"), "rb") as f:
             self.assertEqual(f.read(), new_content)
 
@@ -411,6 +422,7 @@ class TestVVFatDriver(QMPTestCase):
         fat16.write_file(file, new_content)
         self.assertEqual(fat16.read_file(file), new_content)
 
+        self.flush()
         with open(os.path.join(filesystem, "large2.txt"), "rb") as f:
             self.assertEqual(f.read(), new_content)
 
@@ -431,6 +443,7 @@ class TestVVFatDriver(QMPTestCase):
         fat16.write_file(file, new_content)
         self.assertEqual(fat16.read_file(file), new_content)
 
+        self.flush()
         with open(os.path.join(filesystem, "large1.txt"), "rb") as f:
             self.assertEqual(f.read(), new_content)
 
@@ -456,6 +469,7 @@ class TestVVFatDriver(QMPTestCase):
         fat16.write_file(file, new_content)
         self.assertEqual(fat16.read_file(file), new_content)
 
+        self.flush()
         with open(os.path.join(filesystem, "large1.txt"), "rb") as f:
             self.assertEqual(f.read(), new_content)
 
@@ -474,6 +488,7 @@ class TestVVFatDriver(QMPTestCase):
         fat16.write_file(new_file, new_content)
         self.assertEqual(fat16.read_file(new_file), new_content)
 
+        self.flush()
         with open(os.path.join(filesystem, "newfile.txt"), "rb") as f:
             self.assertEqual(f.read(), new_content)
 

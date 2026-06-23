@@ -32,6 +32,7 @@
 #include "block/qdict.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
+#include "qemu/timer.h"
 #include "qemu/bswap.h"
 #include "migration/blocker.h"
 #include "qobject/qdict.h"
@@ -53,8 +54,6 @@
     Note that DOS assumes the system files to be the first files in the
     file system (test if the boot sector still relies on that fact)! */
 /* MAYBE TODO: write block-visofs.c */
-/* TODO: call try_commit() only after a timeout */
-
 /* #define DEBUG */
 
 #ifdef DEBUG
@@ -79,6 +78,8 @@ static void checkpoint(void);
 #define DIR_KANJI DIR_DELETED
 #define DIR_KANJI_FAKE 0x05
 #define DIR_FREE 0x00
+
+#define VVFAT_COMMIT_DELAY_NS (NANOSECONDS_PER_SECOND / 2)
 
 /* dynamic array functions */
 typedef struct array_t {
@@ -332,6 +333,8 @@ typedef struct BDRVVVFATState {
     void* fat2;
     char* used_clusters;
     array_t commits;
+    QEMUTimer *commit_timer;
+    bool commit_pending;
     const char* path;
     int downcase_short_names;
 
@@ -1052,6 +1055,8 @@ static BDRVVVFATState *vvv = NULL;
 
 static int enable_write_target(BlockDriverState *bs, Error **errp);
 static int coroutine_fn is_consistent(BDRVVVFATState *s);
+static void vvfat_attach_aio_context(BlockDriverState *bs,
+                                     AioContext *new_context);
 
 static QemuOptsList runtime_opts = {
     .name = "vvfat",
@@ -1278,6 +1283,7 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     qemu_co_mutex_init(&s->lock);
+    vvfat_attach_aio_context(bs, bdrv_get_aio_context(bs));
 
     qemu_opts_del(opts);
 
@@ -2974,6 +2980,60 @@ DLOG(checkpoint());
 }
 
 static int coroutine_fn GRAPH_RDLOCK
+vvfat_commit_now(BDRVVVFATState *s)
+{
+    int ret;
+
+    if (s->commit_timer) {
+        timer_del(s->commit_timer);
+    }
+    if (!s->commit_pending) {
+        return 0;
+    }
+
+    qemu_co_mutex_lock(&s->lock);
+    ret = try_commit(s);
+    qemu_co_mutex_unlock(&s->lock);
+
+    if (ret == 0) {
+        s->commit_pending = false;
+    }
+
+    return ret;
+}
+
+static void coroutine_fn vvfat_commit_timer_entry(void *opaque)
+{
+    BlockDriverState *bs = opaque;
+    BDRVVVFATState *s = bs->opaque;
+    GRAPH_RDLOCK_GUARD();
+
+    vvfat_commit_now(s);
+    bdrv_dec_in_flight(bs);
+}
+
+static void vvfat_commit_timer_cb(void *opaque)
+{
+    BlockDriverState *bs = opaque;
+    Coroutine *co;
+
+    co = qemu_coroutine_create(vvfat_commit_timer_entry, bs);
+    bdrv_inc_in_flight(bs);
+    qemu_coroutine_enter(co);
+}
+
+static void vvfat_schedule_commit(BDRVVVFATState *s)
+{
+    s->commit_pending = true;
+
+    if (s->commit_timer) {
+        timer_mod_ns(s->commit_timer,
+                     qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                     VVFAT_COMMIT_DELAY_NS);
+    }
+}
+
+static int coroutine_fn GRAPH_RDLOCK
 vvfat_write(BlockDriverState *bs, int64_t sector_num,
             const uint8_t *buf, int nb_sectors)
 {
@@ -3098,8 +3158,7 @@ DLOG(fprintf(stderr, "Write to qcow backend: %d + %d\n", (int)sector_num, nb_sec
     }
 
 DLOG(checkpoint());
-    /* TODO: add timeout */
-    try_commit(s);
+    vvfat_schedule_commit(s);
 
 DLOG(checkpoint());
     return 0;
@@ -3131,6 +3190,34 @@ vvfat_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
     g_free(buf);
 
     return ret;
+}
+
+static int coroutine_fn GRAPH_RDLOCK
+vvfat_co_flush(BlockDriverState *bs)
+{
+    BDRVVVFATState *s = bs->opaque;
+
+    if (s->qcow == NULL) {
+        return 0;
+    }
+
+    return vvfat_commit_now(s);
+}
+
+static void vvfat_drain_begin(BlockDriverState *bs)
+{
+    BDRVVVFATState *s = bs->opaque;
+    Coroutine *co;
+
+    if (!s->commit_timer || !timer_pending(s->commit_timer)) {
+        return;
+    }
+
+    timer_del(s->commit_timer);
+
+    co = qemu_coroutine_create(vvfat_commit_timer_entry, bs);
+    bdrv_inc_in_flight(bs);
+    aio_co_enter(bdrv_get_aio_context(bs), co);
 }
 
 static int coroutine_fn vvfat_co_block_status(BlockDriverState *bs,
@@ -3229,6 +3316,11 @@ static void vvfat_close(BlockDriverState *bs)
 {
     BDRVVVFATState *s = bs->opaque;
 
+    if (s->commit_timer) {
+        timer_free(s->commit_timer);
+        s->commit_timer = NULL;
+    }
+
     vvfat_close_current_file(s);
     array_free(&(s->fat));
     array_free(&(s->directory));
@@ -3237,6 +3329,30 @@ static void vvfat_close(BlockDriverState *bs)
 
     if (s->qcow) {
         migrate_del_blocker(&s->migration_blocker);
+    }
+}
+
+static void vvfat_detach_aio_context(BlockDriverState *bs)
+{
+    BDRVVVFATState *s = bs->opaque;
+
+    if (s->commit_timer) {
+        timer_free(s->commit_timer);
+        s->commit_timer = NULL;
+    }
+}
+
+static void vvfat_attach_aio_context(BlockDriverState *bs,
+                                     AioContext *new_context)
+{
+    BDRVVVFATState *s = bs->opaque;
+
+    if (s->qcow) {
+        s->commit_timer = aio_timer_new(new_context, QEMU_CLOCK_VIRTUAL,
+                                        SCALE_NS, vvfat_commit_timer_cb, bs);
+        if (s->commit_pending) {
+            vvfat_schedule_commit(s);
+        }
     }
 }
 
@@ -3263,7 +3379,11 @@ static BlockDriver bdrv_vvfat = {
 
     .bdrv_co_preadv         = vvfat_co_preadv,
     .bdrv_co_pwritev        = vvfat_co_pwritev,
-    .bdrv_co_block_status   = vvfat_co_block_status,
+    .bdrv_co_flush          = vvfat_co_flush,
+    .bdrv_drain_begin       = vvfat_drain_begin,
+    .bdrv_co_block_status    = vvfat_co_block_status,
+    .bdrv_detach_aio_context = vvfat_detach_aio_context,
+    .bdrv_attach_aio_context = vvfat_attach_aio_context,
 
     .strong_runtime_opts    = vvfat_strong_runtime_opts,
 };
