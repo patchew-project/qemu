@@ -195,7 +195,7 @@ static void amdvi_assign_andq(AMDVIState *s, hwaddr addr, uint64_t val)
 static void amdvi_build_xt_msi_msg(AMDVIState *s, MSIMessage *msg)
 {
     union mmio_xt_intr xt_reg;
-    struct X86IOMMUIrq irq;
+    X86IOMMUIrq irq = { 0 };
 
     xt_reg.val = amdvi_readq(s, AMDVI_MMIO_XT_GEN_INTR);
 
