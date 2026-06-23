@@ -9,6 +9,7 @@
 
 from qemu_test import LinuxKernelTest, Asset
 from qemu_test import wait_for_console_pattern
+from qemu_test import exec_command_and_wait_for_pattern
 
 class PowernvMachine(LinuxKernelTest):
 
@@ -26,6 +27,9 @@ class PowernvMachine(LinuxKernelTest):
         ('https://github.com/legoater/qemu-ppc-boot/raw/refs/heads/main/'
          'buildroot/qemu_ppc64le_powernv8-2025.02/rootfs.ext2'),
         'aee2192b692077c4bde31cb56ce474424b358f17cec323d5c94af3970c9aada2')
+
+    def helper_exec_shell_command(self, command):
+        exec_command_and_wait_for_pattern(self, command, '#', self.panic_message)
 
     def do_test_linux_boot(self, command_line = KERNEL_COMMON_COMMAND_LINE):
         self.require_accelerator("tcg")
@@ -70,6 +74,88 @@ class PowernvMachine(LinuxKernelTest):
         console_pattern = 'smp: Brought up 1 node, 4 CPUs'
         wait_for_console_pattern(self, console_pattern, self.panic_message)
         wait_for_console_pattern(self, self.good_message, self.panic_message)
+
+    def test_linux_remote_interrupts(self):
+        self.require_accelerator("tcg")
+        self.set_machine('powernv')
+
+        # have more sockets with as few CPUs as possible, increasing the
+        # probability to have remote interrupts from one chip to another
+        # also have e1000e network device to generate interrupts
+        self.vm.add_args('-smp', '4,sockets=4,threads=1')
+        self.vm.add_args('-device', 'e1000e,netdev=net0')
+        self.vm.add_args('-netdev', 'user,id=net0')
+
+        kernel_path = self.ASSET_KERNEL.fetch()
+        rootfs_path = self.ASSET_INITRD.fetch()
+        self.vm.set_console()
+        self.vm.add_args('-kernel', kernel_path,
+            '-drive',
+            f'file={rootfs_path},format=raw,if=none,id=drive0,readonly=on',
+            '-append', 'root=/dev/nvme0n1 console=hvc0',
+            '-device', 'nvme,drive=drive0,bus=pcie.2,addr=0x0,serial=1234')
+        self.vm.launch()
+
+        # Wait for boot to complete
+        console_pattern = 'CPU maps initialized for 1 thread per core'
+        wait_for_console_pattern(self, console_pattern, self.panic_message)
+        console_pattern = 'smp: Brought up 4 nodes, 4 CPUs'
+        wait_for_console_pattern(self, console_pattern, self.panic_message)
+        wait_for_console_pattern(self, 'Run /sbin/init as init process',
+                                 self.panic_message)
+
+        # Wait for login prompt and login as root (no password in buildroot)
+        wait_for_console_pattern(self, 'login:', self.panic_message)
+        exec_command_and_wait_for_pattern(self, 'root', '#', self.panic_message)
+
+        # RX, TX interrupts to chip/cpu 1 & 2 respectively
+        self.helper_exec_shell_command(
+            "export RX_IRQ=$(awk '/eth0-rx/ {print $1}' /proc/interrupts | tr -d ':')")
+        self.helper_exec_shell_command(
+            "export TX_IRQ=$(awk '/eth0-tx/ {print $1}' /proc/interrupts | tr -d ':')")
+        self.helper_exec_shell_command("echo 1 > /proc/irq/$RX_IRQ/smp_affinity_list")
+        self.helper_exec_shell_command("echo 2 > /proc/irq/$TX_IRQ/smp_affinity_list")
+
+        # Capture interrupt counts before generating traffic
+        self.helper_exec_shell_command(
+            "export RX_BEFORE=$(awk '/eth0-rx/ {print $3}' /proc/interrupts)")
+        self.helper_exec_shell_command(
+            "export TX_BEFORE=$(awk '/eth0-tx/ {print $4}' /proc/interrupts)")
+
+        # Wait up to 15 seconds for eth0 link to come up
+        self.helper_exec_shell_command(
+            "c=0; while ! ip addr show eth0 | grep 'inet 10.0.2'; do "
+            "sleep 1; c=$((c+1)); [ $c -gt 15 ] && break; done")
+
+        fail_msg="Fail"
+        self.helper_exec_shell_command(f"export FAIL={fail_msg}")
+        exec_command_and_wait_for_pattern(self,
+            "ip addr show eth0 | grep 'inet 10.0.2' || echo $FAIL",
+            '#', fail_msg)
+
+        # Generate network traffic to trigger remote interrupts
+        # Ping QEMU's user-mode network gateway (10.0.2.2)
+        self.helper_exec_shell_command("ping -W2 -c5 10.0.2.2")
+
+        # Show final interrupt counts to verify remote interrupts occurred
+        self.helper_exec_shell_command("cat /proc/interrupts | grep eth0")
+
+        # Verify interrupt counts increased (whether interrupts were delivered)
+        self.helper_exec_shell_command(
+            "export RX_AFTER=$(awk '/eth0-rx/ {print $3}' /proc/interrupts)")
+        self.helper_exec_shell_command(
+            "export TX_AFTER=$(awk '/eth0-tx/ {print $4}' /proc/interrupts)")
+
+        # Check that interrupt counts increased
+        success_msg = "Interrupts increased"
+        self.helper_exec_shell_command(f"export PASS='{success_msg}'")
+
+        exec_command_and_wait_for_pattern(self,
+            "[ $RX_AFTER -gt $RX_BEFORE ] && echo $PASS || echo $FAIL",
+            success_msg, fail_msg)
+        exec_command_and_wait_for_pattern(self,
+            "[ $TX_AFTER -gt $TX_BEFORE ] && echo $PASS || echo $FAIL",
+            success_msg, fail_msg)
 
     def test_linux_big_boot(self):
         self.set_machine('powernv')
