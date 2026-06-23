@@ -20,30 +20,64 @@ uint64_t cpu_loongarch_get_constant_timer_counter(LoongArchCPU *cpu)
     return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / TIMER_PERIOD;
 }
 
-uint64_t cpu_loongarch_get_constant_timer_ticks(LoongArchCPU *cpu)
+uint64_t cpu_loongarch_get_constant_timer_ticks(LoongArchCPU *cpu, bool guest)
 {
+    CPULoongArchState *env = &cpu->env;
     uint64_t now, expire;
+    CPUSysState *sys = sys_state_if(env, guest);
+
+    if (guest && env_vm_level(env) != LOONGARCH_VM_LEVEL_GUEST) {
+        return sys->CSR_TVAL;
+    }
 
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    expire = timer_expire_time_ns(&cpu->timer);
+    expire = timer_expire_time_ns(guest ? &cpu->guest_timer : &cpu->timer);
 
     return (expire - now) / TIMER_PERIOD;
 }
 
 void cpu_loongarch_store_constant_timer_config(LoongArchCPU *cpu,
-                                               uint64_t value)
+                                               uint64_t value, bool guest)
 {
     CPULoongArchState *env = &cpu->env;
-    CPUSysState *sys = env_sys(env);
     uint64_t now, next;
+    CPUSysState *sys = sys_state_if(env, guest);
+    QEMUTimer *timer = guest ? &cpu->guest_timer : &cpu->timer;
 
     sys->CSR_TCFG = value;
+    if (guest && env_vm_level(env) != LOONGARCH_VM_LEVEL_GUEST) {
+        return;
+    }
+
     if (value & CONSTANT_TIMER_ENABLE) {
         now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         next = now + (value & CONSTANT_TIMER_TICK_MASK) * TIMER_PERIOD;
-        timer_mod(&cpu->timer, next);
+        timer_mod(timer, next);
     } else {
-        timer_del(&cpu->timer);
+        timer_del(timer);
+    }
+}
+
+void cpu_loongarch_set_guest_timer(LoongArchCPU *cpu, bool on)
+{
+    CPULoongArchState *env = &cpu->env;
+    CPUSysState *guest = &env->sys_states[LOONGARCH_VM_LEVEL_GUEST];
+    uint64_t now, next, ticks;
+
+    if (!(guest->CSR_TCFG & CONSTANT_TIMER_ENABLE)) {
+        return;
+    }
+
+    if (on) {
+        now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        ticks = guest->CSR_TVAL ? guest->CSR_TVAL :
+                                  (guest->CSR_TCFG & CONSTANT_TIMER_TICK_MASK);
+        guest->CSR_TVAL = 0;
+        next = now + ticks * TIMER_PERIOD;
+        timer_mod(&cpu->guest_timer, next);
+    } else {
+        guest->CSR_TVAL = cpu_loongarch_get_constant_timer_ticks(cpu, true);
+        timer_del(&cpu->guest_timer);
     }
 }
 
@@ -51,16 +85,36 @@ void loongarch_constant_timer_cb(void *opaque)
 {
     LoongArchCPU *cpu  = opaque;
     CPULoongArchState *env = &cpu->env;
-    CPUSysState *sys = env_sys(env);
+    CPUSysState *host = &env->sys_states[LOONGARCH_VM_LEVEL_HOST];
     uint64_t now, next;
 
-    if (FIELD_EX64(sys->CSR_TCFG, CSR_TCFG, PERIODIC)) {
+    if (FIELD_EX64(host->CSR_TCFG, CSR_TCFG, PERIODIC)) {
         now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        next = now + (sys->CSR_TCFG & CONSTANT_TIMER_TICK_MASK) * TIMER_PERIOD;
+        next = now + (host->CSR_TCFG & CONSTANT_TIMER_TICK_MASK) *
+                     TIMER_PERIOD;
         timer_mod(&cpu->timer, next);
     } else {
-        sys->CSR_TCFG = FIELD_DP64(sys->CSR_TCFG, CSR_TCFG, EN, 0);
+        host->CSR_TCFG = FIELD_DP64(host->CSR_TCFG, CSR_TCFG, EN, 0);
     }
 
     loongarch_cpu_set_irq(opaque, IRQ_TIMER, 1);
+}
+
+void loongarch_constant_timer_cb_guest(void *opaque)
+{
+    LoongArchCPU *cpu = opaque;
+    CPULoongArchState *env = &cpu->env;
+    CPUSysState *guest = &env->sys_states[LOONGARCH_VM_LEVEL_GUEST];
+    uint64_t now, next;
+
+    if (FIELD_EX64(guest->CSR_TCFG, CSR_TCFG, PERIODIC)) {
+        now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        next = now + (guest->CSR_TCFG & CONSTANT_TIMER_TICK_MASK) *
+                     TIMER_PERIOD;
+        timer_mod(&cpu->guest_timer, next);
+    } else {
+        guest->CSR_TCFG = FIELD_DP64(guest->CSR_TCFG, CSR_TCFG, EN, 0);
+    }
+
+    loongarch_cpu_set_irq_guest(opaque, IRQ_TIMER, 1);
 }

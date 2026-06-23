@@ -7,6 +7,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "internals.h"
 #include "migration/vmstate.h"
 #include "system/tcg.h"
 #include "vec.h"
@@ -200,18 +201,139 @@ static const VMStateDescription vmstate_tlb = {
     .minimum_version_id = 0,
     .needed = tlb_needed,
     .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(env.tlb, LoongArchCPU, LOONGARCH_TLB_MAX,
+        VMSTATE_STRUCT_ARRAY(env.sys_states[0].tlb, LoongArchCPU,
+                             LOONGARCH_TLB_MAX,
                              0, vmstate_tlb_entry, LoongArchTLB),
         VMSTATE_END_OF_LIST()
     }
 };
+
+static const VMStateDescription vmstate_lvz_sys = {
+    .name = "cpu/lvz-sys",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT64(CSR_CRMD, CPUSysState),
+        VMSTATE_UINT64(CSR_PRMD, CPUSysState),
+        VMSTATE_UINT64(CSR_EUEN, CPUSysState),
+        VMSTATE_UINT64(CSR_MISC, CPUSysState),
+        VMSTATE_UINT64(CSR_ECFG, CPUSysState),
+        VMSTATE_UINT64(CSR_ESTAT, CPUSysState),
+        VMSTATE_UINT64(CSR_ERA, CPUSysState),
+        VMSTATE_UINT64(CSR_BADV, CPUSysState),
+        VMSTATE_UINT64(CSR_BADI, CPUSysState),
+        VMSTATE_UINT64(CSR_EENTRY, CPUSysState),
+        VMSTATE_UINT64(CSR_TLBIDX, CPUSysState),
+        VMSTATE_UINT64(CSR_TLBEHI, CPUSysState),
+        VMSTATE_UINT64(CSR_TLBELO0, CPUSysState),
+        VMSTATE_UINT64(CSR_TLBELO1, CPUSysState),
+        VMSTATE_UINT64(CSR_ASID, CPUSysState),
+        VMSTATE_UINT64(CSR_PGDL, CPUSysState),
+        VMSTATE_UINT64(CSR_PGDH, CPUSysState),
+        VMSTATE_UINT64(CSR_PGD, CPUSysState),
+        VMSTATE_UINT64(CSR_PWCL, CPUSysState),
+        VMSTATE_UINT64(CSR_PWCH, CPUSysState),
+        VMSTATE_UINT64(CSR_STLBPS, CPUSysState),
+        VMSTATE_UINT64(CSR_RVACFG, CPUSysState),
+        VMSTATE_UINT64(CSR_CPUID, CPUSysState),
+        VMSTATE_UINT64(CSR_PRCFG1, CPUSysState),
+        VMSTATE_UINT64(CSR_PRCFG2, CPUSysState),
+        VMSTATE_UINT64(CSR_PRCFG3, CPUSysState),
+        VMSTATE_UINT64_ARRAY(CSR_SAVE, CPUSysState, 16),
+        VMSTATE_UINT64(CSR_TID, CPUSysState),
+        VMSTATE_UINT64(CSR_TCFG, CPUSysState),
+        VMSTATE_UINT64(CSR_TVAL, CPUSysState),
+        VMSTATE_UINT64(CSR_CNTC, CPUSysState),
+        VMSTATE_UINT64(CSR_TICLR, CPUSysState),
+        VMSTATE_UINT64(CSR_LLBCTL, CPUSysState),
+        VMSTATE_UINT64(CSR_IMPCTL1, CPUSysState),
+        VMSTATE_UINT64(CSR_IMPCTL2, CPUSysState),
+        VMSTATE_UINT64(CSR_TLBRENTRY, CPUSysState),
+        VMSTATE_UINT64(CSR_TLBRBADV, CPUSysState),
+        VMSTATE_UINT64(CSR_TLBRERA, CPUSysState),
+        VMSTATE_UINT64(CSR_TLBRSAVE, CPUSysState),
+        VMSTATE_UINT64(CSR_TLBRELO0, CPUSysState),
+        VMSTATE_UINT64(CSR_TLBRELO1, CPUSysState),
+        VMSTATE_UINT64(CSR_TLBREHI, CPUSysState),
+        VMSTATE_UINT64(CSR_TLBRPRMD, CPUSysState),
+        VMSTATE_UINT64(CSR_MERRCTL, CPUSysState),
+        VMSTATE_UINT64(CSR_MERRINFO1, CPUSysState),
+        VMSTATE_UINT64(CSR_MERRINFO2, CPUSysState),
+        VMSTATE_UINT64(CSR_MERRENTRY, CPUSysState),
+        VMSTATE_UINT64(CSR_MERRERA, CPUSysState),
+        VMSTATE_UINT64(CSR_MERRSAVE, CPUSysState),
+        VMSTATE_UINT64(CSR_CTAG, CPUSysState),
+        VMSTATE_UINT64_ARRAY(CSR_DMW, CPUSysState, 4),
+        VMSTATE_UINT64(CSR_DBG, CPUSysState),
+        VMSTATE_UINT64(CSR_DERA, CPUSysState),
+        VMSTATE_UINT64(CSR_DSAVE, CPUSysState),
+        VMSTATE_UINT64(CSR_GSTAT, CPUSysState),
+        VMSTATE_UINT64(CSR_GCFG, CPUSysState),
+        VMSTATE_UINT64(CSR_GINTC, CPUSysState),
+        VMSTATE_UINT64(CSR_GCNTC, CPUSysState),
+        VMSTATE_UINT64(CSR_GTLBC, CPUSysState),
+        VMSTATE_UINT64(CSR_TRGP, CPUSysState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static bool lvz_needed(void *opaque)
+{
+    LoongArchCPU *cpu = opaque;
+
+    return FIELD_EX64(cpu->env.cpucfg[2], CPUCFG2, LVZ);
+}
+
+static const VMStateDescription vmstate_lvz = {
+    .name = "cpu/lvz",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = lvz_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT64(env.sys_states[0].CSR_GSTAT, LoongArchCPU),
+        VMSTATE_UINT64(env.sys_states[0].CSR_GCFG, LoongArchCPU),
+        VMSTATE_UINT64(env.sys_states[0].CSR_GINTC, LoongArchCPU),
+        VMSTATE_UINT64(env.sys_states[0].CSR_GCNTC, LoongArchCPU),
+        VMSTATE_UINT64(env.sys_states[0].CSR_GTLBC, LoongArchCPU),
+        VMSTATE_UINT64(env.sys_states[0].CSR_TRGP, LoongArchCPU),
+        VMSTATE_STRUCT(env.sys_states[1], LoongArchCPU, 0,
+                       vmstate_lvz_sys, CPUSysState),
+        VMSTATE_STRUCT_ARRAY(env.sys_states[1].tlb, LoongArchCPU,
+                             LOONGARCH_TLB_MAX,
+                             0, vmstate_tlb_entry, LoongArchTLB),
+        VMSTATE_END_OF_LIST()
+    },
+};
 #endif
+
+static int loongarch_cpu_post_load(void *opaque, int version_id)
+{
+    LoongArchCPU *cpu = opaque;
+    CPULoongArchState *env = &cpu->env;
+    bool guest = FIELD_EX64(env->sys_states[LOONGARCH_VM_LEVEL_HOST].CSR_GSTAT,
+                            CSR_GSTAT, VM);
+
+    set_sys_state(env, &env->sys_states[guest ? LOONGARCH_VM_LEVEL_GUEST :
+                                                LOONGARCH_VM_LEVEL_HOST]);
+#if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
+    if (guest) {
+        cpu_loongarch_set_guest_timer(cpu, true);
+    }
+    if (guest && loongarch_guest_has_interrupt(env)) {
+        cpu_interrupt(CPU(cpu), CPU_INTERRUPT_GUEST);
+    } else {
+        cpu_reset_interrupt(CPU(cpu), CPU_INTERRUPT_GUEST);
+    }
+#endif
+    return 0;
+}
 
 /* LoongArch CPU state */
 const VMStateDescription vmstate_loongarch_cpu = {
     .name = "cpu",
     .version_id = 4,
     .minimum_version_id = 4,
+    .post_load = loongarch_cpu_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT64_ARRAY(env.gpr, LoongArchCPU, 32),
         VMSTATE_UINT64(env.pc, LoongArchCPU),
@@ -285,6 +407,7 @@ const VMStateDescription vmstate_loongarch_cpu = {
         &vmstate_lasx,
 #if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
         &vmstate_tlb,
+        &vmstate_lvz,
 #endif
         &vmstate_lbt,
         &vmstate_msgint,

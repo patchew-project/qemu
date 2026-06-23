@@ -62,20 +62,46 @@ void loongarch_cpu_set_irq(void *opaque, int irq, int level)
     LoongArchCPU *cpu = opaque;
     CPULoongArchState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
-    CPUSysState *sys = env_sys(env);
+    CPUSysState *host = &env->sys_states[LOONGARCH_VM_LEVEL_HOST];
 
     if (irq < 0 || irq >= N_IRQS) {
+        return;
+    }
+
+    if (FIELD_EX64(host->CSR_GINTC, CSR_GINTC, HWIP) & BIT(irq)) {
+        loongarch_cpu_set_irq_guest(opaque, irq, level);
         return;
     }
 
     if (kvm_enabled()) {
         kvm_loongarch_set_interrupt(cpu, irq, level);
     } else if (tcg_enabled()) {
-        sys->CSR_ESTAT = deposit64(sys->CSR_ESTAT, irq, 1, level != 0);
-        if (FIELD_EX64(sys->CSR_ESTAT, CSR_ESTAT, IS)) {
+        host->CSR_ESTAT = deposit64(host->CSR_ESTAT, irq, 1, level != 0);
+        if (FIELD_EX64(host->CSR_ESTAT, CSR_ESTAT, IS)) {
             cpu_interrupt(cs, CPU_INTERRUPT_HARD);
         } else {
             cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
+        }
+    }
+}
+
+void loongarch_cpu_set_irq_guest(void *opaque, int irq, int level)
+{
+    LoongArchCPU *cpu = opaque;
+    CPULoongArchState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
+    CPUSysState *guest = &env->sys_states[LOONGARCH_VM_LEVEL_GUEST];
+
+    if (irq < 0 || irq >= N_IRQS) {
+        return;
+    }
+
+    guest->CSR_ESTAT = deposit64(guest->CSR_ESTAT, irq, 1, level != 0);
+    if (env_vm_level(env) == LOONGARCH_VM_LEVEL_GUEST) {
+        if (FIELD_EX64(guest->CSR_ESTAT, CSR_ESTAT, IS)) {
+            cpu_interrupt(cs, CPU_INTERRUPT_GUEST);
+        } else {
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_GUEST);
         }
     }
 }
@@ -85,12 +111,39 @@ bool cpu_loongarch_hw_interrupts_pending(CPULoongArchState *env)
 {
     uint32_t pending;
     uint32_t status;
-    CPUSysState *sys = env_sys(env);
+    CPUSysState *host = &env->sys_states[LOONGARCH_VM_LEVEL_HOST];
 
-    pending = FIELD_EX64(sys->CSR_ESTAT, CSR_ESTAT, IS);
-    status  = FIELD_EX64(sys->CSR_ECFG, CSR_ECFG, LIE);
+    pending = FIELD_EX64(host->CSR_ESTAT, CSR_ESTAT, IS);
+    status  = FIELD_EX64(host->CSR_ECFG, CSR_ECFG, LIE);
 
     return (pending & status) != 0;
+}
+
+static inline bool cpu_loongarch_hw_interrupts_enabled_guest(
+    CPULoongArchState *env)
+{
+    return FIELD_EX64(env->sys_states[LOONGARCH_VM_LEVEL_GUEST].CSR_CRMD,
+                      CSR_CRMD, IE);
+}
+
+static inline bool cpu_loongarch_hw_interrupts_pending_guest(
+    CPULoongArchState *env)
+{
+    uint32_t pending;
+    uint32_t status;
+    CPUSysState *guest = &env->sys_states[LOONGARCH_VM_LEVEL_GUEST];
+
+    pending = FIELD_EX64(guest->CSR_ESTAT, CSR_ESTAT, IS);
+    status = FIELD_EX64(guest->CSR_ECFG, CSR_ECFG, LIE);
+
+    return (pending & status) != 0;
+}
+
+bool loongarch_guest_has_interrupt(CPULoongArchState *env)
+{
+    return env_vm_level(env) == LOONGARCH_VM_LEVEL_GUEST &&
+           cpu_loongarch_hw_interrupts_enabled_guest(env) &&
+           cpu_loongarch_hw_interrupts_pending_guest(env);
 }
 #endif
 
@@ -104,9 +157,64 @@ bool loongarch_cpu_has_work(CPUState *cs)
         has_work = true;
     }
 
+    if (cpu_test_interrupt(cs, CPU_INTERRUPT_GUEST) &&
+        loongarch_guest_has_interrupt(cpu_env(cs))) {
+        has_work = true;
+    }
+
     return has_work;
 }
 #endif /* !CONFIG_USER_ONLY */
+
+uint8_t get_tgid(CPULoongArchState *env)
+{
+    CPUSysState *host = &env->sys_states[LOONGARCH_VM_LEVEL_HOST];
+
+    if (env_vm_level(env) == LOONGARCH_VM_LEVEL_GUEST) {
+        return get_gid(env);
+    }
+
+    if (FIELD_EX64(host->CSR_GTLBC, CSR_GTLBC, USETGID)) {
+        return FIELD_EX64(host->CSR_GTLBC, CSR_GTLBC, TGID);
+    } else if (will_return_to_guest(env)) {
+        return get_gid(env);
+    }
+    return 0;
+}
+
+bool will_return_to_guest(CPULoongArchState *env)
+{
+    if (!has_lvz_capability(env) ||
+        env_vm_level(env) == LOONGARCH_VM_LEVEL_GUEST) {
+        return false;
+    }
+    return FIELD_EX64(env->sys_states[LOONGARCH_VM_LEVEL_HOST].CSR_GSTAT,
+                      CSR_GSTAT, PVM);
+}
+
+bool has_lvz_capability(CPULoongArchState *env)
+{
+    return FIELD_EX32(env->cpucfg[2], CPUCFG2, LVZ);
+}
+
+uint8_t get_gid(CPULoongArchState *env)
+{
+    return FIELD_EX64(env->sys_states[LOONGARCH_VM_LEVEL_HOST].CSR_GSTAT,
+                      CSR_GSTAT, GID);
+}
+
+void trigger_vm_exit(CPULoongArchState *env)
+{
+    CPUSysState *host = &env->sys_states[LOONGARCH_VM_LEVEL_HOST];
+
+    if (env_vm_level(env) != LOONGARCH_VM_LEVEL_GUEST) {
+        return;
+    }
+
+    cpu_loongarch_set_guest_timer(env_archcpu(env), false);
+    host->CSR_GSTAT = FIELD_DP64(host->CSR_GSTAT, CSR_GSTAT, PVM, 1);
+    env->vm_exit = true;
+}
 
 static void loongarch_la464_init_csr(DeviceState *dev)
 {
@@ -114,12 +222,12 @@ static void loongarch_la464_init_csr(DeviceState *dev)
     static bool initialized;
     LoongArchCPU *cpu = LOONGARCH_CPU(dev);
     CPULoongArchState *env = &cpu->env;
-    CPUSysState *sys = env_sys(env);
+    CPUSysState *host = &env->sys_states[LOONGARCH_VM_LEVEL_HOST];
     int i, num;
 
     if (!initialized) {
         initialized = true;
-        num = FIELD_EX64(sys->CSR_PRCFG1, CSR_PRCFG1, SAVE_NUM);
+        num = FIELD_EX64(host->CSR_PRCFG1, CSR_PRCFG1, SAVE_NUM);
         for (i = num; i < 16; i++) {
             set_csr_flag(LOONGARCH_CSR_SAVE(i), CSRFL_UNUSED);
         }
@@ -251,11 +359,32 @@ static void loongarch_set_ptw(Object *obj, bool value, Error **errp)
     cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, HPTW, value);
 }
 
+static bool loongarch_get_lvz(Object *obj, Error **errp)
+{
+    return LOONGARCH_CPU(obj)->lvz != ON_OFF_AUTO_OFF;
+}
+
+static void loongarch_set_lvz(Object *obj, bool value, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+
+    cpu->lvz = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
+
+    if (kvm_enabled()) {
+        return;
+    }
+
+    cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LVZ, value);
+    cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LVZ_VER,
+                                    value ? 1 : 0);
+}
+
 static void loongarch_cpu_post_init(Object *obj)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
 
     cpu->lbt = ON_OFF_AUTO_OFF;
+    cpu->lvz = ON_OFF_AUTO_AUTO;
     cpu->pmu = ON_OFF_AUTO_OFF;
     cpu->lsx = ON_OFF_AUTO_AUTO;
     cpu->lasx = ON_OFF_AUTO_AUTO;
@@ -267,6 +396,8 @@ static void loongarch_cpu_post_init(Object *obj)
                              loongarch_set_msgint);
     object_property_add_bool(obj, "ptw", loongarch_get_ptw,
                              loongarch_set_ptw);
+    object_property_add_bool(obj, "lvz", loongarch_get_lvz,
+                             loongarch_set_lvz);
     /* lbt is enabled only in kvm mode, not supported in tcg mode */
 
     if (kvm_enabled()) {
@@ -278,11 +409,11 @@ static void loongarch_la464_initfn(Object *obj)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
     CPULoongArchState *env = &cpu->env;
-    CPUSysState *sys;
+    CPUSysState *host = &env->sys_states[LOONGARCH_VM_LEVEL_HOST];
+    CPUSysState *guest = &env->sys_states[LOONGARCH_VM_LEVEL_GUEST];
     uint32_t data = 0, field;
     int i;
 
-    set_sys_state(env, &env->sys_states[0]);
     for (i = 0; i < 21; i++) {
         env->cpucfg[i] = 0x0;
     }
@@ -322,6 +453,8 @@ static void loongarch_la464_initfn(Object *obj)
     data = FIELD_DP32(data, CPUCFG2, FP_VER, 1);
     data = FIELD_DP32(data, CPUCFG2, LSX, 1),
     data = FIELD_DP32(data, CPUCFG2, LASX, 1),
+    data = FIELD_DP32(data, CPUCFG2, LVZ, 1);
+    data = FIELD_DP32(data, CPUCFG2, LVZ_VER, 1);
     data = FIELD_DP32(data, CPUCFG2, LLFTP, 1);
     data = FIELD_DP32(data, CPUCFG2, LLFTP_VER, 1);
     data = FIELD_DP32(data, CPUCFG2, LSPW, 1);
@@ -386,19 +519,19 @@ static void loongarch_la464_initfn(Object *obj)
     data = FIELD_DP32(data, CPUCFG20, L3IU_SIZE, 6);
     env->cpucfg[20] = data;
 
-    sys = env_sys(env);
-    sys->CSR_ASID = FIELD_DP64(0, CSR_ASID, ASIDBITS, 0xa);
+    host->CSR_ASID = FIELD_DP64(0, CSR_ASID, ASIDBITS, 0xa);
+    guest->CSR_ASID = host->CSR_ASID;
 
-    sys->CSR_PRCFG1 = FIELD_DP64(sys->CSR_PRCFG1, CSR_PRCFG1, SAVE_NUM, 8);
-    sys->CSR_PRCFG1 = FIELD_DP64(sys->CSR_PRCFG1, CSR_PRCFG1, TIMER_BITS, 0x2f);
-    sys->CSR_PRCFG1 = FIELD_DP64(sys->CSR_PRCFG1, CSR_PRCFG1, VSMAX, 7);
+    host->CSR_PRCFG1 = FIELD_DP64(host->CSR_PRCFG1, CSR_PRCFG1, SAVE_NUM, 8);
+    host->CSR_PRCFG1 = FIELD_DP64(host->CSR_PRCFG1, CSR_PRCFG1, TIMER_BITS, 0x2f);
+    host->CSR_PRCFG1 = FIELD_DP64(host->CSR_PRCFG1, CSR_PRCFG1, VSMAX, 7);
 
-    sys->CSR_PRCFG2 = 0x3ffff000;
+    host->CSR_PRCFG2 = 0x3ffff000;
 
-    sys->CSR_PRCFG3 = FIELD_DP64(sys->CSR_PRCFG3, CSR_PRCFG3, TLB_TYPE, 2);
-    sys->CSR_PRCFG3 = FIELD_DP64(sys->CSR_PRCFG3, CSR_PRCFG3, MTLB_ENTRY, 63);
-    sys->CSR_PRCFG3 = FIELD_DP64(sys->CSR_PRCFG3, CSR_PRCFG3, STLB_WAYS, 7);
-    sys->CSR_PRCFG3 = FIELD_DP64(sys->CSR_PRCFG3, CSR_PRCFG3, STLB_SETS, 8);
+    host->CSR_PRCFG3 = FIELD_DP64(host->CSR_PRCFG3, CSR_PRCFG3, TLB_TYPE, 2);
+    host->CSR_PRCFG3 = FIELD_DP64(host->CSR_PRCFG3, CSR_PRCFG3, MTLB_ENTRY, 63);
+    host->CSR_PRCFG3 = FIELD_DP64(host->CSR_PRCFG3, CSR_PRCFG3, STLB_WAYS, 7);
+    host->CSR_PRCFG3 = FIELD_DP64(host->CSR_PRCFG3, CSR_PRCFG3, STLB_SETS, 8);
 
     cpu->msgint = ON_OFF_AUTO_OFF;
     cpu->ptw = ON_OFF_AUTO_OFF;
@@ -412,7 +545,6 @@ static void loongarch_la132_initfn(Object *obj)
     uint32_t data = 0;
     int i;
 
-    set_sys_state(env, &env->sys_states[0]);
     for (i = 0; i < 21; i++) {
         env->cpucfg[i] = 0x0;
     }
@@ -439,6 +571,7 @@ static void loongarch_la132_initfn(Object *obj)
     data = FIELD_DP32(data, CPUCFG1, CRC, 1);
     env->cpucfg[1] = data;
     cpu->msgint = ON_OFF_AUTO_OFF;
+    cpu->lvz = ON_OFF_AUTO_OFF;
     cpu->ptw = ON_OFF_AUTO_OFF;
 }
 
@@ -596,11 +729,10 @@ static void loongarch_host_initfn(Object *obj)
 
 static void loongarch_cpu_reset_hold(Object *obj, ResetType type)
 {
-    uint8_t tlb_ps;
     CPUState *cs = CPU(obj);
     LoongArchCPUClass *lacc = LOONGARCH_CPU_GET_CLASS(obj);
     CPULoongArchState *env = cpu_env(cs);
-    CPUSysState *sys = env_sys(env);
+    CPUSysState *host = &env->sys_states[LOONGARCH_VM_LEVEL_HOST];
 
     if (lacc->parent_phases.hold) {
         lacc->parent_phases.hold(obj, type);
@@ -622,63 +754,72 @@ static void loongarch_cpu_reset_hold(Object *obj, ResetType type)
 #endif
     env->fcsr0 = 0x0;
 
-    int n;
     /* Set csr registers value after reset, see the manual 6.4. */
-    sys->CSR_CRMD = FIELD_DP64(sys->CSR_CRMD, CSR_CRMD, PLV, 0);
-    sys->CSR_CRMD = FIELD_DP64(sys->CSR_CRMD, CSR_CRMD, IE, 0);
-    sys->CSR_CRMD = FIELD_DP64(sys->CSR_CRMD, CSR_CRMD, DA, 1);
-    sys->CSR_CRMD = FIELD_DP64(sys->CSR_CRMD, CSR_CRMD, PG, 0);
-    sys->CSR_CRMD = FIELD_DP64(sys->CSR_CRMD, CSR_CRMD, DATF, 0);
-    sys->CSR_CRMD = FIELD_DP64(sys->CSR_CRMD, CSR_CRMD, DATM, 0);
+    host->CSR_CRMD = FIELD_DP64(host->CSR_CRMD, CSR_CRMD, PLV, 0);
+    host->CSR_CRMD = FIELD_DP64(host->CSR_CRMD, CSR_CRMD, IE, 0);
+    host->CSR_CRMD = FIELD_DP64(host->CSR_CRMD, CSR_CRMD, DA, 1);
+    host->CSR_CRMD = FIELD_DP64(host->CSR_CRMD, CSR_CRMD, PG, 0);
+    host->CSR_CRMD = FIELD_DP64(host->CSR_CRMD, CSR_CRMD, DATF, 0);
+    host->CSR_CRMD = FIELD_DP64(host->CSR_CRMD, CSR_CRMD, DATM, 0);
 
-    sys->CSR_EUEN = FIELD_DP64(sys->CSR_EUEN, CSR_EUEN, FPE, 0);
-    sys->CSR_EUEN = FIELD_DP64(sys->CSR_EUEN, CSR_EUEN, SXE, 0);
-    sys->CSR_EUEN = FIELD_DP64(sys->CSR_EUEN, CSR_EUEN, ASXE, 0);
-    sys->CSR_EUEN = FIELD_DP64(sys->CSR_EUEN, CSR_EUEN, BTE, 0);
+    host->CSR_EUEN = FIELD_DP64(host->CSR_EUEN, CSR_EUEN, FPE, 0);
+    host->CSR_EUEN = FIELD_DP64(host->CSR_EUEN, CSR_EUEN, SXE, 0);
+    host->CSR_EUEN = FIELD_DP64(host->CSR_EUEN, CSR_EUEN, ASXE, 0);
+    host->CSR_EUEN = FIELD_DP64(host->CSR_EUEN, CSR_EUEN, BTE, 0);
 
-    sys->CSR_MISC = 0;
+    host->CSR_MISC = 0;
 
-    sys->CSR_ECFG = FIELD_DP64(sys->CSR_ECFG, CSR_ECFG, VS, 0);
-    sys->CSR_ECFG = FIELD_DP64(sys->CSR_ECFG, CSR_ECFG, LIE, 0);
+    host->CSR_ECFG = FIELD_DP64(host->CSR_ECFG, CSR_ECFG, VS, 0);
+    host->CSR_ECFG = FIELD_DP64(host->CSR_ECFG, CSR_ECFG, LIE, 0);
 
-    sys->CSR_ESTAT = sys->CSR_ESTAT & (~MAKE_64BIT_MASK(0, 2));
-    sys->CSR_RVACFG = FIELD_DP64(sys->CSR_RVACFG, CSR_RVACFG, RBITS, 0);
-    sys->CSR_CPUID = cs->cpu_index;
-    sys->CSR_TCFG = FIELD_DP64(sys->CSR_TCFG, CSR_TCFG, EN, 0);
-    sys->CSR_LLBCTL = FIELD_DP64(sys->CSR_LLBCTL, CSR_LLBCTL, KLO, 0);
-    sys->CSR_TLBRERA = FIELD_DP64(sys->CSR_TLBRERA, CSR_TLBRERA, ISTLBR, 0);
-    sys->CSR_MERRCTL = FIELD_DP64(sys->CSR_MERRCTL, CSR_MERRCTL, ISMERR, 0);
-    sys->CSR_TID = cs->cpu_index;
+    host->CSR_ESTAT = host->CSR_ESTAT & (~MAKE_64BIT_MASK(0, 2));
+    host->CSR_RVACFG = FIELD_DP64(host->CSR_RVACFG, CSR_RVACFG, RBITS, 0);
+    host->CSR_CPUID = cs->cpu_index;
+    host->CSR_TCFG = FIELD_DP64(host->CSR_TCFG, CSR_TCFG, EN, 0);
+    host->CSR_LLBCTL = FIELD_DP64(host->CSR_LLBCTL, CSR_LLBCTL, KLO, 0);
+    host->CSR_TLBRERA = FIELD_DP64(host->CSR_TLBRERA, CSR_TLBRERA, ISTLBR, 0);
+    host->CSR_MERRCTL = FIELD_DP64(host->CSR_MERRCTL, CSR_MERRCTL, ISMERR, 0);
+    host->CSR_TID = cs->cpu_index;
+    host->CSR_GSTAT = 0;
+    host->CSR_GCFG = 0;
+    host->CSR_GINTC = 0;
+    host->CSR_GCNTC = 0;
+    host->CSR_GTLBC = 0;
+    host->CSR_TRGP = 0;
     /*
      * Workaround for edk2-stable202408, CSR PGD register is set only if
      * its value is equal to zero for boot cpu, it causes reboot issue.
      *
      * Here clear CSR registers relative with TLB.
      */
-    sys->CSR_PGDH = 0;
-    sys->CSR_PGDL = 0;
-    sys->CSR_PWCH = 0;
-    sys->CSR_EENTRY = 0;
-    sys->CSR_TLBRENTRY = 0;
-    sys->CSR_MERRENTRY = 0;
+    host->CSR_PGDH = 0;
+    host->CSR_PGDL = 0;
+    host->CSR_PWCH = 0;
+    host->CSR_EENTRY = 0;
+    host->CSR_TLBRENTRY = 0;
+    host->CSR_MERRENTRY = 0;
     /* set CSR_PWCL.PTBASE and CSR_STLBPS.PS bits from CSR_PRCFG2 */
-    if (sys->CSR_PRCFG2 == 0) {
-        sys->CSR_PRCFG2 = 0x3fffff000;
+    if (host->CSR_PRCFG2 == 0) {
+        host->CSR_PRCFG2 = 0x3fffff000;
     }
-    tlb_ps = ctz32(sys->CSR_PRCFG2);
-    sys->CSR_STLBPS = FIELD_DP64(sys->CSR_STLBPS, CSR_STLBPS, PS, tlb_ps);
-    sys->CSR_PWCL = FIELD_DP64(sys->CSR_PWCL, CSR_PWCL, PTBASE, tlb_ps);
-    for (n = 0; n < 4; n++) {
-        sys->CSR_DMW[n] = FIELD_DP64(sys->CSR_DMW[n], CSR_DMW, PLV0, 0);
-        sys->CSR_DMW[n] = FIELD_DP64(sys->CSR_DMW[n], CSR_DMW, PLV1, 0);
-        sys->CSR_DMW[n] = FIELD_DP64(sys->CSR_DMW[n], CSR_DMW, PLV2, 0);
-        sys->CSR_DMW[n] = FIELD_DP64(sys->CSR_DMW[n], CSR_DMW, PLV3, 0);
+    uint8_t tlb_ps = ctz32(host->CSR_PRCFG2);
+    host->CSR_STLBPS = FIELD_DP64(host->CSR_STLBPS, CSR_STLBPS, PS, tlb_ps);
+    host->CSR_PWCL = FIELD_DP64(host->CSR_PWCL, CSR_PWCL, PTBASE, tlb_ps);
+    for (int n = 0; n < 4; n++) {
+        host->CSR_DMW[n] = FIELD_DP64(host->CSR_DMW[n], CSR_DMW, PLV0, 0);
+        host->CSR_DMW[n] = FIELD_DP64(host->CSR_DMW[n], CSR_DMW, PLV1, 0);
+        host->CSR_DMW[n] = FIELD_DP64(host->CSR_DMW[n], CSR_DMW, PLV2, 0);
+        host->CSR_DMW[n] = FIELD_DP64(host->CSR_DMW[n], CSR_DMW, PLV3, 0);
     }
+    if (FIELD_EX32(env->cpucfg[2], CPUCFG2, LVZ)) {
+         host->CSR_GSTAT = FIELD_DP64(host->CSR_GSTAT, CSR_GSTAT, GIDBIT, 8);
+    }
+    set_sys_state(env, &env->sys_states[LOONGARCH_VM_LEVEL_HOST]);
 
 #ifndef CONFIG_USER_ONLY
     env->pc = 0x1c000000;
-#ifdef CONFIG_TCG
-    memset(env->tlb, 0, sizeof(env->tlb));
+#if defined(CONFIG_TCG)
+    memset(host->tlb, 0, sizeof(host->tlb));
 #endif
     if (kvm_enabled()) {
         kvm_arch_reset_vcpu(cs);
@@ -739,6 +880,8 @@ static void loongarch_cpu_init(Object *obj)
 #ifdef CONFIG_TCG
     timer_init_ns(&cpu->timer, QEMU_CLOCK_VIRTUAL,
                   &loongarch_constant_timer_cb, cpu);
+    timer_init_ns(&cpu->guest_timer, QEMU_CLOCK_VIRTUAL,
+                  &loongarch_constant_timer_cb_guest, cpu);
 #endif
 #endif
 }
@@ -783,7 +926,7 @@ static void loongarch_cpu_dump_csr(CPUState *cs, FILE *f)
             qemu_fprintf(f, " CSR%03d:", col);
         }
 
-        addr = (void *)env + get_csr_offset(csr_info, 0);
+        addr = (void *)env + csr_info->offset;
         qemu_fprintf(f, " %s ", csr_info->name);
         len = strlen(csr_info->name);
         for (; len < 6; len++) {

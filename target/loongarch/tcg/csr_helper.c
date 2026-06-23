@@ -60,6 +60,26 @@ target_ulong helper_csrrd_pgd(CPULoongArchState *env)
     return v;
 }
 
+target_ulong helper_gcsrrd_pgd(CPULoongArchState *env)
+{
+    int64_t v;
+    CPUSysState *guest = &env->sys_states[LOONGARCH_VM_LEVEL_GUEST];
+
+    if (guest->CSR_TLBRERA & 0x1) {
+        v = guest->CSR_TLBRBADV;
+    } else {
+        v = guest->CSR_BADV;
+    }
+
+    if ((v >> 63) & 0x1) {
+        v = guest->CSR_PGDH;
+    } else {
+        v = guest->CSR_PGDL;
+    }
+
+    return v;
+}
+
 target_ulong helper_csrrd_cpuid(CPULoongArchState *env)
 {
     LoongArchCPU *lac = env_archcpu(env);
@@ -74,7 +94,14 @@ target_ulong helper_csrrd_tval(CPULoongArchState *env)
 {
     LoongArchCPU *cpu = env_archcpu(env);
 
-    return cpu_loongarch_get_constant_timer_ticks(cpu);
+    return cpu_loongarch_get_constant_timer_ticks(cpu, false);
+}
+
+target_ulong helper_gcsrrd_tval(CPULoongArchState *env)
+{
+    LoongArchCPU *cpu = env_archcpu(env);
+
+    return cpu_loongarch_get_constant_timer_ticks(cpu, true);
 }
 
 target_ulong helper_csrrd_msgir(CPULoongArchState *env)
@@ -110,6 +137,29 @@ target_ulong helper_csrwr_estat(CPULoongArchState *env, target_ulong val)
     return old_v;
 }
 
+target_ulong helper_gcsrwr_estat(CPULoongArchState *env, target_ulong val)
+{
+    CPUSysState *host = &env->sys_states[LOONGARCH_VM_LEVEL_HOST];
+    CPUSysState *guest = &env->sys_states[LOONGARCH_VM_LEVEL_GUEST];
+    int64_t old_v = guest->CSR_ESTAT;
+
+    guest->CSR_ESTAT = deposit64(guest->CSR_ESTAT, 0, 2, val);
+    if (env_vm_level(env) != LOONGARCH_VM_LEVEL_GUEST) {
+        guest->CSR_ESTAT = deposit64(guest->CSR_ESTAT, 2, 11,
+                                     extract64(val, 2, 11));
+        if (extract64(val, 2, 8) &
+            FIELD_EX64(host->CSR_GINTC, CSR_GINTC, HWIC)) {
+            host->CSR_ESTAT = deposit64(host->CSR_ESTAT, 2, 8,
+                                        extract64(host->CSR_ESTAT, 2, 8) &
+                                        ~extract64(val, 2, 8));
+        }
+        guest->CSR_ESTAT = deposit64(guest->CSR_ESTAT, 16, 15,
+                                     extract64(val, 16, 15));
+    }
+
+    return old_v;
+}
+
 target_ulong helper_csrwr_asid(CPULoongArchState *env, target_ulong val)
 {
     CPUSysState *sys = env_sys(env);
@@ -123,13 +173,36 @@ target_ulong helper_csrwr_asid(CPULoongArchState *env, target_ulong val)
     return old_v;
 }
 
+target_ulong helper_gcsrwr_asid(CPULoongArchState *env, target_ulong val)
+{
+    CPUSysState *guest = &env->sys_states[LOONGARCH_VM_LEVEL_GUEST];
+    int64_t old_v = guest->CSR_ASID;
+
+    guest->CSR_ASID = deposit64(guest->CSR_ASID, 0, 10, val);
+    if (old_v != guest->CSR_ASID) {
+        tlb_flush(env_cpu(env));
+    }
+    return old_v;
+}
+
 target_ulong helper_csrwr_tcfg(CPULoongArchState *env, target_ulong val)
 {
     LoongArchCPU *cpu = env_archcpu(env);
     CPUSysState *sys = env_sys(env);
     int64_t old_v = sys->CSR_TCFG;
 
-    cpu_loongarch_store_constant_timer_config(cpu, val);
+    cpu_loongarch_store_constant_timer_config(cpu, val, false);
+
+    return old_v;
+}
+
+target_ulong helper_gcsrwr_tcfg(CPULoongArchState *env, target_ulong val)
+{
+    LoongArchCPU *cpu = env_archcpu(env);
+    CPUSysState *guest = &env->sys_states[LOONGARCH_VM_LEVEL_GUEST];
+    int64_t old_v = guest->CSR_TCFG;
+
+    cpu_loongarch_store_constant_timer_config(cpu, val, true);
 
     return old_v;
 }
@@ -144,6 +217,65 @@ target_ulong helper_csrwr_ticlr(CPULoongArchState *env, target_ulong val)
         loongarch_cpu_set_irq(cpu, IRQ_TIMER, 0);
         bql_unlock();
     }
+    return old_v;
+}
+
+target_ulong helper_gcsrwr_ticlr(CPULoongArchState *env, target_ulong val)
+{
+    LoongArchCPU *cpu = env_archcpu(env);
+    int64_t old_v = 0;
+
+    if (val & 0x1) {
+        bql_lock();
+        loongarch_cpu_set_irq_guest(cpu, IRQ_TIMER, 0);
+        bql_unlock();
+    }
+    return old_v;
+}
+
+target_ulong helper_csrwr_gstat(CPULoongArchState *env, target_ulong val)
+{
+    CPUSysState *host = &env->sys_states[LOONGARCH_VM_LEVEL_HOST];
+    int64_t old_v = host->CSR_GSTAT;
+    uint8_t old_gid = FIELD_EX64(host->CSR_GSTAT, CSR_GSTAT, GID);
+
+    host->CSR_GSTAT = FIELD_DP64(host->CSR_GSTAT, CSR_GSTAT, PVM,
+                                 FIELD_EX64(val, CSR_GSTAT, PVM));
+    host->CSR_GSTAT = FIELD_DP64(host->CSR_GSTAT, CSR_GSTAT, GID,
+                                 FIELD_EX64(val, CSR_GSTAT, GID));
+
+    if (old_gid != FIELD_EX64(host->CSR_GSTAT, CSR_GSTAT, GID)) {
+        tlb_flush(env_cpu(env));
+    }
+
+    return old_v;
+}
+
+target_ulong helper_csrwr_gtlbc(CPULoongArchState *env, target_ulong val)
+{
+    CPUSysState *host = &env->sys_states[LOONGARCH_VM_LEVEL_HOST];
+    int64_t old_v = host->CSR_GTLBC;
+    uint8_t old_use_tgid = FIELD_EX64(old_v, CSR_GTLBC, USETGID);
+    uint8_t old_tgid = FIELD_EX64(old_v, CSR_GTLBC, TGID);
+
+    host->CSR_GTLBC = val;
+    if (old_use_tgid != FIELD_EX64(host->CSR_GTLBC, CSR_GTLBC, USETGID) ||
+        old_tgid != FIELD_EX64(host->CSR_GTLBC, CSR_GTLBC, TGID)) {
+        tlb_flush(env_cpu(env));
+    }
+
+    return old_v;
+}
+
+target_ulong helper_csrwr_gintc(CPULoongArchState *env, target_ulong val)
+{
+    CPUSysState *host = &env->sys_states[LOONGARCH_VM_LEVEL_HOST];
+    CPUSysState *guest = &env->sys_states[LOONGARCH_VM_LEVEL_GUEST];
+    int64_t old_v = host->CSR_GINTC;
+
+    host->CSR_GINTC = val & 0xffff00;
+    guest->CSR_ESTAT = deposit64(guest->CSR_ESTAT, 2, 8, extract64(val, 0, 8));
+
     return old_v;
 }
 
