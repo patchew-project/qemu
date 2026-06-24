@@ -5226,7 +5226,15 @@ static RISCVException write_vsstatus(CPURISCVState *env, int csrno,
     uint64_t mask = (target_ulong)-1;
     if ((val & VSSTATUS64_UXL) == 0) {
         mask &= ~VSSTATUS64_UXL;
+    } else {
+        uint64_t uxl = (val & VSSTATUS64_UXL) >> 32;
+        if (uxl == 3) {
+            int xl = riscv_cpu_mxl(env);
+            val = deposit64(val, 32, 2,
+                            xl == MXL_RV128 ? MXL_RV64 : xl);
+        }
     }
+
     if ((env->henvcfg & HENVCFG_DTE)) {
         if ((val & SSTATUS_SDT) != 0) {
             val &= ~SSTATUS_SIE;
