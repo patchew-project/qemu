@@ -9905,12 +9905,14 @@ TRANS(SCVTF_g, do_cvtf_g, a, true)
 TRANS(UCVTF_g, do_cvtf_g, a, false)
 
 /*
- * [US]CVTF (vector), scalar version.
- * Which sounds weird, but really just means input from fp register
+ * [US]CVTF (vector), scalar or SIMD version.
+ * Which sounds weird, but really just means input from FP/SIMD register
  * instead of input from general register.  Input and output element
- * size are always equal.
+ * size are always equal for the scalar version and different for the
+ * SIMD version.
  */
-static bool do_cvtf_f(DisasContext *s, arg_fcvt *a, bool is_signed)
+static bool do_cvtf_f(DisasContext *s, arg_fcvt *a, MemOp src_mop_int,
+                      bool is_signed)
 {
     TCGv_i64 tcg_int;
     int check = fp_access_check_scalar_hsd(s, a->esz);
@@ -9918,14 +9920,18 @@ static bool do_cvtf_f(DisasContext *s, arg_fcvt *a, bool is_signed)
     if (check <= 0) {
         return check == 0;
     }
-
     tcg_int = tcg_temp_new_i64();
-    read_vec_element(s, tcg_int, a->rn, 0, a->esz | (is_signed ? MO_SIGN : 0));
+    read_vec_element(s, tcg_int, a->rn, 0,
+                     src_mop_int | (is_signed ? MO_SIGN : 0));
     return do_cvtf_scalar(s, a->esz, a->rd, a->shift, tcg_int, is_signed);
 }
 
-TRANS(SCVTF_f, do_cvtf_f, a, true)
-TRANS(UCVTF_f, do_cvtf_f, a, false)
+TRANS(SCVTF_f, do_cvtf_f, a, a->esz, true)
+TRANS(UCVTF_f, do_cvtf_f, a, a->esz, false)
+TRANS_FEAT(SCVTF_simd, aa64_fprcvt, do_cvtf_f, a,
+           a->sf ? MO_64 : MO_32, true)
+TRANS_FEAT(UCVTF_simd, aa64_fprcvt, do_cvtf_f, a,
+           a->sf ? MO_64 : MO_32, false)
 
 static void do_fcvt_scalar(DisasContext *s, MemOp out, MemOp esz,
                            TCGv_i64 tcg_out, int shift, int rn,
@@ -10044,6 +10050,34 @@ static bool do_fcvt_g(DisasContext *s, arg_fcvt *a,
     return true;
 }
 
+/*
+ * Floating point to int conversion, but puts the result
+ * in a SIMD register.
+ */
+static bool do_fcvt_simd(DisasContext *s, arg_fcvt *a,
+                      ARMFPRounding rmode, bool is_signed)
+{
+    TCGv_i64 tcg_int;
+    int check = fp_access_check_scalar_hsd(s, a->esz);
+
+    if (check <= 0) {
+        return check == 0;
+    }
+    /*
+     * a->sf should specify destination size (64 bit or 32 bit)
+     * a->esz specifies source size
+     */
+    tcg_int = tcg_temp_new_i64();
+    do_fcvt_scalar(s, (a->sf ? MO_64 : MO_32) | (is_signed ? MO_SIGN : 0),
+                   a->esz, tcg_int, a->shift, a->rn, rmode);
+
+    if (!s->fpcr_nep) {
+        clear_vec(s, a->rd);
+    }
+    write_vec_element(s, tcg_int, a->rd, 0, (a->sf ? MO_64 : MO_32));
+    return true;
+}
+
 TRANS(FCVTNS_g, do_fcvt_g, a, FPROUNDING_TIEEVEN, true)
 TRANS(FCVTNU_g, do_fcvt_g, a, FPROUNDING_TIEEVEN, false)
 TRANS(FCVTPS_g, do_fcvt_g, a, FPROUNDING_POSINF, true)
@@ -10054,6 +10088,27 @@ TRANS(FCVTZS_g, do_fcvt_g, a, FPROUNDING_ZERO, true)
 TRANS(FCVTZU_g, do_fcvt_g, a, FPROUNDING_ZERO, false)
 TRANS(FCVTAS_g, do_fcvt_g, a, FPROUNDING_TIEAWAY, true)
 TRANS(FCVTAU_g, do_fcvt_g, a, FPROUNDING_TIEAWAY, false)
+
+TRANS_FEAT(FCVTNS_g_simd, aa64_fprcvt, do_fcvt_simd, a,
+           FPROUNDING_TIEEVEN, true)
+TRANS_FEAT(FCVTNU_g_simd, aa64_fprcvt, do_fcvt_simd, a,
+           FPROUNDING_TIEEVEN, false)
+TRANS_FEAT(FCVTPS_g_simd, aa64_fprcvt, do_fcvt_simd, a,
+           FPROUNDING_POSINF, true)
+TRANS_FEAT(FCVTPU_g_simd, aa64_fprcvt, do_fcvt_simd, a,
+           FPROUNDING_POSINF, false)
+TRANS_FEAT(FCVTMS_g_simd, aa64_fprcvt, do_fcvt_simd, a,
+           FPROUNDING_NEGINF, true)
+TRANS_FEAT(FCVTMU_g_simd, aa64_fprcvt, do_fcvt_simd, a,
+           FPROUNDING_NEGINF, false)
+TRANS_FEAT(FCVTZS_g_simd, aa64_fprcvt, do_fcvt_simd, a,
+           FPROUNDING_ZERO, true)
+TRANS_FEAT(FCVTZU_g_simd, aa64_fprcvt, do_fcvt_simd, a,
+           FPROUNDING_ZERO, false)
+TRANS_FEAT(FCVTAS_g_simd, aa64_fprcvt, do_fcvt_simd, a,
+           FPROUNDING_TIEAWAY, true)
+TRANS_FEAT(FCVTAU_g_simd, aa64_fprcvt, do_fcvt_simd, a,
+           FPROUNDING_TIEAWAY, false)
 
 /*
  * FCVT* (vector), scalar version.
