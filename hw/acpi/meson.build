@@ -31,11 +31,13 @@ acpi_ss.add(when: 'CONFIG_ACPI_ERST', if_true: files('erst.c'))
 acpi_ss.add(when: 'CONFIG_IPMI', if_true: files('ipmi.c'))
 stub_ss.add(files('ipmi-stub.c'))
 stub_ss.add(files('acpi-x86-stub.c'))
+acpi_ss.add(when: 'CONFIG_WDT_SBSA', if_true: files('wdat-gwdt.c'))
 if have_tpm
   acpi_ss.add(files('tpm.c'))
 endif
 stub_ss.add(files('acpi-stub.c', 'aml-build-stub.c', 'ghes-stub.c'))
 stub_ss.add(files('pci-bridge-stub.c'))
+stub_ss.add(files('wdat-gwdt-stub.c'))
 system_ss.add_all(when: 'CONFIG_ACPI', if_true: acpi_ss)
 system_ss.add(when: 'CONFIG_GHES_CPER', if_true: files('ghes_cper.c'))
 stub_ss.add(files('ghes_cper_stub.c'))
