@@ -5,8 +5,17 @@
 #include "qapi/qapi-types-misc.h"
 #include "qemu/readline.h"
 #include "exec/hwaddr.h"
+#include "qom/object.h"
 
-typedef struct MonitorHMP MonitorHMP;
+#define TYPE_MONITOR "monitor"
+OBJECT_DECLARE_TYPE(Monitor, MonitorClass, MONITOR);
+
+#define TYPE_MONITOR_HMP "monitor-hmp"
+OBJECT_DECLARE_TYPE(MonitorHMP, MonitorHMPClass, MONITOR_HMP);
+
+#define TYPE_MONITOR_QMP "monitor-qmp"
+OBJECT_DECLARE_TYPE(MonitorQMP, MonitorQMPClass, MONITOR_QMP);
+
 typedef struct MonitorOptions MonitorOptions;
 
 #define QMP_REQ_QUEUE_LEN_MAX 8
