@@ -132,8 +132,7 @@ static void sysbus_mmio_map_common(SysBusDevice *dev, int n, hwaddr addr,
                                             addr,
                                             dev->mmio[n].memory,
                                             priority);
-    }
-    else {
+    } else {
         memory_region_add_subregion(get_system_memory(),
                                     addr,
                                     dev->mmio[n].memory);
