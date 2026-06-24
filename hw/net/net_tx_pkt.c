@@ -274,7 +274,60 @@ static bool net_tx_pkt_parse_headers(struct NetTxPkt *pkt)
 
 static void net_tx_pkt_rebuild_payload(struct NetTxPkt *pkt)
 {
-    pkt->payload_len = iov_size(pkt->raw, pkt->raw_frags) - pkt->hdr_len;
+    size_t raw_payload_len = iov_size(pkt->raw, pkt->raw_frags) - pkt->hdr_len;
+    struct iovec *l2hdr = &pkt->vec[NET_TX_PKT_L2HDR_FRAG];
+    uint16_t l3_proto = eth_get_l3_proto(l2hdr, 1, l2hdr->iov_len);
+
+    /*
+     * Clamp payload_len to what the IP header says, not what iov_size()
+     * returns. When a short frame is padded to the Ethernet minimum of 60
+     * bytes, iov_size() includes the padding. Using that inflated size as
+     * payload_len causes net_tx_pkt_update_ip_hdr_checksum() to rewrite the
+     * IP total/payload length to include Ethernet padding, making the packet
+     * malformed (receiver may treat padding as payload or miscalculate
+     * checksums). Clamp to the guest-provided IP length instead.
+     *
+     * IPv4: ip_len is the total length including the IP header.
+     * IPv6: ip6_plen is the payload length after the base 40-byte header
+     *       (extension headers are included in ip6_plen but also in
+     *       l3_hdr_len, so subtract them out).
+     */
+    if (l3_proto == ETH_P_IP) {
+        uint16_t ip_total_len = be16_to_cpu(pkt->l3_hdr.ip.ip_len);
+        size_t l3_hdr_len = pkt->vec[NET_TX_PKT_L3HDR_FRAG].iov_len;
+        /*
+         * Guard against malformed packets where ip_total_len is zero or
+         * smaller than the IP header itself. Without this check, the
+         * subtraction (ip_total_len - l3_hdr_len) would underflow (both
+         * types are unsigned), producing a huge payload_len and corrupting
+         * the packet. Fall back to the raw iov_size value in that case.
+         */
+        if (ip_total_len > l3_hdr_len) {
+            pkt->payload_len = MIN(raw_payload_len, ip_total_len - l3_hdr_len);
+        } else {
+            pkt->payload_len = raw_payload_len;
+        }
+    } else if (l3_proto == ETH_P_IPV6) {
+        uint16_t ip6_payload_len = be16_to_cpu(pkt->l3_hdr.ip6.ip6_plen);
+        size_t l3_hdr_len = pkt->vec[NET_TX_PKT_L3HDR_FRAG].iov_len;
+        size_t ext_hdr_len = l3_hdr_len - sizeof(struct ip6_header);
+        /*
+         * Guard against malformed packets where ip6_plen is zero or does
+         * not cover the extension headers that were already parsed. Without
+         * this check, the subtraction (ip6_payload_len - ext_hdr_len) would
+         * underflow (unsigned), producing a huge payload_len. Fall back to
+         * the raw iov_size value in that case.
+         */
+        if (ip6_payload_len > ext_hdr_len) {
+            pkt->payload_len = MIN(raw_payload_len,
+                                   ip6_payload_len - ext_hdr_len);
+        } else {
+            pkt->payload_len = raw_payload_len;
+        }
+    } else {
+        pkt->payload_len = raw_payload_len;
+    }
+
     pkt->payload_frags = iov_copy(&pkt->vec[NET_TX_PKT_PL_START_FRAG],
                                 pkt->max_payload_frags,
                                 pkt->raw, pkt->raw_frags,
