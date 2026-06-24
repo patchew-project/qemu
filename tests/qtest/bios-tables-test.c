@@ -2308,7 +2308,7 @@ static void test_acpi_aarch64_virt_tcg_gtdt_wd(void)
         .scan_len = 128ULL * MiB,
     };
 
-    test_acpi_one("-cpu cortex-a57 " "-device sbsa-gwdt", &data);
+    test_acpi_one("-cpu cortex-a57 -device sbsa-gwdt", &data);
     free_test_data(&data);
 }
 
