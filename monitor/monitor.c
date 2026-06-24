@@ -608,8 +608,10 @@ static void monitor_iothread_init(void)
 }
 
 void monitor_data_init(Monitor *mon, bool is_qmp, bool skip_flush,
-                       bool use_io_thread)
+                       bool use_io_thread, const char *id)
 {
+    mon->id = id ? g_strdup(id) : NULL;
+
     if (use_io_thread && !mon_iothread) {
         monitor_iothread_init();
     }
@@ -629,6 +631,7 @@ void monitor_data_destroy(Monitor *mon)
     } else {
         readline_free(container_of(mon, MonitorHMP, common)->rs);
     }
+    g_free(mon->id);
     g_string_free(mon->outbuf, true);
     qemu_mutex_destroy(&mon->mon_lock);
 }
@@ -732,7 +735,7 @@ int monitor_init(MonitorOptions *opts, bool allow_hmp, Error **errp)
 
     switch (opts->mode) {
     case MONITOR_MODE_CONTROL:
-        monitor_init_qmp(chr, opts->pretty, errp);
+        monitor_init_qmp(chr, opts->pretty, opts->id, errp);
         break;
     case MONITOR_MODE_READLINE:
         if (!allow_hmp) {
@@ -743,7 +746,7 @@ int monitor_init(MonitorOptions *opts, bool allow_hmp, Error **errp)
             error_setg(errp, "'pretty' is not compatible with HMP monitors");
             return -1;
         }
-        monitor_init_hmp(chr, true, errp);
+        monitor_init_hmp(chr, true, opts->id, errp);
         break;
     default:
         g_assert_not_reached();

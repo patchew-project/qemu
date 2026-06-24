@@ -108,6 +108,8 @@ struct Monitor {
     bool skip_flush;
     bool use_io_thread;
 
+    char *id;
+
     char *mon_cpu_path;
     QTAILQ_ENTRY(Monitor) entry;
 
@@ -179,7 +181,7 @@ extern QemuMutex monitor_lock;
 extern MonitorList mon_list;
 
 void monitor_data_init(Monitor *mon, bool is_qmp, bool skip_flush,
-                       bool use_io_thread);
+                       bool use_io_thread, const char *id);
 void monitor_data_destroy(Monitor *mon);
 int monitor_can_read(void *opaque);
 void monitor_list_append(Monitor *mon);

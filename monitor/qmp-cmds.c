@@ -168,7 +168,7 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
     char *output = NULL;
     MonitorHMP hmp = {};
 
-    monitor_data_init(&hmp.common, false, true, false);
+    monitor_data_init(&hmp.common, false, true, false, NULL);
 
     if (has_cpu_index) {
         int ret = monitor_set_cpu(&hmp.common, cpu_index);

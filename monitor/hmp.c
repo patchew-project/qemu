@@ -1522,7 +1522,8 @@ static void monitor_readline_flush(void *opaque)
     monitor_flush(&mon->common);
 }
 
-void monitor_init_hmp(Chardev *chr, bool use_readline, Error **errp)
+void monitor_init_hmp(Chardev *chr, bool use_readline, const char *id,
+                      Error **errp)
 {
     MonitorHMP *mon = g_new0(MonitorHMP, 1);
 
@@ -1531,7 +1532,7 @@ void monitor_init_hmp(Chardev *chr, bool use_readline, Error **errp)
         return;
     }
 
-    monitor_data_init(&mon->common, false, false, false);
+    monitor_data_init(&mon->common, false, false, false, id);
 
     mon->use_readline = use_readline;
     if (mon->use_readline) {
