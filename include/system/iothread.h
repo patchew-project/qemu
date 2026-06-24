@@ -71,6 +71,12 @@ DECLARE_INSTANCE_CHECKER(IOThread, IOTHREAD,
 char *iothread_get_id(IOThread *iothread);
 IOThread *iothread_by_id(const char *id);
 AioContext *iothread_get_aio_context(IOThread *iothread);
+/*
+ * The iothread_unsafe_get_aio_context() is a low-level unsafe way of getting
+ * the AioContext, recommend migrating to the new API with IOThreadHolder
+ * as much as possible.
+ */
+AioContext *iothread_unsafe_get_aio_context(IOThread *iothread);
 AioContext *iothread_ref_and_get_aio_context(IOThread *iothread,
                                              const IOThreadHolder *holder);
 void iothread_put_aio_context(IOThread *iothread, const IOThreadHolder *holder);
