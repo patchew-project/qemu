@@ -58,6 +58,8 @@ virtio_gpu_fence_resp(uint64_t fence) "fence 0x%" PRIx64
 virtio_gpu_inc_inflight_fences(uint32_t inflight) "in-flight+ %u"
 virtio_gpu_dec_inflight_fences(uint32_t inflight) "in-flight- %u"
 virtio_gpu_cmd_suspended(uint32_t cmd) "cmd 0x%x"
+virtio_gpu_virgl_stats(int requests, int max_inflight, int req_3d, int bytes_3d) "stats: vq req %d, max_inflight %d -- 3D %d (%d bytes)"
+virtio_gpu_virgl_stats_idle(void) "stats: idle"
 
 # qxl.c
 disable qxl_io_write_vga(int qid, const char *mode, uint32_t addr, uint32_t val) "%d %s addr=%u val=%u"

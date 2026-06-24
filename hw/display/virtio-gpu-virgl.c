@@ -1129,8 +1129,8 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
         return;
     }
     if (cmd->error) {
-        fprintf(stderr, "%s: ctrl 0x%x, error 0x%x\n", __func__,
-                cmd->cmd_hdr.type, cmd->error);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: ctrl 0x%x, error 0x%x\n",
+                      __func__, cmd->cmd_hdr.type, cmd->error);
         virtio_gpu_ctrl_response_nodata(g, cmd, cmd->error);
         return;
     }
@@ -1370,17 +1370,16 @@ static void virtio_gpu_print_stats(void *opaque)
     VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
 
     if (g->stats.requests) {
-        fprintf(stderr, "stats: vq req %4d, %3d -- 3D %4d (%5d)\n",
-                g->stats.requests,
-                g->stats.max_inflight,
-                g->stats.req_3d,
-                g->stats.bytes_3d);
+        trace_virtio_gpu_virgl_stats(g->stats.requests,
+                                     g->stats.max_inflight,
+                                     g->stats.req_3d,
+                                     g->stats.bytes_3d);
         g->stats.requests     = 0;
         g->stats.max_inflight = 0;
         g->stats.req_3d       = 0;
         g->stats.bytes_3d     = 0;
     } else {
-        fprintf(stderr, "stats: idle\r");
+        trace_virtio_gpu_virgl_stats_idle();
     }
     timer_mod(gl->print_stats, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 1000);
 }
