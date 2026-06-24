@@ -743,6 +743,14 @@ static void virgl_cmd_ctx_attach_resource(VirtIOGPU *g,
     trace_virtio_gpu_cmd_ctx_res_attach(att_res.hdr.ctx_id,
                                         att_res.resource_id);
 
+    if (!virtio_gpu_find_resource(g, att_res.resource_id)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid resource %d for ctx %d\n",
+                      __func__, att_res.resource_id, att_res.hdr.ctx_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+        return;
+    }
+
     virgl_renderer_ctx_attach_resource(att_res.hdr.ctx_id, att_res.resource_id);
 }
 
@@ -754,6 +762,14 @@ static void virgl_cmd_ctx_detach_resource(VirtIOGPU *g,
     VIRTIO_GPU_FILL_CMD(det_res);
     trace_virtio_gpu_cmd_ctx_res_detach(det_res.hdr.ctx_id,
                                         det_res.resource_id);
+
+    if (!virtio_gpu_find_resource(g, det_res.resource_id)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid resource %d for ctx %d\n",
+                      __func__, det_res.resource_id, det_res.hdr.ctx_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+        return;
+    }
 
     virgl_renderer_ctx_detach_resource(det_res.hdr.ctx_id, det_res.resource_id);
 }
@@ -1073,11 +1089,9 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
         virgl_cmd_resource_unref(g, cmd, &cmd_suspended);
         break;
     case VIRTIO_GPU_CMD_CTX_ATTACH_RESOURCE:
-        /* TODO add security */
         virgl_cmd_ctx_attach_resource(g, cmd);
         break;
     case VIRTIO_GPU_CMD_CTX_DETACH_RESOURCE:
-        /* TODO add security */
         virgl_cmd_ctx_detach_resource(g, cmd);
         break;
     case VIRTIO_GPU_CMD_GET_CAPSET_INFO:
