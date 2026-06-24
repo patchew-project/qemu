@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include <dirent.h>
 #include "hw/core/qdev.h"
 #include "hw/core/sysemu-cpu-ops.h"
@@ -1538,8 +1539,9 @@ static void monitor_readline_flush(void *opaque)
     monitor_flush(&mon->parent_obj);
 }
 
-void monitor_new_hmp(Chardev *chr, bool use_readline, Error **errp)
+void monitor_new_hmp(const char *chardev_id, bool use_readline, Error **errp)
 {
+    ERRP_GUARD();
     MonitorHMP *mon;
     static int counter;
     g_autofree char *id = g_strdup_printf("hmpcompat%d", counter++);
@@ -1547,13 +1549,17 @@ void monitor_new_hmp(Chardev *chr, bool use_readline, Error **errp)
                                         object_get_objects_root(),
                                         id,
                                         errp,
+                                        "chardev", chardev_id,
                                         NULL);
+
     if (!obj) {
         return;
     }
+
     mon = MONITOR_HMP(obj);
 
-    if (!qemu_chr_fe_init(&mon->parent_obj.chr, chr, errp)) {
+    monitor_complete(MONITOR(mon), errp);
+    if (*errp) {
         object_unparent(OBJECT(mon));
         return;
     }
