@@ -200,7 +200,8 @@ void sysbus_init_ioports(SysBusDevice *dev, uint32_t ioport, uint32_t size)
     }
 }
 
-/* The purpose of preserving this empty realize function
+/*
+ * The purpose of preserving this empty realize function
  * is to prevent the parent_realize field of some subclasses
  * from being set to NULL to break the normal init/realize
  * of some devices.
