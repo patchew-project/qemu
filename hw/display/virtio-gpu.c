@@ -387,7 +387,7 @@ void virtio_gpu_disable_scanout(VirtIOGPU *g, int scanout_id)
 
     res = virtio_gpu_find_resource(g, scanout->resource_id);
     if (res) {
-        res->scanout_bitmask &= ~(1 << scanout_id);
+        res->scanout_bitmask &= ~(1U << scanout_id);
     }
 
     qemu_console_set_surface(scanout->con, NULL);
@@ -405,7 +405,7 @@ static void virtio_gpu_resource_destroy(VirtIOGPU *g,
 
     if (res->scanout_bitmask) {
         for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
-            if (res->scanout_bitmask & (1 << i)) {
+            if (res->scanout_bitmask & (1U << i)) {
                 virtio_gpu_disable_scanout(g, i);
             }
         }
@@ -571,7 +571,7 @@ static void virtio_gpu_resource_flush(VirtIOGPU *g,
     for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
         QemuRect rect;
 
-        if (!(res->scanout_bitmask & (1 << i))) {
+        if (!(res->scanout_bitmask & (1U << i))) {
             continue;
         }
         scanout = &g->parent_obj.scanout[i];
@@ -605,10 +605,10 @@ void virtio_gpu_update_scanout(VirtIOGPU *g,
     scanout = &g->parent_obj.scanout[scanout_id];
     ores = virtio_gpu_find_resource(g, scanout->resource_id);
     if (ores) {
-        ores->scanout_bitmask &= ~(1 << scanout_id);
+        ores->scanout_bitmask &= ~(1U << scanout_id);
     }
 
-    res->scanout_bitmask |= (1 << scanout_id);
+    res->scanout_bitmask |= (1U << scanout_id);
     scanout->resource_id = res->resource_id;
     scanout->x = r->x;
     scanout->y = r->y;
@@ -1490,7 +1490,7 @@ static int virtio_gpu_post_load(void *opaque, int version_id)
         if (scanout->cursor.resource_id) {
             update_cursor(g, &scanout->cursor);
         }
-        res->scanout_bitmask |= (1 << i);
+        res->scanout_bitmask |= (1U << i);
     }
 
     return 0;
