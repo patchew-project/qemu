@@ -1399,6 +1399,33 @@ object_class_property_add(ObjectClass *klass,
                           void *opaque)
 {
     ObjectProperty *prop;
+    size_t name_len = strlen(name);
+
+    if (name_len >= 3 && !memcmp(name + name_len - 3, "[*]", 4)) {
+        int i;
+        ObjectProperty *ret = NULL;
+        char *name_no_array = g_strdup(name);
+
+        name_no_array[name_len - 3] = '\0';
+        for (i = 0; i < INT16_MAX; ++i) {
+            char *full_name = g_strdup_printf("%s[%d]", name_no_array, i);
+
+            if (object_class_property_find(klass, full_name)) {
+                g_free(full_name);
+                continue;
+            }
+
+            ret = object_class_property_add(klass, full_name, type, get, set,
+                                            release, opaque);
+            g_free(full_name);
+            if (ret) {
+                break;
+            }
+        }
+        g_free(name_no_array);
+        assert(ret);
+        return ret;
+    }
 
     assert(!object_class_property_find(klass, name));
 
