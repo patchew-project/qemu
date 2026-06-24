@@ -612,8 +612,18 @@ void monitor_data_init(Monitor *mon, bool is_qmp, bool skip_flush,
 {
     mon->id = id ? g_strdup(id) : NULL;
 
-    if (use_io_thread && !mon_iothread) {
-        monitor_iothread_init();
+    if (use_io_thread) {
+        if (!mon_iothread) {
+            monitor_iothread_init();
+        }
+
+        /* Setup the chr->label as the backup ID for iothread_ref/unref */
+        IOThreadHolder holder = {
+            .type = IO_THREAD_HOLDER_KIND_MONITOR_NAME,
+            .u.monitor_name.monitor_name = id ? (char *)mon->id :
+                                                (char *)mon->chr.chr->label,
+        };
+        iothread_ref_and_get_aio_context(mon_iothread, &holder);
     }
     qemu_mutex_init(&mon->mon_lock);
     mon->is_qmp = is_qmp;
@@ -624,6 +634,16 @@ void monitor_data_init(Monitor *mon, bool is_qmp, bool skip_flush,
 
 void monitor_data_destroy(Monitor *mon)
 {
+    if (mon->use_io_thread && mon_iothread) {
+        IOThreadHolder holder = {
+            .type = IO_THREAD_HOLDER_KIND_MONITOR_NAME,
+            .u.monitor_name.monitor_name = mon->id ? (char *)mon->id :
+                                           (char *)mon->chr.chr->label,
+        };
+
+        iothread_put_aio_context(mon_iothread, &holder);
+    }
+
     g_free(mon->mon_cpu_path);
     qemu_chr_fe_deinit(&mon->chr, false);
     if (monitor_is_qmp(mon)) {
