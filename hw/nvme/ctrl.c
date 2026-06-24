@@ -8610,6 +8610,14 @@ static bool nvme_check_params(NvmeCtrl *n, Error **errp)
         return false;
     }
 
+    if (params->use_intel_id &&
+        (params->vendor_id != PCI_VENDOR_ID_REDHAT ||
+         params->device_id != PCI_DEVICE_ID_REDHAT_NVME)) {
+        error_setg(errp,
+                   "use_intel_id and vendor-id/device-id are mutually exclusive");
+        return false;
+    }
+
     if (params->model &&
         strlen(params->model) > NVME_ID_CTRL_MN_MAX_LEN) {
         error_setg(errp, "'model' parameter '%s' can be at most '%d' characters",
@@ -8976,8 +8984,8 @@ static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
         pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_NVME);
     } else {
-        pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_REDHAT);
-        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_REDHAT_NVME);
+        pci_config_set_vendor_id(pci_conf, n->params.vendor_id);
+        pci_config_set_device_id(pci_conf, n->params.device_id);
     }
 
     pci_config_set_class(pci_conf, PCI_CLASS_STORAGE_EXPRESS);
@@ -9401,6 +9409,10 @@ static const Property nvme_props[] = {
     DEFINE_PROP_STRING("serial", NvmeCtrl, params.serial),
     DEFINE_PROP_STRING("model", NvmeCtrl, params.model),
     DEFINE_PROP_STRING("firmware-version", NvmeCtrl, params.firmware_version),
+    DEFINE_PROP_UINT16("vendor-id", NvmeCtrl, params.vendor_id,
+                       PCI_VENDOR_ID_REDHAT),
+    DEFINE_PROP_UINT16("device-id", NvmeCtrl, params.device_id,
+                       PCI_DEVICE_ID_REDHAT_NVME),
     DEFINE_PROP_UINT32("cmb_size_mb", NvmeCtrl, params.cmb_size_mb, 0),
     DEFINE_PROP_UINT32("num_queues", NvmeCtrl, params.num_queues, 0),
     DEFINE_PROP_UINT32("max_ioqpairs", NvmeCtrl, params.max_ioqpairs, 64),

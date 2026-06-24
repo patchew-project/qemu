@@ -51,7 +51,8 @@ parameters.
 ``use-intel-id`` (default: ``off``)
   Since QEMU 5.2, the device uses a QEMU allocated "Red Hat" PCI Device and
   Vendor ID. Set this to ``on`` to revert to the unallocated Intel ID
-  previously used.
+  previously used. This parameter is mutually exclusive with ``vendor-id``
+  and ``device-id``.
 
 ``ocp`` (default: ``off``)
   The Open Compute Project defines the Datacenter NVMe SSD Specification that
@@ -64,6 +65,19 @@ parameters.
   Override the default reported model, which can be used when needing
   to more closely impersonate a particular device type. The model name
   can be a maximum of 40 characters in length.
+
+``vendor-id`` (default: ``0x1b36`` for Red Hat)
+  Override the default PCI vendor ID. This can be used when needing to
+  more closely impersonate a particular device type or test vendor-specific
+  quirks. The vendor ID must be a 16-bit hexadecimal value. This parameter
+  is mutually exclusive with ``use-intel-id``.
+
+``device-id`` (default: ``0x0010`` for Red Hat NVMe)
+  Override the default PCI device ID. This can be used when needing to
+  more closely impersonate a particular device type or test device-specific
+  quirks. The device ID must be a 16-bit hexadecimal value. Since PCI IDs
+  are a (vendor, device) tuple, this should typically be used together with
+  ``vendor-id``. This parameter is mutually exclusive with ``use-intel-id``.
 
 ``firmware-version`` (default: current QEMU version number)
   Override the default reported firmware version, which can be used when
