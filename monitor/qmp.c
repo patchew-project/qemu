@@ -77,8 +77,25 @@ static void monitor_qmp_finalize(Object *obj)
 {
 }
 
+static bool monitor_qmp_get_pretty(Object *obj, Error **errp)
+{
+    MonitorQMP *mon = MONITOR_QMP(obj);
+
+    return mon->pretty;
+}
+
+static void monitor_qmp_set_pretty(Object *obj, bool val, Error **errp)
+{
+    MonitorQMP *mon = MONITOR_QMP(obj);
+
+    mon->pretty = val;
+}
+
 static void monitor_qmp_class_init(ObjectClass *cls, const void *data)
 {
+    object_class_property_add_bool(cls, "pretty",
+                                   monitor_qmp_get_pretty,
+                                   monitor_qmp_set_pretty);
 }
 
 static void monitor_qmp_init(Object *obj)
@@ -538,6 +555,7 @@ void monitor_new_qmp(const char *chardev_id, bool pretty, Error **errp)
                                         id,
                                         errp,
                                         "chardev", chardev_id,
+                                        "pretty", pretty ? "yes" : "no",
                                         NULL);
 
     if (!obj) {
@@ -557,8 +575,6 @@ void monitor_new_qmp(const char *chardev_id, bool pretty, Error **errp)
     monitor_data_init(&mon->parent_obj, true, false,
                       qemu_chr_has_feature(mon->parent_obj.chr.chr,
                                            QEMU_CHAR_FEATURE_GCONTEXT));
-
-    mon->pretty = pretty;
 
     qemu_mutex_init(&mon->qmp_queue_lock);
     mon->qmp_requests = g_queue_new();
