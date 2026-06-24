@@ -103,6 +103,13 @@ static int cpacf_km(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
                            &env->regs[r1], &env->regs[r2], &env->regs[r2 + 1],
                            S390_FEAT_TYPE_KM, fc, mod);
         break;
+    case 0x1a: /* CPACF_KM_PAES_128 */
+    case 0x1b: /* CPACF_KM_PAES_192 */
+    case 0x1c: /* CPACF_KM_PAES_256 */
+        rc = cpacf_paes_ecb(env, mmu_idx, ra, env->regs[1],
+                            &env->regs[r1], &env->regs[r2], &env->regs[r2 + 1],
+                            S390_FEAT_TYPE_KM, fc, mod);
+        break;
     case 0x32: /* CPACF_KM_XTS_128 */
     case 0x34: /* CPACF_KM_XTS_256 */
         rc = cpacf_aes_xts(env, mmu_idx, ra, env->regs[1],
