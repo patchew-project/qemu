@@ -99,11 +99,17 @@ static void monitor_qmp_set_pretty(Object *obj, bool val, Error **errp)
     mon->pretty = val;
 }
 
+static void monitor_qmp_emit_event(Monitor *mon, QAPIEvent event, QDict *qdict);
+
 static void monitor_qmp_class_init(ObjectClass *cls, const void *data)
 {
+    MonitorClass *moncls = MONITOR_CLASS(cls);
+
     object_class_property_add_bool(cls, "pretty",
                                    monitor_qmp_get_pretty,
                                    monitor_qmp_set_pretty);
+
+    moncls->emit_event = monitor_qmp_emit_event;
 }
 
 static void handle_qmp_command(void *opaque, QObject *req, Error *err);
@@ -116,6 +122,20 @@ static void monitor_qmp_init(Object *obj)
 
     json_message_parser_init(&mon->parser, handle_qmp_command, mon, NULL);
 }
+
+static void monitor_qmp_emit_event(Monitor *mon, QAPIEvent event, QDict *qdict)
+{
+    MonitorQMP *qmp = MONITOR_QMP(mon);
+
+    WITH_QEMU_LOCK_GUARD(&mon->mon_lock) {
+        if (qmp->commands == &qmp_cap_negotiation_commands) {
+            return;
+        }
+    }
+
+    qmp_send_response(qmp, qdict);
+}
+
 
 static bool qmp_oob_enabled(MonitorQMP *mon)
 {
