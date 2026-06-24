@@ -460,7 +460,7 @@ gchar *qtest_qemu_args(const char *extra_args)
                       "-qtest unix:%s "
                       "-qtest-log %s "
                       "-chardev socket,path=%s,id=char0 "
-                      "-mon chardev=char0,mode=control "
+                      "-object monitor-qmp,id=qmp0,chardev=char0 "
                       "-display none "
                       "-audio none "
                       "%s "
