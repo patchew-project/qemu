@@ -469,13 +469,8 @@ char *iothread_get_id(IOThread *iothread)
     return g_strdup(object_get_canonical_path_component(OBJECT(iothread)));
 }
 
-AioContext *iothread_get_aio_context(IOThread *iothread)
-{
-    return iothread->ctx;
-}
-
-AioContext *iothread_ref_and_get_aio_context(IOThread *iothread,
-                                             const IOThreadHolder *holder)
+AioContext *iothread_get_aio_context(IOThread *iothread,
+                                     const IOThreadHolder *holder)
 {
     /* Add IOThreadHolder to the list */
     iothread_ref(iothread, holder);

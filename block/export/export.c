@@ -146,7 +146,7 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
             .u.block_node.node_name = (char *)holder_name,
         };
 
-        new_ctx = iothread_ref_and_get_aio_context(iothread, &holder);
+        new_ctx = iothread_get_aio_context(iothread, &holder);
         multithread_count = 1;
         local_iothreads = g_new0(IOThread *, 1);
         local_iothreads[0] = iothread;
@@ -190,8 +190,7 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
                 goto fail;
             }
             local_iothreads[i] = iothread;
-            multithread_ctxs[i++] = iothread_ref_and_get_aio_context(iothread,
-                                                                     &holder);
+            multithread_ctxs[i++] = iothread_get_aio_context(iothread, &holder);
         }
         assert(i == multithread_count);
     }

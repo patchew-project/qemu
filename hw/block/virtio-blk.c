@@ -1508,8 +1508,8 @@ static bool virtio_blk_vq_aio_context_init(VirtIOBlock *s, Error **errp)
             .type = IO_THREAD_HOLDER_KIND_QOM_OBJECT,
             .u.qom_object.qom_path = (char *)path,
         };
-        AioContext *ctx = iothread_ref_and_get_aio_context(conf->iothread,
-                                                           &io_holder);
+        AioContext *ctx = iothread_get_aio_context(conf->iothread,
+                                                   &io_holder);
         for (unsigned i = 0; i < conf->num_queues; i++) {
             s->vq_aio_context[i] = ctx;
         }
