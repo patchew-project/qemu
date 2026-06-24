@@ -21,6 +21,8 @@ extern bool one_insn_per_tb;
 
 extern bool icount_align_option;
 
+extern bool tlb_ignore_memory_transaction_failures;
+
 /*
  * Return true if CS is not running in parallel with other cpus, either
  * because there are no other cpus or we are within an exclusive context.

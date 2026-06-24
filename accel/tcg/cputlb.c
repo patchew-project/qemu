@@ -90,6 +90,8 @@
  */
 QEMU_BUILD_BUG_ON(sizeof(vaddr) > sizeof(run_on_cpu_data));
 
+bool tlb_ignore_memory_transaction_failures;
+
 #define ALL_MMUIDX_BITS ((1 << NB_MMU_MODES) - 1)
 
 static inline size_t tlb_n_entries(CPUTLBDescFast *fast)
@@ -1291,8 +1293,10 @@ static void io_failed(CPUState *cpu, CPUTLBEntryFull *full, vaddr addr,
                       unsigned size, MMUAccessType access_type, int mmu_idx,
                       MemTxResult response, uintptr_t retaddr)
 {
-    if (!cpu->ignore_memory_transaction_failures
-        && cpu->cc->tcg_ops->do_transaction_failed) {
+    if (unlikely(tlb_ignore_memory_transaction_failures)) {
+        return;
+    }
+    if (cpu->cc->tcg_ops->do_transaction_failed) {
         hwaddr physaddr = full->phys_addr | (addr & ~TARGET_PAGE_MASK);
 
         cpu->cc->tcg_ops->do_transaction_failed(cpu, physaddr, addr, size,

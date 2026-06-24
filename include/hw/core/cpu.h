@@ -575,8 +575,6 @@ struct CPUState {
      */
     int64_t throttle_us_per_full;
 
-    bool ignore_memory_transaction_failures;
-
     /* Used for user-only emulation of prctl(PR_SET_UNALIGN). */
     bool prctl_unalign_sigbus;
 

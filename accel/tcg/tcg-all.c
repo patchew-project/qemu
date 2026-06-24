@@ -107,8 +107,11 @@ static int tcg_init_machine(AccelState *as, MachineState *ms)
     unsigned max_threads = 1;
 
 #ifndef CONFIG_USER_ONLY
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
     CPUClass *cc = CPU_CLASS(object_class_by_name(target_cpu_type()));
     bool mttcg_supported = cc->tcg_ops->mttcg_supported;
+
+    tlb_ignore_memory_transaction_failures = mc->ignore_memory_transaction_failures;
 
     switch (s->mttcg_enabled) {
     case ON_OFF_AUTO_AUTO:
