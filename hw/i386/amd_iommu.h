@@ -340,20 +340,6 @@ struct irte_ga {
   union irte_ga_hi hi;
 };
 
-union mmio_xt_intr {
-    uint64_t val;
-    struct {
-        uint64_t rsvd_1:2,
-                 destination_mode:1,
-                 rsvd_2:5,
-                 destination_lo:24,
-                 vector:8,
-                 delivery_mode:1,
-                 rsvd_3:15,
-                 destination_hi:8;
-    };
-};
-
 #define TYPE_AMD_IOMMU_DEVICE "amd-iommu"
 OBJECT_DECLARE_SIMPLE_TYPE(AMDVIState, AMD_IOMMU_DEVICE)
 
