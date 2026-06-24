@@ -107,6 +107,7 @@ static void monitor_qmp_emit_event(Monitor *mon, QAPIEvent event, QDict *qdict);
 static bool monitor_qmp_requires_iothread(const Monitor *mon);
 static void monitor_qmp_complete(UserCreatable *uc, Error **errp);
 static bool monitor_qmp_prepare_delete(UserCreatable *uc, Error **errp);
+static void monitor_qmp_accept_input(Monitor *mon);
 
 static void monitor_qmp_class_init(ObjectClass *cls, const void *data)
 {
@@ -119,6 +120,7 @@ static void monitor_qmp_class_init(ObjectClass *cls, const void *data)
 
     moncls->emit_event = monitor_qmp_emit_event;
     moncls->requires_iothread = monitor_qmp_requires_iothread;
+    moncls->accept_input = monitor_qmp_accept_input;
 
     ucc->complete = monitor_qmp_complete;
     ucc->prepare_delete = monitor_qmp_prepare_delete;
@@ -665,4 +667,11 @@ static bool monitor_qmp_prepare_delete(UserCreatable *uc, Error **errp)
 
     error_setg(errp, "Deleting QMP monitors is not supported");
     return false;
+}
+
+static void monitor_qmp_accept_input(Monitor *mon)
+{
+    WITH_QEMU_LOCK_GUARD(&mon->mon_lock) {
+        qemu_chr_fe_accept_input(&mon->chr);
+    }
 }
