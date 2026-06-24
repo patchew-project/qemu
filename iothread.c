@@ -24,6 +24,8 @@
 #include "qemu/error-report.h"
 #include "qemu/rcu.h"
 #include "qemu/main-loop.h"
+#include "qapi/clone-visitor.h"
+#include "qapi/qapi-visit-misc.h"
 
 /*
  * iothread_ref:
@@ -117,6 +119,25 @@ static void iothread_unref(IOThread *iothread, const IOThreadHolder *holder)
     iothread->holders = g_list_delete_link(iothread->holders, link);
 
     object_unref(OBJECT(iothread));
+}
+
+static IOThreadHolderList *iothread_get_holders_list(IOThread *iothread)
+{
+    IOThreadHolderList *head = NULL;
+    IOThreadHolderList **prev = &head;
+    GList *l;
+
+    for (l = iothread->holders; l; l = l->next) {
+        IOThreadHolder *src = l->data;
+        IOThreadHolderList *entry = g_new0(IOThreadHolderList, 1);
+
+        entry->value = QAPI_CLONE(IOThreadHolder, src);
+
+        *prev = entry;
+        prev = &entry->next;
+    }
+
+    return head;
 }
 
 static void *iothread_run(void *opaque)
@@ -488,6 +509,7 @@ static int query_one_iothread(Object *object, void *opaque)
     info = g_new0(IOThreadInfo, 1);
     info->id = iothread_get_id(iothread);
     info->thread_id = iothread->thread_id;
+    info->holders = iothread_get_holders_list(iothread);
     info->poll_max_ns = iothread->poll_max_ns;
     info->poll_grow = iothread->poll_grow;
     info->poll_shrink = iothread->poll_shrink;
