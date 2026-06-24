@@ -69,7 +69,7 @@ static void create_aio_contexts(void)
 
     for (i = 0; i < NUM_CONTEXTS; i++) {
         threads[i] = iothread_new();
-        ctx[i] = iothread_get_aio_context(threads[i]);
+        ctx[i] = iothread_get_aio_context(threads[i], NULL);
     }
 
     qemu_event_init(&done_event, false);
@@ -86,6 +86,9 @@ static void join_aio_contexts(void)
 
     for (i = 0; i < NUM_CONTEXTS; i++) {
         aio_context_ref(ctx[i]);
+    }
+    for (i = 0; i < NUM_CONTEXTS; i++) {
+        iothread_put_aio_context(threads[i], NULL);
     }
     for (i = 0; i < NUM_CONTEXTS; i++) {
         iothread_join(threads[i]);
