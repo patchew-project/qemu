@@ -915,6 +915,9 @@ exit:
 
 void qmp_inject_nmi(Error **errp)
 {
-    nmi_monitor_handle(monitor_get_cpu_index(monitor_cur()), errp);
+    int cpu_index = UNASSIGNED_CPU_INDEX;
+    if (first_cpu) {
+        cpu_index = first_cpu->cpu_index;
+    }
+    nmi_monitor_handle(cpu_index, errp);
 }
-
