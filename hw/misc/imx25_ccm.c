@@ -102,7 +102,7 @@ static uint32_t imx25_ccm_get_mpll_clk(IMXCCMState *dev)
     uint32_t freq;
     IMX25CCMState *s = IMX25_CCM(dev);
 
-    if (EXTRACT(s->reg[IMX25_CCM_CCTL_REG], MPLL_BYPASS)) {
+    if (EXTRACT(s->reg[IMX25_CCM_CCTL_REG], MPLL_BYPASS)) 
         freq = CKIH_FREQ;
     } else {
         freq = imx_ccm_calc_pll(s->reg[IMX25_CCM_MPCTL_REG], CKIH_FREQ);
