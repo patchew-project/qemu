@@ -841,12 +841,17 @@ static void tegra241_cmdqv_event_read(void *opaque)
         struct iommu_vevent_tegra241_cmdqv vevent;
     } buf;
     Error *local_err = NULL;
+    int ret;
 
-    if (!smmuv3_accel_event_read_validate(veventq,
-                                          IOMMU_VEVENTQ_TYPE_TEGRA241_CMDQV,
-                                          &buf, sizeof(buf), &local_err)) {
+    ret = smmuv3_accel_event_read_validate(veventq,
+                                           IOMMU_VEVENTQ_TYPE_TEGRA241_CMDQV,
+                                           &buf, sizeof(buf), &local_err);
+    if (ret < 0) {
         warn_report_err_once(local_err);
         return;
+    }
+    if (ret > 0) {
+        return; /* EAGAIN/EINTR */
     }
 
     if (buf.vevent.lvcmdq_err_map[0] || buf.vevent.lvcmdq_err_map[1]) {

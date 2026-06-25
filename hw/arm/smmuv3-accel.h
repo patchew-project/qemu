@@ -97,8 +97,8 @@ bool smmuv3_accel_issue_inv_cmd(SMMUv3State *s, void *cmd, SMMUDevice *sdev,
                                 Error **errp);
 void smmuv3_accel_idr_override(SMMUv3State *s);
 bool smmuv3_accel_alloc_veventq(SMMUv3State *s, Error **errp);
-bool smmuv3_accel_event_read_validate(IOMMUFDVeventq *veventq, uint32_t type,
-                                      void *buf, size_t size, Error **errp);
+int smmuv3_accel_event_read_validate(IOMMUFDVeventq *veventq, uint32_t type,
+                                     void *buf, size_t size, Error **errp);
 void smmuv3_accel_reset(SMMUv3State *s);
 SMMUv3AccelCmdqvType smmuv3_accel_cmdqv_type(Object *obj);
 
