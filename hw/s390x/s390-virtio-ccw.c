@@ -729,6 +729,11 @@ static void s390_nmi(NMIState *n, int cpu_index, Error **errp)
 {
     CPUState *cs = qemu_get_cpu(cpu_index);
 
+    if (!cs) {
+        error_setg(errp, "CPU %d does not exist", cpu_index);
+        return;
+    }
+
     s390_cpu_restart(S390_CPU(cs));
 }
 
