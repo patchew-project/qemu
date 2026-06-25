@@ -733,13 +733,18 @@ int monitor_init(MonitorOptions *opts, bool allow_hmp, Error **errp)
     }
 
     if (!opts->has_mode) {
-        opts->mode = allow_hmp ? MONITOR_MODE_READLINE : MONITOR_MODE_CONTROL;
+        opts->mode =
+#ifdef CONFIG_HMP
+            allow_hmp ? MONITOR_MODE_READLINE :
+#endif
+            MONITOR_MODE_CONTROL;
     }
 
     switch (opts->mode) {
     case MONITOR_MODE_CONTROL:
         monitor_init_qmp(chr, opts->pretty, errp);
         break;
+#ifdef CONFIG_HMP
     case MONITOR_MODE_READLINE:
         if (!allow_hmp) {
             error_setg(errp, "Only QMP is supported");
@@ -751,6 +756,7 @@ int monitor_init(MonitorOptions *opts, bool allow_hmp, Error **errp)
         }
         monitor_init_hmp(chr, true, errp);
         break;
+#endif /* CONFIG_HMP */
     default:
         g_assert_not_reached();
     }
