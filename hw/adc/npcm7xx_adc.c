@@ -20,6 +20,8 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/core/registerfields.h"
 #include "migration/vmstate.h"
+#include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
@@ -229,7 +231,6 @@ static void npcm7xx_adc_init(Object *obj)
 {
     NPCM7xxADCState *s = NPCM7XX_ADC(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    int i;
 
     sysbus_init_irq(sbd, &s->irq);
 
@@ -240,13 +241,61 @@ static void npcm7xx_adc_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
     s->clock = qdev_init_clock_in(DEVICE(s), "clock", NULL, NULL, 0);
 
-    for (i = 0; i < NPCM7XX_ADC_NUM_INPUTS; ++i) {
-        object_property_add_uint32_ptr(obj, "adci[*]",
-                &s->adci[i], OBJ_PROP_FLAG_READWRITE);
-    }
-    object_property_add_uint32_ptr(obj, "vref",
-            &s->vref, OBJ_PROP_FLAG_WRITE);
     npcm7xx_adc_calibrate(s);
+}
+
+static void npcm7xx_adc_get_input(Object *obj, Visitor *v,
+                                  const char *name, void *opaque,
+                                  Error **errp)
+{
+    NPCM7xxADCState *s = NPCM7XX_ADC(obj);
+    uint32_t idx, val;
+    int res;
+
+    res = sscanf(name, "adci[%u]", &idx);
+    if (res == EOF || res != 1) {
+        error_setg(errp, "unable to parse index from %s", name);
+        return;
+    }
+
+    val = s->adci[idx];
+    visit_type_uint32(v, name, &val, errp);
+}
+
+static void npcm7xx_adc_set_input(Object *obj, Visitor *v,
+                                  const char *name, void *opaque,
+                                  Error **errp)
+{
+    NPCM7xxADCState *s = NPCM7XX_ADC(obj);
+    uint32_t idx, val;
+    int res;
+
+    res = sscanf(name, "adci[%u]", &idx);
+    if (res == EOF || res != 1) {
+        error_setg(errp, "unable to parse index from %s", name);
+        return;
+    }
+
+    val = s->adci[idx];
+    if (!visit_type_uint32(v, name, &val, errp)) {
+        return;
+    }
+
+    s->adci[idx] = val;
+}
+
+static void npcm7xx_adc_set_vref(Object *obj, Visitor *v,
+                                 const char *name, void *opaque,
+                                 Error **errp)
+{
+    NPCM7xxADCState *s = NPCM7XX_ADC(obj);
+    uint32_t vref = s->vref;
+
+    if (!visit_type_uint32(v, name, &vref, errp)) {
+        return;
+    }
+
+    s->vref = vref;
 }
 
 static const VMStateDescription vmstate_npcm7xx_adc = {
@@ -275,6 +324,7 @@ static void npcm7xx_adc_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
+    int i;
 
     dc->desc = "NPCM7xx ADC Module";
     dc->vmsd = &vmstate_npcm7xx_adc;
@@ -282,6 +332,19 @@ static void npcm7xx_adc_class_init(ObjectClass *klass, const void *data)
     rc->phases.hold = npcm7xx_adc_hold_reset;
 
     device_class_set_props(dc, npcm7xx_timer_properties);
+
+    for (i = 0; i < NPCM7XX_ADC_NUM_INPUTS; ++i) {
+        g_autofree char *adciprop = g_strdup_printf("adci[%u]", i);
+
+        object_class_property_add(klass, adciprop, "uint32",
+                                  npcm7xx_adc_get_input,
+                                  npcm7xx_adc_set_input,
+                                  NULL, NULL);
+    }
+    object_class_property_add(klass, "vref", "uint32",
+                              NULL,
+                              npcm7xx_adc_set_vref,
+                              NULL, NULL);
 }
 
 static const TypeInfo npcm7xx_adc_info = {
