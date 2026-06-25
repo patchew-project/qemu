@@ -868,8 +868,9 @@ ERST
         .cmd        = hmp_nmi,
     },
 SRST
-``nmi`` *cpu*
-  Inject an NMI on the default CPU (x86/s390) or all CPUs (ppc64).
+``nmi``
+  Inject an NMI on the associated monitor vCPU (``cpu`` command, on s390x) or
+  all vCPUs (on other architectures).
 ERST
 
     {
