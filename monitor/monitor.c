@@ -541,12 +541,17 @@ static void monitor_accept_input(void *opaque)
     Monitor *mon = opaque;
 
     qemu_mutex_lock(&mon->mon_lock);
-    if (!monitor_is_qmp(mon) && mon->reset_seen) {
+    if (!monitor_is_qmp(mon)) {
         MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, common);
         assert(hmp_mon->rs);
-        readline_restart(hmp_mon->rs);
+        bool reset_seen = hmp_mon->reset_seen;
+        if (reset_seen) {
+            readline_restart(hmp_mon->rs);
+        }
         qemu_mutex_unlock(&mon->mon_lock);
-        readline_show_prompt(hmp_mon->rs);
+        if (reset_seen) {
+            readline_show_prompt(hmp_mon->rs);
+        }
     } else {
         qemu_mutex_unlock(&mon->mon_lock);
     }
@@ -622,12 +627,13 @@ void monitor_data_init(Monitor *mon, bool is_qmp, bool skip_flush,
 
 void monitor_data_destroy(Monitor *mon)
 {
-    g_free(mon->mon_cpu_path);
     qemu_chr_fe_deinit(&mon->chr, false);
     if (monitor_is_qmp(mon)) {
         monitor_data_destroy_qmp(container_of(mon, MonitorQMP, common));
     } else {
-        readline_free(container_of(mon, MonitorHMP, common)->rs);
+        MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, common);
+        readline_free(hmp_mon->rs);
+        g_free(hmp_mon->mon_cpu_path);
     }
     g_string_free(mon->outbuf, true);
     qemu_mutex_destroy(&mon->mon_lock);
