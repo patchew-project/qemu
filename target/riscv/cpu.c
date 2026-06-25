@@ -44,6 +44,9 @@
 #endif
 
 /* RISC-V CPU definitions */
+#define RISCV_CPU_MVENDORID 0
+#define RISCV_CPU_MARCHID 42
+#define RISCV_CPU_MIMPID 0
 static const char riscv_single_letter_exts[] = "IEMAFDQCBPVH";
 const uint32_t misa_bits[] = {RVI, RVE, RVM, RVA, RVF, RVD, RVV,
                               RVC, RVS, RVU, RVH, RVG, RVB, 0};
@@ -1197,6 +1200,12 @@ static void riscv_cpu_init(Object *obj)
         riscv_register_custom_csrs(cpu, mcc->def->custom_csrs);
     }
 #endif
+
+    if (!riscv_cpu_is_vendor(obj)) {
+        RISCV_CPU(obj)->cfg.mvendorid = RISCV_CPU_MVENDORID;
+        RISCV_CPU(obj)->cfg.marchid = RISCV_CPU_MARCHID;
+        RISCV_CPU(obj)->cfg.mimpid = RISCV_CPU_MIMPID;
+    }
 
     accel_cpu_instance_init(CPU(obj));
 }
