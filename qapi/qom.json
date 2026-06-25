@@ -1258,6 +1258,7 @@
     'tls-creds-psk',
     'tls-creds-x509',
     'tls-cipher-suites',
+    'remote-i2c-backend-cuse',
     { 'name': 'x-remote-object', 'features': [ 'unstable' ] },
     { 'name': 'x-vfio-user-server', 'features': [ 'unstable' ] }
   ] }
@@ -1334,6 +1335,7 @@
       'tls-creds-psk':              'TlsCredsPskProperties',
       'tls-creds-x509':             'TlsCredsX509Properties',
       'tls-cipher-suites':          'TlsCredsProperties',
+      'remote-i2c-backend-cuse':    'RemoteI2CBackendCuseProperties',
       'x-remote-object':            'RemoteObjectProperties',
       'x-vfio-user-server':         'VfioUserServerProperties'
   } }
@@ -1377,3 +1379,19 @@
 ##
 { 'command': 'object-del', 'data': {'id': 'str'},
   'allow-preconfig': true }
+
+##
+# @RemoteI2CBackendCuseProperties:
+#
+# Properties for the CUSE remote I2C backend.
+#
+# @devname: The CUSE device name to create (e.g., 'i2c-33').
+# @fuse-opts: Optional FUSE mount options.
+# @debug: Whether to enable debug output.
+#
+# Since: (your version)
+##
+{ 'struct': 'RemoteI2CBackendCuseProperties',
+  'data': { 'devname': 'str',
+            '*fuse-opts': 'str',
+            '*debug': 'bool' } }
