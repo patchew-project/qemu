@@ -725,7 +725,7 @@ static int kvm_loongarch_get_cpucfg(CPUState *cs)
 static int kvm_check_cpucfg2(CPUState *cs)
 {
     int ret;
-    uint64_t val;
+    uint64_t val = 0;
     struct kvm_device_attr attr = {
         .group = KVM_LOONGARCH_VCPU_CPUCFG,
         .attr = 2,
@@ -736,7 +736,11 @@ static int kvm_check_cpucfg2(CPUState *cs)
     ret = kvm_vcpu_ioctl(cs, KVM_HAS_DEVICE_ATTR, &attr);
 
     if (!ret) {
-        kvm_vcpu_ioctl(cs, KVM_GET_DEVICE_ATTR, &attr);
+        ret = kvm_vcpu_ioctl(cs, KVM_GET_DEVICE_ATTR, &attr);
+        if (ret) {
+            error_report("CPUCFG2: KVM_GET_DEVICE_ATTR: %s", strerror(errno));
+            return ret;
+        }
         env->cpucfg[2] &= val;
 
         if (FIELD_EX32(env->cpucfg[2], CPUCFG2, FP)) {
