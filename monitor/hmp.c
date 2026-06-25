@@ -1610,13 +1610,15 @@ void monitor_register_hmp_info_hrt(const char *name,
 static int get_monitor_def(Monitor *mon, int64_t *pval, const char *name)
 {
     CPUState *cs = mon_get_cpu(mon);
-    const MonitorDef *md;
+    const MonitorDef *md = NULL;
     void *ptr;
 
     if (cs == NULL) {
         return -1;
     }
+#ifdef CONFIG_HMP
     md = cs->cc->sysemu_ops->monitor_defs;
+#endif
     if (md == NULL) {
         return -1;
     }
