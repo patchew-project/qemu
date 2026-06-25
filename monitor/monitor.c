@@ -116,6 +116,7 @@ bool monitor_cur_is_qmp(void)
     return cur_mon && monitor_is_qmp(cur_mon);
 }
 
+#ifdef CONFIG_HMP
 /**
  * Is @mon is using readline?
  * Note: not all HMP monitors use readline, e.g., gdbserver has a
@@ -134,6 +135,12 @@ static inline bool monitor_is_hmp_non_interactive(const Monitor *mon)
 
     return !monitor_uses_readline(container_of(mon, MonitorHMP, common));
 }
+#else
+static inline bool monitor_is_hmp_non_interactive(const Monitor *mon)
+{
+    return false;
+}
+#endif
 
 static gboolean monitor_unblocked(void *do_not_use, GIOCondition cond,
                                   void *opaque)
@@ -540,6 +547,7 @@ static void monitor_accept_input(void *opaque)
 {
     Monitor *mon = opaque;
 
+#ifdef CONFIG_HMP
     qemu_mutex_lock(&mon->mon_lock);
     if (!monitor_is_qmp(mon)) {
         MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, common);
@@ -555,6 +563,7 @@ static void monitor_accept_input(void *opaque)
     } else {
         qemu_mutex_unlock(&mon->mon_lock);
     }
+#endif
 
     qemu_chr_fe_accept_input(&mon->chr);
 }
@@ -631,9 +640,11 @@ void monitor_data_destroy(Monitor *mon)
     if (monitor_is_qmp(mon)) {
         monitor_data_destroy_qmp(container_of(mon, MonitorQMP, common));
     } else {
+#ifdef CONFIG_HMP
         MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, common);
         readline_free(hmp_mon->rs);
         g_free(hmp_mon->mon_cpu_path);
+#endif
     }
     g_string_free(mon->outbuf, true);
     qemu_mutex_destroy(&mon->mon_lock);
