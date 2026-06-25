@@ -816,7 +816,6 @@ int kvm_arch_get_registers(CPUState *cs, Error **errp)
 int kvm_arch_put_registers(CPUState *cs, KvmPutState level, Error **errp)
 {
     int ret;
-    static int once;
 
     ret = kvm_loongarch_put_regs_core(cs);
     if (ret) {
@@ -841,14 +840,6 @@ int kvm_arch_put_registers(CPUState *cs, KvmPutState level, Error **errp)
     ret = kvm_loongarch_put_lbt(cs);
     if (ret) {
         return ret;
-    }
-
-    if (!once) {
-        ret = kvm_set_pv_features(cs);
-        if (ret) {
-            return ret;
-        }
-        once = 1;
     }
 
     if (level >= KVM_PUT_FULL_STATE) {
@@ -1206,6 +1197,12 @@ int kvm_arch_init_vcpu(CPUState *cs)
     ret = kvm_cpu_check_pv_features(cs, &local_err);
     if (ret < 0) {
         error_report_err(local_err);
+        return ret;
+    }
+
+    /* pv_features is a per-vCPU attribute; set it here, once per vCPU. */
+    ret = kvm_set_pv_features(cs);
+    if (ret < 0) {
         return ret;
     }
 
