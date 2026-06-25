@@ -1616,9 +1616,7 @@ static int get_monitor_def(Monitor *mon, int64_t *pval, const char *name)
     if (cs == NULL) {
         return -1;
     }
-#ifdef CONFIG_HMP
     md = cs->cc->sysemu_ops->monitor_defs;
-#endif
     if (md == NULL) {
         return -1;
     }
