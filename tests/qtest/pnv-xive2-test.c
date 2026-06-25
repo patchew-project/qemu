@@ -549,7 +549,7 @@ static void test_xive(void)
     QTestState *qts;
 
     qts = qtest_initf("-M powernv10 -smp %d,cores=1,threads=%d -nographic "
-                      "-nodefaults -serial mon:stdio -S "
+                      "-nodefaults -S "
                       "-d guest_errors -trace '*xive*'",
                       SMT, SMT);
     init_xive(qts);
