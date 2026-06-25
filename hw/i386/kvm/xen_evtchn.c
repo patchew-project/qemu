@@ -2344,6 +2344,7 @@ void qmp_xen_event_inject(uint32_t port, Error **errp)
     }
 }
 
+#ifdef CONFIG_HMP
 void hmp_xen_event_list(Monitor *mon, const QDict *qdict)
 {
     EvtchnInfoList *iter, *info_list;
@@ -2391,4 +2392,4 @@ void hmp_xen_event_inject(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "Delivered port %d\n", port);
     }
 }
-
+#endif

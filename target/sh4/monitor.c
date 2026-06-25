@@ -26,6 +26,7 @@
 #include "monitor/monitor.h"
 #include "monitor/hmp.h"
 
+#ifdef CONFIG_HMP
 static void print_tlb(Monitor *mon, int idx, tlb_t *tlb)
 {
     monitor_printf(mon, " tlb%i:\t"
@@ -55,3 +56,4 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
     for (i = 0 ; i < UTLB_SIZE ; i++)
         print_tlb (mon, i, &env->utlb[i]);
 }
+#endif

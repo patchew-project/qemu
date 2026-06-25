@@ -39,6 +39,8 @@
 #define PTE_HEADER_DELIMITER    "-------- ---------------- -------- -------\n"
 #endif
 
+#ifdef CONFIG_HMP
+
 /* Perform linear address sign extension */
 static target_ulong addr_canonical(int va_bits, target_ulong addr)
 {
@@ -244,6 +246,7 @@ void hmp_info_mem(Monitor *mon, const QDict *qdict)
 
     mem_info_svxx(mon, env);
 }
+#endif /* CONFIG_HMP */
 
 static bool reg_is_ulong_integer(CPURISCVState *env, const char *name,
                                  target_ulong *val, bool is_gprh)

@@ -80,6 +80,7 @@ void x86_cpu_apic_realize(X86CPU *cpu, Error **errp)
      }
 }
 
+#ifdef CONFIG_HMP
 void hmp_info_local_apic(Monitor *mon, const QDict *qdict)
 {
     CPUState *cs;
@@ -102,3 +103,4 @@ void hmp_info_local_apic(Monitor *mon, const QDict *qdict)
     }
     x86_cpu_dump_local_apic_state(cs, CPU_DUMP_FPU);
 }
+#endif

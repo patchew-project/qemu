@@ -763,6 +763,7 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
     return ret;
 }
 
+#ifdef CONFIG_HMP
 #define qdev_printf(fmt, ...) monitor_printf(mon, "%*s" fmt, indent, "", ## __VA_ARGS__)
 
 static void qdev_print_props(Monitor *mon, DeviceState *dev, DeviceClass *dc,
@@ -864,6 +865,7 @@ void hmp_info_qdm(Monitor *mon, const QDict *qdict)
 {
     qdev_print_devinfos(true);
 }
+#endif /* CONFIG_HMP */
 
 void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
 {
@@ -1001,6 +1003,7 @@ void qmp_device_sync_config(const char *id, Error **errp)
     qdev_sync_config(dev, errp);
 }
 
+#ifdef CONFIG_HMP
 void hmp_device_add(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
@@ -1043,6 +1046,7 @@ void hmp_device_del(Monitor *mon, const QDict *qdict)
     qmp_device_del(id, &err);
     hmp_handle_error(mon, err);
 }
+#endif
 
 void device_add_completion(ReadLineState *rs, int nb_args, const char *str)
 {

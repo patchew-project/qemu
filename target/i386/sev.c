@@ -758,6 +758,7 @@ SevInfo *qmp_query_sev(Error **errp)
     return info;
 }
 
+#ifdef CONFIG_HMP
 void hmp_info_sev(Monitor *mon, const QDict *qdict)
 {
     SevInfo *info = sev_get_info();
@@ -791,6 +792,7 @@ void hmp_info_sev(Monitor *mon, const QDict *qdict)
 out:
     qapi_free_SevInfo(info);
 }
+#endif
 
 static int
 sev_get_pdh_info(int fd, guchar **pdh, size_t *pdh_len, guchar **cert_chain,

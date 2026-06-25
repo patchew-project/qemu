@@ -491,6 +491,7 @@ void qmp_cancel_vcpu_dirty_limit(bool has_cpu_index,
     dirtylimit_state_unlock();
 }
 
+#ifdef CONFIG_HMP
 void hmp_cancel_vcpu_dirty_limit(Monitor *mon, const QDict *qdict)
 {
     int64_t cpu_index = qdict_get_try_int(qdict, "cpu_index", -1);
@@ -505,6 +506,7 @@ void hmp_cancel_vcpu_dirty_limit(Monitor *mon, const QDict *qdict)
     monitor_printf(mon, "[Please use 'info vcpu_dirty_limit' to query "
                    "dirty limit for virtual CPU]\n");
 }
+#endif
 
 void qmp_set_vcpu_dirty_limit(bool has_cpu_index,
                               int64_t cpu_index,
@@ -548,6 +550,7 @@ void qmp_set_vcpu_dirty_limit(bool has_cpu_index,
     dirtylimit_state_unlock();
 }
 
+#ifdef CONFIG_HMP
 void hmp_set_vcpu_dirty_limit(Monitor *mon, const QDict *qdict)
 {
     int64_t dirty_rate = qdict_get_int(qdict, "dirty_rate");
@@ -564,6 +567,7 @@ void hmp_set_vcpu_dirty_limit(Monitor *mon, const QDict *qdict)
 out:
     hmp_handle_error(mon, err);
 }
+#endif
 
 /* Return the max throttle time of each virtual CPU */
 uint64_t dirtylimit_throttle_time_per_round(void)
@@ -647,6 +651,7 @@ struct DirtyLimitInfoList *qmp_query_vcpu_dirty_limit(Error **errp)
     return dirtylimit_query_all();
 }
 
+#ifdef CONFIG_HMP
 void hmp_info_vcpu_dirty_limit(Monitor *mon, const QDict *qdict)
 {
     DirtyLimitInfoList *info;
@@ -672,3 +677,4 @@ void hmp_info_vcpu_dirty_limit(Monitor *mon, const QDict *qdict)
                             info->value->current_rate);
     }
 }
+#endif
