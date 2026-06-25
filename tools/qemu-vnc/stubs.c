@@ -46,10 +46,12 @@ Monitor *monitor_set_cur(Coroutine *co, Monitor *mon)
     return NULL;
 }
 
+#ifdef CONFIG_HMP
 int monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
 {
     return -1;
 }
+#endif
 
 /*
  * Link-time stubs for VMState symbols referenced by VNC code.

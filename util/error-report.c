@@ -40,11 +40,13 @@ error_vprintf_mon(Monitor *cur_mon, const char *fmt, va_list ap)
      * IOW this will only print if in HMP, otherwise we
      * fallback to stderr for QMP / no-monitor scenarios.
      */
+#ifdef CONFIG_HMP
     int ret = monitor_vprintf(cur_mon, fmt, ap);
-    if (ret == -1) {
-        ret = vfprintf(stderr, fmt, ap);
+    if (ret != -1) {
+        return ret;
     }
-    return ret;
+#endif
+    return vfprintf(stderr, fmt, ap);
 }
 
 /*
