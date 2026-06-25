@@ -21,6 +21,7 @@ void qapi_event_emit(QAPIEvent event, QDict *qdict)
 {
 }
 
+#ifdef CONFIG_HMP
 int monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
 {
     /*
@@ -37,3 +38,4 @@ int monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
     }
     return -1;
 }
+#endif

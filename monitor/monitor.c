@@ -218,6 +218,7 @@ int monitor_puts(Monitor *mon, const char *str)
     return monitor_puts_locked(mon, str);
 }
 
+#ifdef CONFIG_HMP
 int monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
 {
     char *buf;
@@ -274,6 +275,7 @@ void monitor_printc(Monitor *mon, int c)
     }
     monitor_printf(mon, "'");
 }
+#endif
 
 static MonitorQAPIEventConf monitor_qapi_event_conf[QAPI_EVENT__MAX] = {
     /* Limit guest-triggerable events to 1 per second */

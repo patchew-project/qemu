@@ -8,6 +8,8 @@ int monitor_get_fd(Monitor *mon, const char *name, Error **errp)
     return -1;
 }
 
+#ifdef CONFIG_HMP
 void monitor_init_hmp(Chardev *chr, bool use_readline, Error **errp)
 {
 }
+#endif
