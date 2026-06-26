@@ -76,6 +76,17 @@ static int vhost_vsock_set_status(VirtIODevice *vdev, uint8_t status)
     bool should_start = virtio_device_should_start(vdev, status);
     int ret;
 
+    /*
+     * On an incoming CPR the full vhost_dev_init() is deferred to post_load
+     * (realize only ran vhost_dev_init_backend()).  hdev->mem is set only by
+     * the full init, so refuse to start a device whose handoff never
+     * completed rather than dereference a half-initialised vhost_dev.
+     */
+    if (should_start && !vvc->vhost_dev.mem) {
+        error_report("vhost-vsock: refusing to start, device init incomplete");
+        return 0;
+    }
+
     if (vhost_dev_is_started(&vvc->vhost_dev) == should_start) {
         return 0;
     }
@@ -111,18 +122,102 @@ static uint64_t vhost_vsock_get_features(VirtIODevice *vdev,
     return vhost_vsock_common_get_features(vdev, requested_features, errp);
 }
 
+/*
+ * Re-acquire device ownership if a CPR migration that released it (in
+ * vhost_vsock_cpr_pre_save()) failed and the source VM is about to resume.
+ * This runs before vm_start(), so the device is owned again before it is
+ * restarted.
+ */
+static int vhost_vsock_cpr_notifier(NotifierWithReturn *notifier,
+                                    MigrationEvent *e, Error **errp)
+{
+    VHostVSock *vsock = container_of(notifier, VHostVSock, cpr_notifier);
+    VHostVSockCommon *vvc = VHOST_VSOCK_COMMON(vsock);
+    int ret;
+
+    if (e->type == MIG_EVENT_FAILED && vsock->owner_reset) {
+        ret = vhost_dev_set_owner(&vvc->vhost_dev);
+        if (ret < 0) {
+            error_report("vhost-vsock: failed to re-acquire owner: %d", ret);
+        } else {
+            vsock->owner_reset = false;
+        }
+    }
+
+    return 0;
+}
+
+static int vhost_vsock_pre_save(void *opaque)
+{
+    VHostVSockCommon *vvc = VHOST_VSOCK_COMMON(opaque);
+    VHostVSock *vsock = VHOST_VSOCK(opaque);
+    int ret;
+
+    ret = vhost_vsock_common_pre_save(opaque);
+    if (ret) {
+        return ret;
+    }
+
+    /*
+     * Release the device ownership now for CPR migration.  The device is
+     * already stopped at pre_save, and destination reclaims it by calling
+     * VHOST_SET_OWNER in post_load.
+     */
+    if (cpr_incoming_needed(NULL)) {
+        ret = vhost_dev_reset_owner(&vvc->vhost_dev);
+        if (ret < 0) {
+            error_report("vhost-vsock: vhost_reset_owner failed: %d", ret);
+            return ret;
+        }
+        vsock->owner_reset = true;
+    }
+
+    return 0;
+}
+
 static int vhost_vsock_post_load(void *opaque, int version_id)
 {
+    VHostVSockCommon *vvc = VHOST_VSOCK_COMMON(opaque);
+    VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
+    DeviceState *proxy = qdev_get_parent_bus(DEVICE(vdev))->parent;
+    Error *local_err = NULL;
+    int vhostfd, ret;
+
     /*
      * Only reset vsock connections for non-CPR migration.  For CPR the
      * guest cid is unchanged, and the cid-change reset would otherwise
      * tear the vsock connections down.
      */
-    if (cpr_is_incoming()) {
-        return 0;
+    if (!cpr_is_incoming()) {
+        return vhost_vsock_common_post_load(opaque, version_id);
     }
 
-    return vhost_vsock_common_post_load(opaque, version_id);
+    /*
+     * CPR restore case.  The source released device ownership in its
+     * pre_save.  Complete the handoff here, before the device is started
+     * at vm_start.  Init vhost device on preserved FD, issue
+     * VHOST_SET_OWNER on it, and restore the guest cid.
+     */
+    vhostfd = cpr_find_fd(proxy->id, 0);
+    if (vhostfd < 0) {
+        error_report("vhost-vsock: could not find restored vhost FD");
+        return -1;
+    }
+
+    ret = vhost_dev_init(&vvc->vhost_dev, (void *)(uintptr_t)vhostfd,
+                         VHOST_BACKEND_TYPE_KERNEL, 0, &local_err);
+    if (ret < 0) {
+        error_report_err(local_err);
+        return ret;
+    }
+
+    ret = vhost_vsock_set_guest_cid(vdev);
+    if (ret < 0) {
+        error_report("vhost-vsock: unable to set guest cid: %d", ret);
+        return ret;
+    }
+
+    return 0;
 }
 
 static const VMStateDescription vmstate_virtio_vhost_vsock = {
@@ -133,7 +228,7 @@ static const VMStateDescription vmstate_virtio_vhost_vsock = {
         VMSTATE_VIRTIO_DEVICE,
         VMSTATE_END_OF_LIST()
     },
-    .pre_save = vhost_vsock_common_pre_save,
+    .pre_save = vhost_vsock_pre_save,
     .post_load = vhost_vsock_post_load,
 };
 
@@ -144,6 +239,7 @@ static void vhost_vsock_device_realize(DeviceState *dev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostVSock *vsock = VHOST_VSOCK(dev);
     DeviceState *proxy = qdev_get_parent_bus(DEVICE(vsock))->parent;
+    bool cpr_incoming = cpr_is_incoming();
     int vhostfd;
     int ret;
 
@@ -172,7 +268,16 @@ static void vhost_vsock_device_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    if (cpr_is_incoming()) {
+    /*
+     * Re-acquire ownership if a CPR migration releases it (in pre_save) but
+     * then fails.
+     */
+    migration_add_notifier_modes(&vsock->cpr_notifier,
+                                 vhost_vsock_cpr_notifier,
+                                 BIT(MIG_MODE_CPR_TRANSFER) |
+                                 BIT(MIG_MODE_CPR_EXEC));
+
+    if (cpr_incoming) {
         /* Reuse the fd handed over from the source QEMU. */
         if (!proxy->id) {
             error_setg(errp, "vhost-vsock: device ID is required for "
@@ -205,14 +310,32 @@ static void vhost_vsock_device_realize(DeviceState *dev, Error **errp)
 
     vhost_vsock_common_realize(vdev);
 
-    ret = vhost_dev_init(&vvc->vhost_dev, (void *)(uintptr_t)vhostfd,
-                         VHOST_BACKEND_TYPE_KERNEL, 0, errp);
-    if (ret < 0) {
+    if (!cpr_incoming) {
+        ret = vhost_dev_init(&vvc->vhost_dev, (void *)(uintptr_t)vhostfd,
+                             VHOST_BACKEND_TYPE_KERNEL, 0, errp);
+        if (ret < 0) {
+            /*
+             * vhostfd is closed by vhost_dev_cleanup, which is called
+             * by vhost_dev_init on initialization error.
+             */
+            goto err_virtio;
+        }
+    } else {
         /*
-         * vhostfd is closed by vhost_dev_cleanup, which is called
-         * by vhost_dev_init on initialization error.
+         * CPR restore case: only learn the backend feature set now, but
+         * defer taking ownership or touching VQs (the still-running source
+         * might be using them).  The full vhost_dev_init()/VHOST_SET_OWNER
+         * is done later in post_load.
          */
-        goto err_virtio;
+        ret = vhost_dev_init_backend(&vvc->vhost_dev,
+                                     (void *)(uintptr_t)vhostfd,
+                                     VHOST_BACKEND_TYPE_KERNEL, errp);
+        if (ret < 0) {
+            /* vhost_dev_init_backend() does not close the fd on error */
+            goto err_vhost_dev;
+        }
+
+        return;
     }
 
     ret = vhost_vsock_set_guest_cid(vdev);
@@ -234,6 +357,7 @@ err_vhost_dev:
 err_virtio:
     vhost_vsock_common_unrealize(vdev);
 err_blocker:
+    migration_remove_notifier(&vsock->cpr_notifier);
     migrate_del_blocker(&vsock->migration_blocker);
 }
 
@@ -250,6 +374,7 @@ static void vhost_vsock_device_unrealize(DeviceState *dev)
     if (proxy->id) {
         cpr_delete_fd(proxy->id, 0);
     }
+    migration_remove_notifier(&vsock->cpr_notifier);
     migrate_del_blocker(&vsock->migration_blocker);
     vhost_dev_cleanup(&vvc->vhost_dev);
     vhost_vsock_common_unrealize(vdev);

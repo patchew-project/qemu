@@ -15,6 +15,7 @@
 #define QEMU_VHOST_VSOCK_H
 
 #include "hw/virtio/vhost-vsock-common.h"
+#include "qemu/notify.h"
 #include "qom/object.h"
 
 #define TYPE_VHOST_VSOCK "vhost-vsock-device"
@@ -30,6 +31,8 @@ struct VHostVSock {
     VHostVSockCommon parent;
     VHostVSockConf conf;
     Error *migration_blocker;   /* set when the device has no ID */
+    bool owner_reset;           /* CPR released ownership; needs re-acquire */
+    NotifierWithReturn cpr_notifier;   /* re-acquires ownership if CPR fails */
 
     /*< public >*/
 };
