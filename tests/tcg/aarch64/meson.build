@@ -1,8 +1,4 @@
-cc = find_program('aarch64-linux-gnu-gcc', required : false)
-
-if not cc.found()
-  subdir_done()
-endif
+cc = 'aarch64-linux-gnu-gcc'
 
 cc_feat_cflags = {
   'aes': '-march=armv8-a+aes',
