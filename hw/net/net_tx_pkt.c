@@ -274,11 +274,89 @@ static bool net_tx_pkt_parse_headers(struct NetTxPkt *pkt)
 
 static void net_tx_pkt_rebuild_payload(struct NetTxPkt *pkt)
 {
-    pkt->payload_len = iov_size(pkt->raw, pkt->raw_frags) - pkt->hdr_len;
+    size_t raw_payload_len = iov_size(pkt->raw, pkt->raw_frags) - pkt->hdr_len;
+    struct iovec *l2hdr = &pkt->vec[NET_TX_PKT_L2HDR_FRAG];
+    uint16_t l3_proto = eth_get_l3_proto(l2hdr, 1, l2hdr->iov_len);
+
+    /*
+     * payload_len tracks the IP-declared payload size. It is used by
+     * net_tx_pkt_update_ip_hdr_checksum() to rewrite ip_len and by the L4
+     * pseudo-header checksum helpers. It must NOT include Ethernet
+     * minimum-frame padding: if the guest sends a short frame (e.g. a pure
+     * TCP ACK of 54 bytes) padded to 60 bytes, iov_size() returns 60 but the
+     * IP header still reports the payload as 20 bytes. Using the inflated size
+     * would cause ip_len to be rewritten to include the padding, making the
+     * packet malformed on the receiver.
+     *
+     * Note: the actual iov_copy below still copies raw_payload_len bytes
+     * (the full wire payload including padding) into the payload fragments so
+     * the TAP receives a correctly-sized Ethernet frame. The receiver's IP
+     * stack uses ip_len to find the real payload boundary and ignores the
+     * trailing padding bytes, which is exactly how a real NIC behaves.
+     *
+     * IPv4: ip_len is the total length including the IP header.
+     * IPv6: ip6_plen is the payload length after the base 40-byte header
+     *       (extension headers are included in ip6_plen but also in
+     *       l3_hdr_len, so subtract them out).
+     */
+    if (l3_proto == ETH_P_IP) {
+        uint16_t ip_total_len = be16_to_cpu(pkt->l3_hdr.ip.ip_len);
+        size_t l3_hdr_len = pkt->vec[NET_TX_PKT_L3HDR_FRAG].iov_len;
+        /*
+         * Guard against ip_total_len that does not cover the IP header.
+         * Subtracting would underflow (both types unsigned), producing a
+         * huge payload_len.  Fall back to raw_payload_len in that case.
+         *
+         * Known trigger: some LSO/TSO implementations (e.g. ESXi e1000e
+         * driver) set ip_len=0 in the super-packet header as a placeholder
+         * when offloading segmentation to the NIC.  In that case
+         * raw_payload_len correctly reflects the full super-packet payload
+         * from the TX descriptors, and the TCP segmentation path does not
+         * rely on payload_len to drive the loop, so this is safe.
+         */
+        if (ip_total_len > l3_hdr_len) {
+            pkt->payload_len = MIN(raw_payload_len, ip_total_len - l3_hdr_len);
+        } else {
+            pkt->payload_len = raw_payload_len;
+        }
+    } else if (l3_proto == ETH_P_IPV6) {
+        uint16_t ip6_payload_len = be16_to_cpu(pkt->l3_hdr.ip6.ip6_plen);
+        size_t l3_hdr_len = pkt->vec[NET_TX_PKT_L3HDR_FRAG].iov_len;
+        size_t ext_hdr_len = l3_hdr_len - sizeof(struct ip6_header);
+        /*
+         * Guard against malformed packets where ip6_plen is zero or does
+         * not cover the extension headers that were already parsed. Without
+         * this check, the subtraction (ip6_payload_len - ext_hdr_len) would
+         * underflow (unsigned), producing a huge payload_len. Fall back to
+         * the raw iov_size value in that case.
+         */
+        if (ip6_payload_len > ext_hdr_len) {
+            pkt->payload_len = MIN(raw_payload_len,
+                                   ip6_payload_len - ext_hdr_len);
+        } else {
+            /*
+             * ip6_plen=0 is valid for IPv6 jumbograms (payload length
+             * carried in a Hop-by-Hop option), but QEMU does not support
+             * jumbograms so raw_payload_len is the best we can do.
+             * Also guards against malformed packets where ip6_plen is
+             * smaller than the extension headers already parsed.
+             */
+            pkt->payload_len = raw_payload_len;
+        }
+    } else {
+        pkt->payload_len = raw_payload_len;
+    }
+
+    /*
+     * Copy the full raw_payload_len bytes (including any Ethernet padding)
+     * so the wire frame sent to the TAP has the correct size.  payload_len
+     * (the IP-declared value set above) is used only for header/checksum
+     * operations; raw_payload_len preserves the original frame size.
+     */
     pkt->payload_frags = iov_copy(&pkt->vec[NET_TX_PKT_PL_START_FRAG],
                                 pkt->max_payload_frags,
                                 pkt->raw, pkt->raw_frags,
-                                pkt->hdr_len, pkt->payload_len);
+                                pkt->hdr_len, raw_payload_len);
 }
 
 bool net_tx_pkt_parse(struct NetTxPkt *pkt)
@@ -428,7 +506,14 @@ size_t net_tx_pkt_get_total_len(struct NetTxPkt *pkt)
 {
     assert(pkt);
 
-    return pkt->hdr_len + pkt->payload_len;
+    /*
+     * Use the raw iov size rather than hdr_len + payload_len.  payload_len
+     * reflects the IP-declared payload length (excluding any Ethernet minimum-
+     * frame padding), so hdr_len + payload_len would under-count for short
+     * frames.  pkt->raw always holds the exact bytes that arrived from the
+     * guest TX descriptors, padding included, giving the true wire size.
+     */
+    return iov_size(pkt->raw, pkt->raw_frags);
 }
 
 void net_tx_pkt_dump(struct NetTxPkt *pkt)
