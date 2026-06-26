@@ -737,6 +737,8 @@ static int get_physical_address(CPUM68KState *env, hwaddr *physical,
     uint32_t next;
     target_ulong page_mask;
     bool debug = access_type & ACCESS_DEBUG;
+    bool writeprot = false;
+    uint32_t ptest_sr;
     int page_bits;
     int i;
     MemTxResult txres;
@@ -756,7 +758,7 @@ static int get_physical_address(CPUM68KState *env, hwaddr *physical,
     }
 
     /* Page Table Root Pointer */
-    *prot = PAGE_READ | PAGE_WRITE;
+    *prot = PAGE_READ;
     if (access_type & ACCESS_CODE) {
         *prot |= PAGE_EXEC;
     }
@@ -787,7 +789,7 @@ static int get_physical_address(CPUM68KState *env, hwaddr *physical,
         if (access_type & ACCESS_PTEST) {
             env->mmu.mmusr |= M68K_MMU_WP_040;
         }
-        *prot &= ~PAGE_WRITE;
+        writeprot = true;
         if (access_type & ACCESS_STORE) {
             return -1;
         }
@@ -814,7 +816,7 @@ static int get_physical_address(CPUM68KState *env, hwaddr *physical,
         if (access_type & ACCESS_PTEST) {
             env->mmu.mmusr |= M68K_MMU_WP_040;
         }
-        *prot &= ~PAGE_WRITE;
+        writeprot = true;
         if (access_type & ACCESS_STORE) {
             return -1;
         }
@@ -842,10 +844,12 @@ static int get_physical_address(CPUM68KState *env, hwaddr *physical,
             goto txfail;
         }
     }
+    ptest_sr = next & M68K_MMU_SR_MASK_040;
     if (access_type & ACCESS_STORE) {
         if (next & M68K_DESC_WRITEPROT) {
             if (!(next & M68K_DESC_USED) && !debug) {
-                address_space_stl(cs->as, entry, next | M68K_DESC_USED,
+                next |= M68K_DESC_USED;
+                address_space_stl(cs->as, entry, next,
                                   MEMTXATTRS_UNSPECIFIED, &txres);
                 if (txres != MEMTX_OK) {
                     goto txfail;
@@ -853,8 +857,8 @@ static int get_physical_address(CPUM68KState *env, hwaddr *physical,
             }
         } else if ((next & (M68K_DESC_MODIFIED | M68K_DESC_USED)) !=
                            (M68K_DESC_MODIFIED | M68K_DESC_USED) && !debug) {
-            address_space_stl(cs->as, entry,
-                              next | (M68K_DESC_MODIFIED | M68K_DESC_USED),
+            next |= M68K_DESC_MODIFIED | M68K_DESC_USED;
+            address_space_stl(cs->as, entry, next,
                               MEMTXATTRS_UNSPECIFIED, &txres);
             if (txres != MEMTX_OK) {
                 goto txfail;
@@ -862,7 +866,8 @@ static int get_physical_address(CPUM68KState *env, hwaddr *physical,
         }
     } else {
         if (!(next & M68K_DESC_USED) && !debug) {
-            address_space_stl(cs->as, entry, next | M68K_DESC_USED,
+            next |= M68K_DESC_USED;
+            address_space_stl(cs->as, entry, next,
                               MEMTXATTRS_UNSPECIFIED, &txres);
             if (txres != MEMTX_OK) {
                 goto txfail;
@@ -880,21 +885,26 @@ static int get_physical_address(CPUM68KState *env, hwaddr *physical,
     *physical = (next & page_mask) + (address & (*page_size - 1));
 
     if (access_type & ACCESS_PTEST) {
-        env->mmu.mmusr |= next & M68K_MMU_SR_MASK_040;
+        env->mmu.mmusr |= ptest_sr;
         env->mmu.mmusr |= *physical & 0xfffff000;
         env->mmu.mmusr |= M68K_MMU_R_040;
     }
 
     if (next & M68K_DESC_WRITEPROT) {
-        *prot &= ~PAGE_WRITE;
+        writeprot = true;
         if (access_type & ACCESS_STORE) {
             return -1;
         }
     }
+
     if (next & M68K_DESC_SUPERONLY) {
         if ((access_type & ACCESS_SUPER) == 0) {
             return -1;
         }
+    }
+
+    if (!writeprot && (next & M68K_DESC_MODIFIED)) {
+        *prot |= PAGE_WRITE;
     }
 
     return 0;
