@@ -126,6 +126,7 @@ endforeach
 subdir('aarch64')
 
 image_targets = {}
+exe_targets = []
 # Finally, we can create all test executables and test targets
 foreach target, plan: tcg_tests
   if target.startswith('multiarch-')
@@ -312,6 +313,7 @@ foreach target, plan: tcg_tests
                             depends: build_test_depends,
                             depend_files: build_test_depend_files,
                             build_by_default: cc_from_system)
+        exe_targets += exe
         built_tests += {exe_name: exe}
       endif
 
@@ -393,3 +395,8 @@ foreach target, plan: tcg_tests
     endforeach
   endforeach
 endforeach
+
+if exe_targets.length() > 0
+  # finally create a top level target to rebuild all tests
+  alias_target('tcg-tests', exe_targets)
+endif
