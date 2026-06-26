@@ -51,6 +51,9 @@ endif
 
 tests = []
 
+# Multi arch tests
+tests += tcg_tests['multiarch-linux-user']['tests']
+
 # Base architecture tests
 tests += {
   '../arm/fcvt.c': {'cflags': '-lm', 'expected_output': 'fcvt.ref'},
@@ -136,11 +139,29 @@ tests += {'sysregs.c': {}}
 # Crypto Tests
 tests += {'test-aes.c': {'cflags': feat_cflags['aes']}}
 
+# Vector SHA1
+# Work around compiler false-positive warning, as we do for the 'sha1' test
+tests += {'../multiarch/sha1.c': {
+            'exe_name': 'sha1-vector',
+            'cflags': ['-O3', '-Wno-stringop-overread'],
+            'expected_output': '../multiarch/sha1.ref',
+         }}
+
+# Vector versions of sha512 (-O3 triggers vectorisation)
+tests += {'../multiarch/sha512.c': {
+            'exe_name': 'sha512-vector',
+            'cflags': ['-O3'],
+         }}
+
 # SVE Tests
 if cc_has_feat['sve']
   f = feat_cflags['sve']
   tests += {
     'sve-ioctls.c': {'cflags': f},
+    '../multiarch/sha512.c': {
+       'exe_name': 'sha512-sve',
+       'cflags': f,
+    },
     'sve-str.c': {'cflags': [f, '-O1']},
   }
 endif
@@ -203,6 +224,18 @@ if cc_has_feat['mte'] and gdb_has_feat['mte']
     }
   }
 endif
+
+# Semihosting tests
+# Add -I path for semicall.h
+semihosting_cflags = ['-I', meson.current_source_dir()]
+
+tests += {
+  '../multiarch/arm-compat-semi/semiconsole.c': {
+    'cflags': semihosting_cflags,
+    'wrapper': [prog_run_with_input, 'X'],
+  },
+  '../multiarch/arm-compat-semi/semihosting.c': {'cflags': semihosting_cflags},
+}
 
 tcg_tests += {
   'aarch64-linux-user': {
