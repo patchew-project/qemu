@@ -90,6 +90,7 @@ tests += {
 tcg_tests += {
   'aarch64-softmmu': {
     'cc': cc,
+    'cc_dockerfile': cc_dockerfile,
     'cc_feat_cflags': cc_feat_cflags,
     'folder': 'aarch64/system',
     'gdb_arch': 'aarch64',
