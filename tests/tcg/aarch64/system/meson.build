@@ -33,15 +33,14 @@ foreach t: tcg_tests['multiarch-softmmu']['tests']
   endforeach
 endforeach
 
-if cc_has_feat['sve']
-  tests += {
-    '../../multiarch/system/memory.c': {
-      'exe_name': 'memory-sve',
-      'cflags': [cflags, feat_cflags['sve'], '-DCHECK_UNALIGNED=1', '-O3'],
-      'qemu_args': qemu_def_args,
-    },
-  }
-endif
+tests += {
+  '../../multiarch/system/memory.c': {
+    'exe_name': 'memory-sve',
+    'cc_feat': 'sve',
+    'cflags': [cflags, '-DCHECK_UNALIGNED=1', '-O3'],
+    'qemu_args': qemu_def_args,
+  },
+}
 
 tests += {
   'asid2.c': {'cflags': cflags, 'qemu_args': qemu_def_args},
@@ -70,30 +69,31 @@ tests += {
   },
 }
 
-if cc_has_feat['v8.3']
-  tests += {
-    'pauth-3.c': {
-      'cflags': [feat_cflags['v8.3'], cflags],
-      'qemu_args': ['-M', 'virt', '-cpu', 'max,pauth-qarma5=on', qemu_base_args],
-    }
+tests += {
+  'pauth-3.c': {
+    'cc_feat': 'v8.3',
+    'cflags': cflags,
+    'qemu_args': ['-M', 'virt', '-cpu', 'max,pauth-qarma5=on', qemu_base_args],
   }
-endif
+}
 
-if cc_has_feat['mte'] and gdb_has_feat['mte-baremetal']
-  tests += {
-    'mte.S': {
-      'cflags': [feat_cflags['mte'], cflags],
-      'qemu_args': ['-M', 'virt,mte=on', '-cpu', 'max', qemu_base_args],
-      'gdb_test': ['--test', files('../gdbstub/test-mte.py'), '--', '--mode=system'],
-    }
+tests += {
+  'mte.S': {
+    'cc_feat': 'mte',
+    'cflags': cflags,
+    'qemu_args': ['-M', 'virt,mte=on', '-cpu', 'max', qemu_base_args],
+    'gdb_test': ['--test', files('../gdbstub/test-mte.py'), '--', '--mode=system'],
+    'gdb_feat': 'mte-baremetal',
   }
-endif
+}
 
 tcg_tests += {
   'aarch64-softmmu': {
     'cc': cc,
+    'cc_feat_cflags': cc_feat_cflags,
     'folder': 'aarch64/system',
     'gdb_arch': 'aarch64',
+    'gdb_feat_version': gdb_feat_version,
     'qemu': emulators['qemu-system-aarch64'],
     'tests': tests,
   }
