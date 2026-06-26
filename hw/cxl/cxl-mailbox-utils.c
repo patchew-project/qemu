@@ -4770,6 +4770,8 @@ void cxl_init_cci(CXLCCI *cci, size_t payload_max)
 
 void cxl_destroy_cci(CXLCCI *cci)
 {
+    timer_free(cci->bg.timer);
+    cci->bg.timer = NULL;
     qemu_mutex_destroy(&cci->bg.lock);
     cci->initialized = false;
 }
