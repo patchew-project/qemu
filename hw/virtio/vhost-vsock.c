@@ -161,20 +161,17 @@ static void vhost_vsock_device_realize(DeviceState *dev, Error **errp)
             error_prepend(errp, "vhost-vsock: unable to parse vhostfd: ");
             return;
         }
-
-        if (!qemu_set_blocking(vhostfd, false, errp)) {
-            return;
-        }
     } else {
         vhostfd = open("/dev/vhost-vsock", O_RDWR);
         if (vhostfd < 0) {
             error_setg_file_open(errp, errno, "/dev/vhost-vsock");
             return;
         }
+    }
 
-        if (!qemu_set_blocking(vhostfd, false, errp)) {
-            return;
-        }
+    if (!qemu_set_blocking(vhostfd, false, errp)) {
+        close(vhostfd);
+        return;
     }
 
     vhost_vsock_common_realize(vdev);
