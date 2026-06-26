@@ -1340,6 +1340,7 @@ static void virtio_snd_reset(VirtIODevice *vdev)
 {
     VirtIOSound *vsnd = VIRTIO_SND(vdev);
     virtio_snd_ctrl_command *cmd;
+    uint32_t i;
 
     /*
      * Sanity check that the invalid buffer message queue is emptied at the end
@@ -1352,6 +1353,16 @@ static void virtio_snd_reset(VirtIODevice *vdev)
         cmd = QTAILQ_FIRST(&vsnd->cmdq);
         QTAILQ_REMOVE(&vsnd->cmdq, cmd, next);
         virtio_snd_ctrl_cmd_free(cmd);
+    }
+
+    for (i = 0; i < vsnd->snd_conf.streams; i++) {
+        VirtIOSoundPCMStream *stream = &vsnd->streams[i];
+        VirtIOSoundPCMBuffer *buffer;
+
+        while ((buffer = QSIMPLEQ_FIRST(&stream->queue))) {
+            QSIMPLEQ_REMOVE_HEAD(&stream->queue, entry);
+            virtio_snd_pcm_buffer_free(buffer);
+        }
     }
 }
 
