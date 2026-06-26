@@ -325,22 +325,30 @@ typedef struct CPUSysState {
     uint64_t CSR_MISC;
     uint64_t CSR_ECFG;
     uint64_t CSR_ESTAT;
+    uint64_t CSR_PGDL;
+    uint64_t CSR_PGDH;
+    uint64_t CSR_EENTRY;
+    uint64_t CSR_PWCH;
+    uint64_t CSR_RVACFG;
+    uint64_t CSR_TLBRENTRY;
+    uint64_t CSR_MERRENTRY;
+    /* Msg interrupt registers */
+    uint64_t CSR_MSGIS[N_MSGIS];
+
+    /* Fields up to this point are cleared by a CPU reset */
+    struct {} end_reset_fields;
+
     uint64_t CSR_ERA;
     uint64_t CSR_BADV;
     uint64_t CSR_BADI;
-    uint64_t CSR_EENTRY;
     uint64_t CSR_TLBIDX;
     uint64_t CSR_TLBEHI;
     uint64_t CSR_TLBELO0;
     uint64_t CSR_TLBELO1;
     uint64_t CSR_ASID;
-    uint64_t CSR_PGDL;
-    uint64_t CSR_PGDH;
     uint64_t CSR_PGD;
     uint64_t CSR_PWCL;
-    uint64_t CSR_PWCH;
     uint64_t CSR_STLBPS;
-    uint64_t CSR_RVACFG;
     uint64_t CSR_CPUID;
     uint64_t CSR_PRCFG1;
     uint64_t CSR_PRCFG2;
@@ -354,7 +362,6 @@ typedef struct CPUSysState {
     uint64_t CSR_LLBCTL;
     uint64_t CSR_IMPCTL1;
     uint64_t CSR_IMPCTL2;
-    uint64_t CSR_TLBRENTRY;
     uint64_t CSR_TLBRBADV;
     uint64_t CSR_TLBRERA;
     uint64_t CSR_TLBRSAVE;
@@ -365,7 +372,6 @@ typedef struct CPUSysState {
     uint64_t CSR_MERRCTL;
     uint64_t CSR_MERRINFO1;
     uint64_t CSR_MERRINFO2;
-    uint64_t CSR_MERRENTRY;
     uint64_t CSR_MERRERA;
     uint64_t CSR_MERRSAVE;
     uint64_t CSR_CTAG;
@@ -375,8 +381,6 @@ typedef struct CPUSysState {
     uint64_t CSR_DBG;
     uint64_t CSR_DERA;
     uint64_t CSR_DSAVE;
-    /* Msg interrupt registers */
-    uint64_t CSR_MSGIS[N_MSGIS];
     uint64_t CSR_MSGIR;
     uint64_t CSR_MSGIE;
 } CPUSysState;
