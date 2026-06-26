@@ -17,6 +17,32 @@ qemu_base_args = ['-display', 'none',
                   '-kernel']
 qemu_def_args = ['-M', 'virt', '-cpu', 'max', qemu_base_args]
 
+# Multi arch tests - add cflags only once per src
+multi_src = []
+foreach t: tcg_tests['multiarch-softmmu']['tests']
+  foreach src, setup: t
+    new_cflags = cflags
+    if fs.stem(src) == 'memory'
+      new_cflags += '-DCHECK_UNALIGNED=1'
+    endif
+    if src not in multi_src
+      setup += {'cflags': [new_cflags]}
+      multi_src += src
+    endif
+    tests += {src: setup + {'qemu_args': qemu_def_args}}
+  endforeach
+endforeach
+
+if cc_has_feat['sve']
+  tests += {
+    '../../multiarch/system/memory.c': {
+      'exe_name': 'memory-sve',
+      'cflags': [cflags, feat_cflags['sve'], '-DCHECK_UNALIGNED=1', '-O3'],
+      'qemu_args': qemu_def_args,
+    },
+  }
+endif
+
 tests += {
   'asid2.c': {'cflags': cflags, 'qemu_args': qemu_def_args},
   'feat-xs.c': {'cflags': cflags, 'qemu_args': qemu_def_args},
@@ -29,6 +55,11 @@ tests += {
                   '-mon', 'chardev=stdio0,mode=readline',
                   qemu_def_args],
     'wrapper': [prog_run_with_input, 'X']
+  },
+  '../../multiarch/system/memory.c': {
+    'test_name': 'memory-record-replay',
+    'qemu_args': qemu_def_args,
+    'wrapper': [prog_record_replay],
   },
   'vtimer.c': {
     'cflags': cflags,
