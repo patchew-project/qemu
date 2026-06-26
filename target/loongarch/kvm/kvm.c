@@ -714,9 +714,6 @@ static int kvm_loongarch_get_cpucfg(CPUState *cs)
 
     for (i = 0; i < 21; i++) {
         ret = kvm_get_one_reg(cs, KVM_IOC_CPUCFG(i), &val);
-        if (ret < 0) {
-            trace_kvm_failed_get_cpucfg(strerror(errno));
-        }
         env->cpucfg[i] = (uint32_t)val;
     }
     return ret;
@@ -777,9 +774,6 @@ static int kvm_loongarch_put_cpucfg(CPUState *cs)
 	}
         val = env->cpucfg[i];
         ret = kvm_set_one_reg(cs, KVM_IOC_CPUCFG(i), &val);
-        if (ret < 0) {
-            trace_kvm_failed_put_cpucfg(strerror(errno));
-        }
     }
     return ret;
 }
