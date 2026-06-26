@@ -340,6 +340,21 @@ SRST
     Show guest USB devices.
 ERST
 
+#if defined(CONFIG_NVME_PCI)
+    {
+        .name       = "nvme",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show emulated NVMe controllers",
+        .cmd_info_hrt = qmp_x_query_nvme,
+    },
+#endif
+
+SRST
+  ``info nvme``
+    Show emulated NVMe controllers.
+ERST
+
     {
         .name       = "usbhost",
         .args_type  = "",
