@@ -21,6 +21,8 @@
 #include "hw/virtio/vhost-vsock.h"
 #include "monitor/monitor.h"
 #include "migration/cpr.h"
+#include "migration/blocker.h"
+#include "migration/misc.h"
 
 static void vhost_vsock_get_config(VirtIODevice *vdev, uint8_t *config)
 {
@@ -141,6 +143,7 @@ static void vhost_vsock_device_realize(DeviceState *dev, Error **errp)
     VHostVSockCommon *vvc = VHOST_VSOCK_COMMON(dev);
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostVSock *vsock = VHOST_VSOCK(dev);
+    DeviceState *proxy = qdev_get_parent_bus(DEVICE(vsock))->parent;
     int vhostfd;
     int ret;
 
@@ -155,23 +158,49 @@ static void vhost_vsock_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (vsock->conf.vhostfd) {
+    /*
+     * Having a unique ID is mandatory for FD preservation during CPR
+     * migration, thus we add migration blockers for CPR modes.
+     */
+    if (!proxy->id) {
+        error_setg(&vsock->migration_blocker,
+                   "vhost-vsock: device ID is required for CPR migration");
+        if (migrate_add_blocker_modes(&vsock->migration_blocker,
+                                      BIT(MIG_MODE_CPR_TRANSFER) |
+                                      BIT(MIG_MODE_CPR_EXEC), errp) < 0) {
+            return;
+        }
+    }
+
+    if (cpr_is_incoming()) {
+        /* Reuse the fd handed over from the source QEMU. */
+        if (!proxy->id) {
+            error_setg(errp, "vhost-vsock: device ID is required for "
+                       "CPR migration");
+            goto err_blocker;
+        }
+        vhostfd = cpr_find_fd(proxy->id, 0);
+        if (vhostfd < 0) {
+            error_setg(errp, "vhost-vsock: could not find restored vhost FD");
+            goto err_blocker;
+        }
+    } else if (vsock->conf.vhostfd) {
         vhostfd = monitor_fd_param(monitor_cur(), vsock->conf.vhostfd, errp);
         if (vhostfd == -1) {
             error_prepend(errp, "vhost-vsock: unable to parse vhostfd: ");
-            return;
+            goto err_blocker;
         }
     } else {
         vhostfd = open("/dev/vhost-vsock", O_RDWR);
         if (vhostfd < 0) {
             error_setg_file_open(errp, errno, "/dev/vhost-vsock");
-            return;
+            goto err_blocker;
         }
     }
 
     if (!qemu_set_blocking(vhostfd, false, errp)) {
         close(vhostfd);
-        return;
+        goto err_blocker;
     }
 
     vhost_vsock_common_realize(vdev);
@@ -192,6 +221,11 @@ static void vhost_vsock_device_realize(DeviceState *dev, Error **errp)
         goto err_vhost_dev;
     }
 
+    /* Register the fd for a future CPR after a fully successful realize */
+    if (proxy->id) {
+        cpr_save_fd(proxy->id, 0, vhostfd);
+    }
+
     return;
 
 err_vhost_dev:
@@ -199,16 +233,24 @@ err_vhost_dev:
     vhost_dev_cleanup(&vvc->vhost_dev);
 err_virtio:
     vhost_vsock_common_unrealize(vdev);
+err_blocker:
+    migrate_del_blocker(&vsock->migration_blocker);
 }
 
 static void vhost_vsock_device_unrealize(DeviceState *dev)
 {
     VHostVSockCommon *vvc = VHOST_VSOCK_COMMON(dev);
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VHostVSock *vsock = VHOST_VSOCK(dev);
+    DeviceState *proxy = qdev_get_parent_bus(dev)->parent;
 
     /* This will stop vhost backend if appropriate. */
     vhost_vsock_set_status(vdev, 0);
 
+    if (proxy->id) {
+        cpr_delete_fd(proxy->id, 0);
+    }
+    migrate_del_blocker(&vsock->migration_blocker);
     vhost_dev_cleanup(&vvc->vhost_dev);
     vhost_vsock_common_unrealize(vdev);
 }
