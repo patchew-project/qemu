@@ -176,6 +176,19 @@ int vhost_dev_init_backend(struct vhost_dev *hdev, void *opaque,
                            VhostBackendType backend_type, Error **errp);
 
 /**
+ * vhost_dev_set_owner() / vhost_dev_reset_owner() - take / release ownership
+ * @hdev: the common vhost_dev structure
+ *
+ * Take (VHOST_SET_OWNER) or release (VHOST_RESET_OWNER) ownership of a
+ * device that has already been set up.  Used to hand a device over during
+ * CPR.  Returns -ENOSYS if the backend has no such op.
+ *
+ * Return: 0 on success, negative errno on failure.
+ */
+int vhost_dev_set_owner(struct vhost_dev *hdev);
+int vhost_dev_reset_owner(struct vhost_dev *hdev);
+
+/**
  * vhost_dev_cleanup() - tear down and cleanup vhost interface
  * @hdev: the common vhost_dev structure
  */
