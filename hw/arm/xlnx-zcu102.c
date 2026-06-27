@@ -26,6 +26,7 @@
 #include "system/device_tree.h"
 #include "qom/object.h"
 #include "net/can_emu.h"
+#include <libfdt.h>
 
 struct XlnxZCU102 {
     MachineState parent_obj;
@@ -43,6 +44,112 @@ struct XlnxZCU102 {
 #define TYPE_ZCU102_MACHINE   MACHINE_TYPE_NAME("xlnx-zcu102")
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxZCU102, ZCU102_MACHINE)
 
+static bool zcu102_fdt_get_phandle(void *fdt, const char *node_path,
+                                   uint32_t *phandle)
+{
+    int offset;
+
+    offset = fdt_path_offset(fdt, node_path);
+    if (offset < 0) {
+        return false;
+    }
+
+    *phandle = fdt_get_phandle(fdt, offset);
+    return *phandle != 0;
+}
+
+static void zcu102_fdt_nop_prop(void *fdt, const char *node_path,
+                                const char *prop)
+{
+    int ret;
+    int offset;
+
+    offset = fdt_path_offset(fdt, node_path);
+    if (offset < 0) {
+        return;
+    }
+
+    ret = fdt_nop_property(fdt, offset, prop);
+    if (ret < 0 && ret != -FDT_ERR_NOTFOUND) {
+        error_report("%s: Couldn't nop %s/%s: %s", __func__, node_path,
+                     prop, fdt_strerror(ret));
+        exit(1);
+    }
+}
+
+static void zcu102_fdt_fixup_clocks(void *fdt, const char *node_path,
+                                    uint32_t phandle)
+{
+    if (fdt_path_offset(fdt, node_path) < 0) {
+        return;
+    }
+
+    qemu_fdt_setprop_cells(fdt, node_path, "clocks", phandle, phandle);
+}
+
+static void zcu102_fdt_fixup_qemu_direct_boot_nodes(void *fdt)
+{
+    uint32_t pss_ref_clk;
+    int i, j;
+
+    static const char * const provider_props[] = {
+        "power-domains",
+        "resets",
+        "assigned-clocks",
+        "assigned-clock-rates",
+        "assigned-clock-parents",
+        "pinctrl-names",
+        "pinctrl-0",
+    };
+    static const char * const direct_boot_nodes[] = {
+        "/axi/serial@ff000000",
+        "/axi/serial@ff010000",
+        "/axi/mmc@ff170000",
+        "/axi/spi@ff0f0000",
+    };
+
+    /*
+     * The Linux ZCU102 DTB inherits these boot-critical nodes from
+     * arch/arm64/boot/dts/xilinx/zynqmp.dtsi:
+     *
+     *   uart0: serial@ff000000
+     *   uart1: serial@ff010000
+     *   sdhci1: mmc@ff170000
+     *   qspi: spi@ff0f0000
+     *
+     * zynqmp.dtsi, zynqmp-clk-ccf.dtsi and zynqmp-zcu102-revA.dts
+     * wire them to PM firmware-backed clock, reset and pinctrl providers.
+     * Linux reaches that firmware through zynqmp_pm_invoke_fn() in
+     * drivers/firmware/xilinx/zynqmp-core.c; examples include
+     * zynqmp_pm_query_data() for drivers/clk/zynqmp/clkc.c,
+     * zynqmp_pm_reset_assert() for drivers/reset/reset-zynqmp.c, and
+     * zynqmp_pm_pinctrl_request() for drivers/pinctrl/pinctrl-zynqmp.c.
+     *
+     * Direct kernel boot has no PM firmware stage for those calls. Bypass the
+     * firmware-backed providers for just these nodes and describe their clocks
+     * as fixed inputs, avoiding a QEMU model of the runtime PM firmware.
+     *
+     * The Linux ZynqMP clock description defines pss-ref-clk as a 33.333333 MHz
+     * fixed clock with #clock-cells = <0>. Use it as a conservative direct-boot
+     * fallback for both clock inputs of these devices. That satisfies the
+     * existing two clock-names entries while keeping the DTB independent from
+     * the firmware-backed ZynqMP clock controller.
+     */
+    if (!zcu102_fdt_get_phandle(fdt, "/pss-ref-clk", &pss_ref_clk)) {
+        return;
+    }
+
+    for (i = 0; i < ARRAY_SIZE(direct_boot_nodes); i++) {
+        for (j = 0; j < ARRAY_SIZE(provider_props); j++) {
+            zcu102_fdt_nop_prop(fdt, direct_boot_nodes[i], provider_props[j]);
+        }
+    }
+
+    zcu102_fdt_fixup_clocks(fdt, "/axi/serial@ff000000", pss_ref_clk);
+    zcu102_fdt_fixup_clocks(fdt, "/axi/serial@ff010000", pss_ref_clk);
+    zcu102_fdt_fixup_clocks(fdt, "/axi/mmc@ff170000", pss_ref_clk);
+    zcu102_fdt_fixup_clocks(fdt, "/axi/spi@ff0f0000", pss_ref_clk);
+}
 
 static bool zcu102_get_secure(Object *obj, Error **errp)
 {
@@ -98,6 +205,8 @@ static void zcu102_modify_dtb(const struct arm_boot_info *binfo, void *fdt)
         }
         g_strfreev(node_path);
     }
+
+    zcu102_fdt_fixup_qemu_direct_boot_nodes(fdt);
 }
 
 static void bbram_attach_drive(XlnxBBRam *dev)
