@@ -717,14 +717,27 @@ e1000e_process_tx_desc(E1000ECore *core,
     }
 
     if (eop) {
-        if (!tx->skip_cp && net_tx_pkt_parse(tx->tx_pkt)) {
-            if (e1000x_vlan_enabled(core->mac) &&
-                e1000x_is_vlan_txd(txd_lower)) {
-                net_tx_pkt_setup_vlan_header_ex(tx->tx_pkt,
-                    le16_to_cpu(dp->upper.fields.special), core->mac[VET]);
+        if (!tx->skip_cp) {
+            if (tx->props.tse && tx->cptse) {
+                /*
+                 * Per 82574 §7.3.4, ip_len is zero in TSO super-packets.
+                 * Pre-set payload_len before parse so
+                 * net_tx_pkt_rebuild_payload() preserves it (case 3).
+                 *   L4 header length = hdr_len − tucss
+                 *   L4 data          = paylen
+                 */
+                net_tx_pkt_set_payload_len(tx->tx_pkt,
+                    tx->props.paylen + tx->props.hdr_len - tx->props.tucss);
             }
-            if (e1000e_tx_pkt_send(core, tx, queue_index)) {
-                e1000e_on_tx_done_update_stats(core, tx->tx_pkt);
+            if (net_tx_pkt_parse(tx->tx_pkt)) {
+                if (e1000x_vlan_enabled(core->mac) &&
+                    e1000x_is_vlan_txd(txd_lower)) {
+                    net_tx_pkt_setup_vlan_header_ex(tx->tx_pkt,
+                        le16_to_cpu(dp->upper.fields.special), core->mac[VET]);
+                }
+                if (e1000e_tx_pkt_send(core, tx, queue_index)) {
+                    e1000e_on_tx_done_update_stats(core, tx->tx_pkt);
+                }
             }
         }
 

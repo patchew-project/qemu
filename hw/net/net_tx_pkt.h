@@ -134,6 +134,20 @@ bool net_tx_pkt_update_sctp_checksum(struct NetTxPkt *pkt);
 size_t net_tx_pkt_get_total_len(struct NetTxPkt *pkt);
 
 /**
+ * pre-set the payload length before net_tx_pkt_parse()
+ *
+ * Devices that carry an authoritative payload length in a hardware context
+ * descriptor (e.g. e1000e PAYLEN for TSO) should call this before
+ * net_tx_pkt_parse().  net_tx_pkt_rebuild_payload() will then skip its
+ * ip_len=0 fallback and preserve this value.
+ *
+ * @pkt:            packet
+ * @payload_len:    IP payload length (L4 header + L4 data)
+ *
+ */
+void net_tx_pkt_set_payload_len(struct NetTxPkt *pkt, uint32_t payload_len);
+
+/**
  * get packet type
  *
  * @pkt:            packet
