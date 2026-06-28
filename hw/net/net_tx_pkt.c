@@ -102,6 +102,23 @@ void net_tx_pkt_update_ip_hdr_checksum(struct NetTxPkt *pkt)
     pkt->l3_hdr.ip.ip_sum = cpu_to_be16(csum);
 }
 
+void net_tx_pkt_update_ip_hdr_checksum_only(struct NetTxPkt *pkt)
+{
+    uint16_t csum;
+    assert(pkt);
+
+    /*
+     * Recompute the IP header checksum without touching ip_len.
+     * Used for non-TSO packets where the guest already set ip_len
+     * correctly; overwriting it would inflate it by any Ethernet
+     * minimum-frame padding present in payload_len.
+     */
+    pkt->l3_hdr.ip.ip_sum = 0;
+    csum = net_raw_checksum(pkt->l3_hdr.octets,
+        pkt->vec[NET_TX_PKT_L3HDR_FRAG].iov_len);
+    pkt->l3_hdr.ip.ip_sum = cpu_to_be16(csum);
+}
+
 void net_tx_pkt_update_ip_checksums(struct NetTxPkt *pkt)
 {
     uint16_t csum;

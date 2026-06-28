@@ -614,7 +614,13 @@ e1000e_setup_tx_offloads(E1000ECore *core, struct e1000e_tx *tx)
     }
 
     if (tx->sum_needed & E1000_TXD_POPTS_IXSM) {
-        net_tx_pkt_update_ip_hdr_checksum(tx->tx_pkt);
+        /*
+         * Guest already set ip_len correctly; only recompute the checksum.
+         * net_tx_pkt_update_ip_hdr_checksum() would overwrite ip_len with
+         * payload_len + l3_hdr_len, inflating it by any Ethernet
+         * minimum-frame padding bytes present in payload_len.
+         */
+        net_tx_pkt_update_ip_hdr_checksum_only(tx->tx_pkt);
     }
 
     return true;

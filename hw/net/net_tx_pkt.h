@@ -134,6 +134,19 @@ bool net_tx_pkt_update_sctp_checksum(struct NetTxPkt *pkt);
 size_t net_tx_pkt_get_total_len(struct NetTxPkt *pkt);
 
 /**
+ * recompute the IPv4 header checksum without modifying ip_len
+ *
+ * Use for non-TSO packets where the guest already set ip_len correctly.
+ * Calling net_tx_pkt_update_ip_hdr_checksum() instead would overwrite
+ * ip_len with payload_len + l3_hdr_len, inflating it by any Ethernet
+ * minimum-frame padding present in payload_len.
+ *
+ * @pkt:            packet
+ *
+ */
+void net_tx_pkt_update_ip_hdr_checksum_only(struct NetTxPkt *pkt);
+
+/**
  * get packet type
  *
  * @pkt:            packet
