@@ -49,15 +49,34 @@ Here are some useful tips in order to use gdb on system code:
 Breakpoint and Watchpoint support
 =================================
 
-While GDB can always fall back to inserting breakpoints into memory
-(if writable) other features are very much dependent on support of the
-accelerator. For TCG system emulation we advertise an infinite number
-of hardware assisted breakpoints and watchpoints. For other
-accelerators it will depend on if support has been added (see
-supports_guest_debug and related hooks in AccelOpsClass).
+GDB supports two types of breakpoint - software and hardware. Software
+breakpoints are simply implemented by writing the architecture's
+breakpoint instruction into memory. Hardware breakpoints are less
+invasive but rely on the support from the architecture which will
+usually only be able to track a limited number of breakpoints at once.
+Each accelerator will also need to specifically support enabling these
+hardware features.
 
-As TCG cannot track all memory accesses in user-mode there is no
-support for watchpoints.
+.. warning::
+
+  Software breakpoints may fail if the memory is not yet accessible,
+  or the guest code is not yet at that address, for example during
+  early Linux kernel boot before the MMU is enabled or before the
+  kernel has relocated itself. In such cases, you should use
+  hardware-assisted breakpoints (e.g., ``hbreak`` in GDB) which do not
+  require memory access.
+
+Watchpoints allow the debugger to watch for reads and writes to
+various memory locations. The number of watchpoints available will be
+a depend on the architecture and support of the accelerator.
+
+.. note::
+
+  If you are using the TCG accelerator, there is no limit on the
+  number of hardware breakpoints or watchpoints, and QEMU handles
+  requests for both software and hardware breakpoints identically,
+  as if they were hardware breakpoints.
+
 
 Relocating code
 ===============
