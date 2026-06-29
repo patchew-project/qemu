@@ -311,8 +311,8 @@ static void pca955x_get_led(Object *obj, Visitor *v, const char *name,
         error_setg(errp, "%s: error reading %s", __func__, name);
         return;
     }
-    if (led < 0 || led > k->pin_count) {
-        error_setg(errp, "%s invalid led %s", __func__, name);
+    if (led < 0 || led >= k->pin_count) {
+        error_setg(errp, "%s: invalid led %s", __func__, name);
         return;
     }
     /*
@@ -352,8 +352,8 @@ static void pca955x_set_led(Object *obj, Visitor *v, const char *name,
         error_setg(errp, "%s: error reading %s", __func__, name);
         return;
     }
-    if (led < 0 || led > k->pin_count) {
-        error_setg(errp, "%s invalid led %s", __func__, name);
+    if (led < 0 || led >= k->pin_count) {
+        error_setg(errp, "%s: invalid led %s", __func__, name);
         return;
     }
 
