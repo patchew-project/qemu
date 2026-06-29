@@ -22,16 +22,19 @@
  * Realization
  * -----------
  *
- * Devices are constructed in two stages:
+ * Devices are constructed in the following order:
  *
- * 1) object instantiation via object_initialize() and
- * 2) device realization via the #DeviceState.realized property
+ * 1) #TypeInfo.instance_init
+ * 2) pre-realize property value setting
+ * 3) device realization via the #DeviceState.realized property
  *
- * The former may not fail (and must not abort or exit, since it is called
- * during device introspection already), and the latter may return error
- * information to the caller and must be re-entrant.
- * Trivial field initializations should go into #TypeInfo.instance_init.
- * Operations depending on @props static properties should go into @realize.
+ * #TypeInfo.instance_init may not fail, and realization may return
+ * error information to the caller and must be re-entrant.
+ * #TypeInfo.instance_init should add instance properties but must not
+ * have any side effect not contained in the instance, since it happens
+ * during device introspection already. Any operations without special
+ * requirements should go @realize so that they can be skipped during
+ * device introspection.
  * After successful realization, setting static properties will fail.
  *
  * As an interim step, the #DeviceState.realized property can also be
@@ -40,9 +43,8 @@
  * point in time will be deferred to machine creation, so that values
  * set in @realize will not be introspectable beforehand. Therefore
  * devices must not create children during @realize; they should
- * initialize them via object_initialize() in their own
- * #TypeInfo.instance_init and forward the realization events
- * appropriately.
+ * initialize them via #TypeInfo.instance_init and forward the
+ * realization events appropriately.
  *
  * Any type may override the @realize and/or @unrealize callbacks but needs
  * to call the parent type's implementation if keeping their functionality
