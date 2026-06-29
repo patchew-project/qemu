@@ -1478,20 +1478,18 @@ int hvf_arch_init_vcpu(CPUState *cpu)
                               arm_cpu->mp_affinity);
     assert_hvf_ok(ret);
 
-    ret = hv_vcpu_get_sys_reg(cpu->accel->fd, HV_SYS_REG_ID_AA64PFR0_EL1, &pfr);
-    assert_hvf_ok(ret);
+    pfr = GET_IDREG(&arm_cpu->isar, ID_AA64PFR0);
     pfr |= env->gicv3state ? (1 << 24) : 0;
     ret = hv_vcpu_set_sys_reg(cpu->accel->fd, HV_SYS_REG_ID_AA64PFR0_EL1, pfr);
     assert_hvf_ok(ret);
 
-    /* We're limited to underlying hardware caps, override internal versions */
-    ret = hv_vcpu_get_sys_reg(cpu->accel->fd, HV_SYS_REG_ID_AA64MMFR0_EL1,
-                              &arm_cpu->isar.idregs[ID_AA64MMFR0_EL1_IDX]);
+    ret = hv_vcpu_set_sys_reg(cpu->accel->fd, HV_SYS_REG_ID_AA64ISAR0_EL1,
+                              GET_IDREG(&arm_cpu->isar, ID_AA64ISAR0));
     assert_hvf_ok(ret);
 
     clamp_id_aa64mmfr0_parange_to_ipa_size(&arm_cpu->isar);
     ret = hv_vcpu_set_sys_reg(cpu->accel->fd, HV_SYS_REG_ID_AA64MMFR0_EL1,
-                              arm_cpu->isar.idregs[ID_AA64MMFR0_EL1_IDX]);
+                              GET_IDREG(&arm_cpu->isar, ID_AA64MMFR0));
     assert_hvf_ok(ret);
 
     if (!hvf_irqchip_in_kernel()) {
