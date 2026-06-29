@@ -783,7 +783,7 @@ ssize_t qemu_receive_packet(NetClientState *nc, const uint8_t *buf, int size)
         return 0;
     }
 
-    if (net_peer_needs_padding(nc)) {
+    if (net_client_needs_padding(nc)) {
         if (eth_pad_short_frame(min_pkt, &min_pktsz, buf, size)) {
             buf = min_pkt;
             size = min_pktsz;
