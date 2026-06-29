@@ -16,3 +16,10 @@ TESTS += test-addv
 
 test-subv: CFLAGS += -O -g
 TESTS += test-subv
+
+test-fpu-fipr: CFLAGS += -O -g
+TESTS += test-fpu-fipr
+
+test-fpu-ftrv: CFLAGS += -O -g
+TESTS += test-fpu-ftrv
+
