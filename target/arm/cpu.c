@@ -1345,11 +1345,11 @@ static void arm_set_pmu(Object *obj, bool value, Error **errp)
 {
     ARMCPU *cpu = ARM_CPU(obj);
 
-    if (value) {
-        set_feature(&cpu->env, ARM_FEATURE_PMU);
-    } else {
-        unset_feature(&cpu->env, ARM_FEATURE_PMU);
+    if (value && !arm_feature(&cpu->env, ARM_FEATURE_PMU)) {
+        error_setg(errp, "'pmu' feature is not supported");
+        return;
     }
+
     cpu->has_pmu = value;
 }
 
@@ -1529,6 +1529,7 @@ static void arm_cpu_propagate_feature_implications(ARMCPU *cpu)
 static void arm_cpu_post_init(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+    ARMCPUClass *acc = ARM_CPU_GET_CLASS(obj);
 
     /*
      * Some features imply others. Figure this out now, because we
@@ -1585,6 +1586,10 @@ static void arm_cpu_post_init(Object *obj)
 
     if (arm_feature(&cpu->env, ARM_FEATURE_PMU)) {
         cpu->has_pmu = true;
+    }
+
+    if (cpu->has_pmu || !strcmp(acc->info->name, "host") ||
+        !strcmp(acc->info->name, "max")) {
         object_property_add_bool(obj, "pmu", arm_get_pmu, arm_set_pmu);
     }
 
