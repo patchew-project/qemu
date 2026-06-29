@@ -29,6 +29,7 @@
 #include "system/dma.h"
 #include "system/memory.h"
 #include "system/ramblock.h"
+#include "system/xen.h"
 #include "trace.h"
 
 /* enabled until disconnected backend stabilizes */
@@ -654,6 +655,23 @@ static bool vhost_section(struct vhost_dev *dev, MemoryRegionSection *section)
 
         if (dirty_mask & ~handled_dirty) {
             trace_vhost_reject_section(mr->name, 1);
+            return false;
+        }
+
+        /*
+         * Under Xen, the guest's RAM is not backed by an fd that
+         * be passed to a vhost-user backend.  The backend instead
+         * guest memory through the Xen foreign mapping interface,
+         * by guest physical address and domain id (see
+         * VHOST_USER_PROTOCOL_F_XEN_MMAP), so accept the Xen RAM
+         * region even though it has no fd.
+         */
+        if (xen_enabled()) {
+            if (xen_mr_is_memory(mr) && !xen_mr_is_grants(mr)) {
+                trace_vhost_section(mr->name);
+                return true;
+            }
+            trace_vhost_reject_section(mr->name, 4);
             return false;
         }
 
