@@ -9,8 +9,7 @@
 
 ##
 # @CompatPolicyInput:
-#
-# Policy for handling "funny" input.
+#     Policy for handling "funny" input.
 #
 # @accept: Accept silently
 #
@@ -25,8 +24,7 @@
 
 ##
 # @CompatPolicyOutput:
-#
-# Policy for handling "funny" output.
+#     Policy for handling "funny" output.
 #
 # @accept: Pass on unchanged
 #
@@ -39,8 +37,7 @@
 
 ##
 # @CompatPolicy:
-#
-# Policy for handling deprecated management interfaces.
+#     Policy for handling deprecated management interfaces.
 #
 # This is intended for testing users of the management interfaces.
 #
