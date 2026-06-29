@@ -1898,14 +1898,18 @@ static void tcg_out_qemu_ldst_i128(TCGContext *s, TCGReg datalo, TCGReg datahi,
          * may be handled with two 8-byte loads.
          */
         if (h.aa.align < MO_128) {
-            /*
-             * TODO: align should be MO_64, so we only need test bit 3,
-             * which means we could use TBNZ instead of ANDS+B_C.
-             */
-            tcg_out_logicali(s, Ilogic_imm_ANDSI, 0, TCG_REG_XZR, addr_reg,
-                             15);
             branch = s->code_ptr;
-            tcg_out_insn(s, bcond_imm, B_C, TCG_COND_NE, 0);
+            if (h.aa.align == MO_64) {
+                /*
+                 * 8-byte alignment is already verified; test bit 3 to
+                 * distinguish 8- from 16-byte alignment.
+                 */
+                tcg_out_insn(s, tbz, TBNZ, addr_reg, 3, 0);
+            } else {
+                tcg_out_logicali(s, Ilogic_imm_ANDSI, 0, TCG_REG_XZR, addr_reg,
+                                 15);
+                tcg_out_insn(s, bcond_imm, B_C, TCG_COND_NE, 0);
+            }
             use_pair = true;
         }
 
@@ -1944,7 +1948,11 @@ static void tcg_out_qemu_ldst_i128(TCGContext *s, TCGReg datalo, TCGReg datahi,
         if (use_pair) {
             /* "b .+8", branching across the one insn of use_pair. */
             tcg_out_insn(s, branch, B, 2);
-            reloc_pc19(branch, tcg_splitwx_to_rx(s->code_ptr));
+            if (h.aa.align == MO_64) {
+                reloc_pc14(branch, tcg_splitwx_to_rx(s->code_ptr));
+            } else {
+                reloc_pc19(branch, tcg_splitwx_to_rx(s->code_ptr));
+            }
         }
     }
 
