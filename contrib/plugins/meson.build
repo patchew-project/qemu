@@ -19,6 +19,11 @@ if host_os != 'windows'
   contrib_plugins += 'lockstep.c'
 endif
 
+if host_os == 'linux'
+  # dlcall passes guest calls through to host libraries; linux-user only
+  contrib_plugins += 'dlcall.c'
+endif
+
 if 'cpp' in all_languages
   contrib_plugins += 'cpp.cpp'
 endif
