@@ -1801,7 +1801,8 @@ int qemu_savevm_state_complete_precopy(MigrationState *s, Error **errp)
     return 0;
 }
 
-void qemu_savevm_query_pending(MigPendingData *pending, bool exact)
+static void qemu_savevm_query_pending(MigPendingData *pending, bool exact,
+                                      bool final)
 {
     SaveStateEntry *se;
 
@@ -1814,7 +1815,7 @@ void qemu_savevm_query_pending(MigPendingData *pending, bool exact)
         if (!qemu_savevm_state_active(se)) {
             continue;
         }
-        se->ops->save_query_pending(se->opaque, pending, exact);
+        se->ops->save_query_pending(se->opaque, pending, exact, final);
     }
 
     pending->total_bytes = pending->precopy_bytes +
@@ -1826,11 +1827,22 @@ void qemu_savevm_query_pending(MigPendingData *pending, bool exact)
      * close to reality when this got invoked frequently while iterating.
      */
     mig_stats.dirty_bytes_total = pending->total_bytes;
-
-    trace_qemu_savevm_query_pending(exact, pending->precopy_bytes,
+    trace_qemu_savevm_query_pending(exact, final, pending->precopy_bytes,
                                     pending->stopcopy_bytes,
                                     pending->postcopy_bytes,
                                     pending->total_bytes);
+}
+
+void qemu_savevm_query_pending_iter(MigPendingData *pending, bool exact)
+{
+    qemu_savevm_query_pending(pending, exact, false);
+}
+
+void qemu_savevm_query_pending_final(MigPendingData *pending)
+{
+    g_assert(bql_locked());
+
+    qemu_savevm_query_pending(pending, true, true);
 }
 
 void qemu_savevm_state_cleanup(void)
