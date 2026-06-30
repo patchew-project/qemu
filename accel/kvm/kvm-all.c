@@ -4286,11 +4286,13 @@ static void kvm_accel_instance_init(Object *obj)
  * Set SSTEP_* flags that KVM supports for guest debug. The
  * support is probed during kvm_init()
  */
-static void kvm_gdbstub_config(AccelState *as, int *supported_sstep_flags)
+static void kvm_gdbstub_config(AccelState *as, int *supported_sstep_flags,
+                               bool *can_reverse)
 {
     KVMState *s = KVM_STATE(as);
 
     *supported_sstep_flags = s->gdbstub_sstep_flags;
+    *can_reverse = false;
 }
 
 static void kvm_accel_class_init(ObjectClass *oc, const void *data)

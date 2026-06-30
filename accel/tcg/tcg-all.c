@@ -242,7 +242,8 @@ static void tcg_set_one_insn_per_tb(Object *obj, bool value, Error **errp)
     qatomic_set(&one_insn_per_tb, value);
 }
 
-static void tcg_gdbstub_config(AccelState *as, int *supported_sstep_flags)
+static void tcg_gdbstub_config(AccelState *as, int *supported_sstep_flags,
+                               bool *can_reverse)
 {
     /*
      * In replay mode all events will come from the log and can't be
@@ -255,6 +256,7 @@ static void tcg_gdbstub_config(AccelState *as, int *supported_sstep_flags)
     } else {
         *supported_sstep_flags = SSTEP_ENABLE | SSTEP_NOIRQ | SSTEP_NOTIMER;
     }
+    *can_reverse = replay_mode == REPLAY_MODE_PLAY;
 }
 
 static void tcg_accel_class_init(ObjectClass *oc, const void *data)

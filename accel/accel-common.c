@@ -113,14 +113,15 @@ void accel_cpu_common_unrealize(CPUState *cpu)
     }
 }
 
-void accel_get_gdbstub_config(int *supported_sstep_flags)
+void accel_get_gdbstub_config(int *supported_sstep_flags, bool *can_reverse)
 {
     AccelState *accel = current_accel();
     AccelClass *acc = ACCEL_GET_CLASS(accel);
     if (acc->get_gdbstub_config) {
-        acc->get_gdbstub_config(accel, supported_sstep_flags);
+        acc->get_gdbstub_config(accel, supported_sstep_flags, can_reverse);
     } else {
         *supported_sstep_flags = 0;
+        *can_reverse = false;
     }
 }
 

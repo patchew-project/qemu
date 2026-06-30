@@ -76,10 +76,11 @@ void accel_cpu_common_unrealize(CPUState *cpu);
 /**
  * accel_get_gdbstub_config:
  * @supported_sstep_flags: pointer to store the single step modes in
+ * @can_reverse: pointer to store whether reverse mode is supported
  *
- * Set the supported single step modes for the configured
+ * Set the supported single step and reverse modes for the configured
  * accelerator.
  */
-void accel_get_gdbstub_config(int *supported_sstep_flags);
+void accel_get_gdbstub_config(int *supported_sstep_flags, bool *can_reverse);
 
 #endif /* QEMU_ACCEL_H */

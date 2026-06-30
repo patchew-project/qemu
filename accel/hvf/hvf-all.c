@@ -228,9 +228,11 @@ static int hvf_accel_init(AccelState *as, MachineState *ms)
     return hvf_arch_init();
 }
 
-static void hvf_gdbstub_config(AccelState *as, int *supported_sstep_flags)
+static void hvf_gdbstub_config(AccelState *as, int *supported_sstep_flags,
+                               bool *can_reverse)
 {
     *supported_sstep_flags = SSTEP_ENABLE | SSTEP_NOIRQ;
+    *can_reverse = false;
 }
 
 static void hvf_set_kernel_irqchip(Object *obj, Visitor *v,
