@@ -243,6 +243,7 @@ int module_load(const char *prefix, const char *name, Error **errp)
                              G_CSET_A_2_Z G_CSET_a_2_z G_CSET_DIGITS "+-.~",
                              '_');
     dirs[n_dirs++] = g_strdup_printf("/var/run/qemu/%s", version_dir);
+    g_free(version_dir);
 #endif
     assert(n_dirs <= ARRAY_SIZE(dirs));
 
