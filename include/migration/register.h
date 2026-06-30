@@ -303,19 +303,6 @@ typedef struct SaveVMHandlers {
     int (*resume_prepare)(MigrationState *s, void *opaque);
 
     /**
-     * @switchover_ack_needed
-     *
-     * Checks if switchover ack should be used. Called only on
-     * destination.
-     *
-     * @opaque: data pointer passed to register_savevm_live()
-     *
-     * Returns true if switchover ack should be used and false
-     * otherwise
-     */
-    bool (*switchover_ack_needed)(void *opaque);
-
-    /**
      * @switchover_start
      *
      * Notifies that the switchover has started. Called only on
