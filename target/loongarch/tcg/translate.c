@@ -41,11 +41,11 @@ static inline int vec_full_offset(int regno)
 
 static inline int vec_reg_offset(int regno, int index, MemOp mop)
 {
-    const uint8_t size = 1 << mop;
+    const unsigned int size = memop_size(mop);
     int offs = index * size;
 
-    if (HOST_BIG_ENDIAN && size < 8 ) {
-        offs ^= (8 - size);
+    if (HOST_BIG_ENDIAN && size < 16) {
+        offs ^= (16 - size);
     }
 
     return offs + vec_full_offset(regno);
