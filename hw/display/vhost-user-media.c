@@ -20,6 +20,8 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/vhost-user-media.h"
 
+#define CACHE_SIZE (1ull << 32)
+
 static const int feature_bits[] = {
     VIRTIO_F_RING_RESET,
     VHOST_INVALID_FEATURE_BIT
@@ -287,6 +289,8 @@ static void vhost_user_media_device_realize(DeviceState *dev, Error **errp)
     }
 
     virtio_init(vdev, VIRTIO_ID_MEDIA, sizeof(struct virtio_media_config));
+
+    virtio_new_shmem_region(vdev, 0, CACHE_SIZE);
 
     /* one command queue and one event queue */
     media->vhost_dev.nvqs = 2;
