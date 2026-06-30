@@ -17,6 +17,7 @@ typedef enum PnvChipType {
     PNV_CHIP_POWER8NVL,   /* AKA Naples */
     PNV_CHIP_POWER9,      /* AKA Nimbus */
     PNV_CHIP_POWER10,
+    PNV_CHIP_POWER11,
 } PnvChipType;
 
 typedef struct PnvChip {
@@ -60,21 +61,43 @@ static const PnvChip pnv_chips[] = {
         .first_core = 0x0,
         .num_i2c    = 4,
     },
+    {
+        .chip_type  = PNV_CHIP_POWER11,
+        .cpu_model  = "Power11",
+        .xscom_base = 0x000603fc00000000ull,
+        .cfam_id    = 0x220da04980000000ull,
+        .first_core = 0x0,
+        .num_i2c    = 0,
+    },
 };
 
 static inline uint64_t pnv_xscom_addr(const PnvChip *chip, uint32_t pcba)
 {
     uint64_t addr = chip->xscom_base;
 
-    if (chip->chip_type == PNV_CHIP_POWER10) {
-        addr |= ((uint64_t) pcba << 3);
-    } else if (chip->chip_type == PNV_CHIP_POWER9) {
+    if ((chip->chip_type == PNV_CHIP_POWER11) ||
+        (chip->chip_type == PNV_CHIP_POWER10) ||
+        (chip->chip_type == PNV_CHIP_POWER9)) {
         addr |= ((uint64_t) pcba << 3);
     } else {
         addr |= (((uint64_t) pcba << 4) & ~0xffull) |
             (((uint64_t) pcba << 3) & 0x78);
     }
     return addr;
+}
+
+static const char *pnv_get_machine_type(enum PnvChipType chip_type)
+{
+    static const char *const machine_types[] = {
+         [PNV_CHIP_POWER8]  = "powernv8",
+         [PNV_CHIP_POWER9]  = "powernv9",
+         [PNV_CHIP_POWER10] = "powernv10",
+         [PNV_CHIP_POWER11] = "powernv11",
+     };
+
+    g_assert(chip_type <= PNV_CHIP_POWER11);
+
+    return machine_types[chip_type];
 }
 
 #endif /* PNV_XSCOM_H */
