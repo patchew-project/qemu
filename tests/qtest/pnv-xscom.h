@@ -12,9 +12,7 @@
 #define SMT                     4 /* some tests will break if less than 4 */
 
 typedef enum PnvChipType {
-    PNV_CHIP_POWER8E,     /* AKA Murano (default) */
     PNV_CHIP_POWER8,      /* AKA Venice */
-    PNV_CHIP_POWER8NVL,   /* AKA Naples */
     PNV_CHIP_POWER9,      /* AKA Nimbus */
     PNV_CHIP_POWER10,
     PNV_CHIP_POWER11,
@@ -35,13 +33,6 @@ static const PnvChip pnv_chips[] = {
         .cpu_model  = "POWER8",
         .xscom_base = 0x0003fc0000000000ull,
         .cfam_id    = 0x220ea04980000000ull,
-        .first_core = 0x1,
-        .num_i2c    = 0,
-    }, {
-        .chip_type  = PNV_CHIP_POWER8NVL,
-        .cpu_model  = "POWER8NVL",
-        .xscom_base = 0x0003fc0000000000ull,
-        .cfam_id    = 0x120d304980000000ull,
         .first_core = 0x1,
         .num_i2c    = 0,
     },
