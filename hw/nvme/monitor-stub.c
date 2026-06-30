@@ -13,3 +13,9 @@ HumanReadableText *qmp_x_query_nvme(Error **errp)
     error_setg(errp, "NVMe support is not compiled in");
     return NULL;
 }
+
+HumanReadableText *qmp_x_query_nvme_queues(Error **errp)
+{
+    error_setg(errp, "NVMe support is not compiled in");
+    return NULL;
+}
