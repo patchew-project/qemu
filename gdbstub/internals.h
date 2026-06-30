@@ -85,6 +85,7 @@ typedef struct GDBState {
     GByteArray *mem_buf;
     int sstep_flags;
     int supported_sstep_flags;
+    bool can_reverse;
     /*
      * Whether we are allowed to send a stop reply packet at this moment.
      * Must be set off after sending the stop reply itself.

@@ -75,6 +75,7 @@ void gdb_init_gdbserver_state(void)
     accel_get_gdbstub_config(&gdbserver_state.supported_sstep_flags);
     gdbserver_state.sstep_flags = SSTEP_ENABLE | SSTEP_NOIRQ | SSTEP_NOTIMER;
     gdbserver_state.sstep_flags &= gdbserver_state.supported_sstep_flags;
+    gdbserver_state.can_reverse = gdb_can_reverse();
 }
 
 /* writes 2*len+1 bytes in buf */
@@ -1376,7 +1377,7 @@ static void handle_step(GArray *params, void *user_ctx)
 
 static void handle_backward(GArray *params, void *user_ctx)
 {
-    if (!gdb_can_reverse()) {
+    if (!gdbserver_state.can_reverse) {
         gdb_put_packet("E22");
         return;
     }
@@ -1684,7 +1685,7 @@ static void handle_query_supported(GArray *params, void *user_ctx)
         g_string_append(gdbserver_state.str_buf, ";qXfer:features:read+");
     }
 
-    if (gdb_can_reverse()) {
+    if (gdbserver_state.can_reverse) {
         g_string_append(gdbserver_state.str_buf,
             ";ReverseStep+;ReverseContinue+");
     }
