@@ -21,6 +21,7 @@ int main()
 
     /* fault in the page then protect it */
     addr = mmap (NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
+    assert(addr != MAP_FAILED);
     *addr = 0x1234;
     mprotect(addr, 4096, PROT_READ);
 
