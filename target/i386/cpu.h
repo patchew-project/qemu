@@ -1200,6 +1200,8 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 #define CPUID_8000_0021_EAX_AUTO_IBRS                    (1U << 8)
 /* Indicates support for IC prefetch */
 #define CPUID_8000_0021_EAX_PREFETCHI                    (1U << 20)
+/* AVX512 Bit Matrix Multiply (BMM) instruction support */
+#define CPUID_8000_0021_EAX_AVX512_BMM                   (1U << 23)
 /* Enhanced Return Address Predictor Scurity */
 #define CPUID_8000_0021_EAX_ERAPS                        (1U << 24)
 /* Selective Branch Predictor Barrier */
