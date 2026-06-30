@@ -37,6 +37,7 @@ struct AccelClass {
                        hwaddr start_addr, hwaddr size);
 
     /* gdbstub related hooks */
+    bool (*supports_guest_debug)(AccelState *as);
     void (*get_gdbstub_config)(AccelState *as, int *supported_sstep_flags,
                                bool *can_reverse);
 

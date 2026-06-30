@@ -113,6 +113,18 @@ void accel_cpu_common_unrealize(CPUState *cpu)
     }
 }
 
+bool accel_supports_guest_debug(void)
+{
+    AccelState *accel = current_accel();
+    AccelClass *acc = ACCEL_GET_CLASS(accel);
+
+    if (acc->supports_guest_debug) {
+        return acc->supports_guest_debug(accel);
+    }
+    return false;
+}
+
+
 void accel_get_gdbstub_config(int *supported_sstep_flags, bool *can_reverse)
 {
     AccelState *accel = current_accel();

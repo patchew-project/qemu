@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "qemu/accel.h"
 #include "qemu/cutils.h"
 #include "exec/gdbstub.h"
 #include "gdbstub/syscalls.h"
@@ -343,7 +344,7 @@ bool gdbserver_start(const char *device, Error **errp)
         return false;
     }
 
-    if (!gdb_supports_guest_debug()) {
+    if (!accel_supports_guest_debug()) {
         error_setg(errp, "gdbstub: current accelerator doesn't "
                    "support guest debugging");
         return false;
@@ -621,15 +622,6 @@ int gdb_signal_to_target(int sig)
 /*
  * Break/Watch point helpers
  */
-
-bool gdb_supports_guest_debug(void)
-{
-    const AccelOpsClass *ops = cpus_get_accel();
-    if (ops->supports_guest_debug) {
-        return ops->supports_guest_debug();
-    }
-    return false;
-}
 
 int gdb_breakpoint_insert(CPUState *cs, int type, vaddr addr, vaddr len)
 {

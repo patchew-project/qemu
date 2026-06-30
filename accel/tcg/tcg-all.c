@@ -242,6 +242,11 @@ static void tcg_set_one_insn_per_tb(Object *obj, bool value, Error **errp)
     qatomic_set(&one_insn_per_tb, value);
 }
 
+static bool tcg_supports_guest_debug(AccelState *as)
+{
+    return true;
+}
+
 static void tcg_gdbstub_config(AccelState *as, int *supported_sstep_flags,
                                bool *can_reverse)
 {
@@ -268,6 +273,7 @@ static void tcg_accel_class_init(ObjectClass *oc, const void *data)
     ac->cpu_common_unrealize = tcg_exec_unrealizefn;
     ac->get_stats = tcg_get_stats;
     ac->allowed = &tcg_allowed;
+    ac->supports_guest_debug = tcg_supports_guest_debug;
     ac->get_gdbstub_config = tcg_gdbstub_config;
 
     object_class_property_add_str(oc, "thread",

@@ -280,6 +280,7 @@ static void hvf_accel_class_init(ObjectClass *oc, const void *data)
     ac->name = "HVF";
     ac->init_machine = hvf_accel_init;
     ac->allowed = &hvf_allowed;
+    ac->supports_guest_debug = hvf_arch_supports_guest_debug;
     ac->get_gdbstub_config = hvf_gdbstub_config;
     hvf_kernel_irqchip_override = false;
     hvf_kernel_irqchip = false;

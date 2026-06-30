@@ -295,7 +295,7 @@ void whpx_translate_cpu_breakpoints(
     /* Breakpoints aren’t supported on this platform */
 }
 
-bool whpx_arch_supports_guest_debug(void) 
+bool whpx_arch_supports_guest_debug(AccelState *as)
 {
     return false;
 }

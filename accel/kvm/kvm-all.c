@@ -3833,7 +3833,7 @@ int kvm_update_guest_debug(CPUState *cpu, unsigned long reinject_trap)
     return data.err;
 }
 
-bool kvm_supports_guest_debug(void)
+static bool kvm_supports_guest_debug(AccelState *as)
 {
     /* probed during kvm_init() */
     return kvm_has_guest_debug;
@@ -4303,6 +4303,7 @@ static void kvm_accel_class_init(ObjectClass *oc, const void *data)
     ac->rebuild_guest = kvm_reset_vmfd;
     ac->has_memory = kvm_accel_has_memory;
     ac->allowed = &kvm_allowed;
+    ac->supports_guest_debug = kvm_supports_guest_debug;
     ac->get_gdbstub_config = kvm_gdbstub_config;
 
     object_class_property_add(oc, "kernel-irqchip", "on|off|split",

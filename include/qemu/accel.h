@@ -73,6 +73,8 @@ bool accel_cpu_common_realize(CPUState *cpu, Error **errp);
  */
 void accel_cpu_common_unrealize(CPUState *cpu);
 
+bool accel_supports_guest_debug(void);
+
 /**
  * accel_get_gdbstub_config:
  * @supported_sstep_flags: pointer to store the single step modes in

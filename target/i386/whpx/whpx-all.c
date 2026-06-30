@@ -1853,7 +1853,7 @@ void whpx_apply_breakpoints(
     }
 }
 
-bool whpx_arch_supports_guest_debug(void) 
+bool whpx_arch_supports_guest_debug(AccelState *as)
 {
     return true;
 }
