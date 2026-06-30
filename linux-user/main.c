@@ -234,12 +234,18 @@ void init_task_state(TaskState *ts)
     ts->sys_dispatch_len = -1;
 }
 
+static gboolean cpu_copy_breakpoint(gpointer key, gpointer value, gpointer cpustate) {
+    CPUState *newcpu = (CPUState*)cpustate;
+    CPUBreakpoint* bp = (CPUBreakpoint*)value;
+    cpu_breakpoint_insert(newcpu, bp->pc, bp->flags, NULL);
+    return true;
+}
+
 CPUArchState *cpu_copy(CPUArchState *env)
 {
     CPUState *cpu = env_cpu(env);
     CPUState *new_cpu = cpu_create(cpu_type);
     CPUArchState *new_env = cpu_env(new_cpu);
-    CPUBreakpoint *bp;
 
     /* Reset non arch specific state */
     cpu_reset(new_cpu);
@@ -258,10 +264,7 @@ CPUArchState *cpu_copy(CPUArchState *env)
     /* Clone all break/watchpoints.
        Note: Once we support ptrace with hw-debug register access, make sure
        BP_CPU break/watchpoints are handled correctly on clone. */
-    QTAILQ_INIT(&new_cpu->breakpoints);
-    QTAILQ_FOREACH(bp, &cpu->breakpoints, entry) {
-        cpu_breakpoint_insert(new_cpu, bp->pc, bp->flags, NULL);
-    }
+    g_tree_foreach(cpu->breakpoints, cpu_copy_breakpoint, new_cpu);
 
     return new_env;
 }

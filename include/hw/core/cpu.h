@@ -526,7 +526,8 @@ struct CPUState {
     QTAILQ_ENTRY(CPUState) node;
 
     /* ice debug support */
-    QTAILQ_HEAD(, CPUBreakpoint) breakpoints;
+    GTree *breakpoints;
+    GTree *page_breakpoints;
 
     QTAILQ_HEAD(, CPUWatchpoint) watchpoints;
     CPUWatchpoint *watchpoint_hit;
@@ -1161,13 +1162,12 @@ void cpu_breakpoint_remove_all(CPUState *cpu, int mask);
 /* Return true if PC matches an installed breakpoint.  */
 static inline bool cpu_breakpoint_test(CPUState *cpu, vaddr pc, int mask)
 {
-    CPUBreakpoint *bp;
+    CPUBreakpoint bp = {.pc = pc};
 
-    if (unlikely(!QTAILQ_EMPTY(&cpu->breakpoints))) {
-        QTAILQ_FOREACH(bp, &cpu->breakpoints, entry) {
-            if (bp->pc == pc && (bp->flags & mask)) {
-                return true;
-            }
+    if (cpu->breakpoints) {
+        CPUBreakpoint *a = g_tree_lookup(cpu->breakpoints, &bp);
+        if (a && (a->flags & mask)) {
+            return true;
         }
     }
     return false;
