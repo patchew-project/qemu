@@ -275,7 +275,7 @@ typedef union VReg {
     uint16_t UH[LASX_LEN / 16];
     uint32_t UW[LASX_LEN / 32];
     uint64_t UD[LASX_LEN / 64];
-    Int128   Q[LASX_LEN / 128];
+    Int128Aligned   Q[LASX_LEN / 128];
 } VReg;
 
 typedef union fpr_t fpr_t;
