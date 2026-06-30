@@ -27,6 +27,11 @@ class PowernvMachine(LinuxKernelTest):
          'buildroot/qemu_ppc64le_powernv8-2025.02/rootfs.ext2'),
         'aee2192b692077c4bde31cb56ce474424b358f17cec323d5c94af3970c9aada2')
 
+    # testdtb for power11, which contains string "hello world" in command line
+    ASSET_SAMPLE_DTB = Asset(
+        ('https://github.com/roz3x/qemu/raw/refs/heads/sample-dtb/qemu-powernv11.dtb'),
+        'ea1271516264eea1eb58a067a99d0c2ca9528be8dc7d4e46bb2d5ae0d42fc568')
+
     def do_test_linux_boot(self, command_line = KERNEL_COMMON_COMMAND_LINE):
         self.require_accelerator("tcg")
         kernel_path = self.ASSET_KERNEL.fetch()
@@ -103,6 +108,20 @@ class PowernvMachine(LinuxKernelTest):
         self.wait_for_console_pattern("Run /sbin/init as init process")
         # Device detection output driven by udev probing is sometimes cut off
         # from console output, suspect S14silence-console init script.
+
+    def test_ppc64_powernv_external_dtb(self):
+        self.set_machine('powernv11')
+        self.require_accelerator("tcg")
+
+        kernel_path = self.ASSET_KERNEL.fetch()
+        sample_dtb_path = self.ASSET_SAMPLE_DTB.fetch()
+        self.vm.set_console()
+        self.vm.add_args('-kernel', kernel_path,
+                         '-dtb', sample_dtb_path)
+        self.vm.launch()
+
+        # check if custom dtb is reflected or not
+        wait_for_console_pattern(self, "Kernel command line: hello world", self.panic_message)
 
     def test_powernv8(self):
         self.set_machine('powernv8')
