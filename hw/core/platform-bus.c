@@ -141,6 +141,13 @@ static void platform_bus_map_mmio(PlatformBusDevice *pbus, SysBusDevice *sbdev,
     }
 
     /*
+     * Ensure alignment is at least the host page size so that IOMMU
+     * mappings (e.g. VFIO) work on hosts with large pages such as
+     * aarch64 with 64K pages.
+     */
+    alignment = MAX(alignment, qemu_real_host_page_size());
+
+    /*
      * Look for empty space in the MMIO space that is naturally aligned with
      * the target device's memory region
      */
