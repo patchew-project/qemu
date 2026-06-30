@@ -5099,7 +5099,7 @@ static bool gen_xvreplve0(DisasContext *ctx, arg_vv *a, MemOp mop)
     }
 
     tcg_gen_gvec_dup_mem(mop, vec_full_offset(a->vd),
-                         vec_full_offset(a->vj), 32, 32);
+                         vec_reg_offset(a->vj, 0, mop), 32, 32);
     return true;
 }
 
