@@ -228,9 +228,9 @@ static int hvf_accel_init(AccelState *as, MachineState *ms)
     return hvf_arch_init();
 }
 
-static int hvf_gdbstub_sstep_flags(AccelState *as)
+static void hvf_gdbstub_config(AccelState *as, int *supported_sstep_flags)
 {
-    return SSTEP_ENABLE | SSTEP_NOIRQ;
+    *supported_sstep_flags = SSTEP_ENABLE | SSTEP_NOIRQ;
 }
 
 static void hvf_set_kernel_irqchip(Object *obj, Visitor *v,
@@ -278,7 +278,7 @@ static void hvf_accel_class_init(ObjectClass *oc, const void *data)
     ac->name = "HVF";
     ac->init_machine = hvf_accel_init;
     ac->allowed = &hvf_allowed;
-    ac->gdbstub_supported_sstep_flags = hvf_gdbstub_sstep_flags;
+    ac->get_gdbstub_config = hvf_gdbstub_config;
     hvf_kernel_irqchip_override = false;
     hvf_kernel_irqchip = false;
     object_class_property_add(oc, "kernel-irqchip", "on|off|split",

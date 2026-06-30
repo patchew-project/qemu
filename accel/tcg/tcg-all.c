@@ -242,7 +242,7 @@ static void tcg_set_one_insn_per_tb(Object *obj, bool value, Error **errp)
     qatomic_set(&one_insn_per_tb, value);
 }
 
-static int tcg_gdbstub_supported_sstep_flags(AccelState *as)
+static void tcg_gdbstub_config(AccelState *as, int *supported_sstep_flags)
 {
     /*
      * In replay mode all events will come from the log and can't be
@@ -251,9 +251,9 @@ static int tcg_gdbstub_supported_sstep_flags(AccelState *as)
      * them occurring every time we single step.
      */
     if (replay_mode != REPLAY_MODE_NONE) {
-        return SSTEP_ENABLE;
+        *supported_sstep_flags = SSTEP_ENABLE;
     } else {
-        return SSTEP_ENABLE | SSTEP_NOIRQ | SSTEP_NOTIMER;
+        *supported_sstep_flags = SSTEP_ENABLE | SSTEP_NOIRQ | SSTEP_NOTIMER;
     }
 }
 
@@ -266,7 +266,7 @@ static void tcg_accel_class_init(ObjectClass *oc, const void *data)
     ac->cpu_common_unrealize = tcg_exec_unrealizefn;
     ac->get_stats = tcg_get_stats;
     ac->allowed = &tcg_allowed;
-    ac->gdbstub_supported_sstep_flags = tcg_gdbstub_supported_sstep_flags;
+    ac->get_gdbstub_config = tcg_gdbstub_config;
 
     object_class_property_add_str(oc, "thread",
                                   tcg_get_thread,

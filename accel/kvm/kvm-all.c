@@ -4281,14 +4281,16 @@ static void kvm_accel_instance_init(Object *obj)
 }
 
 /**
- * kvm_gdbstub_sstep_flags():
+ * kvm_gdbstub_config():
  *
- * Returns: SSTEP_* flags that KVM supports for guest debug. The
+ * Set SSTEP_* flags that KVM supports for guest debug. The
  * support is probed during kvm_init()
  */
-static int kvm_gdbstub_sstep_flags(AccelState *as)
+static void kvm_gdbstub_config(AccelState *as, int *supported_sstep_flags)
 {
-    return kvm_sstep_flags;
+    KVMState *s = KVM_STATE(as);
+
+    *supported_sstep_flags = s->gdbstub_sstep_flags;
 }
 
 static void kvm_accel_class_init(ObjectClass *oc, const void *data)
@@ -4299,7 +4301,7 @@ static void kvm_accel_class_init(ObjectClass *oc, const void *data)
     ac->rebuild_guest = kvm_reset_vmfd;
     ac->has_memory = kvm_accel_has_memory;
     ac->allowed = &kvm_allowed;
-    ac->gdbstub_supported_sstep_flags = kvm_gdbstub_sstep_flags;
+    ac->get_gdbstub_config = kvm_gdbstub_config;
 
     object_class_property_add(oc, "kernel-irqchip", "on|off|split",
         NULL, kvm_set_kernel_irqchip,

@@ -113,14 +113,15 @@ void accel_cpu_common_unrealize(CPUState *cpu)
     }
 }
 
-int accel_supported_gdbstub_sstep_flags(void)
+void accel_get_gdbstub_config(int *supported_sstep_flags)
 {
     AccelState *accel = current_accel();
     AccelClass *acc = ACCEL_GET_CLASS(accel);
-    if (acc->gdbstub_supported_sstep_flags) {
-        return acc->gdbstub_supported_sstep_flags(accel);
+    if (acc->get_gdbstub_config) {
+        acc->get_gdbstub_config(accel, supported_sstep_flags);
+    } else {
+        *supported_sstep_flags = 0;
     }
-    return 0;
 }
 
 static const TypeInfo accel_types[] = {
