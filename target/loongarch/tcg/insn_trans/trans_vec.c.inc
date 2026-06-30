@@ -5423,7 +5423,8 @@ TRANS(xvldrepl_w, LASX, do_xvldrepl, MO_32)
 TRANS(xvldrepl_d, LASX, do_xvldrepl, MO_64)
 
 static bool do_vstelm_vl(DisasContext *ctx,
-                         arg_vr_ii *a, uint32_t oprsz, MemOp mop)
+                         arg_vr_ii *a, uint32_t oprsz, MemOp mop,
+                         void (*func)(TCGv, TCGv_ptr, tcg_target_long))
 {
     TCGv addr;
     TCGv_i64 val;
@@ -5436,29 +5437,31 @@ static bool do_vstelm_vl(DisasContext *ctx,
     val = tcg_temp_new_i64();
 
     addr = make_address_i(ctx, addr, a->imm);
-    tcg_gen_ld_i64(val, tcg_env, vec_reg_offset(a->vd, a->imm2, mop));
-    tcg_gen_qemu_st_i64(val, addr, ctx->mem_idx, mop);
+    func(val, tcg_env, vec_reg_offset(a->vd, a->imm2, mop));
+    tcg_gen_qemu_st_i64(val, addr, ctx->mem_idx, mop | MO_LE);
     return true;
 }
 
-static bool do_vstelm(DisasContext *ctx, arg_vr_ii *a, MemOp mop)
+static bool do_vstelm(DisasContext *ctx, arg_vr_ii *a, MemOp mop,
+                      void (*func)(TCGv, TCGv_ptr, tcg_target_long))
 {
-    return do_vstelm_vl(ctx, a, 16, mop);
+    return do_vstelm_vl(ctx, a, 16, mop, func);
 }
 
-static bool do_xvstelm(DisasContext *ctx, arg_vr_ii *a, MemOp mop)
+static bool do_xvstelm(DisasContext *ctx, arg_vr_ii *a, MemOp mop,
+                       void (*func)(TCGv, TCGv_ptr, tcg_target_long))
 {
-    return do_vstelm_vl(ctx, a, 32, mop);
+    return do_vstelm_vl(ctx, a, 32, mop, func);
 }
 
-TRANS(vstelm_b, LSX, do_vstelm, MO_8)
-TRANS(vstelm_h, LSX, do_vstelm, MO_16)
-TRANS(vstelm_w, LSX, do_vstelm, MO_32)
-TRANS(vstelm_d, LSX, do_vstelm, MO_64)
-TRANS(xvstelm_b, LASX, do_xvstelm, MO_8)
-TRANS(xvstelm_h, LASX, do_xvstelm, MO_16)
-TRANS(xvstelm_w, LASX, do_xvstelm, MO_32)
-TRANS(xvstelm_d, LASX, do_xvstelm, MO_64)
+TRANS(vstelm_b, LSX, do_vstelm, MO_8,  tcg_gen_ld8u_i64)
+TRANS(vstelm_h, LSX, do_vstelm, MO_16, tcg_gen_ld16u_i64)
+TRANS(vstelm_w, LSX, do_vstelm, MO_32, tcg_gen_ld32u_i64)
+TRANS(vstelm_d, LSX, do_vstelm, MO_64, tcg_gen_ld_i64)
+TRANS(xvstelm_b, LASX, do_xvstelm, MO_8,  tcg_gen_ld8u_i64)
+TRANS(xvstelm_h, LASX, do_xvstelm, MO_16, tcg_gen_ld16u_i64)
+TRANS(xvstelm_w, LASX, do_xvstelm, MO_32, tcg_gen_ld32u_i64)
+TRANS(xvstelm_d, LASX, do_xvstelm, MO_64, tcg_gen_ld_i64)
 
 static bool gen_lasx_memory(DisasContext *ctx, arg_vr_i *a,
                             void (*func)(DisasContext *, int, TCGv))
