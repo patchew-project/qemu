@@ -114,6 +114,7 @@ struct KVMState
     bool coalesced_flush_in_progress;
     int vcpu_events;
     bool have_guest_supported;
+    int gdbstub_sstep_flags;
 #ifdef TARGET_KVM_HAVE_GUEST_DEBUG
     QTAILQ_HEAD(, kvm_sw_breakpoint) kvm_sw_breakpoints;
 #endif
