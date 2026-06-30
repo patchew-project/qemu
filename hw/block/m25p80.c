@@ -980,19 +980,53 @@ static uint8_t numonyx_extract_cfg_num_dummies(Flash *s)
     mode = numonyx_mode(s);
     num_dummies = extract32(s->volatile_cfg, 4, 4);
 
+    /*
+     * The default nubmer of dummy cycles is only related to the SPI
+     * protocol mode. For QSPI it is 10, otherwise it is 8.
+     */
     if (num_dummies == 0x0 || num_dummies == 0xf) {
+        num_dummies = (mode == MODE_QIO) ? 10 : 8;
+    }
+
+    /*
+     * Convert the number of dummy cycles to bytes.
+     *
+     * In the Dual I/O and Quad I/O protocols, all command phases use 2 or 4
+     * lines. In standard/extended SPI mode the phase width depends on the
+     * command sequence: output-only fast reads keep the dummy clocks on the
+     * single address line, while input/output fast reads use the same 2-line
+     * or 4-line phase as the address.
+     */
+
+    if (mode == MODE_QIO) {
+        num_dummies *= 4;
+    } else if (mode == MODE_DIO) {
+        num_dummies *= 2;
+    } else {
         switch (s->cmd_in_progress) {
         case QIOR:
         case QIOR4:
-            num_dummies = 10;
+            num_dummies *= 4;
             break;
-        default:
-            num_dummies = (mode == MODE_QIO) ? 10 : 8;
+        case DIOR:
+        case DIOR4:
+            num_dummies *= 2;
             break;
-        }
+         }
     }
 
-    return num_dummies;
+    /*
+     * If the total number of dummy bits is not multiple of 8, log an
+     * unimplemented message to notify user, and round it up.
+     */
+    if (num_dummies % 8) {
+        qemu_log_mask(LOG_UNIMP,
+                      "M25P80: the number of dummy bits is not multiple of 8");
+        num_dummies = ROUND_UP(num_dummies, 8);
+    }
+
+    /* return the number of dummy bytes */
+    return num_dummies / 8;
 }
 
 static void decode_fast_read_cmd(Flash *s)
