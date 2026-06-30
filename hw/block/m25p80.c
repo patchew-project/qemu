@@ -975,7 +975,6 @@ static uint8_t numonyx_extract_cfg_num_dummies(Flash *s)
 {
     uint8_t num_dummies;
     uint8_t mode;
-    assert(get_man(s) == MAN_NUMONYX);
 
     mode = numonyx_mode(s);
     num_dummies = extract32(s->volatile_cfg, 4, 4);
@@ -1029,6 +1028,41 @@ static uint8_t numonyx_extract_cfg_num_dummies(Flash *s)
     return num_dummies / 8;
 }
 
+static uint8_t macronix_extract_cfg_num_dummies(Flash *s, uint8_t bus_width)
+{
+    static const uint8_t dummy_cycles_fast[4] = { 8, 6, 8, 10 };
+    static const uint8_t dummy_cycles_dio[4] = { 4, 6, 8, 10 };
+    static const uint8_t dummy_cycles_qio[4] = { 6, 4, 8, 10 };
+    const uint8_t *dummy_cycles = dummy_cycles_fast;
+    uint8_t num_dummies;
+
+    assert(get_man(s) == MAN_MACRONIX);
+
+    switch (s->cmd_in_progress) {
+    case DIOR:
+    case DIOR4:
+        dummy_cycles = dummy_cycles_dio;
+        break;
+    case QIOR:
+    case QIOR4:
+        dummy_cycles = dummy_cycles_qio;
+        break;
+    default:
+        break;
+    }
+
+    num_dummies = dummy_cycles[extract32(s->volatile_cfg, 6, 2)];
+    num_dummies *= bus_width;
+
+    if (num_dummies % 8) {
+        qemu_log_mask(LOG_UNIMP,
+                      "M25P80: the number of dummy bits is not multiple of 8");
+        num_dummies = ROUND_UP(num_dummies, 8);
+    }
+
+    return num_dummies / 8;
+}
+
 static void decode_fast_read_cmd(Flash *s)
 {
     s->needed_bytes = get_addr_length(s);
@@ -1044,11 +1078,7 @@ static void decode_fast_read_cmd(Flash *s)
         s->needed_bytes += numonyx_extract_cfg_num_dummies(s);
         break;
     case MAN_MACRONIX:
-        if (extract32(s->volatile_cfg, 6, 2) == 1) {
-            s->needed_bytes += 6;
-        } else {
-            s->needed_bytes += 8;
-        }
+        s->needed_bytes += macronix_extract_cfg_num_dummies(s, 1);
         break;
     case MAN_SPANSION:
         s->needed_bytes += extract32(s->spansion_cr2v,
@@ -1096,17 +1126,7 @@ static void decode_dio_read_cmd(Flash *s)
         s->needed_bytes += numonyx_extract_cfg_num_dummies(s);
         break;
     case MAN_MACRONIX:
-        switch (extract32(s->volatile_cfg, 6, 2)) {
-        case 1:
-            s->needed_bytes += 6;
-            break;
-        case 2:
-            s->needed_bytes += 8;
-            break;
-        default:
-            s->needed_bytes += 4;
-            break;
-        }
+        s->needed_bytes += macronix_extract_cfg_num_dummies(s, 2);
         break;
     case MAN_ISSI:
         /*
@@ -1146,17 +1166,7 @@ static void decode_qio_read_cmd(Flash *s)
         s->needed_bytes += numonyx_extract_cfg_num_dummies(s);
         break;
     case MAN_MACRONIX:
-        switch (extract32(s->volatile_cfg, 6, 2)) {
-        case 1:
-            s->needed_bytes += 4;
-            break;
-        case 2:
-            s->needed_bytes += 8;
-            break;
-        default:
-            s->needed_bytes += 6;
-            break;
-        }
+        s->needed_bytes += macronix_extract_cfg_num_dummies(s, 4);
         break;
     case MAN_ISSI:
         /*
