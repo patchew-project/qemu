@@ -30,6 +30,7 @@
 #include "cpu.h"
 #include "exec/cputlb.h"
 #include "exec/target_page.h"
+#include "exec/watchpoint.h"
 #include "gdbstub/helpers.h"
 #include "exec/helper-proto.h"
 #include "accel/tcg/cpu-loop.h"
@@ -205,35 +206,36 @@ void xtensa_register_core(XtensaConfigList *node)
     g_free((gpointer)type.name);
 }
 
-static uint32_t check_hw_breakpoints(CPUXtensaState *env)
+static bool check_hw_watchpoints(CPUState *cs)
 {
-    unsigned i;
+    CPUXtensaState *env = cpu_env(cs);
+    CPUWatchpoint *wp_hit = cs->watchpoint_hit;
 
-    for (i = 0; i < env->config->ndbreak; ++i) {
+    if (!wp_hit || !(wp_hit->flags & BP_CPU)) {
+        return false;
+    }
+    cs->watchpoint_hit = NULL;
+    for (int i = 0; i < env->config->ndbreak; ++i) {
         if (env->cpu_watchpoint[i] &&
                 env->cpu_watchpoint[i]->flags & BP_WATCHPOINT_HIT) {
-            return DEBUGCAUSE_DB | (i << DEBUGCAUSE_DBNUM_SHIFT);
+
+            uint32_t cause = DEBUGCAUSE_DB | (i << DEBUGCAUSE_DBNUM_SHIFT);
+            if (cause) {
+                debug_exception_env(env, cause);
+                break;
+            }
         }
     }
-    return 0;
+    cpu_loop_exit_noexc(cs);
+
+    return true;
 }
 
 void xtensa_breakpoint_handler(CPUState *cs)
 {
     CPUXtensaState *env = cpu_env(cs);
 
-    if (cs->watchpoint_hit) {
-        if (cs->watchpoint_hit->flags & BP_CPU) {
-            uint32_t cause;
-
-            cs->watchpoint_hit = NULL;
-            cause = check_hw_breakpoints(env);
-            if (cause) {
-                debug_exception_env(env, cause);
-            }
-            cpu_loop_exit_noexc(cs);
-        }
-    } else {
+    if (!check_hw_watchpoints(cs)) {
         if (cpu_breakpoint_test(cs, env->pc, BP_GDB)
             || !cpu_breakpoint_test(cs, env->pc, BP_CPU)) {
             return;
