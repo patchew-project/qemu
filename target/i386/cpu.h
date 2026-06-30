@@ -1214,10 +1214,11 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 #define CPUID_8000_0021_EAX_SRSO_USER_KERNEL_NO          (1U << 30)
 
 /*
- * Return Address Predictor size. RapSize x 8 is the minimum number of
- * CALL instructions software needs to execute to flush the RAP.
+ * Return Address Predictor size. RapSize x Y is the minimum number of
+ * CALL instructions software needs to execute to flush the RAP, where
+ * Y is the value of CPUID_8000_0021.EBX[23:16].
  */
-#define CPUID_8000_0021_EBX_RAPSIZE    (8U << 16)
+#define CPUID_8000_0021_EBX_RAPSIZE    (0x00FF0000U)
 
 /* CPU is not vulnerable TSA SA-SQ attack */
 #define CPUID_8000_0021_ECX_TSA_SQ_NO  (1U << 1)
