@@ -70,6 +70,7 @@
 #include "migration/blocker.h"
 #include "exec/memattrs.h"
 #include "exec/target_page.h"
+#include "exec/watchpoint.h"
 #include "trace.h"
 
 #include CONFIG_DEVICES

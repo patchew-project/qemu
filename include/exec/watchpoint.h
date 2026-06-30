@@ -8,7 +8,19 @@
 #ifndef EXEC_WATCHPOINT_H
 #define EXEC_WATCHPOINT_H
 
+#include "qemu/queue.h"
 #include "exec/breakpoint.h"
+#include "exec/memattrs.h"
+#include "exec/vaddr.h"
+
+typedef struct CPUWatchpoint {
+    vaddr vaddr;
+    vaddr len;
+    vaddr hitaddr;
+    MemTxAttrs hitattrs;
+    BreakpointFlags flags;
+    QTAILQ_ENTRY(CPUWatchpoint) entry;
+} CPUWatchpoint;
 
 int cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
                           BreakpointFlags flags, CPUWatchpoint **watchpoint);
