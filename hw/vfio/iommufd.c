@@ -20,6 +20,7 @@
 #include "trace.h"
 #include "qapi/error.h"
 #include "system/iommufd.h"
+#include "system/ramblock.h"
 #include "hw/core/iommu.h"
 #include "hw/core/qdev.h"
 #include "hw/vfio/vfio-cpr.h"
@@ -35,26 +36,50 @@
 #define TYPE_HOST_IOMMU_DEVICE_IOMMUFD_VFIO             \
             TYPE_HOST_IOMMU_DEVICE_IOMMUFD "-vfio"
 
+static bool iommufd_cdev_can_map_file_dma(MemoryRegion *mr, int *fd)
+{
+    RAMBlock *rb = mr ? mr->ram_block : NULL;
+
+    if (!rb) {
+        return false;
+    }
+
+    *fd = qemu_ram_get_fd(rb);
+    if (*fd < 0) {
+        return false;
+    }
+
+    /*
+     * Use iommufd_backend_map_file_dma() (IOMMU_IOAS_MAP_FILE) for:
+     * 1) Guest RAM blocks explicitly configured as shared (MAP_SHARED)
+     * 2) RAM device sub-regions (MMIO BARs)
+     *
+     * Private RAM mappings (MAP_PRIVATE) are excluded: copy-on-write
+     * semantics can cause their underlying PFNs to permanently diverge
+     * from the backing file.
+     */
+    return qemu_ram_is_shared(rb) || memory_region_is_ram_device(mr);
+}
+
 static int iommufd_cdev_map(const VFIOContainer *bcontainer, hwaddr iova,
                             uint64_t size, void *vaddr, bool readonly,
                             MemoryRegion *mr)
 {
     const VFIOIOMMUFDContainer *container = VFIO_IOMMU_IOMMUFD(bcontainer);
+    int fd;
 
-    return iommufd_backend_map_dma(container->be,
-                                   container->ioas_id,
+    if (iommufd_cdev_can_map_file_dma(mr, &fd)) {
+        RAMBlock *rb = mr->ram_block;
+        unsigned long start = vaddr - qemu_ram_get_host_addr(rb);
+        unsigned long offset = qemu_ram_get_fd_offset(rb);
+
+        return iommufd_backend_map_file_dma(container->be, container->ioas_id,
+                                            iova, size, fd,
+                                            start + offset, readonly);
+    }
+
+    return iommufd_backend_map_dma(container->be, container->ioas_id,
                                    iova, size, vaddr, readonly);
-}
-
-static int iommufd_cdev_map_file(const VFIOContainer *bcontainer,
-                                 hwaddr iova, uint64_t size,
-                                 int fd, unsigned long start, bool readonly)
-{
-    const VFIOIOMMUFDContainer *container = VFIO_IOMMU_IOMMUFD(bcontainer);
-
-    return iommufd_backend_map_file_dma(container->be,
-                                        container->ioas_id,
-                                        iova, size, fd, start, readonly);
 }
 
 static int iommufd_cdev_unmap(const VFIOContainer *bcontainer,
@@ -929,7 +954,6 @@ static void vfio_iommu_iommufd_class_init(ObjectClass *klass, const void *data)
     VFIOIOMMUClass *vioc = VFIO_IOMMU_CLASS(klass);
 
     vioc->dma_map = iommufd_cdev_map;
-    vioc->dma_map_file = iommufd_cdev_map_file;
     vioc->dma_unmap = iommufd_cdev_unmap;
     vioc->attach_device = iommufd_cdev_attach;
     vioc->detach_device = iommufd_cdev_detach;
