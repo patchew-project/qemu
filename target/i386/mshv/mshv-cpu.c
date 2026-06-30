@@ -1692,7 +1692,7 @@ static int pio_write(uint64_t port, const uint8_t *data, uintptr_t size,
     return ret;
 }
 
-static int handle_pio_non_str(const CPUState *cpu,
+static int handle_pio_non_str(CPUState *cpu,
                               hv_x64_io_port_intercept_message *info)
 {
     size_t len = info->access_info.access_size;
@@ -1748,7 +1748,7 @@ static int handle_pio_non_str(const CPUState *cpu,
         return -1;
     }
 
-    cpu->accel->dirty = false;
+    cpu->vcpu_dirty = false;
 
     return 0;
 }
@@ -1909,7 +1909,7 @@ static int handle_pio_str(CPUState *cpu, hv_x64_io_port_intercept_message *info)
         return -1;
     }
 
-    cpu->accel->dirty = false;
+    cpu->vcpu_dirty = false;
 
     return 0;
 }

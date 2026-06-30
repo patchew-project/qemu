@@ -43,7 +43,6 @@ typedef struct MshvHvCallArgs {
 
 struct AccelCPUState {
     int cpufd;
-    bool dirty;
     MshvHvCallArgs hvcall_args;
 };
 
