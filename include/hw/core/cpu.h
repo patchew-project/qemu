@@ -1146,7 +1146,7 @@ void cpu_single_step(CPUState *cpu, int flags);
  */
 static inline bool cpu_single_stepping(const CPUState *cpu)
 {
-    return cpu->singlestep_flags;
+    return cpu->singlestep_flags & SSTEP_ENABLE;
 }
 
 int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, BreakpointFlags flags,
