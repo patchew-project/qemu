@@ -646,13 +646,27 @@ void ide_set_sector(IDEState *s, int64_t sector_num)
         }
     } else {
         /* CHS */
-        cyl = sector_num / (s->heads * s->sectors);
-        r = sector_num % (s->heads * s->sectors);
-        s->hcyl = cyl >> 8;
-        s->lcyl = cyl;
-        s->select = (s->select & ~(ATA_DEV_HS)) |
-            ((r / s->sectors) & (ATA_DEV_HS));
-        s->sector = (r % s->sectors) + 1;
+        if (s->sectors == 0) {
+            /*
+             * s->sectors is under guest control via INITIALIZE DRIVE
+             * PARAMETERS and can be 0; this is an error but can't
+             * be reported at INITIALIZE DRIVE PARAMETERS time so we
+             * have to cope with the bad value here.
+             * (s->heads is always at least 1.)
+             */
+            s->hcyl = 0;
+            s->lcyl = 0;
+            s->select = s->select & ~(ATA_DEV_HS);
+            s->sector = 1;
+        } else {
+            cyl = sector_num / (s->heads * s->sectors);
+            r = sector_num % (s->heads * s->sectors);
+            s->hcyl = cyl >> 8;
+            s->lcyl = cyl;
+            s->select = (s->select & ~(ATA_DEV_HS)) |
+                ((r / s->sectors) & (ATA_DEV_HS));
+            s->sector = (r % s->sectors) + 1;
+        }
     }
 }
 
