@@ -672,6 +672,15 @@ int smmu_find_ste(SMMUv3State *s, uint32_t sid, STE *ste, SMMUEventInfo *event)
     /*
      * Check SID range against both guest-configured and implementation limits
      */
+    if (log2size > SMMU_IDR1_SIDSIZE) {
+        /*
+         * spec says: Except for readback of a written value, the effective
+         * LOG2SIZE is <= SMMU_IDR1.SIDSIZE for the purposes of input StreamID
+         * range checking and upper/lower/linear Stream table index address
+         * calculation.
+         */
+        log2size = SMMU_IDR1_SIDSIZE;
+    }
     if (sid >= (1 << MIN(log2size, SMMU_IDR1_SIDSIZE))) {
         event->type = SMMU_EVT_C_BAD_STREAMID;
         return -EINVAL;
