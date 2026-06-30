@@ -34,6 +34,7 @@
 #include "hw/core/qdev-properties.h"
 #include "kvm/kvm_i386.h"
 #include "qemu/iova-tree.h"
+#include "hw/core/registerfields.h"
 
 struct AMDVIAddressSpace {
     PCIBus *bus;                /* PCIBus (for bus number)              */
@@ -87,6 +88,13 @@ typedef struct AMDVIIOTLBKey {
     uint64_t gfn;
     uint16_t devid;
 } AMDVIIOTLBKey;
+
+/* XT IOMMU General Interrupt Control Register layout */
+FIELD(AMDVI_XT_GEN_INTR, DEST_MODE, 2, 1)
+FIELD(AMDVI_XT_GEN_INTR, DEST_LO, 8, 24)
+FIELD(AMDVI_XT_GEN_INTR, VECTOR, 32, 8)
+FIELD(AMDVI_XT_GEN_INTR, DELIVERY_MODE, 40, 1)
+FIELD(AMDVI_XT_GEN_INTR, DEST_HI, 56, 8)
 
 uint64_t amdvi_extended_feature_register(AMDVIState *s)
 {
@@ -194,17 +202,17 @@ static void amdvi_assign_andq(AMDVIState *s, hwaddr addr, uint64_t val)
 
 static void amdvi_build_xt_msi_msg(AMDVIState *s, MSIMessage *msg)
 {
-    union mmio_xt_intr xt_reg;
-    struct X86IOMMUIrq irq;
+    uint64_t xt_reg = amdvi_readq(s, AMDVI_MMIO_XT_GEN_INTR);
 
-    xt_reg.val = amdvi_readq(s, AMDVI_MMIO_XT_GEN_INTR);
-
-    irq.vector = xt_reg.vector;
-    irq.delivery_mode = xt_reg.delivery_mode;
-    irq.dest_mode = xt_reg.destination_mode;
-    irq.dest = (xt_reg.destination_hi << 24) | xt_reg.destination_lo;
-    irq.trigger_mode = 0;
-    irq.redir_hint = 0;
+    X86IOMMUIrq irq = {
+        .vector = FIELD_EX64(xt_reg, AMDVI_XT_GEN_INTR, VECTOR),
+        .delivery_mode = FIELD_EX64(xt_reg, AMDVI_XT_GEN_INTR, DELIVERY_MODE),
+        .dest_mode = FIELD_EX64(xt_reg, AMDVI_XT_GEN_INTR, DEST_MODE),
+        .dest = (FIELD_EX64(xt_reg, AMDVI_XT_GEN_INTR, DEST_HI) << 24) |
+                 FIELD_EX64(xt_reg, AMDVI_XT_GEN_INTR, DEST_LO),
+        .trigger_mode = 0,
+        .redir_hint = 0,
+    };
 
     x86_iommu_irq_to_msi_message(&irq, msg);
 }
