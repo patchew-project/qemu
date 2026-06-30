@@ -455,28 +455,35 @@ static uint32_t arm_debug_exception_fsr(CPUARMState *env)
     }
 }
 
+static bool arm_check_watchpoint_hit(CPUState *cs)
+{
+    CPUARMState *env = cpu_env(cs);
+    CPUWatchpoint *wp_hit = cs->watchpoint_hit;
+    bool wnr;
+
+    if (!wp_hit || !(wp_hit->flags & BP_CPU)) {
+        return false;
+    }
+
+    cs->watchpoint_hit = NULL;
+
+    env->exception.fsr = arm_debug_exception_fsr(env);
+    env->exception.vaddress = wp_hit->hitaddr;
+    wnr = (wp_hit->flags & BP_WATCHPOINT_HIT_WRITE) != 0;
+    raise_exception_debug(env, EXCP_DATA_ABORT,
+                          syn_watchpoint(0, 0, wnr));
+    return true;
+}
+
 void arm_debug_excp_handler(CPUState *cs)
 {
     /*
      * Called by core code when a watchpoint or breakpoint fires;
      * need to check which one and raise the appropriate exception.
      */
-    ARMCPU *cpu = ARM_CPU(cs);
-    CPUARMState *env = &cpu->env;
-    CPUWatchpoint *wp_hit = cs->watchpoint_hit;
+    CPUARMState *env = cpu_env(cs);
 
-    if (wp_hit) {
-        if (wp_hit->flags & BP_CPU) {
-            bool wnr = (wp_hit->flags & BP_WATCHPOINT_HIT_WRITE) != 0;
-
-            cs->watchpoint_hit = NULL;
-
-            env->exception.fsr = arm_debug_exception_fsr(env);
-            env->exception.vaddress = wp_hit->hitaddr;
-            raise_exception_debug(env, EXCP_DATA_ABORT,
-                                  syn_watchpoint(0, 0, wnr));
-        }
-    } else {
+    if (!arm_check_watchpoint_hit(cs)) {
         uint64_t pc = is_a64(env) ? env->pc : env->regs[15];
 
         /*
