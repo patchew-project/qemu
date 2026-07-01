@@ -95,6 +95,25 @@ typedef struct NCR710State {
     uint32_t select_tag;
     int command_complete;
     bool script_running;
+    /*
+     * The driver's "start next command" SIGP kick landed while the engine was
+     * halted at a completion INT (waiting==NOWAIT) instead of parked at Wait
+     * Reselect, so the normal SIGP wake is skipped.  The ISTAT write clears the
+     * SIGP latch (presenting the kick as "consumed" to the driver's poll) and
+     * sets this flag instead; the Wait Reselect handler (execute_script case 2)
+     * consumes it when the engine next parks, selecting the next command.
+     */
+    bool sigp_pending_resume;
+    /*
+     * A cached-backend SCSI continue was deferred to ncr710_issue_bh so its
+     * completion arrives asynchronously, not reentrantly inside the engine.
+     */
+    bool issue_pending;
+    /*
+     * SCRIPTS interpreter on-stack recursion depth; transient (always 0
+     * outside execute_script), so it is not migrated in vmstate.
+     */
+    int reentrancy_level;
     NCR710Request *current;
     /*
      * Disconnected tagged commands awaiting target-initiated reselection
