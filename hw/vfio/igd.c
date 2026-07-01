@@ -610,6 +610,10 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
         goto error;
     }
 
+    if (pdev->romfile) {
+        pdev->romfile_fixup = vfio_igd_legacy_rom_quirk;
+    }
+
     /*
      * ASLS (OpRegion address) is read-only, emulated
      * It contains HPA, guest firmware need to reprogram it with GPA.
