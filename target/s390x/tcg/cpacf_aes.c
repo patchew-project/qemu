@@ -16,26 +16,54 @@
 #include "crypto/aes.h"
 #include "target/s390x/tcg/cpacf.h"
 
-static void aes_read_block(CPUS390XState *env, const int mmu_idx,
-                           uint64_t addr, uint8_t *a, uintptr_t ra)
+/*
+ * helper function to copy some memory from guest to a local buffer
+ */
+static inline void copy_from_guest_wrap(CPUS390XState *env, const int mmu_idx,
+                                        const uintptr_t ra, uint64_t guest_addr,
+                                        uint8_t *dest, size_t len)
 {
     const MemOpIdx oi = make_memop_idx(MO_8, mmu_idx);
 
-    for (int i = 0; i < AES_BLOCK_SIZE; i++, addr += 1) {
-        uint64_t _addr = wrap_address(env, addr);
-        a[i] = cpu_ldb_mmu(env, _addr, oi, ra);
+    for (size_t i = 0; i < len; i++, guest_addr++) {
+        uint64_t waddr = wrap_address(env, guest_addr);
+        dest[i] = cpu_ldb_mmu(env, waddr, oi, ra);
     }
 }
 
-static void aes_write_block(CPUS390XState *env, const int mmu_idx,
-                            uint64_t addr, uint8_t *a, uintptr_t ra)
+/*
+ * helper function to copy from a local buffer to guest memory
+ */
+static inline void copy_to_guest_wrap(CPUS390XState *env, const int mmu_idx,
+                                      const uintptr_t ra, uint64_t guest_addr,
+                                      const uint8_t *src, size_t len)
 {
     const MemOpIdx oi = make_memop_idx(MO_8, mmu_idx);
 
-    for (int i = 0; i < AES_BLOCK_SIZE; i++, addr += 1) {
-        uint64_t _addr = wrap_address(env, addr);
-        cpu_stb_mmu(env, _addr, a[i], oi, ra);
+    for (size_t i = 0; i < len; i++, guest_addr++) {
+        uint64_t waddr = wrap_address(env, guest_addr);
+        cpu_stb_mmu(env, waddr, src[i], oi, ra);
     }
+}
+
+/*
+ * read exactly one AES block from guest memory into a local buffer
+ */
+static inline void aes_read_block(CPUS390XState *env, const int mmu_idx,
+                                  const uintptr_t ra, uint64_t guest_addr,
+                                  uint8_t *buf)
+{
+    copy_from_guest_wrap(env, mmu_idx, ra, guest_addr, buf, AES_BLOCK_SIZE);
+}
+
+/*
+ * write exactly one AES block from local buffer to guest memory
+ */
+static void aes_write_block(CPUS390XState *env, const int mmu_idx,
+                            const uintptr_t ra, uint64_t guest_addr,
+                            uint8_t *buf)
+{
+    copy_to_guest_wrap(env, mmu_idx, ra, guest_addr, buf, AES_BLOCK_SIZE);
 }
 
 int cpacf_aes_ecb(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
@@ -44,9 +72,8 @@ int cpacf_aes_ecb(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
                   uint32_t type, uint8_t fc, uint8_t mod)
 {
     enum { MAX_BLOCKS_PER_RUN = 8192 / AES_BLOCK_SIZE };
-    const MemOpIdx oi = make_memop_idx(MO_8, mmu_idx);
     uint8_t in[AES_BLOCK_SIZE], out[AES_BLOCK_SIZE];
-    uint64_t addr, len = *src_len_reg, done = 0;
+    uint64_t len = *src_len_reg, done = 0;
     int i, keysize, addr_reg_size = 64;
     uint8_t key[32];
     AES_KEY exkey;
@@ -77,10 +104,7 @@ int cpacf_aes_ecb(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     }
 
     /* fetch key from param block */
-    for (i = 0; i < keysize; i++) {
-        addr = wrap_address(env, param_addr + i);
-        key[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra, param_addr, key, keysize);
 
     /* expand key */
     if (mod) {
@@ -91,13 +115,13 @@ int cpacf_aes_ecb(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 
     /* process up to MAX_BLOCKS_PER_RUN aes blocks */
     for (i = 0; i < MAX_BLOCKS_PER_RUN && len >= AES_BLOCK_SIZE; i++) {
-        aes_read_block(env, mmu_idx, *src_ptr_reg + done, in, ra);
+        aes_read_block(env, mmu_idx, ra, *src_ptr_reg + done, in);
         if (mod) {
             AES_decrypt(in, out, &exkey);
         } else {
             AES_encrypt(in, out, &exkey);
         }
-        aes_write_block(env, mmu_idx, *dst_ptr_reg + done, out, ra);
+        aes_write_block(env, mmu_idx, ra, *dst_ptr_reg + done, out);
         len -= AES_BLOCK_SIZE;
         done += AES_BLOCK_SIZE;
     }
@@ -118,8 +142,7 @@ int cpacf_aes_cbc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 {
     enum { MAX_BLOCKS_PER_RUN = 8192 / AES_BLOCK_SIZE };
     uint8_t in[AES_BLOCK_SIZE], out[AES_BLOCK_SIZE];
-    const MemOpIdx oi = make_memop_idx(MO_8, mmu_idx);
-    uint64_t addr, len = *src_len_reg, done = 0;
+    uint64_t len = *src_len_reg, done = 0;
     int i, keysize, addr_reg_size = 64;
     uint8_t key[32], iv[AES_BLOCK_SIZE];
     AES_KEY exkey;
@@ -151,16 +174,11 @@ int cpacf_aes_cbc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     }
 
     /* fetch iv from param block */
-    for (i = 0; i < AES_BLOCK_SIZE; i++) {
-        addr = wrap_address(env, param_addr + i);
-        iv[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra, param_addr, iv, AES_BLOCK_SIZE);
 
     /* fetch key from param block */
-    for (i = 0; i < keysize; i++) {
-        addr = wrap_address(env, param_addr + AES_BLOCK_SIZE + i);
-        key[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra,
+                         param_addr + AES_BLOCK_SIZE, key, keysize);
 
     /* expand key */
     if (mod) {
@@ -171,7 +189,7 @@ int cpacf_aes_cbc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 
     /* process up to MAX_BLOCKS_PER_RUN aes blocks */
     for (i = 0; i < MAX_BLOCKS_PER_RUN && len >= AES_BLOCK_SIZE; i++) {
-        aes_read_block(env, mmu_idx, *src_ptr_reg + done, in, ra);
+        aes_read_block(env, mmu_idx, ra, *src_ptr_reg + done, in);
         if (mod) {
             /* decrypt in => out */
             AES_cbc_decrypt(in, out, iv, &exkey);
@@ -179,16 +197,13 @@ int cpacf_aes_cbc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
             /* encrypt in => out */
             AES_cbc_encrypt(in, out, iv, &exkey);
         }
-        aes_write_block(env, mmu_idx, *dst_ptr_reg + done, out, ra);
+        aes_write_block(env, mmu_idx, ra, *dst_ptr_reg + done, out);
         len -= AES_BLOCK_SIZE;
         done += AES_BLOCK_SIZE;
     }
 
     /* update iv in param block */
-    for (i = 0; i < AES_BLOCK_SIZE; i++) {
-        addr = wrap_address(env, param_addr + i);
-        cpu_stb_mmu(env, addr, iv[i], oi, ra);
-    }
+    copy_to_guest_wrap(env, mmu_idx, ra, param_addr, iv, AES_BLOCK_SIZE);
 
     *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
                              *src_ptr_reg + done);
@@ -206,9 +221,8 @@ int cpacf_aes_ctr(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
                   uint8_t fc, uint8_t mod)
 {
     enum { MAX_BLOCKS_PER_RUN = 8192 / AES_BLOCK_SIZE };
-    const MemOpIdx oi = make_memop_idx(MO_8, mmu_idx);
     uint8_t in[AES_BLOCK_SIZE], out[AES_BLOCK_SIZE];
-    uint64_t addr, len = *src_len_reg, done = 0;
+    uint64_t len = *src_len_reg, done = 0;
     uint8_t ctr[AES_BLOCK_SIZE], key[32];
     int i, keysize, addr_reg_size = 64;
     AES_KEY exkey;
@@ -240,10 +254,7 @@ int cpacf_aes_ctr(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     }
 
     /* fetch key from param block */
-    for (i = 0; i < keysize; i++) {
-        addr = wrap_address(env, param_addr + i);
-        key[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra, param_addr, key, keysize);
 
     /* expand key */
     AES_set_encrypt_key(key, keysize * 8, &exkey);
@@ -251,13 +262,13 @@ int cpacf_aes_ctr(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     /* process up to MAX_BLOCKS_PER_RUN aes blocks */
     for (i = 0; i < MAX_BLOCKS_PER_RUN && len >= AES_BLOCK_SIZE; i++) {
         /* read in nonce/ctr => ctr */
-        aes_read_block(env, mmu_idx, *ctr_ptr_reg + done, ctr, ra);
+        aes_read_block(env, mmu_idx, ra, *ctr_ptr_reg + done, ctr);
         /* read in one block of input data => in */
-        aes_read_block(env, mmu_idx, *src_ptr_reg + done, in, ra);
+        aes_read_block(env, mmu_idx, ra, *src_ptr_reg + done, in);
         /* encrypt ctr and xor with in => out */
         AES_ctr_encrypt(in, out, ctr, &exkey);
         /* write out the processed block */
-        aes_write_block(env, mmu_idx, *dst_ptr_reg + done, out, ra);
+        aes_write_block(env, mmu_idx, ra, *dst_ptr_reg + done, out);
         len -= AES_BLOCK_SIZE;
         done += AES_BLOCK_SIZE;
     }
@@ -277,9 +288,7 @@ int cpacf_aes_pcc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
                   uint64_t param_addr, uint8_t fc)
 {
     uint8_t key[32], tweak[AES_BLOCK_SIZE], buf[AES_BLOCK_SIZE];
-    const MemOpIdx oi = make_memop_idx(MO_8, mmu_idx);
     int keysize, i;
-    uint64_t addr;
     AES_KEY exkey;
 
     switch (fc) {
@@ -294,10 +303,9 @@ int cpacf_aes_pcc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     }
 
     /* fetch block sequence nr from param block into buf */
-    for (i = 0; i < AES_BLOCK_SIZE; i++) {
-        addr = wrap_address(env, param_addr + keysize + AES_BLOCK_SIZE + i);
-        buf[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra,
+                         param_addr + keysize + AES_BLOCK_SIZE,
+                         buf, AES_BLOCK_SIZE);
 
     /* is the block sequence nr 0 ? */
     for (i = 0; i < AES_BLOCK_SIZE && !buf[i]; i++) {
@@ -310,16 +318,11 @@ int cpacf_aes_pcc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     }
 
     /* fetch key from param block */
-    for (i = 0; i < keysize; i++) {
-        addr = wrap_address(env, param_addr + i);
-        key[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra, param_addr, key, keysize);
 
     /* fetch tweak from param block into tweak */
-    for (i = 0; i < AES_BLOCK_SIZE; i++) {
-        addr = wrap_address(env, param_addr + keysize + i);
-        tweak[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra,
+                         param_addr + keysize, tweak, AES_BLOCK_SIZE);
 
     /* expand key */
     AES_set_encrypt_key(key, keysize * 8, &exkey);
@@ -328,10 +331,9 @@ int cpacf_aes_pcc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     AES_encrypt(tweak, buf, &exkey);
 
     /* store encrypted tweak into xts parameter field of the param block */
-    for (i = 0; i < AES_BLOCK_SIZE; i++) {
-        addr = wrap_address(env, param_addr + keysize + 3 * AES_BLOCK_SIZE + i);
-        cpu_stb_mmu(env, addr, buf[i], oi, ra);
-    }
+    copy_to_guest_wrap(env, mmu_idx, ra,
+                       param_addr + keysize + 3 * AES_BLOCK_SIZE,
+                       buf, AES_BLOCK_SIZE);
 
     return 0;
 }
@@ -343,8 +345,7 @@ int cpacf_aes_xts(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 {
     enum { MAX_BLOCKS_PER_RUN = 8192 / AES_BLOCK_SIZE };
     uint8_t in[AES_BLOCK_SIZE], out[AES_BLOCK_SIZE];
-    const MemOpIdx oi = make_memop_idx(MO_8, mmu_idx);
-    uint64_t addr, len = *src_len_reg, done = 0;
+    uint64_t len = *src_len_reg, done = 0;
     uint8_t key[32], tweak[AES_BLOCK_SIZE];
     int i, keysize, addr_reg_size = 64;
     AES_KEY exkey;
@@ -373,10 +374,7 @@ int cpacf_aes_xts(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     }
 
     /* fetch key from param block */
-    for (i = 0; i < keysize; i++) {
-        addr = wrap_address(env, param_addr + i);
-        key[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra, param_addr, key, keysize);
 
     /* expand key */
     if (mod) {
@@ -386,15 +384,13 @@ int cpacf_aes_xts(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     }
 
     /* fetch tweak from param block */
-    for (i = 0; i < AES_BLOCK_SIZE; i++) {
-        addr = wrap_address(env, param_addr + keysize + i);
-        tweak[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra,
+                         param_addr + keysize, tweak, AES_BLOCK_SIZE);
 
     /* process up to MAX_BLOCKS_PER_RUN aes blocks */
     for (i = 0; i < MAX_BLOCKS_PER_RUN && len >= AES_BLOCK_SIZE; i++) {
         /* fetch one AES block into in  */
-        aes_read_block(env, mmu_idx, *src_ptr_reg + done, in, ra);
+        aes_read_block(env, mmu_idx, ra, *src_ptr_reg + done, in);
         if (mod) {
             /* decrypt in => out */
             AES_xts_decrypt(in, out, tweak, &exkey);
@@ -405,16 +401,14 @@ int cpacf_aes_xts(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
         /* prep tweak for next round */
         AES_xts_prep_next_tweak(tweak);
         /* write out this processed block from out */
-        aes_write_block(env, mmu_idx, *dst_ptr_reg + done, out, ra);
+        aes_write_block(env, mmu_idx, ra, *dst_ptr_reg + done, out);
         len -= AES_BLOCK_SIZE;
         done += AES_BLOCK_SIZE;
     }
 
     /* update tweak in param block */
-    for (i = 0; i < AES_BLOCK_SIZE; i++) {
-        addr = wrap_address(env, param_addr + keysize + i);
-        cpu_stb_mmu(env, addr, tweak[i], oi, ra);
-    }
+    copy_to_guest_wrap(env, mmu_idx, ra,
+                       param_addr + keysize, tweak, AES_BLOCK_SIZE);
 
     *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
                              *src_ptr_reg + done);
@@ -467,10 +461,8 @@ static void decrypt_protkey(uint8_t *key, int keysize)
 int cpacf_aes_pckmo(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
                     uint64_t param_addr, uint8_t fc)
 {
-    const MemOpIdx oi = make_memop_idx(MO_8, mmu_idx);
     uint8_t key[32];
-    int keysize, i;
-    uint64_t addr;
+    int keysize;
 
     switch (fc) {
     case CPACF_PCKMO_ENC_AES_128_KEY:
@@ -487,24 +479,17 @@ int cpacf_aes_pckmo(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     }
 
     /* fetch key from param block */
-    for (i = 0; i < keysize; i++) {
-        addr = wrap_address(env, param_addr + i);
-        key[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra, param_addr, key, keysize);
 
     /* 'derive' the protected key from the clear key */
     encrypt_clrkey(key, keysize);
 
     /* store the protected key into param block */
-    for (i = 0; i < keysize; i++) {
-        addr = wrap_address(env, param_addr + i);
-        cpu_stb_mmu(env, addr, key[i], oi, ra);
-    }
+    copy_to_guest_wrap(env, mmu_idx, ra, param_addr, key, keysize);
     /* followed by the fake wkvp */
-    for (i = 0; i < sizeof(protkey_wkvp); i++) {
-        addr = wrap_address(env, param_addr + keysize + i);
-        cpu_stb_mmu(env, addr, protkey_wkvp[i], oi, ra);
-    }
+    copy_to_guest_wrap(env, mmu_idx, ra,
+                       param_addr + keysize,
+                       protkey_wkvp, sizeof(protkey_wkvp));
 
     return 0;
 }
@@ -515,9 +500,8 @@ int cpacf_paes_ecb(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
                    uint32_t type, uint8_t fc, uint8_t mod)
 {
     enum { MAX_BLOCKS_PER_RUN = 8192 / AES_BLOCK_SIZE };
-    const MemOpIdx oi = make_memop_idx(MO_8, mmu_idx);
     uint8_t in[AES_BLOCK_SIZE], out[AES_BLOCK_SIZE];
-    uint64_t addr, len = *src_len_reg, done = 0;
+    uint64_t len = *src_len_reg, done = 0;
     int i, keysize, addr_reg_size = 64;
     uint8_t key[32], wkvp[32];
     AES_KEY exkey;
@@ -549,20 +533,15 @@ int cpacf_paes_ecb(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     }
 
     /* fetch and check wkvp from param block */
-    for (i = 0; i < sizeof(wkvp); i++) {
-        addr = wrap_address(env, param_addr + keysize + i);
-        wkvp[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra,
+                         param_addr + keysize, wkvp, sizeof(wkvp));
     if (memcmp(wkvp, protkey_wkvp, sizeof(wkvp))) {
         /* wkvp mismatch -> return with cc 1 */
         return 1;
     }
 
     /* fetch protected key from param block */
-    for (i = 0; i < keysize; i++) {
-        addr = wrap_address(env, param_addr + i);
-        key[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra, param_addr, key, keysize);
     /* decrypt the protected key */
     decrypt_protkey(key, keysize);
 
@@ -575,13 +554,13 @@ int cpacf_paes_ecb(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 
     /* process up to MAX_BLOCKS_PER_RUN aes blocks */
     for (i = 0; i < MAX_BLOCKS_PER_RUN && len >= AES_BLOCK_SIZE; i++) {
-        aes_read_block(env, mmu_idx, *src_ptr_reg + done, in, ra);
+        aes_read_block(env, mmu_idx, ra, *src_ptr_reg + done, in);
         if (mod) {
             AES_decrypt(in, out, &exkey);
         } else {
             AES_encrypt(in, out, &exkey);
         }
-        aes_write_block(env, mmu_idx, *dst_ptr_reg + done, out, ra);
+        aes_write_block(env, mmu_idx, ra, *dst_ptr_reg + done, out);
         len -= AES_BLOCK_SIZE;
         done += AES_BLOCK_SIZE;
     }
@@ -602,9 +581,8 @@ int cpacf_paes_cbc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 {
     enum { MAX_BLOCKS_PER_RUN = 8192 / AES_BLOCK_SIZE };
     uint8_t in[AES_BLOCK_SIZE], out[AES_BLOCK_SIZE];
-    const MemOpIdx oi = make_memop_idx(MO_8, mmu_idx);
     uint8_t key[32], wkvp[32], iv[AES_BLOCK_SIZE];
-    uint64_t addr, len = *src_len_reg, done = 0;
+    uint64_t len = *src_len_reg, done = 0;
     int i, keysize, addr_reg_size = 64;
     AES_KEY exkey;
 
@@ -635,26 +613,20 @@ int cpacf_paes_cbc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     }
 
     /* fetch and check wkvp from param block */
-    for (i = 0; i < sizeof(wkvp); i++) {
-        addr = wrap_address(env, param_addr + AES_BLOCK_SIZE + keysize + i);
-        wkvp[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra,
+                         param_addr + AES_BLOCK_SIZE + keysize,
+                         wkvp, sizeof(wkvp));
     if (memcmp(wkvp, protkey_wkvp, sizeof(wkvp))) {
         /* wkvp mismatch -> return with cc 1 */
         return 1;
     }
 
     /* fetch iv from param block */
-    for (i = 0; i < AES_BLOCK_SIZE; i++) {
-        addr = wrap_address(env, param_addr + i);
-        iv[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra, param_addr, iv, AES_BLOCK_SIZE);
 
     /* fetch protected key from param block */
-    for (i = 0; i < keysize; i++) {
-        addr = wrap_address(env, param_addr + AES_BLOCK_SIZE + i);
-        key[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra,
+                         param_addr + AES_BLOCK_SIZE, key, keysize);
     /* decrypt the protected key */
     decrypt_protkey(key, keysize);
 
@@ -667,7 +639,7 @@ int cpacf_paes_cbc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 
     /* process up to MAX_BLOCKS_PER_RUN aes blocks */
     for (i = 0; i < MAX_BLOCKS_PER_RUN && len >= AES_BLOCK_SIZE; i++) {
-        aes_read_block(env, mmu_idx, *src_ptr_reg + done, in, ra);
+        aes_read_block(env, mmu_idx, ra, *src_ptr_reg + done, in);
         if (mod) {
             /* decrypt in => out */
             AES_cbc_decrypt(in, out, iv, &exkey);
@@ -675,16 +647,13 @@ int cpacf_paes_cbc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
             /* encrypt in => out */
             AES_cbc_encrypt(in, out, iv, &exkey);
         }
-        aes_write_block(env, mmu_idx, *dst_ptr_reg + done, out, ra);
+        aes_write_block(env, mmu_idx, ra, *dst_ptr_reg + done, out);
         len -= AES_BLOCK_SIZE;
         done += AES_BLOCK_SIZE;
     }
 
     /* update iv in param block */
-    for (i = 0; i < AES_BLOCK_SIZE; i++) {
-        addr = wrap_address(env, param_addr + i);
-        cpu_stb_mmu(env, addr, iv[i], oi, ra);
-    }
+    copy_to_guest_wrap(env, mmu_idx, ra, param_addr, iv, AES_BLOCK_SIZE);
 
     *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
                              *src_ptr_reg + done);
@@ -702,10 +671,9 @@ int cpacf_paes_ctr(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
                    uint8_t fc, uint8_t mod)
 {
     enum { MAX_BLOCKS_PER_RUN = 8192 / AES_BLOCK_SIZE };
-    const MemOpIdx oi = make_memop_idx(MO_8, mmu_idx);
     uint8_t in[AES_BLOCK_SIZE], out[AES_BLOCK_SIZE];
     uint8_t ctr[AES_BLOCK_SIZE], key[32], wkvp[32];
-    uint64_t addr, len = *src_len_reg, done = 0;
+    uint64_t len = *src_len_reg, done = 0;
     int i, keysize, addr_reg_size = 64;
     AES_KEY exkey;
 
@@ -736,20 +704,15 @@ int cpacf_paes_ctr(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     }
 
     /* fetch and check wkvp from param block */
-    for (i = 0; i < sizeof(wkvp); i++) {
-        addr = wrap_address(env, param_addr + keysize + i);
-        wkvp[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra,
+                         param_addr + keysize, wkvp, sizeof(wkvp));
     if (memcmp(wkvp, protkey_wkvp, sizeof(wkvp))) {
         /* wkvp mismatch -> return with cc 1 */
         return 1;
     }
 
     /* fetch protected key from param block */
-    for (i = 0; i < keysize; i++) {
-        addr = wrap_address(env, param_addr + i);
-        key[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra, param_addr, key, keysize);
     /* decrypt the protected key */
     decrypt_protkey(key, keysize);
 
@@ -759,13 +722,13 @@ int cpacf_paes_ctr(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     /* process up to MAX_BLOCKS_PER_RUN aes blocks */
     for (i = 0; i < MAX_BLOCKS_PER_RUN && len >= AES_BLOCK_SIZE; i++) {
         /* read in nonce/ctr => ctr */
-        aes_read_block(env, mmu_idx, *ctr_ptr_reg + done, ctr, ra);
+        aes_read_block(env, mmu_idx, ra, *ctr_ptr_reg + done, ctr);
         /* read in one block of input data => in */
-        aes_read_block(env, mmu_idx, *src_ptr_reg + done, in, ra);
+        aes_read_block(env, mmu_idx, ra, *src_ptr_reg + done, in);
         /* encrypt ctr and xor with in => out */
         AES_ctr_encrypt(in, out, ctr, &exkey);
         /* write out the processed block */
-        aes_write_block(env, mmu_idx, *dst_ptr_reg + done, out, ra);
+        aes_write_block(env, mmu_idx, ra, *dst_ptr_reg + done, out);
         len -= AES_BLOCK_SIZE;
         done += AES_BLOCK_SIZE;
     }
@@ -785,9 +748,7 @@ int cpacf_paes_pcc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
                    uint64_t param_addr, uint8_t fc)
 {
     uint8_t key[32], wkvp[32], tweak[AES_BLOCK_SIZE], buf[AES_BLOCK_SIZE];
-    const MemOpIdx oi = make_memop_idx(MO_8, mmu_idx);
     int keysize, i;
-    uint64_t addr;
     AES_KEY exkey;
 
     switch (fc) {
@@ -802,21 +763,17 @@ int cpacf_paes_pcc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     }
 
     /* fetch and check wkvp from param block */
-    for (i = 0; i < sizeof(wkvp); i++) {
-        addr = wrap_address(env, param_addr + keysize + i);
-        wkvp[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra,
+                         param_addr + keysize, wkvp, sizeof(wkvp));
     if (memcmp(wkvp, protkey_wkvp, sizeof(wkvp))) {
         /* wkvp mismatch -> return with cc 1 */
         return 1;
     }
 
     /* fetch block sequence nr from param block into buf */
-    for (i = 0; i < AES_BLOCK_SIZE; i++) {
-        addr = wrap_address(env, param_addr + keysize +
-                            sizeof(wkvp) + AES_BLOCK_SIZE + i);
-        buf[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra,
+                         param_addr + keysize + sizeof(wkvp) + AES_BLOCK_SIZE,
+                         buf, AES_BLOCK_SIZE);
 
     /* is the block sequence nr 0 ? */
     for (i = 0; i < AES_BLOCK_SIZE && !buf[i]; i++) {
@@ -829,18 +786,14 @@ int cpacf_paes_pcc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     }
 
     /* fetch protected key from param block */
-    for (i = 0; i < keysize; i++) {
-        addr = wrap_address(env, param_addr + i);
-        key[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra, param_addr, key, keysize);
     /* decrypt the protected key */
     decrypt_protkey(key, keysize);
 
     /* fetch tweak from param block into tweak */
-    for (i = 0; i < AES_BLOCK_SIZE; i++) {
-        addr = wrap_address(env, param_addr + keysize + sizeof(wkvp) + i);
-        tweak[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra,
+                         param_addr + keysize + sizeof(wkvp),
+                         tweak, AES_BLOCK_SIZE);
 
     /* expand key */
     AES_set_encrypt_key(key, keysize * 8, &exkey);
@@ -849,11 +802,9 @@ int cpacf_paes_pcc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     AES_encrypt(tweak, buf, &exkey);
 
     /* store encrypted tweak into xts parameter field of the param block */
-    for (i = 0; i < AES_BLOCK_SIZE; i++) {
-        addr = wrap_address(env, param_addr + keysize +
-                            sizeof(wkvp) + 3 * AES_BLOCK_SIZE + i);
-        cpu_stb_mmu(env, addr, buf[i], oi, ra);
-    }
+    copy_to_guest_wrap(env, mmu_idx, ra,
+                       param_addr + keysize + sizeof(wkvp) + 3 * AES_BLOCK_SIZE,
+                       buf, AES_BLOCK_SIZE);
 
     return 0;
 }
@@ -865,9 +816,8 @@ int cpacf_paes_xts(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
 {
     enum { MAX_BLOCKS_PER_RUN = 8192 / AES_BLOCK_SIZE };
     uint8_t in[AES_BLOCK_SIZE], out[AES_BLOCK_SIZE];
-    const MemOpIdx oi = make_memop_idx(MO_8, mmu_idx);
     uint8_t key[32], wkvp[32], tweak[AES_BLOCK_SIZE];
-    uint64_t addr, len = *src_len_reg, done = 0;
+    uint64_t len = *src_len_reg, done = 0;
     int i, keysize, addr_reg_size = 64;
     AES_KEY exkey;
 
@@ -895,20 +845,15 @@ int cpacf_paes_xts(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     }
 
     /* fetch and check wkvp from param block */
-    for (i = 0; i < sizeof(wkvp); i++) {
-        addr = wrap_address(env, param_addr + keysize + i);
-        wkvp[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra,
+                         param_addr + keysize, wkvp, sizeof(wkvp));
     if (memcmp(wkvp, protkey_wkvp, sizeof(wkvp))) {
         /* wkvp mismatch -> return with cc 1 */
         return 1;
     }
 
     /* fetch protected key from param block */
-    for (i = 0; i < keysize; i++) {
-        addr = wrap_address(env, param_addr + i);
-        key[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra, param_addr, key, keysize);
     /* decrypt the protected key */
     decrypt_protkey(key, keysize);
 
@@ -920,15 +865,14 @@ int cpacf_paes_xts(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     }
 
     /* fetch tweak from param block */
-    for (i = 0; i < AES_BLOCK_SIZE; i++) {
-        addr = wrap_address(env, param_addr + keysize + sizeof(wkvp) + i);
-        tweak[i] = cpu_ldb_mmu(env, addr, oi, ra);
-    }
+    copy_from_guest_wrap(env, mmu_idx, ra,
+                         param_addr + keysize + sizeof(wkvp),
+                         tweak, AES_BLOCK_SIZE);
 
     /* process up to MAX_BLOCKS_PER_RUN aes blocks */
     for (i = 0; i < MAX_BLOCKS_PER_RUN && len >= AES_BLOCK_SIZE; i++) {
         /* fetch one AES block into in */
-        aes_read_block(env, mmu_idx, *src_ptr_reg + done, in, ra);
+        aes_read_block(env, mmu_idx, ra, *src_ptr_reg + done, in);
         if (mod) {
             /* decrypt in => out */
             AES_xts_decrypt(in, out, tweak, &exkey);
@@ -939,16 +883,15 @@ int cpacf_paes_xts(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
         /* prep tweak for next round */
         AES_xts_prep_next_tweak(tweak);
         /* write out this processed block from out */
-        aes_write_block(env, mmu_idx, *dst_ptr_reg + done, out, ra);
+        aes_write_block(env, mmu_idx, ra, *dst_ptr_reg + done, out);
         len -= AES_BLOCK_SIZE;
         done += AES_BLOCK_SIZE;
     }
 
     /* update tweak in param block */
-    for (i = 0; i < AES_BLOCK_SIZE; i++) {
-        addr = wrap_address(env, param_addr + keysize + sizeof(wkvp) + i);
-        cpu_stb_mmu(env, addr, tweak[i], oi, ra);
-    }
+    copy_to_guest_wrap(env, mmu_idx, ra,
+                       param_addr + keysize + sizeof(wkvp),
+                       tweak, AES_BLOCK_SIZE);
 
     *src_ptr_reg = deposit64(*src_ptr_reg, 0, addr_reg_size,
                              *src_ptr_reg + done);
