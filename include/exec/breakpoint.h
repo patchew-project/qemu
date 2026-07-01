@@ -8,6 +8,7 @@
 #ifndef EXEC_BREAKPOINT_H
 #define EXEC_BREAKPOINT_H
 
+#include "qemu/interval-tree.h"
 #include "qemu/queue.h"
 #include "exec/vaddr.h"
 #include "exec/memattrs.h"
@@ -29,9 +30,8 @@
 #define BP_CPU_ID_SHIFT       16
 
 struct CPUBreakpoint {
-    vaddr pc;
-    uint32_t flags; /* BP_* */
-    QTAILQ_ENTRY(CPUBreakpoint) entry;
+    IntervalTreeNode itree;     /* start == last == pc */
+    uint32_t flags;             /* BP_* */
 };
 
 struct CPUWatchpoint {
