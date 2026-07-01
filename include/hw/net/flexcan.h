@@ -139,7 +139,9 @@ typedef struct FlexcanState {
 } FlexcanState;
 
 #define TYPE_CAN_FLEXCAN "flexcan"
-
 OBJECT_DECLARE_SIMPLE_TYPE(FlexcanState, CAN_FLEXCAN);
+
+#define TYPE_CAN_FLEXCAN2 "flexcan2"
+#define TYPE_CAN_FLEXCAN3 "flexcan3"
 
 #endif
