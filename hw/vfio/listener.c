@@ -355,8 +355,10 @@ static void vfio_ram_discard_unregister_listener(VFIOContainer *bcontainer,
 static bool vfio_known_safe_misalignment(MemoryRegionSection *section)
 {
     MemoryRegion *mr = section->mr;
+    const char *name = memory_region_name(mr);
 
-    if (!TPM_IS_CRB(mr->owner)) {
+    if (!TPM_IS_CRB(mr->owner) &&
+        !(name && strcmp(name, "tpm-ppi") == 0)) {
         return false;
     }
 
