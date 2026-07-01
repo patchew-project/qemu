@@ -133,6 +133,7 @@ config MICROVM
     select PCI_EXPRESS_GENERIC_BRIDGE
     select USB_XHCI_SYSBUS
     select I8254
+    select PLATFORM_BUS
 
 config NITRO_ENCLAVE
     default y

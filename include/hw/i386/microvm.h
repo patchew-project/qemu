@@ -61,6 +61,9 @@
 #define MICROVM_XHCI_BASE     0xfe900000
 #define MICROVM_XHCI_IRQ      10
 
+#define MICROVM_PLATFORM_BUS_BASE 0xfec20000
+#define MICROVM_PLATFORM_BUS_SIZE 0x00100000
+
 #define PCIE_MMIO_BASE        0xc0000000
 #define PCIE_MMIO_SIZE        0x20000000
 #define PCIE_ECAM_BASE        0xe0000000
@@ -101,6 +104,7 @@ struct MicrovmMachineState {
     Notifier machine_done;
     Notifier powerdown_req;
     struct GPEXConfig gpex;
+    DeviceState *platform_bus_dev;
 
     uint32_t ioapic_phandle[2];
 };

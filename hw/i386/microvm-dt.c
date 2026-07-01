@@ -38,6 +38,7 @@
 #include "hw/i386/fw_cfg.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/core/sysbus.h"
+#include "hw/core/sysbus-fdt.h"
 #include "hw/virtio/virtio-mmio.h"
 #include "hw/usb/xhci.h"
 
@@ -336,6 +337,14 @@ void dt_setup_microvm(MicrovmMachineState *mms)
 
     qemu_fdt_add_subnode(ms->fdt, "/chosen");
     dt_setup_sys_bus(mms);
+
+    if (mms->platform_bus_dev) {
+        /* Platform bus IRQs are not supported, intc is required but unused */
+        platform_bus_add_all_fdt_nodes(ms->fdt, "/ioapic1",
+                                       MICROVM_PLATFORM_BUS_BASE,
+                                       MICROVM_PLATFORM_BUS_SIZE,
+                                       0);
+    }
 
     /* add to fw_cfg */
     if (debug) {

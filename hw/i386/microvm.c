@@ -47,6 +47,7 @@
 #include "hw/virtio/virtio-mmio.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/generic_event_device.h"
+#include "hw/core/platform-bus.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/usb/xhci.h"
 #include "hw/vfio/types.h"
@@ -144,6 +145,24 @@ static void create_gpex(MicrovmMachineState *mms)
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
                            x86ms->gsi[mms->gpex.irq + i]);
     }
+}
+
+static void create_platform_bus(MicrovmMachineState *mms)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+
+    dev = qdev_new(TYPE_PLATFORM_BUS_DEVICE);
+    dev->id = g_strdup(TYPE_PLATFORM_BUS_DEVICE);
+    qdev_prop_set_uint32(dev, "num_irqs", 0);
+    qdev_prop_set_uint32(dev, "mmio_size", MICROVM_PLATFORM_BUS_SIZE);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    mms->platform_bus_dev = dev;
+
+    s = SYS_BUS_DEVICE(dev);
+    memory_region_add_subregion(get_system_memory(),
+                                MICROVM_PLATFORM_BUS_BASE,
+                                sysbus_mmio_get_region(s, 0));
 }
 
 static int microvm_ioapics(MicrovmMachineState *mms)
@@ -247,6 +266,8 @@ static void microvm_devices_init(MicrovmMachineState *mms)
     } else {
         x86ms->pci_irq_mask = 0;
     }
+
+    create_platform_bus(mms);
 
     if (x86ms->pic == ON_OFF_AUTO_ON || x86ms->pic == ON_OFF_AUTO_AUTO) {
         qemu_irq *i8259;
@@ -453,12 +474,27 @@ static HotplugHandler *microvm_get_hotplug_handler(MachineState *machine,
     return NULL;
 }
 
+static void link_one_device(SysBusDevice *sbdev, void *opaque)
+{
+    platform_bus_link_device(PLATFORM_BUS_DEVICE(opaque), sbdev);
+}
+
+static void microvm_link_platform_bus_devices(MicrovmMachineState *mms)
+{
+    if (!mms->platform_bus_dev) {
+        return;
+    }
+
+    foreach_dynamic_sysbus_device(link_one_device, mms->platform_bus_dev);
+}
+
 static void microvm_machine_done(Notifier *notifier, void *data)
 {
     MicrovmMachineState *mms = container_of(notifier, MicrovmMachineState,
                                             machine_done);
     X86MachineState *x86ms = X86_MACHINE(mms);
 
+    microvm_link_platform_bus_devices(mms);
     acpi_setup_microvm(mms);
     dt_setup_microvm(mms);
     fw_cfg_add_e820(x86ms->fw_cfg);
