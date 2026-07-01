@@ -1,12 +1,9 @@
 /*
- * LASI Wrapper for NCR710 SCSI Controller
+ * LASI wrapper for the NCR 53C710 SCSI controller
  *
  * Copyright (c) 2025 Soumyajyotii Ssarkar <soumyajyotisarkar23@gmail.com>
- * This driver was developed during the Google Summer of Code 2025 program.
- * Mentored by Helge Deller <deller@gmx.de>
- *
- * NCR710 SCSI Controller implementation
- * Based on the NCR53C710 Technical Manual Version 3.2, December 2000
+ * Developed during Google Summer of Code 2025, mentored by
+ * Helge Deller <deller@gmx.de>.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -26,9 +23,6 @@ typedef struct LasiNCR710State {
     SysBusDevice parent_obj;
     MemoryRegion mmio;
     qemu_irq lasi_irq;       /* IRQ line to LASI controller */
-    uint32_t hw_type;        /* Hardware type (HPHW_*) */
-    uint32_t sversion;       /* Software version */
-    uint32_t hversion;       /* Hardware version */
     NCR710State ncr710;
 } LasiNCR710State;
 
