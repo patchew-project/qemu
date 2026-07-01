@@ -724,3 +724,51 @@ bool vfio_probe_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
 
     return vfio_pci_igd_config_quirk(vdev, errp);
 }
+
+void vfio_igd_legacy_rom_quirk(PCIDevice *pdev, uint8_t *ptr, uint32_t size)
+{
+    VFIOPCIDevice *vdev = VFIO_PCI_DEVICE(pdev);
+    int gen;
+    uint16_t pcir_offset;
+    uint8_t checksum = 0;
+    uint32_t i;
+
+    if (!vfio_pci_is(vdev, PCI_VENDOR_ID_INTEL, PCI_ANY_ID) ||
+        !vfio_is_vga(vdev) || !vdev->vga) {
+        return;
+    }
+
+    /* Only Gen 6~9 devices have legacy VBIOS as Option ROM */
+    gen = igd_gen(vdev);
+    if (gen < 6 || gen > 9) {
+        return;
+    }
+
+    if (pci_get_word(ptr) != 0xaa55) {
+        return;
+    }
+
+    /* Must be a legacy ROM */
+    pcir_offset = pci_get_word(ptr + 0x18);
+    if (pcir_offset + 0x14 >= size || memcmp(ptr + pcir_offset, "PCIR", 4) ||
+        pci_get_byte(ptr + pcir_offset + 0x14) != 0x00) {
+        return;
+    }
+
+    /*
+     * Patch device ID as multiple IGD devices share the same rom with possible
+     * non-matching IDs.
+     */
+    pci_set_word(ptr + pcir_offset + 6, vdev->device_id);
+
+    /*
+     * IGD roms are known to have bogus checksums. No matter we changed the
+     * device ID or not, we need to recalculate the checksum and patch it.
+     */
+    for (i = 0; i < size; i++) {
+        checksum += ptr[i];
+    }
+    ((uint8_t *)ptr)[6] -= checksum;
+
+    trace_vfio_pci_igd_vbios_patched(vdev->vbasedev.name);
+}
