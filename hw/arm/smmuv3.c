@@ -1696,6 +1696,14 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
                 s->sid_split = 6;
             }
             s->features |= SMMU_FEATURE_2LVL_STE;
+        } else {
+            uint32_t log2size = FIELD_EX32(data, STRTAB_BASE_CFG, LOG2SIZE);
+
+            if (log2size + 6 > 64) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "Invalid STRTAB_BASE_CFG.LOG2SIZE: %d", log2size);
+                g_assert_not_reached();
+            }
         }
         break;
     case A_CMDQ_BASE: /* 64b */
