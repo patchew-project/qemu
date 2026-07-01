@@ -26,6 +26,7 @@ struct FslImx8mpEvkState {
     MachineState parent_obj;
 
     FslImx8mpState soc;
+    CanBusState *canbus[FSL_IMX8MP_NUM_CANS];
 
     struct arm_boot_info boot_info;
 };
@@ -86,6 +87,12 @@ static void imx8mp_evk_init(MachineState *machine)
 
     object_initialize_child(OBJECT(machine), "soc", &s->soc, TYPE_FSL_IMX8MP);
     object_property_set_uint(OBJECT(&s->soc), "fec1-phy-num", 1, &error_fatal);
+    for (int i = 0; i < FSL_IMX8MP_NUM_CANS; i++) {
+        g_autofree char *bus_name = g_strdup_printf("canbus%d", i);
+
+        object_property_set_link(OBJECT(&s->soc), bus_name,
+                                 OBJECT(s->canbus[i]), &error_fatal);
+    }
     sysbus_realize_and_unref(SYS_BUS_DEVICE(&s->soc), &error_fatal);
 
     memory_region_add_subregion(get_system_memory(), FSL_IMX8MP_RAM_START,
@@ -122,6 +129,19 @@ static const char *imx8mp_evk_get_default_cpu_type(const MachineState *ms)
     return ARM_CPU_TYPE_NAME("cortex-a53");
 }
 
+static void imx8mp_evk_machine_init(Object *obj)
+{
+    FslImx8mpEvkState *s = IMX8MPEVK_MACHINE(obj);
+
+    object_property_add_link(obj, "canbus0", TYPE_CAN_BUS,
+                             (Object **)&s->canbus[0],
+                             object_property_allow_set_link, 0);
+
+    object_property_add_link(obj, "canbus1", TYPE_CAN_BUS,
+                             (Object **)&s->canbus[1],
+                             object_property_allow_set_link, 0);
+}
+
 static void imx8mp_evk_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -140,6 +160,7 @@ static const TypeInfo imx8mp_evk_machine_types[] = {
         .name = TYPE_IMX8MPEVK_MACHINE,
         .parent = TYPE_MACHINE,
         .class_init = imx8mp_evk_machine_class_init,
+        .instance_init = imx8mp_evk_machine_init,
         .instance_size = sizeof(FslImx8mpEvkState),
         .interfaces = aarch64_machine_interfaces,
     },
