@@ -728,6 +728,8 @@ int smmu_find_ste(SMMUv3State *s, uint32_t sid, STE *ste, SMMUEventInfo *event)
 
         max_l2_ste = (1 << span) - 1;
         l2ptr = l1std_l2ptr(&l1std);
+
+        l2ptr &= ~MAKE_64BIT_MASK(0, 6 + (span - 1));
         trace_smmuv3_find_ste_2lvl(s->strtab_base, l1ptr, l1_ste_offset,
                                    l2ptr, l2_ste_offset, max_l2_ste);
         if (l2_ste_offset > max_l2_ste) {
