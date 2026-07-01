@@ -1046,6 +1046,61 @@ Count traps
 This plugin counts the number of interrupts (asynchronous events), exceptions
 (synchronous events) and host calls (e.g. semihosting) per cpu.
 
+Dlcall
+......
+
+``contrib/plugins/dlcall.c``
+
+This plugin lets a linux-user guest call functions in the host's native shared
+libraries instead of emulating them, turning slow instruction-by-instruction
+emulation of a library into a native host call. For example, the stock zlib
+``minizip`` utility compresses several times faster, because the actual
+``deflate`` runs on the host's native libz while ``minizip`` itself stays
+emulated.
+
+The guest issues a reserved "magic" system call (4096 by default, configurable
+with ``syscall_num=N``) whose first argument selects a pass-through operation:
+dlopen/dlclose a host library, dlsym a symbol, and invoke a resolved host
+function. The plugin performs the operation on the host and consumes the
+syscall, so the real kernel never sees it.
+
+.. warning::
+
+   Trusted guests only. The guest can load arbitrary host libraries and run
+   arbitrary code in the QEMU host process. The plugin is not a sandbox and
+   provides no isolation. It also requires ``guest_base == 0`` (qemu-user's
+   default), as guest pointers are dereferenced as host addresses with no
+   translation.
+
+The plugin is deliberately minimal and knows nothing about any particular
+library or its calling convention. Turning a real library into working thunks,
+including argument marshalling, callbacks and variadic functions, is done
+entirely in userspace, and any toolchain can implement the interface.
+`Lorelei <https://github.com/rover2024/lorelei>`_ is a complete, MIT-licensed
+implementation: it provides the guest and host runtimes and a Thunk Library
+Compiler that generates the thunks from a library's headers, with prebuilt
+thunks (zlib, lzma, ...) for x86_64, aarch64 and riscv64 hosts.
+
+Loading the plugin is all that is required from QEMU's side:
+
+.. code-block:: shell
+
+   qemu-x86_64 -plugin contrib/plugins/libdlcall.so <guest-program> ...
+
+See `Lorelei <https://github.com/rover2024/lorelei>`_ for prebuilt thunk trees,
+the runtime environment they expect, and a full runnable example (for instance,
+running an unmodified ``minizip`` over the host's native libz).
+
+.. list-table:: Dlcall plugin arguments
+  :widths: 20 80
+  :header-rows: 1
+
+  * - Option
+    - Description
+  * - syscall_num=N
+    - The magic syscall number the guest issues (default 4096). Must be high
+      enough not to clash with a real syscall.
+
 Other emulation features
 ------------------------
 
