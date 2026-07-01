@@ -159,6 +159,7 @@ struct PCIDevice {
     bool has_rom;
     MemoryRegion rom;
     int32_t rom_bar;
+    void (*romfile_fixup)(PCIDevice *pdev, uint8_t *ptr, uint32_t size);
 
     /* INTx routing notifier */
     PCIINTxRoutingNotifier intx_routing_notifier;

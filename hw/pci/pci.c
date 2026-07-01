@@ -2639,6 +2639,10 @@ static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
             /* Only the default rom images will be patched (if needed). */
             pci_patch_ids(pdev, ptr, size);
         }
+
+        if (pdev->romfile_fixup) {
+            pdev->romfile_fixup(pdev, ptr, size);
+        }
     }
 
     pci_register_bar(pdev, PCI_ROM_SLOT, 0, &pdev->rom);
