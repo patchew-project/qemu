@@ -55,6 +55,7 @@
 #include "elf.h"
 #include "kvm/kvm_i386.h"
 #include "hw/xen/start_info.h"
+#include "hw/uefi/var-service-api.h"
 
 #define MICROVM_QBOOT_FILENAME "qboot.rom"
 #define MICROVM_BIOS_FILENAME  "bios-microvm.bin"
@@ -751,6 +752,7 @@ static void microvm_class_init(ObjectClass *oc, const void *data)
         "Set off to disable adding virtio-mmio devices to the kernel cmdline");
 
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_RAMFB_DEVICE);
+    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_UEFI_VARS_SYSBUS);
 
     compat_props_add(mc->compat_props, microvm_properties,
                      G_N_ELEMENTS(microvm_properties));
