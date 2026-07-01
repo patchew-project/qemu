@@ -307,6 +307,7 @@ static void sdhci_reset(SDHCIState *s)
     s->data_count = 0;
     s->stopped_state = sdhc_not_stopped;
     s->pending_insert_state = false;
+    s->sdma_boundary_paused = false;
     if (object_dynamic_cast(OBJECT(s), TYPE_FSL_ESDHC_BE) ||
             object_dynamic_cast(OBJECT(s), TYPE_FSL_ESDHC_LE)) {
         s->norintstsen = 0x013f;
@@ -620,6 +621,7 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
     }
 
     s->prnsts |= SDHC_DATA_INHIBIT | SDHC_DAT_LINE_ACTIVE;
+    s->sdma_boundary_paused = false;
     if (s->trnmod & SDHC_TRNS_READ) {
         s->prnsts |= SDHC_DOING_READ;
         while (s->blkcnt) {
@@ -644,6 +646,7 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
                 s->data_count = 0;
             }
             if (page_aligned && boundary_count == 0) {
+                s->sdma_boundary_paused = true;
                 break;
             }
         }
@@ -669,6 +672,7 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
                 }
             }
             if (page_aligned && boundary_count == 0) {
+                s->sdma_boundary_paused = true;
                 break;
             }
         }
@@ -679,6 +683,7 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
     }
 
     if (s->blkcnt == 0) {
+        s->sdma_boundary_paused = false;
         sdhci_end_transfer(s);
     } else {
         sdhci_update_irq(s);
@@ -1164,6 +1169,7 @@ static inline void sdhci_reset_write(SDHCIState *s, uint8_t value)
                 SDHC_DATA_INHIBIT | SDHC_DAT_LINE_ACTIVE);
         s->blkgap &= ~(SDHC_STOP_AT_GAP_REQ | SDHC_CONTINUE_REQ);
         s->stopped_state = sdhc_not_stopped;
+        s->sdma_boundary_paused = false;
         s->norintsts &= ~(SDHC_NIS_WBUFRDY | SDHC_NIS_RBUFRDY |
                 SDHC_NIS_DMA | SDHC_NIS_TRSCMP | SDHC_NIS_BLKGAP);
         break;
@@ -1185,7 +1191,7 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
 
     switch (offset & ~0x3) {
     case SDHC_SYSAD:
-        if (!TRANSFERRING_DATA(s->prnsts)) {
+        if (!TRANSFERRING_DATA(s->prnsts) || s->sdma_boundary_paused) {
             s->sdmasysad = (s->sdmasysad & mask) | value;
             MASKED_WRITE(s->sdmasysad, mask, value);
             /* Writing to last byte of sdmasysad might trigger transfer */
@@ -1508,6 +1514,7 @@ const VMStateDescription sdhci_vmstate = {
         VMSTATE_VBUFFER_UINT32(fifo_buffer, SDHCIState, 1, NULL, buf_maxsz),
         VMSTATE_TIMER_PTR(insert_timer, SDHCIState),
         VMSTATE_TIMER_PTR(transfer_timer, SDHCIState),
+        VMSTATE_BOOL(sdma_boundary_paused, SDHCIState),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription * const []) {
