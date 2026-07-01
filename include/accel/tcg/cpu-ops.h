@@ -259,7 +259,7 @@ struct TCGCPUOps {
      * watchpoint whose address has matched should really fire, used by ARM
      * and RISC-V
      */
-    bool (*debug_check_watchpoint)(CPUState *cpu, CPUWatchpoint *wp);
+    bool (*debug_check_watchpoint)(CPUState *cpu, const CPUWatchpoint *wp);
 
     /**
      * @debug_check_breakpoint: return true if the architectural
