@@ -223,6 +223,8 @@
 #define CPACF_KDSA_PSIGN_ED25519   48
 #define CPACF_KDSA_PSIGN_ED448     52
 
+#ifndef CPACF_H_INCLUDE_FOR_TESTS
+
 /* from cpacf_sha256.c */
 int cpacf_sha256(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
                  uint64_t param_addr, uint64_t *message_reg, uint64_t *len_reg,
@@ -254,6 +256,8 @@ int cpacf_aes_xts(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
                   uint64_t *src_ptr_reg, uint64_t *src_len_reg,
                   uint32_t type, uint8_t fc, uint8_t mod);
 
+#endif /* CPACF_H_INCLUDE_FOR_TESTS */
+
 /*
  * Support for protected key cpacf functions. Note that this is
  * a fake implementation intended for debugging and development.
@@ -279,6 +283,8 @@ int cpacf_aes_xts(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     0x0F, 0x0A, 0x0C, 0x0E, 0x0F, 0x0A, 0x0C, 0x0E, \
     0x0F, 0x0A, 0x0C, 0x0E, 0x0F, 0x0A, 0x0C, 0x0E }
 
+#ifndef CPACF_H_INCLUDE_FOR_TESTS
+
 /* from cpacf_aes.c */
 int cpacf_aes_pckmo(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
                     uint64_t param_addr, uint8_t fc);
@@ -302,4 +308,5 @@ int cpacf_paes_xts(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
                    uint64_t *src_ptr_reg, uint64_t *src_len_reg,
                    uint32_t type, uint8_t fc, uint8_t mod);
 
+#endif /* CPACF_H_INCLUDE_FOR_TESTS */
 #endif /* S390X_CPACF_H */
