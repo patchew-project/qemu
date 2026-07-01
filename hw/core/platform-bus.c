@@ -194,6 +194,10 @@ static void platform_bus_realize(DeviceState *dev, Error **errp)
                        pbus->mmio_size);
     sysbus_init_mmio(d, &pbus->mmio);
 
+    if (pbus->num_irqs == 0) {
+        return;
+    }
+
     pbus->used_irqs = bitmap_new(pbus->num_irqs);
     pbus->irqs = g_new0(qemu_irq, pbus->num_irqs);
     for (i = 0; i < pbus->num_irqs; i++) {
