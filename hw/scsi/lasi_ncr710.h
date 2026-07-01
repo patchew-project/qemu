@@ -22,22 +22,6 @@
 #define TYPE_LASI_NCR710 "lasi-ncr710"
 OBJECT_DECLARE_SIMPLE_TYPE(LasiNCR710State, LASI_NCR710)
 
-#define LASI_SCSI_RESET         0x000   /* SCSI Reset Register */
-#define LASI_SCSI_NCR710_BASE   0x100   /* NCR710 Base Register Offset */
-
-#define PARISC_DEVICE_ID_OFF    0x00    /* HW type, HVERSION, SVERSION */
-#define PARISC_DEVICE_CONFIG_OFF 0x04   /* Configuration data */
-
-#define PHASE_MASK              7
-#define PHASE_DO                0
-
-#define NCR710_SCNTL1_RST       0x08    /* SCSI Reset */
-#define NCR710_ISTAT_RST        0x40    /* Device Reset */
-#define NCR710_ISTAT_ABRT       0x80    /* Script Abort */
-#define NCR710_ISTAT_CON        0x08    /* ISTAT_Connected */
-#define NCR710_DSTAT_DFE        0x80    /* DMA FIFO Empty */
-#define NCR710_CTEST2_DACK      0x01    /* DMA Acknowledge */
-
 typedef struct LasiNCR710State {
     SysBusDevice parent_obj;
     MemoryRegion mmio;
