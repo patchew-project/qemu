@@ -24,7 +24,6 @@
 #include "system/dma.h"
 
 #define LASI_710_SVERSION    0x00082
-#define SCNR                 0xBEEFBABE
 #define LASI_710_HVERSION    0x3D
 #define HPHW_FIO             5        /* Fixed I/O module */
 
