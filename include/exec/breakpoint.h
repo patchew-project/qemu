@@ -25,10 +25,12 @@
 #define BP_WATCHPOINT_HIT_READ  (BP_MEM_READ << BP_HIT_SHIFT)
 #define BP_WATCHPOINT_HIT_WRITE (BP_MEM_WRITE << BP_HIT_SHIFT)
 #define BP_WATCHPOINT_HIT       (BP_MEM_ACCESS << BP_HIT_SHIFT)
+/* Bits [31:16] are reserved as an identifier for BP_CPU. */
+#define BP_CPU_ID_SHIFT       16
 
 struct CPUBreakpoint {
     vaddr pc;
-    int flags; /* BP_* */
+    uint32_t flags; /* BP_* */
     QTAILQ_ENTRY(CPUBreakpoint) entry;
 };
 
@@ -37,13 +39,13 @@ struct CPUWatchpoint {
     vaddr len;
     vaddr hitaddr;
     MemTxAttrs hitattrs;
-    int flags; /* BP_* */
+    uint32_t flags; /* BP_* */
     QTAILQ_ENTRY(CPUWatchpoint) entry;
 };
 
-int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags,
+int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, uint32_t flags,
                           CPUBreakpoint **breakpoint);
-int cpu_breakpoint_remove(CPUState *cpu, vaddr pc, int flags);
+int cpu_breakpoint_remove(CPUState *cpu, vaddr pc, uint32_t flags);
 void cpu_breakpoint_remove_by_ref(CPUState *cpu, CPUBreakpoint *breakpoint);
 void cpu_breakpoint_remove_all(CPUState *cpu, int mask);
 bool cpu_breakpoint_test(CPUState *cpu, vaddr pc, int mask);
