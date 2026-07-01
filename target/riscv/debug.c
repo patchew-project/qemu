@@ -943,40 +943,26 @@ bool riscv_cpu_debug_check_breakpoint(CPUState *cs, const CPUBreakpoint *bp)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
-    target_ulong ctrl;
-    target_ulong pc;
-    int trigger_type;
-    int i;
+    int i = bp->flags >> BP_CPU_ID_SHIFT;
+    trigger_type_t trigger_type = get_trigger_type(env, i);
 
-    for (i = 0; i < RV_MAX_TRIGGERS; i++) {
-        trigger_type = get_trigger_type(env, i);
-
-        if (!trigger_common_match(env, trigger_type, i)) {
-            continue;
-        }
+    if (trigger_common_match(env, trigger_type, i)) {
+        target_ulong ctrl = 0;
 
         switch (trigger_type) {
         case TRIGGER_TYPE_AD_MATCH:
-            ctrl = env->tdata1[i];
-            pc = env->tdata2[i];
-
-            if ((ctrl & TYPE2_EXEC) && (bp->pc == pc)) {
-                env->badaddr = pc;
-                return true;
-            }
+            ctrl = env->tdata1[i] & TYPE2_EXEC;
             break;
         case TRIGGER_TYPE_AD_MATCH6:
-            ctrl = env->tdata1[i];
-            pc = env->tdata2[i];
-
-            if ((ctrl & TYPE6_EXEC) && (bp->pc == pc)) {
-                env->badaddr = pc;
-                return true;
-            }
+            ctrl = env->tdata1[i] & TYPE6_EXEC;
             break;
         default:
             /* other trigger types are not supported or irrelevant */
             break;
+        }
+        if (ctrl) {
+            env->badaddr = env->tdata2[i];
+            return true;
         }
     }
 
