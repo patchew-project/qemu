@@ -119,6 +119,14 @@
 
 #define NCR710_BUF_SIZE     4096
 
+/*
+ * Safety bound on the synchronous completion drain loop in ncr710_reg_write().
+ * A real transfer needs only a handful of iterations; this cap prevents an
+ * unbounded spin if a drain ever fails to progress (it then falls back to
+ * asynchronous completion).
+ */
+#define NCR710_DRAIN_MAX_ITERS  100000
+
 /* waiting state machine (mirrors lsi53c895a). */
 enum {
     NCR710_NOWAIT = 0,        /* SCRIPTS running or stopped */
@@ -167,6 +175,7 @@ static const char *ncr710_reg_name(int offset)
 static uint8_t ncr710_reg_readb(NCR710State *s, int offset);
 static void ncr710_reg_writeb(NCR710State *s, int offset, uint8_t val);
 static void ncr710_execute_script(NCR710State *s);
+static void ncr710_issue_bh(void *opaque);
 static void ncr710_set_phase(NCR710State *s, int phase);
 
 /*
@@ -225,6 +234,14 @@ void ncr710_soft_reset(NCR710State *s)
     s->select_tag = 0;
     s->command_complete = 0;
     s->script_running = false;
+    s->sigp_pending_resume = false;
+    /*
+     * Do not reset reentrancy_level here.  A SCRIPTS driven soft reset (a guest
+     * write of ISTAT.RST from a register move) can run while execute_script
+     * frames are still on the stack; those frames decrement the counter as they
+     * unwind, so zeroing it would underflow negative and defeat the reentrancy
+     * guard.  It is zero at device init and balances itself to zero.
+     */
 
     s->scntl0 = 0xc0;       /* full arbitration */
     s->scntl1 = 0;
@@ -371,6 +388,21 @@ static int ncr710_bad_phase(NCR710State *s, int new_phase)
 static void ncr710_resume_script(NCR710State *s)
 {
     trace_ncr710_resume_script(s->waiting);
+    if (s->reentrancy_level > 0) {
+        /*
+         * A completion fired synchronously while the SCRIPTS interpreter is
+         * already on the stack, e.g. inline GOOD status for a no data
+         * command (TEST UNIT READY, START STOP UNIT, ...) completing inside
+         * scsi_req_enqueue().  Reentering ncr710_execute_script() here would
+         * advance s->dsp underneath the outer interpreter frame and can
+         * double execute SCRIPTS (the reentrancy class behind CVE-2023-0330
+         * in lsi53c895a).  Do not recurse: release the wait so the outer
+         * loop continues to the next instruction, which the completion has
+         * already armed (PHASE_ST, via ncr710_command_complete()).
+         */
+        s->waiting = NCR710_NOWAIT;
+        return;
+    }
     if (s->waiting != NCR710_DMA_SCRIPTS) {
         s->waiting = NCR710_NOWAIT;
         ncr710_execute_script(s);
@@ -392,6 +424,26 @@ static void ncr710_bad_selection(NCR710State *s, uint32_t id)
     trace_ncr710_bad_selection(id);
     ncr710_script_scsi_interrupt(s, NCR710_STAT0_STO);
     ncr710_disconnect(s);
+}
+
+/*
+ * Deferred half of ncr710_do_dma()'s SCSI continue: runs on a clean stack so a
+ * cached backend's completion arrives asynchronously (reentrancy_level 0)
+ * instead of reentrantly inside the SCRIPTS interpreter.  Guarded against an
+ * orphaned/cancelled request like ncr710_reselect_bh.
+ */
+static void ncr710_issue_bh(void *opaque)
+{
+    NCR710State *s = opaque;
+
+    if (!s->issue_pending) {
+        return;
+    }
+    s->issue_pending = false;
+    if (s->current == NULL || s->current->orphan) {
+        return;
+    }
+    scsi_req_continue(s->current->req);
 }
 
 static void ncr710_do_dma(NCR710State *s, int out)
@@ -436,7 +488,30 @@ static void ncr710_do_dma(NCR710State *s, int out)
     p->dma_len -= count;
     if (p->dma_len == 0) {
         p->dma_buf = NULL;
-        scsi_req_continue(req);
+        /*
+         * Defer the completing continue (Block Move satisfied, dbc == 0) of a
+         * tagged disconnect/reselect transfer to a bottom half: its
+         * scsi_req_continue can trigger a cached backend (CD-ROM) completion
+         * reentrantly inside execute_script, collapsing the disconnect and
+         * completion INT into the guest MMIO write driving the engine.  That
+         * lets the HP-UX c720 driver's next-command SIGP kick race ahead of its
+         * completion ISR and wedge the install.  Deferring makes completion an
+         * autonomous async event, like the disk-backed path;
+         * the engine parks at DMA_IN_PROGRESS (set by the caller) meanwhile.
+         */
+        if ((p->tag & NCR710_TAG_VALID) && s->dbc == 0) {
+            s->issue_pending = true;
+            aio_bh_schedule_oneshot(qemu_get_aio_context(), ncr710_issue_bh, s);
+        } else {
+            /*
+             * Complete inline for untagged transfers (the connected, polled
+             * early-boot and PDC path: SeaBIOS, ISL, pre-driver probe) and
+             * mid-transfer continues (dbc > 0) that fetch more data without
+             * completing the command (deferring every chunk would stall large
+             * multi-chunk reads).
+             */
+            scsi_req_continue(req);
+        }
     } else {
         p->dma_buf += count;
         ncr710_resume_script(s);
@@ -476,6 +551,20 @@ static NCR710Request *ncr710_get_pending_req(NCR710State *s)
         }
     }
     return NULL;
+}
+
+/* Move the in-flight command to the disconnected queue (target disconnect). */
+static void ncr710_queue_command(NCR710State *s)
+{
+    NCR710Request *p = s->current;
+
+    trace_ncr710_queue_command(p->tag);
+    assert(s->current != NULL);
+    assert(s->current->dma_len == 0);
+    QTAILQ_INSERT_TAIL(&s->queue, s->current, next);
+    s->current = NULL;
+    p->pending = 0;
+    p->out = (s->sstat2 & PHASE_MASK) == PHASE_DO;
 }
 
 /* Reselect a disconnected command to resume (continue) its data transfer. */
@@ -528,20 +617,51 @@ static int ncr710_queue_req(NCR710State *s, SCSIRequest *req, uint32_t len)
     return 1;
 }
 
-/* SCRIPTS Wait Reselect: reconnect a ready queued command, else park. */
-static void ncr710_wait_reselect(NCR710State *s)
+/*
+ * Deferred half of ncr710_wait_reselect(): reconnect a disconnected command
+ * whose data is ready and resume the engine, on a clean (bottom half) stack.
+ * Guarded so it does nothing if a guest SIGP wake or an inline transfer_data
+ * reselection moved the engine on while this was pending.
+ */
+static void ncr710_reselect_bh(void *opaque)
 {
+    NCR710State *s = opaque;
     NCR710Request *p;
 
-    if (s->current) {
+    if (s->current != NULL || s->waiting != NCR710_WAIT_RESELECT) {
         return;
     }
     p = ncr710_get_pending_req(s);
-    if (p) {
-        ncr710_reselect(s, p);
+    if (p == NULL) {
+        return;
     }
-    if (s->current == NULL) {
-        s->waiting = NCR710_WAIT_RESELECT;
+    ncr710_reselect(s, p);
+    s->waiting = NCR710_NOWAIT;
+    ncr710_execute_script(s);
+}
+
+/* SCRIPTS Wait Reselect: reconnect a ready queued command, else park. */
+static void ncr710_wait_reselect(NCR710State *s)
+{
+    if (s->current) {
+        return;
+    }
+    /*
+     * A disconnected command whose data is ready must reconnect to resume its
+     * transfer.  Reselecting synchronously here, inside the guest register
+     * write that drove the engine to this Wait Reselect, would deliver the
+     * command's completion interrupt reentrantly in the middle of driver flow,
+     * racing the HP-UX 10.20 c720 driver's completion bookkeeping and dropping
+     * a biodone/wakeup (the install then sleeps forever; the model idles
+     * with the queue empty).  Defer the reconnect to a bottom half so it
+     * lands on a clean stack after the register write returns, as a real target
+     * initiated reselection would arrive.  The engine parks meanwhile; if more
+     * data arrives first, transfer_data's own reselection (or a SIGP wake)
+     * handles it and the bottom half does nothing.
+     */
+    s->waiting = NCR710_WAIT_RESELECT;
+    if (ncr710_get_pending_req(s)) {
+        aio_bh_schedule_oneshot(qemu_get_aio_context(), ncr710_reselect_bh, s);
     }
 }
 
@@ -667,7 +787,36 @@ static void ncr710_do_command(NCR710State *s)
     }
     if (!s->command_complete) {
         if (n) {
-            /* Stay connected; the block move waits for transfer_data. */
+            if ((s->current->tag & NCR710_TAG_VALID) &&
+                !ncr710_irq_on_rsl(s)) {
+                /*
+                 * Tagged command whose data is not yet ready (typically a read
+                 * whose media access has not completed), issued by a driver
+                 * that recovers a disconnected command by parking the SCRIPTS
+                 * engine on a Wait Reselect instruction (SIEN.SEL clear, e.g.
+                 * HP-UX). Disconnect and queue it so the bus is free for
+                 * further tagged commands; ncr710_wait_reselect() reselects it
+                 * once its data is ready.
+                 *
+                 * Do not disconnect for:
+                 *   - untagged transfers (SeaBIOS/PDC firmware, simple
+                 *     drivers), which have no Wait Reselect handler; and
+                 *   - reselection-interrupt drivers (SIEN.SEL set, e.g. Linux's
+                 *     53c700), which expect a target-reselect interrupt with
+                 *     the 700-family reselection handshake rather than a script
+                 *     park.
+                 * Both keep the connected behaviour and complete inline.
+                 */
+                ncr710_add_msg_byte(s, 2);   /* SAVE DATA POINTER */
+                ncr710_add_msg_byte(s, 4);   /* DISCONNECT */
+                ncr710_set_phase(s, PHASE_MI);
+                s->msg_action = NCR710_MSG_ACTION_DISCONNECT;
+                ncr710_queue_command(s);
+            }
+            /*
+             * Otherwise stay connected and let the block move wait for
+             * transfer_data; no disconnect is fabricated (see policy above).
+             */
         } else {
             /*
              * Async no data command (e.g. SYNCHRONIZE CACHE from Linux
@@ -741,6 +890,17 @@ static void ncr710_do_msgin(NCR710State *s)
     if (!s->msg_len) {
         switch (s->msg_action) {
         case NCR710_MSG_ACTION_COMMAND:
+            /*
+             * A MESSAGE REJECT declining negotiation was just consumed.
+             * The HP-UX install template reads it with ATN deasserted and
+             * requires a trailing SAVE DATA POINTERS (0x02); a conformant
+             * initiator (NetBSD, Linux) reads it with ATN still asserted and
+             * wants no second byte.  See ncr710_do_msgout for the
+             * discriminator.
+             */
+            if (s->sfbr == 7 && !(s->socl & NCR710_SOCL_ATN)) {
+                ncr710_add_msg_byte(s, 2);   /* SAVE DATA POINTERS (HP-UX) */
+            }
             /*
              * Stay in MSG IN: SSTAT2 latches the last REQ phase, so the driver
              * samples MSG IN at the script interrupt and the lazy MSG IN ->
@@ -899,14 +1059,13 @@ static void ncr710_execute_script(NCR710State *s)
     uint32_t addr;
     int opcode;
     int insn_processed = 0;
-    static int reentrancy_level;
 
     if (s->waiting == NCR710_WAIT_SCRIPTS) {
         timer_del(s->scripts_timer);
         s->waiting = NCR710_NOWAIT;
     }
 
-    reentrancy_level++;
+    s->reentrancy_level++;
     s->script_running = true;
 again:
     /*
@@ -914,11 +1073,11 @@ again:
      * waiting on a memory change make progress), and guard against a script
      * that retriggers itself (CVE-2023-0330) via the reentrancy counter.
      */
-    if (++insn_processed > NCR710_MAX_INSN || reentrancy_level > 8) {
+    if (++insn_processed > NCR710_MAX_INSN || s->reentrancy_level > 8) {
         trace_ncr710_script_yield(insn_processed);
         s->waiting = NCR710_WAIT_SCRIPTS;
         ncr710_scripts_timer_start(s);
-        reentrancy_level--;
+        s->reentrancy_level--;
         return;
     }
 
@@ -1065,11 +1224,23 @@ again:
                 break;
             case 2: /* Wait Reselect */
                 /*
-                 * A SIGP "start next command" kick jumps to the dispatch
-                 * address latched in DNAD; otherwise reconnect a ready queued
-                 * command, or park.
+                 * Two things release a Wait Reselect: the driver's SIGP "start
+                 * next command" kick (jump to the dispatch address latched in
+                 * DNAD), or a disconnected tagged command becoming ready to
+                 * reselect.  A SIGP that arrived while the engine was halted at
+                 * a completion INT is held in sigp_pending_resume and consumed
+                 * here.  Otherwise reconnect a ready queued command, or park.
                  */
-                if (s->istat & NCR710_ISTAT_SIGP) {
+                if ((s->istat & NCR710_ISTAT_SIGP) || s->sigp_pending_resume) {
+                    /*
+                     * The SIGP divert is a one-shot: clear the latch as it is
+                     * consumed so a subsequent Wait Reselect does not re-fire
+                     * on a stale SIGP, and so SIGP is never left set across a
+                     * real reselection (Jun92 p.53: an active SIGP at
+                     * reselection disables target-mode auto-switching).
+                     */
+                    s->istat &= ~NCR710_ISTAT_SIGP;
+                    s->sigp_pending_resume = false;
                     s->dsp = s->dnad;
                 } else if (!ncr710_irq_on_rsl(s)) {
                     ncr710_wait_reselect(s);
@@ -1266,7 +1437,7 @@ again:
         }
     }
 
-    reentrancy_level--;
+    s->reentrancy_level--;
 }
 
 #define CASE_GET_REG24(name, addr) \
@@ -1528,6 +1699,52 @@ static void ncr710_reg_writeb(NCR710State *s, int offset, uint8_t val)
         if (val & NCR710_ISTAT_ABRT) {
             ncr710_script_dma_interrupt(s, NCR710_DSTAT_ABRT);
         }
+        if (s->waiting == NCR710_WAIT_RESELECT && (val & NCR710_ISTAT_SIGP)) {
+            /*
+             * SIGP "start next command" wake of a parked Wait Reselect.  Run
+             * the engine synchronously: the Wait Reselect opcode, on SIGP,
+             * jumps to the DNAD dispatch and SELECTs the next command (Jun92
+             * p.69 step 3).  This SELECT must take priority over any
+             * disconnected command pending reselection: on real silicon the
+             * SIGP jump wins and the pending target reselects later, when the
+             * engine is next parked.  Deferring this to a bottom half let
+             * ncr710_reselect_bh win the race and reconnect a pending command
+             * instead of selecting the new one, stranding the driver's
+             * start-next kick (it polls, sees no progress, and resets the bus).
+             * qemu_set_irq only raises the IRQ line here; the guest takes it at
+             * the next instruction boundary, after this store returns, so this
+             * is not a reentrant interrupt delivery.
+             */
+            trace_ncr710_awoken();
+            s->waiting = NCR710_NOWAIT;
+            s->dsp = s->dnad;
+            ncr710_execute_script(s);
+        } else if ((val & NCR710_ISTAT_SIGP) && !s->script_running &&
+                   s->waiting == NCR710_NOWAIT) {
+            /*
+             * The driver's "start next command" SIGP kick raced ahead of the
+             * prior command's completion ISR: the engine is halted (script
+             * stopped, not parked at Wait Reselect) on a just completed
+             * command, either at its completion INT or in the brief window
+             * after the ISR has read cleared DSTAT but before it restarts the
+             * engine.  The wake above is skipped, so the kick only latches
+             * SIGP.  On real silicon the completion ISR runs before this lower
+             * priority kick, so the kick always lands on a parked Wait
+             * Reselect; under TCG it can land in the completion window.  The
+             * driver then polls the engine, sees no progress (SIGP still
+             * latched, DCMD/bus unchanged) and resets the SCSI bus, destroying
+             * the in flight command and hanging the install.
+             *
+             * Present "kick consumed" to that poll without disturbing any
+             * pending completion: clear the SIGP latch, exactly as a real Wait
+             * Reselect consumption would.  DSTAT/DSPS/DIP and the asserted IRQ
+             * are untouched, so the real completion ISR still services the
+             * command. Remember the kick so the next command is selected once
+             * the engine parks again at Wait Reselect (execute_script, case 2).
+             */
+            s->istat &= ~NCR710_ISTAT_SIGP;
+            s->sigp_pending_resume = true;
+        }
         break;
     case NCR710_CTEST8:
         /*
@@ -1599,7 +1816,40 @@ uint64_t ncr710_reg_read(NCR710State *s, hwaddr addr, unsigned size)
 
 void ncr710_reg_write(NCR710State *s, hwaddr addr, uint64_t val, unsigned size)
 {
+    unsigned drained = 0;
+
     ncr710_reg_writeb(s, addr & 0xff, val & 0xff);
+
+    /*
+     * Drive any asynchronous SCSI transfer the register write kicked off to
+     * completion before returning to the guest, so its completion interrupt is
+     * raised first.  The HP-UX 10.20 c720 driver issues its "start next
+     * command" SIGP kick with CPU interrupts masked and then spins; a still
+     * pending asynchronous completion (its bottom half has not run) would land
+     * in that masked window unserviced, and the driver's watchdog would reset
+     * the bus.  Real hardware takes the higher priority completion interrupt
+     * before that poll.
+     *
+     * A deferred continue (ncr710_issue_bh, for a tagged reselect transfer) has
+     * not issued its backing I/O yet, so pump it inline first; otherwise
+     * blk_drain the backend.  The loop is bounded by NCR710_DRAIN_MAX_ITERS and
+     * falls back to asynchronous completion (trace_ncr710_drain_exhausted) if it
+     * cannot make progress.
+     */
+    while (s->waiting == NCR710_DMA_IN_PROGRESS && s->current != NULL &&
+           s->current->req != NULL) {
+        if (drained++ >= NCR710_DRAIN_MAX_ITERS) {
+            trace_ncr710_drain_exhausted(drained);
+            break;
+        }
+        if (s->issue_pending) {
+            ncr710_issue_bh(s);
+        } else if (s->current->req->dev->conf.blk != NULL) {
+            blk_drain(s->current->req->dev->conf.blk);
+        } else {
+            break;      /* nothing deferred and no backend to drain */
+        }
+    }
 }
 
 static int ncr710_pre_save(void *opaque)
@@ -1644,7 +1894,7 @@ const VMStateDescription vmstate_ncr710 = {
      * raised in lockstep so a legacy stream is rejected rather than parsed
      * positionally into the new layout.
      */
-    .version_id = 2,
+    .version_id = 3,
     .minimum_version_id = 2,
     .pre_save = ncr710_pre_save,
     .post_load = ncr710_post_load,
@@ -1659,6 +1909,13 @@ const VMStateDescription vmstate_ncr710 = {
         VMSTATE_UINT32(select_tag, NCR710State),
         VMSTATE_INT32(command_complete, NCR710State),
         VMSTATE_BOOL(script_running, NCR710State),
+        /*
+         * A deferred "start next command" SIGP kick (version 3+).  Unlike
+         * reentrancy_level it can be live across a migration point (set while
+         * the engine is halted at a completion INT awaiting its ISR), so it is
+         * migrated; absent from a v2 stream it defaults to false.
+         */
+        VMSTATE_BOOL_V(sigp_pending_resume, NCR710State, 3),
 
         VMSTATE_UINT8(scntl0, NCR710State),
         VMSTATE_UINT8(scntl1, NCR710State),
