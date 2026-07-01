@@ -1258,6 +1258,7 @@
     'tls-creds-psk',
     'tls-creds-x509',
     'tls-cipher-suites',
+    'remote-i2c-backend-cuse',
     { 'name': 'x-remote-object', 'features': [ 'unstable' ] },
     { 'name': 'x-vfio-user-server', 'features': [ 'unstable' ] }
   ] }
@@ -1334,6 +1335,7 @@
       'tls-creds-psk':              'TlsCredsPskProperties',
       'tls-creds-x509':             'TlsCredsX509Properties',
       'tls-cipher-suites':          'TlsCredsProperties',
+      'remote-i2c-backend-cuse':    'RemoteI2CBackendCuseProperties',
       'x-remote-object':            'RemoteObjectProperties',
       'x-vfio-user-server':         'VfioUserServerProperties'
   } }
@@ -1377,3 +1379,30 @@
 ##
 { 'command': 'object-del', 'data': {'id': 'str'},
   'allow-preconfig': true }
+
+##
+# @RemoteI2CBackendCuseProperties:
+#
+# Properties for the CUSE remote I2C backend.
+#
+# @devname: The name of the character device node to create under /dev
+#     (e.g., 'i2c-33' creates /dev/i2c-33).  The node is accessible
+#     via the standard Linux I2C device interface and usable directly
+#     with i2c-tools and the Linux i2c-dev API.
+#
+# @fuse-opts: Space-separated list of options passed verbatim to the
+#     FUSE/CUSE session at mount time (e.g., '-d' or '--debug
+#     --allow-other').  See mount.fuse(8) for the full list of
+#     supported options.
+#
+# @debug: Convenience shorthand for passing '--debug' in @fuse-opts.
+#     Enables verbose FUSE request/reply tracing on stderr.  Equivalent
+#     to adding '--debug' to @fuse-opts explicitly.
+#
+# Since: 11.2
+##
+{ 'struct': 'RemoteI2CBackendCuseProperties',
+  'data': { 'devname': 'str',
+            '*fuse-opts': 'str',
+            '*debug': 'bool' },
+  'if': 'CONFIG_LINUX'}

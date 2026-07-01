@@ -49,3 +49,8 @@ config PMBUS
 config BCM2835_I2C
     bool
     select I2C
+
+config REMOTE_I2C_MASTER
+    bool
+    select I2C
+    default y if I2C_DEVICES
