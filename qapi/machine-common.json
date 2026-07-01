@@ -108,7 +108,7 @@
 #
 # @caches: the list of `SmpCacheProperties`.
 #
-# Since 9.2
+# Since: 9.2
 ##
 { 'struct': 'SmpCachePropertiesWrapper',
   'data': { 'caches': ['SmpCacheProperties'] } }
