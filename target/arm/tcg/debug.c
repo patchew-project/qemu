@@ -326,39 +326,6 @@ static bool bp_wp_matches(ARMCPU *cpu, uint64_t cr, int access_el)
     return true;
 }
 
-static bool check_watchpoints(ARMCPU *cpu)
-{
-    CPUARMState *env = &cpu->env;
-    int n;
-
-    /*
-     * If watchpoints are disabled globally or we can't take debug
-     * exceptions here then watchpoint firings are ignored.
-     */
-    if (extract32(env->cp15.mdscr_el1, 15, 1) == 0
-        || !arm_generate_debug_exceptions(env)) {
-        return false;
-    }
-
-    for (n = 0; n < ARRAY_SIZE(env->cpu_watchpoint); n++) {
-        CPUWatchpoint *wp = env->cpu_watchpoint[n];
-
-        if (wp && (wp->flags & BP_WATCHPOINT_HIT)) {
-            /*
-             * The LDRT/STRT/LDT/STT "unprivileged access" instructions should
-             * match watchpoints as if they were accesses done at EL0, even if
-             * the CPU is at EL1 or higher.
-             */
-            int access_el = wp->hitattrs.user ? 0 : arm_current_el(env);
-
-            if (bp_wp_matches(cpu, env->cp15.dbgwcr[n], access_el)) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
 bool arm_debug_check_breakpoint(CPUState *cs, const CPUBreakpoint *bp)
 {
     ARMCPU *cpu = ARM_CPU(cs);
@@ -407,8 +374,16 @@ bool arm_debug_check_watchpoint(CPUState *cs, const CPUWatchpoint *wp)
      * is also an architectural watchpoint match.
      */
     ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    int n = wp->flags >> BP_CPU_ID_SHIFT;
+    /*
+     * The LDRT/STRT/LDT/STT "unprivileged access" instructions should
+     * match watchpoints as if they were accesses done at EL0, even if
+     * the CPU is at EL1 or higher.
+     */
+    int access_el = wp->hitattrs.user ? 0 : arm_current_el(env);
 
-    return check_watchpoints(cpu);
+    return bp_wp_matches(cpu, env->cp15.dbgwcr[n], access_el);
 }
 
 /*
