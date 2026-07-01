@@ -64,7 +64,7 @@ void HELPER(wsr_ibreaka)(CPUXtensaState *env, uint32_t i, uint32_t v)
     env->sregs[IBREAKA + i] = v;
 }
 
-bool xtensa_debug_check_breakpoint(CPUState *cs)
+bool xtensa_debug_check_breakpoint(CPUState *cs, const CPUBreakpoint *bp)
 {
     CPUXtensaState *env = cpu_env(cs);
     unsigned int i;

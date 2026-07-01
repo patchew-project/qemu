@@ -331,7 +331,7 @@ void ppc_cpu_debug_excp_handler(CPUState *cs)
 #endif
 }
 
-bool ppc_cpu_debug_check_breakpoint(CPUState *cs)
+bool ppc_cpu_debug_check_breakpoint(CPUState *cs, const CPUBreakpoint *bp)
 {
 #if defined(TARGET_PPC64)
     CPUPPCState *env = cpu_env(cs);

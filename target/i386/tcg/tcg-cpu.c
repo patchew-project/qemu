@@ -132,7 +132,7 @@ static int x86_cpu_mmu_index(CPUState *cs, bool ifetch)
 }
 
 #ifndef CONFIG_USER_ONLY
-static bool x86_debug_check_breakpoint(CPUState *cs)
+static bool x86_debug_check_breakpoint(CPUState *cs, const CPUBreakpoint *bp)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;

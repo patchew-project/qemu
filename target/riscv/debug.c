@@ -939,47 +939,44 @@ void riscv_cpu_debug_excp_handler(CPUState *cs)
     }
 }
 
-bool riscv_cpu_debug_check_breakpoint(CPUState *cs)
+bool riscv_cpu_debug_check_breakpoint(CPUState *cs, const CPUBreakpoint *bp)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
-    CPUBreakpoint *bp;
     target_ulong ctrl;
     target_ulong pc;
     int trigger_type;
     int i;
 
-    QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-        for (i = 0; i < RV_MAX_TRIGGERS; i++) {
-            trigger_type = get_trigger_type(env, i);
+    for (i = 0; i < RV_MAX_TRIGGERS; i++) {
+        trigger_type = get_trigger_type(env, i);
 
-            if (!trigger_common_match(env, trigger_type, i)) {
-                continue;
+        if (!trigger_common_match(env, trigger_type, i)) {
+            continue;
+        }
+
+        switch (trigger_type) {
+        case TRIGGER_TYPE_AD_MATCH:
+            ctrl = env->tdata1[i];
+            pc = env->tdata2[i];
+
+            if ((ctrl & TYPE2_EXEC) && (bp->pc == pc)) {
+                env->badaddr = pc;
+                return true;
             }
+            break;
+        case TRIGGER_TYPE_AD_MATCH6:
+            ctrl = env->tdata1[i];
+            pc = env->tdata2[i];
 
-            switch (trigger_type) {
-            case TRIGGER_TYPE_AD_MATCH:
-                ctrl = env->tdata1[i];
-                pc = env->tdata2[i];
-
-                if ((ctrl & TYPE2_EXEC) && (bp->pc == pc)) {
-                    env->badaddr = pc;
-                    return true;
-                }
-                break;
-            case TRIGGER_TYPE_AD_MATCH6:
-                ctrl = env->tdata1[i];
-                pc = env->tdata2[i];
-
-                if ((ctrl & TYPE6_EXEC) && (bp->pc == pc)) {
-                    env->badaddr = pc;
-                    return true;
-                }
-                break;
-            default:
-                /* other trigger types are not supported or irrelevant */
-                break;
+            if ((ctrl & TYPE6_EXEC) && (bp->pc == pc)) {
+                env->badaddr = pc;
+                return true;
             }
+            break;
+        default:
+            /* other trigger types are not supported or irrelevant */
+            break;
         }
     }
 
