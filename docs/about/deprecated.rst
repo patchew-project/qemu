@@ -61,6 +61,16 @@ The ``debug-threads`` option of the ``-name`` argument is now
 ignored. Thread naming is unconditionally enabled for all platforms
 where it is supported.
 
+``-mon`` option (since 11.1)
+''''''''''''''''''''''''''''
+
+The ``-mon`` option was the generic mechanism for creating monitor
+objects if the convenience ``-qmp`` or ``-monitor`` options were not
+flexible enough. The monitor objects have been converted to QOM, so
+``-mon mode=readline`` is replaced by ``-object monitor-hmp`` and
+``-mon mode=control`` is replaced by ``-object monitor-qmp``. The
+short convenience options are not deprecated, only ``-mon``.
+
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 

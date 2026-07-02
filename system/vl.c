@@ -3239,6 +3239,8 @@ void qemu_init(int argc, char **argv)
                 default_monitor = 0;
                 break;
             case QEMU_OPTION_mon:
+                warn_report_once("'-mon' is deprecated, use '-object' with "
+                                 "'monitor-hmp' or 'monitor-qmp' types instead");
                 if (!qemu_opts_parse_noisily(qemu_find_opts("mon"), optarg,
                                              true)) {
                     exit(1);
