@@ -73,8 +73,16 @@ QmpCommandList qmp_commands, qmp_cap_negotiation_commands;
 
 OBJECT_DEFINE_TYPE(MonitorQMP, monitor_qmp, MONITOR_QMP, MONITOR);
 
+static void monitor_qmp_cleanup_req_queue_locked(MonitorQMP *mon);
+
 static void monitor_qmp_finalize(Object *obj)
 {
+    MonitorQMP *mon = MONITOR_QMP(obj);
+
+    json_message_parser_destroy(&mon->parser);
+    qemu_mutex_destroy(&mon->qmp_queue_lock);
+    monitor_qmp_cleanup_req_queue_locked(mon);
+    g_queue_free(mon->qmp_requests);
 }
 
 static bool monitor_qmp_get_pretty(Object *obj, Error **errp)
@@ -98,8 +106,15 @@ static void monitor_qmp_class_init(ObjectClass *cls, const void *data)
                                    monitor_qmp_set_pretty);
 }
 
+static void handle_qmp_command(void *opaque, QObject *req, Error *err);
 static void monitor_qmp_init(Object *obj)
 {
+    MonitorQMP *mon = MONITOR_QMP(obj);
+
+    qemu_mutex_init(&mon->qmp_queue_lock);
+    mon->qmp_requests = g_queue_new();
+
+    json_message_parser_init(&mon->parser, handle_qmp_command, mon, NULL);
 }
 
 static bool qmp_oob_enabled(MonitorQMP *mon)
@@ -522,14 +537,6 @@ static void monitor_qmp_event(void *opaque, QEMUChrEvent event)
     }
 }
 
-void monitor_data_destroy_qmp(MonitorQMP *mon)
-{
-    json_message_parser_destroy(&mon->parser);
-    qemu_mutex_destroy(&mon->qmp_queue_lock);
-    monitor_qmp_cleanup_req_queue_locked(mon);
-    g_queue_free(mon->qmp_requests);
-}
-
 static void monitor_qmp_setup_handlers_bh(void *opaque)
 {
     MonitorQMP *mon = opaque;
@@ -572,14 +579,11 @@ void monitor_new_qmp(const char *id, const char *chardev_id,
     qemu_chr_fe_set_echo(&mon->parent_obj.chr, true);
 
     /* Note: we run QMP monitor in I/O thread when @chr supports that */
-    monitor_data_init(&mon->parent_obj, true,
-                      qemu_chr_has_feature(mon->parent_obj.chr.chr,
-                                           QEMU_CHAR_FEATURE_GCONTEXT));
+    if (qemu_chr_has_feature(mon->parent_obj.chr.chr,
+                             QEMU_CHAR_FEATURE_GCONTEXT)) {
+        monitor_iothread_init(&mon->parent_obj);
+    }
 
-    qemu_mutex_init(&mon->qmp_queue_lock);
-    mon->qmp_requests = g_queue_new();
-
-    json_message_parser_init(&mon->parser, handle_qmp_command, mon, NULL);
     if (mon->parent_obj.use_io_thread) {
         /*
          * Make sure the old iowatch is gone.  It's possible when

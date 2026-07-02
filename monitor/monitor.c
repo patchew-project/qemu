@@ -82,6 +82,10 @@ static void monitor_finalize(Object *obj)
     Monitor *mon = MONITOR(obj);
 
     g_free(mon->chardev_id);
+    g_free(mon->mon_cpu_path);
+    qemu_chr_fe_deinit(&mon->chr, false);
+    g_string_free(mon->outbuf, true);
+    qemu_mutex_destroy(&mon->mon_lock);
 }
 
 static char *monitor_get_chardev_id(Object *obj, Error **errp)
@@ -108,6 +112,11 @@ static void monitor_class_init(ObjectClass *cls, const void *data)
 
 static void monitor_init(Object *obj)
 {
+    Monitor *mon = MONITOR(obj);
+
+    qemu_mutex_init(&mon->mon_lock);
+    mon->is_qmp = !!object_dynamic_cast(obj, TYPE_MONITOR_QMP);
+    mon->outbuf = g_string_new(NULL);
 }
 
 Monitor *monitor_cur(void)
@@ -639,38 +648,16 @@ void monitor_list_append(Monitor *mon)
     qemu_mutex_unlock(&monitor_lock);
 
     if (mon) {
-        monitor_data_destroy(mon);
         object_unparent(OBJECT(mon));
     }
 }
 
-static void monitor_iothread_init(void)
+void monitor_iothread_init(Monitor *mon)
 {
-    mon_iothread = iothread_create("mon_iothread", &error_abort);
-}
-
-void monitor_data_init(Monitor *mon, bool is_qmp, bool use_io_thread)
-{
-    if (use_io_thread && !mon_iothread) {
-        monitor_iothread_init();
+    if (!mon_iothread) {
+        mon_iothread = iothread_create("mon_iothread", &error_abort);
     }
-    qemu_mutex_init(&mon->mon_lock);
-    mon->is_qmp = is_qmp;
-    mon->outbuf = g_string_new(NULL);
-    mon->use_io_thread = use_io_thread;
-}
-
-void monitor_data_destroy(Monitor *mon)
-{
-    g_free(mon->mon_cpu_path);
-    qemu_chr_fe_deinit(&mon->chr, false);
-    if (monitor_is_qmp(mon)) {
-        monitor_data_destroy_qmp(container_of(mon, MonitorQMP, parent_obj));
-    } else {
-        readline_free(container_of(mon, MonitorHMP, parent_obj)->rs);
-    }
-    g_string_free(mon->outbuf, true);
-    qemu_mutex_destroy(&mon->mon_lock);
+    mon->use_io_thread = true;
 }
 
 void monitor_cleanup(void)
@@ -688,7 +675,7 @@ void monitor_cleanup(void)
      * Letting the iothread continue while shutting down the dispatcher
      * means that new requests may still be coming in. This is okay,
      * we'll just leave them in the queue without sending a response
-     * and monitor_data_destroy() will free them.
+     * and object finalization will free them.
      */
     WITH_QEMU_LOCK_GUARD(&monitor_lock) {
         qmp_dispatcher_co_shutdown = true;
@@ -702,8 +689,8 @@ void monitor_cleanup(void)
     /*
      * We need to explicitly stop the I/O thread (but not destroy it),
      * clean up the monitor resources, then destroy the I/O thread since
-     * we need to unregister from chardev below in
-     * monitor_data_destroy(), and chardev is not thread-safe yet
+     * we need to unregister from chardev below in object
+     * finalization, and chardev is not thread-safe yet
      */
     if (mon_iothread) {
         iothread_stop(mon_iothread);
@@ -718,7 +705,6 @@ void monitor_cleanup(void)
         /* Permit QAPI event emission from character frontend release */
         qemu_mutex_unlock(&monitor_lock);
         monitor_flush(mon);
-        monitor_data_destroy(mon);
         qemu_mutex_lock(&monitor_lock);
         object_unparent(OBJECT(mon));
     }
