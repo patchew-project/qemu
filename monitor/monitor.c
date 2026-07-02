@@ -29,6 +29,7 @@
 #include "qapi/qapi-emit-events.h"
 #include "qapi/qapi-visit-control.h"
 #include "qobject/qdict.h"
+#include "qom/object_interfaces.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "system/qtest.h"
@@ -75,7 +76,8 @@ static bool monitor_destroyed;
 
 int monitor_device_index;
 
-OBJECT_DEFINE_ABSTRACT_TYPE(Monitor, monitor, MONITOR, OBJECT);
+OBJECT_DEFINE_TYPE_EXTENDED(Monitor, monitor, MONITOR, OBJECT, true,
+                            { TYPE_USER_CREATABLE }, {});
 
 static void monitor_finalize(Object *obj)
 {
@@ -103,11 +105,17 @@ static void monitor_set_chardev_id(Object *obj, const char *str, Error **errp)
     mon->chardev_id = g_strdup(str);
 }
 
+static void monitor_complete(UserCreatable *uc, Error **errp);
+
 static void monitor_class_init(ObjectClass *cls, const void *data)
 {
+    UserCreatableClass *ucc = USER_CREATABLE_CLASS(cls);
+
     object_class_property_add_str(cls, "chardev",
                                   monitor_get_chardev_id,
                                   monitor_set_chardev_id);
+
+    ucc->complete = monitor_complete;
 }
 
 static void monitor_init(Object *obj)
@@ -689,8 +697,10 @@ char *monitor_compat_id(void)
     return g_strdup_printf("compat_monitor%d", monitor_device_index++);
 }
 
-void monitor_complete(Monitor *mon, Error **errp)
+static void monitor_complete(UserCreatable *uc, Error **errp)
 {
+    Monitor *mon = MONITOR(uc);
+
     if (mon->chardev_id) {
         Chardev *chr = qemu_chr_find(mon->chardev_id);
         if (chr == NULL) {
