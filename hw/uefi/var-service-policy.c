@@ -40,11 +40,12 @@ const VMStateDescription vmstate_uefi_var_policy = {
 static void print_policy_entry(variable_policy_entry *pe)
 {
     uint16_t *name = (void *)pe + pe->offset_to_name;
+    uint16_t *end = (void *)pe + pe->size;
 
     fprintf(stderr, "%s:\n", __func__);
 
     fprintf(stderr, "    name ´");
-    while (*name) {
+    while (*name && name < end) {
         fprintf(stderr, "%c", *name);
         name++;
     }
@@ -173,7 +174,9 @@ efi_status uefi_vars_policy_check(uefi_vars_state *uv,
     pe = pol->entry;
 
     uefi_trace_variable(__func__, var->guid, var->name, var->name_size);
-    print_policy_entry(pe);
+    if (0 /* development and debugging only */) {
+        print_policy_entry(pe);
+    }
 
     if ((var->attributes & pe->attributes_must_have) != pe->attributes_must_have) {
         trace_uefi_vars_policy_deny("must-have-attr");
