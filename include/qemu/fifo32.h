@@ -15,6 +15,7 @@
 #ifndef FIFO32_H
 #define FIFO32_H
 
+#include "qemu/bswap.h"
 #include "qemu/fifo8.h"
 
 typedef struct {
@@ -118,6 +119,25 @@ static inline void fifo32_push_all(Fifo32 *fifo, const uint32_t *data,
 }
 
 /**
+ * fifo32_peek:
+ * @fifo: fifo to peek from
+ *
+ * Peek the data word at the current head of the FIFO. Clients are responsible
+ * for checking for emptiness using fifo32_is_empty().
+ *
+ * Returns: The peeked 32 bits data word.
+ */
+
+static inline uint32_t fifo32_peek(Fifo32 *fifo)
+{
+    uint8_t bytes[sizeof(uint32_t)];
+    uint32_t read = fifo8_peek_buf(&fifo->fifo, bytes, sizeof(bytes));
+    assert(read == sizeof(bytes));
+
+    return ldl_le_p(bytes);
+}
+
+/**
  * fifo32_pop:
  * @fifo: fifo to pop from
  *
@@ -130,14 +150,11 @@ static inline void fifo32_push_all(Fifo32 *fifo, const uint32_t *data,
 
 static inline uint32_t fifo32_pop(Fifo32 *fifo)
 {
-    uint32_t ret = 0;
-    int i;
+    uint8_t bytes[sizeof(uint32_t)];
+    uint32_t popped = fifo8_pop_buf(&fifo->fifo, bytes, sizeof(bytes));
+    assert(popped == sizeof(bytes));
 
-    for (i = 0; i < sizeof(uint32_t); i++) {
-        ret |= (fifo8_pop(&fifo->fifo) << (i * 8));
-    }
-
-    return ret;
+    return ldl_le_p(bytes);
 }
 
 /**
