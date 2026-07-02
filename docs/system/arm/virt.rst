@@ -39,6 +39,7 @@ The virt board supports:
 - A PL061 GPIO controller
 - An optional machine-wide SMMUv3 IOMMU
 - User-creatable SMMUv3 devices (see below for example)
+- An optional SBSA Generic Watchdog Timer (see below)
 - hotpluggable DIMMs
 - hotpluggable NVDIMMs
 - An MSI controller (GICv2m or ITS).
@@ -313,6 +314,14 @@ User-creatable SMMUv3 devices
   guest issues SMMU invalidation commands directly to real hardware,
   bypassing QEMU and improving throughput for workloads that issue many
   invalidations. Without it, every invalidation command traps into QEMU.
+
+SBSA Generic Watchdog
+"""""""""""""""""""""
+
+The SBSA Generic Watchdog Timer (GWDT) can be added to the virt machine
+using ``-device sbsa-gwdt``. It is only supported on the virt machine,
+which wires up statically assigned MMIO regions and IRQs via
+machine-specific plug handlers.
 
 Linux guest kernel configuration
 """"""""""""""""""""""""""""""""
