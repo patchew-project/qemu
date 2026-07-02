@@ -1213,6 +1213,22 @@
   'base': 'MonitorProperties',
   'data': { '*readline': 'bool' } }
 
+
+##
+# @MonitorQMPCloseAction:
+#
+# Action to take when the character device backend is closed.
+#
+# @none: take no action
+#
+# @delete: delete both the 'monitor-qmp' object and its associated
+#     character device backend object
+#
+# Since: 11.1
+##
+{ 'enum': 'MonitorQMPCloseAction',
+  'data': ['none', 'delete'] }
+
 ##
 # @MonitorQMPProperties:
 #
@@ -1220,11 +1236,15 @@
 #
 # @pretty: whether to pretty print JSON responses (default: false)
 #
+# @close-action: action to take when the character device backend is
+#     closed (default: none)
+#
 # Since: 11.1
 ##
 { 'struct': 'MonitorQMPProperties',
   'base': 'MonitorProperties',
-  'data': { '*pretty': 'bool' } }
+  'data': { '*pretty': 'bool',
+            '*close-action': 'MonitorQMPCloseAction' } }
 
 ##
 # @ObjectType:
