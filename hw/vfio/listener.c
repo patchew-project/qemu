@@ -40,7 +40,6 @@
 #include "migration/misc.h"
 #include "migration/qemu-file.h"
 #include "system/tcg.h"
-#include "system/tpm.h"
 #include "vfio-migration-internal.h"
 #include "vfio-helpers.h"
 #include "vfio-listener.h"
@@ -352,20 +351,10 @@ static void vfio_ram_discard_unregister_listener(VFIOContainer *bcontainer,
     g_free(vrdl);
 }
 
-static bool vfio_known_safe_misalignment(MemoryRegionSection *section)
+static bool vfio_section_misaligned(MemoryRegionSection *section)
 {
-    MemoryRegion *mr = section->mr;
-
-    if (!TPM_IS_CRB(mr->owner)) {
-        return false;
-    }
-
-    /* this is a known safe misaligned region, just trace for debug purpose */
-    trace_vfio_known_safe_misalignment(memory_region_name(mr),
-                                       section->offset_within_address_space,
-                                       section->offset_within_region,
-                                       qemu_real_host_page_size());
-    return true;
+    return (section->offset_within_address_space & ~qemu_real_host_page_mask()) !=
+           (section->offset_within_region & ~qemu_real_host_page_mask());
 }
 
 static bool vfio_listener_valid_section(MemoryRegionSection *section,
@@ -379,14 +368,22 @@ static bool vfio_listener_valid_section(MemoryRegionSection *section,
         return false;
     }
 
-    if (unlikely((section->offset_within_address_space &
-                  ~qemu_real_host_page_mask()) !=
-                 (section->offset_within_region & ~qemu_real_host_page_mask()))) {
-        if (!vfio_known_safe_misalignment(section)) {
+    if (unlikely(vfio_section_misaligned(section))) {
+        /*
+         * Only warn for VFIO device regions.  Other VFIO backends
+         * (AP, CCW) don't expose memory regions through this path.
+         */
+        if (vfio_get_vfio_device(memory_region_owner(section->mr))) {
             error_report("%s received unaligned region %s iova=0x%"PRIx64
                          " offset_within_region=0x%"PRIx64
                          " qemu_real_host_page_size=0x%"PRIxPTR,
                          __func__, memory_region_name(section->mr),
+                         section->offset_within_address_space,
+                         section->offset_within_region,
+                         qemu_real_host_page_size());
+        } else {
+            trace_vfio_listener_region_misaligned(
+                         memory_region_name(section->mr),
                          section->offset_within_address_space,
                          section->offset_within_region,
                          qemu_real_host_page_size());

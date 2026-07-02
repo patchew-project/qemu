@@ -439,7 +439,7 @@ bool vfio_device_hiod_create_and_realize(VFIODevice *vbasedev,
 
 VFIODevice *vfio_get_vfio_device(Object *obj)
 {
-    if (object_dynamic_cast(obj, TYPE_VFIO_PCI)) {
+    if (object_dynamic_cast(obj, TYPE_VFIO_PCI_DEVICE)) {
         return &VFIO_PCI_DEVICE(obj)->vbasedev;
     } else {
         return NULL;
