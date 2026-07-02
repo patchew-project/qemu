@@ -304,8 +304,8 @@ class QEMUMachine:
                 )
             else:
                 moncdev = f"socket,id=mon,path={self._monitor_address}"
-            args.extend(['-chardev', moncdev, '-mon',
-                         'chardev=mon,mode=control'])
+            args.extend(['-chardev', moncdev, '-object',
+                         'monitor-qmp,id=qmp,chardev=mon'])
         return args
 
     def _console_args(self, interactive: bool = False) -> List[str]:
