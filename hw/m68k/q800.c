@@ -47,7 +47,7 @@
 #include "hw/audio/asc.h"
 #include "hw/nubus/mac-nubus-bridge.h"
 #include "hw/display/macfb.h"
-#include "hw/block/swim.h"
+#include "hw/block/swim2.h"
 #include "net/net.h"
 #include "net/util.h"
 #include "qapi/error.h"
@@ -338,6 +338,7 @@ static void q800_machine_init(MachineState *machine)
     /* VIA 1 */
     object_initialize_child(OBJECT(machine), "via1", &m->via1,
                             TYPE_MOS6522_Q800_VIA1);
+    m->via1.swim = &m->swim;
     dinfo = drive_get(IF_MTD, 0, 0);
     if (dinfo) {
         qdev_prop_set_drive(DEVICE(&m->via1), "drive",
@@ -511,7 +512,7 @@ static void q800_machine_init(MachineState *machine)
     /* SWIM floppy controller */
 
     object_initialize_child(OBJECT(machine), "swim", &m->swim,
-                            TYPE_SWIM);
+                            TYPE_SWIM2);
     sysbus = SYS_BUS_DEVICE(&m->swim);
     sysbus_realize(sysbus, &error_fatal);
     memory_region_add_subregion(&m->macio, SWIM_BASE - IO_BASE,

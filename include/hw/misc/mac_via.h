@@ -13,6 +13,7 @@
 #include "hw/core/sysbus.h"
 #include "hw/misc/mos6522.h"
 #include "hw/input/adb.h"
+#include "hw/block/swim2.h"
 #include "qom/object.h"
 
 
@@ -77,6 +78,8 @@ struct MOS6522Q800VIA1State {
 
     /* SETUPTIMEK hack */
     int timer_hack_state;
+
+    SWIM2State *swim;
 };
 
 
