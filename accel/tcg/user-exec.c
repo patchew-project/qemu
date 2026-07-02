@@ -769,7 +769,7 @@ static int probe_access_internal(CPUArchState *env, vaddr addr,
         if (page_flags & acc_flag) {
             if (access_type != MMU_INST_FETCH
                 && cpu_plugin_mem_cbs_enabled(env_cpu(env))) {
-                return TLB_MMIO;
+                return TLB_FORCE_SLOW;
             }
             return 0; /* success */
         }
@@ -804,7 +804,7 @@ void *probe_access(CPUArchState *env, vaddr addr, int size,
 
     g_assert(-(addr | TARGET_PAGE_MASK) >= size);
     flags = probe_access_internal(env, addr, size, access_type, false, ra);
-    g_assert((flags & ~TLB_MMIO) == 0);
+    g_assert((flags & ~TLB_FORCE_SLOW) == 0);
 
     return size ? g2h_vaddr(env_cpu(env), addr) : NULL;
 }
