@@ -20,6 +20,12 @@ typedef struct JSONLexer {
     int x, y;
 } JSONLexer;
 
+typedef struct JSONParserContext {
+    Error *err;
+    GQueue *stack;
+    va_list *ap;
+} JSONParserContext;
+
 typedef struct JSONMessageParser {
     void (*emit)(void *opaque, QObject *json, Error *err);
     void *opaque;
