@@ -116,9 +116,11 @@ static void monitor_hmp_accept_input(Monitor *mon)
         MonitorHMP *hmp = MONITOR_HMP(mon);
         assert(hmp->rs);
         readline_restart(hmp->rs);
+        qemu_chr_fe_accept_input(&mon->chr);
         qemu_mutex_unlock(&mon->mon_lock);
         readline_show_prompt(hmp->rs);
     } else {
+        qemu_chr_fe_accept_input(&mon->chr);
         qemu_mutex_unlock(&mon->mon_lock);
     }
 }
