@@ -29,9 +29,9 @@ bool monitor_cur_is_qmp(void);
 void monitor_init_globals(void);
 void monitor_init_globals_core(void);
 char *monitor_compat_id(void);
-void monitor_new_qmp(const char *id, Chardev *chr,
+void monitor_new_qmp(const char *id, const char *chardev_id,
                      bool pretty, Error **errp);
-void monitor_new_hmp(const char *id, Chardev *chr,
+void monitor_new_hmp(const char *id, const char *chardev_id,
                      bool use_readline, Error **errp);
 int monitor_new(MonitorOptions *opts, bool allow_hmp, Error **errp);
 int monitor_new_opts(QemuOpts *opts, Error **errp);
