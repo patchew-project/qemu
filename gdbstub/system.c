@@ -331,8 +331,6 @@ static void create_processes(GDBState *s)
     gdb_create_default_process(s);
 }
 
-static bool gdb_supports_guest_debug(void);
-
 bool gdbserver_start(const char *device, Error **errp)
 {
     Chardev *chr = NULL;
@@ -345,7 +343,7 @@ bool gdbserver_start(const char *device, Error **errp)
         return false;
     }
 
-    if (!gdb_supports_guest_debug()) {
+    if (!accel_supports_guest_debug(current_accel())) {
         error_setg(errp, "gdbstub: current accelerator doesn't "
                    "support guest debugging");
         return false;
@@ -623,15 +621,6 @@ int gdb_signal_to_target(int sig)
 /*
  * Break/Watch point helpers
  */
-
-static bool gdb_supports_guest_debug(void)
-{
-    const AccelOpsClass *ops = cpus_get_accel();
-    if (ops->supports_guest_debug) {
-        return ops->supports_guest_debug();
-    }
-    return false;
-}
 
 int gdb_breakpoint_insert(CPUState *cs, int type, vaddr addr, vaddr len)
 {

@@ -84,4 +84,6 @@ typedef struct AccelGdbConfig {
     bool can_reverse;
 } AccelGdbConfig;
 
+bool accel_supports_guest_debug(AccelState *accel);
+
 #endif /* QEMU_ACCEL_H */
