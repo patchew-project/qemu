@@ -1147,7 +1147,6 @@ bool memory_region_init_ram_flags_nomigrate(MemoryRegion *mr,
  *        must be unique within any device
  * @size: used size of the region.
  * @max_size: max size of the region.
- * @resized: callback to notify owner about used size change.
  * @errp: pointer to Error*, to store an error if it happens.
  *
  * Note that this function does not do anything to cause the data in the
@@ -1160,9 +1159,6 @@ bool memory_region_init_resizeable_ram(MemoryRegion *mr,
                                        const char *name,
                                        uint64_t size,
                                        uint64_t max_size,
-                                       void (*resized)(const char*,
-                                                       uint64_t length,
-                                                       void *host),
                                        Error **errp);
 #ifdef CONFIG_POSIX
 

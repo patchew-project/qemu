@@ -2032,9 +2032,6 @@ int qemu_ram_resize(RAMBlock *block, ram_addr_t newsize, Error **errp)
          */
         if (unaligned_size != memory_region_size(block->mr)) {
             memory_region_set_size(block->mr, unaligned_size);
-            if (block->resized) {
-                block->resized(block->idstr, unaligned_size, block->host);
-            }
         }
         return 0;
     }
@@ -2065,9 +2062,6 @@ int qemu_ram_resize(RAMBlock *block, ram_addr_t newsize, Error **errp)
     physical_memory_set_dirty_range(block->offset, block->used_length,
                                         DIRTY_CLIENTS_ALL);
     memory_region_set_size(block->mr, unaligned_size);
-    if (block->resized) {
-        block->resized(block->idstr, unaligned_size, block->host);
-    }
     return 0;
 }
 
@@ -2296,7 +2290,7 @@ out_free:
 
 #if defined(CONFIG_POSIX) && !defined(EMSCRIPTEN)
 RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, ram_addr_t max_size,
-                                 qemu_ram_resize_cb resized, MemoryRegion *mr,
+                                 MemoryRegion *mr,
                                  uint32_t ram_flags, int fd, off_t offset,
                                  bool grow,
                                  Error **errp)
@@ -2355,7 +2349,6 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, ram_addr_t max_size,
     new_block->mr = mr;
     new_block->used_length = size;
     new_block->max_length = max_size;
-    new_block->resized = resized;
     new_block->flags = ram_flags;
     new_block->guest_memfd = -1;
     new_block->host = file_ram_alloc(new_block, max_size, fd,
@@ -2412,7 +2405,7 @@ RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
         return NULL;
     }
 
-    block = qemu_ram_alloc_from_fd(size, size, NULL, mr, ram_flags, fd, offset,
+    block = qemu_ram_alloc_from_fd(size, size, mr, ram_flags, fd, offset,
                                    false, errp);
     if (!block) {
         if (created) {
@@ -2457,7 +2450,6 @@ static int qemu_ram_get_shared_fd(const char *name, bool *reused, Error **errp)
 
 static
 RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
-                                  qemu_ram_resize_cb resized,
                                   void *host, uint32_t ram_flags,
                                   MemoryRegion *mr, Error **errp)
 {
@@ -2503,7 +2495,7 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
              * region if necessary.  The extra space will be usable after a
              * guest reset.
              */
-            new_block = qemu_ram_alloc_from_fd(size, max_size, resized, mr,
+            new_block = qemu_ram_alloc_from_fd(size, max_size, mr,
                                                ram_flags, fd, 0, reused, NULL);
             if (new_block) {
                 trace_qemu_ram_alloc_shared(name, new_block->used_length,
@@ -2526,7 +2518,6 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
 
     new_block = g_malloc0(sizeof(*new_block));
     new_block->mr = mr;
-    new_block->resized = resized;
     new_block->used_length = size;
     new_block->max_length = max_size;
     new_block->fd = -1;
@@ -2546,8 +2537,7 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
 RAMBlock *qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
                                    MemoryRegion *mr, Error **errp)
 {
-    return qemu_ram_alloc_internal(size, size, NULL, host, RAM_PREALLOC, mr,
-                                   errp);
+    return qemu_ram_alloc_internal(size, size, host, RAM_PREALLOC, mr, errp);
 }
 
 RAMBlock *qemu_ram_alloc(ram_addr_t size, uint32_t ram_flags,
@@ -2555,15 +2545,13 @@ RAMBlock *qemu_ram_alloc(ram_addr_t size, uint32_t ram_flags,
 {
     assert((ram_flags & ~(RAM_SHARED | RAM_NORESERVE | RAM_GUEST_MEMFD |
                           RAM_PRIVATE)) == 0);
-    return qemu_ram_alloc_internal(size, size, NULL, NULL, ram_flags, mr, errp);
+    return qemu_ram_alloc_internal(size, size, NULL, ram_flags, mr, errp);
 }
 
 RAMBlock *qemu_ram_alloc_resizeable(ram_addr_t size, ram_addr_t maxsz,
-                                    qemu_ram_resize_cb resized,
                                     MemoryRegion *mr, Error **errp)
 {
-    return qemu_ram_alloc_internal(size, maxsz, resized, NULL,
-                                   RAM_RESIZEABLE, mr, errp);
+    return qemu_ram_alloc_internal(size, maxsz, NULL, RAM_RESIZEABLE, mr, errp);
 }
 
 static void reclaim_ramblock(RAMBlock *block)

@@ -1610,16 +1610,13 @@ bool memory_region_init_resizeable_ram(MemoryRegion *mr,
                                        const char *name,
                                        uint64_t size,
                                        uint64_t max_size,
-                                       void (*resized)(const char*,
-                                                       uint64_t length,
-                                                       void *host),
                                        Error **errp)
 {
     RAMBlock *rb;
 
     memory_region_init(mr, owner, name, size);
     mr->ram = true;
-    rb = qemu_ram_alloc_resizeable(size, max_size, resized, mr, errp);
+    rb = qemu_ram_alloc_resizeable(size, max_size, mr, errp);
     return memory_region_set_ram_block(mr, rb);
 }
 
@@ -1650,7 +1647,7 @@ bool memory_region_init_ram_from_fd(MemoryRegion *mr, Object *owner,
     memory_region_init(mr, owner, name, size);
     mr->ram = true;
     mr->readonly = !!(ram_flags & RAM_READONLY);
-    rb = qemu_ram_alloc_from_fd(size, size, NULL, mr, ram_flags, fd, offset,
+    rb = qemu_ram_alloc_from_fd(size, size, mr, ram_flags, fd, offset,
                                 false, errp);
     return memory_region_set_ram_block(mr, rb);
 }

@@ -1068,9 +1068,7 @@ static void *rom_set_mr(Rom *rom, Object *owner, const char *name, bool ro)
 
     rom->mr = g_malloc(sizeof(*rom->mr));
     memory_region_init_resizeable_ram(rom->mr, owner, name,
-                                      rom->romsize, rom->romsize,
-                                      NULL,
-                                      &error_fatal);
+                                      rom->romsize, rom->romsize, &error_fatal);
     memory_region_set_readonly(rom->mr, ro);
     vmstate_register_ram_global(rom->mr);
 
