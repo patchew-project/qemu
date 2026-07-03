@@ -158,6 +158,7 @@ static int tcg_init_machine(AccelState *as, MachineState *ms)
          * them occurring every time we single step.
          */
         as->gdbstub.sstep_flags |= SSTEP_NOIRQ | SSTEP_NOTIMER;
+        as->gdbstub.can_reverse = true;
     }
 
     page_init();
