@@ -10,11 +10,13 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "s390-ccw.h"
 #include "s390-arch.h"
 #include "bootmap.h"
 #include "virtio.h"
 #include "bswap.h"
+#include "secure-ipl.h"
 
 #ifdef DEBUG
 /* #define DEBUG_FALLBACK */
@@ -711,6 +713,9 @@ static int zipl_run(ScsiBlockPtr *pte)
     ComponentHeader *header;
     ComponentEntry *entry;
     uint8_t tmp_sec[MAX_SECTOR_SIZE];
+    IplDeviceComponentList comp_list = { 0 };
+    IplSignatureCertificateList cert_list = { 0 };
+    uint8_t *tmp_cert_buf = NULL;
     int rc;
 
     if (virtio_read(pte->blockno, tmp_sec)) {
@@ -737,6 +742,9 @@ static int zipl_run(ScsiBlockPtr *pte)
     case ZIPL_BOOT_MODE_NORMAL:
         rc = zipl_run_normal(&entry, tmp_sec);
         break;
+    case ZIPL_BOOT_MODE_SECURE_AUDIT:
+        rc = zipl_run_secure(&entry, tmp_sec, &comp_list, &cert_list, &tmp_cert_buf);
+        break;
     default:
         panic("Unknown boot mode");
     }
@@ -752,6 +760,13 @@ static int zipl_run(ScsiBlockPtr *pte)
 
     /* should not return */
     write_reset_psw(entry->compdat.load_psw);
+
+    if (boot_mode == ZIPL_BOOT_MODE_SECURE_AUDIT) {
+        update_cert_list(&cert_list);
+        update_iirb(&comp_list, &cert_list);
+        free(tmp_cert_buf);
+    }
+
     jump_to_IPL_code(0);
     return -1;
 }
@@ -1106,6 +1121,18 @@ static int zipl_load_vscsi(void)
 /***********************************************************************
  * IPL starts here
  */
+
+ZiplBootMode get_boot_mode(uint8_t hdr_flags)
+{
+    bool sipl_set = hdr_flags & DIAG308_IPIB_FLAGS_SIPL;
+    bool iplir_set = hdr_flags & DIAG308_IPIB_FLAGS_IPLIR;
+
+    if (!sipl_set && iplir_set) {
+        return ZIPL_BOOT_MODE_SECURE_AUDIT;
+    }
+
+    return ZIPL_BOOT_MODE_NORMAL;
+}
 
 void zipl_load(void)
 {
