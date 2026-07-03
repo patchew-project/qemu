@@ -41,6 +41,7 @@
 #include "trace.h"
 #include "gdbstub/enums.h"
 #include "exec/memattrs.h"
+#include "exec/watchpoint.h"
 #include "system/ramblock.h"
 #include "system/hostmem.h"
 #include "qemu/cutils.h"

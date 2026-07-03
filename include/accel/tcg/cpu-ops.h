@@ -20,6 +20,7 @@
 #include "exec/memop.h"
 #include "exec/mmu-access-type.h"
 #include "exec/vaddr.h"
+#include "exec/watchpoint.h"
 #include "accel/tcg/tb-cpu-state.h"
 #include "tcg/tcg-mo.h"
 

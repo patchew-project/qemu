@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "exec/watchpoint.h"
 #include "cpu.h"
 #include "internals.h"
 #include "gdbstub/enums.h"
