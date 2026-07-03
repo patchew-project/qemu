@@ -295,11 +295,6 @@ void whpx_translate_cpu_breakpoints(
     /* Breakpoints aren’t supported on this platform */
 }
 
-int whpx_arch_gdbstub_sstep_flags(AccelState *as)
-{
-    return 0;
-}
-
 bool whpx_arch_supports_guest_debug(void) 
 {
     return false;
