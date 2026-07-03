@@ -3431,7 +3431,7 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
             int err = qemu_file_get_error_obj(f, &local_err);
 
             error_reportf_err(local_err, "Failed to write bitmap to file: ");
-            return -err;
+            return err;
         }
     }
 
