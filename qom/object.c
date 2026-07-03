@@ -3071,6 +3071,25 @@ object_class_property_add_alias(ObjectClass *klass, const char *name,
     return op;
 }
 
+void object_property_set_alias(Object *obj, const char *name,
+                               Object *target_obj)
+{
+    AliasProperty *prop;
+    ObjectProperty *op;
+    Object **target_objp;
+
+    op = object_property_find_err(obj, name, &error_abort);
+    prop = op->opaque;
+    assert(prop->flags & OBJ_PROP_ALIAS_CLASS);
+
+    target_objp = object_alias_get_targetp(obj, prop);
+    if (*target_objp) {
+        object_unref(*target_objp);
+    }
+    *target_objp = target_obj;
+    object_ref(*target_objp);
+}
+
 void object_property_set_description(Object *obj, const char *name,
                                      const char *description)
 {
