@@ -61,14 +61,14 @@ Options
 .. option:: -f, --pidfile=PATH
 
   PID file when running as a daemon. By default the PID file
-  is created in the system runtime state directory, for example
-  :file:`/var/run/qemu-pr-helper.pid`.
+  is created in ``$XDG_RUNTIME_DIR/qemu-pr-helper.pid`` or
+  |LOCALSTATEDIR|\ ``/run/qemu-pr-helper.pid``.
 
 .. option:: -k, --socket=PATH
 
   path to the socket. By default the socket is created in
-  the system runtime state directory, for example
-  :file:`/var/run/qemu-pr-helper.sock`.
+  ``$XDG_RUNTIME_DIR/qemu-pr-helper.sock`` or
+  |LOCALSTATEDIR|\ ``/run/qemu-pr-helper.sock``.
 
 .. option:: -T, --trace [[enable=]PATTERN][,events=FILE][,file=FILE]
 
