@@ -2274,7 +2274,6 @@ F: docs/devel/testing/acpi-bits.rst
 
 ACPI/HEST/GHES
 M: Mauro Carvalho Chehab <mchehab+huawei@kernel.org>
-L: linux-edac@vger.kernel.org
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/acpi/ghes.c
