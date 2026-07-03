@@ -438,6 +438,14 @@ void ich9_pm_add_class_properties(ObjectClass *oc)
     object_class_property_add_bool(oc, "x-keep-pci-slot-hpc",
                                    ich9_pm_get_keep_pci_slot_hpc,
                                    ich9_pm_set_keep_pci_slot_hpc);
+    object_class_property_add_uint16_ptr(oc, ACPI_PCIHP_IO_BASE_PROP,
+                                         offsetof(ICH9LPCState,
+                                                  pm.acpi_pci_hotplug.io_base),
+                                         OBJ_PROP_FLAG_READ);
+    object_class_property_add_uint16_ptr(oc, ACPI_PCIHP_IO_LEN_PROP,
+                                         offsetof(ICH9LPCState,
+                                                  pm.acpi_pci_hotplug.io_len),
+                                         OBJ_PROP_FLAG_READ);
 }
 
 void ich9_pm_device_pre_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
