@@ -533,6 +533,7 @@ config ASPEED_SOC
     default y
     depends on TCG && ARM
     imply PCI_DEVICES
+    select ASPEED_UDC
     select DS1338
     select FTGMAC100
     select I2C
