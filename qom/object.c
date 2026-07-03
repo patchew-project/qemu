@@ -2797,6 +2797,30 @@ static void property_class_set_uint16_ptr(Object *obj, Visitor *v,
     *field = value;
 }
 
+static void property_class_get_uint32_ptr(Object *obj, Visitor *v,
+                                          const char *name,
+                                          void *opaque, Error **errp)
+{
+    uint32_t value = *(uint32_t *)object_class_prop_ptr(obj,
+                                                        (ptrdiff_t)opaque);
+    visit_type_uint32(v, name, &value, errp);
+}
+
+static void property_class_set_uint32_ptr(Object *obj, Visitor *v,
+                                          const char *name,
+                                          void *opaque, Error **errp)
+{
+    uint32_t *field = (uint32_t *)object_class_prop_ptr(obj,
+                                                        (ptrdiff_t)opaque);
+    uint32_t value;
+
+    if (!visit_type_uint32(v, name, &value, errp)) {
+        return;
+    }
+
+    *field = value;
+}
+
 ObjectProperty *
 object_property_add_uint8_ptr(Object *obj, const char *name,
                               const uint8_t *v,
@@ -2937,6 +2961,26 @@ object_property_add_uint32_ptr(Object *obj, const char *name,
 
     return object_property_add(obj, name, "uint32",
                                getter, setter, NULL, (void *)v);
+}
+
+ObjectProperty *
+object_class_property_add_uint32_ptr(ObjectClass *klass, const char *name,
+                                     ptrdiff_t v,
+                                     ObjectPropertyFlags flags)
+{
+    ObjectPropertyAccessor *getter = NULL;
+    ObjectPropertyAccessor *setter = NULL;
+
+    if ((flags & OBJ_PROP_FLAG_READ) == OBJ_PROP_FLAG_READ) {
+        getter = property_class_get_uint32_ptr;
+    }
+
+    if ((flags & OBJ_PROP_FLAG_WRITE) == OBJ_PROP_FLAG_WRITE) {
+        setter = property_class_set_uint32_ptr;
+    }
+
+    return object_class_property_add(klass, name, "uint32",
+                                     getter, setter, NULL, (void *)v);
 }
 
 ObjectProperty *
