@@ -169,9 +169,11 @@ suppress_warnings = ["ref.option"]
 # environment variable is not set is for the benefit of readthedocs
 # style document building; our Makefile always sets the variable.
 confdir = os.getenv('CONFDIR', "/etc/qemu")
+localstatedir = os.getenv('LOCALSTATEDIR', "/var/local")
 
 vars = {
     "CONFDIR": confdir,
+    "LOCALSTATEDIR": localstatedir,
     "VER_MACHINE_DEPRECATION_VERSION": ver_machine_deprecation_version,
     "VER_MACHINE_DELETION_VERSION": ver_machine_deletion_version,
 }

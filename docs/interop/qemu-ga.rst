@@ -72,7 +72,8 @@ Options
 
 .. option:: -f, --pidfile=PATH
 
-  Specify pid file (default is ``/var/run/qemu-ga.pid``).
+  Specify pid file (default is ``$XDG_RUNTIME_DIR/qemu-ga.pid`` or
+  |LOCALSTATEDIR|\ ``/run/qemu-ga.pid``).
 
 .. option:: -F, --fsfreeze-hook=PATH
 
@@ -86,7 +87,7 @@ Options
 .. option:: -t, --statedir=PATH
 
   Specify the directory to store state information (absolute paths only,
-  default is ``/var/run``).
+  default is ``$XDG_RUNTIME_DIR`` or |LOCALSTATEDIR|\ ``/run``).
 
 .. option:: -v, --verbose
 
