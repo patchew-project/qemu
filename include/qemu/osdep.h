@@ -709,14 +709,6 @@ bool qemu_set_blocking(int fd, bool block, Error **errp);
  */
 void qemu_clear_cloexec(int fd);
 
-/* Return a dynamically allocated directory path that is appropriate for storing
- * local state.
- *
- * The caller is responsible for releasing the value returned with g_free()
- * after use.
- */
-char *qemu_get_local_state_dir(void);
-
 /**
  * qemu_get_runtime_dir:
  *
