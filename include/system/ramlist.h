@@ -66,6 +66,9 @@ struct RAMBlockNotifier {
                             void *host, size_t size, size_t max_size);
     void (*ram_block_removed)(RAMBlockNotifier *n, const RAMBlock *rb,
                               void *host, size_t size, size_t max_size);
+    void (*ram_block_set_migratable)(RAMBlockNotifier *n, const RAMBlock *rb);
+    void (*ram_block_unset_migratable)(RAMBlockNotifier *n, const RAMBlock *rb);
+    void (*ram_block_set_idstr)(RAMBlockNotifier *n, const RAMBlock *rb);
     void (*ram_block_resized)(RAMBlockNotifier *n, RAMBlock *rb,
                               size_t new_size);
     QLIST_ENTRY(RAMBlockNotifier) next;
@@ -81,6 +84,9 @@ void ram_block_notify_add(const RAMBlock *rb,
                           void *host, size_t size, size_t max_size);
 void ram_block_notify_remove(const RAMBlock *rb,
                              void *host, size_t size, size_t max_size);
+void ram_block_notify_set_migratable(const RAMBlock *rb);
+void ram_block_notify_unset_migratable(const RAMBlock *rb);
+void ram_block_notify_set_idstr(const RAMBlock *rb);
 void ram_block_notify_resize(RAMBlock *rb, size_t new_size);
 
 GString *ram_block_format(void);
