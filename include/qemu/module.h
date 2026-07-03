@@ -76,7 +76,7 @@ void module_call_init(module_init_type type);
  * directories searched are:
  * - getenv("QEMU_MODULE_DIR")
  * - get_relocated_path(CONFIG_QEMU_MODDIR);
- * - /var/run/qemu/${version_dir}
+ * - ${qemu_get_runtime_dir()}/qemu/${version_dir}
  *
  * prefix:         a subsystem prefix, or the empty string ("ui-", ..., "")
  * name:           name of the module
