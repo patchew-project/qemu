@@ -331,6 +331,8 @@ static void create_processes(GDBState *s)
     gdb_create_default_process(s);
 }
 
+static bool gdb_supports_guest_debug(void);
+
 bool gdbserver_start(const char *device, Error **errp)
 {
     Chardev *chr = NULL;
@@ -627,7 +629,7 @@ int gdb_signal_to_target(int sig)
  * Break/Watch point helpers
  */
 
-bool gdb_supports_guest_debug(void)
+static bool gdb_supports_guest_debug(void)
 {
     const AccelOpsClass *ops = cpus_get_accel();
     if (ops->supports_guest_debug) {
