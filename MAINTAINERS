@@ -280,7 +280,7 @@ F: disas/hppa.c
 F: tests/tcg/hppa/
 
 LoongArch TCG CPUs
-M: Song Gao <gaosong@loongson.cn>
+M: Song Gao <17746591750@163.com>
 S: Maintained
 F: target/loongarch/
 F: tests/docker/dockerfiles/debian-loongarch-cross.docker
@@ -1360,7 +1360,7 @@ F: docs/devel/hexagon-sys.rst
 LoongArch Machines
 ------------------
 Virt
-M: Song Gao <gaosong@loongson.cn>
+M: Song Gao <17746591750@163.com>
 M: Bibo Mao <maobibo@loongson.cn>
 R: Jiaxun Yang <jiaxun.yang@flygoat.com>
 S: Maintained
