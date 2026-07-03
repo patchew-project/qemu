@@ -920,8 +920,6 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&s->io, 0, &s->coalesced_io);
     memory_region_add_coalescing(&s->coalesced_io, 0, 1);
 
-    object_property_add_tm(OBJECT(s), "date", rtc_get_date);
-
     qdev_init_gpio_out(dev, &s->irq, 1);
 }
 
@@ -1020,6 +1018,8 @@ static void rtc_class_initfn(ObjectClass *klass, const void *data)
     adevc->build_dev_aml = rtc_build_aml;
     device_class_set_props(dc, mc146818rtc_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+
+    object_class_property_add_tm(klass, "date", rtc_get_date);
 }
 
 static const TypeInfo mc146818rtc_info = {
