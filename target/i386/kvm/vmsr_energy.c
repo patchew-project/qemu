@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "vmsr_energy.h"
 #include "io/channel.h"
@@ -22,9 +23,8 @@
 
 char *vmsr_compute_default_paths(void)
 {
-    g_autofree char *state = qemu_get_local_state_dir();
-
-    return g_build_filename(state, "run", "qemu-vmsr-helper.sock", NULL);
+    return get_relocated_path(CONFIG_QEMU_LOCALSTATEDIR
+                              "/run/qemu-vmsr-helper.sock");
 }
 
 int is_rapl_enabled(void)

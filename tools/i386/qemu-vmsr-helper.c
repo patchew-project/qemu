@@ -62,10 +62,10 @@ static int gid = -1;
 
 static void compute_default_paths(void)
 {
-    g_autofree char *state = qemu_get_local_state_dir();
+    g_autofree char *run = get_relocated_path(CONFIG_QEMU_LOCALSTATEDIR "/run");
 
-    socket_path = g_build_filename(state, "run", "qemu-vmsr-helper.sock", NULL);
-    pidfile = g_build_filename(state, "run", "qemu-vmsr-helper.pid", NULL);
+    socket_path = g_build_filename(run, "qemu-vmsr-helper.sock", NULL);
+    pidfile = g_build_filename(run, "qemu-vmsr-helper.pid", NULL);
 }
 
 static int is_intel_processor(void)
