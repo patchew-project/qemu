@@ -383,4 +383,13 @@ aspeed_udc_read(uint64_t offset, uint64_t value) "offset 0x%" PRIx64 " value 0x%
 aspeed_udc_write(uint64_t offset, uint64_t value) "offset 0x%" PRIx64 " value 0x%" PRIx64
 aspeed_udc_ep_read(int ep, uint64_t offset, uint64_t value) "ep %d, offset 0x%" PRIx64 " value 0x%" PRIx64
 aspeed_udc_ep_write(int ep, uint64_t offset, uint64_t value) "ep %d, offset 0x%" PRIx64 " value 0x%" PRIx64
+aspeed_udc_pullup(int on, int attached) "on %d, attached %d"
 aspeed_udc_irq(uint32_t isr, uint32_t ier, int level) "isr 0x%x, ier 0x%x, level %d"
+aspeed_udc_reset(uint32_t ier) "bus reset, ier 0x%x"
+aspeed_udc_ep0_setup(uint8_t type, uint8_t req, uint16_t value, uint16_t index, uint16_t length, int dir_in, int addr) "bmRequestType 0x%02x, bRequest 0x%02x, wValue 0x%04x, wIndex 0x%04x, wLength %d, dir_in %d, addr %d"
+aspeed_udc_ep0_ctrl_write(uint32_t val, int dir_in, uint32_t offset) "val 0x%x, dir_in %d, off %u"
+aspeed_udc_ep0_complete(int dir_in, int actual) "dir_in %d, actual %d"
+aspeed_udc_handle_data(int ep_nr, const char *dir, uint32_t iov, int ep_idx) "ep_nr %d, %s, iov %u, ep_idx %d"
+aspeed_udc_ep_data_in(unsigned ep, uint32_t rptr, uint32_t wptr, uint32_t iov) "ep %u, rptr %u, wptr %u, iov %u"
+aspeed_udc_ep_data_out(unsigned ep, uint32_t wptr, uint32_t avail, uint32_t iov) "ep %u, wptr %u, avail %u, iov %u"
+aspeed_udc_ep_ack(unsigned ep) "ep %u"

@@ -10,10 +10,18 @@
 #define HW_USB_ASPEED_UDC_H
 
 #include "hw/core/sysbus.h"
+#include "hw/usb/usb.h"
 #include "qom/object.h"
 
 #define TYPE_ASPEED_UDC "aspeed.udc"
 OBJECT_DECLARE_SIMPLE_TYPE(AspeedUDCState, ASPEED_UDC)
+
+/*
+ * The gadget side of the controller is presented to a USB host controller's
+ * bus as a single USB device that delegates back to the AspeedUDCState.
+ */
+#define TYPE_ASPEED_UDC_GADGET "aspeed.udc-gadget"
+OBJECT_DECLARE_SIMPLE_TYPE(AspeedUDCGadget, ASPEED_UDC_GADGET)
 
 /*
  * EP0 (control) is served through the root registers (UDC_EP0_*), so only
@@ -36,9 +44,19 @@ OBJECT_DECLARE_SIMPLE_TYPE(AspeedUDCState, ASPEED_UDC)
 
 typedef struct AspeedUDCEP {
     MemoryRegion mr;
+    AspeedUDCState *udc;
     int index;
     uint32_t *regs;
+    /* host packet parked until the gadget queues (IN) or arms (OUT) data */
+    USBPacket *pkt;
+    /* bytes of the current IN descriptor already served */
+    uint32_t desc_off;
 } AspeedUDCEP;
+
+struct AspeedUDCGadget {
+    USBDevice parent_obj;
+    AspeedUDCState *udc;
+};
 
 struct AspeedUDCState {
     SysBusDevice parent_obj;
@@ -49,6 +67,18 @@ struct AspeedUDCState {
     qemu_irq irq;
     uint32_t *regs;
     AspeedUDCEP ep[ASPEED_UDC_NUM_EP];
+    /* gadget USB device bound to this controller (set at its realize) */
+    AspeedUDCGadget *usbgadget;
+
+    /*
+     * In-flight EP0 control transfer (host side), deferred until the gadget
+     * driver responds via MMIO.
+     */
+    USBPacket *ep0_packet;
+    uint8_t *ep0_data;
+    uint32_t ep0_setup_len;
+    uint32_t ep0_offset;
+    bool ep0_dir_in;
 };
 
 #endif /* HW_USB_ASPEED_UDC_H */
