@@ -1378,6 +1378,7 @@ static void handle_backward(GArray *params, void *user_ctx)
 {
     if (!gdb_can_reverse()) {
         gdb_put_packet("E22");
+        return;
     }
     if (params->len == 1) {
         switch (gdb_get_cmd_param(params, 0)->opcode) {
