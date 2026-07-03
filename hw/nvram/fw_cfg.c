@@ -612,7 +612,7 @@ static bool fw_cfg_acpi_mr_restore(void *opaque)
     mr_aligned = QEMU_IS_ALIGNED(s->table_mr_size, qemu_real_host_page_size()) &&
                  QEMU_IS_ALIGNED(s->linker_mr_size, qemu_real_host_page_size()) &&
                  QEMU_IS_ALIGNED(s->rsdp_mr_size, qemu_real_host_page_size());
-    return s->acpi_mr_restore && !mr_aligned;
+    return !mr_aligned;
 }
 
 static void fw_cfg_update_mr(FWCfgState *s, uint16_t key, size_t size)
@@ -987,10 +987,6 @@ static void fw_cfg_machine_ready(struct Notifier *n, void *data)
     qemu_register_reset(fw_cfg_machine_reset, s);
 }
 
-static const Property fw_cfg_properties[] = {
-    DEFINE_PROP_BOOL("acpi-mr-restore", FWCfgState, acpi_mr_restore, true),
-};
-
 static void fw_cfg_common_realize(DeviceState *dev, Error **errp)
 {
     FWCfgState *s = FW_CFG(dev);
@@ -1149,8 +1145,6 @@ static void fw_cfg_class_init(ObjectClass *klass, const void *data)
 
     device_class_set_legacy_reset(dc, fw_cfg_reset);
     dc->vmsd = &vmstate_fw_cfg;
-
-    device_class_set_props(dc, fw_cfg_properties);
 }
 
 static const TypeInfo fw_cfg_info = {
