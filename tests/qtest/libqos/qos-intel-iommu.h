@@ -182,4 +182,27 @@ void qvtd_run_translation_case(QTestState *qts, QPCIDevice *dev,
                                QPCIBar bar, uint64_t iommu_base,
                                const QVTDTestConfig *cfg);
 
+/*
+ * qvtd_iommu_args - Build the -device intel-iommu command-line fragment
+ *                   for the requested translation mode.
+ */
+const char *qvtd_iommu_args(QVTDTransMode mode);
+
+/*
+ * qvtd_check_caps - Check whether the running QEMU exposes the ECAP bits
+ *                   required by @mode.  Calls g_test_skip() and returns
+ *                   false when a required capability is missing.
+ */
+bool qvtd_check_caps(QTestState *qts, QVTDTransMode mode);
+
+/*
+ * qvtd_setup_qtest_pci_device - Create a QPCIBus, locate the iommu-testdev
+ *                               PCI function, enable it and map BAR0.
+ *
+ * On success, *pcibus and *bar are populated and the returned QPCIDevice
+ * must be released by the caller via g_free().
+ */
+QPCIDevice *qvtd_setup_qtest_pci_device(QTestState *qts, QPCIBus **pcibus,
+                                        QPCIBar *bar);
+
 #endif /* QTEST_LIBQOS_INTEL_IOMMU_H */
