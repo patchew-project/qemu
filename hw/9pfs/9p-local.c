@@ -788,6 +788,9 @@ static int local_fstat(FsContext *fs_ctx, int fid_type,
 {
     int err, fd = local_fid_fd(fid_type, fs);
 
+    if (fd < 0) {
+        return fd;
+    }
     err = fstat(fd, stbuf);
     if (err) {
         return err;
@@ -1055,6 +1058,9 @@ static int local_ftruncate(FsContext *ctx, int fid_type, V9fsFidOpenState *fs,
 {
     int fd = local_fid_fd(fid_type, fs);
 
+    if (fd < 0) {
+        return fd;
+    }
     return ftruncate(fd, size);
 }
 
@@ -1113,6 +1119,9 @@ static int local_futimens(FsContext *s, int fid_type, V9fsFidOpenState *fs,
 {
     int fd = local_fid_fd(fid_type, fs);
 
+    if (fd < 0) {
+        return fd;
+    }
     return qemu_futimens(fd, times);
 }
 
@@ -1196,6 +1205,9 @@ static int local_fsync(FsContext *ctx, int fid_type,
 {
     int fd = local_fid_fd(fid_type, fs);
 
+    if (fd < 0) {
+        return fd;
+    }
     if (datasync) {
         return qemu_fdatasync(fd);
     } else {
