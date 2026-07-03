@@ -1982,6 +1982,11 @@ ObjectProperty *object_property_add_uint16_ptr(Object *obj, const char *name,
                                     const uint16_t *v,
                                     ObjectPropertyFlags flags);
 
+ObjectProperty *object_class_property_add_uint16_ptr(ObjectClass *klass,
+                                    const char *name,
+                                    ptrdiff_t v,
+                                    ObjectPropertyFlags flags);
+
 ObjectProperty *object_class_static_property_add_uint16_ptr(ObjectClass *klass,
                                           const char *name,
                                           const uint16_t *v,
