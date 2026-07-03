@@ -32,6 +32,7 @@ static const hwaddr aspeed_soc_ast2600_memmap[] = {
     [ASPEED_DEV_SPI1]      = 0x1E630000,
     [ASPEED_DEV_SPI2]      = 0x1E631000,
     [ASPEED_DEV_EHCI1]     = 0x1E6A1000,
+    [ASPEED_DEV_UDC]       = 0x1E6A2000,
     [ASPEED_DEV_EHCI2]     = 0x1E6A3000,
     [ASPEED_DEV_MII1]      = 0x1E650000,
     [ASPEED_DEV_MII2]      = 0x1E650008,
@@ -113,6 +114,7 @@ static const int aspeed_soc_ast2600_irqmap[] = {
     [ASPEED_DEV_SDHCI]     = 43,
     [ASPEED_DEV_EHCI1]     = 5,
     [ASPEED_DEV_EHCI2]     = 9,
+    [ASPEED_DEV_UDC]       = 9,
     [ASPEED_DEV_EMMC]      = 15,
     [ASPEED_DEV_GPIO]      = 40,
     [ASPEED_DEV_GPIO_1_8V] = 11,
@@ -213,6 +215,8 @@ static void aspeed_soc_ast2600_init(Object *obj)
         object_initialize_child(obj, "ehci[*]", &s->ehci[i],
                                 TYPE_PLATFORM_EHCI);
     }
+
+    object_initialize_child(obj, "udc", &a->udc, TYPE_ASPEED_UDC);
 
     snprintf(typename, sizeof(typename), "aspeed.sdmc-%s", socname);
     object_initialize_child(obj, "sdmc", &s->sdmc, typename);
@@ -572,6 +576,15 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
                            aspeed_soc_ast2600_get_irq(s,
                                                       ASPEED_DEV_EHCI1 + i));
     }
+
+    /* UDC - USB 2.0 Device Controller */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&a->udc), errp)) {
+        return;
+    }
+    aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&a->udc), 0,
+                    sc->memmap[ASPEED_DEV_UDC]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&a->udc), 0,
+                       aspeed_soc_ast2600_get_irq(s, ASPEED_DEV_UDC));
 
     /* SDMC - SDRAM Memory Controller */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->sdmc), errp)) {
