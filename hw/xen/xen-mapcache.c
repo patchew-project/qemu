@@ -222,7 +222,7 @@ static void xen_remap_bucket(MapCache *mc,
 
     if (entry->vaddr_base != NULL) {
         if (!(entry->flags & XEN_MAPCACHE_ENTRY_DUMMY)) {
-            ram_block_notify_remove(entry->vaddr_base, entry->size,
+            ram_block_notify_remove(NULL, entry->vaddr_base, entry->size,
                                     entry->size);
         }
 
@@ -308,7 +308,7 @@ static void xen_remap_bucket(MapCache *mc,
     }
 
     if (!(entry->flags & XEN_MAPCACHE_ENTRY_DUMMY)) {
-        ram_block_notify_add(vaddr_base, size, size);
+        ram_block_notify_add(NULL, vaddr_base, size, size);
     }
 
     entry->vaddr_base = vaddr_base;
@@ -601,7 +601,7 @@ static void xen_invalidate_map_cache_entry_unlocked(MapCache *mc,
         return;
     }
 
-    ram_block_notify_remove(entry->vaddr_base, entry->size, entry->size);
+    ram_block_notify_remove(NULL, entry->vaddr_base, entry->size, entry->size);
     if (entry->flags & XEN_MAPCACHE_ENTRY_GRANT) {
         rc = xengnttab_unmap(xen_region_gnttabdev, entry->vaddr_base,
                              entry->size >> mc->bucket_shift);

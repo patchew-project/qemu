@@ -4699,18 +4699,12 @@ static SaveVMHandlers savevm_ram_handlers = {
     .save_postcopy_prepare = ram_save_postcopy_prepare,
 };
 
-static void ram_mig_ram_block_resized(RAMBlockNotifier *n, void *host,
-                                      size_t old_size, size_t new_size)
+static void ram_mig_ram_block_resized(RAMBlockNotifier *n, RAMBlock *rb,
+                                      size_t new_size)
 {
     PostcopyState ps = postcopy_state_get();
-    ram_addr_t offset;
-    RAMBlock *rb = qemu_ram_block_from_host(host, false, &offset);
     Error *err = NULL;
-
-    if (!rb) {
-        error_report("RAM block not found");
-        return;
-    }
+    ram_addr_t old_size = qemu_ram_get_used_length(rb);
 
     if (migrate_ram_is_ignored(rb)) {
         return;
