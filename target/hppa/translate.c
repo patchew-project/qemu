@@ -2570,7 +2570,7 @@ static bool trans_ixtlbx(DisasContext *ctx, arg_ixtlbx *a)
     }
 
     /* Exit TB for TLB change if mmu is enabled.  */
-    if (ctx->tb_flags & PSW_C) {
+    if (ctx->tb_flags & PSW_C && !a->addr) {
         ctx->base.is_jmp = DISAS_IAQ_N_STALE;
     }
     return nullify_end(ctx);
@@ -2687,7 +2687,7 @@ static bool trans_ixtlbxf(DisasContext *ctx, arg_ixtlbxf *a)
     }
 
     /* Exit TB for TLB change if mmu is enabled.  */
-    if (ctx->tb_flags & PSW_C) {
+    if (ctx->tb_flags & PSW_C && !a->addr) {
         ctx->base.is_jmp = DISAS_IAQ_N_STALE;
     }
     return nullify_end(ctx);
