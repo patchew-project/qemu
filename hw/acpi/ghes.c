@@ -415,11 +415,13 @@ void acpi_ghes_add_fw_cfg(AcpiGhesState *ags, FWCfgState *s,
 
     if (ags->use_hest_addr) {
         fw_cfg_add_file_callback(s, ACPI_HEST_ADDR_FW_CFG_FILE, NULL, NULL,
-            NULL, &(ags->hest_addr_le), sizeof(ags->hest_addr_le), false);
+            NULL, &(ags->hest_addr_le),
+            sizeof(ags->hest_addr_le), sizeof(ags->hest_addr_le), false);
     } else {
         /* Create a read-write fw_cfg file for Address */
         fw_cfg_add_file_callback(s, ACPI_HW_ERROR_ADDR_FW_CFG_FILE, NULL, NULL,
-            NULL, &(ags->hw_error_le), sizeof(ags->hw_error_le), false);
+            NULL, &(ags->hw_error_le),
+            sizeof(ags->hw_error_le), sizeof(ags->hw_error_le), false);
     }
 }
 

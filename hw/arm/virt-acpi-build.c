@@ -32,6 +32,7 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "hw/core/cpu.h"
+#include "hw/core/loader.h"
 #include "hw/acpi/acpi-defs.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/pcihp.h"
@@ -1469,7 +1470,7 @@ static void acpi_ram_update(MemoryRegion *mr, GArray *data)
 
     /* Make sure RAM size is correct - in case it got changed
      * e.g. by migration */
-    memory_region_ram_resize(mr, size, &error_abort);
+    rom_resize(mr, size);
 
     memcpy(memory_region_get_ram_ptr(mr), data->data, size);
     memory_region_set_dirty(mr, 0, size);

@@ -240,6 +240,7 @@ void fw_cfg_add_file(FWCfgState *s, const char *filename, void *data,
  * @callback_opaque: argument to be passed into callback function
  * @data: pointer to start of item data
  * @len: size of item data
+ * @max_len: maximum size of item data
  * @read_only: is file read only
  *
  * Add a new NAMED fw_cfg item as a raw "blob" of the given size. The data
@@ -258,7 +259,8 @@ void fw_cfg_add_file_callback(FWCfgState *s, const char *filename,
                               FWCfgCallback select_cb,
                               FWCfgWriteCallback write_cb,
                               void *callback_opaque,
-                              void *data, size_t len, bool read_only);
+                              void *data, size_t len, size_t max_len,
+                              bool read_only);
 
 /**
  * fw_cfg_modify_file:

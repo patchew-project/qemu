@@ -1051,10 +1051,14 @@ static void rom_insert(Rom *rom)
     QTAILQ_INSERT_TAIL(&roms, rom, next);
 }
 
-static void fw_cfg_resized(const char *id, uint64_t length, void *host)
+void rom_resize(const MemoryRegion *mr, size_t len)
 {
     if (fw_cfg) {
-        fw_cfg_modify_file(fw_cfg, id + strlen("/rom@"), host, length);
+        const char *name = memory_region_name(mr);
+        void *host = memory_region_get_ram_ptr(mr);
+
+        assert(len <= memory_region_size(mr));
+        fw_cfg_modify_file(fw_cfg, name + strlen("/rom@"), host, len);
     }
 }
 
@@ -1064,8 +1068,8 @@ static void *rom_set_mr(Rom *rom, Object *owner, const char *name, bool ro)
 
     rom->mr = g_malloc(sizeof(*rom->mr));
     memory_region_init_resizeable_ram(rom->mr, owner, name,
-                                      rom->datasize, rom->romsize,
-                                      fw_cfg_resized,
+                                      rom->romsize, rom->romsize,
+                                      NULL,
                                       &error_fatal);
     memory_region_set_readonly(rom->mr, ro);
     vmstate_register_ram_global(rom->mr);
@@ -1196,7 +1200,7 @@ MemoryRegion *rom_add_blob(const char *name, const void *blob, size_t len,
 
         fw_cfg_add_file_callback(fw_cfg, fw_file_name,
                                  fw_callback, NULL, callback_opaque,
-                                 data, rom->datasize, read_only);
+                                 data, rom->datasize, rom->romsize, read_only);
     }
     return mr;
 }

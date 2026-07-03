@@ -449,10 +449,12 @@ static void ich9_lpc_pm_init(ICH9LPCState *lpc)
                                  NULL, NULL, NULL,
                                  lpc->smi_guest_features_le,
                                  sizeof lpc->smi_guest_features_le,
+                                 sizeof lpc->smi_guest_features_le,
                                  false);
         fw_cfg_add_file_callback(fw_cfg, "etc/smi/features-ok",
                                  smi_features_ok_callback, NULL, lpc,
                                  &lpc->smi_features_ok,
+                                 sizeof lpc->smi_features_ok,
                                  sizeof lpc->smi_features_ok,
                                  true);
     }

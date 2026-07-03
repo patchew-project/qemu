@@ -259,6 +259,7 @@ void pstrcpy_targphys(const char *name,
                       hwaddr dest, int buf_size,
                       const char *source);
 
+void rom_resize(const MemoryRegion *mr, size_t len);
 ssize_t rom_add_file(const char *file, const char *fw_dir,
                      hwaddr addr, int32_t bootindex,
                      bool has_option_rom, MemoryRegion *mr, AddressSpace *as);

@@ -60,6 +60,7 @@
 
 struct FWCfgEntry {
     uint32_t len;
+    uint32_t max_len;
     bool allow_write;
     uint8_t *data;
     void *callback_opaque;
@@ -604,20 +605,8 @@ bool fw_cfg_dma_enabled(void *opaque)
     return s->dma_enabled;
 }
 
-static bool fw_cfg_acpi_mr_restore(void *opaque)
+static MemoryRegion *fw_cfg_get_mr(FWCfgState *s, uint16_t key)
 {
-    FWCfgState *s = opaque;
-    bool mr_aligned;
-
-    mr_aligned = QEMU_IS_ALIGNED(s->table_mr_size, qemu_real_host_page_size()) &&
-                 QEMU_IS_ALIGNED(s->linker_mr_size, qemu_real_host_page_size()) &&
-                 QEMU_IS_ALIGNED(s->rsdp_mr_size, qemu_real_host_page_size());
-    return !mr_aligned;
-}
-
-static void fw_cfg_update_mr(FWCfgState *s, uint16_t key, size_t size)
-{
-    MemoryRegion *mr;
     ram_addr_t offset;
     int arch = !!(key & FW_CFG_ARCH_LOCAL);
     void *ptr;
@@ -626,31 +615,57 @@ static void fw_cfg_update_mr(FWCfgState *s, uint16_t key, size_t size)
     assert(key < fw_cfg_max_entry(s));
 
     ptr = s->entries[arch][key].data;
-    mr = memory_region_from_host(ptr, &offset);
-
-    memory_region_ram_resize(mr, size, &error_abort);
+    return memory_region_from_host(ptr, &offset);
 }
 
-static int fw_cfg_acpi_mr_restore_post_load(void *opaque, int version_id)
+static bool fw_cfg_pre_load_errp(void *opaque, Error **errp)
+{
+    FWCfgState *s = opaque;
+
+    s->table_mr_size = UINT64_MAX;
+    s->linker_mr_size = UINT64_MAX;
+    s->rsdp_mr_size = UINT64_MAX;
+
+    return true;
+}
+
+static bool fw_cfg_post_load_errp(void *opaque, int version_id, Error **errp)
 {
     FWCfgState *s = opaque;
     int i, index;
+    uint64_t *size;
 
     assert(s->files);
 
     index = be32_to_cpu(s->files->count);
 
     for (i = 0; i < index; i++) {
+        uint16_t key = FW_CFG_FILE_FIRST + i;
+        MemoryRegion *mr;
+        int arch = !!(key & FW_CFG_ARCH_LOCAL);
+
         if (!strcmp(s->files->f[i].name, ACPI_BUILD_TABLE_FILE)) {
-            fw_cfg_update_mr(s, FW_CFG_FILE_FIRST + i, s->table_mr_size);
+            size = &s->table_mr_size;
         } else if (!strcmp(s->files->f[i].name, ACPI_BUILD_LOADER_FILE)) {
-            fw_cfg_update_mr(s, FW_CFG_FILE_FIRST + i, s->linker_mr_size);
+            size = &s->linker_mr_size;
         } else if (!strcmp(s->files->f[i].name, ACPI_BUILD_RSDP_FILE)) {
-            fw_cfg_update_mr(s, FW_CFG_FILE_FIRST + i, s->rsdp_mr_size);
+            size = &s->rsdp_mr_size;
+        } else {
+            continue;
         }
+
+        mr = fw_cfg_get_mr(s, key);
+
+        if (*size == UINT64_MAX) {
+            *size = memory_region_size(mr);
+        }
+
+        rom_resize(mr, *size);
+        memory_region_ram_resize(mr, s->entries[arch][key].max_len,
+                                 &error_abort);
     }
 
-    return 0;
+    return true;
 }
 
 static const VMStateDescription vmstate_fw_cfg_dma = {
@@ -666,8 +681,6 @@ static const VMStateDescription vmstate_fw_cfg_acpi_mr = {
     .name = "fw_cfg/acpi_mr",
     .version_id = 1,
     .minimum_version_id = 1,
-    .needed = fw_cfg_acpi_mr_restore,
-    .post_load = fw_cfg_acpi_mr_restore_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT64(table_mr_size, FWCfgState),
         VMSTATE_UINT64(linker_mr_size, FWCfgState),
@@ -680,6 +693,8 @@ static const VMStateDescription vmstate_fw_cfg = {
     .name = "fw_cfg",
     .version_id = 2,
     .minimum_version_id = 1,
+    .pre_load_errp = fw_cfg_pre_load_errp,
+    .post_load_errp = fw_cfg_post_load_errp,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT16(cur_entry, FWCfgState),
         VMSTATE_UINT16_HACK(cur_offset, FWCfgState, is_version_1),
@@ -697,7 +712,7 @@ static void fw_cfg_add_bytes_callback(FWCfgState *s, uint16_t key,
                                       FWCfgCallback select_cb,
                                       FWCfgWriteCallback write_cb,
                                       void *callback_opaque,
-                                      void *data, size_t len,
+                                      void *data, size_t len, size_t max_len,
                                       bool read_only)
 {
     int arch = !!(key & FW_CFG_ARCH_LOCAL);
@@ -709,6 +724,7 @@ static void fw_cfg_add_bytes_callback(FWCfgState *s, uint16_t key,
 
     s->entries[arch][key].data = data;
     s->entries[arch][key].len = (uint32_t)len;
+    s->entries[arch][key].max_len = (uint32_t)max_len;
     s->entries[arch][key].select_cb = select_cb;
     s->entries[arch][key].write_cb = write_cb;
     s->entries[arch][key].callback_opaque = callback_opaque;
@@ -737,7 +753,7 @@ static void *fw_cfg_modify_bytes_read(FWCfgState *s, uint16_t key,
 void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, void *data, size_t len)
 {
     trace_fw_cfg_add_bytes(key, trace_key_name(key), len);
-    fw_cfg_add_bytes_callback(s, key, NULL, NULL, NULL, data, len, true);
+    fw_cfg_add_bytes_callback(s, key, NULL, NULL, NULL, data, len, len, true);
 }
 
 void fw_cfg_add_string(FWCfgState *s, uint16_t key, const char *value)
@@ -838,7 +854,8 @@ void fw_cfg_add_file_callback(FWCfgState *s,  const char *filename,
                               FWCfgCallback select_cb,
                               FWCfgWriteCallback write_cb,
                               void *callback_opaque,
-                              void *data, size_t len, bool read_only)
+                              void *data, size_t len, size_t max_len,
+                              bool read_only)
 {
     int i, index, count;
     size_t dsize;
@@ -889,7 +906,7 @@ void fw_cfg_add_file_callback(FWCfgState *s,  const char *filename,
 
     fw_cfg_add_bytes_callback(s, FW_CFG_FILE_FIRST + index,
                               select_cb, write_cb,
-                              callback_opaque, data, len,
+                              callback_opaque, data, len, max_len,
                               read_only);
 
     s->files->f[index].size   = cpu_to_be32(len);
@@ -904,7 +921,8 @@ void fw_cfg_add_file_callback(FWCfgState *s,  const char *filename,
 void fw_cfg_add_file(FWCfgState *s,  const char *filename,
                      void *data, size_t len)
 {
-    fw_cfg_add_file_callback(s, filename, NULL, NULL, NULL, data, len, true);
+    fw_cfg_add_file_callback(s, filename, NULL, NULL, NULL,
+                             data, len, len, true);
 }
 
 void *fw_cfg_modify_file(FWCfgState *s, const char *filename,
@@ -930,7 +948,7 @@ void *fw_cfg_modify_file(FWCfgState *s, const char *filename,
     assert(index < fw_cfg_file_slots(s));
 
     /* add new one */
-    fw_cfg_add_file_callback(s, filename, NULL, NULL, NULL, data, len, true);
+    fw_cfg_add_file(s, filename, data, len);
     return NULL;
 }
 

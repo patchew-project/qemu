@@ -59,7 +59,8 @@ static void vmcoreinfo_realize(DeviceState *dev, Error **errp)
 
     fw_cfg_add_file_callback(fw_cfg, FW_CFG_VMCOREINFO_FILENAME,
                              NULL, fw_cfg_vmci_write, s,
-                             &s->vmcoreinfo, sizeof(s->vmcoreinfo), false);
+                             &s->vmcoreinfo, sizeof(s->vmcoreinfo),
+                             sizeof(s->vmcoreinfo), false);
 
     /*
      * This device requires to register a global reset because it is

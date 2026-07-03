@@ -154,6 +154,6 @@ RAMFBState *ramfb_setup(bool romfile, Error **errp)
     }
     fw_cfg_add_file_callback(fw_cfg, "etc/ramfb",
                              NULL, ramfb_fw_cfg_write, s,
-                             &s->cfg, sizeof(s->cfg), false);
+                             &s->cfg, sizeof(s->cfg), sizeof(s->cfg), false);
     return s;
 }
