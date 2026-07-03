@@ -31,6 +31,8 @@
 void cpu_single_step(CPUState *cpu, int enabled)
 {
     if (cpu->singlestep_enabled != enabled) {
+        trace_cpu_change_singlestep_flags(cpu->cpu_index,
+                                          cpu->singlestep_enabled, enabled);
         cpu->singlestep_enabled = enabled;
 
 #if !defined(CONFIG_USER_ONLY)
@@ -39,8 +41,6 @@ void cpu_single_step(CPUState *cpu, int enabled)
             ops->update_guest_debug(cpu);
         }
 #endif
-
-        trace_breakpoint_singlestep(cpu->cpu_index, enabled);
     }
 }
 
