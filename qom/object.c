@@ -2741,6 +2741,38 @@ static void property_set_uint64_ptr(Object *obj, Visitor *v, const char *name,
     *field = value;
 }
 
+static void *object_class_prop_ptr(Object *obj, ptrdiff_t offset)
+{
+    void *ptr = obj;
+    ptr += offset;
+
+    return ptr;
+}
+
+static void property_class_get_uint8_ptr(Object *obj, Visitor *v,
+                                         const char *name,
+                                         void *opaque, Error **errp)
+{
+    uint8_t value = *(uint8_t *)object_class_prop_ptr(obj,
+                                                      (ptrdiff_t)opaque);
+    visit_type_uint8(v, name, &value, errp);
+}
+
+static void property_class_set_uint8_ptr(Object *obj, Visitor *v,
+                                         const char *name,
+                                         void *opaque, Error **errp)
+{
+    uint8_t *field = (uint8_t *)object_class_prop_ptr(obj,
+                                                      (ptrdiff_t)opaque);
+    uint8_t value;
+
+    if (!visit_type_uint8(v, name, &value, errp)) {
+        return;
+    }
+
+    *field = value;
+}
+
 ObjectProperty *
 object_property_add_uint8_ptr(Object *obj, const char *name,
                               const uint8_t *v,
@@ -2759,6 +2791,26 @@ object_property_add_uint8_ptr(Object *obj, const char *name,
 
     return object_property_add(obj, name, "uint8",
                                getter, setter, NULL, (void *)v);
+}
+
+ObjectProperty *
+object_class_property_add_uint8_ptr(ObjectClass *klass, const char *name,
+                                    ptrdiff_t v,
+                                    ObjectPropertyFlags flags)
+{
+    ObjectPropertyAccessor *getter = NULL;
+    ObjectPropertyAccessor *setter = NULL;
+
+    if ((flags & OBJ_PROP_FLAG_READ) == OBJ_PROP_FLAG_READ) {
+        getter = property_class_get_uint8_ptr;
+    }
+
+    if ((flags & OBJ_PROP_FLAG_WRITE) == OBJ_PROP_FLAG_WRITE) {
+        setter = property_class_set_uint8_ptr;
+    }
+
+    return object_class_property_add(klass, name, "uint8",
+                                     getter, setter, NULL, (void *)v);
 }
 
 ObjectProperty *
