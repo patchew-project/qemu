@@ -104,7 +104,6 @@ bool kvm_readonly_mem_allowed;
 bool kvm_vm_attributes_allowed;
 bool kvm_msi_use_devid;
 bool kvm_pre_fault_memory_supported;
-static bool kvm_has_guest_debug;
 static int kvm_sstep_flags;
 static bool kvm_immediate_exit;
 static uint64_t kvm_supported_memory_attributes;
@@ -3038,10 +3037,10 @@ static int kvm_init(AccelState *as, MachineState *ms)
         (kvm_check_extension(s, KVM_CAP_VM_ATTRIBUTES) > 0);
 
 #ifdef TARGET_KVM_HAVE_GUEST_DEBUG
-    kvm_has_guest_debug =
+    s->have_guest_debug =
         (kvm_check_extension(s, KVM_CAP_SET_GUEST_DEBUG) > 0);
 
-    if (kvm_has_guest_debug) {
+    if (s->have_guest_debug) {
         kvm_sstep_flags = SSTEP_ENABLE;
 
         int guest_debug_flags =
@@ -3833,8 +3832,10 @@ int kvm_update_guest_debug(CPUState *cpu, unsigned long reinject_trap)
 
 bool kvm_supports_guest_debug(void)
 {
+    KVMState *s = KVM_STATE(as);
+
     /* probed during kvm_init() */
-    return kvm_has_guest_debug;
+    return s->have_guest_debug;
 }
 
 int kvm_insert_breakpoint(CPUState *cpu, int type, vaddr addr, vaddr len)
