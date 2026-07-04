@@ -488,6 +488,7 @@ F: tests/functional/aarch64/test_kvm.py
 PPC KVM CPUs
 M: Nicholas Piggin <npiggin@gmail.com>
 R: Harsh Prateek Bora <harshpb@linux.ibm.com>
+R: Vishal Chourasia <vishalc@linux.ibm.com>
 S: Odd Fixes
 F: target/ppc/kvm.c
 F: hw/ppc/spapr_cpu_core.c
