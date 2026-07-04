@@ -20,6 +20,7 @@ ppc_ss.add(when: 'CONFIG_PSERIES', if_true: files(
   'spapr_rtc.c',
   'spapr_drc.c',
   'spapr_cpu_core.c',
+  'spapr_cpu_hotplug.c',
   'spapr_ovec.c',
   'spapr_irq.c',
   'spapr_tpm_proxy.c',

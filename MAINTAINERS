@@ -490,6 +490,9 @@ M: Nicholas Piggin <npiggin@gmail.com>
 R: Harsh Prateek Bora <harshpb@linux.ibm.com>
 S: Odd Fixes
 F: target/ppc/kvm.c
+F: hw/ppc/spapr_cpu_core.c
+F: hw/ppc/spapr_cpu_hotplug.c
+F: include/hw/ppc/spapr_cpu_hotplug.h
 
 S390 KVM CPUs
 M: Halil Pasic <pasic@linux.ibm.com>
