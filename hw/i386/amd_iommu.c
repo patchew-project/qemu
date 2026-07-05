@@ -89,12 +89,48 @@ typedef struct AMDVIIOTLBKey {
     uint16_t devid;
 } AMDVIIOTLBKey;
 
+typedef struct AMDVIIrteGA {
+    uint64_t ga_lo;
+    uint64_t ga_hi;
+} AMDVIIrteGA;
+
 /* XT IOMMU General Interrupt Control Register layout */
 FIELD(AMDVI_XT_GEN_INTR, DEST_MODE, 2, 1)
 FIELD(AMDVI_XT_GEN_INTR, DEST_LO, 8, 24)
 FIELD(AMDVI_XT_GEN_INTR, VECTOR, 32, 8)
 FIELD(AMDVI_XT_GEN_INTR, DELIVERY_MODE, 40, 1)
 FIELD(AMDVI_XT_GEN_INTR, DEST_HI, 56, 8)
+
+/* Interrupt Remapping Table Fields Formats */
+
+/* Basic 32-bit IRTE layout (GAEn=0) */
+FIELD(AMDVI_IRTE, VALID, 0, 1)
+FIELD(AMDVI_IRTE, SUP_IOPF, 1, 1)
+FIELD(AMDVI_IRTE, INT_TYPE, 2, 3)
+FIELD(AMDVI_IRTE, RQ_EOI, 5, 1)
+FIELD(AMDVI_IRTE, DM, 6, 1)
+FIELD(AMDVI_IRTE, GUEST_MODE, 7, 1)
+FIELD(AMDVI_IRTE, DESTINATION, 8, 8)
+FIELD(AMDVI_IRTE, VECTOR, 16, 8)
+
+/* 128-bit IRTE layout (GAEn=1) */
+FIELD(AMDVI_IRTE_GA_LO, VALID, 0, 1)
+FIELD(AMDVI_IRTE_GA_LO, SUP_IOPF, 1, 1)
+FIELD(AMDVI_IRTE_GA_LO, INT_TYPE, 2, 3)
+FIELD(AMDVI_IRTE_GA_LO, RQ_EOI, 5, 1)
+FIELD(AMDVI_IRTE_GA_LO, DM, 6, 1)
+FIELD(AMDVI_IRTE_GA_LO, GUEST_MODE, 7, 1)
+/*
+ * In the 128-bit IRTE format, XT mode uses IRTE_GA_LOW.Destination[23:0]
+ * together with IRTE_GA_HI.DestinationHi[7:0] to construct a 32-bit x2APIC
+ * destination.
+ * Without XTEn (i.e. when x2APIC support is not enabled), only
+ * IRTE_GA_LOW.Destination[7:0] is used.
+ */
+FIELD(AMDVI_IRTE_GA_LO, DESTINATION, 8, 24)
+
+FIELD(AMDVI_IRTE_GA_HI, VECTOR, 0, 8)
+FIELD(AMDVI_IRTE_GA_HI, DESTINATION_HI, 56, 8)
 
 uint64_t amdvi_extended_feature_register(AMDVIState *s)
 {
@@ -1983,7 +2019,7 @@ static IOMMUTLBEntry amdvi_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
 }
 
 static int amdvi_get_irte(AMDVIState *s, MSIMessage *origin, uint64_t *dte,
-                          union irte *irte, uint16_t devid)
+                          uint32_t *irte, uint16_t devid)
 {
     uint64_t irte_root, offset;
 
@@ -1998,7 +2034,8 @@ static int amdvi_get_irte(AMDVIState *s, MSIMessage *origin, uint64_t *dte,
         return -AMDVI_IR_GET_IRTE;
     }
 
-    trace_amdvi_ir_irte_val(irte->val);
+    *irte = le32_to_cpu(*irte);
+    trace_amdvi_ir_irte_val(*irte);
 
     return 0;
 }
@@ -2010,8 +2047,9 @@ static int amdvi_int_remap_legacy(AMDVIState *iommu,
                                   X86IOMMUIrq *irq,
                                   uint16_t sid)
 {
+    uint8_t int_type;
+    uint32_t irte;
     int ret;
-    union irte irte;
 
     /* get interrupt remapping table */
     ret = amdvi_get_irte(iommu, origin, dte, &irte, sid);
@@ -2019,32 +2057,33 @@ static int amdvi_int_remap_legacy(AMDVIState *iommu,
         return ret;
     }
 
-    if (!irte.fields.valid) {
+    if (!FIELD_EX32(irte, AMDVI_IRTE, VALID)) {
         trace_amdvi_ir_target_abort("RemapEn is disabled");
         return -AMDVI_IR_TARGET_ABORT;
     }
 
-    if (irte.fields.guest_mode) {
+    if (FIELD_EX32(irte, AMDVI_IRTE, GUEST_MODE)) {
         error_report_once("guest mode is not zero");
         return -AMDVI_IR_ERR;
     }
 
-    if (irte.fields.int_type > AMDVI_IOAPIC_INT_TYPE_ARBITRATED) {
+    int_type = FIELD_EX32(irte, AMDVI_IRTE, INT_TYPE);
+    if (int_type > AMDVI_IOAPIC_INT_TYPE_ARBITRATED) {
         error_report_once("reserved int_type");
         return -AMDVI_IR_ERR;
     }
 
-    irq->delivery_mode = irte.fields.int_type;
-    irq->vector = irte.fields.vector;
-    irq->dest_mode = irte.fields.dm;
-    irq->redir_hint = irte.fields.rq_eoi;
-    irq->dest = irte.fields.destination;
+    irq->delivery_mode = int_type;
+    irq->vector = FIELD_EX32(irte, AMDVI_IRTE, VECTOR);
+    irq->dest_mode = FIELD_EX32(irte, AMDVI_IRTE, DM);
+    irq->redir_hint = FIELD_EX32(irte, AMDVI_IRTE, RQ_EOI);
+    irq->dest = FIELD_EX32(irte, AMDVI_IRTE, DESTINATION);
 
     return 0;
 }
 
 static int amdvi_get_irte_ga(AMDVIState *s, MSIMessage *origin, uint64_t *dte,
-                             struct irte_ga *irte, uint16_t devid)
+                             AMDVIIrteGA *irte, uint16_t devid)
 {
     uint64_t irte_root, offset;
 
@@ -2058,7 +2097,9 @@ static int amdvi_get_irte_ga(AMDVIState *s, MSIMessage *origin, uint64_t *dte,
         return -AMDVI_IR_GET_IRTE;
     }
 
-    trace_amdvi_ir_irte_ga_val(irte->hi.val, irte->lo.val);
+    irte->ga_lo = le64_to_cpu(irte->ga_lo);
+    irte->ga_hi = le64_to_cpu(irte->ga_hi);
+    trace_amdvi_ir_irte_ga_val(irte->ga_hi, irte->ga_lo);
     return 0;
 }
 
@@ -2069,8 +2110,9 @@ static int amdvi_int_remap_ga(AMDVIState *iommu,
                               X86IOMMUIrq *irq,
                               uint16_t sid)
 {
+    AMDVIIrteGA irte;
+    uint8_t int_type;
     int ret;
-    struct irte_ga irte;
 
     /* get interrupt remapping table */
     ret = amdvi_get_irte_ga(iommu, origin, dte, &irte, sid);
@@ -2078,30 +2120,33 @@ static int amdvi_int_remap_ga(AMDVIState *iommu,
         return ret;
     }
 
-    if (!irte.lo.fields_remap.valid) {
+    if (!FIELD_EX64(irte.ga_lo, AMDVI_IRTE_GA_LO, VALID)) {
         trace_amdvi_ir_target_abort("RemapEn is disabled");
         return -AMDVI_IR_TARGET_ABORT;
     }
 
-    if (irte.lo.fields_remap.guest_mode) {
+    if (FIELD_EX64(irte.ga_lo, AMDVI_IRTE_GA_LO, GUEST_MODE)) {
         error_report_once("guest mode is not zero");
         return -AMDVI_IR_ERR;
     }
 
-    if (irte.lo.fields_remap.int_type > AMDVI_IOAPIC_INT_TYPE_ARBITRATED) {
+    int_type = FIELD_EX64(irte.ga_lo, AMDVI_IRTE_GA_LO, INT_TYPE);
+    if (int_type > AMDVI_IOAPIC_INT_TYPE_ARBITRATED) {
         error_report_once("reserved int_type is set");
         return -AMDVI_IR_ERR;
     }
 
-    irq->delivery_mode = irte.lo.fields_remap.int_type;
-    irq->vector = irte.hi.fields.vector;
-    irq->dest_mode = irte.lo.fields_remap.dm;
-    irq->redir_hint = irte.lo.fields_remap.rq_eoi;
+    irq->delivery_mode = int_type;
+    irq->vector = FIELD_EX64(irte.ga_hi, AMDVI_IRTE_GA_HI, VECTOR);
+    irq->dest_mode = FIELD_EX64(irte.ga_lo, AMDVI_IRTE_GA_LO, DM);
+    irq->redir_hint = FIELD_EX64(irte.ga_lo, AMDVI_IRTE_GA_LO, RQ_EOI);
     if (iommu->xten) {
-        irq->dest = irte.lo.fields_remap.destination |
-                    (irte.hi.fields.destination_hi << 24);
+        irq->dest = FIELD_EX64(irte.ga_lo, AMDVI_IRTE_GA_LO, DESTINATION) |
+                    (FIELD_EX64(irte.ga_hi, AMDVI_IRTE_GA_HI, DESTINATION_HI)
+                    << 24);
     } else {
-        irq->dest = irte.lo.fields_remap.destination & 0xff;
+        irq->dest = FIELD_EX64(irte.ga_lo, AMDVI_IRTE_GA_LO, DESTINATION) &
+                    0xff;
     }
 
     return 0;
