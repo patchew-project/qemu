@@ -159,6 +159,9 @@ static int tcg_init_machine(AccelState *as, MachineState *ms)
          */
         as->gdbstub.sstep_flags |= SSTEP_NOIRQ | SSTEP_NOTIMER;
     }
+    if (replay_mode == REPLAY_MODE_PLAY) {
+        as->gdbstub.can_reverse = true;
+    }
 
     page_init();
     tb_htable_init();
