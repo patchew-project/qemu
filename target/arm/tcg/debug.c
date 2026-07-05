@@ -414,7 +414,7 @@ static uint32_t arm_debug_exception_fsr(CPUARMState *env)
     }
 }
 
-void arm_debug_excp_handler(CPUState *cs)
+void arm_debug_excp_handler(CPUState *cs, CPUBreakpoint *hit)
 {
     /*
      * Called by core code when a watchpoint or breakpoint fires;
