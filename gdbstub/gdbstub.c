@@ -237,6 +237,18 @@ static GDBProcess *gdb_get_cpu_process(CPUState *cpu)
     return gdb_get_process(gdb_get_cpu_pid(cpu));
 }
 
+bool gdb_cpu_is_attached(CPUState *cpu)
+{
+    GDBProcess *process;
+
+    if (!gdbserver_state.init || !cpu) {
+        return false;
+    }
+
+    process = gdb_get_cpu_process(cpu);
+    return process && process->attached;
+}
+
 static CPUState *find_cpu(uint32_t thread_id)
 {
     CPUState *cpu;
@@ -2520,4 +2532,3 @@ void gdb_create_default_process(GDBState *s)
     process->attached = false;
     process->target_xml = NULL;
 }
-

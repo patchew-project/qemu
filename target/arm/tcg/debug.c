@@ -12,7 +12,9 @@
 #include "internals.h"
 #include "cpu-features.h"
 #include "cpregs.h"
+#include "accel/tcg/cpu-loop.h"
 #include "exec/watchpoint.h"
+#include "exec/gdbstub.h"
 #include "system/tcg.h"
 
 /* Return the Exception Level targeted by debug exceptions. */
@@ -513,6 +515,7 @@ void arm_debug_excp_handler(CPUState *cs)
  */
 void HELPER(exception_bkpt_insn)(CPUARMState *env, uint32_t syndrome)
 {
+    CPUState *cs = env_cpu(env);
     int debug_el = arm_debug_target_el(env);
     int cur_el = arm_current_el(env);
 
@@ -535,6 +538,12 @@ void HELPER(exception_bkpt_insn)(CPUARMState *env, uint32_t syndrome)
     if (debug_el < cur_el) {
         debug_el = cur_el;
     }
+
+    if (arm_feature(env, ARM_FEATURE_M) && gdb_cpu_is_attached(cs)) {
+        cs->exception_index = EXCP_DEBUG;
+        cpu_loop_exit(cs);
+    }
+
     raise_exception(env, EXCP_BKPT, syndrome, debug_el);
 }
 

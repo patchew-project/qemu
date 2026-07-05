@@ -60,6 +60,12 @@ void gdb_unregister_coprocessor_all(CPUState *cpu);
 bool gdbserver_start(const char *port_or_device, Error **errp);
 
 /**
+ * gdb_cpu_is_attached() - return whether @cpu is visible to an attached GDB
+ * @cpu: The CPU to test.
+ */
+bool gdb_cpu_is_attached(CPUState *cpu);
+
+/**
  * gdb_feature_builder_init() - Initialize GDBFeatureBuilder.
  * @builder: The builder to be initialized.
  * @feature: The feature to be filled.
