@@ -686,7 +686,7 @@ static inline void cpu_handle_debug_exception(CPUState *cpu)
 
     for (n = interval_tree_iter_first(&cpu->watchpoints, 0, -1); n;
          n = interval_tree_iter_next(n, 0, -1)) {
-        CPUWatchpoint *wp = container_of(n, CPUWatchpoint, itree);
+        CPUBreakpoint *wp = container_of(n, CPUBreakpoint, itree);
         if (wp != cpu->watchpoint_hit) {
             wp->flags &= ~BP_WATCHPOINT_HIT;
         }

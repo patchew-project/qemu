@@ -683,7 +683,7 @@ void hw_breakpoint_update_all(ARMCPU *cpu);
 bool arm_debug_check_breakpoint(CPUState *cs, CPUBreakpoint *bp);
 
 /* Callback function for checking if a watchpoint should trigger. */
-bool arm_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp);
+bool arm_debug_check_watchpoint(CPUState *cs, CPUBreakpoint *wp);
 
 /* Adjust addresses (in BE32 mode) before testing against watchpoint
  * addresses.
@@ -1944,13 +1944,13 @@ typedef struct {
 /*
  * The watchpoint registers can cover more area than the requested
  * watchpoint so we need to store the additional information
- * somewhere. We also need to supply a CPUWatchpoint to the GDB stub
+ * somewhere. We also need to supply a CPUBreakpoint to the GDB stub
  * when the watchpoint is hit.
  */
 typedef struct {
     uint64_t wcr;
     uint64_t wvr;
-    CPUWatchpoint details;
+    CPUBreakpoint details;
 } HWWatchpoint;
 
 /* Maximum and current break/watch point counts */
@@ -1966,7 +1966,7 @@ bool find_hw_breakpoint(CPUState *cpu, vaddr pc);
 int insert_hw_breakpoint(vaddr pc);
 int delete_hw_breakpoint(vaddr pc);
 
-CPUWatchpoint *find_hw_watchpoint(CPUState *cpu, vaddr addr);
+CPUBreakpoint *find_hw_watchpoint(CPUState *cpu, vaddr addr);
 int insert_hw_watchpoint(vaddr addr, vaddr len, int type);
 int delete_hw_watchpoint(vaddr addr, vaddr len, int type);
 

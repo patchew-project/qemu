@@ -28,12 +28,6 @@ typedef int BreakpointFlags;
 #define BP_WATCHPOINT_HIT       (BP_MEM_ACCESS << BP_HIT_SHIFT)
 
 struct CPUBreakpoint {
-    IntervalTreeNode itree;     /* start == last == pc */
-    BreakpointFlags flags;
-    unsigned id;
-};
-
-struct CPUWatchpoint {
     IntervalTreeNode itree;
     vaddr hitaddr;
     vaddr hitlast;
@@ -49,11 +43,11 @@ void cpu_breakpoint_remove_by_ref(CPUState *cpu, CPUBreakpoint *breakpoint);
 void cpu_breakpoint_remove_all(CPUState *cpu, BreakpointFlags mask);
 bool cpu_breakpoint_test(CPUState *cpu, vaddr pc, BreakpointFlags mask);
 
-CPUWatchpoint *cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
+CPUBreakpoint *cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
                                      BreakpointFlags flags, unsigned id);
 int cpu_watchpoint_remove(CPUState *cpu, vaddr addr,
                           vaddr len, BreakpointFlags flags);
-void cpu_watchpoint_remove_by_ref(CPUState *cpu, CPUWatchpoint *watchpoint);
+void cpu_watchpoint_remove_by_ref(CPUState *cpu, CPUBreakpoint *watchpoint);
 void cpu_watchpoint_remove_all(CPUState *cpu, BreakpointFlags mask);
 
 #endif

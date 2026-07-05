@@ -755,7 +755,7 @@ typedef struct CPUArchState {
     } za_state;
 
     CPUBreakpoint *cpu_breakpoint[16];
-    CPUWatchpoint *cpu_watchpoint[16];
+    CPUBreakpoint *cpu_watchpoint[16];
 
     /* Optional fault info across tlb lookup. */
     ARMMMUFaultInfo *tlb_fi;

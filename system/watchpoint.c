@@ -24,10 +24,10 @@
 #include "hw/core/cpu.h"
 
 /* Add a watchpoint.  */
-CPUWatchpoint *cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
+CPUBreakpoint *cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
                                      BreakpointFlags flags, unsigned id)
 {
-    CPUWatchpoint *wp;
+    CPUBreakpoint *wp;
     vaddr last = addr + len - 1;
     vaddr in_page;
 
@@ -37,7 +37,7 @@ CPUWatchpoint *cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
     assert(ctpop32(flags & BP_ANY) == 1);
     assert(!(flags & ~(BP_ANY | BP_MEM_ACCESS | BP_STOP_BEFORE_ACCESS)));
 
-    wp = g_new0(CPUWatchpoint, 1);
+    wp = g_new0(CPUBreakpoint, 1);
 
     wp->itree.start = addr;
     wp->itree.last = last;
@@ -63,7 +63,7 @@ int cpu_watchpoint_remove(CPUState *cpu, vaddr addr, vaddr len,
 
     for (n = interval_tree_iter_first(&cpu->watchpoints, addr, addr); n;
          n = interval_tree_iter_next(n, addr, addr)) {
-        CPUWatchpoint *wp = container_of(n, CPUWatchpoint, itree);
+        CPUBreakpoint *wp = container_of(n, CPUBreakpoint, itree);
 
         if (addr == wp->itree.start &&
             last == wp->itree.last &&
@@ -76,7 +76,7 @@ int cpu_watchpoint_remove(CPUState *cpu, vaddr addr, vaddr len,
 }
 
 /* Remove a specific watchpoint by reference.  */
-void cpu_watchpoint_remove_by_ref(CPUState *cpu, CPUWatchpoint *watchpoint)
+void cpu_watchpoint_remove_by_ref(CPUState *cpu, CPUBreakpoint *watchpoint)
 {
     interval_tree_remove(&watchpoint->itree, &cpu->watchpoints);
     tlb_flush_page(cpu, watchpoint->itree.start);
@@ -89,7 +89,7 @@ void cpu_watchpoint_remove_all(CPUState *cpu, BreakpointFlags mask)
     IntervalTreeNode *n = interval_tree_iter_first(&cpu->watchpoints, 0, -1);
 
     while (n) {
-        CPUWatchpoint *wp = container_of(n, CPUWatchpoint, itree);
+        CPUBreakpoint *wp = container_of(n, CPUBreakpoint, itree);
 
         n = interval_tree_iter_next(n, 0, -1);
         if (wp->flags & mask) {

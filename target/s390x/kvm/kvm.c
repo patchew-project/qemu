@@ -130,7 +130,7 @@
  */
 #define KVM_SLOT_MAX_BYTES (4UL * TiB)
 
-static CPUWatchpoint hw_watchpoint;
+static CPUBreakpoint hw_watchpoint;
 /*
  * We don't use a list because this structure is also used to transmit the
  * hardware breakpoints to the kernel.
