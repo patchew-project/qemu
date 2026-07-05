@@ -9,7 +9,6 @@
 #define EXEC_BREAKPOINT_H
 
 #include "qemu/interval-tree.h"
-#include "qemu/queue.h"
 #include "exec/vaddr.h"
 #include "exec/memattrs.h"
 
@@ -35,13 +34,11 @@ struct CPUBreakpoint {
 };
 
 struct CPUWatchpoint {
-    vaddr vaddr;
-    vaddr len;
+    IntervalTreeNode itree;
     vaddr hitaddr;
     MemTxAttrs hitattrs;
-    int flags; /* BP_* */
+    BreakpointFlags flags;
     unsigned id;
-    QTAILQ_ENTRY(CPUWatchpoint) entry;
 };
 
 int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, BreakpointFlags flags,
