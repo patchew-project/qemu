@@ -72,9 +72,9 @@ void gdb_init_gdbserver_state(void)
      * By default try to use no IRQs and no timers while single
      * stepping so as to make single stepping like a typical ICE HW step.
      */
-    gdbserver_state.supported_sstep_flags = accel_supported_gdbstub_sstep_flags();
+    gdbserver_state.accel_config.sstep_flags = accel_supported_gdbstub_sstep_flags();
     gdbserver_state.sstep_flags = SSTEP_ENABLE | SSTEP_NOIRQ | SSTEP_NOTIMER;
-    gdbserver_state.sstep_flags &= gdbserver_state.supported_sstep_flags;
+    gdbserver_state.sstep_flags &= gdbserver_state.accel_config.sstep_flags;
 }
 
 /* writes 2*len+1 bytes in buf */
@@ -1537,12 +1537,12 @@ static void handle_query_qemu_sstepbits(GArray *params, void *user_ctx)
 {
     g_string_printf(gdbserver_state.str_buf, "ENABLE=%x", SSTEP_ENABLE);
 
-    if (gdbserver_state.supported_sstep_flags & SSTEP_NOIRQ) {
+    if (gdbserver_state.accel_config.sstep_flags & SSTEP_NOIRQ) {
         g_string_append_printf(gdbserver_state.str_buf, ",NOIRQ=%x",
                                SSTEP_NOIRQ);
     }
 
-    if (gdbserver_state.supported_sstep_flags & SSTEP_NOTIMER) {
+    if (gdbserver_state.accel_config.sstep_flags & SSTEP_NOTIMER) {
         g_string_append_printf(gdbserver_state.str_buf, ",NOTIMER=%x",
                                SSTEP_NOTIMER);
     }
@@ -1560,7 +1560,7 @@ static void handle_set_qemu_sstep(GArray *params, void *user_ctx)
 
     new_sstep_flags = gdb_get_cmd_param(params, 0)->val_ul;
 
-    if (new_sstep_flags  & ~gdbserver_state.supported_sstep_flags) {
+    if (new_sstep_flags & ~gdbserver_state.accel_config.sstep_flags) {
         gdb_put_packet("E22");
         return;
     }
