@@ -18,7 +18,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/error-report.h"
 #include "exec/cputlb.h"
 #include "exec/target_page.h"
 #include "exec/breakpoint.h"
@@ -33,12 +32,8 @@ int cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
     vaddr last = addr + len - 1;
     vaddr in_page;
 
-    /* forbid ranges which are empty or run off the end of the address space */
-    if (len == 0 || last < addr) {
-        error_report("tried to set invalid watchpoint at %"
-                     VADDR_PRIx ", len=%" VADDR_PRIu, addr, len);
-        return -EINVAL;
-    }
+    assert(len != 0);
+    assert(last >= addr);
 
     wp = g_new0(CPUWatchpoint, 1);
 
