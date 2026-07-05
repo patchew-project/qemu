@@ -581,8 +581,8 @@ void hw_watchpoint_update(ARMCPU *cpu, int n)
         wvr += basstart;
     }
 
-    cpu_watchpoint_insert(CPU(cpu), wvr, len, flags, n,
-                          &env->cpu_watchpoint[n]);
+    env->cpu_watchpoint[n] = cpu_watchpoint_insert(CPU(cpu), wvr, len,
+                                                   flags, n);
 }
 
 void hw_watchpoint_update_all(ARMCPU *cpu)

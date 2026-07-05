@@ -135,7 +135,6 @@ static inline BreakpointFlags xlat_gdb_type(CPUState *cpu, int gdbtype)
 static int tcg_insert_breakpoint(CPUState *cs, int type, vaddr addr, vaddr len)
 {
     CPUState *cpu;
-    int err = 0;
 
     switch (type) {
     case GDB_BREAKPOINT_SW:
@@ -151,13 +150,9 @@ static int tcg_insert_breakpoint(CPUState *cs, int type, vaddr addr, vaddr len)
             return -EINVAL;
         }
         CPU_FOREACH(cpu) {
-            err = cpu_watchpoint_insert(cpu, addr, len,
-                                        xlat_gdb_type(cpu, type), 0, NULL);
-            if (err) {
-                break;
-            }
+            cpu_watchpoint_insert(cpu, addr, len, xlat_gdb_type(cpu, type), 0);
         }
-        return err;
+        return 0;
     default:
         return -ENOSYS;
     }
