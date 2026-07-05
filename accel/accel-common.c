@@ -70,6 +70,11 @@ void accel_init_interfaces(AccelClass *ac)
     accel_init_cpu_interfaces(ac);
 }
 
+bool accel_supports_guest_debug(AccelState *accel)
+{
+    return accel->gdbstub.sstep_flags & SSTEP_ENABLE;
+}
+
 void accel_cpu_instance_init(CPUState *cpu)
 {
     if (cpu->cc->accel_cpu && cpu->cc->accel_cpu->cpu_instance_init) {

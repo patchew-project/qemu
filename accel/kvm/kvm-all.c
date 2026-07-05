@@ -3036,10 +3036,7 @@ static int kvm_init(AccelState *as, MachineState *ms)
         (kvm_check_extension(s, KVM_CAP_VM_ATTRIBUTES) > 0);
 
 #ifdef TARGET_KVM_HAVE_GUEST_DEBUG
-    s->have_guest_debug =
-        (kvm_check_extension(s, KVM_CAP_SET_GUEST_DEBUG) > 0);
-
-    if (s->have_guest_debug) {
+    if (kvm_check_extension(s, KVM_CAP_SET_GUEST_DEBUG) > 0) {
         as->gdbstub.sstep_flags = SSTEP_ENABLE;
 
         int guest_debug_flags =
@@ -3827,14 +3824,6 @@ int kvm_update_guest_debug(CPUState *cpu, unsigned long reinject_trap)
     run_on_cpu(cpu, kvm_invoke_set_guest_debug,
                RUN_ON_CPU_HOST_PTR(&data));
     return data.err;
-}
-
-bool kvm_supports_guest_debug(void)
-{
-    KVMState *s = KVM_STATE(as);
-
-    /* probed during kvm_init() */
-    return s->have_guest_debug;
 }
 
 int kvm_insert_breakpoint(CPUState *cpu, int type, vaddr addr, vaddr len)
