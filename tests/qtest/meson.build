@@ -250,6 +250,18 @@ qtests_arm = \
   (config_all_devices.has_key('CONFIG_TPM_TIS_I2C') ? ['tpm-tis-i2c-test', 'tpm-tis-i2c-swtpm-test'] : []) + \
   (config_all_devices.has_key('CONFIG_VEXPRESS') ? ['test-arm-mptimer'] : []) + \
   (config_all_devices.has_key('CONFIG_MICROBIT') ? ['microbit-test'] : []) + \
+  (config_all_devices.has_key('CONFIG_RASPI_PICO') ? ['rp2040-sysinfo-syscfg-test',
+                                                       'rp2040-busctrl-test',
+                                                       'rp2040-clocks-test',
+                                                       'rp2040-dma-test',
+                                                       'rp2040-ioqspi-test',
+                                                       'rp2040-resets-test',
+                                                       'rp2040-rosc-test',
+                                                       'rp2040-sio-test',
+                                                       'rp2040-tbman-test',
+                                                       'rp2040-vreg-test',
+                                                       'rp2040-watchdog-test',
+                                                       'rp2040-xip-test'] : []) + \
   (config_all_devices.has_key('CONFIG_STM32L4X5_SOC') ? qtests_stm32l4x5 : []) + \
   (config_all_devices.has_key('CONFIG_FSI_APB2OPB_ASPEED') ? ['aspeed_fsi-test'] : []) + \
   (config_all_devices.has_key('CONFIG_CAN_FLEXCAN') ? ['flexcan-test'] : []) + \
