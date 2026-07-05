@@ -351,7 +351,7 @@ static bool bp_wp_matches(ARMCPU *cpu, int n, bool is_wp)
     return true;
 }
 
-bool arm_debug_check_breakpoint(CPUState *cs)
+bool arm_debug_check_breakpoint(CPUState *cs, CPUBreakpoint *bp)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
