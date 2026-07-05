@@ -95,6 +95,7 @@
 #include "hw/cxl/cxl.h"
 #include "hw/cxl/cxl_host.h"
 #include "qemu/guest-random.h"
+#include "hw/watchdog/sbsa_gwdt.h"
 
 static GlobalProperty arm_virt_compat_defaults[] = {
     { TYPE_VIRTIO_IOMMU_PCI, "aw-bits", "48" },
@@ -214,6 +215,8 @@ static const MemMapEntry base_memmap[] = {
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
     [VIRT_PLATFORM_BUS] =       { 0x0c000000, 0x02000000 },
     [VIRT_SECURE_MEM] =         { 0x0e000000, 0x01000000 },
+    [VIRT_GWDT_REFRESH] =       { 0x0f000000, 0x00001000 },
+    [VIRT_GWDT_CONTROL] =       { 0x0f001000, 0x00001000 },
     [VIRT_PCIE_MMIO] =          { 0x10000000, 0x2eff0000 },
     [VIRT_PCIE_PIO] =           { 0x3eff0000, 0x00010000 },
     [VIRT_PCIE_ECAM] =          { 0x3f000000, 0x01000000 },
@@ -264,6 +267,7 @@ static const int a15irqmap[] = {
     [VIRT_GPIO] = 7,
     [VIRT_UART1] = 8,
     [VIRT_ACPI_GED] = 9,
+    [VIRT_GWDT_WS0] = 10,
     [VIRT_MMIO] = 16, /* ...to 16 + NUM_VIRTIO_TRANSPORTS - 1 */
     [VIRT_GIC_V2M] = 48, /* ...to 48 + NUM_GICV2M_SPIS - 1 */
     [VIRT_SMMU] = 74,    /* ...to 74 + NUM_SMMU_IRQS - 1 */
@@ -2085,6 +2089,27 @@ static void create_smmu(const VirtMachineState *vms, PCIBus *bus)
     create_smmuv3_dt_bindings(vms, base, size, irq);
 }
 
+static void create_gwdt_dt_bindings(VirtMachineState *vms)
+{
+    MachineState *ms = MACHINE(vms);
+    hwaddr rbase = vms->memmap[VIRT_GWDT_REFRESH].base;
+    hwaddr cbase = vms->memmap[VIRT_GWDT_CONTROL].base;
+    int irq = vms->irqmap[VIRT_GWDT_WS0];
+    char *nodename = g_strdup_printf("/watchdog@%" PRIx64, cbase);
+
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop_string(ms->fdt, nodename,
+                            "compatible", "arm,sbsa-gwdt");
+    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
+                                 2, cbase, 2, SBSA_GWDT_CMMIO_SIZE,
+                                 2, rbase, 2, SBSA_GWDT_RMMIO_SIZE);
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts",
+                           GIC_FDT_IRQ_TYPE_SPI, irq,
+                           GIC_FDT_IRQ_FLAGS_LEVEL_HI);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "timeout-sec", 30);
+    g_free(nodename);
+}
+
 static void create_virtio_iommu_dt_bindings(VirtMachineState *vms)
 {
     const char compat[] = "virtio,pci-iommu\0pci1af4,1057";
@@ -3820,6 +3845,11 @@ static void virt_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
         qlist_append_str(reserved_regions, resv_prop_str);
         qdev_prop_set_array(dev, "reserved-regions", reserved_regions);
         g_free(resv_prop_str);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_WDT_SBSA)) {
+        uint64_t cntfrq = object_property_get_int(OBJECT(qemu_get_cpu(0)),
+                                                  "cntfrq", &error_abort);
+
+        qdev_prop_set_uint64(dev, "clock-frequency", cntfrq);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_ARM_SMMUV3)) {
         if (vms->legacy_smmuv3_present || vms->iommu == VIRT_IOMMU_VIRTIO) {
             error_setg(errp, "virt machine already has %s set. "
@@ -3870,6 +3900,19 @@ static void virt_machine_device_plug_cb(HotplugHandler *hotplug_dev,
                                         DeviceState *dev, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(hotplug_dev);
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_WDT_SBSA)) {
+        SysBusDevice *s = SYS_BUS_DEVICE(dev);
+        hwaddr rbase = vms->memmap[VIRT_GWDT_REFRESH].base;
+        hwaddr cbase = vms->memmap[VIRT_GWDT_CONTROL].base;
+        int irq = vms->irqmap[VIRT_GWDT_WS0];
+
+        sysbus_mmio_map(s, 0, rbase);
+        sysbus_mmio_map(s, 1, cbase);
+        sysbus_connect_irq(s, 0, qdev_get_gpio_in(vms->gic, irq));
+
+        create_gwdt_dt_bindings(vms);
+    }
 
     if (vms->platform_bus_dev) {
         MachineClass *mc = MACHINE_GET_CLASS(vms);
@@ -4123,6 +4166,7 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_RAMFB_DEVICE);
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_UEFI_VARS_SYSBUS);
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_ARM_SMMUV3);
+    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_WDT_SBSA);
 #ifdef CONFIG_TPM
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_TPM_TIS_SYSBUS);
 #endif

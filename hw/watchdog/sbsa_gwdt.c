@@ -285,6 +285,8 @@ static void wdt_sbsa_gwdt_class_init(ObjectClass *klass, const void *data)
     dc->realize = wdt_sbsa_gwdt_realize;
     device_class_set_legacy_reset(dc, wdt_sbsa_gwdt_reset);
     dc->hotpluggable = false;
+    /* requires machine-specific wiring (MMIO/IRQ/FDT) at plug time */
+    dc->user_creatable = true;
     set_bit(DEVICE_CATEGORY_WATCHDOG, dc->categories);
     dc->vmsd = &vmstate_sbsa_gwdt;
     dc->desc = "SBSA-compliant generic watchdog device";
