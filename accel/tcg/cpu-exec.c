@@ -296,8 +296,8 @@ static void log_cpu_exec(vaddr pc, CPUState *cpu,
 static bool check_for_breakpoints_slow(CPUState *cpu, vaddr pc,
                                        uint32_t *cflags)
 {
+    IntervalTreeNode *n;
     CPUBreakpoint *bp;
-    bool match_page = false;
 
     /*
      * Singlestep overrides breakpoints.
@@ -312,33 +312,34 @@ static bool check_for_breakpoints_slow(CPUState *cpu, vaddr pc,
         return false;
     }
 
-    QTAILQ_FOREACH(bp, &cpu->breakpoints, entry) {
-        /*
-         * If we have an exact pc match, trigger the breakpoint.
-         * Otherwise, note matches within the page.
-         */
-        if (pc == bp->pc) {
-            bool match_bp = false;
-
-            if (bp->flags & BP_GDB) {
-                match_bp = true;
-            } else if (bp->flags & BP_CPU) {
+    n = interval_tree_iter_first(&cpu->breakpoints, pc, pc);
+    if (n) {
 #ifdef CONFIG_USER_ONLY
-                g_assert_not_reached();
+        bp = container_of(n, CPUBreakpoint, itree);
+        assert(bp->flags & BP_GDB);
+        goto found;
 #else
-                const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
-                assert(tcg_ops->debug_check_breakpoint);
-                match_bp = tcg_ops->debug_check_breakpoint(cpu, bp);
-#endif
+        /* Prefer GDB breakpoint over architectural breakpoint. */
+        do {
+            bp = container_of(n, CPUBreakpoint, itree);
+            if (bp->flags & BP_GDB) {
+                goto found;
             }
+            n = interval_tree_iter_next(n, pc, pc);
+        } while (n);
 
-            if (match_bp) {
-                cpu->exception_index = EXCP_DEBUG;
-                return true;
+        const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
+        assert(tcg_ops->debug_check_breakpoint);
+
+        for (n = interval_tree_iter_first(&cpu->breakpoints, pc, pc); n;
+             n = interval_tree_iter_next(n, pc, pc)) {
+            bp = container_of(n, CPUBreakpoint, itree);
+            if ((bp->flags & BP_CPU) &&
+                tcg_ops->debug_check_breakpoint(cpu, bp)) {
+                goto found;
             }
-        } else if (((pc ^ bp->pc) & TARGET_PAGE_MASK) == 0) {
-            match_page = true;
         }
+#endif
     }
 
     /*
@@ -353,17 +354,24 @@ static bool check_for_breakpoints_slow(CPUState *cpu, vaddr pc,
      * invalidated, nor would any TB need to be invalidated as
      * breakpoints are removed.
      */
-    if (match_page) {
+    n = interval_tree_iter_first(&cpu->breakpoints,
+                                 pc & TARGET_PAGE_MASK,
+                                 pc | ~TARGET_PAGE_MASK);
+    if (n) {
         *cflags = (*cflags & ~CF_COUNT_MASK) | CF_NO_GOTO_TB | CF_BP_PAGE | 1;
     }
     return false;
+
+ found:
+    cpu->exception_index = EXCP_DEBUG;
+    return true;
 }
 
 static inline bool check_for_breakpoints(CPUState *cpu, vaddr pc,
                                          uint32_t *cflags)
 {
-    return unlikely(!QTAILQ_EMPTY(&cpu->breakpoints)) &&
-        check_for_breakpoints_slow(cpu, pc, cflags);
+    return unlikely(!interval_tree_is_empty(&cpu->breakpoints)) &&
+           check_for_breakpoints_slow(cpu, pc, cflags);
 }
 
 /**

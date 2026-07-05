@@ -112,16 +112,17 @@ int whpx_first_vcpu_starting(CPUState *cpu)
 
     g_assert(bql_locked());
 
-    if (!QTAILQ_EMPTY(&cpu->breakpoints) ||
+    if (!interval_tree_is_empty(&cpu->breakpoints) ||
             (whpx->breakpoints.breakpoints &&
              whpx->breakpoints.breakpoints->used)) {
-        CPUBreakpoint *bp;
+        IntervalTreeNode *n;
         int i = 0;
         bool update_pending = false;
 
-        QTAILQ_FOREACH(bp, &cpu->breakpoints, entry) {
+        for (n = interval_tree_iter_first(&cpu->breakpoints, 0, -1); n;
+             n = interval_tree_iter_next(n, 0, -1)) {
             if (i >= whpx->breakpoints.original_address_count ||
-                bp->pc != whpx->breakpoints.original_addresses[i]) {
+                n->start != whpx->breakpoints.original_addresses[i]) {
                 update_pending = true;
             }
 

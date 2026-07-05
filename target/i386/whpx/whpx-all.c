@@ -1688,8 +1688,8 @@ void whpx_translate_cpu_breakpoints(
     CPUState *cpu,
     int cpu_breakpoint_count)
 {
-    CPUBreakpoint *bp;
     int cpu_bp_index = 0;
+    IntervalTreeNode *n;
 
     breakpoints->original_addresses =
         g_renew(vaddr, breakpoints->original_addresses, cpu_breakpoint_count);
@@ -1721,14 +1721,15 @@ void whpx_translate_cpu_breakpoints(
     }
 
     /* 2. Map all CPU breakpoints to WHPX breakpoints */
-    QTAILQ_FOREACH(bp, &cpu->breakpoints, entry) {
-        int i;
+    for (n = interval_tree_iter_first(&cpu->breakpoints, 0, -1); n;
+         n = interval_tree_iter_next(n, 0, -1)) {
+        vaddr pc = n->start;
         bool found = false;
 
         /* This will be used to detect changed CPU breakpoints later. */
-        breakpoints->original_addresses[cpu_bp_index++] = bp->pc;
+        breakpoints->original_addresses[cpu_bp_index++] = pc;
 
-        for (i = 0; i < new_breakpoints->used; i++) {
+        for (int i = 0; i < new_breakpoints->used; i++) {
             /*
              * WARNING: This loop has O(N^2) complexity, where N is the
              * number of breakpoints. It should not be a bottleneck in
@@ -1738,7 +1739,7 @@ void whpx_translate_cpu_breakpoints(
              * high-level breakpoint objects in a tree or hash map.
              */
 
-            if (new_breakpoints->data[i].address == bp->pc) {
+            if (new_breakpoints->data[i].address == pc) {
                 /* There was already a breakpoint at this address. */
                 if (new_breakpoints->data[i].state == WHPX_BP_CLEAR_PENDING) {
                     new_breakpoints->data[i].state = WHPX_BP_SET;
@@ -1753,7 +1754,7 @@ void whpx_translate_cpu_breakpoints(
 
         if (!found && new_breakpoints->used < new_breakpoints->allocated) {
             /* No WHPX breakpoint at this address. Create one. */
-            new_breakpoints->data[new_breakpoints->used].address = bp->pc;
+            new_breakpoints->data[new_breakpoints->used].address = pc;
             new_breakpoints->data[new_breakpoints->used].state =
                 WHPX_BP_SET_PENDING;
             new_breakpoints->used++;
