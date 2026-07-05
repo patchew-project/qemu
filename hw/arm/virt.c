@@ -3846,10 +3846,12 @@ static void virt_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
         qdev_prop_set_array(dev, "reserved-regions", reserved_regions);
         g_free(resv_prop_str);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_WDT_SBSA)) {
-        uint64_t cntfrq = object_property_get_int(OBJECT(qemu_get_cpu(0)),
-                                                  "cntfrq", &error_abort);
+        if (!object_property_get_bool(OBJECT(dev), "wdat", &error_abort)) {
+            uint64_t cntfrq = object_property_get_int(OBJECT(qemu_get_cpu(0)),
+                                                      "cntfrq", &error_abort);
 
-        qdev_prop_set_uint64(dev, "clock-frequency", cntfrq);
+            qdev_prop_set_uint64(dev, "clock-frequency", cntfrq);
+        }
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_ARM_SMMUV3)) {
         if (vms->legacy_smmuv3_present || vms->iommu == VIRT_IOMMU_VIRTIO) {
             error_setg(errp, "virt machine already has %s set. "
@@ -3911,7 +3913,9 @@ static void virt_machine_device_plug_cb(HotplugHandler *hotplug_dev,
         sysbus_mmio_map(s, 1, cbase);
         sysbus_connect_irq(s, 0, qdev_get_gpio_in(vms->gic, irq));
 
-        create_gwdt_dt_bindings(vms);
+        if (!object_property_get_bool(OBJECT(dev), "wdat", &error_abort)) {
+            create_gwdt_dt_bindings(vms);
+        }
     }
 
     if (vms->platform_bus_dev) {
