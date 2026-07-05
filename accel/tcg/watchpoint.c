@@ -56,7 +56,7 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
     bool have_cpu_wp = false;
 
     assert(tcg_enabled());
-    if (cpu->watchpoint_hit) {
+    if (cpu->bp_wp_hit) {
         /*
          * We re-entered the check after replacing the TB.
          * Now raise the debug interrupt so that it will
@@ -146,7 +146,7 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
         return;
     }
 
-    cpu->watchpoint_hit = found_wp;
+    cpu->bp_wp_hit = found_wp;
 
     /* This call also restores vCPU state */
     tb_check_watchpoint(cpu, ra);

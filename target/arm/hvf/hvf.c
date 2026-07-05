@@ -2372,13 +2372,12 @@ static int hvf_handle_exception(CPUState *cpu, hv_vcpu_exit_exception_t *excp)
 
         cpu_synchronize_state(cpu);
 
-        CPUBreakpoint *wp =
-            find_hw_watchpoint(cpu, excp->virtual_address);
+        CPUBreakpoint *wp = find_hw_watchpoint(cpu, excp->virtual_address);
         if (!wp) {
             error_report("EXCP_DEBUG but unknown hw watchpoint");
         }
         wp->hitaddr = excp->virtual_address;
-        cpu->watchpoint_hit = wp;
+        cpu->bp_wp_hit = wp;
         break;
     }
     case EC_DATAABORT: {

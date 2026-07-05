@@ -1861,7 +1861,7 @@ static int kvm_arch_handle_debug_exit(S390CPU *cpu)
     switch (arch_info->type) {
     case KVM_HW_WP_WRITE:
         if (find_hw_breakpoint(arch_info->addr, -1, arch_info->type)) {
-            cs->watchpoint_hit = &hw_watchpoint;
+            cs->bp_wp_hit = &hw_watchpoint;
             hw_watchpoint.hitaddr = arch_info->addr;
             hw_watchpoint.flags = BP_MEM_WRITE;
             ret = EXCP_DEBUG;
