@@ -367,6 +367,38 @@ config RASPI
     select BCM2835_SPI
     select BCM2835_I2C
 
+config RASPI_PICO
+    bool
+    default y
+    depends on TCG && ARM
+    select RP2040
+
+config RP2040
+    bool
+    select ARM_V7M
+    select PL011
+    select RP2040_BUSCTRL
+    select RP2040_CLOCKS
+    select RP2040_DMA
+    select RP2040_IOBANK0
+    select RP2040_IOQSPI
+    select RP2040_NYI
+    select RP2040_PADS
+    select RP2040_PLL
+    select RP2040_PSM
+    select RP2040_RESETS
+    select RP2040_ROSC
+    select RP2040_SIO
+    select RP2040_SYSCFG
+    select RP2040_SYSINFO
+    select RP2040_TBMAN
+    select RP2040_TIMER
+    select RP2040_VREG
+    select RP2040_WATCHDOG
+    select RP2040_XIP
+    select RP2040_XOSC
+    select UNIMP
+
 config STM32F100_SOC
     bool
     select ARM_V7M

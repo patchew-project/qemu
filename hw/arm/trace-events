@@ -1,5 +1,8 @@
 # See docs/devel/tracing.rst for syntax documentation.
 
+# rp2040.c
+rp2040_synthetic_flash_helper(const char *name, uint32_t count) "helper %s count %" PRIu32
+
 # omap1.c
 omap1_pwl_clocking_scheme(const char *scheme) "omap1 CLKM: clocking scheme set to %s"
 omap1_pwl_backlight(int output) "omap1 PWL: backlight now at %d/256"

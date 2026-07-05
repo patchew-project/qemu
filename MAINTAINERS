@@ -1023,6 +1023,26 @@ F: docs/system/arm/raspi.rst
 F: tests/functional/arm/test_raspi2.py
 F: tests/functional/aarch64/test_raspi*.py
 
+Raspberry Pi Pico / RP2040
+M: Gilles Grimaud <gilles.grimaud@univ-lille.fr>
+R: Alex Bennée <alex.bennee@linaro.org>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: configs/devices/arm-softmmu/default.mak
+F: docs/system/arm/raspi-pico.rst
+F: hw/arm/raspi_pico.c
+F: hw/arm/rp2040.c
+F: hw/dma/rp2040_dma.c
+F: hw/misc/rp2040_*.c
+F: hw/ssi/rp2040_xip.c
+F: include/hw/arm/rp2040.h
+F: include/hw/dma/rp2040_dma.h
+F: include/hw/misc/rp2040_*.h
+F: include/hw/ssi/rp2040_xip.h
+F: scripts/uf2-to-flash.py
+F: tests/functional/arm/test_raspi_pico.py
+F: tests/qtest/rp2040-*.c
+
 Real View
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
