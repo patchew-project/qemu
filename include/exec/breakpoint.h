@@ -41,8 +41,8 @@ struct CPUWatchpoint {
     unsigned id;
 };
 
-int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, BreakpointFlags flags,
-                          unsigned id, CPUBreakpoint **breakpoint);
+CPUBreakpoint *cpu_breakpoint_insert(CPUState *cpu, vaddr pc,
+                                     BreakpointFlags flags, unsigned id);
 int cpu_breakpoint_remove(CPUState *cpu, vaddr pc, BreakpointFlags flags);
 void cpu_breakpoint_remove_by_ref(CPUState *cpu, CPUBreakpoint *breakpoint);
 void cpu_breakpoint_remove_all(CPUState *cpu, BreakpointFlags mask);

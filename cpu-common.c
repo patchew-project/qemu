@@ -405,8 +405,8 @@ bool cpu_breakpoint_test(CPUState *cpu, vaddr pc, BreakpointFlags mask)
 }
 
 /* Add a breakpoint.  */
-int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, BreakpointFlags flags,
-                          unsigned id, CPUBreakpoint **breakpoint)
+CPUBreakpoint *cpu_breakpoint_insert(CPUState *cpu, vaddr pc,
+                                     BreakpointFlags flags, unsigned id)
 {
     CPUBreakpoint *bp;
 
@@ -422,13 +422,8 @@ int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, BreakpointFlags flags,
     bp->id = id;
 
     interval_tree_insert(&bp->itree, &cpu->breakpoints);
-
-    if (breakpoint) {
-        *breakpoint = bp;
-    }
-
     trace_breakpoint_insert(cpu->cpu_index, pc, flags);
-    return 0;
+    return bp;
 }
 
 /* Remove a specific breakpoint.  */

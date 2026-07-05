@@ -488,7 +488,7 @@ static void type2_breakpoint_insert(CPURISCVState *env, target_ulong index)
     }
 
     if (ctrl & TYPE2_EXEC) {
-        cpu_breakpoint_insert(cs, addr, flags, 0, &env->cpu_breakpoint[index]);
+        env->cpu_breakpoint[index] = cpu_breakpoint_insert(cs, addr, flags, 0);
     }
 
     if (ctrl & TYPE2_LOAD) {
@@ -613,8 +613,7 @@ static void type6_breakpoint_insert(CPURISCVState *env, target_ulong index)
     }
 
     if (ctrl & TYPE6_EXEC) {
-        cpu_breakpoint_insert(cs, addr, flags, index,
-                              &env->cpu_breakpoint[index]);
+        env->cpu_breakpoint[index] = cpu_breakpoint_insert(cs, addr, flags, index);
     }
 
     if (ctrl & TYPE6_LOAD) {
