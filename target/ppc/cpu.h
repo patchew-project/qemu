@@ -1320,8 +1320,8 @@ struct CPUArchState {
     /* MMU context, only relevant for full system emulation */
 #if defined(TARGET_PPC64)
     ppc_slb_t slb[MAX_SLB_ENTRIES]; /* PowerPC 64 SLB area */
-    struct CPUBreakpoint *ciabr_breakpoint;
-    struct CPUWatchpoint *dawr_watchpoint[2];
+    CPUBreakpoint *ciabr_breakpoint;
+    CPUWatchpoint *dawr_watchpoint[2];
 #endif
     target_ulong sr[32];   /* segment registers */
     uint32_t nb_BATs;      /* number of BATs */

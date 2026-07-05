@@ -545,9 +545,9 @@ struct CPUArchState {
     unsigned static_vectors;
 
     /* Watchpoints for DBREAK registers */
-    struct CPUWatchpoint *cpu_watchpoint[MAX_NDBREAK];
+    CPUWatchpoint *cpu_watchpoint[MAX_NDBREAK];
     /* Breakpoints for IBREAK registers */
-    struct CPUBreakpoint *cpu_breakpoint[MAX_NIBREAK];
+    CPUBreakpoint *cpu_breakpoint[MAX_NIBREAK];
 };
 
 /**

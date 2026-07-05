@@ -1060,8 +1060,8 @@ void riscv_trigger_realize(CPURISCVState *env)
     env->tdata1 = g_new0(uint64_t, env->num_triggers);
     env->tdata2 = g_new0(uint64_t, env->num_triggers);
     env->tdata3 = g_new0(uint64_t, env->num_triggers);
-    env->cpu_breakpoint = g_new0(struct CPUBreakpoint *, env->num_triggers);
-    env->cpu_watchpoint = g_new0(struct CPUWatchpoint *, env->num_triggers);
+    env->cpu_breakpoint = g_new0(CPUBreakpoint *, env->num_triggers);
+    env->cpu_watchpoint = g_new0(CPUWatchpoint *, env->num_triggers);
     env->itrigger_timer = g_new0(QEMUTimer *, env->num_triggers);
 
     for (i = 0; i < env->num_triggers; i++) {
