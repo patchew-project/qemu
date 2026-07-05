@@ -193,9 +193,13 @@ static void do_vhost_user_cleanup(VirtIODevice *vdev, VHostUserBase *vub)
 {
     vhost_user_cleanup(&vub->vhost_user);
 
-    for (int i = 0; i < vub->num_vqs; i++) {
-        VirtQueue *vq = g_ptr_array_index(vub->vqs, i);
-        virtio_delete_queue(vq);
+    if (vub->vqs) {
+        for (int i = 0; i < vub->num_vqs; i++) {
+            VirtQueue *vq = g_ptr_array_index(vub->vqs, i);
+            virtio_delete_queue(vq);
+        }
+        g_ptr_array_free(vub->vqs, true);
+        vub->vqs = NULL;
     }
 
     virtio_cleanup(vdev);
