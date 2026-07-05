@@ -22,6 +22,7 @@ test_arm_timeouts = {
   'cubieboard' : 360,
   'orangepi' : 540,
   'quanta_gsj' : 240,
+  'raspi_pico' : 30,
   'raspi2' : 120,
   'replay' : 240,
   'tuxrun' : 240,
@@ -30,6 +31,7 @@ test_arm_timeouts = {
 
 tests_arm_system_quick = [
   'migration',
+  'raspi_pico',
 ]
 
 tests_arm_system_thorough = [
