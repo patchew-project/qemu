@@ -104,7 +104,6 @@ bool kvm_readonly_mem_allowed;
 bool kvm_vm_attributes_allowed;
 bool kvm_msi_use_devid;
 bool kvm_pre_fault_memory_supported;
-static int kvm_sstep_flags;
 static bool kvm_immediate_exit;
 static uint64_t kvm_supported_memory_attributes;
 static bool kvm_guest_memfd_supported;
@@ -3041,13 +3040,13 @@ static int kvm_init(AccelState *as, MachineState *ms)
         (kvm_check_extension(s, KVM_CAP_SET_GUEST_DEBUG) > 0);
 
     if (s->have_guest_debug) {
-        kvm_sstep_flags = SSTEP_ENABLE;
+        as->gdbstub.sstep_flags = SSTEP_ENABLE;
 
         int guest_debug_flags =
             kvm_check_extension(s, KVM_CAP_SET_GUEST_DEBUG2);
 
         if (guest_debug_flags & KVM_GUESTDBG_BLOCKIRQ) {
-            kvm_sstep_flags |= SSTEP_NOIRQ;
+            as->gdbstub.sstep_flags |= SSTEP_NOIRQ;
         }
     }
 #endif
@@ -4279,17 +4278,6 @@ static void kvm_accel_instance_init(Object *obj)
     s->honor_guest_pat = ON_OFF_AUTO_OFF;
 }
 
-/**
- * kvm_gdbstub_sstep_flags():
- *
- * Returns: SSTEP_* flags that KVM supports for guest debug. The
- * support is probed during kvm_init()
- */
-static int kvm_gdbstub_sstep_flags(AccelState *as)
-{
-    return kvm_sstep_flags;
-}
-
 static void kvm_accel_class_init(ObjectClass *oc, const void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
@@ -4298,7 +4286,6 @@ static void kvm_accel_class_init(ObjectClass *oc, const void *data)
     ac->rebuild_guest = kvm_reset_vmfd;
     ac->has_memory = kvm_accel_has_memory;
     ac->allowed = &kvm_allowed;
-    ac->gdbstub_supported_sstep_flags = kvm_gdbstub_sstep_flags;
 
     object_class_property_add(oc, "kernel-irqchip", "on|off|split",
         NULL, kvm_set_kernel_irqchip,
