@@ -12,7 +12,7 @@
 #include "internals.h"
 #include "cpu-features.h"
 #include "cpregs.h"
-#include "exec/watchpoint.h"
+#include "exec/breakpoint.h"
 #include "system/tcg.h"
 
 /* Return the Exception Level targeted by debug exceptions. */

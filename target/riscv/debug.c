@@ -31,7 +31,7 @@
 #include "target/riscv/debug.h"
 #include "trace.h"
 #include "exec/helper-proto.h"
-#include "exec/watchpoint.h"
+#include "exec/breakpoint.h"
 #include "system/cpu-timers.h"
 #include "exec/icount.h"
 
