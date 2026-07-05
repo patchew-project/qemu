@@ -1853,6 +1853,11 @@ void whpx_apply_breakpoints(
     }
 }
 
+int whpx_arch_gdbstub_sstep_flags(AccelState *as)
+{
+    return SSTEP_ENABLE;
+}
+
 bool whpx_arch_supports_guest_debug(void) 
 {
     return true;
