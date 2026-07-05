@@ -23,8 +23,10 @@ static uint64_t unimp_read(void *opaque, hwaddr offset, unsigned size)
     UnimplementedDeviceState *s = UNIMPLEMENTED_DEVICE(opaque);
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
-                  "(size %d, offset 0x%0*" HWADDR_PRIx ")\n",
-                  s->name, size, s->offset_fmt_width, offset);
+                  "(size %d, addr 0x%08" PRIx64
+                  ", offset 0x%0*" HWADDR_PRIx ")\n",
+                  s->name, size, s->base + offset,
+                  s->offset_fmt_width, offset);
     return 0;
 }
 
@@ -34,9 +36,11 @@ static void unimp_write(void *opaque, hwaddr offset,
     UnimplementedDeviceState *s = UNIMPLEMENTED_DEVICE(opaque);
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
-                  "(size %d, offset 0x%0*" HWADDR_PRIx
+                  "(size %d, addr 0x%08" PRIx64
+                  ", offset 0x%0*" HWADDR_PRIx
                   ", value 0x%0*" PRIx64 ")\n",
-                  s->name, size, s->offset_fmt_width, offset, size << 1, value);
+                  s->name, size, s->base + offset,
+                  s->offset_fmt_width, offset, size << 1, value);
 }
 
 static const MemoryRegionOps unimp_ops = {
@@ -71,6 +75,7 @@ static void unimp_realize(DeviceState *dev, Error **errp)
 }
 
 static const Property unimp_properties[] = {
+    DEFINE_PROP_UINT64("base", UnimplementedDeviceState, base, 0),
     DEFINE_PROP_UINT64("size", UnimplementedDeviceState, size, 0),
     DEFINE_PROP_STRING("name", UnimplementedDeviceState, name),
 };

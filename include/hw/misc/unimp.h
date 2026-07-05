@@ -22,6 +22,7 @@ struct UnimplementedDeviceState {
     MemoryRegion iomem;
     unsigned offset_fmt_width;
     char *name;
+    uint64_t base;
     uint64_t size;
 };
 
@@ -45,6 +46,7 @@ static inline void create_unimplemented_device(const char *name,
     DeviceState *dev = qdev_new(TYPE_UNIMPLEMENTED_DEVICE);
 
     qdev_prop_set_string(dev, "name", name);
+    qdev_prop_set_uint64(dev, "base", base);
     qdev_prop_set_uint64(dev, "size", size);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 

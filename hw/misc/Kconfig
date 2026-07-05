@@ -101,6 +101,60 @@ config FSL_IMX8MP_ANALOG
 config FSL_IMX8MP_CCM
     bool
 
+config RP2040_BUSCTRL
+    bool
+
+config RP2040_CLOCKS
+    bool
+
+config RP2040_IOBANK0
+    bool
+
+config RP2040_IOQSPI
+    bool
+
+config RP2040_NYI
+    bool
+
+config RP2040_PADS
+    bool
+
+config RP2040_PLL
+    bool
+
+config RP2040_PSM
+    bool
+
+config RP2040_RESETS
+    bool
+
+config RP2040_ROSC
+    bool
+
+config RP2040_SIO
+    bool
+
+config RP2040_SYSCFG
+    bool
+
+config RP2040_SYSINFO
+    bool
+
+config RP2040_TBMAN
+    bool
+
+config RP2040_TIMER
+    bool
+
+config RP2040_VREG
+    bool
+
+config RP2040_WATCHDOG
+    bool
+
+config RP2040_XOSC
+    bool
+
 config STM32_RCC
     bool
 
