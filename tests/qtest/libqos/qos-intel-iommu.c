@@ -15,6 +15,10 @@
 #include "qos-iommu-testdev.h"
 #include "qos-intel-iommu.h"
 
+/* Bounded poll for the invalidation-wait Status Write. */
+#define QVTD_INV_WAIT_POLL_MAX_ITERS    1000
+#define QVTD_INV_WAIT_POLL_INTERVAL_US  1000
+
 #define QVTD_AW_48BIT_ENCODING    2
 
 uint32_t qvtd_expected_dma_result(QVTDTestContext *ctx)
@@ -230,6 +234,30 @@ static uint64_t qvtd_get_fl_pte_attrs(bool is_leaf)
         attrs |= VTD_FS_D;
     }
     return attrs;
+}
+
+uint64_t qvtd_leaf_pte_addr(uint64_t iova)
+{
+    return qvtd_get_table_addr(QVTD_PT_L1_BASE, 1, iova);
+}
+
+uint64_t qvtd_make_leaf_pte(uint64_t pa, QVTDTransMode mode)
+{
+    uint64_t attrs;
+
+    /*
+     * Reuse the same leaf attributes qvtd_setup_translation_tables() writes,
+     * so a rewritten PTE stays consistent with the initial mapping.  US=1 in
+     * the first-level format is required because the PASID entry runs with
+     * SRE=0, which makes every DMA appear as a user-mode access
+     * (VT-d 3.6.2 / 9.9).
+     */
+    if (mode == QVTD_TM_SCALABLE_FLT) {
+        attrs = qvtd_get_fl_pte_attrs(true);
+    } else {
+        attrs = qvtd_get_pte_attrs();
+    }
+    return (pa & VTD_PAGE_MASK_4K) | attrs;
 }
 
 void qvtd_setup_translation_tables(QTestState *qts, uint64_t iova,
@@ -528,4 +556,84 @@ QPCIDevice *qvtd_setup_qtest_pci_device(QTestState *qts, QPCIBus **pcibus,
     g_assert_false(bar->is_io);
 
     return dev;
+}
+
+/*
+ * Write a 128-bit invalidation descriptor at the current tail and advance
+ * IQT_REG.  Internal helper for the IOTLB / wait variants below.
+ */
+static uint32_t qvtd_submit_inv_desc(QTestState *qts, uint64_t iommu_base,
+                                     uint64_t desc_lo, uint64_t desc_hi,
+                                     uint32_t tail)
+{
+    uint64_t desc_addr = QVTD_IQ_BASE + (uint64_t)tail * QVTD_IQ_DESC_SIZE;
+
+    qtest_writeq(qts, desc_addr, desc_lo);
+    qtest_writeq(qts, desc_addr + 8, desc_hi);
+    tail++;
+
+    qtest_writeq(qts, iommu_base + DMAR_IQT_REG,
+                 (uint64_t)tail << QVTD_IQT_SHIFT);
+    return tail;
+}
+
+uint32_t qvtd_submit_inv_wait_and_poll(QTestState *qts, uint64_t iommu_base,
+                                       uint32_t tail)
+{
+    uint64_t lo, hi;
+    uint32_t status = 0;
+    int i;
+
+    qtest_writel(qts, QVTD_INV_WAIT_ADDR, 0);
+
+    lo = VTD_INV_DESC_WAIT | VTD_INV_DESC_WAIT_SW |
+         ((uint64_t)QVTD_INV_WAIT_DATA << VTD_INV_DESC_WAIT_DATA_SHIFT);
+    hi = QVTD_INV_WAIT_ADDR;
+
+    tail = qvtd_submit_inv_desc(qts, iommu_base, lo, hi, tail);
+
+    for (i = 0; i < QVTD_INV_WAIT_POLL_MAX_ITERS; i++) {
+        status = qtest_readl(qts, QVTD_INV_WAIT_ADDR);
+        if (status == QVTD_INV_WAIT_DATA) {
+            return tail;
+        }
+        g_usleep(QVTD_INV_WAIT_POLL_INTERVAL_US);
+    }
+
+    g_assert_cmphex(status, ==, QVTD_INV_WAIT_DATA);
+    return tail;
+}
+
+uint32_t qvtd_submit_iotlb_global_inv(QTestState *qts, uint64_t iommu_base,
+                                      uint32_t tail)
+{
+    uint64_t lo = VTD_INV_DESC_IOTLB | VTD_INV_DESC_IOTLB_GLOBAL;
+
+    return qvtd_submit_inv_desc(qts, iommu_base, lo, 0, tail);
+}
+
+uint32_t qvtd_submit_iotlb_domain_inv(QTestState *qts, uint64_t iommu_base,
+                                      uint16_t domain_id, uint32_t tail)
+{
+    uint64_t lo = VTD_INV_DESC_IOTLB | VTD_INV_DESC_IOTLB_DOMAIN |
+                  ((uint64_t)domain_id << 16);
+
+    return qvtd_submit_inv_desc(qts, iommu_base, lo, 0, tail);
+}
+
+uint32_t qvtd_submit_iotlb_page_inv(QTestState *qts, uint64_t iommu_base,
+                                    uint16_t domain_id, uint64_t addr,
+                                    uint8_t am, uint32_t tail)
+{
+    uint64_t lo = VTD_INV_DESC_IOTLB | VTD_INV_DESC_IOTLB_PAGE |
+                  ((uint64_t)domain_id << 16);
+    /*
+     * AM selects the invalidation range per VT-d 6.5.2.4:
+     *   am=0  → 4 KB,  am=9 → 2 MB,  am=18 → 1 GB.
+     * IH (hi[6]) is left clear, requesting full invalidation
+     * including non-leaf paging-structure caches.
+     */
+    uint64_t hi = (addr & ~0xfffULL) | (am & 0x3fULL);
+
+    return qvtd_submit_inv_desc(qts, iommu_base, lo, hi, tail);
 }
