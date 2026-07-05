@@ -80,6 +80,11 @@ DeviceState *pl011_create(hwaddr addr, qemu_irq irq, Chardev *chr)
 #define LCR_FEN     (1 << 4)
 #define LCR_BRK     (1 << 0)
 
+/* DMA Control Register, UARTDMACR */
+#define DMACR_RXDMAE (1 << 0)
+#define DMACR_TXDMAE (1 << 1)
+#define DMACR_DMAONERR (1 << 2)
+
 /* Control Register, UARTCR */
 #define CR_OUT2     (1 << 13)
 #define CR_OUT1     (1 << 12)
@@ -95,6 +100,12 @@ DeviceState *pl011_create(hwaddr addr, qemu_irq irq, Chardev *chr)
 
 /* Fractional Baud Rate Divider, UARTFBRD */
 #define FBRD_MASK 0x3f
+
+/* RP2040 APB atomic register aliases. */
+#define PL011_ATOMIC_ALIAS_MASK 0x3000
+#define PL011_ATOMIC_XOR        0x1000
+#define PL011_ATOMIC_SET        0x2000
+#define PL011_ATOMIC_CLR        0x3000
 
 static const unsigned char pl011_id_arm[8] =
   { 0x11, 0x10, 0x14, 0x00, 0x0d, 0xf0, 0x05, 0xb1 };
@@ -157,6 +168,34 @@ static inline unsigned pl011_get_fifo_depth(PL011State *s)
     return pl011_is_fifo_enabled(s) ? PL011_FIFO_DEPTH : 1;
 }
 
+static void pl011_update_dreq(PL011State *s)
+{
+    if (s->dreq_tx) {
+        qemu_set_irq(s->dreq_tx,
+                     (s->dmacr & DMACR_TXDMAE) &&
+                     !(s->flags & PL011_FLAG_TXFF));
+    }
+    if (s->dreq_rx) {
+        qemu_set_irq(s->dreq_rx,
+                     (s->dmacr & DMACR_RXDMAE) && s->read_count > 0);
+    }
+}
+
+static uint32_t pl011_apply_atomic_alias(uint32_t old, uint32_t value,
+                                         hwaddr alias)
+{
+    switch (alias) {
+    case PL011_ATOMIC_XOR:
+        return old ^ value;
+    case PL011_ATOMIC_SET:
+        return old | value;
+    case PL011_ATOMIC_CLR:
+        return old & ~value;
+    default:
+        return value;
+    }
+}
+
 static inline void pl011_reset_rx_fifo(PL011State *s)
 {
     s->read_count = 0;
@@ -190,6 +229,7 @@ static void pl011_fifo_rx_put(void *opaque, uint32_t value)
         trace_pl011_fifo_rx_full();
         s->flags |= PL011_FLAG_RXFF;
     }
+    pl011_update_dreq(s);
     if (s->read_count == s->read_trigger) {
         s->int_level |= INT_RX;
         pl011_update(s);
@@ -254,10 +294,17 @@ static void pl011_write_txdata(PL011State *s, uint8_t data)
      * XXX this blocks entire thread. Rewrite to use
      * qemu_chr_fe_write and background I/O callbacks
      */
-    qemu_chr_fe_write_all(&s->chr, &data, 1);
+    if (s->tx_connected) {
+        qemu_chr_fe_write_all(&s->chr, &data, 1);
+    } else if (!s->logged_disconnected_tx) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "PL011 data written while TX pin is disconnected\n");
+        s->logged_disconnected_tx = true;
+    }
     pl011_loopback_tx(s, data);
     s->int_level |= INT_TX;
     pl011_update(s);
+    pl011_update_dreq(s);
 }
 
 static uint32_t pl011_read_rxdata(PL011State *s)
@@ -280,6 +327,7 @@ static uint32_t pl011_read_rxdata(PL011State *s)
     trace_pl011_read_fifo(s->read_count, fifo_depth);
     s->rsr = c >> 8;
     pl011_update(s);
+    pl011_update_dreq(s);
     qemu_chr_fe_accept_input(&s->chr);
     return c;
 }
@@ -469,6 +517,7 @@ static void pl011_write(void *opaque, hwaddr offset,
         }
         s->lcr = value;
         pl011_set_read_trigger(s);
+        pl011_update_dreq(s);
         break;
     case 12: /* UARTCR */
         /* ??? Need to implement the enable bit.  */
@@ -492,15 +541,30 @@ static void pl011_write(void *opaque, hwaddr offset,
         pl011_update(s);
         break;
     case 18: /* UARTDMACR */
-        s->dmacr = value;
-        if (value & 3) {
-            qemu_log_mask(LOG_UNIMP, "pl011: DMA not implemented\n");
-        }
+        s->dmacr = value & (DMACR_RXDMAE | DMACR_TXDMAE | DMACR_DMAONERR);
+        pl011_update_dreq(s);
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "pl011_write: Bad offset 0x%x\n", (int)offset);
     }
+}
+
+static uint64_t pl011_atomic_alias_read(void *opaque, hwaddr offset,
+                                        unsigned size)
+{
+    return pl011_read(opaque, offset & 0xfff, size);
+}
+
+static void pl011_atomic_alias_write(void *opaque, hwaddr offset,
+                                     uint64_t value, unsigned size)
+{
+    hwaddr alias = (offset + PL011_ATOMIC_XOR) & PL011_ATOMIC_ALIAS_MASK;
+    hwaddr reg = offset & 0xfff;
+    uint32_t old = pl011_read(opaque, reg, size);
+    uint32_t new = pl011_apply_atomic_alias(old, value, alias);
+
+    pl011_write(opaque, reg, new, size);
 }
 
 static int pl011_can_receive(void *opaque)
@@ -518,6 +582,9 @@ static int pl011_can_receive(void *opaque)
      * historically never enforced that. So we effectively keep the
      * UART continuously enabled regardless of the enable bits.
      */
+    if (!s->rx_connected) {
+        return 0;
+    }
 
     trace_pl011_can_receive(s->lcr, s->read_count, fifo_depth, fifo_available);
     return fifo_available;
@@ -526,6 +593,9 @@ static int pl011_can_receive(void *opaque)
 static void pl011_receive(void *opaque, const uint8_t *buf, int size)
 {
     trace_pl011_receive(size);
+    if (!PL011(opaque)->rx_connected) {
+        return;
+    }
     /*
      * In loopback mode, the RX input signal is internally disconnected
      * from the entire receiving logics; thus, all inputs are ignored,
@@ -542,9 +612,26 @@ static void pl011_receive(void *opaque, const uint8_t *buf, int size)
 
 static void pl011_event(void *opaque, QEMUChrEvent event)
 {
-    if (event == CHR_EVENT_BREAK && !pl011_loopback_enabled(opaque)) {
+    PL011State *s = opaque;
+
+    if (event == CHR_EVENT_BREAK && s->rx_connected &&
+        !pl011_loopback_enabled(opaque)) {
         pl011_fifo_rx_put(opaque, DR_BE);
     }
+}
+
+void pl011_set_tx_connected(PL011State *s, bool connected)
+{
+    s->tx_connected = connected;
+    if (connected) {
+        s->logged_disconnected_tx = false;
+    }
+}
+
+void pl011_set_rx_connected(PL011State *s, bool connected)
+{
+    s->rx_connected = connected;
+    qemu_chr_fe_accept_input(&s->chr);
 }
 
 static void pl011_clock_update(void *opaque, ClockEvent event)
@@ -557,6 +644,14 @@ static void pl011_clock_update(void *opaque, ClockEvent event)
 static const MemoryRegionOps pl011_ops = {
     .read = pl011_read,
     .write = pl011_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl.min_access_size = 4,
+    .impl.max_access_size = 4,
+};
+
+static const MemoryRegionOps pl011_atomic_alias_ops = {
+    .read = pl011_atomic_alias_read,
+    .write = pl011_atomic_alias_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl.min_access_size = 4,
     .impl.max_access_size = 4,
@@ -648,11 +743,19 @@ static void pl011_init(Object *obj)
     PL011State *s = PL011(obj);
     int i;
 
+    s->tx_connected = true;
+    s->rx_connected = true;
     memory_region_init_io(&s->iomem, OBJECT(s), &pl011_ops, s, "pl011", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init_io(&s->atomic_alias_iomem, OBJECT(s),
+                          &pl011_atomic_alias_ops, s,
+                          "pl011-atomic-alias", 0x3000);
+    sysbus_init_mmio(sbd, &s->atomic_alias_iomem);
     for (i = 0; i < ARRAY_SIZE(s->irq); i++) {
         sysbus_init_irq(sbd, &s->irq[i]);
     }
+    qdev_init_gpio_out_named(DEVICE(obj), &s->dreq_tx, "dreq-tx", 1);
+    qdev_init_gpio_out_named(DEVICE(obj), &s->dreq_rx, "dreq-rx", 1);
 
     s->clk = qdev_init_clock_in(DEVICE(obj), "clk", pl011_clock_update, s,
                                 ClockUpdate);
@@ -687,6 +790,7 @@ static void pl011_reset(DeviceState *dev)
     s->logged_disabled_uart = false;
     pl011_reset_rx_fifo(s);
     pl011_reset_tx_fifo(s);
+    pl011_update_dreq(s);
 }
 
 static void pl011_class_init(ObjectClass *oc, const void *data)
