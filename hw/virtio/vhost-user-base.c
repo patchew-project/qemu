@@ -287,6 +287,7 @@ static void vub_device_realize(DeviceState *dev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserBase *vub = VHOST_USER_BASE(dev);
     uint64_t memory_sizes[VIRTIO_MAX_SHMEM_REGIONS];
+    struct vhost_virtqueue *vhost_vqs = NULL;
     int i, ret, nregions, regions_processed = 0;
 
     if (!vub->chardev.chr) {
@@ -338,6 +339,7 @@ static void vub_device_realize(DeviceState *dev, Error **errp)
 
     vub->vhost_dev.nvqs = vub->num_vqs;
     vub->vhost_dev.vqs = g_new0(struct vhost_virtqueue, vub->vhost_dev.nvqs);
+    vhost_vqs = vub->vhost_dev.vqs;
 
     /* connect to backend */
     ret = vhost_dev_init(&vub->vhost_dev, &vub->vhost_user,
@@ -353,7 +355,7 @@ static void vub_device_realize(DeviceState *dev, Error **errp)
                                                            errp);
 
     if (ret < 0) {
-        goto err;
+        goto err_vhost_dev;
     }
 
     for (i = 0; i < VIRTIO_MAX_SHMEM_REGIONS && regions_processed < nregions; i++) {
@@ -368,14 +370,14 @@ static void vub_device_realize(DeviceState *dev, Error **errp)
                     errp);
 
                 if (ret < 0) {
-                    goto err;
+                    goto err_vhost_dev;
                 }
             }
 
             if (memory_sizes[i] % qemu_real_host_page_size() != 0) {
                 error_setg(errp, "Shared memory %d size must be a multiple of "
                                  "the host page size", i);
-                goto err;
+                goto err_vhost_dev;
             }
 
             virtio_new_shmem_region(vdev, i, memory_sizes[i]);
@@ -385,7 +387,10 @@ static void vub_device_realize(DeviceState *dev, Error **errp)
     qemu_chr_fe_set_handlers(&vub->chardev, NULL, NULL, vub_event, NULL,
                              dev, NULL, true);
     return;
+err_vhost_dev:
+    vhost_dev_cleanup(&vub->vhost_dev);
 err:
+    g_free(vhost_vqs);
     do_vhost_user_cleanup(vdev, vub);
 }
 
