@@ -278,6 +278,7 @@ static uint32_t get_next_eventlog_entry(AMDVIState *s)
 
 static void amdvi_log_event(AMDVIState *s, uint64_t *evt)
 {
+    uint64_t le_evt[2];
     uint32_t evtlog_tail_next;
 
     /* event logging not enabled */
@@ -298,8 +299,14 @@ static void amdvi_log_event(AMDVIState *s, uint64_t *evt)
         return;
     }
 
+    /*
+     * Convert event buffer to little-endian before writing it to guest memory.
+     */
+    le_evt[0] = cpu_to_le64(evt[0]);
+    le_evt[1] = cpu_to_le64(evt[1]);
+
     if (dma_memory_write(&address_space_memory, s->evtlog + s->evtlog_tail,
-                         evt, AMDVI_EVENT_LEN, MEMTXATTRS_UNSPECIFIED)) {
+                         le_evt, AMDVI_EVENT_LEN, MEMTXATTRS_UNSPECIFIED)) {
         trace_amdvi_evntlog_fail(s->evtlog, s->evtlog_tail);
     }
 
@@ -545,15 +552,18 @@ static void amdvi_update_iotlb(AMDVIState *s, uint16_t devid,
 static void amdvi_completion_wait(AMDVIState *s, uint64_t *cmd)
 {
     /* pad the last 3 bits */
-    hwaddr addr = cpu_to_le64(extract64(cmd[0], 3, 49)) << 3;
-    uint64_t data = cpu_to_le64(cmd[1]);
+    hwaddr addr = extract64(cmd[0], 3, 49) << 3;
+    uint64_t data = cmd[1];
+
+    /* Format the data to be written to guest memory as little-endian */
+    uint64_t le_data = cpu_to_le64(data);
 
     if (extract64(cmd[0], 52, 8)) {
         amdvi_log_illegalcom_error(s, extract64(cmd[0], 60, 4),
                                    s->cmdbuf + s->cmdbuf_head);
     }
     if (extract64(cmd[0], 0, 1)) {
-        if (dma_memory_write(&address_space_memory, addr, &data,
+        if (dma_memory_write(&address_space_memory, addr, &le_data,
                              AMDVI_COMPLETION_DATA_SIZE,
                              MEMTXATTRS_UNSPECIFIED)) {
             trace_amdvi_completion_wait_fail(addr);
@@ -1281,7 +1291,7 @@ static void amdvi_update_addr_translation_mode(AMDVIState *s, uint16_t devid)
 /* log error without aborting since linux seems to be using reserved bits */
 static void amdvi_inval_devtab_entry(AMDVIState *s, uint64_t *cmd)
 {
-    uint16_t devid = cpu_to_le16((uint16_t)extract64(cmd[0], 0, 16));
+    uint16_t devid = extract64(cmd[0], 0, 16);
 
     trace_amdvi_devtab_inval(PCI_BUS_NUM(devid), PCI_SLOT(devid),
                              PCI_FUNC(devid));
@@ -1448,9 +1458,9 @@ static void amdvi_sync_domain(AMDVIState *s, uint16_t domid, uint64_t addr,
 /* we don't have devid - we can't remove pages by address */
 static void amdvi_inval_pages(AMDVIState *s, uint64_t *cmd)
 {
-    uint16_t domid = cpu_to_le16((uint16_t)extract64(cmd[0], 32, 16));
-    uint64_t addr = cpu_to_le64(extract64(cmd[1], 12, 52)) << 12;
-    uint16_t flags = cpu_to_le16((uint16_t)extract64(cmd[1], 0, 3));
+    uint16_t domid = extract64(cmd[0], 32, 16);
+    uint64_t addr = extract64(cmd[1], 12, 52) << 12;
+    uint16_t flags = extract64(cmd[1], 0, 3);
 
     if (extract64(cmd[0], 20, 12) || extract64(cmd[0], 48, 12) ||
         extract64(cmd[1], 3, 9)) {
@@ -1497,7 +1507,7 @@ static void amdvi_inval_inttable(AMDVIState *s, uint64_t *cmd)
 static void iommu_inval_iotlb(AMDVIState *s, uint64_t *cmd)
 {
 
-    uint16_t devid = cpu_to_le16(extract64(cmd[0], 0, 16));
+    uint16_t devid = extract64(cmd[0], 0, 16);
     if (extract64(cmd[1], 1, 1) || extract64(cmd[1], 3, 1) ||
         extract64(cmd[1], 6, 6)) {
         amdvi_log_illegalcom_error(s, extract64(cmd[0], 60, 4),
@@ -1509,7 +1519,7 @@ static void iommu_inval_iotlb(AMDVIState *s, uint64_t *cmd)
         g_hash_table_foreach_remove(s->iotlb, amdvi_iotlb_remove_by_devid,
                                     &devid);
     } else {
-        amdvi_iotlb_remove_page(s, cpu_to_le64(extract64(cmd[1], 12, 52)) << 12,
+        amdvi_iotlb_remove_page(s, extract64(cmd[1], 12, 52) << 12,
                                 devid);
     }
     trace_amdvi_iotlb_inval();
@@ -1526,6 +1536,15 @@ static void amdvi_cmdbuf_exec(AMDVIState *s)
         amdvi_log_command_error(s, s->cmdbuf + s->cmdbuf_head);
         return;
     }
+
+    /*
+     * Commands in guest memory are little-endian. Convert once after reading
+     * so that command handlers can decode values in host native endianness.
+     * Convert back to little-endian only when writing data to guest memory via
+     * dma_memory_write().
+     */
+    cmd[0] = le64_to_cpu(cmd[0]);
+    cmd[1] = le64_to_cpu(cmd[1]);
 
     switch (extract64(cmd[0], 60, 4)) {
     case AMDVI_CMD_COMPLETION_WAIT:
