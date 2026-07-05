@@ -29,6 +29,9 @@ config PNV_SPI
     bool
     select SSI
 
+config RP2040_XIP
+    bool
+
 config ALLWINNER_A10_SPI
     bool
     select SSI

@@ -33,6 +33,18 @@ ibex_spi_host_transfer(uint32_t tx_data, uint32_t rx_data) "tx_data: 0x%" PRIx32
 ibex_spi_host_write(uint64_t addr, uint32_t size, uint64_t data) "@0x%" PRIx64 " size %u: 0x%" PRIx64
 ibex_spi_host_read(uint64_t addr, uint32_t size) "@0x%" PRIx64 " size %u:"
 
+# rp2040_xip.c
+rp2040_xip_finish_command(uint8_t cmd, unsigned tx_len) "cmd 0x%02x tx_len %u"
+rp2040_xip_program(uint32_t addr, unsigned len, bool write_enable) "addr 0x%06x len %u wel %u"
+rp2040_xip_erase(uint32_t addr, bool write_enable) "addr 0x%06x wel %u"
+rp2040_xip_dr_write(uint64_t value, unsigned size, unsigned tx_len, uint32_t ctrlr0, uint32_t ctrlr1, uint32_t spi_ctrlr0) "value 0x%" PRIx64 " size %u tx_len %u ctrlr0 0x%08x ctrlr1 0x%08x spi_ctrlr0 0x%08x"
+rp2040_xip_ctrlr0(uint32_t value) "value 0x%08x"
+rp2040_xip_ctrlr1(uint32_t value) "value 0x%08x"
+rp2040_xip_spi_ctrlr0(uint32_t value) "value 0x%08x"
+rp2040_xip_qspi_cs(bool high, unsigned tx_len) "high %u tx_len %u"
+rp2040_xip_ssienr(uint32_t old_value, uint32_t new_value, unsigned tx_len) "old 0x%x new 0x%x tx_len %u"
+rp2040_xip_ser(uint32_t old_value, uint32_t new_value, unsigned tx_len) "old 0x%x new 0x%x tx_len %u"
+
 #pnv_spi.c
 pnv_spi_read(uint64_t addr, uint64_t val) "addr 0x%" PRIx64 " val 0x%" PRIx64
 pnv_spi_write(uint64_t addr, uint64_t val) "addr 0x%" PRIx64 " val 0x%" PRIx64
