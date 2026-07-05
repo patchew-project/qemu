@@ -105,7 +105,7 @@ static void set_dbreak(CPUXtensaState *env, unsigned i, uint32_t dbreaka,
         mask = 0xffffffff << (32 - clo32(mask));
     }
     if (cpu_watchpoint_insert(cs, dbreaka & mask, ~mask + 1,
-                              flags, &env->cpu_watchpoint[i])) {
+                              flags, i, &env->cpu_watchpoint[i])) {
         env->cpu_watchpoint[i] = NULL;
         qemu_log_mask(LOG_GUEST_ERROR,
                       "Failed to set data breakpoint at 0x%08x/%d\n",
