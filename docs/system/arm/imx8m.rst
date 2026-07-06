@@ -26,6 +26,7 @@ following devices:
  * Secure Non-Volatile Storage (SNVS) including an RTC
  * Clock Tree
  * General Power Controller (GPC)
+ * General Purpose Register (GPR)
 
 Boot options
 ------------
