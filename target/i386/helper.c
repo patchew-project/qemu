@@ -95,7 +95,11 @@ int cpu_x86_support_mca_broadcast(CPUX86State *env)
     int family = 0;
     int model = 0;
 
-    if (IS_AMD_CPU(env)) {
+    /*
+     * Injected AMD and Hygon MCEs follow the local MCE model; do not use
+     * Intel-style MCA broadcast for these vendors.
+     */
+    if (IS_AMD_CPU(env) || IS_HYGON_CPU(env)) {
         return 0;
     }
 
