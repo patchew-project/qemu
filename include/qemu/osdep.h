@@ -522,6 +522,20 @@ void QEMU_ERROR("code path is reachable")
 #define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 #endif
 
+#ifndef DIV_ROUND_CLOSEST
+#define DIV_ROUND_CLOSEST(n, d) \
+({ \
+    typeof(n) __n = n; \
+    typeof(d) __d = d; \
+    (((typeof(n))-1) > 0 || \
+     ((typeof(d))-1) > 0 || \
+     (((__n) > 0) == ((__d) > 0))) ? \
+        (((__n) + ((__d) / 2)) / (__d)) : \
+        (((__n) - ((__d) / 2)) / (__d)); \
+})
+#endif
+
+
 /*
  * &(x)[0] is always a pointer - if it's same type as x then the argument is a
  * pointer, not an array.
