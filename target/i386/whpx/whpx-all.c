@@ -1853,11 +1853,6 @@ void whpx_apply_breakpoints(
     }
 }
 
-int whpx_arch_gdbstub_sstep_flags(AccelState *as)
-{
-    return SSTEP_ENABLE;
-}
-
 bool whpx_arch_supports_guest_debug(void) 
 {
     return true;
@@ -3347,6 +3342,8 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
 
     whpx_memory_init();
     whpx_init_emu();
+
+    as->gdbstub.sstep_flags = SSTEP_ENABLE;
 
     return 0;
 
