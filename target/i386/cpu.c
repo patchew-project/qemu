@@ -10342,7 +10342,8 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
             env->enable_legacy_vendor_cache = true;
         }
 
-        if (IS_AMD_CPU(env)) {
+        if (IS_AMD_CPU(env) ||
+            (IS_HYGON_CPU(env) && cpu->hygon_vendor_abi_fixes)) {
             env->cache_info = legacy_amd_cache_info;
         } else {
             env->cache_info = legacy_intel_cache_info;
