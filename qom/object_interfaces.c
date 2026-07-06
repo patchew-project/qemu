@@ -20,12 +20,14 @@
 #include "qapi/opts-visitor.h"
 #include "qemu/config-file.h"
 #include "qemu/keyval.h"
+#include "trace.h"
 
 bool user_creatable_complete(UserCreatable *uc, Error **errp)
 {
     UserCreatableClass *ucc = USER_CREATABLE_GET_CLASS(uc);
     ERRP_GUARD();
 
+    trace_user_creatable_complete(uc, object_get_typename(OBJECT(uc)));
     if (ucc->complete) {
         ucc->complete(uc, errp);
     }
@@ -35,11 +37,16 @@ bool user_creatable_complete(UserCreatable *uc, Error **errp)
 bool user_creatable_prepare_delete(UserCreatable *uc, Error **errp)
 {
     UserCreatableClass *ucc = USER_CREATABLE_GET_CLASS(uc);
+    bool ret = true;
 
+    trace_user_creatable_prepare_delete(uc, object_get_typename(OBJECT(uc)));
     if (ucc->prepare_delete) {
-        return ucc->prepare_delete(uc, errp);
+        ret = ucc->prepare_delete(uc, errp);
     }
-    return true;
+    trace_user_creatable_prepare_delete_result(
+        uc, object_get_typename(OBJECT(uc)),
+        *errp ? error_get_pretty(*errp) : NULL);
+    return ret;
 }
 
 void user_creatable_add_qapi(ObjectOptions *options, Error **errp)
