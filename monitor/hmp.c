@@ -50,12 +50,37 @@ static void monitor_hmp_finalize(Object *obj)
 {
 }
 
+static bool monitor_hmp_get_readline(Object *obj, Error **errp)
+{
+    MonitorHMP *mon = MONITOR_HMP(obj);
+
+    return mon->use_readline;
+}
+
+static void monitor_hmp_set_readline(Object *obj, bool val, Error **errp)
+{
+    MonitorHMP *mon = MONITOR_HMP(obj);
+
+    mon->use_readline = val;
+}
+
 static void monitor_hmp_class_init(ObjectClass *cls, const void *data)
 {
+    object_class_property_add_bool(cls, "readline",
+                                   monitor_hmp_get_readline,
+                                   monitor_hmp_set_readline);
 }
 
 static void monitor_hmp_init(Object *obj)
 {
+    MonitorHMP *hmp = MONITOR_HMP(obj);
+
+    /*
+     * Default to common case for external HMP use,
+     * as opposed to non-interactive internal use
+     * from gdbstub
+     */
+    hmp->use_readline = true;
 }
 
 static void monitor_command_cb(void *opaque, const char *cmdline,
@@ -1550,6 +1575,7 @@ void monitor_new_hmp(const char *id, const char *chardev_id,
                                         id ? id : autoid,
                                         errp,
                                         "chardev", chardev_id,
+                                        "readline", use_readline ? "yes" : "no",
                                         NULL);
 
     if (!obj) {
@@ -1566,7 +1592,6 @@ void monitor_new_hmp(const char *id, const char *chardev_id,
 
     monitor_data_init(&mon->parent_obj, false, false, false);
 
-    mon->use_readline = use_readline;
     if (mon->use_readline) {
         mon->rs = readline_init(monitor_readline_printf,
                                 monitor_readline_flush,
