@@ -50,6 +50,15 @@ TESTS+=cvb
 TESTS+=ts
 TESTS+=ex-smc
 TESTS+=divide-to-integer
+TESTS+=cpacf-kdsa
+TESTS+=cpacf-kimd
+TESTS+=cpacf-klmd
+TESTS+=cpacf-km
+TESTS+=cpacf-kmac
+TESTS+=cpacf-kmc
+TESTS+=cpacf-kmctr
+TESTS+=cpacf-pcc
+TESTS+=cpacf-prno
 
 cdsg: CFLAGS+=-pthread
 cdsg: LDFLAGS+=-pthread
