@@ -38,6 +38,7 @@
 #include "user/page-protection.h"
 #define runstate_is_running()  true
 #else
+#include "system-page-protection.h"
 #include "system/runstate.h"
 #endif
 #include "trace.h"

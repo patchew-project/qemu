@@ -1,5 +1,5 @@
 /*
- *  Common CPU TLB handling
+ *  Common CPU TLB handling (system emulation)
  *
  *  Copyright (c) 2003 Fabrice Bellard
  *
@@ -47,6 +47,7 @@
 #include "tb-hash.h"
 #include "tlb-bounds.h"
 #include "internal-common.h"
+#include "system-page-protection.h"
 #ifdef CONFIG_PLUGIN
 #include "qemu/plugin-memory.h"
 #endif
