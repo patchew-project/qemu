@@ -2985,4 +2985,9 @@ IMOP4_4WAY(umop4s_sb, -, int32_t, uint8_t, uint8_t)
 IMOP4_4WAY(umop4a_dh, +, int64_t, uint16_t, uint16_t)
 IMOP4_4WAY(umop4s_dh, -, int64_t, uint16_t, uint16_t)
 
+IMOP4_4WAY(usmop4a_sb, +, int32_t, uint8_t, int8_t)
+IMOP4_4WAY(usmop4s_sb, -, int32_t, uint8_t, int8_t)
+IMOP4_4WAY(usmop4a_dh, +, int64_t, uint16_t, int16_t)
+IMOP4_4WAY(usmop4s_dh, -, int64_t, uint16_t, int16_t)
+
 #undef IMOP4_4WAY

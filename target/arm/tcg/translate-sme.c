@@ -2127,3 +2127,8 @@ TRANS_FEAT(UMOP4_sb, aa64_sme_mop4, do_mop4_int, a, MO_32,
            a->s ? gen_helper_sme_umop4s_sb : gen_helper_sme_umop4a_sb)
 TRANS_FEAT(UMOP4_dh, aa64_sme_mop4_i16i64, do_mop4_int, a, MO_64,
            a->s ? gen_helper_sme_umop4s_dh : gen_helper_sme_umop4a_dh)
+
+TRANS_FEAT(USMOP4_sb, aa64_sme_mop4, do_mop4_int, a, MO_32,
+           a->s ? gen_helper_sme_usmop4s_sb : gen_helper_sme_usmop4a_sb)
+TRANS_FEAT(USMOP4_dh, aa64_sme_mop4_i16i64, do_mop4_int, a, MO_64,
+           a->s ? gen_helper_sme_usmop4s_dh : gen_helper_sme_usmop4a_dh)
