@@ -8,6 +8,7 @@
 
 #include "qemu/osdep.h"
 #include <math.h>
+#include <stdint.h>
 #include "hw/i2c/pmbus_device.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
@@ -38,6 +39,25 @@ uint16_t pmbus_data2linear_mode(uint16_t value, int exp)
     return value >> exp;
 }
 
+uint16_t pmbus_milliunits2linear_mode(uint32_t value, int exp)
+{
+    uint32_t ret;
+
+    /* L = D * 2^(-e) */
+    if (exp < 0) {
+        ret = DIV_ROUND_CLOSEST((value << (-exp)), 1000);
+    } else {
+        ret = DIV_ROUND_CLOSEST((value >> exp), 1000);
+    }
+
+    /* clamp value to maximum if it exceeds representable value*/
+    if (ret > UINT16_MAX) {
+        return UINT16_MAX;
+    }
+
+    return ret;
+}
+
 uint16_t pmbus_linear_mode2data(uint16_t value, int exp)
 {
     /* D = L * 2^e */
@@ -45,6 +65,25 @@ uint16_t pmbus_linear_mode2data(uint16_t value, int exp)
         return value >> (-exp);
     }
     return value << exp;
+}
+
+uint32_t pmbus_linear_mode2milliunits(uint16_t value, int exp)
+{
+    /* D = L * 2^e */
+    uint64_t v = (uint64_t)value;
+    uint64_t ret;
+
+    if (exp < 0) {
+        ret = (v * 1000) >> (-exp);
+    } else {
+        ret = (v << exp) * 1000;
+    }
+
+    if (ret > UINT32_MAX) {
+        return UINT32_MAX;
+    }
+
+    return (uint32_t)ret;
 }
 
 void pmbus_send(PMBusDevice *pmdev, const uint8_t *data, uint16_t len)
