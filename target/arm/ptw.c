@@ -1490,9 +1490,14 @@ static int get_S2prot_indirect(CPUARMState *env, GetPhysAddrResult *result,
                   PAGE_READ | PAGE_WRITE },
     };
 
-    uint64_t pir = (env->cp15.scr_el3 & SCR_PIEN ? env->cp15.s2pir_el2 : 0);
-    int s2pi = extract64(pir, pi_index * 4, 4);
+    uint64_t pir = env->cp15.s2pir_el2;
+    int s2pi;
 
+    if (arm_feature(env, ARM_FEATURE_EL3) && !(env->cp15.scr_el3 & SCR_PIEN)) {
+        pir = 0;
+    }
+
+    s2pi = extract64(pir, pi_index * 4, 4);
     result->f.prot = perm_table[s2pi][2];
     return perm_table[s2pi][s1_is_el0];
 }
