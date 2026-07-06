@@ -1139,6 +1139,28 @@ void load_image_to_fw_cfg(FWCfgState *fw_cfg, uint16_t size_key,
     fw_cfg_add_bytes(fw_cfg, data_key, data, size);
 }
 
+void load_image_to_fw_cfg_file(FWCfgState *fw_cfg,
+                               const char *fw_cfg_name,
+                               const char *image_name)
+{
+    GMappedFile *mapped_file;
+    GError *gerr = NULL;
+
+    if (image_name == NULL) {
+        return;
+    }
+
+    mapped_file = g_mapped_file_new(image_name, false, &gerr);
+    if (!mapped_file) {
+        error_report("qemu: error reading %s: %s",
+                     image_name, gerr->message);
+        exit(1);
+    }
+    fw_cfg_add_file(fw_cfg, fw_cfg_name,
+                    g_mapped_file_get_contents(mapped_file),
+                    g_mapped_file_get_length(mapped_file));
+}
+
 static void fw_cfg_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);

@@ -399,4 +399,19 @@ void load_image_to_fw_cfg(FWCfgState *fw_cfg, uint16_t size_key,
                           uint16_t data_key, const char *image_name,
                           bool try_decompress);
 
+/**
+ * load_image_to_fw_cfg_file() - Load an image file into an fw_cfg entry
+ *                               identified by fw_cfg file name.
+ * @fw_cfg:         The firmware config instance to store the data in.
+ * @fw_cfg_name:    The name of the fw_cfg (pseudo) file.
+ * @image_name:     The name of the image file to load. If it is NULL, the
+ *                  function returns without doing anything.
+ *
+ * In case of failure, the function prints an error message to stderr and the
+ * process exits with status 1.
+ */
+void load_image_to_fw_cfg_file(FWCfgState *fw_cfg,
+                               const char *fw_cfg_name,
+                               const char *image_name);
+
 #endif
