@@ -1010,25 +1010,9 @@ simple as::
 
   apt install gcc-aarch64-linux-gnu
 
-The configure script will automatically pick up their presence.
-Sometimes compilers have slightly odd names so the availability of
-them can be prompted by passing in the appropriate configure option
-for the architecture in question, for example::
-
-  $(configure) --cross-cc-aarch64=aarch64-cc
-
-There is also a ``--cross-cc-cflags-ARCH`` flag in case additional
-compiler flags are needed to build for a given target.
-
-If you have the ability to run containers as the user the build system
-will automatically use them where no system compiler is available. For
-architectures where we also support building QEMU we will generally
-use the same container to build tests. However there are a number of
-additional containers defined that have a minimal cross-build
-environment that is only suitable for building test cases. Sometimes
-we may use a bleeding edge distribution for compiler features needed
-for test cases that aren't yet in the LTS distros we support for QEMU
-itself.
+Meson will automatically pick up their presence. In case a cross compiler is
+missing, if podman or docker are available, we'll automatically build
+images containing cross compilers and execute those.
 
 See :ref:`container-ref` for more details.
 
