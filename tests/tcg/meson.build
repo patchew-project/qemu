@@ -153,6 +153,7 @@ subdir('riscv64')
 subdir('s390x')
 subdir('sh4')
 subdir('x86_64')
+subdir('xtensa')
 
 image_targets = {}
 exe_targets = []
