@@ -228,7 +228,7 @@ static bool vfp_access_check_a(DisasContext *s, bool ignore_vfp_enabled)
          * this field to 0xA.
          */
         int coproc = arm_dc_feature(s, ARM_FEATURE_V8) ? 0 : 0xa;
-        uint32_t syn = syn_fp_access_trap(1, 0xe, false, coproc);
+        uint32_t syn = syn_a32_fp_access_trap(1, 0xe, 0, coproc);
 
         gen_exception_insn_el(s, 0, EXCP_UDEF, syn, s->fp_excp_el);
         return false;

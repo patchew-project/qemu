@@ -1439,7 +1439,7 @@ static bool fp_access_check_only(DisasContext *s)
         s->fp_access_checked = -1;
 
         gen_exception_insn_el(s, 0, EXCP_UDEF,
-                              syn_fp_access_trap(1, 0xe, false, 0),
+                              syn_a64_fp_access_trap(1, 0xe),
                               s->fp_excp_el);
         return false;
     }
