@@ -204,6 +204,8 @@ static void fsl_imx8mp_init(Object *obj)
 
     object_initialize_child(obj, "snvs", &s->snvs, TYPE_IMX7_SNVS);
 
+    object_initialize_child(obj, "gpc", &s->gpc, TYPE_IMX8MP_GPC);
+
     for (i = 0; i < FSL_IMX8MP_NUM_UARTS; i++) {
         g_autofree char *name = g_strdup_printf("uart%d", i + 1);
         object_initialize_child(obj, name, &s->uart[i], TYPE_IMX_SERIAL);
@@ -421,6 +423,13 @@ static void fsl_imx8mp_realize(DeviceState *dev, Error **errp)
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->uart[i]), 0,
                            qdev_get_gpio_in(gicdev, serial_table[i].irq));
     }
+
+    /* GPC */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpc), errp)) {
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpc), 0,
+                    fsl_imx8mp_memmap[FSL_IMX8MP_GPC].addr);
 
     /* GPTs */
     object_property_set_int(OBJECT(&s->gpt5_gpt6_irq), "num-lines", 2,
@@ -686,6 +695,7 @@ static void fsl_imx8mp_realize(DeviceState *dev, Error **errp)
         case FSL_IMX8MP_CCM:
         case FSL_IMX8MP_GIC_DIST:
         case FSL_IMX8MP_GIC_REDIST:
+        case FSL_IMX8MP_GPC:
         case FSL_IMX8MP_GPIO1 ... FSL_IMX8MP_GPIO5:
         case FSL_IMX8MP_GPT1 ... FSL_IMX8MP_GPT6:
         case FSL_IMX8MP_ECSPI1 ... FSL_IMX8MP_ECSPI3:
