@@ -305,8 +305,21 @@ bool fw_cfg_add_file_from_generator(FWCfgState *s,
                                     Object *parent, const char *part,
                                     const char *filename, Error **errp);
 
-FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, uint32_t dma_iobase,
-                                AddressSpace *dma_as);
+/**
+ * fw_cfg_init_io_dma:
+ * @iobase: x86 port number which is the base of the fw_cfg port range
+ * @dma_as: the device will do DMA to/from this AddressSpace
+ *
+ * Create a fw_cfg device and map it into the specified I/O port range.
+ *
+ * This creates a device with the x86 PC standard port I/O layout:
+ * - Selector Register IOport: @iobase
+ * - Data Register IOport:     @iobase + 1
+ * - DMA Address IOport:       @iobase + 4
+ *
+ * Returns the device object.
+ */
+FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, AddressSpace *dma_as);
 FWCfgState *fw_cfg_init_mem_nodma(hwaddr ctl_addr, hwaddr data_addr,
                                   unsigned data_width);
 /**
