@@ -1772,7 +1772,7 @@ static void mb_tr_tb_stop(DisasContextBase *dcb, CPUState *cs)
     }
 
     /* Finish DISAS_EXIT_* */
-    if (unlikely(cs->singlestep_enabled)) {
+    if (unlikely(cpu_single_stepping(cs))) {
         gen_raise_exception(dc, EXCP_DEBUG);
     } else {
         tcg_gen_exit_tb(NULL, 0);

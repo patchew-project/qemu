@@ -1615,7 +1615,7 @@ static int kvm_handle_debug(PowerPCCPU *cpu, struct kvm_run *run)
     CPUPPCState *env = &cpu->env;
     struct kvm_debug_exit_arch *arch_info = &run->debug.arch;
 
-    if (cs->singlestep_enabled) {
+    if (cpu_single_stepping(cs)) {
         return kvm_handle_singlestep();
     }
 

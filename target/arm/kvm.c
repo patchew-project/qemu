@@ -1492,7 +1492,7 @@ static bool kvm_arm_handle_debug(ARMCPU *cpu,
 
     switch (hsr_ec) {
     case EC_SOFTWARESTEP:
-        if (cs->singlestep_enabled) {
+        if (cpu_single_stepping(cs)) {
             return true;
         } else {
             /*
