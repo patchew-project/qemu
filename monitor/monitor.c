@@ -83,6 +83,9 @@ static void monitor_finalize(Object *obj)
 {
     Monitor *mon = MONITOR(obj);
 
+    if (mon->accept_input_bh) {
+        qemu_bh_delete(mon->accept_input_bh);
+    }
     g_free(mon->chardev_id);
     g_free(mon->mon_cpu_path);
     qemu_chr_fe_deinit(&mon->chr, false);
@@ -569,15 +572,7 @@ static void monitor_accept_input(void *opaque)
 void monitor_resume(Monitor *mon)
 {
     if (qatomic_dec_fetch(&mon->suspend_cnt) == 0) {
-        AioContext *ctx;
-
-        if (monitor_requires_iothread(mon)) {
-            ctx = iothread_get_aio_context(mon_iothread);
-        } else {
-            ctx = qemu_get_aio_context();
-        }
-
-        aio_bh_schedule_oneshot(ctx, monitor_accept_input, mon);
+        qemu_bh_schedule(mon->accept_input_bh);
     }
 
     trace_monitor_suspend(mon, -1);
@@ -700,6 +695,7 @@ char *monitor_compat_id(void)
 static void monitor_complete(UserCreatable *uc, Error **errp)
 {
     Monitor *mon = MONITOR(uc);
+    AioContext *ctx;
 
     if (mon->chardev_id) {
         Chardev *chr = qemu_chr_find(mon->chardev_id);
@@ -713,9 +709,16 @@ static void monitor_complete(UserCreatable *uc, Error **errp)
         }
     }
 
-    if (monitor_requires_iothread(mon) && !mon_iothread) {
-        mon_iothread = iothread_create("mon_iothread", &error_abort);
+    if (monitor_requires_iothread(mon)) {
+        if (!mon_iothread) {
+            mon_iothread = iothread_create("mon_iothread", &error_abort);
+        }
+
+        ctx = iothread_get_aio_context(mon_iothread);
+    } else {
+        ctx = qemu_get_aio_context();
     }
+    mon->accept_input_bh = aio_bh_new(ctx, monitor_accept_input, mon);
 }
 
 int monitor_new(MonitorOptions *opts, bool allow_hmp, Error **errp)
