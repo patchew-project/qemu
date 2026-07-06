@@ -1369,12 +1369,21 @@ TRANS_FEAT_NONSTREAMING(ADR_u32, aa64_sve, do_adr, a, gen_helper_sve_adr_u32)
  *** SVE Integer Misc - Unpredicated Group
  */
 
-static gen_helper_gvec_2 * const fexpa_fns[4] = {
-    NULL,                   gen_helper_sve_fexpa_h,
-    gen_helper_sve_fexpa_s, gen_helper_sve_fexpa_d,
-};
-TRANS_FEAT_NONSTREAMING(FEXPA, aa64_sve, gen_gvec_ool_zz,
-                        fexpa_fns[a->esz], a->rd, a->rn, s->fpcr_ah)
+static bool trans_FEXPA(DisasContext *s, arg_FEXPA *a)
+{
+    static gen_helper_gvec_2 * const fexpa_fns[4] = {
+        NULL,                   gen_helper_sve_fexpa_h,
+        gen_helper_sve_fexpa_s, gen_helper_sve_fexpa_d,
+    };
+
+    if (!dc_isar_feature(aa64_ssve_fexpa, s)) {
+        if (!dc_isar_feature(aa64_sve, s)) {
+            return false;
+        }
+        s->is_nonstreaming = true;
+    }
+    return gen_gvec_ool_zz(s, fexpa_fns[a->esz], a->rd, a->rn, s->fpcr_ah);
+}
 
 static gen_helper_gvec_3 * const ftssel_fns[4] = {
     NULL,                    gen_helper_sve_ftssel_h,
