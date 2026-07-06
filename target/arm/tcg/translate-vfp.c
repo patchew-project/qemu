@@ -216,19 +216,20 @@ static void gen_update_fp_context(DisasContext *s)
  * whether VFP is enabled via FPEXC.EN: this should be true for FMXR/FMRX
  * accesses to FPSID, FPEXC, MVFR0, MVFR1, MVFR2, and false for all other insns.
  */
-static bool vfp_access_check_a(DisasContext *s, bool ignore_vfp_enabled)
+static bool vfp_access_check_a(DisasContext *s, bool ignore_vfp_enabled,
+                               bool is_neon)
 {
     if (s->fp_excp_el) {
         /*
-         * The full syndrome is only used for HSR when HCPTR traps:
-         * For v8, when TA==0, coproc is RES0.
-         * For v7, any use of a Floating-point instruction or access
-         * to a Floating-point Extension register that is trapped to
-         * Hyp mode because of a trap configured in the HCPTR sets
-         * this field to 0xA.
+         * The full syndrome is only used for HSR when HCPTR traps.
+         * When trapping to AArch64, the TA and coproc fields are RES0
+         * (we will squash them in arm_cpu_do_interrupt_aarch64()).
+         * When trapping to AArch32:
+         *  - for VFP insns, TA=0 and coproc = 0b1010
+         *  - for Neon insns, TA=1 and coproc = 0
          */
-        int coproc = arm_dc_feature(s, ARM_FEATURE_V8) ? 0 : 0xa;
-        uint32_t syn = syn_a32_fp_access_trap(1, 0xe, 0, coproc);
+        int coproc = is_neon ? 0 : 0xa;
+        uint32_t syn = syn_a32_fp_access_trap(1, 0xe, is_neon, coproc);
 
         gen_exception_insn_el(s, 0, EXCP_UDEF, syn, s->fp_excp_el);
         return false;
@@ -299,7 +300,7 @@ bool vfp_access_check(DisasContext *s)
     if (arm_dc_feature(s, ARM_FEATURE_M)) {
         return vfp_access_check_m(s, false);
     } else {
-        return vfp_access_check_a(s, false);
+        return vfp_access_check_a(s, false, false);
     }
 }
 
@@ -311,7 +312,11 @@ bool vfp_access_check(DisasContext *s)
  */
 bool neon_access_check(DisasContext *s)
 {
-    return vfp_access_check(s);
+    if (arm_dc_feature(s, ARM_FEATURE_M)) {
+        return vfp_access_check_m(s, false);
+    } else {
+        return vfp_access_check_a(s, false, true);
+    }
 }
 
 static bool trans_VSEL(DisasContext *s, arg_VSEL *a)
@@ -822,7 +827,7 @@ static bool trans_VMSR_VMRS(DisasContext *s, arg_VMSR_VMRS *a)
      * Call vfp_access_check_a() directly, because we need to tell
      * it to ignore FPEXC.EN for some register accesses.
      */
-    if (!vfp_access_check_a(s, ignore_vfp_enabled)) {
+    if (!vfp_access_check_a(s, ignore_vfp_enabled, false)) {
         return true;
     }
 
