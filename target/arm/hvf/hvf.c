@@ -2900,8 +2900,3 @@ void hvf_arch_update_guest_debug(CPUState *cpu)
 
     hvf_arch_set_traps(cpu);
 }
-
-bool hvf_arch_supports_guest_debug(void)
-{
-    return true;
-}
