@@ -1281,6 +1281,9 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 #define CPUID_VENDOR_ZHAOXIN1   "CentaurHauls"
 #define CPUID_VENDOR_ZHAOXIN2   "  Shanghai  "
 
+#define CPUID_VENDOR_HYGON_1  0x6f677948 /* "Hygo" */
+#define CPUID_VENDOR_HYGON_2  0x6e65476e /* "nGen" */
+#define CPUID_VENDOR_HYGON_3  0x656e6975 /* "uine" */
 #define CPUID_VENDOR_HYGON    "HygonGenuine"
 
 #define IS_INTEL_CPU(env) ((env)->cpuid_vendor1 == CPUID_VENDOR_INTEL_1 && \
@@ -1289,6 +1292,9 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 #define IS_AMD_CPU(env) ((env)->cpuid_vendor1 == CPUID_VENDOR_AMD_1 && \
                          (env)->cpuid_vendor2 == CPUID_VENDOR_AMD_2 && \
                          (env)->cpuid_vendor3 == CPUID_VENDOR_AMD_3)
+#define IS_HYGON_CPU(env) ((env)->cpuid_vendor1 == CPUID_VENDOR_HYGON_1 && \
+                           (env)->cpuid_vendor2 == CPUID_VENDOR_HYGON_2 && \
+                           (env)->cpuid_vendor3 == CPUID_VENDOR_HYGON_3)
 #define IS_ZHAOXIN1_CPU(env) \
     ((env)->cpuid_vendor1 == CPUID_VENDOR_ZHAOXIN1_1 && \
      (env)->cpuid_vendor2 == CPUID_VENDOR_ZHAOXIN1_2 && \
@@ -2460,6 +2466,12 @@ struct ArchCPU {
      * Only advertise CPUID leaves defined by the vendor.
      */
     bool vendor_cpuid_only_v2;
+
+    /*
+     * Enable Hygon vendor ABI fixes for new machine types.  Old machine
+     * types disable this to preserve guest-visible CPU ABI.
+     */
+    bool hygon_vendor_abi_fixes;
 
     /* Only advertise TOPOEXT features that AMD defines */
     bool amd_topoext_features_only;
