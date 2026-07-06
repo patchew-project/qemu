@@ -9,6 +9,7 @@
 #ifndef GDBSTUB_INTERNALS_H
 #define GDBSTUB_INTERNALS_H
 
+#include "qemu/accel.h"
 #include "exec/cpu-common.h"
 
 /*
@@ -83,8 +84,8 @@ typedef struct GDBState {
     int process_num;
     GString *str_buf;
     GByteArray *mem_buf;
+    AccelGdbConfig accel_config;
     int sstep_flags;
-    int supported_sstep_flags;
     /*
      * Whether we are allowed to send a stop reply packet at this moment.
      * Must be set off after sending the stop reply itself.
