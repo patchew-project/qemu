@@ -2276,18 +2276,25 @@ static void set_pixel_format(VncState *vs, int bits_per_pixel,
         return;
     }
 
+    if (red_shift >= bits_per_pixel ||
+        green_shift >= bits_per_pixel ||
+        blue_shift >= bits_per_pixel) {
+        vnc_client_error(vs);
+        return;
+    }
+
     vs->client_pf.rmax = red_max ? red_max : 0xFF;
     vs->client_pf.rbits = ctpopl(red_max);
     vs->client_pf.rshift = red_shift;
-    vs->client_pf.rmask = red_max << red_shift;
+    vs->client_pf.rmask = (uint32_t)red_max << red_shift;
     vs->client_pf.gmax = green_max ? green_max : 0xFF;
     vs->client_pf.gbits = ctpopl(green_max);
     vs->client_pf.gshift = green_shift;
-    vs->client_pf.gmask = green_max << green_shift;
+    vs->client_pf.gmask = (uint32_t)green_max << green_shift;
     vs->client_pf.bmax = blue_max ? blue_max : 0xFF;
     vs->client_pf.bbits = ctpopl(blue_max);
     vs->client_pf.bshift = blue_shift;
-    vs->client_pf.bmask = blue_max << blue_shift;
+    vs->client_pf.bmask = (uint32_t)blue_max << blue_shift;
     vs->client_pf.bits_per_pixel = bits_per_pixel;
     vs->client_pf.bytes_per_pixel = bits_per_pixel / 8;
     vs->client_pf.depth = bits_per_pixel == 32 ? 24 : bits_per_pixel;
