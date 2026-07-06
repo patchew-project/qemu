@@ -217,8 +217,8 @@ bool smbus_vmstate_needed(SMBusDevice *dev)
 
 const VMStateDescription vmstate_smbus_device = {
     .name = TYPE_SMBUS_DEVICE,
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (const VMStateField[]) {
         VMSTATE_I2C_SLAVE(i2c, SMBusDevice),
         VMSTATE_INT32(mode, SMBusDevice),
