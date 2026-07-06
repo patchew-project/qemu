@@ -887,7 +887,7 @@ static int tdx_check_features(X86ConfidentialGuest *cg, CPUState *cs)
     FeatureWordInfo *wi;
     FeatureWord w;
     bool mismatch = false;
-    int r;
+    int r = -1;
 
     fetch_cpuid = tdx_fetch_cpuid(cs, &r);
     if (!fetch_cpuid) {
