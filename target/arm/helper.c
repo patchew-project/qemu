@@ -590,7 +590,7 @@ static void cpacr_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * is 0 then CPACR.{CP11,CP10} ignore writes and read as 0b00.
      */
     if (arm_feature(env, ARM_FEATURE_EL3) && !arm_el_is_aa64(env, 3) &&
-        !arm_is_secure(env) && !extract32(env->cp15.nsacr, 10, 1)) {
+        !arm_is_secure(env) && !FIELD_EX32(env->cp15.nsacr, NSACR, CP10)) {
         mask = R_CPACR_CP11_MASK | R_CPACR_CP10_MASK;
         value = (value & ~mask) | (env->cp15.cpacr_el1 & mask);
     }
@@ -607,7 +607,7 @@ static uint64_t cpacr_read(CPUARMState *env, const ARMCPRegInfo *ri)
     uint64_t value = env->cp15.cpacr_el1;
 
     if (arm_feature(env, ARM_FEATURE_EL3) && !arm_el_is_aa64(env, 3) &&
-        !arm_is_secure(env) && !extract32(env->cp15.nsacr, 10, 1)) {
+        !arm_is_secure(env) && !FIELD_EX32(env->cp15.nsacr, NSACR, CP10)) {
         value = ~(R_CPACR_CP11_MASK | R_CPACR_CP10_MASK);
     }
     return value;
@@ -4105,7 +4105,7 @@ static void cptr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * is 0 then HCPTR.{TCP11,TCP10} ignore writes and read as 1.
      */
     if (arm_feature(env, ARM_FEATURE_EL3) && !arm_el_is_aa64(env, 3) &&
-        !arm_is_secure(env) && !extract32(env->cp15.nsacr, 10, 1)) {
+        !arm_is_secure(env) && !FIELD_EX32(env->cp15.nsacr, NSACR, CP10)) {
         uint64_t mask = R_HCPTR_TCP11_MASK | R_HCPTR_TCP10_MASK;
         value = (value & ~mask) | (env->cp15.cptr_el[2] & mask);
     }
@@ -4121,7 +4121,7 @@ static uint64_t cptr_el2_read(CPUARMState *env, const ARMCPRegInfo *ri)
     uint64_t value = env->cp15.cptr_el[2];
 
     if (arm_feature(env, ARM_FEATURE_EL3) && !arm_el_is_aa64(env, 3) &&
-        !arm_is_secure(env) && !extract32(env->cp15.nsacr, 10, 1)) {
+        !arm_is_secure(env) && !FIELD_EX32(env->cp15.nsacr, NSACR, CP10)) {
         value |= R_HCPTR_TCP11_MASK | R_HCPTR_TCP10_MASK;
     }
     return value;
@@ -10075,7 +10075,7 @@ int fp_exception_el(CPUARMState *env, int cur_el)
      */
     if ((arm_feature(env, ARM_FEATURE_EL3) && !arm_el_is_aa64(env, 3) &&
          cur_el <= 2 && !arm_is_secure_below_el3(env))) {
-        if (!extract32(env->cp15.nsacr, 10, 1)) {
+        if (!FIELD_EX32(env->cp15.nsacr, NSACR, CP10)) {
             /* FP insns act as UNDEF */
             return cur_el == 2 ? 2 : 1;
         }

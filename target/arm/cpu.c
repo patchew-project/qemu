@@ -779,7 +779,7 @@ void arm_emulate_firmware_reset(CPUState *cpustate, int target_el)
         /* Put CPU into non-secure state */
         env->cp15.scr_el3 |= SCR_NS;
         /* Set NSACR.{CP11,CP10} so NS can access the FPU */
-        env->cp15.nsacr |= 3 << 10;
+        env->cp15.nsacr |= R_NSACR_CP10_MASK | R_NSACR_CP11_MASK;
     }
 
     if (have_el2 && target_el < 2) {
