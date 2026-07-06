@@ -404,6 +404,25 @@ static const CpuidTestArgs cpuid_tests[] = {
         "486", "xlevel2=0xC0000002,xstore=on",
         NULL, "xlevel2", 0xC0000002,
     },
+    {
+        "x86/cpuid/props/dhyana/ucode-rev/default",
+        "Dhyana", NULL, NULL, "ucode-rev", 0x01000065,
+    },
+    {
+        "x86/cpuid/props/dhyana/ucode-rev/compat-off",
+        "Dhyana", "x-hygon-vendor-abi-fixes=off", NULL,
+        "ucode-rev", 0x100000000LL,
+    },
+    {
+        "x86/cpuid/props/dhyana/ucode-rev/pc-i440fx-11.0",
+        "Dhyana", NULL, "pc-i440fx-11.0",
+        "ucode-rev", 0x100000000LL,
+    },
+    {
+        "x86/cpuid/props/dhyana/ucode-rev/user",
+        "Dhyana", "ucode-rev=0x12345678", NULL,
+        "ucode-rev", 0x12345678,
+    },
 };
 
 /*
