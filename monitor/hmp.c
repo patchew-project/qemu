@@ -1590,7 +1590,7 @@ void monitor_new_hmp(const char *id, const char *chardev_id,
         return;
     }
 
-    monitor_data_init(&mon->parent_obj, false, false, false);
+    monitor_data_init(&mon->parent_obj, false, false);
 
     if (mon->use_readline) {
         mon->rs = readline_init(monitor_readline_printf,
