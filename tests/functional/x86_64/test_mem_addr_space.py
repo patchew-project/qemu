@@ -208,6 +208,24 @@ class MemAddrCheck(QemuSystemTest):
         self.assertEqual(self.vm.exitcode(), 1, "QEMU exit code should be 1")
         self.assertRegex(self.vm.get_log(), r'phys-bits too low')
 
+    def test_phybits_low_tcg_q35_hygon(self):
+        """
+        Check that Dhyana on the default q35 machine follows the AMD IOMMU
+        HT reserved GPA range on new machine types.
+        """
+        self.ensure_64bit_binary()
+        self.set_machine('q35')
+        self.vm.add_args('-S', '-cpu', 'Dhyana,phys-bits=40',
+                         '-m', '512,slots=1,maxmem=976G',
+                         '-display', 'none',
+                         '-object', 'memory-backend-ram,id=mem1,size=1G',
+                         '-device', 'pc-dimm,id=vm0,memdev=mem1')
+        self.vm.set_qmp_monitor(enabled=False)
+        self.vm.launch()
+        self.vm.wait()
+        self.assertEqual(self.vm.exitcode(), 1, "QEMU exit code should be 1")
+        self.assertRegex(self.vm.get_log(), r'phys-bits too low')
+
     def test_phybits_ok_tcg_q35_70_amd(self):
         """
         Same as q35-7.0 AMD case except that here we check that QEMU can
@@ -216,6 +234,24 @@ class MemAddrCheck(QemuSystemTest):
         self.ensure_64bit_binary()
         self.set_machine('pc-q35-7.0')
         self.vm.add_args('-S', '-m', '512,slots=1,maxmem=987.5G',
+                         '-display', 'none',
+                         '-object', 'memory-backend-ram,id=mem1,size=1G',
+                         '-device', 'pc-dimm,id=vm0,memdev=mem1')
+        self.vm.set_qmp_monitor(enabled=False)
+        self.vm.launch()
+        time.sleep(self.DELAY_Q35_BOOT_SEQUENCE)
+        self.vm.shutdown()
+        self.assertNotRegex(self.vm.get_log(), r'phys-bits too low')
+
+    def test_phybits_ok_tcg_q35_110_hygon(self):
+        """
+        Same as the default q35 Dhyana case except that here we check that
+        the q35-11.0 compatibility setting keeps the old memory layout.
+        """
+        self.ensure_64bit_binary()
+        self.set_machine('pc-q35-11.0')
+        self.vm.add_args('-S', '-cpu', 'Dhyana,phys-bits=40',
+                         '-m', '512,slots=1,maxmem=976G',
                          '-display', 'none',
                          '-object', 'memory-backend-ram,id=mem1,size=1G',
                          '-device', 'pc-dimm,id=vm0,memdev=mem1')
