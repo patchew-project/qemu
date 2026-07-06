@@ -41,14 +41,6 @@ void helper_raise_exception(CPUSPARCState *env, int tt)
     cpu_loop_exit(cs);
 }
 
-void helper_debug(CPUSPARCState *env)
-{
-    CPUState *cs = env_cpu(env);
-
-    cs->exception_index = EXCP_DEBUG;
-    cpu_loop_exit(cs);
-}
-
 #ifdef TARGET_SPARC64
 void helper_tick_set_count(void *opaque, uint64_t count)
 {
