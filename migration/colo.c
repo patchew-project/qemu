@@ -473,7 +473,7 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
      * state is saved. Unlike a regular switchover, COLO reaches completion
      * repeatedly for every checkpoint, so this must be done on each one.
      */
-    qemu_savevm_query_pending_final(&pending);
+    qemu_savevm_query_pending_final(s, &pending);
 
     /*
      * Only save VM's live state, which not including device state.
