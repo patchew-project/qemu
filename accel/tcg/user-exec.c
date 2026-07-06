@@ -239,13 +239,16 @@ void page_dump(FILE *f)
 
 int page_get_flags(vaddr address)
 {
-    PageFlagsNode *p = pageflags_find(address, address);
+    PageFlagsNode *p;
+
+    RCU_READ_LOCK_GUARD();
 
     /*
      * See util/interval-tree.c re lockless lookups: no false positives but
      * there are false negatives.  If we find nothing, retry with the mmap
      * lock acquired.
      */
+    p = pageflags_find(address, address);
     if (p) {
         return p->flags;
     }
@@ -301,15 +304,15 @@ static void pageflags_create_merge(vaddr start, vaddr last, int flags)
 
     if (prev) {
         if (next) {
-            prev->itree.last = next->itree.last;
+            pageflags_create(prev->itree.start, next->itree.last, flags);
             g_free_rcu(next, rcu);
         } else {
-            prev->itree.last = last;
+            pageflags_create(prev->itree.start, last, flags);
         }
-        interval_tree_insert(&prev->itree, &pageflags_root);
+        g_free_rcu(prev, rcu);
     } else if (next) {
-        next->itree.start = start;
-        interval_tree_insert(&next->itree, &pageflags_root);
+        pageflags_create(start, next->itree.last, flags);
+        g_free_rcu(next, rcu);
     } else {
         pageflags_create(start, last, flags);
     }
@@ -371,8 +374,8 @@ static bool pageflags_set_clear(vaddr start, vaddr last,
     if (set_flags != merge_flags) {
         if (p_start < start) {
             interval_tree_remove(&p->itree, &pageflags_root);
-            p->itree.last = start - 1;
-            interval_tree_insert(&p->itree, &pageflags_root);
+            pageflags_create(p_start, start - 1, p_flags);
+            g_free_rcu(p, rcu);
 
             if (last < p_last) {
                 if (merge_flags & PAGE_VALID) {
@@ -394,11 +397,11 @@ static bool pageflags_set_clear(vaddr start, vaddr last,
             }
             if (last < p_last) {
                 interval_tree_remove(&p->itree, &pageflags_root);
-                p->itree.start = last + 1;
-                interval_tree_insert(&p->itree, &pageflags_root);
+                pageflags_create(last + 1, p_last, p_flags);
                 if (merge_flags & PAGE_VALID) {
                     pageflags_create(start, last, merge_flags);
                 }
+                g_free_rcu(p, rcu);
             } else {
                 if (merge_flags & PAGE_VALID) {
                     p->flags = merge_flags;
@@ -419,8 +422,8 @@ static bool pageflags_set_clear(vaddr start, vaddr last,
     if (set_flags == p_flags) {
         if (start < p_start) {
             interval_tree_remove(&p->itree, &pageflags_root);
-            p->itree.start = start;
-            interval_tree_insert(&p->itree, &pageflags_root);
+            pageflags_create(start, p_last, p_flags);
+            g_free_rcu(p, rcu);
         }
         if (p_last < last) {
             start = p_last + 1;
@@ -432,8 +435,8 @@ static bool pageflags_set_clear(vaddr start, vaddr last,
     /* Maybe split out head and/or tail ranges with the original flags. */
     interval_tree_remove(&p->itree, &pageflags_root);
     if (p_start < start) {
-        p->itree.last = start - 1;
-        interval_tree_insert(&p->itree, &pageflags_root);
+        pageflags_create(p_start, start - 1, p_flags);
+        g_free_rcu(p, rcu);
 
         if (p_last < last) {
             goto restart;
@@ -442,8 +445,8 @@ static bool pageflags_set_clear(vaddr start, vaddr last,
             pageflags_create(last + 1, p_last, p_flags);
         }
     } else if (last < p_last) {
-        p->itree.start = last + 1;
-        interval_tree_insert(&p->itree, &pageflags_root);
+        pageflags_create(last + 1, p_last, p_flags);
+        g_free_rcu(p, rcu);
     } else {
         g_free_rcu(p, rcu);
         goto restart;
@@ -504,6 +507,8 @@ bool page_check_range(vaddr start, vaddr len, int flags)
     if (last < start) {
         return false; /* wrap around */
     }
+
+    RCU_READ_LOCK_GUARD();
 
     locked = have_mmap_lock();
     while (true) {
