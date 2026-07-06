@@ -2659,8 +2659,7 @@ static int postcopy_start(MigrationState *ms, Error **errp)
      */
     qemu_savevm_send_postcopy_listen(fb);
 
-    ret = qemu_savevm_state_non_iterable(fb, errp);
-    if (ret) {
+    if (!qemu_savevm_state_non_iterable(fb, errp)) {
         error_prepend(errp, "Postcopy save non-iterable states failed: ");
         goto fail_closefb;
     }
@@ -2858,22 +2857,22 @@ static bool migration_switchover_start(MigrationState *s, Error **errp)
     return true;
 }
 
-static int migration_completion_precopy(MigrationState *s, Error **errp)
+static bool migration_completion_precopy(MigrationState *s, Error **errp)
 {
-    int ret;
+    bool ret = false;
 
     bql_lock();
 
     if (!migrate_mode_is_cpr()) {
-        ret = migration_stop_vm(s, RUN_STATE_FINISH_MIGRATE);
-        if (ret < 0) {
-            error_setg_errno(errp, -ret, "Failed to stop the VM");
+        int r = migration_stop_vm(s, RUN_STATE_FINISH_MIGRATE);
+
+        if (r < 0) {
+            error_setg_errno(errp, -r, "Failed to stop the VM");
             goto out_unlock;
         }
     }
 
     if (!migration_switchover_start(s, errp)) {
-        ret = -EFAULT;
         goto out_unlock;
     }
 
@@ -2910,18 +2909,17 @@ static void migration_completion_postcopy(MigrationState *s)
  */
 static void migration_completion(MigrationState *s)
 {
-    int ret = 0;
     Error *local_err = NULL;
 
     if (s->state == MIGRATION_STATUS_ACTIVE) {
-        ret = migration_completion_precopy(s, &local_err);
+        if (!migration_completion_precopy(s, &local_err)) {
+            goto fail;
+        }
     } else if (s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE) {
         migration_completion_postcopy(s);
     } else {
-        ret = -1;
-    }
-
-    if (ret < 0) {
+        error_setg(&local_err, "Unexpected migration completion status %s",
+                   MigrationStatus_str(s->state));
         goto fail;
     }
 
@@ -2945,12 +2943,7 @@ static void migration_completion(MigrationState *s)
     return;
 
 fail:
-    if (local_err) {
-        migrate_error_propagate(s, local_err);
-    } else if (qemu_file_get_error_obj(s->to_dst_file, &local_err)) {
-        migrate_error_propagate(s, local_err);
-    } else if (ret) {
-        error_setg_errno(&local_err, -ret, "Error in migration completion");
+    if (local_err || qemu_file_get_error_obj(s->to_dst_file, &local_err)) {
         migrate_error_propagate(s, local_err);
     }
 
@@ -3863,7 +3856,7 @@ static void *bg_migration_thread(void *opaque)
         goto fail_with_bql;
     }
 
-    if (qemu_savevm_state_non_iterable(fb, &local_err)) {
+    if (!qemu_savevm_state_non_iterable(fb, &local_err)) {
         error_prepend(&local_err, "Failed to save non-iterable devices ");
         goto fail_with_bql;
     }
