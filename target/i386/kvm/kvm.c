@@ -698,6 +698,15 @@ static int kvm_get_mce_cap_supported(KVMState *s, uint64_t *mce_cap,
     return kvm_ioctl(s, KVM_X86_GET_MCE_CAP_SUPPORTED, mce_cap);
 }
 
+/*
+ * Use AMD-style MCE status records for QEMU-injected memory failures on
+ * AMD and Hygon CPUs.
+ */
+static bool kvm_mce_inject_uses_amd_status(const CPUX86State *env)
+{
+    return IS_AMD_CPU(env) || IS_HYGON_CPU(env);
+}
+
 static void kvm_mce_inject(X86CPU *cpu, hwaddr paddr, int code)
 {
     CPUState *cs = CPU(cpu);
@@ -707,7 +716,7 @@ static void kvm_mce_inject(X86CPU *cpu, hwaddr paddr, int code)
     uint64_t mcg_status = MCG_STATUS_MCIP | MCG_STATUS_RIPV;
     int flags = 0;
 
-    if (!IS_AMD_CPU(env)) {
+    if (!kvm_mce_inject_uses_amd_status(env)) {
         status |= MCI_STATUS_S | MCI_STATUS_UC;
         if (code == BUS_MCEERR_AR) {
             status |= MCI_STATUS_AR | 0x134;
