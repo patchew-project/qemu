@@ -605,6 +605,7 @@ config FSL_IMX8MP
     select FSL_IMX8MP_GPC
     select FSL_IMX8MP_GPR
     select FSL_IMX8MP_SRC
+    select FSL_IMX8MP_MU
     select IMX
     select IMX_FEC
     select IMX_I2C

@@ -28,6 +28,7 @@ following devices:
  * General Power Controller (GPC)
  * General Purpose Register (GPR)
  * System Reset Controller (SRC)
+ * Messaging Unit (MU)
 
 Boot options
 ------------
