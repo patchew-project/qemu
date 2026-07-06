@@ -37,7 +37,7 @@ aarch64-macos-15-build:
   variables:
     QEMU_JOB_MACOS: 1
     NAME: macos-15
-    PATH_EXTRA: /opt/homebrew/gettext/bin
+    PATH_EXTRA: /opt/homebrew/gettext/bin:/opt/homebrew/opt/bison/bin
     PKG_CONFIG_PATH: /opt/homebrew/curl/lib/pkgconfig:/opt/homebrew/ncurses/lib/pkgconfig:/opt/homebrew/readline/lib/pkgconfig
     CONFIGURE_ARGS:
         --target-list=aarch64-softmmu,i386-softmmu,x86_64-softmmu
@@ -54,7 +54,7 @@ aarch64-macos-26-build:
     QEMU_JOB_MACOS: 1
     NAME: macos-26
     DYLD_LIBRARY_PATH: /opt/homebrew/opt/expat/lib/
-    PATH_EXTRA: /opt/homebrew/gettext/bin
+    PATH_EXTRA: /opt/homebrew/gettext/bin:/opt/homebrew/opt/bison/bin
     PKG_CONFIG_PATH: /opt/homebrew/curl/lib/pkgconfig:/opt/homebrew/ncurses/lib/pkgconfig:/opt/homebrew/readline/lib/pkgconfig
     CONFIGURE_ARGS:
         --target-list=aarch64-softmmu,i386-softmmu,x86_64-softmmu
