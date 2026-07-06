@@ -356,8 +356,14 @@ void pcie_doe_write_config(DOECap *doe_cap,
         if (size != DWORD_BYTE) {
             return;
         }
-        doe_cap->write_mbox[doe_cap->write_mbox_len] = val;
-        doe_cap->write_mbox_len++;
+        if (doe_cap->write_mbox_len < PCI_DOE_DW_SIZE_MAX) {
+            doe_cap->write_mbox[doe_cap->write_mbox_len] = val;
+            doe_cap->write_mbox_len++;
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "Mailbox write length (%d) is overflowing\n",
+                          doe_cap->write_mbox_len);
+        }
         break;
     case PCI_EXP_DOE_CAP:
         /* fallthrough */
