@@ -87,7 +87,7 @@ static kbd_layout_t *kbd_layout;
 static unsigned int input_barrier_to_linux(uint16_t keyid, uint16_t keycode)
 {
     /* keycode is optional, if it is not provided use keyid */
-    if (keycode && keycode <= qemu_input_map_xorgkbd_to_linux_len) {
+    if (keycode && keycode < qemu_input_map_xorgkbd_to_linux_len) {
         return qemu_input_map_xorgkbd_to_linux[keycode];
     }
 
