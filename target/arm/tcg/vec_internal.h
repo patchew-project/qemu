@@ -547,4 +547,12 @@ void HELPER(NAME)(void *vd, void *vn, void *vm,                            \
     clear_tail(d, oprsz, simd_maxsz(desc));                                \
 }
 
+/*
+ * Perform SME quarter-tile outer product.
+ * Iterate over ZAtile[] for esize, calling fn for each element.
+ */
+void sme_mop4(void *vza, void *vzn, void *vzm, void *fn_opaque,
+              uint32_t desc, size_t esize,
+              void (*fn)(void *, void *, void *, void *));
+
 #endif /* TARGET_ARM_VEC_INTERNAL_H */

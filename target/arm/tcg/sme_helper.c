@@ -2601,3 +2601,79 @@ void HELPER(sme2_sel_d)(void *vd, void *vn, void *vm,
         }
     }
 }
+
+void sme_mop4(void *vza, void *vzn, void *vzm, void *fn_opaque,
+              uint32_t desc, size_t esize,
+              void (*fn)(void *, void *, void *, void *))
+{
+    intptr_t oprsz = simd_maxsz(desc);
+    intptr_t dim = oprsz / 2;  /* in bytes */
+    bool nreg_m1 = extract32(desc, SIMD_DATA_SHIFT + 0, 1);
+    bool mreg_m1 = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
+    intptr_t host_adj = HOST_BIG_ENDIAN ? 8 - esize : 0;
+
+    for (int outprod = 0; outprod < 4; outprod++) {
+        bool row_hv = outprod & 2;
+        bool col_hv = outprod & 1;
+        intptr_t row_base = row_hv ? dim : 0;
+        intptr_t col_base = col_hv ? dim : 0;
+        void *op1 = vzn + (col_hv && nreg_m1 ? sizeof(ARMVectorReg) : 0);
+        void *op2 = vzm + (row_hv && mreg_m1 ? sizeof(ARMVectorReg) : 0);
+
+        for (intptr_t row = 0; row < dim; row += esize) {
+            intptr_t row_idx = row_base + row;
+            void *vza_row = vza + tile_vslice_offset(row_idx);
+            void *e1 = op1 + (row_idx ^ host_adj);
+
+            for (intptr_t col = 0; col < dim; col += esize) {
+                intptr_t col_idx = col_base + col;
+                void *e2 = op2 + (col_idx ^ host_adj);
+                void *e3 = vza_row + (col_idx ^ host_adj);
+
+                fn(e3, e1, e2, fn_opaque);
+            }
+        }
+    }
+}
+
+static void inner_fmop4a_ss(void *vd, void *vn, void *vm, void *vinfo)
+{
+    float32 *d = vd, *n = vn, *m = vm;
+    float_status *fpst = vinfo;
+
+    *d = float32_muladd(*n, *m, *d, 0, fpst);
+}
+
+void HELPER(sme_fmop4a_ss)(void *vza, void *vzn, void *vzm,
+                           float_status *fpst, uint32_t desc)
+{
+    sme_mop4(vza, vzn, vzm, fpst, desc, sizeof(float32), inner_fmop4a_ss);
+}
+
+static void inner_fmop4s_ss(void *vd, void *vn, void *vm, void *vinfo)
+{
+    float32 *d = vd, *n = vn, *m = vm;
+    float_status *fpst = vinfo;
+
+    *d = float32_muladd(float32_chs(*n), *m, *d, 0, fpst);
+}
+
+void HELPER(sme_fmop4s_ss)(void *vza, void *vzn, void *vzm,
+                           float_status *fpst, uint32_t desc)
+{
+    sme_mop4(vza, vzn, vzm, fpst, desc, sizeof(float32), inner_fmop4s_ss);
+}
+
+static void inner_ah_fmop4s_ss(void *vd, void *vn, void *vm, void *vinfo)
+{
+    float32 *d = vd, *n = vn, *m = vm;
+    float_status *fpst = vinfo;
+
+    *d = float32_muladd(*n, *m, *d, float_muladd_negate_product, fpst);
+}
+
+void HELPER(sme_ah_fmop4s_ss)(void *vza, void *vzn, void *vzm,
+                              float_status *fpst, uint32_t desc)
+{
+    sme_mop4(vza, vzn, vzm, fpst, desc, sizeof(float32), inner_ah_fmop4s_ss);
+}

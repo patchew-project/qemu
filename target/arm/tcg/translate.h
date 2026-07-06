@@ -268,6 +268,11 @@ static inline int times_2_plus_1(DisasContext *s, int x)
     return x * 2 + 1;
 }
 
+static inline int times_2_plus_16(DisasContext *s, int x)
+{
+    return x * 2 + 16;
+}
+
 static inline int rsub_64(DisasContext *s, int x)
 {
     return 64 - x;

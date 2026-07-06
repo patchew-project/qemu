@@ -1086,3 +1086,15 @@ LUTI4_s_4h      1100 0000 1001 101 idx:1 10 01 00 zn:5 zd:5     &lut
 
 LUTI4_s_4b      1100 0000 1001 101     1 00 00 00 ....0 zd:5    \
                 &lut zn=%zn_ax2 idx=0
+
+# SME MOP4 Quarter-tile outer products
+
+&mop4           zad zn zm s:bool n:bool m:bool
+
+%mop4_zm        17:3 !function=times_2_plus_16
+%mop4_zn        6:3  !function=times_2
+
+@mop4_o2        .... .... ... m:1 .... .... .. n:1 ... . s:1 .. zad:2 \
+                &mop4 zm=%mop4_zm zn=%mop4_zn
+
+FMOP4_ss        1000 0000 000. ...0 0000 00.. ..0. 00..         @mop4_o2
