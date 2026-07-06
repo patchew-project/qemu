@@ -2761,3 +2761,45 @@ void HELPER(sme_ah_fmop4s_dd)(void *vza, void *vzn, void *vzm,
 {
     sme_mop4(vza, vzn, vzm, fpst, desc, sizeof(float64), inner_ah_fmop4s_dd);
 }
+
+static void inner_bfmop4a_hh(void *vd, void *vn, void *vm, void *vinfo)
+{
+    bfloat16 *d = vd, *n = vn, *m = vm;
+    float_status *fpst = vinfo;
+
+    *d = bfloat16_muladd(*n, *m, *d, 0, fpst);
+}
+
+void HELPER(sme_bfmop4a_hh)(void *vza, void *vzn, void *vzm,
+                            float_status *fpst, uint32_t desc)
+{
+    sme_mop4(vza, vzn, vzm, fpst, desc, sizeof(bfloat16), inner_bfmop4a_hh);
+}
+
+static void inner_bfmop4s_hh(void *vd, void *vn, void *vm, void *vinfo)
+{
+    bfloat16 *d = vd, *n = vn, *m = vm;
+    float_status *fpst = vinfo;
+
+    *d = bfloat16_muladd(bfloat16_chs(*n), *m, *d, 0, fpst);
+}
+
+void HELPER(sme_bfmop4s_hh)(void *vza, void *vzn, void *vzm,
+                            float_status *fpst, uint32_t desc)
+{
+    sme_mop4(vza, vzn, vzm, fpst, desc, sizeof(bfloat16), inner_bfmop4s_hh);
+}
+
+static void inner_ah_bfmop4s_hh(void *vd, void *vn, void *vm, void *vinfo)
+{
+    bfloat16 *d = vd, *n = vn, *m = vm;
+    float_status *fpst = vinfo;
+
+    *d = bfloat16_muladd(*n, *m, *d, float_muladd_negate_product, fpst);
+}
+
+void HELPER(sme_ah_bfmop4s_hh)(void *vza, void *vzn, void *vzm,
+                               float_status *fpst, uint32_t desc)
+{
+    sme_mop4(vza, vzn, vzm, fpst, desc, sizeof(bfloat16), inner_ah_bfmop4s_hh);
+}

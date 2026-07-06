@@ -2025,6 +2025,14 @@ static bool do_mop4_fp(DisasContext *s, arg_mop4 *a, MemOp esz,
     return true;
 }
 
+static gen_helper_gvec_3_ptr * const bfmop4_hh[3] = {
+    gen_helper_sme_bfmop4a_hh,
+    gen_helper_sme_bfmop4s_hh,
+    gen_helper_sme_ah_bfmop4s_hh
+};
+TRANS_FEAT(BFMOP4_hh, aa64_sme_mop4_b16b16,
+           do_mop4_fp, a, MO_16, FPST_ZA, bfmop4_hh)
+
 static gen_helper_gvec_3_ptr * const fmop4_hh[3] = {
     gen_helper_sme_fmop4a_hh,
     gen_helper_sme_fmop4s_hh,
