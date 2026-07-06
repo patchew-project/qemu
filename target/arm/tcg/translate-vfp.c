@@ -303,6 +303,17 @@ bool vfp_access_check(DisasContext *s)
     }
 }
 
+/*
+ * Access check for Neon; this is for instructions which can be
+ * trapped by CPACR.ASEDIS and HCPTR.TASE. Support for those traps
+ * is optional and we currently do not implement them, so this
+ * is identical to a VFP access check for now.
+ */
+bool neon_access_check(DisasContext *s)
+{
+    return vfp_access_check(s);
+}
+
 static bool trans_VSEL(DisasContext *s, arg_VSEL *a)
 {
     uint32_t rd, rn, rm;
@@ -620,15 +631,17 @@ static bool trans_VMOV_to_gp(DisasContext *s, arg_VMOV_to_gp *a)
 {
     /* VMOV scalar to general purpose register */
     TCGv_i32 tmp;
+    bool insn_is_neon = false;
 
     /*
      * SIZE == MO_32 is a VFP instruction; otherwise NEON. MVE has
      * all sizes, whether the CPU has fp or not.
      */
     if (!dc_isar_feature(aa32_mve, s)) {
-        if (a->size == MO_32
-            ? !dc_isar_feature(aa32_fpsp_v2, s)
-            : !arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        insn_is_neon = a->size != MO_32;
+        if (insn_is_neon
+            ? !arm_dc_feature(s, ARM_FEATURE_NEON)
+            : !dc_isar_feature(aa32_fpsp_v2, s)) {
             return false;
         }
     }
@@ -644,7 +657,7 @@ static bool trans_VMOV_to_gp(DisasContext *s, arg_VMOV_to_gp *a)
         }
     }
 
-    if (!vfp_access_check(s)) {
+    if (!(insn_is_neon ? neon_access_check(s) : vfp_access_check(s))) {
         return true;
     }
 
@@ -665,15 +678,17 @@ static bool trans_VMOV_from_gp(DisasContext *s, arg_VMOV_from_gp *a)
 {
     /* VMOV general purpose register to scalar */
     TCGv_i32 tmp;
+    bool insn_is_neon = false;
 
     /*
      * SIZE == MO_32 is a VFP instruction; otherwise NEON. MVE has
      * all sizes, whether the CPU has fp or not.
      */
     if (!dc_isar_feature(aa32_mve, s)) {
-        if (a->size == MO_32
-            ? !dc_isar_feature(aa32_fpsp_v2, s)
-            : !arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        insn_is_neon = a->size != MO_32;
+        if (insn_is_neon
+            ? !arm_dc_feature(s, ARM_FEATURE_NEON)
+            : !dc_isar_feature(aa32_fpsp_v2, s)) {
             return false;
         }
     }
@@ -689,7 +704,7 @@ static bool trans_VMOV_from_gp(DisasContext *s, arg_VMOV_from_gp *a)
         }
     }
 
-    if (!vfp_access_check(s)) {
+    if (!(insn_is_neon ? neon_access_check(s) : vfp_access_check(s))) {
         return true;
     }
 
@@ -736,7 +751,7 @@ static bool trans_VDUP(DisasContext *s, arg_VDUP *a)
         size = 2;
     }
 
-    if (!vfp_access_check(s)) {
+    if (!neon_access_check(s)) {
         return true;
     }
 
