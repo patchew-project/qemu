@@ -6244,10 +6244,6 @@ static uint16_t nvme_get_feature_fdp_events(NvmeCtrl *n, NvmeNamespace *ns,
     for (uint8_t event_type = 0; event_type < FDP_EVT_MAX; event_type++) {
         uint8_t shift = nvme_fdp_evf_shifts[event_type];
         if (!shift && event_type) {
-            /*
-             * only first entry (event_type == 0) has a shift value of 0
-             * other entries are simply unpopulated.
-             */
             continue;
         }
 
@@ -6492,9 +6488,9 @@ static uint16_t nvme_set_feature_fdp_events(NvmeCtrl *n, NvmeNamespace *ns,
     uint8_t noet = (cdw11 >> 16) & 0xff;
     uint16_t ret, ruhid;
     uint8_t enable = le32_to_cpu(cmd->cdw12) & 0x1;
-    uint8_t event_mask = 0;
+    uint64_t event_mask = 0;
     unsigned int i;
-    g_autofree uint8_t *events = g_malloc0(noet);
+    g_autofree uint8_t *events = NULL;
     NvmeRuHandle *ruh = NULL;
 
     assert(ns);
@@ -6507,8 +6503,14 @@ static uint16_t nvme_set_feature_fdp_events(NvmeCtrl *n, NvmeNamespace *ns,
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
+    if (unlikely(noet == 0)) {
+        return NVME_SUCCESS;
+    }
+
     ruhid = ns->fdp.phs[ph];
     ruh = &n->subsys->endgrp.fdp.ruhs[ruhid];
+
+    events = g_malloc0(noet);
 
     ret = nvme_h2c(n, events, noet, req);
     if (ret) {
@@ -6516,6 +6518,14 @@ static uint16_t nvme_set_feature_fdp_events(NvmeCtrl *n, NvmeNamespace *ns,
     }
 
     for (i = 0; i < noet; i++) {
+        /*
+         * We ignore requests to enable tracking of unsupported FDP event types
+         */
+        uint8_t event_type = events[i];
+        uint8_t shift = nvme_fdp_evf_shifts[event_type];
+        if (!shift && event_type) {
+            continue;
+        }
         event_mask |= (1 << nvme_fdp_evf_shifts[events[i]]);
     }
 

@@ -160,7 +160,14 @@ typedef struct NvmeZone {
 #define NVME_FDP_MAX_NS_RUHS 32u
 #define FDPVSS 0
 
-static const uint8_t nvme_fdp_evf_shifts[FDP_EVT_MAX] = {
+/*
+ * NOTE: Apart from event type 0, any event type with a shift value of 0 is
+ * considered unsupported and thus skipped in get/set features calls.
+ *
+ * NOTE: NvmeRuHandle uses a 64bit event mask - refactor to support event types
+ *       of 63 or greater.
+ */
+static const uint8_t nvme_fdp_evf_shifts[FDP_EVT_MAX + 1] = {
     /* Host events */
     [FDP_EVT_RU_NOT_FULLY_WRITTEN]      = 0,
     [FDP_EVT_RU_ATL_EXCEEDED]           = 1,
