@@ -2509,7 +2509,7 @@ static int loadvm_postcopy_handle_switchover_start(Error **errp)
 
 /*
  * If legacy switchover-ack is enabled but no device uses it, need to send an
- * ACK to source that it's OK to switchover.
+ * ACK to source that it's OK to switch over.
  */
 static int loadvm_switchover_ack_no_users_legacy(MigrationIncomingState *mis,
                                                  Error **errp)
