@@ -510,24 +510,23 @@ bool page_check_range(vaddr start, vaddr len, int flags)
         PageFlagsNode *p = pageflags_find(start, last);
         int missing;
 
-        if (!p) {
-            if (!locked) {
-                /*
-                 * Lockless lookups have false negatives.
-                 * Retry with the lock held.
-                 */
-                mmap_lock();
-                locked = -1;
-                p = pageflags_find(start, last);
-            }
-            if (!p) {
-                ret = false; /* entire region invalid */
+        /*
+         * Lockless lookups race with pageflags_set_clear() and may have false
+         * negatives:
+         * - The node pageflags_find() was looking for could have been
+         *   temporarily removed and not added back yet.
+         * - pageflags_find() could have found a node which was subsequently
+         *   removed and whose itree.start has been adjusted.
+         */
+        if (!p || start < p->itree.start) {
+            if (locked) {
+                ret = false;
                 break;
             }
-        }
-        if (start < p->itree.start) {
-            ret = false; /* initial bytes invalid */
-            break;
+            /* Retry with the lock held. */
+            mmap_lock();
+            locked = -1;
+            continue;
         }
 
         missing = flags & ~p->flags;
