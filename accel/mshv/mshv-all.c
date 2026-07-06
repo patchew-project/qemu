@@ -167,7 +167,7 @@ static int get_proc_features(int vm_fd,
 
     ret = get_partition_property(vm_fd,
                                  HV_PARTITION_PROPERTY_PROCESSOR_FEATURES0,
-                                 features[0].as_uint64);
+                                 &features->as_uint64[0]);
     if (ret < 0) {
         error_report("Failed to get processor features bank 0");
         return -1;
@@ -175,7 +175,7 @@ static int get_proc_features(int vm_fd,
 
     ret = get_partition_property(vm_fd,
                                  HV_PARTITION_PROPERTY_PROCESSOR_FEATURES1,
-                                 features[1].as_uint64);
+                                 &features->as_uint64[1]);
     if (ret < 0) {
         error_report("Failed to get processor features bank 1");
         return -1;
