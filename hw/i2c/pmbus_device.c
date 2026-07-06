@@ -39,6 +39,12 @@ uint16_t pmbus_data2linear_mode(uint16_t value, int exp)
     return value >> exp;
 }
 
+uint16_t pmbus_data2linear11(uint16_t value, int exp)
+{
+    return (uint16_t)((exp & 0x1F) << 11 |
+        (pmbus_data2linear_mode(value, exp) & 0x7FF));
+}
+
 uint16_t pmbus_milliunits2linear_mode(uint32_t value, int exp)
 {
     uint32_t ret;
@@ -56,6 +62,12 @@ uint16_t pmbus_milliunits2linear_mode(uint32_t value, int exp)
     }
 
     return ret;
+}
+
+uint16_t pmbus_milliunits2linear11(uint32_t value, int exp)
+{
+    return (uint16_t)((exp & 0x1F) << 11 |
+        (pmbus_milliunits2linear_mode(value, exp) & 0x7FF));
 }
 
 uint16_t pmbus_linear_mode2data(uint16_t value, int exp)

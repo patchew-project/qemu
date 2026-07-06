@@ -477,9 +477,55 @@ uint32_t pmbus_direct_mode2data(PMBusCoefficients c, uint16_t value);
  *
  * L = D * 2^(-e)
  *
+ * Exponent is retrieved from VOUT_MODE register
+ *
+ *   7   6   5   4   3   2   1   0
+ * +---+---+---+---+---+---+---+---+
+ * | 0 | 0 | 0 |       N           |
+ * +---+---+---+---+---+---+---+---+
+ *   |_______|   |_______________|
+ *     Mode          Exponent (N)
+ *    = 000b
+ *
  * @return uint16
  */
 uint16_t pmbus_data2linear_mode(uint16_t value, int exp);
+
+/**
+ * Convert sensor values to linear11 format
+ *
+ *   L = e << 11 | D * 2^(-e)
+ *
+ *  |        Data Byte High             |        Data Byte Low          |
+ *  +---+---+---+---+---+   +---+---+---+---+---+---+---+---+---+---+---+
+ *  | 7 | 6 | 5 | 4 | 3 |   | 2 | 1 | 0 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+ *  +---+---+---+---+---+   +---+---+---+---+---+---+---+---+---+---+---+
+ *  | MSB               |   | MSB                                       |
+ *  |_________ _________|   |_____________________ _____________________|
+ *            N                                   Y
+ *         Exponent                            Mantissa
+ *
+ * @return uint16
+ */
+uint16_t pmbus_data2linear11(uint16_t value, int exp);
+
+/**
+ * Convert sensor values in milliunits to linear11 format
+ *
+ *   L = e << 11 | D * 2^(-e)
+ *
+ *  |        Data Byte High             |        Data Byte Low          |
+ *  +---+---+---+---+---+   +---+---+---+---+---+---+---+---+---+---+---+
+ *  | 7 | 6 | 5 | 4 | 3 |   | 2 | 1 | 0 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+ *  +---+---+---+---+---+   +---+---+---+---+---+---+---+---+---+---+---+
+ *  | MSB               |   | MSB                                       |
+ *  |_________ _________|   |_____________________ _____________________|
+ *            N                                   Y
+ *         Exponent                            Mantissa
+ *
+ * @return uint16
+ */
+uint16_t pmbus_milliunits2linear11(uint32_t value, int exp);
 
 /**
  * Convert milliunit sensor value to linear mode format
