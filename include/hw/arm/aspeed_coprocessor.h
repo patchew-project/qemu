@@ -51,8 +51,10 @@ struct Aspeed27x0CoprocessorState {
 
     MemoryRegion scu_alias;
     MemoryRegion scuio_alias;
+    MemoryRegion fmc_alias;
     Aspeed2700SCUState *scu;
     AspeedSCUState *scuio;
+    AspeedSMCState *fmc;
 };
 
 #define TYPE_ASPEED27X0SSP_COPROCESSOR "aspeed27x0ssp-coprocessor"
