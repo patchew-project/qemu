@@ -259,4 +259,12 @@ int kvm_arm_rme_init(MachineState *ms, KVMState *s);
  */
 void kvm_arm_rme_vcpu_init(ARMCPU *cpu);
 
+/**
+ * kvm_arm_rme_vm_type
+ * @ms: the machine state
+ *
+ * Returns the Realm KVM VM type if the user requested a Realm, 0 otherwise.
+ */
+int kvm_arm_rme_vm_type(void);
+
 #endif
