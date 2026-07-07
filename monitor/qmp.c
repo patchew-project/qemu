@@ -572,7 +572,7 @@ void monitor_new_qmp(const char *id, const char *chardev_id,
     qemu_chr_fe_set_echo(&mon->parent_obj.chr, true);
 
     /* Note: we run QMP monitor in I/O thread when @chr supports that */
-    monitor_data_init(&mon->parent_obj, true, false,
+    monitor_data_init(&mon->parent_obj, true,
                       qemu_chr_has_feature(mon->parent_obj.chr.chr,
                                            QEMU_CHAR_FEATURE_GCONTEXT));
 
