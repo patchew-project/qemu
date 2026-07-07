@@ -971,28 +971,57 @@ static uint8_t numonyx_mode(Flash *s)
     }
 }
 
-static uint8_t numonyx_extract_cfg_num_dummies(Flash *s)
+static uint8_t numonyx_extract_cfg_dummy_bytes(Flash *s)
 {
-    uint8_t num_dummies;
+    uint8_t dummy_bits;
     uint8_t mode;
-    assert(get_man(s) == MAN_NUMONYX);
 
     mode = numonyx_mode(s);
-    num_dummies = extract32(s->volatile_cfg, 4, 4);
+    dummy_bits = extract32(s->volatile_cfg, 4, 4);
 
-    if (num_dummies == 0x0 || num_dummies == 0xf) {
+    /*
+     * The default nubmer of dummy cycles is only related to the SPI
+     * protocol mode. For QSPI it is 10, otherwise it is 8.
+     */
+    if (dummy_bits == 0x0 || dummy_bits == 0xf) {
+        dummy_bits = (mode == MODE_QIO) ? 10 : 8;
+    }
+
+    /*
+     * Convert the number of dummy cycles to bytes.
+     *
+     * In the Dual I/O and Quad I/O protocols, all command phases use 2 or 4
+     * lines. In standard/extended SPI mode the phase width depends on the
+     * command sequence: output-only fast reads keep the dummy clocks on the
+     * single address line, while input/output fast reads use the same 2-line
+     * or 4-line phase as the address.
+     */
+
+    if (mode == MODE_QIO) {
+        dummy_bits *= 4;
+    } else if (mode == MODE_DIO) {
+        dummy_bits *= 2;
+    } else {
         switch (s->cmd_in_progress) {
         case QIOR:
         case QIOR4:
-            num_dummies = 10;
+            dummy_bits *= 4;
             break;
-        default:
-            num_dummies = (mode == MODE_QIO) ? 10 : 8;
+        case DIOR:
+        case DIOR4:
+            dummy_bits *= 2;
             break;
-        }
+         }
     }
 
-    return num_dummies;
+    /*
+     * Assert that the dummy bit count is byte-aligned
+     * as SSI core can only consume whole dummy bytes.
+     */
+    assert(dummy_bits % 8 == 0);
+
+    /* return the number of dummy bytes */
+    return dummy_bits / 8;
 }
 
 static void decode_fast_read_cmd(Flash *s)
@@ -1007,7 +1036,7 @@ static void decode_fast_read_cmd(Flash *s)
         s->needed_bytes += 1;
         break;
     case MAN_NUMONYX:
-        s->needed_bytes += numonyx_extract_cfg_num_dummies(s);
+        s->needed_bytes += numonyx_extract_cfg_dummy_bytes(s);
         break;
     case MAN_MACRONIX:
         if (extract32(s->volatile_cfg, 6, 2) == 1) {
@@ -1059,7 +1088,7 @@ static void decode_dio_read_cmd(Flash *s)
                                     );
         break;
     case MAN_NUMONYX:
-        s->needed_bytes += numonyx_extract_cfg_num_dummies(s);
+        s->needed_bytes += numonyx_extract_cfg_dummy_bytes(s);
         break;
     case MAN_MACRONIX:
         switch (extract32(s->volatile_cfg, 6, 2)) {
@@ -1109,7 +1138,7 @@ static void decode_qio_read_cmd(Flash *s)
                                     );
         break;
     case MAN_NUMONYX:
-        s->needed_bytes += numonyx_extract_cfg_num_dummies(s);
+        s->needed_bytes += numonyx_extract_cfg_dummy_bytes(s);
         break;
     case MAN_MACRONIX:
         switch (extract32(s->volatile_cfg, 6, 2)) {
