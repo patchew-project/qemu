@@ -664,7 +664,7 @@ int smmu_find_ste(SMMUv3State *s, uint32_t sid, STE *ste, SMMUEventInfo *event)
 {
     dma_addr_t addr, strtab_base;
     uint32_t log2size;
-    int strtab_size_shift;
+    int strtab_size;
     int ret;
 
     trace_smmuv3_find_ste(sid, s->features, s->sid_split);
@@ -685,9 +685,9 @@ int smmu_find_ste(SMMUv3State *s, uint32_t sid, STE *ste, SMMUEventInfo *event)
          * Align strtab base address to table size. For this purpose, assume it
          * is not bounded by SMMU_IDR1_SIDSIZE.
          */
-        strtab_size_shift = MAX(5, (int)log2size - s->sid_split - 1 + 3);
+        strtab_size = MAX(6, (int)log2size - s->sid_split + L1STD_SIZE);
         strtab_base = s->strtab_base & SMMU_BASE_ADDR_MASK &
-                      ~MAKE_64BIT_MASK(0, strtab_size_shift);
+                      ~MAKE_64BIT_MASK(0, strtab_size);
         l1_ste_offset = sid >> s->sid_split;
         l2_ste_offset = sid & ((1 << s->sid_split) - 1);
         l1ptr = (dma_addr_t)(strtab_base + l1_ste_offset * sizeof(l1std));
@@ -729,9 +729,9 @@ int smmu_find_ste(SMMUv3State *s, uint32_t sid, STE *ste, SMMUEventInfo *event)
         }
         addr = l2ptr + l2_ste_offset * sizeof(*ste);
     } else {
-        strtab_size_shift = log2size + 5;
+        strtab_size = log2size + STE_SIZE;
         strtab_base = s->strtab_base & SMMU_BASE_ADDR_MASK &
-                      ~MAKE_64BIT_MASK(0, strtab_size_shift);
+                      ~MAKE_64BIT_MASK(0, strtab_size);
         addr = strtab_base + sid * sizeof(*ste);
     }
 
