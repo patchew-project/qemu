@@ -90,3 +90,12 @@ int kvm_arm_rme_init(MachineState *ms, KVMState *s)
     cgs->ready = true;
     return 0;
 }
+
+void kvm_arm_rme_vcpu_init(ARMCPU *cpu)
+{
+    if (!rme_guest) {
+        return;
+    }
+
+    cpu->kvm_rme = true;
+}

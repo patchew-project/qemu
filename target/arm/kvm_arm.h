@@ -249,4 +249,14 @@ char *kvm_print_register_name(uint64_t regidx);
  */
 int kvm_arm_rme_init(MachineState *ms, KVMState *s);
 
+/**
+ * kvm_arm_rme_vcpu_init
+ * @cs: the CPU
+ *
+ * If the user requested a Realm, setup the given vCPU accordingly. Realm vCPUs
+ * behave a little differently, for example most of their register state is
+ * hidden from the host.
+ */
+void kvm_arm_rme_vcpu_init(ARMCPU *cpu);
+
 #endif
