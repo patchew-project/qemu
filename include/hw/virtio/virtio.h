@@ -391,6 +391,23 @@ VirtioSharedMemoryMapping *virtio_shared_memory_mapping_new(uint8_t shmid,
                                                             bool allow_write);
 
 /**
+ * virtio_add_shmem_map_start() - Begin a shmem map transaction
+ *
+ * Begins a transaction to add a shared memory mapping. Call this before adding
+ * a shared memory mapping when the commit must be delayed until after a reply
+ * is sent to a vhost-user backend.
+ */
+void virtio_add_shmem_map_start(void);
+
+/**
+ * virtio_add_shmem_map_end() - End a shmem map transaction
+ *
+ * Completes the transaction started by virtio_add_shmem_map_start() and makes
+ * the mapping visible to the guest.
+ */
+void virtio_add_shmem_map_end(void);
+
+/**
  * virtio_add_shmem_map() - Add a memory mapping to a shared region
  * @shmem: VirtioSharedMemory region
  * @mapping: VirtioSharedMemoryMapping to add (transfers ownership)

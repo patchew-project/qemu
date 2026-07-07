@@ -3226,6 +3226,16 @@ VirtioSharedMemoryMapping *virtio_shared_memory_mapping_new(uint8_t shmid,
     return mapping;
 }
 
+void virtio_add_shmem_map_start(void)
+{
+    memory_region_transaction_begin();
+}
+
+void virtio_add_shmem_map_end(void)
+{
+    memory_region_transaction_commit();
+}
+
 int virtio_add_shmem_map(VirtioSharedMemory *shmem,
                          VirtioSharedMemoryMapping *mapping)
 {

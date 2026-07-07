@@ -1977,7 +1977,7 @@ vhost_user_backend_handle_shmem_map(struct vhost_dev *dev,
         }
     }
 
-    memory_region_transaction_begin();
+    virtio_add_shmem_map_start();
 
     /* Create VirtioSharedMemoryMapping object */
     VirtioSharedMemoryMapping *mapping = virtio_shared_memory_mapping_new(
@@ -2004,11 +2004,11 @@ send_reply_commit:
         hdr->size = sizeof(payload->u64);
         if (!vhost_user_send_resp(ioc, hdr, payload, &local_err)) {
             error_report_err(local_err);
-            memory_region_transaction_commit();
+            virtio_add_shmem_map_end();
             return -EFAULT;
         }
     }
-    memory_region_transaction_commit();
+    virtio_add_shmem_map_end();
     return 0;
 
 send_reply:
