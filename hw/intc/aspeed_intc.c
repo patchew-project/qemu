@@ -107,6 +107,27 @@ static const AspeedINTCIRQ *aspeed_intc_get_irq(AspeedINTCClass *aic,
     g_assert_not_reached();
 }
 
+static uint32_t aspeed_intc_orgate_levels(AspeedINTCState *s, int inpin_idx)
+{
+    AspeedINTCClass *aic = ASPEED_INTC_GET_CLASS(s);
+    uint32_t levels = 0;
+    int i;
+
+    for (i = 0; i < aic->num_lines && i < 32; i++) {
+        if (s->orgates[inpin_idx].levels[i]) {
+            levels |= BIT(i);
+        }
+    }
+
+    return levels;
+}
+
+static void aspeed_intc_drop_stale_pending(AspeedINTCState *s, int inpin_idx)
+{
+    s->pending[inpin_idx] &= aspeed_intc_orgate_levels(s, inpin_idx) &
+                             s->enable[inpin_idx];
+}
+
 /*
  * Update the state of an interrupt controller pin by setting
  * the specified output pin to the given level.
@@ -231,6 +252,8 @@ static void aspeed_intc_set_irq(void *opaque, int irq, int level)
     trace_aspeed_intc_set_irq(name, inpin_idx, level);
     enable = s->enable[inpin_idx];
 
+    aspeed_intc_drop_stale_pending(s, inpin_idx);
+
     if (!level) {
         return;
     }
@@ -343,6 +366,7 @@ static void aspeed_intc_status_handler(AspeedINTCState *s, hwaddr offset,
     /* All source ISR execution are done */
     if (!s->regs[reg]) {
         trace_aspeed_intc_all_isr_done(name, inpin_idx);
+        aspeed_intc_drop_stale_pending(s, inpin_idx);
         if (s->pending[inpin_idx]) {
             /*
              * handle pending source interrupt
@@ -402,6 +426,7 @@ static void aspeed_intc_status_handler_multi_outpins(AspeedINTCState *s,
         /* All source ISR executions are done from a specific bit */
         if (data & BIT(i)) {
             trace_aspeed_intc_all_isr_done_bit(name, inpin_idx, i);
+            aspeed_intc_drop_stale_pending(s, inpin_idx);
             if (s->pending[inpin_idx] & BIT(i)) {
                 /*
                  * Handle pending source interrupt.
