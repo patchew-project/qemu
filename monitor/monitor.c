@@ -162,6 +162,12 @@ bool monitor_cur_is_qmp(void)
     return cur_mon && monitor_is_qmp(cur_mon);
 }
 
+bool monitor_requires_iothread(const Monitor *mon)
+{
+    MonitorClass *cls = MONITOR_GET_CLASS(mon);
+    return cls->requires_iothread && cls->requires_iothread(mon);
+}
+
 /**
  * Is @mon is using readline?
  * Note: not all HMP monitors use readline, e.g., gdbserver has a
@@ -563,7 +569,7 @@ int monitor_suspend(Monitor *mon)
 
     qatomic_inc(&mon->suspend_cnt);
 
-    if (mon->use_io_thread) {
+    if (monitor_requires_iothread(mon)) {
         /*
          * Kick I/O thread to make sure this takes effect.  It'll be
          * evaluated again in prepare() of the watch object.
@@ -596,7 +602,7 @@ void monitor_resume(Monitor *mon)
     if (qatomic_dec_fetch(&mon->suspend_cnt) == 0) {
         AioContext *ctx;
 
-        if (mon->use_io_thread) {
+        if (monitor_requires_iothread(mon)) {
             ctx = iothread_get_aio_context(mon_iothread);
         } else {
             ctx = qemu_get_aio_context();
@@ -632,14 +638,6 @@ void monitor_list_append(Monitor *mon)
     if (mon) {
         object_unparent(OBJECT(mon));
     }
-}
-
-void monitor_iothread_init(Monitor *mon)
-{
-    if (!mon_iothread) {
-        mon_iothread = iothread_create("mon_iothread", &error_abort);
-    }
-    mon->use_io_thread = true;
 }
 
 void monitor_cleanup(void)
@@ -742,6 +740,10 @@ void monitor_complete(Monitor *mon, Error **errp)
         if (!qemu_chr_fe_init(&mon->chr, chr, errp)) {
             return;
         }
+    }
+
+    if (monitor_requires_iothread(mon) && !mon_iothread) {
+        mon_iothread = iothread_create("mon_iothread", &error_abort);
     }
 }
 
