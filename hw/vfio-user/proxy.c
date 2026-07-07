@@ -1292,7 +1292,7 @@ bool vfio_user_validate_version(VFIOUserProxy *proxy, Error **errp)
 {
     g_autofree VFIOUserVersion *msgp = NULL;
     GString *caps;
-    char *reply;
+    const char *reply = "";
     int size, caplen;
 
     caps = caps_json();
@@ -1322,17 +1322,24 @@ bool vfio_user_validate_version(VFIOUserProxy *proxy, Error **errp)
         return false;
     }
 
-    reply = msgp->capabilities;
-    if (reply[msgp->hdr.size - sizeof(*msgp) - 1] != '\0') {
-        error_setg(errp, "corrupt version reply");
+    if (msgp->hdr.size < sizeof(*msgp)) {
+        error_setg(errp, "short version reply");
         return false;
     }
 
-    if (!caps_check(proxy, msgp->minor, reply, errp)) {
-        return false;
+    if (msgp->hdr.size > sizeof(*msgp)) {
+        reply = msgp->capabilities;
+        if (reply[msgp->hdr.size - sizeof(*msgp) - 1] != '\0') {
+            error_setg(errp, "corrupt version reply");
+            return false;
+        }
+
+        if (!caps_check(proxy, msgp->minor, reply, errp)) {
+            return false;
+        }
     }
 
-    trace_vfio_user_version(msgp->major, msgp->minor, msgp->capabilities);
+    trace_vfio_user_version(msgp->major, msgp->minor, reply);
     return true;
 }
 
