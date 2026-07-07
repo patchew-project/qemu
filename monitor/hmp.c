@@ -1542,28 +1542,24 @@ static void monitor_readline_flush(void *opaque)
 void monitor_new_hmp(const char *id, const char *chardev_id,
                      bool use_readline, Error **errp)
 {
+    ERRP_GUARD();
     MonitorHMP *mon;
     g_autofree char *autoid = id ? NULL : monitor_compat_id();
-    Chardev *chr;
-    Object *obj;
+    Object *obj = object_new_with_props(TYPE_MONITOR_HMP,
+                                        object_get_objects_root(),
+                                        id ? id : autoid,
+                                        errp,
+                                        "chardev", chardev_id,
+                                        NULL);
 
-    chr = qemu_chr_find(chardev_id);
-    if (chr == NULL) {
-        error_setg(errp, "chardev \"%s\" not found", chardev_id);
-        return;
-    }
-
-    obj = object_new_with_props(TYPE_MONITOR_HMP,
-                                object_get_objects_root(),
-                                id ? id : autoid,
-                                errp,
-                                NULL);
     if (!obj) {
         return;
     }
+
     mon = MONITOR_HMP(obj);
 
-    if (!qemu_chr_fe_init(&mon->parent_obj.chr, chr, errp)) {
+    monitor_complete(MONITOR(mon), errp);
+    if (*errp) {
         object_unparent(OBJECT(mon));
         return;
     }
