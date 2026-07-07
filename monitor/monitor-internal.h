@@ -134,7 +134,7 @@ struct Monitor {
     char *chardev_id;
     CharFrontend chr;
     int suspend_cnt;            /* Needs to be accessed atomically */
-
+    QEMUBH *accept_input_bh;    /* persistent BH for monitor_accept_input */
     char *mon_cpu_path;
     QTAILQ_ENTRY(Monitor) entry;
 
