@@ -125,6 +125,25 @@ if have_rust
       have_rust = false
     endif
   endif
+
+  # bindgen < 0.72.1 generates opaque structs for "typedef struct X X;"
+  # patterns when linked against libclang >= 22.
+  if have_rust and bindgen.version().version_compare('<0.72.1')
+    llvm_config = find_program('llvm-config', required: false)
+    if llvm_config.found()
+      llvm_version = run_command(llvm_config, '--version',
+                                 check: true).stdout().strip()
+      if llvm_version.version_compare('>=22.0.0')
+        if get_option('rust').enabled()
+          error('bindgen ' + bindgen.version() + ' is incompatible with LLVM ' + llvm_version + '. ' +
+                'Please upgrade with "cargo install --locked bindgen-cli@0.72.1"')
+        else
+          warning('bindgen ' + bindgen.version() + ' is incompatible with LLVM ' + llvm_version + ', disabling Rust.')
+          have_rust = false
+        endif
+      endif
+    endif
+  endif
 endif
 
 if have_rust
