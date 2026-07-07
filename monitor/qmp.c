@@ -527,16 +527,25 @@ static void monitor_qmp_setup_handlers_bh(void *opaque)
     monitor_list_append(&mon->parent_obj);
 }
 
-void monitor_new_qmp(const char *id, Chardev *chr,
+void monitor_new_qmp(const char *id, const char *chardev_id,
                      bool pretty, Error **errp)
 {
     MonitorQMP *mon;
     g_autofree char *autoid = id ? NULL : monitor_compat_id();
-    Object *obj = object_new_with_props(TYPE_MONITOR_QMP,
-                                        object_get_objects_root(),
-                                        id ? id : autoid,
-                                        errp,
-                                        NULL);
+    Chardev *chr;
+    Object *obj;
+
+    chr = qemu_chr_find(chardev_id);
+    if (chr == NULL) {
+        error_setg(errp, "chardev \"%s\" not found", chardev_id);
+        return;
+    }
+
+    obj = object_new_with_props(TYPE_MONITOR_QMP,
+                                object_get_objects_root(),
+                                id ? id : autoid,
+                                errp,
+                                NULL);
     if (!obj) {
         return;
     }

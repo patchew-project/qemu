@@ -39,6 +39,7 @@
 #include "qemu/base-arch-defs.h"
 #include "qemu/target-info.h"
 #include "qemu/units.h"
+#include "qapi/error.h"
 #include "exec/gdbstub.h"
 #include "system/block-backend.h"
 #include "trace.h"
@@ -1538,16 +1539,25 @@ static void monitor_readline_flush(void *opaque)
     monitor_flush(&mon->parent_obj);
 }
 
-void monitor_new_hmp(const char *id, Chardev *chr,
+void monitor_new_hmp(const char *id, const char *chardev_id,
                      bool use_readline, Error **errp)
 {
     MonitorHMP *mon;
     g_autofree char *autoid = id ? NULL : monitor_compat_id();
-    Object *obj = object_new_with_props(TYPE_MONITOR_HMP,
-                                        object_get_objects_root(),
-                                        id ? id : autoid,
-                                        errp,
-                                        NULL);
+    Chardev *chr;
+    Object *obj;
+
+    chr = qemu_chr_find(chardev_id);
+    if (chr == NULL) {
+        error_setg(errp, "chardev \"%s\" not found", chardev_id);
+        return;
+    }
+
+    obj = object_new_with_props(TYPE_MONITOR_HMP,
+                                object_get_objects_root(),
+                                id ? id : autoid,
+                                errp,
+                                NULL);
     if (!obj) {
         return;
     }
