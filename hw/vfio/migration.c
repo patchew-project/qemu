@@ -1056,7 +1056,7 @@ static bool vfio_dma_logging_supported(VFIODevice *vbasedev)
     return !ioctl(vbasedev->fd, VFIO_DEVICE_FEATURE, feature);
 }
 
-static int vfio_migration_init(VFIODevice *vbasedev)
+static bool vfio_migration_init(VFIODevice *vbasedev, Error **errp)
 {
     int ret;
     Object *obj;
@@ -1067,22 +1067,32 @@ static int vfio_migration_init(VFIODevice *vbasedev)
     VMChangeStateHandler *prepare_cb;
 
     if (!vbasedev->ops->vfio_get_object) {
-        return -EINVAL;
+        error_setg(errp, "no vfio_get_object handler");
+        return false;
     }
 
     obj = vbasedev->ops->vfio_get_object(vbasedev);
     if (!obj) {
-        return -EINVAL;
+        error_setg(errp, "failed to get object");
+        return false;
     }
 
     ret = vfio_migration_query_flags(vbasedev, &mig_flags);
     if (ret) {
-        return ret;
+        if (ret == -ENOTTY) {
+            error_setg_errno(errp, -ret,
+                             "migration is not supported in kernel");
+        } else {
+            error_setg_errno(errp, -ret, "failed to query migration flags");
+        }
+
+        return false;
     }
 
     /* Basic migration functionality must be supported */
     if (!(mig_flags & VFIO_MIGRATION_STOP_COPY)) {
-        return -EOPNOTSUPP;
+        error_setg(errp, "VFIO_MIGRATION_STOP_COPY is not supported");
+        return false;
     }
 
     vbasedev->migration = g_new0(VFIOMigration, 1);
@@ -1113,7 +1123,7 @@ static int vfio_migration_init(VFIODevice *vbasedev)
     migration_add_notifier(&migration->migration_state,
                            vfio_migration_state_notifier);
 
-    return 0;
+    return true;
 }
 
 static Error *multiple_devices_migration_blocker;
@@ -1279,18 +1289,8 @@ bool vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
         return !vfio_block_migration(vbasedev, err, errp);
     }
 
-    ret = vfio_migration_init(vbasedev);
-    if (ret) {
-        if (ret == -ENOTTY) {
-            error_setg(&err, "%s: VFIO migration is not supported in kernel",
-                       vbasedev->name);
-        } else {
-            error_setg(&err,
-                       "%s: Migration couldn't be initialized for VFIO device, "
-                       "err: %d (%s)",
-                       vbasedev->name, ret, strerror(-ret));
-        }
-
+    if (!vfio_migration_init(vbasedev, &err)) {
+        error_prepend(&err, "%s: VFIO migration init failed: ", vbasedev->name);
         return !vfio_block_migration(vbasedev, err, errp);
     }
 
