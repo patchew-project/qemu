@@ -5088,6 +5088,9 @@ do_ioctl_usbdevfs_submiturb(const IOCTLEntry *ie, uint8_t *buf_temp,
 }
 #endif /* CONFIG_USBFS */
 
+#define DM_MAX_TARGETS                  1048576
+#define DM_MAX_TARGET_PARAMS            1024
+
 static abi_long do_ioctl_dm(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
                             int cmd, abi_long arg)
 {
@@ -5100,6 +5103,7 @@ static abi_long do_ioctl_dm(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
     abi_long ret;
     void *big_buf = NULL;
     char *host_data;
+    const size_t minimum_data_size = offsetof(struct dm_ioctl, data);
 
     arg_type++;
     target_size = thunk_type_size(arg_type, 0);
@@ -5111,9 +5115,26 @@ static abi_long do_ioctl_dm(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
     thunk_convert(buf_temp, argptr, arg_type, THUNK_HOST);
     unlock_user(argptr, arg, 0);
 
-    /* buf_temp is too small, so fetch things into a bigger buffer */
-    big_buf = g_malloc0(((struct dm_ioctl*)buf_temp)->data_size * 2);
-    memcpy(big_buf, buf_temp, target_size);
+    /* At this point this includes the size of the fixed dm_ioctl parts */
+    guest_data_size = ((struct dm_ioctl *)buf_temp)->data_size;
+
+    if (guest_data_size < minimum_data_size ||
+        guest_data_size > DM_MAX_TARGETS * DM_MAX_TARGET_PARAMS) {
+        ret = -TARGET_EINVAL;
+        goto out;
+    }
+
+    /*
+     * buf_temp is too small, so fetch things into a bigger buffer. Here
+     * we copy all of the fixed parts of struct dm_ioctl but not the
+     * data at the end (which in the struct is "char data[7]" but in
+     * reality is command-specific and might be nothing or might be
+     * much larger, as defined by data_size). We know struct dm_ioctl's
+     * size is not target specific so we don't need to distinguish between
+     * its minimum size for the host vs the target.
+     */
+    big_buf = g_malloc0(guest_data_size * 2);
+    memcpy(big_buf, buf_temp, minimum_data_size);
     buf_temp = big_buf;
     host_dm = big_buf;
 
@@ -5122,7 +5143,8 @@ static abi_long do_ioctl_dm(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
         ret = -TARGET_EINVAL;
         goto out;
     }
-    guest_data_size = host_dm->data_size - host_dm->data_start;
+    /* Adjust down to only the size of the payload */
+    guest_data_size -= host_dm->data_start;
     host_data = (char*)host_dm + host_dm->data_start;
 
     argptr = lock_user(VERIFY_READ, guest_data, guest_data_size, 1);
