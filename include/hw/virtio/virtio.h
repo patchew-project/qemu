@@ -104,6 +104,8 @@ enum virtio_device_endian {
 #define TYPE_VIRTIO_SHARED_MEMORY_MAPPING "virtio-shared-memory-mapping"
 OBJECT_DECLARE_SIMPLE_TYPE(VirtioSharedMemoryMapping, VIRTIO_SHARED_MEMORY_MAPPING)
 
+typedef void VirtioShmemGuard;
+
 /**
  * VirtioSharedMemoryMapping:
  * @parent: Parent QOM object
@@ -396,16 +398,26 @@ VirtioSharedMemoryMapping *virtio_shared_memory_mapping_new(uint8_t shmid,
  * Begins a transaction to add a shared memory mapping. Call this before adding
  * a shared memory mapping when the commit must be delayed until after a reply
  * is sent to a vhost-user backend.
+ *
+ * Returns: Non-NULL guard that triggers cleanup on scope exit.
  */
-void virtio_add_shmem_map_start(void);
+VirtioShmemGuard *virtio_add_shmem_map_start(void);
 
 /**
  * virtio_add_shmem_map_end() - End a shmem map transaction
  *
  * Completes the transaction started by virtio_add_shmem_map_start() and makes
- * the mapping visible to the guest.
+ * the mapping visible to the guest. Prefer using g_autoptr(VirtioShmemGuard)
+ * over calling this directly.
  */
 void virtio_add_shmem_map_end(void);
+
+static inline void virtio_shmem_guard_cleanup(VirtioShmemGuard *guard)
+{
+    virtio_add_shmem_map_end();
+}
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(VirtioShmemGuard, virtio_shmem_guard_cleanup)
 
 /**
  * virtio_add_shmem_map() - Add a memory mapping to a shared region

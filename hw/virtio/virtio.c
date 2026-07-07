@@ -3226,9 +3226,11 @@ VirtioSharedMemoryMapping *virtio_shared_memory_mapping_new(uint8_t shmid,
     return mapping;
 }
 
-void virtio_add_shmem_map_start(void)
+VirtioShmemGuard *virtio_add_shmem_map_start(void)
 {
     memory_region_transaction_begin();
+    /* Anything non-NULL causes the cleanup function to be called */
+    return (VirtioShmemGuard *)(uintptr_t)1;
 }
 
 void virtio_add_shmem_map_end(void)
