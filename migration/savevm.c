@@ -1737,13 +1737,12 @@ void qemu_savevm_state_end_precopy(MigrationState *s, QEMUFile *f)
     qemu_savevm_state_vm_desc(s, f);
 }
 
-int qemu_savevm_state_non_iterable(QEMUFile *f, Error **errp)
+bool qemu_savevm_state_non_iterable(QEMUFile *f, Error **errp)
 {
     MigrationState *ms = migrate_get_current();
     int64_t start_ts_each, end_ts_each;
     JSONWriter *vmdesc = ms->vmdesc;
     SaveStateEntry *se;
-    int ret;
 
     /* Making sure cpu states are synchronized before saving non-iterable */
     cpu_synchronize_all_states();
@@ -1756,9 +1755,8 @@ int qemu_savevm_state_non_iterable(QEMUFile *f, Error **errp)
 
         start_ts_each = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
 
-        ret = vmstate_save(f, se, vmdesc, errp);
-        if (ret) {
-            return ret;
+        if (vmstate_save(f, se, vmdesc, errp) < 0) {
+            return false;
         }
 
         end_ts_each = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
@@ -1768,10 +1766,10 @@ int qemu_savevm_state_non_iterable(QEMUFile *f, Error **errp)
 
     trace_vmstate_downtime_checkpoint("src-non-iterable-saved");
 
-    return 0;
+    return true;
 }
 
-int qemu_savevm_state_complete_precopy(MigrationState *s, Error **errp)
+bool qemu_savevm_state_complete_precopy(MigrationState *s, Error **errp)
 {
     ERRP_GUARD();
     QEMUFile *f = s->to_dst_file;
@@ -1781,12 +1779,11 @@ int qemu_savevm_state_complete_precopy(MigrationState *s, Error **errp)
     if (ret) {
         qemu_file_get_error_obj(f, errp);
         error_prepend(errp, "Failed to save iterable device state: ");
-        return ret;
+        return false;
     }
 
-    ret = qemu_savevm_state_non_iterable(f, errp);
-    if (ret) {
-        return ret;
+    if (!qemu_savevm_state_non_iterable(f, errp)) {
+        return false;
     }
 
     qemu_savevm_state_end_precopy(s, f);
@@ -1795,10 +1792,10 @@ int qemu_savevm_state_complete_precopy(MigrationState *s, Error **errp)
     if (ret) {
         qemu_file_get_error_obj(f, errp);
         error_prepend(errp, "Failed to flush QEMUFile: ");
-        return ret;
+        return false;
     }
 
-    return 0;
+    return true;
 }
 
 static void qemu_savevm_query_pending(MigrationState *s,
@@ -1928,7 +1925,9 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
         goto cleanup;
     }
 
-    ret = qemu_savevm_state_complete_precopy(ms, errp);
+    if (!qemu_savevm_state_complete_precopy(ms, errp)) {
+        ret = -1;
+    }
 cleanup:
     qemu_savevm_state_cleanup();
 
@@ -1962,9 +1961,8 @@ int qemu_save_device_state(QEMUFile *f, Error **errp)
         return ret;
     }
 
-    ret = qemu_savevm_state_non_iterable(f, errp);
-    if (ret) {
-        return ret;
+    if (!qemu_savevm_state_non_iterable(f, errp)) {
+        return -1;
     }
 
     qemu_savevm_state_end(f);
