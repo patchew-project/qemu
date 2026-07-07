@@ -31,6 +31,7 @@ endif
 tests_x86_64_system_thorough = [
   'acpi_bits',
   'hotplug_blk',
+  'hotplug_scsi',
   'hotplug_cpu',
   'intel_iommu',
   'kvm_xen',
