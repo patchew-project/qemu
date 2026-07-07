@@ -333,8 +333,6 @@ static uint32_t flexcan_get_bitrate(FlexcanState *s)
 
     uint32_t pe_freq, s_freq, bitrate;
 
-    assert(s->ccm);
-
     /* s_freq: CAN clock from CCM divided by the prescaler */
     pe_freq = imx_ccm_get_clock_frequency(s->ccm, CLK_CAN);
     s_freq = pe_freq / (1 + conf_presdiv);
@@ -1346,6 +1344,12 @@ static void flexcan_realize(DeviceState *dev, Error **errp)
         }
     }
 
+    if (!s->ccm) {
+        error_setg(errp, "%s 'clock-control-module' link property not set",
+                   dev->canonical_path);
+        return;
+    }
+
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
     sysbus_init_irq(SYS_BUS_DEVICE(SYS_BUS_DEVICE(dev)), &s->irq);
 }
@@ -1366,6 +1370,8 @@ static const VMStateDescription vmstate_can = {
 static const Property flexcan_properties[] = {
     DEFINE_PROP_LINK("canbus", FlexcanState, canbus, TYPE_CAN_BUS,
                      CanBusState *),
+    DEFINE_PROP_LINK("clock-control-module", FlexcanState, ccm, TYPE_IMX_CCM,
+                     IMXCCMState *),
 };
 
 static void flexcan_class_init(ObjectClass *klass, const void *data)
