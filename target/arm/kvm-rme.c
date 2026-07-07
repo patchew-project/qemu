@@ -22,8 +22,16 @@
 #define TYPE_RME_GUEST "rme-guest"
 OBJECT_DECLARE_SIMPLE_TYPE(RmeGuest, RME_GUEST)
 
+#define RME_PAGE_SIZE qemu_real_host_page_size()
+
+typedef struct {
+    hwaddr base;
+    hwaddr size;
+} RmeRamRegion;
+
 struct RmeGuest {
     ConfidentialGuestSupport parent_obj;
+    RmeRamRegion init_ram;
 };
 
 OBJECT_DEFINE_SIMPLE_TYPE_WITH_INTERFACES(RmeGuest, rme_guest, RME_GUEST,
@@ -89,6 +97,16 @@ int kvm_arm_rme_init(MachineState *ms, KVMState *s)
     cgs->require_guest_memfd = true;
     cgs->ready = true;
     return 0;
+}
+
+void kvm_arm_rme_init_guest_ram(hwaddr base, size_t size)
+{
+    if (!rme_guest) {
+        return;
+    }
+
+    rme_guest->init_ram.base = base;
+    rme_guest->init_ram.size = size;
 }
 
 void kvm_arm_rme_vcpu_init(ARMCPU *cpu)
