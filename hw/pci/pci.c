@@ -62,6 +62,7 @@ static char *pcibus_get_dev_path(DeviceState *dev);
 static char *pcibus_get_fw_dev_path(DeviceState *dev);
 static void pcibus_reset_hold(Object *obj, ResetType type);
 static bool pcie_has_upstream_port(PCIDevice *dev);
+static bool pci_bus_is_full(const BusState *qbus);
 
 static void prop_pci_busnr_get(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
@@ -293,6 +294,7 @@ static void pci_bus_class_init(ObjectClass *klass, const void *data)
     k->print_dev = pcibus_dev_print;
     k->get_dev_path = pcibus_get_dev_path;
     k->get_fw_dev_path = pcibus_get_fw_dev_path;
+    k->is_full = pci_bus_is_full;
     k->realize = pci_bus_realize;
     k->unrealize = pci_bus_unrealize;
 
@@ -1327,6 +1329,21 @@ void pci_bus_set_slot_reserved_mask(PCIBus *bus, uint32_t mask)
 void pci_bus_clear_slot_reserved_mask(PCIBus *bus, uint32_t mask)
 {
     bus->slot_reserved_mask &= ~mask;
+}
+
+static bool pci_bus_is_full(const BusState *qbus)
+{
+    const PCIBus *bus = PCI_BUS(qbus);
+
+    for (int i = 0; i < PCI_DEVFN_MAX; i += PCI_FUNC_MAX) {
+        if (pci_bus_devfn_reserved(bus, i)) {
+            continue;
+        }
+        if (pci_bus_devfn_available(bus, i)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 /* -1 for devfn means auto assign */
