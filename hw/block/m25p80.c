@@ -1057,6 +1057,23 @@ static uint8_t macronix_extract_cfg_dummy_bytes(Flash *s, uint8_t bus_width)
     return dummy_bits / 8;
 }
 
+static uint8_t spansion_extract_cfg_dummy_bytes(Flash *s, uint8_t bus_width)
+{
+    uint8_t dummy_bits;
+
+    dummy_bits = extract32(s->spansion_cr2v, SPANSION_DUMMY_CLK_POS,
+                            SPANSION_DUMMY_CLK_LEN);
+    dummy_bits *= bus_width;
+
+    /*
+     * Assert that the dummy bit count is byte-aligned
+     * as SSI core can only consume whole dummy bytes.
+     */
+    assert(dummy_bits % 8 == 0);
+
+    return dummy_bits / 8;
+}
+
 static void decode_fast_read_cmd(Flash *s)
 {
     s->needed_bytes = get_addr_length(s);
@@ -1075,10 +1092,7 @@ static void decode_fast_read_cmd(Flash *s)
         s->needed_bytes += macronix_extract_cfg_dummy_bytes(s, 1);
         break;
     case MAN_SPANSION:
-        s->needed_bytes += extract32(s->spansion_cr2v,
-                                    SPANSION_DUMMY_CLK_POS,
-                                    SPANSION_DUMMY_CLK_LEN
-                                    );
+        s->needed_bytes += spansion_extract_cfg_dummy_bytes(s, 1);
         break;
     case MAN_ISSI:
         /*
@@ -1111,10 +1125,7 @@ static void decode_dio_read_cmd(Flash *s)
         break;
     case MAN_SPANSION:
         s->needed_bytes += SPANSION_CONTINUOUS_READ_MODE_CMD_LEN;
-        s->needed_bytes += extract32(s->spansion_cr2v,
-                                    SPANSION_DUMMY_CLK_POS,
-                                    SPANSION_DUMMY_CLK_LEN
-                                    );
+        s->needed_bytes += spansion_extract_cfg_dummy_bytes(s, 2);
         break;
     case MAN_NUMONYX:
         s->needed_bytes += numonyx_extract_cfg_dummy_bytes(s);
@@ -1151,10 +1162,7 @@ static void decode_qio_read_cmd(Flash *s)
         break;
     case MAN_SPANSION:
         s->needed_bytes += SPANSION_CONTINUOUS_READ_MODE_CMD_LEN;
-        s->needed_bytes += extract32(s->spansion_cr2v,
-                                    SPANSION_DUMMY_CLK_POS,
-                                    SPANSION_DUMMY_CLK_LEN
-                                    );
+        s->needed_bytes += spansion_extract_cfg_dummy_bytes(s, 4);
         break;
     case MAN_NUMONYX:
         s->needed_bytes += numonyx_extract_cfg_dummy_bytes(s);
