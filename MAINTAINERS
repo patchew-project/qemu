@@ -281,6 +281,8 @@ F: tests/tcg/hppa/
 
 LoongArch TCG CPUs
 M: Song Gao <17746591750@163.com>
+M: Bibo Mao <maobibo@loongson.cn>
+R: Xianglai Li <lixianglai@loongson.cn>
 S: Maintained
 F: target/loongarch/
 F: tests/docker/dockerfiles/debian-loongarch-cross.docker
@@ -1362,6 +1364,7 @@ LoongArch Machines
 Virt
 M: Song Gao <17746591750@163.com>
 M: Bibo Mao <maobibo@loongson.cn>
+R: Xianglai Li <lixianglai@loongson.cn>
 R: Jiaxun Yang <jiaxun.yang@flygoat.com>
 S: Maintained
 F: docs/system/loongarch/virt.rst
