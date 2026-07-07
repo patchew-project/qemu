@@ -377,6 +377,11 @@ bool ati_host_data_flush(ATIVGAState *s)
 
     setup_2d_blt_ctx(s, &ctx);
 
+    if (!ctx.bpp) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "host_data_blt: invalid bpp from datatype\n");
+        return false;
+    }
     if (ctx.bpp == 24) {
         qemu_log_mask(LOG_UNIMP,
                       "host_data_blt: unsupported in 24 bits mode\n");
