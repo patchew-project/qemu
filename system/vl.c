@@ -1252,7 +1252,6 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
 
 static void monitor_parse(const char *str, const char *mode, bool pretty)
 {
-    static int monitor_device_index = 0;
     QemuOpts *opts;
     const char *p;
     char label[32];
@@ -1260,8 +1259,9 @@ static void monitor_parse(const char *str, const char *mode, bool pretty)
     if (strstart(str, "chardev:", &p)) {
         snprintf(label, sizeof(label), "%s", p);
     } else {
-        snprintf(label, sizeof(label), "compat_monitor%d",
-                 monitor_device_index);
+        g_autofree char *id = monitor_compat_id();
+        assert(strlen(id) < sizeof(label));
+        memcpy(label, id, strlen(id) + 1);
         opts = qemu_chr_parse_compat(label, str, true);
         if (!opts) {
             error_report("parse error: %s", str);
@@ -1277,7 +1277,6 @@ static void monitor_parse(const char *str, const char *mode, bool pretty)
     } else {
         assert(pretty == false);
     }
-    monitor_device_index++;
 }
 
 struct device_config {
