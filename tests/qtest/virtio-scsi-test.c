@@ -9,6 +9,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/bswap.h"
 #include "libqtest-single.h"
 #include "qemu/module.h"
 #include "scsi/constants.h"
@@ -236,6 +237,37 @@ static void test_unmap_large_lba(void *obj, void *data,
     qvirtio_scsi_pci_free(vs);
 }
 
+static void test_unmap_multiple_descriptors(void *obj, void *data,
+                                            QGuestAllocator *t_alloc)
+{
+    enum { NUM_DESCRIPTORS = 64 };
+    QVirtioSCSI *scsi = obj;
+    QVirtioSCSIQueues *vs;
+    uint8_t unmap[VIRTIO_SCSI_CDB_SIZE] = { 0x42 };
+    uint8_t unmap_params[8 + NUM_DESCRIPTORS * 16] = { 0 };
+    struct virtio_scsi_cmd_resp resp;
+    int i;
+
+    stw_be_p(&unmap_params[0], sizeof(unmap_params) - 2);
+    stw_be_p(&unmap_params[2], NUM_DESCRIPTORS * 16);
+    for (i = 0; i < NUM_DESCRIPTORS; i++) {
+        stq_be_p(&unmap_params[8 + i * 16], i * 2);
+        stl_be_p(&unmap_params[16 + i * 16], 1);
+    }
+    unmap[7] = sizeof(unmap_params) >> 8;
+    unmap[8] = sizeof(unmap_params) & 0xff;
+
+    alloc = t_alloc;
+    vs = qvirtio_scsi_init(scsi->vdev);
+
+    virtio_scsi_do_command(vs, unmap, NULL, 0, unmap_params,
+                           sizeof(unmap_params), &resp);
+    g_assert_cmphex(resp.response, ==, 0);
+    g_assert_cmphex(resp.status, !=, CHECK_CONDITION);
+
+    qvirtio_scsi_pci_free(vs);
+}
+
 static void test_write_to_cdrom(void *obj, void *data,
                                 QGuestAllocator *t_alloc)
 {
@@ -398,6 +430,10 @@ static void register_virtio_scsi_test(void)
     opts.before = virtio_scsi_setup_4k;
     qos_add_test("large-lba-unmap", "virtio-scsi",
                  test_unmap_large_lba, &opts);
+
+    opts.before = virtio_scsi_setup;
+    qos_add_test("multiple-descriptor-unmap", "virtio-scsi",
+                 test_unmap_multiple_descriptors, &opts);
 
     opts.before = virtio_scsi_setup_cd;
     qos_add_test("write-to-cdrom", "virtio-scsi", test_write_to_cdrom, &opts);
