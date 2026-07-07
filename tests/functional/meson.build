@@ -78,8 +78,7 @@ foreach speed : ['quick', 'thorough']
     test_env.set('MESON_BUILD_ROOT', meson.project_build_root())
     test_env.prepend('PYTHONPATH',
                      meson.project_source_root() / 'python',
-                     meson.current_source_dir(),
-                     separator : ':')
+                     meson.current_source_dir())
 
     # Define the GDB environment variable if gdb is available.
     gdb = get_option('gdb')
@@ -101,8 +100,7 @@ foreach speed : ['quick', 'thorough']
       test_precache_env.set('MESON_BUILD_ROOT', meson.project_build_root())
       test_precache_env.prepend('PYTHONPATH',
                                 meson.project_source_root() / 'python',
-                                meson.current_source_dir(),
-                                separator : ':')
+                                meson.current_source_dir())
       precache = custom_target('func-precache-' + testname,
                                output: teststamp,
                                command: [python, testpath],
