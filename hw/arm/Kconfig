@@ -601,6 +601,7 @@ config FSL_IMX8MP
     imply I2C_DEVICES
     imply PCI_DEVICES
     select ARM_GIC
+    select CAN_FLEXCAN
     select FSL_IMX8MP_ANALOG
     select FSL_IMX8MP_CCM
     select IMX
