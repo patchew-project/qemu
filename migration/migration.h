@@ -496,12 +496,12 @@ struct MigrationState {
      * migration progresses, the devices on the destination acknowledge
      * switchover, decreasing the counter. When the counter reaches zero, a
      * single ACK message is sent to the source via the return path, indicating
-     * that it's OK to switchover.
+     * that it's OK to switch over.
      *
      * In new switchover-ack, the source is the one that keeps track of a
      * pending ACKs counter. As migration progresses, the destination sends ACK
      * message per-device via the return path, which decrements the source
-     * counter. When the counter reaches zero, it's OK to switchover. During
+     * counter. When the counter reaches zero, it's OK to switch over. During
      * precopy, source-side devices may request additional ACKs, which increment
      * the counter again.
      *
@@ -521,7 +521,7 @@ struct MigrationState {
     /*
      * Indicates the number of pending ACKs from the destination. The value may
      * increase or decrease during precopy as new ACKs are requested or
-     * received. When zero is reached, it's OK to switchover. In legacy
+     * received. When zero is reached, it's OK to switch over. In legacy
      * switchover-ack, it's initialized to 1 and decreased to zero upon ACK.
      */
     uint32_t switchover_ack_pending_num;

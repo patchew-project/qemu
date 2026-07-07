@@ -3293,7 +3293,7 @@ static bool migration_iteration_next_ready(MigrationState *s,
                                            MigPendingData *pending)
 {
     /*
-     * If the estimated values already suggest us to switchover, mark this
+     * If the estimated values already suggest us to switch over, mark this
      * iteration finished, time to do a slow sync.
      */
     if (pending->total_bytes <= s->threshold_size) {
@@ -3418,7 +3418,7 @@ static MigIterateState migration_iteration_run(MigrationState *s)
             migration_iteration_go_next(s, &pending);
         }
 
-        /* Check can switchover after qemu_savevm_query_pending() */
+        /* Check if we can switch over after qemu_savevm_query_pending() */
         can_switchover = migration_can_switchover(s);
 
         /* Should we switch to postcopy now? */
