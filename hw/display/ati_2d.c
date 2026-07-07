@@ -452,7 +452,6 @@ bool ati_host_data_flush(ATIVGAState *s)
     }
 
     /* Track state of the overall blit for use by the next flush */
-    s->host_data.next = 0;
     s->host_data.row = row;
     s->host_data.col = col;
     if (s->host_data.row >= ctx.dst.height) {
