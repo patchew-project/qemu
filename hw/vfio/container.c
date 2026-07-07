@@ -15,7 +15,6 @@
 #include <linux/vfio.h>
 
 #include "system/tcg.h"
-#include "system/ramblock.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/vfio/vfio-container.h"
@@ -74,49 +73,12 @@ void vfio_address_space_insert(VFIOAddressSpace *space,
     bcontainer->space = space;
 }
 
-static bool vfio_container_can_dma_map_file(VFIOContainer *bcontainer,
-                                            MemoryRegion *mr, int *fd)
-{
-    VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
-    RAMBlock *rb = mr->ram_block;
-
-    if (!vioc->dma_map_file || !rb) {
-        return false;
-    }
-
-    *fd = qemu_ram_get_fd(rb);
-    if (*fd < 0) {
-        return false;
-    }
-
-    /*
-     * We can use IOMMU DMA mapping (IOMMU_IOAS_MAP_FILE) for :
-     *
-     * 1) Guest RAM blocks explicitly configured as shared (MAP_SHARED)
-     * 2) RAM device sub-regions (MMIO BARs)
-     *
-     * Private RAM mappings (MAP_PRIVATE) are strictly excluded. Because
-     * they are subject to copy-on-write (COW) anomalies, their underlying
-     * PFNs can permanently diverge from the backing file
-     */
-    return qemu_ram_is_shared(rb) || memory_region_is_ram_device(mr);
-}
-
 int vfio_container_dma_map(VFIOContainer *bcontainer,
                            hwaddr iova, uint64_t size,
                            void *vaddr, bool readonly, MemoryRegion *mr)
 {
     VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
-    int mfd;
 
-    if (vfio_container_can_dma_map_file(bcontainer, mr, &mfd)) {
-        RAMBlock *rb = mr->ram_block;
-        unsigned long start = vaddr - qemu_ram_get_host_addr(rb);
-        unsigned long offset = qemu_ram_get_fd_offset(rb);
-
-        return vioc->dma_map_file(bcontainer, iova, size, mfd, start + offset,
-                                  readonly);
-    }
     g_assert(vioc->dma_map);
     return vioc->dma_map(bcontainer, iova, size, vaddr, readonly, mr);
 }

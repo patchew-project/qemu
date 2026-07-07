@@ -173,21 +173,6 @@ struct VFIOIOMMUClass {
                    hwaddr iova, uint64_t size,
                    void *vaddr, bool readonly, MemoryRegion *mr);
     /**
-     * @dma_map_file
-     *
-     * Map a file range for the container.
-     *
-     * @bcontainer: #VFIOContainer to use for map
-     * @iova: start address to map
-     * @size: size of the range to map
-     * @fd: descriptor of the file to map
-     * @start: starting file offset of the range to map
-     * @readonly: map read only if true
-     */
-    int (*dma_map_file)(const VFIOContainer *bcontainer,
-                        hwaddr iova, uint64_t size,
-                        int fd, unsigned long start, bool readonly);
-    /**
      * @dma_unmap
      *
      * Unmap an address range from the container.
