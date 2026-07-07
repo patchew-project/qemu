@@ -68,14 +68,14 @@ bool cxl_get_hb_passthrough(PCIHostState *hb)
     return host->passthrough;
 }
 
-static int pxb_bus_num(PCIBus *bus)
+static int pxb_bus_num(const PCIBus *bus)
 {
     PXBDev *pxb = PXB_DEV(bus->parent_dev);
 
     return pxb->bus_nr;
 }
 
-static uint16_t pxb_bus_numa_node(PCIBus *bus)
+static uint16_t pxb_bus_numa_node(const PCIBus *bus)
 {
     PXBDev *pxb = PXB_DEV(bus->parent_dev);
 

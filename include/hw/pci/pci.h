@@ -308,8 +308,8 @@ void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq,
                   void *irq_opaque, int nirq);
 void pci_bus_map_irqs(PCIBus *bus, pci_map_irq_fn map_irq);
 void pci_bus_irqs_cleanup(PCIBus *bus);
-int pci_bus_get_irq_level(PCIBus *bus, int irq_num);
-uint32_t pci_bus_get_slot_reserved_mask(PCIBus *bus);
+int pci_bus_get_irq_level(const PCIBus *bus, int irq_num);
+uint32_t pci_bus_get_slot_reserved_mask(const PCIBus *bus);
 void pci_bus_set_slot_reserved_mask(PCIBus *bus, uint32_t mask);
 void pci_bus_clear_slot_reserved_mask(PCIBus *bus, uint32_t mask);
 bool pci_bus_add_fw_cfg_extra_pci_roots(FWCfgState *fw_cfg,
@@ -345,14 +345,14 @@ static inline PCIBus *pci_get_bus(const PCIDevice *dev)
 {
     return PCI_BUS(qdev_get_parent_bus(DEVICE(dev)));
 }
-int pci_bus_num(PCIBus *s);
-void pci_bus_range(PCIBus *bus, int *min_bus, int *max_bus);
+int pci_bus_num(const PCIBus *s);
+void pci_bus_range(const PCIBus *bus, int *min_bus, int *max_bus);
 static inline int pci_dev_bus_num(const PCIDevice *dev)
 {
     return pci_bus_num(pci_get_bus(dev));
 }
 
-int pci_bus_numa_node(PCIBus *bus);
+int pci_bus_numa_node(const PCIBus *bus);
 void pci_for_each_device(PCIBus *bus, int bus_num,
                          pci_bus_dev_fn fn,
                          void *opaque);

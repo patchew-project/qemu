@@ -225,7 +225,7 @@ static void pci_bus_unrealize(BusState *qbus)
     vmstate_unregister(NULL, &vmstate_pcibus, bus);
 }
 
-static int pcibus_num(PCIBus *bus)
+static int pcibus_num(const PCIBus *bus)
 {
     if (pci_bus_is_root(bus)) {
         return 0; /* pci host bridge */
@@ -233,7 +233,7 @@ static int pcibus_num(PCIBus *bus)
     return bus->parent_dev->config[PCI_SECONDARY_BUS];
 }
 
-static uint16_t pcibus_numa_node(PCIBus *bus)
+static uint16_t pcibus_numa_node(const PCIBus *bus)
 {
     return NUMA_NODE_UNASSIGNED;
 }
@@ -411,7 +411,7 @@ static void pci_change_irq_level(PCIDevice *pci_dev, int irq_num, int change)
     pci_bus_change_irq_level(bus, irq_num, change);
 }
 
-int pci_bus_get_irq_level(PCIBus *bus, int irq_num)
+int pci_bus_get_irq_level(const PCIBus *bus, int irq_num)
 {
     assert(irq_num >= 0);
     assert(irq_num < bus->nirq);
@@ -781,13 +781,13 @@ void pci_unregister_root_bus(PCIBus *bus)
     pci_root_bus_cleanup(bus);
 }
 
-int pci_bus_num(PCIBus *s)
+int pci_bus_num(const PCIBus *s)
 {
     return PCI_BUS_GET_CLASS(s)->bus_num(s);
 }
 
 /* Returns the min and max bus numbers of a PCI bus hierarchy */
-void pci_bus_range(PCIBus *bus, int *min_bus, int *max_bus)
+void pci_bus_range(const PCIBus *bus, int *min_bus, int *max_bus)
 {
     int i;
     *min_bus = *max_bus = pci_bus_num(bus);
@@ -802,7 +802,7 @@ void pci_bus_range(PCIBus *bus, int *min_bus, int *max_bus)
     }
 }
 
-int pci_bus_numa_node(PCIBus *bus)
+int pci_bus_numa_node(const PCIBus *bus)
 {
     return PCI_BUS_GET_CLASS(bus)->numa_node(bus);
 }
@@ -1304,17 +1304,17 @@ uint16_t pci_requester_id(PCIDevice *dev)
     return pci_req_id_cache_extract(&dev->requester_id_cache);
 }
 
-static bool pci_bus_devfn_available(PCIBus *bus, int devfn)
+static bool pci_bus_devfn_available(const PCIBus *bus, int devfn)
 {
     return !(bus->devices[devfn]);
 }
 
-static bool pci_bus_devfn_reserved(PCIBus *bus, int devfn)
+static bool pci_bus_devfn_reserved(const PCIBus *bus, int devfn)
 {
     return bus->slot_reserved_mask & (1UL << PCI_SLOT(devfn));
 }
 
-uint32_t pci_bus_get_slot_reserved_mask(PCIBus *bus)
+uint32_t pci_bus_get_slot_reserved_mask(const PCIBus *bus)
 {
     return bus->slot_reserved_mask;
 }
