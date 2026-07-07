@@ -212,7 +212,9 @@ static inline uint32_t *tegra241_cmdqv_vintf_lvcmdq_ptr(Tegra241CMDQV *cmdqv,
 /*
  * Flush cached register writes into the mmap'd host VINTF page0 after a
  * successful HW_QUEUE_ALLOC, so the guest's earlier writes survive
- * the cache-to-hardware transition.
+ * the cache-to-hardware transition. GERRORN is intentionally not synced,
+ * as overwriting it with the cached value could recreate a GERROR != GERRORN
+ * mismatch and stall the VCMDQ.
  */
 static void tegra241_cmdqv_sync_vcmdq(Tegra241CMDQV *cmdqv, int index)
 {
@@ -229,9 +231,6 @@ static void tegra241_cmdqv_sync_vcmdq(Tegra241CMDQV *cmdqv, int index)
 
     ptr = tegra241_cmdqv_vintf_lvcmdq_ptr(cmdqv, index, A_VCMDQ0_CONFIG);
     *ptr = cmdqv->vcmdq_config[index];
-
-    ptr = tegra241_cmdqv_vintf_lvcmdq_ptr(cmdqv, index, A_VCMDQ0_GERRORN);
-    *ptr = cmdqv->vcmdq_gerrorn[index];
 }
 
 /*
