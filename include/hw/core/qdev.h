@@ -345,6 +345,11 @@ struct BusClass {
      */
     bool (*check_address)(BusState *bus, DeviceState *dev, Error **errp);
 
+    /*
+     * Return whether more devices can be plugged into @bus.
+     */
+    bool (*is_full)(const BusState *bus);
+
     BusRealize realize;
     BusUnrealize unrealize;
 

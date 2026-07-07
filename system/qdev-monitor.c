@@ -454,6 +454,9 @@ static inline bool qbus_is_full(BusState *bus)
         return true;
     }
     bus_class = BUS_GET_CLASS(bus);
+    if (bus_class->is_full && bus_class->is_full(bus)) {
+        return true;
+    }
     return bus_class->max_dev && bus->num_children >= bus_class->max_dev;
 }
 
