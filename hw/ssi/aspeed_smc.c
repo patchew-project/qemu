@@ -449,19 +449,28 @@ static uint32_t aspeed_smc_check_segment_addr(const AspeedSMCFlash *fl,
     return addr;
 }
 
-static int aspeed_smc_flash_dummies(const AspeedSMCFlash *fl)
+static int aspeed_smc_flash_dummy_bytes(const AspeedSMCFlash *fl)
 {
     const AspeedSMCState *s = fl->controller;
     uint32_t r_ctrl0 = s->regs[s->r_ctrl0 + fl->cs];
     uint32_t dummy_high = (r_ctrl0 >> CTRL_DUMMY_HIGH_SHIFT) & 0x1;
     uint32_t dummy_low = (r_ctrl0 >> CTRL_DUMMY_LOW_SHIFT) & 0x3;
-    uint32_t dummies = ((dummy_high << 2) | dummy_low) * 8;
+    uint32_t dummy_bytes = (dummy_high << 2) | dummy_low;
 
-    if (r_ctrl0 & CTRL_IO_DUAL_ADDR_DATA) {
-        dummies /= 2;
+    /*
+     * Scale the controller dummy field to SSI byte transfers using the
+     * direct-read dummy/address bus width.
+     */
+    if ((r_ctrl0 & CTRL_IO_QPI) ||
+        ((r_ctrl0 & CTRL_IO_QUAD_DATA) &&
+         (r_ctrl0 & CTRL_IO_QUAD_ADDR_DATA))) {
+        dummy_bytes *= 4;
+    } else if ((r_ctrl0 & CTRL_IO_DUAL_DATA) &&
+               (r_ctrl0 & CTRL_IO_DUAL_ADDR_DATA)) {
+        dummy_bytes *= 2;
     }
 
-    return dummies;
+    return dummy_bytes;
 }
 
 static void aspeed_smc_flash_setup(AspeedSMCFlash *fl, uint32_t addr)
@@ -487,7 +496,7 @@ static void aspeed_smc_flash_setup(AspeedSMCFlash *fl, uint32_t addr)
      * settings, let's check for fast read mode.
      */
     if (aspeed_smc_flash_mode(fl) == CTRL_FREADMODE) {
-        for (i = 0; i < aspeed_smc_flash_dummies(fl); i++) {
+        for (i = 0; i < aspeed_smc_flash_dummy_bytes(fl); i++) {
             ssi_transfer(fl->controller->spi, s->regs[R_DUMMY_DATA] & 0xff);
         }
     }
