@@ -2,13 +2,12 @@
 # unconditionally installed at configure time are handled in configure
 # instead; namely: meson, sphinx, and the tooling groups.
 
-# Note that this command may or may not include the "--online" flag
-# based on configuration.
-ensuregroup_cmd = config_host['MKVENV_ENSUREGROUP'].split()
+mkvenv = meson.project_source_root() / 'python/scripts/mkvenv.py'
+ensuregroup_cmd = [python, mkvenv, 'ensuregroup']
 
 pyvenv_common_deps = files(
     meson.project_source_root() + '/pythondeps.toml',
-    meson.project_source_root() + '/python/scripts/mkvenv.py'
+    mkvenv,
 )
 pyvenv_wheel_dir = meson.project_source_root() + '/python/wheels'
 
