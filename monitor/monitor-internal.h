@@ -116,6 +116,11 @@ struct MonitorClass {
      * notifications back to the client
      */
     void (*emit_event)(Monitor *mon, QAPIEvent event, QDict *qdict);
+    /*
+     * If non-NULL, perform any actions needed to prepare
+     * the monitor to accept further client input
+     */
+    void (*accept_input)(Monitor *mon);
 };
 
 struct Monitor {
