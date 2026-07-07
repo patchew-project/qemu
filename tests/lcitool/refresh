@@ -111,7 +111,8 @@ RUN apk add clang19-libclang
 # test
 debian13_extras = r"""
 # netmap/cscope/global
-RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+RUN apt update && \
+  DEBIAN_FRONTEND=noninteractive eatmydata \
   apt install -y --no-install-recommends \
   cscope\
   global\
