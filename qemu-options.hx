@@ -4154,7 +4154,7 @@ The general form of a character device option is:
     ::
 
         -chardev stdio,mux=on,id=char0 \
-        -mon chardev=char0,mode=readline \
+        -object monitor-hmp,id=hmp0,chardev=char0 \
         -serial chardev:char0 \
         -serial chardev:char0
 
@@ -4166,7 +4166,7 @@ The general form of a character device option is:
     ::
 
         -chardev stdio,mux=on,id=char0 \
-        -mon chardev=char0,mode=readline \
+        -object monitor-hmp,id=hmp0,chardev=char0 \
         -parallel chardev:char0 \
         -chardev tcp,...,mux=on,id=char1 \
         -serial chardev:char1 \
@@ -5004,12 +5004,12 @@ SRST
 
     enables the QMP monitor on localhost port 4444 with pretty-printing.
 
-    The use of ``-mon mode=readline`` is syntactic sugar
+    The use of ``-mon mode=readline`` is deprecated syntactic sugar
     for the new ``-object monitor-hmp`` option, each use of which
     creates an object with the ID ``compat_monitorNNN`` where ``NNN`` is
     a counter starting from 0.
 
-    The use of ``-mon mode=control`` is syntactic sugar
+    The use of ``-mon mode=control`` is deprecated syntactic sugar
     for the new ``-object monitor-qmp`` option, each use of which
     creates an object with the ID ``compat_monitorNNN`` where ``NNN`` is
     a counter starting from 0.
@@ -5771,8 +5771,7 @@ SRST
         to dynamically delete the monitor at runtime. Note
         that monitors created using the historical syntax
         will be allocated IDs following the pattern ``compat_monmitorNNN``.
-        Mixing ``-object`` with ``-monitor`` and ``-mon`` syntax is
-        discouraged.
+        Mixing ``-object`` with ``-monitor`` syntax is discouraged.
 
         The ``readline`` parameter, which defaults to ``on``,
         controls whether the monitor provides line editing.
@@ -5785,8 +5784,8 @@ SRST
         to dynamically delete the monitor at runtime. Note
         that monitors created using the historical syntax
         will be allocated IDs following the pattern ``compat_monitorNNN``.
-        Mixing ``-object`` with ``-qmp``, ``-qmp-pretty`` and
-        ``-mon`` syntax is discouraged.
+        Mixing ``-object`` with ``-qmp`` and ``-qmp-pretty``
+        syntax is discouraged.
 
         The ``pretty`` parameter, which defaults to ``off``,
         controls whether the monitor responses are pretty
