@@ -3672,6 +3672,7 @@ F: docs/interop/*qmp-*
 F: scripts/qmp/
 F: tests/qtest/qmp-test.c
 F: tests/qtest/qmp-cmd-test.c
+F: tests/functional/generic/test_monitor_hotplug.py
 T: git https://repo.or.cz/qemu/armbru.git qapi-next
 
 qtest
