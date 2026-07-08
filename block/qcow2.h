@@ -298,6 +298,8 @@ typedef struct Qcow2ZoneWPState {
     QTAILQ_HEAD(, Qcow2WPReq) in_flight;
     /* PENDING reqs, sorted by lba */
     QTAILQ_HEAD(, Qcow2WPReq) completed_pending;
+    /* zone mgmt ops wait here until in_flight has drained */
+    CoQueue drain;
 } Qcow2ZoneWPState;
 
 typedef struct Qcow2UnknownHeaderExtension {
