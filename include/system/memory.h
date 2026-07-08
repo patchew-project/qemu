@@ -2609,24 +2609,80 @@ void address_space_flush_icache_range(AddressSpace *as,
 IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
                                             bool is_write, MemTxAttrs attrs);
 
-/* address_space_translate: translate an address range into an address space
- * into a MemoryRegion and an address range into that section.  Should be
- * called from an RCU critical section, to avoid that the last reference
- * to the returned region disappears after address_space_translate returns.
+/**
+ * flatview_translate_section: Translate a guest physical address range
+ * to the corresponding #MemoryRegionSection in a FlatView.
  *
- * @fv: #FlatView to be accessed
- * @addr: address within that address space
- * @xlat: pointer to address within the returned memory region section's
+ * Must be called within an RCU critical section to prevent the last
+ * reference to the memory region (referenced by the returned section)
+ * from disappearing after the function returns.
+ *
+ * @fv: The FlatView to be accessed.
+ * @addr: The address to be translated within the given FlatView.
+ * @xlat: The translated address offset within the returned section's
  * #MemoryRegion.
- * @len: pointer to length
- * @is_write: indicates the transfer direction
- * @attrs: memory attributes
+ * @len: Pointer to the length. On return, this will be updated to the
+ * valid read/write length of the translated address range.
+ * @is_write: Indicates the transfer direction.
+ * @attrs: Memory attributes.
+ *
+ * Returns:
+ * The #MemoryRegionSection that contains the translated address.
+ */
+MemoryRegionSection *flatview_translate_section(FlatView *fv, hwaddr addr,
+                                                hwaddr *xlat, hwaddr *len,
+                                                bool is_write, MemTxAttrs attrs);
+
+/**
+ * flatview_translate: Translate a guest physical address range
+ * to the corresponding #MemoryRegionSection in a FlatView.
+ *
+ * Must be called within an RCU critical section to prevent the last
+ * reference to the returned memory region from disappearing after
+ * the function returns.
+ *
+ * This function is a variant of flatview_translate_section(), with the
+ * difference that it returns the #MemoryRegion contained in the
+ * #MemoryRegionSection.
+ *
+ * @fv: The FlatView to be accessed.
+ * @addr: The address to be translated within the given FlatView.
+ * @xlat: The translated address offset within the returned #MemoryRegion.
+ * @len: Pointer to the length. On return, this will be updated to the
+ * valid read/write length of the translated address range.
+ * @is_write: Indicates whether the translation operation is for a write.
+ * @attrs: Memory transaction attributes.
+ *
+ * Returns:
+ * The #MemoryRegion that contains the translated address.
  */
 MemoryRegion *flatview_translate(FlatView *fv,
                                  hwaddr addr, hwaddr *xlat,
                                  hwaddr *len, bool is_write,
                                  MemTxAttrs attrs);
 
+/**
+ * address_space_translate: Translate a guest physical address range
+ * to the corresponding #MemoryRegionSection in a FlatView.
+ *
+ * Must be called within an RCU critical section to prevent the last
+ * reference to the returned memory region from disappearing after
+ * the function returns.
+ *
+ * This function is a variant of flatview_translate(), with the difference
+ * that it operates on an #AddressSpace rather than a #FlatView directly.
+ *
+ * @as: The #AddressSpace to be accessed.
+ * @addr: The address to be translated within the given address space.
+ * @xlat: The translated address offset within the returned #MemoryRegion.
+ * @len: Pointer to the length. On return, this will be updated to the
+ * valid read/write length of the translated address range.
+ * @is_write: Indicates whether the translation operation is for a write.
+ * @attrs: Memory transaction attributes.
+ *
+ * Returns:
+ * The #MemoryRegion that contains the translated address.
+ */
 static inline MemoryRegion *address_space_translate(AddressSpace *as,
                                                     hwaddr addr, hwaddr *xlat,
                                                     hwaddr *len, bool is_write,
