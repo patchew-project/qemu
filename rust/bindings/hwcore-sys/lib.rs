@@ -26,7 +26,7 @@ use qom_sys::{
     InterfaceClass, Object, ObjectClass, ObjectProperty, ObjectPropertyAccessor,
     ObjectPropertyRelease,
 };
-use util_sys::{Error, QDict, QList};
+use util_sys::{rcu_head, Error, QDict, QList};
 
 #[cfg(MESON)]
 include!("bindings.inc.rs");

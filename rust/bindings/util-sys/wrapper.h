@@ -27,6 +27,7 @@ typedef struct Visitor Visitor;
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/timer.h"
+#include "qemu/rcu.h"
 #include "qapi/visitor.h"
 #include "qobject/qbool.h"
 #include "qobject/qdict.h"
