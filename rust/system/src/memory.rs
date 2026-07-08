@@ -632,6 +632,146 @@ impl GuestMemoryRegion for MemoryRegionSection {
     }
 }
 
+/// A contiguous part of a guest address range within a single
+/// [`MemoryRegionSection`], inspired by `vm-memory`'s `VolatileSlice`.
+///
+/// QEMU cannot use `VolatileSlice` because it requires a host pointer, which
+/// is not available for MMIO regions. Instead, QEMU needs to record the
+/// `MemoryRegionSection` as the backend to support both RAM and MMIO.
+///
+/// The `(mr, mr_addr, l)` triple corresponds to the loop-local variables used
+/// in the C side's `flatview_read_continue()` and `flatview_write_continue()`.
+/// On the Rust side, these variables are encapsulated into a `FlatViewChunk`
+/// to enable an iterator-based abstraction; the remaining loop variables are
+/// stored in [`FlatViewChunkIterator`].
+#[derive(Debug)]
+struct FlatViewChunk<'a> {
+    /// The section backing this chunk.
+    region: &'a MemoryRegionSection,
+    /// Offset of this chunk within `region`.
+    region_addr: MemoryRegionAddress,
+    /// Length of this chunk, in bytes.
+    len: usize,
+}
+
+/// Iterator over the [`FlatViewChunk`]s covering a guest address range,
+/// inspired by `vm-memory`'s `GuestMemoryBackendSliceIterator`.
+///
+/// It maintains the loop state across iterations, while each
+/// [`FlatViewChunk`] describes the result of a single translation step.
+struct FlatViewChunkIterator<'a> {
+    /// The `FlatView` being iterated.
+    view: &'a FlatView,
+    /// Next guest address still to translate.
+    addr: GuestAddress,
+    /// Bytes still to cover.
+    remaining: usize,
+    /// Requested access mode: whether it is a write or not.
+    access: Permissions,
+    /// Transaction attributes.
+    attrs: MemTxAttrs,
+}
+
+impl<'a> FlatViewChunkIterator<'a> {
+    /// Helper [`Self::next`].  Get the next chunk and update the internal
+    /// state.
+    ///
+    /// This method is inspired by `vm-memory`'s
+    /// `GuestMemorySliceIterator::do_next`.
+    ///
+    /// # Safety
+    ///
+    /// Whether `self.remaining` is 0 is the key condition that determines
+    /// whether the iteration should be terminated.  This function is
+    /// responsible only for the actual execution of the iteration.  The caller
+    /// must ensure the timing and logic for resetting `self.remaining` to 0
+    /// are correct to avoid invalid memory accesses or undefined behavior.
+    unsafe fn do_next(&mut self) -> Option<GuestMemoryResult<FlatViewChunk<'a>>> {
+        if self.remaining == 0 {
+            return None;
+        }
+
+        let (region, region_addr, region_len) = match self.view.translate(
+            self.addr,
+            self.remaining as GuestUsize,
+            self.access,
+            self.attrs,
+        ) {
+            Some(t) => t,
+            None => {
+                return Some(Err(GuestMemoryError::InvalidGuestAddress(self.addr)));
+            }
+        };
+
+        if !region.is_access_allowed(region_addr, region_len, self.attrs) {
+            return Some(Err(GuestMemoryError::InvalidGuestAddress(self.addr)));
+        }
+
+        // A zero-length translation would loop forever.
+        if region_len == 0 {
+            return Some(Err(GuestMemoryError::InvalidGuestAddress(self.addr)));
+        }
+
+        self.remaining -= region_len as usize;
+        if self.remaining > 0 {
+            self.addr = match self.addr.overflowing_add(region_len) {
+                (x @ GuestAddress(0), _) | (x, false) => x,
+                (_, true) => {
+                    return Some(Err(GuestMemoryError::GuestAddressOverflow));
+                }
+            };
+        }
+
+        Some(Ok(FlatViewChunk {
+            region,
+            region_addr,
+            len: region_len as usize,
+        }))
+    }
+
+    /// Adapts the iterator to return `None` when an error occurs after
+    /// at least one successful chunk, halting iteration and yielding a
+    /// partial result.  If an error occurs on the very first chunk, it is
+    /// propagated instead.
+    ///
+    /// This method is inspired by `vm-memory`'s
+    /// `GuestMemorySliceIterator::stop_on_error`.
+    ///
+    /// For QEMU, this implementation is a trade-off. Currently, there is
+    /// no way to report the number of bytes successfully processed within
+    /// `GuestMemoryError`. Returning this partial progress would be much
+    /// more useful than simply returning a bare error type. In the future,
+    /// a richer error type carrying `(bytes_done, cause)` could replace
+    /// this method.
+    fn stop_on_error(self) -> GuestMemoryResult<impl Iterator<Item = FlatViewChunk<'a>>> {
+        let mut peek = self.peekable();
+        if let Some(err) = peek.next_if(GuestMemoryResult::is_err) {
+            return Err(err.unwrap_err());
+        }
+        Ok(peek.filter_map(GuestMemoryResult::ok))
+    }
+}
+
+impl<'a> Iterator for FlatViewChunkIterator<'a> {
+    type Item = GuestMemoryResult<FlatViewChunk<'a>>;
+
+    /// A wrapper for [`Self::do_next`] that permanently stops the iteration on
+    /// error. If an `Err` is returned, it sets `self.remaining` to 0 so that
+    /// all subsequent calls simply return `None`.
+    fn next(&mut self) -> Option<Self::Item> {
+        // SAFETY:
+        // Reset `self.remaining` to 0 on error
+        match unsafe { self.do_next() } {
+            Some(Ok(chunk)) => Some(Ok(chunk)),
+            other => {
+                // On error (or end), reset to 0 so iteration remains stopped
+                self.remaining = 0;
+                other
+            }
+        }
+    }
+}
+
 /// A safe wrapper around [`bindings::FlatView`].
 ///
 /// [`FlatView`] represents a collection of memory regions, and maps to
@@ -705,86 +845,21 @@ impl FlatView {
         ))
     }
 
-    /// Attempts to access a contiguous block of guest memory, executing a
-    /// callback for each memory region that backs the requested address
-    /// range.
-    ///
-    /// This method is the core of memory access operations.  It iterates
-    /// through each `MemoryRegionSection` that corresponds to the guest
-    /// address range [`addr`, `addr` + `count`) and invokes the provided
-    /// closure `f` for each section.
-    ///
-    /// This method is a variant of `GuestMemoryBackend::try_access()`, but it
-    /// includes additional permissions (`Permissions`) and memory transaction
-    /// attributes (`MemTxAttrs`).  Since `GuestMemoryBackend::try_access()` was
-    /// deprecated in `vm-memory` v0.18.0, `try_access_full()` is implemented
-    /// directly as an intrinsic method of [`FlatView`].
-    ///
-    /// The callback follows the `try_access()` semantics of `vm-memory`: an
-    /// `Err` stops the loop immediately.  Note that this differs from the
-    /// C side (`flatview_read_continue()` / `flatview_write_continue()`),
-    /// which accumulates `MemTxResult` errors and continues accessing
-    /// subsequent memory regions.
-    fn try_access_full<F>(
+    /// Returns a lazy iterator over the [`FlatViewChunk`]s, inspired by
+    /// vm-memory's `get_slices()`.
+    fn get_chunks(
         &self,
-        count: usize,
         addr: GuestAddress,
+        count: usize,
         access: Permissions,
         attrs: MemTxAttrs,
-        mut f: F,
-    ) -> GuestMemoryResult<usize>
-    where
-        F: FnMut(
-            usize,
-            usize,
-            MemoryRegionAddress,
-            &MemoryRegionSection,
-        ) -> GuestMemoryResult<usize>,
-    {
-        if count == 0 {
-            return Ok(count);
-        }
-
-        let mut total = 0;
-        let mut curr = addr;
-
-        while total < count {
-            let len = (count - total) as GuestUsize;
-            let (region, start, remain) = self.translate(curr, len, access, attrs).unwrap();
-
-            if !region.is_access_allowed(start, remain, attrs) {
-                return Err(GuestMemoryError::InvalidGuestAddress(addr));
-            }
-
-            match f(total, remain as usize, start, region) {
-                // no more data
-                Ok(0) => return Ok(total),
-                // made some progress
-                Ok(res) => {
-                    if res as GuestUsize > remain {
-                        return Err(GuestMemoryError::CallbackOutOfRange);
-                    }
-
-                    total = match total.checked_add(res) {
-                        Some(x) if x < count => x,
-                        Some(x) if x == count => return Ok(x),
-                        _ => return Err(GuestMemoryError::CallbackOutOfRange),
-                    };
-
-                    curr = match curr.overflowing_add(res as GuestUsize) {
-                        (x @ GuestAddress(0), _) | (x, false) => x,
-                        (_, true) => return Err(GuestMemoryError::GuestAddressOverflow),
-                    };
-                }
-                // error happened
-                e => return e,
-            }
-        }
-
-        if total == 0 {
-            Err(GuestMemoryError::InvalidGuestAddress(addr))
-        } else {
-            Ok(total)
+    ) -> FlatViewChunkIterator<'_> {
+        FlatViewChunkIterator {
+            view: self,
+            addr,
+            remaining: count,
+            access,
+            attrs,
         }
     }
 }
@@ -807,19 +882,32 @@ impl Bytes<(GuestAddress, MemTxAttrs)> for FlatView {
         buf: &[u8],
         (addr, attrs): (GuestAddress, MemTxAttrs),
     ) -> GuestMemoryResult<usize> {
-        self.try_access_full(
-            buf.len(),
-            addr,
-            Permissions::Write,
-            attrs,
-            |offset, count, caddr, region| -> GuestMemoryResult<usize> {
-                // vm-memory provides an elegent way to advance (See
-                // ReadVolatile::read_volatile), but at this moment,
-                // this simple way is enough.
-                let sub_buf = &buf[offset..offset + count];
-                Bytes::write(region, sub_buf, (caddr, attrs))
-            },
-        )
+        let completed = self
+            .get_chunks(addr, buf.len(), Permissions::Write, attrs)
+            .stop_on_error()?
+            .try_fold(0, |acc, chunk| {
+                let sub_buf = &buf[acc..acc + chunk.len];
+                let n = Bytes::write(chunk.region, sub_buf, (chunk.region_addr, attrs))?;
+                // Since the iterator has already advanced past it, the
+                // incomplete write results in the wrong buffer offset.
+                if n != chunk.len {
+                    return Err(GuestMemoryError::PartialBuffer {
+                        expected: buf.len(),
+                        completed: acc + n,
+                    });
+                }
+                Ok(acc + n)
+            })?;
+
+        // `stop_on_error` silently truncates the iterator if `next()` returns
+        // an error.  Convert this into a `PartialBuffer` error.
+        if completed != buf.len() {
+            return Err(GuestMemoryError::PartialBuffer {
+                expected: buf.len(),
+                completed,
+            });
+        }
+        Ok(completed)
     }
 
     /// Read a byte buffer from guest memory, similar to `flatview_read` on
@@ -836,27 +924,36 @@ impl Bytes<(GuestAddress, MemTxAttrs)> for FlatView {
         buf: &mut [u8],
         (addr, attrs): (GuestAddress, MemTxAttrs),
     ) -> GuestMemoryResult<usize> {
-        if buf.is_empty() {
-            return Ok(0);
-        }
+        let expected = buf.len();
+        let completed = self
+            .get_chunks(addr, expected, Permissions::Read, attrs)
+            .stop_on_error()?
+            .try_fold(0, |acc, chunk| {
+                let sub_buf = &mut buf[acc..acc + chunk.len];
+                let region = chunk
+                    .region
+                    .fuzz_dma_read(addr, sub_buf.len() as GuestUsize);
+                let n = Bytes::read(region, sub_buf, (chunk.region_addr, attrs))?;
+                // Since the iterator has already advanced past it, the
+                // incomplete read results in the wrong buffer offset.
+                if n != chunk.len {
+                    return Err(GuestMemoryError::PartialBuffer {
+                        expected,
+                        completed: acc + n,
+                    });
+                }
+                Ok(acc + n)
+            })?;
 
-        self.try_access_full(
-            buf.len(),
-            addr,
-            Permissions::Read,
-            attrs,
-            |offset, count, caddr, region| -> GuestMemoryResult<usize> {
-                // vm-memory provides an elegent way to advance (See
-                // ReadVolatile::write_volatile), but at this moment,
-                // this simple way is enough.
-                let sub_buf = &mut buf[offset..offset + count];
-                Bytes::read(
-                    region.fuzz_dma_read(addr, sub_buf.len() as GuestUsize),
-                    sub_buf,
-                    (caddr, attrs),
-                )
-            },
-        )
+        // `stop_on_error` silently truncates the iterator if `next()` returns
+        // an error.  Convert this into a `PartialBuffer` error.
+        if completed != expected {
+            return Err(GuestMemoryError::PartialBuffer {
+                expected,
+                completed,
+            });
+        }
+        Ok(completed)
     }
 
     /// Store a value into guest memory at `addr`.  It is only for internal
@@ -869,24 +966,25 @@ impl Bytes<(GuestAddress, MemTxAttrs)> for FlatView {
         (addr, attrs): (GuestAddress, MemTxAttrs),
         order: Ordering,
     ) -> GuestMemoryResult<()> {
-        self.translate(
-            addr,
-            size_of::<T>() as GuestUsize,
-            Permissions::Write,
-            attrs,
-        )
-        .ok_or(GuestMemoryError::InvalidGuestAddress(addr))
-        .and_then(|(region, region_addr, remain)| {
-            // Although the C side handles this cross-region case via MMIO
-            // by default, it is highly suspicious for store/load operations.
-            // Since Bytes::store() does not support additional arguments to
-            // identify this scenario, report an error directly!
-            if remain < size_of::<T>() as GuestUsize {
-                return Err(GuestMemoryError::InvalidBackendAddress);
-            }
+        match self
+            .get_chunks(addr, size_of::<T>(), Permissions::Write, attrs)
+            .next() // Compared to C, this includes additional checks for access and overflow.
+        {
+            None => Err(GuestMemoryError::InvalidGuestAddress(addr)),
+            Some(Err(e)) => Err(e),
+            Some(Ok(chunk)) => {
+                // Though C side handles this cross region case via MMIO
+                // by default, it still looks very suspicious for store/
+                // load. It happens Bytes::store() doesn't support more
+                // argument to identify this case, so report an error
+                // directly!
+                if chunk.len < size_of::<T>() {
+                    return Err(GuestMemoryError::InvalidBackendAddress);
+                }
 
-            Bytes::store(region, val, (region_addr, attrs), order)
-        })
+                Bytes::store(chunk.region, val, (chunk.region_addr, attrs), order)
+            }
+        }
     }
 
     /// Load a value from guest memory at `addr`.  It is only for internal
@@ -898,23 +996,28 @@ impl Bytes<(GuestAddress, MemTxAttrs)> for FlatView {
         (addr, attrs): (GuestAddress, MemTxAttrs),
         order: Ordering,
     ) -> GuestMemoryResult<T> {
-        self.translate(addr, size_of::<T>() as GuestUsize, Permissions::Read, attrs)
-            .ok_or(GuestMemoryError::InvalidGuestAddress(addr))
-            .and_then(|(region, region_addr, remain)| -> GuestMemoryResult<T> {
-                // Although the C side handles this cross-region case via MMIO
-                // by default, it is highly suspicious for store/load operations.
-                // Since Bytes::load() does not support additional arguments to
-                // identify this scenario, report an error directly!
-                if remain < size_of::<T>() as GuestUsize {
+        match self
+            .get_chunks(addr, size_of::<T>(), Permissions::Read, attrs)
+            .next() // Compared to C, this includes additional checks for access and overflow.
+        {
+            None => Err(GuestMemoryError::InvalidGuestAddress(addr)),
+            Some(Err(e)) => Err(e),
+            Some(Ok(chunk)) => {
+                // Though C side handles this cross region case via MMIO
+                // by default, it still looks very suspicious for store/
+                // load. It happens Bytes::load() doesn't support more
+                // arguments to identify this case, so report an error
+                // directly!
+                if chunk.len < size_of::<T>() {
                     return Err(GuestMemoryError::InvalidBackendAddress);
                 }
 
-                Bytes::load(
-                    region.fuzz_dma_read(addr, size_of::<T>() as GuestUsize),
-                    (region_addr, attrs),
-                    order,
-                )
-            })
+                let region = chunk
+                    .region
+                    .fuzz_dma_read(addr, size_of::<T>() as GuestUsize);
+                Bytes::load(region, (chunk.region_addr, attrs), order)
+            }
+        }
     }
 
     fn write_slice(&self, _buf: &[u8], _addr: (GuestAddress, MemTxAttrs)) -> GuestMemoryResult<()> {
