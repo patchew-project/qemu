@@ -2970,6 +2970,56 @@ MemTxResult rust_section_write_continue_step(MemoryRegionSection *section,
 MemTxResult rust_section_read_continue_step(MemoryRegionSection *section,
     MemTxAttrs attrs, uint8_t *buf, hwaddr len, hwaddr mr_addr, hwaddr *l);
 
+/**
+ * rust_section_store: Store data to a #MemoryRegionSection.
+ *
+ * Note: This function should only be used by the Rust side, and callers
+ * should not invoke it directly!
+ *
+ * This function does a single-access store without translation. @buf provides
+ * raw bytes: RAM uses direct memory copy; MMIO expects data in device
+ * endianness.
+ *
+ * Must be called within an RCU critical section.
+ *
+ * @section: The #MemoryRegionSection to be accessed.
+ * @mr_offset: The address within that memory region.
+ * @buf: Buffer containing the data to be written.
+ * @attrs: Memory transaction attributes.
+ * @len: The number of bytes to write.
+ *
+ * Returns:
+ * A MemTxResult indicating whether the operation succeeded or failed.
+ */
+MemTxResult rust_section_store(MemoryRegionSection *section,
+                               hwaddr mr_offset, const uint8_t *buf,
+                               MemTxAttrs attrs, hwaddr len);
+
+/**
+ * rust_section_load: Load data from a #MemoryRegionSection.
+ *
+ * Note: This function should only be used by the Rust side, and callers
+ * should not invoke it directly!
+ *
+ * This function does a single-access load without translation. @buf receives
+ * raw bytes: RAM uses direct memory copy; MMIO returns data in device
+ * endianness.
+ *
+ * Must be called within an RCU critical section.
+ *
+ * @section: The #MemoryRegionSection to be accessed.
+ * @mr_offset: The address within that memory region.
+ * @buf: The output buffer to store the read data.
+ * @attrs: Memory transaction attributes.
+ * @len: The expected number of bytes to read.
+ *
+ * Returns:
+ * A MemTxResult indicating whether the operation succeeded or failed.
+ */
+MemTxResult rust_section_load(MemoryRegionSection *section,
+                              hwaddr mr_offset, uint8_t *buf,
+                              MemTxAttrs attrs, hwaddr len);
+
 /* Coalesced MMIO regions are areas where write operations can be reordered.
  * This usually implies that write operations are side-effect free.  This allows
  * batching which can make a major impact on performance when using

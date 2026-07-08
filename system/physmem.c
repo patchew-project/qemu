@@ -3518,6 +3518,78 @@ void physical_memory_read(hwaddr addr, void *buf, hwaddr len)
                        MEMTXATTRS_UNSPECIFIED, buf, len);
 }
 
+MemTxResult rust_section_store(MemoryRegionSection *section,
+                               hwaddr mr_offset, const uint8_t *buf,
+                               MemTxAttrs attrs, hwaddr len)
+{
+    MemoryRegion *mr = section->mr;
+    MemTxResult r;
+
+    /*
+     * Rust encodes the requested endian order in @buf, via LeNN or BeNN.
+     *
+     * For RAM, store the bytes unchanged.
+     * For MMIO, @buf is read into a host-order temporary value, then
+     * adjust_endianness() converts it to the device's endianness later.
+     *
+     * Note that there is no guarantee that the endian order encoded by Rust
+     * will match the target device's endianness. Caller should use the right
+     * LeNN or BeNN.
+     */
+    if (!memory_access_is_direct(mr, true, attrs)) {
+        bool release_lock = false;
+        uint64_t val = ldn_he_p(buf, len);
+
+        release_lock |= prepare_mmio_access(mr);
+        r = memory_region_dispatch_write(mr, mr_offset, val,
+                                         size_memop(len), attrs);
+        if (release_lock) {
+            bql_unlock();
+        }
+    } else {
+        uint8_t *ptr = qemu_map_ram_ptr(mr->ram_block, mr_offset);
+
+        memcpy(ptr, buf, len);
+        invalidate_and_set_dirty(mr, mr_offset, len);
+        r = MEMTX_OK;
+    }
+
+    return r;
+}
+
+MemTxResult rust_section_load(MemoryRegionSection *section,
+                              hwaddr mr_offset, uint8_t *buf,
+                              MemTxAttrs attrs, hwaddr len)
+{
+    MemoryRegion *mr = section->mr;
+    MemTxResult r;
+
+    /*
+     * Similar to rust_section_store():
+     * For RAM, load the bytes unchanged, but for MMIO, it uses a host-order
+     * temporary value to help with conversion.
+     */
+    if (!memory_access_is_direct(mr, false, attrs)) {
+        bool release_lock = false;
+        uint64_t val;
+
+        release_lock |= prepare_mmio_access(mr);
+        r = memory_region_dispatch_read(mr, mr_offset, &val,
+                                        size_memop(len), attrs);
+        stn_he_p(buf, len, val);
+        if (release_lock) {
+            bql_unlock();
+        }
+    } else {
+        uint8_t *ptr = qemu_map_ram_ptr(mr->ram_block, mr_offset);
+
+        memcpy(buf, ptr, len);
+        r = MEMTX_OK;
+    }
+
+    return r;
+}
+
 void physical_memory_write(hwaddr addr, const void *buf, hwaddr len)
 {
     address_space_write(&address_space_memory, addr,
