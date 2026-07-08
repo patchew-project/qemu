@@ -804,6 +804,10 @@ static int virtio_serial_load_device(VirtIODevice *vdev, QEMUFile *f,
 
     qemu_get_be32s(f, &nr_active_ports);
 
+    if (nr_active_ports > max_nr_ports) {
+        return -EINVAL;
+    }
+
     if (nr_active_ports) {
         ret = fetch_active_ports_list(f, s, nr_active_ports);
         if (ret) {
