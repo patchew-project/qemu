@@ -3210,7 +3210,7 @@ bool prepare_mmio_access(MemoryRegion *mr)
 }
 
 /**
- * flatview_access_allowed
+ * memory_region_access_allowed
  * @mr: #MemoryRegion to be accessed
  * @attrs: memory transaction attributes
  * @addr: address within that memory region
@@ -3220,8 +3220,8 @@ bool prepare_mmio_access(MemoryRegion *mr)
  *
  * Returns: true if transaction is allowed, false if denied.
  */
-static bool flatview_access_allowed(MemoryRegion *mr, MemTxAttrs attrs,
-                                    hwaddr addr, hwaddr len)
+static bool memory_region_access_allowed(MemoryRegion *mr, MemTxAttrs attrs,
+                                         hwaddr addr, hwaddr len)
 {
     if (likely(!attrs.memory)) {
         return true;
@@ -3241,7 +3241,7 @@ static MemTxResult flatview_write_continue_step(MemTxAttrs attrs,
                                                 hwaddr len, hwaddr mr_addr,
                                                 hwaddr *l, MemoryRegion *mr)
 {
-    if (!flatview_access_allowed(mr, attrs, mr_addr, *l)) {
+    if (!memory_region_access_allowed(mr, attrs, mr_addr, *l)) {
         return MEMTX_ACCESS_ERROR;
     }
 
@@ -3325,7 +3325,7 @@ static MemTxResult flatview_write(FlatView *fv, hwaddr addr, MemTxAttrs attrs,
 
     l = len;
     mr = flatview_translate(fv, addr, &mr_addr, &l, true, attrs);
-    if (!flatview_access_allowed(mr, attrs, mr_addr, l)) {
+    if (!memory_region_access_allowed(mr, attrs, addr, len)) {
         return MEMTX_ACCESS_ERROR;
     }
     return flatview_write_continue(fv, addr, attrs, buf, len,
@@ -3337,7 +3337,7 @@ static MemTxResult flatview_read_continue_step(MemTxAttrs attrs, uint8_t *buf,
                                                hwaddr *l,
                                                MemoryRegion *mr)
 {
-    if (!flatview_access_allowed(mr, attrs, mr_addr, *l)) {
+    if (!memory_region_access_allowed(mr, attrs, mr_addr, *l)) {
         return MEMTX_ACCESS_ERROR;
     }
 
@@ -3416,7 +3416,7 @@ static MemTxResult flatview_read(FlatView *fv, hwaddr addr,
 
     l = len;
     mr = flatview_translate(fv, addr, &mr_addr, &l, false, attrs);
-    if (!flatview_access_allowed(mr, attrs, mr_addr, l)) {
+    if (!memory_region_access_allowed(mr, attrs, addr, len)) {
         return MEMTX_ACCESS_ERROR;
     }
     return flatview_read_continue(fv, addr, attrs, buf, len,
