@@ -949,6 +949,27 @@ static inline FlatView *address_space_to_flatview(const AddressSpace *as)
 }
 
 /**
+ * address_space_lookup_section: Find the MemoryRegionSection within a
+ * given #AddressSpaceDispatch.
+ *
+ * @d: The AddressSpaceDispatch to search within.
+ * @addr: The address to look up.
+ * @resolve_subpage: If 'true', resolve to a subpage section if the
+ * region is a subpage container.
+ *
+ * This function translates an address (@addr) into its corresponding
+ * #MemoryRegionSection within a given address space dispatch (@d).
+ * Must be called within an RCU critical section.
+ *
+ * Returns:
+ * A pointer to the #MemoryRegionSection. If the address is not
+ * mapped, this will be a pointer to the 'unassigned' section.
+ */
+MemoryRegionSection *address_space_lookup_section(AddressSpaceDispatch *d,
+                                                  hwaddr addr,
+                                                  bool resolve_subpage);
+
+/**
  * flatview_ref: Atomically increment the reference count of a #FlatView.
  *
  * @view: The #FlatView whose reference count is to be incremented.
