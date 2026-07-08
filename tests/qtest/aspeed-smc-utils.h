@@ -44,6 +44,8 @@
 #define   CTRL_FREADMODE       0x1
 #define   CTRL_WRITEMODE       0x2
 #define   CTRL_USERMODE        0x3
+#define   CTRL_DUMMY_LOW_SHIFT   6
+#define   CTRL_DUMMY_HIGH_SHIFT  14
 #define SR_WEL BIT(1)
 
 /*
@@ -55,6 +57,7 @@ enum {
     WRDI = 0x4,
     BULK_ERASE = 0xc7,
     READ = 0x03,
+    FAST_READ = 0x0b,
     PP = 0x02,
     WRSR = 0x1,
     WREN = 0x6,
@@ -90,5 +93,7 @@ void aspeed_smc_test_status_reg_write_protection(const void *data);
 void aspeed_smc_test_write_block_protect(const void *data);
 void aspeed_smc_test_write_block_protect_bottom_bit(const void *data);
 void aspeed_smc_test_write_page_qpi(const void *data);
+void aspeed_smc_test_read_page_mem_fast_read(const void *data);
+void aspeed_smc_test_write_page_fast_read(const void *data);
 
 #endif /* TESTS_ASPEED_SMC_UTILS_H */
