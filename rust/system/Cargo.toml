@@ -21,6 +21,7 @@ migration = { path = "../migration" }
 qom = { path = "../qom" }
 util = { path = "../util" }
 glib-sys.workspace = true
+vm-memory.workspace = true
 
 [lints]
 workspace = true
