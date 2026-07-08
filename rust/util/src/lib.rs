@@ -5,6 +5,7 @@ pub use util_sys as bindings;
 pub mod error;
 pub mod log;
 pub mod module;
+pub mod rcu;
 
 // preserve one-item-per-"use" syntax, it is clearer
 // for prelude-like modules

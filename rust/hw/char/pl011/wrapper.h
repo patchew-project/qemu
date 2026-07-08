@@ -49,3 +49,4 @@ typedef enum memory_order {
 
 #include "qemu/osdep.h"
 #include "hw/char/pl011.h"
+#include "qemu/rcu.h"
