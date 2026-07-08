@@ -28,6 +28,7 @@ static void check_unavailable_features(const S390CPUModel *max_model,
                                        strList **unavailable)
 {
     S390FeatBitmap missing;
+    S390FeatBitmap deprecated_feats;
 
     /* check general model compatibility */
     if (max_model->def->gen < model->def->gen ||
@@ -39,6 +40,13 @@ static void check_unavailable_features(const S390CPUModel *max_model,
     /* detect missing features if any to properly report them */
     bitmap_andnot(missing, model->features, max_model->features,
                   S390_FEAT_MAX);
+
+    /* deprecated features are optional so do not report them as missing */
+    bitmap_zero(deprecated_feats, S390_FEAT_MAX);
+    s390_get_deprecated_features(deprecated_feats);
+
+    bitmap_andnot(missing, missing, deprecated_feats, S390_FEAT_MAX);
+
     if (!bitmap_empty(missing, S390_FEAT_MAX)) {
         s390_feat_bitmap_to_ascii(missing, unavailable, list_add_feat);
     }
