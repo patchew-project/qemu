@@ -733,6 +733,63 @@
             'recursive': 'bool'} }
 
 ##
+# @KvmVcpuErrorReason:
+#
+# Categorizes a KVM vCPU run error reported through @KVM_VCPU_ERROR.
+#
+# @ioctl-failed: the KVM_RUN ioctl failed; see stderr for the errno.
+#
+# @unknown: KVM_EXIT_UNKNOWN; the hardware exit reason is logged to
+#     stderr.
+#
+# @internal-error: KVM_EXIT_INTERNAL_ERROR; see @suberror and
+#     @exit-data for details.
+#
+# Since: 11.2
+##
+{ 'enum': 'KvmVcpuErrorReason',
+  'data': [ 'ioctl-failed', 'unknown', 'internal-error' ] }
+
+##
+# @KVM_VCPU_ERROR:
+#
+# Emitted when a KVM vCPU exits with an unrecoverable error, before
+# the VM is stopped with run state ``internal-error``.  Lets the
+# management layer learn which vCPU failed and why, instead of
+# inferring it from the subsequent STOP event.
+#
+# @cpu-index: index of the vCPU that failed.
+#
+# @qom-path: the QOM path of the vCPU that failed.
+#
+# @reason: error category.
+#
+# @suberror: KVM internal suberror.  Present only when @reason is
+#     @internal-error.
+#
+# @exit-data: extra KVM data words.  Present only when @reason is
+#     @internal-error and the kernel provided extra data.
+#
+# Since: 11.2
+#
+# .. qmp-example::
+#
+#     <- { "event": "KVM_VCPU_ERROR",
+#          "data": { "cpu-index": 0,
+#                    "qom-path": "/machine/unattached/device[0]",
+#                    "reason": "internal-error",
+#                    "suberror": 1,
+#                    "exit-data": [ 0 ] },
+#          "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+##
+{ 'event': 'KVM_VCPU_ERROR',
+  'data': { 'cpu-index': 'int',
+            'qom-path': 'str',
+            'reason': 'KvmVcpuErrorReason',
+            '*suberror': 'int',
+            '*exit-data': ['uint64'] } }
+
+##
 # @NotifyVmexitOption:
 #
 # An enumeration of the options specified when enabling notify VM exit
