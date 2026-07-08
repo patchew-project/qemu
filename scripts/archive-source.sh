@@ -49,6 +49,7 @@ subprojects=(
   syn-2-rs
   thiserror-1-rs
   thiserror-impl-1-rs
+  vm-memory-0.18-rs
   unicode-ident-1-rs
 )
 sub_deinit=""

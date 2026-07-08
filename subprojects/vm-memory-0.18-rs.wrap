@@ -1,0 +1,10 @@
+[wrap-file]
+directory = vm-memory-0.18.0
+source_url = https://crates.io/api/v1/crates/vm-memory/0.18.0/download
+source_filename = vm-memory-0.18.0.tar.gz
+source_hash = 9b55e753c7725603745cb32b2287ef7ef3da05c03c7702cda3fa8abe25ae0465
+#method = cargo
+patch_directory = vm-memory-0.18-rs
+
+# bump this version number on every change to meson.build or the patches:
+# v2
