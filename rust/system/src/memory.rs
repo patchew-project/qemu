@@ -17,12 +17,12 @@ use std::{
 
 use common::{callbacks::FnCall, uninit::MaybeUninitField, zeroable::Zeroable, Opaque};
 use qom::prelude::*;
-pub use vm_memory::GuestAddress;
 use vm_memory::{
-    bitmap::BS, Address, AtomicAccess, Bytes, GuestMemoryBackend, GuestMemoryError,
+    bitmap::BS, Address, AtomicAccess, ByteValued, Bytes, GuestMemoryBackend, GuestMemoryError,
     GuestMemoryRegion, GuestMemoryRegionBytes, GuestMemoryResult, GuestUsize, MemoryRegionAddress,
     Permissions, ReadVolatile, WriteVolatile,
 };
+pub use vm_memory::{Be16, Be32, Be64, GuestAddress, Le16, Le32, Le64};
 
 use crate::bindings::{
     self, address_space_lookup_section, device_endian, flatview_ref, flatview_translate_section,
@@ -1200,3 +1200,93 @@ impl Clone for FlatViewRefGuard {
         )
     }
 }
+
+/// Private module hosting the [`Sealed`](private::Sealed) supertrait of
+/// [`EndianValued`], keeping the set of [`EndianValued`] types closed to the
+/// ones listed below.
+///
+/// Reference: <https://rust-lang.github.io/api-guidelines/future-proofing.html#c-sealed>
+mod private {
+    pub trait Sealed {}
+}
+
+/// A sealed trait for types with an explicitly fixed byte order (e.g., `Le32`,
+/// `Be32`).
+///
+/// This ensures guest memory accesses via [`AddressSpace::store`] and
+/// [`AddressSpace::load`] are strictly independent of the host endianness.
+/// Types with implicit endianness (like bare u32 or [u8; 4]) are rejected.
+///
+/// Architecturally, this trait is designed for two purposes:
+///
+/// 1) Bypass the orphan rule: It acts as a local trait allowed to select
+///    specific `LeNN` and `BeNN` types from `vm-memory`'s [`ByteValued`],
+///    allowing a trait bound for the `AddressSpace` API.
+///
+/// 2) Enforce a closed set: Combined with the sealed mechanism, it prevents
+///    downstream crates (device or other crates) from implementing this trait.
+pub trait EndianValued: ByteValued + private::Sealed {
+    /// The same-width primitive integer used as the atomic carrier when an
+    /// explicit-endian access is passed to `Bytes::store`/`Bytes::load`.
+    type Carrier: AtomicAccess;
+
+    /// Convert `self` to [`Carrier`](Self::Carrier) integer, keeping the exact
+    /// bytes.
+    fn to_carrier(self) -> Self::Carrier;
+
+    /// Convert the [`Carrier`](Self::Carrier) integer back to this
+    /// fixed-endian type, keeping the exact bytes.
+    fn from_carrier(carrier: Self::Carrier) -> Self;
+}
+
+macro_rules! impl_endian_valued {
+    ($($t:ty => $carrier:ty),* $(,)?) => {
+        $(
+            impl private::Sealed for $t {}
+
+            impl EndianValued for $t {
+                type Carrier = $carrier;
+
+                #[inline(always)]
+                #[allow(clippy::useless_transmute)] // For i8 and u8
+                fn to_carrier(self) -> Self::Carrier {
+                    // SAFETY: The macro strictly pairs types of the exact same size.
+                    unsafe { std::mem::transmute(self) }
+                }
+
+                #[inline(always)]
+                #[allow(clippy::useless_transmute)] // For i8 and u8
+                fn from_carrier(carrier: Self::Carrier) -> Self {
+                    // SAFETY: The macro strictly pairs types of the exact same size.
+                    unsafe { std::mem::transmute(carrier) }
+                }
+            }
+        )*
+    };
+}
+
+// Explicit-endian wrappers (byte order fixed by the type) plus the single-byte
+// integers (which have no byte order at all).
+impl_endian_valued!(
+    Le16 => u16,
+    Le32 => u32,
+    Be16 => u16,
+    Be32 => u32,
+    u8 => u8,
+    i8 => i8,
+);
+
+// vm-memory only implements `AtomicAccess` for the 64-bit primitives on 64-bit
+// targets. Copy vm-memory's cfg here to avoid a mismatch between the two
+// traits.
+#[cfg(any(
+    target_arch = "x86_64",
+    target_arch = "aarch64",
+    target_arch = "powerpc64",
+    target_arch = "s390x",
+    target_arch = "riscv64"
+))]
+impl_endian_valued!(
+    Le64 => u64,
+    Be64 => u64,
+);
