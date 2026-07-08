@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 //! Bindings for `MemoryRegion`, `MemoryRegionOps`, `MemTxAttrs`
-//! `MemoryRegionSection` and `FlatView`.
+//! `MemoryRegionSection`, `FlatView` and `AddressSpace`.
 
 use std::{
     ffi::{c_uint, c_void, CStr, CString},
@@ -11,24 +11,28 @@ use std::{
     marker::PhantomData,
     mem::size_of,
     ops::Deref,
-    ptr::NonNull,
+    ptr::{addr_of, NonNull},
     sync::atomic::Ordering,
 };
 
 use common::{callbacks::FnCall, uninit::MaybeUninitField, zeroable::Zeroable, Opaque};
 use qom::prelude::*;
+use util::{
+    error::Result,
+    rcu::{RcuCell, RcuGuard},
+};
 use vm_memory::{
-    bitmap::BS, Address, AtomicAccess, ByteValued, Bytes, GuestMemoryBackend, GuestMemoryError,
-    GuestMemoryRegion, GuestMemoryRegionBytes, GuestMemoryResult, GuestUsize, MemoryRegionAddress,
-    Permissions, ReadVolatile, WriteVolatile,
+    bitmap::BS, Address, AtomicAccess, ByteValued, Bytes, GuestAddressSpace, GuestMemoryBackend,
+    GuestMemoryError, GuestMemoryRegion, GuestMemoryRegionBytes, GuestMemoryResult, GuestUsize,
+    MemoryRegionAddress, Permissions, ReadVolatile, WriteVolatile,
 };
 pub use vm_memory::{Be16, Be32, Be64, GuestAddress, Le16, Le32, Le64};
 
 use crate::bindings::{
-    self, address_space_lookup_section, device_endian, flatview_ref, flatview_translate_section,
-    flatview_unref, memory_region_init_io, rust_section_load, rust_section_read_continue_step,
-    rust_section_store, rust_section_write_continue_step, section_access_allowed,
-    section_covers_region_addr, section_fuzz_dma_read, MemTxResult,
+    self, address_space_lookup_section, address_space_memory, device_endian, flatview_ref,
+    flatview_translate_section, flatview_unref, memory_region_init_io, rust_section_load,
+    rust_section_read_continue_step, rust_section_store, rust_section_write_continue_step,
+    section_access_allowed, section_covers_region_addr, section_fuzz_dma_read, MemTxResult,
 };
 // FIXME: Convert hwaddr to GuestAddress
 pub use crate::bindings::{hwaddr, MemTxAttrs};
@@ -1290,3 +1294,186 @@ impl_endian_valued!(
     Le64 => u64,
     Be64 => u64,
 );
+
+/// A safe wrapper around [`bindings::AddressSpace`].
+///
+/// [`AddressSpace`] is the address space abstraction in QEMU, which
+/// provides memory access for the Guest memory it managed.
+#[repr(transparent)]
+#[derive(common::Wrapper)]
+pub struct AddressSpace(Opaque<bindings::AddressSpace>);
+
+unsafe impl Send for AddressSpace {}
+unsafe impl Sync for AddressSpace {}
+
+impl GuestAddressSpace for &AddressSpace {
+    type M = FlatView;
+    type T = FlatViewRefGuard;
+
+    /// Get the memory of the [`AddressSpace`].
+    ///
+    /// This function retrieves the [`FlatView`] for the current
+    /// [`AddressSpace`], similar to `address_space_get_flatview` on the C side.
+    fn memory(&self) -> Self::T {
+        let rcu = RcuGuard::new();
+        // Similar loop as `address_space_get_flatview` did.
+        loop {
+            // SAFETY: FlatViewRefGuard ensures the returned reference is protected by the
+            // guard.
+            if let Some(guard) = FlatViewRefGuard::new(unsafe { self.get_flatview(&rcu) }) {
+                return guard;
+            }
+        }
+    }
+}
+
+impl Deref for AddressSpace {
+    type Target = bindings::AddressSpace;
+
+    fn deref(&self) -> &Self::Target {
+        // SAFETY: Opaque<> wraps a pointer from C side. The validity
+        // of the pointer is confirmed at the creation of Opaque<>.
+        unsafe { &*self.0.as_ptr() }
+    }
+}
+
+impl AddressSpace {
+    /// Helper function to get the [`FlatView`] of the current [`AddressSpace`]
+    /// without reference count protection.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the returned reference is protected by
+    /// reference count.
+    unsafe fn get_flatview<'g>(&self, rcu: &'g RcuGuard) -> &'g FlatView {
+        // SAFETY: `current_map` is an RCU-protected pointer field and any change is
+        // protected by the RCU mechanism.
+        let cell = unsafe { RcuCell::from_ptr(std::ptr::addr_of!(self.deref().current_map)) };
+        // SAFETY: the pointer is valid and not NULL.
+        unsafe { FlatView::from_raw(std::ptr::from_ref(cell.get(rcu).unwrap()).cast_mut()) }
+    }
+
+    /// The write interface of `AddressSpace`.
+    ///
+    /// This function is similar to `address_space_write` on the C side.
+    ///
+    /// But it assumes the memory attributes is `MEMTXATTRS_UNSPECIFIED`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use system::memory::{GuestAddress, ADDRESS_SPACE_MEMORY};
+    ///
+    /// let addr = GuestAddress(0x123123000);
+    /// let buf = [0x1, 0x2, 0x3, 0x4];
+    /// assert!(ADDRESS_SPACE_MEMORY.write(&buf, addr).is_ok());
+    /// ```
+    pub fn write(&self, buf: &[u8], addr: GuestAddress) -> Result<usize> {
+        Ok(Bytes::write(
+            &*self.memory(),
+            buf,
+            (addr, MEMTXATTRS_UNSPECIFIED),
+        )?)
+    }
+
+    /// The read interface of `AddressSpace`.
+    ///
+    /// This function is similar to `address_space_read_full` on the C side.
+    ///
+    /// But it assumes the memory attributes is `MEMTXATTRS_UNSPECIFIED`.
+    ///
+    /// Note: this function does not support the fast path like
+    /// `address_space_read` on the C side.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use system::memory::{GuestAddress, ADDRESS_SPACE_MEMORY};
+    ///
+    /// let addr = GuestAddress(0x123123000);
+    /// let mut buf = [0u8; 4];
+    /// assert!(ADDRESS_SPACE_MEMORY.read(&mut buf, addr).is_ok());
+    /// ```
+    pub fn read(&self, buf: &mut [u8], addr: GuestAddress) -> Result<usize> {
+        Ok(Bytes::read(
+            &*self.memory(),
+            buf,
+            (addr, MEMTXATTRS_UNSPECIFIED),
+        )?)
+    }
+
+    /// The store interface of `AddressSpace`.
+    ///
+    /// This function is similar to `address_space_st{size}_{endian}` on the C
+    /// side.
+    ///
+    /// The endianness of the access is carried by the value's type, which must
+    /// implement [`EndianValued`]: pass an explicit-endian type such as
+    /// `Le32`/`Be32` (or a single-byte `u8`/`i8`).
+    ///
+    /// And it assumes the memory attributes is `MEMTXATTRS_UNSPECIFIED`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use system::memory::{GuestAddress, Le32, ADDRESS_SPACE_MEMORY};
+    ///
+    /// let addr = GuestAddress(0x123123000);
+    /// assert!(ADDRESS_SPACE_MEMORY.store(addr, Le32::from(5)).is_ok());
+    /// ```
+    pub fn store<T: EndianValued>(&self, addr: GuestAddress, val: T) -> Result<()> {
+        // the `Ordering::Relaxed` will be ignored: QEMU's path is not
+        // Rust-atomic.
+        Ok(Bytes::store(
+            &*self.memory(),
+            val.to_carrier(),
+            (addr, MEMTXATTRS_UNSPECIFIED),
+            Ordering::Relaxed,
+        )?)
+    }
+
+    /// The load interface of `AddressSpace`.
+    ///
+    /// This function is similar to `address_space_ld{size}_{endian}` on the C
+    /// side.
+    ///
+    /// The endianness of the access is carried by the requested type, which
+    /// must implement [`EndianValued`]: ask for an explicit-endian type such
+    /// as `Le32`/`Be32` (or a single-byte `u8`/`i8`).
+    ///
+    /// And it assumes the memory attributes is `MEMTXATTRS_UNSPECIFIED`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use system::memory::{GuestAddress, Le32, ADDRESS_SPACE_MEMORY};
+    ///
+    /// let addr = GuestAddress(0x123123000);
+    /// assert!(ADDRESS_SPACE_MEMORY.load::<Le32>(addr).is_ok());
+    /// ```
+    pub fn load<T: EndianValued>(&self, addr: GuestAddress) -> Result<T> {
+        // the `Ordering::Relaxed` will be ignored: QEMU's path is not
+        // Rust-atomic.
+        let carrier: T::Carrier = Bytes::load(
+            &*self.memory(),
+            (addr, MEMTXATTRS_UNSPECIFIED),
+            Ordering::Relaxed,
+        )?;
+        Ok(T::from_carrier(carrier))
+    }
+}
+
+/// The safe binding around [`bindings::address_space_memory`].
+///
+/// `ADDRESS_SPACE_MEMORY` provides the complete address space
+/// abstraction for the whole Guest memory.
+pub static ADDRESS_SPACE_MEMORY: &AddressSpace = unsafe {
+    let ptr: *const bindings::AddressSpace = addr_of!(address_space_memory);
+
+    // SAFETY: AddressSpace is #[repr(transparent)].
+    let wrapper_ptr: *const AddressSpace = ptr.cast();
+
+    // SAFETY: `address_space_memory` structure is valid on the C side during
+    // the whole QEMU life.
+    &*wrapper_ptr
+};
