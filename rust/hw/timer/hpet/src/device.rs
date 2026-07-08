@@ -2,24 +2,14 @@
 // Author(s): Zhao Liu <zhao1.liu@intel.com>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use std::{
-    ffi::CStr,
-    mem::MaybeUninit,
-    pin::Pin,
-    ptr::{addr_of_mut, null_mut, NonNull},
-    slice::from_ref,
-};
+use std::{ffi::CStr, mem::MaybeUninit, pin::Pin, ptr::NonNull, slice::from_ref};
 
 use bql::prelude::*;
 use common::prelude::*;
 use hwcore::prelude::*;
 use migration::{self, prelude::*, ToMigrationStateShared};
 use qom::prelude::*;
-use system::{
-    bindings::{address_space_memory, address_space_stl_le},
-    prelude::*,
-    MEMTXATTRS_UNSPECIFIED,
-};
+use system::{prelude::*, GuestAddress, Le32, ADDRESS_SPACE_MEMORY};
 use util::prelude::*;
 
 use crate::fw_cfg::HPETFwConfig;
@@ -327,17 +317,10 @@ impl HPETTimer {
 
         if set && tn_regs.is_int_enabled() && regs.is_hpet_enabled() {
             if tn_regs.is_fsb_route_enabled() {
-                // SAFETY:
-                // the parameters are valid.
-                unsafe {
-                    address_space_stl_le(
-                        addr_of_mut!(address_space_memory),
-                        tn_regs.fsb >> 32,  // Timer N FSB int addr
-                        tn_regs.fsb as u32, // Timer N FSB int value, truncate!
-                        MEMTXATTRS_UNSPECIFIED,
-                        null_mut(),
-                    );
-                }
+                let _ = ADDRESS_SPACE_MEMORY.store(
+                    GuestAddress(tn_regs.fsb >> 32), // Timer N FSB int addr
+                    Le32::from(tn_regs.fsb as u32),  // Timer N FSB int value, truncate!
+                );
             } else if tn_regs.is_int_level_triggered() {
                 self.get_state().irqs[route].raise();
             } else {
