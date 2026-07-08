@@ -2917,6 +2917,59 @@ bool section_covers_region_addr(const MemoryRegionSection *section,
 void section_fuzz_dma_read(MemoryRegionSection *section,
                            hwaddr addr, hwaddr len);
 
+/**
+ * rust_section_write_continue_step: Write to a #MemoryRegionSection.
+ *
+ * Note: This function should only be used by the Rust side, and callers
+ * should not invoke it directly!
+ *
+ * This function provides a wrapper for flatview_write_continue_step(),
+ * and allows the Rust side to reconstruct the full write process, similar
+ * to what address_space_write() does.
+ *
+ * Must be called within an RCU critical section.
+ *
+ * @section: The #MemoryRegionSection to be accessed.
+ * @attrs: Memory transaction attributes.
+ * @buf: Buffer containing the data to be written.
+ * @len: The number of bytes to write.
+ * @mr_addr: The address within that memory region.
+ * @l: Pointer to the actual length. On return, this is updated to the
+ * number of bytes written.
+ *
+ * Returns:
+ * A MemTxResult indicating whether the operation succeeded or failed
+ * (e.g., unassigned memory, device rejected the transaction, IOMMU fault).
+ */
+MemTxResult rust_section_write_continue_step(MemoryRegionSection *section,
+    MemTxAttrs attrs, const uint8_t *buf, hwaddr len, hwaddr mr_addr, hwaddr *l);
+
+/**
+ * rust_section_read_continue_step: Read from a #MemoryRegionSection.
+ *
+ * Note: This function should only be used by the Rust side, and callers
+ * should not invoke it directly!
+ *
+ * This function provides a wrapper for flatview_read_continue_step(),
+ * and allows the Rust side to reconstruct the full read process, similar
+ * to what address_space_read_full() does.
+ *
+ * Must be called within an RCU critical section.
+ *
+ * @section: The #MemoryRegionSection to be accessed.
+ * @attrs: Memory transaction attributes.
+ * @buf: Buffer to store the read data.
+ * @len: The expected number of bytes to read.
+ * @mr_addr: The address within that memory region.
+ * @l: Pointer to the actual length. On return, this is updated to the
+ * number of bytes read.
+ *
+ * Returns:
+ * A MemTxResult indicating whether the operation succeeded or failed.
+ */
+MemTxResult rust_section_read_continue_step(MemoryRegionSection *section,
+    MemTxAttrs attrs, uint8_t *buf, hwaddr len, hwaddr mr_addr, hwaddr *l);
+
 /* Coalesced MMIO regions are areas where write operations can be reordered.
  * This usually implies that write operations are side-effect free.  This allows
  * batching which can make a major impact on performance when using
