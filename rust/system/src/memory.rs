@@ -11,6 +11,7 @@ use std::{
     marker::PhantomData,
     mem::size_of,
     ops::Deref,
+    ptr::NonNull,
     sync::atomic::Ordering,
 };
 
@@ -24,10 +25,10 @@ use vm_memory::{
 };
 
 use crate::bindings::{
-    self, address_space_lookup_section, device_endian, flatview_translate_section,
-    memory_region_init_io, rust_section_load, rust_section_read_continue_step, rust_section_store,
-    rust_section_write_continue_step, section_access_allowed, section_covers_region_addr,
-    section_fuzz_dma_read, MemTxResult,
+    self, address_space_lookup_section, device_endian, flatview_ref, flatview_translate_section,
+    flatview_unref, memory_region_init_io, rust_section_load, rust_section_read_continue_step,
+    rust_section_store, rust_section_write_continue_step, section_access_allowed,
+    section_covers_region_addr, section_fuzz_dma_read, MemTxResult,
 };
 // FIXME: Convert hwaddr to GuestAddress
 pub use crate::bindings::{hwaddr, MemTxAttrs};
@@ -1141,5 +1142,61 @@ impl GuestMemoryBackend for FlatView {
         // FIXME: Once GuestMemoryBackend::to_region_addr() can meet QEMU's
         // requirements, move the FlatView::translate() logic here.
         unimplemented!()
+    }
+}
+
+/// A RAII guard that provides temporary access to a `FlatView`.
+///
+/// Upon creation, this guard increments the reference count of the
+/// underlying `FlatView`.  When the guard goes out of of scope, it
+/// automatically decrements the count.
+///
+/// As long as the guard lives, the access to `FlatView` is valid.
+#[derive(Debug)]
+pub struct FlatViewRefGuard(NonNull<FlatView>);
+
+impl Drop for FlatViewRefGuard {
+    fn drop(&mut self) {
+        // SAFETY: the pointer is convertible.
+        unsafe {
+            flatview_unref(self.0.as_ref().as_mut_ptr());
+        }
+    }
+}
+
+impl FlatViewRefGuard {
+    /// Attempt to create a new RAII guard for the given `FlatView`.
+    ///
+    /// This may fail if the `FlatView`'s reference count is already zero.
+    pub fn new(flat: &FlatView) -> Option<Self> {
+        // SAFETY: the pointer is convertible.
+        if unsafe { flatview_ref(flat.as_mut_ptr()) } {
+            Some(FlatViewRefGuard(NonNull::from(flat)))
+        } else {
+            None
+        }
+    }
+}
+
+impl Deref for FlatViewRefGuard {
+    type Target = FlatView;
+
+    fn deref(&self) -> &Self::Target {
+        // SAFETY: the pointer and reference are convertible.
+        unsafe { &*self.0.as_ptr() }
+    }
+}
+
+impl Clone for FlatViewRefGuard {
+    /// Clone the guard, which involves incrementing the reference
+    /// count again.
+    ///
+    /// This method will **panic** if the reference count of the underlying
+    /// `FlatView` cannot be incremented (e.g., if it is zero, meaning the
+    /// object is being destroyed).  This can happen in concurrent scenarios.
+    fn clone(&self) -> Self {
+        FlatViewRefGuard::new(self.deref()).expect(
+            "Failed to clone FlatViewRefGuard: the FlatView may have been destroyed concurrently.",
+        )
     }
 }
