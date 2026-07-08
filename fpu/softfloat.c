@@ -2435,7 +2435,8 @@ static void parts_float_to_e5m2(FloatParts64 *a, float_status *s, bool saturate)
         /* Per OCP, conversion in SATURATE mode bounds Inf to MAX. */
         if (saturate) {
             a->cls = float_class_normal;
-            a->exp = float8_e5m2_params.exp_max - 1;
+            a->exp = (float8_e5m2_params.exp_max - 1 -
+                float8_e5m2_params.exp_bias);
             a->frac = MAKE_64BIT_MASK(float8_e5m2_params.frac_shift,
                                       float8_e5m2_params.frac_size + 1);
         }
