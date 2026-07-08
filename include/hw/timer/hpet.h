@@ -37,6 +37,7 @@
 #define HPET_CFG        0x010
 #define HPET_STATUS     0x020
 #define HPET_COUNTER    0x0f0
+#define HPET_TN_BASE    0x100
 #define HPET_TN_CFG     0x000
 #define HPET_TN_CMP     0x008
 #define HPET_TN_ROUTE   0x010

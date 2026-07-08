@@ -450,7 +450,7 @@ static uint64_t hpet_ram_read(void *opaque, hwaddr addr,
 
     QEMU_LOCK_GUARD(&s->lock);
     /*address range of all global regs*/
-    if (addr <= 0xff) {
+    if (addr < HPET_TN_BASE) {
         switch (addr) {
         case HPET_ID: // including HPET_PERIOD
             return s->capability >> shift;
@@ -463,7 +463,7 @@ static uint64_t hpet_ram_read(void *opaque, hwaddr addr,
             break;
         }
     } else {
-        uint8_t timer_id = (addr - 0x100) / 0x20;
+        uint8_t timer_id = (addr - HPET_TN_BASE) / 0x20;
         HPETTimer *timer;
 
         if (timer_id >= s->num_timers) {
@@ -501,7 +501,7 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
     addr &= ~4;
 
     /*address range of all global regs*/
-    if (addr <= 0xff) {
+    if (addr < HPET_TN_BASE) {
         switch (addr) {
         case HPET_ID:
             return;
@@ -564,7 +564,7 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
             break;
         }
     } else {
-        uint8_t timer_id = (addr - 0x100) / 0x20;
+        uint8_t timer_id = (addr - HPET_TN_BASE) / 0x20;
         HPETTimer *timer;
 
         trace_hpet_ram_write_timer_id(timer_id);
