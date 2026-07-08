@@ -959,7 +959,7 @@ impl HPETState {
     }
 
     fn validate_num_timers(&self, _version_id: u8) -> bool {
-        self.num_timers == self.num_timers_save.get().into()
+        self.num_timers == usize::from(self.num_timers_save.get())
     }
 }
 
