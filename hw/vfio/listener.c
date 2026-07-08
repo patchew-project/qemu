@@ -40,7 +40,6 @@
 #include "migration/misc.h"
 #include "migration/qemu-file.h"
 #include "system/tcg.h"
-#include "system/tpm.h"
 #include "vfio-migration-internal.h"
 #include "vfio-helpers.h"
 #include "vfio-listener.h"
@@ -352,20 +351,17 @@ static void vfio_ram_discard_unregister_listener(VFIOContainer *bcontainer,
     g_free(vrdl);
 }
 
-static bool vfio_known_safe_misalignment(MemoryRegionSection *section)
+static bool vfio_section_misaligned(MemoryRegionSection *section)
 {
-    MemoryRegion *mr = section->mr;
+    return (section->offset_within_address_space & ~qemu_real_host_page_mask()) !=
+        (section->offset_within_region & ~qemu_real_host_page_mask());
+}
 
-    if (!TPM_IS_CRB(mr->owner)) {
-        return false;
-    }
-
-    /* this is a known safe misaligned region, just trace for debug purpose */
-    trace_vfio_known_safe_misalignment(memory_region_name(mr),
-                                       section->offset_within_address_space,
-                                       section->offset_within_region,
-                                       qemu_real_host_page_size());
-    return true;
+static bool vfio_section_dma_capable(MemoryRegionSection *section)
+{
+    return QEMU_IS_ALIGNED(section->offset_within_address_space,
+                           qemu_real_host_page_size()) &&
+        int128_ge(section->size, int128_make64(qemu_real_host_page_size()));
 }
 
 static bool vfio_listener_valid_section(MemoryRegionSection *section,
@@ -379,17 +375,28 @@ static bool vfio_listener_valid_section(MemoryRegionSection *section,
         return false;
     }
 
-    if (unlikely((section->offset_within_address_space &
-                  ~qemu_real_host_page_mask()) !=
-                 (section->offset_within_region & ~qemu_real_host_page_mask()))) {
-        if (!vfio_known_safe_misalignment(section)) {
-            error_report("%s received unaligned region %s iova=0x%"PRIx64
+    if (unlikely(vfio_section_misaligned(section))) {
+        /*
+         * A region that is not page-aligned or is smaller than a host
+         * page can never be a valid DMA target, so the misalignment is
+         * harmless. Only warn for page-aligned, page-sized regions
+         * where the offset mismatch could indicate a real problem.
+         */
+        if (vfio_section_dma_capable(section)) {
+            error_report("vfio: region %s page-offset mismatch prevents"
+                         " DMA mapping (iova=0x%"PRIx64
                          " offset_within_region=0x%"PRIx64
-                         " qemu_real_host_page_size=0x%"PRIxPTR,
-                         __func__, memory_region_name(section->mr),
+                         " page_size=0x%"PRIxPTR ")",
+                         memory_region_name(section->mr),
                          section->offset_within_address_space,
                          section->offset_within_region,
                          qemu_real_host_page_size());
+        } else {
+            trace_vfio_listener_region_misaligned(
+                memory_region_name(section->mr),
+                section->offset_within_address_space,
+                section->offset_within_region,
+                qemu_real_host_page_size());
         }
         return false;
     }
