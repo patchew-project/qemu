@@ -1111,8 +1111,6 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 #define CPUID_1E_1_EAX_AMX_FP16_ALIAS      (1U << 3)
 /* AMX_FP8 instruction */
 #define CPUID_1E_1_EAX_AMX_FP8              (1U << 4)
-/* AMX_TF32 instruction */
-#define CPUID_1E_1_EAX_AMX_TF32             (1U << 6)
 /* AMX_AVX512 instruction */
 #define CPUID_1E_1_EAX_AMX_AVX512           (1U << 7)
 /* AMX_MOVRS instruction */
