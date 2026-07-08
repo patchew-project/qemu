@@ -28,7 +28,6 @@ AddressSpaceDispatch *address_space_to_dispatch(const AddressSpace *as)
 }
 
 FlatView *address_space_get_flatview(const AddressSpace *as);
-void flatview_unref(FlatView *view);
 
 extern const MemoryRegionOps unassigned_mem_ops;
 

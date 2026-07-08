@@ -949,6 +949,40 @@ static inline FlatView *address_space_to_flatview(const AddressSpace *as)
 }
 
 /**
+ * flatview_ref: Atomically increment the reference count of a #FlatView.
+ *
+ * @view: The #FlatView whose reference count is to be incremented.
+ *
+ * This function attempts to atomically increment the reference count
+ * of the given @view. This operation is conditional and will only
+ * succeed if the current reference count is non-zero.
+ *
+ * A non-zero reference count indicates that the #FlatView is live and
+ * in use. If the reference count is already zero, it indicates that the
+ * #FlatView is being deinitialized, and no new references can be
+ * acquired.
+ *
+ * Returns:
+ * true if the reference count was successfully incremented (i.e., it
+ * was non-zero before the call).
+ * false if the reference count was already zero and could not be
+ * incremented.
+ */
+bool flatview_ref(FlatView *view);
+
+/**
+ * flatview_unref: Atomically decrement the reference count of a
+ * #FlatView.
+ *
+ * @view: The #FlatView to be unreferenced.
+ *
+ * This function atomically decrements the reference count of the given
+ * @view. When the reference count drops to zero, the #FlatView will be
+ * destroyed via RCU.
+ */
+void flatview_unref(FlatView *view);
+
+/**
  * typedef flatview_cb: callback for flatview_for_each_range()
  *
  * @start: start address of the range within the FlatView

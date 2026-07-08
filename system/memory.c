@@ -305,7 +305,7 @@ static void flatview_destroy(FlatView *view)
     g_free(view);
 }
 
-static bool flatview_ref(FlatView *view)
+bool flatview_ref(FlatView *view)
 {
     return qatomic_fetch_inc_nonzero(&view->ref) > 0;
 }
