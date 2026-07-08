@@ -796,3 +796,53 @@ void aspeed_smc_test_write_page_dor(const void *data)
 {
     test_write_page(data, read_page_dor);
 }
+
+static void read_page_mem_qor(const AspeedSMCTestData *data,
+                              uint32_t addr, uint32_t *page)
+{
+    uint32_t ctrl_reg = R_CTRL0 + data->cs * 4;
+    uint32_t ctrl = spi_readl(data, ctrl_reg);
+    int i;
+
+    ctrl &= ~(CTRL_USERMODE | (0xff << 16) |
+              (0x3 << CTRL_DUMMY_LOW_SHIFT) |
+              (0x1 << CTRL_DUMMY_HIGH_SHIFT) |
+              CTRL_IO_MODE_MASK);
+    ctrl |= CTRL_FREADMODE | (QOR << 16) |
+            (1 << CTRL_DUMMY_LOW_SHIFT) |
+            CTRL_IO_QUAD_DATA;
+    spi_writel(data, ctrl_reg, ctrl);
+
+    for (i = 0; i < FLASH_PAGE_SIZE / 4; i++) {
+        page[i] = make_be32(flash_readl(data, addr + i * 4));
+    }
+}
+
+void aspeed_smc_test_read_page_mem_qor(const void *data)
+{
+    test_read_page_mem(data, read_page_mem_qor);
+}
+
+static void read_page_qor(const AspeedSMCTestData *data,
+                          uint32_t addr, uint32_t *page)
+{
+    int i;
+
+    spi_ctrl_start_user(data);
+
+    flash_writeb(data, 0, EN_4BYTE_ADDR);
+    flash_writeb(data, 0, QOR);
+    flash_writel(data, 0, make_be32(addr));
+    /* 1 dummy byte for standard SPI QOR */
+    flash_writeb(data, 0, 0x00);
+
+    for (i = 0; i < FLASH_PAGE_SIZE / 4; i++) {
+        page[i] = make_be32(flash_readl(data, 0));
+    }
+    spi_ctrl_stop_user(data);
+}
+
+void aspeed_smc_test_write_page_qor(const void *data)
+{
+    test_write_page(data, read_page_qor);
+}
