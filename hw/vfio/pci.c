@@ -1119,6 +1119,8 @@ static bool vfio_pci_load_rom(VFIOPCIDevice *vdev, Error **errp)
         }
     }
 
+    vfio_rom_quirk_setup(vdev);
+
     return true;
 }
 
