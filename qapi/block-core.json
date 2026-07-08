@@ -93,6 +93,9 @@
 #
 # @compression-type: the image cluster compression method (since 5.1)
 #
+# @zone: zoned configuration; only set when the image was created
+#     with a zoned model (since 11.1)
+#
 # Since: 1.7
 ##
 { 'struct': 'ImageInfoSpecificQCow2',
@@ -106,7 +109,8 @@
       'refcount-bits': 'int',
       '*encrypt': 'ImageInfoSpecificQCow2Encryption',
       '*bitmaps': ['Qcow2BitmapInfo'],
-      'compression-type': 'Qcow2CompressionType'
+      'compression-type': 'Qcow2CompressionType',
+      '*zone': 'ImageInfoSpecificQCow2Zoned'
   } }
 
 ##
@@ -5222,6 +5226,85 @@
   'data': [ 'zlib', { 'name': 'zstd', 'if': 'CONFIG_ZSTD' } ] }
 
 ##
+# @Qcow2ZoneModel:
+#
+# Zoned device model used in qcow2 image file
+#
+# @host-managed: The host-managed model only allows sequential write
+#     over the device zones.
+#
+# Since: 11.1
+##
+{ 'enum': 'Qcow2ZoneModel',
+  'data': [ 'host-managed'] }
+
+##
+# @Qcow2ZoneHostManaged:
+#
+# The host-managed zone model.  It only allows sequential writes.
+#
+# @size: Total number of bytes within zones (default: 256 MB).
+#
+# @capacity: The usable space within each zone, in bytes.  Always
+#     smaller than or equal to @size (default: same as @size).
+#
+# @conventional-zones: The number of conventional zones of the
+#     zoned device (default: 0).
+#
+# @max-open-zones: The maximal number of open zones.  Must be less
+#     than or equal to the number of non-conventional zones (i.e.
+#     ``size / zone.size - @conventional-zones``), and less than or
+#     equal to @max-active-zones (default: 0, meaning no limit).
+#
+# @max-active-zones: The maximal number of zones in the implicit
+#     open, explicit open or closed state.  It is less than or equal
+#     to the number of zones (default: 0, meaning no limit).
+#
+# @max-append-bytes: The maximal size in bytes of a zone-append
+#     request that can be issued to the device.  Must be a multiple
+#     of 512, and less than @capacity (default: 64 KB).
+#
+# Since: 11.1
+##
+{ 'struct': 'Qcow2ZoneHostManaged',
+  'data': { '*size':          'size',
+            '*capacity':      'size',
+            '*conventional-zones': 'uint32',
+            '*max-open-zones':     'uint32',
+            '*max-active-zones':   'uint32',
+            '*max-append-bytes':   'size' } }
+
+##
+# @Qcow2ZoneCreateOptions:
+#
+# Creation options for zoned qcow2 images.
+#
+# @mode: The zone model used by the image.
+#
+# Since: 11.1
+##
+{ 'union': 'Qcow2ZoneCreateOptions',
+  'base': { 'mode': 'Qcow2ZoneModel' },
+  'discriminator': 'mode',
+  'data': { 'host-managed': 'Qcow2ZoneHostManaged' } }
+
+##
+# @ImageInfoSpecificQCow2Zoned:
+#
+# @mode: The zone model used by the image.
+#
+# @nr-zones: total number of zones in the image, derived at create
+#     time from the size and the zone size.
+#
+# Since: 11.1
+##
+{ 'union': 'ImageInfoSpecificQCow2Zoned',
+  'base': { 'mode':     'Qcow2ZoneModel',
+            'nr-zones': 'uint32' },
+  'discriminator': 'mode',
+  'data': { 'host-managed': 'Qcow2ZoneHostManaged' } }
+
+##
 # @BlockdevCreateOptionsQcow2:
 #
 # Driver specific image creation options for qcow2.
@@ -5263,6 +5346,9 @@
 # @compression-type: The image cluster compression method
 #     (default: zlib, since 5.1)
 #
+# @zone: Options for zoned images.  If absent, the device is not
+#     zoned.  (since 11.1)
+#
 # Since: 2.12
 ##
 { 'struct': 'BlockdevCreateOptionsQcow2',
@@ -5279,7 +5365,8 @@
             '*preallocation':   'PreallocMode',
             '*lazy-refcounts':  'bool',
             '*refcount-bits':   'int',
-            '*compression-type':'Qcow2CompressionType' } }
+            '*compression-type':'Qcow2CompressionType',
+            '*zone':            'Qcow2ZoneCreateOptions' } }
 
 ##
 # @BlockdevCreateOptionsQed:

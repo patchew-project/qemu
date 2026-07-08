@@ -72,6 +72,13 @@ Supported options:
   preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
+  zone.capacity=<size>   - zone capacity
+  zone.conventional_zones=<num> - numbers of conventional zones
+  zone.max_active_zones=<num> - max active zones
+  zone.max_append_bytes=<size> - max append bytes
+  zone.max_open_zones=<num> - max open zones
+  zone.mode=<str>        - zone model modes, mode choice: host-managed
+  zone.size=<size>       - zone size
 
 Testing: create -f qcow2 -o ? TEST_DIR/t.qcow2 128M
 Supported options:
@@ -99,6 +106,13 @@ Supported options:
   preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
+  zone.capacity=<size>   - zone capacity
+  zone.conventional_zones=<num> - numbers of conventional zones
+  zone.max_active_zones=<num> - max active zones
+  zone.max_append_bytes=<size> - max append bytes
+  zone.max_open_zones=<num> - max open zones
+  zone.mode=<str>        - zone model modes, mode choice: host-managed
+  zone.size=<size>       - zone size
 
 Testing: create -f qcow2 -o cluster_size=4k,help TEST_DIR/t.qcow2 128M
 Supported options:
@@ -126,6 +140,13 @@ Supported options:
   preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
+  zone.capacity=<size>   - zone capacity
+  zone.conventional_zones=<num> - numbers of conventional zones
+  zone.max_active_zones=<num> - max active zones
+  zone.max_append_bytes=<size> - max append bytes
+  zone.max_open_zones=<num> - max open zones
+  zone.mode=<str>        - zone model modes, mode choice: host-managed
+  zone.size=<size>       - zone size
 
 Testing: create -f qcow2 -o cluster_size=4k,? TEST_DIR/t.qcow2 128M
 Supported options:
@@ -153,6 +174,13 @@ Supported options:
   preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
+  zone.capacity=<size>   - zone capacity
+  zone.conventional_zones=<num> - numbers of conventional zones
+  zone.max_active_zones=<num> - max active zones
+  zone.max_append_bytes=<size> - max append bytes
+  zone.max_open_zones=<num> - max open zones
+  zone.mode=<str>        - zone model modes, mode choice: host-managed
+  zone.size=<size>       - zone size
 
 Testing: create -f qcow2 -o help,cluster_size=4k TEST_DIR/t.qcow2 128M
 Supported options:
@@ -180,6 +208,13 @@ Supported options:
   preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
+  zone.capacity=<size>   - zone capacity
+  zone.conventional_zones=<num> - numbers of conventional zones
+  zone.max_active_zones=<num> - max active zones
+  zone.max_append_bytes=<size> - max append bytes
+  zone.max_open_zones=<num> - max open zones
+  zone.mode=<str>        - zone model modes, mode choice: host-managed
+  zone.size=<size>       - zone size
 
 Testing: create -f qcow2 -o ?,cluster_size=4k TEST_DIR/t.qcow2 128M
 Supported options:
@@ -207,6 +242,13 @@ Supported options:
   preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
+  zone.capacity=<size>   - zone capacity
+  zone.conventional_zones=<num> - numbers of conventional zones
+  zone.max_active_zones=<num> - max active zones
+  zone.max_append_bytes=<size> - max append bytes
+  zone.max_open_zones=<num> - max open zones
+  zone.mode=<str>        - zone model modes, mode choice: host-managed
+  zone.size=<size>       - zone size
 
 Testing: create -f qcow2 -o cluster_size=4k -o help TEST_DIR/t.qcow2 128M
 Supported options:
@@ -234,6 +276,13 @@ Supported options:
   preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
+  zone.capacity=<size>   - zone capacity
+  zone.conventional_zones=<num> - numbers of conventional zones
+  zone.max_active_zones=<num> - max active zones
+  zone.max_append_bytes=<size> - max append bytes
+  zone.max_open_zones=<num> - max open zones
+  zone.mode=<str>        - zone model modes, mode choice: host-managed
+  zone.size=<size>       - zone size
 
 Testing: create -f qcow2 -o cluster_size=4k -o ? TEST_DIR/t.qcow2 128M
 Supported options:
@@ -261,6 +310,13 @@ Supported options:
   preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
+  zone.capacity=<size>   - zone capacity
+  zone.conventional_zones=<num> - numbers of conventional zones
+  zone.max_active_zones=<num> - max active zones
+  zone.max_append_bytes=<size> - max append bytes
+  zone.max_open_zones=<num> - max open zones
+  zone.mode=<str>        - zone model modes, mode choice: host-managed
+  zone.size=<size>       - zone size
 
 Testing: create -f qcow2 -u -o backing_file=TEST_DIR/t.qcow2,,help -F qcow2 TEST_DIR/t.qcow2 128M
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 cluster_size=65536 extended_l2=off compression_type=zlib size=134217728 backing_file=TEST_DIR/t.qcow2,,help backing_fmt=qcow2 lazy_refcounts=off refcount_bits=16
@@ -301,6 +357,13 @@ Supported qcow2 options:
   preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
+  zone.capacity=<size>   - zone capacity
+  zone.conventional_zones=<num> - numbers of conventional zones
+  zone.max_active_zones=<num> - max active zones
+  zone.max_append_bytes=<size> - max append bytes
+  zone.max_open_zones=<num> - max open zones
+  zone.mode=<str>        - zone model modes, mode choice: host-managed
+  zone.size=<size>       - zone size
 
 The protocol level may support further options.
 Specify the target filename to include those options.
@@ -391,6 +454,13 @@ Supported options:
   preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
+  zone.capacity=<size>   - zone capacity
+  zone.conventional_zones=<num> - numbers of conventional zones
+  zone.max_active_zones=<num> - max active zones
+  zone.max_append_bytes=<size> - max append bytes
+  zone.max_open_zones=<num> - max open zones
+  zone.mode=<str>        - zone model modes, mode choice: host-managed
+  zone.size=<size>       - zone size
 
 Testing: convert -O qcow2 -o ? TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
 Supported options:
@@ -418,6 +488,13 @@ Supported options:
   preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
+  zone.capacity=<size>   - zone capacity
+  zone.conventional_zones=<num> - numbers of conventional zones
+  zone.max_active_zones=<num> - max active zones
+  zone.max_append_bytes=<size> - max append bytes
+  zone.max_open_zones=<num> - max open zones
+  zone.mode=<str>        - zone model modes, mode choice: host-managed
+  zone.size=<size>       - zone size
 
 Testing: convert -O qcow2 -o cluster_size=4k,help TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
 Supported options:
@@ -445,6 +522,13 @@ Supported options:
   preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
+  zone.capacity=<size>   - zone capacity
+  zone.conventional_zones=<num> - numbers of conventional zones
+  zone.max_active_zones=<num> - max active zones
+  zone.max_append_bytes=<size> - max append bytes
+  zone.max_open_zones=<num> - max open zones
+  zone.mode=<str>        - zone model modes, mode choice: host-managed
+  zone.size=<size>       - zone size
 
 Testing: convert -O qcow2 -o cluster_size=4k,? TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
 Supported options:
@@ -472,6 +556,13 @@ Supported options:
   preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
+  zone.capacity=<size>   - zone capacity
+  zone.conventional_zones=<num> - numbers of conventional zones
+  zone.max_active_zones=<num> - max active zones
+  zone.max_append_bytes=<size> - max append bytes
+  zone.max_open_zones=<num> - max open zones
+  zone.mode=<str>        - zone model modes, mode choice: host-managed
+  zone.size=<size>       - zone size
 
 Testing: convert -O qcow2 -o help,cluster_size=4k TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
 Supported options:
@@ -499,6 +590,13 @@ Supported options:
   preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
+  zone.capacity=<size>   - zone capacity
+  zone.conventional_zones=<num> - numbers of conventional zones
+  zone.max_active_zones=<num> - max active zones
+  zone.max_append_bytes=<size> - max append bytes
+  zone.max_open_zones=<num> - max open zones
+  zone.mode=<str>        - zone model modes, mode choice: host-managed
+  zone.size=<size>       - zone size
 
 Testing: convert -O qcow2 -o ?,cluster_size=4k TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
 Supported options:
@@ -526,6 +624,13 @@ Supported options:
   preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
+  zone.capacity=<size>   - zone capacity
+  zone.conventional_zones=<num> - numbers of conventional zones
+  zone.max_active_zones=<num> - max active zones
+  zone.max_append_bytes=<size> - max append bytes
+  zone.max_open_zones=<num> - max open zones
+  zone.mode=<str>        - zone model modes, mode choice: host-managed
+  zone.size=<size>       - zone size
 
 Testing: convert -O qcow2 -o cluster_size=4k -o help TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
 Supported options:
@@ -553,6 +658,13 @@ Supported options:
   preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
+  zone.capacity=<size>   - zone capacity
+  zone.conventional_zones=<num> - numbers of conventional zones
+  zone.max_active_zones=<num> - max active zones
+  zone.max_append_bytes=<size> - max append bytes
+  zone.max_open_zones=<num> - max open zones
+  zone.mode=<str>        - zone model modes, mode choice: host-managed
+  zone.size=<size>       - zone size
 
 Testing: convert -O qcow2 -o cluster_size=4k -o ? TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
 Supported options:
@@ -580,6 +692,13 @@ Supported options:
   preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
+  zone.capacity=<size>   - zone capacity
+  zone.conventional_zones=<num> - numbers of conventional zones
+  zone.max_active_zones=<num> - max active zones
+  zone.max_append_bytes=<size> - max append bytes
+  zone.max_open_zones=<num> - max open zones
+  zone.mode=<str>        - zone model modes, mode choice: host-managed
+  zone.size=<size>       - zone size
 
 Testing: convert -O qcow2 -o backing_fmt=qcow2,backing_file=TEST_DIR/t.qcow2,,help TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
 qemu-img: Could not open 'TEST_DIR/t.qcow2.base': Could not open backing file: Could not open 'TEST_DIR/t.qcow2,help': No such file or directory
@@ -620,6 +739,13 @@ Supported qcow2 options:
   preallocation=<str>    - Preallocation mode (allowed values: off, metadata, falloc, full)
   refcount_bits=<num>    - Width of a reference count entry in bits
   size=<size>            - Virtual disk size
+  zone.capacity=<size>   - zone capacity
+  zone.conventional_zones=<num> - numbers of conventional zones
+  zone.max_active_zones=<num> - max active zones
+  zone.max_append_bytes=<size> - max append bytes
+  zone.max_open_zones=<num> - max open zones
+  zone.mode=<str>        - zone model modes, mode choice: host-managed
+  zone.size=<size>       - zone size
 
 The protocol level may support further options.
 Specify the target filename to include those options.
