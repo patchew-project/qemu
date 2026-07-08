@@ -1,0 +1,10 @@
+[wrap-file]
+directory = thiserror-impl-1.0.65
+source_url = https://crates.io/api/v1/crates/thiserror-impl/1.0.65/download
+source_filename = thiserror-impl-1.0.65.tar.gz
+source_hash = ae71770322cbd277e69d762a16c444af02aa0575ac0d174f0b9562d3b37f8602
+#method = cargo
+patch_directory = thiserror-impl-1-rs
+
+# bump this version number on every change to meson.build or the patches:
+# v2
