@@ -47,6 +47,7 @@ subprojects=(
   proc-macro2-1-rs
   quote-1-rs
   syn-2-rs
+  thiserror-1-rs
   thiserror-impl-1-rs
   unicode-ident-1-rs
 )
