@@ -2878,6 +2878,45 @@ MemTxResult address_space_read(const AddressSpace *as, hwaddr addr,
 MemTxResult address_space_set(const AddressSpace *as, hwaddr addr,
                               uint8_t c, hwaddr len, MemTxAttrs attrs);
 
+/**
+ * section_access_allowed: Check if a memory transaction is allowed.
+ *
+ * @section: The #MemoryRegionSection to be accessed.
+ * @attrs: Memory transaction attributes.
+ * @addr: The address within that memory region.
+ * @len: The number of bytes to access.
+ *
+ * Returns: true if the transaction is allowed, false if denied.
+ */
+bool section_access_allowed(MemoryRegionSection *section,
+                            MemTxAttrs attrs, hwaddr addr,
+                            hwaddr len);
+
+/**
+ * section_covers_region_addr: Check if a region address is covered by
+ * a #MemoryRegionSection.
+ *
+ * @section: The #MemoryRegionSection to check against.
+ * @region_addr: The address within the memory region referenced by the
+ * @section.
+ *
+ * Returns: true if the address is covered by the section, false otherwise.
+ */
+bool section_covers_region_addr(const MemoryRegionSection *section,
+                                hwaddr region_addr);
+
+/**
+ * section_fuzz_dma_read: Wrapper for fuzz_dma_read_cb().
+ *
+ * @section: The #MemoryRegionSection to be accessed.
+ * @addr: The memory address to be fuzzed.
+ * @len: The length of the memory to fuzz.
+ *
+ * This function is a wrapper for fuzz_dma_read_cb().
+ */
+void section_fuzz_dma_read(MemoryRegionSection *section,
+                           hwaddr addr, hwaddr len);
+
 /* Coalesced MMIO regions are areas where write operations can be reordered.
  * This usually implies that write operations are side-effect free.  This allows
  * batching which can make a major impact on performance when using
