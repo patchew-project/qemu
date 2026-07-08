@@ -171,6 +171,16 @@ static void wait_for_readers(void)
     QLIST_SWAP(&registry, &qsreaders, node);
 }
 
+void rust_rcu_read_lock(void)
+{
+    rcu_read_lock();
+}
+
+void rust_rcu_read_unlock(void)
+{
+    rcu_read_unlock();
+}
+
 void synchronize_rcu(void)
 {
     QEMU_LOCK_GUARD(&rcu_sync_lock);

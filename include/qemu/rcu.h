@@ -118,6 +118,24 @@ static inline void rcu_read_unlock(void)
     }
 }
 
+/**
+ * rust_rcu_read_lock:
+ *
+ * A wrapper over rcu_read_lock().
+ * Called from Rust to acquire an RCU read lock.
+ * Do not touch.
+ */
+void rust_rcu_read_lock(void);
+
+/**
+ * rust_rcu_read_unlock:
+ *
+ * A wrapper over rcu_read_unlock().
+ * Called from Rust to release an RCU read lock.
+ * Do not touch.
+ */
+void rust_rcu_read_unlock(void);
+
 void synchronize_rcu(void);
 
 /*
