@@ -218,13 +218,6 @@ ObjectPropertyInfoList *qmp_device_list_properties(const char *typename,
             continue;
         }
 
-        /* Skip legacy properties since they are just string versions of
-         * properties that we already list.
-         */
-        if (strstart(prop->name, "legacy-", NULL)) {
-            continue;
-        }
-
         info = g_new0(ObjectPropertyInfo, 1);
         info->name = g_strdup(prop->name);
         info->type = g_strdup(prop->type);
