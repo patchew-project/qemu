@@ -9,12 +9,17 @@ LIBS=$(shell $(CC) $(CCFLAGS) -print-libgcc-file-name)
 
 AOUT_KLUDGE_BIN=$(foreach x,$(shell seq 1 9),aout_kludge_$x.bin)
 
-all: mmap.elf modules.elf $(AOUT_KLUDGE_BIN)
+all: mmap.elf modules.elf wraparound.elf $(AOUT_KLUDGE_BIN)
 
 mmap.elf: start.o mmap.o libc.o link.ld
 	$(LD) $(LDFLAGS_ELF) -o $@ $^ $(LIBS)
 
 modules.elf: start.o modules.o libc.o link.ld
+	$(LD) $(LDFLAGS_ELF) -o $@ $^ $(LIBS)
+
+# link.ld is provided via LDFLAGS_ELF (-T); keep it out of the
+# prerequisite list so $^ does not pass it to ld a second time.
+wraparound.elf: start.o wraparound.o libc.o
 	$(LD) $(LDFLAGS_ELF) -o $@ $^ $(LIBS)
 
 aout_kludge_%.bin: aout_kludge_%.o link.ld

@@ -73,9 +73,15 @@ aout_kludge() {
     done
 }
 
+wraparound() {
+    # The translator_ld wraparound bug is i386-only (32-bit address space);
+    # the default x86_64 QEMU does not reproduce it.
+    QEMU="${QEMU%x86_64}i386" run_qemu wraparound.elf -m 4G
+}
+
 make all
 
-for t in mmap modules aout_kludge; do
+for t in mmap modules aout_kludge wraparound; do
 
     echo > test.log
     pass=1
