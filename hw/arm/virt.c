@@ -4417,6 +4417,7 @@ static void virt_instance_finalize(Object *obj)
     }
     g_free(vms->oem_id);
     g_free(vms->oem_table_id);
+    g_ptr_array_free(vms->smmuv3_devices, TRUE);
 }
 
 static const TypeInfo virt_machine_info = {
