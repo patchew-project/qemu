@@ -208,9 +208,11 @@ static QList *migrate_start_get_qmp_capabilities(const MigrateStart *args)
     return capabilities;
 }
 
-static void migrate_start_set_capabilities(QTestState *from, QTestState *to,
-                                           MigrateStart *args)
+void migrate_setup_instance(QTestState *who, QTestMigrationState *state,
+                   MigrateStart *args)
 {
+    qtest_qmp_set_event_callback(who, migrate_watch_for_events, state);
+    *state = (QTestMigrationState) { .suspend_me = args->suspend_me };
     /*
      * MigrationCapability_lookup and MIGRATION_CAPABILITY_ constants
      * are from qapi-types-migration.h.
@@ -220,25 +222,13 @@ static void migrate_start_set_capabilities(QTestState *from, QTestState *to,
      * Enable return path first, since other features depend on it.
      */
     if (args->caps[MIGRATION_CAPABILITY_RETURN_PATH]) {
-        if (from) {
-            migrate_set_capability(from, "return-path", true);
-        }
-        if (to) {
-            migrate_set_capability(to, "return-path", true);
-        }
+        migrate_set_capability(who, "return-path", true);
     }
 
     for (uint8_t i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
-        if (!args->caps[i]) {
-            continue;
-        }
-        if (from) {
-            migrate_set_capability(from,
-                            MigrationCapability_lookup.array[i], true);
-        }
-        if (to) {
-            migrate_set_capability(to,
-                            MigrationCapability_lookup.array[i], true);
+        if (args->caps[i]) {
+            migrate_set_capability(who, MigrationCapability_lookup.array[i],
+                                   true);
         }
     }
 
@@ -246,26 +236,17 @@ static void migrate_start_set_capabilities(QTestState *from, QTestState *to,
      * Always enable migration events.  Libvirt always uses it, let's try
      * to mimic as closer as that.
      */
-    migrate_set_capability(from, "events", true);
-    if (!args->defer_target_connect && to) {
-        migrate_set_capability(to, "events", true);
-    }
+    migrate_set_capability(who, "events", true);
 
-    /*
+     /*
      * Default number of channels should be fine for most
      * tests. Individual tests can override by calling
      * migrate_set_parameter() directly.
      */
     if (args->caps[MIGRATION_CAPABILITY_MULTIFD]) {
-        migrate_set_parameter_int(from, "multifd-channels",
+        migrate_set_parameter_int(who, "multifd-channels",
                                   MULTIFD_TEST_CHANNELS);
-        if (to) {
-            migrate_set_parameter_int(to, "multifd-channels",
-                                      MULTIFD_TEST_CHANNELS);
-        }
     }
-
-    return;
 }
 
 static char *test_shmem_path(void)
@@ -308,12 +289,28 @@ static char *migrate_mem_type_get_opts(MemType type, const char *memory_size)
     return opts;
 }
 
-int migrate_args(char **from, char **to, MigrateStart *args)
+/*
+ * Build a QEMU command line for one migration participant.
+ *
+ * @serial_name  : serial output file basename under tmpfs
+ * @is_target    : set to true if the new qemu process is destination side
+ * @extra_opts   : extra arguments
+ * @defer_events : when true and is_target is set, use the command-line
+ *                 event flag instead of the QMP capability (for deferred
+ *                 monitor connections)
+ * @args         : common process settings
+ *
+ * Returns 0 and sets *cmd_out on success.  Returns -1 and calls
+ * g_test_skip() if the machine type is not available.
+ */
+static int migrate_build_cmd(const char *serial_name,
+                             bool is_target,
+                             const char *extra_opts,
+                             bool defer_events,
+                             MigrateStart *args,
+                             char **cmd_out)
 {
-    /* options for source and target */
     g_autofree gchar *arch_opts = NULL;
-    gchar *cmd_source = NULL;
-    gchar *cmd_target = NULL;
     const gchar *ignore_stderr;
     g_autofree char *mem_object = NULL;
     const char *kvm_opts = NULL;
@@ -323,16 +320,10 @@ int migrate_args(char **from, char **to, MigrateStart *args)
     g_autofree char *machine = NULL;
     const char *bootpath = bootfile_get();
     g_autofree char *memory_backend = NULL;
-    const char *events;
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         memory_size = "150M";
-
-        if (g_str_equal(arch, "i386")) {
-            machine_alias = "pc";
-        } else {
-            machine_alias = "q35";
-        }
+        machine_alias = g_str_equal(arch, "i386") ? "pc" : "q35";
         arch_opts = g_strdup_printf(
             "-drive if=none,id=d0,file=%s,format=raw "
             "-device ide-hd,drive=d0,secs=1,cyls=1,heads=1", bootpath);
@@ -346,13 +337,13 @@ int migrate_args(char **from, char **to, MigrateStart *args)
         end_address = S390_TEST_MEM_END;
     } else if (strcmp(arch, "ppc64") == 0) {
         memory_size = "256M";
-        start_address = PPC_TEST_MEM_START;
-        end_address = PPC_TEST_MEM_END;
         machine_alias = "pseries";
         machine_opts = "vsmt=8";
         arch_opts = g_strdup_printf(
             "-nodefaults -machine " PSERIES_DEFAULT_CAPABILITIES " "
             "-bios %s", bootpath);
+        start_address = PPC_TEST_MEM_START;
+        end_address = PPC_TEST_MEM_END;
     } else if (strcmp(arch, "aarch64") == 0) {
         memory_size = "150M";
         machine_alias = "virt";
@@ -394,53 +385,103 @@ int migrate_args(char **from, char **to, MigrateStart *args)
     }
 
     if (!qtest_has_machine(machine_alias)) {
-        g_autofree char *msg = g_strdup_printf("machine %s not supported", machine_alias);
+        g_autofree char *msg = g_strdup_printf("machine %s not supported",
+                                               machine_alias);
         g_test_skip(msg);
         return -1;
     }
 
     machine = resolve_machine_version(machine_alias, QEMU_ENV_SRC,
                                       QEMU_ENV_DST);
-
     g_test_message("Using machine type: %s", machine);
 
-    cmd_source = g_strdup_printf("-accel kvm%s -accel tcg "
-                                 "-machine %s,%s "
-                                 "-name source,debug-threads=on "
-                                 "%s "
-                                 "-serial file:%s/src_serial "
-                                 "%s %s %s",
-                                 kvm_opts ? kvm_opts : "",
-                                 machine, machine_opts,
-                                 memory_backend, tmpfs,
-                                 arch_opts ? arch_opts : "",
-                                 args->opts_source ? args->opts_source : "",
-                                 ignore_stderr);
+    if (is_target) {
+        /*
+         * If the monitor connection is deferred, enable events on the command
+         * line so none are missed. This is for testing only, do not set
+         * migration options like this in general.
+         */
+        const char *events = defer_events ? "-global migration.x-events=on"
+                                          : "";
+        *cmd_out = g_strdup_printf(
+            "-accel kvm%s -accel tcg "
+            "-machine %s,%s "
+            "-name target,debug-threads=on "
+            "%s "
+            "-serial file:%s/%s "
+            "-incoming defer "
+            "%s %s %s %s",
+            kvm_opts ? kvm_opts : "",
+            machine, machine_opts,
+            memory_backend, tmpfs, serial_name,
+            events,
+            arch_opts ? arch_opts : "",
+            extra_opts ? extra_opts : "",
+            ignore_stderr);
+    } else {
+        *cmd_out = g_strdup_printf(
+            "-accel kvm%s -accel tcg "
+            "-machine %s,%s "
+            "-name source,debug-threads=on "
+            "%s "
+            "-serial file:%s/%s "
+            "%s %s %s",
+            kvm_opts ? kvm_opts : "",
+            machine, machine_opts,
+            memory_backend, tmpfs, serial_name,
+            arch_opts ? arch_opts : "",
+            extra_opts ? extra_opts : "",
+            ignore_stderr);
+    }
 
-    /*
-     * If the monitor connection is deferred, enable events on the command line
-     * so none are missed.  This is for testing only, do not set migration
-     * options like this in general.
-     */
-    events = args->defer_target_connect ? "-global migration.x-events=on" : "";
+    return 0;
+}
 
-    cmd_target = g_strdup_printf("-accel kvm%s -accel tcg "
-                                 "-machine %s,%s "
-                                 "-name target,debug-threads=on "
-                                 "%s "
-                                 "-serial file:%s/dest_serial "
-                                 "-incoming defer "
-                                 "%s %s %s %s",
-                                 kvm_opts ? kvm_opts : "",
-                                 machine, machine_opts,
-                                 memory_backend, tmpfs,
-                                 events,
-                                 arch_opts ? arch_opts : "",
-                                 args->opts_target ? args->opts_target : "",
-                                 ignore_stderr);
+/*
+ * Launch a QEMU process as a migration source.
+ * Returns the QTestState on success, or NULL otherwise
+ */
+QTestState *migrate_launch_source(const char *serial_name, MigrateStart *args)
+{
+    g_autofree char *cmd = NULL;
+    g_autoptr(QList) capabilities = migrate_start_get_qmp_capabilities(args);
 
-    *from = cmd_source;
-    *to = cmd_target;
+    if (migrate_build_cmd(serial_name, false, args->opts_source,
+                          false, args, &cmd)) {
+        return NULL;
+    }
+    return qtest_init_ext(QEMU_ENV_SRC, cmd, capabilities, true);
+}
+
+/*
+ * Launch a QEMU process as a migration destination.
+ * Returns the QTestState on success, or NULL otherwise
+ */
+QTestState *migrate_launch_dest(const char *serial_name, MigrateStart *args)
+{
+    g_autofree char *cmd = NULL;
+    g_autoptr(QList) capabilities = migrate_start_get_qmp_capabilities(args);
+
+    if (migrate_build_cmd(serial_name, true, args->opts_target,
+                          args->defer_target_connect, args, &cmd)) {
+        return NULL;
+    }
+    return qtest_init_ext(QEMU_ENV_DST, cmd, capabilities,
+                          !args->defer_target_connect);
+}
+
+int migrate_args(char **from, char **to, MigrateStart *args)
+{
+    if (migrate_build_cmd("src_serial", false, args->opts_source,
+                          false, args, from)) {
+        return -1;
+    }
+    if (migrate_build_cmd("dest_serial", true, args->opts_target,
+                          args->defer_target_connect, args, to)) {
+        g_free(*from);
+        *from = NULL;
+        return -1;
+    }
     return 0;
 }
 
@@ -482,43 +523,45 @@ static void migrate_mem_type_cleanup(MemType type)
 
 int migrate_start(QTestState **from, QTestState **to, MigrateStart *args)
 {
-    g_autofree gchar *cmd_source = NULL;
-    g_autofree gchar *cmd_target = NULL;
-    g_autoptr(QList) capabilities = migrate_start_get_qmp_capabilities(args);
-
     if (!migrate_mem_type_prepare(args->mem_type)) {
         return -1;
     }
 
-    dst_state = (QTestMigrationState) { };
-    src_state = (QTestMigrationState) { };
+    src_state = (QTestMigrationState){};
+    dst_state = (QTestMigrationState){};
     bootfile_create(qtest_get_arch(), tmpfs, args->suspend_me);
-    src_state.suspend_me = args->suspend_me;
-
-    if (migrate_args(&cmd_source, &cmd_target, args)) {
-        return -1;
-    }
 
     if (!args->only_target) {
-        *from = qtest_init_ext(QEMU_ENV_SRC, cmd_source, capabilities, true);
-        qtest_qmp_set_event_callback(*from,
-                                     migrate_watch_for_events,
-                                     &src_state);
+        *from = migrate_launch_source("src_serial", args);
+        if (!*from) {
+            return -1;
+        }
+        migrate_setup_instance(*from, &src_state, args);
     }
 
     if (!args->only_source) {
-        *to = qtest_init_ext(QEMU_ENV_DST, cmd_target, capabilities,
-                             !args->defer_target_connect);
-        qtest_qmp_set_event_callback(*to,
-                                     migrate_watch_for_events,
-                                     &dst_state);
+        *to = migrate_launch_dest("dest_serial", args);
+        if (!*to) {
+            if (!args->only_target) {
+                qtest_quit(*from);
+            }
+            return -1;
+        }
+        if (!args->defer_target_connect) {
+            migrate_setup_instance(*to, &dst_state, args);
+        } else {
+            /*
+             * The monitor is not connected yet; only register the event
+             * callback so no events are missed.
+             * The caller must call migrate_setup_instance() after
+             * qtest_connect() if it wants to setup any capability
+             */
+            qtest_qmp_set_event_callback(*to, migrate_watch_for_events,
+                                         &dst_state);
+        }
     }
 
     migrate_mem_type_cleanup(args->mem_type);
-    migrate_start_set_capabilities(*from,
-                                   args->only_source ? NULL : *to,
-                                   args);
-
     return 0;
 }
 

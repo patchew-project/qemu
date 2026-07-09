@@ -225,9 +225,26 @@ typedef struct {
     bool live;
 } MigrateCommon;
 
+typedef struct QTestMigrationState QTestMigrationState;
+
 void wait_for_serial(const char *side);
 void migrate_prepare_for_dirty_mem(QTestState *from);
 void migrate_wait_for_dirty_mem(QTestState *from, QTestState *to);
+
+/*
+ * Start a QEMU process which has serial set to @serial_name
+ */
+QTestState *migrate_launch_source(const char *serial_name, MigrateStart *args);
+/*
+ * Start a QEMU process which has serial set to @serial_name
+ */
+QTestState *migrate_launch_dest(const char *serial_name, MigrateStart *args);
+/*
+ * Registers the event callback and sets migration capabilities on an
+ * already-running process
+ */
+void migrate_setup_instance(QTestState *who, QTestMigrationState *state,
+                   MigrateStart *args);
 
 int migrate_args(char **from, char **to, MigrateStart *args);
 int migrate_start(QTestState **from, QTestState **to, MigrateStart *args);
@@ -240,7 +257,6 @@ int test_precopy_common(MigrateCommon *args);
 void test_precopy_unix_common(MigrateCommon *args);
 void test_file_common(MigrateCommon *args, bool stop_src);
 
-typedef struct QTestMigrationState QTestMigrationState;
 QTestMigrationState *get_src(void);
 QTestMigrationState *get_dst(void);
 
