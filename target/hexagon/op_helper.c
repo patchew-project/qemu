@@ -95,19 +95,26 @@ static void commit_store(CPUHexagonState *env, int slot_num, uintptr_t ra)
 {
     uint32_t width = env->mem_log_stores[slot_num].width;
     target_ulong va = env->mem_log_stores[slot_num].va;
+    MemOpIdx oi;
 
     switch (width) {
     case 1:
         cpu_stb_data_ra(env, va, env->mem_log_stores[slot_num].data32, ra);
         break;
     case 2:
-        cpu_stw_le_data_ra(env, va, env->mem_log_stores[slot_num].data32, ra);
+        oi = make_memop_idx(MO_LEUW | MO_ALIGN,
+                            cpu_mmu_index(env_cpu(env), false));
+        cpu_stw_mmu(env, va, env->mem_log_stores[slot_num].data32, oi, ra);
         break;
     case 4:
-        cpu_stl_le_data_ra(env, va, env->mem_log_stores[slot_num].data32, ra);
+        oi = make_memop_idx(MO_LEUL | MO_ALIGN,
+                            cpu_mmu_index(env_cpu(env), false));
+        cpu_stl_mmu(env, va, env->mem_log_stores[slot_num].data32, oi, ra);
         break;
     case 8:
-        cpu_stq_le_data_ra(env, va, env->mem_log_stores[slot_num].data64, ra);
+        oi = make_memop_idx(MO_LEUQ | MO_ALIGN,
+                            cpu_mmu_index(env_cpu(env), false));
+        cpu_stq_mmu(env, va, env->mem_log_stores[slot_num].data64, oi, ra);
         break;
     default:
         g_assert_not_reached();
