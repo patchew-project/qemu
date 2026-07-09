@@ -329,7 +329,8 @@ int sclp_service_call(S390CPU *cpu, uint64_t sccb, uint32_t code)
     /*
      * we want to work on a private copy of the sccb, to prevent guests
      * from playing dirty tricks by modifying the memory content after
-     * the host has checked the values
+     * the host has checked the values.
+     * Reuse the previously fetched header
      */
     work_sccb = g_malloc0(be16_to_cpu(header.length));
     ret = address_space_read(as, sccb, attrs,
@@ -337,6 +338,7 @@ int sclp_service_call(S390CPU *cpu, uint64_t sccb, uint32_t code)
     if (ret != MEMTX_OK) {
         return -PGM_ADDRESSING;
     }
+    work_sccb->h = header;
 
     if (!sclp_command_code_valid(code)) {
         work_sccb->h.response_code = cpu_to_be16(SCLP_RC_INVALID_SCLP_COMMAND);
