@@ -637,6 +637,18 @@ static void raise_perm_exception(CPUState *cs, uint32_t VA, int slot,
     cs->exception_index = excp;
 }
 
+static void raise_misaligned_exception(CPUState *cs, uint32_t VA, int slot,
+                                       MMUAccessType access_type)
+{
+    CPUHexagonState *env = cpu_env(cs);
+    int32_t excp = (access_type == MMU_DATA_STORE) ?
+                   HEX_CAUSE_MISALIGNED_STORE : HEX_CAUSE_MISALIGNED_LOAD;
+
+    set_badva_regs(env, VA, slot, access_type);
+    cs->exception_index = HEX_EVENT_PRECISE;
+    env->cause_code = excp;
+}
+
 static const char *access_type_names[] = { "MMU_DATA_LOAD ", "MMU_DATA_STORE",
                                            "MMU_INST_FETCH" };
 
@@ -715,6 +727,18 @@ static vaddr hexagon_pointer_wrap(CPUState *cs, int mmu_idx,
     return result;
 }
 
+static G_NORETURN
+void hexagon_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
+                                     MMUAccessType access_type, int mmu_idx,
+                                     uintptr_t retaddr)
+{
+    CPUHexagonState *env = cpu_env(cs);
+
+    raise_misaligned_exception(cs, addr, 0, access_type);
+    do_raise_exception(env, cs->exception_index, env->gpr[HEX_REG_PC],
+                       retaddr);
+}
+
 #endif
 
 static const TCGCPUOps hexagon_tcg_ops = {
@@ -732,6 +756,7 @@ static const TCGCPUOps hexagon_tcg_ops = {
     .pointer_wrap = hexagon_pointer_wrap,
     .cpu_exec_reset = cpu_reset,
     .tlb_fill = hexagon_tlb_fill,
+    .do_unaligned_access = hexagon_cpu_do_unaligned_access,
     .cpu_exec_halt = hexagon_cpu_has_work,
     .do_interrupt = hexagon_cpu_do_interrupt,
 #endif /* !CONFIG_USER_ONLY */

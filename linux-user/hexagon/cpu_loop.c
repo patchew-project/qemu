@@ -76,6 +76,11 @@ void cpu_loop(CPUHexagonState *env)
             force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLOPC,
                     env->gpr[HEX_REG_PC]);
             break;
+            case HEX_CAUSE_MISALIGNED_LOAD:
+            case HEX_CAUSE_MISALIGNED_STORE:
+            force_sig_fault(TARGET_SIGBUS, TARGET_BUS_ADRALN,
+                    env->gpr[HEX_REG_PC]);
+            break;
             default:
                 EXCP_DUMP(env, "\nqemu: unhandled CPU precise exception "
                     "cause code 0x%x - aborting\n",
