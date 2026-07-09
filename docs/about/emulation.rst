@@ -1046,6 +1046,205 @@ Count traps
 This plugin counts the number of interrupts (asynchronous events), exceptions
 (synchronous events) and host calls (e.g. semihosting) per cpu.
 
+Dynamic Linking Call
+....................
+
+``contrib/plugins/dlcall.c``
+
+This plugin provides a dynamic linking function call interception mechanism
+for linux-user guests: the guest hands a call off to the host, where the plugin
+runs native code in its place instead of the guest emulating it. Interception
+alone enables several uses, for instance tracing or auditing guest calls.
+One use is acceleration by leveraging the host's native shared libraries. For
+example, a thunk layer can run the stock zlib ``minizip`` utility under
+emulation while forwarding its ``deflate`` calls to the host's native zlib
+library (libz). This avoids emulating those selected library calls instruction
+by instruction.
+
+The guest issues a reserved "magic" system call (4096 by default, configurable
+with ``syscall_num=N``) whose first argument selects a pass-through operation:
+dlopen/dlclose a host library, dlsym a symbol, and invoke a resolved host
+function. The plugin performs the operation on the host and consumes the
+syscall, so the real kernel never sees it.
+
+.. warning::
+
+   Trusted guests only. The guest can load arbitrary host libraries and run
+   arbitrary code in the QEMU host process. The plugin is not a sandbox and
+   provides no isolation. It also requires ``guest_base == 0`` (qemu-user's
+   default), as guest pointers are dereferenced as host addresses with no
+   translation.
+
+The plugin intentionally keeps the QEMU side lightweight and knows nothing
+about any particular library or its calling convention. Turning a real library
+into working thunks, including argument marshalling, callbacks and variadic
+functions, is done entirely in userspace, and any toolchain can implement the
+interface.
+
+Loading the plugin is all that is required from QEMU's side:
+
+.. code-block:: shell
+
+   qemu-x86_64 -plugin contrib/plugins/libdlcall.so <guest-program> ...
+
+`Lorelei <https://github.com/rover2024/lorelei>`_ is one end-to-end userspace
+implementation of this: it provides the guest and host runtimes and an
+automated toolchain that generates the thunks from a library's headers, so guest
+library calls run on the host's native libraries. It supports an x86_64 guest
+running on an x86_64, aarch64 or riscv64 host.
+
+A minimal end-to-end example uses a one-function library, ``libhello.so``, built
+two ways: the guest build tags its output ``from guest`` and the host build tags
+it ``from host``. An unmodified guest program ``main`` calls ``hello("world",
+7)``, and the thunk makes that same binary reach the host build in place of its
+own. The sources live under ``src/``:
+
+.. code-block:: c
+
+   /* src/hello.h */
+   #ifdef __cplusplus
+   extern "C" {
+   #endif
+   void hello(const char *name, int lucky);
+   #ifdef __cplusplus
+   }
+   #endif
+
+.. code-block:: c
+
+   /* src/hello_guest.c */
+   #include "hello.h"
+   #include <stdio.h>
+
+   void hello(const char *name, int lucky)
+   {
+       printf("hello from guest: %s, lucky %d\n", name, lucky);
+       fflush(stdout);
+   }
+
+.. code-block:: c
+
+   /* src/hello_host.c */
+   #include "hello.h"
+   #include <stdio.h>
+
+   void hello(const char *name, int lucky)
+   {
+       printf("hello from host: %s, lucky %d\n", name, lucky);
+       fflush(stdout);
+   }
+
+.. code-block:: c
+
+   /* src/main.c */
+   #include "hello.h"
+
+   int main(void)
+   {
+       hello("world", 7);
+       return 0;
+   }
+
+Lorelei ships a prebuilt toolchain (a "devkit") in its releases. Download the
+one for your host and unpack it:
+
+.. code-block:: shell
+
+   # <arch> is your host architecture: x86_64, aarch64 or riscv64
+   wget https://github.com/rover2024/lorelei/releases/download/v<version>/lorelei-devkit-<arch>-<version>.tar.xz
+   tar -xf lorelei-devkit-<arch>-<version>.tar.xz
+   DEVKIT=lorelei-devkit-<arch>
+
+Build the guest ``libhello.so`` (x86_64) and the host ``libhello.so`` (this
+host's own architecture), then the guest program:
+
+.. code-block:: shell
+
+   mkdir -p build/guest build/host
+   $DEVKIT/bin/x86_64-linux-gnu-clang -shared -fPIC src/hello_guest.c -o build/guest/libhello.so
+   cc -shared -fPIC src/hello_host.c -o build/host/libhello.so
+   $DEVKIT/bin/x86_64-linux-gnu-clang src/main.c -Isrc -Lbuild/guest -lhello -o build/guest/main
+
+Run it under qemu:
+
+.. code-block:: shell
+
+   qemu-x86_64 -E LD_LIBRARY_PATH=build/guest build/guest/main
+
+which prints::
+
+   hello from guest: world, lucky 7
+
+Now generate the thunk from the host ``libhello.so``. This produces a guest-side
+``libhello.so`` that stands in for the guest build, and a host-side thunk library
+that dispatches to the host build:
+
+.. code-block:: shell
+
+   $DEVKIT/bin/LoreMakeThunk.py --name hello --lib build/host/libhello.so \
+       --header hello.h -o thunks -- -Isrc
+
+Run the same ``main`` under the plugin. The call reaches the host build now:
+
+.. code-block:: shell
+
+   LORELEI_THUNK_PATH=thunks \
+   LD_LIBRARY_PATH=$DEVKIT/lib:build/host \
+       qemu-x86_64 -plugin contrib/plugins/libdlcall.so \
+       -E LD_LIBRARY_PATH=$DEVKIT/x86_64/lib:thunks/x86_64/lib/x86_64-LoreGTL \
+       build/guest/main
+
+which prints::
+
+   hello from host: world, lucky 7
+
+The guest ``LD_LIBRARY_PATH``, passed with ``-E``, is where the emulated program
+looks for its libraries:
+
+* ``$DEVKIT/x86_64/lib`` holds the guest runtime support shipped with the devkit.
+* ``thunks/x86_64/lib/x86_64-LoreGTL`` holds the generated guest ``libhello.so``,
+  which loads in place of the guest build.
+
+The host ``LD_LIBRARY_PATH`` is QEMU's own search path:
+
+* ``$DEVKIT/lib`` holds the host runtime support shipped with the devkit.
+* ``build/host`` holds the host ``libhello.so`` the host thunk dispatches to.
+
+The resulting directory tree::
+
+   src/
+     hello.h
+     hello_guest.c
+     hello_host.c
+     main.c
+   build/
+     guest/
+       libhello.so                            (guest build of the library)
+       main                                   (the guest program)
+     host/
+       libhello.so                            (host build of the library)
+   thunks/
+     lib/x86_64-LoreHTL/libhello_HTL.so       (host thunk)
+     x86_64/lib/x86_64-LoreGTL/libhello.so    (guest thunk, the drop-in)
+
+See the runnable
+`hello <https://github.com/rover2024/lorelei/tree/main/examples/hello>`_
+(minimal) and
+`demo <https://github.com/rover2024/lorelei/tree/main/examples/demo>`_
+(variadic functions and a callback that reenters the guest) examples, and
+`Lorelei <https://github.com/rover2024/lorelei>`_ for the devkit and the
+runtime environment they expect.
+
+.. list-table:: Dynamic Linking Call arguments
+  :widths: 20 80
+  :header-rows: 1
+
+  * - Option
+    - Description
+  * - syscall_num=N
+    - The magic syscall number the guest issues (default 4096). Must be high
+      enough not to clash with a real syscall.
+
 Other emulation features
 ------------------------
 
