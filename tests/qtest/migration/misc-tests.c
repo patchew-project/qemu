@@ -128,7 +128,7 @@ static void do_test_validate_uuid(MigrateStart *args, bool should_fail)
     migrate_set_capability(from, "validate-uuid", true);
 
     /* Wait for the first serial output from the source */
-    wait_for_serial("src_serial");
+    wait_for_serial(qtest_get_serial_path(from));
 
     migrate_incoming_qmp(to, uri, NULL, "{}");
     migrate_qmp(from, to, uri, NULL, "{}");
@@ -185,7 +185,7 @@ static void do_test_validate_uri_channel(MigrateCommon *args)
     }
 
     /* Wait for the first serial output from the source */
-    wait_for_serial("src_serial");
+    wait_for_serial(qtest_get_serial_path(from));
 
     migrate_incoming_qmp(to, "tcp:127.0.0.1:0", NULL, "{}");
 

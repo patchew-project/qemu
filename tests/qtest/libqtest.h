@@ -99,6 +99,14 @@ QTestState *qtest_init_ext(const char *var, const char *extra_args,
                            QList *capabilities, bool do_connect);
 
 /**
+ * qtest_set_serial_path:
+ * @s: #QTestState instance
+ * @path: full path to the serial output file to unlink on qtest_quit()
+ */
+void qtest_set_serial_path(QTestState *s, const char *path);
+const char *qtest_get_serial_path(QTestState *s);
+
+/**
  * qtest_init_without_qmp_handshake:
  * @extra_args: other arguments to pass to QEMU.  CAUTION: these
  * arguments are subject to word splitting and shell evaluation.

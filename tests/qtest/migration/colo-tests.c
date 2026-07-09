@@ -58,21 +58,21 @@ static int test_colo_common(MigrateCommon *args,
     migrate_incoming_qmp(to, args->uri, NULL, "{}");
 
     migrate_ensure_converge(from);
-    wait_for_serial("src_serial");
+    wait_for_serial(qtest_get_serial_path(from));
 
     migrate_qmp(from, to, NULL, NULL, "{}");
 
     wait_for_migration_status(from, "colo", NULL);
     wait_for_resume(to, get_dst());
 
-    wait_for_serial("src_serial");
-    wait_for_serial("dest_serial");
+    wait_for_serial(qtest_get_serial_path(from));
+    wait_for_serial(qtest_get_serial_path(to));
 
     /* wait for 3 checkpoints */
     for (int i = 0; i < 3; i++) {
         qtest_qmp_eventwait(to, "RESUME");
-        wait_for_serial("src_serial");
-        wait_for_serial("dest_serial");
+        wait_for_serial(qtest_get_serial_path(from));
+        wait_for_serial(qtest_get_serial_path(to));
     }
 
     if (failover_during_checkpoint) {
@@ -83,13 +83,13 @@ static int test_colo_common(MigrateCommon *args,
                                             "'arguments': {'instances':"
                                                 "[{'type': 'migration'}]}}");
         qtest_qmp_assert_success(from, "{'execute': 'x-colo-lost-heartbeat'}");
-        wait_for_serial("src_serial");
+        wait_for_serial(qtest_get_serial_path(from));
     } else {
         qtest_qmp_assert_success(to, "{'exec-oob': 'yank', 'id': 'yank-cmd', "
                                         "'arguments': {'instances':"
                                             "[{'type': 'migration'}]}}");
         qtest_qmp_assert_success(to, "{'execute': 'x-colo-lost-heartbeat'}");
-        wait_for_serial("dest_serial");
+        wait_for_serial(qtest_get_serial_path(to));
     }
 
     if (args->end_hook) {

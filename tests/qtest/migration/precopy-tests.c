@@ -282,7 +282,8 @@ static void test_auto_converge(char *name, MigrateCommon *args)
     /* To check remaining size after precopy */
     migrate_set_capability(from, "pause-before-switchover", true);
 
-    wait_for_serial("src_serial");
+    /* Wait for the first serial output from the source */
+    wait_for_serial(qtest_get_serial_path(from));
 
     migrate_incoming_qmp(to, uri, NULL, "{}");
     migrate_qmp(from, to, uri, NULL, "{}");
@@ -317,7 +318,7 @@ static void test_auto_converge(char *name, MigrateCommon *args)
 
     qtest_qmp_eventwait(to, "RESUME");
 
-    wait_for_serial("dest_serial");
+    wait_for_serial(qtest_get_serial_path(to));
     wait_for_migration_complete(from);
 
     migrate_end(from, to, true);
@@ -436,7 +437,7 @@ static void test_multifd_tcp_cancel(MigrateCommon *args, bool postcopy_ram)
     migrate_incoming_qmp(to, "tcp:127.0.0.1:0", NULL, "{}");
 
     /* Wait for the first serial output from the source */
-    wait_for_serial("src_serial");
+    wait_for_serial(qtest_get_serial_path(from));
 
     migrate_qmp(from, to, NULL, NULL, "{}");
 
@@ -486,7 +487,7 @@ static void test_multifd_tcp_cancel(MigrateCommon *args, bool postcopy_ram)
     wait_for_stop(from, get_src());
     qtest_qmp_eventwait(to2, "RESUME");
 
-    wait_for_serial("dest_serial");
+    wait_for_serial(qtest_get_serial_path(to2));
     wait_for_migration_complete(from);
     migrate_end(from, to2, true);
 }
@@ -510,7 +511,7 @@ static void test_cancel_src_after_failed(QTestState *from, QTestState *to,
      * failed state during migrate_qmp().
      */
 
-    wait_for_serial("src_serial");
+    wait_for_serial(qtest_get_serial_path(from));
     migrate_ensure_converge(from);
 
     migrate_qmp(from, to, uri, NULL, "{}");
@@ -535,7 +536,7 @@ static void test_cancel_src_after_cancelled(QTestState *from, QTestState *to,
 {
     migrate_incoming_qmp(to, uri, NULL, "{}");
 
-    wait_for_serial("src_serial");
+    wait_for_serial(qtest_get_serial_path(from));
     migrate_ensure_converge(from);
 
     migrate_qmp(from, to, uri, NULL, "{}");
@@ -560,7 +561,7 @@ static void test_cancel_src_after_complete(QTestState *from, QTestState *to,
 {
     migrate_incoming_qmp(to, uri, NULL, "{}");
 
-    wait_for_serial("src_serial");
+    wait_for_serial(qtest_get_serial_path(from));
     migrate_ensure_converge(from);
 
     migrate_qmp(from, to, uri, NULL, "{}");
@@ -586,7 +587,7 @@ static void test_cancel_src_after_none(QTestState *from, QTestState *to,
      */
     migrate_cancel(to);
 
-    wait_for_serial("src_serial");
+    wait_for_serial(qtest_get_serial_path(from));
     migrate_cancel(from);
 
     migrate_incoming_qmp(to, uri, NULL, "{}");
@@ -610,7 +611,7 @@ static void test_cancel_src_pre_switchover(QTestState *from, QTestState *to,
 
     migrate_incoming_qmp(to, uri, NULL, "{}");
 
-    wait_for_serial("src_serial");
+    wait_for_serial(qtest_get_serial_path(from));
     migrate_ensure_converge(from);
 
     migrate_qmp(from, to, uri, NULL, "{}");
@@ -831,7 +832,10 @@ static void test_vcpu_dirty_limit(char *name, MigrateCommon *args)
     vm = dirtylimit_start_vm();
 
     /* Wait for the first serial output from the vm*/
-    wait_for_serial("vm_serial");
+    {
+        g_autofree char *vm_serial = g_strdup_printf("%s/vm_serial", tmpfs);
+        wait_for_serial(vm_serial);
+    }
 
     /* Do dirtyrate measurement with calc time equals 1s */
     calc_dirty_rate(vm, 1);
@@ -924,7 +928,7 @@ static void migrate_dirty_limit_wait_showup(QTestState *from,
     migrate_set_capability(from, "pause-before-switchover", true);
 
     /* Wait for the serial output from the source */
-    wait_for_serial("src_serial");
+    wait_for_serial(qtest_get_serial_path(from));
 }
 
 /*
@@ -1062,7 +1066,7 @@ static void test_dirty_limit(char *name, MigrateCommon *args)
 
     qtest_qmp_eventwait(to, "RESUME");
 
-    wait_for_serial("dest_serial");
+    wait_for_serial(qtest_get_serial_path(to));
     wait_for_migration_complete(from);
 
     migrate_end(from, to, true);

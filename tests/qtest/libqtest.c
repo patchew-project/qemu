@@ -93,6 +93,7 @@ struct QTestState
     GList *pending_events;
     QTestQMPEventCallback eventCB;
     void *eventData;
+    char *serial_path;
 };
 
 static GHookList abrt_hooks;
@@ -688,8 +689,23 @@ void qtest_quit(QTestState *s)
     }
 
     g_list_free(s->pending_events);
+    if (s->serial_path) {
+        unlink(s->serial_path);
+        g_free(s->serial_path);
+    }
 
     g_free(s);
+}
+
+void qtest_set_serial_path(QTestState *s, const char *path)
+{
+    g_free(s->serial_path);
+    s->serial_path = g_strdup(path);
+}
+
+const char *qtest_get_serial_path(QTestState *s)
+{
+    return s->serial_path;
 }
 
 static void socket_send(int fd, const char *buf, size_t size)

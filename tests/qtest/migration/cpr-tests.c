@@ -66,7 +66,7 @@ static int test_transfer(MigrateCommon *args, const char *cpr_channel,
 
     migrate_set_parameter_str(from, "mode", "cpr-transfer");
 
-    wait_for_serial("src_serial");
+    wait_for_serial(qtest_get_serial_path(from));
 
     qtest_qmp_assert_success(from, "{ 'execute' : 'stop'}");
     wait_for_stop(from, get_src());
@@ -89,7 +89,7 @@ static int test_transfer(MigrateCommon *args, const char *cpr_channel,
     qtest_qmp_assert_success(to, "{ 'execute' : 'cont'}");
 
     wait_for_resume(to, get_dst());
-    wait_for_serial("dest_serial");
+    wait_for_serial(qtest_get_serial_path(to));
 
     migrate_end(from, to, true);
 
@@ -241,7 +241,7 @@ static void test_cpr_exec(MigrateCommon *args)
         data_hook = args->start_hook(from, NULL);
     }
 
-    wait_for_serial("src_serial");
+    wait_for_serial(qtest_get_serial_path(from));
     set_cpr_exec_args(from, args);
     migrate_set_capability(from, "events", true);
     migrate_qmp(from, NULL, connect_uri, NULL, "{}");
@@ -260,7 +260,7 @@ static void test_cpr_exec(MigrateCommon *args)
 
     wait_for_resume(to, get_dst());
     /* Device on target is still named src_serial because args do not change */
-    wait_for_serial("src_serial");
+    wait_for_serial(qtest_get_serial_path(from));
 
     if (args->end_hook) {
         args->end_hook(from, to, data_hook);

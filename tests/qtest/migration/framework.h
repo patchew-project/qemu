@@ -227,7 +227,7 @@ typedef struct {
 
 typedef struct QTestMigrationState QTestMigrationState;
 
-void wait_for_serial(const char *side);
+void wait_for_serial(const char *path);
 void migrate_prepare_for_dirty_mem(QTestState *from);
 void migrate_wait_for_dirty_mem(QTestState *from, QTestState *to);
 

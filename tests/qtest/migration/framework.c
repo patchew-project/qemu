@@ -58,10 +58,9 @@ static char *tmpfs;
  * we get an 'A' followed by an endless string of 'B's
  * but on the destination we won't have the A (unless we enabled suspend/resume)
  */
-void wait_for_serial(const char *side)
+void wait_for_serial(const char *path)
 {
-    g_autofree char *serialpath = g_strdup_printf("%s/%s", tmpfs, side);
-    FILE *serialfile = fopen(serialpath, "r");
+    FILE *serialfile = fopen(path, "r");
 
     do {
         int readvalue = fgetc(serialfile);
@@ -82,7 +81,7 @@ void wait_for_serial(const char *side)
             break;
 
         default:
-            fprintf(stderr, "Unexpected %d on %s serial\n", readvalue, side);
+            fprintf(stderr, "Unexpected %d on %s serial\n", readvalue, path);
             g_assert_not_reached();
         }
     } while (true);
@@ -450,7 +449,12 @@ QTestState *migrate_launch_source(const char *serial_name, MigrateStart *args)
                           false, args, &cmd)) {
         return NULL;
     }
-    return qtest_init_ext(QEMU_ENV_SRC, cmd, capabilities, true);
+    QTestState *s = qtest_init_ext(QEMU_ENV_SRC, cmd, capabilities, true);
+    if (s) {
+        g_autofree char *path = g_strdup_printf("%s/%s", tmpfs, serial_name);
+        qtest_set_serial_path(s, path);
+    }
+    return s;
 }
 
 /*
@@ -466,8 +470,13 @@ QTestState *migrate_launch_dest(const char *serial_name, MigrateStart *args)
                           args->defer_target_connect, args, &cmd)) {
         return NULL;
     }
-    return qtest_init_ext(QEMU_ENV_DST, cmd, capabilities,
-                          !args->defer_target_connect);
+    QTestState *s = qtest_init_ext(QEMU_ENV_DST, cmd, capabilities,
+                                   !args->defer_target_connect);
+    if (s) {
+        g_autofree char *path = g_strdup_printf("%s/%s", tmpfs, serial_name);
+        qtest_set_serial_path(s, path);
+    }
+    return s;
 }
 
 int migrate_args(char **from, char **to, MigrateStart *args)
@@ -595,8 +604,6 @@ void migrate_end(QTestState *from, QTestState *to, bool test_dest)
 
     cleanup("migsocket");
     cleanup("cpr.sock");
-    cleanup("src_serial");
-    cleanup("dest_serial");
     cleanup(FILE_TEST_FILENAME);
 }
 
@@ -631,7 +638,7 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
                              "                'port': '0' } } ] } }");
 
     /* Wait for the first serial output from the source */
-    wait_for_serial("src_serial");
+    wait_for_serial(qtest_get_serial_path(from));
     wait_for_suspend(from, &src_state);
 
     migrate_qmp(from, to, NULL, NULL, "{}");
@@ -657,7 +664,7 @@ static void migrate_postcopy_complete(QTestState *from, QTestState *to,
     }
 
     /* Make sure we get at least one "B" on destination */
-    wait_for_serial("dest_serial");
+    wait_for_serial(qtest_get_serial_path(to));
 
     if (env->uffd_feature_thread_id) {
         read_blocktime(to);
@@ -895,7 +902,7 @@ int test_precopy_common(MigrateCommon *args)
 
     /* Wait for the first serial output from the source */
     if (args->result == MIG_TEST_SUCCEED) {
-        wait_for_serial("src_serial");
+        wait_for_serial(qtest_get_serial_path(from));
         wait_for_suspend(from, &src_state);
     }
 
@@ -972,7 +979,7 @@ int test_precopy_common(MigrateCommon *args)
             qtest_qmp_assert_success(to, "{'execute': 'system_wakeup'}");
         }
 
-        wait_for_serial("dest_serial");
+        wait_for_serial(qtest_get_serial_path(to));
     }
 
 finish:
@@ -1063,7 +1070,7 @@ void test_file_common(MigrateCommon *args, bool stop_src)
     }
 
     migrate_ensure_converge(from);
-    wait_for_serial("src_serial");
+    wait_for_serial(qtest_get_serial_path(from));
 
     if (stop_src) {
         qtest_qmp_assert_success(from, "{ 'execute' : 'stop'}");
@@ -1090,7 +1097,7 @@ void test_file_common(MigrateCommon *args, bool stop_src)
     }
     wait_for_resume(to, &dst_state);
 
-    wait_for_serial("dest_serial");
+    wait_for_serial(qtest_get_serial_path(to));
 
     if (check_offset) {
         file_check_offset_region();
