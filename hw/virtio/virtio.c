@@ -1751,9 +1751,11 @@ static void *virtqueue_split_pop(VirtQueue *vq, size_t sz)
     if (virtio_queue_empty_rcu(vq)) {
         goto done;
     }
-    /* Needed after virtio_queue_empty(), see comment in
-     * virtqueue_num_heads(). */
-    smp_rmb();
+
+    rc = virtqueue_num_heads(vq, vq->last_avail_idx);
+    if (rc <= 0) {
+        goto done;
+    }
 
     /* When we start there are none of either input nor output. */
     out_num = in_num = elem_entries = 0;
