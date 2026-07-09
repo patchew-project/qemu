@@ -54,6 +54,7 @@ HEX_TESTS += invalid-slots
 HEX_TESTS += invalid-encoding
 HEX_TESTS += multiple-writes
 HEX_TESTS += unaligned_pc
+HEX_TESTS += unaligned_data
 
 HEX_TESTS += test_abs
 HEX_TESTS += test_bitcnt
@@ -108,6 +109,7 @@ preg_alias: preg_alias.c hex_test.h
 read_write_overlap: read_write_overlap.c hex_test.h
 reg_mut: reg_mut.c hex_test.h
 test_pnew_jump_loads: test_pnew_jump_loads.c hex_test.h
+unaligned_data: unaligned_data.c hex_test.h
 unaligned_pc: unaligned_pc.c
 
 # Compile for v66 so that the ELF selects a v66 CPU; the test then
