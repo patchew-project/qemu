@@ -66,7 +66,7 @@ mkdir_for_user(const char *path, const struct passwd *p,
         return false;
     }
 
-    if (chown(path, p->pw_uid, p->pw_gid) == -1) {
+    if (lchown(path, p->pw_uid, p->pw_gid) == -1) {
         error_setg_errno(errp, errno,
                          "failed to set ownership of directory '%s'",
                          path);
@@ -96,7 +96,7 @@ write_authkeys(const char *path, const GStrv keys,
         return false;
     }
 
-    if (chown(path, p->pw_uid, p->pw_gid) == -1) {
+    if (lchown(path, p->pw_uid, p->pw_gid) == -1) {
         error_setg_errno(errp, errno,
                          "failed to set ownership of directory '%s'",
                          path);
@@ -123,6 +123,7 @@ qmp_guest_ssh_add_authorized_keys(const char *username, strList *keys,
     g_auto(GStrv) authkeys = NULL;
     strList *k;
     size_t nkeys, nauthkeys;
+    int fd;
 
     reset = has_reset && reset;
 
@@ -138,14 +139,24 @@ qmp_guest_ssh_add_authorized_keys(const char *username, strList *keys,
     ssh_path = g_build_filename(p->pw_dir, ".ssh", NULL);
     authkeys_path = g_build_filename(ssh_path, "authorized_keys", NULL);
 
+    fd = open(ssh_path, O_DIRECTORY | O_NOFOLLOW);
+    if (fd == -1) {
+        if (errno != ENOENT) {
+            error_setg_errno(errp, errno, "failed to open directory '%s'", ssh_path);
+            return;
+        }
+    }
+
     if (!reset) {
         authkeys = read_authkeys(authkeys_path, NULL);
     }
     if (authkeys == NULL) {
-        if (!g_file_test(ssh_path, G_FILE_TEST_IS_DIR) &&
-            !mkdir_for_user(ssh_path, p, 0700, errp)) {
+        if (fd == -1 && !mkdir_for_user(ssh_path, p, 0700, errp)) {
             return;
         }
+    }
+    if (fd >= 0) {
+        close(fd);
     }
 
     nauthkeys = authkeys ? g_strv_length(authkeys) : 0;
@@ -167,11 +178,13 @@ qmp_guest_ssh_remove_authorized_keys(const char *username, strList *keys,
                                      Error **errp)
 {
     g_autofree struct passwd *p = NULL;
+    g_autofree char *ssh_path = NULL;
     g_autofree char *authkeys_path = NULL;
     g_autofree GStrv new_keys = NULL; /* do not own the strings */
     g_auto(GStrv) authkeys = NULL;
     GStrv a;
     size_t nkeys = 0;
+    int fd;
 
     if (!check_openssh_pub_keys(keys, NULL, errp)) {
         return;
@@ -182,8 +195,19 @@ qmp_guest_ssh_remove_authorized_keys(const char *username, strList *keys,
         return;
     }
 
-    authkeys_path = g_build_filename(p->pw_dir, ".ssh",
-                                     "authorized_keys", NULL);
+    ssh_path = g_build_filename(p->pw_dir, ".ssh", NULL);
+    authkeys_path = g_build_filename(ssh_path, "authorized_keys", NULL);
+
+    fd = open(ssh_path, O_DIRECTORY | O_NOFOLLOW);
+    if (fd == -1) {
+        if (errno != ENOENT) {
+            error_setg_errno(errp, errno, "failed to open directory '%s'", ssh_path);
+            return;
+        }
+    } else {
+        close(fd);
+    }
+
     if (!g_file_test(authkeys_path, G_FILE_TEST_EXISTS)) {
         return;
     }
@@ -215,18 +239,31 @@ GuestAuthorizedKeys *
 qmp_guest_ssh_get_authorized_keys(const char *username, Error **errp)
 {
     g_autofree struct passwd *p = NULL;
+    g_autofree char *ssh_path = NULL;
     g_autofree char *authkeys_path = NULL;
     g_auto(GStrv) authkeys = NULL;
     g_autoptr(GuestAuthorizedKeys) ret = NULL;
     int i;
+    int fd;
 
     p = get_passwd_entry(username, errp);
     if (p == NULL) {
         return NULL;
     }
 
-    authkeys_path = g_build_filename(p->pw_dir, ".ssh",
-                                     "authorized_keys", NULL);
+    ssh_path = g_build_filename(p->pw_dir, ".ssh", NULL);
+    authkeys_path = g_build_filename(ssh_path, "authorized_keys", NULL);
+
+    fd = open(ssh_path, O_DIRECTORY | O_NOFOLLOW);
+    if (fd == -1) {
+        if (errno != ENOENT) {
+            error_setg_errno(errp, errno, "failed to open directory '%s'", ssh_path);
+            return NULL;
+        }
+    } else {
+        close(fd);
+    }
+
     authkeys = read_authkeys(authkeys_path, errp);
     if (authkeys == NULL) {
         return NULL;
