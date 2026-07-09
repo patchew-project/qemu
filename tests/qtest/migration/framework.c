@@ -883,11 +883,97 @@ void test_postcopy_recovery_common(MigrateCommon *args,
     migrate_postcopy_complete(from, to, hook_data, args);
 }
 
+/*
+ * Perform one precopy migration hop on an already-running (from, to) pair.
+ * Both processes must have migrate_setup_instance() called before this
+ * function.
+ * Always expects the hop to succeed.
+ *
+ */
+static void migrate_precopy_hop(QTestState *from, QTestState *to,
+                                 const char *listen_uri,
+                                 const char *connect_uri,
+                                 MigrateCommon *args)
+{
+    QObject *channels = NULL;
+    int iters;
+
+    migrate_incoming_qmp(to, listen_uri, NULL, "{}");
+
+    wait_for_serial(qtest_get_serial_path(from));
+    wait_for_suspend(from, &src_state);
+
+    if (args->live) {
+        migrate_ensure_non_converge(from);
+        migrate_prepare_for_dirty_mem(from);
+    } else {
+        /*
+         * Testing non-live migration, we allow it to run at
+         * full speed to ensure short test case duration.
+         */
+        qtest_qmp_assert_success(from, "{ 'execute' : 'stop'}");
+        wait_for_stop(from, &src_state);
+        migrate_ensure_converge(from);
+    }
+
+    if (args->connect_channels) {
+        channels = qobject_from_json(args->connect_channels, &error_abort);
+    }
+
+    migrate_qmp(from, to, connect_uri, channels, "{}");
+
+    if (args->live) {
+        /*
+         * For initial iteration(s) we must do a full pass,
+         * but for the final iteration, we need only wait
+         * for some dirty mem before switching to converge.
+         */
+        /*
+         * Avoid changing the args->iterations by using a local copy
+         */
+        iters = args->iterations;
+        while (iters > 1) {
+            wait_for_migration_pass(from, &src_state);
+            iters--;
+        }
+        migrate_wait_for_dirty_mem(from, to);
+
+        migrate_ensure_converge(from);
+
+        /*
+         * We do this first, as it has a timeout to stop us
+         * hanging forever if migration didn't converge
+         */
+        wait_for_migration_complete(from);
+
+        wait_for_stop(from, &src_state);
+
+    } else {
+        wait_for_migration_complete(from);
+        /*
+         * Must wait for dst to finish reading all incoming
+         * data on the socket before issuing 'cont' otherwise
+         * it'll be ignored
+         */
+        wait_for_migration_complete(to);
+
+        qtest_qmp_assert_success(to, "{ 'execute' : 'cont'}");
+    }
+
+    wait_for_resume(to, &dst_state);
+
+    if (args->start.suspend_me) {
+        /* wakeup succeeds only if guest is suspended */
+        qtest_qmp_assert_success(to, "{'execute': 'system_wakeup'}");
+    }
+
+    wait_for_serial(qtest_get_serial_path(to));
+}
+
 int test_precopy_common(MigrateCommon *args)
 {
     QTestState *from, *to;
     void *data_hook = NULL;
-    QObject *channels = NULL;
     const char *listen_uri = args->uri ?: "tcp:127.0.0.1:0";
 
     if (migrate_start(&from, &to, &args->start)) {
@@ -898,91 +984,30 @@ int test_precopy_common(MigrateCommon *args)
         data_hook = args->start_hook(from, to);
     }
 
-    migrate_incoming_qmp(to, listen_uri, NULL, "{}");
-
-    /* Wait for the first serial output from the source */
     if (args->result == MIG_TEST_SUCCEED) {
-        wait_for_serial(qtest_get_serial_path(from));
-        wait_for_suspend(from, &src_state);
-    }
-
-    if (args->live) {
-        migrate_ensure_non_converge(from);
-        migrate_prepare_for_dirty_mem(from);
+        migrate_precopy_hop(from, to, listen_uri, args->uri, args);
     } else {
-        /*
-         * Testing non-live migration, we allow it to run at
-         * full speed to ensure short test case duration.
-         * For tests expected to fail, we don't need to
-         * change anything.
-         */
-        if (args->result == MIG_TEST_SUCCEED) {
-            qtest_qmp_assert_success(from, "{ 'execute' : 'stop'}");
-            wait_for_stop(from, &src_state);
-            migrate_ensure_converge(from);
-        }
-    }
+        QObject *channels = NULL;
 
-    if (args->connect_channels) {
-        channels = qobject_from_json(args->connect_channels, &error_abort);
-    }
+        migrate_incoming_qmp(to, listen_uri, NULL, "{}");
 
-    if (args->result == MIG_TEST_QMP_ERROR) {
-        migrate_qmp_fail(from, args->uri, channels, "{}");
-        goto finish;
-    }
-
-    migrate_qmp(from, to, args->uri, channels, "{}");
-
-    if (args->result != MIG_TEST_SUCCEED) {
-        bool allow_active = args->result == MIG_TEST_FAIL;
-        wait_for_migration_fail(from, allow_active);
-    } else {
         if (args->live) {
-            /*
-             * For initial iteration(s) we must do a full pass,
-             * but for the final iteration, we need only wait
-             * for some dirty mem before switching to converge
-             */
-            while (args->iterations > 1) {
-                wait_for_migration_pass(from, &src_state);
-                args->iterations--;
-            }
-            migrate_wait_for_dirty_mem(from, to);
+            migrate_ensure_non_converge(from);
+            migrate_prepare_for_dirty_mem(from);
+        }
 
-            migrate_ensure_converge(from);
+        if (args->connect_channels) {
+            channels = qobject_from_json(args->connect_channels, &error_abort);
+        }
 
-            /*
-             * We do this first, as it has a timeout to stop us
-             * hanging forever if migration didn't converge
-             */
-            wait_for_migration_complete(from);
-
-            wait_for_stop(from, &src_state);
-
+        if (args->result == MIG_TEST_QMP_ERROR) {
+            migrate_qmp_fail(from, args->uri, channels, "{}");
         } else {
-            wait_for_migration_complete(from);
-            /*
-             * Must wait for dst to finish reading all incoming
-             * data on the socket before issuing 'cont' otherwise
-             * it'll be ignored
-             */
-            wait_for_migration_complete(to);
-
-            qtest_qmp_assert_success(to, "{ 'execute' : 'cont'}");
+            migrate_qmp(from, to, args->uri, channels, "{}");
+            wait_for_migration_fail(from, args->result == MIG_TEST_FAIL);
         }
-
-        wait_for_resume(to, &dst_state);
-
-        if (args->start.suspend_me) {
-            /* wakeup succeeds only if guest is suspended */
-            qtest_qmp_assert_success(to, "{'execute': 'system_wakeup'}");
-        }
-
-        wait_for_serial(qtest_get_serial_path(to));
     }
 
-finish:
     if (args->end_hook) {
         args->end_hook(from, to, data_hook);
     }
@@ -998,6 +1023,44 @@ void test_precopy_unix_common(MigrateCommon *args)
 
     args->uri = uri;
     test_precopy_common(args);
+}
+
+int test_precopy_chain(MigrateCommon *args)
+{
+    QTestState *from, *to, *to2;
+    const char *listen_uri = args->uri ?: "tcp:127.0.0.1:0";
+
+    /*
+     * Hook callbacks operate on a fixed (from, to) pair; they do not
+     * compose across multiple migration legs.
+     */
+    g_assert(!args->start_hook && !args->end_hook);
+
+    if (migrate_start(&from, &to, &args->start)) {
+        return -1;
+    }
+
+    /* First leg: A -> B */
+    migrate_precopy_hop(from, to, listen_uri, args->uri, args);
+
+    /*
+     * Second leg: B -> C.
+     */
+    qtest_quit(from);
+    migrate_setup_instance(to, &src_state, &args->start);
+
+    to2 = migrate_launch_dest("dest_serial2", &args->start);
+    if (!to2) {
+        qtest_quit(to);
+        return -1;
+    }
+    migrate_setup_instance(to2, &dst_state, &args->start);
+
+    migrate_precopy_hop(to, to2, listen_uri, NULL, args);
+
+    migrate_end(to, to2, true);
+
+    return 0;
 }
 
 static void file_dirty_offset_region(void)

@@ -182,6 +182,11 @@ static void test_precopy_tcp_plain(char *name, MigrateCommon *args)
     test_precopy_common(args);
 }
 
+static void test_precopy_tcp_plain_chain(char *name, MigrateCommon *args)
+{
+    test_precopy_chain(args);
+}
+
 static void test_precopy_tcp_switchover_ack(char *name, MigrateCommon *args)
 {
     /*
@@ -396,6 +401,20 @@ static void test_multifd_tcp_channels_none(char *name, MigrateCommon *args)
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
 
     test_precopy_common(args);
+}
+
+static void test_multifd_tcp_channels_chain(char *name, MigrateCommon *args)
+{
+    args->live = true;
+    args->connect_channels = ("[ { 'channel-type': 'main',"
+                             "    'addr': { 'transport': 'socket',"
+                             "              'type': 'inet',"
+                             "              'host': '127.0.0.1',"
+                             "              'port': '0' } } ]");
+
+    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+
+    test_precopy_chain(args);
 }
 
 /*
@@ -1112,6 +1131,8 @@ void migration_test_add_precopy(MigrationTestEnv *env)
         return;
     }
 
+    migration_test_add("/migration/precopy/tcp/plain/chain",
+                       test_precopy_tcp_plain_chain);
     migration_test_add("/migration/precopy/tcp/plain/switchover-ack",
                        test_precopy_tcp_switchover_ack);
 
@@ -1133,6 +1154,8 @@ void migration_test_add_precopy(MigrationTestEnv *env)
     }
     migration_test_add("/migration/multifd/tcp/channels/plain/none",
                        test_multifd_tcp_channels_none);
+    migration_test_add("/migration/multifd/tcp/channels/plain/chain",
+                       test_multifd_tcp_channels_chain);
     migration_test_add("/migration/multifd/tcp/plain/zero-page/legacy",
                        test_multifd_tcp_zero_page_legacy);
     migration_test_add("/migration/multifd/tcp/plain/zero-page/none",

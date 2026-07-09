@@ -254,6 +254,7 @@ void test_postcopy_common(MigrateCommon *args);
 void test_postcopy_recovery_common(MigrateCommon *args,
                                    PostcopyRecoveryFailStage fail_stage);
 int test_precopy_common(MigrateCommon *args);
+int test_precopy_chain(MigrateCommon *args);
 void test_precopy_unix_common(MigrateCommon *args);
 void test_file_common(MigrateCommon *args, bool stop_src);
 
