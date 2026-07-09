@@ -19,6 +19,7 @@ The ``k230`` machine supports the following devices:
 * Core Local Interruptor (CLINT)
 * Platform-Level Interrupt Controller (PLIC)
 * 2 K230 Watchdog Timer
+* K230 Reset Management Unit (RMU)
 * 5 UART
 
 Boot options
