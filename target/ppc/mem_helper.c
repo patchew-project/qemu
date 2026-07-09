@@ -367,34 +367,6 @@ void helper_icbiep(CPUPPCState *env, target_ulong addr)
 #endif
 }
 
-/* XXX: to be tested */
-target_ulong helper_lscbx(CPUPPCState *env, target_ulong addr, uint32_t reg,
-                          uint32_t ra, uint32_t rb)
-{
-    int i, c, d;
-
-    d = 24;
-    for (i = 0; i < xer_bc; i++) {
-        c = cpu_ldub_data_ra(env, addr, GETPC());
-        addr = addr_add(env, addr, 1);
-        /* ra (if not 0) and rb are never modified */
-        if (likely(reg != rb && (ra == 0 || reg != ra))) {
-            env->gpr[reg] = (env->gpr[reg] & ~(0xFF << d)) | (c << d);
-        }
-        if (unlikely(c == xer_cmp)) {
-            break;
-        }
-        if (likely(d != 0)) {
-            d -= 8;
-        } else {
-            d = 24;
-            reg++;
-            reg = reg & 0x1F;
-        }
-    }
-    return i;
-}
-
 /*****************************************************************************/
 /* Altivec extension helpers */
 #if HOST_BIG_ENDIAN
