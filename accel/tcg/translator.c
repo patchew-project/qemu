@@ -283,16 +283,16 @@ static bool translator_ld(CPUArchState *env, DisasContextBase *db,
     }
 
     /*
-     * The read must conclude on the second page and not extend to a third.
-     *
-     * TODO: We could allow the two pages to be virtually discontiguous,
-     * since we already allow the two pages to be physically discontiguous.
-     * The only reasonable use case would be executing an insn at the end
-     * of the address space wrapping around to the beginning.  For that,
-     * we would need to know the current width of the address space.
-     * In the meantime, assert.
+     * The read must conclude on the second page and must not extend to a
+     * third.  An instruction that straddles the end of the address space
+     * wraps the second page back to the start of the address space, so the
+     * linear page0 + TARGET_PAGE_SIZE does not land on pc's page; in that
+     * case take the second page from pc instead of asserting.
      */
     base = (base & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
+    if (((base ^ pc) & TARGET_PAGE_MASK) != 0) {
+        base = pc & TARGET_PAGE_MASK;
+    }
     assert(((base ^ pc) & TARGET_PAGE_MASK) == 0);
     assert(((base ^ last) & TARGET_PAGE_MASK) == 0);
     host = db->host_addr[1];
