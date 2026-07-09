@@ -33,7 +33,7 @@ QCryptoIVGen *qcrypto_ivgen_new(QCryptoIVGenAlgo alg,
                                 const uint8_t *key, size_t nkey,
                                 Error **errp)
 {
-    QCryptoIVGen *ivgen = g_new0(QCryptoIVGen, 1);
+    g_autofree QCryptoIVGen *ivgen = g_new0(QCryptoIVGen, 1);
 
     ivgen->algorithm = alg;
     ivgen->cipher = cipheralg;
@@ -51,16 +51,14 @@ QCryptoIVGen *qcrypto_ivgen_new(QCryptoIVGenAlgo alg,
         break;
     default:
         error_setg(errp, "Unknown block IV generator algorithm %d", alg);
-        g_free(ivgen);
         return NULL;
     }
 
     if (ivgen->driver->init(ivgen, key, nkey, errp) < 0) {
-        g_free(ivgen);
         return NULL;
     }
 
-    return ivgen;
+    return g_steal_pointer(&ivgen);
 }
 
 
