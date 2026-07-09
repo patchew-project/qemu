@@ -251,6 +251,9 @@ config DJMEMC
 config IOSB
     bool
 
+config K230_RMU
+    bool
+
 config XLNX_VERSAL_TRNG
     bool
 
