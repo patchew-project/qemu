@@ -36,9 +36,15 @@
 #include "hw/virtio/virtio-pci.h"
 #include "hw/virtio/virtio-net.h"
 #include "hw/virtio/virtio-iommu.h"
+#include "net/tap.h"
 #include "hw/acpi/generic_event_device.h"
 #include "qemu/audio.h"
 #include "hw/arm/smmuv3.h"
+
+/*
+ * TODO: When hw_compat_11_1 appears, local-migration-supported=false
+ * for TYPE_TAP_NETDEV should be move to it from hw_compat_11_0.
+ */
 
 GlobalProperty hw_compat_11_0[] = {
     { "chardev-vc", "encoding", "cp437" },
@@ -50,6 +56,7 @@ GlobalProperty hw_compat_11_0[] = {
     { TYPE_ARM_SMMUV3, "ssidsize", "0" },
     { TYPE_ARM_SMMUV3, "oas", "44" },
     { "migration", "switchover-ack-legacy", "on" },
+    { TYPE_TAP_NETDEV, "local-migration-supported", "false" },
 };
 const size_t hw_compat_11_0_len = G_N_ELEMENTS(hw_compat_11_0);
 

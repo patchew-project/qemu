@@ -38,12 +38,17 @@
 #include "monitor/monitor.h"
 #include "system/runstate.h"
 #include "system/system.h"
+#include "migration/misc.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/sockets.h"
 #include "hw/virtio/vhost.h"
+#include "hw/core/vmstate-if.h"
+#include "migration/vmstate.h"
+#include "qom/object.h"
+#include "qom/compat-properties.h"
 
 #include "net/tap.h"
 #include "net/util.h"
@@ -71,6 +76,8 @@ static const int kernel_feature_bits[] = {
 
 OBJECT_DECLARE_SIMPLE_TYPE(TAPState, TAP_NETDEV)
 
+static const VMStateDescription vmstate_tap;
+
 struct TAPState {
     Object parent_obj;
 
@@ -95,6 +102,7 @@ struct TAPState {
     int queue_index;
     bool read_poll_detached;
     VMChangeStateEntry *vmstate;
+    bool local_migration_supported;
 };
 
 static void launch_script(const char *setup_script, const char *ifname,
@@ -405,6 +413,8 @@ static void tap_cleanup(NetClientState *nc)
     tap_write_poll(s, false);
     close(s->fd);
     s->fd = -1;
+
+    vmstate_unregister(VMSTATE_IF(s), &vmstate_tap, s);
 }
 
 static void tap_poll(NetClientState *nc, bool enable)
@@ -441,6 +451,73 @@ static VHostNetState *tap_get_vhost_net(NetClientState *nc)
     return s->vhost_net;
 }
 
+static bool tap_is_wait_incoming(NetClientState *nc)
+{
+    TAPState *s = container_of(nc, TAPState, nc);
+    assert(nc->info->type == NET_CLIENT_DRIVER_TAP);
+    return s->fd == -1;
+}
+
+static int tap_pre_load(void *opaque)
+{
+    TAPState *s = opaque;
+
+    if (s->fd != -1) {
+        error_report(
+            "TAP is already initialized and cannot receive incoming fd");
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+static bool tap_setup_vhost(TAPState *s, Error **errp);
+
+static int tap_post_load(void *opaque, int version_id)
+{
+    TAPState *s = opaque;
+    Error *local_err = NULL;
+
+    tap_read_poll(s, true);
+
+    if (s->fd < 0) {
+        return -1;
+    }
+
+    if (!tap_setup_vhost(s, &local_err)) {
+        error_prepend(&local_err,
+                      "Failed to setup vhost during TAP post-load: ");
+        error_report_err(local_err);
+        return -1;
+    }
+
+    return 0;
+}
+
+static bool tap_needed(void *opaque)
+{
+    TAPState *s = opaque;
+
+    return s->local_migration_supported && migrate_local();
+}
+
+static const VMStateDescription vmstate_tap = {
+    .name = "net-tap",
+    .priority = MIG_PRI_BACKEND,
+    .pre_load = tap_pre_load,
+    .post_load = tap_post_load,
+    .needed = tap_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_FD(fd, TAPState),
+        VMSTATE_BOOL(using_vnet_hdr, TAPState),
+        VMSTATE_BOOL(has_ufo, TAPState),
+        VMSTATE_BOOL(has_uso, TAPState),
+        VMSTATE_BOOL(has_tunnel, TAPState),
+        VMSTATE_BOOL(enabled, TAPState),
+        VMSTATE_UINT32(host_vnet_hdr_len, TAPState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static char *tap_vmstate_if_get_id(VMStateIf *obj)
 {
@@ -449,17 +526,42 @@ static char *tap_vmstate_if_get_id(VMStateIf *obj)
     return res;
 }
 
+static bool tap_get_local_migration_supported_prop(Object *obj, Error **errp)
+{
+    TAPState *s = TAP_NETDEV(obj);
+    return s->local_migration_supported;
+}
+
+static void tap_set_local_migration_supported_prop(Object *obj, bool value,
+                                                   Error **errp)
+{
+    TAPState *s = TAP_NETDEV(obj);
+    s->local_migration_supported = value;
+}
+
+static void tap_instance_init(Object *obj)
+{
+    TAPState *s = TAP_NETDEV(obj);
+    s->local_migration_supported = true;
+}
+
 static void tap_class_init(ObjectClass *klass, const void *data)
 {
     VMStateIfClass *vc = VMSTATE_IF_CLASS(klass);
 
     vc->get_id = tap_vmstate_if_get_id;
+
+    object_class_property_add_bool(klass, "local-migration-supported",
+                                   tap_get_local_migration_supported_prop,
+                                   tap_set_local_migration_supported_prop);
 }
 
 static const TypeInfo tap_netdev_info = {
     .name = TYPE_TAP_NETDEV,
     .parent = TYPE_OBJECT,
     .instance_size = sizeof(TAPState),
+    .instance_init = tap_instance_init,
+    .instance_post_init = object_apply_compat_props,
     .class_init = tap_class_init,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_VMSTATE_IF },
@@ -492,13 +594,16 @@ static NetClientInfo net_tap_info = {
     .set_vnet_le = tap_set_vnet_le,
     .set_vnet_be = tap_set_vnet_be,
     .set_steering_ebpf = tap_set_steering_ebpf,
+    .is_wait_incoming = tap_is_wait_incoming,
     .get_vhost_net = tap_get_vhost_net,
 };
 
 static TAPState *new_tap(NetClientState *peer,
                          const char *model,
                          const char *name,
-                         int queue_index)
+                         int queue_index,
+                         bool has_local_migration_supported,
+                         bool local_migration_supported)
 {
     TAPState *s = TAP_NETDEV(object_new(TYPE_TAP_NETDEV));
 
@@ -506,6 +611,12 @@ static TAPState *new_tap(NetClientState *peer,
                           tap_net_client_destructor, true);
 
     s->queue_index = queue_index;
+
+    if (has_local_migration_supported) {
+        s->local_migration_supported = local_migration_supported;
+    }
+
+    vmstate_register(VMSTATE_IF(s), VMSTATE_INSTANCE_ID_ANY, &vmstate_tap, s);
 
     return s;
 }
@@ -515,10 +626,14 @@ static TAPState *net_tap_fd_init(NetClientState *peer,
                                  const char *name,
                                  int fd,
                                  int vnet_hdr,
-                                 int queue_index)
+                                 int queue_index,
+                                 bool has_local_migration_supported,
+                                 bool local_migration_supported)
 {
     NetOffloads ol = {};
-    TAPState *s = new_tap(peer, model, name, queue_index);
+    TAPState *s = new_tap(peer, model, name, queue_index,
+                          has_local_migration_supported,
+                          local_migration_supported);
 
     s->fd = fd;
     s->host_vnet_hdr_len = vnet_hdr ? sizeof(struct virtio_net_hdr) : 0;
@@ -755,7 +870,7 @@ int net_init_bridge(const Netdev *netdev, const char *name,
         close(fd);
         return -1;
     }
-    s = net_tap_fd_init(peer, "bridge", name, fd, vnet_hdr, 0);
+    s = net_tap_fd_init(peer, "bridge", name, fd, vnet_hdr, 0, true, false);
 
     qemu_set_info_str(&s->nc, "helper=%s,br=%s", helper, br);
 
@@ -835,7 +950,9 @@ static bool net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
                              Error **errp)
 {
     TAPState *s = net_tap_fd_init(peer, tap->helper ? "bridge" : "tap",
-                                  name, fd, vnet_hdr, queue_index);
+                                  name, fd, vnet_hdr, queue_index,
+                                  tap->has_local_migration_supported,
+                                  tap->local_migration_supported);
     bool sndbuf_required = tap->has_sndbuf;
     int sndbuf =
         (tap->has_sndbuf && tap->sndbuf) ? MIN(tap->sndbuf, INT_MAX) : INT_MAX;
@@ -983,6 +1100,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
     /* for the no-fd, no-helper case */
     char ifname[128];
     int *fds = NULL, *vhost_fds = NULL;
+    bool incoming_fds;
 
     assert(netdev->type == NET_CLIENT_DRIVER_TAP);
     tap = &netdev->u.tap;
@@ -1005,6 +1123,23 @@ int net_init_tap(const Netdev *netdev, const char *name,
         return -1;
     }
 
+    incoming_fds = tap->local_migration_supported && migrate_local() &&
+                   runstate_check(RUN_STATE_INMIGRATE);
+
+    if (incoming_fds &&
+        (tap->fd || tap->fds || tap->helper || tap->br || tap->ifname ||
+         tap->has_sndbuf || tap->has_vnet_hdr ||
+         !tap_is_explicit_no_script(tap->script) ||
+         !tap_is_explicit_no_script(tap->downscript))) {
+        error_setg(errp, "Local incoming migration of TAP device (-incoming, "
+                   "migration parameter @local is set, "
+                   "TAP parameter @local-migration-supported is set) "
+                   "is incompatible with "
+                   "fd=, fds=, helper=, br=, ifname=, sndbuf= and vnet_hdr=, "
+                   "and requires explicit empty script= and downscript=");
+        return -1;
+    }
+
     queues = tap_parse_fds_and_queues(tap, &fds, errp);
     if (queues < 0) {
         return -1;
@@ -1023,7 +1158,22 @@ int net_init_tap(const Netdev *netdev, const char *name,
         goto fail;
     }
 
-    if (fds) {
+    if (incoming_fds) {
+        for (i = 0; i < queues; i++) {
+            TAPState *s = new_tap(peer, "tap", name, i,
+                                  tap->has_local_migration_supported,
+                                  tap->local_migration_supported);
+            qemu_set_info_str(&s->nc, "incoming");
+
+            s->fd = -1;
+            if (vhost_fds) {
+                s->vhostfd = vhost_fds[i];
+                s->vhost_busyloop_timeout = tap->has_poll_us ? tap->poll_us : 0;
+            } else {
+                s->vhostfd = -1;
+            }
+        }
+    } else if (fds) {
         for (i = 0; i < queues; i++) {
             if (i == 0) {
                 vnet_hdr = tap_probe_vnet_hdr(fds[i], errp);
