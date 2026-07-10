@@ -121,19 +121,14 @@ void soc_dma_ch_update(struct soc_dma_ch_s *ch)
     enum soc_dma_port_type src, dst;
 
     src = soc_dma_ch_update_type(ch, 0);
-    if (src == soc_dma_port_other) {
+    dst = soc_dma_ch_update_type(ch, 1);
+    if (src == soc_dma_port_other || dst == soc_dma_port_other) {
         ch->update = 0;
         ch->transfer_fn = ch->dma->transfer_fn;
-        return;
-    }
-    dst = soc_dma_ch_update_type(ch, 1);
-
-    if (src == soc_dma_port_mem && dst == soc_dma_port_mem)
+    } else {
+        ch->update = 1;
         ch->transfer_fn = transfer_mem2mem;
-    else
-        ch->transfer_fn = ch->dma->transfer_fn;
-
-    ch->update = (dst != soc_dma_port_other);
+    }
 }
 
 static void soc_dma_ch_freq_update(struct dma_s *s)
