@@ -391,7 +391,7 @@ static void omap_dma_transfer_setup(struct soc_dma_ch_s *dma)
     struct omap_dma_reg_set_s *a;
     struct omap_dma_channel_s *ch = dma->opaque;
     struct omap_dma_s *s = dma->dma->opaque;
-    int frames, min_elems, elements[__omap_dma_intr_last];
+    uint32_t frames, min_elems, elements[__omap_dma_intr_last];
 
     a = &ch->active_set;
 
@@ -403,7 +403,14 @@ static void omap_dma_transfer_setup(struct soc_dma_ch_s *dma)
                         __func__, dma->num);
     }
 
-    min_elems = INT_MAX;
+    /*
+     * The maximum frame count and maximum element count are both 0xffff,
+     * so our worst case possible number of elements to transfer is
+     * 0xffff * 0xffff == 0xfffe0001. We can therefore keep element
+     * counts in a uint32_t and use UINT_MAX as a sentinel value for
+     * "not set" / "condition does not occur".
+     */
+    min_elems = UINT_MAX;
 
     /* Check all the conditions that terminate the transfer starting
      * with those that can occur the soonest.  */
@@ -413,7 +420,7 @@ static void omap_dma_transfer_setup(struct soc_dma_ch_s *dma)
         if (elements[id] < min_elems)   \
             min_elems = elements[id];   \
     } else              \
-        elements[id] = INT_MAX;
+        elements[id] = UINT_MAX;
 
     /* Elements */
     INTR_CHECK(
@@ -465,7 +472,7 @@ static void omap_dma_transfer_setup(struct soc_dma_ch_s *dma)
                     (a->frames - a->frame - 1) * a->elements +
                     (a->elements - a->element))
 
-    dma->bytes = min_elems * ch->data_type;
+    dma->bytes = (uint64_t)min_elems * ch->data_type;
 
     /* Set appropriate interrupts and/or deactivate channels */
 
@@ -528,8 +535,9 @@ static void omap_dma_transfer_setup(struct soc_dma_ch_s *dma)
 
     /* Update packet number */
     if (ch->fs && ch->bs) {
-        a->pck_element += min_elems;
-        a->pck_element %= a->pck_elements;
+        /* Can't overflow: worst case min_elems 0xFFFE0001 + element 0xFFFF */
+        uint32_t new_pck_element = a->pck_element + min_elems;
+        a->pck_element = new_pck_element % a->pck_elements;
     }
 
     /*
@@ -537,13 +545,15 @@ static void omap_dma_transfer_setup(struct soc_dma_ch_s *dma)
      * can skip part of this.
      */
     if (dma->update) {
+        /* Can't overflow: worst case min_elems 0xFFFE0001 + element 0xFFFF */
+        uint32_t new_element = a->element + min_elems;
         a->element += min_elems;
 
-        frames = a->element / a->elements;
-        a->element = a->element % a->elements;
+        frames = new_element / a->elements;
+        a->element = new_element % a->elements;
         a->frame += frames;
-        a->src += min_elems * a->elem_delta[0] + frames * a->frame_delta[0];
-        a->dest += min_elems * a->elem_delta[1] + frames * a->frame_delta[1];
+        a->src += (uint64_t)min_elems * a->elem_delta[0] + frames * a->frame_delta[0];
+        a->dest += (uint64_t)min_elems * a->elem_delta[1] + frames * a->frame_delta[1];
 
         /* If the channel is async, update cpc */
         if (!ch->sync && frames) {
