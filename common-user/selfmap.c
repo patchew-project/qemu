@@ -9,6 +9,10 @@
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 #include "user/selfmap.h"
+#ifdef __FreeBSD__
+#include <sys/sysctl.h>
+#include <sys/user.h>
+#endif
 
 IntervalTreeRoot *read_self_maps(void)
 {
@@ -81,8 +85,47 @@ IntervalTreeRoot *read_self_maps(void)
     g_free(maps);
 
     return root;
+#elif defined(__FreeBSD__)
+    int mib[] = { CTL_KERN, KERN_PROC, KERN_PROC_VMMAP, getpid() };
+    size_t len = 0;
+    g_autofree void *buf = NULL;
+    IntervalTreeRoot *root;
+
+    /* Probe for buffer size. */
+    if (sysctl(mib, ARRAY_SIZE(mib), NULL, &len, NULL, 0) < 0) {
+        return NULL;
+    }
+
+    buf = g_malloc(len);
+    if (sysctl(mib, ARRAY_SIZE(mib), buf, &len, NULL, 0) < 0) {
+        return NULL;
+    }
+
+    root = g_new0(IntervalTreeRoot, 1);
+
+    for (size_t i = 0; i < len; ) {
+        struct kinfo_vmentry *k = buf + i;
+        MapInfo *e = g_new0(MapInfo, 1);
+
+        e->itree.start = k->kve_start;
+        e->itree.last = k->kve_end - 1;
+
+        /*
+         * TODO: The rest of the fields in MapInfo are used by linux-user
+         * for the implementation of open_self_maps().  These fields are
+         * quite specific to the textual format of /proc/self/maps.
+         *
+         * We may need something different to emulate KERN_PROC_VMMAP
+         * in bsd-user, but so far they're unused -- leave them zeroed.
+         */
+
+        interval_tree_insert(&e->itree, root);
+        i += k->kve_structsize;
+    }
+
+    return root;
 #else
-    return NULL;
+# error
 #endif
 }
 
