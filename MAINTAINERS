@@ -2622,7 +2622,7 @@ F: include/hw/virtio/vhost-user-snd.h
 
 vhost-user-scmi
 R: Milan Zamazal <mzamazal@redhat.com>
-S: Supported
+S: Orphan
 F: hw/virtio/vhost-user-scmi*
 F: include/hw/virtio/vhost-user-scmi.h
 F: tests/qtest/libqos/virtio-scmi.*
