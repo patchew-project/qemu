@@ -53,8 +53,6 @@ struct soc_dma_ch_s {
     /* Initialised by the DMA module, call soc_dma_ch_update after writing.  */
     enum soc_dma_access_type type[2];
     hwaddr vaddr[2];    /* Updated by .transfer_fn().  */
-    /* Private */
-    void *paddr[2];
 
     int running;
     soc_dma_transfer_t transfer_fn;
@@ -83,7 +81,6 @@ void soc_dma_set_request(struct soc_dma_ch_s *ch, int level);
  * calling soc_dma_set_request(ch, 1):
  *   ch->type[0...1],
  *   ch->vaddr[0...1],
- *   ch->paddr[0...1],
  * or after a soc_dma_port_add_mem().
  */
 void soc_dma_ch_update(struct soc_dma_ch_s *ch);
@@ -92,7 +89,7 @@ void soc_dma_ch_update(struct soc_dma_ch_s *ch);
 void soc_dma_reset(struct soc_dma_s *s);
 struct soc_dma_s *soc_dma_init(int n);
 
-void soc_dma_port_add_mem(struct soc_dma_s *dma, uint8_t *phys_base,
-                hwaddr virt_base, size_t size);
+void soc_dma_port_add_mem(struct soc_dma_s *dma,
+                          hwaddr virt_base, size_t size);
 
 #endif

@@ -85,7 +85,6 @@ struct dma_s {
         enum soc_dma_port_type type;
         hwaddr addr;
         struct {
-            void *base;
             size_t size;
         } mem;
     } *memmap;
@@ -154,10 +153,6 @@ static inline enum soc_dma_port_type soc_dma_ch_update_type(
         if (ch->type[port] != soc_dma_access_const)
             return soc_dma_port_other;
 
-        ch->paddr[port] = (uint8_t *) entry->mem.base +
-                (ch->vaddr[port] - entry->addr);
-        /* TODO: save bytes left to the end of the mapping somewhere so we
-         * can check we're not reading beyond it.  */
         return soc_dma_port_mem;
     } else
         return soc_dma_port_other;
@@ -245,8 +240,7 @@ struct soc_dma_s *soc_dma_init(int n)
     return &s->soc;
 }
 
-void soc_dma_port_add_mem(struct soc_dma_s *soc, uint8_t *phys_base,
-                hwaddr virt_base, size_t size)
+void soc_dma_port_add_mem(struct soc_dma_s *soc, hwaddr virt_base, size_t size)
 {
     struct memmap_entry_s *entry;
     struct dma_s *dma = (struct dma_s *) soc;
@@ -293,7 +287,6 @@ void soc_dma_port_add_mem(struct soc_dma_s *soc, uint8_t *phys_base,
 
     entry->addr          = virt_base;
     entry->type          = soc_dma_port_mem;
-    entry->mem.base    = phys_base;
     entry->mem.size    = size;
 }
 

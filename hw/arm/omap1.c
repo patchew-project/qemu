@@ -3799,10 +3799,8 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *dram,
     s->port[tipb_mpui].addr_valid = omap_validate_tipb_mpui_addr;
 
     /* Register SDRAM and SRAM DMA ports for fast transfers.  */
-    soc_dma_port_add_mem(s->dma, memory_region_get_ram_ptr(dram),
-                         OMAP_EMIFF_BASE, s->sdram_size);
-    soc_dma_port_add_mem(s->dma, memory_region_get_ram_ptr(&s->imif_ram),
-                         OMAP_IMIF_BASE, s->sram_size);
+    soc_dma_port_add_mem(s->dma, OMAP_EMIFF_BASE, s->sdram_size);
+    soc_dma_port_add_mem(s->dma, OMAP_IMIF_BASE, s->sram_size);
 
     s->timer[0] = omap_mpu_timer_init(system_memory, 0xfffec500,
                     qdev_get_gpio_in(s->ih[0], OMAP_INT_TIMER1),
