@@ -103,6 +103,8 @@ static bool tap_is_explicit_no_script(const char *script_arg)
     }
 
     if (strcmp(script_arg, "no") == 0) {
+        warn_report("script=no/downscript=no is deprecated; "
+                    "use script=/downscript= instead");
         return true;
     }
 
