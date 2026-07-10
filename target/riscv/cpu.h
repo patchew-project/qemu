@@ -492,7 +492,7 @@ struct CPUArchState {
     uint64_t *tdata2;
     uint64_t *tdata3;
     CPUBreakpoint **cpu_breakpoint;
-    CPUWatchpoint **cpu_watchpoint;
+    CPUBreakpoint **cpu_watchpoint;
     QEMUTimer **itrigger_timer;
     int64_t last_icount;
     bool itrigger_enabled;

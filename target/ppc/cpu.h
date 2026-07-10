@@ -1321,7 +1321,7 @@ struct CPUArchState {
 #if defined(TARGET_PPC64)
     ppc_slb_t slb[MAX_SLB_ENTRIES]; /* PowerPC 64 SLB area */
     CPUBreakpoint *ciabr_breakpoint;
-    CPUWatchpoint *dawr_watchpoint[2];
+    CPUBreakpoint *dawr_watchpoint[2];
 #endif
     target_ulong sr[32];   /* segment registers */
     uint32_t nb_BATs;      /* number of BATs */

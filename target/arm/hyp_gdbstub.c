@@ -240,7 +240,7 @@ bool find_hw_breakpoint(CPUState *cpu, vaddr pc)
     return false;
 }
 
-CPUWatchpoint *find_hw_watchpoint(CPUState *cpu, vaddr addr)
+CPUBreakpoint *find_hw_watchpoint(CPUState *cpu, vaddr addr)
 {
     int i;
 

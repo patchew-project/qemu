@@ -459,7 +459,7 @@ static struct HWBreakpoint {
     GdbBreakpointType type;
 } hw_debug_points[MAX_HW_BKPTS];
 
-static CPUWatchpoint hw_watchpoint;
+static CPUBreakpoint hw_watchpoint;
 
 /* Default there is no breakpoint and watchpoint supported */
 static int max_hw_breakpoint;

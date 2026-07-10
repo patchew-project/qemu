@@ -258,7 +258,7 @@ struct TCGCPUOps {
      * @debug_check_watchpoint: return true if the architectural
      * watchpoint whose address has matched should really fire.
      */
-    bool (*debug_check_watchpoint)(CPUState *cpu, CPUWatchpoint *wp);
+    bool (*debug_check_watchpoint)(CPUState *cpu, CPUBreakpoint *wp);
 
     /**
      * @debug_check_breakpoint: return true if the architectural

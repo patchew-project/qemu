@@ -526,7 +526,7 @@ struct CPUState {
     /* ice debug support */
     IntervalTreeRoot breakpoints;
     IntervalTreeRoot watchpoints;
-    CPUWatchpoint *watchpoint_hit;
+    CPUBreakpoint *watchpoint_hit;
 
     void *opaque;
 

@@ -40,7 +40,7 @@ BreakpointFlags cpu_watchpoint_address_matches(CPUState *cpu,
 
     for (n = interval_tree_iter_first(&cpu->watchpoints, addr, last); n;
          n = interval_tree_iter_next(n, addr, last)) {
-        CPUWatchpoint *wp = container_of(n, CPUWatchpoint, itree);
+        CPUBreakpoint *wp = container_of(n, CPUBreakpoint, itree);
         ret |= wp->flags;
     }
     return ret;
@@ -52,7 +52,7 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
 {
     vaddr last = addr + len - 1;
     IntervalTreeNode *n;
-    CPUWatchpoint *found_wp = NULL;
+    CPUBreakpoint *found_wp = NULL;
     bool have_cpu_wp = false;
 
     assert(tcg_enabled());
@@ -78,7 +78,7 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
 
     for (n = interval_tree_iter_first(&cpu->watchpoints, addr, last); n;
          n = interval_tree_iter_next(n, addr, last)) {
-        CPUWatchpoint *wp = container_of(n, CPUWatchpoint, itree);
+        CPUBreakpoint *wp = container_of(n, CPUBreakpoint, itree);
 
         if (wp->flags & flags) {
             /*
@@ -104,7 +104,7 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
 
         for (n = interval_tree_iter_first(&cpu->watchpoints, addr, last); n;
              n = interval_tree_iter_next(n, addr, last)) {
-            CPUWatchpoint *wp = container_of(n, CPUWatchpoint, itree);
+            CPUBreakpoint *wp = container_of(n, CPUBreakpoint, itree);
 
             if ((wp->flags & BP_CPU) && (wp->flags & flags)) {
                 wp->flags &= ~BP_WATCHPOINT_HIT;
