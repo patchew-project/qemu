@@ -2205,7 +2205,9 @@ M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Odd Fixes
 F: hw/*/omap*
+F: hw/dma/soc_dma.c
 F: include/hw/arm/omap.h
+F: include/hw/dma/soc_dma.h
 F: docs/system/arm/sx1.rst
 F: tests/functional/arm/test_sx1.py
 
