@@ -366,7 +366,7 @@ static bool check_for_breakpoints_slow(CPUState *cpu, vaddr pc,
     bp->hitaddr = pc;
     bp->hitlast = pc;
     bp->hitattrs = MEMTXATTRS_UNSPECIFIED;
-    cpu->breakpoint_hit = bp;
+    cpu->bp_wp_hit = bp;
     cpu->exception_index = EXCP_DEBUG;
     return true;
 }
@@ -685,14 +685,13 @@ static inline bool cpu_handle_halt(CPUState *cpu)
 
 static inline void cpu_handle_debug_exception(CPUState *cpu)
 {
-    CPUBreakpoint *hit = cpu->watchpoint_hit ? : cpu->breakpoint_hit;
+    CPUBreakpoint *hit = cpu->bp_wp_hit;
 
     if (hit && hit->flags & BP_CPU) {
         cpu->cc->tcg_ops->debug_excp_handler(cpu, hit);
 
         hit->flags &= ~BP_WATCHPOINT_HIT;
-        cpu->watchpoint_hit = NULL;
-        cpu->breakpoint_hit = NULL;
+        cpu->bp_wp_hit = NULL;
     }
 }
 

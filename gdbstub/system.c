@@ -150,34 +150,36 @@ static void gdb_vm_state_change(void *opaque, bool running, RunState state)
 
     switch (state) {
     case RUN_STATE_DEBUG:
-        if (cpu->watchpoint_hit) {
-            const char *type;
+        {
+            CPUBreakpoint *hit = cpu->bp_wp_hit;
 
-            switch (cpu->watchpoint_hit->flags & BP_MEM_ACCESS) {
-            case BP_MEM_READ:
-                type = "r";
-                break;
-            case BP_MEM_ACCESS:
-                type = "a";
-                break;
-            default:
-                type = "";
-                break;
+            if (hit) {
+                unsigned watch = hit->flags & BP_MEM_ACCESS;
+
+                hit->flags &= ~BP_WATCHPOINT_HIT;
+                cpu->bp_wp_hit = NULL;
+
+                if (watch) {
+                    static const char hit_type[4][2] = {
+                        [BP_MEM_READ] = "r",
+                        [BP_MEM_WRITE] = "",
+                        [BP_MEM_ACCESS] = "a",
+                    };
+                    const char *type = hit_type[watch];
+
+                    trace_gdbstub_hit_watchpoint(type, gdb_get_cpu_index(cpu),
+                                                 hit->hitaddr);
+                    g_string_printf(buf, "T%02xthread:%s;%swatch:%"
+                                    VADDR_PRIx ";",
+                                    GDB_SIGNAL_TRAP, tid->str, type,
+                                    hit->hitaddr);
+                    goto send_packet;
+                }
+                /* else breakpoint */
             }
-            trace_gdbstub_hit_watchpoint(type,
-                                         gdb_get_cpu_index(cpu),
-                                         cpu->watchpoint_hit->hitaddr);
-            g_string_printf(buf, "T%02xthread:%s;%swatch:%" VADDR_PRIx ";",
-                            GDB_SIGNAL_TRAP, tid->str, type,
-                            cpu->watchpoint_hit->hitaddr);
-
-            cpu->watchpoint_hit->flags &= ~BP_WATCHPOINT_HIT;
-            cpu->watchpoint_hit = NULL;
-            goto send_packet;
-        } else {
             trace_gdbstub_hit_break();
+            ret = GDB_SIGNAL_TRAP;
         }
-        ret = GDB_SIGNAL_TRAP;
         break;
     case RUN_STATE_PAUSED:
         trace_gdbstub_hit_paused();

@@ -6263,13 +6263,13 @@ static int kvm_handle_debug(X86CPU *cpu,
                         break;
                     case 0x1:
                         ret = EXCP_DEBUG;
-                        cs->watchpoint_hit = &hw_watchpoint;
+                        cs->bp_wp_hit = &hw_watchpoint;
                         hw_watchpoint.hitaddr = hw_breakpoint[n].addr;
                         hw_watchpoint.flags = BP_MEM_WRITE;
                         break;
                     case 0x3:
                         ret = EXCP_DEBUG;
-                        cs->watchpoint_hit = &hw_watchpoint;
+                        cs->bp_wp_hit = &hw_watchpoint;
                         hw_watchpoint.hitaddr = hw_breakpoint[n].addr;
                         hw_watchpoint.flags = BP_MEM_ACCESS;
                         break;

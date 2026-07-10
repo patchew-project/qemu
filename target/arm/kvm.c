@@ -1520,7 +1520,7 @@ static bool kvm_arm_handle_debug(ARMCPU *cpu,
         CPUBreakpoint *wp = find_hw_watchpoint(cs, debug_exit->far);
         if (wp) {
             wp->hitaddr = debug_exit->far;
-            cs->watchpoint_hit = wp;
+            cs->bp_wp_hit = wp;
             return true;
         }
         break;

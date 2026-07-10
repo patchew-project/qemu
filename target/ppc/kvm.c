@@ -1592,7 +1592,7 @@ static int kvm_handle_hw_breakpoint(CPUState *cs,
             n = find_hw_watchpoint(arch_info->address, &flag);
             if (n >= 0) {
                 handle = DEBUG_RETURN_GDB;
-                cs->watchpoint_hit = &hw_watchpoint;
+                cs->bp_wp_hit = &hw_watchpoint;
                 hw_watchpoint.hitaddr = arch_info->address;
                 hw_watchpoint.flags = flag;
             }
