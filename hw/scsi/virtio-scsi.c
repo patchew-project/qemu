@@ -271,7 +271,10 @@ static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq)
     uint32_t n;
 
     qemu_get_be32s(f, &n);
-    assert(n < vs->conf.num_queues);
+    if (n >= vs->conf.num_queues) {
+        return NULL;
+    }
+
     req = qemu_get_virtqueue_element(vdev, f,
                                      sizeof(VirtIOSCSIReq) + vs->cdb_size);
     if (!req) {
@@ -283,14 +286,19 @@ static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq)
     if (virtio_scsi_parse_req(req, sizeof(VirtIOSCSICmdReq) + vs->cdb_size,
                               sizeof(VirtIOSCSICmdResp) + vs->sense_size) < 0) {
         error_report("invalid SCSI request migration data");
-        exit(1);
+        virtio_scsi_free_req(req);
+        return NULL;
     }
 
     scsi_req_ref(sreq);
     req->sreq = sreq;
-    if (req->sreq->cmd.mode != SCSI_XFER_NONE) {
-        assert(req->sreq->cmd.mode == req->mode);
+    if (req->sreq->cmd.mode != SCSI_XFER_NONE &&
+        req->sreq->cmd.mode != req->mode) {
+        scsi_req_unref(sreq);
+        virtio_scsi_free_req(req);
+        return NULL;
     }
+
     return req;
 }
 
