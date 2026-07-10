@@ -2937,7 +2937,7 @@ F: include/hw/isa/vt82c686.h
 
 Firmware configuration (fw_cfg)
 R: Gerd Hoffmann <kraxel@redhat.com>
-S: Orphaned
+S: Orphan
 F: docs/specs/fw_cfg.rst
 F: hw/nvram/fw_cfg*.c
 F: stubs/fw_cfg.c
