@@ -1057,7 +1057,7 @@ int mshv_arch_load_vcpu_state(CPUState *cpu)
         return ret;
     }
 
-    ret = get_fpu(cpu);
+    ret = get_xsave_state(cpu);
     if (ret < 0) {
         return ret;
     }
@@ -1072,7 +1072,7 @@ int mshv_arch_load_vcpu_state(CPUState *cpu)
         return ret;
     }
 
-    ret = get_xsave_state(cpu);
+    ret = get_fpu(cpu);
     if (ret < 0) {
         return ret;
     }
@@ -1551,7 +1551,7 @@ int mshv_arch_store_vcpu_state(const CPUState *cpu)
         return ret;
     }
 
-    ret = set_fpu(cpu);
+    ret = set_xsave_state(cpu);
     if (ret < 0) {
         return ret;
     }
@@ -1567,7 +1567,8 @@ int mshv_arch_store_vcpu_state(const CPUState *cpu)
         return ret;
     }
 
-    ret = set_xsave_state(cpu);
+    /* INVARIANT: legacy FPU state must be restored after XSAVE */
+    ret = set_fpu(cpu);
     if (ret < 0) {
         return ret;
     }
