@@ -114,7 +114,7 @@ int exception_has_error_code(int intno);
 void do_smm_enter(X86CPU *cpu);
 
 /* system/bpt_helper.c */
-bool check_hw_breakpoints(CPUX86State *env, bool force_dr6_update);
+bool check_hw_breakpoints(CPUX86State *env, CPUBreakpoint *wp_hit);
 
 /*
  * Do the tasks usually performed by gen_eob().  Callers of this function

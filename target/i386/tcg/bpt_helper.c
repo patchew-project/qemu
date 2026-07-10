@@ -25,7 +25,7 @@
 G_NORETURN void helper_single_step(CPUX86State *env)
 {
 #ifndef CONFIG_USER_ONLY
-    check_hw_breakpoints(env, true);
+    check_hw_breakpoints(env, NULL);
     env->dr[6] |= DR6_BS;
 #endif
     raise_exception(env, EXCP01_DB);
