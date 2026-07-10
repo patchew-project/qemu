@@ -258,7 +258,7 @@ device visible to the guest. The workflow looks like this:
 #. ``device-add usb-bot,id=foo``
 #. ``device-add scsi-{hd,cd},bus=foo.0,lun=0``
 #. optionally add more devices (luns 1 ... 15)
-#. ``scripts/qmp/qom-set foo.attached = true``
+#. ``$builddir/run qom-set foo.attached = true``
 
 .. _host_005fusb_005fdevices:
 

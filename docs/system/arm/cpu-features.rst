@@ -36,8 +36,9 @@ CPU Feature Probing
 
 Determining which CPU features are available and functional for a given
 CPU type is possible with the ``query-cpu-model-expansion`` QMP command.
-Below are some examples where ``scripts/qmp/qmp-shell`` (see the top comment
-block in the script for usage) is used to issue the QMP commands.
+Below are some examples where ``qmp-shell`` (available via
+``$builddir/run qmp-shell`` after running configure) is used to issue the
+QMP commands.
 
 1. Determine which CPU features are available for the ``max`` CPU type
    (Note, we started QEMU with qemu-system-aarch64, so ``max`` is

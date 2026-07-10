@@ -152,12 +152,12 @@ of QEMU 2.9, accept ``node-name`` parameter) when performing various
 block operations.
 
 To interact with the QEMU instance launched above, we will use the
-``qmp-shell`` utility (located at: ``qemu/scripts/qmp``, as part of the
-QEMU source directory), which takes key-value pairs for QMP commands.
-Invoke it as below (which will also print out the complete raw JSON
-syntax for reference -- examples in the following sections)::
+``qmp-shell`` utility (available via the ``run`` script in the build
+directory after running configure), which takes key-value pairs for QMP
+commands.  Invoke it as below (which will also print out the complete raw
+JSON syntax for reference -- examples in the following sections)::
 
-    $ ./qmp-shell -v -p /tmp/qmp-sock
+    $ $builddir/run qmp-shell -v -p /tmp/qmp-sock
     (QEMU)
 
 .. note::

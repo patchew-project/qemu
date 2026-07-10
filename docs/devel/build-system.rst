@@ -521,7 +521,7 @@ Built by configure:
   before running the requested command. Pass the command to run as
   args, for example::
 
-    $ ./build/run ./script/qmp/qmp-shell-wrap qemu-system-x86_64
+    $ ./build/run qmp-shell-wrap qemu-system-x86_64
 
   will use the ``python3`` binary and site-packages from the local
   venv to run ``qmp-shell-wrap`` and spawn the QEMU emulator from
