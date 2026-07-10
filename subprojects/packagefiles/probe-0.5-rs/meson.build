@@ -1,5 +1,5 @@
 project('probe-0.5-rs', 'rust',
-  meson_version: '>=1.5.0',
+  meson_version: '>=1.6.0',
   version: '0.5.2',
   license: 'Apache-2.0 OR MIT',
   default_options: [])
