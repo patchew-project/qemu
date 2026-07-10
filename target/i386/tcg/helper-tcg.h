@@ -42,7 +42,7 @@ bool x86_need_replay_interrupt(int interrupt_request);
 bool x86_cpu_exec_interrupt(CPUState *cpu, int int_req);
 #endif
 
-void breakpoint_handler(CPUState *cs);
+void breakpoint_handler(CPUState *cs, CPUBreakpoint *hit);
 
 /* n must be a constant to be efficient */
 static inline target_long lshift(target_long x, int n)

@@ -99,7 +99,7 @@ struct TCGCPUOps {
     /** @cpu_exec_exit: Callback for cpu_exec cleanup */
     void (*cpu_exec_exit)(CPUState *cpu);
     /** @debug_excp_handler: Callback for handling debug exceptions */
-    void (*debug_excp_handler)(CPUState *cpu);
+    void (*debug_excp_handler)(CPUState *cpu, CPUBreakpoint *hit);
 
     /** @mmu_index: Callback for choosing softmmu mmu index */
     int (*mmu_index)(CPUState *cpu, bool ifetch);

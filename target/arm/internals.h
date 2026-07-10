@@ -700,7 +700,7 @@ bool arm_debug_check_watchpoint(CPUState *cs, CPUBreakpoint *wp);
 vaddr arm_adjust_watchpoint_address(CPUState *cs, vaddr addr, int len);
 
 /* Callback function for when a watchpoint or breakpoint triggers. */
-void arm_debug_excp_handler(CPUState *cs);
+void arm_debug_excp_handler(CPUState *cs, CPUBreakpoint *hit);
 
 #if defined(CONFIG_USER_ONLY) || !defined(CONFIG_TCG)
 static inline bool arm_is_psci_call(ARMCPU *cpu, int excp_type)

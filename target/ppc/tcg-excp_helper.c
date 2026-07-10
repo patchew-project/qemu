@@ -309,7 +309,7 @@ void ppc_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
     cpu_loop_exit_restore(cs, retaddr);
 }
 
-void ppc_cpu_debug_excp_handler(CPUState *cs)
+void ppc_cpu_debug_excp_handler(CPUState *cs, CPUBreakpoint *hit)
 {
 #if defined(TARGET_PPC64)
     CPUPPCState *env = cpu_env(cs);

@@ -693,7 +693,7 @@ static inline void cpu_handle_debug_exception(CPUState *cpu)
     }
 
     if (tcg_ops->debug_excp_handler) {
-        tcg_ops->debug_excp_handler(cpu);
+        tcg_ops->debug_excp_handler(cpu, cpu->watchpoint_hit);
     }
 }
 
