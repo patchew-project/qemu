@@ -258,3 +258,7 @@ config XLNX_ZYNQ_DDRC
     bool
 
 source macio/Kconfig
+
+config RISCV_RPMI
+    bool
+    depends on LIBRPMI
