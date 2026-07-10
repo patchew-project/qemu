@@ -49,11 +49,15 @@ struct dma_s {
     struct soc_dma_ch_s ch[];
 };
 
-static void soc_dma_ch_schedule(struct soc_dma_ch_s *ch, int delay_bytes)
+static void soc_dma_ch_schedule(struct soc_dma_ch_s *ch, uint64_t delay_bytes)
 {
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     struct dma_s *dma = (struct dma_s *) ch->dma;
 
+    /*
+     * Worst case delay bytes is only slightly larger than fits into
+     * a 32-bit integer, so this won't overflow.
+     */
     timer_mod(ch->timer, now + delay_bytes / dma->channel_freq);
 }
 

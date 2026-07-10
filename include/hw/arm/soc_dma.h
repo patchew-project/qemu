@@ -49,7 +49,7 @@ struct soc_dma_ch_s {
     int update;
 
     /* This should be set by dma->setup_fn().  */
-    int bytes;
+    uint64_t bytes;
     /* Initialised by the DMA module, call soc_dma_ch_update after writing.  */
     enum soc_dma_access_type type[2];
     hwaddr vaddr[2];    /* Updated by .transfer_fn().  */
