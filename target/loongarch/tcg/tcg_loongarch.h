@@ -18,6 +18,7 @@ bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 
 TLBRet loongarch_get_addr_from_tlb(CPULoongArchState *env,
                                    MMUContext *context,
-                                   MMUAccessType access_type, int mmu_idx);
+                                   MMUAccessType access_type, int mmu_idx,
+                                   bool guest);
 
 #endif  /* TARGET_LOONGARCH_TCG_LOONGARCH_H */
