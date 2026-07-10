@@ -754,8 +754,8 @@ typedef struct CPUArchState {
         ARMVectorReg za[ARM_MAX_VQ * 16];
     } za_state;
 
-    struct CPUBreakpoint *cpu_breakpoint[16];
-    struct CPUWatchpoint *cpu_watchpoint[16];
+    CPUBreakpoint *cpu_breakpoint[16];
+    CPUWatchpoint *cpu_watchpoint[16];
 
     /* Optional fault info across tlb lookup. */
     ARMMMUFaultInfo *tlb_fi;
