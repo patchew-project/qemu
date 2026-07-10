@@ -795,18 +795,14 @@ int gdb_breakpoint_insert(CPUState *cs, GdbBreakpointType type,
                           vaddr addr, vaddr len)
 {
     CPUState *cpu;
-    int err = 0;
 
     switch (type) {
     case GDB_BREAKPOINT_SW:
     case GDB_BREAKPOINT_HW:
         CPU_FOREACH(cpu) {
-            err = cpu_breakpoint_insert(cpu, addr, BP_GDB, 0, NULL);
-            if (err) {
-                break;
-            }
+            cpu_breakpoint_insert(cpu, addr, BP_GDB, 0);
         }
-        return err;
+        return 0;
     default:
         /* user-mode doesn't support watchpoints */
         return -ENOSYS;

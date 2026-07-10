@@ -265,7 +265,7 @@ CPUArchState *cpu_copy(CPUArchState *env)
              n = interval_tree_iter_next(n, 0, -1)) {
             CPUBreakpoint *bp = container_of(n, CPUBreakpoint, itree);
             cpu_breakpoint_insert(new_cpu, bp->itree.start,
-                                  bp->flags, bp->id, NULL);
+                                  bp->flags, bp->id);
         }
     }
 
