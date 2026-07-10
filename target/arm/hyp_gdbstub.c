@@ -130,7 +130,8 @@ int insert_gdbstub_hw_watchpoint(vaddr addr, vaddr len, GdbBreakpointType type)
     HWWatchpoint wp = {
         .wcr = R_DBGWCR_E_MASK, /* E=1, enable */
         .wvr = addr & (~0x7ULL),
-        .details = { .vaddr = addr, .len = len }
+        .details.itree.start = addr,
+        .details.itree.last = addr + len - 1,
     };
 
     if (cur_hw_wps >= max_hw_wps) {

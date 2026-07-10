@@ -30,38 +30,18 @@
 #include "hw/core/cpu.h"
 #include "internal-common.h"
 
-/*
- * Return true if this watchpoint address matches the specified
- * access (ie the address range covered by the watchpoint overlaps
- * partially or completely with the address range covered by the
- * access).
- */
-static inline bool watchpoint_address_matches(CPUWatchpoint *wp,
-                                              vaddr addr, vaddr len)
-{
-    /*
-     * We know the lengths are non-zero, but a little caution is
-     * required to avoid errors in the case where the range ends
-     * exactly at the top of the address space and so addr + len
-     * wraps round to zero.
-     */
-    vaddr wpend = wp->vaddr + wp->len - 1;
-    vaddr addrend = addr + len - 1;
-
-    return !(addr > wpend || wp->vaddr > addrend);
-}
-
 /* Return flags for watchpoints that match addr + prot.  */
 BreakpointFlags cpu_watchpoint_address_matches(CPUState *cpu,
                                                vaddr addr, vaddr len)
 {
-    CPUWatchpoint *wp;
+    vaddr last = addr + len - 1;
     BreakpointFlags ret = 0;
+    IntervalTreeNode *n;
 
-    QTAILQ_FOREACH(wp, &cpu->watchpoints, entry) {
-        if (watchpoint_address_matches(wp, addr, len)) {
-            ret |= wp->flags;
-        }
+    for (n = interval_tree_iter_first(&cpu->watchpoints, addr, last); n;
+         n = interval_tree_iter_next(n, addr, last)) {
+        CPUWatchpoint *wp = container_of(n, CPUWatchpoint, itree);
+        ret |= wp->flags;
     }
     return ret;
 }
@@ -70,7 +50,10 @@ BreakpointFlags cpu_watchpoint_address_matches(CPUState *cpu,
 void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
                           MemTxAttrs attrs, BreakpointFlags flags, uintptr_t ra)
 {
-    CPUWatchpoint *wp;
+    vaddr last = addr + len - 1;
+    IntervalTreeNode *n;
+    CPUWatchpoint *found_wp = NULL;
+    bool have_cpu_wp = false;
 
     assert(tcg_enabled());
     if (cpu->watchpoint_hit) {
@@ -88,56 +71,90 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
     if (cpu->cc->tcg_ops->adjust_watchpoint_address) {
         /* this is currently used only by ARM BE32 */
         addr = cpu->cc->tcg_ops->adjust_watchpoint_address(cpu, addr, len);
+        last = addr + len - 1;
     }
 
     assert((flags & ~BP_MEM_ACCESS) == 0);
-    QTAILQ_FOREACH(wp, &cpu->watchpoints, entry) {
-        BreakpointFlags hit_flags = wp->flags & flags;
 
-        if (hit_flags && watchpoint_address_matches(wp, addr, len)) {
-            if (replay_running_debug()) {
-                /*
-                 * replay_breakpoint reads icount.
-                 * Force recompile to succeed, because icount may
-                 * be read only at the end of the block.
-                 */
-                if (!cpu->neg.can_do_io) {
-                    /* Force execution of one insn next time.  */
-                    cpu->cflags_next_tb = 1 | CF_NOIRQ | curr_cflags(cpu);
-                    cpu_loop_exit_restore(cpu, ra);
-                }
-                /*
-                 * Don't process the watchpoints when we are
-                 * in a reverse debugging operation.
-                 */
-                replay_breakpoint();
-                return;
-            }
+    for (n = interval_tree_iter_first(&cpu->watchpoints, addr, last); n;
+         n = interval_tree_iter_next(n, addr, last)) {
+        CPUWatchpoint *wp = container_of(n, CPUWatchpoint, itree);
 
-            wp->flags |= hit_flags << BP_HIT_SHIFT;
-            wp->hitaddr = MAX(addr, wp->vaddr);
-            wp->hitattrs = attrs;
-
-            if (wp->flags & BP_CPU
-                && cpu->cc->tcg_ops->debug_check_watchpoint
-                && !cpu->cc->tcg_ops->debug_check_watchpoint(cpu, wp)) {
+        if (wp->flags & flags) {
+            /*
+             * Prefer GDB over CPU watchpoint, so we can take the first
+             * GDB watchpoint that we see.
+             */
+            if (wp->flags & BP_GDB) {
                 wp->flags &= ~BP_WATCHPOINT_HIT;
-                continue;
-            }
-            cpu->watchpoint_hit = wp;
+                wp->flags |= flags << BP_HIT_SHIFT;
+                wp->hitaddr = MAX(addr, wp->itree.start);
+                wp->hitattrs = attrs;
 
-            /* This call also restores vCPU state */
-            tb_check_watchpoint(cpu, ra);
-            if (wp->flags & BP_STOP_BEFORE_ACCESS) {
-                cpu->exception_index = EXCP_DEBUG;
-                cpu_loop_exit(cpu);
-            } else {
-                /* Force execution of one insn next time.  */
-                cpu->cflags_next_tb = 1 | CF_NOIRQ | curr_cflags(cpu);
-                cpu_loop_exit_noexc(cpu);
+                found_wp = wp;
+                goto found;
             }
-        } else {
-            wp->flags &= ~BP_WATCHPOINT_HIT;
+            have_cpu_wp = true;
         }
     }
+
+    if (have_cpu_wp) {
+        const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
+
+        for (n = interval_tree_iter_first(&cpu->watchpoints, addr, last); n;
+             n = interval_tree_iter_next(n, addr, last)) {
+            CPUWatchpoint *wp = container_of(n, CPUWatchpoint, itree);
+
+            if ((wp->flags & BP_CPU) && (wp->flags & flags)) {
+                wp->flags &= ~BP_WATCHPOINT_HIT;
+                wp->flags |= flags << BP_HIT_SHIFT;
+                wp->hitaddr = MAX(addr, wp->itree.start);
+                wp->hitattrs = attrs;
+
+                if (tcg_ops->debug_check_watchpoint
+                    && !tcg_ops->debug_check_watchpoint(cpu, wp)) {
+                    wp->flags &= ~BP_WATCHPOINT_HIT;
+                    continue;
+                }
+
+                found_wp = wp;
+                goto found;
+            }
+        }
+    }
+    return;
+
+ found:
+    if (replay_running_debug()) {
+        /*
+         * replay_breakpoint reads icount.
+         * Force recompile to succeed, because icount may
+         * be read only at the end of the block.
+         */
+        if (!cpu->neg.can_do_io) {
+            /* Force execution of one insn next time.  */
+            cpu->cflags_next_tb = 1 | CF_NOIRQ | curr_cflags(cpu);
+            cpu_loop_exit_restore(cpu, ra);
+        }
+        /*
+         * Don't process the watchpoints when we are
+         * in a reverse debugging operation.
+         */
+        replay_breakpoint();
+        return;
+    }
+
+    cpu->watchpoint_hit = found_wp;
+
+    /* This call also restores vCPU state */
+    tb_check_watchpoint(cpu, ra);
+    if (found_wp->flags & BP_STOP_BEFORE_ACCESS) {
+        cpu->exception_index = EXCP_DEBUG;
+        cpu_loop_exit(cpu);
+    } else {
+        /* Force execution of one insn next time.  */
+        cpu->cflags_next_tb = 1 | CF_NOIRQ | curr_cflags(cpu);
+        cpu_loop_exit_noexc(cpu);
+    }
+    qemu_build_not_reached();
 }

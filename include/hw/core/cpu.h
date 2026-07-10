@@ -525,8 +525,7 @@ struct CPUState {
 
     /* ice debug support */
     IntervalTreeRoot breakpoints;
-
-    QTAILQ_HEAD(, CPUWatchpoint) watchpoints;
+    IntervalTreeRoot watchpoints;
     CPUWatchpoint *watchpoint_hit;
 
     void *opaque;

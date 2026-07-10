@@ -682,10 +682,12 @@ static inline bool cpu_handle_halt(CPUState *cpu)
 static inline void cpu_handle_debug_exception(CPUState *cpu)
 {
     const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
-    CPUWatchpoint *wp;
+    IntervalTreeNode *n;
 
-    if (!cpu->watchpoint_hit) {
-        QTAILQ_FOREACH(wp, &cpu->watchpoints, entry) {
+    for (n = interval_tree_iter_first(&cpu->watchpoints, 0, -1); n;
+         n = interval_tree_iter_next(n, 0, -1)) {
+        CPUWatchpoint *wp = container_of(n, CPUWatchpoint, itree);
+        if (wp != cpu->watchpoint_hit) {
             wp->flags &= ~BP_WATCHPOINT_HIT;
         }
     }
