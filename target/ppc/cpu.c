@@ -172,7 +172,7 @@ void ppc_update_daw(CPUPPCState *env, int rid)
     }
 
     env->dawr_watchpoint[rid] =
-        cpu_watchpoint_insert(cs, deaw, len, flags, rid);
+        cpu_watchpoint_insert(cs, deaw, deaw + len - 1, flags, rid);
 }
 
 void ppc_store_dawr0(CPUPPCState *env, target_ulong val)

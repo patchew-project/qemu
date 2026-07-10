@@ -74,7 +74,7 @@ static int hw_breakpoint_insert(CPUX86State *env, int index)
         if (hw_breakpoint_enabled(dr7, index)) {
             env->cpu_watchpoint[index] =
                 cpu_watchpoint_insert(cs, drN,
-                                      hw_breakpoint_len(dr7, index),
+                                      drN + hw_breakpoint_len(dr7, index) - 1,
                                       BP_CPU | BP_MEM_WRITE, index);
         }
         break;
@@ -83,7 +83,7 @@ static int hw_breakpoint_insert(CPUX86State *env, int index)
         if (hw_breakpoint_enabled(dr7, index)) {
             env->cpu_watchpoint[index] =
                 cpu_watchpoint_insert(cs, drN,
-                                      hw_breakpoint_len(dr7, index),
+                                      drN + hw_breakpoint_len(dr7, index) - 1,
                                       BP_CPU | BP_MEM_ACCESS, index);
         }
         break;

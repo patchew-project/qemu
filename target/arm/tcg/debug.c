@@ -524,7 +524,7 @@ static void hw_watchpoint_update_v6(ARMCPU *cpu, int n, BreakpointFlags flags)
      * of the BAS bits until breakpoint hit.
      */
     CPUARMState *env = &cpu->env;
-    uint32_t wvr = env->cp15.dbgwvr[n] & ~3;
+    uint32_t wvr = env->cp15.dbgwvr[n];
     uint32_t wcr = env->cp15.dbgwcr[n];
     uint32_t bas = FIELD_EX64(wcr, DBGWCR, BAS) & 0xf;
 
@@ -533,8 +533,8 @@ static void hw_watchpoint_update_v6(ARMCPU *cpu, int n, BreakpointFlags flags)
         return;
     }
 
-    env->cpu_watchpoint[n] = cpu_watchpoint_insert(CPU(cpu), wvr, 4,
-                                                   flags, n);
+    env->cpu_watchpoint[n] =
+        cpu_watchpoint_insert(CPU(cpu), wvr & ~3, wvr | 3, flags, n);
 }
 
 static void hw_watchpoint_update_v7(ARMCPU *cpu, int n, BreakpointFlags flags)
@@ -595,8 +595,8 @@ static void hw_watchpoint_update_v7(ARMCPU *cpu, int n, BreakpointFlags flags)
         wvr += basstart;
     }
 
-    env->cpu_watchpoint[n] = cpu_watchpoint_insert(CPU(cpu), wvr, len,
-                                                   flags, n);
+    env->cpu_watchpoint[n] =
+        cpu_watchpoint_insert(CPU(cpu), wvr, wvr + len - 1, flags, n);
 }
 
 void hw_watchpoint_update(ARMCPU *cpu, int n)

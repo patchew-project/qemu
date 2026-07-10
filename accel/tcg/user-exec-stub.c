@@ -21,7 +21,7 @@ void cpu_exec_reset_hold(CPUState *cpu)
 {
 }
 
-CPUBreakpoint *cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
+CPUBreakpoint *cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr last,
                                      BreakpointFlags flags, unsigned id)
 {
     g_assert_not_reached();

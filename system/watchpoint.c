@@ -24,13 +24,11 @@
 #include "hw/core/cpu.h"
 
 /* Add a watchpoint.  */
-CPUBreakpoint *cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
+CPUBreakpoint *cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr last,
                                      BreakpointFlags flags, unsigned id)
 {
     CPUBreakpoint *wp;
-    vaddr last = addr + len - 1;
 
-    assert(len != 0);
     assert(last >= addr);
     assert(flags & BP_MEM_ACCESS);
     assert(ctpop32(flags & BP_ANY) == 1);

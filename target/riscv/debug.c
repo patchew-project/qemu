@@ -503,7 +503,7 @@ static void type2_breakpoint_insert(CPURISCVState *env, target_ulong index)
             size = riscv_cpu_mxl(env) == MXL_RV64 ? 8 : 4;
         }
         env->cpu_watchpoint[index] =
-            cpu_watchpoint_insert(cs, addr, size, flags, index);
+            cpu_watchpoint_insert(cs, addr, addr + size - 1, flags, index);
     }
 }
 
@@ -622,7 +622,7 @@ static void type6_breakpoint_insert(CPURISCVState *env, target_ulong index)
         uint32_t size = extract32(ctrl, 16, 4) ? : 8;
 
         env->cpu_watchpoint[index] =
-            cpu_watchpoint_insert(cs, addr, size, flags, index);
+            cpu_watchpoint_insert(cs, addr, addr + size - 1, flags, index);
     }
 }
 
