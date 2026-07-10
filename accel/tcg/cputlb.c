@@ -86,11 +86,6 @@
         }                                                         \
     } while (0)
 
-/* run_on_cpu_data.target_ptr should always be big enough for a
- * vaddr even on 32 bit builds
- */
-QEMU_BUILD_BUG_ON(sizeof(vaddr) > sizeof(run_on_cpu_data));
-
 static inline size_t tlb_n_entries(CPUTLBDescFast *fast)
 {
     return (fast->mask >> CPU_TLB_ENTRY_BITS) + 1;
