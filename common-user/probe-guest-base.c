@@ -7,6 +7,7 @@
 #include "qemu/log.h"
 #include "user/guest-base.h"
 #include "user/mmap-min-addr.h"
+#include "user/guest-base.h"
 #include "user/guest-host.h"
 #include "user/probe-guest-base.h"
 #include "user/selfmap.h"
@@ -17,6 +18,9 @@
 #ifdef __FreeBSD__
 #define MAP_FIXED_NOREPLACE  (MAP_FIXED | MAP_EXCL)
 #endif
+
+uintptr_t guest_base;
+bool have_guest_base;
 
 /**
  * pgb_try_mmap:

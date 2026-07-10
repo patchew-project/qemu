@@ -79,8 +79,6 @@ static envlist_t *envlist;
 static const char *cpu_model;
 static const char *cpu_type;
 static const char *seed_optarg;
-uintptr_t guest_base;
-bool have_guest_base;
 
 /*
  * Used to implement backwards-compatibility for the `-strace`, and
