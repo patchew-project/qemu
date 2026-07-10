@@ -1125,6 +1125,11 @@ static int kvm_cpu_check_pv_features(CPUState *cs, Error **errp)
     CPULoongArchState *env = cpu_env(cs);
     bool kvm_supported;
 
+    /* compat: older machine types do not advertise pv features to the guest */
+    if (cpu->no_pv_feature) {
+        return 0;
+    }
+
     kvm_supported = kvm_feature_supported(cs, LOONGARCH_FEATURE_PV_IPI);
     if (cpu->kvm_pv_ipi == ON_OFF_AUTO_ON) {
         if (!kvm_supported) {

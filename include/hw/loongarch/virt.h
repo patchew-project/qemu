@@ -130,8 +130,15 @@ struct LoongArchVirtMachineState {
     bool highmem_mmio;
 };
 
+struct LoongArchVirtMachineClass {
+    MachineClass parent_obj;
+
+    bool no_pv_feature;   /* compat: 11.1 and older do not advertise pv features */
+};
+
 #define TYPE_LOONGARCH_VIRT_MACHINE  MACHINE_TYPE_NAME("virt")
-OBJECT_DECLARE_SIMPLE_TYPE(LoongArchVirtMachineState, LOONGARCH_VIRT_MACHINE)
+OBJECT_DECLARE_TYPE(LoongArchVirtMachineState, LoongArchVirtMachineClass,
+                    LOONGARCH_VIRT_MACHINE)
 void virt_acpi_setup(LoongArchVirtMachineState *lvms);
 void virt_fdt_setup(LoongArchVirtMachineState *lvms);
 

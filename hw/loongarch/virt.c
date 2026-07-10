@@ -955,6 +955,8 @@ static void virt_init(MachineState *machine)
                          machine->cpu_type);
             exit(EXIT_FAILURE);
         }
+        LOONGARCH_CPU(cpuobj)->no_pv_feature =
+            LOONGARCH_VIRT_MACHINE_GET_CLASS(lvms)->no_pv_feature;
         qdev_realize_and_unref(DEVICE(cpuobj), NULL, &error_fatal);
     }
     virt_check_dmsi(machine);
@@ -1584,6 +1586,7 @@ static const TypeInfo virt_machine_info = {
     .parent         = TYPE_MACHINE,
     .abstract       = true,
     .instance_size  = sizeof(LoongArchVirtMachineState),
+    .class_size     = sizeof(LoongArchVirtMachineClass),
     .class_init     = virt_class_init,
     .instance_init  = virt_initfn,
     .instance_finalize = virt_instance_finalize,
@@ -1602,5 +1605,14 @@ type_init(machvirt_machine_init);
 
 static void virt_machine_11_1_options(MachineClass *mc)
 {
+    LoongArchVirtMachineClass *vmc = LOONGARCH_VIRT_MACHINE_CLASS(mc);
+
+    /* pv feature advertisement is enabled from 11.2; keep 11.1 unchanged */
+    vmc->no_pv_feature = true;
 }
-DEFINE_VIRT_MACHINE_AS_LATEST(11, 1)
+DEFINE_VIRT_MACHINE(11, 1)
+
+static void virt_machine_11_2_options(MachineClass *mc)
+{
+}
+DEFINE_VIRT_MACHINE_AS_LATEST(11, 2)
