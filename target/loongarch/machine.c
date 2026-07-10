@@ -65,6 +65,24 @@ static const VMStateDescription vmstate_msgint = {
     },
 };
 
+static bool pv_features_needed(void *opaque)
+{
+    LoongArchCPU *cpu = opaque;
+
+    return cpu->env.pv_features != 0;
+}
+
+static const VMStateDescription vmstate_pv_features = {
+    .name = "cpu/pv_features",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = pv_features_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(env.pv_features, LoongArchCPU),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_lsxh_reg = {
     .name = "lsxh_reg",
     .version_id = 1,
@@ -289,6 +307,7 @@ const VMStateDescription vmstate_loongarch_cpu = {
         &vmstate_lbt,
         &vmstate_msgint,
         &vmstate_pmu,
+        &vmstate_pv_features,
         NULL
     }
 };
