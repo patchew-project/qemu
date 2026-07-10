@@ -481,7 +481,6 @@ static void type2_breakpoint_insert(CPURISCVState *env, target_ulong index)
     bool enabled = type2_breakpoint_enabled(ctrl);
     CPUState *cs = env_cpu(env);
     BreakpointFlags flags = BP_CPU | BP_STOP_BEFORE_ACCESS;
-    uint32_t size, def_size;
 
     if (!enabled) {
         return;
@@ -499,16 +498,12 @@ static void type2_breakpoint_insert(CPURISCVState *env, target_ulong index)
     }
 
     if (flags & BP_MEM_ACCESS) {
-        size = type2_breakpoint_size(env, ctrl);
-        if (size != 0) {
-            cpu_watchpoint_insert(cs, addr, size, flags, index,
-                                  &env->cpu_watchpoint[index]);
-        } else {
-            def_size = riscv_cpu_mxl(env) == MXL_RV64 ? 8 : 4;
-
-            cpu_watchpoint_insert(cs, addr, def_size, flags, index,
-                                  &env->cpu_watchpoint[index]);
+        uint32_t size = type2_breakpoint_size(env, ctrl);
+        if (size == 0) {
+            size = riscv_cpu_mxl(env) == MXL_RV64 ? 8 : 4;
         }
+        env->cpu_watchpoint[index] =
+            cpu_watchpoint_insert(cs, addr, size, flags, index);
     }
 }
 
@@ -606,7 +601,6 @@ static void type6_breakpoint_insert(CPURISCVState *env, target_ulong index)
     bool enabled = type6_breakpoint_enabled(ctrl);
     CPUState *cs = env_cpu(env);
     BreakpointFlags flags = BP_CPU | BP_STOP_BEFORE_ACCESS;
-    uint32_t size;
 
     if (!enabled) {
         return;
@@ -625,14 +619,10 @@ static void type6_breakpoint_insert(CPURISCVState *env, target_ulong index)
     }
 
     if (flags & BP_MEM_ACCESS) {
-        size = extract32(ctrl, 16, 4);
-        if (size != 0) {
-            cpu_watchpoint_insert(cs, addr, size, flags, index,
-                                  &env->cpu_watchpoint[index]);
-        } else {
-            cpu_watchpoint_insert(cs, addr, 8, flags, index,
-                                  &env->cpu_watchpoint[index]);
-        }
+        uint32_t size = extract32(ctrl, 16, 4) ? : 8;
+
+        env->cpu_watchpoint[index] =
+            cpu_watchpoint_insert(cs, addr, size, flags, index);
     }
 }
 

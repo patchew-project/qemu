@@ -24,9 +24,8 @@
 #include "hw/core/cpu.h"
 
 /* Add a watchpoint.  */
-int cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
-                          BreakpointFlags flags, unsigned id,
-                          CPUWatchpoint **watchpoint)
+CPUWatchpoint *cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
+                                     BreakpointFlags flags, unsigned id)
 {
     CPUWatchpoint *wp;
     vaddr last = addr + len - 1;
@@ -49,11 +48,7 @@ int cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
     } else {
         tlb_flush(cpu);
     }
-
-    if (watchpoint) {
-        *watchpoint = wp;
-    }
-    return 0;
+    return wp;
 }
 
 /* Remove a specific watchpoint.  */
