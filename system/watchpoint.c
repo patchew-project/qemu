@@ -33,6 +33,9 @@ CPUWatchpoint *cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
 
     assert(len != 0);
     assert(last >= addr);
+    assert(flags & BP_MEM_ACCESS);
+    assert(ctpop32(flags & BP_ANY) == 1);
+    assert(!(flags & ~(BP_ANY | BP_MEM_ACCESS | BP_STOP_BEFORE_ACCESS)));
 
     wp = g_new0(CPUWatchpoint, 1);
 
