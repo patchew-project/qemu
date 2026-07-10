@@ -29,7 +29,6 @@ CPUBreakpoint *cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
 {
     CPUBreakpoint *wp;
     vaddr last = addr + len - 1;
-    vaddr in_page;
 
     assert(len != 0);
     assert(last >= addr);
@@ -45,12 +44,8 @@ CPUBreakpoint *cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
 
     interval_tree_insert(&wp->itree, &cpu->watchpoints);
 
-    in_page = -(addr | TARGET_PAGE_MASK);
-    if (len <= in_page) {
-        tlb_flush_page(cpu, addr);
-    } else {
-        tlb_flush(cpu);
-    }
+    tlb_flush_range_by_mmuidx(cpu, addr, last, ALL_MMUIDX_BITS,
+                              target_long_bits());
     return wp;
 }
 
