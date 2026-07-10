@@ -264,7 +264,7 @@ struct TCGCPUOps {
      * @debug_check_breakpoint: return true if the architectural
      * breakpoint whose PC has matched should really fire.
      */
-    bool (*debug_check_breakpoint)(CPUState *cpu);
+    bool (*debug_check_breakpoint)(CPUState *cpu, CPUBreakpoint *bp);
 
     /**
      * @io_recompile_replay_branch: Callback for cpu_io_recompile.

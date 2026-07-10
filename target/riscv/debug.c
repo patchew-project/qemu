@@ -941,7 +941,7 @@ void riscv_cpu_debug_excp_handler(CPUState *cs)
     }
 }
 
-bool riscv_cpu_debug_check_breakpoint(CPUState *cs)
+bool riscv_cpu_debug_check_breakpoint(CPUState *cs, CPUBreakpoint *ignore)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
