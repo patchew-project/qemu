@@ -250,11 +250,6 @@ struct TCGCPUOps {
                                            int mmu_idx, uintptr_t retaddr);
 
     /**
-     * @adjust_watchpoint_address: hack for cpu_check_watchpoint (used by ARM)
-     */
-    vaddr (*adjust_watchpoint_address)(CPUState *cpu, vaddr addr, int len);
-
-    /**
      * @debug_check_watchpoint: return true if the architectural
      * watchpoint whose address has matched should really fire.
      */

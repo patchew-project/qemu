@@ -139,8 +139,6 @@ struct SysemuCPUOps;
  * to GDB. The returned value is expected to be a simple constant string:
  * the caller will not g_free() it.
  * @disas_set_info: Setup architecture specific components of disassembly info
- * @adjust_watchpoint_address: Perform a target-specific adjustment to an
- * address before attempting to match it against watchpoints.
  * @deprecation_note: If this CPUClass is deprecated, this field provides
  *                    related information.
  * @max_as: Maximum valid index used to refer to the address spaces supported by

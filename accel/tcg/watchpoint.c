@@ -68,12 +68,6 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
         return;
     }
 
-    if (cpu->cc->tcg_ops->adjust_watchpoint_address) {
-        /* this is currently used only by ARM BE32 */
-        addr = cpu->cc->tcg_ops->adjust_watchpoint_address(cpu, addr, len);
-        last = addr + len - 1;
-    }
-
     assert((flags & ~BP_MEM_ACCESS) == 0);
 
     for (n = interval_tree_iter_first(&cpu->watchpoints, addr, last); n;
