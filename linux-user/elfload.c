@@ -14,6 +14,7 @@
 #include "exec/translation-block.h"
 #include "exec/tswap.h"
 #include "user/guest-base.h"
+#include "user/mmap-min-addr.h"
 #include "user-internals.h"
 #include "signal-common.h"
 #include "loader.h"
