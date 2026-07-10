@@ -655,7 +655,7 @@ void tlb_flush_page_all_cpus_synced(CPUState *src, vaddr addr)
 }
 
 static void tlb_flush_range_locked(CPUState *cpu, int midx,
-                                   vaddr addr, vaddr len,
+                                   vaddr addr, vaddr last,
                                    unsigned bits)
 {
     CPUTLBDesc *d = &cpu->neg.tlb.d[midx];
@@ -669,13 +669,13 @@ static void tlb_flush_range_locked(CPUState *cpu, int midx,
      * TODO: Perhaps allow bits to be a few bits less than the size.
      * For now, just flush the entire TLB.
      *
-     * If @len is larger than the tlb size, then it will take longer to
+     * If [addr:last] is larger than the tlb size, then it will take longer to
      * test all of the entries in the TLB than it will to flush it all.
      */
-    if (mask < f->mask || len > f->mask) {
+    if (mask < f->mask || ((addr ^ last) & ~f->mask) != 0) {
         tlb_debug("forcing full flush midx %d ("
-                  "%016" VADDR_PRIx "/%016" VADDR_PRIx "+%016" VADDR_PRIx ")\n",
-                  midx, addr, mask, len);
+                  "%016" VADDR_PRIx "/%016" VADDR_PRIx "-%016" VADDR_PRIx ")\n",
+                  midx, addr, mask, last);
         tlb_flush_one_mmuidx_locked(cpu, midx, get_clock_realtime());
         return;
     }
@@ -685,7 +685,7 @@ static void tlb_flush_range_locked(CPUState *cpu, int midx,
      * Because large_page_mask contains all 1's from the msb,
      * we only need to test the end of the range.
      */
-    if (((addr + len - 1) & d->large_page_mask) == d->large_page_addr) {
+    if ((last & d->large_page_mask) == d->large_page_addr) {
         tlb_debug("forcing full flush midx %d ("
                   "%016" VADDR_PRIx "/%016" VADDR_PRIx ")\n",
                   midx, d->large_page_addr, d->large_page_mask);
@@ -693,20 +693,23 @@ static void tlb_flush_range_locked(CPUState *cpu, int midx,
         return;
     }
 
-    for (vaddr i = 0; i < len; i += TARGET_PAGE_SIZE) {
-        vaddr page = addr + i;
+    for (vaddr page = addr; ; page += TARGET_PAGE_SIZE) {
         CPUTLBEntry *entry = tlb_entry(cpu, midx, page);
 
         if (tlb_flush_entry_mask_locked(entry, page, mask)) {
             tlb_n_used_entries_dec(cpu, midx);
         }
         tlb_flush_vtlb_page_mask_locked(cpu, midx, page, mask);
+
+        if (page == last) {
+            break;
+        }
     }
 }
 
 typedef struct {
     vaddr addr;
-    vaddr len;
+    vaddr last;
     MMUIdxMap idxmap;
     unsigned bits;
 } TLBFlushRangeData;
@@ -718,13 +721,13 @@ static void tlb_flush_range_by_mmuidx_async_0(CPUState *cpu,
 
     assert_cpu_is_self(cpu);
 
-    tlb_debug("range: %016" VADDR_PRIx "/%u+%016" VADDR_PRIx " mmu_map:0x%x\n",
-              d.addr, d.bits, d.len, d.idxmap);
+    tlb_debug("range: %016" VADDR_PRIx "/%u-%016" VADDR_PRIx " mmu_map:0x%x\n",
+              d.addr, d.bits, d.last, d.idxmap);
 
     qemu_spin_lock(&cpu->neg.tlb.c.lock);
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
         if ((d.idxmap >> mmu_idx) & 1) {
-            tlb_flush_range_locked(cpu, mmu_idx, d.addr, d.len, d.bits);
+            tlb_flush_range_locked(cpu, mmu_idx, d.addr, d.last, d.bits);
         }
     }
     qemu_spin_unlock(&cpu->neg.tlb.c.lock);
@@ -733,7 +736,7 @@ static void tlb_flush_range_by_mmuidx_async_0(CPUState *cpu,
      * If the length is larger than the jump cache size, then it will take
      * longer to clear each entry individually than it will to clear it all.
      */
-    if (d.len >= (TARGET_PAGE_SIZE * TB_JMP_CACHE_SIZE)) {
+    if (((d.last - d.addr) >> TARGET_PAGE_SIZE) + 1 >= TB_JMP_CACHE_SIZE) {
         tcg_flush_jmp_cache(cpu);
         return;
     }
@@ -742,10 +745,11 @@ static void tlb_flush_range_by_mmuidx_async_0(CPUState *cpu,
      * Discard jump cache entries for any tb which might potentially
      * overlap the flushed pages, which includes the previous.
      */
-    d.addr -= TARGET_PAGE_SIZE;
-    for (vaddr i = 0, n = d.len / TARGET_PAGE_SIZE + 1; i < n; i++) {
-        tb_jmp_cache_clear_page(cpu, d.addr);
-        d.addr += TARGET_PAGE_SIZE;
+    tb_jmp_cache_clear_page(cpu, d.addr - TARGET_PAGE_SIZE);
+    for (vaddr page = d.addr; ; page += TARGET_PAGE_SIZE) {
+        if (page == d.last) {
+            break;
+        }
     }
 }
 
@@ -761,7 +765,12 @@ void tlb_flush_range_by_mmuidx(CPUState *cpu, vaddr addr,
                                vaddr len, MMUIdxMap idxmap,
                                unsigned bits)
 {
-    TLBFlushRangeData d;
+    TLBFlushRangeData d = {
+        .addr = addr & TARGET_PAGE_MASK,
+        .last = (addr + len - 1) & TARGET_PAGE_MASK,
+        .idxmap = idxmap,
+        .bits = bits,
+    };
 
     assert_cpu_is_self(cpu);
 
@@ -770,20 +779,15 @@ void tlb_flush_range_by_mmuidx(CPUState *cpu, vaddr addr,
         tlb_flush_by_mmuidx(cpu, idxmap);
         return;
     }
+
     /*
      * If all bits are significant, and len is small,
      * this devolves to tlb_flush_page.
      */
-    if (len <= TARGET_PAGE_SIZE && bits >= target_long_bits()) {
+    if (d.addr == d.last && bits >= target_long_bits()) {
         tlb_flush_page_by_mmuidx(cpu, addr, idxmap);
         return;
     }
-
-    /* This should already be page aligned */
-    d.addr = addr & TARGET_PAGE_MASK;
-    d.len = len;
-    d.idxmap = idxmap;
-    d.bits = bits;
 
     tlb_flush_range_by_mmuidx_async_0(cpu, d);
 }
@@ -800,7 +804,13 @@ void tlb_flush_range_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
                                                MMUIdxMap idxmap,
                                                unsigned bits)
 {
-    TLBFlushRangeData d, *p;
+    TLBFlushRangeData d = {
+        .addr = addr & TARGET_PAGE_MASK,
+        .last = (addr + len - 1) & TARGET_PAGE_MASK,
+        .idxmap = idxmap,
+        .bits = bits,
+    };
+    TLBFlushRangeData *p;
     CPUState *dst_cpu;
 
     /* If no page bits are significant, this devolves to tlb_flush. */
@@ -808,20 +818,15 @@ void tlb_flush_range_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
         tlb_flush_by_mmuidx_all_cpus_synced(src_cpu, idxmap);
         return;
     }
+
     /*
      * If all bits are significant, and len is small,
      * this devolves to tlb_flush_page.
      */
-    if (len <= TARGET_PAGE_SIZE && bits >= target_long_bits()) {
+    if (d.addr == d.last && bits >= target_long_bits()) {
         tlb_flush_page_by_mmuidx_all_cpus_synced(src_cpu, addr, idxmap);
         return;
     }
-
-    /* This should already be page aligned */
-    d.addr = addr & TARGET_PAGE_MASK;
-    d.len = len;
-    d.idxmap = idxmap;
-    d.bits = bits;
 
     /* Allocate a separate data block for each destination cpu.  */
     CPU_FOREACH(dst_cpu) {
