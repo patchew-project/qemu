@@ -475,6 +475,15 @@ static OnOffAuto account_get_opt(QemuOpts *opts, const char *name)
     return ON_OFF_AUTO_OFF;
 }
 
+void blockdev_show_help(void)
+{
+      qemu_printf("Supported formats:");
+      bdrv_iterate_format(bdrv_format_print, NULL, false);
+      qemu_printf("\nSupported formats (read-only):");
+      bdrv_iterate_format(bdrv_format_print, NULL, true);
+      qemu_printf("\n");
+}
+
 /* Takes the ownership of bs_opts */
 static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
                                    Error **errp)
@@ -541,11 +550,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
     if ((buf = qemu_opt_get(opts, "format")) != NULL) {
         if (is_help_option(buf)) {
-            qemu_printf("Supported formats:");
-            bdrv_iterate_format(bdrv_format_print, NULL, false);
-            qemu_printf("\nSupported formats (read-only):");
-            bdrv_iterate_format(bdrv_format_print, NULL, true);
-            qemu_printf("\n");
+            blockdev_show_help();
             goto early_err;
         }
 
