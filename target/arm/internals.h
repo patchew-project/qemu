@@ -694,11 +694,6 @@ bool arm_debug_check_breakpoint(CPUState *cs, CPUBreakpoint *bp);
 /* Callback function for checking if a watchpoint should trigger. */
 bool arm_debug_check_watchpoint(CPUState *cs, CPUBreakpoint *wp);
 
-/* Adjust addresses (in BE32 mode) before testing against watchpoint
- * addresses.
- */
-vaddr arm_adjust_watchpoint_address(CPUState *cs, vaddr addr, int len);
-
 /* Callback function for when a watchpoint or breakpoint triggers. */
 void arm_debug_excp_handler(CPUState *cs, CPUBreakpoint *hit);
 

@@ -365,6 +365,31 @@ bool arm_debug_check_breakpoint(CPUState *cs, CPUBreakpoint *bp)
     return bp_wp_matches(cpu, env->cp15.dbgbcr[bp->id], arm_current_el(env));
 }
 
+static bool arm_debug_check_watchpoint_v6(CPUARMState *env, CPUBreakpoint *wp)
+{
+    uint32_t wcr = env->cp15.dbgwcr[wp->id];
+    uint32_t bas = FIELD_EX64(wcr, DBGWCR, BAS) & 0xf;
+
+    /* Create a mask of the bytes touched by the access. */
+    uint32_t hitlen = wp->hitlast - wp->hitaddr + 1;
+    uint32_t hitmask = MAKE_64BIT_MASK(wp->hitaddr & 3, hitlen);
+
+    /* With BE-32, the interpretation of BAS is inverted.  */
+    if (arm_sctlr_b(env)) {
+        bas = revbit8(bas) >> 4;
+    }
+
+    hitmask &= bas;
+    if (!hitmask) {
+        return false;
+    }
+
+    /* Update hit to the first byte matched. */
+    wp->hitaddr = wp->itree.start + ctz32(hitmask);
+    wp->hitlast = wp->hitaddr;
+    return true;
+}
+
 bool arm_debug_check_watchpoint(CPUState *cs, CPUBreakpoint *wp)
 {
     /*
@@ -380,7 +405,13 @@ bool arm_debug_check_watchpoint(CPUState *cs, CPUBreakpoint *wp)
      */
     int access_el = wp->hitattrs.user ? 0 : arm_current_el(env);
 
-    return bp_wp_matches(cpu, env->cp15.dbgwcr[wp->id], access_el);
+    /*
+     * For ARM v6, we need to validate the address match.
+     * After that, everyone needs to validate linked watchpoints.
+     */
+    return ((arm_feature(env, ARM_FEATURE_V7) ||
+             arm_debug_check_watchpoint_v6(env, wp)) &&
+            bp_wp_matches(cpu, env->cp15.dbgwcr[wp->id], access_el));
 }
 
 /*
@@ -481,46 +512,44 @@ void HELPER(exception_swstep)(CPUARMState *env, uint32_t syndrome)
     raise_exception_debug(env, EXCP_UDEF, syndrome);
 }
 
-void hw_watchpoint_update(ARMCPU *cpu, int n)
+static void hw_watchpoint_update_v6(ARMCPU *cpu, int n, BreakpointFlags flags)
+{
+    /*
+     * With v6:
+     * - MASK does not exist,
+     * - BAS is 4 bits,
+     * - non-consecutive BAS bits are not yet deprecated,
+     * - BE-32 is supported, affecting interpretation of BAS.
+     * Install a 4 byte aligned watchpoint now and defer checking
+     * of the BAS bits until breakpoint hit.
+     */
+    CPUARMState *env = &cpu->env;
+    uint32_t wvr = env->cp15.dbgwvr[n] & ~3;
+    uint32_t wcr = env->cp15.dbgwcr[n];
+    uint32_t bas = FIELD_EX64(wcr, DBGWCR, BAS) & 0xf;
+
+    if (bas == 0) {
+        /* This must act as if the watchpoint is disabled */
+        return;
+    }
+
+    env->cpu_watchpoint[n] = cpu_watchpoint_insert(CPU(cpu), wvr, 4,
+                                                   flags, n);
+}
+
+static void hw_watchpoint_update_v7(ARMCPU *cpu, int n, BreakpointFlags flags)
 {
     CPUARMState *env = &cpu->env;
     vaddr len = 0;
     vaddr wvr = env->cp15.dbgwvr[n];
     uint64_t wcr = env->cp15.dbgwcr[n];
-    int mask;
-    BreakpointFlags flags = BP_CPU | BP_STOP_BEFORE_ACCESS;
-
-    if (env->cpu_watchpoint[n]) {
-        cpu_watchpoint_remove_by_ref(CPU(cpu), env->cpu_watchpoint[n]);
-        env->cpu_watchpoint[n] = NULL;
-    }
-
-    if (!FIELD_EX64(wcr, DBGWCR, E)) {
-        /* E bit clear : watchpoint disabled */
-        return;
-    }
-
-    switch (FIELD_EX64(wcr, DBGWCR, LSC)) {
-    case 0:
-        /* LSC 00 is reserved and must behave as if the wp is disabled */
-        return;
-    case 1:
-        flags |= BP_MEM_READ;
-        break;
-    case 2:
-        flags |= BP_MEM_WRITE;
-        break;
-    case 3:
-        flags |= BP_MEM_ACCESS;
-        break;
-    }
+    int mask = FIELD_EX64(wcr, DBGWCR, MASK);
 
     /*
      * Attempts to use both MASK and BAS fields simultaneously are
      * CONSTRAINED UNPREDICTABLE; we opt to ignore BAS in this case,
      * thus generating a watchpoint for every byte in the masked region.
      */
-    mask = FIELD_EX64(wcr, DBGWCR, MASK);
     if (mask == 1 || mask == 2) {
         /*
          * Reserved values of MASK; we must act as if the mask value was
@@ -568,6 +597,49 @@ void hw_watchpoint_update(ARMCPU *cpu, int n)
 
     env->cpu_watchpoint[n] = cpu_watchpoint_insert(CPU(cpu), wvr, len,
                                                    flags, n);
+}
+
+void hw_watchpoint_update(ARMCPU *cpu, int n)
+{
+    CPUARMState *env = &cpu->env;
+    uint64_t wcr = env->cp15.dbgwcr[n];
+    int flags = BP_CPU | BP_STOP_BEFORE_ACCESS;
+
+    if (env->cpu_watchpoint[n]) {
+        cpu_watchpoint_remove_by_ref(CPU(cpu), env->cpu_watchpoint[n]);
+        env->cpu_watchpoint[n] = NULL;
+    }
+
+    if (!FIELD_EX64(wcr, DBGWCR, E)) {
+        /* E bit clear : watchpoint disabled */
+        return;
+    }
+
+    switch (FIELD_EX64(wcr, DBGWCR, LSC)) {
+    case 0:
+        /* LSC 00 is reserved and must behave as if the wp is disabled */
+        return;
+    case 1:
+        flags |= BP_MEM_READ;
+        break;
+    case 2:
+        flags |= BP_MEM_WRITE;
+        break;
+    case 3:
+        flags |= BP_MEM_ACCESS;
+        break;
+    }
+
+    /*
+     * ARM v6 debug.  The AArch32 DBGDIDR register is deprecated
+     * under certain v8 conditions, and ID_DFR0 doesn't exist pre-v7.
+     * Cut the proverbial knot by checking cpu features.
+     */
+    if (arm_feature(env, ARM_FEATURE_V7)) {
+        hw_watchpoint_update_v7(cpu, n, flags);
+    } else {
+        hw_watchpoint_update_v6(cpu, n, flags);
+    }
 }
 
 void hw_watchpoint_update_all(ARMCPU *cpu)
@@ -689,30 +761,3 @@ void hw_breakpoint_update_all(ARMCPU *cpu)
         hw_breakpoint_update(cpu, i);
     }
 }
-
-#if !defined(CONFIG_USER_ONLY)
-
-vaddr arm_adjust_watchpoint_address(CPUState *cs, vaddr addr, int len)
-{
-    ARMCPU *cpu = ARM_CPU(cs);
-    CPUARMState *env = &cpu->env;
-
-    /*
-     * In BE32 system mode, target memory is stored byteswapped (on a
-     * little-endian host system), and by the time we reach here (via an
-     * opcode helper) the addresses of subword accesses have been adjusted
-     * to account for that, which means that watchpoints will not match.
-     * Undo the adjustment here.
-     */
-    if (arm_sctlr_b(env)) {
-        if (len == 1) {
-            addr ^= 3;
-        } else if (len == 2) {
-            addr ^= 2;
-        }
-    }
-
-    return addr;
-}
-
-#endif /* !CONFIG_USER_ONLY */

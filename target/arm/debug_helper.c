@@ -362,6 +362,18 @@ static void dbgwcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     ARMCPU *cpu = env_archcpu(env);
     int i = ri->crm;
 
+    /*
+     * Bits [7:4] of BAS are RAZ/WI if an 8-bit field is not supported.
+     * This is always true of v6 debug.
+     * As an IMPLEMENTATION DEFINED choice, we always implement the 8-bit
+     * field with ARMv7 cpus.
+     * This is never true of v8 debug.
+     * The Linux kernel will probe for 4 or 8-bit by writing all 1's.
+     */
+    if (!arm_feature(env, ARM_FEATURE_V7)) {
+        value &= ~FIELD_DP64(0, DBGWCR, BAS, 0xf0);
+    }
+
     raw_write(env, ri, value);
     if (tcg_enabled()) {
         hw_watchpoint_update(cpu, i);
