@@ -559,11 +559,6 @@ static void omap_dma_transfer_setup(struct soc_dma_ch_s *dma)
         if (!ch->sync && frames) {
             ch->cpc = a->dest & 0xffff;
         }
-
-        /*
-         * TODO: if the destination port is IMIF or EMIFF, set the dirty
-         * bits on it.
-         */
     }
 
     omap_dma_interrupts_update(s);

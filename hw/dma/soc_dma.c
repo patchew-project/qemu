@@ -20,13 +20,58 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
+#include "qemu/log.h"
+#include "system/physmem.h"
 #include "hw/arm/soc_dma.h"
 
 static void transfer_mem2mem(struct soc_dma_ch_s *ch)
 {
-    memcpy(ch->paddr[0], ch->paddr[1], ch->bytes);
-    ch->paddr[0] += ch->bytes;
-    ch->paddr[1] += ch->bytes;
+    /*
+     * Memory-to-memory transfer: do the whole thing in one go.  The
+     * hardware spec says that it is invalid to program the OMAP DMA
+     * controller with addresses that don't match the port (i.e. to
+     * ask for a transfer to/from a memory port with a physaddr that
+     * isn't within that port range) and that if you do then the
+     * transfer continues and memory can be corrupted.  So we can map
+     * both source and destination, and treat short mappings and
+     * failed mappings as a guest error.
+     */
+    hwaddr srclen = ch->bytes;
+    hwaddr dstlen = ch->bytes;
+    hwaddr srcaddr = ch->vaddr[0];
+    hwaddr dstaddr = ch->vaddr[1];
+    void *srcmem, *dstmem;
+    hwaddr xferlen = 0;
+
+    srcmem = physical_memory_map(srcaddr, &srclen, false);
+    if (!srcmem) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "soc_dma mem2mem transfer: could not map source; "
+                      "guest error programming source port/address\n");
+        return;
+    }
+
+    dstmem = physical_memory_map(dstaddr, &dstlen, true);
+    if (!dstmem) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "soc_dma mem2mem transfer: could not map destination; "
+                      "guest error programming destination port/address\n");
+        goto unmap_src;
+    }
+
+    xferlen = MIN(srclen, dstlen);
+    if (xferlen < ch->bytes) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "soc_dma mem2mem transfer: could not transfer all data; "
+                      "guest error programming src or destination addresses\n");
+        /* Continue to transfer whatever did fit in the port window */
+    }
+
+    memmove(dstmem, srcmem, xferlen);
+
+    physical_memory_unmap(dstmem, dstlen, true, xferlen);
+unmap_src:
+    physical_memory_unmap(srcmem, srclen, false, xferlen);
 }
 
 struct dma_s {
