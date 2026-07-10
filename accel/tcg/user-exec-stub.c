@@ -22,7 +22,8 @@ void cpu_exec_reset_hold(CPUState *cpu)
 }
 
 int cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
-                          BreakpointFlags flags, CPUWatchpoint **watchpoint)
+                          BreakpointFlags flags, unsigned id,
+                          CPUWatchpoint **watchpoint)
 {
     return -ENOSYS;
 }
