@@ -8,10 +8,9 @@
 
 #include "cpu-csr.h"
 
-#define CSR_OFFSET(id)                  offsetof(CPUSysState, id)
-#define CPU_CSR_OFFSET(id, vm_level)                                     \
+#define CSR_OFFSET(id, vm_level)                                     \
                     (offsetof(CPULoongArchState, sys_states[vm_level])   \
-                             + CSR_OFFSET(id))
+                    + offsetof(CPUSysState, id))
 
 typedef void (*GenCSRFunc)(void);
 enum {
@@ -20,6 +19,8 @@ enum {
     CSRFL_IO       = (1 << 2),
     CSRFL_UNUSED   = (1 << 3),
     CSRFL_BASIC    = (1 << 4),
+    CSRFL_GUEST_READONLY = (1 << 5),
+    CSRFL_GSPR     = (1 << 6),
 };
 
 typedef struct {
@@ -31,9 +32,6 @@ typedef struct {
 } CSRInfo;
 
 CSRInfo *get_csr(unsigned int csr_num);
+CSRInfo *get_gcsr(unsigned int csr_num);
 bool set_csr_flag(unsigned int csr_num, int flag);
-static inline unsigned int get_csr_offset(const CSRInfo *csr, int vm_level)
-{
-    return csr->offset + offsetof(CPULoongArchState, sys_states[vm_level]);
-}
 #endif /* TARGET_LOONGARCH_CSR_H */
