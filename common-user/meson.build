@@ -8,4 +8,5 @@ user_ss.add(files(
   'mmap-min-addr.c',
   'safe-syscall.S',
   'safe-syscall-error.c',
+  'selfmap.c',
 ))

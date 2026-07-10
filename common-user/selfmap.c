@@ -8,10 +8,11 @@
 
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
-#include "qemu/selfmap.h"
+#include "user/selfmap.h"
 
 IntervalTreeRoot *read_self_maps(void)
 {
+#ifdef __linux__
     IntervalTreeRoot *root;
     gchar *maps, **lines;
     guint i, nlines;
@@ -80,6 +81,9 @@ IntervalTreeRoot *read_self_maps(void)
     g_free(maps);
 
     return root;
+#else
+    return NULL;
+#endif
 }
 
 /**
