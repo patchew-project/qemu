@@ -22,7 +22,7 @@
 #include "qemu/timer.h"
 #include "qemu/log.h"
 #include "system/physmem.h"
-#include "hw/arm/soc_dma.h"
+#include "hw/dma/soc_dma.h"
 
 static void transfer_mem2mem(struct soc_dma_ch_s *ch)
 {

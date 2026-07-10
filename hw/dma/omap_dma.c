@@ -22,7 +22,7 @@
 #include "qemu/timer.h"
 #include "hw/arm/omap.h"
 #include "hw/core/irq.h"
-#include "hw/arm/soc_dma.h"
+#include "hw/dma/soc_dma.h"
 #include "system/physmem.h"
 
 struct omap_dma_channel_s {

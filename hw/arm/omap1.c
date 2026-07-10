@@ -32,7 +32,7 @@
 #include "hw/sd/sd.h"
 #include "system/blockdev.h"
 #include "system/system.h"
-#include "hw/arm/soc_dma.h"
+#include "hw/dma/soc_dma.h"
 #include "system/qtest.h"
 #include "system/reset.h"
 #include "system/runstate.h"
