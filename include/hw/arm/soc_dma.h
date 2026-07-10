@@ -25,12 +25,10 @@
 
 struct soc_dma_s;
 struct soc_dma_ch_s;
-typedef void (*soc_dma_io_t)(void *opaque, uint8_t *buf, int len);
 typedef void (*soc_dma_transfer_t)(struct soc_dma_ch_s *ch);
 
 enum soc_dma_port_type {
     soc_dma_port_mem,
-    soc_dma_port_fifo,
     soc_dma_port_other,
 };
 
@@ -57,8 +55,6 @@ struct soc_dma_ch_s {
     hwaddr vaddr[2];    /* Updated by .transfer_fn().  */
     /* Private */
     void *paddr[2];
-    soc_dma_io_t io_fn[2];
-    void *io_opaque[2];
 
     int running;
     soc_dma_transfer_t transfer_fn;
@@ -82,33 +78,21 @@ struct soc_dma_s {
 
 /* Call to activate or stop a DMA channel.  */
 void soc_dma_set_request(struct soc_dma_ch_s *ch, int level);
-/* Call after every write to one of the following fields and before
+/*
+ * Call after every write to one of the following fields and before
  * calling soc_dma_set_request(ch, 1):
  *   ch->type[0...1],
  *   ch->vaddr[0...1],
  *   ch->paddr[0...1],
- * or after a soc_dma_port_add_fifo() or soc_dma_port_add_mem().  */
+ * or after a soc_dma_port_add_mem().
+ */
 void soc_dma_ch_update(struct soc_dma_ch_s *ch);
 
 /* The SoC should call this when the DMA module is being reset.  */
 void soc_dma_reset(struct soc_dma_s *s);
 struct soc_dma_s *soc_dma_init(int n);
 
-void soc_dma_port_add_fifo(struct soc_dma_s *dma, hwaddr virt_base,
-                soc_dma_io_t fn, void *opaque, int out);
 void soc_dma_port_add_mem(struct soc_dma_s *dma, uint8_t *phys_base,
                 hwaddr virt_base, size_t size);
-
-static inline void soc_dma_port_add_fifo_in(struct soc_dma_s *dma,
-                hwaddr virt_base, soc_dma_io_t fn, void *opaque)
-{
-    return soc_dma_port_add_fifo(dma, virt_base, fn, opaque, 0);
-}
-
-static inline void soc_dma_port_add_fifo_out(struct soc_dma_s *dma,
-                hwaddr virt_base, soc_dma_io_t fn, void *opaque)
-{
-    return soc_dma_port_add_fifo(dma, virt_base, fn, opaque, 1);
-}
 
 #endif

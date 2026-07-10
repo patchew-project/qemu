@@ -29,33 +29,6 @@ static void transfer_mem2mem(struct soc_dma_ch_s *ch)
     ch->paddr[1] += ch->bytes;
 }
 
-static void transfer_mem2fifo(struct soc_dma_ch_s *ch)
-{
-    ch->io_fn[1](ch->io_opaque[1], ch->paddr[0], ch->bytes);
-    ch->paddr[0] += ch->bytes;
-}
-
-static void transfer_fifo2mem(struct soc_dma_ch_s *ch)
-{
-    ch->io_fn[0](ch->io_opaque[0], ch->paddr[1], ch->bytes);
-    ch->paddr[1] += ch->bytes;
-}
-
-/* This is further optimisable but isn't very important because often
- * DMA peripherals forbid this kind of transfers and even when they don't,
- * oprating systems may not need to use them.  */
-static void *fifo_buf;
-static int fifo_size;
-static void transfer_fifo2fifo(struct soc_dma_ch_s *ch)
-{
-    if (ch->bytes > fifo_size)
-        fifo_buf = g_realloc(fifo_buf, fifo_size = ch->bytes);
-
-    /* Implement as transfer_fifo2linear + transfer_linear2fifo.  */
-    ch->io_fn[0](ch->io_opaque[0], fifo_buf, ch->bytes);
-    ch->io_fn[1](ch->io_opaque[1], fifo_buf, ch->bytes);
-}
-
 struct dma_s {
     struct soc_dma_s soc;
     int chnum;
@@ -67,11 +40,6 @@ struct dma_s {
         enum soc_dma_port_type type;
         hwaddr addr;
         union {
-           struct {
-               void *opaque;
-               soc_dma_io_t fn;
-               int out;
-           } fifo;
            struct {
                void *base;
                size_t size;
@@ -129,20 +97,7 @@ static inline enum soc_dma_port_type soc_dma_ch_update_type(
     struct dma_s *dma = (struct dma_s *) ch->dma;
     struct memmap_entry_s *entry = soc_dma_lookup(dma, ch->vaddr[port]);
 
-    if (entry->type == soc_dma_port_fifo) {
-        while (entry < dma->memmap + dma->memmap_size &&
-                        entry->u.fifo.out != port)
-            entry ++;
-        if (entry->addr != ch->vaddr[port] || entry->u.fifo.out != port)
-            return soc_dma_port_other;
-
-        if (ch->type[port] != soc_dma_access_const)
-            return soc_dma_port_other;
-
-        ch->io_fn[port] = entry->u.fifo.fn;
-        ch->io_opaque[port] = entry->u.fifo.opaque;
-        return soc_dma_port_fifo;
-    } else if (entry->type == soc_dma_port_mem) {
+    if (entry->type == soc_dma_port_mem) {
         if (entry->addr > ch->vaddr[port] ||
                         entry->addr + entry->u.mem.size <= ch->vaddr[port])
             return soc_dma_port_other;
@@ -173,15 +128,8 @@ void soc_dma_ch_update(struct soc_dma_ch_s *ch)
     }
     dst = soc_dma_ch_update_type(ch, 1);
 
-    /* TODO: use src and dst as array indices.  */
     if (src == soc_dma_port_mem && dst == soc_dma_port_mem)
         ch->transfer_fn = transfer_mem2mem;
-    else if (src == soc_dma_port_mem && dst == soc_dma_port_fifo)
-        ch->transfer_fn = transfer_mem2fifo;
-    else if (src == soc_dma_port_fifo && dst == soc_dma_port_mem)
-        ch->transfer_fn = transfer_fifo2mem;
-    else if (src == soc_dma_port_fifo && dst == soc_dma_port_fifo)
-        ch->transfer_fn = transfer_fifo2fifo;
     else
         ch->transfer_fn = ch->dma->transfer_fn;
 
@@ -251,59 +199,8 @@ struct soc_dma_s *soc_dma_init(int n)
     }
 
     soc_dma_reset(&s->soc);
-    fifo_size = 0;
 
     return &s->soc;
-}
-
-void soc_dma_port_add_fifo(struct soc_dma_s *soc, hwaddr virt_base,
-                soc_dma_io_t fn, void *opaque, int out)
-{
-    struct memmap_entry_s *entry;
-    struct dma_s *dma = (struct dma_s *) soc;
-
-    dma->memmap = g_realloc(dma->memmap, sizeof(*entry) *
-                    (dma->memmap_size + 1));
-    entry = soc_dma_lookup(dma, virt_base);
-
-    if (dma->memmap_size) {
-        if (entry->type == soc_dma_port_mem) {
-            if (entry->addr <= virt_base &&
-                            entry->addr + entry->u.mem.size > virt_base) {
-                error_report("%s: FIFO at %"PRIx64
-                             " collides with RAM region at %"PRIx64
-                             "-%"PRIx64, __func__,
-                             virt_base, entry->addr,
-                             (entry->addr + entry->u.mem.size));
-                exit(-1);
-            }
-
-            if (entry->addr <= virt_base)
-                entry ++;
-        } else
-            while (entry < dma->memmap + dma->memmap_size &&
-                            entry->addr <= virt_base) {
-                if (entry->addr == virt_base && entry->u.fifo.out == out) {
-                    error_report("%s: FIFO at %"PRIx64
-                                 " collides FIFO at %"PRIx64,
-                                 __func__, virt_base, entry->addr);
-                    exit(-1);
-                }
-
-                entry ++;
-            }
-
-        memmove(entry + 1, entry,
-                        (uint8_t *) (dma->memmap + dma->memmap_size ++) -
-                        (uint8_t *) entry);
-    } else
-        dma->memmap_size ++;
-
-    entry->addr          = virt_base;
-    entry->type          = soc_dma_port_fifo;
-    entry->u.fifo.fn     = fn;
-    entry->u.fifo.opaque = opaque;
-    entry->u.fifo.out    = out;
 }
 
 void soc_dma_port_add_mem(struct soc_dma_s *soc, uint8_t *phys_base,
