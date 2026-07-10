@@ -36,7 +36,7 @@ bool init_guest_commpage(void)
     if (!reserved_va) {
         void *want, *addr;
 
-        want = g2h_untagged(LO_COMMPAGE);
+        want = g2h_untagged(COMMPAGE);
         addr = mmap(want, TARGET_PAGE_SIZE, PROT_NONE,
                     MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED_NOREPLACE, -1, 0);
         if (addr == MAP_FAILED) {
@@ -55,7 +55,7 @@ bool init_guest_commpage(void)
      * and implement syscalls.  Here, simply mark the page executable.
      * Special case the entry points during translation (see do_page_zero).
      */
-    page_set_flags(LO_COMMPAGE, LO_COMMPAGE | ~TARGET_PAGE_MASK,
+    page_set_flags(COMMPAGE, COMMPAGE | ~TARGET_PAGE_MASK,
                    PAGE_EXEC | PAGE_VALID, PAGE_VALID);
     return true;
 }
