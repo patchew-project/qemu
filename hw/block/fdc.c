@@ -196,6 +196,12 @@ static void fd_init(FDrive *drv)
 
 #define NUM_SIDES(drv) ((drv)->flags & FDISK_DBL_SIDES ? 2 : 1)
 
+/* Is a diskette present in the drive? */
+static bool fd_media_present(FDrive *drv)
+{
+    return drv->blk != NULL && blk_is_inserted(drv->blk);
+}
+
 static int fd_sector_calc(uint8_t head, uint8_t track, uint8_t sect,
                           uint8_t last_sect, uint8_t num_sides)
 {
@@ -1476,8 +1482,15 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
                                   NUM_SIDES(cur_drv)));
     switch (fd_seek(cur_drv, kh, kt, ks, fdctrl->config & FD_CONFIG_EIS)) {
     case 2:
-        /* sect too big */
-        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, 0x00, 0x00);
+        /*
+         * Track/head out of range, or no medium at all.  Only the latter can
+         * be told apart by the guest, through ST1.MA: with no diskette in the
+         * drive there is no address mark to be found.  Guests that
+         * distinguish an absent medium from an unreadable one rely on this.
+         */
+        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM,
+                             fd_media_present(cur_drv) ? 0x00 : FD_SR1_MA,
+                             0x00);
         fdctrl->fifo[3] = kt;
         fdctrl->fifo[4] = kh;
         fdctrl->fifo[5] = ks;
@@ -2303,6 +2316,18 @@ static void fdctrl_result_timer(void *opaque)
     FDCtrl *fdctrl = opaque;
     FDrive *cur_drv = get_cur_drv(fdctrl);
 
+    /*
+     * An empty drive has no address marks to read.  Completing READ ID
+     * successfully, with the made-up sector ID left over from the "spinning"
+     * emulation below, tells the guest that a diskette is still present after
+     * it has been ejected.  The only error path left was a data rate mismatch,
+     * and media_rate is never reset when the medium is removed.
+     */
+    if (!fd_media_present(cur_drv)) {
+        FLOPPY_DPRINTF("read id on empty drive\n");
+        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, FD_SR1_MA, 0x00);
+        return;
+    }
     /* Pretend we are spinning.
      * This is needed for Coherent, which uses READ ID to check for
      * sector interleaving.
