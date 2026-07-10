@@ -41,7 +41,7 @@
 #include "disas/capstone.h"
 #include "fpu/softfloat.h"
 #include "exec/page-protection.h"
-#include "exec/watchpoint.h"
+#include "exec/breakpoint.h"
 #include "helper_regs.h"
 #include "internal.h"
 #include "spr_common.h"

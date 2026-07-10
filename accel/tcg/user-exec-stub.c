@@ -2,7 +2,7 @@
 #include "hw/core/cpu.h"
 #include "accel/tcg/cpu-ops.h"
 #include "exec/replay-core.h"
-#include "exec/watchpoint.h"
+#include "exec/breakpoint.h"
 #include "internal-common.h"
 
 void cpu_resume(CPUState *cpu)
