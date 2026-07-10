@@ -39,12 +39,10 @@ struct dma_s {
     struct memmap_entry_s {
         enum soc_dma_port_type type;
         hwaddr addr;
-        union {
-           struct {
-               void *base;
-               size_t size;
-           } mem;
-        } u;
+        struct {
+            void *base;
+            size_t size;
+        } mem;
     } *memmap;
     int memmap_size;
 
@@ -99,7 +97,7 @@ static inline enum soc_dma_port_type soc_dma_ch_update_type(
 
     if (entry->type == soc_dma_port_mem) {
         if (entry->addr > ch->vaddr[port] ||
-                        entry->addr + entry->u.mem.size <= ch->vaddr[port])
+                        entry->addr + entry->mem.size <= ch->vaddr[port])
             return soc_dma_port_other;
 
         /* TODO: support constant memory address for source port as used for
@@ -107,7 +105,7 @@ static inline enum soc_dma_port_type soc_dma_ch_update_type(
         if (ch->type[port] != soc_dma_access_const)
             return soc_dma_port_other;
 
-        ch->paddr[port] = (uint8_t *) entry->u.mem.base +
+        ch->paddr[port] = (uint8_t *) entry->mem.base +
                 (ch->vaddr[port] - entry->addr);
         /* TODO: save bytes left to the end of the mapping somewhere so we
          * can check we're not reading beyond it.  */
@@ -212,12 +210,12 @@ void soc_dma_port_add_mem(struct soc_dma_s *soc, uint8_t *phys_base,
         if (entry->type == soc_dma_port_mem) {
             if ((entry->addr >= virt_base && entry->addr < virt_base + size) ||
                             (entry->addr <= virt_base &&
-                             entry->addr + entry->u.mem.size > virt_base)) {
+                             entry->addr + entry->mem.size > virt_base)) {
                 error_report("%s: RAM at %"PRIx64 "-%"PRIx64
                              " collides with RAM region at %"PRIx64
                              "-%"PRIx64, __func__,
                              virt_base, virt_base + size,
-                             entry->addr, entry->addr + entry->u.mem.size);
+                             entry->addr, entry->addr + entry->mem.size);
                 exit(-1);
             }
 
@@ -246,8 +244,8 @@ void soc_dma_port_add_mem(struct soc_dma_s *soc, uint8_t *phys_base,
 
     entry->addr          = virt_base;
     entry->type          = soc_dma_port_mem;
-    entry->u.mem.base    = phys_base;
-    entry->u.mem.size    = size;
+    entry->mem.base    = phys_base;
+    entry->mem.size    = size;
 }
 
 /* TODO: port removal for ports like PCMCIA memory */
