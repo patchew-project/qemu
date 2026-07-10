@@ -822,7 +822,6 @@ int kvm_arch_get_registers(CPUState *cs, Error **errp)
 int kvm_arch_put_registers(CPUState *cs, KvmPutState level, Error **errp)
 {
     int ret;
-    static int once;
 
     ret = kvm_loongarch_put_regs_core(cs);
     if (ret) {
@@ -849,19 +848,17 @@ int kvm_arch_put_registers(CPUState *cs, KvmPutState level, Error **errp)
         return ret;
     }
 
-    if (!once) {
+    if (level >= KVM_PUT_FULL_STATE) {
+        /*
+         * pv_features and steal time are per-vCPU state. Push them on
+         * full-state sync so every vCPU gets its own settings; the kernel
+         * clears the steal-time guest_addr on KVM_PUT_RESET_STATE.
+         */
         ret = kvm_set_pv_features(cs);
         if (ret) {
             return ret;
         }
-        once = 1;
-    }
 
-    if (level >= KVM_PUT_FULL_STATE) {
-        /*
-         * only KVM_PUT_FULL_STATE is required, kvm kernel will clear
-         * guest_addr for KVM_PUT_RESET_STATE
-         */
         ret = kvm_set_stealtime(cs);
         if (ret) {
             return ret;
