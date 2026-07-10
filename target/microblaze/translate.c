@@ -703,26 +703,43 @@ static inline MemOp mo_endian(DisasContext *dc)
     return dc->cfg->endi ? MO_LE : MO_BE;
 }
 
-static bool do_load(DisasContext *dc, int rd, TCGv_i32 addr, MemOp mop,
-                    int mem_index, bool rev)
+static void handle_reversed_access(MemOp *mop, TCGv_i32 *addr)
 {
-    MemOp size = mop & MO_SIZE;
-
-    mop |= mo_endian(dc);
+    MemOp size = *mop & MO_SIZE;
 
     /*
      * When doing reverse accesses we need to do two things.
      *
      * 1. Reverse the address wrt endianness.
      * 2. Byteswap the data lanes on the way back into the CPU core.
+     *
+     * Use a new TCGv_i32 to modify the address because the current one might be
+     * a register or a constant.
      */
+
+    if (size > MO_8) {
+        *mop ^= MO_BSWAP;
+    }
+
+    if (size < MO_32) {
+        TCGv_i32 new_addr = tcg_temp_new_i32();
+
+        tcg_gen_xori_i32(new_addr, *addr, 3 - size);
+        *addr = new_addr;
+    }
+}
+
+static bool do_load(DisasContext *dc, int rd, TCGv_i32 addr, MemOp mop,
+                    int mem_index, bool rev)
+{
+#ifndef CONFIG_USER_ONLY
+    MemOp size = mop & MO_SIZE;
+#endif
+
+    mop |= mo_endian(dc);
+
     if (rev) {
-        if (size > MO_8) {
-            mop ^= MO_BSWAP;
-        }
-        if (size < MO_32) {
-            tcg_gen_xori_i32(addr, addr, 3 - size);
-        }
+        handle_reversed_access(&mop, &addr);
     }
 
     /*
@@ -866,23 +883,14 @@ static bool trans_lwx(DisasContext *dc, arg_typea *arg)
 static bool do_store(DisasContext *dc, int rd, TCGv_i32 addr, MemOp mop,
                      int mem_index, bool rev)
 {
+#ifndef CONFIG_USER_ONLY
     MemOp size = mop & MO_SIZE;
+#endif
 
     mop |= mo_endian(dc);
 
-    /*
-     * When doing reverse accesses we need to do two things.
-     *
-     * 1. Reverse the address wrt endianness.
-     * 2. Byteswap the data lanes on the way back into the CPU core.
-     */
     if (rev) {
-        if (size > MO_8) {
-            mop ^= MO_BSWAP;
-        }
-        if (size < MO_32) {
-            tcg_gen_xori_i32(addr, addr, 3 - size);
-        }
+        handle_reversed_access(&mop, &addr);
     }
 
     /*
