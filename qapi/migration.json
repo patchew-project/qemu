@@ -830,7 +830,8 @@
            'zero-page-detection',
            'direct-io',
            { 'name': 'x-rdma-chunk-size', 'features': [ 'unstable' ] },
-           'cpr-exec-command'] }
+           'cpr-exec-command',
+           'local'] }
 
 ##
 # @migrate-set-parameters:
@@ -1012,6 +1013,12 @@
 #     Must be set to the same value on both source and destination
 #     before migration starts.  (Since 11.1)
 #
+# @local: Enable local migration for devices that support it.  Backend
+#     state and its file descriptors can then be passed to the
+#     destination in the migration channel.  The migration channel
+#     must be a Unix domain socket.  Usually needs to be enabled per
+#     device.  (Since 11.2)
+#
 # Features:
 #
 # @unstable: Members @x-checkpoint-delay, @x-rdma-chunk-size, and
@@ -1053,7 +1060,8 @@
             '*direct-io': 'bool',
             '*x-rdma-chunk-size': { 'type': 'uint64',
                                     'features': [ 'unstable' ] },
-            '*cpr-exec-command': [ 'str' ]} }
+            '*cpr-exec-command': [ 'str' ],
+            '*local': 'bool' } }
 
 ##
 # @query-migrate-parameters:
