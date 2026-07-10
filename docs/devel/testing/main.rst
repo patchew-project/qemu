@@ -1010,54 +1010,49 @@ simple as::
 
   apt install gcc-aarch64-linux-gnu
 
-The configure script will automatically pick up their presence.
-Sometimes compilers have slightly odd names so the availability of
-them can be prompted by passing in the appropriate configure option
-for the architecture in question, for example::
-
-  $(configure) --cross-cc-aarch64=aarch64-cc
-
-There is also a ``--cross-cc-cflags-ARCH`` flag in case additional
-compiler flags are needed to build for a given target.
-
-If you have the ability to run containers as the user the build system
-will automatically use them where no system compiler is available. For
-architectures where we also support building QEMU we will generally
-use the same container to build tests. However there are a number of
-additional containers defined that have a minimal cross-build
-environment that is only suitable for building test cases. Sometimes
-we may use a bleeding edge distribution for compiler features needed
-for test cases that aren't yet in the LTS distros we support for QEMU
-itself.
+Meson will automatically pick up their presence. In case a cross compiler is
+missing, if podman or docker are available, we'll automatically build
+images containing cross compilers and execute those.
 
 See :ref:`container-ref` for more details.
 
 Running subset of tests
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-You can build the tests for one architecture::
+You can build the tcg tests using::
 
-  make build-tcg-tests-$TARGET
+  make tcg-tests
 
-And run with::
+And run them for one target with::
 
-  make run-tcg-tests-$TARGET
+  make check-tcg-$TARGET
 
 Adding ``V=1`` to the invocation will show the details of how to
 invoke QEMU for the test which is useful for debugging tests.
 
+Tests can also be run using directly meson test::
+
+  ./pyvenv/bin/meson test --suite tcg
+  ./pyvenv/bin/meson test --suite tcg-$TARGET
+
+Tests can be listed using::
+
+  ./pyvenv/bin/meson test --suite tcg --list
+
 Running individual tests
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Tests can also be run directly from the test build directory. If you
-run ``make help`` from the test build directory you will get a list of
-all the tests that can be run. Please note that same binaries are used
-in multiple tests, for example::
+Tests can also be run using directly meson test::
 
-  make run-plugin-test-mmap-with-libinline.so
+  ./pyvenv/bin/meson test $TARGET-$TEST
 
-will run the mmap test with the ``libinline.so`` TCG plugin. The
-gdbstub tests also re-use the test binaries but while exercising gdb.
+For instance::
+
+  ./pyvenv/bin/meson test aarch64-softmmu-hello
+
+Test command and output can be accessed by using verbose flag::
+
+  ./pyvenv/bin/meson test aarch64-softmmu-hello --verbose
 
 TCG test dependencies
 ~~~~~~~~~~~~~~~~~~~~~
