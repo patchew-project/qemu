@@ -828,15 +828,15 @@ static int pgb_try_mmap_skip_brk(uintptr_t addr, uintptr_t addr_last,
  */
 
 typedef struct PGBAddrs {
-    uintptr_t bounds[3][2]; /* start/last pairs */
+    PGBRange bounds[3];
     int nbounds;
 } PGBAddrs;
 
 static bool pgb_try_mmap_set(const PGBAddrs *ga, uintptr_t base, uintptr_t brk)
 {
     for (int i = ga->nbounds - 1; i >= 0; --i) {
-        if (pgb_try_mmap_skip_brk(ga->bounds[i][0] + base,
-                                  ga->bounds[i][1] + base,
+        if (pgb_try_mmap_skip_brk(ga->bounds[i].lo + base,
+                                  ga->bounds[i].hi + base,
                                   brk, i == 0 && reserved_va) <= 0) {
             return false;
         }
@@ -875,26 +875,26 @@ static bool pgb_addr_set(PGBAddrs *ga, abi_ulong guest_loaddr,
     n = 0;
 
     if (reserved_va) {
-        ga->bounds[n][0] = try_identity ? mmap_min_addr : 0;
-        ga->bounds[n][1] = reserved_va;
+        ga->bounds[n].lo = try_identity ? mmap_min_addr : 0;
+        ga->bounds[n].hi = reserved_va;
         n++;
         /* LO_COMMPAGE and NULL handled by reserving from 0. */
     } else {
         /* Add any LO_COMMPAGE or NULL page. */
         if (LO_COMMPAGE != -1) {
-            ga->bounds[n][0] = 0;
-            ga->bounds[n][1] = LO_COMMPAGE + TARGET_PAGE_SIZE - 1;
+            ga->bounds[n].lo = 0;
+            ga->bounds[n].hi = LO_COMMPAGE + TARGET_PAGE_SIZE - 1;
             n++;
         } else if (!try_identity) {
-            ga->bounds[n][0] = 0;
-            ga->bounds[n][1] = TARGET_PAGE_SIZE - 1;
+            ga->bounds[n].lo = 0;
+            ga->bounds[n].hi = TARGET_PAGE_SIZE - 1;
             n++;
         }
 
         /* Add the guest image for ET_EXEC. */
         if (guest_loaddr) {
-            ga->bounds[n][0] = guest_loaddr;
-            ga->bounds[n][1] = guest_hiaddr;
+            ga->bounds[n].lo = guest_loaddr;
+            ga->bounds[n].hi = guest_hiaddr;
             n++;
         }
     }
@@ -909,8 +909,8 @@ static bool pgb_addr_set(PGBAddrs *ga, abi_ulong guest_loaddr,
 
     /* Add any HI_COMMPAGE not covered by reserved_va. */
     if (reserved_va < HI_COMMPAGE) {
-        ga->bounds[n][0] = HI_COMMPAGE & qemu_real_host_page_mask();
-        ga->bounds[n][1] = HI_COMMPAGE + TARGET_PAGE_SIZE - 1;
+        ga->bounds[n].lo = HI_COMMPAGE & qemu_real_host_page_mask();
+        ga->bounds[n].hi = HI_COMMPAGE + TARGET_PAGE_SIZE - 1;
         n++;
     }
 
@@ -976,8 +976,8 @@ static uintptr_t pgb_try_itree(const PGBAddrs *ga, uintptr_t base,
                                IntervalTreeRoot *root)
 {
     for (int i = ga->nbounds - 1; i >= 0; --i) {
-        uintptr_t s = base + ga->bounds[i][0];
-        uintptr_t l = base + ga->bounds[i][1];
+        uintptr_t s = base + ga->bounds[i].lo;
+        uintptr_t l = base + ga->bounds[i].hi;
         IntervalTreeNode *n;
 
         if (l < s) {
@@ -1076,9 +1076,9 @@ static void pgb_dynamic(const char *image_name, uintptr_t guest_loaddr,
                      "guest address mapping requirements", image_name);
 
         for (int i = 0; i < ga.nbounds; ++i) {
-            error_printf("  %0*" PRIx64 "-%0*" PRIx64 "\n",
-                         w, (uint64_t)ga.bounds[i][0],
-                         w, (uint64_t)ga.bounds[i][1]);
+            error_printf("  %0*" VADDR_PRIx "-%0*" VADDR_PRIx "\n",
+                         w, ga.bounds[i].lo,
+                         w, ga.bounds[i].hi);
         }
         exit(EXIT_FAILURE);
     }
