@@ -22,6 +22,7 @@
 #include "qemu/log.h"
 #include "exec/tb-flush.h"
 #include "exec/translation-block.h"
+#include "user/probe-guest-base.h"
 
 extern char *exec_path;
 extern char real_exec_path[PATH_MAX];
@@ -74,13 +75,8 @@ void clone_fork_end(bool child);
 void fork_start(void);
 void fork_end(pid_t pid);
 
-typedef struct PGBRange {
-    vaddr lo;
-    vaddr hi;
-} PGBRange;
-
 /**
- * probe_guest_base:
+ * linux_probe_guest_base:
  * @image_name: the executable being loaded
  * @image_range: the fixed addresses within the executable
  *
@@ -96,7 +92,7 @@ typedef struct PGBRange {
  *
  * to succeed.
  */
-void probe_guest_base(const char *image_name, const PGBRange *image_range);
+void linux_probe_guest_base(const char *image_name, const PGBRange *image_range);
 
 /* syscall.c */
 int host_to_target_waitstatus(int status);
