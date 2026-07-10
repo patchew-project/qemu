@@ -106,6 +106,19 @@ foreach target, plan: tcg_tests
   cc = find_program(plan['cc'], required : false)
   cc_from_system = cc.found()
   has_cc = cc.found()
+  if has_cc
+    check_flags = ['-static']
+    if target.endswith('softmmu')
+      check_flags = ['-nostdlib', '-r']
+    endif
+
+    cmd = run_command([cc, files('test_cc.c'), check_flags, '-o', '/dev/null'],
+                      check: false)
+    avail = cmd.returncode() == 0
+    cc_from_system = has_cc
+    has_cc = avail
+  endif
+
   build_test_depends = []
   build_test_depend_files = []
 
