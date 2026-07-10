@@ -761,13 +761,12 @@ static void tlb_flush_range_by_mmuidx_async_1(CPUState *cpu,
     g_free(d);
 }
 
-void tlb_flush_range_by_mmuidx(CPUState *cpu, vaddr addr,
-                               vaddr len, MMUIdxMap idxmap,
-                               unsigned bits)
+void tlb_flush_range_by_mmuidx(CPUState *cpu, vaddr addr, vaddr last,
+                               MMUIdxMap idxmap, unsigned bits)
 {
     TLBFlushRangeData d = {
         .addr = addr & TARGET_PAGE_MASK,
-        .last = (addr + len - 1) & TARGET_PAGE_MASK,
+        .last = last & TARGET_PAGE_MASK,
         .idxmap = idxmap,
         .bits = bits,
     };
@@ -795,18 +794,20 @@ void tlb_flush_range_by_mmuidx(CPUState *cpu, vaddr addr,
 void tlb_flush_page_bits_by_mmuidx(CPUState *cpu, vaddr addr,
                                    MMUIdxMap idxmap, unsigned bits)
 {
-    tlb_flush_range_by_mmuidx(cpu, addr, TARGET_PAGE_SIZE, idxmap, bits);
+    /*
+     * The implementation above only cares about the page of @last,
+     * so we don't need to find the end of the page for @addr.
+     */
+    tlb_flush_range_by_mmuidx(cpu, addr, addr, idxmap, bits);
 }
 
 void tlb_flush_range_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
-                                               vaddr addr,
-                                               vaddr len,
-                                               MMUIdxMap idxmap,
-                                               unsigned bits)
+                                               vaddr addr, vaddr last,
+                                               MMUIdxMap idxmap, unsigned bits)
 {
     TLBFlushRangeData d = {
         .addr = addr & TARGET_PAGE_MASK,
-        .last = (addr + len - 1) & TARGET_PAGE_MASK,
+        .last = last & TARGET_PAGE_MASK,
         .idxmap = idxmap,
         .bits = bits,
     };
@@ -847,7 +848,11 @@ void tlb_flush_page_bits_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
                                                    MMUIdxMap idxmap,
                                                    unsigned bits)
 {
-    tlb_flush_range_by_mmuidx_all_cpus_synced(src_cpu, addr, TARGET_PAGE_SIZE,
+    /*
+     * The implementation above only cares about the page of @last,
+     * so we don't need to find the end of the page for @addr.
+     */
+    tlb_flush_range_by_mmuidx_all_cpus_synced(src_cpu, addr, addr,
                                               idxmap, bits);
 }
 

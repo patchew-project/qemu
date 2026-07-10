@@ -734,8 +734,8 @@ static void ppcemb_tlb_flush(CPUState *cs, ppcemb_tlb_t *tlb)
         mmu_idx <<= 2;
     }
 
-    tlb_flush_range_by_mmuidx(cs, tlb->EPN, tlb->size, mmu_idx,
-                              TARGET_LONG_BITS);
+    tlb_flush_range_by_mmuidx(cs, tlb->EPN, tlb->EPN + tlb->size - 1,
+                              mmu_idx, TARGET_LONG_BITS);
 }
 
 void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,

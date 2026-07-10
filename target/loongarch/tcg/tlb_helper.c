@@ -130,13 +130,14 @@ static void invalidate_tlb_entry(CPULoongArchState *env, int index)
 
     tlb_v = pte_present(env, tlb->tlb_entry0);
     if (tlb_v) {
-        tlb_flush_range_by_mmuidx(env_cpu(env), addr, pagesize,
+        tlb_flush_range_by_mmuidx(env_cpu(env), addr, addr + pagesize - 1,
                                   idxmap, TARGET_LONG_BITS);
     }
 
     tlb_v = pte_present(env, tlb->tlb_entry1);
     if (tlb_v) {
-        tlb_flush_range_by_mmuidx(env_cpu(env), addr + pagesize, pagesize,
+        tlb_flush_range_by_mmuidx(env_cpu(env), addr + pagesize,
+                                  addr + 2 * pagesize - 1,
                                   idxmap, TARGET_LONG_BITS);
     }
 }

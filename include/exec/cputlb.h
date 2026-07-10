@@ -209,21 +209,21 @@ void tlb_flush_page_bits_by_mmuidx_all_cpus_synced(CPUState *cpu, vaddr addr,
  * tlb_flush_range_by_mmuidx
  * @cpu: CPU whose TLB should be flushed
  * @addr: virtual address of the start of the range to be flushed
- * @len: length of range to be flushed
+ * @last: virtual address of the end of the range to be flushed, inclusive
  * @idxmap: bitmap of mmu indexes to flush
  * @bits: number of significant bits in address
  *
- * For each mmuidx in @idxmap, flush all pages within [@addr,@addr+@len),
+ * For each mmuidx in @idxmap, flush all pages within [@addr,@last]
  * comparing only the low @bits worth of each virtual page.
  */
 void tlb_flush_range_by_mmuidx(CPUState *cpu, vaddr addr,
-                               vaddr len, MMUIdxMap idxmap,
+                               vaddr last, MMUIdxMap idxmap,
                                unsigned bits);
 
 /* Similarly, with broadcast and syncing. */
 void tlb_flush_range_by_mmuidx_all_cpus_synced(CPUState *cpu,
                                                vaddr addr,
-                                               vaddr len,
+                                               vaddr last,
                                                MMUIdxMap idxmap,
                                                unsigned bits);
 #else
@@ -268,13 +268,13 @@ tlb_flush_page_bits_by_mmuidx_all_cpus_synced(CPUState *cpu, vaddr addr,
 {
 }
 static inline void tlb_flush_range_by_mmuidx(CPUState *cpu, vaddr addr,
-                                             vaddr len, MMUIdxMap idxmap,
+                                             vaddr last, MMUIdxMap idxmap,
                                              unsigned bits)
 {
 }
 static inline void tlb_flush_range_by_mmuidx_all_cpus_synced(CPUState *cpu,
                                                              vaddr addr,
-                                                             vaddr len,
+                                                             vaddr last,
                                                              MMUIdxMap idxmap,
                                                              unsigned bits)
 {

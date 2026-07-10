@@ -106,8 +106,7 @@ static void hppa_flush_tlb_ent(CPUHPPAState *env, HPPATLBEntry *ent,
     trace_hppa_tlb_flush_ent(env, ent, ent->itree.start,
                              ent->itree.last, ent->pa);
 
-    tlb_flush_range_by_mmuidx(cs, ent->itree.start,
-                              ent->itree.last - ent->itree.start + 1,
+    tlb_flush_range_by_mmuidx(cs, ent->itree.start, ent->itree.last,
                               HPPA_MMU_FLUSH_MASK, TARGET_LONG_BITS);
 
     /* Never clear BTLBs, unless forced to do so. */

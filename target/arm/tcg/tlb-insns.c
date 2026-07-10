@@ -819,7 +819,7 @@ static const ARMCPRegInfo tlbi_el3_cp_reginfo[] = {
 
 typedef struct {
     uint64_t base;
-    uint64_t length;
+    uint64_t last;
 } TLBIRange;
 
 static ARMGranuleSize tlbi_range_tg_to_gran_size(int tg)
@@ -847,8 +847,8 @@ static TLBIRange tlbi_aa64_get_range(CPUARMState *env, ARMMMUIdx mmuidx,
     /* Extract one bit to represent the va selector in use. */
     uint64_t select = sextract64(value, 36, 1);
     ARMVAParameters param = aa64_va_parameters(env, select, mmuidx, true, false);
-    TLBIRange ret = { };
     ARMGranuleSize gran;
+    uint64_t base, length;
 
     page_size_granule = extract64(value, 46, 2);
     gran = tlbi_range_tg_to_gran_size(page_size_granule);
@@ -857,7 +857,8 @@ static TLBIRange tlbi_aa64_get_range(CPUARMState *env, ARMMMUIdx mmuidx,
     if (gran != param.gran || gran == GranInvalid) {
         qemu_log_mask(LOG_GUEST_ERROR, "Invalid tlbi page size granule %d\n",
                       page_size_granule);
-        return ret;
+        /* The behaviour of the insn is undefined. */
+        return (TLBIRange) { 0, 0 };
     }
 
     page_shift = arm_granule_bits(gran);
@@ -865,12 +866,12 @@ static TLBIRange tlbi_aa64_get_range(CPUARMState *env, ARMMMUIdx mmuidx,
     scale = extract64(value, 44, 2);
     exponent = (5 * scale) + 1;
 
-    ret.length = (num + 1) << (exponent + page_shift);
+    length = (num + 1) << (exponent + page_shift);
 
     if (param.select) {
-        ret.base = sextract64(value, 0, 37);
+        base = sextract64(value, 0, 37);
     } else {
-        ret.base = extract64(value, 0, 37);
+        base = extract64(value, 0, 37);
     }
     if (param.ds) {
         /*
@@ -880,9 +881,9 @@ static TLBIRange tlbi_aa64_get_range(CPUARMState *env, ARMMMUIdx mmuidx,
          */
         page_shift = 16;
     }
-    ret.base <<= page_shift;
+    base <<= page_shift;
 
-    return ret;
+    return (TLBIRange){ .base = base, .last = base + length - 1 };
 }
 
 static void do_rvae_write(CPUARMState *env, uint64_t value,
@@ -898,12 +899,12 @@ static void do_rvae_write(CPUARMState *env, uint64_t value,
     if (synced) {
         tlb_flush_range_by_mmuidx_all_cpus_synced(env_cpu(env),
                                                   range.base,
-                                                  range.length,
+                                                  range.last,
                                                   idxmap,
                                                   bits);
     } else {
         tlb_flush_range_by_mmuidx(env_cpu(env), range.base,
-                                  range.length, idxmap, bits);
+                                  range.last, idxmap, bits);
     }
 }
 
