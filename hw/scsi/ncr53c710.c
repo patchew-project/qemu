@@ -2371,22 +2371,23 @@ static const VMStateDescription vmstate_sysbus_ncr710 = {
     }
 };
 
-DeviceState *ncr710_device_create_sysbus(hwaddr addr, qemu_irq irq)
+DeviceState *ncr710_device_create_sysbus(Object *parent, hwaddr addr,
+                                          qemu_irq irq)
 {
     DeviceState *dev;
     SysBusDevice *sysbus;
 
-    dev = qdev_new_orphan(TYPE_SYSBUS_NCR710_SCSI);
+    dev = qdev_new(parent, "scsi", TYPE_SYSBUS_NCR710_SCSI);
     sysbus = SYS_BUS_DEVICE(dev);
 
-    qdev_realize_and_unref(dev, NULL, &error_abort);
+    qdev_realize(dev, NULL, &error_abort);
     sysbus_mmio_map(sysbus, 0, addr);
     sysbus_connect_irq(sysbus, 0, irq);
     return dev;
 }
 
-DeviceState *ncr53c710_init(MemoryRegion *address_space, hwaddr addr,
-                             qemu_irq irq)
+DeviceState *ncr53c710_init(Object *parent, MemoryRegion *address_space,
+                            hwaddr addr, qemu_irq irq)
 {
     DeviceState *dev;
     SysBusDevice *sysbus;
@@ -2394,10 +2395,10 @@ DeviceState *ncr53c710_init(MemoryRegion *address_space, hwaddr addr,
 
     /* trace_ncr710_device_init(addr); */
 
-    dev = qdev_new_orphan(TYPE_SYSBUS_NCR710_SCSI);
+    dev = qdev_new(parent, "scsi", TYPE_SYSBUS_NCR710_SCSI);
     sysbus = SYS_BUS_DEVICE(dev);
 
-    qdev_realize_and_unref(dev, NULL, &error_abort);
+    qdev_realize(dev, NULL, &error_abort);
     sysbus_mmio_map(sysbus, 0, addr);
     sysbus_connect_irq(sysbus, 0, irq);
 

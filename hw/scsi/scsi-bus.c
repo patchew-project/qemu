@@ -445,9 +445,8 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
             driver = "scsi-hd";
         }
     }
-    dev = qdev_new_orphan(driver);
     name = g_strdup_printf("legacy[%d]", unit);
-    object_property_add_child(OBJECT(bus), name, OBJECT(dev));
+    dev = qdev_new(OBJECT(bus), name, driver);
     g_free(name);
 
     s = SCSI_DEVICE(dev);
@@ -473,7 +472,7 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
         return NULL;
     }
 
-    if (!qdev_realize_and_unref(dev, &bus->qbus, errp)) {
+    if (!qdev_realize(dev, &bus->qbus, errp)) {
         object_unparent(OBJECT(dev));
         return NULL;
     }

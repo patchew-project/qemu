@@ -224,18 +224,18 @@ void lasi_ncr710_handle_legacy_cmdline(DeviceState *lasi_dev)
     }
 }
 
-DeviceState *lasi_ncr710_init(MemoryRegion *addr_space, hwaddr hpa,
-                               qemu_irq irq)
+DeviceState *lasi_ncr710_init(Object *parent, MemoryRegion *addr_space,
+                              hwaddr hpa, qemu_irq irq)
 {
     DeviceState *dev;
     LasiNCR710State *s;
     SysBusDevice *sbd;
 
-    dev = qdev_new_orphan(TYPE_LASI_NCR710);
+    dev = qdev_new(parent, "scsi", TYPE_LASI_NCR710);
     s = LASI_NCR710(dev);
     sbd = SYS_BUS_DEVICE(dev);
     s->lasi_irq = irq;
-    sysbus_realize_and_unref(sbd, &error_fatal);
+    sysbus_realize(sbd, &error_fatal);
     memory_region_add_subregion(addr_space, hpa,
                                sysbus_mmio_get_region(sbd, 0));
     return dev;

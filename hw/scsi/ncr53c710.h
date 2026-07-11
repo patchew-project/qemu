@@ -229,9 +229,10 @@ static inline SysBusNCR710State *sysbus_from_ncr710(NCR710State *s)
     return container_of(s, SysBusNCR710State, ncr710);
 }
 
-DeviceState *ncr53c710_init(MemoryRegion *address_space, hwaddr addr,
-                             qemu_irq irq);
-DeviceState *ncr710_device_create_sysbus(hwaddr addr, qemu_irq irq);
+DeviceState *ncr53c710_init(Object *parent, MemoryRegion *address_space,
+                            hwaddr addr, qemu_irq irq);
+DeviceState *ncr710_device_create_sysbus(Object *parent, hwaddr addr,
+                                          qemu_irq irq);
 void ncr710_reg_write(void *opaque, hwaddr addr, uint64_t val, unsigned size);
 uint64_t ncr710_reg_read(void *opaque, hwaddr addr, unsigned size);
 void ncr710_soft_reset(NCR710State *s);

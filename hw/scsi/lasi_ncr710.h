@@ -48,8 +48,8 @@ typedef struct LasiNCR710State {
     NCR710State ncr710;
 } LasiNCR710State;
 
-DeviceState *lasi_ncr710_init(MemoryRegion *addr_space, hwaddr hpa,
-                               qemu_irq irq);
+DeviceState *lasi_ncr710_init(Object *parent, MemoryRegion *addr_space,
+                              hwaddr hpa, qemu_irq irq);
 void lasi_ncr710_handle_legacy_cmdline(DeviceState *lasi_dev);
 
 #endif

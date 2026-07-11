@@ -631,7 +631,7 @@ static void machine_HP_715_init(MachineState *machine)
                                                        1));
     /* SCSI disk setup. */
     if (drive_get_max_bus(IF_SCSI) >= 0) {
-        dev = lasi_ncr710_init(addr_space,
+        dev = lasi_ncr710_init(OBJECT(machine), addr_space,
                                translate(NULL, LASI_HPA_715 + 0x6000),
                                qdev_get_gpio_in(lasi_dev, LASI_IRQ_SCSI_HPA));
         assert(dev);

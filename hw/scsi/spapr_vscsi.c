@@ -1231,13 +1231,13 @@ static void spapr_vscsi_realize(SpaprVioDevice *dev, Error **errp)
     qbus_set_hotplug_handler(BUS(&s->bus), NULL);
 }
 
-void spapr_vscsi_create(SpaprVioBus *bus)
+void spapr_vscsi_create(Object *parent, SpaprVioBus *bus)
 {
     DeviceState *dev;
 
-    dev = qdev_new_orphan("spapr-vscsi");
+    dev = qdev_new(parent, "vscsi[*]", "spapr-vscsi");
 
-    qdev_realize_and_unref(dev, &bus->bus, &error_fatal);
+    qdev_realize(dev, &bus->bus, &error_fatal);
     scsi_bus_legacy_handle_cmdline(&VIO_SPAPR_VSCSI_DEVICE(dev)->bus);
 }
 

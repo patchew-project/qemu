@@ -3062,7 +3062,7 @@ static void spapr_machine_init(MachineState *machine)
     pci_init_nic_devices(phb->bus, NULL);
 
     for (i = 0; i <= drive_get_max_bus(IF_SCSI); i++) {
-        spapr_vscsi_create(spapr->vio_bus);
+        spapr_vscsi_create(OBJECT(spapr), spapr->vio_bus);
     }
 
     /* Graphics */
