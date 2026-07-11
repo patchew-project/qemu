@@ -100,9 +100,10 @@ static void xtensa_set_runstall(void *opaque, int irq, int active)
 
 void xtensa_irq_init(CPUXtensaState *env)
 {
+    Object *cpu = OBJECT(env_cpu(env));
     unsigned i;
 
-    env->irq_inputs = qemu_allocate_irqs_orphan(xtensa_set_irq, env,
+    env->irq_inputs = qemu_allocate_irqs(cpu, "irq-in", xtensa_set_irq, env,
                                          env->config->ninterrupt);
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_TIMER_INTERRUPT)) {
         env->time_base = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -118,7 +119,7 @@ void xtensa_irq_init(CPUXtensaState *env)
 
         env->ext_irq_inputs[i] = env->irq_inputs[irq];
     }
-    env->runstall_irq = qemu_allocate_irq_orphan(xtensa_set_runstall, env, 0);
+    env->runstall_irq = qemu_allocate_irq(cpu, "runstall", xtensa_set_runstall, env, 0);
 }
 
 qemu_irq *xtensa_get_extints(CPUXtensaState *env)

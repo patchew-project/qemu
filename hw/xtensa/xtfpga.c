@@ -247,7 +247,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
     Object *mo = OBJECT(machine);
 
     if (smp_cpus > 1) {
-        mx_pic = xtensa_mx_pic_init(31);
+        mx_pic = xtensa_mx_pic_init(mo, 31);
         qemu_register_reset(xtensa_mx_pic_reset, mx_pic);
     }
     for (n = 0; n < smp_cpus; n++) {

@@ -341,12 +341,12 @@ static void xtensa_mx_pic_set_irq(void *opaque, int irq, int active)
     }
 }
 
-XtensaMxPic *xtensa_mx_pic_init(unsigned n_irq)
+XtensaMxPic *xtensa_mx_pic_init(Object *owner, unsigned n_irq)
 {
     XtensaMxPic *mx = g_new0(XtensaMxPic, 1);
 
     mx->n_irq = n_irq + 1;
-    mx->irq_inputs = qemu_allocate_irqs_orphan(xtensa_mx_pic_set_irq, mx,
+    mx->irq_inputs = qemu_allocate_irqs(owner, "irq", xtensa_mx_pic_set_irq, mx,
                                         mx->n_irq);
     return mx;
 }

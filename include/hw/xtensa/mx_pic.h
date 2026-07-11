@@ -33,7 +33,7 @@
 struct XtensaMxPic;
 typedef struct XtensaMxPic XtensaMxPic;
 
-XtensaMxPic *xtensa_mx_pic_init(unsigned n_extint);
+XtensaMxPic *xtensa_mx_pic_init(Object *owner, unsigned n_extint);
 void xtensa_mx_pic_reset(void *opaque);
 MemoryRegion *xtensa_mx_pic_register_cpu(Object *owner, XtensaMxPic *mx,
                                          qemu_irq *irq,
