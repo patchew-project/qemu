@@ -334,8 +334,9 @@ static int vfio_pci_igd_lpc_init(VFIOPCIDevice *vdev,
     lpc_bridge = pci_find_device(pci_device_root_bus(pdev),
                                  0, PCI_DEVFN(0x1f, 0));
     if (!lpc_bridge) {
-        lpc_bridge = pci_create_simple_orphan(pci_device_root_bus(pdev),
-                                 PCI_DEVFN(0x1f, 0), "vfio-pci-igd-lpc-bridge");
+        lpc_bridge = pci_create_simple(OBJECT(vdev), "igd-lpc-bridge",
+                                       pci_device_root_bus(pdev),
+                                       PCI_DEVFN(0x1f, 0), "vfio-pci-igd-lpc-bridge");
     }
 
     ret = vfio_pci_igd_copy(vdev, lpc_bridge, info, igd_lpc_bridge_infos,
