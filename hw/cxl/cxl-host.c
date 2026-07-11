@@ -22,11 +22,12 @@
 #include "hw/pci/pcie_port.h"
 #include "hw/pci-bridge/pci_expander_bridge.h"
 
-static void cxl_fixed_memory_window_config(CXLFixedMemoryWindowOptions *object,
+static void cxl_fixed_memory_window_config(Object *parent,
+                                           CXLFixedMemoryWindowOptions *object,
                                            int index, Error **errp)
 {
     ERRP_GUARD();
-    DeviceState *dev = qdev_new_orphan(TYPE_CXL_FMW);
+    DeviceState *dev = qdev_new(parent, "cxl-fmw[*]", TYPE_CXL_FMW);
     CXLFixedWindow *fw = CXL_FMW(dev);
     strList *target;
     int i;
@@ -67,7 +68,7 @@ static void cxl_fixed_memory_window_config(CXLFixedMemoryWindowOptions *object,
         fw->targets[i] = g_strdup(target->value);
     }
 
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), errp);
+    sysbus_realize(SYS_BUS_DEVICE(dev), errp);
 }
 
 static int cxl_fmws_link(Object *obj, void *opaque)
@@ -557,7 +558,7 @@ static void machine_set_cfmw(Object *obj, Visitor *v, const char *name,
     }
 
     for (it = cfmw_list, index = 0; it; it = it->next, index++) {
-        cxl_fixed_memory_window_config(it->value, index, errp);
+        cxl_fixed_memory_window_config(obj, it->value, index, errp);
     }
     state->cfmw_list = cfmw_list;
 }
