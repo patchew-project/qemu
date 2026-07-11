@@ -23,7 +23,7 @@ static void ast2600_evb_i2c_init(AspeedMachineState *bmc)
     AspeedSoCState *soc = bmc->soc;
     uint8_t *eeprom_buf = g_malloc0(8 * 1024);
 
-    smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 7), 0x50,
+    smbus_eeprom_init_one(OBJECT(bmc), aspeed_i2c_get_bus(&soc->i2c, 7), 0x50,
                           eeprom_buf);
 
     /* LM75 is compatible with TMP105 driver */

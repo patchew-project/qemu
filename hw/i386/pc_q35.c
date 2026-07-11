@@ -317,7 +317,7 @@ static void pc_q35_init(MachineState *machine)
                                               TYPE_ICH9_SMB_DEVICE);
         pcms->smbus = I2C_BUS(qdev_get_child_bus(DEVICE(smb), "i2c"));
 
-        smbus_eeprom_init(pcms->smbus, 8, NULL, 0);
+        smbus_eeprom_init(OBJECT(machine), pcms->smbus, 8, NULL, 0);
     }
 
     /* the rest devices to which pci devfn is automatically assigned */

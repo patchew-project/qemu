@@ -39,7 +39,7 @@ static void supermicrox11_bmc_i2c_init(AspeedMachineState *bmc)
      */
     i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 0), "ds1338", 0x68);
 
-    smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 0), 0x50,
+    smbus_eeprom_init_one(OBJECT(bmc), aspeed_i2c_get_bus(&soc->i2c, 0), 0x50,
                           eeprom_buf);
 
     /* add a TMP423 temperature sensor */

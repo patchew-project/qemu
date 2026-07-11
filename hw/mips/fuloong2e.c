@@ -322,7 +322,7 @@ static void mips_fuloong2e_init(MachineState *machine)
 
     /* Populate SPD eeprom data */
     spd_data = spd_data_generate(DDR, machine->ram_size);
-    smbus_eeprom_init_one(smbus, 0x50, spd_data);
+    smbus_eeprom_init_one(OBJECT(machine), smbus, 0x50, spd_data);
 
     /* Network card: RTL8139D */
     network_init(pci_bus);

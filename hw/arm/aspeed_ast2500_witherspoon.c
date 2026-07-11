@@ -73,7 +73,7 @@ static void witherspoon_bmc_i2c_init(AspeedMachineState *bmc)
      */
     i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 11), "ds1338", 0x32);
 
-    smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 11), 0x51,
+    smbus_eeprom_init_one(OBJECT(bmc), aspeed_i2c_get_bus(&soc->i2c, 11), 0x51,
                           eeprom_buf);
     dev = DEVICE(i2c_slave_new_orphan(TYPE_PCA9552, 0x60));
     qdev_prop_set_string(dev, "description", "pca0");

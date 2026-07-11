@@ -26,8 +26,9 @@
 #include "system/ram_addr.h"
 #include "hw/i2c/i2c.h"
 
-void smbus_eeprom_init_one(I2CBus *bus, uint8_t address, uint8_t *eeprom_buf);
-void smbus_eeprom_init(I2CBus *bus, int nb_eeprom,
+void smbus_eeprom_init_one(Object *parent, I2CBus *bus, uint8_t address,
+                           uint8_t *eeprom_buf);
+void smbus_eeprom_init(Object *parent, I2CBus *bus, int nb_eeprom,
                        const uint8_t *eeprom_spd, int size);
 
 enum sdram_type { SDR = 0x4, DDR = 0x7, DDR2 = 0x8 };

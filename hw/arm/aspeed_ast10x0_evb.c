@@ -70,7 +70,8 @@ static void ast1030_evb_i2c_init(AspeedMachineState *bmc)
 
     /* U10 24C08 connects to SDA/SCL Group 1 by default */
     uint8_t *eeprom_buf = g_malloc0(32 * 1024);
-    smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 0), 0x50, eeprom_buf);
+    smbus_eeprom_init_one(OBJECT(bmc), aspeed_i2c_get_bus(&soc->i2c, 0), 0x50,
+                          eeprom_buf);
 
     /* U11 LM75 connects to SDA/SCL Group 2 by default */
     i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 1), "tmp105", 0x4d);

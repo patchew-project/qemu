@@ -338,9 +338,9 @@ static void amigaone_init(MachineState *machine)
         spd_data = spd_data_generate(SDR, machine->ram_size);
     }
     fix_spd_data(spd_data);
-    smbus_eeprom_init_one(i2c_bus, 0x51, spd_data);
+    smbus_eeprom_init_one(OBJECT(machine), i2c_bus, 0x51, spd_data);
     if (machine->ram_size > 512 * MiB) {
-        smbus_eeprom_init_one(i2c_bus, 0x52, spd_data);
+        smbus_eeprom_init_one(OBJECT(machine), i2c_bus, 0x52, spd_data);
     }
 
     pci_mem = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 1);

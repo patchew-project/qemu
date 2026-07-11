@@ -261,7 +261,7 @@ static void pegasos_init(MachineState *machine)
     dev = PCI_DEVICE(object_resolve_path_component(via, "pm"));
     i2c_bus = I2C_BUS(qdev_get_child_bus(DEVICE(dev), "i2c"));
     spd_data = spd_data_generate(DDR, machine->ram_size);
-    smbus_eeprom_init_one(i2c_bus, 0x57, spd_data);
+    smbus_eeprom_init_one(OBJECT(machine), i2c_bus, 0x57, spd_data);
 
     /* other PC hardware */
     pci_vga_init(pci_bus);

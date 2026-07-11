@@ -59,7 +59,7 @@ static void g220a_bmc_i2c_init(AspeedMachineState *bmc)
             0x46, 0x46, 0xc4, 0x48, 0x48, 0x47, 0x47, 0xc1,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xa7,
     };
-    smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 4), 0x57,
+    smbus_eeprom_init_one(OBJECT(bmc), aspeed_i2c_get_bus(&soc->i2c, 4), 0x57,
                           eeprom_buf);
 }
 
