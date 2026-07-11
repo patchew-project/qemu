@@ -593,31 +593,32 @@ static void sifive_u_machine_init(MachineState *machine)
                                  sizeof(reset_vec), kernel_entry);
 
     /* Connect an SPI flash to SPI0 */
-    flash_dev = qdev_new_orphan("is25wp256");
+    flash_dev = qdev_new(OBJECT(machine), "flash", "is25wp256");
     dinfo = drive_get(IF_MTD, 0, 0);
     if (dinfo) {
         qdev_prop_set_drive_err(flash_dev, "drive",
                                 blk_by_legacy_dinfo(dinfo),
                                 &error_fatal);
     }
-    qdev_realize_and_unref(flash_dev, BUS(s->soc.spi0.spi), &error_fatal);
+    qdev_realize(flash_dev, BUS(s->soc.spi0.spi), &error_fatal);
 
     flash_cs = qdev_get_gpio_in_named(flash_dev, SSI_GPIO_CS, 0);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->soc.spi0), 1, flash_cs);
 
     /* Connect an SD card to SPI2 */
-    sd_dev = ssi_create_peripheral_orphan(s->soc.spi2.spi, "ssi-sd");
+    sd_dev = ssi_create_peripheral(OBJECT(machine), "ssi-sd",
+                                   s->soc.spi2.spi, "ssi-sd");
 
     sd_cs = qdev_get_gpio_in_named(sd_dev, SSI_GPIO_CS, 0);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->soc.spi2), 1, sd_cs);
 
     dinfo = drive_get(IF_SD, 0, 0);
     blk = dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
-    card_dev = qdev_new_orphan(TYPE_SD_CARD_SPI);
+    card_dev = qdev_new(OBJECT(machine), "sd-card", TYPE_SD_CARD_SPI);
     qdev_prop_set_drive_err(card_dev, "drive", blk, &error_fatal);
-    qdev_realize_and_unref(card_dev,
-                           qdev_get_child_bus(sd_dev, "sd-bus"),
-                           &error_fatal);
+    qdev_realize(card_dev,
+                 qdev_get_child_bus(sd_dev, "sd-bus"),
+                 &error_fatal);
 }
 
 static bool sifive_u_machine_get_start_in_flash(Object *obj, Error **errp)

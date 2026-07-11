@@ -79,11 +79,11 @@ static void mb_v_generic_init(MachineState *machine)
                            ram_size, &error_fatal);
     memory_region_add_subregion(sysmem, ddr_base, phys_ram);
 
-    dev = qdev_new_orphan("xlnx.xps-intc");
+    dev = qdev_new(OBJECT(machine), "intc", "xlnx.xps-intc");
     qdev_prop_set_enum(dev, "endianness", ENDIAN_MODE_LITTLE);
     qdev_prop_set_uint32(dev, "kind-of-intr",
                          1 << UARTLITE_IRQ);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, INTC_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
                        qdev_get_gpio_in(DEVICE(cpu), 11));
@@ -92,10 +92,10 @@ static void mb_v_generic_init(MachineState *machine)
     }
 
     /* Uartlite */
-    dev = qdev_new_orphan(TYPE_XILINX_UARTLITE);
+    dev = qdev_new(OBJECT(machine), "uartlite", TYPE_XILINX_UARTLITE);
     qdev_prop_set_enum(dev, "endianness", ENDIAN_MODE_LITTLE);
     qdev_prop_set_chr(dev, "chardev", serial_hd(0));
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, UARTLITE_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[UARTLITE_IRQ]);
 
@@ -105,40 +105,36 @@ static void mb_v_generic_init(MachineState *machine)
                    DEVICE_LITTLE_ENDIAN);
 
     /* 2 timers at irq 0 @ 100 Mhz.  */
-    dev = qdev_new_orphan("xlnx.xps-timer");
+    dev = qdev_new(OBJECT(machine), "timer[*]", "xlnx.xps-timer");
     qdev_prop_set_enum(dev, "endianness", ENDIAN_MODE_LITTLE);
     qdev_prop_set_uint32(dev, "one-timer-only", 0);
     qdev_prop_set_uint32(dev, "clock-frequency", 100000000);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, TIMER_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ]);
 
     /* 2 timers at irq 3 @ 100 Mhz.  */
-    dev = qdev_new_orphan("xlnx.xps-timer");
+    dev = qdev_new(OBJECT(machine), "timer[*]", "xlnx.xps-timer");
     qdev_prop_set_enum(dev, "endianness", ENDIAN_MODE_LITTLE);
     qdev_prop_set_uint32(dev, "one-timer-only", 0);
     qdev_prop_set_uint32(dev, "clock-frequency", 100000000);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, TIMER_BASEADDR2);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ2]);
 
     /* Emaclite */
-    dev = qdev_new_orphan("xlnx.xps-ethernetlite");
+    dev = qdev_new(OBJECT(machine), "ethlite", "xlnx.xps-ethernetlite");
     qdev_prop_set_enum(dev, "endianness", ENDIAN_MODE_LITTLE);
     qemu_configure_nic_device(dev, true, NULL);
     qdev_prop_set_uint32(dev, "tx-ping-pong", 0);
     qdev_prop_set_uint32(dev, "rx-ping-pong", 0);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, ETHLITE_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[ETHLITE_IRQ]);
 
     /* axi ethernet and dma initialization. */
-    eth0 = qdev_new_orphan("xlnx.axi-ethernet");
-    dma = qdev_new_orphan("xlnx.axi-dma");
-
-    /* FIXME: attach to the sysbus instead */
-    object_property_add_child(qdev_get_machine(), "xilinx-eth", OBJECT(eth0));
-    object_property_add_child(qdev_get_machine(), "xilinx-dma", OBJECT(dma));
+    eth0 = qdev_new(OBJECT(machine), "xilinx-eth", "xlnx.axi-ethernet");
+    dma = qdev_new(OBJECT(machine), "xilinx-dma", "xlnx.axi-dma");
 
     ds = object_property_get_link(OBJECT(dma),
                                   "axistream-connected-target", NULL);
@@ -151,7 +147,7 @@ static void mb_v_generic_init(MachineState *machine)
                              &error_abort);
     object_property_set_link(OBJECT(eth0), "axistream-control-connected", cs,
                              &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(eth0), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(eth0), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(eth0), 0, AXIENET_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(eth0), 0, irq[AXIENET_IRQ]);
 
@@ -164,7 +160,7 @@ static void mb_v_generic_init(MachineState *machine)
                              &error_abort);
     object_property_set_link(OBJECT(dma), "axistream-control-connected", cs,
                              &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dma), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dma), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dma), 0, AXIDMA_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(dma), 0, irq[AXIDMA_IRQ0]);
     sysbus_connect_irq(SYS_BUS_DEVICE(dma), 1, irq[AXIDMA_IRQ1]);

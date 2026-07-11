@@ -576,8 +576,9 @@ static void tt_atlantis_machine_init(MachineState *machine)
     }
 
     /* I2C peripherals: qemu specific */
-    i2c_slave_create_simple_orphan(i2c_get_bus(s, 0), "ds1338", 0x6f);
-    i2c_slave_create_simple_orphan(i2c_get_bus(s, 4), "tmp105", 0x48);
+    i2c_slave_create_simple(OBJECT(s), "rtc", i2c_get_bus(s, 0), "ds1338", 0x6f);
+    i2c_slave_create_simple(OBJECT(s), "tmp105", i2c_get_bus(s, 4),
+                            "tmp105", 0x48);
 
     /* Load or create device tree */
     if (machine->dtb) {

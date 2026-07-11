@@ -125,7 +125,7 @@ static PFlashCFI01 *virt_flash_create1(RISCVVirtState *s,
      * Create a single flash device.  We use the same parameters as
      * the flash devices on the ARM virt board.
      */
-    DeviceState *dev = qdev_new_orphan(TYPE_PFLASH_CFI01);
+    DeviceState *dev = qdev_new(OBJECT(s), name, TYPE_PFLASH_CFI01);
 
     qdev_prop_set_uint64(dev, "sector-length", VIRT_FLASH_SECTOR_SIZE);
     qdev_prop_set_uint8(dev, "width", 4);
@@ -137,7 +137,6 @@ static PFlashCFI01 *virt_flash_create1(RISCVVirtState *s,
     qdev_prop_set_uint16(dev, "id3", 0x00);
     qdev_prop_set_string(dev, "name", name);
 
-    object_property_add_child(OBJECT(s), name, OBJECT(dev));
     object_property_add_alias(OBJECT(s), alias_prop_name,
                               OBJECT(dev), "drive");
 
@@ -159,7 +158,7 @@ static void virt_flash_map1(PFlashCFI01 *flash,
     assert(QEMU_IS_ALIGNED(size, VIRT_FLASH_SECTOR_SIZE));
     assert(size / VIRT_FLASH_SECTOR_SIZE <= UINT32_MAX);
     qdev_prop_set_uint32(dev, "num-blocks", size / VIRT_FLASH_SECTOR_SIZE);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     memory_region_add_subregion(sysmem, base,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(dev),
@@ -1050,7 +1049,7 @@ static inline DeviceState *gpex_pcie_init(MemoryRegion *sys_mem,
     qemu_irq irq;
     int i;
 
-    dev = qdev_new_orphan(TYPE_GPEX_HOST);
+    dev = qdev_new(OBJECT(s), "pcie", TYPE_GPEX_HOST);
 
     /* Set GPEX object properties for the virt machine */
     object_property_set_uint(OBJECT(dev), PCI_HOST_ECAM_BASE,
@@ -1070,7 +1069,7 @@ static inline DeviceState *gpex_pcie_init(MemoryRegion *sys_mem,
     object_property_set_int(OBJECT(dev), PCI_HOST_PIO_SIZE,
                             pio_size, NULL);
 
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     ecam_alias = g_new0(MemoryRegion, 1);
     ecam_reg = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
@@ -1143,11 +1142,11 @@ static void create_platform_bus(RISCVVirtState *s, DeviceState *irqchip)
     int i;
     MemoryRegion *sysmem = get_system_memory();
 
-    dev = qdev_new_orphan(TYPE_PLATFORM_BUS_DEVICE);
+    dev = qdev_new(OBJECT(s), "platform-bus", TYPE_PLATFORM_BUS_DEVICE);
     dev->id = g_strdup(TYPE_PLATFORM_BUS_DEVICE);
     qdev_prop_set_uint32(dev, "num_irqs", VIRT_PLATFORM_BUS_NUM_IRQS);
     qdev_prop_set_uint32(dev, "mmio_size", s->memmap[VIRT_PLATFORM_BUS].size);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     s->platform_bus_dev = dev;
 
     sysbus = SYS_BUS_DEVICE(dev);
@@ -1480,7 +1479,7 @@ static void virt_machine_init(MachineState *machine)
 
     /* VirtIO MMIO devices */
     for (i = 0; i < VIRTIO_COUNT; i++) {
-        sysbus_create_simple_orphan("virtio-mmio",
+        sysbus_create_simple(OBJECT(machine), "virtio-mmio[*]", "virtio-mmio",
             s->memmap[VIRT_VIRTIO].base + i * s->memmap[VIRT_VIRTIO].size,
             qdev_get_gpio_in(virtio_irqchip, VIRTIO_IRQ + i));
     }
@@ -1493,8 +1492,8 @@ static void virt_machine_init(MachineState *machine)
         0, qdev_get_gpio_in(mmio_irqchip, UART0_IRQ), 399193,
         serial_hd(0), DEVICE_LITTLE_ENDIAN);
 
-    sysbus_create_simple_orphan("goldfish_rtc", s->memmap[VIRT_RTC].base,
-        qdev_get_gpio_in(mmio_irqchip, RTC_IRQ));
+    sysbus_create_simple(OBJECT(machine), "rtc", "goldfish_rtc",
+        s->memmap[VIRT_RTC].base, qdev_get_gpio_in(mmio_irqchip, RTC_IRQ));
 
     for (i = 0; i < ARRAY_SIZE(s->flash); i++) {
         /* Map legacy -drive if=pflash to machine properties */
@@ -1515,7 +1514,8 @@ static void virt_machine_init(MachineState *machine)
     }
 
     if (virt_is_iommu_sys_enabled(s)) {
-        DeviceState *iommu_sys = qdev_new_orphan(TYPE_RISCV_IOMMU_SYS);
+        DeviceState *iommu_sys = qdev_new(OBJECT(machine), "iommu",
+                                          TYPE_RISCV_IOMMU_SYS);
 
         object_property_set_uint(OBJECT(iommu_sys), "addr",
                                  s->memmap[VIRT_IOMMU_SYS].base,
@@ -1534,7 +1534,7 @@ static void virt_machine_init(MachineState *machine)
                                  riscv_is_32bit(&s->soc[0]) ? 34 : 56,
                                  &error_fatal);
 
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(iommu_sys), &error_fatal);
+        sysbus_realize(SYS_BUS_DEVICE(iommu_sys), &error_fatal);
     }
 
     s->machine_done.notify = virt_machine_done;
