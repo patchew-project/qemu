@@ -993,13 +993,14 @@ void x86_load_linux(X86MachineState *x86ms,
     nb_option_roms++;
 }
 
-void x86_isa_bios_init(MemoryRegion *isa_bios, MemoryRegion *isa_memory,
+void x86_isa_bios_init(X86MachineState *x86ms, MemoryRegion *isa_bios,
+                       MemoryRegion *isa_memory,
                        MemoryRegion *bios, bool read_only)
 {
     uint64_t bios_size = memory_region_size(bios);
     uint64_t isa_bios_size = MIN(bios_size, 128 * KiB);
 
-    memory_region_init_alias(isa_bios, NULL, "isa-bios", bios,
+    memory_region_init_alias(isa_bios, OBJECT(x86ms), "isa-bios", bios,
                              bios_size - isa_bios_size, isa_bios_size);
     memory_region_add_subregion_overlap(isa_memory, 1 * MiB - isa_bios_size,
                                         isa_bios, 1);
@@ -1036,13 +1037,13 @@ static void load_bios_from_file(X86MachineState *x86ms, const char *bios_name,
 
     /* BIOS load */
     if (machine_require_guest_memfd(MACHINE(x86ms))) {
-        memory_region_init_ram_guest_memfd(&x86ms->bios, NULL, "pc.bios",
+        memory_region_init_ram_guest_memfd(&x86ms->bios, OBJECT(x86ms), "pc.bios",
                                            bios_size, &error_fatal);
         if (is_tdx_vm()) {
             tdx_set_tdvf_region(&x86ms->bios);
         }
     } else {
-        memory_region_init_ram(&x86ms->bios, NULL, "pc.bios",
+        memory_region_init_ram(&x86ms->bios, OBJECT(x86ms), "pc.bios",
                                bios_size, &error_fatal);
     }
     if (sev_enabled() || is_tdx_vm()) {
@@ -1107,7 +1108,7 @@ void x86_bios_rom_init(X86MachineState *x86ms, const char *default_firmware,
 
     if (!machine_require_guest_memfd(MACHINE(x86ms))) {
         /* map the last 128KB of the BIOS in ISA space */
-        x86_isa_bios_init(&x86ms->isa_bios, rom_memory, &x86ms->bios,
+        x86_isa_bios_init(x86ms, &x86ms->isa_bios, rom_memory, &x86ms->bios,
                           !isapc_ram_fw);
     }
 

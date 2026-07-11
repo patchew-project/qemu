@@ -52,10 +52,10 @@ static void pc_isa_bios_init(PCMachineState *pcms, MemoryRegion *isa_bios,
     /* map the last 128KB of the BIOS in ISA space */
     isa_bios_size = MIN(flash_size, 128 * KiB);
     if (machine_require_guest_memfd(MACHINE(pcms))) {
-        memory_region_init_ram_guest_memfd(isa_bios, NULL, "isa-bios",
+        memory_region_init_ram_guest_memfd(isa_bios, OBJECT(pcms), "isa-bios",
                                            isa_bios_size, &error_fatal);
     } else {
-        memory_region_init_ram(isa_bios, NULL, "isa-bios", isa_bios_size,
+        memory_region_init_ram(isa_bios, OBJECT(pcms), "isa-bios", isa_bios_size,
                                &error_fatal);
     }
     memory_region_add_subregion_overlap(rom_memory,
@@ -189,7 +189,7 @@ static void pc_system_flash_map(PCMachineState *pcms,
         if (i == 0) {
             flash_mem = pflash_cfi01_get_memory(system_flash);
             if (pcmc->isa_bios_alias) {
-                x86_isa_bios_init(&x86ms->isa_bios, rom_memory, flash_mem,
+                x86_isa_bios_init(x86ms, &x86ms->isa_bios, rom_memory, flash_mem,
                                   true);
             } else {
                 pc_isa_bios_init(pcms, &x86ms->isa_bios, rom_memory, flash_mem);

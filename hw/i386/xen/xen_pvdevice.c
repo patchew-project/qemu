@@ -108,7 +108,7 @@ static void xen_pv_realize(PCIDevice *pci_dev, Error **errp)
 
     pci_conf[PCI_INTERRUPT_PIN] = 1;
 
-    memory_region_init_io(&d->mmio, NULL, &xen_pv_mmio_ops, d,
+    memory_region_init_io(&d->mmio, OBJECT(pci_dev), &xen_pv_mmio_ops, d,
                           "mmio", d->size);
 
     pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_MEM_PREFETCH,

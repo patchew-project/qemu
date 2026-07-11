@@ -305,7 +305,7 @@ static void microvm_memory_init(MicrovmMachineState *mms)
     }
 
     ram_below_4g = g_malloc(sizeof(*ram_below_4g));
-    memory_region_init_alias(ram_below_4g, NULL, "ram-below-4g", machine->ram,
+    memory_region_init_alias(ram_below_4g, OBJECT(mms), "ram-below-4g", machine->ram,
                              0, x86ms->below_4g_mem_size);
     memory_region_add_subregion(system_memory, 0, ram_below_4g);
 
@@ -313,7 +313,7 @@ static void microvm_memory_init(MicrovmMachineState *mms)
 
     if (x86ms->above_4g_mem_size > 0) {
         ram_above_4g = g_malloc(sizeof(*ram_above_4g));
-        memory_region_init_alias(ram_above_4g, NULL, "ram-above-4g",
+        memory_region_init_alias(ram_above_4g, OBJECT(mms), "ram-above-4g",
                                  machine->ram,
                                  x86ms->below_4g_mem_size,
                                  x86ms->above_4g_mem_size);

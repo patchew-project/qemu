@@ -156,11 +156,11 @@ static void xen_ram_init(PCMachineState *pcms,
          */
         block_len = (4 * GiB) + x86ms->above_4g_mem_size;
     }
-    memory_region_init_ram(&xen_memory, NULL, "xen.ram", block_len,
+    memory_region_init_ram(&xen_memory, OBJECT(pcms), "xen.ram", block_len,
                            &error_fatal);
     *ram_memory_p = &xen_memory;
 
-    memory_region_init_alias(&ram_640k, NULL, "xen.ram.640k",
+    memory_region_init_alias(&ram_640k, OBJECT(pcms), "xen.ram.640k",
                              &xen_memory, 0, 0xa0000);
     memory_region_add_subregion(sysmem, 0, &ram_640k);
     /* Skip of the VGA IO memory space, it will be registered later by the VGA
@@ -169,12 +169,12 @@ static void xen_ram_init(PCMachineState *pcms,
      * The area between 0xc0000 and 0x100000 will be used by SeaBIOS to load
      * the Options ROM, so it is registered here as RAM.
      */
-    memory_region_init_alias(&ram_lo, NULL, "xen.ram.lo",
+    memory_region_init_alias(&ram_lo, OBJECT(pcms), "xen.ram.lo",
                              &xen_memory, 0xc0000,
                              x86ms->below_4g_mem_size - 0xc0000);
     memory_region_add_subregion(sysmem, 0xc0000, &ram_lo);
     if (x86ms->above_4g_mem_size > 0) {
-        memory_region_init_alias(&ram_hi, NULL, "xen.ram.hi",
+        memory_region_init_alias(&ram_hi, OBJECT(pcms), "xen.ram.hi",
                                  &xen_memory, 0x100000000ULL,
                                  x86ms->above_4g_mem_size);
         memory_region_add_subregion(sysmem, 0x100000000ULL, &ram_hi);

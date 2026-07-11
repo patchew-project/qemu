@@ -191,7 +191,7 @@ static void pc_init1(MachineState *machine, const char *pci_type)
     }
 
     pci_memory = g_new(MemoryRegion, 1);
-    memory_region_init(pci_memory, NULL, "pci", UINT64_MAX);
+    memory_region_init(pci_memory, OBJECT(machine), "pci", UINT64_MAX);
 
     phb = OBJECT(qdev_new(OBJECT(machine), "i440fx", TYPE_I440FX_PCI_HOST_BRIDGE));
     object_property_set_link(phb, PCI_HOST_PROP_RAM_MEM,

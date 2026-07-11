@@ -208,7 +208,7 @@ static void pc_q35_init(MachineState *machine)
                                                &error_abort);
 
     /* allocate ram and load rom/bios */
-    memory_region_init(pci_memory, NULL, "pci", UINT64_MAX);
+    memory_region_init(pci_memory, OBJECT(machine), "pci", UINT64_MAX);
     pc_memory_init(pcms, system_memory, pci_memory, pci_hole64_size);
 
     object_property_set_link(phb, PCI_HOST_PROP_RAM_MEM,

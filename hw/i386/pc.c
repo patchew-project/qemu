@@ -795,13 +795,13 @@ void pc_memory_init(PCMachineState *pcms,
      * done for backwards compatibility with older qemus.
      */
     ram_below_4g = g_malloc(sizeof(*ram_below_4g));
-    memory_region_init_alias(ram_below_4g, NULL, "ram-below-4g", machine->ram,
+    memory_region_init_alias(ram_below_4g, OBJECT(pcms), "ram-below-4g", machine->ram,
                              0, x86ms->below_4g_mem_size);
     memory_region_add_subregion(system_memory, 0, ram_below_4g);
     e820_add_entry(0, x86ms->below_4g_mem_size, E820_RAM);
     if (x86ms->above_4g_mem_size > 0) {
         ram_above_4g = g_malloc(sizeof(*ram_above_4g));
-        memory_region_init_alias(ram_above_4g, NULL, "ram-above-4g",
+        memory_region_init_alias(ram_above_4g, OBJECT(pcms), "ram-above-4g",
                                  machine->ram,
                                  x86ms->below_4g_mem_size,
                                  x86ms->above_4g_mem_size);
@@ -871,10 +871,10 @@ void pc_memory_init(PCMachineState *pcms,
     if (!is_tdx_vm()) {
         option_rom_mr = g_malloc(sizeof(*option_rom_mr));
         if (machine_require_guest_memfd(machine)) {
-            memory_region_init_ram_guest_memfd(option_rom_mr, NULL, "pc.rom",
+            memory_region_init_ram_guest_memfd(option_rom_mr, OBJECT(pcms), "pc.rom",
                                             PC_ROM_SIZE, &error_fatal);
         } else {
-            memory_region_init_ram(option_rom_mr, NULL, "pc.rom", PC_ROM_SIZE,
+            memory_region_init_ram(option_rom_mr, OBJECT(pcms), "pc.rom", PC_ROM_SIZE,
                                 &error_fatal);
             if (pcmc->pci_enabled) {
                 memory_region_set_readonly(option_rom_mr, true);
