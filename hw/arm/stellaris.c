@@ -1096,8 +1096,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
      * Create the system-registers object early, because we will
      * need its sysclk output.
      */
-    ssys_dev = qdev_new_orphan(TYPE_STELLARIS_SYS);
-    object_property_add_child(soc_container, "sys", OBJECT(ssys_dev));
+    ssys_dev = qdev_new(soc_container, "sys", TYPE_STELLARIS_SYS);
 
     /*
      * Most devices come preprogrammed with a MAC address in the user data.
@@ -1121,10 +1120,9 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     qdev_prop_set_uint32(ssys_dev, "dc2", board->dc2);
     qdev_prop_set_uint32(ssys_dev, "dc3", board->dc3);
     qdev_prop_set_uint32(ssys_dev, "dc4", board->dc4);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(ssys_dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(ssys_dev), &error_fatal);
 
-    armv7m = qdev_new_orphan(TYPE_ARMV7M);
-    object_property_add_child(soc_container, "v7m", OBJECT(armv7m));
+    armv7m = qdev_new(soc_container, "v7m", TYPE_ARMV7M);
     qdev_prop_set_uint32(armv7m, "num-irq", NUM_IRQ_LINES);
     qdev_prop_set_uint8(armv7m, "num-prio-bits", NUM_PRIO_BITS);
     qdev_prop_set_string(armv7m, "cpu-type", ms->cpu_type);
@@ -1135,7 +1133,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     object_property_set_link(OBJECT(armv7m), "memory",
                              OBJECT(get_system_memory()), &error_abort);
     /* This will exit with an error if the user passed us a bad cpu_type */
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(armv7m), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(armv7m), &error_fatal);
     nvic = armv7m;
 
     /* Now we can wire up the IRQ and MMIO of the system registers */
@@ -1143,7 +1141,8 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     sysbus_connect_irq(SYS_BUS_DEVICE(ssys_dev), 0, qdev_get_gpio_in(nvic, 28));
 
     if (DEV_CAP(1, ADC)) {
-        dev = sysbus_create_varargs_orphan(TYPE_STELLARIS_ADC, 0x40038000,
+        dev = sysbus_create_varargs(soc_container, "adc",
+                                    TYPE_STELLARIS_ADC, 0x40038000,
                                     qdev_get_gpio_in(nvic, 14),
                                     qdev_get_gpio_in(nvic, 15),
                                     qdev_get_gpio_in(nvic, 16),
@@ -1157,12 +1156,11 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
         if (DEV_CAP(2, GPTM(i))) {
             SysBusDevice *sbd;
 
-            dev = qdev_new_orphan(TYPE_STELLARIS_GPTM);
+            dev = qdev_new(soc_container, "gptm[*]", TYPE_STELLARIS_GPTM);
             sbd = SYS_BUS_DEVICE(dev);
-            object_property_add_child(soc_container, "gptm[*]", OBJECT(dev));
             qdev_connect_clock_in(dev, "clk",
                                   qdev_get_clock_out(ssys_dev, "SYSCLK"));
-            sysbus_realize_and_unref(sbd, &error_fatal);
+            sysbus_realize(sbd, &error_fatal);
             sysbus_mmio_map(sbd, 0, 0x40030000 + i * 0x1000);
             sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(nvic, timer_irq[i]));
             /* TODO: This is incorrect, but we get away with it because
@@ -1172,12 +1170,11 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     }
 
     if (DEV_CAP(1, WDT)) {
-        dev = qdev_new_orphan(TYPE_LUMINARY_WATCHDOG);
-        object_property_add_child(soc_container, "wdg", OBJECT(dev));
+        dev = qdev_new(soc_container, "wdg", TYPE_LUMINARY_WATCHDOG);
         qdev_connect_clock_in(dev, "WDOGCLK",
                               qdev_get_clock_out(ssys_dev, "SYSCLK"));
 
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+        sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
         sysbus_mmio_map(SYS_BUS_DEVICE(dev),
                         0,
                         0x40000000u);
@@ -1189,7 +1186,8 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
 
     for (i = 0; i < NUM_GPIO; i++) {
         if (DEV_CAP(4, GPIO(i))) {
-            gpio_dev[i] = sysbus_create_simple_orphan("pl061_luminary", gpio_addr[i],
+            gpio_dev[i] = sysbus_create_simple(soc_container, "gpio[*]",
+                                               "pl061_luminary", gpio_addr[i],
                                                qdev_get_gpio_in(nvic,
                                                                 gpio_irq[i]));
             for (j = 0; j < 8; j++) {
@@ -1201,7 +1199,8 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
 
     for (i = 0; i < NUM_I2C; i++) {
         if (DEV_CAP(2, I2C(i))) {
-            i2c_dev[i] = sysbus_create_simple_orphan(TYPE_STELLARIS_I2C, i2c_addr[i],
+            i2c_dev[i] = sysbus_create_simple(soc_container, "i2c[*]",
+                                              TYPE_STELLARIS_I2C, i2c_addr[i],
                                               qdev_get_gpio_in(nvic,
                                                                i2c_irq[i]));
         }
@@ -1209,24 +1208,23 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     if (board->peripherals & BP_OLED_I2C) {
         I2CBus *bus = (I2CBus *)qdev_get_child_bus(i2c_dev[0], "i2c");
 
-        i2c_slave_create_simple_orphan(bus, "ssd0303", 0x3d);
+        i2c_slave_create_simple(OBJECT(ms), "oled-i2c", bus, "ssd0303", 0x3d);
     }
 
     for (i = 0; i < NUM_UART; i++) {
         if (DEV_CAP(2, UART(i))) {
             SysBusDevice *sbd;
 
-            dev = qdev_new_orphan("pl011_luminary");
-            object_property_add_child(soc_container, "uart[*]", OBJECT(dev));
+            dev = qdev_new(soc_container, "uart[*]", "pl011_luminary");
             sbd = SYS_BUS_DEVICE(dev);
             qdev_prop_set_chr(dev, "chardev", serial_hd(i));
-            sysbus_realize_and_unref(sbd, &error_fatal);
+            sysbus_realize(sbd, &error_fatal);
             sysbus_mmio_map(sbd, 0, 0x4000c000 + i * 0x1000);
             sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(nvic, uart_irq[i]));
         }
     }
     if (DEV_CAP(2, SSI)) {
-        dev = sysbus_create_simple_orphan("pl022", 0x40008000,
+        dev = sysbus_create_simple(soc_container, "ssi", "pl022", 0x40008000,
                                    qdev_get_gpio_in(nvic, 7));
         if (board->peripherals & BP_OLED_SSI) {
             void *bus;
@@ -1300,26 +1298,22 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
              *  - Make the ssd0323 OLED controller chipselect active-low
              */
             bus = qdev_get_child_bus(dev, "ssi");
-            sddev = ssi_create_peripheral_orphan(bus, "ssi-sd");
+            sddev = ssi_create_peripheral(OBJECT(ms), "ssi-sd", bus, "ssi-sd");
 
             dinfo = drive_get(IF_SD, 0, 0);
             blk = dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
-            carddev = qdev_new_orphan(TYPE_SD_CARD_SPI);
+            carddev = qdev_new(OBJECT(ms), "sd-card", TYPE_SD_CARD_SPI);
             qdev_prop_set_drive_err(carddev, "drive", blk, &error_fatal);
-            qdev_realize_and_unref(carddev,
-                                   qdev_get_child_bus(sddev, "sd-bus"),
-                                   &error_fatal);
+            qdev_realize(carddev, qdev_get_child_bus(sddev, "sd-bus"),
+                         &error_fatal);
 
-            ssddev = qdev_new_orphan("ssd0323");
-            object_property_add_child(OBJECT(ms), "oled", OBJECT(ssddev));
+            ssddev = qdev_new(OBJECT(ms), "oled", "ssd0323");
             qdev_prop_set_uint8(ssddev, "cs", 1);
-            qdev_realize_and_unref(ssddev, bus, &error_fatal);
+            qdev_realize(ssddev, bus, &error_fatal);
 
-            gpio_d_splitter = qdev_new_orphan(TYPE_SPLIT_IRQ);
-            object_property_add_child(OBJECT(ms), "splitter",
-                                      OBJECT(gpio_d_splitter));
+            gpio_d_splitter = qdev_new(OBJECT(ms), "splitter", TYPE_SPLIT_IRQ);
             qdev_prop_set_uint32(gpio_d_splitter, "num-lines", 2);
-            qdev_realize_and_unref(gpio_d_splitter, NULL, &error_fatal);
+            qdev_realize(gpio_d_splitter, NULL, &error_fatal);
             qdev_connect_gpio_out(
                     gpio_d_splitter, 0,
                     qdev_get_gpio_in_named(sddev, SSI_GPIO_CS, 0));
@@ -1337,15 +1331,14 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     if (DEV_CAP(4, EMAC)) {
         DeviceState *enet;
 
-        enet = qdev_new_orphan("stellaris_enet");
-        object_property_add_child(soc_container, "enet", OBJECT(enet));
+        enet = qdev_new(soc_container, "enet", "stellaris_enet");
         if (nd) {
             qdev_set_nic_properties(enet, nd);
         } else {
             qdev_prop_set_macaddr(enet, "mac", mac.a);
         }
 
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(enet), &error_fatal);
+        sysbus_realize(SYS_BUS_DEVICE(enet), &error_fatal);
         sysbus_mmio_map(SYS_BUS_DEVICE(enet), 0, 0x40048000);
         sysbus_connect_irq(SYS_BUS_DEVICE(enet), 0, qdev_get_gpio_in(nvic, 42));
     }
@@ -1357,13 +1350,12 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
         };
         DeviceState *gpad;
 
-        gpad = qdev_new_orphan(TYPE_STELLARIS_GAMEPAD);
-        object_property_add_child(OBJECT(ms), "gamepad", OBJECT(gpad));
+        gpad = qdev_new(OBJECT(ms), "gamepad", TYPE_STELLARIS_GAMEPAD);
         for (i = 0; i < ARRAY_SIZE(gpad_keycode); i++) {
             qlist_append_int(gpad_keycode_list, gpad_keycode[i]);
         }
         qdev_prop_set_array(gpad, "keycodes", gpad_keycode_list);
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(gpad), &error_fatal);
+        sysbus_realize(SYS_BUS_DEVICE(gpad), &error_fatal);
 
         qdev_connect_gpio_out(gpad, 0,
                               qemu_irq_invert(gpio_in[GPIO_E][0])); /* up */

@@ -1232,7 +1232,7 @@ static void musicpal_init(MachineState *machine)
         exit(EXIT_FAILURE);
     }
 
-    cpu = ARM_CPU(cpu_create_orphan(machine->cpu_type));
+    cpu = ARM_CPU(cpu_create(OBJECT(machine), "cpu", machine->cpu_type));
 
     memory_region_add_subregion(address_space_mem, 0, machine->ram);
 
@@ -1240,18 +1240,20 @@ static void musicpal_init(MachineState *machine)
                            &error_fatal);
     memory_region_add_subregion(address_space_mem, MP_SRAM_BASE, sram);
 
-    pic = sysbus_create_simple_orphan(TYPE_MV88W8618_PIC, MP_PIC_BASE,
+    pic = sysbus_create_simple(OBJECT(machine), "pic",
+                               TYPE_MV88W8618_PIC, MP_PIC_BASE,
                                qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ));
-    sysbus_create_varargs_orphan(TYPE_MV88W8618_PIT, MP_PIT_BASE,
+    sysbus_create_varargs(OBJECT(machine), "pit",
+                          TYPE_MV88W8618_PIT, MP_PIT_BASE,
                           qdev_get_gpio_in(pic, MP_TIMER1_IRQ),
                           qdev_get_gpio_in(pic, MP_TIMER2_IRQ),
                           qdev_get_gpio_in(pic, MP_TIMER3_IRQ),
                           qdev_get_gpio_in(pic, MP_TIMER4_IRQ), NULL);
 
     /* Logically OR both UART IRQs together */
-    uart_orgate = qdev_new_orphan(TYPE_OR_IRQ);
+    uart_orgate = qdev_new(OBJECT(machine), "uart-orgate", TYPE_OR_IRQ);
     object_property_set_int(OBJECT(uart_orgate), "num-lines", 2, &error_fatal);
-    qdev_realize_and_unref(uart_orgate, NULL, &error_fatal);
+    qdev_realize(uart_orgate, NULL, &error_fatal);
     qdev_connect_gpio_out(uart_orgate, 0,
                           qdev_get_gpio_in(pic, MP_UART_SHARED_IRQ));
 
@@ -1287,28 +1289,31 @@ static void musicpal_init(MachineState *machine)
                               2, 0x00BF, 0x236D, 0x0000, 0x0000,
                               0x5555, 0x2AAA, 0);
     }
-    sysbus_create_simple_orphan(TYPE_MV88W8618_FLASHCFG, MP_FLASHCFG_BASE, NULL);
+    sysbus_create_simple(OBJECT(machine), "flashcfg",
+                         TYPE_MV88W8618_FLASHCFG, MP_FLASHCFG_BASE, NULL);
 
-    dev = qdev_new_orphan(TYPE_MV88W8618_ETH);
+    dev = qdev_new(OBJECT(machine), "eth", TYPE_MV88W8618_ETH);
     qemu_configure_nic_device(dev, true, "mv88w8618");
     object_property_set_link(OBJECT(dev), "dma-memory",
                              OBJECT(get_system_memory()), &error_fatal);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, MP_ETH_BASE);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
                        qdev_get_gpio_in(pic, MP_ETH_IRQ));
 
-    sysbus_create_simple_orphan("mv88w8618_wlan", MP_WLAN_BASE, NULL);
+    sysbus_create_simple(OBJECT(machine), "wlan", "mv88w8618_wlan", MP_WLAN_BASE, NULL);
 
-    sysbus_create_simple_orphan(TYPE_MUSICPAL_MISC, MP_MISC_BASE, NULL);
+    sysbus_create_simple(OBJECT(machine), "misc", TYPE_MUSICPAL_MISC, MP_MISC_BASE, NULL);
 
-    dev = sysbus_create_simple_orphan(TYPE_MUSICPAL_GPIO, MP_GPIO_BASE,
+    dev = sysbus_create_simple(OBJECT(machine), "gpio",
+                               TYPE_MUSICPAL_GPIO, MP_GPIO_BASE,
                                qdev_get_gpio_in(pic, MP_GPIO_IRQ));
-    i2c_dev = sysbus_create_simple_orphan(TYPE_GPIO_I2C, -1, NULL);
+    i2c_dev = sysbus_create_simple(OBJECT(machine), "i2c", TYPE_GPIO_I2C, -1, NULL);
     i2c = (I2CBus *)qdev_get_child_bus(i2c_dev, "i2c");
 
-    lcd_dev = sysbus_create_simple_orphan(TYPE_MUSICPAL_LCD, MP_LCD_BASE, NULL);
-    key_dev = sysbus_create_simple_orphan(TYPE_MUSICPAL_KEY, -1, NULL);
+    lcd_dev = sysbus_create_simple(OBJECT(machine), "lcd",
+                                   TYPE_MUSICPAL_LCD, MP_LCD_BASE, NULL);
+    key_dev = sysbus_create_simple(OBJECT(machine), "keys", TYPE_MUSICPAL_KEY, -1, NULL);
 
     /* I2C read data */
     qdev_connect_gpio_out(i2c_dev, 0,
@@ -1328,17 +1333,17 @@ static void musicpal_init(MachineState *machine)
         qdev_connect_gpio_out(key_dev, i, qdev_get_gpio_in(dev, i + 15));
     }
 
-    wm8750_dev = i2c_slave_new_orphan(TYPE_WM8750, MP_WM_ADDR);
+    wm8750_dev = i2c_slave_new(OBJECT(machine), "wm8750", TYPE_WM8750, MP_WM_ADDR);
     if (machine->audiodev) {
         qdev_prop_set_string(DEVICE(wm8750_dev), "audiodev", machine->audiodev);
     }
-    i2c_slave_realize_and_unref(wm8750_dev, i2c, &error_abort);
+    qdev_realize(DEVICE(wm8750_dev), BUS(i2c), &error_abort);
 
-    dev = qdev_new_orphan(TYPE_MV88W8618_AUDIO);
+    dev = qdev_new(OBJECT(machine), "audio", TYPE_MV88W8618_AUDIO);
     s = SYS_BUS_DEVICE(dev);
     object_property_set_link(OBJECT(dev), "wm8750", OBJECT(wm8750_dev),
                              NULL);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     sysbus_mmio_map(s, 0, MP_AUDIO_BASE);
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(pic, MP_AUDIO_IRQ));
 
