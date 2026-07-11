@@ -126,7 +126,7 @@ static void clipper_init(MachineState *machine)
     pci_init_nic_devices(pci_bus, mc->default_nic);
 
     /* Super I/O */
-    isa_create_simple(isa_bus, TYPE_SMC37C669_SUPERIO);
+    isa_create_simple_orphan(isa_bus, TYPE_SMC37C669_SUPERIO);
 
     /* IDE disk setup.  */
     pci_dev = pci_create_simple_orphan(pci_bus, -1, "cmd646-ide");

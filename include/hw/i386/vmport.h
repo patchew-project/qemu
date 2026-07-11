@@ -20,7 +20,7 @@ typedef enum {
 
 static inline void vmport_init(ISABus *bus)
 {
-    isa_create_simple(bus, TYPE_VMPORT);
+    isa_create_simple_orphan(bus, TYPE_VMPORT);
 }
 
 void vmport_register(VMPortCommand command, VMPortReadFunc *func, void *opaque);

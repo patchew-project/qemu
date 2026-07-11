@@ -54,7 +54,7 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
             } else {
                 name = g_strdup_printf("parallel%d", i);
             }
-            isa = isa_new(TYPE_ISA_PARALLEL);
+            isa = isa_new_orphan(TYPE_ISA_PARALLEL);
             d = DEVICE(isa);
             qdev_prop_set_uint32(d, "index", i);
             if (k->parallel.get_iobase) {
@@ -93,7 +93,7 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
             } else {
                 name = g_strdup_printf("serial%d", i);
             }
-            isa = isa_new(TYPE_ISA_SERIAL);
+            isa = isa_new_orphan(TYPE_ISA_SERIAL);
             d = DEVICE(isa);
             qdev_prop_set_uint32(d, "index", i);
             if (k->serial.get_iobase) {
@@ -120,7 +120,7 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
     assert(k->floppy.count <= 1);
     if (k->floppy.count &&
         (!k->floppy.is_enabled || k->floppy.is_enabled(sio, 0))) {
-        isa = isa_new(TYPE_ISA_FDC);
+        isa = isa_new_orphan(TYPE_ISA_FDC);
         d = DEVICE(isa);
         if (k->floppy.get_iobase) {
             qdev_prop_set_uint32(d, "iobase", k->floppy.get_iobase(sio, 0));
@@ -144,14 +144,14 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
     }
 
     /* Keyboard, mouse */
-    isa = isa_new(TYPE_I8042);
+    isa = isa_new_orphan(TYPE_I8042);
     object_property_add_child(OBJECT(sio), TYPE_I8042, OBJECT(isa));
     isa_realize_and_unref(isa, bus, &error_fatal);
     sio->kbc = isa;
 
     /* IDE */
     if (k->ide.count && (!k->ide.is_enabled || k->ide.is_enabled(sio, 0))) {
-        isa = isa_new("isa-ide");
+        isa = isa_new_orphan("isa-ide");
         d = DEVICE(isa);
         if (k->ide.get_iobase) {
             qdev_prop_set_uint32(d, "iobase", k->ide.get_iobase(sio, 0));

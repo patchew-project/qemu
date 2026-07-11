@@ -289,7 +289,7 @@ static void mips_jazz_init(MachineState *machine,
     isa_bus_register_input_irqs(isa_bus, i8259);
     i8257_dma_init(OBJECT(rc4030), isa_bus, 0);
     pit = i8254_pit_init(isa_bus, 0x40, 0, NULL);
-    pcspk = isa_new(TYPE_PC_SPEAKER);
+    pcspk = isa_new_orphan(TYPE_PC_SPEAKER);
     object_property_set_link(OBJECT(pcspk), "pit", OBJECT(pit), &error_fatal);
     isa_realize_and_unref(pcspk, isa_bus, &error_fatal);
 

@@ -1010,7 +1010,7 @@ static bool pnv_match_cpu(const char *default_type, const char *cpu_type)
 
 static void pnv_ipmi_bt_init(ISABus *bus, IPMIBmc *bmc, uint32_t irq)
 {
-    ISADevice *dev = isa_new("isa-ipmi-bt");
+    ISADevice *dev = isa_new_orphan("isa-ipmi-bt");
 
     object_property_set_link(OBJECT(dev), "bmc", OBJECT(bmc), &error_fatal);
     object_property_set_int(OBJECT(dev), "irq", irq, &error_fatal);

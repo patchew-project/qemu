@@ -329,13 +329,13 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
     parallel_hds_isa_init(s->isa_bus, MAX_PARALLEL_PORTS);
 
     /* Keyboard */
-    isa_create_simple(s->isa_bus, TYPE_I8042);
+    isa_create_simple_orphan(s->isa_bus, TYPE_I8042);
 
     /* Floppy */
     for (i = 0; i < MAX_FD; i++) {
         fd[i] = drive_get(IF_FLOPPY, 0, i);
     }
-    isa_dev = isa_new(TYPE_ISA_FDC);
+    isa_dev = isa_new_orphan(TYPE_ISA_FDC);
     dev = DEVICE(isa_dev);
     qdev_prop_set_uint32(dev, "dma", -1);
     isa_realize_and_unref(isa_dev, s->isa_bus, &error_fatal);

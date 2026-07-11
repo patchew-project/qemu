@@ -1253,7 +1253,7 @@ void mips_malta_init(MachineState *machine)
     g_free(smbus_eeprom_buf);
 
     /* Super I/O: SMS FDC37M817 */
-    isa_create_simple(isa_bus, TYPE_FDC37M81X_SUPERIO);
+    isa_create_simple_orphan(isa_bus, TYPE_FDC37M81X_SUPERIO);
 
     /* Network card */
     network_init(pci_bus);

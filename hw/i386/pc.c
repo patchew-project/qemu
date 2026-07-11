@@ -998,7 +998,7 @@ static void pc_superio_init(ISABus *isa_bus, bool create_fdctrl,
     }
     if (create_fdctrl) {
 #ifdef CONFIG_FDC_ISA
-        ISADevice *fdc = isa_new(TYPE_ISA_FDC);
+        ISADevice *fdc = isa_new_orphan(TYPE_ISA_FDC);
         if (fdc) {
             isa_realize_and_unref(fdc, isa_bus, &error_fatal);
             isa_fdc_init_drives(fdc, fd);
@@ -1014,10 +1014,10 @@ static void pc_superio_init(ISABus *isa_bus, bool create_fdctrl,
         return;
     }
 
-    i8042 = isa_create_simple(isa_bus, TYPE_I8042);
+    i8042 = isa_create_simple_orphan(isa_bus, TYPE_I8042);
     if (!no_vmport) {
-        isa_create_simple(isa_bus, TYPE_VMPORT);
-        vmmouse = isa_try_new("vmmouse");
+        isa_create_simple_orphan(isa_bus, TYPE_VMPORT);
+        vmmouse = isa_try_new_orphan("vmmouse");
     } else {
         vmmouse = NULL;
     }
@@ -1026,7 +1026,7 @@ static void pc_superio_init(ISABus *isa_bus, bool create_fdctrl,
                                  &error_abort);
         isa_realize_and_unref(vmmouse, isa_bus, &error_fatal);
     }
-    port92 = isa_create_simple(isa_bus, TYPE_PORT92);
+    port92 = isa_create_simple_orphan(isa_bus, TYPE_PORT92);
 
     a20_line = qemu_allocate_irqs(handle_a20_line_change, first_cpu, 2);
     qdev_connect_gpio_out_named(DEVICE(i8042),
@@ -1639,7 +1639,7 @@ static void pc_machine_initfn(Object *obj)
     pcms->default_bus_bypass_iommu = false;
 
     pc_system_flash_create(pcms);
-    pcms->pcspk = isa_new(TYPE_PC_SPEAKER);
+    pcms->pcspk = isa_new_orphan(TYPE_PC_SPEAKER);
     object_property_add_alias(OBJECT(pcms), "pcspk-audiodev",
                               OBJECT(pcms->pcspk), "audiodev");
     if (pcmc->pci_enabled) {

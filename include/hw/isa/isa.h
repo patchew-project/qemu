@@ -80,10 +80,14 @@ IsaDma *isa_bus_get_dma(ISABus *bus, int nchan);
  * Return IRQ @irqnum from the PIC associated on ISA @bus.
  */
 qemu_irq isa_bus_get_irq(ISABus *bus, unsigned irqnum);
-ISADevice *isa_new(const char *name);
-ISADevice *isa_try_new(const char *name);
+ISADevice *isa_new(Object *parent, const char *id, const char *type);
+ISADevice *isa_try_new(Object *parent, const char *id, const char *type);
+ISADevice *isa_create_simple(Object *parent, const char *id,
+                             ISABus *bus, const char *type);
+ISADevice *isa_new_orphan(const char *name);
+ISADevice *isa_try_new_orphan(const char *name);
 bool isa_realize_and_unref(ISADevice *dev, ISABus *bus, Error **errp);
-ISADevice *isa_create_simple(ISABus *bus, const char *name);
+ISADevice *isa_create_simple_orphan(ISABus *bus, const char *name);
 
 ISADevice *isa_vga_init(ISABus *bus);
 

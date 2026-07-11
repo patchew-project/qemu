@@ -309,20 +309,20 @@ static void ibm_40p_init(MachineState *machine)
     isa_bus = ISA_BUS(qdev_get_child_bus(i82378_dev, "isa.0"));
 
     /* system control ports */
-    isa_dev = isa_new("prep-systemio");
+    isa_dev = isa_new_orphan("prep-systemio");
     dev = DEVICE(isa_dev);
     qdev_prop_set_uint32(dev, "ibm-planar-id", 0xfc);
     qdev_prop_set_uint32(dev, "equipment", 0xc0);
     isa_realize_and_unref(isa_dev, isa_bus, &error_fatal);
 
     /* Memory controller */
-    isa_dev = isa_new("rs6000-mc");
+    isa_dev = isa_new_orphan("rs6000-mc");
     dev = DEVICE(isa_dev);
     qdev_prop_set_uint32(dev, "ram-size", machine->ram_size);
     isa_realize_and_unref(isa_dev, isa_bus, &error_fatal);
 
     /* RTC */
-    isa_dev = isa_new(TYPE_MC146818_RTC);
+    isa_dev = isa_new_orphan(TYPE_MC146818_RTC);
     dev = DEVICE(isa_dev);
     qdev_prop_set_int32(dev, "base_year", 1900);
     isa_realize_and_unref(isa_dev, isa_bus, &error_fatal);
@@ -334,9 +334,9 @@ static void ibm_40p_init(MachineState *machine)
 
     /* add some more devices */
     if (defaults_enabled()) {
-        m48t59 = NVRAM(isa_create_simple(isa_bus, "isa-m48t59"));
+        m48t59 = NVRAM(isa_create_simple_orphan(isa_bus, "isa-m48t59"));
 
-        isa_dev = isa_new("cs4231a");
+        isa_dev = isa_new_orphan("cs4231a");
         dev = DEVICE(isa_dev);
         qdev_prop_set_uint32(dev, "iobase", 0x830);
         qdev_prop_set_uint32(dev, "irq", 10);
@@ -345,7 +345,7 @@ static void ibm_40p_init(MachineState *machine)
         }
         isa_realize_and_unref(isa_dev, isa_bus, &error_fatal);
 
-        isa_dev = isa_new("pc87312");
+        isa_dev = isa_new_orphan("pc87312");
         dev = DEVICE(isa_dev);
         qdev_prop_set_uint32(dev, "config", 12);
         isa_realize_and_unref(isa_dev, isa_bus, &error_fatal);

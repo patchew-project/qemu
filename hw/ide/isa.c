@@ -84,7 +84,7 @@ ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int irqnum,
     ISADevice *isadev;
     ISAIDEState *s;
 
-    isadev = isa_new(TYPE_ISA_IDE);
+    isadev = isa_new_orphan(TYPE_ISA_IDE);
     dev = DEVICE(isadev);
     qdev_prop_set_uint32(dev, "iobase",  iobase);
     qdev_prop_set_uint32(dev, "iobase2", iobase2);

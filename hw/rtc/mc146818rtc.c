@@ -930,7 +930,7 @@ MC146818RtcState *mc146818_rtc_init(ISABus *bus, int base_year,
     ISADevice *isadev;
     MC146818RtcState *s;
 
-    isadev = isa_new(TYPE_MC146818_RTC);
+    isadev = isa_new_orphan(TYPE_MC146818_RTC);
     dev = DEVICE(isadev);
     s = MC146818_RTC(isadev);
     qdev_prop_set_int32(dev, "base_year", base_year);

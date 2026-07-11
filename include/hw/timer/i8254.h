@@ -51,7 +51,7 @@ static inline ISADevice *i8254_pit_init(ISABus *bus, int base, int isa_irq,
     DeviceState *dev;
     ISADevice *d;
 
-    d = isa_new(TYPE_I8254);
+    d = isa_new_orphan(TYPE_I8254);
     dev = DEVICE(d);
     qdev_prop_set_uint32(dev, "iobase", base);
     isa_realize_and_unref(d, bus, &error_fatal);
@@ -67,7 +67,7 @@ static inline ISADevice *kvm_pit_init(ISABus *bus, int base)
     DeviceState *dev;
     ISADevice *d;
 
-    d = isa_new(TYPE_KVM_I8254);
+    d = isa_new_orphan(TYPE_KVM_I8254);
     dev = DEVICE(d);
     qdev_prop_set_uint32(dev, "iobase", base);
     isa_realize_and_unref(d, bus, &error_fatal);
