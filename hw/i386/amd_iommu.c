@@ -2698,7 +2698,8 @@ static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
         s->pci = AMD_IOMMU_PCI(pdev);
         dc->vmsd = &vmstate_amdvi_sysbus_migratable;
     } else {
-        s->pci = AMD_IOMMU_PCI(object_new(TYPE_AMD_IOMMU_PCI));
+        s->pci = AMD_IOMMU_PCI(object_new_child(OBJECT(s), "pci",
+                                                TYPE_AMD_IOMMU_PCI));
         /* This device should take care of IOMMU PCI properties */
         if (!qdev_realize(DEVICE(s->pci), &bus->qbus, errp)) {
             return;
