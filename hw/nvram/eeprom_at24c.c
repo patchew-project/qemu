@@ -138,17 +138,19 @@ int at24c_eeprom_send(I2CSlave *s, uint8_t data)
     return 0;
 }
 
-I2CSlave *at24c_eeprom_init(I2CBus *bus, uint8_t address, uint32_t rom_size)
+I2CSlave *at24c_eeprom_init(Object *parent, I2CBus *bus, uint8_t address,
+                            uint32_t rom_size)
 {
-    return at24c_eeprom_init_rom(bus, address, rom_size, NULL, 0);
+    return at24c_eeprom_init_rom(parent, bus, address, rom_size, NULL, 0);
 }
 
-I2CSlave *at24c_eeprom_init_rom(I2CBus *bus, uint8_t address, uint32_t rom_size,
+I2CSlave *at24c_eeprom_init_rom(Object *parent, I2CBus *bus, uint8_t address,
+                                uint32_t rom_size,
                                 const uint8_t *init_rom, uint32_t init_rom_size)
 {
     EEPROMState *s;
 
-    s = AT24C_EE(i2c_slave_new_orphan(TYPE_AT24C_EE, address));
+    s = AT24C_EE(i2c_slave_new(parent, "eeprom[*]", TYPE_AT24C_EE, address));
 
     qdev_prop_set_uint32(DEVICE(s), "rom-size", rom_size);
 
@@ -156,7 +158,7 @@ I2CSlave *at24c_eeprom_init_rom(I2CBus *bus, uint8_t address, uint32_t rom_size,
     s->init_rom = init_rom;
     s->init_rom_size = init_rom_size;
 
-    i2c_slave_realize_and_unref(I2C_SLAVE(s), bus, &error_abort);
+    qdev_realize(DEVICE(s), BUS(bus), &error_abort);
 
     return I2C_SLAVE(s);
 }

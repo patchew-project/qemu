@@ -236,13 +236,13 @@ static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
 
     /* &i2c0 */
     /* eeprom@50 */
-    at24c_eeprom_init(i2c[0], 0x50, 256 * KiB);
+    at24c_eeprom_init(o, i2c[0], 0x50, 256 * KiB);
     /* i2c-mux@70 */
     i2c_slave_create_simple(o, "i2c-mux[*]", i2c[0], TYPE_PCA9546, 0x70);
 
     /* &i2c1 */
     /* eeprom@50 */
-    at24c_eeprom_init(i2c[1], 0x50, 256 * KiB);
+    at24c_eeprom_init(o, i2c[1], 0x50, 256 * KiB);
     /* i2c-mux@70 (PCA9546) — 4 channels, empty */
     i2c_slave_create_simple(o, "i2c-mux[*]", i2c[1], TYPE_PCA9546, 0x70);
 
@@ -252,7 +252,7 @@ static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
 
     /* &i2c6 */
     /* eeprom@50 */
-    at24c_eeprom_init_rom(i2c[6], 0x50, 32 * KiB,
+    at24c_eeprom_init_rom(o, i2c[6], 0x50, 32 * KiB,
                           hpm_eeprom, hpm_eeprom_len);
 
     /* &i2c8 */
@@ -269,7 +269,7 @@ static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
     i2c_slave_create_simple(o, "gpio[*]", pca954x_i2c_get_bus(i2c_mux, 0),
                             TYPE_PCA9552, 0x24);
     /* eeprom@50 */
-    at24c_eeprom_init_rom(pca954x_i2c_get_bus(i2c_mux, 0), 0x50, 16 * KiB,
+    at24c_eeprom_init_rom(o, pca954x_i2c_get_bus(i2c_mux, 0), 0x50, 16 * KiB,
                           rpdb_eeprom, rpdb_eeprom_len);
 
     /* i2c8mux ch1 */
@@ -280,15 +280,15 @@ static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
     i2c_slave_create_simple(o, "gpio[*]", pca954x_i2c_get_bus(i2c_mux, 1),
                             TYPE_PCA9552, 0x24);
     /* eeprom@50 */
-    at24c_eeprom_init_rom(pca954x_i2c_get_bus(i2c_mux, 1), 0x50, 16 * KiB,
+    at24c_eeprom_init_rom(o, pca954x_i2c_get_bus(i2c_mux, 1), 0x50, 16 * KiB,
                           lpdb_eeprom, lpdb_eeprom_len);
 
     /* &i2c9 */
     /* eeprom@50 */
-    at24c_eeprom_init_rom(i2c[9], 0x50, 16 * KiB,
+    at24c_eeprom_init_rom(o, i2c[9], 0x50, 16 * KiB,
                           scm_eeprom, scm_eeprom_len);
     /* eeprom@56 */
-    at24c_eeprom_init_rom(i2c[9], 0x56, 8 * KiB,
+    at24c_eeprom_init_rom(o, i2c[9], 0x56, 8 * KiB,
                           bsm_eeprom, bsm_eeprom_len);
 
     /* &i2c10 */
@@ -301,7 +301,7 @@ static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
     i2c_slave_create_simple(o, "gpio[*]", pca954x_i2c_get_bus(i2c_mux, 5),
                             TYPE_PCA9552, 0x22);
     /* eeprom@52 */
-    at24c_eeprom_init_rom(pca954x_i2c_get_bus(i2c_mux, 5), 0x52, 32 * KiB,
+    at24c_eeprom_init_rom(o, pca954x_i2c_get_bus(i2c_mux, 5), 0x52, 32 * KiB,
                           rbb_eeprom, rbb_eeprom_len);
 
     /* &i2c11 */
@@ -316,7 +316,7 @@ static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
     i2c_slave_create_simple(o, "gpio[*]", pca954x_i2c_get_bus(i2c_mux, 5),
                             TYPE_PCA9552, 0x22);
     /* eeprom@52 */
-    at24c_eeprom_init_rom(pca954x_i2c_get_bus(i2c_mux, 5), 0x52, 32 * KiB,
+    at24c_eeprom_init_rom(o, pca954x_i2c_get_bus(i2c_mux, 5), 0x52, 32 * KiB,
                           lbb_eeprom, lbb_eeprom_len);
 
     /* &i2c13 */
@@ -329,7 +329,7 @@ static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
 
     /* i2c13mux ch4 */
     /* eeprom@51 */
-    at24c_eeprom_init_rom(pca954x_i2c_get_bus(i2c_mux, 4), 0x51, 32 * KiB,
+    at24c_eeprom_init_rom(o, pca954x_i2c_get_bus(i2c_mux, 4), 0x51, 32 * KiB,
                           hpm_brd_id_eeprom, hpm_brd_id_eeprom_len);
 
     /* i2c13mux ch7 */

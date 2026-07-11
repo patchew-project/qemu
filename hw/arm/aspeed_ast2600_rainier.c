@@ -69,7 +69,7 @@ static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
     I2CSlave *i2c_mux;
     Object *o = OBJECT(bmc);
 
-    at24c_eeprom_init(aspeed_i2c_get_bus(&soc->i2c, 0), 0x51, 32 * KiB);
+    at24c_eeprom_init(o, aspeed_i2c_get_bus(&soc->i2c, 0), 0x51, 32 * KiB);
 
     aspeed_create_pca9552(OBJECT(bmc), soc, 3, 0x61);
 
@@ -86,9 +86,9 @@ static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
     i2c_mux = i2c_slave_create_simple(o, "i2c-mux[*]",
                                       aspeed_i2c_get_bus(&soc->i2c, 4),
                                       "pca9546", 0x70);
-    at24c_eeprom_init(pca954x_i2c_get_bus(i2c_mux, 0), 0x50, 64 * KiB);
-    at24c_eeprom_init(pca954x_i2c_get_bus(i2c_mux, 1), 0x51, 64 * KiB);
-    at24c_eeprom_init(pca954x_i2c_get_bus(i2c_mux, 2), 0x52, 64 * KiB);
+    at24c_eeprom_init(o, pca954x_i2c_get_bus(i2c_mux, 0), 0x50, 64 * KiB);
+    at24c_eeprom_init(o, pca954x_i2c_get_bus(i2c_mux, 1), 0x51, 64 * KiB);
+    at24c_eeprom_init(o, pca954x_i2c_get_bus(i2c_mux, 2), 0x52, 64 * KiB);
     aspeed_create_pca9552(OBJECT(bmc), soc, 4, 0x60);
 
     i2c_slave_create_simple(o, "tmp105[*]",
@@ -102,8 +102,8 @@ static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
     i2c_mux = i2c_slave_create_simple(o, "i2c-mux[*]",
                                       aspeed_i2c_get_bus(&soc->i2c, 5),
                                       "pca9546", 0x70);
-    at24c_eeprom_init(pca954x_i2c_get_bus(i2c_mux, 0), 0x50, 64 * KiB);
-    at24c_eeprom_init(pca954x_i2c_get_bus(i2c_mux, 1), 0x51, 64 * KiB);
+    at24c_eeprom_init(o, pca954x_i2c_get_bus(i2c_mux, 0), 0x50, 64 * KiB);
+    at24c_eeprom_init(o, pca954x_i2c_get_bus(i2c_mux, 1), 0x51, 64 * KiB);
 
     i2c_slave_create_simple(o, "tmp105[*]",
                             aspeed_i2c_get_bus(&soc->i2c, 6),
@@ -117,10 +117,10 @@ static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
     i2c_mux = i2c_slave_create_simple(o, "i2c-mux[*]",
                                       aspeed_i2c_get_bus(&soc->i2c, 6),
                                       "pca9546", 0x70);
-    at24c_eeprom_init(pca954x_i2c_get_bus(i2c_mux, 0), 0x50, 64 * KiB);
-    at24c_eeprom_init(pca954x_i2c_get_bus(i2c_mux, 1), 0x51, 64 * KiB);
-    at24c_eeprom_init(pca954x_i2c_get_bus(i2c_mux, 2), 0x50, 64 * KiB);
-    at24c_eeprom_init(pca954x_i2c_get_bus(i2c_mux, 3), 0x51, 64 * KiB);
+    at24c_eeprom_init(o, pca954x_i2c_get_bus(i2c_mux, 0), 0x50, 64 * KiB);
+    at24c_eeprom_init(o, pca954x_i2c_get_bus(i2c_mux, 1), 0x51, 64 * KiB);
+    at24c_eeprom_init(o, pca954x_i2c_get_bus(i2c_mux, 2), 0x50, 64 * KiB);
+    at24c_eeprom_init(o, pca954x_i2c_get_bus(i2c_mux, 3), 0x51, 64 * KiB);
 
     aspeed_create_pca9552(OBJECT(bmc), soc, 7, 0x30);
     aspeed_create_pca9552(OBJECT(bmc), soc, 7, 0x31);
@@ -138,8 +138,8 @@ static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
     i2c_slave_create_simple(o, "max31785",
                             aspeed_i2c_get_bus(&soc->i2c, 7),
                             "max31785", 0x52);
-    at24c_eeprom_init(aspeed_i2c_get_bus(&soc->i2c, 7), 0x50, 64 * KiB);
-    at24c_eeprom_init(aspeed_i2c_get_bus(&soc->i2c, 7), 0x51, 64 * KiB);
+    at24c_eeprom_init(o, aspeed_i2c_get_bus(&soc->i2c, 7), 0x50, 64 * KiB);
+    at24c_eeprom_init(o, aspeed_i2c_get_bus(&soc->i2c, 7), 0x51, 64 * KiB);
 
     i2c_slave_create_simple(o, "tmp105[*]",
                             aspeed_i2c_get_bus(&soc->i2c, 8),
@@ -147,9 +147,9 @@ static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
     i2c_slave_create_simple(o, "tmp105[*]",
                             aspeed_i2c_get_bus(&soc->i2c, 8),
                             TYPE_TMP105, 0x4a);
-    at24c_eeprom_init_rom(aspeed_i2c_get_bus(&soc->i2c, 8), 0x50,
+    at24c_eeprom_init_rom(o, aspeed_i2c_get_bus(&soc->i2c, 8), 0x50,
                           64 * KiB, rainier_bb_fruid, rainier_bb_fruid_len);
-    at24c_eeprom_init_rom(aspeed_i2c_get_bus(&soc->i2c, 8), 0x51,
+    at24c_eeprom_init_rom(o, aspeed_i2c_get_bus(&soc->i2c, 8), 0x51,
                           64 * KiB, rainier_bmc_fruid, rainier_bmc_fruid_len);
     aspeed_create_pca9552(OBJECT(bmc), soc, 8, 0x60);
     aspeed_create_pca9552(OBJECT(bmc), soc, 8, 0x61);
@@ -163,7 +163,7 @@ static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
     i2c_slave_create_simple(o, "tmp423[*]",
                             aspeed_i2c_get_bus(&soc->i2c, 9),
                             "tmp423", 0x4d);
-    at24c_eeprom_init(aspeed_i2c_get_bus(&soc->i2c, 9), 0x50, 128 * KiB);
+    at24c_eeprom_init(o, aspeed_i2c_get_bus(&soc->i2c, 9), 0x50, 128 * KiB);
 
     i2c_slave_create_simple(o, "tmp423[*]",
                             aspeed_i2c_get_bus(&soc->i2c, 10),
@@ -171,7 +171,7 @@ static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
     i2c_slave_create_simple(o, "tmp423[*]",
                             aspeed_i2c_get_bus(&soc->i2c, 10),
                             "tmp423", 0x4d);
-    at24c_eeprom_init(aspeed_i2c_get_bus(&soc->i2c, 10), 0x50, 128 * KiB);
+    at24c_eeprom_init(o, aspeed_i2c_get_bus(&soc->i2c, 10), 0x50, 128 * KiB);
 
     i2c_slave_create_simple(o, "tmp105[*]",
                             aspeed_i2c_get_bus(&soc->i2c, 11),
@@ -182,18 +182,18 @@ static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
     i2c_mux = i2c_slave_create_simple(o, "i2c-mux[*]",
                                       aspeed_i2c_get_bus(&soc->i2c, 11),
                                       "pca9546", 0x70);
-    at24c_eeprom_init(pca954x_i2c_get_bus(i2c_mux, 0), 0x50, 64 * KiB);
-    at24c_eeprom_init(pca954x_i2c_get_bus(i2c_mux, 1), 0x51, 64 * KiB);
+    at24c_eeprom_init(o, pca954x_i2c_get_bus(i2c_mux, 0), 0x50, 64 * KiB);
+    at24c_eeprom_init(o, pca954x_i2c_get_bus(i2c_mux, 1), 0x51, 64 * KiB);
     aspeed_create_pca9552(OBJECT(bmc), soc, 11, 0x60);
 
 
-    at24c_eeprom_init(aspeed_i2c_get_bus(&soc->i2c, 13), 0x50, 64 * KiB);
+    at24c_eeprom_init(o, aspeed_i2c_get_bus(&soc->i2c, 13), 0x50, 64 * KiB);
     aspeed_create_pca9552(OBJECT(bmc), soc, 13, 0x60);
 
-    at24c_eeprom_init(aspeed_i2c_get_bus(&soc->i2c, 14), 0x50, 64 * KiB);
+    at24c_eeprom_init(o, aspeed_i2c_get_bus(&soc->i2c, 14), 0x50, 64 * KiB);
     aspeed_create_pca9552(OBJECT(bmc), soc, 14, 0x60);
 
-    at24c_eeprom_init(aspeed_i2c_get_bus(&soc->i2c, 15), 0x50, 64 * KiB);
+    at24c_eeprom_init(o, aspeed_i2c_get_bus(&soc->i2c, 15), 0x50, 64 * KiB);
     aspeed_create_pca9552(OBJECT(bmc), soc, 15, 0x60);
 }
 

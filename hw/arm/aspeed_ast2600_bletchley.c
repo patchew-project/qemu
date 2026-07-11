@@ -46,13 +46,13 @@ static void bletchley_bmc_i2c_init(AspeedMachineState *bmc)
     }
 
     /* Bus 6 */
-    at24c_eeprom_init(i2c[6], 0x56, 65536);
+    at24c_eeprom_init(OBJECT(bmc), i2c[6], 0x56, 65536);
     /* Missing model: nxp,pcf85263 @ 0x51 , but ds1338 works enough */
     i2c_slave_create_simple(OBJECT(bmc), "rtc", i2c[6], "ds1338", 0x51);
 
 
     /* Bus 7 */
-    at24c_eeprom_init(i2c[7], 0x54, 65536);
+    at24c_eeprom_init(OBJECT(bmc), i2c[7], 0x54, 65536);
 
     /* Bus 9 */
     i2c_slave_create_simple(OBJECT(bmc), "tmp421[*]",

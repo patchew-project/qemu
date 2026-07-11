@@ -248,8 +248,8 @@ static void quanta_gsj_i2c_init(Object *parent, NPCM7xxState *soc)
     i2c_slave_create_simple(parent, "tmp105[*]",
                             npcm7xx_i2c_get_bus(soc, 4), "tmp105", 0x5c);
 
-    at24c_eeprom_init(npcm7xx_i2c_get_bus(soc, 9), 0x55, 8192);
-    at24c_eeprom_init(npcm7xx_i2c_get_bus(soc, 10), 0x55, 8192);
+    at24c_eeprom_init(parent, npcm7xx_i2c_get_bus(soc, 9), 0x55, 8192);
+    at24c_eeprom_init(parent, npcm7xx_i2c_get_bus(soc, 10), 0x55, 8192);
 
     /*
      * i2c-11:
@@ -363,7 +363,7 @@ static void kudo_bmc_i2c_init(Object *parent, NPCM7xxState *soc)
     i2c_slave_create_simple(parent, "pca9548[*]",
                             npcm7xx_i2c_get_bus(soc, 4), TYPE_PCA9548, 0x77);
 
-    at24c_eeprom_init(npcm7xx_i2c_get_bus(soc, 4), 0x50, 8192); /* mbfru */
+    at24c_eeprom_init(parent, npcm7xx_i2c_get_bus(soc, 4), 0x50, 8192); /* mbfru */
 
     i2c_mux = i2c_slave_create_simple(parent, "pca9548[*]",
                                       npcm7xx_i2c_get_bus(soc, 13),
@@ -379,7 +379,7 @@ static void kudo_bmc_i2c_init(Object *parent, NPCM7xxState *soc)
     i2c_slave_create_simple(parent, "tmp105[*]",
                             pca954x_i2c_get_bus(i2c_mux, 5), "tmp105", 0x49);
 
-    at24c_eeprom_init(npcm7xx_i2c_get_bus(soc, 14), 0x55, 8192); /* bmcfru */
+    at24c_eeprom_init(parent, npcm7xx_i2c_get_bus(soc, 14), 0x55, 8192); /* bmcfru */
 
     /* TODO: Add remaining i2c devices. */
 }

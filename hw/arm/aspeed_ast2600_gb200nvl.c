@@ -68,11 +68,11 @@ static void gb200nvl_bmc_i2c_init(AspeedMachineState *bmc)
     object_property_set_str(OBJECT(dev), "pin1", "high", &error_fatal);
 
     aspeed_create_pca9554(OBJECT(bmc), soc, 9, 0x21);
-    at24c_eeprom_init(i2c[9], 0x50, 64 * KiB);
-    at24c_eeprom_init(i2c[9], 0x51, 64 * KiB);
+    at24c_eeprom_init(OBJECT(bmc), i2c[9], 0x50, 64 * KiB);
+    at24c_eeprom_init(OBJECT(bmc), i2c[9], 0x51, 64 * KiB);
 
     /* Bus 11 */
-    at24c_eeprom_init_rom(i2c[10], 0x50, 256, gb200nvl_bmc_fruid,
+    at24c_eeprom_init_rom(OBJECT(bmc), i2c[10], 0x50, 256, gb200nvl_bmc_fruid,
                           gb200nvl_bmc_fruid_len);
 }
 

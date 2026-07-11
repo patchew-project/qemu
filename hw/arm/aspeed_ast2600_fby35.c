@@ -109,13 +109,13 @@ static void fby35_i2c_init(AspeedMachineState *bmc)
     i2c_slave_create_simple(OBJECT(bmc), "lm75[*]", i2c[12], TYPE_LM75, 0x4e);
     i2c_slave_create_simple(OBJECT(bmc), "lm75[*]", i2c[12], TYPE_LM75, 0x4f);
 
-    at24c_eeprom_init(i2c[4], 0x51, 128 * KiB);
-    at24c_eeprom_init(i2c[6], 0x51, 128 * KiB);
-    at24c_eeprom_init_rom(i2c[8], 0x50, 32 * KiB, fby35_nic_fruid,
+    at24c_eeprom_init(OBJECT(bmc), i2c[4], 0x51, 128 * KiB);
+    at24c_eeprom_init(OBJECT(bmc), i2c[6], 0x51, 128 * KiB);
+    at24c_eeprom_init_rom(OBJECT(bmc), i2c[8], 0x50, 32 * KiB, fby35_nic_fruid,
                           fby35_nic_fruid_len);
-    at24c_eeprom_init_rom(i2c[11], 0x51, 128 * KiB, fby35_bb_fruid,
+    at24c_eeprom_init_rom(OBJECT(bmc), i2c[11], 0x51, 128 * KiB, fby35_bb_fruid,
                           fby35_bb_fruid_len);
-    at24c_eeprom_init_rom(i2c[11], 0x54, 128 * KiB, fby35_bmc_fruid,
+    at24c_eeprom_init_rom(OBJECT(bmc), i2c[11], 0x54, 128 * KiB, fby35_bmc_fruid,
                           fby35_bmc_fruid_len);
 
     /*
