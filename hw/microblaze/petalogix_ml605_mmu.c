@@ -110,10 +110,10 @@ petalogix_ml605_init(MachineState *machine)
                           64 * KiB, 2, 0x89, 0x18, 0x0000, 0x0, 0);
 
 
-    dev = qdev_new_orphan("xlnx.xps-intc");
+    dev = qdev_new(OBJECT(machine), "intc", "xlnx.xps-intc");
     qdev_prop_set_enum(dev, "endianness", ENDIAN_MODE_LITTLE);
     qdev_prop_set_uint32(dev, "kind-of-intr", 1 << TIMER_IRQ);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, INTC_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
                        qdev_get_gpio_in(DEVICE(cpu), MB_CPU_IRQ));
@@ -126,21 +126,17 @@ petalogix_ml605_init(MachineState *machine)
                    DEVICE_LITTLE_ENDIAN);
 
     /* 2 timers at irq 2 @ 100 Mhz.  */
-    dev = qdev_new_orphan("xlnx.xps-timer");
+    dev = qdev_new(OBJECT(machine), "timer", "xlnx.xps-timer");
     qdev_prop_set_enum(dev, "endianness", ENDIAN_MODE_LITTLE);
     qdev_prop_set_uint32(dev, "one-timer-only", 0);
     qdev_prop_set_uint32(dev, "clock-frequency", 100 * 1000000);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, TIMER_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ]);
 
     /* axi ethernet and dma initialization. */
-    eth0 = qdev_new_orphan("xlnx.axi-ethernet");
-    dma = qdev_new_orphan("xlnx.axi-dma");
-
-    /* FIXME: attach to the sysbus instead */
-    object_property_add_child(qdev_get_machine(), "xilinx-eth", OBJECT(eth0));
-    object_property_add_child(qdev_get_machine(), "xilinx-dma", OBJECT(dma));
+    eth0 = qdev_new(OBJECT(machine), "xilinx-eth", "xlnx.axi-ethernet");
+    dma = qdev_new(OBJECT(machine), "xilinx-dma", "xlnx.axi-dma");
 
     ds = object_property_get_link(OBJECT(dma),
                                   "axistream-connected-target", NULL);
@@ -153,7 +149,7 @@ petalogix_ml605_init(MachineState *machine)
                              &error_abort);
     object_property_set_link(OBJECT(eth0), "axistream-control-connected", cs,
                              &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(eth0), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(eth0), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(eth0), 0, AXIENET_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(eth0), 0, irq[AXIENET_IRQ]);
 
@@ -166,7 +162,7 @@ petalogix_ml605_init(MachineState *machine)
                              &error_abort);
     object_property_set_link(OBJECT(dma), "axistream-control-connected", cs,
                              &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dma), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dma), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dma), 0, AXIDMA_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(dma), 0, irq[AXIDMA_IRQ0]);
     sysbus_connect_irq(SYS_BUS_DEVICE(dma), 1, irq[AXIDMA_IRQ1]);
@@ -174,11 +170,11 @@ petalogix_ml605_init(MachineState *machine)
     {
         SSIBus *spi;
 
-        dev = qdev_new_orphan("xlnx.xps-spi");
+        dev = qdev_new(OBJECT(machine), "spi", "xlnx.xps-spi");
         qdev_prop_set_enum(dev, "endianness", ENDIAN_MODE_LITTLE);
         qdev_prop_set_uint8(dev, "num-ss-bits", NUM_SPI_FLASHES);
         busdev = SYS_BUS_DEVICE(dev);
-        sysbus_realize_and_unref(busdev, &error_fatal);
+        sysbus_realize(busdev, &error_fatal);
         sysbus_mmio_map(busdev, 0, SPI_BASEADDR);
         sysbus_connect_irq(busdev, 0, irq[SPI_IRQ]);
 
@@ -188,14 +184,14 @@ petalogix_ml605_init(MachineState *machine)
             dinfo = drive_get(IF_MTD, 0, i);
             qemu_irq cs_line;
 
-            dev = qdev_new_orphan("n25q128");
+            dev = qdev_new(OBJECT(machine), "spi-flash[*]", "n25q128");
             if (dinfo) {
                 qdev_prop_set_drive_err(dev, "drive",
                                         blk_by_legacy_dinfo(dinfo),
                                         &error_fatal);
             }
             qdev_prop_set_uint8(dev, "cs", i);
-            qdev_realize_and_unref(dev, BUS(spi), &error_fatal);
+            qdev_realize(dev, BUS(spi), &error_fatal);
 
             cs_line = qdev_get_gpio_in_named(dev, SSI_GPIO_CS, 0);
             sysbus_connect_irq(busdev, i+1, cs_line);
