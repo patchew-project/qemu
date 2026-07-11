@@ -59,13 +59,14 @@ static const int realview_board_id[] = {
     0x76d
 };
 
-static void split_irq_from_named(DeviceState *src, const char* outname,
-                                 qemu_irq out1, qemu_irq out2) {
-    DeviceState *splitter = qdev_new_orphan(TYPE_SPLIT_IRQ);
+static void split_irq_from_named(Object *parent, DeviceState *src,
+                                  const char *outname,
+                                  qemu_irq out1, qemu_irq out2) {
+    DeviceState *splitter = qdev_new(parent, "split-irq[*]", TYPE_SPLIT_IRQ);
 
     qdev_prop_set_uint32(splitter, "num-lines", 2);
 
-    qdev_realize_and_unref(splitter, NULL, &error_fatal);
+    qdev_realize(splitter, NULL, &error_fatal);
 
     qdev_connect_gpio_out(splitter, 0, out1);
     qdev_connect_gpio_out(splitter, 1, out2);
@@ -180,49 +181,53 @@ static void realview_init(MachineState *machine,
     }
 
     sys_id = is_pb ? 0x01780500 : 0xc1400400;
-    sysctl = qdev_new_orphan("realview_sysctl");
+    sysctl = qdev_new(OBJECT(machine), "sysctl", "realview_sysctl");
     qdev_prop_set_uint32(sysctl, "sys_id", sys_id);
     qdev_prop_set_uint32(sysctl, "proc_id", proc_id);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(sysctl), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(sysctl), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(sysctl), 0, 0x10000000);
 
     if (is_mpcore) {
         if (is_pb) {
-            dev = qdev_new_orphan(TYPE_A9MPCORE_PRIV);
+            dev = qdev_new(OBJECT(machine), "mpcore", TYPE_A9MPCORE_PRIV);
             qdev_prop_set_uint32(dev, "num-irq", GIC_EXT_IRQS + GIC_INTERNAL);
         } else {
-            dev = qdev_new_orphan("realview_mpcore");
+            dev = qdev_new(OBJECT(machine), "mpcore", "realview_mpcore");
         }
         qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
         busdev = SYS_BUS_DEVICE(dev);
-        sysbus_realize_and_unref(busdev, &error_fatal);
+        sysbus_realize(busdev, &error_fatal);
         sysbus_mmio_map(busdev, 0, periphbase);
         for (n = 0; n < smp_cpus; n++) {
             sysbus_connect_irq(busdev, n, cpu_irq[n]);
         }
-        sysbus_create_varargs_orphan("l2x0", periphbase + 0x2000, NULL);
+        sysbus_create_varargs(OBJECT(machine), "l2x0", "l2x0",
+                              periphbase + 0x2000, NULL);
         /* Both A9 and 11MPCore put the GIC CPU i/f at base + 0x100 */
         realview_binfo.gic_cpu_if_addr = periphbase + 0x100;
     } else {
         uint32_t gic_addr = is_pb ? 0x1e000000 : 0x10040000;
         /* For now just create the nIRQ GIC, and ignore the others.  */
-        dev = sysbus_create_simple_orphan(TYPE_REALVIEW_GIC, gic_addr, cpu_irq[0]);
+        dev = sysbus_create_simple(OBJECT(machine), "gic",
+                                   TYPE_REALVIEW_GIC, gic_addr, cpu_irq[0]);
     }
     for (n = 0; n < GIC_EXT_IRQS; n++) {
         pic[n] = qdev_get_gpio_in(dev, n);
     }
 
-    pl041 = qdev_new_orphan("pl041");
+    pl041 = qdev_new(OBJECT(machine), "aaci", "pl041");
     qdev_prop_set_uint32(pl041, "nc_fifo_depth", 512);
     if (machine->audiodev) {
         qdev_prop_set_string(pl041, "audiodev", machine->audiodev);
     }
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(pl041), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(pl041), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(pl041), 0, 0x10004000);
     sysbus_connect_irq(SYS_BUS_DEVICE(pl041), 0, pic[19]);
 
-    sysbus_create_simple_orphan("pl050_keyboard", 0x10006000, pic[20]);
-    sysbus_create_simple_orphan("pl050_mouse", 0x10007000, pic[21]);
+    sysbus_create_simple(OBJECT(machine), "keyboard",
+                         "pl050_keyboard", 0x10006000, pic[20]);
+    sysbus_create_simple(OBJECT(machine), "mouse",
+                         "pl050_mouse", 0x10007000, pic[21]);
 
     pl011_create(OBJECT(machine), 0x10009000, pic[12], serial_hd(0));
     pl011_create(OBJECT(machine), 0x1000a000, pic[13], serial_hd(1));
@@ -230,40 +235,46 @@ static void realview_init(MachineState *machine,
     pl011_create(OBJECT(machine), 0x1000c000, pic[15], serial_hd(3));
 
     /* DMA controller is optional, apparently.  */
-    dev = qdev_new_orphan("pl081");
+    dev = qdev_new(OBJECT(machine), "dma", "pl081");
     object_property_set_link(OBJECT(dev), "downstream", OBJECT(sysmem),
                              &error_fatal);
     busdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_realize(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, 0x10030000);
     sysbus_connect_irq(busdev, 0, pic[24]);
 
-    sysbus_create_simple_orphan("sp804", 0x10011000, pic[4]);
-    sysbus_create_simple_orphan("sp804", 0x10012000, pic[5]);
+    sysbus_create_simple(OBJECT(machine), "timer[*]",
+                         "sp804", 0x10011000, pic[4]);
+    sysbus_create_simple(OBJECT(machine), "timer[*]",
+                         "sp804", 0x10012000, pic[5]);
 
-    sysbus_create_simple_orphan("pl061", 0x10013000, pic[6]);
-    sysbus_create_simple_orphan("pl061", 0x10014000, pic[7]);
-    gpio2 = sysbus_create_simple_orphan("pl061", 0x10015000, pic[8]);
+    sysbus_create_simple(OBJECT(machine), "gpio[*]",
+                         "pl061", 0x10013000, pic[6]);
+    sysbus_create_simple(OBJECT(machine), "gpio[*]",
+                         "pl061", 0x10014000, pic[7]);
+    gpio2 = sysbus_create_simple(OBJECT(machine), "gpio[*]",
+                                 "pl061", 0x10015000, pic[8]);
 
-    dev = qdev_new_orphan("pl111");
+    dev = qdev_new(OBJECT(machine), "clcd", "pl111");
     object_property_set_link(OBJECT(dev), "framebuffer-memory",
                              OBJECT(sysmem), &error_fatal);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x10020000);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[23]);
 
-    dev = sysbus_create_varargs_orphan("pl181", 0x10005000, pic[17], pic[18], NULL);
+    dev = sysbus_create_varargs(OBJECT(machine), "mmc", "pl181",
+                                0x10005000, pic[17], pic[18], NULL);
     /* Wire up MMC card detect and read-only signals. These have
      * to go to both the PL061 GPIO and the sysctl register.
      * Note that the PL181 orders these lines (readonly,inserted)
      * and the PL061 has them the other way about. Also the card
      * detect line is inverted.
      */
-    split_irq_from_named(dev, "card-read-only",
+    split_irq_from_named(OBJECT(machine), dev, "card-read-only",
                    qdev_get_gpio_in(sysctl, ARM_SYSCTL_GPIO_MMC_WPROT),
                    qdev_get_gpio_in(gpio2, 1));
 
-    split_irq_from_named(dev, "card-inserted",
+    split_irq_from_named(OBJECT(machine), dev, "card-inserted",
                    qdev_get_gpio_in(sysctl, ARM_SYSCTL_GPIO_MMC_CARDIN),
                    qemu_irq_invert(qdev_get_gpio_in(gpio2, 0)));
 
@@ -271,19 +282,19 @@ static void realview_init(MachineState *machine,
     if (dinfo) {
         DeviceState *card;
 
-        card = qdev_new_orphan(TYPE_SD_CARD);
+        card = qdev_new(OBJECT(machine), "sd-card", TYPE_SD_CARD);
         qdev_prop_set_drive_err(card, "drive", blk_by_legacy_dinfo(dinfo),
                                 &error_fatal);
-        qdev_realize_and_unref(card, qdev_get_child_bus(dev, "sd-bus"),
-                               &error_fatal);
+        qdev_realize(card, qdev_get_child_bus(dev, "sd-bus"),
+                     &error_fatal);
     }
 
-    sysbus_create_simple_orphan("pl031", 0x10017000, pic[10]);
+    sysbus_create_simple(OBJECT(machine), "rtc", "pl031", 0x10017000, pic[10]);
 
     if (!is_pb) {
-        dev = qdev_new_orphan("realview_pci");
+        dev = qdev_new(OBJECT(machine), "pci-host", "realview_pci");
         busdev = SYS_BUS_DEVICE(dev);
-        sysbus_realize_and_unref(busdev, &error_fatal);
+        sysbus_realize(busdev, &error_fatal);
         sysbus_mmio_map(busdev, 0, 0x10019000); /* PCI controller registers */
         sysbus_mmio_map(busdev, 1, 0x60000000); /* PCI self-config */
         sysbus_mmio_map(busdev, 2, 0x61000000); /* PCI config */
@@ -297,11 +308,12 @@ static void realview_init(MachineState *machine,
         sysbus_connect_irq(busdev, 3, pic[51]);
         pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci");
         if (machine_usb(machine)) {
-            pci_create_simple_orphan(pci_bus, -1, "pci-ohci");
+            pci_create_simple(OBJECT(machine), "ohci", pci_bus, -1, "pci-ohci");
         }
         n = drive_get_max_bus(IF_SCSI);
         while (n >= 0) {
-            dev = DEVICE(pci_create_simple_orphan(pci_bus, -1, "lsi53c895a"));
+            dev = DEVICE(pci_create_simple(OBJECT(machine), "scsi[*]",
+                                           pci_bus, -1, "lsi53c895a"));
             lsi53c8xx_handle_legacy_cmdline(dev);
             n--;
         }
@@ -319,9 +331,10 @@ static void realview_init(MachineState *machine,
         pci_init_nic_devices(pci_bus, "rtl8139");
     }
 
-    dev = sysbus_create_simple_orphan(TYPE_ARM_SBCON_I2C, 0x10002000, NULL);
+    dev = sysbus_create_simple(OBJECT(machine), "i2c",
+                               TYPE_ARM_SBCON_I2C, 0x10002000, NULL);
     i2c = (I2CBus *)qdev_get_child_bus(dev, "i2c");
-    i2c_slave_create_simple_orphan(i2c, "ds1338", 0x68);
+    i2c_slave_create_simple(OBJECT(machine), "ds1338", i2c, "ds1338", 0x68);
 
     /* Memory map for RealView Emulation Baseboard:  */
     /* 0x10000000 System registers.  */

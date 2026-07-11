@@ -621,31 +621,38 @@ static void integratorcp_init(MachineState *machine)
                              0, ram_size);
     memory_region_add_subregion(address_space_mem, 0x80000000, ram_alias);
 
-    dev = qdev_new_orphan(TYPE_INTEGRATOR_CM);
+    dev = qdev_new(OBJECT(machine), "core", TYPE_INTEGRATOR_CM);
     qdev_prop_set_uint32(dev, "memsz", ram_size >> 20);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map((SysBusDevice *)dev, 0, 0x10000000);
 
-    dev = sysbus_create_varargs_orphan(TYPE_INTEGRATOR_PIC, 0x14000000,
+    dev = sysbus_create_varargs(OBJECT(machine), "pic",
+                                TYPE_INTEGRATOR_PIC, 0x14000000,
                                 qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ),
                                 qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_FIQ),
                                 NULL);
     for (i = 0; i < 32; i++) {
         pic[i] = qdev_get_gpio_in(dev, i);
     }
-    sic = sysbus_create_simple_orphan(TYPE_INTEGRATOR_PIC, 0xca000000, pic[26]);
-    sysbus_create_varargs_orphan("integrator_pit", 0x13000000,
+    sic = sysbus_create_simple(OBJECT(machine), "sic",
+                               TYPE_INTEGRATOR_PIC, 0xca000000, pic[26]);
+    sysbus_create_varargs(OBJECT(machine), "pit", "integrator_pit", 0x13000000,
                           pic[5], pic[6], pic[7], NULL);
-    sysbus_create_simple_orphan("pl031", 0x15000000, pic[8]);
+    sysbus_create_simple(OBJECT(machine), "rtc", "pl031", 0x15000000, pic[8]);
     pl011_create(OBJECT(machine), 0x16000000, pic[1], serial_hd(0));
     pl011_create(OBJECT(machine), 0x17000000, pic[2], serial_hd(1));
-    icp = sysbus_create_simple_orphan(TYPE_ICP_CONTROL_REGS, 0xcb000000,
+    icp = sysbus_create_simple(OBJECT(machine), "icp",
+                               TYPE_ICP_CONTROL_REGS, 0xcb000000,
                                qdev_get_gpio_in(sic, 3));
-    sysbus_create_simple_orphan("pl050_keyboard", 0x18000000, pic[3]);
-    sysbus_create_simple_orphan("pl050_mouse", 0x19000000, pic[4]);
-    sysbus_create_simple_orphan(TYPE_INTEGRATOR_DEBUG, 0x1a000000, 0);
+    sysbus_create_simple(OBJECT(machine), "keyboard",
+                         "pl050_keyboard", 0x18000000, pic[3]);
+    sysbus_create_simple(OBJECT(machine), "mouse",
+                         "pl050_mouse", 0x19000000, pic[4]);
+    sysbus_create_simple(OBJECT(machine), "debug",
+                         TYPE_INTEGRATOR_DEBUG, 0x1a000000, 0);
 
-    dev = sysbus_create_varargs_orphan("pl181", 0x1c000000, pic[23], pic[24], NULL);
+    dev = sysbus_create_varargs(OBJECT(machine), "mmc", "pl181",
+                                0x1c000000, pic[23], pic[24], NULL);
     qdev_connect_gpio_out_named(dev, "card-read-only", 0,
                           qdev_get_gpio_in_named(icp, ICP_GPIO_MMC_WPROT, 0));
     qdev_connect_gpio_out_named(dev, "card-inserted", 0,
@@ -654,18 +661,18 @@ static void integratorcp_init(MachineState *machine)
     if (dinfo) {
         DeviceState *card;
 
-        card = qdev_new_orphan(TYPE_SD_CARD);
+        card = qdev_new(OBJECT(machine), "sd-card", TYPE_SD_CARD);
         qdev_prop_set_drive_err(card, "drive", blk_by_legacy_dinfo(dinfo),
                                 &error_fatal);
-        qdev_realize_and_unref(card, qdev_get_child_bus(dev, "sd-bus"),
-                               &error_fatal);
+        qdev_realize(card, qdev_get_child_bus(dev, "sd-bus"),
+                     &error_fatal);
     }
 
-    dev = qdev_new_orphan("pl041");
+    dev = qdev_new(OBJECT(machine), "aaci", "pl041");
     if (machine->audiodev) {
         qdev_prop_set_string(dev, "audiodev", machine->audiodev);
     }
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x1d000000);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[25]);
 
@@ -673,10 +680,10 @@ static void integratorcp_init(MachineState *machine)
         smc91c111_init(OBJECT(machine), 0xc8000000, pic[27]);
     }
 
-    dev = qdev_new_orphan("pl110");
+    dev = qdev_new(OBJECT(machine), "clcd", "pl110");
     object_property_set_link(OBJECT(dev), "framebuffer-memory",
                              OBJECT(address_space_mem), &error_fatal);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xc0000000);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[22]);
 
