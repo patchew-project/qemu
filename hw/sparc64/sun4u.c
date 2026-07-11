@@ -599,7 +599,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     pci_bus_set_slot_reserved_mask(pci_busA, 0xfffffff1);
     pci_bus_set_slot_reserved_mask(pci_busB, 0xfffffff0);
 
-    ebus = pci_new_multifunction(PCI_DEVFN(1, 0), TYPE_EBUS);
+    ebus = pci_new_multifunction_orphan(PCI_DEVFN(1, 0), TYPE_EBUS);
     qdev_prop_set_uint64(DEVICE(ebus), "console-serial-base",
                          hwdef->console_serial_base);
     pci_realize_and_unref(ebus, pci_busA, &error_fatal);
@@ -618,7 +618,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     switch (vga_interface_type) {
     case VGA_STD:
-        pci_create_simple(pci_busA, PCI_DEVFN(2, 0), "VGA");
+        pci_create_simple_orphan(pci_busA, PCI_DEVFN(2, 0), "VGA");
         vga_interface_created = true;
         break;
     case VGA_NONE:
@@ -632,7 +632,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     nd = qemu_find_nic_info(mc->default_nic, true, NULL);
     if (nd) {
-        pci_dev = pci_new_multifunction(PCI_DEVFN(1, 1), mc->default_nic);
+        pci_dev = pci_new_multifunction_orphan(PCI_DEVFN(1, 1), mc->default_nic);
         dev = &pci_dev->qdev;
         qdev_set_nic_properties(dev, nd);
         pci_realize_and_unref(pci_dev, pci_busA, &error_fatal);
@@ -648,7 +648,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
         qemu_macaddr_default_if_unset(&macaddr);
     }
 
-    pci_dev = pci_new(PCI_DEVFN(3, 0), "cmd646-ide");
+    pci_dev = pci_new_orphan(PCI_DEVFN(3, 0), "cmd646-ide");
     qdev_prop_set_uint32(&pci_dev->qdev, "secondary", 1);
     pci_realize_and_unref(pci_dev, pci_busA, &error_fatal);
     pci_ide_create_devs(pci_dev);

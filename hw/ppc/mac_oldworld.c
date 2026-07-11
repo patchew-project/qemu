@@ -229,7 +229,7 @@ static void ppc_heathrow_init(MachineState *machine)
     pci_bus = PCI_HOST_BRIDGE(grackle_dev)->bus;
 
     /* MacIO */
-    macio = OBJECT(pci_new(PCI_DEVFN(16, 0), TYPE_OLDWORLD_MACIO));
+    macio = OBJECT(pci_new_orphan(PCI_DEVFN(16, 0), TYPE_OLDWORLD_MACIO));
     qdev_prop_set_uint64(DEVICE(macio), "frequency", tbfreq);
 
     dev = DEVICE(object_resolve_path_component(macio, "escc"));
@@ -285,7 +285,7 @@ static void ppc_heathrow_init(MachineState *machine)
     qdev_realize_and_unref(dev, adb_bus, &error_fatal);
 
     if (machine_usb(machine)) {
-        pci_create_simple(pci_bus, -1, "pci-ohci");
+        pci_create_simple_orphan(pci_bus, -1, "pci-ohci");
     }
 
     if (!graphic_width) {

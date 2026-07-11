@@ -465,7 +465,7 @@ static inline void loongson3_virt_devices_init(MachineState *machine,
     if (defaults_enabled() && object_class_by_name("pci-ohci")) {
         USBBus *usb_bus;
 
-        pci_create_simple(pci_bus, -1, "pci-ohci");
+        pci_create_simple_orphan(pci_bus, -1, "pci-ohci");
         usb_bus = USB_BUS(object_resolve_type_unambiguous(TYPE_USB_BUS,
                                                           &error_abort));
         usb_create_simple(usb_bus, "usb-kbd");

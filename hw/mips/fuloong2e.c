@@ -286,7 +286,7 @@ static void mips_fuloong2e_init(MachineState *machine)
     pci_bus = bonito_init((qemu_irq *)&(env->irq[2]));
 
     /* South bridge -> IP5 */
-    pci_dev = pci_new_multifunction(PCI_DEVFN(FULOONG2E_VIA_SLOT, 0),
+    pci_dev = pci_new_multifunction_orphan(PCI_DEVFN(FULOONG2E_VIA_SLOT, 0),
                                     TYPE_VT82C686B_ISA);
 
     /* Set properties on individual devices before realizing the south bridge */
@@ -312,7 +312,7 @@ static void mips_fuloong2e_init(MachineState *machine)
     /* GPU */
     if (vga_interface_type != VGA_NONE) {
         vga_interface_created = true;
-        pci_dev = pci_new(-1, "ati-vga");
+        pci_dev = pci_new_orphan(-1, "ati-vga");
         dev = DEVICE(pci_dev);
         qdev_prop_set_uint32(dev, "vgamem_mb", 16);
         qdev_prop_set_uint16(dev, "x-device-id", 0x5159);

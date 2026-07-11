@@ -695,7 +695,7 @@ static void create_pcie(SBSAMachineState *sms,
 
     pci_init_nic_devices(pci->bus, mc->default_nic);
 
-    pci_create_simple(pci->bus, -1, "bochs-display");
+    pci_create_simple_orphan(pci->bus, -1, "bochs-display");
 
     create_smmu(sms, pci->bus, sysmem, secure_sysmem);
 }

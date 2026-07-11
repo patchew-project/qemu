@@ -236,7 +236,7 @@ static void pc_init1(MachineState *machine, const char *pci_type)
 
     gsi_state = pc_gsi_create(&x86ms->gsi, true);
 
-    pci_dev = pci_new_multifunction(-1, pcms->south_bridge);
+    pci_dev = pci_new_multifunction_orphan(-1, pcms->south_bridge);
     object_property_set_bool(OBJECT(pci_dev), "has-usb",
                              machine_usb(machine), &error_abort);
     object_property_set_bool(OBJECT(pci_dev), "has-acpi",
@@ -384,7 +384,7 @@ static void pc_xen_hvm_init(MachineState *machine)
                       : TYPE_I440FX_PCI_DEVICE);
 
     xen_igd_reserve_slot(pcms->pcibus);
-    pci_create_simple(pcms->pcibus, -1, "xen-platform");
+    pci_create_simple_orphan(pcms->pcibus, -1, "xen-platform");
 }
 #endif
 

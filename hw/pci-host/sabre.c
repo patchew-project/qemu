@@ -383,7 +383,7 @@ static void sabre_realize(DeviceState *dev, Error **errp)
                                      &s->pci_ioport,
                                      0, 0x40, TYPE_PCI_BUS);
 
-    pci_create_simple(phb->bus, 0, TYPE_SABRE_PCI_DEVICE);
+    pci_create_simple_orphan(phb->bus, 0, TYPE_SABRE_PCI_DEVICE);
 
     /* IOMMU */
     memory_region_add_subregion_overlap(&s->sabre_config, 0x200,
@@ -391,12 +391,12 @@ static void sabre_realize(DeviceState *dev, Error **errp)
     pci_setup_iommu(phb->bus, &sabre_iommu_ops, s->iommu);
 
     /* APB secondary busses */
-    pci_dev = pci_new_multifunction(PCI_DEVFN(1, 0), TYPE_SIMBA_PCI_BRIDGE);
+    pci_dev = pci_new_multifunction_orphan(PCI_DEVFN(1, 0), TYPE_SIMBA_PCI_BRIDGE);
     s->bridgeB = PCI_BRIDGE(pci_dev);
     pci_bridge_map_irq(s->bridgeB, "pciB", pci_simbaB_map_irq);
     pci_realize_and_unref(pci_dev, phb->bus, &error_fatal);
 
-    pci_dev = pci_new_multifunction(PCI_DEVFN(1, 1), TYPE_SIMBA_PCI_BRIDGE);
+    pci_dev = pci_new_multifunction_orphan(PCI_DEVFN(1, 1), TYPE_SIMBA_PCI_BRIDGE);
     s->bridgeA = PCI_BRIDGE(pci_dev);
     pci_bridge_map_irq(s->bridgeA, "pciA", pci_simbaA_map_irq);
     pci_realize_and_unref(pci_dev, phb->bus, &error_fatal);

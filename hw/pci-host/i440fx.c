@@ -282,7 +282,7 @@ static void i440fx_pcihost_realize(DeviceState *dev, Error **errp)
                          s->io_memory, 0, TYPE_PCI_BUS);
     phb->bus = b;
 
-    d = pci_create_simple(b, 0, s->pci_type);
+    d = pci_create_simple_orphan(b, 0, s->pci_type);
     f = I440FX_PCI_DEVICE(d);
 
     range_set_bounds(&s->pci_hole, s->below_4g_mem_size,

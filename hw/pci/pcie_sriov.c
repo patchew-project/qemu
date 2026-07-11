@@ -171,7 +171,7 @@ bool pcie_sriov_pf_init(PCIDevice *dev, uint16_t offset,
     dev->exp.sriov_pf.vf = g_new(PCIDevice *, total_vfs);
 
     for (uint16_t i = 0; i < total_vfs; i++) {
-        PCIDevice *vf = pci_new(devfn, vfname);
+        PCIDevice *vf = pci_new_orphan(devfn, vfname);
         vf->exp.sriov_vf.pf = dev;
         vf->exp.sriov_vf.vf_number = i;
 

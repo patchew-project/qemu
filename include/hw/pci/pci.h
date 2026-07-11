@@ -1088,13 +1088,23 @@ pci_set_quad_by_mask(uint8_t *config, uint64_t mask, uint64_t reg)
     pci_set_quad(config, (~mask & val) | (mask & rval));
 }
 
-PCIDevice *pci_new_multifunction(int devfn, const char *name);
-PCIDevice *pci_new(int devfn, const char *name);
+PCIDevice *pci_new_multifunction(Object *parent, const char *id,
+                                 int devfn, const char *type);
+PCIDevice *pci_new(Object *parent, const char *id,
+                   int devfn, const char *type);
+PCIDevice *pci_create_simple_multifunction(Object *parent, const char *id,
+                                           PCIBus *bus, int devfn,
+                                           const char *type);
+PCIDevice *pci_create_simple(Object *parent, const char *id,
+                             PCIBus *bus, int devfn, const char *type);
+
+PCIDevice *pci_new_multifunction_orphan(int devfn, const char *name);
+PCIDevice *pci_new_orphan(int devfn, const char *name);
 bool pci_realize_and_unref(PCIDevice *dev, PCIBus *bus, Error **errp);
 
-PCIDevice *pci_create_simple_multifunction(PCIBus *bus, int devfn,
+PCIDevice *pci_create_simple_multifunction_orphan(PCIBus *bus, int devfn,
                                            const char *name);
-PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name);
+PCIDevice *pci_create_simple_orphan(PCIBus *bus, int devfn, const char *name);
 
 void lsi53c8xx_handle_legacy_cmdline(DeviceState *lsi_dev);
 

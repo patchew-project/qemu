@@ -2118,7 +2118,7 @@ bool pci_init_nic_in_slot(PCIBus *rootbus, const char *model,
         exit(1);
     }
 
-    pci_dev = pci_new(devfn, model);
+    pci_dev = pci_new_orphan(devfn, model);
     qdev_set_nic_properties(&pci_dev->qdev, nd);
     pci_realize_and_unref(pci_dev, bus, &error_fatal);
     return true;
@@ -2129,15 +2129,15 @@ PCIDevice *pci_vga_init(PCIBus *bus)
     vga_interface_created = true;
     switch (vga_interface_type) {
     case VGA_CIRRUS:
-        return pci_create_simple(bus, -1, "cirrus-vga");
+        return pci_create_simple_orphan(bus, -1, "cirrus-vga");
     case VGA_QXL:
-        return pci_create_simple(bus, -1, "qxl-vga");
+        return pci_create_simple_orphan(bus, -1, "qxl-vga");
     case VGA_STD:
-        return pci_create_simple(bus, -1, "VGA");
+        return pci_create_simple_orphan(bus, -1, "VGA");
     case VGA_VMWARE:
-        return pci_create_simple(bus, -1, "vmware-svga");
+        return pci_create_simple_orphan(bus, -1, "vmware-svga");
     case VGA_VIRTIO:
-        return pci_create_simple(bus, -1, "virtio-vga");
+        return pci_create_simple_orphan(bus, -1, "virtio-vga");
     case VGA_NONE:
     default: /* Other non-PCI types. Checking for unsupported types is already
                 done in vl.c. */
@@ -2399,12 +2399,53 @@ static PCIDevice *pci_new_internal(int devfn, bool multifunction,
     return PCI_DEVICE(dev);
 }
 
-PCIDevice *pci_new_multifunction(int devfn, const char *name)
+static PCIDevice *pci_new_child_internal(Object *parent, const char *id,
+                                          int devfn, bool multifunction,
+                                          const char *type)
+{
+    DeviceState *dev;
+
+    dev = qdev_new(parent, id, type);
+    qdev_prop_set_int32(dev, "addr", devfn);
+    qdev_prop_set_bit(dev, "multifunction", multifunction);
+    return PCI_DEVICE(dev);
+}
+
+PCIDevice *pci_new_multifunction(Object *parent, const char *id,
+                                 int devfn, const char *type)
+{
+    return pci_new_child_internal(parent, id, devfn, true, type);
+}
+
+PCIDevice *pci_new(Object *parent, const char *id,
+                   int devfn, const char *type)
+{
+    return pci_new_child_internal(parent, id, devfn, false, type);
+}
+
+PCIDevice *pci_create_simple_multifunction(Object *parent, const char *id,
+                                           PCIBus *bus, int devfn,
+                                           const char *type)
+{
+    PCIDevice *dev = pci_new_multifunction(parent, id, devfn, type);
+    qdev_realize(DEVICE(dev), BUS(bus), &error_fatal);
+    return dev;
+}
+
+PCIDevice *pci_create_simple(Object *parent, const char *id,
+                             PCIBus *bus, int devfn, const char *type)
+{
+    PCIDevice *dev = pci_new(parent, id, devfn, type);
+    qdev_realize(DEVICE(dev), BUS(bus), &error_fatal);
+    return dev;
+}
+
+PCIDevice *pci_new_multifunction_orphan(int devfn, const char *name)
 {
     return pci_new_internal(devfn, true, name);
 }
 
-PCIDevice *pci_new(int devfn, const char *name)
+PCIDevice *pci_new_orphan(int devfn, const char *name)
 {
     return pci_new_internal(devfn, false, name);
 }
@@ -2414,17 +2455,17 @@ bool pci_realize_and_unref(PCIDevice *dev, PCIBus *bus, Error **errp)
     return qdev_realize_and_unref(&dev->qdev, &bus->qbus, errp);
 }
 
-PCIDevice *pci_create_simple_multifunction(PCIBus *bus, int devfn,
+PCIDevice *pci_create_simple_multifunction_orphan(PCIBus *bus, int devfn,
                                            const char *name)
 {
-    PCIDevice *dev = pci_new_multifunction(devfn, name);
+    PCIDevice *dev = pci_new_multifunction_orphan(devfn, name);
     pci_realize_and_unref(dev, bus, &error_fatal);
     return dev;
 }
 
-PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name)
+PCIDevice *pci_create_simple_orphan(PCIBus *bus, int devfn, const char *name)
 {
-    PCIDevice *dev = pci_new(devfn, name);
+    PCIDevice *dev = pci_new_orphan(devfn, name);
     pci_realize_and_unref(dev, bus, &error_fatal);
     return dev;
 }

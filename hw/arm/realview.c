@@ -297,11 +297,11 @@ static void realview_init(MachineState *machine,
         sysbus_connect_irq(busdev, 3, pic[51]);
         pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci");
         if (machine_usb(machine)) {
-            pci_create_simple(pci_bus, -1, "pci-ohci");
+            pci_create_simple_orphan(pci_bus, -1, "pci-ohci");
         }
         n = drive_get_max_bus(IF_SCSI);
         while (n >= 0) {
-            dev = DEVICE(pci_create_simple(pci_bus, -1, "lsi53c895a"));
+            dev = DEVICE(pci_create_simple_orphan(pci_bus, -1, "lsi53c895a"));
             lsi53c8xx_handle_legacy_cmdline(dev);
             n--;
         }

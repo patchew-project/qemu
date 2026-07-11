@@ -355,7 +355,7 @@ static void amigaone_init(MachineState *machine)
     pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci.0"));
 
     /* VIA VT82c686B South Bridge (multifunction PCI device) */
-    via = OBJECT(pci_create_simple_multifunction(pci_bus, PCI_DEVFN(7, 0),
+    via = OBJECT(pci_create_simple_multifunction_orphan(pci_bus, PCI_DEVFN(7, 0),
                                                  TYPE_VT82C686B_ISA));
     object_property_add_alias(OBJECT(machine), "rtc-time",
                               object_resolve_path_component(via, "rtc"),

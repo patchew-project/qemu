@@ -142,7 +142,7 @@ static void sh_pcic_host_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->memconfig_a7);
     memory_region_add_subregion(get_system_memory(), 0xfe240000, &s->isa);
 
-    s->dev = pci_create_simple(phb->bus, PCI_DEVFN(0, 0), "sh_pci_host");
+    s->dev = pci_create_simple_orphan(phb->bus, PCI_DEVFN(0, 0), "sh_pci_host");
 }
 
 static void sh_pcic_pci_realize(PCIDevice *d, Error **errp)

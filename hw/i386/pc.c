@@ -1104,7 +1104,7 @@ void pc_basic_device_init(struct PCMachineState *pcms,
         xen_gnttab_create();
         xen_xenstore_create();
         if (pcms->pcibus) {
-            pci_create_simple(pcms->pcibus, -1, "xen-platform");
+            pci_create_simple_orphan(pcms->pcibus, -1, "xen-platform");
         }
         xen_bus_init();
     }

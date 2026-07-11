@@ -270,11 +270,11 @@ static void versatile_init(MachineState *machine, int board_id)
     pci_init_nic_devices(pci_bus, "rtl8139");
 
     if (machine_usb(machine)) {
-        pci_create_simple(pci_bus, -1, "pci-ohci");
+        pci_create_simple_orphan(pci_bus, -1, "pci-ohci");
     }
     n = drive_get_max_bus(IF_SCSI);
     while (n >= 0) {
-        dev = DEVICE(pci_create_simple(pci_bus, -1, "lsi53c895a"));
+        dev = DEVICE(pci_create_simple_orphan(pci_bus, -1, "lsi53c895a"));
         lsi53c8xx_handle_legacy_cmdline(dev);
         n--;
     }

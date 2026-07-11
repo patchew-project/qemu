@@ -1204,7 +1204,7 @@ static void gt64120_realize(DeviceState *dev, Error **errp)
                                 get_system_io(),
                                 PCI_DEVFN(18, 0), TYPE_PCI_BUS);
 
-    pci_create_simple(phb->bus, PCI_DEVFN(0, 0), "gt64120_pci");
+    pci_create_simple_orphan(phb->bus, PCI_DEVFN(0, 0), "gt64120_pci");
     memory_region_init_io(&phb->conf_mem, OBJECT(phb),
                           &pci_host_conf_le_ops,
                           s, "pci-conf-idx", 4);

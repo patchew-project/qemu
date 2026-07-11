@@ -422,14 +422,14 @@ static void sam460ex_init(MachineState *machine)
     pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci.0"));
 
     /* PCI devices */
-    pci_create_simple(pci_bus, PCI_DEVFN(6, 0), "sm501");
+    pci_create_simple_orphan(pci_bus, PCI_DEVFN(6, 0), "sm501");
     /*
      * SoC has a single SATA port but we don't emulate that
      * However, firmware and usual clients have driver for SiI311x
      * PCI SATA card so add one for convenience by default
      */
     if (defaults_enabled()) {
-        PCIIDEState *s = PCI_IDE(pci_create_simple(pci_bus, -1, "sii3112"));
+        PCIIDEState *s = PCI_IDE(pci_create_simple_orphan(pci_bus, -1, "sii3112"));
         DriveInfo *di;
 
         di = drive_get_by_index(IF_IDE, 0);

@@ -747,7 +747,7 @@ PCIBus *bonito_init(qemu_irq *pic)
     pcihost->pic = pic;
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
-    d = pci_new(PCI_DEVFN(0, 0), TYPE_PCI_BONITO);
+    d = pci_new_orphan(PCI_DEVFN(0, 0), TYPE_PCI_BONITO);
     s = PCI_BONITO(d);
     s->pcihost = pcihost;
     pcihost->pci_dev = s;

@@ -126,7 +126,7 @@ static void pci_unin_main_realize(DeviceState *dev, Error **errp)
                                    &s->pci_io,
                                    PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
 
-    pci_create_simple(h->bus, PCI_DEVFN(11, 0), "uni-north-pci");
+    pci_create_simple_orphan(h->bus, PCI_DEVFN(11, 0), "uni-north-pci");
 
     /*
      * DEC 21154 bridge was unused for many years, this comment is
@@ -176,7 +176,7 @@ static void pci_u3_agp_realize(DeviceState *dev, Error **errp)
                                    &s->pci_io,
                                    PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
 
-    pci_create_simple(h->bus, PCI_DEVFN(11, 0), "u3-agp");
+    pci_create_simple_orphan(h->bus, PCI_DEVFN(11, 0), "u3-agp");
 }
 
 static void pci_u3_agp_init(Object *obj)
@@ -220,7 +220,7 @@ static void pci_unin_agp_realize(DeviceState *dev, Error **errp)
                                    &s->pci_io,
                                    PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
 
-    pci_create_simple(h->bus, PCI_DEVFN(11, 0), "uni-north-agp");
+    pci_create_simple_orphan(h->bus, PCI_DEVFN(11, 0), "uni-north-agp");
 }
 
 static void pci_unin_agp_init(Object *obj)
@@ -253,7 +253,7 @@ static void pci_unin_internal_realize(DeviceState *dev, Error **errp)
                                    &s->pci_io,
                                    PCI_DEVFN(14, 0), 4, TYPE_PCI_BUS);
 
-    pci_create_simple(h->bus, PCI_DEVFN(14, 0), "uni-north-internal-pci");
+    pci_create_simple_orphan(h->bus, PCI_DEVFN(14, 0), "uni-north-internal-pci");
 }
 
 static void pci_unin_internal_init(Object *obj)

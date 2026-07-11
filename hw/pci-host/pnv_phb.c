@@ -167,7 +167,7 @@ static void pnv_phb_realize(DeviceState *dev, Error **errp)
     }
 
     if (defaults_enabled()) {
-        PCIDevice *root = pci_new(PCI_DEVFN(0, 0), TYPE_PNV_PHB_ROOT_PORT);
+        PCIDevice *root = pci_new_orphan(PCI_DEVFN(0, 0), TYPE_PNV_PHB_ROOT_PORT);
 
         pci_realize_and_unref(root, pci->bus, errp);
     }

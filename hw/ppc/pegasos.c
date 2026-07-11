@@ -241,7 +241,7 @@ static void pegasos_init(MachineState *machine)
 
     /* VIA VT8231 South Bridge (multifunction PCI device) */
     devfn = PCI_DEVFN(pm->type == PEGASOS1 ? 7 : 12, 0);
-    pm->sb = DEVICE(pci_new_multifunction(devfn, TYPE_VT8231_ISA));
+    pm->sb = DEVICE(pci_new_multifunction_orphan(devfn, TYPE_VT8231_ISA));
     via = OBJECT(pm->sb);
 
     /* Set properties on individual devices before realizing the south bridge */

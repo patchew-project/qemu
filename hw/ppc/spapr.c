@@ -3075,7 +3075,7 @@ static void spapr_machine_init(MachineState *machine)
     }
 
     if (machine->usb) {
-        pci_create_simple(phb->bus, -1, "nec-usb-xhci");
+        pci_create_simple_orphan(phb->bus, -1, "nec-usb-xhci");
 
         if (has_vga) {
             USBBus *usb_bus;

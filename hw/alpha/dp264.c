@@ -110,7 +110,7 @@ static void clipper_init(MachineState *machine)
      * Importantly, we need to provide a PCI device node for it, otherwise
      * some operating systems won't notice there's an ISA bus to configure.
      */
-    i82378_dev = DEVICE(pci_create_simple(pci_bus, PCI_DEVFN(7, 0), "i82378"));
+    i82378_dev = DEVICE(pci_create_simple_orphan(pci_bus, PCI_DEVFN(7, 0), "i82378"));
     isa_bus = ISA_BUS(qdev_get_child_bus(i82378_dev, "isa.0"));
 
     /* Connect the ISA PIC to the Typhoon IRQ used for ISA interrupts. */
@@ -129,7 +129,7 @@ static void clipper_init(MachineState *machine)
     isa_create_simple(isa_bus, TYPE_SMC37C669_SUPERIO);
 
     /* IDE disk setup.  */
-    pci_dev = pci_create_simple(pci_bus, -1, "cmd646-ide");
+    pci_dev = pci_create_simple_orphan(pci_bus, -1, "cmd646-ide");
     pci_ide_create_devs(pci_dev);
 
     /* Load PALcode.  Given that this is not "real" cpu palcode,

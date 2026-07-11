@@ -399,7 +399,7 @@ void xen_igd_passthrough_isa_bridge_create(XenPCIPassthroughState *s,
     }
 
     /* Currently IGD drivers always need to access PCH by 1f.0. */
-    bridge_dev = pci_create_simple(bus, PCI_DEVFN(0x1f, 0),
+    bridge_dev = pci_create_simple_orphan(bus, PCI_DEVFN(0x1f, 0),
                                    "igd-passthrough-isa-bridge");
 
     /*

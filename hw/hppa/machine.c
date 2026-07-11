@@ -428,7 +428,7 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
 
     if (pci_bus && hppa_is_pa20(&cpu[0]->env)) {
         /* BMC board: HP Diva GSP PCI card */
-        pci_dev = pci_new_multifunction(PCI_DEVFN(2, 0), "diva-gsp");
+        pci_dev = pci_new_multifunction_orphan(PCI_DEVFN(2, 0), "diva-gsp");
         if (!lasi_dev) {
             /* bind default keyboard/serial to Diva card */
             qdev_prop_set_chr(DEVICE(pci_dev), "chardev1", serial_hd(0));
@@ -443,7 +443,7 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
     if (!lasi_dev && machine->enable_graphics && defaults_enabled()) {
         USBBus *usb_bus;
 
-        pci_create_simple(pci_bus, -1, "pci-ohci");
+        pci_create_simple_orphan(pci_bus, -1, "pci-ohci");
         usb_bus = USB_BUS(object_resolve_type_unambiguous(TYPE_USB_BUS,
                                                           &error_abort));
         usb_create_simple(usb_bus, "usb-kbd");
@@ -721,7 +721,7 @@ static void machine_HP_B160L_init(MachineState *machine)
 
     /* SCSI disk setup. */
     if (drive_get_max_bus(IF_SCSI) >= 0) {
-        dev = DEVICE(pci_create_simple(pci_bus, -1, "lsi53c895a"));
+        dev = DEVICE(pci_create_simple_orphan(pci_bus, -1, "lsi53c895a"));
         lsi53c8xx_handle_legacy_cmdline(dev);
     }
 
@@ -773,7 +773,7 @@ static void machine_HP_C3700_init(MachineState *machine)
 
     /* SCSI disk setup. */
     if (drive_get_max_bus(IF_SCSI) >= 0) {
-        DeviceState *dev = DEVICE(pci_create_simple(pci_bus, -1, "lsi53c895a"));
+        DeviceState *dev = DEVICE(pci_create_simple_orphan(pci_bus, -1, "lsi53c895a"));
         lsi53c8xx_handle_legacy_cmdline(dev);
     }
 
