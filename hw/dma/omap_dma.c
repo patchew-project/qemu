@@ -1109,7 +1109,7 @@ struct soc_dma_s *omap_dma_init(Object *owner, hwaddr base, qemu_irq *irqs,
     s->dma->freq = omap_clk_getrate(clk);
     s->dma->transfer_fn = omap_dma_transfer_generic;
     s->dma->setup_fn = omap_dma_transfer_setup;
-    s->dma->drq = qemu_allocate_irqs_orphan(omap_dma_request, s, 32);
+    s->dma->drq = qemu_allocate_irqs(owner, "drq", omap_dma_request, s, 32);
     s->dma->opaque = s;
 
     while (num_irqs --)
@@ -1123,7 +1123,8 @@ struct soc_dma_s *omap_dma_init(Object *owner, hwaddr base, qemu_irq *irqs,
         s->dma->ch[i].opaque = &s->ch[i];
     }
 
-    omap_clk_adduser(s->clk, qemu_allocate_irq_orphan(omap_dma_clk_update, s, 0));
+    omap_clk_adduser(s->clk, qemu_allocate_irq(owner, "clk-irq",
+                                               omap_dma_clk_update, s, 0));
     omap_dma_reset(s->dma);
     omap_dma_clk_update(s, 0, 1);
 

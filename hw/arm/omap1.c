@@ -136,10 +136,11 @@ static void omap_timer_clk_update(void *opaque, int line, int on)
     omap_timer_update(timer);
 }
 
-static void omap_timer_clk_setup(struct omap_mpu_timer_s *timer)
+static void omap_timer_clk_setup(Object *owner, struct omap_mpu_timer_s *timer)
 {
     omap_clk_adduser(timer->clk,
-                    qemu_allocate_irq_orphan(omap_timer_clk_update, timer, 0));
+                    qemu_allocate_irq(owner, "rate-irq[*]",
+                                      omap_timer_clk_update, timer, 0));
     timer->rate = omap_clk_getrate(timer->clk);
 }
 
@@ -232,7 +233,7 @@ static struct omap_mpu_timer_s *omap_mpu_timer_init(Object *owner,
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, omap_timer_tick, s);
     s->tick = qemu_bh_new(omap_timer_fire, s);
     omap_mpu_timer_reset(s);
-    omap_timer_clk_setup(s);
+    omap_timer_clk_setup(owner, s);
 
     memory_region_init_io(&s->iomem, owner, &omap_mpu_timer_ops, s,
                           "omap-mpu-timer", 0x100);
@@ -363,7 +364,7 @@ static struct omap_watchdog_timer_s *omap_wd_timer_init(Object *owner,
     s->timer.clk = clk;
     s->timer.timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, omap_timer_tick, &s->timer);
     omap_wd_timer_reset(s);
-    omap_timer_clk_setup(&s->timer);
+    omap_timer_clk_setup(owner, &s->timer);
 
     memory_region_init_io(&s->iomem, owner, &omap_wd_timer_ops, s,
                           "omap-wd-timer", 0x100);
@@ -472,7 +473,7 @@ static struct omap_32khz_timer_s *omap_os_timer_init(Object *owner,
     s->timer.clk = clk;
     s->timer.timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, omap_timer_tick, &s->timer);
     omap_os_timer_reset(s);
-    omap_timer_clk_setup(&s->timer);
+    omap_timer_clk_setup(owner, &s->timer);
 
     memory_region_init_io(&s->iomem, owner, &omap_os_timer_ops, s,
                           "omap-os-timer", 0x800);
@@ -2083,14 +2084,15 @@ static struct omap_mpuio_s *omap_mpuio_init(Object *owner,
 
     s->irq = gpio_int;
     s->kbd_irq = kbd_int;
-    s->in = qemu_allocate_irqs_orphan(omap_mpuio_set, s, 16);
+    s->in = qemu_allocate_irqs(owner, "mpuio-in", omap_mpuio_set, s, 16);
     omap_mpuio_reset(s);
 
     memory_region_init_io(&s->iomem, owner, &omap_mpuio_ops, s,
                           "omap-mpuio", 0x800);
     memory_region_add_subregion(memory, base, &s->iomem);
 
-    omap_clk_adduser(clk, qemu_allocate_irq_orphan(omap_mpuio_onoff, s, 0));
+    omap_clk_adduser(clk, qemu_allocate_irq(owner, "mpuio-clk-onoff[*]",
+                                            omap_mpuio_onoff, s, 0));
 
     return s;
 }
@@ -2363,7 +2365,8 @@ static struct omap_pwl_s *omap_pwl_init(Object *owner,
                           "omap-pwl", 0x800);
     memory_region_add_subregion(system_memory, base, &s->iomem);
 
-    omap_clk_adduser(clk, qemu_allocate_irq_orphan(omap_pwl_clk_update, s, 0));
+    omap_clk_adduser(clk, qemu_allocate_irq(owner, "pwl-clk-irq[*]",
+                                            omap_pwl_clk_update, s, 0));
     return s;
 }
 
@@ -3423,11 +3426,12 @@ static void omap_mcbsp_i2s_start(void *opaque, int line, int level)
     }
 }
 
-void omap_mcbsp_i2s_attach(struct omap_mcbsp_s *s, I2SCodec *slave)
+void omap_mcbsp_i2s_attach(Object *owner, struct omap_mcbsp_s *s, I2SCodec *slave)
 {
     s->codec = slave;
-    slave->rx_swallow = qemu_allocate_irq_orphan(omap_mcbsp_i2s_swallow, s, 0);
-    slave->tx_start = qemu_allocate_irq_orphan(omap_mcbsp_i2s_start, s, 0);
+    slave->rx_swallow = qemu_allocate_irq(owner, "rx-swallow[*]",
+                                          omap_mcbsp_i2s_swallow, s, 0);
+    slave->tx_start = qemu_allocate_irq(owner, "tx-start[*]", omap_mcbsp_i2s_start, s, 0);
 }
 
 /* LED Pulse Generators */
@@ -3579,7 +3583,8 @@ static struct omap_lpg_s *omap_lpg_init(Object *owner,
                           "omap-lpg", 0x800);
     memory_region_add_subregion(system_memory, base, &s->iomem);
 
-    omap_clk_adduser(clk, qemu_allocate_irq_orphan(omap_lpg_clk_update, s, 0));
+    omap_clk_adduser(clk, qemu_allocate_irq(owner, "lpg-clk-irq[*]",
+                                            omap_lpg_clk_update, s, 0));
 
     return s;
 }

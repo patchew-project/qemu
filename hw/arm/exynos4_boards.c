@@ -146,7 +146,8 @@ static void smdkc210_init(MachineState *machine)
                                                       EXYNOS4_BOARD_SMDKC210);
 
     lan9215_init(SMDK_LAN9118_BASE_ADDR,
-            qemu_irq_invert_orphan(s->soc.irq_table[exynos4210_get_irq(37, 1)]));
+            qemu_irq_invert(OBJECT(machine), "lan9118-irq-inv",
+                            s->soc.irq_table[exynos4210_get_irq(37, 1)]));
     arm_load_kernel(s->soc.cpu[0], machine, &exynos4_board_binfo);
 }
 

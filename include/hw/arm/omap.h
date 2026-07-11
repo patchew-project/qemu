@@ -291,7 +291,7 @@ struct I2SCodec {
     } in, out;
 };
 struct omap_mcbsp_s;
-void omap_mcbsp_i2s_attach(struct omap_mcbsp_s *s, I2SCodec *slave);
+void omap_mcbsp_i2s_attach(Object *owner, struct omap_mcbsp_s *s, I2SCodec *slave);
 
 /* omap_lcdc.c */
 struct omap_lcd_panel_s;

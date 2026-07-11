@@ -693,7 +693,8 @@ static void armsse_forward_sec_resp_cfg(ARMSSE *s)
     DeviceState *dev_splitter = DEVICE(&s->sec_resp_splitter);
 
     qdev_init_gpio_out_named(dev, &s->sec_resp_cfg, "sec_resp_cfg", 1);
-    s->sec_resp_cfg_in = qemu_allocate_irq_orphan(irq_status_forwarder,
+    s->sec_resp_cfg_in = qemu_allocate_irq(OBJECT(s), "sec-resp-cfg-in",
+                                           irq_status_forwarder,
                                            s->sec_resp_cfg, 1);
     qdev_connect_gpio_out(dev_splitter, 2, s->sec_resp_cfg_in);
 }
@@ -1137,7 +1138,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(sbd_secctl, 0, 0x50080000);
     sysbus_mmio_map(sbd_secctl, 1, 0x40080000);
 
-    s->nsc_cfg_in = qemu_allocate_irq_orphan(nsccfg_handler, s, 1);
+    s->nsc_cfg_in = qemu_allocate_irq(OBJECT(dev), "nsc-cfg-in", nsccfg_handler, s, 1);
     qdev_connect_gpio_out_named(dev_secctl, "nsc_cfg", 0, s->nsc_cfg_in);
 
     /* The sec_resp_cfg output from the security controller must be split into

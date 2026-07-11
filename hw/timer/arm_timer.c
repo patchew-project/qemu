@@ -305,8 +305,10 @@ static void sp804_realize(DeviceState *dev, Error **errp)
 
     s->timer[0] = arm_timer_init(s->freq0);
     s->timer[1] = arm_timer_init(s->freq1);
-    s->timer[0]->irq = qemu_allocate_irq_orphan(sp804_set_irq, s, 0);
-    s->timer[1]->irq = qemu_allocate_irq_orphan(sp804_set_irq, s, 1);
+    s->timer[0]->irq = qemu_allocate_irq(OBJECT(dev), "timer-irq[*]",
+                                         sp804_set_irq, s, 0);
+    s->timer[1]->irq = qemu_allocate_irq(OBJECT(dev), "timer-irq[*]",
+                                         sp804_set_irq, s, 1);
 }
 
 /* Integrator/CP timer module.  */
