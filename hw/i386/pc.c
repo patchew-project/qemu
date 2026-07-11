@@ -505,7 +505,7 @@ static gboolean pc_init_ne2k_isa(ISABus *bus, NICInfo *nd, Error **errp)
                    "maximum number of ISA NE2000 devices exceeded");
         return false;
     }
-    isa_ne2000_init(bus, ne2000_io[nb_ne2k],
+    isa_ne2000_init(qdev_get_machine(), bus, ne2000_io[nb_ne2k],
                     ne2000_irq[nb_ne2k], nd);
     nb_ne2k++;
     return true;
@@ -1118,9 +1118,9 @@ void pc_basic_device_init(struct PCMachineState *pcms,
     if (!xen_enabled() &&
         (x86ms->pit == ON_OFF_AUTO_AUTO || x86ms->pit == ON_OFF_AUTO_ON)) {
         if (kvm_pit_in_kernel()) {
-            pit = kvm_pit_init(isa_bus, 0x40);
+            pit = kvm_pit_init(OBJECT(pcms), isa_bus, 0x40);
         } else {
-            pit = i8254_pit_init(isa_bus, 0x40, pit_isa_irq, pit_alt_irq);
+            pit = i8254_pit_init(OBJECT(pcms), isa_bus, 0x40, pit_isa_irq, pit_alt_irq);
         }
         if (hpet) {
             /* connect PIT to output control line of the HPET */

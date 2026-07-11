@@ -261,9 +261,9 @@ static void microvm_devices_init(MicrovmMachineState *mms)
 
     if (x86ms->pit == ON_OFF_AUTO_ON || x86ms->pit == ON_OFF_AUTO_AUTO) {
         if (kvm_pit_in_kernel()) {
-            kvm_pit_init(isa_bus, 0x40);
+            kvm_pit_init(OBJECT(mms), isa_bus, 0x40);
         } else {
-            i8254_pit_init(isa_bus, 0x40, 0, NULL);
+            i8254_pit_init(OBJECT(mms), isa_bus, 0x40, 0, NULL);
         }
     }
 

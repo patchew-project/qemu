@@ -334,7 +334,7 @@ static void pci_piix_realize(PCIDevice *dev, const char *uhci_type,
 
     /* PIT */
     if (d->has_pit) {
-        i8254_pit_init(isa_bus, 0x40, 0, NULL);
+        i8254_pit_init(OBJECT(d), isa_bus, 0x40, 0, NULL);
     }
 
     i8257_dma_init(OBJECT(dev), isa_bus, 0);
