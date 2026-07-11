@@ -115,15 +115,4 @@ static inline DeviceState *sysbus_create_simple(Object *parent,
     return sysbus_create_varargs(parent, id, type, addr, irq, NULL);
 }
 
-/* Legacy helper function for creating unparented devices.  */
-DeviceState *sysbus_create_varargs_orphan(const char *name,
-                                 hwaddr addr, ...);
-
-static inline DeviceState *sysbus_create_simple_orphan(const char *name,
-                                              hwaddr addr,
-                                              qemu_irq irq)
-{
-    return sysbus_create_varargs_orphan(name, addr, irq, NULL);
-}
-
 #endif /* HW_SYSBUS_H */

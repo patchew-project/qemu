@@ -242,35 +242,6 @@ DeviceState *sysbus_create_varargs(Object *parent, const char *id,
     return dev;
 }
 
-DeviceState *sysbus_create_varargs_orphan(const char *name,
-                                   hwaddr addr, ...)
-{
-    DeviceState *dev;
-    SysBusDevice *s;
-    va_list va;
-    qemu_irq irq;
-    int n;
-
-    dev = qdev_new_orphan(name);
-    s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
-    if (addr != (hwaddr)-1) {
-        sysbus_mmio_map(s, 0, addr);
-    }
-    va_start(va, addr);
-    n = 0;
-    while (1) {
-        irq = va_arg(va, qemu_irq);
-        if (!irq) {
-            break;
-        }
-        sysbus_connect_irq(s, n, irq);
-        n++;
-    }
-    va_end(va);
-    return dev;
-}
-
 bool sysbus_realize(SysBusDevice *dev, Error **errp)
 {
     return qdev_realize(DEVICE(dev), sysbus_get_default(), errp);
