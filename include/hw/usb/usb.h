@@ -599,13 +599,4 @@ static inline USBDevice *usb_create_simple(Object *parent, const char *id,
     return dev;
 }
 
-static inline USBDevice *usb_create_simple_orphan(USBBus *bus,
-                                                    const char *name)
-{
-    USBDevice *dev = USB_DEVICE(qdev_new_orphan(name));
-
-    usb_realize_and_unref(dev, bus, &error_abort);
-    return dev;
-}
-
 #endif

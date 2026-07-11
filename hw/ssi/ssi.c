@@ -147,14 +147,6 @@ DeviceState *ssi_create_peripheral(Object *parent, const char *id,
     return dev;
 }
 
-DeviceState *ssi_create_peripheral_orphan(SSIBus *bus, const char *name)
-{
-    DeviceState *dev = qdev_new_orphan(name);
-
-    ssi_realize_and_unref(dev, bus, &error_fatal);
-    return dev;
-}
-
 SSIBus *ssi_create_bus(DeviceState *parent, const char *name)
 {
     BusState *bus;
