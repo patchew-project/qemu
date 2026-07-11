@@ -471,7 +471,7 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
     /*
      * PCIe PHY
      */
-    create_unimplemented_device("pcie-phy", FSL_IMX6_PCIe_ADDR,
+    create_unimplemented_device(OBJECT(dev), "pcie-phy", FSL_IMX6_PCIe_ADDR,
                                 FSL_IMX6_PCIe_SIZE);
 
     /* ROM memory */

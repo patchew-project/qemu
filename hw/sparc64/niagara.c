@@ -98,6 +98,7 @@ static void add_rom_or_fail(const char *file, const hwaddr addr)
 /* Niagara hardware initialisation */
 static void niagara_init(MachineState *machine)
 {
+    Object *obj = OBJECT(machine);
     NiagaraBoardState *s = g_new(NiagaraBoardState, 1);
     DriveInfo *dinfo = drive_get(IF_PFLASH, 0, 0);
     MemoryRegion *sysmem = get_system_memory();
@@ -153,7 +154,7 @@ static void niagara_init(MachineState *machine)
     }
     serial_mm_init(OBJECT(machine), sysmem, NIAGARA_UART_BASE, 0, NULL,
                    115200, serial_hd(0), DEVICE_BIG_ENDIAN);
-    create_unimplemented_device("sun4v-iob", NIAGARA_IOBBASE, NIAGARA_IOBSIZE);
+    create_unimplemented_device(obj, "sun4v-iob", NIAGARA_IOBBASE, NIAGARA_IOBSIZE);
     sun4v_rtc_init(OBJECT(machine), NIAGARA_RTC_BASE);
 }
 

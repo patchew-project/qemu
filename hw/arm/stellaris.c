@@ -1381,12 +1381,12 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     /* Add dummy regions for the devices we don't implement yet,
      * so guest accesses don't cause unlogged crashes.
      */
-    create_unimplemented_device("PWM", 0x40028000, 0x1000);
-    create_unimplemented_device("QEI-0", 0x4002c000, 0x1000);
-    create_unimplemented_device("QEI-1", 0x4002d000, 0x1000);
-    create_unimplemented_device("analogue-comparator", 0x4003c000, 0x1000);
-    create_unimplemented_device("hibernation", 0x400fc000, 0x1000);
-    create_unimplemented_device("flash-control", 0x400fd000, 0x1000);
+    create_unimplemented_device(OBJECT(ms), "PWM", 0x40028000, 0x1000);
+    create_unimplemented_device(OBJECT(ms), "QEI-0", 0x4002c000, 0x1000);
+    create_unimplemented_device(OBJECT(ms), "QEI-1", 0x4002d000, 0x1000);
+    create_unimplemented_device(OBJECT(ms), "analogue-comparator", 0x4003c000, 0x1000);
+    create_unimplemented_device(OBJECT(ms), "hibernation", 0x400fc000, 0x1000);
+    create_unimplemented_device(OBJECT(ms), "flash-control", 0x400fd000, 0x1000);
 
     armv7m_load_kernel(ARMV7M(armv7m)->cpu, ms->kernel_filename, 0, flash_size);
 }

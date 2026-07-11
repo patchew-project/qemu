@@ -52,6 +52,7 @@ static void max78000_soc_initfn(Object *obj)
 
 static void max78000_soc_realize(DeviceState *dev_soc, Error **errp)
 {
+    Object *obj = OBJECT(dev_soc);
     MAX78000State *s = MAX78000_SOC(dev_soc);
     MemoryRegion *system_memory = get_system_memory();
     DeviceState *dev, *gcrdev, *armv7m;
@@ -146,52 +147,52 @@ static void max78000_soc_realize(DeviceState *dev_soc, Error **errp)
     sysbus_realize(SYS_BUS_DEVICE(dev), errp);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x40000000);
 
-    create_unimplemented_device("systemInterface",      0x40000400, 0x400);
-    create_unimplemented_device("functionControl",      0x40000800, 0x400);
-    create_unimplemented_device("watchdogTimer0",       0x40003000, 0x400);
-    create_unimplemented_device("dynamicVoltScale",     0x40003c00, 0x40);
-    create_unimplemented_device("SIMO",                 0x40004400, 0x400);
-    create_unimplemented_device("trimSystemInit",       0x40005400, 0x400);
-    create_unimplemented_device("generalCtrlFunc",      0x40005800, 0x400);
-    create_unimplemented_device("wakeupTimer",          0x40006400, 0x400);
-    create_unimplemented_device("powerSequencer",       0x40006800, 0x400);
-    create_unimplemented_device("miscControl",          0x40006c00, 0x400);
+    create_unimplemented_device(obj, "systemInterface",      0x40000400, 0x400);
+    create_unimplemented_device(obj, "functionControl",      0x40000800, 0x400);
+    create_unimplemented_device(obj, "watchdogTimer0",       0x40003000, 0x400);
+    create_unimplemented_device(obj, "dynamicVoltScale",     0x40003c00, 0x40);
+    create_unimplemented_device(obj, "SIMO",                 0x40004400, 0x400);
+    create_unimplemented_device(obj, "trimSystemInit",       0x40005400, 0x400);
+    create_unimplemented_device(obj, "generalCtrlFunc",      0x40005800, 0x400);
+    create_unimplemented_device(obj, "wakeupTimer",          0x40006400, 0x400);
+    create_unimplemented_device(obj, "powerSequencer",       0x40006800, 0x400);
+    create_unimplemented_device(obj, "miscControl",          0x40006c00, 0x400);
 
-    create_unimplemented_device("gpio0",                0x40008000, 0x1000);
-    create_unimplemented_device("gpio1",                0x40009000, 0x1000);
+    create_unimplemented_device(obj, "gpio0",                0x40008000, 0x1000);
+    create_unimplemented_device(obj, "gpio1",                0x40009000, 0x1000);
 
-    create_unimplemented_device("parallelCamInterface", 0x4000e000, 0x1000);
-    create_unimplemented_device("CRC",                  0x4000f000, 0x1000);
+    create_unimplemented_device(obj, "parallelCamInterface", 0x4000e000, 0x1000);
+    create_unimplemented_device(obj, "CRC",                  0x4000f000, 0x1000);
 
-    create_unimplemented_device("timer0",               0x40010000, 0x1000);
-    create_unimplemented_device("timer1",               0x40011000, 0x1000);
-    create_unimplemented_device("timer2",               0x40012000, 0x1000);
-    create_unimplemented_device("timer3",               0x40013000, 0x1000);
+    create_unimplemented_device(obj, "timer0",               0x40010000, 0x1000);
+    create_unimplemented_device(obj, "timer1",               0x40011000, 0x1000);
+    create_unimplemented_device(obj, "timer2",               0x40012000, 0x1000);
+    create_unimplemented_device(obj, "timer3",               0x40013000, 0x1000);
 
-    create_unimplemented_device("i2c0",                 0x4001d000, 0x1000);
-    create_unimplemented_device("i2c1",                 0x4001e000, 0x1000);
-    create_unimplemented_device("i2c2",                 0x4001f000, 0x1000);
+    create_unimplemented_device(obj, "i2c0",                 0x4001d000, 0x1000);
+    create_unimplemented_device(obj, "i2c1",                 0x4001e000, 0x1000);
+    create_unimplemented_device(obj, "i2c2",                 0x4001f000, 0x1000);
 
-    create_unimplemented_device("standardDMA",          0x40028000, 0x1000);
-    create_unimplemented_device("flashController0",     0x40029000, 0x400);
+    create_unimplemented_device(obj, "standardDMA",          0x40028000, 0x1000);
+    create_unimplemented_device(obj, "flashController0",     0x40029000, 0x400);
 
-    create_unimplemented_device("adc",                  0x40034000, 0x1000);
-    create_unimplemented_device("pulseTrainEngine",     0x4003c000, 0xa0);
-    create_unimplemented_device("oneWireMaster",        0x4003d000, 0x1000);
-    create_unimplemented_device("semaphore",            0x4003e000, 0x1000);
+    create_unimplemented_device(obj, "adc",                  0x40034000, 0x1000);
+    create_unimplemented_device(obj, "pulseTrainEngine",     0x4003c000, 0xa0);
+    create_unimplemented_device(obj, "oneWireMaster",        0x4003d000, 0x1000);
+    create_unimplemented_device(obj, "semaphore",            0x4003e000, 0x1000);
 
-    create_unimplemented_device("spi1",                 0x40046000, 0x2000);
-    create_unimplemented_device("i2s",                  0x40060000, 0x1000);
-    create_unimplemented_device("lowPowerControl",      0x40080000, 0x400);
-    create_unimplemented_device("gpio2",                0x40080400, 0x200);
-    create_unimplemented_device("lowPowerWatchdogTimer",    0x40080800, 0x400);
-    create_unimplemented_device("lowPowerTimer4",       0x40080c00, 0x400);
+    create_unimplemented_device(obj, "spi1",                 0x40046000, 0x2000);
+    create_unimplemented_device(obj, "i2s",                  0x40060000, 0x1000);
+    create_unimplemented_device(obj, "lowPowerControl",      0x40080000, 0x400);
+    create_unimplemented_device(obj, "gpio2",                0x40080400, 0x200);
+    create_unimplemented_device(obj, "lowPowerWatchdogTimer",    0x40080800, 0x400);
+    create_unimplemented_device(obj, "lowPowerTimer4",       0x40080c00, 0x400);
 
-    create_unimplemented_device("lowPowerTimer5",       0x40081000, 0x400);
-    create_unimplemented_device("lowPowerUART0",        0x40081400, 0x400);
-    create_unimplemented_device("lowPowerComparator",   0x40088000, 0x400);
+    create_unimplemented_device(obj, "lowPowerTimer5",       0x40081000, 0x400);
+    create_unimplemented_device(obj, "lowPowerUART0",        0x40081400, 0x400);
+    create_unimplemented_device(obj, "lowPowerComparator",   0x40088000, 0x400);
 
-    create_unimplemented_device("spi0",                 0x400be000, 0x400);
+    create_unimplemented_device(obj, "spi0",                 0x400be000, 0x400);
 
     /*
      * The MAX78000 user guide's base address map lists the CNN TX FIFO as
@@ -199,13 +200,13 @@ static void max78000_soc_realize(DeviceState *dev_soc, Error **errp)
      * is listed as having data accessible up to offset 0x1000, the user
      * guide is likely incorrect.
      */
-    create_unimplemented_device("cnnTxFIFO",            0x400c0400, 0x2000);
+    create_unimplemented_device(obj, "cnnTxFIFO",            0x400c0400, 0x2000);
 
-    create_unimplemented_device("cnnGlobalControl",     0x50000000, 0x10000);
-    create_unimplemented_device("cnnx16quad0",          0x50100000, 0x40000);
-    create_unimplemented_device("cnnx16quad1",          0x50500000, 0x40000);
-    create_unimplemented_device("cnnx16quad2",          0x50900000, 0x40000);
-    create_unimplemented_device("cnnx16quad3",          0x50d00000, 0x40000);
+    create_unimplemented_device(obj, "cnnGlobalControl",     0x50000000, 0x10000);
+    create_unimplemented_device(obj, "cnnx16quad0",          0x50100000, 0x40000);
+    create_unimplemented_device(obj, "cnnx16quad1",          0x50500000, 0x40000);
+    create_unimplemented_device(obj, "cnnx16quad2",          0x50900000, 0x40000);
+    create_unimplemented_device(obj, "cnnx16quad3",          0x50d00000, 0x40000);
 
 }
 

@@ -647,7 +647,7 @@ static void bonito_host_realize(DeviceState *dev, Error **errp)
         g_free(name);
     }
 
-    create_unimplemented_device("pci.io", BONITO_PCIIO_BASE, 1 * MiB);
+    create_unimplemented_device(OBJECT(dev), "pci.io", BONITO_PCIIO_BASE, 1 * MiB);
 }
 
 static void bonito_pci_realize(PCIDevice *dev, Error **errp)
@@ -681,7 +681,7 @@ static void bonito_pci_realize(PCIDevice *dev, Error **errp)
     memory_region_add_subregion(host_mem, BONITO_SPCICONFIG_BASE,
                                 &phb->data_mem);
 
-    create_unimplemented_device("bonito", BONITO_REG_BASE, BONITO_REG_SIZE);
+    create_unimplemented_device(OBJECT(dev), "bonito", BONITO_REG_BASE, BONITO_REG_SIZE);
 
     memory_region_init_io(&s->iomem_ldma, OBJECT(s), &bonito_ldma_ops, s,
                           "ldma", 0x100);
@@ -692,7 +692,7 @@ static void bonito_pci_realize(PCIDevice *dev, Error **errp)
                           "cop", 0x100);
     memory_region_add_subregion(host_mem, 0x1fe00300, &s->iomem_cop);
 
-    create_unimplemented_device("ROMCS", BONITO_FLASH_BASE, 60 * MiB);
+    create_unimplemented_device(OBJECT(dev), "ROMCS", BONITO_FLASH_BASE, 60 * MiB);
 
     /* Map PCI IO Space  0x1fd0 0000 - 0x1fd1 0000 */
     memory_region_init_alias(&s->bonito_pciio, OBJECT(s), "isa_mmio",
@@ -706,17 +706,17 @@ static void bonito_pci_realize(PCIDevice *dev, Error **errp)
                              get_system_io(), 0, 256 * KiB);
     memory_region_add_subregion(host_mem, BONITO_DEV_BASE,
                                 &s->bonito_localio);
-    create_unimplemented_device("IOCS[1]", BONITO_DEV_BASE + 1 * 256 * KiB,
+    create_unimplemented_device(OBJECT(dev), "IOCS[1]", BONITO_DEV_BASE + 1 * 256 * KiB,
                                 256 * KiB);
-    create_unimplemented_device("IOCS[2]", BONITO_DEV_BASE + 2 * 256 * KiB,
+    create_unimplemented_device(OBJECT(dev), "IOCS[2]", BONITO_DEV_BASE + 2 * 256 * KiB,
                                 256 * KiB);
-    create_unimplemented_device("IOCS[3]", BONITO_DEV_BASE + 3 * 256 * KiB,
+    create_unimplemented_device(OBJECT(dev), "IOCS[3]", BONITO_DEV_BASE + 3 * 256 * KiB,
                                 256 * KiB);
 
     memory_region_init_alias(pcimem_alias, NULL, "pci.mem.alias",
                              &bs->pci_mem, 0, BONITO_PCIHI_SIZE);
     memory_region_add_subregion(host_mem, BONITO_PCIHI_BASE, pcimem_alias);
-    create_unimplemented_device("PCI_2",
+    create_unimplemented_device(OBJECT(dev), "PCI_2",
                                 (hwaddr)BONITO_PCIHI_BASE + BONITO_PCIHI_SIZE,
                                 2 * GiB);
 

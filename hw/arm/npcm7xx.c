@@ -479,6 +479,7 @@ static void npcm7xx_init(Object *obj)
 
 static void npcm7xx_realize(DeviceState *dev, Error **errp)
 {
+    Object *obj = OBJECT(dev);
     NPCM7xxState *s = NPCM7XX(dev);
     NPCM7xxClass *nc = NPCM7XX_GET_CLASS(s);
     int i;
@@ -600,30 +601,30 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     /* GPIO modules. Cannot fail. */
     QEMU_BUILD_BUG_ON(ARRAY_SIZE(npcm7xx_gpio) != ARRAY_SIZE(s->gpio));
     for (i = 0; i < ARRAY_SIZE(s->gpio); i++) {
-        Object *obj = OBJECT(&s->gpio[i]);
+        Object *gobj = OBJECT(&s->gpio[i]);
 
-        object_property_set_uint(obj, "reset-pullup",
+        object_property_set_uint(gobj, "reset-pullup",
                                  npcm7xx_gpio[i].reset_pu, &error_abort);
-        object_property_set_uint(obj, "reset-pulldown",
+        object_property_set_uint(gobj, "reset-pulldown",
                                  npcm7xx_gpio[i].reset_pd, &error_abort);
-        object_property_set_uint(obj, "reset-osrc",
+        object_property_set_uint(gobj, "reset-osrc",
                                  npcm7xx_gpio[i].reset_osrc, &error_abort);
-        object_property_set_uint(obj, "reset-odsc",
+        object_property_set_uint(gobj, "reset-odsc",
                                  npcm7xx_gpio[i].reset_odsc, &error_abort);
-        sysbus_realize(SYS_BUS_DEVICE(obj), &error_abort);
-        sysbus_mmio_map(SYS_BUS_DEVICE(obj), 0, npcm7xx_gpio[i].regs_addr);
-        sysbus_connect_irq(SYS_BUS_DEVICE(obj), 0,
+        sysbus_realize(SYS_BUS_DEVICE(gobj), &error_abort);
+        sysbus_mmio_map(SYS_BUS_DEVICE(gobj), 0, npcm7xx_gpio[i].regs_addr);
+        sysbus_connect_irq(SYS_BUS_DEVICE(gobj), 0,
                            npcm7xx_irq(s, NPCM7XX_GPIO0_IRQ + i));
     }
 
     /* SMBus modules. Cannot fail. */
     QEMU_BUILD_BUG_ON(ARRAY_SIZE(npcm7xx_smbus_addr) != ARRAY_SIZE(s->smbus));
     for (i = 0; i < ARRAY_SIZE(s->smbus); i++) {
-        Object *obj = OBJECT(&s->smbus[i]);
+        Object *sobj = OBJECT(&s->smbus[i]);
 
-        sysbus_realize(SYS_BUS_DEVICE(obj), &error_abort);
-        sysbus_mmio_map(SYS_BUS_DEVICE(obj), 0, npcm7xx_smbus_addr[i]);
-        sysbus_connect_irq(SYS_BUS_DEVICE(obj), 0,
+        sysbus_realize(SYS_BUS_DEVICE(sobj), &error_abort);
+        sysbus_mmio_map(SYS_BUS_DEVICE(sobj), 0, npcm7xx_smbus_addr[i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(sobj), 0,
                            npcm7xx_irq(s, NPCM7XX_SMBUS0_IRQ + i));
     }
 
@@ -781,39 +782,39 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
         sysbus_connect_irq(sbd, 0, npcm7xx_irq(s, irq));
     }
 
-    create_unimplemented_device("npcm7xx.shm",          0xc0001000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.vdmx",         0xe0800000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.pcierc",       0xe1000000,  64 * KiB);
-    create_unimplemented_device("npcm7xx.kcs",          0xf0007000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.gfxi",         0xf000e000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.espi",         0xf009f000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.peci",         0xf0100000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.siox[1]",      0xf0101000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.siox[2]",      0xf0102000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.ahbpci",       0xf0400000,   1 * MiB);
-    create_unimplemented_device("npcm7xx.mcphy",        0xf05f0000,  64 * KiB);
-    create_unimplemented_device("npcm7xx.vcd",          0xf0810000,  64 * KiB);
-    create_unimplemented_device("npcm7xx.ece",          0xf0820000,   8 * KiB);
-    create_unimplemented_device("npcm7xx.vdma",         0xf0822000,   8 * KiB);
-    create_unimplemented_device("npcm7xx.usbd[0]",      0xf0830000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.usbd[1]",      0xf0831000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.usbd[2]",      0xf0832000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.usbd[3]",      0xf0833000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.usbd[4]",      0xf0834000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.usbd[5]",      0xf0835000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.usbd[6]",      0xf0836000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.usbd[7]",      0xf0837000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.usbd[8]",      0xf0838000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.usbd[9]",      0xf0839000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.sd",           0xf0840000,   8 * KiB);
-    create_unimplemented_device("npcm7xx.pcimbx",       0xf0848000, 512 * KiB);
-    create_unimplemented_device("npcm7xx.aes",          0xf0858000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.des",          0xf0859000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.sha",          0xf085a000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.secacc",       0xf085b000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.spixcs0",      0xf8000000,  16 * MiB);
-    create_unimplemented_device("npcm7xx.spixcs1",      0xf9000000,  16 * MiB);
-    create_unimplemented_device("npcm7xx.spix",         0xfb001000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.shm",          0xc0001000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.vdmx",         0xe0800000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.pcierc",       0xe1000000,  64 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.kcs",          0xf0007000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.gfxi",         0xf000e000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.espi",         0xf009f000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.peci",         0xf0100000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.siox[1]",      0xf0101000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.siox[2]",      0xf0102000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.ahbpci",       0xf0400000,   1 * MiB);
+    create_unimplemented_device(obj, "npcm7xx.mcphy",        0xf05f0000,  64 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.vcd",          0xf0810000,  64 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.ece",          0xf0820000,   8 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.vdma",         0xf0822000,   8 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.usbd[0]",      0xf0830000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.usbd[1]",      0xf0831000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.usbd[2]",      0xf0832000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.usbd[3]",      0xf0833000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.usbd[4]",      0xf0834000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.usbd[5]",      0xf0835000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.usbd[6]",      0xf0836000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.usbd[7]",      0xf0837000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.usbd[8]",      0xf0838000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.usbd[9]",      0xf0839000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.sd",           0xf0840000,   8 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.pcimbx",       0xf0848000, 512 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.aes",          0xf0858000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.des",          0xf0859000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.sha",          0xf085a000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.secacc",       0xf085b000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm7xx.spixcs0",      0xf8000000,  16 * MiB);
+    create_unimplemented_device(obj, "npcm7xx.spixcs1",      0xf9000000,  16 * MiB);
+    create_unimplemented_device(obj, "npcm7xx.spix",         0xfb001000,   4 * KiB);
 }
 
 static const Property npcm7xx_properties[] = {

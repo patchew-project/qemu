@@ -135,6 +135,7 @@ static void make_ram_alias(MemoryRegion *mr, const char *name,
 
 static void mps2_common_init(MachineState *machine)
 {
+    Object *obj = OBJECT(machine);
     MPS2MachineState *mms = MPS2_MACHINE(machine);
     MPS2MachineClass *mmc = MPS2_MACHINE_GET_CLASS(machine);
     MemoryRegion *system_memory = get_system_memory();
@@ -246,25 +247,25 @@ static void mps2_common_init(MachineState *machine)
                              OBJECT(system_memory), &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&mms->armv7m), &error_fatal);
 
-    create_unimplemented_device("zbtsmram mirror", 0x00400000, 0x00400000);
-    create_unimplemented_device("RESERVED 1", 0x00800000, 0x00800000);
-    create_unimplemented_device("Block RAM", 0x01000000, 0x00010000);
-    create_unimplemented_device("RESERVED 2", 0x01010000, 0x1EFF0000);
-    create_unimplemented_device("RESERVED 3", 0x20800000, 0x00800000);
-    create_unimplemented_device("PSRAM", 0x21000000, 0x01000000);
+    create_unimplemented_device(obj, "zbtsmram mirror", 0x00400000, 0x00400000);
+    create_unimplemented_device(obj, "RESERVED 1", 0x00800000, 0x00800000);
+    create_unimplemented_device(obj, "Block RAM", 0x01000000, 0x00010000);
+    create_unimplemented_device(obj, "RESERVED 2", 0x01010000, 0x1EFF0000);
+    create_unimplemented_device(obj, "RESERVED 3", 0x20800000, 0x00800000);
+    create_unimplemented_device(obj, "PSRAM", 0x21000000, 0x01000000);
     /* These three ranges all cover multiple devices; we may implement
      * some of them below (in which case the real device takes precedence
      * over the unimplemented-region mapping).
      */
-    create_unimplemented_device("CMSDK APB peripheral region @0x40000000",
+    create_unimplemented_device(obj, "CMSDK APB peripheral region @0x40000000",
                                 0x40000000, 0x00010000);
-    create_unimplemented_device("CMSDK AHB peripheral region @0x40010000",
+    create_unimplemented_device(obj, "CMSDK AHB peripheral region @0x40010000",
                                 0x40010000, 0x00010000);
-    create_unimplemented_device("Extra peripheral region @0x40020000",
+    create_unimplemented_device(obj, "Extra peripheral region @0x40020000",
                                 0x40020000, 0x00010000);
 
-    create_unimplemented_device("RESERVED 4", 0x40030000, 0x001D0000);
-    create_unimplemented_device("VGA", 0x41000000, 0x0200000);
+    create_unimplemented_device(obj, "RESERVED 4", 0x40030000, 0x001D0000);
+    create_unimplemented_device(obj, "VGA", 0x41000000, 0x0200000);
 
     switch (mmc->fpga_type) {
     case FPGA_AN385:
@@ -362,7 +363,7 @@ static void mps2_common_init(MachineState *machine)
     for (i = 0; i < 4; i++) {
         static const hwaddr gpiobase[] = {0x40010000, 0x40011000,
                                           0x40012000, 0x40013000};
-        create_unimplemented_device("cmsdk-ahb-gpio", gpiobase[i], 0x1000);
+        create_unimplemented_device(obj, "cmsdk-ahb-gpio", gpiobase[i], 0x1000);
     }
 
     /* CMSDK APB subsystem */
@@ -458,7 +459,7 @@ static void mps2_common_init(MachineState *machine)
             qbus_mark_full(qbus);
         }
     }
-    create_unimplemented_device("i2s", 0x40024000, 0x400);
+    create_unimplemented_device(obj, "i2s", 0x40024000, 0x400);
 
     /* In hardware this is a LAN9220; the LAN9118 is software compatible
      * except that it doesn't support the checksum-offload feature.

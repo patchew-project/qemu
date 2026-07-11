@@ -861,13 +861,13 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    create_unimplemented_device("riscv.sifive.u.gem-mgmt",
+    create_unimplemented_device(OBJECT(dev), "riscv.sifive.u.gem-mgmt",
         memmap[SIFIVE_U_DEV_GEM_MGMT].base, memmap[SIFIVE_U_DEV_GEM_MGMT].size);
 
-    create_unimplemented_device("riscv.sifive.u.dmc",
+    create_unimplemented_device(OBJECT(dev), "riscv.sifive.u.dmc",
         memmap[SIFIVE_U_DEV_DMC].base, memmap[SIFIVE_U_DEV_DMC].size);
 
-    create_unimplemented_device("riscv.sifive.u.l2cc",
+    create_unimplemented_device(OBJECT(dev), "riscv.sifive.u.l2cc",
         memmap[SIFIVE_U_DEV_L2CC].base, memmap[SIFIVE_U_DEV_L2CC].size);
 
     sysbus_realize(SYS_BUS_DEVICE(&s->spi0), errp);

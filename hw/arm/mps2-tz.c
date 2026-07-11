@@ -800,6 +800,7 @@ static uint32_t boot_ram_size(MPS2TZMachineState *mms)
 
 static void mps2tz_common_init(MachineState *machine)
 {
+    Object *obj = OBJECT(machine);
     MPS2TZMachineState *mms = MPS2TZ_MACHINE(machine);
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_GET_CLASS(mms);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -1193,11 +1194,11 @@ static void mps2tz_common_init(MachineState *machine)
                                                      "cfg_sec_resp", 0));
     }
 
-    create_unimplemented_device("FPGA NS PC", 0x48007000, 0x1000);
+    create_unimplemented_device(obj, "FPGA NS PC", 0x48007000, 0x1000);
 
     if (mmc->fpga_type == FPGA_AN547) {
-        create_unimplemented_device("U55 timing adapter 0", 0x48102000, 0x1000);
-        create_unimplemented_device("U55 timing adapter 1", 0x48103000, 0x1000);
+        create_unimplemented_device(obj, "U55 timing adapter 0", 0x48102000, 0x1000);
+        create_unimplemented_device(obj, "U55 timing adapter 1", 0x48103000, 0x1000);
     }
 
     create_non_mpc_ram(mms);

@@ -532,7 +532,7 @@ static void allwinner_r40_realize(DeviceState *dev, Error **errp)
 
     /* Unimplemented devices */
     for (unsigned i = 0; i < ARRAY_SIZE(r40_unimplemented); i++) {
-        create_unimplemented_device(r40_unimplemented[i].device_name,
+        create_unimplemented_device(OBJECT(dev), r40_unimplemented[i].device_name,
                                     r40_unimplemented[i].base,
                                     r40_unimplemented[i].size);
     }

@@ -948,7 +948,7 @@ static void sun4m_hw_init(MachineState *machine)
     }
 
     if (hwdef->sx_base) {
-        create_unimplemented_device("sun-sx", hwdef->sx_base, 0x2000);
+        create_unimplemented_device(OBJECT(machine), "sun-sx", hwdef->sx_base, 0x2000);
     }
 
     dev = qdev_new(OBJECT(machine), "nvram", "sysbus-m48t08");
@@ -1032,16 +1032,16 @@ static void sun4m_hw_init(MachineState *machine)
     if (hwdef->dbri_base) {
         /* ISDN chip with attached CS4215 audio codec */
         /* prom space */
-        create_unimplemented_device("sun-DBRI.prom",
+        create_unimplemented_device(OBJECT(machine), "sun-DBRI.prom",
                                     hwdef->dbri_base + 0x1000, 0x30);
         /* reg space */
-        create_unimplemented_device("sun-DBRI",
+        create_unimplemented_device(OBJECT(machine), "sun-DBRI",
                                     hwdef->dbri_base + 0x10000, 0x100);
     }
 
     if (hwdef->bpp_base) {
         /* parallel port */
-        create_unimplemented_device("sun-bpp", hwdef->bpp_base, 0x20);
+        create_unimplemented_device(OBJECT(machine), "sun-bpp", hwdef->bpp_base, 0x20);
     }
 
     initrd_size = 0;

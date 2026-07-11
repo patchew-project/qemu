@@ -458,7 +458,7 @@ static void mps3r_common_init(MachineState *machine)
     for (int i = 0; i < 4; i++) {
         /* CMSDK GPIO controllers */
         g_autofree char *s = g_strdup_printf("gpio%d", i);
-        create_unimplemented_device(s, 0xe0000000 + i * 0x1000, 0x1000);
+        create_unimplemented_device(OBJECT(machine), s, 0xe0000000 + i * 0x1000, 0x1000);
     }
 
     object_initialize_child(OBJECT(mms), "watchdog", &mms->watchdog,
@@ -526,7 +526,7 @@ static void mps3r_common_init(MachineState *machine)
     sysbus_realize(SYS_BUS_DEVICE(&mms->scc), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&mms->scc), 0, 0xe0200000);
 
-    create_unimplemented_device("i2s-audio", 0xe0201000, 0x1000);
+    create_unimplemented_device(OBJECT(machine), "i2s-audio", 0xe0201000, 0x1000);
 
     object_initialize_child(OBJECT(mms), "fpgaio", &mms->fpgaio,
                             TYPE_MPS2_FPGAIO);
@@ -537,7 +537,7 @@ static void mps3r_common_init(MachineState *machine)
     sysbus_realize(SYS_BUS_DEVICE(&mms->fpgaio), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&mms->fpgaio), 0, 0xe0202000);
 
-    create_unimplemented_device("clcd", 0xe0209000, 0x1000);
+    create_unimplemented_device(OBJECT(machine), "clcd", 0xe0209000, 0x1000);
 
     object_initialize_child(OBJECT(mms), "rtc", &mms->rtc, TYPE_PL031);
     sysbus_realize(SYS_BUS_DEVICE(&mms->rtc), &error_fatal);
@@ -552,8 +552,8 @@ static void mps3r_common_init(MachineState *machine)
     lan9118_init(OBJECT(machine), 0xe0300000,
                  qdev_get_gpio_in(gicdev, 18));
 
-    create_unimplemented_device("usb", 0xe0301000, 0x1000);
-    create_unimplemented_device("qspi-write-config", 0xe0600000, 0x1000);
+    create_unimplemented_device(OBJECT(machine), "usb", 0xe0301000, 0x1000);
+    create_unimplemented_device(OBJECT(machine), "qspi-write-config", 0xe0600000, 0x1000);
 
     mms->bootinfo.ram_size = machine->ram_size;
     mms->bootinfo.board_id = -1;

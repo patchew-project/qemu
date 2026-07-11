@@ -166,11 +166,11 @@ static void mb_v_generic_init(MachineState *machine)
     sysbus_connect_irq(SYS_BUS_DEVICE(dma), 1, irq[AXIDMA_IRQ1]);
 
     /* unimplemented devices */
-    create_unimplemented_device("gpio", GPIO_BASEADDR, 0x10000);
-    create_unimplemented_device("gpio2", GPIO_BASEADDR2, 0x10000);
-    create_unimplemented_device("gpio3", GPIO_BASEADDR3, 0x10000);
-    create_unimplemented_device("i2c", I2C_BASEADDR, 0x10000);
-    create_unimplemented_device("qspi", QSPI_BASEADDR, 0x10000);
+    create_unimplemented_device(OBJECT(machine), "gpio", GPIO_BASEADDR, 0x10000);
+    create_unimplemented_device(OBJECT(machine), "gpio2", GPIO_BASEADDR2, 0x10000);
+    create_unimplemented_device(OBJECT(machine), "gpio3", GPIO_BASEADDR3, 0x10000);
+    create_unimplemented_device(OBJECT(machine), "i2c", I2C_BASEADDR, 0x10000);
+    create_unimplemented_device(OBJECT(machine), "qspi", QSPI_BASEADDR, 0x10000);
 }
 
 static void mb_v_generic_machine_init(MachineClass *mc)

@@ -154,6 +154,7 @@ static void fsl_imx7_init(Object *obj)
 
 static void fsl_imx7_realize(DeviceState *dev, Error **errp)
 {
+    Object *obj = OBJECT(dev);
     MachineState *ms = MACHINE(qdev_get_machine());
     FslIMX7State *s = FSL_IMX7(dev);
     DeviceState *mpcore = DEVICE(&s->a7mpcore);
@@ -229,7 +230,7 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
     /*
      * A7MPCORE DAP
      */
-    create_unimplemented_device("a7mpcore-dap", FSL_IMX7_A7MPCORE_DAP_ADDR,
+    create_unimplemented_device(obj, "a7mpcore-dap", FSL_IMX7_A7MPCORE_DAP_ADDR,
                                 FSL_IMX7_A7MPCORE_DAP_SIZE);
 
     /*
@@ -305,9 +306,9 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
     /*
      * IOMUXC and IOMUXC_LPSR
      */
-    create_unimplemented_device("iomuxc", FSL_IMX7_IOMUXC_ADDR,
+    create_unimplemented_device(obj, "iomuxc", FSL_IMX7_IOMUXC_ADDR,
                                 FSL_IMX7_IOMUXC_SIZE);
-    create_unimplemented_device("iomuxc_lspr", FSL_IMX7_IOMUXC_LPSR_ADDR,
+    create_unimplemented_device(obj, "iomuxc_lspr", FSL_IMX7_IOMUXC_LPSR_ADDR,
                                 FSL_IMX7_IOMUXC_LPSR_SIZE);
 
     /*
@@ -520,12 +521,12 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
     /*
      * SDMA
      */
-    create_unimplemented_device("sdma", FSL_IMX7_SDMA_ADDR, FSL_IMX7_SDMA_SIZE);
+    create_unimplemented_device(obj, "sdma", FSL_IMX7_SDMA_ADDR, FSL_IMX7_SDMA_SIZE);
 
     /*
      * CAAM
      */
-    create_unimplemented_device("caam", FSL_IMX7_CAAM_ADDR, FSL_IMX7_CAAM_SIZE);
+    create_unimplemented_device(obj, "caam", FSL_IMX7_CAAM_ADDR, FSL_IMX7_CAAM_SIZE);
 
     /*
      * PWMs
@@ -539,7 +540,7 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
         };
 
         snprintf(name, NAME_SIZE, "pwm%d", i);
-        create_unimplemented_device(name, FSL_IMX7_PWMn_ADDR[i],
+        create_unimplemented_device(obj, name, FSL_IMX7_PWMn_ADDR[i],
                                     FSL_IMX7_PWMn_SIZE);
     }
 
@@ -553,7 +554,7 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
         };
 
         snprintf(name, NAME_SIZE, "can%d", i);
-        create_unimplemented_device(name, FSL_IMX7_CANn_ADDR[i],
+        create_unimplemented_device(obj, name, FSL_IMX7_CANn_ADDR[i],
                                     FSL_IMX7_CANn_SIZE);
     }
 
@@ -568,14 +569,14 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
         };
 
         snprintf(name, NAME_SIZE, "sai%d", i);
-        create_unimplemented_device(name, FSL_IMX7_SAIn_ADDR[i],
+        create_unimplemented_device(obj, name, FSL_IMX7_SAIn_ADDR[i],
                                     FSL_IMX7_SAIn_SIZE);
     }
 
     /*
      * OCOTP
      */
-    create_unimplemented_device("ocotp", FSL_IMX7_OCOTP_ADDR,
+    create_unimplemented_device(obj, "ocotp", FSL_IMX7_OCOTP_ADDR,
                                 FSL_IMX7_OCOTP_SIZE);
 
     /*
@@ -638,7 +639,7 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->usb[i]), 0, irq);
 
         snprintf(name, NAME_SIZE, "usbmisc%d", i);
-        create_unimplemented_device(name, FSL_IMX7_USBMISCn_ADDR[i],
+        create_unimplemented_device(obj, name, FSL_IMX7_USBMISCn_ADDR[i],
                                     FSL_IMX7_USBMISCn_SIZE);
     }
 
@@ -652,37 +653,37 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
         };
 
         snprintf(name, NAME_SIZE, "adc%d", i);
-        create_unimplemented_device(name, FSL_IMX7_ADCn_ADDR[i],
+        create_unimplemented_device(obj, name, FSL_IMX7_ADCn_ADDR[i],
                                     FSL_IMX7_ADCn_SIZE);
     }
 
     /*
      * LCD
      */
-    create_unimplemented_device("lcdif", FSL_IMX7_LCDIF_ADDR,
+    create_unimplemented_device(obj, "lcdif", FSL_IMX7_LCDIF_ADDR,
                                 FSL_IMX7_LCDIF_SIZE);
 
     /*
      * DMA APBH
      */
-    create_unimplemented_device("dma-apbh", FSL_IMX7_DMA_APBH_ADDR,
+    create_unimplemented_device(obj, "dma-apbh", FSL_IMX7_DMA_APBH_ADDR,
                                 FSL_IMX7_DMA_APBH_SIZE);
     /*
      * PCIe PHY
      */
-    create_unimplemented_device("pcie-phy", FSL_IMX7_PCIE_PHY_ADDR,
+    create_unimplemented_device(obj, "pcie-phy", FSL_IMX7_PCIE_PHY_ADDR,
                                 FSL_IMX7_PCIE_PHY_SIZE);
 
     /*
      * CSU
      */
-    create_unimplemented_device("csu", FSL_IMX7_CSU_ADDR,
+    create_unimplemented_device(obj, "csu", FSL_IMX7_CSU_ADDR,
                                 FSL_IMX7_CSU_SIZE);
 
     /*
      * TZASC
      */
-    create_unimplemented_device("tzasc", FSL_IMX7_TZASC_ADDR,
+    create_unimplemented_device(obj, "tzasc", FSL_IMX7_TZASC_ADDR,
                                 FSL_IMX7_TZASC_SIZE);
 
     /*

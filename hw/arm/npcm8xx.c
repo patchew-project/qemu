@@ -471,6 +471,7 @@ static void npcm8xx_init(Object *obj)
 
 static void npcm8xx_realize(DeviceState *dev, Error **errp)
 {
+    Object *obj = OBJECT(dev);
     NPCM8xxState *s = NPCM8XX(dev);
     NPCM8xxClass *nc = NPCM8XX_GET_CLASS(s);
     int i;
@@ -614,30 +615,30 @@ static void npcm8xx_realize(DeviceState *dev, Error **errp)
     /* GPIO modules. Cannot fail. */
     QEMU_BUILD_BUG_ON(ARRAY_SIZE(npcm8xx_gpio) != ARRAY_SIZE(s->gpio));
     for (i = 0; i < ARRAY_SIZE(s->gpio); i++) {
-        Object *obj = OBJECT(&s->gpio[i]);
+        Object *gobj = OBJECT(&s->gpio[i]);
 
-        object_property_set_uint(obj, "reset-pullup",
+        object_property_set_uint(gobj, "reset-pullup",
                                  npcm8xx_gpio[i].reset_pu, &error_abort);
-        object_property_set_uint(obj, "reset-pulldown",
+        object_property_set_uint(gobj, "reset-pulldown",
                                  npcm8xx_gpio[i].reset_pd, &error_abort);
-        object_property_set_uint(obj, "reset-osrc",
+        object_property_set_uint(gobj, "reset-osrc",
                                  npcm8xx_gpio[i].reset_osrc, &error_abort);
-        object_property_set_uint(obj, "reset-odsc",
+        object_property_set_uint(gobj, "reset-odsc",
                                  npcm8xx_gpio[i].reset_odsc, &error_abort);
-        sysbus_realize(SYS_BUS_DEVICE(obj), &error_abort);
-        sysbus_mmio_map(SYS_BUS_DEVICE(obj), 0, npcm8xx_gpio[i].regs_addr);
-        sysbus_connect_irq(SYS_BUS_DEVICE(obj), 0,
+        sysbus_realize(SYS_BUS_DEVICE(gobj), &error_abort);
+        sysbus_mmio_map(SYS_BUS_DEVICE(gobj), 0, npcm8xx_gpio[i].regs_addr);
+        sysbus_connect_irq(SYS_BUS_DEVICE(gobj), 0,
                            npcm8xx_irq(s, NPCM8XX_GPIO0_IRQ + i));
     }
 
     /* SMBus modules. Cannot fail. */
     QEMU_BUILD_BUG_ON(ARRAY_SIZE(npcm8xx_smbus_addr) != ARRAY_SIZE(s->smbus));
     for (i = 0; i < ARRAY_SIZE(s->smbus); i++) {
-        Object *obj = OBJECT(&s->smbus[i]);
+        Object *sobj = OBJECT(&s->smbus[i]);
 
-        sysbus_realize(SYS_BUS_DEVICE(obj), &error_abort);
-        sysbus_mmio_map(SYS_BUS_DEVICE(obj), 0, npcm8xx_smbus_addr[i]);
-        sysbus_connect_irq(SYS_BUS_DEVICE(obj), 0,
+        sysbus_realize(SYS_BUS_DEVICE(sobj), &error_abort);
+        sysbus_mmio_map(SYS_BUS_DEVICE(sobj), 0, npcm8xx_smbus_addr[i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(sobj), 0,
                            npcm8xx_irq(s, NPCM8XX_SMBUS0_IRQ + i));
     }
 
@@ -766,66 +767,66 @@ static void npcm8xx_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->pspi), 0,
             npcm8xx_irq(s, NPCM8XX_PSPI_IRQ));
 
-    create_unimplemented_device("npcm8xx.shm",          0xc0001000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.gicextra",     0xdfffa000,  24 * KiB);
-    create_unimplemented_device("npcm8xx.vdmx",         0xe0800000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.pcierc",       0xe1000000,  64 * KiB);
-    create_unimplemented_device("npcm8xx.rootc",        0xe8000000, 128 * MiB);
-    create_unimplemented_device("npcm8xx.kcs",          0xf0007000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.gfxi",         0xf000e000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.fsw",          0xf000f000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.bt",           0xf0030000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.espi",         0xf009f000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.peci",         0xf0100000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.siox[1]",      0xf0101000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.siox[2]",      0xf0102000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.tmps",         0xf0188000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.viru1",        0xf0204000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.viru2",        0xf0205000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.jtm1",         0xf0208000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.jtm2",         0xf0209000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.flm0",         0xf0210000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.flm1",         0xf0211000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.flm2",         0xf0212000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.flm3",         0xf0213000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.ahbpci",       0xf0400000,   1 * MiB);
-    create_unimplemented_device("npcm8xx.dap",          0xf0500000, 960 * KiB);
-    create_unimplemented_device("npcm8xx.mcphy",        0xf05f0000,  64 * KiB);
-    create_unimplemented_device("npcm8xx.tsgen",        0xf07fc000,   8 * KiB);
-    create_unimplemented_device("npcm8xx.copctl",       0xf080c000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.tipctl",       0xf080d000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.rst",          0xf080e000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.vcd",          0xf0810000,  64 * KiB);
-    create_unimplemented_device("npcm8xx.ece",          0xf0820000,   8 * KiB);
-    create_unimplemented_device("npcm8xx.vdma",         0xf0822000,   8 * KiB);
-    create_unimplemented_device("npcm8xx.usbd[0]",      0xf0830000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.usbd[1]",      0xf0831000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.usbd[2]",      0xf0832000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.usbd[3]",      0xf0833000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.usbd[4]",      0xf0834000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.usbd[5]",      0xf0835000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.usbd[6]",      0xf0836000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.usbd[7]",      0xf0837000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.usbd[8]",      0xf0838000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.usbd[9]",      0xf0839000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.pci_mbox1",    0xf0848000,  64 * KiB);
-    create_unimplemented_device("npcm8xx.gdma0",        0xf0850000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.gdma1",        0xf0851000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.gdma2",        0xf0852000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.aes",          0xf0858000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.des",          0xf0859000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.sha",          0xf085a000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.pci_mbox2",    0xf0868000,  64 * KiB);
-    create_unimplemented_device("npcm8xx.i3c0",         0xfff10000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.i3c1",         0xfff11000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.i3c2",         0xfff12000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.i3c3",         0xfff13000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.i3c4",         0xfff14000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.i3c5",         0xfff15000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.spixcs0",      0xf8000000,  16 * MiB);
-    create_unimplemented_device("npcm8xx.spixcs1",      0xf9000000,  16 * MiB);
-    create_unimplemented_device("npcm8xx.spix",         0xfb001000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.vect",         0xffff0000,   256);
+    create_unimplemented_device(obj, "npcm8xx.shm",          0xc0001000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.gicextra",     0xdfffa000,  24 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.vdmx",         0xe0800000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.pcierc",       0xe1000000,  64 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.rootc",        0xe8000000, 128 * MiB);
+    create_unimplemented_device(obj, "npcm8xx.kcs",          0xf0007000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.gfxi",         0xf000e000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.fsw",          0xf000f000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.bt",           0xf0030000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.espi",         0xf009f000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.peci",         0xf0100000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.siox[1]",      0xf0101000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.siox[2]",      0xf0102000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.tmps",         0xf0188000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.viru1",        0xf0204000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.viru2",        0xf0205000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.jtm1",         0xf0208000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.jtm2",         0xf0209000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.flm0",         0xf0210000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.flm1",         0xf0211000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.flm2",         0xf0212000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.flm3",         0xf0213000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.ahbpci",       0xf0400000,   1 * MiB);
+    create_unimplemented_device(obj, "npcm8xx.dap",          0xf0500000, 960 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.mcphy",        0xf05f0000,  64 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.tsgen",        0xf07fc000,   8 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.copctl",       0xf080c000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.tipctl",       0xf080d000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.rst",          0xf080e000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.vcd",          0xf0810000,  64 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.ece",          0xf0820000,   8 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.vdma",         0xf0822000,   8 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.usbd[0]",      0xf0830000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.usbd[1]",      0xf0831000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.usbd[2]",      0xf0832000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.usbd[3]",      0xf0833000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.usbd[4]",      0xf0834000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.usbd[5]",      0xf0835000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.usbd[6]",      0xf0836000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.usbd[7]",      0xf0837000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.usbd[8]",      0xf0838000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.usbd[9]",      0xf0839000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.pci_mbox1",    0xf0848000,  64 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.gdma0",        0xf0850000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.gdma1",        0xf0851000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.gdma2",        0xf0852000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.aes",          0xf0858000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.des",          0xf0859000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.sha",          0xf085a000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.pci_mbox2",    0xf0868000,  64 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.i3c0",         0xfff10000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.i3c1",         0xfff11000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.i3c2",         0xfff12000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.i3c3",         0xfff13000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.i3c4",         0xfff14000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.i3c5",         0xfff15000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.spixcs0",      0xf8000000,  16 * MiB);
+    create_unimplemented_device(obj, "npcm8xx.spixcs1",      0xf9000000,  16 * MiB);
+    create_unimplemented_device(obj, "npcm8xx.spix",         0xfb001000,   4 * KiB);
+    create_unimplemented_device(obj, "npcm8xx.vect",         0xffff0000,   256);
 }
 
 static const Property npcm8xx_properties[] = {

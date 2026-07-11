@@ -233,19 +233,19 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
                                 e51_dtim_mem);
 
     /* Bus Error Units */
-    create_unimplemented_device("microchip.pfsoc.buserr_unit0_mem",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.buserr_unit0_mem",
         memmap[MICROCHIP_PFSOC_BUSERR_UNIT0].base,
         memmap[MICROCHIP_PFSOC_BUSERR_UNIT0].size);
-    create_unimplemented_device("microchip.pfsoc.buserr_unit1_mem",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.buserr_unit1_mem",
         memmap[MICROCHIP_PFSOC_BUSERR_UNIT1].base,
         memmap[MICROCHIP_PFSOC_BUSERR_UNIT1].size);
-    create_unimplemented_device("microchip.pfsoc.buserr_unit2_mem",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.buserr_unit2_mem",
         memmap[MICROCHIP_PFSOC_BUSERR_UNIT2].base,
         memmap[MICROCHIP_PFSOC_BUSERR_UNIT2].size);
-    create_unimplemented_device("microchip.pfsoc.buserr_unit3_mem",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.buserr_unit3_mem",
         memmap[MICROCHIP_PFSOC_BUSERR_UNIT3].base,
         memmap[MICROCHIP_PFSOC_BUSERR_UNIT3].size);
-    create_unimplemented_device("microchip.pfsoc.buserr_unit4_mem",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.buserr_unit4_mem",
         memmap[MICROCHIP_PFSOC_BUSERR_UNIT4].base,
         memmap[MICROCHIP_PFSOC_BUSERR_UNIT4].size);
 
@@ -259,7 +259,7 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
         iks->clint_timebase_freq, false);
 
     /* L2 cache controller */
-    create_unimplemented_device("microchip.pfsoc.l2cc",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.l2cc",
         memmap[MICROCHIP_PFSOC_L2CC].base, memmap[MICROCHIP_PFSOC_L2CC].size);
 
     /*
@@ -314,17 +314,17 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
                        MICROCHIP_PFSOC_MAILBOX_IRQ));
 
     /* AXISW */
-    create_unimplemented_device("microchip.pfsoc.axisw",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.axisw",
         memmap[MICROCHIP_PFSOC_AXISW].base,
         memmap[MICROCHIP_PFSOC_AXISW].size);
 
     /* MPUCFG */
-    create_unimplemented_device("microchip.pfsoc.mpucfg",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.mpucfg",
         memmap[MICROCHIP_PFSOC_MPUCFG].base,
         memmap[MICROCHIP_PFSOC_MPUCFG].size);
 
     /* FMETER */
-    create_unimplemented_device("microchip.pfsoc.fmeter",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.fmeter",
         memmap[MICROCHIP_PFSOC_FMETER].base,
         memmap[MICROCHIP_PFSOC_FMETER].size);
 
@@ -368,48 +368,48 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
         serial_hd(4));
 
     /* Watchdogs */
-    create_unimplemented_device("microchip.pfsoc.watchdog0",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.watchdog0",
         memmap[MICROCHIP_PFSOC_WDOG0].base,
         memmap[MICROCHIP_PFSOC_WDOG0].size);
-    create_unimplemented_device("microchip.pfsoc.watchdog1",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.watchdog1",
         memmap[MICROCHIP_PFSOC_WDOG1].base,
         memmap[MICROCHIP_PFSOC_WDOG1].size);
-    create_unimplemented_device("microchip.pfsoc.watchdog2",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.watchdog2",
         memmap[MICROCHIP_PFSOC_WDOG2].base,
         memmap[MICROCHIP_PFSOC_WDOG2].size);
-    create_unimplemented_device("microchip.pfsoc.watchdog3",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.watchdog3",
         memmap[MICROCHIP_PFSOC_WDOG3].base,
         memmap[MICROCHIP_PFSOC_WDOG3].size);
-    create_unimplemented_device("microchip.pfsoc.watchdog4",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.watchdog4",
         memmap[MICROCHIP_PFSOC_WDOG4].base,
         memmap[MICROCHIP_PFSOC_WDOG4].size);
 
     /* SPI */
-    create_unimplemented_device("microchip.pfsoc.spi0",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.spi0",
         memmap[MICROCHIP_PFSOC_SPI0].base,
         memmap[MICROCHIP_PFSOC_SPI0].size);
-    create_unimplemented_device("microchip.pfsoc.spi1",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.spi1",
         memmap[MICROCHIP_PFSOC_SPI1].base,
         memmap[MICROCHIP_PFSOC_SPI1].size);
 
     /* I2C */
-    create_unimplemented_device("microchip.pfsoc.i2c0",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.i2c0",
         memmap[MICROCHIP_PFSOC_I2C0].base,
         memmap[MICROCHIP_PFSOC_I2C0].size);
-    create_unimplemented_device("microchip.pfsoc.i2c1",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.i2c1",
         memmap[MICROCHIP_PFSOC_I2C1].base,
         memmap[MICROCHIP_PFSOC_I2C1].size);
 
     /* CAN */
-    create_unimplemented_device("microchip.pfsoc.can0",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.can0",
         memmap[MICROCHIP_PFSOC_CAN0].base,
         memmap[MICROCHIP_PFSOC_CAN0].size);
-    create_unimplemented_device("microchip.pfsoc.can1",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.can1",
         memmap[MICROCHIP_PFSOC_CAN1].base,
         memmap[MICROCHIP_PFSOC_CAN1].size);
 
     /* USB */
-    create_unimplemented_device("microchip.pfsoc.usb",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.usb",
         memmap[MICROCHIP_PFSOC_USB].base,
         memmap[MICROCHIP_PFSOC_USB].size);
 
@@ -440,13 +440,13 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
         qdev_get_gpio_in(DEVICE(s->plic), MICROCHIP_PFSOC_GEM1_IRQ));
 
     /* GPIOs */
-    create_unimplemented_device("microchip.pfsoc.gpio0",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.gpio0",
         memmap[MICROCHIP_PFSOC_GPIO0].base,
         memmap[MICROCHIP_PFSOC_GPIO0].size);
-    create_unimplemented_device("microchip.pfsoc.gpio1",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.gpio1",
         memmap[MICROCHIP_PFSOC_GPIO1].base,
         memmap[MICROCHIP_PFSOC_GPIO1].size);
-    create_unimplemented_device("microchip.pfsoc.gpio2",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.gpio2",
         memmap[MICROCHIP_PFSOC_GPIO2].base,
         memmap[MICROCHIP_PFSOC_GPIO2].size);
 
@@ -467,15 +467,15 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
                        MICROCHIP_PFSOC_MAILBOX_IRQ));
 
     /* FPGA Fabric */
-    create_unimplemented_device("microchip.pfsoc.fabricfic3",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.fabricfic3",
         memmap[MICROCHIP_PFSOC_FABRIC_FIC3].base,
         memmap[MICROCHIP_PFSOC_FABRIC_FIC3].size);
     /* FPGA Fabric */
-    create_unimplemented_device("microchip.pfsoc.fabricfic0",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.fabricfic0",
         memmap[MICROCHIP_PFSOC_FABRIC_FIC0].base,
         memmap[MICROCHIP_PFSOC_FABRIC_FIC0].size);
     /* FPGA Fabric */
-    create_unimplemented_device("microchip.pfsoc.fabricfic1",
+    create_unimplemented_device(OBJECT(dev), "microchip.pfsoc.fabricfic1",
         memmap[MICROCHIP_PFSOC_FABRIC_FIC1].base,
         memmap[MICROCHIP_PFSOC_FABRIC_FIC1].size);
 

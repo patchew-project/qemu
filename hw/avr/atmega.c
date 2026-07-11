@@ -312,7 +312,7 @@ static void atmega_realize(DeviceState *dev, Error **errp)
             continue;
         }
         devname = g_strdup_printf("atmega-gpio-%c", 'a' + (char)i);
-        create_unimplemented_device(devname,
+        create_unimplemented_device(OBJECT(dev), devname,
                                     OFFSET_DATA + mc->dev[idx].addr, 3);
         g_free(devname);
     }
@@ -344,12 +344,12 @@ static void atmega_realize(DeviceState *dev, Error **errp)
             continue;
         }
         if (!mc->dev[idx].is_timer16) {
-            create_unimplemented_device("avr-timer8",
+            create_unimplemented_device(OBJECT(dev), "avr-timer8",
                                         OFFSET_DATA + mc->dev[idx].addr, 5);
-            create_unimplemented_device("avr-timer8-intmask",
+            create_unimplemented_device(OBJECT(dev), "avr-timer8-intmask",
                                         OFFSET_DATA
                                         + mc->dev[idx].intmask_addr, 1);
-            create_unimplemented_device("avr-timer8-intflag",
+            create_unimplemented_device(OBJECT(dev), "avr-timer8-intflag",
                                         OFFSET_DATA
                                         + mc->dev[idx].intflag_addr, 1);
             continue;
@@ -373,12 +373,12 @@ static void atmega_realize(DeviceState *dev, Error **errp)
         g_free(devname);
     }
 
-    create_unimplemented_device("avr-twi",          OFFSET_DATA + 0x0b8, 6);
-    create_unimplemented_device("avr-adc",          OFFSET_DATA + 0x078, 8);
-    create_unimplemented_device("avr-ext-mem-ctrl", OFFSET_DATA + 0x074, 2);
-    create_unimplemented_device("avr-watchdog",     OFFSET_DATA + 0x060, 1);
-    create_unimplemented_device("avr-spi",          OFFSET_DATA + 0x04c, 3);
-    create_unimplemented_device("avr-eeprom",       OFFSET_DATA + 0x03f, 3);
+    create_unimplemented_device(OBJECT(dev), "avr-twi",          OFFSET_DATA + 0x0b8, 6);
+    create_unimplemented_device(OBJECT(dev), "avr-adc",          OFFSET_DATA + 0x078, 8);
+    create_unimplemented_device(OBJECT(dev), "avr-ext-mem-ctrl", OFFSET_DATA + 0x074, 2);
+    create_unimplemented_device(OBJECT(dev), "avr-watchdog",     OFFSET_DATA + 0x060, 1);
+    create_unimplemented_device(OBJECT(dev), "avr-spi",          OFFSET_DATA + 0x04c, 3);
+    create_unimplemented_device(OBJECT(dev), "avr-eeprom",       OFFSET_DATA + 0x03f, 3);
 }
 
 static const Property atmega_props[] = {

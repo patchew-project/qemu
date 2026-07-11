@@ -468,7 +468,7 @@ static void allwinner_h3_realize(DeviceState *dev, Error **errp)
 
     /* Unimplemented devices */
     for (i = 0; i < ARRAY_SIZE(unimplemented); i++) {
-        create_unimplemented_device(unimplemented[i].device_name,
+        create_unimplemented_device(OBJECT(dev), unimplemented[i].device_name,
                                     unimplemented[i].base,
                                     unimplemented[i].size);
     }

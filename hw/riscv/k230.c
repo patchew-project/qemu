@@ -144,7 +144,7 @@ static void k230_create_uart(Object *parent, MemoryRegion *sys_mem,
     g_autofree char *name = g_strdup_printf("uart%d", index);
 
     /* Cover the non-16550 part of the SDK's 0x1000 UART window. */
-    create_unimplemented_device(name, memmap[uart_dev].base,
+    create_unimplemented_device(parent, name, memmap[uart_dev].base,
                                 memmap[uart_dev].size);
 
     serial_mm_init(parent, sys_mem, memmap[uart_dev].base, 2,
@@ -154,6 +154,7 @@ static void k230_create_uart(Object *parent, MemoryRegion *sys_mem,
 
 static void k230_soc_realize(DeviceState *dev, Error **errp)
 {
+    Object *obj = OBJECT(dev);
     K230SoCState *s = RISCV_K230_SOC(dev);
     MemoryRegion *sys_mem = get_system_memory();
     int c908_cpus;
@@ -209,164 +210,164 @@ static void k230_soc_realize(DeviceState *dev, Error **errp)
                        qdev_get_gpio_in(DEVICE(s->c908_plic), K230_WDT1_IRQ));
 
     /* unimplemented devices */
-    create_unimplemented_device("kpu.l2-cache",
+    create_unimplemented_device(obj, "kpu.l2-cache",
                                 memmap[K230_DEV_KPU_L2_CACHE].base,
                                 memmap[K230_DEV_KPU_L2_CACHE].size);
 
-    create_unimplemented_device("kpu_cfg", memmap[K230_DEV_KPU_CFG].base,
+    create_unimplemented_device(obj, "kpu_cfg", memmap[K230_DEV_KPU_CFG].base,
                                 memmap[K230_DEV_KPU_CFG].size);
 
-    create_unimplemented_device("fft", memmap[K230_DEV_FFT].base,
+    create_unimplemented_device(obj, "fft", memmap[K230_DEV_FFT].base,
                                 memmap[K230_DEV_FFT].size);
 
-    create_unimplemented_device("2d-engine.ai",
+    create_unimplemented_device(obj, "2d-engine.ai",
                                 memmap[K230_DEV_AI_2D_ENGINE].base,
                                 memmap[K230_DEV_AI_2D_ENGINE].size);
 
-    create_unimplemented_device("gsdma", memmap[K230_DEV_GSDMA].base,
+    create_unimplemented_device(obj, "gsdma", memmap[K230_DEV_GSDMA].base,
                                 memmap[K230_DEV_GSDMA].size);
 
-    create_unimplemented_device("dma", memmap[K230_DEV_DMA].base,
+    create_unimplemented_device(obj, "dma", memmap[K230_DEV_DMA].base,
                                 memmap[K230_DEV_DMA].size);
 
-    create_unimplemented_device("decomp-gzip",
+    create_unimplemented_device(obj, "decomp-gzip",
                                 memmap[K230_DEV_DECOMP_GZIP].base,
                                 memmap[K230_DEV_DECOMP_GZIP].size);
 
-    create_unimplemented_device("2d-engine.non-ai",
+    create_unimplemented_device(obj, "2d-engine.non-ai",
                                 memmap[K230_DEV_NON_AI_2D].base,
                                 memmap[K230_DEV_NON_AI_2D].size);
 
-    create_unimplemented_device("isp", memmap[K230_DEV_ISP].base,
+    create_unimplemented_device(obj, "isp", memmap[K230_DEV_ISP].base,
                                 memmap[K230_DEV_ISP].size);
 
-    create_unimplemented_device("dewarp", memmap[K230_DEV_DEWARP].base,
+    create_unimplemented_device(obj, "dewarp", memmap[K230_DEV_DEWARP].base,
                                 memmap[K230_DEV_DEWARP].size);
 
-    create_unimplemented_device("rx-csi", memmap[K230_DEV_RX_CSI].base,
+    create_unimplemented_device(obj, "rx-csi", memmap[K230_DEV_RX_CSI].base,
                                 memmap[K230_DEV_RX_CSI].size);
 
-    create_unimplemented_device("vpu", memmap[K230_DEV_H264].base,
+    create_unimplemented_device(obj, "vpu", memmap[K230_DEV_H264].base,
                                 memmap[K230_DEV_H264].size);
 
-    create_unimplemented_device("gpu", memmap[K230_DEV_2P5D].base,
+    create_unimplemented_device(obj, "gpu", memmap[K230_DEV_2P5D].base,
                                 memmap[K230_DEV_2P5D].size);
 
-    create_unimplemented_device("vo", memmap[K230_DEV_VO].base,
+    create_unimplemented_device(obj, "vo", memmap[K230_DEV_VO].base,
                                 memmap[K230_DEV_VO].size);
 
-    create_unimplemented_device("vo_cfg", memmap[K230_DEV_VO_CFG].base,
+    create_unimplemented_device(obj, "vo_cfg", memmap[K230_DEV_VO_CFG].base,
                                 memmap[K230_DEV_VO_CFG].size);
 
-    create_unimplemented_device("3d-engine", memmap[K230_DEV_3D_ENGINE].base,
+    create_unimplemented_device(obj, "3d-engine", memmap[K230_DEV_3D_ENGINE].base,
                                 memmap[K230_DEV_3D_ENGINE].size);
 
-    create_unimplemented_device("pmu", memmap[K230_DEV_PMU].base,
+    create_unimplemented_device(obj, "pmu", memmap[K230_DEV_PMU].base,
                                 memmap[K230_DEV_PMU].size);
 
-    create_unimplemented_device("rtc", memmap[K230_DEV_RTC].base,
+    create_unimplemented_device(obj, "rtc", memmap[K230_DEV_RTC].base,
                                 memmap[K230_DEV_RTC].size);
 
-    create_unimplemented_device("cmu", memmap[K230_DEV_CMU].base,
+    create_unimplemented_device(obj, "cmu", memmap[K230_DEV_CMU].base,
                                 memmap[K230_DEV_CMU].size);
 
-    create_unimplemented_device("rmu", memmap[K230_DEV_RMU].base,
+    create_unimplemented_device(obj, "rmu", memmap[K230_DEV_RMU].base,
                                 memmap[K230_DEV_RMU].size);
 
-    create_unimplemented_device("boot", memmap[K230_DEV_BOOT].base,
+    create_unimplemented_device(obj, "boot", memmap[K230_DEV_BOOT].base,
                                 memmap[K230_DEV_BOOT].size);
 
-    create_unimplemented_device("pwr", memmap[K230_DEV_PWR].base,
+    create_unimplemented_device(obj, "pwr", memmap[K230_DEV_PWR].base,
                                 memmap[K230_DEV_PWR].size);
 
-    create_unimplemented_device("ipcm", memmap[K230_DEV_MAILBOX].base,
+    create_unimplemented_device(obj, "ipcm", memmap[K230_DEV_MAILBOX].base,
                                 memmap[K230_DEV_MAILBOX].size);
 
-    create_unimplemented_device("iomux", memmap[K230_DEV_IOMUX].base,
+    create_unimplemented_device(obj, "iomux", memmap[K230_DEV_IOMUX].base,
                                 memmap[K230_DEV_IOMUX].size);
 
-    create_unimplemented_device("timer", memmap[K230_DEV_TIMER].base,
+    create_unimplemented_device(obj, "timer", memmap[K230_DEV_TIMER].base,
                                 memmap[K230_DEV_TIMER].size);
 
-    create_unimplemented_device("wdt0", memmap[K230_DEV_WDT0].base,
+    create_unimplemented_device(obj, "wdt0", memmap[K230_DEV_WDT0].base,
                                 memmap[K230_DEV_WDT0].size);
 
-    create_unimplemented_device("wdt1", memmap[K230_DEV_WDT1].base,
+    create_unimplemented_device(obj, "wdt1", memmap[K230_DEV_WDT1].base,
                                 memmap[K230_DEV_WDT1].size);
 
-    create_unimplemented_device("ts", memmap[K230_DEV_TS].base,
+    create_unimplemented_device(obj, "ts", memmap[K230_DEV_TS].base,
                                 memmap[K230_DEV_TS].size);
 
-    create_unimplemented_device("hdi", memmap[K230_DEV_HDI].base,
+    create_unimplemented_device(obj, "hdi", memmap[K230_DEV_HDI].base,
                                 memmap[K230_DEV_HDI].size);
 
-    create_unimplemented_device("stc", memmap[K230_DEV_STC].base,
+    create_unimplemented_device(obj, "stc", memmap[K230_DEV_STC].base,
                                 memmap[K230_DEV_STC].size);
 
-    create_unimplemented_device("security", memmap[K230_DEV_SECURITY].base,
+    create_unimplemented_device(obj, "security", memmap[K230_DEV_SECURITY].base,
                                 memmap[K230_DEV_SECURITY].size);
 
-    create_unimplemented_device("i2c0", memmap[K230_DEV_I2C0].base,
+    create_unimplemented_device(obj, "i2c0", memmap[K230_DEV_I2C0].base,
                                 memmap[K230_DEV_I2C0].size);
 
-    create_unimplemented_device("i2c1", memmap[K230_DEV_I2C1].base,
+    create_unimplemented_device(obj, "i2c1", memmap[K230_DEV_I2C1].base,
                                 memmap[K230_DEV_I2C1].size);
 
-    create_unimplemented_device("i2c2", memmap[K230_DEV_I2C2].base,
+    create_unimplemented_device(obj, "i2c2", memmap[K230_DEV_I2C2].base,
                                 memmap[K230_DEV_I2C2].size);
 
-    create_unimplemented_device("i2c3", memmap[K230_DEV_I2C3].base,
+    create_unimplemented_device(obj, "i2c3", memmap[K230_DEV_I2C3].base,
                                 memmap[K230_DEV_I2C3].size);
 
-    create_unimplemented_device("i2c4", memmap[K230_DEV_I2C4].base,
+    create_unimplemented_device(obj, "i2c4", memmap[K230_DEV_I2C4].base,
                                 memmap[K230_DEV_I2C4].size);
 
-    create_unimplemented_device("pwm", memmap[K230_DEV_PWM].base,
+    create_unimplemented_device(obj, "pwm", memmap[K230_DEV_PWM].base,
                                 memmap[K230_DEV_PWM].size);
 
-    create_unimplemented_device("gpio0", memmap[K230_DEV_GPIO0].base,
+    create_unimplemented_device(obj, "gpio0", memmap[K230_DEV_GPIO0].base,
                                 memmap[K230_DEV_GPIO0].size);
 
-    create_unimplemented_device("gpio1", memmap[K230_DEV_GPIO1].base,
+    create_unimplemented_device(obj, "gpio1", memmap[K230_DEV_GPIO1].base,
                                 memmap[K230_DEV_GPIO1].size);
 
-    create_unimplemented_device("adc", memmap[K230_DEV_ADC].base,
+    create_unimplemented_device(obj, "adc", memmap[K230_DEV_ADC].base,
                                 memmap[K230_DEV_ADC].size);
 
-    create_unimplemented_device("codec", memmap[K230_DEV_CODEC].base,
+    create_unimplemented_device(obj, "codec", memmap[K230_DEV_CODEC].base,
                                 memmap[K230_DEV_CODEC].size);
 
-    create_unimplemented_device("i2s", memmap[K230_DEV_I2S].base,
+    create_unimplemented_device(obj, "i2s", memmap[K230_DEV_I2S].base,
                                 memmap[K230_DEV_I2S].size);
 
-    create_unimplemented_device("usb0", memmap[K230_DEV_USB0].base,
+    create_unimplemented_device(obj, "usb0", memmap[K230_DEV_USB0].base,
                                 memmap[K230_DEV_USB0].size);
 
-    create_unimplemented_device("usb1", memmap[K230_DEV_USB1].base,
+    create_unimplemented_device(obj, "usb1", memmap[K230_DEV_USB1].base,
                                 memmap[K230_DEV_USB1].size);
 
-    create_unimplemented_device("sd0", memmap[K230_DEV_SD0].base,
+    create_unimplemented_device(obj, "sd0", memmap[K230_DEV_SD0].base,
                                 memmap[K230_DEV_SD0].size);
 
-    create_unimplemented_device("sd1", memmap[K230_DEV_SD1].base,
+    create_unimplemented_device(obj, "sd1", memmap[K230_DEV_SD1].base,
                                 memmap[K230_DEV_SD1].size);
 
-    create_unimplemented_device("qspi0", memmap[K230_DEV_QSPI0].base,
+    create_unimplemented_device(obj, "qspi0", memmap[K230_DEV_QSPI0].base,
                                 memmap[K230_DEV_QSPI0].size);
 
-    create_unimplemented_device("qspi1", memmap[K230_DEV_QSPI1].base,
+    create_unimplemented_device(obj, "qspi1", memmap[K230_DEV_QSPI1].base,
                                 memmap[K230_DEV_QSPI1].size);
 
-    create_unimplemented_device("spi", memmap[K230_DEV_SPI].base,
+    create_unimplemented_device(obj, "spi", memmap[K230_DEV_SPI].base,
                                 memmap[K230_DEV_SPI].size);
 
-    create_unimplemented_device("hi_sys_cfg", memmap[K230_DEV_HI_SYS_CFG].base,
+    create_unimplemented_device(obj, "hi_sys_cfg", memmap[K230_DEV_HI_SYS_CFG].base,
                                 memmap[K230_DEV_HI_SYS_CFG].size);
 
-    create_unimplemented_device("ddrc_cfg", memmap[K230_DEV_DDRC_CFG].base,
+    create_unimplemented_device(obj, "ddrc_cfg", memmap[K230_DEV_DDRC_CFG].base,
                                 memmap[K230_DEV_DDRC_CFG].size);
 
-    create_unimplemented_device("flash", memmap[K230_DEV_FLASH].base,
+    create_unimplemented_device(obj, "flash", memmap[K230_DEV_FLASH].base,
                                 memmap[K230_DEV_FLASH].size);
 }
 

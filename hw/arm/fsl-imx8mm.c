@@ -669,7 +669,7 @@ static void fsl_imx8mm_realize(DeviceState *dev, Error **errp)
             break;
 
         default:
-            create_unimplemented_device(fsl_imx8mm_memmap[i].name,
+            create_unimplemented_device(OBJECT(dev), fsl_imx8mm_memmap[i].name,
                                         fsl_imx8mm_memmap[i].addr,
                                         fsl_imx8mm_memmap[i].size);
             break;

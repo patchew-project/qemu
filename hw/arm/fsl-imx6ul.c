@@ -161,6 +161,7 @@ static void fsl_imx6ul_init(Object *obj)
 
 static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
 {
+    Object *obj = OBJECT(dev);
     MachineState *ms = MACHINE(qdev_get_machine());
     FslIMX6ULState *s = FSL_IMX6UL(dev);
     DeviceState *mpcore = DEVICE(&s->a7mpcore);
@@ -198,37 +199,37 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
     /*
      * A7MPCORE DAP
      */
-    create_unimplemented_device("a7mpcore-dap", FSL_IMX6UL_A7MPCORE_DAP_ADDR,
+    create_unimplemented_device(obj, "a7mpcore-dap", FSL_IMX6UL_A7MPCORE_DAP_ADDR,
                                 FSL_IMX6UL_A7MPCORE_DAP_SIZE);
 
     /*
      * MMDC
      */
-    create_unimplemented_device("a7mpcore-mmdc", FSL_IMX6UL_MMDC_CFG_ADDR,
+    create_unimplemented_device(obj, "a7mpcore-mmdc", FSL_IMX6UL_MMDC_CFG_ADDR,
                                 FSL_IMX6UL_MMDC_CFG_SIZE);
 
     /*
      * OCOTP
      */
-    create_unimplemented_device("a7mpcore-ocotp", FSL_IMX6UL_OCOTP_CTRL_ADDR,
+    create_unimplemented_device(obj, "a7mpcore-ocotp", FSL_IMX6UL_OCOTP_CTRL_ADDR,
                                 FSL_IMX6UL_OCOTP_CTRL_SIZE);
 
     /*
      * QSPI
      */
-    create_unimplemented_device("a7mpcore-qspi", FSL_IMX6UL_QSPI_ADDR,
+    create_unimplemented_device(obj, "a7mpcore-qspi", FSL_IMX6UL_QSPI_ADDR,
                                 FSL_IMX6UL_QSPI_SIZE);
 
     /*
      * CAAM
      */
-    create_unimplemented_device("a7mpcore-qspi", FSL_IMX6UL_CAAM_ADDR,
+    create_unimplemented_device(obj, "a7mpcore-qspi", FSL_IMX6UL_CAAM_ADDR,
                                 FSL_IMX6UL_CAAM_SIZE);
 
     /*
      * USBMISC
      */
-    create_unimplemented_device("a7mpcore-usbmisc", FSL_IMX6UL_USBO2_USBMISC_ADDR,
+    create_unimplemented_device(obj, "a7mpcore-usbmisc", FSL_IMX6UL_USBO2_USBMISC_ADDR,
                                 FSL_IMX6UL_USBO2_USBMISC_SIZE);
 
     /*
@@ -322,9 +323,9 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
     /*
      * IOMUXC
      */
-    create_unimplemented_device("iomuxc", FSL_IMX6UL_IOMUXC_ADDR,
+    create_unimplemented_device(obj, "iomuxc", FSL_IMX6UL_IOMUXC_ADDR,
                                 FSL_IMX6UL_IOMUXC_SIZE);
-    create_unimplemented_device("iomuxc_gpr", FSL_IMX6UL_IOMUXC_GPR_ADDR,
+    create_unimplemented_device(obj, "iomuxc_gpr", FSL_IMX6UL_IOMUXC_GPR_ADDR,
                                 FSL_IMX6UL_IOMUXC_GPR_SIZE);
 
     /*
@@ -581,7 +582,7 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
     /*
      * SDMA
      */
-    create_unimplemented_device("sdma", FSL_IMX6UL_SDMA_ADDR,
+    create_unimplemented_device(obj, "sdma", FSL_IMX6UL_SDMA_ADDR,
                                 FSL_IMX6UL_SDMA_SIZE);
 
     /*
@@ -595,7 +596,7 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
         };
 
         snprintf(name, NAME_SIZE, "sai%d", i);
-        create_unimplemented_device(name, FSL_IMX6UL_SAIn_ADDR[i],
+        create_unimplemented_device(obj, name, FSL_IMX6UL_SAIn_ADDR[i],
                                     FSL_IMX6UL_SAIn_SIZE);
     }
 
@@ -615,14 +616,14 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
         };
 
         snprintf(name, NAME_SIZE, "pwm%d", i);
-        create_unimplemented_device(name, FSL_IMX6UL_PWMn_ADDR[i],
+        create_unimplemented_device(obj, name, FSL_IMX6UL_PWMn_ADDR[i],
                                     FSL_IMX6UL_PWMn_SIZE);
     }
 
     /*
      * Audio ASRC (asynchronous sample rate converter)
      */
-    create_unimplemented_device("asrc", FSL_IMX6UL_ASRC_ADDR,
+    create_unimplemented_device(obj, "asrc", FSL_IMX6UL_ASRC_ADDR,
                                 FSL_IMX6UL_ASRC_SIZE);
 
     /*
@@ -635,14 +636,14 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
         };
 
         snprintf(name, NAME_SIZE, "can%d", i);
-        create_unimplemented_device(name, FSL_IMX6UL_CANn_ADDR[i],
+        create_unimplemented_device(obj, name, FSL_IMX6UL_CANn_ADDR[i],
                                     FSL_IMX6UL_CANn_SIZE);
     }
 
     /*
      * APHB_DMA
      */
-    create_unimplemented_device("aphb_dma", FSL_IMX6UL_APBH_DMA_ADDR,
+    create_unimplemented_device(obj, "aphb_dma", FSL_IMX6UL_APBH_DMA_ADDR,
                                 FSL_IMX6UL_APBH_DMA_SIZE);
 
     /*
@@ -655,7 +656,7 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
         };
 
         snprintf(name, NAME_SIZE, "adc%d", i);
-        create_unimplemented_device(name, FSL_IMX6UL_ADCn_ADDR[i],
+        create_unimplemented_device(obj, name, FSL_IMX6UL_ADCn_ADDR[i],
                                     FSL_IMX6UL_ADCn_SIZE);
     }
 
@@ -670,13 +671,13 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
     /*
      * CSU
      */
-    create_unimplemented_device("csu", FSL_IMX6UL_CSU_ADDR,
+    create_unimplemented_device(obj, "csu", FSL_IMX6UL_CSU_ADDR,
                                 FSL_IMX6UL_CSU_SIZE);
 
     /*
      * TZASC
      */
-    create_unimplemented_device("tzasc", FSL_IMX6UL_TZASC_ADDR,
+    create_unimplemented_device(obj, "tzasc", FSL_IMX6UL_TZASC_ADDR,
                                 FSL_IMX6UL_TZASC_SIZE);
 
     /*

@@ -149,36 +149,36 @@ static void stm32f100_soc_realize(DeviceState *dev_soc, Error **errp)
         sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, spi_irq[i]));
     }
 
-    create_unimplemented_device("timer[2]",  0x40000000, 0x400);
-    create_unimplemented_device("timer[3]",  0x40000400, 0x400);
-    create_unimplemented_device("timer[4]",  0x40000800, 0x400);
-    create_unimplemented_device("timer[6]",  0x40001000, 0x400);
-    create_unimplemented_device("timer[7]",  0x40001400, 0x400);
-    create_unimplemented_device("RTC",       0x40002800, 0x400);
-    create_unimplemented_device("WWDG",      0x40002C00, 0x400);
-    create_unimplemented_device("IWDG",      0x40003000, 0x400);
-    create_unimplemented_device("I2C1",      0x40005400, 0x400);
-    create_unimplemented_device("I2C2",      0x40005800, 0x400);
-    create_unimplemented_device("BKP",       0x40006C00, 0x400);
-    create_unimplemented_device("PWR",       0x40007000, 0x400);
-    create_unimplemented_device("DAC",       0x40007400, 0x400);
-    create_unimplemented_device("CEC",       0x40007800, 0x400);
-    create_unimplemented_device("AFIO",      0x40010000, 0x400);
-    create_unimplemented_device("EXTI",      0x40010400, 0x400);
-    create_unimplemented_device("GPIOA",     0x40010800, 0x400);
-    create_unimplemented_device("GPIOB",     0x40010C00, 0x400);
-    create_unimplemented_device("GPIOC",     0x40011000, 0x400);
-    create_unimplemented_device("GPIOD",     0x40011400, 0x400);
-    create_unimplemented_device("GPIOE",     0x40011800, 0x400);
-    create_unimplemented_device("ADC1",      0x40012400, 0x400);
-    create_unimplemented_device("timer[1]",  0x40012C00, 0x400);
-    create_unimplemented_device("timer[15]", 0x40014000, 0x400);
-    create_unimplemented_device("timer[16]", 0x40014400, 0x400);
-    create_unimplemented_device("timer[17]", 0x40014800, 0x400);
-    create_unimplemented_device("DMA",       0x40020000, 0x400);
-    create_unimplemented_device("RCC",       0x40021000, 0x400);
-    create_unimplemented_device("Flash Int", 0x40022000, 0x400);
-    create_unimplemented_device("CRC",       0x40023000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "timer[2]",  0x40000000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "timer[3]",  0x40000400, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "timer[4]",  0x40000800, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "timer[6]",  0x40001000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "timer[7]",  0x40001400, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "RTC",       0x40002800, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "WWDG",      0x40002C00, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "IWDG",      0x40003000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "I2C1",      0x40005400, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "I2C2",      0x40005800, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "BKP",       0x40006C00, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "PWR",       0x40007000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "DAC",       0x40007400, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "CEC",       0x40007800, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "AFIO",      0x40010000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "EXTI",      0x40010400, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "GPIOA",     0x40010800, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "GPIOB",     0x40010C00, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "GPIOC",     0x40011000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "GPIOD",     0x40011400, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "GPIOE",     0x40011800, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "ADC1",      0x40012400, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "timer[1]",  0x40012C00, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "timer[15]", 0x40014000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "timer[16]", 0x40014400, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "timer[17]", 0x40014800, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "DMA",       0x40020000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "RCC",       0x40021000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "Flash Int", 0x40022000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "CRC",       0x40023000, 0x400);
 }
 
 static void stm32f100_soc_class_init(ObjectClass *klass, const void *data)

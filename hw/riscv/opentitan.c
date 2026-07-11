@@ -258,57 +258,57 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
         }
     }
 
-    create_unimplemented_device("riscv.lowrisc.ibex.gpio",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.gpio",
         memmap[IBEX_DEV_GPIO].base, memmap[IBEX_DEV_GPIO].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.spi_device",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.spi_device",
         memmap[IBEX_DEV_SPI_DEVICE].base, memmap[IBEX_DEV_SPI_DEVICE].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.i2c",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.i2c",
         memmap[IBEX_DEV_I2C].base, memmap[IBEX_DEV_I2C].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.pattgen",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.pattgen",
         memmap[IBEX_DEV_PATTGEN].base, memmap[IBEX_DEV_PATTGEN].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.sensor_ctrl",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.sensor_ctrl",
         memmap[IBEX_DEV_SENSOR_CTRL].base, memmap[IBEX_DEV_SENSOR_CTRL].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.otp_ctrl",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.otp_ctrl",
         memmap[IBEX_DEV_OTP_CTRL].base, memmap[IBEX_DEV_OTP_CTRL].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.lc_ctrl",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.lc_ctrl",
         memmap[IBEX_DEV_LC_CTRL].base, memmap[IBEX_DEV_LC_CTRL].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.pwrmgr",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.pwrmgr",
         memmap[IBEX_DEV_PWRMGR].base, memmap[IBEX_DEV_PWRMGR].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.rstmgr",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.rstmgr",
         memmap[IBEX_DEV_RSTMGR].base, memmap[IBEX_DEV_RSTMGR].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.clkmgr",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.clkmgr",
         memmap[IBEX_DEV_CLKMGR].base, memmap[IBEX_DEV_CLKMGR].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.pinmux",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.pinmux",
         memmap[IBEX_DEV_PINMUX].base, memmap[IBEX_DEV_PINMUX].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.aon_timer",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.aon_timer",
         memmap[IBEX_DEV_AON_TIMER].base, memmap[IBEX_DEV_AON_TIMER].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.usbdev",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.usbdev",
         memmap[IBEX_DEV_USBDEV].base, memmap[IBEX_DEV_USBDEV].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.flash_ctrl",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.flash_ctrl",
         memmap[IBEX_DEV_FLASH_CTRL].base, memmap[IBEX_DEV_FLASH_CTRL].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.aes",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.aes",
         memmap[IBEX_DEV_AES].base, memmap[IBEX_DEV_AES].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.hmac",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.hmac",
         memmap[IBEX_DEV_HMAC].base, memmap[IBEX_DEV_HMAC].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.kmac",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.kmac",
         memmap[IBEX_DEV_KMAC].base, memmap[IBEX_DEV_KMAC].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.keymgr",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.keymgr",
         memmap[IBEX_DEV_KEYMGR].base, memmap[IBEX_DEV_KEYMGR].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.csrng",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.csrng",
         memmap[IBEX_DEV_CSRNG].base, memmap[IBEX_DEV_CSRNG].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.entropy",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.entropy",
         memmap[IBEX_DEV_ENTROPY].base, memmap[IBEX_DEV_ENTROPY].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.edn0",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.edn0",
         memmap[IBEX_DEV_EDNO].base, memmap[IBEX_DEV_EDNO].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.edn1",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.edn1",
         memmap[IBEX_DEV_EDN1].base, memmap[IBEX_DEV_EDN1].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.alert_handler",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.alert_handler",
         memmap[IBEX_DEV_ALERT_HANDLER].base, memmap[IBEX_DEV_ALERT_HANDLER].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.sram_ctrl",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.sram_ctrl",
         memmap[IBEX_DEV_SRAM_CTRL].base, memmap[IBEX_DEV_SRAM_CTRL].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.otbn",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.otbn",
         memmap[IBEX_DEV_OTBN].base, memmap[IBEX_DEV_OTBN].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.ibex_cfg",
+    create_unimplemented_device(OBJECT(dev_soc), "riscv.lowrisc.ibex.ibex_cfg",
         memmap[IBEX_DEV_IBEX_CFG].base, memmap[IBEX_DEV_IBEX_CFG].size);
 }
 

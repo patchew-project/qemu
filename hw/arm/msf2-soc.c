@@ -210,16 +210,16 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
                        qdev_get_gpio_in(armv7m, MSF2_EMAC_IRQ));
 
     /* Below devices are not modelled yet. */
-    create_unimplemented_device("i2c_0", 0x40002000, 0x1000);
-    create_unimplemented_device("dma", 0x40003000, 0x1000);
-    create_unimplemented_device("watchdog", 0x40005000, 0x1000);
-    create_unimplemented_device("i2c_1", 0x40012000, 0x1000);
-    create_unimplemented_device("gpio", 0x40013000, 0x1000);
-    create_unimplemented_device("hs-dma", 0x40014000, 0x1000);
-    create_unimplemented_device("can", 0x40015000, 0x1000);
-    create_unimplemented_device("rtc", 0x40017000, 0x1000);
-    create_unimplemented_device("apb_config", 0x40020000, 0x10000);
-    create_unimplemented_device("usb", 0x40043000, 0x1000);
+    create_unimplemented_device(OBJECT(dev_soc), "i2c_0", 0x40002000, 0x1000);
+    create_unimplemented_device(OBJECT(dev_soc), "dma", 0x40003000, 0x1000);
+    create_unimplemented_device(OBJECT(dev_soc), "watchdog", 0x40005000, 0x1000);
+    create_unimplemented_device(OBJECT(dev_soc), "i2c_1", 0x40012000, 0x1000);
+    create_unimplemented_device(OBJECT(dev_soc), "gpio", 0x40013000, 0x1000);
+    create_unimplemented_device(OBJECT(dev_soc), "hs-dma", 0x40014000, 0x1000);
+    create_unimplemented_device(OBJECT(dev_soc), "can", 0x40015000, 0x1000);
+    create_unimplemented_device(OBJECT(dev_soc), "rtc", 0x40017000, 0x1000);
+    create_unimplemented_device(OBJECT(dev_soc), "apb_config", 0x40020000, 0x10000);
+    create_unimplemented_device(OBJECT(dev_soc), "usb", 0x40043000, 0x1000);
 }
 
 static const Property m2sxxx_soc_properties[] = {

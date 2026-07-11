@@ -131,7 +131,7 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
     memory_region_init_ram(&s->sram_a, OBJECT(dev), "sram A", 48 * KiB,
                            &error_fatal);
     memory_region_add_subregion(get_system_memory(), 0x00000000, &s->sram_a);
-    create_unimplemented_device("a10-sram-ctrl", 0x01c00000, 4 * KiB);
+    create_unimplemented_device(OBJECT(dev), "a10-sram-ctrl", 0x01c00000, 4 * KiB);
 
     /* Clock Control Module */
     sysbus_realize(SYS_BUS_DEVICE(&s->ccm), &error_fatal);

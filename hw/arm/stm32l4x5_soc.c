@@ -359,80 +359,80 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
                                                    EXTI_LPUART1_IRQ));
 
     /* APB1 BUS */
-    create_unimplemented_device("TIM2",      0x40000000, 0x400);
-    create_unimplemented_device("TIM3",      0x40000400, 0x400);
-    create_unimplemented_device("TIM4",      0x40000800, 0x400);
-    create_unimplemented_device("TIM5",      0x40000C00, 0x400);
-    create_unimplemented_device("TIM6",      0x40001000, 0x400);
-    create_unimplemented_device("TIM7",      0x40001400, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "TIM2",      0x40000000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "TIM3",      0x40000400, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "TIM4",      0x40000800, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "TIM5",      0x40000C00, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "TIM6",      0x40001000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "TIM7",      0x40001400, 0x400);
     /* RESERVED:    0x40001800, 0x1000 */
-    create_unimplemented_device("RTC",       0x40002800, 0x400);
-    create_unimplemented_device("WWDG",      0x40002C00, 0x400);
-    create_unimplemented_device("IWDG",      0x40003000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "RTC",       0x40002800, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "WWDG",      0x40002C00, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "IWDG",      0x40003000, 0x400);
     /* RESERVED:    0x40001800, 0x400 */
-    create_unimplemented_device("SPI2",      0x40003800, 0x400);
-    create_unimplemented_device("SPI3",      0x40003C00, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "SPI2",      0x40003800, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "SPI3",      0x40003C00, 0x400);
     /* RESERVED:    0x40004000, 0x400 */
-    create_unimplemented_device("I2C1",      0x40005400, 0x400);
-    create_unimplemented_device("I2C2",      0x40005800, 0x400);
-    create_unimplemented_device("I2C3",      0x40005C00, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "I2C1",      0x40005400, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "I2C2",      0x40005800, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "I2C3",      0x40005C00, 0x400);
     /* RESERVED:    0x40006000, 0x400 */
-    create_unimplemented_device("CAN1",      0x40006400, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "CAN1",      0x40006400, 0x400);
     /* RESERVED:    0x40006800, 0x400 */
-    create_unimplemented_device("PWR",       0x40007000, 0x400);
-    create_unimplemented_device("DAC1",      0x40007400, 0x400);
-    create_unimplemented_device("OPAMP",     0x40007800, 0x400);
-    create_unimplemented_device("LPTIM1",    0x40007C00, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "PWR",       0x40007000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "DAC1",      0x40007400, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "OPAMP",     0x40007800, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "LPTIM1",    0x40007C00, 0x400);
     /* RESERVED:    0x40008400, 0x400 */
-    create_unimplemented_device("SWPMI1",    0x40008800, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "SWPMI1",    0x40008800, 0x400);
     /* RESERVED:    0x40008C00, 0x800 */
-    create_unimplemented_device("LPTIM2",    0x40009400, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "LPTIM2",    0x40009400, 0x400);
     /* RESERVED:    0x40009800, 0x6800 */
 
     /* APB2 BUS */
-    create_unimplemented_device("VREFBUF",   0x40010030, 0x1D0);
-    create_unimplemented_device("COMP",      0x40010200, 0x200);
+    create_unimplemented_device(OBJECT(dev_soc), "VREFBUF",   0x40010030, 0x1D0);
+    create_unimplemented_device(OBJECT(dev_soc), "COMP",      0x40010200, 0x200);
     /* RESERVED:    0x40010800, 0x1400 */
-    create_unimplemented_device("FIREWALL",  0x40011C00, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "FIREWALL",  0x40011C00, 0x400);
     /* RESERVED:    0x40012000, 0x800 */
-    create_unimplemented_device("SDMMC1",    0x40012800, 0x400);
-    create_unimplemented_device("TIM1",      0x40012C00, 0x400);
-    create_unimplemented_device("SPI1",      0x40013000, 0x400);
-    create_unimplemented_device("TIM8",      0x40013400, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "SDMMC1",    0x40012800, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "TIM1",      0x40012C00, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "SPI1",      0x40013000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "TIM8",      0x40013400, 0x400);
     /* RESERVED:    0x40013C00, 0x400 */
-    create_unimplemented_device("TIM15",     0x40014000, 0x400);
-    create_unimplemented_device("TIM16",     0x40014400, 0x400);
-    create_unimplemented_device("TIM17",     0x40014800, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "TIM15",     0x40014000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "TIM16",     0x40014400, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "TIM17",     0x40014800, 0x400);
     /* RESERVED:    0x40014C00, 0x800 */
-    create_unimplemented_device("SAI1",      0x40015400, 0x400);
-    create_unimplemented_device("SAI2",      0x40015800, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "SAI1",      0x40015400, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "SAI2",      0x40015800, 0x400);
     /* RESERVED:    0x40015C00, 0x400 */
-    create_unimplemented_device("DFSDM1",    0x40016000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "DFSDM1",    0x40016000, 0x400);
     /* RESERVED:    0x40016400, 0x9C00 */
 
     /* AHB1 BUS */
-    create_unimplemented_device("DMA1",      0x40020000, 0x400);
-    create_unimplemented_device("DMA2",      0x40020400, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "DMA1",      0x40020000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "DMA2",      0x40020400, 0x400);
     /* RESERVED:    0x40020800, 0x800 */
     /* RESERVED:    0x40021400, 0xC00 */
-    create_unimplemented_device("FLASH",     0x40022000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "FLASH",     0x40022000, 0x400);
     /* RESERVED:    0x40022400, 0xC00 */
-    create_unimplemented_device("CRC",       0x40023000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "CRC",       0x40023000, 0x400);
     /* RESERVED:    0x40023400, 0x400 */
-    create_unimplemented_device("TSC",       0x40024000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "TSC",       0x40024000, 0x400);
 
     /* RESERVED:    0x40024400, 0x7FDBC00 */
 
     /* AHB2 BUS */
     /* RESERVED:    0x48002000, 0x7FDBC00 */
-    create_unimplemented_device("OTG_FS",    0x50000000, 0x40000);
-    create_unimplemented_device("ADC",       0x50040000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "OTG_FS",    0x50000000, 0x40000);
+    create_unimplemented_device(OBJECT(dev_soc), "ADC",       0x50040000, 0x400);
     /* RESERVED:    0x50040400, 0x20400 */
-    create_unimplemented_device("RNG",       0x50060800, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "RNG",       0x50060800, 0x400);
 
     /* AHB3 BUS */
-    create_unimplemented_device("FMC",       0xA0000000, 0x1000);
-    create_unimplemented_device("QUADSPI",   0xA0001000, 0x400);
+    create_unimplemented_device(OBJECT(dev_soc), "FMC",       0xA0000000, 0x1000);
+    create_unimplemented_device(OBJECT(dev_soc), "QUADSPI",   0xA0001000, 0x400);
 }
 
 static void stm32l4x5_soc_class_init(ObjectClass *klass, const void *data)

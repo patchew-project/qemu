@@ -478,6 +478,7 @@ static inline void loongson3_virt_devices_init(MachineState *machine,
 
 static void mips_loongson3_virt_init(MachineState *machine)
 {
+    Object *obj = OBJECT(machine);
     int i;
     long bios_size;
     MIPSCPU *cpu = NULL;
@@ -515,8 +516,8 @@ static void mips_loongson3_virt_init(MachineState *machine)
      * exception when accessing invalid memory. Create some unimplememted
      * devices to emulate this feature.
      */
-    create_unimplemented_device("mmio fallback 0", 0x10000000, 256 * MiB);
-    create_unimplemented_device("mmio fallback 1", 0x30000000, 256 * MiB);
+    create_unimplemented_device(obj, "mmio fallback 0", 0x10000000, 256 * MiB);
+    create_unimplemented_device(obj, "mmio fallback 1", 0x30000000, 256 * MiB);
 
     memory_region_init(iocsr, OBJECT(machine), "loongson3.iocsr", UINT32_MAX);
 

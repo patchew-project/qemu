@@ -38,15 +38,18 @@ struct UnimplementedDeviceState {
  * use it to cover a large region and then map other devices on top of it
  * if necessary.
  */
-static inline void create_unimplemented_device(const char *name,
+static inline void create_unimplemented_device(Object *parent,
+                                               const char *name,
                                                hwaddr base,
                                                hwaddr size)
 {
-    DeviceState *dev = qdev_new_orphan(TYPE_UNIMPLEMENTED_DEVICE);
+    g_autofree char *id = name[strlen(name) - 1] == ']'
+                          ? g_strdup(name) : g_strdup_printf("%s[*]", name);
+    DeviceState *dev = qdev_new(parent, id, TYPE_UNIMPLEMENTED_DEVICE);
 
     qdev_prop_set_string(dev, "name", name);
     qdev_prop_set_uint64(dev, "size", size);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(dev), 0, base, -1000);
 }
