@@ -819,7 +819,7 @@ static void typhoon_alarm_timer(void *opaque)
     cpu_interrupt(CPU(s->cchip.cpu[cpu]), CPU_INTERRUPT_TIMER);
 }
 
-PCIBus *typhoon_init(MemoryRegion *ram, qemu_irq *p_isa_irq,
+PCIBus *typhoon_init(Object *parent, MemoryRegion *ram, qemu_irq *p_isa_irq,
                      qemu_irq *p_rtc_irq, AlphaCPU *cpus[4],
                      pci_map_irq_fn sys_map_irq, uint8_t devfn_min)
 {
@@ -830,7 +830,7 @@ PCIBus *typhoon_init(MemoryRegion *ram, qemu_irq *p_isa_irq,
     PCIBus *b;
     int i;
 
-    dev = qdev_new_orphan(TYPE_TYPHOON_PCI_HOST_BRIDGE);
+    dev = qdev_new(parent, "typhoon", TYPE_TYPHOON_PCI_HOST_BRIDGE);
 
     s = TYPHOON_PCI_HOST_BRIDGE(dev);
     phb = PCI_HOST_BRIDGE(dev);
@@ -894,7 +894,7 @@ PCIBus *typhoon_init(MemoryRegion *ram, qemu_irq *p_isa_irq,
                               &s->pchip.reg_mem, &s->pchip.reg_io,
                               devfn_min, 64, TYPE_PCI_BUS);
     phb->bus = b;
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     /* Host memory as seen from the PCI side, via the IOMMU.  */
     memory_region_init_iommu(&s->pchip.iommu, sizeof(s->pchip.iommu),

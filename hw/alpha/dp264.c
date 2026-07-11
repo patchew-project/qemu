@@ -49,6 +49,7 @@ static void clipper_init(MachineState *machine)
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
+    Object *mo = OBJECT(machine);
     AlphaCPU *cpus[4];
     PCIBus *pci_bus;
     PCIDevice *pci_dev;
@@ -65,7 +66,7 @@ static void clipper_init(MachineState *machine)
     /* Create up to 4 cpus.  */
     memset(cpus, 0, sizeof(cpus));
     for (i = 0; i < smp_cpus; ++i) {
-        cpus[i] = ALPHA_CPU(cpu_create_orphan(machine->cpu_type));
+        cpus[i] = ALPHA_CPU(cpu_create(mo, "cpu[*]", machine->cpu_type));
     }
 
     /*
@@ -86,7 +87,7 @@ static void clipper_init(MachineState *machine)
      * Init the chipset.  Because we're using CLIPPER IRQ mappings,
      * the minimum PCI device IdSel is 1.
      */
-    pci_bus = typhoon_init(machine->ram, &isa_irq, &rtc_irq, cpus,
+    pci_bus = typhoon_init(mo, machine->ram, &isa_irq, &rtc_irq, cpus,
                            clipper_pci_map_irq, PCI_DEVFN(1, 0));
 
     /*
@@ -110,7 +111,8 @@ static void clipper_init(MachineState *machine)
      * Importantly, we need to provide a PCI device node for it, otherwise
      * some operating systems won't notice there's an ISA bus to configure.
      */
-    i82378_dev = DEVICE(pci_create_simple_orphan(pci_bus, PCI_DEVFN(7, 0), "i82378"));
+    i82378_dev = DEVICE(pci_create_simple(mo, "isa-bridge", pci_bus,
+                                          PCI_DEVFN(7, 0), "i82378"));
     isa_bus = ISA_BUS(qdev_get_child_bus(i82378_dev, "isa.0"));
 
     /* Connect the ISA PIC to the Typhoon IRQ used for ISA interrupts. */
@@ -126,10 +128,10 @@ static void clipper_init(MachineState *machine)
     pci_init_nic_devices(pci_bus, mc->default_nic);
 
     /* Super I/O */
-    isa_create_simple_orphan(isa_bus, TYPE_SMC37C669_SUPERIO);
+    isa_create_simple(mo, "sio", isa_bus, TYPE_SMC37C669_SUPERIO);
 
     /* IDE disk setup.  */
-    pci_dev = pci_create_simple_orphan(pci_bus, -1, "cmd646-ide");
+    pci_dev = pci_create_simple(mo, "ide", pci_bus, -1, "cmd646-ide");
     pci_ide_create_devs(pci_dev);
 
     /* Load PALcode.  Given that this is not "real" cpu palcode,
