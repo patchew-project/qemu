@@ -251,7 +251,8 @@ static void r2d_init(MachineState *machine)
     USBBus *usb_bus;
     r2d_fpga_t *fpga;
 
-    cpu = SUPERH_CPU(cpu_create_orphan(machine->cpu_type));
+    cpu = SUPERH_CPU(cpu_create(OBJECT(machine), "cpu",
+                                machine->cpu_type));
     env = &cpu->env;
 
     reset_info = g_new0(ResetData, 1);
@@ -263,12 +264,12 @@ static void r2d_init(MachineState *machine)
     memory_region_init_ram(sdram, NULL, "r2d.sdram", SDRAM_SIZE, &error_fatal);
     memory_region_add_subregion(address_space_mem, SDRAM_BASE, sdram);
     /* Register peripherals */
-    s = sh7750_init(cpu, address_space_mem);
+    s = sh7750_init(OBJECT(machine), cpu, address_space_mem);
     fpga = r2d_fpga_init(address_space_mem, 0x04000000, sh7750_irl(s));
 
-    dev = qdev_new_orphan("sh_pci");
+    dev = qdev_new(OBJECT(machine), "pci-host", "sh_pci");
     busdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_realize(busdev, &error_fatal);
     pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci"));
     sysbus_mmio_map(busdev, 0, P4ADDR(0x1e200000));
     sysbus_mmio_map(busdev, 1, A7ADDR(0x1e200000));
@@ -277,23 +278,23 @@ static void r2d_init(MachineState *machine)
     sysbus_connect_irq(busdev, 2, &fpga->irq[PCI_INTC]);
     sysbus_connect_irq(busdev, 3, &fpga->irq[PCI_INTD]);
 
-    dev = qdev_new_orphan("sysbus-sm501");
+    dev = qdev_new(OBJECT(machine), "sm501", "sysbus-sm501");
     busdev = SYS_BUS_DEVICE(dev);
     qdev_prop_set_uint32(dev, "vram-size", SM501_VRAM_SIZE);
     qdev_prop_set_uint64(dev, "dma-offset", 0x10000000);
     qdev_prop_set_chr(dev, "chardev", serial_hd(2));
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_realize(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, 0x10000000);
     sysbus_mmio_map(busdev, 1, 0x13e00000);
     sysbus_connect_irq(busdev, 0, &fpga->irq[SM501]);
 
     /* onboard CF (True IDE mode, Master only). */
     dinfo = drive_get(IF_IDE, 0, 0);
-    dev = qdev_new_orphan("mmio-ide");
+    dev = qdev_new(OBJECT(machine), "ide", "mmio-ide");
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_connect_irq(busdev, 0, &fpga->irq[CF_IDE]);
     qdev_prop_set_uint32(dev, "shift", 1);
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_realize(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, 0x14001000);
     sysbus_mmio_map(busdev, 1, 0x1400080c);
     mmio_ide_init_drives(dev, dinfo, NULL);
@@ -320,7 +321,8 @@ static void r2d_init(MachineState *machine)
     /* USB keyboard */
     usb_bus = USB_BUS(object_resolve_type_unambiguous(TYPE_USB_BUS,
                                                       &error_abort));
-    usb_create_simple_orphan(usb_bus, "usb-kbd");
+    usb_create_simple(OBJECT(BUS(usb_bus)->parent), "usb-kbd",
+                      usb_bus, "usb-kbd");
 
     /* Todo: register on board registers */
     memset(&boot_params, 0, sizeof(boot_params));

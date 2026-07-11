@@ -36,7 +36,8 @@
 /* sh7750.c */
 struct SH7750State;
 
-struct SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem);
+struct SH7750State *sh7750_init(Object *parent, SuperHCPU *cpu,
+                                MemoryRegion *sysmem);
 
 #define TYPE_SH_SERIAL "sh-serial"
 #define SH_SERIAL_FEAT_SCIF (1 << 0)

@@ -710,7 +710,8 @@ static const MemoryRegionOps sh7750_mmct_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
+SH7750State *sh7750_init(Object *parent, SuperHCPU *cpu,
+                         MemoryRegion *sysmem)
 {
     SH7750State *s;
     DeviceState *dev;
@@ -762,11 +763,11 @@ SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
     cpu->env.intc_handle = &s->intc;
 
     /* SCI */
-    dev = qdev_new_orphan(TYPE_SH_SERIAL);
+    dev = qdev_new(parent, "sci", TYPE_SH_SERIAL);
     dev->id = g_strdup("sci");
     qdev_prop_set_chr(dev, "chardev", serial_hd(0));
     sb = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(sb, &error_fatal);
+    sysbus_realize(sb, &error_fatal);
     sysbus_mmio_map(sb, 0, 0xffe00000);
     alias = g_malloc(sizeof(*alias));
     mr = sysbus_mmio_get_region(sb, 0);
@@ -779,12 +780,12 @@ SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
     qdev_connect_gpio_out_named(dev, "tei", 0, s->intc.irqs[SCI1_TEI]);
 
     /* SCIF */
-    dev = qdev_new_orphan(TYPE_SH_SERIAL);
+    dev = qdev_new(parent, "scif", TYPE_SH_SERIAL);
     dev->id = g_strdup("scif");
     qdev_prop_set_chr(dev, "chardev", serial_hd(1));
     qdev_prop_set_uint8(dev, "features", SH_SERIAL_FEAT_SCIF);
     sb = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(sb, &error_fatal);
+    sysbus_realize(sb, &error_fatal);
     sysbus_mmio_map(sb, 0, 0xffe80000);
     alias = g_malloc(sizeof(*alias));
     mr = sysbus_mmio_get_region(sb, 0);
