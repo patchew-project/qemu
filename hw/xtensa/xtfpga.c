@@ -125,12 +125,13 @@ static const MemoryRegionOps xtfpga_fpga_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static XtfpgaFpgaState *xtfpga_fpga_init(MemoryRegion *address_space,
+static XtfpgaFpgaState *xtfpga_fpga_init(Object *owner,
+                                         MemoryRegion *address_space,
                                          hwaddr base, uint32_t freq)
 {
     XtfpgaFpgaState *s = g_new(XtfpgaFpgaState, 1);
 
-    memory_region_init_io(&s->iomem, NULL, &xtfpga_fpga_ops, s,
+    memory_region_init_io(&s->iomem, owner, &xtfpga_fpga_ops, s,
                           "xtfpga.fpga", 0x10000);
     memory_region_add_subregion(address_space, base, &s->iomem);
     s->freq = freq;
@@ -243,6 +244,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
     uint32_t freq = 10000000;
     int n;
     unsigned int smp_cpus = machine->smp.cpus;
+    Object *mo = OBJECT(machine);
 
     if (smp_cpus > 1) {
         mx_pic = xtensa_mx_pic_init(31);
@@ -262,7 +264,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
         if (mx_pic) {
             MemoryRegion *mx_eri;
 
-            mx_eri = xtensa_mx_pic_register_cpu(mx_pic,
+            mx_eri = xtensa_mx_pic_register_cpu(OBJECT(machine), mx_pic,
                                                 xtensa_get_extints(cenv),
                                                 xtensa_get_runstall(cenv));
             memory_region_add_subregion(xtensa_get_er_region(cenv),
@@ -286,30 +288,30 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
         XtensaMemory sysram = env->config->sysram;
 
         sysram.location[0].size = machine->ram_size;
-        xtensa_create_memory_regions(&env->config->instrom, "xtensa.instrom",
+        xtensa_create_memory_regions(mo, &env->config->instrom, "xtensa.instrom",
                                      system_memory);
-        xtensa_create_memory_regions(&env->config->instram, "xtensa.instram",
+        xtensa_create_memory_regions(mo, &env->config->instram, "xtensa.instram",
                                      system_memory);
-        xtensa_create_memory_regions(&env->config->datarom, "xtensa.datarom",
+        xtensa_create_memory_regions(mo, &env->config->datarom, "xtensa.datarom",
                                      system_memory);
-        xtensa_create_memory_regions(&env->config->dataram, "xtensa.dataram",
+        xtensa_create_memory_regions(mo, &env->config->dataram, "xtensa.dataram",
                                      system_memory);
-        xtensa_create_memory_regions(&sysram, "xtensa.sysram",
+        xtensa_create_memory_regions(mo, &sysram, "xtensa.sysram",
                                      system_memory);
     }
 
     system_io = g_malloc(sizeof(*system_io));
-    memory_region_init_io(system_io, NULL, &xtfpga_io_ops, NULL, "xtfpga.io",
+    memory_region_init_io(system_io, OBJECT(machine), &xtfpga_io_ops, NULL, "xtfpga.io",
                           system_io_size);
     memory_region_add_subregion(system_memory, board->io[0], system_io);
     if (board->io[1]) {
         MemoryRegion *io = g_malloc(sizeof(*io));
 
-        memory_region_init_alias(io, NULL, "xtfpga.io.cached",
+        memory_region_init_alias(io, OBJECT(machine), "xtfpga.io.cached",
                                  system_io, 0, system_io_size);
         memory_region_add_subregion(system_memory, board->io[1], io);
     }
-    xtfpga_fpga_init(system_io, 0x0d020000, freq);
+    xtfpga_fpga_init(OBJECT(machine), system_io, 0x0d020000, freq);
     xtfpga_net_init(system_io, 0x0d030000, 0x0d030400, 0x0d800000, extints[1]);
 
     serial_mm_init(OBJECT(machine), system_io, 0x0d050020, 2, extints[0],
@@ -341,7 +343,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
         lowmem_end += env->config->sysram.location[0].addr;
         cur_lowmem += env->config->sysram.location[0].addr;
 
-        xtensa_create_memory_regions(&env->config->sysrom, "xtensa.sysrom",
+        xtensa_create_memory_regions(mo, &env->config->sysrom, "xtensa.sysrom",
                                      system_memory);
 
         if (kernel_cmdline) {
@@ -465,13 +467,13 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
                 size = board->flash->size - board->flash->boot_base;
             }
 
-            memory_region_init_alias(flash_io, NULL, "xtfpga.flash",
+            memory_region_init_alias(flash_io, OBJECT(machine), "xtfpga.flash",
                                      flash_mr, board->flash->boot_base, size);
             memory_region_add_subregion(system_memory,
                                         env->config->sysrom.location[0].addr,
                                         flash_io);
         } else {
-            xtensa_create_memory_regions(&env->config->sysrom, "xtensa.sysrom",
+            xtensa_create_memory_regions(mo, &env->config->sysrom, "xtensa.sysrom",
                                          system_memory);
         }
     }

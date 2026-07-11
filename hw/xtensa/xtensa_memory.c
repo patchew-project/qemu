@@ -31,7 +31,8 @@
 #include "qemu/error-report.h"
 #include "xtensa_memory.h"
 
-void xtensa_create_memory_regions(const XtensaMemory *memory,
+void xtensa_create_memory_regions(Object *owner,
+                                  const XtensaMemory *memory,
                                   const char *name,
                                   MemoryRegion *super)
 {
@@ -43,7 +44,7 @@ void xtensa_create_memory_regions(const XtensaMemory *memory,
 
         g_string_printf(num_name, "%s%u", name, i);
         m = g_new(MemoryRegion, 1);
-        memory_region_init_ram(m, NULL, num_name->str,
+        memory_region_init_ram(m, owner, num_name->str,
                                memory->location[i].size, &error_fatal);
         memory_region_add_subregion(super, memory->location[i].addr, m);
     }

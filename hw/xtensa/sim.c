@@ -60,10 +60,11 @@ XtensaCPU *xtensa_sim_common_init(MachineState *machine)
     XtensaCPU *cpu = NULL;
     CPUXtensaState *env = NULL;
     ram_addr_t ram_size = machine->ram_size;
+    Object *mo = OBJECT(machine);
     int n;
 
     for (n = 0; n < machine->smp.cpus; n++) {
-        cpu = XTENSA_CPU(cpu_create(OBJECT(machine), "cpu[*]", machine->cpu_type));
+        cpu = XTENSA_CPU(cpu_create(mo, "cpu[*]", machine->cpu_type));
         env = &cpu->env;
 
         env->sregs[PRID] = n;
@@ -78,17 +79,17 @@ XtensaCPU *xtensa_sim_common_init(MachineState *machine)
         XtensaMemory sysram = env->config->sysram;
 
         sysram.location[0].size = ram_size;
-        xtensa_create_memory_regions(&env->config->instrom, "xtensa.instrom",
+        xtensa_create_memory_regions(mo, &env->config->instrom, "xtensa.instrom",
                                      get_system_memory());
-        xtensa_create_memory_regions(&env->config->instram, "xtensa.instram",
+        xtensa_create_memory_regions(mo, &env->config->instram, "xtensa.instram",
                                      get_system_memory());
-        xtensa_create_memory_regions(&env->config->datarom, "xtensa.datarom",
+        xtensa_create_memory_regions(mo, &env->config->datarom, "xtensa.datarom",
                                      get_system_memory());
-        xtensa_create_memory_regions(&env->config->dataram, "xtensa.dataram",
+        xtensa_create_memory_regions(mo, &env->config->dataram, "xtensa.dataram",
                                      get_system_memory());
-        xtensa_create_memory_regions(&env->config->sysrom, "xtensa.sysrom",
+        xtensa_create_memory_regions(mo, &env->config->sysrom, "xtensa.sysrom",
                                      get_system_memory());
-        xtensa_create_memory_regions(&sysram, "xtensa.sysram",
+        xtensa_create_memory_regions(mo, &sysram, "xtensa.sysram",
                                      get_system_memory());
     }
     if (serial_hd(0)) {

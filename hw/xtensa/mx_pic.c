@@ -299,7 +299,7 @@ static const MemoryRegionOps xtensa_mx_pic_ops = {
     },
 };
 
-MemoryRegion *xtensa_mx_pic_register_cpu(XtensaMxPic *mx,
+MemoryRegion *xtensa_mx_pic_register_cpu(Object *owner, XtensaMxPic *mx,
                                          qemu_irq *irq,
                                          qemu_irq runstall)
 {
@@ -309,7 +309,7 @@ MemoryRegion *xtensa_mx_pic_register_cpu(XtensaMxPic *mx,
     mx_cpu->irq = irq;
     mx_cpu->runstall = runstall;
 
-    memory_region_init_io(&mx_cpu->reg, NULL, &xtensa_mx_pic_ops, mx_cpu,
+    memory_region_init_io(&mx_cpu->reg, owner, &xtensa_mx_pic_ops, mx_cpu,
                           "mx_pic", 0x280);
 
     ++mx->n_cpu;

@@ -30,7 +30,8 @@
 
 #include "target/xtensa/cpu.h"
 
-void xtensa_create_memory_regions(const XtensaMemory *memory,
+void xtensa_create_memory_regions(Object *owner,
+                                  const XtensaMemory *memory,
                                   const char *name,
                                   MemoryRegion *super);
 
