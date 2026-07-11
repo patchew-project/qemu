@@ -1230,13 +1230,12 @@ static void memory_region_do_init(MemoryRegion *mr,
     mr->dev = (DeviceState *) object_dynamic_cast(mr->owner, TYPE_DEVICE);
     mr->ram_block = NULL;
 
+    /* A named MemoryRegion is a QOM child of @owner */
+    g_assert(!name || owner);
+
     if (name) {
         char *escaped_name = memory_region_escape_name(name);
         char *name_array = g_strdup_printf("%s[*]", escaped_name);
-
-        if (!owner) {
-            owner = machine_get_container("unattached");
-        }
 
         object_property_add_child(owner, name_array, OBJECT(mr));
         object_unref(OBJECT(mr));

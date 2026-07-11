@@ -248,11 +248,8 @@ static void portio_list_add_1(PortioList *piolist,
     /* Reparent the MemoryRegion to the piolist owner */
     object_ref(&mrpio->mr);
     object_unparent(OBJECT(&mrpio->mr));
-    if (!piolist->owner) {
-        owner = machine_get_container("unattached");
-    } else {
-        owner = piolist->owner;
-    }
+    g_assert(piolist->owner);
+    owner = piolist->owner;
     name = g_strdup_printf("%s[*]", piolist->name);
     object_property_add_child(owner, name, OBJECT(&mrpio->mr));
     g_free(name);
