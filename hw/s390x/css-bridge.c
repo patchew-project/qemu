@@ -92,9 +92,8 @@ VirtualCssBus *virtual_css_bus_init(void)
     DeviceState *dev;
 
     /* Create bridge device */
-    dev = qdev_new_orphan(TYPE_VIRTUAL_CSS_BRIDGE);
-    object_property_add_child(qdev_get_machine(), TYPE_VIRTUAL_CSS_BRIDGE,
-                              OBJECT(dev));
+    dev = qdev_new(qdev_get_machine(), TYPE_VIRTUAL_CSS_BRIDGE,
+                   TYPE_VIRTUAL_CSS_BRIDGE);
 
     /* Create bus on bridge device */
     bus = qbus_new(TYPE_VIRTUAL_CSS_BUS, dev, "virtual-css");
@@ -102,7 +101,7 @@ VirtualCssBus *virtual_css_bus_init(void)
     /* Enable hotplugging */
     qbus_set_hotplug_handler(bus, OBJECT(dev));
 
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     css_register_io_adapters(CSS_IO_ADAPTER_VIRTIO, true, false,
                              0, &error_abort);

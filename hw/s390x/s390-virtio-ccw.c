@@ -253,10 +253,9 @@ static void s390_create_sclpconsole(SCLPDevice *sclp,
     BusState *ev_fac_bus = sclp_get_event_facility_bus(ef);
     DeviceState *dev;
 
-    dev = qdev_new_orphan(type);
-    object_property_add_child(OBJECT(ef), type, OBJECT(dev));
+    dev = qdev_new(OBJECT(ef), type, type);
     qdev_prop_set_chr(dev, "chardev", chardev);
-    qdev_realize_and_unref(dev, ev_fac_bus, &error_fatal);
+    qdev_realize(dev, ev_fac_bus, &error_fatal);
 }
 
 static void s390_create_sclpcpi(SCLPDevice *sclp)
@@ -265,9 +264,8 @@ static void s390_create_sclpcpi(SCLPDevice *sclp)
     BusState *ev_fac_bus = sclp_get_event_facility_bus(ef);
     DeviceState *dev;
 
-    dev = qdev_new_orphan(TYPE_SCLP_EVENT_CPI);
-    object_property_add_child(OBJECT(ef), "sclpcpi", OBJECT(dev));
-    qdev_realize_and_unref(dev, ev_fac_bus, &error_fatal);
+    dev = qdev_new(OBJECT(ef), "sclpcpi", TYPE_SCLP_EVENT_CPI);
+    qdev_realize(dev, ev_fac_bus, &error_fatal);
 }
 
 static void ccw_init(MachineState *machine)
@@ -309,10 +307,9 @@ static void ccw_init(MachineState *machine)
                       machine->firmware ?: "s390-ccw.img",
                       true);
 
-    dev = qdev_new_orphan(TYPE_S390_PCI_HOST_BRIDGE);
-    object_property_add_child(qdev_get_machine(), TYPE_S390_PCI_HOST_BRIDGE,
-                              OBJECT(dev));
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    dev = qdev_new(OBJECT(machine), TYPE_S390_PCI_HOST_BRIDGE,
+                   TYPE_S390_PCI_HOST_BRIDGE);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     s390_enable_css_support(s390_cpu_addr2state(0));
 
