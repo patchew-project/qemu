@@ -1620,7 +1620,7 @@ StrongARMState *sa1110_init(const char *cpu_type)
         exit(1);
     }
 
-    s->cpu = ARM_CPU(cpu_create(cpu_type));
+    s->cpu = ARM_CPU(cpu_create_orphan(cpu_type));
 
     s->pic = sysbus_create_varargs_orphan("strongarm_pic", 0x90050000,
                     qdev_get_gpio_in(DEVICE(s->cpu), ARM_CPU_IRQ),

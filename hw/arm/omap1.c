@@ -3749,7 +3749,7 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *dram,
     MemoryRegion *system_memory = get_system_memory();
 
     /* Core */
-    s->cpu = ARM_CPU(cpu_create(cpu_type));
+    s->cpu = ARM_CPU(cpu_create_orphan(cpu_type));
     s->sdram_size = memory_region_size(dram);
     s->sram_size = OMAP15XX_SRAM_SIZE;
 

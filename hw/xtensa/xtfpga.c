@@ -250,7 +250,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
     for (n = 0; n < smp_cpus; n++) {
         CPUXtensaState *cenv = NULL;
 
-        cpu = XTENSA_CPU(cpu_create(machine->cpu_type));
+        cpu = XTENSA_CPU(cpu_create_orphan(machine->cpu_type));
         cenv = &cpu->env;
         if (!env) {
             env = cenv;

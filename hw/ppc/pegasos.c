@@ -163,7 +163,7 @@ static void pegasos_init(MachineState *machine)
     uint8_t *spd_data;
 
     /* init CPU */
-    pm->cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
+    pm->cpu = POWERPC_CPU(cpu_create_orphan(machine->cpu_type));
     env = &pm->cpu->env;
     if (PPC_INPUT(env) != PPC_FLAGS_INPUT_6xx) {
         error_report("Incompatible CPU, only 6xx bus supported");

@@ -288,7 +288,7 @@ static void mcf5208evb_init(MachineState *machine)
     MemoryRegion *sram = g_new(MemoryRegion, 1);
     DeviceState *intc;
 
-    cpu = M68K_CPU(cpu_create(machine->cpu_type));
+    cpu = M68K_CPU(cpu_create_orphan(machine->cpu_type));
     env = &cpu->env;
 
     /* Initialize CPU registers.  */

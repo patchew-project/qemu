@@ -145,7 +145,7 @@ static void virt_init(MachineState *machine)
     reset_info = g_new0(ResetInfo, 1);
 
     /* init CPUs */
-    cpu = M68K_CPU(cpu_create(machine->cpu_type));
+    cpu = M68K_CPU(cpu_create_orphan(machine->cpu_type));
 
     reset_info->cpu = cpu;
     qemu_register_reset(main_cpu_reset, reset_info);

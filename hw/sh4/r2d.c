@@ -251,7 +251,7 @@ static void r2d_init(MachineState *machine)
     USBBus *usb_bus;
     r2d_fpga_t *fpga;
 
-    cpu = SUPERH_CPU(cpu_create(machine->cpu_type));
+    cpu = SUPERH_CPU(cpu_create_orphan(machine->cpu_type));
     env = &cpu->env;
 
     reset_info = g_new0(ResetData, 1);

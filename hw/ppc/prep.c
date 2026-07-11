@@ -257,7 +257,7 @@ static void ibm_40p_init(MachineState *machine)
     }
 
     /* init CPU */
-    cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
+    cpu = POWERPC_CPU(cpu_create_orphan(machine->cpu_type));
     env = &cpu->env;
     if (PPC_INPUT(env) != PPC_FLAGS_INPUT_6xx) {
         error_report("only 6xx bus is supported on this machine");

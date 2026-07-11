@@ -235,7 +235,7 @@ void init_task_state(TaskState *ts)
 CPUArchState *cpu_copy(CPUArchState *env)
 {
     CPUState *cpu = env_cpu(env);
-    CPUState *new_cpu = cpu_create(cpu_type);
+    CPUState *new_cpu = cpu_create_orphan(cpu_type);
     CPUArchState *new_env = cpu_env(new_cpu);
     CPUBreakpoint *bp;
 
@@ -817,7 +817,7 @@ int main(int argc, char **argv, char **envp)
     set_preferred_target_page_bits(ctz32(host_page_size));
     finalize_target_page_bits();
 
-    cpu = cpu_create(cpu_type);
+    cpu = cpu_create_orphan(cpu_type);
     env = cpu_env(cpu);
     cpu_reset(cpu);
     thread_cpu = cpu;

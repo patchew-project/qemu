@@ -148,7 +148,7 @@ static void bamboo_init(MachineState *machine)
         exit(EXIT_FAILURE);
     }
 
-    cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
+    cpu = POWERPC_CPU(cpu_create_orphan(machine->cpu_type));
     env = &cpu->env;
 
     if (env->mmu_model != POWERPC_MMU_BOOKE) {

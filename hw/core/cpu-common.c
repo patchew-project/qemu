@@ -56,7 +56,19 @@ bool cpu_exists(int64_t id)
     return !!cpu_by_arch_id(id);
 }
 
-CPUState *cpu_create(const char *typename)
+CPUState *cpu_create(Object *parent, const char *id, const char *typename)
+{
+    Error *err = NULL;
+    CPUState *cpu = CPU(object_new_child(parent, id, typename));
+    if (!qdev_realize(DEVICE(cpu), NULL, &err)) {
+        error_report_err(err);
+        object_unparent(OBJECT(cpu));
+        exit(EXIT_FAILURE);
+    }
+    return cpu;
+}
+
+CPUState *cpu_create_orphan(const char *typename)
 {
     Error *err = NULL;
     CPUState *cpu = CPU(object_new(typename));

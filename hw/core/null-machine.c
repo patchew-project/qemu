@@ -25,7 +25,7 @@ static void machine_none_init(MachineState *mch)
 
     /* Initialize CPU (if user asked for it) */
     if (mch->cpu_type) {
-        cpu = cpu_create(mch->cpu_type);
+        cpu = cpu_create_orphan(mch->cpu_type);
         if (!cpu) {
             error_report("Unable to initialize CPU");
             exit(1);

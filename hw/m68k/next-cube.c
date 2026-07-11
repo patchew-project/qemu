@@ -1260,7 +1260,7 @@ static void next_cube_init(MachineState *machine)
     DeviceState *pcdev;
 
     /* Initialize the cpu core */
-    cpu = M68K_CPU(cpu_create(machine->cpu_type));
+    cpu = M68K_CPU(cpu_create_orphan(machine->cpu_type));
     if (!cpu) {
         error_report("Unable to find m68k CPU definition");
         exit(1);

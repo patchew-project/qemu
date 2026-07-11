@@ -481,7 +481,7 @@ static void openrisc_virt_init(MachineState *machine)
 
     assert(smp_cpus >= 1 && smp_cpus <= VIRT_CPUS_MAX);
     for (n = 0; n < smp_cpus; n++) {
-        cpus[n] = OPENRISC_CPU(cpu_create(machine->cpu_type));
+        cpus[n] = OPENRISC_CPU(cpu_create_orphan(machine->cpu_type));
         if (cpus[n] == NULL) {
             fprintf(stderr, "Unable to find CPU definition!\n");
             exit(1);

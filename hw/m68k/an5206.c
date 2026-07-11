@@ -46,7 +46,7 @@ static void an5206_init(MachineState *machine)
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *sram = g_new(MemoryRegion, 1);
 
-    cpu = M68K_CPU(cpu_create(machine->cpu_type));
+    cpu = M68K_CPU(cpu_create_orphan(machine->cpu_type));
     env = &cpu->env;
 
     /* Initialize CPU registers.  */

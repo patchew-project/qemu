@@ -846,13 +846,26 @@ char *cpu_model_from_type(const char *typename);
 
 /**
  * cpu_create:
+ * @parent: the QOM parent (usually the machine or SoC container)
+ * @id: child<> property name, e.g. "cpu[0]" or "cpu[*]"
+ * @typename: the CPU type
+ *
+ * Instantiates a CPU as a child of @parent under @id and realizes it.
+ * The returned CPU is owned by @parent.
+ *
+ * Returns: A #CPUState.  Failure to realize is fatal.
+ */
+CPUState *cpu_create(Object *parent, const char *id, const char *typename);
+
+/**
+ * cpu_create_orphan:
  * @typename: The CPU type.
  *
  * Instantiates a CPU and realizes the CPU.
  *
  * Returns: A #CPUState or %NULL if an error occurred.
  */
-CPUState *cpu_create(const char *typename);
+CPUState *cpu_create_orphan(const char *typename);
 
 /**
  * parse_cpu_option:

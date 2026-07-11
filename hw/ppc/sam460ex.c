@@ -260,7 +260,7 @@ static void sam460ex_init(MachineState *machine)
     uint8_t *spd_data;
     int success;
 
-    cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
+    cpu = POWERPC_CPU(cpu_create_orphan(machine->cpu_type));
     env = &cpu->env;
     if (env->mmu_model != POWERPC_MMU_BOOKE) {
         error_report("Only MMU model BookE is supported by this machine.");

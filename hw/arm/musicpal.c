@@ -1232,7 +1232,7 @@ static void musicpal_init(MachineState *machine)
         exit(EXIT_FAILURE);
     }
 
-    cpu = ARM_CPU(cpu_create(machine->cpu_type));
+    cpu = ARM_CPU(cpu_create_orphan(machine->cpu_type));
 
     memory_region_add_subregion(address_space_mem, 0, machine->ram);
 

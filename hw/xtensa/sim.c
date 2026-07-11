@@ -63,7 +63,7 @@ XtensaCPU *xtensa_sim_common_init(MachineState *machine)
     int n;
 
     for (n = 0; n < machine->smp.cpus; n++) {
-        cpu = XTENSA_CPU(cpu_create(machine->cpu_type));
+        cpu = XTENSA_CPU(cpu_create_orphan(machine->cpu_type));
         env = &cpu->env;
 
         env->sregs[PRID] = n;

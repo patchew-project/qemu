@@ -67,7 +67,7 @@ static void tricore_testboard_init(MachineState *machine, int board_id)
     MemoryRegion *pcp_data = g_new(MemoryRegion, 1);
     MemoryRegion *pcp_text = g_new(MemoryRegion, 1);
 
-    cpu = TRICORE_CPU(cpu_create(machine->cpu_type));
+    cpu = TRICORE_CPU(cpu_create_orphan(machine->cpu_type));
     env = &cpu->env;
     memory_region_init_ram(ext_cram, NULL, "powerlink_ext_c.ram",
                            2 * MiB, &error_fatal);

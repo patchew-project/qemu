@@ -298,7 +298,7 @@ static TranslateFn *machine_HP_common_init_cpus(MachineState *machine)
 
     /* Create CPUs.  */
     for (unsigned int i = 0; i < smp_cpus; i++) {
-        cpu[i] = HPPA_CPU(cpu_create(machine->cpu_type));
+        cpu[i] = HPPA_CPU(cpu_create_orphan(machine->cpu_type));
     }
 
     /* Initialize memory */

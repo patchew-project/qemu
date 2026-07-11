@@ -76,7 +76,7 @@ static PowerPCCPU *ppc440_init_xilinx(const char *cpu_type, uint32_t sysclk)
     DeviceState *uicdev;
     SysBusDevice *uicsbd;
 
-    cpu = POWERPC_CPU(cpu_create(cpu_type));
+    cpu = POWERPC_CPU(cpu_create_orphan(cpu_type));
     env = &cpu->env;
 
     ppc_booke_timers_init(cpu, sysclk, 0/* no flags */);
