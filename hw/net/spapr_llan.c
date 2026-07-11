@@ -367,15 +367,15 @@ static void spapr_vlan_instance_finalize(Object *obj)
     }
 }
 
-void spapr_vlan_create(SpaprVioBus *bus, NICInfo *nd)
+void spapr_vlan_create(Object *parent, SpaprVioBus *bus, NICInfo *nd)
 {
     DeviceState *dev;
 
-    dev = qdev_new_orphan("spapr-vlan");
+    dev = qdev_new(parent, "vlan[*]", "spapr-vlan");
 
     qdev_set_nic_properties(dev, nd);
 
-    qdev_realize_and_unref(dev, &bus->bus, &error_fatal);
+    qdev_realize(dev, &bus->bus, &error_fatal);
 }
 
 static int spapr_vlan_devnode(SpaprVioDevice *dev, void *fdt, int node_off)

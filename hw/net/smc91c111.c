@@ -949,15 +949,15 @@ static void smc91c111_register_types(void)
 
 /* Legacy helper function.  Should go away when machine config files are
    implemented.  */
-void smc91c111_init(uint32_t base, qemu_irq irq)
+void smc91c111_init(Object *parent, uint32_t base, qemu_irq irq)
 {
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_new_orphan(TYPE_SMC91C111);
+    dev = qdev_new(parent, "eth", TYPE_SMC91C111);
     qemu_configure_nic_device(dev, true, NULL);
     s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     sysbus_mmio_map(s, 0, base);
     sysbus_connect_irq(s, 0, irq);
 }

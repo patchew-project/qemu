@@ -670,7 +670,7 @@ static void integratorcp_init(MachineState *machine)
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[25]);
 
     if (qemu_find_nic_info("smc91c111", true, NULL)) {
-        smc91c111_init(0xc8000000, pic[27]);
+        smc91c111_init(OBJECT(machine), 0xc8000000, pic[27]);
     }
 
     dev = qdev_new_orphan("pl110");

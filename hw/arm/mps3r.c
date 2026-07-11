@@ -549,7 +549,7 @@ static void mps3r_common_init(MachineState *machine)
      * In hardware this is a LAN9220; the LAN9118 is software compatible
      * except that it doesn't support the checksum-offload feature.
      */
-    lan9118_init(0xe0300000,
+    lan9118_init(OBJECT(machine), 0xe0300000,
                  qdev_get_gpio_in(gicdev, 18));
 
     create_unimplemented_device("usb", 0xe0301000, 0x1000);

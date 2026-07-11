@@ -309,9 +309,9 @@ static void realview_init(MachineState *machine,
 
     if (qemu_find_nic_info(is_pb ? "lan9118" : "smc91c111", true, NULL)) {
         if (is_pb) {
-            lan9118_init(0x4e000000, pic[28]);
+            lan9118_init(OBJECT(machine), 0x4e000000, pic[28]);
         } else {
-            smc91c111_init(0x4e000000, pic[28]);
+            smc91c111_init(OBJECT(machine), 0x4e000000, pic[28]);
         }
     }
 

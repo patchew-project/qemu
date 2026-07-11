@@ -694,7 +694,7 @@ static void vexpress_common_init(MachineState *machine)
 
     /* 0x4e000000 LAN9118 Ethernet */
     if (qemu_find_nic_info("lan9118", true, NULL)) {
-        lan9118_init(map[VE_ETHERNET], pic[15]);
+        lan9118_init(OBJECT(machine), map[VE_ETHERNET], pic[15]);
     }
 
     /* VE_USB: not modelled */

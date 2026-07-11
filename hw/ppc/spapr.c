@@ -3056,7 +3056,7 @@ static void spapr_machine_init(MachineState *machine)
     phb = spapr_create_default_phb();
 
     while ((nd = qemu_find_nic_info("spapr-vlan", true, "ibmveth"))) {
-        spapr_vlan_create(spapr->vio_bus, nd);
+        spapr_vlan_create(OBJECT(spapr), spapr->vio_bus, nd);
     }
 
     pci_init_nic_devices(phb->bus, NULL);

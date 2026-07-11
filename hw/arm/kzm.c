@@ -115,7 +115,7 @@ static void kzm_init(MachineState *machine)
     }
 
     if (qemu_find_nic_info("lan9118", true, NULL)) {
-        lan9118_init(KZM_LAN9118_ADDR,
+        lan9118_init(OBJECT(machine), KZM_LAN9118_ADDR,
                      qdev_get_gpio_in(DEVICE(&s->soc.avic), 52));
     }
 

@@ -265,7 +265,7 @@ static void versatile_init(MachineState *machine, int board_id)
     pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci");
 
     if (qemu_find_nic_info("smc91c111", true, NULL)) {
-        smc91c111_init(0x10010000, sic[25]);
+        smc91c111_init(OBJECT(machine), 0x10010000, sic[25]);
     }
     pci_init_nic_devices(pci_bus, "rtl8139");
 
