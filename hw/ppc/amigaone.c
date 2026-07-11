@@ -279,7 +279,7 @@ static void amigaone_init(MachineState *machine)
     struct boot_info *bi = NULL;
 
     /* init CPU */
-    cpu = POWERPC_CPU(cpu_create_orphan(machine->cpu_type));
+    cpu = POWERPC_CPU(cpu_create(OBJECT(machine), "cpu", machine->cpu_type));
     env = &cpu->env;
     if (PPC_INPUT(env) != PPC_FLAGS_INPUT_6xx) {
         error_report("Incompatible CPU, only 6xx bus supported");
@@ -302,12 +302,12 @@ static void amigaone_init(MachineState *machine)
     }
 
     /* nvram */
-    dev = qdev_new_orphan(TYPE_A1_NVRAM);
+    dev = qdev_new(OBJECT(machine), "nvram", TYPE_A1_NVRAM);
     di = drive_get(IF_MTD, 0, 0);
     if (di) {
         qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(di));
     }
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     memory_region_add_subregion(get_system_memory(), NVRAM_ADDR,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
 
@@ -329,7 +329,8 @@ static void amigaone_init(MachineState *machine)
     }
 
     /* Articia S */
-    dev = sysbus_create_simple_orphan(TYPE_ARTICIA, ARTICIA_ADDR, NULL);
+    dev = sysbus_create_simple(OBJECT(machine), "articia", TYPE_ARTICIA,
+                               ARTICIA_ADDR, NULL);
 
     i2c_bus = I2C_BUS(qdev_get_child_bus(dev, "smbus"));
     if (machine->ram_size > 512 * MiB) {
@@ -355,7 +356,8 @@ static void amigaone_init(MachineState *machine)
     pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci.0"));
 
     /* VIA VT82c686B South Bridge (multifunction PCI device) */
-    via = OBJECT(pci_create_simple_multifunction_orphan(pci_bus, PCI_DEVFN(7, 0),
+    via = OBJECT(pci_create_simple_multifunction(OBJECT(machine), "via",
+                                                 pci_bus, PCI_DEVFN(7, 0),
                                                  TYPE_VT82C686B_ISA));
     object_property_add_alias(OBJECT(machine), "rtc-time",
                               object_resolve_path_component(via, "rtc"),

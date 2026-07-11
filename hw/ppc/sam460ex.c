@@ -261,7 +261,7 @@ static void sam460ex_init(MachineState *machine)
     uint8_t *spd_data;
     int success;
 
-    cpu = POWERPC_CPU(cpu_create_orphan(machine->cpu_type));
+    cpu = POWERPC_CPU(cpu_create(OBJECT(machine), "cpu", machine->cpu_type));
     env = &cpu->env;
     if (env->mmu_model != POWERPC_MMU_BOOKE) {
         error_report("Only MMU model BookE is supported by this machine.");
@@ -276,9 +276,8 @@ static void sam460ex_init(MachineState *machine)
     ppc_dcr_init(env, NULL, NULL);
 
     /* PLB arbitrer */
-    dev = qdev_new_orphan(TYPE_PPC4xx_PLB);
+    dev = qdev_new(OBJECT(machine), "plb", TYPE_PPC4xx_PLB);
     ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(dev), cpu, &error_fatal);
-    object_unref(OBJECT(dev));
 
     /* interrupt controllers */
     for (i = 0; i < ARRAY_SIZE(uic); i++) {
@@ -292,10 +291,9 @@ static void sam460ex_init(MachineState *machine)
          */
         const int input_ints[] = { -1, 30, 10, 16 };
 
-        uic[i] = qdev_new_orphan(TYPE_PPC_UIC);
+        uic[i] = qdev_new(OBJECT(machine), "uic[*]", TYPE_PPC_UIC);
         qdev_prop_set_uint32(uic[i], "dcr-base", 0xc0 + i * 0x10);
         ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(uic[i]), cpu, &error_fatal);
-        object_unref(OBJECT(uic[i]));
 
         sbdev = SYS_BUS_DEVICE(uic[i]);
         if (i == 0) {
@@ -322,7 +320,7 @@ static void sam460ex_init(MachineState *machine)
         error_report("Memory below 64 MiB is not supported");
         exit(1);
     }
-    dev = qdev_new_orphan(TYPE_PPC4xx_SDRAM_DDR2);
+    dev = qdev_new(OBJECT(machine), "sdram", TYPE_PPC4xx_SDRAM_DDR2);
     object_property_set_link(OBJECT(dev), "dram", OBJECT(machine->ram),
                              &error_abort);
     /*
@@ -331,14 +329,13 @@ static void sam460ex_init(MachineState *machine)
      */
     object_property_set_int(OBJECT(dev), "nbanks", 1, &error_abort);
     ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(dev), cpu, &error_fatal);
-    object_unref(OBJECT(dev));
     /* FIXME: does 460EX have ECC interrupts? */
     /* Enable SDRAM memory regions as we may boot without firmware */
     ppc4xx_sdram_ddr2_enable(PPC4xx_SDRAM_DDR2(dev));
 
     /* IIC controllers and devices */
-    dev = sysbus_create_simple_orphan(TYPE_PPC4xx_I2C, 0x4ef600700,
-                               qdev_get_gpio_in(uic[0], 2));
+    dev = sysbus_create_simple(OBJECT(machine), "i2c[*]", TYPE_PPC4xx_I2C,
+                               0x4ef600700, qdev_get_gpio_in(uic[0], 2));
     i2c = PPC4xx_I2C(dev)->bus;
     /* SPD EEPROM on RAM module */
     spd_data = spd_data_generate(machine->ram_size < 128 * MiB ? DDR : DDR2,
@@ -346,15 +343,14 @@ static void sam460ex_init(MachineState *machine)
     spd_data[20] = 4; /* SO-DIMM module */
     smbus_eeprom_init_one(OBJECT(machine), i2c, 0x50, spd_data);
     /* RTC */
-    i2c_slave_create_simple_orphan(i2c, "m41t80", 0x68);
+    i2c_slave_create_simple(OBJECT(machine), "rtc", i2c, "m41t80", 0x68);
 
-    dev = sysbus_create_simple_orphan(TYPE_PPC4xx_I2C, 0x4ef600800,
-                               qdev_get_gpio_in(uic[0], 3));
+    dev = sysbus_create_simple(OBJECT(machine), "i2c[*]", TYPE_PPC4xx_I2C,
+                               0x4ef600800, qdev_get_gpio_in(uic[0], 3));
 
     /* External bus controller */
-    dev = qdev_new_orphan(TYPE_PPC4xx_EBC);
+    dev = qdev_new(OBJECT(machine), "ebc", TYPE_PPC4xx_EBC);
     ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(dev), cpu, &error_fatal);
-    object_unref(OBJECT(dev));
 
     /* CPR */
     ppc4xx_cpr_init(env);
@@ -366,11 +362,10 @@ static void sam460ex_init(MachineState *machine)
     ppc4xx_sdr_init(env);
 
     /* MAL */
-    dev = qdev_new_orphan(TYPE_PPC4xx_MAL);
+    dev = qdev_new(OBJECT(machine), "mal", TYPE_PPC4xx_MAL);
     qdev_prop_set_uint8(dev, "txc-num", 4);
     qdev_prop_set_uint8(dev, "rxc-num", 16);
     ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(dev), cpu, &error_fatal);
-    object_unref(OBJECT(dev));
     sbdev = SYS_BUS_DEVICE(dev);
     for (i = 0; i < ARRAY_SIZE(PPC4xx_MAL(dev)->irqs); i++) {
         sysbus_connect_irq(sbdev, i, qdev_get_gpio_in(uic[2], 3 + i));
@@ -388,49 +383,51 @@ static void sam460ex_init(MachineState *machine)
                                 l2cache_ram);
 
     /* USB */
-    sysbus_create_simple_orphan(TYPE_PPC4xx_EHCI, 0x4bffd0400,
-                         qdev_get_gpio_in(uic[2], 29));
-    dev = qdev_new_orphan("sysbus-ohci");
+    sysbus_create_simple(OBJECT(machine), "ehci", TYPE_PPC4xx_EHCI,
+                         0x4bffd0400, qdev_get_gpio_in(uic[2], 29));
+    dev = qdev_new(OBJECT(machine), "ohci", "sysbus-ohci");
     qdev_prop_set_string(dev, "masterbus", "usb-bus.0");
     qdev_prop_set_uint32(dev, "num-ports", 6);
     sbdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(sbdev, &error_fatal);
+    sysbus_realize(sbdev, &error_fatal);
     sysbus_mmio_map(sbdev, 0, 0x4bffd0000);
     sysbus_connect_irq(sbdev, 0, qdev_get_gpio_in(uic[2], 30));
     usb_bus = USB_BUS(object_resolve_type_unambiguous(TYPE_USB_BUS,
                                                       &error_abort));
-    usb_create_simple_orphan(usb_bus, "usb-kbd");
-    usb_create_simple_orphan(usb_bus, "usb-mouse");
+    usb_create_simple(OBJECT(machine), "usb-kbd", usb_bus, "usb-kbd");
+    usb_create_simple(OBJECT(machine), "usb-mouse", usb_bus, "usb-mouse");
 
     /* PCIe buses */
-    dev = qdev_new_orphan(TYPE_PPC460EX_PCIE_HOST);
+    dev = qdev_new(OBJECT(machine), "pcie-host[*]", TYPE_PPC460EX_PCIE_HOST);
     qdev_prop_set_int32(dev, "busnum", 0);
     qdev_prop_set_int32(dev, "dcrn-base", PCIE0_DCRN_BASE);
     object_property_set_link(OBJECT(dev), "cpu", OBJECT(cpu), &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
-    dev = qdev_new_orphan(TYPE_PPC460EX_PCIE_HOST);
+    dev = qdev_new(OBJECT(machine), "pcie-host[*]", TYPE_PPC460EX_PCIE_HOST);
     qdev_prop_set_int32(dev, "busnum", 1);
     qdev_prop_set_int32(dev, "dcrn-base", PCIE1_DCRN_BASE);
     object_property_set_link(OBJECT(dev), "cpu", OBJECT(cpu), &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     /* PCI bus */
     /* All PCI irqs are connected to the same UIC pin (cf. UBoot source) */
-    dev = sysbus_create_simple_orphan(TYPE_PPC440_PCIX_HOST, 0xc0ec00000,
+    dev = sysbus_create_simple(OBJECT(machine), "pcix-host",
+                               TYPE_PPC440_PCIX_HOST, 0xc0ec00000,
                                qdev_get_gpio_in(uic[1], 0));
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, 0xc08000000);
     pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci.0"));
 
     /* PCI devices */
-    pci_create_simple_orphan(pci_bus, PCI_DEVFN(6, 0), "sm501");
+    pci_create_simple(OBJECT(machine), "sm501", pci_bus, PCI_DEVFN(6, 0), "sm501");
     /*
      * SoC has a single SATA port but we don't emulate that
      * However, firmware and usual clients have driver for SiI311x
      * PCI SATA card so add one for convenience by default
      */
     if (defaults_enabled()) {
-        PCIIDEState *s = PCI_IDE(pci_create_simple_orphan(pci_bus, -1, "sii3112"));
+        PCIIDEState *s = PCI_IDE(pci_create_simple(OBJECT(machine), "sata",
+                                                   pci_bus, -1, "sii3112"));
         DriveInfo *di;
 
         di = drive_get_by_index(IF_IDE, 0);

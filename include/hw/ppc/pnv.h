@@ -122,7 +122,7 @@ void pnv_cpu_do_nmi_resume(CPUState *cs);
  */
 void pnv_dt_bmc_sensors(IPMIBmc *bmc, void *fdt);
 void pnv_bmc_powerdown(IPMIBmc *bmc);
-IPMIBmc *pnv_bmc_create(PnvPnor *pnor);
+IPMIBmc *pnv_bmc_create(Object *parent, PnvPnor *pnor);
 IPMIBmc *pnv_bmc_find(Error **errp);
 void pnv_bmc_set_pnor(IPMIBmc *bmc, PnvPnor *pnor);
 

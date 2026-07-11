@@ -159,7 +159,8 @@ static void ppc_core99_init(MachineState *machine)
 
     /* init CPUs */
     for (i = 0; i < machine->smp.cpus; i++) {
-        cpu = POWERPC_CPU(cpu_create_orphan(machine->cpu_type));
+        cpu = POWERPC_CPU(cpu_create(OBJECT(machine), "cpu[*]",
+                                     machine->cpu_type));
         env = &cpu->env;
 
         /* Set time-base frequency to 100 Mhz */
@@ -286,8 +287,8 @@ static void ppc_core99_init(MachineState *machine)
     }
 
     /* UniN init */
-    s = SYS_BUS_DEVICE(qdev_new_orphan(TYPE_UNI_NORTH));
-    sysbus_realize_and_unref(s, &error_fatal);
+    s = SYS_BUS_DEVICE(qdev_new(OBJECT(machine), "uni-n", TYPE_UNI_NORTH));
+    sysbus_realize(s, &error_fatal);
     memory_region_add_subregion(get_system_memory(), 0xf8000000,
                                 sysbus_mmio_get_region(s, 0));
 
@@ -295,9 +296,10 @@ static void ppc_core99_init(MachineState *machine)
         machine_arch = ARCH_MAC99_U3;
         /* 970 gets a U3 bus */
         /* Uninorth AGP bus */
-        uninorth_pci_dev = qdev_new_orphan(TYPE_U3_AGP_HOST_BRIDGE);
+        uninorth_pci_dev = qdev_new(OBJECT(machine), "u3-agp",
+                                    TYPE_U3_AGP_HOST_BRIDGE);
         s = SYS_BUS_DEVICE(uninorth_pci_dev);
-        sysbus_realize_and_unref(s, &error_fatal);
+        sysbus_realize(s, &error_fatal);
         sysbus_mmio_map(s, 0, 0xf0800000);
         sysbus_mmio_map(s, 1, 0xf0c00000);
         /* PCI hole */
@@ -310,25 +312,27 @@ static void ppc_core99_init(MachineState *machine)
         machine_arch = ARCH_MAC99;
         /* Use values found on a real PowerMac */
         /* Uninorth AGP bus */
-        uninorth_agp_dev = qdev_new_orphan(TYPE_UNI_NORTH_AGP_HOST_BRIDGE);
+        uninorth_agp_dev = qdev_new(OBJECT(machine), "uni-n-agp",
+                                    TYPE_UNI_NORTH_AGP_HOST_BRIDGE);
         s = SYS_BUS_DEVICE(uninorth_agp_dev);
-        sysbus_realize_and_unref(s, &error_fatal);
+        sysbus_realize(s, &error_fatal);
         sysbus_mmio_map(s, 0, 0xf0800000);
         sysbus_mmio_map(s, 1, 0xf0c00000);
 
         /* Uninorth internal bus */
-        uninorth_internal_dev = qdev_new_orphan(
+        uninorth_internal_dev = qdev_new(OBJECT(machine), "uni-n-internal",
                                 TYPE_UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE);
         s = SYS_BUS_DEVICE(uninorth_internal_dev);
-        sysbus_realize_and_unref(s, &error_fatal);
+        sysbus_realize(s, &error_fatal);
         sysbus_mmio_map(s, 0, 0xf4800000);
         sysbus_mmio_map(s, 1, 0xf4c00000);
 
         /* Uninorth main bus - this must be last to make it the default */
-        uninorth_pci_dev = qdev_new_orphan(TYPE_UNI_NORTH_PCI_HOST_BRIDGE);
+        uninorth_pci_dev = qdev_new(OBJECT(machine), "uni-n-pci",
+                                    TYPE_UNI_NORTH_PCI_HOST_BRIDGE);
         qdev_prop_set_uint32(uninorth_pci_dev, "ofw-addr", 0xf2000000);
         s = SYS_BUS_DEVICE(uninorth_pci_dev);
-        sysbus_realize_and_unref(s, &error_fatal);
+        sysbus_realize(s, &error_fatal);
         sysbus_mmio_map(s, 0, 0xf2800000);
         sysbus_mmio_map(s, 1, 0xf2c00000);
         /* PCI hole */
@@ -348,7 +352,8 @@ static void ppc_core99_init(MachineState *machine)
     pci_bus = PCI_HOST_BRIDGE(uninorth_pci_dev)->bus;
 
     /* MacIO */
-    macio = OBJECT(pci_new_orphan(-1, TYPE_NEWWORLD_MACIO));
+    macio = OBJECT(pci_new(OBJECT(machine), "macio", -1,
+                           TYPE_NEWWORLD_MACIO));
     dev = DEVICE(macio);
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
     qdev_prop_set_bit(dev, "has-pmu", has_pmu);
@@ -358,7 +363,7 @@ static void ppc_core99_init(MachineState *machine)
     qdev_prop_set_chr(dev, "chrA", serial_hd(0));
     qdev_prop_set_chr(dev, "chrB", serial_hd(1));
 
-    pci_realize_and_unref(PCI_DEVICE(macio), pci_bus, &error_fatal);
+    qdev_realize(DEVICE(macio), BUS(pci_bus), &error_fatal);
 
     pic_dev = DEVICE(object_resolve_path_component(macio, "pic"));
     for (i = 0; i < 4; i++) {
@@ -408,15 +413,15 @@ static void ppc_core99_init(MachineState *machine)
         }
 
         adb_bus = qdev_get_child_bus(dev, "adb.0");
-        dev = qdev_new_orphan(TYPE_ADB_KEYBOARD);
-        qdev_realize_and_unref(dev, adb_bus, &error_fatal);
+        dev = qdev_new(OBJECT(machine), "adb-keyboard", TYPE_ADB_KEYBOARD);
+        qdev_realize(dev, adb_bus, &error_fatal);
 
-        dev = qdev_new_orphan(TYPE_ADB_MOUSE);
-        qdev_realize_and_unref(dev, adb_bus, &error_fatal);
+        dev = qdev_new(OBJECT(machine), "adb-mouse", TYPE_ADB_MOUSE);
+        qdev_realize(dev, adb_bus, &error_fatal);
     }
 
     if (machine->usb) {
-        pci_create_simple_orphan(pci_bus, -1, "pci-ohci");
+        pci_create_simple(OBJECT(machine), "ohci", pci_bus, -1, "pci-ohci");
 
         /* U3 needs to use USB for input because Linux doesn't support via-cuda
         on PPC64 */
@@ -425,8 +430,8 @@ static void ppc_core99_init(MachineState *machine)
 
             usb_bus = USB_BUS(object_resolve_type_unambiguous(TYPE_USB_BUS,
                                                               &error_abort));
-            usb_create_simple_orphan(usb_bus, "usb-kbd");
-            usb_create_simple_orphan(usb_bus, "usb-mouse");
+            usb_create_simple(OBJECT(machine), "usb-kbd", usb_bus, "usb-kbd");
+            usb_create_simple(OBJECT(machine), "usb-mouse", usb_bus, "usb-mouse");
         }
     }
 
@@ -453,22 +458,21 @@ static void ppc_core99_init(MachineState *machine)
            move the NVRAM out of ROM again for KVM */
         nvram_addr = 0xFFE00000;
     }
-    dev = qdev_new_orphan(TYPE_MACIO_NVRAM);
+    dev = qdev_new(OBJECT(machine), "nvram", TYPE_MACIO_NVRAM);
     qdev_prop_set_uint32(dev, "size", MACIO_NVRAM_SIZE);
     qdev_prop_set_uint32(dev, "it_shift", 1);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, nvram_addr);
     nvr = MACIO_NVRAM(dev);
     pmac_format_nvram_partition(nvr, MACIO_NVRAM_SIZE);
     /* No PCI init: the BIOS will do it */
 
-    dev = qdev_new_orphan(TYPE_FW_CFG_MEM);
+    dev = qdev_new(OBJECT(machine), TYPE_FW_CFG, TYPE_FW_CFG_MEM);
     fw_cfg = FW_CFG(dev);
     qdev_prop_set_uint32(dev, "data_width", 1);
     qdev_prop_set_bit(dev, "dma_enabled", false);
-    object_property_add_child(OBJECT(machine), TYPE_FW_CFG, OBJECT(fw_cfg));
     s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     sysbus_mmio_map(s, 0, CFG_ADDR);
     sysbus_mmio_map(s, 1, CFG_ADDR + 2);
 

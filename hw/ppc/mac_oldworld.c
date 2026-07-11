@@ -111,7 +111,8 @@ static void ppc_heathrow_init(MachineState *machine)
 
     /* init CPUs */
     for (i = 0; i < machine->smp.cpus; i++) {
-        cpu = POWERPC_CPU(cpu_create_orphan(machine->cpu_type));
+        cpu = POWERPC_CPU(cpu_create(OBJECT(machine), "cpu[*]",
+                                     machine->cpu_type));
         env = &cpu->env;
 
         /* Set time-base frequency to 16.6 Mhz */
@@ -212,10 +213,11 @@ static void ppc_heathrow_init(MachineState *machine)
     }
 
     /* Grackle PCI host bridge */
-    grackle_dev = qdev_new_orphan(TYPE_GRACKLE_PCI_HOST_BRIDGE);
+    grackle_dev = qdev_new(OBJECT(machine), "grackle",
+                           TYPE_GRACKLE_PCI_HOST_BRIDGE);
     qdev_prop_set_uint32(grackle_dev, "ofw-addr", 0x80000000);
     s = SYS_BUS_DEVICE(grackle_dev);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
 
     sysbus_mmio_map(s, 0, GRACKLE_BASE);
     sysbus_mmio_map(s, 1, GRACKLE_BASE + 0x200000);
@@ -229,7 +231,8 @@ static void ppc_heathrow_init(MachineState *machine)
     pci_bus = PCI_HOST_BRIDGE(grackle_dev)->bus;
 
     /* MacIO */
-    macio = OBJECT(pci_new_orphan(PCI_DEVFN(16, 0), TYPE_OLDWORLD_MACIO));
+    macio = OBJECT(pci_new(OBJECT(machine), "macio", PCI_DEVFN(16, 0),
+                           TYPE_OLDWORLD_MACIO));
     qdev_prop_set_uint64(DEVICE(macio), "frequency", tbfreq);
 
     dev = DEVICE(object_resolve_path_component(macio, "escc"));
@@ -242,7 +245,7 @@ static void ppc_heathrow_init(MachineState *machine)
         qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo));
     }
 
-    pci_realize_and_unref(PCI_DEVICE(macio), pci_bus, &error_fatal);
+    qdev_realize(DEVICE(macio), BUS(pci_bus), &error_fatal);
 
     pic_dev = DEVICE(object_resolve_path_component(macio, "pic"));
     for (i = 0; i < 4; i++) {
@@ -279,13 +282,13 @@ static void ppc_heathrow_init(MachineState *machine)
     /* MacIO CUDA/ADB */
     dev = DEVICE(object_resolve_path_component(macio, "cuda"));
     adb_bus = qdev_get_child_bus(dev, "adb.0");
-    dev = qdev_new_orphan(TYPE_ADB_KEYBOARD);
-    qdev_realize_and_unref(dev, adb_bus, &error_fatal);
-    dev = qdev_new_orphan(TYPE_ADB_MOUSE);
-    qdev_realize_and_unref(dev, adb_bus, &error_fatal);
+    dev = qdev_new(OBJECT(machine), "adb-keyboard", TYPE_ADB_KEYBOARD);
+    qdev_realize(dev, adb_bus, &error_fatal);
+    dev = qdev_new(OBJECT(machine), "adb-mouse", TYPE_ADB_MOUSE);
+    qdev_realize(dev, adb_bus, &error_fatal);
 
     if (machine_usb(machine)) {
-        pci_create_simple_orphan(pci_bus, -1, "pci-ohci");
+        pci_create_simple(OBJECT(machine), "ohci", pci_bus, -1, "pci-ohci");
     }
 
     if (!graphic_width) {
@@ -303,13 +306,12 @@ static void ppc_heathrow_init(MachineState *machine)
 
     /* No PCI init: the BIOS will do it */
 
-    dev = qdev_new_orphan(TYPE_FW_CFG_MEM);
+    dev = qdev_new(OBJECT(machine), TYPE_FW_CFG, TYPE_FW_CFG_MEM);
     fw_cfg = FW_CFG(dev);
     qdev_prop_set_uint32(dev, "data_width", 1);
     qdev_prop_set_bit(dev, "dma_enabled", false);
-    object_property_add_child(OBJECT(machine), TYPE_FW_CFG, OBJECT(fw_cfg));
     s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     sysbus_mmio_map(s, 0, CFG_ADDR);
     sysbus_mmio_map(s, 1, CFG_ADDR + 2);
 

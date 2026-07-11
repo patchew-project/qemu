@@ -295,11 +295,11 @@ void pnv_bmc_set_pnor(IPMIBmc *bmc, PnvPnor *pnor)
  * Instantiate the machine BMC. PowerNV uses the QEMU internal
  * simulator but it could also be external.
  */
-IPMIBmc *pnv_bmc_create(PnvPnor *pnor)
+IPMIBmc *pnv_bmc_create(Object *parent, PnvPnor *pnor)
 {
     DeviceState *dev;
 
-    dev = qdev_new_orphan(TYPE_IPMI_BMC_SIMULATOR);
+    dev = qdev_new(parent, "bmc", TYPE_IPMI_BMC_SIMULATOR);
     qdev_realize(dev, NULL, &error_fatal);
     pnv_bmc_set_pnor(IPMI_BMC(dev), pnor);
 

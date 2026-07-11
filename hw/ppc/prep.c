@@ -257,7 +257,7 @@ static void ibm_40p_init(MachineState *machine)
     }
 
     /* init CPU */
-    cpu = POWERPC_CPU(cpu_create_orphan(machine->cpu_type));
+    cpu = POWERPC_CPU(cpu_create(OBJECT(machine), "cpu", machine->cpu_type));
     env = &cpu->env;
     if (PPC_INPUT(env) != PPC_FLAGS_INPUT_6xx) {
         error_report("only 6xx bus is supported on this machine");
@@ -289,10 +289,9 @@ static void ibm_40p_init(MachineState *machine)
     g_free(filename);
 
     /* PCI host */
-    dev = qdev_new_orphan("raven-pcihost");
+    dev = qdev_new(OBJECT(machine), "raven", "raven-pcihost");
     pcihost = SYS_BUS_DEVICE(dev);
-    object_property_add_child(qdev_get_machine(), "raven", OBJECT(dev));
-    sysbus_realize_and_unref(pcihost, &error_fatal);
+    sysbus_realize(pcihost, &error_fatal);
     pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci.0"));
     if (!pci_bus) {
         error_report("could not create PCI host controller");
@@ -300,8 +299,9 @@ static void ibm_40p_init(MachineState *machine)
     }
 
     /* PCI -> ISA bridge */
-    i82378_dev = DEVICE(pci_new_orphan(PCI_DEVFN(11, 0), "i82378"));
-    qdev_realize_and_unref(i82378_dev, BUS(pci_bus), &error_fatal);
+    i82378_dev = DEVICE(pci_new(OBJECT(machine), "i82378",
+                                PCI_DEVFN(11, 0), "i82378"));
+    qdev_realize(i82378_dev, BUS(pci_bus), &error_fatal);
     qdev_connect_gpio_out(i82378_dev, 0,
                           qdev_get_gpio_in(DEVICE(cpu), PPC6xx_INPUT_INT));
 
@@ -309,23 +309,23 @@ static void ibm_40p_init(MachineState *machine)
     isa_bus = ISA_BUS(qdev_get_child_bus(i82378_dev, "isa.0"));
 
     /* system control ports */
-    isa_dev = isa_new_orphan("prep-systemio");
+    isa_dev = isa_new(OBJECT(machine), "systemio", "prep-systemio");
     dev = DEVICE(isa_dev);
     qdev_prop_set_uint32(dev, "ibm-planar-id", 0xfc);
     qdev_prop_set_uint32(dev, "equipment", 0xc0);
-    isa_realize_and_unref(isa_dev, isa_bus, &error_fatal);
+    qdev_realize(DEVICE(isa_dev), BUS(isa_bus), &error_fatal);
 
     /* Memory controller */
-    isa_dev = isa_new_orphan("rs6000-mc");
+    isa_dev = isa_new(OBJECT(machine), "mc", "rs6000-mc");
     dev = DEVICE(isa_dev);
     qdev_prop_set_uint32(dev, "ram-size", machine->ram_size);
-    isa_realize_and_unref(isa_dev, isa_bus, &error_fatal);
+    qdev_realize(DEVICE(isa_dev), BUS(isa_bus), &error_fatal);
 
     /* RTC */
-    isa_dev = isa_new_orphan(TYPE_MC146818_RTC);
+    isa_dev = isa_new(OBJECT(machine), "rtc", TYPE_MC146818_RTC);
     dev = DEVICE(isa_dev);
     qdev_prop_set_int32(dev, "base_year", 1900);
-    isa_realize_and_unref(isa_dev, isa_bus, &error_fatal);
+    qdev_realize(DEVICE(isa_dev), BUS(isa_bus), &error_fatal);
 
     /* initialize CMOS checksums */
     cmos_checksum = 0x6aa9;
@@ -334,23 +334,25 @@ static void ibm_40p_init(MachineState *machine)
 
     /* add some more devices */
     if (defaults_enabled()) {
-        m48t59 = NVRAM(isa_create_simple_orphan(isa_bus, "isa-m48t59"));
+        m48t59 = NVRAM(isa_create_simple(OBJECT(machine), "m48t59",
+                                         isa_bus, "isa-m48t59"));
 
-        isa_dev = isa_new_orphan("cs4231a");
+        isa_dev = isa_new(OBJECT(machine), "cs4231a", "cs4231a");
         dev = DEVICE(isa_dev);
         qdev_prop_set_uint32(dev, "iobase", 0x830);
         qdev_prop_set_uint32(dev, "irq", 10);
         if (machine->audiodev) {
             qdev_prop_set_string(dev, "audiodev", machine->audiodev);
         }
-        isa_realize_and_unref(isa_dev, isa_bus, &error_fatal);
+        qdev_realize(DEVICE(isa_dev), BUS(isa_bus), &error_fatal);
 
-        isa_dev = isa_new_orphan("pc87312");
+        isa_dev = isa_new(OBJECT(machine), "pc87312", "pc87312");
         dev = DEVICE(isa_dev);
         qdev_prop_set_uint32(dev, "config", 12);
-        isa_realize_and_unref(isa_dev, isa_bus, &error_fatal);
+        qdev_realize(DEVICE(isa_dev), BUS(isa_bus), &error_fatal);
 
-        dev = DEVICE(pci_create_simple_orphan(pci_bus, PCI_DEVFN(1, 0), "lsi53c810"));
+        dev = DEVICE(pci_create_simple(OBJECT(machine), "scsi", pci_bus,
+                                       PCI_DEVFN(1, 0), "lsi53c810"));
         lsi53c8xx_handle_legacy_cmdline(dev);
         qdev_connect_gpio_out(dev, 0, qdev_get_gpio_in(i82378_dev, 13));
 
@@ -363,14 +365,12 @@ static void ibm_40p_init(MachineState *machine)
     }
 
     /* Prepare firmware configuration for OpenBIOS */
-    dev = qdev_new_orphan(TYPE_FW_CFG_MEM);
+    dev = qdev_new(OBJECT(machine), TYPE_FW_CFG, TYPE_FW_CFG_MEM);
     fw_cfg = FW_CFG(dev);
     qdev_prop_set_uint32(dev, "data_width", 1);
     qdev_prop_set_bit(dev, "dma_enabled", false);
-    object_property_add_child(OBJECT(qdev_get_machine()), TYPE_FW_CFG,
-                              OBJECT(fw_cfg));
     s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     sysbus_mmio_map(s, 0, CFG_ADDR);
     sysbus_mmio_map(s, 1, CFG_ADDR + 2);
 

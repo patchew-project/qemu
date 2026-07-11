@@ -815,13 +815,12 @@ static DeviceState *ppce500_init_mpic_qemu(PPCE500MachineState *pms,
     unsigned int smp_cpus = machine->smp.cpus;
     const PPCE500MachineClass *pmc = PPCE500_MACHINE_GET_CLASS(pms);
 
-    dev = qdev_new_orphan(TYPE_OPENPIC);
-    object_property_add_child(OBJECT(machine), "pic", OBJECT(dev));
+    dev = qdev_new(OBJECT(machine), "pic", TYPE_OPENPIC);
     qdev_prop_set_uint32(dev, "model", pmc->mpic_version);
     qdev_prop_set_uint32(dev, "nb_cpus", smp_cpus);
 
     s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
 
     k = 0;
     for (i = 0; i < smp_cpus; i++) {
@@ -833,17 +832,18 @@ static DeviceState *ppce500_init_mpic_qemu(PPCE500MachineState *pms,
     return dev;
 }
 
-static DeviceState *ppce500_init_mpic_kvm(const PPCE500MachineClass *pmc,
+static DeviceState *ppce500_init_mpic_kvm(Object *parent,
+                                          const PPCE500MachineClass *pmc,
                                           Error **errp)
 {
 #ifdef CONFIG_KVM
     DeviceState *dev;
     CPUState *cs;
 
-    dev = qdev_new_orphan(TYPE_KVM_OPENPIC);
+    dev = qdev_new(parent, "pic", TYPE_KVM_OPENPIC);
     qdev_prop_set_uint32(dev, "model", pmc->mpic_version);
 
-    if (!sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(dev), errp)) {
         object_unparent(OBJECT(dev));
         return NULL;
     }
@@ -874,7 +874,7 @@ static DeviceState *ppce500_init_mpic(PPCE500MachineState *pms,
         Error *err = NULL;
 
         if (kvm_kernel_irqchip_allowed()) {
-            dev = ppce500_init_mpic_kvm(pmc, &err);
+            dev = ppce500_init_mpic_kvm(OBJECT(pms), pmc, &err);
         }
         if (kvm_kernel_irqchip_required() && !dev) {
             error_reportf_err(err,
@@ -993,10 +993,9 @@ void ppce500_init(MachineState *machine)
     /* Register Memory */
     memory_region_add_subregion(address_space_mem, 0, machine->ram);
 
-    dev = qdev_new_orphan("e500-ccsr");
+    dev = qdev_new(OBJECT(machine), "e500-ccsr", "e500-ccsr");
     s = SYS_BUS_DEVICE(dev);
-    object_property_add_child(OBJECT(machine), "e500-ccsr", OBJECT(dev));
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     ccsr_addr_space = sysbus_mmio_get_region(s, 0);
     memory_region_add_subregion(address_space_mem, pmc->ccsrbar_base,
                                 ccsr_addr_space);
@@ -1018,47 +1017,47 @@ void ppce500_init(MachineState *machine)
     }
 
     /* I2C */
-    dev = qdev_new_orphan("mpc-i2c");
+    dev = qdev_new(OBJECT(machine), "i2c", "mpc-i2c");
     s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(mpicdev, MPC8544_I2C_IRQ));
     memory_region_add_subregion(ccsr_addr_space, MPC8544_I2C_REGS_OFFSET,
                                 sysbus_mmio_get_region(s, 0));
     i2c = I2C_BUS(qdev_get_child_bus(dev, "i2c"));
-    i2c_slave_create_simple_orphan(i2c, "ds1338", RTC_REGS_OFFSET);
+    i2c_slave_create_simple(OBJECT(machine), "rtc", i2c, "ds1338",
+                            RTC_REGS_OFFSET);
 
     /* eSDHC */
     if (pmc->has_esdhc) {
-        dev = qdev_new_orphan(TYPE_UNIMPLEMENTED_DEVICE);
+        dev = qdev_new(OBJECT(machine), "esdhc-stub", TYPE_UNIMPLEMENTED_DEVICE);
         qdev_prop_set_string(dev, "name", "esdhc");
         qdev_prop_set_uint64(dev, "size", MPC85XX_ESDHC_REGS_SIZE);
         s = SYS_BUS_DEVICE(dev);
-        sysbus_realize_and_unref(s, &error_fatal);
+        sysbus_realize(s, &error_fatal);
         memory_region_add_subregion(ccsr_addr_space, MPC85XX_ESDHC_REGS_OFFSET,
                                     sysbus_mmio_get_region(s, 0));
 
-        dev = qdev_new_orphan(TYPE_FSL_ESDHC_BE);
+        dev = qdev_new(OBJECT(machine), "esdhc", TYPE_FSL_ESDHC_BE);
         s = SYS_BUS_DEVICE(dev);
-        sysbus_realize_and_unref(s, &error_fatal);
+        sysbus_realize(s, &error_fatal);
         sysbus_connect_irq(s, 0, qdev_get_gpio_in(mpicdev, MPC85XX_ESDHC_IRQ));
         memory_region_add_subregion(ccsr_addr_space, MPC85XX_ESDHC_REGS_OFFSET,
                                     sysbus_mmio_get_region(s, 0));
     }
 
     /* General Utility device */
-    dev = qdev_new_orphan("mpc8544-guts");
+    dev = qdev_new(OBJECT(machine), "guts", "mpc8544-guts");
     s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     memory_region_add_subregion(ccsr_addr_space, MPC8544_UTIL_OFFSET,
                                 sysbus_mmio_get_region(s, 0));
 
     /* PCI */
-    dev = qdev_new_orphan("e500-pcihost");
-    object_property_add_child(OBJECT(machine), "pci-host", OBJECT(dev));
+    dev = qdev_new(OBJECT(machine), "pci-host", "e500-pcihost");
     qdev_prop_set_uint32(dev, "first_slot", pmc->pci_first_slot);
     qdev_prop_set_uint32(dev, "first_pin_irq", pci_irq_nrs[0]);
     s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     for (i = 0; i < PCI_NUM_PINS; i++) {
         sysbus_connect_irq(s, i, qdev_get_gpio_in(mpicdev, pci_irq_nrs[i]));
     }
@@ -1076,14 +1075,15 @@ void ppce500_init(MachineState *machine)
     }
 
     /* Register spinning region */
-    sysbus_create_simple_orphan("e500-spin", pmc->spin_base, NULL);
+    sysbus_create_simple(OBJECT(machine), "spin", "e500-spin",
+                         pmc->spin_base, NULL);
 
     if (pmc->has_mpc8xxx_gpio) {
         qemu_irq poweroff_irq;
 
-        dev = qdev_new_orphan("mpc8xxx_gpio");
+        dev = qdev_new(OBJECT(machine), "gpio", "mpc8xxx_gpio");
         s = SYS_BUS_DEVICE(dev);
-        sysbus_realize_and_unref(s, &error_fatal);
+        sysbus_realize(s, &error_fatal);
         sysbus_connect_irq(s, 0, qdev_get_gpio_in(mpicdev, MPC8XXX_GPIO_IRQ));
         memory_region_add_subregion(ccsr_addr_space, MPC8XXX_GPIO_OFFSET,
                                     sysbus_mmio_get_region(s, 0));
@@ -1094,11 +1094,11 @@ void ppce500_init(MachineState *machine)
     }
 
     /* Platform Bus Device */
-    dev = qdev_new_orphan(TYPE_PLATFORM_BUS_DEVICE);
+    dev = qdev_new(OBJECT(machine), "platform-bus", TYPE_PLATFORM_BUS_DEVICE);
     dev->id = g_strdup(TYPE_PLATFORM_BUS_DEVICE);
     qdev_prop_set_uint32(dev, "num_irqs", pmc->platform_bus_num_irqs);
     qdev_prop_set_uint32(dev, "mmio_size", pmc->platform_bus_size);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     pms->pbus_dev = PLATFORM_BUS_DEVICE(dev);
 
     s = SYS_BUS_DEVICE(pms->pbus_dev);
@@ -1136,7 +1136,7 @@ void ppce500_init(MachineState *machine)
             exit(1);
         }
 
-        dev = qdev_new_orphan(TYPE_PFLASH_CFI01);
+        dev = qdev_new(OBJECT(machine), "flash", TYPE_PFLASH_CFI01);
         qdev_prop_set_drive(dev, "drive", blk);
         qdev_prop_set_uint32(dev, "num-blocks", size / sector_len);
         qdev_prop_set_uint64(dev, "sector-length", sector_len);
@@ -1147,7 +1147,7 @@ void ppce500_init(MachineState *machine)
         qdev_prop_set_uint16(dev, "id2", 0x0000);
         qdev_prop_set_uint16(dev, "id3", 0x0);
         qdev_prop_set_string(dev, "name", "e500.flash");
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+        sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
         memory_region_add_subregion(&pms->pbus_dev->mmio, 0,
                                     pflash_cfi01_get_memory(PFLASH_CFI01(dev)));

@@ -163,7 +163,7 @@ static void pegasos_init(MachineState *machine)
     uint8_t *spd_data;
 
     /* init CPU */
-    pm->cpu = POWERPC_CPU(cpu_create_orphan(machine->cpu_type));
+    pm->cpu = POWERPC_CPU(cpu_create(OBJECT(machine), "cpu", machine->cpu_type));
     env = &pm->cpu->env;
     if (PPC_INPUT(env) != PPC_FLAGS_INPUT_6xx) {
         error_report("Incompatible CPU, only 6xx bus supported");
@@ -218,7 +218,8 @@ static void pegasos_init(MachineState *machine)
         MemoryRegion *pci_mem, *mr;
 
         /* Articia S */
-        pm->nb = DEVICE(sysbus_create_simple_orphan(TYPE_ARTICIA, 0xfe000000, NULL));
+        pm->nb = DEVICE(sysbus_create_simple(OBJECT(machine), "articia",
+                                             TYPE_ARTICIA, 0xfe000000, NULL));
         pci_mem = sysbus_mmio_get_region(SYS_BUS_DEVICE(pm->nb), 1);
         mr = g_new(MemoryRegion, 1);
         memory_region_init_alias(mr, OBJECT(pm->nb), "pci-mem-low", pci_mem,
@@ -233,7 +234,8 @@ static void pegasos_init(MachineState *machine)
     }
     case PEGASOS2:
         /* Marvell Discovery II system controller */
-        pm->nb = DEVICE(sysbus_create_simple_orphan(TYPE_MV64361, -1,
+        pm->nb = DEVICE(sysbus_create_simple(OBJECT(machine), "mv64361",
+                        TYPE_MV64361, -1,
                         qdev_get_gpio_in(DEVICE(pm->cpu), PPC6xx_INPUT_INT)));
         pci_bus = mv64361_get_pci_bus(pm->nb, 1);
         break;
@@ -241,7 +243,8 @@ static void pegasos_init(MachineState *machine)
 
     /* VIA VT8231 South Bridge (multifunction PCI device) */
     devfn = PCI_DEVFN(pm->type == PEGASOS1 ? 7 : 12, 0);
-    pm->sb = DEVICE(pci_new_multifunction_orphan(devfn, TYPE_VT8231_ISA));
+    pm->sb = DEVICE(pci_new_multifunction(OBJECT(machine), "via", devfn,
+                                          TYPE_VT8231_ISA));
     via = OBJECT(pm->sb);
 
     /* Set properties on individual devices before realizing the south bridge */
@@ -250,7 +253,7 @@ static void pegasos_init(MachineState *machine)
         qdev_prop_set_string(DEVICE(dev), "audiodev", machine->audiodev);
     }
 
-    pci_realize_and_unref(PCI_DEVICE(via), pci_bus, &error_abort);
+    qdev_realize(DEVICE(via), BUS(pci_bus), &error_abort);
     object_property_add_alias(OBJECT(machine), "rtc-time",
                               object_resolve_path_component(via, "rtc"),
                               "date");

@@ -557,21 +557,21 @@ static target_ulong h_vio_signal(PowerPCCPU *cpu, SpaprMachineState *spapr,
     return H_SUCCESS;
 }
 
-SpaprVioBus *spapr_vio_bus_init(void)
+SpaprVioBus *spapr_vio_bus_init(Object *parent)
 {
     SpaprVioBus *bus;
     BusState *qbus;
     DeviceState *dev;
 
     /* Create bridge device */
-    dev = qdev_new_orphan(TYPE_SPAPR_VIO_BRIDGE);
+    dev = qdev_new(parent, "vio-bridge", TYPE_SPAPR_VIO_BRIDGE);
 
     /* Create bus on bridge device */
     qbus = qbus_new(TYPE_SPAPR_VIO_BUS, dev, "spapr-vio");
     bus = SPAPR_VIO_BUS(qbus);
     bus->next_reg = SPAPR_VIO_REG_BASE;
 
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     /* hcall-vio */
     spapr_register_hypercall(H_VIO_SIGNAL, h_vio_signal);

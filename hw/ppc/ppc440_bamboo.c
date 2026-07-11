@@ -148,7 +148,7 @@ static void bamboo_init(MachineState *machine)
         exit(EXIT_FAILURE);
     }
 
-    cpu = POWERPC_CPU(cpu_create_orphan(machine->cpu_type));
+    cpu = POWERPC_CPU(cpu_create(OBJECT(machine), "cpu", machine->cpu_type));
     env = &cpu->env;
 
     if (env->mmu_model != POWERPC_MMU_BOOKE) {
@@ -162,9 +162,8 @@ static void bamboo_init(MachineState *machine)
     ppc_dcr_init(env, NULL, NULL);
 
     /* interrupt controller */
-    uicdev = qdev_new_orphan(TYPE_PPC_UIC);
+    uicdev = qdev_new(OBJECT(machine), "uic", TYPE_PPC_UIC);
     ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(uicdev), cpu, &error_fatal);
-    object_unref(OBJECT(uicdev));
     uicsbd = SYS_BUS_DEVICE(uicdev);
     sysbus_connect_irq(uicsbd, PPCUIC_OUTPUT_INT,
                        qdev_get_gpio_in(DEVICE(cpu), PPC40x_INPUT_INT));
@@ -172,18 +171,18 @@ static void bamboo_init(MachineState *machine)
                        qdev_get_gpio_in(DEVICE(cpu), PPC40x_INPUT_CINT));
 
     /* SDRAM controller */
-    dev = qdev_new_orphan(TYPE_PPC4xx_SDRAM_DDR);
+    dev = qdev_new(OBJECT(machine), "sdram", TYPE_PPC4xx_SDRAM_DDR);
     object_property_set_link(OBJECT(dev), "dram", OBJECT(machine->ram),
                              &error_abort);
     ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(dev), cpu, &error_fatal);
-    object_unref(OBJECT(dev));
     /* XXX 440EP's ECC interrupts are on UIC1, but we've only created UIC0. */
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(uicdev, 14));
     /* Enable SDRAM memory regions, this should be done by the firmware */
     ppc4xx_sdram_ddr_enable(PPC4xx_SDRAM_DDR(dev));
 
     /* PCI */
-    dev = sysbus_create_varargs_orphan(TYPE_PPC4xx_PCI_HOST, PPC440EP_PCI_CONFIG,
+    dev = sysbus_create_varargs(OBJECT(machine), "pci-host",
+                                TYPE_PPC4xx_PCI_HOST, PPC440EP_PCI_CONFIG,
                                 qdev_get_gpio_in(uicdev, pci_irq_nrs[0]),
                                 qdev_get_gpio_in(uicdev, pci_irq_nrs[1]),
                                 qdev_get_gpio_in(uicdev, pci_irq_nrs[2]),

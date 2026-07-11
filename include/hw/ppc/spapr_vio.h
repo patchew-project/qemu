@@ -76,7 +76,7 @@ struct SpaprVioBus {
     uint32_t next_reg;
 };
 
-SpaprVioBus *spapr_vio_bus_init(void);
+SpaprVioBus *spapr_vio_bus_init(Object *parent);
 SpaprVioDevice *spapr_vio_find_by_reg(SpaprVioBus *bus, uint32_t reg);
 void spapr_dt_vdevice(SpaprVioBus *bus, void *fdt);
 gchar *spapr_vio_stdout_path(SpaprVioBus *bus);

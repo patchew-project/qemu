@@ -69,14 +69,15 @@ static struct boot_info
     void *vfdt;
 } boot_info;
 
-static PowerPCCPU *ppc440_init_xilinx(const char *cpu_type, uint32_t sysclk)
+static PowerPCCPU *ppc440_init_xilinx(Object *parent, const char *cpu_type,
+                                      uint32_t sysclk)
 {
     PowerPCCPU *cpu;
     CPUPPCState *env;
     DeviceState *uicdev;
     SysBusDevice *uicsbd;
 
-    cpu = POWERPC_CPU(cpu_create_orphan(cpu_type));
+    cpu = POWERPC_CPU(cpu_create(parent, "cpu", cpu_type));
     env = &cpu->env;
 
     ppc_booke_timers_init(cpu, sysclk, 0/* no flags */);
@@ -84,9 +85,8 @@ static PowerPCCPU *ppc440_init_xilinx(const char *cpu_type, uint32_t sysclk)
     ppc_dcr_init(env, NULL, NULL);
 
     /* interrupt controller */
-    uicdev = qdev_new_orphan(TYPE_PPC_UIC);
+    uicdev = qdev_new(parent, "uic", TYPE_PPC_UIC);
     ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(uicdev), cpu, &error_fatal);
-    object_unref(OBJECT(uicdev));
     uicsbd = SYS_BUS_DEVICE(uicdev);
     sysbus_connect_irq(uicsbd, PPCUIC_OUTPUT_INT,
                        qdev_get_gpio_in(DEVICE(cpu), PPC40x_INPUT_INT));
@@ -199,7 +199,7 @@ static void virtex_init(MachineState *machine)
     int i;
 
     /* init CPUs */
-    cpu = ppc440_init_xilinx(machine->cpu_type, 400000000);
+    cpu = ppc440_init_xilinx(OBJECT(machine), machine->cpu_type, 400000000);
     env = &cpu->env;
 
     if (env->mmu_model != POWERPC_MMU_BOOKE) {
@@ -218,10 +218,10 @@ static void virtex_init(MachineState *machine)
                           64 * KiB, 1, 0x89, 0x18, 0x0000, 0x0, 1);
 
     cpu_irq = qdev_get_gpio_in(DEVICE(cpu), PPC40x_INPUT_INT);
-    dev = qdev_new_orphan("xlnx.xps-intc");
+    dev = qdev_new(OBJECT(machine), "intc", "xlnx.xps-intc");
     qdev_prop_set_enum(dev, "endianness", ENDIAN_MODE_BIG);
     qdev_prop_set_uint32(dev, "kind-of-intr", 0);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, INTC_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, cpu_irq);
     for (i = 0; i < 32; i++) {
@@ -233,11 +233,11 @@ static void virtex_init(MachineState *machine)
                    115200, serial_hd(0), DEVICE_LITTLE_ENDIAN);
 
     /* 2 timers at irq 2 @ 62 Mhz.  */
-    dev = qdev_new_orphan("xlnx.xps-timer");
+    dev = qdev_new(OBJECT(machine), "timer", "xlnx.xps-timer");
     qdev_prop_set_enum(dev, "endianness", ENDIAN_MODE_BIG);
     qdev_prop_set_uint32(dev, "one-timer-only", 0);
     qdev_prop_set_uint32(dev, "clock-frequency", 62 * 1000000);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, TIMER_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ]);
 

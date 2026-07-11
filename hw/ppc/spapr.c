@@ -1885,7 +1885,7 @@ static void spapr_machine_reset(MachineState *machine, ResetType type)
 
 static void spapr_create_nvram(SpaprMachineState *spapr)
 {
-    DeviceState *dev = qdev_new_orphan("spapr-nvram");
+    DeviceState *dev = qdev_new(OBJECT(spapr), "nvram", "spapr-nvram");
     DriveInfo *dinfo = drive_get(IF_PFLASH, 0, 0);
 
     if (dinfo) {
@@ -1893,7 +1893,7 @@ static void spapr_create_nvram(SpaprMachineState *spapr)
                                 &error_fatal);
     }
 
-    qdev_realize_and_unref(dev, &spapr->vio_bus->bus, &error_fatal);
+    qdev_realize(dev, &spapr->vio_bus->bus, &error_fatal);
 
     spapr->nvram = (struct SpaprNvram *)dev;
 }
@@ -2795,13 +2795,13 @@ static void spapr_init_cpus(SpaprMachineState *spapr)
     }
 }
 
-static PCIHostState *spapr_create_default_phb(void)
+static PCIHostState *spapr_create_default_phb(Object *parent)
 {
     DeviceState *dev;
 
-    dev = qdev_new_orphan(TYPE_SPAPR_PCI_HOST_BRIDGE);
+    dev = qdev_new(parent, "phb[*]", TYPE_SPAPR_PCI_HOST_BRIDGE);
     qdev_prop_set_uint32(dev, "index", 0);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     return PCI_HOST_BRIDGE(dev);
 }
@@ -3030,7 +3030,7 @@ static void spapr_machine_init(MachineState *machine)
     spapr_rtc_create(spapr);
 
     /* Set up VIO bus */
-    spapr->vio_bus = spapr_vio_bus_init();
+    spapr->vio_bus = spapr_vio_bus_init(OBJECT(machine));
 
     for (i = 0; serial_hd(i); i++) {
         spapr_vty_create(OBJECT(machine), spapr->vio_bus, serial_hd(i));
@@ -3053,7 +3053,7 @@ static void spapr_machine_init(MachineState *machine)
     /* Set up PCI */
     spapr_pci_rtas_init();
 
-    phb = spapr_create_default_phb();
+    phb = spapr_create_default_phb(OBJECT(machine));
 
     while ((nd = qemu_find_nic_info("spapr-vlan", true, "ibmveth"))) {
         spapr_vlan_create(OBJECT(spapr), spapr->vio_bus, nd);
@@ -3075,15 +3075,16 @@ static void spapr_machine_init(MachineState *machine)
     }
 
     if (machine->usb) {
-        pci_create_simple_orphan(phb->bus, -1, "nec-usb-xhci");
+        pci_create_simple(OBJECT(machine), "xhci", phb->bus, -1,
+                          "nec-usb-xhci");
 
         if (has_vga) {
             USBBus *usb_bus;
 
             usb_bus = USB_BUS(object_resolve_type_unambiguous(TYPE_USB_BUS,
                                                               &error_abort));
-            usb_create_simple_orphan(usb_bus, "usb-kbd");
-            usb_create_simple_orphan(usb_bus, "usb-mouse");
+            usb_create_simple(OBJECT(machine), "usb-kbd", usb_bus, "usb-kbd");
+            usb_create_simple(OBJECT(machine), "usb-mouse", usb_bus, "usb-mouse");
         }
     }
 

@@ -1008,13 +1008,14 @@ static bool pnv_match_cpu(const char *default_type, const char *cpu_type)
     return ppc_default->pvr_match(ppc_default, ppc->pvr, false);
 }
 
-static void pnv_ipmi_bt_init(ISABus *bus, IPMIBmc *bmc, uint32_t irq)
+static void pnv_ipmi_bt_init(Object *parent, ISABus *bus, IPMIBmc *bmc,
+                             uint32_t irq)
 {
-    ISADevice *dev = isa_new_orphan("isa-ipmi-bt");
+    ISADevice *dev = isa_new(parent, "ipmi-bt", "isa-ipmi-bt");
 
     object_property_set_link(OBJECT(dev), "bmc", OBJECT(bmc), &error_fatal);
     object_property_set_int(OBJECT(dev), "irq", irq, &error_fatal);
-    isa_realize_and_unref(dev, bus, &error_fatal);
+    qdev_realize(DEVICE(dev), BUS(bus), &error_fatal);
 }
 
 static void pnv_chip_power10_pic_print_info(PnvChip *chip, GString *buf)
@@ -1127,7 +1128,7 @@ static void pnv_init(MachineState *machine)
     /*
      * Create our simple PNOR device
      */
-    dev = qdev_new_orphan(TYPE_PNV_PNOR);
+    dev = qdev_new(OBJECT(machine), "pnor", TYPE_PNV_PNOR);
     pnor = drive_get(IF_MTD, 0, 0);
     if (!pnor && defaults_enabled()) {
         fw_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, PNOR_FILE_NAME);
@@ -1143,7 +1144,7 @@ static void pnv_init(MachineState *machine)
     if (pnor) {
         qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(pnor));
     }
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     pnv->pnor = PNV_PNOR(dev);
 
     /* load skiboot firmware  */
@@ -1269,9 +1270,11 @@ static void pnv_init(MachineState *machine)
     pnv->chips = g_new0(PnvChip *, pnv->num_chips);
     for (i = 0; i < pnv->num_chips; i++) {
         char chip_name[32];
-        Object *chip = OBJECT(qdev_new_orphan(chip_typename));
+        Object *chip;
         uint64_t chip_ram_size =  pnv_chip_get_ram_size(pnv, i);
 
+        snprintf(chip_name, sizeof(chip_name), "chip[%d]", i);
+        chip = OBJECT(qdev_new(OBJECT(pnv), chip_name, chip_typename));
         pnv->chips[i] = PNV_CHIP(chip);
 
         /* Distribute RAM among the chips  */
@@ -1281,8 +1284,6 @@ static void pnv_init(MachineState *machine)
                                 &error_fatal);
         chip_ram_start += chip_ram_size;
 
-        snprintf(chip_name, sizeof(chip_name), "chip[%d]", i);
-        object_property_add_child(OBJECT(pnv), chip_name, chip);
         object_property_set_int(chip, "chip-id", i, &error_fatal);
         object_property_set_int(chip, "nr-cores", machine->smp.cores,
                                 &error_fatal);
@@ -1303,7 +1304,7 @@ static void pnv_init(MachineState *machine)
             object_property_set_link(chip, "xive-fabric", OBJECT(pnv),
                                      &error_abort);
         }
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(chip), &error_fatal);
+        sysbus_realize(SYS_BUS_DEVICE(chip), &error_fatal);
     }
     g_free(chip_typename);
 
@@ -1321,8 +1322,8 @@ static void pnv_init(MachineState *machine)
      * communication with the BMC
      */
     if (defaults_enabled()) {
-        pnv->bmc = pnv_bmc_create(pnv->pnor);
-        pnv_ipmi_bt_init(pnv->isa_bus, pnv->bmc, 10);
+        pnv->bmc = pnv_bmc_create(OBJECT(machine), pnv->pnor);
+        pnv_ipmi_bt_init(OBJECT(machine), pnv->isa_bus, pnv->bmc, 10);
     }
 
     /*
@@ -2825,7 +2826,8 @@ static void pnv_rainier_i2c_init(PnvMachineState *pnv)
          * Add a PCA9552 I2C device for PCIe hotplug control
          * to engine 2, bus 1, address 0x63
          */
-        I2CSlave *dev = i2c_slave_create_simple_orphan(chip10->i2c[2].busses[1],
+        I2CSlave *dev = i2c_slave_create_simple(OBJECT(pnv), "pca9552[*]",
+                                                chip10->i2c[2].busses[1],
                                                 "pca9552", 0x63);
 
         /*
@@ -2843,7 +2845,8 @@ static void pnv_rainier_i2c_init(PnvMachineState *pnv)
          * Add a PCA9554 I2C device for cable card presence detection
          * to engine 2, bus 1, address 0x25
          */
-        i2c_slave_create_simple_orphan(chip10->i2c[2].busses[1], "pca9554", 0x25);
+        i2c_slave_create_simple(OBJECT(pnv), "pca9554[*]",
+                                chip10->i2c[2].busses[1], "pca9554", 0x25);
     }
 }
 
