@@ -113,7 +113,8 @@ static const MemoryRegionOps dma_dummy_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void mips_jazz_init_net(IOMMUMemoryRegion *rc4030_dma_mr,
+static void mips_jazz_init_net(Object *parent,
+                               IOMMUMemoryRegion *rc4030_dma_mr,
                                DeviceState *rc4030, MemoryRegion *dp8393x_prom)
 {
     DeviceState *dev;
@@ -127,14 +128,14 @@ static void mips_jazz_init_net(IOMMUMemoryRegion *rc4030_dma_mr,
         return;
     }
 
-    dev = qdev_new_orphan("dp8393x");
+    dev = qdev_new(parent, "dp8393x", "dp8393x");
     qdev_set_nic_properties(dev, nd);
     qdev_prop_set_uint8(dev, "it_shift", 2);
     qdev_prop_set_bit(dev, "big_endian", TARGET_BIG_ENDIAN);
     object_property_set_link(OBJECT(dev), "dma_mr",
                              OBJECT(rc4030_dma_mr), &error_abort);
     sysbus = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(sysbus, &error_fatal);
+    sysbus_realize(sysbus, &error_fatal);
     sysbus_mmio_map(sysbus, 0, 0x80001000);
     sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(rc4030, 4));
 
@@ -289,16 +290,16 @@ static void mips_jazz_init(MachineState *machine,
     isa_bus_register_input_irqs(isa_bus, i8259);
     i8257_dma_init(OBJECT(rc4030), isa_bus, 0);
     pit = i8254_pit_init(isa_bus, 0x40, 0, NULL);
-    pcspk = isa_new_orphan(TYPE_PC_SPEAKER);
+    pcspk = isa_new(OBJECT(machine), "pcspk", TYPE_PC_SPEAKER);
     object_property_set_link(OBJECT(pcspk), "pit", OBJECT(pit), &error_fatal);
-    isa_realize_and_unref(pcspk, isa_bus, &error_fatal);
+    qdev_realize(DEVICE(pcspk), BUS(isa_bus), &error_fatal);
 
     /* Video card */
     switch (jazz_model) {
     case JAZZ_MAGNUM:
-        dev = qdev_new_orphan("sysbus-g364");
+        dev = qdev_new(OBJECT(machine), "g364", "sysbus-g364");
         sysbus = SYS_BUS_DEVICE(dev);
-        sysbus_realize_and_unref(sysbus, &error_fatal);
+        sysbus_realize(sysbus, &error_fatal);
         sysbus_mmio_map(sysbus, 0, 0x60080000);
         sysbus_mmio_map(sysbus, 1, 0x40000000);
         sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(rc4030, 3));
@@ -313,10 +314,10 @@ static void mips_jazz_init(MachineState *machine,
         }
         break;
     case JAZZ_PICA61:
-        dev = qdev_new_orphan(TYPE_VGA_MMIO);
+        dev = qdev_new(OBJECT(machine), "vga", TYPE_VGA_MMIO);
         qdev_prop_set_uint8(dev, "it_shift", 0);
         sysbus = SYS_BUS_DEVICE(dev);
-        sysbus_realize_and_unref(sysbus, &error_fatal);
+        sysbus_realize(sysbus, &error_fatal);
         sysbus_mmio_map(sysbus, 0, 0x60000000);
         sysbus_mmio_map(sysbus, 1, 0x400a0000);
         sysbus_mmio_map(sysbus, 2, VBE_DISPI_LFB_PHYSICAL_ADDRESS);
@@ -326,10 +327,10 @@ static void mips_jazz_init(MachineState *machine,
     }
 
     /* Network controller */
-    mips_jazz_init_net(rc4030_dma_mr, rc4030, dp8393x_prom);
+    mips_jazz_init_net(OBJECT(machine), rc4030_dma_mr, rc4030, dp8393x_prom);
 
     /* SCSI adapter */
-    dev = qdev_new_orphan(TYPE_SYSBUS_ESP);
+    dev = qdev_new(OBJECT(machine), "esp", TYPE_SYSBUS_ESP);
     sysbus_esp = SYSBUS_ESP(dev);
     esp = &sysbus_esp->esp;
     esp->dma_memory_read = rc4030_dma_read;
@@ -340,7 +341,7 @@ static void mips_jazz_init(MachineState *machine,
     esp->dma_enabled = 1;
 
     sysbus = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(sysbus, &error_fatal);
+    sysbus_realize(sysbus, &error_fatal);
     sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(rc4030, 5));
     sysbus_mmio_map(sysbus, 0, 0x80002000);
 
@@ -360,10 +361,10 @@ static void mips_jazz_init(MachineState *machine,
     memory_region_add_subregion(address_space, 0x80004000, rtc);
 
     /* Keyboard (i8042) */
-    i8042 = I8042_MMIO(qdev_new_orphan(TYPE_I8042_MMIO));
+    i8042 = I8042_MMIO(qdev_new(OBJECT(machine), "i8042", TYPE_I8042_MMIO));
     qdev_prop_set_uint64(DEVICE(i8042), "mask", 1);
     qdev_prop_set_uint32(DEVICE(i8042), "size", 0x1000);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(i8042), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(i8042), &error_fatal);
 
     qdev_connect_gpio_out(DEVICE(i8042), I8042_KBD_IRQ,
                           qdev_get_gpio_in(rc4030, 6));
@@ -390,13 +391,14 @@ static void mips_jazz_init(MachineState *machine,
     /* FIXME: missing Jazz sound at 0x8000c000, rc4030[2] */
 
     /* NVRAM */
-    dev = qdev_new_orphan("ds1225y");
+    dev = qdev_new(OBJECT(machine), "nvram", "ds1225y");
     sysbus = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(sysbus, &error_fatal);
+    sysbus_realize(sysbus, &error_fatal);
     sysbus_mmio_map(sysbus, 0, 0x80009000);
 
     /* LED indicator */
-    sysbus_create_simple_orphan("jazz-led", 0x8000f000, NULL);
+    sysbus_create_simple(OBJECT(machine), "led", "jazz-led",
+                         0x8000f000, NULL);
 
     g_free(dmas);
 }

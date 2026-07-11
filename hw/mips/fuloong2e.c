@@ -286,7 +286,8 @@ static void mips_fuloong2e_init(MachineState *machine)
     pci_bus = bonito_init(OBJECT(machine), (qemu_irq *)&(env->irq[2]));
 
     /* South bridge -> IP5 */
-    pci_dev = pci_new_multifunction_orphan(PCI_DEVFN(FULOONG2E_VIA_SLOT, 0),
+    pci_dev = pci_new_multifunction(OBJECT(machine), "via",
+                                    PCI_DEVFN(FULOONG2E_VIA_SLOT, 0),
                                     TYPE_VT82C686B_ISA);
 
     /* Set properties on individual devices before realizing the south bridge */
@@ -295,7 +296,7 @@ static void mips_fuloong2e_init(MachineState *machine)
         qdev_prop_set_string(dev, "audiodev", machine->audiodev);
     }
 
-    pci_realize_and_unref(pci_dev, pci_bus, &error_abort);
+    qdev_realize(DEVICE(pci_dev), BUS(pci_bus), &error_abort);
 
     object_property_add_alias(OBJECT(machine), "rtc-time",
                               object_resolve_path_component(OBJECT(pci_dev),
@@ -312,12 +313,12 @@ static void mips_fuloong2e_init(MachineState *machine)
     /* GPU */
     if (vga_interface_type != VGA_NONE) {
         vga_interface_created = true;
-        pci_dev = pci_new_orphan(-1, "ati-vga");
+        pci_dev = pci_new(OBJECT(machine), "vga", -1, "ati-vga");
         dev = DEVICE(pci_dev);
         qdev_prop_set_uint32(dev, "vgamem_mb", 16);
         qdev_prop_set_uint16(dev, "x-device-id", 0x5159);
         qdev_prop_set_uint64(dev, "x-linear-aper-size", 16 * MiB);
-        pci_realize_and_unref(pci_dev, pci_bus, &error_fatal);
+        qdev_realize(DEVICE(pci_dev), BUS(pci_bus), &error_fatal);
     }
 
     /* Populate SPD eeprom data */

@@ -424,8 +424,8 @@ static inline void loongson3_virt_devices_init(MachineState *machine,
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     LoongsonMachineState *s = LOONGSON_MACHINE(machine);
 
-    dev = qdev_new_orphan(TYPE_GPEX_HOST);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    dev = qdev_new(OBJECT(machine), "pcie", TYPE_GPEX_HOST);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     pci_bus = PCI_HOST_BRIDGE(dev)->bus;
 
     s->ecam_alias = g_new0(MemoryRegion, 1);
@@ -465,11 +465,12 @@ static inline void loongson3_virt_devices_init(MachineState *machine,
     if (defaults_enabled() && object_class_by_name("pci-ohci")) {
         USBBus *usb_bus;
 
-        pci_create_simple_orphan(pci_bus, -1, "pci-ohci");
+        pci_create_simple(OBJECT(machine), "ohci", pci_bus, -1, "pci-ohci");
         usb_bus = USB_BUS(object_resolve_type_unambiguous(TYPE_USB_BUS,
                                                           &error_abort));
-        usb_create_simple_orphan(usb_bus, "usb-kbd");
-        usb_create_simple_orphan(usb_bus, "usb-tablet");
+        usb_create_simple(OBJECT(machine), "usb-kbd", usb_bus, "usb-kbd");
+        usb_create_simple(OBJECT(machine), "usb-tablet", usb_bus,
+                          "usb-tablet");
     }
 
     pci_init_nic_devices(pci_bus, mc->default_nic);
@@ -519,16 +520,16 @@ static void mips_loongson3_virt_init(MachineState *machine)
 
     memory_region_init(iocsr, OBJECT(machine), "loongson3.iocsr", UINT32_MAX);
 
-    ipi = qdev_new_orphan(TYPE_LOONGSON_IPI);
+    ipi = qdev_new(OBJECT(machine), "ipi", TYPE_LOONGSON_IPI);
     qdev_prop_set_uint32(ipi, "num-cpu", machine->smp.cpus);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(ipi), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(ipi), &error_fatal);
     memory_region_add_subregion(iocsr, SMP_IPI_MAILBOX,
                             sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi), 0));
     memory_region_add_subregion(iocsr, MAIL_SEND_ADDR,
                             sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi), 1));
 
-    liointc = qdev_new_orphan("loongson.liointc");
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(liointc), &error_fatal);
+    liointc = qdev_new(OBJECT(machine), "liointc", "loongson.liointc");
+    sysbus_realize(SYS_BUS_DEVICE(liointc), &error_fatal);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(liointc), 0, virt_memmap[VIRT_LIOINTC].base);
 
@@ -536,7 +537,8 @@ static void mips_loongson3_virt_init(MachineState *machine)
                    qdev_get_gpio_in(liointc, UART_IRQ), 115200, serial_hd(0),
                    DEVICE_LITTLE_ENDIAN);
 
-    sysbus_create_simple_orphan("goldfish_rtc", virt_memmap[VIRT_RTC].base,
+    sysbus_create_simple(OBJECT(machine), "rtc", "goldfish_rtc",
+                         virt_memmap[VIRT_RTC].base,
                          qdev_get_gpio_in(liointc, RTC_IRQ));
 
     cpuclk = clock_new(OBJECT(machine), "cpu-refclk");
