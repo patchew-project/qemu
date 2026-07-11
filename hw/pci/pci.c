@@ -2388,16 +2388,6 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
     pci_dev->msi_trigger = pci_msi_trigger;
 }
 
-static PCIDevice *pci_new_internal(int devfn, bool multifunction,
-                                   const char *name)
-{
-    DeviceState *dev;
-
-    dev = qdev_new_orphan(name);
-    qdev_prop_set_int32(dev, "addr", devfn);
-    qdev_prop_set_bit(dev, "multifunction", multifunction);
-    return PCI_DEVICE(dev);
-}
 
 static PCIDevice *pci_new_child_internal(Object *parent, const char *id,
                                           int devfn, bool multifunction,
@@ -2440,34 +2430,9 @@ PCIDevice *pci_create_simple(Object *parent, const char *id,
     return dev;
 }
 
-PCIDevice *pci_new_multifunction_orphan(int devfn, const char *name)
-{
-    return pci_new_internal(devfn, true, name);
-}
-
-PCIDevice *pci_new_orphan(int devfn, const char *name)
-{
-    return pci_new_internal(devfn, false, name);
-}
-
 bool pci_realize_and_unref(PCIDevice *dev, PCIBus *bus, Error **errp)
 {
     return qdev_realize_and_unref(&dev->qdev, &bus->qbus, errp);
-}
-
-PCIDevice *pci_create_simple_multifunction_orphan(PCIBus *bus, int devfn,
-                                           const char *name)
-{
-    PCIDevice *dev = pci_new_multifunction_orphan(devfn, name);
-    pci_realize_and_unref(dev, bus, &error_fatal);
-    return dev;
-}
-
-PCIDevice *pci_create_simple_orphan(PCIBus *bus, int devfn, const char *name)
-{
-    PCIDevice *dev = pci_new_orphan(devfn, name);
-    pci_realize_and_unref(dev, bus, &error_fatal);
-    return dev;
 }
 
 static uint8_t pci_find_space(PCIDevice *pdev, uint8_t size)
