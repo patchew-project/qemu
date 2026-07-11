@@ -245,7 +245,7 @@ static void mips_fuloong2e_init(MachineState *machine)
     memory_region_add_subregion(address_space_mem, 0, machine->ram);
 
     /* Boot ROM */
-    memory_region_init_rom(bios, NULL, "fuloong2e.bios", BIOS_SIZE,
+    memory_region_init_rom(bios, OBJECT(machine), "fuloong2e.bios", BIOS_SIZE,
                            &error_fatal);
     memory_region_add_subregion(address_space_mem, 0x1fc00000LL, bios);
 

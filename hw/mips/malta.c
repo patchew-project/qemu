@@ -577,11 +577,11 @@ static MaltaFPGAState *malta_fpga_init(Object *parent, MemoryRegion *address_spa
 
     s = g_new0(MaltaFPGAState, 1);
 
-    memory_region_init_io(&s->iomem, NULL, &malta_fpga_ops, s,
+    memory_region_init_io(&s->iomem, parent, &malta_fpga_ops, s,
                           "malta-fpga", 0x100000);
-    memory_region_init_alias(&s->iomem_lo, NULL, "malta-fpga",
+    memory_region_init_alias(&s->iomem_lo, parent, "malta-fpga",
                              &s->iomem, 0, 0x900);
-    memory_region_init_alias(&s->iomem_hi, NULL, "malta-fpga",
+    memory_region_init_alias(&s->iomem_hi, parent, "malta-fpga",
                              &s->iomem, 0xa00, 0x100000 - 0xa00);
 
     memory_region_add_subregion(address_space, base, &s->iomem_lo);
@@ -1115,14 +1115,14 @@ void mips_malta_init(MachineState *machine)
     memory_region_add_subregion(system_memory, 0x80000000, machine->ram);
 
     /* alias for pre IO hole access */
-    memory_region_init_alias(ram_low_preio, NULL, "mips_malta_low_preio.ram",
+    memory_region_init_alias(ram_low_preio, OBJECT(machine), "mips_malta_low_preio.ram",
                              machine->ram, 0, MIN(ram_size, 256 * MiB));
     memory_region_add_subregion(system_memory, 0, ram_low_preio);
 
     /* alias for post IO hole access, if there is enough RAM */
     if (ram_size > 512 * MiB) {
         ram_low_postio = g_new(MemoryRegion, 1);
-        memory_region_init_alias(ram_low_postio, NULL,
+        memory_region_init_alias(ram_low_postio, OBJECT(machine),
                                  "mips_malta_low_postio.ram",
                                  machine->ram, 512 * MiB,
                                  ram_size - 512 * MiB);
@@ -1213,7 +1213,7 @@ void mips_malta_init(MachineState *machine)
      * handled by an overlapping region as the resulting ROM code subpage
      * regions are not executable.
      */
-    memory_region_init_ram(bios_copy, NULL, "bios.1fc", BIOS_SIZE,
+    memory_region_init_ram(bios_copy, OBJECT(machine), "bios.1fc", BIOS_SIZE,
                            &error_fatal);
     if (!rom_copy(memory_region_get_ram_ptr(bios_copy),
                   FLASH_ADDRESS, BIOS_SIZE)) {

@@ -586,11 +586,11 @@ static void mips_loongson3_virt_init(MachineState *machine)
     assert(cpu); /* This variable points to the first created cpu. */
 
     /* Allocate RAM/BIOS, 0x00000000~0x10000000 is alias of 0x80000000~0x90000000 */
-    memory_region_init_rom(bios, NULL, "loongson3.bios",
+    memory_region_init_rom(bios, OBJECT(machine), "loongson3.bios",
                            virt_memmap[VIRT_BIOS_ROM].size, &error_fatal);
-    memory_region_init_alias(ram, NULL, "loongson3.lowmem",
+    memory_region_init_alias(ram, OBJECT(machine), "loongson3.lowmem",
                            machine->ram, 0, virt_memmap[VIRT_LOWMEM].size);
-    memory_region_init_io(iomem, NULL, &loongson3_pm_ops,
+    memory_region_init_io(iomem, OBJECT(machine), &loongson3_pm_ops,
                            NULL, "loongson3_pm", virt_memmap[VIRT_PM].size);
     qemu_register_wakeup_support();
 

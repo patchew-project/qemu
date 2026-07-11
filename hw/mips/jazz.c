@@ -234,9 +234,9 @@ static void mips_jazz_init(MachineState *machine,
     /* allocate RAM */
     memory_region_add_subregion(address_space, 0, machine->ram);
 
-    memory_region_init_rom(bios, NULL, "mips_jazz.bios", MAGNUM_BIOS_SIZE,
+    memory_region_init_rom(bios, OBJECT(machine), "mips_jazz.bios", MAGNUM_BIOS_SIZE,
                            &error_fatal);
-    memory_region_init_alias(bios2, NULL, "mips_jazz.bios", bios,
+    memory_region_init_alias(bios2, OBJECT(machine), "mips_jazz.bios", bios,
                              0, MAGNUM_BIOS_SIZE);
     memory_region_add_subregion(address_space, 0x1fc00000LL, bios);
     memory_region_add_subregion(address_space, 0xfff00000LL, bios2);
@@ -270,17 +270,17 @@ static void mips_jazz_init(MachineState *machine,
                                 sysbus_mmio_get_region(sysbus, 0));
     memory_region_add_subregion(address_space, 0xf0000000,
                                 sysbus_mmio_get_region(sysbus, 1));
-    memory_region_init_io(dma_dummy, NULL, &dma_dummy_ops,
+    memory_region_init_io(dma_dummy, OBJECT(machine), &dma_dummy_ops,
                           NULL, "dummy_dma", 0x1000);
     memory_region_add_subregion(address_space, 0x8000d000, dma_dummy);
 
-    memory_region_init_rom(dp8393x_prom, NULL, "dp8393x-jazz.prom",
+    memory_region_init_rom(dp8393x_prom, OBJECT(machine), "dp8393x-jazz.prom",
                            SONIC_PROM_SIZE, &error_fatal);
     memory_region_add_subregion(address_space, 0x8000b000, dp8393x_prom);
 
     /* ISA bus: IO space at 0x90000000, mem space at 0x91000000 */
-    memory_region_init(isa_io, NULL, "isa-io", 0x00010000);
-    memory_region_init(isa_mem, NULL, "isa-mem", 0x01000000);
+    memory_region_init(isa_io, OBJECT(machine), "isa-io", 0x00010000);
+    memory_region_init(isa_mem, OBJECT(machine), "isa-mem", 0x01000000);
     memory_region_add_subregion(address_space, 0x90000000, isa_io);
     memory_region_add_subregion(address_space, 0x91000000, isa_mem);
     isa_bus = isa_bus_new_bridge(OBJECT(machine), isa_mem, isa_io, &error_abort);
@@ -306,7 +306,7 @@ static void mips_jazz_init(MachineState *machine,
         {
             /* Simple ROM, so user doesn't have to provide one */
             MemoryRegion *rom_mr = g_new(MemoryRegion, 1);
-            memory_region_init_rom(rom_mr, NULL, "g364fb.rom", 0x80000,
+            memory_region_init_rom(rom_mr, OBJECT(machine), "g364fb.rom", 0x80000,
                                    &error_fatal);
             uint8_t *rom = memory_region_get_ram_ptr(rom_mr);
             memory_region_add_subregion(address_space, 0x60000000, rom_mr);
@@ -357,7 +357,7 @@ static void mips_jazz_init(MachineState *machine,
 
     /* Real time clock */
     mc146818_rtc_init(OBJECT(machine), isa_bus, 1980, NULL);
-    memory_region_init_io(rtc, NULL, &rtc_ops, NULL, "rtc", 0x1000);
+    memory_region_init_io(rtc, OBJECT(machine), &rtc_ops, NULL, "rtc", 0x1000);
     memory_region_add_subregion(address_space, 0x80004000, rtc);
 
     /* Keyboard (i8042) */
