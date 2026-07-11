@@ -1346,11 +1346,11 @@ static void xlnx_dp_init(Object *obj)
      * child properties of this device, we can drop the reference we
      * hold to them, leaving the child-property as the only reference.
      */
-    s->dpcd = DPCD(qdev_new("dpcd"));
+    s->dpcd = DPCD(qdev_new_orphan("dpcd"));
     object_property_add_child(OBJECT(s), "dpcd", OBJECT(s->dpcd));
     object_unref(s->dpcd);
 
-    s->edid = I2CDDC(qdev_new("i2c-ddc"));
+    s->edid = I2CDDC(qdev_new_orphan("i2c-ddc"));
     i2c_slave_set_address(I2C_SLAVE(s->edid), 0x50);
     object_property_add_child(OBJECT(s), "edid", OBJECT(s->edid));
     object_unref(s->edid);

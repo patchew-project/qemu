@@ -141,7 +141,7 @@ LEDState *led_create_simple(Object *parentobj,
     g_autofree char *name = NULL;
     DeviceState *dev;
 
-    dev = qdev_new(TYPE_LED);
+    dev = qdev_new_orphan(TYPE_LED);
     qdev_prop_set_bit(dev, "gpio-active-high",
                       gpio_polarity == GPIO_POLARITY_ACTIVE_HIGH);
     qdev_prop_set_string(dev, "color", led_color_name[color]);

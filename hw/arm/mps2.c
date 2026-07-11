@@ -299,7 +299,7 @@ static void mps2_common_init(MachineState *machine)
                 rxovrint = qdev_get_gpio_in(orgate_dev, i * 2 + 1);
             }
 
-            dev = qdev_new(TYPE_CMSDK_APB_UART);
+            dev = qdev_new_orphan(TYPE_CMSDK_APB_UART);
             s = SYS_BUS_DEVICE(dev);
             qdev_prop_set_chr(dev, "chardev", serial_hd(i));
             qdev_prop_set_uint32(dev, "pclk-frq", SYSCLK_FRQ);
@@ -343,7 +343,7 @@ static void mps2_common_init(MachineState *machine)
             qdev_connect_gpio_out(txrx_orgate_dev, 0,
                                   qdev_get_gpio_in(armv7m, uart_txrx_irqno[i]));
 
-            dev = qdev_new(TYPE_CMSDK_APB_UART);
+            dev = qdev_new_orphan(TYPE_CMSDK_APB_UART);
             s = SYS_BUS_DEVICE(dev);
             qdev_prop_set_chr(dev, "chardev", serial_hd(i));
             qdev_prop_set_uint32(dev, "pclk-frq", SYSCLK_FRQ);

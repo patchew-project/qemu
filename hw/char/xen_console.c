@@ -562,7 +562,7 @@ static void xen_console_device_create(XenBackendInstance *backend,
         goto fail;
     }
 
-    xendev = XEN_DEVICE(qdev_new(TYPE_XEN_CONSOLE_DEVICE));
+    xendev = XEN_DEVICE(qdev_new_orphan(TYPE_XEN_CONSOLE_DEVICE));
     con = XEN_CONSOLE_DEVICE(xendev);
 
     con->dev = number;

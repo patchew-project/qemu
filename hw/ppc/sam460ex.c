@@ -275,7 +275,7 @@ static void sam460ex_init(MachineState *machine)
     ppc_dcr_init(env, NULL, NULL);
 
     /* PLB arbitrer */
-    dev = qdev_new(TYPE_PPC4xx_PLB);
+    dev = qdev_new_orphan(TYPE_PPC4xx_PLB);
     ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(dev), cpu, &error_fatal);
     object_unref(OBJECT(dev));
 
@@ -291,7 +291,7 @@ static void sam460ex_init(MachineState *machine)
          */
         const int input_ints[] = { -1, 30, 10, 16 };
 
-        uic[i] = qdev_new(TYPE_PPC_UIC);
+        uic[i] = qdev_new_orphan(TYPE_PPC_UIC);
         qdev_prop_set_uint32(uic[i], "dcr-base", 0xc0 + i * 0x10);
         ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(uic[i]), cpu, &error_fatal);
         object_unref(OBJECT(uic[i]));
@@ -321,7 +321,7 @@ static void sam460ex_init(MachineState *machine)
         error_report("Memory below 64 MiB is not supported");
         exit(1);
     }
-    dev = qdev_new(TYPE_PPC4xx_SDRAM_DDR2);
+    dev = qdev_new_orphan(TYPE_PPC4xx_SDRAM_DDR2);
     object_property_set_link(OBJECT(dev), "dram", OBJECT(machine->ram),
                              &error_abort);
     /*
@@ -351,7 +351,7 @@ static void sam460ex_init(MachineState *machine)
                                qdev_get_gpio_in(uic[0], 3));
 
     /* External bus controller */
-    dev = qdev_new(TYPE_PPC4xx_EBC);
+    dev = qdev_new_orphan(TYPE_PPC4xx_EBC);
     ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(dev), cpu, &error_fatal);
     object_unref(OBJECT(dev));
 
@@ -365,7 +365,7 @@ static void sam460ex_init(MachineState *machine)
     ppc4xx_sdr_init(env);
 
     /* MAL */
-    dev = qdev_new(TYPE_PPC4xx_MAL);
+    dev = qdev_new_orphan(TYPE_PPC4xx_MAL);
     qdev_prop_set_uint8(dev, "txc-num", 4);
     qdev_prop_set_uint8(dev, "rxc-num", 16);
     ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(dev), cpu, &error_fatal);
@@ -389,7 +389,7 @@ static void sam460ex_init(MachineState *machine)
     /* USB */
     sysbus_create_simple(TYPE_PPC4xx_EHCI, 0x4bffd0400,
                          qdev_get_gpio_in(uic[2], 29));
-    dev = qdev_new("sysbus-ohci");
+    dev = qdev_new_orphan("sysbus-ohci");
     qdev_prop_set_string(dev, "masterbus", "usb-bus.0");
     qdev_prop_set_uint32(dev, "num-ports", 6);
     sbdev = SYS_BUS_DEVICE(dev);
@@ -402,13 +402,13 @@ static void sam460ex_init(MachineState *machine)
     usb_create_simple(usb_bus, "usb-mouse");
 
     /* PCIe buses */
-    dev = qdev_new(TYPE_PPC460EX_PCIE_HOST);
+    dev = qdev_new_orphan(TYPE_PPC460EX_PCIE_HOST);
     qdev_prop_set_int32(dev, "busnum", 0);
     qdev_prop_set_int32(dev, "dcrn-base", PCIE0_DCRN_BASE);
     object_property_set_link(OBJECT(dev), "cpu", OBJECT(cpu), &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
-    dev = qdev_new(TYPE_PPC460EX_PCIE_HOST);
+    dev = qdev_new_orphan(TYPE_PPC460EX_PCIE_HOST);
     qdev_prop_set_int32(dev, "busnum", 1);
     qdev_prop_set_int32(dev, "dcrn-base", PCIE1_DCRN_BASE);
     object_property_set_link(OBJECT(dev), "cpu", OBJECT(cpu), &error_abort);

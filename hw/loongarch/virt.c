@@ -150,7 +150,7 @@ static PFlashCFI01 *virt_flash_create1(LoongArchVirtMachineState *lvms,
                                        const char *name,
                                        const char *alias_prop_name)
 {
-    DeviceState *dev = qdev_new(TYPE_PFLASH_CFI01);
+    DeviceState *dev = qdev_new_orphan(TYPE_PFLASH_CFI01);
 
     qdev_prop_set_uint64(dev, "sector-length", VIRT_FLASH_SECTOR_SIZE);
     qdev_prop_set_uint8(dev, "width", 4);
@@ -295,7 +295,7 @@ static DeviceState *create_acpi_ged(DeviceState *pch_pic,
         event |= ACPI_GED_CPU_HOTPLUG_EVT;
     }
 
-    dev = qdev_new(TYPE_ACPI_GED);
+    dev = qdev_new_orphan(TYPE_ACPI_GED);
     qdev_prop_set_uint32(dev, "ged-event", event);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
@@ -322,7 +322,7 @@ static DeviceState *create_platform_bus(DeviceState *pch_pic)
     int i, irq;
     MemoryRegion *sysmem = get_system_memory();
 
-    dev = qdev_new(TYPE_PLATFORM_BUS_DEVICE);
+    dev = qdev_new_orphan(TYPE_PLATFORM_BUS_DEVICE);
     dev->id = g_strdup(TYPE_PLATFORM_BUS_DEVICE);
     qdev_prop_set_uint32(dev, "num_irqs", VIRT_PLATFORM_BUS_NUM_IRQS);
     qdev_prop_set_uint32(dev, "mmio_size", VIRT_PLATFORM_BUS_SIZE);
@@ -400,7 +400,7 @@ static void virt_devices_init(DeviceState *pch_pic,
     hwaddr mmio_base, mmio_size;
     int i, irq;
 
-    gpex_dev = qdev_new(TYPE_GPEX_HOST);
+    gpex_dev = qdev_new_orphan(TYPE_GPEX_HOST);
     d = SYS_BUS_DEVICE(gpex_dev);
     sysbus_realize_and_unref(d, &error_fatal);
     pci_bus = PCI_HOST_BRIDGE(gpex_dev)->bus;
@@ -601,20 +601,20 @@ static void virt_irq_init(LoongArchVirtMachineState *lvms)
      */
 
     /* Create IPI device */
-    ipi = qdev_new(TYPE_LOONGARCH_IPI);
+    ipi = qdev_new_orphan(TYPE_LOONGARCH_IPI);
     lvms->ipi = ipi;
     sysbus_realize_and_unref(SYS_BUS_DEVICE(ipi), &error_fatal);
 
     /* Create DINTC device*/
     if (virt_has_dmsi(lvms)) {
-        dintc = qdev_new(TYPE_LOONGARCH_DINTC);
+        dintc = qdev_new_orphan(TYPE_LOONGARCH_DINTC);
         lvms->dintc = dintc;
         sysbus_realize_and_unref(SYS_BUS_DEVICE(dintc), &error_fatal);
         sysbus_mmio_map(SYS_BUS_DEVICE(dintc), 0, VIRT_DINTC_BASE);
     }
 
     /* Create EXTIOI device */
-    extioi = qdev_new(TYPE_LOONGARCH_EXTIOI);
+    extioi = qdev_new_orphan(TYPE_LOONGARCH_EXTIOI);
     lvms->extioi = extioi;
     if (virt_is_veiointc_enabled(lvms)) {
         qdev_prop_set_bit(extioi, "has-virtualization-extension", true);
@@ -622,13 +622,13 @@ static void virt_irq_init(LoongArchVirtMachineState *lvms)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(extioi), &error_fatal);
 
     virt_cpu_irq_init(lvms);
-    pch_pic = qdev_new(TYPE_LOONGARCH_PIC);
+    pch_pic = qdev_new_orphan(TYPE_LOONGARCH_PIC);
     num = VIRT_PCH_PIC_IRQ_NUM;
     qdev_prop_set_uint32(pch_pic, "pch_pic_irq_num", num);
     d = SYS_BUS_DEVICE(pch_pic);
     sysbus_realize_and_unref(d, &error_fatal);
 
-    pch_msi = qdev_new(TYPE_LOONGARCH_PCH_MSI);
+    pch_msi = qdev_new_orphan(TYPE_LOONGARCH_PCH_MSI);
     start   =  num;
     num = EXTIOI_IRQS - start;
     qdev_prop_set_uint32(pch_msi, "msi_irq_base", start);

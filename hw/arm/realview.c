@@ -61,7 +61,7 @@ static const int realview_board_id[] = {
 
 static void split_irq_from_named(DeviceState *src, const char* outname,
                                  qemu_irq out1, qemu_irq out2) {
-    DeviceState *splitter = qdev_new(TYPE_SPLIT_IRQ);
+    DeviceState *splitter = qdev_new_orphan(TYPE_SPLIT_IRQ);
 
     qdev_prop_set_uint32(splitter, "num-lines", 2);
 
@@ -180,7 +180,7 @@ static void realview_init(MachineState *machine,
     }
 
     sys_id = is_pb ? 0x01780500 : 0xc1400400;
-    sysctl = qdev_new("realview_sysctl");
+    sysctl = qdev_new_orphan("realview_sysctl");
     qdev_prop_set_uint32(sysctl, "sys_id", sys_id);
     qdev_prop_set_uint32(sysctl, "proc_id", proc_id);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(sysctl), &error_fatal);
@@ -188,10 +188,10 @@ static void realview_init(MachineState *machine,
 
     if (is_mpcore) {
         if (is_pb) {
-            dev = qdev_new(TYPE_A9MPCORE_PRIV);
+            dev = qdev_new_orphan(TYPE_A9MPCORE_PRIV);
             qdev_prop_set_uint32(dev, "num-irq", GIC_EXT_IRQS + GIC_INTERNAL);
         } else {
-            dev = qdev_new("realview_mpcore");
+            dev = qdev_new_orphan("realview_mpcore");
         }
         qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
         busdev = SYS_BUS_DEVICE(dev);
@@ -212,7 +212,7 @@ static void realview_init(MachineState *machine,
         pic[n] = qdev_get_gpio_in(dev, n);
     }
 
-    pl041 = qdev_new("pl041");
+    pl041 = qdev_new_orphan("pl041");
     qdev_prop_set_uint32(pl041, "nc_fifo_depth", 512);
     if (machine->audiodev) {
         qdev_prop_set_string(pl041, "audiodev", machine->audiodev);
@@ -230,7 +230,7 @@ static void realview_init(MachineState *machine,
     pl011_create(0x1000c000, pic[15], serial_hd(3));
 
     /* DMA controller is optional, apparently.  */
-    dev = qdev_new("pl081");
+    dev = qdev_new_orphan("pl081");
     object_property_set_link(OBJECT(dev), "downstream", OBJECT(sysmem),
                              &error_fatal);
     busdev = SYS_BUS_DEVICE(dev);
@@ -245,7 +245,7 @@ static void realview_init(MachineState *machine,
     sysbus_create_simple("pl061", 0x10014000, pic[7]);
     gpio2 = sysbus_create_simple("pl061", 0x10015000, pic[8]);
 
-    dev = qdev_new("pl111");
+    dev = qdev_new_orphan("pl111");
     object_property_set_link(OBJECT(dev), "framebuffer-memory",
                              OBJECT(sysmem), &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
@@ -271,7 +271,7 @@ static void realview_init(MachineState *machine,
     if (dinfo) {
         DeviceState *card;
 
-        card = qdev_new(TYPE_SD_CARD);
+        card = qdev_new_orphan(TYPE_SD_CARD);
         qdev_prop_set_drive_err(card, "drive", blk_by_legacy_dinfo(dinfo),
                                 &error_fatal);
         qdev_realize_and_unref(card, qdev_get_child_bus(dev, "sd-bus"),
@@ -281,7 +281,7 @@ static void realview_init(MachineState *machine,
     sysbus_create_simple("pl031", 0x10017000, pic[10]);
 
     if (!is_pb) {
-        dev = qdev_new("realview_pci");
+        dev = qdev_new_orphan("realview_pci");
         busdev = SYS_BUS_DEVICE(dev);
         sysbus_realize_and_unref(busdev, &error_fatal);
         sysbus_mmio_map(busdev, 0, 0x10019000); /* PCI controller registers */

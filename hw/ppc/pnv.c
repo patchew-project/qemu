@@ -1127,7 +1127,7 @@ static void pnv_init(MachineState *machine)
     /*
      * Create our simple PNOR device
      */
-    dev = qdev_new(TYPE_PNV_PNOR);
+    dev = qdev_new_orphan(TYPE_PNV_PNOR);
     pnor = drive_get(IF_MTD, 0, 0);
     if (!pnor && defaults_enabled()) {
         fw_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, PNOR_FILE_NAME);
@@ -1269,7 +1269,7 @@ static void pnv_init(MachineState *machine)
     pnv->chips = g_new0(PnvChip *, pnv->num_chips);
     for (i = 0; i < pnv->num_chips; i++) {
         char chip_name[32];
-        Object *chip = OBJECT(qdev_new(chip_typename));
+        Object *chip = OBJECT(qdev_new_orphan(chip_typename));
         uint64_t chip_ram_size =  pnv_chip_get_ram_size(pnv, i);
 
         pnv->chips[i] = PNV_CHIP(chip);

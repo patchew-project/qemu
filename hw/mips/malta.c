@@ -1098,7 +1098,7 @@ void mips_malta_init(MachineState *machine)
     PCIDevice *piix4;
     DeviceState *dev;
 
-    s = MIPS_MALTA(qdev_new(TYPE_MIPS_MALTA));
+    s = MIPS_MALTA(qdev_new_orphan(TYPE_MIPS_MALTA));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(s), &error_fatal);
 
     /* create CPU */
@@ -1226,7 +1226,7 @@ void mips_malta_init(MachineState *machine)
     stl_p(memory_region_get_ram_ptr(bios_copy) + 0x10, 0x00000420);
 
     /* Northbridge */
-    dev = qdev_new("gt64120");
+    dev = qdev_new_orphan("gt64120");
     qdev_prop_set_bit(dev, "cpu-little-endian", !TARGET_BIG_ENDIAN);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci"));

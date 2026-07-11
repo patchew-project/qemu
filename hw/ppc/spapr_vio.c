@@ -564,7 +564,7 @@ SpaprVioBus *spapr_vio_bus_init(void)
     DeviceState *dev;
 
     /* Create bridge device */
-    dev = qdev_new(TYPE_SPAPR_VIO_BRIDGE);
+    dev = qdev_new_orphan(TYPE_SPAPR_VIO_BRIDGE);
 
     /* Create bus on bridge device */
     qbus = qbus_new(TYPE_SPAPR_VIO_BUS, dev, "spapr-vio");

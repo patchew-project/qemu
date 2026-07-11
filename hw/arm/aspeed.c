@@ -90,7 +90,7 @@ static void sdhci_attach_drive(SDHCIState *sdhci, DriveInfo *dinfo, bool emmc,
         if (!dinfo) {
             return;
         }
-        card = qdev_new(emmc ? TYPE_EMMC : TYPE_SD_CARD);
+        card = qdev_new_orphan(emmc ? TYPE_EMMC : TYPE_SD_CARD);
 
         /*
          * Force the boot properties of the eMMC device only when the

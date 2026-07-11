@@ -58,7 +58,7 @@ void empty_slot_init(const char *name, hwaddr addr, uint64_t slot_size)
         /* Only empty slots larger than 0 byte need handling. */
         DeviceState *dev;
 
-        dev = qdev_new(TYPE_EMPTY_SLOT);
+        dev = qdev_new_orphan(TYPE_EMPTY_SLOT);
 
         qdev_prop_set_uint64(dev, "size", slot_size);
         sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);

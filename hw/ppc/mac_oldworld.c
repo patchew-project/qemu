@@ -212,7 +212,7 @@ static void ppc_heathrow_init(MachineState *machine)
     }
 
     /* Grackle PCI host bridge */
-    grackle_dev = qdev_new(TYPE_GRACKLE_PCI_HOST_BRIDGE);
+    grackle_dev = qdev_new_orphan(TYPE_GRACKLE_PCI_HOST_BRIDGE);
     qdev_prop_set_uint32(grackle_dev, "ofw-addr", 0x80000000);
     s = SYS_BUS_DEVICE(grackle_dev);
     sysbus_realize_and_unref(s, &error_fatal);
@@ -279,9 +279,9 @@ static void ppc_heathrow_init(MachineState *machine)
     /* MacIO CUDA/ADB */
     dev = DEVICE(object_resolve_path_component(macio, "cuda"));
     adb_bus = qdev_get_child_bus(dev, "adb.0");
-    dev = qdev_new(TYPE_ADB_KEYBOARD);
+    dev = qdev_new_orphan(TYPE_ADB_KEYBOARD);
     qdev_realize_and_unref(dev, adb_bus, &error_fatal);
-    dev = qdev_new(TYPE_ADB_MOUSE);
+    dev = qdev_new_orphan(TYPE_ADB_MOUSE);
     qdev_realize_and_unref(dev, adb_bus, &error_fatal);
 
     if (machine_usb(machine)) {
@@ -303,7 +303,7 @@ static void ppc_heathrow_init(MachineState *machine)
 
     /* No PCI init: the BIOS will do it */
 
-    dev = qdev_new(TYPE_FW_CFG_MEM);
+    dev = qdev_new_orphan(TYPE_FW_CFG_MEM);
     fw_cfg = FW_CFG(dev);
     qdev_prop_set_uint32(dev, "data_width", 1);
     qdev_prop_set_bit(dev, "dma_enabled", false);

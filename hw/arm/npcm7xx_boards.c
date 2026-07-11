@@ -84,7 +84,7 @@ static void npcm7xx_connect_flash(NPCM7xxFIUState *fiu, int cs_no,
     DeviceState *flash;
     qemu_irq flash_cs;
 
-    flash = qdev_new(flash_type);
+    flash = qdev_new_orphan(flash_type);
     if (dinfo) {
         qdev_prop_set_drive(flash, "drive", blk_by_legacy_dinfo(dinfo));
     }
@@ -113,7 +113,7 @@ static void sdhci_attach_drive(SDHCIState *sdhci, int unit)
             exit(1);
         }
 
-        DeviceState *carddev = qdev_new(TYPE_SD_CARD);
+        DeviceState *carddev = qdev_new_orphan(TYPE_SD_CARD);
         qdev_prop_set_drive_err(carddev, "drive", blk, &error_fatal);
         qdev_realize_and_unref(carddev, bus, &error_fatal);
 }

@@ -593,7 +593,7 @@ static void sifive_u_machine_init(MachineState *machine)
                                  sizeof(reset_vec), kernel_entry);
 
     /* Connect an SPI flash to SPI0 */
-    flash_dev = qdev_new("is25wp256");
+    flash_dev = qdev_new_orphan("is25wp256");
     dinfo = drive_get(IF_MTD, 0, 0);
     if (dinfo) {
         qdev_prop_set_drive_err(flash_dev, "drive",
@@ -613,7 +613,7 @@ static void sifive_u_machine_init(MachineState *machine)
 
     dinfo = drive_get(IF_SD, 0, 0);
     blk = dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
-    card_dev = qdev_new(TYPE_SD_CARD_SPI);
+    card_dev = qdev_new_orphan(TYPE_SD_CARD_SPI);
     qdev_prop_set_drive_err(card_dev, "drive", blk, &error_fatal);
     qdev_realize_and_unref(card_dev,
                            qdev_get_child_bus(sd_dev, "sd-bus"),

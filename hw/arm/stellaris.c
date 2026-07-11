@@ -1096,7 +1096,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
      * Create the system-registers object early, because we will
      * need its sysclk output.
      */
-    ssys_dev = qdev_new(TYPE_STELLARIS_SYS);
+    ssys_dev = qdev_new_orphan(TYPE_STELLARIS_SYS);
     object_property_add_child(soc_container, "sys", OBJECT(ssys_dev));
 
     /*
@@ -1123,7 +1123,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     qdev_prop_set_uint32(ssys_dev, "dc4", board->dc4);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(ssys_dev), &error_fatal);
 
-    armv7m = qdev_new(TYPE_ARMV7M);
+    armv7m = qdev_new_orphan(TYPE_ARMV7M);
     object_property_add_child(soc_container, "v7m", OBJECT(armv7m));
     qdev_prop_set_uint32(armv7m, "num-irq", NUM_IRQ_LINES);
     qdev_prop_set_uint8(armv7m, "num-prio-bits", NUM_PRIO_BITS);
@@ -1157,7 +1157,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
         if (DEV_CAP(2, GPTM(i))) {
             SysBusDevice *sbd;
 
-            dev = qdev_new(TYPE_STELLARIS_GPTM);
+            dev = qdev_new_orphan(TYPE_STELLARIS_GPTM);
             sbd = SYS_BUS_DEVICE(dev);
             object_property_add_child(soc_container, "gptm[*]", OBJECT(dev));
             qdev_connect_clock_in(dev, "clk",
@@ -1172,7 +1172,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     }
 
     if (DEV_CAP(1, WDT)) {
-        dev = qdev_new(TYPE_LUMINARY_WATCHDOG);
+        dev = qdev_new_orphan(TYPE_LUMINARY_WATCHDOG);
         object_property_add_child(soc_container, "wdg", OBJECT(dev));
         qdev_connect_clock_in(dev, "WDOGCLK",
                               qdev_get_clock_out(ssys_dev, "SYSCLK"));
@@ -1216,7 +1216,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
         if (DEV_CAP(2, UART(i))) {
             SysBusDevice *sbd;
 
-            dev = qdev_new("pl011_luminary");
+            dev = qdev_new_orphan("pl011_luminary");
             object_property_add_child(soc_container, "uart[*]", OBJECT(dev));
             sbd = SYS_BUS_DEVICE(dev);
             qdev_prop_set_chr(dev, "chardev", serial_hd(i));
@@ -1304,18 +1304,18 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
 
             dinfo = drive_get(IF_SD, 0, 0);
             blk = dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
-            carddev = qdev_new(TYPE_SD_CARD_SPI);
+            carddev = qdev_new_orphan(TYPE_SD_CARD_SPI);
             qdev_prop_set_drive_err(carddev, "drive", blk, &error_fatal);
             qdev_realize_and_unref(carddev,
                                    qdev_get_child_bus(sddev, "sd-bus"),
                                    &error_fatal);
 
-            ssddev = qdev_new("ssd0323");
+            ssddev = qdev_new_orphan("ssd0323");
             object_property_add_child(OBJECT(ms), "oled", OBJECT(ssddev));
             qdev_prop_set_uint8(ssddev, "cs", 1);
             qdev_realize_and_unref(ssddev, bus, &error_fatal);
 
-            gpio_d_splitter = qdev_new(TYPE_SPLIT_IRQ);
+            gpio_d_splitter = qdev_new_orphan(TYPE_SPLIT_IRQ);
             object_property_add_child(OBJECT(ms), "splitter",
                                       OBJECT(gpio_d_splitter));
             qdev_prop_set_uint32(gpio_d_splitter, "num-lines", 2);
@@ -1337,7 +1337,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     if (DEV_CAP(4, EMAC)) {
         DeviceState *enet;
 
-        enet = qdev_new("stellaris_enet");
+        enet = qdev_new_orphan("stellaris_enet");
         object_property_add_child(soc_container, "enet", OBJECT(enet));
         if (nd) {
             qdev_set_nic_properties(enet, nd);
@@ -1357,7 +1357,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
         };
         DeviceState *gpad;
 
-        gpad = qdev_new(TYPE_STELLARIS_GAMEPAD);
+        gpad = qdev_new_orphan(TYPE_STELLARIS_GAMEPAD);
         object_property_add_child(OBJECT(ms), "gamepad", OBJECT(gpad));
         for (i = 0; i < ARRAY_SIZE(gpad_keycode); i++) {
             qlist_append_int(gpad_keycode_list, gpad_keycode[i]);

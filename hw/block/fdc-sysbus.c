@@ -102,7 +102,7 @@ void fdctrl_init_sysbus(qemu_irq irq, hwaddr mmio_base, DriveInfo **fds)
     SysBusDevice *sbd;
     FDCtrlSysBus *sys;
 
-    dev = qdev_new("sysbus-fdc");
+    dev = qdev_new_orphan("sysbus-fdc");
     sys = SYSBUS_FDC(dev);
     sbd = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(sbd, &error_fatal);
@@ -118,7 +118,7 @@ void sun4m_fdctrl_init(qemu_irq irq, hwaddr io_base,
     DeviceState *dev;
     FDCtrlSysBus *sys;
 
-    dev = qdev_new("sun-fdtwo");
+    dev = qdev_new_orphan("sun-fdtwo");
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sys = SYSBUS_FDC(dev);
     sysbus_connect_irq(SYS_BUS_DEVICE(sys), 0, irq);

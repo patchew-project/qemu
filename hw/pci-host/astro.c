@@ -521,7 +521,7 @@ static ElroyState *elroy_init(int num)
 {
     DeviceState *dev;
 
-    dev = qdev_new(TYPE_ELROY_PCI_HOST_BRIDGE);
+    dev = qdev_new_orphan(TYPE_ELROY_PCI_HOST_BRIDGE);
     dev->id = g_strdup_printf("elroy%d", num);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 

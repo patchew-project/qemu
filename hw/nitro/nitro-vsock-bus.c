@@ -48,7 +48,7 @@ void nitro_vsock_bridge_start_enclave(NitroVsockBridge *bridge,
 
 NitroVsockBridge *nitro_vsock_bridge_create(void)
 {
-    DeviceState *dev = qdev_new(TYPE_NITRO_VSOCK_BRIDGE);
+    DeviceState *dev = qdev_new_orphan(TYPE_NITRO_VSOCK_BRIDGE);
 
     qdev_set_id(dev, g_strdup("nitro-vsock"), &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);

@@ -424,7 +424,7 @@ static inline void loongson3_virt_devices_init(MachineState *machine,
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     LoongsonMachineState *s = LOONGSON_MACHINE(machine);
 
-    dev = qdev_new(TYPE_GPEX_HOST);
+    dev = qdev_new_orphan(TYPE_GPEX_HOST);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     pci_bus = PCI_HOST_BRIDGE(dev)->bus;
 
@@ -519,7 +519,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
 
     memory_region_init(iocsr, OBJECT(machine), "loongson3.iocsr", UINT32_MAX);
 
-    ipi = qdev_new(TYPE_LOONGSON_IPI);
+    ipi = qdev_new_orphan(TYPE_LOONGSON_IPI);
     qdev_prop_set_uint32(ipi, "num-cpu", machine->smp.cpus);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(ipi), &error_fatal);
     memory_region_add_subregion(iocsr, SMP_IPI_MAILBOX,
@@ -527,7 +527,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
     memory_region_add_subregion(iocsr, MAIL_SEND_ADDR,
                             sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi), 1));
 
-    liointc = qdev_new("loongson.liointc");
+    liointc = qdev_new_orphan("loongson.liointc");
     sysbus_realize_and_unref(SYS_BUS_DEVICE(liointc), &error_fatal);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(liointc), 0, virt_memmap[VIRT_LIOINTC].base);

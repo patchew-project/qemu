@@ -547,7 +547,7 @@ I3CTarget *i3c_target_new(const char *name, uint8_t addr, uint8_t dcr,
 {
     DeviceState *dev;
 
-    dev = qdev_new(name);
+    dev = qdev_new_orphan(name);
     qdev_prop_set_uint8(dev, "static-address", addr);
     qdev_prop_set_uint8(dev, "dcr", dcr);
     qdev_prop_set_uint8(dev, "bcr", bcr);

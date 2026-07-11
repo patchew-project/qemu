@@ -1272,7 +1272,7 @@ static void next_cube_init(MachineState *machine)
     env->sr  = 0x2700;
 
     /* Peripheral Controller */
-    pcdev = qdev_new(TYPE_NEXT_PC);
+    pcdev = qdev_new_orphan(TYPE_NEXT_PC);
     object_property_set_link(OBJECT(pcdev), "cpu", OBJECT(cpu), &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(pcdev), &error_fatal);
 

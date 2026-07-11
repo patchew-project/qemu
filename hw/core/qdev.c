@@ -145,12 +145,12 @@ bool qdev_set_parent_bus(DeviceState *dev, BusState *bus, Error **errp)
     return true;
 }
 
-DeviceState *qdev_new(const char *name)
+DeviceState *qdev_new_orphan(const char *name)
 {
     return DEVICE(object_new(name));
 }
 
-DeviceState *qdev_try_new(const char *name)
+DeviceState *qdev_try_new_orphan(const char *name)
 {
     ObjectClass *oc = module_object_class_by_name(name);
     if (!oc) {

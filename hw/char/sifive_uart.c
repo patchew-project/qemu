@@ -399,7 +399,7 @@ SiFiveUARTState *sifive_uart_create(MemoryRegion *address_space, hwaddr base,
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_new("riscv.sifive.uart");
+    dev = qdev_new_orphan("riscv.sifive.uart");
     s = SYS_BUS_DEVICE(dev);
     qdev_prop_set_chr(dev, "chardev", chr);
     sysbus_realize_and_unref(s, &error_fatal);

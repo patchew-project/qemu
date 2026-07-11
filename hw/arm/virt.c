@@ -1082,7 +1082,7 @@ static inline DeviceState *create_acpi_ged(VirtMachineState *vms)
         event |= ACPI_GED_NVDIMM_HOTPLUG_EVT;
     }
 
-    dev = qdev_new(TYPE_ACPI_GED);
+    dev = qdev_new_orphan(TYPE_ACPI_GED);
     qdev_prop_set_uint32(dev, "ged-event", event);
     object_property_set_link(OBJECT(dev), "bus", OBJECT(vms->bus), &error_abort);
     sbdev = SYS_BUS_DEVICE(dev);
@@ -1120,7 +1120,7 @@ static void create_its(VirtMachineState *vms)
         return;
     }
 
-    dev = qdev_new(its_class_name());
+    dev = qdev_new_orphan(its_class_name());
 
     object_property_set_link(OBJECT(dev), "parent-gicv3", OBJECT(vms->gic),
                              &error_abort);
@@ -1137,7 +1137,7 @@ static void create_v2m(VirtMachineState *vms)
     int irq = vms->irqmap[VIRT_GIC_V2M];
     DeviceState *dev;
 
-    dev = qdev_new("arm-gicv2m");
+    dev = qdev_new_orphan("arm-gicv2m");
     qdev_prop_set_uint32(dev, "base-spi", irq);
     qdev_prop_set_uint32(dev, "num-spi", NUM_GICV2M_SPIS);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
@@ -1225,7 +1225,7 @@ static void create_gicv5(VirtMachineState *vms, MemoryRegion *mem)
     const char *gictype = gicv5_class_name();
     QList *cpulist = qlist_new(), *iaffidlist = qlist_new();
 
-    vms->gic = qdev_new(gictype);
+    vms->gic = qdev_new_orphan(gictype);
     qdev_prop_set_uint32(vms->gic, "spi-range", NUM_IRQS);
 
     object_property_set_link(OBJECT(vms->gic), "sysmem", OBJECT(mem),
@@ -1356,7 +1356,7 @@ static void create_gicv2(VirtMachineState *vms, MemoryRegion *mem)
         exit(1);
     }
 
-    vms->gic = qdev_new(gic_class_name());
+    vms->gic = qdev_new_orphan(gic_class_name());
     qdev_prop_set_uint32(vms->gic, "revision", 2);
     qdev_prop_set_uint32(vms->gic, "num-cpu", smp_cpus);
     /*
@@ -1412,7 +1412,7 @@ static void create_gicv3(VirtMachineState *vms, MemoryRegion *mem)
         exit(1);
     }
 
-    vms->gic = qdev_new(gicv3_class_name());
+    vms->gic = qdev_new_orphan(gicv3_class_name());
     qdev_prop_set_uint32(vms->gic, "revision", revision);
     qdev_prop_set_uint32(vms->gic, "num-cpu", smp_cpus);
     /*
@@ -1509,7 +1509,7 @@ static void create_uart(const VirtMachineState *vms, int uart,
     int irq = vms->irqmap[uart];
     const char compat[] = "arm,pl011\0arm,primecell";
     const char clocknames[] = "uartclk\0apb_pclk";
-    DeviceState *dev = qdev_new(TYPE_PL011);
+    DeviceState *dev = qdev_new_orphan(TYPE_PL011);
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
     MachineState *ms = MACHINE(vms);
 
@@ -1670,7 +1670,7 @@ static void create_gpio_devices(const VirtMachineState *vms, int gpio,
     SysBusDevice *s;
     MachineState *ms = MACHINE(vms);
 
-    pl061_dev = qdev_new("pl061");
+    pl061_dev = qdev_new_orphan("pl061");
     /* Pull lines down to 0 if not driven by the PL061 */
     qdev_prop_set_uint8(pl061_dev, "pullups", 0);
     qdev_prop_set_uint8(pl061_dev, "pulldowns", 0xff);
@@ -1786,7 +1786,7 @@ static PFlashCFI01 *virt_flash_create1(VirtMachineState *vms,
      * Create a single flash device.  We use the same parameters as
      * the flash devices on the Versatile Express board.
      */
-    DeviceState *dev = qdev_new(TYPE_PFLASH_CFI01);
+    DeviceState *dev = qdev_new_orphan(TYPE_PFLASH_CFI01);
 
     qdev_prop_set_uint64(dev, "sector-length", VIRT_FLASH_SECTOR_SIZE);
     qdev_prop_set_uint8(dev, "width", 4);
@@ -2069,7 +2069,7 @@ static void create_smmu(const VirtMachineState *vms, PCIBus *bus)
         return;
     }
 
-    dev = qdev_new(TYPE_ARM_SMMUV3);
+    dev = qdev_new_orphan(TYPE_ARM_SMMUV3);
 
     if (!vmc->no_nested_smmu) {
         object_property_set_str(OBJECT(dev), "stage", "nested", &error_fatal);
@@ -2162,7 +2162,7 @@ static void create_pcie(VirtMachineState *vms)
     MachineState *ms = MACHINE(vms);
     MachineClass *mc = MACHINE_GET_CLASS(ms);
 
-    dev = qdev_new(TYPE_GPEX_HOST);
+    dev = qdev_new_orphan(TYPE_GPEX_HOST);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     ecam_id = VIRT_ECAM_ID(vms->highmem_ecam);
@@ -2290,7 +2290,7 @@ static void create_platform_bus(VirtMachineState *vms)
     int i;
     MemoryRegion *sysmem = get_system_memory();
 
-    dev = qdev_new(TYPE_PLATFORM_BUS_DEVICE);
+    dev = qdev_new_orphan(TYPE_PLATFORM_BUS_DEVICE);
     dev->id = g_strdup(TYPE_PLATFORM_BUS_DEVICE);
     qdev_prop_set_uint32(dev, "num_irqs", PLATFORM_BUS_NUM_IRQS);
     qdev_prop_set_uint32(dev, "mmio_size", vms->memmap[VIRT_PLATFORM_BUS].size);

@@ -472,7 +472,7 @@ static void ufs_init_scsi_device(UfsLu *lu, BlockBackend *blk, Error **errp)
      * The ufs-lu is the device that is wrapping the scsi-hd. It owns a virtual
      * SCSI bus that serves the scsi-hd.
      */
-    scsi_dev = qdev_new("scsi-hd");
+    scsi_dev = qdev_new_orphan("scsi-hd");
     object_property_add_child(OBJECT(&lu->bus), "ufs-scsi", OBJECT(scsi_dev));
 
     qdev_prop_set_uint32(scsi_dev, "physical_block_size", UFS_BLOCK_SIZE);

@@ -188,7 +188,7 @@ I2CSlave *i2c_slave_create_simple(I2CBus *bus, const char *name, uint8_t addr);
  * Call 'realize' on @dev, put it on the specified @bus, and drop the
  * reference to it.
  *
- * This function is useful if you have created @dev via qdev_new(),
+ * This function is useful if you have created @dev via qdev_new_orphan(),
  * i2c_slave_new() or i2c_slave_try_new() (which take a reference to
  * the device it returns to you), so that you can set properties on it
  * before realizing it. If you don't need to set properties then

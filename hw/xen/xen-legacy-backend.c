@@ -598,7 +598,7 @@ void xen_be_init(void)
         exit(1);
     }
 
-    xen_sysdev = qdev_new(TYPE_XENSYSDEV);
+    xen_sysdev = qdev_new_orphan(TYPE_XENSYSDEV);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(xen_sysdev), &error_fatal);
     xen_sysbus = qbus_new(TYPE_XENSYSBUS, xen_sysdev, "xen-sysbus");
     qbus_set_bus_hotplug_handler(xen_sysbus);

@@ -199,7 +199,7 @@ static void pc_q35_init(MachineState *machine)
     }
 
     /* create pci host bus */
-    phb = OBJECT(qdev_new(TYPE_Q35_HOST_DEVICE));
+    phb = OBJECT(qdev_new_orphan(TYPE_Q35_HOST_DEVICE));
 
     pci_hole64_size = object_property_get_uint(phb,
                                                PCI_HOST_PROP_PCI_HOLE64_SIZE,

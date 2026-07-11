@@ -57,7 +57,7 @@ void sun4v_rtc_init(hwaddr addr)
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_new(TYPE_SUN4V_RTC);
+    dev = qdev_new_orphan(TYPE_SUN4V_RTC);
     s = SYS_BUS_DEVICE(dev);
 
     sysbus_realize_and_unref(s, &error_fatal);

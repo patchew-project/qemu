@@ -226,7 +226,7 @@ static void versatile_init(MachineState *machine, int board_id)
     /* SDRAM at address zero.  */
     memory_region_add_subregion(sysmem, 0, machine->ram);
 
-    sysctl = qdev_new("realview_sysctl");
+    sysctl = qdev_new_orphan("realview_sysctl");
     qdev_prop_set_uint32(sysctl, "sys_id", 0x41007004);
     qdev_prop_set_uint32(sysctl, "proc_id", 0x02000000);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(sysctl), &error_fatal);
@@ -248,7 +248,7 @@ static void versatile_init(MachineState *machine, int board_id)
     sysbus_create_simple("pl050_keyboard", 0x10006000, sic[3]);
     sysbus_create_simple("pl050_mouse", 0x10007000, sic[4]);
 
-    dev = qdev_new("versatile_pci");
+    dev = qdev_new_orphan("versatile_pci");
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, 0x10001000); /* PCI controller regs */
@@ -284,7 +284,7 @@ static void versatile_init(MachineState *machine, int board_id)
     pl011_create(0x101f3000, pic[14], serial_hd(2));
     pl011_create(0x10009000, sic[6], serial_hd(3));
 
-    dev = qdev_new("pl080");
+    dev = qdev_new_orphan("pl080");
     object_property_set_link(OBJECT(dev), "downstream", OBJECT(sysmem),
                              &error_fatal);
     busdev = SYS_BUS_DEVICE(dev);
@@ -302,7 +302,7 @@ static void versatile_init(MachineState *machine, int board_id)
 
     /* The versatile/PB actually has a modified Color LCD controller
        that includes hardware cursor support from the PL111.  */
-    dev = qdev_new("pl110_versatile");
+    dev = qdev_new_orphan("pl110_versatile");
     object_property_set_link(OBJECT(dev), "framebuffer-memory",
                              OBJECT(sysmem), &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
@@ -317,7 +317,7 @@ static void versatile_init(MachineState *machine, int board_id)
     if (dinfo) {
         DeviceState *card;
 
-        card = qdev_new(TYPE_SD_CARD);
+        card = qdev_new_orphan(TYPE_SD_CARD);
         qdev_prop_set_drive_err(card, "drive", blk_by_legacy_dinfo(dinfo),
                                 &error_fatal);
         qdev_realize_and_unref(card, qdev_get_child_bus(dev, "sd-bus"),
@@ -329,7 +329,7 @@ static void versatile_init(MachineState *machine, int board_id)
     if (dinfo) {
         DeviceState *card;
 
-        card = qdev_new(TYPE_SD_CARD);
+        card = qdev_new_orphan(TYPE_SD_CARD);
         qdev_prop_set_drive_err(card, "drive", blk_by_legacy_dinfo(dinfo),
                                 &error_fatal);
         qdev_realize_and_unref(card, qdev_get_child_bus(dev, "sd-bus"),
@@ -344,7 +344,7 @@ static void versatile_init(MachineState *machine, int board_id)
     i2c_slave_create_simple(i2c, "ds1338", 0x68);
 
     /* Add PL041 AACI Interface to the LM4549 codec */
-    pl041 = qdev_new("pl041");
+    pl041 = qdev_new_orphan("pl041");
     qdev_prop_set_uint32(pl041, "nc_fifo_depth", 512);
     if (machine->audiodev) {
         qdev_prop_set_string(pl041, "audiodev", machine->audiodev);

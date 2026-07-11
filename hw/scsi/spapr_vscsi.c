@@ -1235,7 +1235,7 @@ void spapr_vscsi_create(SpaprVioBus *bus)
 {
     DeviceState *dev;
 
-    dev = qdev_new("spapr-vscsi");
+    dev = qdev_new_orphan("spapr-vscsi");
 
     qdev_realize_and_unref(dev, &bus->bus, &error_fatal);
     scsi_bus_legacy_handle_cmdline(&VIO_SPAPR_VSCSI_DEVICE(dev)->bus);

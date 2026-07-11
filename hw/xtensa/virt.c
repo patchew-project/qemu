@@ -61,7 +61,7 @@ static void create_pcie(MachineState *ms, CPUXtensaState *env, int irq_base,
     qemu_irq *extints;
     int i;
 
-    dev = qdev_new(TYPE_GPEX_HOST);
+    dev = qdev_new_orphan(TYPE_GPEX_HOST);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     /* Map only the first size_ecam bytes of ECAM space. */

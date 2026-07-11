@@ -621,7 +621,7 @@ static void integratorcp_init(MachineState *machine)
                              0, ram_size);
     memory_region_add_subregion(address_space_mem, 0x80000000, ram_alias);
 
-    dev = qdev_new(TYPE_INTEGRATOR_CM);
+    dev = qdev_new_orphan(TYPE_INTEGRATOR_CM);
     qdev_prop_set_uint32(dev, "memsz", ram_size >> 20);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map((SysBusDevice *)dev, 0, 0x10000000);
@@ -654,14 +654,14 @@ static void integratorcp_init(MachineState *machine)
     if (dinfo) {
         DeviceState *card;
 
-        card = qdev_new(TYPE_SD_CARD);
+        card = qdev_new_orphan(TYPE_SD_CARD);
         qdev_prop_set_drive_err(card, "drive", blk_by_legacy_dinfo(dinfo),
                                 &error_fatal);
         qdev_realize_and_unref(card, qdev_get_child_bus(dev, "sd-bus"),
                                &error_fatal);
     }
 
-    dev = qdev_new("pl041");
+    dev = qdev_new_orphan("pl041");
     if (machine->audiodev) {
         qdev_prop_set_string(dev, "audiodev", machine->audiodev);
     }
@@ -673,7 +673,7 @@ static void integratorcp_init(MachineState *machine)
         smc91c111_init(0xc8000000, pic[27]);
     }
 
-    dev = qdev_new("pl110");
+    dev = qdev_new_orphan("pl110");
     object_property_set_link(OBJECT(dev), "framebuffer-memory",
                              OBJECT(address_space_mem), &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);

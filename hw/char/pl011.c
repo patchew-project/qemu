@@ -38,7 +38,7 @@ DeviceState *pl011_create(hwaddr addr, qemu_irq irq, Chardev *chr)
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_new("pl011");
+    dev = qdev_new_orphan("pl011");
     s = SYS_BUS_DEVICE(dev);
     qdev_prop_set_chr(dev, "chardev", chr);
     sysbus_realize_and_unref(s, &error_fatal);

@@ -619,7 +619,7 @@ static void xen_net_device_create(XenBackendInstance *backend,
         goto fail;
     }
 
-    xendev = XEN_DEVICE(qdev_new(TYPE_XEN_NET_DEVICE));
+    xendev = XEN_DEVICE(qdev_new_orphan(TYPE_XEN_NET_DEVICE));
     net = XEN_NET_DEVICE(xendev);
 
     net->dev = number;

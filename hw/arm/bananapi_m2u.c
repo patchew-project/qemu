@@ -50,7 +50,7 @@ static void mmc_attach_drive(AwR40State *s, AwSdHostState *mmc, int unit,
         exit(1);
     }
 
-    carddev = qdev_new(TYPE_SD_CARD);
+    carddev = qdev_new_orphan(TYPE_SD_CARD);
     qdev_prop_set_drive_err(carddev, "drive", blk, &error_fatal);
     qdev_realize_and_unref(carddev, bus, &error_fatal);
 

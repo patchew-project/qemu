@@ -2376,7 +2376,7 @@ DeviceState *ncr710_device_create_sysbus(hwaddr addr, qemu_irq irq)
     DeviceState *dev;
     SysBusDevice *sysbus;
 
-    dev = qdev_new(TYPE_SYSBUS_NCR710_SCSI);
+    dev = qdev_new_orphan(TYPE_SYSBUS_NCR710_SCSI);
     sysbus = SYS_BUS_DEVICE(dev);
 
     qdev_realize_and_unref(dev, NULL, &error_abort);
@@ -2394,7 +2394,7 @@ DeviceState *ncr53c710_init(MemoryRegion *address_space, hwaddr addr,
 
     /* trace_ncr710_device_init(addr); */
 
-    dev = qdev_new(TYPE_SYSBUS_NCR710_SCSI);
+    dev = qdev_new_orphan(TYPE_SYSBUS_NCR710_SCSI);
     sysbus = SYS_BUS_DEVICE(dev);
 
     qdev_realize_and_unref(dev, NULL, &error_abort);

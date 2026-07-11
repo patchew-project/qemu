@@ -129,7 +129,7 @@ static void fdt_add_uart(const HexagonVirtMachineState *vms, int uart,
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_new(TYPE_PL011);
+    dev = qdev_new_orphan(TYPE_PL011);
     s = SYS_BUS_DEVICE(dev);
     qdev_prop_set_chr(dev, "chardev", serial_hd(0));
     qdev_connect_clock_in(dev, "clk", vms->apb_clk);
@@ -268,13 +268,13 @@ static void virt_init(MachineState *ms)
                                 &vms->parent_obj.cfgtable_rom);
     fdt_add_hvx(vms, m_cfg);
 
-    gsregs_dev = qdev_new(TYPE_HEXAGON_GLOBALREG);
+    gsregs_dev = qdev_new_orphan(TYPE_HEXAGON_GLOBALREG);
     object_property_add_child(OBJECT(ms), "global-regs", OBJECT(gsregs_dev));
     qdev_prop_set_uint64(gsregs_dev, "config-table-addr", m_cfg->cfgbase);
     qdev_prop_set_uint32(gsregs_dev, "dsp-rev", v68_rev);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(gsregs_dev), &error_fatal);
 
-    tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
+    tlb_dev = qdev_new_orphan(TYPE_HEXAGON_TLB);
     object_property_add_child(OBJECT(ms), "tlb", OBJECT(tlb_dev));
     qdev_prop_set_uint32(tlb_dev, "num-entries",
                          m_cfg->cfgtable.jtlb_size_entries);

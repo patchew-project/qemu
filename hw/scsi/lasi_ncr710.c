@@ -231,7 +231,7 @@ DeviceState *lasi_ncr710_init(MemoryRegion *addr_space, hwaddr hpa,
     LasiNCR710State *s;
     SysBusDevice *sbd;
 
-    dev = qdev_new(TYPE_LASI_NCR710);
+    dev = qdev_new_orphan(TYPE_LASI_NCR710);
     s = LASI_NCR710(dev);
     sbd = SYS_BUS_DEVICE(dev);
     s->lasi_irq = irq;

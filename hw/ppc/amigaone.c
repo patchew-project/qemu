@@ -302,7 +302,7 @@ static void amigaone_init(MachineState *machine)
     }
 
     /* nvram */
-    dev = qdev_new(TYPE_A1_NVRAM);
+    dev = qdev_new_orphan(TYPE_A1_NVRAM);
     di = drive_get(IF_MTD, 0, 0);
     if (di) {
         qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(di));

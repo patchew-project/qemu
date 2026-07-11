@@ -1005,7 +1005,7 @@ PFlashCFI02 *pflash_cfi02_register(hwaddr base,
                                    uint16_t unlock_addr1,
                                    int be)
 {
-    DeviceState *dev = qdev_new(TYPE_PFLASH_CFI02);
+    DeviceState *dev = qdev_new_orphan(TYPE_PFLASH_CFI02);
 
     if (blk) {
         qdev_prop_set_drive(dev, "drive", blk);

@@ -580,7 +580,7 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
     /* Attach an SD card */
     if (dinfo) {
         CadenceSDHCIState *sdhci = &(s->soc.sdhci);
-        DeviceState *card = qdev_new(TYPE_SD_CARD);
+        DeviceState *card = qdev_new_orphan(TYPE_SD_CARD);
 
         qdev_prop_set_drive_err(card, "drive", blk_by_legacy_dinfo(dinfo),
                                 &error_fatal);

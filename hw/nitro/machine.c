@@ -197,7 +197,7 @@ static void nitro_machine_init(MachineState *machine)
         NitroVsockBridge *bridge = nitro_vsock_bridge_create();
 
         /* Nitro Enclaves require a heartbeat device. Provide one. */
-        qdev_realize(qdev_new(TYPE_NITRO_HEARTBEAT),
+        qdev_realize(qdev_new_orphan(TYPE_NITRO_HEARTBEAT),
                      BUS(&bridge->bus), &error_fatal);
 
         /*
@@ -209,7 +209,7 @@ static void nitro_machine_init(MachineState *machine)
             Chardev *chr = serial_hd(0);
 
             if (chr) {
-                DeviceState *dev = qdev_new(TYPE_NITRO_SERIAL_VSOCK);
+                DeviceState *dev = qdev_new_orphan(TYPE_NITRO_SERIAL_VSOCK);
 
                 qdev_prop_set_chr(dev, "chardev", chr);
                 qdev_realize(dev, BUS(&bridge->bus), &error_fatal);

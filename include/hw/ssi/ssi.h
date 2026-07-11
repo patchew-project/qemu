@@ -92,7 +92,7 @@ DeviceState *ssi_create_peripheral(SSIBus *bus, const char *name);
  * reference to it. Errors are reported via @errp and by returning
  * false.
  *
- * This function is useful if you have created @dev via qdev_new()
+ * This function is useful if you have created @dev via qdev_new_orphan()
  * (which takes a reference to the device it returns to you), so that
  * you can set properties on it before realizing it. If you don't need
  * to set properties then ssi_create_peripheral() is probably better (as it

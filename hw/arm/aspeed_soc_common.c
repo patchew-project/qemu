@@ -81,7 +81,7 @@ bool aspeed_soc_dram_init(AspeedSoCState *s, Error **errp)
      * SoC has.
      */
     if (ram_size < max_ram_size) {
-        DeviceState *dev = qdev_new(TYPE_UNIMPLEMENTED_DEVICE);
+        DeviceState *dev = qdev_new_orphan(TYPE_UNIMPLEMENTED_DEVICE);
 
         qdev_prop_set_string(dev, "name", "ram-empty");
         qdev_prop_set_uint64(dev, "size", max_ram_size  - ram_size);
@@ -128,7 +128,7 @@ void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
         DriveInfo *dinfo = drive_get(IF_MTD, 0, unit0 + i);
         DeviceState *dev;
 
-        dev = qdev_new(flashtype);
+        dev = qdev_new_orphan(flashtype);
         if (dinfo) {
             qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo));
         }

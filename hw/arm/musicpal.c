@@ -1249,7 +1249,7 @@ static void musicpal_init(MachineState *machine)
                           qdev_get_gpio_in(pic, MP_TIMER4_IRQ), NULL);
 
     /* Logically OR both UART IRQs together */
-    uart_orgate = qdev_new(TYPE_OR_IRQ);
+    uart_orgate = qdev_new_orphan(TYPE_OR_IRQ);
     object_property_set_int(OBJECT(uart_orgate), "num-lines", 2, &error_fatal);
     qdev_realize_and_unref(uart_orgate, NULL, &error_fatal);
     qdev_connect_gpio_out(uart_orgate, 0,
@@ -1288,7 +1288,7 @@ static void musicpal_init(MachineState *machine)
     }
     sysbus_create_simple(TYPE_MV88W8618_FLASHCFG, MP_FLASHCFG_BASE, NULL);
 
-    dev = qdev_new(TYPE_MV88W8618_ETH);
+    dev = qdev_new_orphan(TYPE_MV88W8618_ETH);
     qemu_configure_nic_device(dev, true, "mv88w8618");
     object_property_set_link(OBJECT(dev), "dma-memory",
                              OBJECT(get_system_memory()), &error_fatal);
@@ -1333,7 +1333,7 @@ static void musicpal_init(MachineState *machine)
     }
     i2c_slave_realize_and_unref(wm8750_dev, i2c, &error_abort);
 
-    dev = qdev_new(TYPE_MV88W8618_AUDIO);
+    dev = qdev_new_orphan(TYPE_MV88W8618_AUDIO);
     s = SYS_BUS_DEVICE(dev);
     object_property_set_link(OBJECT(dev), "wm8750", OBJECT(wm8750_dev),
                              NULL);

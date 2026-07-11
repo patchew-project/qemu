@@ -155,7 +155,7 @@ static void virt_init(MachineState *machine)
 
     /* IRQ Controller */
 
-    irqc_dev = qdev_new(TYPE_M68K_IRQC);
+    irqc_dev = qdev_new_orphan(TYPE_M68K_IRQC);
     object_property_set_link(OBJECT(irqc_dev), "m68k-cpu",
                              OBJECT(cpu), &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(irqc_dev), &error_fatal);
@@ -169,7 +169,7 @@ static void virt_init(MachineState *machine)
      */
     io_base = VIRT_GF_PIC_MMIO_BASE;
     for (i = 0; i < VIRT_GF_PIC_NB; i++) {
-        pic_dev[i] = qdev_new(TYPE_GOLDFISH_PIC);
+        pic_dev[i] = qdev_new_orphan(TYPE_GOLDFISH_PIC);
         sysbus = SYS_BUS_DEVICE(pic_dev[i]);
         qdev_prop_set_uint8(pic_dev[i], "index", i);
         sysbus_realize_and_unref(sysbus, &error_fatal);
@@ -183,7 +183,7 @@ static void virt_init(MachineState *machine)
     /* goldfish-rtc */
     io_base = VIRT_GF_RTC_MMIO_BASE;
     for (i = 0; i < VIRT_GF_RTC_NB; i++) {
-        dev = qdev_new(TYPE_GOLDFISH_RTC);
+        dev = qdev_new_orphan(TYPE_GOLDFISH_RTC);
         qdev_prop_set_bit(dev, "big-endian", true);
         sysbus = SYS_BUS_DEVICE(dev);
         sysbus_realize_and_unref(sysbus, &error_fatal);
@@ -194,7 +194,7 @@ static void virt_init(MachineState *machine)
     }
 
     /* goldfish-tty */
-    dev = qdev_new(TYPE_GOLDFISH_TTY);
+    dev = qdev_new_orphan(TYPE_GOLDFISH_TTY);
     sysbus = SYS_BUS_DEVICE(dev);
     qdev_prop_set_chr(dev, "chardev", serial_hd(0));
     sysbus_realize_and_unref(sysbus, &error_fatal);
@@ -208,7 +208,7 @@ static void virt_init(MachineState *machine)
     /* virtio-mmio */
     io_base = VIRT_VIRTIO_MMIO_BASE;
     for (i = 0; i < 128; i++) {
-        dev = qdev_new(TYPE_VIRTIO_MMIO);
+        dev = qdev_new_orphan(TYPE_VIRTIO_MMIO);
         qdev_prop_set_bit(dev, "force-legacy", false);
         sysbus = SYS_BUS_DEVICE(dev);
         sysbus_realize_and_unref(sysbus, &error_fatal);

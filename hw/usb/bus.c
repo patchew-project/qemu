@@ -410,7 +410,7 @@ void usb_claim_port(USBDevice *dev, Error **errp)
     } else {
         if (bus->nfree == 1 && strcmp(object_get_typename(OBJECT(dev)), "usb-hub") != 0) {
             /* Create a new hub and chain it on */
-            hub = USB_DEVICE(qdev_try_new("usb-hub"));
+            hub = USB_DEVICE(qdev_try_new_orphan("usb-hub"));
             if (hub) {
                 usb_realize_and_unref(hub, bus, NULL);
             }
@@ -662,7 +662,7 @@ USBDevice *usbdevice_create(const char *driver)
     }
 
     dev = f->usbdevice_init ? f->usbdevice_init()
-                            : USB_DEVICE(qdev_new(f->name));
+                            : USB_DEVICE(qdev_new_orphan(f->name));
     if (!dev) {
         error_report("Failed to create USB device '%s'", f->name);
         return NULL;

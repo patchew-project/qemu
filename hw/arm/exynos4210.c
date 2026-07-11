@@ -519,7 +519,7 @@ static DeviceState *pl330_create(uint32_t base, OrIRQState *orgate,
     DeviceState *dev;
     int i;
 
-    dev = qdev_new("pl330");
+    dev = qdev_new_orphan("pl330");
     object_property_set_link(OBJECT(dev), "memory",
                              OBJECT(get_system_memory()),
                              &error_fatal);
@@ -687,7 +687,7 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
                           NULL);
 
     /* Multi Core Timer */
-    dev = qdev_new("exynos4210.mct");
+    dev = qdev_new_orphan("exynos4210.mct");
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(busdev, &error_fatal);
     for (n = 0; n < 4; n++) {
@@ -713,7 +713,7 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
             i2c_irq = s->irq_table[exynos4210_get_irq(EXYNOS4210_HDMI_INTG, 1)];
         }
 
-        dev = qdev_new("exynos4210.i2c");
+        dev = qdev_new_orphan("exynos4210.i2c");
         busdev = SYS_BUS_DEVICE(dev);
         sysbus_realize_and_unref(busdev, &error_fatal);
         sysbus_connect_irq(busdev, 0, i2c_irq);
@@ -757,7 +757,7 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
          * public datasheet which is very similar (implementing
          * MMC Specification Version 4.0 being the only difference noted)
          */
-        dev = qdev_new(TYPE_S3C_SDHCI);
+        dev = qdev_new_orphan(TYPE_S3C_SDHCI);
         qdev_prop_set_uint64(dev, "capareg", EXYNOS4210_SDHCI_CAPABILITIES);
 
         busdev = SYS_BUS_DEVICE(dev);
@@ -767,14 +767,14 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
 
         di = drive_get(IF_SD, 0, n);
         blk = di ? blk_by_legacy_dinfo(di) : NULL;
-        carddev = qdev_new(TYPE_SD_CARD);
+        carddev = qdev_new_orphan(TYPE_SD_CARD);
         qdev_prop_set_drive(carddev, "drive", blk);
         qdev_realize_and_unref(carddev, qdev_get_child_bus(dev, "sd-bus"),
                                &error_fatal);
     }
 
     /*** Display controller (FIMD) ***/
-    dev = qdev_new("exynos4210.fimd");
+    dev = qdev_new_orphan("exynos4210.fimd");
     object_property_set_link(OBJECT(dev), "framebuffer-memory",
                              OBJECT(system_mem), &error_fatal);
     busdev = SYS_BUS_DEVICE(dev);

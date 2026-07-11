@@ -1029,7 +1029,7 @@ FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, AddressSpace *dma_as)
 
     assert(dma_as);
 
-    dev = qdev_new(TYPE_FW_CFG_IO);
+    dev = qdev_new_orphan(TYPE_FW_CFG_IO);
 
     object_property_add_child(OBJECT(qdev_get_machine()), TYPE_FW_CFG,
                               OBJECT(dev));
@@ -1061,7 +1061,7 @@ static FWCfgState *fw_cfg_init_mem_internal(hwaddr ctl_addr,
     FWCfgState *s;
     bool dma_requested = dma_addr && dma_as;
 
-    dev = qdev_new(TYPE_FW_CFG_MEM);
+    dev = qdev_new_orphan(TYPE_FW_CFG_MEM);
     qdev_prop_set_uint32(dev, "data_width", data_width);
     if (!dma_requested) {
         qdev_prop_set_bit(dev, "dma_enabled", false);

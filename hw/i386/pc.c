@@ -1065,7 +1065,7 @@ void pc_basic_device_init(struct PCMachineState *pcms,
     if (pcms->hpet_enabled) {
         qemu_irq rtc_irq;
 
-        hpet = qdev_try_new(TYPE_HPET);
+        hpet = qdev_try_new_orphan(TYPE_HPET);
         if (!hpet) {
             error_report("couldn't create HPET device");
             exit(1);

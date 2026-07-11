@@ -150,7 +150,7 @@ MchpPfSoCMMUartState *mchp_pfsoc_mmuart_create(MemoryRegion *sysmem,
                                                hwaddr base,
                                                qemu_irq irq, Chardev *chr)
 {
-    DeviceState *dev = qdev_new(TYPE_MCHP_PFSOC_UART);
+    DeviceState *dev = qdev_new_orphan(TYPE_MCHP_PFSOC_UART);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
     qdev_prop_set_chr(dev, "chardev", chr);

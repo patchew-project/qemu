@@ -1113,7 +1113,7 @@ DeviceState *riscv_aplic_create(hwaddr addr, hwaddr size,
     uint32_t hartid_base, uint32_t num_harts, uint32_t num_sources,
     uint32_t iprio_bits, bool msimode, bool mmode, DeviceState *parent)
 {
-    DeviceState *dev = qdev_new(TYPE_RISCV_APLIC);
+    DeviceState *dev = qdev_new_orphan(TYPE_RISCV_APLIC);
     uint32_t i;
 
     assert(num_harts < APLIC_MAX_IDC);

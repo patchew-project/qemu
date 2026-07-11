@@ -365,7 +365,7 @@ static void xlnx_zynqmp_create_unimp_mmio(XlnxZynqMPState *s)
 
     for (nr = 0; nr < ARRAY_SIZE(unimp_areas); nr++) {
         const struct UnimpInfo *info = &unimp_areas[nr];
-        DeviceState *dev = qdev_new(TYPE_UNIMPLEMENTED_DEVICE);
+        DeviceState *dev = qdev_new_orphan(TYPE_UNIMPLEMENTED_DEVICE);
         SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
         assert(info->name && info->base && info->size > 0);

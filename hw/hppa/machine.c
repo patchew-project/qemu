@@ -265,7 +265,7 @@ static LasiState *lasi_init(void)
 {
     DeviceState *dev;
 
-    dev = qdev_new(TYPE_LASI_CHIP);
+    dev = qdev_new_orphan(TYPE_LASI_CHIP);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     return LASI_CHIP(dev);
@@ -275,7 +275,7 @@ static DinoState *dino_init(MemoryRegion *addr_space)
 {
     DeviceState *dev;
 
-    dev = qdev_new(TYPE_DINO_PCI_HOST_BRIDGE);
+    dev = qdev_new_orphan(TYPE_DINO_PCI_HOST_BRIDGE);
     object_property_set_link(OBJECT(dev), "memory-as", OBJECT(addr_space),
                              &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
@@ -411,7 +411,7 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
     lasi_dev = hpm->lasi_dev;
     if (lasi_dev && machine->enable_graphics &&
         vga_interface_type != VGA_NONE) {
-        dev = qdev_new("artist");
+        dev = qdev_new_orphan("artist");
         s = SYS_BUS_DEVICE(dev);
         bool disabled = object_property_get_bool(OBJECT(dev), "disable", NULL);
         if (!disabled) {
@@ -614,7 +614,7 @@ static void machine_HP_715_init(MachineState *machine)
                      parallel_hds[0]);
 
     /* PS/2 Keyboard/Mouse */
-    dev = qdev_new(TYPE_LASIPS2);
+    dev = qdev_new_orphan(TYPE_LASIPS2);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
                        qdev_get_gpio_in(lasi_dev, LASI_IRQ_PS2KBD_HPA));
@@ -706,7 +706,7 @@ static void machine_HP_B160L_init(MachineState *machine)
                      parallel_hds[0]);
 
     /* PS/2 Keyboard/Mouse */
-    dev = qdev_new(TYPE_LASIPS2);
+    dev = qdev_new_orphan(TYPE_LASIPS2);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
                        qdev_get_gpio_in(lasi_dev, LASI_IRQ_PS2KBD_HPA));
@@ -733,7 +733,7 @@ static AstroState *astro_init(void)
 {
     DeviceState *dev;
 
-    dev = qdev_new(TYPE_ASTRO_CHIP);
+    dev = qdev_new_orphan(TYPE_ASTRO_CHIP);
     object_property_set_int(OBJECT(dev), "phys-addr-bits",
                             hppa_phys_addr_bits(&cpu[0]->env),
                             &error_abort);

@@ -59,7 +59,7 @@ ISABus *isa_bus_new(DeviceState *dev, MemoryRegion* address_space,
         return NULL;
     }
     if (!dev) {
-        bridge = qdev_new("isabus-bridge");
+        bridge = qdev_new_orphan("isabus-bridge");
         dev = bridge;
     }
 
@@ -155,12 +155,12 @@ int isa_register_portio_list(ISADevice *dev,
 
 ISADevice *isa_new(const char *name)
 {
-    return ISA_DEVICE(qdev_new(name));
+    return ISA_DEVICE(qdev_new_orphan(name));
 }
 
 ISADevice *isa_try_new(const char *name)
 {
-    return ISA_DEVICE(qdev_try_new(name));
+    return ISA_DEVICE(qdev_try_new_orphan(name));
 }
 
 ISADevice *isa_create_simple(ISABus *bus, const char *name)

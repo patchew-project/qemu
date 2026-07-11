@@ -110,7 +110,7 @@ static qemu_irq get_per_cpu_irq(OpenRISCCPU *cpus[], int num_cpus, int irq_pin)
     int i;
 
     if (num_cpus > 1) {
-        DeviceState *splitter = qdev_new(TYPE_SPLIT_IRQ);
+        DeviceState *splitter = qdev_new_orphan(TYPE_SPLIT_IRQ);
         qdev_prop_set_uint32(splitter, "num-lines", num_cpus);
         qdev_realize_and_unref(splitter, NULL, &error_fatal);
         for (i = 0; i < num_cpus; i++) {
@@ -206,7 +206,7 @@ static void openrisc_virt_ompic_init(OR1KVirtState *state, hwaddr base,
     char *nodename;
     int i;
 
-    dev = qdev_new("or1k-ompic");
+    dev = qdev_new_orphan("or1k-ompic");
     qdev_prop_set_uint32(dev, "num-cpus", num_cpus);
 
     s = SYS_BUS_DEVICE(dev);
@@ -379,7 +379,7 @@ static void openrisc_virt_pcie_init(OR1KVirtState *state,
     qemu_irq pcie_irq;
     int i;
 
-    dev = qdev_new(TYPE_GPEX_HOST);
+    dev = qdev_new_orphan(TYPE_GPEX_HOST);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     /* Map ECAM space. */
@@ -451,7 +451,7 @@ static void openrisc_virt_virtio_init(OR1KVirtState *state, hwaddr base,
     qemu_irq virtio_irq = get_per_cpu_irq(cpus, num_cpus, irq_pin);
 
     /* VirtIO MMIO devices */
-    dev = qdev_new(TYPE_VIRTIO_MMIO);
+    dev = qdev_new_orphan(TYPE_VIRTIO_MMIO);
     qdev_prop_set_bit(dev, "force-legacy", false);
     sysbus = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(sysbus, &error_fatal);

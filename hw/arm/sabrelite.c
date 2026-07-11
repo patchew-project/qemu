@@ -96,7 +96,7 @@ static void sabrelite_init(MachineState *machine)
                 qemu_irq cs_line;
                 DriveInfo *dinfo = drive_get(IF_MTD, 0, 0);
 
-                flash_dev = qdev_new("sst25vf016b");
+                flash_dev = qdev_new_orphan("sst25vf016b");
                 if (dinfo) {
                     qdev_prop_set_drive_err(flash_dev, "drive",
                                             blk_by_legacy_dinfo(dinfo),

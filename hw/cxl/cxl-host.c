@@ -26,7 +26,7 @@ static void cxl_fixed_memory_window_config(CXLFixedMemoryWindowOptions *object,
                                            int index, Error **errp)
 {
     ERRP_GUARD();
-    DeviceState *dev = qdev_new(TYPE_CXL_FMW);
+    DeviceState *dev = qdev_new_orphan(TYPE_CXL_FMW);
     CXLFixedWindow *fw = CXL_FMW(dev);
     strList *target;
     int i;

@@ -79,7 +79,7 @@ static void mb_v_generic_init(MachineState *machine)
                            ram_size, &error_fatal);
     memory_region_add_subregion(sysmem, ddr_base, phys_ram);
 
-    dev = qdev_new("xlnx.xps-intc");
+    dev = qdev_new_orphan("xlnx.xps-intc");
     qdev_prop_set_enum(dev, "endianness", ENDIAN_MODE_LITTLE);
     qdev_prop_set_uint32(dev, "kind-of-intr",
                          1 << UARTLITE_IRQ);
@@ -92,7 +92,7 @@ static void mb_v_generic_init(MachineState *machine)
     }
 
     /* Uartlite */
-    dev = qdev_new(TYPE_XILINX_UARTLITE);
+    dev = qdev_new_orphan(TYPE_XILINX_UARTLITE);
     qdev_prop_set_enum(dev, "endianness", ENDIAN_MODE_LITTLE);
     qdev_prop_set_chr(dev, "chardev", serial_hd(0));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
@@ -105,7 +105,7 @@ static void mb_v_generic_init(MachineState *machine)
                    DEVICE_LITTLE_ENDIAN);
 
     /* 2 timers at irq 0 @ 100 Mhz.  */
-    dev = qdev_new("xlnx.xps-timer");
+    dev = qdev_new_orphan("xlnx.xps-timer");
     qdev_prop_set_enum(dev, "endianness", ENDIAN_MODE_LITTLE);
     qdev_prop_set_uint32(dev, "one-timer-only", 0);
     qdev_prop_set_uint32(dev, "clock-frequency", 100000000);
@@ -114,7 +114,7 @@ static void mb_v_generic_init(MachineState *machine)
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ]);
 
     /* 2 timers at irq 3 @ 100 Mhz.  */
-    dev = qdev_new("xlnx.xps-timer");
+    dev = qdev_new_orphan("xlnx.xps-timer");
     qdev_prop_set_enum(dev, "endianness", ENDIAN_MODE_LITTLE);
     qdev_prop_set_uint32(dev, "one-timer-only", 0);
     qdev_prop_set_uint32(dev, "clock-frequency", 100000000);
@@ -123,7 +123,7 @@ static void mb_v_generic_init(MachineState *machine)
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ2]);
 
     /* Emaclite */
-    dev = qdev_new("xlnx.xps-ethernetlite");
+    dev = qdev_new_orphan("xlnx.xps-ethernetlite");
     qdev_prop_set_enum(dev, "endianness", ENDIAN_MODE_LITTLE);
     qemu_configure_nic_device(dev, true, NULL);
     qdev_prop_set_uint32(dev, "tx-ping-pong", 0);
@@ -133,8 +133,8 @@ static void mb_v_generic_init(MachineState *machine)
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[ETHLITE_IRQ]);
 
     /* axi ethernet and dma initialization. */
-    eth0 = qdev_new("xlnx.axi-ethernet");
-    dma = qdev_new("xlnx.axi-dma");
+    eth0 = qdev_new_orphan("xlnx.axi-ethernet");
+    dma = qdev_new_orphan("xlnx.axi-dma");
 
     /* FIXME: attach to the sysbus instead */
     object_property_add_child(qdev_get_machine(), "xilinx-eth", OBJECT(eth0));

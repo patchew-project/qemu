@@ -60,7 +60,7 @@ static void exynos4210_gic_realize(DeviceState *dev, Error **errp)
     uint32_t n = s->num_cpu;
     uint32_t i;
 
-    s->gic = qdev_new("arm_gic");
+    s->gic = qdev_new_orphan("arm_gic");
     qdev_prop_set_uint32(s->gic, "num-cpu", s->num_cpu);
     qdev_prop_set_uint32(s->gic, "num-irq", EXYNOS4210_GIC_NIRQ);
     gicbusdev = SYS_BUS_DEVICE(s->gic);

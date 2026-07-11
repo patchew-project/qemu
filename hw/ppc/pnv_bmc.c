@@ -299,7 +299,7 @@ IPMIBmc *pnv_bmc_create(PnvPnor *pnor)
 {
     DeviceState *dev;
 
-    dev = qdev_new(TYPE_IPMI_BMC_SIMULATOR);
+    dev = qdev_new_orphan(TYPE_IPMI_BMC_SIMULATOR);
     qdev_realize(dev, NULL, &error_fatal);
     pnv_bmc_set_pnor(IPMI_BMC(dev), pnor);
 

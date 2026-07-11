@@ -127,7 +127,7 @@ static void mips_jazz_init_net(IOMMUMemoryRegion *rc4030_dma_mr,
         return;
     }
 
-    dev = qdev_new("dp8393x");
+    dev = qdev_new_orphan("dp8393x");
     qdev_set_nic_properties(dev, nd);
     qdev_prop_set_uint8(dev, "it_shift", 2);
     qdev_prop_set_bit(dev, "big_endian", TARGET_BIG_ENDIAN);
@@ -296,7 +296,7 @@ static void mips_jazz_init(MachineState *machine,
     /* Video card */
     switch (jazz_model) {
     case JAZZ_MAGNUM:
-        dev = qdev_new("sysbus-g364");
+        dev = qdev_new_orphan("sysbus-g364");
         sysbus = SYS_BUS_DEVICE(dev);
         sysbus_realize_and_unref(sysbus, &error_fatal);
         sysbus_mmio_map(sysbus, 0, 0x60080000);
@@ -313,7 +313,7 @@ static void mips_jazz_init(MachineState *machine,
         }
         break;
     case JAZZ_PICA61:
-        dev = qdev_new(TYPE_VGA_MMIO);
+        dev = qdev_new_orphan(TYPE_VGA_MMIO);
         qdev_prop_set_uint8(dev, "it_shift", 0);
         sysbus = SYS_BUS_DEVICE(dev);
         sysbus_realize_and_unref(sysbus, &error_fatal);
@@ -329,7 +329,7 @@ static void mips_jazz_init(MachineState *machine,
     mips_jazz_init_net(rc4030_dma_mr, rc4030, dp8393x_prom);
 
     /* SCSI adapter */
-    dev = qdev_new(TYPE_SYSBUS_ESP);
+    dev = qdev_new_orphan(TYPE_SYSBUS_ESP);
     sysbus_esp = SYSBUS_ESP(dev);
     esp = &sysbus_esp->esp;
     esp->dma_memory_read = rc4030_dma_read;
@@ -359,7 +359,7 @@ static void mips_jazz_init(MachineState *machine,
     memory_region_add_subregion(address_space, 0x80004000, rtc);
 
     /* Keyboard (i8042) */
-    i8042 = I8042_MMIO(qdev_new(TYPE_I8042_MMIO));
+    i8042 = I8042_MMIO(qdev_new_orphan(TYPE_I8042_MMIO));
     qdev_prop_set_uint64(DEVICE(i8042), "mask", 1);
     qdev_prop_set_uint32(DEVICE(i8042), "size", 0x1000);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(i8042), &error_fatal);
@@ -389,7 +389,7 @@ static void mips_jazz_init(MachineState *machine,
     /* FIXME: missing Jazz sound at 0x8000c000, rc4030[2] */
 
     /* NVRAM */
-    dev = qdev_new("ds1225y");
+    dev = qdev_new_orphan("ds1225y");
     sysbus = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(sysbus, &error_fatal);
     sysbus_mmio_map(sysbus, 0, 0x80009000);

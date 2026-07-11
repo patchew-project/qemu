@@ -377,7 +377,7 @@ DeviceState *riscv_aclint_mtimer_create(hwaddr addr, hwaddr size,
     bool provide_rdtime)
 {
     int i;
-    DeviceState *dev = qdev_new(TYPE_RISCV_ACLINT_MTIMER);
+    DeviceState *dev = qdev_new_orphan(TYPE_RISCV_ACLINT_MTIMER);
     RISCVAclintMTimerState *s = RISCV_ACLINT_MTIMER(dev);
 
     assert(num_harts <= RISCV_ACLINT_MAX_HARTS);
@@ -560,7 +560,7 @@ DeviceState *riscv_aclint_swi_create(hwaddr addr, uint32_t hartid_base,
     uint32_t num_harts, bool sswi)
 {
     int i;
-    DeviceState *dev = qdev_new(TYPE_RISCV_ACLINT_SWI);
+    DeviceState *dev = qdev_new_orphan(TYPE_RISCV_ACLINT_SWI);
 
     assert(num_harts <= RISCV_ACLINT_MAX_HARTS);
     assert(!(addr & 0x3));

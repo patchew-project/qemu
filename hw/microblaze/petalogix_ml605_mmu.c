@@ -110,7 +110,7 @@ petalogix_ml605_init(MachineState *machine)
                           64 * KiB, 2, 0x89, 0x18, 0x0000, 0x0, 0);
 
 
-    dev = qdev_new("xlnx.xps-intc");
+    dev = qdev_new_orphan("xlnx.xps-intc");
     qdev_prop_set_enum(dev, "endianness", ENDIAN_MODE_LITTLE);
     qdev_prop_set_uint32(dev, "kind-of-intr", 1 << TIMER_IRQ);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
@@ -126,7 +126,7 @@ petalogix_ml605_init(MachineState *machine)
                    DEVICE_LITTLE_ENDIAN);
 
     /* 2 timers at irq 2 @ 100 Mhz.  */
-    dev = qdev_new("xlnx.xps-timer");
+    dev = qdev_new_orphan("xlnx.xps-timer");
     qdev_prop_set_enum(dev, "endianness", ENDIAN_MODE_LITTLE);
     qdev_prop_set_uint32(dev, "one-timer-only", 0);
     qdev_prop_set_uint32(dev, "clock-frequency", 100 * 1000000);
@@ -135,8 +135,8 @@ petalogix_ml605_init(MachineState *machine)
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ]);
 
     /* axi ethernet and dma initialization. */
-    eth0 = qdev_new("xlnx.axi-ethernet");
-    dma = qdev_new("xlnx.axi-dma");
+    eth0 = qdev_new_orphan("xlnx.axi-ethernet");
+    dma = qdev_new_orphan("xlnx.axi-dma");
 
     /* FIXME: attach to the sysbus instead */
     object_property_add_child(qdev_get_machine(), "xilinx-eth", OBJECT(eth0));
@@ -174,7 +174,7 @@ petalogix_ml605_init(MachineState *machine)
     {
         SSIBus *spi;
 
-        dev = qdev_new("xlnx.xps-spi");
+        dev = qdev_new_orphan("xlnx.xps-spi");
         qdev_prop_set_enum(dev, "endianness", ENDIAN_MODE_LITTLE);
         qdev_prop_set_uint8(dev, "num-ss-bits", NUM_SPI_FLASHES);
         busdev = SYS_BUS_DEVICE(dev);
@@ -188,7 +188,7 @@ petalogix_ml605_init(MachineState *machine)
             dinfo = drive_get(IF_MTD, 0, i);
             qemu_irq cs_line;
 
-            dev = qdev_new("n25q128");
+            dev = qdev_new_orphan("n25q128");
             if (dinfo) {
                 qdev_prop_set_drive_err(dev, "drive",
                                         blk_by_legacy_dinfo(dinfo),

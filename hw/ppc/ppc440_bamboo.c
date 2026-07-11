@@ -162,7 +162,7 @@ static void bamboo_init(MachineState *machine)
     ppc_dcr_init(env, NULL, NULL);
 
     /* interrupt controller */
-    uicdev = qdev_new(TYPE_PPC_UIC);
+    uicdev = qdev_new_orphan(TYPE_PPC_UIC);
     ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(uicdev), cpu, &error_fatal);
     object_unref(OBJECT(uicdev));
     uicsbd = SYS_BUS_DEVICE(uicdev);
@@ -172,7 +172,7 @@ static void bamboo_init(MachineState *machine)
                        qdev_get_gpio_in(DEVICE(cpu), PPC40x_INPUT_CINT));
 
     /* SDRAM controller */
-    dev = qdev_new(TYPE_PPC4xx_SDRAM_DDR);
+    dev = qdev_new_orphan(TYPE_PPC4xx_SDRAM_DDR);
     object_property_set_link(OBJECT(dev), "dram", OBJECT(machine->ram),
                              &error_abort);
     ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(dev), cpu, &error_fatal);

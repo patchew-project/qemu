@@ -25,7 +25,7 @@ static void mcf5206_init(M68kCPU *cpu, MemoryRegion *sysmem, uint32_t base)
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_new(TYPE_MCF5206_MBAR);
+    dev = qdev_new_orphan(TYPE_MCF5206_MBAR);
     object_property_set_link(OBJECT(dev), "m68k-cpu",
                              OBJECT(cpu), &error_abort);
     s = SYS_BUS_DEVICE(dev);

@@ -39,7 +39,7 @@ static void remote_machine_init(MachineState *machine)
     pci_memory = g_new(MemoryRegion, 1);
     memory_region_init(pci_memory, NULL, "pci", UINT64_MAX);
 
-    rem_host = REMOTE_PCIHOST(qdev_new(TYPE_REMOTE_PCIHOST));
+    rem_host = REMOTE_PCIHOST(qdev_new_orphan(TYPE_REMOTE_PCIHOST));
 
     rem_host->mr_pci_mem = pci_memory;
     rem_host->mr_sys_mem = system_memory;

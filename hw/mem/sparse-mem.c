@@ -108,7 +108,7 @@ MemoryRegion *sparse_mem_init(uint64_t addr, uint64_t length)
 {
     DeviceState *dev;
 
-    dev = qdev_new(TYPE_SPARSE_MEM);
+    dev = qdev_new_orphan(TYPE_SPARSE_MEM);
     qdev_prop_set_uint64(dev, "baseaddr", addr);
     qdev_prop_set_uint64(dev, "length", length);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);

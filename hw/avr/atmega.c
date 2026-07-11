@@ -284,7 +284,7 @@ static void atmega_realize(DeviceState *dev, Error **errp)
      * 0x20 - 0x5f: I/O memory
      * 0x60 - 0xff: Extended I/O
      */
-    s->io = qdev_new(TYPE_UNIMPLEMENTED_DEVICE);
+    s->io = qdev_new_orphan(TYPE_UNIMPLEMENTED_DEVICE);
     qdev_prop_set_string(s->io, "name", "I/O");
     qdev_prop_set_uint64(s->io, "size", mc->io_size);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(s->io), &error_fatal);

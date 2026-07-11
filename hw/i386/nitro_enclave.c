@@ -46,7 +46,7 @@ static BusState *find_free_virtio_mmio_bus(void)
 
 static void vhost_user_vsock_init(NitroEnclaveMachineState *nems)
 {
-    DeviceState *dev = qdev_new(TYPE_VHOST_USER_VSOCK);
+    DeviceState *dev = qdev_new_orphan(TYPE_VHOST_USER_VSOCK);
     VHostUserVSock *vsock = VHOST_USER_VSOCK(dev);
     BusState *bus;
 
@@ -75,7 +75,7 @@ static void vhost_user_vsock_init(NitroEnclaveMachineState *nems)
 
 static void virtio_nsm_init(NitroEnclaveMachineState *nems)
 {
-    DeviceState *dev = qdev_new(TYPE_VIRTIO_NSM);
+    DeviceState *dev = qdev_new_orphan(TYPE_VIRTIO_NSM);
     VirtIONSM *vnsm = VIRTIO_NSM(dev);
     BusState *bus = find_free_virtio_mmio_bus();
 

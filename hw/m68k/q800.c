@@ -355,9 +355,9 @@ static void q800_machine_init(MachineState *machine)
                                                  "auxmode", 0));
 
     adb_bus = qdev_get_child_bus(DEVICE(&m->via1), "adb.0");
-    dev = qdev_new(TYPE_ADB_KEYBOARD);
+    dev = qdev_new_orphan(TYPE_ADB_KEYBOARD);
     qdev_realize_and_unref(dev, adb_bus, &error_fatal);
-    dev = qdev_new(TYPE_ADB_MOUSE);
+    dev = qdev_new_orphan(TYPE_ADB_MOUSE);
     qdev_realize_and_unref(dev, adb_bus, &error_fatal);
 
     /* VIA 2 */

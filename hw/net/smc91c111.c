@@ -954,7 +954,7 @@ void smc91c111_init(uint32_t base, qemu_irq irq)
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_new(TYPE_SMC91C111);
+    dev = qdev_new_orphan(TYPE_SMC91C111);
     qemu_configure_nic_device(dev, true, NULL);
     s = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(s, &error_fatal);

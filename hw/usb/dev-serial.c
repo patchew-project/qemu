@@ -622,7 +622,7 @@ static USBDevice *usb_braille_init(void)
         return NULL;
     }
 
-    dev = USB_DEVICE(qdev_new("usb-braille"));
+    dev = USB_DEVICE(qdev_new_orphan("usb-braille"));
     qdev_prop_set_chr(&dev->qdev, "chardev", cdrv);
     return dev;
 }

@@ -131,14 +131,14 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                            machine->ram_size, &error_fatal);
     memory_region_add_subregion(address_space, 0x0, &hms->ram);
 
-    glob_regs_dev = qdev_new(TYPE_HEXAGON_GLOBALREG);
+    glob_regs_dev = qdev_new_orphan(TYPE_HEXAGON_GLOBALREG);
     object_property_add_child(OBJECT(machine), "global-regs",
                               OBJECT(glob_regs_dev));
     qdev_prop_set_uint64(glob_regs_dev, "config-table-addr", m_cfg->cfgbase);
     qdev_prop_set_uint32(glob_regs_dev, "dsp-rev", rev);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), &error_fatal);
 
-    tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
+    tlb_dev = qdev_new_orphan(TYPE_HEXAGON_TLB);
     object_property_add_child(OBJECT(machine), "tlb", OBJECT(tlb_dev));
     qdev_prop_set_uint32(tlb_dev, "num-entries",
                          m_cfg->cfgtable.jtlb_size_entries);

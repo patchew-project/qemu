@@ -586,7 +586,7 @@ static inline bool usb_realize_and_unref(USBDevice *dev, USBBus *bus, Error **er
 
 static inline USBDevice *usb_create_simple(USBBus *bus, const char *name)
 {
-    USBDevice *dev = USB_DEVICE(qdev_new(name));
+    USBDevice *dev = USB_DEVICE(qdev_new_orphan(name));
 
     usb_realize_and_unref(dev, bus, &error_abort);
     return dev;

@@ -211,7 +211,7 @@ DeviceState *mcf_intc_init(MemoryRegion *sysmem, hwaddr base, M68kCPU *cpu)
 {
     DeviceState  *dev;
 
-    dev = qdev_new(TYPE_MCF_INTC);
+    dev = qdev_new_orphan(TYPE_MCF_INTC);
     object_property_set_link(OBJECT(dev), "m68k-cpu",
                              OBJECT(cpu), &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);

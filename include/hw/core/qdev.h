@@ -407,7 +407,7 @@ struct BusState {
 /*** Board API.  This should go away once we have a machine config file.  ***/
 
 /**
- * qdev_new: Create a device on the heap
+ * qdev_new_orphan: Create a device on the heap
  * @name: device type to create (we assert() that this type exists)
  *
  * This only allocates the memory and initializes the device state
@@ -416,19 +416,19 @@ struct BusState {
  *
  * Return: a derived DeviceState object with a reference count of 1.
  */
-DeviceState *qdev_new(const char *name);
+DeviceState *qdev_new_orphan(const char *name);
 
 /**
- * qdev_try_new: Try to create a device on the heap
+ * qdev_try_new_orphan: Try to create a device on the heap
  * @name: device type to create
  *
- * This is like qdev_new(), except it returns %NULL when type @name
+ * This is like qdev_new_orphan(), except it returns %NULL when type @name
  * does not exist, rather than asserting.
  *
  * Return: a derived DeviceState object with a reference count of 1 or
  * NULL if type @name does not exist.
  */
-DeviceState *qdev_try_new(const char *name);
+DeviceState *qdev_try_new_orphan(const char *name);
 
 /**
  * qdev_is_realized() - check if device is realized
@@ -454,7 +454,7 @@ static inline bool qdev_is_realized(DeviceState *dev)
  * If @bus, plug @dev into @bus.  This takes a reference to @dev.
  * If @dev has no QOM parent, make one up, taking another reference.
  *
- * If you created @dev using qdev_new(), you probably want to use
+ * If you created @dev using qdev_new_orphan(), you probably want to use
  * qdev_realize_and_unref() instead.
  *
  * Return: true on success, else false setting @errp with error
@@ -472,7 +472,7 @@ bool qdev_realize(DeviceState *dev, BusState *bus, Error **errp);
  * (private) reference, which is dropped on return regardless of
  * success or failure.  Intended use::
  *
- *     dev = qdev_new();
+ *     dev = qdev_new_orphan();
  *     [...]
  *     qdev_realize_and_unref(dev, bus, errp);
  *

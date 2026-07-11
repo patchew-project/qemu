@@ -351,7 +351,7 @@ DeviceState *mcf_uart_create(qemu_irq irq, Chardev *chrdrv)
 {
     DeviceState *dev;
 
-    dev = qdev_new(TYPE_MCF_UART);
+    dev = qdev_new_orphan(TYPE_MCF_UART);
     if (chrdrv) {
         qdev_prop_set_chr(dev, "chardev", chrdrv);
     }

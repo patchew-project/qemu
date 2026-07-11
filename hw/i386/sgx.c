@@ -311,7 +311,7 @@ void pc_machine_init_sgx_epc(PCMachineState *pcms)
                                 &sgx_epc->mr);
 
     for (list = x86ms->sgx_epc_list; list; list = list->next) {
-        DeviceState *dev = qdev_new(TYPE_SGX_EPC);
+        DeviceState *dev = qdev_new_orphan(TYPE_SGX_EPC);
 
         /* set the memdev link with memory backend */
         object_property_parse(OBJECT(dev), SGX_EPC_MEMDEV_PROP,

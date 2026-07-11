@@ -289,7 +289,7 @@ static void ibm_40p_init(MachineState *machine)
     g_free(filename);
 
     /* PCI host */
-    dev = qdev_new("raven-pcihost");
+    dev = qdev_new_orphan("raven-pcihost");
     pcihost = SYS_BUS_DEVICE(dev);
     object_property_add_child(qdev_get_machine(), "raven", OBJECT(dev));
     sysbus_realize_and_unref(pcihost, &error_fatal);
@@ -363,7 +363,7 @@ static void ibm_40p_init(MachineState *machine)
     }
 
     /* Prepare firmware configuration for OpenBIOS */
-    dev = qdev_new(TYPE_FW_CFG_MEM);
+    dev = qdev_new_orphan(TYPE_FW_CFG_MEM);
     fw_cfg = FW_CFG(dev);
     qdev_prop_set_uint32(dev, "data_width", 1);
     qdev_prop_set_bit(dev, "dma_enabled", false);

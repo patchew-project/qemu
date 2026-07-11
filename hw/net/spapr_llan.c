@@ -371,7 +371,7 @@ void spapr_vlan_create(SpaprVioBus *bus, NICInfo *nd)
 {
     DeviceState *dev;
 
-    dev = qdev_new("spapr-vlan");
+    dev = qdev_new_orphan("spapr-vlan");
 
     qdev_set_nic_properties(dev, nd);
 

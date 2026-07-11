@@ -481,7 +481,7 @@ DeviceState *sifive_plic_create(hwaddr addr, char *hart_config,
     uint32_t enable_stride, uint32_t context_base,
     uint32_t context_stride, uint32_t aperture_size)
 {
-    DeviceState *dev = qdev_new(TYPE_SIFIVE_PLIC);
+    DeviceState *dev = qdev_new_orphan(TYPE_SIFIVE_PLIC);
     int i;
     SiFivePLICState *plic;
 

@@ -155,7 +155,7 @@ static void create_bdif(VMAppleMachineState *vms, MemoryRegion *mem)
     }
 
     /* PV backdoor device */
-    bdif = qdev_new(TYPE_VMAPPLE_BDIF);
+    bdif = qdev_new_orphan(TYPE_VMAPPLE_BDIF);
     bdif_sb = SYS_BUS_DEVICE(bdif);
     sysbus_mmio_map(bdif_sb, 0, vms->memmap[VMAPPLE_BDOOR].base);
 
@@ -169,7 +169,7 @@ static void create_pvpanic(VMAppleMachineState *vms, MemoryRegion *mem)
 {
     SysBusDevice *pvpanic;
 
-    vms->pvpanic = qdev_new(TYPE_PVPANIC_MMIO_DEVICE);
+    vms->pvpanic = qdev_new_orphan(TYPE_PVPANIC_MMIO_DEVICE);
     pvpanic = SYS_BUS_DEVICE(vms->pvpanic);
     sysbus_mmio_map(pvpanic, 0, vms->memmap[VMAPPLE_PVPANIC].base);
 
@@ -184,7 +184,7 @@ static bool create_cfg(VMAppleMachineState *vms, MemoryRegion *mem,
     MachineState *machine = MACHINE(vms);
     uint32_t rnd = 1;
 
-    vms->cfg = qdev_new(TYPE_VMAPPLE_CFG);
+    vms->cfg = qdev_new_orphan(TYPE_VMAPPLE_CFG);
     cfg = SYS_BUS_DEVICE(vms->cfg);
     sysbus_mmio_map(cfg, 0, vms->memmap[VMAPPLE_CONFIG].base);
 
@@ -209,7 +209,7 @@ static void create_gfx(VMAppleMachineState *vms, MemoryRegion *mem)
     int irq_iosfc = vms->irqmap[VMAPPLE_APV_IOSFC];
     SysBusDevice *gfx;
 
-    gfx = SYS_BUS_DEVICE(qdev_new("apple-gfx-mmio"));
+    gfx = SYS_BUS_DEVICE(qdev_new_orphan("apple-gfx-mmio"));
     sysbus_mmio_map(gfx, 0, vms->memmap[VMAPPLE_APV_GFX].base);
     sysbus_mmio_map(gfx, 1, vms->memmap[VMAPPLE_APV_IOSFC].base);
     sysbus_connect_irq(gfx, 0, qdev_get_gpio_in(vms->gic, irq_gfx));
@@ -222,7 +222,7 @@ static void create_aes(VMAppleMachineState *vms, MemoryRegion *mem)
     int irq = vms->irqmap[VMAPPLE_AES_1];
     SysBusDevice *aes;
 
-    aes = SYS_BUS_DEVICE(qdev_new(TYPE_APPLE_AES));
+    aes = SYS_BUS_DEVICE(qdev_new_orphan(TYPE_APPLE_AES));
     sysbus_mmio_map(aes, 0, vms->memmap[VMAPPLE_AES_1].base);
     sysbus_mmio_map(aes, 1, vms->memmap[VMAPPLE_AES_2].base);
     sysbus_connect_irq(aes, 0, qdev_get_gpio_in(vms->gic, irq));
@@ -243,7 +243,7 @@ static void create_gic(VMAppleMachineState *vms, MemoryRegion *mem)
     int i;
     unsigned int smp_cpus = ms->smp.cpus;
 
-    vms->gic = qdev_new(gicv3_class_name());
+    vms->gic = qdev_new_orphan(gicv3_class_name());
     qdev_prop_set_uint32(vms->gic, "revision", 3);
     qdev_prop_set_uint32(vms->gic, "num-cpu", smp_cpus);
     /*
@@ -290,7 +290,7 @@ static void create_uart(const VMAppleMachineState *vms, int uart,
 {
     hwaddr base = vms->memmap[uart].base;
     int irq = vms->irqmap[uart];
-    DeviceState *dev = qdev_new(TYPE_PL011);
+    DeviceState *dev = qdev_new_orphan(TYPE_PL011);
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
 
     qdev_prop_set_chr(dev, "chardev", chr);
@@ -323,7 +323,7 @@ static void create_gpio_devices(const VMAppleMachineState *vms, int gpio,
     int irq = vms->irqmap[gpio];
     SysBusDevice *s;
 
-    pl061_dev = qdev_new("pl061");
+    pl061_dev = qdev_new_orphan("pl061");
     /* Pull lines down to 0 if not driven by the PL061 */
     qdev_prop_set_uint8(pl061_dev, "pullups", 0);
     qdev_prop_set_uint8(pl061_dev, "pulldowns", 0xff);
@@ -384,7 +384,7 @@ static void create_pcie(VMAppleMachineState *vms)
     DeviceState *usb_controller;
     USBBus *usb_bus;
 
-    dev = qdev_new(TYPE_GPEX_HOST);
+    dev = qdev_new_orphan(TYPE_GPEX_HOST);
     qdev_prop_set_uint32(dev, "num-irqs", GPEX_NUM_IRQS);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
@@ -420,7 +420,7 @@ static void create_pcie(VMAppleMachineState *vms)
     }
 
     if (defaults_enabled()) {
-        usb_controller = qdev_new(TYPE_QEMU_XHCI);
+        usb_controller = qdev_new_orphan(TYPE_QEMU_XHCI);
         qdev_realize_and_unref(usb_controller, BUS(pci->bus), &error_fatal);
 
         usb_bus = USB_BUS(object_resolve_type_unambiguous(TYPE_USB_BUS,

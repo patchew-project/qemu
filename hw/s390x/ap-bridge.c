@@ -49,7 +49,7 @@ void s390_init_ap(void)
     }
 
     /* Create bridge device */
-    dev = qdev_new(TYPE_AP_BRIDGE);
+    dev = qdev_new_orphan(TYPE_AP_BRIDGE);
     object_property_add_child(qdev_get_machine(), TYPE_AP_BRIDGE,
                               OBJECT(dev));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);

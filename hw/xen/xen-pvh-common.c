@@ -193,7 +193,7 @@ static void xen_enable_tpm(XenPVHMachineState *s)
         error_report("Couldn't find tmp0 backend");
         return;
     }
-    dev = qdev_new(TYPE_TPM_TIS_SYSBUS);
+    dev = qdev_new_orphan(TYPE_TPM_TIS_SYSBUS);
     /*
      * FIXME This use of &err is is wrong.  If both calls fail, the
      * second will trip error_setv()'s assertion.  If just one call
