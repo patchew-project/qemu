@@ -20,7 +20,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "monitor/qdev.h"
 #include "hw/core/sysbus.h"
 #include "hw/nitro/nitro-vsock-bus.h"
 
@@ -46,12 +45,12 @@ void nitro_vsock_bridge_start_enclave(NitroVsockBridge *bridge,
     }
 }
 
-NitroVsockBridge *nitro_vsock_bridge_create(void)
+NitroVsockBridge *nitro_vsock_bridge_create(Object *parent)
 {
-    DeviceState *dev = qdev_new_orphan(TYPE_NITRO_VSOCK_BRIDGE);
+    DeviceState *dev = qdev_new(parent, "nitro-vsock",
+                                TYPE_NITRO_VSOCK_BRIDGE);
 
-    qdev_set_id(dev, g_strdup("nitro-vsock"), &error_fatal);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     return NITRO_VSOCK_BRIDGE(dev);
 }

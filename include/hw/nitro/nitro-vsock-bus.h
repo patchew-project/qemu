@@ -50,7 +50,7 @@ struct NitroVsockDeviceClass {
 /*
  * Machine helper to create the Nitro vsock bridge sysbus device.
  */
-NitroVsockBridge *nitro_vsock_bridge_create(void);
+NitroVsockBridge *nitro_vsock_bridge_create(Object *parent);
 
 /*
  * Find the Nitro vsock bridge on the sysbus.

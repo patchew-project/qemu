@@ -194,7 +194,7 @@ static void nitro_machine_init(MachineState *machine)
                         MEMTXATTRS_UNSPECIFIED, eif_data, eif_size);
 
     if (defaults_enabled()) {
-        NitroVsockBridge *bridge = nitro_vsock_bridge_create();
+        NitroVsockBridge *bridge = nitro_vsock_bridge_create(OBJECT(machine));
         DeviceState *dev;
 
         /* Nitro Enclaves require a heartbeat device. Provide one. */
