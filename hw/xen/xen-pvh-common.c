@@ -173,7 +173,8 @@ static void xen_create_virtio_mmio_devices(XenPVHMachineState *s)
         qemu_irq irq = qemu_allocate_irq(xen_set_irq, NULL,
                                          s->cfg.virtio_mmio_irq_base + i);
 
-        sysbus_create_simple_orphan("virtio-mmio", base, irq);
+        sysbus_create_simple(OBJECT(s), "virtio-mmio[*]", "virtio-mmio",
+                             base, irq);
 
         trace_xen_create_virtio_mmio_devices(i,
                                              s->cfg.virtio_mmio_irq_base + i,
@@ -193,7 +194,7 @@ static void xen_enable_tpm(XenPVHMachineState *s)
         error_report("Couldn't find tmp0 backend");
         return;
     }
-    dev = qdev_new_orphan(TYPE_TPM_TIS_SYSBUS);
+    dev = qdev_new(OBJECT(s), "tpm", TYPE_TPM_TIS_SYSBUS);
     /*
      * FIXME This use of &err is is wrong.  If both calls fail, the
      * second will trip error_setv()'s assertion.  If just one call
@@ -204,7 +205,7 @@ static void xen_enable_tpm(XenPVHMachineState *s)
     object_property_set_link(OBJECT(dev), "tpmdev", OBJECT(be), &err);
     object_property_set_str(OBJECT(dev), "tpmdev", be->id, &err);
     busdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_realize(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, s->cfg.tpm.base);
 
     trace_xen_enable_tpm(s->cfg.tpm.base);

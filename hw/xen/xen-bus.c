@@ -1149,10 +1149,11 @@ type_init(xen_register_types)
 
 void xen_bus_init(void)
 {
-    DeviceState *dev = qdev_new_orphan(TYPE_XEN_BRIDGE);
+    DeviceState *dev = qdev_new(qdev_get_machine(), "xen-bridge",
+                                TYPE_XEN_BRIDGE);
     BusState *bus = qbus_new(TYPE_XEN_BUS, dev, NULL);
 
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     qbus_set_bus_hotplug_handler(bus);
 
     qemu_create_nic_bus_devices(bus, TYPE_XEN_DEVICE, "xen-net-device",
