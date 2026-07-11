@@ -131,18 +131,16 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                            machine->ram_size, &error_fatal);
     memory_region_add_subregion(address_space, 0x0, &hms->ram);
 
-    glob_regs_dev = qdev_new_orphan(TYPE_HEXAGON_GLOBALREG);
-    object_property_add_child(OBJECT(machine), "global-regs",
-                              OBJECT(glob_regs_dev));
+    glob_regs_dev = qdev_new(OBJECT(machine), "global-regs",
+                             TYPE_HEXAGON_GLOBALREG);
     qdev_prop_set_uint64(glob_regs_dev, "config-table-addr", m_cfg->cfgbase);
     qdev_prop_set_uint32(glob_regs_dev, "dsp-rev", rev);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(glob_regs_dev), &error_fatal);
 
-    tlb_dev = qdev_new_orphan(TYPE_HEXAGON_TLB);
-    object_property_add_child(OBJECT(machine), "tlb", OBJECT(tlb_dev));
+    tlb_dev = qdev_new(OBJECT(machine), "tlb", TYPE_HEXAGON_TLB);
     qdev_prop_set_uint32(tlb_dev, "num-entries",
                          m_cfg->cfgtable.jtlb_size_entries);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(tlb_dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(tlb_dev), &error_fatal);
 
     for (int i = 0; i < machine->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));

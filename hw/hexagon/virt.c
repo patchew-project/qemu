@@ -116,7 +116,7 @@ static int32_t fdt_add_clocks(const HexagonVirtMachineState *vms)
     return clk_phandle;
 }
 
-static void fdt_add_uart(const HexagonVirtMachineState *vms, int uart,
+static void fdt_add_uart(HexagonVirtMachineState *vms, int uart,
                          int32_t clk_phandle)
 {
     char *nodename;
@@ -129,11 +129,11 @@ static void fdt_add_uart(const HexagonVirtMachineState *vms, int uart,
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_new_orphan(TYPE_PL011);
+    dev = qdev_new(OBJECT(vms), "uart", TYPE_PL011);
     s = SYS_BUS_DEVICE(dev);
     qdev_prop_set_chr(dev, "chardev", serial_hd(0));
     qdev_connect_clock_in(dev, "clk", vms->apb_clk);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     sysbus_mmio_map(s, 0, base);
 
     nodename = g_strdup_printf("/pl011@%" PRIx64, base);
@@ -268,17 +268,15 @@ static void virt_init(MachineState *ms)
                                 &vms->parent_obj.cfgtable_rom);
     fdt_add_hvx(vms, m_cfg);
 
-    gsregs_dev = qdev_new_orphan(TYPE_HEXAGON_GLOBALREG);
-    object_property_add_child(OBJECT(ms), "global-regs", OBJECT(gsregs_dev));
+    gsregs_dev = qdev_new(OBJECT(ms), "global-regs", TYPE_HEXAGON_GLOBALREG);
     qdev_prop_set_uint64(gsregs_dev, "config-table-addr", m_cfg->cfgbase);
     qdev_prop_set_uint32(gsregs_dev, "dsp-rev", v68_rev);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(gsregs_dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(gsregs_dev), &error_fatal);
 
-    tlb_dev = qdev_new_orphan(TYPE_HEXAGON_TLB);
-    object_property_add_child(OBJECT(ms), "tlb", OBJECT(tlb_dev));
+    tlb_dev = qdev_new(OBJECT(ms), "tlb", TYPE_HEXAGON_TLB);
     qdev_prop_set_uint32(tlb_dev, "num-entries",
                          m_cfg->cfgtable.jtlb_size_entries);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(tlb_dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(tlb_dev), &error_fatal);
 
     cpu0 = NULL;
     for (int i = 0; i < ms->smp.cpus; i++) {
