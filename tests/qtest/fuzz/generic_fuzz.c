@@ -788,7 +788,7 @@ static void generic_pre_fuzz(QTestState *s)
      * Create a special device that we can use to back DMA buffers at very
      * high memory addresses
      */
-    sparse_mem_mr = sparse_mem_init(0, UINT64_MAX);
+    sparse_mem_mr = sparse_mem_init(qdev_get_machine(), 0, UINT64_MAX);
 
     dma_regions = g_array_new(false, false, sizeof(address_range));
     dma_patterns = g_array_new(false, false, sizeof(pattern));

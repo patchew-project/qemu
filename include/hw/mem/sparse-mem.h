@@ -14,6 +14,6 @@
 #define SPARSE_MEM_H
 #define TYPE_SPARSE_MEM "sparse-mem"
 
-MemoryRegion *sparse_mem_init(uint64_t addr, uint64_t length);
+MemoryRegion *sparse_mem_init(Object *parent, uint64_t addr, uint64_t length);
 
 #endif
