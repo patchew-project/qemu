@@ -62,6 +62,6 @@ typedef struct {
     SSIBus *ssp_bus;
 } StrongARMState;
 
-StrongARMState *sa1110_init(const char *cpu_type);
+StrongARMState *sa1110_init(Object *parent, const char *cpu_type);
 
 #endif
