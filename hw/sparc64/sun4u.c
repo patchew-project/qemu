@@ -329,22 +329,22 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
     parallel_hds_isa_init(s->isa_bus, MAX_PARALLEL_PORTS);
 
     /* Keyboard */
-    isa_create_simple_orphan(s->isa_bus, TYPE_I8042);
+    isa_create_simple(OBJECT(s), "i8042", s->isa_bus, TYPE_I8042);
 
     /* Floppy */
     for (i = 0; i < MAX_FD; i++) {
         fd[i] = drive_get(IF_FLOPPY, 0, i);
     }
-    isa_dev = isa_new_orphan(TYPE_ISA_FDC);
+    isa_dev = isa_new(OBJECT(s), "fdc", TYPE_ISA_FDC);
     dev = DEVICE(isa_dev);
     qdev_prop_set_uint32(dev, "dma", -1);
-    isa_realize_and_unref(isa_dev, s->isa_bus, &error_fatal);
+    qdev_realize(dev, BUS(s->isa_bus), &error_fatal);
     isa_fdc_init_drives(isa_dev, fd);
 
     /* Power */
-    dev = qdev_new_orphan(TYPE_SUN4U_POWER);
+    dev = qdev_new(OBJECT(s), "power", TYPE_SUN4U_POWER);
     sbd = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(sbd, &error_fatal);
+    sysbus_realize(sbd, &error_fatal);
     memory_region_add_subregion(pci_address_space_io(pci_dev), 0x7240,
                                 sysbus_mmio_get_region(sbd, 0));
 
@@ -416,16 +416,16 @@ static uint64_t translate_prom_address(void *opaque, uint64_t addr)
 }
 
 /* Boot PROM (OpenBIOS) */
-static void prom_init(hwaddr addr, const char *bios_name)
+static void prom_init(Object *parent, hwaddr addr, const char *bios_name)
 {
     DeviceState *dev;
     SysBusDevice *s;
     char *filename;
     int ret;
 
-    dev = qdev_new_orphan(TYPE_OPENPROM);
+    dev = qdev_new(parent, "prom", TYPE_OPENPROM);
     s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
 
     sysbus_mmio_map(s, 0, addr);
 
@@ -500,19 +500,19 @@ static void ram_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &d->ram);
 }
 
-static void ram_init(hwaddr addr, ram_addr_t RAM_size)
+static void ram_init(Object *parent, hwaddr addr, ram_addr_t RAM_size)
 {
     DeviceState *dev;
     SysBusDevice *s;
     RamDevice *d;
 
     /* allocate RAM */
-    dev = qdev_new_orphan(TYPE_SUN4U_MEMORY);
+    dev = qdev_new(parent, "ram", TYPE_SUN4U_MEMORY);
     s = SYS_BUS_DEVICE(dev);
 
     d = SUN4U_RAM(dev);
     d->size = RAM_size;
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
 
     sysbus_mmio_map(s, 0, addr);
 }
@@ -559,21 +559,21 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     cpu = sparc64_cpu_devinit(machine->cpu_type, hwdef->prom_addr);
 
     /* IOMMU */
-    iommu = qdev_new_orphan(TYPE_SUN4U_IOMMU);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(iommu), &error_fatal);
+    iommu = qdev_new(OBJECT(machine), "iommu", TYPE_SUN4U_IOMMU);
+    sysbus_realize(SYS_BUS_DEVICE(iommu), &error_fatal);
 
     /* set up devices */
-    ram_init(0, machine->ram_size);
+    ram_init(OBJECT(machine), 0, machine->ram_size);
 
-    prom_init(hwdef->prom_addr, machine->firmware);
+    prom_init(OBJECT(machine), hwdef->prom_addr, machine->firmware);
 
     /* Init sabre (PCI host bridge) */
-    sabre = SABRE(qdev_new_orphan(TYPE_SABRE));
+    sabre = SABRE(qdev_new(OBJECT(machine), "sabre", TYPE_SABRE));
     qdev_prop_set_uint64(DEVICE(sabre), "special-base", PBM_SPECIAL_BASE);
     qdev_prop_set_uint64(DEVICE(sabre), "mem-base", PBM_MEM_BASE);
     object_property_set_link(OBJECT(sabre), "iommu", OBJECT(iommu),
                              &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(sabre), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(sabre), &error_fatal);
 
     /* sabre_config */
     sysbus_mmio_map(SYS_BUS_DEVICE(sabre), 0, PBM_SPECIAL_BASE);
@@ -599,10 +599,11 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     pci_bus_set_slot_reserved_mask(pci_busA, 0xfffffff1);
     pci_bus_set_slot_reserved_mask(pci_busB, 0xfffffff0);
 
-    ebus = pci_new_multifunction_orphan(PCI_DEVFN(1, 0), TYPE_EBUS);
+    ebus = pci_new_multifunction(OBJECT(machine), "ebus", PCI_DEVFN(1, 0),
+                                 TYPE_EBUS);
     qdev_prop_set_uint64(DEVICE(ebus), "console-serial-base",
                          hwdef->console_serial_base);
-    pci_realize_and_unref(ebus, pci_busA, &error_fatal);
+    qdev_realize(DEVICE(ebus), BUS(pci_busA), &error_fatal);
 
     /* Wire up "well-known" ISA IRQs to PBM legacy obio IRQs */
     qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 7,
@@ -618,7 +619,8 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     switch (vga_interface_type) {
     case VGA_STD:
-        pci_create_simple_orphan(pci_busA, PCI_DEVFN(2, 0), "VGA");
+        pci_create_simple(OBJECT(machine), "vga", pci_busA, PCI_DEVFN(2, 0),
+                          "VGA");
         vga_interface_created = true;
         break;
     case VGA_NONE:
@@ -632,10 +634,11 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     nd = qemu_find_nic_info(mc->default_nic, true, NULL);
     if (nd) {
-        pci_dev = pci_new_multifunction_orphan(PCI_DEVFN(1, 1), mc->default_nic);
+        pci_dev = pci_new_multifunction(OBJECT(machine), "nic",
+                                        PCI_DEVFN(1, 1), mc->default_nic);
         dev = &pci_dev->qdev;
         qdev_set_nic_properties(dev, nd);
-        pci_realize_and_unref(pci_dev, pci_busA, &error_fatal);
+        qdev_realize(dev, BUS(pci_busA), &error_fatal);
 
         memcpy(&macaddr, &nd->macaddr.a, sizeof(MACAddr));
         onboard_nic = true;
@@ -648,16 +651,16 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
         qemu_macaddr_default_if_unset(&macaddr);
     }
 
-    pci_dev = pci_new_orphan(PCI_DEVFN(3, 0), "cmd646-ide");
+    pci_dev = pci_new(OBJECT(machine), "ide", PCI_DEVFN(3, 0), "cmd646-ide");
     qdev_prop_set_uint32(&pci_dev->qdev, "secondary", 1);
-    pci_realize_and_unref(pci_dev, pci_busA, &error_fatal);
+    qdev_realize(DEVICE(pci_dev), BUS(pci_busA), &error_fatal);
     pci_ide_create_devs(pci_dev);
 
     /* Map NVRAM into I/O (ebus) space */
-    dev = qdev_new_orphan("sysbus-m48t59");
+    dev = qdev_new(OBJECT(machine), "nvram", "sysbus-m48t59");
     qdev_prop_set_int32(dev, "base-year", 1968);
     s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     memory_region_add_subregion(pci_address_space_io(ebus), 0x2000,
                                 sysbus_mmio_get_region(s, 0));
     nvram = NVRAM(dev);
@@ -689,10 +692,9 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                            graphic_width, graphic_height, graphic_depth,
                            (uint8_t *)&macaddr);
 
-    dev = qdev_new_orphan(TYPE_FW_CFG_IO);
+    dev = qdev_new(OBJECT(ebus), TYPE_FW_CFG, TYPE_FW_CFG_IO);
     qdev_prop_set_bit(dev, "dma_enabled", false);
-    object_property_add_child(OBJECT(ebus), TYPE_FW_CFG, OBJECT(dev));
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     memory_region_add_subregion(pci_address_space_io(ebus), BIOS_CFG_IOPORT,
                                 &FW_CFG_IO(dev)->comb_iomem);
 
