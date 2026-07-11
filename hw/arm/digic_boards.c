@@ -50,7 +50,8 @@ typedef struct DigicBoard {
 static void digic4_board_init(MachineState *machine, DigicBoard *board)
 {
     Error *err = NULL;
-    DigicState *s = DIGIC(object_new(TYPE_DIGIC));
+    DigicState *s = DIGIC(object_new_child(OBJECT(machine), "soc",
+                                           TYPE_DIGIC));
     MachineClass *mc = MACHINE_GET_CLASS(machine);
 
     if (machine->ram_size != mc->default_ram_size) {
