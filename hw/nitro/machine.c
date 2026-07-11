@@ -195,10 +195,11 @@ static void nitro_machine_init(MachineState *machine)
 
     if (defaults_enabled()) {
         NitroVsockBridge *bridge = nitro_vsock_bridge_create();
+        DeviceState *dev;
 
         /* Nitro Enclaves require a heartbeat device. Provide one. */
-        qdev_realize(qdev_new_orphan(TYPE_NITRO_HEARTBEAT),
-                     BUS(&bridge->bus), &error_fatal);
+        dev = qdev_new(OBJECT(bridge), "heartbeat", TYPE_NITRO_HEARTBEAT);
+        qdev_realize(dev, BUS(&bridge->bus), &error_fatal);
 
         /*
          * In debug mode, Nitro Enclaves expose the guest's serial output via
@@ -209,8 +210,8 @@ static void nitro_machine_init(MachineState *machine)
             Chardev *chr = serial_hd(0);
 
             if (chr) {
-                DeviceState *dev = qdev_new_orphan(TYPE_NITRO_SERIAL_VSOCK);
-
+                dev = qdev_new(OBJECT(bridge), "serial",
+                               TYPE_NITRO_SERIAL_VSOCK);
                 qdev_prop_set_chr(dev, "chardev", chr);
                 qdev_realize(dev, BUS(&bridge->bus), &error_fatal);
             }
