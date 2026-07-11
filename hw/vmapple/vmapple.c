@@ -155,25 +155,25 @@ static void create_bdif(VMAppleMachineState *vms, MemoryRegion *mem)
     }
 
     /* PV backdoor device */
-    bdif = qdev_new_orphan(TYPE_VMAPPLE_BDIF);
+    bdif = qdev_new(OBJECT(vms), "bdif", TYPE_VMAPPLE_BDIF);
     bdif_sb = SYS_BUS_DEVICE(bdif);
     sysbus_mmio_map(bdif_sb, 0, vms->memmap[VMAPPLE_BDOOR].base);
 
     qdev_prop_set_drive(DEVICE(bdif), "aux", blk_by_legacy_dinfo(di_aux));
     qdev_prop_set_drive(DEVICE(bdif), "root", blk_by_legacy_dinfo(di_root));
 
-    sysbus_realize_and_unref(bdif_sb, &error_fatal);
+    sysbus_realize(bdif_sb, &error_fatal);
 }
 
 static void create_pvpanic(VMAppleMachineState *vms, MemoryRegion *mem)
 {
     SysBusDevice *pvpanic;
 
-    vms->pvpanic = qdev_new_orphan(TYPE_PVPANIC_MMIO_DEVICE);
+    vms->pvpanic = qdev_new(OBJECT(vms), "pvpanic", TYPE_PVPANIC_MMIO_DEVICE);
     pvpanic = SYS_BUS_DEVICE(vms->pvpanic);
     sysbus_mmio_map(pvpanic, 0, vms->memmap[VMAPPLE_PVPANIC].base);
 
-    sysbus_realize_and_unref(pvpanic, &error_fatal);
+    sysbus_realize(pvpanic, &error_fatal);
 }
 
 static bool create_cfg(VMAppleMachineState *vms, MemoryRegion *mem,
@@ -184,7 +184,7 @@ static bool create_cfg(VMAppleMachineState *vms, MemoryRegion *mem,
     MachineState *machine = MACHINE(vms);
     uint32_t rnd = 1;
 
-    vms->cfg = qdev_new_orphan(TYPE_VMAPPLE_CFG);
+    vms->cfg = qdev_new(OBJECT(vms), "cfg", TYPE_VMAPPLE_CFG);
     cfg = SYS_BUS_DEVICE(vms->cfg);
     sysbus_mmio_map(cfg, 0, vms->memmap[VMAPPLE_CONFIG].base);
 
@@ -195,7 +195,7 @@ static bool create_cfg(VMAppleMachineState *vms, MemoryRegion *mem,
     qdev_prop_set_uint64(vms->cfg, "ram-size", machine->ram_size);
     qdev_prop_set_uint32(vms->cfg, "rnd", rnd);
 
-    if (!sysbus_realize_and_unref(cfg, errp)) {
+    if (!sysbus_realize(cfg, errp)) {
         error_prepend(errp, "Error creating vmapple cfg device: ");
         return false;
     }
@@ -209,12 +209,12 @@ static void create_gfx(VMAppleMachineState *vms, MemoryRegion *mem)
     int irq_iosfc = vms->irqmap[VMAPPLE_APV_IOSFC];
     SysBusDevice *gfx;
 
-    gfx = SYS_BUS_DEVICE(qdev_new_orphan("apple-gfx-mmio"));
+    gfx = SYS_BUS_DEVICE(qdev_new(OBJECT(vms), "gfx", "apple-gfx-mmio"));
     sysbus_mmio_map(gfx, 0, vms->memmap[VMAPPLE_APV_GFX].base);
     sysbus_mmio_map(gfx, 1, vms->memmap[VMAPPLE_APV_IOSFC].base);
     sysbus_connect_irq(gfx, 0, qdev_get_gpio_in(vms->gic, irq_gfx));
     sysbus_connect_irq(gfx, 1, qdev_get_gpio_in(vms->gic, irq_iosfc));
-    sysbus_realize_and_unref(gfx, &error_fatal);
+    sysbus_realize(gfx, &error_fatal);
 }
 
 static void create_aes(VMAppleMachineState *vms, MemoryRegion *mem)
@@ -222,11 +222,11 @@ static void create_aes(VMAppleMachineState *vms, MemoryRegion *mem)
     int irq = vms->irqmap[VMAPPLE_AES_1];
     SysBusDevice *aes;
 
-    aes = SYS_BUS_DEVICE(qdev_new_orphan(TYPE_APPLE_AES));
+    aes = SYS_BUS_DEVICE(qdev_new(OBJECT(vms), "aes", TYPE_APPLE_AES));
     sysbus_mmio_map(aes, 0, vms->memmap[VMAPPLE_AES_1].base);
     sysbus_mmio_map(aes, 1, vms->memmap[VMAPPLE_AES_2].base);
     sysbus_connect_irq(aes, 0, qdev_get_gpio_in(vms->gic, irq));
-    sysbus_realize_and_unref(aes, &error_fatal);
+    sysbus_realize(aes, &error_fatal);
 }
 
 static int arm_gic_ppi_index(int cpu_nr, int ppi_index)
@@ -243,7 +243,7 @@ static void create_gic(VMAppleMachineState *vms, MemoryRegion *mem)
     int i;
     unsigned int smp_cpus = ms->smp.cpus;
 
-    vms->gic = qdev_new_orphan(gicv3_class_name());
+    vms->gic = qdev_new(OBJECT(vms), "gic", gicv3_class_name());
     qdev_prop_set_uint32(vms->gic, "revision", 3);
     qdev_prop_set_uint32(vms->gic, "num-cpu", smp_cpus);
     /*
@@ -261,7 +261,7 @@ static void create_gic(VMAppleMachineState *vms, MemoryRegion *mem)
     qdev_prop_set_array(vms->gic, "redist-region-count", redist_region_count);
 
     gicbusdev = SYS_BUS_DEVICE(vms->gic);
-    sysbus_realize_and_unref(gicbusdev, &error_fatal);
+    sysbus_realize(gicbusdev, &error_fatal);
     sysbus_mmio_map(gicbusdev, 0, vms->memmap[VMAPPLE_GIC_DIST].base);
     sysbus_mmio_map(gicbusdev, 1, vms->memmap[VMAPPLE_GIC_REDIST].base);
 
@@ -285,27 +285,28 @@ static void create_gic(VMAppleMachineState *vms, MemoryRegion *mem)
     }
 }
 
-static void create_uart(const VMAppleMachineState *vms, int uart,
+static void create_uart(VMAppleMachineState *vms, int uart,
                         MemoryRegion *mem, Chardev *chr)
 {
     hwaddr base = vms->memmap[uart].base;
     int irq = vms->irqmap[uart];
-    DeviceState *dev = qdev_new_orphan(TYPE_PL011);
+    DeviceState *dev = qdev_new(OBJECT(vms), "uart", TYPE_PL011);
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
 
     qdev_prop_set_chr(dev, "chardev", chr);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     memory_region_add_subregion(mem, base,
                                 sysbus_mmio_get_region(s, 0));
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(vms->gic, irq));
 }
 
-static void create_rtc(const VMAppleMachineState *vms)
+static void create_rtc(VMAppleMachineState *vms)
 {
     hwaddr base = vms->memmap[VMAPPLE_RTC].base;
     int irq = vms->irqmap[VMAPPLE_RTC];
 
-    sysbus_create_simple_orphan("pl031", base, qdev_get_gpio_in(vms->gic, irq));
+    sysbus_create_simple(OBJECT(vms), "rtc", "pl031", base,
+                         qdev_get_gpio_in(vms->gic, irq));
 }
 
 static DeviceState *gpio_key_dev;
@@ -315,7 +316,7 @@ static void vmapple_powerdown_req(Notifier *n, void *opaque)
     qemu_set_irq(qdev_get_gpio_in(gpio_key_dev, 0), 1);
 }
 
-static void create_gpio_devices(const VMAppleMachineState *vms, int gpio,
+static void create_gpio_devices(VMAppleMachineState *vms, int gpio,
                                 MemoryRegion *mem)
 {
     DeviceState *pl061_dev;
@@ -323,16 +324,16 @@ static void create_gpio_devices(const VMAppleMachineState *vms, int gpio,
     int irq = vms->irqmap[gpio];
     SysBusDevice *s;
 
-    pl061_dev = qdev_new_orphan("pl061");
+    pl061_dev = qdev_new(OBJECT(vms), "gpio", "pl061");
     /* Pull lines down to 0 if not driven by the PL061 */
     qdev_prop_set_uint8(pl061_dev, "pullups", 0);
     qdev_prop_set_uint8(pl061_dev, "pulldowns", 0xff);
     s = SYS_BUS_DEVICE(pl061_dev);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     memory_region_add_subregion(mem, base, sysbus_mmio_get_region(s, 0));
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(vms->gic, irq));
-    gpio_key_dev = sysbus_create_simple_orphan("gpio-key", -1,
-                                        qdev_get_gpio_in(pl061_dev, 3));
+    gpio_key_dev = sysbus_create_simple(OBJECT(vms), "gpio-key", "gpio-key",
+                                        -1, qdev_get_gpio_in(pl061_dev, 3));
 }
 
 static void vmapple_firmware_init(VMAppleMachineState *vms,
@@ -384,9 +385,9 @@ static void create_pcie(VMAppleMachineState *vms)
     DeviceState *usb_controller;
     USBBus *usb_bus;
 
-    dev = qdev_new_orphan(TYPE_GPEX_HOST);
+    dev = qdev_new(OBJECT(vms), "pcie", TYPE_GPEX_HOST);
     qdev_prop_set_uint32(dev, "num-irqs", GPEX_NUM_IRQS);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     /* Map only the first size_ecam bytes of ECAM space */
     ecam_reg = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
@@ -420,13 +421,15 @@ static void create_pcie(VMAppleMachineState *vms)
     }
 
     if (defaults_enabled()) {
-        usb_controller = qdev_new_orphan(TYPE_QEMU_XHCI);
-        qdev_realize_and_unref(usb_controller, BUS(pci->bus), &error_fatal);
+        usb_controller = qdev_new(OBJECT(vms), "xhci", TYPE_QEMU_XHCI);
+        qdev_realize(usb_controller, BUS(pci->bus), &error_fatal);
 
         usb_bus = USB_BUS(object_resolve_type_unambiguous(TYPE_USB_BUS,
                                                           &error_fatal));
-        usb_create_simple_orphan(usb_bus, "usb-kbd");
-        usb_create_simple_orphan(usb_bus, "usb-tablet");
+        usb_create_simple(OBJECT(usb_controller), "usb-kbd", usb_bus,
+                          "usb-kbd");
+        usb_create_simple(OBJECT(usb_controller), "usb-tablet", usb_bus,
+                          "usb-tablet");
     }
 }
 
