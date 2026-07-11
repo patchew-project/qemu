@@ -640,9 +640,9 @@ static void machine_HP_715_init(MachineState *machine)
     }
 
     /* LASI i82596 network */
-    dev = qemu_create_nic_device(TYPE_LASI_82596, true, "lasi");
+    dev = qemu_create_nic_device(OBJECT(machine), "lan", TYPE_LASI_82596, true, "lasi");
     if (dev) {
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+        sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
                            qdev_get_gpio_in(lasi_dev, LASI_IRQ_LAN_HPA));
         memory_region_add_subregion(addr_space,

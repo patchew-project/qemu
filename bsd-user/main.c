@@ -474,7 +474,8 @@ int main(int argc, char **argv)
     set_preferred_target_page_bits(ctz32(host_page_size));
     finalize_target_page_bits();
 
-    cpu = cpu_create_orphan(cpu_type);
+    cpu = CPU(object_new(cpu_type));
+    qdev_realize(DEVICE(cpu), NULL, &error_fatal);
     env = cpu_env(cpu);
     cpu_reset(cpu);
     thread_cpu = cpu;

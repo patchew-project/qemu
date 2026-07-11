@@ -243,6 +243,8 @@ bool qemu_configure_nic_device(DeviceState *dev, bool match_default,
 
 /**
  * qemu_create_nic_device: Create a NIC device if a configuration exists for it
+ * @parent: QOM parent of the created device
+ * @id: child<> property name
  * @typename: Object typename of network device
  * @match_default: Match NIC configurations with no model specified
  * @alias: Additional model string to match
@@ -250,7 +252,8 @@ bool qemu_configure_nic_device(DeviceState *dev, bool match_default,
  * Search for a NIC configuration for the provided device type. If found,
  * create an object of the corresponding type and return it.
  */
-DeviceState *qemu_create_nic_device(const char *typename, bool match_default,
+DeviceState *qemu_create_nic_device(Object *parent, const char *id,
+                                    const char *typename, bool match_default,
                                     const char *alias);
 
 /*

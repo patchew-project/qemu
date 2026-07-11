@@ -1204,7 +1204,8 @@ bool qemu_configure_nic_device(DeviceState *dev, bool match_default,
 }
 
 /* "Please create a device, if you have a configuration for it" */
-DeviceState *qemu_create_nic_device(const char *typename, bool match_default,
+DeviceState *qemu_create_nic_device(Object *parent, const char *id,
+                                    const char *typename, bool match_default,
                                     const char *alias)
 {
     NICInfo *nd = qemu_find_nic_info(typename, match_default, alias);
@@ -1214,7 +1215,7 @@ DeviceState *qemu_create_nic_device(const char *typename, bool match_default,
         return NULL;
     }
 
-    dev = qdev_new_orphan(typename);
+    dev = qdev_new(parent, id, typename);
     qdev_set_nic_properties(dev, nd);
     return dev;
 }
@@ -1264,9 +1265,10 @@ void qemu_create_nic_bus_devices(BusState *bus, const char *parent_type,
             continue;
         }
 
-        dev = qdev_new_orphan(model);
+        dev = qdev_new(machine_get_container("peripheral-anon"),
+                       "nic[*]", model);
         qdev_set_nic_properties(dev, nd);
-        qdev_realize_and_unref(dev, bus, &error_fatal);
+        qdev_realize(dev, bus, &error_fatal);
     }
 
     g_ptr_array_free(nic_models, true);

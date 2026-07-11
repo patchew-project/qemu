@@ -260,13 +260,13 @@ static void mcf_fec_init(MemoryRegion *sysmem, hwaddr base, DeviceState *intc)
     SysBusDevice *s;
     int i;
 
-    dev = qemu_create_nic_device(TYPE_MCF_FEC_NET, true, NULL);
+    dev = qemu_create_nic_device(qdev_get_machine(), "fec", TYPE_MCF_FEC_NET, true, NULL);
     if (!dev) {
         return;
     }
 
     s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     for (i = 0; i < FEC_NUM_IRQ; i++) {
         sysbus_connect_irq(s, i, qdev_get_gpio_in(intc, i + 36));
     }

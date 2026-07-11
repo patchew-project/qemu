@@ -552,7 +552,8 @@ static void mips_loongson3_virt_init(MachineState *machine)
         hwaddr ipi_base = ((hwaddr)node << 44) + virt_memmap[VIRT_IPI].base;
 
         /* init CPUs */
-        cpu = mips_cpu_create_with_clock(machine->cpu_type, cpuclk, false);
+        cpu = mips_cpu_create_with_clock(OBJECT(machine), "cpu[*]",
+                                         machine->cpu_type, cpuclk, false);
 
         /* Init internal devices */
         cpu_mips_irq_init_cpu(cpu);

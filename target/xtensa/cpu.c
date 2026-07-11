@@ -284,17 +284,6 @@ static void xtensa_cpu_initfn(Object *obj)
 #endif
 }
 
-XtensaCPU *xtensa_cpu_create_with_clock(const char *cpu_type, Clock *cpu_refclk)
-{
-    DeviceState *cpu;
-
-    cpu = qdev_new_orphan(cpu_type);
-    qdev_connect_clock_in(cpu, "clk-in", cpu_refclk);
-    qdev_realize(cpu, NULL, &error_abort);
-
-    return XTENSA_CPU(cpu);
-}
-
 #ifndef CONFIG_USER_ONLY
 static const VMStateDescription vmstate_xtensa_cpu = {
     .name = "cpu",

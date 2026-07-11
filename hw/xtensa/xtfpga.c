@@ -149,13 +149,13 @@ static void xtfpga_net_init(MemoryRegion *address_space,
     SysBusDevice *s;
     MemoryRegion *ram;
 
-    dev = qemu_create_nic_device("open_eth", true, NULL);
+    dev = qemu_create_nic_device(qdev_get_machine(), "eth", "open_eth", true, NULL);
     if (!dev) {
         return;
     }
 
     s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     sysbus_connect_irq(s, 0, irq);
     memory_region_add_subregion(address_space, base,
             sysbus_mmio_get_region(s, 0));

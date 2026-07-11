@@ -736,8 +736,6 @@ static inline uint32_t xtensa_replicate_windowstart(CPUXtensaState *env)
 #define XTENSA_CSBASE_LBEG_OFF_MASK 0x00ff0000
 #define XTENSA_CSBASE_LBEG_OFF_SHIFT 16
 
-XtensaCPU *xtensa_cpu_create_with_clock(const char *cpu_type,
-                                        Clock *cpu_refclk);
 
 /*
  * Set the NaN propagation rule for future FPU operations:

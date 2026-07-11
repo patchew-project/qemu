@@ -416,8 +416,9 @@ static void create_pcie(VMAppleMachineState *vms)
     vms->bus = pci->bus;
     g_assert(vms->bus);
 
-    while ((dev = qemu_create_nic_device("virtio-net-pci", true, NULL))) {
-        qdev_realize_and_unref(dev, BUS(vms->bus), &error_fatal);
+    while ((dev = qemu_create_nic_device(OBJECT(vms), "nic[*]",
+                                         "virtio-net-pci", true, NULL))) {
+        qdev_realize(dev, BUS(vms->bus), &error_fatal);
     }
 
     if (defaults_enabled()) {

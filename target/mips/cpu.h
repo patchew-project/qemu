@@ -1429,7 +1429,8 @@ void cpu_mips_restore_fp_status(CPUMIPSState *env);
  *
  * Returns: A #CPUState or %NULL if an error occurred.
  */
-MIPSCPU *mips_cpu_create_with_clock(const char *cpu_type, Clock *cpu_refclk,
+MIPSCPU *mips_cpu_create_with_clock(Object *parent, const char *id,
+                                    const char *cpu_type, Clock *cpu_refclk,
                                     bool is_big_endian);
 
 #endif /* MIPS_CPU_H */

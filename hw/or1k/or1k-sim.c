@@ -178,13 +178,13 @@ static void openrisc_sim_net_init(Or1ksimState *state, hwaddr base, hwaddr size,
     char *nodename;
     int i;
 
-    dev = qemu_create_nic_device("open_eth", true, NULL);
+    dev = qemu_create_nic_device(OBJECT(state), "eth", "open_eth", true, NULL);
     if (!dev) {
         return;
     }
 
     s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     if (num_cpus > 1) {
         DeviceState *splitter = qdev_new(OBJECT(state), "irq-splitter[*]",
                                          TYPE_SPLIT_IRQ);
