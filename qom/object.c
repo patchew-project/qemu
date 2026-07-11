@@ -718,6 +718,19 @@ Object *object_new(const char *typename)
     return object_new_with_type(ti);
 }
 
+Object *object_new_child(Object *parent, const char *id,
+                          const char *typename)
+{
+    Object *obj;
+
+    g_assert(parent);
+    g_assert(id);
+
+    obj = object_new(typename);
+    object_property_add_child(parent, id, obj);
+    object_unref(obj);
+    return obj;
+}
 
 Object *object_new_with_props(const char *typename,
                               Object *parent,

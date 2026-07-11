@@ -633,6 +633,31 @@ Object *object_new_with_class(ObjectClass *klass);
 Object *object_new(const char *typename);
 
 /**
+ * object_new_child:
+ * @parent: the QOM composition-tree parent
+ * @id: the child<> property name; the object's canonical QOM path
+ *      becomes @parent's path plus "/" plus @id
+ * @typename: the name of the type of the object to instantiate
+ *
+ * Create a heap-allocated object and immediately add it to the QOM
+ * composition tree as a child of @parent.
+ *
+ * This is the heap-allocated dual of object_initialize_child(): use
+ * this when the child is a pointer member of the parent, and use
+ * object_initialize_child() when the child is embedded in the parent
+ * struct.  See also object_new_with_props() for the variant that
+ * additionally sets a list of properties.
+ *
+ * The reference returned by object_new() is transferred to the child<>
+ * property of @parent, so the object has a reference count of 1 held
+ * by @parent, and the caller does not need to unref.
+ *
+ * Returns: the newly allocated, instantiated and parented object.
+ */
+Object *object_new_child(Object *parent, const char *id,
+                         const char *typename);
+
+/**
  * object_new_with_props:
  * @typename:  The name of the type of the object to instantiate.
  * @parent: the parent object
