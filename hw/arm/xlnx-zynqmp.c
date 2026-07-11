@@ -365,15 +365,15 @@ static void xlnx_zynqmp_create_unimp_mmio(XlnxZynqMPState *s)
 
     for (nr = 0; nr < ARRAY_SIZE(unimp_areas); nr++) {
         const struct UnimpInfo *info = &unimp_areas[nr];
-        DeviceState *dev = qdev_new_orphan(TYPE_UNIMPLEMENTED_DEVICE);
+        DeviceState *dev = qdev_new(OBJECT(s), info->name,
+                                    TYPE_UNIMPLEMENTED_DEVICE);
         SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
         assert(info->name && info->base && info->size > 0);
         qdev_prop_set_string(dev, "name", info->name);
         qdev_prop_set_uint64(dev, "size", info->size);
-        object_property_add_child(OBJECT(s), info->name, OBJECT(dev));
 
-        sysbus_realize_and_unref(sbd, &error_fatal);
+        sysbus_realize(sbd, &error_fatal);
         sysbus_mmio_map(sbd, 0, info->base);
     }
 }

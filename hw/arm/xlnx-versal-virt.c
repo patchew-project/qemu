@@ -143,9 +143,8 @@ static void create_virtio_regions(VersalVirt *s)
         qemu_irq pic_irq;
 
         pic_irq = versal_get_reserved_irq(&s->soc, i, &dtb_irq);
-        dev = qdev_new_orphan("virtio-mmio");
-        object_property_add_child(OBJECT(s), "virtio-mmio[*]", OBJECT(dev));
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+        dev = qdev_new(OBJECT(s), "virtio-mmio[*]", "virtio-mmio");
+        sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic_irq);
         mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
         memory_region_add_subregion(&s->soc.mr_ps, base, mr);
