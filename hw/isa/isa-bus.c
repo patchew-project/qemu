@@ -172,25 +172,6 @@ ISADevice *isa_create_simple(Object *parent, const char *id,
     return dev;
 }
 
-ISADevice *isa_new_orphan(const char *name)
-{
-    return ISA_DEVICE(qdev_new_orphan(name));
-}
-
-ISADevice *isa_try_new_orphan(const char *name)
-{
-    return ISA_DEVICE(qdev_try_new_orphan(name));
-}
-
-ISADevice *isa_create_simple_orphan(ISABus *bus, const char *name)
-{
-    ISADevice *dev;
-
-    dev = isa_new_orphan(name);
-    isa_realize_and_unref(dev, bus, &error_fatal);
-    return dev;
-}
-
 bool isa_realize_and_unref(ISADevice *dev, ISABus *bus, Error **errp)
 {
     return qdev_realize_and_unref(&dev->parent_obj, &bus->parent_obj, errp);
