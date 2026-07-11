@@ -187,7 +187,8 @@ static const MemoryRegionOps r2d_fpga_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static r2d_fpga_t *r2d_fpga_init(MemoryRegion *sysmem,
+static r2d_fpga_t *r2d_fpga_init(Object *owner,
+                                 MemoryRegion *sysmem,
                                  hwaddr base, qemu_irq irl)
 {
     r2d_fpga_t *s;
@@ -196,7 +197,7 @@ static r2d_fpga_t *r2d_fpga_init(MemoryRegion *sysmem,
 
     s->irl = irl;
 
-    memory_region_init_io(&s->iomem, NULL, &r2d_fpga_ops, s, "r2d-fpga", 0x40);
+    memory_region_init_io(&s->iomem, owner, &r2d_fpga_ops, s, "r2d-fpga", 0x40);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
     qemu_init_irqs(s->irq, NR_IRQS, r2d_fpga_irq_set, s);
@@ -261,11 +262,11 @@ static void r2d_init(MachineState *machine)
     qemu_register_reset(main_cpu_reset, reset_info);
 
     /* Allocate memory space */
-    memory_region_init_ram(sdram, NULL, "r2d.sdram", SDRAM_SIZE, &error_fatal);
+    memory_region_init_ram(sdram, OBJECT(machine), "r2d.sdram", SDRAM_SIZE, &error_fatal);
     memory_region_add_subregion(address_space_mem, SDRAM_BASE, sdram);
     /* Register peripherals */
     s = sh7750_init(OBJECT(machine), cpu, address_space_mem);
-    fpga = r2d_fpga_init(address_space_mem, 0x04000000, sh7750_irl(s));
+    fpga = r2d_fpga_init(OBJECT(machine), address_space_mem, 0x04000000, sh7750_irl(s));
 
     dev = qdev_new(OBJECT(machine), "pci-host", "sh_pci");
     busdev = SYS_BUS_DEVICE(dev);

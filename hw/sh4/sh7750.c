@@ -721,38 +721,38 @@ SH7750State *sh7750_init(Object *parent, SuperHCPU *cpu,
     s = g_new0(SH7750State, 1);
     s->cpu = cpu;
     s->periph_freq = 60000000; /* 60MHz */
-    memory_region_init_io(&s->iomem, NULL, &sh7750_mem_ops, s,
+    memory_region_init_io(&s->iomem, parent, &sh7750_mem_ops, s,
                           "memory", 0x1fc01000);
 
-    memory_region_init_alias(&s->iomem_1f0, NULL, "memory-1f0",
+    memory_region_init_alias(&s->iomem_1f0, parent, "memory-1f0",
                              &s->iomem, 0x1f000000, 0x1000);
     memory_region_add_subregion(sysmem, 0x1f000000, &s->iomem_1f0);
 
-    memory_region_init_alias(&s->iomem_ff0, NULL, "memory-ff0",
+    memory_region_init_alias(&s->iomem_ff0, parent, "memory-ff0",
                              &s->iomem, 0x1f000000, 0x1000);
     memory_region_add_subregion(sysmem, 0xff000000, &s->iomem_ff0);
 
-    memory_region_init_alias(&s->iomem_1f8, NULL, "memory-1f8",
+    memory_region_init_alias(&s->iomem_1f8, parent, "memory-1f8",
                              &s->iomem, 0x1f800000, 0x1000);
     memory_region_add_subregion(sysmem, 0x1f800000, &s->iomem_1f8);
 
-    memory_region_init_alias(&s->iomem_ff8, NULL, "memory-ff8",
+    memory_region_init_alias(&s->iomem_ff8, parent, "memory-ff8",
                              &s->iomem, 0x1f800000, 0x1000);
     memory_region_add_subregion(sysmem, 0xff800000, &s->iomem_ff8);
 
-    memory_region_init_alias(&s->iomem_1fc, NULL, "memory-1fc",
+    memory_region_init_alias(&s->iomem_1fc, parent, "memory-1fc",
                              &s->iomem, 0x1fc00000, 0x1000);
     memory_region_add_subregion(sysmem, 0x1fc00000, &s->iomem_1fc);
 
-    memory_region_init_alias(&s->iomem_ffc, NULL, "memory-ffc",
+    memory_region_init_alias(&s->iomem_ffc, parent, "memory-ffc",
                              &s->iomem, 0x1fc00000, 0x1000);
     memory_region_add_subregion(sysmem, 0xffc00000, &s->iomem_ffc);
 
-    memory_region_init_io(&s->mmct_iomem, NULL, &sh7750_mmct_ops, s,
+    memory_region_init_io(&s->mmct_iomem, parent, &sh7750_mmct_ops, s,
                           "cache-and-tlb", 0x08000000);
     memory_region_add_subregion(sysmem, 0xf0000000, &s->mmct_iomem);
 
-    sh_intc_init(sysmem, &s->intc, NR_SOURCES,
+    sh_intc_init(parent, sysmem, &s->intc, NR_SOURCES,
                  _INTC_ARRAY(mask_registers),
                  _INTC_ARRAY(prio_registers));
 
@@ -797,7 +797,7 @@ SH7750State *sh7750_init(Object *parent, SuperHCPU *cpu,
     qdev_connect_gpio_out_named(dev, "txi", 0, s->intc.irqs[SCIF_TXI]);
     qdev_connect_gpio_out_named(dev, "bri", 0, s->intc.irqs[SCIF_BRI]);
 
-    tmu012_init(sysmem, 0x1fd80000,
+    tmu012_init(parent, sysmem, 0x1fd80000,
                 TMU012_FEAT_TOCR | TMU012_FEAT_3CHAN | TMU012_FEAT_EXTCLK,
                 s->periph_freq,
                 s->intc.irqs[TMU0],
@@ -821,7 +821,7 @@ SH7750State *sh7750_init(Object *parent, SuperHCPU *cpu,
         sh_intc_register_sources(&s->intc,
                                  _INTC_ARRAY(vectors_tmu34),
                                  NULL, 0);
-        tmu012_init(sysmem, 0x1e100000, 0, s->periph_freq,
+        tmu012_init(parent, sysmem, 0x1e100000, 0, s->periph_freq,
                     s->intc.irqs[TMU3],
                     s->intc.irqs[TMU4],
                     NULL, NULL);

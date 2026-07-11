@@ -344,7 +344,8 @@ static const MemoryRegionOps tmu012_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-void tmu012_init(MemoryRegion *sysmem, hwaddr base, int feat, uint32_t freq,
+void tmu012_init(Object *owner, MemoryRegion *sysmem, hwaddr base,
+                 int feat, uint32_t freq,
                  qemu_irq ch0_irq, qemu_irq ch1_irq,
                  qemu_irq ch2_irq0, qemu_irq ch2_irq1)
 {
@@ -360,13 +361,13 @@ void tmu012_init(MemoryRegion *sysmem, hwaddr base, int feat, uint32_t freq,
                                     ch2_irq0); /* ch2_irq1 not supported */
     }
 
-    memory_region_init_io(&s->iomem, NULL, &tmu012_ops, s, "timer", 0x30);
+    memory_region_init_io(&s->iomem, owner, &tmu012_ops, s, "timer", 0x30);
 
-    memory_region_init_alias(&s->iomem_p4, NULL, "timer-p4",
+    memory_region_init_alias(&s->iomem_p4, owner, "timer-p4",
                              &s->iomem, 0, memory_region_size(&s->iomem));
     memory_region_add_subregion(sysmem, P4ADDR(base), &s->iomem_p4);
 
-    memory_region_init_alias(&s->iomem_a7, NULL, "timer-a7",
+    memory_region_init_alias(&s->iomem_a7, owner, "timer-a7",
                              &s->iomem, 0, memory_region_size(&s->iomem));
     memory_region_add_subregion(sysmem, A7ADDR(base), &s->iomem_a7);
     /* ??? Save/restore.  */

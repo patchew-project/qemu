@@ -349,7 +349,8 @@ void sh_intc_register_sources(struct intc_desc *desc,
     }
 }
 
-static unsigned int sh_intc_register(MemoryRegion *sysmem,
+static unsigned int sh_intc_register(Object *owner,
+                                     MemoryRegion *sysmem,
                                      struct intc_desc *desc,
                                      const unsigned long address,
                                      const char *type,
@@ -368,18 +369,18 @@ static unsigned int sh_intc_register(MemoryRegion *sysmem,
     iomem_a7 = iomem_p4 + 1;
 
     snprintf(name, sizeof(name), "intc-%s-%s-%s", type, action, "p4");
-    memory_region_init_alias(iomem_p4, NULL, name, iomem, A7ADDR(address), 4);
+    memory_region_init_alias(iomem_p4, owner, name, iomem, A7ADDR(address), 4);
     memory_region_add_subregion(sysmem, P4ADDR(address), iomem_p4);
 
     snprintf(name, sizeof(name), "intc-%s-%s-%s", type, action, "a7");
-    memory_region_init_alias(iomem_a7, NULL, name, iomem, A7ADDR(address), 4);
+    memory_region_init_alias(iomem_a7, owner, name, iomem, A7ADDR(address), 4);
     memory_region_add_subregion(sysmem, A7ADDR(address), iomem_a7);
 
     /* used to increment aliases index */
     return 2;
 }
 
-int sh_intc_init(MemoryRegion *sysmem,
+int sh_intc_init(Object *owner, MemoryRegion *sysmem,
                  struct intc_desc *desc,
                  int nr_sources,
                  struct intc_mask_reg *mask_regs,
@@ -403,15 +404,15 @@ int sh_intc_init(MemoryRegion *sysmem,
         desc->sources[i].parent = desc;
     }
     desc->irqs = qemu_allocate_irqs(sh_intc_set_irq, desc, nr_sources);
-    memory_region_init_io(&desc->iomem, NULL, &sh_intc_ops, desc, "intc",
+    memory_region_init_io(&desc->iomem, owner, &sh_intc_ops, desc, "intc",
                           0x100000000ULL);
     j = 0;
     if (desc->mask_regs) {
         for (i = 0; i < desc->nr_mask_regs; i++) {
             struct intc_mask_reg *mr = &desc->mask_regs[i];
 
-            j += sh_intc_register(sysmem, desc, mr->set_reg, "mask", "set", j);
-            j += sh_intc_register(sysmem, desc, mr->clr_reg, "mask", "clr", j);
+            j += sh_intc_register(owner, sysmem, desc, mr->set_reg, "mask", "set", j);
+            j += sh_intc_register(owner, sysmem, desc, mr->clr_reg, "mask", "clr", j);
         }
     }
 
@@ -419,8 +420,8 @@ int sh_intc_init(MemoryRegion *sysmem,
         for (i = 0; i < desc->nr_prio_regs; i++) {
             struct intc_prio_reg *pr = &desc->prio_regs[i];
 
-            j += sh_intc_register(sysmem, desc, pr->set_reg, "prio", "set", j);
-            j += sh_intc_register(sysmem, desc, pr->clr_reg, "prio", "clr", j);
+            j += sh_intc_register(owner, sysmem, desc, pr->set_reg, "prio", "set", j);
+            j += sh_intc_register(owner, sysmem, desc, pr->clr_reg, "prio", "clr", j);
         }
     }
 

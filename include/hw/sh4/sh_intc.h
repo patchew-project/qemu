@@ -2,6 +2,7 @@
 #define SH_INTC_H
 
 #include "system/memory.h"
+#include "qom/object.h"
 
 typedef unsigned char intc_enum;
 
@@ -68,7 +69,7 @@ void sh_intc_register_sources(struct intc_desc *desc,
                               struct intc_group *groups,
                               int nr_groups);
 
-int sh_intc_init(MemoryRegion *sysmem,
+int sh_intc_init(Object *owner, MemoryRegion *sysmem,
                  struct intc_desc *desc,
                  int nr_sources,
                  struct intc_mask_reg *mask_regs,
