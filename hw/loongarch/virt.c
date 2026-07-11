@@ -150,7 +150,7 @@ static PFlashCFI01 *virt_flash_create1(LoongArchVirtMachineState *lvms,
                                        const char *name,
                                        const char *alias_prop_name)
 {
-    DeviceState *dev = qdev_new_orphan(TYPE_PFLASH_CFI01);
+    DeviceState *dev = qdev_new(OBJECT(lvms), name, TYPE_PFLASH_CFI01);
 
     qdev_prop_set_uint64(dev, "sector-length", VIRT_FLASH_SECTOR_SIZE);
     qdev_prop_set_uint8(dev, "width", 4);
@@ -161,7 +161,6 @@ static PFlashCFI01 *virt_flash_create1(LoongArchVirtMachineState *lvms,
     qdev_prop_set_uint16(dev, "id2", 0x00);
     qdev_prop_set_uint16(dev, "id3", 0x00);
     qdev_prop_set_string(dev, "name", name);
-    object_property_add_child(OBJECT(lvms), name, OBJECT(dev));
     object_property_add_alias(OBJECT(lvms), alias_prop_name,
                               OBJECT(dev), "drive");
     return PFLASH_CFI01(dev);
@@ -191,7 +190,7 @@ static void virt_flash_map1(PFlashCFI01 *flash,
     assert(real_size / VIRT_FLASH_SECTOR_SIZE <= UINT32_MAX);
 
     qdev_prop_set_uint32(dev, "num-blocks", real_size / VIRT_FLASH_SECTOR_SIZE);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     memory_region_add_subregion(sysmem, base,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
 }
@@ -295,9 +294,9 @@ static DeviceState *create_acpi_ged(DeviceState *pch_pic,
         event |= ACPI_GED_CPU_HOTPLUG_EVT;
     }
 
-    dev = qdev_new_orphan(TYPE_ACPI_GED);
+    dev = qdev_new(OBJECT(lvms), "acpi-ged", TYPE_ACPI_GED);
     qdev_prop_set_uint32(dev, "ged-event", event);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     /* ged event */
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, VIRT_GED_EVT_ADDR);
@@ -315,18 +314,18 @@ static DeviceState *create_acpi_ged(DeviceState *pch_pic,
     return dev;
 }
 
-static DeviceState *create_platform_bus(DeviceState *pch_pic)
+static DeviceState *create_platform_bus(Object *parent, DeviceState *pch_pic)
 {
     DeviceState *dev;
     SysBusDevice *sysbus;
     int i, irq;
     MemoryRegion *sysmem = get_system_memory();
 
-    dev = qdev_new_orphan(TYPE_PLATFORM_BUS_DEVICE);
+    dev = qdev_new(parent, "platform-bus", TYPE_PLATFORM_BUS_DEVICE);
     dev->id = g_strdup(TYPE_PLATFORM_BUS_DEVICE);
     qdev_prop_set_uint32(dev, "num_irqs", VIRT_PLATFORM_BUS_NUM_IRQS);
     qdev_prop_set_uint32(dev, "mmio_size", VIRT_PLATFORM_BUS_SIZE);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     sysbus = SYS_BUS_DEVICE(dev);
     for (i = 0; i < VIRT_PLATFORM_BUS_NUM_IRQS; i++) {
@@ -400,9 +399,9 @@ static void virt_devices_init(DeviceState *pch_pic,
     hwaddr mmio_base, mmio_size;
     int i, irq;
 
-    gpex_dev = qdev_new_orphan(TYPE_GPEX_HOST);
+    gpex_dev = qdev_new(OBJECT(lvms), "pci-host", TYPE_GPEX_HOST);
     d = SYS_BUS_DEVICE(gpex_dev);
-    sysbus_realize_and_unref(d, &error_fatal);
+    sysbus_realize(d, &error_fatal);
     pci_bus = PCI_HOST_BRIDGE(gpex_dev)->bus;
     lvms->gpex.pio.base = VIRT_PCI_IO_BASE;
     lvms->gpex.pio.size = VIRT_PCI_IO_SIZE;
@@ -485,14 +484,14 @@ static void virt_devices_init(DeviceState *pch_pic,
      * Create some unimplemented devices to emulate this.
      */
     create_unimplemented_device("pci-dma-cfg", 0x1001041c, 0x4);
-    sysbus_create_simple_orphan("ls7a_rtc", VIRT_RTC_REG_BASE,
+    sysbus_create_simple(OBJECT(lvms), "rtc", "ls7a_rtc", VIRT_RTC_REG_BASE,
                          qdev_get_gpio_in(pch_pic,
                          VIRT_RTC_IRQ - VIRT_GSI_BASE));
 
     /* acpi ged */
     lvms->acpi_ged = create_acpi_ged(pch_pic, lvms);
     /* platform bus */
-    lvms->platform_bus_dev = create_platform_bus(pch_pic);
+    lvms->platform_bus_dev = create_platform_bus(OBJECT(lvms), pch_pic);
 }
 
 static void virt_cpu_irq_init(LoongArchVirtMachineState *lvms)
@@ -601,40 +600,40 @@ static void virt_irq_init(LoongArchVirtMachineState *lvms)
      */
 
     /* Create IPI device */
-    ipi = qdev_new_orphan(TYPE_LOONGARCH_IPI);
+    ipi = qdev_new(OBJECT(lvms), "ipi", TYPE_LOONGARCH_IPI);
     lvms->ipi = ipi;
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(ipi), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(ipi), &error_fatal);
 
     /* Create DINTC device*/
     if (virt_has_dmsi(lvms)) {
-        dintc = qdev_new_orphan(TYPE_LOONGARCH_DINTC);
+        dintc = qdev_new(OBJECT(lvms), "dintc", TYPE_LOONGARCH_DINTC);
         lvms->dintc = dintc;
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(dintc), &error_fatal);
+        sysbus_realize(SYS_BUS_DEVICE(dintc), &error_fatal);
         sysbus_mmio_map(SYS_BUS_DEVICE(dintc), 0, VIRT_DINTC_BASE);
     }
 
     /* Create EXTIOI device */
-    extioi = qdev_new_orphan(TYPE_LOONGARCH_EXTIOI);
+    extioi = qdev_new(OBJECT(lvms), "extioi", TYPE_LOONGARCH_EXTIOI);
     lvms->extioi = extioi;
     if (virt_is_veiointc_enabled(lvms)) {
         qdev_prop_set_bit(extioi, "has-virtualization-extension", true);
     }
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(extioi), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(extioi), &error_fatal);
 
     virt_cpu_irq_init(lvms);
-    pch_pic = qdev_new_orphan(TYPE_LOONGARCH_PIC);
+    pch_pic = qdev_new(OBJECT(lvms), "pch-pic", TYPE_LOONGARCH_PIC);
     num = VIRT_PCH_PIC_IRQ_NUM;
     qdev_prop_set_uint32(pch_pic, "pch_pic_irq_num", num);
     d = SYS_BUS_DEVICE(pch_pic);
-    sysbus_realize_and_unref(d, &error_fatal);
+    sysbus_realize(d, &error_fatal);
 
-    pch_msi = qdev_new_orphan(TYPE_LOONGARCH_PCH_MSI);
+    pch_msi = qdev_new(OBJECT(lvms), "pch-msi", TYPE_LOONGARCH_PCH_MSI);
     start   =  num;
     num = EXTIOI_IRQS - start;
     qdev_prop_set_uint32(pch_msi, "msi_irq_base", start);
     qdev_prop_set_uint32(pch_msi, "msi_irq_num", num);
     d = SYS_BUS_DEVICE(pch_msi);
-    sysbus_realize_and_unref(d, &error_fatal);
+    sysbus_realize(d, &error_fatal);
     sysbus_mmio_map(d, 0, VIRT_PCH_MSI_ADDR_LOW);
 
     if (kvm_irqchip_in_kernel()) {
