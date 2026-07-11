@@ -249,7 +249,8 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
      * According to PReP specification section 6.1.6 "System Interrupt
      * Assignments", all PCI interrupts are routed via IRQ 15
      */
-    s->or_irq = OR_IRQ(object_new(TYPE_OR_IRQ));
+    s->or_irq = OR_IRQ(object_new_child(OBJECT(s), "or-irq",
+                                        TYPE_OR_IRQ));
     object_property_set_int(OBJECT(s->or_irq), "num-lines", PCI_NUM_PINS,
                             &error_fatal);
     qdev_realize(DEVICE(s->or_irq), NULL, &error_fatal);
