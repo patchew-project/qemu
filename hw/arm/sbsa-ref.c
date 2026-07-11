@@ -296,7 +296,7 @@ static PFlashCFI01 *sbsa_flash_create1(SBSAMachineState *sms,
      * Create a single flash device.  We use the same parameters as
      * the flash devices on the Versatile Express board.
      */
-    DeviceState *dev = qdev_new_orphan(TYPE_PFLASH_CFI01);
+    DeviceState *dev = qdev_new(OBJECT(sms), name, TYPE_PFLASH_CFI01);
 
     qdev_prop_set_uint64(dev, "sector-length", SBSA_FLASH_SECTOR_SIZE);
     qdev_prop_set_uint8(dev, "width", 4);
@@ -307,7 +307,6 @@ static PFlashCFI01 *sbsa_flash_create1(SBSAMachineState *sms,
     qdev_prop_set_uint16(dev, "id2", 0x00);
     qdev_prop_set_uint16(dev, "id3", 0x00);
     qdev_prop_set_string(dev, "name", name);
-    object_property_add_child(OBJECT(sms), name, OBJECT(dev));
     object_property_add_alias(OBJECT(sms), alias_prop_name,
                               OBJECT(dev), "drive");
     return PFLASH_CFI01(dev);
@@ -328,7 +327,7 @@ static void sbsa_flash_map1(PFlashCFI01 *flash,
     assert(QEMU_IS_ALIGNED(size, SBSA_FLASH_SECTOR_SIZE));
     assert(size / SBSA_FLASH_SECTOR_SIZE <= UINT32_MAX);
     qdev_prop_set_uint32(dev, "num-blocks", size / SBSA_FLASH_SECTOR_SIZE);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     memory_region_add_subregion(sysmem, base,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(dev),
@@ -421,11 +420,11 @@ static void create_its(SBSAMachineState *sms)
     const char *itsclass = its_class_name();
     DeviceState *dev;
 
-    dev = qdev_new_orphan(itsclass);
+    dev = qdev_new(OBJECT(sms), "its", itsclass);
 
     object_property_set_link(OBJECT(dev), "parent-gicv3", OBJECT(sms->gic),
                              &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, sbsa_ref_memmap[SBSA_GIC_ITS].base);
 }
 
@@ -440,7 +439,7 @@ static void create_gic(SBSAMachineState *sms, MemoryRegion *mem)
 
     gictype = gicv3_class_name();
 
-    sms->gic = qdev_new_orphan(gictype);
+    sms->gic = qdev_new(OBJECT(sms), "gic", gictype);
     qdev_prop_set_uint32(sms->gic, "revision", 3);
     qdev_prop_set_uint32(sms->gic, "num-cpu", smp_cpus);
     /*
@@ -463,7 +462,7 @@ static void create_gic(SBSAMachineState *sms, MemoryRegion *mem)
     qdev_prop_set_bit(sms->gic, "has-lpi", true);
 
     gicbusdev = SYS_BUS_DEVICE(sms->gic);
-    sysbus_realize_and_unref(gicbusdev, &error_fatal);
+    sysbus_realize(gicbusdev, &error_fatal);
     sysbus_mmio_map(gicbusdev, 0, sbsa_ref_memmap[SBSA_GIC_DIST].base);
     sysbus_mmio_map(gicbusdev, 1, sbsa_ref_memmap[SBSA_GIC_REDIST].base);
 
@@ -517,39 +516,40 @@ static void create_gic(SBSAMachineState *sms, MemoryRegion *mem)
     create_its(sms);
 }
 
-static void create_uart(const SBSAMachineState *sms, int uart,
+static void create_uart(SBSAMachineState *sms, int uart,
                         MemoryRegion *mem, Chardev *chr)
 {
     hwaddr base = sbsa_ref_memmap[uart].base;
     int irq = sbsa_ref_irqmap[uart];
-    DeviceState *dev = qdev_new_orphan(TYPE_PL011);
+    DeviceState *dev = qdev_new(OBJECT(sms), "uart[*]", TYPE_PL011);
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
 
     qdev_prop_set_chr(dev, "chardev", chr);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     memory_region_add_subregion(mem, base,
                                 sysbus_mmio_get_region(s, 0));
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(sms->gic, irq));
 }
 
-static void create_rtc(const SBSAMachineState *sms)
+static void create_rtc(SBSAMachineState *sms)
 {
     hwaddr base = sbsa_ref_memmap[SBSA_RTC].base;
     int irq = sbsa_ref_irqmap[SBSA_RTC];
 
-    sysbus_create_simple_orphan("pl031", base, qdev_get_gpio_in(sms->gic, irq));
+    sysbus_create_simple(OBJECT(sms), "rtc", "pl031", base,
+                         qdev_get_gpio_in(sms->gic, irq));
 }
 
-static void create_wdt(const SBSAMachineState *sms)
+static void create_wdt(SBSAMachineState *sms)
 {
     hwaddr rbase = sbsa_ref_memmap[SBSA_GWDT_REFRESH].base;
     hwaddr cbase = sbsa_ref_memmap[SBSA_GWDT_CONTROL].base;
-    DeviceState *dev = qdev_new_orphan(TYPE_WDT_SBSA);
+    DeviceState *dev = qdev_new(OBJECT(sms), "wdt", TYPE_WDT_SBSA);
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
     int irq = sbsa_ref_irqmap[SBSA_GWDT_WS0];
 
     qdev_prop_set_uint64(dev, "clock-frequency", SBSA_GTIMER_HZ);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     sysbus_mmio_map(s, 0, rbase);
     sysbus_mmio_map(s, 1, cbase);
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(sms->gic, irq));
@@ -566,23 +566,23 @@ static Notifier sbsa_ref_powerdown_notifier = {
     .notify = sbsa_ref_powerdown_req
 };
 
-static void create_gpio(const SBSAMachineState *sms)
+static void create_gpio(SBSAMachineState *sms)
 {
     DeviceState *pl061_dev;
     hwaddr base = sbsa_ref_memmap[SBSA_GPIO].base;
     int irq = sbsa_ref_irqmap[SBSA_GPIO];
 
-    pl061_dev = sysbus_create_simple_orphan("pl061", base,
+    pl061_dev = sysbus_create_simple(OBJECT(sms), "gpio", "pl061", base,
                                      qdev_get_gpio_in(sms->gic, irq));
 
-    gpio_key_dev = sysbus_create_simple_orphan("gpio-key", -1,
-                                        qdev_get_gpio_in(pl061_dev, 3));
+    gpio_key_dev = sysbus_create_simple(OBJECT(sms), "gpio-key", "gpio-key",
+                                        -1, qdev_get_gpio_in(pl061_dev, 3));
 
     /* connect powerdown request */
     qemu_register_powerdown_notifier(&sbsa_ref_powerdown_notifier);
 }
 
-static void create_ahci(const SBSAMachineState *sms)
+static void create_ahci(SBSAMachineState *sms)
 {
     hwaddr base = sbsa_ref_memmap[SBSA_AHCI].base;
     int irq = sbsa_ref_irqmap[SBSA_AHCI];
@@ -590,9 +590,9 @@ static void create_ahci(const SBSAMachineState *sms)
     DriveInfo *hd[NUM_SATA_PORTS];
     SysbusAHCIState *sysahci;
 
-    dev = qdev_new_orphan("sysbus-ahci");
+    dev = qdev_new(OBJECT(sms), "ahci", "sysbus-ahci");
     qdev_prop_set_uint32(dev, "num-ports", NUM_SATA_PORTS);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(sms->gic, irq));
 
@@ -601,19 +601,19 @@ static void create_ahci(const SBSAMachineState *sms)
     ahci_ide_create_devs(&sysahci->ahci, hd);
 }
 
-static void create_xhci(const SBSAMachineState *sms)
+static void create_xhci(SBSAMachineState *sms)
 {
     hwaddr base = sbsa_ref_memmap[SBSA_XHCI].base;
     int irq = sbsa_ref_irqmap[SBSA_XHCI];
-    DeviceState *dev = qdev_new_orphan(TYPE_XHCI_SYSBUS);
+    DeviceState *dev = qdev_new(OBJECT(sms), "xhci", TYPE_XHCI_SYSBUS);
     qdev_prop_set_uint32(dev, "slots", XHCI_MAXSLOTS);
 
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(sms->gic, irq));
 }
 
-static void create_smmu(const SBSAMachineState *sms, PCIBus *bus,
+static void create_smmu(SBSAMachineState *sms, PCIBus *bus,
                         MemoryRegion *sysmem,
                         MemoryRegion *secure_sysmem)
 {
@@ -622,7 +622,7 @@ static void create_smmu(const SBSAMachineState *sms, PCIBus *bus,
     DeviceState *dev;
     int i;
 
-    dev = qdev_new_orphan(TYPE_ARM_SMMUV3);
+    dev = qdev_new(OBJECT(sms), "smmuv3", TYPE_ARM_SMMUV3);
 
     object_property_set_str(OBJECT(dev), "stage", "nested", &error_abort);
     object_property_set_link(OBJECT(dev), "primary-bus", OBJECT(bus),
@@ -631,7 +631,7 @@ static void create_smmu(const SBSAMachineState *sms, PCIBus *bus,
                              &error_abort);
     object_property_set_link(OBJECT(dev), "secure-memory", OBJECT(secure_sysmem),
                              &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
     for (i = 0; i < NUM_SMMU_IRQS; i++) {
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
@@ -658,8 +658,8 @@ static void create_pcie(SBSAMachineState *sms,
     PCIHostState *pci;
     int i;
 
-    dev = qdev_new_orphan(TYPE_GPEX_HOST);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    dev = qdev_new(OBJECT(sms), "pcie", TYPE_GPEX_HOST);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     /* Map ECAM space */
     ecam_alias = g_new0(MemoryRegion, 1);
@@ -695,7 +695,7 @@ static void create_pcie(SBSAMachineState *sms,
 
     pci_init_nic_devices(pci->bus, mc->default_nic);
 
-    pci_create_simple_orphan(pci->bus, -1, "bochs-display");
+    pci_create_simple(OBJECT(sms), "bochs-display", pci->bus, -1, "bochs-display");
 
     create_smmu(sms, pci->bus, sysmem, secure_sysmem);
 }
@@ -709,11 +709,13 @@ static void *sbsa_ref_dtb(const struct arm_boot_info *binfo, int *fdt_size)
     return board->fdt;
 }
 
-static void create_secure_ec(MemoryRegion *mem)
+static void create_secure_ec(Object *parent, MemoryRegion *mem)
 {
     hwaddr base = sbsa_ref_memmap[SBSA_SECURE_EC].base;
-    DeviceState *dev = qdev_new_orphan("sbsa-ec");
+    DeviceState *dev = qdev_new(parent, "sbsa-ec", "sbsa-ec");
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
+
+    sysbus_realize(s, &error_fatal);
 
     memory_region_add_subregion(mem, base,
                                 sysbus_mmio_get_region(s, 0));
@@ -835,7 +837,7 @@ static void sbsa_ref_init(MachineState *machine)
 
     create_pcie(sms, sysmem, secure_sysmem);
 
-    create_secure_ec(secure_sysmem);
+    create_secure_ec(OBJECT(sms), secure_sysmem);
 
     sms->bootinfo.ram_size = machine->ram_size;
     sms->bootinfo.board_id = -1;
