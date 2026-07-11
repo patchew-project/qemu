@@ -77,19 +77,20 @@ static void isa_ide_realizefn(DeviceState *dev, Error **errp)
     ide_bus_register_restart_cb(&s->bus);
 }
 
-ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int irqnum,
+ISADevice *isa_ide_init(Object *parent, ISABus *bus,
+                        int iobase, int iobase2, int irqnum,
                         DriveInfo *hd0, DriveInfo *hd1)
 {
     DeviceState *dev;
     ISADevice *isadev;
     ISAIDEState *s;
 
-    isadev = isa_new_orphan(TYPE_ISA_IDE);
+    isadev = isa_new(parent, "ide[*]", TYPE_ISA_IDE);
     dev = DEVICE(isadev);
     qdev_prop_set_uint32(dev, "iobase",  iobase);
     qdev_prop_set_uint32(dev, "iobase2", iobase2);
     qdev_prop_set_uint32(dev, "irq",     irqnum);
-    isa_realize_and_unref(isadev, bus, &error_fatal);
+    qdev_realize(dev, BUS(bus), &error_fatal);
 
     s = ISA_IDE(dev);
     if (hd0) {

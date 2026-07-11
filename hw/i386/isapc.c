@@ -142,7 +142,8 @@ static void pc_init_isa(MachineState *machine)
     for (i = 0; i < MAX_IDE_BUS; i++) {
         ISADevice *dev;
         char busname[] = "ide.0";
-        dev = isa_ide_init(isa_bus, ide_iobase[i], ide_iobase2[i],
+        dev = isa_ide_init(OBJECT(machine), isa_bus,
+                            ide_iobase[i], ide_iobase2[i],
                             ide_irq[i],
                             hd[MAX_IDE_DEVS * i], hd[MAX_IDE_DEVS * i + 1]);
         /*

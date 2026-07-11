@@ -14,7 +14,8 @@
 #define TYPE_ISA_IDE "isa-ide"
 OBJECT_DECLARE_SIMPLE_TYPE(ISAIDEState, ISA_IDE)
 
-ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int irqnum,
+ISADevice *isa_ide_init(Object *parent, ISABus *bus,
+                        int iobase, int iobase2, int irqnum,
                         DriveInfo *hd0, DriveInfo *hd1);
 
 #endif
