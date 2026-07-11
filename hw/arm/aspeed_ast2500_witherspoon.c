@@ -44,11 +44,9 @@ static void witherspoon_bmc_i2c_init(AspeedMachineState *bmc)
     LEDState *led;
 
     /* Bus 3: TODO bmp280@77 */
-    dev = DEVICE(i2c_slave_new_orphan(TYPE_PCA9552, 0x60));
+    dev = DEVICE(i2c_slave_new(OBJECT(bmc), "pca9552[*]", TYPE_PCA9552, 0x60));
     qdev_prop_set_string(dev, "description", "pca1");
-    i2c_slave_realize_and_unref(I2C_SLAVE(dev),
-                                aspeed_i2c_get_bus(&soc->i2c, 3),
-                                &error_fatal);
+    qdev_realize(dev, BUS(aspeed_i2c_get_bus(&soc->i2c, 3)), &error_fatal);
 
     for (size_t i = 0; i < ARRAY_SIZE(pca1_leds); i++) {
         led = led_create_simple(OBJECT(bmc),
@@ -58,28 +56,32 @@ static void witherspoon_bmc_i2c_init(AspeedMachineState *bmc)
         qdev_connect_gpio_out(dev, pca1_leds[i].gpio_id,
                               qdev_get_gpio_in(DEVICE(led), 0));
     }
-    i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 3), "dps310", 0x76);
-    i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 3), "max31785", 0x52);
-    i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 4), "tmp423", 0x4c);
-    i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 5), "tmp423", 0x4c);
+    i2c_slave_create_simple(OBJECT(bmc), "dps310",
+                            aspeed_i2c_get_bus(&soc->i2c, 3), "dps310", 0x76);
+    i2c_slave_create_simple(OBJECT(bmc), "max31785",
+                            aspeed_i2c_get_bus(&soc->i2c, 3), "max31785", 0x52);
+    i2c_slave_create_simple(OBJECT(bmc), "tmp423[*]",
+                            aspeed_i2c_get_bus(&soc->i2c, 4), "tmp423", 0x4c);
+    i2c_slave_create_simple(OBJECT(bmc), "tmp423[*]",
+                            aspeed_i2c_get_bus(&soc->i2c, 5), "tmp423", 0x4c);
 
     /* The Witherspoon expects a TMP275 but a TMP105 is compatible */
-    i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 9), TYPE_TMP105,
-                     0x4a);
+    i2c_slave_create_simple(OBJECT(bmc), "tmp105",
+                            aspeed_i2c_get_bus(&soc->i2c, 9), TYPE_TMP105,
+                            0x4a);
 
     /*
      * The witherspoon board expects Epson RX8900 I2C RTC but a ds1338 is
      * good enough
      */
-    i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 11), "ds1338", 0x32);
+    i2c_slave_create_simple(OBJECT(bmc), "rtc",
+                            aspeed_i2c_get_bus(&soc->i2c, 11), "ds1338", 0x32);
 
     smbus_eeprom_init_one(OBJECT(bmc), aspeed_i2c_get_bus(&soc->i2c, 11), 0x51,
                           eeprom_buf);
-    dev = DEVICE(i2c_slave_new_orphan(TYPE_PCA9552, 0x60));
+    dev = DEVICE(i2c_slave_new(OBJECT(bmc), "pca9552[*]", TYPE_PCA9552, 0x60));
     qdev_prop_set_string(dev, "description", "pca0");
-    i2c_slave_realize_and_unref(I2C_SLAVE(dev),
-                                aspeed_i2c_get_bus(&soc->i2c, 11),
-                                &error_fatal);
+    qdev_realize(dev, BUS(aspeed_i2c_get_bus(&soc->i2c, 11)), &error_fatal);
     /* Bus 11: TODO ucd90160@64 */
 }
 

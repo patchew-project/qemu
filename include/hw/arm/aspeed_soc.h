@@ -311,7 +311,8 @@ void aspeed_mmio_map(MemoryRegion *memory, SysBusDevice *dev, int n,
 void aspeed_mmio_map_unimplemented(MemoryRegion *memory, SysBusDevice *dev,
                                    const char *name, hwaddr addr,
                                    uint64_t size);
-void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
+void aspeed_board_init_flashes(Object *parent, AspeedSMCState *s,
+                               const char *flashtype,
                                unsigned int count, int unit0);
 void aspeed_write_boot_rom(BlockBackend *blk, hwaddr addr, size_t rom_size,
                            Error **errp);

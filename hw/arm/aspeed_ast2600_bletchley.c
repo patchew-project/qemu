@@ -35,35 +35,44 @@ static void bletchley_bmc_i2c_init(AspeedMachineState *bmc)
     for (int i = 0; i < 6; i++) {
         /* Missing model: ti,ina230 @ 0x45 */
         /* Missing model: mps,mp5023 @ 0x40 */
-        i2c_slave_create_simple_orphan(i2c[i], TYPE_TMP421, 0x4f);
+        i2c_slave_create_simple(OBJECT(bmc), "tmp421[*]",
+                                i2c[i], TYPE_TMP421, 0x4f);
         /* Missing model: nxp,pca9539 @ 0x76, but PCA9552 works enough */
-        i2c_slave_create_simple_orphan(i2c[i], TYPE_PCA9552, 0x76);
-        i2c_slave_create_simple_orphan(i2c[i], TYPE_PCA9552, 0x67);
+        i2c_slave_create_simple(OBJECT(bmc), "pca9552[*]",
+                                i2c[i], TYPE_PCA9552, 0x76);
+        i2c_slave_create_simple(OBJECT(bmc), "pca9552[*]",
+                                i2c[i], TYPE_PCA9552, 0x67);
         /* Missing model: fsc,fusb302 @ 0x22 */
     }
 
     /* Bus 6 */
     at24c_eeprom_init(i2c[6], 0x56, 65536);
     /* Missing model: nxp,pcf85263 @ 0x51 , but ds1338 works enough */
-    i2c_slave_create_simple_orphan(i2c[6], "ds1338", 0x51);
+    i2c_slave_create_simple(OBJECT(bmc), "rtc", i2c[6], "ds1338", 0x51);
 
 
     /* Bus 7 */
     at24c_eeprom_init(i2c[7], 0x54, 65536);
 
     /* Bus 9 */
-    i2c_slave_create_simple_orphan(i2c[9], TYPE_TMP421, 0x4f);
+    i2c_slave_create_simple(OBJECT(bmc), "tmp421[*]",
+                            i2c[9], TYPE_TMP421, 0x4f);
 
     /* Bus 10 */
-    i2c_slave_create_simple_orphan(i2c[10], TYPE_TMP421, 0x4f);
+    i2c_slave_create_simple(OBJECT(bmc), "tmp421[*]",
+                            i2c[10], TYPE_TMP421, 0x4f);
     /* Missing model: ti,hdc1080 @ 0x40 */
-    i2c_slave_create_simple_orphan(i2c[10], TYPE_PCA9552, 0x67);
+    i2c_slave_create_simple(OBJECT(bmc), "pca9552[*]",
+                            i2c[10], TYPE_PCA9552, 0x67);
 
     /* Bus 12 */
     /* Missing model: adi,adm1278 @ 0x11 */
-    i2c_slave_create_simple_orphan(i2c[12], TYPE_TMP421, 0x4c);
-    i2c_slave_create_simple_orphan(i2c[12], TYPE_TMP421, 0x4d);
-    i2c_slave_create_simple_orphan(i2c[12], TYPE_PCA9552, 0x67);
+    i2c_slave_create_simple(OBJECT(bmc), "tmp421[*]",
+                            i2c[12], TYPE_TMP421, 0x4c);
+    i2c_slave_create_simple(OBJECT(bmc), "tmp421[*]",
+                            i2c[12], TYPE_TMP421, 0x4d);
+    i2c_slave_create_simple(OBJECT(bmc), "pca9552[*]",
+                            i2c[12], TYPE_PCA9552, 0x67);
 }
 
 static void aspeed_machine_bletchley_class_init(ObjectClass *oc,

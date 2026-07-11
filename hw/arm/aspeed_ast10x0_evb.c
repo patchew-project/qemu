@@ -40,16 +40,16 @@ static void aspeed_minibmc_machine_init(MachineState *machine)
     qdev_realize(DEVICE(bmc->soc), NULL, &error_abort);
 
     if (defaults_enabled()) {
-        aspeed_board_init_flashes(&bmc->soc->fmc,
+        aspeed_board_init_flashes(OBJECT(bmc), &bmc->soc->fmc,
                             bmc->fmc_model ? bmc->fmc_model : amc->fmc_model,
                             amc->num_cs,
                             0);
 
-        aspeed_board_init_flashes(&bmc->soc->spi[0],
+        aspeed_board_init_flashes(OBJECT(bmc), &bmc->soc->spi[0],
                             bmc->spi_model ? bmc->spi_model : amc->spi_model,
                             amc->num_cs, amc->num_cs);
 
-        aspeed_board_init_flashes(&bmc->soc->spi[1],
+        aspeed_board_init_flashes(OBJECT(bmc), &bmc->soc->spi[1],
                             bmc->spi_model ? bmc->spi_model : amc->spi_model,
                             amc->num_cs, (amc->num_cs * 2));
     }
@@ -74,7 +74,8 @@ static void ast1030_evb_i2c_init(AspeedMachineState *bmc)
                           eeprom_buf);
 
     /* U11 LM75 connects to SDA/SCL Group 2 by default */
-    i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 1), "tmp105", 0x4d);
+    i2c_slave_create_simple(OBJECT(bmc), "tmp105",
+                            aspeed_i2c_get_bus(&soc->i2c, 1), "tmp105", 0x4d);
 }
 
 static void aspeed_minibmc_machine_ast1030_evb_class_init(ObjectClass *oc,

@@ -33,21 +33,27 @@ static void quanta_q71l_bmc_i2c_init(AspeedMachineState *bmc)
      * The quanta-q71l platform expects tmp75s which are compatible with
      * tmp105s.
      */
-    i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 1), "tmp105", 0x4c);
-    i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 1), "tmp105", 0x4e);
-    i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 1), "tmp105", 0x4f);
+    i2c_slave_create_simple(OBJECT(bmc), "tmp105[*]",
+                            aspeed_i2c_get_bus(&soc->i2c, 1), "tmp105", 0x4c);
+    i2c_slave_create_simple(OBJECT(bmc), "tmp105[*]",
+                            aspeed_i2c_get_bus(&soc->i2c, 1), "tmp105", 0x4e);
+    i2c_slave_create_simple(OBJECT(bmc), "tmp105[*]",
+                            aspeed_i2c_get_bus(&soc->i2c, 1), "tmp105", 0x4f);
 
     /* TODO: i2c-1: Add baseboard FRU eeprom@54 24c64 */
     /* TODO: i2c-1: Add Frontpanel FRU eeprom@57 24c64 */
     /* TODO: Add Memory Riser i2c mux and eeproms. */
 
-    i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 2), "pca9546", 0x74);
-    i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 2), "pca9548", 0x77);
+    i2c_slave_create_simple(OBJECT(bmc), "i2c-mux[*]",
+                            aspeed_i2c_get_bus(&soc->i2c, 2), "pca9546", 0x74);
+    i2c_slave_create_simple(OBJECT(bmc), "i2c-mux[*]",
+                            aspeed_i2c_get_bus(&soc->i2c, 2), "pca9548", 0x77);
 
     /* TODO: i2c-3: Add BIOS FRU eeprom@56 24c64 */
 
     /* i2c-7 */
-    i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 7), "pca9546", 0x70);
+    i2c_slave_create_simple(OBJECT(bmc), "i2c-mux[*]",
+                            aspeed_i2c_get_bus(&soc->i2c, 7), "pca9546", 0x70);
     /*        - i2c@0: pmbus@59 */
     /*        - i2c@1: pmbus@58 */
     /*        - i2c@2: pmbus@58 */

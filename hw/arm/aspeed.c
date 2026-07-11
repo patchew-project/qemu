@@ -82,15 +82,16 @@ static void aspeed_reset_secondary(ARMCPU *cpu,
     cpu_set_pc(cs, info->smp_loader_start);
 }
 
-static void sdhci_attach_drive(SDHCIState *sdhci, DriveInfo *dinfo, bool emmc,
-                               bool boot_emmc)
+static void sdhci_attach_drive(Object *parent, SDHCIState *sdhci,
+                               DriveInfo *dinfo, bool emmc, bool boot_emmc)
 {
         DeviceState *card;
 
         if (!dinfo) {
             return;
         }
-        card = qdev_new_orphan(emmc ? TYPE_EMMC : TYPE_SD_CARD);
+        card = qdev_new(parent, "sd-card[*]",
+                        emmc ? TYPE_EMMC : TYPE_SD_CARD);
 
         /*
          * Force the boot properties of the eMMC device only when the
@@ -108,9 +109,8 @@ static void sdhci_attach_drive(SDHCIState *sdhci, DriveInfo *dinfo, bool emmc,
         }
         qdev_prop_set_drive_err(card, "drive", blk_by_legacy_dinfo(dinfo),
                                 &error_fatal);
-        qdev_realize_and_unref(card,
-                               qdev_get_child_bus(DEVICE(sdhci), "sd-bus"),
-                               &error_fatal);
+        qdev_realize(card, qdev_get_child_bus(DEVICE(sdhci), "sd-bus"),
+                     &error_fatal);
 }
 
 void aspeed_connect_serial_hds_to_uarts(AspeedMachineState *bmc)
@@ -188,13 +188,13 @@ static void aspeed_machine_init(MachineState *machine)
     qdev_realize(DEVICE(bmc->soc), NULL, &error_abort);
 
     if (defaults_enabled()) {
-        aspeed_board_init_flashes(&bmc->soc->fmc,
+        aspeed_board_init_flashes(OBJECT(bmc), &bmc->soc->fmc,
                               bmc->fmc_model ? bmc->fmc_model : amc->fmc_model,
                               amc->num_cs, 0);
-        aspeed_board_init_flashes(&bmc->soc->spi[0],
+        aspeed_board_init_flashes(OBJECT(bmc), &bmc->soc->spi[0],
                               bmc->spi_model ? bmc->spi_model : amc->spi_model,
                               1, amc->num_cs);
-        aspeed_board_init_flashes(&bmc->soc->spi[1],
+        aspeed_board_init_flashes(OBJECT(bmc), &bmc->soc->spi[1],
                                   amc->spi2_model, 1, amc->num_cs2);
     }
 
@@ -219,7 +219,7 @@ static void aspeed_machine_init(MachineState *machine)
     }
 
     for (i = 0; i < bmc->soc->sdhci.num_slots && defaults_enabled(); i++) {
-        sdhci_attach_drive(&bmc->soc->sdhci.slots[i],
+        sdhci_attach_drive(OBJECT(bmc), &bmc->soc->sdhci.slots[i],
                            drive_get(IF_SD, 0, i), false, false);
     }
 
@@ -227,7 +227,8 @@ static void aspeed_machine_init(MachineState *machine)
 
     if (bmc->soc->emmc.num_slots && defaults_enabled()) {
         emmc0 = drive_get(IF_SD, 0, bmc->soc->sdhci.num_slots);
-        sdhci_attach_drive(&bmc->soc->emmc.slots[0], emmc0, true, boot_emmc);
+        sdhci_attach_drive(OBJECT(bmc), &bmc->soc->emmc.slots[0], emmc0,
+                           true, boot_emmc);
     }
 
     if (!bmc->mmio_exec) {
@@ -251,16 +252,20 @@ static void aspeed_machine_init(MachineState *machine)
     arm_load_kernel(ARM_CPU(first_cpu), machine, &aspeed_board_binfo);
 }
 
-void aspeed_create_pca9552(AspeedSoCState *soc, int bus_id, int addr)
+void aspeed_create_pca9552(Object *parent, AspeedSoCState *soc, int bus_id,
+                           int addr)
 {
-    i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, bus_id),
+    i2c_slave_create_simple(parent, "pca9552[*]",
+                            aspeed_i2c_get_bus(&soc->i2c, bus_id),
                             TYPE_PCA9552, addr);
 }
 
-I2CSlave *aspeed_create_pca9554(AspeedSoCState *soc, int bus_id, int addr)
+I2CSlave *aspeed_create_pca9554(Object *parent, AspeedSoCState *soc,
+                                int bus_id, int addr)
 {
-    return i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, bus_id),
-                            TYPE_PCA9554, addr);
+    return i2c_slave_create_simple(parent, "pca9554[*]",
+                                   aspeed_i2c_get_bus(&soc->i2c, bus_id),
+                                   TYPE_PCA9554, addr);
 }
 
 static bool aspeed_get_mmio_exec(Object *obj, Error **errp)

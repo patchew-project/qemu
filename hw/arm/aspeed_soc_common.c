@@ -81,11 +81,12 @@ bool aspeed_soc_dram_init(AspeedSoCState *s, Error **errp)
      * SoC has.
      */
     if (ram_size < max_ram_size) {
-        DeviceState *dev = qdev_new_orphan(TYPE_UNIMPLEMENTED_DEVICE);
+        DeviceState *dev = qdev_new(OBJECT(s), "ram-empty",
+                                    TYPE_UNIMPLEMENTED_DEVICE);
 
         qdev_prop_set_string(dev, "name", "ram-empty");
         qdev_prop_set_uint64(dev, "size", max_ram_size  - ram_size);
-        if (!sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), errp)) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(dev), errp)) {
             return false;
         }
 
@@ -115,7 +116,8 @@ void aspeed_mmio_map_unimplemented(MemoryRegion *memory, SysBusDevice *dev,
                                         sysbus_mmio_get_region(dev, 0), -1000);
 }
 
-void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
+void aspeed_board_init_flashes(Object *parent, AspeedSMCState *s,
+                               const char *flashtype,
                                unsigned int count, int unit0)
 {
     int i;
@@ -128,12 +130,12 @@ void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
         DriveInfo *dinfo = drive_get(IF_MTD, 0, unit0 + i);
         DeviceState *dev;
 
-        dev = qdev_new_orphan(flashtype);
+        dev = qdev_new(parent, "flash[*]", flashtype);
         if (dinfo) {
             qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo));
         }
         qdev_prop_set_uint8(dev, "cs", i);
-        qdev_realize_and_unref(dev, BUS(s->spi), &error_fatal);
+        qdev_realize(dev, BUS(s->spi), &error_fatal);
     }
 }
 

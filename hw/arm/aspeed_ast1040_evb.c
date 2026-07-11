@@ -56,7 +56,8 @@ static void ast1040_evb_i2c_init(AspeedMachineState *bmc)
 
     smbus_eeprom_init_one(OBJECT(bmc), aspeed_i2c_get_bus(&soc->i2c, 0), 0x50,
                           eeprom_buf);
-    i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 1), "tmp105", 0x4d);
+    i2c_slave_create_simple(OBJECT(bmc), "tmp105",
+                            aspeed_i2c_get_bus(&soc->i2c, 1), "tmp105", 0x4d);
 }
 
 static void aspeed_machine_ast1040_evb_class_init(ObjectClass *oc,

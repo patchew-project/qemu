@@ -24,7 +24,8 @@ static void ast2700_evb_i2c_init(AspeedMachineState *bmc)
     AspeedSoCState *soc = bmc->soc;
 
     /* LM75 is compatible with TMP105 driver */
-    i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 0),
+    i2c_slave_create_simple(OBJECT(bmc), "tmp105",
+                            aspeed_i2c_get_bus(&soc->i2c, 0),
                             TYPE_TMP105, 0x4d);
 }
 
