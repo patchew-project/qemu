@@ -241,11 +241,11 @@ static void init_cpus(MachineState *ms, const char *cpu_type,
      * this must happen after the CPUs are created because a15mpcore_priv
      * wires itself up to the CPU's generic_timer gpio out lines.
      */
-    dev = qdev_new_orphan(privdev);
+    dev = qdev_new(OBJECT(ms), "mpcore", privdev);
     qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
     qdev_prop_set_uint32(dev, "num-irq", GIC_EXT_IRQS + GIC_INTERNAL);
     busdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_realize(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, periphbase);
 
     /* Interrupts [42:0] are from the motherboard;
@@ -301,10 +301,10 @@ static void a9_daughterboard_init(VexpressMachineState *vms,
     /* Daughterboard peripherals : 0x10020000 .. 0x20000000 */
 
     /* 0x10020000 PL111 CLCD (daughterboard) */
-    dev = qdev_new_orphan("pl111");
+    dev = qdev_new(OBJECT(vms), "db-clcd", "pl111");
     object_property_set_link(OBJECT(dev), "framebuffer-memory",
                              OBJECT(sysmem), &error_fatal);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x10020000);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[44]);
 
@@ -313,7 +313,7 @@ static void a9_daughterboard_init(VexpressMachineState *vms,
     /* 0x100e1000 PL354 Static Memory Controller */
     /* 0x100e2000 System Configuration Controller */
 
-    sysbus_create_simple_orphan("sp804", 0x100e4000, pic[48]);
+    sysbus_create_simple(OBJECT(vms), "timer[*]", "sp804", 0x100e4000, pic[48]);
     /* 0x100e5000 SP805 Watchdog module */
     /* 0x100e6000 BP147 TrustZone Protection Controller */
     /* 0x100e9000 PL301 'Fast' AXI matrix */
@@ -321,7 +321,7 @@ static void a9_daughterboard_init(VexpressMachineState *vms,
     /* 0x100ec000 TrustZone Address Space Controller */
     /* 0x10200000 CoreSight debug APB */
     /* 0x1e00a000 PL310 L2 Cache Controller */
-    sysbus_create_varargs_orphan("l2x0", 0x1e00a000, NULL);
+    sysbus_create_varargs(OBJECT(vms), "l2x0", "l2x0", 0x1e00a000, NULL);
 }
 
 /* Voltage values for SYS_CFG_VOLT daughterboard registers;
@@ -514,10 +514,11 @@ static void vexpress_modify_dtb(const struct arm_boot_info *info, void *fdt)
 /* Open code a private version of pflash registration since we
  * need to set non-default device width for VExpress platform.
  */
-static PFlashCFI01 *ve_pflash_cfi01_register(hwaddr base, const char *name,
+static PFlashCFI01 *ve_pflash_cfi01_register(Object *parent,
+                                             hwaddr base, const char *name,
                                              DriveInfo *di)
 {
-    DeviceState *dev = qdev_new_orphan(TYPE_PFLASH_CFI01);
+    DeviceState *dev = qdev_new(parent, "flash[*]", TYPE_PFLASH_CFI01);
 
     if (di) {
         qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(di));
@@ -534,7 +535,7 @@ static PFlashCFI01 *ve_pflash_cfi01_register(hwaddr base, const char *name,
     qdev_prop_set_uint16(dev, "id2", 0x00);
     qdev_prop_set_uint16(dev, "id3", 0x00);
     qdev_prop_set_string(dev, "name", name);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
     return PFLASH_CFI01(dev);
@@ -592,7 +593,7 @@ static void vexpress_common_init(MachineState *machine)
 
     sys_id = 0x1190f500;
 
-    sysctl = qdev_new_orphan("realview_sysctl");
+    sysctl = qdev_new(OBJECT(machine), "sysctl", "realview_sysctl");
     qdev_prop_set_uint32(sysctl, "sys_id", sys_id);
     qdev_prop_set_uint32(sysctl, "proc_id", daughterboard->proc_id);
 
@@ -608,22 +609,23 @@ static void vexpress_common_init(MachineState *machine)
     }
     qdev_prop_set_array(sysctl, "db-clock", db_clock);
 
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(sysctl), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(sysctl), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(sysctl), 0, map[VE_SYSREGS]);
 
     /* VE_SP810: not modelled */
     /* VE_SERIALPCI: not modelled */
 
-    pl041 = qdev_new_orphan("pl041");
+    pl041 = qdev_new(OBJECT(machine), "aaci", "pl041");
     qdev_prop_set_uint32(pl041, "nc_fifo_depth", 512);
     if (machine->audiodev) {
         qdev_prop_set_string(pl041, "audiodev", machine->audiodev);
     }
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(pl041), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(pl041), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(pl041), 0, map[VE_PL041]);
     sysbus_connect_irq(SYS_BUS_DEVICE(pl041), 0, pic[11]);
 
-    dev = sysbus_create_varargs_orphan("pl181", map[VE_MMCI], pic[9], pic[10], NULL);
+    dev = sysbus_create_varargs(OBJECT(machine), "mmci", "pl181",
+                                map[VE_MMCI], pic[9], pic[10], NULL);
     /* Wire up MMC card detect and read-only signals */
     qdev_connect_gpio_out_named(dev, "card-read-only", 0,
                           qdev_get_gpio_in(sysctl, ARM_SYSCTL_GPIO_MMC_WPROT));
@@ -633,42 +635,43 @@ static void vexpress_common_init(MachineState *machine)
     if (dinfo) {
         DeviceState *card;
 
-        card = qdev_new_orphan(TYPE_SD_CARD);
+        card = qdev_new(OBJECT(machine), "sd-card", TYPE_SD_CARD);
         qdev_prop_set_drive_err(card, "drive", blk_by_legacy_dinfo(dinfo),
                                 &error_fatal);
-        qdev_realize_and_unref(card, qdev_get_child_bus(dev, "sd-bus"),
-                               &error_fatal);
+        qdev_realize(card, qdev_get_child_bus(dev, "sd-bus"), &error_fatal);
     }
 
-    sysbus_create_simple_orphan("pl050_keyboard", map[VE_KMI0], pic[12]);
-    sysbus_create_simple_orphan("pl050_mouse", map[VE_KMI1], pic[13]);
+    sysbus_create_simple(OBJECT(machine), "keyboard", "pl050_keyboard",
+                         map[VE_KMI0], pic[12]);
+    sysbus_create_simple(OBJECT(machine), "mouse", "pl050_mouse", map[VE_KMI1], pic[13]);
 
     pl011_create(OBJECT(machine), map[VE_UART0], pic[5], serial_hd(0));
     pl011_create(OBJECT(machine), map[VE_UART1], pic[6], serial_hd(1));
     pl011_create(OBJECT(machine), map[VE_UART2], pic[7], serial_hd(2));
     pl011_create(OBJECT(machine), map[VE_UART3], pic[8], serial_hd(3));
 
-    sysbus_create_simple_orphan("sp804", map[VE_TIMER01], pic[2]);
-    sysbus_create_simple_orphan("sp804", map[VE_TIMER23], pic[3]);
+    sysbus_create_simple(OBJECT(machine), "timer[*]", "sp804", map[VE_TIMER01], pic[2]);
+    sysbus_create_simple(OBJECT(machine), "timer[*]", "sp804", map[VE_TIMER23], pic[3]);
 
-    dev = sysbus_create_simple_orphan(TYPE_ARM_SBCON_I2C, map[VE_SERIALDVI], NULL);
+    dev = sysbus_create_simple(OBJECT(machine), "i2c",
+                               TYPE_ARM_SBCON_I2C, map[VE_SERIALDVI], NULL);
     i2c = (I2CBus *)qdev_get_child_bus(dev, "i2c");
-    i2c_slave_create_simple_orphan(i2c, "sii9022", 0x39);
+    i2c_slave_create_simple(OBJECT(machine), "sii9022", i2c, "sii9022", 0x39);
 
-    sysbus_create_simple_orphan("pl031", map[VE_RTC], pic[4]); /* RTC */
+    sysbus_create_simple(OBJECT(machine), "rtc", "pl031", map[VE_RTC], pic[4]); /* RTC */
 
     /* VE_COMPACTFLASH: not modelled */
 
-    dev = qdev_new_orphan("pl111");
+    dev = qdev_new(OBJECT(machine), "clcd", "pl111");
     object_property_set_link(OBJECT(dev), "framebuffer-memory",
                              OBJECT(sysmem), &error_fatal);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, map[VE_CLCD]);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[14]);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
-    pflash0 = ve_pflash_cfi01_register(map[VE_NORFLASH0], "vexpress.flash0",
-                                       dinfo);
+    pflash0 = ve_pflash_cfi01_register(OBJECT(machine), map[VE_NORFLASH0],
+                                       "vexpress.flash0", dinfo);
 
     if (map[VE_NORFLASHALIAS] != -1) {
         /* Map flash 0 as an alias into low memory */
@@ -680,7 +683,8 @@ static void vexpress_common_init(MachineState *machine)
     }
 
     dinfo = drive_get(IF_PFLASH, 0, 1);
-    ve_pflash_cfi01_register(map[VE_NORFLASH1], "vexpress.flash1", dinfo);
+    ve_pflash_cfi01_register(OBJECT(machine), map[VE_NORFLASH1],
+                             "vexpress.flash1", dinfo);
 
     sram_size = 0x2000000;
     memory_region_init_ram(&vms->sram, NULL, "vexpress.sram", sram_size,
@@ -706,8 +710,8 @@ static void vexpress_common_init(MachineState *machine)
      * no backend is created the transport will just sit harmlessly idle.
      */
     for (i = 0; i < NUM_VIRTIO_TRANSPORTS; i++) {
-        sysbus_create_simple_orphan("virtio-mmio", map[VE_VIRTIO] + 0x200 * i,
-                             pic[40 + i]);
+        sysbus_create_simple(OBJECT(machine), "virtio-mmio[*]", "virtio-mmio",
+                             map[VE_VIRTIO] + 0x200 * i, pic[40 + i]);
     }
 
     daughterboard->bootinfo.ram_size = machine->ram_size;
