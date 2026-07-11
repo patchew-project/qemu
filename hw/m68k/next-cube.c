@@ -1292,9 +1292,9 @@ static void next_cube_init(MachineState *machine)
     sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 1, 0x02106000);
 
     /* unknown: Brightness control register? */
-    empty_slot_init("next.unknown.0", 0x02110000, 0x10);
+    empty_slot_init(OBJECT(machine), "next.unknown.0", 0x02110000, 0x10);
     /* unknown: Magneto-Optical drive controller? */
-    empty_slot_init("next.unknown.1", 0x02112000, 0x10);
+    empty_slot_init(OBJECT(machine), "next.unknown.1", 0x02112000, 0x10);
 
     /* SCSI */
     sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 2, 0x02114000);
@@ -1304,7 +1304,7 @@ static void next_cube_init(MachineState *machine)
     sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 4, 0x02118000);
 
     /* unknown: Serial clock configuration register? */
-    empty_slot_init("next.unknown.2", 0x02118004, 0x10);
+    empty_slot_init(OBJECT(machine), "next.unknown.2", 0x02118004, 0x10);
 
     /* Timer */
     sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 5, 0x0211a000);

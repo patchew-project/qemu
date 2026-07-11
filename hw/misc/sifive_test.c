@@ -95,10 +95,10 @@ type_init(sifive_test_register_types)
 /*
  * Create Test device.
  */
-DeviceState *sifive_test_create(hwaddr addr)
+DeviceState *sifive_test_create(Object *parent, hwaddr addr)
 {
-    DeviceState *dev = qdev_new_orphan(TYPE_SIFIVE_TEST);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    DeviceState *dev = qdev_new(parent, "test", TYPE_SIFIVE_TEST);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, addr);
     return dev;
 }

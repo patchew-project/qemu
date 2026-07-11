@@ -264,7 +264,7 @@ static void openrisc_virt_test_init(OR1KVirtState *state, hwaddr base,
     char *nodename;
 
     /* SiFive Test MMIO device */
-    sifive_test_create(base);
+    sifive_test_create(OBJECT(state), base);
 
     /* SiFive Test MMIO Reset device FDT */
     nodename = g_strdup_printf("/soc/test@%" HWADDR_PRIx, base);

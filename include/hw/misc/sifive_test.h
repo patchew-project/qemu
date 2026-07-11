@@ -42,6 +42,6 @@ enum {
     FINISHER_RESET = 0x7777
 };
 
-DeviceState *sifive_test_create(hwaddr addr);
+DeviceState *sifive_test_create(Object *parent, hwaddr addr);
 
 #endif

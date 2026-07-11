@@ -52,16 +52,17 @@ static const MemoryRegionOps empty_slot_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-void empty_slot_init(const char *name, hwaddr addr, uint64_t slot_size)
+void empty_slot_init(Object *parent, const char *name, hwaddr addr,
+                     uint64_t slot_size)
 {
     if (slot_size > 0) {
         /* Only empty slots larger than 0 byte need handling. */
         DeviceState *dev;
 
-        dev = qdev_new_orphan(TYPE_EMPTY_SLOT);
+        dev = qdev_new(parent, name, TYPE_EMPTY_SLOT);
 
         qdev_prop_set_uint64(dev, "size", slot_size);
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+        sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
         sysbus_mmio_map_overlap(SYS_BUS_DEVICE(dev), 0, addr, -10000);
     }

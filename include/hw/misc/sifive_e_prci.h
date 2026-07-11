@@ -69,6 +69,6 @@ struct SiFiveEPRCIState {
     uint32_t plloutdiv;
 };
 
-DeviceState *sifive_e_prci_create(hwaddr addr);
+DeviceState *sifive_e_prci_create(Object *parent, hwaddr addr);
 
 #endif

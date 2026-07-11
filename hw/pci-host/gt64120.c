@@ -1224,7 +1224,7 @@ static void gt64120_realize(DeviceState *dev, Error **errp)
      * exception when accessing invalid memory. Create an empty slot to
      * emulate this feature.
      */
-    empty_slot_init("GT64120", 0, 0x20000000);
+    empty_slot_init(OBJECT(dev), "GT64120", 0, 0x20000000);
 }
 
 static void gt64120_pci_realize(PCIDevice *d, Error **errp)

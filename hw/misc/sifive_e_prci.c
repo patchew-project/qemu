@@ -115,10 +115,10 @@ type_init(sifive_e_prci_register_types)
 /*
  * Create PRCI device.
  */
-DeviceState *sifive_e_prci_create(hwaddr addr)
+DeviceState *sifive_e_prci_create(Object *parent, hwaddr addr)
 {
-    DeviceState *dev = qdev_new_orphan(TYPE_SIFIVE_E_PRCI);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    DeviceState *dev = qdev_new(parent, "prci", TYPE_SIFIVE_E_PRCI);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, addr);
     return dev;
 }

@@ -141,20 +141,21 @@ LEDState *led_create_simple(Object *parentobj,
     g_autofree char *name = NULL;
     DeviceState *dev;
 
-    dev = qdev_new_orphan(TYPE_LED);
-    qdev_prop_set_bit(dev, "gpio-active-high",
-                      gpio_polarity == GPIO_POLARITY_ACTIVE_HIGH);
-    qdev_prop_set_string(dev, "color", led_color_name[color]);
     if (!description) {
         static unsigned undescribed_led_id;
         name = g_strdup_printf("undescribed-led-#%u", undescribed_led_id++);
     } else {
-        qdev_prop_set_string(dev, "description", description);
         name = g_ascii_strdown(description, -1);
         name = g_strdelimit(name, " #", '-');
     }
-    object_property_add_child(parentobj, name, OBJECT(dev));
-    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    dev = qdev_new(parentobj, name, TYPE_LED);
+    qdev_prop_set_bit(dev, "gpio-active-high",
+                      gpio_polarity == GPIO_POLARITY_ACTIVE_HIGH);
+    qdev_prop_set_string(dev, "color", led_color_name[color]);
+    if (description) {
+        qdev_prop_set_string(dev, "description", description);
+    }
+    qdev_realize(dev, NULL, &error_fatal);
 
     return LED(dev);
 }

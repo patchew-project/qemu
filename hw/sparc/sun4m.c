@@ -842,7 +842,7 @@ static void sun4m_hw_init(MachineState *machine)
 
     /* models without ECC don't trap when missing ram is accessed */
     if (!hwdef->ecc_base) {
-        empty_slot_init("ecc", machine->ram_size,
+        empty_slot_init(OBJECT(machine), "ecc", machine->ram_size,
                         hwdef->max_mem - machine->ram_size);
     }
 
@@ -875,7 +875,7 @@ static void sun4m_hw_init(MachineState *machine)
            Software shouldn't use aliased addresses, neither should it crash
            when does. Using empty_slot instead of aliasing can help with
            debugging such accesses */
-        empty_slot_init("iommu.alias",
+        empty_slot_init(OBJECT(machine), "iommu.alias",
                         hwdef->iommu_pad_base, hwdef->iommu_pad_len);
     }
 
@@ -937,7 +937,8 @@ static void sun4m_hw_init(MachineState *machine)
         /* vsimm registers probed by OBP */
         if (hwdef->vsimm[i].reg_base) {
             char *name = g_strdup_printf("vsimm[%d]", i);
-            empty_slot_init(name, hwdef->vsimm[i].reg_base, 0x2000);
+            empty_slot_init(OBJECT(machine), name,
+                            hwdef->vsimm[i].reg_base, 0x2000);
             g_free(name);
         }
     }
