@@ -53,7 +53,7 @@
  * must be one of a small set of sizes. The number of banks and the supported
  * sizes varies by SoC.
  */
-static bool ppc4xx_sdram_banks(MemoryRegion *ram, int nr_banks,
+static bool ppc4xx_sdram_banks(Object *owner, MemoryRegion *ram, int nr_banks,
                                Ppc4xxSdramBank ram_banks[],
                                const ram_addr_t sdram_bank_sizes[],
                                Error **errp)
@@ -76,7 +76,7 @@ static bool ppc4xx_sdram_banks(MemoryRegion *ram, int nr_banks,
                 base += bank_size;
                 size_left -= bank_size;
                 snprintf(name, sizeof(name), "ppc4xx.sdram%d", i);
-                memory_region_init_alias(&ram_banks[i].ram, NULL, name, ram,
+                memory_region_init_alias(&ram_banks[i].ram, owner, name, ram,
                                          ram_banks[i].base, ram_banks[i].size);
                 break;
             }
@@ -108,10 +108,10 @@ static bool ppc4xx_sdram_banks(MemoryRegion *ram, int nr_banks,
     return true;
 }
 
-static void sdram_bank_map(Ppc4xxSdramBank *bank)
+static void sdram_bank_map(Object *owner, Ppc4xxSdramBank *bank)
 {
     trace_ppc4xx_sdram_map(bank->base, bank->size);
-    memory_region_init(&bank->container, NULL, "sdram-container", bank->size);
+    memory_region_init(&bank->container, owner, "sdram-container", bank->size);
     memory_region_add_subregion(&bank->container, 0, &bank->ram);
     memory_region_add_subregion(get_system_memory(), bank->base,
                                 &bank->container);
@@ -125,7 +125,7 @@ static void sdram_bank_unmap(Ppc4xxSdramBank *bank)
     object_unparent(OBJECT(&bank->container));
 }
 
-static void sdram_bank_set_bcr(Ppc4xxSdramBank *bank, uint32_t bcr,
+static void sdram_bank_set_bcr(Object *owner, Ppc4xxSdramBank *bank, uint32_t bcr,
                                hwaddr base, hwaddr size, int enabled)
 {
     if (memory_region_is_mapped(&bank->container)) {
@@ -135,7 +135,7 @@ static void sdram_bank_set_bcr(Ppc4xxSdramBank *bank, uint32_t bcr,
     bank->base = base;
     bank->size = size;
     if (enabled && (bcr & 1)) {
-        sdram_bank_map(bank);
+        sdram_bank_map(owner, bank);
     }
 }
 
@@ -296,7 +296,7 @@ static void sdram_ddr_dcr_write(void *opaque, int dcrn, uint32_t val)
                 /* validate all RAM mappings */
                 for (i = 0; i < s->nbanks; i++) {
                     if (s->bank[i].size) {
-                        sdram_bank_set_bcr(&s->bank[i], s->bank[i].bcr,
+                        sdram_bank_set_bcr(OBJECT(s), &s->bank[i], s->bank[i].bcr,
                                            s->bank[i].base, s->bank[i].size,
                                            1);
                     }
@@ -307,7 +307,7 @@ static void sdram_ddr_dcr_write(void *opaque, int dcrn, uint32_t val)
                 /* invalidate all RAM mappings */
                 for (i = 0; i < s->nbanks; i++) {
                     if (s->bank[i].size) {
-                        sdram_bank_set_bcr(&s->bank[i], s->bank[i].bcr,
+                        sdram_bank_set_bcr(OBJECT(s), &s->bank[i], s->bank[i].bcr,
                                            s->bank[i].base, s->bank[i].size,
                                            0);
                     }
@@ -337,7 +337,7 @@ static void sdram_ddr_dcr_write(void *opaque, int dcrn, uint32_t val)
             i = (s->addr - 0x40) / 4;
             val &= SDRAM_DDR_BCR_MASK;
             if (s->bank[i].size) {
-                sdram_bank_set_bcr(&s->bank[i], val,
+                sdram_bank_set_bcr(OBJECT(s), &s->bank[i], val,
                                    sdram_ddr_base(val), sdram_ddr_size(val),
                                    s->cfg & 0x80000000);
             }
@@ -400,17 +400,17 @@ static void ppc4xx_sdram_ddr_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "Missing dram memory region");
         return;
     }
-    if (!ppc4xx_sdram_banks(s->dram_mr, s->nbanks, s->bank,
+    if (!ppc4xx_sdram_banks(OBJECT(s), s->dram_mr, s->nbanks, s->bank,
                             valid_bank_sizes, errp)) {
         return;
     }
     for (i = 0; i < s->nbanks; i++) {
         if (s->bank[i].size) {
             s->bank[i].bcr = sdram_ddr_bcr(s->bank[i].base, s->bank[i].size);
-            sdram_bank_set_bcr(&s->bank[i], s->bank[i].bcr,
+            sdram_bank_set_bcr(OBJECT(s), &s->bank[i], s->bank[i].bcr,
                                s->bank[i].base, s->bank[i].size, 0);
         } else {
-            sdram_bank_set_bcr(&s->bank[i], 0, 0, 0, 0);
+            sdram_bank_set_bcr(OBJECT(s), &s->bank[i], 0, 0, 0, 0);
         }
         trace_ppc4xx_sdram_init(sdram_ddr_base(s->bank[i].bcr),
                                 sdram_ddr_size(s->bank[i].bcr),
@@ -607,7 +607,7 @@ static void sdram_ddr2_dcr_write(void *opaque, int dcrn, uint32_t val)
                 /* validate all RAM mappings */
                 for (i = 0; i < s->nbanks; i++) {
                     if (s->bank[i].size) {
-                        sdram_bank_set_bcr(&s->bank[i], s->bank[i].bcr,
+                        sdram_bank_set_bcr(OBJECT(s), &s->bank[i], s->bank[i].bcr,
                                            s->bank[i].base, s->bank[i].size,
                                            1);
                     }
@@ -619,7 +619,7 @@ static void sdram_ddr2_dcr_write(void *opaque, int dcrn, uint32_t val)
                 /* invalidate all RAM mappings */
                 for (i = 0; i < s->nbanks; i++) {
                     if (s->bank[i].size) {
-                        sdram_bank_set_bcr(&s->bank[i], s->bank[i].bcr,
+                        sdram_bank_set_bcr(OBJECT(s), &s->bank[i], s->bank[i].bcr,
                                            s->bank[i].base, s->bank[i].size,
                                            0);
                     }
@@ -666,7 +666,7 @@ static void ppc4xx_sdram_ddr2_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "Missing dram memory region");
         return;
     }
-    if (!ppc4xx_sdram_banks(s->dram_mr, s->nbanks, s->bank,
+    if (!ppc4xx_sdram_banks(OBJECT(s), s->dram_mr, s->nbanks, s->bank,
                             valid_bank_sizes, errp)) {
         return;
     }
@@ -674,10 +674,10 @@ static void ppc4xx_sdram_ddr2_realize(DeviceState *dev, Error **errp)
         if (s->bank[i].size) {
             s->bank[i].bcr = sdram_ddr2_bcr(s->bank[i].base, s->bank[i].size);
             s->bank[i].bcr &= SDRAM_DDR2_BCR_MASK;
-            sdram_bank_set_bcr(&s->bank[i], s->bank[i].bcr,
+            sdram_bank_set_bcr(OBJECT(s), &s->bank[i], s->bank[i].bcr,
                                s->bank[i].base, s->bank[i].size, 0);
         } else {
-            sdram_bank_set_bcr(&s->bank[i], 0, 0, 0, 0);
+            sdram_bank_set_bcr(OBJECT(s), &s->bank[i], 0, 0, 0, 0);
         }
         trace_ppc4xx_sdram_init(sdram_ddr2_base(s->bank[i].bcr),
                                 sdram_ddr2_size(s->bank[i].bcr),

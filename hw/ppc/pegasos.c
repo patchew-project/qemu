@@ -194,7 +194,7 @@ static void pegasos_init(MachineState *machine)
     if (pm->type == PEGASOS1) {
         prom_addr += PROM_SIZE;
     }
-    memory_region_init_rom(rom, NULL, "rom", PROM_SIZE, &error_fatal);
+    memory_region_init_rom(rom, OBJECT(machine), "rom", PROM_SIZE, &error_fatal);
     memory_region_add_subregion(get_system_memory(), prom_addr, rom);
     sz = load_elf(filename, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                   ELFDATA2MSB, PPC_ELF_MACHINE, 0, 0);

@@ -130,7 +130,7 @@ static void ppc_heathrow_init(MachineState *machine)
     memory_region_add_subregion(get_system_memory(), 0, machine->ram);
 
     /* allocate and load firmware ROM */
-    memory_region_init_rom(bios, NULL, "ppc_heathrow.bios", PROM_SIZE,
+    memory_region_init_rom(bios, OBJECT(machine), "ppc_heathrow.bios", PROM_SIZE,
                            &error_fatal);
     memory_region_add_subregion(get_system_memory(), PROM_BASE, bios);
 

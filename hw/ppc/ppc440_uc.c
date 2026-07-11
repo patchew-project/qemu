@@ -167,19 +167,19 @@ static void l2sram_reset(void *opaque)
     memset(l2sram->isram0, 0, sizeof(l2sram->isram0));
 }
 
-void ppc4xx_l2sram_init(CPUPPCState *env)
+void ppc4xx_l2sram_init(Object *owner, CPUPPCState *env)
 {
     ppc4xx_l2sram_t *l2sram;
 
     l2sram = g_malloc0(sizeof(*l2sram));
     /* XXX: Size is 4*64kB for 460ex, cf. U-Boot, ppc4xx-isram.h */
-    memory_region_init_ram(&l2sram->bank[0], NULL, "ppc4xx.l2sram_bank0",
+    memory_region_init_ram(&l2sram->bank[0], owner, "ppc4xx.l2sram_bank0",
                            64 * KiB, &error_abort);
-    memory_region_init_ram(&l2sram->bank[1], NULL, "ppc4xx.l2sram_bank1",
+    memory_region_init_ram(&l2sram->bank[1], owner, "ppc4xx.l2sram_bank1",
                            64 * KiB, &error_abort);
-    memory_region_init_ram(&l2sram->bank[2], NULL, "ppc4xx.l2sram_bank2",
+    memory_region_init_ram(&l2sram->bank[2], owner, "ppc4xx.l2sram_bank2",
                            64 * KiB, &error_abort);
-    memory_region_init_ram(&l2sram->bank[3], NULL, "ppc4xx.l2sram_bank3",
+    memory_region_init_ram(&l2sram->bank[3], owner, "ppc4xx.l2sram_bank3",
                            64 * KiB, &error_abort);
     qemu_register_reset(&l2sram_reset, l2sram);
     ppc_dcr_register(env, DCR_L2CACHE_CFG,

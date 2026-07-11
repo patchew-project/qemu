@@ -375,9 +375,9 @@ static void sam460ex_init(MachineState *machine)
     ppc4xx_dma_init(env, 0x200);
 
     /* 256K of L2 cache as memory */
-    ppc4xx_l2sram_init(env);
+    ppc4xx_l2sram_init(OBJECT(machine), env);
     /* FIXME: remove this after fixing l2sram mapping in ppc440_uc.c? */
-    memory_region_init_ram(l2cache_ram, NULL, "ppc440.l2cache_ram", 256 * KiB,
+    memory_region_init_ram(l2cache_ram, OBJECT(machine), "ppc440.l2cache_ram", 256 * KiB,
                            &error_abort);
     memory_region_add_subregion(get_system_memory(), 0x400000000LL,
                                 l2cache_ram);

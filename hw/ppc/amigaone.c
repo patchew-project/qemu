@@ -130,7 +130,7 @@ static void nvram_realize(DeviceState *dev, Error **errp)
     void *p;
     uint32_t crc, *c;
 
-    memory_region_init_rom_device(&s->mr, NULL, &nvram_ops, s, "nvram",
+    memory_region_init_rom_device(&s->mr, OBJECT(dev), &nvram_ops, s, "nvram",
                                   NVRAM_SIZE, &error_fatal);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mr);
     c = p = memory_region_get_ram_ptr(&s->mr);
@@ -297,7 +297,7 @@ static void amigaone_init(MachineState *machine)
     if (machine->ram_size < 1 * GiB + 32 * KiB) {
         /* Firmware uses this area for startup */
         mr = g_new(MemoryRegion, 1);
-        memory_region_init_ram(mr, NULL, "init-cache", 32 * KiB, &error_fatal);
+        memory_region_init_ram(mr, OBJECT(machine), "init-cache", 32 * KiB, &error_fatal);
         memory_region_add_subregion(get_system_memory(), INIT_RAM_ADDR, mr);
     }
 
@@ -313,7 +313,7 @@ static void amigaone_init(MachineState *machine)
 
     /* allocate and load firmware */
     rom = g_new(MemoryRegion, 1);
-    memory_region_init_rom(rom, NULL, "rom", PROM_SIZE, &error_fatal);
+    memory_region_init_rom(rom, OBJECT(machine), "rom", PROM_SIZE, &error_fatal);
     memory_region_add_subregion(get_system_memory(), PROM_ADDR, rom);
     if (!machine->firmware) {
         rom_add_blob_fixed("dummy-fw", dummy_fw, sizeof(dummy_fw),

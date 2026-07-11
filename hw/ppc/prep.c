@@ -274,7 +274,7 @@ static void ibm_40p_init(MachineState *machine)
         error_report("Could not find bios image '%s'", bios_name);
         exit(1);
     }
-    memory_region_init_rom(bios, NULL, "bios", BIOS_SIZE, &error_fatal);
+    memory_region_init_rom(bios, OBJECT(machine), "bios", BIOS_SIZE, &error_fatal);
     memory_region_add_subregion(get_system_memory(), BIOS_ADDR, bios);
     bios_size = load_elf(filename, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                          ELFDATA2MSB, PPC_ELF_MACHINE, 0, 0);

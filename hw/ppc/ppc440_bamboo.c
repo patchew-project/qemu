@@ -194,7 +194,7 @@ static void bamboo_init(MachineState *machine)
         exit(1);
     }
 
-    memory_region_init_alias(isa, NULL, "isa_mmio",
+    memory_region_init_alias(isa, OBJECT(machine), "isa_mmio",
                              get_system_io(), 0, PPC440EP_PCI_IOLEN);
     memory_region_add_subregion(get_system_memory(), PPC440EP_PCI_IO, isa);
 

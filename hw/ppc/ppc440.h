@@ -13,7 +13,7 @@
 
 #include "hw/ppc/ppc.h"
 
-void ppc4xx_l2sram_init(CPUPPCState *env);
+void ppc4xx_l2sram_init(Object *owner, CPUPPCState *env);
 void ppc4xx_cpr_init(CPUPPCState *env);
 void ppc4xx_sdr_init(CPUPPCState *env);
 void ppc4xx_ahb_init(CPUPPCState *env);
