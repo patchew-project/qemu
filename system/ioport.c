@@ -145,7 +145,7 @@ void portio_list_destroy(PortioList *piolist)
     for (i = 0; i < piolist->nr; ++i) {
         mrpio = container_of(piolist->regions[i], MemoryRegionPortioList, mr);
         object_unparent(OBJECT(&mrpio->mr));
-        object_unref(mrpio);
+        object_unparent(OBJECT(mrpio));
     }
     g_free(piolist->regions);
 }
@@ -228,7 +228,8 @@ static void portio_list_add_1(PortioList *piolist,
 
     /* Copy the sub-list and null-terminate it.  */
     mrpio = MEMORY_REGION_PORTIO_LIST(
-                object_new(TYPE_MEMORY_REGION_PORTIO_LIST));
+                object_new_child(piolist->owner, "portio-list[*]",
+                                 TYPE_MEMORY_REGION_PORTIO_LIST));
     mrpio->portio_opaque = piolist->opaque;
     mrpio->ports = g_new0(MemoryRegionPortio, count + 1);
     memcpy(mrpio->ports, pio_init, sizeof(MemoryRegionPortio) * count);

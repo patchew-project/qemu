@@ -182,12 +182,13 @@ RamBlockAttributes *ram_block_attributes_create(RAMBlock *ram_block)
     RamBlockAttributes *attr;
     MemoryRegion *mr = ram_block->mr;
 
-    attr = RAM_BLOCK_ATTRIBUTES(object_new(TYPE_RAM_BLOCK_ATTRIBUTES));
+    attr = RAM_BLOCK_ATTRIBUTES(object_new_child(OBJECT(mr), "attributes",
+                                                 TYPE_RAM_BLOCK_ATTRIBUTES));
 
     attr->ram_block = ram_block;
 
     if (memory_region_add_ram_discard_source(mr, RAM_DISCARD_SOURCE(attr))) {
-        object_unref(OBJECT(attr));
+        object_unparent(OBJECT(attr));
         return NULL;
     }
     attr->bitmap_size = DIV_ROUND_UP(int128_get64(mr->size), block_size);
@@ -202,7 +203,7 @@ void ram_block_attributes_destroy(RamBlockAttributes *attr)
 
     g_free(attr->bitmap);
     memory_region_del_ram_discard_source(attr->ram_block->mr, RAM_DISCARD_SOURCE(attr));
-    object_unref(OBJECT(attr));
+    object_unparent(OBJECT(attr));
 }
 
 static void ram_block_attributes_init(Object *obj)
