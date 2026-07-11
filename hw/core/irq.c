@@ -68,34 +68,6 @@ void qemu_init_irqs(IRQState irq[], size_t count,
     }
 }
 
-qemu_irq *qemu_extend_irqs_orphan(qemu_irq *old, int n_old, qemu_irq_handler handler,
-                           void *opaque, int n)
-{
-    qemu_irq *s;
-    int i;
-
-    if (!old) {
-        n_old = 0;
-    }
-    s = old ? g_renew(qemu_irq, old, n + n_old) : g_new(qemu_irq, n);
-    for (i = n_old; i < n + n_old; i++) {
-        s[i] = qemu_allocate_irq_orphan(handler, opaque, i);
-    }
-    return s;
-}
-
-qemu_irq *qemu_allocate_irqs_orphan(qemu_irq_handler handler, void *opaque, int n)
-{
-    return qemu_extend_irqs_orphan(NULL, 0, handler, opaque, n);
-}
-
-qemu_irq qemu_allocate_irq_orphan(qemu_irq_handler handler, void *opaque, int n)
-{
-    IRQState *irq = IRQ(object_new(TYPE_IRQ));
-    init_irq_fields(irq, handler, opaque, n);
-    return irq;
-}
-
 qemu_irq qemu_allocate_irq(Object *owner, const char *name,
                            qemu_irq_handler handler, void *opaque, int n)
 {
@@ -151,13 +123,6 @@ static void qemu_notirq(void *opaque, int line, int level)
     IRQState *irq = opaque;
 
     qemu_set_irq(irq, !level);
-}
-
-qemu_irq qemu_irq_invert_orphan(qemu_irq irq)
-{
-    /* The default state for IRQs is low, so raise the output now.  */
-    qemu_irq_raise(irq);
-    return qemu_allocate_irq_orphan(qemu_notirq, irq, 0);
 }
 
 qemu_irq qemu_irq_invert(Object *owner, const char *name, qemu_irq irq)

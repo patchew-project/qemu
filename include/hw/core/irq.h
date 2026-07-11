@@ -74,19 +74,8 @@ void qemu_init_irq_child(Object *parent, const char *propname,
 void qemu_init_irqs(IRQState irq[], size_t count,
                     qemu_irq_handler handler, void *opaque);
 
-/* Returns an array of N IRQs. Each IRQ is assigned the argument handler and
- * opaque data.
- */
-qemu_irq *qemu_allocate_irqs_orphan(qemu_irq_handler handler, void *opaque, int n);
-
 /*
- * Allocates a single IRQ. The irq is assigned with a handler, an opaque
- * data and the interrupt number.
- */
-qemu_irq qemu_allocate_irq_orphan(qemu_irq_handler handler, void *opaque, int n);
-
-/*
- * Same as the *_orphan() variants above, but the new IRQ objects are
+ * Allocate IRQ objects with an explicit QOM parent.  The new objects are
  * parented under @owner with property name @name (or @name[*] for the
  * array/extend variants).  The reference is held by @owner; call
  * qemu_free_irq() to unparent and free.
@@ -99,17 +88,10 @@ qemu_irq *qemu_extend_irqs(Object *owner, const char *name,
                            qemu_irq *old, int n_old,
                            qemu_irq_handler handler, void *opaque, int n);
 
-/* Extends an Array of IRQs. Old IRQs have their handlers and opaque data
- * preserved. New IRQs are assigned the argument handler and opaque data.
- */
-qemu_irq *qemu_extend_irqs_orphan(qemu_irq *old, int n_old, qemu_irq_handler handler,
-                                void *opaque, int n);
-
 void qemu_free_irqs(qemu_irq *s, int n);
 void qemu_free_irq(qemu_irq irq);
 
 /* Returns a new IRQ with opposite polarity.  */
-qemu_irq qemu_irq_invert_orphan(qemu_irq irq);
 qemu_irq qemu_irq_invert(Object *owner, const char *name, qemu_irq irq);
 
 /* For internal use in qtest. */
