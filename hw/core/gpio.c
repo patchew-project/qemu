@@ -49,7 +49,7 @@ void qdev_init_gpio_in_named_with_opaque(DeviceState *dev,
     NamedGPIOList *gpio_list = qdev_get_named_gpio_list(dev, name);
 
     assert(gpio_list->num_out == 0 || !name);
-    gpio_list->in = qemu_extend_irqs(gpio_list->in, gpio_list->num_in, handler,
+    gpio_list->in = qemu_extend_irqs_orphan(gpio_list->in, gpio_list->num_in, handler,
                                      opaque, n);
 
     if (!name) {

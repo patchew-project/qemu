@@ -606,7 +606,7 @@ void bmdma_init(IDEBus *bus, BMDMAState *bm, PCIIDEState *d)
     bm->dma.ops = &bmdma_ops;
     bus->dma = &bm->dma;
     bm->irq = bus->irq;
-    bus->irq = qemu_allocate_irq(bmdma_irq, bm, 0);
+    bus->irq = qemu_allocate_irq_orphan(bmdma_irq, bm, 0);
     bm->bus = bus;
     bm->pci_dev = d;
 }

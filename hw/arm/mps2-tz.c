@@ -1209,7 +1209,7 @@ static void mps2tz_common_init(MachineState *machine)
          * Connect the line from the SCC so that we can remap when the
          * guest updates that register.
          */
-        mms->remap_irq = qemu_allocate_irq(remap_irq_fn, mms, 0);
+        mms->remap_irq = qemu_allocate_irq_orphan(remap_irq_fn, mms, 0);
         qdev_connect_gpio_out_named(DEVICE(&mms->scc), "remap", 0,
                                     mms->remap_irq);
     }

@@ -114,7 +114,7 @@ static void xen_set_irq(void *opaque, int irq, int level)
 
 qemu_irq *xen_interrupt_controller_init(void)
 {
-    return qemu_allocate_irqs(xen_set_irq, NULL, 16);
+    return qemu_allocate_irqs_orphan(xen_set_irq, NULL, 16);
 }
 
 /* Memory Ops */

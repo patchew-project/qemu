@@ -346,7 +346,7 @@ void qtest_set_command_cb(bool (*pc_cb)(CharFrontend *chr, gchar **words))
 static void qtest_install_gpio_out_intercept(DeviceState *dev, const char *name, int n)
 {
     qemu_irq *disconnected = g_new0(qemu_irq, 1);
-    qemu_irq icpt = qemu_allocate_irq(qtest_irq_handler,
+    qemu_irq icpt = qemu_allocate_irq_orphan(qtest_irq_handler,
                                       disconnected, n);
 
     *disconnected = qdev_intercept_gpio_out(dev, icpt, name, n);

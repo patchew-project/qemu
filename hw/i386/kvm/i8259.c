@@ -136,7 +136,7 @@ qemu_irq *kvm_i8259_init(Object *parent, ISABus *bus)
     i8259_init_chip(parent, TYPE_KVM_I8259, bus, true);
     i8259_init_chip(parent, TYPE_KVM_I8259, bus, false);
 
-    return qemu_allocate_irqs(kvm_pic_set_irq, NULL, ISA_NUM_IRQS);
+    return qemu_allocate_irqs_orphan(kvm_pic_set_irq, NULL, ISA_NUM_IRQS);
 }
 
 static void kvm_i8259_class_init(ObjectClass *klass, const void *data)

@@ -1358,15 +1358,15 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
         sysbus_realize(SYS_BUS_DEVICE(gpad), &error_fatal);
 
         qdev_connect_gpio_out(gpad, 0,
-                              qemu_irq_invert(gpio_in[GPIO_E][0])); /* up */
+                              qemu_irq_invert_orphan(gpio_in[GPIO_E][0])); /* up */
         qdev_connect_gpio_out(gpad, 1,
-                              qemu_irq_invert(gpio_in[GPIO_E][1])); /* down */
+                              qemu_irq_invert_orphan(gpio_in[GPIO_E][1])); /* down */
         qdev_connect_gpio_out(gpad, 2,
-                              qemu_irq_invert(gpio_in[GPIO_E][2])); /* left */
+                              qemu_irq_invert_orphan(gpio_in[GPIO_E][2])); /* left */
         qdev_connect_gpio_out(gpad, 3,
-                              qemu_irq_invert(gpio_in[GPIO_E][3])); /* right */
+                              qemu_irq_invert_orphan(gpio_in[GPIO_E][3])); /* right */
         qdev_connect_gpio_out(gpad, 4,
-                              qemu_irq_invert(gpio_in[GPIO_F][1])); /* select */
+                              qemu_irq_invert_orphan(gpio_in[GPIO_F][1])); /* select */
     }
     for (i = 0; i < 7; i++) {
         if (board->dc4 & (1 << i)) {

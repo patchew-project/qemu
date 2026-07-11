@@ -848,5 +848,5 @@ SH7750State *sh7750_init(Object *parent, SuperHCPU *cpu,
 qemu_irq sh7750_irl(SH7750State *s)
 {
     sh_intc_toggle_source(&s->intc.sources[IRL], 1, 0); /* enable */
-    return qemu_allocate_irq(sh_intc_set_irl, &s->intc.sources[IRL], 0);
+    return qemu_allocate_irq_orphan(sh_intc_set_irl, &s->intc.sources[IRL], 0);
 }

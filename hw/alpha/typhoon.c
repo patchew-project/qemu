@@ -849,8 +849,8 @@ PCIBus *typhoon_init(Object *parent, MemoryRegion *ram, qemu_irq *p_isa_irq,
         }
     }
 
-    *p_isa_irq = qemu_allocate_irq(typhoon_set_isa_irq, s, 0);
-    *p_rtc_irq = qemu_allocate_irq(typhoon_set_timer_irq, s, 0);
+    *p_isa_irq = qemu_allocate_irq_orphan(typhoon_set_isa_irq, s, 0);
+    *p_rtc_irq = qemu_allocate_irq_orphan(typhoon_set_timer_irq, s, 0);
 
     /* Main memory region, 0x00.0000.0000.  Real hardware supports 32GB,
        but the address space hole reserved at this point is 8TB.  */

@@ -484,7 +484,7 @@ static void sifive_u_machine_init(MachineState *machine)
 
     /* register gpio-restart */
     qdev_connect_gpio_out(DEVICE(&(s->soc.gpio)), 10,
-                          qemu_allocate_irq(sifive_u_machine_reset, NULL, 0));
+                          qemu_allocate_irq_orphan(sifive_u_machine_reset, NULL, 0));
 
     /* load/create device tree */
     if (machine->dtb) {

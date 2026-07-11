@@ -276,7 +276,7 @@ static void realview_init(MachineState *machine,
 
     split_irq_from_named(OBJECT(machine), dev, "card-inserted",
                    qdev_get_gpio_in(sysctl, ARM_SYSCTL_GPIO_MMC_CARDIN),
-                   qemu_irq_invert(qdev_get_gpio_in(gpio2, 0)));
+                   qemu_irq_invert_orphan(qdev_get_gpio_in(gpio2, 0)));
 
     dinfo = drive_get(IF_SD, 0, 0);
     if (dinfo) {

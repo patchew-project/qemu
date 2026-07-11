@@ -95,7 +95,7 @@ static void i82378_realize(PCIDevice *pci, Error **errp)
 
     /* 2 82C59 (irq) */
     s->isa_irqs_in = i8259_init(OBJECT(pci), isabus,
-                                qemu_allocate_irq(i82378_request_out0_irq,
+                                qemu_allocate_irq_orphan(i82378_request_out0_irq,
                                                   s, 0));
     isa_bus_register_input_irqs(isabus, s->isa_irqs_in);
 

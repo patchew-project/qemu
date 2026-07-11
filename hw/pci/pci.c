@@ -1869,7 +1869,7 @@ qemu_irq pci_allocate_irq(PCIDevice *pci_dev)
     int intx = pci_intx(pci_dev);
     assert(0 <= intx && intx < PCI_NUM_PINS);
 
-    return qemu_allocate_irq(pci_irq_handler, pci_dev, intx);
+    return qemu_allocate_irq_orphan(pci_irq_handler, pci_dev, intx);
 }
 
 void pci_set_irq(PCIDevice *pci_dev, int level)

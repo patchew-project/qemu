@@ -139,7 +139,7 @@ static void omap_timer_clk_update(void *opaque, int line, int on)
 static void omap_timer_clk_setup(struct omap_mpu_timer_s *timer)
 {
     omap_clk_adduser(timer->clk,
-                    qemu_allocate_irq(omap_timer_clk_update, timer, 0));
+                    qemu_allocate_irq_orphan(omap_timer_clk_update, timer, 0));
     timer->rate = omap_clk_getrate(timer->clk);
 }
 
@@ -2083,14 +2083,14 @@ static struct omap_mpuio_s *omap_mpuio_init(Object *owner,
 
     s->irq = gpio_int;
     s->kbd_irq = kbd_int;
-    s->in = qemu_allocate_irqs(omap_mpuio_set, s, 16);
+    s->in = qemu_allocate_irqs_orphan(omap_mpuio_set, s, 16);
     omap_mpuio_reset(s);
 
     memory_region_init_io(&s->iomem, owner, &omap_mpuio_ops, s,
                           "omap-mpuio", 0x800);
     memory_region_add_subregion(memory, base, &s->iomem);
 
-    omap_clk_adduser(clk, qemu_allocate_irq(omap_mpuio_onoff, s, 0));
+    omap_clk_adduser(clk, qemu_allocate_irq_orphan(omap_mpuio_onoff, s, 0));
 
     return s;
 }
@@ -2363,7 +2363,7 @@ static struct omap_pwl_s *omap_pwl_init(Object *owner,
                           "omap-pwl", 0x800);
     memory_region_add_subregion(system_memory, base, &s->iomem);
 
-    omap_clk_adduser(clk, qemu_allocate_irq(omap_pwl_clk_update, s, 0));
+    omap_clk_adduser(clk, qemu_allocate_irq_orphan(omap_pwl_clk_update, s, 0));
     return s;
 }
 
@@ -3426,8 +3426,8 @@ static void omap_mcbsp_i2s_start(void *opaque, int line, int level)
 void omap_mcbsp_i2s_attach(struct omap_mcbsp_s *s, I2SCodec *slave)
 {
     s->codec = slave;
-    slave->rx_swallow = qemu_allocate_irq(omap_mcbsp_i2s_swallow, s, 0);
-    slave->tx_start = qemu_allocate_irq(omap_mcbsp_i2s_start, s, 0);
+    slave->rx_swallow = qemu_allocate_irq_orphan(omap_mcbsp_i2s_swallow, s, 0);
+    slave->tx_start = qemu_allocate_irq_orphan(omap_mcbsp_i2s_start, s, 0);
 }
 
 /* LED Pulse Generators */
@@ -3579,7 +3579,7 @@ static struct omap_lpg_s *omap_lpg_init(Object *owner,
                           "omap-lpg", 0x800);
     memory_region_add_subregion(system_memory, base, &s->iomem);
 
-    omap_clk_adduser(clk, qemu_allocate_irq(omap_lpg_clk_update, s, 0));
+    omap_clk_adduser(clk, qemu_allocate_irq_orphan(omap_lpg_clk_update, s, 0));
 
     return s;
 }

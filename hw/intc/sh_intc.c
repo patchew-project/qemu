@@ -403,7 +403,7 @@ int sh_intc_init(Object *owner, MemoryRegion *sysmem,
     for (i = 0; i < nr_sources; i++) {
         desc->sources[i].parent = desc;
     }
-    desc->irqs = qemu_allocate_irqs(sh_intc_set_irq, desc, nr_sources);
+    desc->irqs = qemu_allocate_irqs_orphan(sh_intc_set_irq, desc, nr_sources);
     memory_region_init_io(&desc->iomem, owner, &sh_intc_ops, desc, "intc",
                           0x100000000ULL);
     j = 0;

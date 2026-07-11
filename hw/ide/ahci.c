@@ -1594,7 +1594,7 @@ void ahci_realize(AHCIState *s, DeviceState *qdev, AddressSpace *as)
     assert(s->ports > 0);
     s->dev = g_new0(AHCIDevice, s->ports);
     ahci_reg_init(s);
-    irqs = qemu_allocate_irqs(ahci_irq_set, s, s->ports);
+    irqs = qemu_allocate_irqs_orphan(ahci_irq_set, s, s->ports);
     for (i = 0; i < s->ports; i++) {
         AHCIDevice *ad = &s->dev[i];
 
