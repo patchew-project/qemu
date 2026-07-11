@@ -65,7 +65,8 @@ static void mb_v_generic_init(MachineState *machine)
     qemu_irq irq[32];
     MemoryRegion *sysmem = get_system_memory();
 
-    cpu = RISCV_CPU(object_new(machine->cpu_type));
+    cpu = RISCV_CPU(object_new_child(OBJECT(machine), "cpu[0]",
+                                        machine->cpu_type));
     object_property_set_bool(OBJECT(cpu), "h", false, NULL);
     object_property_set_bool(OBJECT(cpu), "d", false, NULL);
     qdev_realize(DEVICE(cpu), NULL, &error_abort);

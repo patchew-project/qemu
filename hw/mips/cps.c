@@ -74,7 +74,8 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
     }
 
     for (int i = 0; i < s->num_vp; i++) {
-        MIPSCPU *cpu = MIPS_CPU(object_new(s->cpu_type));
+        MIPSCPU *cpu = MIPS_CPU(object_new_child(OBJECT(s), "cpu[*]",
+                                        s->cpu_type));
         CPUMIPSState *env = &cpu->env;
 
         object_property_set_bool(OBJECT(cpu), "big-endian", s->cpu_is_bigendian,
@@ -87,7 +88,7 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
         /* All cores use the same clock tree */
         qdev_connect_clock_in(DEVICE(cpu), "clk-in", s->clock);
 
-        if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
+        if (!qdev_realize(DEVICE(cpu), NULL, errp)) {
             return;
         }
 

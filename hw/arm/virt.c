@@ -3039,7 +3039,8 @@ static void machvirt_init(MachineState *machine)
             break;
         }
 
-        cpuobj = object_new(possible_cpus->cpus[n].type);
+        cpuobj = object_new_child(OBJECT(vms), "cpu[*]",
+                                  possible_cpus->cpus[n].type);
         object_property_set_int(cpuobj, "mp-affinity",
                                 possible_cpus->cpus[n].arch_id, NULL);
 
@@ -3139,7 +3140,6 @@ static void machvirt_init(MachineState *machine)
         }
 
         qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
-        object_unref(cpuobj);
     }
 
     /* Now we've created the CPUs we can see if they have the hypvirt timer */

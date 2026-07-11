@@ -56,20 +56,18 @@ static Error *pv_mig_blocker;
 static S390CPU *s390x_new_cpu(const char *typename, uint32_t core_id,
                               Error **errp)
 {
-    S390CPU *cpu = S390_CPU(object_new(typename));
-    S390CPU *ret = NULL;
+    S390CPU *cpu = S390_CPU(object_new_child(qdev_get_machine(), "cpu[*]",
+                                        typename));
 
     if (!object_property_set_int(OBJECT(cpu), "core-id", core_id, errp)) {
-        goto out;
+        object_unparent(OBJECT(cpu));
+        return NULL;
     }
     if (!qdev_realize(DEVICE(cpu), NULL, errp)) {
-        goto out;
+        object_unparent(OBJECT(cpu));
+        return NULL;
     }
-    ret = cpu;
-
-out:
-    object_unref(OBJECT(cpu));
-    return ret;
+    return cpu;
 }
 
 static void s390_init_cpus(MachineState *machine)

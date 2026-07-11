@@ -63,13 +63,14 @@ static void riscv_cps_realize(DeviceState *dev, Error **errp)
     int harts_in_cluster = s->num_hart * s->num_core;
     int num_of_clusters = s->num_vp / harts_in_cluster;
     for (i = 0; i < s->num_vp; i++) {
-        cpu = RISCV_CPU(object_new(s->cpu_type));
+        cpu = RISCV_CPU(object_new_child(OBJECT(s), "cpu[*]",
+                                        s->cpu_type));
 
         /* All VPs are halted on reset. Leave powering up to CPC. */
         object_property_set_bool(OBJECT(cpu), "start-powered-off", true,
                                  &error_abort);
 
-        if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
+        if (!qdev_realize(DEVICE(cpu), NULL, errp)) {
             return;
         }
 

@@ -278,7 +278,8 @@ static void leon3_generic_hw_init(MachineState *machine)
 
     for (i = 0; i < machine->smp.cpus; i++) {
         /* Init CPU */
-        cpu = SPARC_CPU(object_new(machine->cpu_type));
+        cpu = SPARC_CPU(object_new_child(OBJECT(machine), "cpu[*]",
+                                        machine->cpu_type));
         qdev_init_gpio_in_named(DEVICE(cpu), leon3_start_cpu, "start_cpu", 1);
         qdev_init_gpio_in_named(DEVICE(cpu), leon3_set_pil_in, "pil", 1);
         qdev_realize(DEVICE(cpu), NULL, &error_fatal);

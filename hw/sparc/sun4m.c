@@ -787,7 +787,8 @@ static DeviceState *cpu_devinit(const char *cpu_type, unsigned int id,
     CPUSPARCState *env;
     DeviceState *cpudev;
 
-    cpu = SPARC_CPU(object_new(cpu_type));
+    cpu = SPARC_CPU(object_new_child(qdev_get_machine(), "cpu[*]",
+                                        cpu_type));
     env = &cpu->env;
     cpudev = DEVICE(cpu);
 
@@ -795,7 +796,7 @@ static DeviceState *cpu_devinit(const char *cpu_type, unsigned int id,
     object_property_set_bool(OBJECT(cpu), "start-powered-off", id != 0,
                              &error_abort);
     qdev_init_gpio_in_named(cpudev, cpu_set_irq, "pil", MAX_PILS);
-    qdev_realize_and_unref(cpudev, NULL, &error_fatal);
+    qdev_realize(cpudev, NULL, &error_fatal);
     cpu_sparc_set_id(env, id);
     env->prom_addr = prom_addr;
     return cpudev;

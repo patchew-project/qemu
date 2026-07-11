@@ -280,7 +280,8 @@ static void virt_init(MachineState *ms)
 
     cpu0 = NULL;
     for (int i = 0; i < ms->smp.cpus; i++) {
-        HexagonCPU *cpu = HEXAGON_CPU(object_new(ms->cpu_type));
+        HexagonCPU *cpu = HEXAGON_CPU(object_new_child(OBJECT(ms), "cpu[*]",
+                                        ms->cpu_type));
         qemu_register_reset(do_cpu_reset, cpu);
 
         if (i == 0) {
@@ -300,7 +301,7 @@ static void virt_init(MachineState *ms)
         object_property_set_link(OBJECT(cpu), "tlb",
                                  OBJECT(tlb_dev), &error_fatal);
 
-        qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal);
+        qdev_realize(DEVICE(cpu), NULL, &error_fatal);
     }
     fdt_add_cpu_nodes(vms);
     clk_phandle = fdt_add_clocks(vms);

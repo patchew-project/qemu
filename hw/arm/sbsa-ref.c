@@ -783,7 +783,8 @@ static void sbsa_ref_init(MachineState *machine)
             break;
         }
 
-        cpuobj = object_new(possible_cpus->cpus[n].type);
+        cpuobj = object_new_child(OBJECT(sms), "cpu[*]",
+                                        possible_cpus->cpus[n].type);
         object_property_set_int(cpuobj, "mp-affinity",
                                 possible_cpus->cpus[n].arch_id, NULL);
 
@@ -808,7 +809,6 @@ static void sbsa_ref_init(MachineState *machine)
                                  OBJECT(secure_sysmem), &error_abort);
 
         qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
-        object_unref(cpuobj);
     }
 
     memory_region_add_subregion(sysmem, sbsa_ref_memmap[SBSA_MEM].base,

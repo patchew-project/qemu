@@ -948,13 +948,14 @@ static void virt_init(MachineState *machine)
     /* Init CPUs */
     mc->possible_cpu_arch_ids(machine);
     for (i = 0; i < machine->smp.cpus; i++) {
-        cpuobj = object_new(machine->cpu_type);
+        cpuobj = object_new_child(OBJECT(machine), "cpu[*]",
+                                        machine->cpu_type);
         if (cpuobj == NULL) {
             error_report("Fail to create object with type %s ",
                          machine->cpu_type);
             exit(EXIT_FAILURE);
         }
-        qdev_realize_and_unref(DEVICE(cpuobj), NULL, &error_fatal);
+        qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
     }
     virt_check_dmsi(machine);
     fw_cfg_add_memory(machine);

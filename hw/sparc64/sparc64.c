@@ -272,7 +272,8 @@ SPARCCPU *sparc64_cpu_devinit(const char *cpu_type, uint64_t prom_addr)
     uint32_t  stick_frequency = 100 * 1000000;
     uint32_t hstick_frequency = 100 * 1000000;
 
-    cpu = SPARC_CPU(object_new(cpu_type));
+    cpu = SPARC_CPU(object_new_child(qdev_get_machine(), "cpu[0]",
+                                        cpu_type));
     qdev_init_gpio_in_named(DEVICE(cpu), sparc64_cpu_set_ivec_irq,
                             "ivec-irq", IVEC_MAX);
     qdev_realize(DEVICE(cpu), NULL, &error_fatal);

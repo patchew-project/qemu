@@ -119,7 +119,8 @@ static void realview_init(MachineState *machine,
     }
 
     for (n = 0; n < smp_cpus; n++) {
-        Object *cpuobj = object_new(machine->cpu_type);
+        Object *cpuobj = object_new_child(OBJECT(machine), "cpu[*]",
+                                        machine->cpu_type);
 
         /* By default A9,A15 and ARM1176 CPUs have EL3 enabled.  This board
          * does not currently support EL3 so the CPU EL3 property is disabled

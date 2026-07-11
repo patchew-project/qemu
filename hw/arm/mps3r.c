@@ -388,13 +388,13 @@ static void mps3r_common_init(MachineState *machine)
         memory_region_add_subregion_overlap(&mms->cpu_sysmem[i], 0,
                                             &mms->sysmem_alias[i], -1);
 
-        mms->cpu[i] = object_new(machine->cpu_type);
+        mms->cpu[i] = object_new_child(OBJECT(mms), "cpu[*]",
+                                        machine->cpu_type);
         object_property_set_link(mms->cpu[i], "memory",
                                  OBJECT(&mms->cpu_sysmem[i]), &error_abort);
         object_property_set_int(mms->cpu[i], "reset-cbar",
                                 PERIPHBASE, &error_abort);
         qdev_realize(DEVICE(mms->cpu[i]), NULL, &error_fatal);
-        object_unref(mms->cpu[i]);
 
         /* Per-CPU RAM */
         memory_region_init_ram(&mms->cpu_ram[i], OBJECT(mms), ramname,

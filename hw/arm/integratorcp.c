@@ -598,7 +598,8 @@ static void integratorcp_init(MachineState *machine)
     DriveInfo *dinfo;
     int i;
 
-    cpuobj = object_new(machine->cpu_type);
+    cpuobj = object_new_child(OBJECT(machine), "cpu[0]",
+                                        machine->cpu_type);
 
     /* By default ARM1176 CPUs have EL3 enabled.  This board does not
      * currently support EL3 so the CPU EL3 property is disabled before

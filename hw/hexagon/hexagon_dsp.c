@@ -143,7 +143,8 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     sysbus_realize(SYS_BUS_DEVICE(tlb_dev), &error_fatal);
 
     for (int i = 0; i < machine->smp.cpus; i++) {
-        HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
+        HexagonCPU *cpu = HEXAGON_CPU(object_new_child(OBJECT(machine), "cpu[*]",
+                                        machine->cpu_type));
         qemu_register_reset(do_cpu_reset, cpu);
 
         /*
@@ -158,7 +159,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                                  OBJECT(glob_regs_dev), &error_fatal);
         object_property_set_link(OBJECT(cpu), "tlb",
                                  OBJECT(tlb_dev), &error_fatal);
-        qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal);
+        qdev_realize(DEVICE(cpu), NULL, &error_fatal);
     }
 
     rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,

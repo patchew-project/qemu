@@ -941,7 +941,8 @@ void ppce500_init(MachineState *machine)
         PowerPCCPU *cpu;
         CPUState *cs;
 
-        cpu = POWERPC_CPU(object_new(machine->cpu_type));
+        cpu = POWERPC_CPU(object_new_child(OBJECT(machine), "cpu[*]",
+                                        machine->cpu_type));
         env = &cpu->env;
         cs = CPU(cpu);
 
@@ -956,7 +957,7 @@ void ppce500_init(MachineState *machine)
          */
         object_property_set_bool(OBJECT(cs), "start-powered-off", i != 0,
                                  &error_abort);
-        qdev_realize_and_unref(DEVICE(cs), NULL, &error_fatal);
+        qdev_realize(DEVICE(cs), NULL, &error_fatal);
 
         if (!firstenv) {
             firstenv = env;

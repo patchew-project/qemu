@@ -55,15 +55,14 @@ static size_t pvh_start_addr;
 
 static void x86_cpu_new(X86MachineState *x86ms, int64_t apic_id, Error **errp)
 {
-    Object *cpu = object_new(MACHINE(x86ms)->cpu_type);
+    Object *cpu = object_new_child(OBJECT(x86ms), "cpu[*]",
+                                        MACHINE(x86ms)->cpu_type);
 
     if (!object_property_set_uint(cpu, "apic-id", apic_id, errp)) {
-        goto out;
+        object_unparent(cpu);
+        return;
     }
     qdev_realize(DEVICE(cpu), NULL, errp);
-
-out:
-    object_unref(cpu);
 }
 
 void x86_cpus_init(X86MachineState *x86ms, int default_cpu_version)

@@ -2776,7 +2776,8 @@ static void spapr_init_cpus(SpaprMachineState *spapr)
         }
 
         if (i < boot_cores_nr) {
-            Object *core  = object_new(type);
+            Object *core  = object_new_child(OBJECT(spapr), "cpu-core[*]",
+                                        type);
             int nr_threads = smp_threads;
 
             /* Handle the partially filled core for older machine types */
@@ -2790,7 +2791,6 @@ static void spapr_init_cpus(SpaprMachineState *spapr)
                                     &error_fatal);
             qdev_realize(DEVICE(core), NULL, &error_fatal);
 
-            object_unref(core);
         }
     }
 }

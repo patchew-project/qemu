@@ -219,7 +219,8 @@ static void init_cpus(MachineState *ms, const char *cpu_type,
 
     /* Create the actual CPUs */
     for (n = 0; n < smp_cpus; n++) {
-        Object *cpuobj = object_new(cpu_type);
+        Object *cpuobj = object_new_child(qdev_get_machine(), "cpu[*]",
+                                        cpu_type);
 
         if (!secure) {
             object_property_set_bool(cpuobj, "has_el3", false, NULL);
