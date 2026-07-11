@@ -85,6 +85,20 @@ qemu_irq *qemu_allocate_irqs_orphan(qemu_irq_handler handler, void *opaque, int 
  */
 qemu_irq qemu_allocate_irq_orphan(qemu_irq_handler handler, void *opaque, int n);
 
+/*
+ * Same as the *_orphan() variants above, but the new IRQ objects are
+ * parented under @owner with property name @name (or @name[*] for the
+ * array/extend variants).  The reference is held by @owner; call
+ * qemu_free_irq() to unparent and free.
+ */
+qemu_irq qemu_allocate_irq(Object *owner, const char *name,
+                           qemu_irq_handler handler, void *opaque, int n);
+qemu_irq *qemu_allocate_irqs(Object *owner, const char *name,
+                             qemu_irq_handler handler, void *opaque, int n);
+qemu_irq *qemu_extend_irqs(Object *owner, const char *name,
+                           qemu_irq *old, int n_old,
+                           qemu_irq_handler handler, void *opaque, int n);
+
 /* Extends an Array of IRQs. Old IRQs have their handlers and opaque data
  * preserved. New IRQs are assigned the argument handler and opaque data.
  */
@@ -96,6 +110,7 @@ void qemu_free_irq(qemu_irq irq);
 
 /* Returns a new IRQ with opposite polarity.  */
 qemu_irq qemu_irq_invert_orphan(qemu_irq irq);
+qemu_irq qemu_irq_invert(Object *owner, const char *name, qemu_irq irq);
 
 /* For internal use in qtest. */
 void qemu_irq_set_observer(qemu_irq *gpio_in, qemu_irq_handler handler, int n);

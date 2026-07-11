@@ -96,6 +96,38 @@ qemu_irq qemu_allocate_irq_orphan(qemu_irq_handler handler, void *opaque, int n)
     return irq;
 }
 
+qemu_irq qemu_allocate_irq(Object *owner, const char *name,
+                           qemu_irq_handler handler, void *opaque, int n)
+{
+    IRQState *irq = IRQ(object_new_child(owner, name, TYPE_IRQ));
+    init_irq_fields(irq, handler, opaque, n);
+    return irq;
+}
+
+qemu_irq *qemu_extend_irqs(Object *owner, const char *name,
+                           qemu_irq *old, int n_old,
+                           qemu_irq_handler handler, void *opaque, int n)
+{
+    g_autofree char *propname = g_strdup_printf("%s[*]", name);
+    qemu_irq *s;
+    int i;
+
+    if (!old) {
+        n_old = 0;
+    }
+    s = old ? g_renew(qemu_irq, old, n + n_old) : g_new(qemu_irq, n);
+    for (i = n_old; i < n + n_old; i++) {
+        s[i] = qemu_allocate_irq(owner, propname, handler, opaque, i);
+    }
+    return s;
+}
+
+qemu_irq *qemu_allocate_irqs(Object *owner, const char *name,
+                             qemu_irq_handler handler, void *opaque, int n)
+{
+    return qemu_extend_irqs(owner, name, NULL, 0, handler, opaque, n);
+}
+
 void qemu_free_irqs(qemu_irq *s, int n)
 {
     int i;
@@ -107,7 +139,11 @@ void qemu_free_irqs(qemu_irq *s, int n)
 
 void qemu_free_irq(qemu_irq irq)
 {
-    object_unref(OBJECT(irq));
+    if (irq && OBJECT(irq)->parent) {
+        object_unparent(OBJECT(irq));
+    } else {
+        object_unref(OBJECT(irq));
+    }
 }
 
 static void qemu_notirq(void *opaque, int line, int level)
@@ -122,6 +158,13 @@ qemu_irq qemu_irq_invert_orphan(qemu_irq irq)
     /* The default state for IRQs is low, so raise the output now.  */
     qemu_irq_raise(irq);
     return qemu_allocate_irq_orphan(qemu_notirq, irq, 0);
+}
+
+qemu_irq qemu_irq_invert(Object *owner, const char *name, qemu_irq irq)
+{
+    /* The default state for IRQs is low, so raise the output now.  */
+    qemu_irq_raise(irq);
+    return qemu_allocate_irq(owner, name, qemu_notirq, irq, 0);
 }
 
 void qemu_irq_set_observer(qemu_irq *gpio_in, qemu_irq_handler handler, int n)
