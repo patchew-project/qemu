@@ -39,7 +39,8 @@ static void remote_machine_init(MachineState *machine)
     pci_memory = g_new(MemoryRegion, 1);
     memory_region_init(pci_memory, NULL, "pci", UINT64_MAX);
 
-    rem_host = REMOTE_PCIHOST(qdev_new_orphan(TYPE_REMOTE_PCIHOST));
+    rem_host = REMOTE_PCIHOST(qdev_new(OBJECT(s), "remote-pcihost",
+                                       TYPE_REMOTE_PCIHOST));
 
     rem_host->mr_pci_mem = pci_memory;
     rem_host->mr_sys_mem = system_memory;
@@ -47,7 +48,6 @@ static void remote_machine_init(MachineState *machine)
 
     s->host = rem_host;
 
-    object_property_add_child(OBJECT(s), "remote-pcihost", OBJECT(rem_host));
     memory_region_add_subregion_overlap(system_memory, 0x0, pci_memory, -1);
 
     qdev_realize(DEVICE(rem_host), sysbus_get_default(), &error_fatal);
