@@ -3749,7 +3749,7 @@ struct omap_mpu_state_s *omap310_mpu_init(Object *parent, MemoryRegion *dram,
     MemoryRegion *system_memory = get_system_memory();
 
     /* Core */
-    s->cpu = ARM_CPU(cpu_create_orphan(cpu_type));
+    s->cpu = ARM_CPU(cpu_create(parent, "cpu", cpu_type));
     s->sdram_size = memory_region_size(dram);
     s->sram_size = OMAP15XX_SRAM_SIZE;
 
@@ -3763,21 +3763,21 @@ struct omap_mpu_state_s *omap310_mpu_init(Object *parent, MemoryRegion *dram,
 
     omap_clkm_init(system_memory, 0xfffece00, 0xe1008000, s);
 
-    s->ih[0] = qdev_new_orphan("omap-intc");
+    s->ih[0] = qdev_new(parent, "intc[0]", "omap-intc");
     qdev_prop_set_uint32(s->ih[0], "size", 0x100);
     omap_intc_set_iclk(OMAP_INTC(s->ih[0]), omap_findclk(s, "arminth_ck"));
     busdev = SYS_BUS_DEVICE(s->ih[0]);
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_realize(busdev, &error_fatal);
     sysbus_connect_irq(busdev, 0,
                        qdev_get_gpio_in(DEVICE(s->cpu), ARM_CPU_IRQ));
     sysbus_connect_irq(busdev, 1,
                        qdev_get_gpio_in(DEVICE(s->cpu), ARM_CPU_FIQ));
     sysbus_mmio_map(busdev, 0, 0xfffecb00);
-    s->ih[1] = qdev_new_orphan("omap-intc");
+    s->ih[1] = qdev_new(parent, "intc[1]", "omap-intc");
     qdev_prop_set_uint32(s->ih[1], "size", 0x800);
     omap_intc_set_iclk(OMAP_INTC(s->ih[1]), omap_findclk(s, "arminth_ck"));
     busdev = SYS_BUS_DEVICE(s->ih[1]);
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_realize(busdev, &error_fatal);
     sysbus_connect_irq(busdev, 0,
                        qdev_get_gpio_in(s->ih[0], OMAP_INT_15XX_IH2_IRQ));
     /* The second interrupt controller's FIQ output is not wired up */
@@ -3876,8 +3876,8 @@ struct omap_mpu_state_s *omap310_mpu_init(Object *parent, MemoryRegion *dram,
         warn_report("missing SecureDigital device");
     }
 
-    s->mmc = qdev_new_orphan(TYPE_OMAP_MMC);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(s->mmc), &error_fatal);
+    s->mmc = qdev_new(parent, "mmc", TYPE_OMAP_MMC);
+    sysbus_realize(SYS_BUS_DEVICE(s->mmc), &error_fatal);
     omap_mmc_set_clk(s->mmc, omap_findclk(s, "mmc_ck"));
 
     memory_region_add_subregion(system_memory, 0xfffb7800,
@@ -3888,11 +3888,11 @@ struct omap_mpu_state_s *omap310_mpu_init(Object *parent, MemoryRegion *dram,
                        qdev_get_gpio_in(s->ih[1], OMAP_INT_OQN));
 
     if (dinfo) {
-        DeviceState *card = qdev_new_orphan(TYPE_SD_CARD);
+        DeviceState *card = qdev_new(parent, "sd-card", TYPE_SD_CARD);
         qdev_prop_set_drive_err(card, "drive", blk_by_legacy_dinfo(dinfo),
                                 &error_fatal);
-        qdev_realize_and_unref(card, qdev_get_child_bus(s->mmc, "sd-bus"),
-                               &error_fatal);
+        qdev_realize(card, qdev_get_child_bus(s->mmc, "sd-bus"),
+                     &error_fatal);
     }
 
     s->mpuio = omap_mpuio_init(system_memory, 0xfffb5000,
@@ -3900,9 +3900,9 @@ struct omap_mpu_state_s *omap310_mpu_init(Object *parent, MemoryRegion *dram,
                                qdev_get_gpio_in(s->ih[1], OMAP_INT_MPUIO),
                                omap_findclk(s, "clk32-kHz"));
 
-    s->gpio = qdev_new_orphan("omap-gpio");
+    s->gpio = qdev_new(parent, "gpio", "omap-gpio");
     omap_gpio_set_clk(OMAP1_GPIO(s->gpio), omap_findclk(s, "arm_gpio_ck"));
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(s->gpio), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(s->gpio), &error_fatal);
     sysbus_connect_irq(SYS_BUS_DEVICE(s->gpio), 0,
                        qdev_get_gpio_in(s->ih[0], OMAP_INT_GPIO_BANK1));
     sysbus_mmio_map(SYS_BUS_DEVICE(s->gpio), 0, 0xfffce000);
@@ -3917,11 +3917,11 @@ struct omap_mpu_state_s *omap310_mpu_init(Object *parent, MemoryRegion *dram,
     s->pwt = omap_pwt_init(system_memory, 0xfffb6000,
                            omap_findclk(s, "armxor_ck"));
 
-    s->i2c[0] = qdev_new_orphan("omap_i2c");
+    s->i2c[0] = qdev_new(parent, "i2c", "omap_i2c");
     qdev_prop_set_uint8(s->i2c[0], "revision", 0x11);
     omap_i2c_set_fclk(OMAP_I2C(s->i2c[0]), omap_findclk(s, "mpuper_ck"));
     busdev = SYS_BUS_DEVICE(s->i2c[0]);
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_realize(busdev, &error_fatal);
     sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(s->ih[1], OMAP_INT_I2C));
     sysbus_connect_irq(busdev, 1, s->drq[OMAP_DMA_I2C_TX]);
     sysbus_connect_irq(busdev, 2, s->drq[OMAP_DMA_I2C_RX]);
