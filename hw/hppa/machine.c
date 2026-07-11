@@ -261,24 +261,24 @@ static FWCfgState *create_fw_cfg(MachineState *ms, PCIBus *pci_bus,
     return fw_cfg;
 }
 
-static LasiState *lasi_init(void)
+static LasiState *lasi_init(Object *parent)
 {
     DeviceState *dev;
 
-    dev = qdev_new_orphan(TYPE_LASI_CHIP);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    dev = qdev_new(parent, "lasi", TYPE_LASI_CHIP);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     return LASI_CHIP(dev);
 }
 
-static DinoState *dino_init(MemoryRegion *addr_space)
+static DinoState *dino_init(Object *parent, MemoryRegion *addr_space)
 {
     DeviceState *dev;
 
-    dev = qdev_new_orphan(TYPE_DINO_PCI_HOST_BRIDGE);
+    dev = qdev_new(parent, "dino", TYPE_DINO_PCI_HOST_BRIDGE);
     object_property_set_link(OBJECT(dev), "memory-as", OBJECT(addr_space),
                              &error_fatal);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     return DINO_PCI_HOST_BRIDGE(dev);
 }
@@ -298,7 +298,8 @@ static TranslateFn *machine_HP_common_init_cpus(MachineState *machine)
 
     /* Create CPUs.  */
     for (unsigned int i = 0; i < smp_cpus; i++) {
-        cpu[i] = HPPA_CPU(cpu_create_orphan(machine->cpu_type));
+        cpu[i] = HPPA_CPU(cpu_create(OBJECT(machine), "cpu[*]",
+                                     machine->cpu_type));
     }
 
     /* Initialize memory */
@@ -411,11 +412,11 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
     lasi_dev = hpm->lasi_dev;
     if (lasi_dev && machine->enable_graphics &&
         vga_interface_type != VGA_NONE) {
-        dev = qdev_new_orphan("artist");
+        dev = qdev_new(OBJECT(machine), "artist", "artist");
         s = SYS_BUS_DEVICE(dev);
         bool disabled = object_property_get_bool(OBJECT(dev), "disable", NULL);
         if (!disabled) {
-            sysbus_realize_and_unref(s, &error_fatal);
+            sysbus_realize(s, &error_fatal);
             vga_interface_created = true;
             sysbus_mmio_map(s, 0, translate(NULL, LASI_GFX_HPA));
             sysbus_mmio_map(s, 1, translate(NULL, ARTIST_FB_ADDR));
@@ -428,7 +429,8 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
 
     if (pci_bus && hppa_is_pa20(&cpu[0]->env)) {
         /* BMC board: HP Diva GSP PCI card */
-        pci_dev = pci_new_multifunction_orphan(PCI_DEVFN(2, 0), "diva-gsp");
+        pci_dev = pci_new_multifunction(OBJECT(machine), "diva-gsp",
+                                        PCI_DEVFN(2, 0), "diva-gsp");
         if (!lasi_dev) {
             /* bind default keyboard/serial to Diva card */
             qdev_prop_set_chr(DEVICE(pci_dev), "chardev1", serial_hd(0));
@@ -436,18 +438,19 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
             qdev_prop_set_chr(DEVICE(pci_dev), "chardev3", serial_hd(2));
             qdev_prop_set_chr(DEVICE(pci_dev), "chardev4", serial_hd(3));
         }
-        pci_realize_and_unref(pci_dev, pci_bus, &error_fatal);
+        qdev_realize(DEVICE(pci_dev), BUS(pci_bus), &error_fatal);
     }
 
     /* create USB OHCI controller for USB keyboard & mouse on Astro machines */
     if (!lasi_dev && machine->enable_graphics && defaults_enabled()) {
         USBBus *usb_bus;
 
-        pci_create_simple_orphan(pci_bus, -1, "pci-ohci");
+        pci_dev = pci_create_simple(OBJECT(machine), "ohci", pci_bus, -1,
+                                    "pci-ohci");
         usb_bus = USB_BUS(object_resolve_type_unambiguous(TYPE_USB_BUS,
                                                           &error_abort));
-        usb_create_simple_orphan(usb_bus, "usb-kbd");
-        usb_create_simple_orphan(usb_bus, "usb-mouse");
+        usb_create_simple(OBJECT(pci_dev), "usb-kbd", usb_bus, "usb-kbd");
+        usb_create_simple(OBJECT(pci_dev), "usb-mouse", usb_bus, "usb-mouse");
     }
 
     /* register power switch emulation */
@@ -597,7 +600,7 @@ static void machine_HP_715_init(MachineState *machine)
     assert(isa_bus);
 
     /* Init Lasi chip */
-    lasi_dev = DEVICE(lasi_init());
+    lasi_dev = DEVICE(lasi_init(OBJECT(machine)));
     hpm->lasi_dev = lasi_dev;
     memory_region_add_subregion(addr_space, translate(NULL, LASI_HPA_715),
                                 sysbus_mmio_get_region(
@@ -614,8 +617,8 @@ static void machine_HP_715_init(MachineState *machine)
                      parallel_hds[0]);
 
     /* PS/2 Keyboard/Mouse */
-    dev = qdev_new_orphan(TYPE_LASIPS2);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    dev = qdev_new(OBJECT(machine), "lasips2", TYPE_LASIPS2);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
                        qdev_get_gpio_in(lasi_dev, LASI_IRQ_PS2KBD_HPA));
     memory_region_add_subregion(addr_space,
@@ -672,14 +675,14 @@ static void machine_HP_B160L_init(MachineState *machine)
     }
 
     /* Init Lasi chip */
-    lasi_dev = DEVICE(lasi_init());
+    lasi_dev = DEVICE(lasi_init(OBJECT(machine)));
     hpm->lasi_dev = lasi_dev;
     memory_region_add_subregion(addr_space, translate(NULL, LASI_HPA),
                                 sysbus_mmio_get_region(
                                     SYS_BUS_DEVICE(lasi_dev), 0));
 
     /* Init Dino (PCI host bus chip).  */
-    dino_dev = DEVICE(dino_init(addr_space));
+    dino_dev = DEVICE(dino_init(OBJECT(machine), addr_space));
     memory_region_add_subregion(addr_space, translate(NULL, DINO_HPA),
                                 sysbus_mmio_get_region(
                                     SYS_BUS_DEVICE(dino_dev), 0));
@@ -706,8 +709,8 @@ static void machine_HP_B160L_init(MachineState *machine)
                      parallel_hds[0]);
 
     /* PS/2 Keyboard/Mouse */
-    dev = qdev_new_orphan(TYPE_LASIPS2);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    dev = qdev_new(OBJECT(machine), "lasips2", TYPE_LASIPS2);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
                        qdev_get_gpio_in(lasi_dev, LASI_IRQ_PS2KBD_HPA));
     memory_region_add_subregion(addr_space,
@@ -721,7 +724,8 @@ static void machine_HP_B160L_init(MachineState *machine)
 
     /* SCSI disk setup. */
     if (drive_get_max_bus(IF_SCSI) >= 0) {
-        dev = DEVICE(pci_create_simple_orphan(pci_bus, -1, "lsi53c895a"));
+        dev = DEVICE(pci_create_simple(OBJECT(machine), "scsi", pci_bus, -1,
+                                       "lsi53c895a"));
         lsi53c8xx_handle_legacy_cmdline(dev);
     }
 
@@ -729,15 +733,15 @@ static void machine_HP_B160L_init(MachineState *machine)
     machine_HP_common_init_tail(machine, pci_bus, translate);
 }
 
-static AstroState *astro_init(void)
+static AstroState *astro_init(Object *parent)
 {
     DeviceState *dev;
 
-    dev = qdev_new_orphan(TYPE_ASTRO_CHIP);
+    dev = qdev_new(parent, "astro", TYPE_ASTRO_CHIP);
     object_property_set_int(OBJECT(dev), "phys-addr-bits",
                             hppa_phys_addr_bits(&cpu[0]->env),
                             &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     return ASTRO_CHIP(dev);
 }
@@ -763,7 +767,7 @@ static void machine_HP_C3700_init(MachineState *machine)
     }
 
     /* Init Astro and the Elroys (PCI host bus chips).  */
-    astro = astro_init();
+    astro = astro_init(OBJECT(machine));
     astro_dev = DEVICE(astro);
     memory_region_add_subregion(addr_space, translate(NULL, ASTRO_HPA),
                                 sysbus_mmio_get_region(
@@ -773,7 +777,9 @@ static void machine_HP_C3700_init(MachineState *machine)
 
     /* SCSI disk setup. */
     if (drive_get_max_bus(IF_SCSI) >= 0) {
-        DeviceState *dev = DEVICE(pci_create_simple_orphan(pci_bus, -1, "lsi53c895a"));
+        DeviceState *dev = DEVICE(pci_create_simple(OBJECT(machine), "scsi",
+                                                    pci_bus, -1,
+                                                    "lsi53c895a"));
         lsi53c8xx_handle_legacy_cmdline(dev);
     }
 
