@@ -404,7 +404,7 @@
 #
 #     <- { "event": "DEVICE_TRAY_MOVED",
 #          "data": { "device": "ide1-cd0",
-#                    "id": "/machine/unattached/device[22]",
+#                    "id": "/machine/ide[1]/ide.1/cd0",
 #                    "tray-open": true
 #          },
 #          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }

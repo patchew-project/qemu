@@ -40,7 +40,7 @@ modifiers for all configured vCPUs.
       },
       "cpu-state": "operating",
       "entitlement": "medium",
-      "qom-path": "/machine/unattached/device[0]",
+      "qom-path": "/machine/cpu[0]",
       "cpu-index": 0,
       "target": "s390x"
     },

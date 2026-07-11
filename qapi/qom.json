@@ -135,7 +135,7 @@
 #    :title: Use absolute path
 #
 #     -> { "execute": "qom-get",
-#          "arguments": { "path": "/machine/unattached/device[0]",
+#          "arguments": { "path": "/machine/cpu[0]",
 #                         "property": "hotplugged" } }
 #     <- { "return": false }
 #
@@ -143,7 +143,7 @@
 #    :title: Use partial path
 #
 #     -> { "execute": "qom-get",
-#          "arguments": { "path": "unattached/sysbus",
+#          "arguments": { "path": "machine/sysbus",
 #                         "property": "type" } }
 #     <- { "return": "System" }
 ##

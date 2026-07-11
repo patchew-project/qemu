@@ -63,12 +63,12 @@ Testing: -fda TEST_DIR/t.qcow2
                 stats-intervals = <null>
                 drive-type = "144"
 floppy0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
     Cache mode:       writeback
 
 ide1-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -115,16 +115,16 @@ Testing: -fdb TEST_DIR/t.qcow2
                 stats-intervals = <null>
                 drive-type = "288"
 floppy1 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
     Cache mode:       writeback
 
 ide1-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 
 floppy0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -171,17 +171,17 @@ Testing: -fda TEST_DIR/t.qcow2 -fdb TEST_DIR/t.qcow2.2
                 stats-intervals = <null>
                 drive-type = "144"
 floppy0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
     Cache mode:       writeback
 
 floppy1 (NODE_NAME): TEST_DIR/t.qcow2.2 (qcow2)
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
     Cache mode:       writeback
 
 ide1-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -258,12 +258,12 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2
                 stats-intervals = <null>
                 drive-type = "144"
 floppy0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
     Cache mode:       writeback
 
 ide1-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -310,16 +310,16 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2,index=1
                 stats-intervals = <null>
                 drive-type = "288"
 floppy1 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
     Cache mode:       writeback
 
 ide1-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 
 floppy0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -366,17 +366,17 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2 -drive if=floppy,file=TEST_DIR/t
                 stats-intervals = <null>
                 drive-type = "144"
 floppy0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
     Cache mode:       writeback
 
 floppy1 (NODE_NAME): TEST_DIR/t.qcow2.2 (qcow2)
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
     Cache mode:       writeback
 
 ide1-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -416,7 +416,7 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Cache mode:       writeback
 
 ide1-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -453,7 +453,7 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Cache mode:       writeback
 
 ide1-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -510,7 +510,7 @@ none1 (NODE_NAME): TEST_DIR/t.qcow2.2 (qcow2)
     Cache mode:       writeback
 
 ide1-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -566,7 +566,7 @@ Testing: -fda TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
                 stats-intervals = <null>
                 drive-type = "144"
 floppy0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
     Cache mode:       writeback
 
@@ -576,7 +576,7 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2.2 (qcow2)
     Cache mode:       writeback
 
 ide1-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -623,7 +623,7 @@ Testing: -fda TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
                 stats-intervals = <null>
                 drive-type = "144"
 floppy0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
     Cache mode:       writeback
 
@@ -633,7 +633,7 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2.2 (qcow2)
     Cache mode:       writeback
 
 ide1-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -680,7 +680,7 @@ Testing: -fdb TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
                 stats-intervals = <null>
                 drive-type = "144"
 floppy1 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
     Cache mode:       writeback
 
@@ -690,7 +690,7 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2.2 (qcow2)
     Cache mode:       writeback
 
 ide1-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -737,7 +737,7 @@ Testing: -fdb TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
                 stats-intervals = <null>
                 drive-type = "144"
 floppy1 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
     Cache mode:       writeback
 
@@ -747,7 +747,7 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2.2 (qcow2)
     Cache mode:       writeback
 
 ide1-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -803,7 +803,7 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.q
                 stats-intervals = <null>
                 drive-type = "144"
 floppy0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
     Cache mode:       writeback
 
@@ -813,7 +813,7 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2.2 (qcow2)
     Cache mode:       writeback
 
 ide1-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -860,7 +860,7 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.q
                 stats-intervals = <null>
                 drive-type = "144"
 floppy0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
     Cache mode:       writeback
 
@@ -870,7 +870,7 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2.2 (qcow2)
     Cache mode:       writeback
 
 ide1-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -913,7 +913,7 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Cache mode:       writeback
 
 ide1-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -1091,7 +1091,7 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Cache mode:       writeback
 
 ide1-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -1128,7 +1128,7 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Cache mode:       writeback
 
 ide1-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -1168,7 +1168,7 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Cache mode:       writeback
 
 ide1-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -1205,7 +1205,7 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Cache mode:       writeback
 
 ide1-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[N]
+    Attached to:      PATH
     Removable device: not locked, tray closed
 (qemu) quit
 

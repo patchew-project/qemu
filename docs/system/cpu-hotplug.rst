@@ -47,7 +47,7 @@ vCPU hotplug
                       "socket-id": 0,
                       "thread-id": 0
                   },
-                  "qom-path": "/machine/unattached/device[0]",
+                  "qom-path": "/machine/cpu[0]",
                   "type": "IvyBridge-IBRS-x86_64-cpu",
                   "vcpus-count": 1
               }
@@ -95,7 +95,7 @@ vCPU hotplug
                       "socket-id": 0,
                       "thread-id": 0
                   },
-                  "qom-path": "/machine/unattached/device[0]",
+                  "qom-path": "/machine/cpu[0]",
                   "target": "x86_64",
                   "thread-id": 28957
               },

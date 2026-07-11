@@ -244,8 +244,7 @@ class ArmProcessorEinj:
         qmp_cmd.set_args(args)
 
         is_cpu_type = re.compile(r"^([\w+]+\-)?arm\-cpu$")
-        cpus = qmp_cmd.search_qom("/machine/unattached/device",
-                                  "type", is_cpu_type)
+        cpus = qmp_cmd.search_qom("/machine/cpu", "type", is_cpu_type)
 
         cper = {}
         pei = {}

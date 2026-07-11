@@ -121,7 +121,7 @@
 #                     "thread-id": 0,
 #                     "socket-id": 0
 #                 },
-#                 "qom-path": "/machine/unattached/device[0]",
+#                 "qom-path": "/machine/cpu[0]",
 #                 "target":"x86_64",
 #                 "cpu-index": 0
 #             },
@@ -132,7 +132,7 @@
 #                     "thread-id": 0,
 #                     "socket-id": 1
 #                 },
-#                 "qom-path": "/machine/unattached/device[2]",
+#                 "qom-path": "/machine/cpu[1]",
 #                 "target":"x86_64",
 #                 "cpu-index": 1
 #             }
@@ -1028,7 +1028,7 @@
 #          { "props": { "core-id": 8 }, "type": "POWER8-spapr-cpu-core",
 #            "vcpus-count": 1 },
 #          { "props": { "core-id": 0 }, "type": "POWER8-spapr-cpu-core",
-#            "vcpus-count": 1, "qom-path": "/machine/unattached/device[0]"}
+#            "vcpus-count": 1, "qom-path": "/machine/cpu[0]"}
 #        ]}
 #
 # .. qmp-example::
@@ -1043,7 +1043,7 @@
 #             "props": {"core-id": 0, "socket-id": 1, "thread-id": 0}
 #          },
 #          {
-#             "qom-path": "/machine/unattached/device[0]",
+#             "qom-path": "/machine/cpu[0]",
 #             "type": "qemu64-x86_64-cpu", "vcpus-count": 1,
 #             "props": {"core-id": 0, "socket-id": 0, "thread-id": 0}
 #          }
@@ -1062,7 +1062,7 @@
 #             "props": { "core-id": 1 }
 #          },
 #          {
-#             "qom-path": "/machine/unattached/device[0]",
+#             "qom-path": "/machine/cpu[0]",
 #             "type": "qemu-s390x-cpu", "vcpus-count": 1,
 #             "props": { "core-id": 0 }
 #          }
@@ -1617,7 +1617,7 @@
 #
 #     <- { "event": "MEMORY_DEVICE_SIZE_CHANGE",
 #          "data": { "id": "vm0", "size": 1073741824,
-#                    "qom-path": "/machine/unattached/device[2]" },
+#                    "qom-path": "/machine/peripheral/vm0" },
 #          "timestamp": { "seconds": 1588168529, "microseconds": 201316 } }
 ##
 { 'event': 'MEMORY_DEVICE_SIZE_CHANGE',

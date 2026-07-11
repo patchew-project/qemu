@@ -601,7 +601,7 @@ class qmp:
         """
         Return a list of devices that match path array like:
 
-            /machine/unattached/device
+            /machine/cpu
             /machine/peripheral-anon/device
             ...
         """

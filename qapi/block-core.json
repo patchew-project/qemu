@@ -928,7 +928,7 @@
 #                 "device":"ide1-cd0",
 #                 "locked":false,
 #                 "removable":true,
-#                 "qdev": "/machine/unattached/device[23]",
+#                 "qdev": "/machine/ide[1]/ide.1/cd0",
 #                 "tray_open": false,
 #                 "type":"unknown"
 #              },
@@ -936,7 +936,7 @@
 #                 "device":"floppy0",
 #                 "locked":false,
 #                 "removable":true,
-#                 "qdev": "/machine/unattached/device[20]",
+#                 "qdev": "/machine/fdc/floppy[0]",
 #                 "type":"unknown"
 #              },
 #              {
@@ -1310,7 +1310,7 @@
 #                    "account_invalid":true,
 #                    "account_failed":false
 #                 },
-#                 "qdev": "/machine/unattached/device[23]"
+#                 "qdev": "/machine/ide[0]/ide.0/hd0"
 #              },
 #              {
 #                 "device":"ide1-cd0",
@@ -1329,7 +1329,7 @@
 #                    "account_invalid":false,
 #                    "account_failed":false
 #                 },
-#                 "qdev": "/machine/unattached/device[24]"
+#                 "qdev": "/machine/ide[1]/ide.1/cd0"
 #              },
 #              {
 #                 "device":"floppy0",
@@ -1348,7 +1348,7 @@
 #                    "account_invalid":false,
 #                    "account_failed":false
 #                 },
-#                 "qdev": "/machine/unattached/device[16]"
+#                 "qdev": "/machine/fdc/floppy[0]"
 #              },
 #              {
 #                 "device":"sd0",
@@ -5750,7 +5750,7 @@
 # .. qmp-example::
 #
 #     <- { "event": "BLOCK_IO_ERROR",
-#          "data": { "qom-path": "/machine/unattached/device[0]",
+#          "data": { "qom-path": "/machine/ide[0]/ide.0/hd1",
 #                    "device": "ide0-hd1",
 #                    "node-name": "#block212",
 #                    "operation": "write",
