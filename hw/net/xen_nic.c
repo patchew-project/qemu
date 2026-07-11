@@ -619,13 +619,14 @@ static void xen_net_device_create(XenBackendInstance *backend,
         goto fail;
     }
 
-    xendev = XEN_DEVICE(qdev_new_orphan(TYPE_XEN_NET_DEVICE));
+    xendev = XEN_DEVICE(qdev_new(OBJECT(BUS(xenbus)->parent), "vif[*]",
+                                 TYPE_XEN_NET_DEVICE));
     net = XEN_NET_DEVICE(xendev);
 
     net->dev = number;
     memcpy(&net->conf.macaddr, &mac, sizeof(mac));
 
-    if (qdev_realize_and_unref(DEVICE(xendev), BUS(xenbus), errp)) {
+    if (qdev_realize(DEVICE(xendev), BUS(xenbus), errp)) {
         xen_backend_set_device(backend, xendev);
         return;
     }

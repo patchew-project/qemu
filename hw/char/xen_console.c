@@ -562,7 +562,8 @@ static void xen_console_device_create(XenBackendInstance *backend,
         goto fail;
     }
 
-    xendev = XEN_DEVICE(qdev_new_orphan(TYPE_XEN_CONSOLE_DEVICE));
+    xendev = XEN_DEVICE(qdev_new(OBJECT(BUS(xenbus)->parent), "console[*]",
+                                 TYPE_XEN_CONSOLE_DEVICE));
     con = XEN_CONSOLE_DEVICE(xendev);
 
     con->dev = number;
@@ -610,7 +611,7 @@ static void xen_console_device_create(XenBackendInstance *backend,
         goto fail;
     }
 
-    if (qdev_realize_and_unref(DEVICE(xendev), BUS(xenbus), errp)) {
+    if (qdev_realize(DEVICE(xendev), BUS(xenbus), errp)) {
         xen_backend_set_device(backend, xendev);
         goto done;
     }

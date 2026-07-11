@@ -1074,7 +1074,8 @@ static void xen_block_device_create(XenBackendInstance *backend,
         goto fail;
     }
 
-    xendev = XEN_DEVICE(qdev_new_orphan(type));
+    xendev = XEN_DEVICE(qdev_new(OBJECT(BUS(xenbus)->parent), "vbd[*]",
+                                 type));
     blockdev = XEN_BLOCK_DEVICE(xendev);
 
     if (!object_property_set_str(OBJECT(xendev), "vdev", vdev,
@@ -1099,7 +1100,7 @@ static void xen_block_device_create(XenBackendInstance *backend,
     blockdev->iothread = iothread;
     blockdev->drive = drive;
 
-    if (!qdev_realize_and_unref(DEVICE(xendev), BUS(xenbus), errp)) {
+    if (!qdev_realize(DEVICE(xendev), BUS(xenbus), errp)) {
         error_prepend(errp, "realization of device %s failed: ", type);
         goto fail;
     }
