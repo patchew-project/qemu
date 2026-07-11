@@ -70,17 +70,17 @@ static void tricore_testboard_init(MachineState *machine, int board_id)
 
     cpu = TRICORE_CPU(cpu_create(mo, "cpu", machine->cpu_type));
     env = &cpu->env;
-    memory_region_init_ram(ext_cram, NULL, "powerlink_ext_c.ram",
+    memory_region_init_ram(ext_cram, OBJECT(machine), "powerlink_ext_c.ram",
                            2 * MiB, &error_fatal);
-    memory_region_init_ram(ext_dram, NULL, "powerlink_ext_d.ram",
+    memory_region_init_ram(ext_dram, OBJECT(machine), "powerlink_ext_d.ram",
                            4 * MiB, &error_fatal);
-    memory_region_init_ram(int_cram, NULL, "powerlink_int_c.ram", 48 * KiB,
+    memory_region_init_ram(int_cram, OBJECT(machine), "powerlink_int_c.ram", 48 * KiB,
                            &error_fatal);
-    memory_region_init_ram(int_dram, NULL, "powerlink_int_d.ram", 48 * KiB,
+    memory_region_init_ram(int_dram, OBJECT(machine), "powerlink_int_d.ram", 48 * KiB,
                            &error_fatal);
-    memory_region_init_ram(pcp_data, NULL, "powerlink_pcp_data.ram",
+    memory_region_init_ram(pcp_data, OBJECT(machine), "powerlink_pcp_data.ram",
                            16 * KiB, &error_fatal);
-    memory_region_init_ram(pcp_text, NULL, "powerlink_pcp_text.ram",
+    memory_region_init_ram(pcp_text, OBJECT(machine), "powerlink_pcp_text.ram",
                            32 * KiB, &error_fatal);
 
     memory_region_add_subregion(sysmem, 0x80000000, ext_cram);
