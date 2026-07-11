@@ -508,11 +508,11 @@ static MemoryRegion *make_eth_dev(MPS2TZMachineState *mms, void *opaque,
     /* In hardware this is a LAN9220; the LAN9118 is software compatible
      * except that it doesn't support the checksum-offload feature.
      */
-    mms->lan9118 = qdev_new_orphan(TYPE_LAN9118);
+    mms->lan9118 = qdev_new(OBJECT(mms), "lan9118", TYPE_LAN9118);
     qemu_configure_nic_device(mms->lan9118, true, NULL);
 
     s = SYS_BUS_DEVICE(mms->lan9118);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     sysbus_connect_irq(s, 0, get_sse_irq_in(mms, irqs[0]));
     return sysbus_mmio_get_region(s, 0);
 }
@@ -535,11 +535,11 @@ static MemoryRegion *make_eth_usb(MPS2TZMachineState *mms, void *opaque,
      * In hardware this is a LAN9220; the LAN9118 is software compatible
      * except that it doesn't support the checksum-offload feature.
      */
-    mms->lan9118 = qdev_new_orphan(TYPE_LAN9118);
+    mms->lan9118 = qdev_new(OBJECT(mms), "lan9118", TYPE_LAN9118);
     qemu_configure_nic_device(mms->lan9118, true, NULL);
 
     s = SYS_BUS_DEVICE(mms->lan9118);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     sysbus_connect_irq(s, 0, get_sse_irq_in(mms, irqs[0]));
 
     memory_region_add_subregion(&mms->eth_usb_container,

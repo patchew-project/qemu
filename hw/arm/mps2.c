@@ -299,11 +299,11 @@ static void mps2_common_init(MachineState *machine)
                 rxovrint = qdev_get_gpio_in(orgate_dev, i * 2 + 1);
             }
 
-            dev = qdev_new_orphan(TYPE_CMSDK_APB_UART);
+            dev = qdev_new(OBJECT(mms), "uart[*]", TYPE_CMSDK_APB_UART);
             s = SYS_BUS_DEVICE(dev);
             qdev_prop_set_chr(dev, "chardev", serial_hd(i));
             qdev_prop_set_uint32(dev, "pclk-frq", SYSCLK_FRQ);
-            sysbus_realize_and_unref(s, &error_fatal);
+            sysbus_realize(s, &error_fatal);
             sysbus_mmio_map(s, 0, uartbase[i]);
             sysbus_connect_irq(s, 0, qdev_get_gpio_in(armv7m, uartirq[i] + 1));
             sysbus_connect_irq(s, 1, qdev_get_gpio_in(armv7m, uartirq[i]));
@@ -343,11 +343,11 @@ static void mps2_common_init(MachineState *machine)
             qdev_connect_gpio_out(txrx_orgate_dev, 0,
                                   qdev_get_gpio_in(armv7m, uart_txrx_irqno[i]));
 
-            dev = qdev_new_orphan(TYPE_CMSDK_APB_UART);
+            dev = qdev_new(OBJECT(mms), "uart[*]", TYPE_CMSDK_APB_UART);
             s = SYS_BUS_DEVICE(dev);
             qdev_prop_set_chr(dev, "chardev", serial_hd(i));
             qdev_prop_set_uint32(dev, "pclk-frq", SYSCLK_FRQ);
-            sysbus_realize_and_unref(s, &error_fatal);
+            sysbus_realize(s, &error_fatal);
             sysbus_mmio_map(s, 0, uartbase[i]);
             sysbus_connect_irq(s, 0, qdev_get_gpio_in(txrx_orgate_dev, 0));
             sysbus_connect_irq(s, 1, qdev_get_gpio_in(txrx_orgate_dev, 1));
@@ -416,8 +416,8 @@ static void mps2_common_init(MachineState *machine)
     qdev_prop_set_uint32(DEVICE(&mms->fpgaio), "prescale-clk", 25000000);
     sysbus_realize(SYS_BUS_DEVICE(&mms->fpgaio), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&mms->fpgaio), 0, 0x40028000);
-    sysbus_create_simple_orphan(TYPE_PL022, 0x40025000,        /* External ADC */
-                         qdev_get_gpio_in(armv7m, 22));
+    sysbus_create_simple(OBJECT(mms), "spi[*]", TYPE_PL022, 0x40025000,
+                         qdev_get_gpio_in(armv7m, 22)); /* External ADC */
     for (i = 0; i < 2; i++) {
         static const int spi_irqno[] = {11, 24};
         static const hwaddr spibase[] = {0x40020000,    /* APB */
@@ -435,7 +435,8 @@ static void mps2_common_init(MachineState *machine)
         qdev_connect_gpio_out(orgate_dev, 0,
                               qdev_get_gpio_in(armv7m, spi_irqno[i]));
         for (j = 0; j < 2; j++) {
-            sysbus_create_simple_orphan(TYPE_PL022, spibase[2 * i + j],
+            sysbus_create_simple(OBJECT(mms), "spi[*]", TYPE_PL022,
+                                 spibase[2 * i + j],
                                  qdev_get_gpio_in(orgate_dev, j));
         }
     }
@@ -446,7 +447,8 @@ static void mps2_common_init(MachineState *machine)
                                          0x4002a000};   /* Shield1 */
         DeviceState *dev;
 
-        dev = sysbus_create_simple_orphan(TYPE_ARM_SBCON_I2C, i2cbase[i], NULL);
+        dev = sysbus_create_simple(OBJECT(mms), "i2c[*]",
+                                   TYPE_ARM_SBCON_I2C, i2cbase[i], NULL);
         if (i < 2) {
             /*
              * internal-only bus: mark it full to avoid user-created
