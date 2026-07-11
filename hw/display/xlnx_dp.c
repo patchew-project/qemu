@@ -1341,19 +1341,11 @@ static void xlnx_dp_init(Object *obj)
      */
     s->aux_bus = aux_bus_init(DEVICE(obj), "aux");
 
-    /*
-     * Initialize DPCD and EDID. Once we have added the objects as
-     * child properties of this device, we can drop the reference we
-     * hold to them, leaving the child-property as the only reference.
-     */
-    s->dpcd = DPCD(qdev_new_orphan("dpcd"));
-    object_property_add_child(OBJECT(s), "dpcd", OBJECT(s->dpcd));
-    object_unref(s->dpcd);
+    /* Initialize DPCD and EDID. */
+    s->dpcd = DPCD(qdev_new(obj, "dpcd", "dpcd"));
 
-    s->edid = I2CDDC(qdev_new_orphan("i2c-ddc"));
+    s->edid = I2CDDC(qdev_new(obj, "edid", "i2c-ddc"));
     i2c_slave_set_address(I2C_SLAVE(s->edid), 0x50);
-    object_property_add_child(OBJECT(s), "edid", OBJECT(s->edid));
-    object_unref(s->edid);
 
     fifo8_create(&s->rx_fifo, 16);
     fifo8_create(&s->tx_fifo, 16);
