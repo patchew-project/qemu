@@ -153,7 +153,7 @@ static void virtio_gpu_gl_device_realize(DeviceState *qdev, Error **errp)
         }
 
         gl->hostmem_mmap = map;
-        memory_region_init_ram_ptr(&gl->hostmem_background, NULL,
+        memory_region_init_ram_ptr(&gl->hostmem_background, OBJECT(qdev),
                                    "hostmem-background", b->conf.hostmem,
                                    gl->hostmem_mmap);
         memory_region_add_subregion(&b->hostmem, 0, &gl->hostmem_background);

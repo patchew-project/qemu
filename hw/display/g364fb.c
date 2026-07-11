@@ -482,7 +482,7 @@ static void g364fb_init(DeviceState *dev, G364State *s)
 
     memory_region_init_io(&s->mem_ctrl, OBJECT(dev), &g364fb_ctrl_ops, s,
                           "ctrl", 0x180000);
-    memory_region_init_ram(&s->mem_vram, NULL, "g364fb.vram", s->vram_size,
+    memory_region_init_ram(&s->mem_vram, OBJECT(dev), "g364fb.vram", s->vram_size,
                            &error_fatal);
     memory_region_set_log(&s->mem_vram, true, DIRTY_MEMORY_VGA);
 }
