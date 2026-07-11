@@ -284,10 +284,10 @@ static void atmega_realize(DeviceState *dev, Error **errp)
      * 0x20 - 0x5f: I/O memory
      * 0x60 - 0xff: Extended I/O
      */
-    s->io = qdev_new_orphan(TYPE_UNIMPLEMENTED_DEVICE);
+    s->io = qdev_new(OBJECT(dev), "io", TYPE_UNIMPLEMENTED_DEVICE);
     qdev_prop_set_string(s->io, "name", "I/O");
     qdev_prop_set_uint64(s->io, "size", mc->io_size);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(s->io), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(s->io), &error_fatal);
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(s->io), 0, OFFSET_DATA, -1234);
 
     /* Power Reduction */
