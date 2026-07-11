@@ -171,13 +171,12 @@ bool pcie_sriov_pf_init(PCIDevice *dev, uint16_t offset,
     dev->exp.sriov_pf.vf = g_new(PCIDevice *, total_vfs);
 
     for (uint16_t i = 0; i < total_vfs; i++) {
-        PCIDevice *vf = pci_new_orphan(devfn, vfname);
+        PCIDevice *vf = pci_new(OBJECT(dev), "vf[*]", devfn, vfname);
         vf->exp.sriov_vf.pf = dev;
         vf->exp.sriov_vf.vf_number = i;
 
         if (!qdev_realize(&vf->qdev, bus, errp)) {
             object_unparent(OBJECT(vf));
-            object_unref(vf);
             unparent_vfs(dev, i);
             return false;
         }
