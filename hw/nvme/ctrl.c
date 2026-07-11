@@ -9556,7 +9556,7 @@ static int nvme_init_subsys(NvmeCtrl *n, Error **errp)
     int cntlid;
 
     if (!n->subsys) {
-        DeviceState *dev = qdev_new_orphan(TYPE_NVME_SUBSYS);
+        DeviceState *dev = qdev_new(OBJECT(n), "subsys", TYPE_NVME_SUBSYS);
 
         qdev_prop_set_string(dev, "nqn", n->params.serial);
 
