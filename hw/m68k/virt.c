@@ -145,7 +145,7 @@ static void virt_init(MachineState *machine)
     reset_info = g_new0(ResetInfo, 1);
 
     /* init CPUs */
-    cpu = M68K_CPU(cpu_create_orphan(machine->cpu_type));
+    cpu = M68K_CPU(cpu_create(OBJECT(machine), "cpu", machine->cpu_type));
 
     reset_info->cpu = cpu;
     qemu_register_reset(main_cpu_reset, reset_info);
@@ -155,10 +155,10 @@ static void virt_init(MachineState *machine)
 
     /* IRQ Controller */
 
-    irqc_dev = qdev_new_orphan(TYPE_M68K_IRQC);
+    irqc_dev = qdev_new(OBJECT(machine), "irqc", TYPE_M68K_IRQC);
     object_property_set_link(OBJECT(irqc_dev), "m68k-cpu",
                              OBJECT(cpu), &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(irqc_dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(irqc_dev), &error_fatal);
 
     /*
      * 6 goldfish-pic
@@ -169,10 +169,10 @@ static void virt_init(MachineState *machine)
      */
     io_base = VIRT_GF_PIC_MMIO_BASE;
     for (i = 0; i < VIRT_GF_PIC_NB; i++) {
-        pic_dev[i] = qdev_new_orphan(TYPE_GOLDFISH_PIC);
+        pic_dev[i] = qdev_new(OBJECT(machine), "pic[*]", TYPE_GOLDFISH_PIC);
         sysbus = SYS_BUS_DEVICE(pic_dev[i]);
         qdev_prop_set_uint8(pic_dev[i], "index", i);
-        sysbus_realize_and_unref(sysbus, &error_fatal);
+        sysbus_realize(sysbus, &error_fatal);
 
         sysbus_mmio_map(sysbus, 0, io_base);
         sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(irqc_dev, i));
@@ -183,10 +183,10 @@ static void virt_init(MachineState *machine)
     /* goldfish-rtc */
     io_base = VIRT_GF_RTC_MMIO_BASE;
     for (i = 0; i < VIRT_GF_RTC_NB; i++) {
-        dev = qdev_new_orphan(TYPE_GOLDFISH_RTC);
+        dev = qdev_new(OBJECT(machine), "rtc[*]", TYPE_GOLDFISH_RTC);
         qdev_prop_set_bit(dev, "big-endian", true);
         sysbus = SYS_BUS_DEVICE(dev);
-        sysbus_realize_and_unref(sysbus, &error_fatal);
+        sysbus_realize(sysbus, &error_fatal);
         sysbus_mmio_map(sysbus, 0, io_base);
         sysbus_connect_irq(sysbus, 0, PIC_GPIO(VIRT_GF_RTC_IRQ_BASE + i));
 
@@ -194,24 +194,25 @@ static void virt_init(MachineState *machine)
     }
 
     /* goldfish-tty */
-    dev = qdev_new_orphan(TYPE_GOLDFISH_TTY);
+    dev = qdev_new(OBJECT(machine), "tty", TYPE_GOLDFISH_TTY);
     sysbus = SYS_BUS_DEVICE(dev);
     qdev_prop_set_chr(dev, "chardev", serial_hd(0));
-    sysbus_realize_and_unref(sysbus, &error_fatal);
+    sysbus_realize(sysbus, &error_fatal);
     sysbus_mmio_map(sysbus, 0, VIRT_GF_TTY_MMIO_BASE);
     sysbus_connect_irq(sysbus, 0, PIC_GPIO(VIRT_GF_TTY_IRQ_BASE));
 
     /* virt controller */
-    dev = sysbus_create_simple_orphan(TYPE_VIRT_CTRL, VIRT_CTRL_MMIO_BASE,
+    dev = sysbus_create_simple(OBJECT(machine), "virt-ctrl", TYPE_VIRT_CTRL,
+                               VIRT_CTRL_MMIO_BASE,
                                PIC_GPIO(VIRT_CTRL_IRQ_BASE));
 
     /* virtio-mmio */
     io_base = VIRT_VIRTIO_MMIO_BASE;
     for (i = 0; i < 128; i++) {
-        dev = qdev_new_orphan(TYPE_VIRTIO_MMIO);
+        dev = qdev_new(OBJECT(machine), "virtio-mmio[*]", TYPE_VIRTIO_MMIO);
         qdev_prop_set_bit(dev, "force-legacy", false);
         sysbus = SYS_BUS_DEVICE(dev);
-        sysbus_realize_and_unref(sysbus, &error_fatal);
+        sysbus_realize(sysbus, &error_fatal);
         sysbus_connect_irq(sysbus, 0, PIC_GPIO(VIRT_VIRTIO_IRQ_BASE + i));
         sysbus_mmio_map(sysbus, 0, io_base);
         io_base += 0x200;

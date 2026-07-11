@@ -20,16 +20,17 @@
 #define AN5206_MBAR_ADDR 0x10000000
 #define AN5206_RAMBAR_ADDR 0x20000000
 
-static void mcf5206_init(M68kCPU *cpu, MemoryRegion *sysmem, uint32_t base)
+static void mcf5206_init(Object *parent, M68kCPU *cpu, MemoryRegion *sysmem,
+                         uint32_t base)
 {
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_new_orphan(TYPE_MCF5206_MBAR);
+    dev = qdev_new(parent, "mbar", TYPE_MCF5206_MBAR);
     object_property_set_link(OBJECT(dev), "m68k-cpu",
                              OBJECT(cpu), &error_abort);
     s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
 
     memory_region_add_subregion(sysmem, base, sysbus_mmio_get_region(s, 0));
 }
@@ -46,7 +47,7 @@ static void an5206_init(MachineState *machine)
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *sram = g_new(MemoryRegion, 1);
 
-    cpu = M68K_CPU(cpu_create_orphan(machine->cpu_type));
+    cpu = M68K_CPU(cpu_create(OBJECT(machine), "cpu", machine->cpu_type));
     env = &cpu->env;
 
     /* Initialize CPU registers.  */
@@ -62,7 +63,7 @@ static void an5206_init(MachineState *machine)
     memory_region_init_ram(sram, NULL, "an5206.sram", 512, &error_fatal);
     memory_region_add_subregion(address_space_mem, AN5206_RAMBAR_ADDR, sram);
 
-    mcf5206_init(cpu, address_space_mem, AN5206_MBAR_ADDR);
+    mcf5206_init(OBJECT(machine), cpu, address_space_mem, AN5206_MBAR_ADDR);
 
     /* Load kernel.  */
     if (!kernel_filename) {

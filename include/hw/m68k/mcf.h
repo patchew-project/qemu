@@ -14,7 +14,7 @@ DeviceState *mcf_uart_create(qemu_irq irq, Chardev *chr);
 DeviceState *mcf_uart_create_mmap(hwaddr base, qemu_irq irq, Chardev *chr);
 
 /* mcf_intc.c */
-DeviceState *mcf_intc_init(struct MemoryRegion *sysmem,
+DeviceState *mcf_intc_init(Object *parent, struct MemoryRegion *sysmem,
                            hwaddr base, M68kCPU *cpu);
 
 /* mcf5206.c */

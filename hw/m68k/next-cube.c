@@ -1260,7 +1260,7 @@ static void next_cube_init(MachineState *machine)
     DeviceState *pcdev;
 
     /* Initialize the cpu core */
-    cpu = M68K_CPU(cpu_create_orphan(machine->cpu_type));
+    cpu = M68K_CPU(cpu_create(OBJECT(machine), "cpu", machine->cpu_type));
     if (!cpu) {
         error_report("Unable to find m68k CPU definition");
         exit(1);
@@ -1272,15 +1272,15 @@ static void next_cube_init(MachineState *machine)
     env->sr  = 0x2700;
 
     /* Peripheral Controller */
-    pcdev = qdev_new_orphan(TYPE_NEXT_PC);
+    pcdev = qdev_new(OBJECT(machine), "pc", TYPE_NEXT_PC);
     object_property_set_link(OBJECT(pcdev), "cpu", OBJECT(cpu), &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(pcdev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(pcdev), &error_fatal);
 
     /* 64MB RAM starting at 0x04000000  */
     memory_region_add_subregion(sysmem, 0x04000000, machine->ram);
 
     /* Framebuffer */
-    sysbus_create_simple_orphan(TYPE_NEXTFB, 0x0B000000, NULL);
+    sysbus_create_simple(OBJECT(machine), "fb", TYPE_NEXTFB, 0x0B000000, NULL);
 
     /* MMIO */
     sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 0, 0x02005000);
@@ -1319,7 +1319,7 @@ static void next_cube_init(MachineState *machine)
     memory_region_add_subregion(sysmem, 0x820c0000, &m->bmapm2);
 
     /* KBD */
-    sysbus_create_simple_orphan(TYPE_NEXTKBD, 0x0200e000, NULL);
+    sysbus_create_simple(OBJECT(machine), "kbd", TYPE_NEXTKBD, 0x0200e000, NULL);
 
     /* Load ROM here */
     memory_region_init_rom(&m->rom, NULL, "next.rom", 0x20000, &error_fatal);

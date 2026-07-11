@@ -207,14 +207,15 @@ static void mcf_intc_register_types(void)
 
 type_init(mcf_intc_register_types)
 
-DeviceState *mcf_intc_init(MemoryRegion *sysmem, hwaddr base, M68kCPU *cpu)
+DeviceState *mcf_intc_init(Object *parent, MemoryRegion *sysmem, hwaddr base,
+                           M68kCPU *cpu)
 {
     DeviceState  *dev;
 
-    dev = qdev_new_orphan(TYPE_MCF_INTC);
+    dev = qdev_new(parent, "intc", TYPE_MCF_INTC);
     object_property_set_link(OBJECT(dev), "m68k-cpu",
                              OBJECT(cpu), &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     memory_region_add_subregion(sysmem, base,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
     return dev;

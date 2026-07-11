@@ -288,7 +288,7 @@ static void mcf5208evb_init(MachineState *machine)
     MemoryRegion *sram = g_new(MemoryRegion, 1);
     DeviceState *intc;
 
-    cpu = M68K_CPU(cpu_create_orphan(machine->cpu_type));
+    cpu = M68K_CPU(cpu_create(OBJECT(machine), "cpu", machine->cpu_type));
     env = &cpu->env;
 
     /* Initialize CPU registers.  */
@@ -307,7 +307,7 @@ static void mcf5208evb_init(MachineState *machine)
     memory_region_add_subregion(address_space_mem, 0x80000000, sram);
 
     /* Internal peripherals.  */
-    intc = mcf_intc_init(address_space_mem, 0xfc048000, cpu);
+    intc = mcf_intc_init(OBJECT(machine), address_space_mem, 0xfc048000, cpu);
 
     mcf_uart_create_mmap(0xfc060000, qdev_get_gpio_in(intc, 26), serial_hd(0));
     mcf_uart_create_mmap(0xfc064000, qdev_get_gpio_in(intc, 27), serial_hd(1));
