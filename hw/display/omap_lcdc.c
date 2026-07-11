@@ -489,7 +489,8 @@ static const GraphicHwOps omap_ops = {
     .gfx_update  = omap_update_display,
 };
 
-struct omap_lcd_panel_s *omap_lcdc_init(MemoryRegion *sysmem,
+struct omap_lcd_panel_s *omap_lcdc_init(Object *owner,
+                                        MemoryRegion *sysmem,
                                         hwaddr base,
                                         qemu_irq irq,
                                         struct omap_dma_lcd_channel_s *dma,
@@ -502,7 +503,7 @@ struct omap_lcd_panel_s *omap_lcdc_init(MemoryRegion *sysmem,
     s->sysmem = sysmem;
     omap_lcdc_reset(s);
 
-    memory_region_init_io(&s->iomem, NULL, &omap_lcdc_ops, s, "omap.lcdc", 0x100);
+    memory_region_init_io(&s->iomem, owner, &omap_lcdc_ops, s, "omap.lcdc", 0x100);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
     s->con = qemu_graphic_console_create(NULL, 0, &omap_ops, s);

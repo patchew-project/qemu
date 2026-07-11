@@ -173,7 +173,7 @@ void omap_gpio_set_clk(Omap1GpioState *gpio, omap_clk clk);
 
 /* omap_dma.c */
 struct soc_dma_s;
-struct soc_dma_s *omap_dma_init(hwaddr base, qemu_irq *irqs,
+struct soc_dma_s *omap_dma_init(Object *owner, hwaddr base, qemu_irq *irqs,
                                 MemoryRegion *sysmem,
                                 qemu_irq lcd_irq,
                                 struct omap_mpu_state_s *mpu, omap_clk clk);
@@ -296,7 +296,8 @@ void omap_mcbsp_i2s_attach(struct omap_mcbsp_s *s, I2SCodec *slave);
 /* omap_lcdc.c */
 struct omap_lcd_panel_s;
 void omap_lcdc_reset(struct omap_lcd_panel_s *s);
-struct omap_lcd_panel_s *omap_lcdc_init(MemoryRegion *sysmem,
+struct omap_lcd_panel_s *omap_lcdc_init(Object *owner,
+                                        MemoryRegion *sysmem,
                                         hwaddr base,
                                         qemu_irq irq,
                                         struct omap_dma_lcd_channel_s *dma,

@@ -1089,7 +1089,7 @@ static void omap_dma_clk_update(void *opaque, int line, int on)
             soc_dma_set_request(s->ch[i].dma, on);
 }
 
-struct soc_dma_s *omap_dma_init(hwaddr base, qemu_irq *irqs,
+struct soc_dma_s *omap_dma_init(Object *owner, hwaddr base, qemu_irq *irqs,
                                 MemoryRegion *sysmem,
                                 qemu_irq lcd_irq,
                                 struct omap_mpu_state_s *mpu, omap_clk clk)
@@ -1127,7 +1127,7 @@ struct soc_dma_s *omap_dma_init(hwaddr base, qemu_irq *irqs,
     omap_dma_reset(s->dma);
     omap_dma_clk_update(s, 0, 1);
 
-    memory_region_init_io(&s->iomem, NULL, &omap_dma_ops, s, "omap.dma", memsize);
+    memory_region_init_io(&s->iomem, owner, &omap_dma_ops, s, "omap.dma", memsize);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
     mpu->drq = s->dma->drq;
