@@ -108,7 +108,7 @@ static void pc_init_isa(MachineState *machine)
 
     gsi_state = pc_gsi_create(&x86ms->gsi, false);
 
-    isa_bus = isa_bus_new(NULL, system_memory, system_io,
+    isa_bus = isa_bus_new_bridge(OBJECT(machine), system_memory, system_io,
                           &error_abort);
     isa_bus_register_input_irqs(isa_bus, x86ms->gsi);
 

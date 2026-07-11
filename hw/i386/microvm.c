@@ -171,7 +171,7 @@ static void microvm_devices_init(MicrovmMachineState *mms)
     x86ms->gsi = qemu_allocate_irqs(gsi_handler, gsi_state,
                                     IOAPIC_NUM_PINS * ioapics);
 
-    isa_bus = isa_bus_new(NULL, get_system_memory(), get_system_io(),
+    isa_bus = isa_bus_new_bridge(OBJECT(mms), get_system_memory(), get_system_io(),
                           &error_abort);
     isa_bus_register_input_irqs(isa_bus, x86ms->gsi);
 

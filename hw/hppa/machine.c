@@ -108,7 +108,7 @@ static ISABus *hppa_isa_bus(Object *parent, hwaddr addr)
                           NULL, "isa-io", 0x800);
     memory_region_add_subregion(get_system_memory(), addr, isa_region);
 
-    isa_bus = isa_bus_new(NULL, get_system_memory(), isa_region,
+    isa_bus = isa_bus_new_bridge(parent, get_system_memory(), isa_region,
                           &error_abort);
     isa_irqs = i8259_init(parent, isa_bus, NULL);
     isa_bus_register_input_irqs(isa_bus, isa_irqs);

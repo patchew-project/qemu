@@ -972,11 +972,11 @@ ISABus *pnv_lpc_isa_create(PnvLpcController *lpc, bool use_cpld, Error **errp)
     qemu_irq *irqs;
     qemu_irq_handler handler;
 
-    /* let isa_bus_new() create its own bridge on SysBus otherwise
+    /* let isa_bus_new_bridge() create the bridge as a child of the LPC;
      * devices specified on the command line won't find the bus and
      * will fail to create.
      */
-    isa_bus = isa_bus_new(NULL, &lpc->isa_mem, &lpc->isa_io, &local_err);
+    isa_bus = isa_bus_new_bridge(OBJECT(lpc), &lpc->isa_mem, &lpc->isa_io, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return NULL;

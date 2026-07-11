@@ -52,26 +52,27 @@ static const TypeInfo isa_bus_info = {
 ISABus *isa_bus_new(DeviceState *dev, MemoryRegion* address_space,
                     MemoryRegion *address_space_io, Error **errp)
 {
-    DeviceState *bridge = NULL;
-
     if (isabus) {
         error_setg(errp, "Can't create a second ISA bus");
         return NULL;
     }
-    if (!dev) {
-        bridge = qdev_new_orphan("isabus-bridge");
-        dev = bridge;
-    }
+    g_assert(dev);
 
     isabus = ISA_BUS(qbus_new(TYPE_ISA_BUS, dev, NULL));
     isabus->address_space = address_space;
     isabus->address_space_io = address_space_io;
 
-    if (bridge) {
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(bridge), &error_fatal);
-    }
-
     return isabus;
+}
+
+ISABus *isa_bus_new_bridge(Object *parent, MemoryRegion *address_space,
+                           MemoryRegion *address_space_io, Error **errp)
+{
+    DeviceState *bridge = qdev_new(parent, "isabus-bridge", "isabus-bridge");
+    ISABus *bus = isa_bus_new(bridge, address_space, address_space_io, errp);
+
+    sysbus_realize(SYS_BUS_DEVICE(bridge), &error_fatal);
+    return bus;
 }
 
 void isa_bus_register_input_irqs(ISABus *bus, qemu_irq *irqs_in)

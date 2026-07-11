@@ -283,7 +283,7 @@ static void mips_jazz_init(MachineState *machine,
     memory_region_init(isa_mem, NULL, "isa-mem", 0x01000000);
     memory_region_add_subregion(address_space, 0x90000000, isa_io);
     memory_region_add_subregion(address_space, 0x91000000, isa_mem);
-    isa_bus = isa_bus_new(NULL, isa_mem, isa_io, &error_abort);
+    isa_bus = isa_bus_new_bridge(OBJECT(machine), isa_mem, isa_io, &error_abort);
 
     /* ISA devices */
     i8259 = i8259_init(OBJECT(machine), isa_bus, env->irq[4]);
