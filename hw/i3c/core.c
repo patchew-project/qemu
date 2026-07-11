@@ -542,12 +542,13 @@ static bool i3c_addr_is_rsvd(uint8_t addr)
     return is_rsvd[addr];
 }
 
-I3CTarget *i3c_target_new(const char *name, uint8_t addr, uint8_t dcr,
+I3CTarget *i3c_target_new(Object *parent, const char *id,
+                          const char *name, uint8_t addr, uint8_t dcr,
                           uint8_t bcr, uint64_t pid)
 {
     DeviceState *dev;
 
-    dev = qdev_new_orphan(name);
+    dev = qdev_new(parent, id, name);
     qdev_prop_set_uint8(dev, "static-address", addr);
     qdev_prop_set_uint8(dev, "dcr", dcr);
     qdev_prop_set_uint8(dev, "bcr", bcr);
@@ -566,12 +567,13 @@ bool i3c_target_realize_and_unref(I3CTarget *dev, I3CBus *bus, Error **errp)
     return qdev_realize_and_unref(&dev->parent_obj, &bus->parent_obj, errp);
 }
 
-I3CTarget *i3c_target_create_simple(I3CBus *bus, const char *name, uint8_t addr,
+I3CTarget *i3c_target_create_simple(Object *parent, const char *id,
+                                    I3CBus *bus, const char *name, uint8_t addr,
                                     uint8_t dcr, uint8_t bcr, uint64_t pid)
 {
-    I3CTarget *dev = i3c_target_new(name, addr, dcr, bcr, pid);
+    I3CTarget *dev = i3c_target_new(parent, id, name, addr, dcr, bcr, pid);
     dev->address = 0;
-    i3c_target_realize_and_unref(dev, bus, &error_abort);
+    qdev_realize(DEVICE(dev), BUS(bus), &error_abort);
 
     return dev;
 }
@@ -620,12 +622,13 @@ void legacy_i2c_end_transfer(I3CBus *bus)
     i2c_end_transfer(bus->i2c_bus);
 }
 
-I2CSlave *legacy_i2c_device_create_simple(I3CBus *bus, const char *name,
+I2CSlave *legacy_i2c_device_create_simple(Object *parent, const char *id,
+                                          I3CBus *bus, const char *name,
                                           uint8_t addr)
 {
-    I2CSlave *dev = i2c_slave_new_orphan(name, addr);
+    I2CSlave *dev = i2c_slave_new(parent, id, name, addr);
 
-    i2c_slave_realize_and_unref(dev, bus->i2c_bus, &error_abort);
+    qdev_realize(DEVICE(dev), BUS(bus->i2c_bus), &error_abort);
     return dev;
 }
 

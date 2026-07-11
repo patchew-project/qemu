@@ -257,7 +257,8 @@ int legacy_i2c_start_transfer(I3CBus *bus, uint8_t address, bool is_recv);
 int legacy_i2c_start_recv(I3CBus *bus, uint8_t address);
 int legacy_i2c_start_send(I3CBus *bus, uint8_t address);
 void legacy_i2c_end_transfer(I3CBus *bus);
-I2CSlave *legacy_i2c_device_create_simple(I3CBus *bus, const char *name,
+I2CSlave *legacy_i2c_device_create_simple(Object *parent, const char *id,
+                                          I3CBus *bus, const char *name,
                                           uint8_t addr);
 
 /**
@@ -265,7 +266,8 @@ I2CSlave *legacy_i2c_device_create_simple(I3CBus *bus, const char *name,
  *
  * The target returned from this function still needs to be realized.
  */
-I3CTarget *i3c_target_new(const char *name, uint8_t addr, uint8_t dcr,
+I3CTarget *i3c_target_new(Object *parent, const char *id,
+                          const char *name, uint8_t addr, uint8_t dcr,
                           uint8_t bcr, uint64_t pid);
 
 /**
@@ -274,7 +276,8 @@ I3CTarget *i3c_target_new(const char *name, uint8_t addr, uint8_t dcr,
  * Create the target, initialize it, put it on the specified I3C bus, and
  * realize it.
  */
-I3CTarget *i3c_target_create_simple(I3CBus *bus, const char *name,
+I3CTarget *i3c_target_create_simple(Object *parent, const char *id,
+                                    I3CBus *bus, const char *name,
                                     uint8_t addr, uint8_t dcr, uint8_t bcr,
                                     uint64_t pid);
 
