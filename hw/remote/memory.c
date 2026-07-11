@@ -12,6 +12,7 @@
 
 #include "hw/remote/memory.h"
 #include "qapi/error.h"
+#include "hw/core/qdev.h"
 
 static void remote_sysmem_reset(void)
 {
@@ -42,7 +43,7 @@ void remote_sysmem_reconfig(MPQemuMsg *msg, Error **errp)
     for (region = 0; region < msg->num_fds; region++, suffix++) {
         g_autofree char *name = g_strdup_printf("remote-mem-%u", suffix);
         subregion = g_new(MemoryRegion, 1);
-        memory_region_init_ram_from_fd(subregion, NULL,
+        memory_region_init_ram_from_fd(subregion, qdev_get_machine(),
                                        name, sysmem_info->sizes[region],
                                        RAM_SHARED, msg->fds[region],
                                        sysmem_info->offsets[region],

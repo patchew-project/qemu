@@ -324,7 +324,7 @@ static void dma_register(vfu_ctx_t *vfu_ctx, vfu_dma_info_t *info)
 
     subregion = g_new0(MemoryRegion, 1);
 
-    memory_region_init_ram_ptr(subregion, NULL, name,
+    memory_region_init_ram_ptr(subregion, OBJECT(o), name,
                                iov->iov_len, info->vaddr);
 
     dma_as = pci_device_iommu_address_space(o->pci_dev);

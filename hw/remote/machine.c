@@ -37,7 +37,7 @@ static void remote_machine_init(MachineState *machine)
     system_io = get_system_io();
 
     pci_memory = g_new(MemoryRegion, 1);
-    memory_region_init(pci_memory, NULL, "pci", UINT64_MAX);
+    memory_region_init(pci_memory, OBJECT(machine), "pci", UINT64_MAX);
 
     rem_host = REMOTE_PCIHOST(qdev_new(OBJECT(s), "remote-pcihost",
                                        TYPE_REMOTE_PCIHOST));
