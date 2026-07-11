@@ -221,8 +221,8 @@ static void omap_mpu_timer_reset(struct omap_mpu_timer_s *s)
     s->it_ena = 1;
 }
 
-static struct omap_mpu_timer_s *omap_mpu_timer_init(MemoryRegion *system_memory,
-                hwaddr base,
+static struct omap_mpu_timer_s *omap_mpu_timer_init(Object *owner,
+                MemoryRegion *system_memory, hwaddr base,
                 qemu_irq irq, omap_clk clk)
 {
     struct omap_mpu_timer_s *s = g_new0(struct omap_mpu_timer_s, 1);
@@ -234,7 +234,7 @@ static struct omap_mpu_timer_s *omap_mpu_timer_init(MemoryRegion *system_memory,
     omap_mpu_timer_reset(s);
     omap_timer_clk_setup(s);
 
-    memory_region_init_io(&s->iomem, NULL, &omap_mpu_timer_ops, s,
+    memory_region_init_io(&s->iomem, owner, &omap_mpu_timer_ops, s,
                           "omap-mpu-timer", 0x100);
 
     memory_region_add_subregion(system_memory, base, &s->iomem);
@@ -353,8 +353,8 @@ static void omap_wd_timer_reset(struct omap_watchdog_timer_s *s)
     omap_timer_update(&s->timer);
 }
 
-static struct omap_watchdog_timer_s *omap_wd_timer_init(MemoryRegion *memory,
-                hwaddr base,
+static struct omap_watchdog_timer_s *omap_wd_timer_init(Object *owner,
+                MemoryRegion *memory, hwaddr base,
                 qemu_irq irq, omap_clk clk)
 {
     struct omap_watchdog_timer_s *s = g_new0(struct omap_watchdog_timer_s, 1);
@@ -365,7 +365,7 @@ static struct omap_watchdog_timer_s *omap_wd_timer_init(MemoryRegion *memory,
     omap_wd_timer_reset(s);
     omap_timer_clk_setup(&s->timer);
 
-    memory_region_init_io(&s->iomem, NULL, &omap_wd_timer_ops, s,
+    memory_region_init_io(&s->iomem, owner, &omap_wd_timer_ops, s,
                           "omap-wd-timer", 0x100);
     memory_region_add_subregion(memory, base, &s->iomem);
 
@@ -462,8 +462,8 @@ static void omap_os_timer_reset(struct omap_32khz_timer_s *s)
     s->timer.ar = 1;
 }
 
-static struct omap_32khz_timer_s *omap_os_timer_init(MemoryRegion *memory,
-                hwaddr base,
+static struct omap_32khz_timer_s *omap_os_timer_init(Object *owner,
+                MemoryRegion *memory, hwaddr base,
                 qemu_irq irq, omap_clk clk)
 {
     struct omap_32khz_timer_s *s = g_new0(struct omap_32khz_timer_s, 1);
@@ -474,7 +474,7 @@ static struct omap_32khz_timer_s *omap_os_timer_init(MemoryRegion *memory,
     omap_os_timer_reset(s);
     omap_timer_clk_setup(&s->timer);
 
-    memory_region_init_io(&s->iomem, NULL, &omap_os_timer_ops, s,
+    memory_region_init_io(&s->iomem, owner, &omap_os_timer_ops, s,
                           "omap-os-timer", 0x800);
     memory_region_add_subregion(memory, base, &s->iomem);
 
@@ -707,11 +707,11 @@ static void omap_ulpd_pm_reset(struct omap_mpu_state_s *mpu)
     omap_clk_reparent(omap_findclk(mpu, "ck_48m"), omap_findclk(mpu, "dpll4"));
 }
 
-static void omap_ulpd_pm_init(MemoryRegion *system_memory,
-                hwaddr base,
+static void omap_ulpd_pm_init(Object *owner,
+                MemoryRegion *system_memory, hwaddr base,
                 struct omap_mpu_state_s *mpu)
 {
-    memory_region_init_io(&mpu->ulpd_pm_iomem, NULL, &omap_ulpd_pm_ops, mpu,
+    memory_region_init_io(&mpu->ulpd_pm_iomem, owner, &omap_ulpd_pm_ops, mpu,
                           "omap-ulpd-pm", 0x800);
     memory_region_add_subregion(system_memory, base, &mpu->ulpd_pm_iomem);
     omap_ulpd_pm_reset(mpu);
@@ -933,11 +933,11 @@ static void omap_pin_cfg_reset(struct omap_mpu_state_s *mpu)
     memset(mpu->mod_conf_ctrl, 0, sizeof(mpu->mod_conf_ctrl));
 }
 
-static void omap_pin_cfg_init(MemoryRegion *system_memory,
-                hwaddr base,
+static void omap_pin_cfg_init(Object *owner,
+                MemoryRegion *system_memory, hwaddr base,
                 struct omap_mpu_state_s *mpu)
 {
-    memory_region_init_io(&mpu->pin_cfg_iomem, NULL, &omap_pin_cfg_ops, mpu,
+    memory_region_init_io(&mpu->pin_cfg_iomem, owner, &omap_pin_cfg_ops, mpu,
                           "omap-pin-cfg", 0x800);
     memory_region_add_subregion(system_memory, base, &mpu->pin_cfg_iomem);
     omap_pin_cfg_reset(mpu);
@@ -994,15 +994,16 @@ static const MemoryRegionOps omap_id_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void omap_id_init(MemoryRegion *memory, struct omap_mpu_state_s *mpu)
+static void omap_id_init(Object *owner, MemoryRegion *memory,
+                         struct omap_mpu_state_s *mpu)
 {
-    memory_region_init_io(&mpu->id_iomem, NULL, &omap_id_ops, mpu,
+    memory_region_init_io(&mpu->id_iomem, owner, &omap_id_ops, mpu,
                           "omap-id", 0x100000000ULL);
-    memory_region_init_alias(&mpu->id_iomem_e18, NULL, "omap-id-e18", &mpu->id_iomem,
-                             0xfffe1800, 0x800);
+    memory_region_init_alias(&mpu->id_iomem_e18, owner, "omap-id-e18",
+                             &mpu->id_iomem, 0xfffe1800, 0x800);
     memory_region_add_subregion(memory, 0xfffe1800, &mpu->id_iomem_e18);
-    memory_region_init_alias(&mpu->id_iomem_ed4, NULL, "omap-id-ed4", &mpu->id_iomem,
-                             0xfffed400, 0x100);
+    memory_region_init_alias(&mpu->id_iomem_ed4, owner, "omap-id-ed4",
+                             &mpu->id_iomem, 0xfffed400, 0x100);
     memory_region_add_subregion(memory, 0xfffed400, &mpu->id_iomem_ed4);
 }
 
@@ -1086,10 +1087,10 @@ static void omap_mpui_reset(struct omap_mpu_state_s *s)
     s->mpui_ctrl = 0x0003ff1b;
 }
 
-static void omap_mpui_init(MemoryRegion *memory, hwaddr base,
+static void omap_mpui_init(Object *owner, MemoryRegion *memory, hwaddr base,
                 struct omap_mpu_state_s *mpu)
 {
-    memory_region_init_io(&mpu->mpui_iomem, NULL, &omap_mpui_ops, mpu,
+    memory_region_init_io(&mpu->mpui_iomem, owner, &omap_mpui_ops, mpu,
                           "omap-mpui", 0x100);
     memory_region_add_subregion(memory, base, &mpu->mpui_iomem);
 
@@ -1195,7 +1196,7 @@ static void omap_tipb_bridge_reset(struct omap_tipb_bridge_s *s)
     s->enh_control = 0x000f;
 }
 
-static struct omap_tipb_bridge_s *omap_tipb_bridge_init(
+static struct omap_tipb_bridge_s *omap_tipb_bridge_init(Object *owner,
     MemoryRegion *memory, hwaddr base,
     qemu_irq abort_irq, omap_clk clk)
 {
@@ -1204,7 +1205,7 @@ static struct omap_tipb_bridge_s *omap_tipb_bridge_init(
     s->abort = abort_irq;
     omap_tipb_bridge_reset(s);
 
-    memory_region_init_io(&s->iomem, NULL, &omap_tipb_bridge_ops, s,
+    memory_region_init_io(&s->iomem, owner, &omap_tipb_bridge_ops, s,
                           "omap-tipb-bridge", 0x100);
     memory_region_add_subregion(memory, base, &s->iomem);
 
@@ -1314,10 +1315,10 @@ static void omap_tcmi_reset(struct omap_mpu_state_s *mpu)
     mpu->tcmi_regs[0x40 >> 2] = 0x00000000;
 }
 
-static void omap_tcmi_init(MemoryRegion *memory, hwaddr base,
+static void omap_tcmi_init(Object *owner, MemoryRegion *memory, hwaddr base,
                 struct omap_mpu_state_s *mpu)
 {
-    memory_region_init_io(&mpu->tcmi_iomem, NULL, &omap_tcmi_ops, mpu,
+    memory_region_init_io(&mpu->tcmi_iomem, owner, &omap_tcmi_ops, mpu,
                           "omap-tcmi", 0x100);
     memory_region_add_subregion(memory, base, &mpu->tcmi_iomem);
     omap_tcmi_reset(mpu);
@@ -1399,11 +1400,12 @@ static void omap_dpll_reset(struct dpll_ctl_s *s)
     omap_clk_setrate(s->dpll, 1, 1);
 }
 
-static struct dpll_ctl_s  *omap_dpll_init(MemoryRegion *memory,
+static struct dpll_ctl_s  *omap_dpll_init(Object *owner, MemoryRegion *memory,
                            hwaddr base, omap_clk clk)
 {
     struct dpll_ctl_s *s = g_malloc0(sizeof(*s));
-    memory_region_init_io(&s->iomem, NULL, &omap_dpll_ops, s, "omap-dpll", 0x100);
+    memory_region_init_io(&s->iomem, owner, &omap_dpll_ops, s,
+                          "omap-dpll", 0x100);
 
     s->dpll = clk;
     omap_dpll_reset(s);
@@ -1822,12 +1824,13 @@ static void omap_clkm_reset(struct omap_mpu_state_s *s)
     s->clkm.dsp_rstct2 = 0x0000;
 }
 
-static void omap_clkm_init(MemoryRegion *memory, hwaddr mpu_base,
-                hwaddr dsp_base, struct omap_mpu_state_s *s)
+static void omap_clkm_init(Object *owner, MemoryRegion *memory,
+                hwaddr mpu_base, hwaddr dsp_base,
+                struct omap_mpu_state_s *s)
 {
-    memory_region_init_io(&s->clkm_iomem, NULL, &omap_clkm_ops, s,
+    memory_region_init_io(&s->clkm_iomem, owner, &omap_clkm_ops, s,
                           "omap-clkm", 0x100);
-    memory_region_init_io(&s->clkdsp_iomem, NULL, &omap_clkdsp_ops, s,
+    memory_region_init_io(&s->clkdsp_iomem, owner, &omap_clkdsp_ops, s,
                           "omap-clkdsp", 0x1000);
 
     s->clkm.arm_idlect1 = 0x03ff;
@@ -2071,8 +2074,8 @@ static void omap_mpuio_onoff(void *opaque, int line, int on)
         omap_mpuio_kbd_update(s);
 }
 
-static struct omap_mpuio_s *omap_mpuio_init(MemoryRegion *memory,
-                hwaddr base,
+static struct omap_mpuio_s *omap_mpuio_init(Object *owner,
+                MemoryRegion *memory, hwaddr base,
                 qemu_irq kbd_int, qemu_irq gpio_int,
                 omap_clk clk)
 {
@@ -2083,7 +2086,7 @@ static struct omap_mpuio_s *omap_mpuio_init(MemoryRegion *memory,
     s->in = qemu_allocate_irqs(omap_mpuio_set, s, 16);
     omap_mpuio_reset(s);
 
-    memory_region_init_io(&s->iomem, NULL, &omap_mpuio_ops, s,
+    memory_region_init_io(&s->iomem, owner, &omap_mpuio_ops, s,
                           "omap-mpuio", 0x800);
     memory_region_add_subregion(memory, base, &s->iomem);
 
@@ -2236,7 +2239,8 @@ static void omap_uwire_reset(struct omap_uwire_s *s)
     s->setup[4] = 0;
 }
 
-static struct omap_uwire_s *omap_uwire_init(MemoryRegion *system_memory,
+static struct omap_uwire_s *omap_uwire_init(Object *owner,
+                                            MemoryRegion *system_memory,
                                             hwaddr base,
                                             qemu_irq txirq, qemu_irq rxirq,
                                             qemu_irq dma,
@@ -2249,7 +2253,8 @@ static struct omap_uwire_s *omap_uwire_init(MemoryRegion *system_memory,
     s->txdrq = dma;
     omap_uwire_reset(s);
 
-    memory_region_init_io(&s->iomem, NULL, &omap_uwire_ops, s, "omap-uwire", 0x800);
+    memory_region_init_io(&s->iomem, owner, &omap_uwire_ops, s,
+                          "omap-uwire", 0x800);
     memory_region_add_subregion(system_memory, base, &s->iomem);
 
     return s;
@@ -2345,7 +2350,8 @@ static void omap_pwl_clk_update(void *opaque, int line, int on)
     omap_pwl_update(s);
 }
 
-static struct omap_pwl_s *omap_pwl_init(MemoryRegion *system_memory,
+static struct omap_pwl_s *omap_pwl_init(Object *owner,
+                                        MemoryRegion *system_memory,
                                         hwaddr base,
                                         omap_clk clk)
 {
@@ -2353,7 +2359,7 @@ static struct omap_pwl_s *omap_pwl_init(MemoryRegion *system_memory,
 
     omap_pwl_reset(s);
 
-    memory_region_init_io(&s->iomem, NULL, &omap_pwl_ops, s,
+    memory_region_init_io(&s->iomem, owner, &omap_pwl_ops, s,
                           "omap-pwl", 0x800);
     memory_region_add_subregion(system_memory, base, &s->iomem);
 
@@ -2456,7 +2462,8 @@ static void omap_pwt_reset(struct omap_pwt_s *s)
     s->gcr = 0;
 }
 
-static struct omap_pwt_s *omap_pwt_init(MemoryRegion *system_memory,
+static struct omap_pwt_s *omap_pwt_init(Object *owner,
+                                        MemoryRegion *system_memory,
                                         hwaddr base,
                                         omap_clk clk)
 {
@@ -2464,7 +2471,7 @@ static struct omap_pwt_s *omap_pwt_init(MemoryRegion *system_memory,
     s->clk = clk;
     omap_pwt_reset(s);
 
-    memory_region_init_io(&s->iomem, NULL, &omap_pwt_ops, s,
+    memory_region_init_io(&s->iomem, owner, &omap_pwt_ops, s,
                           "omap-pwt", 0x800);
     memory_region_add_subregion(system_memory, base, &s->iomem);
     return s;
@@ -2822,7 +2829,8 @@ static void omap_rtc_reset(struct omap_rtc_s *s)
     omap_rtc_tick(s);
 }
 
-static struct omap_rtc_s *omap_rtc_init(MemoryRegion *system_memory,
+static struct omap_rtc_s *omap_rtc_init(Object *owner,
+                                        MemoryRegion *system_memory,
                                         hwaddr base,
                                         qemu_irq timerirq, qemu_irq alarmirq,
                                         omap_clk clk)
@@ -2835,7 +2843,7 @@ static struct omap_rtc_s *omap_rtc_init(MemoryRegion *system_memory,
 
     omap_rtc_reset(s);
 
-    memory_region_init_io(&s->iomem, NULL, &omap_rtc_ops, s,
+    memory_region_init_io(&s->iomem, owner, &omap_rtc_ops, s,
                           "omap-rtc", 0x800);
     memory_region_add_subregion(system_memory, base, &s->iomem);
 
@@ -3372,7 +3380,8 @@ static void omap_mcbsp_reset(struct omap_mcbsp_s *s)
     timer_del(s->sink_timer);
 }
 
-static struct omap_mcbsp_s *omap_mcbsp_init(MemoryRegion *system_memory,
+static struct omap_mcbsp_s *omap_mcbsp_init(Object *owner,
+                                            MemoryRegion *system_memory,
                                             hwaddr base,
                                             qemu_irq txirq, qemu_irq rxirq,
                                             qemu_irq *dma, omap_clk clk)
@@ -3387,7 +3396,8 @@ static struct omap_mcbsp_s *omap_mcbsp_init(MemoryRegion *system_memory,
     s->source_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, omap_mcbsp_source_tick, s);
     omap_mcbsp_reset(s);
 
-    memory_region_init_io(&s->iomem, NULL, &omap_mcbsp_ops, s, "omap-mcbsp", 0x800);
+    memory_region_init_io(&s->iomem, owner, &omap_mcbsp_ops, s,
+                          "omap-mcbsp", 0x800);
     memory_region_add_subregion(system_memory, base, &s->iomem);
 
     return s;
@@ -3555,7 +3565,8 @@ static void omap_lpg_clk_update(void *opaque, int line, int on)
     omap_lpg_update(s);
 }
 
-static struct omap_lpg_s *omap_lpg_init(MemoryRegion *system_memory,
+static struct omap_lpg_s *omap_lpg_init(Object *owner,
+                                        MemoryRegion *system_memory,
                                         hwaddr base, omap_clk clk)
 {
     struct omap_lpg_s *s = g_new0(struct omap_lpg_s, 1);
@@ -3564,7 +3575,8 @@ static struct omap_lpg_s *omap_lpg_init(MemoryRegion *system_memory,
 
     omap_lpg_reset(s);
 
-    memory_region_init_io(&s->iomem, NULL, &omap_lpg_ops, s, "omap-lpg", 0x800);
+    memory_region_init_io(&s->iomem, owner, &omap_lpg_ops, s,
+                          "omap-lpg", 0x800);
     memory_region_add_subregion(system_memory, base, &s->iomem);
 
     omap_clk_adduser(clk, qemu_allocate_irq(omap_lpg_clk_update, s, 0));
@@ -3602,10 +3614,10 @@ static const MemoryRegionOps omap_mpui_io_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void omap_setup_mpui_io(MemoryRegion *system_memory,
+static void omap_setup_mpui_io(Object *owner, MemoryRegion *system_memory,
                                struct omap_mpu_state_s *mpu)
 {
-    memory_region_init_io(&mpu->mpui_io_iomem, NULL, &omap_mpui_io_ops, mpu,
+    memory_region_init_io(&mpu->mpui_io_iomem, owner, &omap_mpui_io_ops, mpu,
                           "omap-mpui-io", 0x7fff);
     memory_region_add_subregion(system_memory, OMAP_MPUI_BASE,
                                 &mpu->mpui_io_iomem);
@@ -3678,14 +3690,15 @@ static const struct omap_map_s {
     { 0 }
 };
 
-static void omap_setup_dsp_mapping(MemoryRegion *system_memory,
+static void omap_setup_dsp_mapping(Object *owner,
+                                   MemoryRegion *system_memory,
                                    const struct omap_map_s *map)
 {
     MemoryRegion *io;
 
     for (; map->phys_dsp; map ++) {
         io = g_new(MemoryRegion, 1);
-        memory_region_init_alias(io, NULL, map->name,
+        memory_region_init_alias(io, owner, map->name,
                                  system_memory, map->phys_mpu, map->size);
         memory_region_add_subregion(system_memory, map->phys_dsp, io);
     }
@@ -3757,11 +3770,11 @@ struct omap_mpu_state_s *omap310_mpu_init(Object *parent, MemoryRegion *dram,
     omap_clk_init(s);
 
     /* Memory-mapped stuff */
-    memory_region_init_ram(&s->imif_ram, NULL, "omap1.sram", s->sram_size,
+    memory_region_init_ram(&s->imif_ram, parent, "omap1.sram", s->sram_size,
                            &error_fatal);
     memory_region_add_subregion(system_memory, OMAP_IMIF_BASE, &s->imif_ram);
 
-    omap_clkm_init(system_memory, 0xfffece00, 0xe1008000, s);
+    omap_clkm_init(parent, system_memory, 0xfffece00, 0xe1008000, s);
 
     s->ih[0] = qdev_new(parent, "intc[0]", "omap-intc");
     qdev_prop_set_uint32(s->ih[0], "size", 0x100);
@@ -3804,21 +3817,21 @@ struct omap_mpu_state_s *omap310_mpu_init(Object *parent, MemoryRegion *dram,
     soc_dma_port_add_mem(s->dma, memory_region_get_ram_ptr(&s->imif_ram),
                          OMAP_IMIF_BASE, s->sram_size);
 
-    s->timer[0] = omap_mpu_timer_init(system_memory, 0xfffec500,
+    s->timer[0] = omap_mpu_timer_init(parent, system_memory, 0xfffec500,
                     qdev_get_gpio_in(s->ih[0], OMAP_INT_TIMER1),
                     omap_findclk(s, "mputim_ck"));
-    s->timer[1] = omap_mpu_timer_init(system_memory, 0xfffec600,
+    s->timer[1] = omap_mpu_timer_init(parent, system_memory, 0xfffec600,
                     qdev_get_gpio_in(s->ih[0], OMAP_INT_TIMER2),
                     omap_findclk(s, "mputim_ck"));
-    s->timer[2] = omap_mpu_timer_init(system_memory, 0xfffec700,
+    s->timer[2] = omap_mpu_timer_init(parent, system_memory, 0xfffec700,
                     qdev_get_gpio_in(s->ih[0], OMAP_INT_TIMER3),
                     omap_findclk(s, "mputim_ck"));
 
-    s->wdt = omap_wd_timer_init(system_memory, 0xfffec800,
+    s->wdt = omap_wd_timer_init(parent, system_memory, 0xfffec800,
                     qdev_get_gpio_in(s->ih[0], OMAP_INT_WD_TIMER),
                     omap_findclk(s, "armwdt_ck"));
 
-    s->os_timer = omap_os_timer_init(system_memory, 0xfffb9000,
+    s->os_timer = omap_os_timer_init(parent, system_memory, 0xfffb9000,
                     qdev_get_gpio_in(s->ih[1], OMAP_INT_OS_TIMER),
                     omap_findclk(s, "clk32-kHz"));
 
@@ -3827,20 +3840,20 @@ struct omap_mpu_state_s *omap310_mpu_init(Object *parent, MemoryRegion *dram,
                             omap_dma_get_lcdch(s->dma),
                             omap_findclk(s, "lcd_ck"));
 
-    omap_ulpd_pm_init(system_memory, 0xfffe0800, s);
-    omap_pin_cfg_init(system_memory, 0xfffe1000, s);
-    omap_id_init(system_memory, s);
+    omap_ulpd_pm_init(parent, system_memory, 0xfffe0800, s);
+    omap_pin_cfg_init(parent, system_memory, 0xfffe1000, s);
+    omap_id_init(parent, system_memory, s);
 
-    omap_mpui_init(system_memory, 0xfffec900, s);
+    omap_mpui_init(parent, system_memory, 0xfffec900, s);
 
-    s->private_tipb = omap_tipb_bridge_init(system_memory, 0xfffeca00,
+    s->private_tipb = omap_tipb_bridge_init(parent, system_memory, 0xfffeca00,
                     qdev_get_gpio_in(s->ih[0], OMAP_INT_BRIDGE_PRIV),
                     omap_findclk(s, "tipb_ck"));
-    s->public_tipb = omap_tipb_bridge_init(system_memory, 0xfffed300,
+    s->public_tipb = omap_tipb_bridge_init(parent, system_memory, 0xfffed300,
                     qdev_get_gpio_in(s->ih[0], OMAP_INT_BRIDGE_PUB),
                     omap_findclk(s, "tipb_ck"));
 
-    omap_tcmi_init(system_memory, 0xfffecc00, s);
+    omap_tcmi_init(parent, system_memory, 0xfffecc00, s);
 
     s->uart[0] = omap_uart_init(parent, 0xfffb0000,
                                 qdev_get_gpio_in(s->ih[1], OMAP_INT_UART1),
@@ -3864,11 +3877,11 @@ struct omap_mpu_state_s *omap310_mpu_init(Object *parent, MemoryRegion *dram,
                     "uart3",
                     serial_hd(0) && serial_hd(1) ? serial_hd(2) : NULL);
 
-    s->dpll[0] = omap_dpll_init(system_memory, 0xfffecf00,
+    s->dpll[0] = omap_dpll_init(parent, system_memory, 0xfffecf00,
                                 omap_findclk(s, "dpll1"));
-    s->dpll[1] = omap_dpll_init(system_memory, 0xfffed000,
+    s->dpll[1] = omap_dpll_init(parent, system_memory, 0xfffed000,
                                 omap_findclk(s, "dpll2"));
-    s->dpll[2] = omap_dpll_init(system_memory, 0xfffed100,
+    s->dpll[2] = omap_dpll_init(parent, system_memory, 0xfffed100,
                                 omap_findclk(s, "dpll3"));
 
     dinfo = drive_get(IF_SD, 0, 0);
@@ -3895,7 +3908,7 @@ struct omap_mpu_state_s *omap310_mpu_init(Object *parent, MemoryRegion *dram,
                      &error_fatal);
     }
 
-    s->mpuio = omap_mpuio_init(system_memory, 0xfffb5000,
+    s->mpuio = omap_mpuio_init(parent, system_memory, 0xfffb5000,
                                qdev_get_gpio_in(s->ih[1], OMAP_INT_KEYBOARD),
                                qdev_get_gpio_in(s->ih[1], OMAP_INT_MPUIO),
                                omap_findclk(s, "clk32-kHz"));
@@ -3907,14 +3920,14 @@ struct omap_mpu_state_s *omap310_mpu_init(Object *parent, MemoryRegion *dram,
                        qdev_get_gpio_in(s->ih[0], OMAP_INT_GPIO_BANK1));
     sysbus_mmio_map(SYS_BUS_DEVICE(s->gpio), 0, 0xfffce000);
 
-    s->microwire = omap_uwire_init(system_memory, 0xfffb3000,
+    s->microwire = omap_uwire_init(parent, system_memory, 0xfffb3000,
                                    qdev_get_gpio_in(s->ih[1], OMAP_INT_uWireTX),
                                    qdev_get_gpio_in(s->ih[1], OMAP_INT_uWireRX),
                     s->drq[OMAP_DMA_UWIRE_TX], omap_findclk(s, "mpuper_ck"));
 
-    s->pwl = omap_pwl_init(system_memory, 0xfffb5800,
+    s->pwl = omap_pwl_init(parent, system_memory, 0xfffb5800,
                            omap_findclk(s, "armxor_ck"));
-    s->pwt = omap_pwt_init(system_memory, 0xfffb6000,
+    s->pwt = omap_pwt_init(parent, system_memory, 0xfffb6000,
                            omap_findclk(s, "armxor_ck"));
 
     s->i2c[0] = qdev_new(parent, "i2c", "omap_i2c");
@@ -3927,29 +3940,29 @@ struct omap_mpu_state_s *omap310_mpu_init(Object *parent, MemoryRegion *dram,
     sysbus_connect_irq(busdev, 2, s->drq[OMAP_DMA_I2C_RX]);
     sysbus_mmio_map(busdev, 0, 0xfffb3800);
 
-    s->rtc = omap_rtc_init(system_memory, 0xfffb4800,
+    s->rtc = omap_rtc_init(parent, system_memory, 0xfffb4800,
                            qdev_get_gpio_in(s->ih[1], OMAP_INT_RTC_TIMER),
                            qdev_get_gpio_in(s->ih[1], OMAP_INT_RTC_ALARM),
                     omap_findclk(s, "clk32-kHz"));
 
-    s->mcbsp1 = omap_mcbsp_init(system_memory, 0xfffb1800,
+    s->mcbsp1 = omap_mcbsp_init(parent, system_memory, 0xfffb1800,
                                 qdev_get_gpio_in(s->ih[1], OMAP_INT_McBSP1TX),
                                 qdev_get_gpio_in(s->ih[1], OMAP_INT_McBSP1RX),
                     &s->drq[OMAP_DMA_MCBSP1_TX], omap_findclk(s, "dspxor_ck"));
-    s->mcbsp2 = omap_mcbsp_init(system_memory, 0xfffb1000,
+    s->mcbsp2 = omap_mcbsp_init(parent, system_memory, 0xfffb1000,
                                 qdev_get_gpio_in(s->ih[0],
                                                  OMAP_INT_310_McBSP2_TX),
                                 qdev_get_gpio_in(s->ih[0],
                                                  OMAP_INT_310_McBSP2_RX),
                     &s->drq[OMAP_DMA_MCBSP2_TX], omap_findclk(s, "mpuper_ck"));
-    s->mcbsp3 = omap_mcbsp_init(system_memory, 0xfffb7000,
+    s->mcbsp3 = omap_mcbsp_init(parent, system_memory, 0xfffb7000,
                                 qdev_get_gpio_in(s->ih[1], OMAP_INT_McBSP3TX),
                                 qdev_get_gpio_in(s->ih[1], OMAP_INT_McBSP3RX),
                     &s->drq[OMAP_DMA_MCBSP3_TX], omap_findclk(s, "dspxor_ck"));
 
-    s->led[0] = omap_lpg_init(system_memory,
+    s->led[0] = omap_lpg_init(parent, system_memory,
                               0xfffbd000, omap_findclk(s, "clk32-kHz"));
-    s->led[1] = omap_lpg_init(system_memory,
+    s->led[1] = omap_lpg_init(parent, system_memory,
                               0xfffbd800, omap_findclk(s, "clk32-kHz"));
 
     /* Register mappings not currently implemented:
@@ -3967,8 +3980,8 @@ struct omap_mpu_state_s *omap310_mpu_init(Object *parent, MemoryRegion *dram,
      * DSP MMU          fffed200 - fffed2ff
      */
 
-    omap_setup_dsp_mapping(system_memory, omap15xx_dsp_mm);
-    omap_setup_mpui_io(system_memory, s);
+    omap_setup_dsp_mapping(parent, system_memory, omap15xx_dsp_mm);
+    omap_setup_mpui_io(parent, system_memory, s);
 
     qemu_register_reset(omap1_mpu_reset, s);
 
