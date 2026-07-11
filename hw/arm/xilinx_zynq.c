@@ -105,22 +105,23 @@ static void zynq_write_board_setup(ARMCPU *cpu,
 
 static struct arm_boot_info zynq_binfo = {};
 
-static void gem_init(uint32_t base, qemu_irq irq)
+static void gem_init(Object *parent, uint32_t base, qemu_irq irq)
 {
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_new_orphan(TYPE_CADENCE_GEM);
+    dev = qdev_new(parent, "gem[*]", TYPE_CADENCE_GEM);
     qemu_configure_nic_device(dev, true, NULL);
     object_property_set_int(OBJECT(dev), "phy-addr", 7, &error_abort);
     s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     sysbus_mmio_map(s, 0, base);
     sysbus_connect_irq(s, 0, irq);
 }
 
-static inline int zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
-                                        bool is_qspi, int unit0)
+static inline int zynq_init_spi_flashes(Object *parent, uint32_t base_addr,
+                                        qemu_irq irq, bool is_qspi,
+                                        int unit0)
 {
     int unit = unit0;
     DeviceState *dev;
@@ -131,12 +132,13 @@ static inline int zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
     int num_busses =  is_qspi ? NUM_QSPI_BUSSES : 1;
     int num_ss = is_qspi ? NUM_QSPI_FLASHES : NUM_SPI_FLASHES;
 
-    dev = qdev_new_orphan(is_qspi ? "xlnx.ps7-qspi" : "xlnx.ps7-spi");
+    dev = qdev_new(parent, is_qspi ? "qspi" : "spi[*]",
+                   is_qspi ? "xlnx.ps7-qspi" : "xlnx.ps7-spi");
     qdev_prop_set_uint8(dev, "num-txrx-bytes", is_qspi ? 4 : 1);
     qdev_prop_set_uint8(dev, "num-ss-bits", num_ss);
     qdev_prop_set_uint8(dev, "num-busses", num_busses);
     busdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_realize(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, base_addr);
     if (is_qspi) {
         sysbus_mmio_map(busdev, 1, 0xFC000000);
@@ -152,14 +154,14 @@ static inline int zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
 
         for (j = 0; j < num_ss; ++j) {
             DriveInfo *dinfo = drive_get(IF_MTD, 0, unit++);
-            flash_dev = qdev_new_orphan("n25q128");
+            flash_dev = qdev_new(OBJECT(dev), "flash[*]", "n25q128");
             if (dinfo) {
                 qdev_prop_set_drive_err(flash_dev, "drive",
                                         blk_by_legacy_dinfo(dinfo),
                                         &error_fatal);
             }
             qdev_prop_set_uint8(flash_dev, "cs", j);
-            qdev_realize_and_unref(flash_dev, BUS(spi), &error_fatal);
+            qdev_realize(flash_dev, BUS(spi), &error_fatal);
 
             cs_line = qdev_get_gpio_in_named(flash_dev, SSI_GPIO_CS, 0);
             sysbus_connect_irq(busdev, i * num_ss + j + 1, cs_line);
@@ -190,14 +192,14 @@ static void zynq_set_boot_mode(Object *obj, const char *str,
     m->boot_mode = mode;
 }
 
-static void ddr_ctrl_init(uint32_t base)
+static void ddr_ctrl_init(Object *parent, uint32_t base)
 {
     DeviceState *dev;
     SysBusDevice *busdev;
 
-    dev = qdev_new_orphan("zynq.ddr-ctlr");
+    dev = qdev_new(parent, "ddr-ctrl", "zynq.ddr-ctlr");
     busdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_realize(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, base);
 }
 
@@ -256,20 +258,21 @@ static void zynq_init(MachineState *machine)
     clock_set_hz(zynq_machine->ps_clk, PS_CLK_FREQUENCY);
 
     /* Create slcr, keep a pointer to connect clocks */
-    slcr = qdev_new_orphan("xilinx-zynq_slcr");
+    slcr = qdev_new(OBJECT(machine), "slcr", "xilinx-zynq_slcr");
     qdev_connect_clock_in(slcr, "ps_clk", zynq_machine->ps_clk);
     qdev_prop_set_uint8(slcr, "boot-mode", zynq_machine->boot_mode);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(slcr), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(slcr), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(slcr), 0, 0xF8000000);
 
-    dev = qdev_new_orphan(TYPE_A9MPCORE_PRIV);
+    dev = qdev_new(OBJECT(machine), "a9mpcore", TYPE_A9MPCORE_PRIV);
     qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
     qdev_prop_set_uint32(dev, "num-irq", GIC_EXT_IRQS + GIC_INTERNAL);
     busdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_realize(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, MPCORE_PERIPHBASE);
     zynq_binfo.gic_cpu_if_addr = MPCORE_PERIPHBASE + 0x100;
-    sysbus_create_varargs_orphan("l2x0", MPCORE_PERIPHBASE + 0x2000, NULL);
+    sysbus_create_varargs(OBJECT(machine), "l2x0", "l2x0",
+                          MPCORE_PERIPHBASE + 0x2000, NULL);
     for (n = 0; n < smp_cpus; n++) {
         /* See "hw/intc/arm_gic.h" for the IRQ line association */
         DeviceState *cpudev = DEVICE(zynq_machine->cpu[n]);
@@ -283,39 +286,44 @@ static void zynq_init(MachineState *machine)
         pic[n] = qdev_get_gpio_in(dev, n);
     }
 
-    n = zynq_init_spi_flashes(0xE0006000, pic[58 - GIC_INTERNAL], false, 0);
-    n = zynq_init_spi_flashes(0xE0007000, pic[81 - GIC_INTERNAL], false, n);
-    n = zynq_init_spi_flashes(0xE000D000, pic[51 - GIC_INTERNAL], true, n);
+    n = zynq_init_spi_flashes(OBJECT(machine), 0xE0006000,
+                              pic[58 - GIC_INTERNAL], false, 0);
+    n = zynq_init_spi_flashes(OBJECT(machine), 0xE0007000,
+                              pic[81 - GIC_INTERNAL], false, n);
+    n = zynq_init_spi_flashes(OBJECT(machine), 0xE000D000,
+                              pic[51 - GIC_INTERNAL], true, n);
 
-    sysbus_create_simple_orphan(TYPE_CHIPIDEA, 0xE0002000, pic[53 - GIC_INTERNAL]);
-    sysbus_create_simple_orphan(TYPE_CHIPIDEA, 0xE0003000, pic[76 - GIC_INTERNAL]);
+    sysbus_create_simple(OBJECT(machine), "usb[*]", TYPE_CHIPIDEA,
+                         0xE0002000, pic[53 - GIC_INTERNAL]);
+    sysbus_create_simple(OBJECT(machine), "usb[*]", TYPE_CHIPIDEA,
+                         0xE0003000, pic[76 - GIC_INTERNAL]);
 
-    dev = qdev_new_orphan(TYPE_CADENCE_UART);
+    dev = qdev_new(OBJECT(machine), "uart[*]", TYPE_CADENCE_UART);
     busdev = SYS_BUS_DEVICE(dev);
     qdev_prop_set_chr(dev, "chardev", serial_hd(0));
     qdev_connect_clock_in(dev, "refclk",
                           qdev_get_clock_out(slcr, "uart0_ref_clk"));
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_realize(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, 0xE0000000);
     sysbus_connect_irq(busdev, 0, pic[59 - GIC_INTERNAL]);
-    dev = qdev_new_orphan(TYPE_CADENCE_UART);
+    dev = qdev_new(OBJECT(machine), "uart[*]", TYPE_CADENCE_UART);
     busdev = SYS_BUS_DEVICE(dev);
     qdev_prop_set_chr(dev, "chardev", serial_hd(1));
     qdev_connect_clock_in(dev, "refclk",
                           qdev_get_clock_out(slcr, "uart1_ref_clk"));
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_realize(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, 0xE0001000);
     sysbus_connect_irq(busdev, 0, pic[82 - GIC_INTERNAL]);
 
-    sysbus_create_varargs_orphan("cadence_ttc", 0xF8001000,
+    sysbus_create_varargs(OBJECT(machine), "ttc[*]", "cadence_ttc", 0xF8001000,
             pic[42-GIC_INTERNAL], pic[43-GIC_INTERNAL], pic[44-GIC_INTERNAL], NULL);
-    sysbus_create_varargs_orphan("cadence_ttc", 0xF8002000,
+    sysbus_create_varargs(OBJECT(machine), "ttc[*]", "cadence_ttc", 0xF8002000,
             pic[69-GIC_INTERNAL], pic[70-GIC_INTERNAL], pic[71-GIC_INTERNAL], NULL);
 
-    ddr_ctrl_init(0xF8006000);
+    ddr_ctrl_init(OBJECT(machine), 0xF8006000);
 
-    gem_init(0xE000B000, pic[54 - GIC_INTERNAL]);
-    gem_init(0xE000C000, pic[77 - GIC_INTERNAL]);
+    gem_init(OBJECT(machine), 0xE000B000, pic[54 - GIC_INTERNAL]);
+    gem_init(OBJECT(machine), 0xE000C000, pic[77 - GIC_INTERNAL]);
 
     for (n = 0; n < 2; n++) {
         int hci_irq = n ? 79 : 56;
@@ -329,27 +337,27 @@ static void zynq_init(MachineState *machine)
          * - SDIO Specification Version 2.0
          * - MMC Specification Version 3.31
          */
-        dev = qdev_new_orphan(TYPE_SYSBUS_SDHCI);
+        dev = qdev_new(OBJECT(machine), "sdhci[*]", TYPE_SYSBUS_SDHCI);
         qdev_prop_set_uint8(dev, "sd-spec-version", 2);
         qdev_prop_set_uint64(dev, "capareg", ZYNQ_SDHCI_CAPABILITIES);
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+        sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
         sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, hci_addr);
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[hci_irq - GIC_INTERNAL]);
 
         di = drive_get(IF_SD, 0, n);
         blk = di ? blk_by_legacy_dinfo(di) : NULL;
-        carddev = qdev_new_orphan(TYPE_SD_CARD);
+        carddev = qdev_new(OBJECT(dev), "sd-card", TYPE_SD_CARD);
         qdev_prop_set_drive_err(carddev, "drive", blk, &error_fatal);
-        qdev_realize_and_unref(carddev, qdev_get_child_bus(dev, "sd-bus"),
-                               &error_fatal);
+        qdev_realize(carddev, qdev_get_child_bus(dev, "sd-bus"),
+                     &error_fatal);
     }
 
-    dev = qdev_new_orphan(TYPE_ZYNQ_XADC);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    dev = qdev_new(OBJECT(machine), "xadc", TYPE_ZYNQ_XADC);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xF8007100);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[39-GIC_INTERNAL]);
 
-    dev = qdev_new_orphan("pl330");
+    dev = qdev_new(OBJECT(machine), "dma", "pl330");
     object_property_set_link(OBJECT(dev), "memory",
                              OBJECT(address_space_mem),
                              &error_fatal);
@@ -365,16 +373,16 @@ static void zynq_init(MachineState *machine)
     qdev_prop_set_uint16(dev, "data_buffer_dep",  256);
 
     busdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_realize(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, 0xF8003000);
     sysbus_connect_irq(busdev, 0, pic[45-GIC_INTERNAL]); /* abort irq line */
     for (n = 0; n < ARRAY_SIZE(dma_irqs); ++n) { /* event irqs */
         sysbus_connect_irq(busdev, n + 1, pic[dma_irqs[n] - GIC_INTERNAL]);
     }
 
-    dev = qdev_new_orphan("xlnx.ps7-dev-cfg");
+    dev = qdev_new(OBJECT(machine), "devcfg", "xlnx.ps7-dev-cfg");
     busdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_realize(busdev, &error_fatal);
     sysbus_connect_irq(busdev, 0, pic[40 - GIC_INTERNAL]);
     sysbus_mmio_map(busdev, 0, 0xF8007000);
 
