@@ -81,7 +81,7 @@ static void cubieboard_init(MachineState *machine)
 
     /* Connect AXP 209 */
     i2c = I2C_BUS(qdev_get_child_bus(DEVICE(&a10->i2c0), "i2c"));
-    i2c_slave_create_simple_orphan(i2c, "axp209_pmu", 0x34);
+    i2c_slave_create_simple(OBJECT(machine), "axp209", i2c, "axp209_pmu", 0x34);
 
     /* Retrieve SD bus */
     di = drive_get(IF_SD, 0, 0);
@@ -89,9 +89,9 @@ static void cubieboard_init(MachineState *machine)
     bus = qdev_get_child_bus(DEVICE(a10), "sd-bus");
 
     /* Plug in SD card */
-    carddev = qdev_new_orphan(TYPE_SD_CARD);
+    carddev = qdev_new(OBJECT(machine), "sd-card", TYPE_SD_CARD);
     qdev_prop_set_drive_err(carddev, "drive", blk, &error_fatal);
-    qdev_realize_and_unref(carddev, bus, &error_fatal);
+    qdev_realize(carddev, bus, &error_fatal);
 
     memory_region_add_subregion(get_system_memory(), AW_A10_SDRAM_BASE,
                                 machine->ram);

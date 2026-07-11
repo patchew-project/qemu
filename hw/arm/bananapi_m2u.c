@@ -50,9 +50,9 @@ static void mmc_attach_drive(AwR40State *s, AwSdHostState *mmc, int unit,
         exit(1);
     }
 
-    carddev = qdev_new_orphan(TYPE_SD_CARD);
+    carddev = qdev_new(OBJECT(s), "sd-card[*]", TYPE_SD_CARD);
     qdev_prop_set_drive_err(carddev, "drive", blk, &error_fatal);
-    qdev_realize_and_unref(carddev, bus, &error_fatal);
+    qdev_realize(carddev, bus, &error_fatal);
 
     if (load_bootroom && blk && blk_is_available(blk)) {
         /* Use Boot ROM to copy data from SD card to SRAM */
@@ -114,7 +114,7 @@ static void bpim2u_init(MachineState *machine)
 
     /* Connect AXP221 */
     i2c = I2C_BUS(qdev_get_child_bus(DEVICE(&r40->i2c0), "i2c"));
-    i2c_slave_create_simple_orphan(i2c, "axp221_pmu", 0x34);
+    i2c_slave_create_simple(OBJECT(machine), "axp221", i2c, "axp221_pmu", 0x34);
 
     /* SDRAM */
     memory_region_add_subregion(get_system_memory(),
