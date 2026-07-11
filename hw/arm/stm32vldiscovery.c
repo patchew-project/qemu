@@ -47,10 +47,9 @@ static void stm32vldiscovery_init(MachineState *machine)
     sysclk = clock_new(OBJECT(machine), "SYSCLK");
     clock_set_hz(sysclk, SYSCLK_FRQ);
 
-    dev = qdev_new_orphan(TYPE_STM32F100_SOC);
-    object_property_add_child(OBJECT(machine), "soc", OBJECT(dev));
+    dev = qdev_new(OBJECT(machine), "soc", TYPE_STM32F100_SOC);
     qdev_connect_clock_in(dev, "sysclk", sysclk);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     armv7m_load_kernel(STM32F100_SOC(dev)->armv7m.cpu,
                        machine->kernel_filename,

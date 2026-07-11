@@ -283,9 +283,9 @@ void raspi_base_machine_init(MachineState *machine,
         error_report("No SD bus found in SOC object");
         exit(1);
     }
-    carddev = qdev_new_orphan(TYPE_SD_CARD);
+    carddev = qdev_new(OBJECT(machine), "sd-card", TYPE_SD_CARD);
     qdev_prop_set_drive_err(carddev, "drive", blk, &error_fatal);
-    qdev_realize_and_unref(carddev, bus, &error_fatal);
+    qdev_realize(carddev, bus, &error_fatal);
 
     vcram_size = object_property_get_uint(OBJECT(soc), "vcram-size",
                                           &error_abort);

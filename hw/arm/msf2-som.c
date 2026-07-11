@@ -59,8 +59,7 @@ static void emcraft_sf2_s2s010_init(MachineState *machine)
                            &error_fatal);
     memory_region_add_subregion(sysmem, DDR_BASE_ADDRESS, ddr);
 
-    dev = qdev_new_orphan(TYPE_MSF2_SOC);
-    object_property_add_child(OBJECT(machine), "soc", OBJECT(dev));
+    dev = qdev_new(OBJECT(machine), "soc", TYPE_MSF2_SOC);
     qdev_prop_set_string(dev, "part-name", "M2S010");
     qdev_prop_set_uint64(dev, "eNVM-size", M2S010_ENVM_SIZE);
     qdev_prop_set_uint64(dev, "eSRAM-size", M2S010_ESRAM_SIZE);
@@ -77,19 +76,20 @@ static void emcraft_sf2_s2s010_init(MachineState *machine)
     qdev_prop_set_uint32(dev, "apb0div", 2);
     qdev_prop_set_uint32(dev, "apb1div", 2);
 
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     soc = MSF2_SOC(dev);
 
     /* Attach SPI flash to SPI0 controller */
     spi_bus = qdev_get_child_bus(dev, "spi0");
-    spi_flash = qdev_new_orphan("s25sl12801"); /* Spansion S25FL128SDPBHICO */
+    /* Spansion S25FL128SDPBHICO */
+    spi_flash = qdev_new(OBJECT(machine), "spi-flash", "s25sl12801");
     qdev_prop_set_uint8(spi_flash, "spansion-cr2nv", 0x8);
     if (dinfo) {
         qdev_prop_set_drive_err(spi_flash, "drive",
                                 blk_by_legacy_dinfo(dinfo), &error_fatal);
     }
-    qdev_realize_and_unref(spi_flash, spi_bus, &error_fatal);
+    qdev_realize(spi_flash, spi_bus, &error_fatal);
     cs_line = qdev_get_gpio_in_named(spi_flash, SSI_GPIO_CS, 0);
     sysbus_connect_irq(SYS_BUS_DEVICE(&soc->spi[0]), 1, cs_line);
 
