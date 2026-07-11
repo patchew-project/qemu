@@ -256,13 +256,15 @@ static void *qigvm_prepare_memory(QIgvm *ctx, uint64_t addr, uint64_t size,
         igvm_pages = g_new0(MemoryRegion, 1);
         if (ctx->machine_state->cgs &&
             ctx->machine_state->cgs->require_guest_memfd) {
-            if (!memory_region_init_ram_guest_memfd(igvm_pages, NULL,
+            if (!memory_region_init_ram_guest_memfd(igvm_pages,
+                                                     OBJECT(ctx->machine_state),
                                                     region_name, size, errp)) {
                 g_free(igvm_pages);
                 return NULL;
             }
         } else {
-            if (!memory_region_init_ram(igvm_pages, NULL, region_name, size,
+            if (!memory_region_init_ram(igvm_pages, OBJECT(ctx->machine_state),
+                                        region_name, size,
                                         errp)) {
                 g_free(igvm_pages);
                 return NULL;
