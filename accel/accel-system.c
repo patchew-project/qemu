@@ -41,12 +41,14 @@ int accel_init_machine(AccelState *accel, MachineState *ms)
     AccelClass *acc = ACCEL_GET_CLASS(accel);
     int ret;
     ms->accelerator = accel;
+    object_property_add_child(OBJECT(ms), "accel", OBJECT(accel));
+    object_unref(OBJECT(accel));
     *(acc->allowed) = true;
     ret = acc->init_machine(accel, ms);
     if (ret < 0) {
         ms->accelerator = NULL;
         *(acc->allowed) = false;
-        object_unref(OBJECT(accel));
+        object_unparent(OBJECT(accel));
     } else {
         object_set_accelerator_compat_props(acc->compat_props);
     }
