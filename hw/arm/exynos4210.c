@@ -512,14 +512,15 @@ static uint64_t exynos4210_calc_affinity(int cpu)
     return (0x9 << ARM_AFF1_SHIFT) | cpu;
 }
 
-static DeviceState *pl330_create(uint32_t base, OrIRQState *orgate,
-                                 qemu_irq irq, int nreq, int nevents, int width)
+static DeviceState *pl330_create(Object *parent, uint32_t base,
+                                 OrIRQState *orgate, qemu_irq irq,
+                                 int nreq, int nevents, int width)
 {
     SysBusDevice *busdev;
     DeviceState *dev;
     int i;
 
-    dev = qdev_new_orphan("pl330");
+    dev = qdev_new(parent, "pl330[*]", "pl330");
     object_property_set_link(OBJECT(dev), "memory",
                              OBJECT(get_system_memory()),
                              &error_fatal);
@@ -534,7 +535,7 @@ static DeviceState *pl330_create(uint32_t base, OrIRQState *orgate,
     qdev_prop_set_uint8(dev, "data_width", width);
     qdev_prop_set_uint16(dev, "data_buffer_dep", width);
     busdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_realize(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, base);
 
     object_property_set_int(OBJECT(orgate), "num-lines", nevents + 1,
@@ -600,7 +601,8 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     }
 
     /* Cache controller */
-    sysbus_create_simple_orphan("l2x0", EXYNOS4210_L2X0_BASE_ADDR, NULL);
+    sysbus_create_simple(OBJECT(s), "l2x0", "l2x0",
+                         EXYNOS4210_L2X0_BASE_ADDR, NULL);
 
     /* External GIC */
     qdev_prop_set_uint32(DEVICE(&s->ext_gic), "num-cpu", EXYNOS4210_NCPUS);
@@ -667,13 +669,17 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     * The only reason of existence at the moment is that secondary CPU boot
     * loader uses PMU INFORM5 register as a holding pen.
     */
-    sysbus_create_simple_orphan("exynos4210.pmu", EXYNOS4210_PMU_BASE_ADDR, NULL);
+    sysbus_create_simple(OBJECT(s), "pmu", "exynos4210.pmu",
+                         EXYNOS4210_PMU_BASE_ADDR, NULL);
 
-    sysbus_create_simple_orphan("exynos4210.clk", EXYNOS4210_CLK_BASE_ADDR, NULL);
-    sysbus_create_simple_orphan("exynos4210.rng", EXYNOS4210_RNG_BASE_ADDR, NULL);
+    sysbus_create_simple(OBJECT(s), "clk", "exynos4210.clk",
+                         EXYNOS4210_CLK_BASE_ADDR, NULL);
+    sysbus_create_simple(OBJECT(s), "rng", "exynos4210.rng",
+                         EXYNOS4210_RNG_BASE_ADDR, NULL);
 
     /* PWM */
-    sysbus_create_varargs_orphan("exynos4210.pwm", EXYNOS4210_PWM_BASE_ADDR,
+    sysbus_create_varargs(OBJECT(s), "pwm", "exynos4210.pwm",
+                          EXYNOS4210_PWM_BASE_ADDR,
                           s->irq_table[exynos4210_get_irq(22, 0)],
                           s->irq_table[exynos4210_get_irq(22, 1)],
                           s->irq_table[exynos4210_get_irq(22, 2)],
@@ -681,15 +687,16 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
                           s->irq_table[exynos4210_get_irq(22, 4)],
                           NULL);
     /* RTC */
-    sysbus_create_varargs_orphan("exynos4210.rtc", EXYNOS4210_RTC_BASE_ADDR,
+    sysbus_create_varargs(OBJECT(s), "rtc", "exynos4210.rtc",
+                          EXYNOS4210_RTC_BASE_ADDR,
                           s->irq_table[exynos4210_get_irq(23, 0)],
                           s->irq_table[exynos4210_get_irq(23, 1)],
                           NULL);
 
     /* Multi Core Timer */
-    dev = qdev_new_orphan("exynos4210.mct");
+    dev = qdev_new(OBJECT(s), "mct", "exynos4210.mct");
     busdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_realize(busdev, &error_fatal);
     for (n = 0; n < 4; n++) {
         /* Connect global timer interrupts to Combiner gpio_in */
         sysbus_connect_irq(busdev, n,
@@ -713,9 +720,9 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
             i2c_irq = s->irq_table[exynos4210_get_irq(EXYNOS4210_HDMI_INTG, 1)];
         }
 
-        dev = qdev_new_orphan("exynos4210.i2c");
+        dev = qdev_new(OBJECT(s), "i2c[*]", "exynos4210.i2c");
         busdev = SYS_BUS_DEVICE(dev);
-        sysbus_realize_and_unref(busdev, &error_fatal);
+        sysbus_realize(busdev, &error_fatal);
         sysbus_connect_irq(busdev, 0, i2c_irq);
         sysbus_mmio_map(busdev, 0, addr);
         s->i2c_if[n] = (I2CBus *)qdev_get_child_bus(dev, "i2c");
@@ -757,46 +764,47 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
          * public datasheet which is very similar (implementing
          * MMC Specification Version 4.0 being the only difference noted)
          */
-        dev = qdev_new_orphan(TYPE_S3C_SDHCI);
+        dev = qdev_new(OBJECT(s), "sdhci[*]", TYPE_S3C_SDHCI);
         qdev_prop_set_uint64(dev, "capareg", EXYNOS4210_SDHCI_CAPABILITIES);
 
         busdev = SYS_BUS_DEVICE(dev);
-        sysbus_realize_and_unref(busdev, &error_fatal);
+        sysbus_realize(busdev, &error_fatal);
         sysbus_mmio_map(busdev, 0, EXYNOS4210_SDHCI_ADDR(n));
         sysbus_connect_irq(busdev, 0, s->irq_table[exynos4210_get_irq(29, n)]);
 
         di = drive_get(IF_SD, 0, n);
         blk = di ? blk_by_legacy_dinfo(di) : NULL;
-        carddev = qdev_new_orphan(TYPE_SD_CARD);
+        carddev = qdev_new(OBJECT(s), "sd-card[*]", TYPE_SD_CARD);
         qdev_prop_set_drive(carddev, "drive", blk);
-        qdev_realize_and_unref(carddev, qdev_get_child_bus(dev, "sd-bus"),
-                               &error_fatal);
+        qdev_realize(carddev, qdev_get_child_bus(dev, "sd-bus"),
+                     &error_fatal);
     }
 
     /*** Display controller (FIMD) ***/
-    dev = qdev_new_orphan("exynos4210.fimd");
+    dev = qdev_new(OBJECT(s), "fimd", "exynos4210.fimd");
     object_property_set_link(OBJECT(dev), "framebuffer-memory",
                              OBJECT(system_mem), &error_fatal);
     busdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_realize(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, EXYNOS4210_FIMD0_BASE_ADDR);
     for (n = 0; n < 3; n++) {
         sysbus_connect_irq(busdev, n, s->irq_table[exynos4210_get_irq(11, n)]);
     }
 
-    sysbus_create_simple_orphan(TYPE_EXYNOS4210_EHCI, EXYNOS4210_EHCI_BASE_ADDR,
-            s->irq_table[exynos4210_get_irq(28, 3)]);
+    sysbus_create_simple(OBJECT(s), "ehci", TYPE_EXYNOS4210_EHCI,
+                         EXYNOS4210_EHCI_BASE_ADDR,
+                         s->irq_table[exynos4210_get_irq(28, 3)]);
 
     /*** DMA controllers ***/
-    pl330[0] = pl330_create(EXYNOS4210_PL330_BASE0_ADDR,
+    pl330[0] = pl330_create(OBJECT(s), EXYNOS4210_PL330_BASE0_ADDR,
                             &s->pl330_irq_orgate[0],
                             s->irq_table[exynos4210_get_irq(21, 0)],
                             32, 32, 32);
-    pl330[1] = pl330_create(EXYNOS4210_PL330_BASE1_ADDR,
+    pl330[1] = pl330_create(OBJECT(s), EXYNOS4210_PL330_BASE1_ADDR,
                             &s->pl330_irq_orgate[1],
                             s->irq_table[exynos4210_get_irq(21, 1)],
                             32, 32, 32);
-    pl330[2] = pl330_create(EXYNOS4210_PL330_BASE2_ADDR,
+    pl330[2] = pl330_create(OBJECT(s), EXYNOS4210_PL330_BASE2_ADDR,
                             &s->pl330_irq_orgate[2],
                             s->irq_table[exynos4210_get_irq(20, 1)],
                             1, 31, 64);
