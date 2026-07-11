@@ -233,7 +233,7 @@ static void pc_q35_init(MachineState *machine)
     pcms->pcibus = PCI_BUS(qdev_get_child_bus(DEVICE(phb), "pcie.0"));
 
     /* irq lines */
-    gsi_state = pc_gsi_create(&x86ms->gsi, true);
+    gsi_state = pc_gsi_create(OBJECT(machine), &x86ms->gsi, true);
 
     /* create ISA bus */
     lpc = pci_new_multifunction(OBJECT(machine), "lpc",

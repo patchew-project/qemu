@@ -112,9 +112,9 @@ static void xen_set_irq(void *opaque, int irq, int level)
     xen_set_isa_irq_level(xen_domid, irq, level);
 }
 
-qemu_irq *xen_interrupt_controller_init(void)
+qemu_irq *xen_interrupt_controller_init(Object *parent)
 {
-    return qemu_allocate_irqs_orphan(xen_set_irq, NULL, 16);
+    return qemu_allocate_irqs(parent, "xen-irq", xen_set_irq, NULL, 16);
 }
 
 /* Memory Ops */

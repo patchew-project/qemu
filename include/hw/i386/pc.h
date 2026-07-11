@@ -126,7 +126,7 @@ OBJECT_DECLARE_TYPE(PCMachineState, PCMachineClass, PC_MACHINE)
 
 /* ioapic.c */
 
-GSIState *pc_gsi_create(qemu_irq **irqs, bool pci_enabled);
+GSIState *pc_gsi_create(Object *parent, qemu_irq **irqs, bool pci_enabled);
 
 /* pc.c */
 

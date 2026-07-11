@@ -192,7 +192,7 @@ const size_t pc_compat_4_1_len = G_N_ELEMENTS(pc_compat_4_1);
  */
 #define PC_FW_DATA (0x20000 + 0x8000)
 
-GSIState *pc_gsi_create(qemu_irq **irqs, bool pci_enabled)
+GSIState *pc_gsi_create(Object *parent, qemu_irq **irqs, bool pci_enabled)
 {
     GSIState *s;
 
@@ -200,7 +200,7 @@ GSIState *pc_gsi_create(qemu_irq **irqs, bool pci_enabled)
     if (kvm_ioapic_in_kernel()) {
         kvm_pc_setup_irq_routing(pci_enabled);
     }
-    *irqs = qemu_allocate_irqs_orphan(gsi_handler, s, IOAPIC_NUM_PINS);
+    *irqs = qemu_allocate_irqs(parent, "gsi", gsi_handler, s, IOAPIC_NUM_PINS);
 
     return s;
 }
@@ -1028,7 +1028,7 @@ static void pc_superio_init(Object *parent, ISABus *isa_bus, bool create_fdctrl,
     }
     port92 = isa_create_simple(parent, "port92", isa_bus, TYPE_PORT92);
 
-    a20_line = qemu_allocate_irqs_orphan(handle_a20_line_change, first_cpu, 2);
+    a20_line = qemu_allocate_irqs(parent, "a20", handle_a20_line_change, first_cpu, 2);
     qdev_connect_gpio_out_named(DEVICE(i8042),
                                 I8042_A20_LINE, 0, a20_line[0]);
     qdev_connect_gpio_out_named(DEVICE(port92),
@@ -1167,9 +1167,9 @@ void pc_i8259_create(Object *parent, ISABus *isa_bus, qemu_irq *i8259_irqs)
     if (kvm_pic_in_kernel()) {
         i8259 = kvm_i8259_init(parent, isa_bus);
     } else if (xen_enabled()) {
-        i8259 = xen_interrupt_controller_init();
+        i8259 = xen_interrupt_controller_init(parent);
     } else {
-        i8259 = i8259_init(parent, isa_bus, x86_allocate_cpu_irq());
+        i8259 = i8259_init(parent, isa_bus, x86_allocate_cpu_irq(parent));
     }
 
     for (size_t i = 0; i < ISA_NUM_IRQS; i++) {

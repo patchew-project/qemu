@@ -61,9 +61,9 @@ static void pic_irq_request(void *opaque, int irq, int level)
     }
 }
 
-qemu_irq x86_allocate_cpu_irq(void)
+qemu_irq x86_allocate_cpu_irq(Object *parent)
 {
-    return qemu_allocate_irq_orphan(pic_irq_request, NULL, 0);
+    return qemu_allocate_irq(parent, "pic-cpu-irq", pic_irq_request, NULL, 0);
 }
 
 int cpu_get_pic_interrupt(CPUX86State *env)

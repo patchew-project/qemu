@@ -168,7 +168,7 @@ static void microvm_devices_init(MicrovmMachineState *mms)
     /* Core components */
     ioapics = microvm_ioapics(mms);
     gsi_state = g_malloc0(sizeof(*gsi_state));
-    x86ms->gsi = qemu_allocate_irqs_orphan(gsi_handler, gsi_state,
+    x86ms->gsi = qemu_allocate_irqs(OBJECT(mms), "gsi", gsi_handler, gsi_state,
                                     IOAPIC_NUM_PINS * ioapics);
 
     isa_bus = isa_bus_new_bridge(OBJECT(mms), get_system_memory(), get_system_io(),
@@ -252,7 +252,7 @@ static void microvm_devices_init(MicrovmMachineState *mms)
     if (x86ms->pic == ON_OFF_AUTO_ON || x86ms->pic == ON_OFF_AUTO_AUTO) {
         qemu_irq *i8259;
 
-        i8259 = i8259_init(OBJECT(mms), isa_bus, x86_allocate_cpu_irq());
+        i8259 = i8259_init(OBJECT(mms), isa_bus, x86_allocate_cpu_irq(OBJECT(mms)));
         for (i = 0; i < ISA_NUM_IRQS; i++) {
             gsi_state->i8259_irq[i] = i8259[i];
         }

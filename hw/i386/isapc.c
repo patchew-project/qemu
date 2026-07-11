@@ -106,7 +106,7 @@ static void pc_init_isa(MachineState *machine)
         }
     }
 
-    gsi_state = pc_gsi_create(&x86ms->gsi, false);
+    gsi_state = pc_gsi_create(OBJECT(machine), &x86ms->gsi, false);
 
     isa_bus = isa_bus_new_bridge(OBJECT(machine), system_memory, system_io,
                           &error_abort);
