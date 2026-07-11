@@ -145,6 +145,25 @@ bool qdev_set_parent_bus(DeviceState *dev, BusState *bus, Error **errp)
     return true;
 }
 
+DeviceState *qdev_new(Object *parent, const char *id, const char *type)
+{
+    return DEVICE(object_new_child(parent, id, type));
+}
+
+DeviceState *qdev_try_new(Object *parent, const char *id, const char *type)
+{
+    ObjectClass *oc = module_object_class_by_name(type);
+    Object *obj;
+
+    if (!oc) {
+        return NULL;
+    }
+    obj = object_new_with_class(oc);
+    object_property_add_child(parent, id, obj);
+    object_unref(obj);
+    return DEVICE(obj);
+}
+
 DeviceState *qdev_new_orphan(const char *name)
 {
     return DEVICE(object_new(name));

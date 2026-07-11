@@ -407,6 +407,40 @@ struct BusState {
 /*** Board API.  This should go away once we have a machine config file.  ***/
 
 /**
+ * qdev_new: Create a device and parent it in the QOM composition tree
+ * @parent: the QOM parent (usually the machine or containing device)
+ * @id: child<> property name; the device's canonical QOM path becomes
+ *      @parent's path plus "/" plus @id
+ * @type: device type to create (we assert() that this type exists)
+ *
+ * Heap-allocated counterpart to object_initialize_child().  This
+ * allocates and initializes the device state and immediately adds it
+ * as a child of @parent, ready for the caller to set properties and
+ * then realize.
+ *
+ * The reference count of the returned device is 1, held by @parent's
+ * child<> property.  The caller therefore does not hold a reference
+ * and pairs this with qdev_realize() (NOT qdev_realize_and_unref()).
+ *
+ * Return: a derived DeviceState, owned by @parent.
+ */
+DeviceState *qdev_new(Object *parent, const char *id, const char *type);
+
+/**
+ * qdev_try_new: Try to create a parented device on the heap
+ * @parent: the QOM parent
+ * @id: child<> property name
+ * @type: device type to create
+ *
+ * This is like qdev_new(), except it returns %NULL when @type does
+ * not exist, rather than asserting.
+ *
+ * Return: a derived DeviceState owned by @parent, or NULL if @type
+ * does not exist.
+ */
+DeviceState *qdev_try_new(Object *parent, const char *id, const char *type);
+
+/**
  * qdev_new_orphan: Create a device on the heap
  * @name: device type to create (we assert() that this type exists)
  *
