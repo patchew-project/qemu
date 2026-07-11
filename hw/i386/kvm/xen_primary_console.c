@@ -82,9 +82,10 @@ static const TypeInfo xen_primary_console_info = {
 };
 
 
-void xen_primary_console_create(void)
+void xen_primary_console_create(Object *parent)
 {
-    DeviceState *dev = sysbus_create_simple_orphan(TYPE_XEN_PRIMARY_CONSOLE, -1, NULL);
+    DeviceState *dev = sysbus_create_simple(parent, "xen-primary-console",
+                                            TYPE_XEN_PRIMARY_CONSOLE, -1, NULL);
 
     trace_xen_primary_console_create();
 

@@ -13,6 +13,6 @@
 #ifndef HW_I386_KVM_CLOCK_H
 #define HW_I386_KVM_CLOCK_H
 
-void kvmclock_create(bool create_always);
+void kvmclock_create(Object *parent, bool create_always);
 
 #endif

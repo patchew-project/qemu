@@ -90,7 +90,7 @@ static void pc_init_isa(MachineState *machine)
     x86_cpus_init(x86ms, pcmc->default_cpu_version);
 
     if (kvm_enabled()) {
-        kvmclock_create(pcmc->kvmclock_create_always);
+        kvmclock_create(OBJECT(machine), pcmc->kvmclock_create_always);
     }
 
     /* allocate ram and load rom/bios */
@@ -112,9 +112,9 @@ static void pc_init_isa(MachineState *machine)
                           &error_abort);
     isa_bus_register_input_irqs(isa_bus, x86ms->gsi);
 
-    x86ms->rtc = isa_new_orphan(TYPE_MC146818_RTC);
+    x86ms->rtc = isa_new(OBJECT(machine), "rtc", TYPE_MC146818_RTC);
     qdev_prop_set_int32(DEVICE(x86ms->rtc), "base_year", 2000);
-    isa_realize_and_unref(x86ms->rtc, isa_bus, &error_fatal);
+    qdev_realize(DEVICE(x86ms->rtc), BUS(isa_bus), &error_fatal);
     irq = object_property_get_uint(OBJECT(x86ms->rtc), "irq",
                                    &error_fatal);
     isa_connect_gpio_out(ISA_DEVICE(x86ms->rtc), 0, irq);

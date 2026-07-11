@@ -187,14 +187,13 @@ static void pc_init1(MachineState *machine, const char *pci_type)
     x86_cpus_init(x86ms, pcmc->default_cpu_version);
 
     if (kvm_enabled()) {
-        kvmclock_create(pcmc->kvmclock_create_always);
+        kvmclock_create(OBJECT(machine), pcmc->kvmclock_create_always);
     }
 
     pci_memory = g_new(MemoryRegion, 1);
     memory_region_init(pci_memory, NULL, "pci", UINT64_MAX);
 
-    phb = OBJECT(qdev_new_orphan(TYPE_I440FX_PCI_HOST_BRIDGE));
-    object_property_add_child(OBJECT(machine), "i440fx", phb);
+    phb = OBJECT(qdev_new(OBJECT(machine), "i440fx", TYPE_I440FX_PCI_HOST_BRIDGE));
     object_property_set_link(phb, PCI_HOST_PROP_RAM_MEM,
                              OBJECT(ram_memory), &error_fatal);
     object_property_set_link(phb, PCI_HOST_PROP_PCI_MEM,
@@ -209,7 +208,7 @@ static void pc_init1(MachineState *machine, const char *pci_type)
                              x86ms->above_4g_mem_size, &error_fatal);
     object_property_set_str(phb, I440FX_HOST_PROP_PCI_TYPE, pci_type,
                             &error_fatal);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(phb), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(phb), &error_fatal);
 
     pcms->pcibus = PCI_BUS(qdev_get_child_bus(DEVICE(phb), "pci.0"));
     pci_bus_map_irqs(pcms->pcibus,
@@ -236,7 +235,8 @@ static void pc_init1(MachineState *machine, const char *pci_type)
 
     gsi_state = pc_gsi_create(&x86ms->gsi, true);
 
-    pci_dev = pci_new_multifunction_orphan(-1, pcms->south_bridge);
+    pci_dev = pci_new_multifunction(OBJECT(machine), "south-bridge", -1,
+                                    pcms->south_bridge);
     object_property_set_bool(OBJECT(pci_dev), "has-usb",
                              machine_usb(machine), &error_abort);
     object_property_set_bool(OBJECT(pci_dev), "has-acpi",
@@ -254,7 +254,7 @@ static void pc_init1(MachineState *machine, const char *pci_type)
     for (i = 0; i < ISA_NUM_IRQS; i++) {
         qdev_connect_gpio_out_named(dev, "isa-irqs", i, x86ms->gsi[i]);
     }
-    pci_realize_and_unref(pci_dev, pcms->pcibus, &error_fatal);
+    qdev_realize(DEVICE(pci_dev), BUS(pcms->pcibus), &error_fatal);
 
     if (xen_enabled()) {
         pci_device_set_intx_routing_notifier(
@@ -384,7 +384,8 @@ static void pc_xen_hvm_init(MachineState *machine)
                       : TYPE_I440FX_PCI_DEVICE);
 
     xen_igd_reserve_slot(pcms->pcibus);
-    pci_create_simple_orphan(pcms->pcibus, -1, "xen-platform");
+    pci_create_simple(OBJECT(machine), "xen-platform", pcms->pcibus, -1,
+                      "xen-platform");
 }
 #endif
 

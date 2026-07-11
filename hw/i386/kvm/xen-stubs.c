@@ -32,7 +32,7 @@ bool xen_evtchn_deliver_pirq_msi(uint64_t address, uint32_t data)
     return false;
 }
 
-void xen_primary_console_create(void)
+void xen_primary_console_create(Object *parent)
 {
 }
 

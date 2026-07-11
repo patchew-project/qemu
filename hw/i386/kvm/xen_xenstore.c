@@ -274,9 +274,10 @@ static const TypeInfo xen_xenstore_info = {
     .class_init    = xen_xenstore_class_init,
 };
 
-void xen_xenstore_create(void)
+void xen_xenstore_create(Object *parent)
 {
-    DeviceState *dev = sysbus_create_simple_orphan(TYPE_XEN_XENSTORE, -1, NULL);
+    DeviceState *dev = sysbus_create_simple(parent, "xen-xenstore",
+                                            TYPE_XEN_XENSTORE, -1, NULL);
 
     xen_xenstore_singleton = XEN_XENSTORE(dev);
 

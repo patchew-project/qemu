@@ -150,9 +150,11 @@ static const TypeInfo xen_gnttab_info = {
     .class_init    = xen_gnttab_class_init,
 };
 
-void xen_gnttab_create(void)
+void xen_gnttab_create(Object *parent)
 {
-    xen_gnttab_singleton = XEN_GNTTAB(sysbus_create_simple_orphan(TYPE_XEN_GNTTAB,
+    xen_gnttab_singleton = XEN_GNTTAB(sysbus_create_simple(parent,
+                                                           "xen-gnttab",
+                                                           TYPE_XEN_GNTTAB,
                                                            -1, NULL));
 }
 

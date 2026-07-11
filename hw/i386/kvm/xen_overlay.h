@@ -12,7 +12,7 @@
 #ifndef QEMU_XEN_OVERLAY_H
 #define QEMU_XEN_OVERLAY_H
 
-void xen_overlay_create(void);
+void xen_overlay_create(Object *parent);
 
 int xen_overlay_map_shinfo_page(uint64_t gpa);
 void *xen_overlay_get_shinfo_ptr(void);

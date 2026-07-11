@@ -108,8 +108,8 @@ static void create_gpex(MicrovmMachineState *mms)
     DeviceState *dev;
     int i;
 
-    dev = qdev_new_orphan(TYPE_GPEX_HOST);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    dev = qdev_new(OBJECT(mms), "gpex", TYPE_GPEX_HOST);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     /* Map only the first size_ecam bytes of ECAM space */
     ecam_alias = g_new0(MemoryRegion, 1);
@@ -177,11 +177,11 @@ static void microvm_devices_init(MicrovmMachineState *mms)
 
     ioapic_init_gsi(gsi_state, OBJECT(mms));
     if (ioapics > 1) {
-        x86ms->ioapic2 = ioapic_init_secondary(gsi_state);
+        x86ms->ioapic2 = ioapic_init_secondary(OBJECT(mms), gsi_state);
     }
 
     if (kvm_enabled()) {
-        kvmclock_create(true);
+        kvmclock_create(OBJECT(mms), true);
     }
 
     mms->virtio_irq_base = 5;
@@ -197,14 +197,15 @@ static void microvm_devices_init(MicrovmMachineState *mms)
     }
 
     for (i = 0; i < mms->virtio_num_transports; i++) {
-        sysbus_create_simple_orphan("virtio-mmio",
+        sysbus_create_simple(OBJECT(mms), "virtio-mmio[*]", "virtio-mmio",
                              VIRTIO_MMIO_BASE + i * 512,
                              x86ms->gsi[mms->virtio_irq_base + i]);
     }
 
     /* Optional and legacy devices */
     if (x86_machine_is_acpi_enabled(x86ms)) {
-        DeviceState *dev = qdev_new_orphan(TYPE_ACPI_GED);
+        DeviceState *dev = qdev_new(OBJECT(mms), "acpi-ged",
+                                    TYPE_ACPI_GED);
         qdev_prop_set_uint32(dev, "ged-event", ACPI_GED_PWR_DOWN_EVT);
         sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
         sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, GED_MMIO_BASE);
@@ -216,7 +217,7 @@ static void microvm_devices_init(MicrovmMachineState *mms)
     }
 
     if (x86_machine_is_acpi_enabled(x86ms) && machine_usb(MACHINE(mms))) {
-        DeviceState *dev = qdev_new_orphan(TYPE_XHCI_SYSBUS);
+        DeviceState *dev = qdev_new(OBJECT(mms), "xhci", TYPE_XHCI_SYSBUS);
         qdev_prop_set_uint32(dev, "intrs", 1);
         qdev_prop_set_uint32(dev, "slots", XHCI_MAXSLOTS);
         qdev_prop_set_uint32(dev, "p2", 8);

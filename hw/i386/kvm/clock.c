@@ -369,7 +369,7 @@ static const TypeInfo kvmclock_info = {
 };
 
 /* Note: Must be called after VCPU initialization. */
-void kvmclock_create(bool create_always)
+void kvmclock_create(Object *parent, bool create_always)
 {
     X86CPU *cpu = X86_CPU(first_cpu);
 
@@ -377,7 +377,7 @@ void kvmclock_create(bool create_always)
     if (create_always ||
         cpu->env.features[FEAT_KVM] & (CPUID_KVM_CLOCK |
                                        CPUID_KVM_CLOCK2)) {
-        sysbus_create_simple_orphan(TYPE_KVM_CLOCK, -1, NULL);
+        sysbus_create_simple(parent, "kvmclock", TYPE_KVM_CLOCK, -1, NULL);
     }
 }
 

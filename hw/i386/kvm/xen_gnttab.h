@@ -12,7 +12,7 @@
 #ifndef QEMU_XEN_GNTTAB_H
 #define QEMU_XEN_GNTTAB_H
 
-void xen_gnttab_create(void);
+void xen_gnttab_create(Object *parent);
 int xen_gnttab_reset(void);
 int xen_gnttab_map_page(uint64_t idx, uint64_t gfn);
 

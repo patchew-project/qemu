@@ -998,9 +998,9 @@ static void pc_superio_init(Object *parent, ISABus *isa_bus, bool create_fdctrl,
     }
     if (create_fdctrl) {
 #ifdef CONFIG_FDC_ISA
-        ISADevice *fdc = isa_new_orphan(TYPE_ISA_FDC);
+        ISADevice *fdc = isa_new(parent, "fdc", TYPE_ISA_FDC);
         if (fdc) {
-            isa_realize_and_unref(fdc, isa_bus, &error_fatal);
+            qdev_realize(DEVICE(fdc), BUS(isa_bus), &error_fatal);
             isa_fdc_init_drives(fdc, fd);
         }
 #endif
@@ -1014,19 +1014,19 @@ static void pc_superio_init(Object *parent, ISABus *isa_bus, bool create_fdctrl,
         return;
     }
 
-    i8042 = isa_create_simple_orphan(isa_bus, TYPE_I8042);
+    i8042 = isa_create_simple(parent, "i8042[*]", isa_bus, TYPE_I8042);
     if (!no_vmport) {
-        isa_create_simple_orphan(isa_bus, TYPE_VMPORT);
-        vmmouse = isa_try_new_orphan("vmmouse");
+        isa_create_simple(parent, "vmport[*]", isa_bus, TYPE_VMPORT);
+        vmmouse = isa_try_new(parent, "vmmouse", "vmmouse");
     } else {
         vmmouse = NULL;
     }
     if (vmmouse) {
         object_property_set_link(OBJECT(vmmouse), TYPE_I8042, OBJECT(i8042),
                                  &error_abort);
-        isa_realize_and_unref(vmmouse, isa_bus, &error_fatal);
+        qdev_realize(DEVICE(vmmouse), BUS(isa_bus), &error_fatal);
     }
-    port92 = isa_create_simple_orphan(isa_bus, TYPE_PORT92);
+    port92 = isa_create_simple(parent, "port92", isa_bus, TYPE_PORT92);
 
     a20_line = qemu_allocate_irqs(handle_a20_line_change, first_cpu, 2);
     qdev_connect_gpio_out_named(DEVICE(i8042),
@@ -1065,7 +1065,7 @@ void pc_basic_device_init(struct PCMachineState *pcms,
     if (pcms->hpet_enabled) {
         qemu_irq rtc_irq;
 
-        hpet = qdev_try_new_orphan(TYPE_HPET);
+        hpet = qdev_try_new(OBJECT(pcms), "hpet[*]", TYPE_HPET);
         if (!hpet) {
             error_report("couldn't create HPET device");
             exit(1);
@@ -1080,7 +1080,7 @@ void pc_basic_device_init(struct PCMachineState *pcms,
         if (!compat) {
             qdev_prop_set_uint32(hpet, HPET_INTCAP, hpet_irqs);
         }
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(hpet), &error_fatal);
+        sysbus_realize(SYS_BUS_DEVICE(hpet), &error_fatal);
         sysbus_mmio_map(SYS_BUS_DEVICE(hpet), 0, HPET_BASE);
 
         for (i = 0; i < IOAPIC_NUM_PINS; i++) {
@@ -1099,12 +1099,13 @@ void pc_basic_device_init(struct PCMachineState *pcms,
 
 #ifdef CONFIG_XEN_EMU
     if (xen_mode == XEN_EMULATE) {
-        xen_overlay_create();
-        xen_evtchn_create(IOAPIC_NUM_PINS, gsi);
-        xen_gnttab_create();
-        xen_xenstore_create();
+        xen_overlay_create(OBJECT(pcms));
+        xen_evtchn_create(OBJECT(pcms), IOAPIC_NUM_PINS, gsi);
+        xen_gnttab_create(OBJECT(pcms));
+        xen_xenstore_create(OBJECT(pcms));
         if (pcms->pcibus) {
-            pci_create_simple_orphan(pcms->pcibus, -1, "xen-platform");
+            pci_create_simple(OBJECT(pcms), "xen-platform", pcms->pcibus,
+                              -1, "xen-platform");
         }
         xen_bus_init();
     }

@@ -93,7 +93,8 @@ static const struct ehci_companions ich9_1a[] = {
     { .name = TYPE_ICH9_USB_UHCI(6), .func = 2, .port = 4 },
 };
 
-static int ehci_create_ich9_with_companions(PCIBus *bus, int slot)
+static int ehci_create_ich9_with_companions(Object *parent, PCIBus *bus,
+                                             int slot)
 {
     const struct ehci_companions *comp;
     PCIDevice *ehci, *uhci;
@@ -114,16 +115,17 @@ static int ehci_create_ich9_with_companions(PCIBus *bus, int slot)
         return -1;
     }
 
-    ehci = pci_new_multifunction_orphan(PCI_DEVFN(slot, 7), name);
-    pci_realize_and_unref(ehci, bus, &error_fatal);
+    ehci = pci_new_multifunction(parent, "ehci[*]", PCI_DEVFN(slot, 7), name);
+    qdev_realize(DEVICE(ehci), BUS(bus), &error_fatal);
     usbbus = QLIST_FIRST(&ehci->qdev.child_bus);
 
     for (i = 0; i < 3; i++) {
-        uhci = pci_new_multifunction_orphan(PCI_DEVFN(slot, comp[i].func),
+        uhci = pci_new_multifunction(parent, "uhci[*]",
+                                     PCI_DEVFN(slot, comp[i].func),
                                      comp[i].name);
         qdev_prop_set_string(&uhci->qdev, "masterbus", usbbus->name);
         qdev_prop_set_uint32(&uhci->qdev, "firstport", comp[i].port);
-        pci_realize_and_unref(uhci, bus, &error_fatal);
+        qdev_realize(DEVICE(uhci), BUS(bus), &error_fatal);
     }
     return 0;
 }
@@ -195,11 +197,11 @@ static void pc_q35_init(MachineState *machine)
     x86_cpus_init(x86ms, pcmc->default_cpu_version);
 
     if (kvm_enabled()) {
-        kvmclock_create(pcmc->kvmclock_create_always);
+        kvmclock_create(OBJECT(machine), pcmc->kvmclock_create_always);
     }
 
     /* create pci host bus */
-    phb = OBJECT(qdev_new_orphan(TYPE_Q35_HOST_DEVICE));
+    phb = OBJECT(qdev_new(OBJECT(machine), "q35", TYPE_Q35_HOST_DEVICE));
 
     pci_hole64_size = object_property_get_uint(phb,
                                                PCI_HOST_PROP_PCI_HOLE64_SIZE,
@@ -209,7 +211,6 @@ static void pc_q35_init(MachineState *machine)
     memory_region_init(pci_memory, NULL, "pci", UINT64_MAX);
     pc_memory_init(pcms, system_memory, pci_memory, pci_hole64_size);
 
-    object_property_add_child(OBJECT(machine), "q35", phb);
     object_property_set_link(phb, PCI_HOST_PROP_RAM_MEM,
                              OBJECT(machine->ram), NULL);
     object_property_set_link(phb, PCI_HOST_PROP_PCI_MEM,
@@ -226,7 +227,7 @@ static void pc_q35_init(MachineState *machine)
                              pcms->default_bus_bypass_iommu, NULL);
     object_property_set_bool(phb, PCI_HOST_PROP_SMM_RANGES,
                              x86_machine_is_smm_enabled(x86ms), NULL);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(phb), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(phb), &error_fatal);
 
     /* pci */
     pcms->pcibus = PCI_BUS(qdev_get_child_bus(DEVICE(phb), "pcie.0"));
@@ -235,7 +236,8 @@ static void pc_q35_init(MachineState *machine)
     gsi_state = pc_gsi_create(&x86ms->gsi, true);
 
     /* create ISA bus */
-    lpc = pci_new_multifunction_orphan(PCI_DEVFN(ICH9_LPC_DEV, ICH9_LPC_FUNC),
+    lpc = pci_new_multifunction(OBJECT(machine), "lpc",
+                                PCI_DEVFN(ICH9_LPC_DEV, ICH9_LPC_FUNC),
                                 TYPE_ICH9_LPC_DEVICE);
     lpc_dev = DEVICE(lpc);
     qdev_prop_set_bit(lpc_dev, "smm-enabled",
@@ -243,7 +245,7 @@ static void pc_q35_init(MachineState *machine)
     for (i = 0; i < IOAPIC_NUM_PINS; i++) {
         qdev_connect_gpio_out_named(lpc_dev, ICH9_GPIO_GSI, i, x86ms->gsi[i]);
     }
-    pci_realize_and_unref(lpc, pcms->pcibus, &error_fatal);
+    qdev_realize(DEVICE(lpc), BUS(pcms->pcibus), &error_fatal);
 
     x86ms->rtc = ISA_DEVICE(object_resolve_path_component(OBJECT(lpc), "rtc"));
 
@@ -290,7 +292,8 @@ static void pc_q35_init(MachineState *machine)
         AHCIPCIState *ich9;
 
         /* ahci and SATA device, for q35 1 ahci controller is built-in */
-        pdev = pci_create_simple_multifunction_orphan(pcms->pcibus,
+        pdev = pci_create_simple_multifunction(OBJECT(machine), "sata[*]",
+                                               pcms->pcibus,
                                                PCI_DEVFN(ICH9_SATA1_DEV,
                                                          ICH9_SATA1_FUNC),
                                                "ich9-ahci");
@@ -304,14 +307,15 @@ static void pc_q35_init(MachineState *machine)
 
     if (machine_usb(machine)) {
         /* Should we create 6 UHCI according to ich9 spec? */
-        ehci_create_ich9_with_companions(pcms->pcibus, 0x1d);
+        ehci_create_ich9_with_companions(OBJECT(machine), pcms->pcibus, 0x1d);
     }
 
     if (pcms->smbus_enabled) {
         PCIDevice *smb;
 
         /* TODO: Populate SPD eeprom data.  */
-        smb = pci_create_simple_multifunction_orphan(pcms->pcibus,
+        smb = pci_create_simple_multifunction(OBJECT(machine), "smbus[*]",
+                                              pcms->pcibus,
                                               PCI_DEVFN(ICH9_SMB_DEV,
                                                         ICH9_SMB_FUNC),
                                               TYPE_ICH9_SMB_DEVICE);

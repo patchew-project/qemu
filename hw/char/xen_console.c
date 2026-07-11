@@ -440,7 +440,7 @@ static void xen_console_realize(XenDevice *xendev, Error **errp)
      */
     if (!con->dev) {
         if (xen_mode == XEN_EMULATE) {
-            xen_primary_console_create();
+            xen_primary_console_create(OBJECT(xendev));
         } else if (xen_device_frontend_scanf(xendev, "ring-ref", "%u", &u)
                    != 1 ||
                    xen_device_frontend_scanf(xendev, "port", "%u", &u) != 1) {

@@ -505,13 +505,12 @@ void ioapic_init_gsi(GSIState *gsi_state, Object *parent)
 
     assert(parent);
     if (kvm_ioapic_in_kernel()) {
-        dev = qdev_new_orphan(TYPE_KVM_IOAPIC);
+        dev = qdev_new(parent, "ioapic", TYPE_KVM_IOAPIC);
     } else {
-        dev = qdev_new_orphan(TYPE_IOAPIC);
+        dev = qdev_new(parent, "ioapic", TYPE_IOAPIC);
     }
-    object_property_add_child(parent, "ioapic", OBJECT(dev));
     d = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(d, &error_fatal);
+    sysbus_realize(d, &error_fatal);
     sysbus_mmio_map(d, 0, IO_APIC_DEFAULT_ADDRESS);
 
     for (i = 0; i < IOAPIC_NUM_PINS; i++) {
@@ -519,15 +518,15 @@ void ioapic_init_gsi(GSIState *gsi_state, Object *parent)
     }
 }
 
-DeviceState *ioapic_init_secondary(GSIState *gsi_state)
+DeviceState *ioapic_init_secondary(Object *parent, GSIState *gsi_state)
 {
     DeviceState *dev;
     SysBusDevice *d;
     unsigned int i;
 
-    dev = qdev_new_orphan(TYPE_IOAPIC);
+    dev = qdev_new(parent, "ioapic2[*]", TYPE_IOAPIC);
     d = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(d, &error_fatal);
+    sysbus_realize(d, &error_fatal);
     sysbus_mmio_map(d, 0, IO_APIC_SECONDARY_ADDRESS);
 
     for (i = 0; i < IOAPIC_NUM_PINS; i++) {

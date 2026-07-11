@@ -12,7 +12,7 @@
 #ifndef QEMU_XEN_XENSTORE_H
 #define QEMU_XEN_XENSTORE_H
 
-void xen_xenstore_create(void);
+void xen_xenstore_create(Object *parent);
 int xen_xenstore_reset(void);
 
 uint16_t xen_xenstore_get_port(void);
