@@ -439,7 +439,8 @@ vhost_user_gpu_do_set_socket(VhostUserGPU *g, Error **errp)
         return false;
     }
 
-    chr = CHARDEV(object_new(TYPE_CHARDEV_SOCKET));
+    chr = CHARDEV(object_new_child(OBJECT(g), "vhost-chardev",
+                                   TYPE_CHARDEV_SOCKET));
     if (!chr || qemu_chr_add_client(chr, sv[0]) == -1) {
         error_setg(errp, "Failed to make socket chardev");
         goto err;
@@ -462,7 +463,7 @@ err:
     close(sv[0]);
     close(sv[1]);
     if (chr) {
-        object_unref(OBJECT(chr));
+        object_unparent(OBJECT(chr));
     }
     return false;
 }
@@ -584,7 +585,8 @@ vhost_user_gpu_instance_init(Object *obj)
 {
     VhostUserGPU *g = VHOST_USER_GPU(obj);
 
-    g->vhost = VHOST_USER_BACKEND(object_new(TYPE_VHOST_USER_BACKEND));
+    g->vhost = VHOST_USER_BACKEND(object_new_child(obj, "vhost-backend",
+                                                   TYPE_VHOST_USER_BACKEND));
     object_property_add_alias(obj, "chardev",
                               OBJECT(g->vhost), "chardev");
 }
@@ -592,9 +594,7 @@ vhost_user_gpu_instance_init(Object *obj)
 static void
 vhost_user_gpu_instance_finalize(Object *obj)
 {
-    VhostUserGPU *g = VHOST_USER_GPU(obj);
-
-    object_unref(OBJECT(g->vhost));
+    /* g->vhost is a child<> of obj and released with it */
 }
 
 static void

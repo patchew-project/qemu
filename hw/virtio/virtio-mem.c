@@ -1011,7 +1011,8 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
      * we need a dedicated reset object that only gets called during
      * qemu_devices_reset().
      */
-    obj = object_new(TYPE_VIRTIO_MEM_SYSTEM_RESET);
+    obj = object_new_child(OBJECT(vmem), "system-reset",
+                           TYPE_VIRTIO_MEM_SYSTEM_RESET);
     vmem->system_reset = VIRTIO_MEM_SYSTEM_RESET(obj);
     vmem->system_reset->vmem = vmem;
     qemu_register_resettable(obj);
@@ -1023,7 +1024,7 @@ static void virtio_mem_device_unrealize(DeviceState *dev)
     VirtIOMEM *vmem = VIRTIO_MEM(dev);
 
     qemu_unregister_resettable(OBJECT(vmem->system_reset));
-    object_unref(OBJECT(vmem->system_reset));
+    object_unparent(OBJECT(vmem->system_reset));
 
     if (vmem->early_migration) {
         vmstate_unregister(VMSTATE_IF(vmem), &vmstate_virtio_mem_device_early,
