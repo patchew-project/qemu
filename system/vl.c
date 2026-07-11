@@ -2192,7 +2192,6 @@ static void parse_memory_options(void)
 static void qemu_create_machine_containers(Object *machine)
 {
     static const char *const containers[] = {
-        "unattached",
         "peripheral",
         "peripheral-anon",
     };

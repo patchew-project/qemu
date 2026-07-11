@@ -44,24 +44,21 @@ static const TypeInfo my_dev_type_info = {
 /*
  * Initialize a fake machine, being prepared for future tests.
  *
- * Realization of anonymous qdev (with no parent object) requires both
- * the machine object and its "unattached" container to be at least present.
+ * Realization requires that the device already has a QOM parent.
  */
 static void test_init_machine(void)
 {
     /* This is a fake machine - it doesn't need to be a machine object */
-    Object *machine = object_property_add_new_container(
+    object_property_add_new_container(
         object_get_root(), "machine");
 
-    /* This container must exist for anonymous qdevs to realize() */
-    object_property_add_new_container(machine, "unattached");
-}
+    }
 
 static void test_qdev_free_properties(void)
 {
     MyDev *mt;
 
-    mt = STATIC_TYPE(object_new(TYPE_MY_DEV));
+    mt = STATIC_TYPE(object_new_child(qdev_get_machine(), "dev[*]", TYPE_MY_DEV));
     object_set_props(OBJECT(mt), &error_fatal,
                      "string", "something",
                      "array-u32", "12,13",
@@ -75,7 +72,6 @@ static void test_qdev_free_properties(void)
     g_assert_cmpuint(mt->prop_array_u32[1], ==, 13);
 
     object_unparent(OBJECT(mt));
-    object_unref(mt);
 }
 
 

@@ -485,8 +485,6 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
     BusState *bus;
     NamedClockList *ncl;
     Error *local_err = NULL;
-    bool unattached_parent = false;
-    static int unattached_count;
 
     if (dev->hotplugged && !dc->hotpluggable) {
         error_setg(errp, "Device '%s' does not support hotplugging",
@@ -500,12 +498,10 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         }
 
         if (!obj->parent) {
-            gchar *name = g_strdup_printf("device[%d]", unattached_count++);
-
-            object_property_add_child(machine_get_container("unattached"),
-                                      name, obj);
-            unattached_parent = true;
-            g_free(name);
+            error_setg(errp, "device type '%s' has no QOM parent; "
+                       "use qdev_new() with a parent",
+                       object_get_typename(obj));
+            return;
         }
 
         hotplug_ctrl = qdev_get_hotplug_handler(dev);
@@ -633,14 +629,6 @@ post_realize_fail:
 
 fail:
     error_propagate(errp, local_err);
-    if (unattached_parent) {
-        /*
-         * Beware, this doesn't just revert
-         * object_property_add_child(), it also runs bus_remove()!
-         */
-        object_unparent(OBJECT(dev));
-        unattached_count--;
-    }
 }
 
 static bool device_get_hotpluggable(Object *obj, Error **errp)

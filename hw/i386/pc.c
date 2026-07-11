@@ -368,24 +368,15 @@ static int check_fdc(Object *obj, void *opaque)
     return 0;
 }
 
-static const char * const fdc_container_path[] = {
-    "unattached", "peripheral", "peripheral-anon"
-};
-
 /*
  * Locate the FDC at IO address 0x3f0, in order to configure the CMOS registers
  * and ACPI objects.
  */
 static ISADevice *pc_find_fdc0(void)
 {
-    int i;
-    Object *container;
     CheckFdcState state = { 0 };
 
-    for (i = 0; i < ARRAY_SIZE(fdc_container_path); i++) {
-        container = machine_get_container(fdc_container_path[i]);
-        object_child_foreach(container, check_fdc, &state);
-    }
+    object_child_foreach_recursive(qdev_get_machine(), check_fdc, &state);
 
     if (state.multiple) {
         warn_report("multiple floppy disk controllers with "

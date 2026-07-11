@@ -78,25 +78,22 @@ static const TypeInfo subclass_type = {
  * inherit the global states of the parent process) will try to create qdev
  * and realize the device.
  *
- * Realization of such anonymous qdev (with no parent object) requires both
- * the machine object and its "unattached" container to be at least present.
+ * Realization requires that the device already has a QOM parent.
  */
 static void test_init_machine(void)
 {
     /* This is a fake machine - it doesn't need to be a machine object */
-    Object *machine = object_property_add_new_container(
+    object_property_add_new_container(
         object_get_root(), "machine");
 
-    /* This container must exist for anonymous qdevs to realize() */
-    object_property_add_new_container(machine, "unattached");
-}
+    }
 
 /* Test simple static property setting to default value */
 static void test_static_prop_subprocess(void)
 {
     MyType *mt;
 
-    mt = STATIC_TYPE(object_new(TYPE_STATIC_PROPS));
+    mt = STATIC_TYPE(object_new_child(qdev_get_machine(), "dev[*]", TYPE_STATIC_PROPS));
     qdev_realize(DEVICE(mt), NULL, &error_fatal);
 
     g_assert_cmpuint(mt->prop1, ==, PROP_DEFAULT);
@@ -131,7 +128,7 @@ static void test_static_globalprop_subprocess(void)
 
     register_global_properties(props);
 
-    mt = STATIC_TYPE(object_new(TYPE_STATIC_PROPS));
+    mt = STATIC_TYPE(object_new_child(qdev_get_machine(), "dev[*]", TYPE_STATIC_PROPS));
     qdev_realize(DEVICE(mt), NULL, &error_fatal);
 
     g_assert_cmpuint(mt->prop1, ==, 200);
@@ -249,7 +246,7 @@ static void test_dynamic_globalprop_subprocess(void)
 
     register_global_properties(props);
 
-    mt = DYNAMIC_TYPE(object_new(TYPE_DYNAMIC_PROPS));
+    mt = DYNAMIC_TYPE(object_new_child(qdev_get_machine(), "dev[*]", TYPE_DYNAMIC_PROPS));
     qdev_realize(DEVICE(mt), NULL, &error_fatal);
 
     g_assert_cmpuint(mt->prop1, ==, 101);
@@ -295,7 +292,7 @@ static void test_subclass_global_props(void)
 
     register_global_properties(props);
 
-    mt = STATIC_TYPE(object_new(TYPE_SUBCLASS));
+    mt = STATIC_TYPE(object_new_child(qdev_get_machine(), "dev[*]", TYPE_SUBCLASS));
     qdev_realize(DEVICE(mt), NULL, &error_fatal);
 
     g_assert_cmpuint(mt->prop1, ==, 102);

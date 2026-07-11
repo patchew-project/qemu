@@ -462,7 +462,7 @@ static inline bool qdev_is_realized(DeviceState *dev)
  * initialization.
  * @dev must not be plugged into a bus already.
  * If @bus, plug @dev into @bus.  This takes a reference to @dev.
- * If @dev has no QOM parent, make one up, taking another reference.
+ * @dev must already have a QOM parent (see qdev_new()).
  *
  * If you created @dev via object_new() directly (holding a floating
  * reference), you probably want to use qdev_realize_and_unref() instead.
