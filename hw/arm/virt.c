@@ -1082,11 +1082,11 @@ static inline DeviceState *create_acpi_ged(VirtMachineState *vms)
         event |= ACPI_GED_NVDIMM_HOTPLUG_EVT;
     }
 
-    dev = qdev_new_orphan(TYPE_ACPI_GED);
+    dev = qdev_new(OBJECT(vms), "acpi-ged", TYPE_ACPI_GED);
     qdev_prop_set_uint32(dev, "ged-event", event);
     object_property_set_link(OBJECT(dev), "bus", OBJECT(vms->bus), &error_abort);
     sbdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(sbdev, &error_fatal);
+    sysbus_realize(sbdev, &error_fatal);
 
     sysbus_mmio_map_name(sbdev, TYPE_ACPI_GED, vms->memmap[VIRT_ACPI_GED].base);
     sysbus_mmio_map_name(sbdev, ACPI_MEMHP_REGION_NAME,
@@ -1120,11 +1120,11 @@ static void create_its(VirtMachineState *vms)
         return;
     }
 
-    dev = qdev_new_orphan(its_class_name());
+    dev = qdev_new(OBJECT(vms), "gic-its", its_class_name());
 
     object_property_set_link(OBJECT(dev), "parent-gicv3", OBJECT(vms->gic),
                              &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, vms->memmap[VIRT_GIC_ITS].base);
 
     fdt_add_its_gic_node(vms);
@@ -1137,10 +1137,10 @@ static void create_v2m(VirtMachineState *vms)
     int irq = vms->irqmap[VIRT_GIC_V2M];
     DeviceState *dev;
 
-    dev = qdev_new_orphan("arm-gicv2m");
+    dev = qdev_new(OBJECT(vms), "gicv2m", "arm-gicv2m");
     qdev_prop_set_uint32(dev, "base-spi", irq);
     qdev_prop_set_uint32(dev, "num-spi", NUM_GICV2M_SPIS);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, vms->memmap[VIRT_GIC_V2M].base);
 
     for (i = 0; i < NUM_GICV2M_SPIS; i++) {
@@ -1225,7 +1225,7 @@ static void create_gicv5(VirtMachineState *vms, MemoryRegion *mem)
     const char *gictype = gicv5_class_name();
     QList *cpulist = qlist_new(), *iaffidlist = qlist_new();
 
-    vms->gic = qdev_new_orphan(gictype);
+    vms->gic = qdev_new(OBJECT(vms), "gic", gictype);
     qdev_prop_set_uint32(vms->gic, "spi-range", NUM_IRQS);
 
     object_property_set_link(OBJECT(vms->gic), "sysmem", OBJECT(mem),
@@ -1243,7 +1243,7 @@ static void create_gicv5(VirtMachineState *vms, MemoryRegion *mem)
     qdev_prop_set_array(vms->gic, "cpu-iaffids", iaffidlist);
 
     gicbusdev = SYS_BUS_DEVICE(vms->gic);
-    sysbus_realize_and_unref(gicbusdev, &error_fatal);
+    sysbus_realize(gicbusdev, &error_fatal);
 
     /*
      * Map the IRS config frames for the interrupt domains.
@@ -1356,7 +1356,7 @@ static void create_gicv2(VirtMachineState *vms, MemoryRegion *mem)
         exit(1);
     }
 
-    vms->gic = qdev_new_orphan(gic_class_name());
+    vms->gic = qdev_new(OBJECT(vms), "gic", gic_class_name());
     qdev_prop_set_uint32(vms->gic, "revision", 2);
     qdev_prop_set_uint32(vms->gic, "num-cpu", smp_cpus);
     /*
@@ -1370,7 +1370,7 @@ static void create_gicv2(VirtMachineState *vms, MemoryRegion *mem)
     }
 
     gicbusdev = SYS_BUS_DEVICE(vms->gic);
-    sysbus_realize_and_unref(gicbusdev, &error_fatal);
+    sysbus_realize(gicbusdev, &error_fatal);
     sysbus_mmio_map(gicbusdev, 0, vms->memmap[VIRT_GIC_DIST].base);
     sysbus_mmio_map(gicbusdev, 1, vms->memmap[VIRT_GIC_CPU].base);
     if (vms->virt) {
@@ -1412,7 +1412,7 @@ static void create_gicv3(VirtMachineState *vms, MemoryRegion *mem)
         exit(1);
     }
 
-    vms->gic = qdev_new_orphan(gicv3_class_name());
+    vms->gic = qdev_new(OBJECT(vms), "gic", gicv3_class_name());
     qdev_prop_set_uint32(vms->gic, "revision", revision);
     qdev_prop_set_uint32(vms->gic, "num-cpu", smp_cpus);
     /*
@@ -1454,7 +1454,7 @@ static void create_gicv3(VirtMachineState *vms, MemoryRegion *mem)
     }
 
     gicbusdev = SYS_BUS_DEVICE(vms->gic);
-    sysbus_realize_and_unref(gicbusdev, &error_fatal);
+    sysbus_realize(gicbusdev, &error_fatal);
     sysbus_mmio_map(gicbusdev, 0, vms->memmap[VIRT_GIC_DIST].base);
     sysbus_mmio_map(gicbusdev, 1, vms->memmap[VIRT_GIC_REDIST].base);
     if (nb_redist_regions == 2) {
@@ -1500,7 +1500,7 @@ static void create_msi_controller(VirtMachineState *vms)
     }
 }
 
-static void create_uart(const VirtMachineState *vms, int uart,
+static void create_uart(VirtMachineState *vms, int uart,
                         MemoryRegion *mem, Chardev *chr, bool secure)
 {
     char *nodename;
@@ -1509,12 +1509,12 @@ static void create_uart(const VirtMachineState *vms, int uart,
     int irq = vms->irqmap[uart];
     const char compat[] = "arm,pl011\0arm,primecell";
     const char clocknames[] = "uartclk\0apb_pclk";
-    DeviceState *dev = qdev_new_orphan(TYPE_PL011);
+    DeviceState *dev = qdev_new(OBJECT(vms), "uart[*]", TYPE_PL011);
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
     MachineState *ms = MACHINE(vms);
 
     qdev_prop_set_chr(dev, "chardev", chr);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     memory_region_add_subregion(mem, base,
                                 sysbus_mmio_get_region(s, 0));
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(vms->gic, irq));
@@ -1552,7 +1552,7 @@ static void create_uart(const VirtMachineState *vms, int uart,
     g_free(nodename);
 }
 
-static void create_rtc(const VirtMachineState *vms)
+static void create_rtc(VirtMachineState *vms)
 {
     char *nodename;
     hwaddr base = vms->memmap[VIRT_RTC].base;
@@ -1561,7 +1561,8 @@ static void create_rtc(const VirtMachineState *vms)
     const char compat[] = "arm,pl031\0arm,primecell";
     MachineState *ms = MACHINE(vms);
 
-    sysbus_create_simple_orphan("pl031", base, qdev_get_gpio_in(vms->gic, irq));
+    sysbus_create_simple(OBJECT(vms), "rtc", "pl031", base,
+                         qdev_get_gpio_in(vms->gic, irq));
 
     nodename = g_strdup_printf("/pl031@%" PRIx64, base);
     qemu_fdt_add_subnode(ms->fdt, nodename);
@@ -1603,10 +1604,10 @@ static void virt_generic_error_req(Notifier *n, void *opaque)
     acpi_send_event(s->acpi_dev, ACPI_GENERIC_ERROR);
 }
 
-static void create_gpio_keys(char *fdt, DeviceState *pl061_dev,
+static void create_gpio_keys(Object *parent, char *fdt, DeviceState *pl061_dev,
                              uint32_t phandle)
 {
-    gpio_key_dev = sysbus_create_simple_orphan("gpio-key", -1,
+    gpio_key_dev = sysbus_create_simple(parent, "gpio-key", "gpio-key", -1,
                                         qdev_get_gpio_in(pl061_dev,
                                                          GPIO_PIN_POWER_BUTTON));
 
@@ -1625,13 +1626,13 @@ static void create_gpio_keys(char *fdt, DeviceState *pl061_dev,
 #define SECURE_GPIO_POWEROFF 0
 #define SECURE_GPIO_RESET    1
 
-static void create_secure_gpio_pwr(char *fdt, DeviceState *pl061_dev,
-                                   uint32_t phandle)
+static void create_secure_gpio_pwr(Object *parent, char *fdt,
+                                   DeviceState *pl061_dev, uint32_t phandle)
 {
     DeviceState *gpio_pwr_dev;
 
     /* gpio-pwr */
-    gpio_pwr_dev = sysbus_create_simple_orphan("gpio-pwr", -1, NULL);
+    gpio_pwr_dev = sysbus_create_simple(parent, "gpio-pwr", "gpio-pwr", -1, NULL);
 
     /* connect secure pl061 to gpio-pwr */
     qdev_connect_gpio_out(pl061_dev, SECURE_GPIO_RESET,
@@ -1658,7 +1659,7 @@ static void create_secure_gpio_pwr(char *fdt, DeviceState *pl061_dev,
                             "okay");
 }
 
-static void create_gpio_devices(const VirtMachineState *vms, int gpio,
+static void create_gpio_devices(VirtMachineState *vms, int gpio,
                                 MemoryRegion *mem)
 {
     char *nodename;
@@ -1670,12 +1671,12 @@ static void create_gpio_devices(const VirtMachineState *vms, int gpio,
     SysBusDevice *s;
     MachineState *ms = MACHINE(vms);
 
-    pl061_dev = qdev_new_orphan("pl061");
+    pl061_dev = qdev_new(OBJECT(vms), "gpio[*]", "pl061");
     /* Pull lines down to 0 if not driven by the PL061 */
     qdev_prop_set_uint8(pl061_dev, "pullups", 0);
     qdev_prop_set_uint8(pl061_dev, "pulldowns", 0xff);
     s = SYS_BUS_DEVICE(pl061_dev);
-    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_realize(s, &error_fatal);
     memory_region_add_subregion(mem, base, sysbus_mmio_get_region(s, 0));
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(vms->gic, irq));
 
@@ -1703,13 +1704,13 @@ static void create_gpio_devices(const VirtMachineState *vms, int gpio,
 
     /* Child gpio devices */
     if (gpio == VIRT_GPIO) {
-        create_gpio_keys(ms->fdt, pl061_dev, phandle);
+        create_gpio_keys(OBJECT(vms), ms->fdt, pl061_dev, phandle);
     } else {
-        create_secure_gpio_pwr(ms->fdt, pl061_dev, phandle);
+        create_secure_gpio_pwr(OBJECT(vms), ms->fdt, pl061_dev, phandle);
     }
 }
 
-static void create_virtio_devices(const VirtMachineState *vms)
+static void create_virtio_devices(VirtMachineState *vms)
 {
     int i;
     hwaddr size = vms->memmap[VIRT_MMIO].size;
@@ -1746,8 +1747,8 @@ static void create_virtio_devices(const VirtMachineState *vms)
         int irq = vms->irqmap[VIRT_MMIO] + i;
         hwaddr base = vms->memmap[VIRT_MMIO].base + i * size;
 
-        sysbus_create_simple_orphan("virtio-mmio", base,
-                             qdev_get_gpio_in(vms->gic, irq));
+        sysbus_create_simple(OBJECT(vms), "virtio-mmio[*]", "virtio-mmio",
+                             base, qdev_get_gpio_in(vms->gic, irq));
     }
 
     /* We add dtb nodes in reverse order so that they appear in the finished
@@ -1786,7 +1787,7 @@ static PFlashCFI01 *virt_flash_create1(VirtMachineState *vms,
      * Create a single flash device.  We use the same parameters as
      * the flash devices on the Versatile Express board.
      */
-    DeviceState *dev = qdev_new_orphan(TYPE_PFLASH_CFI01);
+    DeviceState *dev = qdev_new(OBJECT(vms), name, TYPE_PFLASH_CFI01);
 
     qdev_prop_set_uint64(dev, "sector-length", VIRT_FLASH_SECTOR_SIZE);
     qdev_prop_set_uint8(dev, "width", 4);
@@ -1797,7 +1798,6 @@ static PFlashCFI01 *virt_flash_create1(VirtMachineState *vms,
     qdev_prop_set_uint16(dev, "id2", 0x00);
     qdev_prop_set_uint16(dev, "id3", 0x00);
     qdev_prop_set_string(dev, "name", name);
-    object_property_add_child(OBJECT(vms), name, OBJECT(dev));
     object_property_add_alias(OBJECT(vms), alias_prop_name,
                               OBJECT(dev), "drive");
     return PFLASH_CFI01(dev);
@@ -1818,7 +1818,7 @@ static void virt_flash_map1(PFlashCFI01 *flash,
     assert(QEMU_IS_ALIGNED(size, VIRT_FLASH_SECTOR_SIZE));
     assert(size / VIRT_FLASH_SECTOR_SIZE <= UINT32_MAX);
     qdev_prop_set_uint32(dev, "num-blocks", size / VIRT_FLASH_SECTOR_SIZE);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     memory_region_add_subregion(sysmem, base,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(dev),
@@ -2056,7 +2056,7 @@ static void create_smmuv3_dev_dtb(VirtMachineState *vms, DeviceState *dev,
                            0x0, vms->iommu_phandle, 0x0, 0x10000);
 }
 
-static void create_smmu(const VirtMachineState *vms, PCIBus *bus)
+static void create_smmu(VirtMachineState *vms, PCIBus *bus)
 {
     VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
     int irq =  vms->irqmap[VIRT_SMMU];
@@ -2069,7 +2069,7 @@ static void create_smmu(const VirtMachineState *vms, PCIBus *bus)
         return;
     }
 
-    dev = qdev_new_orphan(TYPE_ARM_SMMUV3);
+    dev = qdev_new(OBJECT(vms), "smmuv3", TYPE_ARM_SMMUV3);
 
     if (!vmc->no_nested_smmu) {
         object_property_set_str(OBJECT(dev), "stage", "nested", &error_fatal);
@@ -2080,7 +2080,7 @@ static void create_smmu(const VirtMachineState *vms, PCIBus *bus)
                              &error_abort);
     object_property_set_link(OBJECT(dev), "secure-memory", OBJECT(vms->secure_sysmem),
                              &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
     for (i = 0; i < NUM_SMMU_IRQS; i++) {
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
@@ -2162,8 +2162,8 @@ static void create_pcie(VirtMachineState *vms)
     MachineState *ms = MACHINE(vms);
     MachineClass *mc = MACHINE_GET_CLASS(ms);
 
-    dev = qdev_new_orphan(TYPE_GPEX_HOST);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    dev = qdev_new(OBJECT(vms), "pcie", TYPE_GPEX_HOST);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     ecam_id = VIRT_ECAM_ID(vms->highmem_ecam);
     base_ecam = vms->memmap[ecam_id].base;
@@ -2290,11 +2290,11 @@ static void create_platform_bus(VirtMachineState *vms)
     int i;
     MemoryRegion *sysmem = get_system_memory();
 
-    dev = qdev_new_orphan(TYPE_PLATFORM_BUS_DEVICE);
+    dev = qdev_new(OBJECT(vms), "platform-bus", TYPE_PLATFORM_BUS_DEVICE);
     dev->id = g_strdup(TYPE_PLATFORM_BUS_DEVICE);
     qdev_prop_set_uint32(dev, "num_irqs", PLATFORM_BUS_NUM_IRQS);
     qdev_prop_set_uint32(dev, "mmio_size", vms->memmap[VIRT_PLATFORM_BUS].size);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     vms->platform_bus_dev = dev;
 
     s = SYS_BUS_DEVICE(dev);
