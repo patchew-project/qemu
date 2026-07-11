@@ -309,7 +309,7 @@ static void q800_machine_init(MachineState *machine)
     memory_region_add_subregion(get_system_memory(), IO_BASE + IO_SLICE,
                                 &m->macio_alias);
 
-    memory_region_init_io(&m->machine_id, NULL, &machine_id_ops, NULL,
+    memory_region_init_io(&m->machine_id, OBJECT(machine), &machine_id_ops, NULL,
                           "Machine ID", 4);
     memory_region_add_subregion(get_system_memory(), 0x5ffffffc,
                                 &m->machine_id);
@@ -407,7 +407,7 @@ static void q800_machine_init(MachineState *machine)
     sysbus_connect_irq(sysbus, 0,
                        qdev_get_gpio_in(DEVICE(&m->glue), GLUE_IRQ_IN_SONIC));
 
-    memory_region_init_rom(&m->dp8393x_prom, NULL, "dp8393x-q800.prom",
+    memory_region_init_rom(&m->dp8393x_prom, OBJECT(machine), "dp8393x-q800.prom",
                            SONIC_PROM_SIZE, &error_fatal);
     memory_region_add_subregion(get_system_memory(), SONIC_PROM_BASE,
                                 &m->dp8393x_prom);
@@ -606,7 +606,7 @@ static void q800_machine_init(MachineState *machine)
         BOOTINFO1(param_ptr, BI_MAC_VROW, macfb_mode->stride);
         BOOTINFO1(param_ptr, BI_MAC_SCCBASE, SCC_BASE);
 
-        memory_region_init_ram_ptr(&m->rom, NULL, "m68k_fake_mac.rom",
+        memory_region_init_ram_ptr(&m->rom, OBJECT(machine), "m68k_fake_mac.rom",
                                    sizeof(fake_mac_rom), fake_mac_rom);
         memory_region_set_readonly(&m->rom, true);
         memory_region_add_subregion(get_system_memory(), MACROM_ADDR, &m->rom);
@@ -651,12 +651,12 @@ static void q800_machine_init(MachineState *machine)
     } else {
         uint8_t *ptr;
         /* allocate and load BIOS */
-        memory_region_init_rom(&m->rom, NULL, "m68k_mac.rom", MACROM_SIZE,
+        memory_region_init_rom(&m->rom, OBJECT(machine), "m68k_mac.rom", MACROM_SIZE,
                                &error_abort);
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         memory_region_add_subregion(get_system_memory(), MACROM_ADDR, &m->rom);
 
-        memory_region_init_alias(&m->rom_alias, NULL, "m68k_mac.rom-alias",
+        memory_region_init_alias(&m->rom_alias, OBJECT(machine), "m68k_mac.rom-alias",
                                  &m->rom, 0, MACROM_SIZE);
         memory_region_add_subregion(get_system_memory(), 0x40000000,
                                     &m->rom_alias);

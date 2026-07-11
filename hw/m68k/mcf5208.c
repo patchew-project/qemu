@@ -227,7 +227,8 @@ static const MemoryRegionOps m5208_rcm_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void mcf5208_sys_init(MemoryRegion *address_space, DeviceState *intc,
+static void mcf5208_sys_init(Object *owner, MemoryRegion *address_space,
+                             DeviceState *intc,
                              M68kCPU *cpu)
 {
     MemoryRegion *iomem = g_new(MemoryRegion, 1);
@@ -236,17 +237,17 @@ static void mcf5208_sys_init(MemoryRegion *address_space, DeviceState *intc,
     int i;
 
     /* RCM */
-    memory_region_init_io(iomem_rcm, NULL, &m5208_rcm_ops, cpu,
+    memory_region_init_io(iomem_rcm, owner, &m5208_rcm_ops, cpu,
                           "m5208-rcm", 0x00000080);
     memory_region_add_subregion(address_space, 0xfc0a0000, iomem_rcm);
     /* SDRAMC.  */
-    memory_region_init_io(iomem, NULL, &m5208_sys_ops, NULL, "m5208-sys", 0x00004000);
+    memory_region_init_io(iomem, owner, &m5208_sys_ops, NULL, "m5208-sys", 0x00004000);
     memory_region_add_subregion(address_space, 0xfc0a8000, iomem);
     /* Timers.  */
     for (i = 0; i < 2; i++) {
         s = g_new0(m5208_timer_state, 1);
         s->timer = ptimer_init(m5208_timer_trigger, s, PTIMER_POLICY_LEGACY);
-        memory_region_init_io(&s->iomem, NULL, &m5208_timer_ops, s,
+        memory_region_init_io(&s->iomem, owner, &m5208_timer_ops, s,
                               "m5208-timer", 0x00004000);
         memory_region_add_subregion(address_space, 0xfc080000 + 0x4000 * i,
                                     &s->iomem);
@@ -296,14 +297,14 @@ static void mcf5208evb_init(MachineState *machine)
     /* TODO: Configure BARs.  */
 
     /* ROM at 0x00000000 */
-    memory_region_init_rom(rom, NULL, "mcf5208.rom", ROM_SIZE, &error_fatal);
+    memory_region_init_rom(rom, OBJECT(machine), "mcf5208.rom", ROM_SIZE, &error_fatal);
     memory_region_add_subregion(address_space_mem, 0x00000000, rom);
 
     /* DRAM at 0x40000000 */
     memory_region_add_subregion(address_space_mem, 0x40000000, machine->ram);
 
     /* Internal SRAM.  */
-    memory_region_init_ram(sram, NULL, "mcf5208.sram", 16 * KiB, &error_fatal);
+    memory_region_init_ram(sram, OBJECT(machine), "mcf5208.sram", 16 * KiB, &error_fatal);
     memory_region_add_subregion(address_space_mem, 0x80000000, sram);
 
     /* Internal peripherals.  */
@@ -316,7 +317,7 @@ static void mcf5208evb_init(MachineState *machine)
     mcf_uart_create_mmap(OBJECT(machine), 0xfc068000,
                          qdev_get_gpio_in(intc, 28), serial_hd(2));
 
-    mcf5208_sys_init(address_space_mem, intc, cpu);
+    mcf5208_sys_init(OBJECT(machine), address_space_mem, intc, cpu);
 
     mcf_fec_init(address_space_mem, 0xfc030000, intc);
 

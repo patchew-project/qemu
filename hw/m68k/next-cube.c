@@ -1310,11 +1310,11 @@ static void next_cube_init(MachineState *machine)
     sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 5, 0x0211a000);
 
     /* BMAP memory */
-    memory_region_init_ram_flags_nomigrate(&m->bmapm1, NULL, "next.bmapmem",
+    memory_region_init_ram_flags_nomigrate(&m->bmapm1, OBJECT(machine), "next.bmapmem",
                                            64, RAM_SHARED, &error_fatal);
     memory_region_add_subregion(sysmem, 0x020c0000, &m->bmapm1);
     /* The Rev_2.5_v66.bin firmware accesses it at 0x820c0020, too */
-    memory_region_init_alias(&m->bmapm2, NULL, "next.bmapmem2", &m->bmapm1,
+    memory_region_init_alias(&m->bmapm2, OBJECT(machine), "next.bmapmem2", &m->bmapm1,
                              0x0, 64);
     memory_region_add_subregion(sysmem, 0x820c0000, &m->bmapm2);
 
@@ -1322,9 +1322,9 @@ static void next_cube_init(MachineState *machine)
     sysbus_create_simple(OBJECT(machine), "kbd", TYPE_NEXTKBD, 0x0200e000, NULL);
 
     /* Load ROM here */
-    memory_region_init_rom(&m->rom, NULL, "next.rom", 0x20000, &error_fatal);
+    memory_region_init_rom(&m->rom, OBJECT(machine), "next.rom", 0x20000, &error_fatal);
     memory_region_add_subregion(sysmem, 0x01000000, &m->rom);
-    memory_region_init_alias(&m->rom2, NULL, "next.rom2", &m->rom, 0x0,
+    memory_region_init_alias(&m->rom2, OBJECT(machine), "next.rom2", &m->rom, 0x0,
                              0x20000);
     memory_region_add_subregion(sysmem, 0x0, &m->rom2);
     Error *local_err = NULL;
@@ -1352,7 +1352,7 @@ static void next_cube_init(MachineState *machine)
     }
 
     /* DMA */
-    memory_region_init_io(&m->dmamem, NULL, &next_dma_ops, machine,
+    memory_region_init_io(&m->dmamem, OBJECT(machine), &next_dma_ops, machine,
                           "next.dma", 0x5000);
     memory_region_add_subregion(sysmem, 0x02000000, &m->dmamem);
 }

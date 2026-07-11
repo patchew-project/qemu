@@ -589,7 +589,7 @@ static void mcf5206_mbar_realize(DeviceState *dev, Error **errp)
 {
     m5206_mbar_state *s = MCF5206_MBAR(dev);
 
-    memory_region_init_io(&s->iomem, NULL, &m5206_mbar_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(dev), &m5206_mbar_ops, s,
                           "mbar", 0x00001000);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
 
