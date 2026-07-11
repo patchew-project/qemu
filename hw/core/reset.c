@@ -27,6 +27,7 @@
 #include "system/reset.h"
 #include "hw/core/resettable.h"
 #include "hw/core/resetcontainer.h"
+#include "hw/core/qdev.h"
 
 /*
  * Return a pointer to the singleton container that holds all the Resettable
@@ -38,7 +39,9 @@ static ResettableContainer *get_root_reset_container(void)
 
     if (!root_reset_container) {
         root_reset_container =
-            RESETTABLE_CONTAINER(object_new(TYPE_RESETTABLE_CONTAINER));
+            RESETTABLE_CONTAINER(object_new_child(qdev_get_machine(),
+                                          "reset-container",
+                                          TYPE_RESETTABLE_CONTAINER));
     }
     return root_reset_container;
 }
@@ -94,7 +97,8 @@ static void legacy_reset_class_init(ObjectClass *klass, const void *data)
 
 void qemu_register_reset(QEMUResetHandler *func, void *opaque)
 {
-    Object *obj = object_new(TYPE_LEGACY_RESET);
+    Object *obj = object_new_child(OBJECT(get_root_reset_container()),
+                                   "legacy-reset[*]", TYPE_LEGACY_RESET);
     LegacyReset *lr = LEGACY_RESET(obj);
 
     lr->func = func;
@@ -104,7 +108,8 @@ void qemu_register_reset(QEMUResetHandler *func, void *opaque)
 
 void qemu_register_reset_nosnapshotload(QEMUResetHandler *func, void *opaque)
 {
-    Object *obj = object_new(TYPE_LEGACY_RESET);
+    Object *obj = object_new_child(OBJECT(get_root_reset_container()),
+                                   "legacy-reset[*]", TYPE_LEGACY_RESET);
     LegacyReset *lr = LEGACY_RESET(obj);
 
     lr->func = func;
@@ -156,7 +161,7 @@ void qemu_unregister_reset(QEMUResetHandler *func, void *opaque)
 
     if (obj) {
         qemu_unregister_resettable(obj);
-        object_unref(obj);
+        object_unparent(obj);
     }
 }
 
