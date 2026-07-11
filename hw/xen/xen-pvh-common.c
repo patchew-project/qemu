@@ -230,7 +230,7 @@ static inline void xenpvh_gpex_init(XenPVHMachineState *s,
     object_initialize_child(OBJECT(s), "gpex", &s->pci.gpex,
                             TYPE_GPEX_HOST);
     dev = DEVICE(&s->pci.gpex);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     ecam_reg = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
     memory_region_add_subregion(sysmem, s->cfg.pci_ecam.base, ecam_reg);

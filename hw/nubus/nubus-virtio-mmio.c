@@ -51,7 +51,7 @@ static void nubus_virtio_mmio_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < NUBUS_VIRTIO_MMIO_NUM_DEVICES; i++) {
         sbd = SYS_BUS_DEVICE(&s->virtio_mmio[i]);
         qdev_prop_set_bit(DEVICE(sbd), "force-legacy", false);
-        if (!sysbus_realize_and_unref(sbd, errp)) {
+        if (!sysbus_realize(sbd, errp)) {
             return;
         }
 

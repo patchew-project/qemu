@@ -1276,7 +1276,7 @@ static void lan9118_realize(DeviceState *dev, Error **errp)
 
     qemu_init_irq_child(OBJECT(s), "mii-irq", &s->mii_irq, lan9118_update_irq, s, 0);
     object_initialize_child(OBJECT(s), "mii", &s->mii, TYPE_LAN9118_PHY);
-    if (!sysbus_realize_and_unref(SYS_BUS_DEVICE(&s->mii), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->mii), errp)) {
         return;
     }
     qdev_connect_gpio_out(DEVICE(&s->mii), 0, &s->mii_irq);

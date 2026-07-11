@@ -93,7 +93,7 @@ static void imx8mp_evk_init(MachineState *machine)
         object_property_set_link(OBJECT(&s->soc), bus_name,
                                  OBJECT(s->canbus[i]), &error_fatal);
     }
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(&s->soc), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(&s->soc), &error_fatal);
 
     memory_region_add_subregion(get_system_memory(), FSL_IMX8MP_RAM_START,
                                 machine->ram);

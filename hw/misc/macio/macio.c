@@ -274,7 +274,7 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
     /* OpenPIC */
     qdev_prop_set_uint32(pic_dev, "model", OPENPIC_MODEL_KEYLARGO);
     sbd = SYS_BUS_DEVICE(&ns->pic);
-    sysbus_realize_and_unref(sbd, &error_fatal);
+    sysbus_realize(sbd, &error_fatal);
     memory_region_add_subregion(&s->bar, 0x40000,
                                 sysbus_mmio_get_region(sbd, 0));
 

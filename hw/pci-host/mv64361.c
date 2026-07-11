@@ -874,7 +874,7 @@ static void mv64361_realize(DeviceState *dev, Error **errp)
                                 TYPE_MV64361_PCI);
         DeviceState *pci = DEVICE(&s->pci[i]);
         qdev_prop_set_uint8(pci, "index", i);
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(pci), &error_fatal);
+        sysbus_realize(SYS_BUS_DEVICE(pci), &error_fatal);
     }
     sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->cpu_irq);
     qdev_init_gpio_in_named(dev, mv64361_gpp_irq, "gpp", 32);

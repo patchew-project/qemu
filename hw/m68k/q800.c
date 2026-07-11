@@ -324,14 +324,14 @@ static void q800_machine_init(MachineState *machine)
     object_initialize_child(OBJECT(machine), "djmemc", &m->djmemc,
                             TYPE_DJMEMC);
     sysbus = SYS_BUS_DEVICE(&m->djmemc);
-    sysbus_realize_and_unref(sysbus, &error_fatal);
+    sysbus_realize(sysbus, &error_fatal);
     memory_region_add_subregion(&m->macio, DJMEMC_BASE - IO_BASE,
                                 sysbus_mmio_get_region(sysbus, 0));
 
     /* IOSB subsystem */
     object_initialize_child(OBJECT(machine), "iosb", &m->iosb, TYPE_IOSB);
     sysbus = SYS_BUS_DEVICE(&m->iosb);
-    sysbus_realize_and_unref(sysbus, &error_fatal);
+    sysbus_realize(sysbus, &error_fatal);
     memory_region_add_subregion(&m->macio, IOSB_BASE - IO_BASE,
                                 sysbus_mmio_get_region(sysbus, 0));
 
@@ -497,7 +497,7 @@ static void q800_machine_init(MachineState *machine)
         qdev_prop_set_string(DEVICE(&m->asc), "audiodev", machine->audiodev);
     }
     sysbus = SYS_BUS_DEVICE(&m->asc);
-    sysbus_realize_and_unref(sysbus, &error_fatal);
+    sysbus_realize(sysbus, &error_fatal);
     memory_region_add_subregion(&m->macio, ASC_BASE - IO_BASE,
                                 sysbus_mmio_get_region(sysbus, 0));
     sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(DEVICE(&m->glue),

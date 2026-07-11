@@ -2045,7 +2045,7 @@ static void sm501_realize_sysbus(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->state.mmio_region);
 
     /* bridge to usb host emulation module */
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(&s->ohci), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(&s->ohci), &error_fatal);
     memory_region_add_subregion(&s->state.mmio_region, SM501_USB_HOST,
                        sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->ohci), 0));
     sysbus_pass_irq(sbd, SYS_BUS_DEVICE(&s->ohci));
