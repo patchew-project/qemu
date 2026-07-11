@@ -123,7 +123,7 @@ static void pc_init_isa(MachineState *machine)
     pcms->hpet_enabled = false;
 
     if (x86ms->pic == ON_OFF_AUTO_ON || x86ms->pic == ON_OFF_AUTO_AUTO) {
-        pc_i8259_create(isa_bus, gsi_state->i8259_irq);
+        pc_i8259_create(OBJECT(machine), isa_bus, gsi_state->i8259_irq);
     }
 
     if (tcg_enabled()) {

@@ -97,7 +97,7 @@ static const MemoryRegionOps hppa_pci_ignore_ops = {
     },
 };
 
-static ISABus *hppa_isa_bus(hwaddr addr)
+static ISABus *hppa_isa_bus(Object *parent, hwaddr addr)
 {
     ISABus *isa_bus;
     qemu_irq *isa_irqs;
@@ -110,7 +110,7 @@ static ISABus *hppa_isa_bus(hwaddr addr)
 
     isa_bus = isa_bus_new(NULL, get_system_memory(), isa_region,
                           &error_abort);
-    isa_irqs = i8259_init(isa_bus, NULL);
+    isa_irqs = i8259_init(parent, isa_bus, NULL);
     isa_bus_register_input_irqs(isa_bus, isa_irqs);
 
     return isa_bus;
@@ -596,7 +596,7 @@ static void machine_HP_715_init(MachineState *machine)
     }
 
     /* Create ISA bus, needed for PS/2 kbd/mouse port emulation */
-    isa_bus = hppa_isa_bus(translate(NULL, IDE_HPA));
+    isa_bus = hppa_isa_bus(OBJECT(machine), translate(NULL, IDE_HPA));
     assert(isa_bus);
 
     /* Init Lasi chip */
@@ -690,7 +690,7 @@ static void machine_HP_B160L_init(MachineState *machine)
     assert(pci_bus);
 
     /* Create ISA bus, needed for PS/2 kbd/mouse port emulation */
-    isa_bus = hppa_isa_bus(translate(NULL, IDE_HPA));
+    isa_bus = hppa_isa_bus(OBJECT(machine), translate(NULL, IDE_HPA));
     assert(isa_bus);
 
     /* Serial ports: Lasi and Dino use a 7.272727 MHz clock. */

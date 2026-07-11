@@ -71,7 +71,8 @@ struct PICCommonState {
 };
 
 void pic_reset_common(PICCommonState *s);
-ISADevice *i8259_init_chip(const char *name, ISABus *bus, bool master);
+ISADevice *i8259_init_chip(Object *parent, const char *name, ISABus *bus,
+                           bool master);
 void pic_stat_update_irq(int irq, int level);
 
 #endif /* QEMU_I8259_INTERNAL_H */

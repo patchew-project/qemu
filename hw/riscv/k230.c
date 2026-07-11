@@ -117,7 +117,8 @@ static void k230_soc_init(Object *obj)
                          memmap[K230_DEV_BOOTROM].base);
 }
 
-static DeviceState *k230_create_plic(int base_hartid, int hartid_count)
+static DeviceState *k230_create_plic(Object *parent, int base_hartid,
+                                     int hartid_count)
 {
     g_autofree char *plic_hart_config = NULL;
 
@@ -125,7 +126,7 @@ static DeviceState *k230_create_plic(int base_hartid, int hartid_count)
     plic_hart_config = riscv_plic_hart_config_string(hartid_count);
 
     /* Per-socket PLIC */
-    return sifive_plic_create(memmap[K230_DEV_PLIC].base,
+    return sifive_plic_create(parent, memmap[K230_DEV_PLIC].base,
                               plic_hart_config, hartid_count, base_hartid,
                               K230_PLIC_NUM_SOURCES,
                               K230_PLIC_NUM_PRIORITIES,
@@ -174,12 +175,13 @@ static void k230_soc_realize(DeviceState *dev, Error **errp)
                                 &s->bootrom);
 
     /* PLIC */
-    s->c908_plic = k230_create_plic(C908_CPU_HARTID, c908_cpus);
+    s->c908_plic = k230_create_plic(OBJECT(dev), C908_CPU_HARTID, c908_cpus);
 
     /* CLINT */
-    riscv_aclint_swi_create(memmap[K230_DEV_CLINT].base,
+    riscv_aclint_swi_create(OBJECT(dev), memmap[K230_DEV_CLINT].base,
                             C908_CPU_HARTID, c908_cpus, false);
-    riscv_aclint_mtimer_create(memmap[K230_DEV_CLINT].base + 0x4000,
+    riscv_aclint_mtimer_create(OBJECT(dev),
+                               memmap[K230_DEV_CLINT].base + 0x4000,
                                RISCV_ACLINT_DEFAULT_MTIMER_SIZE,
                                C908_CPU_HARTID, c908_cpus,
                                RISCV_ACLINT_DEFAULT_MTIMECMP,

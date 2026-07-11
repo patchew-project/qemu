@@ -281,7 +281,7 @@ static void pc_init1(MachineState *machine, const char *pci_type)
 
 
     if (x86ms->pic == ON_OFF_AUTO_ON || x86ms->pic == ON_OFF_AUTO_AUTO) {
-        pc_i8259_create(isa_bus, gsi_state->i8259_irq);
+        pc_i8259_create(OBJECT(machine), isa_bus, gsi_state->i8259_irq);
     }
 
     ioapic_init_gsi(gsi_state, phb);

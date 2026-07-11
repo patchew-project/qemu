@@ -473,7 +473,8 @@ type_init(sifive_plic_register_types)
 /*
  * Create PLIC device.
  */
-DeviceState *sifive_plic_create(hwaddr addr, char *hart_config,
+DeviceState *sifive_plic_create(Object *parent, hwaddr addr,
+    char *hart_config,
     uint32_t num_harts,
     uint32_t hartid_base, uint32_t num_sources,
     uint32_t num_priorities, uint32_t priority_base,
@@ -481,7 +482,7 @@ DeviceState *sifive_plic_create(hwaddr addr, char *hart_config,
     uint32_t enable_stride, uint32_t context_base,
     uint32_t context_stride, uint32_t aperture_size)
 {
-    DeviceState *dev = qdev_new_orphan(TYPE_SIFIVE_PLIC);
+    DeviceState *dev = qdev_new(parent, "plic[*]", TYPE_SIFIVE_PLIC);
     int i;
     SiFivePLICState *plic;
 
@@ -498,7 +499,7 @@ DeviceState *sifive_plic_create(hwaddr addr, char *hart_config,
     qdev_prop_set_uint32(dev, "context-base", context_base);
     qdev_prop_set_uint32(dev, "context-stride", context_stride);
     qdev_prop_set_uint32(dev, "aperture-size", aperture_size);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, addr);
 
     plic = SIFIVE_PLIC(dev);

@@ -285,7 +285,7 @@ static void mips_jazz_init(MachineState *machine,
     isa_bus = isa_bus_new(NULL, isa_mem, isa_io, &error_abort);
 
     /* ISA devices */
-    i8259 = i8259_init(isa_bus, env->irq[4]);
+    i8259 = i8259_init(OBJECT(machine), isa_bus, env->irq[4]);
     isa_bus_register_input_irqs(isa_bus, i8259);
     i8257_dma_init(OBJECT(rc4030), isa_bus, 0);
     pit = i8254_pit_init(isa_bus, 0x40, 0, NULL);

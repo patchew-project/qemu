@@ -89,18 +89,19 @@ static void pic_common_realize(DeviceState *dev, Error **errp)
     qdev_set_legacy_instance_id(dev, s->iobase, 1);
 }
 
-ISADevice *i8259_init_chip(const char *name, ISABus *bus, bool master)
+ISADevice *i8259_init_chip(Object *parent, const char *name, ISABus *bus,
+                           bool master)
 {
     DeviceState *dev;
     ISADevice *isadev;
 
-    isadev = isa_new_orphan(name);
+    isadev = isa_new(parent, "i8259[*]", name);
     dev = DEVICE(isadev);
     qdev_prop_set_uint32(dev, "iobase", master ? 0x20 : 0xa0);
     qdev_prop_set_uint32(dev, "elcr_addr", master ? 0x4d0 : 0x4d1);
     qdev_prop_set_uint8(dev, "elcr_mask", master ? 0xf8 : 0xde);
     qdev_prop_set_bit(dev, "master", master);
-    isa_realize_and_unref(isadev, bus, &error_fatal);
+    qdev_realize(dev, BUS(bus), &error_fatal);
 
     return isadev;
 }

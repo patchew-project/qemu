@@ -1109,11 +1109,12 @@ void riscv_aplic_add_child(DeviceState *parent, DeviceState *child)
 /*
  * Create APLIC device.
  */
-DeviceState *riscv_aplic_create(hwaddr addr, hwaddr size,
+DeviceState *riscv_aplic_create(Object *parent, hwaddr addr, hwaddr size,
     uint32_t hartid_base, uint32_t num_harts, uint32_t num_sources,
-    uint32_t iprio_bits, bool msimode, bool mmode, DeviceState *parent)
+    uint32_t iprio_bits, bool msimode, bool mmode,
+    DeviceState *aplic_parent)
 {
-    DeviceState *dev = qdev_new_orphan(TYPE_RISCV_APLIC);
+    DeviceState *dev = qdev_new(parent, "aplic[*]", TYPE_RISCV_APLIC);
     uint32_t i;
 
     assert(num_harts < APLIC_MAX_IDC);
@@ -1130,11 +1131,11 @@ DeviceState *riscv_aplic_create(hwaddr addr, hwaddr size,
     qdev_prop_set_bit(dev, "msimode", msimode);
     qdev_prop_set_bit(dev, "mmode", mmode);
 
-    if (parent) {
-        riscv_aplic_add_child(parent, dev);
+    if (aplic_parent) {
+        riscv_aplic_add_child(aplic_parent, dev);
     }
 
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
     if (riscv_use_emulated_aplic(msimode)) {
         sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, addr);

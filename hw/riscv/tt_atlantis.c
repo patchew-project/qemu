@@ -493,7 +493,8 @@ static void tt_atlantis_machine_init(MachineState *machine)
                             &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&s->soc), &error_fatal);
 
-    s->irqchip = riscv_create_aia(true, TT_IRQCHIP_GUESTS,
+    s->irqchip = riscv_create_aia(OBJECT(machine),
+                                  true, TT_IRQCHIP_GUESTS,
                                   TT_IRQCHIP_MIMSIC_STRIDE,
                                   TT_IRQCHIP_NUM_SOURCES,
                                   &s->memmap[TT_ATL_MAPLIC],
@@ -504,7 +505,8 @@ static void tt_atlantis_machine_init(MachineState *machine)
                                   TT_IRQCHIP_NUM_MSIS,
                                   TT_IRQCHIP_NUM_PRIO_BITS);
 
-    riscv_aclint_mtimer_create(s->memmap[TT_ATL_ACLINT].base,
+    riscv_aclint_mtimer_create(OBJECT(machine),
+            s->memmap[TT_ATL_ACLINT].base,
             TT_ACLINT_MTIME_SIZE,
             0, hart_count,
             TT_ACLINT_MTIMECMP,

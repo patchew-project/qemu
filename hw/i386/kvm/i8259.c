@@ -131,10 +131,10 @@ static void kvm_pic_realize(DeviceState *dev, Error **errp)
     kpc->parent_realize(dev, errp);
 }
 
-qemu_irq *kvm_i8259_init(ISABus *bus)
+qemu_irq *kvm_i8259_init(Object *parent, ISABus *bus)
 {
-    i8259_init_chip(TYPE_KVM_I8259, bus, true);
-    i8259_init_chip(TYPE_KVM_I8259, bus, false);
+    i8259_init_chip(parent, TYPE_KVM_I8259, bus, true);
+    i8259_init_chip(parent, TYPE_KVM_I8259, bus, false);
 
     return qemu_allocate_irqs(kvm_pic_set_irq, NULL, ISA_NUM_IRQS);
 }

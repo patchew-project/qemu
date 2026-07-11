@@ -62,15 +62,13 @@ void s390_flic_init(void)
     DeviceState *dev;
 
     if (kvm_enabled()) {
-        dev = qdev_new_orphan(TYPE_KVM_S390_FLIC);
-        object_property_add_child(qdev_get_machine(), TYPE_KVM_S390_FLIC,
-                                  OBJECT(dev));
+        dev = qdev_new(qdev_get_machine(), TYPE_KVM_S390_FLIC,
+                       TYPE_KVM_S390_FLIC);
     } else {
-        dev = qdev_new_orphan(TYPE_QEMU_S390_FLIC);
-        object_property_add_child(qdev_get_machine(), TYPE_QEMU_S390_FLIC,
-                                  OBJECT(dev));
+        dev = qdev_new(qdev_get_machine(), TYPE_QEMU_S390_FLIC,
+                       TYPE_QEMU_S390_FLIC);
     }
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 }
 
 static int qemu_s390_register_io_adapter(S390FLICState *fs, uint32_t id,

@@ -282,7 +282,8 @@ static void apic_common_realize(DeviceState *dev, Error **errp)
     /* Note: We need at least 1M to map the VAPIC option ROM */
     if (!vapic && s->vapic_control & VAPIC_ENABLE_MASK &&
             current_machine->ram_size >= 1024 * 1024) {
-        vapic = sysbus_create_simple_orphan("kvmvapic", -1, NULL);
+        vapic = sysbus_create_simple(qdev_get_machine(), "kvmvapic",
+                                     "kvmvapic", -1, NULL);
     }
     s->vapic = vapic;
     if (apic_report_tpr_access && info->enable_tpr_reporting) {

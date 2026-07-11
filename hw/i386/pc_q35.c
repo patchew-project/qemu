@@ -272,7 +272,7 @@ static void pc_q35_init(MachineState *machine)
     isa_bus = ISA_BUS(qdev_get_child_bus(lpc_dev, "isa.0"));
 
     if (x86ms->pic == ON_OFF_AUTO_ON || x86ms->pic == ON_OFF_AUTO_AUTO) {
-        pc_i8259_create(isa_bus, gsi_state->i8259_irq);
+        pc_i8259_create(OBJECT(machine), isa_bus, gsi_state->i8259_irq);
     }
 
     ioapic_init_gsi(gsi_state, OBJECT(phb));
