@@ -623,7 +623,7 @@ void legacy_i2c_end_transfer(I3CBus *bus)
 I2CSlave *legacy_i2c_device_create_simple(I3CBus *bus, const char *name,
                                           uint8_t addr)
 {
-    I2CSlave *dev = i2c_slave_new(name, addr);
+    I2CSlave *dev = i2c_slave_new_orphan(name, addr);
 
     i2c_slave_realize_and_unref(dev, bus->i2c_bus, &error_abort);
     return dev;

@@ -1209,7 +1209,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     if (board->peripherals & BP_OLED_I2C) {
         I2CBus *bus = (I2CBus *)qdev_get_child_bus(i2c_dev[0], "i2c");
 
-        i2c_slave_create_simple(bus, "ssd0303", 0x3d);
+        i2c_slave_create_simple_orphan(bus, "ssd0303", 0x3d);
     }
 
     for (i = 0; i < NUM_UART; i++) {

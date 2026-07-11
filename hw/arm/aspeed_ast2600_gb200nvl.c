@@ -54,12 +54,12 @@ static void gb200nvl_bmc_i2c_init(AspeedMachineState *bmc)
     aspeed_create_pca9554(soc, 4, 0x21);
 
     /* Mux I2c Expanders */
-    i2c_slave_create_simple(i2c[5], "pca9546", 0x71);
-    i2c_slave_create_simple(i2c[5], "pca9546", 0x72);
-    i2c_slave_create_simple(i2c[5], "pca9546", 0x73);
-    i2c_slave_create_simple(i2c[5], "pca9546", 0x75);
-    i2c_slave_create_simple(i2c[5], "pca9546", 0x76);
-    i2c_slave_create_simple(i2c[5], "pca9546", 0x77);
+    i2c_slave_create_simple_orphan(i2c[5], "pca9546", 0x71);
+    i2c_slave_create_simple_orphan(i2c[5], "pca9546", 0x72);
+    i2c_slave_create_simple_orphan(i2c[5], "pca9546", 0x73);
+    i2c_slave_create_simple_orphan(i2c[5], "pca9546", 0x75);
+    i2c_slave_create_simple_orphan(i2c[5], "pca9546", 0x76);
+    i2c_slave_create_simple_orphan(i2c[5], "pca9546", 0x77);
 
     /* Bus 10 */
     dev = DEVICE(aspeed_create_pca9554(soc, 9, 0x20));

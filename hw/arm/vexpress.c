@@ -653,7 +653,7 @@ static void vexpress_common_init(MachineState *machine)
 
     dev = sysbus_create_simple_orphan(TYPE_ARM_SBCON_I2C, map[VE_SERIALDVI], NULL);
     i2c = (I2CBus *)qdev_get_child_bus(dev, "i2c");
-    i2c_slave_create_simple(i2c, "sii9022", 0x39);
+    i2c_slave_create_simple_orphan(i2c, "sii9022", 0x39);
 
     sysbus_create_simple_orphan("pl031", map[VE_RTC], pic[4]); /* RTC */
 

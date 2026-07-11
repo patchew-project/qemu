@@ -163,7 +163,20 @@ bool i2c_scan_bus(I2CBus *bus, uint8_t address, bool broadcast,
  * properties to be set. Type @name must exist. The device still
  * needs to be realized. See qdev-core.h.
  */
-I2CSlave *i2c_slave_new(const char *name, uint8_t addr);
+I2CSlave *i2c_slave_new_orphan(const char *name, uint8_t addr);
+
+/**
+ * Create a parented I2C slave device on the heap.
+ * @parent: the QOM parent
+ * @id: child<> property name
+ * @type: I2C slave device type name
+ * @addr: I2C address of the slave when put on a bus
+ *
+ * Like i2c_slave_new_orphan(), but the returned device is owned by
+ * @parent's child<> property.  Pair with qdev_realize().
+ */
+I2CSlave *i2c_slave_new(Object *parent, const char *id,
+                        const char *type, uint8_t addr);
 
 /**
  * Create and realize an I2C slave device on the heap.
@@ -174,7 +187,24 @@ I2CSlave *i2c_slave_new(const char *name, uint8_t addr);
  * Create the device state structure, initialize it, put it on the
  * specified @bus, and drop the reference to it (the device is realized).
  */
-I2CSlave *i2c_slave_create_simple(I2CBus *bus, const char *name, uint8_t addr);
+I2CSlave *i2c_slave_create_simple_orphan(I2CBus *bus, const char *name,
+                                         uint8_t addr);
+
+/**
+ * Create, parent and realize an I2C slave device on the heap.
+ * @parent: the QOM parent
+ * @id: child<> property name
+ * @bus: I2C bus to put it on
+ * @type: I2C slave device type name
+ * @addr: I2C address of the slave when put on a bus
+ *
+ * Create the device state structure, add it as a child of @parent,
+ * put it on the specified @bus and realize it.  The returned device
+ * is owned by @parent.
+ */
+I2CSlave *i2c_slave_create_simple(Object *parent, const char *id,
+                                  I2CBus *bus, const char *type,
+                                  uint8_t addr);
 
 /**
  * Realize and drop a reference an I2C slave device
@@ -189,10 +219,10 @@ I2CSlave *i2c_slave_create_simple(I2CBus *bus, const char *name, uint8_t addr);
  * reference to it.
  *
  * This function is useful if you have created @dev via qdev_new_orphan(),
- * i2c_slave_new() or i2c_slave_try_new() (which take a reference to
+ * i2c_slave_new_orphan() or i2c_slave_try_new() (which take a reference to
  * the device it returns to you), so that you can set properties on it
  * before realizing it. If you don't need to set properties then
- * i2c_slave_create_simple() is probably better (as it does the create,
+ * i2c_slave_create_simple_orphan() is probably better (as it does the create,
  * init and realize in one step).
  *
  * If you are embedding the I2C slave into another QOM device and

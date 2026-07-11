@@ -364,7 +364,7 @@ const VMStateDescription vmstate_i2c_slave = {
     }
 };
 
-I2CSlave *i2c_slave_new(const char *name, uint8_t addr)
+I2CSlave *i2c_slave_new_orphan(const char *name, uint8_t addr)
 {
     DeviceState *dev;
 
@@ -373,14 +373,34 @@ I2CSlave *i2c_slave_new(const char *name, uint8_t addr)
     return I2C_SLAVE(dev);
 }
 
+I2CSlave *i2c_slave_new(Object *parent, const char *id,
+                        const char *type, uint8_t addr)
+{
+    DeviceState *dev;
+
+    dev = qdev_new(parent, id, type);
+    qdev_prop_set_uint8(dev, "address", addr);
+    return I2C_SLAVE(dev);
+}
+
+I2CSlave *i2c_slave_create_simple(Object *parent, const char *id,
+                                  I2CBus *bus, const char *type,
+                                  uint8_t addr)
+{
+    I2CSlave *dev = i2c_slave_new(parent, id, type, addr);
+
+    qdev_realize(DEVICE(dev), BUS(bus), &error_abort);
+    return dev;
+}
+
 bool i2c_slave_realize_and_unref(I2CSlave *dev, I2CBus *bus, Error **errp)
 {
     return qdev_realize_and_unref(&dev->qdev, &bus->qbus, errp);
 }
 
-I2CSlave *i2c_slave_create_simple(I2CBus *bus, const char *name, uint8_t addr)
+I2CSlave *i2c_slave_create_simple_orphan(I2CBus *bus, const char *name, uint8_t addr)
 {
-    I2CSlave *dev = i2c_slave_new(name, addr);
+    I2CSlave *dev = i2c_slave_new_orphan(name, addr);
 
     i2c_slave_realize_and_unref(dev, bus, &error_abort);
 

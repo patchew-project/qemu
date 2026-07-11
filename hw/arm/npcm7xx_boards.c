@@ -198,13 +198,13 @@ static void npcm7xx_connect_pwm_fan(NPCM7xxState *soc, SplitIRQ *splitter,
 static void npcm750_evb_i2c_init(NPCM7xxState *soc)
 {
     /* lm75 temperature sensor on SVB, tmp105 is compatible */
-    i2c_slave_create_simple(npcm7xx_i2c_get_bus(soc, 0), "tmp105", 0x48);
+    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 0), "tmp105", 0x48);
     /* lm75 temperature sensor on EB, tmp105 is compatible */
-    i2c_slave_create_simple(npcm7xx_i2c_get_bus(soc, 1), "tmp105", 0x48);
+    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 1), "tmp105", 0x48);
     /* tmp100 temperature sensor on EB, tmp105 is compatible */
-    i2c_slave_create_simple(npcm7xx_i2c_get_bus(soc, 2), "tmp105", 0x48);
+    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 2), "tmp105", 0x48);
     /* tmp100 temperature sensor on SVB, tmp105 is compatible */
-    i2c_slave_create_simple(npcm7xx_i2c_get_bus(soc, 6), "tmp105", 0x48);
+    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 6), "tmp105", 0x48);
 }
 
 static void npcm750_evb_fan_init(NPCM7xxMachine *machine, NPCM7xxState *soc)
@@ -234,10 +234,10 @@ static void npcm750_evb_fan_init(NPCM7xxMachine *machine, NPCM7xxState *soc)
 static void quanta_gsj_i2c_init(NPCM7xxState *soc)
 {
     /* GSJ machine have 4 max31725 temperature sensors, tmp105 is compatible. */
-    i2c_slave_create_simple(npcm7xx_i2c_get_bus(soc, 1), "tmp105", 0x5c);
-    i2c_slave_create_simple(npcm7xx_i2c_get_bus(soc, 2), "tmp105", 0x5c);
-    i2c_slave_create_simple(npcm7xx_i2c_get_bus(soc, 3), "tmp105", 0x5c);
-    i2c_slave_create_simple(npcm7xx_i2c_get_bus(soc, 4), "tmp105", 0x5c);
+    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 1), "tmp105", 0x5c);
+    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 2), "tmp105", 0x5c);
+    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 3), "tmp105", 0x5c);
+    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 4), "tmp105", 0x5c);
 
     at24c_eeprom_init(npcm7xx_i2c_get_bus(soc, 9), 0x55, 8192);
     at24c_eeprom_init(npcm7xx_i2c_get_bus(soc, 10), 0x55, 8192);
@@ -253,7 +253,7 @@ static void quanta_gsj_i2c_init(NPCM7xxState *soc)
      * - ucd90160@6b
      */
 
-    i2c_slave_create_simple(npcm7xx_i2c_get_bus(soc, 15), "pca9548", 0x75);
+    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 15), "pca9548", 0x75);
 }
 
 static void quanta_gsj_fan_init(NPCM7xxMachine *machine, NPCM7xxState *soc)
@@ -333,29 +333,29 @@ static void kudo_bmc_i2c_init(NPCM7xxState *soc)
 {
     I2CSlave *i2c_mux;
 
-    i2c_mux = i2c_slave_create_simple(npcm7xx_i2c_get_bus(soc, 1),
+    i2c_mux = i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 1),
                                       TYPE_PCA9548, 0x75);
 
     /* tmp105 is compatible with the lm75 */
-    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 4), "tmp105", 0x5c);
-    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 5), "tmp105", 0x5c);
-    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 6), "tmp105", 0x5c);
-    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 7), "tmp105", 0x5c);
+    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 4), "tmp105", 0x5c);
+    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 5), "tmp105", 0x5c);
+    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 6), "tmp105", 0x5c);
+    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 7), "tmp105", 0x5c);
 
-    i2c_slave_create_simple(npcm7xx_i2c_get_bus(soc, 1), TYPE_PCA9548, 0x77);
+    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 1), TYPE_PCA9548, 0x77);
 
-    i2c_slave_create_simple(npcm7xx_i2c_get_bus(soc, 4), TYPE_PCA9548, 0x77);
+    i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 4), TYPE_PCA9548, 0x77);
 
     at24c_eeprom_init(npcm7xx_i2c_get_bus(soc, 4), 0x50, 8192); /* mbfru */
 
-    i2c_mux = i2c_slave_create_simple(npcm7xx_i2c_get_bus(soc, 13),
+    i2c_mux = i2c_slave_create_simple_orphan(npcm7xx_i2c_get_bus(soc, 13),
                                       TYPE_PCA9548, 0x77);
 
     /* tmp105 is compatible with the lm75 */
-    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 2), "tmp105", 0x48);
-    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 3), "tmp105", 0x49);
-    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 4), "tmp105", 0x48);
-    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 5), "tmp105", 0x49);
+    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 2), "tmp105", 0x48);
+    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 3), "tmp105", 0x49);
+    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 4), "tmp105", 0x48);
+    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 5), "tmp105", 0x49);
 
     at24c_eeprom_init(npcm7xx_i2c_get_bus(soc, 14), 0x55, 8192); /* bmcfru */
 

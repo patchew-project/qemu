@@ -1327,7 +1327,7 @@ static void musicpal_init(MachineState *machine)
         qdev_connect_gpio_out(key_dev, i, qdev_get_gpio_in(dev, i + 15));
     }
 
-    wm8750_dev = i2c_slave_new(TYPE_WM8750, MP_WM_ADDR);
+    wm8750_dev = i2c_slave_new_orphan(TYPE_WM8750, MP_WM_ADDR);
     if (machine->audiodev) {
         qdev_prop_set_string(DEVICE(wm8750_dev), "audiodev", machine->audiodev);
     }

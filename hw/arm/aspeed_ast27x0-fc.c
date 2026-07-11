@@ -109,7 +109,7 @@ static bool ast2700fc_ca35_init(MachineState *machine, Error **errp)
     /*
      * AST2700 EVB has a LM75 temperature sensor on I2C bus 0 at address 0x4d.
      */
-    i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 0), "tmp105", 0x4d);
+    i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 0), "tmp105", 0x4d);
 
     aspeed_board_init_flashes(&soc->fmc, AST2700FC_FMC_MODEL, 2, 0);
     aspeed_board_init_flashes(&soc->spi[0], AST2700FC_SPI_MODEL, 1, 2);

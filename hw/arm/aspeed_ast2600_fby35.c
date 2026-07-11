@@ -102,12 +102,12 @@ static void fby35_i2c_init(AspeedMachineState *bmc)
         i2c[i] = aspeed_i2c_get_bus(&soc->i2c, i);
     }
 
-    i2c_slave_create_simple(i2c[2], TYPE_LM75, 0x4f);
-    i2c_slave_create_simple(i2c[8], TYPE_TMP421, 0x1f);
+    i2c_slave_create_simple_orphan(i2c[2], TYPE_LM75, 0x4f);
+    i2c_slave_create_simple_orphan(i2c[8], TYPE_TMP421, 0x1f);
     /* Hotswap controller is actually supposed to be mp5920 or ltc4282. */
-    i2c_slave_create_simple(i2c[11], "adm1272", 0x44);
-    i2c_slave_create_simple(i2c[12], TYPE_LM75, 0x4e);
-    i2c_slave_create_simple(i2c[12], TYPE_LM75, 0x4f);
+    i2c_slave_create_simple_orphan(i2c[11], "adm1272", 0x44);
+    i2c_slave_create_simple_orphan(i2c[12], TYPE_LM75, 0x4e);
+    i2c_slave_create_simple_orphan(i2c[12], TYPE_LM75, 0x4f);
 
     at24c_eeprom_init(i2c[4], 0x51, 128 * KiB);
     at24c_eeprom_init(i2c[6], 0x51, 128 * KiB);

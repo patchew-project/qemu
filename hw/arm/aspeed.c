@@ -253,13 +253,13 @@ static void aspeed_machine_init(MachineState *machine)
 
 void aspeed_create_pca9552(AspeedSoCState *soc, int bus_id, int addr)
 {
-    i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, bus_id),
+    i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, bus_id),
                             TYPE_PCA9552, addr);
 }
 
 I2CSlave *aspeed_create_pca9554(AspeedSoCState *soc, int bus_id, int addr)
 {
-    return i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, bus_id),
+    return i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, bus_id),
                             TYPE_PCA9554, addr);
 }
 

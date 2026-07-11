@@ -73,7 +73,7 @@ static void ast1030_evb_i2c_init(AspeedMachineState *bmc)
     smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 0), 0x50, eeprom_buf);
 
     /* U11 LM75 connects to SDA/SCL Group 2 by default */
-    i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 1), "tmp105", 0x4d);
+    i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 1), "tmp105", 0x4d);
 }
 
 static void aspeed_minibmc_machine_ast1030_evb_class_init(ObjectClass *oc,

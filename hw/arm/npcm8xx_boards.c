@@ -159,7 +159,7 @@ static void npcm8xx_connect_pwm_fan(NPCM8xxState *soc, SplitIRQ *splitter,
 static void npcm845_evb_i2c_init(NPCM8xxState *soc)
 {
     /* tmp100 temperature sensor on SVB, tmp105 is compatible */
-    i2c_slave_create_simple(npcm8xx_i2c_get_bus(soc, 6), "tmp105", 0x48);
+    i2c_slave_create_simple_orphan(npcm8xx_i2c_get_bus(soc, 6), "tmp105", 0x48);
 }
 
 static void npcm845_evb_fan_init(NPCM8xxMachine *machine, NPCM8xxState *soc)

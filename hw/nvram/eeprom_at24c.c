@@ -148,7 +148,7 @@ I2CSlave *at24c_eeprom_init_rom(I2CBus *bus, uint8_t address, uint32_t rom_size,
 {
     EEPROMState *s;
 
-    s = AT24C_EE(i2c_slave_new(TYPE_AT24C_EE, address));
+    s = AT24C_EE(i2c_slave_new_orphan(TYPE_AT24C_EE, address));
 
     qdev_prop_set_uint32(DEVICE(s), "rom-size", rom_size);
 

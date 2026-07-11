@@ -237,17 +237,17 @@ static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
     /* eeprom@50 */
     at24c_eeprom_init(i2c[0], 0x50, 256 * KiB);
     /* i2c-mux@70 */
-    i2c_slave_create_simple(i2c[0], TYPE_PCA9546, 0x70);
+    i2c_slave_create_simple_orphan(i2c[0], TYPE_PCA9546, 0x70);
 
     /* &i2c1 */
     /* eeprom@50 */
     at24c_eeprom_init(i2c[1], 0x50, 256 * KiB);
     /* i2c-mux@70 (PCA9546) — 4 channels, empty */
-    i2c_slave_create_simple(i2c[1], TYPE_PCA9546, 0x70);
+    i2c_slave_create_simple_orphan(i2c[1], TYPE_PCA9546, 0x70);
 
     /* &i2c4 */
     /* i2c-mux@70 (PCA9548) */
-    i2c_slave_create_simple(i2c[4], TYPE_PCA9548, 0x70);
+    i2c_slave_create_simple_orphan(i2c[4], TYPE_PCA9548, 0x70);
 
     /* &i2c6 */
     /* eeprom@50 */
@@ -256,15 +256,15 @@ static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
 
     /* &i2c8 */
     /* i2c-mux@72 (PCA9546) */
-    i2c_mux = i2c_slave_create_simple(i2c[8], TYPE_PCA9546, 0x72);
+    i2c_mux = i2c_slave_create_simple_orphan(i2c[8], TYPE_PCA9546, 0x72);
 
     /* i2c8mux ch0 */
     /* adc128d818@1f — no model */
     /* pca9555@22 */
-    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 0),
+    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 0),
                             TYPE_PCA9552, 0x22);
     /* pca9555@24 */
-    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 0),
+    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 0),
                             TYPE_PCA9552, 0x24);
     /* eeprom@50 */
     at24c_eeprom_init_rom(pca954x_i2c_get_bus(i2c_mux, 0), 0x50, 16 * KiB,
@@ -272,10 +272,10 @@ static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
 
     /* i2c8mux ch1 */
     /* pca9555@22 */
-    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 1),
+    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 1),
                             TYPE_PCA9552, 0x22);
     /* pca9555@24 */
-    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 1),
+    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 1),
                             TYPE_PCA9552, 0x24);
     /* eeprom@50 */
     at24c_eeprom_init_rom(pca954x_i2c_get_bus(i2c_mux, 1), 0x50, 16 * KiB,
@@ -291,11 +291,11 @@ static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
 
     /* &i2c10 */
     /* i2c-mux@71 (PCA9548) */
-    i2c_mux = i2c_slave_create_simple(i2c[10], TYPE_PCA9548, 0x71);
+    i2c_mux = i2c_slave_create_simple_orphan(i2c[10], TYPE_PCA9548, 0x71);
 
     /* i2c10mux ch5 */
     /* pca9555@22*/
-    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 5),
+    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 5),
                             TYPE_PCA9552, 0x22);
     /* eeprom@52 */
     at24c_eeprom_init_rom(pca954x_i2c_get_bus(i2c_mux, 5), 0x52, 32 * KiB,
@@ -303,13 +303,13 @@ static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
 
     /* &i2c11 */
     /* i2c-mux@71 (PCA9548) */
-    i2c_mux = i2c_slave_create_simple(i2c[11], TYPE_PCA9548, 0x71);
+    i2c_mux = i2c_slave_create_simple_orphan(i2c[11], TYPE_PCA9548, 0x71);
 
     /* i2c11mux ch0-ch4 — empty */
 
     /* i2c11mux ch5 */
     /* pca9555@22 */
-    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 5),
+    i2c_slave_create_simple_orphan(pca954x_i2c_get_bus(i2c_mux, 5),
                             TYPE_PCA9552, 0x22);
     /* eeprom@52 */
     at24c_eeprom_init_rom(pca954x_i2c_get_bus(i2c_mux, 5), 0x52, 32 * KiB,
@@ -317,7 +317,7 @@ static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
 
     /* &i2c13 */
     /* i2c-mux@70 (PCA9548) */
-    i2c_mux = i2c_slave_create_simple(i2c[13], TYPE_PCA9548, 0x70);
+    i2c_mux = i2c_slave_create_simple_orphan(i2c[13], TYPE_PCA9548, 0x70);
 
     /* i2c13mux ch3 */
     /* adc128d818@1f - no model */

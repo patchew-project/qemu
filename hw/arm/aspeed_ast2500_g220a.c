@@ -32,19 +32,19 @@ static void g220a_bmc_i2c_init(AspeedMachineState *bmc)
     AspeedSoCState *soc = bmc->soc;
     DeviceState *dev;
 
-    dev = DEVICE(i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 3),
+    dev = DEVICE(i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 3),
                                          "emc1413", 0x4c));
     object_property_set_int(OBJECT(dev), "temperature0", 31000, &error_abort);
     object_property_set_int(OBJECT(dev), "temperature1", 28000, &error_abort);
     object_property_set_int(OBJECT(dev), "temperature2", 20000, &error_abort);
 
-    dev = DEVICE(i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 12),
+    dev = DEVICE(i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 12),
                                          "emc1413", 0x4c));
     object_property_set_int(OBJECT(dev), "temperature0", 31000, &error_abort);
     object_property_set_int(OBJECT(dev), "temperature1", 28000, &error_abort);
     object_property_set_int(OBJECT(dev), "temperature2", 20000, &error_abort);
 
-    dev = DEVICE(i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 13),
+    dev = DEVICE(i2c_slave_create_simple_orphan(aspeed_i2c_get_bus(&soc->i2c, 13),
                                          "emc1413", 0x4c));
     object_property_set_int(OBJECT(dev), "temperature0", 31000, &error_abort);
     object_property_set_int(OBJECT(dev), "temperature1", 28000, &error_abort);
