@@ -164,19 +164,6 @@ DeviceState *qdev_try_new(Object *parent, const char *id, const char *type)
     return DEVICE(obj);
 }
 
-DeviceState *qdev_new_orphan(const char *name)
-{
-    return DEVICE(object_new(name));
-}
-
-DeviceState *qdev_try_new_orphan(const char *name)
-{
-    ObjectClass *oc = module_object_class_by_name(name);
-    if (!oc) {
-        return NULL;
-    }
-    return DEVICE(object_new_with_class(oc));
-}
 
 static QTAILQ_HEAD(, DeviceListener) device_listeners
     = QTAILQ_HEAD_INITIALIZER(device_listeners);
