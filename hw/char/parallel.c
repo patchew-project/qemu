@@ -585,7 +585,8 @@ static const MemoryRegionOps parallel_mm_ops = {
 };
 
 /* If fd is zero, it means that the parallel device uses the console */
-bool parallel_mm_init(MemoryRegion *address_space,
+bool parallel_mm_init(Object *owner,
+                      MemoryRegion *address_space,
                       hwaddr base, int it_shift, qemu_irq irq,
                       Chardev *chr)
 {
@@ -597,7 +598,7 @@ bool parallel_mm_init(MemoryRegion *address_space,
     s->it_shift = it_shift;
     qemu_register_reset(parallel_reset, s);
 
-    memory_region_init_io(&s->iomem, NULL, &parallel_mm_ops, s,
+    memory_region_init_io(&s->iomem, owner, &parallel_mm_ops, s,
                           "parallel", 8 << it_shift);
     memory_region_add_subregion(address_space, base, &s->iomem);
     return true;

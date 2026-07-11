@@ -25,7 +25,8 @@ typedef struct ParallelState {
 
 void parallel_hds_isa_init(Object *parent, ISABus *bus, int n);
 
-bool parallel_mm_init(MemoryRegion *address_space,
+bool parallel_mm_init(Object *owner,
+                      MemoryRegion *address_space,
                       hwaddr base, int it_shift, qemu_irq irq,
                       Chardev *chr);
 

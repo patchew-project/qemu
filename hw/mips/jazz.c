@@ -385,7 +385,7 @@ static void mips_jazz_init(MachineState *machine,
 
     /* Parallel port */
     if (parallel_hds[0])
-        parallel_mm_init(address_space, 0x80008000, 0,
+        parallel_mm_init(OBJECT(machine), address_space, 0x80008000, 0,
                          qdev_get_gpio_in(rc4030, 0), parallel_hds[0]);
 
     /* FIXME: missing Jazz sound at 0x8000c000, rc4030[2] */

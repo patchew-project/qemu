@@ -329,7 +329,8 @@ static const MemoryRegionOps htif_mm_ops = {
     },
 };
 
-HTIFState *htif_mm_init(MemoryRegion *address_space, Chardev *chr,
+HTIFState *htif_mm_init(Object *owner,
+                        MemoryRegion *address_space, Chardev *chr,
                         uint64_t nonelf_base, bool custom_base)
 {
     uint64_t base, size, tohost_offset, fromhost_offset;
@@ -359,7 +360,7 @@ HTIFState *htif_mm_init(MemoryRegion *address_space, Chardev *chr,
     qemu_chr_fe_set_handlers(&s->chr, htif_can_recv, htif_recv, htif_event,
         htif_be_change, s, NULL, true);
 
-    memory_region_init_io(&s->mmio, NULL, &htif_mm_ops, s,
+    memory_region_init_io(&s->mmio, owner, &htif_mm_ops, s,
                           TYPE_HTIF_UART, size);
     memory_region_add_subregion_overlap(address_space, base,
                                         &s->mmio, 1);
